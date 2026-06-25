@@ -54,9 +54,24 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.SUBMODULES_TOKEN || github.token }}
-          submodules: recursive
           fetch-depth: 0
+
+      - name: Checkout submodules
+        shell: pwsh
+        env:
+          SUBMODULES_TOKEN: ${{ secrets.SUBMODULES_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          $token = $env:SUBMODULES_TOKEN
+          if ([string]::IsNullOrWhiteSpace($token)) {
+            $token = $env:GITHUB_TOKEN
+          }
+
+          $encoded = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("x-access-token:$token"))
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $encoded" submodule update --init --recursive
+          if ($LASTEXITCODE -ne 0) {
+            throw "Submodule checkout failed. If ThirdPartyCompat is private, add a SUBMODULES_TOKEN repository secret with read access to AIRsLight/ClashOfRim.ThirdPartyCompat."
+          }
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -91,9 +106,24 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.SUBMODULES_TOKEN || github.token }}
-          submodules: recursive
           fetch-depth: 0
+
+      - name: Checkout submodules
+        shell: pwsh
+        env:
+          SUBMODULES_TOKEN: ${{ secrets.SUBMODULES_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          $token = $env:SUBMODULES_TOKEN
+          if ([string]::IsNullOrWhiteSpace($token)) {
+            $token = $env:GITHUB_TOKEN
+          }
+
+          $encoded = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("x-access-token:$token"))
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $encoded" submodule update --init --recursive
+          if ($LASTEXITCODE -ne 0) {
+            throw "Submodule checkout failed. If ThirdPartyCompat is private, add a SUBMODULES_TOKEN repository secret with read access to AIRsLight/ClashOfRim.ThirdPartyCompat."
+          }
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
