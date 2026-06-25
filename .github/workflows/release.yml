@@ -1,0 +1,163 @@
+name: Build release
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - dev
+
+permissions:
+  contents: write
+
+env:
+  BASE_VERSION: "0.12"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  NUGET_XMLDOC_MODE: skip
+
+jobs:
+  metadata:
+    name: Prepare release metadata
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      artifact_suffix: ${{ steps.version.outputs.artifact_suffix }}
+      is_prerelease: ${{ steps.version.outputs.is_prerelease }}
+    steps:
+      - name: Compute branch version
+        id: version
+        shell: bash
+        run: |
+          branch="${GITHUB_REF_NAME//\//-}"
+          version="${BASE_VERSION}-${branch}"
+          echo "version=${version}" >> "${GITHUB_OUTPUT}"
+          echo "artifact_suffix=${version}" >> "${GITHUB_OUTPUT}"
+          if [ "${GITHUB_REF_NAME}" = "main" ]; then
+            echo "is_prerelease=false" >> "${GITHUB_OUTPUT}"
+          else
+            echo "is_prerelease=true" >> "${GITHUB_OUTPUT}"
+          fi
+
+  build-server:
+    name: Build server (${{ matrix.rid }})
+    needs: metadata
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            rid: win-x64
+          - os: ubuntu-latest
+            rid: linux-x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.SUBMODULES_TOKEN || github.token }}
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Build server package
+        shell: pwsh
+        run: ./Tools/BuildServerPackage.ps1 -Configuration Release -RuntimeIdentifier ${{ matrix.rid }}
+
+      - name: Archive server package
+        shell: pwsh
+        run: |
+          $artifactRoot = Join-Path $PWD "Artifacts"
+          New-Item -ItemType Directory -Force -Path $artifactRoot | Out-Null
+          $source = Join-Path $PWD "Build/ClashOfRim.NetworkServer/${{ matrix.rid }}"
+          $archive = Join-Path $artifactRoot "ClashOfRim.NetworkServer-${{ matrix.rid }}-${{ needs.metadata.outputs.artifact_suffix }}.zip"
+          Compress-Archive -Path (Join-Path $source "*") -DestinationPath $archive -Force
+
+      - name: Upload server artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-${{ matrix.rid }}
+          path: Artifacts/*.zip
+          if-no-files-found: error
+
+  build-client-mods:
+    name: Build client mods
+    needs: metadata
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.SUBMODULES_TOKEN || github.token }}
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore main client mod
+        shell: pwsh
+        run: dotnet restore Source/Client/ClashOfRim.csproj
+
+      - name: Build main client mod
+        shell: pwsh
+        run: ./Tools/BuildClientMod.ps1 -Configuration Release
+
+      - name: Build third-party compatibility client mod
+        shell: pwsh
+        run: ./Tools/BuildThirdPartyCompatMod.ps1 -Configuration Release -Clean
+
+      - name: Archive client mods
+        shell: pwsh
+        run: |
+          $artifactRoot = Join-Path $PWD "Artifacts"
+          New-Item -ItemType Directory -Force -Path $artifactRoot | Out-Null
+          Compress-Archive -LiteralPath (Join-Path $PWD "Build/ClashOfRim") -DestinationPath (Join-Path $artifactRoot "ClashOfRim.ClientMod-${{ needs.metadata.outputs.artifact_suffix }}.zip") -Force
+          Compress-Archive -LiteralPath (Join-Path $PWD "Build/ClashOfRim.ThirdPartyCompat") -DestinationPath (Join-Path $artifactRoot "ClashOfRim.ThirdPartyCompat.ClientMod-${{ needs.metadata.outputs.artifact_suffix }}.zip") -Force
+
+      - name: Upload client mod artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-mods
+          path: Artifacts/*.zip
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub release
+    needs:
+      - metadata
+      - build-server
+      - build-client-mods
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ needs.metadata.outputs.version }}
+          IS_PRERELEASE: ${{ needs.metadata.outputs.is_prerelease }}
+        shell: bash
+        run: |
+          args=()
+          if [ "${IS_PRERELEASE}" = "true" ]; then
+            args+=(--prerelease)
+          fi
+
+          gh release delete "${VERSION}" --cleanup-tag -y || true
+          gh api -X DELETE "repos/${GITHUB_REPOSITORY}/git/refs/tags/${VERSION}" || true
+          gh release create "${VERSION}" dist/*.zip \
+            --target "${GITHUB_SHA}" \
+            --title "${VERSION}" \
+            --notes "Automated build for ${GITHUB_REF_NAME} (${GITHUB_SHA})." \
+            "${args[@]}"
