@@ -130,6 +130,32 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
+      - name: Restore RimWorld client reference packages
+        shell: pwsh
+        run: |
+          $restoreRoot = Join-Path $PWD "Build/ClientReferenceRestore"
+          if (Test-Path -LiteralPath $restoreRoot) {
+            Remove-Item -LiteralPath $restoreRoot -Recurse -Force
+          }
+
+          New-Item -ItemType Directory -Force -Path $restoreRoot | Out-Null
+          @"
+          <Project Sdk="Microsoft.NET.Sdk">
+            <PropertyGroup>
+              <TargetFramework>net472</TargetFramework>
+            </PropertyGroup>
+            <ItemGroup>
+              <PackageReference Include="krafs.rimworld.ref" Version="1.6.4566" PrivateAssets="all" />
+              <PackageReference Include="lib.harmony" Version="2.4.1" PrivateAssets="all" />
+            </ItemGroup>
+          </Project>
+          "@ | Set-Content -LiteralPath (Join-Path $restoreRoot "ClientReferenceRestore.csproj") -Encoding UTF8
+
+          dotnet restore (Join-Path $restoreRoot "ClientReferenceRestore.csproj")
+          if ($LASTEXITCODE -ne 0) {
+            throw "RimWorld client reference package restore failed with exit code $LASTEXITCODE"
+          }
+
       - name: Restore main client mod
         shell: pwsh
         run: dotnet restore Source/Client/ClashOfRim.csproj
