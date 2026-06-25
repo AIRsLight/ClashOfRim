@@ -11,7 +11,6 @@ permissions:
   contents: write
 
 env:
-  BASE_VERSION: "0.12"
   DOTNET_CLI_TELEMETRY_OPTOUT: "1"
   NUGET_XMLDOC_MODE: skip
 
@@ -24,12 +23,22 @@ jobs:
       artifact_suffix: ${{ steps.version.outputs.artifact_suffix }}
       is_prerelease: ${{ steps.version.outputs.is_prerelease }}
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Compute branch version
         id: version
         shell: bash
         run: |
+          version_file="Source/Shared/ClashOfRim.Compatibility/Versioning/ClashOfRimVersion.cs"
+          product_version="$(sed -nE 's/.*ProductVersion[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/p' "${version_file}" | head -n 1)"
+          if [ -z "${product_version}" ]; then
+            echo "Unable to read ProductVersion from ${version_file}" >&2
+            exit 1
+          fi
+
           branch="${GITHUB_REF_NAME//\//-}"
-          version="${BASE_VERSION}-${branch}"
+          version="${product_version}-${branch}"
           echo "version=${version}" >> "${GITHUB_OUTPUT}"
           echo "artifact_suffix=${version}" >> "${GITHUB_OUTPUT}"
           if [ "${GITHUB_REF_NAME}" = "main" ]; then
