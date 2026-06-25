@@ -1966,6 +1966,38 @@ static void VerifyTradeFulfillmentRequirementMatching()
     };
     Require(TradeThingRequirementMatcher.Satisfies(xenogermRequirements, wrongGeneHolderDelivered, out missing, metadataMatchers), "异种胚芽求购按同样的目标基因包含规则履约");
 
+    var embryoRequirements = new[]
+    {
+        new ThingReferenceDto(
+            "request:alien-embryo",
+            "HumanEmbryo",
+            1,
+            metadata: BiotechReproductiveSourceMetadata("Mother", "AlienRace", "FurSkin", "Robust"))
+    };
+    var matchingEmbryoDelivered = new[]
+    {
+        new ThingReferenceDto(
+            "caravan:alien-embryo",
+            "HumanEmbryo",
+            1,
+            metadata: BiotechReproductiveSourceMetadata("Mother", "AlienRace", "Robust", "FurSkin"))
+    };
+    Require(
+        TradeThingRequirementMatcher.Satisfies(embryoRequirements, matchingEmbryoDelivered, out missing, metadataMatchers),
+        "胚胎/卵细胞来源种族和基因摘要一致时应可履约");
+
+    var wrongRaceEmbryoDelivered = new[]
+    {
+        new ThingReferenceDto(
+            "caravan:human-embryo",
+            "HumanEmbryo",
+            1,
+            metadata: BiotechReproductiveSourceMetadata("Mother", "Human", "FurSkin", "Robust"))
+    };
+    Require(
+        !TradeThingRequirementMatcher.Satisfies(embryoRequirements, wrongRaceEmbryoDelivered, out missing, metadataMatchers),
+        "胚胎/卵细胞来源种族不一致时不能履约");
+
     var anySkillBookRequirements = new[]
     {
         new ThingReferenceDto("request:skill-book", "TextBook", 1)
@@ -3637,6 +3669,20 @@ static Dictionary<string, string?> BiotechTargetGeneMetadata(string geneDefName)
     };
 }
 
+static Dictionary<string, string?> BiotechReproductiveSourceMetadata(
+    string role,
+    string raceDefName,
+    params string[] endogeneDefNames)
+{
+    return new Dictionary<string, string?>
+    {
+        ["rimworld.biotech.reproductiveSource.count"] = "1",
+        ["rimworld.biotech.reproductiveSource.0.role"] = role,
+        ["rimworld.biotech.reproductiveSource.0.raceDef"] = raceDefName,
+        ["rimworld.biotech.reproductiveSource.0.endogeneDefNames"] = string.Join(",", endogeneDefNames)
+    };
+}
+
 static Dictionary<string, string?> CoreBookSkillMetadata(params string[] skillDefNames)
 {
     return new Dictionary<string, string?>
@@ -3657,6 +3703,12 @@ internal sealed class TestTradeThingMetadataMatcher : ITradeThingMetadataMatcher
 {
     private const string BiotechGeneDefNamesKey = "rimworld.biotech.geneDefNames";
     private const string BiotechTargetGeneDefNameKey = "rimworld.biotech.targetGeneDefName";
+    private const string BiotechReproductiveSourcePrefix = "rimworld.biotech.reproductiveSource.";
+    private const string BiotechReproductiveSourceCountKey = BiotechReproductiveSourcePrefix + "count";
+    private const string BiotechReproductiveSourceRoleField = "role";
+    private const string BiotechReproductiveSourceRaceDefField = "raceDef";
+    private const string BiotechReproductiveSourceEndogeneDefNamesField = "endogeneDefNames";
+    private const string BiotechReproductiveSourceXenogeneDefNamesField = "xenogeneDefNames";
     private const string CoreBookSkillDefNamesKey = "clashofrim.core.bookSkillDefNames";
     private const string CoreTargetBookSkillDefNameKey = "clashofrim.core.targetBookSkillDefName";
     private const string CoreResearchProjectDefNameKey = "clashofrim.core.researchProjectDefName";
@@ -3668,6 +3720,11 @@ internal sealed class TestTradeThingMetadataMatcher : ITradeThingMetadataMatcher
         if (!string.IsNullOrWhiteSpace(MetadataValue(requirement, BiotechTargetGeneDefNameKey)))
         {
             strictness += 1_000_000;
+        }
+
+        if (ReproductiveSources(requirement).Count > 0)
+        {
+            strictness += 900_000;
         }
 
         if (!string.IsNullOrWhiteSpace(MetadataValue(requirement, CoreTargetBookSkillDefNameKey)))
@@ -3708,6 +3765,11 @@ internal sealed class TestTradeThingMetadataMatcher : ITradeThingMetadataMatcher
             return false;
         }
 
+        if (!ReproductiveSourceRequirementMatches(requirement, candidate))
+        {
+            return false;
+        }
+
         return true;
     }
 
@@ -3730,4 +3792,92 @@ internal sealed class TestTradeThingMetadataMatcher : ITradeThingMetadataMatcher
                 .Select(item => item.Trim())
                 .Where(item => !string.IsNullOrWhiteSpace(item));
     }
+
+    private static bool ReproductiveSourceRequirementMatches(ThingReferenceDto requirement, ThingReferenceDto candidate)
+    {
+        IReadOnlyList<TestReproductiveSourceRecord> requiredSources = ReproductiveSources(requirement);
+        if (requiredSources.Count == 0)
+        {
+            return true;
+        }
+
+        IReadOnlyList<TestReproductiveSourceRecord> candidateSources = ReproductiveSources(candidate);
+        if (candidateSources.Count == 0)
+        {
+            return false;
+        }
+
+        foreach (TestReproductiveSourceRecord required in requiredSources)
+        {
+            if (!candidateSources.Any(candidateSource => ReproductiveSourceRecordMatches(required, candidateSource)))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool ReproductiveSourceRecordMatches(
+        TestReproductiveSourceRecord required,
+        TestReproductiveSourceRecord candidate)
+    {
+        return MetadataTextMatches(required.Role, candidate.Role)
+            && MetadataTextMatches(required.RaceDefName, candidate.RaceDefName)
+            && MetadataListMatches(required.EndogeneDefNames, candidate.EndogeneDefNames)
+            && MetadataListMatches(required.XenogeneDefNames, candidate.XenogeneDefNames);
+    }
+
+    private static bool MetadataTextMatches(string? required, string? candidate)
+    {
+        return string.IsNullOrWhiteSpace(required)
+            || string.Equals(required, candidate, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool MetadataListMatches(IReadOnlyCollection<string> required, IReadOnlyCollection<string> candidate)
+    {
+        return required.Count == 0
+            || (required.Count == candidate.Count
+                && required.All(requiredItem => candidate.Any(candidateItem =>
+                    string.Equals(requiredItem, candidateItem, StringComparison.OrdinalIgnoreCase))));
+    }
+
+    private static IReadOnlyList<TestReproductiveSourceRecord> ReproductiveSources(ThingReferenceDto reference)
+    {
+        string? countText = MetadataValue(reference, BiotechReproductiveSourceCountKey);
+        if (!int.TryParse(countText, out int count) || count <= 0)
+        {
+            return Array.Empty<TestReproductiveSourceRecord>();
+        }
+
+        var records = new List<TestReproductiveSourceRecord>(count);
+        for (int i = 0; i < count; i++)
+        {
+            var record = new TestReproductiveSourceRecord(
+                Role: MetadataValue(reference, ReproductiveSourceKey(i, BiotechReproductiveSourceRoleField)),
+                RaceDefName: MetadataValue(reference, ReproductiveSourceKey(i, BiotechReproductiveSourceRaceDefField)),
+                EndogeneDefNames: MetadataList(reference, ReproductiveSourceKey(i, BiotechReproductiveSourceEndogeneDefNamesField)).ToArray(),
+                XenogeneDefNames: MetadataList(reference, ReproductiveSourceKey(i, BiotechReproductiveSourceXenogeneDefNamesField)).ToArray());
+            if (!string.IsNullOrWhiteSpace(record.Role)
+                || !string.IsNullOrWhiteSpace(record.RaceDefName)
+                || record.EndogeneDefNames.Count > 0
+                || record.XenogeneDefNames.Count > 0)
+            {
+                records.Add(record);
+            }
+        }
+
+        return records;
+    }
+
+    private static string ReproductiveSourceKey(int index, string field)
+    {
+        return BiotechReproductiveSourcePrefix + index + "." + field;
+    }
+
+    private readonly record struct TestReproductiveSourceRecord(
+        string? Role,
+        string? RaceDefName,
+        IReadOnlyList<string> EndogeneDefNames,
+        IReadOnlyList<string> XenogeneDefNames);
 }

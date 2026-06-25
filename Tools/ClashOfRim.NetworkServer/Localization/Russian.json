@@ -507,6 +507,7 @@
   "Trade.RequirementHitPointsAtLeast": "прочность>={HITPOINTS}",
   "Trade.RequirementHitPointsAtMost": "прочность<={HITPOINTS}",
   "Trade.RequirementTargetGene": "содержит гены {GENE}",
+  "Trade.RequirementBiotechReproductiveSource": "источник размножения {SOURCE}",
   "Trade.RequirementUniqueWeapon": "специализированное/персональное оружие",
   "Trade.RequirementUniqueWeaponTraits": "черты специализированного/персонального оружия {TRAITS}",
   "Trade.RequirementTraitWeapon": "специализированное/персональное оружие",

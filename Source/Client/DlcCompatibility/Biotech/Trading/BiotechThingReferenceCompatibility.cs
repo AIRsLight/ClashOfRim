@@ -15,6 +15,20 @@ internal static partial class BiotechCompatibility
     private const string MetadataTargetGeneDefName = "rimworld.biotech.targetGeneDefName";
     private const string MetadataXenotypeName = "rimworld.biotech.xenotypeName";
     private const string MetadataXenotypeIconDefName = "rimworld.biotech.xenotypeIconDefName";
+    private const string MetadataReproductiveSourcePrefix = "rimworld.biotech.reproductiveSource.";
+    private const string MetadataReproductiveSourceCount = MetadataReproductiveSourcePrefix + "count";
+    private const string MetadataReproductiveSourceRole = "role";
+    private const string MetadataReproductiveSourceGlobalId = "globalId";
+    private const string MetadataReproductiveSourceName = "name";
+    private const string MetadataReproductiveSourceRaceDef = "raceDef";
+    private const string MetadataReproductiveSourcePawnKindDef = "pawnKindDef";
+    private const string MetadataReproductiveSourceGender = "gender";
+    private const string MetadataReproductiveSourceDead = "dead";
+    private const string MetadataReproductiveSourceFactionDef = "factionDef";
+    private const string MetadataReproductiveSourceXenotypeDef = "xenotypeDef";
+    private const string MetadataReproductiveSourceEndogeneDefNames = "endogeneDefNames";
+    private const string MetadataReproductiveSourceXenogeneDefNames = "xenogeneDefNames";
+    private const int MaxReproductiveSources = 4;
 
     internal static IReadOnlyList<string> GeneDefNames(ModThingReferenceDto? reference)
     {
@@ -74,7 +88,7 @@ internal static partial class BiotechCompatibility
 
     internal static void ClearThingReferenceMetadata(string surface, ThingDef? def, ModThingReferenceDto item)
     {
-        if (!HasBiotechTradeMetadata || IsGeneSetHolderDef(def))
+        if (!HasBiotechTradeMetadata || IsGeneSetHolderDef(def) || IsReproductiveSourceCarrierDef(def))
         {
             return;
         }
@@ -83,6 +97,7 @@ internal static partial class BiotechCompatibility
         item.Metadata.Remove(MetadataTargetGeneDefName);
         item.Metadata.Remove(MetadataXenotypeName);
         item.Metadata.Remove(MetadataXenotypeIconDefName);
+        ClearReproductiveSourceMetadata(item);
     }
 
     internal static bool IsThingReferenceComplete(string surface, ThingDef? def, ModThingReferenceDto item)
@@ -127,6 +142,8 @@ internal static partial class BiotechCompatibility
             SetXenotypeName(reference, string.IsNullOrWhiteSpace(xenogerm.xenotypeName) ? null : xenogerm.xenotypeName);
             SetXenotypeIconDefName(reference, xenogerm.iconDef?.defName);
         }
+
+        AppendReproductiveSourceMetadata(metadataThing, reference);
     }
 
     internal static void NormalizeBiotechThingReferenceMetadata(ModThingReferenceDto reference)
@@ -138,7 +155,8 @@ internal static partial class BiotechCompatibility
     {
         NormalizeBiotechMetadata(requirement);
         return !HasBiotechTradeMetadata
-            || GeneRequirementMatches(requirement, CandidateGeneDefNames(metadataThing));
+            || (GeneRequirementMatches(requirement, CandidateGeneDefNames(metadataThing))
+                && ReproductiveSourceRequirementMatches(requirement, CandidateReproductiveSources(metadataThing)));
     }
 
     internal static bool ThingReferenceDtoMatches(ModThingReferenceDto requirement, ModThingReferenceDto candidate)
@@ -146,65 +164,77 @@ internal static partial class BiotechCompatibility
         NormalizeBiotechMetadata(requirement);
         NormalizeBiotechMetadata(candidate);
         return !HasBiotechTradeMetadata
-            || GeneRequirementMatches(requirement, GeneDefNames(candidate));
+            || (GeneRequirementMatches(requirement, GeneDefNames(candidate))
+                && ReproductiveSourceRequirementMatches(requirement, ReproductiveSources(candidate)));
     }
 
     internal static bool TryApplyThingReferenceMetadata(ModThingReferenceDto reference, Thing thing, out string? missingDefName)
     {
         missingDefName = null;
         NormalizeBiotechMetadata(reference);
-        if (!HasBiotechTradeMetadata
-            || GeneDefNames(reference).Count == 0
-            || thing is not GeneSetHolderBase)
+        if (!HasBiotechTradeMetadata)
         {
             return true;
         }
 
-        List<GeneDef> genes = new();
-        foreach (string geneDefName in GeneDefNames(reference))
+        if (GeneDefNames(reference).Count > 0 && thing is GeneSetHolderBase)
         {
-            GeneDef? gene = ResolveGeneDef(geneDefName);
-            if (gene is null)
+            List<GeneDef> genes = new();
+            foreach (string geneDefName in GeneDefNames(reference))
             {
-                missingDefName = geneDefName;
-                return false;
+                GeneDef? gene = ResolveGeneDef(geneDefName);
+                if (gene is null)
+                {
+                    missingDefName = geneDefName;
+                    return false;
+                }
+
+                genes.Add(gene);
             }
 
-            genes.Add(gene);
+            if (thing is Genepack genepack)
+            {
+                genepack.Initialize(genes);
+                return TryApplyReproductiveSourceMetadata(reference, thing, out missingDefName);
+            }
+
+            if (thing is Xenogerm xenogerm)
+            {
+                Genepack sourcePack = (Genepack)ThingMaker.MakeThing(ThingDefOf.Genepack);
+                sourcePack.Initialize(genes);
+                string? xenotypeIconDefName = XenotypeIconDefName(reference);
+                XenotypeIconDef icon = string.IsNullOrWhiteSpace(xenotypeIconDefName)
+                    ? XenotypeIconDefOf.Basic
+                    : DefDatabase<XenotypeIconDef>.GetNamedSilentFail(xenotypeIconDefName) ?? XenotypeIconDefOf.Basic;
+                string? xenotypeName = XenotypeName(reference);
+                xenogerm.Initialize(
+                    new List<Genepack> { sourcePack },
+                    string.IsNullOrWhiteSpace(xenotypeName)
+                        ? ClashOfRimText.Key("ClashOfRim.Trade.GeneXenotypeName")
+                        : xenotypeName!,
+                    icon);
+            }
+
         }
 
-        if (thing is Genepack genepack)
-        {
-            genepack.Initialize(genes);
-            return true;
-        }
-
-        if (thing is Xenogerm xenogerm)
-        {
-            Genepack sourcePack = (Genepack)ThingMaker.MakeThing(ThingDefOf.Genepack);
-            sourcePack.Initialize(genes);
-            string? xenotypeIconDefName = XenotypeIconDefName(reference);
-            XenotypeIconDef icon = string.IsNullOrWhiteSpace(xenotypeIconDefName)
-                ? XenotypeIconDefOf.Basic
-                : DefDatabase<XenotypeIconDef>.GetNamedSilentFail(xenotypeIconDefName) ?? XenotypeIconDefOf.Basic;
-            string? xenotypeName = XenotypeName(reference);
-            xenogerm.Initialize(
-                new List<Genepack> { sourcePack },
-                string.IsNullOrWhiteSpace(xenotypeName)
-                    ? ClashOfRimText.Key("ClashOfRim.Trade.GeneXenotypeName")
-                    : xenotypeName!,
-                icon);
-        }
-
-        return true;
+        return TryApplyReproductiveSourceMetadata(reference, thing, out missingDefName);
     }
 
     internal static int ThingReferenceStrictness(ModThingReferenceDto requirement)
     {
         NormalizeBiotechMetadata(requirement);
-        return HasBiotechTradeMetadata && TargetGeneDefNames(requirement).Count > 0
-            ? 1_000_000
-            : 0;
+        if (!HasBiotechTradeMetadata)
+        {
+            return 0;
+        }
+
+        int strictness = TargetGeneDefNames(requirement).Count > 0 ? 1_000_000 : 0;
+        if (ReproductiveSources(requirement).Count > 0)
+        {
+            strictness += 900_000;
+        }
+
+        return strictness;
     }
 
     private static GeneDef? ResolveGeneDef(string? defName)

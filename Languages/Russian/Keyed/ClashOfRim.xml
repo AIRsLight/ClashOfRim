@@ -1198,6 +1198,7 @@
   <ClashOfRim.Trade.SourceLabels>Источник {SOURCES}</ClashOfRim.Trade.SourceLabels>
   <ClashOfRim.Trade.ArtTitle>искусство {TITLE}</ClashOfRim.Trade.ArtTitle>
   <ClashOfRim.Trade.TargetGeneRequirement>содержит {GENE}</ClashOfRim.Trade.TargetGeneRequirement>
+  <ClashOfRim.Trade.ReproductiveSources>источник {SOURCES}</ClashOfRim.Trade.ReproductiveSources>
   <ClashOfRim.Trade.UnknownOwner>Неизвестный автор</ClashOfRim.Trade.UnknownOwner>
   <ClashOfRim.Trade.ViewerAcceptedSuffix>, принято мной</ClashOfRim.Trade.ViewerAcceptedSuffix>
   <ClashOfRim.Trade.ViewOnly>Только просмотр</ClashOfRim.Trade.ViewOnly>

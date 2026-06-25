@@ -507,6 +507,7 @@
   "Trade.RequirementHitPointsAtLeast": "耐久>={HITPOINTS}",
   "Trade.RequirementHitPointsAtMost": "耐久<={HITPOINTS}",
   "Trade.RequirementTargetGene": "遺伝子 {GENE} を含む",
+  "Trade.RequirementBiotechReproductiveSource": "繁殖元 {SOURCE}",
   "Trade.RequirementUniqueWeapon": "特化/人格武器",
   "Trade.RequirementUniqueWeaponTraits": "特化/人格武器特性 {TRAITS}",
   "Trade.RequirementTraitWeapon": "特化/人格武器",

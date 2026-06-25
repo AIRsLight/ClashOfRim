@@ -29,6 +29,14 @@ internal static partial class BiotechCompatibility
         {
             parts.Add(FormatGeneList(geneDefNames));
         }
+
+        IReadOnlyList<ReproductiveSourceRecord> reproductiveSources = ReproductiveSources(thing);
+        if (reproductiveSources.Count > 0)
+        {
+            parts.Add(ClashOfRimText.Key(
+                "ClashOfRim.Trade.ReproductiveSources",
+                FormatReproductiveSourceList(reproductiveSources).Named("SOURCES")));
+        }
     }
 
     internal static IEnumerable<string> ThingReferenceCacheKeyParts(ModThingReferenceDto thing)
@@ -43,6 +51,10 @@ internal static partial class BiotechCompatibility
         yield return string.Join(",", TargetGeneDefNames(thing));
         yield return XenotypeName(thing) ?? string.Empty;
         yield return XenotypeIconDefName(thing) ?? string.Empty;
+        foreach (string part in ReproductiveSourceCacheKeyParts(thing))
+        {
+            yield return part;
+        }
     }
 
     internal static bool SuppressesStandardThingStats(ThingDef? def)
@@ -74,5 +86,47 @@ internal static partial class BiotechCompatibility
         return labels.Length == 0
             ? ClashOfRimText.Key("ClashOfRim.None")
             : string.Join(ClashOfRimText.Key("ClashOfRim.ListSeparator"), labels);
+    }
+
+    private static string FormatReproductiveSourceList(IReadOnlyList<ReproductiveSourceRecord> sources)
+    {
+        string[] labels = sources
+            .Select(ReproductiveSourceLabel)
+            .Where(label => !string.IsNullOrWhiteSpace(label))
+            .ToArray();
+        return labels.Length == 0
+            ? ClashOfRimText.Key("ClashOfRim.None")
+            : string.Join(ClashOfRimText.Key("ClashOfRim.ListSeparator"), labels);
+    }
+
+    private static string ReproductiveSourceLabel(ReproductiveSourceRecord source)
+    {
+        string name = string.IsNullOrWhiteSpace(source.Name) ? ClashOfRimText.Key("ClashOfRim.Unknown") : source.Name!;
+        string race = ReproductiveSourceRaceLabel(source.RaceDefName);
+        return string.IsNullOrWhiteSpace(race) ? name : name + " (" + race + ")";
+    }
+
+    private static string ReproductiveSourceRaceLabel(string? raceDefName)
+    {
+        ThingDef? def = string.IsNullOrWhiteSpace(raceDefName)
+            ? null
+            : DefDatabase<ThingDef>.GetNamedSilentFail(raceDefName);
+        return def?.label?.CapitalizeFirst() ?? raceDefName ?? string.Empty;
+    }
+
+    private static IEnumerable<string> ReproductiveSourceCacheKeyParts(ModThingReferenceDto thing)
+    {
+        foreach (ReproductiveSourceRecord source in ReproductiveSources(thing))
+        {
+            yield return source.Role ?? string.Empty;
+            yield return source.GlobalId ?? string.Empty;
+            yield return source.Name ?? string.Empty;
+            yield return source.RaceDefName ?? string.Empty;
+            yield return source.PawnKindDefName ?? string.Empty;
+            yield return source.Gender ?? string.Empty;
+            yield return source.XenotypeDefName ?? string.Empty;
+            yield return string.Join(",", source.EndogeneDefNames);
+            yield return string.Join(",", source.XenogeneDefNames);
+        }
     }
 }

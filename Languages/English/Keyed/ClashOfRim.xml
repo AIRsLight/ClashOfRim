@@ -1197,6 +1197,7 @@
   <ClashOfRim.Trade.SourceLabels>Source {SOURCES}</ClashOfRim.Trade.SourceLabels>
   <ClashOfRim.Trade.ArtTitle>art {TITLE}</ClashOfRim.Trade.ArtTitle>
   <ClashOfRim.Trade.TargetGeneRequirement>contains {GENE}</ClashOfRim.Trade.TargetGeneRequirement>
+  <ClashOfRim.Trade.ReproductiveSources>source {SOURCES}</ClashOfRim.Trade.ReproductiveSources>
   <ClashOfRim.Trade.UnknownOwner>Unknown publisher</ClashOfRim.Trade.UnknownOwner>
   <ClashOfRim.Trade.ViewerAcceptedSuffix>, accepted by me</ClashOfRim.Trade.ViewerAcceptedSuffix>
   <ClashOfRim.Trade.ViewOnly>View only</ClashOfRim.Trade.ViewOnly>

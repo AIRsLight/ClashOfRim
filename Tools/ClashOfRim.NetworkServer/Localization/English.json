@@ -507,6 +507,7 @@
   "Trade.RequirementHitPointsAtLeast": "hit points>={HITPOINTS}",
   "Trade.RequirementHitPointsAtMost": "hit points<={HITPOINTS}",
   "Trade.RequirementTargetGene": "contains genes {GENE}",
+  "Trade.RequirementBiotechReproductiveSource": "reproductive source {SOURCE}",
   "Trade.RequirementUniqueWeapon": "specialized/persona weapon",
   "Trade.RequirementUniqueWeaponTraits": "specialized/persona weapon traits {TRAITS}",
   "Trade.RequirementTraitWeapon": "specialized/persona weapon",

@@ -1198,6 +1198,7 @@
   <ClashOfRim.Trade.SourceLabels>出所 {SOURCES}</ClashOfRim.Trade.SourceLabels>
   <ClashOfRim.Trade.ArtTitle>芸術品 {TITLE}</ClashOfRim.Trade.ArtTitle>
   <ClashOfRim.Trade.TargetGeneRequirement>{GENE} を含む</ClashOfRim.Trade.TargetGeneRequirement>
+  <ClashOfRim.Trade.ReproductiveSources>由来 {SOURCES}</ClashOfRim.Trade.ReproductiveSources>
   <ClashOfRim.Trade.UnknownOwner>不明な投稿者</ClashOfRim.Trade.UnknownOwner>
   <ClashOfRim.Trade.ViewerAcceptedSuffix>、自分が受諾済み</ClashOfRim.Trade.ViewerAcceptedSuffix>
   <ClashOfRim.Trade.ViewOnly>表示のみ</ClashOfRim.Trade.ViewOnly>

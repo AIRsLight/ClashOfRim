@@ -507,6 +507,7 @@
   "Trade.RequirementHitPointsAtLeast": "내구도>={HITPOINTS}",
   "Trade.RequirementHitPointsAtMost": "내구도<={HITPOINTS}",
   "Trade.RequirementTargetGene": "유전자 {GENE} 포함",
+  "Trade.RequirementBiotechReproductiveSource": "번식 출처 {SOURCE}",
   "Trade.RequirementUniqueWeapon": "특화/인격 무기",
   "Trade.RequirementUniqueWeaponTraits": "특화/인격 무기 특성 {TRAITS}",
   "Trade.RequirementTraitWeapon": "특화/인격 무기",
