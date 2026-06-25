@@ -1,0 +1,40 @@
+# Local-only third-party, reverse source, research notes, samples, and generated artifacts.
+/LocalOnly/
+
+# Legacy local reference locations.
+/rimworld/
+/ThirdPartMods/
+/ProjectDocs/
+
+# Local save fixtures and large binary samples.
+/SaveSample/
+
+# Build outputs and local IDE state.
+/Assemblies/
+/Build/
+bin/
+obj/
+**/bin/
+**/obj/
+/.vs/
+/.vscode/
+*.user
+*.suo
+
+# Logs and temporary files.
+/Data/
+/Logs/
+Tools/*/Data/
+Tools/*/Logs/
+
+# Local network server runtime snapshots/backups.
+Tools/ClashOfRim.NetworkServer/appsettings.json
+Tools/ClashOfRim.NetworkServer/Data*.zip
+Tools/ClashOfRim.NetworkServer/*.sqlite
+Tools/ClashOfRim.NetworkServer/*.sqlite-*
+
+*.log
+*.tmp
+*.cache
+Thumbs.db
+Desktop.ini

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <ClashOfRim_RemoteRuntimeWorldObject.label>далекая цель</ClashOfRim_RemoteRuntimeWorldObject.label>
+  <ClashOfRim_RemoteColonyMapParent.label>далекая колония</ClashOfRim_RemoteColonyMapParent.label>
+  <ClashOfRim_RemoteSessionMapParent.label>далекая карта</ClashOfRim_RemoteSessionMapParent.label>
+  <ClashOfRim_RemoteScoutMapParent.label>карта разведки</ClashOfRim_RemoteScoutMapParent.label>
+  <ClashOfRim_RemoteRaidObservationMapParent.label>карта наблюдения боя</ClashOfRim_RemoteRaidObservationMapParent.label>
+  <ClashOfRim_RemoteRaidBattleMapParent.label>поле боя рейда</ClashOfRim_RemoteRaidBattleMapParent.label>
+</LanguageData>

@@ -1,0 +1,1838 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <ClashOfRim.Accept>承諾</ClashOfRim.Accept>
+  <ClashOfRim.Add>追加</ClashOfRim.Add>
+  <ClashOfRim.Added>追加済み</ClashOfRim.Added>
+  <ClashOfRim.Any>任意</ClashOfRim.Any>
+  <ClashOfRim.Cancel>キャンセル</ClashOfRim.Cancel>
+  <ClashOfRim.Confirm>確認</ClashOfRim.Confirm>
+  <ClashOfRim.Close>閉じる</ClashOfRim.Close>
+  <ClashOfRim.Save>保存</ClashOfRim.Save>
+  <ClashOfRim.Password>パスワード</ClashOfRim.Password>
+  <ClashOfRim.Send>送信</ClashOfRim.Send>
+  <ClashOfRim.SessionExpired.Title>サーバーセッションの期限切れ</ClashOfRim.SessionExpired.Title>
+  <ClashOfRim.SessionExpired.Message>サーバーセッションの期限が切れました。メインメニューに戻ってサーバーへ再参加してください。</ClashOfRim.SessionExpired.Message>
+  <ClashOfRim.SessionExpired.ReturnToMainMenu>メインメニューに戻る</ClashOfRim.SessionExpired.ReturnToMainMenu>
+  <ClashOfRim.SessionExpired.Status>サーバーセッションの期限が切れました。再ログインしてください。</ClashOfRim.SessionExpired.Status>
+  <ClashOfRim.Chat.EmptyMessage>チャット内容は空にできません。</ClashOfRim.Chat.EmptyMessage>
+  <ClashOfRim.Chat.InvalidPrivateFormat>個人チャット形式: @プレイヤー メッセージ。</ClashOfRim.Chat.InvalidPrivateFormat>
+  <ClashOfRim.Chat.Minimize>最小化</ClashOfRim.Chat.Minimize>
+  <ClashOfRim.Chat.Minimized>チャット</ClashOfRim.Chat.Minimized>
+  <ClashOfRim.Chat.MinimizedWithUnread>チャット ({COUNT})</ClashOfRim.Chat.MinimizedWithUnread>
+  <ClashOfRim.Chat.PrivateChannel>[個人]</ClashOfRim.Chat.PrivateChannel>
+  <ClashOfRim.Chat.PrivateHeader>{FROM} -&gt; {TO}</ClashOfRim.Chat.PrivateHeader>
+  <ClashOfRim.Chat.PublicChannel>[公開]</ClashOfRim.Chat.PublicChannel>
+  <ClashOfRim.Chat.PublicHeader>{FROM}</ClashOfRim.Chat.PublicHeader>
+  <ClashOfRim.Chat.Send>送信</ClashOfRim.Chat.Send>
+  <ClashOfRim.Chat.StatusException>チャット例外: {TYPE} {MESSAGE}</ClashOfRim.Chat.StatusException>
+  <ClashOfRim.Chat.StatusIdle>チャットは接続されていません。</ClashOfRim.Chat.StatusIdle>
+  <ClashOfRim.Chat.StatusNotConnected>まだサーバーに参加していないため、チャットできません。</ClashOfRim.Chat.StatusNotConnected>
+  <ClashOfRim.Chat.StatusRefreshed>チャットを更新しました。新着 {COUNT} 件。</ClashOfRim.Chat.StatusRefreshed>
+  <ClashOfRim.Chat.StatusRefreshFailed>チャット更新失敗: {CODE} {MESSAGE}</ClashOfRim.Chat.StatusRefreshFailed>
+  <ClashOfRim.Chat.StatusRefreshRejected>サーバーがチャット更新を拒否しました: {CODE} {MESSAGE}</ClashOfRim.Chat.StatusRefreshRejected>
+  <ClashOfRim.Chat.StatusSendFailed>チャット送信失敗: {CODE} {MESSAGE}</ClashOfRim.Chat.StatusSendFailed>
+  <ClashOfRim.Chat.StatusSendRejected>サーバーがチャット送信を拒否しました: {CODE} {MESSAGE}</ClashOfRim.Chat.StatusSendRejected>
+  <ClashOfRim.Chat.StatusSending>チャットメッセージを送信中。</ClashOfRim.Chat.StatusSending>
+  <ClashOfRim.Chat.StatusSentPrivate>{TARGET} に送信しました。</ClashOfRim.Chat.StatusSentPrivate>
+  <ClashOfRim.Chat.StatusSentPublic>公開チャットに送信しました。</ClashOfRim.Chat.StatusSentPublic>
+  <ClashOfRim.Network.StatusNotConfigured>サーバーアドレス、アカウント、またはコロニーが設定されていません。</ClashOfRim.Network.StatusNotConfigured>
+  <ClashOfRim.Network.StatusDeserializeFailed>応答タイプを解析できません: {TYPE}</ClashOfRim.Network.StatusDeserializeFailed>
+  <ClashOfRim.Chat.Title>チャット</ClashOfRim.Chat.Title>
+  <ClashOfRim.Account.ChangePassword>パスワード変更</ClashOfRim.Account.ChangePassword>
+  <ClashOfRim.Account.CurrentPassword>現在のパスワード</ClashOfRim.Account.CurrentPassword>
+  <ClashOfRim.Account.CurrentUser>現在のアカウント: {USER}</ClashOfRim.Account.CurrentUser>
+  <ClashOfRim.Account.NewPassword>新しいパスワード</ClashOfRim.Account.NewPassword>
+  <ClashOfRim.Account.PasswordChanged>パスワードを変更しました。</ClashOfRim.Account.PasswordChanged>
+  <ClashOfRim.Account.PasswordChanging>パスワードを変更中。</ClashOfRim.Account.PasswordChanging>
+  <ClashOfRim.Account.PasswordException>パスワード変更例外: {TYPE} {MESSAGE}</ClashOfRim.Account.PasswordException>
+  <ClashOfRim.Account.PasswordFailed>パスワード変更失敗: {CODE} {MESSAGE}</ClashOfRim.Account.PasswordFailed>
+  <ClashOfRim.Account.PasswordNoSession>パスワードを変更するにはサーバーセッション内にいる必要があります。</ClashOfRim.Account.PasswordNoSession>
+  <ClashOfRim.Account.PasswordRejected>サーバーがパスワード変更を拒否しました: {CODE} {MESSAGE}</ClashOfRim.Account.PasswordRejected>
+  <ClashOfRim.Account.PasswordStatusIdle>パスワードは変更されていません。</ClashOfRim.Account.PasswordStatusIdle>
+  <ClashOfRim.DefensePoint.AssignGizmo>防衛者を割り当て</ClashOfRim.DefensePoint.AssignGizmo>
+  <ClashOfRim.DefensePoint.AssignGizmoAssigned>防衛者: {0}</ClashOfRim.DefensePoint.AssignGizmoAssigned>
+  <ClashOfRim.DefensePoint.AssignGizmoDesc>この防衛地点に入植者を割り当てます。襲撃時、その入植者はこの防衛地点で設定された防衛行動に従います。</ClashOfRim.DefensePoint.AssignGizmoDesc>
+  <ClashOfRim.DefensePoint.AssignHumanlikeOnly>人型の入植者のみ割り当てられます。</ClashOfRim.DefensePoint.AssignHumanlikeOnly>
+  <ClashOfRim.DefensePoint.AssignMechGizmo>メカノイドを割り当て</ClashOfRim.DefensePoint.AssignMechGizmo>
+  <ClashOfRim.DefensePoint.AssignMechGizmoAssigned>メカノイド: {0}</ClashOfRim.DefensePoint.AssignMechGizmoAssigned>
+  <ClashOfRim.DefensePoint.AssignMechGizmoDesc>このメカノイド防衛地点にメカノイドを割り当てます。襲撃時、そのメカノイドはこの防衛地点で設定された防衛行動に従います。</ClashOfRim.DefensePoint.AssignMechGizmoDesc>
+  <ClashOfRim.DefensePoint.AssignMechOnly>自コロニーのメカノイドのみ割り当てられます。</ClashOfRim.DefensePoint.AssignMechOnly>
+  <ClashOfRim.DefensePoint.AssignPlayerOnly>自コロニーの構成員のみ割り当てられます。</ClashOfRim.DefensePoint.AssignPlayerOnly>
+  <ClashOfRim.DefensePoint.Mode.Hold>固守</ClashOfRim.DefensePoint.Mode.Hold>
+  <ClashOfRim.DefensePoint.Mode.Defend>防衛</ClashOfRim.DefensePoint.Mode.Defend>
+  <ClashOfRim.DefensePoint.Mode.Assault>突撃</ClashOfRim.DefensePoint.Mode.Assault>
+  <ClashOfRim.DefensePoint.Mode.OperateEquipment>設備を操作</ClashOfRim.DefensePoint.Mode.OperateEquipment>
+  <ClashOfRim.DefensePoint.ModeGizmo>行動: {0}</ClashOfRim.DefensePoint.ModeGizmo>
+  <ClashOfRim.DefensePoint.ModeGizmoDesc>オフライン襲撃戦場での防衛行動を設定します。固守はその場で射撃し、防衛は周辺を移動し、突撃は侵入者を直接攻撃し、設備操作は近くの迫撃砲など操作可能な防衛兵器を使用します。</ClashOfRim.DefensePoint.ModeGizmoDesc>
+  <ClashOfRim.DefensePoint.ModeInspect>防衛行動: {0}</ClashOfRim.DefensePoint.ModeInspect>
+  <ClashOfRim.DefensePoint.RangeGizmo>範囲: {0}</ClashOfRim.DefensePoint.RangeGizmo>
+  <ClashOfRim.DefensePoint.RangeGizmoDesc>この防衛地点の行動範囲を設定します。巡回範囲と操作範囲に影響します。</ClashOfRim.DefensePoint.RangeGizmoDesc>
+  <ClashOfRim.DefensePoint.RangeInspect>行動範囲: {0}</ClashOfRim.DefensePoint.RangeInspect>
+  <ClashOfRim.DefensePoint.RangeOption>{0} セル</ClashOfRim.DefensePoint.RangeOption>
+  <ClashOfRim.DefensePoint.AssignedInspect>割り当て済み: {0}</ClashOfRim.DefensePoint.AssignedInspect>
+  <ClashOfRim.DefensePoint.PlaceBlockedBuilding>防衛地点は建築物、青写真、建築予定枠の上には配置できません。</ClashOfRim.DefensePoint.PlaceBlockedBuilding>
+  <ClashOfRim.DefensePoint.PlaceBlockedDefensePoint>このセルには既に防衛地点があります。</ClashOfRim.DefensePoint.PlaceBlockedDefensePoint>
+  <ClashOfRim.Compatibility.ManifestMissing>サーバーがMODリストを返しませんでした。</ClashOfRim.Compatibility.ManifestMissing>
+  <ClashOfRim.Compatibility.ManifestParseFailed>サーバーMODリストを解析できませんでした。</ClashOfRim.Compatibility.ManifestParseFailed>
+  <ClashOfRim.Compatibility.ManifestBuildFailed>完全なローカルMODリストを作成できませんでした。クライアントログを確認してください。</ClashOfRim.Compatibility.ManifestBuildFailed>
+  <ClashOfRim.Compatibility.ApplyRestarting>適用しました。再起動しています。</ClashOfRim.Compatibility.ApplyRestarting>
+  <ClashOfRim.Compatibility.TabOverview>概要</ClashOfRim.Compatibility.TabOverview>
+  <ClashOfRim.Compatibility.TabManifest>MOD {COUNT}</ClashOfRim.Compatibility.TabManifest>
+  <ClashOfRim.Compatibility.TabHash>ファイル {COUNT}</ClashOfRim.Compatibility.TabHash>
+  <ClashOfRim.Compatibility.TabConfig>設定 {COUNT}</ClashOfRim.Compatibility.TabConfig>
+  <ClashOfRim.Compatibility.FilesMatch>ファイルは一致しています。</ClashOfRim.Compatibility.FilesMatch>
+  <ClashOfRim.Compatibility.ConfigsMatch>設定は一致しています。</ClashOfRim.Compatibility.ConfigsMatch>
+  <ClashOfRim.Compatibility.ModsMatch>MODは一致しています。</ClashOfRim.Compatibility.ModsMatch>
+  <ClashOfRim.Compatibility.ApplyAndRestart>適用して再起動</ClashOfRim.Compatibility.ApplyAndRestart>
+  <ClashOfRim.Compatibility.OpenWorkshop>ワークショップ</ClashOfRim.Compatibility.OpenWorkshop>
+  <ClashOfRim.Compatibility.OverrideBaseline>サーバーデータを更新</ClashOfRim.Compatibility.OverrideBaseline>
+  <ClashOfRim.Compatibility.Override.ModListWarning>現在のクライアントMODリストまたは読み込み順がサーバー基線と一致しません。続行すると、サーバーはこのクライアントを新しい基線として使用します。ローカルのシングルプレイ用MODリストを読み込んでいないことを確認してください。</ClashOfRim.Compatibility.Override.ModListWarning>
+  <ClashOfRim.Compatibility.Summary>MOD {MODS} / ファイル {FILES} / 設定 {CONFIGS}</ClashOfRim.Compatibility.Summary>
+  <ClashOfRim.Compatibility.SummaryFilesManual>。ファイル差異は自動修正できません。MODを更新するかサーバー更新を待ってください。</ClashOfRim.Compatibility.SummaryFilesManual>
+  <ClashOfRim.Compatibility.SummaryAdminCanOverride>。サーバー更新後、新しいサーバーデータを保存できます。</ClashOfRim.Compatibility.SummaryAdminCanOverride>
+  <ClashOfRim.Compatibility.SummaryApplyServer>。サーバーMODリストを適用してください。</ClashOfRim.Compatibility.SummaryApplyServer>
+  <ClashOfRim.Compatibility.ServerManifestLine>サーバーMODリスト: {ID}</ClashOfRim.Compatibility.ServerManifestLine>
+  <ClashOfRim.Compatibility.LocalManifestLine>ローカルMODリスト: {ID}</ClashOfRim.Compatibility.LocalManifestLine>
+  <ClashOfRim.Compatibility.FileMismatchCannotApply>ファイル差異は自動修正できません。対応するMODを更新するか、管理者がサーバーデータを更新するのを待ってください。</ClashOfRim.Compatibility.FileMismatchCannotApply>
+  <ClashOfRim.Compatibility.ManifestApplyAllowed>MODリスト、読み込み順、DLC、ファイルが一致している場合、サーバーMODリストを適用してゲームを再起動できます。</ClashOfRim.Compatibility.ManifestApplyAllowed>
+  <ClashOfRim.Compatibility.ServerColumn>サーバー</ClashOfRim.Compatibility.ServerColumn>
+  <ClashOfRim.Compatibility.LocalColumn>ローカル</ClashOfRim.Compatibility.LocalColumn>
+  <ClashOfRim.Compatibility.SchemaVersion>MODリストスキーマバージョン</ClashOfRim.Compatibility.SchemaVersion>
+  <ClashOfRim.Compatibility.ProtocolVersion>プロトコルバージョン</ClashOfRim.Compatibility.ProtocolVersion>
+  <ClashOfRim.Compatibility.RimWorldVersion>RimWorld バージョン</ClashOfRim.Compatibility.RimWorldVersion>
+  <ClashOfRim.Compatibility.DlcList>有効なDLCリスト</ClashOfRim.Compatibility.DlcList>
+  <ClashOfRim.Compatibility.MissingRequiredMod>サーバー必須MODがありません</ClashOfRim.Compatibility.MissingRequiredMod>
+  <ClashOfRim.Compatibility.UnexpectedLocalMod>ローカルMODはサーバーに承認されていません</ClashOfRim.Compatibility.UnexpectedLocalMod>
+  <ClashOfRim.Compatibility.LoadOrderMismatch>読み込み順の位置 {INDEX} が一致しません</ClashOfRim.Compatibility.LoadOrderMismatch>
+  <ClashOfRim.Compatibility.MissingLocalFile>ローカルファイルがありません</ClashOfRim.Compatibility.MissingLocalFile>
+  <ClashOfRim.Compatibility.FileSizeMismatch>ファイルサイズ不一致</ClashOfRim.Compatibility.FileSizeMismatch>
+  <ClashOfRim.Compatibility.FileHashMismatch>ファイル内容が一致しません</ClashOfRim.Compatibility.FileHashMismatch>
+  <ClashOfRim.Compatibility.FileTimeHintClientMayNeedUpdate>&lt;color=#ffd166&gt;ヒント: サーバーファイルの更新時刻の方が新しいため、ローカルMODの更新が必要な可能性があります。&lt;/color&gt;</ClashOfRim.Compatibility.FileTimeHintClientMayNeedUpdate>
+  <ClashOfRim.Compatibility.FileTimeHintServerMayNeedUpdate>&lt;color=#ffd166&gt;ヒント: ローカルファイルの更新時刻の方が新しいため、サーバーデータの管理者更新が必要な可能性があります。&lt;/color&gt;</ClashOfRim.Compatibility.FileTimeHintServerMayNeedUpdate>
+  <ClashOfRim.Compatibility.WorkshopHintClientNeedsUpdate>&lt;color=#ffd166&gt;ヒント: Steam はローカルワークショップMODの更新が必要な可能性を報告しています。&lt;/color&gt;</ClashOfRim.Compatibility.WorkshopHintClientNeedsUpdate>
+  <ClashOfRim.Compatibility.WorkshopHintClientMayNeedUpdate>&lt;color=#ffd166&gt;ヒント: サーバーデータのワークショップ導入時刻の方が新しいため、ローカルMODの更新が必要な可能性があります。&lt;/color&gt;</ClashOfRim.Compatibility.WorkshopHintClientMayNeedUpdate>
+  <ClashOfRim.Compatibility.WorkshopHintServerMayNeedUpdate>&lt;color=#ffd166&gt;ヒント: ローカルワークショップ導入時刻の方が新しいため、サーバーデータの管理者更新が必要な可能性があります。&lt;/color&gt;</ClashOfRim.Compatibility.WorkshopHintServerMayNeedUpdate>
+  <ClashOfRim.Compatibility.WorkshopHintUncertain>&lt;color=#ffd166&gt;ヒント: これはワークショップMODの差異ですが、どちらを更新すべきかは確実に推測できません。&lt;/color&gt;</ClashOfRim.Compatibility.WorkshopHintUncertain>
+  <ClashOfRim.Compatibility.UnexpectedLocalFile>予期しないローカルファイル</ClashOfRim.Compatibility.UnexpectedLocalFile>
+  <ClashOfRim.Compatibility.MissingDefSummary>定義サマリーがありません</ClashOfRim.Compatibility.MissingDefSummary>
+  <ClashOfRim.Compatibility.DefSummaryMismatch>定義サマリー不一致</ClashOfRim.Compatibility.DefSummaryMismatch>
+  <ClashOfRim.Compatibility.UnexpectedDefSummary>予期しないローカル定義サマリー</ClashOfRim.Compatibility.UnexpectedDefSummary>
+  <ClashOfRim.Compatibility.ConfigTotalHash>設定サマリー</ClashOfRim.Compatibility.ConfigTotalHash>
+  <ClashOfRim.Compatibility.MissingLocalConfig>ローカル設定がありません</ClashOfRim.Compatibility.MissingLocalConfig>
+  <ClashOfRim.Compatibility.ConfigHashMismatch>設定内容が一致しません</ClashOfRim.Compatibility.ConfigHashMismatch>
+  <ClashOfRim.Compatibility.ServerIssueFallback>サーバーは詳細を返しませんでした。</ClashOfRim.Compatibility.ServerIssueFallback>
+  <ClashOfRim.Compatibility.ServerLocalLines>サーバー: {SERVER}
+ローカル: {LOCAL}</ClashOfRim.Compatibility.ServerLocalLines>
+  <ClashOfRim.Compatibility.Bytes>{COUNT} バイト</ClashOfRim.Compatibility.Bytes>
+  <ClashOfRim.Compatibility.StatusMissing>&lt;color=#ff6b6b&gt;不足&lt;/color&gt;</ClashOfRim.Compatibility.StatusMissing>
+  <ClashOfRim.Compatibility.StatusAdded>&lt;color=#ffd166&gt;追加&lt;/color&gt;</ClashOfRim.Compatibility.StatusAdded>
+  <ClashOfRim.Compatibility.StatusModified>&lt;color=#ff6b6b&gt;不一致&lt;/color&gt;</ClashOfRim.Compatibility.StatusModified>
+  <ClashOfRim.Compatibility.StatusMatched>&lt;color=#7ecf6b&gt;一致&lt;/color&gt;</ClashOfRim.Compatibility.StatusMatched>
+  <ClashOfRim.Compatibility.Issue.SchemaVersionMismatch>MODリストスキーマバージョン不一致</ClashOfRim.Compatibility.Issue.SchemaVersionMismatch>
+  <ClashOfRim.Compatibility.Issue.ProtocolVersionMismatch>プロトコルバージョン不一致</ClashOfRim.Compatibility.Issue.ProtocolVersionMismatch>
+  <ClashOfRim.Compatibility.Issue.RimWorldVersionMismatch>RimWorld バージョン不一致</ClashOfRim.Compatibility.Issue.RimWorldVersionMismatch>
+  <ClashOfRim.Compatibility.Issue.DlcListMismatch>DLCリスト不一致</ClashOfRim.Compatibility.Issue.DlcListMismatch>
+  <ClashOfRim.Compatibility.Issue.ModListMismatch>MODリスト不一致</ClashOfRim.Compatibility.Issue.ModListMismatch>
+  <ClashOfRim.Compatibility.Issue.ModOrderMismatch>MOD読み込み順不一致</ClashOfRim.Compatibility.Issue.ModOrderMismatch>
+  <ClashOfRim.Compatibility.Issue.MissingMod>サーバー必須MODがありません</ClashOfRim.Compatibility.Issue.MissingMod>
+  <ClashOfRim.Compatibility.Issue.UnexpectedMod>サーバー未承認MODがあります</ClashOfRim.Compatibility.Issue.UnexpectedMod>
+  <ClashOfRim.Compatibility.Issue.AllowedPureTranslationMod>追加翻訳MODは許可されています</ClashOfRim.Compatibility.Issue.AllowedPureTranslationMod>
+  <ClashOfRim.Compatibility.Issue.FileMissing>MODファイルがありません</ClashOfRim.Compatibility.Issue.FileMissing>
+  <ClashOfRim.Compatibility.Issue.FileUnexpected>MODに未承認ファイルがあります</ClashOfRim.Compatibility.Issue.FileUnexpected>
+  <ClashOfRim.Compatibility.Issue.FileHashMismatch>MODファイル内容が一致しません</ClashOfRim.Compatibility.Issue.FileHashMismatch>
+  <ClashOfRim.Compatibility.Issue.FileSizeMismatch>MODファイルサイズ不一致</ClashOfRim.Compatibility.Issue.FileSizeMismatch>
+  <ClashOfRim.Compatibility.Issue.ConfigVersionMismatch>設定バージョン不一致</ClashOfRim.Compatibility.Issue.ConfigVersionMismatch>
+  <ClashOfRim.Compatibility.Issue.ConfigHashMismatch>設定内容が一致しません</ClashOfRim.Compatibility.Issue.ConfigHashMismatch>
+  <ClashOfRim.Compatibility.Issue.ConfigFileMismatch>MOD設定が一致しません</ClashOfRim.Compatibility.Issue.ConfigFileMismatch>
+  <ClashOfRim.Compatibility.Issue.ConfigFileMissing>MOD設定がありません</ClashOfRim.Compatibility.Issue.ConfigFileMissing>
+  <ClashOfRim.Compatibility.Issue.ConfigFileUnexpected>MODに未承認の設定があります</ClashOfRim.Compatibility.Issue.ConfigFileUnexpected>
+  <ClashOfRim.Compatibility.Issue.ConfigFileWarning>MOD設定警告</ClashOfRim.Compatibility.Issue.ConfigFileWarning>
+  <ClashOfRim.Compatibility.Issue.DefSummaryMissing>定義サマリーがありません</ClashOfRim.Compatibility.Issue.DefSummaryMissing>
+  <ClashOfRim.Compatibility.Issue.DefSummaryUnexpected>未承認の定義サマリーがあります</ClashOfRim.Compatibility.Issue.DefSummaryUnexpected>
+  <ClashOfRim.Compatibility.Issue.DefSummaryCountMismatch>定義数が一致しません</ClashOfRim.Compatibility.Issue.DefSummaryCountMismatch>
+  <ClashOfRim.Compatibility.Issue.DefSummaryHashMismatch>定義サマリー不一致</ClashOfRim.Compatibility.Issue.DefSummaryHashMismatch>
+  <ClashOfRim.Compatibility.Issue.Unknown>不明な差異</ClashOfRim.Compatibility.Issue.Unknown>
+  <ClashOfRim.Compatibility.Override.StagePreparing>準備中。</ClashOfRim.Compatibility.Override.StagePreparing>
+  <ClashOfRim.Compatibility.Override.StageManifest>ローカルMODリストを作成しています。</ClashOfRim.Compatibility.Override.StageManifest>
+  <ClashOfRim.Compatibility.Override.StageAdminBaseline>価格と罠データをスキャンしています。</ClashOfRim.Compatibility.Override.StageAdminBaseline>
+  <ClashOfRim.Compatibility.Override.StageUpload>MODリストをアップロードしています。</ClashOfRim.Compatibility.Override.StageUpload>
+  <ClashOfRim.Compatibility.Override.StageSubmitAdminBaseline>価格と罠データを更新しています。</ClashOfRim.Compatibility.Override.StageSubmitAdminBaseline>
+  <ClashOfRim.Compatibility.Override.StageComplete>&lt;color=#7ecf6b&gt;更新完了。&lt;/color&gt;</ClashOfRim.Compatibility.Override.StageComplete>
+  <ClashOfRim.Compatibility.Override.StageFailed>&lt;color=#ff6b6b&gt;更新失敗。&lt;/color&gt;</ClashOfRim.Compatibility.Override.StageFailed>
+  <ClashOfRim.Compatibility.Override.ManifestBuildFailed>MODリスト作成に失敗しました。</ClashOfRim.Compatibility.Override.ManifestBuildFailed>
+  <ClashOfRim.Compatibility.Override.Accepted>更新しました。</ClashOfRim.Compatibility.Override.Accepted>
+  <ClashOfRim.Compatibility.Override.AdminBaselineUpdated>管理者価格表と罠リストを更新しました: 価格 {PRICECOUNT} 件、自動検出罠 {AUTOCOUNT} 件、候補 {CANDIDATECOUNT} 件。</ClashOfRim.Compatibility.Override.AdminBaselineUpdated>
+  <ClashOfRim.Compatibility.Override.AdminBaselineFailed>管理者価格表と罠リストの更新に失敗しました。</ClashOfRim.Compatibility.Override.AdminBaselineFailed>
+  <ClashOfRim.Compatibility.Override.AdminBaselineNotUpdated>管理者価格表と罠リストは更新されませんでした: {MESSAGE}</ClashOfRim.Compatibility.Override.AdminBaselineNotUpdated>
+  <ClashOfRim.Compatibility.Override.Exception>更新例外: {TYPE}</ClashOfRim.Compatibility.Override.Exception>
+  <ClashOfRim.Compatibility.Override.Title>サーバーデータを更新</ClashOfRim.Compatibility.Override.Title>
+  <ClashOfRim.Compatibility.Override.ReturnMainMenu>メインメニューに戻る</ClashOfRim.Compatibility.Override.ReturnMainMenu>
+  <ClashOfRim.Compatibility.Override.Success>&lt;color=#7ecf6b&gt;更新成功。&lt;/color&gt;</ClashOfRim.Compatibility.Override.Success>
+  <ClashOfRim.Compatibility.Override.Failed>&lt;color=#ff6b6b&gt;更新失敗。&lt;/color&gt;</ClashOfRim.Compatibility.Override.Failed>
+  <ClashOfRim.Compatibility.ModSettingsLockedTitle>サーバー設定ロック中</ClashOfRim.Compatibility.ModSettingsLockedTitle>
+  <ClashOfRim.Compatibility.ModSettingsLockedBody>マルチプレイセッション中にMOD設定を変更できるのは管理者のみです。</ClashOfRim.Compatibility.ModSettingsLockedBody>
+  <ClashOfRim.Compatibility.ModSettingsLockedMessage>サーバー設定はロックされています。</ClashOfRim.Compatibility.ModSettingsLockedMessage>
+  <ClashOfRim.ServerEntry.Title>サーバーに参加中</ClashOfRim.ServerEntry.Title>
+  <ClashOfRim.Storyteller.SettingsLocked>マルチプレイセッション中はストーリーテラーと難易度がサーバー設定で固定されます。</ClashOfRim.Storyteller.SettingsLocked>
+  <ClashOfRim.Storyteller.AdminSyncing>ストーリーテラーと難易度設定を同期しています。</ClashOfRim.Storyteller.AdminSyncing>
+  <ClashOfRim.Storyteller.AdminSynced>ストーリーテラーと難易度を同期しました: {STORYTELLER} / {DIFFICULTY}。</ClashOfRim.Storyteller.AdminSynced>
+  <ClashOfRim.Storyteller.AdminSyncFailed>ストーリーテラーと難易度の同期失敗: {CODE} {MESSAGE}</ClashOfRim.Storyteller.AdminSyncFailed>
+  <ClashOfRim.Storyteller.AdminSyncRejected>サーバーがストーリーテラーと難易度の同期を拒否しました: {CODE} {MESSAGE}</ClashOfRim.Storyteller.AdminSyncRejected>
+  <ClashOfRim.Storyteller.AdminSyncException>ストーリーテラーと難易度の同期例外: {TYPE} {MESSAGE}</ClashOfRim.Storyteller.AdminSyncException>
+  <ClashOfRim.ServerEntry.FailedTitle>&lt;color=#ff6b6b&gt;サーバー参加失敗&lt;/color&gt;</ClashOfRim.ServerEntry.FailedTitle>
+  <ClashOfRim.ServerEntry.Progress>{PERCENT}%</ClashOfRim.ServerEntry.Progress>
+  <ClashOfRim.ServerEntry.ProgressWaiting>サーバー応答待ち</ClashOfRim.ServerEntry.ProgressWaiting>
+  <ClashOfRim.ServerEntry.StageServerHello>サーバーバージョンを確認しています。</ClashOfRim.ServerEntry.StageServerHello>
+  <ClashOfRim.ServerEntry.StageLogin>サーバーにログインしています。</ClashOfRim.ServerEntry.StageLogin>
+  <ClashOfRim.ServerEntry.StageCompatibilityManifest>ローカルMOD一覧を計算しています。</ClashOfRim.ServerEntry.StageCompatibilityManifest>
+  <ClashOfRim.ServerEntry.StageWorldConfiguration>サーバーワールド設定をダウンロードしています。</ClashOfRim.ServerEntry.StageWorldConfiguration>
+  <ClashOfRim.ServerEntry.StageMetadata>サーバーセーブ情報を要求しています。</ClashOfRim.ServerEntry.StageMetadata>
+  <ClashOfRim.ServerEntry.StagePayload>サーバーセーブをダウンロードしています。</ClashOfRim.ServerEntry.StagePayload>
+  <ClashOfRim.ServerEntry.StageValidate>サーバーセーブを確認しています。</ClashOfRim.ServerEntry.StageValidate>
+  <ClashOfRim.ServerEntry.StageLoad>セーブの準備ができました。セーブを読み込んでいます。</ClashOfRim.ServerEntry.StageLoad>
+  <ClashOfRim.ServerEntry.ModUnavailable>マルチプレイモジュールはまだ準備できていません。このウィンドウを閉じて少し後に再試行してください。問題が続く場合はゲームを再起動してください。</ClashOfRim.ServerEntry.ModUnavailable>
+  <ClashOfRim.ServerEntry.StatusAddressMissing>サーバーアドレスを入力してください。</ClashOfRim.ServerEntry.StatusAddressMissing>
+  <ClashOfRim.ServerEntry.ServerHelloFailed>サーバーバージョン確認失敗: {CODE} {MESSAGE}</ClashOfRim.ServerEntry.ServerHelloFailed>
+  <ClashOfRim.ServerEntry.ServerHelloRejected>サーバーがバージョン確認を拒否しました。</ClashOfRim.ServerEntry.ServerHelloRejected>
+  <ClashOfRim.ServerEntry.ProtocolMismatch>クライアントとサーバーのバージョンに互換性がありません。クライアント {CLIENT}, サーバー {SERVER}。クライアントを更新するか、管理者がサーバーを更新するのを待ってください。</ClashOfRim.ServerEntry.ProtocolMismatch>
+  <ClashOfRim.ServerEntry.StatusFlowException>サーバー参加要求例外: {TYPE} {MESSAGE}</ClashOfRim.ServerEntry.StatusFlowException>
+  <ClashOfRim.ServerEntry.StatusLoginFallback>ログインに失敗しました。</ClashOfRim.ServerEntry.StatusLoginFallback>
+  <ClashOfRim.ServerEntry.ReasonServerSnapshotLoaded>サーバーセーブ読み込み</ClashOfRim.ServerEntry.ReasonServerSnapshotLoaded>
+  <ClashOfRim.ServerEntry.ReasonRaidRecovery>襲撃復旧</ClashOfRim.ServerEntry.ReasonRaidRecovery>
+  <ClashOfRim.WorldBaseline.StatusConfigMissing>初期ワールド設定は送信されませんでした: サーバー、ユーザー、またはコロニーが設定されていません。</ClashOfRim.WorldBaseline.StatusConfigMissing>
+  <ClashOfRim.WorldBaseline.StatusInvalid>初期ワールド設定は送信されませんでした: 現在のワールド設定を受け付けられません。{REASON}</ClashOfRim.WorldBaseline.StatusInvalid>
+  <ClashOfRim.WorldBaseline.StatusSubmitting>初期ワールド設定と管理者データを送信中。</ClashOfRim.WorldBaseline.StatusSubmitting>
+  <ClashOfRim.WorldBaseline.StatusWorldConfigFailed>初期ワールド設定の送信に失敗: {CODE} {MESSAGE}</ClashOfRim.WorldBaseline.StatusWorldConfigFailed>
+  <ClashOfRim.WorldBaseline.StatusAdminBaselineFailed>管理者データの送信に失敗: {CODE} {MESSAGE}</ClashOfRim.WorldBaseline.StatusAdminBaselineFailed>
+  <ClashOfRim.WorldBaseline.StatusSubmitted>初期ワールド設定を送信しました。管理者データ登録: 価格 {PRICECOUNT} 件、自動検出トラップ {TRAPAUTO} 件、候補 {TRAPCANDIDATE} 件。</ClashOfRim.WorldBaseline.StatusSubmitted>
+  <ClashOfRim.WorldBaseline.StatusUploadingInitialSnapshot>初期コロニーセーブを同期中。</ClashOfRim.WorldBaseline.StatusUploadingInitialSnapshot>
+  <ClashOfRim.WorldBaseline.StatusInitialSnapshotFailed>初期コロニーセーブの同期に失敗: {CODE} {MESSAGE}</ClashOfRim.WorldBaseline.StatusInitialSnapshotFailed>
+  <ClashOfRim.WorldBaseline.StatusInitialSnapshotUploaded>初期コロニーセーブを同期しました</ClashOfRim.WorldBaseline.StatusInitialSnapshotUploaded>
+  <ClashOfRim.WorldBaseline.StatusInitialSnapshotException>初期コロニーセーブ同期例外: {TYPE} {MESSAGE}</ClashOfRim.WorldBaseline.StatusInitialSnapshotException>
+  <ClashOfRim.WorldBaseline.StatusSubmitException>初期ワールド設定送信例外: {MESSAGE}</ClashOfRim.WorldBaseline.StatusSubmitException>
+  <ClashOfRim.WorldBaseline.ReasonSubmitted>初期ワールド設定送信完了</ClashOfRim.WorldBaseline.ReasonSubmitted>
+  <ClashOfRim.WorldBaseline.ReasonInitialSnapshotUploaded>初期コロニーセーブを同期しました</ClashOfRim.WorldBaseline.ReasonInitialSnapshotUploaded>
+  <ClashOfRim.WorldBaseline.StatusGenerated>サーバーワールド設定からワールドを生成しました: {SEED}。</ClashOfRim.WorldBaseline.StatusGenerated>
+  <ClashOfRim.WorldBaseline.FailureMissingSeed>ワールドシードがありません。</ClashOfRim.WorldBaseline.FailureMissingSeed>
+  <ClashOfRim.WorldBaseline.FailureMissingCoverage>有効な惑星カバー率がありません。</ClashOfRim.WorldBaseline.FailureMissingCoverage>
+  <ClashOfRim.WorldBaseline.FailureMissingFactions>バニラのワールド生成派閥リストがありません。</ClashOfRim.WorldBaseline.FailureMissingFactions>
+  <ClashOfRim.WorldBaseline.FailureMissingFeatures>ワールド特徴がありません。ワールド生成前に取得された可能性があります。</ClashOfRim.WorldBaseline.FailureMissingFeatures>
+  <ClashOfRim.CurrentMapMissing>現在のマップがありません。</ClashOfRim.CurrentMapMissing>
+  <ClashOfRim.CurrentMapSummary>現在のマップ Map_{MAPID}。</ClashOfRim.CurrentMapSummary>
+  <ClashOfRim.CurrentSnapshotMissing>現在のサーバーセーブがありません。</ClashOfRim.CurrentSnapshotMissing>
+  <ClashOfRim.CurrentSnapshotSummary>現在のサーバーセーブは準備済みです。</ClashOfRim.CurrentSnapshotSummary>
+  <ClashOfRim.EnterUserId>プレイヤー名を入力してください。</ClashOfRim.EnterUserId>
+  <ClashOfRim.ExistingColonyLoadFlow>サーバーには既にこのプレイヤーコロニーがあります: {USER}/{COLONY}、最新セーブ {SNAPSHOT}。サーバーからセーブを復元します。</ClashOfRim.ExistingColonyLoadFlow>
+  <ClashOfRim.ExistingColonyMissingSnapshot>サーバーにはこのコロニーがありますが、ダウンロード可能な最新セーブがありません。</ClashOfRim.ExistingColonyMissingSnapshot>
+  <ClashOfRim.DownloadingExistingSnapshot>サーバーセーブをダウンロード中。</ClashOfRim.DownloadingExistingSnapshot>
+  <ClashOfRim.DownloadExistingSnapshotException>サーバーセーブのダウンロード例外: {TYPE} {MESSAGE}</ClashOfRim.DownloadExistingSnapshotException>
+  <ClashOfRim.DownloadExistingSnapshotFailed>サーバーセーブのダウンロード失敗: {CODE} {MESSAGE}</ClashOfRim.DownloadExistingSnapshotFailed>
+  <ClashOfRim.DownloadExistingSnapshotPayloadFailed>サーバーセーブのダウンロード失敗: {CODE} {MESSAGE}</ClashOfRim.DownloadExistingSnapshotPayloadFailed>
+  <ClashOfRim.DownloadExistingSnapshotRejected>サーバーがセーブのダウンロードを拒否しました: {REASON}</ClashOfRim.DownloadExistingSnapshotRejected>
+  <ClashOfRim.DownloadExistingSnapshotMissingPackage>サーバーが完全なセーブを返しませんでした。</ClashOfRim.DownloadExistingSnapshotMissingPackage>
+  <ClashOfRim.DownloadExistingSnapshotMismatch>サーバーが別のセーブを返しました: 期待 {EXPECTED}、実際 {ACTUAL}。</ClashOfRim.DownloadExistingSnapshotMismatch>
+  <ClashOfRim.ExistingSnapshotRestored>サーバーセーブ {SNAPSHOT} を復元しました。セーブを読み込みます。</ClashOfRim.ExistingSnapshotRestored>
+  <ClashOfRim.FirstAdminWorldConfigurationFlow>あなたは最初の管理者です。初期ワールド設定に入ります: {USER}/{COLONY}。</ClashOfRim.FirstAdminWorldConfigurationFlow>
+  <ClashOfRim.GiftArrivedMessage>&lt;color=#7ecf6b&gt;贈り物が届きました&lt;/color&gt;: {THING} x{COUNT}</ClashOfRim.GiftArrivedMessage>
+  <ClashOfRim.GiftDropPodArrivedMessage>贈り物が輸送ポッドで到着しました。</ClashOfRim.GiftDropPodArrivedMessage>
+  <ClashOfRim.TradeArrivedMessage>&lt;color=#7ecf6b&gt;取引品が届きました&lt;/color&gt;: {THING} x{COUNT}</ClashOfRim.TradeArrivedMessage>
+  <ClashOfRim.TradeDropPodArrivedMessage>取引品が輸送ポッドで到着しました。</ClashOfRim.TradeDropPodArrivedMessage>
+  <ClashOfRim.TradeArrivalLetterText>取引した品物が到着しました: {THINGS}。</ClashOfRim.TradeArrivalLetterText>
+  <ClashOfRim.JoinExistingWorldFlow>サーバーには既にワールド設定があります。参加フローに入ります: {USER}/{COLONY}。</ClashOfRim.JoinExistingWorldFlow>
+  <ClashOfRim.ItemBiocoded>生体認証済み</ClashOfRim.ItemBiocoded>
+  <ClashOfRim.ItemBiocodedTo>{PAWN} に生体認証</ClashOfRim.ItemBiocodedTo>
+  <ClashOfRim.ItemMarketValue>価値 {VALUE}</ClashOfRim.ItemMarketValue>
+  <ClashOfRim.ItemQuality>品質 {QUALITY}</ClashOfRim.ItemQuality>
+  <ClashOfRim.ItemQualityAtLeast>品質&gt;={QUALITY}</ClashOfRim.ItemQualityAtLeast>
+  <ClashOfRim.ItemQualityAtMost>品質&lt;={QUALITY}</ClashOfRim.ItemQualityAtMost>
+  <ClashOfRim.ItemUniqueWeapon>特化武器</ClashOfRim.ItemUniqueWeapon>
+  <ClashOfRim.ItemTraitWeapon>特化武器</ClashOfRim.ItemTraitWeapon>
+  <ClashOfRim.ItemSpecializedWeapon>特化武器</ClashOfRim.ItemSpecializedWeapon>
+  <ClashOfRim.ItemPersonaWeapon>人格武器</ClashOfRim.ItemPersonaWeapon>
+  <ClashOfRim.ItemUniqueWeaponTraits>特性 {TRAITS}</ClashOfRim.ItemUniqueWeaponTraits>
+  <ClashOfRim.ItemWornByCorpse>死者の衣服</ClashOfRim.ItemWornByCorpse>
+  <ClashOfRim.ListSeparator>, </ClashOfRim.ListSeparator>
+  <ClashOfRim.FixedCustodyFeePerThing>固定保管手数料 {FEE}/個</ClashOfRim.FixedCustodyFeePerThing>
+  <ClashOfRim.LocalAtomicMutation.DefaultOperation>現在の同期操作</ClashOfRim.LocalAtomicMutation.DefaultOperation>
+  <ClashOfRim.LocalAtomicMutation.Waiting>{OPERATION} はサーバー待機中です。まず再試行するか、メインメニューに戻ってサーバーセーブを再読み込みしてください。</ClashOfRim.LocalAtomicMutation.Waiting>
+  <ClashOfRim.LocalAtomicMutation.WaitingWithStatus>{OPERATION} はサーバー待機中です: {STATUS}</ClashOfRim.LocalAtomicMutation.WaitingWithStatus>
+  <ClashOfRim.ServerEntry.JoinTitle>サーバーに参加</ClashOfRim.ServerEntry.JoinTitle>
+  <ClashOfRim.Menu.UploadSnapshot>進行状況を保存</ClashOfRim.Menu.UploadSnapshot>
+  <ClashOfRim.Menu.UploadSnapshotAndQuitToMainMenu>進行状況を保存してメインメニューに戻る</ClashOfRim.Menu.UploadSnapshotAndQuitToMainMenu>
+  <ClashOfRim.Menu.UploadSnapshotAndQuitToOS>進行状況を保存してゲームを終了</ClashOfRim.Menu.UploadSnapshotAndQuitToOS>
+  <ClashOfRim.Menu.UploadSnapshotBusy>マルチプレイ同期操作が既に実行中です。</ClashOfRim.Menu.UploadSnapshotBusy>
+  <ClashOfRim.Menu.UploadSnapshotException>セーブ同期例外: {TYPE} {MESSAGE}</ClashOfRim.Menu.UploadSnapshotException>
+  <ClashOfRim.Menu.UploadSnapshotFailed>セーブ同期失敗: {CODE} {MESSAGE}</ClashOfRim.Menu.UploadSnapshotFailed>
+  <ClashOfRim.Menu.UploadSnapshotNoSession>有効なマルチプレイセッションにログインしていません。</ClashOfRim.Menu.UploadSnapshotNoSession>
+  <ClashOfRim.Menu.UploadSnapshotSucceeded>セーブをアップロードしました: {SNAPSHOT}</ClashOfRim.Menu.UploadSnapshotSucceeded>
+  <ClashOfRim.Menu.UploadSnapshotUploading>進行状況を保存中。</ClashOfRim.Menu.UploadSnapshotUploading>
+  <ClashOfRim.AutosaveSnapshot.Uploading>進行状況を自動保存中。</ClashOfRim.AutosaveSnapshot.Uploading>
+  <ClashOfRim.AutosaveSnapshot.Succeeded>自動セーブをアップロードしました: {SNAPSHOT}</ClashOfRim.AutosaveSnapshot.Succeeded>
+  <ClashOfRim.AutosaveSnapshot.Failed>自動セーブのアップロード失敗: {CODE} {MESSAGE}</ClashOfRim.AutosaveSnapshot.Failed>
+  <ClashOfRim.AutosaveSnapshot.Exception>自動セーブのアップロード例外: {TYPE} {MESSAGE}</ClashOfRim.AutosaveSnapshot.Exception>
+  <ClashOfRim.AutosaveSnapshot.SkippedAtomic>自動セーブのアップロードをスキップしました: {REASON}</ClashOfRim.AutosaveSnapshot.SkippedAtomic>
+  <ClashOfRim.AutosaveSnapshot.SkippedBusy>自動セーブのアップロードをスキップしました: 同期が既に実行中です。</ClashOfRim.AutosaveSnapshot.SkippedBusy>
+  <ClashOfRim.AutosaveSnapshot.SkippedNoSession>自動セーブのアップロードをスキップしました: 追跡中のマルチプレイセーブがありません。</ClashOfRim.AutosaveSnapshot.SkippedNoSession>
+  <ClashOfRim.SnapshotRestore.PackageMissing>サーバーがセーブ内容を返しませんでした。</ClashOfRim.SnapshotRestore.PackageMissing>
+  <ClashOfRim.SnapshotRestore.PayloadSizeMismatch>サーバーセーブのサイズが一致しません。</ClashOfRim.SnapshotRestore.PayloadSizeMismatch>
+  <ClashOfRim.SnapshotRestore.PayloadHashMismatch>サーバーセーブの検査に失敗しました。</ClashOfRim.SnapshotRestore.PayloadHashMismatch>
+  <ClashOfRim.SnapshotRestore.DecodeFailed>サーバーセーブのデコードに失敗: {MESSAGE}</ClashOfRim.SnapshotRestore.DecodeFailed>
+  <ClashOfRim.SnapshotRestore.OriginalSizeMismatch>元のサーバーセーブサイズが一致しません。</ClashOfRim.SnapshotRestore.OriginalSizeMismatch>
+  <ClashOfRim.SnapshotRestore.OriginalHashMismatch>元のサーバーセーブの検査に失敗しました。</ClashOfRim.SnapshotRestore.OriginalHashMismatch>
+  <ClashOfRim.SnapshotRestore.UnsupportedEncoding>サポートされていないサーバーセーブ形式: {ENCODING}</ClashOfRim.SnapshotRestore.UnsupportedEncoding>
+  <ClashOfRim.SnapshotRestore.InvalidXml>サーバーセーブをRimWorldセーブとして読み取れません。</ClashOfRim.SnapshotRestore.InvalidXml>
+  <ClashOfRim.SnapshotRestore.MetadataRewriteFailed>読み込み前のサーバーセーブ準備に失敗: {MESSAGE}</ClashOfRim.SnapshotRestore.MetadataRewriteFailed>
+  <ClashOfRim.SnapshotUpload.NotConfigured>サーバーアドレス、アカウント、またはコロニーが設定されていないため、セーブをアップロードできません。</ClashOfRim.SnapshotUpload.NotConfigured>
+  <ClashOfRim.SnapshotUpload.BuildFailed>セーブ準備に失敗しました。</ClashOfRim.SnapshotUpload.BuildFailed>
+  <ClashOfRim.SnapshotUpload.UploadFailed>セーブ同期に失敗しました。</ClashOfRim.SnapshotUpload.UploadFailed>
+  <ClashOfRim.SnapshotUpload.ServerRejected>サーバーがセーブアップロードを拒否しました。</ClashOfRim.SnapshotUpload.ServerRejected>
+  <ClashOfRim.SnapshotUpload.NoRunningGame>実行中のゲームがないため、最初のサーバーセーブを作成できません。</ClashOfRim.SnapshotUpload.NoRunningGame>
+  <ClashOfRim.SnapshotUpload.LineageMissing>実行中のゲームにサーバーセーブマーカーがないため、サーバー追跡状態として確認できません。</ClashOfRim.SnapshotUpload.LineageMissing>
+  <ClashOfRim.SnapshotUpload.LineageMismatch>実行中のゲームはサーバーセーブではありません。サーバーセーブ: {SERVER}; 現在のセーブ: {LOCAL}。この状態を破棄し、サーバーから再参加してください。</ClashOfRim.SnapshotUpload.LineageMismatch>
+  <ClashOfRim.SnapshotPackage.MissingIdentity>アカウントまたはコロニーが設定されていないため、セーブを準備できません。</ClashOfRim.SnapshotPackage.MissingIdentity>
+  <ClashOfRim.SnapshotPackage.MissingSavePayload>アップロードするセーブ内容がありません。</ClashOfRim.SnapshotPackage.MissingSavePayload>
+  <ClashOfRim.SnapshotPackage.MissingRimWorldVersion>セーブにゲームバージョンがないため、サーバーは拒否します。</ClashOfRim.SnapshotPackage.MissingRimWorldVersion>
+  <ClashOfRim.Multiplayer.TabDiplomacy>外交</ClashOfRim.Multiplayer.TabDiplomacy>
+  <ClashOfRim.Multiplayer.TabTrade>取引所</ClashOfRim.Multiplayer.TabTrade>
+  <ClashOfRim.Multiplayer.TabBank>銀行</ClashOfRim.Multiplayer.TabBank>
+  <ClashOfRim.Multiplayer.TabAccount>アカウント</ClashOfRim.Multiplayer.TabAccount>
+  <ClashOfRim.Multiplayer.TabDiagnostics>診断</ClashOfRim.Multiplayer.TabDiagnostics>
+  <ClashOfRim.Multiplayer.TabAchievements>実績</ClashOfRim.Multiplayer.TabAchievements>
+  <ClashOfRim.Multiplayer.NoPlayers>他のプレイヤーはまだいません。</ClashOfRim.Multiplayer.NoPlayers>
+  <ClashOfRim.Multiplayer.Online>オンライン</ClashOfRim.Multiplayer.Online>
+  <ClashOfRim.Multiplayer.Offline>オフライン</ClashOfRim.Multiplayer.Offline>
+  <ClashOfRim.Multiplayer.CurrentPlayer>現在のプレイヤー</ClashOfRim.Multiplayer.CurrentPlayer>
+  <ClashOfRim.Multiplayer.LocatePlayer>位置を表示</ClashOfRim.Multiplayer.LocatePlayer>
+  <ClashOfRim.Multiplayer.PlayerLocationUnavailable>このプレイヤーにはまだ表示できるコロニータイルがありません。</ClashOfRim.Multiplayer.PlayerLocationUnavailable>
+  <ClashOfRim.Scoreboard.Title>資産ランキング</ClashOfRim.Scoreboard.Title>
+  <ClashOfRim.Scoreboard.RankHeader>順位</ClashOfRim.Scoreboard.RankHeader>
+  <ClashOfRim.Scoreboard.PlayerHeader>プレイヤー</ClashOfRim.Scoreboard.PlayerHeader>
+  <ClashOfRim.Scoreboard.WealthHeader>資産</ClashOfRim.Scoreboard.WealthHeader>
+  <ClashOfRim.Scoreboard.WealthUnknown>不明</ClashOfRim.Scoreboard.WealthUnknown>
+  <ClashOfRim.Achievement.ScoreboardTitle>実績ランキング</ClashOfRim.Achievement.ScoreboardTitle>
+  <ClashOfRim.Achievement.ScoreboardEmpty>実績記録はまだありません。</ClashOfRim.Achievement.ScoreboardEmpty>
+  <ClashOfRim.Achievement.SelectPlayer>表示するプレイヤーを選択</ClashOfRim.Achievement.SelectPlayer>
+  <ClashOfRim.Achievement.OwnEmpty>記録された実績はまだありません。</ClashOfRim.Achievement.OwnEmpty>
+  <ClashOfRim.Achievement.GetTrophyBlueprint>トロフィー計画書を取得</ClashOfRim.Achievement.GetTrophyBlueprint>
+  <ClashOfRim.Achievement.GetTrophyBlueprintDesc>この実績を記録するトロフィー計画書を作成します。</ClashOfRim.Achievement.GetTrophyBlueprintDesc>
+  <ClashOfRim.Achievement.TrophyBlueprintSelected>実績トロフィー設計図を選択しました。</ClashOfRim.Achievement.TrophyBlueprintSelected>
+  <ClashOfRim.Achievement.TrophyNoMap>トロフィーを配置するにはコロニーマップに入ってください。</ClashOfRim.Achievement.TrophyNoMap>
+  <ClashOfRim.Achievement.TrophyMissingDef>実績トロフィー定義が見つかりません。</ClashOfRim.Achievement.TrophyMissingDef>
+  <ClashOfRim.Achievement.TrophyPlanMissingDef>実績トロフィー計画書の定義が見つかりません。</ClashOfRim.Achievement.TrophyPlanMissingDef>
+  <ClashOfRim.Achievement.TrophyPlanCreated>トロフィー計画書を作成しました。選択すると素材を選び、トロフィー設計図を配置できます。</ClashOfRim.Achievement.TrophyPlanCreated>
+  <ClashOfRim.Achievement.TrophyPlanCreateFailed>トロフィー計画書を作成できません。</ClashOfRim.Achievement.TrophyPlanCreateFailed>
+  <ClashOfRim.Achievement.PlaceTrophy>トロフィーを配置</ClashOfRim.Achievement.PlaceTrophy>
+  <ClashOfRim.Achievement.PlaceTrophyDesc>素材を選び、この実績を記録するトロフィー設計図を配置します。</ClashOfRim.Achievement.PlaceTrophyDesc>
+  <ClashOfRim.Achievement.TrophyInspectLine>達成者: {OWNER}; 実績: {ACHIEVEMENT}; 記録値: {VALUE}</ClashOfRim.Achievement.TrophyInspectLine>
+  <ClashOfRim.Achievement.TrophyArtDescription>実績: {ACHIEVEMENT}&#10;達成者: {OWNER}&#10;&#10;{DESCRIPTION}&#10;&#10;記録値: {VALUE}</ClashOfRim.Achievement.TrophyArtDescription>
+  <ClashOfRim.Achievement.Unknown>不明な実績</ClashOfRim.Achievement.Unknown>
+  <ClashOfRim.Achievement.WealthPeak>最高資産</ClashOfRim.Achievement.WealthPeak>
+  <ClashOfRim.Achievement.Wealth500k>コロニーの資産が500,000に到達</ClashOfRim.Achievement.Wealth500k>
+  <ClashOfRim.Achievement.Wealth500k.Description>コロニーの資産が500,000に到達</ClashOfRim.Achievement.Wealth500k.Description>
+  <ClashOfRim.Achievement.Colonists20>大家族</ClashOfRim.Achievement.Colonists20>
+  <ClashOfRim.Achievement.Colonists20.Description>コロニー人口が20人に到達</ClashOfRim.Achievement.Colonists20.Description>
+  <ClashOfRim.Achievement.WealthItems250k>満載の備蓄</ClashOfRim.Achievement.WealthItems250k>
+  <ClashOfRim.Achievement.WealthItems250k.Description>コロニーのアイテム資産が250,000に到達</ClashOfRim.Achievement.WealthItems250k.Description>
+  <ClashOfRim.Achievement.WealthBuildings250k>壮大な入植地</ClashOfRim.Achievement.WealthBuildings250k>
+  <ClashOfRim.Achievement.WealthBuildings250k.Description>コロニーの建築資産が250,000に到達</ClashOfRim.Achievement.WealthBuildings250k.Description>
+  <ClashOfRim.Achievement.WealthPawns200k>価値ある人々</ClashOfRim.Achievement.WealthPawns200k>
+  <ClashOfRim.Achievement.WealthPawns200k.Description>コロニーのポーン資産が200,000に到達</ClashOfRim.Achievement.WealthPawns200k.Description>
+  <ClashOfRim.Achievement.Prisoners10>満員の牢房</ClashOfRim.Achievement.Prisoners10>
+  <ClashOfRim.Achievement.Prisoners10.Description>同時に10人の囚人を収容した</ClashOfRim.Achievement.Prisoners10.Description>
+  <ClashOfRim.Achievement.ColonistMood90>高揚する心</ClashOfRim.Achievement.ColonistMood90>
+  <ClashOfRim.Achievement.ColonistMood90.Description>入植者の平均心情が90に到達</ClashOfRim.Achievement.ColonistMood90.Description>
+  <ClashOfRim.Achievement.Relocations3>移住者</ClashOfRim.Achievement.Relocations3>
+  <ClashOfRim.Achievement.Relocations3.Description>コロニー移転を3回完了</ClashOfRim.Achievement.Relocations3.Description>
+  <ClashOfRim.Achievement.Trades10>熟練商人</ClashOfRim.Achievement.Trades10>
+  <ClashOfRim.Achievement.Trades10.Description>取引を10回完了</ClashOfRim.Achievement.Trades10.Description>
+  <ClashOfRim.Achievement.TradeValue100k>銀本位</ClashOfRim.Achievement.TradeValue100k>
+  <ClashOfRim.Achievement.TradeValue100k.Description>累計取引額が銀100,000に到達</ClashOfRim.Achievement.TradeValue100k.Description>
+  <ClashOfRim.Achievement.EndgameShipLaunch>宇宙船の発進</ClashOfRim.Achievement.EndgameShipLaunch>
+  <ClashOfRim.Achievement.EndgameShipLaunch.Description>宇宙船の発進に成功した</ClashOfRim.Achievement.EndgameShipLaunch.Description>
+  <ClashOfRim.Achievement.EndgameShipColonists>宇宙船で旅立った入植者</ClashOfRim.Achievement.EndgameShipColonists>
+  <ClashOfRim.Achievement.EndgameShipColonists.Description>入植者が発進した宇宙船で去った</ClashOfRim.Achievement.EndgameShipColonists.Description>
+  <ClashOfRim.Achievement.WaitingForTheSun>太陽を待ちながら</ClashOfRim.Achievement.WaitingForTheSun>
+  <ClashOfRim.Achievement.WaitingForTheSun.Description>入植者が発進した宇宙船で去った</ClashOfRim.Achievement.WaitingForTheSun.Description>
+  <ClashOfRim.Achievement.EndgameArchonexus>アーコネクサスエンディング</ClashOfRim.Achievement.EndgameArchonexus>
+  <ClashOfRim.Achievement.EndgameArchonexus.Description>アーコネクサスエンディングを完了した</ClashOfRim.Achievement.EndgameArchonexus.Description>
+  <ClashOfRim.Achievement.EndgameVoid>虚空エンディング</ClashOfRim.Achievement.EndgameVoid>
+  <ClashOfRim.Achievement.EndgameVoid.Description>虚空エンディングを完了した</ClashOfRim.Achievement.EndgameVoid.Description>
+  <ClashOfRim.Achievement.EndgameCerebrex>セレブレックスエンディング</ClashOfRim.Achievement.EndgameCerebrex>
+  <ClashOfRim.Achievement.EndgameCerebrex.Description>セレブレックスエンディングを完了した</ClashOfRim.Achievement.EndgameCerebrex.Description>
+  <ClashOfRim.Achievement.StatusNotConfigured>サーバーに接続していません。</ClashOfRim.Achievement.StatusNotConfigured>
+  <ClashOfRim.Achievement.StatusRefreshing>実績を更新しています。</ClashOfRim.Achievement.StatusRefreshing>
+  <ClashOfRim.Achievement.StatusRefreshed>実績を更新しました。</ClashOfRim.Achievement.StatusRefreshed>
+  <ClashOfRim.Achievement.StatusRefreshFailed>実績更新失敗: {CODE} {MESSAGE}</ClashOfRim.Achievement.StatusRefreshFailed>
+  <ClashOfRim.Achievement.StatusRefreshRejected>実績更新拒否: {CODE} {MESSAGE}</ClashOfRim.Achievement.StatusRefreshRejected>
+  <ClashOfRim.Achievement.StatusException>実績更新例外: {TYPE} {MESSAGE}</ClashOfRim.Achievement.StatusException>
+  <ClashOfRim.Endgame.ConfirmationTitle>エンディング確認</ClashOfRim.Endgame.ConfirmationTitle>
+  <ClashOfRim.Endgame.ConfirmationText>この操作はエンディングを発生させ、強制的に保存します。続行しますか？</ClashOfRim.Endgame.ConfirmationText>
+  <ClashOfRim.Endgame.UploadStarted>エンディング結果を確認しています。</ClashOfRim.Endgame.UploadStarted>
+  <ClashOfRim.Endgame.UploadSucceeded>エンディング結果をサーバーへ同期しました。</ClashOfRim.Endgame.UploadSucceeded>
+  <ClashOfRim.Endgame.UploadFailed>エンディング結果の同期失敗: {REASON}</ClashOfRim.Endgame.UploadFailed>
+  <ClashOfRim.Players.NoneRegistered>サーバーに登録済みプレイヤーはいません。</ClashOfRim.Players.NoneRegistered>
+  <ClashOfRim.Players.SummaryPrefix>プレイヤー: </ClashOfRim.Players.SummaryPrefix>
+  <ClashOfRim.Players.SummaryItem>{PLAYER} ({STATUS})</ClashOfRim.Players.SummaryItem>
+  <ClashOfRim.Players.NoSnapshot>まだセーブなし</ClashOfRim.Players.NoSnapshot>
+  <ClashOfRim.Players.StatusRefreshed>{PLAYERS}</ClashOfRim.Players.StatusRefreshed>
+  <ClashOfRim.Players.StatusRefreshFailed>プレイヤー一覧の更新失敗: {CODE} {MESSAGE}</ClashOfRim.Players.StatusRefreshFailed>
+  <ClashOfRim.Players.StatusRefreshRejected>プレイヤー一覧の更新拒否: {CODE} {MESSAGE}</ClashOfRim.Players.StatusRefreshRejected>
+  <ClashOfRim.Players.StatusException>プレイヤー一覧例外: {TYPE} {MESSAGE}</ClashOfRim.Players.StatusException>
+  <ClashOfRim.Players.StatusRefreshing>プレイヤー一覧を更新しています。</ClashOfRim.Players.StatusRefreshing>
+  <ClashOfRim.Players.StatusNoSelectableTargets>選択可能な他プレイヤーがいません。</ClashOfRim.Players.StatusNoSelectableTargets>
+  <ClashOfRim.Players.StatusSelectedTarget>対象を選択: {USER}/{COLONY}。</ClashOfRim.Players.StatusSelectedTarget>
+  <ClashOfRim.Players.StatusCannotSelectSelf>現在のプレイヤーは外交対象に選択できません。</ClashOfRim.Players.StatusCannotSelectSelf>
+  <ClashOfRim.Sync.StatusNotConfigured>サーバーアドレス、アカウント、またはコロニーが未設定のため、同期できません。</ClashOfRim.Sync.StatusNotConfigured>
+  <ClashOfRim.Sync.StatusSnapshotMissing>現在のサーバーセーブがないため、遠隔メッセージを同期できません。</ClashOfRim.Sync.StatusSnapshotMissing>
+  <ClashOfRim.Events.StatusRefreshing>サーバーメッセージを更新しています。</ClashOfRim.Events.StatusRefreshing>
+  <ClashOfRim.Events.StatusQueueFailed>サーバーメッセージ更新に失敗しました: {CODE} {MESSAGE}</ClashOfRim.Events.StatusQueueFailed>
+  <ClashOfRim.Events.StatusQueueRejected>サーバーメッセージ更新が拒否されました: {CODE} {MESSAGE}</ClashOfRim.Events.StatusQueueRejected>
+  <ClashOfRim.Events.StatusNoDetails>新しいサーバーメッセージはありません。</ClashOfRim.Events.StatusNoDetails>
+  <ClashOfRim.Events.StatusDetailsFailed>メッセージ詳細の更新に失敗しました: {CODE} {MESSAGE}</ClashOfRim.Events.StatusDetailsFailed>
+  <ClashOfRim.Events.StatusDetailsRejected>メッセージ詳細の更新が拒否されました: {CODE} {MESSAGE}</ClashOfRim.Events.StatusDetailsRejected>
+  <ClashOfRim.Events.StatusException>サーバーメッセージ更新例外: {TYPE} {MESSAGE}</ClashOfRim.Events.StatusException>
+  <ClashOfRim.Events.StatusAutoMerged>サーバーメッセージの自動同期はすでに実行中です。新しい通知を統合しました: {REASON}。</ClashOfRim.Events.StatusAutoMerged>
+  <ClashOfRim.Events.StatusAutoRefreshing>サーバーメッセージを自動同期しています: {REASON}。</ClashOfRim.Events.StatusAutoRefreshing>
+  <ClashOfRim.Events.StatusAutoQueueFailed>サーバーメッセージの自動同期に失敗しました: {CODE} {MESSAGE}</ClashOfRim.Events.StatusAutoQueueFailed>
+  <ClashOfRim.Events.StatusAutoQueueRejected>サーバーメッセージの自動同期が拒否されました: {CODE} {MESSAGE}</ClashOfRim.Events.StatusAutoQueueRejected>
+  <ClashOfRim.Events.StatusAutoNoEvents>自動同期完了: 新しいサーバーメッセージはありません。</ClashOfRim.Events.StatusAutoNoEvents>
+  <ClashOfRim.Events.StatusAutoDetailsFailed>自動メッセージ詳細同期に失敗しました: {CODE} {MESSAGE}</ClashOfRim.Events.StatusAutoDetailsFailed>
+  <ClashOfRim.Events.StatusAutoDetailsRejected>自動メッセージ詳細同期が拒否されました: {CODE} {MESSAGE}</ClashOfRim.Events.StatusAutoDetailsRejected>
+  <ClashOfRim.Events.StatusAutoApplying>サーバーメッセージを処理しています。</ClashOfRim.Events.StatusAutoApplying>
+  <ClashOfRim.Events.StatusAutoApplyException>自動メッセージ処理例外: {TYPE} {MESSAGE}</ClashOfRim.Events.StatusAutoApplyException>
+  <ClashOfRim.Events.StatusAutoException>サーバーメッセージ自動同期例外: {TYPE} {MESSAGE}</ClashOfRim.Events.StatusAutoException>
+  <ClashOfRim.Events.StatusPullingPending>保留中のメッセージを取得しています。</ClashOfRim.Events.StatusPullingPending>
+  <ClashOfRim.Events.StatusQueueException>サーバーメッセージ同期例外: {TYPE} {MESSAGE}</ClashOfRim.Events.StatusQueueException>
+  <ClashOfRim.Events.StatusWaitingOnline>オンラインメッセージを待っています。</ClashOfRim.Events.StatusWaitingOnline>
+  <ClashOfRim.Events.StatusOnlineWaitFailed>オンラインメッセージ待機に失敗しました: {CODE} {MESSAGE}</ClashOfRim.Events.StatusOnlineWaitFailed>
+  <ClashOfRim.Events.StatusOnlineWaitRejected>オンラインメッセージ待機が拒否されました: {CODE} {MESSAGE}</ClashOfRim.Events.StatusOnlineWaitRejected>
+  <ClashOfRim.Events.StatusOnlineArrived>遠方から新しいメッセージ: {QUEUE}</ClashOfRim.Events.StatusOnlineArrived>
+  <ClashOfRim.Events.StatusOnlineTimedOut>オンラインメッセージ待機がタイムアウトしました: {QUEUE}</ClashOfRim.Events.StatusOnlineTimedOut>
+  <ClashOfRim.Events.StatusOnlineException>オンラインメッセージ待機例外: {TYPE} {MESSAGE}</ClashOfRim.Events.StatusOnlineException>
+  <ClashOfRim.Events.StatusNoViewableDetails>表示可能なサーバーメッセージはありません。</ClashOfRim.Events.StatusNoViewableDetails>
+  <ClashOfRim.Events.StatusPullingDetails>メッセージ詳細を取得しています。</ClashOfRim.Events.StatusPullingDetails>
+  <ClashOfRim.Events.StatusDetailsException>メッセージ詳細例外: {TYPE} {MESSAGE}</ClashOfRim.Events.StatusDetailsException>
+  <ClashOfRim.Events.ReasonMergedNotifications>統合された通知</ClashOfRim.Events.ReasonMergedNotifications>
+  <ClashOfRim.Events.ReasonManualDetails>手動詳細</ClashOfRim.Events.ReasonManualDetails>
+  <ClashOfRim.Events.ReasonFailureReport>メッセージ処理失敗報告</ClashOfRim.Events.ReasonFailureReport>
+  <ClashOfRim.Events.StatusAutoApplyFailed>メッセージの自動処理に失敗しました: {MESSAGE}</ClashOfRim.Events.StatusAutoApplyFailed>
+  <ClashOfRim.Events.StatusAutoRaidLossFailed>襲撃損失の自動処理に失敗しました: {MESSAGE}</ClashOfRim.Events.StatusAutoRaidLossFailed>
+  <ClashOfRim.Events.StatusAutoAppliedConfirming>{COUNT} 件のメッセージを自動処理しました。現在状態を保存しています。</ClashOfRim.Events.StatusAutoAppliedConfirming>
+  <ClashOfRim.Events.StatusAutoConfirmUploading>{COUNT} 件の自動メッセージを保存しています。</ClashOfRim.Events.StatusAutoConfirmUploading>
+  <ClashOfRim.Events.StatusAutoConfirmBuildFailed>自動メッセージ保存準備に失敗しました: {REASON}</ClashOfRim.Events.StatusAutoConfirmBuildFailed>
+  <ClashOfRim.Events.StatusAutoConfirmFailed>自動メッセージ処理に失敗しました: {CODE} {MESSAGE}</ClashOfRim.Events.StatusAutoConfirmFailed>
+  <ClashOfRim.Events.StatusAutoConfirmRejected>自動メッセージ処理が拒否されました: {CODE} {MESSAGE}</ClashOfRim.Events.StatusAutoConfirmRejected>
+  <ClashOfRim.Events.StatusAutoConfirmException>自動メッセージ処理例外: {TYPE} {MESSAGE}</ClashOfRim.Events.StatusAutoConfirmException>
+  <ClashOfRim.Events.StatusAutoConfirmCompleted>自動メッセージ処理完了: 承諾 {ACCEPTED}、拒否 {REJECTED}、サーバーセーブを更新しました。</ClashOfRim.Events.StatusAutoConfirmCompleted>
+  <ClashOfRim.Events.StatusBatchConfirmBuildFailed>一括メッセージ保存準備に失敗しました: {REASON}</ClashOfRim.Events.StatusBatchConfirmBuildFailed>
+  <ClashOfRim.Events.StatusBatchConfirmFailed>一括メッセージ処理に失敗しました: {CODE} {MESSAGE}</ClashOfRim.Events.StatusBatchConfirmFailed>
+  <ClashOfRim.Events.StatusBatchConfirmRejected>一括メッセージ処理が拒否されました: {CODE} {MESSAGE}</ClashOfRim.Events.StatusBatchConfirmRejected>
+  <ClashOfRim.Events.StatusBatchConfirmException>一括メッセージ処理例外: {TYPE} {MESSAGE}</ClashOfRim.Events.StatusBatchConfirmException>
+  <ClashOfRim.Events.StatusPreparedConfirmOperation>遠方メッセージ処理</ClashOfRim.Events.StatusPreparedConfirmOperation>
+  <ClashOfRim.Events.StatusPreparedConfirmFailed>遠方メッセージ処理に失敗しました: {CODE} {MESSAGE}</ClashOfRim.Events.StatusPreparedConfirmFailed>
+  <ClashOfRim.Events.StatusPreparedConfirmRejected>遠方メッセージ処理が拒否されました: {CODE} {MESSAGE}</ClashOfRim.Events.StatusPreparedConfirmRejected>
+  <ClashOfRim.Events.StatusPreparedConfirmException>遠方メッセージ処理例外: {TYPE} {MESSAGE}</ClashOfRim.Events.StatusPreparedConfirmException>
+  <ClashOfRim.Events.StatusSingleConfirmFailed>{PREFIX}: {CODE} {MESSAGE}</ClashOfRim.Events.StatusSingleConfirmFailed>
+  <ClashOfRim.Events.StatusSingleConfirmRejected>{PREFIX}: {CODE} {MESSAGE}; {VALIDATION} を確認してください</ClashOfRim.Events.StatusSingleConfirmRejected>
+  <ClashOfRim.Events.StatusSingleConfirmException>{PREFIX}: {TYPE} {MESSAGE}</ClashOfRim.Events.StatusSingleConfirmException>
+  <ClashOfRim.SnapshotPackage.BuildNotStarted>セーブ準備は開始されていません。</ClashOfRim.SnapshotPackage.BuildNotStarted>
+  <ClashOfRim.PawnPackage.DownloadException>人物情報ダウンロード例外: {TYPE} {MESSAGE}</ClashOfRim.PawnPackage.DownloadException>
+  <ClashOfRim.PawnPackage.UploadFailed>人物情報アップロード失敗: {CODE} {MESSAGE}</ClashOfRim.PawnPackage.UploadFailed>
+  <ClashOfRim.PawnPackage.UploadRejected>人物情報はサーバーに拒否されました: {CODE} {MESSAGE}</ClashOfRim.PawnPackage.UploadRejected>
+  <ClashOfRim.PawnPackage.StoreMissingId>サーバーが人物項目を返しませんでした。</ClashOfRim.PawnPackage.StoreMissingId>
+  <ClashOfRim.PawnPackage.DownloadFailed>人物情報ダウンロード失敗: {CODE} {MESSAGE}</ClashOfRim.PawnPackage.DownloadFailed>
+  <ClashOfRim.PawnPackage.DownloadRejected>人物情報ダウンロードはサーバーに拒否されました: {CODE} {MESSAGE}</ClashOfRim.PawnPackage.DownloadRejected>
+  <ClashOfRim.PawnPackage.DownloadMissingPackage>サーバーが人物情報を返しませんでした。</ClashOfRim.PawnPackage.DownloadMissingPackage>
+  <ClashOfRim.PawnExchange.ValidatorSupport>支援入植者情報を受け入れられませんでした。</ClashOfRim.PawnExchange.ValidatorSupport>
+  <ClashOfRim.PawnExchange.ValidatorAnimalGift>贈られた生物は動物ではありません。</ClashOfRim.PawnExchange.ValidatorAnimalGift>
+  <ClashOfRim.PawnExchange.ValidatorTradePawn>取引された人物または動物が条件を満たしていません。</ClashOfRim.PawnExchange.ValidatorTradePawn>
+  <ClashOfRim.PawnExchange.ValidatorGiftPawn>贈られた人物または動物が条件を満たしていません。</ClashOfRim.PawnExchange.ValidatorGiftPawn>
+  <ClashOfRim.PawnExchange.ValidatorCorpseGift>贈られた死体情報を受け入れられませんでした。</ClashOfRim.PawnExchange.ValidatorCorpseGift>
+  <ClashOfRim.PawnExchange.ValidatorInvalidKind>人物情報の種類を受け入れられませんでした。</ClashOfRim.PawnExchange.ValidatorInvalidKind>
+  <ClashOfRim.PawnExchange.LabelSupport>支援入植者</ClashOfRim.PawnExchange.LabelSupport>
+  <ClashOfRim.PawnExchange.LabelAnimal>動物</ClashOfRim.PawnExchange.LabelAnimal>
+  <ClashOfRim.PawnExchange.LabelTradePawn>取引された人物</ClashOfRim.PawnExchange.LabelTradePawn>
+  <ClashOfRim.PawnExchange.LabelGiftPawn>贈られた人物</ClashOfRim.PawnExchange.LabelGiftPawn>
+  <ClashOfRim.PawnExchange.LabelCorpse>死体</ClashOfRim.PawnExchange.LabelCorpse>
+  <ClashOfRim.PawnExchange.StatusMissingScribe>{LABEL} には復元可能な詳細がありません。</ClashOfRim.PawnExchange.StatusMissingScribe>
+  <ClashOfRim.PawnExchange.StatusScribeTooLarge>{LABEL} の詳細がサイズ制限を超えています。</ClashOfRim.PawnExchange.StatusScribeTooLarge>
+  <ClashOfRim.PawnExchange.StatusScribeHashMismatch>{LABEL} 情報を検証できませんでした。</ClashOfRim.PawnExchange.StatusScribeHashMismatch>
+  <ClashOfRim.PawnExchange.StatusExtensionFailed>{LABEL} の追加情報復元失敗: {MESSAGE}</ClashOfRim.PawnExchange.StatusExtensionFailed>
+  <ClashOfRim.PawnExchange.StatusScribeReturnedNull>{LABEL} を復元できませんでした。</ClashOfRim.PawnExchange.StatusScribeReturnedNull>
+  <ClashOfRim.PawnExchange.StatusRestoredWithRelations> 関係を復元しました: {COUNT}。</ClashOfRim.PawnExchange.StatusRestoredWithRelations>
+  <ClashOfRim.PawnExchange.StatusRestored>{LABEL} を復元しました。{DETAILS}</ClashOfRim.PawnExchange.StatusRestored>
+  <ClashOfRim.PawnExchange.StatusRestoreFailed>{LABEL} の復元失敗: {TYPE} {MESSAGE}</ClashOfRim.PawnExchange.StatusRestoreFailed>
+  <ClashOfRim.PawnExchange.StatusScribeRootMissing>保存された {LABEL} の詳細が空です。</ClashOfRim.PawnExchange.StatusScribeRootMissing>
+  <ClashOfRim.PawnExchange.StatusIdeoCatalogMissing> イデオロギー復元失敗: サーバーのイデオロギーカタログがありません。</ClashOfRim.PawnExchange.StatusIdeoCatalogMissing>
+  <ClashOfRim.PawnExchange.StatusIdeoAssignFailed> イデオロギーを割り当てられませんでした。</ClashOfRim.PawnExchange.StatusIdeoAssignFailed>
+  <ClashOfRim.PawnExchange.StatusIdeoRestored> イデオロギーを復元しました。</ClashOfRim.PawnExchange.StatusIdeoRestored>
+  <ClashOfRim.PawnExchange.StatusRoyaltyRestored> 王位称号を復元しました: {COUNT}。</ClashOfRim.PawnExchange.StatusRoyaltyRestored>
+  <ClashOfRim.Xenotype.StatusBiotechMissing>Biotech が有効でないため、カスタム異種遺伝型を登録できません。</ClashOfRim.Xenotype.StatusBiotechMissing>
+  <ClashOfRim.Xenotype.StatusGameMissing>ゲームインスタンスがないため、カスタム異種遺伝型を登録できません。</ClashOfRim.Xenotype.StatusGameMissing>
+  <ClashOfRim.Xenotype.StatusXmlTooLarge>カスタム異種遺伝型情報がサイズ制限を超えています。</ClashOfRim.Xenotype.StatusXmlTooLarge>
+  <ClashOfRim.Xenotype.StatusHashMismatch>カスタム異種遺伝型の詳細を検証できませんでした。</ClashOfRim.Xenotype.StatusHashMismatch>
+  <ClashOfRim.Xenotype.StatusPayloadEmpty>カスタム異種遺伝型の詳細が空です。</ClashOfRim.Xenotype.StatusPayloadEmpty>
+  <ClashOfRim.Xenotype.StatusAlreadyExists>カスタム異種遺伝型はすでに存在します。</ClashOfRim.Xenotype.StatusAlreadyExists>
+  <ClashOfRim.Xenotype.StatusRegistered>カスタム異種遺伝型を登録しました。</ClashOfRim.Xenotype.StatusRegistered>
+  <ClashOfRim.Xenotype.StatusVanillaLoadFailed>原版ローダーはカスタム異種遺伝型を読み取れませんでした。</ClashOfRim.Xenotype.StatusVanillaLoadFailed>
+  <ClashOfRim.Xenotype.StatusLoadFailed>カスタム異種遺伝型の読み込み失敗: {TYPE} {MESSAGE}</ClashOfRim.Xenotype.StatusLoadFailed>
+  <ClashOfRim.LocalMutation.ConfirmFailed>{STATUS} 失敗: {CODE} {MESSAGE}</ClashOfRim.LocalMutation.ConfirmFailed>
+  <ClashOfRim.LocalMutation.ConfirmSucceeded>サーバーが受け入れました。</ClashOfRim.LocalMutation.ConfirmSucceeded>
+  <ClashOfRim.LocalMutation.ConfirmException>{STATUS} 例外: {TYPE} {MESSAGE}</ClashOfRim.LocalMutation.ConfirmException>
+  <ClashOfRim.LocalMutation.ConfirmSucceededWithMessage>{MESSAGE} セーブ: {SNAPSHOT}</ClashOfRim.LocalMutation.ConfirmSucceededWithMessage>
+  <ClashOfRim.SnapshotUpload.Busy>同期がすでに実行中のため、セーブアップロードを開始できません。</ClashOfRim.SnapshotUpload.Busy>
+  <ClashOfRim.SnapshotUpload.Uploading>進行状況を準備して保存しています。</ClashOfRim.SnapshotUpload.Uploading>
+  <ClashOfRim.SnapshotUpload.Succeeded>セーブ同期済み</ClashOfRim.SnapshotUpload.Succeeded>
+  <ClashOfRim.SnapshotUpload.Failed>セーブ同期失敗: {CODE} {MESSAGE}</ClashOfRim.SnapshotUpload.Failed>
+  <ClashOfRim.SnapshotUpload.Exception>セーブ同期例外: {TYPE} {MESSAGE}</ClashOfRim.SnapshotUpload.Exception>
+  <ClashOfRim.Presence.StatusNotConfigured>サーバーアドレス、アカウント、またはコロニーが未設定のため、オンライン状態を維持できません。</ClashOfRim.Presence.StatusNotConfigured>
+  <ClashOfRim.Presence.StatusSessionMissing>サーバーセッションが空のため、オンライン接続を開始できません。</ClashOfRim.Presence.StatusSessionMissing>
+  <ClashOfRim.Presence.StatusConnecting>オンライン接続を開始しています。</ClashOfRim.Presence.StatusConnecting>
+  <ClashOfRim.Presence.StatusDisconnectedManual>オンライン接続を手動で切断しました。</ClashOfRim.Presence.StatusDisconnectedManual>
+  <ClashOfRim.Presence.StatusFailed>オンライン接続失敗: {CODE} {MESSAGE}</ClashOfRim.Presence.StatusFailed>
+  <ClashOfRim.Presence.StatusClosed>オンライン接続が閉じられました。</ClashOfRim.Presence.StatusClosed>
+  <ClashOfRim.Presence.StatusException>オンライン接続例外: {TYPE} {MESSAGE}</ClashOfRim.Presence.StatusException>
+  <ClashOfRim.Presence.StatusDisconnecting>オンライン接続を切断しています。</ClashOfRim.Presence.StatusDisconnecting>
+  <ClashOfRim.Presence.StatusSessionDisconnected>マルチプレイセッションが切断されました。</ClashOfRim.Presence.StatusSessionDisconnected>
+  <ClashOfRim.Presence.StatusConnected>オンライン接続が確立しました。通知バージョン {VERSION}。</ClashOfRim.Presence.StatusConnected>
+  <ClashOfRim.Presence.StatusLedgerChanged>新しいサーバーメッセージを受信しました。バージョン {VERSION}。</ClashOfRim.Presence.StatusLedgerChanged>
+  <ClashOfRim.Presence.StatusLedgerChangedSyncing>新しいサーバーメッセージがあります。同期しています。</ClashOfRim.Presence.StatusLedgerChangedSyncing>
+  <ClashOfRim.Presence.StatusChatChanged>新しいチャットメッセージを受信しました。</ClashOfRim.Presence.StatusChatChanged>
+  <ClashOfRim.Presence.StatusWorldConfigurationChanged>ワールドカタログ更新を受信しました。バージョン {VERSION}。</ClashOfRim.Presence.StatusWorldConfigurationChanged>
+  <ClashOfRim.Presence.StatusStreamError>オンライン接続エラー: {MESSAGE}</ClashOfRim.Presence.StatusStreamError>
+  <ClashOfRim.Presence.PlayerOnline>プレイヤー &lt;color=#7ecf6b&gt;{PLAYER}&lt;/color&gt; がオンラインです</ClashOfRim.Presence.PlayerOnline>
+  <ClashOfRim.Presence.ReasonLedgerChanged>サーバーメッセージ</ClashOfRim.Presence.ReasonLedgerChanged>
+  <ClashOfRim.Presence.ReasonWorldConfigurationChanged>ワールドカタログ更新</ClashOfRim.Presence.ReasonWorldConfigurationChanged>
+  <ClashOfRim.Login.StatusLoggingIn>サーバーにログインしています。</ClashOfRim.Login.StatusLoggingIn>
+  <ClashOfRim.Login.StatusFailed>ログイン失敗: {CODE} {MESSAGE}</ClashOfRim.Login.StatusFailed>
+  <ClashOfRim.Login.StatusRejected>ログイン拒否: {CODE} {MESSAGE}</ClashOfRim.Login.StatusRejected>
+  <ClashOfRim.Login.StatusSucceeded>ログインしました。</ClashOfRim.Login.StatusSucceeded>
+  <ClashOfRim.Login.StatusException>ログイン例外: {TYPE} {MESSAGE}</ClashOfRim.Login.StatusException>
+  <ClashOfRim.Login.ReasonManual>手動ログイン</ClashOfRim.Login.ReasonManual>
+  <ClashOfRim.MapSession.StatusNoMap>マップが読み込まれていないため、ゲーム内サーバーセッションを作成できません。</ClashOfRim.MapSession.StatusNoMap>
+  <ClashOfRim.MapSession.StatusNotConfigured>サーバーアドレス、アカウント、またはコロニーが未設定のため、参加を開始できません。</ClashOfRim.MapSession.StatusNotConfigured>
+  <ClashOfRim.MapSession.StatusUploadingInitialSnapshot>サーバー参加中: 現在のセーブをアップロードしています。</ClashOfRim.MapSession.StatusUploadingInitialSnapshot>
+  <ClashOfRim.MapSession.StatusPackagingCurrentMap>現在のセーブを準備してアップロードしています。</ClashOfRim.MapSession.StatusPackagingCurrentMap>
+  <ClashOfRim.MapSession.StatusLoginFailed>参加ログイン失敗: {CODE} {MESSAGE}</ClashOfRim.MapSession.StatusLoginFailed>
+  <ClashOfRim.MapSession.StatusLoginRejected>参加ログイン拒否: {CODE} {MESSAGE}</ClashOfRim.MapSession.StatusLoginRejected>
+  <ClashOfRim.MapSession.StatusUploadFailed>参加セーブのアップロード失敗: {CODE} {MESSAGE}</ClashOfRim.MapSession.StatusUploadFailed>
+  <ClashOfRim.MapSession.StatusUploadAborted>参加中止: セーブのアップロードが受け付けられませんでした。</ClashOfRim.MapSession.StatusUploadAborted>
+  <ClashOfRim.MapSession.StatusUploadSucceeded>参加セーブのアップロードが完了しました。</ClashOfRim.MapSession.StatusUploadSucceeded>
+  <ClashOfRim.MapSession.StatusSucceeded>参加しました。</ClashOfRim.MapSession.StatusSucceeded>
+  <ClashOfRim.MapSession.StatusException>参加例外: {TYPE} {MESSAGE}</ClashOfRim.MapSession.StatusException>
+  <ClashOfRim.MapSession.ReasonLogin>参加ログイン</ClashOfRim.MapSession.ReasonLogin>
+  <ClashOfRim.MapSession.ReasonLoginSucceeded>参加ログイン成功</ClashOfRim.MapSession.ReasonLoginSucceeded>
+  <ClashOfRim.Status.NoRunningGame>現在実行中のゲームはありません。</ClashOfRim.Status.NoRunningGame>
+  <ClashOfRim.Target.StatusMissing>対象プレイヤーまたはコロニーが選択されていません。プレイヤー一覧を更新し、先に対象を選択してください。</ClashOfRim.Target.StatusMissing>
+  <ClashOfRim.Target.StatusSelf>この操作は現在のプレイヤーを対象にできません。</ClashOfRim.Target.StatusSelf>
+  <ClashOfRim.CreationResult.Failed>{LABEL} の作成失敗: {CODE} {MESSAGE}</ClashOfRim.CreationResult.Failed>
+  <ClashOfRim.CreationResult.Rejected>{LABEL} はサーバーに拒否されました: {CODE} {MESSAGE}</ClashOfRim.CreationResult.Rejected>
+  <ClashOfRim.CreationResult.Created>{LABEL} を送信しました。</ClashOfRim.CreationResult.Created>
+  <ClashOfRim.Reject>拒否</ClashOfRim.Reject>
+  <ClashOfRim.Refresh>更新</ClashOfRim.Refresh>
+  <ClashOfRim.Remove>削除</ClashOfRim.Remove>
+  <ClashOfRim.RequestingWorldSession>サーバーのワールドセッションを要求中: {USER}/{COLONY}。</ClashOfRim.RequestingWorldSession>
+  <ClashOfRim.RemoteWorldObject.CaravanLabel>{OWNER} のキャラバン</ClashOfRim.RemoteWorldObject.CaravanLabel>
+  <ClashOfRim.RemoteWorldObject.ColonyLabel>{OWNER} のコロニー</ClashOfRim.RemoteWorldObject.ColonyLabel>
+  <ClashOfRim.RemoteWorldObject.ShuttleLabel>{OWNER} のシャトル</ClashOfRim.RemoteWorldObject.ShuttleLabel>
+  <ClashOfRim.RemoteWorldObject.TransportPodLabel>{OWNER} の輸送ポッド</ClashOfRim.RemoteWorldObject.TransportPodLabel>
+  <ClashOfRim.RemoteWorldObject.NamedLabel>{OWNER} の {LABEL}</ClashOfRim.RemoteWorldObject.NamedLabel>
+  <ClashOfRim.RemoteWorldObject.OwnerInspect>所有者: {OWNER}</ClashOfRim.RemoteWorldObject.OwnerInspect>
+  <ClashOfRim.RemoteWorldObject.RelationInspect>関係: {RELATION}</ClashOfRim.RemoteWorldObject.RelationInspect>
+  <ClashOfRim.RemoteWorldObject.OnlineInspect>状態: {STATUS}</ClashOfRim.RemoteWorldObject.OnlineInspect>
+  <ClashOfRim.RemoteWorldObject.LastSeenInspect>最終オンライン: {TIME}</ClashOfRim.RemoteWorldObject.LastSeenInspect>
+  <ClashOfRim.RemoteWorldObject.LastSeenUnknown>不明</ClashOfRim.RemoteWorldObject.LastSeenUnknown>
+  <ClashOfRim.RemoteWorldObject.StatusOnline>&lt;color=#7ecf6b&gt;オンライン&lt;/color&gt;</ClashOfRim.RemoteWorldObject.StatusOnline>
+  <ClashOfRim.RemoteWorldObject.StatusOffline>&lt;color=#9b9b9b&gt;オフライン&lt;/color&gt;</ClashOfRim.RemoteWorldObject.StatusOffline>
+  <ClashOfRim.RemoteWorldObject.TileInspect>タイル: {TILE}</ClashOfRim.RemoteWorldObject.TileInspect>
+  <ClashOfRim.RemoteWorldObject.RaidUnavailableInspect>襲撃不可 - {REASON}</ClashOfRim.RemoteWorldObject.RaidUnavailableInspect>
+  <ClashOfRim.RemoteWorldObject.RaidUnavailableUntilInspect>襲撃不可 - {REASON}、終了時刻 {TIME}</ClashOfRim.RemoteWorldObject.RaidUnavailableUntilInspect>
+  <ClashOfRim.RemoteWorldObject.RaidUnavailableReasonWealth>資産が低すぎる</ClashOfRim.RemoteWorldObject.RaidUnavailableReasonWealth>
+  <ClashOfRim.RemoteWorldObject.RaidUnavailableReasonCooldown>襲撃クールダウン中</ClashOfRim.RemoteWorldObject.RaidUnavailableReasonCooldown>
+  <ClashOfRim.RemoteWorldObject.RaidUnavailableReasonOnline>プレイヤーがオンライン</ClashOfRim.RemoteWorldObject.RaidUnavailableReasonOnline>
+  <ClashOfRim.RemoteWorldObject.RaidUnavailableReasonUnknown>制限中</ClashOfRim.RemoteWorldObject.RaidUnavailableReasonUnknown>
+  <ClashOfRim.RemoteWorldObject.WorldObjectInspect>元ワールドオブジェクト: {ID}</ClashOfRim.RemoteWorldObject.WorldObjectInspect>
+  <ClashOfRim.RemoteWorldObject.MapInspect>元マップ: {ID}</ClashOfRim.RemoteWorldObject.MapInspect>
+  <ClashOfRim.RemoteWorldObject.SnapshotInspect>セーブ: {ID}</ClashOfRim.RemoteWorldObject.SnapshotInspect>
+  <ClashOfRim.RemoteWorldObject.ActionNotice>進入条件を表示</ClashOfRim.RemoteWorldObject.ActionNotice>
+  <ClashOfRim.RemoteWorldObject.RaidActionNoticeDesc>襲撃は正式な襲撃フローで作成する必要があり、この空のワールドオブジェクトから直接進入することはできません。</ClashOfRim.RemoteWorldObject.RaidActionNoticeDesc>
+  <ClashOfRim.RemoteWorldObject.ReinforceActionNoticeDesc>増援にはキャラバンを対象タイルへ到着させ、その後キャラバンコマンドで支援する入植者を選ぶ必要があります。</ClashOfRim.RemoteWorldObject.ReinforceActionNoticeDesc>
+  <ClashOfRim.RemoteWorldObject.RaidActionNoticeMessage>襲撃入口は実際の襲撃ループに接続されます。現時点ではマルチプレイ画面で対象を確認してください。</ClashOfRim.RemoteWorldObject.RaidActionNoticeMessage>
+  <ClashOfRim.RemoteWorldObject.ReinforceActionNoticeMessage>キャラバンがこのタイルに到着すると、増援はキャラバンコマンドに表示されます。</ClashOfRim.RemoteWorldObject.ReinforceActionNoticeMessage>
+  <ClashOfRim.RuntimeConfigurationMissing>サーバーアドレス、アカウント、またはコロニーが未入力です。</ClashOfRim.RuntimeConfigurationMissing>
+  <ClashOfRim.RuntimeConfigurationSummary>サーバー {SERVER}; ユーザー {USER}; コロニー {COLONY}。</ClashOfRim.RuntimeConfigurationSummary>
+  <ClashOfRim.ServerAddress>サーバーアドレス</ClashOfRim.ServerAddress>
+  <ClashOfRim.Start>開始</ClashOfRim.Start>
+  <ClashOfRim.StartingSiteBlockedByServerColony>このタイルはサーバー登録済みコロニーに隣接しています: {SITE}</ClashOfRim.StartingSiteBlockedByServerColony>
+  <ClashOfRim.WorldMap.StatusNotConfigured>サーバーアドレス、アカウント、またはコロニーが未設定のため、ワールドマップマーカーを同期できません。</ClashOfRim.WorldMap.StatusNotConfigured>
+  <ClashOfRim.WorldMap.StatusWorldObjectsMissing>ワールドオブジェクトがまだ初期化されていないため、ワールドマップマーカーを同期できません。</ClashOfRim.WorldMap.StatusWorldObjectsMissing>
+  <ClashOfRim.WorldMap.StatusSyncing>サーバー権威のワールドマップマーカーを同期しています。</ClashOfRim.WorldMap.StatusSyncing>
+  <ClashOfRim.WorldMap.StatusSyncFailed>ワールドマップマーカー同期失敗: {CODE} {MESSAGE}</ClashOfRim.WorldMap.StatusSyncFailed>
+  <ClashOfRim.WorldMap.StatusSyncException>ワールドマップマーカー同期例外: {TYPE} {MESSAGE}</ClashOfRim.WorldMap.StatusSyncException>
+  <ClashOfRim.WorldMap.StatusCaravanTargetsRefreshing>キャラバン位置が変わりました。交易と増援の対象を更新しています。</ClashOfRim.WorldMap.StatusCaravanTargetsRefreshing>
+  <ClashOfRim.WorldMap.StatusCaravanTargetsFailed>キャラバン対象マーカー更新失敗: {CODE} {MESSAGE}</ClashOfRim.WorldMap.StatusCaravanTargetsFailed>
+  <ClashOfRim.WorldMap.StatusCaravanTargetsException>キャラバン対象更新例外: {TYPE} {MESSAGE}</ClashOfRim.WorldMap.StatusCaravanTargetsException>
+  <ClashOfRim.WorldMap.StatusNoMarkers>サーバーはワールドマップマーカーを返しませんでした。</ClashOfRim.WorldMap.StatusNoMarkers>
+  <ClashOfRim.WorldMap.StatusMarkerSummary>ワールドマップマーカー {COUNT}: {SUMMARY}</ClashOfRim.WorldMap.StatusMarkerSummary>
+  <ClashOfRim.WorldMap.ActionTrade>交易</ClashOfRim.WorldMap.ActionTrade>
+  <ClashOfRim.WorldMap.ActionRaid>襲撃</ClashOfRim.WorldMap.ActionRaid>
+  <ClashOfRim.WorldMap.ActionReinforce>増援</ClashOfRim.WorldMap.ActionReinforce>
+  <ClashOfRim.WorldMap.ActionNone>進入なし</ClashOfRim.WorldMap.ActionNone>
+  <ClashOfRim.WorldMap.ReasonUnspecified>未指定</ClashOfRim.WorldMap.ReasonUnspecified>
+  <ClashOfRim.WorldMap.ReasonEnteredWorldMap>ワールドマップに入った</ClashOfRim.WorldMap.ReasonEnteredWorldMap>
+  <ClashOfRim.WorldMap.ReasonStayedWorldMap>ワールドマップに滞在</ClashOfRim.WorldMap.ReasonStayedWorldMap>
+  <ClashOfRim.WorldMap.ReasonStartingSiteEntered>開始地点ページに入った</ClashOfRim.WorldMap.ReasonStartingSiteEntered>
+  <ClashOfRim.WorldMap.ReasonStartingSiteStayed>開始地点ページに滞在</ClashOfRim.WorldMap.ReasonStartingSiteStayed>
+  <ClashOfRim.WorldMap.ReasonLocatePlayer>プレイヤーコロニーを定位</ClashOfRim.WorldMap.ReasonLocatePlayer>
+  <ClashOfRim.WorldCatalog.StatusNotConnected>サーバーに接続していないため、ワールドカタログを更新できません。</ClashOfRim.WorldCatalog.StatusNotConnected>
+  <ClashOfRim.WorldCatalog.StatusRefreshing>ワールドカタログを更新しています: {REASON}。</ClashOfRim.WorldCatalog.StatusRefreshing>
+  <ClashOfRim.WorldCatalog.StatusFailed>ワールドカタログ更新失敗: {CODE} {MESSAGE}</ClashOfRim.WorldCatalog.StatusFailed>
+  <ClashOfRim.WorldCatalog.StatusRejected>ワールドカタログ更新拒否: {CODE} {MESSAGE}</ClashOfRim.WorldCatalog.StatusRejected>
+  <ClashOfRim.WorldCatalog.StatusNoConfiguration>ワールドカタログ更新完了: サーバーはワールド設定を返しませんでした。</ClashOfRim.WorldCatalog.StatusNoConfiguration>
+  <ClashOfRim.WorldCatalog.StatusSucceeded>ワールドカタログ更新完了: {SUMMARY}、コロニー {SITES}。</ClashOfRim.WorldCatalog.StatusSucceeded>
+  <ClashOfRim.WorldCatalog.StatusException>ワールドカタログ更新例外: {TYPE} {MESSAGE}</ClashOfRim.WorldCatalog.StatusException>
+  <ClashOfRim.WorldCatalog.ReasonRuntimeWorldObjectSync>実行中ワールドオブジェクト同期</ClashOfRim.WorldCatalog.ReasonRuntimeWorldObjectSync>
+  <ClashOfRim.WorldCatalog.ReasonPlayerColonySiteRegistration>プレイヤーコロニー地点登録</ClashOfRim.WorldCatalog.ReasonPlayerColonySiteRegistration>
+  <ClashOfRim.WorldCatalog.ReasonPlayerColonyMapCreated>プレイヤーコロニーマップ作成</ClashOfRim.WorldCatalog.ReasonPlayerColonyMapCreated>
+  <ClashOfRim.WorldCatalog.ReasonPlayerColonyMapRemoved>プレイヤーコロニーマップ削除</ClashOfRim.WorldCatalog.ReasonPlayerColonyMapRemoved>
+  <ClashOfRim.WorldCatalog.ReasonIdeoReformed>イデオロギー改革</ClashOfRim.WorldCatalog.ReasonIdeoReformed>
+  <ClashOfRim.WorldCatalog.SummaryIdeos>イデオロギー</ClashOfRim.WorldCatalog.SummaryIdeos>
+  <ClashOfRim.WorldCatalog.SummaryPollutedTiles>汚染タイル</ClashOfRim.WorldCatalog.SummaryPollutedTiles>
+  <ClashOfRim.Target>目標: {TARGET}</ClashOfRim.Target>
+  <ClashOfRim.TargetMap>マップ {ID}</ClashOfRim.TargetMap>
+  <ClashOfRim.TargetTile>タイル {TILE}</ClashOfRim.TargetTile>
+  <ClashOfRim.TargetWorldObject>ワールドオブジェクト {ID}</ClashOfRim.TargetWorldObject>
+  <ClashOfRim.UnknownOtherPlayer>別のプレイヤー</ClashOfRim.UnknownOtherPlayer>
+  <ClashOfRim.UnknownReason>不明な理由</ClashOfRim.UnknownReason>
+  <ClashOfRim.UnknownItem>不明なアイテム</ClashOfRim.UnknownItem>
+  <ClashOfRim.UnknownPlayer>不明なプレイヤー</ClashOfRim.UnknownPlayer>
+  <ClashOfRim.Unknown>不明</ClashOfRim.Unknown>
+  <ClashOfRim.Time.DaysHours>{DAYS}日 {HOURS}時間</ClashOfRim.Time.DaysHours>
+  <ClashOfRim.Time.HoursMinutes>{HOURS}時間 {MINUTES}分</ClashOfRim.Time.HoursMinutes>
+  <ClashOfRim.Time.Minutes>{MINUTES}分</ClashOfRim.Time.Minutes>
+  <ClashOfRim.Yes>はい</ClashOfRim.Yes>
+  <ClashOfRim.No>いいえ</ClashOfRim.No>
+  <ClashOfRim.None>なし</ClashOfRim.None>
+  <ClashOfRim.NotSpecified>未指定</ClashOfRim.NotSpecified>
+  <ClashOfRim.UserId>プレイヤー</ClashOfRim.UserId>
+  <ClashOfRim.WaitingFirstAdminWorldConfiguration>サーバーは最初の管理者が初期ワールド設定を完了するのを待っています。</ClashOfRim.WaitingFirstAdminWorldConfiguration>
+  <ClashOfRim.WorldConfiguredButMissingConfiguration>サーバーは既存のワールド設定を報告しましたが、設定データを返しませんでした。</ClashOfRim.WorldConfiguredButMissingConfiguration>
+  <ClashOfRim.WorldSessionConfigMissing>サーバーアドレス、アカウント、またはコロニーが未設定のため、ワールドセッションを要求できません。</ClashOfRim.WorldSessionConfigMissing>
+  <ClashOfRim.WorldSessionRejected>ワールドセッションが拒否されました: {REASON}</ClashOfRim.WorldSessionRejected>
+  <ClashOfRim.WorldSessionRequestFailed>ワールドセッション要求に失敗しました: {CODE} {MESSAGE}</ClashOfRim.WorldSessionRequestFailed>
+  <ClashOfRim.EventGroup.Conflicts>要確認</ClashOfRim.EventGroup.Conflicts>
+  <ClashOfRim.EventGroup.DeliveredUnconfirmed>確認中</ClashOfRim.EventGroup.DeliveredUnconfirmed>
+  <ClashOfRim.EventGroup.DirectlyProcessable>自動</ClashOfRim.EventGroup.DirectlyProcessable>
+  <ClashOfRim.EventGroup.Rejected>拒否済み</ClashOfRim.EventGroup.Rejected>
+  <ClashOfRim.EventGroup.Unknown>不明なグループ</ClashOfRim.EventGroup.Unknown>
+  <ClashOfRim.EventGroup.WaitingForUserChoice>プレイヤー選択待ち</ClashOfRim.EventGroup.WaitingForUserChoice>
+  <ClashOfRim.EventQueue.Empty>保留中メッセージはありません。</ClashOfRim.EventQueue.Empty>
+  <ClashOfRim.EventQueue.GroupCount>{GROUP} {COUNT}</ClashOfRim.EventQueue.GroupCount>
+  <ClashOfRim.EventQueue.GroupSample>{GROUP} {COUNT}: {SAMPLE}</ClashOfRim.EventQueue.GroupSample>
+  <ClashOfRim.EventQueue.Item>{TYPE}, {STATUS}, {DELIVERY}{CONFIRMATION}</ClashOfRim.EventQueue.Item>
+  <ClashOfRim.EventQueue.RequiresSnapshotConfirmation>, 進行状況の保存待ち</ClashOfRim.EventQueue.RequiresSnapshotConfirmation>
+  <ClashOfRim.EventDetails.Empty>表示できるメッセージ詳細はありません。</ClashOfRim.EventDetails.Empty>
+  <ClashOfRim.EventDetails.Summary>保留中メッセージ {COUNT}: {SAMPLE}</ClashOfRim.EventDetails.Summary>
+  <ClashOfRim.EventDetails.Item>{TYPE}, {STATUS}{MAP}</ClashOfRim.EventDetails.Item>
+  <ClashOfRim.EventDetails.MapSuffix>, 現在のマップに紐づけ</ClashOfRim.EventDetails.MapSuffix>
+  <ClashOfRim.EventDetails.NoMap>位置なし</ClashOfRim.EventDetails.NoMap>
+  <ClashOfRim.EventDelivery.OnlineImmediate>オンライン即時</ClashOfRim.EventDelivery.OnlineImmediate>
+  <ClashOfRim.EventDelivery.OfflineQueued>オフライン待機列</ClashOfRim.EventDelivery.OfflineQueued>
+  <ClashOfRim.EventDelivery.SnapshotConfirmation>セーブ同期待ち</ClashOfRim.EventDelivery.SnapshotConfirmation>
+  <ClashOfRim.EventDelivery.ServerNotification>サーバー通知</ClashOfRim.EventDelivery.ServerNotification>
+  <ClashOfRim.EventLetter.AcceptUnsupported>このメッセージ種別は現在のクライアントではまだ受諾できません。</ClashOfRim.EventLetter.AcceptUnsupported>
+  <ClashOfRim.EventLetter.AcceptUnsupportedTyped>この {TYPE} メッセージは現在のクライアントではまだ受諾できません。</ClashOfRim.EventLetter.AcceptUnsupportedTyped>
+  <ClashOfRim.EventLetter.ActionMissingDetail>メッセージ詳細はまだダウンロードされていません。再同期中です。</ClashOfRim.EventLetter.ActionMissingDetail>
+  <ClashOfRim.EventLetter.RefreshReasonMissingDetail>レター内容が完全に同期されていません</ClashOfRim.EventLetter.RefreshReasonMissingDetail>
+  <ClashOfRim.EventLetter.RejectUnsupportedTyped>この {TYPE} メッセージは現在のクライアントではまだ拒否できません。</ClashOfRim.EventLetter.RejectUnsupportedTyped>
+  <ClashOfRim.EventLetter.ReasonAcceptedByLetter>レターから受諾しました。</ClashOfRim.EventLetter.ReasonAcceptedByLetter>
+  <ClashOfRim.EventLetter.ReasonRejectedByLetter>レターから拒否しました。</ClashOfRim.EventLetter.ReasonRejectedByLetter>
+  <ClashOfRim.EventLetter.ReasonRejectedSupportByLetter>レターから支援を拒否しました。</ClashOfRim.EventLetter.ReasonRejectedSupportByLetter>
+  <ClashOfRim.EventLetter.GenericAction>遠方から、コロニーの対応を必要とするメッセージが届いています。</ClashOfRim.EventLetter.GenericAction>
+  <ClashOfRim.EventLetter.GiftAction>受諾、拒否、または延期できます。受諾すると贈り物は現在のマップに到着し、その後現在の状態が保存されます。</ClashOfRim.EventLetter.GiftAction>
+  <ClashOfRim.EventLetter.GiftIntro>{SENDER} からの贈り物があなたの判断を待っています。</ClashOfRim.EventLetter.GiftIntro>
+  <ClashOfRim.EventLetter.ForcedGiftIntro>{SENDER} があなたのコロニーへ物品を強制配送しました。</ClashOfRim.EventLetter.ForcedGiftIntro>
+  <ClashOfRim.EventLetter.ForcedGiftAction>この強制配送は拒否できません。受諾後、物品は指定された配送方法で到着し、現在の状態が保存されます。</ClashOfRim.EventLetter.ForcedGiftAction>
+  <ClashOfRim.EventLetter.GiftItemsEmpty>この贈り物には配置可能な物品がありません。</ClashOfRim.EventLetter.GiftItemsEmpty>
+  <ClashOfRim.EventLetter.GiftItemsHeading>受け取る内容:</ClashOfRim.EventLetter.GiftItemsHeading>
+  <ClashOfRim.EventLetter.GiftItemsUnavailable>贈り物の物品リストを解析できませんでした。</ClashOfRim.EventLetter.GiftItemsUnavailable>
+  <ClashOfRim.EventLetter.GiftReturnAction>返送された贈り物は拒否できません。受諾すると物品は現在のマップに到着し、現在の状態が保存されます。延期することもできます。</ClashOfRim.EventLetter.GiftReturnAction>
+  <ClashOfRim.EventLetter.GiftReturnIntro>{SENDER} に拒否された贈り物が返送されています。</ClashOfRim.EventLetter.GiftReturnIntro>
+  <ClashOfRim.EventLetter.RaidAction>敵対行動があなたの対応を待っています。ワールドマップで関連地点を確認するか、後で処理できます。</ClashOfRim.EventLetter.RaidAction>
+  <ClashOfRim.EventLetter.RaidSettlementIntro>襲撃は終了し、防衛側の損失が集計されました。</ClashOfRim.EventLetter.RaidSettlementIntro>
+  <ClashOfRim.EventLetter.RaidDefenderLossHeading>この襲撃での損失:</ClashOfRim.EventLetter.RaidDefenderLossHeading>
+  <ClashOfRim.EventLetter.RaidLossItemLine>{THING} x{COUNT}</ClashOfRim.EventLetter.RaidLossItemLine>
+  <ClashOfRim.EventLetter.RaidLossBuildingLine>{THING} 完全破壊 x{COUNT}</ClashOfRim.EventLetter.RaidLossBuildingLine>
+  <ClashOfRim.EventLetter.RaidDamagedBuildingLine>{THING} 損傷 x{COUNT}</ClashOfRim.EventLetter.RaidDamagedBuildingLine>
+  <ClashOfRim.EventLetter.RaidNoDefenderLoss>襲撃は終了しました。この襲撃で損失はありませんでした。</ClashOfRim.EventLetter.RaidNoDefenderLoss>
+  <ClashOfRim.EventLetter.RaidAttackerLossIntro>次の入植者は襲撃中に失われました:</ClashOfRim.EventLetter.RaidAttackerLossIntro>
+  <ClashOfRim.EventLetter.RaidAttackerLossPawnLine>{PAWN}</ClashOfRim.EventLetter.RaidAttackerLossPawnLine>
+  <ClashOfRim.EventLetter.RaidAttackerLossPawnWithTitle>{PAWN} - {TITLE}</ClashOfRim.EventLetter.RaidAttackerLossPawnWithTitle>
+  <ClashOfRim.EventLetter.RaidAttackerLossPawnCountFallback>{COUNT} 人の入植者</ClashOfRim.EventLetter.RaidAttackerLossPawnCountFallback>
+  <ClashOfRim.EventLetter.RaidAttackerLossThingsHeading>失われた携行物資:</ClashOfRim.EventLetter.RaidAttackerLossThingsHeading>
+  <ClashOfRim.EventLetter.RaidAttackerLossThingLine>{THING} x{COUNT}</ClashOfRim.EventLetter.RaidAttackerLossThingLine>
+  <ClashOfRim.EventLetter.TradeAction>取引状態が変化しました。市場を開いて詳細を確認するか、後で処理できます。</ClashOfRim.EventLetter.TradeAction>
+  <ClashOfRim.EventLetter.TradeDeliveryAction>これらの取引品は拒否できません。受諾すると合意済みの配送方法で到着し、現在の状態が保存されます。</ClashOfRim.EventLetter.TradeDeliveryAction>
+  <ClashOfRim.EventLetter.TradeDeliveryIntro>{SENDER} からの取引品が到着しました。</ClashOfRim.EventLetter.TradeDeliveryIntro>
+  <ClashOfRim.EventLetter.TradeReturnIntro>預託されていた取引品が返却されました。</ClashOfRim.EventLetter.TradeReturnIntro>
+  <ClashOfRim.EventLetter.GroupLine>グループ: {GROUP}</ClashOfRim.EventLetter.GroupLine>
+  <ClashOfRim.EventLetter.Label.AllianceRequest>同盟要請</ClashOfRim.EventLetter.Label.AllianceRequest>
+  <ClashOfRim.EventLetter.Label.AllianceCancellation>同盟破棄</ClashOfRim.EventLetter.Label.AllianceCancellation>
+  <ClashOfRim.EventLetter.Label.Gift>贈り物を受領</ClashOfRim.EventLetter.Label.Gift>
+  <ClashOfRim.EventLetter.Label.ForcedGift>強制配送</ClashOfRim.EventLetter.Label.ForcedGift>
+  <ClashOfRim.EventLetter.Label.GiftReturn>贈り物返送</ClashOfRim.EventLetter.Label.GiftReturn>
+  <ClashOfRim.EventLetter.Label.TradeDelivery>取引品配送</ClashOfRim.EventLetter.Label.TradeDelivery>
+  <ClashOfRim.EventLetter.Label.TradeReturn>取引品返却</ClashOfRim.EventLetter.Label.TradeReturn>
+  <ClashOfRim.EventLetter.Label.PeaceRequest>和平要請</ClashOfRim.EventLetter.Label.PeaceRequest>
+  <ClashOfRim.EventLetter.Label.Raid>襲撃</ClashOfRim.EventLetter.Label.Raid>
+  <ClashOfRim.EventLetter.Label.RaidSettlement>襲撃決算</ClashOfRim.EventLetter.Label.RaidSettlement>
+  <ClashOfRim.EventLetter.Label.RaidAttackerLoss>攻撃側損失</ClashOfRim.EventLetter.Label.RaidAttackerLoss>
+  <ClashOfRim.EventLetter.Label.ServerEvent>サーバーメッセージ</ClashOfRim.EventLetter.Label.ServerEvent>
+  <ClashOfRim.EventLetter.Label.ServerNotification>サーバー通知</ClashOfRim.EventLetter.Label.ServerNotification>
+  <ClashOfRim.EventLetter.Label.SupportPawn>支援入植者</ClashOfRim.EventLetter.Label.SupportPawn>
+  <ClashOfRim.EventLetter.SupportDurationDays>{DAYS} 日</ClashOfRim.EventLetter.SupportDurationDays>
+  <ClashOfRim.EventLetter.SupportDurationPermanent>永久支援</ClashOfRim.EventLetter.SupportDurationPermanent>
+  <ClashOfRim.EventLetter.SupportNoticeAction>このレターは支援要員に関するものです。確認して手配を続行してください。</ClashOfRim.EventLetter.SupportNoticeAction>
+  <ClashOfRim.EventLetter.SupportRejectedIntro>{SENDER} の支援入植者 {PAWN} は拒否されました。</ClashOfRim.EventLetter.SupportRejectedIntro>
+  <ClashOfRim.EventLetter.SupportRequestAction>この入植者を一時的にあなたのコロニーへ参加させますか？受諾すると即座に到着し、期間終了後に自分で離脱します。</ClashOfRim.EventLetter.SupportRequestAction>
+  <ClashOfRim.EventLetter.SupportPermanentRequestAction>この入植者を永久にあなたのコロニーへ参加させますか？受諾すると即座に到着します。</ClashOfRim.EventLetter.SupportPermanentRequestAction>
+  <ClashOfRim.EventLetter.SupportRequestIntro>{SENDER} が入植者 {PAWN} を支援として派遣しました。</ClashOfRim.EventLetter.SupportRequestIntro>
+  <ClashOfRim.EventLetter.SupportReturnIntro>支援入植者 {PAWN} は帰還準備ができています。理由: {REASON}</ClashOfRim.EventLetter.SupportReturnIntro>
+  <ClashOfRim.EventLetter.SupportReturnReasonDefault>支援期間終了</ClashOfRim.EventLetter.SupportReturnReasonDefault>
+  <ClashOfRim.EventLetter.SupportTerm>支援期間: {DURATION}</ClashOfRim.EventLetter.SupportTerm>
+  <ClashOfRim.EventLetter.SupportUnknownPawn>入植者</ClashOfRim.EventLetter.SupportUnknownPawn>
+  <ClashOfRim.EventLetter.SupportAcceptBusy>支援要員の到着を処理中です。重複して受諾できません。</ClashOfRim.EventLetter.SupportAcceptBusy>
+  <ClashOfRim.EventLetter.SupportConfirmBusy>支援要員の到着を処理中です。重複して確認できません。</ClashOfRim.EventLetter.SupportConfirmBusy>
+  <ClashOfRim.EventLetter.GiftAcceptBusy>贈り物の配送を処理中です。重複して受諾できません。</ClashOfRim.EventLetter.GiftAcceptBusy>
+  <ClashOfRim.EventLetter.SupportConfirmOperation>支援要員到着</ClashOfRim.EventLetter.SupportConfirmOperation>
+  <ClashOfRim.EventLetter.SupportConfirmUploading>支援要員到着後のコロニーを記録中。</ClashOfRim.EventLetter.SupportConfirmUploading>
+  <ClashOfRim.EventLetter.SupportConfirmBuildFailed>支援要員到着後の記録を準備できませんでした</ClashOfRim.EventLetter.SupportConfirmBuildFailed>
+  <ClashOfRim.EventLetter.SupportConfirmFailed>支援要員到着に失敗しました</ClashOfRim.EventLetter.SupportConfirmFailed>
+  <ClashOfRim.EventLetter.SupportConfirmRejected>支援要員到着は受け入れられませんでした</ClashOfRim.EventLetter.SupportConfirmRejected>
+  <ClashOfRim.EventLetter.SupportConfirmException>支援要員到着で例外が発生しました</ClashOfRim.EventLetter.SupportConfirmException>
+  <ClashOfRim.EventLetter.SupportConfirmEmpty>確認する支援入植者はいません。</ClashOfRim.EventLetter.SupportConfirmEmpty>
+  <ClashOfRim.EventLetter.SupportConfirmSucceeded>支援入植者が到着しました。</ClashOfRim.EventLetter.SupportConfirmSucceeded>
+  <ClashOfRim.EventLetter.Label.Trade>取引通知</ClashOfRim.EventLetter.Label.Trade>
+  <ClashOfRim.EventLetter.Label.WarDeclaration>宣戦布告</ClashOfRim.EventLetter.Label.WarDeclaration>
+  <ClashOfRim.EventLetter.AllianceRequestIntro>{SENDER} が同盟を要請しています。</ClashOfRim.EventLetter.AllianceRequestIntro>
+  <ClashOfRim.EventLetter.AllianceCancellationIntro>{SENDER} はあなたとの同盟を破棄しました。</ClashOfRim.EventLetter.AllianceCancellationIntro>
+  <ClashOfRim.EventLetter.WarDeclarationIntro>{SENDER} があなたに宣戦布告しました。</ClashOfRim.EventLetter.WarDeclarationIntro>
+  <ClashOfRim.EventLetter.PeaceRequestIntro>{SENDER} が和平を求めています。</ClashOfRim.EventLetter.PeaceRequestIntro>
+  <ClashOfRim.EventLetter.AllianceRequestAction>受諾すると、このプレイヤーはあなたの同盟者になります。</ClashOfRim.EventLetter.AllianceRequestAction>
+  <ClashOfRim.EventLetter.AllianceCancellationAction>このプレイヤーとの関係は中立になりました。</ClashOfRim.EventLetter.AllianceCancellationAction>
+  <ClashOfRim.EventLetter.WarDeclarationAction>このプレイヤーの派閥はあなたに敵対しました。</ClashOfRim.EventLetter.WarDeclarationAction>
+  <ClashOfRim.EventLetter.PeaceRequestAction>受諾すると、このプレイヤーとの関係は中立に戻ります。</ClashOfRim.EventLetter.PeaceRequestAction>
+  <ClashOfRim.EventLetter.DiplomacyRespondingAccept>外交要請を受諾中。</ClashOfRim.EventLetter.DiplomacyRespondingAccept>
+  <ClashOfRim.EventLetter.DiplomacyRespondingReject>外交要請を拒否中。</ClashOfRim.EventLetter.DiplomacyRespondingReject>
+  <ClashOfRim.EventLetter.DiplomacyResponseFailed>外交応答に失敗: {CODE} {MESSAGE}</ClashOfRim.EventLetter.DiplomacyResponseFailed>
+  <ClashOfRim.EventLetter.DiplomacyResponseRejected>外交応答はサーバーに拒否されました: {CODE} {MESSAGE}</ClashOfRim.EventLetter.DiplomacyResponseRejected>
+  <ClashOfRim.EventLetter.DiplomacyAccepted>外交要請を受諾しました。</ClashOfRim.EventLetter.DiplomacyAccepted>
+  <ClashOfRim.EventLetter.DiplomacyRejected>外交要請を拒否しました。</ClashOfRim.EventLetter.DiplomacyRejected>
+  <ClashOfRim.EventLetter.DiplomacyResponseException>外交応答例外: {TYPE} {MESSAGE}</ClashOfRim.EventLetter.DiplomacyResponseException>
+  <ClashOfRim.EventLetter.RefreshReasonDiplomacyRelationChanged>外交関係が変化しました</ClashOfRim.EventLetter.RefreshReasonDiplomacyRelationChanged>
+  <ClashOfRim.EventLetter.RefreshReasonDiplomacyResponseNotification>外交応答通知</ClashOfRim.EventLetter.RefreshReasonDiplomacyResponseNotification>
+  <ClashOfRim.EventLetter.DiplomacyDefaultAllianceRequest>同盟を要請しています。</ClashOfRim.EventLetter.DiplomacyDefaultAllianceRequest>
+  <ClashOfRim.EventLetter.DiplomacyDefaultAllianceCancellation>同盟破棄を通知しています。</ClashOfRim.EventLetter.DiplomacyDefaultAllianceCancellation>
+  <ClashOfRim.EventLetter.DiplomacyDefaultSupportRequest>同盟支援を要請しています。</ClashOfRim.EventLetter.DiplomacyDefaultSupportRequest>
+  <ClashOfRim.EventLetter.DiplomacyDefaultWarDeclaration>敵対を宣言しています。</ClashOfRim.EventLetter.DiplomacyDefaultWarDeclaration>
+  <ClashOfRim.EventLetter.DiplomacyDefaultPeaceRequest>敵対状態の終了を求めています。</ClashOfRim.EventLetter.DiplomacyDefaultPeaceRequest>
+  <ClashOfRim.EventLetter.DiplomacyDefaultGeneric>外交メッセージ。</ClashOfRim.EventLetter.DiplomacyDefaultGeneric>
+  <ClashOfRim.EventLetter.DiplomacyRelation>結果の関係: {RELATION}</ClashOfRim.EventLetter.DiplomacyRelation>
+  <ClashOfRim.EventLetter.PayloadSummary>追加情報: {PAYLOAD}</ClashOfRim.EventLetter.PayloadSummary>
+  <ClashOfRim.EventLetter.DebugHeading>追加詳細</ClashOfRim.EventLetter.DebugHeading>
+  <ClashOfRim.EventLetter.ReadOnlyRejected>このメッセージは終了済み、または拒否済みです。追加対応は不要です。</ClashOfRim.EventLetter.ReadOnlyRejected>
+  <ClashOfRim.EventLetter.ReadOnlyDeliveredUnconfirmed>このメッセージは処理済みで、結果の保存中です。</ClashOfRim.EventLetter.ReadOnlyDeliveredUnconfirmed>
+  <ClashOfRim.EventLetter.ReadOnlyConflict>このメッセージは現在の状態と衝突しており、自動処理できません。</ClashOfRim.EventLetter.ReadOnlyConflict>
+  <ClashOfRim.EventLetter.ReadOnlyType>分類: {TYPE}</ClashOfRim.EventLetter.ReadOnlyType>
+  <ClashOfRim.EventLetter.ServerNotificationFallback>サーバーから通知が届きました。</ClashOfRim.EventLetter.ServerNotificationFallback>
+  <ClashOfRim.EventLetter.RejectUnsupported>このメッセージ種別は現在のクライアントではまだ拒否できません。</ClashOfRim.EventLetter.RejectUnsupported>
+  <ClashOfRim.EventLetter.ServerEventLine>送信元: サーバー</ClashOfRim.EventLetter.ServerEventLine>
+  <ClashOfRim.EventLetter.StatusLine>状態: {STATUS}</ClashOfRim.EventLetter.StatusLine>
+  <ClashOfRim.EventLetter.TypeLine>分類: {TYPE}</ClashOfRim.EventLetter.TypeLine>
+  <ClashOfRim.GiftProcessing.AcceptPlan>贈り物受取を準備しました: アイテム項目 {COUNT} 件。</ClashOfRim.GiftProcessing.AcceptPlan>
+  <ClashOfRim.GiftProcessing.RejectPlan>贈り物を拒否しました。アイテムは返送されます。</ClashOfRim.GiftProcessing.RejectPlan>
+  <ClashOfRim.GiftProcessing.Failed>贈り物処理に失敗しました: {KIND} {MESSAGE}</ClashOfRim.GiftProcessing.Failed>
+  <ClashOfRim.GiftProcessing.NoGiftDetail>最新メッセージには贈り物が含まれていません。</ClashOfRim.GiftProcessing.NoGiftDetail>
+  <ClashOfRim.GiftProcessing.RejectReason>プレイヤーが贈り物を拒否しました。</ClashOfRim.GiftProcessing.RejectReason>
+  <ClashOfRim.GiftProcessing.RejectSubmitting>贈り物の拒否を送信しています。</ClashOfRim.GiftProcessing.RejectSubmitting>
+  <ClashOfRim.GiftProcessing.RejectFailed>贈り物拒否に失敗しました: {CODE} {MESSAGE}</ClashOfRim.GiftProcessing.RejectFailed>
+  <ClashOfRim.GiftProcessing.RejectRejected>サーバーが贈り物拒否を拒否しました: {CODE} {MESSAGE}</ClashOfRim.GiftProcessing.RejectRejected>
+  <ClashOfRim.GiftProcessing.Rejected>贈り物を拒否しました。送り主へ返送されます。</ClashOfRim.GiftProcessing.Rejected>
+  <ClashOfRim.GiftProcessing.RejectException>贈り物拒否の例外: {TYPE} {MESSAGE}</ClashOfRim.GiftProcessing.RejectException>
+  <ClashOfRim.GiftProcessing.NoPendingConfirmation>保存待ちの到着済み贈り物はありません。</ClashOfRim.GiftProcessing.NoPendingConfirmation>
+  <ClashOfRim.GiftProcessing.ConfirmUploading>贈り物配送後の状態を保存しています。</ClashOfRim.GiftProcessing.ConfirmUploading>
+  <ClashOfRim.GiftProcessing.ConfirmBuildFailed>贈り物配送後のセーブ準備に失敗しました</ClashOfRim.GiftProcessing.ConfirmBuildFailed>
+  <ClashOfRim.GiftProcessing.ConfirmFailed>贈り物配送処理に失敗しました</ClashOfRim.GiftProcessing.ConfirmFailed>
+  <ClashOfRim.GiftProcessing.ConfirmRejected>贈り物配送は受け入れられませんでした</ClashOfRim.GiftProcessing.ConfirmRejected>
+  <ClashOfRim.GiftProcessing.ConfirmException>贈り物配送処理の例外</ClashOfRim.GiftProcessing.ConfirmException>
+  <ClashOfRim.GiftProcessing.ConfirmEmpty>確認する贈り物がありません。</ClashOfRim.GiftProcessing.ConfirmEmpty>
+  <ClashOfRim.GiftProcessing.ConfirmSucceeded>贈り物配送を保存しました。保留 {PENDING} 件。</ClashOfRim.GiftProcessing.ConfirmSucceeded>
+  <ClashOfRim.GiftDelivery.OperationSend>贈り物の送付</ClashOfRim.GiftDelivery.OperationSend>
+  <ClashOfRim.GiftDelivery.StatusReserving>贈り物アイテムを取り除き、現在状態の保存を準備しています。</ClashOfRim.GiftDelivery.StatusReserving>
+  <ClashOfRim.GiftDelivery.StatusPackagingSnapshot>贈り物出発後の状態を保存しています。</ClashOfRim.GiftDelivery.StatusPackagingSnapshot>
+  <ClashOfRim.GiftDelivery.StatusSnapshotBuildFailed>贈り物送付セーブの作成に失敗しました: {REASON}</ClashOfRim.GiftDelivery.StatusSnapshotBuildFailed>
+  <ClashOfRim.GiftDelivery.StatusSubmittingTransaction>贈り物を送信しています。</ClashOfRim.GiftDelivery.StatusSubmittingTransaction>
+  <ClashOfRim.GiftDelivery.ReasonTransportPodGift>輸送ポッドの贈り物</ClashOfRim.GiftDelivery.ReasonTransportPodGift>
+  <ClashOfRim.GiftLanding.StatusSucceeded>{MODE} による贈り物が到着しました: {STACKCOUNT} スタック。現在状態を保存しています。</ClashOfRim.GiftLanding.StatusSucceeded>
+  <ClashOfRim.GiftLanding.StatusFailed>贈り物の着地に失敗しました: {KIND} {MESSAGE}</ClashOfRim.GiftLanding.StatusFailed>
+  <ClashOfRim.GiftLanding.StatusApplied>贈り物が到着しました。現在状態を保存しています。</ClashOfRim.GiftLanding.StatusApplied>
+  <ClashOfRim.GiftLanding.StatusMissingPlan>配送する贈り物がありません。</ClashOfRim.GiftLanding.StatusMissingPlan>
+  <ClashOfRim.GiftLanding.StatusMissingCurrentMap>贈り物の着地に使える現在マップがありません。</ClashOfRim.GiftLanding.StatusMissingCurrentMap>
+  <ClashOfRim.GiftLanding.StatusMapMismatch>現在マップ {CURRENT} はサーバー対象マップ {TARGET} と一致しません。</ClashOfRim.GiftLanding.StatusMapMismatch>
+  <ClashOfRim.GiftLanding.StatusNoItems>この贈り物には配送可能なアイテムがありません。</ClashOfRim.GiftLanding.StatusNoItems>
+  <ClashOfRim.GiftLanding.StatusNoPreparedItems>この贈り物から有効なアイテムを作成できませんでした。</ClashOfRim.GiftLanding.StatusNoPreparedItems>
+  <ClashOfRim.GiftLanding.StatusPlacementException>贈り物 {THING} の配置で例外が発生しました: {TYPE} {MESSAGE}</ClashOfRim.GiftLanding.StatusPlacementException>
+  <ClashOfRim.GiftLanding.StatusPlacementFailed>贈り物 {THING} を現在マップ付近に配置できませんでした。</ClashOfRim.GiftLanding.StatusPlacementFailed>
+  <ClashOfRim.GiftLanding.StatusDropCellMissing>輸送ポッドの着地点が見つかりません。</ClashOfRim.GiftLanding.StatusDropCellMissing>
+  <ClashOfRim.GiftLanding.StatusDropPodException>輸送ポッド配送で例外が発生しました: {TYPE} {MESSAGE}</ClashOfRim.GiftLanding.StatusDropPodException>
+  <ClashOfRim.GiftLanding.StatusMissingDefName>贈り物アイテム {THING} に Def がありません。</ClashOfRim.GiftLanding.StatusMissingDefName>
+  <ClashOfRim.GiftLanding.StatusThingDefMissing>クライアントが贈り物アイテム種別 {THING} を見つけられません。</ClashOfRim.GiftLanding.StatusThingDefMissing>
+  <ClashOfRim.GiftLanding.StatusInvalidStackCount>贈り物 {THING} のスタック数が無効です: {COUNT}</ClashOfRim.GiftLanding.StatusInvalidStackCount>
+  <ClashOfRim.GiftLanding.StatusPawnRestoreFailed>贈り物の入植者 {THING} の復元に失敗しました: {MESSAGE}</ClashOfRim.GiftLanding.StatusPawnRestoreFailed>
+  <ClashOfRim.GiftLanding.StatusPawnPackageMissing>贈り物または交易の入植者 {THING} の情報が不完全です。</ClashOfRim.GiftLanding.StatusPawnPackageMissing>
+  <ClashOfRim.GiftLanding.StatusCorpsePackageMissing>贈り物の死体 {THING} にポーン情報がありません。</ClashOfRim.GiftLanding.StatusCorpsePackageMissing>
+  <ClashOfRim.GiftLanding.StatusCorpseRestoreFailed>贈り物の死体 {THING} の復元に失敗しました: {MESSAGE}</ClashOfRim.GiftLanding.StatusCorpseRestoreFailed>
+  <ClashOfRim.GiftLanding.StatusCorpseCreationFailed>贈り物の死体 {THING} の作成に失敗しました。</ClashOfRim.GiftLanding.StatusCorpseCreationFailed>
+  <ClashOfRim.GiftLanding.StatusAnimalRestoreFailed>贈り物の動物 {THING} の復元に失敗しました: {MESSAGE}</ClashOfRim.GiftLanding.StatusAnimalRestoreFailed>
+  <ClashOfRim.GiftLanding.StatusAnimalKindMissing>贈り物の動物 {THING} に一致する動物種がありません。</ClashOfRim.GiftLanding.StatusAnimalKindMissing>
+  <ClashOfRim.GiftLanding.StatusThingCreationException>贈り物 {THING} の作成に失敗しました: {TYPE} {MESSAGE}</ClashOfRim.GiftLanding.StatusThingCreationException>
+  <ClashOfRim.GiftLanding.StatusThingCreationFailed>贈り物 {THING} の作成に失敗しました。</ClashOfRim.GiftLanding.StatusThingCreationFailed>
+  <ClashOfRim.GiftLanding.StatusSkippedItem>贈り物 {THING} は配送できませんでした: {MESSAGE}</ClashOfRim.GiftLanding.StatusSkippedItem>
+  <ClashOfRim.GiftProcessing.StatusDetailMissing>イベント詳細が空です。</ClashOfRim.GiftProcessing.StatusDetailMissing>
+  <ClashOfRim.GiftProcessing.StatusNotGiftEvent>このイベントは贈り物イベントではありません。</ClashOfRim.GiftProcessing.StatusNotGiftEvent>
+  <ClashOfRim.GiftProcessing.StatusMissingPayload>贈り物メッセージにアイテム一覧がありません。</ClashOfRim.GiftProcessing.StatusMissingPayload>
+  <ClashOfRim.GiftProcessing.StatusPayloadParseFailed>贈り物一覧を読み取れませんでした: {MESSAGE}</ClashOfRim.GiftProcessing.StatusPayloadParseFailed>
+  <ClashOfRim.GiftProcessing.StatusForcedCannotReject>強制投送は拒否できません。</ClashOfRim.GiftProcessing.StatusForcedCannotReject>
+  <ClashOfRim.GiftProcessing.StatusRejectIdentityMissing>贈り物の拒否にはユーザー、コロニー、現在のサーバーセーブが必要です。</ClashOfRim.GiftProcessing.StatusRejectIdentityMissing>
+  <ClashOfRim.GiftProcessing.StatusTargetMapMissing>贈り物の受取にはサーバーからの対象マップが必要です。</ClashOfRim.GiftProcessing.StatusTargetMapMissing>
+  <ClashOfRim.GiftProcessing.StatusAcceptPlanCreated>贈り物受取の準備ができました。配送後に現在状態を保存します。</ClashOfRim.GiftProcessing.StatusAcceptPlanCreated>
+  <ClashOfRim.GiftProcessing.StatusRejectPlanCreated>贈り物を拒否しました。送り主へ返送されます。</ClashOfRim.GiftProcessing.StatusRejectPlanCreated>
+  <ClashOfRim.GiftLanding.Mode.DropPod>輸送ポッド</ClashOfRim.GiftLanding.Mode.DropPod>
+  <ClashOfRim.GiftLanding.Mode.MapEdge>マップ端</ClashOfRim.GiftLanding.Mode.MapEdge>
+  <ClashOfRim.GiftLanding.Mode.CenterNear>中央付近</ClashOfRim.GiftLanding.Mode.CenterNear>
+  <ClashOfRim.EventType.AllianceRequest>同盟要請</ClashOfRim.EventType.AllianceRequest>
+  <ClashOfRim.EventType.AllianceCancellation>同盟破棄</ClashOfRim.EventType.AllianceCancellation>
+  <ClashOfRim.EventType.SupportRequest>支援要請</ClashOfRim.EventType.SupportRequest>
+  <ClashOfRim.EventType.Gift>贈り物</ClashOfRim.EventType.Gift>
+  <ClashOfRim.EventType.GiftReturn>贈り物返送</ClashOfRim.EventType.GiftReturn>
+  <ClashOfRim.EventType.Raid>襲撃</ClashOfRim.EventType.Raid>
+  <ClashOfRim.EventType.ServerNotification>サーバー通知</ClashOfRim.EventType.ServerNotification>
+  <ClashOfRim.EventType.PeaceRequest>和平要請</ClashOfRim.EventType.PeaceRequest>
+  <ClashOfRim.EventType.SupportPawn>支援入植者</ClashOfRim.EventType.SupportPawn>
+  <ClashOfRim.EventType.Trade>交易</ClashOfRim.EventType.Trade>
+  <ClashOfRim.EventType.WarDeclaration>宣戦布告</ClashOfRim.EventType.WarDeclaration>
+  <ClashOfRim.EventType.Unknown>遠方からの知らせ</ClashOfRim.EventType.Unknown>
+  <ClashOfRim.EventStatus.Cancelled>キャンセル済み</ClashOfRim.EventStatus.Cancelled>
+  <ClashOfRim.EventStatus.Conflict>要確認</ClashOfRim.EventStatus.Conflict>
+  <ClashOfRim.EventStatus.Failed>失敗</ClashOfRim.EventStatus.Failed>
+  <ClashOfRim.EventStatus.Handled>処理済み</ClashOfRim.EventStatus.Handled>
+  <ClashOfRim.EventStatus.Rejected>拒否済み</ClashOfRim.EventStatus.Rejected>
+  <ClashOfRim.EventStatus.Unknown>不明な状態</ClashOfRim.EventStatus.Unknown>
+  <ClashOfRim.EventStatus.Waiting>待機中</ClashOfRim.EventStatus.Waiting>
+  <ClashOfRim.Support.RejectSubmitting>支援入植者を拒否しています。</ClashOfRim.Support.RejectSubmitting>
+  <ClashOfRim.Support.RejectFailed>支援入植者の拒否に失敗しました: {CODE} {MESSAGE}</ClashOfRim.Support.RejectFailed>
+  <ClashOfRim.Support.RejectRejected>サーバーが支援入植者の拒否を拒否しました: {CODE} {MESSAGE}</ClashOfRim.Support.RejectRejected>
+  <ClashOfRim.Support.Rejected>支援入植者を拒否しました。サーバーが帰還を手配します。</ClashOfRim.Support.Rejected>
+  <ClashOfRim.Support.RejectException>支援入植者拒否の例外: {TYPE} {MESSAGE}</ClashOfRim.Support.RejectException>
+  <ClashOfRim.Diplomacy.RequestAlliance>同盟を要請</ClashOfRim.Diplomacy.RequestAlliance>
+  <ClashOfRim.Diplomacy.CancelAlliance>同盟を破棄</ClashOfRim.Diplomacy.CancelAlliance>
+  <ClashOfRim.Diplomacy.RequestSupport>支援を要請</ClashOfRim.Diplomacy.RequestSupport>
+  <ClashOfRim.Diplomacy.SupportRequestTitle>盟友に支援を要請</ClashOfRim.Diplomacy.SupportRequestTitle>
+  <ClashOfRim.Diplomacy.SupportRequestTarget>送信先: {PLAYER}</ClashOfRim.Diplomacy.SupportRequestTarget>
+  <ClashOfRim.Diplomacy.SupportRequestHint>必要な兵力、時期、脅威規模、その他の詳細を記入してください。最大 {COUNT} 文字。</ClashOfRim.Diplomacy.SupportRequestHint>
+  <ClashOfRim.Diplomacy.DeclareWar>宣戦布告</ClashOfRim.Diplomacy.DeclareWar>
+  <ClashOfRim.Diplomacy.RequestPeace>和平を要請</ClashOfRim.Diplomacy.RequestPeace>
+  <ClashOfRim.Diplomacy.ConfirmAllianceRequest>{PLAYER} に同盟要請を送りますか？</ClashOfRim.Diplomacy.ConfirmAllianceRequest>
+  <ClashOfRim.Diplomacy.ConfirmAllianceCancellation>{PLAYER} との同盟を破棄しますか？関係は中立になります。</ClashOfRim.Diplomacy.ConfirmAllianceCancellation>
+  <ClashOfRim.Diplomacy.ConfirmWarDeclaration>{PLAYER} に宣戦布告しますか？関係は敵対になります。</ClashOfRim.Diplomacy.ConfirmWarDeclaration>
+  <ClashOfRim.Diplomacy.ConfirmPeaceRequest>{PLAYER} に和平要請を送りますか？</ClashOfRim.Diplomacy.ConfirmPeaceRequest>
+  <ClashOfRim.Diplomacy.ConfirmEvent>この外交イベントを {PLAYER} に送りますか: {KIND}？</ClashOfRim.Diplomacy.ConfirmEvent>
+  <ClashOfRim.Diplomacy.MessageAllianceRequestSent>{PLAYER} に同盟要請を送りました。</ClashOfRim.Diplomacy.MessageAllianceRequestSent>
+  <ClashOfRim.Diplomacy.MessageAllianceCancellationSent>{PLAYER} との同盟を破棄しました。</ClashOfRim.Diplomacy.MessageAllianceCancellationSent>
+  <ClashOfRim.Diplomacy.MessageWarDeclarationSent>{PLAYER} に宣戦布告しました。</ClashOfRim.Diplomacy.MessageWarDeclarationSent>
+  <ClashOfRim.Diplomacy.MessagePeaceRequestSent>{PLAYER} に和平要請を送りました。</ClashOfRim.Diplomacy.MessagePeaceRequestSent>
+  <ClashOfRim.Diplomacy.MessageSupportRequestSent>{PLAYER} に支援要請を送りました。</ClashOfRim.Diplomacy.MessageSupportRequestSent>
+  <ClashOfRim.Diplomacy.MessageEventSent>{PLAYER} に外交イベントを送りました: {KIND}。</ClashOfRim.Diplomacy.MessageEventSent>
+  <ClashOfRim.Diplomacy.RefreshReasonRelationChanged>外交関係が変化</ClashOfRim.Diplomacy.RefreshReasonRelationChanged>
+  <ClashOfRim.Diplomacy.RelationAlly>&lt;color=#7ecf6b&gt;盟友&lt;/color&gt;</ClashOfRim.Diplomacy.RelationAlly>
+  <ClashOfRim.Diplomacy.RelationNeutral>&lt;color=#d6c38a&gt;中立&lt;/color&gt;</ClashOfRim.Diplomacy.RelationNeutral>
+  <ClashOfRim.Diplomacy.RelationHostile>&lt;color=#ff6b6b&gt;敵対&lt;/color&gt;</ClashOfRim.Diplomacy.RelationHostile>
+  <ClashOfRim.Diplomacy.RelationReasonAllianceRequest>同盟</ClashOfRim.Diplomacy.RelationReasonAllianceRequest>
+  <ClashOfRim.Diplomacy.RelationReasonAllianceCancellation>同盟破棄</ClashOfRim.Diplomacy.RelationReasonAllianceCancellation>
+  <ClashOfRim.Diplomacy.RelationReasonWarDeclaration>宣戦布告</ClashOfRim.Diplomacy.RelationReasonWarDeclaration>
+  <ClashOfRim.Diplomacy.RelationReasonPeaceRequest>和平要請</ClashOfRim.Diplomacy.RelationReasonPeaceRequest>
+  <ClashOfRim.PlayerFaction.Report>{PLAYER} は別の遠隔コロニーです。この項目には外交関係、既知の拠点、取引が表示されます。</ClashOfRim.PlayerFaction.Report>
+  <ClashOfRim.Raid.CaravanGizmo>襲撃を開始</ClashOfRim.Raid.CaravanGizmo>
+  <ClashOfRim.Raid.CaravanGizmoCount>襲撃を開始({COUNT})</ClashOfRim.Raid.CaravanGizmoCount>
+  <ClashOfRim.Raid.CaravanGizmoDesc>キャラバンが襲撃可能なタイルに到着しました。対象を選んで襲撃を開始します。</ClashOfRim.Raid.CaravanGizmoDesc>
+  <ClashOfRim.Raid.PvpDisabled>サーバーでプレイヤー襲撃が無効化されています。</ClashOfRim.Raid.PvpDisabled>
+  <ClashOfRim.Raid.CaravanTargetOption>{TARGET}、攻撃側 {COUNT} 名</ClashOfRim.Raid.CaravanTargetOption>
+  <ClashOfRim.Raid.ConfirmStart>現在のキャラバンで {TARGET} を襲撃しますか？\n\n確認後、対象コロニーを読み込みます。戦闘終了時、襲撃結果を必ず正常に保存する必要があります。</ClashOfRim.Raid.ConfirmStart>
+  <ClashOfRim.Raid.TransportPodOption>{TARGET} に襲撃部隊を投下</ClashOfRim.Raid.TransportPodOption>
+  <ClashOfRim.Raid.TransportPodConfirm>積載済みの輸送ポッドまたはシャトルを {TARGET} への襲撃に投入しますか？\n\n確認後、対象コロニーを読み込みます。戦闘終了時、襲撃結果を必ず正常に保存する必要があります。</ClashOfRim.Raid.TransportPodConfirm>
+  <ClashOfRim.Raid.TransportPodRejectNoColonist>移動可能な入植者が少なくとも1名必要です。</ClashOfRim.Raid.TransportPodRejectNoColonist>
+  <ClashOfRim.Raid.CreatedMessage>{TARGET} への襲撃を開始しました。</ClashOfRim.Raid.CreatedMessage>
+  <ClashOfRim.Raid.BattleCountdown>&lt;color=#ff9f43&gt;襲撃残り時間: {TIME}&lt;/color&gt;</ClashOfRim.Raid.BattleCountdown>
+  <ClashOfRim.Raid.SettlementWaitCountdown>&lt;color=#ffd166&gt;結算待機: {TIME}&lt;/color&gt;</ClashOfRim.Raid.SettlementWaitCountdown>
+  <ClashOfRim.Raid.BattleTarget>対象: &lt;color=#ff9f43&gt;{TARGET}&lt;/color&gt;</ClashOfRim.Raid.BattleTarget>
+  <ClashOfRim.Raid.FinishBattle>襲撃を終了して結算をアップロード</ClashOfRim.Raid.FinishBattle>
+  <ClashOfRim.Raid.ConfirmFinishNoPawns>この襲撃を終了し、結算をアップロードしますか？</ClashOfRim.Raid.ConfirmFinishNoPawns>
+  <ClashOfRim.Raid.ConfirmFinishWithPlayerPawns>戦場にはまだ友軍ユニットが {COUNT} 体います。\n\n今襲撃を終了すると、戦場に残っている友軍ユニットは喪失扱いになります。この襲撃を終了し、結算をアップロードしますか？</ClashOfRim.Raid.ConfirmFinishWithPlayerPawns>
+  <ClashOfRim.Raid.AutoFinishNoControllableUnits>襲撃戦場が終了しました。結算をアップロードしています。</ClashOfRim.Raid.AutoFinishNoControllableUnits>
+  <ClashOfRim.Raid.SettlementSucceededMessage>襲撃結算をアップロードしました。攻撃側セーブを確認しています。</ClashOfRim.Raid.SettlementSucceededMessage>
+  <ClashOfRim.Raid.AttackerSnapshotSucceededMessage>攻撃側セーブを確認しました。自分のコロニーへ戻ります。</ClashOfRim.Raid.AttackerSnapshotSucceededMessage>
+  <ClashOfRim.Raid.StatusAttackerSnapshotException>攻撃側襲撃終了確認アップロード例外: {TYPE} {MESSAGE}</ClashOfRim.Raid.StatusAttackerSnapshotException>
+  <ClashOfRim.Raid.StatusAttackerSnapshotFailed>攻撃側襲撃終了確認アップロード失敗: {CODE} {MESSAGE}</ClashOfRim.Raid.StatusAttackerSnapshotFailed>
+  <ClashOfRim.Raid.StatusAttackerSnapshotSucceeded>攻撃側襲撃終了確認成功: {SNAPSHOT}</ClashOfRim.Raid.StatusAttackerSnapshotSucceeded>
+  <ClashOfRim.Raid.StatusAttackerSnapshotUploading>襲撃終了後の攻撃側状態を保存しています。</ClashOfRim.Raid.StatusAttackerSnapshotUploading>
+  <ClashOfRim.Raid.StatusAttackerSnapshotWaiting>前回のセーブアップロード完了を待ってから攻撃側状態を保存します。</ClashOfRim.Raid.StatusAttackerSnapshotWaiting>
+  <ClashOfRim.Raid.StatusBattleDownloadFailed>襲撃戦場のダウンロードに失敗しました: {CODE} {MESSAGE}</ClashOfRim.Raid.StatusBattleDownloadFailed>
+  <ClashOfRim.Raid.StatusBattleDownloading>襲撃戦場をダウンロードしています: {TARGET}。</ClashOfRim.Raid.StatusBattleDownloading>
+  <ClashOfRim.Raid.StatusBattleMissingSnapshot>サーバーが防守側セーブを返しませんでした。</ClashOfRim.Raid.StatusBattleMissingSnapshot>
+  <ClashOfRim.Raid.StatusBattlePayloadFailed>襲撃戦場セーブのダウンロードに失敗しました: {CODE} {MESSAGE}</ClashOfRim.Raid.StatusBattlePayloadFailed>
+  <ClashOfRim.Raid.StatusMissingPreparedBattleMap>現在のセーブには送信する襲撃戦場がありません: {EVENTID}。メインメニューに戻ってサーバーへ再参加してください。</ClashOfRim.Raid.StatusMissingPreparedBattleMap>
+  <ClashOfRim.Raid.StatusPrepareSnapshot>襲撃戦場状態を保存しています。</ClashOfRim.Raid.StatusPrepareSnapshot>
+  <ClashOfRim.Raid.StatusPrepareSnapshotLong>襲撃戦場を保存しています。大きなマップでは一時的に応答が止まることがあります。ゲームを強制終了しないでください。</ClashOfRim.Raid.StatusPrepareSnapshotLong>
+  <ClashOfRim.Raid.StatusAttackerPawnUnavailable>攻撃者を利用できません。</ClashOfRim.Raid.StatusAttackerPawnUnavailable>
+  <ClashOfRim.Raid.StatusAttackerPawnNotInCaravan>攻撃者はもうキャラバンにいません。</ClashOfRim.Raid.StatusAttackerPawnNotInCaravan>
+  <ClashOfRim.Raid.StatusAttackForcePlacementFailed>攻撃者 {PAWN} を配置できませんでした: {REASON}</ClashOfRim.Raid.StatusAttackForcePlacementFailed>
+  <ClashOfRim.Raid.StatusTransporterUnavailable>輸送ポッドの積載物を利用できません。</ClashOfRim.Raid.StatusTransporterUnavailable>
+  <ClashOfRim.Raid.StatusSettlementEmptySave>現在のセーブは空で、襲撃結果を確認できません。</ClashOfRim.Raid.StatusSettlementEmptySave>
+  <ClashOfRim.Raid.StatusSettlementMissingSourceMap>襲撃に防守側の元マップがありません。</ClashOfRim.Raid.StatusSettlementMissingSourceMap>
+  <ClashOfRim.Raid.StatusSettlementXmlFailed>襲撃結算セーブを読み取れませんでした: {MESSAGE}</ClashOfRim.Raid.StatusSettlementXmlFailed>
+  <ClashOfRim.Raid.StatusSettlementMissingParent>現在のセーブにこの襲撃戦場が含まれていません。</ClashOfRim.Raid.StatusSettlementMissingParent>
+  <ClashOfRim.Raid.StatusSettlementMissingMap>現在のセーブにこの襲撃戦場マップが含まれていません。</ClashOfRim.Raid.StatusSettlementMissingMap>
+  <ClashOfRim.Raid.StatusSettlementMissingLocalMapId>襲撃戦場のマップデータが不完全です。</ClashOfRim.Raid.StatusSettlementMissingLocalMapId>
+  <ClashOfRim.Raid.StatusAttackerLossMissingRequest>攻撃側損失イベントがありません。</ClashOfRim.Raid.StatusAttackerLossMissingRequest>
+  <ClashOfRim.Raid.StatusAttackerLossSnapshotMismatch>現在のセーブはこの損失イベントに紐づく攻撃側セーブと一致しません。</ClashOfRim.Raid.StatusAttackerLossSnapshotMismatch>
+  <ClashOfRim.Raid.StatusAttackerLossNoCaravan>一致するキャラバンが見つかりません。サーバー結果を適用します。</ClashOfRim.Raid.StatusAttackerLossNoCaravan>
+  <ClashOfRim.Raid.StatusAttackerLossIncompleteCaravan>一致するキャラバンが損失リストと一致しません。サーバー結果を適用します。</ClashOfRim.Raid.StatusAttackerLossIncompleteCaravan>
+  <ClashOfRim.Raid.StatusAttackerLossWrongEvent>この信書は襲撃損失通知ではありません。</ClashOfRim.Raid.StatusAttackerLossWrongEvent>
+  <ClashOfRim.Raid.StatusAttackerLossMissingRecord>襲撃メッセージに攻撃側損失リストがありません。</ClashOfRim.Raid.StatusAttackerLossMissingRecord>
+  <ClashOfRim.Raid.StatusAttackerLossPayloadFailed>襲撃損失リストを読み取れませんでした: {MESSAGE}</ClashOfRim.Raid.StatusAttackerLossPayloadFailed>
+  <ClashOfRim.Raid.CannotCaptureProtectedDefender>襲撃されたコロニーの防守側は捕獲できません。</ClashOfRim.Raid.CannotCaptureProtectedDefender>
+  <ClashOfRim.Raid.StatusCreateException>襲撃イベント作成例外: {TYPE} {MESSAGE}</ClashOfRim.Raid.StatusCreateException>
+  <ClashOfRim.Raid.StatusCreateFailed>襲撃イベント作成失敗: {CODE} {MESSAGE}</ClashOfRim.Raid.StatusCreateFailed>
+  <ClashOfRim.Raid.StatusCreateRejected>襲撃イベント作成が拒否されました: {CODE} {MESSAGE}</ClashOfRim.Raid.StatusCreateRejected>
+  <ClashOfRim.Raid.StatusMissingPreparation>サーバーが襲撃準備トークンを返しませんでした。</ClashOfRim.Raid.StatusMissingPreparation>
+  <ClashOfRim.Raid.StatusCreated>襲撃を開始しました。</ClashOfRim.Raid.StatusCreated>
+  <ClashOfRim.Raid.StatusNoPawns>現在のキャラバンには攻撃者として使えるメンバーがいません。</ClashOfRim.Raid.StatusNoPawns>
+  <ClashOfRim.Raid.StatusNoTargets>現在タイルには襲撃可能な対象がありません。</ClashOfRim.Raid.StatusNoTargets>
+  <ClashOfRim.Raid.StatusSettlementException>襲撃結算アップロード例外: {TYPE} {MESSAGE}</ClashOfRim.Raid.StatusSettlementException>
+  <ClashOfRim.Raid.StatusSettlementFailed>襲撃結算アップロード失敗: {CODE} {MESSAGE}</ClashOfRim.Raid.StatusSettlementFailed>
+  <ClashOfRim.Raid.StatusSettlementRejected>サーバーが襲撃結算を拒否しました: {CODE} {MESSAGE}; 詳細 {VALIDATION}</ClashOfRim.Raid.StatusSettlementRejected>
+  <ClashOfRim.Raid.StatusSettlementSaveFailed>襲撃戦場セーブに失敗しました: {REASON}</ClashOfRim.Raid.StatusSettlementSaveFailed>
+  <ClashOfRim.Raid.StatusSettlementReportingSupportLoss>戦場の支援損失を報告しています: 入植者 {COUNT} 名。</ClashOfRim.Raid.StatusSettlementReportingSupportLoss>
+  <ClashOfRim.Raid.StatusSettlementSupportLossException>戦場支援損失報告例外: {TYPE} {MESSAGE}</ClashOfRim.Raid.StatusSettlementSupportLossException>
+  <ClashOfRim.Raid.StatusSettlementSupportLossFailed>戦場支援 {PAWN} の損失報告失敗: {CODE} {MESSAGE}</ClashOfRim.Raid.StatusSettlementSupportLossFailed>
+  <ClashOfRim.Raid.StatusSettlementSupportLossLocalRemoveFailed>支援 {PAWN} は喪失として報告されましたが、現在の戦場からローカル削除できませんでした。</ClashOfRim.Raid.StatusSettlementSupportLossLocalRemoveFailed>
+  <ClashOfRim.Raid.StatusSettlementSupportLossRejected>戦場支援 {PAWN} の損失報告がサーバーに拒否されました: {CODE} {MESSAGE}</ClashOfRim.Raid.StatusSettlementSupportLossRejected>
+  <ClashOfRim.Raid.StatusSettlementSucceeded>襲撃結算が受理され、サーバーセーブを更新しました。</ClashOfRim.Raid.StatusSettlementSucceeded>
+  <ClashOfRim.Raid.StatusSettlementUploading>襲撃結算セーブをアップロードしています。</ClashOfRim.Raid.StatusSettlementUploading>
+  <ClashOfRim.Raid.StatusSettlementSavingLong>襲撃結算を保存しています。大きなマップでは一時的に応答が止まることがあります。ゲームを強制終了しないでください。</ClashOfRim.Raid.StatusSettlementSavingLong>
+  <ClashOfRim.Raid.StatusSettlementFinalDeadlineExpired>襲撃結算の待機時間が切れました。サーバーはタイムアウト時の代替処理を適用します。</ClashOfRim.Raid.StatusSettlementFinalDeadlineExpired>
+  <ClashOfRim.Raid.StatusCleanupSnapshotSucceeded>襲撃戦場を閉じ、同期しました。</ClashOfRim.Raid.StatusCleanupSnapshotSucceeded>
+  <ClashOfRim.Raid.StatusSubmitting>サーバーへ襲撃を送信しています: {TARGET}。</ClashOfRim.Raid.StatusSubmitting>
+  <ClashOfRim.Raid.StatusTargetIncomplete>対象襲撃情報が不完全で、イベントを作成できません。</ClashOfRim.Raid.StatusTargetIncomplete>
+  <ClashOfRim.Raid.StatusTargetTileMismatch>キャラバンはもう対象襲撃タイル上にいません。</ClashOfRim.Raid.StatusTargetTileMismatch>
+  <ClashOfRim.Raid.RestoreInvalidServerTime>襲撃 {EVENTID} はサーバー時刻が無効で復元できません。</ClashOfRim.Raid.RestoreInvalidServerTime>
+  <ClashOfRim.Raid.RestoreMissingLocalBattle>サーバーに未完了の襲撃 {EVENTID} がありますが、このセーブには復元可能な戦闘マップがありません。</ClashOfRim.Raid.RestoreMissingLocalBattle>
+  <ClashOfRim.Raid.RestoreServerAlreadySettled>サーバーはこの襲撃を終了済みです。イベントを更新しています。</ClashOfRim.Raid.RestoreServerAlreadySettled>
+  <ClashOfRim.Raid.RestoreSucceeded>&lt;color=#7ecf6b&gt;襲撃を復元しました&lt;/color&gt;。残り &lt;color=#ff9f43&gt;{SECONDS} 秒&lt;/color&gt;。</ClashOfRim.Raid.RestoreSucceeded>
+  <ClashOfRim.Support.CaravanGizmo>支援を送る</ClashOfRim.Support.CaravanGizmo>
+  <ClashOfRim.Support.CaravanGizmoCount>支援を送る({COUNT})</ClashOfRim.Support.CaravanGizmoCount>
+  <ClashOfRim.Support.CaravanGizmoDesc>キャラバンが増援可能なタイルに到着しました。対象コロニーへ支援として加わるメンバーを1名選んでください。</ClashOfRim.Support.CaravanGizmoDesc>
+  <ClashOfRim.Support.CaravanPawnOption>{PAWN} -&gt; {TARGET}</ClashOfRim.Support.CaravanPawnOption>
+  <ClashOfRim.Support.ConfirmSend>{PAWN} を {TARGET} の支援に送りますか？\nこの入植者は現在のキャラバンを離れ、相手コロニーの受入を待ちます。</ClashOfRim.Support.ConfirmSend>
+  <ClashOfRim.Support.CreatedMessage>{PAWN} を支援として送りました。</ClashOfRim.Support.CreatedMessage>
+  <ClashOfRim.Support.TransportPodOrbitalDisabled>軌道上の対象 {TARGET} へ支援を送れません</ClashOfRim.Support.TransportPodOrbitalDisabled>
+  <ClashOfRim.Transporters.OrbitalNonHostileDisabled>コロニストを乗せたシャトルまたは輸送ポッドは、中立または同盟の軌道目標 {TARGET} へ送れません</ClashOfRim.Transporters.OrbitalNonHostileDisabled>
+  <ClashOfRim.Support.DurationDialogConfirm>送る</ClashOfRim.Support.DurationDialogConfirm>
+  <ClashOfRim.Support.DurationDialogDays>{DAYS} 日</ClashOfRim.Support.DurationDialogDays>
+  <ClashOfRim.Support.DurationDialogPermanentSelected>現在の選択: 永久支援。この入植者は自動では帰還しません。</ClashOfRim.Support.DurationDialogPermanentSelected>
+  <ClashOfRim.Support.DurationDialogTarget>{PAWN} -&gt; {TARGET}</ClashOfRim.Support.DurationDialogTarget>
+  <ClashOfRim.Support.DurationDialogTemporary>一時支援</ClashOfRim.Support.DurationDialogTemporary>
+  <ClashOfRim.Support.DurationDialogTemporarySelected>現在の選択: 一時支援。期間終了時にこの入植者は自動で帰還します。</ClashOfRim.Support.DurationDialogTemporarySelected>
+  <ClashOfRim.Support.DurationDialogTitle>支援期間を選択</ClashOfRim.Support.DurationDialogTitle>
+  <ClashOfRim.Support.DurationPermanent>永久支援</ClashOfRim.Support.DurationPermanent>
+  <ClashOfRim.Support.ArrivalLetterLabel>支援が到着</ClashOfRim.Support.ArrivalLetterLabel>
+  <ClashOfRim.Support.ArrivalLetterText>{PAWN} が到着し、一時的にあなたのコロニーへ加わります。</ClashOfRim.Support.ArrivalLetterText>
+  <ClashOfRim.Support.PermanentArrivalLetterLabel>入植者が加入</ClashOfRim.Support.PermanentArrivalLetterLabel>
+  <ClashOfRim.Support.PermanentArrivalLetterText>{PAWN} が到着し、あなたのコロニーへ加入しました。</ClashOfRim.Support.PermanentArrivalLetterText>
+  <ClashOfRim.Support.ReturnArrivalLetterLabel>支援が帰還</ClashOfRim.Support.ReturnArrivalLetterLabel>
+  <ClashOfRim.Support.ReturnArrivalLetterText>{PAWN} があなたの人々のもとへ戻り、ワールドマップ上でキャラバンを結成しました。\n\n理由: {REASON}</ClashOfRim.Support.ReturnArrivalLetterText>
+  <ClashOfRim.Support.ReturnReasonDefault>支援終了</ClashOfRim.Support.ReturnReasonDefault>
+  <ClashOfRim.Support.LossLetterLabel>支援入植者を喪失</ClashOfRim.Support.LossLetterLabel>
+  <ClashOfRim.Support.LossLetterText>{PAWN} はあなたのコロニーへ戻りませんでした。\n\n理由: {REASON}</ClashOfRim.Support.LossLetterText>
+  <ClashOfRim.Support.LossReasonDefault>支援入植者を喪失</ClashOfRim.Support.LossReasonDefault>
+  <ClashOfRim.Support.ApplyArrived>{PAWN} が到着しました。</ClashOfRim.Support.ApplyArrived>
+  <ClashOfRim.Support.ApplyLossContextMissing>支援入植者 {PAWN} のローカル状況がもう存在しません。喪失を記録しました。</ClashOfRim.Support.ApplyLossContextMissing>
+  <ClashOfRim.Support.ApplyLossFailed>支援入植者 {PAWN} の喪失を適用できませんでした。</ClashOfRim.Support.ApplyLossFailed>
+  <ClashOfRim.Support.ApplyLossMarked>支援入植者 {PAWN} を喪失として記録しました。</ClashOfRim.Support.ApplyLossMarked>
+  <ClashOfRim.Support.ApplyLossWorldPawnsUnavailable>現在のセーブには利用可能なワールドポーン一覧がないため、支援喪失を適用できません。</ClashOfRim.Support.ApplyLossWorldPawnsUnavailable>
+  <ClashOfRim.Support.ApplyMapMismatch>現在マップ {CURRENT} は支援対象マップ {TARGET} と一致しません。</ClashOfRim.Support.ApplyMapMismatch>
+  <ClashOfRim.Support.ApplyNoMap>現在マップがないため、支援入植者は参加できません。</ClashOfRim.Support.ApplyNoMap>
+  <ClashOfRim.Support.ApplyNoMapRaidAttacker>現在マップがないため、攻撃側は到着できません。</ClashOfRim.Support.ApplyNoMapRaidAttacker>
+  <ClashOfRim.Support.ApplyNotSupportPawn>このイベントは適用可能な支援入植者イベントではありません。</ClashOfRim.Support.ApplyNotSupportPawn>
+  <ClashOfRim.Support.ApplyPayloadParseFailed>支援入植者情報を読み取れませんでした: {MESSAGE}</ClashOfRim.Support.ApplyPayloadParseFailed>
+  <ClashOfRim.Support.ApplyRestoreFailed>支援入植者の復元に失敗しました。</ClashOfRim.Support.ApplyRestoreFailed>
+  <ClashOfRim.Support.ApplyReturnCaravanCreated>支援入植者 {PAWN} は拒否されました。タイル {TILE} にキャラバン {CARAVAN} を作成しました。</ClashOfRim.Support.ApplyReturnCaravanCreated>
+  <ClashOfRim.Support.ApplyReturnTileMissing>拒否された支援入植者には帰還キャラバン作成用の出発タイルがありません。</ClashOfRim.Support.ApplyReturnTileMissing>
+  <ClashOfRim.Support.FinishedMessage>支援入植者 {PAWN} は所有者へ帰還しました。</ClashOfRim.Support.FinishedMessage>
+  <ClashOfRim.Support.InspectPermanent>遠隔支援: 永久</ClashOfRim.Support.InspectPermanent>
+  <ClashOfRim.Support.InspectTemporary>遠隔支援: 一時</ClashOfRim.Support.InspectTemporary>
+  <ClashOfRim.Support.InspectTemporaryRemaining>遠隔支援: 残り {DAYS} 日</ClashOfRim.Support.InspectTemporaryRemaining>
+  <ClashOfRim.Support.StatusCreateFailed>支援リクエストに失敗しました: {CODE} {MESSAGE}</ClashOfRim.Support.StatusCreateFailed>
+  <ClashOfRim.Support.StatusCreateRejected>支援リクエストが拒否されました: {CODE} {MESSAGE}</ClashOfRim.Support.StatusCreateRejected>
+  <ClashOfRim.Support.StatusCreated>支援を送りました。{PAWN} はキャラバンから離れました。</ClashOfRim.Support.StatusCreated>
+  <ClashOfRim.Support.StatusException>支援イベント作成の例外: {TYPE} {MESSAGE}</ClashOfRim.Support.StatusException>
+  <ClashOfRim.Support.OperationSend>支援入植者の送付</ClashOfRim.Support.OperationSend>
+  <ClashOfRim.Support.StatusReserving>支援入植者を送出し、現在状態の保存を準備しています。</ClashOfRim.Support.StatusReserving>
+  <ClashOfRim.Support.StatusPackagingSnapshot>支援入植者離脱後の状態を保存しています。</ClashOfRim.Support.StatusPackagingSnapshot>
+  <ClashOfRim.Support.StatusSnapshotBuildFailed>支援入植者送付セーブの作成に失敗しました: {REASON}</ClashOfRim.Support.StatusSnapshotBuildFailed>
+  <ClashOfRim.Support.StatusSubmittingTransaction>支援入植者を送信しています。</ClashOfRim.Support.StatusSubmittingTransaction>
+  <ClashOfRim.Support.StatusReturnDeparting>{PAWN} がマップを離れようとしています。離脱後に現在状態を保存します。</ClashOfRim.Support.StatusReturnDeparting>
+  <ClashOfRim.Support.StatusReturnSnapshotUploading>{PAWN} がマップを離れた後の状態を保存しています。</ClashOfRim.Support.StatusReturnSnapshotUploading>
+  <ClashOfRim.Support.StatusReturnSnapshotConfirmed>{PAWN} はマップを離れました。帰還が手配されました。</ClashOfRim.Support.StatusReturnSnapshotConfirmed>
+  <ClashOfRim.Support.PayloadEmpty>支援入植者情報が空です。</ClashOfRim.Support.PayloadEmpty>
+  <ClashOfRim.Support.PayloadParseFailed>支援入植者情報を読み取れません。</ClashOfRim.Support.PayloadParseFailed>
+  <ClashOfRim.Support.StatusFinishException>支援帰還の例外: {TYPE} {MESSAGE}</ClashOfRim.Support.StatusFinishException>
+  <ClashOfRim.Support.StatusFinishFailed>支援帰還に失敗しました: {CODE} {MESSAGE}</ClashOfRim.Support.StatusFinishFailed>
+  <ClashOfRim.Support.StatusFinished>支援 {PAWN} は所有者へ帰還しました。</ClashOfRim.Support.StatusFinished>
+  <ClashOfRim.Support.StatusFinishLocalRemoveFailed>サーバーは支援帰還を受理しましたが、{PAWN} をローカルで削除できませんでした。</ClashOfRim.Support.StatusFinishLocalRemoveFailed>
+  <ClashOfRim.Support.StatusFinishRejected>支援帰還が拒否されました: {CODE} {MESSAGE}</ClashOfRim.Support.StatusFinishRejected>
+  <ClashOfRim.Support.StatusNoPawns>現在のキャラバンには送れるメンバーがいません。</ClashOfRim.Support.StatusNoPawns>
+  <ClashOfRim.Support.StatusNoTargets>現在タイルには増援可能な対象がありません。</ClashOfRim.Support.StatusNoTargets>
+  <ClashOfRim.Support.StatusPawnNotInCaravan>この入植者はもう現在のキャラバンにいません。</ClashOfRim.Support.StatusPawnNotInCaravan>
+  <ClashOfRim.Support.StatusSubmitting>{PAWN} を {TARGET} の支援へ送っています。</ClashOfRim.Support.StatusSubmitting>
+  <ClashOfRim.Support.StatusTargetTileMismatch>キャラバンはもう対象の増援タイル上にいません。</ClashOfRim.Support.StatusTargetTileMismatch>
+  <ClashOfRim.Support.TargetLabel>{LABEL} ({USER}/{COLONY}@{TILE})</ClashOfRim.Support.TargetLabel>
+  <ClashOfRim.Trade.Accepted>受諾済み</ClashOfRim.Trade.Accepted>
+  <ClashOfRim.Trade.AcceptedMemoSuffix>、受諾 {COUNT}</ClashOfRim.Trade.AcceptedMemoSuffix>
+  <ClashOfRim.Trade.AddToAcceptedList>受諾リストに追加</ClashOfRim.Trade.AddToAcceptedList>
+  <ClashOfRim.Trade.CancelAcceptedMemo>受諾を取り消す</ClashOfRim.Trade.CancelAcceptedMemo>
+  <ClashOfRim.Trade.CancelOrder>取り下げ</ClashOfRim.Trade.CancelOrder>
+  <ClashOfRim.Trade.ConfirmCancelAcceptedMemo>この取引注文の受諾を取り消しますか？これは自分のリマインダーを削除するだけで、他のプレイヤーの受諾や取引完了は妨げません。</ClashOfRim.Trade.ConfirmCancelAcceptedMemo>
+  <ClashOfRim.Trade.ConfirmCancelOrder>この取引注文を取り下げますか？保管中の提示品は返却され、受諾済みのプレイヤーには通知されます。</ClashOfRim.Trade.ConfirmCancelOrder>
+  <ClashOfRim.Trade.CaravanExchangeApplied>要求品 {REQUESTCOUNT} 項目を引き渡しました。キャラバンは {STACKCOUNT} スタックを受け取りました。</ClashOfRim.Trade.CaravanExchangeApplied>
+  <ClashOfRim.Trade.CaravanFulfillGizmo>取引を履行</ClashOfRim.Trade.CaravanFulfillGizmo>
+  <ClashOfRim.Trade.CaravanFulfillGizmoCount>取引を履行({COUNT})</ClashOfRim.Trade.CaravanFulfillGizmoCount>
+  <ClashOfRim.Trade.CaravanFulfillGizmoDesc>キャラバンが取引可能なタイルに到着しました。携行品を提出して受諾済みの取引注文を完了します。</ClashOfRim.Trade.CaravanFulfillGizmoDesc>
+  <ClashOfRim.Trade.CaravanFulfillOption>{OWNER}: {DELIVER} を渡し、{RECEIVE} を受け取る</ClashOfRim.Trade.CaravanFulfillOption>
+  <ClashOfRim.Trade.CaravanInventoryInsufficient>ローカルキャラバンの在庫が不足しており、削除できません: {THING}</ClashOfRim.Trade.CaravanInventoryInsufficient>
+  <ClashOfRim.Trade.CaravanMissingSuffix>（携行品不足）</ClashOfRim.Trade.CaravanMissingSuffix>
+  <ClashOfRim.Trade.ConfirmCaravanFulfillTitle>現在のキャラバンでこの取引注文を履行しますか？</ClashOfRim.Trade.ConfirmCaravanFulfillTitle>
+  <ClashOfRim.Trade.ConfirmCreateExchange>{OFFERED} を使って {REQUESTED} と交換</ClashOfRim.Trade.ConfirmCreateExchange>
+  <ClashOfRim.Trade.ConfirmCreateFee>手数料: &lt;color=#d7dadb&gt;{FEE} シルバー&lt;/color&gt;</ClashOfRim.Trade.ConfirmCreateFee>
+  <ClashOfRim.Trade.ConfirmCreateTitle>この取引注文を作成しますか？</ClashOfRim.Trade.ConfirmCreateTitle>
+  <ClashOfRim.Trade.ConfirmNoRequestedThings>この取引では何も受け取りません。続行しますか？</ClashOfRim.Trade.ConfirmNoRequestedThings>
+  <ClashOfRim.Trade.ConfirmNoOfferedThings>この取引注文を履行しても何も受け取りません。続行しますか？</ClashOfRim.Trade.ConfirmNoOfferedThings>
+  <ClashOfRim.Trade.CreateOrderTitle>取引注文を作成</ClashOfRim.Trade.CreateOrderTitle>
+  <ClashOfRim.Trade.Disabled>取引市場は無効です。</ClashOfRim.Trade.Disabled>
+  <ClashOfRim.Trade.EstimatedValues>推定価値: 自分 {OFFERED}; 相手 {REQUESTED}</ClashOfRim.Trade.EstimatedValues>
+  <ClashOfRim.Trade.DeliverLine>引き渡し: {THINGS}</ClashOfRim.Trade.DeliverLine>
+  <ClashOfRim.Trade.DistanceSuffix>、距離 {DISTANCE} タイル</ClashOfRim.Trade.DistanceSuffix>
+  <ClashOfRim.Trade.DropPodPostageLine>輸送ポッド送料: {POSTAGE}</ClashOfRim.Trade.DropPodPostageLine>
+  <ClashOfRim.Trade.DropPodUnreachableShort>&lt;color=#ff6b6b&gt;輸送ポッド到達不可&lt;/color&gt;</ClashOfRim.Trade.DropPodUnreachableShort>
+  <ClashOfRim.Trade.ExchangeVerb>と交換</ClashOfRim.Trade.ExchangeVerb>
+  <ClashOfRim.Trade.Fee>手数料: &lt;color=#d7dadb&gt;{FEE} シルバー&lt;/color&gt;（利用可能 {AVAILABLE}）</ClashOfRim.Trade.Fee>
+  <ClashOfRim.Trade.FeeAndMemoLine>手数料シルバー: {FEE}; 受諾済み: {COUNT}</ClashOfRim.Trade.FeeAndMemoLine>
+  <ClashOfRim.Trade.BookKindAnomalyResearch>アノマリー研究書</ClashOfRim.Trade.BookKindAnomalyResearch>
+  <ClashOfRim.Trade.GeneXenotypeName>取引異種遺伝子</ClashOfRim.Trade.GeneXenotypeName>
+  <ClashOfRim.Trade.UniqueWeaponTraitsAny>任意の特化武器特性</ClashOfRim.Trade.UniqueWeaponTraitsAny>
+  <ClashOfRim.Trade.PersonaWeaponTraitsAny>任意の人格武器特性</ClashOfRim.Trade.PersonaWeaponTraitsAny>
+  <ClashOfRim.Trade.UniqueWeaponTraitUnavailable>互換性なし</ClashOfRim.Trade.UniqueWeaponTraitUnavailable>
+  <ClashOfRim.Shop.UniqueWeaponTraits>特化特性</ClashOfRim.Shop.UniqueWeaponTraits>
+  <ClashOfRim.Shop.SelectUniqueWeaponTraits>特化特性を選択</ClashOfRim.Shop.SelectUniqueWeaponTraits>
+  <ClashOfRim.Shop.PersonaWeaponTraits>人格特性</ClashOfRim.Shop.PersonaWeaponTraits>
+  <ClashOfRim.Shop.SelectPersonaWeaponTraits>人格特性を選択</ClashOfRim.Shop.SelectPersonaWeaponTraits>
+  <ClashOfRim.Trade.StatusAndExpiryLine>状態: {STATUS}; {EXPIRY}</ClashOfRim.Trade.StatusAndExpiryLine>
+  <ClashOfRim.Trade.FeeWithFixed>手数料: &lt;color=#d7dadb&gt;{FEE} シルバー&lt;/color&gt;（固定保管料 {FIXED} を含む、利用可能 {AVAILABLE}）</ClashOfRim.Trade.FeeWithFixed>
+  <ClashOfRim.Trade.FulfillCompletedMessage>自引き取り取引が完了しました。現在のセーブを同期中です。</ClashOfRim.Trade.FulfillCompletedMessage>
+  <ClashOfRim.Trade.MarketTitle>取引市場</ClashOfRim.Trade.MarketTitle>
+  <ClashOfRim.Trade.MarketTraderName>取引市場</ClashOfRim.Trade.MarketTraderName>
+  <ClashOfRim.Trade.LoadMore>さらに読み込む</ClashOfRim.Trade.LoadMore>
+  <ClashOfRim.Trade.LoadingMore>読み込み中...</ClashOfRim.Trade.LoadingMore>
+  <ClashOfRim.Trade.StatusLoadingMoreMarket>さらに取引注文を読み込み中。</ClashOfRim.Trade.StatusLoadingMoreMarket>
+  <ClashOfRim.Trade.PageStatus>取引注文 {LOADED}/{TOTAL} 件を読み込み済み。</ClashOfRim.Trade.PageStatus>
+  <ClashOfRim.Trade.MissingRequirementLine>{THING}、携行 {COUNT}</ClashOfRim.Trade.MissingRequirementLine>
+  <ClashOfRim.Trade.MissingSuffix>; 不足: {MISSING}</ClashOfRim.Trade.MissingSuffix>
+  <ClashOfRim.Trade.NoAcceptableOrders>取引市場に受諾可能な取引注文はありません。</ClashOfRim.Trade.NoAcceptableOrders>
+  <ClashOfRim.Trade.NoMoreOfferableThings>これ以上提示品を追加できません。</ClashOfRim.Trade.NoMoreOfferableThings>
+  <ClashOfRim.Trade.NoOfferableThings>現在のマップには取引可能なアイテム、動物、奴隷がありません。</ClashOfRim.Trade.NoOfferableThings>
+  <ClashOfRim.Trade.NoHitPoints>耐久条件なし</ClashOfRim.Trade.NoHitPoints>
+  <ClashOfRim.Trade.NoOrdersInScope>この表示には取引注文がありません。</ClashOfRim.Trade.NoOrdersInScope>
+  <ClashOfRim.Trade.NoQuality>品質なし</ClashOfRim.Trade.NoQuality>
+  <ClashOfRim.Trade.NoSelectedOffers>提示品が選択されていません。</ClashOfRim.Trade.NoSelectedOffers>
+  <ClashOfRim.Trade.NoSelectedRequests>要求品が選択されていません。</ClashOfRim.Trade.NoSelectedRequests>
+  <ClashOfRim.Trade.NoSelectedTradeThings>提示品または要求品を選択してください。</ClashOfRim.Trade.NoSelectedTradeThings>
+  <ClashOfRim.Trade.OfferLocalThings>自分の提示品</ClashOfRim.Trade.OfferLocalThings>
+  <ClashOfRim.Trade.OrderName>取引注文</ClashOfRim.Trade.OrderName>
+  <ClashOfRim.Trade.OtherOffers>相手の提示</ClashOfRim.Trade.OtherOffers>
+  <ClashOfRim.Trade.OtherRequests>相手の要求</ClashOfRim.Trade.OtherRequests>
+  <ClashOfRim.Trade.OwnerLine>投稿者: {OWNER}</ClashOfRim.Trade.OwnerLine>
+  <ClashOfRim.Trade.CounterpartyLine>取引相手: {COUNTERPARTY}</ClashOfRim.Trade.CounterpartyLine>
+  <ClashOfRim.Trade.PartiesLine>投稿者: {OWNER}; 取引相手: {COUNTERPARTY}</ClashOfRim.Trade.PartiesLine>
+  <ClashOfRim.Trade.PostageNotCalculated>未計算</ClashOfRim.Trade.PostageNotCalculated>
+  <ClashOfRim.Trade.PostageSilver>&lt;color=#d7dadb&gt;{SILVER} シルバー&lt;/color&gt;{DISTANCE}</ClashOfRim.Trade.PostageSilver>
+  <ClashOfRim.Trade.PostageUnreachable>&lt;color=#ff6b6b&gt;到達不可、送信できません&lt;/color&gt;</ClashOfRim.Trade.PostageUnreachable>
+  <ClashOfRim.Trade.PawnRequirement>人物</ClashOfRim.Trade.PawnRequirement>
+  <ClashOfRim.Trade.NoPawnHitPoints>耐久条件なし</ClashOfRim.Trade.NoPawnHitPoints>
+  <ClashOfRim.Trade.QualityAny>品質: 任意</ClashOfRim.Trade.QualityAny>
+  <ClashOfRim.Trade.QualitySelected>品質: {QUALITY}</ClashOfRim.Trade.QualitySelected>
+  <ClashOfRim.Trade.ReceiveLine>受け取り: {THINGS}</ClashOfRim.Trade.ReceiveLine>
+  <ClashOfRim.Trade.RequireBeaconRange>取引ビーコン範囲内のアイテムのみ使用。オフにするとビーコンと全保管場所を使用します</ClashOfRim.Trade.RequireBeaconRange>
+  <ClashOfRim.Trade.RequestedGlobalItems>要求アイテム（全体アイテムプール）</ClashOfRim.Trade.RequestedGlobalItems>
+  <ClashOfRim.Trade.ScopeAcceptedByMe>受諾済み</ClashOfRim.Trade.ScopeAcceptedByMe>
+  <ClashOfRim.Trade.ScopeHistory>履歴</ClashOfRim.Trade.ScopeHistory>
+  <ClashOfRim.Trade.ScopeMine>自分の投稿</ClashOfRim.Trade.ScopeMine>
+  <ClashOfRim.Trade.ScopeOpen>市場</ClashOfRim.Trade.ScopeOpen>
+  <ClashOfRim.Trade.ScopeTitleAcceptedByMe>自分が受諾した取引注文</ClashOfRim.Trade.ScopeTitleAcceptedByMe>
+  <ClashOfRim.Trade.ScopeTitleHistory>取引履歴</ClashOfRim.Trade.ScopeTitleHistory>
+  <ClashOfRim.Trade.ScopeTitleMine>自分が投稿した取引注文</ClashOfRim.Trade.ScopeTitleMine>
+  <ClashOfRim.Trade.ScopeTitleOpen>公開取引市場</ClashOfRim.Trade.ScopeTitleOpen>
+  <ClashOfRim.Trade.SelectedOffers>選択済み提示品</ClashOfRim.Trade.SelectedOffers>
+  <ClashOfRim.Trade.SelectedRequests>選択済み要求品（数量、品質、耐久は最低条件）</ClashOfRim.Trade.SelectedRequests>
+  <ClashOfRim.Trade.SelectOrderForDetails>詳細を見る取引注文を選択してください。</ClashOfRim.Trade.SelectOrderForDetails>
+  <ClashOfRim.Trade.SelectGene>遺伝子を選択</ClashOfRim.Trade.SelectGene>
+  <ClashOfRim.Trade.SelectGeneTitle>対象遺伝子を選択</ClashOfRim.Trade.SelectGeneTitle>
+  <ClashOfRim.Trade.SelectResearchProject>研究を選択</ClashOfRim.Trade.SelectResearchProject>
+  <ClashOfRim.Trade.SelectResearchProjectTitle>対象研究を選択</ClashOfRim.Trade.SelectResearchProjectTitle>
+  <ClashOfRim.Trade.SendByDropPod>輸送ポッドで送信</ClashOfRim.Trade.SendByDropPod>
+  <ClashOfRim.Trade.StatusLine>状態: {STATUS}</ClashOfRim.Trade.StatusLine>
+  <ClashOfRim.Trade.StatusAcceptedOrder>取引注文を受諾しました。</ClashOfRim.Trade.StatusAcceptedOrder>
+  <ClashOfRim.Trade.StatusAcceptException>受諾例外: {TYPE} {MESSAGE}</ClashOfRim.Trade.StatusAcceptException>
+  <ClashOfRim.Trade.StatusAcceptFailed>受諾失敗: {CODE} {MESSAGE}</ClashOfRim.Trade.StatusAcceptFailed>
+  <ClashOfRim.Trade.StatusAcceptingOrder>取引注文を受諾中。</ClashOfRim.Trade.StatusAcceptingOrder>
+  <ClashOfRim.Trade.StatusAcceptMemoExists>この取引注文はすでに受諾済みです。</ClashOfRim.Trade.StatusAcceptMemoExists>
+  <ClashOfRim.Trade.StatusAcceptRejected>受諾は拒否されました: {CODE} {MESSAGE}</ClashOfRim.Trade.StatusAcceptRejected>
+  <ClashOfRim.Trade.StatusCancelled>&lt;color=#ffd166&gt;取り消し済み&lt;/color&gt;</ClashOfRim.Trade.StatusCancelled>
+  <ClashOfRim.Trade.StatusCaravanMissingRequirements>キャラバンの携行品が不足しています: {MISSING}</ClashOfRim.Trade.StatusCaravanMissingRequirements>
+  <ClashOfRim.Trade.StatusCaravanNotAtOwnerTile>キャラバンはこの取引注文の投稿者タイルに到着していません。</ClashOfRim.Trade.StatusCaravanNotAtOwnerTile>
+  <ClashOfRim.Trade.StatusCancelException>取引注文の取り下げ例外: {TYPE} {MESSAGE}</ClashOfRim.Trade.StatusCancelException>
+  <ClashOfRim.Trade.StatusCancelAcceptedMemoException>受諾取り消し例外: {TYPE} {MESSAGE}</ClashOfRim.Trade.StatusCancelAcceptedMemoException>
+  <ClashOfRim.Trade.StatusCancelAcceptedMemoFailed>受諾取り消し失敗: {CODE} {MESSAGE}</ClashOfRim.Trade.StatusCancelAcceptedMemoFailed>
+  <ClashOfRim.Trade.StatusCancelAcceptedMemoNotAllowed>未完了の取引注文に対する自分の有効な受諾だけを取り消せます。</ClashOfRim.Trade.StatusCancelAcceptedMemoNotAllowed>
+  <ClashOfRim.Trade.StatusCancelAcceptedMemoRejected>受諾取り消しは拒否されました: {CODE} {MESSAGE}</ClashOfRim.Trade.StatusCancelAcceptedMemoRejected>
+  <ClashOfRim.Trade.StatusCancelAcceptedMemoSucceeded>取引受諾を取り消しました。</ClashOfRim.Trade.StatusCancelAcceptedMemoSucceeded>
+  <ClashOfRim.Trade.StatusCancelFailed>取引注文の取り下げ失敗: {CODE} {MESSAGE}</ClashOfRim.Trade.StatusCancelFailed>
+  <ClashOfRim.Trade.StatusCancelNotAllowed>自分が投稿した未完了の取引注文だけを取り下げられます。</ClashOfRim.Trade.StatusCancelNotAllowed>
+  <ClashOfRim.Trade.StatusCancelRejected>取引注文の取り下げは拒否されました: {CODE} {MESSAGE}</ClashOfRim.Trade.StatusCancelRejected>
+  <ClashOfRim.Trade.StatusCancelSucceeded>取引注文を取り下げました。受諾済みプレイヤー {COUNT} 人に通知しました。</ClashOfRim.Trade.StatusCancelSucceeded>
+  <ClashOfRim.Trade.StatusCancellingAcceptedMemo>取引受諾を取り消し中。</ClashOfRim.Trade.StatusCancellingAcceptedMemo>
+  <ClashOfRim.Trade.StatusCancellingOrder>取引注文を取り下げ中。</ClashOfRim.Trade.StatusCancellingOrder>
+  <ClashOfRim.Trade.StatusCompleted>&lt;color=#7ecf6b&gt;完了&lt;/color&gt;</ClashOfRim.Trade.StatusCompleted>
+  <ClashOfRim.Trade.ConfirmDropPodFulfillTitle>この取引注文を輸送ポッドで完了しますか？</ClashOfRim.Trade.ConfirmDropPodFulfillTitle>
+  <ClashOfRim.Trade.StatusConfigMissingCreate>サーバーアドレス、ユーザー、コロニー、または現在のセーブが未設定のため、取引注文を作成できません。</ClashOfRim.Trade.StatusConfigMissingCreate>
+  <ClashOfRim.Trade.StatusConfigMissingMarket>サーバーアドレス、ユーザー、コロニー、または現在のセーブが未設定のため、取引市場を表示できません。</ClashOfRim.Trade.StatusConfigMissingMarket>
+  <ClashOfRim.Trade.StatusConfirmBuildFailed>自引き取り取引完了セーブの準備に失敗: {CODE} {MESSAGE}</ClashOfRim.Trade.StatusConfirmBuildFailed>
+  <ClashOfRim.Trade.StatusConfirmException>自引き取り取引処理例外: {TYPE} {MESSAGE}</ClashOfRim.Trade.StatusConfirmException>
+  <ClashOfRim.Trade.StatusConfirmFailed>自引き取り取引処理失敗: {CODE} {MESSAGE}</ClashOfRim.Trade.StatusConfirmFailed>
+  <ClashOfRim.Trade.StatusConfirmRejected>自引き取り取引処理は拒否されました: {CODE} {MESSAGE}; {VALIDATION} を確認してください</ClashOfRim.Trade.StatusConfirmRejected>
+  <ClashOfRim.Trade.StatusConfirmSucceeded>自引き取り取引が完了しました。</ClashOfRim.Trade.StatusConfirmSucceeded>
+  <ClashOfRim.Trade.StatusConfirmUploading>自引き取り取引結果を保存中。</ClashOfRim.Trade.StatusConfirmUploading>
+  <ClashOfRim.Trade.StatusDraftMissingThings>取引注文に提示品または要求品がありません。</ClashOfRim.Trade.StatusDraftMissingThings>
+  <ClashOfRim.Trade.StatusDropPodFulfillCreated>輸送ポッド取引を送信しました。</ClashOfRim.Trade.StatusDropPodFulfillCreated>
+  <ClashOfRim.Trade.StatusDropPodMissingRequirements>輸送ポッド配送品が不足しています: {THING}</ClashOfRim.Trade.StatusDropPodMissingRequirements>
+  <ClashOfRim.Trade.StatusDropPodPostageInsufficient>輸送ポッド送料のシルバーが不足しています: 必要 {NEEDED}、利用可能 {AVAILABLE}。</ClashOfRim.Trade.StatusDropPodPostageInsufficient>
+  <ClashOfRim.Trade.StatusDropPodReservedLocalThings>輸送ポッド配送品 {THINGCOUNT} 件と送料 {POSTAGE} シルバーを削除しました。</ClashOfRim.Trade.StatusDropPodReservedLocalThings>
+  <ClashOfRim.Trade.StatusDropPodUnreachable>この取引注文は現在輸送ポッドで到達できず、送信できません。</ClashOfRim.Trade.StatusDropPodUnreachable>
+  <ClashOfRim.Trade.StatusCaravanFulfillPreparing>キャラバン配送を準備中。</ClashOfRim.Trade.StatusCaravanFulfillPreparing>
+  <ClashOfRim.Trade.StatusDropPodReserving>取引の輸送ポッド配送品を予約中。</ClashOfRim.Trade.StatusDropPodReserving>
+  <ClashOfRim.Trade.StatusFulfillPackagingSnapshot>取引完了後のセーブを準備中。</ClashOfRim.Trade.StatusFulfillPackagingSnapshot>
+  <ClashOfRim.Trade.StatusFulfillSnapshotBuildFailed>取引完了セーブの作成に失敗: {REASON}</ClashOfRim.Trade.StatusFulfillSnapshotBuildFailed>
+  <ClashOfRim.Trade.StatusFulfillSubmittingTransaction>取引を完了中。</ClashOfRim.Trade.StatusFulfillSubmittingTransaction>
+  <ClashOfRim.Trade.ReasonFulfillment>取引完了</ClashOfRim.Trade.ReasonFulfillment>
+  <ClashOfRim.Trade.StatusFailed>&lt;color=#ff6b6b&gt;失敗&lt;/color&gt;</ClashOfRim.Trade.StatusFailed>
+  <ClashOfRim.Trade.Expired>&lt;color=#ff6b6b&gt;期限切れ&lt;/color&gt;</ClashOfRim.Trade.Expired>
+  <ClashOfRim.Trade.ExpiresIn>&lt;color=#ffd166&gt;{TIME} 後に期限切れ&lt;/color&gt;</ClashOfRim.Trade.ExpiresIn>
+  <ClashOfRim.Trade.ExpiryLine>期限: {EXPIRY}</ClashOfRim.Trade.ExpiryLine>
+  <ClashOfRim.Trade.StatusFeeReservationIncomplete>手数料の予約が不完全です。{REMAINING} シルバーが削除されませんでした。</ClashOfRim.Trade.StatusFeeReservationIncomplete>
+  <ClashOfRim.Trade.StatusFeeSilverInsufficient>&lt;color=#ff6b6b&gt;手数料シルバー不足&lt;/color&gt;: 必要 &lt;color=#d7dadb&gt;{NEEDED}&lt;/color&gt;、利用可能 &lt;color=#d7dadb&gt;{AVAILABLE}&lt;/color&gt;。</ClashOfRim.Trade.StatusFeeSilverInsufficient>
+  <ClashOfRim.Trade.StatusQuotingFee>サーバーに手数料を確認中。</ClashOfRim.Trade.StatusQuotingFee>
+  <ClashOfRim.Trade.StatusQuotingFeeShort>確認中...</ClashOfRim.Trade.StatusQuotingFeeShort>
+  <ClashOfRim.Trade.StatusFeeQuoted>サーバー手数料: {FEE} シルバー。</ClashOfRim.Trade.StatusFeeQuoted>
+  <ClashOfRim.Trade.StatusFeeQuoteRejected>サーバーが取引見積もりを拒否しました: {MESSAGE}</ClashOfRim.Trade.StatusFeeQuoteRejected>
+  <ClashOfRim.Trade.StatusFeeQuoteFailed>手数料見積もり失敗: {MESSAGE}</ClashOfRim.Trade.StatusFeeQuoteFailed>
+  <ClashOfRim.Trade.StatusFulfillCompletedUploading>自引き取り取引が完了しました。現在の状態を保存中。</ClashOfRim.Trade.StatusFulfillCompletedUploading>
+  <ClashOfRim.Trade.StatusFulfillException>自引き取り取引例外: {TYPE} {MESSAGE}</ClashOfRim.Trade.StatusFulfillException>
+  <ClashOfRim.Trade.StatusFulfillFailed>自引き取り取引失敗: {CODE} {MESSAGE}</ClashOfRim.Trade.StatusFulfillFailed>
+  <ClashOfRim.Trade.StatusFulfillLocalApplyFailed>サーバーは自引き取り取引を受理しましたが、ローカルキャラバン交換に失敗しました: {MESSAGE}</ClashOfRim.Trade.StatusFulfillLocalApplyFailed>
+  <ClashOfRim.Trade.StatusFulfillRejected>自引き取り取引は拒否されました: {CODE} {MESSAGE}{MISSING}</ClashOfRim.Trade.StatusFulfillRejected>
+  <ClashOfRim.Trade.StatusReceivedPawnRestoreFailed>受け取った取引入植者を復元できませんでした: {THING}</ClashOfRim.Trade.StatusReceivedPawnRestoreFailed>
+  <ClashOfRim.Trade.StatusReceivedThingDefMissing>受け取った取引アイテムの種類がありません: {THING}</ClashOfRim.Trade.StatusReceivedThingDefMissing>
+  <ClashOfRim.Trade.StatusMarketException>取引市場例外: {TYPE} {MESSAGE}</ClashOfRim.Trade.StatusMarketException>
+  <ClashOfRim.Trade.StatusMarketRefreshFailed>取引市場の更新失敗: {CODE} {MESSAGE}</ClashOfRim.Trade.StatusMarketRefreshFailed>
+  <ClashOfRim.Trade.StatusMarketRejected>取引市場は拒否されました: {CODE} {MESSAGE}</ClashOfRim.Trade.StatusMarketRejected>
+  <ClashOfRim.Trade.StatusMissingAcceptMemo>取引注文が受諾されていないため、キャラバンで配送できません。</ClashOfRim.Trade.StatusMissingAcceptMemo>
+  <ClashOfRim.Trade.StatusMissingOrderEventId>取引注文はまだサーバーに登録されていないため受諾できません。</ClashOfRim.Trade.StatusMissingOrderEventId>
+  <ClashOfRim.Trade.StatusNoFulfillableCaravanOrders>現在のキャラバンタイルには完了可能な受諾済み取引注文がありません。</ClashOfRim.Trade.StatusNoFulfillableCaravanOrders>
+  <ClashOfRim.Trade.StatusNoMapCreate>現在のマップがないため、取引注文を作成できません。</ClashOfRim.Trade.StatusNoMapCreate>
+  <ClashOfRim.Trade.StatusNoMapReserve>現在のマップがないため、取引アイテムを削除できません。</ClashOfRim.Trade.StatusNoMapReserve>
+  <ClashOfRim.Trade.StatusOpen>&lt;color=#7ecf6b&gt;公開中&lt;/color&gt;</ClashOfRim.Trade.StatusOpen>
+  <ClashOfRim.Trade.StatusOrderCreatedReservationFailed>取引注文は作成されましたが、ローカル予約に失敗しました: {MESSAGE}</ClashOfRim.Trade.StatusOrderCreatedReservationFailed>
+  <ClashOfRim.Trade.StatusOrderCreatedReserved>取引注文を作成し、ローカルの提示品を削除しました。</ClashOfRim.Trade.StatusOrderCreatedReserved>
+  <ClashOfRim.Trade.StatusOrderReserving>取引注文アイテムを予約し、現在の状態の保存を準備中。</ClashOfRim.Trade.StatusOrderReserving>
+  <ClashOfRim.Trade.StatusOrderPackagingSnapshot>取引注文アイテムがコロニーを離れた後の状態を保存中。</ClashOfRim.Trade.StatusOrderPackagingSnapshot>
+  <ClashOfRim.Trade.StatusOrderSnapshotBuildFailed>取引注文セーブの作成に失敗: {REASON}</ClashOfRim.Trade.StatusOrderSnapshotBuildFailed>
+  <ClashOfRim.Trade.StatusOrderSubmittingTransaction>取引注文を投稿中。</ClashOfRim.Trade.StatusOrderSubmittingTransaction>
+  <ClashOfRim.Trade.StatusOrderSubmitException>取引注文送信例外: {TYPE} {MESSAGE}</ClashOfRim.Trade.StatusOrderSubmitException>
+  <ClashOfRim.Trade.StatusCreateRejected>取引注文はサーバーに拒否されました: {CODE} {MESSAGE}</ClashOfRim.Trade.StatusCreateRejected>
+  <ClashOfRim.Trade.StatusRefreshingMarket>取引市場を更新中。</ClashOfRim.Trade.StatusRefreshingMarket>
+  <ClashOfRim.Trade.StatusRejected>&lt;color=#ff6b6b&gt;拒否済み&lt;/color&gt;</ClashOfRim.Trade.StatusRejected>
+  <ClashOfRim.Trade.StatusReservedLocalThings>提示品 {THINGCOUNT} 件と手数料 {FEE} シルバーを削除しました。</ClashOfRim.Trade.StatusReservedLocalThings>
+  <ClashOfRim.Trade.StatusSubmittingCaravanFulfill>キャラバン自引き取り取引を送信中。</ClashOfRim.Trade.StatusSubmittingCaravanFulfill>
+  <ClashOfRim.Trade.StatusSubmittingDropPodFulfill>輸送ポッド取引を送信中。</ClashOfRim.Trade.StatusSubmittingDropPodFulfill>
+  <ClashOfRim.Trade.StatusSubmittingOrder>取引注文を送信中。成功すると提示品と手数料 {FEE} シルバーが削除されます。</ClashOfRim.Trade.StatusSubmittingOrder>
+  <ClashOfRim.Trade.StatusTradeThingOutsideBeacon>取引アイテムが選択した取引範囲外です: {THING}。</ClashOfRim.Trade.StatusTradeThingOutsideBeacon>
+  <ClashOfRim.Trade.StatusTradeThingInsufficient>取引アイテム数が不足しています: {THING} は {NEEDED} 必要、現在 {CURRENT}。</ClashOfRim.Trade.StatusTradeThingInsufficient>
+  <ClashOfRim.Trade.StatusTradeThingInvalid>取引アイテムは現在のマップにないか、数量が無効です。取引注文を開き直してください。</ClashOfRim.Trade.StatusTradeThingInvalid>
+  <ClashOfRim.Trade.StuffAny>素材: 任意</ClashOfRim.Trade.StuffAny>
+  <ClashOfRim.Trade.StuffRequirement>素材: {STUFF}</ClashOfRim.Trade.StuffRequirement>
+  <ClashOfRim.Trade.SubmitHintMissing>提示品または要求品と、十分な手数料シルバーが必要です。</ClashOfRim.Trade.SubmitHintMissing>
+  <ClashOfRim.Trade.SubmitHintIncompleteRequest>要求アイテムの条件が不完全です。</ClashOfRim.Trade.SubmitHintIncompleteRequest>
+  <ClashOfRim.Trade.SubmitHintReady>提示 {OFFERCOUNT} 件、要求 {REQUESTCOUNT} 件。配送方法は取引完了時に受諾者が選択します。</ClashOfRim.Trade.SubmitHintReady>
+  <ClashOfRim.Trade.SubmitOrder>取引注文を送信</ClashOfRim.Trade.SubmitOrder>
+  <ClashOfRim.Trade.TargetBookSkillRequirement>{SKILL}</ClashOfRim.Trade.TargetBookSkillRequirement>
+  <ClashOfRim.Trade.TargetResearchProjectRequirement>{PROJECT}</ClashOfRim.Trade.TargetResearchProjectRequirement>
+  <ClashOfRim.Trade.SourceLabels>出所 {SOURCES}</ClashOfRim.Trade.SourceLabels>
+  <ClashOfRim.Trade.ArtTitle>芸術品 {TITLE}</ClashOfRim.Trade.ArtTitle>
+  <ClashOfRim.Trade.TargetGeneRequirement>{GENE} を含む</ClashOfRim.Trade.TargetGeneRequirement>
+  <ClashOfRim.Trade.UnknownOwner>不明な投稿者</ClashOfRim.Trade.UnknownOwner>
+  <ClashOfRim.Trade.ViewerAcceptedSuffix>、自分が受諾済み</ClashOfRim.Trade.ViewerAcceptedSuffix>
+  <ClashOfRim.Trade.ViewOnly>表示のみ</ClashOfRim.Trade.ViewOnly>
+  <ClashOfRim.GiftDelivery.CaravanGizmo>贈り物を届ける</ClashOfRim.GiftDelivery.CaravanGizmo>
+  <ClashOfRim.GiftDelivery.CaravanGizmoCount>贈り物を届ける ({COUNT})</ClashOfRim.GiftDelivery.CaravanGizmoCount>
+  <ClashOfRim.GiftDelivery.CaravanGizmoDesc>キャラバンが別のコロニータイルに到着しました。対象へ贈り物を届けます。</ClashOfRim.GiftDelivery.CaravanGizmoDesc>
+  <ClashOfRim.GiftDelivery.ForcedCaravanGizmo>強制投送</ClashOfRim.GiftDelivery.ForcedCaravanGizmo>
+  <ClashOfRim.GiftDelivery.ForcedCaravanGizmoCount>強制投送 ({COUNT})</ClashOfRim.GiftDelivery.ForcedCaravanGizmoCount>
+  <ClashOfRim.GiftDelivery.ForcedCaravanGizmoDesc>キャラバンが敵対コロニータイルに到着しました。対象へアイテムを強制投送します。</ClashOfRim.GiftDelivery.ForcedCaravanGizmoDesc>
+  <ClashOfRim.GiftDelivery.Title>キャラバン物品配送</ClashOfRim.GiftDelivery.Title>
+  <ClashOfRim.GiftDelivery.TargetLine>対象: {TARGET}</ClashOfRim.GiftDelivery.TargetLine>
+  <ClashOfRim.GiftDelivery.TargetOption>{TARGET}</ClashOfRim.GiftDelivery.TargetOption>
+  <ClashOfRim.GiftDelivery.NormalMode>通常の贈り物</ClashOfRim.GiftDelivery.NormalMode>
+  <ClashOfRim.GiftDelivery.ForcedMode>強制投送</ClashOfRim.GiftDelivery.ForcedMode>
+  <ClashOfRim.GiftDelivery.NormalUnavailable>通常の贈り物は利用不可</ClashOfRim.GiftDelivery.NormalUnavailable>
+  <ClashOfRim.GiftDelivery.ForcedUnavailable>利用不可</ClashOfRim.GiftDelivery.ForcedUnavailable>
+  <ClashOfRim.GiftDelivery.CaravanItems>キャラバンの物品</ClashOfRim.GiftDelivery.CaravanItems>
+  <ClashOfRim.GiftDelivery.SelectedItems>配送リスト</ClashOfRim.GiftDelivery.SelectedItems>
+  <ClashOfRim.GiftDelivery.MessageLabel>メッセージ</ClashOfRim.GiftDelivery.MessageLabel>
+  <ClashOfRim.GiftDelivery.SubmitNormal>贈り物を送る</ClashOfRim.GiftDelivery.SubmitNormal>
+  <ClashOfRim.GiftDelivery.SubmitForced>強制投送</ClashOfRim.GiftDelivery.SubmitForced>
+  <ClashOfRim.GiftDelivery.ConfirmNormal>これらの贈り物を {TARGET} に送りますか？\n\n{THINGS}</ClashOfRim.GiftDelivery.ConfirmNormal>
+  <ClashOfRim.GiftDelivery.ConfirmForced>これらのアイテムを {TARGET} に強制投送しますか？\n\n{THINGS}\n\n強制投送は拒否できませんが、敵対関係、オンライン状態、襲撃保護、強制投送クールダウンの制限を受けます。</ClashOfRim.GiftDelivery.ConfirmForced>
+  <ClashOfRim.GiftDelivery.StatusNoTargets>このキャラバンタイルには配送可能な対象がありません。</ClashOfRim.GiftDelivery.StatusNoTargets>
+  <ClashOfRim.GiftDelivery.Disabled>サーバーで贈り物が無効化されています。</ClashOfRim.GiftDelivery.Disabled>
+  <ClashOfRim.GiftDelivery.StatusTargetTileMismatch>キャラバンが対象タイルを離れたため配送できません。</ClashOfRim.GiftDelivery.StatusTargetTileMismatch>
+  <ClashOfRim.GiftDelivery.StatusTargetIncomplete>対象にユーザー、コロニー、マップ、またはセーブ情報がありません。</ClashOfRim.GiftDelivery.StatusTargetIncomplete>
+  <ClashOfRim.GiftDelivery.StatusNoSelectedItems>配送するアイテムが選択されていません。</ClashOfRim.GiftDelivery.StatusNoSelectedItems>
+  <ClashOfRim.GiftDelivery.StatusSubmittingNormal>{TARGET} に贈り物を送っています。</ClashOfRim.GiftDelivery.StatusSubmittingNormal>
+  <ClashOfRim.GiftDelivery.StatusSubmittingForced>{TARGET} にアイテムを強制投送しています。</ClashOfRim.GiftDelivery.StatusSubmittingForced>
+  <ClashOfRim.GiftDelivery.StatusCreateFailed>配送リクエストに失敗しました: {CODE} {MESSAGE}</ClashOfRim.GiftDelivery.StatusCreateFailed>
+  <ClashOfRim.GiftDelivery.StatusCreateRejected>サーバーが配送を拒否しました: {CODE} {MESSAGE}</ClashOfRim.GiftDelivery.StatusCreateRejected>
+  <ClashOfRim.GiftDelivery.StatusLocalRemoveFailed>配送は手配されましたが、ローカルのキャラバン物品削除に失敗しました: {MESSAGE}</ClashOfRim.GiftDelivery.StatusLocalRemoveFailed>
+  <ClashOfRim.GiftDelivery.StatusNormalCreated>贈り物を送信しました。{MESSAGE} キャラバン状態を確認するためセーブをアップロードしてください。</ClashOfRim.GiftDelivery.StatusNormalCreated>
+  <ClashOfRim.GiftDelivery.StatusForcedCreated>強制投送を送信しました。{MESSAGE} キャラバン状態を確認するためセーブをアップロードしてください。</ClashOfRim.GiftDelivery.StatusForcedCreated>
+  <ClashOfRim.GiftDelivery.StatusDropPodCreated>輸送ポッドの贈り物を送信しました。</ClashOfRim.GiftDelivery.StatusDropPodCreated>
+  <ClashOfRim.GiftDelivery.StatusForcedDropPodCreated>輸送ポッドの強制投送を送信しました。</ClashOfRim.GiftDelivery.StatusForcedDropPodCreated>
+  <ClashOfRim.GiftDelivery.TransportPodGiftOption>{TARGET} へ贈り物として送る</ClashOfRim.GiftDelivery.TransportPodGiftOption>
+  <ClashOfRim.GiftDelivery.TransportPodForcedOption>{TARGET} へ強制投送</ClashOfRim.GiftDelivery.TransportPodForcedOption>
+  <ClashOfRim.GiftDelivery.TransportPodForcedConfirm>この輸送ポッドの内容を {TARGET} に強制投送しますか？\n\n強制投送は拒否できませんが、敵対関係、オンライン状態、未決着の襲撃、強制投送クールダウンの制限を受けます。</ClashOfRim.GiftDelivery.TransportPodForcedConfirm>
+  <ClashOfRim.GiftDelivery.TransportPodRejectEmpty>輸送ポッドが空です</ClashOfRim.GiftDelivery.TransportPodRejectEmpty>
+  <ClashOfRim.GiftDelivery.TransportPodRejectPawn>自由入植者は贈り物として送れません</ClashOfRim.GiftDelivery.TransportPodRejectPawn>
+  <ClashOfRim.GiftDelivery.TransportPodRejectCorpse>この死体は配送できません</ClashOfRim.GiftDelivery.TransportPodRejectCorpse>
+  <ClashOfRim.GiftDelivery.TransportPodRejectQuestLodger>クエスト滞在者は贈り物として送れません</ClashOfRim.GiftDelivery.TransportPodRejectQuestLodger>
+  <ClashOfRim.GiftDelivery.StatusCreateException>配送例外: {TYPE} {MESSAGE}</ClashOfRim.GiftDelivery.StatusCreateException>
+  <ClashOfRim.GiftDelivery.StatusThingInvalid>配送アイテムがキャラバンに存在しないか、数量が無効です。</ClashOfRim.GiftDelivery.StatusThingInvalid>
+  <ClashOfRim.GiftDelivery.StatusReserved>キャラバンから配送済みアイテム項目 {COUNT} 件を取り除きました。</ClashOfRim.GiftDelivery.StatusReserved>
+  <ClashOfRim.GiftDelivery.StatusMapReserved>現在のマップから配送済みアイテム項目 {COUNT} 件を取り除きました。</ClashOfRim.GiftDelivery.StatusMapReserved>
+  <ClashOfRim.ServerSessionConnectedMessage>サーバーに参加しました。</ClashOfRim.ServerSessionConnectedMessage>
+  <ClashOfRim.AutoOfflineEventsAppliedMessage>{COUNT} 件の遠隔メッセージを処理しました。現在確認中です。</ClashOfRim.AutoOfflineEventsAppliedMessage>
+  <ClashOfRim.SnapshotConfirmationFailure.Title>&lt;color=#ff6b6b&gt;セーブ同期失敗&lt;/color&gt;</ClashOfRim.SnapshotConfirmationFailure.Title>
+  <ClashOfRim.SnapshotConfirmationFailure.Message>&lt;b&gt;{OPERATION}&lt;/b&gt; はサーバーに保存されませんでした。&lt;color=#ffd166&gt;続行するとローカルセーブとサーバーセーブが同期しなくなります。&lt;/color&gt; アップロードを再試行するか、メインメニューに戻ってサーバーへ入り直してください。
+
+現在のエラー: &lt;color=#ff6b6b&gt;{MESSAGE}&lt;/color&gt;</ClashOfRim.SnapshotConfirmationFailure.Message>
+  <ClashOfRim.SnapshotConfirmationFailure.MessageCompact>&lt;b&gt;{OPERATION}&lt;/b&gt; はサーバーに保存されませんでした。&lt;color=#ffd166&gt;続行するとローカル状態とサーバーセーブが同期しなくなります。&lt;/color&gt; アップロードを再試行するか、メインメニューに戻ってサーバーへ入り直してください。</ClashOfRim.SnapshotConfirmationFailure.MessageCompact>
+  <ClashOfRim.SnapshotConfirmationFailure.RetryUpload>アップロードを再試行</ClashOfRim.SnapshotConfirmationFailure.RetryUpload>
+  <ClashOfRim.SnapshotConfirmationFailure.ReturnToMainMenu>メインメニューに戻る</ClashOfRim.SnapshotConfirmationFailure.ReturnToMainMenu>
+  <ClashOfRim.SnapshotConfirmationFailure.Waiting>処理中です。完了するまでゲームは一時停止したままです。</ClashOfRim.SnapshotConfirmationFailure.Waiting>
+  <ClashOfRim.SnapshotConfirmationFailure.RetryMissing>再試行できる確認アップロードがありません。</ClashOfRim.SnapshotConfirmationFailure.RetryMissing>
+  <ClashOfRim.SnapshotConfirmationFailure.ReturningToMainMenu>メインメニューに戻っています。</ClashOfRim.SnapshotConfirmationFailure.ReturningToMainMenu>
+  <ClashOfRim.SnapshotConfirmationFailure.OperationTrade>交易完了</ClashOfRim.SnapshotConfirmationFailure.OperationTrade>
+  <ClashOfRim.SnapshotConfirmationFailure.OperationAutomaticEvents>遠隔メッセージ処理</ClashOfRim.SnapshotConfirmationFailure.OperationAutomaticEvents>
+  <ClashOfRim.SnapshotConfirmationFailure.OperationGift>贈り物着地</ClashOfRim.SnapshotConfirmationFailure.OperationGift>
+  <ClashOfRim.SnapshotConfirmationFailure.OperationRaid>襲撃決算</ClashOfRim.SnapshotConfirmationFailure.OperationRaid>
+  <ClashOfRim.SnapshotConfirmationFailure.OperationRaidAttacker>襲撃終了確認</ClashOfRim.SnapshotConfirmationFailure.OperationRaidAttacker>
+  <ClashOfRim.SnapshotConfirmationFailure.OperationRaidRestore>襲撃復旧</ClashOfRim.SnapshotConfirmationFailure.OperationRaidRestore>
+  <ClashOfRim.SnapshotConfirmationFailure.OperationBank>銀行操作</ClashOfRim.SnapshotConfirmationFailure.OperationBank>
+  <ClashOfRim.SnapshotConfirmationFailure.OperationMercenary>傭兵操作</ClashOfRim.SnapshotConfirmationFailure.OperationMercenary>
+  <ClashOfRim.SnapshotConfirmationFailure.OperationColonyRelocation>コロニー移転</ClashOfRim.SnapshotConfirmationFailure.OperationColonyRelocation>
+  <ClashOfRim.ColonyRelocation.CommandLabel>コロニーを移転</ClashOfRim.ColonyRelocation.CommandLabel>
+  <ClashOfRim.ColonyRelocation.CommandDesc>このキャラバンをここに定住させ、原版ルールで旧コロニーを放棄します。サーバーが新しい状態を保存するまで通常プレイは続行できません。</ClashOfRim.ColonyRelocation.CommandDesc>
+  <ClashOfRim.ColonyRelocation.Title>コロニー移転を確認</ClashOfRim.ColonyRelocation.Title>
+  <ClashOfRim.ColonyRelocation.Warning>&lt;color=#ffd166&gt;原版ルールで {COLONY} を放棄し、タイル {TILE} に新しいコロニーを設立します。&lt;/color&gt;
+
+キャラバンが運んでいない人員、動物、アイテム、建築物は保持されません。移転に成功すると、新しいタイルがあなたの唯一のコロニーになります。
+
+移転後は進行状況の保存が必須です。保存に失敗した場合、アップロードを再試行するか、メインメニューへ戻ってサーバーに再参加する必要があります。</ClashOfRim.ColonyRelocation.Warning>
+  <ClashOfRim.ColonyRelocation.Confirm>移転</ClashOfRim.ColonyRelocation.Confirm>
+  <ClashOfRim.ColonyRelocation.NotConfigured>サーバーに接続していないため、サーバーコロニー移転を実行できません。</ClashOfRim.ColonyRelocation.NotConfigured>
+  <ClashOfRim.ColonyRelocation.MissingSnapshot>現在のゲームにサーバーセーブがないため、コロニーを移転できません。</ClashOfRim.ColonyRelocation.MissingSnapshot>
+  <ClashOfRim.ColonyRelocation.InvalidTarget>移転先が無効になりました。</ClashOfRim.ColonyRelocation.InvalidTarget>
+  <ClashOfRim.ColonyRelocation.DisabledMultipleLocalColonies>ローカルに複数のプレイヤーコロニーがあるため、単一コロニー移転を実行できません。</ClashOfRim.ColonyRelocation.DisabledMultipleLocalColonies>
+  <ClashOfRim.ColonyRelocation.DisabledAtomic>サーバー同期処理がすでに実行中です。</ClashOfRim.ColonyRelocation.DisabledAtomic>
+  <ClashOfRim.ColonyRelocation.DisabledSync>セーブ同期がすでに実行中です。</ClashOfRim.ColonyRelocation.DisabledSync>
+  <ClashOfRim.ColonyRelocation.DisabledRemoteMap>遠隔マップまたは襲撃が有効です。</ClashOfRim.ColonyRelocation.DisabledRemoteMap>
+  <ClashOfRim.ColonyRelocation.StatusPreflight>サーバーで移転を確認しています。</ClashOfRim.ColonyRelocation.StatusPreflight>
+  <ClashOfRim.ColonyRelocation.StatusFlight>グラヴシップ移転が進行中です。</ClashOfRim.ColonyRelocation.StatusFlight>
+  <ClashOfRim.ColonyRelocation.StatusSettling>原版ルールで新しいコロニーを創設しています。</ClashOfRim.ColonyRelocation.StatusSettling>
+  <ClashOfRim.ColonyRelocation.StatusAbandoningOldColony>原版ルールで旧コロニーを放棄しています。</ClashOfRim.ColonyRelocation.StatusAbandoningOldColony>
+  <ClashOfRim.ColonyRelocation.StatusUploadingSnapshot>移転後の状態を保存しています。</ClashOfRim.ColonyRelocation.StatusUploadingSnapshot>
+  <ClashOfRim.ColonyRelocation.StatusConfirming>サーバーが移転を保存するのを待っています。</ClashOfRim.ColonyRelocation.StatusConfirming>
+  <ClashOfRim.ColonyRelocation.PreflightFailed>サーバーが移転開始を拒否しました。</ClashOfRim.ColonyRelocation.PreflightFailed>
+  <ClashOfRim.ColonyRelocation.PreflightException>移転事前確認例外: {TYPE} {MESSAGE}</ClashOfRim.ColonyRelocation.PreflightException>
+  <ClashOfRim.ColonyRelocation.ConfirmFailed>サーバーが移転確認を拒否しました。</ClashOfRim.ColonyRelocation.ConfirmFailed>
+  <ClashOfRim.ColonyRelocation.LocalAnchorInvalid>移転後のセーブに予期しないコロニー数があります: {COUNT}。</ClashOfRim.ColonyRelocation.LocalAnchorInvalid>
+  <ClashOfRim.ColonyRelocation.Succeeded>コロニーを移転しました。</ClashOfRim.ColonyRelocation.Succeeded>
+  <ClashOfRim.ColonyRelocation.Generating>コロニーを移転中</ClashOfRim.ColonyRelocation.Generating>
+  <ClashOfRim.Bank.ActiveLoanLine>元金 &lt;color=#d7dadb&gt;{PRINCIPAL}&lt;/color&gt;、利息 &lt;color=#d7dadb&gt;{INTEREST}&lt;/color&gt;、返済総額 &lt;color=#d7dadb&gt;{TOTAL} シルバー&lt;/color&gt;。</ClashOfRim.Bank.ActiveLoanLine>
+  <ClashOfRim.Bank.ActiveLoanStatus>状態: {STATUS}</ClashOfRim.Bank.ActiveLoanStatus>
+  <ClashOfRim.Bank.ActiveLoanTitle>現在のローン</ClashOfRim.Bank.ActiveLoanTitle>
+  <ClashOfRim.Bank.ActiveLoanTitleWithSource>現在のローン（発生元: {SOURCE}）</ClashOfRim.Bank.ActiveLoanTitleWithSource>
+  <ClashOfRim.Bank.AlertExplanation>&lt;color=#ff6b6b&gt;銀行ローンが延滞しています。&lt;/color&gt;現在の返済総額: &lt;color=#d7dadb&gt;{TOTAL} シルバー&lt;/color&gt;。</ClashOfRim.Bank.AlertExplanation>
+  <ClashOfRim.Bank.AlertLabel>&lt;color=#ff6b6b&gt;銀行ローン延滞&lt;/color&gt;</ClashOfRim.Bank.AlertLabel>
+  <ClashOfRim.Bank.ConfigLine>年利: {RATE}%; 期間: {MIN}-{MAX} ゲーム日。</ClashOfRim.Bank.ConfigLine>
+  <ClashOfRim.Bank.ConfirmCreate>銀行から &lt;color=#d7dadb&gt;{PRINCIPAL} シルバー&lt;/color&gt;を &lt;color=#9ad3ff&gt;{DAYS} ゲーム日&lt;/color&gt;借りますか？
+
+シルバーは輸送ポッドで到着し、返済クエストが作成されます。</ClashOfRim.Bank.ConfirmCreate>
+  <ClashOfRim.Bank.ConfirmRepay>&lt;color=#d7dadb&gt;{TOTAL} シルバー&lt;/color&gt;を返済しますか？
+
+シルバーはローカルで削除され、返済クエストは終了し、現在の状態を保存する必要があります。</ClashOfRim.Bank.ConfirmRepay>
+  <ClashOfRim.Bank.ConfirmRepayDebt>この債務 &lt;color=#d7dadb&gt;{TOTAL} シルバー&lt;/color&gt;を返済しますか？
+
+発生元: {REASON}
+
+シルバーはローカルで削除され、現在の状態を保存する必要があります。</ClashOfRim.Bank.ConfirmRepayDebt>
+  <ClashOfRim.Bank.CreateHint>金額と期間はサーバーのローン制限内でなければなりません。</ClashOfRim.Bank.CreateHint>
+  <ClashOfRim.Bank.CreateLoan>ローンを作成</ClashOfRim.Bank.CreateLoan>
+  <ClashOfRim.Bank.Disabled>銀行ローンは無効です。</ClashOfRim.Bank.Disabled>
+  <ClashOfRim.Bank.DebtDetailLine>理由: {REASON}; {DUE}</ClashOfRim.Bank.DebtDetailLine>
+  <ClashOfRim.Bank.DebtDueIn>{TIME} 後に延滞</ClashOfRim.Bank.DebtDueIn>
+  <ClashOfRim.Bank.DebtDueQuestMissing>ローカルクエスト同期待ち</ClashOfRim.Bank.DebtDueQuestMissing>
+  <ClashOfRim.Bank.DebtDueOverdue>&lt;color=#ff6b6b&gt;延滞&lt;/color&gt;</ClashOfRim.Bank.DebtDueOverdue>
+  <ClashOfRim.Bank.DebtDuePendingRepayment>&lt;color=#ffd166&gt;返済の保存待ち&lt;/color&gt;</ClashOfRim.Bank.DebtDuePendingRepayment>
+  <ClashOfRim.Bank.LoanDueLine>延滞: {DUE}</ClashOfRim.Bank.LoanDueLine>
+  <ClashOfRim.Bank.LoanPreview>見積もり: 元金 &lt;color=#d7dadb&gt;{PRINCIPAL}&lt;/color&gt;、利息 &lt;color=#d7dadb&gt;{INTEREST}&lt;/color&gt;、返済総額 &lt;color=#d7dadb&gt;{TOTAL} シルバー&lt;/color&gt;。</ClashOfRim.Bank.LoanPreview>
+  <ClashOfRim.Bank.QuestDueLine>延滞時刻: {DUE}</ClashOfRim.Bank.QuestDueLine>
+  <ClashOfRim.Bank.DueSoonLetterLabel>債務の期限間近</ClashOfRim.Bank.DueSoonLetterLabel>
+  <ClashOfRim.Bank.DueSoonLoanLetterText>あなたのローン &lt;color=#d7dadb&gt;{TOTAL} シルバー&lt;/color&gt;はまもなく延滞します。残り時間: &lt;color=#ffd166&gt;{TIME}&lt;/color&gt;。</ClashOfRim.Bank.DueSoonLoanLetterText>
+  <ClashOfRim.Bank.DebtItemLine>{TOTAL} シルバー; 発生元: {SOURCE}; 状態: {STATUS}</ClashOfRim.Bank.DebtItemLine>
+  <ClashOfRim.Bank.DebtListTitle>その他の債務</ClashOfRim.Bank.DebtListTitle>
+  <ClashOfRim.Bank.DebtLine>未払いのその他債務: {TOTAL} シルバー（{COUNT} 件）。</ClashOfRim.Bank.DebtLine>
+  <ClashOfRim.Bank.Duration>期間（日）</ClashOfRim.Bank.Duration>
+  <ClashOfRim.Bank.NoStatus>銀行状態はまだ読み込まれていません。</ClashOfRim.Bank.NoStatus>
+  <ClashOfRim.Bank.OverdueNoMap>銀行ローンは延滞していますが、使用可能なコロニーマップがありません。</ClashOfRim.Bank.OverdueNoMap>
+  <ClashOfRim.Bank.OverdueRaidFailed>延滞銀行ローンを処理できませんでした。</ClashOfRim.Bank.OverdueRaidFailed>
+  <ClashOfRim.Bank.OverdueRaidLabel>債務回収</ClashOfRim.Bank.OverdueRaidLabel>
+  <ClashOfRim.Bank.OverdueRaidText>&lt;color=#ff6b6b&gt;債務延滞により、銀行はメカノイドの一団をあなたのコロニーへ引き寄せました。&lt;/color&gt;現在の返済総額: &lt;color=#d7dadb&gt;{TOTAL} シルバー&lt;/color&gt;。</ClashOfRim.Bank.OverdueRaidText>
+  <ClashOfRim.Bank.Principal>シルバー金額</ClashOfRim.Bank.Principal>
+  <ClashOfRim.Bank.PsychicWhisperLabel>債務の影</ClashOfRim.Bank.PsychicWhisperLabel>
+  <ClashOfRim.Bank.PsychicWhisperText>未払いの銀行債務がコロニーに重くのしかかっています。</ClashOfRim.Bank.PsychicWhisperText>
+  <ClashOfRim.Bank.QuestDescription>銀行から {PRINCIPAL} シルバーを借りた。利息 {INTEREST}; 期限までに {TOTAL} シルバーを返済。</ClashOfRim.Bank.QuestDescription>
+  <ClashOfRim.Bank.QuestDescriptionWithLateFee>銀行から {PRINCIPAL} シルバーを借りた。利息 {INTEREST}; 延滞金 {LATEFEE}; 現在の返済総額 {TOTAL} シルバー。</ClashOfRim.Bank.QuestDescriptionWithLateFee>
+  <ClashOfRim.Bank.QuestDescriptionRepaid>サーバー銀行ローンを返済済み: {TOTAL} シルバー。</ClashOfRim.Bank.QuestDescriptionRepaid>
+  <ClashOfRim.Bank.QuestFullDescription>銀行は {PRINCIPAL} シルバーのローンを発行しました。期間 {DAYS} ゲーム日、利息 {INTEREST}、返済総額 {TOTAL}。</ClashOfRim.Bank.QuestFullDescription>
+  <ClashOfRim.Bank.QuestName>銀行ローンを返済: {TOTAL} シルバー</ClashOfRim.Bank.QuestName>
+  <ClashOfRim.Bank.Repay>返済</ClashOfRim.Bank.Repay>
+  <ClashOfRim.Bank.ReasonMercenaryDeath>傭兵事故</ClashOfRim.Bank.ReasonMercenaryDeath>
+  <ClashOfRim.Bank.ReasonMercenaryHostileBehavior>傭兵の敵対行為</ClashOfRim.Bank.ReasonMercenaryHostileBehavior>
+  <ClashOfRim.Bank.ReasonMercenarySurgery>傭兵事故</ClashOfRim.Bank.ReasonMercenarySurgery>
+  <ClashOfRim.Bank.ReasonMercenaryOvertimeService>超過勤務罰金</ClashOfRim.Bank.ReasonMercenaryOvertimeService>
+  <ClashOfRim.Bank.ReasonMercenaryShuttleDestroyed>回収シャトル破壊罰金</ClashOfRim.Bank.ReasonMercenaryShuttleDestroyed>
+  <ClashOfRim.Bank.SourceFine>その他の債務</ClashOfRim.Bank.SourceFine>
+  <ClashOfRim.Bank.SourceLoan>ローン</ClashOfRim.Bank.SourceLoan>
+  <ClashOfRim.Bank.StatusActive>有効</ClashOfRim.Bank.StatusActive>
+  <ClashOfRim.Bank.StatusActiveLoan>現在のローン返済総額 {TOTAL} シルバー、状態 {STATUS}。</ClashOfRim.Bank.StatusActiveLoan>
+  <ClashOfRim.Bank.StatusBusy>サーバー操作がすでに実行中です。</ClashOfRim.Bank.StatusBusy>
+  <ClashOfRim.Bank.StatusConfirmationFailed>銀行操作状態の保存に失敗: {CODE} {MESSAGE}</ClashOfRim.Bank.StatusConfirmationFailed>
+  <ClashOfRim.Bank.StatusConfirmationSucceeded>銀行操作を保存しました。</ClashOfRim.Bank.StatusConfirmationSucceeded>
+  <ClashOfRim.Bank.StatusConsumeSilverFailed>返済シルバーの削除が不完全です。残り {REMAINING}。</ClashOfRim.Bank.StatusConsumeSilverFailed>
+  <ClashOfRim.Bank.StatusCreateMaxLoanExceeded>現在借りられる上限は {MAX} シルバーです。</ClashOfRim.Bank.StatusCreateMaxLoanExceeded>
+  <ClashOfRim.Bank.StatusCreateDurationInvalid>ローン期間は {MIN} から {MAX} ゲーム日の間でなければなりません。</ClashOfRim.Bank.StatusCreateDurationInvalid>
+  <ClashOfRim.Bank.StatusCreateRejected>ローンはサーバーに拒否されました: {CODE} {MESSAGE}</ClashOfRim.Bank.StatusCreateRejected>
+  <ClashOfRim.Bank.StatusCreated>&lt;color=#7ecf6b&gt;銀行ローン発行済み&lt;/color&gt;: &lt;color=#d7dadb&gt;{PRINCIPAL} シルバー&lt;/color&gt;を受け取り、返済総額は &lt;color=#d7dadb&gt;{TOTAL} シルバー&lt;/color&gt;です。</ClashOfRim.Bank.StatusCreated>
+  <ClashOfRim.Bank.LoanArrivalLetterLabel>銀行資金が到着</ClashOfRim.Bank.LoanArrivalLetterLabel>
+  <ClashOfRim.Bank.LoanArrivalLetterText>銀行は &lt;color=#d7dadb&gt;{PRINCIPAL} シルバー&lt;/color&gt;を輸送ポッドで届けました。</ClashOfRim.Bank.LoanArrivalLetterText>
+  <ClashOfRim.Bank.StatusCreating>銀行ローンを申請中。</ClashOfRim.Bank.StatusCreating>
+  <ClashOfRim.Bank.StatusNotPulled>先に銀行状態を更新してください。</ClashOfRim.Bank.StatusNotPulled>
+  <ClashOfRim.Bank.StatusException>銀行操作例外: {TYPE} {MESSAGE}</ClashOfRim.Bank.StatusException>
+  <ClashOfRim.Bank.StatusInsufficientSilver>&lt;color=#ff6b6b&gt;返済シルバー不足&lt;/color&gt;: 必要 &lt;color=#d7dadb&gt;{NEEDED}&lt;/color&gt;、利用可能 &lt;color=#d7dadb&gt;{AVAILABLE}&lt;/color&gt;。</ClashOfRim.Bank.StatusInsufficientSilver>
+  <ClashOfRim.Bank.StatusMissing>サーバーが銀行状態を返しませんでした。</ClashOfRim.Bank.StatusMissing>
+  <ClashOfRim.Bank.StatusMissingDebt>サーバーが返済可能な債務データを返しませんでした。</ClashOfRim.Bank.StatusMissingDebt>
+  <ClashOfRim.Bank.StatusNoActiveLoan>有効なローンはありません。</ClashOfRim.Bank.StatusNoActiveLoan>
+  <ClashOfRim.Bank.StatusNoMap>この銀行操作に使用できるコロニーマップがありません。</ClashOfRim.Bank.StatusNoMap>
+  <ClashOfRim.Bank.StatusPendingActivation>&lt;color=#ffd166&gt;保存待ち&lt;/color&gt;</ClashOfRim.Bank.StatusPendingActivation>
+  <ClashOfRim.Bank.StatusPendingRepayment>&lt;color=#ffd166&gt;返済の保存待ち&lt;/color&gt;</ClashOfRim.Bank.StatusPendingRepayment>
+  <ClashOfRim.Bank.StatusPlaceSilverFailed>ローンのシルバーを配置できませんでした。</ClashOfRim.Bank.StatusPlaceSilverFailed>
+  <ClashOfRim.Bank.StatusReady>コロニー資産 {WEALTH}、ローン範囲 {MIN}-{MAX} シルバー、年利 {RATE}%。</ClashOfRim.Bank.StatusReady>
+  <ClashOfRim.Bank.StatusRefreshFailed>銀行状態の更新に失敗: {CODE} {MESSAGE}</ClashOfRim.Bank.StatusRefreshFailed>
+  <ClashOfRim.Bank.StatusRefreshRejected>銀行状態はサーバーに拒否されました: {CODE} {MESSAGE}</ClashOfRim.Bank.StatusRefreshRejected>
+  <ClashOfRim.Bank.StatusRefreshing>銀行状態を更新中。</ClashOfRim.Bank.StatusRefreshing>
+  <ClashOfRim.Bank.StatusRepaid>&lt;color=#7ecf6b&gt;返済済み&lt;/color&gt; &lt;color=#d7dadb&gt;{TOTAL} シルバー&lt;/color&gt;。現在の状態を保存中。</ClashOfRim.Bank.StatusRepaid>
+  <ClashOfRim.Bank.StatusRepaidShort>&lt;color=#7ecf6b&gt;返済済み&lt;/color&gt;</ClashOfRim.Bank.StatusRepaidShort>
+  <ClashOfRim.Bank.StatusDebtRepaid>&lt;color=#7ecf6b&gt;債務返済済み&lt;/color&gt; &lt;color=#d7dadb&gt;{TOTAL} シルバー&lt;/color&gt;。現在の状態を保存中。</ClashOfRim.Bank.StatusDebtRepaid>
+  <ClashOfRim.Bank.StatusDebtRepayFailed>債務返済リクエストに失敗: {CODE} {MESSAGE}</ClashOfRim.Bank.StatusDebtRepayFailed>
+  <ClashOfRim.Bank.StatusDebtRepayRejected>債務返済はサーバーに拒否されました: {CODE} {MESSAGE}</ClashOfRim.Bank.StatusDebtRepayRejected>
+  <ClashOfRim.Bank.StatusRepayingDebt>銀行債務を 1 件返済中。</ClashOfRim.Bank.StatusRepayingDebt>
+  <ClashOfRim.Bank.StatusRepayFailed>返済リクエストに失敗: {CODE} {MESSAGE}</ClashOfRim.Bank.StatusRepayFailed>
+  <ClashOfRim.Bank.StatusRepayRejected>返済はサーバーに拒否されました: {CODE} {MESSAGE}</ClashOfRim.Bank.StatusRepayRejected>
+  <ClashOfRim.Bank.StatusRepaying>銀行ローンを返済中。</ClashOfRim.Bank.StatusRepaying>
+  <ClashOfRim.Bank.StatusUploadingConfirmation>銀行操作結果を保存中。</ClashOfRim.Bank.StatusUploadingConfirmation>
+  <ClashOfRim.Bank.WealthLine>現在の資産: {WEALTH}; ローン範囲: {MIN}-{MAX} シルバー。</ClashOfRim.Bank.WealthLine>
+  <ClashOfRim.BankDebt.AlertExplanation>&lt;color=#ff6b6b&gt;銀行債務が延滞しています。&lt;/color&gt; 理由: {REASON}; 金額 &lt;color=#d7dadb&gt;{TOTAL} シルバー&lt;/color&gt;。</ClashOfRim.BankDebt.AlertExplanation>
+  <ClashOfRim.BankDebt.AlertLabel>&lt;color=#ff6b6b&gt;銀行債務延滞&lt;/color&gt;</ClashOfRim.BankDebt.AlertLabel>
+  <ClashOfRim.BankDebt.OverdueRaidLabel>債務取り立て</ClashOfRim.BankDebt.OverdueRaidLabel>
+  <ClashOfRim.BankDebt.OverdueRaidText>&lt;color=#ff6b6b&gt;債務が延滞したため、銀行は機械化生命体の一団をあなたのコロニーへ引き寄せました。&lt;/color&gt; 現在の返済総額: &lt;color=#d7dadb&gt;{TOTAL} シルバー&lt;/color&gt;。</ClashOfRim.BankDebt.OverdueRaidText>
+  <ClashOfRim.BankDebt.QuestDescription>銀行債務 {TOTAL} シルバー。理由: {REASON}。</ClashOfRim.BankDebt.QuestDescription>
+  <ClashOfRim.BankDebt.QuestDueLine>延滞時刻: {DUE}</ClashOfRim.BankDebt.QuestDueLine>
+  <ClashOfRim.BankDebt.DueSoonLetterText>あなたの &lt;color=#d7dadb&gt;{TOTAL} シルバー&lt;/color&gt; の債務はまもなく延滞します。残り時間: &lt;color=#ffd166&gt;{TIME}&lt;/color&gt;。</ClashOfRim.BankDebt.DueSoonLetterText>
+  <ClashOfRim.BankDebt.QuestDescriptionRepaid>銀行債務を返済しました: {TOTAL} シルバー。</ClashOfRim.BankDebt.QuestDescriptionRepaid>
+  <ClashOfRim.BankDebt.QuestFullDescription>銀行への債務は {TOTAL} シルバーです。理由: {REASON}。{DAYS} ゲーム日後に延滞します。</ClashOfRim.BankDebt.QuestFullDescription>
+  <ClashOfRim.BankDebt.QuestName>債務を返済: {TOTAL} シルバー</ClashOfRim.BankDebt.QuestName>
+  <ClashOfRim.Mercenary.AlertExplanation>{PAWN} の雇用期間は終了しました。回収シャトルが迎えに来ます。</ClashOfRim.Mercenary.AlertExplanation>
+  <ClashOfRim.Mercenary.AlertLabel>傭兵の期間終了</ClashOfRim.Mercenary.AlertLabel>
+  <ClashOfRim.Mercenary.ArrivalLetterLabel>傭兵が到着</ClashOfRim.Mercenary.ArrivalLetterLabel>
+  <ClashOfRim.Mercenary.ArrivalLetterText>{PAWN} が到着し、あなたのコロニーで勤務を開始しました。</ClashOfRim.Mercenary.ArrivalLetterText>
+  <ClashOfRim.Mercenary.ConfirmHire>{TIER} {SKILL} 傭兵を {DAYS} ゲーム日雇いますか？</ClashOfRim.Mercenary.ConfirmHire>
+  <ClashOfRim.Mercenary.ConfirmHireWithPrice>&lt;color=#d7dadb&gt;{PRICE} シルバー&lt;/color&gt;を支払い、{TIER} {SKILL} 傭兵を &lt;color=#9ad3ff&gt;{DAYS} ゲーム日&lt;/color&gt;雇いますか？</ClashOfRim.Mercenary.ConfirmHireWithPrice>
+  <ClashOfRim.Mercenary.DeathLetterLabel>傭兵事故</ClashOfRim.Mercenary.DeathLetterLabel>
+  <ClashOfRim.Mercenary.DeathLetterText>{PAWN} の雇用任務は予期せず終了しました。</ClashOfRim.Mercenary.DeathLetterText>
+  <ClashOfRim.Mercenary.DurationLine>雇用期間: {DAYS} ゲーム日</ClashOfRim.Mercenary.DurationLine>
+  <ClashOfRim.Mercenary.EarlyRecall>早期召還</ClashOfRim.Mercenary.EarlyRecall>
+  <ClashOfRim.Mercenary.EarlyRecallDesc>この傭兵を今すぐ回収するため、回収シャトルを呼びます。傭兵が正常に離脱すると任務は終了します。</ClashOfRim.Mercenary.EarlyRecallDesc>
+  <ClashOfRim.Mercenary.EarlyRecallUnavailable>この傭兵は現在召還できません。</ClashOfRim.Mercenary.EarlyRecallUnavailable>
+  <ClashOfRim.Mercenary.Hire>雇う</ClashOfRim.Mercenary.Hire>
+  <ClashOfRim.Mercenary.HireHint>勤務期間中は傭兵の安全を確保する必要があります。</ClashOfRim.Mercenary.HireHint>
+  <ClashOfRim.Mercenary.InspectLeavesIn>{TIME} 後にシャトルで離脱します。</ClashOfRim.Mercenary.InspectLeavesIn>
+  <ClashOfRim.Mercenary.InspectLoaded>回収シャトルに搭乗済み。</ClashOfRim.Mercenary.InspectLoaded>
+  <ClashOfRim.Mercenary.InspectTemporary>回収シャトルで離脱します。</ClashOfRim.Mercenary.InspectTemporary>
+  <ClashOfRim.Mercenary.InspectWaitingForShuttle>回収シャトルでの離脱を待っています。</ClashOfRim.Mercenary.InspectWaitingForShuttle>
+  <ClashOfRim.Mercenary.LoadRecallShuttle>傭兵を搭載</ClashOfRim.Mercenary.LoadRecallShuttle>
+  <ClashOfRim.Mercenary.LoadRecallShuttleDesc>召還対象の傭兵をこのシャトルへ乗せ始めます。</ClashOfRim.Mercenary.LoadRecallShuttleDesc>
+  <ClashOfRim.Mercenary.LoadRecallShuttleStarted>{PAWN} に回収シャトルへ入るよう命令しています。</ClashOfRim.Mercenary.LoadRecallShuttleStarted>
+  <ClashOfRim.Mercenary.LoadRecallShuttleAlreadyLoaded>{PAWN} はすでに回収シャトルに搭乗しています。</ClashOfRim.Mercenary.LoadRecallShuttleAlreadyLoaded>
+  <ClashOfRim.Mercenary.LoadRecallShuttleHaulQueued>{PAWN} を回収シャトルの搭載リストに追加しました。</ClashOfRim.Mercenary.LoadRecallShuttleHaulQueued>
+  <ClashOfRim.Mercenary.LoadRecallShuttleMissing>回収シャトルを利用できません。</ClashOfRim.Mercenary.LoadRecallShuttleMissing>
+  <ClashOfRim.Mercenary.LoadRecallShuttlePawnMissing>召還対象の傭兵を利用できません。</ClashOfRim.Mercenary.LoadRecallShuttlePawnMissing>
+  <ClashOfRim.Mercenary.LoadRecallShuttleQueued>{PAWN} を回収シャトルの搭載リストに追加しました。</ClashOfRim.Mercenary.LoadRecallShuttleQueued>
+  <ClashOfRim.Mercenary.PriceLine>価格: &lt;color=#d7dadb&gt;{PRICE} シルバー&lt;/color&gt;。</ClashOfRim.Mercenary.PriceLine>
+  <ClashOfRim.Mercenary.PriceLoading>見積もりを要求中。</ClashOfRim.Mercenary.PriceLoading>
+  <ClashOfRim.Mercenary.PriceTitle>見積もり</ClashOfRim.Mercenary.PriceTitle>
+  <ClashOfRim.Mercenary.PriceUnavailable>傭兵条件を選択してください。</ClashOfRim.Mercenary.PriceUnavailable>
+  <ClashOfRim.Mercenary.QuestDescription>{PAWN} は {TIER} {SKILL} 傭兵で、関連する仕事のみを行います。</ClashOfRim.Mercenary.QuestDescription>
+  <ClashOfRim.Mercenary.QuestDescriptionCompleted>{PAWN} の雇用任務は終了しました。</ClashOfRim.Mercenary.QuestDescriptionCompleted>
+  <ClashOfRim.Mercenary.QuestFullDescription>{PAWN} は {TIER} {SKILL} 傭兵です。期間 {DAYS} ゲーム日、価格 {PRICE} シルバー。期間終了時に回収シャトルが傭兵を迎えに来ます。</ClashOfRim.Mercenary.QuestFullDescription>
+  <ClashOfRim.Mercenary.QuestLeavesIn>{TIME} 後に離脱</ClashOfRim.Mercenary.QuestLeavesIn>
+  <ClashOfRim.Mercenary.QuestLeavesOn>傭兵は {DATE} に離脱します。</ClashOfRim.Mercenary.QuestLeavesOn>
+  <ClashOfRim.Mercenary.QuestName>傭兵: {PAWN}（{SKILL}）</ClashOfRim.Mercenary.QuestName>
+  <ClashOfRim.Mercenary.RecallLetterLabel>傭兵召還</ClashOfRim.Mercenary.RecallLetterLabel>
+  <ClashOfRim.Mercenary.RecallLetterText>{PAWN} の雇用期間は終了しました。回収シャトルが迎えに来ています。</ClashOfRim.Mercenary.RecallLetterText>
+  <ClashOfRim.Mercenary.ShuttleDestroyedLetterLabel>回収失敗</ClashOfRim.Mercenary.ShuttleDestroyedLetterLabel>
+  <ClashOfRim.Mercenary.ShuttleDestroyedLetterText>{PAWN} を迎えに来たシャトルが破壊されました。雇用任務は終了し、銀行は &lt;color=#d7dadb&gt;{FINE} シルバー&lt;/color&gt;の罰金を登録しました。&lt;color=#ffd166&gt;{PAWN} はコロニーの制御下から外れ、マップを離れようとします。&lt;/color&gt;</ClashOfRim.Mercenary.ShuttleDestroyedLetterText>
+  <ClashOfRim.Mercenary.ServerFactionName>辺境傭兵団</ClashOfRim.Mercenary.ServerFactionName>
+  <ClashOfRim.Mercenary.SelectPawn>傭兵を選択</ClashOfRim.Mercenary.SelectPawn>
+  <ClashOfRim.Mercenary.Profession>職業</ClashOfRim.Mercenary.Profession>
+  <ClashOfRim.Mercenary.ProfessionArtist>芸術家</ClashOfRim.Mercenary.ProfessionArtist>
+  <ClashOfRim.Mercenary.ProfessionBuilder>建築工</ClashOfRim.Mercenary.ProfessionBuilder>
+  <ClashOfRim.Mercenary.ProfessionCook>料理人</ClashOfRim.Mercenary.ProfessionCook>
+  <ClashOfRim.Mercenary.ProfessionCrafter>工芸家</ClashOfRim.Mercenary.ProfessionCrafter>
+  <ClashOfRim.Mercenary.ProfessionDoctor>医師</ClashOfRim.Mercenary.ProfessionDoctor>
+  <ClashOfRim.Mercenary.ProfessionFarmer>農夫</ClashOfRim.Mercenary.ProfessionFarmer>
+  <ClashOfRim.Mercenary.ProfessionGunner>銃手</ClashOfRim.Mercenary.ProfessionGunner>
+  <ClashOfRim.Mercenary.ProfessionHandler>調教師</ClashOfRim.Mercenary.ProfessionHandler>
+  <ClashOfRim.Mercenary.ProfessionMiner>採掘者</ClashOfRim.Mercenary.ProfessionMiner>
+  <ClashOfRim.Mercenary.ProfessionNegotiator>交渉人</ClashOfRim.Mercenary.ProfessionNegotiator>
+  <ClashOfRim.Mercenary.ProfessionPorter>運搬人</ClashOfRim.Mercenary.ProfessionPorter>
+  <ClashOfRim.Mercenary.ProfessionResearcher>研究者</ClashOfRim.Mercenary.ProfessionResearcher>
+  <ClashOfRim.Mercenary.ProfessionWarrior>戦士</ClashOfRim.Mercenary.ProfessionWarrior>
+  <ClashOfRim.Mercenary.StatusBusy>サーバー操作がすでに実行中です。</ClashOfRim.Mercenary.StatusBusy>
+  <ClashOfRim.Mercenary.StatusConfirmationFailed>傭兵状態の保存に失敗: {CODE} {MESSAGE}</ClashOfRim.Mercenary.StatusConfirmationFailed>
+  <ClashOfRim.Mercenary.StatusConfirmationSucceeded>傭兵状態を保存しました。</ClashOfRim.Mercenary.StatusConfirmationSucceeded>
+  <ClashOfRim.Mercenary.StatusException>傭兵操作例外: {TYPE} {MESSAGE}</ClashOfRim.Mercenary.StatusException>
+  <ClashOfRim.Mercenary.StatusArrivalPawnMissing>傭兵はもう存在しないため、到着を再試行できません。</ClashOfRim.Mercenary.StatusArrivalPawnMissing>
+  <ClashOfRim.Mercenary.StatusArrivalRetried>傭兵シャトルの到着を再処理しました。現在の状態を保存中。</ClashOfRim.Mercenary.StatusArrivalRetried>
+  <ClashOfRim.Mercenary.StatusHireFailed>傭兵リクエストに失敗: {CODE} {MESSAGE}</ClashOfRim.Mercenary.StatusHireFailed>
+  <ClashOfRim.Mercenary.StatusHireRejected>傭兵リクエストはサーバーに拒否されました: {CODE} {MESSAGE}</ClashOfRim.Mercenary.StatusHireRejected>
+  <ClashOfRim.Mercenary.StatusHired>{PAWN} がシャトルで到着しました。価格 {PRICE} シルバー。現在の状態を保存中。</ClashOfRim.Mercenary.StatusHired>
+  <ClashOfRim.Mercenary.StatusHiredConfirmed>傭兵が到着しました。価格 {PRICE} シルバー。</ClashOfRim.Mercenary.StatusHiredConfirmed>
+  <ClashOfRim.Mercenary.StatusHiring>傭兵を雇用中。</ClashOfRim.Mercenary.StatusHiring>
+  <ClashOfRim.Mercenary.StatusIncidentFailed>傭兵事故報告に失敗: {CODE} {MESSAGE}</ClashOfRim.Mercenary.StatusIncidentFailed>
+  <ClashOfRim.Mercenary.StatusIncidentRejected>傭兵事故はサーバーに拒否されました: {CODE} {MESSAGE}</ClashOfRim.Mercenary.StatusIncidentRejected>
+  <ClashOfRim.Mercenary.StatusIncidentReported>傭兵事故を報告しました。</ClashOfRim.Mercenary.StatusIncidentReported>
+  <ClashOfRim.Mercenary.StatusIncidentReportedNoDebt>傭兵事故を報告しました。</ClashOfRim.Mercenary.StatusIncidentReportedNoDebt>
+  <ClashOfRim.Mercenary.StatusInsufficientSilver>&lt;color=#ff6b6b&gt;シルバー不足&lt;/color&gt;: 必要 &lt;color=#d7dadb&gt;{NEEDED}&lt;/color&gt;、利用可能 &lt;color=#d7dadb&gt;{AVAILABLE}&lt;/color&gt;。</ClashOfRim.Mercenary.StatusInsufficientSilver>
+  <ClashOfRim.Mercenary.StatusMissingContract>使用可能な傭兵任務が見つかりません。</ClashOfRim.Mercenary.StatusMissingContract>
+  <ClashOfRim.Mercenary.StatusNoMap>傭兵の雇用に使用できるコロニーマップがありません。</ClashOfRim.Mercenary.StatusNoMap>
+  <ClashOfRim.Mercenary.StatusNotConfigured>サーバーアドレス、ユーザー、またはコロニーが設定されていないため、傭兵事故を報告できません。</ClashOfRim.Mercenary.StatusNotConfigured>
+  <ClashOfRim.Mercenary.StatusQuoteException>傭兵見積もり例外: {TYPE} {MESSAGE}</ClashOfRim.Mercenary.StatusQuoteException>
+  <ClashOfRim.Mercenary.StatusQuoteFailed>傭兵見積もりに失敗: {CODE} {MESSAGE}</ClashOfRim.Mercenary.StatusQuoteFailed>
+  <ClashOfRim.Mercenary.StatusQuoteRejected>傭兵見積もりはサーバーに拒否されました: {CODE} {MESSAGE}</ClashOfRim.Mercenary.StatusQuoteRejected>
+  <ClashOfRim.Mercenary.StatusReportingIncident>傭兵事故を報告中。</ClashOfRim.Mercenary.StatusReportingIncident>
+  <ClashOfRim.Mercenary.StatusUploadingConfirmation>傭兵状態を保存中。</ClashOfRim.Mercenary.StatusUploadingConfirmation>
+  <ClashOfRim.Mercenary.HostileBehaviorLetterLabel>傭兵事故</ClashOfRim.Mercenary.HostileBehaviorLetterLabel>
+  <ClashOfRim.Mercenary.HostileBehaviorLetterText>{PAWN} に関する事故は処理されました。</ClashOfRim.Mercenary.HostileBehaviorLetterText>
+  <ClashOfRim.Mercenary.SurgeryViolationLetterLabel>傭兵事故</ClashOfRim.Mercenary.SurgeryViolationLetterLabel>
+  <ClashOfRim.Mercenary.SurgeryViolationLetterText>{PAWN} に関する事故は処理されました。</ClashOfRim.Mercenary.SurgeryViolationLetterText>
+  <ClashOfRim.Mercenary.Tier>等級</ClashOfRim.Mercenary.Tier>
+  <ClashOfRim.Mercenary.TierApprentice>見習い</ClashOfRim.Mercenary.TierApprentice>
+  <ClashOfRim.Mercenary.TierMaster>達人</ClashOfRim.Mercenary.TierMaster>
+  <ClashOfRim.Mercenary.TierSkilled>熟練</ClashOfRim.Mercenary.TierSkilled>
+  <ClashOfRim.Support.QuestDescriptionPermanent>{PAWN} は {OWNER} から永久支援として来ました。</ClashOfRim.Support.QuestDescriptionPermanent>
+  <ClashOfRim.Support.QuestDescriptionTemporary>{PAWN} は {OWNER} から来ており、期間終了時に帰還します。</ClashOfRim.Support.QuestDescriptionTemporary>
+  <ClashOfRim.Support.QuestExpiredAlertExplanation>{PAWN} の一時支援期間が終了しました。彼らは故郷のコロニーへ帰還しようとします。</ClashOfRim.Support.QuestExpiredAlertExplanation>
+  <ClashOfRim.Support.QuestExpiredAlertLabel>一時支援が期限切れ</ClashOfRim.Support.QuestExpiredAlertLabel>
+  <ClashOfRim.Support.QuestFullDescriptionPermanent>{PAWN} は {OWNER} から永久支援として送られました。後続の入植地イベントで処理されない限り、自動では帰還しません。</ClashOfRim.Support.QuestFullDescriptionPermanent>
+  <ClashOfRim.Support.QuestFullDescriptionTemporary>{PAWN} は {OWNER} から一時支援として送られました。期間終了後、自力で元のコロニーへ帰還します。</ClashOfRim.Support.QuestFullDescriptionTemporary>
+  <ClashOfRim.Support.QuestName>支援: {PAWN}</ClashOfRim.Support.QuestName>
+  <ClashOfRim.Support.EarlyReturn>早期帰還させる</ClashOfRim.Support.EarlyReturn>
+  <ClashOfRim.Support.EarlyReturnDesc>この一時支援入植者にマップを離れ、元のコロニーへ帰還するよう命じます。</ClashOfRim.Support.EarlyReturnDesc>
+  <ClashOfRim.Support.EarlyReturnUnavailable>この支援入植者は今すぐ帰還させられません。</ClashOfRim.Support.EarlyReturnUnavailable>
+  <ClashOfRim.SnapshotConfirmationFailure.OperationSupport>支援入植者帰還</ClashOfRim.SnapshotConfirmationFailure.OperationSupport>
+  <ClashOfRim.AbandonColony.CommandDesc>サーバー経由でこのコロニーを放棄します。サーバーはセーブ、地点、関連イベント参照を削除し、その後メインメニューに戻ります。</ClashOfRim.AbandonColony.CommandDesc>
+  <ClashOfRim.AbandonColony.Confirm>放棄</ClashOfRim.AbandonColony.Confirm>
+  <ClashOfRim.AbandonColony.Countdown>確認するには {SECONDS} 秒待ってください。</ClashOfRim.AbandonColony.Countdown>
+  <ClashOfRim.AbandonColony.CountdownReady>&lt;color=#ff6b6b&gt;放棄を確認できます。&lt;/color&gt;</ClashOfRim.AbandonColony.CountdownReady>
+  <ClashOfRim.AbandonColony.StatusNotConfigured>サーバーアドレス、アカウント、またはコロニーが未設定のため、サーバー経由でコロニーを放棄できません。</ClashOfRim.AbandonColony.StatusNotConfigured>
+  <ClashOfRim.AbandonColony.StatusSubmitting>コロニー放棄要求をサーバーへ送信しています。</ClashOfRim.AbandonColony.StatusSubmitting>
+  <ClashOfRim.AbandonColony.StatusFailed>コロニー放棄失敗: {CODE} {MESSAGE}</ClashOfRim.AbandonColony.StatusFailed>
+  <ClashOfRim.AbandonColony.StatusRejected>サーバーがコロニー放棄を拒否しました: {CODE} {MESSAGE}</ClashOfRim.AbandonColony.StatusRejected>
+  <ClashOfRim.AbandonColony.StatusSucceeded>サーバー上でコロニーを放棄しました。メインメニューへ戻ります。</ClashOfRim.AbandonColony.StatusSucceeded>
+  <ClashOfRim.AbandonColony.StatusException>コロニー放棄例外: {TYPE} {MESSAGE}</ClashOfRim.AbandonColony.StatusException>
+  <ClashOfRim.AbandonColony.Title>コロニーを放棄</ClashOfRim.AbandonColony.Title>
+  <ClashOfRim.AbandonColony.Warning>&lt;color=#ff6b6b&gt;{COLONY} を放棄します。&lt;/color&gt;&lt;b&gt;これは元に戻せません。&lt;/b&gt;</ClashOfRim.AbandonColony.Warning>
+  <ClashOfRim.RemoteWorldObject.Scout>偵察</ClashOfRim.RemoteWorldObject.Scout>
+  <ClashOfRim.RemoteWorldObject.ScoutDesc>相手コロニーの最新状態を偵察します。</ClashOfRim.RemoteWorldObject.ScoutDesc>
+  <ClashOfRim.RemoteWorldObject.ObserveAlly>同盟を観察</ClashOfRim.RemoteWorldObject.ObserveAlly>
+  <ClashOfRim.RemoteWorldObject.ObserveAllyDesc>同盟の最新状態を観察します。</ClashOfRim.RemoteWorldObject.ObserveAllyDesc>
+  <ClashOfRim.RemoteWorldObject.ObserveRaid>戦闘を観戦</ClashOfRim.RemoteWorldObject.ObserveRaid>
+  <ClashOfRim.RemoteWorldObject.ObserveRaidDesc>進行中の襲撃の最新状態を観戦します。</ClashOfRim.RemoteWorldObject.ObserveRaidDesc>
+  <ClashOfRim.Observation.StatusNotConfigured>サーバーアドレス、ユーザー、またはコロニーが未設定のため、偵察や観察はできません。</ClashOfRim.Observation.StatusNotConfigured>
+  <ClashOfRim.Observation.StatusBusy>サーバー処理がすでに進行中です。</ClashOfRim.Observation.StatusBusy>
+  <ClashOfRim.Observation.StatusTargetIncomplete>対象にユーザー、コロニー、またはセーブ情報が不足しています。</ClashOfRim.Observation.StatusTargetIncomplete>
+  <ClashOfRim.Observation.StatusMissingRaidEvent>観察対象に対応する襲撃メッセージがありません。</ClashOfRim.Observation.StatusMissingRaidEvent>
+  <ClashOfRim.Observation.StatusDownloadingScout>{TARGET} を偵察しています。</ClashOfRim.Observation.StatusDownloadingScout>
+  <ClashOfRim.Observation.StatusDownloadingFriendly>同盟コロニー {TARGET} を観察しています。</ClashOfRim.Observation.StatusDownloadingFriendly>
+  <ClashOfRim.Observation.StatusDownloadingRaid>{TARGET} の戦闘セーブをダウンロードしています。</ClashOfRim.Observation.StatusDownloadingRaid>
+  <ClashOfRim.Observation.StatusLoginFailed>観察ログイン失敗: {MESSAGE}</ClashOfRim.Observation.StatusLoginFailed>
+  <ClashOfRim.Observation.StatusException>観察セーブのダウンロード例外: {TYPE} {MESSAGE}</ClashOfRim.Observation.StatusException>
+  <ClashOfRim.Observation.StatusDownloadFailed>観察セーブのダウンロード失敗: {CODE} {MESSAGE}</ClashOfRim.Observation.StatusDownloadFailed>
+  <ClashOfRim.Observation.StatusMissingSnapshot>サーバーから観察可能なセーブが返されませんでした。</ClashOfRim.Observation.StatusMissingSnapshot>
+  <ClashOfRim.Observation.StatusPayloadFailed>観察マップセーブのダウンロード失敗: {CODE} {MESSAGE}</ClashOfRim.Observation.StatusPayloadFailed>
+  <ClashOfRim.Observation.ScoutLoadedMessage>{TARGET} の偵察セーブを読み込みました。</ClashOfRim.Observation.ScoutLoadedMessage>
+  <ClashOfRim.Observation.FriendlyLoadedMessage>{TARGET} の同盟観察セーブを読み込みました。</ClashOfRim.Observation.FriendlyLoadedMessage>
+  <ClashOfRim.Observation.RaidLoadedMessage>{TARGET} の戦闘観戦セーブを読み込みました。</ClashOfRim.Observation.RaidLoadedMessage>
+  <ClashOfRim.RemoteSessionMap.ScoutLabel>{OWNER} の偵察マップ</ClashOfRim.RemoteSessionMap.ScoutLabel>
+  <ClashOfRim.RemoteSessionMap.ScoutNamedLabel>偵察: {OWNER} の {LABEL}</ClashOfRim.RemoteSessionMap.ScoutNamedLabel>
+  <ClashOfRim.RemoteSessionMap.FriendlyObservationLabel>{OWNER} の同盟観察マップ</ClashOfRim.RemoteSessionMap.FriendlyObservationLabel>
+  <ClashOfRim.RemoteSessionMap.FriendlyObservationNamedLabel>観察: {OWNER} の {LABEL}</ClashOfRim.RemoteSessionMap.FriendlyObservationNamedLabel>
+  <ClashOfRim.RemoteSessionMap.RaidObservationLabel>{OWNER} の戦闘視点</ClashOfRim.RemoteSessionMap.RaidObservationLabel>
+  <ClashOfRim.RemoteSessionMap.RaidObservationNamedLabel>戦闘視点: {OWNER} の {LABEL}</ClashOfRim.RemoteSessionMap.RaidObservationNamedLabel>
+  <ClashOfRim.RemoteSessionMap.RaidBattleLabel>{OWNER} の襲撃戦闘</ClashOfRim.RemoteSessionMap.RaidBattleLabel>
+  <ClashOfRim.RemoteSessionMap.RaidBattleNamedLabel>襲撃: {OWNER} の {LABEL}</ClashOfRim.RemoteSessionMap.RaidBattleNamedLabel>
+  <ClashOfRim.RemoteSessionMap.Close>観察マップを閉じる</ClashOfRim.RemoteSessionMap.Close>
+  <ClashOfRim.RemoteSessionMap.CloseDesc>現在の観察マップを閉じ、通常のマルチプレイセッションに戻ります。</ClashOfRim.RemoteSessionMap.CloseDesc>
+  <ClashOfRim.RemoteSessionMap.Closed>観察マップを閉じました。</ClashOfRim.RemoteSessionMap.Closed>
+  <ClashOfRim.RemoteSessionMap.ActiveSessionBlocksOpen>遠隔マップがすでに開いています。閉じるか襲撃を完了してください。</ClashOfRim.RemoteSessionMap.ActiveSessionBlocksOpen>
+  <ClashOfRim.RemoteSessionMap.Inspect>所有者: {OWNER}/{COLONY}</ClashOfRim.RemoteSessionMap.Inspect>
+  <ClashOfRim.RemoteSessionMap.LoadingTitle>遠隔マップを読み込み中</ClashOfRim.RemoteSessionMap.LoadingTitle>
+  <ClashOfRim.RemoteSessionMap.StatusGenerating>{TARGET} の遠隔マップを準備しています。</ClashOfRim.RemoteSessionMap.StatusGenerating>
+  <ClashOfRim.RemoteSessionMap.StatusGeneratingLong>対象マップを読み込んでいます。時間がかかる場合があります。ゲームを強制終了しないでください。</ClashOfRim.RemoteSessionMap.StatusGeneratingLong>
+  <ClashOfRim.RemoteSessionMap.StatusGenerateException>遠隔マップ準備例外: {TYPE} {MESSAGE}</ClashOfRim.RemoteSessionMap.StatusGenerateException>
+  <ClashOfRim.RemoteSessionMap.StatusInvalidTile>対象タイルは使用できません。</ClashOfRim.RemoteSessionMap.StatusInvalidTile>
+  <ClashOfRim.RemoteSessionMap.StatusMissingDef>遠隔マップ情報が不足しています。</ClashOfRim.RemoteSessionMap.StatusMissingDef>
+  <ClashOfRim.RemoteSessionMap.StatusMissingPackage>遠隔セーブ内容が不足しているため、マップを開けません。</ClashOfRim.RemoteSessionMap.StatusMissingPackage>
+  <ClashOfRim.RemoteSessionMap.PocketMapBlocked>遠隔マップでは深穴などの子マップへの進入はまだ対応していません。</ClashOfRim.RemoteSessionMap.PocketMapBlocked>
+  <ClashOfRim.RemoteMapProjection.StatusDecodeFailed>遠隔マップセーブを読み取れませんでした: {MESSAGE}</ClashOfRim.RemoteMapProjection.StatusDecodeFailed>
+  <ClashOfRim.RemoteMapProjection.StatusInvalidXml>セーブを読み取れませんでした: {MESSAGE}</ClashOfRim.RemoteMapProjection.StatusInvalidXml>
+  <ClashOfRim.RemoteMapProjection.StatusMapMissing>対象マップがセーブ内に見つかりません: {MAP}</ClashOfRim.RemoteMapProjection.StatusMapMissing>
+  <ClashOfRim.RemoteMapProjection.StatusNoMapLoaded>セーブ内にマップが見つかりませんでした。</ClashOfRim.RemoteMapProjection.StatusNoMapLoaded>
+  <ClashOfRim.RemoteMapProjection.StatusOriginalHashMismatch>元セーブの検証に失敗しました。</ClashOfRim.RemoteMapProjection.StatusOriginalHashMismatch>
+  <ClashOfRim.RemoteMapProjection.StatusOriginalSizeMismatch>元セーブのサイズが一致しません。</ClashOfRim.RemoteMapProjection.StatusOriginalSizeMismatch>
+  <ClashOfRim.RemoteMapProjection.StatusPayloadHashMismatch>サーバーマップセーブの検証に失敗しました。</ClashOfRim.RemoteMapProjection.StatusPayloadHashMismatch>
+  <ClashOfRim.RemoteMapProjection.StatusPayloadSizeMismatch>サーバーマップセーブのサイズが一致しません。</ClashOfRim.RemoteMapProjection.StatusPayloadSizeMismatch>
+  <ClashOfRim.RemoteMapProjection.StatusScribeFailed>遠隔マップを読み込めませんでした: {TYPE} {MESSAGE}</ClashOfRim.RemoteMapProjection.StatusScribeFailed>
+  <ClashOfRim.RemoteMapProjection.StatusUnsupportedEncoding>未対応の遠隔マップセーブ形式: {ENCODING}</ClashOfRim.RemoteMapProjection.StatusUnsupportedEncoding>
+  <ClashOfRim.Status.EventDetailsNotPulled>メッセージ詳細はまだダウンロードされていません。</ClashOfRim.Status.EventDetailsNotPulled>
+  <ClashOfRim.Status.EventQueueNotPulled>サーバーメッセージはまだ更新されていません。</ClashOfRim.Status.EventQueueNotPulled>
+  <ClashOfRim.Status.GiftNotProcessed>贈り物はまだ処理されていません。</ClashOfRim.Status.GiftNotProcessed>
+  <ClashOfRim.Status.NotLoggedIn>サーバーにログインしていません。</ClashOfRim.Status.NotLoggedIn>
+  <ClashOfRim.Status.PlayerListNotPulled>プレイヤー一覧はまだ取得されていません。</ClashOfRim.Status.PlayerListNotPulled>
+  <ClashOfRim.Status.BankNotPulled>銀行状態はまだ読み込まれていません。</ClashOfRim.Status.BankNotPulled>
+  <ClashOfRim.Status.MercenaryIdle>佣兵操作はまだ実行されていません。</ClashOfRim.Status.MercenaryIdle>
+  <ClashOfRim.Status.PresenceNotStarted>オンライン状態はまだ開始されていません。</ClashOfRim.Status.PresenceNotStarted>
+  <ClashOfRim.Status.SnapshotUploadNotStarted>セーブアップロードはまだ開始されていません。</ClashOfRim.Status.SnapshotUploadNotStarted>
+  <ClashOfRim.Status.TradeOrderNotCreated>交易注文はまだ作成されていません。</ClashOfRim.Status.TradeOrderNotCreated>
+  <ClashOfRim.Status.WorldMapNotSynced>ワールドマップ標識はまだ同期されていません。</ClashOfRim.Status.WorldMapNotSynced>
+  <ClashOfRim.Multiplayer.TabMercenary>傭兵</ClashOfRim.Multiplayer.TabMercenary>
+  <ClashOfRim.Multiplayer.TabAdmin>管理</ClashOfRim.Multiplayer.TabAdmin>
+  <ClashOfRim.Admin.StatusIdle>管理状態はまだ読み込まれていません。</ClashOfRim.Admin.StatusIdle>
+  <ClashOfRim.Admin.StatusRefreshing>管理状態を読み込んでいます。</ClashOfRim.Admin.StatusRefreshing>
+  <ClashOfRim.Admin.StatusRefreshed>管理状態を更新しました。</ClashOfRim.Admin.StatusRefreshed>
+  <ClashOfRim.Admin.StatusSaving>サーバー設定を保存しています。</ClashOfRim.Admin.StatusSaving>
+  <ClashOfRim.Admin.StatusSaved>サーバー設定を保存しました。</ClashOfRim.Admin.StatusSaved>
+  <ClashOfRim.Admin.StatusSendingAction>管理操作を送信しています。</ClashOfRim.Admin.StatusSendingAction>
+  <ClashOfRim.Admin.StatusActionDone>管理操作が完了しました。</ClashOfRim.Admin.StatusActionDone>
+  <ClashOfRim.Admin.StatusFailed>管理要求失敗: {CODE} {MESSAGE}</ClashOfRim.Admin.StatusFailed>
+  <ClashOfRim.Admin.StatusRejected>サーバーが管理要求を拒否しました: {CODE} {MESSAGE}</ClashOfRim.Admin.StatusRejected>
+  <ClashOfRim.Admin.StatusException>管理要求例外: {TYPE} {MESSAGE}</ClashOfRim.Admin.StatusException>
+  <ClashOfRim.Admin.NotConnected>サーバーに接続していません。</ClashOfRim.Admin.NotConnected>
+  <ClashOfRim.Admin.NotAdministrator>現在のユーザーは管理者ではありません。</ClashOfRim.Admin.NotAdministrator>
+  <ClashOfRim.Admin.SavedMessage>サーバー設定を更新しました。</ClashOfRim.Admin.SavedMessage>
+  <ClashOfRim.Admin.UpdateWorldBaseline>ワールドデータ更新</ClashOfRim.Admin.UpdateWorldBaseline>
+  <ClashOfRim.Admin.WorldBaselineUpdating>ワールドデータを更新しています。</ClashOfRim.Admin.WorldBaselineUpdating>
+  <ClashOfRim.Admin.WorldBaselineUpdated>ワールドデータを更新しました: 派閥 {FACTIONS}, ワールドオブジェクト {WORLDOBJECTS}。</ClashOfRim.Admin.WorldBaselineUpdated>
+  <ClashOfRim.Admin.WorldBaselineInvalid>ワールド設定を受け入れられません: {REASON}</ClashOfRim.Admin.WorldBaselineInvalid>
+  <ClashOfRim.Admin.WorldBaselineCaptureFailed>ワールドデータ取得失敗: {TYPE} {MESSAGE}</ClashOfRim.Admin.WorldBaselineCaptureFailed>
+  <ClashOfRim.Admin.WorldBaselineRefreshReason>管理者によるワールドデータ更新</ClashOfRim.Admin.WorldBaselineRefreshReason>
+  <ClashOfRim.Admin.TabTrade>交易</ClashOfRim.Admin.TabTrade>
+  <ClashOfRim.Admin.TabBank>銀行</ClashOfRim.Admin.TabBank>
+  <ClashOfRim.Admin.TabMercenary>傭兵</ClashOfRim.Admin.TabMercenary>
+  <ClashOfRim.Admin.TabRaid>襲撃</ClashOfRim.Admin.TabRaid>
+  <ClashOfRim.Admin.TabPlayers>プレイヤー</ClashOfRim.Admin.TabPlayers>
+  <ClashOfRim.Admin.TabMaintenance>メンテナンス</ClashOfRim.Admin.TabMaintenance>
+  <ClashOfRim.Admin.TabManifest>MODリスト</ClashOfRim.Admin.TabManifest>
+  <ClashOfRim.Admin.TabAudit>監査</ClashOfRim.Admin.TabAudit>
+  <ClashOfRim.Admin.NoStatus>サーバー設定はまだ読み込まれていません。</ClashOfRim.Admin.NoStatus>
+  <ClashOfRim.Admin.NoPlayers>プレイヤーなし。</ClashOfRim.Admin.NoPlayers>
+  <ClashOfRim.Admin.NoAudit>監査記録はありません。</ClashOfRim.Admin.NoAudit>
+  <ClashOfRim.Admin.InvalidConfig>この設定値は使用できません。</ClashOfRim.Admin.InvalidConfig>
+  <ClashOfRim.Admin.Save>保存</ClashOfRim.Admin.Save>
+  <ClashOfRim.Admin.SectionShop>商店</ClashOfRim.Admin.SectionShop>
+  <ClashOfRim.Admin.SectionRaid>襲撃決算</ClashOfRim.Admin.SectionRaid>
+  <ClashOfRim.Admin.SectionCooldown>クールダウン</ClashOfRim.Admin.SectionCooldown>
+  <ClashOfRim.Admin.SectionBroadcast>一斉通知</ClashOfRim.Admin.SectionBroadcast>
+  <ClashOfRim.Admin.SectionMaintenance>ログインメンテナンス</ClashOfRim.Admin.SectionMaintenance>
+  <ClashOfRim.Admin.SectionManifest>MODリスト</ClashOfRim.Admin.SectionManifest>
+  <ClashOfRim.Admin.TradeExpirationDays>取引期限（日）</ClashOfRim.Admin.TradeExpirationDays>
+  <ClashOfRim.Admin.TradeEnabled>市場を有効化</ClashOfRim.Admin.TradeEnabled>
+  <ClashOfRim.Admin.MaxOpenTradeOrders>プレイヤーごとの公開取引上限</ClashOfRim.Admin.MaxOpenTradeOrders>
+  <ClashOfRim.Admin.TradeBaseFeeRate>基本手数料率</ClashOfRim.Admin.TradeBaseFeeRate>
+  <ClashOfRim.Admin.TradeFeeStrategy>手数料方式</ClashOfRim.Admin.TradeFeeStrategy>
+  <ClashOfRim.Admin.TradeFeeStrategyPublisher>掲載者側</ClashOfRim.Admin.TradeFeeStrategyPublisher>
+  <ClashOfRim.Admin.TradeFeeStrategyHighestSide>高い側</ClashOfRim.Admin.TradeFeeStrategyHighestSide>
+  <ClashOfRim.Admin.TradeFeeStrategySumBothSides>双方合計</ClashOfRim.Admin.TradeFeeStrategySumBothSides>
+  <ClashOfRim.Admin.FixedTradeFees>固定手数料</ClashOfRim.Admin.FixedTradeFees>
+  <ClashOfRim.Admin.AddFixedTradeFee>追加</ClashOfRim.Admin.AddFixedTradeFee>
+  <ClashOfRim.Admin.FixedTradeFeeThing>対象</ClashOfRim.Admin.FixedTradeFeeThing>
+  <ClashOfRim.Admin.FixedTradeFeeSilver>1個あたりシルバー</ClashOfRim.Admin.FixedTradeFeeSilver>
+  <ClashOfRim.Admin.SelectThing>対象選択</ClashOfRim.Admin.SelectThing>
+  <ClashOfRim.Admin.SelectThingTitle>対象選択</ClashOfRim.Admin.SelectThingTitle>
+  <ClashOfRim.Admin.Remove>削除</ClashOfRim.Admin.Remove>
+  <ClashOfRim.Admin.PostageBase>輸送ポッド基本送料</ClashOfRim.Admin.PostageBase>
+  <ClashOfRim.Admin.PostagePerTile>タイルごとの送料</ClashOfRim.Admin.PostagePerTile>
+  <ClashOfRim.Admin.PostageCrossLayer>階層間距離</ClashOfRim.Admin.PostageCrossLayer>
+  <ClashOfRim.Admin.BankLoanRatio>資産に対する融資比率</ClashOfRim.Admin.BankLoanRatio>
+  <ClashOfRim.Admin.BankEnabled>銀行融資を有効化</ClashOfRim.Admin.BankEnabled>
+  <ClashOfRim.Admin.BankMinLoanSilver>最小元本</ClashOfRim.Admin.BankMinLoanSilver>
+  <ClashOfRim.Admin.BankMaxLoanSilver>最大元本（0で無制限）</ClashOfRim.Admin.BankMaxLoanSilver>
+  <ClashOfRim.Admin.BankInterestRate>年利</ClashOfRim.Admin.BankInterestRate>
+  <ClashOfRim.Admin.BankMinDays>融資最小日数</ClashOfRim.Admin.BankMinDays>
+  <ClashOfRim.Admin.BankMaxDays>融資最大日数</ClashOfRim.Admin.BankMaxDays>
+  <ClashOfRim.Admin.BankInterestCurve>期間利率倍率曲線</ClashOfRim.Admin.BankInterestCurve>
+  <ClashOfRim.Admin.BankPenaltyInterval>延滞ペナルティ間隔</ClashOfRim.Admin.BankPenaltyInterval>
+  <ClashOfRim.Admin.BankPenaltyPoints>シルバーごとのメカノイドポイント</ClashOfRim.Admin.BankPenaltyPoints>
+  <ClashOfRim.Admin.BankOverduePenaltyStages>延滞時の悪性イベント</ClashOfRim.Admin.BankOverduePenaltyStages>
+  <ClashOfRim.Admin.AddBankPenaltyEvent>イベント追加</ClashOfRim.Admin.AddBankPenaltyEvent>
+  <ClashOfRim.Admin.BankPenaltyStartCount>開始回数</ClashOfRim.Admin.BankPenaltyStartCount>
+  <ClashOfRim.Admin.BankPenaltyEvent>イベント</ClashOfRim.Admin.BankPenaltyEvent>
+  <ClashOfRim.Admin.BankPenaltySeverity>深刻度</ClashOfRim.Admin.BankPenaltySeverity>
+  <ClashOfRim.Admin.BankPenaltyEventPsychicWhisper>精神囁き</ClashOfRim.Admin.BankPenaltyEventPsychicWhisper>
+  <ClashOfRim.Admin.SelectEvent>イベント選択</ClashOfRim.Admin.SelectEvent>
+  <ClashOfRim.Admin.SelectEventTitle>イベント選択</ClashOfRim.Admin.SelectEventTitle>
+  <ClashOfRim.Admin.MercApprentice>見習い日給</ClashOfRim.Admin.MercApprentice>
+  <ClashOfRim.Admin.MercEnabled>傭兵を有効化</ClashOfRim.Admin.MercEnabled>
+  <ClashOfRim.Admin.MercSkilled>熟練日給</ClashOfRim.Admin.MercSkilled>
+  <ClashOfRim.Admin.MercMaster>達人日給</ClashOfRim.Admin.MercMaster>
+  <ClashOfRim.Admin.MercMinDays>最小日数</ClashOfRim.Admin.MercMinDays>
+  <ClashOfRim.Admin.MercMaxDays>最大日数</ClashOfRim.Admin.MercMaxDays>
+  <ClashOfRim.Admin.MercDurationCurve>期間価格曲線</ClashOfRim.Admin.MercDurationCurve>
+  <ClashOfRim.Admin.MercMaxActive>最大傭兵数</ClashOfRim.Admin.MercMaxActive>
+  <ClashOfRim.Admin.MercHarmfulSurgery>敵対行為罰金</ClashOfRim.Admin.MercHarmfulSurgery>
+  <ClashOfRim.Admin.MercApprenticeDeath>見習い死亡罰金</ClashOfRim.Admin.MercApprenticeDeath>
+  <ClashOfRim.Admin.MercSkilledDeath>熟練死亡罰金</ClashOfRim.Admin.MercSkilledDeath>
+  <ClashOfRim.Admin.MercMasterDeath>達人死亡罰金</ClashOfRim.Admin.MercMasterDeath>
+  <ClashOfRim.Admin.RaidProtectionHours>襲撃保護時間</ClashOfRim.Admin.RaidProtectionHours>
+  <ClashOfRim.Admin.RaidMaxDurationMinutes>襲撃最大時間（分）</ClashOfRim.Admin.RaidMaxDurationMinutes>
+  <ClashOfRim.Admin.RaidTimeoutGraceMinutes>サーバー猶予時間（分）</ClashOfRim.Admin.RaidTimeoutGraceMinutes>
+  <ClashOfRim.Admin.PvpEnabled>PvPを有効化</ClashOfRim.Admin.PvpEnabled>
+  <ClashOfRim.Admin.RaidMinimumDefenderWealth>資産保護しきい値</ClashOfRim.Admin.RaidMinimumDefenderWealth>
+  <ClashOfRim.Admin.RaidLossRatio>防衛側損失上限比率</ClashOfRim.Admin.RaidLossRatio>
+  <ClashOfRim.Admin.RaidBuildingHpLossRatio>建築HP損失比率</ClashOfRim.Admin.RaidBuildingHpLossRatio>
+  <ClashOfRim.Admin.RaidMinimumHpRatio>最低残存HP比率</ClashOfRim.Admin.RaidMinimumHpRatio>
+  <ClashOfRim.Admin.PendingConfirmationMinutes>確認待ち猶予（分）</ClashOfRim.Admin.PendingConfirmationMinutes>
+  <ClashOfRim.Admin.RelationCooldownHours>外交クールダウン（時間）</ClashOfRim.Admin.RelationCooldownHours>
+  <ClashOfRim.Admin.SupportCooldownMinutes>支援要請クールダウン（分）</ClashOfRim.Admin.SupportCooldownMinutes>
+  <ClashOfRim.Admin.ForcedGiftCooldownMinutes>強制投送クールダウン（分）</ClashOfRim.Admin.ForcedGiftCooldownMinutes>
+  <ClashOfRim.Admin.GiftsEnabled>贈り物と強制投送を有効化</ClashOfRim.Admin.GiftsEnabled>
+  <ClashOfRim.Admin.AdminFlag>管理者</ClashOfRim.Admin.AdminFlag>
+  <ClashOfRim.Admin.BannedFlag>追放済み</ClashOfRim.Admin.BannedFlag>
+  <ClashOfRim.Admin.PlayerManage>管理</ClashOfRim.Admin.PlayerManage>
+  <ClashOfRim.Admin.ActionKick>キック</ClashOfRim.Admin.ActionKick>
+  <ClashOfRim.Admin.ActionResetPassword>パスワードリセット</ClashOfRim.Admin.ActionResetPassword>
+  <ClashOfRim.Admin.NewPassword>新しいパスワード</ClashOfRim.Admin.NewPassword>
+  <ClashOfRim.Admin.ResetPasswordTarget>対象プレイヤー: {USER}</ClashOfRim.Admin.ResetPasswordTarget>
+  <ClashOfRim.Admin.ActionBan>追放</ClashOfRim.Admin.ActionBan>
+  <ClashOfRim.Admin.ActionUnban>追放解除</ClashOfRim.Admin.ActionUnban>
+  <ClashOfRim.Admin.ActionPromoteAdmin>昇格</ClashOfRim.Admin.ActionPromoteAdmin>
+  <ClashOfRim.Admin.ActionRevokeAdmin>剥奪</ClashOfRim.Admin.ActionRevokeAdmin>
+  <ClashOfRim.Admin.ActionDeletePlayerSave>セーブ削除</ClashOfRim.Admin.ActionDeletePlayerSave>
+  <ClashOfRim.Admin.ConfirmAction>{USER} に {ACTION} を実行しますか？</ClashOfRim.Admin.ConfirmAction>
+  <ClashOfRim.Admin.ConfirmDeletePlayerSave>{USER} のサーバーセーブを削除しますか？サーバーはそのプレイヤーのコロニー放棄クリーンアップを実行し、セーブ、コロニー地点、関連参照を削除します。次回ログイン時、そのプレイヤーは新規コロニーフローに入ります。</ClashOfRim.Admin.ConfirmDeletePlayerSave>
+  <ClashOfRim.Admin.BroadcastMessage>メッセージ</ClashOfRim.Admin.BroadcastMessage>
+  <ClashOfRim.Admin.ActionBroadcast>一斉通知</ClashOfRim.Admin.ActionBroadcast>
+  <ClashOfRim.Admin.BroadcastTarget>対象</ClashOfRim.Admin.BroadcastTarget>
+  <ClashOfRim.Admin.BroadcastTargetAll>全プレイヤー</ClashOfRim.Admin.BroadcastTargetAll>
+  <ClashOfRim.Admin.BroadcastPersistent>永続</ClashOfRim.Admin.BroadcastPersistent>
+  <ClashOfRim.Admin.BroadcastSeverityInfo>通知</ClashOfRim.Admin.BroadcastSeverityInfo>
+  <ClashOfRim.Admin.BroadcastSeverityWarning>警告</ClashOfRim.Admin.BroadcastSeverityWarning>
+  <ClashOfRim.Admin.BroadcastSeverityError>エラー</ClashOfRim.Admin.BroadcastSeverityError>
+  <ClashOfRim.Admin.MaintenanceLocked>新規ログインはブロックされています。</ClashOfRim.Admin.MaintenanceLocked>
+  <ClashOfRim.Admin.MaintenanceUnlocked>新規ログインはブロックされていません。</ClashOfRim.Admin.MaintenanceUnlocked>
+  <ClashOfRim.Admin.MaintenanceReason>理由</ClashOfRim.Admin.MaintenanceReason>
+  <ClashOfRim.Admin.ActionLockLogin>ログインロック</ClashOfRim.Admin.ActionLockLogin>
+  <ClashOfRim.Admin.ActionUnlockLogin>解除</ClashOfRim.Admin.ActionUnlockLogin>
+  <ClashOfRim.Admin.DevToolsBlocked>マルチプレイセッション中に開発者ツールを使えるのは管理者のみです。</ClashOfRim.Admin.DevToolsBlocked>
+  <ClashOfRim.Admin.NoManifest>サーバーMODリストなし。</ClashOfRim.Admin.NoManifest>
+  <ClashOfRim.Admin.NoConfigFiles>設定ファイルなし</ClashOfRim.Admin.NoConfigFiles>
+  <ClashOfRim.Admin.ModRoleRequired>必須</ClashOfRim.Admin.ModRoleRequired>
+  <ClashOfRim.Admin.ModRoleOptional>任意</ClashOfRim.Admin.ModRoleOptional>
+  <ClashOfRim.Admin.ModRoleTranslation>翻訳免除</ClashOfRim.Admin.ModRoleTranslation>
+  <ClashOfRim.Admin.ConfigModeEnforce>強制</ClashOfRim.Admin.ConfigModeEnforce>
+  <ClashOfRim.Admin.ConfigModeWarn>警告</ClashOfRim.Admin.ConfigModeWarn>
+  <ClashOfRim.Admin.ConfigModeIgnore>無視</ClashOfRim.Admin.ConfigModeIgnore>
+  <ClashOfRim.Multiplayer.TabShop>商店</ClashOfRim.Multiplayer.TabShop>
+  <ClashOfRim.Admin.TabShop>商店</ClashOfRim.Admin.TabShop>
+  <ClashOfRim.Edit>編集</ClashOfRim.Edit>
+  <ClashOfRim.Select>選択</ClashOfRim.Select>
+  <ClashOfRim.Clear>クリア</ClashOfRim.Clear>
+  <ClashOfRim.Done>完了</ClashOfRim.Done>
+  <ClashOfRim.UnknownThing>不明なアイテム</ClashOfRim.UnknownThing>
+  <ClashOfRim.Shop.StatusIdle>ショップは利用可能です。</ClashOfRim.Shop.StatusIdle>
+  <ClashOfRim.Shop.StatusRefreshing>ショップを更新しています。</ClashOfRim.Shop.StatusRefreshing>
+  <ClashOfRim.Shop.StatusRefreshFailed>ショップ更新に失敗しました: {CODE} {MESSAGE}</ClashOfRim.Shop.StatusRefreshFailed>
+  <ClashOfRim.Shop.StatusRefreshRejected>サーバーがショップ更新を拒否しました: {CODE} {MESSAGE}</ClashOfRim.Shop.StatusRefreshRejected>
+  <ClashOfRim.Shop.StatusRefreshed>ショップを更新しました。出品 {COUNT} 件。</ClashOfRim.Shop.StatusRefreshed>
+  <ClashOfRim.Shop.NoListings>ショップの商品はありません。</ClashOfRim.Shop.NoListings>
+  <ClashOfRim.Shop.Stock>残り在庫: {COUNT} 組</ClashOfRim.Shop.Stock>
+  <ClashOfRim.Shop.Demand>残り買取: {COUNT} 組</ClashOfRim.Shop.Demand>
+  <ClashOfRim.Shop.Price>価格 {PRICE}</ClashOfRim.Shop.Price>
+  <ClashOfRim.Shop.Payout>支払い {PRICE}</ClashOfRim.Shop.Payout>
+  <ClashOfRim.Shop.BuyCount>数量</ClashOfRim.Shop.BuyCount>
+  <ClashOfRim.Shop.SellCount>数量</ClashOfRim.Shop.SellCount>
+  <ClashOfRim.Shop.TotalPrice>合計 &lt;color=#d7dadb&gt;{PRICE} シルバー&lt;/color&gt;</ClashOfRim.Shop.TotalPrice>
+  <ClashOfRim.Shop.TotalPayout>受取 &lt;color=#d7dadb&gt;{PRICE} シルバー&lt;/color&gt;</ClashOfRim.Shop.TotalPayout>
+  <ClashOfRim.Shop.InvalidBuyCount>数量は1以上、在庫以下でなければなりません。</ClashOfRim.Shop.InvalidBuyCount>
+  <ClashOfRim.Shop.InvalidSellCount>数量は1以上、買取残数以下でなければなりません。</ClashOfRim.Shop.InvalidSellCount>
+  <ClashOfRim.Shop.Buy>購入</ClashOfRim.Shop.Buy>
+  <ClashOfRim.Shop.Sell>売却</ClashOfRim.Shop.Sell>
+  <ClashOfRim.Shop.BuyOne>1組購入</ClashOfRim.Shop.BuyOne>
+  <ClashOfRim.Shop.SellBatch>1組売却</ClashOfRim.Shop.SellBatch>
+  <ClashOfRim.Shop.OutOfStock>在庫切れです。</ClashOfRim.Shop.OutOfStock>
+  <ClashOfRim.Shop.NoDemand>買取枠がありません。</ClashOfRim.Shop.NoDemand>
+  <ClashOfRim.Shop.ConfirmBuy>&lt;color=#d7dadb&gt;{PRICE} シルバー&lt;/color&gt;で {COUNT} x {THING} を購入しますか？</ClashOfRim.Shop.ConfirmBuy>
+  <ClashOfRim.Shop.ConfirmSell>{COUNT} x {THING} を納品して &lt;color=#d7dadb&gt;{PRICE} シルバー&lt;/color&gt;を受け取りますか？</ClashOfRim.Shop.ConfirmSell>
+  <ClashOfRim.Shop.AddListing>追加</ClashOfRim.Shop.AddListing>
+  <ClashOfRim.Shop.Kind>種類</ClashOfRim.Shop.Kind>
+  <ClashOfRim.Shop.KindSell>プレイヤーへ販売</ClashOfRim.Shop.KindSell>
+  <ClashOfRim.Shop.KindBuy>プレイヤーから買取</ClashOfRim.Shop.KindBuy>
+  <ClashOfRim.Shop.StockShort>在庫</ClashOfRim.Shop.StockShort>
+  <ClashOfRim.Shop.DemandShort>買取</ClashOfRim.Shop.DemandShort>
+  <ClashOfRim.Shop.PriceShort>価格</ClashOfRim.Shop.PriceShort>
+  <ClashOfRim.Shop.PayoutShort>支払い</ClashOfRim.Shop.PayoutShort>
+  <ClashOfRim.Shop.UnitPrice>価格</ClashOfRim.Shop.UnitPrice>
+  <ClashOfRim.Shop.UnitPayout>支払い</ClashOfRim.Shop.UnitPayout>
+  <ClashOfRim.Shop.PriceIncreaseRatio>反復倍率</ClashOfRim.Shop.PriceIncreaseRatio>
+  <ClashOfRim.Shop.PriceIncreaseRatioDesc>同じプレイヤー/コロニーが購入または売却するたびに適用される価格倍率です。1なら価格は変わらず、1.2なら次回価格は約120%、0.8なら約80%になります。最低価格は1シルバーです。</ClashOfRim.Shop.PriceIncreaseRatioDesc>
+  <ClashOfRim.Shop.ItemCount>1組あたりの数量</ClashOfRim.Shop.ItemCount>
+  <ClashOfRim.Shop.VanillaMarketValue>バニラ市場価値</ClashOfRim.Shop.VanillaMarketValue>
+  <ClashOfRim.Shop.ConfirmRemove>{THING} をショップから削除しますか？</ClashOfRim.Shop.ConfirmRemove>
+  <ClashOfRim.Shop.EditListing>ショップ商品を編集</ClashOfRim.Shop.EditListing>
+  <ClashOfRim.Shop.SelectThing>アイテム選択</ClashOfRim.Shop.SelectThing>
+  <ClashOfRim.Shop.ListingDetails>商品設定</ClashOfRim.Shop.ListingDetails>
+  <ClashOfRim.Shop.NoThingSelected>アイテムが選択されていません。</ClashOfRim.Shop.NoThingSelected>
+  <ClashOfRim.Shop.Genes>遺伝子</ClashOfRim.Shop.Genes>
+  <ClashOfRim.Shop.SelectGenes>遺伝子を選択</ClashOfRim.Shop.SelectGenes>
+  <ClashOfRim.Shop.SelectGenesTitle>商品遺伝子を選択</ClashOfRim.Shop.SelectGenesTitle>
+  <ClashOfRim.Shop.BookContent>書籍内容</ClashOfRim.Shop.BookContent>
+  <ClashOfRim.Shop.ResearchProject>研究</ClashOfRim.Shop.ResearchProject>
+  <ClashOfRim.Shop.SelectBookSkills>スキルを選択</ClashOfRim.Shop.SelectBookSkills>
+  <ClashOfRim.Shop.Stuff>素材</ClashOfRim.Shop.Stuff>
+  <ClashOfRim.Shop.Quality>品質</ClashOfRim.Shop.Quality>
+  <ClashOfRim.Shop.QualityRequirement>品質制限</ClashOfRim.Shop.QualityRequirement>
+  <ClashOfRim.Shop.QualityAtLeast>目標品質以上</ClashOfRim.Shop.QualityAtLeast>
+  <ClashOfRim.Shop.QualityAtMost>目標品質以下</ClashOfRim.Shop.QualityAtMost>
+  <ClashOfRim.Shop.HitPoints>耐久値</ClashOfRim.Shop.HitPoints>
+  <ClashOfRim.Shop.HitPointsRequirement>耐久制限</ClashOfRim.Shop.HitPointsRequirement>
+  <ClashOfRim.Shop.HitPointsAtLeast>目標耐久以上</ClashOfRim.Shop.HitPointsAtLeast>
+  <ClashOfRim.Shop.HitPointsAtMost>目標耐久以下</ClashOfRim.Shop.HitPointsAtMost>
+  <ClashOfRim.Shop.IncompleteListing>アイテム属性が未選択です。特殊アイテム属性を補完してください。</ClashOfRim.Shop.IncompleteListing>
+  <ClashOfRim.Shop.StatusSavingListing>ショップ商品を保存しています。</ClashOfRim.Shop.StatusSavingListing>
+  <ClashOfRim.Shop.StatusSaveFailed>ショップ商品の保存に失敗しました: {CODE} {MESSAGE}</ClashOfRim.Shop.StatusSaveFailed>
+  <ClashOfRim.Shop.StatusSaveRejected>サーバーがショップ商品の保存を拒否しました: {CODE} {MESSAGE}</ClashOfRim.Shop.StatusSaveRejected>
+  <ClashOfRim.Shop.StatusListingSaved>ショップ商品を保存しました。</ClashOfRim.Shop.StatusListingSaved>
+  <ClashOfRim.Shop.StatusMissingListing>ショップ商品がありません。</ClashOfRim.Shop.StatusMissingListing>
+  <ClashOfRim.Shop.StatusRemovingListing>ショップ商品を削除しています。</ClashOfRim.Shop.StatusRemovingListing>
+  <ClashOfRim.Shop.StatusRemoveFailed>ショップ商品の削除に失敗しました: {CODE} {MESSAGE}</ClashOfRim.Shop.StatusRemoveFailed>
+  <ClashOfRim.Shop.StatusRemoveRejected>サーバーがショップ商品の削除を拒否しました: {CODE} {MESSAGE}</ClashOfRim.Shop.StatusRemoveRejected>
+  <ClashOfRim.Shop.StatusListingRemoved>ショップ商品を削除しました。</ClashOfRim.Shop.StatusListingRemoved>
+  <ClashOfRim.Shop.StatusNoMap>配送可能なコロニーマップがありません。</ClashOfRim.Shop.StatusNoMap>
+  <ClashOfRim.Shop.StatusStockNotEnough>在庫が不足しています。</ClashOfRim.Shop.StatusStockNotEnough>
+  <ClashOfRim.Shop.StatusInsufficientSilver>&lt;color=#ff6b6b&gt;シルバーが不足しています&lt;/color&gt;。必要 &lt;color=#d7dadb&gt;{NEEDED}&lt;/color&gt;、所持 &lt;color=#d7dadb&gt;{AVAILABLE}&lt;/color&gt;。</ClashOfRim.Shop.StatusInsufficientSilver>
+  <ClashOfRim.Shop.StatusApplyingPurchase>ショップ購入品を配送しています。</ClashOfRim.Shop.StatusApplyingPurchase>
+  <ClashOfRim.Shop.StatusApplyingSale>サーバーショップへアイテムを納品しています。</ClashOfRim.Shop.StatusApplyingSale>
+  <ClashOfRim.Shop.StatusSaleThingsInsufficient>一致するアイテムが見つかりません: {THING}</ClashOfRim.Shop.StatusSaleThingsInsufficient>
+  <ClashOfRim.Shop.StatusLandingFailed>ショップ配送に失敗しました: {MESSAGE}</ClashOfRim.Shop.StatusLandingFailed>
+  <ClashOfRim.Shop.StatusSnapshotBuildFailed>ショップ購入セーブに失敗しました: {REASON}</ClashOfRim.Shop.StatusSnapshotBuildFailed>
+  <ClashOfRim.Shop.StatusUploadingPurchase>ショップ購入を確認しています。</ClashOfRim.Shop.StatusUploadingPurchase>
+  <ClashOfRim.Shop.StatusPurchaseFailed>ショップ購入の確認に失敗しました: {CODE} {MESSAGE}</ClashOfRim.Shop.StatusPurchaseFailed>
+  <ClashOfRim.Shop.StatusPurchaseRejected>サーバーがショップ購入を拒否しました: {CODE} {MESSAGE}</ClashOfRim.Shop.StatusPurchaseRejected>
+  <ClashOfRim.Shop.StatusPurchased>&lt;color=#7ecf6b&gt;購入しました&lt;/color&gt; {COUNT} 個、価格 &lt;color=#d7dadb&gt;{PRICE} シルバー&lt;/color&gt;。</ClashOfRim.Shop.StatusPurchased>
+  <ClashOfRim.Shop.StatusSoldToServer>&lt;color=#7ecf6b&gt;売却しました&lt;/color&gt; {COUNT} 個、受取 &lt;color=#d7dadb&gt;{PRICE} シルバー&lt;/color&gt;。</ClashOfRim.Shop.StatusSoldToServer>
+  <ClashOfRim.Shop.StatusException>ショップ操作エラー: {TYPE} {MESSAGE}</ClashOfRim.Shop.StatusException>
+  <ClashOfRim.Shop.StatusPriceOverflow>購入価格が大きすぎます。</ClashOfRim.Shop.StatusPriceOverflow>
+  <ClashOfRim.Shop.PurchaseArrivalLetterLabel>商品が到着</ClashOfRim.Shop.PurchaseArrivalLetterLabel>
+  <ClashOfRim.Shop.PurchaseArrivalLetterText>購入した {COUNT} x {THING} が輸送ポッドで到着しました。</ClashOfRim.Shop.PurchaseArrivalLetterText>
+  <ClashOfRim.Shop.PaymentArrivalLetterLabel>代金が到着</ClashOfRim.Shop.PaymentArrivalLetterLabel>
+  <ClashOfRim.Shop.PaymentArrivalLetterText>{COUNT} x {THING} の売却代金が到着しました: &lt;color=#d7dadb&gt;{PRICE} シルバー&lt;/color&gt;。</ClashOfRim.Shop.PaymentArrivalLetterText>
+  <ClashOfRim.Shop.UnknownItem>アイテム</ClashOfRim.Shop.UnknownItem>
+  <ClashOfRim.SnapshotConfirmationFailure.OperationShop>商店購入</ClashOfRim.SnapshotConfirmationFailure.OperationShop>
+  <ClashOfRim.Quest.ManagedCannotDismiss>このクエストは削除できません。</ClashOfRim.Quest.ManagedCannotDismiss>
+  <ClashOfRim.TraitTrainer.AlreadyHasTrait>すでに特性があります: {TRAIT}</ClashOfRim.TraitTrainer.AlreadyHasTrait>
+  <ClashOfRim.TraitTrainer.ConflictingTrait>既存の特性と競合します: {TRAIT}</ClashOfRim.TraitTrainer.ConflictingTrait>
+  <ClashOfRim.TraitTrainer.ConfirmUse>特性訓練器を {PAWN} に使用し、「{TRAIT}」を付与しますか？</ClashOfRim.TraitTrainer.ConfirmUse>
+  <ClashOfRim.TraitTrainer.ConfirmUseRandom>ランダム特性訓練器を {PAWN} に使用しますか？</ClashOfRim.TraitTrainer.ConfirmUseRandom>
+  <ClashOfRim.TraitTrainer.Description>使用者の精神に選択した特性を誘導するニューロトレイナー。</ClashOfRim.TraitTrainer.Description>
+  <ClashOfRim.TraitTrainer.Invalid>この特性訓練器には有効な特性がありません。</ClashOfRim.TraitTrainer.Invalid>
+  <ClashOfRim.TraitTrainer.ItemLabel>特性訓練器（{TRAIT}）</ClashOfRim.TraitTrainer.ItemLabel>
+  <ClashOfRim.TraitTrainer.NoStory>対象は特性を得られません。</ClashOfRim.TraitTrainer.NoStory>
+  <ClashOfRim.TraitTrainer.NoTrait>特性未選択</ClashOfRim.TraitTrainer.NoTrait>
+  <ClashOfRim.TraitTrainer.Random>ランダム</ClashOfRim.TraitTrainer.Random>
+  <ClashOfRim.TraitTrainer.RandomDescription>使用者の精神にランダムな特性を誘導するニューロトレイナー。</ClashOfRim.TraitTrainer.RandomDescription>
+  <ClashOfRim.TraitTrainer.Select>特性を選択</ClashOfRim.TraitTrainer.Select>
+  <ClashOfRim.TraitTrainer.SelectTitle>特性を選択</ClashOfRim.TraitTrainer.SelectTitle>
+  <ClashOfRim.TraitTrainer.Trait>特性</ClashOfRim.TraitTrainer.Trait>
+  <ClashOfRim.TraitTrainer.Used>{PAWN} が特性を獲得しました: {TRAIT}。</ClashOfRim.TraitTrainer.Used>
+  <ClashOfRim.TraitTrainer.UseLabel>特性訓練器を使用: {TRAIT}</ClashOfRim.TraitTrainer.UseLabel>
+  <ClashOfRim.TraitTrainer.UseRandomLabel>ランダム特性訓練器を使用</ClashOfRim.TraitTrainer.UseRandomLabel>
+  <ClashOfRim.ColonyAppearance.CommandLabel>マルチプレイアイコンを設定</ClashOfRim.ColonyAppearance.CommandLabel>
+  <ClashOfRim.ColonyAppearance.CommandDesc>ワールドマップで他プレイヤーに表示されるコロニーアイコンを設定します。</ClashOfRim.ColonyAppearance.CommandDesc>
+  <ClashOfRim.ColonyAppearance.Title>コロニーアイコン</ClashOfRim.ColonyAppearance.Title>
+  <ClashOfRim.ColonyAppearance.Target>対象: {COLONY}</ClashOfRim.ColonyAppearance.Target>
+  <ClashOfRim.ColonyAppearance.IdeologyMode>イデオロギーのアイコンと色を使用します。他プレイヤーには再接続またはワールドマーカー更新後に反映されます。</ClashOfRim.ColonyAppearance.IdeologyMode>
+  <ClashOfRim.ColonyAppearance.ColorOnlyMode>イデオロギーが有効でない場合、色のみ変更できます。コロニーアイコンは既定の家のままです。</ClashOfRim.ColonyAppearance.ColorOnlyMode>
+  <ClashOfRim.ColonyAppearance.Color>色</ClashOfRim.ColonyAppearance.Color>
+  <ClashOfRim.ColonyAppearance.Icon>アイコン</ClashOfRim.ColonyAppearance.Icon>
+  <ClashOfRim.ColonyAppearance.Reset>既定</ClashOfRim.ColonyAppearance.Reset>
+  <ClashOfRim.ColonyAppearance.SavedMessage>コロニーアイコンを更新しました。</ClashOfRim.ColonyAppearance.SavedMessage>
+  <ClashOfRim.ColonyAppearance.RegistrationReason>コロニーアイコン更新</ClashOfRim.ColonyAppearance.RegistrationReason>
+</LanguageData>

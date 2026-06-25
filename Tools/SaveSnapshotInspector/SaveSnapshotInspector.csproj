@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>12.0</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Source\Server\ClashOfRim.Network\ClashOfRim.Network.csproj" />
+    <ProjectReference Include="..\..\Source\Shared\ClashOfRim.Save\ClashOfRim.Save.csproj" />
+  </ItemGroup>
+</Project>

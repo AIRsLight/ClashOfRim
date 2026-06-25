@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Defs>
+  <ThingDef ParentName="BuildingBase" MayRequire="Ludeon.RimWorld.Biotech">
+    <defName>ClashOfRim_CaravanDeliveryPoint</defName>
+    <label>caravan delivery point</label>
+    <description>Marks where non-drop-pod deliveries should arrive.</description>
+    <thingClass>Building</thingClass>
+    <altitudeLayer>FloorEmplacement</altitudeLayer>
+    <passability>Standable</passability>
+    <size>(1,1)</size>
+    <rotatable>false</rotatable>
+    <selectable>true</selectable>
+    <useHitPoints>false</useHitPoints>
+    <scatterableOnMapGen>false</scatterableOnMapGen>
+    <drawerType>MapMeshAndRealTime</drawerType>
+    <graphicData>
+      <texPath>Things/Building/Misc/CaravanHitchingSpot</texPath>
+      <graphicClass>Graphic_Single</graphicClass>
+      <drawSize>(1,1)</drawSize>
+      <color>(0.35,0.95,0.55)</color>
+    </graphicData>
+    <statBases>
+      <WorkToBuild>0</WorkToBuild>
+    </statBases>
+    <designationCategory>Misc</designationCategory>
+    <uiOrder>2020</uiOrder>
+    <building>
+      <sowTag>SupportPlantsOnly</sowTag>
+      <canPlaceOverImpassablePlant>false</canPlaceOverImpassablePlant>
+      <ai_chillDestination>false</ai_chillDestination>
+      <wakeDormantPawnsOnConstruction>false</wakeDormantPawnsOnConstruction>
+      <artificialForMeditationPurposes>false</artificialForMeditationPurposes>
+    </building>
+    <leaveResourcesWhenKilled>false</leaveResourcesWhenKilled>
+  </ThingDef>
+
+  <ThingDef ParentName="BuildingBase">
+    <defName>ClashOfRim_DefensePoint</defName>
+    <label>defense point</label>
+    <description>Assigns a colonist's offline raid defense behavior.</description>
+    <thingClass>AIRsLight.ClashOfRim.Raids.Building_ClashDefensePoint</thingClass>
+    <altitudeLayer>FloorEmplacement</altitudeLayer>
+    <drawerType>RealtimeOnly</drawerType>
+    <passability>Standable</passability>
+    <size>(1,1)</size>
+    <rotatable>false</rotatable>
+    <selectable>true</selectable>
+    <useHitPoints>false</useHitPoints>
+    <scatterableOnMapGen>false</scatterableOnMapGen>
+    <graphicData>
+      <texPath>Things/Building/Misc/PartySpot</texPath>
+      <graphicClass>Graphic_Single</graphicClass>
+      <drawSize>(1,1)</drawSize>
+      <color>(0.75,0.95,1)</color>
+    </graphicData>
+    <statBases>
+      <WorkToBuild>0</WorkToBuild>
+    </statBases>
+    <designationCategory>Security</designationCategory>
+    <uiOrder>2021</uiOrder>
+    <placeWorkers>
+      <li>AIRsLight.ClashOfRim.Raids.PlaceWorker_DefensePoint</li>
+    </placeWorkers>
+    <building>
+      <sowTag>SupportPlantsOnly</sowTag>
+      <canPlaceOverImpassablePlant>false</canPlaceOverImpassablePlant>
+      <ai_chillDestination>false</ai_chillDestination>
+      <wakeDormantPawnsOnConstruction>false</wakeDormantPawnsOnConstruction>
+      <artificialForMeditationPurposes>false</artificialForMeditationPurposes>
+    </building>
+    <comps>
+      <li Class="AIRsLight.ClashOfRim.Raids.CompProperties_AssignableToPawn_DefensePoint">
+        <maxAssignedPawnsCount>1</maxAssignedPawnsCount>
+        <drawAssignmentOverlay>true</drawAssignmentOverlay>
+        <drawUnownedAssignmentOverlay>true</drawUnownedAssignmentOverlay>
+      </li>
+    </comps>
+    <leaveResourcesWhenKilled>false</leaveResourcesWhenKilled>
+  </ThingDef>
+
+  <ThingDef ParentName="BuildingBase">
+    <defName>ClashOfRim_MechDefensePoint</defName>
+    <label>mech defense point</label>
+    <description>Assigns a mech's offline raid defense behavior.</description>
+    <thingClass>AIRsLight.ClashOfRim.DlcCompatibility.Building_ClashMechDefensePoint</thingClass>
+    <altitudeLayer>FloorEmplacement</altitudeLayer>
+    <drawerType>RealtimeOnly</drawerType>
+    <passability>Standable</passability>
+    <size>(1,1)</size>
+    <rotatable>false</rotatable>
+    <selectable>true</selectable>
+    <useHitPoints>false</useHitPoints>
+    <scatterableOnMapGen>false</scatterableOnMapGen>
+    <graphicData>
+      <texPath>Things/Building/Misc/PartySpot</texPath>
+      <graphicClass>Graphic_Single</graphicClass>
+      <drawSize>(1,1)</drawSize>
+      <color>(1,0.75,0.25)</color>
+    </graphicData>
+    <statBases>
+      <WorkToBuild>0</WorkToBuild>
+    </statBases>
+    <designationCategory>Security</designationCategory>
+    <uiOrder>2022</uiOrder>
+    <placeWorkers>
+      <li>AIRsLight.ClashOfRim.Raids.PlaceWorker_DefensePoint</li>
+    </placeWorkers>
+    <building>
+      <sowTag>SupportPlantsOnly</sowTag>
+      <canPlaceOverImpassablePlant>false</canPlaceOverImpassablePlant>
+      <ai_chillDestination>false</ai_chillDestination>
+      <wakeDormantPawnsOnConstruction>false</wakeDormantPawnsOnConstruction>
+      <artificialForMeditationPurposes>false</artificialForMeditationPurposes>
+    </building>
+    <comps>
+      <li Class="AIRsLight.ClashOfRim.DlcCompatibility.CompProperties_AssignableToPawn_MechDefensePoint">
+        <maxAssignedPawnsCount>1</maxAssignedPawnsCount>
+        <drawAssignmentOverlay>true</drawAssignmentOverlay>
+        <drawUnownedAssignmentOverlay>true</drawUnownedAssignmentOverlay>
+      </li>
+    </comps>
+    <leaveResourcesWhenKilled>false</leaveResourcesWhenKilled>
+  </ThingDef>
+
+  <ThingDef ParentName="BuildingBase">
+    <defName>ClashOfRim_HiddenTrapProxy</defName>
+    <label>hidden trap proxy</label>
+    <description>Temporary proxy used by Clash of Rim remote combat maps to preserve hidden traps.</description>
+    <thingClass>AIRsLight.ClashOfRim.Raids.Building_ClashHiddenTrapProxy</thingClass>
+    <altitudeLayer>FloorEmplacement</altitudeLayer>
+    <drawerType>RealtimeOnly</drawerType>
+    <tickerType>Normal</tickerType>
+    <passability>Standable</passability>
+    <size>(1,1)</size>
+    <rotatable>false</rotatable>
+    <destroyable>false</destroyable>
+    <selectable>false</selectable>
+    <useHitPoints>false</useHitPoints>
+    <scatterableOnMapGen>false</scatterableOnMapGen>
+    <graphicData>
+      <texPath>Things/Building/Misc/PartySpot</texPath>
+      <graphicClass>Graphic_Single</graphicClass>
+      <drawSize>(1,1)</drawSize>
+      <color>(0,0,0,0)</color>
+    </graphicData>
+    <statBases>
+      <WorkToBuild>0</WorkToBuild>
+    </statBases>
+    <building>
+      <ai_chillDestination>false</ai_chillDestination>
+      <wakeDormantPawnsOnConstruction>false</wakeDormantPawnsOnConstruction>
+      <artificialForMeditationPurposes>false</artificialForMeditationPurposes>
+    </building>
+    <leaveResourcesWhenKilled>false</leaveResourcesWhenKilled>
+  </ThingDef>
+</Defs>

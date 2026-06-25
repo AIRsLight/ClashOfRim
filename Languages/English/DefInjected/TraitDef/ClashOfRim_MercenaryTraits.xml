@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<LanguageData>
+
+  <ClashOfRim_MercenaryGunner.degreeDatas.0.label>mercenary gunner</ClashOfRim_MercenaryGunner.degreeDatas.0.label>
+  <ClashOfRim_MercenaryGunner.degreeDatas.0.description>{PAWN_nameDef} is a hired gunner and only performs gunner duties and basic work.</ClashOfRim_MercenaryGunner.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryWarrior.degreeDatas.0.label>mercenary warrior</ClashOfRim_MercenaryWarrior.degreeDatas.0.label>
+  <ClashOfRim_MercenaryWarrior.degreeDatas.0.description>{PAWN_nameDef} is a hired warrior and only performs warrior duties and basic work.</ClashOfRim_MercenaryWarrior.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryDoctor.degreeDatas.0.label>mercenary doctor</ClashOfRim_MercenaryDoctor.degreeDatas.0.label>
+  <ClashOfRim_MercenaryDoctor.degreeDatas.0.description>{PAWN_nameDef} is a hired doctor and only performs doctor duties and basic work.</ClashOfRim_MercenaryDoctor.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryCook.degreeDatas.0.label>mercenary cook</ClashOfRim_MercenaryCook.degreeDatas.0.label>
+  <ClashOfRim_MercenaryCook.degreeDatas.0.description>{PAWN_nameDef} is a hired cook and only performs cook duties and basic work.</ClashOfRim_MercenaryCook.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryBuilder.degreeDatas.0.label>mercenary builder</ClashOfRim_MercenaryBuilder.degreeDatas.0.label>
+  <ClashOfRim_MercenaryBuilder.degreeDatas.0.description>{PAWN_nameDef} is a hired builder and only performs construction duties and basic work.</ClashOfRim_MercenaryBuilder.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryMiner.degreeDatas.0.label>mercenary miner</ClashOfRim_MercenaryMiner.degreeDatas.0.label>
+  <ClashOfRim_MercenaryMiner.degreeDatas.0.description>{PAWN_nameDef} is a hired miner and only performs mining duties and basic work.</ClashOfRim_MercenaryMiner.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryFarmer.degreeDatas.0.label>mercenary farmer</ClashOfRim_MercenaryFarmer.degreeDatas.0.label>
+  <ClashOfRim_MercenaryFarmer.degreeDatas.0.description>{PAWN_nameDef} is a hired farmer and only performs farming duties and basic work.</ClashOfRim_MercenaryFarmer.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryHandler.degreeDatas.0.label>mercenary handler</ClashOfRim_MercenaryHandler.degreeDatas.0.label>
+  <ClashOfRim_MercenaryHandler.degreeDatas.0.description>{PAWN_nameDef} is a hired handler and only performs animal handling duties and basic work.</ClashOfRim_MercenaryHandler.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryCrafter.degreeDatas.0.label>mercenary crafter</ClashOfRim_MercenaryCrafter.degreeDatas.0.label>
+  <ClashOfRim_MercenaryCrafter.degreeDatas.0.description>{PAWN_nameDef} is a hired crafter and only performs crafting duties and basic work.</ClashOfRim_MercenaryCrafter.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryArtist.degreeDatas.0.label>mercenary artist</ClashOfRim_MercenaryArtist.degreeDatas.0.label>
+  <ClashOfRim_MercenaryArtist.degreeDatas.0.description>{PAWN_nameDef} is a hired artist and only performs art duties and basic work.</ClashOfRim_MercenaryArtist.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryNegotiator.degreeDatas.0.label>mercenary negotiator</ClashOfRim_MercenaryNegotiator.degreeDatas.0.label>
+  <ClashOfRim_MercenaryNegotiator.degreeDatas.0.description>{PAWN_nameDef} is a hired negotiator and only performs negotiation duties and basic work.</ClashOfRim_MercenaryNegotiator.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryResearcher.degreeDatas.0.label>mercenary researcher</ClashOfRim_MercenaryResearcher.degreeDatas.0.label>
+  <ClashOfRim_MercenaryResearcher.degreeDatas.0.description>{PAWN_nameDef} is a hired researcher and only performs research duties and basic work.</ClashOfRim_MercenaryResearcher.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryPorter.degreeDatas.0.label>mercenary porter</ClashOfRim_MercenaryPorter.degreeDatas.0.label>
+  <ClashOfRim_MercenaryPorter.degreeDatas.0.description>{PAWN_nameDef} is a hired porter and only hauls, cleans, and performs basic work.</ClashOfRim_MercenaryPorter.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryWorkerApprentice.degreeDatas.0.label>apprentice specialist</ClashOfRim_MercenaryWorkerApprentice.degreeDatas.0.label>
+  <ClashOfRim_MercenaryWorkerApprentice.degreeDatas.0.description>{PAWN_nameDef} works faster while performing hired specialty work.</ClashOfRim_MercenaryWorkerApprentice.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryWorkerSkilled.degreeDatas.0.label>skilled specialist</ClashOfRim_MercenaryWorkerSkilled.degreeDatas.0.label>
+  <ClashOfRim_MercenaryWorkerSkilled.degreeDatas.0.description>{PAWN_nameDef} works faster while performing hired specialty work.</ClashOfRim_MercenaryWorkerSkilled.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryWorkerMaster.degreeDatas.0.label>master specialist</ClashOfRim_MercenaryWorkerMaster.degreeDatas.0.label>
+  <ClashOfRim_MercenaryWorkerMaster.degreeDatas.0.description>{PAWN_nameDef} works faster while performing hired specialty work.</ClashOfRim_MercenaryWorkerMaster.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryCombatApprentice.degreeDatas.0.label>apprentice combatant</ClashOfRim_MercenaryCombatApprentice.degreeDatas.0.label>
+  <ClashOfRim_MercenaryCombatApprentice.degreeDatas.0.description>{PAWN_nameDef} has battlefield survival training and takes less damage.</ClashOfRim_MercenaryCombatApprentice.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryCombatSkilled.degreeDatas.0.label>skilled combatant</ClashOfRim_MercenaryCombatSkilled.degreeDatas.0.label>
+  <ClashOfRim_MercenaryCombatSkilled.degreeDatas.0.description>{PAWN_nameDef} has battlefield survival training and takes less damage.</ClashOfRim_MercenaryCombatSkilled.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryCombatMaster.degreeDatas.0.label>master combatant</ClashOfRim_MercenaryCombatMaster.degreeDatas.0.label>
+  <ClashOfRim_MercenaryCombatMaster.degreeDatas.0.description>{PAWN_nameDef} has battlefield survival training and takes less damage.</ClashOfRim_MercenaryCombatMaster.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryPorterApprentice.degreeDatas.0.label>apprentice porter</ClashOfRim_MercenaryPorterApprentice.degreeDatas.0.label>
+  <ClashOfRim_MercenaryPorterApprentice.degreeDatas.0.description>{PAWN_nameDef} has basic porter training, improving movement, carrying capacity, and cleaning speed slightly.</ClashOfRim_MercenaryPorterApprentice.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryPorterSkilled.degreeDatas.0.label>skilled porter</ClashOfRim_MercenaryPorterSkilled.degreeDatas.0.label>
+  <ClashOfRim_MercenaryPorterSkilled.degreeDatas.0.description>{PAWN_nameDef} has skilled porter training, improving movement, carrying capacity, and cleaning speed.</ClashOfRim_MercenaryPorterSkilled.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryPorterMaster.degreeDatas.0.label>master porter</ClashOfRim_MercenaryPorterMaster.degreeDatas.0.label>
+  <ClashOfRim_MercenaryPorterMaster.degreeDatas.0.description>{PAWN_nameDef} is an expert porter with strong movement, carrying capacity, and cleaning speed bonuses.</ClashOfRim_MercenaryPorterMaster.degreeDatas.0.description>
+
+</LanguageData>

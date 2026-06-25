@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <ClashOfRim_TraitTrainer.label>特性训练器</ClashOfRim_TraitTrainer.label>
+  <ClashOfRim_TraitTrainer.description>一种神经训练器，可在使用者的大脑中诱发指定特性。</ClashOfRim_TraitTrainer.description>
+  <ClashOfRim_RandomTraitTrainer.label>特性训练器(随机)</ClashOfRim_RandomTraitTrainer.label>
+  <ClashOfRim_RandomTraitTrainer.description>一种神经训练器，可在使用者的大脑中诱发一个随机特性。</ClashOfRim_RandomTraitTrainer.description>
+</LanguageData>

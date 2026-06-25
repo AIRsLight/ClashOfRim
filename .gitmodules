@@ -1,0 +1,4 @@
+[submodule "ThirdPartyCompat"]
+	url = ../ClashOfRim.ThirdPartyCompat.git
+	branch = dev
+	path = ThirdPartyCompat

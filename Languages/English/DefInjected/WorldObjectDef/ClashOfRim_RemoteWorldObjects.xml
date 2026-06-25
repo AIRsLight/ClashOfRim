@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <ClashOfRim_RemoteRuntimeWorldObject.label>distant target</ClashOfRim_RemoteRuntimeWorldObject.label>
+  <ClashOfRim_RemoteColonyMapParent.label>distant colony</ClashOfRim_RemoteColonyMapParent.label>
+  <ClashOfRim_RemoteSessionMapParent.label>distant map</ClashOfRim_RemoteSessionMapParent.label>
+  <ClashOfRim_RemoteScoutMapParent.label>scouting map</ClashOfRim_RemoteScoutMapParent.label>
+  <ClashOfRim_RemoteRaidObservationMapParent.label>battle observation map</ClashOfRim_RemoteRaidObservationMapParent.label>
+  <ClashOfRim_RemoteRaidBattleMapParent.label>raid battlefield</ClashOfRim_RemoteRaidBattleMapParent.label>
+</LanguageData>

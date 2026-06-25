@@ -1,0 +1,10 @@
+<Project>
+  <PropertyGroup>
+    <!--
+      NuGet vulnerability auditing contacts nuget.org during restore and emits NU1900
+      on offline servers. ClashOfRim builds must be able to run without internet access;
+      run an explicit online audit when dependency security review is needed.
+    -->
+    <NuGetAudit Condition="'$(NuGetAudit)' == ''">false</NuGetAudit>
+  </PropertyGroup>
+</Project>

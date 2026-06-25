@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <ClashOfRim_PlayerProxy.label>далекая колония</ClashOfRim_PlayerProxy.label>
+  <ClashOfRim_PlayerProxy.description>Другая колония на той же планете. Вы можете заключать союзы, торговать, обмениваться поддержкой или вступить в открытый конфликт при разрыве отношений.</ClashOfRim_PlayerProxy.description>
+  <ClashOfRim_PlayerProxy.pawnSingular>поселенец</ClashOfRim_PlayerProxy.pawnSingular>
+  <ClashOfRim_PlayerProxy.pawnsPlural>поселенцы</ClashOfRim_PlayerProxy.pawnsPlural>
+  <ClashOfRim_PlayerProxy.leaderTitle>администратор</ClashOfRim_PlayerProxy.leaderTitle>
+  <ClashOfRim_ServerMercenaries.label>пограничные наемники</ClashOfRim_ServerMercenaries.label>
+  <ClashOfRim_ServerMercenaries.description>Наемная компания, действующая между пограничными колониями. Бойцов можно нанимать на короткие задания; во время работы они подчиняются нанимателю и уходят после завершения.</ClashOfRim_ServerMercenaries.description>
+  <ClashOfRim_ServerMercenaries.pawnSingular>наемник</ClashOfRim_ServerMercenaries.pawnSingular>
+  <ClashOfRim_ServerMercenaries.pawnsPlural>наемники</ClashOfRim_ServerMercenaries.pawnsPlural>
+  <ClashOfRim_ServerMercenaries.leaderTitle>капитан наемников</ClashOfRim_ServerMercenaries.leaderTitle>
+</LanguageData>

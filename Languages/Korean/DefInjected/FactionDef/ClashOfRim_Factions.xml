@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <ClashOfRim_PlayerProxy.label>먼 식민지</ClashOfRim_PlayerProxy.label>
+  <ClashOfRim_PlayerProxy.description>같은 행성의 다른 식민지입니다. 동맹, 거래, 지원 교환을 할 수 있으며 관계가 무너지면 공개 충돌로 번질 수 있습니다.</ClashOfRim_PlayerProxy.description>
+  <ClashOfRim_PlayerProxy.pawnSingular>정착민</ClashOfRim_PlayerProxy.pawnSingular>
+  <ClashOfRim_PlayerProxy.pawnsPlural>정착민</ClashOfRim_PlayerProxy.pawnsPlural>
+  <ClashOfRim_PlayerProxy.leaderTitle>관리자</ClashOfRim_PlayerProxy.leaderTitle>
+  <ClashOfRim_ServerMercenaries.label>변경지대 용병단</ClashOfRim_ServerMercenaries.label>
+  <ClashOfRim_ServerMercenaries.description>변경지대 식민지 사이에서 활동하는 용병 회사입니다. 구성원은 단기 임무로 고용할 수 있고, 임무 중 고용주의 명령을 따르며, 끝나면 떠납니다.</ClashOfRim_ServerMercenaries.description>
+  <ClashOfRim_ServerMercenaries.pawnSingular>용병</ClashOfRim_ServerMercenaries.pawnSingular>
+  <ClashOfRim_ServerMercenaries.pawnsPlural>용병</ClashOfRim_ServerMercenaries.pawnsPlural>
+  <ClashOfRim_ServerMercenaries.leaderTitle>용병 대장</ClashOfRim_ServerMercenaries.leaderTitle>
+</LanguageData>

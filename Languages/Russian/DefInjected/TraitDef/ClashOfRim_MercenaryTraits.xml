@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<LanguageData>
+
+  <ClashOfRim_MercenaryGunner.degreeDatas.0.label>наемный стрелок</ClashOfRim_MercenaryGunner.degreeDatas.0.label>
+  <ClashOfRim_MercenaryGunner.degreeDatas.0.description>{PAWN_nameDef} - нанятый стрелок и выполняет только стрелковые обязанности и базовую работу.</ClashOfRim_MercenaryGunner.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryWarrior.degreeDatas.0.label>наемный воин</ClashOfRim_MercenaryWarrior.degreeDatas.0.label>
+  <ClashOfRim_MercenaryWarrior.degreeDatas.0.description>{PAWN_nameDef} - нанятый воин и выполняет только боевые обязанности и базовую работу.</ClashOfRim_MercenaryWarrior.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryDoctor.degreeDatas.0.label>наемный врач</ClashOfRim_MercenaryDoctor.degreeDatas.0.label>
+  <ClashOfRim_MercenaryDoctor.degreeDatas.0.description>{PAWN_nameDef} - нанятый врач и выполняет только медицинские обязанности и базовую работу.</ClashOfRim_MercenaryDoctor.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryCook.degreeDatas.0.label>наемный повар</ClashOfRim_MercenaryCook.degreeDatas.0.label>
+  <ClashOfRim_MercenaryCook.degreeDatas.0.description>{PAWN_nameDef} - нанятый повар и выполняет только готовку и базовую работу.</ClashOfRim_MercenaryCook.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryBuilder.degreeDatas.0.label>наемный строитель</ClashOfRim_MercenaryBuilder.degreeDatas.0.label>
+  <ClashOfRim_MercenaryBuilder.degreeDatas.0.description>{PAWN_nameDef} - нанятый строитель и выполняет только строительные обязанности и базовую работу.</ClashOfRim_MercenaryBuilder.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryMiner.degreeDatas.0.label>наемный шахтер</ClashOfRim_MercenaryMiner.degreeDatas.0.label>
+  <ClashOfRim_MercenaryMiner.degreeDatas.0.description>{PAWN_nameDef} - нанятый шахтер и выполняет только добычу и базовую работу.</ClashOfRim_MercenaryMiner.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryFarmer.degreeDatas.0.label>наемный фермер</ClashOfRim_MercenaryFarmer.degreeDatas.0.label>
+  <ClashOfRim_MercenaryFarmer.degreeDatas.0.description>{PAWN_nameDef} - нанятый фермер и выполняет только фермерские обязанности и базовую работу.</ClashOfRim_MercenaryFarmer.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryHandler.degreeDatas.0.label>наемный дрессировщик</ClashOfRim_MercenaryHandler.degreeDatas.0.label>
+  <ClashOfRim_MercenaryHandler.degreeDatas.0.description>{PAWN_nameDef} - нанятый дрессировщик и выполняет только работу с животными и базовую работу.</ClashOfRim_MercenaryHandler.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryCrafter.degreeDatas.0.label>наемный ремесленник</ClashOfRim_MercenaryCrafter.degreeDatas.0.label>
+  <ClashOfRim_MercenaryCrafter.degreeDatas.0.description>{PAWN_nameDef} - нанятый ремесленник и выполняет только ремесло и базовую работу.</ClashOfRim_MercenaryCrafter.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryArtist.degreeDatas.0.label>наемный художник</ClashOfRim_MercenaryArtist.degreeDatas.0.label>
+  <ClashOfRim_MercenaryArtist.degreeDatas.0.description>{PAWN_nameDef} - нанятый художник и выполняет только художественную работу и базовую работу.</ClashOfRim_MercenaryArtist.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryNegotiator.degreeDatas.0.label>наемный переговорщик</ClashOfRim_MercenaryNegotiator.degreeDatas.0.label>
+  <ClashOfRim_MercenaryNegotiator.degreeDatas.0.description>{PAWN_nameDef} - нанятый переговорщик и выполняет только переговорные обязанности и базовую работу.</ClashOfRim_MercenaryNegotiator.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryResearcher.degreeDatas.0.label>наемный исследователь</ClashOfRim_MercenaryResearcher.degreeDatas.0.label>
+  <ClashOfRim_MercenaryResearcher.degreeDatas.0.description>{PAWN_nameDef} - нанятый исследователь и выполняет только исследования и базовую работу.</ClashOfRim_MercenaryResearcher.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryPorter.degreeDatas.0.label>наемный носильщик</ClashOfRim_MercenaryPorter.degreeDatas.0.label>
+  <ClashOfRim_MercenaryPorter.degreeDatas.0.description>{PAWN_nameDef} - нанятый носильщик и выполняет только переноску, уборку и базовую работу.</ClashOfRim_MercenaryPorter.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryWorkerApprentice.degreeDatas.0.label>ученик-специалист</ClashOfRim_MercenaryWorkerApprentice.degreeDatas.0.label>
+  <ClashOfRim_MercenaryWorkerApprentice.degreeDatas.0.description>{PAWN_nameDef} быстрее выполняет нанятую профильную работу.</ClashOfRim_MercenaryWorkerApprentice.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryWorkerSkilled.degreeDatas.0.label>опытный специалист</ClashOfRim_MercenaryWorkerSkilled.degreeDatas.0.label>
+  <ClashOfRim_MercenaryWorkerSkilled.degreeDatas.0.description>{PAWN_nameDef} быстрее выполняет нанятую профильную работу.</ClashOfRim_MercenaryWorkerSkilled.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryWorkerMaster.degreeDatas.0.label>мастер-специалист</ClashOfRim_MercenaryWorkerMaster.degreeDatas.0.label>
+  <ClashOfRim_MercenaryWorkerMaster.degreeDatas.0.description>{PAWN_nameDef} быстрее выполняет нанятую профильную работу.</ClashOfRim_MercenaryWorkerMaster.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryCombatApprentice.degreeDatas.0.label>ученик-боец</ClashOfRim_MercenaryCombatApprentice.degreeDatas.0.label>
+  <ClashOfRim_MercenaryCombatApprentice.degreeDatas.0.description>{PAWN_nameDef} прошел обучение выживанию в бою и получает меньше урона.</ClashOfRim_MercenaryCombatApprentice.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryCombatSkilled.degreeDatas.0.label>опытный боец</ClashOfRim_MercenaryCombatSkilled.degreeDatas.0.label>
+  <ClashOfRim_MercenaryCombatSkilled.degreeDatas.0.description>{PAWN_nameDef} прошел обучение выживанию в бою и получает меньше урона.</ClashOfRim_MercenaryCombatSkilled.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryCombatMaster.degreeDatas.0.label>мастер-боец</ClashOfRim_MercenaryCombatMaster.degreeDatas.0.label>
+  <ClashOfRim_MercenaryCombatMaster.degreeDatas.0.description>{PAWN_nameDef} прошел обучение выживанию в бою и получает меньше урона.</ClashOfRim_MercenaryCombatMaster.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryPorterApprentice.degreeDatas.0.label>ученик-носильщик</ClashOfRim_MercenaryPorterApprentice.degreeDatas.0.label>
+  <ClashOfRim_MercenaryPorterApprentice.degreeDatas.0.description>{PAWN_nameDef} прошел базовую подготовку носильщика, немного улучшая скорость, переносимый вес и уборку.</ClashOfRim_MercenaryPorterApprentice.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryPorterSkilled.degreeDatas.0.label>опытный носильщик</ClashOfRim_MercenaryPorterSkilled.degreeDatas.0.label>
+  <ClashOfRim_MercenaryPorterSkilled.degreeDatas.0.description>{PAWN_nameDef} прошел подготовку носильщика, улучшая скорость, переносимый вес и уборку.</ClashOfRim_MercenaryPorterSkilled.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryPorterMaster.degreeDatas.0.label>мастер-носильщик</ClashOfRim_MercenaryPorterMaster.degreeDatas.0.label>
+  <ClashOfRim_MercenaryPorterMaster.degreeDatas.0.description>{PAWN_nameDef} - экспертный носильщик с сильными бонусами к скорости, переносимому весу и уборке.</ClashOfRim_MercenaryPorterMaster.degreeDatas.0.description>
+
+</LanguageData>

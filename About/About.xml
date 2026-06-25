@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModMetaData>
+  <name>Clash Of Rim</name>
+  <author>AIRsLight</author>
+  <packageId>AIRsLight.ClashOfRim</packageId>
+  <modIconPath IgnoreIfNoMatchingField="True">UI/ClashOfRim/ModIcon</modIconPath>
+  <supportedVersions>
+    <li>1.6</li>
+  </supportedVersions>
+  <modDependencies>
+    <li>
+      <packageId>brrainz.harmony</packageId>
+      <displayName>Harmony</displayName>
+      <steamWorkshopUrl>steam://url/CommunityFilePage/2009463077</steamWorkshopUrl>
+    </li>
+  </modDependencies>
+  <loadAfter>
+    <li>brrainz.harmony</li>
+  </loadAfter>
+  <description>
+    RimWorld multiplayer mod focused on synchronized world-map state, strict mod compatibility, player diplomacy, offline events, raids, support, trading, chat, and administrator controls. The server acts as a relay and persistence layer rather than running game logic.
+  </description>
+</ModMetaData>

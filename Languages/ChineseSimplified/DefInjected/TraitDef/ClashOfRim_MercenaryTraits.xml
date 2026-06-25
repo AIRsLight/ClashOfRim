@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<LanguageData>
+
+  <ClashOfRim_MercenaryGunner.degreeDatas.0.label>佣兵枪手</ClashOfRim_MercenaryGunner.degreeDatas.0.label>
+  <ClashOfRim_MercenaryGunner.degreeDatas.0.description>{PAWN_nameDef} 是受雇前来的枪手，只会执行枪手职责和基础工作。</ClashOfRim_MercenaryGunner.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryWarrior.degreeDatas.0.label>佣兵战士</ClashOfRim_MercenaryWarrior.degreeDatas.0.label>
+  <ClashOfRim_MercenaryWarrior.degreeDatas.0.description>{PAWN_nameDef} 是受雇前来的战士，只会执行战士职责和基础工作。</ClashOfRim_MercenaryWarrior.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryDoctor.degreeDatas.0.label>佣兵医生</ClashOfRim_MercenaryDoctor.degreeDatas.0.label>
+  <ClashOfRim_MercenaryDoctor.degreeDatas.0.description>{PAWN_nameDef} 是受雇前来的医生，只会执行医生职责和基础工作。</ClashOfRim_MercenaryDoctor.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryCook.degreeDatas.0.label>佣兵厨师</ClashOfRim_MercenaryCook.degreeDatas.0.label>
+  <ClashOfRim_MercenaryCook.degreeDatas.0.description>{PAWN_nameDef} 是受雇前来的厨师，只会执行厨师职责和基础工作。</ClashOfRim_MercenaryCook.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryBuilder.degreeDatas.0.label>佣兵建筑工</ClashOfRim_MercenaryBuilder.degreeDatas.0.label>
+  <ClashOfRim_MercenaryBuilder.degreeDatas.0.description>{PAWN_nameDef} 是受雇前来的建筑工，只会执行建筑职责和基础工作。</ClashOfRim_MercenaryBuilder.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryMiner.degreeDatas.0.label>佣兵矿工</ClashOfRim_MercenaryMiner.degreeDatas.0.label>
+  <ClashOfRim_MercenaryMiner.degreeDatas.0.description>{PAWN_nameDef} 是受雇前来的矿工，只会执行采矿职责和基础工作。</ClashOfRim_MercenaryMiner.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryFarmer.degreeDatas.0.label>佣兵农夫</ClashOfRim_MercenaryFarmer.degreeDatas.0.label>
+  <ClashOfRim_MercenaryFarmer.degreeDatas.0.description>{PAWN_nameDef} 是受雇前来的农夫，只会执行农务职责和基础工作。</ClashOfRim_MercenaryFarmer.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryHandler.degreeDatas.0.label>佣兵驯兽师</ClashOfRim_MercenaryHandler.degreeDatas.0.label>
+  <ClashOfRim_MercenaryHandler.degreeDatas.0.description>{PAWN_nameDef} 是受雇前来的驯兽师，只会执行驯兽职责和基础工作。</ClashOfRim_MercenaryHandler.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryCrafter.degreeDatas.0.label>佣兵工匠</ClashOfRim_MercenaryCrafter.degreeDatas.0.label>
+  <ClashOfRim_MercenaryCrafter.degreeDatas.0.description>{PAWN_nameDef} 是受雇前来的工匠，只会执行制造职责和基础工作。</ClashOfRim_MercenaryCrafter.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryArtist.degreeDatas.0.label>佣兵艺术家</ClashOfRim_MercenaryArtist.degreeDatas.0.label>
+  <ClashOfRim_MercenaryArtist.degreeDatas.0.description>{PAWN_nameDef} 是受雇前来的艺术家，只会执行艺术职责和基础工作。</ClashOfRim_MercenaryArtist.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryNegotiator.degreeDatas.0.label>佣兵谈判员</ClashOfRim_MercenaryNegotiator.degreeDatas.0.label>
+  <ClashOfRim_MercenaryNegotiator.degreeDatas.0.description>{PAWN_nameDef} 是受雇前来的谈判员，只会执行谈判职责和基础工作。</ClashOfRim_MercenaryNegotiator.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryResearcher.degreeDatas.0.label>佣兵研究员</ClashOfRim_MercenaryResearcher.degreeDatas.0.label>
+  <ClashOfRim_MercenaryResearcher.degreeDatas.0.description>{PAWN_nameDef} 是受雇前来的研究员，只会执行研究职责和基础工作。</ClashOfRim_MercenaryResearcher.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryPorter.degreeDatas.0.label>佣兵搬运工</ClashOfRim_MercenaryPorter.degreeDatas.0.label>
+  <ClashOfRim_MercenaryPorter.degreeDatas.0.description>{PAWN_nameDef} 是受雇前来的搬运工，只会搬运、清洁并执行基础工作。</ClashOfRim_MercenaryPorter.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryWorkerApprentice.degreeDatas.0.label>学徒专员</ClashOfRim_MercenaryWorkerApprentice.degreeDatas.0.label>
+  <ClashOfRim_MercenaryWorkerApprentice.degreeDatas.0.description>{PAWN_nameDef} 在受雇专长工作上更有效率。</ClashOfRim_MercenaryWorkerApprentice.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryWorkerSkilled.degreeDatas.0.label>熟练专员</ClashOfRim_MercenaryWorkerSkilled.degreeDatas.0.label>
+  <ClashOfRim_MercenaryWorkerSkilled.degreeDatas.0.description>{PAWN_nameDef} 在受雇专长工作上更有效率。</ClashOfRim_MercenaryWorkerSkilled.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryWorkerMaster.degreeDatas.0.label>大师专员</ClashOfRim_MercenaryWorkerMaster.degreeDatas.0.label>
+  <ClashOfRim_MercenaryWorkerMaster.degreeDatas.0.description>{PAWN_nameDef} 在受雇专长工作上更有效率。</ClashOfRim_MercenaryWorkerMaster.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryCombatApprentice.degreeDatas.0.label>学徒战斗员</ClashOfRim_MercenaryCombatApprentice.degreeDatas.0.label>
+  <ClashOfRim_MercenaryCombatApprentice.degreeDatas.0.description>{PAWN_nameDef} 受过战场生存训练，更能承受伤害。</ClashOfRim_MercenaryCombatApprentice.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryCombatSkilled.degreeDatas.0.label>熟练战斗员</ClashOfRim_MercenaryCombatSkilled.degreeDatas.0.label>
+  <ClashOfRim_MercenaryCombatSkilled.degreeDatas.0.description>{PAWN_nameDef} 受过战场生存训练，更能承受伤害。</ClashOfRim_MercenaryCombatSkilled.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryCombatMaster.degreeDatas.0.label>大师战斗员</ClashOfRim_MercenaryCombatMaster.degreeDatas.0.label>
+  <ClashOfRim_MercenaryCombatMaster.degreeDatas.0.description>{PAWN_nameDef} 受过战场生存训练，更能承受伤害。</ClashOfRim_MercenaryCombatMaster.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryPorterApprentice.degreeDatas.0.label>学徒搬运工</ClashOfRim_MercenaryPorterApprentice.degreeDatas.0.label>
+  <ClashOfRim_MercenaryPorterApprentice.degreeDatas.0.description>{PAWN_nameDef} 受过基础搬运训练，移动、负重和清洁效率略有提升。</ClashOfRim_MercenaryPorterApprentice.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryPorterSkilled.degreeDatas.0.label>熟练搬运工</ClashOfRim_MercenaryPorterSkilled.degreeDatas.0.label>
+  <ClashOfRim_MercenaryPorterSkilled.degreeDatas.0.description>{PAWN_nameDef} 受过熟练搬运训练，移动、负重和清洁效率得到提升。</ClashOfRim_MercenaryPorterSkilled.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryPorterMaster.degreeDatas.0.label>大师搬运工</ClashOfRim_MercenaryPorterMaster.degreeDatas.0.label>
+  <ClashOfRim_MercenaryPorterMaster.degreeDatas.0.description>{PAWN_nameDef} 是高阶搬运专家，移动、负重和清洁效率显著提升。</ClashOfRim_MercenaryPorterMaster.degreeDatas.0.description>
+
+</LanguageData>

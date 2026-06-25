@@ -1,0 +1,27 @@
+namespace AIRsLight.ClashOfRim.Events;
+
+public sealed record EventThingReference(
+    string GlobalKey,
+    string? Def,
+    int StackCount,
+    string? SourceSnapshotId = null,
+    string? Quality = null,
+    int? HitPoints = null,
+    string? MinifiedInnerDefName = null,
+    string? MinifiedInnerStuffDefName = null,
+    string? MinifiedInnerQuality = null,
+    int? MinifiedInnerHitPoints = null,
+    bool? WornByCorpse = null,
+    bool? Biocoded = null,
+    string? BiocodedPawnLabel = null,
+    string? BiocodedPawnGlobalId = null,
+    string? DisplayLabel = null,
+    float? MarketValue = null,
+    bool? UniqueWeapon = null,
+    IReadOnlyList<string>? UniqueWeaponTraits = null,
+    PawnExchangePackage? PawnPackage = null,
+    string? PawnPackageId = null,
+    string? StuffDefName = null,
+    int? MaxHitPoints = null,
+    int? MinifiedInnerMaxHitPoints = null,
+    Dictionary<string, string?>? Metadata = null);

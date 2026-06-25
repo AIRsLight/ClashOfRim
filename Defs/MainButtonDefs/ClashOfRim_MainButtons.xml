@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Defs>
+  <MainButtonDef>
+    <defName>ClashOfRim_Multiplayer</defName>
+    <label>multiplayer</label>
+    <description>Multiplayer</description>
+    <iconPath>UI/MainButtons/ClashOfRim/Multiplayer</iconPath>
+    <tabWindowClass>AIRsLight.ClashOfRim.Multiplayer.ClashOfRimMultiplayerWindow</tabWindowClass>
+    <order>75</order>
+    <minimized>true</minimized>
+    <validWithoutMap>false</validWithoutMap>
+  </MainButtonDef>
+</Defs>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <ClashOfRim_RemoteRuntimeWorldObject.label>먼 목표</ClashOfRim_RemoteRuntimeWorldObject.label>
+  <ClashOfRim_RemoteColonyMapParent.label>먼 식민지</ClashOfRim_RemoteColonyMapParent.label>
+  <ClashOfRim_RemoteSessionMapParent.label>먼 지도</ClashOfRim_RemoteSessionMapParent.label>
+  <ClashOfRim_RemoteScoutMapParent.label>정찰 지도</ClashOfRim_RemoteScoutMapParent.label>
+  <ClashOfRim_RemoteRaidObservationMapParent.label>전투 관전 지도</ClashOfRim_RemoteRaidObservationMapParent.label>
+  <ClashOfRim_RemoteRaidBattleMapParent.label>습격 전장</ClashOfRim_RemoteRaidBattleMapParent.label>
+</LanguageData>

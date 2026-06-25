@@ -1,0 +1,427 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Defs>
+
+  <TraitDef Name="ClashOfRim_MercenaryTraitBase" Abstract="True">
+    <commonality>0</commonality>
+    <degreeDatas>
+      <li>
+        <label>contract mercenary</label>
+        <description>[PAWN_nameDef] is bound by a server mercenary contract and can only perform the assigned work.</description>
+      </li>
+    </degreeDatas>
+  </TraitDef>
+
+  <TraitDef ParentName="ClashOfRim_MercenaryTraitBase">
+    <defName>ClashOfRim_MercenaryGunner</defName>
+    <disabledWorkTypes>
+      <li>Doctor</li>
+      <li>Warden</li>
+      <li>Handling</li>
+      <li>Cooking</li>
+      <li>Construction</li>
+      <li>Growing</li>
+      <li>Mining</li>
+      <li>PlantCutting</li>
+      <li>Smithing</li>
+      <li>Tailoring</li>
+      <li>Art</li>
+      <li>Crafting</li>
+      <li>Hauling</li>
+      <li>Cleaning</li>
+      <li>Research</li>
+    </disabledWorkTypes>
+  </TraitDef>
+
+  <TraitDef ParentName="ClashOfRim_MercenaryTraitBase">
+    <defName>ClashOfRim_MercenaryWarrior</defName>
+    <disabledWorkTypes>
+      <li>Doctor</li>
+      <li>Warden</li>
+      <li>Handling</li>
+      <li>Cooking</li>
+      <li>Hunting</li>
+      <li>Construction</li>
+      <li>Growing</li>
+      <li>Mining</li>
+      <li>PlantCutting</li>
+      <li>Smithing</li>
+      <li>Tailoring</li>
+      <li>Art</li>
+      <li>Crafting</li>
+      <li>Hauling</li>
+      <li>Cleaning</li>
+      <li>Research</li>
+    </disabledWorkTypes>
+  </TraitDef>
+
+  <TraitDef ParentName="ClashOfRim_MercenaryTraitBase">
+    <defName>ClashOfRim_MercenaryDoctor</defName>
+    <disabledWorkTags>Violent</disabledWorkTags>
+    <disabledWorkTypes>
+      <li>Warden</li>
+      <li>Handling</li>
+      <li>Cooking</li>
+      <li>Hunting</li>
+      <li>Construction</li>
+      <li>Growing</li>
+      <li>Mining</li>
+      <li>PlantCutting</li>
+      <li>Smithing</li>
+      <li>Tailoring</li>
+      <li>Art</li>
+      <li>Crafting</li>
+      <li>Hauling</li>
+      <li>Cleaning</li>
+      <li>Research</li>
+    </disabledWorkTypes>
+  </TraitDef>
+
+  <TraitDef ParentName="ClashOfRim_MercenaryTraitBase">
+    <defName>ClashOfRim_MercenaryCook</defName>
+    <disabledWorkTags>Violent</disabledWorkTags>
+    <disabledWorkTypes>
+      <li>Doctor</li>
+      <li>Warden</li>
+      <li>Handling</li>
+      <li>Hunting</li>
+      <li>Construction</li>
+      <li>Growing</li>
+      <li>Mining</li>
+      <li>PlantCutting</li>
+      <li>Smithing</li>
+      <li>Tailoring</li>
+      <li>Art</li>
+      <li>Crafting</li>
+      <li>Hauling</li>
+      <li>Cleaning</li>
+      <li>Research</li>
+    </disabledWorkTypes>
+  </TraitDef>
+
+  <TraitDef ParentName="ClashOfRim_MercenaryTraitBase">
+    <defName>ClashOfRim_MercenaryBuilder</defName>
+    <disabledWorkTags>Violent</disabledWorkTags>
+    <disabledWorkTypes>
+      <li>Doctor</li>
+      <li>Warden</li>
+      <li>Handling</li>
+      <li>Cooking</li>
+      <li>Hunting</li>
+      <li>Growing</li>
+      <li>Mining</li>
+      <li>PlantCutting</li>
+      <li>Smithing</li>
+      <li>Tailoring</li>
+      <li>Art</li>
+      <li>Crafting</li>
+      <li>Hauling</li>
+      <li>Cleaning</li>
+      <li>Research</li>
+    </disabledWorkTypes>
+  </TraitDef>
+
+  <TraitDef ParentName="ClashOfRim_MercenaryTraitBase">
+    <defName>ClashOfRim_MercenaryMiner</defName>
+    <disabledWorkTags>Violent</disabledWorkTags>
+    <disabledWorkTypes>
+      <li>Doctor</li>
+      <li>Warden</li>
+      <li>Handling</li>
+      <li>Cooking</li>
+      <li>Hunting</li>
+      <li>Construction</li>
+      <li>Growing</li>
+      <li>PlantCutting</li>
+      <li>Smithing</li>
+      <li>Tailoring</li>
+      <li>Art</li>
+      <li>Crafting</li>
+      <li>Hauling</li>
+      <li>Cleaning</li>
+      <li>Research</li>
+    </disabledWorkTypes>
+  </TraitDef>
+
+  <TraitDef ParentName="ClashOfRim_MercenaryTraitBase">
+    <defName>ClashOfRim_MercenaryFarmer</defName>
+    <disabledWorkTags>Violent</disabledWorkTags>
+    <disabledWorkTypes>
+      <li>Doctor</li>
+      <li>Warden</li>
+      <li>Handling</li>
+      <li>Cooking</li>
+      <li>Hunting</li>
+      <li>Construction</li>
+      <li>Mining</li>
+      <li>Smithing</li>
+      <li>Tailoring</li>
+      <li>Art</li>
+      <li>Crafting</li>
+      <li>Hauling</li>
+      <li>Cleaning</li>
+      <li>Research</li>
+    </disabledWorkTypes>
+  </TraitDef>
+
+  <TraitDef ParentName="ClashOfRim_MercenaryTraitBase">
+    <defName>ClashOfRim_MercenaryHandler</defName>
+    <disabledWorkTags>Violent</disabledWorkTags>
+    <disabledWorkTypes>
+      <li>Doctor</li>
+      <li>Warden</li>
+      <li>Cooking</li>
+      <li>Hunting</li>
+      <li>Construction</li>
+      <li>Growing</li>
+      <li>Mining</li>
+      <li>PlantCutting</li>
+      <li>Smithing</li>
+      <li>Tailoring</li>
+      <li>Art</li>
+      <li>Crafting</li>
+      <li>Hauling</li>
+      <li>Cleaning</li>
+      <li>Research</li>
+    </disabledWorkTypes>
+  </TraitDef>
+
+  <TraitDef ParentName="ClashOfRim_MercenaryTraitBase">
+    <defName>ClashOfRim_MercenaryCrafter</defName>
+    <disabledWorkTags>Violent</disabledWorkTags>
+    <disabledWorkTypes>
+      <li>Doctor</li>
+      <li>Warden</li>
+      <li>Handling</li>
+      <li>Cooking</li>
+      <li>Hunting</li>
+      <li>Construction</li>
+      <li>Growing</li>
+      <li>Mining</li>
+      <li>PlantCutting</li>
+      <li>Art</li>
+      <li>Hauling</li>
+      <li>Cleaning</li>
+      <li>Research</li>
+    </disabledWorkTypes>
+  </TraitDef>
+
+  <TraitDef ParentName="ClashOfRim_MercenaryTraitBase">
+    <defName>ClashOfRim_MercenaryArtist</defName>
+    <disabledWorkTags>Violent</disabledWorkTags>
+    <disabledWorkTypes>
+      <li>Doctor</li>
+      <li>Warden</li>
+      <li>Handling</li>
+      <li>Cooking</li>
+      <li>Hunting</li>
+      <li>Construction</li>
+      <li>Growing</li>
+      <li>Mining</li>
+      <li>PlantCutting</li>
+      <li>Smithing</li>
+      <li>Tailoring</li>
+      <li>Crafting</li>
+      <li>Hauling</li>
+      <li>Cleaning</li>
+      <li>Research</li>
+    </disabledWorkTypes>
+  </TraitDef>
+
+  <TraitDef ParentName="ClashOfRim_MercenaryTraitBase">
+    <defName>ClashOfRim_MercenaryNegotiator</defName>
+    <disabledWorkTags>Violent</disabledWorkTags>
+    <disabledWorkTypes>
+      <li>Doctor</li>
+      <li>Handling</li>
+      <li>Cooking</li>
+      <li>Hunting</li>
+      <li>Construction</li>
+      <li>Growing</li>
+      <li>Mining</li>
+      <li>PlantCutting</li>
+      <li>Smithing</li>
+      <li>Tailoring</li>
+      <li>Art</li>
+      <li>Crafting</li>
+      <li>Hauling</li>
+      <li>Cleaning</li>
+      <li>Research</li>
+    </disabledWorkTypes>
+  </TraitDef>
+
+  <TraitDef ParentName="ClashOfRim_MercenaryTraitBase">
+    <defName>ClashOfRim_MercenaryResearcher</defName>
+    <disabledWorkTags>Violent</disabledWorkTags>
+    <disabledWorkTypes>
+      <li>Doctor</li>
+      <li>Warden</li>
+      <li>Handling</li>
+      <li>Cooking</li>
+      <li>Hunting</li>
+      <li>Construction</li>
+      <li>Growing</li>
+      <li>Mining</li>
+      <li>PlantCutting</li>
+      <li>Smithing</li>
+      <li>Tailoring</li>
+      <li>Art</li>
+      <li>Crafting</li>
+      <li>Hauling</li>
+      <li>Cleaning</li>
+    </disabledWorkTypes>
+  </TraitDef>
+
+  <TraitDef ParentName="ClashOfRim_MercenaryTraitBase">
+    <defName>ClashOfRim_MercenaryPorter</defName>
+    <disabledWorkTags>Violent</disabledWorkTags>
+    <disabledWorkTypes>
+      <li>Doctor</li>
+      <li>Warden</li>
+      <li>Handling</li>
+      <li>Cooking</li>
+      <li>Hunting</li>
+      <li>Construction</li>
+      <li>Growing</li>
+      <li>Mining</li>
+      <li>PlantCutting</li>
+      <li>Smithing</li>
+      <li>Tailoring</li>
+      <li>Art</li>
+      <li>Crafting</li>
+      <li>Research</li>
+    </disabledWorkTypes>
+  </TraitDef>
+
+  <TraitDef>
+    <defName>ClashOfRim_MercenaryWorkerApprentice</defName>
+    <commonality>0</commonality>
+    <degreeDatas>
+      <li>
+        <label>apprentice specialist</label>
+        <description>[PAWN_nameDef] works faster while performing [PAWN_possessive] hired specialty.</description>
+        <statOffsets>
+          <WorkSpeedGlobal>0.10</WorkSpeedGlobal>
+        </statOffsets>
+      </li>
+    </degreeDatas>
+  </TraitDef>
+
+  <TraitDef>
+    <defName>ClashOfRim_MercenaryWorkerSkilled</defName>
+    <commonality>0</commonality>
+    <degreeDatas>
+      <li>
+        <label>skilled specialist</label>
+        <description>[PAWN_nameDef] works faster while performing [PAWN_possessive] hired specialty.</description>
+        <statOffsets>
+          <WorkSpeedGlobal>0.22</WorkSpeedGlobal>
+        </statOffsets>
+      </li>
+    </degreeDatas>
+  </TraitDef>
+
+  <TraitDef>
+    <defName>ClashOfRim_MercenaryWorkerMaster</defName>
+    <commonality>0</commonality>
+    <degreeDatas>
+      <li>
+        <label>master specialist</label>
+        <description>[PAWN_nameDef] works faster while performing [PAWN_possessive] hired specialty.</description>
+        <statOffsets>
+          <WorkSpeedGlobal>0.36</WorkSpeedGlobal>
+        </statOffsets>
+      </li>
+    </degreeDatas>
+  </TraitDef>
+
+  <TraitDef>
+    <defName>ClashOfRim_MercenaryCombatApprentice</defName>
+    <commonality>0</commonality>
+    <degreeDatas>
+      <li>
+        <label>apprentice combatant</label>
+        <description>[PAWN_nameDef] is trained to stay alive under fire.</description>
+        <statFactors>
+          <IncomingDamageFactor>0.90</IncomingDamageFactor>
+        </statFactors>
+      </li>
+    </degreeDatas>
+  </TraitDef>
+
+  <TraitDef>
+    <defName>ClashOfRim_MercenaryCombatSkilled</defName>
+    <commonality>0</commonality>
+    <degreeDatas>
+      <li>
+        <label>skilled combatant</label>
+        <description>[PAWN_nameDef] is trained to stay alive under fire.</description>
+        <statFactors>
+          <IncomingDamageFactor>0.78</IncomingDamageFactor>
+        </statFactors>
+      </li>
+    </degreeDatas>
+  </TraitDef>
+
+  <TraitDef>
+    <defName>ClashOfRim_MercenaryCombatMaster</defName>
+    <commonality>0</commonality>
+    <degreeDatas>
+      <li>
+        <label>master combatant</label>
+        <description>[PAWN_nameDef] is trained to stay alive under fire.</description>
+        <statFactors>
+          <IncomingDamageFactor>0.64</IncomingDamageFactor>
+        </statFactors>
+      </li>
+    </degreeDatas>
+  </TraitDef>
+
+  <TraitDef>
+    <defName>ClashOfRim_MercenaryPorterApprentice</defName>
+    <commonality>0</commonality>
+    <degreeDatas>
+      <li>
+        <label>apprentice porter</label>
+        <description>[PAWN_nameDef] is trained to move quickly while carrying colony supplies.</description>
+        <statOffsets>
+          <MoveSpeed>0.375</MoveSpeed>
+          <CarryingCapacity>22.5</CarryingCapacity>
+          <CleaningSpeed>0.375</CleaningSpeed>
+        </statOffsets>
+      </li>
+    </degreeDatas>
+  </TraitDef>
+
+  <TraitDef>
+    <defName>ClashOfRim_MercenaryPorterSkilled</defName>
+    <commonality>0</commonality>
+    <degreeDatas>
+      <li>
+        <label>skilled porter</label>
+        <description>[PAWN_nameDef] is trained to move quickly while carrying colony supplies.</description>
+        <statOffsets>
+          <MoveSpeed>0.675</MoveSpeed>
+          <CarryingCapacity>45</CarryingCapacity>
+          <CleaningSpeed>0.75</CleaningSpeed>
+        </statOffsets>
+      </li>
+    </degreeDatas>
+  </TraitDef>
+
+  <TraitDef>
+    <defName>ClashOfRim_MercenaryPorterMaster</defName>
+    <commonality>0</commonality>
+    <degreeDatas>
+      <li>
+        <label>master porter</label>
+        <description>[PAWN_nameDef] is trained to move quickly while carrying colony supplies.</description>
+        <statOffsets>
+          <MoveSpeed>1.05</MoveSpeed>
+          <CarryingCapacity>75</CarryingCapacity>
+          <CleaningSpeed>1.2</CleaningSpeed>
+        </statOffsets>
+      </li>
+    </degreeDatas>
+  </TraitDef>
+
+</Defs>

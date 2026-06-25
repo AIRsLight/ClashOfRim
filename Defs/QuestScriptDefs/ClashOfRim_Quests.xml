@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Defs>
+  <QuestScriptDef>
+    <defName>ClashOfRim_BankLoan</defName>
+    <label>银行贷款</label>
+    <description>服务器银行贷款。</description>
+    <isRootSpecial>true</isRootSpecial>
+  </QuestScriptDef>
+
+  <QuestScriptDef>
+    <defName>ClashOfRim_BankDebt</defName>
+    <label>银行债务</label>
+    <description>服务器银行债务。</description>
+    <isRootSpecial>true</isRootSpecial>
+  </QuestScriptDef>
+
+  <QuestScriptDef>
+    <defName>ClashOfRim_SupportPawn</defName>
+    <label>临时援助</label>
+    <description>来自其他殖民地的临时援助。</description>
+    <isRootSpecial>true</isRootSpecial>
+  </QuestScriptDef>
+
+  <QuestScriptDef>
+    <defName>ClashOfRim_Mercenary</defName>
+    <label>服务器佣兵</label>
+    <description>由服务器提供的临时佣兵合同。</description>
+    <isRootSpecial>true</isRootSpecial>
+  </QuestScriptDef>
+</Defs>

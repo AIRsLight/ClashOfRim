@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <ClashOfRim_RemoteRuntimeWorldObject.label>远方目标</ClashOfRim_RemoteRuntimeWorldObject.label>
+  <ClashOfRim_RemoteColonyMapParent.label>远方殖民地</ClashOfRim_RemoteColonyMapParent.label>
+  <ClashOfRim_RemoteSessionMapParent.label>远方地图</ClashOfRim_RemoteSessionMapParent.label>
+  <ClashOfRim_RemoteScoutMapParent.label>侦察地图</ClashOfRim_RemoteScoutMapParent.label>
+  <ClashOfRim_RemoteRaidObservationMapParent.label>观战地图</ClashOfRim_RemoteRaidObservationMapParent.label>
+  <ClashOfRim_RemoteRaidBattleMapParent.label>袭击战场</ClashOfRim_RemoteRaidBattleMapParent.label>
+</LanguageData>

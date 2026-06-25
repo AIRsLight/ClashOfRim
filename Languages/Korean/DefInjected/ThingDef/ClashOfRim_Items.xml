@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <ClashOfRim_TraitTrainer.label>특성 훈련기</ClashOfRim_TraitTrainer.label>
+  <ClashOfRim_TraitTrainer.description>사용자의 정신에 선택한 특성을 유도하는 뉴로트레이너입니다.</ClashOfRim_TraitTrainer.description>
+  <ClashOfRim_RandomTraitTrainer.label>특성 훈련기(무작위)</ClashOfRim_RandomTraitTrainer.label>
+  <ClashOfRim_RandomTraitTrainer.description>사용자의 정신에 무작위 특성을 유도하는 뉴로트레이너입니다.</ClashOfRim_RandomTraitTrainer.description>
+</LanguageData>

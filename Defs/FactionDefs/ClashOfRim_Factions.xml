@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Defs>
+  <FactionDef ParentName="FactionBase">
+    <defName>ClashOfRim_PlayerProxy</defName>
+    <label>server player colony</label>
+    <description>A remote player colony synchronized by the server. This faction is a local representation used for diplomacy, world map markers, support pawns, and player-vs-player events. It is not a vanilla NPC faction and should not be selected by automatic NPC raid generation.</description>
+    <basicMemberKind>Colonist</basicMemberKind>
+    <pawnSingular>colonist</pawnSingular>
+    <pawnsPlural>colonists</pawnsPlural>
+    <leaderTitle>leader</leaderTitle>
+    <requiredCountAtGameStart>0</requiredCountAtGameStart>
+    <maxCountAtGameStart>0</maxCountAtGameStart>
+    <factionIconPath>World/WorldObjects/Expanding/Town</factionIconPath>
+    <settlementTexturePath>World/WorldObjects/DefaultSettlement</settlementTexturePath>
+    <techLevel>Industrial</techLevel>
+    <humanlikeFaction>true</humanlikeFaction>
+    <backstoryFilters>
+      <li>
+        <categories>
+          <li>Outlander</li>
+        </categories>
+        <commonality>0.95</commonality>
+      </li>
+      <li>
+        <categories>
+          <li>Offworld</li>
+        </categories>
+        <commonality>0.05</commonality>
+      </li>
+    </backstoryFilters>
+    <canMakeRandomly>false</canMakeRandomly>
+    <canSiege>false</canSiege>
+    <canStageAttacks>false</canStageAttacks>
+    <canRequestTraders>false</canRequestTraders>
+    <canRequestMilitaryAid>false</canRequestMilitaryAid>
+    <canRequestOrbitalTrader>false</canRequestOrbitalTrader>
+    <canGenerateQuestSites>false</canGenerateQuestSites>
+    <rescueesCanJoin>false</rescueesCanJoin>
+    <permanentEnemy>false</permanentEnemy>
+    <naturalEnemy>false</naturalEnemy>
+    <hidden>true</hidden>
+    <colorSpectrum>
+      <li>(0.36, 0.72, 0.95)</li>
+    </colorSpectrum>
+  </FactionDef>
+
+  <FactionDef ParentName="FactionBase">
+    <defName>ClashOfRim_ServerMercenaries</defName>
+    <label>server mercenaries</label>
+    <description>A server-operated mercenary group used for temporary hired colonists. Members are controlled by the player during a contract and return to the server when their assignment ends.</description>
+    <basicMemberKind>Colonist</basicMemberKind>
+    <pawnSingular>mercenary</pawnSingular>
+    <pawnsPlural>mercenaries</pawnsPlural>
+    <leaderTitle>contract officer</leaderTitle>
+    <requiredCountAtGameStart>0</requiredCountAtGameStart>
+    <maxCountAtGameStart>0</maxCountAtGameStart>
+    <factionIconPath>World/WorldObjects/Expanding/Town</factionIconPath>
+    <settlementTexturePath>World/WorldObjects/DefaultSettlement</settlementTexturePath>
+    <techLevel>Industrial</techLevel>
+    <humanlikeFaction>true</humanlikeFaction>
+    <backstoryFilters>
+      <li>
+        <categories>
+          <li>Outlander</li>
+        </categories>
+        <commonality>0.95</commonality>
+      </li>
+      <li>
+        <categories>
+          <li>Offworld</li>
+        </categories>
+        <commonality>0.05</commonality>
+      </li>
+    </backstoryFilters>
+    <canMakeRandomly>false</canMakeRandomly>
+    <canSiege>false</canSiege>
+    <canStageAttacks>false</canStageAttacks>
+    <canRequestTraders>false</canRequestTraders>
+    <canRequestMilitaryAid>false</canRequestMilitaryAid>
+    <canRequestOrbitalTrader>false</canRequestOrbitalTrader>
+    <canGenerateQuestSites>false</canGenerateQuestSites>
+    <rescueesCanJoin>false</rescueesCanJoin>
+    <permanentEnemy>false</permanentEnemy>
+    <naturalEnemy>false</naturalEnemy>
+    <hidden>false</hidden>
+    <colorSpectrum>
+      <li>(0.78, 0.66, 0.32)</li>
+    </colorSpectrum>
+  </FactionDef>
+
+  <FactionDef ParentName="OutlanderFactionBase">
+    <defName>ClashOfRim_MercenaryGuards</defName>
+    <label>mercenary guards</label>
+    <description>A server-backed guard team held in reserve for the next player raid against a colony.</description>
+    <pawnSingular>guard</pawnSingular>
+    <pawnsPlural>guards</pawnsPlural>
+    <leaderTitle>guard captain</leaderTitle>
+    <requiredCountAtGameStart>0</requiredCountAtGameStart>
+    <maxCountAtGameStart>0</maxCountAtGameStart>
+    <canMakeRandomly>false</canMakeRandomly>
+    <canSiege>false</canSiege>
+    <canStageAttacks>false</canStageAttacks>
+    <canRequestTraders>false</canRequestTraders>
+    <canRequestMilitaryAid>false</canRequestMilitaryAid>
+    <canRequestOrbitalTrader>false</canRequestOrbitalTrader>
+    <canGenerateQuestSites>false</canGenerateQuestSites>
+    <rescueesCanJoin>false</rescueesCanJoin>
+    <permanentEnemy>false</permanentEnemy>
+    <naturalEnemy>false</naturalEnemy>
+    <hidden>true</hidden>
+    <colorSpectrum>
+      <li>(0.78, 0.66, 0.32)</li>
+    </colorSpectrum>
+  </FactionDef>
+</Defs>

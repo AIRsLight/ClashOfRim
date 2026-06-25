@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<LanguageData>
+
+  <ClashOfRim_MercenaryGunner.degreeDatas.0.label>용병 총잡이</ClashOfRim_MercenaryGunner.degreeDatas.0.label>
+  <ClashOfRim_MercenaryGunner.degreeDatas.0.description>{PAWN_nameDef}은(는) 고용된 총잡이로, 사격 임무와 기본 작업만 수행합니다.</ClashOfRim_MercenaryGunner.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryWarrior.degreeDatas.0.label>용병 전사</ClashOfRim_MercenaryWarrior.degreeDatas.0.label>
+  <ClashOfRim_MercenaryWarrior.degreeDatas.0.description>{PAWN_nameDef}은(는) 고용된 전사로, 근접 전투 임무와 기본 작업만 수행합니다.</ClashOfRim_MercenaryWarrior.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryDoctor.degreeDatas.0.label>용병 의사</ClashOfRim_MercenaryDoctor.degreeDatas.0.label>
+  <ClashOfRim_MercenaryDoctor.degreeDatas.0.description>{PAWN_nameDef}은(는) 고용된 의사로, 의료 임무와 기본 작업만 수행합니다.</ClashOfRim_MercenaryDoctor.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryCook.degreeDatas.0.label>용병 요리사</ClashOfRim_MercenaryCook.degreeDatas.0.label>
+  <ClashOfRim_MercenaryCook.degreeDatas.0.description>{PAWN_nameDef}은(는) 고용된 요리사로, 조리 임무와 기본 작업만 수행합니다.</ClashOfRim_MercenaryCook.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryBuilder.degreeDatas.0.label>용병 건축가</ClashOfRim_MercenaryBuilder.degreeDatas.0.label>
+  <ClashOfRim_MercenaryBuilder.degreeDatas.0.description>{PAWN_nameDef}은(는) 고용된 건축가로, 건설 임무와 기본 작업만 수행합니다.</ClashOfRim_MercenaryBuilder.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryMiner.degreeDatas.0.label>용병 채굴자</ClashOfRim_MercenaryMiner.degreeDatas.0.label>
+  <ClashOfRim_MercenaryMiner.degreeDatas.0.description>{PAWN_nameDef}은(는) 고용된 채굴자로, 채굴 임무와 기본 작업만 수행합니다.</ClashOfRim_MercenaryMiner.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryFarmer.degreeDatas.0.label>용병 농부</ClashOfRim_MercenaryFarmer.degreeDatas.0.label>
+  <ClashOfRim_MercenaryFarmer.degreeDatas.0.description>{PAWN_nameDef}은(는) 고용된 농부로, 농사 임무와 기본 작업만 수행합니다.</ClashOfRim_MercenaryFarmer.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryHandler.degreeDatas.0.label>용병 조련사</ClashOfRim_MercenaryHandler.degreeDatas.0.label>
+  <ClashOfRim_MercenaryHandler.degreeDatas.0.description>{PAWN_nameDef}은(는) 고용된 조련사로, 동물 조련 임무와 기본 작업만 수행합니다.</ClashOfRim_MercenaryHandler.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryCrafter.degreeDatas.0.label>용병 제작자</ClashOfRim_MercenaryCrafter.degreeDatas.0.label>
+  <ClashOfRim_MercenaryCrafter.degreeDatas.0.description>{PAWN_nameDef}은(는) 고용된 제작자로, 제작 임무와 기본 작업만 수행합니다.</ClashOfRim_MercenaryCrafter.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryArtist.degreeDatas.0.label>용병 예술가</ClashOfRim_MercenaryArtist.degreeDatas.0.label>
+  <ClashOfRim_MercenaryArtist.degreeDatas.0.description>{PAWN_nameDef}은(는) 고용된 예술가로, 예술 임무와 기본 작업만 수행합니다.</ClashOfRim_MercenaryArtist.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryNegotiator.degreeDatas.0.label>용병 협상가</ClashOfRim_MercenaryNegotiator.degreeDatas.0.label>
+  <ClashOfRim_MercenaryNegotiator.degreeDatas.0.description>{PAWN_nameDef}은(는) 고용된 협상가로, 협상 임무와 기본 작업만 수행합니다.</ClashOfRim_MercenaryNegotiator.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryResearcher.degreeDatas.0.label>용병 연구원</ClashOfRim_MercenaryResearcher.degreeDatas.0.label>
+  <ClashOfRim_MercenaryResearcher.degreeDatas.0.description>{PAWN_nameDef}은(는) 고용된 연구원으로, 연구 임무와 기본 작업만 수행합니다.</ClashOfRim_MercenaryResearcher.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryPorter.degreeDatas.0.label>용병 운반꾼</ClashOfRim_MercenaryPorter.degreeDatas.0.label>
+  <ClashOfRim_MercenaryPorter.degreeDatas.0.description>{PAWN_nameDef}은(는) 고용된 운반꾼으로, 운반, 청소, 기본 작업만 수행합니다.</ClashOfRim_MercenaryPorter.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryWorkerApprentice.degreeDatas.0.label>수습 전문가</ClashOfRim_MercenaryWorkerApprentice.degreeDatas.0.label>
+  <ClashOfRim_MercenaryWorkerApprentice.degreeDatas.0.description>{PAWN_nameDef}은(는) 고용된 전문 작업을 더 빠르게 수행합니다.</ClashOfRim_MercenaryWorkerApprentice.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryWorkerSkilled.degreeDatas.0.label>숙련 전문가</ClashOfRim_MercenaryWorkerSkilled.degreeDatas.0.label>
+  <ClashOfRim_MercenaryWorkerSkilled.degreeDatas.0.description>{PAWN_nameDef}은(는) 고용된 전문 작업을 더 빠르게 수행합니다.</ClashOfRim_MercenaryWorkerSkilled.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryWorkerMaster.degreeDatas.0.label>대가 전문가</ClashOfRim_MercenaryWorkerMaster.degreeDatas.0.label>
+  <ClashOfRim_MercenaryWorkerMaster.degreeDatas.0.description>{PAWN_nameDef}은(는) 고용된 전문 작업을 더 빠르게 수행합니다.</ClashOfRim_MercenaryWorkerMaster.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryCombatApprentice.degreeDatas.0.label>수습 전투원</ClashOfRim_MercenaryCombatApprentice.degreeDatas.0.label>
+  <ClashOfRim_MercenaryCombatApprentice.degreeDatas.0.description>{PAWN_nameDef}은(는) 전장 생존 훈련을 받아 받는 피해가 감소합니다.</ClashOfRim_MercenaryCombatApprentice.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryCombatSkilled.degreeDatas.0.label>숙련 전투원</ClashOfRim_MercenaryCombatSkilled.degreeDatas.0.label>
+  <ClashOfRim_MercenaryCombatSkilled.degreeDatas.0.description>{PAWN_nameDef}은(는) 전장 생존 훈련을 받아 받는 피해가 감소합니다.</ClashOfRim_MercenaryCombatSkilled.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryCombatMaster.degreeDatas.0.label>대가 전투원</ClashOfRim_MercenaryCombatMaster.degreeDatas.0.label>
+  <ClashOfRim_MercenaryCombatMaster.degreeDatas.0.description>{PAWN_nameDef}은(는) 전장 생존 훈련을 받아 받는 피해가 감소합니다.</ClashOfRim_MercenaryCombatMaster.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryPorterApprentice.degreeDatas.0.label>수습 운반꾼</ClashOfRim_MercenaryPorterApprentice.degreeDatas.0.label>
+  <ClashOfRim_MercenaryPorterApprentice.degreeDatas.0.description>{PAWN_nameDef}은(는) 기본 운반 훈련을 받아 이동 속도, 운반량, 청소 속도가 조금 향상됩니다.</ClashOfRim_MercenaryPorterApprentice.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryPorterSkilled.degreeDatas.0.label>숙련 운반꾼</ClashOfRim_MercenaryPorterSkilled.degreeDatas.0.label>
+  <ClashOfRim_MercenaryPorterSkilled.degreeDatas.0.description>{PAWN_nameDef}은(는) 숙련 운반 훈련을 받아 이동 속도, 운반량, 청소 속도가 향상됩니다.</ClashOfRim_MercenaryPorterSkilled.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryPorterMaster.degreeDatas.0.label>대가 운반꾼</ClashOfRim_MercenaryPorterMaster.degreeDatas.0.label>
+  <ClashOfRim_MercenaryPorterMaster.degreeDatas.0.description>{PAWN_nameDef}은(는) 뛰어난 운반꾼으로, 이동 속도, 운반량, 청소 속도에 큰 보너스를 얻습니다.</ClashOfRim_MercenaryPorterMaster.degreeDatas.0.description>
+
+</LanguageData>

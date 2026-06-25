@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <ClashOfRim_TraitTrainer.label>特性訓練器</ClashOfRim_TraitTrainer.label>
+  <ClashOfRim_TraitTrainer.description>使用者の心に選択した特性を誘導するニューロトレーナーです。</ClashOfRim_TraitTrainer.description>
+  <ClashOfRim_RandomTraitTrainer.label>特性訓練器（ランダム）</ClashOfRim_RandomTraitTrainer.label>
+  <ClashOfRim_RandomTraitTrainer.description>使用者の心にランダムな特性を誘導するニューロトレーナーです。</ClashOfRim_RandomTraitTrainer.description>
+</LanguageData>

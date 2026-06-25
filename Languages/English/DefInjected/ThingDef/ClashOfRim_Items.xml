@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <ClashOfRim_TraitTrainer.label>trait trainer</ClashOfRim_TraitTrainer.label>
+  <ClashOfRim_TraitTrainer.description>A neurotrainer which induces a selected trait in the user's mind.</ClashOfRim_TraitTrainer.description>
+  <ClashOfRim_RandomTraitTrainer.label>trait trainer (random)</ClashOfRim_RandomTraitTrainer.label>
+  <ClashOfRim_RandomTraitTrainer.description>A neurotrainer which induces a random trait in the user's mind.</ClashOfRim_RandomTraitTrainer.description>
+</LanguageData>
