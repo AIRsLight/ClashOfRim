@@ -18,6 +18,7 @@ $serverPluginRoot = Join-Path $repoRoot "Build\ServerPlugins"
 $modProject = Join-Path $repoRoot "ThirdPartyCompat\Source\ClashOfRim.ThirdPartyCompat.csproj"
 $serverPluginProjectsRoot = Join-Path $repoRoot "ThirdPartyCompat\ServerPlugins"
 $aboutSource = Join-Path $repoRoot "ThirdPartyCompat\About\About.xml"
+$previewSource = Join-Path $repoRoot "ThirdPartyCompat\About\Preview.png"
 $languagesSource = Join-Path $repoRoot "ThirdPartyCompat\Languages"
 $defsSource = Join-Path $repoRoot "ThirdPartyCompat\Defs"
 
@@ -114,6 +115,9 @@ if (-not $SkipServerPlugins) {
 }
 
 Copy-RequiredFile -Source $aboutSource -Destination (Join-Path $packageRoot "About\About.xml")
+if (Test-Path -LiteralPath $previewSource) {
+    Copy-Item -LiteralPath $previewSource -Destination (Join-Path $packageRoot "About\Preview.png") -Force
+}
 Copy-RequiredFile -Source (Join-Path $repoRoot "Assemblies\$packageId\$packageId.dll") -Destination (Join-Path $assemblyRoot "$packageId.dll")
 
 if (Test-Path -LiteralPath $languagesSource) {
