@@ -18,6 +18,6 @@
     <li>brrainz.harmony</li>
   </loadAfter>
   <description>
-    RimWorld multiplayer mod focused on synchronized world-map state, strict mod compatibility, player diplomacy, offline events, raids, support, trading, chat, and administrator controls. The server acts as a relay and persistence layer rather than running game logic.
+    Dedicated-server multiplayer mod for RimWorld where each player runs an independent colony on a shared world. Clash Of Rim synchronizes multiplayer world state and coordinates diplomacy, trade, gifts, colonist support, raids, offline events, chat, achievements, server shops, banking, mercenaries, and administrator controls through save snapshots and event confirmation.
   </description>
 </ModMetaData>
