@@ -1140,6 +1140,8 @@ public sealed partial class ClashOfRimMod
         {
             PlayerFactionProxyUtility.EnsureProxyForUser(owner);
         }
+
+        PlayerFactionProxyUtility.NormalizeExistingProxies(owners);
     }
 
     internal bool TryApplyServerStorytellerBaselineAndContinue(Window storytellerPage)

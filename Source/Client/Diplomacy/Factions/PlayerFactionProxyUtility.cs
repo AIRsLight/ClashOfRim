@@ -76,19 +76,67 @@ internal static class PlayerFactionProxyUtility
             return cached;
         }
 
-        return Find.World.factionManager.AllFactions.FirstOrDefault(faction =>
+        List<Faction> candidates = Find.World.factionManager.AllFactions
+            .Where(faction => IsProxyForUser(faction, normalizedUserId))
+            .ToList();
+        if (candidates.Count == 0)
         {
-            bool match = faction.temporary
-                && (string.Equals(FindKnownProxyOwnerUserId(faction), normalizedUserId, StringComparison.Ordinal)
-                    || string.Equals(faction.Name, normalizedUserId, StringComparison.Ordinal)
-                    || IsDisplayNameForUser(faction.Name, normalizedUserId));
-            if (match)
+            return null;
+        }
+
+        Faction canonical = ChooseCanonicalProxy(candidates);
+        ProxyFactionsByOwnerUserId[normalizedUserId] = canonical;
+        HideDuplicateProxies(normalizedUserId, canonical, candidates);
+        return canonical;
+    }
+
+    public static void NormalizeExistingProxies(HashSet<string> activeOwnerUserIds)
+    {
+        if (Find.World?.factionManager is null)
+        {
+            return;
+        }
+
+        Dictionary<string, List<Faction>> proxiesByOwner = new(StringComparer.Ordinal);
+        foreach (Faction faction in Find.World.factionManager.AllFactionsListForReading)
+        {
+            if (!IsServerPlayerProxy(faction))
             {
-                ProxyFactionsByOwnerUserId[normalizedUserId] = faction;
+                continue;
             }
 
-            return match;
-        });
+            string ownerUserId = ProxyOwnerUserId(faction);
+            if (string.IsNullOrWhiteSpace(ownerUserId))
+            {
+                continue;
+            }
+
+            if (!proxiesByOwner.TryGetValue(ownerUserId, out List<Faction> list))
+            {
+                list = new List<Faction>();
+                proxiesByOwner[ownerUserId] = list;
+            }
+
+            list.Add(faction);
+        }
+
+        foreach (KeyValuePair<string, List<Faction>> entry in proxiesByOwner)
+        {
+            if (!activeOwnerUserIds.Contains(entry.Key))
+            {
+                foreach (Faction stale in entry.Value)
+                {
+                    HideObsoleteProxy(stale, entry.Key);
+                }
+
+                ProxyFactionsByOwnerUserId.Remove(entry.Key);
+                continue;
+            }
+
+            Faction canonical = ChooseCanonicalProxy(entry.Value);
+            ApplyProxyPresentation(canonical, entry.Key);
+            HideDuplicateProxies(entry.Key, canonical, entry.Value);
+        }
     }
 
     public static bool IsServerPlayerProxy(Faction? faction)
@@ -201,6 +249,46 @@ internal static class PlayerFactionProxyUtility
     private static void NotifyProxyFactionPrepared(Faction faction, string ownerUserId)
     {
         ClashOfRimCompatibilityApi.NotifyPlayerProxyFactionPrepared(faction, ownerUserId);
+    }
+
+    private static bool IsProxyForUser(Faction faction, string userId)
+    {
+        return IsServerPlayerProxy(faction)
+            && (string.Equals(FindKnownProxyOwnerUserId(faction), userId, StringComparison.Ordinal)
+                || string.Equals(faction.Name, userId, StringComparison.Ordinal)
+                || IsDisplayNameForUser(faction.Name, userId));
+    }
+
+    private static Faction ChooseCanonicalProxy(IReadOnlyList<Faction> candidates)
+    {
+        return candidates
+            .OrderByDescending(faction => faction.temporary)
+            .ThenBy(faction => faction.hidden)
+            .ThenBy(faction => faction.loadID)
+            .First();
+    }
+
+    private static void HideDuplicateProxies(string ownerUserId, Faction canonical, IReadOnlyList<Faction> candidates)
+    {
+        foreach (Faction duplicate in candidates)
+        {
+            if (ReferenceEquals(duplicate, canonical))
+            {
+                continue;
+            }
+
+            HideObsoleteProxy(duplicate, ownerUserId);
+        }
+    }
+
+    private static void HideObsoleteProxy(Faction faction, string ownerUserId)
+    {
+        faction.temporary = true;
+        faction.hidden = true;
+        faction.allowGoodwillRewards = false;
+        faction.allowRoyalFavorRewards = false;
+        faction.leader = null;
+        ProxyOwnerUserIdsByLoadId[faction.loadID] = ownerUserId;
     }
 
     private static string? FindKnownProxyOwnerUserId(Faction faction)
