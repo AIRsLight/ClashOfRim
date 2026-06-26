@@ -19,6 +19,7 @@ internal static partial class BiotechCompatibility
     private const string MetadataReproductiveSourceCount = MetadataReproductiveSourcePrefix + "count";
     private const string MetadataReproductiveSourceRole = "role";
     private const string MetadataReproductiveSourceGlobalId = "globalId";
+    private const string MetadataReproductiveSourceOwnerUserId = "ownerUserId";
     private const string MetadataReproductiveSourceName = "name";
     private const string MetadataReproductiveSourceRaceDef = "raceDef";
     private const string MetadataReproductiveSourcePawnKindDef = "pawnKindDef";

@@ -1,4 +1,5 @@
 using AIRsLight.ClashOfRim.ClientNetwork;
+using AIRsLight.ClashOfRim.Diplomacy;
 using AIRsLight.ClashOfRim.Pawns;
 using RimWorld;
 using RimWorld.Planet;
@@ -46,9 +47,11 @@ internal static partial class BiotechCompatibility
 
     private static ReproductiveSourceRecord BuildReproductiveSourceRecord(Pawn pawn, ClashOfRimMod? mod)
     {
+        string? globalId = ExistingReproductiveSourceGlobalId(pawn) ?? PawnGlobalIdUtility.Build(mod?.UserId, pawn);
         return new ReproductiveSourceRecord(
             Role: ReproductiveSourceRoleFor(pawn),
-            GlobalId: PawnGlobalIdUtility.Build(mod?.UserId, pawn),
+            GlobalId: globalId,
+            OwnerUserId: ReproductiveSourceOwnerUserIdFor(pawn, globalId, mod?.UserId),
             Name: pawn.LabelShort,
             RaceDefName: pawn.def?.defName,
             PawnKindDefName: pawn.kindDef?.defName,
@@ -150,7 +153,7 @@ internal static partial class BiotechCompatibility
             return false;
         }
 
-        Faction? faction = ResolveReproductiveSourceFaction(record.FactionDefName);
+        Faction? faction = ResolveReproductiveSourceFaction(record);
         try
         {
             pawn = PawnGenerator.GeneratePawn(pawnKind, faction);
@@ -195,6 +198,12 @@ internal static partial class BiotechCompatibility
         out string? missingDefName)
     {
         missingDefName = null;
+        Faction? faction = ResolveReproductiveSourceFaction(record);
+        if (faction is not null && pawn.Faction != faction)
+        {
+            pawn.SetFaction(faction);
+        }
+
         if (Enum.TryParse(record.Gender, ignoreCase: true, out Gender gender) && gender != Gender.None)
         {
             pawn.gender = gender;
@@ -303,11 +312,44 @@ internal static partial class BiotechCompatibility
         return false;
     }
 
-    private static Faction? ResolveReproductiveSourceFaction(string? factionDefName)
+    private static Faction? ResolveReproductiveSourceFaction(ReproductiveSourceRecord record)
+    {
+        string? ownerUserId = ReproductiveSourceOwnerUserIdFromRecord(record);
+        if (!string.IsNullOrWhiteSpace(ownerUserId))
+        {
+            ClashOfRimMod? mod = ClashOfRimMod.Instance ?? LoadedModManager.GetMod<ClashOfRimMod>();
+            string? currentUserId = mod?.UserId;
+            if (!string.IsNullOrWhiteSpace(currentUserId)
+                && string.Equals(ownerUserId, currentUserId, StringComparison.Ordinal))
+            {
+                return Faction.OfPlayer ?? ResolveReproductiveSourceFactionByDef(record.FactionDefName, allowPlayerFaction: true);
+            }
+
+            Faction? proxy = PlayerFactionProxyUtility.EnsureProxyForUser(
+                ownerUserId,
+                record.FactionDefName);
+            if (proxy is not null)
+            {
+                return proxy;
+            }
+
+            return ResolveReproductiveSourceFactionByDef(record.FactionDefName, allowPlayerFaction: false);
+        }
+
+        return ResolveReproductiveSourceFactionByDef(record.FactionDefName, allowPlayerFaction: true)
+            ?? Faction.OfPlayer;
+    }
+
+    private static Faction? ResolveReproductiveSourceFactionByDef(string? factionDefName, bool allowPlayerFaction)
     {
         if (string.IsNullOrWhiteSpace(factionDefName))
         {
-            return Faction.OfPlayer;
+            return allowPlayerFaction ? Faction.OfPlayer : null;
+        }
+
+        if (!allowPlayerFaction && IsPlayerLikeReproductiveSourceFactionDefName(factionDefName))
+        {
+            return null;
         }
 
         Faction? faction = Find.FactionManager?.AllFactionsListForReading?
@@ -315,7 +357,63 @@ internal static partial class BiotechCompatibility
                 candidate?.def?.defName,
                 factionDefName,
                 StringComparison.Ordinal));
-        return faction ?? Faction.OfPlayer;
+        return faction ?? (allowPlayerFaction ? Faction.OfPlayer : null);
+    }
+
+    private static string? ReproductiveSourceOwnerUserIdFromRecord(ReproductiveSourceRecord record)
+    {
+        if (!string.IsNullOrWhiteSpace(record.OwnerUserId))
+        {
+            return record.OwnerUserId!.Trim();
+        }
+
+        if (IsPlayerLikeReproductiveSourceFactionDefName(record.FactionDefName)
+            && PawnGlobalIdUtility.TryExtractOwnerUserId(record.GlobalId, out string? ownerUserId))
+        {
+            return ownerUserId;
+        }
+
+        return null;
+    }
+
+    private static string? ReproductiveSourceOwnerUserIdFor(Pawn pawn, string? globalId, string? currentUserId)
+    {
+        string? ownerFromGlobalId = PawnGlobalIdUtility.TryExtractOwnerUserId(globalId, out string? parsedOwnerUserId)
+            ? parsedOwnerUserId
+            : null;
+        if (PlayerFactionProxyUtility.IsServerPlayerProxy(pawn.Faction))
+        {
+            return ownerFromGlobalId ?? PlayerFactionProxyUtility.ProxyOwnerUserId(pawn.Faction);
+        }
+
+        if (pawn.Faction == Faction.OfPlayer || pawn.Faction?.IsPlayer == true)
+        {
+            return ownerFromGlobalId ?? (string.IsNullOrWhiteSpace(currentUserId) ? null : currentUserId);
+        }
+
+        if (!string.IsNullOrWhiteSpace(ownerFromGlobalId) && HasExistingReproductiveSourceGlobalId(pawn))
+        {
+            return ownerFromGlobalId;
+        }
+
+        return null;
+    }
+
+    private static bool IsPlayerLikeReproductiveSourceFactionDefName(string? factionDefName)
+    {
+        if (string.IsNullOrWhiteSpace(factionDefName))
+        {
+            return false;
+        }
+
+        string trimmed = factionDefName!.Trim();
+        if (string.Equals(trimmed, PlayerFactionProxyUtility.ProxyFactionDefName, StringComparison.Ordinal)
+            || string.Equals(trimmed, Faction.OfPlayer?.def?.defName, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        return DefDatabase<FactionDef>.GetNamedSilentFail(trimmed)?.isPlayer == true;
     }
 
     private static Pawn? FindExistingReproductiveSourcePawn(string? globalId)
@@ -371,6 +469,47 @@ internal static partial class BiotechCompatibility
                 }
             }
         }
+    }
+
+    private static bool HasExistingReproductiveSourceGlobalId(Pawn pawn)
+    {
+        return ExistingReproductiveSourceGlobalId(pawn) is not null;
+    }
+
+    private static string? ExistingReproductiveSourceGlobalId(Pawn pawn)
+    {
+        if (pawn?.questTags is null)
+        {
+            return null;
+        }
+
+        foreach (string tag in pawn.questTags)
+        {
+            if (string.IsNullOrWhiteSpace(tag))
+            {
+                continue;
+            }
+
+            if (tag.StartsWith(PawnGlobalIdTagPrefix, StringComparison.Ordinal))
+            {
+                string globalId = tag.Substring(PawnGlobalIdTagPrefix.Length).Trim();
+                if (!string.IsNullOrWhiteSpace(globalId))
+                {
+                    return globalId;
+                }
+            }
+
+            if (tag.StartsWith(ReproductiveSourcePlaceholderTagPrefix, StringComparison.Ordinal))
+            {
+                string globalId = tag.Substring(ReproductiveSourcePlaceholderTagPrefix.Length).Trim();
+                if (!string.IsNullOrWhiteSpace(globalId))
+                {
+                    return globalId;
+                }
+            }
+        }
+
+        return null;
     }
 
     private static void MarkReproductiveSourcePawnGlobalId(Pawn pawn, string? globalId)
@@ -498,6 +637,7 @@ internal static partial class BiotechCompatibility
     {
         WriteIndexedMetadataText(reference, index, MetadataReproductiveSourceRole, record.Role);
         WriteIndexedMetadataText(reference, index, MetadataReproductiveSourceGlobalId, record.GlobalId);
+        WriteIndexedMetadataText(reference, index, MetadataReproductiveSourceOwnerUserId, record.OwnerUserId);
         WriteIndexedMetadataText(reference, index, MetadataReproductiveSourceName, record.Name);
         WriteIndexedMetadataText(reference, index, MetadataReproductiveSourceRaceDef, record.RaceDefName);
         WriteIndexedMetadataText(reference, index, MetadataReproductiveSourcePawnKindDef, record.PawnKindDefName);
@@ -514,6 +654,7 @@ internal static partial class BiotechCompatibility
         return new ReproductiveSourceRecord(
             Role: ReadIndexedMetadataText(reference, index, MetadataReproductiveSourceRole),
             GlobalId: ReadIndexedMetadataText(reference, index, MetadataReproductiveSourceGlobalId),
+            OwnerUserId: ReadIndexedMetadataText(reference, index, MetadataReproductiveSourceOwnerUserId),
             Name: ReadIndexedMetadataText(reference, index, MetadataReproductiveSourceName),
             RaceDefName: ReadIndexedMetadataText(reference, index, MetadataReproductiveSourceRaceDef),
             PawnKindDefName: ReadIndexedMetadataText(reference, index, MetadataReproductiveSourcePawnKindDef),
@@ -603,6 +744,7 @@ internal static partial class BiotechCompatibility
         public ReproductiveSourceRecord(
             string? Role,
             string? GlobalId,
+            string? OwnerUserId,
             string? Name,
             string? RaceDefName,
             string? PawnKindDefName,
@@ -615,6 +757,7 @@ internal static partial class BiotechCompatibility
         {
             this.Role = Role;
             this.GlobalId = GlobalId;
+            this.OwnerUserId = OwnerUserId;
             this.Name = Name;
             this.RaceDefName = RaceDefName;
             this.PawnKindDefName = PawnKindDefName;
@@ -629,6 +772,8 @@ internal static partial class BiotechCompatibility
         public string? Role { get; }
 
         public string? GlobalId { get; }
+
+        public string? OwnerUserId { get; }
 
         public string? Name { get; }
 
