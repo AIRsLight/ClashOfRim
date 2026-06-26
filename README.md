@@ -8,6 +8,11 @@ runs a normal RimWorld colony locally. The server provides the durable shared
 layer around those colonies: identity, world membership, snapshots, events,
 economy, diplomacy, raids, chat, administration, and compatibility policy.
 
+Players on the same server are strongly encouraged to use the same RimWorld
+language. Cross-language worlds can still expose inconsistent generated labels,
+tile names, colony markers, ideology names, or mod-authored text, especially
+around world creation, colony founding, remote maps, and pawn transfer.
+
 The server is intentionally authoritative over multiplayer state, but not over
 RimWorld's moment-to-moment simulation. Clients upload save snapshots when local
 state changes need to be confirmed. The server records those snapshots, checks
