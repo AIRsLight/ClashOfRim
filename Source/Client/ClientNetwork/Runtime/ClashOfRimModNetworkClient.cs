@@ -114,7 +114,7 @@ public sealed class ClashOfRimModNetworkClient
         this.context = context ?? throw new ArgumentNullException(nameof(context));
         if (!string.IsNullOrWhiteSpace(context.ServerBaseUrl))
         {
-            this.httpClient.BaseAddress = new Uri(context.ServerBaseUrl.TrimEnd('/') + "/");
+            this.httpClient.BaseAddress = ClashOfRimServerUrlUtility.BuildHttpBaseUri(context.ServerBaseUrl);
         }
     }
 
@@ -2681,7 +2681,7 @@ public sealed class ClashOfRimModNetworkClient
         long knownNotificationVersion,
         long knownWorldConfigurationVersion)
     {
-        Uri baseUri = new(context.ServerBaseUrl.TrimEnd('/') + "/");
+        Uri baseUri = ClashOfRimServerUrlUtility.BuildHttpBaseUri(context.ServerBaseUrl);
         Uri httpUri = new(baseUri, BuildStreamSessionRoute(sessionId, knownNotificationVersion, knownWorldConfigurationVersion));
         var builder = new UriBuilder(httpUri)
         {

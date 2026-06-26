@@ -39,8 +39,7 @@ public sealed partial class ClashOfRimMod
     internal bool StartMainMenuServerEntryFlow(string? serverBaseUrl, string? userId, string? password)
     {
         EnsureStatusDefaultsInitialized();
-        string normalizedServerBaseUrl = (serverBaseUrl ?? string.Empty).Trim();
-        if (string.IsNullOrWhiteSpace(normalizedServerBaseUrl))
+        if (!ClashOfRimServerUrlUtility.TryNormalizeHttpBaseUrl(serverBaseUrl, out string normalizedServerBaseUrl))
         {
             Messages.Message(ClashOfRimText.Key("ClashOfRim.ServerEntry.StatusAddressMissing"), MessageTypeDefOf.RejectInput, historical: false);
             return false;

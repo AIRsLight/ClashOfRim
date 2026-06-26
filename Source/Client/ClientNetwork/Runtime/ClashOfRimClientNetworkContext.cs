@@ -11,7 +11,7 @@ public sealed class ClashOfRimClientNetworkContext
         string? offlinePassword,
         string? authToken)
     {
-        ServerBaseUrl = serverBaseUrl;
+        ServerBaseUrl = ClashOfRimServerUrlUtility.NormalizeHttpBaseUrl(serverBaseUrl);
         UserId = userId;
         ColonyId = colonyId;
         CurrentSnapshotId = currentSnapshotId;
