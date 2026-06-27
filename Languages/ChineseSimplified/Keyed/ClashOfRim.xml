@@ -1078,6 +1078,15 @@
   <ClashOfRim.Trade.PostageUnreachable>&lt;color=#ff6b6b&gt;不可达，无法发送&lt;/color&gt;</ClashOfRim.Trade.PostageUnreachable>
   <ClashOfRim.Trade.PawnRequirement>人员</ClashOfRim.Trade.PawnRequirement>
   <ClashOfRim.Trade.NoPawnHitPoints>无耐久要求</ClashOfRim.Trade.NoPawnHitPoints>
+  <ClashOfRim.Trade.PawnGenderAny>性别:不限</ClashOfRim.Trade.PawnGenderAny>
+  <ClashOfRim.Trade.PawnGenderSelected>性别:{GENDER}</ClashOfRim.Trade.PawnGenderSelected>
+  <ClashOfRim.Trade.PawnGenderRequirement>性别:{GENDER}</ClashOfRim.Trade.PawnGenderRequirement>
+  <ClashOfRim.Trade.PawnAge>年龄</ClashOfRim.Trade.PawnAge>
+  <ClashOfRim.Trade.PawnAgeYears>岁</ClashOfRim.Trade.PawnAgeYears>
+  <ClashOfRim.Trade.PawnAgeRangeInvalid>范围错误</ClashOfRim.Trade.PawnAgeRangeInvalid>
+  <ClashOfRim.Trade.PawnAgeRequirementRange>年龄 {MIN}-{MAX} 岁</ClashOfRim.Trade.PawnAgeRequirementRange>
+  <ClashOfRim.Trade.PawnAgeRequirementMin>年龄≥{AGE} 岁</ClashOfRim.Trade.PawnAgeRequirementMin>
+  <ClashOfRim.Trade.PawnAgeRequirementMax>年龄≤{AGE} 岁</ClashOfRim.Trade.PawnAgeRequirementMax>
   <ClashOfRim.Trade.QualityAny>品质:不限</ClashOfRim.Trade.QualityAny>
   <ClashOfRim.Trade.QualitySelected>品质:{QUALITY}</ClashOfRim.Trade.QualitySelected>
   <ClashOfRim.Trade.ReceiveLine>获得：{THINGS}</ClashOfRim.Trade.ReceiveLine>

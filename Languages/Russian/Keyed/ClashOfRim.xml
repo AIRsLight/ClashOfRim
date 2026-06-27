@@ -1079,6 +1079,15 @@
   <ClashOfRim.Trade.PostageUnreachable>&lt;color=#ff6b6b&gt;Недостижимо, нельзя отправить&lt;/color&gt;</ClashOfRim.Trade.PostageUnreachable>
   <ClashOfRim.Trade.PawnRequirement>Персона</ClashOfRim.Trade.PawnRequirement>
   <ClashOfRim.Trade.NoPawnHitPoints>Нет требования прочности</ClashOfRim.Trade.NoPawnHitPoints>
+  <ClashOfRim.Trade.PawnGenderAny>Пол: любой</ClashOfRim.Trade.PawnGenderAny>
+  <ClashOfRim.Trade.PawnGenderSelected>Пол: {GENDER}</ClashOfRim.Trade.PawnGenderSelected>
+  <ClashOfRim.Trade.PawnGenderRequirement>пол: {GENDER}</ClashOfRim.Trade.PawnGenderRequirement>
+  <ClashOfRim.Trade.PawnAge>Возраст</ClashOfRim.Trade.PawnAge>
+  <ClashOfRim.Trade.PawnAgeYears>л.</ClashOfRim.Trade.PawnAgeYears>
+  <ClashOfRim.Trade.PawnAgeRangeInvalid>Ошибка диапазона</ClashOfRim.Trade.PawnAgeRangeInvalid>
+  <ClashOfRim.Trade.PawnAgeRequirementRange>возраст {MIN}-{MAX} л.</ClashOfRim.Trade.PawnAgeRequirementRange>
+  <ClashOfRim.Trade.PawnAgeRequirementMin>возраст≥{AGE} л.</ClashOfRim.Trade.PawnAgeRequirementMin>
+  <ClashOfRim.Trade.PawnAgeRequirementMax>возраст≤{AGE} л.</ClashOfRim.Trade.PawnAgeRequirementMax>
   <ClashOfRim.Trade.QualityAny>Качество: любое</ClashOfRim.Trade.QualityAny>
   <ClashOfRim.Trade.QualitySelected>Качество: {QUALITY}</ClashOfRim.Trade.QualitySelected>
   <ClashOfRim.Trade.ReceiveLine>Получить: {THINGS}</ClashOfRim.Trade.ReceiveLine>

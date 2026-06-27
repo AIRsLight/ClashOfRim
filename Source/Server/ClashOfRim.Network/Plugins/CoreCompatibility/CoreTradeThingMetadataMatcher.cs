@@ -9,18 +9,25 @@ internal sealed class CoreTradeThingMetadataMatcher : ITradeThingMetadataMatcher
     private const string TargetResearchProjectDefNameKey = "clashofrim.core.targetResearchProjectDefName";
     private const string ResearchProjectDefNameKey = "clashofrim.core.researchProjectDefName";
     private const string SourceLabelsKey = "clashofrim.core.sourceLabels";
+    private const string PawnGenderKey = "clashofrim.pawn.gender";
+    private const string PawnBiologicalAgeTicksKey = "clashofrim.pawn.biologicalAgeTicks";
+    private const string PawnMinBiologicalAgeYearsKey = "clashofrim.pawn.minBiologicalAgeYears";
+    private const string PawnMaxBiologicalAgeYearsKey = "clashofrim.pawn.maxBiologicalAgeYears";
+    private const long PawnTicksPerYear = 3600000L;
 
     public int RequirementStrictness(ThingReferenceDto requirement)
     {
         int bookRank = string.IsNullOrWhiteSpace(TargetBookSkillDefName(requirement)) ? 0 : 750_000;
         int researchProjectRank = string.IsNullOrWhiteSpace(TargetResearchProjectDefName(requirement)) ? 0 : 650_000;
-        return bookRank + researchProjectRank;
+        int pawnRank = PawnRequirementStrictness(requirement);
+        return bookRank + researchProjectRank + pawnRank;
     }
 
     public bool Matches(ThingReferenceDto requirement, ThingReferenceDto candidate)
     {
         return BookRequirementMatches(requirement, candidate)
-            && ResearchProjectRequirementMatches(requirement, candidate);
+            && ResearchProjectRequirementMatches(requirement, candidate)
+            && PawnRequirementMatches(requirement, candidate);
     }
 
     public IReadOnlyList<string> DescribeConstraints(ThingReferenceDto requirement)
@@ -49,6 +56,8 @@ internal sealed class CoreTradeThingMetadataMatcher : ITradeThingMetadataMatcher
                 "Trade.RequirementSourceLabels",
                 new Dictionary<string, string?> { ["SOURCES"] = string.Join(", ", sourceLabels.Take(3)) }));
         }
+
+        constraints.AddRange(PawnRequirementConstraints(requirement));
 
         return constraints;
     }
@@ -128,6 +137,116 @@ internal sealed class CoreTradeThingMetadataMatcher : ITradeThingMetadataMatcher
             .Where(label => !string.IsNullOrWhiteSpace(label))
             .Distinct(StringComparer.Ordinal)
             .ToList();
+    }
+
+    private static bool PawnRequirementMatches(ThingReferenceDto requirement, ThingReferenceDto candidate)
+    {
+        string? requiredGender = MetadataValue(requirement, PawnGenderKey);
+        if (!string.IsNullOrWhiteSpace(requiredGender)
+            && !string.Equals(requiredGender, CandidatePawnGender(candidate), StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        int? minAge = MetadataInt(requirement, PawnMinBiologicalAgeYearsKey);
+        int? maxAge = MetadataInt(requirement, PawnMaxBiologicalAgeYearsKey);
+        if (!minAge.HasValue && !maxAge.HasValue)
+        {
+            return true;
+        }
+
+        int? candidateAge = CandidatePawnAgeYears(candidate);
+        return candidateAge.HasValue
+            && (!minAge.HasValue || candidateAge.Value >= minAge.Value)
+            && (!maxAge.HasValue || candidateAge.Value <= maxAge.Value);
+    }
+
+    private static string? CandidatePawnGender(ThingReferenceDto candidate)
+    {
+        return candidate.PawnPackage?.Identity?.Gender
+            ?? MetadataValue(candidate, PawnGenderKey);
+    }
+
+    private static int? CandidatePawnAgeYears(ThingReferenceDto candidate)
+    {
+        long? ticks = candidate.PawnPackage?.Status?.BiologicalAgeTicks;
+        if (!ticks.HasValue)
+        {
+            string? metadataTicks = MetadataValue(candidate, PawnBiologicalAgeTicksKey);
+            if (long.TryParse(metadataTicks, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out long parsedTicks))
+            {
+                ticks = parsedTicks;
+            }
+        }
+
+        return ticks.HasValue && ticks.Value >= 0
+            ? (int)Math.Floor(ticks.Value / (double)PawnTicksPerYear)
+            : null;
+    }
+
+    private static int PawnRequirementStrictness(ThingReferenceDto requirement)
+    {
+        int strictness = 0;
+        if (!string.IsNullOrWhiteSpace(MetadataValue(requirement, PawnGenderKey)))
+        {
+            strictness += 150_000;
+        }
+
+        if (MetadataInt(requirement, PawnMinBiologicalAgeYearsKey).HasValue)
+        {
+            strictness += 75_000;
+        }
+
+        if (MetadataInt(requirement, PawnMaxBiologicalAgeYearsKey).HasValue)
+        {
+            strictness += 75_000;
+        }
+
+        return strictness;
+    }
+
+    private static IEnumerable<string> PawnRequirementConstraints(ThingReferenceDto requirement)
+    {
+        string? gender = MetadataValue(requirement, PawnGenderKey);
+        if (!string.IsNullOrWhiteSpace(gender))
+        {
+            yield return ServerLocalization.Text(
+                "Trade.RequirementPawnGender",
+                new Dictionary<string, string?> { ["GENDER"] = gender });
+        }
+
+        int? minAge = MetadataInt(requirement, PawnMinBiologicalAgeYearsKey);
+        int? maxAge = MetadataInt(requirement, PawnMaxBiologicalAgeYearsKey);
+        if (minAge.HasValue && maxAge.HasValue)
+        {
+            yield return ServerLocalization.Text(
+                "Trade.RequirementPawnAgeRange",
+                new Dictionary<string, string?>
+                {
+                    ["MIN"] = minAge.Value.ToString(),
+                    ["MAX"] = maxAge.Value.ToString()
+                });
+        }
+        else if (minAge.HasValue)
+        {
+            yield return ServerLocalization.Text(
+                "Trade.RequirementPawnAgeMin",
+                new Dictionary<string, string?> { ["AGE"] = minAge.Value.ToString() });
+        }
+        else if (maxAge.HasValue)
+        {
+            yield return ServerLocalization.Text(
+                "Trade.RequirementPawnAgeMax",
+                new Dictionary<string, string?> { ["AGE"] = maxAge.Value.ToString() });
+        }
+    }
+
+    private static int? MetadataInt(ThingReferenceDto reference, string key)
+    {
+        string? value = MetadataValue(reference, key);
+        return int.TryParse(value, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out int parsed)
+            ? parsed
+            : null;
     }
 
     private static string? MetadataValue(ThingReferenceDto reference, string key)

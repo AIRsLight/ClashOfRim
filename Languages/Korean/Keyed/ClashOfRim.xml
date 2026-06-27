@@ -1079,6 +1079,15 @@
   <ClashOfRim.Trade.PostageUnreachable>&lt;color=#ff6b6b&gt;도달 불가, 보낼 수 없음&lt;/color&gt;</ClashOfRim.Trade.PostageUnreachable>
   <ClashOfRim.Trade.PawnRequirement>인원</ClashOfRim.Trade.PawnRequirement>
   <ClashOfRim.Trade.NoPawnHitPoints>내구도 요구 없음</ClashOfRim.Trade.NoPawnHitPoints>
+  <ClashOfRim.Trade.PawnGenderAny>성별: 무관</ClashOfRim.Trade.PawnGenderAny>
+  <ClashOfRim.Trade.PawnGenderSelected>성별: {GENDER}</ClashOfRim.Trade.PawnGenderSelected>
+  <ClashOfRim.Trade.PawnGenderRequirement>성별: {GENDER}</ClashOfRim.Trade.PawnGenderRequirement>
+  <ClashOfRim.Trade.PawnAge>나이</ClashOfRim.Trade.PawnAge>
+  <ClashOfRim.Trade.PawnAgeYears>세</ClashOfRim.Trade.PawnAgeYears>
+  <ClashOfRim.Trade.PawnAgeRangeInvalid>범위 오류</ClashOfRim.Trade.PawnAgeRangeInvalid>
+  <ClashOfRim.Trade.PawnAgeRequirementRange>나이 {MIN}-{MAX}세</ClashOfRim.Trade.PawnAgeRequirementRange>
+  <ClashOfRim.Trade.PawnAgeRequirementMin>나이≥{AGE}세</ClashOfRim.Trade.PawnAgeRequirementMin>
+  <ClashOfRim.Trade.PawnAgeRequirementMax>나이≤{AGE}세</ClashOfRim.Trade.PawnAgeRequirementMax>
   <ClashOfRim.Trade.QualityAny>품질: 무관</ClashOfRim.Trade.QualityAny>
   <ClashOfRim.Trade.QualitySelected>품질: {QUALITY}</ClashOfRim.Trade.QualitySelected>
   <ClashOfRim.Trade.ReceiveLine>수령: {THINGS}</ClashOfRim.Trade.ReceiveLine>

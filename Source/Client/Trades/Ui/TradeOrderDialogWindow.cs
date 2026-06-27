@@ -837,12 +837,31 @@ public sealed class TradeOrderDialogWindow : Window
         return cachedRequestableThingDefs ??= DefDatabase<ThingDef>.AllDefsListForReading
             .Where(def => IsPackableBuildingDef(def)
                 || TradeThingReferenceUtility.IsBookDef(def)
-                || ((def.category == ThingCategory.Item || (def.category == ThingCategory.Pawn && def.race?.Animal == true))
-                    && def.PlayerAcquirable))
+                || IsRequestableTradeThingDef(def))
             .Where(def => !def.IsCorpse)
             .OrderBy(def => def.label)
             .ThenBy(def => def.defName)
             .ToList();
+    }
+
+    private static bool IsRequestableTradeThingDef(ThingDef def)
+    {
+        if (def.category == ThingCategory.Item)
+        {
+            return def.PlayerAcquirable;
+        }
+
+        if (def.category != ThingCategory.Pawn)
+        {
+            return false;
+        }
+
+        if (def.race?.Animal == true)
+        {
+            return def.PlayerAcquirable;
+        }
+
+        return def.race?.IsMechanoid == true;
     }
 
     private static bool IsPackableBuildingDef(ThingDef def)

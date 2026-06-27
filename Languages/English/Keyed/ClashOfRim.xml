@@ -1078,6 +1078,15 @@
   <ClashOfRim.Trade.PostageUnreachable>&lt;color=#ff6b6b&gt;Unreachable, cannot send&lt;/color&gt;</ClashOfRim.Trade.PostageUnreachable>
   <ClashOfRim.Trade.PawnRequirement>Person</ClashOfRim.Trade.PawnRequirement>
   <ClashOfRim.Trade.NoPawnHitPoints>No hit point requirement</ClashOfRim.Trade.NoPawnHitPoints>
+  <ClashOfRim.Trade.PawnGenderAny>Sex: any</ClashOfRim.Trade.PawnGenderAny>
+  <ClashOfRim.Trade.PawnGenderSelected>Sex: {GENDER}</ClashOfRim.Trade.PawnGenderSelected>
+  <ClashOfRim.Trade.PawnGenderRequirement>sex: {GENDER}</ClashOfRim.Trade.PawnGenderRequirement>
+  <ClashOfRim.Trade.PawnAge>Age</ClashOfRim.Trade.PawnAge>
+  <ClashOfRim.Trade.PawnAgeYears>y</ClashOfRim.Trade.PawnAgeYears>
+  <ClashOfRim.Trade.PawnAgeRangeInvalid>Invalid range</ClashOfRim.Trade.PawnAgeRangeInvalid>
+  <ClashOfRim.Trade.PawnAgeRequirementRange>age {MIN}-{MAX}y</ClashOfRim.Trade.PawnAgeRequirementRange>
+  <ClashOfRim.Trade.PawnAgeRequirementMin>age &gt;= {AGE}y</ClashOfRim.Trade.PawnAgeRequirementMin>
+  <ClashOfRim.Trade.PawnAgeRequirementMax>age &lt;= {AGE}y</ClashOfRim.Trade.PawnAgeRequirementMax>
   <ClashOfRim.Trade.QualityAny>Quality: any</ClashOfRim.Trade.QualityAny>
   <ClashOfRim.Trade.QualitySelected>Quality: {QUALITY}</ClashOfRim.Trade.QualitySelected>
   <ClashOfRim.Trade.ReceiveLine>Receive: {THINGS}</ClashOfRim.Trade.ReceiveLine>
@@ -1845,7 +1854,6 @@
   <ClashOfRim.ColonyAppearance.SavedMessage>Colony icon updated.</ClashOfRim.ColonyAppearance.SavedMessage>
   <ClashOfRim.ColonyAppearance.RegistrationReason>Colony icon update</ClashOfRim.ColonyAppearance.RegistrationReason>
 </LanguageData>
-
 
 
 

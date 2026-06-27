@@ -306,7 +306,7 @@ internal static class TradeThingReferenceUtility
 
         if (candidate is Pawn)
         {
-            return true;
+            return ClashOfRimCompatibilityApi.ThingReferenceMetadataMatches(requirement, candidate);
         }
 
         QualityCategory quality;

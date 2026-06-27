@@ -18,6 +18,8 @@ internal static class TradePawnUtility
     internal const string PawnMetadataPawnKindDef = "clashofrim.pawn.pawnKindDef";
     internal const string PawnMetadataGender = "clashofrim.pawn.gender";
     internal const string PawnMetadataBiologicalAgeTicks = "clashofrim.pawn.biologicalAgeTicks";
+    internal const string PawnMetadataMinBiologicalAgeYears = "clashofrim.pawn.minBiologicalAgeYears";
+    internal const string PawnMetadataMaxBiologicalAgeYears = "clashofrim.pawn.maxBiologicalAgeYears";
 
     private static readonly ITrader MarketplaceTrader = new MarketplacePawnSaleTrader();
     private static TraderKindDef? cachedMarketplaceTraderKind;
@@ -27,7 +29,14 @@ internal static class TradePawnUtility
         return pawn is { Destroyed: false, Dead: false }
             && pawn.Faction == Faction.OfPlayer
             && !pawn.IsQuestLodger()
-            && (pawn.RaceProps?.Animal == true || ClashOfRimCompatibilityApi.IsTradeablePawnByCompatibility(pawn));
+            && IsTradeablePawnRace(pawn);
+    }
+
+    public static bool IsTradeablePawnRace(Pawn pawn)
+    {
+        return pawn.RaceProps?.Animal == true
+            || pawn.RaceProps?.IsMechanoid == true
+            || ClashOfRimCompatibilityApi.IsTradeablePawnByCompatibility(pawn);
     }
 
     public static bool IsPawnReference(ModThingReferenceDto reference)

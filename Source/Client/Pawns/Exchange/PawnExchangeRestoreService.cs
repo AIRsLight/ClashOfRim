@@ -1,5 +1,6 @@
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.ThirdPartyCompatibility;
+using AIRsLight.ClashOfRim.Trades;
 using System;
 using Verse;
 
@@ -51,8 +52,7 @@ internal static class PawnExchangeRestoreService
         {
             PawnExchangeRestoreKind.Support => true,
             PawnExchangeRestoreKind.AnimalGift => pawn.RaceProps?.Animal == true,
-            PawnExchangeRestoreKind.TradePawn => pawn.RaceProps?.Animal == true
-                || ClashOfRimCompatibilityApi.IsTradePawnRestoreAllowedByCompatibility(pawn),
+            PawnExchangeRestoreKind.TradePawn => TradePawnUtility.IsTradeablePawnRace(pawn),
             PawnExchangeRestoreKind.GiftPawn => pawn.RaceProps?.Animal == true
                 || pawn.IsPrisoner
                 || pawn.IsSlave,

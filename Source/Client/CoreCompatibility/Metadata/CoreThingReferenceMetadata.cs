@@ -34,6 +34,7 @@ internal static class CoreThingReferenceMetadata
     private const string CoreThingReferenceMetadataKey = "clashofrim.core.thing-reference-metadata";
     private const string CoreThingReferenceDisplayKey = "clashofrim.core.thing-reference-display";
     private const string CoreThingFactoryKey = "clashofrim.core.thing-reference-factory";
+    private const long PawnTicksPerYear = 3600000L;
     private static readonly FieldInfo? SkillBookValuesField =
         typeof(BookOutcomeDoerGainSkillExp).GetField("values", BindingFlags.Instance | BindingFlags.NonPublic);
     private static readonly FieldInfo? ResearchBookValuesField =
@@ -48,6 +49,8 @@ internal static class CoreThingReferenceMetadata
         typeof(CompArt).GetField("taleRef", BindingFlags.Instance | BindingFlags.NonPublic);
     private static readonly Dictionary<string, bool> SkillBookDefCache = new(StringComparer.OrdinalIgnoreCase);
     private static readonly Dictionary<string, bool> ResearchBookDefCache = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly Dictionary<string, string> PawnMinAgeBuffers = new(StringComparer.Ordinal);
+    private static readonly Dictionary<string, string> PawnMaxAgeBuffers = new(StringComparer.Ordinal);
     private static Dictionary<string, string>? techprintProjectByThingDefName;
     private static IReadOnlyList<ResearchProjectDef>? cachedTechprintResearchProjects;
     private static IReadOnlyList<SkillDef>? cachedSkills;
@@ -87,6 +90,18 @@ internal static class CoreThingReferenceMetadata
     private static int? OverrideGraphicIndex(ModThingReferenceDto? reference) => MetadataInt(reference, MetadataOverrideGraphicIndex);
 
     private static void SetOverrideGraphicIndex(ModThingReferenceDto? reference, int? value) => SetMetadataInt(reference, MetadataOverrideGraphicIndex, value);
+
+    private static string? TargetPawnGender(ModThingReferenceDto? reference) => MetadataText(reference, TradePawnUtility.PawnMetadataGender);
+
+    private static void SetTargetPawnGender(ModThingReferenceDto? reference, string? value) => SetMetadataText(reference, TradePawnUtility.PawnMetadataGender, value);
+
+    private static int? TargetPawnMinAgeYears(ModThingReferenceDto? reference) => MetadataInt(reference, TradePawnUtility.PawnMetadataMinBiologicalAgeYears);
+
+    private static void SetTargetPawnMinAgeYears(ModThingReferenceDto? reference, int? value) => SetMetadataInt(reference, TradePawnUtility.PawnMetadataMinBiologicalAgeYears, value);
+
+    private static int? TargetPawnMaxAgeYears(ModThingReferenceDto? reference) => MetadataInt(reference, TradePawnUtility.PawnMetadataMaxBiologicalAgeYears);
+
+    private static void SetTargetPawnMaxAgeYears(ModThingReferenceDto? reference, int? value) => SetMetadataInt(reference, TradePawnUtility.PawnMetadataMaxBiologicalAgeYears, value);
 
     private static void Apply()
     {
@@ -149,6 +164,13 @@ internal static class CoreThingReferenceMetadata
     {
         consumedHeight = 0f;
 
+        if (def?.race?.Animal == true)
+        {
+            DrawAnimalPawnRequirementEditor(def, item, rect);
+            consumedHeight = rect.height;
+            return true;
+        }
+
         if (IsResearchBookDef(def))
         {
             DrawResearchProjectButton(new Rect(rect.x, rect.y, Math.Min(240f, rect.width), rect.height), item, requirementMode: true);
@@ -195,6 +217,122 @@ internal static class CoreThingReferenceMetadata
         }
 
         return false;
+    }
+
+    private static void DrawAnimalPawnRequirementEditor(ThingDef def, ModThingReferenceDto item, Rect rect)
+    {
+        float x = rect.x;
+        DrawPawnGenderButton(new Rect(x, rect.y, 118f, rect.height), def, item);
+        x += 126f;
+
+        Widgets.Label(new Rect(x, rect.y + 3f, 40f, rect.height), ClashOfRimText.Key("ClashOfRim.Trade.PawnAge"));
+        x += 42f;
+
+        DrawPawnAgeTextField(
+            new Rect(x, rect.y, 48f, rect.height),
+            item,
+            minimum: true);
+        x += 52f;
+
+        Widgets.Label(new Rect(x, rect.y + 3f, 10f, rect.height), "-");
+        x += 12f;
+
+        DrawPawnAgeTextField(
+            new Rect(x, rect.y, 48f, rect.height),
+            item,
+            minimum: false);
+        x += 54f;
+
+        Widgets.Label(new Rect(x, rect.y + 3f, 32f, rect.height), ClashOfRimText.Key("ClashOfRim.Trade.PawnAgeYears"));
+        if (!PawnAgeRequirementValid(item))
+        {
+            GUI.color = new Color(1f, 0.35f, 0.35f);
+            Widgets.Label(
+                new Rect(x + 34f, rect.y + 3f, Math.Max(0f, rect.xMax - x - 34f), rect.height),
+                ClashOfRimText.Key("ClashOfRim.Trade.PawnAgeRangeInvalid"));
+            GUI.color = Color.white;
+        }
+    }
+
+    private static void DrawPawnGenderButton(Rect rect, ThingDef def, ModThingReferenceDto item)
+    {
+        string? selectedGender = TargetPawnGender(item);
+        string label = string.IsNullOrWhiteSpace(selectedGender)
+            ? ClashOfRimText.Key("ClashOfRim.Trade.PawnGenderAny")
+            : ClashOfRimText.Key(
+                "ClashOfRim.Trade.PawnGenderSelected",
+                PawnGenderLabel(def, selectedGender).Named("GENDER"));
+        if (!Widgets.ButtonText(rect, label))
+        {
+            return;
+        }
+
+        List<FloatMenuOption> options = new()
+        {
+            new FloatMenuOption(ClashOfRimText.Key("ClashOfRim.Trade.PawnGenderAny"), () => SetTargetPawnGender(item, null))
+        };
+        foreach (Gender gender in new[] { Gender.Male, Gender.Female })
+        {
+            Gender captured = gender;
+            options.Add(new FloatMenuOption(PawnGenderLabel(def, captured.ToString()), () => SetTargetPawnGender(item, captured.ToString())));
+        }
+
+        Find.WindowStack.Add(new FloatMenu(options));
+    }
+
+    private static void DrawPawnAgeTextField(Rect rect, ModThingReferenceDto item, bool minimum)
+    {
+        string key = PawnAgeBufferKey(item, minimum);
+        int? currentValue = minimum ? TargetPawnMinAgeYears(item) : TargetPawnMaxAgeYears(item);
+        if (!PawnMinAgeBuffers.ContainsKey(key) && !PawnMaxAgeBuffers.ContainsKey(key))
+        {
+            (minimum ? PawnMinAgeBuffers : PawnMaxAgeBuffers)[key] = currentValue?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
+        }
+
+        Dictionary<string, string> buffers = minimum ? PawnMinAgeBuffers : PawnMaxAgeBuffers;
+        string currentText = buffers.TryGetValue(key, out string buffered)
+            ? buffered
+            : currentValue?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
+        string nextText = Widgets.TextField(rect, currentText);
+        buffers[key] = nextText;
+        if (string.IsNullOrWhiteSpace(nextText))
+        {
+            if (minimum)
+            {
+                SetTargetPawnMinAgeYears(item, null);
+            }
+            else
+            {
+                SetTargetPawnMaxAgeYears(item, null);
+            }
+
+            return;
+        }
+
+        if (int.TryParse(nextText, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed) && parsed >= 0)
+        {
+            if (minimum)
+            {
+                SetTargetPawnMinAgeYears(item, parsed);
+            }
+            else
+            {
+                SetTargetPawnMaxAgeYears(item, parsed);
+            }
+        }
+    }
+
+    private static string PawnAgeBufferKey(ModThingReferenceDto item, bool minimum)
+    {
+        return (minimum ? "min:" : "max:")
+            + (item.GlobalKey ?? item.DefName ?? item.GetHashCode().ToString(CultureInfo.InvariantCulture));
+    }
+
+    private static string PawnGenderLabel(ThingDef def, string? genderValue)
+    {
+        return Enum.TryParse(genderValue, ignoreCase: true, out Gender gender) && gender != Gender.None
+            ? gender.GetLabel(def.race?.Animal == true).CapitalizeFirst()
+            : ClashOfRimText.Key("ClashOfRim.Any");
     }
 
     private static void DrawBookSkillButton(Rect rect, ModThingReferenceDto item)
@@ -326,6 +464,13 @@ internal static class CoreThingReferenceMetadata
         {
             TraitTrainerUtility.ClearTrait(item);
         }
+
+        if (def?.race?.Animal != true)
+        {
+            item.Metadata.Remove(TradePawnUtility.PawnMetadataGender);
+            item.Metadata.Remove(TradePawnUtility.PawnMetadataMinBiologicalAgeYears);
+            item.Metadata.Remove(TradePawnUtility.PawnMetadataMaxBiologicalAgeYears);
+        }
     }
 
     private static bool IsThingReferenceComplete(string surface, ThingDef? def, ModThingReferenceDto item)
@@ -345,6 +490,11 @@ internal static class CoreThingReferenceMetadata
             {
                 return false;
             }
+        }
+
+        if (def?.race?.Animal == true && !PawnAgeRequirementValid(item))
+        {
+            return false;
         }
 
         if (string.Equals(surface, ThingReferenceSurfaces.ServerShopListing, StringComparison.Ordinal))
@@ -384,6 +534,13 @@ internal static class CoreThingReferenceMetadata
         }
     }
 
+    private static bool PawnAgeRequirementValid(ModThingReferenceDto item)
+    {
+        int? min = TargetPawnMinAgeYears(item);
+        int? max = TargetPawnMaxAgeYears(item);
+        return !min.HasValue || !max.HasValue || min.Value <= max.Value;
+    }
+
     private static void AppendThingReferenceMetadata(Thing metadataThing, ModThingReferenceDto reference)
     {
         SyncCoreMetadata(reference);
@@ -411,6 +568,11 @@ internal static class CoreThingReferenceMetadata
     private static bool ThingReferenceMatches(ModThingReferenceDto requirement, Thing metadataThing)
     {
         SyncCoreMetadata(requirement);
+        if (metadataThing is Pawn pawn && !PawnRequirementMatches(requirement, pawn))
+        {
+            return false;
+        }
+
         Book? candidateBook = metadataThing as Book;
         if (!BookRequirementMatches(requirement, BookSkillDefNames(candidateBook)))
         {
@@ -459,6 +621,11 @@ internal static class CoreThingReferenceMetadata
     {
         SyncCoreMetadata(requirement);
         SyncCoreMetadata(candidate);
+        if (!PawnRequirementMatches(requirement, candidate))
+        {
+            return false;
+        }
+
         if (!BookRequirementMatches(requirement, BookSkillDefNames(candidate)))
         {
             return false;
@@ -498,6 +665,99 @@ internal static class CoreThingReferenceMetadata
 
         return string.Equals(TraitTrainerUtility.TraitDefName(candidate), requiredTrait, StringComparison.OrdinalIgnoreCase)
             && TraitTrainerUtility.TraitDegree(candidate) == requiredDegree.Value;
+    }
+
+    private static bool PawnRequirementMatches(ModThingReferenceDto requirement, Pawn candidate)
+    {
+        string? requiredGender = TargetPawnGender(requirement);
+        if (!string.IsNullOrWhiteSpace(requiredGender)
+            && (!Enum.TryParse(requiredGender, ignoreCase: true, out Gender gender)
+                || candidate.gender != gender))
+        {
+            return false;
+        }
+
+        int? minAge = TargetPawnMinAgeYears(requirement);
+        int? maxAge = TargetPawnMaxAgeYears(requirement);
+        if (!minAge.HasValue && !maxAge.HasValue)
+        {
+            return true;
+        }
+
+        int ageYears = Mathf.FloorToInt(candidate.ageTracker?.AgeBiologicalYearsFloat ?? -1f);
+        if (ageYears < 0)
+        {
+            return false;
+        }
+
+        return (!minAge.HasValue || ageYears >= minAge.Value)
+            && (!maxAge.HasValue || ageYears <= maxAge.Value);
+    }
+
+    private static bool PawnRequirementMatches(ModThingReferenceDto requirement, ModThingReferenceDto candidate)
+    {
+        string? requiredGender = TargetPawnGender(requirement);
+        if (!string.IsNullOrWhiteSpace(requiredGender)
+            && !string.Equals(requiredGender, CandidatePawnGender(candidate), StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        int? minAge = TargetPawnMinAgeYears(requirement);
+        int? maxAge = TargetPawnMaxAgeYears(requirement);
+        if (!minAge.HasValue && !maxAge.HasValue)
+        {
+            return true;
+        }
+
+        int? ageYears = CandidatePawnAgeYears(candidate);
+        return ageYears.HasValue
+            && (!minAge.HasValue || ageYears.Value >= minAge.Value)
+            && (!maxAge.HasValue || ageYears.Value <= maxAge.Value);
+    }
+
+    private static string? CandidatePawnGender(ModThingReferenceDto candidate)
+    {
+        return candidate.PawnPackage?.Identity?.Gender
+            ?? MetadataText(candidate, TradePawnUtility.PawnMetadataGender);
+    }
+
+    private static int? CandidatePawnAgeYears(ModThingReferenceDto candidate)
+    {
+        long? ticks = candidate.PawnPackage?.Status?.BiologicalAgeTicks;
+        if (!ticks.HasValue)
+        {
+            string? metadataTicks = MetadataText(candidate, TradePawnUtility.PawnMetadataBiologicalAgeTicks);
+            if (long.TryParse(metadataTicks, NumberStyles.Integer, CultureInfo.InvariantCulture, out long parsedTicks))
+            {
+                ticks = parsedTicks;
+            }
+        }
+
+        return ticks.HasValue && ticks.Value >= 0
+            ? (int)Math.Floor(ticks.Value / (double)PawnTicksPerYear)
+            : null;
+    }
+
+    private static int PawnRequirementStrictness(ModThingReferenceDto requirement)
+    {
+        int strictness = 0;
+        if (!string.IsNullOrWhiteSpace(TargetPawnGender(requirement)))
+        {
+            strictness += 150_000;
+        }
+
+        if (TargetPawnMinAgeYears(requirement).HasValue)
+        {
+            strictness += 75_000;
+        }
+
+        if (TargetPawnMaxAgeYears(requirement).HasValue)
+        {
+            strictness += 75_000;
+        }
+
+        return strictness;
     }
 
     private static bool TryApplyThingReferenceMetadata(ModThingReferenceDto reference, Thing thing, out string? missingDefName)
@@ -551,12 +811,13 @@ internal static class CoreThingReferenceMetadata
         SyncCoreMetadata(requirement);
         int bookRank = string.IsNullOrWhiteSpace(TargetBookSkillDefName(requirement)) ? 0 : 750_000;
         int researchProjectRank = string.IsNullOrWhiteSpace(TargetResearchProjectDefName(requirement)) ? 0 : 650_000;
+        int pawnRank = PawnRequirementStrictness(requirement);
         int graphicRank = OverrideGraphicIndex(requirement).HasValue ? 300_000 : 0;
         int traitRank = TraitTrainerUtility.IsTraitTrainerReference(requirement)
             && !string.IsNullOrWhiteSpace(TraitTrainerUtility.TraitDefName(requirement))
                 ? 800_000
                 : 0;
-        return bookRank + researchProjectRank + graphicRank + traitRank;
+        return bookRank + researchProjectRank + pawnRank + graphicRank + traitRank;
     }
 
     private static void AppendThingReferenceDisplayParts(ModThingReferenceDto thing, bool asRequirement, List<string> parts)
@@ -566,6 +827,11 @@ internal static class CoreThingReferenceMetadata
         IReadOnlyList<string> bookSkillDefNames = BookSkillDefNames(thing);
         string? researchProjectDefName = ResearchProjectDefName(thing);
         IReadOnlyList<string> sourceLabels = SourceLabels(thing);
+        if (asRequirement)
+        {
+            AppendPawnRequirementDisplayParts(thing, parts);
+        }
+
         if (asRequirement && !string.IsNullOrWhiteSpace(targetBookSkillDefName))
         {
             parts.Add(ClashOfRimText.Key(
@@ -605,6 +871,45 @@ internal static class CoreThingReferenceMetadata
         }
     }
 
+    private static void AppendPawnRequirementDisplayParts(ModThingReferenceDto thing, List<string> parts)
+    {
+        ThingDef? def = TradeThingReferenceUtility.ResolveReferenceDef(thing);
+        if (def?.race?.Animal != true)
+        {
+            return;
+        }
+
+        string? gender = TargetPawnGender(thing);
+        if (!string.IsNullOrWhiteSpace(gender))
+        {
+            parts.Add(ClashOfRimText.Key(
+                "ClashOfRim.Trade.PawnGenderRequirement",
+                PawnGenderLabel(def, gender).Named("GENDER")));
+        }
+
+        int? minAge = TargetPawnMinAgeYears(thing);
+        int? maxAge = TargetPawnMaxAgeYears(thing);
+        if (minAge.HasValue && maxAge.HasValue)
+        {
+            parts.Add(ClashOfRimText.Key(
+                "ClashOfRim.Trade.PawnAgeRequirementRange",
+                minAge.Value.Named("MIN"),
+                maxAge.Value.Named("MAX")));
+        }
+        else if (minAge.HasValue)
+        {
+            parts.Add(ClashOfRimText.Key(
+                "ClashOfRim.Trade.PawnAgeRequirementMin",
+                minAge.Value.Named("AGE")));
+        }
+        else if (maxAge.HasValue)
+        {
+            parts.Add(ClashOfRimText.Key(
+                "ClashOfRim.Trade.PawnAgeRequirementMax",
+                maxAge.Value.Named("AGE")));
+        }
+    }
+
     private static bool SuppressesStandardThingStats(ThingDef? def)
     {
         return false;
@@ -625,6 +930,9 @@ internal static class CoreThingReferenceMetadata
             yield return ArtAuthor(thing) ?? string.Empty;
             yield return ArtDescription(thing) ?? string.Empty;
             yield return OverrideGraphicIndex(thing)?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
+            yield return TargetPawnGender(thing) ?? string.Empty;
+            yield return TargetPawnMinAgeYears(thing)?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
+            yield return TargetPawnMaxAgeYears(thing)?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
             yield break;
         }
 
@@ -637,6 +945,9 @@ internal static class CoreThingReferenceMetadata
         yield return ArtAuthor(thing) ?? string.Empty;
         yield return ArtDescription(thing) ?? string.Empty;
         yield return OverrideGraphicIndex(thing)?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
+        yield return TargetPawnGender(thing) ?? string.Empty;
+        yield return TargetPawnMinAgeYears(thing)?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
+        yield return TargetPawnMaxAgeYears(thing)?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
         yield return TraitTrainerUtility.TraitDefName(thing) ?? string.Empty;
         yield return TraitTrainerUtility.TraitDegree(thing)?.ToString() ?? string.Empty;
     }

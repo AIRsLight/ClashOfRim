@@ -1237,6 +1237,12 @@ internal static class TradeUiUtility
             return true;
         }
 
+        if (def.category == ThingCategory.Pawn)
+        {
+            marketValue = Mathf.Max(0f, def.GetStatValueAbstract(StatDefOf.MarketValue));
+            return true;
+        }
+
         if (thing.UniqueWeapon == true)
         {
             if (thing.MarketValue.HasValue)
