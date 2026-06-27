@@ -422,11 +422,6 @@ internal static class CoreThingReferenceMetadata
             return false;
         }
 
-        if (!SourceLabelRequirementMatches(requirement, SourceLabels(metadataThing)))
-        {
-            return false;
-        }
-
         if (!OverrideGraphicIndexRequirementMatches(requirement, metadataThing.OverrideGraphicIndex))
         {
             return false;
@@ -470,11 +465,6 @@ internal static class CoreThingReferenceMetadata
         }
 
         if (!ResearchProjectRequirementMatches(requirement, ResearchProjectDefName(candidate)))
-        {
-            return false;
-        }
-
-        if (!SourceLabelRequirementMatches(requirement, SourceLabels(candidate)))
         {
             return false;
         }
@@ -561,13 +551,12 @@ internal static class CoreThingReferenceMetadata
         SyncCoreMetadata(requirement);
         int bookRank = string.IsNullOrWhiteSpace(TargetBookSkillDefName(requirement)) ? 0 : 750_000;
         int researchProjectRank = string.IsNullOrWhiteSpace(TargetResearchProjectDefName(requirement)) ? 0 : 650_000;
-        int sourceRank = SourceLabels(requirement).Count > 0 ? 500_000 : 0;
         int graphicRank = OverrideGraphicIndex(requirement).HasValue ? 300_000 : 0;
         int traitRank = TraitTrainerUtility.IsTraitTrainerReference(requirement)
             && !string.IsNullOrWhiteSpace(TraitTrainerUtility.TraitDefName(requirement))
                 ? 800_000
                 : 0;
-        return bookRank + researchProjectRank + sourceRank + graphicRank + traitRank;
+        return bookRank + researchProjectRank + graphicRank + traitRank;
     }
 
     private static void AppendThingReferenceDisplayParts(ModThingReferenceDto thing, bool asRequirement, List<string> parts)
@@ -857,18 +846,6 @@ internal static class CoreThingReferenceMetadata
             .Select(label => label.Trim())
             .Distinct(StringComparer.Ordinal)
             .ToList();
-    }
-
-    private static bool SourceLabelRequirementMatches(ModThingReferenceDto requirement, IReadOnlyCollection<string> candidateLabels)
-    {
-        IReadOnlyList<string> requiredLabels = SourceLabels(requirement);
-        if (requiredLabels.Count == 0)
-        {
-            return true;
-        }
-
-        return requiredLabels.All(required => candidateLabels.Any(candidate =>
-            string.Equals(required, candidate, StringComparison.Ordinal)));
     }
 
     private static string FormatSourceLabels(IReadOnlyList<string> sourceLabels)

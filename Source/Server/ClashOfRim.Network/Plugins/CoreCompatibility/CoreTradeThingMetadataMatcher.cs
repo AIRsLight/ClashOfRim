@@ -14,15 +14,13 @@ internal sealed class CoreTradeThingMetadataMatcher : ITradeThingMetadataMatcher
     {
         int bookRank = string.IsNullOrWhiteSpace(TargetBookSkillDefName(requirement)) ? 0 : 750_000;
         int researchProjectRank = string.IsNullOrWhiteSpace(TargetResearchProjectDefName(requirement)) ? 0 : 650_000;
-        int sourceRank = SourceLabels(requirement).Count == 0 ? 0 : 500_000;
-        return bookRank + researchProjectRank + sourceRank;
+        return bookRank + researchProjectRank;
     }
 
     public bool Matches(ThingReferenceDto requirement, ThingReferenceDto candidate)
     {
         return BookRequirementMatches(requirement, candidate)
-            && ResearchProjectRequirementMatches(requirement, candidate)
-            && SourceLabelRequirementMatches(requirement, candidate);
+            && ResearchProjectRequirementMatches(requirement, candidate);
     }
 
     public IReadOnlyList<string> DescribeConstraints(ThingReferenceDto requirement)
@@ -79,19 +77,6 @@ internal sealed class CoreTradeThingMetadataMatcher : ITradeThingMetadataMatcher
             targetResearchProject,
             ResearchProjectDefName(candidate),
             StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool SourceLabelRequirementMatches(ThingReferenceDto requirement, ThingReferenceDto candidate)
-    {
-        IReadOnlyList<string> requiredLabels = SourceLabels(requirement);
-        if (requiredLabels.Count == 0)
-        {
-            return true;
-        }
-
-        IReadOnlyList<string> candidateLabels = SourceLabels(candidate);
-        return requiredLabels.All(required => candidateLabels.Any(candidateLabel =>
-            string.Equals(required, candidateLabel, StringComparison.Ordinal)));
     }
 
     private static string? TargetBookSkillDefName(ThingReferenceDto reference)
