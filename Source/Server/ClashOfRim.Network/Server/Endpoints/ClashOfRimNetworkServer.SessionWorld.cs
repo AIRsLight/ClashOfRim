@@ -254,6 +254,86 @@ public static partial class ClashOfRimNetworkServer
             BuildWorldConfigurationForDelivery(after.WorldConfiguration, state)));
     }
 
+    private static IResult SubmitWorldFeatureNames(
+        SubmitWorldFeatureNamesRequest request,
+        ClashOfRimNetworkState state,
+        ILoggerFactory loggerFactory)
+    {
+        if (!string.Equals(request.ProtocolVersion, ProtocolApiVersion.Current, StringComparison.Ordinal))
+        {
+            return Results.Ok(new SubmitWorldFeatureNamesResponse(
+                ProtocolResponse.Reject(ProtocolErrorCode.IncompatibleProtocolVersion, T("Protocol.IncompatibleVersion")),
+                accepted: false,
+                created: false,
+                worldConfiguration: BuildWorldConfigurationForDelivery(state.WorldConfiguration.Current, state)));
+        }
+
+        if (string.IsNullOrWhiteSpace(request.UserId)
+            || string.IsNullOrWhiteSpace(request.ColonyId)
+            || string.IsNullOrWhiteSpace(request.Language)
+            || string.IsNullOrWhiteSpace(request.WorldConfigurationId)
+            || request.Features.Count == 0)
+        {
+            return Results.Ok(new SubmitWorldFeatureNamesResponse(
+                ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("WorldConfiguration.FeatureNamesMissingRequest")),
+                accepted: false,
+                created: false,
+                worldConfiguration: BuildWorldConfigurationForDelivery(state.WorldConfiguration.Current, state)));
+        }
+
+        AuthenticationValidationResult auth = ValidateAuthentication(
+            state,
+            request.UserId,
+            request.SteamAuthTicket,
+            request.Password,
+            DateTimeOffset.UtcNow);
+        if (!auth.Accepted || string.IsNullOrWhiteSpace(auth.AuthenticatedUserId))
+        {
+            return Results.Ok(new SubmitWorldFeatureNamesResponse(
+                ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, auth.Message ?? T("Steam.Failed")),
+                accepted: false,
+                created: false,
+                worldConfiguration: BuildWorldConfigurationForDelivery(state.WorldConfiguration.Current, state)));
+        }
+
+        WorldFeatureNameCatalogSubmitResult result = state.WorldConfiguration.SubmitWorldFeatureNames(
+            request.UserId,
+            request.ColonyId,
+            request.Language,
+            request.WorldConfigurationId,
+            request.Features);
+        WorldConfigurationDto? deliveredConfiguration = BuildWorldConfigurationForDelivery(result.WorldConfiguration, state);
+        if (!result.Accepted)
+        {
+            return Results.Ok(new SubmitWorldFeatureNamesResponse(
+                ProtocolResponse.Reject(
+                    ProtocolErrorCode.ValidationFailed,
+                    T("WorldConfiguration.FeatureNamesRejected", ("REASON", result.Message))),
+                accepted: false,
+                created: false,
+                worldConfiguration: deliveredConfiguration));
+        }
+
+        if (result.Created)
+        {
+            SignalWorldConfigurationChanged(state, request.UserId);
+            RuntimeLogger(loggerFactory).LogInformation(
+                "世界地区名目录已提交：user={UserId} colony={ColonyId} language={Language} features={FeatureCount}",
+                request.UserId,
+                request.ColonyId,
+                request.Language,
+                request.Features.Count);
+        }
+
+        return Results.Ok(new SubmitWorldFeatureNamesResponse(
+            ProtocolResponse.Ok(result.Created
+                ? T("WorldConfiguration.FeatureNamesRegistered")
+                : T("WorldConfiguration.FeatureNamesAlreadyRegistered")),
+            accepted: true,
+            created: result.Created,
+            worldConfiguration: deliveredConfiguration));
+    }
+
     private static IResult GetWorldConfiguration(GetWorldConfigurationRequest request, ClashOfRimNetworkState state)
     {
         if (!string.Equals(request.ProtocolVersion, ProtocolApiVersion.Current, StringComparison.Ordinal))

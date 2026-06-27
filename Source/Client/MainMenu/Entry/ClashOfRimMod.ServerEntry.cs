@@ -349,6 +349,8 @@ public sealed partial class ClashOfRimMod
                 return;
             }
 
+            ShowCompatibilityMismatchWindow(response);
+
             if (!response.WorldConfigured && !response.IsAdministrator)
             {
                 loginStatus = response.Result?.Message ?? ClashOfRimText.Key("ClashOfRim.WaitingFirstAdminWorldConfiguration");

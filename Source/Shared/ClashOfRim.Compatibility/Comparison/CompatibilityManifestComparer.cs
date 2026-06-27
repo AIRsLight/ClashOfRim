@@ -211,6 +211,24 @@ public static class CompatibilityManifestComparer
         }
     }
 
+    public static void CompareGameLanguage(List<CompatibilityIssue> issues, string? server, string? client)
+    {
+        string serverLanguage = NormalizeLanguage(server);
+        string clientLanguage = NormalizeLanguage(client);
+        if (string.IsNullOrWhiteSpace(serverLanguage)
+            || string.IsNullOrWhiteSpace(clientLanguage)
+            || string.Equals(serverLanguage, clientLanguage, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        issues.Add(new CompatibilityIssue(
+            CompatibilityIssueSeverity.Warning,
+            CompatibilityIssueCode.GameLanguageMismatch,
+            $"Game language mismatch: server={server}, client={client}",
+            "gameLanguage"));
+    }
+
     private static void CompareSequence(List<CompatibilityIssue> issues, IReadOnlyList<string> server, IReadOnlyList<string> client, CompatibilityIssueCode code, string message, string subject)
     {
         string[] serverValues = server.Select(NormalizeId).ToArray();
@@ -229,6 +247,11 @@ public static class CompatibilityManifestComparer
     private static string NormalizeId(string value)
     {
         return value.Trim().ToLowerInvariant();
+    }
+
+    private static string NormalizeLanguage(string? value)
+    {
+        return (value ?? string.Empty).Trim().ToLowerInvariant();
     }
 
     private static string NormalizePath(string value)

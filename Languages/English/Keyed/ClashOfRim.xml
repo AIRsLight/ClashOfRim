@@ -130,6 +130,7 @@
   <ClashOfRim.Compatibility.Issue.SchemaVersionMismatch>Mod list schema version mismatch</ClashOfRim.Compatibility.Issue.SchemaVersionMismatch>
   <ClashOfRim.Compatibility.Issue.ProtocolVersionMismatch>Protocol version mismatch</ClashOfRim.Compatibility.Issue.ProtocolVersionMismatch>
   <ClashOfRim.Compatibility.Issue.RimWorldVersionMismatch>RimWorld version mismatch</ClashOfRim.Compatibility.Issue.RimWorldVersionMismatch>
+  <ClashOfRim.Compatibility.Issue.GameLanguageMismatch>Game language differs from the server world language</ClashOfRim.Compatibility.Issue.GameLanguageMismatch>
   <ClashOfRim.Compatibility.Issue.DlcListMismatch>DLC list mismatch</ClashOfRim.Compatibility.Issue.DlcListMismatch>
   <ClashOfRim.Compatibility.Issue.ModListMismatch>Mod list mismatch</ClashOfRim.Compatibility.Issue.ModListMismatch>
   <ClashOfRim.Compatibility.Issue.ModOrderMismatch>Mod load order mismatch</ClashOfRim.Compatibility.Issue.ModOrderMismatch>
@@ -1844,7 +1845,6 @@
   <ClashOfRim.ColonyAppearance.SavedMessage>Colony icon updated.</ClashOfRim.ColonyAppearance.SavedMessage>
   <ClashOfRim.ColonyAppearance.RegistrationReason>Colony icon update</ClashOfRim.ColonyAppearance.RegistrationReason>
 </LanguageData>
-
 
 
 

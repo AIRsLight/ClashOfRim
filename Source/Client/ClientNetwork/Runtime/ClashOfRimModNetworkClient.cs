@@ -69,6 +69,7 @@ public sealed class ClashOfRimModNetworkClient
     private const string PrepareWorldSessionRoute = "/world/session";
     private const string GetWorldConfigurationRoute = "/world/configuration/current";
     private const string SubmitWorldConfigurationRoute = "/world/configuration";
+    private const string SubmitWorldFeatureNamesRoute = "/world/configuration/feature-names";
     private const string RegisterPlayerColonySitesRoute = "/world/colony-sites";
     private const string PreflightColonyRelocationRoute = "/world/colony-sites/relocation/preflight";
     private const string ConfirmColonyRelocationRoute = "/world/colony-sites/relocation/confirm";
@@ -410,6 +411,36 @@ public sealed class ClashOfRimModNetworkClient
 
         return PostAsync<ModSubmitWorldConfigurationRequestDto, ModSubmitWorldConfigurationResponseDto>(
             SubmitWorldConfigurationRoute,
+            request,
+            cancellationToken);
+    }
+
+    public Task<ClashOfRimClientNetworkResult<ModSubmitWorldFeatureNamesResponseDto>> SubmitWorldFeatureNamesAsync(
+        string language,
+        string worldConfigurationId,
+        IReadOnlyList<ModWorldFeatureDto> features,
+        CancellationToken cancellationToken = default)
+    {
+        if (!context.IsConfigured)
+        {
+            return NotConfigured<ModSubmitWorldFeatureNamesResponseDto>();
+        }
+
+        var request = new ModSubmitWorldFeatureNamesRequestDto
+        {
+            UserId = context.UserId,
+            ColonyId = context.ColonyId,
+            Language = language,
+            WorldConfigurationId = worldConfigurationId,
+            Features = features?.ToList() ?? new List<ModWorldFeatureDto>(),
+            SteamAuthTicket = string.IsNullOrWhiteSpace(context.SteamAuthTicket)
+                ? context.UserId
+                : context.SteamAuthTicket,
+            Password = context.OfflinePassword
+        };
+
+        return PostAsync<ModSubmitWorldFeatureNamesRequestDto, ModSubmitWorldFeatureNamesResponseDto>(
+            SubmitWorldFeatureNamesRoute,
             request,
             cancellationToken);
     }

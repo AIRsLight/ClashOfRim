@@ -6,6 +6,7 @@ public sealed record CompatibilityManifest
     public string ManifestId { get; init; } = "";
     public string ProtocolVersion { get; init; } = "";
     public string RimWorldVersion { get; init; } = "";
+    public string GameLanguage { get; init; } = "";
     public IReadOnlyList<string> DlcIds { get; init; } = [];
     public string ConfigVersion { get; init; } = "";
     public string ConfigSha256 { get; init; } = "";

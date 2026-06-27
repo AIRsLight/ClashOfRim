@@ -789,7 +789,8 @@ internal sealed class CompatibilityMismatchWindow : Window
                 || ContainsOrdinal(value, "Dlc")
                 || ContainsOrdinal(value, "Protocol")
                 || ContainsOrdinal(value, "Schema")
-                || ContainsOrdinal(value, "RimWorld"),
+                || ContainsOrdinal(value, "RimWorld")
+                || ContainsOrdinal(value, "Language"),
             CompatibilityTab.Hash => ContainsOrdinal(value, "File")
                 || ContainsOrdinal(value, "DefSummary"),
             CompatibilityTab.Config => ContainsOrdinal(value, "Config"),
@@ -921,6 +922,7 @@ internal sealed class CompatibilityMismatchWindow : Window
             "SchemaVersionMismatch" => T("ClashOfRim.Compatibility.Issue.SchemaVersionMismatch"),
             "ProtocolVersionMismatch" => T("ClashOfRim.Compatibility.Issue.ProtocolVersionMismatch"),
             "RimWorldVersionMismatch" => T("ClashOfRim.Compatibility.Issue.RimWorldVersionMismatch"),
+            "GameLanguageMismatch" => T("ClashOfRim.Compatibility.Issue.GameLanguageMismatch"),
             "DlcListMismatch" => T("ClashOfRim.Compatibility.Issue.DlcListMismatch"),
             "ModListMismatch" => T("ClashOfRim.Compatibility.Issue.ModListMismatch"),
             "ModOrderMismatch" => T("ClashOfRim.Compatibility.Issue.ModOrderMismatch"),

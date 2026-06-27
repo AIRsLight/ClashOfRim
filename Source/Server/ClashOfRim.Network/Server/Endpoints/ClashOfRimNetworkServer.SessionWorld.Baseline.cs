@@ -223,7 +223,9 @@ public static partial class ClashOfRimNetworkServer
             configuration.DifficultyDefName,
             configuration.TileGeometry,
             configuration.DifficultyValuesXml,
-            extensions);
+            extensions,
+            configuration.GameLanguage,
+            configuration.FeatureNameCatalogs);
     }
 
     private static bool HasUsableWorldGenerationBaseline(WorldConfigurationDto configuration, out string failureReason)
@@ -296,7 +298,9 @@ public static partial class ClashOfRimNetworkServer
             includeGenerationBaseline ? configuration.DifficultyDefName : null,
             tileGeometry: null,
             difficultyValuesXml: includeGenerationBaseline ? configuration.DifficultyValuesXml : null,
-            extensions: extensions);
+            extensions: extensions,
+            gameLanguage: configuration.GameLanguage,
+            featureNameCatalogs: includeGenerationBaseline ? configuration.FeatureNameCatalogs : Array.Empty<WorldFeatureNameCatalogDto>());
     }
 
     private static IReadOnlyList<PlayerColonySiteDto> BuildCurrentPlayerColonySites(
@@ -548,12 +552,15 @@ public static partial class ClashOfRimNetworkServer
             if (!string.IsNullOrWhiteSpace(clientManifestId)
                 && string.Equals(serverCompatibilityManifest.ManifestId, clientManifestId, StringComparison.Ordinal))
             {
+                IReadOnlyList<CompatibilityIssue> worldLanguageIssues = BuildWorldLanguageIssues(
+                    state.WorldConfiguration.Current,
+                    serverCompatibilityManifest.GameLanguage);
                 return new CompatibilityHandshakeResult(
                     ProtocolResponse.Ok(T("Compatibility.Validated")),
                     authenticatedUserId,
                     auth.DisplayName,
                     ServerCompatibilityManifestJson: null,
-                    Array.Empty<CompatibilityIssueDto>(),
+                    ToCompatibilityIssueDtos(worldLanguageIssues),
                     isAdministrator,
                     RequiresFullCompatibilityManifest: false,
                     RequestedCompatibilityPackageIds: Array.Empty<string>());
@@ -580,6 +587,11 @@ public static partial class ClashOfRimNetworkServer
                 serverCompatibilityManifest,
                 summary,
                 state.ServerConfiguration.CompatibilityOptions);
+            IReadOnlyList<CompatibilityIssue> summaryWorldLanguageIssues = BuildWorldLanguageIssues(
+                state.WorldConfiguration.Current,
+                summary.GameLanguage);
+            IReadOnlyList<CompatibilityIssue> summaryAcceptedIssues =
+                summaryHandshake.Issues.Concat(summaryWorldLanguageIssues).ToList();
             if (summaryHandshake.Accepted)
             {
                 return new CompatibilityHandshakeResult(
@@ -587,7 +599,7 @@ public static partial class ClashOfRimNetworkServer
                     authenticatedUserId,
                     auth.DisplayName,
                     ServerCompatibilityManifestJson: null,
-                    Array.Empty<CompatibilityIssueDto>(),
+                    ToCompatibilityIssueDtos(summaryAcceptedIssues),
                     isAdministrator,
                     RequiresFullCompatibilityManifest: false,
                     RequestedCompatibilityPackageIds: Array.Empty<string>());
@@ -598,7 +610,7 @@ public static partial class ClashOfRimNetworkServer
                 authenticatedUserId,
                 auth.DisplayName,
                 summaryHandshake.RequiresFullManifest ? null : SerializeCompatibilityManifest(serverCompatibilityManifest, state),
-                ToCompatibilityIssueDtos(summaryHandshake.Issues),
+                ToCompatibilityIssueDtos(summaryAcceptedIssues),
                 isAdministrator,
                 summaryHandshake.RequiresFullManifest,
                 summaryHandshake.RequestedPackageIds);
@@ -657,7 +669,10 @@ public static partial class ClashOfRimNetworkServer
                         serverCompatibilityManifest,
                         clientCompatibilityManifest,
                         state.ServerConfiguration.CompatibilityOptions);
-                compatibilityIssues = ToCompatibilityIssueDtos(comparison.Issues);
+                IReadOnlyList<CompatibilityIssue> issues = comparison.Issues
+                    .Concat(BuildWorldLanguageIssues(state.WorldConfiguration.Current, clientCompatibilityManifest.GameLanguage))
+                    .ToList();
+                compatibilityIssues = ToCompatibilityIssueDtos(issues);
                 if (!comparison.Accepted)
                 {
                     return new CompatibilityHandshakeResult(
@@ -684,6 +699,18 @@ public static partial class ClashOfRimNetworkServer
             isAdministrator,
             RequiresFullCompatibilityManifest: false,
             RequestedCompatibilityPackageIds: Array.Empty<string>());
+    }
+
+    private static IReadOnlyList<CompatibilityIssue> BuildWorldLanguageIssues(
+        WorldConfigurationDto? configuration,
+        string? clientLanguage)
+    {
+        var issues = new List<CompatibilityIssue>();
+        CompatibilityManifestComparer.CompareGameLanguage(
+            issues,
+            configuration?.GameLanguage,
+            clientLanguage);
+        return issues;
     }
 
     private static AuthenticationValidationResult ValidateAuthentication(
@@ -1118,10 +1145,10 @@ public static partial class ClashOfRimNetworkServer
 
         if (requested.Count > 0)
         {
-            return new CompatibilitySummaryHandshake(false, true, requested.ToArray(), Array.Empty<CompatibilityIssue>());
+            return new CompatibilitySummaryHandshake(false, true, requested.ToArray(), issues);
         }
 
-        return new CompatibilitySummaryHandshake(true, false, Array.Empty<string>(), Array.Empty<CompatibilityIssue>());
+        return new CompatibilitySummaryHandshake(true, false, Array.Empty<string>(), issues);
     }
 
     private static bool IsPartialCompatibilityManifest(CompatibilityManifest server, CompatibilityManifest client)

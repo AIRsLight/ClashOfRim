@@ -907,7 +907,8 @@ public sealed partial class ClashOfRimMod
             TileCount = ReadFirstString(Find.WorldGrid, "TilesCount", "tilesCount"),
             StorytellerDefName = ReadCurrentStorytellerDefName(),
             DifficultyDefName = ReadCurrentDifficultyDefName(),
-            DifficultyValuesXml = ReadCurrentDifficultyValuesXml()
+            DifficultyValuesXml = ReadCurrentDifficultyValuesXml(),
+            GameLanguage = ReadCurrentGameLanguage()
         };
         configuration.FactionDefNames.AddRange(ReadCurrentWorldFactionDefNames());
         configuration.Features.AddRange(ReadCurrentWorldFeatures());
@@ -926,6 +927,19 @@ public sealed partial class ClashOfRimMod
         ClashLog.Message(
             $"[ClashOfRim] Captured world baseline id={configuration.WorldConfigurationId} seed={configuration.SeedString ?? "<null>"} coverage={configuration.PlanetCoverage ?? "<null>"} rainfall={configuration.OverallRainfall ?? "<null>"} temperature={configuration.OverallTemperature ?? "<null>"} population={configuration.OverallPopulation ?? "<null>"} landmarkDensity={configuration.LandmarkDensity ?? "<null>"} generationPollution={ReadWorldGenerationPollution(configuration).ToString(CultureInfo.InvariantCulture)} factionEntries={configuration.FactionDefNames.Count} features={configuration.Features.Count} roads={configuration.Roads.Count} worldExtensions={configuration.Extensions.Count} worldObjects={configuration.WorldObjects.Count} tileGeometryLayers={configuration.TileGeometry?.Layers.Count ?? 0}.");
         return configuration;
+    }
+
+    private static string? ReadCurrentGameLanguage()
+    {
+        try
+        {
+            return LanguageDatabase.activeLanguage?.folderName
+                ?? Prefs.LangFolderName;
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private static ModWorldTileGeometryDto? ReadCurrentWorldTileGeometry()
@@ -1079,11 +1093,84 @@ public sealed partial class ClashOfRimMod
 
     private void ApplyWorldBaseline(ModWorldConfigurationDto configuration, bool applyPollution = false)
     {
-        ApplyWorldFeatures(configuration.Features);
+        List<ModWorldFeatureDto>? generatedFeatureNameCatalog =
+            ApplyWorldFeatures(configuration, out string? generatedFeatureNameCatalogLanguage);
+        if (generatedFeatureNameCatalog is { Count: > 0 }
+            && !string.IsNullOrWhiteSpace(generatedFeatureNameCatalogLanguage))
+        {
+            StartSubmitWorldFeatureNameCatalog(
+                configuration.WorldConfigurationId,
+                generatedFeatureNameCatalogLanguage!,
+                generatedFeatureNameCatalog);
+        }
+
         ApplyWorldFactions(configuration.Factions);
         ApplyWorldRoads(configuration.Roads);
         ApplyServerWorldConfigurationExtensions(configuration, applyPollution);
         ApplyWorldObjectLabels(configuration.WorldObjects);
+    }
+
+    private void StartSubmitWorldFeatureNameCatalog(
+        string worldConfigurationId,
+        string language,
+        IReadOnlyList<ModWorldFeatureDto> features)
+    {
+        if (string.IsNullOrWhiteSpace(worldConfigurationId)
+            || string.IsNullOrWhiteSpace(language)
+            || features.Count == 0)
+        {
+            return;
+        }
+
+        ClashOfRimClientNetworkContext context = ClashOfRimClientNetworkContext.FromSettings(settings);
+        if (!context.IsConfigured)
+        {
+            return;
+        }
+
+        string key = worldConfigurationId.Trim() + "\u001f" + language.Trim();
+        lock (submittedWorldFeatureNameCatalogKeys)
+        {
+            if (!submittedWorldFeatureNameCatalogKeys.Add(key))
+            {
+                return;
+            }
+        }
+
+        List<ModWorldFeatureDto> catalogFeatures = features
+            .Select(feature => CopyWorldFeatureLabel(feature, feature.Label ?? string.Empty))
+            .ToList();
+        Task.Run(async () =>
+        {
+            try
+            {
+                using var httpClient = new HttpClient();
+                var client = new ClashOfRimModNetworkClient(httpClient, context);
+                ClashOfRimClientNetworkResult<ModSubmitWorldFeatureNamesResponseDto> result =
+                    await client.SubmitWorldFeatureNamesAsync(language.Trim(), worldConfigurationId.Trim(), catalogFeatures).ConfigureAwait(false);
+                if (!result.Success)
+                {
+                    Log.Warning("[ClashOfRim] Failed to submit world feature names: " + (result.Message ?? result.ErrorCode ?? "unknown"));
+                    return;
+                }
+
+                ModSubmitWorldFeatureNamesResponseDto? response = result.Response;
+                if (response?.Result?.Accepted != true || !response.Accepted)
+                {
+                    Log.Warning("[ClashOfRim] World feature names were rejected: " + (response?.Result?.Message ?? "unknown"));
+                    return;
+                }
+
+                if (response.Created)
+                {
+                    ClashLog.Message("[ClashOfRim] Submitted world feature names for language " + language.Trim() + ".");
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warning("[ClashOfRim] Exception while submitting world feature names: " + ex.GetType().Name + " " + ex.Message);
+            }
+        });
     }
 
     private void ApplyServerWorldConfigurationExtensionCatalog(ModWorldConfigurationDto? configuration)
@@ -2122,13 +2209,39 @@ public sealed partial class ClashOfRimMod
             + (string.IsNullOrWhiteSpace(playerWorldObjectSample) ? "<empty>" : playerWorldObjectSample);
     }
 
-    private static void ApplyWorldFeatures(IReadOnlyList<ModWorldFeatureDto> features)
+    private static bool ShouldUseLocalWorldFeatureLabels(ModWorldConfigurationDto configuration)
     {
+        string? baselineLanguage = configuration.GameLanguage;
+        string? currentLanguage = ReadCurrentGameLanguage();
+        return !string.IsNullOrWhiteSpace(baselineLanguage)
+            && !string.IsNullOrWhiteSpace(currentLanguage)
+            && !string.Equals(baselineLanguage, currentLanguage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static List<ModWorldFeatureDto>? ApplyWorldFeatures(
+        ModWorldConfigurationDto configuration,
+        out string? generatedFeatureNameCatalogLanguage)
+    {
+        generatedFeatureNameCatalogLanguage = null;
+        IReadOnlyList<ModWorldFeatureDto> features = configuration.Features;
         if (features.Count == 0 || Find.WorldFeatures?.features is null)
         {
-            return;
+            return null;
         }
 
+        string? currentLanguage = ReadCurrentGameLanguage();
+        ModWorldFeatureNameCatalogDto? featureNameCatalog = FindWorldFeatureNameCatalog(configuration, currentLanguage);
+        bool useFeatureNameCatalog = IsWorldFeatureNameCatalogUsable(featureNameCatalog, features);
+        bool generateLocalLanguageCatalog = !useFeatureNameCatalog && ShouldUseLocalWorldFeatureLabels(configuration);
+        List<ModWorldFeatureDto>? generatedFeatureNameCatalog = generateLocalLanguageCatalog
+            ? new List<ModWorldFeatureDto>(features.Count)
+            : null;
+        if (generateLocalLanguageCatalog)
+        {
+            generatedFeatureNameCatalogLanguage = currentLanguage;
+        }
+
+        var usedNames = new HashSet<string>(StringComparer.Ordinal);
         Find.WorldFeatures.features.Clear();
         for (int index = 0; index < features.Count; index++)
         {
@@ -2139,18 +2252,159 @@ public sealed partial class ClashOfRimMod
                 continue;
             }
 
+            ModWorldFeatureDto labelFeature = useFeatureNameCatalog
+                ? featureNameCatalog!.Features[index]
+                : feature;
+            string label = ResolveWorldFeatureLabel(
+                def,
+                labelFeature,
+                index,
+                generateLocalLanguageCatalog,
+                usedNames);
             Find.WorldFeatures.features.Add(new WorldFeature
             {
                 def = def,
                 uniqueID = index,
-                name = feature.Label,
+                name = label,
                 maxDrawSizeInTiles = feature.MaxDrawSizeInTiles,
                 drawCenter = new Vector3(feature.DrawCenterX, feature.DrawCenterY, feature.DrawCenterZ),
                 layer = PlanetLayer.Selected
             });
+            generatedFeatureNameCatalog?.Add(CopyWorldFeatureLabel(feature, label));
         }
 
         Find.WorldFeatures.textsCreated = false;
+        return generatedFeatureNameCatalog is { Count: > 0 }
+            ? generatedFeatureNameCatalog
+            : null;
+    }
+
+    private static ModWorldFeatureNameCatalogDto? FindWorldFeatureNameCatalog(
+        ModWorldConfigurationDto configuration,
+        string? language)
+    {
+        if (string.IsNullOrWhiteSpace(language))
+        {
+            return null;
+        }
+
+        string normalizedLanguage = language!.Trim();
+        return configuration.FeatureNameCatalogs.FirstOrDefault(catalog =>
+            string.Equals(catalog.Language?.Trim(), normalizedLanguage, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool IsWorldFeatureNameCatalogUsable(
+        ModWorldFeatureNameCatalogDto? catalog,
+        IReadOnlyList<ModWorldFeatureDto> features)
+    {
+        if (catalog is null || catalog.Features.Count != features.Count)
+        {
+            return false;
+        }
+
+        for (int index = 0; index < features.Count; index++)
+        {
+            ModWorldFeatureDto expected = features[index];
+            ModWorldFeatureDto actual = catalog.Features[index];
+            if (!string.Equals(expected.DefName, actual.DefName, StringComparison.Ordinal)
+                || !NearlyEqual(expected.MaxDrawSizeInTiles, actual.MaxDrawSizeInTiles)
+                || !NearlyEqual(expected.DrawCenterX, actual.DrawCenterX)
+                || !NearlyEqual(expected.DrawCenterY, actual.DrawCenterY)
+                || !NearlyEqual(expected.DrawCenterZ, actual.DrawCenterZ))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool NearlyEqual(float left, float right)
+    {
+        return Math.Abs(left - right) <= 0.001f;
+    }
+
+    private static ModWorldFeatureDto CopyWorldFeatureLabel(ModWorldFeatureDto source, string label)
+    {
+        return new ModWorldFeatureDto
+        {
+            DefName = source.DefName,
+            Label = label,
+            MaxDrawSizeInTiles = source.MaxDrawSizeInTiles,
+            DrawCenterX = source.DrawCenterX,
+            DrawCenterY = source.DrawCenterY,
+            DrawCenterZ = source.DrawCenterZ
+        };
+    }
+
+    private static string ResolveWorldFeatureLabel(
+        FeatureDef def,
+        ModWorldFeatureDto feature,
+        int index,
+        bool useLocalLanguageLabel,
+        HashSet<string> usedNames)
+    {
+        if (useLocalLanguageLabel && TryGenerateLocalWorldFeatureName(def, feature, index, usedNames, out string generatedName))
+        {
+            return generatedName;
+        }
+
+        string label = string.IsNullOrWhiteSpace(feature.Label)
+            ? def.label ?? def.defName
+            : feature.Label!;
+        usedNames.Add(label);
+        return label;
+    }
+
+    private static bool TryGenerateLocalWorldFeatureName(
+        FeatureDef def,
+        ModWorldFeatureDto feature,
+        int index,
+        HashSet<string> usedNames,
+        out string name)
+    {
+        name = string.Empty;
+        if (def.nameMaker is null)
+        {
+            return false;
+        }
+
+        int seed = GenText.StableStringHash(
+            string.Join(
+                "\u001f",
+                def.defName,
+                index.ToString(CultureInfo.InvariantCulture),
+                feature.MaxDrawSizeInTiles.ToString(CultureInfo.InvariantCulture),
+                feature.DrawCenterX.ToString(CultureInfo.InvariantCulture),
+                feature.DrawCenterY.ToString(CultureInfo.InvariantCulture),
+                feature.DrawCenterZ.ToString(CultureInfo.InvariantCulture),
+                ReadCurrentGameLanguage() ?? string.Empty));
+        Rand.PushState(seed);
+        try
+        {
+            name = NameGenerator.GenerateName(
+                def.nameMaker,
+                candidate => !string.IsNullOrWhiteSpace(candidate) && !usedNames.Contains(candidate),
+                appendNumberIfNameUsed: false,
+                rootKeyword: "r_name");
+        }
+        catch (Exception ex)
+        {
+            Log.Warning($"[ClashOfRim] Failed to localize world feature name for {def.defName}: {ex.Message}");
+            return false;
+        }
+        finally
+        {
+            Rand.PopState();
+        }
+
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return false;
+        }
+
+        usedNames.Add(name);
+        return true;
     }
 
     private static void RefreshWorldFeatureTexts()

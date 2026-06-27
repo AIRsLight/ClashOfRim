@@ -36,7 +36,13 @@ internal static class ClientCompatibilityManifestBuilder
     {
         lock (CacheLock)
         {
-            cachedManifest ??= BuildStaticManifest();
+            string currentLanguage = ResolveCurrentRimWorldLanguage() ?? string.Empty;
+            if (cachedManifest is null
+                || !string.Equals(cachedManifest.GameLanguage, currentLanguage, StringComparison.Ordinal))
+            {
+                cachedManifest = BuildStaticManifest();
+            }
+
             return RefreshConfigs(cachedManifest);
         }
     }
@@ -57,6 +63,7 @@ internal static class ClientCompatibilityManifestBuilder
         {
             ProtocolVersion = ClashOfRimVersion.ProtocolVersion,
             RimWorldVersion = VersionControl.CurrentVersionString,
+            GameLanguage = ResolveCurrentRimWorldLanguage() ?? string.Empty,
             DlcIds = runningMods
                 .Where(mod => (mod.PackageIdPlayerFacing ?? string.Empty).StartsWith("ludeon.", StringComparison.OrdinalIgnoreCase))
                 .Select(mod => mod.PackageIdPlayerFacing)
@@ -68,6 +75,7 @@ internal static class ClientCompatibilityManifestBuilder
         };
 
         string stableBody = string.Join("\n", mods.Select(mod => mod.PackageId + "@" + mod.LoadOrder))
+            + "\n" + manifest.GameLanguage
             + "\n" + string.Join("\n", mods.SelectMany(mod => mod.Files.Select(file => mod.PackageId + "/" + file.RelativePath + "=" + file.Sha256)))
             + "\n" + configSha
             + "\n" + string.Join("\n", defSummaries.Select(def => def.Name + ":" + def.Count + ":" + def.Hash));
@@ -102,6 +110,7 @@ internal static class ClientCompatibilityManifestBuilder
 
         string configSha = BuildConfigSha(refreshedMods);
         string stableBody = string.Join("\n", refreshedMods.Select(mod => mod.PackageId + "@" + mod.LoadOrder))
+            + "\n" + manifest.GameLanguage
             + "\n" + string.Join("\n", refreshedMods.SelectMany(mod => mod.Files.Select(file => mod.PackageId + "/" + file.RelativePath + "=" + file.Sha256)))
             + "\n" + configSha
             + "\n" + string.Join("\n", manifest.DefSummaries.Select(def => def.Name + ":" + def.Count + ":" + def.Hash));
@@ -157,6 +166,7 @@ internal static class ClientCompatibilityManifestBuilder
             ManifestId = manifest.ManifestId,
             ProtocolVersion = manifest.ProtocolVersion,
             RimWorldVersion = manifest.RimWorldVersion,
+            GameLanguage = manifest.GameLanguage,
             DlcIds = manifest.DlcIds,
             ConfigSha256 = manifest.ConfigSha256,
             Mods = manifest.Mods
@@ -761,6 +771,19 @@ internal static class ClientCompatibilityManifestBuilder
                 .OrderBy(config => config.FileName, StringComparer.OrdinalIgnoreCase)
                 .Select(config => config.FileName + "|" + config.Sha256));
         return HashText(stableBody);
+    }
+
+    private static string? ResolveCurrentRimWorldLanguage()
+    {
+        try
+        {
+            return LanguageDatabase.activeLanguage?.folderName
+                ?? Prefs.LangFolderName;
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private static string ToHex(byte[] bytes)

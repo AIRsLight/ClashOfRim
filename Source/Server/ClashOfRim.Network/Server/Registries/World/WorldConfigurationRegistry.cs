@@ -184,7 +184,10 @@ public sealed class WorldConfigurationRegistry
             if (isAdministrator
                 && HasUsableWorldGenerationBaseline(configuration))
             {
-                worldConfiguration = MergeSubmittedWorldGenerationBaselineLocked(configuration, userId, activeWorldExtensions);
+                worldConfiguration = MergeSubmittedWorldGenerationBaselineLocked(
+                    EnsureSubmittedLanguageFeatureNameCatalog(configuration),
+                    userId,
+                    activeWorldExtensions);
                 SaveLocked();
             }
 
@@ -209,6 +212,10 @@ public sealed class WorldConfigurationRegistry
             return configuration;
         }
 
+        configuration = CopyWithFeatureNameCatalogs(
+            configuration,
+            MergeCompatibleFeatureNameCatalogs(worldConfiguration.FeatureNameCatalogs, configuration));
+
         IReadOnlyList<PlayerColonySiteDto> playerColonySites = MergePlayerColonySites(
             worldConfiguration.PlayerColonySites,
             configuration.PlayerColonySites);
@@ -220,7 +227,64 @@ public sealed class WorldConfigurationRegistry
                 configuration.WorldConfigurationId),
             worldConfiguration.Extensions,
             configuration.Extensions);
-        return CopyWithPlayerColonySitesAndExtensions(configuration, playerColonySites, extensions);
+        return CopyWithPlayerColonySitesAndExtensions(
+            configuration,
+            playerColonySites,
+            extensions,
+            worldConfiguration.GameLanguage);
+    }
+
+    public WorldFeatureNameCatalogSubmitResult SubmitWorldFeatureNames(
+        string userId,
+        string colonyId,
+        string language,
+        string worldConfigurationId,
+        IReadOnlyList<WorldFeatureDto> features)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(userId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(colonyId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(language);
+        ArgumentException.ThrowIfNullOrWhiteSpace(worldConfigurationId);
+        ArgumentNullException.ThrowIfNull(features);
+
+        lock (gate)
+        {
+            if (worldConfiguration is null || !HasUsableWorldGenerationBaseline(worldConfiguration))
+            {
+                return new WorldFeatureNameCatalogSubmitResult(false, false, "WorldNotConfigured", worldConfiguration);
+            }
+
+            if (!string.Equals(worldConfiguration.WorldConfigurationId, worldConfigurationId, StringComparison.Ordinal))
+            {
+                return new WorldFeatureNameCatalogSubmitResult(false, false, "WorldConfigurationMismatch", worldConfiguration);
+            }
+
+            string normalizedLanguage = language.Trim();
+            WorldFeatureNameCatalogDto? existing = FindFeatureNameCatalog(worldConfiguration, normalizedLanguage);
+            if (existing is not null)
+            {
+                return new WorldFeatureNameCatalogSubmitResult(true, false, "AlreadyExists", worldConfiguration);
+            }
+
+            if (!IsWorldFeatureCatalogCompatible(worldConfiguration.Features, features, out string? failureReason))
+            {
+                return new WorldFeatureNameCatalogSubmitResult(false, false, failureReason ?? "FeatureCatalogMismatch", worldConfiguration);
+            }
+
+            WorldFeatureNameCatalogDto catalog = NormalizeFeatureNameCatalog(
+                normalizedLanguage,
+                worldConfiguration.WorldConfigurationId,
+                worldConfiguration.Features,
+                features);
+            worldConfiguration = CopyWithFeatureNameCatalogs(
+                worldConfiguration,
+                worldConfiguration.FeatureNameCatalogs
+                    .Concat(new[] { catalog })
+                    .OrderBy(item => item.Language, StringComparer.OrdinalIgnoreCase)
+                    .ToList());
+            SaveLocked();
+            return new WorldFeatureNameCatalogSubmitResult(true, true, "Created", worldConfiguration);
+        }
     }
 
     public WorldSessionState RegisterPlayerColonySites(
@@ -459,10 +523,170 @@ public sealed class WorldConfigurationRegistry
             .ToList();
     }
 
+    private static WorldConfigurationDto EnsureSubmittedLanguageFeatureNameCatalog(WorldConfigurationDto configuration)
+    {
+        if (string.IsNullOrWhiteSpace(configuration.GameLanguage)
+            || configuration.Features.Count == 0
+            || FindFeatureNameCatalog(configuration, configuration.GameLanguage!) is not null)
+        {
+            return configuration;
+        }
+
+        WorldFeatureNameCatalogDto catalog = NormalizeFeatureNameCatalog(
+            configuration.GameLanguage!,
+            configuration.WorldConfigurationId,
+            configuration.Features,
+            configuration.Features);
+        return CopyWithFeatureNameCatalogs(
+            configuration,
+            configuration.FeatureNameCatalogs
+                .Concat(new[] { catalog })
+                .OrderBy(item => item.Language, StringComparer.OrdinalIgnoreCase)
+                .ToList());
+    }
+
+    private static IReadOnlyList<WorldFeatureNameCatalogDto> MergeCompatibleFeatureNameCatalogs(
+        IReadOnlyList<WorldFeatureNameCatalogDto> existingCatalogs,
+        WorldConfigurationDto submittedConfiguration)
+    {
+        var byLanguage = new Dictionary<string, WorldFeatureNameCatalogDto>(StringComparer.OrdinalIgnoreCase);
+        foreach (WorldFeatureNameCatalogDto catalog in existingCatalogs)
+        {
+            if (string.IsNullOrWhiteSpace(catalog.Language)
+                || !IsWorldFeatureCatalogCompatible(submittedConfiguration.Features, catalog.Features, out _))
+            {
+                continue;
+            }
+
+            byLanguage[catalog.Language.Trim()] = NormalizeFeatureNameCatalog(
+                catalog.Language.Trim(),
+                submittedConfiguration.WorldConfigurationId,
+                submittedConfiguration.Features,
+                catalog.Features);
+        }
+
+        foreach (WorldFeatureNameCatalogDto catalog in submittedConfiguration.FeatureNameCatalogs)
+        {
+            if (string.IsNullOrWhiteSpace(catalog.Language)
+                || !IsWorldFeatureCatalogCompatible(submittedConfiguration.Features, catalog.Features, out _))
+            {
+                continue;
+            }
+
+            byLanguage[catalog.Language.Trim()] = NormalizeFeatureNameCatalog(
+                catalog.Language.Trim(),
+                submittedConfiguration.WorldConfigurationId,
+                submittedConfiguration.Features,
+                catalog.Features);
+        }
+
+        return byLanguage.Values
+            .OrderBy(item => item.Language, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static WorldFeatureNameCatalogDto? FindFeatureNameCatalog(
+        WorldConfigurationDto configuration,
+        string language)
+    {
+        return configuration.FeatureNameCatalogs.FirstOrDefault(catalog =>
+            string.Equals(catalog.Language, language, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool IsWorldFeatureCatalogCompatible(
+        IReadOnlyList<WorldFeatureDto> baseline,
+        IReadOnlyList<WorldFeatureDto> catalog,
+        out string? failureReason)
+    {
+        if (baseline.Count != catalog.Count)
+        {
+            failureReason = "FeatureCountMismatch";
+            return false;
+        }
+
+        for (int index = 0; index < baseline.Count; index++)
+        {
+            WorldFeatureDto expected = baseline[index];
+            WorldFeatureDto actual = catalog[index];
+            if (!string.Equals(expected.DefName, actual.DefName, StringComparison.Ordinal)
+                || !NearlyEqual(expected.MaxDrawSizeInTiles, actual.MaxDrawSizeInTiles)
+                || !NearlyEqual(expected.DrawCenterX, actual.DrawCenterX)
+                || !NearlyEqual(expected.DrawCenterY, actual.DrawCenterY)
+                || !NearlyEqual(expected.DrawCenterZ, actual.DrawCenterZ))
+            {
+                failureReason = "FeatureFingerprintMismatch";
+                return false;
+            }
+        }
+
+        failureReason = null;
+        return true;
+    }
+
+    private static bool NearlyEqual(float left, float right)
+    {
+        return Math.Abs(left - right) <= 0.0001f;
+    }
+
+    private static WorldFeatureNameCatalogDto NormalizeFeatureNameCatalog(
+        string language,
+        string worldConfigurationId,
+        IReadOnlyList<WorldFeatureDto> baseline,
+        IReadOnlyList<WorldFeatureDto> labels)
+    {
+        var features = new List<WorldFeatureDto>(baseline.Count);
+        for (int index = 0; index < baseline.Count; index++)
+        {
+            WorldFeatureDto expected = baseline[index];
+            string? label = index < labels.Count ? labels[index].Label : expected.Label;
+            features.Add(new WorldFeatureDto(
+                expected.DefName,
+                string.IsNullOrWhiteSpace(label) ? expected.Label : label,
+                expected.MaxDrawSizeInTiles,
+                expected.DrawCenterX,
+                expected.DrawCenterY,
+                expected.DrawCenterZ));
+        }
+
+        return new WorldFeatureNameCatalogDto(language, worldConfigurationId, features);
+    }
+
+    private static WorldConfigurationDto CopyWithFeatureNameCatalogs(
+        WorldConfigurationDto configuration,
+        IReadOnlyList<WorldFeatureNameCatalogDto> featureNameCatalogs)
+    {
+        return new WorldConfigurationDto(
+            configuration.WorldConfigurationId,
+            configuration.ConfiguredByUserId,
+            configuration.ConfiguredByColonyId,
+            configuration.ConfiguredAtUtc,
+            configuration.SeedString,
+            configuration.PlanetCoverage,
+            configuration.OverallRainfall,
+            configuration.OverallTemperature,
+            configuration.OverallPopulation,
+            configuration.LandmarkDensity,
+            configuration.TileCount,
+            configuration.FactionDefNames,
+            configuration.Features,
+            configuration.Factions,
+            configuration.Roads,
+            configuration.WorldObjects,
+            configuration.PlayerColonySites,
+            configuration.StorytellerDefName,
+            configuration.DifficultyDefName,
+            configuration.TileGeometry,
+            configuration.DifficultyValuesXml,
+            configuration.Extensions,
+            configuration.GameLanguage,
+            featureNameCatalogs);
+    }
+
     private static WorldConfigurationDto CopyWithPlayerColonySitesAndExtensions(
         WorldConfigurationDto configuration,
         IReadOnlyList<PlayerColonySiteDto> playerColonySites,
-        IReadOnlyList<WorldConfigurationExtensionDto> extensions)
+        IReadOnlyList<WorldConfigurationExtensionDto> extensions,
+        string? gameLanguage = null)
     {
         return new WorldConfigurationDto(
             configuration.WorldConfigurationId,
@@ -486,7 +710,9 @@ public sealed class WorldConfigurationRegistry
             configuration.DifficultyDefName,
             configuration.TileGeometry,
             configuration.DifficultyValuesXml,
-            extensions);
+            extensions,
+            gameLanguage ?? configuration.GameLanguage,
+            configuration.FeatureNameCatalogs);
     }
 
     private WorldConfigurationDto CopyWithTileFloatLayer(
@@ -520,7 +746,9 @@ public sealed class WorldConfigurationRegistry
             activeWorldExtensions.ReplaceTileFloatLayer(
                 configuration.Extensions,
                 layerId,
-                values));
+                values),
+            configuration.GameLanguage,
+            configuration.FeatureNameCatalogs);
     }
 
     private WorldConfigurationExtensionService ResolveWorldExtensions(WorldConfigurationExtensionService? activeWorldExtensions)
@@ -666,7 +894,9 @@ public sealed class WorldConfigurationRegistry
             configuration.DifficultyDefName,
             tileGeometry,
             configuration.DifficultyValuesXml,
-            configuration.Extensions);
+            configuration.Extensions,
+            configuration.GameLanguage,
+            configuration.FeatureNameCatalogs);
     }
 
     private sealed record WorldConfigurationPersistence(
@@ -808,3 +1038,9 @@ public sealed record WorldSessionState(
     WorldConfigurationDto? WorldConfiguration);
 
 public sealed record RemovePlayerColonySitesResult(int RemovedCount, WorldSessionState Session);
+
+public sealed record WorldFeatureNameCatalogSubmitResult(
+    bool Accepted,
+    bool Created,
+    string Message,
+    WorldConfigurationDto? WorldConfiguration);

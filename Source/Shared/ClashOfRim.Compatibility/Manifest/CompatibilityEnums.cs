@@ -37,6 +37,7 @@ public enum CompatibilityIssueCode
     SchemaVersionMismatch,
     ProtocolVersionMismatch,
     RimWorldVersionMismatch,
+    GameLanguageMismatch,
     DlcListMismatch,
     ModListMismatch,
     ModOrderMismatch,

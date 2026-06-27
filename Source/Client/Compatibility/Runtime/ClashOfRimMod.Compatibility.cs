@@ -268,14 +268,21 @@ public sealed partial class ClashOfRimMod
 
     private static bool ShouldShowCompatibilityMismatchWindow(ModLoginResponseDto? response)
     {
-        if (response is null || response.Result?.Accepted == true)
+        if (response is null)
         {
             return false;
         }
 
         if (response.CompatibilityIssues is { Count: > 0 })
         {
-            return true;
+            return response.Result?.Accepted == true
+                ? response.CompatibilityIssues.Any(issue => !string.Equals(issue.Severity, "Info", StringComparison.OrdinalIgnoreCase))
+                : true;
+        }
+
+        if (response.Result?.Accepted == true)
+        {
+            return false;
         }
 
         return response.Result?.ErrorCode == ProtocolErrorCodeValidationFailed

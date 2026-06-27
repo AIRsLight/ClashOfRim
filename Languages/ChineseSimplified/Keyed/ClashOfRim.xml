@@ -130,6 +130,7 @@
   <ClashOfRim.Compatibility.Issue.SchemaVersionMismatch>模组列表版本不一致</ClashOfRim.Compatibility.Issue.SchemaVersionMismatch>
   <ClashOfRim.Compatibility.Issue.ProtocolVersionMismatch>协议版本不一致</ClashOfRim.Compatibility.Issue.ProtocolVersionMismatch>
   <ClashOfRim.Compatibility.Issue.RimWorldVersionMismatch>RimWorld 版本不一致</ClashOfRim.Compatibility.Issue.RimWorldVersionMismatch>
+  <ClashOfRim.Compatibility.Issue.GameLanguageMismatch>游戏语言与服务器世界语言不一致</ClashOfRim.Compatibility.Issue.GameLanguageMismatch>
   <ClashOfRim.Compatibility.Issue.DlcListMismatch>DLC 列表不一致</ClashOfRim.Compatibility.Issue.DlcListMismatch>
   <ClashOfRim.Compatibility.Issue.ModListMismatch>模组列表不一致</ClashOfRim.Compatibility.Issue.ModListMismatch>
   <ClashOfRim.Compatibility.Issue.ModOrderMismatch>模组加载顺序不一致</ClashOfRim.Compatibility.Issue.ModOrderMismatch>

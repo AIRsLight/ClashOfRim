@@ -450,6 +450,15 @@ public static class ProtocolContractManifest
                 serverMustValidateSnapshot: false,
                 ProtocolDeliverySemantics.ServerNotification),
             new ProtocolEndpointDescriptor(
+                ProtocolMessageKind.SubmitWorldFeatureNames,
+                "/world/configuration/feature-names",
+                requiresIdempotencyKey: false,
+                requiresUserId: true,
+                requiresColonyId: true,
+                requiresSnapshotId: false,
+                serverMustValidateSnapshot: false,
+                ProtocolDeliverySemantics.ServerNotification),
+            new ProtocolEndpointDescriptor(
                 ProtocolMessageKind.RegisterPlayerColonySites,
                 "/world/colony-sites",
                 requiresIdempotencyKey: false,

@@ -134,6 +134,7 @@ public sealed partial class ClashOfRimMod : Mod
     private readonly HashSet<string> appliedServerNotificationSideEffectIds = new(StringComparer.Ordinal);
     private readonly HashSet<string> appliedDiplomacyEventSideEffectIds = new(StringComparer.Ordinal);
     private readonly HashSet<string> finalDeadlineRaidCleanupEventIds = new(StringComparer.Ordinal);
+    private readonly HashSet<string> submittedWorldFeatureNameCatalogKeys = new(StringComparer.Ordinal);
     private readonly object automaticEventRefreshLock = new();
     private readonly object eventStateLock = new();
     private readonly object chatStateLock = new();

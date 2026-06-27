@@ -279,6 +279,34 @@ public sealed class ModSubmitWorldConfigurationRequestDto
 }
 
 [DataContract]
+public sealed class ModSubmitWorldFeatureNamesRequestDto
+{
+    [DataMember(Name = "protocolVersion")]
+    public string ProtocolVersion { get; set; } = ClashOfRimVersion.ProtocolVersion;
+
+    [DataMember(Name = "userId")]
+    public string UserId { get; set; } = string.Empty;
+
+    [DataMember(Name = "colonyId")]
+    public string ColonyId { get; set; } = string.Empty;
+
+    [DataMember(Name = "language")]
+    public string Language { get; set; } = string.Empty;
+
+    [DataMember(Name = "worldConfigurationId")]
+    public string WorldConfigurationId { get; set; } = string.Empty;
+
+    [DataMember(Name = "features")]
+    public List<ModWorldFeatureDto> Features { get; set; } = new();
+
+    [DataMember(Name = "steamAuthTicket")]
+    public string? SteamAuthTicket { get; set; }
+
+    [DataMember(Name = "password")]
+    public string? Password { get; set; }
+}
+
+[DataContract]
 public sealed class ModGetWorldConfigurationRequestDto
 {
     [DataMember(Name = "protocolVersion")]
@@ -330,6 +358,22 @@ public sealed class ModSubmitWorldConfigurationResponseDto
 
     [DataMember(Name = "administratorUserId")]
     public string? AdministratorUserId { get; set; }
+
+    [DataMember(Name = "worldConfiguration")]
+    public ModWorldConfigurationDto? WorldConfiguration { get; set; }
+}
+
+[DataContract]
+public sealed class ModSubmitWorldFeatureNamesResponseDto
+{
+    [DataMember(Name = "result")]
+    public ModProtocolResponseDto? Result { get; set; }
+
+    [DataMember(Name = "accepted")]
+    public bool Accepted { get; set; }
+
+    [DataMember(Name = "created")]
+    public bool Created { get; set; }
 
     [DataMember(Name = "worldConfiguration")]
     public ModWorldConfigurationDto? WorldConfiguration { get; set; }
@@ -543,11 +587,17 @@ public sealed class ModWorldConfigurationDto
     [DataMember(Name = "difficultyValuesXml")]
     public string? DifficultyValuesXml { get; set; }
 
+    [DataMember(Name = "gameLanguage")]
+    public string? GameLanguage { get; set; }
+
     [DataMember(Name = "factionDefNames")]
     public List<string> FactionDefNames { get; set; } = new();
 
     [DataMember(Name = "features")]
     public List<ModWorldFeatureDto> Features { get; set; } = new();
+
+    [DataMember(Name = "featureNameCatalogs")]
+    public List<ModWorldFeatureNameCatalogDto> FeatureNameCatalogs { get; set; } = new();
 
     [DataMember(Name = "factions")]
     public List<ModWorldFactionDto> Factions { get; set; } = new();
@@ -566,6 +616,19 @@ public sealed class ModWorldConfigurationDto
 
     [DataMember(Name = "extensions")]
     public List<ModWorldConfigurationExtensionDto> Extensions { get; set; } = new();
+}
+
+[DataContract]
+public sealed class ModWorldFeatureNameCatalogDto
+{
+    [DataMember(Name = "language")]
+    public string Language { get; set; } = string.Empty;
+
+    [DataMember(Name = "worldConfigurationId")]
+    public string? WorldConfigurationId { get; set; }
+
+    [DataMember(Name = "features")]
+    public List<ModWorldFeatureDto> Features { get; set; } = new();
 }
 
 [DataContract]

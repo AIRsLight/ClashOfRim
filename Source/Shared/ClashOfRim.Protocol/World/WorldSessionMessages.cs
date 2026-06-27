@@ -182,6 +182,68 @@ public sealed class GetWorldConfigurationResponse
     public WorldConfigurationDto? WorldConfiguration { get; }
 }
 
+public sealed class SubmitWorldFeatureNamesRequest
+{
+    public SubmitWorldFeatureNamesRequest(
+        string protocolVersion,
+        string userId,
+        string colonyId,
+        string language,
+        string worldConfigurationId,
+        IReadOnlyList<WorldFeatureDto>? features,
+        string? steamAuthTicket = null,
+        string? password = null)
+    {
+        ProtocolVersion = protocolVersion;
+        UserId = userId;
+        ColonyId = colonyId;
+        Language = language;
+        WorldConfigurationId = worldConfigurationId;
+        Features = features ?? Array.Empty<WorldFeatureDto>();
+        SteamAuthTicket = steamAuthTicket;
+        Password = password;
+    }
+
+    public string ProtocolVersion { get; }
+
+    public string UserId { get; }
+
+    public string ColonyId { get; }
+
+    public string Language { get; }
+
+    public string WorldConfigurationId { get; }
+
+    public IReadOnlyList<WorldFeatureDto> Features { get; }
+
+    public string? SteamAuthTicket { get; }
+
+    public string? Password { get; }
+}
+
+public sealed class SubmitWorldFeatureNamesResponse
+{
+    public SubmitWorldFeatureNamesResponse(
+        ProtocolResponse result,
+        bool accepted,
+        bool created,
+        WorldConfigurationDto? worldConfiguration)
+    {
+        Result = result;
+        Accepted = accepted;
+        Created = created;
+        WorldConfiguration = worldConfiguration;
+    }
+
+    public ProtocolResponse Result { get; }
+
+    public bool Accepted { get; }
+
+    public bool Created { get; }
+
+    public WorldConfigurationDto? WorldConfiguration { get; }
+}
+
 public sealed class SubmitWorldConfigurationResponse
 {
     public SubmitWorldConfigurationResponse(
@@ -462,7 +524,9 @@ public sealed class WorldConfigurationDto
         string? difficultyDefName = null,
         WorldTileGeometryDto? tileGeometry = null,
         string? difficultyValuesXml = null,
-        IReadOnlyList<WorldConfigurationExtensionDto>? extensions = null)
+        IReadOnlyList<WorldConfigurationExtensionDto>? extensions = null,
+        string? gameLanguage = null,
+        IReadOnlyList<WorldFeatureNameCatalogDto>? featureNameCatalogs = null)
     {
         WorldConfigurationId = worldConfigurationId;
         ConfiguredByUserId = configuredByUserId;
@@ -486,6 +550,8 @@ public sealed class WorldConfigurationDto
         TileGeometry = tileGeometry;
         DifficultyValuesXml = difficultyValuesXml;
         Extensions = extensions ?? Array.Empty<WorldConfigurationExtensionDto>();
+        GameLanguage = gameLanguage;
+        FeatureNameCatalogs = featureNameCatalogs ?? Array.Empty<WorldFeatureNameCatalogDto>();
     }
 
     public string WorldConfigurationId { get; }
@@ -531,6 +597,29 @@ public sealed class WorldConfigurationDto
     public string? DifficultyValuesXml { get; }
 
     public IReadOnlyList<WorldConfigurationExtensionDto> Extensions { get; }
+
+    public string? GameLanguage { get; }
+
+    public IReadOnlyList<WorldFeatureNameCatalogDto> FeatureNameCatalogs { get; }
+}
+
+public sealed class WorldFeatureNameCatalogDto
+{
+    public WorldFeatureNameCatalogDto(
+        string language,
+        string? worldConfigurationId,
+        IReadOnlyList<WorldFeatureDto>? features)
+    {
+        Language = language;
+        WorldConfigurationId = worldConfigurationId;
+        Features = features ?? Array.Empty<WorldFeatureDto>();
+    }
+
+    public string Language { get; }
+
+    public string? WorldConfigurationId { get; }
+
+    public IReadOnlyList<WorldFeatureDto> Features { get; }
 }
 
 public sealed class WorldConfigurationExtensionDto

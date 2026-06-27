@@ -17,6 +17,7 @@ public static class CompatibilityManifestJsonWriter
         WriteProperty(json, "manifestId", manifest.ManifestId);
         WriteProperty(json, "protocolVersion", manifest.ProtocolVersion);
         WriteProperty(json, "rimWorldVersion", manifest.RimWorldVersion);
+        WriteProperty(json, "gameLanguage", manifest.GameLanguage);
         WriteStringArrayProperty(json, "dlcIds", manifest.DlcIds);
         WriteProperty(json, "configVersion", manifest.ConfigVersion);
         WriteProperty(json, "configSha256", manifest.ConfigSha256);
@@ -40,6 +41,7 @@ public static class CompatibilityManifestJsonWriter
         WriteProperty(json, "manifestId", summary.ManifestId);
         WriteProperty(json, "protocolVersion", summary.ProtocolVersion);
         WriteProperty(json, "rimWorldVersion", summary.RimWorldVersion);
+        WriteProperty(json, "gameLanguage", summary.GameLanguage);
         WriteStringArrayProperty(json, "dlcIds", summary.DlcIds);
         WriteProperty(json, "configSha256", summary.ConfigSha256);
         WriteSummaryMods(json, summary.Mods);
