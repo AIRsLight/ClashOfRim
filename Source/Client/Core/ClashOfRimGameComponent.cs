@@ -7,6 +7,7 @@ using System.Reflection;
 using System.Text;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.ClientSnapshots;
+using AIRsLight.ClashOfRim.Diplomacy;
 using AIRsLight.ClashOfRim.Pawns;
 using AIRsLight.ClashOfRim.Raids;
 using AIRsLight.ClashOfRim.RemoteMaps;
@@ -103,6 +104,7 @@ public sealed class ClashOfRimGameComponent : GameComponent
     public override void ExposeData()
     {
         base.ExposeData();
+        PlayerFactionProxyUtility.ExposeData();
         Scribe_Collections.Look(ref pendingManualEventIds, "clashOfRimPendingManualEventIds", LookMode.Value);
         Scribe_Collections.Look(ref pendingAchievementCandidates, "clashOfRimPendingAchievementCandidates", LookMode.Deep);
         Scribe_Collections.Look(ref activeSupportAssignments, "clashOfRimActiveSupportAssignments", LookMode.Deep);

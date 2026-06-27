@@ -13,8 +13,40 @@ namespace AIRsLight.ClashOfRim.Diplomacy;
 internal static class PlayerFactionProxyUtility
 {
     public const string ProxyFactionDefName = "ClashOfRim_PlayerProxy";
-    private static readonly Dictionary<int, string> ProxyOwnerUserIdsByLoadId = new();
+    private static Dictionary<int, string> ProxyOwnerUserIdsByLoadId = new();
     private static readonly Dictionary<string, Faction> ProxyFactionsByOwnerUserId = new(StringComparer.Ordinal);
+    private static List<int>? proxyOwnerLoadIdWorkingList;
+    private static List<string>? proxyOwnerUserIdWorkingList;
+
+    public static void ExposeData()
+    {
+        if (Scribe.mode == LoadSaveMode.LoadingVars)
+        {
+            ProxyOwnerUserIdsByLoadId = new Dictionary<int, string>();
+            ProxyFactionsByOwnerUserId.Clear();
+        }
+
+        Scribe_Collections.Look(
+            ref ProxyOwnerUserIdsByLoadId,
+            "clashOfRimProxyOwnerUserIdsByLoadId",
+            LookMode.Value,
+            LookMode.Value,
+            ref proxyOwnerLoadIdWorkingList,
+            ref proxyOwnerUserIdWorkingList);
+
+        if (Scribe.mode == LoadSaveMode.PostLoadInit)
+        {
+            ProxyOwnerUserIdsByLoadId ??= new Dictionary<int, string>();
+            ProxyFactionsByOwnerUserId.Clear();
+            foreach (int loadId in ProxyOwnerUserIdsByLoadId
+                .Where(entry => string.IsNullOrWhiteSpace(entry.Value))
+                .Select(entry => entry.Key)
+                .ToList())
+            {
+                ProxyOwnerUserIdsByLoadId.Remove(loadId);
+            }
+        }
+    }
 
     public static Faction? EnsureProxyForUser(string? userId, string? factionDefName = null, string? displayFactionName = null)
     {

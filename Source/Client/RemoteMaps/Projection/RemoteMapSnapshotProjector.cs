@@ -549,6 +549,12 @@ public static class RemoteMapSnapshotProjector
             return null;
         }
 
+        FactionDef? sourceDef = DefDatabase<FactionDef>.GetNamedSilentFail(sourceFaction.DefName!);
+        if (sourceDef is null)
+        {
+            return null;
+        }
+
         List<Faction> candidates = Find.World.factionManager.AllFactionsListForReading
             .Where(faction =>
                 faction is not null
@@ -556,9 +562,9 @@ public static class RemoteMapSnapshotProjector
                 && !faction.IsPlayer
                 && string.Equals(faction.def?.defName, sourceFaction.DefName, StringComparison.Ordinal))
             .ToList();
-        if (candidates.Count == 0)
+        if (candidates.Count == 1)
         {
-            return null;
+            return candidates[0];
         }
 
         if (!string.IsNullOrWhiteSpace(sourceFaction.Name))
@@ -571,7 +577,59 @@ public static class RemoteMapSnapshotProjector
             }
         }
 
-        return candidates.Count == 1 ? candidates[0] : null;
+        return CreateTemporaryRemoteNpcFaction(sourceFaction, sourceDef);
+    }
+
+    private static Faction? CreateTemporaryRemoteNpcFaction(SourceFactionRecord sourceFaction, FactionDef sourceDef)
+    {
+        FactionManager? manager = Find.World?.factionManager;
+        if (manager is null)
+        {
+            return null;
+        }
+
+        string remoteName = RemoteNpcFactionNamePrefix + sourceFaction.LoadId;
+        Faction? existing = manager.AllFactionsListForReading.FirstOrDefault(faction =>
+            IsRemoteNpcFaction(faction)
+            && string.Equals(faction.Name, remoteName, StringComparison.Ordinal));
+        if (existing is not null)
+        {
+            return existing;
+        }
+
+        Faction faction = new()
+        {
+            def = sourceDef,
+            loadID = Find.UniqueIDsManager.GetNextFactionID(),
+            Name = remoteName,
+            temporary = true,
+            hidden = true,
+            allowGoodwillRewards = false,
+            allowRoyalFavorRewards = false,
+            leader = null
+        };
+
+        foreach (Faction other in manager.AllFactionsListForReading.ToList())
+        {
+            faction.SetRelation(new FactionRelation(other, FactionRelationKind.Neutral));
+            other.SetRelation(new FactionRelation(faction, FactionRelationKind.Neutral));
+        }
+
+        if (Faction.OfPlayer is not null)
+        {
+            SetMutualRelationWithoutLookup(
+                faction,
+                Faction.OfPlayer,
+                ResolveLocalPlayerRelation(sourceFaction.DefName, sourceDef));
+        }
+
+        manager.Add(faction);
+        ClashLog.Message("[ClashOfRim][RemoteMapProjection] Created temporary remote NPC faction for source="
+            + sourceFaction.LoadId
+            + ", def="
+            + sourceFaction.DefName
+            + ".");
+        return faction;
     }
 
     private static Dictionary<string, SourceFactionRecord> ReadSourceFactions(XDocument document)
