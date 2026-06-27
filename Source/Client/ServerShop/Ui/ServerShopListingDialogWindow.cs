@@ -659,6 +659,8 @@ public sealed class ServerShopListingDialogWindow : Window
             UniqueWeaponTraits = source.UniqueWeaponTraits?.ToList() ?? new List<string>(),
             PawnPackage = source.PawnPackage,
             PawnPackageId = source.PawnPackageId,
+            ThingPackage = source.ThingPackage,
+            ThingPackageId = source.ThingPackageId,
             Metadata = source.Metadata?.ToDictionary(
                 pair => pair.Key,
                 pair => pair.Value,

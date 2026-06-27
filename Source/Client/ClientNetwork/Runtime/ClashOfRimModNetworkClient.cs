@@ -36,6 +36,8 @@ public sealed class ClashOfRimModNetworkClient
     private const string CreateGiftWithSnapshotRoute = "/events/gifts/create-with-snapshot";
     private const string StorePawnPackageRoute = "/pawns/packages/store";
     private const string GetPawnPackageRoute = "/pawns/packages/get";
+    private const string StoreThingPackageRoute = "/things/packages/store";
+    private const string GetThingPackageRoute = "/things/packages/get";
     private const string QuoteTradeOrderFeeRoute = "/events/trades/quote-fee";
     private const string CreateTradeOrderRoute = "/events/trades";
     private const string CreateTradeOrderWithSnapshotRoute = "/events/trades/create-with-snapshot";
@@ -1803,6 +1805,60 @@ public sealed class ClashOfRimModNetworkClient
 
         return PostAsync<ModGetPawnPackageRequestDto, ModGetPawnPackageResponseDto>(
             GetPawnPackageRoute,
+            request,
+            cancellationToken);
+    }
+
+    public Task<ClashOfRimClientNetworkResult<ModStoreThingPackageResponseDto>> StoreThingPackageAsync(
+        string idempotencyKey,
+        ModThingStatePackageDto thingPackage,
+        CancellationToken cancellationToken = default)
+    {
+        if (!context.IsConfigured)
+        {
+            return NotConfigured<ModStoreThingPackageResponseDto>();
+        }
+
+        var request = new ModStoreThingPackageRequestDto
+        {
+            IdempotencyKey = idempotencyKey,
+            Owner = new ModProtocolIdentityDto
+            {
+                UserId = context.UserId,
+                ColonyId = context.ColonyId,
+                SnapshotId = context.CurrentSnapshotId
+            },
+            ThingPackage = thingPackage
+        };
+
+        return PostAsync<ModStoreThingPackageRequestDto, ModStoreThingPackageResponseDto>(
+            StoreThingPackageRoute,
+            request,
+            cancellationToken);
+    }
+
+    public Task<ClashOfRimClientNetworkResult<ModGetThingPackageResponseDto>> GetThingPackageAsync(
+        string thingPackageId,
+        CancellationToken cancellationToken = default)
+    {
+        if (!context.IsConfigured)
+        {
+            return NotConfigured<ModGetThingPackageResponseDto>();
+        }
+
+        var request = new ModGetThingPackageRequestDto
+        {
+            Requester = new ModProtocolIdentityDto
+            {
+                UserId = context.UserId,
+                ColonyId = context.ColonyId,
+                SnapshotId = context.CurrentSnapshotId
+            },
+            ThingPackageId = thingPackageId
+        };
+
+        return PostAsync<ModGetThingPackageRequestDto, ModGetThingPackageResponseDto>(
+            GetThingPackageRoute,
             request,
             cancellationToken);
     }

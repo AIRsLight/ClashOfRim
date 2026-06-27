@@ -23,6 +23,8 @@ public enum ProtocolMessageKind
     RejectGift,
     StorePawnPackage,
     GetPawnPackage,
+    StoreThingPackage,
+    GetThingPackage,
     QuoteTradeOrderFee,
     CreateTradeOrderWithSnapshot,
     CreateTradeOrder,

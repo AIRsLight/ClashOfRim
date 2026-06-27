@@ -53,6 +53,20 @@ public static partial class ClashOfRimNetworkServer
         }
 
         bool targetOnline = state.OnlinePresence.IsUserOnline(request.Target.UserId);
+        if (!TryStoreInlinePawnPackages(
+                state,
+                request.Actor,
+                "gift:" + request.IdempotencyKey,
+                request.Things,
+                out IReadOnlyList<ThingReferenceDto> giftThings,
+                out ProtocolResponse? packageFailure))
+        {
+            return Results.Ok(new EventCreationResponse(
+                packageFailure ?? ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("PawnPackage.ParseFailed")),
+                eventId: null,
+                ProtocolDeliverySemantics.OfflinePending));
+        }
+
         AuthoritativeEvent giftEvent = AuthoritativeEventFactory.Create(
             ServerEventType.Gift,
             ToEventParty(request.Actor),
@@ -60,7 +74,7 @@ public static partial class ClashOfRimNetworkServer
             request.IdempotencyKey,
             targetOnline,
             new GiftEventPayload(
-                request.Things.Select(thing => ToEventThingReference(thing, request.Actor.SnapshotId)).ToList(),
+                giftThings.Select(thing => ToEventThingReference(thing, request.Actor.SnapshotId)).ToList(),
                 request.Message,
                 NormalizeGiftDeliveryKind(request.DeliveryKind)),
             nowUtc,
@@ -189,14 +203,29 @@ public static partial class ClashOfRimNetworkServer
         string acceptedSnapshotId = upload.AcceptedSnapshot.Identity.SnapshotId
             ?? transaction.ConfirmedSnapshot.SnapshotId!;
         bool targetOnline = state.OnlinePresence.IsUserOnline(request.Target.UserId);
+        var acceptedActor = new ProtocolIdentity(request.Actor.UserId, request.Actor.ColonyId, acceptedSnapshotId);
+        if (!TryStoreInlinePawnPackages(
+                state,
+                acceptedActor,
+                "gift:" + request.IdempotencyKey,
+                request.Things,
+                out IReadOnlyList<ThingReferenceDto> giftThings,
+                out ProtocolResponse? packageFailure))
+        {
+            return Results.Ok(new EventCreationResponse(
+                packageFailure ?? ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("PawnPackage.ParseFailed")),
+                eventId: null,
+                ProtocolDeliverySemantics.OnlineImmediate));
+        }
+
         AuthoritativeEvent giftEvent = AuthoritativeEventFactory.Create(
             ServerEventType.Gift,
-            ToEventParty(request.Actor),
+            ToEventParty(acceptedActor),
             ToEventParty(request.Target),
             request.IdempotencyKey,
             targetOnline,
             new GiftEventPayload(
-                request.Things.Select(thing => ToEventThingReference(thing, acceptedSnapshotId)).ToList(),
+                giftThings.Select(thing => ToEventThingReference(thing, acceptedSnapshotId)).ToList(),
                 request.Message,
                 NormalizeGiftDeliveryKind(request.DeliveryKind)),
             nowUtc,
@@ -275,6 +304,14 @@ public static partial class ClashOfRimNetworkServer
                         ProtocolErrorCode.ValidationFailed,
                         T("Gift.PawnPackageInvalid", ("MESSAGE", ex.Message)));
                 }
+            }
+
+            if (thing.ThingPackage is not null
+                && !TryToThingStatePackage(thing.ThingPackage, out _, out string thingPackageFailure))
+            {
+                return ProtocolResponse.Reject(
+                    ProtocolErrorCode.ValidationFailed,
+                    "invalid thing package: " + thingPackageFailure);
             }
         }
 
@@ -359,6 +396,78 @@ public static partial class ClashOfRimNetworkServer
             ProtocolResponse.Ok(T("PawnPackage.Returned")),
             request.PawnPackageId,
             ToPawnExchangePackageDto(package)));
+    }
+
+    private static IResult StoreThingPackage(StoreThingPackageRequest request, ClashOfRimNetworkState state)
+    {
+        if (string.IsNullOrWhiteSpace(request.IdempotencyKey)
+            || request.Owner is null
+            || string.IsNullOrWhiteSpace(request.Owner.UserId)
+            || request.ThingPackage is null)
+        {
+            return Results.Ok(new StoreThingPackageResponse(
+                ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, "thing package upload missing fields"),
+                thingPackageId: null,
+                fingerprint: null));
+        }
+
+        if (!TryToThingStatePackage(request.ThingPackage, out ThingStatePackage? package, out string packageFailure)
+            || package is null)
+        {
+            return Results.Ok(new StoreThingPackageResponse(
+                ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, "invalid thing package: " + packageFailure),
+                thingPackageId: null,
+                fingerprint: null));
+        }
+
+        try
+        {
+            StoredThingPackageRecord record = state.ThingPackages.Store(
+                request.IdempotencyKey,
+                request.Owner.UserId,
+                request.Owner.ColonyId,
+                request.Owner.SnapshotId,
+                package,
+                DateTimeOffset.UtcNow);
+            return Results.Ok(new StoreThingPackageResponse(
+                ProtocolResponse.Ok("thing package stored"),
+                record.PackageId,
+                record.Fingerprint));
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or ArgumentException or FormatException or IOException)
+        {
+            return Results.Ok(new StoreThingPackageResponse(
+                ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, "invalid thing package: " + ex.Message),
+                thingPackageId: null,
+                fingerprint: null));
+        }
+    }
+
+    private static IResult GetThingPackage(GetThingPackageRequest request, ClashOfRimNetworkState state)
+    {
+        if (request.Requester is null
+            || string.IsNullOrWhiteSpace(request.Requester.UserId)
+            || string.IsNullOrWhiteSpace(request.ThingPackageId))
+        {
+            return Results.Ok(new GetThingPackageResponse(
+                ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, "thing package download missing fields"),
+                request.ThingPackageId,
+                thingPackage: null));
+        }
+
+        if (!state.ThingPackages.TryGetPackage(request.ThingPackageId, out ThingStatePackage? package, out string message)
+            || package is null)
+        {
+            return Results.Ok(new GetThingPackageResponse(
+                ProtocolResponse.Reject(ProtocolErrorCode.EventNotFound, message),
+                request.ThingPackageId,
+                thingPackage: null));
+        }
+
+        return Results.Ok(new GetThingPackageResponse(
+            ProtocolResponse.Ok("thing package returned"),
+            request.ThingPackageId,
+            ToThingStatePackageDto(package)));
     }
 
     private static ProtocolResponse? ValidateForcedGiftDelivery(
@@ -620,6 +729,13 @@ public static partial class ClashOfRimNetworkServer
                 requiredFeeSilver: 0));
         }
 
+        if (ContainsConcreteThingPackage(request.RequestedThings))
+        {
+            return Results.Ok(new TradeOrderFeeQuoteResponse(
+                ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, "trade request requirements cannot carry thing packages"),
+                requiredFeeSilver: 0));
+        }
+
         TradeFeeCalculationResult feeCalculation =
             state.AdminBaseline.BuildEffectiveTradeFeePolicy(state.ServerConfiguration)
                 .CalculateRequiredFeeResult(
@@ -666,6 +782,14 @@ public static partial class ClashOfRimNetworkServer
         {
             return Results.Ok(new EventCreationResponse(
                 ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("Trade.OrderMissingFields")),
+                eventId: null,
+                ProtocolDeliverySemantics.OfflinePending));
+        }
+
+        if (ContainsConcreteThingPackage(request.RequestedThings))
+        {
+            return Results.Ok(new EventCreationResponse(
+                ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, "trade request requirements cannot carry thing packages"),
                 eventId: null,
                 ProtocolDeliverySemantics.OfflinePending));
         }
@@ -1987,6 +2111,13 @@ public static partial class ClashOfRimNetworkServer
         return unavailable
             .OrderBy(defName => defName, StringComparer.OrdinalIgnoreCase)
             .ToList();
+    }
+
+    private static bool ContainsConcreteThingPackage(IReadOnlyList<ThingReferenceDto>? things)
+    {
+        return things is not null
+            && things.Any(thing => thing is not null
+                && (thing.ThingPackage is not null || !string.IsNullOrWhiteSpace(thing.ThingPackageId)));
     }
 
     private static HashSet<string> BuildValidTradeThingDefSet(

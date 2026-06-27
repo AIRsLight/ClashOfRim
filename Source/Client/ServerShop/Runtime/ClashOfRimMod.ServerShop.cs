@@ -563,7 +563,9 @@ public sealed partial class ClashOfRimMod
                     item.UniqueWeaponTraits,
                     item.PawnPackage,
                     item.PawnPackageId,
-                    item.Metadata)
+                    thingPackage: item.ThingPackage,
+                    thingPackageId: item.ThingPackageId,
+                    metadata: item.Metadata)
             },
             requiresSnapshotConfirmation: true,
             arrivalLetterLabel: ClashOfRimText.Key("ClashOfRim.Shop.PurchaseArrivalLetterLabel"),
@@ -826,6 +828,9 @@ public sealed partial class ClashOfRimMod
         }
 
         await PawnPackageTransferService.HydrateThingPawnPackagesAsync(
+            client,
+            new[] { listing.Item });
+        await PawnPackageTransferService.HydrateThingStatePackagesAsync(
             client,
             new[] { listing.Item });
     }

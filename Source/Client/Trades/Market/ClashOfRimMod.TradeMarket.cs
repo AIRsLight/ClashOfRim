@@ -347,6 +347,7 @@ public sealed partial class ClashOfRimMod
         string idempotencyPrefix)
     {
         await PawnPackageTransferService.StoreThingPawnPackagesAsync(client, things, idempotencyPrefix);
+        await PawnPackageTransferService.StoreThingStatePackagesAsync(client, things, idempotencyPrefix);
     }
 
     private static async Task HydratePawnPackagesForTradeAsync(
@@ -354,6 +355,7 @@ public sealed partial class ClashOfRimMod
         IReadOnlyList<ModThingReferenceDto> things)
     {
         await PawnPackageTransferService.HydrateThingPawnPackagesAsync(client, things);
+        await PawnPackageTransferService.HydrateThingStatePackagesAsync(client, things);
     }
 
     internal void StartRefreshTradeOrders(string scope = "Open")

@@ -481,6 +481,8 @@ public static class GiftLandingApplicator
             MarketValue = item.MarketValue,
             UniqueWeapon = item.UniqueWeapon,
             UniqueWeaponTraits = item.UniqueWeaponTraits.ToList(),
+            ThingPackage = item.ThingPackage,
+            ThingPackageId = item.ThingPackageId,
             Metadata = item.Metadata.ToDictionary(
                 pair => pair.Key,
                 pair => pair.Value,

@@ -22,6 +22,11 @@ internal static class PawnExchangeLoadIdUtility
         LocalizeAbilities(pawn);
     }
 
+    public static void LocalizeRestoredThing(Thing? thing)
+    {
+        LocalizeThing(thing);
+    }
+
     private static void LocalizeHeldThingIds(Pawn pawn)
     {
         List<ThingWithComps>? equipment = pawn.equipment?.AllEquipmentListForReading;

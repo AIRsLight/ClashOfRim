@@ -480,7 +480,9 @@ public static partial class ClashOfRimNetworkServer
             stuffDefName: item.StuffDefName,
             maxHitPoints: item.MaxHitPoints,
             minifiedInnerMaxHitPoints: item.MinifiedInnerMaxHitPoints,
-            metadata: CopyMetadata(item.Metadata));
+            metadata: CopyMetadata(item.Metadata),
+            thingPackage: item.ThingPackage,
+            thingPackageId: item.ThingPackageId);
     }
 
     private static string NormalizeShopListingKind(string? listingKind)
@@ -516,7 +518,9 @@ public static partial class ClashOfRimNetworkServer
             item.StuffDefName,
             item.MaxHitPoints,
             item.MinifiedInnerMaxHitPoints,
-            CopyMetadata(item.Metadata));
+            metadata: CopyMetadata(item.Metadata),
+            thingPackage: item.ThingPackage,
+            thingPackageId: item.ThingPackageId);
     }
 
     private static ServerShopListingDto ToServerShopListingDto(

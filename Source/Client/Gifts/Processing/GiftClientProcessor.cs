@@ -125,6 +125,8 @@ public static class GiftClientProcessor
                 item.UniqueWeaponTraits,
                 ToModPawnPackage(item.PawnPackage),
                 item.PawnPackageId,
+                ToModThingPackage(item.ThingPackage),
+                item.ThingPackageId,
                 BuildThingReferenceMetadata(item)));
         }
 
@@ -255,6 +257,30 @@ public static class GiftClientProcessor
         return result;
     }
 
+    private static ModThingStatePackageDto? ToModThingPackage(GiftThingStatePackageSummary? package)
+    {
+        if (package?.Scribe is null)
+        {
+            return null;
+        }
+
+        return new ModThingStatePackageDto
+        {
+            PackageVersion = package.PackageVersion,
+            GlobalKey = package.GlobalKey,
+            DefName = package.DefName,
+            Label = package.Label,
+            StackCount = package.StackCount,
+            Fingerprint = package.Fingerprint,
+            Scribe = new ModThingScribePayloadDto
+            {
+                XmlGzipBase64 = package.Scribe.XmlGzipBase64,
+                XmlSha256 = package.Scribe.XmlSha256,
+                UncompressedBytes = package.Scribe.UncompressedBytes
+            }
+        };
+    }
+
     private static IReadOnlyDictionary<string, string?> BuildThingReferenceMetadata(GiftItemSummary item)
     {
         var reference = new ModThingReferenceDto
@@ -317,6 +343,8 @@ public static class GiftClientProcessor
             UniqueWeaponTraits = item.UniqueWeaponTraits.ToList(),
             PawnPackage = ToModPawnPackage(item.PawnPackage),
             PawnPackageId = item.PawnPackageId,
+            ThingPackage = ToModThingPackage(item.ThingPackage),
+            ThingPackageId = item.ThingPackageId,
             Metadata = BuildThingReferenceMetadata(item).ToDictionary(
                 pair => pair.Key,
                 pair => pair.Value,

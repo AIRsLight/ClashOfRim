@@ -111,6 +111,7 @@ public static partial class ClashOfRimNetworkServer
             playerRegistry: new PlayerRegistry(new SqliteJsonPersistenceSlot(databasePath, "players")),
             diplomacyRelations: new DiplomacyRelationRegistry(new SqliteJsonPersistenceSlot(databasePath, "diplomacy-relations")),
             pawnPackages: new PawnPackageRegistry(new SqliteJsonPersistenceSlot(databasePath, "pawn-packages")),
+            thingPackages: new ThingPackageRegistry(new SqliteJsonPersistenceSlot(databasePath, "thing-packages")),
             raidProtectionActivations: new RaidProtectionActivationRegistry(new SqliteJsonPersistenceSlot(databasePath, "raid-protection-activations")),
             bankLoans: new BankLoanRegistry(new SqliteJsonPersistenceSlot(databasePath, "bank-loans")),
             mercenaryContracts: new MercenaryContractRegistry(new SqliteJsonPersistenceSlot(databasePath, "mercenary-contracts")),

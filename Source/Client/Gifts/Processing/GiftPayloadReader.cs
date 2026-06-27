@@ -115,6 +115,50 @@ internal sealed partial class GiftItemSummary
 
     [DataMember(Name = "PawnPackageId")]
     public string? PawnPackageId { get; set; }
+
+    [DataMember(Name = "ThingPackage")]
+    public GiftThingStatePackageSummary? ThingPackage { get; set; }
+
+    [DataMember(Name = "ThingPackageId")]
+    public string? ThingPackageId { get; set; }
+}
+
+[DataContract]
+internal sealed class GiftThingStatePackageSummary
+{
+    [DataMember(Name = "PackageVersion")]
+    public int PackageVersion { get; set; } = 1;
+
+    [DataMember(Name = "GlobalKey")]
+    public string GlobalKey { get; set; } = string.Empty;
+
+    [DataMember(Name = "DefName")]
+    public string? DefName { get; set; }
+
+    [DataMember(Name = "Label")]
+    public string? Label { get; set; }
+
+    [DataMember(Name = "StackCount")]
+    public int StackCount { get; set; }
+
+    [DataMember(Name = "Scribe")]
+    public GiftThingScribePayloadSummary? Scribe { get; set; }
+
+    [DataMember(Name = "Fingerprint")]
+    public string? Fingerprint { get; set; }
+}
+
+[DataContract]
+internal sealed class GiftThingScribePayloadSummary
+{
+    [DataMember(Name = "XmlGzipBase64")]
+    public string XmlGzipBase64 { get; set; } = string.Empty;
+
+    [DataMember(Name = "XmlSha256")]
+    public string? XmlSha256 { get; set; }
+
+    [DataMember(Name = "UncompressedBytes")]
+    public int UncompressedBytes { get; set; }
 }
 
 [DataContract]

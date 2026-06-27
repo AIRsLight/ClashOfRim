@@ -586,6 +586,78 @@ public sealed class GetPawnPackageResponse
     public PawnExchangePackageDto? PawnPackage { get; }
 }
 
+public sealed class StoreThingPackageRequest
+{
+    public StoreThingPackageRequest(
+        string idempotencyKey,
+        ProtocolIdentity owner,
+        ThingStatePackageDto thingPackage)
+    {
+        IdempotencyKey = idempotencyKey;
+        Owner = owner;
+        ThingPackage = thingPackage;
+    }
+
+    public string IdempotencyKey { get; }
+
+    public ProtocolIdentity Owner { get; }
+
+    public ThingStatePackageDto ThingPackage { get; }
+}
+
+public sealed class StoreThingPackageResponse
+{
+    public StoreThingPackageResponse(
+        ProtocolResponse result,
+        string? thingPackageId,
+        string? fingerprint)
+    {
+        Result = result;
+        ThingPackageId = thingPackageId;
+        Fingerprint = fingerprint;
+    }
+
+    public ProtocolResponse Result { get; }
+
+    public string? ThingPackageId { get; }
+
+    public string? Fingerprint { get; }
+}
+
+public sealed class GetThingPackageRequest
+{
+    public GetThingPackageRequest(
+        ProtocolIdentity requester,
+        string thingPackageId)
+    {
+        Requester = requester;
+        ThingPackageId = thingPackageId;
+    }
+
+    public ProtocolIdentity Requester { get; }
+
+    public string ThingPackageId { get; }
+}
+
+public sealed class GetThingPackageResponse
+{
+    public GetThingPackageResponse(
+        ProtocolResponse result,
+        string? thingPackageId,
+        ThingStatePackageDto? thingPackage)
+    {
+        Result = result;
+        ThingPackageId = thingPackageId;
+        ThingPackage = thingPackage;
+    }
+
+    public ProtocolResponse Result { get; }
+
+    public string? ThingPackageId { get; }
+
+    public ThingStatePackageDto? ThingPackage { get; }
+}
+
 public sealed class CreateTradeOrderRequest
 {
     public CreateTradeOrderRequest(

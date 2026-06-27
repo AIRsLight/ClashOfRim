@@ -1042,6 +1042,8 @@ public sealed class TradeOrderDialogWindow : Window
             MarketValue = thing.MarketValue,
             UniqueWeapon = thing.UniqueWeapon,
             UniqueWeaponTraits = thing.UniqueWeaponTraits.ToList(),
+            ThingPackage = thing.ThingPackage,
+            ThingPackageId = thing.ThingPackageId,
             PawnPackageId = thing.PawnPackageId,
             Metadata = thing.Metadata?.ToDictionary(
                 pair => pair.Key,

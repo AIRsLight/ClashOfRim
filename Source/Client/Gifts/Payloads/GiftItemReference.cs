@@ -30,6 +30,8 @@ public sealed class GiftItemReference
         IReadOnlyList<string>? uniqueWeaponTraits = null,
         ModPawnExchangePackageDto? pawnPackage = null,
         string? pawnPackageId = null,
+        ModThingStatePackageDto? thingPackage = null,
+        string? thingPackageId = null,
         IReadOnlyDictionary<string, string?>? metadata = null)
     {
         GlobalKey = globalKey;
@@ -55,6 +57,8 @@ public sealed class GiftItemReference
         UniqueWeaponTraits = uniqueWeaponTraits ?? Array.Empty<string>();
         PawnPackage = pawnPackage;
         PawnPackageId = pawnPackageId;
+        ThingPackage = thingPackage;
+        ThingPackageId = thingPackageId;
         Metadata = metadata ?? new Dictionary<string, string?>(StringComparer.Ordinal);
     }
 
@@ -103,6 +107,10 @@ public sealed class GiftItemReference
     public ModPawnExchangePackageDto? PawnPackage { get; set; }
 
     public string? PawnPackageId { get; }
+
+    public ModThingStatePackageDto? ThingPackage { get; set; }
+
+    public string? ThingPackageId { get; }
 
     public IReadOnlyDictionary<string, string?> Metadata { get; }
 

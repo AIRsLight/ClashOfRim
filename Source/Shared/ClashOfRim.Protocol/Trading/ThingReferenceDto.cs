@@ -28,7 +28,9 @@ public sealed class ThingReferenceDto
         string? stuffDefName = null,
         int? maxHitPoints = null,
         int? minifiedInnerMaxHitPoints = null,
-        Dictionary<string, string?>? metadata = null)
+        Dictionary<string, string?>? metadata = null,
+        ThingStatePackageDto? thingPackage = null,
+        string? thingPackageId = null)
     {
         GlobalKey = globalKey;
         DefName = defName;
@@ -53,6 +55,8 @@ public sealed class ThingReferenceDto
         MaxHitPoints = maxHitPoints;
         MinifiedInnerMaxHitPoints = minifiedInnerMaxHitPoints;
         Metadata = metadata ?? new Dictionary<string, string?>(StringComparer.Ordinal);
+        ThingPackage = thingPackage;
+        ThingPackageId = thingPackageId;
     }
 
     public string GlobalKey { get; }
@@ -101,4 +105,58 @@ public sealed class ThingReferenceDto
 
     public Dictionary<string, string?> Metadata { get; }
 
+    public ThingStatePackageDto? ThingPackage { get; }
+
+    public string? ThingPackageId { get; }
+}
+
+public sealed class ThingStatePackageDto
+{
+    public ThingStatePackageDto(
+        int packageVersion,
+        string globalKey,
+        string? defName,
+        string? label,
+        int stackCount,
+        ThingScribePayloadDto scribe,
+        string? fingerprint = null)
+    {
+        PackageVersion = packageVersion;
+        GlobalKey = globalKey;
+        DefName = defName;
+        Label = label;
+        StackCount = stackCount;
+        Scribe = scribe;
+        Fingerprint = fingerprint;
+    }
+
+    public int PackageVersion { get; }
+
+    public string GlobalKey { get; }
+
+    public string? DefName { get; }
+
+    public string? Label { get; }
+
+    public int StackCount { get; }
+
+    public ThingScribePayloadDto Scribe { get; }
+
+    public string? Fingerprint { get; }
+}
+
+public sealed class ThingScribePayloadDto
+{
+    public ThingScribePayloadDto(string xmlGzipBase64, string? xmlSha256, int uncompressedBytes)
+    {
+        XmlGzipBase64 = xmlGzipBase64;
+        XmlSha256 = xmlSha256;
+        UncompressedBytes = uncompressedBytes;
+    }
+
+    public string XmlGzipBase64 { get; }
+
+    public string? XmlSha256 { get; }
+
+    public int UncompressedBytes { get; }
 }

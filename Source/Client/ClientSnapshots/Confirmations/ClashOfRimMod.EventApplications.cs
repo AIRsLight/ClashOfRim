@@ -472,7 +472,9 @@ public sealed partial class ClashOfRimMod
     private bool TryHydrateGiftLandingPlanPawnPackages(GiftLandingPlan plan, out string message)
     {
         List<GiftItemReference> items = plan.Items
-            .Where(item => item.PawnPackage is null && !string.IsNullOrWhiteSpace(item.PawnPackageId))
+            .Where(item =>
+                (item.PawnPackage is null && !string.IsNullOrWhiteSpace(item.PawnPackageId))
+                || (item.ThingPackage is null && !string.IsNullOrWhiteSpace(item.ThingPackageId)))
             .ToList();
         if (items.Count == 0)
         {
@@ -493,6 +495,16 @@ public sealed partial class ClashOfRimMod
             if (!result.Success)
             {
                 message = result.Message;
+                return false;
+            }
+
+            PawnPackageTransferResult thingResult = PawnPackageTransferService
+                .HydrateGiftThingStatePackagesAsync(client, items)
+                .GetAwaiter()
+                .GetResult();
+            if (!thingResult.Success)
+            {
+                message = thingResult.Message;
                 return false;
             }
 

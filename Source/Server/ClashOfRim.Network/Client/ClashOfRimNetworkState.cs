@@ -32,6 +32,7 @@ public sealed class ClashOfRimNetworkState
         ISteamAuthTicketValidator? steamAuthTickets = null,
         OfflineAccountRegistry? offlineAccounts = null,
         PawnPackageRegistry? pawnPackages = null,
+        ThingPackageRegistry? thingPackages = null,
         RaidPreparationRegistry? raidPreparations = null,
         RaidProtectionActivationRegistry? raidProtectionActivations = null,
         BankLoanRegistry? bankLoans = null,
@@ -67,6 +68,7 @@ public sealed class ClashOfRimNetworkState
         SteamAuthTickets = steamAuthTickets ?? new DevelopmentSteamAuthTicketValidator();
         OfflineAccounts = offlineAccounts ?? new OfflineAccountRegistry();
         PawnPackages = pawnPackages ?? new PawnPackageRegistry();
+        ThingPackages = thingPackages ?? new ThingPackageRegistry();
         RaidPreparations = raidPreparations ?? new RaidPreparationRegistry();
         RaidProtectionActivations = raidProtectionActivations ?? new RaidProtectionActivationRegistry();
         BankLoans = bankLoans ?? new BankLoanRegistry();
@@ -148,6 +150,8 @@ public sealed class ClashOfRimNetworkState
     public OfflineAccountRegistry OfflineAccounts { get; }
 
     public PawnPackageRegistry PawnPackages { get; }
+
+    public ThingPackageRegistry ThingPackages { get; }
 
     public RaidPreparationRegistry RaidPreparations { get; }
 

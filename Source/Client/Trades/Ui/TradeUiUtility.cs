@@ -1119,6 +1119,11 @@ internal static class TradeUiUtility
             return true;
         }
 
+        if (thing.ThingPackage is not null || !string.IsNullOrWhiteSpace(thing.ThingPackageId))
+        {
+            return true;
+        }
+
         ThingDef? def = TradeThingReferenceUtility.ResolveReferenceDef(thing);
         return TradeThingReferenceUtility.IsBookDef(def);
     }
@@ -1132,6 +1137,8 @@ internal static class TradeUiUtility
         AppendCacheKeyPart(builder, thing.PawnPackageId);
         AppendCacheKeyPart(builder, thing.PawnPackage?.Reference?.GlobalId);
         AppendCacheKeyPart(builder, thing.PawnPackage?.Scribe?.XmlSha256);
+        AppendCacheKeyPart(builder, thing.ThingPackageId);
+        AppendCacheKeyPart(builder, thing.ThingPackage?.Scribe?.XmlSha256);
         AppendCacheKeyPart(builder, thing.Quality);
         AppendCacheKeyPart(builder, thing.HitPoints?.ToString(CultureInfo.InvariantCulture));
         AppendCacheKeyPart(builder, thing.StuffDefName);

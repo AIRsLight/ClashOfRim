@@ -74,6 +74,50 @@ public sealed partial class ModThingReferenceDto
 
     [DataMember(Name = "pawnPackageId")]
     public string? PawnPackageId { get; set; }
+
+    [DataMember(Name = "thingPackage")]
+    public ModThingStatePackageDto? ThingPackage { get; set; }
+
+    [DataMember(Name = "thingPackageId")]
+    public string? ThingPackageId { get; set; }
+}
+
+[DataContract]
+public sealed class ModThingStatePackageDto
+{
+    [DataMember(Name = "packageVersion")]
+    public int PackageVersion { get; set; } = 1;
+
+    [DataMember(Name = "globalKey")]
+    public string GlobalKey { get; set; } = string.Empty;
+
+    [DataMember(Name = "defName")]
+    public string? DefName { get; set; }
+
+    [DataMember(Name = "label")]
+    public string? Label { get; set; }
+
+    [DataMember(Name = "stackCount")]
+    public int StackCount { get; set; }
+
+    [DataMember(Name = "scribe")]
+    public ModThingScribePayloadDto? Scribe { get; set; }
+
+    [DataMember(Name = "fingerprint")]
+    public string? Fingerprint { get; set; }
+}
+
+[DataContract]
+public sealed class ModThingScribePayloadDto
+{
+    [DataMember(Name = "xmlGzipBase64")]
+    public string XmlGzipBase64 { get; set; } = string.Empty;
+
+    [DataMember(Name = "xmlSha256")]
+    public string? XmlSha256 { get; set; }
+
+    [DataMember(Name = "uncompressedBytes")]
+    public int UncompressedBytes { get; set; }
 }
 
 [DataContract]
@@ -184,6 +228,55 @@ public sealed class ModGetPawnPackageResponseDto
 
     [DataMember(Name = "pawnPackage")]
     public ModPawnExchangePackageDto? PawnPackage { get; set; }
+}
+
+[DataContract]
+public sealed class ModStoreThingPackageRequestDto
+{
+    [DataMember(Name = "idempotencyKey")]
+    public string IdempotencyKey { get; set; } = string.Empty;
+
+    [DataMember(Name = "owner")]
+    public ModProtocolIdentityDto? Owner { get; set; }
+
+    [DataMember(Name = "thingPackage")]
+    public ModThingStatePackageDto? ThingPackage { get; set; }
+}
+
+[DataContract]
+public sealed class ModStoreThingPackageResponseDto
+{
+    [DataMember(Name = "result")]
+    public ModProtocolResponseDto? Result { get; set; }
+
+    [DataMember(Name = "thingPackageId")]
+    public string? ThingPackageId { get; set; }
+
+    [DataMember(Name = "fingerprint")]
+    public string? Fingerprint { get; set; }
+}
+
+[DataContract]
+public sealed class ModGetThingPackageRequestDto
+{
+    [DataMember(Name = "requester")]
+    public ModProtocolIdentityDto? Requester { get; set; }
+
+    [DataMember(Name = "thingPackageId")]
+    public string ThingPackageId { get; set; } = string.Empty;
+}
+
+[DataContract]
+public sealed class ModGetThingPackageResponseDto
+{
+    [DataMember(Name = "result")]
+    public ModProtocolResponseDto? Result { get; set; }
+
+    [DataMember(Name = "thingPackageId")]
+    public string? ThingPackageId { get; set; }
+
+    [DataMember(Name = "thingPackage")]
+    public ModThingStatePackageDto? ThingPackage { get; set; }
 }
 
 [DataContract]

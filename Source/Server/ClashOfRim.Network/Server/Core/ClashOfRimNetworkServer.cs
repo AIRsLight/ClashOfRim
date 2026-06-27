@@ -112,6 +112,8 @@ public static partial class ClashOfRimNetworkServer
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.RejectGift).Route, RejectGift);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.StorePawnPackage).Route, StorePawnPackage);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.GetPawnPackage).Route, GetPawnPackage);
+        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.StoreThingPackage).Route, StoreThingPackage);
+        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.GetThingPackage).Route, GetThingPackage);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.QuoteTradeOrderFee).Route, QuoteTradeOrderFee);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.CreateTradeOrder).Route, CreateTradeOrder);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.CreateTradeOrderWithSnapshot).Route, CreateTradeOrderWithSnapshot);
@@ -1034,7 +1036,9 @@ public static partial class ClashOfRimNetworkServer
             thing.StuffDefName,
             thing.MaxHitPoints,
             thing.MinifiedInnerMaxHitPoints,
-            Metadata: CopyMetadata(thing.Metadata));
+            Metadata: CopyMetadata(thing.Metadata),
+            ThingPackage: ToThingStatePackage(thing.ThingPackage),
+            ThingPackageId: thing.ThingPackageId);
     }
 
     private static bool TryStoreInlinePawnPackages(
@@ -1047,16 +1051,43 @@ public static partial class ClashOfRimNetworkServer
     {
         storedThings = Array.Empty<ThingReferenceDto>();
         failure = null;
-        if (!TryValidateInlinePawnPackages(things, out failure))
+        if (!TryValidateInlinePawnPackages(things, out failure)
+            || !TryValidateInlineThingPackages(things, out failure))
         {
             return false;
         }
 
         storedThings = things.Select((thing, index) =>
         {
+            StoredThingPackageRecord? thingPackageRecord = null;
+            if (thing.ThingPackage is not null)
+            {
+                if (!TryToThingStatePackage(thing.ThingPackage, out ThingStatePackage? thingPackage, out string thingPackageFailure)
+                    || thingPackage is null)
+                {
+                    throw new InvalidOperationException(thingPackageFailure);
+                }
+
+                thingPackageRecord = state.ThingPackages.Store(
+                    idempotencyPrefix + ":thing:" + index + ":" + thing.GlobalKey,
+                    owner.UserId,
+                    owner.ColonyId,
+                    owner.SnapshotId,
+                    thingPackage,
+                    DateTimeOffset.UtcNow);
+            }
+
             if (thing.PawnPackage is null)
             {
-                return thing;
+                return thingPackageRecord is null
+                    ? thing
+                    : CloneThingReferenceWithStoredPackages(
+                        thing,
+                        pawnPackageId: thing.PawnPackageId,
+                        thingPackageId: string.IsNullOrWhiteSpace(thing.ThingPackageId)
+                            ? thingPackageRecord.PackageId
+                            : thing.ThingPackageId,
+                        metadata: CopyMetadata(thing.Metadata));
             }
 
             if (!TryToPawnExchangePackage(thing.PawnPackage, out PawnExchangePackage? package, out string packageFailure)
@@ -1097,9 +1128,49 @@ public static partial class ClashOfRimNetworkServer
                 stuffDefName: thing.StuffDefName,
                 maxHitPoints: thing.MaxHitPoints,
                 minifiedInnerMaxHitPoints: thing.MinifiedInnerMaxHitPoints,
-                metadata: metadata);
+                metadata: metadata,
+                thingPackage: null,
+                thingPackageId: thingPackageRecord is null
+                    ? thing.ThingPackageId
+                    : string.IsNullOrWhiteSpace(thing.ThingPackageId)
+                        ? thingPackageRecord.PackageId
+                        : thing.ThingPackageId);
         }).ToList();
         return true;
+    }
+
+    private static ThingReferenceDto CloneThingReferenceWithStoredPackages(
+        ThingReferenceDto thing,
+        string? pawnPackageId,
+        string? thingPackageId,
+        Dictionary<string, string?> metadata)
+    {
+        return new ThingReferenceDto(
+            thing.GlobalKey,
+            thing.DefName,
+            thing.StackCount,
+            thing.Quality,
+            thing.HitPoints,
+            thing.MinifiedInnerDefName,
+            thing.MinifiedInnerStuffDefName,
+            thing.MinifiedInnerQuality,
+            thing.MinifiedInnerHitPoints,
+            thing.WornByCorpse,
+            thing.Biocoded,
+            thing.BiocodedPawnLabel,
+            thing.BiocodedPawnGlobalId,
+            thing.DisplayLabel,
+            thing.MarketValue,
+            thing.UniqueWeapon,
+            thing.UniqueWeaponTraits,
+            pawnPackage: null,
+            pawnPackageId: pawnPackageId,
+            stuffDefName: thing.StuffDefName,
+            maxHitPoints: thing.MaxHitPoints,
+            minifiedInnerMaxHitPoints: thing.MinifiedInnerMaxHitPoints,
+            metadata: metadata,
+            thingPackage: null,
+            thingPackageId: thingPackageId);
     }
 
     private static bool TryValidateInlinePawnPackages(
@@ -1119,6 +1190,30 @@ public static partial class ClashOfRimNetworkServer
                 failure = ProtocolResponse.Reject(
                     ProtocolErrorCode.ValidationFailed,
                     T("PawnPackage.Invalid", ("MESSAGE", packageFailure)));
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool TryValidateInlineThingPackages(
+        IReadOnlyList<ThingReferenceDto> things,
+        out ProtocolResponse? failure)
+    {
+        failure = null;
+        foreach (ThingReferenceDto thing in things)
+        {
+            if (thing.ThingPackage is null)
+            {
+                continue;
+            }
+
+            if (!TryToThingStatePackage(thing.ThingPackage, out _, out string packageFailure))
+            {
+                failure = ProtocolResponse.Reject(
+                    ProtocolErrorCode.ValidationFailed,
+                    "invalid thing package: " + packageFailure);
                 return false;
             }
         }
@@ -1212,7 +1307,26 @@ public static partial class ClashOfRimNetworkServer
             thing.StuffDefName,
             thing.MaxHitPoints,
             thing.MinifiedInnerMaxHitPoints,
-            metadata: CopyMetadata(thing.Metadata));
+            metadata: CopyMetadata(thing.Metadata),
+            thingPackage: ToThingStatePackageDto(thing.ThingPackage),
+            thingPackageId: thing.ThingPackageId);
+    }
+
+    private static ThingStatePackageDto? ToThingStatePackageDto(ThingStatePackage? package)
+    {
+        return package is null
+            ? null
+            : new ThingStatePackageDto(
+                package.PackageVersion,
+                package.GlobalKey,
+                package.DefName,
+                package.Label,
+                package.StackCount,
+                new ThingScribePayloadDto(
+                    package.Scribe.XmlGzipBase64,
+                    package.Scribe.XmlSha256,
+                    package.Scribe.UncompressedBytes),
+                package.Fingerprint);
     }
 
     private static PawnExchangePackageDto? ToPawnExchangePackageDto(PawnExchangePackage? package)
@@ -1400,6 +1514,61 @@ public static partial class ClashOfRimNetworkServer
                     .Where(extension => extension is not null)
                     .Select(ToPawnExchangeExtensionPackage)
                     .ToList());
+    }
+
+    private static bool TryToThingStatePackage(
+        ThingStatePackageDto? dto,
+        out ThingStatePackage? package,
+        out string failure)
+    {
+        package = null;
+        failure = string.Empty;
+        if (dto is null)
+        {
+            failure = "missing thing package";
+            return false;
+        }
+
+        if (dto.Scribe is null)
+        {
+            failure = "missing thing scribe";
+            return false;
+        }
+
+        try
+        {
+            package = ToThingStatePackage(dto);
+            if (package is null)
+            {
+                failure = "thing package parse failed";
+                return false;
+            }
+
+            SafeThingStatePackageSerializer.Serialize(package);
+            return true;
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or ArgumentException or FormatException or IOException)
+        {
+            failure = ex.Message;
+            return false;
+        }
+    }
+
+    private static ThingStatePackage? ToThingStatePackage(ThingStatePackageDto? dto)
+    {
+        return dto?.Scribe is null
+            ? null
+            : new ThingStatePackage(
+                dto.PackageVersion,
+                dto.GlobalKey,
+                dto.DefName,
+                dto.Label,
+                dto.StackCount,
+                new ThingScribePayload(
+                    dto.Scribe.XmlGzipBase64,
+                    dto.Scribe.XmlSha256,
+                    dto.Scribe.UncompressedBytes),
+                dto.Fingerprint);
     }
 
     private static PawnExchangeExtensionPackage ToPawnExchangeExtensionPackage(PawnExchangeExtensionPackageDto dto)

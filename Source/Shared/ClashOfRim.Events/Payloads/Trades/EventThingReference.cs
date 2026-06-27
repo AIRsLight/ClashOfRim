@@ -24,4 +24,6 @@ public sealed record EventThingReference(
     string? StuffDefName = null,
     int? MaxHitPoints = null,
     int? MinifiedInnerMaxHitPoints = null,
-    Dictionary<string, string?>? Metadata = null);
+    Dictionary<string, string?>? Metadata = null,
+    ThingStatePackage? ThingPackage = null,
+    string? ThingPackageId = null);

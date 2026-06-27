@@ -101,8 +101,13 @@ internal static class TradeThingReferenceUtility
             UniqueWeapon = traitWeapon ? true : null,
             UniqueWeaponTraits = WeaponTraitDefNames(metadataThing)
         };
+        Dictionary<string, string?> metadataBeforeExplicitCompatibility = SnapshotMetadata(reference);
         AppendWeaponTraitMetadata(metadataThing, reference);
         ClashOfRimCompatibilityApi.AppendThingReferenceMetadata(metadataThing, reference);
+        if (!MetadataChanged(metadataBeforeExplicitCompatibility, reference.Metadata))
+        {
+            ThingStatePackageUtility.TryAttachFallbackPackage(metadataThing, reference);
+        }
 
         if (TryGetMinifiedInnerThing(thing, out Thing? innerThing))
         {
@@ -117,6 +122,39 @@ internal static class TradeThingReferenceUtility
         return reference;
     }
 
+    private static Dictionary<string, string?> SnapshotMetadata(ModThingReferenceDto reference)
+    {
+        return reference.Metadata is null
+            ? new Dictionary<string, string?>(StringComparer.Ordinal)
+            : new Dictionary<string, string?>(reference.Metadata, StringComparer.Ordinal);
+    }
+
+    private static bool MetadataChanged(
+        IReadOnlyDictionary<string, string?> previous,
+        IReadOnlyDictionary<string, string?>? current)
+    {
+        if (current is null)
+        {
+            return previous.Count > 0;
+        }
+
+        if (previous.Count != current.Count)
+        {
+            return true;
+        }
+
+        foreach (KeyValuePair<string, string?> entry in previous)
+        {
+            if (!current.TryGetValue(entry.Key, out string? value)
+                || !string.Equals(entry.Value, value, StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public static ThingDef? ResolveReferenceDef(ModThingReferenceDto reference)
     {
         return TradeUiUtility.ResolveThingDef(reference.MinifiedInnerDefName)
@@ -127,6 +165,20 @@ internal static class TradeThingReferenceUtility
     {
         thing = null;
         missingDefName = null;
+        if (reference.ThingPackage is not null
+            && ThingStatePackageUtility.TryRestore(reference, stackCount, out thing, out missingDefName)
+            && thing is not null)
+        {
+            ApplyThingMetadata(thing, reference, reference.Quality, reference.HitPoints, reference.WornByCorpse);
+            if (!ClashOfRimCompatibilityApi.TryApplyThingReferenceMetadata(reference, thing, out missingDefName))
+            {
+                thing = null;
+                return false;
+            }
+
+            return true;
+        }
+
         if (!string.IsNullOrWhiteSpace(reference.MinifiedInnerDefName))
         {
             ThingDef? innerDef = TradeUiUtility.ResolveThingDef(reference.MinifiedInnerDefName);
