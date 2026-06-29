@@ -87,6 +87,7 @@ public sealed partial class ClashOfRimMod : Mod
     private bool giftsEnabled = true;
     private bool pvpEnabled = true;
     private const int TradeOrdersPageSize = 10;
+    private const int TradeOrdersHistoryPageSize = 5;
     private bool tradeOrdersHasMore;
     private bool tradeOrdersPageLoadInProgress;
     private int tradeOrdersTotalCount;

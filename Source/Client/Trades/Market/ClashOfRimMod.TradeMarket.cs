@@ -609,8 +609,9 @@ public sealed partial class ClashOfRimMod
                 var client = new ClashOfRimModNetworkClient(
                     httpClient,
                     ClashOfRimClientNetworkContext.FromSettings(settings));
+                int pageSize = TradeOrdersPageSizeForScope(scope);
                 ClashOfRimClientNetworkResult<ModListTradeOrdersResponseDto> result =
-                    await client.ListTradeOrdersAsync(scope, offset, TradeOrdersPageSize);
+                    await client.ListTradeOrdersAsync(scope, offset, pageSize);
                 if (!result.Success || result.Response is null)
                 {
                     tradeStatus = ClashOfRimText.Key("ClashOfRim.Trade.StatusMarketRefreshFailed", result.ErrorCode.Named("CODE"), result.Message.Named("MESSAGE"));
@@ -623,41 +624,42 @@ public sealed partial class ClashOfRimMod
                     return;
                 }
 
+                ModListTradeOrdersResponseDto response = result.Response;
                 IReadOnlyList<ModTradeOrderSummaryDto> pageOrders =
-                    result.Response.Orders ?? new List<ModTradeOrderSummaryDto>();
-                await HydrateTradeOrderPawnPackagesAsync(client, pageOrders);
-                ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
-                    TradeUiUtility.PreparePawnPreviewsForTradeOrders(pageOrders));
+                    response.Orders ?? new List<ModTradeOrderSummaryDto>();
                 lock (eventStateLock)
                 {
-                    tradeMarketplaceEnabled = result.Response.TradeMarketplaceEnabled;
+                    tradeMarketplaceEnabled = response.TradeMarketplaceEnabled;
                     tradeOrdersScope = scope;
-                    tradeOrdersHasMore = result.Response.HasMore;
-                    tradeOrdersTotalCount = Math.Max(0, result.Response.TotalCount);
+                    tradeOrdersHasMore = response.HasMore;
+                    tradeOrdersTotalCount = Math.Max(0, response.TotalCount);
                     if (reset)
                     {
                         lastTradeOrders.Clear();
                     }
 
-                    foreach (ModTradeOrderSummaryDto order in pageOrders)
-                    {
-                        int existingIndex = lastTradeOrders.FindIndex(existing => string.Equals(existing.EventId, order.EventId, StringComparison.Ordinal));
-                        if (existingIndex >= 0)
-                        {
-                            lastTradeOrders[existingIndex] = order;
-                        }
-                        else
-                        {
-                            lastTradeOrders.Add(order);
-                        }
-                    }
-
                     tradeOrdersSnapshotVersion++;
                 }
 
-                tradeStatus = result.Response.TradeMarketplaceEnabled
-                    ? FormatPagedTradeOrdersStatus()
+                tradeStatus = response.TradeMarketplaceEnabled
+                    ? pageOrders.Count > 0
+                        ? ClashOfRimText.Key("ClashOfRim.Trade.LoadingMore")
+                        : FormatPagedTradeOrdersStatus()
                     : ClashOfRimText.Key("ClashOfRim.Trade.Disabled");
+                if (!response.TradeMarketplaceEnabled)
+                {
+                    return;
+                }
+
+                foreach (ModTradeOrderSummaryDto order in pageOrders)
+                {
+                    await HydrateTradeOrderPawnPackagesAsync(client, new[] { order });
+                    ModTradeOrderSummaryDto capturedOrder = order;
+                    ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
+                        TradeUiUtility.PreparePawnPreviewsForTradeOrders(new[] { capturedOrder }));
+                    UpsertLoadedTradeOrder(scope, capturedOrder);
+                    tradeStatus = FormatPagedTradeOrdersStatus();
+                }
             }
             catch (Exception ex)
             {
@@ -669,6 +671,36 @@ public sealed partial class ClashOfRimMod
                 tradeOrdersPageLoadInProgress = false;
             }
         });
+    }
+
+    private static int TradeOrdersPageSizeForScope(string? scope)
+    {
+        return string.Equals(scope, "History", StringComparison.Ordinal)
+            ? TradeOrdersHistoryPageSize
+            : TradeOrdersPageSize;
+    }
+
+    private void UpsertLoadedTradeOrder(string scope, ModTradeOrderSummaryDto order)
+    {
+        lock (eventStateLock)
+        {
+            if (!string.Equals(tradeOrdersScope, scope, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            int existingIndex = lastTradeOrders.FindIndex(existing => string.Equals(existing.EventId, order.EventId, StringComparison.Ordinal));
+            if (existingIndex >= 0)
+            {
+                lastTradeOrders[existingIndex] = order;
+            }
+            else
+            {
+                lastTradeOrders.Add(order);
+            }
+
+            tradeOrdersSnapshotVersion++;
+        }
     }
 
     private string FormatPagedTradeOrdersStatus()

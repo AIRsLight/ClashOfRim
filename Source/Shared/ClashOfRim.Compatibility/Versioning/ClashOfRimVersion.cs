@@ -1,8 +1,9 @@
 namespace AIRsLight.ClashOfRim.Compatibility;
 
 // Versioning policy:
-// - ProductVersion is the human-facing base build/release version. Do not include
-//   branch suffixes here; release automation appends the current branch name.
+// - ProductVersion is the human-facing base build/release version. Release automation
+//   uses this exact value for main releases, and appends branch plus commit metadata
+//   for development prereleases. Do not include branch suffixes here.
 //   Bump it for bug fixes, UI/text/icon changes, and feature releases even when
 //   the network protocol is unchanged.
 // - ProtocolVersion is the hard client/server compatibility gate. Bump it whenever an
@@ -21,7 +22,7 @@ namespace AIRsLight.ClashOfRim.Compatibility;
 public static class ClashOfRimVersion
 {
     public const string ProductName = "ClashOfRim";
-    public const string ProductVersion = "0.1.2";
+    public const string ProductVersion = "0.1.3";
     public const string ProtocolVersion = "2026-06-21";
     public const int ProtocolMajor = 1;
     public const int ProtocolMinor = 2;
