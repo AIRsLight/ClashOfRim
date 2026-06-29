@@ -224,17 +224,25 @@ jobs:
             args+=(--prerelease)
           fi
 
+          if [ "${IS_PRERELEASE}" = "true" ]; then
+            branch="${GITHUB_REF_NAME//\//-}"
+            branch_pattern="$(printf '%s' "${branch}" | sed 's/[][(){}.^$*+?|\\]/\\&/g')"
+            gh release list --limit 1000 --json tagName,isPrerelease \
+              --jq ".[] | select(.isPrerelease and (.tagName | test(\"^[0-9]+\\\\.[0-9]+\\\\.[0-9]+-${branch_pattern}(\\\\.|$)\"))) | .tagName" \
+              | while read -r old_release; do
+                  if [ -n "${old_release}" ] && [ "${old_release}" != "${VERSION}" ]; then
+                    gh release delete "${old_release}" --cleanup-tag -y || true
+                  fi
+                done
+          fi
+
           gh release delete "${VERSION}" --cleanup-tag -y || true
           gh api -X DELETE "repos/${GITHUB_REPOSITORY}/git/refs/tags/${VERSION}" || true
           if [ "${IS_PRERELEASE}" = "true" ]; then
-            release_notes=$(cat <<EOF
-Development build warning:
-
-This build is published from the ${GITHUB_REF_NAME} branch for testing. It may contain unfinished or unstable changes. Most players should use the latest stable release from the main branch unless they are helping test or report issues.
-
-Automated build for ${GITHUB_REF_NAME} (${GITHUB_SHA}).
-EOF
-)
+            release_notes="$(printf '%s\n\n%s\n\n%s' \
+              "Development build warning:" \
+              "This build is published from the ${GITHUB_REF_NAME} branch for testing. It may contain unfinished or unstable changes. Most players should use the latest stable release from the main branch unless they are helping test or report issues." \
+              "Automated build for ${GITHUB_REF_NAME} (${GITHUB_SHA}).")"
           else
             release_notes="Automated build for ${GITHUB_REF_NAME} (${GITHUB_SHA})."
           fi
