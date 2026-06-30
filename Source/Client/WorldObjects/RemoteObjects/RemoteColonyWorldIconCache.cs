@@ -15,6 +15,29 @@ internal static class RemoteColonyWorldIconCache
     private static readonly Dictionary<string, Texture2D> settlementTexturesByKey = new(StringComparer.Ordinal);
     private static readonly Dictionary<string, Material> settlementMaterialsByKey = new(StringComparer.Ordinal);
 
+    public static void Clear()
+    {
+        foreach (Texture2D texture in texturesByKey.Values)
+        {
+            if (texture != null)
+            {
+                UnityEngine.Object.Destroy(texture);
+            }
+        }
+
+        foreach (Texture2D texture in settlementTexturesByKey.Values)
+        {
+            if (texture != null)
+            {
+                UnityEngine.Object.Destroy(texture);
+            }
+        }
+
+        texturesByKey.Clear();
+        settlementTexturesByKey.Clear();
+        settlementMaterialsByKey.Clear();
+    }
+
     public static Texture2D GetTexture(
         string? mode,
         string? iconDefName,

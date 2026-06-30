@@ -119,6 +119,7 @@ public sealed partial class ClashOfRimMod
 
     private void UpdateOccupiedPlayerColonySites(ModWorldConfigurationDto? configuration)
     {
+        RememberWorldConfigurationIdentity(configuration);
         List<string> remoteSiteOwners = new();
         lock (colonySiteStateLock)
         {
@@ -133,6 +134,12 @@ public sealed partial class ClashOfRimMod
                 if (site.Tile >= 0)
                 {
                     occupiedPlayerColonySites[ColonySiteCacheKey(site)] = site;
+                    if (string.Equals(site.UserId, settings.UserId, StringComparison.Ordinal)
+                        && string.Equals(site.ColonyId, settings.ColonyId, StringComparison.Ordinal))
+                    {
+                        CacheServerColonyAppearance(site.Appearance);
+                    }
+
                     if (!string.IsNullOrWhiteSpace(site.UserId)
                         && !string.Equals(site.UserId, settings.UserId, StringComparison.Ordinal)
                         && !remoteSiteOwners.Contains(site.UserId, StringComparer.Ordinal))
@@ -147,6 +154,23 @@ public sealed partial class ClashOfRimMod
         {
             PlayerFactionProxyUtility.EnsureProxyForUser(owner);
         }
+    }
+
+    private void RememberWorldConfigurationIdentity(ModWorldConfigurationDto? configuration)
+    {
+        if (configuration is null || string.IsNullOrWhiteSpace(configuration.WorldConfigurationId))
+        {
+            return;
+        }
+
+        string worldConfigurationId = configuration.WorldConfigurationId.Trim();
+        if (string.Equals(settings.CurrentWorldConfigurationId, worldConfigurationId, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        settings.CurrentWorldConfigurationId = worldConfigurationId;
+        settings.Write();
     }
 
     private void MergeOccupiedPlayerColonySitesFromWorldMapMarkers(IEnumerable<ModWorldMapMarkerDto> markers)
@@ -1180,6 +1204,7 @@ public sealed partial class ClashOfRimMod
 
     private void ApplyWorldBaseline(ModWorldConfigurationDto configuration, bool applyPollution = false)
     {
+        RememberWorldConfigurationIdentity(configuration);
         List<ModWorldFeatureDto>? generatedFeatureNameCatalog =
             ApplyWorldFeatures(configuration, out string? generatedFeatureNameCatalogLanguage);
         if (generatedFeatureNameCatalog is { Count: > 0 }
@@ -1262,6 +1287,7 @@ public sealed partial class ClashOfRimMod
 
     private void ApplyServerWorldConfigurationExtensionCatalog(ModWorldConfigurationDto? configuration)
     {
+        RememberWorldConfigurationIdentity(configuration);
         ApplyServerWorldConfigurationExtensions(configuration, applyWorldState: false);
     }
 

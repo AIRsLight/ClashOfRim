@@ -17,6 +17,7 @@ public sealed class ClashOfRimSettings : ModSettings
     public string TargetUserId = string.Empty;
     public string TargetColonyId = string.Empty;
     public string TargetSnapshotId = string.Empty;
+    public string CurrentWorldConfigurationId = string.Empty;
     public Dictionary<string, string> ColonyAppearancesByAccount = new();
 
     private List<string>? colonyAppearanceAccountKeys;
@@ -41,6 +42,7 @@ public sealed class ClashOfRimSettings : ModSettings
         Scribe_Values.Look(ref TargetUserId, "targetUserId", string.Empty);
         Scribe_Values.Look(ref TargetColonyId, "targetColonyId", string.Empty);
         Scribe_Values.Look(ref TargetSnapshotId, "targetSnapshotId", string.Empty);
+        Scribe_Values.Look(ref CurrentWorldConfigurationId, "currentWorldConfigurationId", string.Empty);
         Scribe_Collections.Look(
             ref ColonyAppearancesByAccount,
             "colonyAppearancesByAccount",

@@ -9,6 +9,7 @@ using AIRsLight.ClashOfRim.ClientSnapshots;
 using AIRsLight.ClashOfRim.MainMenu;
 using AIRsLight.ClashOfRim.Raids;
 using AIRsLight.ClashOfRim.RemoteMaps;
+using AIRsLight.ClashOfRim.WorldObjects;
 using RimWorld;
 using Verse;
 
@@ -127,7 +128,6 @@ public sealed partial class ClashOfRimMod
                 if (result.Success
                     && result.Response?.Result?.Accepted == true
                     && result.Response.WorldConfigured
-                    && !result.Response.HasExistingColony
                     && result.Response.WorldConfiguration is null)
                 {
                     ShowServerEntryProgressWindow(
@@ -135,17 +135,50 @@ public sealed partial class ClashOfRimMod
                         ClashOfRimText.Key("ClashOfRim.ServerEntry.StageWorldConfiguration"),
                         -1f,
                         canClose: false);
+                    var configurationClient = new ClashOfRimModNetworkClient(
+                        httpClient,
+                        new ClashOfRimClientNetworkContext(
+                            settings.ServerBaseUrl,
+                            settings.UserId,
+                            result.Response.AssignedColonyId ?? settings.ColonyId,
+                            settings.CurrentSnapshotId,
+                            settings.SteamAuthTicket,
+                            settings.OfflinePassword,
+                            settings.AuthToken));
                     ClashOfRimClientNetworkResult<ModGetWorldConfigurationResponseDto> worldConfiguration =
-                        await client.GetWorldConfigurationAsync();
+                        await configurationClient.GetWorldConfigurationAsync(
+                            includeGenerationBaseline: !result.Response.HasExistingColony,
+                            includePlayerColonySites: true,
+                            includeWorldExtensions: true);
                     if (!worldConfiguration.Success || worldConfiguration.Response is null)
                     {
-                        result = ClashOfRimClientNetworkResult<ModPrepareWorldSessionResponseDto>.Failed(
-                            worldConfiguration.ErrorCode ?? "WorldConfigurationFailed",
-                            worldConfiguration.Message ?? ClashOfRimText.Key("ClashOfRim.WorldConfiguredButMissingConfiguration"));
+                        if (!result.Response.HasExistingColony)
+                        {
+                            result = ClashOfRimClientNetworkResult<ModPrepareWorldSessionResponseDto>.Failed(
+                                worldConfiguration.ErrorCode ?? "WorldConfigurationFailed",
+                                worldConfiguration.Message ?? ClashOfRimText.Key("ClashOfRim.WorldConfiguredButMissingConfiguration"));
+                        }
+                        else
+                        {
+                            Log.Warning("[ClashOfRim] Existing-colony world configuration refresh failed during entry: "
+                                + worldConfiguration.ErrorCode
+                                + " "
+                                + worldConfiguration.Message);
+                        }
                     }
                     else if (worldConfiguration.Response.Result?.Accepted != true)
                     {
-                        result.Response.Result = worldConfiguration.Response.Result;
+                        if (!result.Response.HasExistingColony)
+                        {
+                            result.Response.Result = worldConfiguration.Response.Result;
+                        }
+                        else
+                        {
+                            Log.Warning("[ClashOfRim] Existing-colony world configuration refresh rejected during entry: "
+                                + worldConfiguration.Response.Result?.ErrorCode
+                                + " "
+                                + worldConfiguration.Response.Result?.Message);
+                        }
                     }
                     else
                     {
@@ -236,6 +269,7 @@ public sealed partial class ClashOfRimMod
         blockAutomaticMapSessionForServerEntrySourceGame = false;
         serverEntrySourceGame = null;
         CaptureServerCompatibilityManifest(null);
+        RemoteColonyWorldIconCache.Clear();
         ApplyAdministratorFlag(false);
         lastNotificationVersion = 0;
         lastWorldConfigurationVersion = 0;
@@ -255,6 +289,7 @@ public sealed partial class ClashOfRimMod
         settings.TargetUserId = string.Empty;
         settings.TargetColonyId = string.Empty;
         settings.TargetSnapshotId = string.Empty;
+        settings.CurrentWorldConfigurationId = string.Empty;
         bankStatus = ClashOfRimText.Key("ClashOfRim.Bank.NoStatus");
         eventQueueStatus = ClashOfRimText.Key("ClashOfRim.Status.EventQueueNotPulled");
         eventDetailsStatus = ClashOfRimText.Key("ClashOfRim.Status.EventDetailsNotPulled");

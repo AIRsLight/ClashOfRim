@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.WorldObjects;
 using HarmonyLib;
 using RimWorld;
@@ -116,6 +117,27 @@ public sealed partial class ClashOfRimMod
         return ReadCurrentColonyAppearanceSelection(settings);
     }
 
+    internal void CacheServerColonyAppearance(ModColonyAppearanceDto? appearance)
+    {
+        if (appearance is null)
+        {
+            return;
+        }
+
+        ColonyAppearanceSelection selection = new(
+            appearance.Mode,
+            appearance.IconDefName,
+            appearance.ColorDefName,
+            appearance.ColorHex);
+        if (!selection.HasAny)
+        {
+            return;
+        }
+
+        SaveColonyAppearanceSelection(settings, selection);
+        settings.Write();
+    }
+
     private static ColonyAppearanceSelection ReadCurrentColonyAppearanceSelection(ClashOfRimSettings settings)
     {
         string key = BuildColonyAppearanceAccountKey(settings);
@@ -151,9 +173,11 @@ public sealed partial class ClashOfRimMod
     private static string BuildColonyAppearanceAccountKey(ClashOfRimSettings settings)
     {
         string server = (settings.ServerBaseUrl ?? string.Empty).Trim().TrimEnd('/').ToLowerInvariant();
+        string world = (settings.CurrentWorldConfigurationId ?? string.Empty).Trim();
         string user = (settings.UserId ?? string.Empty).Trim();
         string colony = (settings.ColonyId ?? string.Empty).Trim();
         if (string.IsNullOrWhiteSpace(server)
+            || string.IsNullOrWhiteSpace(world)
             || string.IsNullOrWhiteSpace(user)
             || string.IsNullOrWhiteSpace(colony))
         {
@@ -161,6 +185,8 @@ public sealed partial class ClashOfRimMod
         }
 
         return EncodedColonyAppearancePart(server)
+            + ColonyAppearanceAccountSeparator
+            + EncodedColonyAppearancePart(world)
             + ColonyAppearanceAccountSeparator
             + EncodedColonyAppearancePart(user)
             + ColonyAppearanceAccountSeparator
