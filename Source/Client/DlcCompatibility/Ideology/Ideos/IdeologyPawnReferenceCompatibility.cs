@@ -48,7 +48,13 @@ internal static class IdeologyPawnReferenceCompatibility
             return null;
         }
 
-        if (RemoteIdeoCatalog.TryGetGlobalKey(pawn.Ideo, out string? registeredKey)
+        if (RemoteIdeoCatalog.TryGetGlobalKeyForOwner(pawn.Ideo, userId, out string? registeredKey)
+            && !string.IsNullOrWhiteSpace(registeredKey))
+        {
+            return registeredKey;
+        }
+
+        if (RemoteIdeoCatalog.TryGetGlobalKey(pawn.Ideo, out registeredKey)
             && !string.IsNullOrWhiteSpace(registeredKey))
         {
             return registeredKey;
@@ -401,6 +407,19 @@ internal static class IdeologyPawnReferenceCompatibility
         return !string.IsNullOrWhiteSpace(localId);
     }
 
+    internal static bool TryComputeIdeoPackageSha256(Ideo ideo, out string? sha256)
+    {
+        sha256 = null;
+        string? savedIdeoPackageXml = TryExportIdeoPackageXml(ideo);
+        if (string.IsNullOrWhiteSpace(savedIdeoPackageXml))
+        {
+            return false;
+        }
+
+        sha256 = ComputeSha256Hex(savedIdeoPackageXml!);
+        return true;
+    }
+
     private static string? TryExportIdeoPackageXml(Ideo ideo)
     {
         if (Scribe.mode != LoadSaveMode.Inactive)
@@ -470,7 +489,9 @@ internal static class IdeologyPawnReferenceCompatibility
         {
             if (faction.ideos.PrimaryIdeo != ownerIdeo)
             {
+                Ideo? previousPrimary = faction.ideos.PrimaryIdeo;
                 faction.ideos.SetPrimary(ownerIdeo);
+                RemoveUnreferencedProxyIdeo(previousPrimary, ownerIdeo);
                 ClashLog.Message("[ClashOfRim][Ideo] Bound player proxy faction to owner ideo: user="
                     + ownerUserId
                     + ", ideo="
@@ -486,6 +507,33 @@ internal static class IdeologyPawnReferenceCompatibility
         }
 
         ChooseOrGeneratePreparedFactionIdeo(faction, "PlayerProxy");
+    }
+
+    private static void RemoveUnreferencedProxyIdeo(Ideo? previousIdeo, Ideo ownerIdeo)
+    {
+        if (previousIdeo is null
+            || previousIdeo == ownerIdeo
+            || previousIdeo.initialPlayerIdeo
+            || Find.IdeoManager?.IdeosListForReading?.Contains(previousIdeo) != true)
+        {
+            return;
+        }
+
+        if (Find.FactionManager?.AllFactionsListForReading?
+            .Any(faction => faction?.ideos?.AllIdeos?.Contains(previousIdeo) == true) == true)
+        {
+            return;
+        }
+
+        if (PawnsFinder.AllMapsWorldAndTemporary_AliveOrDead
+            .Any(pawn => pawn?.ideo?.Ideo == previousIdeo))
+        {
+            return;
+        }
+
+        RemoteIdeoCatalog.Unregister(previousIdeo);
+        Find.IdeoManager.Remove(previousIdeo);
+        ClashLog.Message("[ClashOfRim][Ideo] Removed unreferenced proxy fallback ideo: " + previousIdeo.name);
     }
 
     internal static void PrepareFactionIdeology(Faction faction, string purpose, string? ownerUserId)

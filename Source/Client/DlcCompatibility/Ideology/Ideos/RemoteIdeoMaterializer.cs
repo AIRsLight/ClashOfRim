@@ -19,6 +19,7 @@ public static partial class RemoteIdeoMaterializer
         }
 
         int applied = 0;
+        var localIdeoPackageHashes = new Dictionary<Ideo, string?>();
         foreach (ModWorldIdeoSummaryDto dto in serverIdeos)
         {
             if (string.IsNullOrWhiteSpace(dto.GlobalKey))
@@ -33,7 +34,7 @@ public static partial class RemoteIdeoMaterializer
                 {
                     applied++;
                 }
-                else if (!localOwner && TryGetOrCreate(dto, out _))
+                else if (!localOwner && TryGetOrCreate(dto, out _, localIdeoPackageHashes))
                 {
                     applied++;
                 }
@@ -72,6 +73,14 @@ public static partial class RemoteIdeoMaterializer
 
     public static bool TryGetOrCreate(ModWorldIdeoSummaryDto dto, out Ideo? ideo)
     {
+        return TryGetOrCreate(dto, out ideo, null);
+    }
+
+    private static bool TryGetOrCreate(
+        ModWorldIdeoSummaryDto dto,
+        out Ideo? ideo,
+        Dictionary<Ideo, string?>? localIdeoPackageHashes)
+    {
         ideo = null;
         if (Find.IdeoManager is null || string.IsNullOrWhiteSpace(dto.GlobalKey))
         {
@@ -82,7 +91,11 @@ public static partial class RemoteIdeoMaterializer
         {
             if (RemoteIdeoCatalog.IsInCurrentIdeoManager(ideo))
             {
-                ApplyShadowFields(ideo!, dto);
+                if (CanApplyRemoteShadowFields(ideo!))
+                {
+                    ApplyShadowFields(ideo!, dto);
+                }
+
                 RemoteIdeoCatalog.Register(ideo!, dto.GlobalKey, BuildDisplayMetadata(dto));
                 RemoveDuplicateUnreferencedShadows(dto, ideo!);
                 return true;
@@ -91,6 +104,24 @@ public static partial class RemoteIdeoMaterializer
             ClashLog.Message("[ClashOfRim][Ideo] Recreating stale remote ideo catalog entry: " + dto.GlobalKey);
             RemoteIdeoCatalog.Unregister(ideo!);
             ideo = null;
+        }
+
+        if (RemoteIdeoCatalog.TryFindIdeoByPackageHash(dto.SavedIdeoPackageSha256, out ideo) && ideo is not null)
+        {
+            RemoteIdeoCatalog.Register(ideo, dto.GlobalKey, BuildDisplayMetadata(dto));
+            RemoveDuplicateUnreferencedShadows(dto, ideo);
+            return true;
+        }
+
+        if (TryFindEquivalentLocalIdeo(dto, localIdeoPackageHashes, out ideo) && ideo is not null)
+        {
+            RemoteIdeoCatalog.Register(ideo, dto.GlobalKey, BuildDisplayMetadata(dto));
+            RemoveDuplicateUnreferencedShadows(dto, ideo);
+            ClashLog.Message("[ClashOfRim][Ideo] Bound remote ideo key to equivalent local ideo: "
+                + dto.GlobalKey
+                + ", ideo="
+                + ideo.name);
+            return true;
         }
 
         if (TryFindExistingShadow(dto, out ideo) && ideo is not null)
@@ -116,6 +147,64 @@ public static partial class RemoteIdeoMaterializer
         RemoteIdeoCatalog.Register(ideo, dto.GlobalKey, BuildDisplayMetadata(dto));
         RemoveDuplicateUnreferencedShadows(dto, ideo);
         return true;
+    }
+
+    private static bool CanApplyRemoteShadowFields(Ideo ideo)
+    {
+        return ideo is not null
+            && !ideo.initialPlayerIdeo
+            && !IsPrimaryIdeoOfPlayer(ideo);
+    }
+
+    private static bool TryFindEquivalentLocalIdeo(
+        ModWorldIdeoSummaryDto dto,
+        Dictionary<Ideo, string?>? localIdeoPackageHashes,
+        out Ideo? ideo)
+    {
+        ideo = null;
+        if (string.IsNullOrWhiteSpace(dto.SavedIdeoPackageSha256)
+            || Find.IdeoManager?.IdeosListForReading is not { } ideos)
+        {
+            return false;
+        }
+
+        foreach (Ideo candidate in ideos
+            .Where(candidate => candidate is not null)
+            .Where(candidate => candidate.initialPlayerIdeo || IsPrimaryIdeoOfPlayer(candidate)))
+        {
+            if (TryGetCachedIdeoPackageSha256(candidate, localIdeoPackageHashes, out string? hash)
+                && string.Equals(hash, dto.SavedIdeoPackageSha256, StringComparison.OrdinalIgnoreCase))
+            {
+                ideo = candidate;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool TryGetCachedIdeoPackageSha256(
+        Ideo ideo,
+        Dictionary<Ideo, string?>? localIdeoPackageHashes,
+        out string? hash)
+    {
+        if (localIdeoPackageHashes is not null && localIdeoPackageHashes.TryGetValue(ideo, out hash))
+        {
+            return !string.IsNullOrWhiteSpace(hash);
+        }
+
+        if (!IdeologyPawnReferenceCompatibility.TryComputeIdeoPackageSha256(ideo, out hash))
+        {
+            hash = null;
+        }
+
+        localIdeoPackageHashes?.Add(ideo, hash);
+        return !string.IsNullOrWhiteSpace(hash);
+    }
+
+    private static bool IsPrimaryIdeoOfPlayer(Ideo ideo)
+    {
+        return Faction.OfPlayer?.ideos?.PrimaryIdeo == ideo;
     }
 
     private static bool TryFindExistingShadow(ModWorldIdeoSummaryDto dto, out Ideo? ideo)
@@ -285,6 +374,7 @@ public static partial class RemoteIdeoMaterializer
             dto.ColorDefName,
             colorHex,
             dto.PrimaryFactionColorHex,
+            dto.SavedIdeoPackageSha256,
             dto.InitialPlayerIdeo);
     }
 

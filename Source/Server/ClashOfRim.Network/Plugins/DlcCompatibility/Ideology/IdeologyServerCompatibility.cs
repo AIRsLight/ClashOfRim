@@ -40,6 +40,8 @@ internal static class IdeologyServerCompatibility
     {
         return ideos
             .Select(ideo => NormalizeWorldIdeo(ideo, userId, colonyId, worldConfigurationId))
+            .GroupBy(ideo => ideo.GlobalKey, StringComparer.Ordinal)
+            .Select(group => group.Last())
             .ToList();
     }
 
@@ -109,13 +111,32 @@ internal static class IdeologyServerCompatibility
             }
         }
 
-        return byGlobalKey.Values
+        return HydrateEquivalentIdeoPackages(byGlobalKey.Values.ToList())
             .OrderBy(ideo => ideo.OwnerUserId, StringComparer.Ordinal)
             .ThenBy(ideo => ideo.OwnerColonyId, StringComparer.Ordinal)
             .ThenBy(ideo => ideo.SourceSnapshotId, StringComparer.Ordinal)
             .ThenBy(ideo => ideo.LocalId, StringComparer.Ordinal)
             .ThenBy(ideo => ideo.GlobalKey, StringComparer.Ordinal)
             .ToList();
+    }
+
+    private static IReadOnlyList<WorldIdeoSummaryDto> HydrateEquivalentIdeoPackages(
+        IReadOnlyList<WorldIdeoSummaryDto> ideos)
+    {
+        var hydrated = new List<WorldIdeoSummaryDto>(ideos.Count);
+        foreach (WorldIdeoSummaryDto ideo in ideos)
+        {
+            if (string.IsNullOrWhiteSpace(ideo.SavedIdeoPackageXml)
+                && TryFindEquivalentCanonicalIdeo(ideo, ideos, out WorldIdeoSummaryDto? equivalent))
+            {
+                hydrated.Add(CopyEquivalentIdeoPackage(ideo, equivalent));
+                continue;
+            }
+
+            hydrated.Add(ideo);
+        }
+
+        return hydrated;
     }
 
     public static IReadOnlyList<WorldIdeoSummaryDto> MergeWorldIdeos(
@@ -175,6 +196,10 @@ internal static class IdeologyServerCompatibility
             if (byGlobalKey.TryGetValue(normalized.GlobalKey, out WorldIdeoSummaryDto? existing))
             {
                 normalized = PreserveExistingIdeoPackageWhenIncomingIsSummary(normalized, existing);
+            }
+            else if (TryFindEquivalentCanonicalIdeo(normalized, byGlobalKey.Values, out existing))
+            {
+                normalized = CopyEquivalentIdeoPackage(normalized, existing);
             }
 
             byGlobalKey[normalized.GlobalKey] = normalized;
@@ -285,8 +310,13 @@ internal static class IdeologyServerCompatibility
                     ideo.MemeCount,
                     ideo.PreceptCount);
 
-                return byGlobalKey.TryGetValue(globalKey, out WorldIdeoSummaryDto? existing)
-                    ? PreserveExistingIdeoPackageWhenIncomingIsSummary(summary, existing)
+                if (byGlobalKey.TryGetValue(globalKey, out WorldIdeoSummaryDto? existing))
+                {
+                    return PreserveExistingIdeoPackageWhenIncomingIsSummary(summary, existing);
+                }
+
+                return TryFindEquivalentCanonicalIdeo(summary, byGlobalKey.Values, out existing)
+                    ? CopyEquivalentIdeoPackage(summary, existing)
                     : summary;
             }))
         {
@@ -300,6 +330,103 @@ internal static class IdeologyServerCompatibility
             .ThenBy(ideo => ideo.LocalId, StringComparer.Ordinal)
             .ThenBy(ideo => ideo.GlobalKey, StringComparer.Ordinal)
             .ToList();
+    }
+
+    private static bool TryFindEquivalentCanonicalIdeo(
+        WorldIdeoSummaryDto incoming,
+        IEnumerable<WorldIdeoSummaryDto> current,
+        out WorldIdeoSummaryDto existing)
+    {
+        foreach (WorldIdeoSummaryDto candidate in current)
+        {
+            if (string.Equals(candidate.GlobalKey, incoming.GlobalKey, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (HasSameSavedPackageHash(candidate, incoming)
+                || HasSameIdeologyDefinition(candidate, incoming))
+            {
+                existing = candidate;
+                return true;
+            }
+        }
+
+        existing = null!;
+        return false;
+    }
+
+    private static bool HasSameSavedPackageHash(WorldIdeoSummaryDto left, WorldIdeoSummaryDto right)
+    {
+        return !string.IsNullOrWhiteSpace(left.SavedIdeoPackageSha256)
+            && !string.IsNullOrWhiteSpace(right.SavedIdeoPackageSha256)
+            && string.Equals(left.SavedIdeoPackageSha256, right.SavedIdeoPackageSha256, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool HasSameIdeologyDefinition(WorldIdeoSummaryDto left, WorldIdeoSummaryDto right)
+    {
+        return string.Equals(left.Name, right.Name, StringComparison.Ordinal)
+            && string.Equals(left.Culture, right.Culture, StringComparison.Ordinal)
+            && string.Equals(left.FoundationDefName, right.FoundationDefName, StringComparison.Ordinal)
+            && string.Equals(left.IconDefName, right.IconDefName, StringComparison.Ordinal)
+            && string.Equals(left.ColorDefName, right.ColorDefName, StringComparison.Ordinal)
+            && string.Equals(left.PrimaryFactionColorHex, right.PrimaryFactionColorHex, StringComparison.OrdinalIgnoreCase)
+            && SetEqualsOrdinal(left.MemeDefNames, right.MemeDefNames)
+            && SetEqualsOrdinal(left.PreceptDefNames, right.PreceptDefNames)
+            && SetEqualsOrdinal(left.StyleCategoryDefNames, right.StyleCategoryDefNames)
+            && Math.Max(0, left.MemeCount) == Math.Max(0, right.MemeCount)
+            && Math.Max(0, left.PreceptCount) == Math.Max(0, right.PreceptCount);
+    }
+
+    private static bool SetEqualsOrdinal(IReadOnlyList<string> left, IReadOnlyList<string> right)
+    {
+        if (left.Count != right.Count)
+        {
+            return false;
+        }
+
+        return new HashSet<string>(left.Where(value => !string.IsNullOrWhiteSpace(value)), StringComparer.Ordinal)
+            .SetEquals(right.Where(value => !string.IsNullOrWhiteSpace(value)));
+    }
+
+    private static WorldIdeoSummaryDto CopyEquivalentIdeoPackage(
+        WorldIdeoSummaryDto incoming,
+        WorldIdeoSummaryDto equivalent)
+    {
+        if (!string.IsNullOrWhiteSpace(incoming.SavedIdeoPackageXml)
+            || string.IsNullOrWhiteSpace(equivalent.SavedIdeoPackageXml))
+        {
+            return incoming;
+        }
+
+        return new WorldIdeoSummaryDto(
+            incoming.GlobalKey,
+            incoming.OwnerUserId,
+            incoming.OwnerColonyId,
+            incoming.SourceSnapshotId,
+            incoming.LocalId,
+            incoming.Name,
+            incoming.Culture,
+            incoming.CultureLabel,
+            incoming.CultureIconPath,
+            incoming.PrimaryFactionColor,
+            incoming.PrimaryFactionColorHex,
+            incoming.FoundationDefName,
+            incoming.FactionDefName,
+            incoming.IconDefName,
+            incoming.IconPath,
+            incoming.ColorDefName,
+            incoming.ColorHex,
+            equivalent.SavedIdeoPackageXml,
+            equivalent.SavedIdeoPackageSha256,
+            incoming.UpdatedAtGameTicks,
+            incoming.MemeDefNames,
+            incoming.PreceptDefNames,
+            incoming.StyleCategoryDefNames,
+            incoming.Hidden,
+            incoming.InitialPlayerIdeo,
+            incoming.MemeCount,
+            incoming.PreceptCount);
     }
 
     private static WorldIdeoSummaryDto PreserveExistingIdeoPackageWhenIncomingIsSummary(
