@@ -324,6 +324,14 @@ public sealed class ClashOfRimNetworkClient
             cancellationToken);
     }
 
+    public Task<SubmitWorldTileGeometryResponse> SubmitWorldTileGeometryAsync(SubmitWorldTileGeometryRequest request, CancellationToken cancellationToken = default)
+    {
+        return PostAsync<SubmitWorldTileGeometryRequest, SubmitWorldTileGeometryResponse>(
+            ProtocolContractManifest.Find(ProtocolMessageKind.SubmitWorldTileGeometry).Route,
+            request,
+            cancellationToken);
+    }
+
     public Task<GetWorldConfigurationResponse> GetWorldConfigurationAsync(GetWorldConfigurationRequest request, CancellationToken cancellationToken = default)
     {
         return PostAsync<GetWorldConfigurationRequest, GetWorldConfigurationResponse>(

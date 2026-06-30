@@ -52,6 +52,7 @@ public enum ProtocolMessageKind
     PrepareWorldSession,
     GetWorldConfiguration,
     SubmitWorldConfiguration,
+    SubmitWorldTileGeometry,
     SubmitWorldFeatureNames,
     RegisterPlayerColonySites,
     PreflightColonyRelocation,

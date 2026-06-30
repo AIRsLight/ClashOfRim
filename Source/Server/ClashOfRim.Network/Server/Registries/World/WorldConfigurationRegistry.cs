@@ -287,6 +287,45 @@ public sealed class WorldConfigurationRegistry
         }
     }
 
+    public WorldTileGeometrySubmitResult SubmitWorldTileGeometry(
+        string userId,
+        string colonyId,
+        string worldConfigurationId,
+        WorldTileGeometryDto geometry)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(userId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(colonyId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(worldConfigurationId);
+        ArgumentNullException.ThrowIfNull(geometry);
+
+        lock (gate)
+        {
+            if (worldConfiguration is null || !HasUsableWorldGenerationBaseline(worldConfiguration))
+            {
+                return new WorldTileGeometrySubmitResult(false, "WorldNotConfigured", worldConfiguration);
+            }
+
+            if (!IsAdministratorLocked(userId))
+            {
+                return new WorldTileGeometrySubmitResult(false, "AdminOnly", worldConfiguration);
+            }
+
+            if (!string.Equals(worldConfiguration.WorldConfigurationId, worldConfigurationId, StringComparison.Ordinal))
+            {
+                return new WorldTileGeometrySubmitResult(false, "WorldConfigurationMismatch", worldConfiguration);
+            }
+
+            if (geometry.Layers.Count == 0 || geometry.Layers.All(layer => layer.TileCenters.Count == 0))
+            {
+                return new WorldTileGeometrySubmitResult(false, "EmptyGeometry", worldConfiguration);
+            }
+
+            worldConfiguration = CopyWithTileGeometry(worldConfiguration, geometry);
+            SaveLocked();
+            return new WorldTileGeometrySubmitResult(true, "Registered", worldConfiguration);
+        }
+    }
+
     public WorldSessionState RegisterPlayerColonySites(
         string userId,
         string colonyId,
@@ -1038,6 +1077,11 @@ public sealed record WorldSessionState(
     WorldConfigurationDto? WorldConfiguration);
 
 public sealed record RemovePlayerColonySitesResult(int RemovedCount, WorldSessionState Session);
+
+public sealed record WorldTileGeometrySubmitResult(
+    bool Accepted,
+    string Message,
+    WorldConfigurationDto? WorldConfiguration);
 
 public sealed record WorldFeatureNameCatalogSubmitResult(
     bool Accepted,

@@ -307,6 +307,34 @@ public sealed class ModSubmitWorldFeatureNamesRequestDto
 }
 
 [DataContract]
+public sealed class ModSubmitWorldTileGeometryRequestDto
+{
+    [DataMember(Name = "protocolVersion")]
+    public string ProtocolVersion { get; set; } = ClashOfRimVersion.ProtocolVersion;
+
+    [DataMember(Name = "userId")]
+    public string UserId { get; set; } = string.Empty;
+
+    [DataMember(Name = "colonyId")]
+    public string ColonyId { get; set; } = string.Empty;
+
+    [DataMember(Name = "worldConfigurationId")]
+    public string WorldConfigurationId { get; set; } = string.Empty;
+
+    [DataMember(Name = "payloadEncoding")]
+    public string PayloadEncoding { get; set; } = string.Empty;
+
+    [DataMember(Name = "payloadBase64")]
+    public string PayloadBase64 { get; set; } = string.Empty;
+
+    [DataMember(Name = "steamAuthTicket")]
+    public string? SteamAuthTicket { get; set; }
+
+    [DataMember(Name = "password")]
+    public string? Password { get; set; }
+}
+
+[DataContract]
 public sealed class ModGetWorldConfigurationRequestDto
 {
     [DataMember(Name = "protocolVersion")]
@@ -374,6 +402,25 @@ public sealed class ModSubmitWorldFeatureNamesResponseDto
 
     [DataMember(Name = "created")]
     public bool Created { get; set; }
+
+    [DataMember(Name = "worldConfiguration")]
+    public ModWorldConfigurationDto? WorldConfiguration { get; set; }
+}
+
+[DataContract]
+public sealed class ModSubmitWorldTileGeometryResponseDto
+{
+    [DataMember(Name = "result")]
+    public ModProtocolResponseDto? Result { get; set; }
+
+    [DataMember(Name = "accepted")]
+    public bool Accepted { get; set; }
+
+    [DataMember(Name = "layerCount")]
+    public int LayerCount { get; set; }
+
+    [DataMember(Name = "tileCenterCount")]
+    public int TileCenterCount { get; set; }
 
     [DataMember(Name = "worldConfiguration")]
     public ModWorldConfigurationDto? WorldConfiguration { get; set; }

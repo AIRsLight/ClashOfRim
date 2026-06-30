@@ -3,6 +3,7 @@ using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Save;
 using AIRsLight.ClashOfRim.Network.Plugins;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -12,9 +13,15 @@ namespace AIRsLight.ClashOfRim.Network;
 
 public static partial class ClashOfRimNetworkServer
 {
+    private const long DefaultMaxRequestBodySizeBytes = 256L * 1024L * 1024L;
+
     public static WebApplication Build(string[] args, ClashOfRimNetworkState? state = null)
     {
         WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+        builder.WebHost.ConfigureKestrel(options =>
+        {
+            options.Limits.MaxRequestBodySize = ResolveMaxRequestBodySizeBytes(builder.Configuration);
+        });
         string logFilePath = ResolveLogFilePath(builder.Environment.ContentRootPath);
         builder.Logging.AddFilter<ConsoleLoggerProvider>("Microsoft.AspNetCore.Hosting.Diagnostics", LogLevel.Warning);
         builder.Logging.AddFilter<ConsoleLoggerProvider>("Microsoft.AspNetCore.Routing.EndpointMiddleware", LogLevel.Warning);
@@ -47,6 +54,8 @@ public static partial class ClashOfRimNetworkServer
         }
 
         app.Logger.LogInformation(T("Server.LogFilePath", ("PATH", logFilePath)));
+        app.Logger.LogInformation(
+            T("Server.MaxRequestBodySize", ("BYTES", ResolveMaxRequestBodySizeBytes(builder.Configuration).ToString())));
         app.UseWebSockets(new WebSocketOptions
         {
             KeepAliveInterval = TimeSpan.FromSeconds(20)
@@ -157,6 +166,19 @@ public static partial class ClashOfRimNetworkServer
             authenticationDebugMode: LoadAuthenticationDebugMode(configuration),
             steamWebApiKey: LoadSteamWebApiKey(configuration),
             steamAppId: LoadSteamAppId(configuration));
+    }
+
+    private static long ResolveMaxRequestBodySizeBytes(IConfiguration configuration)
+    {
+        string? value = Environment.GetEnvironmentVariable("CLASH_OF_RIM_MAX_REQUEST_BODY_SIZE_BYTES");
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            value = configuration["Server:MaxRequestBodySizeBytes"];
+        }
+
+        return long.TryParse(value, out long parsed) && parsed > 0
+            ? parsed
+            : DefaultMaxRequestBodySizeBytes;
     }
 
     private static ISteamAuthTicketValidator BuildSteamAuthTicketValidator(ClashOfRimServerConfiguration configuration)

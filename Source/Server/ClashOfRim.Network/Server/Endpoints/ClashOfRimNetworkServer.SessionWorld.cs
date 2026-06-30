@@ -334,6 +334,110 @@ public static partial class ClashOfRimNetworkServer
             worldConfiguration: deliveredConfiguration));
     }
 
+    private static IResult SubmitWorldTileGeometry(
+        SubmitWorldTileGeometryRequest request,
+        ClashOfRimNetworkState state,
+        ILoggerFactory loggerFactory)
+    {
+        if (!string.Equals(request.ProtocolVersion, ProtocolApiVersion.Current, StringComparison.Ordinal))
+        {
+            return Results.Ok(new SubmitWorldTileGeometryResponse(
+                ProtocolResponse.Reject(ProtocolErrorCode.IncompatibleProtocolVersion, T("Protocol.IncompatibleVersion")),
+                accepted: false,
+                layerCount: 0,
+                tileCenterCount: 0,
+                worldConfiguration: BuildWorldConfigurationForDelivery(state.WorldConfiguration.Current, state)));
+        }
+
+        if (string.IsNullOrWhiteSpace(request.UserId)
+            || string.IsNullOrWhiteSpace(request.ColonyId)
+            || string.IsNullOrWhiteSpace(request.WorldConfigurationId)
+            || string.IsNullOrWhiteSpace(request.PayloadEncoding)
+            || string.IsNullOrWhiteSpace(request.PayloadBase64))
+        {
+            return Results.Ok(new SubmitWorldTileGeometryResponse(
+                ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("WorldConfiguration.TileGeometryMissingRequest")),
+                accepted: false,
+                layerCount: 0,
+                tileCenterCount: 0,
+                worldConfiguration: BuildWorldConfigurationForDelivery(state.WorldConfiguration.Current, state)));
+        }
+
+        WorldSessionState before = state.WorldConfiguration.Prepare(request.UserId);
+        if (!before.IsAdministrator)
+        {
+            return Results.Ok(new SubmitWorldTileGeometryResponse(
+                ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, T("WorldConfiguration.AdminOnly")),
+                accepted: false,
+                layerCount: 0,
+                tileCenterCount: 0,
+                worldConfiguration: BuildWorldConfigurationForDelivery(before.WorldConfiguration, state)));
+        }
+
+        if (!string.Equals(request.PayloadEncoding, "WorldTileGeometryBinaryV1", StringComparison.Ordinal))
+        {
+            return Results.Ok(new SubmitWorldTileGeometryResponse(
+                ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("WorldConfiguration.TileGeometryUnsupportedEncoding")),
+                accepted: false,
+                layerCount: 0,
+                tileCenterCount: 0,
+                worldConfiguration: BuildWorldConfigurationForDelivery(before.WorldConfiguration, state)));
+        }
+
+        WorldTileGeometryDto? geometry;
+        try
+        {
+            geometry = WorldTileGeometryBinaryCodec.Decode(Convert.FromBase64String(request.PayloadBase64));
+        }
+        catch (Exception ex) when (ex is FormatException or ArgumentException)
+        {
+            geometry = null;
+        }
+
+        if (geometry is null)
+        {
+            return Results.Ok(new SubmitWorldTileGeometryResponse(
+                ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("WorldConfiguration.TileGeometryInvalidPayload")),
+                accepted: false,
+                layerCount: 0,
+                tileCenterCount: 0,
+                worldConfiguration: BuildWorldConfigurationForDelivery(before.WorldConfiguration, state)));
+        }
+
+        int tileCenterCount = geometry.Layers.Sum(layer => layer.TileCenters.Count);
+        WorldTileGeometrySubmitResult result = state.WorldConfiguration.SubmitWorldTileGeometry(
+            request.UserId,
+            request.ColonyId,
+            request.WorldConfigurationId,
+            geometry);
+        WorldConfigurationDto? deliveredConfiguration = BuildWorldConfigurationForDelivery(result.WorldConfiguration, state);
+        if (!result.Accepted)
+        {
+            return Results.Ok(new SubmitWorldTileGeometryResponse(
+                ProtocolResponse.Reject(
+                    ProtocolErrorCode.ValidationFailed,
+                    T("WorldConfiguration.TileGeometryRejected", ("REASON", result.Message))),
+                accepted: false,
+                layerCount: geometry.Layers.Count,
+                tileCenterCount: tileCenterCount,
+                worldConfiguration: deliveredConfiguration));
+        }
+
+        RuntimeLogger(loggerFactory).LogInformation(
+            "世界地块几何已提交：user={UserId} colony={ColonyId} world={WorldConfigurationId} layers={LayerCount} tileCenters={TileCenterCount}",
+            request.UserId,
+            request.ColonyId,
+            request.WorldConfigurationId,
+            geometry.Layers.Count,
+            tileCenterCount);
+        return Results.Ok(new SubmitWorldTileGeometryResponse(
+            ProtocolResponse.Ok(T("WorldConfiguration.TileGeometryRegistered")),
+            accepted: true,
+            layerCount: geometry.Layers.Count,
+            tileCenterCount: tileCenterCount,
+            worldConfiguration: deliveredConfiguration));
+    }
+
     private static IResult GetWorldConfiguration(GetWorldConfigurationRequest request, ClashOfRimNetworkState state)
     {
         if (!string.Equals(request.ProtocolVersion, ProtocolApiVersion.Current, StringComparison.Ordinal))

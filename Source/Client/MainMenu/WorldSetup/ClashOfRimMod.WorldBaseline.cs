@@ -223,7 +223,7 @@ public sealed partial class ClashOfRimMod
                     httpClient,
                     ClashOfRimClientNetworkContext.FromSettings(settings));
                 ClashOfRimClientNetworkResult<ModSubmitWorldConfigurationResponseDto> result =
-                    await client.SubmitWorldConfigurationAsync(configuration);
+                    await SubmitWorldConfigurationWithDetachedGeometryAsync(client, configuration, "initial world configuration");
                 if (!result.Success || result.Response?.Result?.Accepted != true)
                 {
                     loginStatus = ClashOfRimText.Key(
@@ -332,7 +332,7 @@ public sealed partial class ClashOfRimMod
                     httpClient,
                     ClashOfRimClientNetworkContext.FromSettings(settings));
                 ClashOfRimClientNetworkResult<ModSubmitWorldConfigurationResponseDto> result =
-                    await client.SubmitWorldConfigurationAsync(configuration);
+                    await SubmitWorldConfigurationWithDetachedGeometryAsync(client, configuration, "admin world baseline update");
                 if (!result.Success || result.Response is null)
                 {
                     adminStatus = ClashOfRimText.Key(
@@ -462,7 +462,7 @@ public sealed partial class ClashOfRimMod
                     httpClient,
                     ClashOfRimClientNetworkContext.FromSettings(settings));
                 ClashOfRimClientNetworkResult<ModSubmitWorldConfigurationResponseDto> result =
-                    await client.SubmitWorldConfigurationAsync(configuration);
+                    await SubmitWorldConfigurationWithDetachedGeometryAsync(client, configuration, "storyteller baseline sync");
                 if (!result.Success || result.Response is null)
                 {
                     adminStatus = ClashOfRimText.Key(
@@ -927,6 +927,93 @@ public sealed partial class ClashOfRimMod
         ClashLog.Message(
             $"[ClashOfRim] Captured world baseline id={configuration.WorldConfigurationId} seed={configuration.SeedString ?? "<null>"} coverage={configuration.PlanetCoverage ?? "<null>"} rainfall={configuration.OverallRainfall ?? "<null>"} temperature={configuration.OverallTemperature ?? "<null>"} population={configuration.OverallPopulation ?? "<null>"} landmarkDensity={configuration.LandmarkDensity ?? "<null>"} generationPollution={ReadWorldGenerationPollution(configuration).ToString(CultureInfo.InvariantCulture)} factionEntries={configuration.FactionDefNames.Count} features={configuration.Features.Count} roads={configuration.Roads.Count} worldExtensions={configuration.Extensions.Count} worldObjects={configuration.WorldObjects.Count} tileGeometryLayers={configuration.TileGeometry?.Layers.Count ?? 0}.");
         return configuration;
+    }
+
+    private async Task<ClashOfRimClientNetworkResult<ModSubmitWorldConfigurationResponseDto>> SubmitWorldConfigurationWithDetachedGeometryAsync(
+        ClashOfRimModNetworkClient client,
+        ModWorldConfigurationDto configuration,
+        string context)
+    {
+        ModWorldTileGeometryDto? tileGeometry = configuration.TileGeometry;
+        int tileCenterCount = CountWorldTileCenters(tileGeometry);
+        ModWorldConfigurationDto lightweightConfiguration = CopyWorldConfiguration(configuration, includeTileGeometry: false);
+        ClashLog.Message(
+            $"[ClashOfRim] Submitting world configuration without tile geometry: context={context}, "
+            + $"features={lightweightConfiguration.Features.Count}, roads={lightweightConfiguration.Roads.Count}, "
+            + $"worldObjects={lightweightConfiguration.WorldObjects.Count}, tileCentersDetached={tileCenterCount}.");
+
+        ClashOfRimClientNetworkResult<ModSubmitWorldConfigurationResponseDto> result =
+            await client.SubmitWorldConfigurationAsync(lightweightConfiguration).ConfigureAwait(false);
+        if (!result.Success || result.Response?.Result?.Accepted != true || tileCenterCount <= 0)
+        {
+            return result;
+        }
+
+        string worldConfigurationId = result.Response.WorldConfiguration?.WorldConfigurationId
+            ?? configuration.WorldConfigurationId
+            ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(worldConfigurationId))
+        {
+            Log.Warning("[ClashOfRim] Skipped detached world tile geometry submit because the accepted world configuration id is empty.");
+            return result;
+        }
+
+        ClashOfRimClientNetworkResult<ModSubmitWorldTileGeometryResponseDto> geometryResult =
+            await client.SubmitWorldTileGeometryAsync(worldConfigurationId, tileGeometry!).ConfigureAwait(false);
+        if (!geometryResult.Success || geometryResult.Response?.Result?.Accepted != true)
+        {
+            string message = geometryResult.Message
+                ?? geometryResult.Response?.Result?.Message
+                ?? geometryResult.ErrorCode
+                ?? geometryResult.Response?.Result?.ErrorCode.ToString()
+                ?? "Unknown";
+            Log.Warning("[ClashOfRim] Detached world tile geometry submit failed after " + context + ": " + message);
+            return result;
+        }
+
+        ClashLog.Message(
+            "[ClashOfRim] Detached world tile geometry accepted by server: "
+            + $"layers={geometryResult.Response.LayerCount}, tileCenters={geometryResult.Response.TileCenterCount}.");
+        return result;
+    }
+
+    private static int CountWorldTileCenters(ModWorldTileGeometryDto? geometry)
+    {
+        return geometry?.Layers.Sum(layer => layer.TileCenters.Count) ?? 0;
+    }
+
+    private static ModWorldConfigurationDto CopyWorldConfiguration(
+        ModWorldConfigurationDto source,
+        bool includeTileGeometry)
+    {
+        var copy = new ModWorldConfigurationDto
+        {
+            WorldConfigurationId = source.WorldConfigurationId,
+            ConfiguredByUserId = source.ConfiguredByUserId,
+            ConfiguredByColonyId = source.ConfiguredByColonyId,
+            ConfiguredAtUtc = source.ConfiguredAtUtc,
+            SeedString = source.SeedString,
+            PlanetCoverage = source.PlanetCoverage,
+            OverallRainfall = source.OverallRainfall,
+            OverallTemperature = source.OverallTemperature,
+            OverallPopulation = source.OverallPopulation,
+            LandmarkDensity = source.LandmarkDensity,
+            TileCount = source.TileCount,
+            StorytellerDefName = source.StorytellerDefName,
+            DifficultyDefName = source.DifficultyDefName,
+            DifficultyValuesXml = source.DifficultyValuesXml,
+            GameLanguage = source.GameLanguage,
+            TileGeometry = includeTileGeometry ? source.TileGeometry : null
+        };
+        copy.FactionDefNames.AddRange(source.FactionDefNames);
+        copy.Features.AddRange(source.Features);
+        copy.FeatureNameCatalogs.AddRange(source.FeatureNameCatalogs);
+        copy.Factions.AddRange(source.Factions);
+        copy.Roads.AddRange(source.Roads);
+        copy.WorldObjects.AddRange(source.WorldObjects);
+        copy.PlayerColonySites.AddRange(source.PlayerColonySites);
+        copy.Extensions.AddRange(source.Extensions);
+        return copy;
     }
 
     private static string? ReadCurrentGameLanguage()

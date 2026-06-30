@@ -221,6 +221,72 @@ public sealed class SubmitWorldFeatureNamesRequest
     public string? Password { get; }
 }
 
+public sealed class SubmitWorldTileGeometryRequest
+{
+    public SubmitWorldTileGeometryRequest(
+        string protocolVersion,
+        string userId,
+        string colonyId,
+        string worldConfigurationId,
+        string payloadEncoding,
+        string payloadBase64,
+        string? steamAuthTicket = null,
+        string? password = null)
+    {
+        ProtocolVersion = protocolVersion;
+        UserId = userId;
+        ColonyId = colonyId;
+        WorldConfigurationId = worldConfigurationId;
+        PayloadEncoding = payloadEncoding;
+        PayloadBase64 = payloadBase64;
+        SteamAuthTicket = steamAuthTicket;
+        Password = password;
+    }
+
+    public string ProtocolVersion { get; }
+
+    public string UserId { get; }
+
+    public string ColonyId { get; }
+
+    public string WorldConfigurationId { get; }
+
+    public string PayloadEncoding { get; }
+
+    public string PayloadBase64 { get; }
+
+    public string? SteamAuthTicket { get; }
+
+    public string? Password { get; }
+}
+
+public sealed class SubmitWorldTileGeometryResponse
+{
+    public SubmitWorldTileGeometryResponse(
+        ProtocolResponse result,
+        bool accepted,
+        int layerCount,
+        int tileCenterCount,
+        WorldConfigurationDto? worldConfiguration)
+    {
+        Result = result;
+        Accepted = accepted;
+        LayerCount = layerCount;
+        TileCenterCount = tileCenterCount;
+        WorldConfiguration = worldConfiguration;
+    }
+
+    public ProtocolResponse Result { get; }
+
+    public bool Accepted { get; }
+
+    public int LayerCount { get; }
+
+    public int TileCenterCount { get; }
+
+    public WorldConfigurationDto? WorldConfiguration { get; }
+}
+
 public sealed class SubmitWorldFeatureNamesResponse
 {
     public SubmitWorldFeatureNamesResponse(
