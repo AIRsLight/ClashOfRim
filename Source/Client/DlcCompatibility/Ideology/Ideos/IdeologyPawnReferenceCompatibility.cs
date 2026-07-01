@@ -435,7 +435,12 @@ internal static class IdeologyPawnReferenceCompatibility
             path = Path.Combine(
                 directory,
                 "ideo-" + ideo.id.ToString(CultureInfo.InvariantCulture) + "-" + Guid.NewGuid().ToString("N") + ".ideo");
-            GameDataSaveLoader.SaveIdeo(ideo, path);
+            // External ideo packages must not carry local role pawn or ability target references.
+            using (new IdeoPackageExportReferenceScope(ideo))
+            {
+                GameDataSaveLoader.SaveIdeo(ideo, path);
+            }
+
             return File.Exists(path) ? File.ReadAllText(path, Encoding.UTF8) : null;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException)
@@ -463,6 +468,69 @@ internal static class IdeologyPawnReferenceCompatibility
         }
         catch (UnauthorizedAccessException)
         {
+        }
+    }
+
+    private sealed class IdeoPackageExportReferenceScope : IDisposable
+    {
+        private static readonly FieldInfo? RoleMultiChosenPawnsCacheField = typeof(Precept_RoleMulti).GetField(
+            "chosenPawnsCache",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+
+        private readonly List<Action> restoreActions = new();
+        private bool disposed;
+
+        public IdeoPackageExportReferenceScope(Ideo ideo)
+        {
+            if (ideo?.PreceptsListForReading is null)
+            {
+                return;
+            }
+
+            foreach (Precept precept in ideo.PreceptsListForReading)
+            {
+                if (precept is Precept_RoleSingle singleRole)
+                {
+                    IdeoRoleInstance original = singleRole.chosenPawn;
+                    singleRole.chosenPawn = new IdeoRoleInstance(singleRole);
+                    restoreActions.Add(() => singleRole.chosenPawn = original);
+                    continue;
+                }
+
+                if (precept is Precept_RoleMulti multiRole)
+                {
+                    List<IdeoRoleInstance> originalChosenPawns = multiRole.chosenPawns;
+                    multiRole.chosenPawns = new List<IdeoRoleInstance>();
+                    restoreActions.Add(() => multiRole.chosenPawns = originalChosenPawns);
+
+                    if (RoleMultiChosenPawnsCacheField?.GetValue(multiRole) is List<IdeoRoleInstance> originalCache)
+                    {
+                        RoleMultiChosenPawnsCacheField.SetValue(multiRole, new List<IdeoRoleInstance>());
+                        restoreActions.Add(() => RoleMultiChosenPawnsCacheField.SetValue(multiRole, originalCache));
+                    }
+                }
+            }
+        }
+
+        public void Dispose()
+        {
+            if (disposed)
+            {
+                return;
+            }
+
+            disposed = true;
+            for (int index = restoreActions.Count - 1; index >= 0; index--)
+            {
+                try
+                {
+                    restoreActions[index]();
+                }
+                catch (Exception ex) when (ex is TargetInvocationException or ArgumentException or InvalidOperationException)
+                {
+                    Log.Warning("[ClashOfRim] Failed to restore ideoligion role references after package export: " + ex);
+                }
+            }
         }
     }
 
