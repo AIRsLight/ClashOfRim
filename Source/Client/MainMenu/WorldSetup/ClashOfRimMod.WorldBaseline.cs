@@ -2216,8 +2216,7 @@ public sealed partial class ClashOfRimMod
         }
 
         object? parent = ReadMember(map, "Parent") ?? ReadMember(map, "parent");
-        object? faction = ReadMember(parent, "Faction") ?? ReadMember(parent, "factionInt");
-        return ReferenceEquals(faction, Faction.OfPlayer) || ReferenceEquals(map, Find.CurrentMap);
+        return IsPlayerColonyWorldObject(parent as WorldObject) || ReferenceEquals(map, Find.CurrentMap);
     }
 
     private static bool IsPlayerColonyWorldObject(WorldObject? worldObject)
@@ -2233,7 +2232,7 @@ public sealed partial class ClashOfRimMod
             return true;
         }
 
-        if (worldObject is not MapParent)
+        if (worldObject is not Settlement)
         {
             return false;
         }
@@ -2296,14 +2295,7 @@ public sealed partial class ClashOfRimMod
         string playerWorldObjectSample = string.Join(
             "; ",
             (Find.WorldObjects?.AllWorldObjects ?? Enumerable.Empty<WorldObject>())
-            .Where(worldObject => worldObject is not null
-                && (string.Equals(
-                        ReadFirstString(ReadMember(worldObject, "def"), "defName", "Name"),
-                        "PlayerColony",
-                        StringComparison.Ordinal)
-                    || ReferenceEquals(
-                        ReadMember(worldObject, "Faction") ?? ReadMember(worldObject, "factionInt"),
-                        Faction.OfPlayer)))
+            .Where(IsPlayerColonyWorldObject)
             .Take(5)
             .Select(worldObject =>
                 ReadFirstString(ReadMember(worldObject, "def"), "defName", "Name")

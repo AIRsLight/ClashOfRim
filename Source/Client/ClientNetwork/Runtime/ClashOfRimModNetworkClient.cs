@@ -104,7 +104,7 @@ public sealed class ClashOfRimModNetworkClient
     private readonly HttpClient httpClient;
     private readonly ClashOfRimClientNetworkContext context;
 
-    public static Action<string>? SessionExpired;
+    public static Action<string, string?>? SessionExpired;
     public static Func<string?>? CompatibilityManifestJsonProvider;
     public static Func<string?>? CompatibilityManifestIdProvider;
     public static Func<string?>? CompatibilityManifestSummaryJsonProvider;
@@ -2824,14 +2824,14 @@ public sealed class ClashOfRimModNetworkClient
             string body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
             {
-                DetectSessionExpiredMessage(body);
+                DetectSessionExpiredMessage(body, context.AuthToken);
                 return ClashOfRimClientNetworkResult<TResponse>.Failed(
                     "HttpError",
                     $"{(int)response.StatusCode} {response.ReasonPhrase}: {body}");
             }
 
             TResponse parsed = Deserialize<TResponse>(body);
-            DetectSessionExpired(parsed);
+            DetectSessionExpired(parsed, context.AuthToken);
             return ClashOfRimClientNetworkResult<TResponse>.Ok(parsed);
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException or SerializationException)
@@ -2852,14 +2852,14 @@ public sealed class ClashOfRimModNetworkClient
             string body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
             {
-                DetectSessionExpiredMessage(body);
+                DetectSessionExpiredMessage(body, context.AuthToken);
                 return ClashOfRimClientNetworkResult<TResponse>.Failed(
                     "HttpError",
                     $"{(int)response.StatusCode} {response.ReasonPhrase}: {body}");
             }
 
             TResponse parsed = Deserialize<TResponse>(body);
-            DetectSessionExpired(parsed);
+            DetectSessionExpired(parsed, context.AuthToken);
             return ClashOfRimClientNetworkResult<TResponse>.Ok(parsed);
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException or SerializationException)
@@ -2889,7 +2889,7 @@ public sealed class ClashOfRimModNetworkClient
             if (!response.IsSuccessStatusCode)
             {
                 string body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-                DetectSessionExpiredMessage(body);
+                DetectSessionExpiredMessage(body, context.AuthToken);
                 return ClashOfRimClientNetworkResult<byte[]>.Failed(
                     "HttpError",
                     $"{(int)response.StatusCode} {response.ReasonPhrase}: {body}");
@@ -2928,14 +2928,14 @@ public sealed class ClashOfRimModNetworkClient
             string body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
             {
-                DetectSessionExpiredMessage(body);
+                DetectSessionExpiredMessage(body, context.AuthToken);
                 return ClashOfRimClientNetworkResult<TResponse>.Failed(
                     "HttpError",
                     $"{(int)response.StatusCode} {response.ReasonPhrase}: {body}");
             }
 
             TResponse parsed = Deserialize<TResponse>(body);
-            DetectSessionExpired(parsed);
+            DetectSessionExpired(parsed, context.AuthToken);
             return ClashOfRimClientNetworkResult<TResponse>.Ok(parsed);
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException or SerializationException or IOException)
@@ -3071,7 +3071,7 @@ public sealed class ClashOfRimModNetworkClient
         }
     }
 
-    private static void DetectSessionExpired<TResponse>(TResponse response)
+    private static void DetectSessionExpired<TResponse>(TResponse response, string? authToken)
     {
         if (response is null)
         {
@@ -3089,14 +3089,14 @@ public sealed class ClashOfRimModNetworkClient
             return;
         }
 
-        SessionExpired?.Invoke(protocolResponse.Message!);
+        SessionExpired?.Invoke(protocolResponse.Message!, authToken);
     }
 
-    private static void DetectSessionExpiredMessage(string? message)
+    private static void DetectSessionExpiredMessage(string? message, string? authToken)
     {
         if (IsSessionExpiredMessage(message))
         {
-            SessionExpired?.Invoke(message!);
+            SessionExpired?.Invoke(message!, authToken);
         }
     }
 

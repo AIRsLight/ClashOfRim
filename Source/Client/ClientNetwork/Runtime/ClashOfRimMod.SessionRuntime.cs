@@ -246,7 +246,7 @@ public sealed partial class ClashOfRimMod
                         sessionId,
                         lastNotificationVersion,
                         lastWorldConfigurationVersion,
-                        HandleSessionStreamEvent,
+                        streamEvent => HandleSessionStreamEventSafely(streamEvent, sessionId),
                         cancellationToken);
 
                 if (cancellationToken.IsCancellationRequested)
@@ -1152,7 +1152,7 @@ public sealed partial class ClashOfRimMod
         });
     }
 
-    private void HandleSessionStreamEvent(ModSessionStreamEvent serverEvent)
+    private void HandleSessionStreamEvent(ModSessionStreamEvent serverEvent, string? streamSessionId)
     {
         long? notificationVersion = ExtractNotificationVersion(serverEvent.Data);
         if (notificationVersion.HasValue)
@@ -1208,10 +1208,31 @@ public sealed partial class ClashOfRimMod
             presenceStatus = ClashOfRimText.Key(
                 "ClashOfRim.Presence.StatusStreamError",
                 ClashOfRimText.SafeArgument(serverEvent.Data).Named("MESSAGE"));
-            if (serverEvent.Data.IndexOf("\u4f1a\u8bdd\u5df2\u8fc7\u671f", StringComparison.Ordinal) >= 0)
+            if (IsSessionExpiredMessage(serverEvent.Data))
             {
-                HandleSessionExpired(ClashOfRimText.Key("ClashOfRim.SessionExpired.Message"));
+                HandleSessionExpired(
+                    ClashOfRimText.Key("ClashOfRim.SessionExpired.Message"),
+                    observedAuthToken: null,
+                    observedSessionId: streamSessionId);
             }
+        }
+    }
+
+    private void HandleSessionStreamEventSafely(ModSessionStreamEvent serverEvent, string? streamSessionId)
+    {
+        try
+        {
+            HandleSessionStreamEvent(serverEvent, streamSessionId);
+        }
+        catch (Exception ex)
+        {
+            presenceStatus = "Online event handling failed: " + ex.Message;
+            Log.Warning("[ClashOfRim] Session stream event failed: event="
+                + (serverEvent.EventName ?? "<null>")
+                + ", session="
+                + (streamSessionId ?? "<null>")
+                + ", error="
+                + ex);
         }
     }
 
@@ -1405,8 +1426,18 @@ public sealed partial class ClashOfRimMod
         return string.Equals(result.ErrorCode, nameof(TaskCanceledException), StringComparison.Ordinal);
     }
 
-    private void HandleSessionExpired(string? message)
+    private void HandleSessionExpired(string? message, string? observedAuthToken = null, string? observedSessionId = null)
     {
+        if (!IsCurrentSessionExpiredSignal(observedAuthToken, observedSessionId))
+        {
+            ClashLog.Message(
+                "[ClashOfRim] Ignored stale session-expired signal: tokenMatches="
+                + (string.IsNullOrWhiteSpace(observedAuthToken) || string.Equals(observedAuthToken, settings.AuthToken, StringComparison.Ordinal))
+                + ", sessionMatches="
+                + (string.IsNullOrWhiteSpace(observedSessionId) || string.Equals(observedSessionId, lastSessionId, StringComparison.Ordinal)));
+            return;
+        }
+
         if (sessionExpiredHandling)
         {
             return;
@@ -1431,6 +1462,30 @@ public sealed partial class ClashOfRimMod
                 Find.WindowStack.Add(new SessionExpiredWindow(dialogMessage, GenScene.GoToMainMenu));
             }
         });
+    }
+
+    private bool IsCurrentSessionExpiredSignal(string? observedAuthToken, string? observedSessionId)
+    {
+        if (!string.IsNullOrWhiteSpace(observedAuthToken)
+            && !string.Equals(observedAuthToken, settings.AuthToken, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(observedSessionId)
+            && !string.Equals(observedSessionId, lastSessionId, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private static bool IsSessionExpiredMessage(string? message)
+    {
+        return !string.IsNullOrWhiteSpace(message)
+            && (message!.IndexOf("\u4f1a\u8bdd\u5df2\u8fc7\u671f", StringComparison.Ordinal) >= 0
+                || message.IndexOf("session has expired", StringComparison.OrdinalIgnoreCase) >= 0);
     }
 
 

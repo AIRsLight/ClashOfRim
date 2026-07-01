@@ -162,7 +162,7 @@ public sealed partial class ClashOfRimMod : Mod
         ClashOfRimCompatibilityApi.BeginRegistrationCycle(PackageId);
         BuiltInClientCompatibility.Apply(harmony);
         harmony.PatchAll();
-        ClashOfRimModNetworkClient.SessionExpired = HandleSessionExpired;
+        ClashOfRimModNetworkClient.SessionExpired = (message, authToken) => HandleSessionExpired(message, authToken, observedSessionId: null);
         ClashOfRimModNetworkClient.CompatibilityManifestJsonProvider = BuildCompatibilityManifestJsonForLogin;
         ClashOfRimModNetworkClient.CompatibilityManifestIdProvider = BuildCompatibilityManifestIdForLogin;
         ClashOfRimModNetworkClient.CompatibilityManifestSummaryJsonProvider = BuildCompatibilityManifestSummaryJsonForLogin;
