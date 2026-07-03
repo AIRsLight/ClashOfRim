@@ -303,7 +303,7 @@ public sealed class QuestPart_ClashMercenary : QuestPartActivable
         {
             Completed = true;
             ClashManagedQuestUtility.EndManagedQuest(this, QuestEndOutcome.Success, sendLetter: false, playSound: false);
-            LoadedModManager.GetMod<ClashOfRimMod>()?.StartMercenarySnapshotConfirmation();
+            StartSuccessfulCompletionSnapshotConfirmation();
         }
 
         return recalled;
@@ -332,7 +332,26 @@ public sealed class QuestPart_ClashMercenary : QuestPartActivable
         RecallShip = null;
         Completed = true;
         ClashManagedQuestUtility.EndManagedQuest(this, QuestEndOutcome.Success, sendLetter: false, playSound: false);
-        LoadedModManager.GetMod<ClashOfRimMod>()?.StartMercenarySnapshotConfirmation();
+        StartSuccessfulCompletionSnapshotConfirmation();
+    }
+
+    private void StartSuccessfulCompletionSnapshotConfirmation()
+    {
+        ClashOfRimMod? mod = LoadedModManager.GetMod<ClashOfRimMod>();
+        if (mod is null)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(ContractId))
+        {
+            mod.StartMercenarySnapshotConfirmation();
+            return;
+        }
+
+        mod.StartMercenarySnapshotConfirmation(
+            ContractId,
+            $"mercenary-completed:{ContractId}");
     }
 
     public void ReportHarmfulSurgery()

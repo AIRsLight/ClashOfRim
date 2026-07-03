@@ -264,6 +264,7 @@
   "Mercenary.ContractNotFound": "没有找到该佣兵任务。",
   "Mercenary.InvalidIncidentKind": "佣兵事故类型有误。",
   "Mercenary.FineCreated": "佣兵事故已处理。",
+  "Mercenary.Completed": "佣兵任务已完成。",
   "Mercenary.InvalidSkill": "佣兵技能类型有误。",
   "Mercenary.InvalidTier": "佣兵技能等级只能为 7、14 或 20。",
   "Mercenary.InvalidDuration": "佣兵雇佣时间必须在 {MIN} 到 {MAX} 游戏日之间。",

@@ -264,6 +264,7 @@
   "Mercenary.ContractNotFound": "The mercenary assignment could not be found.",
   "Mercenary.InvalidIncidentKind": "This mercenary incident type is not available.",
   "Mercenary.FineCreated": "Mercenary incident handled.",
+  "Mercenary.Completed": "Mercenary contract completed.",
   "Mercenary.InvalidSkill": "This mercenary role is not available.",
   "Mercenary.InvalidTier": "Mercenary skill tier must be 7, 14, or 20.",
   "Mercenary.InvalidDuration": "Mercenary hire duration must be between {MIN} and {MAX} game days.",

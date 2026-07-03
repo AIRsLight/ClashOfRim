@@ -81,6 +81,17 @@ public sealed class MercenaryContractRegistry
         }
     }
 
+    public int CountActiveForColony(string userId, string colonyId)
+    {
+        lock (gate)
+        {
+            return contracts.Values.Count(contract =>
+                string.Equals(contract.UserId, userId, StringComparison.Ordinal)
+                && string.Equals(contract.ColonyId, colonyId, StringComparison.Ordinal)
+                && string.Equals(contract.Status, StatusActive, StringComparison.Ordinal));
+        }
+    }
+
     public MercenaryContractRecord Create(
         string idempotencyKey,
         string userId,

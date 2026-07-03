@@ -1793,6 +1793,7 @@ public sealed partial class ClashOfRimMod
 
         mercenaryStatus = ClashOfRimText.Key("ClashOfRim.Mercenary.StatusReportingIncident");
         long currentTicks = Find.TickManager?.TicksGame ?? 0;
+        bool isCompletionIncident = string.Equals(incidentKind, "Completed", StringComparison.Ordinal);
         string idempotencyKey = string.IsNullOrWhiteSpace(idempotencyKeyOverride)
             ? $"mercenary-incident:{settings.UserId}:{settings.ColonyId}:{contractId}:{incidentKind}:{DateTime.UtcNow.Ticks}"
             : idempotencyKeyOverride!;
@@ -1829,6 +1830,12 @@ public sealed partial class ClashOfRimMod
                     if (result.Response.Debt is not null && result.Response.BankStatus is not null)
                     {
                         ClashBankLoanQuestUtility.CreateOrUpdateDebtQuest(result.Response.Debt, result.Response.BankStatus);
+                    }
+
+                    if (isCompletionIncident)
+                    {
+                        StartRefreshBankStatus();
+                        return;
                     }
 
                     Messages.Message(mercenaryStatus, MessageTypeDefOf.NegativeEvent, historical: false);

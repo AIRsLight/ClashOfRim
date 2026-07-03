@@ -264,6 +264,7 @@
   "Mercenary.ContractNotFound": "용병 임무를 찾을 수 없습니다.",
   "Mercenary.InvalidIncidentKind": "이 용병 사고 유형은 사용할 수 없습니다.",
   "Mercenary.FineCreated": "용병 사고가 처리되었습니다.",
+  "Mercenary.Completed": "용병 계약이 완료되었습니다.",
   "Mercenary.InvalidSkill": "이 용병 역할은 사용할 수 없습니다.",
   "Mercenary.InvalidTier": "용병 기술 등급은 7, 14 또는 20이어야 합니다.",
   "Mercenary.InvalidDuration": "용병 고용 기간은 {MIN}에서 {MAX} 게임일 사이여야 합니다.",

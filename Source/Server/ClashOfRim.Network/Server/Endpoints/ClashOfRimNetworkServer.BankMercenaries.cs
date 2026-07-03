@@ -1445,6 +1445,38 @@ public static partial class ClashOfRimNetworkServer
                 BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
         }
 
+        if (string.Equals(request.IncidentKind, "Completed", StringComparison.Ordinal))
+        {
+            MercenaryContractRecord? completionContract = state.MercenaryContracts.Find(request.ContractId);
+            if (completionContract is null
+                || !string.Equals(completionContract.UserId, request.UserId, StringComparison.Ordinal)
+                || !string.Equals(completionContract.ColonyId, request.ColonyId, StringComparison.Ordinal))
+            {
+                return Results.Ok(new MercenaryIncidentResponse(
+                    ProtocolResponse.Reject(ProtocolErrorCode.EventNotFound, T("Mercenary.ContractNotFound")),
+                    debt: null,
+                    BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
+            }
+
+            if (!string.Equals(completionContract.Status, MercenaryContractRegistry.StatusCompleted, StringComparison.Ordinal))
+            {
+                if (!string.Equals(completionContract.Status, MercenaryContractRegistry.StatusActive, StringComparison.Ordinal))
+                {
+                    return Results.Ok(new MercenaryIncidentResponse(
+                        ProtocolResponse.Reject(ProtocolErrorCode.EventNotFound, T("Mercenary.ContractNotFound")),
+                        debt: null,
+                        BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
+                }
+
+                state.MercenaryContracts.Complete(completionContract.ContractId, request.UserId, request.ColonyId);
+            }
+
+            return Results.Ok(new MercenaryIncidentResponse(
+                ProtocolResponse.Ok(T("Mercenary.Completed")),
+                debt: null,
+                BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
+        }
+
         BankDebtRecord? existingDebt = state.BankLoans.FindDebtByIdempotencyKey(request.IdempotencyKey);
         if (existingDebt is not null)
         {
@@ -1830,7 +1862,7 @@ public static partial class ClashOfRimNetworkServer
                 T("Mercenary.ActiveLimitReached", ("MAX", "0")));
         }
 
-        int active = state.MercenaryContracts.CountOpenForColony(userId, colonyId);
+        int active = state.MercenaryContracts.CountActiveForColony(userId, colonyId);
         return active >= limit
             ? ProtocolResponse.Reject(
                 ProtocolErrorCode.ServerRejected,

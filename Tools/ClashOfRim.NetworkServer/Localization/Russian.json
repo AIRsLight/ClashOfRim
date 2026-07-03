@@ -264,6 +264,7 @@
   "Mercenary.ContractNotFound": "Назначение наемника не найдено.",
   "Mercenary.InvalidIncidentKind": "Этот тип инцидента с наемником недоступен.",
   "Mercenary.FineCreated": "Инцидент с наемником обработан.",
+  "Mercenary.Completed": "Контракт наемника завершен.",
   "Mercenary.InvalidSkill": "Эта роль наемника недоступна.",
   "Mercenary.InvalidTier": "Уровень навыка наемника должен быть 7, 14 или 20.",
   "Mercenary.InvalidDuration": "Срок найма наемника должен быть от {MIN} до {MAX} игровых дней.",

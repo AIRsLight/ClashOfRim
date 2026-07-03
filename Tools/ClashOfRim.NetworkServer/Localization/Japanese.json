@@ -264,6 +264,7 @@
   "Mercenary.ContractNotFound": "傭兵任務が見つかりませんでした。",
   "Mercenary.InvalidIncidentKind": "この傭兵事故タイプは利用できません。",
   "Mercenary.FineCreated": "傭兵事故を処理しました。",
+  "Mercenary.Completed": "傭兵契約が完了しました。",
   "Mercenary.InvalidSkill": "この傭兵役割は利用できません。",
   "Mercenary.InvalidTier": "傭兵スキル等級は 7、14、20 のいずれかでなければなりません。",
   "Mercenary.InvalidDuration": "傭兵雇用期間は {MIN} から {MAX} ゲーム日の間でなければなりません。",

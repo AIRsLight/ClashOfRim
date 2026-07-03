@@ -67,11 +67,16 @@ public sealed partial class ClashOfRimMod
 
     internal void StartMercenarySnapshotConfirmation()
     {
+        StartMercenarySnapshotConfirmation(completedContractId: null, completionIdempotencyKey: null);
+    }
+
+    internal void StartMercenarySnapshotConfirmation(string? completedContractId, string? completionIdempotencyKey = null)
+    {
         StartConfirmLocalMutationSnapshot(new LocalMutationSnapshotConfirmationRequest
         {
             Operation = ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationMercenary"),
             UploadingStatus = ClashOfRimText.Key("ClashOfRim.Mercenary.StatusUploadingConfirmation"),
-            RetryAction = StartMercenarySnapshotConfirmation,
+            RetryAction = () => StartMercenarySnapshotConfirmation(completedContractId, completionIdempotencyKey),
             SetStatus = value => mercenaryStatus = value,
             BuildFailureStatus = result => ClashOfRimText.Key(
                 "ClashOfRim.Mercenary.StatusConfirmationFailed",
@@ -86,6 +91,17 @@ public sealed partial class ClashOfRimMod
                 ex.Message.Named("MESSAGE")),
             OnSuccessOnMainThread = _ =>
             {
+                if (!string.IsNullOrWhiteSpace(completedContractId))
+                {
+                    StartReportMercenaryIncident(
+                        completedContractId!,
+                        "Completed",
+                        string.IsNullOrWhiteSpace(completionIdempotencyKey)
+                            ? "mercenary-completed:" + completedContractId
+                            : completionIdempotencyKey);
+                    return;
+                }
+
                 StartRefreshBankStatus();
             }
         });
