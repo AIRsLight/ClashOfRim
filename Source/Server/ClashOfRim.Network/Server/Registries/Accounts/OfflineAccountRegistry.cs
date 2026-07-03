@@ -12,7 +12,8 @@ public sealed class OfflineAccountRegistry
     public const string InvalidPasswordKey = "OfflineAuth.InvalidPassword";
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
     private readonly object gate = new();
-    private readonly IJsonPersistenceSlot? persistence;
+    private readonly IKeyedJsonRecordStore? structuredPersistence;
+    private readonly IJsonPersistenceSlot? legacyPersistence;
     private readonly Dictionary<string, OfflineAccountRecord> accounts = new(StringComparer.Ordinal);
 
     public OfflineAccountRegistry()
@@ -21,8 +22,16 @@ public sealed class OfflineAccountRegistry
     }
 
     internal OfflineAccountRegistry(IJsonPersistenceSlot? persistence)
+        : this(null, persistence)
     {
-        this.persistence = persistence;
+    }
+
+    internal OfflineAccountRegistry(
+        IKeyedJsonRecordStore? structuredPersistence,
+        IJsonPersistenceSlot? legacyPersistence)
+    {
+        this.structuredPersistence = structuredPersistence;
+        this.legacyPersistence = legacyPersistence;
         Load();
     }
 
@@ -123,37 +132,98 @@ public sealed class OfflineAccountRegistry
 
     private void Load()
     {
-        string? json = persistence?.Read();
-        if (string.IsNullOrWhiteSpace(json))
+        bool hasStructured = structuredPersistence?.IsInitialized() == true;
+        LoadStructured();
+        bool importedLegacy = !hasStructured && LoadLegacyReadOnly();
+        if (importedLegacy && structuredPersistence is not null)
+        {
+            Save();
+        }
+    }
+
+    private void LoadStructured()
+    {
+        if (structuredPersistence is null)
         {
             return;
+        }
+
+        foreach (KeyValuePair<string, string> pair in structuredPersistence.ReadAll())
+        {
+            try
+            {
+                OfflineAccountRecord? account = JsonSerializer.Deserialize<OfflineAccountRecord>(pair.Value, JsonOptions);
+                RegisterLoadedAccount(account, overwrite: true);
+            }
+            catch (JsonException)
+            {
+            }
+        }
+    }
+
+    private bool LoadLegacyReadOnly()
+    {
+        string? json = legacyPersistence?.Read();
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return false;
         }
 
         try
         {
             OfflineAccountPersistence? persisted = JsonSerializer.Deserialize<OfflineAccountPersistence>(json, JsonOptions);
+            bool imported = false;
             foreach (OfflineAccountRecord account in persisted?.Accounts ?? Array.Empty<OfflineAccountRecord>())
             {
-                string userId = NormalizeUserId(account.UserId);
-                if (!string.IsNullOrWhiteSpace(userId)
-                    && !string.IsNullOrWhiteSpace(account.PasswordHash)
-                    && !string.IsNullOrWhiteSpace(account.PasswordSalt))
-                {
-                    accounts[userId] = account with { UserId = userId };
-                }
+                imported |= RegisterLoadedAccount(account, overwrite: false);
             }
+
+            return imported;
         }
         catch
         {
-            accounts.Clear();
+            return false;
         }
     }
 
     private void Save()
     {
-        persistence?.Write(JsonSerializer.Serialize(
+        if (structuredPersistence is not null)
+        {
+            structuredPersistence.ReplaceAll(accounts.ToDictionary(
+                pair => AccountRowKey(pair.Key),
+                pair => JsonSerializer.Serialize(pair.Value, JsonOptions),
+                StringComparer.Ordinal));
+            return;
+        }
+
+        legacyPersistence?.Write(JsonSerializer.Serialize(
             new OfflineAccountPersistence(accounts.Values.OrderBy(account => account.UserId, StringComparer.Ordinal).ToList()),
             JsonOptions));
+    }
+
+    private bool RegisterLoadedAccount(OfflineAccountRecord? account, bool overwrite)
+    {
+        if (account is null)
+        {
+            return false;
+        }
+
+        string userId = NormalizeUserId(account.UserId);
+        if (string.IsNullOrWhiteSpace(userId)
+            || string.IsNullOrWhiteSpace(account.PasswordHash)
+            || string.IsNullOrWhiteSpace(account.PasswordSalt))
+        {
+            return false;
+        }
+
+        if (accounts.ContainsKey(userId) && !overwrite)
+        {
+            return false;
+        }
+
+        accounts[userId] = account with { UserId = userId };
+        return true;
     }
 
     private static OfflineAccountRecord CreateRecord(
@@ -203,6 +273,11 @@ public sealed class OfflineAccountRegistry
     private static string NormalizeUserId(string? userId)
     {
         return (userId ?? string.Empty).Trim();
+    }
+
+    private static string AccountRowKey(string userId)
+    {
+        return "account:" + userId;
     }
 
     private sealed record OfflineAccountPersistence(IReadOnlyList<OfflineAccountRecord> Accounts);

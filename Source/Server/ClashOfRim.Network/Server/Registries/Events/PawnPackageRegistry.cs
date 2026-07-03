@@ -11,7 +11,8 @@ public sealed class PawnPackageRegistry
         WriteIndented = false
     };
 
-    private readonly IJsonPersistenceSlot? persistence;
+    private readonly IJsonPersistenceSlot? legacyPersistence;
+    private readonly IPawnPackagePersistenceStore? structuredPersistence;
     private readonly Dictionary<string, StoredPawnPackageRecord> packages = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string> idByIdempotencyKey = new(StringComparer.Ordinal);
 
@@ -22,7 +23,16 @@ public sealed class PawnPackageRegistry
 
     internal PawnPackageRegistry(IJsonPersistenceSlot? persistence)
     {
-        this.persistence = persistence;
+        legacyPersistence = persistence;
+        Load();
+    }
+
+    internal PawnPackageRegistry(
+        IPawnPackagePersistenceStore structuredPersistence,
+        IJsonPersistenceSlot? legacyPersistence)
+    {
+        this.structuredPersistence = structuredPersistence;
+        this.legacyPersistence = legacyPersistence;
         Load();
     }
 
@@ -54,7 +64,7 @@ public sealed class PawnPackageRegistry
             json);
         packages[record.PackageId] = record;
         idByIdempotencyKey[idempotencyKey] = record.PackageId;
-        Save();
+        Persist(record);
         return record;
     }
 
@@ -81,12 +91,45 @@ public sealed class PawnPackageRegistry
 
     private void Load()
     {
-        if (persistence is null)
+        bool hasStructured = structuredPersistence?.IsInitialized() == true;
+        LoadStructured();
+        if (!hasStructured)
+        {
+            LoadLegacyReadOnly();
+        }
+    }
+
+    private void LoadStructured()
+    {
+        if (structuredPersistence is null)
         {
             return;
         }
 
-        string? json = persistence.Read();
+        foreach (StoredPawnPackageRecord record in structuredPersistence.ReadAll())
+        {
+            AddLoadedRecord(record, persistStructured: false);
+        }
+
+        foreach (KeyValuePair<string, string> pair in structuredPersistence.ReadIdempotencyMap())
+        {
+            if (!string.IsNullOrWhiteSpace(pair.Key)
+                && !string.IsNullOrWhiteSpace(pair.Value)
+                && packages.ContainsKey(pair.Value))
+            {
+                idByIdempotencyKey[pair.Key] = pair.Value;
+            }
+        }
+    }
+
+    private void LoadLegacyReadOnly()
+    {
+        if (legacyPersistence is null)
+        {
+            return;
+        }
+
+        string? json = legacyPersistence.Read();
         if (string.IsNullOrWhiteSpace(json))
         {
             return;
@@ -103,15 +146,7 @@ public sealed class PawnPackageRegistry
 
             foreach (StoredPawnPackageRecord record in persisted.Packages)
             {
-                if (string.IsNullOrWhiteSpace(record.PackageId)
-                    || string.IsNullOrWhiteSpace(record.IdempotencyKey)
-                    || string.IsNullOrWhiteSpace(record.PackageJson))
-                {
-                    continue;
-                }
-
-                packages[record.PackageId] = record;
-                idByIdempotencyKey[record.IdempotencyKey] = record.PackageId;
+                AddLoadedRecord(record, persistStructured: structuredPersistence is not null);
             }
         }
         catch (JsonException)
@@ -121,9 +156,51 @@ public sealed class PawnPackageRegistry
         }
     }
 
-    private void Save()
+    private void AddLoadedRecord(StoredPawnPackageRecord record, bool persistStructured)
     {
-        if (persistence is null)
+        if (string.IsNullOrWhiteSpace(record.PackageId)
+            || string.IsNullOrWhiteSpace(record.IdempotencyKey)
+            || string.IsNullOrWhiteSpace(record.PackageJson))
+        {
+            return;
+        }
+
+        bool missingRecord = !packages.ContainsKey(record.PackageId);
+        if (missingRecord)
+        {
+            packages[record.PackageId] = record;
+        }
+
+        if (!idByIdempotencyKey.ContainsKey(record.IdempotencyKey)
+            && packages.ContainsKey(record.PackageId))
+        {
+            idByIdempotencyKey[record.IdempotencyKey] = record.PackageId;
+            if (persistStructured)
+            {
+                structuredPersistence?.MapIdempotencyKey(record.IdempotencyKey, record.PackageId);
+            }
+        }
+
+        if (missingRecord && persistStructured)
+        {
+            structuredPersistence?.Upsert(record);
+        }
+    }
+
+    private void Persist(StoredPawnPackageRecord record)
+    {
+        if (structuredPersistence is not null)
+        {
+            structuredPersistence.Upsert(record);
+            return;
+        }
+
+        SaveLegacy();
+    }
+
+    private void SaveLegacy()
+    {
+        if (legacyPersistence is null)
         {
             return;
         }
@@ -131,7 +208,7 @@ public sealed class PawnPackageRegistry
         string json = JsonSerializer.Serialize(
             new PawnPackageRegistryPersistence(packages.Values.OrderBy(record => record.CreatedAtUtc).ToList()),
             JsonOptions);
-        persistence.Write(json);
+        legacyPersistence.Write(json);
     }
 
     private sealed record PawnPackageRegistryPersistence(IReadOnlyList<StoredPawnPackageRecord> Packages);

@@ -12,7 +12,8 @@ public sealed class ServerShopRegistry
     };
 
     private readonly object sync = new();
-    private readonly IJsonPersistenceSlot? persistence;
+    private readonly IKeyedJsonRecordStore? structuredPersistence;
+    private readonly IJsonPersistenceSlot? legacyPersistence;
     private readonly Dictionary<string, ServerShopListingRecord> listings = new(StringComparer.Ordinal);
     private readonly Dictionary<string, int> buyerPurchaseCounts = new(StringComparer.Ordinal);
     private readonly HashSet<string> completedPurchaseKeys = new(StringComparer.Ordinal);
@@ -23,8 +24,16 @@ public sealed class ServerShopRegistry
     }
 
     internal ServerShopRegistry(IJsonPersistenceSlot? persistence)
+        : this(null, persistence)
     {
-        this.persistence = persistence;
+    }
+
+    internal ServerShopRegistry(
+        IKeyedJsonRecordStore? structuredPersistence,
+        IJsonPersistenceSlot? legacyPersistence)
+    {
+        this.structuredPersistence = structuredPersistence;
+        this.legacyPersistence = legacyPersistence;
         Load();
     }
 
@@ -305,23 +314,86 @@ public sealed class ServerShopRegistry
 
     private void Load()
     {
-        string? json = persistence?.Read();
-        if (string.IsNullOrWhiteSpace(json))
+        bool hasStructured = structuredPersistence?.IsInitialized() == true;
+        LoadStructured();
+        bool importedLegacy = !hasStructured && LoadLegacyReadOnly();
+        if (importedLegacy && structuredPersistence is not null)
+        {
+            Save();
+        }
+    }
+
+    private void LoadStructured()
+    {
+        if (structuredPersistence is null)
         {
             return;
+        }
+
+        foreach (KeyValuePair<string, string> pair in structuredPersistence.ReadAll())
+        {
+            try
+            {
+                if (pair.Key.StartsWith("listing:", StringComparison.Ordinal))
+                {
+                    ServerShopListingRecord? listing =
+                        JsonSerializer.Deserialize<ServerShopListingRecord>(pair.Value, JsonOptions);
+                    if (listing is not null && IsValidLoadedListing(listing))
+                    {
+                        listings[listing.ListingId] = listing;
+                    }
+                }
+                else if (pair.Key.StartsWith("buyer:", StringComparison.Ordinal))
+                {
+                    ServerShopBuyerPurchaseRecord? purchase =
+                        JsonSerializer.Deserialize<ServerShopBuyerPurchaseRecord>(pair.Value, JsonOptions);
+                    if (IsValidBuyerPurchaseRecord(purchase))
+                    {
+                        buyerPurchaseCounts[BuyerPurchaseKey(purchase!.ListingId, purchase.UserId, purchase.ColonyId)] =
+                            purchase.PurchaseCount;
+                    }
+                }
+                else if (pair.Key.StartsWith("completed:", StringComparison.Ordinal))
+                {
+                    string? key = JsonSerializer.Deserialize<string>(pair.Value, JsonOptions);
+                    if (!string.IsNullOrWhiteSpace(key))
+                    {
+                        completedPurchaseKeys.Add(key);
+                    }
+                }
+            }
+            catch (JsonException)
+            {
+            }
+        }
+    }
+
+    private bool LoadLegacyReadOnly()
+    {
+        string? json = legacyPersistence?.Read();
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return false;
         }
 
         ServerShopRegistryPersistence? persisted = JsonSerializer.Deserialize<ServerShopRegistryPersistence>(json, JsonOptions);
         if (persisted is null)
         {
-            return;
+            return false;
         }
 
+        bool imported = false;
         foreach (ServerShopListingRecord listing in persisted.Listings ?? Array.Empty<ServerShopListingRecord>())
         {
             if (IsValidLoadedListing(listing))
             {
+                if (listings.ContainsKey(listing.ListingId))
+                {
+                    continue;
+                }
+
                 listings[listing.ListingId] = listing;
+                imported = true;
             }
             else if (!string.IsNullOrWhiteSpace(listing.ListingId))
             {
@@ -333,25 +405,58 @@ public sealed class ServerShopRegistry
         {
             if (!string.IsNullOrWhiteSpace(key))
             {
-                completedPurchaseKeys.Add(key);
+                imported |= completedPurchaseKeys.Add(key);
             }
         }
 
         foreach (ServerShopBuyerPurchaseRecord purchase in persisted.BuyerPurchaseCounts ?? Array.Empty<ServerShopBuyerPurchaseRecord>())
         {
-            if (!string.IsNullOrWhiteSpace(purchase.ListingId)
-                && !string.IsNullOrWhiteSpace(purchase.UserId)
-                && !string.IsNullOrWhiteSpace(purchase.ColonyId)
-                && purchase.PurchaseCount > 0)
+            if (IsValidBuyerPurchaseRecord(purchase))
             {
-                buyerPurchaseCounts[BuyerPurchaseKey(purchase.ListingId, purchase.UserId, purchase.ColonyId)] = purchase.PurchaseCount;
+                string key = BuyerPurchaseKey(purchase.ListingId, purchase.UserId, purchase.ColonyId);
+                if (!buyerPurchaseCounts.ContainsKey(key))
+                {
+                    buyerPurchaseCounts[key] = purchase.PurchaseCount;
+                    imported = true;
+                }
             }
         }
+
+        return imported;
     }
 
     private void Save()
     {
-        persistence?.Write(JsonSerializer.Serialize(
+        if (structuredPersistence is not null)
+        {
+            Dictionary<string, string> rows = new(StringComparer.Ordinal);
+            foreach (ServerShopListingRecord listing in listings.Values.OrderBy(listing => listing.ListingId, StringComparer.Ordinal))
+            {
+                rows[ListingRowKey(listing.ListingId)] = JsonSerializer.Serialize(listing, JsonOptions);
+            }
+
+            foreach (ServerShopBuyerPurchaseRecord purchase in buyerPurchaseCounts
+                         .Select(pair => ServerShopBuyerPurchaseRecord.FromKey(pair.Key, pair.Value))
+                         .Where(record => record is not null)
+                         .Cast<ServerShopBuyerPurchaseRecord>()
+                         .OrderBy(record => record.ListingId, StringComparer.Ordinal)
+                         .ThenBy(record => record.UserId, StringComparer.Ordinal)
+                         .ThenBy(record => record.ColonyId, StringComparer.Ordinal))
+            {
+                rows[BuyerPurchaseRowKey(purchase.ListingId, purchase.UserId, purchase.ColonyId)] =
+                    JsonSerializer.Serialize(purchase, JsonOptions);
+            }
+
+            foreach (string key in completedPurchaseKeys.OrderBy(key => key, StringComparer.Ordinal))
+            {
+                rows[CompletedPurchaseRowKey(key)] = JsonSerializer.Serialize(key, JsonOptions);
+            }
+
+            structuredPersistence.ReplaceAll(rows);
+            return;
+        }
+
+        legacyPersistence?.Write(JsonSerializer.Serialize(
             new ServerShopRegistryPersistence(
                 listings.Values.OrderBy(listing => listing.ListingId, StringComparer.Ordinal).ToList(),
                 buyerPurchaseCounts
@@ -378,6 +483,15 @@ public sealed class ServerShopRegistry
             && ServerShopQualityRequirementModes.IsKnown(listing.QualityRequirementMode)
             && ServerShopHitPointsRequirementModes.IsKnown(listing.HitPointsRequirementMode)
             && listing.Item is not null;
+    }
+
+    private static bool IsValidBuyerPurchaseRecord(ServerShopBuyerPurchaseRecord? purchase)
+    {
+        return purchase is not null
+            && !string.IsNullOrWhiteSpace(purchase.ListingId)
+            && !string.IsNullOrWhiteSpace(purchase.UserId)
+            && !string.IsNullOrWhiteSpace(purchase.ColonyId)
+            && purchase.PurchaseCount > 0;
     }
 
     public int GetBuyerPurchaseCount(string listingId, ProtocolIdentity? buyer)
@@ -488,6 +602,21 @@ public sealed class ServerShopRegistry
     private static string BuyerPurchaseKey(string listingId, string userId, string colonyId)
     {
         return listingId + "\u001f" + userId + "\u001f" + colonyId;
+    }
+
+    private static string ListingRowKey(string listingId)
+    {
+        return "listing:" + listingId;
+    }
+
+    private static string BuyerPurchaseRowKey(string listingId, string userId, string colonyId)
+    {
+        return "buyer:" + BuyerPurchaseKey(listingId, userId, colonyId);
+    }
+
+    private static string CompletedPurchaseRowKey(string idempotencyKey)
+    {
+        return "completed:" + idempotencyKey;
     }
 
     private sealed record ServerShopRegistryPersistence(

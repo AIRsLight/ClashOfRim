@@ -112,24 +112,51 @@ public static partial class ClashOfRimNetworkServer
             serverConfiguration: serverConfiguration,
             serverConfigurationOverrides: serverConfigurationOverrides,
             worldConfigurationRegistry: new WorldConfigurationRegistry(
+                new SqliteKeyedJsonRecordStore(databasePath, "world-configuration"),
                 new SqliteJsonPersistenceSlot(databasePath, "world-configuration"),
                 new SqliteJsonPersistenceSlot(databasePath, "world-configuration"),
                 WorldConfigurationExtensionService.Empty),
             compatibilityBaselineRegistry: new CompatibilityBaselineRegistry(new SqliteJsonPersistenceSlot(databasePath, "compatibility-baseline")),
             adminBaselineRegistry: new AdminBaselineRegistry(new SqliteJsonPersistenceSlot(databasePath, "admin-baseline")),
-            playerRegistry: new PlayerRegistry(new SqliteJsonPersistenceSlot(databasePath, "players")),
-            diplomacyRelations: new DiplomacyRelationRegistry(new SqliteJsonPersistenceSlot(databasePath, "diplomacy-relations")),
-            pawnPackages: new PawnPackageRegistry(new SqliteJsonPersistenceSlot(databasePath, "pawn-packages")),
-            thingPackages: new ThingPackageRegistry(new SqliteJsonPersistenceSlot(databasePath, "thing-packages")),
-            raidProtectionActivations: new RaidProtectionActivationRegistry(new SqliteJsonPersistenceSlot(databasePath, "raid-protection-activations")),
-            bankLoans: new BankLoanRegistry(new SqliteJsonPersistenceSlot(databasePath, "bank-loans")),
-            mercenaryContracts: new MercenaryContractRegistry(new SqliteJsonPersistenceSlot(databasePath, "mercenary-contracts")),
-            mercenaryGuards: new MercenaryGuardContractRegistry(new SqliteJsonPersistenceSlot(databasePath, "mercenary-guards")),
-            chatMessages: new ChatMessageRegistry(new SqliteJsonPersistenceSlot(databasePath, "chat-messages")),
-            serverShop: new ServerShopRegistry(new SqliteJsonPersistenceSlot(databasePath, "server-shop")),
-            achievements: new AchievementRegistry(new SqliteJsonPersistenceSlot(databasePath, "achievements")),
-            adminControl: new AdminControlRegistry(new SqliteJsonPersistenceSlot(databasePath, "admin-control")),
-            offlineAccounts: new OfflineAccountRegistry(new SqliteJsonPersistenceSlot(databasePath, "offline-accounts")),
+            playerRegistry: new PlayerRegistry(
+                new SqlitePlayerRegistryStore(databasePath),
+                new SqliteJsonPersistenceSlot(databasePath, "players")),
+            diplomacyRelations: new DiplomacyRelationRegistry(
+                new SqliteKeyedJsonRecordStore(databasePath, "diplomacy-relations"),
+                new SqliteJsonPersistenceSlot(databasePath, "diplomacy-relations")),
+            pawnPackages: new PawnPackageRegistry(
+                new SqlitePawnPackageStore(databasePath),
+                new SqliteJsonPersistenceSlot(databasePath, "pawn-packages")),
+            thingPackages: new ThingPackageRegistry(
+                new SqliteThingPackageStore(databasePath),
+                new SqliteJsonPersistenceSlot(databasePath, "thing-packages")),
+            raidProtectionActivations: new RaidProtectionActivationRegistry(
+                new SqliteKeyedJsonRecordStore(databasePath, "raid-protection-activations"),
+                new SqliteJsonPersistenceSlot(databasePath, "raid-protection-activations")),
+            bankLoans: new BankLoanRegistry(
+                new SqliteKeyedJsonRecordStore(databasePath, "bank-loans"),
+                new SqliteJsonPersistenceSlot(databasePath, "bank-loans")),
+            mercenaryContracts: new MercenaryContractRegistry(
+                new SqliteKeyedJsonRecordStore(databasePath, "mercenary-contracts"),
+                new SqliteJsonPersistenceSlot(databasePath, "mercenary-contracts")),
+            mercenaryGuards: new MercenaryGuardContractRegistry(
+                new SqliteKeyedJsonRecordStore(databasePath, "mercenary-guards"),
+                new SqliteJsonPersistenceSlot(databasePath, "mercenary-guards")),
+            chatMessages: new ChatMessageRegistry(
+                new SqliteKeyedJsonRecordStore(databasePath, "chat-messages"),
+                new SqliteJsonPersistenceSlot(databasePath, "chat-messages")),
+            serverShop: new ServerShopRegistry(
+                new SqliteKeyedJsonRecordStore(databasePath, "server-shop"),
+                new SqliteJsonPersistenceSlot(databasePath, "server-shop")),
+            achievements: new AchievementRegistry(
+                new SqliteKeyedJsonRecordStore(databasePath, "achievements"),
+                new SqliteJsonPersistenceSlot(databasePath, "achievements")),
+            adminControl: new AdminControlRegistry(
+                new SqliteKeyedJsonRecordStore(databasePath, "admin-control"),
+                new SqliteJsonPersistenceSlot(databasePath, "admin-control")),
+            offlineAccounts: new OfflineAccountRegistry(
+                new SqliteKeyedJsonRecordStore(databasePath, "offline-accounts"),
+                new SqliteJsonPersistenceSlot(databasePath, "offline-accounts")),
             steamAuthTickets: BuildSteamAuthTicketValidator(serverConfiguration),
             plugins: plugins);
     }

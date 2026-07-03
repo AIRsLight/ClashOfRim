@@ -18,7 +18,8 @@ public sealed class WorldConfigurationRegistry
     };
 
     private readonly object gate = new();
-    private readonly IJsonPersistenceSlot? persistence;
+    private readonly IKeyedJsonRecordStore? structuredPersistence;
+    private readonly IJsonPersistenceSlot? legacyPersistence;
     private readonly IBinaryPersistenceSlot? binaryPersistence;
     private readonly WorldConfigurationExtensionService worldExtensions;
     private string? administratorUserId;
@@ -46,8 +47,18 @@ public sealed class WorldConfigurationRegistry
         IJsonPersistenceSlot? persistence,
         IBinaryPersistenceSlot? binaryPersistence,
         WorldConfigurationExtensionService? worldExtensions)
+        : this(null, persistence, binaryPersistence, worldExtensions)
     {
-        this.persistence = persistence;
+    }
+
+    internal WorldConfigurationRegistry(
+        IKeyedJsonRecordStore? structuredPersistence,
+        IJsonPersistenceSlot? legacyPersistence,
+        IBinaryPersistenceSlot? binaryPersistence,
+        WorldConfigurationExtensionService? worldExtensions)
+    {
+        this.structuredPersistence = structuredPersistence;
+        this.legacyPersistence = legacyPersistence;
         this.binaryPersistence = binaryPersistence;
         this.worldExtensions = worldExtensions ?? WorldConfigurationExtensionService.Empty;
         Load();
@@ -797,17 +808,91 @@ public sealed class WorldConfigurationRegistry
 
     private void Load()
     {
-        if (persistence is null)
+        bool hasStructured = structuredPersistence?.IsInitialized() == true;
+        LoadStructured();
+        bool importedLegacy = !hasStructured && LoadLegacyReadOnly();
+        if (importedLegacy && structuredPersistence is not null)
+        {
+            SaveLocked();
+        }
+    }
+
+    private void LoadStructured()
+    {
+        if (structuredPersistence is null)
         {
             return;
         }
 
         try
         {
-            string? json = persistence.Read();
-            if (string.IsNullOrWhiteSpace(json))
+            IReadOnlyDictionary<string, string> rows = structuredPersistence.ReadAll();
+            if (rows.Count == 0)
             {
                 return;
+            }
+
+            WorldConfigurationStateRecord? state = TryDeserializeRow<WorldConfigurationStateRecord>(rows, "state");
+            administratorUserId = string.IsNullOrWhiteSpace(state?.AdministratorUserId)
+                ? null
+                : state!.AdministratorUserId;
+            administratorUserIds = state?.AdministratorUserIds is null
+                ? new HashSet<string>(StringComparer.Ordinal)
+                : state.AdministratorUserIds
+                    .Where(userId => !string.IsNullOrWhiteSpace(userId))
+                    .ToHashSet(StringComparer.Ordinal);
+            EnsurePrimaryAdministratorLocked();
+
+            WorldConfigurationCoreRecord? core = TryDeserializeRow<WorldConfigurationCoreRecord>(rows, "core");
+            if (core is null)
+            {
+                worldConfiguration = null;
+                return;
+            }
+
+            IReadOnlyList<WorldFeatureNameCatalogDto> catalogs = rows
+                .Where(pair => pair.Key.StartsWith("feature-name-catalog:", StringComparison.Ordinal))
+                .Select(pair => TryDeserialize<WorldFeatureNameCatalogDto>(pair.Value))
+                .Where(catalog => catalog is not null)
+                .Cast<WorldFeatureNameCatalogDto>()
+                .OrderBy(catalog => catalog.Language, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            worldConfiguration = core.ToDto(
+                TryDeserializeRow<WorldConfigurationListRecord<WorldFeatureDto>>(rows, "features")?.Values,
+                TryDeserializeRow<WorldConfigurationListRecord<WorldFactionDto>>(rows, "factions")?.Values,
+                TryDeserializeRow<WorldConfigurationListRecord<WorldRoadDto>>(rows, "roads")?.Values,
+                TryDeserializeRow<WorldConfigurationListRecord<WorldObjectBaselineDto>>(rows, "world-objects")?.Values,
+                TryDeserializeRow<WorldConfigurationListRecord<PlayerColonySiteDto>>(rows, "player-colony-sites")?.Values,
+                WorldTileGeometryBinaryCodec.Decode(binaryPersistence?.ReadBinary("tile-geometry")),
+                TryDeserializeRow<WorldConfigurationListRecord<WorldConfigurationExtensionDto>>(rows, "extensions")?.Values,
+                catalogs);
+        }
+        catch (JsonException)
+        {
+            administratorUserId = null;
+            worldConfiguration = null;
+        }
+        catch (IOException)
+        {
+            administratorUserId = null;
+            worldConfiguration = null;
+        }
+    }
+
+    private bool LoadLegacyReadOnly()
+    {
+        if (legacyPersistence is null)
+        {
+            return false;
+        }
+
+        try
+        {
+            string? json = legacyPersistence.Read();
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                return false;
             }
 
             WorldConfigurationPersistence? persisted =
@@ -822,22 +907,32 @@ public sealed class WorldConfigurationRegistry
                     .ToHashSet(StringComparer.Ordinal);
             EnsurePrimaryAdministratorLocked();
             worldConfiguration = RestorePersistedWorldConfiguration(persisted);
+            return true;
         }
         catch (JsonException)
         {
             administratorUserId = null;
             worldConfiguration = null;
+            return false;
         }
         catch (IOException)
         {
             administratorUserId = null;
             worldConfiguration = null;
+            return false;
         }
     }
 
     private void SaveLocked()
     {
-        if (persistence is null)
+        if (structuredPersistence is not null)
+        {
+            structuredPersistence.ReplaceAll(BuildStructuredRows());
+            binaryPersistence?.WriteBinary("tile-geometry", WorldTileGeometryBinaryCodec.Encode(worldConfiguration?.TileGeometry));
+            return;
+        }
+
+        if (legacyPersistence is null)
         {
             return;
         }
@@ -845,8 +940,43 @@ public sealed class WorldConfigurationRegistry
         string json = JsonSerializer.Serialize(
             BuildPersistenceSnapshot(administratorUserId, administratorUserIds, worldConfiguration),
             JsonOptions);
-        persistence.Write(json);
+        legacyPersistence.Write(json);
         binaryPersistence?.WriteBinary("tile-geometry", WorldTileGeometryBinaryCodec.Encode(worldConfiguration?.TileGeometry));
+    }
+
+    private IReadOnlyDictionary<string, string> BuildStructuredRows()
+    {
+        Dictionary<string, string> rows = new(StringComparer.Ordinal)
+        {
+            ["state"] = JsonSerializer.Serialize(
+                new WorldConfigurationStateRecord(administratorUserId, administratorUserIds.ToList()),
+                JsonOptions)
+        };
+
+        if (worldConfiguration is null)
+        {
+            return rows;
+        }
+
+        WorldConfigurationDto configuration = worldConfiguration;
+        rows["core"] = JsonSerializer.Serialize(WorldConfigurationCoreRecord.FromDto(configuration), JsonOptions);
+        rows["features"] = JsonSerializer.Serialize(new WorldConfigurationListRecord<WorldFeatureDto>(configuration.Features), JsonOptions);
+        rows["factions"] = JsonSerializer.Serialize(new WorldConfigurationListRecord<WorldFactionDto>(configuration.Factions), JsonOptions);
+        rows["roads"] = JsonSerializer.Serialize(new WorldConfigurationListRecord<WorldRoadDto>(configuration.Roads), JsonOptions);
+        rows["world-objects"] = JsonSerializer.Serialize(new WorldConfigurationListRecord<WorldObjectBaselineDto>(configuration.WorldObjects), JsonOptions);
+        rows["player-colony-sites"] = JsonSerializer.Serialize(new WorldConfigurationListRecord<PlayerColonySiteDto>(configuration.PlayerColonySites), JsonOptions);
+        rows["extensions"] = JsonSerializer.Serialize(new WorldConfigurationListRecord<WorldConfigurationExtensionDto>(configuration.Extensions), JsonOptions);
+        foreach (WorldFeatureNameCatalogDto catalog in configuration.FeatureNameCatalogs)
+        {
+            if (string.IsNullOrWhiteSpace(catalog.Language))
+            {
+                continue;
+            }
+
+            rows["feature-name-catalog:" + catalog.Language] = JsonSerializer.Serialize(catalog, JsonOptions);
+        }
+
+        return rows;
     }
 
     private bool IsAdministratorLocked(string userId)
@@ -936,6 +1066,108 @@ public sealed class WorldConfigurationRegistry
             configuration.Extensions,
             configuration.GameLanguage,
             configuration.FeatureNameCatalogs);
+    }
+
+    private static T? TryDeserializeRow<T>(IReadOnlyDictionary<string, string> rows, string key)
+    {
+        return rows.TryGetValue(key, out string? json)
+            ? TryDeserialize<T>(json)
+            : default;
+    }
+
+    private static T? TryDeserialize<T>(string json)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize<T>(json, JsonOptions);
+        }
+        catch (JsonException)
+        {
+            return default;
+        }
+    }
+
+    private sealed record WorldConfigurationStateRecord(
+        string? AdministratorUserId,
+        IReadOnlyList<string>? AdministratorUserIds);
+
+    private sealed record WorldConfigurationListRecord<T>(IReadOnlyList<T>? Values);
+
+    private sealed record WorldConfigurationCoreRecord(
+        string WorldConfigurationId,
+        string ConfiguredByUserId,
+        string ConfiguredByColonyId,
+        DateTimeOffset ConfiguredAtUtc,
+        string? SeedString,
+        string? PlanetCoverage,
+        string? OverallRainfall,
+        string? OverallTemperature,
+        string? OverallPopulation,
+        string? LandmarkDensity,
+        string? TileCount,
+        IReadOnlyList<string>? FactionDefNames,
+        string? StorytellerDefName,
+        string? DifficultyDefName,
+        string? DifficultyValuesXml,
+        string? GameLanguage)
+    {
+        public static WorldConfigurationCoreRecord FromDto(WorldConfigurationDto configuration)
+        {
+            return new WorldConfigurationCoreRecord(
+                configuration.WorldConfigurationId,
+                configuration.ConfiguredByUserId,
+                configuration.ConfiguredByColonyId,
+                configuration.ConfiguredAtUtc,
+                configuration.SeedString,
+                configuration.PlanetCoverage,
+                configuration.OverallRainfall,
+                configuration.OverallTemperature,
+                configuration.OverallPopulation,
+                configuration.LandmarkDensity,
+                configuration.TileCount,
+                configuration.FactionDefNames,
+                configuration.StorytellerDefName,
+                configuration.DifficultyDefName,
+                configuration.DifficultyValuesXml,
+                configuration.GameLanguage);
+        }
+
+        public WorldConfigurationDto ToDto(
+            IReadOnlyList<WorldFeatureDto>? features,
+            IReadOnlyList<WorldFactionDto>? factions,
+            IReadOnlyList<WorldRoadDto>? roads,
+            IReadOnlyList<WorldObjectBaselineDto>? worldObjects,
+            IReadOnlyList<PlayerColonySiteDto>? playerColonySites,
+            WorldTileGeometryDto? tileGeometry,
+            IReadOnlyList<WorldConfigurationExtensionDto>? extensions,
+            IReadOnlyList<WorldFeatureNameCatalogDto>? featureNameCatalogs)
+        {
+            return new WorldConfigurationDto(
+                WorldConfigurationId,
+                ConfiguredByUserId,
+                ConfiguredByColonyId,
+                ConfiguredAtUtc,
+                SeedString,
+                PlanetCoverage,
+                OverallRainfall,
+                OverallTemperature,
+                OverallPopulation,
+                LandmarkDensity,
+                TileCount,
+                FactionDefNames,
+                features,
+                factions,
+                roads,
+                worldObjects,
+                playerColonySites,
+                StorytellerDefName,
+                DifficultyDefName,
+                tileGeometry,
+                DifficultyValuesXml,
+                extensions,
+                GameLanguage,
+                featureNameCatalogs);
+        }
     }
 
     private sealed record WorldConfigurationPersistence(

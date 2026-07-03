@@ -123,7 +123,8 @@ public sealed class AchievementRegistry
     }
 
     private readonly object gate = new();
-    private readonly IJsonPersistenceSlot? persistence;
+    private readonly IKeyedJsonRecordStore? structuredPersistence;
+    private readonly IJsonPersistenceSlot? legacyPersistence;
     private readonly Dictionary<string, AchievementEventRecord> eventsByKey = new(StringComparer.Ordinal);
     private readonly Dictionary<string, AchievementAggregateRecord> aggregatesByKey = new(StringComparer.Ordinal);
     private readonly Dictionary<string, AchievementMetricEventRecord> metricEventsByKey = new(StringComparer.Ordinal);
@@ -136,8 +137,16 @@ public sealed class AchievementRegistry
     }
 
     internal AchievementRegistry(IJsonPersistenceSlot? persistence)
+        : this(null, persistence)
     {
-        this.persistence = persistence;
+    }
+
+    internal AchievementRegistry(
+        IKeyedJsonRecordStore? structuredPersistence,
+        IJsonPersistenceSlot? legacyPersistence)
+    {
+        this.structuredPersistence = structuredPersistence;
+        this.legacyPersistence = legacyPersistence;
         RegisterDefinitions(BuiltInDefinitions());
         Load();
     }
@@ -482,35 +491,80 @@ public sealed class AchievementRegistry
 
     private void Load()
     {
-        if (persistence is null)
+        bool hasStructured = structuredPersistence?.IsInitialized() == true;
+        LoadStructured();
+        bool importedLegacy = !hasStructured && LoadLegacyReadOnly();
+        if (importedLegacy && structuredPersistence is not null)
+        {
+            SaveLocked();
+        }
+    }
+
+    private void LoadStructured()
+    {
+        if (structuredPersistence is null)
         {
             return;
         }
 
-        string? json = persistence.Read();
+        foreach (KeyValuePair<string, string> pair in structuredPersistence.ReadAll())
+        {
+            try
+            {
+                if (pair.Key.StartsWith("event:", StringComparison.Ordinal))
+                {
+                    AchievementEventRecord? record =
+                        JsonSerializer.Deserialize<AchievementEventRecord>(pair.Value, JsonOptions);
+                    RegisterLoadedEvent(record, overwrite: true);
+                }
+                else if (pair.Key.StartsWith("aggregate:", StringComparison.Ordinal))
+                {
+                    AchievementAggregateRecord? record =
+                        JsonSerializer.Deserialize<AchievementAggregateRecord>(pair.Value, JsonOptions);
+                    RegisterLoadedAggregate(record, overwrite: true);
+                }
+                else if (pair.Key.StartsWith("metric-event:", StringComparison.Ordinal))
+                {
+                    AchievementMetricEventRecord? record =
+                        JsonSerializer.Deserialize<AchievementMetricEventRecord>(pair.Value, JsonOptions);
+                    RegisterLoadedMetricEvent(record, overwrite: true);
+                }
+                else if (pair.Key.StartsWith("metric-aggregate:", StringComparison.Ordinal))
+                {
+                    AchievementMetricAggregateRecord? record =
+                        JsonSerializer.Deserialize<AchievementMetricAggregateRecord>(pair.Value, JsonOptions);
+                    RegisterLoadedMetricAggregate(record, overwrite: true);
+                }
+            }
+            catch (JsonException)
+            {
+            }
+        }
+    }
+
+    private bool LoadLegacyReadOnly()
+    {
+        if (legacyPersistence is null)
+        {
+            return false;
+        }
+
+        string? json = legacyPersistence.Read();
         if (string.IsNullOrWhiteSpace(json))
         {
-            return;
+            return false;
         }
 
         try
         {
             AchievementRegistryPersistence? persisted =
                 JsonSerializer.Deserialize<AchievementRegistryPersistence>(json, JsonOptions);
+            bool imported = false;
             if (persisted?.Events is not null)
             {
                 foreach (AchievementEventRecord record in persisted.Events)
                 {
-                    if (string.IsNullOrWhiteSpace(record.UserId)
-                        || string.IsNullOrWhiteSpace(record.ColonyId)
-                        || string.IsNullOrWhiteSpace(record.AchievementId)
-                        || string.IsNullOrWhiteSpace(record.EventKey)
-                        || IsDeprecatedAchievementId(record.AchievementId))
-                    {
-                        continue;
-                    }
-
-                    eventsByKey[EventRecordKey(record.UserId, record.ColonyId, record.AchievementId, record.EventKey)] = record;
+                    imported |= RegisterLoadedEvent(record, overwrite: false);
                 }
             }
 
@@ -518,15 +572,7 @@ public sealed class AchievementRegistry
             {
                 foreach (AchievementAggregateRecord record in persisted.Aggregates)
                 {
-                    if (string.IsNullOrWhiteSpace(record.UserId)
-                        || string.IsNullOrWhiteSpace(record.ColonyId)
-                        || string.IsNullOrWhiteSpace(record.AchievementId)
-                        || IsDeprecatedAchievementId(record.AchievementId))
-                    {
-                        continue;
-                    }
-
-                    aggregatesByKey[AggregateKey(record.UserId, record.ColonyId, record.AchievementId)] = record;
+                    imported |= RegisterLoadedAggregate(record, overwrite: false);
                 }
             }
 
@@ -534,15 +580,7 @@ public sealed class AchievementRegistry
             {
                 foreach (AchievementMetricEventRecord record in persisted.MetricEvents)
                 {
-                    if (string.IsNullOrWhiteSpace(record.UserId)
-                        || string.IsNullOrWhiteSpace(record.ColonyId)
-                        || string.IsNullOrWhiteSpace(record.MetricId)
-                        || string.IsNullOrWhiteSpace(record.EventKey))
-                    {
-                        continue;
-                    }
-
-                    metricEventsByKey[MetricEventRecordKey(record.UserId, record.ColonyId, record.MetricId, record.EventKey)] = record;
+                    imported |= RegisterLoadedMetricEvent(record, overwrite: false);
                 }
             }
 
@@ -550,30 +588,52 @@ public sealed class AchievementRegistry
             {
                 foreach (AchievementMetricAggregateRecord record in persisted.MetricAggregates)
                 {
-                    if (string.IsNullOrWhiteSpace(record.UserId)
-                        || string.IsNullOrWhiteSpace(record.ColonyId)
-                        || string.IsNullOrWhiteSpace(record.MetricId))
-                    {
-                        continue;
-                    }
-
-                    metricAggregatesByKey[MetricAggregateKey(record.UserId, record.ColonyId, record.MetricId)] = record;
+                    imported |= RegisterLoadedMetricAggregate(record, overwrite: false);
                 }
             }
+
+            return imported;
         }
         catch (JsonException)
         {
-            eventsByKey.Clear();
-            aggregatesByKey.Clear();
-            metricEventsByKey.Clear();
-            metricAggregatesByKey.Clear();
-            sortedAggregatesCache = null;
+            return false;
         }
     }
 
     private void SaveLocked()
     {
-        if (persistence is null)
+        if (structuredPersistence is not null)
+        {
+            Dictionary<string, string> rows = new(StringComparer.Ordinal);
+            foreach (AchievementEventRecord record in eventsByKey.Values)
+            {
+                rows[AchievementEventRowKey(record.UserId, record.ColonyId, record.AchievementId, record.EventKey)] =
+                    JsonSerializer.Serialize(record, JsonOptions);
+            }
+
+            foreach (AchievementAggregateRecord record in aggregatesByKey.Values)
+            {
+                rows[AchievementAggregateRowKey(record.UserId, record.ColonyId, record.AchievementId)] =
+                    JsonSerializer.Serialize(record, JsonOptions);
+            }
+
+            foreach (AchievementMetricEventRecord record in metricEventsByKey.Values)
+            {
+                rows[AchievementMetricEventRowKey(record.UserId, record.ColonyId, record.MetricId, record.EventKey)] =
+                    JsonSerializer.Serialize(record, JsonOptions);
+            }
+
+            foreach (AchievementMetricAggregateRecord record in metricAggregatesByKey.Values)
+            {
+                rows[AchievementMetricAggregateRowKey(record.UserId, record.ColonyId, record.MetricId)] =
+                    JsonSerializer.Serialize(record, JsonOptions);
+            }
+
+            structuredPersistence.ReplaceAll(rows);
+            return;
+        }
+
+        if (legacyPersistence is null)
         {
             return;
         }
@@ -599,7 +659,92 @@ public sealed class AchievementRegistry
                     .ThenBy(record => record.MetricId, StringComparer.Ordinal)
                     .ToArray()),
             JsonOptions);
-        persistence.Write(json);
+        legacyPersistence.Write(json);
+    }
+
+    private bool RegisterLoadedEvent(AchievementEventRecord? record, bool overwrite)
+    {
+        if (record is null
+            || string.IsNullOrWhiteSpace(record.UserId)
+            || string.IsNullOrWhiteSpace(record.ColonyId)
+            || string.IsNullOrWhiteSpace(record.AchievementId)
+            || string.IsNullOrWhiteSpace(record.EventKey)
+            || IsDeprecatedAchievementId(record.AchievementId))
+        {
+            return false;
+        }
+
+        string key = EventRecordKey(record.UserId, record.ColonyId, record.AchievementId, record.EventKey);
+        if (eventsByKey.ContainsKey(key) && !overwrite)
+        {
+            return false;
+        }
+
+        eventsByKey[key] = record;
+        return true;
+    }
+
+    private bool RegisterLoadedAggregate(AchievementAggregateRecord? record, bool overwrite)
+    {
+        if (record is null
+            || string.IsNullOrWhiteSpace(record.UserId)
+            || string.IsNullOrWhiteSpace(record.ColonyId)
+            || string.IsNullOrWhiteSpace(record.AchievementId)
+            || IsDeprecatedAchievementId(record.AchievementId))
+        {
+            return false;
+        }
+
+        string key = AggregateKey(record.UserId, record.ColonyId, record.AchievementId);
+        if (aggregatesByKey.ContainsKey(key) && !overwrite)
+        {
+            return false;
+        }
+
+        aggregatesByKey[key] = record;
+        sortedAggregatesCache = null;
+        return true;
+    }
+
+    private bool RegisterLoadedMetricEvent(AchievementMetricEventRecord? record, bool overwrite)
+    {
+        if (record is null
+            || string.IsNullOrWhiteSpace(record.UserId)
+            || string.IsNullOrWhiteSpace(record.ColonyId)
+            || string.IsNullOrWhiteSpace(record.MetricId)
+            || string.IsNullOrWhiteSpace(record.EventKey))
+        {
+            return false;
+        }
+
+        string key = MetricEventRecordKey(record.UserId, record.ColonyId, record.MetricId, record.EventKey);
+        if (metricEventsByKey.ContainsKey(key) && !overwrite)
+        {
+            return false;
+        }
+
+        metricEventsByKey[key] = record;
+        return true;
+    }
+
+    private bool RegisterLoadedMetricAggregate(AchievementMetricAggregateRecord? record, bool overwrite)
+    {
+        if (record is null
+            || string.IsNullOrWhiteSpace(record.UserId)
+            || string.IsNullOrWhiteSpace(record.ColonyId)
+            || string.IsNullOrWhiteSpace(record.MetricId))
+        {
+            return false;
+        }
+
+        string key = MetricAggregateKey(record.UserId, record.ColonyId, record.MetricId);
+        if (metricAggregatesByKey.ContainsKey(key) && !overwrite)
+        {
+            return false;
+        }
+
+        metricAggregatesByKey[key] = record;
+        return true;
     }
 
     private IReadOnlyList<AchievementAggregateRecord> ListAggregatesLocked()
@@ -648,6 +793,26 @@ public sealed class AchievementRegistry
     private static string MetricAggregateKey(string userId, string colonyId, string metricId)
     {
         return userId + "\n" + colonyId + "\n" + metricId;
+    }
+
+    private static string AchievementEventRowKey(string userId, string colonyId, string achievementId, string eventKey)
+    {
+        return "event:" + EventRecordKey(userId, colonyId, achievementId, eventKey);
+    }
+
+    private static string AchievementAggregateRowKey(string userId, string colonyId, string achievementId)
+    {
+        return "aggregate:" + AggregateKey(userId, colonyId, achievementId);
+    }
+
+    private static string AchievementMetricEventRowKey(string userId, string colonyId, string metricId, string eventKey)
+    {
+        return "metric-event:" + MetricEventRecordKey(userId, colonyId, metricId, eventKey);
+    }
+
+    private static string AchievementMetricAggregateRowKey(string userId, string colonyId, string metricId)
+    {
+        return "metric-aggregate:" + MetricAggregateKey(userId, colonyId, metricId);
     }
 
     private sealed record AchievementRegistryPersistence(

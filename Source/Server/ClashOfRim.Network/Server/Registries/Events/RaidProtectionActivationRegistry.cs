@@ -10,7 +10,8 @@ public sealed class RaidProtectionActivationRegistry
     };
 
     private readonly object gate = new();
-    private readonly IJsonPersistenceSlot? persistence;
+    private readonly IKeyedJsonRecordStore? structuredPersistence;
+    private readonly IJsonPersistenceSlot? legacyPersistence;
     private readonly Dictionary<string, RaidProtectionActivationRecord> activations = new(StringComparer.Ordinal);
 
     public RaidProtectionActivationRegistry()
@@ -19,8 +20,16 @@ public sealed class RaidProtectionActivationRegistry
     }
 
     internal RaidProtectionActivationRegistry(IJsonPersistenceSlot? persistence)
+        : this(null, persistence)
     {
-        this.persistence = persistence;
+    }
+
+    internal RaidProtectionActivationRegistry(
+        IKeyedJsonRecordStore? structuredPersistence,
+        IJsonPersistenceSlot? legacyPersistence)
+    {
+        this.structuredPersistence = structuredPersistence;
+        this.legacyPersistence = legacyPersistence;
         Load();
     }
 
@@ -110,25 +119,64 @@ public sealed class RaidProtectionActivationRegistry
 
     private void Load()
     {
-        if (persistence is null)
+        bool hasStructured = structuredPersistence?.IsInitialized() == true;
+        LoadStructured();
+        bool importedLegacy = !hasStructured && LoadLegacyReadOnly();
+        if (importedLegacy && structuredPersistence is not null)
+        {
+            SaveLocked();
+        }
+    }
+
+    private void LoadStructured()
+    {
+        if (structuredPersistence is null)
         {
             return;
         }
 
-        string? json = persistence.Read();
+        foreach (KeyValuePair<string, string> pair in structuredPersistence.ReadAll())
+        {
+            try
+            {
+                RaidProtectionActivationRecord? record =
+                    JsonSerializer.Deserialize<RaidProtectionActivationRecord>(pair.Value, JsonOptions);
+                if (record is null
+                    || string.IsNullOrWhiteSpace(record.RaidEventId)
+                    || string.IsNullOrWhiteSpace(record.DefenderUserId))
+                {
+                    continue;
+                }
+
+                activations[record.RaidEventId] = record;
+            }
+            catch (JsonException)
+            {
+            }
+        }
+    }
+
+    private bool LoadLegacyReadOnly()
+    {
+        if (legacyPersistence is null)
+        {
+            return false;
+        }
+
+        string? json = legacyPersistence.Read();
         if (string.IsNullOrWhiteSpace(json))
         {
-            return;
+            return false;
         }
 
         RaidProtectionActivationRegistryPersistence? persisted =
             JsonSerializer.Deserialize<RaidProtectionActivationRegistryPersistence>(json, JsonOptions);
         if (persisted?.Activations is null)
         {
-            return;
+            return false;
         }
 
-        activations.Clear();
+        bool imported = false;
         foreach (RaidProtectionActivationRecord record in persisted.Activations)
         {
             if (string.IsNullOrWhiteSpace(record.RaidEventId)
@@ -137,13 +185,30 @@ public sealed class RaidProtectionActivationRegistry
                 continue;
             }
 
+            if (activations.ContainsKey(record.RaidEventId))
+            {
+                continue;
+            }
+
             activations[record.RaidEventId] = record;
+            imported = true;
         }
+
+        return imported;
     }
 
     private void SaveLocked()
     {
-        if (persistence is null)
+        if (structuredPersistence is not null)
+        {
+            structuredPersistence.ReplaceAll(activations.ToDictionary(
+                pair => pair.Key,
+                pair => JsonSerializer.Serialize(pair.Value, JsonOptions),
+                StringComparer.Ordinal));
+            return;
+        }
+
+        if (legacyPersistence is null)
         {
             return;
         }
@@ -151,7 +216,7 @@ public sealed class RaidProtectionActivationRegistry
         string json = JsonSerializer.Serialize(
             new RaidProtectionActivationRegistryPersistence(activations.Values.ToList()),
             JsonOptions);
-        persistence.Write(json);
+        legacyPersistence.Write(json);
     }
 
     private sealed record RaidProtectionActivationRegistryPersistence(

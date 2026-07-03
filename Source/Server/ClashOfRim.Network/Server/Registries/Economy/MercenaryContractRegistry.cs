@@ -14,7 +14,8 @@ public sealed class MercenaryContractRegistry
     };
 
     private readonly object gate = new();
-    private readonly IJsonPersistenceSlot? persistence;
+    private readonly IKeyedJsonRecordStore? structuredPersistence;
+    private readonly IJsonPersistenceSlot? legacyPersistence;
     private readonly Dictionary<string, MercenaryContractRecord> contracts = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string> idByIdempotencyKey = new(StringComparer.Ordinal);
     private readonly Dictionary<string, int> openContractCountByColony = new(StringComparer.Ordinal);
@@ -25,8 +26,16 @@ public sealed class MercenaryContractRegistry
     }
 
     internal MercenaryContractRegistry(IJsonPersistenceSlot? persistence)
+        : this(null, persistence)
     {
-        this.persistence = persistence;
+    }
+
+    internal MercenaryContractRegistry(
+        IKeyedJsonRecordStore? structuredPersistence,
+        IJsonPersistenceSlot? legacyPersistence)
+    {
+        this.structuredPersistence = structuredPersistence;
+        this.legacyPersistence = legacyPersistence;
         Load();
     }
 
@@ -312,15 +321,49 @@ public sealed class MercenaryContractRegistry
 
     private void Load()
     {
-        if (persistence is null)
+        bool hasStructured = structuredPersistence?.IsInitialized() == true;
+        LoadStructured();
+        bool importedLegacy = !hasStructured && LoadLegacyReadOnly();
+        if (importedLegacy && structuredPersistence is not null)
+        {
+            SaveLocked();
+        }
+    }
+
+    private void LoadStructured()
+    {
+        if (structuredPersistence is null)
         {
             return;
         }
 
-        string? json = persistence.Read();
+        foreach (KeyValuePair<string, string> pair in structuredPersistence.ReadAll())
+        {
+            try
+            {
+                MercenaryContractRecord? contract = JsonSerializer.Deserialize<MercenaryContractRecord>(pair.Value, JsonOptions);
+                if (contract is not null)
+                {
+                    RegisterLoadedContract(contract, overwrite: true);
+                }
+            }
+            catch (JsonException)
+            {
+            }
+        }
+    }
+
+    private bool LoadLegacyReadOnly()
+    {
+        if (legacyPersistence is null)
+        {
+            return false;
+        }
+
+        string? json = legacyPersistence.Read();
         if (string.IsNullOrWhiteSpace(json))
         {
-            return;
+            return false;
         }
 
         try
@@ -329,40 +372,35 @@ public sealed class MercenaryContractRegistry
                 JsonSerializer.Deserialize<MercenaryContractRegistryPersistence>(json, JsonOptions);
             if (persisted?.Contracts is null)
             {
-                return;
+                return false;
             }
 
+            bool imported = false;
             foreach (MercenaryContractRecord contract in persisted.Contracts)
             {
-                if (string.IsNullOrWhiteSpace(contract.ContractId)
-                    || string.IsNullOrWhiteSpace(contract.IdempotencyKey)
-                    || string.IsNullOrWhiteSpace(contract.UserId)
-                    || string.IsNullOrWhiteSpace(contract.ColonyId))
-                {
-                    continue;
-                }
-
-                if (contracts.TryGetValue(contract.ContractId, out MercenaryContractRecord? existing))
-                {
-                    UnregisterOpenContract(existing);
-                }
-
-                contracts[contract.ContractId] = contract;
-                idByIdempotencyKey[contract.IdempotencyKey] = contract.ContractId;
-                RegisterOpenContract(contract);
+                imported |= RegisterLoadedContract(contract, overwrite: false);
             }
+
+            return imported;
         }
         catch (JsonException)
         {
-            contracts.Clear();
-            idByIdempotencyKey.Clear();
-            openContractCountByColony.Clear();
+            return false;
         }
     }
 
     private void SaveLocked()
     {
-        if (persistence is null)
+        if (structuredPersistence is not null)
+        {
+            structuredPersistence.ReplaceAll(contracts.ToDictionary(
+                pair => ContractRowKey(pair.Key),
+                pair => JsonSerializer.Serialize(pair.Value, JsonOptions),
+                StringComparer.Ordinal));
+            return;
+        }
+
+        if (legacyPersistence is null)
         {
             return;
         }
@@ -372,10 +410,36 @@ public sealed class MercenaryContractRegistry
                 .OrderBy(contract => contract.CreatedAtUtc)
                 .ToList()),
             JsonOptions);
-        persistence.Write(json);
+        legacyPersistence.Write(json);
     }
 
     private sealed record MercenaryContractRegistryPersistence(IReadOnlyList<MercenaryContractRecord> Contracts);
+
+    private bool RegisterLoadedContract(MercenaryContractRecord contract, bool overwrite)
+    {
+        if (string.IsNullOrWhiteSpace(contract.ContractId)
+            || string.IsNullOrWhiteSpace(contract.IdempotencyKey)
+            || string.IsNullOrWhiteSpace(contract.UserId)
+            || string.IsNullOrWhiteSpace(contract.ColonyId))
+        {
+            return false;
+        }
+
+        if (contracts.TryGetValue(contract.ContractId, out MercenaryContractRecord? existing))
+        {
+            if (!overwrite)
+            {
+                return false;
+            }
+
+            UnregisterOpenContract(existing);
+        }
+
+        contracts[contract.ContractId] = contract;
+        idByIdempotencyKey[contract.IdempotencyKey] = contract.ContractId;
+        RegisterOpenContract(contract);
+        return true;
+    }
 
     private void RegisterOpenContract(MercenaryContractRecord contract)
     {
@@ -430,6 +494,11 @@ public sealed class MercenaryContractRegistry
         bool forceCancel)
     {
         return forceCancel || timeout <= TimeSpan.Zero || requestedAtUtc <= nowUtc - timeout;
+    }
+
+    private static string ContractRowKey(string contractId)
+    {
+        return "contract:" + contractId;
     }
 }
 

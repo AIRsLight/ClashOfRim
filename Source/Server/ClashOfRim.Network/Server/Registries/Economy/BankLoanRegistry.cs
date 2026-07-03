@@ -16,7 +16,8 @@ public sealed class BankLoanRegistry
     };
 
     private readonly object gate = new();
-    private readonly IJsonPersistenceSlot? persistence;
+    private readonly IKeyedJsonRecordStore? structuredPersistence;
+    private readonly IJsonPersistenceSlot? legacyPersistence;
     private readonly Dictionary<string, BankLoanRecord> loans = new(StringComparer.Ordinal);
     private readonly Dictionary<string, BankDebtRecord> debts = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string> activeLoanIdByColony = new(StringComparer.Ordinal);
@@ -30,8 +31,16 @@ public sealed class BankLoanRegistry
     }
 
     internal BankLoanRegistry(IJsonPersistenceSlot? persistence)
+        : this(null, persistence)
     {
-        this.persistence = persistence;
+    }
+
+    internal BankLoanRegistry(
+        IKeyedJsonRecordStore? structuredPersistence,
+        IJsonPersistenceSlot? legacyPersistence)
+    {
+        this.structuredPersistence = structuredPersistence;
+        this.legacyPersistence = legacyPersistence;
         Load();
     }
 
@@ -598,15 +607,60 @@ public sealed class BankLoanRegistry
 
     private void Load()
     {
-        if (persistence is null)
+        bool hasStructured = structuredPersistence?.IsInitialized() == true;
+        LoadStructured();
+        bool importedLegacy = !hasStructured && LoadLegacyReadOnly();
+        if (importedLegacy && structuredPersistence is not null)
+        {
+            SaveLocked();
+        }
+    }
+
+    private void LoadStructured()
+    {
+        if (structuredPersistence is null)
         {
             return;
         }
 
-        string? json = persistence.Read();
+        foreach (KeyValuePair<string, string> pair in structuredPersistence.ReadAll())
+        {
+            try
+            {
+                if (pair.Key.StartsWith("loan:", StringComparison.Ordinal))
+                {
+                    BankLoanRecord? loan = JsonSerializer.Deserialize<BankLoanRecord>(pair.Value, JsonOptions);
+                    if (loan is not null)
+                    {
+                        RegisterLoadedLoan(loan, overwrite: true);
+                    }
+                }
+                else if (pair.Key.StartsWith("debt:", StringComparison.Ordinal))
+                {
+                    BankDebtRecord? debt = JsonSerializer.Deserialize<BankDebtRecord>(pair.Value, JsonOptions);
+                    if (debt is not null)
+                    {
+                        RegisterLoadedDebt(debt, overwrite: true);
+                    }
+                }
+            }
+            catch (JsonException)
+            {
+            }
+        }
+    }
+
+    private bool LoadLegacyReadOnly()
+    {
+        if (legacyPersistence is null)
+        {
+            return false;
+        }
+
+        string? json = legacyPersistence.Read();
         if (string.IsNullOrWhiteSpace(json))
         {
-            return;
+            return false;
         }
 
         try
@@ -615,57 +669,28 @@ public sealed class BankLoanRegistry
                 JsonSerializer.Deserialize<BankLoanRegistryPersistence>(json, JsonOptions);
             if (persisted?.Loans is null)
             {
-                return;
+                return false;
             }
 
+            bool imported = false;
             foreach (BankLoanRecord loan in persisted.Loans)
             {
-                if (string.IsNullOrWhiteSpace(loan.LoanId)
-                    || string.IsNullOrWhiteSpace(loan.UserId)
-                    || string.IsNullOrWhiteSpace(loan.ColonyId)
-                    || string.IsNullOrWhiteSpace(loan.IdempotencyKey))
-                {
-                    continue;
-                }
-
-                loans[loan.LoanId] = loan;
-                idByIdempotencyKey[loan.IdempotencyKey] = loan.LoanId;
-                if (!string.IsNullOrWhiteSpace(loan.RepaymentIdempotencyKey))
-                {
-                    idByIdempotencyKey[loan.RepaymentIdempotencyKey!] = loan.LoanId;
-                }
-
-                if (IsOpenStatus(loan.Status))
-                {
-                    activeLoanIdByColony[ColonyKey(loan.UserId, loan.ColonyId)] = loan.LoanId;
-                }
+                imported |= RegisterLoadedLoan(loan, overwrite: false);
             }
 
             if (persisted.Debts is not null)
             {
                 foreach (BankDebtRecord debt in persisted.Debts)
                 {
-                    if (string.IsNullOrWhiteSpace(debt.DebtId)
-                        || string.IsNullOrWhiteSpace(debt.UserId)
-                        || string.IsNullOrWhiteSpace(debt.ColonyId)
-                        || string.IsNullOrWhiteSpace(debt.IdempotencyKey))
-                    {
-                        continue;
-                    }
-
-                    debts[debt.DebtId] = debt;
-                    RegisterDebtIdempotencyKeys(debt);
+                    imported |= RegisterLoadedDebt(debt, overwrite: false);
                 }
             }
+
+            return imported;
         }
         catch (JsonException)
         {
-            loans.Clear();
-            debts.Clear();
-            activeLoanIdByColony.Clear();
-            idByIdempotencyKey.Clear();
-            debtIdByIdempotencyKey.Clear();
-            openDebtsByColony.Clear();
+            return false;
         }
     }
 
@@ -712,7 +737,24 @@ public sealed class BankLoanRegistry
 
     private void SaveLocked()
     {
-        if (persistence is null)
+        if (structuredPersistence is not null)
+        {
+            Dictionary<string, string> rows = new(StringComparer.Ordinal);
+            foreach (BankLoanRecord loan in loans.Values.OrderBy(loan => loan.CreatedAtUtc))
+            {
+                rows[LoanRowKey(loan.LoanId)] = JsonSerializer.Serialize(loan, JsonOptions);
+            }
+
+            foreach (BankDebtRecord debt in debts.Values.OrderBy(debt => debt.CreatedAtUtc))
+            {
+                rows[DebtRowKey(debt.DebtId)] = JsonSerializer.Serialize(debt, JsonOptions);
+            }
+
+            structuredPersistence.ReplaceAll(rows);
+            return;
+        }
+
+        if (legacyPersistence is null)
         {
             return;
         }
@@ -726,7 +768,88 @@ public sealed class BankLoanRegistry
                     .OrderBy(debt => debt.CreatedAtUtc)
                     .ToList()),
             JsonOptions);
-        persistence.Write(json);
+        legacyPersistence.Write(json);
+    }
+
+    private bool RegisterLoadedLoan(BankLoanRecord loan, bool overwrite)
+    {
+        if (string.IsNullOrWhiteSpace(loan.LoanId)
+            || string.IsNullOrWhiteSpace(loan.UserId)
+            || string.IsNullOrWhiteSpace(loan.ColonyId)
+            || string.IsNullOrWhiteSpace(loan.IdempotencyKey))
+        {
+            return false;
+        }
+
+        if (loans.TryGetValue(loan.LoanId, out BankLoanRecord? existing))
+        {
+            if (!overwrite)
+            {
+                return false;
+            }
+
+            idByIdempotencyKey.Remove(existing.IdempotencyKey);
+            if (!string.IsNullOrWhiteSpace(existing.RepaymentIdempotencyKey))
+            {
+                idByIdempotencyKey.Remove(existing.RepaymentIdempotencyKey!);
+            }
+
+            if (IsOpenStatus(existing.Status))
+            {
+                activeLoanIdByColony.Remove(ColonyKey(existing.UserId, existing.ColonyId));
+            }
+        }
+
+        loans[loan.LoanId] = loan;
+        idByIdempotencyKey[loan.IdempotencyKey] = loan.LoanId;
+        if (!string.IsNullOrWhiteSpace(loan.RepaymentIdempotencyKey))
+        {
+            idByIdempotencyKey[loan.RepaymentIdempotencyKey!] = loan.LoanId;
+        }
+
+        if (IsOpenStatus(loan.Status))
+        {
+            activeLoanIdByColony[ColonyKey(loan.UserId, loan.ColonyId)] = loan.LoanId;
+        }
+
+        return true;
+    }
+
+    private bool RegisterLoadedDebt(BankDebtRecord debt, bool overwrite)
+    {
+        if (string.IsNullOrWhiteSpace(debt.DebtId)
+            || string.IsNullOrWhiteSpace(debt.UserId)
+            || string.IsNullOrWhiteSpace(debt.ColonyId)
+            || string.IsNullOrWhiteSpace(debt.IdempotencyKey))
+        {
+            return false;
+        }
+
+        if (debts.TryGetValue(debt.DebtId, out BankDebtRecord? existing))
+        {
+            if (!overwrite)
+            {
+                return false;
+            }
+
+            RemoveDebtIdempotencyKeys(existing);
+            InvalidateOpenDebtCache(existing);
+        }
+
+        debts[debt.DebtId] = debt;
+        RegisterDebtIdempotencyKeys(debt);
+        InvalidateOpenDebtCache(debt);
+        return true;
+    }
+
+    private static string LoanRowKey(string loanId)
+    {
+        return "loan:" + loanId;
+    }
+
+    private static string DebtRowKey(string debtId)
+    {
+        return "debt:" + debtId;
     }
 
     private static string ColonyKey(string userId, string colonyId)

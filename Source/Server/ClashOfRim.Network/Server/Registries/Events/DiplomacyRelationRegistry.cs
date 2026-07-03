@@ -14,7 +14,8 @@ public sealed class DiplomacyRelationRegistry
     };
 
     private readonly object gate = new();
-    private readonly IJsonPersistenceSlot? persistence;
+    private readonly IKeyedJsonRecordStore? structuredPersistence;
+    private readonly IJsonPersistenceSlot? legacyPersistence;
     private readonly Dictionary<string, DiplomacyRelationRecord> records = new(StringComparer.Ordinal);
 
     public DiplomacyRelationRegistry(string? persistencePath = null)
@@ -23,8 +24,16 @@ public sealed class DiplomacyRelationRegistry
     }
 
     internal DiplomacyRelationRegistry(IJsonPersistenceSlot? persistence)
+        : this(null, persistence)
     {
-        this.persistence = persistence;
+    }
+
+    internal DiplomacyRelationRegistry(
+        IKeyedJsonRecordStore? structuredPersistence,
+        IJsonPersistenceSlot? legacyPersistence)
+    {
+        this.structuredPersistence = structuredPersistence;
+        this.legacyPersistence = legacyPersistence;
         Load();
     }
 
@@ -159,29 +168,28 @@ public sealed class DiplomacyRelationRegistry
 
     private void Load()
     {
-        if (persistence is null)
+        bool hasStructured = structuredPersistence?.IsInitialized() == true;
+        LoadStructured();
+        bool importedLegacy = !hasStructured && LoadLegacyReadOnly();
+        if (importedLegacy && structuredPersistence is not null)
+        {
+            SaveLocked();
+        }
+    }
+
+    private void LoadStructured()
+    {
+        if (structuredPersistence is null)
         {
             return;
         }
 
-        try
+        foreach (KeyValuePair<string, string> pair in structuredPersistence.ReadAll())
         {
-            string? json = persistence.Read();
-            if (string.IsNullOrWhiteSpace(json))
+            try
             {
-                return;
-            }
-
-            DiplomacyRelationRegistryPersistence? persisted =
-                JsonSerializer.Deserialize<DiplomacyRelationRegistryPersistence>(json, JsonOptions);
-            if (persisted?.Relations is null)
-            {
-                return;
-            }
-
-            foreach (DiplomacyRelationRecord record in persisted.Relations)
-            {
-                if (string.IsNullOrWhiteSpace(record.UserA) || string.IsNullOrWhiteSpace(record.UserB))
+                DiplomacyRelationRecord? record = JsonSerializer.Deserialize<DiplomacyRelationRecord>(pair.Value, JsonOptions);
+                if (record is null || string.IsNullOrWhiteSpace(record.UserA) || string.IsNullOrWhiteSpace(record.UserB))
                 {
                     continue;
                 }
@@ -189,20 +197,77 @@ public sealed class DiplomacyRelationRegistry
                 records[RelationKey(record.UserA, record.ColonyA, record.UserB, record.ColonyB)] =
                     record with { RelationKind = NormalizeRelationKind(record.RelationKind) };
             }
+            catch (JsonException)
+            {
+            }
+        }
+    }
+
+    private bool LoadLegacyReadOnly()
+    {
+        if (legacyPersistence is null)
+        {
+            return false;
+        }
+
+        try
+        {
+            string? json = legacyPersistence.Read();
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                return false;
+            }
+
+            DiplomacyRelationRegistryPersistence? persisted =
+                JsonSerializer.Deserialize<DiplomacyRelationRegistryPersistence>(json, JsonOptions);
+            if (persisted?.Relations is null)
+            {
+                return false;
+            }
+
+            bool imported = false;
+            foreach (DiplomacyRelationRecord record in persisted.Relations)
+            {
+                if (string.IsNullOrWhiteSpace(record.UserA) || string.IsNullOrWhiteSpace(record.UserB))
+                {
+                    continue;
+                }
+
+                string key = RelationKey(record.UserA, record.ColonyA, record.UserB, record.ColonyB);
+                if (records.ContainsKey(key))
+                {
+                    continue;
+                }
+
+                records[key] =
+                    record with { RelationKind = NormalizeRelationKind(record.RelationKind) };
+                imported = true;
+            }
+
+            return imported;
         }
         catch (JsonException)
         {
-            records.Clear();
+            return false;
         }
         catch (IOException)
         {
-            records.Clear();
+            return false;
         }
     }
 
     private void SaveLocked()
     {
-        if (persistence is null)
+        if (structuredPersistence is not null)
+        {
+            structuredPersistence.ReplaceAll(records.ToDictionary(
+                pair => pair.Key,
+                pair => JsonSerializer.Serialize(pair.Value, JsonOptions),
+                StringComparer.Ordinal));
+            return;
+        }
+
+        if (legacyPersistence is null)
         {
             return;
         }
@@ -215,7 +280,7 @@ public sealed class DiplomacyRelationRegistry
                 .ThenBy(record => record.ColonyB, StringComparer.Ordinal)
                 .ToList()),
             JsonOptions);
-        persistence.Write(json);
+        legacyPersistence.Write(json);
     }
 
     private static string RelationKey(string userA, string? colonyA, string userB, string? colonyB)

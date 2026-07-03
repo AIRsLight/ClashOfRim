@@ -8,7 +8,8 @@ public sealed class PlayerRegistry
     };
 
     private readonly object gate = new();
-    private readonly IJsonPersistenceSlot? persistence;
+    private readonly IJsonPersistenceSlot? legacyPersistence;
+    private readonly IPlayerRegistryPersistenceStore? structuredPersistence;
     private readonly Dictionary<string, PlayerSessionRecord> recordsByUserId = new(StringComparer.Ordinal);
     private readonly Dictionary<string, PlayerColonyTombstoneRecord> tombstonesByInstance = new(StringComparer.Ordinal);
     private IReadOnlyList<PlayerSessionRecord>? sortedRecordsCache;
@@ -26,7 +27,16 @@ public sealed class PlayerRegistry
 
     internal PlayerRegistry(IJsonPersistenceSlot? persistence)
     {
-        this.persistence = persistence;
+        legacyPersistence = persistence;
+        Load();
+    }
+
+    internal PlayerRegistry(
+        IPlayerRegistryPersistenceStore structuredPersistence,
+        IJsonPersistenceSlot? legacyPersistence)
+    {
+        this.structuredPersistence = structuredPersistence;
+        this.legacyPersistence = legacyPersistence;
         Load();
     }
 
@@ -276,19 +286,77 @@ public sealed class PlayerRegistry
 
     private void Load()
     {
-        if (persistence is null)
+        bool hasStructured = structuredPersistence?.IsInitialized() == true;
+        LoadStructured();
+        bool changed = !hasStructured && LoadLegacyReadOnly();
+        if (changed && structuredPersistence is not null)
         {
-            return;
+            SaveLocked();
+        }
+    }
+
+    private bool LoadStructured()
+    {
+        if (structuredPersistence is null)
+        {
+            return false;
         }
 
-        string? json = persistence.Read();
+        bool changed = false;
+        foreach (PlayerSessionRecord record in structuredPersistence.ReadPlayers())
+        {
+            if (string.IsNullOrWhiteSpace(record.UserId)
+                || string.IsNullOrWhiteSpace(record.ColonyId))
+            {
+                continue;
+            }
+
+            recordsByUserId[record.UserId] = record;
+            changed = true;
+        }
+
+        foreach (PlayerColonyTombstoneRecord tombstone in structuredPersistence.ReadTombstones())
+        {
+            if (string.IsNullOrWhiteSpace(tombstone.UserId)
+                || string.IsNullOrWhiteSpace(tombstone.ColonyId))
+            {
+                continue;
+            }
+
+            tombstonesByInstance[InstanceKey(tombstone.UserId, tombstone.ColonyId)] = tombstone;
+            if (recordsByUserId.TryGetValue(tombstone.UserId, out PlayerSessionRecord? active)
+                && string.Equals(active.ColonyId, tombstone.ColonyId, StringComparison.Ordinal))
+            {
+                recordsByUserId.Remove(tombstone.UserId);
+            }
+
+            changed = true;
+        }
+
+        if (changed)
+        {
+            InvalidateSortedCachesLocked();
+        }
+
+        return false;
+    }
+
+    private bool LoadLegacyReadOnly()
+    {
+        if (legacyPersistence is null)
+        {
+            return false;
+        }
+
+        string? json = legacyPersistence.Read();
         if (string.IsNullOrWhiteSpace(json))
         {
-            return;
+            return false;
         }
 
         try
         {
+            bool changed = false;
             PlayerRegistryPersistence? persisted =
                 System.Text.Json.JsonSerializer.Deserialize<PlayerRegistryPersistence>(json, JsonOptions);
             if (persisted?.Players is not null)
@@ -301,7 +369,11 @@ public sealed class PlayerRegistry
                         continue;
                     }
 
-                    recordsByUserId[record.UserId] = record;
+                    if (!recordsByUserId.ContainsKey(record.UserId))
+                    {
+                        recordsByUserId[record.UserId] = record;
+                        changed = true;
+                    }
                 }
             }
 
@@ -315,26 +387,49 @@ public sealed class PlayerRegistry
                         continue;
                     }
 
-                    tombstonesByInstance[InstanceKey(tombstone.UserId, tombstone.ColonyId)] = tombstone;
+                    string key = InstanceKey(tombstone.UserId, tombstone.ColonyId);
+                    if (!tombstonesByInstance.ContainsKey(key))
+                    {
+                        tombstonesByInstance[key] = tombstone;
+                        changed = true;
+                    }
+
                     if (recordsByUserId.TryGetValue(tombstone.UserId, out PlayerSessionRecord? active)
                         && string.Equals(active.ColonyId, tombstone.ColonyId, StringComparison.Ordinal))
                     {
                         recordsByUserId.Remove(tombstone.UserId);
+                        changed = true;
                     }
                 }
             }
+
+            if (changed)
+            {
+                InvalidateSortedCachesLocked();
+            }
+
+            return changed;
         }
         catch (System.Text.Json.JsonException)
         {
             recordsByUserId.Clear();
             tombstonesByInstance.Clear();
             InvalidateSortedCachesLocked();
+            return false;
         }
     }
 
     private void SaveLocked()
     {
-        if (persistence is null)
+        if (structuredPersistence is not null)
+        {
+            structuredPersistence.ReplaceAll(
+                SortedRecordsLocked(),
+                SortedTombstonesLocked());
+            return;
+        }
+
+        if (legacyPersistence is null)
         {
             return;
         }
@@ -344,7 +439,7 @@ public sealed class PlayerRegistry
                 SortedRecordsLocked(),
                 SortedTombstonesLocked()),
             JsonOptions);
-        persistence.Write(json);
+        legacyPersistence.Write(json);
     }
 
     private IReadOnlyList<PlayerSessionRecord> SortedRecordsLocked()

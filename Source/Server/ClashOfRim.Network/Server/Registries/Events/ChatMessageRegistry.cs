@@ -14,7 +14,8 @@ public sealed class ChatMessageRegistry
     };
 
     private readonly object gate = new();
-    private readonly IJsonPersistenceSlot? persistence;
+    private readonly IKeyedJsonRecordStore? structuredPersistence;
+    private readonly IJsonPersistenceSlot? legacyPersistence;
     private readonly List<ChatMessageRecord> messages = new();
     private long nextSequence = 1;
 
@@ -24,8 +25,16 @@ public sealed class ChatMessageRegistry
     }
 
     internal ChatMessageRegistry(IJsonPersistenceSlot? persistence)
+        : this(null, persistence)
     {
-        this.persistence = persistence;
+    }
+
+    internal ChatMessageRegistry(
+        IKeyedJsonRecordStore? structuredPersistence,
+        IJsonPersistenceSlot? legacyPersistence)
+    {
+        this.structuredPersistence = structuredPersistence;
+        this.legacyPersistence = legacyPersistence;
         Load();
     }
 
@@ -111,32 +120,98 @@ public sealed class ChatMessageRegistry
 
     private void Load()
     {
-        if (persistence is null)
+        bool hasStructured = structuredPersistence?.IsInitialized() == true;
+        LoadStructured();
+        bool importedLegacy = !hasStructured && LoadLegacyReadOnly();
+        if (importedLegacy && structuredPersistence is not null)
+        {
+            TrimLocked();
+            SaveLocked();
+        }
+
+        nextSequence = Math.Max(
+            nextSequence,
+            messages.Count == 0 ? 1 : messages.Max(message => message.Sequence) + 1);
+    }
+
+    private void LoadStructured()
+    {
+        if (structuredPersistence is null)
         {
             return;
         }
 
-        string? json = persistence.Read();
+        foreach (KeyValuePair<string, string> pair in structuredPersistence.ReadAll())
+        {
+            try
+            {
+                ChatMessageRecord? record = JsonSerializer.Deserialize<ChatMessageRecord>(pair.Value, JsonOptions);
+                if (record is not null && record.Sequence > 0 && !string.IsNullOrWhiteSpace(record.MessageId))
+                {
+                    messages.Add(record);
+                }
+            }
+            catch (JsonException)
+            {
+            }
+        }
+
+        if (messages.Count > 0)
+        {
+            messages.Sort((left, right) => left.Sequence.CompareTo(right.Sequence));
+        }
+    }
+
+    private bool LoadLegacyReadOnly()
+    {
+        if (legacyPersistence is null)
+        {
+            return false;
+        }
+
+        string? json = legacyPersistence.Read();
         if (string.IsNullOrWhiteSpace(json))
         {
-            return;
+            return false;
         }
 
         ChatMessageRegistryPersistence? persisted = JsonSerializer.Deserialize<ChatMessageRegistryPersistence>(json, JsonOptions);
         if (persisted?.Messages is not null)
         {
-            messages.Clear();
-            messages.AddRange(persisted.Messages.OrderBy(message => message.Sequence));
+            HashSet<long> existingSequences = messages.Select(message => message.Sequence).ToHashSet();
+            List<ChatMessageRecord> imported = persisted.Messages
+                .Where(message => message.Sequence > 0
+                    && !string.IsNullOrWhiteSpace(message.MessageId)
+                    && !existingSequences.Contains(message.Sequence))
+                .OrderBy(message => message.Sequence)
+                .ToList();
+            messages.AddRange(imported);
+            if (imported.Count > 0)
+            {
+                messages.Sort((left, right) => left.Sequence.CompareTo(right.Sequence));
+            }
+
+            nextSequence = Math.Max(
+                persisted.NextSequence,
+                messages.Count == 0 ? 1 : messages.Max(message => message.Sequence) + 1);
+            return imported.Count > 0;
         }
 
-        nextSequence = Math.Max(
-            persisted?.NextSequence ?? 1,
-            messages.Count == 0 ? 1 : messages.Max(message => message.Sequence) + 1);
+        return false;
     }
 
     private void SaveLocked()
     {
-        if (persistence is null)
+        if (structuredPersistence is not null)
+        {
+            structuredPersistence.ReplaceAll(messages.ToDictionary(
+                message => MessageRowKey(message.Sequence),
+                message => JsonSerializer.Serialize(message, JsonOptions),
+                StringComparer.Ordinal));
+            return;
+        }
+
+        if (legacyPersistence is null)
         {
             return;
         }
@@ -144,7 +219,7 @@ public sealed class ChatMessageRegistry
         string json = JsonSerializer.Serialize(
             new ChatMessageRegistryPersistence(nextSequence, messages.ToList()),
             JsonOptions);
-        persistence.Write(json);
+        legacyPersistence.Write(json);
     }
 
     private void TrimLocked()
@@ -174,6 +249,11 @@ public sealed class ChatMessageRegistry
         return text.Trim().Length <= 500
             ? text.Trim()
             : text.Trim()[..500];
+    }
+
+    private static string MessageRowKey(long sequence)
+    {
+        return "message:" + sequence.ToString("D20", System.Globalization.CultureInfo.InvariantCulture);
     }
 
     private sealed record ChatMessageRegistryPersistence(

@@ -12,7 +12,8 @@ public sealed class AdminControlRegistry
     };
 
     private readonly object gate = new();
-    private readonly IJsonPersistenceSlot? persistence;
+    private readonly IKeyedJsonRecordStore? structuredPersistence;
+    private readonly IJsonPersistenceSlot? legacyPersistence;
     private readonly HashSet<string> bannedUsers = new(StringComparer.Ordinal);
     private readonly List<AdminAuditRecord> auditRecords = new();
     private bool maintenanceLoginLocked;
@@ -24,8 +25,16 @@ public sealed class AdminControlRegistry
     }
 
     internal AdminControlRegistry(IJsonPersistenceSlot? persistence)
+        : this(null, persistence)
     {
-        this.persistence = persistence;
+    }
+
+    internal AdminControlRegistry(
+        IKeyedJsonRecordStore? structuredPersistence,
+        IJsonPersistenceSlot? legacyPersistence)
+    {
+        this.structuredPersistence = structuredPersistence;
+        this.legacyPersistence = legacyPersistence;
         Load();
     }
 
@@ -150,45 +159,138 @@ public sealed class AdminControlRegistry
 
     private void Load()
     {
-        if (persistence is null)
+        bool hasStructured = structuredPersistence?.IsInitialized() == true;
+        LoadStructured();
+        bool importedLegacy = !hasStructured && LoadLegacyReadOnly();
+        if (importedLegacy && structuredPersistence is not null)
+        {
+            SaveLocked();
+        }
+    }
+
+    private void LoadStructured()
+    {
+        if (structuredPersistence is null)
         {
             return;
         }
 
-        string? json = persistence.Read();
+        foreach (KeyValuePair<string, string> pair in structuredPersistence.ReadAll())
+        {
+            try
+            {
+                if (string.Equals(pair.Key, "state:maintenance", StringComparison.Ordinal))
+                {
+                    AdminControlStateRecord? state =
+                        JsonSerializer.Deserialize<AdminControlStateRecord>(pair.Value, JsonOptions);
+                    maintenanceLoginLocked = state?.MaintenanceLoginLocked ?? false;
+                    maintenanceReason = string.IsNullOrWhiteSpace(state?.MaintenanceReason)
+                        ? null
+                        : state!.MaintenanceReason!.Trim();
+                }
+                else if (pair.Key.StartsWith("ban:", StringComparison.Ordinal))
+                {
+                    string? userId = JsonSerializer.Deserialize<string>(pair.Value, JsonOptions);
+                    if (!string.IsNullOrWhiteSpace(userId))
+                    {
+                        bannedUsers.Add(userId.Trim());
+                    }
+                }
+                else if (pair.Key.StartsWith("audit:", StringComparison.Ordinal))
+                {
+                    AdminAuditRecord? record = JsonSerializer.Deserialize<AdminAuditRecord>(pair.Value, JsonOptions);
+                    if (record is not null)
+                    {
+                        auditRecords.Add(record);
+                    }
+                }
+            }
+            catch (JsonException)
+            {
+            }
+        }
+
+        TrimAuditRecords();
+    }
+
+    private bool LoadLegacyReadOnly()
+    {
+        if (legacyPersistence is null)
+        {
+            return false;
+        }
+
+        string? json = legacyPersistence.Read();
         if (string.IsNullOrWhiteSpace(json))
         {
-            return;
+            return false;
         }
 
         AdminControlRegistryPersistence? persisted = JsonSerializer.Deserialize<AdminControlRegistryPersistence>(json, JsonOptions);
         if (persisted is null)
         {
-            return;
+            return false;
         }
 
-        maintenanceLoginLocked = persisted.MaintenanceLoginLocked;
-        maintenanceReason = string.IsNullOrWhiteSpace(persisted.MaintenanceReason)
-            ? null
-            : persisted.MaintenanceReason!.Trim();
-        bannedUsers.Clear();
+        bool imported = false;
+        if (!maintenanceLoginLocked && persisted.MaintenanceLoginLocked)
+        {
+            maintenanceLoginLocked = true;
+            maintenanceReason = string.IsNullOrWhiteSpace(persisted.MaintenanceReason)
+                ? null
+                : persisted.MaintenanceReason!.Trim();
+            imported = true;
+        }
+
         foreach (string userId in persisted.BannedUsers ?? Array.Empty<string>())
         {
             if (!string.IsNullOrWhiteSpace(userId))
             {
-                bannedUsers.Add(userId.Trim());
+                imported |= bannedUsers.Add(userId.Trim());
             }
         }
 
-        auditRecords.Clear();
-        auditRecords.AddRange((persisted.AuditRecords ?? Array.Empty<AdminAuditRecord>())
-            .OrderBy(record => record.CreatedAtUtc)
-            .TakeLast(MaxAuditRecords));
+        HashSet<string> existingAuditKeys = auditRecords.Select(AuditRecordKey).ToHashSet(StringComparer.Ordinal);
+        foreach (AdminAuditRecord record in persisted.AuditRecords ?? Array.Empty<AdminAuditRecord>())
+        {
+            string key = AuditRecordKey(record);
+            if (existingAuditKeys.Add(key))
+            {
+                auditRecords.Add(record);
+                imported = true;
+            }
+        }
+
+        TrimAuditRecords();
+        return imported;
     }
 
     private void SaveLocked()
     {
-        if (persistence is null)
+        if (structuredPersistence is not null)
+        {
+            Dictionary<string, string> rows = new(StringComparer.Ordinal)
+            {
+                ["state:maintenance"] = JsonSerializer.Serialize(
+                    new AdminControlStateRecord(maintenanceLoginLocked, maintenanceReason),
+                    JsonOptions)
+            };
+            foreach (string userId in bannedUsers.OrderBy(userId => userId, StringComparer.Ordinal))
+            {
+                rows[BanRowKey(userId)] = JsonSerializer.Serialize(userId, JsonOptions);
+            }
+
+            for (int index = 0; index < auditRecords.Count; index++)
+            {
+                AdminAuditRecord record = auditRecords[index];
+                rows[AuditRowKey(record, index)] = JsonSerializer.Serialize(record, JsonOptions);
+            }
+
+            structuredPersistence.ReplaceAll(rows);
+            return;
+        }
+
+        if (legacyPersistence is null)
         {
             return;
         }
@@ -200,8 +302,41 @@ public sealed class AdminControlRegistry
                 bannedUsers.OrderBy(userId => userId, StringComparer.Ordinal).ToList(),
                 auditRecords.ToList()),
             JsonOptions);
-        persistence.Write(json);
+        legacyPersistence.Write(json);
     }
+
+    private void TrimAuditRecords()
+    {
+        auditRecords.Sort((left, right) => left.CreatedAtUtc.CompareTo(right.CreatedAtUtc));
+        if (auditRecords.Count > MaxAuditRecords)
+        {
+            auditRecords.RemoveRange(0, auditRecords.Count - MaxAuditRecords);
+        }
+    }
+
+    private static string BanRowKey(string userId)
+    {
+        return "ban:" + userId;
+    }
+
+    private static string AuditRowKey(AdminAuditRecord record, int index)
+    {
+        return "audit:" + record.CreatedAtUtc.ToUnixTimeMilliseconds().ToString("D20", System.Globalization.CultureInfo.InvariantCulture)
+            + ":" + index.ToString("D4", System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private static string AuditRecordKey(AdminAuditRecord record)
+    {
+        return record.ActionKind + "\n"
+            + record.ActorUserId + "\n"
+            + (record.TargetUserId ?? string.Empty) + "\n"
+            + (record.Message ?? string.Empty) + "\n"
+            + record.CreatedAtUtc.ToUnixTimeMilliseconds().ToString(System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private sealed record AdminControlStateRecord(
+        bool MaintenanceLoginLocked,
+        string? MaintenanceReason);
 }
 
 public sealed record AdminControlRegistryPersistence(
