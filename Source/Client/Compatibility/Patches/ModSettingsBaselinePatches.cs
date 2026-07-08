@@ -46,7 +46,7 @@ public static class ClashOfRimDialogModSettingsPreClosePatch
 [HarmonyPatch(typeof(LoadedModManager), nameof(LoadedModManager.WriteModSettings))]
 public static class ClashOfRimWriteModSettingsPatch
 {
-    public static bool Prefix(string modIdentifier, string modHandleName)
+    public static bool Prefix(string modIdentifier, string modHandleName, ModSettings settings)
     {
         if (ModSettingsBaselinePolicy.CanWriteModSettings(modIdentifier, modHandleName))
         {

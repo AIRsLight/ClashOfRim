@@ -301,21 +301,15 @@ internal static class ClientCompatibilityManifestBuilder
         }
 
         var configs = new Dictionary<string, ModConfigDigest>(StringComparer.OrdinalIgnoreCase);
-        foreach (object modInstance in GetRunningModInstances())
+        foreach (Mod modInstance in GetRunningModInstances())
         {
-            if (GetModSettings(modInstance) is null)
-            {
-                continue;
-            }
-
-            Assembly assembly = modInstance.GetType().Assembly;
-            if (!mod.assemblies.loadedAssemblies.Contains(assembly))
+            if (!ReferenceEquals(modInstance.Content, mod))
             {
                 continue;
             }
 
             string instanceName = modInstance.GetType().Name;
-            string path = ResolveSettingsFileName(mod.FolderName, instanceName);
+            string path = ResolveSettingsFileName(modInstance.Content.FolderName, instanceName);
             ModConfigDigest? digest = BuildConfigDigest(instanceName, path);
             if (digest is not null)
             {
@@ -412,7 +406,7 @@ internal static class ClientCompatibilityManifestBuilder
         return mod.RootDir ?? string.Empty;
     }
 
-    private static IEnumerable<object> GetRunningModInstances()
+    private static IEnumerable<Mod> GetRunningModInstances()
     {
         FieldInfo? field = typeof(LoadedModManager).GetField(
             "runningModClasses",
@@ -422,19 +416,12 @@ internal static class ClientCompatibilityManifestBuilder
         {
             foreach (object? item in dictionary.Values)
             {
-                if (item is not null)
+                if (item is Mod mod)
                 {
-                    yield return item;
+                    yield return mod;
                 }
             }
         }
-    }
-
-    private static object? GetModSettings(object modInstance)
-    {
-        return modInstance.GetType()
-            .GetField("modSettings", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
-            ?.GetValue(modInstance);
     }
 
     private static string ResolveSettingsFileName(string modIdentifier, string modHandleName)
