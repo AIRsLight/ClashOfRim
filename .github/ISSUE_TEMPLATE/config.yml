@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Logs required for most reports
+    url: https://github.com/AIRsLight/ClashOfRim/issues
+    about: Please attach Player.log, Player-prev.log, server logs, and ModsConfig.xml when reporting multiplayer or mod-compatibility issues.

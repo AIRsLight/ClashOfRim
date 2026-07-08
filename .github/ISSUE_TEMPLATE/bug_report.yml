@@ -1,0 +1,159 @@
+name: Bug report
+description: Report a reproducible ClashOfRim client or server problem.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Please fill in the fields below and attach logs whenever possible.
+
+        For multiplayer desync, loading, snapshot, raid, trade, or gravship issues, logs are usually required.
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Before submitting
+      options:
+        - label: I tested with the latest stable or latest dev build available to me.
+          required: true
+        - label: I can reproduce this issue, or I included the exact situation where it happened.
+          required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: ClashOfRim version
+      description: Include the version shown in-game, release tag, or dev build commit if known.
+      placeholder: "Example: 0.1.3 stable / 0.1.3-dev.b1ad33be"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: build_channel
+    attributes:
+      label: Build channel
+      options:
+        - Stable release
+        - Dev build
+        - Local build from source
+        - Unknown
+    validations:
+      required: true
+
+  - type: input
+    id: rimworld_version
+    attributes:
+      label: RimWorld version
+      placeholder: "Example: 1.6.4871"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: dlc
+    attributes:
+      label: Enabled official DLC
+      options:
+        - label: Royalty
+        - label: Ideology
+        - label: Biotech
+        - label: Anomaly
+        - label: Odyssey
+
+  - type: dropdown
+    id: affected_area
+    attributes:
+      label: Affected feature
+      options:
+        - Joining or reconnecting to a server
+        - World initialization or baseline
+        - Snapshot upload or download
+        - Remote map, scouting, observation, or raid
+        - Trade market or server shop
+        - Gift or forced delivery
+        - Pawn support, mercenaries, or pawn transfer
+        - Gravship or colony relocation
+        - Diplomacy, chat, or player list
+        - Compatibility with another mod
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: Describe the visible result and any error message shown in-game.
+      placeholder: "Example: After launching a gravship to a normal tile, save sync failed with: Relocated save must contain exactly one player colony."
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      description: List the shortest steps that trigger the issue.
+      placeholder: |
+        1. Join server as ...
+        2. Open ...
+        3. Click ...
+        4. Error appears ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      placeholder: "What should have happened instead?"
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs and attachments
+      description: |
+        Attach files instead of pasting huge logs.
+
+        Useful files:
+        - Player.log
+        - Player-prev.log
+        - server-YYYYMMDD.log
+        - ModsConfig.xml
+        - Screenshots of in-game errors
+      placeholder: "Drag log files here, or paste the relevant error section."
+    validations:
+      required: true
+
+  - type: textarea
+    id: mod_list
+    attributes:
+      label: Mod list or manifest
+      description: Attach ModsConfig.xml or the ClashOfRim compatibility/manifest report. This is required for mod compatibility and cross-client issues.
+      placeholder: "Attach ModsConfig.xml or paste the mod/package list here."
+    validations:
+      required: false
+
+  - type: textarea
+    id: multiplayer_context
+    attributes:
+      label: Multiplayer context
+      description: Include only what applies.
+      placeholder: |
+        Server OS:
+        Dedicated server or hosted locally:
+        Number of players online:
+        Was another player online when it happened:
+        Was this a new world or an existing server:
+        World coverage:
+    validations:
+      required: false
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Additional context
+      placeholder: "Anything else that may help reproduce or narrow down the issue."
+    validations:
+      required: false
