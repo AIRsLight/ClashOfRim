@@ -358,6 +358,7 @@ public static partial class ClashOfRimNetworkServer
         SaveSnapshotIndex index)
     {
         var anchors = new List<SnapshotColonyAnchor>();
+        HashSet<string> playerFactionIds = BuildSnapshotPlayerFactionIds(index);
         IReadOnlyList<IWorldObjectClassifier> worldObjectClassifiers =
             state.Plugins.ActiveWorldObjectClassifiers(state.CompatibilityBaseline.Current);
         foreach (MapSummary map in index.Maps)
@@ -370,7 +371,7 @@ public static partial class ClashOfRimNetworkServer
             WorldObjectSummary? worldObject = FindSnapshotWorldObjectById(index.WorldObjects, map.ParentWorldObjectId!);
             if (worldObject is null
                 || worldObject.Destroyed
-                || !IsSnapshotPlayerColonyAnchor(map, worldObject, worldObjectClassifiers)
+                || !IsSnapshotPlayerColonyAnchor(map, worldObject, worldObjectClassifiers, playerFactionIds)
                 || !TryParseSnapshotTile(worldObject.Tile, out int tile, out int tileLayerId))
             {
                 continue;
@@ -396,6 +397,41 @@ public static partial class ClashOfRimNetworkServer
             .ToList();
     }
 
+    private static HashSet<string> BuildSnapshotPlayerFactionIds(SaveSnapshotIndex index)
+    {
+        var result = new HashSet<string>(StringComparer.Ordinal);
+        foreach (FactionSummary faction in index.Factions)
+        {
+            if (!IsSnapshotPlayerFaction(faction))
+            {
+                continue;
+            }
+
+            AddSnapshotFactionId(result, faction.UniqueLoadId);
+            AddSnapshotFactionId(result, faction.LoadId);
+            if (!string.IsNullOrWhiteSpace(faction.LoadId))
+            {
+                AddSnapshotFactionId(result, "Faction_" + faction.LoadId);
+            }
+        }
+
+        return result;
+    }
+
+    private static bool IsSnapshotPlayerFaction(FactionSummary faction)
+    {
+        return string.Equals(faction.Def, "PlayerColony", StringComparison.Ordinal)
+            || string.Equals(faction.Def, "PlayerTribe", StringComparison.Ordinal);
+    }
+
+    private static void AddSnapshotFactionId(HashSet<string> result, string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            result.Add(value);
+        }
+    }
+
     private static WorldObjectSummary? FindSnapshotWorldObjectById(
         IEnumerable<WorldObjectSummary> worldObjects,
         string worldObjectId)
@@ -415,15 +451,27 @@ public static partial class ClashOfRimNetworkServer
     private static bool IsSnapshotPlayerColonyAnchor(
         MapSummary map,
         WorldObjectSummary worldObject,
-        IReadOnlyList<IWorldObjectClassifier> worldObjectClassifiers)
+        IReadOnlyList<IWorldObjectClassifier> worldObjectClassifiers,
+        IReadOnlySet<string> playerFactionIds)
     {
         if (IsSnapshotSettlement(worldObject))
         {
-            return true;
+            return HasSnapshotPlayerColonyEvidence(map, worldObject, playerFactionIds);
         }
 
         return map.WasSpawnedViaGravshipLanding
+            && HasSnapshotPlayerColonyEvidence(map, worldObject, playerFactionIds)
             && worldObjectClassifiers.Any(classifier => classifier.IsPlayerColonyAnchor(worldObject));
+    }
+
+    private static bool HasSnapshotPlayerColonyEvidence(
+        MapSummary map,
+        WorldObjectSummary worldObject,
+        IReadOnlySet<string> playerFactionIds)
+    {
+        return map.PlayerColonistCount > 0
+            || (!string.IsNullOrWhiteSpace(worldObject.Faction)
+                && playerFactionIds.Contains(worldObject.Faction!));
     }
 
     private static bool TryParseSnapshotTile(string? value, out int tile, out int tileLayerId)

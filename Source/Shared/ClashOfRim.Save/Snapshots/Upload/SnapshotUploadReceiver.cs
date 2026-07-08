@@ -402,6 +402,7 @@ public sealed class SnapshotUploadReceiver
     private IReadOnlyList<ColonyAnchor> ExtractColonyAnchors(SaveSnapshotIndex index)
     {
         var anchors = new List<ColonyAnchor>();
+        HashSet<string> playerFactionIds = BuildPlayerFactionIds(index);
         foreach (MapSummary map in index.Maps)
         {
             if (string.IsNullOrWhiteSpace(map.ParentWorldObjectId))
@@ -412,7 +413,7 @@ public sealed class SnapshotUploadReceiver
             WorldObjectSummary? worldObject = FindWorldObjectById(index.WorldObjects, map.ParentWorldObjectId!);
             if (worldObject is null
                 || worldObject.Destroyed
-                || !IsPlayerColonyAnchor(map, worldObject)
+                || !IsPlayerColonyAnchor(map, worldObject, playerFactionIds)
                 || !TryParseTile(worldObject.Tile, out int tile, out int tileLayerId))
             {
                 continue;
@@ -431,6 +432,41 @@ public sealed class SnapshotUploadReceiver
             .ToList();
     }
 
+    private static HashSet<string> BuildPlayerFactionIds(SaveSnapshotIndex index)
+    {
+        var result = new HashSet<string>(StringComparer.Ordinal);
+        foreach (FactionSummary faction in index.Factions)
+        {
+            if (!IsPlayerFaction(faction))
+            {
+                continue;
+            }
+
+            AddFactionId(result, faction.UniqueLoadId);
+            AddFactionId(result, faction.LoadId);
+            if (!string.IsNullOrWhiteSpace(faction.LoadId))
+            {
+                AddFactionId(result, "Faction_" + faction.LoadId);
+            }
+        }
+
+        return result;
+    }
+
+    private static bool IsPlayerFaction(FactionSummary faction)
+    {
+        return string.Equals(faction.Def, "PlayerColony", StringComparison.Ordinal)
+            || string.Equals(faction.Def, "PlayerTribe", StringComparison.Ordinal);
+    }
+
+    private static void AddFactionId(HashSet<string> result, string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            result.Add(value);
+        }
+    }
+
     private static WorldObjectSummary? FindWorldObjectById(
         IEnumerable<WorldObjectSummary> worldObjects,
         string worldObjectId)
@@ -440,11 +476,14 @@ public sealed class SnapshotUploadReceiver
             || string.Equals(candidate.Id, worldObjectId, StringComparison.Ordinal));
     }
 
-    private bool IsPlayerColonyAnchor(MapSummary map, WorldObjectSummary worldObject)
+    private bool IsPlayerColonyAnchor(
+        MapSummary map,
+        WorldObjectSummary worldObject,
+        IReadOnlySet<string> playerFactionIds)
     {
         if (IsSettlement(worldObject))
         {
-            return true;
+            return HasPlayerColonyEvidence(map, worldObject, playerFactionIds);
         }
 
         if (!map.WasSpawnedViaGravshipLanding || additionalPlayerColonyAnchorPredicates is null)
@@ -452,7 +491,18 @@ public sealed class SnapshotUploadReceiver
             return false;
         }
 
-        return additionalPlayerColonyAnchorPredicates.Any(predicate => predicate(worldObject));
+        return HasPlayerColonyEvidence(map, worldObject, playerFactionIds)
+            && additionalPlayerColonyAnchorPredicates.Any(predicate => predicate(worldObject));
+    }
+
+    private static bool HasPlayerColonyEvidence(
+        MapSummary map,
+        WorldObjectSummary worldObject,
+        IReadOnlySet<string> playerFactionIds)
+    {
+        return map.PlayerColonistCount > 0
+            || (!string.IsNullOrWhiteSpace(worldObject.Faction)
+                && playerFactionIds.Contains(worldObject.Faction!));
     }
 
     private static bool IsSettlement(WorldObjectSummary worldObject)

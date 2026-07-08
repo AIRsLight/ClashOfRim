@@ -2090,7 +2090,8 @@ static SaveSnapshotPackage BuildFixturePackageForWithLineage(
     string? previousSnapshotId,
     string? token,
     long gameTicks,
-    int? playerSettlementTile = null)
+    int? playerSettlementTile = null,
+    Action<System.Xml.Linq.XDocument>? extraMutate = null)
 {
     string samplePath = ResolveSampleSavePath("SaveHediffFixture.rws");
     Require(File.Exists(samplePath), $"缺少样本存档：{samplePath}");
@@ -2129,6 +2130,8 @@ static SaveSnapshotPackage BuildFixturePackageForWithLineage(
             {
                 ApplyPlayerSettlementTile(document, playerSettlementTile.Value);
             }
+
+            extraMutate?.Invoke(document);
         });
 }
 
@@ -2185,6 +2188,40 @@ static void ApplyPlayerSettlementTile(System.Xml.Linq.XDocument document, int ti
         .FirstOrDefault(item => string.Equals(item.Element("ID")?.Value, parentId, StringComparison.Ordinal));
     Require(worldObject is not null, "测试样本存档缺少当前地图父 world object 记录。");
     SetElement(worldObject!, "tile", tile.ToString(System.Globalization.CultureInfo.InvariantCulture) + ",0");
+}
+
+static void AddSettlementMap(
+    System.Xml.Linq.XDocument document,
+    int worldObjectId,
+    string mapUniqueId,
+    int tile,
+    string faction,
+    string label)
+{
+    System.Xml.Linq.XElement game = document.Root!.Element("game")!;
+    System.Xml.Linq.XElement? maps = game.Element("maps");
+    Require(maps is not null, "测试样本存档缺少地图列表。");
+    maps!.Add(new System.Xml.Linq.XElement(
+        "li",
+        new System.Xml.Linq.XElement("uniqueID", mapUniqueId),
+        new System.Xml.Linq.XElement(
+            "mapInfo",
+            new System.Xml.Linq.XElement("parent", "WorldObject_" + worldObjectId.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+            new System.Xml.Linq.XElement("size", "250,1,250")),
+        new System.Xml.Linq.XElement("things")));
+
+    System.Xml.Linq.XElement? worldObjects = game.Element("world")
+        ?.Element("worldObjects")
+        ?.Element("worldObjects");
+    Require(worldObjects is not null, "测试样本存档缺少世界对象列表。");
+    worldObjects!.Add(new System.Xml.Linq.XElement(
+        "li",
+        new System.Xml.Linq.XAttribute("Class", "RimWorld.Settlement"),
+        new System.Xml.Linq.XElement("ID", worldObjectId.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+        new System.Xml.Linq.XElement("def", "Settlement"),
+        new System.Xml.Linq.XElement("tile", tile.ToString(System.Globalization.CultureInfo.InvariantCulture) + ",0"),
+        new System.Xml.Linq.XElement("faction", faction),
+        new System.Xml.Linq.XElement("nameInt", label)));
 }
 
 static void SetElement(System.Xml.Linq.XElement parent, string name, string value)
@@ -2293,7 +2330,8 @@ static void VerifySnapshotUploadAllowsSingleColonyRelocation()
         previousSnapshotId: "gravship-before",
         nextToken,
         nextTicks,
-        playerSettlementTile: 707);
+        playerSettlementTile: 707,
+        extraMutate: document => AddSettlementMap(document, 9901, "9901", 303, "Faction_1", "额外 NPC 据点"));
 
     SnapshotUploadResult moved = receiver.Receive(
         new SnapshotUploadContext("gravship-user", "gravship-colony", "gravship-after"),
@@ -2508,7 +2546,12 @@ static async Task VerifyColonyRelocationExplicitConfirmationAsync()
             previousSnapshotId: "reloc-before",
             initialUpload.NextLineageToken,
             gameTicks: 1001,
-            playerSettlementTile: 202);
+            playerSettlementTile: 202,
+            extraMutate: document =>
+            {
+                AddSettlementMap(document, 9902, "9902", 101, "Faction_0", "旧玩家地点残留");
+                AddSettlementMap(document, 9903, "9903", 404, "Faction_1", "搬迁旁路 NPC 据点");
+            });
         UploadSnapshotResponse relocatedUpload = await client.UploadSnapshotAsync(new UploadSnapshotMetadataRequest(
             "relocation-upload-after",
             "reloc-user",

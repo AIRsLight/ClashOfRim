@@ -717,8 +717,28 @@ public static partial class ClashOfRimNetworkServer
                 worldMapMarkers: null));
         }
 
+        int targetTileLayerId = Math.Max(0, request.TargetTileLayerId);
         IReadOnlyList<SnapshotColonyAnchor> anchors = ExtractSnapshotColonyAnchors(state, latest.Index);
-        if (anchors.Count != 1)
+        if (anchors.Count == 1
+            && (anchors[0].Tile != request.TargetTile || anchors[0].TileLayerId != targetTileLayerId))
+        {
+            return Results.Ok(new ColonyRelocationResponse(
+                ProtocolResponse.Reject(
+                    ProtocolErrorCode.ServerRejected,
+                    T(
+                        "ColonyRelocation.TargetTileMismatch",
+                        ("EXPECTED", FormatTileRef(request.TargetTile, targetTileLayerId)),
+                        ("ACTUAL", FormatTileRef(anchors[0].Tile, anchors[0].TileLayerId)))),
+                oldSite,
+                newSite: null,
+                BuildWorldConfigurationForDelivery(state.WorldConfiguration.Current, state),
+                worldMapMarkers: null));
+        }
+
+        IReadOnlyList<SnapshotColonyAnchor> targetAnchors = anchors
+            .Where(anchor => anchor.Tile == request.TargetTile && anchor.TileLayerId == targetTileLayerId)
+            .ToList();
+        if (targetAnchors.Count != 1)
         {
             return Results.Ok(new ColonyRelocationResponse(
                 ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, T("ColonyRelocation.ExpectedSingleAnchor")),
@@ -728,22 +748,7 @@ public static partial class ClashOfRimNetworkServer
                 worldMapMarkers: null));
         }
 
-        SnapshotColonyAnchor anchor = anchors[0];
-        if (anchor.Tile != request.TargetTile
-            || anchor.TileLayerId != Math.Max(0, request.TargetTileLayerId))
-        {
-            return Results.Ok(new ColonyRelocationResponse(
-                ProtocolResponse.Reject(
-                    ProtocolErrorCode.ServerRejected,
-                    T(
-                        "ColonyRelocation.TargetTileMismatch",
-                        ("EXPECTED", FormatTileRef(request.TargetTile, request.TargetTileLayerId)),
-                        ("ACTUAL", FormatTileRef(anchor.Tile, anchor.TileLayerId)))),
-                oldSite,
-                newSite: null,
-                BuildWorldConfigurationForDelivery(state.WorldConfiguration.Current, state),
-                worldMapMarkers: null));
-        }
+        SnapshotColonyAnchor anchor = targetAnchors[0];
 
         PlayerColonySiteDto newSite = new(
             request.UserId,
