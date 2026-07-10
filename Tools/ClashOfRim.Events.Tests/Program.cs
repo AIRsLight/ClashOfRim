@@ -55,6 +55,7 @@ var tests = new (string Name, Action Run)[]
     ,("世界基线后台应用不得直接重建 Unity 图层", VerifyWorldSubstrateApplyDoesNotRenderOnWorkerThread)
     ,("新玩家进入服务器世界后释放自动会话门禁", VerifyNewWorldEntryReleasesAutomaticSessionGate)
     ,("普通快照下载不记录袭击清理跳过告警", VerifyNormalSnapshotDownloadDoesNotLogRaidCleanupSkip)
+    ,("测试版发布说明使用维护的最终改动清单", VerifyDevelopmentReleaseNotesAreCurated)
 };
 
 foreach ((string name, Action run) in tests)
@@ -192,6 +193,24 @@ static void VerifyNormalSnapshotDownloadDoesNotLogRaidCleanupSkip()
     Require(
         !source.Contains("Skipped stale raid battle snapshot cleanup because the related raid event is missing", StringComparison.Ordinal),
         "普通快照没有袭击关联时不得记录袭击清理跳过告警");
+}
+
+static void VerifyDevelopmentReleaseNotesAreCurated()
+{
+    string workflowPath = FindRepositoryFile(".github", "workflows", "release.yml");
+    string workflow = File.ReadAllText(workflowPath);
+    Require(
+        workflow.Contains(".github/release-notes/dev.md", StringComparison.Ordinal)
+        && workflow.Contains("actions/checkout@v4", StringComparison.Ordinal),
+        "测试版发布任务必须检出并读取维护的最终改动清单");
+
+    string repositoryRoot = Directory.GetParent(
+        Directory.GetParent(
+            Directory.GetParent(workflowPath)!.FullName)!.FullName)!.FullName;
+    string notesPath = Path.Combine(repositoryRoot, ".github", "release-notes", "dev.md");
+    Require(File.Exists(notesPath), "测试版必须提供面向用户的最终改动清单");
+    string notes = File.ReadAllText(notesPath);
+    Require(notes.Contains("## Current development changes", StringComparison.Ordinal), "测试版改动清单必须使用稳定标题");
 }
 
 static void VerifyCompatibilityMismatchUiUsesAuthoritativeFallback()
