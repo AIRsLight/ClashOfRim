@@ -40,6 +40,12 @@ if (Test-Path -LiteralPath (Join-Path $repoRoot "Textures")) {
 }
 Copy-Item -LiteralPath (Join-Path $repoRoot "Assemblies\$packageId.dll") -Destination (Join-Path $assemblyRoot "$packageId.dll") -Force
 
+$protocolAssembly = Join-Path $repoRoot "Source\Shared\ClashOfRim.Protocol\bin\$Configuration\netstandard2.0\ClashOfRim.Protocol.dll"
+if (-not (Test-Path -LiteralPath $protocolAssembly)) {
+    throw "Client protocol assembly was not built: $protocolAssembly"
+}
+Copy-Item -LiteralPath $protocolAssembly -Destination (Join-Path $assemblyRoot "ClashOfRim.Protocol.dll") -Force
+
 $compatAssembly = Join-Path $repoRoot "Assemblies\ClashOfRim.Compatibility.dll"
 if (Test-Path -LiteralPath $compatAssembly) {
     Copy-Item -LiteralPath $compatAssembly -Destination (Join-Path $assemblyRoot "ClashOfRim.Compatibility.dll") -Force
