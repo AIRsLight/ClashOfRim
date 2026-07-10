@@ -1,11 +1,17 @@
 using AIRsLight.ClashOfRim.Network.Plugins.DlcCompatibility;
+using AIRsLight.ClashOfRim.Network;
+using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Save;
 using AIRsLight.ClashOfRim.ThirdPartyCompat.ServerPlugin;
 using System.IO.Compression;
+using System.Text;
 using System.Xml.Linq;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("世界底图包仅保留静态世界结构并可压缩往返", VerifyWorldSubstratePackageRoundTrip),
+    ("世界底图包拒绝缺失网格的存档", VerifyWorldSubstratePackageRejectsMissingGrid),
+    ("世界底图包持久化后才开放世界会话", VerifyWorldSubstrateRegistryReadiness),
     ("压缩财富历史可作为榜单财富兜底", VerifyDeflatedWealthHistoryFallback),
     ("玩家殖民者人数索引只统计玩家类人 pawn", VerifyPlayerColonistCountIndex),
     ("快照封装保留身份版本和稳定哈希", VerifySnapshotPackageEnvelope),
@@ -58,6 +64,124 @@ foreach ((string name, Action run) in tests)
 }
 
 return 0;
+
+static void VerifyWorldSubstratePackageRoundTrip()
+{
+    byte[] save = Encoding.UTF8.GetBytes(
+        """
+        <savegame>
+          <game>
+            <world>
+              <info><persistentRandomValue>12345</persistentRandomValue></info>
+              <grid><nextLayerId>2</nextLayerId><layers><keys><li>0</li></keys><values><li Class="SurfaceLayer"><def>Surface</def><layerId>0</layerId><subdivisions>10</subdivisions><tileBiomeDeflate>AA==</tileBiomeDeflate></li></values></layers></grid>
+              <features><features><li><def>Island</def><uniqueID>7</uniqueID><name>AdministratorName</name><layer>PlanetLayer_0</layer></li></features></features>
+              <landmarks><landmarks><keys><li>42,0</li></keys><values><li><def>TestLandmark</def><name>AdministratorLandmark</name></li></values></landmarks></landmarks>
+              <worldPawns><pawns><li>unsafe</li></pawns></worldPawns>
+              <worldObjects><worldObjects><li>unsafe</li></worldObjects></worldObjects>
+              <components><li>unsafe</li></components>
+            </world>
+          </game>
+        </savegame>
+        """);
+
+    Require(WorldSubstratePackage.TryExtract(save, out WorldSubstratePackage? extracted, out string? failure), "世界底图包应可从有效快照提取: " + failure);
+    Require(extracted is not null, "世界底图包不可为空");
+    Equal(12345, extracted!.PersistentRandomValue, "世界稳定随机值");
+    Require(extracted.GridXml.Contains("tileBiomeDeflate", StringComparison.Ordinal), "世界底图包应保留原版压缩地块数组");
+    Require(extracted.FeaturesXml.Contains("uniqueID>7", StringComparison.Ordinal), "世界底图包应保留地貌唯一标识");
+    Require(extracted.LandmarksXml.Contains("42,0", StringComparison.Ordinal), "世界底图包应保留地标位置");
+    Require(!extracted.GridXml.Contains("worldPawns", StringComparison.Ordinal), "世界底图包不得包含 world pawn");
+
+    extracted = new WorldSubstratePackage(
+        extracted.PersistentRandomValue,
+        extracted.GridXml,
+        extracted.FeaturesXml,
+        extracted.LandmarksXml,
+        new byte[] { 1, 2, 3, 4, 5 });
+    byte[] encoded = WorldSubstratePackageCodec.Encode(extracted);
+    Require(WorldSubstratePackageCodec.TryDecode(encoded, out WorldSubstratePackage? decoded, out failure), "世界底图包应可解码: " + failure);
+    Require(decoded is not null, "解码后的世界底图包不可为空");
+    Equal(extracted.GridXml, decoded!.GridXml, "世界网格压缩往返");
+    Equal(extracted.FeaturesXml, decoded.FeaturesXml, "世界特征压缩往返");
+    Equal(extracted.LandmarksXml, decoded.LandmarksXml, "世界地标压缩往返");
+    Require(decoded.TileGeometryPayload.SequenceEqual(extracted.TileGeometryPayload), "世界地图几何二进制压缩往返");
+}
+
+static void VerifyWorldSubstratePackageRejectsMissingGrid()
+{
+    byte[] save = Encoding.UTF8.GetBytes("<savegame><game><world><info /></world></game></savegame>");
+    Require(!WorldSubstratePackage.TryExtract(save, out _, out string? failure), "缺失世界网格的快照必须被拒绝");
+    Require(!string.IsNullOrWhiteSpace(failure), "拒绝原因不可为空");
+}
+
+static void VerifyWorldSubstrateRegistryReadiness()
+{
+    string path = Path.Combine(Path.GetTempPath(), "clashofrim-world-substrate-" + Guid.NewGuid().ToString("N") + ".json");
+    try
+    {
+        var registry = new WorldConfigurationRegistry(path);
+        WorldSessionState initial = registry.Prepare("admin");
+        var geometry = new WorldTileGeometryDto(new[]
+        {
+            new WorldTileLayerGeometryDto(
+                0,
+                "Surface",
+                1f,
+                new[] { new WorldTileCenterDto(0, 1f, 0f, 0f) })
+        });
+        var configuration = new WorldConfigurationDto(
+            "world:test",
+            "admin",
+            "colony-a",
+            DateTimeOffset.UtcNow,
+            "test-seed",
+            "0.3",
+            "Normal",
+            "Normal",
+            "Normal",
+            "Normal",
+            "10000",
+            new[] { "OutlanderCivil" },
+            Array.Empty<WorldFeatureDto>(),
+            Array.Empty<WorldFactionDto>(),
+            Array.Empty<WorldRoadDto>(),
+            Array.Empty<WorldObjectBaselineDto>(),
+            Array.Empty<PlayerColonySiteDto>());
+        WorldSessionState submitted = registry.Submit("admin", configuration);
+        Require(!submitted.WorldConfigured, "仅提交轻量世界配置时不应开放世界会话");
+
+        byte[] geometryPayload = WorldTileGeometryBinaryCodec.Encode(geometry)!;
+        byte[] payload = WorldSubstratePackageCodec.Encode(new WorldSubstratePackage(
+            123,
+            "<grid><layers><keys><li>0</li></keys><values><li /></values></layers></grid>",
+            "<features />",
+            "<landmarks />",
+            geometryPayload));
+        WorldSubstrateStoreResult stored = registry.StoreWorldSubstrate("admin", "colony-a", "world:test", payload);
+        Require(stored.Accepted, "管理员底图包应被接受");
+        Require(registry.Prepare("player-b").WorldConfigured, "底图包提交后应开放世界会话");
+
+        var reopened = new WorldConfigurationRegistry(path);
+        Require(reopened.Prepare("player-c").WorldConfigured, "重启后应恢复世界就绪状态");
+        Require(reopened.Current?.TileGeometry?.Layers.Count == 1, "重启后应从世界底图恢复几何缓存");
+        Require(reopened.TryGetWorldSubstrate("world:test", out byte[]? restored) && restored is not null, "重启后应可下载世界底图包");
+    }
+    finally
+    {
+        string binaryRoot = Path.ChangeExtension(path, null) + ".binary";
+        try
+        {
+            File.Delete(path);
+            if (Directory.Exists(binaryRoot))
+            {
+                Directory.Delete(binaryRoot, recursive: true);
+            }
+        }
+        catch (IOException)
+        {
+        }
+    }
+}
 
 static void VerifyDeflatedWealthHistoryFallback()
 {

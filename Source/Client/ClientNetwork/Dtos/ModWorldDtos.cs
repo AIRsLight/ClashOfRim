@@ -307,7 +307,7 @@ public sealed class ModSubmitWorldFeatureNamesRequestDto
 }
 
 [DataContract]
-public sealed class ModSubmitWorldTileGeometryRequestDto
+public sealed class ModUploadWorldSubstrateRequestDto
 {
     [DataMember(Name = "protocolVersion")]
     public string ProtocolVersion { get; set; } = ClashOfRimVersion.ProtocolVersion;
@@ -320,12 +320,6 @@ public sealed class ModSubmitWorldTileGeometryRequestDto
 
     [DataMember(Name = "worldConfigurationId")]
     public string WorldConfigurationId { get; set; } = string.Empty;
-
-    [DataMember(Name = "payloadEncoding")]
-    public string PayloadEncoding { get; set; } = string.Empty;
-
-    [DataMember(Name = "payloadBase64")]
-    public string PayloadBase64 { get; set; } = string.Empty;
 
     [DataMember(Name = "steamAuthTicket")]
     public string? SteamAuthTicket { get; set; }
@@ -408,7 +402,7 @@ public sealed class ModSubmitWorldFeatureNamesResponseDto
 }
 
 [DataContract]
-public sealed class ModSubmitWorldTileGeometryResponseDto
+public sealed class ModUploadWorldSubstrateResponseDto
 {
     [DataMember(Name = "result")]
     public ModProtocolResponseDto? Result { get; set; }
@@ -424,6 +418,28 @@ public sealed class ModSubmitWorldTileGeometryResponseDto
 
     [DataMember(Name = "worldConfiguration")]
     public ModWorldConfigurationDto? WorldConfiguration { get; set; }
+}
+
+[DataContract]
+public sealed class ModDownloadWorldSubstrateRequestDto
+{
+    [DataMember(Name = "protocolVersion")]
+    public string ProtocolVersion { get; set; } = ClashOfRimVersion.ProtocolVersion;
+
+    [DataMember(Name = "userId")]
+    public string UserId { get; set; } = string.Empty;
+
+    [DataMember(Name = "colonyId")]
+    public string ColonyId { get; set; } = string.Empty;
+
+    [DataMember(Name = "worldConfigurationId")]
+    public string WorldConfigurationId { get; set; } = string.Empty;
+
+    [DataMember(Name = "steamAuthTicket")]
+    public string? SteamAuthTicket { get; set; }
+
+    [DataMember(Name = "password")]
+    public string? Password { get; set; }
 }
 
 [DataContract]

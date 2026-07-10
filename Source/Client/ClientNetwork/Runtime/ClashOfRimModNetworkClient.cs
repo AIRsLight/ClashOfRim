@@ -71,7 +71,8 @@ public sealed class ClashOfRimModNetworkClient
     private const string PrepareWorldSessionRoute = "/world/session";
     private const string GetWorldConfigurationRoute = "/world/configuration/current";
     private const string SubmitWorldConfigurationRoute = "/world/configuration";
-    private const string SubmitWorldTileGeometryRoute = "/world/configuration/tile-geometry";
+    private const string UploadWorldSubstrateRoute = "/world/configuration/substrate";
+    private const string DownloadWorldSubstrateRoute = "/world/configuration/substrate/download";
     private const string SubmitWorldFeatureNamesRoute = "/world/configuration/feature-names";
     private const string RegisterPlayerColonySitesRoute = "/world/colony-sites";
     private const string PreflightColonyRelocationRoute = "/world/colony-sites/relocation/preflight";
@@ -444,34 +445,54 @@ public sealed class ClashOfRimModNetworkClient
             cancellationToken);
     }
 
-    public Task<ClashOfRimClientNetworkResult<ModSubmitWorldTileGeometryResponseDto>> SubmitWorldTileGeometryAsync(
+    public Task<ClashOfRimClientNetworkResult<ModUploadWorldSubstrateResponseDto>> UploadWorldSubstrateAsync(
         string worldConfigurationId,
-        ModWorldTileGeometryDto geometry,
+        byte[] payload,
         CancellationToken cancellationToken = default)
     {
         if (!context.IsConfigured)
         {
-            return NotConfigured<ModSubmitWorldTileGeometryResponseDto>();
+            return NotConfigured<ModUploadWorldSubstrateResponseDto>();
         }
 
-        byte[] payload = ModWorldTileGeometryBinaryCodec.Encode(geometry);
-        var request = new ModSubmitWorldTileGeometryRequestDto
+        var request = new ModUploadWorldSubstrateRequestDto
         {
             UserId = context.UserId,
             ColonyId = context.ColonyId,
             WorldConfigurationId = worldConfigurationId ?? string.Empty,
-            PayloadEncoding = ModWorldTileGeometryBinaryCodec.EncodingName,
-            PayloadBase64 = Convert.ToBase64String(payload),
             SteamAuthTicket = string.IsNullOrWhiteSpace(context.SteamAuthTicket)
                 ? context.UserId
                 : context.SteamAuthTicket,
             Password = context.OfflinePassword
         };
 
-        return PostAsync<ModSubmitWorldTileGeometryRequestDto, ModSubmitWorldTileGeometryResponseDto>(
-            SubmitWorldTileGeometryRoute,
+        return PostSnapshotMultipartAsync<ModUploadWorldSubstrateRequestDto, ModUploadWorldSubstrateResponseDto>(
+            UploadWorldSubstrateRoute,
             request,
+            payload,
             cancellationToken);
+    }
+
+    public Task<ClashOfRimClientNetworkResult<byte[]>> DownloadWorldSubstrateAsync(
+        string worldConfigurationId,
+        CancellationToken cancellationToken = default)
+    {
+        if (!context.IsConfigured)
+        {
+            return NotConfigured<byte[]>();
+        }
+
+        var request = new ModDownloadWorldSubstrateRequestDto
+        {
+            UserId = context.UserId,
+            ColonyId = context.ColonyId,
+            WorldConfigurationId = worldConfigurationId ?? string.Empty,
+            SteamAuthTicket = string.IsNullOrWhiteSpace(context.SteamAuthTicket)
+                ? context.UserId
+                : context.SteamAuthTicket,
+            Password = context.OfflinePassword
+        };
+        return PostForBytesAsync(DownloadWorldSubstrateRoute, request, cancellationToken);
     }
 
     public Task<ClashOfRimClientNetworkResult<ModGetWorldConfigurationResponseDto>> GetWorldConfigurationAsync(

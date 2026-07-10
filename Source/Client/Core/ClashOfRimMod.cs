@@ -29,6 +29,7 @@ using AIRsLight.ClashOfRim.Support;
 using AIRsLight.ClashOfRim.ThirdPartyCompatibility;
 using AIRsLight.ClashOfRim.Trades;
 using AIRsLight.ClashOfRim.WorldObjects;
+using AIRsLight.ClashOfRim.Protocol;
 using HarmonyLib;
 using RimWorld;
 using RimWorld.Planet;
@@ -99,6 +100,7 @@ public sealed partial class ClashOfRimMod : Mod
     private string localAtomicMutationStatus = string.Empty;
     private bool pendingInitialWorldConfigurationSubmit;
     private ModWorldConfigurationDto? pendingServerWorldConfiguration;
+    private WorldSubstratePackage? pendingServerWorldSubstrate;
     private string? lastSessionId;
     private long lastNotificationVersion;
     private long lastWorldConfigurationVersion;
@@ -874,6 +876,5 @@ public sealed partial class ClashOfRimMod : Mod
     }
 
 }
-
 
 

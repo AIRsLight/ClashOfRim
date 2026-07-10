@@ -10,6 +10,7 @@ using AIRsLight.ClashOfRim.MainMenu;
 using AIRsLight.ClashOfRim.Raids;
 using AIRsLight.ClashOfRim.RemoteMaps;
 using AIRsLight.ClashOfRim.WorldObjects;
+using AIRsLight.ClashOfRim.Protocol;
 using RimWorld;
 using Verse;
 
@@ -279,6 +280,7 @@ public sealed partial class ClashOfRimMod
         lastRegisteredPlayerColonySiteSignature = null;
         pendingInitialWorldConfigurationSubmit = false;
         pendingServerWorldConfiguration = null;
+        pendingServerWorldSubstrate = null;
         lastBankStatus = null;
         lastAdminStatus = null;
         giftsEnabled = true;
@@ -434,6 +436,18 @@ public sealed partial class ClashOfRimMod
                 return;
             }
 
+            if (response.WorldConfigured && response.WorldConfiguration is not null)
+            {
+                loginStatus = ClashOfRimText.Key("ClashOfRim.JoinExistingWorldFlow", settings.UserId.Named("USER"), settings.ColonyId.Named("COLONY"));
+                ShowServerEntryProgressWindowNow(
+                    ClashOfRimText.Key("ClashOfRim.ServerEntry.Title"),
+                    loginStatus,
+                    0.35f,
+                    canClose: false);
+                continuingAsyncFlow = StartDownloadWorldSubstrateThenOpenScenario(response.WorldConfiguration);
+                return;
+            }
+
             loginStatus = response.RequiresInitialWorldConfiguration
                 ? ClashOfRimText.Key(
                     "ClashOfRim.FirstAdminWorldConfigurationFlow",
@@ -457,6 +471,69 @@ public sealed partial class ClashOfRimMod
                 manualSyncInProgress = false;
             }
         }
+    }
+
+    private bool StartDownloadWorldSubstrateThenOpenScenario(ModWorldConfigurationDto configuration)
+    {
+        if (string.IsNullOrWhiteSpace(configuration.WorldConfigurationId))
+        {
+            loginStatus = ClashOfRimText.Key("ClashOfRim.WorldConfiguredButMissingConfiguration");
+            ShowServerEntryFailureWindowNow(loginStatus);
+            return false;
+        }
+
+        Task.Run(async () =>
+        {
+            try
+            {
+                using var httpClient = new HttpClient();
+                var client = new ClashOfRimModNetworkClient(
+                    httpClient,
+                    ClashOfRimClientNetworkContext.FromSettings(settings));
+                ClashOfRimClientNetworkResult<byte[]> result = await client
+                    .DownloadWorldSubstrateAsync(configuration.WorldConfigurationId)
+                    .ConfigureAwait(false);
+                string? failure = null;
+                WorldSubstratePackage? substrate = null;
+                bool decoded = result.Success
+                    && result.Response is not null
+                    && WorldSubstratePackageCodec.TryDecode(result.Response, out substrate, out failure)
+                    && substrate is not null;
+                if (!decoded)
+                {
+                    string message = result.Message ?? result.ErrorCode ?? failure ?? "Unknown";
+                    EnqueueClashOfRimMainThreadAction(() =>
+                    {
+                        pendingServerWorldConfiguration = null;
+                        pendingServerWorldSubstrate = null;
+                        loginStatus = ClashOfRimText.Key("ClashOfRim.WorldSessionRequestFailed", "WorldSubstrate".Named("CODE"), message.Named("MESSAGE"));
+                        ShowServerEntryFailureWindowNow(loginStatus);
+                        manualSyncInProgress = false;
+                    });
+                    return;
+                }
+
+                EnqueueClashOfRimMainThreadAction(() =>
+                {
+                    pendingServerWorldConfiguration = configuration;
+                    pendingServerWorldSubstrate = substrate;
+                    CloseServerEntryProgressWindowNow();
+                    Find.WindowStack.Add(new Page_SelectScenario());
+                });
+            }
+            catch (Exception ex)
+            {
+                EnqueueClashOfRimMainThreadAction(() =>
+                {
+                    pendingServerWorldConfiguration = null;
+                    pendingServerWorldSubstrate = null;
+                    loginStatus = ClashOfRimText.Key("ClashOfRim.WorldSessionRequestFailed", ex.GetType().Name.Named("CODE"), ex.Message.Named("MESSAGE"));
+                    ShowServerEntryFailureWindowNow(loginStatus);
+                    manualSyncInProgress = false;
+                });
+            }
+        });
+        return true;
     }
 
     private bool StartRestoreExistingColonySnapshot(

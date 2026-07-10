@@ -334,108 +334,96 @@ public static partial class ClashOfRimNetworkServer
             worldConfiguration: deliveredConfiguration));
     }
 
-    private static IResult SubmitWorldTileGeometry(
-        SubmitWorldTileGeometryRequest request,
+    private static async Task<IResult> UploadWorldSubstrate(
+        HttpRequest httpRequest,
         ClashOfRimNetworkState state,
         ILoggerFactory loggerFactory)
     {
-        if (!string.Equals(request.ProtocolVersion, ProtocolApiVersion.Current, StringComparison.Ordinal))
+        MultipartSnapshotRequest<UploadWorldSubstrateRequest>? multipart =
+            await ReadMultipartSnapshotRequest<UploadWorldSubstrateRequest>(httpRequest);
+        if (multipart is null || multipart.Request is null || multipart.Payload is null)
         {
-            return Results.Ok(new SubmitWorldTileGeometryResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.IncompatibleProtocolVersion, T("Protocol.IncompatibleVersion")),
-                accepted: false,
-                layerCount: 0,
-                tileCenterCount: 0,
-                worldConfiguration: BuildWorldConfigurationForDelivery(state.WorldConfiguration.Current, state)));
-        }
-
-        if (string.IsNullOrWhiteSpace(request.UserId)
-            || string.IsNullOrWhiteSpace(request.ColonyId)
-            || string.IsNullOrWhiteSpace(request.WorldConfigurationId)
-            || string.IsNullOrWhiteSpace(request.PayloadEncoding)
-            || string.IsNullOrWhiteSpace(request.PayloadBase64))
-        {
-            return Results.Ok(new SubmitWorldTileGeometryResponse(
+            return Results.Ok(new UploadWorldSubstrateResponse(
                 ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("WorldConfiguration.TileGeometryMissingRequest")),
-                accepted: false,
-                layerCount: 0,
-                tileCenterCount: 0,
-                worldConfiguration: BuildWorldConfigurationForDelivery(state.WorldConfiguration.Current, state)));
+                false, 0, 0, BuildWorldConfigurationForDelivery(state.WorldConfiguration.Current, state)));
         }
 
-        WorldSessionState before = state.WorldConfiguration.Prepare(request.UserId);
-        if (!before.IsAdministrator)
+        UploadWorldSubstrateRequest request = multipart.Request;
+        if (!string.Equals(request.ProtocolVersion, ProtocolApiVersion.Current, StringComparison.Ordinal)
+            || string.IsNullOrWhiteSpace(request.UserId)
+            || string.IsNullOrWhiteSpace(request.ColonyId)
+            || string.IsNullOrWhiteSpace(request.WorldConfigurationId))
         {
-            return Results.Ok(new SubmitWorldTileGeometryResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, T("WorldConfiguration.AdminOnly")),
-                accepted: false,
-                layerCount: 0,
-                tileCenterCount: 0,
-                worldConfiguration: BuildWorldConfigurationForDelivery(before.WorldConfiguration, state)));
+            return Results.Ok(new UploadWorldSubstrateResponse(
+                ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("WorldConfiguration.TileGeometryMissingRequest")),
+                false, 0, 0, BuildWorldConfigurationForDelivery(state.WorldConfiguration.Current, state)));
         }
 
-        if (!string.Equals(request.PayloadEncoding, "WorldTileGeometryBinaryV1", StringComparison.Ordinal))
+        AuthenticationValidationResult auth = ValidateAuthentication(
+            state, request.UserId, request.SteamAuthTicket, request.Password, DateTimeOffset.UtcNow);
+        if (!auth.Accepted || string.IsNullOrWhiteSpace(auth.AuthenticatedUserId))
         {
-            return Results.Ok(new SubmitWorldTileGeometryResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("WorldConfiguration.TileGeometryUnsupportedEncoding")),
-                accepted: false,
-                layerCount: 0,
-                tileCenterCount: 0,
-                worldConfiguration: BuildWorldConfigurationForDelivery(before.WorldConfiguration, state)));
+            return Results.Ok(new UploadWorldSubstrateResponse(
+                ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, auth.Message ?? T("Steam.Failed")),
+                false, 0, 0, BuildWorldConfigurationForDelivery(state.WorldConfiguration.Current, state)));
         }
 
-        WorldTileGeometryDto? geometry;
-        try
-        {
-            geometry = WorldTileGeometryBinaryCodec.Decode(Convert.FromBase64String(request.PayloadBase64));
-        }
-        catch (Exception ex) when (ex is FormatException or ArgumentException)
-        {
-            geometry = null;
-        }
-
-        if (geometry is null)
-        {
-            return Results.Ok(new SubmitWorldTileGeometryResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("WorldConfiguration.TileGeometryInvalidPayload")),
-                accepted: false,
-                layerCount: 0,
-                tileCenterCount: 0,
-                worldConfiguration: BuildWorldConfigurationForDelivery(before.WorldConfiguration, state)));
-        }
-
-        int tileCenterCount = geometry.Layers.Sum(layer => layer.TileCenters.Count);
-        WorldTileGeometrySubmitResult result = state.WorldConfiguration.SubmitWorldTileGeometry(
-            request.UserId,
+        WorldSubstrateStoreResult result = state.WorldConfiguration.StoreWorldSubstrate(
+            auth.AuthenticatedUserId,
             request.ColonyId,
             request.WorldConfigurationId,
-            geometry);
-        WorldConfigurationDto? deliveredConfiguration = BuildWorldConfigurationForDelivery(result.WorldConfiguration, state);
+            multipart.Payload);
+        WorldConfigurationDto? delivered = BuildWorldConfigurationForDelivery(result.WorldConfiguration, state);
         if (!result.Accepted)
         {
-            return Results.Ok(new SubmitWorldTileGeometryResponse(
-                ProtocolResponse.Reject(
-                    ProtocolErrorCode.ValidationFailed,
+            return Results.Ok(new UploadWorldSubstrateResponse(
+                ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed,
                     T("WorldConfiguration.TileGeometryRejected", ("REASON", result.Message))),
-                accepted: false,
-                layerCount: geometry.Layers.Count,
-                tileCenterCount: tileCenterCount,
-                worldConfiguration: deliveredConfiguration));
+                false,
+                result.LayerCount,
+                result.TileCenterCount,
+                delivered));
         }
 
         RuntimeLogger(loggerFactory).LogInformation(
-            "世界地块几何已提交：user={UserId} colony={ColonyId} world={WorldConfigurationId} layers={LayerCount} tileCenters={TileCenterCount}",
-            request.UserId,
+            "世界底图已提交：user={UserId} colony={ColonyId} world={WorldConfigurationId} bytes={PayloadBytes} layers={LayerCount} tileCenters={TileCenterCount}",
+            auth.AuthenticatedUserId,
             request.ColonyId,
             request.WorldConfigurationId,
-            geometry.Layers.Count,
-            tileCenterCount);
-        return Results.Ok(new SubmitWorldTileGeometryResponse(
+            multipart.Payload.Length,
+            result.LayerCount,
+            result.TileCenterCount);
+        return Results.Ok(new UploadWorldSubstrateResponse(
             ProtocolResponse.Ok(T("WorldConfiguration.TileGeometryRegistered")),
-            accepted: true,
-            layerCount: geometry.Layers.Count,
-            tileCenterCount: tileCenterCount,
-            worldConfiguration: deliveredConfiguration));
+            true,
+            result.LayerCount,
+            result.TileCenterCount,
+            delivered));
+    }
+
+    private static IResult DownloadWorldSubstrate(
+        DownloadWorldSubstrateRequest request,
+        ClashOfRimNetworkState state)
+    {
+        if (!string.Equals(request.ProtocolVersion, ProtocolApiVersion.Current, StringComparison.Ordinal)
+            || string.IsNullOrWhiteSpace(request.UserId)
+            || string.IsNullOrWhiteSpace(request.ColonyId)
+            || string.IsNullOrWhiteSpace(request.WorldConfigurationId))
+        {
+            return Results.BadRequest();
+        }
+
+        AuthenticationValidationResult auth = ValidateAuthentication(
+            state, request.UserId, request.SteamAuthTicket, request.Password, DateTimeOffset.UtcNow);
+        if (!auth.Accepted || string.IsNullOrWhiteSpace(auth.AuthenticatedUserId))
+        {
+            return Results.Unauthorized();
+        }
+
+        return state.WorldConfiguration.TryGetWorldSubstrate(request.WorldConfigurationId, out byte[]? payload)
+            && payload is not null
+            ? Results.File(payload, "application/octet-stream", "world-substrate.cors.gz")
+            : Results.NotFound();
     }
 
     private static IResult GetWorldConfiguration(GetWorldConfigurationRequest request, ClashOfRimNetworkState state)

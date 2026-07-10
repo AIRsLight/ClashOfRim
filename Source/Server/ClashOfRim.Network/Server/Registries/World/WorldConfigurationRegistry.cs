@@ -1,7 +1,7 @@
 using AIRsLight.ClashOfRim.Compatibility;
 using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Network.Plugins;
-using System.Buffers.Binary;
+using AIRsLight.ClashOfRim.Save;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
@@ -25,6 +25,7 @@ public sealed class WorldConfigurationRegistry
     private string? administratorUserId;
     private HashSet<string> administratorUserIds = new(StringComparer.Ordinal);
     private WorldConfigurationDto? worldConfiguration;
+    private byte[]? worldSubstratePayload;
 
     public WorldConfigurationRegistry(string? persistencePath = null)
         : this(
@@ -75,7 +76,7 @@ public sealed class WorldConfigurationRegistry
         {
             lock (gate)
             {
-                return worldConfiguration is not null && HasUsableWorldGenerationBaseline(worldConfiguration)
+                return HasReadyWorldLocked()
                     ? worldConfiguration
                     : null;
             }
@@ -102,7 +103,7 @@ public sealed class WorldConfigurationRegistry
             }
 
             bool isAdministrator = IsAdministratorLocked(userId);
-            bool worldConfigured = worldConfiguration is not null && HasUsableWorldGenerationBaseline(worldConfiguration);
+            bool worldConfigured = HasReadyWorldLocked();
             return new WorldSessionState(
                 isAdministrator,
                 worldConfigured,
@@ -199,15 +200,17 @@ public sealed class WorldConfigurationRegistry
                     EnsureSubmittedLanguageFeatureNameCatalog(configuration),
                     userId,
                     activeWorldExtensions);
+                worldConfiguration = CopyWithTileGeometry(worldConfiguration, tileGeometry: null);
+                worldSubstratePayload = null;
                 SaveLocked();
             }
 
             return new WorldSessionState(
                 isAdministrator,
-                worldConfiguration is not null && HasUsableWorldGenerationBaseline(worldConfiguration),
+                HasReadyWorldLocked(),
                 RequiresInitialWorldConfiguration: false,
                 administratorUserId,
-                worldConfiguration is not null && HasUsableWorldGenerationBaseline(worldConfiguration)
+                HasReadyWorldLocked()
                     ? worldConfiguration
                     : null);
         }
@@ -298,42 +301,74 @@ public sealed class WorldConfigurationRegistry
         }
     }
 
-    public WorldTileGeometrySubmitResult SubmitWorldTileGeometry(
+    public WorldSubstrateStoreResult StoreWorldSubstrate(
         string userId,
         string colonyId,
         string worldConfigurationId,
-        WorldTileGeometryDto geometry)
+        byte[] payload)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(userId);
         ArgumentException.ThrowIfNullOrWhiteSpace(colonyId);
         ArgumentException.ThrowIfNullOrWhiteSpace(worldConfigurationId);
-        ArgumentNullException.ThrowIfNull(geometry);
+        ArgumentNullException.ThrowIfNull(payload);
 
         lock (gate)
         {
             if (worldConfiguration is null || !HasUsableWorldGenerationBaseline(worldConfiguration))
             {
-                return new WorldTileGeometrySubmitResult(false, "WorldNotConfigured", worldConfiguration);
+                return new WorldSubstrateStoreResult(false, "WorldNotConfigured", 0, 0, worldConfiguration);
             }
 
             if (!IsAdministratorLocked(userId))
             {
-                return new WorldTileGeometrySubmitResult(false, "AdminOnly", worldConfiguration);
+                return new WorldSubstrateStoreResult(false, "AdminOnly", 0, 0, worldConfiguration);
             }
 
             if (!string.Equals(worldConfiguration.WorldConfigurationId, worldConfigurationId, StringComparison.Ordinal))
             {
-                return new WorldTileGeometrySubmitResult(false, "WorldConfigurationMismatch", worldConfiguration);
+                return new WorldSubstrateStoreResult(false, "WorldConfigurationMismatch", 0, 0, worldConfiguration);
             }
 
-            if (geometry.Layers.Count == 0 || geometry.Layers.All(layer => layer.TileCenters.Count == 0))
+            if (!WorldSubstratePackageCodec.TryDecode(payload, out WorldSubstratePackage? package, out _)
+                || package is null)
             {
-                return new WorldTileGeometrySubmitResult(false, "EmptyGeometry", worldConfiguration);
+                return new WorldSubstrateStoreResult(false, "InvalidWorldSubstrate", 0, 0, worldConfiguration);
             }
 
+            WorldTileGeometryDto? geometry = WorldTileGeometryBinaryCodec.Decode(package.TileGeometryPayload);
+            if (geometry is null || geometry.Layers.Count == 0 || geometry.Layers.All(layer => layer.TileCenters.Count == 0))
+            {
+                return new WorldSubstrateStoreResult(false, "MissingWorldSubstrateGeometry", 0, 0, worldConfiguration);
+            }
+
+            worldSubstratePayload = (byte[])payload.Clone();
             worldConfiguration = CopyWithTileGeometry(worldConfiguration, geometry);
             SaveLocked();
-            return new WorldTileGeometrySubmitResult(true, "Registered", worldConfiguration);
+            return new WorldSubstrateStoreResult(
+                true,
+                "Registered",
+                geometry.Layers.Count,
+                geometry.Layers.Sum(layer => layer.TileCenters.Count),
+                worldConfiguration);
+        }
+    }
+
+    public bool TryGetWorldSubstrate(string worldConfigurationId, out byte[]? payload)
+    {
+        lock (gate)
+        {
+            payload = null;
+            if (worldConfiguration is null
+                || !HasUsableWorldGenerationBaseline(worldConfiguration)
+                || !string.Equals(worldConfiguration.WorldConfigurationId, worldConfigurationId, StringComparison.Ordinal)
+                || worldSubstratePayload is null
+                || !WorldSubstratePackageCodec.TryDecode(worldSubstratePayload, out _, out _))
+            {
+                return false;
+            }
+
+            payload = (byte[])worldSubstratePayload.Clone();
+            return true;
         }
     }
 
@@ -858,13 +893,15 @@ public sealed class WorldConfigurationRegistry
                 .OrderBy(catalog => catalog.Language, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
+            worldSubstratePayload = binaryPersistence?.ReadBinary("world-substrate");
+            WorldSubstratePackageCodec.TryDecode(worldSubstratePayload ?? Array.Empty<byte>(), out WorldSubstratePackage? substrate, out _);
             worldConfiguration = core.ToDto(
                 TryDeserializeRow<WorldConfigurationListRecord<WorldFeatureDto>>(rows, "features")?.Values,
                 TryDeserializeRow<WorldConfigurationListRecord<WorldFactionDto>>(rows, "factions")?.Values,
                 TryDeserializeRow<WorldConfigurationListRecord<WorldRoadDto>>(rows, "roads")?.Values,
                 TryDeserializeRow<WorldConfigurationListRecord<WorldObjectBaselineDto>>(rows, "world-objects")?.Values,
                 TryDeserializeRow<WorldConfigurationListRecord<PlayerColonySiteDto>>(rows, "player-colony-sites")?.Values,
-                WorldTileGeometryBinaryCodec.Decode(binaryPersistence?.ReadBinary("tile-geometry")),
+                substrate is null ? null : WorldTileGeometryBinaryCodec.Decode(substrate.TileGeometryPayload),
                 TryDeserializeRow<WorldConfigurationListRecord<WorldConfigurationExtensionDto>>(rows, "extensions")?.Values,
                 catalogs);
         }
@@ -906,6 +943,7 @@ public sealed class WorldConfigurationRegistry
                     .Where(userId => !string.IsNullOrWhiteSpace(userId))
                     .ToHashSet(StringComparer.Ordinal);
             EnsurePrimaryAdministratorLocked();
+            worldSubstratePayload = binaryPersistence?.ReadBinary("world-substrate");
             worldConfiguration = RestorePersistedWorldConfiguration(persisted);
             return true;
         }
@@ -928,7 +966,7 @@ public sealed class WorldConfigurationRegistry
         if (structuredPersistence is not null)
         {
             structuredPersistence.ReplaceAll(BuildStructuredRows());
-            binaryPersistence?.WriteBinary("tile-geometry", WorldTileGeometryBinaryCodec.Encode(worldConfiguration?.TileGeometry));
+            binaryPersistence?.WriteBinary("world-substrate", worldSubstratePayload);
             return;
         }
 
@@ -941,7 +979,7 @@ public sealed class WorldConfigurationRegistry
             BuildPersistenceSnapshot(administratorUserId, administratorUserIds, worldConfiguration),
             JsonOptions);
         legacyPersistence.Write(json);
-        binaryPersistence?.WriteBinary("tile-geometry", WorldTileGeometryBinaryCodec.Encode(worldConfiguration?.TileGeometry));
+        binaryPersistence?.WriteBinary("world-substrate", worldSubstratePayload);
     }
 
     private IReadOnlyDictionary<string, string> BuildStructuredRows()
@@ -1009,6 +1047,14 @@ public sealed class WorldConfigurationRegistry
             && configuration.FactionDefNames.Count > 0;
     }
 
+    private bool HasReadyWorldLocked()
+    {
+        return worldConfiguration is not null
+            && HasUsableWorldGenerationBaseline(worldConfiguration)
+            && worldSubstratePayload is not null
+            && WorldSubstratePackageCodec.TryDecode(worldSubstratePayload, out _, out _);
+    }
+
     private static WorldConfigurationPersistence BuildPersistenceSnapshot(
         string? administratorUserId,
         IReadOnlyCollection<string> administratorUserIds,
@@ -1031,7 +1077,10 @@ public sealed class WorldConfigurationRegistry
             return null;
         }
 
-        WorldTileGeometryDto? restoredGeometry = WorldTileGeometryBinaryCodec.Decode(binaryPersistence?.ReadBinary("tile-geometry"));
+        WorldSubstratePackageCodec.TryDecode(worldSubstratePayload ?? Array.Empty<byte>(), out WorldSubstratePackage? substrate, out _);
+        WorldTileGeometryDto? restoredGeometry = substrate is null
+            ? null
+            : WorldTileGeometryBinaryCodec.Decode(substrate.TileGeometryPayload);
         return restoredGeometry is null
             ? configuration
             : CopyWithTileGeometry(configuration, restoredGeometry);
@@ -1176,131 +1225,6 @@ public sealed class WorldConfigurationRegistry
         WorldConfigurationDto? WorldConfiguration);
 }
 
-internal static class WorldTileGeometryBinaryCodec
-{
-    private const uint Magic = 0x524F4354; // TCOR
-    private const int Version = 1;
-    private const int HeaderSize = 12;
-    private const int LayerHeaderSize = 16;
-    private const int TileCenterSize = 16;
-
-    public static byte[]? Encode(WorldTileGeometryDto? geometry)
-    {
-        if (geometry is null || geometry.Layers.Count == 0)
-        {
-            return null;
-        }
-
-        int length = HeaderSize;
-        var layerNames = new List<byte[]>(geometry.Layers.Count);
-        foreach (WorldTileLayerGeometryDto layer in geometry.Layers)
-        {
-            byte[] layerName = string.IsNullOrWhiteSpace(layer.LayerDefName)
-                ? Array.Empty<byte>()
-                : Encoding.UTF8.GetBytes(layer.LayerDefName!);
-            layerNames.Add(layerName);
-            checked
-            {
-                length += LayerHeaderSize + layerName.Length + layer.TileCenters.Count * TileCenterSize;
-            }
-        }
-
-        byte[] bytes = new byte[length];
-        Span<byte> span = bytes;
-        BinaryPrimitives.WriteUInt32LittleEndian(span[0..4], Magic);
-        BinaryPrimitives.WriteInt32LittleEndian(span[4..8], Version);
-        BinaryPrimitives.WriteInt32LittleEndian(span[8..12], geometry.Layers.Count);
-        int offset = HeaderSize;
-
-        for (int layerIndex = 0; layerIndex < geometry.Layers.Count; layerIndex++)
-        {
-            WorldTileLayerGeometryDto layer = geometry.Layers[layerIndex];
-            byte[] layerName = layerNames[layerIndex];
-            BinaryPrimitives.WriteInt32LittleEndian(span.Slice(offset, 4), layer.LayerId);
-            BinaryPrimitives.WriteSingleLittleEndian(span.Slice(offset + 4, 4), layer.AverageTileSize);
-            BinaryPrimitives.WriteInt32LittleEndian(span.Slice(offset + 8, 4), layer.TileCenters.Count);
-            BinaryPrimitives.WriteInt32LittleEndian(span.Slice(offset + 12, 4), layerName.Length);
-            offset += LayerHeaderSize;
-            layerName.CopyTo(span.Slice(offset, layerName.Length));
-            offset += layerName.Length;
-
-            foreach (WorldTileCenterDto center in layer.TileCenters.OrderBy(center => center.Tile))
-            {
-                BinaryPrimitives.WriteInt32LittleEndian(span.Slice(offset, 4), center.Tile);
-                BinaryPrimitives.WriteSingleLittleEndian(span.Slice(offset + 4, 4), center.X);
-                BinaryPrimitives.WriteSingleLittleEndian(span.Slice(offset + 8, 4), center.Y);
-                BinaryPrimitives.WriteSingleLittleEndian(span.Slice(offset + 12, 4), center.Z);
-                offset += TileCenterSize;
-            }
-        }
-
-        return bytes;
-    }
-
-    public static WorldTileGeometryDto? Decode(byte[]? bytes)
-    {
-        if (bytes is null || bytes.Length < HeaderSize)
-        {
-            return null;
-        }
-
-        ReadOnlySpan<byte> span = bytes;
-        if (BinaryPrimitives.ReadUInt32LittleEndian(span[0..4]) != Magic
-            || BinaryPrimitives.ReadInt32LittleEndian(span[4..8]) != Version)
-        {
-            return null;
-        }
-
-        int layerCount = BinaryPrimitives.ReadInt32LittleEndian(span[8..12]);
-        if (layerCount <= 0)
-        {
-            return null;
-        }
-
-        int offset = HeaderSize;
-        var layers = new List<WorldTileLayerGeometryDto>(layerCount);
-        for (int layerIndex = 0; layerIndex < layerCount; layerIndex++)
-        {
-            if (offset + LayerHeaderSize > bytes.Length)
-            {
-                return null;
-            }
-
-            int layerId = BinaryPrimitives.ReadInt32LittleEndian(span.Slice(offset, 4));
-            float averageTileSize = BinaryPrimitives.ReadSingleLittleEndian(span.Slice(offset + 4, 4));
-            int tileCenterCount = BinaryPrimitives.ReadInt32LittleEndian(span.Slice(offset + 8, 4));
-            int layerNameByteCount = BinaryPrimitives.ReadInt32LittleEndian(span.Slice(offset + 12, 4));
-            offset += LayerHeaderSize;
-            if (tileCenterCount < 0
-                || layerNameByteCount < 0
-                || offset + layerNameByteCount > bytes.Length
-                || offset + layerNameByteCount + tileCenterCount * TileCenterSize > bytes.Length)
-            {
-                return null;
-            }
-
-            string? layerDefName = layerNameByteCount == 0
-                ? null
-                : Encoding.UTF8.GetString(bytes, offset, layerNameByteCount);
-            offset += layerNameByteCount;
-            var tileCenters = new List<WorldTileCenterDto>(tileCenterCount);
-            for (int tileIndex = 0; tileIndex < tileCenterCount; tileIndex++)
-            {
-                int tile = BinaryPrimitives.ReadInt32LittleEndian(span.Slice(offset, 4));
-                float x = BinaryPrimitives.ReadSingleLittleEndian(span.Slice(offset + 4, 4));
-                float y = BinaryPrimitives.ReadSingleLittleEndian(span.Slice(offset + 8, 4));
-                float z = BinaryPrimitives.ReadSingleLittleEndian(span.Slice(offset + 12, 4));
-                tileCenters.Add(new WorldTileCenterDto(tile, x, y, z));
-                offset += TileCenterSize;
-            }
-
-            layers.Add(new WorldTileLayerGeometryDto(layerId, layerDefName, averageTileSize, tileCenters));
-        }
-
-        return new WorldTileGeometryDto(layers);
-    }
-}
-
 public sealed record WorldSessionState(
     bool IsAdministrator,
     bool WorldConfigured,
@@ -1310,9 +1234,11 @@ public sealed record WorldSessionState(
 
 public sealed record RemovePlayerColonySitesResult(int RemovedCount, WorldSessionState Session);
 
-public sealed record WorldTileGeometrySubmitResult(
+public sealed record WorldSubstrateStoreResult(
     bool Accepted,
     string Message,
+    int LayerCount,
+    int TileCenterCount,
     WorldConfigurationDto? WorldConfiguration);
 
 public sealed record WorldFeatureNameCatalogSubmitResult(

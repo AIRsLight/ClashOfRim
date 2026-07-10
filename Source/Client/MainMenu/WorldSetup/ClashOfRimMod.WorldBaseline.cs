@@ -16,6 +16,7 @@ using AIRsLight.ClashOfRim.Diplomacy;
 using AIRsLight.ClashOfRim.RemoteMaps;
 using AIRsLight.ClashOfRim.ThirdPartyCompatibility;
 using AIRsLight.ClashOfRim.WorldObjects;
+using AIRsLight.ClashOfRim.Protocol;
 using HarmonyLib;
 using RimWorld;
 using RimWorld.Planet;
@@ -39,7 +40,9 @@ public sealed partial class ClashOfRimMod
         }
 
         ModWorldConfigurationDto configuration = pendingServerWorldConfiguration;
+        WorldSubstratePackage? substrate = pendingServerWorldSubstrate;
         pendingServerWorldConfiguration = null;
+        pendingServerWorldSubstrate = null;
         Page? nextPage = createWorldPage is Page page ? page.next : null;
         Action? nextAct = createWorldPage is Page pageWithNextAct ? pageWithNextAct.nextAct : null;
         if (nextPage is not null)
@@ -53,7 +56,7 @@ public sealed partial class ClashOfRimMod
         UpdateOccupiedPlayerColonySites(configuration);
         createWorldPage.Close();
         DebugLogFlow("TryGenerateWorldFromServerConfiguration.PageClosed", DescribeWindowStack());
-        GenerateWorldFromServerConfiguration(configuration, nextPage, nextAct);
+        GenerateWorldFromServerConfiguration(configuration, substrate, nextPage, nextAct);
         return true;
     }
 
@@ -236,6 +239,13 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
+        if (!TryCaptureWorldSubstrate(configuration, out byte[] substratePayload, out string substrateFailure))
+        {
+            loginStatus = ClashOfRimText.Key("ClashOfRim.WorldBaseline.StatusInvalid", substrateFailure.Named("REASON"));
+            Log.Warning("[ClashOfRim] Initial world substrate capture failed: " + substrateFailure);
+            return;
+        }
+
         loginStatus = ClashOfRimText.Key("ClashOfRim.WorldBaseline.StatusSubmitting");
         ClashLog.Message("[ClashOfRim] Submitting initial world configuration: " + DescribeWorldConfiguration(configuration));
         Task.Run(async () =>
@@ -247,7 +257,7 @@ public sealed partial class ClashOfRimMod
                     httpClient,
                     ClashOfRimClientNetworkContext.FromSettings(settings));
                 ClashOfRimClientNetworkResult<ModSubmitWorldConfigurationResponseDto> result =
-                    await SubmitWorldConfigurationWithDetachedGeometryAsync(client, configuration, "initial world configuration");
+                    await SubmitWorldConfigurationWithDetachedGeometryAsync(client, configuration, substratePayload, "initial world configuration");
                 if (!result.Success || result.Response?.Result?.Accepted != true)
                 {
                     loginStatus = ClashOfRimText.Key(
@@ -345,6 +355,13 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
+        if (!TryCaptureWorldSubstrate(configuration, out byte[] substratePayload, out string substrateFailure))
+        {
+            adminStatus = ClashOfRimText.Key("ClashOfRim.Admin.WorldBaselineInvalid", substrateFailure.Named("REASON"));
+            Messages.Message(adminStatus, MessageTypeDefOf.RejectInput, historical: false);
+            return;
+        }
+
         adminInProgress = true;
         adminStatus = ClashOfRimText.Key("ClashOfRim.Admin.WorldBaselineUpdating");
         Task.Run(async () =>
@@ -356,7 +373,7 @@ public sealed partial class ClashOfRimMod
                     httpClient,
                     ClashOfRimClientNetworkContext.FromSettings(settings));
                 ClashOfRimClientNetworkResult<ModSubmitWorldConfigurationResponseDto> result =
-                    await SubmitWorldConfigurationWithDetachedGeometryAsync(client, configuration, "admin world baseline update");
+                    await SubmitWorldConfigurationWithDetachedGeometryAsync(client, configuration, substratePayload, "admin world baseline update");
                 if (!result.Success || result.Response is null)
                 {
                     adminStatus = ClashOfRimText.Key(
@@ -474,6 +491,13 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
+        if (!TryCaptureWorldSubstrate(configuration, out byte[] substratePayload, out string substrateFailure))
+        {
+            adminStatus = ClashOfRimText.Key("ClashOfRim.Storyteller.AdminSyncFailed", "WorldSubstrate".Named("CODE"), substrateFailure.Named("MESSAGE"));
+            Messages.Message(adminStatus, MessageTypeDefOf.RejectInput, historical: false);
+            return;
+        }
+
         adminInProgress = true;
         adminStatus = ClashOfRimText.Key("ClashOfRim.Storyteller.AdminSyncing");
         Messages.Message(adminStatus, MessageTypeDefOf.NeutralEvent, historical: false);
@@ -486,7 +510,7 @@ public sealed partial class ClashOfRimMod
                     httpClient,
                     ClashOfRimClientNetworkContext.FromSettings(settings));
                 ClashOfRimClientNetworkResult<ModSubmitWorldConfigurationResponseDto> result =
-                    await SubmitWorldConfigurationWithDetachedGeometryAsync(client, configuration, "storyteller baseline sync");
+                    await SubmitWorldConfigurationWithDetachedGeometryAsync(client, configuration, substratePayload, "storyteller baseline sync");
                 if (!result.Success || result.Response is null)
                 {
                     adminStatus = ClashOfRimText.Key(
@@ -956,6 +980,7 @@ public sealed partial class ClashOfRimMod
     private async Task<ClashOfRimClientNetworkResult<ModSubmitWorldConfigurationResponseDto>> SubmitWorldConfigurationWithDetachedGeometryAsync(
         ClashOfRimModNetworkClient client,
         ModWorldConfigurationDto configuration,
+        byte[] substratePayload,
         string context)
     {
         ModWorldTileGeometryDto? tileGeometry = configuration.TileGeometry;
@@ -982,23 +1007,40 @@ public sealed partial class ClashOfRimMod
             return result;
         }
 
-        ClashOfRimClientNetworkResult<ModSubmitWorldTileGeometryResponseDto> geometryResult =
-            await client.SubmitWorldTileGeometryAsync(worldConfigurationId, tileGeometry!).ConfigureAwait(false);
-        if (!geometryResult.Success || geometryResult.Response?.Result?.Accepted != true)
+        ClashOfRimClientNetworkResult<ModUploadWorldSubstrateResponseDto> substrateResult =
+            await client.UploadWorldSubstrateAsync(worldConfigurationId, substratePayload).ConfigureAwait(false);
+        if (!substrateResult.Success || substrateResult.Response?.Result?.Accepted != true)
         {
-            string message = geometryResult.Message
-                ?? geometryResult.Response?.Result?.Message
-                ?? geometryResult.ErrorCode
-                ?? geometryResult.Response?.Result?.ErrorCode.ToString()
+            string message = substrateResult.Message
+                ?? substrateResult.Response?.Result?.Message
+                ?? substrateResult.ErrorCode
+                ?? substrateResult.Response?.Result?.ErrorCode.ToString()
                 ?? "Unknown";
-            Log.Warning("[ClashOfRim] Detached world tile geometry submit failed after " + context + ": " + message);
-            return result;
+            throw new InvalidOperationException("World substrate upload failed after " + context + ": " + message);
         }
 
         ClashLog.Message(
-            "[ClashOfRim] Detached world tile geometry accepted by server: "
-            + $"layers={geometryResult.Response.LayerCount}, tileCenters={geometryResult.Response.TileCenterCount}.");
+            "[ClashOfRim] World substrate accepted by server: "
+            + $"layers={substrateResult.Response.LayerCount}, tileCenters={substrateResult.Response.TileCenterCount}, bytes={substratePayload.Length}.");
         return result;
+    }
+
+    private static bool TryCaptureWorldSubstrate(
+        ModWorldConfigurationDto configuration,
+        out byte[] payload,
+        out string failure)
+    {
+        if (WorldSubstrateRuntime.TryCapture(configuration.TileGeometry, out byte[]? captured, out string? captureFailure)
+            && captured is not null)
+        {
+            payload = captured;
+            failure = string.Empty;
+            return true;
+        }
+
+        payload = Array.Empty<byte>();
+        failure = captureFailure ?? "Unknown";
+        return false;
     }
 
     private static int CountWorldTileCenters(ModWorldTileGeometryDto? geometry)
@@ -1094,7 +1136,11 @@ public sealed partial class ClashOfRimMod
         return geometry.Layers.Count == 0 ? null : geometry;
     }
 
-    private void GenerateWorldFromServerConfiguration(ModWorldConfigurationDto configuration, Page? nextPage, Action? nextAct)
+    private void GenerateWorldFromServerConfiguration(
+        ModWorldConfigurationDto configuration,
+        WorldSubstratePackage? substrate,
+        Page? nextPage,
+        Action? nextAct)
     {
         DebugLogFlow(
             "GenerateWorldFromServerConfiguration.Queue",
@@ -1131,10 +1177,27 @@ public sealed partial class ClashOfRimMod
                     landmarkDensity,
                     factions,
                     pollution);
+                bool substrateApplied = substrate is not null;
+                if (substrateApplied
+                    && !WorldSubstrateRuntime.TryApply(substrate!, configuration, out string? substrateFailure))
+                {
+                    throw new InvalidOperationException("Server world substrate could not be applied: " + substrateFailure);
+                }
                 DebugLogFlow(
                     "GenerateWorldFromServerConfiguration.LongEvent.WorldGenerated",
                     $"worldNull={Current.Game.World is null}, expected={DescribeWorldConfiguration(configuration)}, actual={DescribeCurrentWorldState()}");
-                ApplyWorldBaseline(configuration, applyPollution: true);
+                ApplyWorldBaseline(configuration, applyPollution: true, applyWorldFeatures: !substrateApplied);
+                if (substrateApplied && ShouldUseLocalWorldFeatureLabels(configuration))
+                {
+                    List<ModWorldFeatureDto> localFeatureNames = ReadCurrentWorldFeatures();
+                    if (localFeatureNames.Count > 0 && !string.IsNullOrWhiteSpace(ReadCurrentGameLanguage()))
+                    {
+                        StartSubmitWorldFeatureNameCatalog(
+                            configuration.WorldConfigurationId,
+                            ReadCurrentGameLanguage()!,
+                            localFeatureNames);
+                    }
+                }
                 ClashLog.Message("[ClashOfRim] Applied server world baseline: "
                     + DescribeWorldConfiguration(configuration)
                     + ", actual="
@@ -1202,18 +1265,25 @@ public sealed partial class ClashOfRimMod
         }
     }
 
-    private void ApplyWorldBaseline(ModWorldConfigurationDto configuration, bool applyPollution = false)
+    private void ApplyWorldBaseline(
+        ModWorldConfigurationDto configuration,
+        bool applyPollution = false,
+        bool applyWorldFeatures = true)
     {
         RememberWorldConfigurationIdentity(configuration);
-        List<ModWorldFeatureDto>? generatedFeatureNameCatalog =
-            ApplyWorldFeatures(configuration, out string? generatedFeatureNameCatalogLanguage);
-        if (generatedFeatureNameCatalog is { Count: > 0 }
-            && !string.IsNullOrWhiteSpace(generatedFeatureNameCatalogLanguage))
+        List<ModWorldFeatureDto>? generatedFeatureNameCatalog = null;
+        string? generatedFeatureNameCatalogLanguage = null;
+        if (applyWorldFeatures)
         {
-            StartSubmitWorldFeatureNameCatalog(
-                configuration.WorldConfigurationId,
-                generatedFeatureNameCatalogLanguage!,
-                generatedFeatureNameCatalog);
+            generatedFeatureNameCatalog = ApplyWorldFeatures(configuration, out generatedFeatureNameCatalogLanguage);
+            if (generatedFeatureNameCatalog is { Count: > 0 }
+                && !string.IsNullOrWhiteSpace(generatedFeatureNameCatalogLanguage))
+            {
+                StartSubmitWorldFeatureNameCatalog(
+                    configuration.WorldConfigurationId,
+                    generatedFeatureNameCatalogLanguage!,
+                    generatedFeatureNameCatalog);
+            }
         }
 
         ApplyWorldFactions(configuration.Factions);

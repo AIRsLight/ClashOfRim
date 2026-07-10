@@ -2693,6 +2693,12 @@ static void VerifyPersistentRegistries()
         WorldConfigurationDto configuration = BuildMinimalWorldConfiguration();
         WorldSessionState submitted = worldRegistry.Submit("admin-user", configuration);
         Require(submitted.WorldConfigured, "持久化世界注册表应接受管理员世界配置");
+        WorldSubstrateStoreResult storedSubstrate = worldRegistry.StoreWorldSubstrate(
+            "admin-user",
+            "colony-a",
+            configuration.WorldConfigurationId,
+            BuildSmokeWorldSubstrate(configuration.TileGeometry));
+        Require(storedSubstrate.Accepted, "持久化世界注册表应接受管理员世界底图包");
 
         WorldSessionState registered = worldRegistry.RegisterPlayerColonySites(
             "user-b",
@@ -2710,7 +2716,7 @@ static void VerifyPersistentRegistries()
         Equal("persistent-seed", reopened.WorldConfiguration?.SeedString, "重启后的世界种子");
         Require(reopened.WorldConfiguration?.PlayerColonySites.Any(site => site.UserId == "user-b" && site.Tile == 20) == true, "重启后应保留玩家殖民地地块");
         Require(reopened.WorldConfiguration?.TileGeometry?.Layers.Count == 2, "重启后应从独立二进制槽恢复世界地块几何");
-        Require(File.Exists(Path.Combine(root, "world-configuration.binary", "tile-geometry.bin")), "世界地块几何应保存为独立二进制文件");
+        Require(File.Exists(Path.Combine(root, "world-configuration.binary", "world-substrate.bin")), "世界底图应保存为独立二进制文件");
 
         var baselineRegistry = new AdminBaselineRegistry(baselinePath);
         baselineRegistry.Submit(new SubmitAdminBaselineRequest(
@@ -3263,6 +3269,18 @@ static WorldTileGeometryDto BuildSmokeWorldTileGeometry()
                 new WorldTileCenterDto(900, 2f, 0f, 0f)
             })
     });
+}
+
+static byte[] BuildSmokeWorldSubstrate(WorldTileGeometryDto? geometry)
+{
+    byte[] geometryBytes = WorldTileGeometryBinaryCodec.Encode(geometry)
+        ?? throw new InvalidOperationException("Smoke geometry cannot be empty.");
+    return WorldSubstratePackageCodec.Encode(new WorldSubstratePackage(
+        persistentRandomValue: 123,
+        gridXml: "<grid><layers><keys><li>0</li></keys><values><li><def>Surface</def></li></values></layers></grid>",
+        featuresXml: "<features />",
+        landmarksXml: "<landmarks />",
+        tileGeometryPayload: geometryBytes));
 }
 
 static void Equal<T>(T expected, T actual, string label)

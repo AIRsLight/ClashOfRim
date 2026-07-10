@@ -324,12 +324,28 @@ public sealed class ClashOfRimNetworkClient
             cancellationToken);
     }
 
-    public Task<SubmitWorldTileGeometryResponse> SubmitWorldTileGeometryAsync(SubmitWorldTileGeometryRequest request, CancellationToken cancellationToken = default)
+    public Task<UploadWorldSubstrateResponse> UploadWorldSubstrateAsync(
+        UploadWorldSubstrateRequest request,
+        byte[] payload,
+        CancellationToken cancellationToken = default)
     {
-        return PostAsync<SubmitWorldTileGeometryRequest, SubmitWorldTileGeometryResponse>(
-            ProtocolContractManifest.Find(ProtocolMessageKind.SubmitWorldTileGeometry).Route,
+        return PostSnapshotMultipartAsync<UploadWorldSubstrateRequest, UploadWorldSubstrateResponse>(
+            ProtocolContractManifest.Find(ProtocolMessageKind.UploadWorldSubstrate).Route,
+            request,
+            payload,
+            cancellationToken);
+    }
+
+    public async Task<byte[]> DownloadWorldSubstrateAsync(
+        DownloadWorldSubstrateRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        using HttpResponseMessage response = await httpClient.PostAsJsonAsync(
+            ProtocolContractManifest.Find(ProtocolMessageKind.DownloadWorldSubstrate).Route,
             request,
             cancellationToken);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadAsByteArrayAsync(cancellationToken);
     }
 
     public Task<GetWorldConfigurationResponse> GetWorldConfigurationAsync(GetWorldConfigurationRequest request, CancellationToken cancellationToken = default)

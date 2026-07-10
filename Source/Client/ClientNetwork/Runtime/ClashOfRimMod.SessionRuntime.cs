@@ -367,6 +367,7 @@ public sealed partial class ClashOfRimMod
         lastWorldConfigurationVersion = 0;
         pendingInitialWorldConfigurationSubmit = false;
         pendingServerWorldConfiguration = null;
+        pendingServerWorldSubstrate = null;
         pendingGiftConfirmationEventIds.Clear();
         postedEventLetterIds.Clear();
         appliedServerNotificationSideEffectIds.Clear();
