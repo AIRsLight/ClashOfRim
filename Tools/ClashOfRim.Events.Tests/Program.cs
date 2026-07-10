@@ -51,6 +51,7 @@ var tests = new (string Name, Action Run)[]
     ("文件账本重启后恢复事件和幂等索引", VerifyFileLedgerPersistence),
     ("SQLite 账本重启后恢复事件和幂等索引", VerifySqliteLedgerPersistence)
     ,("已注册但未落盘的模组设置仍进入兼容基线", VerifyRegisteredModSettingsRemainInCompatibilityBaseline)
+    ,("世界基线后台应用不得直接重建 Unity 图层", VerifyWorldSubstrateApplyDoesNotRenderOnWorkerThread)
 };
 
 foreach ((string name, Action run) in tests)
@@ -126,6 +127,34 @@ static void VerifyRegisteredModSettingsRemainInCompatibilityBaseline()
     Require(
         savedStateMismatch.Issues.Any(issue => issue.Code == CompatibilityIssueCode.ConfigFileMismatch),
         "落盘状态不一致应使用配置不一致错误");
+}
+
+static void VerifyWorldSubstrateApplyDoesNotRenderOnWorkerThread()
+{
+    string sourcePath = FindRepositoryFile("Source", "Client", "MainMenu", "WorldSetup", "WorldSubstrateRuntime.cs");
+    string source = File.ReadAllText(sourcePath);
+    int methodStart = source.IndexOf("public static bool TryApply(", StringComparison.Ordinal);
+    int nextMethod = source.IndexOf("    private static string CaptureXml", methodStart, StringComparison.Ordinal);
+    Require(methodStart >= 0 && nextMethod > methodStart, "应能定位世界基线应用方法");
+    string applyMethod = source.Substring(methodStart, nextMethod - methodStart);
+    Require(!applyMethod.Contains("RegenerateAllLayersNow", StringComparison.Ordinal), "后台世界基线应用不得直接创建 Unity 渲染网格");
+}
+
+static string FindRepositoryFile(params string[] segments)
+{
+    DirectoryInfo? directory = new(Directory.GetCurrentDirectory());
+    while (directory is not null)
+    {
+        string candidate = Path.Combine(new[] { directory.FullName }.Concat(segments).ToArray());
+        if (File.Exists(candidate))
+        {
+            return candidate;
+        }
+
+        directory = directory.Parent;
+    }
+
+    throw new InvalidOperationException("Repository file was not found: " + Path.Combine(segments));
 }
 
 static void LoadServerLocalizationForTests()

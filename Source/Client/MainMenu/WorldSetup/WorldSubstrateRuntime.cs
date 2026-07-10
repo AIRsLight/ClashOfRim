@@ -98,7 +98,6 @@ internal static class WorldSubstrateRuntime
             }
 
             Find.WorldFeatures.textsCreated = false;
-            Find.World.renderer.RegenerateAllLayersNow();
             return true;
         }
         catch (Exception ex)
