@@ -43,21 +43,6 @@ public static class ClashOfRimDialogModSettingsPreClosePatch
     }
 }
 
-[HarmonyPatch(typeof(LoadedModManager), nameof(LoadedModManager.WriteModSettings))]
-public static class ClashOfRimWriteModSettingsPatch
-{
-    public static bool Prefix(string modIdentifier, string modHandleName, ModSettings settings)
-    {
-        if (ModSettingsBaselinePolicy.CanWriteModSettings(modIdentifier, modHandleName))
-        {
-            return true;
-        }
-
-        ModSettingsBaselinePolicy.NotifyBlocked(modIdentifier, modHandleName);
-        return false;
-    }
-}
-
 [HarmonyPatch]
 public static class ClashOfRimGetSettingsFilenameOverlayPatch
 {
@@ -80,7 +65,6 @@ public static class ClashOfRimGetSettingsFilenameOverlayPatch
 
 internal static class ModSettingsBaselinePolicy
 {
-    private static float nextNotificationAt;
     private static string? cachedManifestJson;
     private static CompatibilityManifestDto? cachedManifest;
 
@@ -98,16 +82,6 @@ internal static class ModSettingsBaselinePolicy
         }
 
         return !IsControlledConfig(target.Content.FolderName, target.GetType().Name);
-    }
-
-    public static bool CanWriteModSettings(string modIdentifier, string modHandleName)
-    {
-        if (IsClashOfRimConfig(modIdentifier, modHandleName))
-        {
-            return true;
-        }
-
-        return CanEditAllModSettings() || !IsControlledConfig(modIdentifier, modHandleName);
     }
 
     public static bool TryGetOverlaySettingsFilename(string modIdentifier, string modHandleName, out string path)
@@ -274,22 +248,6 @@ internal static class ModSettingsBaselinePolicy
         }
 
         return string.IsNullOrWhiteSpace(best?.Mode) ? "Enforce" : best!.Mode!;
-    }
-
-    public static void NotifyBlocked(string? modIdentifier = null, string? modHandleName = null)
-    {
-        if (Time.realtimeSinceStartup < nextNotificationAt)
-        {
-            return;
-        }
-
-        nextNotificationAt = Time.realtimeSinceStartup + 3f;
-        Log.Warning(
-            "[ClashOfRim][Compatibility] Blocked mod settings write while server config baseline is active: "
-            + (modIdentifier ?? string.Empty)
-            + "/"
-            + (modHandleName ?? string.Empty));
-        Messages.Message(ClashOfRimText.Key("ClashOfRim.Compatibility.ModSettingsLockedMessage"), MessageTypeDefOf.RejectInput, historical: false);
     }
 
     [DataContract]

@@ -88,6 +88,11 @@ static void VerifyRegisteredModSettingsRemainInCompatibilityBaseline()
     Require(
         manifestBuilder.Contains("TryResolveActiveConfigPath", StringComparison.Ordinal),
         "清单构建必须读取已激活的服务器配置 overlay，而不是只读取本地原始 Config 文件");
+    string settingsPatchPath = FindRepositoryFile("Source", "Client", "Compatibility", "Patches", "ModSettingsBaselinePatches.cs");
+    string settingsPatch = File.ReadAllText(settingsPatchPath);
+    Require(
+        !settingsPatch.Contains("nameof(LoadedModManager.WriteModSettings)", StringComparison.Ordinal),
+        "配置基线不得拦截模组启动期的底层设置写入；用户修改由设置窗口锁定处理");
 
     var registeredWithoutSavedFile = new ModConfigDigest
     {
