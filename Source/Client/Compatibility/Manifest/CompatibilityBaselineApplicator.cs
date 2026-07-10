@@ -817,6 +817,11 @@ internal sealed class CompatibilityMismatchWindow : Window
     private static bool IssueBelongsToTab(string? code, CompatibilityTab tab)
     {
         string value = code ?? string.Empty;
+        if (ContainsOrdinal(value, "Config"))
+        {
+            return tab == CompatibilityTab.Config;
+        }
+
         return tab switch
         {
             CompatibilityTab.Manifest => ContainsOrdinal(value, "Mod")
@@ -828,7 +833,7 @@ internal sealed class CompatibilityMismatchWindow : Window
                 || ContainsOrdinal(value, "Language"),
             CompatibilityTab.Hash => ContainsOrdinal(value, "File")
                 || ContainsOrdinal(value, "DefSummary"),
-            CompatibilityTab.Config => ContainsOrdinal(value, "Config"),
+            CompatibilityTab.Config => false,
             _ => false
         };
     }

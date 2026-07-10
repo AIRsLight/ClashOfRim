@@ -158,6 +158,9 @@ static void VerifyCompatibilityMismatchUiUsesAuthoritativeFallback()
         source.Contains("AppendUnrepresentedFallbackEntries(entries, fallbackIssues, CompatibilityTab.Manifest);", StringComparison.Ordinal)
         && source.Contains("AppendUnrepresentedFallbackEntries(entries, fallbackIssues, CompatibilityTab.Hash);", StringComparison.Ordinal),
         "模块和文件页也必须保留服务端问题兜底");
+    Require(
+        source.Contains("if (ContainsOrdinal(value, \"Config\"))", StringComparison.Ordinal),
+        "配置错误必须在页签分类前被明确识别，不能同时显示为文件错误");
 }
 
 static string FindRepositoryFile(params string[] segments)
