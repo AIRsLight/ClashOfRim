@@ -91,8 +91,11 @@ static void VerifyRegisteredModSettingsRemainInCompatibilityBaseline()
     string settingsPatchPath = FindRepositoryFile("Source", "Client", "Compatibility", "Patches", "ModSettingsBaselinePatches.cs");
     string settingsPatch = File.ReadAllText(settingsPatchPath);
     Require(
-        !settingsPatch.Contains("nameof(LoadedModManager.WriteModSettings)", StringComparison.Ordinal),
-        "配置基线不得拦截模组启动期的底层设置写入；用户修改由设置窗口锁定处理");
+        settingsPatch.Contains("ShouldSuppressControlledSettingsWrite", StringComparison.Ordinal),
+        "受控配置的启动期写入必须被静默抑制，避免覆盖服务器 overlay 或触发 UI 通知");
+    Require(
+        !settingsPatch.Contains("ModSettingsLockedMessage"),
+        "底层设置写入拦截不得在启动阶段发送 UI 消息");
 
     var registeredWithoutSavedFile = new ModConfigDigest
     {

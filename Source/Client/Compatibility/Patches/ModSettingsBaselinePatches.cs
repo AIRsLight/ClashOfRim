@@ -43,6 +43,15 @@ public static class ClashOfRimDialogModSettingsPreClosePatch
     }
 }
 
+[HarmonyPatch(typeof(LoadedModManager), nameof(LoadedModManager.WriteModSettings))]
+public static class ClashOfRimWriteModSettingsPatch
+{
+    public static bool Prefix(string modIdentifier, string modHandleName, ModSettings settings)
+    {
+        return !ModSettingsBaselinePolicy.ShouldSuppressControlledSettingsWrite(modIdentifier, modHandleName);
+    }
+}
+
 [HarmonyPatch]
 public static class ClashOfRimGetSettingsFilenameOverlayPatch
 {
@@ -58,6 +67,7 @@ public static class ClashOfRimGetSettingsFilenameOverlayPatch
     {
         if (ModSettingsBaselinePolicy.TryGetOverlaySettingsFilename(modIdentifier, modHandleName, out string overlayPath))
         {
+            CompatibilityConfigOverlayPath.EnsureDirectoryFor(overlayPath);
             __result = overlayPath;
         }
     }
@@ -82,6 +92,11 @@ internal static class ModSettingsBaselinePolicy
         }
 
         return !IsControlledConfig(target.Content.FolderName, target.GetType().Name);
+    }
+
+    public static bool ShouldSuppressControlledSettingsWrite(string modIdentifier, string modHandleName)
+    {
+        return !CanEditAllModSettings() && IsControlledConfig(modIdentifier, modHandleName);
     }
 
     public static bool TryGetOverlaySettingsFilename(string modIdentifier, string modHandleName, out string path)
