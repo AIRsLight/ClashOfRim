@@ -315,6 +315,8 @@ internal static class CompatibilityConfigOverlayPath
     private const string ActiveOverlayFileName = "active.json";
     private static ActiveOverlayDto? cachedActiveOverlay;
     private static bool activeOverlayLoaded;
+    private static bool profileActivationChecked;
+    private static bool profileActiveForCurrentProcess;
 
     public static string Resolve(string packageId, string fileName)
     {
@@ -326,6 +328,7 @@ internal static class CompatibilityConfigOverlayPath
         path = string.Empty;
         ActiveOverlayDto? active = ResolveActiveOverlay();
         if (active is null
+            || !EnsureProfileActivation()
             || !IsActiveForCurrentServer(active)
             || !ManifestDeclaresConfig(active.ManifestJson, packageId, fileName))
         {
@@ -344,7 +347,9 @@ internal static class CompatibilityConfigOverlayPath
         return Path.Combine(root, safePackage, "Mod_" + safePackage + "_" + safeFile + ".xml");
     }
 
-    public static string? ActiveManifestJson => ResolveActiveOverlay()?.ManifestJson;
+    public static string? ActiveManifestJson => EnsureProfileActivation()
+        ? ResolveActiveOverlay()?.ManifestJson
+        : null;
 
     public static void Activate(string manifestJson)
     {
@@ -353,26 +358,22 @@ internal static class CompatibilityConfigOverlayPath
         {
             Scope = scope,
             ManifestJson = manifestJson ?? string.Empty,
-            ServerBaseUrl = ResolveCurrentServerBaseUrl()
+            ServerBaseUrl = ResolveCurrentServerBaseUrl(),
+            ProfileArmed = true
         };
-        string path = ResolveActiveOverlayPath();
-        string? directory = Path.GetDirectoryName(path);
-        if (!string.IsNullOrWhiteSpace(directory))
-        {
-            Directory.CreateDirectory(directory);
-        }
-
-        var serializer = new DataContractJsonSerializer(typeof(ActiveOverlayDto));
-        using var stream = new FileStream(path, FileMode.Create, FileAccess.Write);
-        serializer.WriteObject(stream, active);
+        WriteActiveOverlay(active);
         cachedActiveOverlay = active;
         activeOverlayLoaded = true;
+        profileActivationChecked = true;
+        profileActiveForCurrentProcess = false;
     }
 
     public static void Deactivate()
     {
         cachedActiveOverlay = null;
         activeOverlayLoaded = true;
+        profileActivationChecked = true;
+        profileActiveForCurrentProcess = false;
         string path = ResolveActiveOverlayPath();
         if (File.Exists(path))
         {
@@ -411,7 +412,10 @@ internal static class CompatibilityConfigOverlayPath
         string manifestId = TryReadManifestId(manifestJson) ?? string.Empty;
         string server = ResolveCurrentServerBaseUrl();
         ActiveOverlayDto? active = ResolveActiveOverlay();
-        if (string.IsNullOrWhiteSpace(manifestId) && active is not null && IsActiveForCurrentServer(active))
+        if (string.IsNullOrWhiteSpace(manifestId)
+            && active is not null
+            && IsActiveForCurrentServer(active)
+            && (active.ProfileArmed || EnsureProfileActivation()))
         {
             return active.Scope;
         }
@@ -438,6 +442,27 @@ internal static class CompatibilityConfigOverlayPath
         return !string.IsNullOrWhiteSpace(current)
             && !string.IsNullOrWhiteSpace(active.ServerBaseUrl)
             && string.Equals(current, active.ServerBaseUrl.Trim().TrimEnd('/'), StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool EnsureProfileActivation()
+    {
+        if (profileActivationChecked)
+        {
+            return profileActiveForCurrentProcess;
+        }
+
+        profileActivationChecked = true;
+        ActiveOverlayDto? active = ResolveActiveOverlay();
+        if (active?.ProfileArmed != true)
+        {
+            return false;
+        }
+
+        // Mod settings load before login, so a server profile must be explicitly armed for this boot.
+        profileActiveForCurrentProcess = true;
+        active.ProfileArmed = false;
+        WriteActiveOverlay(active);
+        return true;
     }
 
     private static bool ManifestDeclaresConfig(string manifestJson, string packageId, string fileName)
@@ -501,6 +526,20 @@ internal static class CompatibilityConfigOverlayPath
         return Path.Combine(ResolveConfigFolder(), OverlayRootFolderName, ActiveOverlayFileName);
     }
 
+    private static void WriteActiveOverlay(ActiveOverlayDto active)
+    {
+        string path = ResolveActiveOverlayPath();
+        string? directory = Path.GetDirectoryName(path);
+        if (!string.IsNullOrWhiteSpace(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        var serializer = new DataContractJsonSerializer(typeof(ActiveOverlayDto));
+        using var stream = new FileStream(path, FileMode.Create, FileAccess.Write);
+        serializer.WriteObject(stream, active);
+    }
+
     private static ActiveOverlayDto? ResolveActiveOverlay()
     {
         if (activeOverlayLoaded)
@@ -556,6 +595,9 @@ internal static class CompatibilityConfigOverlayPath
 
         [DataMember(Name = "serverBaseUrl")]
         public string ServerBaseUrl { get; set; } = string.Empty;
+
+        [DataMember(Name = "profileArmed")]
+        public bool ProfileArmed { get; set; }
     }
 
     [DataContract]

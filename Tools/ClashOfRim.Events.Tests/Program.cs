@@ -96,6 +96,10 @@ static void VerifyRegisteredModSettingsRemainInCompatibilityBaseline()
     Require(
         !settingsPatch.Contains("ModSettingsLockedMessage"),
         "底层设置写入拦截不得在启动阶段发送 UI 消息");
+    Require(
+        settingsPatch.Contains("ProfileArmed", StringComparison.Ordinal)
+        && settingsPatch.Contains("EnsureProfileActivation", StringComparison.Ordinal),
+        "服务器配置 overlay 必须只在显式套用后的下一次启动中生效，不能影响普通单人启动");
 
     var registeredWithoutSavedFile = new ModConfigDigest
     {
