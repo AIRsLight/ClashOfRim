@@ -38,10 +38,19 @@ public static partial class ClashOfRimNetworkServer
         ServerPluginRegistry plugins = ServerPluginLoader
             .Load(builder.Environment.ContentRootPath)
             .WithBuiltInPlugins(BuiltInServerPlugins.Descriptors);
-        ClashOfRimNetworkState networkState = state ?? CreatePersistentNetworkState(
-            builder.Configuration,
-            builder.Environment.ContentRootPath,
-            plugins);
+        ClashOfRimNetworkState networkState;
+        ServerDatabaseMigrationResult? databaseMigration = null;
+        if (state is null)
+        {
+            (networkState, databaseMigration) = CreatePersistentNetworkState(
+                builder.Configuration,
+                builder.Environment.ContentRootPath,
+                plugins);
+        }
+        else
+        {
+            networkState = state;
+        }
         builder.Services.AddSingleton(networkState);
         WebApplication app = builder.Build();
         networkState.SetRuntimeLogger(RuntimeLogger(app.Services.GetRequiredService<ILoggerFactory>()));
@@ -54,6 +63,26 @@ public static partial class ClashOfRimNetworkServer
         }
 
         app.Logger.LogInformation(T("Server.LogFilePath", ("PATH", logFilePath)));
+        if (databaseMigration is not null)
+        {
+            app.Logger.LogInformation(
+                T(
+                    "Server.DatabaseSchemaReady",
+                    ("FROM", databaseMigration.StartingVersion.ToString()),
+                    ("TO", databaseMigration.FinalVersion.ToString()),
+                    ("MIGRATIONS", databaseMigration.AppliedMigrations.Count == 0
+                        ? "none"
+                        : string.Join(", ", databaseMigration.AppliedMigrations))));
+            if (databaseMigration.RequiresWorldSubstrateRebaseline)
+            {
+                app.Logger.LogWarning(T("Server.DatabaseWorldRebaselineRequired"));
+            }
+            else if (!string.IsNullOrWhiteSpace(databaseMigration.RecoveredWorldSubstrateSnapshotId))
+            {
+                app.Logger.LogInformation(
+                    T("Server.DatabaseWorldSubstrateRecovered", ("SNAPSHOT", databaseMigration.RecoveredWorldSubstrateSnapshotId)));
+            }
+        }
         app.Logger.LogInformation(
             T("Server.MaxRequestBodySize", ("BYTES", ResolveMaxRequestBodySizeBytes(builder.Configuration).ToString())));
         app.UseWebSockets(new WebSocketOptions
@@ -91,13 +120,16 @@ public static partial class ClashOfRimNetworkServer
             : ServerLocalization.NormalizeLanguage(language);
     }
 
-    private static ClashOfRimNetworkState CreatePersistentNetworkState(
+    private static (ClashOfRimNetworkState State, ServerDatabaseMigrationResult DatabaseMigration) CreatePersistentNetworkState(
         IConfiguration configuration,
         string contentRootPath,
         ServerPluginRegistry plugins)
     {
         string dataDirectory = ResolveDataDirectory(configuration, contentRootPath);
         string databasePath = Path.Combine(dataDirectory, "server.sqlite");
+        ServerDatabaseMigrationResult databaseMigration = ServerDatabaseMigrator.Migrate(
+            databasePath,
+            Path.Combine(dataDirectory, "snapshots"));
         ServerConfigurationRegistry serverConfigurationOverrides =
             new(new SqliteJsonPersistenceSlot(databasePath, "server-configuration"));
         ClashOfRimServerConfiguration serverConfiguration = LoadServerConfiguration(configuration);
@@ -106,7 +138,7 @@ public static partial class ClashOfRimNetworkServer
             serverConfiguration = FromAdminConfigurationDto(adminConfiguration, serverConfiguration);
         }
 
-        return new ClashOfRimNetworkState(
+        return (new ClashOfRimNetworkState(
             ledger: new SqliteAuthoritativeEventLedger(databasePath),
             snapshotStore: new FileColonySnapshotIndexStore(Path.Combine(dataDirectory, "snapshots")),
             serverConfiguration: serverConfiguration,
@@ -158,7 +190,7 @@ public static partial class ClashOfRimNetworkServer
                 new SqliteKeyedJsonRecordStore(databasePath, "offline-accounts"),
                 new SqliteJsonPersistenceSlot(databasePath, "offline-accounts")),
             steamAuthTickets: BuildSteamAuthTicketValidator(serverConfiguration),
-            plugins: plugins);
+            plugins: plugins), databaseMigration);
     }
 
     private static string ResolveLogFilePath(string contentRootPath)

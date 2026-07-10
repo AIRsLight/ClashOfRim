@@ -3,12 +3,17 @@ using AIRsLight.ClashOfRim.Network;
 using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Save;
 using AIRsLight.ClashOfRim.ThirdPartyCompat.ServerPlugin;
+using Microsoft.Data.Sqlite;
 using System.IO.Compression;
 using System.Text;
 using System.Xml.Linq;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("服务器数据库新建时写入当前 schema 版本", VerifyServerDatabaseMigrationInitializesNewDatabase),
+    ("服务器数据库旧版本按匹配步骤迁移并保留其他数据", VerifyServerDatabaseMigrationUpgradesLegacyDatabase),
+    ("服务器数据库从管理员快照恢复世界底图", VerifyServerDatabaseMigrationRecoversWorldSubstrate),
+    ("服务器数据库未来 schema 版本拒绝启动", VerifyServerDatabaseMigrationRejectsFutureVersion),
     ("世界底图包仅保留静态世界结构并可压缩往返", VerifyWorldSubstratePackageRoundTrip),
     ("世界底图包拒绝缺失网格的存档", VerifyWorldSubstratePackageRejectsMissingGrid),
     ("世界底图包持久化后才开放世界会话", VerifyWorldSubstrateRegistryReadiness),
@@ -64,6 +69,231 @@ foreach ((string name, Action run) in tests)
 }
 
 return 0;
+
+static void VerifyServerDatabaseMigrationInitializesNewDatabase()
+{
+    string path = Path.Combine(Path.GetTempPath(), "clashofrim-schema-" + Guid.NewGuid().ToString("N") + ".sqlite");
+    try
+    {
+        ServerDatabaseMigrationResult result = ServerDatabaseMigrator.Migrate(path);
+        Equal(0, result.StartingVersion, "新数据库起始版本");
+        Equal(ServerDatabaseSchema.CurrentVersion, result.FinalVersion, "新数据库最终版本");
+        Require(result.CreatedNewDatabase, "新数据库应标记为新建");
+        Equal(ServerDatabaseSchema.CurrentVersion, ServerDatabaseMigrator.ReadVersion(path), "新数据库持久化版本");
+    }
+    finally
+    {
+        DeleteSqliteDatabase(path);
+    }
+}
+
+static void VerifyServerDatabaseMigrationUpgradesLegacyDatabase()
+{
+    string path = Path.Combine(Path.GetTempPath(), "clashofrim-schema-legacy-" + Guid.NewGuid().ToString("N") + ".sqlite");
+    try
+    {
+        using (var connection = OpenSqliteDatabase(path))
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = """
+                create table server_documents (
+                    document_key text primary key not null,
+                    content_json text not null,
+                    updated_at_utc text not null
+                );
+                create table server_binary_documents (
+                    document_key text not null,
+                    binary_key text not null,
+                    content_blob blob not null,
+                    updated_at_utc text not null,
+                    primary key (document_key, binary_key)
+                );
+                insert into server_documents values ('players', '{"preserve":true}', '2026-01-01T00:00:00.0000000+00:00');
+                insert into server_binary_documents values ('world-configuration', 'tile-geometry', X'0102', '2026-01-01T00:00:00.0000000+00:00');
+                """;
+            command.ExecuteNonQuery();
+        }
+
+        ServerDatabaseMigrationResult result = ServerDatabaseMigrator.Migrate(path);
+        Equal(ServerDatabaseSchema.LegacyUnversionedVersion, result.StartingVersion, "旧数据库推断版本");
+        Equal(ServerDatabaseSchema.CurrentVersion, result.FinalVersion, "旧数据库最终版本");
+        Require(result.AppliedMigrations.Contains("1->2", StringComparer.Ordinal), "旧数据库应执行 1->2 迁移");
+        Require(result.RequiresWorldSubstrateRebaseline, "缺失可用管理员快照时应要求重新覆盖世界基线");
+
+        using SqliteConnection verification = OpenSqliteDatabase(path);
+        using SqliteCommand verify = verification.CreateCommand();
+        verify.CommandText = "select count(*) from server_binary_documents where document_key = 'world-configuration' and binary_key = 'tile-geometry';";
+        Equal(0L, (long)verify.ExecuteScalar()!, "旧 tile geometry 应被迁移清理");
+        verify.CommandText = "select count(*) from server_binary_documents where document_key = 'world-configuration' and binary_key = 'world-substrate';";
+        Equal(0L, (long)verify.ExecuteScalar()!, "没有可用管理员快照时不可伪造新版世界底图包");
+        verify.CommandText = "select content_json from server_documents where document_key = 'players';";
+        Equal("{\"preserve\":true}", (string)verify.ExecuteScalar()!, "无关注册表数据应保留");
+    }
+    finally
+    {
+        DeleteSqliteDatabase(path);
+    }
+}
+
+static void VerifyServerDatabaseMigrationRejectsFutureVersion()
+{
+    string path = Path.Combine(Path.GetTempPath(), "clashofrim-schema-future-" + Guid.NewGuid().ToString("N") + ".sqlite");
+    try
+    {
+        using (SqliteConnection connection = OpenSqliteDatabase(path))
+        using (SqliteCommand command = connection.CreateCommand())
+        {
+            command.CommandText = $$"""
+                create table server_schema_metadata (
+                    metadata_key text primary key not null,
+                    metadata_value text not null,
+                    updated_at_utc text not null
+                );
+                insert into server_schema_metadata values ('schema_version', '{{ServerDatabaseSchema.CurrentVersion + 1}}', '2026-01-01T00:00:00.0000000+00:00');
+                """;
+            command.ExecuteNonQuery();
+        }
+
+        bool rejected = false;
+        try
+        {
+            ServerDatabaseMigrator.Migrate(path);
+        }
+        catch (InvalidOperationException exception)
+        {
+            rejected = exception.Message.Contains("newer", StringComparison.OrdinalIgnoreCase);
+        }
+
+        Require(rejected, "未来 schema 版本必须拒绝启动");
+    }
+    finally
+    {
+        DeleteSqliteDatabase(path);
+    }
+}
+
+static void VerifyServerDatabaseMigrationRecoversWorldSubstrate()
+{
+    string root = Path.Combine(Path.GetTempPath(), "clashofrim-schema-recovery-" + Guid.NewGuid().ToString("N"));
+    string path = Path.Combine(root, "server.sqlite");
+    string snapshotRoot = Path.Combine(root, "snapshots");
+    try
+    {
+        Directory.CreateDirectory(root);
+        byte[] tileGeometry = WorldTileGeometryBinaryCodec.Encode(
+            new WorldTileGeometryDto(
+                new[]
+                {
+                    new WorldTileLayerGeometryDto(
+                        0,
+                        "Surface",
+                        1f,
+                        new[] { new WorldTileCenterDto(0, 1f, 2f, 3f) })
+                }))!;
+
+        using (SqliteConnection connection = OpenSqliteDatabase(path))
+        using (SqliteCommand command = connection.CreateCommand())
+        {
+            command.CommandText = """
+                create table server_binary_documents (
+                    document_key text not null,
+                    binary_key text not null,
+                    content_blob blob not null,
+                    updated_at_utc text not null,
+                    primary key (document_key, binary_key)
+                );
+                create table server_keyed_json_records (
+                    collection_key text not null,
+                    item_key text not null,
+                    content_json text not null,
+                    updated_at_utc text not null,
+                    primary key (collection_key, item_key)
+                );
+                insert into server_keyed_json_records values ('world-configuration', 'state', '{"AdministratorUserId":"admin","AdministratorUserIds":["admin"]}', '2026-01-01T00:00:00.0000000+00:00');
+                insert into server_binary_documents values ('world-configuration', 'tile-geometry', $tile_geometry, '2026-01-01T00:00:00.0000000+00:00');
+                """;
+            command.Parameters.AddWithValue("$tile_geometry", tileGeometry);
+            command.ExecuteNonQuery();
+        }
+
+        var store = new FileColonySnapshotIndexStore(snapshotRoot);
+        SaveSnapshotPackage package = WorldSubstrateMigrationPackage(
+            new SnapshotIdentity("admin", "colony-admin", "admin-world-snapshot"));
+        store.StoreLatest(package, package.Index, DateTimeOffset.UnixEpoch);
+
+        ServerDatabaseMigrationResult result = ServerDatabaseMigrator.Migrate(path, snapshotRoot);
+        Require(!result.RequiresWorldSubstrateRebaseline, "管理员快照存在时不应要求重新覆盖世界基线");
+        Equal("admin-world-snapshot", result.RecoveredWorldSubstrateSnapshotId, "恢复来源快照");
+
+        using SqliteConnection verification = OpenSqliteDatabase(path);
+        using SqliteCommand verify = verification.CreateCommand();
+        verify.CommandText = "select content_blob from server_binary_documents where document_key = 'world-configuration' and binary_key = 'world-substrate';";
+        byte[] payload = (byte[])verify.ExecuteScalar()!;
+        Require(WorldSubstratePackageCodec.TryDecode(payload, out WorldSubstratePackage? substrate, out string? failure), "恢复后的世界底图包应可解码: " + failure);
+        Require(substrate is not null, "恢复后的世界底图包不可为空");
+        Require(WorldTileGeometryBinaryCodec.Decode(substrate!.TileGeometryPayload)?.Layers.Single().TileCenters.Count == 1, "旧版地块几何应保留在恢复后的世界底图包中");
+    }
+    finally
+    {
+        DeleteSqliteDatabase(path);
+        if (Directory.Exists(root))
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+}
+
+static SqliteConnection OpenSqliteDatabase(string path)
+{
+    var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+    {
+        DataSource = path,
+        Mode = SqliteOpenMode.ReadWriteCreate
+    }.ToString());
+    connection.Open();
+    return connection;
+}
+
+static void DeleteSqliteDatabase(string path)
+{
+    SqliteConnection.ClearAllPools();
+    foreach (string candidate in new[] { path, path + "-shm", path + "-wal" })
+    {
+        if (File.Exists(candidate))
+        {
+            File.Delete(candidate);
+        }
+    }
+}
+
+static SaveSnapshotPackage WorldSubstrateMigrationPackage(SnapshotIdentity identity)
+{
+    byte[] payload = Encoding.UTF8.GetBytes(
+        """
+        <savegame>
+          <game>
+            <world>
+              <info><persistentRandomValue>12345</persistentRandomValue></info>
+              <grid><layers><keys><li>0</li></keys><values><li Class="SurfaceLayer"><def>Surface</def><layerId>0</layerId></li></values></layers></grid>
+              <features />
+              <landmarks />
+            </world>
+          </game>
+        </savegame>
+        """);
+    var envelope = new SaveSnapshotEnvelope(
+        SaveSnapshotPackageBuilder.CurrentPackageVersion,
+        identity,
+        DateTimeOffset.UnixEpoch,
+        "administrator-world.rws",
+        "1.6-test",
+        SnapshotPayloadEncoding.RawRws,
+        payload.Length,
+        payload.Length,
+        new string('a', 64),
+        new string('b', 64));
+    return new SaveSnapshotPackage(envelope, payload, SnapshotWithThings());
+}
 
 static void VerifyWorldSubstratePackageRoundTrip()
 {
