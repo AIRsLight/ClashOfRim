@@ -1722,6 +1722,7 @@
   <ClashOfRim.Admin.DevToolsBlocked>Only administrators can use developer tools during a multiplayer session.</ClashOfRim.Admin.DevToolsBlocked>
   <ClashOfRim.Admin.NoManifest>No server mod list.</ClashOfRim.Admin.NoManifest>
   <ClashOfRim.Admin.NoConfigFiles>No config files</ClashOfRim.Admin.NoConfigFiles>
+  <ClashOfRim.Admin.ConfigNotSaved>(default settings, not saved)</ClashOfRim.Admin.ConfigNotSaved>
   <ClashOfRim.Admin.ModRoleRequired>Required</ClashOfRim.Admin.ModRoleRequired>
   <ClashOfRim.Admin.ModRoleOptional>Optional</ClashOfRim.Admin.ModRoleOptional>
   <ClashOfRim.Admin.ModRoleTranslation>Translation exempt</ClashOfRim.Admin.ModRoleTranslation>
@@ -1854,7 +1855,6 @@
   <ClashOfRim.ColonyAppearance.SavedMessage>Colony icon updated.</ClashOfRim.ColonyAppearance.SavedMessage>
   <ClashOfRim.ColonyAppearance.RegistrationReason>Colony icon update</ClashOfRim.ColonyAppearance.RegistrationReason>
 </LanguageData>
-
 
 
 

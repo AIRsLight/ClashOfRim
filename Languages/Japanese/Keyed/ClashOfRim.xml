@@ -1715,6 +1715,7 @@
   <ClashOfRim.Admin.DevToolsBlocked>マルチプレイセッション中に開発者ツールを使えるのは管理者のみです。</ClashOfRim.Admin.DevToolsBlocked>
   <ClashOfRim.Admin.NoManifest>サーバーMODリストなし。</ClashOfRim.Admin.NoManifest>
   <ClashOfRim.Admin.NoConfigFiles>設定ファイルなし</ClashOfRim.Admin.NoConfigFiles>
+  <ClashOfRim.Admin.ConfigNotSaved>(既定値、未保存)</ClashOfRim.Admin.ConfigNotSaved>
   <ClashOfRim.Admin.ModRoleRequired>必須</ClashOfRim.Admin.ModRoleRequired>
   <ClashOfRim.Admin.ModRoleOptional>任意</ClashOfRim.Admin.ModRoleOptional>
   <ClashOfRim.Admin.ModRoleTranslation>翻訳免除</ClashOfRim.Admin.ModRoleTranslation>

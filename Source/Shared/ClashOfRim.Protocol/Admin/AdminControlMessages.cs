@@ -431,15 +431,18 @@ public sealed class AdminCompatibilityModDto
 
 public sealed class AdminCompatibilityConfigDto
 {
-    public AdminCompatibilityConfigDto(string fileName, string mode)
+    public AdminCompatibilityConfigDto(string fileName, string mode, bool hasSavedFile)
     {
         FileName = fileName;
         Mode = mode;
+        HasSavedFile = hasSavedFile;
     }
 
     public string FileName { get; }
 
     public string Mode { get; }
+
+    public bool HasSavedFile { get; }
 }
 
 public sealed class AdminPlayerSummaryDto

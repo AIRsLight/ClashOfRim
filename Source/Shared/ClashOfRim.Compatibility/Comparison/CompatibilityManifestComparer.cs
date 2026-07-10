@@ -152,7 +152,10 @@ public static class CompatibilityManifestComparer
             }
 
             bool missing = !clientConfigs.TryGetValue(fileName, out ModConfigDigest? clientConfig);
-            bool mismatch = missing || !string.Equals(serverConfig.Sha256, clientConfig!.Sha256, StringComparison.OrdinalIgnoreCase);
+            bool mismatch = missing
+                || serverConfig.HasSavedFile != clientConfig!.HasSavedFile
+                || (serverConfig.HasSavedFile
+                    && !string.Equals(serverConfig.Sha256, clientConfig.Sha256, StringComparison.OrdinalIgnoreCase));
             if (mismatch)
             {
                 issues.Add(new CompatibilityIssue(

@@ -87,12 +87,18 @@ internal static class CompatibilityBaselineApplicator
 
             foreach (CompatibilityConfigDto config in mod.Configs)
             {
-                if (string.IsNullOrWhiteSpace(config.FileName) || string.IsNullOrWhiteSpace(config.CanonicalXml))
+                if (string.IsNullOrWhiteSpace(config.FileName))
                 {
                     continue;
                 }
 
                 string path = CompatibilityConfigOverlayPath.Resolve(mod.PackageId, config.FileName);
+                if (!config.HasSavedFile || string.IsNullOrWhiteSpace(config.CanonicalXml))
+                {
+                    CompatibilityConfigOverlayPath.Delete(path);
+                    continue;
+                }
+
                 CompatibilityConfigOverlayPath.EnsureDirectoryFor(path);
 
                 File.WriteAllText(path, config.CanonicalXml);
@@ -149,6 +155,9 @@ internal static class CompatibilityBaselineApplicator
     {
         [DataMember(Name = "fileName")]
         public string FileName { get; set; } = string.Empty;
+
+        [DataMember(Name = "hasSavedFile")]
+        public bool HasSavedFile { get; set; } = true;
 
         [DataMember(Name = "canonicalXml")]
         public string CanonicalXml { get; set; } = string.Empty;
@@ -748,7 +757,9 @@ internal sealed class CompatibilityMismatchWindow : Window
                     continue;
                 }
 
-                if (!string.Equals(serverConfig.Sha256, localConfig.Sha256, StringComparison.OrdinalIgnoreCase))
+                if (serverConfig.HasSavedFile != localConfig.HasSavedFile
+                    || (serverConfig.HasSavedFile
+                        && !string.Equals(serverConfig.Sha256, localConfig.Sha256, StringComparison.OrdinalIgnoreCase)))
                 {
                     entries.Add(new UiDiffEntry(
                         UiDiffStatus.Modified,
@@ -1162,6 +1173,9 @@ internal sealed class CompatibilityMismatchWindow : Window
         [DataMember(Name = "sha256")]
         public string Sha256 { get; set; } = string.Empty;
 
+        [DataMember(Name = "hasSavedFile")]
+        public bool HasSavedFile { get; set; } = true;
+
         [DataMember(Name = "canonicalXml")]
         public string CanonicalXml { get; set; } = string.Empty;
 
@@ -1171,6 +1185,7 @@ internal sealed class CompatibilityMismatchWindow : Window
             {
                 FileName = config.FileName,
                 Sha256 = config.Sha256,
+                HasSavedFile = config.HasSavedFile,
                 CanonicalXml = config.CanonicalXml
             };
         }

@@ -1722,6 +1722,7 @@
   <ClashOfRim.Admin.DevToolsBlocked>多人会话中只有管理员可以使用开发者工具。</ClashOfRim.Admin.DevToolsBlocked>
   <ClashOfRim.Admin.NoManifest>服务器尚未建立模组列表。</ClashOfRim.Admin.NoManifest>
   <ClashOfRim.Admin.NoConfigFiles>无配置文件</ClashOfRim.Admin.NoConfigFiles>
+  <ClashOfRim.Admin.ConfigNotSaved>(默认设置，尚未保存)</ClashOfRim.Admin.ConfigNotSaved>
   <ClashOfRim.Admin.ModRoleRequired>必要</ClashOfRim.Admin.ModRoleRequired>
   <ClashOfRim.Admin.ModRoleOptional>可选</ClashOfRim.Admin.ModRoleOptional>
   <ClashOfRim.Admin.ModRoleTranslation>翻译豁免</ClashOfRim.Admin.ModRoleTranslation>

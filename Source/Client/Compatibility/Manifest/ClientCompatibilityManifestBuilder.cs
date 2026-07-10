@@ -127,7 +127,7 @@ internal static class ClientCompatibilityManifestBuilder
     private static string BuildConfigSha(IEnumerable<ModManifestEntry> mods)
     {
         return HashText(string.Join("\n", mods
-            .SelectMany(mod => mod.Configs.Select(config => mod.PackageId + "/" + config.FileName + "=" + config.Sha256))
+            .SelectMany(mod => mod.Configs.Select(config => mod.PackageId + "/" + config.FileName + "=" + config.HasSavedFile + "=" + config.Sha256))
             .OrderBy(value => value, StringComparer.Ordinal)));
     }
 
@@ -301,9 +301,14 @@ internal static class ClientCompatibilityManifestBuilder
         }
 
         var configs = new Dictionary<string, ModConfigDigest>(StringComparer.OrdinalIgnoreCase);
-        foreach (Mod modInstance in GetRunningModInstances())
+        foreach (Mod modInstance in LoadedModManager.ModHandles)
         {
             if (!ReferenceEquals(modInstance.Content, mod))
+            {
+                continue;
+            }
+
+            if (!HasSettingsRegistration(modInstance))
             {
                 continue;
             }
@@ -336,15 +341,25 @@ internal static class ClientCompatibilityManifestBuilder
     {
         try
         {
-            if (string.IsNullOrWhiteSpace(modHandleName) || !File.Exists(path))
+            if (string.IsNullOrWhiteSpace(modHandleName))
             {
                 return null;
+            }
+
+            if (!File.Exists(path))
+            {
+                return new ModConfigDigest
+                {
+                    FileName = modHandleName,
+                    HasSavedFile = false
+                };
             }
 
             string canonical = ModConfigXmlCanonicalizer.Canonicalize(File.ReadAllText(path));
             return new ModConfigDigest
             {
                 FileName = modHandleName,
+                HasSavedFile = true,
                 CanonicalXml = canonical,
                 Sha256 = ModConfigXmlCanonicalizer.Sha256(canonical)
             };
@@ -353,6 +368,20 @@ internal static class ClientCompatibilityManifestBuilder
         {
             Log.Warning("[ClashOfRim][Compatibility] Failed to read config " + path + ": " + ex.Message);
             return null;
+        }
+    }
+
+    private static bool HasSettingsRegistration(Mod modInstance)
+    {
+        try
+        {
+            return !string.IsNullOrWhiteSpace(modInstance.SettingsCategory());
+        }
+        catch (Exception ex)
+        {
+            Log.Warning("[ClashOfRim][Compatibility] Failed to inspect settings registration for "
+                + modInstance.Content?.Name + ": " + ex.Message);
+            return false;
         }
     }
 
@@ -404,24 +433,6 @@ internal static class ClientCompatibilityManifestBuilder
     private static string GetRootPath(ModContentPack mod)
     {
         return mod.RootDir ?? string.Empty;
-    }
-
-    private static IEnumerable<Mod> GetRunningModInstances()
-    {
-        FieldInfo? field = typeof(LoadedModManager).GetField(
-            "runningModClasses",
-            BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
-        object? value = field?.GetValue(null);
-        if (value is System.Collections.IDictionary dictionary)
-        {
-            foreach (object? item in dictionary.Values)
-            {
-                if (item is Mod mod)
-                {
-                    yield return mod;
-                }
-            }
-        }
     }
 
     private static string ResolveSettingsFileName(string modIdentifier, string modHandleName)
@@ -756,7 +767,7 @@ internal static class ClientCompatibilityManifestBuilder
                 .Select(file => file.RelativePath + "|" + file.Size + "|" + file.Sha256 + "|" + file.Kind))
             + "\n" + string.Join("\n", mod.Configs
                 .OrderBy(config => config.FileName, StringComparer.OrdinalIgnoreCase)
-                .Select(config => config.FileName + "|" + config.Sha256));
+                .Select(config => config.FileName + "|" + config.HasSavedFile + "|" + config.Sha256));
         return HashText(stableBody);
     }
 

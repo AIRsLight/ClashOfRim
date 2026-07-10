@@ -124,6 +124,7 @@ public static class CompatibilityManifestJsonWriter
         {
             json.Append('{');
             WriteProperty(json, "fileName", config.FileName);
+            WriteProperty(json, "hasSavedFile", config.HasSavedFile);
             WriteProperty(json, "sha256", config.Sha256);
             WriteProperty(json, "canonicalXml", config.CanonicalXml);
             TrimTrailingComma(json);
@@ -184,6 +185,13 @@ public static class CompatibilityManifestJsonWriter
     {
         WriteName(json, name);
         json.Append(value);
+        json.Append(',');
+    }
+
+    private static void WriteProperty(StringBuilder json, string name, bool value)
+    {
+        WriteName(json, name);
+        json.Append(value ? "true" : "false");
         json.Append(',');
     }
 

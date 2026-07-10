@@ -604,6 +604,9 @@ public sealed class ModAdminCompatibilityConfigDto
 
     [DataMember(Name = "mode")]
     public string Mode { get; set; } = "Enforce";
+
+    [DataMember(Name = "hasSavedFile")]
+    public bool HasSavedFile { get; set; } = true;
 }
 
 [DataContract]

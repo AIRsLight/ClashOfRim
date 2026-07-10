@@ -395,6 +395,21 @@ internal static class CompatibilityConfigOverlayPath
         }
     }
 
+    public static void Delete(string path)
+    {
+        try
+        {
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warning("[ClashOfRim][Compatibility] Failed to remove stale config overlay " + path + ": " + ex.Message);
+        }
+    }
+
     private static string ResolveCurrentScope(string? manifestJsonOverride = null)
     {
         ClashOfRimMod? mod = LoadedModManager.GetMod<ClashOfRimMod>();

@@ -1715,6 +1715,7 @@
   <ClashOfRim.Admin.DevToolsBlocked>Во время многопользовательской сессии инструменты разработчика доступны только администраторам.</ClashOfRim.Admin.DevToolsBlocked>
   <ClashOfRim.Admin.NoManifest>Нет серверного списка модов.</ClashOfRim.Admin.NoManifest>
   <ClashOfRim.Admin.NoConfigFiles>Нет файлов конфига</ClashOfRim.Admin.NoConfigFiles>
+  <ClashOfRim.Admin.ConfigNotSaved>(настройки по умолчанию, не сохранены)</ClashOfRim.Admin.ConfigNotSaved>
   <ClashOfRim.Admin.ModRoleRequired>Обязательный</ClashOfRim.Admin.ModRoleRequired>
   <ClashOfRim.Admin.ModRoleOptional>Необязательный</ClashOfRim.Admin.ModRoleOptional>
   <ClashOfRim.Admin.ModRoleTranslation>Исключение перевода</ClashOfRim.Admin.ModRoleTranslation>

@@ -372,7 +372,9 @@ public sealed partial class ClashOfRimMultiplayerWindow
 
             foreach (ModAdminCompatibilityConfigDto configEntry in modEntry.Configs.OrderBy(entry => entry.FileName, StringComparer.OrdinalIgnoreCase))
             {
-                Widgets.Label(new Rect(18f, y + 4f, view.width - 180f, 24f), configEntry.FileName);
+                string configLabel = configEntry.FileName
+                    + (configEntry.HasSavedFile ? string.Empty : " " + ClashOfRimText.Key("ClashOfRim.Admin.ConfigNotSaved"));
+                Widgets.Label(new Rect(18f, y + 4f, view.width - 180f, 24f), configLabel);
                 if (Widgets.ButtonText(new Rect(view.width - 160f, y, 140f, 28f), AdminConfigModeLabel(configEntry.Mode), active: !mod.AdminInProgress))
                 {
                     OpenAdminConfigModeMenu(configEntry);
@@ -1160,7 +1162,8 @@ public sealed partial class ClashOfRimMultiplayerWindow
                     .Select(config => new ModAdminCompatibilityConfigDto
                     {
                         FileName = config.FileName,
-                        Mode = config.Mode
+                        Mode = config.Mode,
+                        HasSavedFile = config.HasSavedFile
                     })
                     .ToList()
             })

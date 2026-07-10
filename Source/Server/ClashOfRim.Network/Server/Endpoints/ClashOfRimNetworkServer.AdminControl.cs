@@ -503,7 +503,8 @@ public static partial class ClashOfRimNetworkServer
                     .OrderBy(config => config.FileName, StringComparer.OrdinalIgnoreCase)
                     .Select(config => new AdminCompatibilityConfigDto(
                         config.FileName,
-                        state.ServerConfiguration.CompatibilityOptions.ResolveConfigMode(mod.PackageId, config.FileName).ToString()))
+                        state.ServerConfiguration.CompatibilityOptions.ResolveConfigMode(mod.PackageId, config.FileName).ToString(),
+                        config.HasSavedFile))
                     .ToList()))
             .ToList();
     }

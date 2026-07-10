@@ -1,4 +1,5 @@
 using AIRsLight.ClashOfRim.Events;
+using AIRsLight.ClashOfRim.Compatibility;
 using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Save;
 using System.Text.Json;
@@ -49,6 +50,7 @@ var tests = new (string Name, Action Run)[]
     ("应用结果冲突分类可持久化", VerifyApplicationConflictResult),
     ("文件账本重启后恢复事件和幂等索引", VerifyFileLedgerPersistence),
     ("SQLite 账本重启后恢复事件和幂等索引", VerifySqliteLedgerPersistence)
+    ,("已注册但未落盘的模组设置仍进入兼容基线", VerifyRegisteredModSettingsRemainInCompatibilityBaseline)
 };
 
 foreach ((string name, Action run) in tests)
@@ -75,6 +77,55 @@ static void VerifyIdempotentAppend()
     Require(!duplicateResult.Created, "同一幂等键不应重复创建事件");
     Equal(first.EventId, duplicateResult.Event.EventId, "重复追加应返回原事件");
     Equal(1, ledger.ListForUser("user-a").Count, "账本中应只有一条事件");
+}
+
+static void VerifyRegisteredModSettingsRemainInCompatibilityBaseline()
+{
+    var registeredWithoutSavedFile = new ModConfigDigest
+    {
+        FileName = "ExampleMod",
+        HasSavedFile = false
+    };
+    var baseline = new CompatibilityManifest
+    {
+        ProtocolVersion = "test",
+        RimWorldVersion = "test",
+        Mods = new[]
+        {
+            new ModManifestEntry
+            {
+                PackageId = "example.settings",
+                LoadOrder = 0,
+                Configs = new[] { registeredWithoutSavedFile }
+            }
+        }
+    };
+
+    CompatibilityComparisonResult defaultsMatch = CompatibilityManifestComparer.Compare(baseline, baseline);
+    Require(defaultsMatch.Accepted, "两个均未保存 XML 的已注册设置应视为一致");
+
+    var localWithSavedFile = baseline with
+    {
+        Mods = new[]
+        {
+            baseline.Mods[0] with
+            {
+                Configs = new[]
+                {
+                    registeredWithoutSavedFile with
+                    {
+                        HasSavedFile = true,
+                        Sha256 = "saved-settings"
+                    }
+                }
+            }
+        }
+    };
+    CompatibilityComparisonResult savedStateMismatch = CompatibilityManifestComparer.Compare(baseline, localWithSavedFile);
+    Require(!savedStateMismatch.Accepted, "已注册设置的一侧落盘而另一侧未落盘时必须报告不一致");
+    Require(
+        savedStateMismatch.Issues.Any(issue => issue.Code == CompatibilityIssueCode.ConfigFileMismatch),
+        "落盘状态不一致应使用配置不一致错误");
 }
 
 static void LoadServerLocalizationForTests()

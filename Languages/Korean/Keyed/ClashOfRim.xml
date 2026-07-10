@@ -1715,6 +1715,7 @@
   <ClashOfRim.Admin.DevToolsBlocked>멀티플레이 세션 중에는 관리자만 개발자 도구를 사용할 수 있습니다.</ClashOfRim.Admin.DevToolsBlocked>
   <ClashOfRim.Admin.NoManifest>서버 모드 목록 없음.</ClashOfRim.Admin.NoManifest>
   <ClashOfRim.Admin.NoConfigFiles>설정 파일 없음</ClashOfRim.Admin.NoConfigFiles>
+  <ClashOfRim.Admin.ConfigNotSaved>(기본 설정, 저장되지 않음)</ClashOfRim.Admin.ConfigNotSaved>
   <ClashOfRim.Admin.ModRoleRequired>필수</ClashOfRim.Admin.ModRoleRequired>
   <ClashOfRim.Admin.ModRoleOptional>선택</ClashOfRim.Admin.ModRoleOptional>
   <ClashOfRim.Admin.ModRoleTranslation>번역 예외</ClashOfRim.Admin.ModRoleTranslation>
