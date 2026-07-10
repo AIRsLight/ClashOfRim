@@ -100,6 +100,11 @@ static void VerifyRegisteredModSettingsRemainInCompatibilityBaseline()
         settingsPatch.Contains("ProfileArmed", StringComparison.Ordinal)
         && settingsPatch.Contains("EnsureProfileActivation", StringComparison.Ordinal),
         "服务器配置 overlay 必须只在显式套用后的下一次启动中生效，不能影响普通单人启动");
+    string mainMenuPatchPath = FindRepositoryFile("Source", "Client", "MainMenu", "Entry", "ClashOfRimMainMenuPatches.cs");
+    string mainMenuPatch = File.ReadAllText(mainMenuPatchPath);
+    Require(
+        mainMenuPatch.Contains("RedirectSinglePlayerEntryOptionsForServerProfile", StringComparison.Ordinal),
+        "以服务器配置启动时，单人入口必须先重启回本地配置");
 
     var registeredWithoutSavedFile = new ModConfigDigest
     {

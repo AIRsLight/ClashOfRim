@@ -4,6 +4,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using AIRsLight.ClashOfRim.CompatibilityClient;
 using AIRsLight.ClashOfRim.RemoteMaps;
 using UnityEngine;
 using Verse;
@@ -40,6 +41,11 @@ public static class ClashOfRimMainMenuPatches
             return;
         }
 
+        if (CompatibilityConfigOverlayPath.ServerProfileActive)
+        {
+            RedirectSinglePlayerEntryOptionsForServerProfile(optList);
+        }
+
         string label = ClashOfRimText.Key("ClashOfRim.ServerEntry.JoinTitle");
         if (optList.Any(option => string.Equals(option.label, label, System.StringComparison.Ordinal)))
         {
@@ -56,6 +62,21 @@ public static class ClashOfRimMainMenuPatches
         {
             OpenServerEntryDialog();
         }));
+    }
+
+    private static void RedirectSinglePlayerEntryOptionsForServerProfile(List<ListableOption> optList)
+    {
+        ReplaceOption(optList, "NewColony", "NewColony".Translate().ToString(), RequestStandaloneRestart);
+        ReplaceOption(optList, "LoadGame", "LoadGame".Translate().ToString(), RequestStandaloneRestart);
+    }
+
+    private static void RequestStandaloneRestart()
+    {
+        Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation(
+            ClashOfRimText.Key("ClashOfRim.Compatibility.ServerProfileSinglePlayerRestart"),
+            GenCommandLine.Restart,
+            destructive: false,
+            title: ClashOfRimText.Key("ClashOfRim.Compatibility.ServerProfileActiveTitle")));
     }
 
     private static void OpenServerEntryDialog()

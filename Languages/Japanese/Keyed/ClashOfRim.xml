@@ -76,6 +76,8 @@
   <ClashOfRim.Compatibility.ManifestParseFailed>サーバーMODリストを解析できませんでした。</ClashOfRim.Compatibility.ManifestParseFailed>
   <ClashOfRim.Compatibility.ManifestBuildFailed>完全なローカルMODリストを作成できませんでした。クライアントログを確認してください。</ClashOfRim.Compatibility.ManifestBuildFailed>
   <ClashOfRim.Compatibility.ApplyRestarting>適用しました。再起動しています。</ClashOfRim.Compatibility.ApplyRestarting>
+  <ClashOfRim.Compatibility.ServerProfileActiveTitle>サーバー設定が有効です</ClashOfRim.Compatibility.ServerProfileActiveTitle>
+  <ClashOfRim.Compatibility.ServerProfileSinglePlayerRestart>現在のゲームはサーバー設定で起動しています。シングルプレイを開始またはロードする前に再起動してローカル設定を復元してください。</ClashOfRim.Compatibility.ServerProfileSinglePlayerRestart>
   <ClashOfRim.Compatibility.TabOverview>概要</ClashOfRim.Compatibility.TabOverview>
   <ClashOfRim.Compatibility.TabManifest>MOD {COUNT}</ClashOfRim.Compatibility.TabManifest>
   <ClashOfRim.Compatibility.TabHash>ファイル {COUNT}</ClashOfRim.Compatibility.TabHash>

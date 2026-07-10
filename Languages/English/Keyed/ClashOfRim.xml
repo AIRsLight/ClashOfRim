@@ -76,6 +76,8 @@
   <ClashOfRim.Compatibility.ManifestParseFailed>The server mod list could not be parsed.</ClashOfRim.Compatibility.ManifestParseFailed>
   <ClashOfRim.Compatibility.ManifestBuildFailed>Could not build the full local mod list. Check the client log.</ClashOfRim.Compatibility.ManifestBuildFailed>
   <ClashOfRim.Compatibility.ApplyRestarting>Applied. Restarting.</ClashOfRim.Compatibility.ApplyRestarting>
+  <ClashOfRim.Compatibility.ServerProfileActiveTitle>Server configuration active</ClashOfRim.Compatibility.ServerProfileActiveTitle>
+  <ClashOfRim.Compatibility.ServerProfileSinglePlayerRestart>This game was started with a server configuration. Restart to restore your local configuration before starting or loading a single-player game.</ClashOfRim.Compatibility.ServerProfileSinglePlayerRestart>
   <ClashOfRim.Compatibility.TabOverview>Overview</ClashOfRim.Compatibility.TabOverview>
   <ClashOfRim.Compatibility.TabManifest>Mods {COUNT}</ClashOfRim.Compatibility.TabManifest>
   <ClashOfRim.Compatibility.TabHash>Files {COUNT}</ClashOfRim.Compatibility.TabHash>
@@ -1855,6 +1857,5 @@
   <ClashOfRim.ColonyAppearance.SavedMessage>Colony icon updated.</ClashOfRim.ColonyAppearance.SavedMessage>
   <ClashOfRim.ColonyAppearance.RegistrationReason>Colony icon update</ClashOfRim.ColonyAppearance.RegistrationReason>
 </LanguageData>
-
 
 

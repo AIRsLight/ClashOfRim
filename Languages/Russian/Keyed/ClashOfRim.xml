@@ -76,6 +76,8 @@
   <ClashOfRim.Compatibility.ManifestParseFailed>Не удалось разобрать список модов сервера.</ClashOfRim.Compatibility.ManifestParseFailed>
   <ClashOfRim.Compatibility.ManifestBuildFailed>Не удалось собрать полный локальный список модов. Проверьте журнал клиента.</ClashOfRim.Compatibility.ManifestBuildFailed>
   <ClashOfRim.Compatibility.ApplyRestarting>Применено. Перезапуск.</ClashOfRim.Compatibility.ApplyRestarting>
+  <ClashOfRim.Compatibility.ServerProfileActiveTitle>Конфигурация сервера активна</ClashOfRim.Compatibility.ServerProfileActiveTitle>
+  <ClashOfRim.Compatibility.ServerProfileSinglePlayerRestart>Игра запущена с конфигурацией сервера. Перед началом или загрузкой одиночной игры перезапустите игру, чтобы восстановить локальную конфигурацию.</ClashOfRim.Compatibility.ServerProfileSinglePlayerRestart>
   <ClashOfRim.Compatibility.TabOverview>Обзор</ClashOfRim.Compatibility.TabOverview>
   <ClashOfRim.Compatibility.TabManifest>Моды {COUNT}</ClashOfRim.Compatibility.TabManifest>
   <ClashOfRim.Compatibility.TabHash>Файлы {COUNT}</ClashOfRim.Compatibility.TabHash>

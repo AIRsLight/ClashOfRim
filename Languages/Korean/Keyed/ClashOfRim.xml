@@ -76,6 +76,8 @@
   <ClashOfRim.Compatibility.ManifestParseFailed>서버 모드 목록을 해석할 수 없습니다.</ClashOfRim.Compatibility.ManifestParseFailed>
   <ClashOfRim.Compatibility.ManifestBuildFailed>전체 로컬 모드 목록을 만들 수 없습니다. 클라이언트 로그를 확인하세요.</ClashOfRim.Compatibility.ManifestBuildFailed>
   <ClashOfRim.Compatibility.ApplyRestarting>적용했습니다. 재시작 중입니다.</ClashOfRim.Compatibility.ApplyRestarting>
+  <ClashOfRim.Compatibility.ServerProfileActiveTitle>서버 설정 활성화됨</ClashOfRim.Compatibility.ServerProfileActiveTitle>
+  <ClashOfRim.Compatibility.ServerProfileSinglePlayerRestart>현재 게임은 서버 설정으로 시작되었습니다. 싱글 플레이를 시작하거나 불러오기 전에 다시 시작하여 로컬 설정을 복원하세요.</ClashOfRim.Compatibility.ServerProfileSinglePlayerRestart>
   <ClashOfRim.Compatibility.TabOverview>개요</ClashOfRim.Compatibility.TabOverview>
   <ClashOfRim.Compatibility.TabManifest>모드 {COUNT}</ClashOfRim.Compatibility.TabManifest>
   <ClashOfRim.Compatibility.TabHash>파일 {COUNT}</ClashOfRim.Compatibility.TabHash>

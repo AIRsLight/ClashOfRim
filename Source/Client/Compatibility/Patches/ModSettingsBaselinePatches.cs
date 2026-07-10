@@ -347,6 +347,8 @@ internal static class CompatibilityConfigOverlayPath
         return Path.Combine(root, safePackage, "Mod_" + safePackage + "_" + safeFile + ".xml");
     }
 
+    public static bool ServerProfileActive => EnsureProfileActivation();
+
     public static string? ActiveManifestJson => EnsureProfileActivation()
         ? ResolveActiveOverlay()?.ManifestJson
         : null;

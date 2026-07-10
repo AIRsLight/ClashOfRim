@@ -76,6 +76,8 @@
   <ClashOfRim.Compatibility.ManifestParseFailed>服务器模组列表无法读取。</ClashOfRim.Compatibility.ManifestParseFailed>
   <ClashOfRim.Compatibility.ManifestBuildFailed>无法生成本地完整模组列表，请查看客户端日志。</ClashOfRim.Compatibility.ManifestBuildFailed>
   <ClashOfRim.Compatibility.ApplyRestarting>已套用，正在重启。</ClashOfRim.Compatibility.ApplyRestarting>
+  <ClashOfRim.Compatibility.ServerProfileActiveTitle>多人配置已启用</ClashOfRim.Compatibility.ServerProfileActiveTitle>
+  <ClashOfRim.Compatibility.ServerProfileSinglePlayerRestart>当前游戏已使用服务器配置启动。开始或载入单人游戏前，需要重启以恢复本地配置。</ClashOfRim.Compatibility.ServerProfileSinglePlayerRestart>
   <ClashOfRim.Compatibility.TabOverview>总览</ClashOfRim.Compatibility.TabOverview>
   <ClashOfRim.Compatibility.TabManifest>模组 {COUNT}</ClashOfRim.Compatibility.TabManifest>
   <ClashOfRim.Compatibility.TabHash>文件 {COUNT}</ClashOfRim.Compatibility.TabHash>
