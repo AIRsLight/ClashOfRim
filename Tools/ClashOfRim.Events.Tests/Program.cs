@@ -100,6 +100,9 @@ static void VerifyRegisteredModSettingsRemainInCompatibilityBaseline()
         settingsPatch.Contains("ProfileArmed", StringComparison.Ordinal)
         && settingsPatch.Contains("EnsureProfileActivation", StringComparison.Ordinal),
         "服务器配置 overlay 必须只在显式套用后的下一次启动中生效，不能影响普通单人启动");
+    Require(
+        settingsPatch.Contains("!CompatibilityConfigOverlayPath.ServerProfileActive", StringComparison.Ordinal),
+        "未激活服务器配置档案时，设置文件路径不得被重定向到尚未写入的 overlay");
     string mainMenuPatchPath = FindRepositoryFile("Source", "Client", "MainMenu", "Entry", "ClashOfRimMainMenuPatches.cs");
     string mainMenuPatch = File.ReadAllText(mainMenuPatchPath);
     Require(

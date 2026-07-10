@@ -102,7 +102,8 @@ internal static class ModSettingsBaselinePolicy
     public static bool TryGetOverlaySettingsFilename(string modIdentifier, string modHandleName, out string path)
     {
         path = string.Empty;
-        if (IsClashOfRimConfig(modIdentifier, modHandleName)
+        if (!CompatibilityConfigOverlayPath.ServerProfileActive
+            || IsClashOfRimConfig(modIdentifier, modHandleName)
             || !IsControlledConfig(modIdentifier, modHandleName))
         {
             return false;
