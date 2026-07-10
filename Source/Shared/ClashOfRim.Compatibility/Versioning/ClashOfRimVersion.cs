@@ -22,12 +22,12 @@ namespace AIRsLight.ClashOfRim.Compatibility;
 public static class ClashOfRimVersion
 {
     public const string ProductName = "ClashOfRim";
-    public const string ProductVersion = "0.1.3";
+    public const string ProductVersion = "0.2.0";
     public const string ProtocolVersion = "2026-07-10";
-    public const int ProtocolMajor = 1;
-    public const int ProtocolMinor = 2;
-    public const int MinimumSupportedProtocolMajor = 1;
-    public const int MinimumSupportedProtocolMinor = 2;
+    public const int ProtocolMajor = 2;
+    public const int ProtocolMinor = 0;
+    public const int MinimumSupportedProtocolMajor = 2;
+    public const int MinimumSupportedProtocolMinor = 0;
     public const string CompatibilityApiVersion = "1.0";
 
     public static string ProtocolDisplayVersion => $"{ProtocolMajor}.{ProtocolMinor}";
