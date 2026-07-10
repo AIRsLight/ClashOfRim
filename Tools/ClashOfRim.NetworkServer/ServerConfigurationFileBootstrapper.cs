@@ -44,7 +44,7 @@ internal static class ServerConfigurationFileBootstrapper
         }
     }
 
-    private static string ResolveContentRootPath(string[] args)
+    internal static string ResolveContentRootPath(string[] args)
     {
         string? configuredPath = ReadArgumentValue(args, "--contentRoot")
             ?? ReadArgumentValue(args, "--content-root");

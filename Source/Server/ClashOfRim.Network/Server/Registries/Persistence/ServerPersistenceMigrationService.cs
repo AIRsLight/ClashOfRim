@@ -16,13 +16,24 @@ public sealed class ServerPersistenceMigrationService
 
     public string DataDirectory { get; }
 
-    public ServerPersistenceMigrationResult Migrate()
+    public ServerPersistenceMigrationResult ValidateForStartup()
+    {
+        string snapshotDirectory = Path.Combine(DataDirectory, "snapshots");
+        ServerSnapshotPackageMigrationResult snapshots = ServerSnapshotPackageMigrator.Migrate(snapshotDirectory);
+        ServerDatabaseMigrationResult database = ServerDatabaseMigrator.ValidateForStartup(
+            Path.Combine(DataDirectory, "server.sqlite"),
+            snapshotDirectory);
+        return new ServerPersistenceMigrationResult(database, snapshots);
+    }
+
+    public ServerPersistenceMigrationResult Migrate(ServerDatabaseMigrationOptions? databaseOptions = null)
     {
         string snapshotDirectory = Path.Combine(DataDirectory, "snapshots");
         ServerSnapshotPackageMigrationResult snapshots = ServerSnapshotPackageMigrator.Migrate(snapshotDirectory);
         ServerDatabaseMigrationResult database = ServerDatabaseMigrator.Migrate(
             Path.Combine(DataDirectory, "server.sqlite"),
-            snapshotDirectory);
+            snapshotDirectory,
+            databaseOptions);
         return new ServerPersistenceMigrationResult(database, snapshots);
     }
 }

@@ -12,9 +12,19 @@ namespace AIRsLight.ClashOfRim.Network;
 /// </summary>
 public static class ServerDatabaseSchema
 {
-    // Version 1 represents databases created before schema metadata was introduced.
-    public const int LegacyUnversionedVersion = 1;
+    // Version 1 is the known JSON-document persistence layout.
+    public const int LegacyJsonDocumentVersion = 1;
     public const int CurrentVersion = 2;
+}
+
+public sealed record ServerDatabaseMigrationOptions(int? DeclaredSourceVersion = null);
+
+public sealed class ServerDatabaseMigrationRequiredException : InvalidOperationException
+{
+    public ServerDatabaseMigrationRequiredException(string message)
+        : base(message)
+    {
+    }
 }
 
 public sealed record ServerDatabaseMigrationResult(
@@ -38,7 +48,57 @@ public static class ServerDatabaseMigrator
             Apply: RemoveLegacyTileGeometry)
     ];
 
-    public static ServerDatabaseMigrationResult Migrate(string databasePath, string? snapshotDirectory = null)
+    public static ServerDatabaseMigrationResult ValidateForStartup(string databasePath, string? snapshotDirectory = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(databasePath);
+
+        string? directory = Path.GetDirectoryName(databasePath);
+        if (!string.IsNullOrWhiteSpace(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        using SqliteConnection connection = OpenConnection(databasePath);
+        bool hasExistingServerData = HasExistingServerData(connection);
+        if (!hasExistingServerData && !TableExists(connection, MetadataTable))
+        {
+            EnsureMetadataTable(connection);
+            WriteVersion(connection, transaction: null, ServerDatabaseSchema.CurrentVersion);
+            return new ServerDatabaseMigrationResult(
+                0,
+                ServerDatabaseSchema.CurrentVersion,
+                true,
+                false,
+                null,
+                Array.Empty<string>());
+        }
+
+        if (!TableExists(connection, MetadataTable))
+        {
+            throw CreateMigrationRequiredException("The database has no schema version metadata.");
+        }
+
+        int storedVersion = ReadStoredVersion(connection);
+        EnsureSupportedVersion(storedVersion);
+        if (storedVersion < ServerDatabaseSchema.CurrentVersion)
+        {
+            throw CreateMigrationRequiredException(
+                $"The database schema is version {storedVersion}, but this server requires {ServerDatabaseSchema.CurrentVersion}.");
+        }
+
+        return new ServerDatabaseMigrationResult(
+            storedVersion,
+            storedVersion,
+            false,
+            false,
+            null,
+            Array.Empty<string>());
+    }
+
+    public static ServerDatabaseMigrationResult Migrate(
+        string databasePath,
+        string? snapshotDirectory = null,
+        ServerDatabaseMigrationOptions? options = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(databasePath);
 
@@ -50,9 +110,7 @@ public static class ServerDatabaseMigrator
 
         using SqliteConnection connection = OpenConnection(databasePath);
         bool hadSchemaMetadata = TableExists(connection, MetadataTable);
-        EnsureMetadataTable(connection);
-
-        int storedVersion = ReadStoredVersion(connection);
+        int storedVersion = hadSchemaMetadata ? ReadStoredVersion(connection) : 0;
         bool hasExistingServerData = HasExistingServerData(connection);
         bool createdNewDatabase = !hadSchemaMetadata && !hasExistingServerData;
         int startingVersion;
@@ -63,20 +121,15 @@ public static class ServerDatabaseMigrator
         else if (createdNewDatabase)
         {
             startingVersion = 0;
+            EnsureMetadataTable(connection);
             WriteVersion(connection, transaction: null, ServerDatabaseSchema.CurrentVersion);
         }
         else
         {
-            startingVersion = ServerDatabaseSchema.LegacyUnversionedVersion;
-            WriteVersion(connection, transaction: null, startingVersion);
+            startingVersion = ResolveUnversionedDatabaseVersion(connection, options);
         }
 
-        if (startingVersion > ServerDatabaseSchema.CurrentVersion)
-        {
-            throw new InvalidOperationException(
-                $"Database schema version {startingVersion} is newer than this server supports " +
-                $"({ServerDatabaseSchema.CurrentVersion}). Update the server before opening this database.");
-        }
+        EnsureSupportedVersion(startingVersion);
 
         int currentVersion = startingVersion == 0
             ? ServerDatabaseSchema.CurrentVersion
@@ -95,6 +148,12 @@ public static class ServerDatabaseMigrator
                     $"Supported target version is {ServerDatabaseSchema.CurrentVersion}.");
             }
 
+            if (step.FromVersion == ServerDatabaseSchema.LegacyJsonDocumentVersion)
+            {
+                LegacyJsonStructuredRegistryMigrator.Import(databasePath);
+            }
+
+            EnsureMetadataTable(connection);
             using SqliteTransaction transaction = connection.BeginTransaction();
             MigrationApplicationResult application = step.Apply(connection, transaction, context);
             WriteVersion(connection, transaction, step.ToVersion);
@@ -113,6 +172,67 @@ public static class ServerDatabaseMigrator
             requiresWorldSubstrateRebaseline,
             recoveredWorldSubstrateSnapshotId,
             appliedMigrations);
+    }
+
+    private static int ResolveUnversionedDatabaseVersion(
+        SqliteConnection connection,
+        ServerDatabaseMigrationOptions? options)
+    {
+        if (options?.DeclaredSourceVersion is int declaredVersion)
+        {
+            if (declaredVersion <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(options), "Declared source version must be positive.");
+            }
+
+            return declaredVersion;
+        }
+
+        if (HasLegacyTileGeometry(connection))
+        {
+            return ServerDatabaseSchema.LegacyJsonDocumentVersion;
+        }
+
+        bool hasLegacyDocuments = TableExists(connection, "server_documents");
+        bool hasStructuredRecords = HasStructuredRegistryData(connection);
+        if (hasLegacyDocuments && !hasStructuredRecords)
+        {
+            return ServerDatabaseSchema.LegacyJsonDocumentVersion;
+        }
+
+        if (!hasLegacyDocuments && hasStructuredRecords)
+        {
+            EnsureMetadataTable(connection);
+            WriteVersion(connection, transaction: null, ServerDatabaseSchema.CurrentVersion);
+            return ServerDatabaseSchema.CurrentVersion;
+        }
+
+        if (hasLegacyDocuments && hasStructuredRecords)
+        {
+            throw CreateMigrationRequiredException(
+                "The database contains both legacy JSON documents and structured records, so its migration state cannot be inferred. " +
+                "Run 'migrate --from 1' to import the JSON layout, or 'migrate --from 2' only after verifying the structured records are complete.");
+        }
+
+        throw CreateMigrationRequiredException(
+            "The database uses an unrecognized persistence layout. " +
+            $"Review the backup, then run 'migrate --from {ServerDatabaseSchema.LegacyJsonDocumentVersion}' only if it is a JSON-document server database.");
+    }
+
+    private static void EnsureSupportedVersion(int version)
+    {
+        if (version > ServerDatabaseSchema.CurrentVersion)
+        {
+            throw new InvalidOperationException(
+                $"Database schema version {version} is newer than this server supports " +
+                $"({ServerDatabaseSchema.CurrentVersion}). Update the server before opening this database.");
+        }
+    }
+
+    private static ServerDatabaseMigrationRequiredException CreateMigrationRequiredException(string detail)
+    {
+        return new ServerDatabaseMigrationRequiredException(
+            detail + " Stop the server and run the 'migrate' console command before starting normally.");
     }
 
     public static int ReadVersion(string databasePath)
@@ -457,6 +577,46 @@ public static class ServerDatabaseMigrator
                 where type = 'table'
                     and name not like 'sqlite_%'
                     and name <> '{{MetadataTable}}'
+            );
+            """;
+        return Convert.ToInt64(command.ExecuteScalar(), CultureInfo.InvariantCulture) != 0;
+    }
+
+    private static bool HasStructuredRegistryData(SqliteConnection connection)
+    {
+        string[] knownTables =
+        [
+            "server_structured_registry_markers",
+            "server_keyed_json_records",
+            "server_players",
+            "server_pawn_packages",
+            "server_thing_packages"
+        ];
+        foreach (string table in knownTables)
+        {
+            if (TableExists(connection, table))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool HasLegacyTileGeometry(SqliteConnection connection)
+    {
+        if (!TableExists(connection, "server_binary_documents"))
+        {
+            return false;
+        }
+
+        using SqliteCommand command = connection.CreateCommand();
+        command.CommandText = """
+            select exists(
+                select 1
+                from server_binary_documents
+                where document_key = 'world-configuration'
+                    and binary_key = 'tile-geometry'
             );
             """;
         return Convert.ToInt64(command.ExecuteScalar(), CultureInfo.InvariantCulture) != 0;

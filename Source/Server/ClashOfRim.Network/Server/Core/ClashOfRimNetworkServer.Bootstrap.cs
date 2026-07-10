@@ -145,7 +145,7 @@ public static partial class ClashOfRimNetworkServer
     {
         string dataDirectory = ResolveDataDirectory(configuration, contentRootPath);
         string databasePath = Path.Combine(dataDirectory, "server.sqlite");
-        ServerPersistenceMigrationResult migration = persistenceMigrations.Migrate();
+        ServerPersistenceMigrationResult migration = persistenceMigrations.ValidateForStartup();
         ServerConfigurationRegistry serverConfigurationOverrides =
             new(new SqliteJsonPersistenceSlot(databasePath, "server-configuration"));
         ClashOfRimServerConfiguration serverConfiguration = LoadServerConfiguration(configuration);
@@ -161,50 +161,50 @@ public static partial class ClashOfRimNetworkServer
             serverConfigurationOverrides: serverConfigurationOverrides,
             worldConfigurationRegistry: new WorldConfigurationRegistry(
                 new SqliteKeyedJsonRecordStore(databasePath, "world-configuration"),
-                new SqliteJsonPersistenceSlot(databasePath, "world-configuration"),
-                new SqliteJsonPersistenceSlot(databasePath, "world-configuration"),
-                WorldConfigurationExtensionService.Empty),
+                legacyPersistence: null,
+                binaryPersistence: new SqliteJsonPersistenceSlot(databasePath, "world-configuration"),
+                worldExtensions: WorldConfigurationExtensionService.Empty),
             compatibilityBaselineRegistry: new CompatibilityBaselineRegistry(new SqliteJsonPersistenceSlot(databasePath, "compatibility-baseline")),
             adminBaselineRegistry: new AdminBaselineRegistry(new SqliteJsonPersistenceSlot(databasePath, "admin-baseline")),
             playerRegistry: new PlayerRegistry(
                 new SqlitePlayerRegistryStore(databasePath),
-                new SqliteJsonPersistenceSlot(databasePath, "players")),
+                legacyPersistence: null),
             diplomacyRelations: new DiplomacyRelationRegistry(
                 new SqliteKeyedJsonRecordStore(databasePath, "diplomacy-relations"),
-                new SqliteJsonPersistenceSlot(databasePath, "diplomacy-relations")),
+                legacyPersistence: null),
             pawnPackages: new PawnPackageRegistry(
                 new SqlitePawnPackageStore(databasePath),
-                new SqliteJsonPersistenceSlot(databasePath, "pawn-packages")),
+                legacyPersistence: null),
             thingPackages: new ThingPackageRegistry(
                 new SqliteThingPackageStore(databasePath),
-                new SqliteJsonPersistenceSlot(databasePath, "thing-packages")),
+                legacyPersistence: null),
             raidProtectionActivations: new RaidProtectionActivationRegistry(
                 new SqliteKeyedJsonRecordStore(databasePath, "raid-protection-activations"),
-                new SqliteJsonPersistenceSlot(databasePath, "raid-protection-activations")),
+                legacyPersistence: null),
             bankLoans: new BankLoanRegistry(
                 new SqliteKeyedJsonRecordStore(databasePath, "bank-loans"),
-                new SqliteJsonPersistenceSlot(databasePath, "bank-loans")),
+                legacyPersistence: null),
             mercenaryContracts: new MercenaryContractRegistry(
                 new SqliteKeyedJsonRecordStore(databasePath, "mercenary-contracts"),
-                new SqliteJsonPersistenceSlot(databasePath, "mercenary-contracts")),
+                legacyPersistence: null),
             mercenaryGuards: new MercenaryGuardContractRegistry(
                 new SqliteKeyedJsonRecordStore(databasePath, "mercenary-guards"),
-                new SqliteJsonPersistenceSlot(databasePath, "mercenary-guards")),
+                legacyPersistence: null),
             chatMessages: new ChatMessageRegistry(
                 new SqliteKeyedJsonRecordStore(databasePath, "chat-messages"),
-                new SqliteJsonPersistenceSlot(databasePath, "chat-messages")),
+                legacyPersistence: null),
             serverShop: new ServerShopRegistry(
                 new SqliteKeyedJsonRecordStore(databasePath, "server-shop"),
-                new SqliteJsonPersistenceSlot(databasePath, "server-shop")),
+                legacyPersistence: null),
             achievements: new AchievementRegistry(
                 new SqliteKeyedJsonRecordStore(databasePath, "achievements"),
-                new SqliteJsonPersistenceSlot(databasePath, "achievements")),
+                legacyPersistence: null),
             adminControl: new AdminControlRegistry(
                 new SqliteKeyedJsonRecordStore(databasePath, "admin-control"),
-                new SqliteJsonPersistenceSlot(databasePath, "admin-control")),
+                legacyPersistence: null),
             offlineAccounts: new OfflineAccountRegistry(
                 new SqliteKeyedJsonRecordStore(databasePath, "offline-accounts"),
-                new SqliteJsonPersistenceSlot(databasePath, "offline-accounts")),
+                legacyPersistence: null),
             steamAuthTickets: BuildSteamAuthTicketValidator(serverConfiguration),
             plugins: plugins), migration);
     }
@@ -219,7 +219,7 @@ public static partial class ClashOfRimNetworkServer
         return Path.Combine(logDirectory, $"server-{DateTime.UtcNow:yyyyMMdd}.log");
     }
 
-    private static string ResolveDataDirectory(IConfiguration configuration, string contentRootPath)
+    public static string ResolveDataDirectory(IConfiguration configuration, string contentRootPath)
     {
         string? configuredDirectory = Environment.GetEnvironmentVariable("CLASH_OF_RIM_DATA_DIR");
         if (string.IsNullOrWhiteSpace(configuredDirectory))

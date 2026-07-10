@@ -3,7 +3,7 @@ using System.Text.Json;
 
 namespace AIRsLight.ClashOfRim.Network;
 
-internal static class ServerLocalizationFileLoader
+public static class ServerLocalizationFileLoader
 {
     public static void Load(string contentRootPath)
     {

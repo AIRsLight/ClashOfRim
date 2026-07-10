@@ -145,7 +145,7 @@ internal static class ServerConsoleCommandService
                 Broadcast(state, args.Skip(1).ToList());
                 break;
             case "migrate":
-                RunPersistenceMigrations(state, persistenceMigrations, lifetime);
+                RunPersistenceMigrations(state, persistenceMigrations, lifetime, ParseMigrationOptions(args));
                 break;
             case "stop":
             case "shutdown":
@@ -166,7 +166,8 @@ internal static class ServerConsoleCommandService
     private static void RunPersistenceMigrations(
         ClashOfRimNetworkState state,
         ServerPersistenceMigrationService? persistenceMigrations,
-        IHostApplicationLifetime lifetime)
+        IHostApplicationLifetime lifetime,
+        ServerDatabaseMigrationOptions? options)
     {
         if (persistenceMigrations is null)
         {
@@ -182,7 +183,7 @@ internal static class ServerConsoleCommandService
             return;
         }
 
-        ServerPersistenceMigrationResult result = persistenceMigrations.Migrate();
+        ServerPersistenceMigrationResult result = persistenceMigrations.Migrate(options);
         Console.WriteLine(T(
             "Cli.MigrationSummary",
             ("DATABASE_FROM", result.Database.StartingVersion.ToString(System.Globalization.CultureInfo.InvariantCulture)),
@@ -202,6 +203,24 @@ internal static class ServerConsoleCommandService
 
         Console.WriteLine(T("Cli.MigrationRestarting"));
         lifetime.StopApplication();
+    }
+
+    private static ServerDatabaseMigrationOptions? ParseMigrationOptions(IReadOnlyList<string> args)
+    {
+        if (args.Count == 1)
+        {
+            return null;
+        }
+
+        if (args.Count == 3
+            && string.Equals(args[1], "--from", StringComparison.OrdinalIgnoreCase)
+            && int.TryParse(args[2], out int declaredSourceVersion)
+            && declaredSourceVersion > 0)
+        {
+            return new ServerDatabaseMigrationOptions(declaredSourceVersion);
+        }
+
+        throw new InvalidOperationException(T("Cli.UsageMigrate"));
     }
 
     private static void PrintStatus(ClashOfRimNetworkState state)

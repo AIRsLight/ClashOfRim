@@ -288,7 +288,9 @@ public sealed class PlayerRegistry
     {
         bool hasStructured = structuredPersistence?.IsInitialized() == true;
         LoadStructured();
-        bool changed = !hasStructured && LoadLegacyReadOnly();
+        bool changed = !hasStructured
+            && (structuredPersistence is null || LegacyStructuredImportScope.IsActive)
+            && LoadLegacyReadOnly();
         if (changed && structuredPersistence is not null)
         {
             SaveLocked();

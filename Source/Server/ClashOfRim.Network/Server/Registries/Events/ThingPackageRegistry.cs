@@ -104,7 +104,8 @@ public sealed class ThingPackageRegistry
     {
         bool hasStructured = structuredPersistence?.IsInitialized() == true;
         LoadStructured();
-        if (!hasStructured)
+        if (!hasStructured
+            && (structuredPersistence is null || LegacyStructuredImportScope.IsActive))
         {
             LoadLegacyReadOnly();
         }
@@ -157,7 +158,9 @@ public sealed class ThingPackageRegistry
 
             foreach (StoredThingPackageRecord record in persisted.Packages)
             {
-                AddLoadedRecord(record, persistStructured: structuredPersistence is not null);
+                AddLoadedRecord(
+                    record,
+                    persistStructured: structuredPersistence is not null && LegacyStructuredImportScope.IsActive);
             }
         }
         catch (JsonException)

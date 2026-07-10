@@ -11,8 +11,11 @@ using System.Xml.Linq;
 var tests = new (string Name, Action Run)[]
 {
     ("服务器数据库新建时写入当前 schema 版本", VerifyServerDatabaseMigrationInitializesNewDatabase),
+    ("服务器启动拒绝无版本的既有数据库", VerifyServerDatabaseMigrationRequiresExplicitLegacyMigration),
     ("服务器持久化迁移统一检查数据库和快照格式", VerifyServerPersistenceMigrationCoordinatesDatabaseAndSnapshots),
     ("服务器数据库旧版本按匹配步骤迁移并保留其他数据", VerifyServerDatabaseMigrationUpgradesLegacyDatabase),
+    ("服务器数据库未知旧结构要求管理员声明来源版本", VerifyServerDatabaseMigrationRejectsUnknownUnversionedDatabase),
+    ("服务器数据库混合旧新结构要求管理员确认来源版本", VerifyServerDatabaseMigrationRejectsMixedUnversionedDatabase),
     ("服务器数据库从管理员快照恢复世界底图", VerifyServerDatabaseMigrationRecoversWorldSubstrate),
     ("服务器数据库未来 schema 版本拒绝启动", VerifyServerDatabaseMigrationRejectsFutureVersion),
     ("世界底图包仅保留静态世界结构并可压缩往返", VerifyWorldSubstratePackageRoundTrip),
@@ -115,6 +118,44 @@ static void VerifyServerPersistenceMigrationCoordinatesDatabaseAndSnapshots()
     }
 }
 
+static void VerifyServerDatabaseMigrationRequiresExplicitLegacyMigration()
+{
+    string path = Path.Combine(Path.GetTempPath(), "clashofrim-schema-startup-legacy-" + Guid.NewGuid().ToString("N") + ".sqlite");
+    try
+    {
+        using (SqliteConnection connection = OpenSqliteDatabase(path))
+        using (SqliteCommand command = connection.CreateCommand())
+        {
+            command.CommandText = """
+                create table server_documents (
+                    document_key text primary key not null,
+                    content_json text not null,
+                    updated_at_utc text not null
+                );
+                insert into server_documents values ('players', '{"Players":[],"Tombstones":[]}', '2026-01-01T00:00:00.0000000+00:00');
+                """;
+            command.ExecuteNonQuery();
+        }
+
+        bool rejected = false;
+        try
+        {
+            ServerDatabaseMigrator.ValidateForStartup(path);
+        }
+        catch (ServerDatabaseMigrationRequiredException exception)
+        {
+            rejected = exception.Message.Contains("migrate", StringComparison.OrdinalIgnoreCase);
+        }
+
+        Require(rejected, "无版本旧数据库不得在启动时隐式迁移");
+        Equal(0, ServerDatabaseMigrator.ReadVersion(path), "启动拒绝不得写入 schema 版本");
+    }
+    finally
+    {
+        DeleteSqliteDatabase(path);
+    }
+}
+
 static void VerifyServerDatabaseMigrationUpgradesLegacyDatabase()
 {
     string path = Path.Combine(Path.GetTempPath(), "clashofrim-schema-legacy-" + Guid.NewGuid().ToString("N") + ".sqlite");
@@ -136,14 +177,14 @@ static void VerifyServerDatabaseMigrationUpgradesLegacyDatabase()
                     updated_at_utc text not null,
                     primary key (document_key, binary_key)
                 );
-                insert into server_documents values ('players', '{"preserve":true}', '2026-01-01T00:00:00.0000000+00:00');
+                insert into server_documents values ('players', '{"Players":[{"UserId":"legacy-user","ColonyId":"legacy-colony","CurrentSnapshotId":"snapshot-1","LastSeenAtUtc":"2026-01-01T00:00:00+00:00"}],"Tombstones":[]}', '2026-01-01T00:00:00.0000000+00:00');
                 insert into server_binary_documents values ('world-configuration', 'tile-geometry', X'0102', '2026-01-01T00:00:00.0000000+00:00');
                 """;
             command.ExecuteNonQuery();
         }
 
         ServerDatabaseMigrationResult result = ServerDatabaseMigrator.Migrate(path);
-        Equal(ServerDatabaseSchema.LegacyUnversionedVersion, result.StartingVersion, "旧数据库推断版本");
+        Equal(ServerDatabaseSchema.LegacyJsonDocumentVersion, result.StartingVersion, "旧数据库推断版本");
         Equal(ServerDatabaseSchema.CurrentVersion, result.FinalVersion, "旧数据库最终版本");
         Require(result.AppliedMigrations.Contains("1->2", StringComparer.Ordinal), "旧数据库应执行 1->2 迁移");
         Require(result.RequiresWorldSubstrateRebaseline, "缺失可用管理员快照时应要求重新覆盖世界基线");
@@ -154,8 +195,90 @@ static void VerifyServerDatabaseMigrationUpgradesLegacyDatabase()
         Equal(0L, (long)verify.ExecuteScalar()!, "旧 tile geometry 应被迁移清理");
         verify.CommandText = "select count(*) from server_binary_documents where document_key = 'world-configuration' and binary_key = 'world-substrate';";
         Equal(0L, (long)verify.ExecuteScalar()!, "没有可用管理员快照时不可伪造新版世界底图包");
-        verify.CommandText = "select content_json from server_documents where document_key = 'players';";
-        Equal("{\"preserve\":true}", (string)verify.ExecuteScalar()!, "无关注册表数据应保留");
+        verify.CommandText = "select count(*) from server_players where user_id = 'legacy-user' and colony_id = 'legacy-colony';";
+        Equal(1L, (long)verify.ExecuteScalar()!, "玩家 JSON 数据应在显式迁移时写入结构化表");
+    }
+    finally
+    {
+        DeleteSqliteDatabase(path);
+    }
+}
+
+static void VerifyServerDatabaseMigrationRejectsUnknownUnversionedDatabase()
+{
+    string path = Path.Combine(Path.GetTempPath(), "clashofrim-schema-unknown-" + Guid.NewGuid().ToString("N") + ".sqlite");
+    try
+    {
+        using (SqliteConnection connection = OpenSqliteDatabase(path))
+        using (SqliteCommand command = connection.CreateCommand())
+        {
+            command.CommandText = "create table unknown_legacy_records (payload text not null); insert into unknown_legacy_records values ('opaque');";
+            command.ExecuteNonQuery();
+        }
+
+        bool rejected = false;
+        try
+        {
+            ServerDatabaseMigrator.Migrate(path);
+        }
+        catch (ServerDatabaseMigrationRequiredException exception)
+        {
+            rejected = exception.Message.Contains("--from", StringComparison.OrdinalIgnoreCase);
+        }
+
+        Require(rejected, "无法识别的无版本数据库必须要求管理员声明来源版本");
+
+        ServerDatabaseMigrationResult forced = ServerDatabaseMigrator.Migrate(
+            path,
+            options: new ServerDatabaseMigrationOptions(DeclaredSourceVersion: ServerDatabaseSchema.LegacyJsonDocumentVersion));
+        Equal(ServerDatabaseSchema.CurrentVersion, forced.FinalVersion, "管理员声明来源版本后应允许迁移");
+    }
+    finally
+    {
+        DeleteSqliteDatabase(path);
+    }
+}
+
+static void VerifyServerDatabaseMigrationRejectsMixedUnversionedDatabase()
+{
+    string path = Path.Combine(Path.GetTempPath(), "clashofrim-schema-mixed-" + Guid.NewGuid().ToString("N") + ".sqlite");
+    try
+    {
+        using (SqliteConnection connection = OpenSqliteDatabase(path))
+        using (SqliteCommand command = connection.CreateCommand())
+        {
+            command.CommandText = """
+                create table server_documents (
+                    document_key text primary key not null,
+                    content_json text not null,
+                    updated_at_utc text not null
+                );
+                create table server_keyed_json_records (
+                    collection_key text not null,
+                    item_key text not null,
+                    content_json text not null,
+                    updated_at_utc text not null,
+                    primary key (collection_key, item_key)
+                );
+                insert into server_documents values ('players', '{"Players":[],"Tombstones":[]}', '2026-01-01T00:00:00.0000000+00:00');
+                insert into server_keyed_json_records values ('world-configuration', 'state', '{}', '2026-01-01T00:00:00.0000000+00:00');
+                """;
+            command.ExecuteNonQuery();
+        }
+
+        bool rejected = false;
+        try
+        {
+            ServerDatabaseMigrator.Migrate(path);
+        }
+        catch (ServerDatabaseMigrationRequiredException exception)
+        {
+            rejected = exception.Message.Contains("--from 1", StringComparison.Ordinal)
+                && exception.Message.Contains("--from 2", StringComparison.Ordinal);
+        }
+
+        Require(rejected, "混合旧新结构不可隐式选择迁移来源版本");
+        Equal(0, ServerDatabaseMigrator.ReadVersion(path), "拒绝混合结构不得写入 schema 版本");
     }
     finally
     {

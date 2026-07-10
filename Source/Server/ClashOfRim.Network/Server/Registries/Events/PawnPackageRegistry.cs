@@ -93,7 +93,8 @@ public sealed class PawnPackageRegistry
     {
         bool hasStructured = structuredPersistence?.IsInitialized() == true;
         LoadStructured();
-        if (!hasStructured)
+        if (!hasStructured
+            && (structuredPersistence is null || LegacyStructuredImportScope.IsActive))
         {
             LoadLegacyReadOnly();
         }
@@ -146,7 +147,9 @@ public sealed class PawnPackageRegistry
 
             foreach (StoredPawnPackageRecord record in persisted.Packages)
             {
-                AddLoadedRecord(record, persistStructured: structuredPersistence is not null);
+                AddLoadedRecord(
+                    record,
+                    persistStructured: structuredPersistence is not null && LegacyStructuredImportScope.IsActive);
             }
         }
         catch (JsonException)

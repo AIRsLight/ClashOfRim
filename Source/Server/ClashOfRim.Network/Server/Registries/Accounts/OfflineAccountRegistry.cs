@@ -134,7 +134,9 @@ public sealed class OfflineAccountRegistry
     {
         bool hasStructured = structuredPersistence?.IsInitialized() == true;
         LoadStructured();
-        bool importedLegacy = !hasStructured && LoadLegacyReadOnly();
+        bool importedLegacy = !hasStructured
+            && (structuredPersistence is null || LegacyStructuredImportScope.IsActive)
+            && LoadLegacyReadOnly();
         if (importedLegacy && structuredPersistence is not null)
         {
             Save();
