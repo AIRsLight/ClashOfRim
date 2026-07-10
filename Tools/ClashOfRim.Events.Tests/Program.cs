@@ -54,6 +54,7 @@ var tests = new (string Name, Action Run)[]
     ,("清单错误窗口始终显示服务端权威问题", VerifyCompatibilityMismatchUiUsesAuthoritativeFallback)
     ,("世界基线后台应用不得直接重建 Unity 图层", VerifyWorldSubstrateApplyDoesNotRenderOnWorkerThread)
     ,("新玩家进入服务器世界后释放自动会话门禁", VerifyNewWorldEntryReleasesAutomaticSessionGate)
+    ,("普通快照下载不记录袭击清理跳过告警", VerifyNormalSnapshotDownloadDoesNotLogRaidCleanupSkip)
 };
 
 foreach ((string name, Action run) in tests)
@@ -182,6 +183,15 @@ static void VerifyNewWorldEntryReleasesAutomaticSessionGate()
     Require(
         successState >= 0 && releaseGate > successState && releaseGate < scenarioOpen,
         "世界基线下载成功后必须在打开开局页面前释放手动同步门禁，才能自动登录并上传首个快照");
+}
+
+static void VerifyNormalSnapshotDownloadDoesNotLogRaidCleanupSkip()
+{
+    string sourcePath = FindRepositoryFile("Source", "Server", "ClashOfRim.Network", "Server", "Endpoints", "ClashOfRimNetworkServer.SessionWorld.Live.cs");
+    string source = File.ReadAllText(sourcePath);
+    Require(
+        !source.Contains("Skipped stale raid battle snapshot cleanup because the related raid event is missing", StringComparison.Ordinal),
+        "普通快照没有袭击关联时不得记录袭击清理跳过告警");
 }
 
 static void VerifyCompatibilityMismatchUiUsesAuthoritativeFallback()

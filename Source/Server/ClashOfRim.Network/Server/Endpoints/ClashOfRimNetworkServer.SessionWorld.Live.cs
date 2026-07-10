@@ -1339,12 +1339,6 @@ public static partial class ClashOfRimNetworkServer
             : state.Ledger.Find(raidEventId!);
         if (string.IsNullOrWhiteSpace(raidEventId) || raid?.Payload is not RaidEventPayload raidPayload)
         {
-            state.RuntimeLogger.LogWarning(
-                "Skipped stale raid battle snapshot cleanup because the related raid event is missing: user={UserId} colony={ColonyId} sourceSnapshot={SourceSnapshotId} relatedEvent={RelatedEventId}",
-                userId,
-                colonyId,
-                package.Envelope.Identity.SnapshotId,
-                raidEventId ?? string.Empty);
             return package;
         }
 
