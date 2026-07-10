@@ -579,6 +579,7 @@ internal sealed class CompatibilityMismatchWindow : Window
             }
         }
 
+        AppendUnrepresentedFallbackEntries(entries, fallbackIssues, CompatibilityTab.Manifest);
         return entries;
     }
 
@@ -675,6 +676,7 @@ internal sealed class CompatibilityMismatchWindow : Window
             }
         }
 
+        AppendUnrepresentedFallbackEntries(entries, fallbackIssues, CompatibilityTab.Hash);
         return entries;
     }
 
@@ -773,6 +775,7 @@ internal sealed class CompatibilityMismatchWindow : Window
             // mismatch list. The server baseline only owns config files it explicitly declares.
         }
 
+        AppendUnrepresentedFallbackEntries(entries, fallbackIssues, CompatibilityTab.Config);
         return entries;
     }
 
@@ -788,6 +791,27 @@ internal sealed class CompatibilityMismatchWindow : Window
                 (string.IsNullOrWhiteSpace(issue.Subject) ? string.Empty : "[" + issue.Subject + "] ")
                 + (string.IsNullOrWhiteSpace(issue.Message) ? T("ClashOfRim.Compatibility.ServerIssueFallback") : issue.Message.Trim()),
                 issue.Subject));
+    }
+
+    private static void AppendUnrepresentedFallbackEntries(
+        List<UiDiffEntry> entries,
+        IReadOnlyList<ModCompatibilityIssueDto>? issues,
+        CompatibilityTab tab)
+    {
+        foreach (UiDiffEntry fallback in FallbackEntries(issues, tab))
+        {
+            bool hasMatchingSubject = !string.IsNullOrWhiteSpace(fallback.Subject)
+                && entries.Any(entry => string.Equals(
+                    NormalizeId(entry.Subject ?? string.Empty),
+                    NormalizeId(fallback.Subject),
+                    StringComparison.Ordinal));
+            bool hasMatchingContent = entries.Any(entry => string.Equals(entry.Title, fallback.Title, StringComparison.Ordinal)
+                && string.Equals(entry.Detail, fallback.Detail, StringComparison.Ordinal));
+            if (!hasMatchingSubject && !hasMatchingContent)
+            {
+                entries.Add(fallback);
+            }
+        }
     }
 
     private static bool IssueBelongsToTab(string? code, CompatibilityTab tab)

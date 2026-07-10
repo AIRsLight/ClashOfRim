@@ -51,6 +51,7 @@ var tests = new (string Name, Action Run)[]
     ("文件账本重启后恢复事件和幂等索引", VerifyFileLedgerPersistence),
     ("SQLite 账本重启后恢复事件和幂等索引", VerifySqliteLedgerPersistence)
     ,("已注册但未落盘的模组设置仍进入兼容基线", VerifyRegisteredModSettingsRemainInCompatibilityBaseline)
+    ,("清单错误窗口始终显示服务端权威问题", VerifyCompatibilityMismatchUiUsesAuthoritativeFallback)
     ,("世界基线后台应用不得直接重建 Unity 图层", VerifyWorldSubstrateApplyDoesNotRenderOnWorkerThread)
 };
 
@@ -82,6 +83,12 @@ static void VerifyIdempotentAppend()
 
 static void VerifyRegisteredModSettingsRemainInCompatibilityBaseline()
 {
+    string manifestBuilderPath = FindRepositoryFile("Source", "Client", "Compatibility", "Manifest", "ClientCompatibilityManifestBuilder.cs");
+    string manifestBuilder = File.ReadAllText(manifestBuilderPath);
+    Require(
+        manifestBuilder.Contains("TryResolveActiveConfigPath", StringComparison.Ordinal),
+        "清单构建必须读取已激活的服务器配置 overlay，而不是只读取本地原始 Config 文件");
+
     var registeredWithoutSavedFile = new ModConfigDigest
     {
         FileName = "ExampleMod",
@@ -138,6 +145,19 @@ static void VerifyWorldSubstrateApplyDoesNotRenderOnWorkerThread()
     Require(methodStart >= 0 && nextMethod > methodStart, "应能定位世界基线应用方法");
     string applyMethod = source.Substring(methodStart, nextMethod - methodStart);
     Require(!applyMethod.Contains("RegenerateAllLayersNow", StringComparison.Ordinal), "后台世界基线应用不得直接创建 Unity 渲染网格");
+}
+
+static void VerifyCompatibilityMismatchUiUsesAuthoritativeFallback()
+{
+    string sourcePath = FindRepositoryFile("Source", "Client", "Compatibility", "Manifest", "CompatibilityBaselineApplicator.cs");
+    string source = File.ReadAllText(sourcePath);
+    Require(
+        source.Contains("AppendUnrepresentedFallbackEntries(entries, fallbackIssues, CompatibilityTab.Config);", StringComparison.Ordinal),
+        "配置页在本地差异计算遗漏时仍必须展示服务端返回的权威配置问题");
+    Require(
+        source.Contains("AppendUnrepresentedFallbackEntries(entries, fallbackIssues, CompatibilityTab.Manifest);", StringComparison.Ordinal)
+        && source.Contains("AppendUnrepresentedFallbackEntries(entries, fallbackIssues, CompatibilityTab.Hash);", StringComparison.Ordinal),
+        "模块和文件页也必须保留服务端问题兜底");
 }
 
 static string FindRepositoryFile(params string[] segments)

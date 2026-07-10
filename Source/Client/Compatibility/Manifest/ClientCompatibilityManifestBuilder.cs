@@ -315,6 +315,14 @@ internal static class ClientCompatibilityManifestBuilder
 
             string instanceName = modInstance.GetType().Name;
             string path = ResolveSettingsFileName(modInstance.Content.FolderName, instanceName);
+            string packageId = modInstance.Content.PackageIdPlayerFacing
+                ?? modInstance.Content.PackageId
+                ?? string.Empty;
+            if (CompatibilityConfigOverlayPath.TryResolveActiveConfigPath(packageId, instanceName, out string overlayPath))
+            {
+                path = overlayPath;
+            }
+
             ModConfigDigest? digest = BuildConfigDigest(instanceName, path);
             if (digest is not null)
             {

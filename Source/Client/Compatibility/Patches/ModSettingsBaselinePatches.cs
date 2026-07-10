@@ -345,7 +345,27 @@ internal static class CompatibilityConfigOverlayPath
 
     public static string Resolve(string packageId, string fileName)
     {
-        string root = Path.Combine(ResolveConfigFolder(), OverlayRootFolderName, ResolveCurrentScope());
+        return ResolveOverlayConfigPath(ResolveCurrentScope(), packageId, fileName);
+    }
+
+    public static bool TryResolveActiveConfigPath(string packageId, string fileName, out string path)
+    {
+        path = string.Empty;
+        ActiveOverlayDto? active = ResolveActiveOverlay();
+        if (active is null
+            || !IsActiveForCurrentServer(active)
+            || !ManifestDeclaresConfig(active.ManifestJson, packageId, fileName))
+        {
+            return false;
+        }
+
+        path = ResolveOverlayConfigPath(active.Scope, packageId, fileName);
+        return true;
+    }
+
+    private static string ResolveOverlayConfigPath(string scope, string packageId, string fileName)
+    {
+        string root = Path.Combine(ResolveConfigFolder(), OverlayRootFolderName, scope);
         string safePackage = GenText.SanitizeFilename(packageId ?? string.Empty);
         string safeFile = GenText.SanitizeFilename(fileName ?? string.Empty);
         return Path.Combine(root, safePackage, "Mod_" + safePackage + "_" + safeFile + ".xml");
@@ -359,7 +379,8 @@ internal static class CompatibilityConfigOverlayPath
         var active = new ActiveOverlayDto
         {
             Scope = scope,
-            ManifestJson = manifestJson ?? string.Empty
+            ManifestJson = manifestJson ?? string.Empty,
+            ServerBaseUrl = ResolveCurrentServerBaseUrl()
         };
         string path = ResolveActiveOverlayPath();
         string? directory = Path.GetDirectoryName(path);
@@ -415,7 +436,13 @@ internal static class CompatibilityConfigOverlayPath
         ClashOfRimMod? mod = LoadedModManager.GetMod<ClashOfRimMod>();
         string manifestJson = manifestJsonOverride ?? mod?.ServerCompatibilityManifestJson ?? string.Empty;
         string manifestId = TryReadManifestId(manifestJson) ?? string.Empty;
-        string server = mod?.ServerBaseUrl ?? string.Empty;
+        string server = ResolveCurrentServerBaseUrl();
+        ActiveOverlayDto? active = ResolveActiveOverlay();
+        if (string.IsNullOrWhiteSpace(manifestId) && active is not null && IsActiveForCurrentServer(active))
+        {
+            return active.Scope;
+        }
+
         string seed = string.IsNullOrWhiteSpace(manifestId)
             ? server
             : server + "|" + manifestId;
@@ -424,8 +451,44 @@ internal static class CompatibilityConfigOverlayPath
             return HashText(seed);
         }
 
-        ActiveOverlayDto? active = ResolveActiveOverlay();
         return string.IsNullOrWhiteSpace(active?.Scope) ? "unconfigured" : active!.Scope;
+    }
+
+    private static string ResolveCurrentServerBaseUrl()
+    {
+        return (LoadedModManager.GetMod<ClashOfRimMod>()?.ServerBaseUrl ?? string.Empty).Trim().TrimEnd('/');
+    }
+
+    private static bool IsActiveForCurrentServer(ActiveOverlayDto active)
+    {
+        string current = ResolveCurrentServerBaseUrl();
+        return !string.IsNullOrWhiteSpace(current)
+            && !string.IsNullOrWhiteSpace(active.ServerBaseUrl)
+            && string.Equals(current, active.ServerBaseUrl.Trim().TrimEnd('/'), StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool ManifestDeclaresConfig(string manifestJson, string packageId, string fileName)
+    {
+        if (string.IsNullOrWhiteSpace(manifestJson)
+            || string.IsNullOrWhiteSpace(packageId)
+            || string.IsNullOrWhiteSpace(fileName))
+        {
+            return false;
+        }
+
+        try
+        {
+            var serializer = new DataContractJsonSerializer(typeof(OverlayManifestDto));
+            using var stream = new MemoryStream(Encoding.UTF8.GetBytes(manifestJson));
+            OverlayManifestDto? manifest = serializer.ReadObject(stream) as OverlayManifestDto;
+            return manifest?.Mods.Any(mod => string.Equals(mod.PackageId, packageId, StringComparison.OrdinalIgnoreCase)
+                && mod.Configs.Any(config => string.Equals(config.FileName, fileName, StringComparison.OrdinalIgnoreCase))) == true;
+        }
+        catch (Exception ex)
+        {
+            Log.Warning("[ClashOfRim][Compatibility] Failed to inspect active config overlay manifest: " + ex.Message);
+            return false;
+        }
     }
 
     private static string? TryReadManifestId(string? manifestJson)
@@ -517,5 +580,32 @@ internal static class CompatibilityConfigOverlayPath
 
         [DataMember(Name = "manifestJson")]
         public string ManifestJson { get; set; } = string.Empty;
+
+        [DataMember(Name = "serverBaseUrl")]
+        public string ServerBaseUrl { get; set; } = string.Empty;
+    }
+
+    [DataContract]
+    private sealed class OverlayManifestDto
+    {
+        [DataMember(Name = "mods")]
+        public List<OverlayModDto> Mods { get; set; } = new();
+    }
+
+    [DataContract]
+    private sealed class OverlayModDto
+    {
+        [DataMember(Name = "packageId")]
+        public string PackageId { get; set; } = string.Empty;
+
+        [DataMember(Name = "configs")]
+        public List<OverlayConfigDto> Configs { get; set; } = new();
+    }
+
+    [DataContract]
+    private sealed class OverlayConfigDto
+    {
+        [DataMember(Name = "fileName")]
+        public string FileName { get; set; } = string.Empty;
     }
 }
