@@ -86,6 +86,13 @@
   <ClashOfRim.Compatibility.ConfigsMatch>配置一致。</ClashOfRim.Compatibility.ConfigsMatch>
   <ClashOfRim.Compatibility.ModsMatch>模组一致。</ClashOfRim.Compatibility.ModsMatch>
   <ClashOfRim.Compatibility.ApplyAndRestart>套用并重启</ClashOfRim.Compatibility.ApplyAndRestart>
+  <ClashOfRim.Compatibility.ConfigApplyOverlayAndRestart>采用 Overlay 并重启</ClashOfRim.Compatibility.ConfigApplyOverlayAndRestart>
+  <ClashOfRim.Compatibility.ConfigOverwriteLocalAndRestart>写入本地并重启</ClashOfRim.Compatibility.ConfigOverwriteLocalAndRestart>
+  <ClashOfRim.Compatibility.ConfigApplyOverlayDesc>采用服务器配置，但不修改本地 Config 文件。</ClashOfRim.Compatibility.ConfigApplyOverlayDesc>
+  <ClashOfRim.Compatibility.ConfigOverwriteLocalDesc>将服务器配置直接写入本地 Config，并移除当前服务器 Overlay。</ClashOfRim.Compatibility.ConfigOverwriteLocalDesc>
+  <ClashOfRim.Compatibility.ConfigApplyOverlayRestarting>已采用服务器配置 Overlay，正在重启。</ClashOfRim.Compatibility.ConfigApplyOverlayRestarting>
+  <ClashOfRim.Compatibility.ConfigOverwriteLocalRestarting>已覆盖本地配置，正在重启。</ClashOfRim.Compatibility.ConfigOverwriteLocalRestarting>
+  <ClashOfRim.Compatibility.ConfigApplyAvailable>配置不一致时，可采用服务器 Overlay，或直接覆盖本地配置后重启。</ClashOfRim.Compatibility.ConfigApplyAvailable>
   <ClashOfRim.Compatibility.OpenWorkshop>创意工坊</ClashOfRim.Compatibility.OpenWorkshop>
   <ClashOfRim.Compatibility.OverrideBaseline>更新服务器资料</ClashOfRim.Compatibility.OverrideBaseline>
   <ClashOfRim.Compatibility.Override.ModListWarning>当前客户端的模组列表或加载顺序与服务器基线不一致。若继续更新服务器资料，服务器会使用当前客户端的模组列表作为新基线。请确认你没有加载本地单人存档使用的模组列表。</ClashOfRim.Compatibility.Override.ModListWarning>

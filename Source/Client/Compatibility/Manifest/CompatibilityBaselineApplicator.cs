@@ -41,6 +41,44 @@ internal static class CompatibilityBaselineApplicator
         return true;
     }
 
+    public static bool TryApplyServerConfigOverlay(string manifestJson, out string message)
+    {
+        message = string.Empty;
+        CompatibilityManifestDto? manifest = ReadManifest(manifestJson);
+        if (manifest is null)
+        {
+            message = string.IsNullOrWhiteSpace(manifestJson)
+                ? T("ClashOfRim.Compatibility.ManifestMissing")
+                : T("ClashOfRim.Compatibility.ManifestParseFailed");
+            return false;
+        }
+
+        CompatibilityConfigOverlayPath.Activate(manifestJson);
+        ApplyConfigOverlays(manifest);
+        message = T("ClashOfRim.Compatibility.ConfigApplyOverlayRestarting");
+        GenCommandLine.Restart();
+        return true;
+    }
+
+    public static bool TryOverwriteLocalConfigs(string manifestJson, out string message)
+    {
+        message = string.Empty;
+        CompatibilityManifestDto? manifest = ReadManifest(manifestJson);
+        if (manifest is null)
+        {
+            message = string.IsNullOrWhiteSpace(manifestJson)
+                ? T("ClashOfRim.Compatibility.ManifestMissing")
+                : T("ClashOfRim.Compatibility.ManifestParseFailed");
+            return false;
+        }
+
+        ApplyConfigFiles(manifest, ResolveLocalConfigPath);
+        CompatibilityConfigOverlayPath.Deactivate();
+        message = T("ClashOfRim.Compatibility.ConfigOverwriteLocalRestarting");
+        GenCommandLine.Restart();
+        return true;
+    }
+
     private static string T(string key)
     {
         return ClashOfRimText.Key(key);
@@ -78,6 +116,13 @@ internal static class CompatibilityBaselineApplicator
 
     private static void ApplyConfigOverlays(CompatibilityManifestDto manifest)
     {
+        ApplyConfigFiles(manifest, (packageId, fileName) => CompatibilityConfigOverlayPath.Resolve(packageId, fileName));
+    }
+
+    private static void ApplyConfigFiles(
+        CompatibilityManifestDto manifest,
+        Func<string, string, string> pathResolver)
+    {
         foreach (CompatibilityModDto mod in manifest.Mods)
         {
             if (mod.Configs.Count == 0)
@@ -92,7 +137,7 @@ internal static class CompatibilityBaselineApplicator
                     continue;
                 }
 
-                string path = CompatibilityConfigOverlayPath.Resolve(mod.PackageId, config.FileName);
+                string path = pathResolver(mod.PackageId, config.FileName);
                 if (!config.HasSavedFile || string.IsNullOrWhiteSpace(config.CanonicalXml))
                 {
                     CompatibilityConfigOverlayPath.Delete(path);
@@ -104,6 +149,16 @@ internal static class CompatibilityBaselineApplicator
                 File.WriteAllText(path, config.CanonicalXml);
             }
         }
+    }
+
+    private static string ResolveLocalConfigPath(string packageId, string fileName)
+    {
+        ModContentPack? mod = LoadedModManager.RunningModsListForReading.FirstOrDefault(candidate =>
+            string.Equals(candidate.PackageIdPlayerFacing, packageId, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(candidate.PackageId, packageId, StringComparison.OrdinalIgnoreCase));
+        string identifier = string.IsNullOrWhiteSpace(mod?.FolderName) ? packageId : mod!.FolderName;
+        string file = GenText.SanitizeFilename($"Mod_{identifier}_{fileName}.xml");
+        return Path.Combine(GenFilePaths.ConfigFolderPath, file);
     }
 
     private static string ToLocalActiveModId(CompatibilityModDto serverMod)
@@ -181,6 +236,7 @@ internal sealed class CompatibilityMismatchWindow : Window
     private readonly int configMismatchCount;
     private readonly bool onlyFileMismatch;
     private readonly bool canApplyAndRestart;
+    private readonly bool canApplyConfigAndRestart;
     private CompatibilityTab selectedTab = CompatibilityTab.Overview;
     private Vector2 manifestScroll;
     private Vector2 hashScroll;
@@ -205,7 +261,8 @@ internal sealed class CompatibilityMismatchWindow : Window
         hashMismatchCount = visibleHashEntries.Count;
         configMismatchCount = visibleConfigEntries.Count;
         onlyFileMismatch = manifestMismatchCount == 0 && configMismatchCount == 0 && hashMismatchCount > 0;
-        canApplyAndRestart = (manifestMismatchCount > 0 || configMismatchCount > 0) && !onlyFileMismatch;
+        canApplyAndRestart = manifestMismatchCount > 0 && !onlyFileMismatch;
+        canApplyConfigAndRestart = configMismatchCount > 0 && serverManifest is not null;
         doCloseX = true;
         closeOnClickedOutside = false;
         absorbInputAroundWindow = true;
@@ -264,9 +321,31 @@ internal sealed class CompatibilityMismatchWindow : Window
         }
 
         Rect previousButtonRect = closeRect;
+        if (canApplyConfigAndRestart)
+        {
+            Rect localConfigRect = new(closeRect.x - 184f, inRect.yMax - 36f, 172f, 32f);
+            if (Widgets.ButtonText(localConfigRect, T("ClashOfRim.Compatibility.ConfigOverwriteLocalAndRestart")))
+            {
+                CompatibilityBaselineApplicator.TryOverwriteLocalConfigs(
+                    response.ServerCompatibilityManifestJson ?? string.Empty,
+                    out status);
+            }
+            TooltipHandler.TipRegion(localConfigRect, T("ClashOfRim.Compatibility.ConfigOverwriteLocalDesc"));
+
+            Rect overlayConfigRect = new(localConfigRect.x - 184f, inRect.yMax - 36f, 172f, 32f);
+            previousButtonRect = overlayConfigRect;
+            if (Widgets.ButtonText(overlayConfigRect, T("ClashOfRim.Compatibility.ConfigApplyOverlayAndRestart")))
+            {
+                CompatibilityBaselineApplicator.TryApplyServerConfigOverlay(
+                    response.ServerCompatibilityManifestJson ?? string.Empty,
+                    out status);
+            }
+            TooltipHandler.TipRegion(overlayConfigRect, T("ClashOfRim.Compatibility.ConfigApplyOverlayDesc"));
+        }
+
         if (canApplyAndRestart)
         {
-            Rect applyRect = new(closeRect.x - 124f, inRect.yMax - 36f, 112f, 32f);
+            Rect applyRect = new(previousButtonRect.x - 124f, inRect.yMax - 36f, 112f, 32f);
             previousButtonRect = applyRect;
             if (Widgets.ButtonText(applyRect, T("ClashOfRim.Compatibility.ApplyAndRestart")))
             {
@@ -343,6 +422,8 @@ internal sealed class CompatibilityMismatchWindow : Window
 
         return canApplyAndRestart
             ? summary + T("ClashOfRim.Compatibility.SummaryApplyServer")
+            : canApplyConfigAndRestart
+            ? summary + T("ClashOfRim.Compatibility.ConfigApplyAvailable")
             : summary;
     }
 
@@ -375,6 +456,8 @@ internal sealed class CompatibilityMismatchWindow : Window
             new Rect(contentRect.x, y, contentRect.width, 80f),
             canApplyAndRestart
                 ? T("ClashOfRim.Compatibility.ManifestApplyAllowed")
+                : canApplyConfigAndRestart
+                ? T("ClashOfRim.Compatibility.ConfigApplyAvailable")
                 : onlyFileMismatch
                 ? T("ClashOfRim.Compatibility.FileMismatchCannotApply")
                 : string.Empty);

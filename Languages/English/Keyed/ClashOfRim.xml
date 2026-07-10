@@ -86,6 +86,13 @@
   <ClashOfRim.Compatibility.ConfigsMatch>Config matches.</ClashOfRim.Compatibility.ConfigsMatch>
   <ClashOfRim.Compatibility.ModsMatch>Mods match.</ClashOfRim.Compatibility.ModsMatch>
   <ClashOfRim.Compatibility.ApplyAndRestart>Apply and restart</ClashOfRim.Compatibility.ApplyAndRestart>
+  <ClashOfRim.Compatibility.ConfigApplyOverlayAndRestart>Overlay + restart</ClashOfRim.Compatibility.ConfigApplyOverlayAndRestart>
+  <ClashOfRim.Compatibility.ConfigOverwriteLocalAndRestart>Local + restart</ClashOfRim.Compatibility.ConfigOverwriteLocalAndRestart>
+  <ClashOfRim.Compatibility.ConfigApplyOverlayDesc>Use the server configuration without modifying local Config files.</ClashOfRim.Compatibility.ConfigApplyOverlayDesc>
+  <ClashOfRim.Compatibility.ConfigOverwriteLocalDesc>Write the server configuration to local Config files and remove the active server overlay.</ClashOfRim.Compatibility.ConfigOverwriteLocalDesc>
+  <ClashOfRim.Compatibility.ConfigApplyOverlayRestarting>Server configuration overlay applied. Restarting.</ClashOfRim.Compatibility.ConfigApplyOverlayRestarting>
+  <ClashOfRim.Compatibility.ConfigOverwriteLocalRestarting>Local configuration overwritten. Restarting.</ClashOfRim.Compatibility.ConfigOverwriteLocalRestarting>
+  <ClashOfRim.Compatibility.ConfigApplyAvailable>For configuration differences, use the server overlay or overwrite local configuration before restarting.</ClashOfRim.Compatibility.ConfigApplyAvailable>
   <ClashOfRim.Compatibility.OpenWorkshop>Workshop</ClashOfRim.Compatibility.OpenWorkshop>
   <ClashOfRim.Compatibility.OverrideBaseline>Update server data</ClashOfRim.Compatibility.OverrideBaseline>
   <ClashOfRim.Compatibility.Override.ModListWarning>The current client mod list or load order does not match the server baseline. If you continue, the server will use this client as the new baseline. Make sure you did not load a local single-player mod list.</ClashOfRim.Compatibility.Override.ModListWarning>
@@ -1857,5 +1864,3 @@
   <ClashOfRim.ColonyAppearance.SavedMessage>Colony icon updated.</ClashOfRim.ColonyAppearance.SavedMessage>
   <ClashOfRim.ColonyAppearance.RegistrationReason>Colony icon update</ClashOfRim.ColonyAppearance.RegistrationReason>
 </LanguageData>
-
-

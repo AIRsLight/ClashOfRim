@@ -86,6 +86,13 @@
   <ClashOfRim.Compatibility.ConfigsMatch>Конфиг совпадает.</ClashOfRim.Compatibility.ConfigsMatch>
   <ClashOfRim.Compatibility.ModsMatch>Моды совпадают.</ClashOfRim.Compatibility.ModsMatch>
   <ClashOfRim.Compatibility.ApplyAndRestart>Применить и перезапустить</ClashOfRim.Compatibility.ApplyAndRestart>
+  <ClashOfRim.Compatibility.ConfigApplyOverlayAndRestart>Overlay и перезапуск</ClashOfRim.Compatibility.ConfigApplyOverlayAndRestart>
+  <ClashOfRim.Compatibility.ConfigOverwriteLocalAndRestart>Локально и перезапуск</ClashOfRim.Compatibility.ConfigOverwriteLocalAndRestart>
+  <ClashOfRim.Compatibility.ConfigApplyOverlayDesc>Использовать настройки сервера, не изменяя локальные файлы Config.</ClashOfRim.Compatibility.ConfigApplyOverlayDesc>
+  <ClashOfRim.Compatibility.ConfigOverwriteLocalDesc>Записать настройки сервера в локальные файлы Config и удалить активный серверный overlay.</ClashOfRim.Compatibility.ConfigOverwriteLocalDesc>
+  <ClashOfRim.Compatibility.ConfigApplyOverlayRestarting>Серверный overlay настроек применен. Перезапуск.</ClashOfRim.Compatibility.ConfigApplyOverlayRestarting>
+  <ClashOfRim.Compatibility.ConfigOverwriteLocalRestarting>Локальные настройки перезаписаны. Перезапуск.</ClashOfRim.Compatibility.ConfigOverwriteLocalRestarting>
+  <ClashOfRim.Compatibility.ConfigApplyAvailable>При различиях настроек можно использовать серверный overlay или перезаписать локальные настройки перед перезапуском.</ClashOfRim.Compatibility.ConfigApplyAvailable>
   <ClashOfRim.Compatibility.OpenWorkshop>Мастерская</ClashOfRim.Compatibility.OpenWorkshop>
   <ClashOfRim.Compatibility.OverrideBaseline>Обновить данные сервера</ClashOfRim.Compatibility.OverrideBaseline>
   <ClashOfRim.Compatibility.Override.ModListWarning>Текущий список модов или порядок загрузки клиента не совпадает с базовой линией сервера. Если продолжить, сервер будет использовать этот клиент как новую базовую линию. Убедитесь, что вы не загрузили локальный одиночный список модов.</ClashOfRim.Compatibility.Override.ModListWarning>

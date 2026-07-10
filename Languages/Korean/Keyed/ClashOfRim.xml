@@ -86,6 +86,13 @@
   <ClashOfRim.Compatibility.ConfigsMatch>설정이 일치합니다.</ClashOfRim.Compatibility.ConfigsMatch>
   <ClashOfRim.Compatibility.ModsMatch>모드가 일치합니다.</ClashOfRim.Compatibility.ModsMatch>
   <ClashOfRim.Compatibility.ApplyAndRestart>적용 후 재시작</ClashOfRim.Compatibility.ApplyAndRestart>
+  <ClashOfRim.Compatibility.ConfigApplyOverlayAndRestart>오버레이 적용 후 재시작</ClashOfRim.Compatibility.ConfigApplyOverlayAndRestart>
+  <ClashOfRim.Compatibility.ConfigOverwriteLocalAndRestart>로컬에 쓰고 재시작</ClashOfRim.Compatibility.ConfigOverwriteLocalAndRestart>
+  <ClashOfRim.Compatibility.ConfigApplyOverlayDesc>로컬 Config 파일을 수정하지 않고 서버 설정을 사용합니다.</ClashOfRim.Compatibility.ConfigApplyOverlayDesc>
+  <ClashOfRim.Compatibility.ConfigOverwriteLocalDesc>서버 설정을 로컬 Config 파일에 쓰고 현재 서버 오버레이를 제거합니다.</ClashOfRim.Compatibility.ConfigOverwriteLocalDesc>
+  <ClashOfRim.Compatibility.ConfigApplyOverlayRestarting>서버 설정 오버레이를 적용했습니다. 재시작 중입니다.</ClashOfRim.Compatibility.ConfigApplyOverlayRestarting>
+  <ClashOfRim.Compatibility.ConfigOverwriteLocalRestarting>로컬 설정을 덮어썼습니다. 재시작 중입니다.</ClashOfRim.Compatibility.ConfigOverwriteLocalRestarting>
+  <ClashOfRim.Compatibility.ConfigApplyAvailable>설정 차이는 서버 오버레이를 사용하거나 로컬 설정을 덮어쓴 뒤 재시작할 수 있습니다.</ClashOfRim.Compatibility.ConfigApplyAvailable>
   <ClashOfRim.Compatibility.OpenWorkshop>워크샵</ClashOfRim.Compatibility.OpenWorkshop>
   <ClashOfRim.Compatibility.OverrideBaseline>서버 데이터 업데이트</ClashOfRim.Compatibility.OverrideBaseline>
   <ClashOfRim.Compatibility.Override.ModListWarning>현재 클라이언트 모드 목록 또는 로드 순서가 서버 기준과 일치하지 않습니다. 계속하면 서버가 이 클라이언트를 새 기준으로 사용합니다. 로컬 싱글플레이 모드 목록을 불러온 것이 아닌지 확인하세요.</ClashOfRim.Compatibility.Override.ModListWarning>

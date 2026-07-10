@@ -198,6 +198,17 @@ static void VerifyCompatibilityMismatchUiUsesAuthoritativeFallback()
     Require(
         source.Contains("if (ContainsOrdinal(value, \"Config\"))", StringComparison.Ordinal),
         "配置错误必须在页签分类前被明确识别，不能同时显示为文件错误");
+    Require(
+        source.Contains("TryApplyServerConfigOverlay", StringComparison.Ordinal)
+        && source.Contains("TryOverwriteLocalConfigs", StringComparison.Ordinal),
+        "配置页必须分别提供 overlay 套用和本地覆盖两条重启路径");
+    Require(
+        source.Contains("CompatibilityConfigOverlayPath.Deactivate();", StringComparison.Ordinal),
+        "直接覆盖本地配置后必须撤销活动 overlay，避免下次启动仍读取旧服务器配置");
+    Require(
+        source.Contains("ConfigApplyOverlayAndRestart", StringComparison.Ordinal)
+        && source.Contains("ConfigOverwriteLocalAndRestart", StringComparison.Ordinal),
+        "配置不一致窗口必须显示两种配置重启操作");
 }
 
 static string FindRepositoryFile(params string[] segments)
