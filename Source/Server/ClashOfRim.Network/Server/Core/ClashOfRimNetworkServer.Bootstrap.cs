@@ -39,19 +39,27 @@ public static partial class ClashOfRimNetworkServer
             .Load(builder.Environment.ContentRootPath)
             .WithBuiltInPlugins(BuiltInServerPlugins.Descriptors);
         ClashOfRimNetworkState networkState;
-        ServerDatabaseMigrationResult? databaseMigration = null;
+        ServerPersistenceMigrationResult? persistenceMigrationResult = null;
+        ServerPersistenceMigrationService? persistenceMigrations = null;
         if (state is null)
         {
-            (networkState, databaseMigration) = CreatePersistentNetworkState(
+            string dataDirectory = ResolveDataDirectory(builder.Configuration, builder.Environment.ContentRootPath);
+            persistenceMigrations = new ServerPersistenceMigrationService(dataDirectory);
+            (networkState, persistenceMigrationResult) = CreatePersistentNetworkState(
                 builder.Configuration,
                 builder.Environment.ContentRootPath,
-                plugins);
+                plugins,
+                persistenceMigrations);
         }
         else
         {
             networkState = state;
         }
         builder.Services.AddSingleton(networkState);
+        if (persistenceMigrations is not null)
+        {
+            builder.Services.AddSingleton(persistenceMigrations);
+        }
         WebApplication app = builder.Build();
         networkState.SetRuntimeLogger(RuntimeLogger(app.Services.GetRequiredService<ILoggerFactory>()));
         app.Logger.LogInformation(T("Server.LocalizationLoaded", ("LANGUAGES", string.Join(", ", ServerLocalization.LoadedLanguages))));
@@ -63,8 +71,9 @@ public static partial class ClashOfRimNetworkServer
         }
 
         app.Logger.LogInformation(T("Server.LogFilePath", ("PATH", logFilePath)));
-        if (databaseMigration is not null)
+        if (persistenceMigrationResult is not null)
         {
+            ServerDatabaseMigrationResult databaseMigration = persistenceMigrationResult.Database;
             app.Logger.LogInformation(
                 T(
                     "Server.DatabaseSchemaReady",
@@ -82,6 +91,14 @@ public static partial class ClashOfRimNetworkServer
                 app.Logger.LogInformation(
                     T("Server.DatabaseWorldSubstrateRecovered", ("SNAPSHOT", databaseMigration.RecoveredWorldSubstrateSnapshotId)));
             }
+            app.Logger.LogInformation(
+                T(
+                    "Server.SnapshotPackagesReady",
+                    ("TOTAL", persistenceMigrationResult.Snapshots.TotalPackages.ToString()),
+                    ("CURRENT", persistenceMigrationResult.Snapshots.CurrentPackages.ToString()),
+                    ("MIGRATIONS", persistenceMigrationResult.Snapshots.AppliedMigrations.Count == 0
+                        ? "none"
+                        : string.Join(", ", persistenceMigrationResult.Snapshots.AppliedMigrations))));
         }
         app.Logger.LogInformation(
             T("Server.MaxRequestBodySize", ("BYTES", ResolveMaxRequestBodySizeBytes(builder.Configuration).ToString())));
@@ -120,16 +137,15 @@ public static partial class ClashOfRimNetworkServer
             : ServerLocalization.NormalizeLanguage(language);
     }
 
-    private static (ClashOfRimNetworkState State, ServerDatabaseMigrationResult DatabaseMigration) CreatePersistentNetworkState(
+    private static (ClashOfRimNetworkState State, ServerPersistenceMigrationResult Migration) CreatePersistentNetworkState(
         IConfiguration configuration,
         string contentRootPath,
-        ServerPluginRegistry plugins)
+        ServerPluginRegistry plugins,
+        ServerPersistenceMigrationService persistenceMigrations)
     {
         string dataDirectory = ResolveDataDirectory(configuration, contentRootPath);
         string databasePath = Path.Combine(dataDirectory, "server.sqlite");
-        ServerDatabaseMigrationResult databaseMigration = ServerDatabaseMigrator.Migrate(
-            databasePath,
-            Path.Combine(dataDirectory, "snapshots"));
+        ServerPersistenceMigrationResult migration = persistenceMigrations.Migrate();
         ServerConfigurationRegistry serverConfigurationOverrides =
             new(new SqliteJsonPersistenceSlot(databasePath, "server-configuration"));
         ClashOfRimServerConfiguration serverConfiguration = LoadServerConfiguration(configuration);
@@ -190,7 +206,7 @@ public static partial class ClashOfRimNetworkServer
                 new SqliteKeyedJsonRecordStore(databasePath, "offline-accounts"),
                 new SqliteJsonPersistenceSlot(databasePath, "offline-accounts")),
             steamAuthTickets: BuildSteamAuthTicketValidator(serverConfiguration),
-            plugins: plugins), databaseMigration);
+            plugins: plugins), migration);
     }
 
     private static string ResolveLogFilePath(string contentRootPath)

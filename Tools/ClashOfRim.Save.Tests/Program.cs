@@ -11,6 +11,7 @@ using System.Xml.Linq;
 var tests = new (string Name, Action Run)[]
 {
     ("服务器数据库新建时写入当前 schema 版本", VerifyServerDatabaseMigrationInitializesNewDatabase),
+    ("服务器持久化迁移统一检查数据库和快照格式", VerifyServerPersistenceMigrationCoordinatesDatabaseAndSnapshots),
     ("服务器数据库旧版本按匹配步骤迁移并保留其他数据", VerifyServerDatabaseMigrationUpgradesLegacyDatabase),
     ("服务器数据库从管理员快照恢复世界底图", VerifyServerDatabaseMigrationRecoversWorldSubstrate),
     ("服务器数据库未来 schema 版本拒绝启动", VerifyServerDatabaseMigrationRejectsFutureVersion),
@@ -84,6 +85,33 @@ static void VerifyServerDatabaseMigrationInitializesNewDatabase()
     finally
     {
         DeleteSqliteDatabase(path);
+    }
+}
+
+static void VerifyServerPersistenceMigrationCoordinatesDatabaseAndSnapshots()
+{
+    string root = Path.Combine(Path.GetTempPath(), "clashofrim-persistence-migration-" + Guid.NewGuid().ToString("N"));
+    try
+    {
+        string snapshotRoot = Path.Combine(root, "snapshots");
+        var store = new FileColonySnapshotIndexStore(snapshotRoot);
+        SaveSnapshotPackage package = WorldSubstrateMigrationPackage(
+            new SnapshotIdentity("admin", "colony-admin", "current-snapshot"));
+        store.StoreLatest(package, package.Index, DateTimeOffset.UnixEpoch);
+
+        ServerPersistenceMigrationResult result = new ServerPersistenceMigrationService(root).Migrate();
+        Equal(ServerDatabaseSchema.CurrentVersion, result.Database.FinalVersion, "统一迁移后的数据库版本");
+        Equal(1, result.Snapshots.TotalPackages, "统一迁移应检查所有快照封装");
+        Equal(1, result.Snapshots.CurrentPackages, "当前格式快照应被识别");
+        Equal(0, result.Snapshots.AppliedMigrations.Count, "当前格式快照不应重复迁移");
+    }
+    finally
+    {
+        DeleteSqliteDatabase(Path.Combine(root, "server.sqlite"));
+        if (Directory.Exists(root))
+        {
+            Directory.Delete(root, recursive: true);
+        }
     }
 }
 

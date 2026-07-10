@@ -23,13 +23,18 @@ internal static class ServerConsoleCommandService
         }
 
         ClashOfRimNetworkState state = app.Services.GetRequiredService<ClashOfRimNetworkState>();
+        ServerPersistenceMigrationService? persistenceMigrations =
+            app.Services.GetService<ServerPersistenceMigrationService>();
         IHostApplicationLifetime lifetime = app.Services.GetRequiredService<IHostApplicationLifetime>();
         CancellationToken stopping = lifetime.ApplicationStopping;
-        _ = Task.Run(() => RunLoop(state, lifetime, logger, stopping), CancellationToken.None);
+        _ = Task.Run(
+            () => RunLoop(state, persistenceMigrations, lifetime, logger, stopping),
+            CancellationToken.None);
     }
 
     private static void RunLoop(
         ClashOfRimNetworkState state,
+        ServerPersistenceMigrationService? persistenceMigrations,
         IHostApplicationLifetime lifetime,
         ILogger logger,
         CancellationToken stopping)
@@ -63,7 +68,7 @@ internal static class ServerConsoleCommandService
 
             try
             {
-                Execute(line, state, lifetime, logger);
+                Execute(line, state, persistenceMigrations, lifetime, logger);
             }
             catch (Exception ex)
             {
@@ -76,6 +81,7 @@ internal static class ServerConsoleCommandService
     private static void Execute(
         string line,
         ClashOfRimNetworkState state,
+        ServerPersistenceMigrationService? persistenceMigrations,
         IHostApplicationLifetime lifetime,
         ILogger logger)
     {
@@ -138,6 +144,9 @@ internal static class ServerConsoleCommandService
             case "broadcast":
                 Broadcast(state, args.Skip(1).ToList());
                 break;
+            case "migrate":
+                RunPersistenceMigrations(state, persistenceMigrations, lifetime);
+                break;
             case "stop":
             case "shutdown":
                 ScheduleShutdown(state, lifetime, logger);
@@ -151,6 +160,48 @@ internal static class ServerConsoleCommandService
     private static void PrintHelp()
     {
         Console.WriteLine(T("Cli.Help"));
+        Console.WriteLine(T("Cli.HelpMigrate"));
+    }
+
+    private static void RunPersistenceMigrations(
+        ClashOfRimNetworkState state,
+        ServerPersistenceMigrationService? persistenceMigrations,
+        IHostApplicationLifetime lifetime)
+    {
+        if (persistenceMigrations is null)
+        {
+            Console.WriteLine(T("Cli.MigrationUnavailable"));
+            return;
+        }
+
+        int onlinePlayers = state.Players.List()
+            .Count(player => state.OnlinePresence.IsUserOnline(player.UserId));
+        if (onlinePlayers > 0)
+        {
+            Console.WriteLine(T("Cli.MigrationRequiresOffline", ("COUNT", onlinePlayers.ToString(System.Globalization.CultureInfo.InvariantCulture))));
+            return;
+        }
+
+        ServerPersistenceMigrationResult result = persistenceMigrations.Migrate();
+        Console.WriteLine(T(
+            "Cli.MigrationSummary",
+            ("DATABASE_FROM", result.Database.StartingVersion.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+            ("DATABASE_TO", result.Database.FinalVersion.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+            ("DATABASE_STEPS", result.Database.AppliedMigrations.Count.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+            ("SNAPSHOTS", result.Snapshots.TotalPackages.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+            ("SNAPSHOT_STEPS", result.Snapshots.AppliedMigrations.Count.ToString(System.Globalization.CultureInfo.InvariantCulture))));
+        if (result.Database.RequiresWorldSubstrateRebaseline)
+        {
+            Console.WriteLine(T("Cli.MigrationWorldRebaselineRequired"));
+        }
+
+        if (!result.Changed)
+        {
+            return;
+        }
+
+        Console.WriteLine(T("Cli.MigrationRestarting"));
+        lifetime.StopApplication();
     }
 
     private static void PrintStatus(ClashOfRimNetworkState state)
