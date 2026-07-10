@@ -53,6 +53,7 @@ var tests = new (string Name, Action Run)[]
     ,("已注册但未落盘的模组设置仍进入兼容基线", VerifyRegisteredModSettingsRemainInCompatibilityBaseline)
     ,("清单错误窗口始终显示服务端权威问题", VerifyCompatibilityMismatchUiUsesAuthoritativeFallback)
     ,("世界基线后台应用不得直接重建 Unity 图层", VerifyWorldSubstrateApplyDoesNotRenderOnWorkerThread)
+    ,("新玩家进入服务器世界后释放自动会话门禁", VerifyNewWorldEntryReleasesAutomaticSessionGate)
 };
 
 foreach ((string name, Action run) in tests)
@@ -165,6 +166,22 @@ static void VerifyWorldSubstrateApplyDoesNotRenderOnWorkerThread()
     Require(methodStart >= 0 && nextMethod > methodStart, "应能定位世界基线应用方法");
     string applyMethod = source.Substring(methodStart, nextMethod - methodStart);
     Require(!applyMethod.Contains("RegenerateAllLayersNow", StringComparison.Ordinal), "后台世界基线应用不得直接创建 Unity 渲染网格");
+}
+
+static void VerifyNewWorldEntryReleasesAutomaticSessionGate()
+{
+    string sourcePath = FindRepositoryFile("Source", "Client", "MainMenu", "Entry", "ClashOfRimMod.ServerEntry.cs");
+    string source = File.ReadAllText(sourcePath);
+    int methodStart = source.IndexOf("private bool StartDownloadWorldSubstrateThenOpenScenario(", StringComparison.Ordinal);
+    int nextMethod = source.IndexOf("    private bool StartRestoreExistingColonySnapshot(", methodStart, StringComparison.Ordinal);
+    Require(methodStart >= 0 && nextMethod > methodStart, "应能定位新玩家世界基线下载流程");
+    string method = source.Substring(methodStart, nextMethod - methodStart);
+    int successState = method.IndexOf("pendingServerWorldSubstrate = substrate;", StringComparison.Ordinal);
+    int scenarioOpen = method.IndexOf("Find.WindowStack.Add(new Page_SelectScenario());", successState, StringComparison.Ordinal);
+    int releaseGate = method.IndexOf("manualSyncInProgress = false;", successState, StringComparison.Ordinal);
+    Require(
+        successState >= 0 && releaseGate > successState && releaseGate < scenarioOpen,
+        "世界基线下载成功后必须在打开开局页面前释放手动同步门禁，才能自动登录并上传首个快照");
 }
 
 static void VerifyCompatibilityMismatchUiUsesAuthoritativeFallback()

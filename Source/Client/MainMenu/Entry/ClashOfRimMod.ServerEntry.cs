@@ -517,6 +517,7 @@ public sealed partial class ClashOfRimMod
                 {
                     pendingServerWorldConfiguration = configuration;
                     pendingServerWorldSubstrate = substrate;
+                    manualSyncInProgress = false;
                     CloseServerEntryProgressWindowNow();
                     Find.WindowStack.Add(new Page_SelectScenario());
                 });
