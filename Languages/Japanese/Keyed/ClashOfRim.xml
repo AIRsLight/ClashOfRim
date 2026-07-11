@@ -86,6 +86,7 @@
   <ClashOfRim.Compatibility.ConfigsMatch>設定は一致しています。</ClashOfRim.Compatibility.ConfigsMatch>
   <ClashOfRim.Compatibility.ModsMatch>MODは一致しています。</ClashOfRim.Compatibility.ModsMatch>
   <ClashOfRim.Compatibility.ApplyAndRestart>適用して再起動</ClashOfRim.Compatibility.ApplyAndRestart>
+  <ClashOfRim.Compatibility.JoinAnyway>そのまま参加</ClashOfRim.Compatibility.JoinAnyway>
   <ClashOfRim.Compatibility.ConfigApplyOverlayAndRestart>オーバーレイで再起動</ClashOfRim.Compatibility.ConfigApplyOverlayAndRestart>
   <ClashOfRim.Compatibility.ConfigOverwriteLocalAndRestart>ローカルに書き込み再起動</ClashOfRim.Compatibility.ConfigOverwriteLocalAndRestart>
   <ClashOfRim.Compatibility.ConfigApplyOverlayDesc>ローカルの Config ファイルを変更せず、サーバー設定を使用します。</ClashOfRim.Compatibility.ConfigApplyOverlayDesc>

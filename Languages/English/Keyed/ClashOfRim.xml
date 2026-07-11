@@ -86,6 +86,7 @@
   <ClashOfRim.Compatibility.ConfigsMatch>Config matches.</ClashOfRim.Compatibility.ConfigsMatch>
   <ClashOfRim.Compatibility.ModsMatch>Mods match.</ClashOfRim.Compatibility.ModsMatch>
   <ClashOfRim.Compatibility.ApplyAndRestart>Apply and restart</ClashOfRim.Compatibility.ApplyAndRestart>
+  <ClashOfRim.Compatibility.JoinAnyway>Join anyway</ClashOfRim.Compatibility.JoinAnyway>
   <ClashOfRim.Compatibility.ConfigApplyOverlayAndRestart>Overlay + restart</ClashOfRim.Compatibility.ConfigApplyOverlayAndRestart>
   <ClashOfRim.Compatibility.ConfigOverwriteLocalAndRestart>Local + restart</ClashOfRim.Compatibility.ConfigOverwriteLocalAndRestart>
   <ClashOfRim.Compatibility.ConfigApplyOverlayDesc>Use the server configuration without modifying local Config files.</ClashOfRim.Compatibility.ConfigApplyOverlayDesc>

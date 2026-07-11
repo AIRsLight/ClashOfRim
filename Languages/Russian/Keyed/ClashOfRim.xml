@@ -86,6 +86,7 @@
   <ClashOfRim.Compatibility.ConfigsMatch>Конфиг совпадает.</ClashOfRim.Compatibility.ConfigsMatch>
   <ClashOfRim.Compatibility.ModsMatch>Моды совпадают.</ClashOfRim.Compatibility.ModsMatch>
   <ClashOfRim.Compatibility.ApplyAndRestart>Применить и перезапустить</ClashOfRim.Compatibility.ApplyAndRestart>
+  <ClashOfRim.Compatibility.JoinAnyway>Всё равно присоединиться</ClashOfRim.Compatibility.JoinAnyway>
   <ClashOfRim.Compatibility.ConfigApplyOverlayAndRestart>Overlay и перезапуск</ClashOfRim.Compatibility.ConfigApplyOverlayAndRestart>
   <ClashOfRim.Compatibility.ConfigOverwriteLocalAndRestart>Локально и перезапуск</ClashOfRim.Compatibility.ConfigOverwriteLocalAndRestart>
   <ClashOfRim.Compatibility.ConfigApplyOverlayDesc>Использовать настройки сервера, не изменяя локальные файлы Config.</ClashOfRim.Compatibility.ConfigApplyOverlayDesc>

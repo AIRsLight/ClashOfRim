@@ -86,6 +86,7 @@
   <ClashOfRim.Compatibility.ConfigsMatch>설정이 일치합니다.</ClashOfRim.Compatibility.ConfigsMatch>
   <ClashOfRim.Compatibility.ModsMatch>모드가 일치합니다.</ClashOfRim.Compatibility.ModsMatch>
   <ClashOfRim.Compatibility.ApplyAndRestart>적용 후 재시작</ClashOfRim.Compatibility.ApplyAndRestart>
+  <ClashOfRim.Compatibility.JoinAnyway>계속 참가</ClashOfRim.Compatibility.JoinAnyway>
   <ClashOfRim.Compatibility.ConfigApplyOverlayAndRestart>오버레이 적용 후 재시작</ClashOfRim.Compatibility.ConfigApplyOverlayAndRestart>
   <ClashOfRim.Compatibility.ConfigOverwriteLocalAndRestart>로컬에 쓰고 재시작</ClashOfRim.Compatibility.ConfigOverwriteLocalAndRestart>
   <ClashOfRim.Compatibility.ConfigApplyOverlayDesc>로컬 Config 파일을 수정하지 않고 서버 설정을 사용합니다.</ClashOfRim.Compatibility.ConfigApplyOverlayDesc>

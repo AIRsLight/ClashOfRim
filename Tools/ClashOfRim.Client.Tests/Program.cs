@@ -23,7 +23,8 @@ var tests = new (string Name, Action Run)[]
     ("unnatural corpses are rejected", UnnaturalCorpsesAreRejected),
     ("unfinished thing defs are hidden from request lists", UnfinishedThingDefsAreHidden),
     ("prepared concrete things carry transfer policy metadata", PreparedThingsCarryPolicyMetadata),
-    ("server entry diagnostics list mods in load order", ServerEntryDiagnosticsListModsInLoadOrder)
+    ("server entry diagnostics list mods in load order", ServerEntryDiagnosticsListModsInLoadOrder),
+    ("only accepted language warnings can be bypassed", OnlyAcceptedLanguageWarningsCanBeBypassed)
 };
 
 foreach ((string name, Action run) in tests)
@@ -280,6 +281,40 @@ static void ServerEntryDiagnosticsListModsInLoadOrder()
         < text.IndexOf("[1] author.second", StringComparison.Ordinal));
     Assert(text.Contains("Second Injected line"));
     Assert(!text.Contains("Second\nInjected line"));
+}
+
+static void OnlyAcceptedLanguageWarningsCanBeBypassed()
+{
+    var response = new ModLoginResponseDto
+    {
+        Result = new ModProtocolResponseDto { Accepted = true },
+        CompatibilityIssues = new List<ModCompatibilityIssueDto>
+        {
+            new() { Severity = "Warning", Code = "GameLanguageMismatch" },
+            new() { Severity = "Info", Code = "AllowedPureTranslationMod" }
+        }
+    };
+
+    Assert(AIRsLight.ClashOfRim.CompatibilityClient.CompatibilityLanguageMismatchPolicy.CanContinue(response));
+
+    response.CompatibilityIssues.Add(new ModCompatibilityIssueDto
+    {
+        Severity = "Error",
+        Code = "ModListMismatch"
+    });
+    Assert(!AIRsLight.ClashOfRim.CompatibilityClient.CompatibilityLanguageMismatchPolicy.CanContinue(response));
+
+    response.CompatibilityIssues.RemoveAt(response.CompatibilityIssues.Count - 1);
+    response.CompatibilityIssues.Add(new ModCompatibilityIssueDto
+    {
+        Severity = "Info",
+        Code = "RimWorldVersionMismatch"
+    });
+    Assert(!AIRsLight.ClashOfRim.CompatibilityClient.CompatibilityLanguageMismatchPolicy.CanContinue(response));
+
+    response.CompatibilityIssues.RemoveAt(response.CompatibilityIssues.Count - 1);
+    response.Result.Accepted = false;
+    Assert(!AIRsLight.ClashOfRim.CompatibilityClient.CompatibilityLanguageMismatchPolicy.CanContinue(response));
 }
 
 static void BeginCycle()

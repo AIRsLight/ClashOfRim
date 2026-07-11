@@ -14,6 +14,50 @@ using Verse;
 
 namespace AIRsLight.ClashOfRim.CompatibilityClient;
 
+internal static class CompatibilityLanguageMismatchPolicy
+{
+    public static bool CanContinue(ModLoginResponseDto? response)
+    {
+        if (response?.Result?.Accepted != true
+            || response.CompatibilityIssues is not { Count: > 0 } issues)
+        {
+            return false;
+        }
+
+        bool foundLanguageMismatch = false;
+        foreach (ModCompatibilityIssueDto issue in issues)
+        {
+            if (string.Equals(
+                    issue.Code,
+                    nameof(CompatibilityIssueCode.GameLanguageMismatch),
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                foundLanguageMismatch = true;
+                if (string.Equals(issue.Severity, nameof(CompatibilityIssueSeverity.Error), StringComparison.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
+
+                continue;
+            }
+
+            if (!string.Equals(
+                    issue.Code,
+                    nameof(CompatibilityIssueCode.AllowedPureTranslationMod),
+                    StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(
+                    issue.Severity,
+                    nameof(CompatibilityIssueSeverity.Info),
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+        }
+
+        return foundLanguageMismatch;
+    }
+}
+
 internal static class CompatibilityBaselineApplicator
 {
     public static bool TryApplyServerManifest(string manifestJson, out string message)
@@ -237,6 +281,10 @@ internal sealed class CompatibilityMismatchWindow : Window
     private readonly bool onlyFileMismatch;
     private readonly bool canApplyAndRestart;
     private readonly bool canApplyConfigAndRestart;
+    private readonly Action? continueAnyway;
+    private readonly Action? cancelContinuation;
+    private readonly bool canContinueAnyway;
+    private bool continuationHandled;
     private CompatibilityTab selectedTab = CompatibilityTab.Overview;
     private Vector2 manifestScroll;
     private Vector2 hashScroll;
@@ -245,10 +293,16 @@ internal sealed class CompatibilityMismatchWindow : Window
     private Vector2 localModScroll;
     private string status = string.Empty;
 
-    public CompatibilityMismatchWindow(ClashOfRimMod mod, ModLoginResponseDto response)
+    public CompatibilityMismatchWindow(
+        ClashOfRimMod mod,
+        ModLoginResponseDto response,
+        Action? continueAnyway = null,
+        Action? cancelContinuation = null)
     {
         this.mod = mod;
         this.response = response;
+        this.continueAnyway = continueAnyway;
+        this.cancelContinuation = cancelContinuation;
         serverManifest = UiManifest.Read(response.ServerCompatibilityManifestJson);
         localManifest = UiManifest.FromCurrentClient();
         manifestEntries = BuildManifestEntries(serverManifest, localManifest, response.CompatibilityIssues);
@@ -261,7 +315,9 @@ internal sealed class CompatibilityMismatchWindow : Window
         hashMismatchCount = visibleHashEntries.Count;
         configMismatchCount = visibleConfigEntries.Count;
         onlyFileMismatch = manifestMismatchCount == 0 && configMismatchCount == 0 && hashMismatchCount > 0;
-        canApplyAndRestart = manifestMismatchCount > 0 && !onlyFileMismatch;
+        canContinueAnyway = continueAnyway is not null
+            && CompatibilityLanguageMismatchPolicy.CanContinue(response);
+        canApplyAndRestart = manifestMismatchCount > 0 && !onlyFileMismatch && !canContinueAnyway;
         canApplyConfigAndRestart = configMismatchCount > 0 && serverManifest is not null;
         doCloseX = true;
         closeOnClickedOutside = false;
@@ -321,6 +377,18 @@ internal sealed class CompatibilityMismatchWindow : Window
         }
 
         Rect previousButtonRect = closeRect;
+        if (canContinueAnyway)
+        {
+            Rect continueRect = new(closeRect.x - 124f, inRect.yMax - 36f, 112f, 32f);
+            previousButtonRect = continueRect;
+            if (Widgets.ButtonText(continueRect, T("ClashOfRim.Compatibility.JoinAnyway")))
+            {
+                continuationHandled = true;
+                Close();
+                continueAnyway?.Invoke();
+            }
+        }
+
         if (canApplyConfigAndRestart)
         {
             Rect localConfigRect = new(closeRect.x - 184f, inRect.yMax - 36f, 172f, 32f);
@@ -360,13 +428,22 @@ internal sealed class CompatibilityMismatchWindow : Window
             }
         }
 
-        if (response.CanOverrideCompatibilityBaseline)
+        if (response.CanOverrideCompatibilityBaseline && !canContinueAnyway)
         {
             Rect overrideRect = new(previousButtonRect.x - 124f, inRect.yMax - 36f, 112f, 32f);
             if (Widgets.ButtonText(overrideRect, T("ClashOfRim.Compatibility.OverrideBaseline")))
             {
                 OpenOverrideBaselineWithWarning();
             }
+        }
+    }
+
+    public override void PostClose()
+    {
+        base.PostClose();
+        if (!continuationHandled)
+        {
+            cancelContinuation?.Invoke();
         }
     }
 
@@ -413,6 +490,11 @@ internal sealed class CompatibilityMismatchWindow : Window
         if (onlyFileMismatch)
         {
             return summary + T("ClashOfRim.Compatibility.SummaryFilesManual");
+        }
+
+        if (canContinueAnyway)
+        {
+            return summary;
         }
 
         if (response.CanOverrideCompatibilityBaseline)

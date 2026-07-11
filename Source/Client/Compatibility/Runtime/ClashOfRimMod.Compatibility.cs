@@ -224,7 +224,10 @@ public sealed partial class ClashOfRimMod
         });
     }
 
-    private void ShowCompatibilityMismatchWindow(ModLoginResponseDto? response)
+    private void ShowCompatibilityMismatchWindow(
+        ModLoginResponseDto? response,
+        Action? continueAnyway = null,
+        Action? cancelContinuation = null)
     {
         if (!ShouldShowCompatibilityMismatchWindow(response))
         {
@@ -252,12 +255,19 @@ public sealed partial class ClashOfRimMod
         {
             if (Find.WindowStack.WindowOfType<CompatibilityMismatchWindow>() is null)
             {
-                Find.WindowStack.Add(new CompatibilityMismatchWindow(this, response));
+                Find.WindowStack.Add(new CompatibilityMismatchWindow(
+                    this,
+                    response,
+                    continueAnyway,
+                    cancelContinuation));
             }
         });
     }
 
-    private void ShowCompatibilityMismatchWindow(ModPrepareWorldSessionResponseDto? response)
+    private void ShowCompatibilityMismatchWindow(
+        ModPrepareWorldSessionResponseDto? response,
+        Action? continueAnyway = null,
+        Action? cancelContinuation = null)
     {
         if (response is null)
         {
@@ -270,12 +280,18 @@ public sealed partial class ClashOfRimMod
             ServerCompatibilityManifestJson = response.ServerCompatibilityManifestJson,
             CompatibilityIssues = response.CompatibilityIssues ?? new List<ModCompatibilityIssueDto>(),
             CanOverrideCompatibilityBaseline = response.CanOverrideCompatibilityBaseline
-        });
+        }, continueAnyway, cancelContinuation);
     }
 
-    private static bool ShouldShowCompatibilityMismatchWindow(ModLoginResponseDto? response)
+    private bool ShouldShowCompatibilityMismatchWindow(ModLoginResponseDto? response)
     {
         if (response is null)
+        {
+            return false;
+        }
+
+        if (languageMismatchAcceptedForCurrentServerEntry
+            && CompatibilityLanguageMismatchPolicy.CanContinue(response))
         {
             return false;
         }

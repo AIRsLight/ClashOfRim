@@ -110,6 +110,7 @@ public sealed partial class ClashOfRimMod : Mod
     private bool chatRefreshInProgress;
     private bool chatSendInProgress;
     private bool sessionExpiredHandling;
+    private bool languageMismatchAcceptedForCurrentServerEntry;
     private bool blockAutomaticMapSessionForServerEntrySourceGame;
     private CancellationTokenSource? presenceCancellation;
     private Game? serverEntrySourceGame;

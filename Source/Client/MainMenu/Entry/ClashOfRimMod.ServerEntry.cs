@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Net.Http;
@@ -6,6 +7,7 @@ using System.Threading.Tasks;
 using AIRsLight.ClashOfRim.Compatibility;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.ClientSnapshots;
+using AIRsLight.ClashOfRim.CompatibilityClient;
 using AIRsLight.ClashOfRim.MainMenu;
 using AIRsLight.ClashOfRim.Raids;
 using AIRsLight.ClashOfRim.RemoteMaps;
@@ -275,6 +277,7 @@ public sealed partial class ClashOfRimMod
         lastNotificationVersion = 0;
         lastWorldConfigurationVersion = 0;
         sessionExpiredHandling = false;
+        languageMismatchAcceptedForCurrentServerEntry = false;
         ClearLocalAtomicMutation();
         ClearPendingUnconfirmedSnapshotFailure();
         lastRegisteredPlayerColonySiteSignature = null;
@@ -374,6 +377,26 @@ public sealed partial class ClashOfRimMod
             }
 
             ApplyAdministratorFlag(response.IsAdministrator);
+
+            if (!languageMismatchAcceptedForCurrentServerEntry
+                && CompatibilityLanguageMismatchPolicy.CanContinue(new ModLoginResponseDto
+                {
+                    Result = response.Result,
+                    CompatibilityIssues = response.CompatibilityIssues ?? new List<ModCompatibilityIssueDto>()
+                }))
+            {
+                continuingAsyncFlow = true;
+                CloseServerEntryProgressWindowNow();
+                ShowCompatibilityMismatchWindow(
+                    response,
+                    continueAnyway: () =>
+                    {
+                        languageMismatchAcceptedForCurrentServerEntry = true;
+                        FinishMainMenuServerEntryFlow(result);
+                    },
+                    cancelContinuation: () => manualSyncInProgress = false);
+                return;
+            }
 
             if (response.Result?.Accepted != true)
             {

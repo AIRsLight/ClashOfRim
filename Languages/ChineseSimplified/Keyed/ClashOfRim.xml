@@ -86,6 +86,7 @@
   <ClashOfRim.Compatibility.ConfigsMatch>配置一致。</ClashOfRim.Compatibility.ConfigsMatch>
   <ClashOfRim.Compatibility.ModsMatch>模组一致。</ClashOfRim.Compatibility.ModsMatch>
   <ClashOfRim.Compatibility.ApplyAndRestart>套用并重启</ClashOfRim.Compatibility.ApplyAndRestart>
+  <ClashOfRim.Compatibility.JoinAnyway>仍然加入</ClashOfRim.Compatibility.JoinAnyway>
   <ClashOfRim.Compatibility.ConfigApplyOverlayAndRestart>采用 Overlay 并重启</ClashOfRim.Compatibility.ConfigApplyOverlayAndRestart>
   <ClashOfRim.Compatibility.ConfigOverwriteLocalAndRestart>写入本地并重启</ClashOfRim.Compatibility.ConfigOverwriteLocalAndRestart>
   <ClashOfRim.Compatibility.ConfigApplyOverlayDesc>采用服务器配置，但不修改本地 Config 文件。</ClashOfRim.Compatibility.ConfigApplyOverlayDesc>
