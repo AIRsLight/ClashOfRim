@@ -6,7 +6,7 @@ namespace AIRsLight.ClashOfRim.DlcCompatibility;
 
 internal static class IdeologyThingTransferCompatibility
 {
-    internal const string RelicRejectionCode = "thing-transfer.ideology-relic";
+    internal const string RelicRejectionCode = "ClashOfRim.ThingTransfer.RejectRelic";
 
     internal static void Apply()
     {

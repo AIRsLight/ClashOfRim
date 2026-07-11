@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AIRsLight.ClashOfRim.ClientNetwork;
+using AIRsLight.ClashOfRim.ThirdPartyCompatibility;
 using AIRsLight.ClashOfRim.WorldObjects;
 using RimWorld;
 using RimWorld.Planet;
@@ -102,7 +103,9 @@ public sealed class RemoteGiftTransportersArrivalAction : TransportersArrivalAct
             return FloatMenuAcceptanceReport.WithFailReason(ClashOfRimText.Key("ClashOfRim.GiftDelivery.StatusTargetIncomplete"));
         }
 
-        return GiftTransporterPayloadUtility.CanSend(pods);
+        return GiftTransporterPayloadUtility.CanSend(
+            pods,
+            forcedDelivery ? ThingReferenceSurfaces.ForcedDelivery : ThingReferenceSurfaces.Gift);
     }
 
     public override void Arrived(List<ActiveTransporterInfo> transporters, PlanetTile tile)
@@ -129,7 +132,8 @@ public sealed class RemoteGiftTransportersArrivalAction : TransportersArrivalAct
             mod.UserId,
             mod.ColonyId,
             mod.CurrentSnapshotId,
-            transporterKey);
+            transporterKey,
+            forcedDelivery);
         mod.StartCreateGiftFromTransportPods(
             transporterKey,
             targetUserId,

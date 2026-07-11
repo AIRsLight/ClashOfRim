@@ -171,6 +171,15 @@ public static partial class ClashOfRimNetworkServer
             }
         }
 
+        if (!TryValidateInlinePawnPackages(request.Things, out ProtocolResponse? packageFailure)
+            || !TryValidateInlineThingPackages(request.Things, out packageFailure))
+        {
+            return Results.Ok(new EventCreationResponse(
+                packageFailure ?? ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("PawnPackage.ParseFailed")),
+                eventId: null,
+                ProtocolDeliverySemantics.OnlineImmediate));
+        }
+
         if (TryRejectExpiredPendingConfirmationSnapshot(
                 state,
                 request.Actor.UserId,
@@ -210,7 +219,7 @@ public static partial class ClashOfRimNetworkServer
                 "gift:" + request.IdempotencyKey,
                 request.Things,
                 out IReadOnlyList<ThingReferenceDto> giftThings,
-                out ProtocolResponse? packageFailure))
+                out packageFailure))
         {
             return Results.Ok(new EventCreationResponse(
                 packageFailure ?? ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("PawnPackage.ParseFailed")),
@@ -723,7 +732,9 @@ public static partial class ClashOfRimNetworkServer
         }
 
         if (!TryValidateInlinePawnPackages(request.OfferedThings ?? Array.Empty<ThingReferenceDto>(), out ProtocolResponse? pawnFailure)
-            || !TryValidateInlinePawnPackages(request.RequestedThings ?? Array.Empty<ThingReferenceDto>(), out pawnFailure))
+            || !TryValidateInlinePawnPackages(request.RequestedThings ?? Array.Empty<ThingReferenceDto>(), out pawnFailure)
+            || !TryValidateInlineThingPackages(request.OfferedThings ?? Array.Empty<ThingReferenceDto>(), out pawnFailure)
+            || !TryValidateInlineThingPackages(request.RequestedThings ?? Array.Empty<ThingReferenceDto>(), out pawnFailure))
         {
             return Results.Ok(new TradeOrderFeeQuoteResponse(
                 pawnFailure ?? ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("PawnPackage.ParseFailed")),
@@ -1000,7 +1011,9 @@ public static partial class ClashOfRimNetworkServer
         }
 
         if (!TryValidateInlinePawnPackages(request.OfferedThings ?? Array.Empty<ThingReferenceDto>(), out ProtocolResponse? pawnFailure)
-            || !TryValidateInlinePawnPackages(request.RequestedThings ?? Array.Empty<ThingReferenceDto>(), out pawnFailure))
+            || !TryValidateInlinePawnPackages(request.RequestedThings ?? Array.Empty<ThingReferenceDto>(), out pawnFailure)
+            || !TryValidateInlineThingPackages(request.OfferedThings ?? Array.Empty<ThingReferenceDto>(), out pawnFailure)
+            || !TryValidateInlineThingPackages(request.RequestedThings ?? Array.Empty<ThingReferenceDto>(), out pawnFailure))
         {
             return Results.Ok(new EventCreationResponse(
                 pawnFailure ?? ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("PawnPackage.ParseFailed")),
@@ -1730,7 +1743,8 @@ public static partial class ClashOfRimNetworkServer
         }
 
         IReadOnlyList<ThingReferenceDto> requiredThings = orderPayload.RequestedItems.Select(ToThingReferenceDto).ToList();
-        if (!TryValidateInlinePawnPackages(request.DeliveredThings, out ProtocolResponse? pawnFailure))
+        if (!TryValidateInlinePawnPackages(request.DeliveredThings, out ProtocolResponse? pawnFailure)
+            || !TryValidateInlineThingPackages(request.DeliveredThings, out pawnFailure))
         {
             return Results.Ok(new FulfillTradeOrderResponse(
                 pawnFailure ?? ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("PawnPackage.ParseFailed")),

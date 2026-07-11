@@ -459,6 +459,7 @@
   "PawnPackage.UploadMissingFields": "人员信息上传内容不完整。",
   "PawnPackage.Stored": "人员信息已保存。",
   "PawnPackage.Invalid": "人员信息有误：{MESSAGE}",
+  "ThingTransfer.Invalid": "物品未通过跨殖民地流转检查：{MESSAGE}",
   "PawnPackage.MissingScribe": "人员信息缺少可恢复内容。",
   "PawnPackage.DownloadMissingFields": "人员信息下载内容不完整。",
   "PawnPackage.Returned": "人员信息已返回。",

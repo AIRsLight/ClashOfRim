@@ -57,6 +57,7 @@ var tests = new (string Name, Action Run)[]
     ,("普通快照下载不记录袭击清理跳过告警", VerifyNormalSnapshotDownloadDoesNotLogRaidCleanupSkip)
     ,("测试版发布说明使用维护的最终改动清单", VerifyDevelopmentReleaseNotesAreCurated)
     ,("身份和流程分类不依赖显示字符串或宽泛子串", StableIdentityTests.RunAll)
+    ,("具体物品引用必须通过统一流转预处理", VerifyConcreteThingTransferPolicy)
 };
 
 foreach ((string name, Action run) in tests)
@@ -66,6 +67,31 @@ foreach ((string name, Action run) in tests)
 }
 
 return 0;
+
+static void VerifyConcreteThingTransferPolicy()
+{
+    var unmarkedConcrete = new ThingReferenceDto(
+        "owner:user-a/colony:colony-a/snapshot:snapshot-a/map:0/thing:steel",
+        "Steel",
+        10);
+    Require(
+        !ThingTransferPolicy.IsAcceptedConcreteReference(unmarkedConcrete, out _),
+        "具体物品缺少流转预处理标记时必须被拒绝");
+
+    var acceptedConcrete = new ThingReferenceDto(
+        "owner:user-a/colony:colony-a/snapshot:snapshot-a/map:0/thing:steel",
+        "Steel",
+        10,
+        metadata: ThingTransferPolicy.AcceptedMetadata());
+    Require(
+        ThingTransferPolicy.IsAcceptedConcreteReference(acceptedConcrete, out _),
+        "当前版本且已通过的具体物品应被接受");
+
+    var abstractRequirement = new ThingReferenceDto("market:any/thing:steel", "Steel", 10);
+    Require(
+        ThingTransferPolicy.IsAcceptedConcreteReference(abstractRequirement, out _),
+        "抽象求购条件不应要求具体物品预处理标记");
+}
 
 static void VerifyIdempotentAppend()
 {

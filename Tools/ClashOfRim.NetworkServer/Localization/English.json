@@ -459,6 +459,7 @@
   "PawnPackage.UploadMissingFields": "Colonist information upload is incomplete.",
   "PawnPackage.Stored": "Colonist information saved.",
   "PawnPackage.Invalid": "Colonist information is invalid: {MESSAGE}",
+  "ThingTransfer.Invalid": "The item did not pass cross-colony transfer validation: {MESSAGE}",
   "PawnPackage.MissingScribe": "Colonist information is missing recoverable contents.",
   "PawnPackage.DownloadMissingFields": "Colonist information download is incomplete.",
   "PawnPackage.Returned": "Colonist information returned.",

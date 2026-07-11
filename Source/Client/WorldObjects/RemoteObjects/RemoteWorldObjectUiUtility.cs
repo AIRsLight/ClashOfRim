@@ -7,6 +7,7 @@ using AIRsLight.ClashOfRim.Diplomacy;
 using AIRsLight.ClashOfRim.Gifts;
 using AIRsLight.ClashOfRim.Raids;
 using AIRsLight.ClashOfRim.RemoteMaps;
+using AIRsLight.ClashOfRim.ThirdPartyCompatibility;
 using RimWorld;
 using RimWorld.Planet;
 using UnityEngine;
@@ -316,7 +317,9 @@ internal static class RemoteWorldObjectUiUtility
             return FloatMenuAcceptanceReport.WithFailReason(ClashOfRimText.Key("ClashOfRim.GiftDelivery.StatusTargetIncomplete"));
         }
 
-        return GiftTransporterPayloadUtility.CanSend(pods);
+        return GiftTransporterPayloadUtility.CanSend(
+            pods,
+            forced ? ThingReferenceSurfaces.ForcedDelivery : ThingReferenceSurfaces.Gift);
     }
 
     private static string FormatRelationKind(string? relationKind)

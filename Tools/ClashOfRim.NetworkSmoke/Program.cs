@@ -588,7 +588,7 @@ try
         "gift:user-a:user-b:forced-001",
         new ProtocolIdentity("user-a", "colony-a", "attacker-snapshot-after"),
         new ProtocolIdentity("user-b", "colony-b", "defender-snapshot-before"),
-        new[] { new ThingReferenceDto("owner:user-a/colony:colony-a/snapshot:attacker-snapshot-after/caravan:caravan-a/thing:wastepack", "Wastepack", 3) },
+        new[] { ConcreteThing("owner:user-a/colony:colony-a/snapshot:attacker-snapshot-after/caravan:caravan-a/thing:wastepack", "Wastepack", 3) },
         "强行投递垃圾包。",
         targetContext: null,
         deliveryKind: "Forced"));
@@ -610,7 +610,7 @@ try
         "gift:user-a:user-b:forced-002",
         new ProtocolIdentity("user-a", "colony-a", "attacker-snapshot-after"),
         new ProtocolIdentity("user-b", "colony-b", "defender-snapshot-before"),
-        new[] { new ThingReferenceDto("owner:user-a/colony:colony-a/snapshot:attacker-snapshot-after/caravan:caravan-a/thing:wastepack-2", "Wastepack", 1) },
+        new[] { ConcreteThing("owner:user-a/colony:colony-a/snapshot:attacker-snapshot-after/caravan:caravan-a/thing:wastepack-2", "Wastepack", 1) },
         "重复强投应被冷却阻止。",
         targetContext: null,
         deliveryKind: "Forced"));
@@ -621,7 +621,7 @@ try
         "gift:user-a:user-b:normal-while-hostile",
         new ProtocolIdentity("user-a", "colony-a", "attacker-snapshot-after"),
         new ProtocolIdentity("user-b", "colony-b", "defender-snapshot-before"),
-        new[] { new ThingReferenceDto("owner:user-a/colony:colony-a/snapshot:attacker-snapshot-after/caravan:caravan-a/thing:meal-hostile", "MealFine", 1) },
+        new[] { ConcreteThing("owner:user-a/colony:colony-a/snapshot:attacker-snapshot-after/caravan:caravan-a/thing:meal-hostile", "MealFine", 1) },
         "敌对状态下仍可走普通送礼路径。"));
     Require(normalGiftToEnemy.Result.Accepted, "敌对目标仍应允许普通礼物路径");
     Equal(EventRejectionPolicy.RejectableByTarget, state.Ledger.Find(normalGiftToEnemy.EventId!)!.RejectionPolicy, "普通礼物仍可被目标拒绝");
@@ -647,7 +647,7 @@ try
         "gift:user-a:self:context",
         new ProtocolIdentity("user-a", "colony-a", "attacker-snapshot-after"),
         new ProtocolIdentity("user-a", "colony-a", "attacker-snapshot-after"),
-        new[] { new ThingReferenceDto("owner:user-a/colony:colony-a/snapshot:attacker-snapshot-after/map:0/thing:silver", "Silver", 25) },
+        new[] { ConcreteThing("owner:user-a/colony:colony-a/snapshot:attacker-snapshot-after/map:0/thing:silver", "Silver", 25) },
         "self gift context smoke",
         new EventTargetContextDto(null, "Map_999", null, "CenterNear")));
     Require(selfGift.Result.Accepted, "创建自测礼物应成功");
@@ -773,7 +773,7 @@ try
         "gift:user-a:user-b:001",
         new ProtocolIdentity("user-a", "colony-a", "attacker-snapshot-after"),
         new ProtocolIdentity("user-b", "colony-b", "defender-snapshot-before"),
-        new[] { new ThingReferenceDto("owner:user-a/colony:colony-a/snapshot:attacker-snapshot-after/map:0/thing:meal", "MealFine", 3) },
+        new[] { ConcreteThing("owner:user-a/colony:colony-a/snapshot:attacker-snapshot-after/map:0/thing:meal", "MealFine", 3) },
         "smoke gift"));
     Require(gift.Result.Accepted, "创建礼物应成功");
     Require(state.Ledger.Find(gift.EventId!)?.Payload is ItemDeliveryEventPayload, "礼物事件应进入账本");
@@ -790,7 +790,7 @@ try
         "gift:user-a:user-b:confirm",
         new ProtocolIdentity("user-a", "colony-a", "attacker-snapshot-after"),
         new ProtocolIdentity("user-b", "colony-b", "defender-snapshot-before"),
-        new[] { new ThingReferenceDto("owner:user-a/colony:colony-a/snapshot:attacker-snapshot-after/map:0/thing:packaged-meal", "MealSurvivalPack", 2) },
+        new[] { ConcreteThing("owner:user-a/colony:colony-a/snapshot:attacker-snapshot-after/map:0/thing:packaged-meal", "MealSurvivalPack", 2) },
         "smoke gift confirm"));
     Require(giftToConfirm.Result.Accepted, "创建用于确认的礼物应成功");
 
@@ -859,7 +859,7 @@ try
         "gift:user-a:user-c:offline-waiting",
         new ProtocolIdentity("user-a", "colony-a", "attacker-snapshot-after"),
         new ProtocolIdentity("user-c", "colony-c", "third-party-snapshot"),
-        new[] { new ThingReferenceDto("owner:user-a/colony:colony-a/snapshot:attacker-snapshot-after/map:0/thing:beer", "Beer", 1) },
+        new[] { ConcreteThing("owner:user-a/colony:colony-a/snapshot:attacker-snapshot-after/map:0/thing:beer", "Beer", 1) },
         "smoke offline waiting gift"));
     Require(offlineGiftWhileWaiting.Result.Accepted, "给等待事件但未驻留在线的玩家创建礼物应成功");
     Equal(ServerEventStatus.PendingOfflineDelivery, state.Ledger.Find(offlineGiftWhileWaiting.EventId!)!.Status, "事件等待通道不能单独把玩家判定为在线");
@@ -910,7 +910,7 @@ try
         "gift:user-a:user-d:ws",
         new ProtocolIdentity("user-a", "colony-a", "attacker-snapshot-after"),
         new ProtocolIdentity("user-d", "colony-d", "ws-snapshot"),
-        new[] { new ThingReferenceDto("owner:user-a/colony:colony-a/snapshot:attacker-snapshot-after/map:0/thing:corn", "Corn", 5) },
+        new[] { ConcreteThing("owner:user-a/colony:colony-a/snapshot:attacker-snapshot-after/map:0/thing:corn", "Corn", 5) },
         "smoke ws gift"));
     Require(wsGift.Result.Accepted, "给 WS 在线玩家创建礼物应成功");
     Equal(ServerEventStatus.ReadyForImmediateDelivery, state.Ledger.Find(wsGift.EventId!)!.Status, "WS 在线玩家的礼物应即时下发");
@@ -1227,7 +1227,7 @@ try
         "gift:user-a:user-b:001",
         new ProtocolIdentity("user-a", "colony-a", "attacker-snapshot-after"),
         new ProtocolIdentity("user-b", "colony-b", "defender-snapshot-before"),
-        new[] { new ThingReferenceDto("owner:user-a/colony:colony-a/snapshot:attacker-snapshot-after/map:0/thing:meal", "MealFine", 3) },
+        new[] { ConcreteThing("owner:user-a/colony:colony-a/snapshot:attacker-snapshot-after/map:0/thing:meal", "MealFine", 3) },
         "smoke gift duplicate"));
     Equal(ProtocolErrorCode.DuplicateRequest, duplicateGift.Result.ErrorCode, "重复礼物请求应返回幂等结果");
     Equal(gift.EventId, duplicateGift.EventId, "重复礼物请求应返回既有事件");
@@ -1291,7 +1291,7 @@ try
     EventCreationResponse obsoleteTrade = await client.CreateTradeOrderAsync(new CreateTradeOrderRequest(
         "trade:user-a:baseline-invalidated",
         new ProtocolIdentity("user-a", "colony-a", "attacker-snapshot-after"),
-        new[] { new ThingReferenceDto("owner:user-a/colony:colony-a/snapshot:attacker-snapshot-after/map:0/thing:meal-obsolete", "MealFine", 1) },
+        new[] { ConcreteThing("owner:user-a/colony:colony-a/snapshot:attacker-snapshot-after/map:0/thing:meal-obsolete", "MealFine", 1) },
         new[] { new ThingReferenceDto("market:any/thing:silver", "Silver", 10) },
         feeSilver: 1,
         allowSelfPickup: true,
@@ -1354,7 +1354,7 @@ try
     EventCreationResponse underpaidWasteTrade = await client.CreateTradeOrderAsync(new CreateTradeOrderRequest(
         "trade:user-a:waste-underpaid",
         new ProtocolIdentity("user-a", "colony-a", "attacker-snapshot-after"),
-        new[] { new ThingReferenceDto("owner:user-a/colony:colony-a/snapshot:attacker-snapshot-after/map:0/thing:wastepack", "Wastepack", 2) },
+        new[] { ConcreteThing("owner:user-a/colony:colony-a/snapshot:attacker-snapshot-after/map:0/thing:wastepack", "Wastepack", 2) },
         new[] { new ThingReferenceDto("market:any/thing:silver", "Silver", 10) },
         feeSilver: 199,
         allowSelfPickup: true,
@@ -1365,7 +1365,7 @@ try
     EventCreationResponse wasteTrade = await client.CreateTradeOrderAsync(new CreateTradeOrderRequest(
         "trade:user-a:waste-paid",
         new ProtocolIdentity("user-a", "colony-a", "attacker-snapshot-after"),
-        new[] { new ThingReferenceDto("owner:user-a/colony:colony-a/snapshot:attacker-snapshot-after/map:0/thing:wastepack", "Wastepack", 2) },
+        new[] { ConcreteThing("owner:user-a/colony:colony-a/snapshot:attacker-snapshot-after/map:0/thing:wastepack", "Wastepack", 2) },
         new[] { new ThingReferenceDto("market:any/thing:silver", "Silver", 10) },
         feeSilver: 200,
         allowSelfPickup: true,
@@ -1375,7 +1375,7 @@ try
     EventCreationResponse trade = await client.CreateTradeOrderAsync(new CreateTradeOrderRequest(
         "trade:user-a:001",
         new ProtocolIdentity("user-a", "colony-a", "attacker-snapshot-after"),
-        new[] { new ThingReferenceDto("owner:user-a/colony:colony-a/snapshot:attacker-snapshot-after/map:0/thing:steel", "Steel", 100) },
+        new[] { ConcreteThing("owner:user-a/colony:colony-a/snapshot:attacker-snapshot-after/map:0/thing:steel", "Steel", 100) },
         new[] { new ThingReferenceDto("market:any/thing:medicine", "MedicineIndustrial", 8) },
         feeSilver: 10,
         allowSelfPickup: true,
@@ -1386,7 +1386,7 @@ try
     EventCreationResponse tooManyTrades = await client.CreateTradeOrderAsync(new CreateTradeOrderRequest(
         "trade:user-a:too-many",
         new ProtocolIdentity("user-a", "colony-a", "attacker-snapshot-after"),
-        new[] { new ThingReferenceDto("owner:user-a/colony:colony-a/snapshot:attacker-snapshot-after/map:0/thing:wood", "WoodLog", 25) },
+        new[] { ConcreteThing("owner:user-a/colony:colony-a/snapshot:attacker-snapshot-after/map:0/thing:wood", "WoodLog", 25) },
         new[] { new ThingReferenceDto("market:any/thing:silver", "Silver", 25) },
         feeSilver: 2,
         allowSelfPickup: true,
@@ -1500,7 +1500,7 @@ try
     EventCreationResponse surfaceTrade = await client.CreateTradeOrderAsync(new CreateTradeOrderRequest(
         "trade:user-surface:001",
         new ProtocolIdentity("user-surface", "colony-surface", "surface-snapshot"),
-        new[] { new ThingReferenceDto("owner:user-surface/colony:colony-surface/snapshot:surface-snapshot/map:901/thing:component", "ComponentIndustrial", 2) },
+        new[] { ConcreteThing("owner:user-surface/colony:colony-surface/snapshot:surface-snapshot/map:901/thing:component", "ComponentIndustrial", 2) },
         new[] { new ThingReferenceDto("market:any/thing:silver", "Silver", 100) },
         feeSilver: 10,
         allowSelfPickup: true,
@@ -1516,7 +1516,7 @@ try
     EventCreationResponse orbitalTrade = await client.CreateTradeOrderAsync(new CreateTradeOrderRequest(
         "trade:user-orbit:001",
         new ProtocolIdentity("user-orbit", "colony-orbit", "orbit-snapshot"),
-        new[] { new ThingReferenceDto("owner:user-orbit/colony:colony-orbit/snapshot:orbit-snapshot/map:900/thing:component", "ComponentIndustrial", 4) },
+        new[] { ConcreteThing("owner:user-orbit/colony:colony-orbit/snapshot:orbit-snapshot/map:900/thing:component", "ComponentIndustrial", 4) },
         new[] { new ThingReferenceDto("market:any/thing:silver", "Silver", 100) },
         feeSilver: 10,
         allowSelfPickup: true,
@@ -1538,7 +1538,7 @@ try
     EventCreationResponse directDropPodTrade = await client.CreateTradeOrderAsync(new CreateTradeOrderRequest(
         "trade:user-orbit:direct-drop-pod",
         new ProtocolIdentity("user-orbit", "colony-orbit", "orbit-snapshot"),
-        new[] { new ThingReferenceDto("owner:user-orbit/colony:colony-orbit/snapshot:orbit-snapshot/map:900/thing:meal", "MealFine", 1) },
+        new[] { ConcreteThing("owner:user-orbit/colony:colony-orbit/snapshot:orbit-snapshot/map:900/thing:meal", "MealFine", 1) },
         new[] { new ThingReferenceDto("market:any/thing:silver", "Silver", 100) },
         feeSilver: 10,
         allowSelfPickup: true,
@@ -1549,7 +1549,7 @@ try
         directDropPodTrade.EventId!,
         "drop-pod-direct:" + directDropPodTrade.EventId,
         new ProtocolIdentity("user-surface", "colony-surface", "surface-snapshot"),
-        new[] { new ThingReferenceDto("owner:user-surface/colony:colony-surface/snapshot:surface-snapshot/map:901/thing:silver", "Silver", 100) },
+        new[] { ConcreteThing("owner:user-surface/colony:colony-surface/snapshot:surface-snapshot/map:901/thing:silver", "Silver", 100) },
         "ServerDropPod"));
     Require(directDropPodFulfill.Result.Accepted, "空投履约不应要求已有接单备忘录");
     Require(directDropPodFulfill.ExchangeCreated, "空投履约应创建交换事件");
@@ -1649,7 +1649,7 @@ try
     EventCreationResponse tradeToComplete = await client.CreateTradeOrderAsync(new CreateTradeOrderRequest(
         "trade:user-a:complete-source",
         new ProtocolIdentity("user-a", "colony-a", "attacker-snapshot-after"),
-        new[] { new ThingReferenceDto("owner:user-a/colony:colony-a/snapshot:attacker-snapshot-after/map:0/thing:cloth", "Cloth", 50) },
+        new[] { ConcreteThing("owner:user-a/colony:colony-a/snapshot:attacker-snapshot-after/map:0/thing:cloth", "Cloth", 50) },
         new[] { new ThingReferenceDto("market:any/thing:component", "ComponentIndustrial", 2) },
         feeSilver: 5,
         allowSelfPickup: true,
@@ -1668,7 +1668,7 @@ try
         tradeToComplete.EventId!,
         acceptedTradeToComplete.MemoEventId!,
         new ProtocolIdentity("user-b", "colony-b", "defender-snapshot-after-gift"),
-        new[] { new ThingReferenceDto("owner:user-b/colony:colony-b/snapshot:defender-snapshot-after-gift/map:caravan/thing:component-small", "ComponentIndustrial", 1) },
+        new[] { ConcreteThing("owner:user-b/colony:colony-b/snapshot:defender-snapshot-after-gift/map:caravan/thing:component-small", "ComponentIndustrial", 1) },
         "SelfDelivery"));
     Require(!insufficientFulfill.Result.Accepted, "远行队携带物不足时不能完成自提履约");
     Require(insufficientFulfill.MissingRequirements.Count > 0, "携带物不足应返回缺失要求");
@@ -1679,7 +1679,7 @@ try
         tradeToComplete.EventId!,
         acceptedTradeToComplete.MemoEventId!,
         new ProtocolIdentity("user-b", "colony-b", "defender-snapshot-after-gift"),
-        new[] { new ThingReferenceDto("owner:user-b/colony:colony-b/snapshot:defender-snapshot-after-gift/map:caravan/thing:component", "ComponentIndustrial", 2) },
+        new[] { ConcreteThing("owner:user-b/colony:colony-b/snapshot:defender-snapshot-after-gift/map:caravan/thing:component", "ComponentIndustrial", 2) },
         "SelfDelivery"));
     Require(fulfilledTrade.Result.Accepted, "远行队携带物满足要求时自提交易应成立");
     Require(fulfilledTrade.ExchangeCreated, "自提履约应创建交换事件");
@@ -1744,7 +1744,7 @@ try
         tradeToComplete.EventId!,
         acceptedTradeToComplete.MemoEventId!,
         new ProtocolIdentity("user-b", "colony-b", "defender-snapshot-after-gift"),
-        new[] { new ThingReferenceDto("owner:user-b/colony:colony-b/snapshot:defender-snapshot-after-gift/map:caravan/thing:component", "ComponentIndustrial", 2) },
+        new[] { ConcreteThing("owner:user-b/colony:colony-b/snapshot:defender-snapshot-after-gift/map:caravan/thing:component", "ComponentIndustrial", 2) },
         "SelfDelivery"));
     Require(duplicateFulfill.Result.Accepted, "重复自提履约请求应按幂等键返回既有交换事件");
     Require(!duplicateFulfill.ExchangeCreated, "重复自提履约不应创建第二个交换事件");
@@ -1797,7 +1797,7 @@ try
         defenderMap,
         "defender-snapshot-before",
         new[] { "owner:user-a/colony:colony-a/snapshot:attacker-snapshot-after/map:caravan/thing:pawn-1" },
-        new[] { new ThingReferenceDto("owner:user-a/colony:colony-a/snapshot:attacker-snapshot-after/map:caravan/thing:medicine", "MedicineIndustrial", 8) }),
+        new[] { ConcreteThing("owner:user-a/colony:colony-a/snapshot:attacker-snapshot-after/map:caravan/thing:medicine", "MedicineIndustrial", 8) }),
         SnapshotMetadata(raidBattlefieldPackage),
         raidBattlefieldPackage.Payload);
     Require(raid.Result.Accepted, "创建袭击应成功");
@@ -1808,7 +1808,7 @@ try
         "gift:user-a:user-b:forced-during-raid",
         new ProtocolIdentity("user-a", "colony-a", "attacker-snapshot-after-player-raid"),
         new ProtocolIdentity("user-b", "colony-b", "defender-snapshot-before"),
-        new[] { new ThingReferenceDto("owner:user-a/colony:colony-a/snapshot:attacker-snapshot-after-player-raid/caravan:caravan-a/thing:wastepack-raid", "Wastepack", 1) },
+        new[] { ConcreteThing("owner:user-a/colony:colony-a/snapshot:attacker-snapshot-after-player-raid/caravan:caravan-a/thing:wastepack-raid", "Wastepack", 1) },
         "袭击未结算时强投应被阻止。",
         targetContext: null,
         deliveryKind: "Forced"));
@@ -3600,6 +3600,15 @@ static async Task VerifyAchievementLeaderboardsHidePlayersWithoutColonySnapshotA
         await app.StopAsync();
         await app.DisposeAsync();
     }
+}
+
+static ThingReferenceDto ConcreteThing(string globalKey, string defName, int stackCount)
+{
+    return new ThingReferenceDto(
+        globalKey,
+        defName,
+        stackCount,
+        metadata: ThingTransferPolicy.AcceptedMetadata());
 }
 
 static void Require(bool condition, string message)

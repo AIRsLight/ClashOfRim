@@ -7,6 +7,7 @@ using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.ClientSnapshots;
 using AIRsLight.ClashOfRim.Gifts;
 using AIRsLight.ClashOfRim.Pawns;
+using AIRsLight.ClashOfRim.ThirdPartyCompatibility;
 using AIRsLight.ClashOfRim.Trades;
 using AIRsLight.ClashOfRim.WorldObjects;
 using RimWorld;
@@ -339,15 +340,27 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
-        IReadOnlyList<ModThingReferenceDto> things = selections
-            .Select(selection => TradeCaravanFulfillmentUtility.BuildThingReference(
-                selection.Thing,
-                caravan,
-                settings.UserId,
-                settings.ColonyId,
-                settings.CurrentSnapshotId,
-                selection.Count))
-            .ToList();
+        IReadOnlyList<ModThingReferenceDto> things;
+        try
+        {
+            string surface = forcedDelivery ? ThingReferenceSurfaces.ForcedDelivery : ThingReferenceSurfaces.Gift;
+            things = selections
+                .Select(selection => TradeCaravanFulfillmentUtility.BuildThingReference(
+                    selection.Thing,
+                    caravan,
+                    settings.UserId,
+                    settings.ColonyId,
+                    settings.CurrentSnapshotId,
+                    selection.Count,
+                    surface))
+                .ToList();
+        }
+        catch (ThingTransferRejectedException ex)
+        {
+            giftProcessingStatus = ThingTransferPipeline.RejectionMessage(ex.RejectionCode);
+            Messages.Message(giftProcessingStatus, MessageTypeDefOf.RejectInput, historical: false);
+            return;
+        }
         BeginLocalAtomicMutation(
             ClashOfRimText.Key("ClashOfRim.GiftDelivery.OperationSend"),
             ClashOfRimText.Key("ClashOfRim.GiftDelivery.StatusReserving"));

@@ -58,12 +58,30 @@ internal static class TradeThingReferenceUtility
 
     public static bool IsTradeableItem(Thing thing)
     {
-        return (thing.def?.category == ThingCategory.Item || TryGetMinifiedInnerThing(thing, out _))
-            && ThingTransferPipeline.CanTransfer(thing, ThingReferenceSurfaces.UiSelection, out _);
+        return CanTransferItem(thing, ThingReferenceSurfaces.UiSelection, out _);
+    }
+
+    public static bool CanTransferItem(Thing thing, string surface, out string? rejectionCode)
+    {
+        rejectionCode = null;
+        if (thing.def?.category != ThingCategory.Item && !TryGetMinifiedInnerThing(thing, out _))
+        {
+            return false;
+        }
+
+        return ThingTransferPipeline.CanTransfer(ThingForMetadata(thing), surface, out rejectionCode);
     }
 
     public static bool IsTradeableItemDef(ThingDef def)
     {
+        Type? thingClass = def.thingClass;
+        if (thingClass is not null
+            && (typeof(UnfinishedThing).IsAssignableFrom(thingClass)
+                || typeof(UnnaturalCorpse).IsAssignableFrom(thingClass)))
+        {
+            return false;
+        }
+
         return def.category == ThingCategory.Item
             || (def.building?.isNaturalRock != true && def.Minifiable);
     }

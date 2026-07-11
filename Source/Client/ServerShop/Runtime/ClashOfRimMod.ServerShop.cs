@@ -670,7 +670,8 @@ public sealed partial class ClashOfRimMod
                 plan.Thing,
                 $"owner:{settings.UserId}/colony:{settings.ColonyId}/snapshot:{settings.CurrentSnapshotId}/shop:{listing.ListingId}/thing:{plan.Thing.ThingID}",
                 plan.Count,
-                BuildShopBiocodedPawnGlobalId(plan.Thing.TryGetComp<CompBiocodable>()?.CodedPawn)))
+                BuildShopBiocodedPawnGlobalId(plan.Thing.TryGetComp<CompBiocodable>()?.CodedPawn),
+                ThingReferenceSurfaces.ServerShopSale))
             .ToList();
 
         removalPlans = plans;

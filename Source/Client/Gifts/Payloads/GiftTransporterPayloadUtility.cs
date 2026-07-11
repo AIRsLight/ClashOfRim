@@ -5,6 +5,7 @@ using System.Linq;
 using System.Reflection;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.Pawns;
+using AIRsLight.ClashOfRim.ThirdPartyCompatibility;
 using AIRsLight.ClashOfRim.Trades;
 using RimWorld;
 using Verse;
@@ -20,12 +21,20 @@ internal static class GiftTransporterPayloadUtility
         "vanishAfterTimestamp",
         BindingFlags.Instance | BindingFlags.NonPublic);
 
-    public static FloatMenuAcceptanceReport CanSend(IEnumerable<IThingHolder> pods)
+    public static FloatMenuAcceptanceReport CanSend(
+        IEnumerable<IThingHolder> pods,
+        string surface = ThingReferenceSurfaces.Gift)
     {
         bool hasPayload = false;
         foreach (Thing thing in EnumerateThings(pods))
         {
             hasPayload = true;
+            if (thing is not Pawn
+                && !TradeThingReferenceUtility.CanTransferItem(thing, surface, out string? rejectionCode))
+            {
+                return FloatMenuAcceptanceReport.WithFailReason(ThingTransferPipeline.RejectionMessage(rejectionCode));
+            }
+
             if (thing is Corpse corpse)
             {
                 Pawn? innerPawn = corpse.InnerPawn;
@@ -76,10 +85,11 @@ internal static class GiftTransporterPayloadUtility
         string userId,
         string colonyId,
         string snapshotId,
-        string transporterKey)
+        string transporterKey,
+        bool forcedDelivery)
     {
         return EnumerateThings(pods)
-            .Select(thing => ToThingReference(thing, userId, colonyId, snapshotId, transporterKey))
+            .Select(thing => ToThingReference(thing, userId, colonyId, snapshotId, transporterKey, forcedDelivery))
             .ToList();
     }
 
@@ -104,7 +114,8 @@ internal static class GiftTransporterPayloadUtility
         string userId,
         string colonyId,
         string snapshotId,
-        string transporterKey)
+        string transporterKey,
+        bool forcedDelivery)
     {
         if (thing is not Pawn)
         {
@@ -113,7 +124,8 @@ internal static class GiftTransporterPayloadUtility
                 thing,
                 $"owner:{userId}/colony:{colonyId}/snapshot:{snapshotId}/transportPods:{transporterKey}/thing:{thing.ThingID}",
                 thing.stackCount,
-                BuildBiocodedPawnGlobalId(userId, colonyId, snapshotId, thingBiocodable?.CodedPawn));
+                BuildBiocodedPawnGlobalId(userId, colonyId, snapshotId, thingBiocodable?.CodedPawn),
+                forcedDelivery ? ThingReferenceSurfaces.ForcedDelivery : ThingReferenceSurfaces.Gift);
             if (thing is Corpse { InnerPawn: not null } corpse)
             {
                 reference.PawnPackage = GiftPawnPackageUtility.BuildPackage(

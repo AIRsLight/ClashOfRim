@@ -188,6 +188,16 @@ public static partial class ClashOfRimNetworkServer
         }
 
         if (string.Equals(normalizedListingKind, ServerShopListingKinds.BuyFromPlayer, StringComparison.Ordinal)
+            && (!TryValidateInlinePawnPackages(request.DeliveredThings ?? Array.Empty<ThingReferenceDto>(), out ProtocolResponse? packageFailure)
+                || !TryValidateInlineThingPackages(request.DeliveredThings ?? Array.Empty<ThingReferenceDto>(), out packageFailure)))
+        {
+            return Results.Ok(new PurchaseServerShopListingResponse(
+                packageFailure ?? ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("PawnPackage.ParseFailed")),
+                request.ListingId,
+                prevalidation.RemainingStockCount));
+        }
+
+        if (string.Equals(normalizedListingKind, ServerShopListingKinds.BuyFromPlayer, StringComparison.Ordinal)
             && prevalidation.Listing is not null
             && !TradeThingRequirementMatcher.Satisfies(
                 new[] { MultiplyShopRequirement(prevalidation.Listing.Item, request.PurchaseCount) },

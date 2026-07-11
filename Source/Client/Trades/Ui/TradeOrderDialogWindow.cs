@@ -848,7 +848,7 @@ public sealed class TradeOrderDialogWindow : Window
     {
         if (def.category == ThingCategory.Item)
         {
-            return def.PlayerAcquirable;
+            return def.PlayerAcquirable && TradeThingReferenceUtility.IsTradeableItemDef(def);
         }
 
         if (def.category != ThingCategory.Pawn)
@@ -917,7 +917,8 @@ public sealed class TradeOrderDialogWindow : Window
             thing,
             $"owner:{mod.UserId}/colony:{mod.ColonyId}/snapshot:{mod.CurrentSnapshotId}/map:Map_{map.uniqueID}/thing:{thing.ThingID}",
             selection.Count,
-            BuildBiocodedPawnGlobalId(biocodable?.CodedPawn));
+            BuildBiocodedPawnGlobalId(biocodable?.CodedPawn),
+            ThingReferenceSurfaces.TradeOffer);
     }
 
     private int CalculateFeeSilver()

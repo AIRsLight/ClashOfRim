@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.Pawns;
+using AIRsLight.ClashOfRim.ThirdPartyCompatibility;
 using RimWorld;
 using Verse;
 
@@ -215,7 +216,8 @@ internal static class TradeMapFulfillmentUtility
             thing,
             $"owner:{userId}/colony:{colonyId}/snapshot:{snapshotId}/map:Map_{map.uniqueID}/thing:{thing.ThingID}",
             count,
-            BuildBiocodedPawnGlobalId(userId, colonyId, snapshotId, biocodable?.CodedPawn));
+            BuildBiocodedPawnGlobalId(userId, colonyId, snapshotId, biocodable?.CodedPawn),
+            ThingReferenceSurfaces.TradeFulfillment);
     }
 
     private static string? BuildBiocodedPawnGlobalId(string userId, string colonyId, string snapshotId, Pawn? pawn)

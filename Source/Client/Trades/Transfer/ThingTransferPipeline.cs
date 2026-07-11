@@ -1,4 +1,5 @@
 using AIRsLight.ClashOfRim.ClientNetwork;
+using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.ThirdPartyCompatibility;
 using RimWorld;
 using System;
@@ -39,6 +40,8 @@ internal static class ThingTransferPipeline
             ThingStatePackageUtility.TryAttachFallbackPackage(thing, reference);
         }
 
+        ThingTransferPolicy.MarkAccepted(reference.Metadata);
+
         return true;
     }
 
@@ -59,6 +62,17 @@ internal static class ThingTransferPipeline
             thing,
             ThingTransferContext.Inbound(surface, receivingFaction),
             out missingDefName);
+    }
+
+    public static string RejectionMessage(string? rejectionCode)
+    {
+        if (!string.IsNullOrWhiteSpace(rejectionCode)
+            && rejectionCode!.StartsWith("ClashOfRim.", StringComparison.Ordinal))
+        {
+            return ClashOfRimText.Key(rejectionCode!);
+        }
+
+        return ClashOfRimText.Key("ClashOfRim.ThingTransfer.RejectUnsupported");
     }
 
     private static Dictionary<string, string?> SnapshotMetadata(ModThingReferenceDto reference)

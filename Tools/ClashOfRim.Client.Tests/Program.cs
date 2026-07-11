@@ -1,7 +1,9 @@
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.CoreCompatibility;
 using AIRsLight.ClashOfRim.DlcCompatibility;
+using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.ThirdPartyCompatibility;
+using AIRsLight.ClashOfRim.Trades;
 using RimWorld;
 using System;
 using System.Collections.Generic;
@@ -17,7 +19,9 @@ var tests = new (string Name, Action Run)[]
     ("fertilized eggs retain progress but not parents", FertilizedEggsRetainProgressButNotParents),
     ("ideology relics are rejected", IdeologyRelicsAreRejected),
     ("biotech operation targets are cleared", BiotechOperationTargetsAreCleared),
-    ("unnatural corpses are rejected", UnnaturalCorpsesAreRejected)
+    ("unnatural corpses are rejected", UnnaturalCorpsesAreRejected),
+    ("unfinished thing defs are hidden from request lists", UnfinishedThingDefsAreHidden),
+    ("prepared concrete things carry transfer policy metadata", PreparedThingsCarryPolicyMetadata)
 };
 
 foreach ((string name, Action run) in tests)
@@ -196,6 +200,40 @@ static void UnnaturalCorpsesAreRejected()
         ThingTransferContext.Outbound("gift"),
         out string? reason));
     Assert(reason == AnomalyThingTransferCompatibility.UnnaturalCorpseRejectionCode);
+}
+
+static void UnfinishedThingDefsAreHidden()
+{
+    ThingDef def = MakeDef("UnfinishedThing");
+    def.thingClass = typeof(UnfinishedThing);
+
+    Assert(!TradeThingReferenceUtility.IsTradeableItemDef(def));
+}
+
+static void PreparedThingsCarryPolicyMetadata()
+{
+    BeginCycle();
+    ClashOfRimCompatibilityApi.RegisterThingTransferRule(
+        "test.policy-marker",
+        null,
+        (Thing thing, ModThingReferenceDto reference, ThingTransferContext context) =>
+            reference.Metadata["test.policy-marker"] = "captured",
+        null);
+    Thing thing = MakeThing("Steel");
+    var reference = new ModThingReferenceDto
+    {
+        GlobalKey = "owner:user-a/colony:colony-a/snapshot:snapshot-a/map:0/thing:steel",
+        DefName = "Steel",
+        StackCount = 10
+    };
+
+    Assert(ThingTransferPipeline.TryPrepareOutbound(
+        thing,
+        reference,
+        ThingReferenceSurfaces.TradeOffer,
+        out _));
+    Assert(reference.Metadata[ThingTransferPolicy.VersionMetadataKey] == ThingTransferPolicy.CurrentVersion);
+    Assert(reference.Metadata[ThingTransferPolicy.DecisionMetadataKey] == ThingTransferPolicy.AcceptedDecision);
 }
 
 static void BeginCycle()

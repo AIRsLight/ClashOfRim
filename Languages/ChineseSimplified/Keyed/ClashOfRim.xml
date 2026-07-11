@@ -1864,4 +1864,9 @@
   <ClashOfRim.ColonyAppearance.Reset>恢复默认</ClashOfRim.ColonyAppearance.Reset>
   <ClashOfRim.ColonyAppearance.SavedMessage>殖民地图标已更新。</ClashOfRim.ColonyAppearance.SavedMessage>
   <ClashOfRim.ColonyAppearance.RegistrationReason>殖民地图标更新</ClashOfRim.ColonyAppearance.RegistrationReason>
+  <ClashOfRim.ThingTransfer.RejectUnfinished>未完成的物品不能跨殖民地流转。</ClashOfRim.ThingTransfer.RejectUnfinished>
+  <ClashOfRim.ThingTransfer.RejectActiveQuestBook>已经关联任务的书籍不能跨殖民地流转。</ClashOfRim.ThingTransfer.RejectActiveQuestBook>
+  <ClashOfRim.ThingTransfer.RejectRelic>文化圣物不能交易或赠送。</ClashOfRim.ThingTransfer.RejectRelic>
+  <ClashOfRim.ThingTransfer.RejectUnnaturalCorpse>异常尸体与本地异常事件绑定，不能跨殖民地流转。</ClashOfRim.ThingTransfer.RejectUnnaturalCorpse>
+  <ClashOfRim.ThingTransfer.RejectUnsupported>该物品包含无法安全转移的状态。</ClashOfRim.ThingTransfer.RejectUnsupported>
 </LanguageData>

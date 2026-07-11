@@ -5,7 +5,7 @@ namespace AIRsLight.ClashOfRim.DlcCompatibility;
 
 internal static class AnomalyThingTransferCompatibility
 {
-    internal const string UnnaturalCorpseRejectionCode = "thing-transfer.anomaly-unnatural-corpse";
+    internal const string UnnaturalCorpseRejectionCode = "ClashOfRim.ThingTransfer.RejectUnnaturalCorpse";
 
     internal static void Apply()
     {

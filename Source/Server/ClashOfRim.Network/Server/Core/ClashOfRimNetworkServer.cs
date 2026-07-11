@@ -1252,6 +1252,14 @@ public static partial class ClashOfRimNetworkServer
         failure = null;
         foreach (ThingReferenceDto thing in things)
         {
+            if (!ThingTransferPolicy.IsAcceptedConcreteReference(thing, out string policyFailure))
+            {
+                failure = ProtocolResponse.Reject(
+                    ProtocolErrorCode.ValidationFailed,
+                    T("ThingTransfer.Invalid", ("MESSAGE", policyFailure)));
+                return false;
+            }
+
             if (thing.ThingPackage is null)
             {
                 continue;

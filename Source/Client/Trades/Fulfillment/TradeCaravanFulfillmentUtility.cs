@@ -4,6 +4,7 @@ using System.Linq;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.Gifts;
 using AIRsLight.ClashOfRim.Pawns;
+using AIRsLight.ClashOfRim.ThirdPartyCompatibility;
 using RimWorld;
 using RimWorld.Planet;
 using Verse;
@@ -46,9 +47,10 @@ internal static class TradeCaravanFulfillmentUtility
         string userId,
         string colonyId,
         string snapshotId,
-        int count)
+        int count,
+        string surface = ThingReferenceSurfaces.TradeFulfillment)
     {
-        return ToThingReference(thing, caravan, userId, colonyId, snapshotId, count);
+        return ToThingReference(thing, caravan, userId, colonyId, snapshotId, count, surface);
     }
 
     public static bool RemoveSelectedThings(
@@ -335,7 +337,8 @@ internal static class TradeCaravanFulfillmentUtility
         string userId,
         string colonyId,
         string snapshotId,
-        int? countOverride = null)
+        int? countOverride = null,
+        string surface = ThingReferenceSurfaces.TradeFulfillment)
     {
         if (thing is Pawn pawn)
         {
@@ -354,7 +357,8 @@ internal static class TradeCaravanFulfillmentUtility
             thing,
             $"owner:{userId}/colony:{colonyId}/snapshot:{snapshotId}/caravan:{caravan.GetUniqueLoadID()}/thing:{thing.ThingID}",
             countOverride ?? thing.stackCount,
-            BuildBiocodedPawnGlobalId(userId, colonyId, snapshotId, biocodable?.CodedPawn));
+            BuildBiocodedPawnGlobalId(userId, colonyId, snapshotId, biocodable?.CodedPawn),
+            surface);
     }
 
     private static string? BuildBiocodedPawnGlobalId(string userId, string colonyId, string snapshotId, Pawn? pawn)

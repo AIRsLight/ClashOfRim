@@ -1864,4 +1864,9 @@
   <ClashOfRim.ColonyAppearance.Reset>Default</ClashOfRim.ColonyAppearance.Reset>
   <ClashOfRim.ColonyAppearance.SavedMessage>Colony icon updated.</ClashOfRim.ColonyAppearance.SavedMessage>
   <ClashOfRim.ColonyAppearance.RegistrationReason>Colony icon update</ClashOfRim.ColonyAppearance.RegistrationReason>
+  <ClashOfRim.ThingTransfer.RejectUnfinished>Unfinished items cannot be transferred between colonies.</ClashOfRim.ThingTransfer.RejectUnfinished>
+  <ClashOfRim.ThingTransfer.RejectActiveQuestBook>Books already linked to a quest cannot be transferred between colonies.</ClashOfRim.ThingTransfer.RejectActiveQuestBook>
+  <ClashOfRim.ThingTransfer.RejectRelic>Ideology relics cannot be traded or gifted.</ClashOfRim.ThingTransfer.RejectRelic>
+  <ClashOfRim.ThingTransfer.RejectUnnaturalCorpse>This unnatural corpse is bound to a local anomaly event and cannot be transferred.</ClashOfRim.ThingTransfer.RejectUnnaturalCorpse>
+  <ClashOfRim.ThingTransfer.RejectUnsupported>This item contains state that cannot be transferred safely.</ClashOfRim.ThingTransfer.RejectUnsupported>
 </LanguageData>

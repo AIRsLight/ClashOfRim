@@ -459,6 +459,7 @@
   "PawnPackage.UploadMissingFields": "정착민 정보 업로드가 불완전합니다.",
   "PawnPackage.Stored": "정착민 정보를 저장했습니다.",
   "PawnPackage.Invalid": "정착민 정보가 올바르지 않습니다: {MESSAGE}",
+  "ThingTransfer.Invalid": "물품이 정착지 간 전송 검증을 통과하지 못했습니다: {MESSAGE}",
   "PawnPackage.MissingScribe": "정착민 정보에 복원 가능한 내용이 없습니다.",
   "PawnPackage.DownloadMissingFields": "정착민 정보 다운로드가 불완전합니다.",
   "PawnPackage.Returned": "정착민 정보를 반환했습니다.",

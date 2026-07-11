@@ -11,8 +11,8 @@ namespace AIRsLight.ClashOfRim.CoreCompatibility;
 
 internal static class CoreThingTransferCompatibility
 {
-    internal const string UnfinishedThingRejectionCode = "thing-transfer.unfinished";
-    internal const string ActiveQuestBookRejectionCode = "thing-transfer.active-quest-book";
+    internal const string UnfinishedThingRejectionCode = "ClashOfRim.ThingTransfer.RejectUnfinished";
+    internal const string ActiveQuestBookRejectionCode = "ClashOfRim.ThingTransfer.RejectActiveQuestBook";
     internal const string MetadataStyleDefName = "clashofrim.core.transfer.styleDefName";
     internal const string MetadataHatcherProgress = "clashofrim.core.transfer.hatcherProgress";
     internal const string MetadataBookHasQuest = "clashofrim.core.transfer.bookHasQuest";

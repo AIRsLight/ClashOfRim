@@ -459,6 +459,7 @@
   "PawnPackage.UploadMissingFields": "入植者情報アップロードが不完全です。",
   "PawnPackage.Stored": "入植者情報を保存しました。",
   "PawnPackage.Invalid": "入植者情報が無効です: {MESSAGE}",
+  "ThingTransfer.Invalid": "アイテムはコロニー間転送の検証に合格しませんでした: {MESSAGE}",
   "PawnPackage.MissingScribe": "入植者情報に復元可能な内容がありません。",
   "PawnPackage.DownloadMissingFields": "入植者情報ダウンロードが不完全です。",
   "PawnPackage.Returned": "入植者情報を返しました。",

@@ -459,6 +459,7 @@
   "PawnPackage.UploadMissingFields": "Загрузка сведений колониста неполна.",
   "PawnPackage.Stored": "Сведения колониста сохранены.",
   "PawnPackage.Invalid": "Сведения колониста недействительны: {MESSAGE}",
+  "ThingTransfer.Invalid": "Предмет не прошел проверку передачи между поселениями: {MESSAGE}",
   "PawnPackage.MissingScribe": "В сведениях колониста нет восстанавливаемого содержимого.",
   "PawnPackage.DownloadMissingFields": "Скачивание сведений колониста неполно.",
   "PawnPackage.Returned": "Сведения колониста возвращены.",

@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using AIRsLight.ClashOfRim.ClientNetwork;
+using AIRsLight.ClashOfRim.ThirdPartyCompatibility;
 using AIRsLight.ClashOfRim.Trades;
+using RimWorld;
 using RimWorld.Planet;
 using UnityEngine;
 using Verse;
@@ -112,10 +114,24 @@ public sealed class GiftDeliveryDialogWindow : Window
         IReadOnlyList<TradeOfferSelection> selections = selectedThings
             .Select(selection => new TradeOfferSelection(selection.Thing, selection.Count))
             .ToList();
+        string formattedThings;
+        try
+        {
+            formattedThings = FormatSelectedThings();
+        }
+        catch (ThingTransferRejectedException ex)
+        {
+            Messages.Message(
+                ThingTransferPipeline.RejectionMessage(ex.RejectionCode),
+                MessageTypeDefOf.RejectInput,
+                historical: false);
+            return;
+        }
+
         string summary = ClashOfRimText.Key(
             forcedDelivery ? "ClashOfRim.GiftDelivery.ConfirmForced" : "ClashOfRim.GiftDelivery.ConfirmNormal",
             mod.FormatWorldMapTargetLabel(target).Named("TARGET"),
-            FormatSelectedThings().Named("THINGS"));
+            formattedThings.Named("THINGS"));
         Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation(summary, () =>
         {
             Close();
@@ -195,7 +211,10 @@ public sealed class GiftDeliveryDialogWindow : Window
         }
 
         cachedInventoryThings = CaravanInventoryUtility.AllInventoryItems(caravan)
-            .Where(thing => thing != null && !thing.Destroyed && thing.def?.category == ThingCategory.Item)
+            .Where(thing => thing != null
+                && !thing.Destroyed
+                && thing.def?.category == ThingCategory.Item
+                && TradeThingReferenceUtility.IsTradeableItem(thing))
             .OrderBy(thing => thing.def.label)
             .ThenBy(thing => thing.ThingID)
             .ToList();
@@ -294,7 +313,14 @@ public sealed class GiftDeliveryDialogWindow : Window
     private string FormatSelectedThings()
     {
         IReadOnlyList<ModThingReferenceDto> references = selectedThings
-            .Select(selection => TradeCaravanFulfillmentUtility.BuildThingReference(selection.Thing, caravan, mod.UserId, mod.ColonyId, mod.CurrentSnapshotId, selection.Count))
+            .Select(selection => TradeCaravanFulfillmentUtility.BuildThingReference(
+                selection.Thing,
+                caravan,
+                mod.UserId,
+                mod.ColonyId,
+                mod.CurrentSnapshotId,
+                selection.Count,
+                forcedDelivery ? ThingReferenceSurfaces.ForcedDelivery : ThingReferenceSurfaces.Gift))
             .ToList();
         return TradeUiUtility.FormatThingList(references, asRequirement: false);
     }
