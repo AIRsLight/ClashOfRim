@@ -52,7 +52,7 @@ public static class WorldMapMarkerProjectionBuilder
         var markers = new List<WorldMapMarker>();
         foreach (WorldObjectSummary worldObject in worldObjects)
         {
-            if (worldObject.Destroyed || !IsTradeableColony(worldObject))
+            if (worldObject.Destroyed || !WorldObjectTypeIdentity.IsPlayerColonyMarker(worldObject))
             {
                 continue;
             }
@@ -148,13 +148,6 @@ public static class WorldMapMarkerProjectionBuilder
             RaidAvailability: null,
             IconDefName: worldObject.Def,
             TileLayerId: tileLayerId);
-    }
-
-    private static bool IsTradeableColony(WorldObjectSummary worldObject)
-    {
-        return string.Equals(worldObject.Def, "PlayerColony", StringComparison.Ordinal)
-            || (!string.IsNullOrWhiteSpace(worldObject.Class)
-                && worldObject.Class.Contains("PlayerColony", StringComparison.Ordinal));
     }
 
     private static bool TryParsePlanetTile(string? tileText, out int tile, out int layerId)

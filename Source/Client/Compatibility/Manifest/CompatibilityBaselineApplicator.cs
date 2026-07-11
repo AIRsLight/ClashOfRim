@@ -899,31 +899,19 @@ internal sealed class CompatibilityMismatchWindow : Window
 
     private static bool IssueBelongsToTab(string? code, CompatibilityTab tab)
     {
-        string value = code ?? string.Empty;
-        if (ContainsOrdinal(value, "Config"))
+        if (!Enum.TryParse(code, ignoreCase: false, out CompatibilityIssueCode issueCode))
         {
-            return tab == CompatibilityTab.Config;
+            return tab == CompatibilityTab.Manifest;
         }
 
-        return tab switch
+        CompatibilityIssueCategory category = CompatibilityIssueClassifier.CategoryFor(issueCode);
+        return category switch
         {
-            CompatibilityTab.Manifest => ContainsOrdinal(value, "Mod")
-                || ContainsOrdinal(value, "Version")
-                || ContainsOrdinal(value, "Dlc")
-                || ContainsOrdinal(value, "Protocol")
-                || ContainsOrdinal(value, "Schema")
-                || ContainsOrdinal(value, "RimWorld")
-                || ContainsOrdinal(value, "Language"),
-            CompatibilityTab.Hash => ContainsOrdinal(value, "File")
-                || ContainsOrdinal(value, "DefSummary"),
-            CompatibilityTab.Config => false,
+            CompatibilityIssueCategory.Manifest => tab == CompatibilityTab.Manifest,
+            CompatibilityIssueCategory.Hash => tab == CompatibilityTab.Hash,
+            CompatibilityIssueCategory.Config => tab == CompatibilityTab.Config,
             _ => false
         };
-    }
-
-    private static bool ContainsOrdinal(string value, string fragment)
-    {
-        return value.IndexOf(fragment, StringComparison.Ordinal) >= 0;
     }
 
     private static void AddScalar(List<UiDiffEntry> entries, string title, string server, string local)

@@ -444,9 +444,7 @@ public static partial class ClashOfRimNetworkServer
 
     private static bool IsSnapshotSettlement(WorldObjectSummary worldObject)
     {
-        return string.Equals(worldObject.Def, "Settlement", StringComparison.Ordinal)
-            || (!string.IsNullOrWhiteSpace(worldObject.Class)
-                && worldObject.Class.Contains("Settlement", StringComparison.Ordinal));
+        return WorldObjectTypeIdentity.IsSettlement(worldObject);
     }
 
     private static bool IsSnapshotPlayerColonyAnchor(
@@ -1911,11 +1909,12 @@ public static partial class ClashOfRimNetworkServer
 
     private static bool IsOrbitalWorldObject(ClashOfRimNetworkState state, WorldObjectSummary worldObject)
     {
-        return ContainsOrbitalToken(worldObject.Class)
-            || ContainsOrbitalToken(worldObject.Def)
-            || ContainsOrbitalToken(worldObject.Name)
-            || ContainsOrbitalToken(worldObject.Tile)
-            || state.Plugins.ActiveWorldObjectClassifiers(state.CompatibilityBaseline.Current).Any(classifier =>
+        if (TryParsePlanetTile(worldObject.Tile, out WorldTileRef tileRef) && tileRef.LayerId > 0)
+        {
+            return true;
+        }
+
+        return state.Plugins.ActiveWorldObjectClassifiers(state.CompatibilityBaseline.Current).Any(classifier =>
             {
                 try
                 {
@@ -1933,13 +1932,6 @@ public static partial class ClashOfRimNetworkServer
                     return false;
                 }
             });
-    }
-
-    private static bool ContainsOrbitalToken(string? value)
-    {
-        return !string.IsNullOrWhiteSpace(value)
-            && (value.Contains("Orbit", StringComparison.OrdinalIgnoreCase)
-                || value.Contains("Orbital", StringComparison.OrdinalIgnoreCase));
     }
 
     private static TradeOrderSummaryDto ToTradeOrderSummary(
@@ -2281,7 +2273,7 @@ public static partial class ClashOfRimNetworkServer
         EventParty actor,
         EventParty target,
         IReadOnlyList<EventThingReference> things,
-        string message,
+        GiftEventPurpose purpose,
         EventTargetContext? targetContext,
         DateTimeOffset nowUtc)
     {
@@ -2291,7 +2283,7 @@ public static partial class ClashOfRimNetworkServer
             target,
             idempotencyKey,
             state.OnlinePresence.IsUserOnline(target.UserId),
-            new GiftEventPayload(things, message),
+            new GiftEventPayload(things, Message: null, Purpose: purpose),
             nowUtc,
             targetContext);
         LedgerAppendResult append = state.Ledger.Append(delivery);

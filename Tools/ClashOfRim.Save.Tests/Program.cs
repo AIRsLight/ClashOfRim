@@ -1,11 +1,13 @@
 using AIRsLight.ClashOfRim.Network.Plugins.DlcCompatibility;
 using AIRsLight.ClashOfRim.Network;
+using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Save;
 using AIRsLight.ClashOfRim.ThirdPartyCompat.ServerPlugin;
 using Microsoft.Data.Sqlite;
 using System.IO.Compression;
 using System.Text;
+using System.Text.Json.Nodes;
 using System.Xml.Linq;
 
 var tests = new (string Name, Action Run)[]
@@ -14,6 +16,7 @@ var tests = new (string Name, Action Run)[]
     ("服务器启动拒绝无版本的既有数据库", VerifyServerDatabaseMigrationRequiresExplicitLegacyMigration),
     ("服务器持久化迁移统一检查数据库和快照格式", VerifyServerPersistenceMigrationCoordinatesDatabaseAndSnapshots),
     ("服务器数据库旧版本按匹配步骤迁移并保留其他数据", VerifyServerDatabaseMigrationUpgradesLegacyDatabase),
+    ("服务器数据库迁移旧交易礼物用途为结构化枚举", VerifyServerDatabaseMigrationUpgradesLegacyGiftPurpose),
     ("服务器数据库未知旧结构要求管理员声明来源版本", VerifyServerDatabaseMigrationRejectsUnknownUnversionedDatabase),
     ("服务器数据库混合旧新结构要求管理员确认来源版本", VerifyServerDatabaseMigrationRejectsMixedUnversionedDatabase),
     ("服务器数据库从管理员快照恢复世界底图", VerifyServerDatabaseMigrationRecoversWorldSubstrate),
@@ -197,6 +200,63 @@ static void VerifyServerDatabaseMigrationUpgradesLegacyDatabase()
         Equal(0L, (long)verify.ExecuteScalar()!, "没有可用管理员快照时不可伪造新版世界底图包");
         verify.CommandText = "select count(*) from server_players where user_id = 'legacy-user' and colony_id = 'legacy-colony';";
         Equal(1L, (long)verify.ExecuteScalar()!, "玩家 JSON 数据应在显式迁移时写入结构化表");
+    }
+    finally
+    {
+        DeleteSqliteDatabase(path);
+    }
+}
+
+static void VerifyServerDatabaseMigrationUpgradesLegacyGiftPurpose()
+{
+    string path = Path.Combine(Path.GetTempPath(), "clashofrim-schema-gift-purpose-" + Guid.NewGuid().ToString("N") + ".sqlite");
+    try
+    {
+        var ledger = new SqliteAuthoritativeEventLedger(path);
+        AuthoritativeEvent legacyTradeDelivery = AuthoritativeEventFactory.Create(
+            ServerEventType.GiftReturn,
+            new EventParty("owner", "owner-colony"),
+            new EventParty("acceptor", "acceptor-colony"),
+            "legacy-trade-owner-delivery",
+            targetOnline: false,
+            new GiftEventPayload(
+                Array.Empty<EventThingReference>(),
+                "TradeCompletedOwnerDelivery",
+                Purpose: GiftEventPurpose.TradeCompletedOwnerDelivery),
+            DateTimeOffset.UtcNow);
+        ledger.Append(legacyTradeDelivery);
+
+        using (SqliteConnection connection = OpenSqliteDatabase(path))
+        {
+            using SqliteCommand read = connection.CreateCommand();
+            read.CommandText = "select payload_json from events where event_id = $event_id;";
+            read.Parameters.AddWithValue("$event_id", legacyTradeDelivery.EventId);
+            var payload = JsonNode.Parse((string)read.ExecuteScalar()!)!.AsObject();
+            payload.Remove("Purpose");
+
+            using SqliteCommand prepare = connection.CreateCommand();
+            prepare.CommandText = """
+                update events set payload_json = $payload_json where event_id = $event_id;
+                create table server_schema_metadata (
+                    metadata_key text primary key,
+                    metadata_value text not null,
+                    updated_at_utc text not null
+                );
+                insert into server_schema_metadata values ('schema_version', '2', '2026-01-01T00:00:00.0000000+00:00');
+                """;
+            prepare.Parameters.AddWithValue("$payload_json", payload.ToJsonString());
+            prepare.Parameters.AddWithValue("$event_id", legacyTradeDelivery.EventId);
+            prepare.ExecuteNonQuery();
+        }
+
+        ServerDatabaseMigrationResult result = ServerDatabaseMigrator.Migrate(path);
+        Require(result.AppliedMigrations.Contains("2->3", StringComparer.Ordinal), "旧礼物用途应执行 2->3 迁移");
+        AuthoritativeEvent migrated = new SqliteAuthoritativeEventLedger(path).Find(legacyTradeDelivery.EventId)
+            ?? throw new InvalidOperationException("迁移后的交易投递事件丢失");
+        Equal(
+            GiftEventPurpose.TradeCompletedOwnerDelivery,
+            ((GiftEventPayload)migrated.Payload).Purpose,
+            "旧交易投递消息应迁移为结构化用途");
     }
     finally
     {

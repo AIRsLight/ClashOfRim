@@ -742,7 +742,7 @@ public static partial class ClashOfRimNetworkServer
                 new EventParty("server"),
                 tradeOrder.Actor,
                 orderPayload.OfferedItems,
-                "TradeApplicationFailedOwnerReturn",
+                GiftEventPurpose.TradeApplicationFailedOwnerReturn,
                 tradeOrder.TargetContext,
                 nowUtc);
             affected[returnAppend.Event.EventId] = returnAppend.Event;
@@ -808,7 +808,7 @@ public static partial class ClashOfRimNetworkServer
     {
         return ledgerEvent.Type == ServerEventType.GiftReturn
             && (ledgerEvent.IdempotencyKey.StartsWith("trade-application-failed-owner-return:", StringComparison.Ordinal)
-                || ledgerEvent.Payload is GiftEventPayload { Message: "TradeApplicationFailedOwnerReturn" });
+                || ledgerEvent.Payload is GiftEventPayload { Purpose: GiftEventPurpose.TradeApplicationFailedOwnerReturn });
     }
 
     private static bool IsTradeCompletedDeliveryIdempotencyKey(string idempotencyKey, string tradeOrderId)

@@ -45,10 +45,8 @@ internal static class OdysseyServerCompatibility
     {
         public bool IsOrbitalWorldObject(WorldObjectSummary worldObject)
         {
-            return ContainsGravshipToken(worldObject.Class)
-                || ContainsGravshipToken(worldObject.Def)
-                || ContainsGravshipToken(worldObject.Name)
-                || ContainsGravshipToken(worldObject.Tile);
+            return IsExactType(worldObject.Class)
+                || IsExactType(worldObject.Def);
         }
 
         public bool IsPlayerColonyAnchor(WorldObjectSummary worldObject)
@@ -60,15 +58,10 @@ internal static class OdysseyServerCompatibility
             return true;
         }
 
-        private static bool ContainsGravshipToken(string? value)
+        private static bool IsExactType(string? value)
         {
-            return ContainsToken(value, "Gravship");
-        }
-
-        private static bool ContainsToken(string? value, string token)
-        {
-            return !string.IsNullOrWhiteSpace(value)
-                && value.Contains(token, StringComparison.OrdinalIgnoreCase);
+            return string.Equals(value, "Gravship", StringComparison.Ordinal)
+                || string.Equals(value, "GravshipLaunch", StringComparison.Ordinal);
         }
     }
 }

@@ -1,5 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
+using System.Text.Json.Nodes;
+using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Save;
 using Microsoft.Data.Sqlite;
@@ -14,7 +16,7 @@ public static class ServerDatabaseSchema
 {
     // Version 1 is the known JSON-document persistence layout.
     public const int LegacyJsonDocumentVersion = 1;
-    public const int CurrentVersion = 2;
+    public const int CurrentVersion = 3;
 }
 
 public sealed record ServerDatabaseMigrationOptions(int? DeclaredSourceVersion = null);
@@ -45,7 +47,11 @@ public static class ServerDatabaseMigrator
         new(
             FromVersion: 1,
             ToVersion: 2,
-            Apply: RemoveLegacyTileGeometry)
+            Apply: RemoveLegacyTileGeometry),
+        new(
+            FromVersion: 2,
+            ToVersion: 3,
+            Apply: MigrateGiftEventPurpose)
     ];
 
     public static ServerDatabaseMigrationResult ValidateForStartup(string databasePath, string? snapshotDirectory = null)
@@ -303,6 +309,62 @@ public static class ServerDatabaseMigrator
         }
 
         return new MigrationApplicationResult(true, null);
+    }
+
+    private static MigrationApplicationResult MigrateGiftEventPurpose(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        MigrationContext context)
+    {
+        if (!TableExists(connection, "events", transaction))
+        {
+            return MigrationApplicationResult.None;
+        }
+
+        var payloads = new List<(string EventId, string PayloadJson)>();
+        using (SqliteCommand read = connection.CreateCommand())
+        {
+            read.Transaction = transaction;
+            read.CommandText = "select event_id, payload_json from events;";
+            using SqliteDataReader reader = read.ExecuteReader();
+            while (reader.Read())
+            {
+                payloads.Add((reader.GetString(0), reader.GetString(1)));
+            }
+        }
+
+        foreach ((string eventId, string payloadJson) in payloads)
+        {
+            JsonObject payload = JsonNode.Parse(payloadJson)?.AsObject()
+                ?? throw new InvalidOperationException($"Event payload is not a JSON object: {eventId}");
+            if (!string.Equals(payload["payloadType"]?.GetValue<string>(), "gift", StringComparison.Ordinal)
+                || payload.ContainsKey(nameof(GiftEventPayload.Purpose)))
+            {
+                continue;
+            }
+
+            string? legacyMessage = payload[nameof(GiftEventPayload.Message)]?.GetValue<string>();
+            GiftEventPurpose purpose = legacyMessage switch
+            {
+                "TradeCompletedOwnerDelivery" => GiftEventPurpose.TradeCompletedOwnerDelivery,
+                "TradeCompletedAcceptorDelivery" => GiftEventPurpose.TradeCompletedAcceptorDelivery,
+                "TradeExpiredOwnerReturn" => GiftEventPurpose.TradeExpiredOwnerReturn,
+                "TradeBaselineChangedOwnerReturn" => GiftEventPurpose.TradeBaselineChangedOwnerReturn,
+                "TradeCancelledOwnerReturn" => GiftEventPurpose.TradeCancelledOwnerReturn,
+                "TradeApplicationFailedOwnerReturn" => GiftEventPurpose.TradeApplicationFailedOwnerReturn,
+                _ => GiftEventPurpose.Gift
+            };
+            payload[nameof(GiftEventPayload.Purpose)] = (int)purpose;
+
+            using SqliteCommand update = connection.CreateCommand();
+            update.Transaction = transaction;
+            update.CommandText = "update events set payload_json = $payload_json where event_id = $event_id;";
+            update.Parameters.AddWithValue("$payload_json", payload.ToJsonString());
+            update.Parameters.AddWithValue("$event_id", eventId);
+            update.ExecuteNonQuery();
+        }
+
+        return MigrationApplicationResult.None;
     }
 
     private static WorldSubstrateRecoveryResult TryRecoverWorldSubstrateFromAdministratorSnapshot(

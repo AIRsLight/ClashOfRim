@@ -708,9 +708,8 @@ public sealed partial class ClashOfRimMod
     {
         string sender = FormatEventParty(detail.Actor);
         GiftPayloadSummary? payload = ReadGiftPayloadForDisplay(detail);
-        string? payloadMessage = payload?.Message;
-        bool tradeDelivery = IsTradeDeliveryPayloadMessage(payloadMessage);
-        bool tradeReturn = IsTradeReturnPayloadMessage(payloadMessage);
+        bool tradeDelivery = payload?.IsTradeDelivery == true;
+        bool tradeReturn = payload?.IsTradeReturn == true;
         bool forcedGift = payload?.IsForcedDelivery == true;
         string intro = forcedGift
             ? ClashOfRimText.Key("ClashOfRim.EventLetter.ForcedGiftIntro", sender.Named("SENDER"))
@@ -1280,13 +1279,13 @@ public sealed partial class ClashOfRimMod
     private static bool IsTradeDeliveryDetail(ModEventDetailDto detail)
     {
         return GiftClientProcessor.IsGiftDetail(detail)
-            && IsTradeDeliveryPayloadMessage(ReadGiftPayloadForDisplay(detail)?.Message);
+            && ReadGiftPayloadForDisplay(detail)?.IsTradeDelivery == true;
     }
 
     private static bool IsTradeReturnDetail(ModEventDetailDto detail)
     {
         return GiftClientProcessor.IsGiftDetail(detail)
-            && IsTradeReturnPayloadMessage(ReadGiftPayloadForDisplay(detail)?.Message);
+            && ReadGiftPayloadForDisplay(detail)?.IsTradeReturn == true;
     }
 
     private static string BuildGiftItemListText(GiftPayloadSummary payload)
@@ -1297,29 +1296,6 @@ public sealed partial class ClashOfRimMod
         }
 
         return string.Join("\n", payload.Items.Select(item => "- " + FormatGiftItem(item)));
-    }
-
-    private static bool IsTradeDeliveryPayloadMessage(string? message)
-    {
-        if (string.IsNullOrWhiteSpace(message))
-        {
-            return false;
-        }
-
-        return message!.StartsWith("TradeCompletedOwnerDelivery", StringComparison.Ordinal)
-            || message.StartsWith("TradeCompletedAcceptorDelivery", StringComparison.Ordinal);
-    }
-
-    private static bool IsTradeReturnPayloadMessage(string? message)
-    {
-        if (string.IsNullOrWhiteSpace(message))
-        {
-            return false;
-        }
-
-        return message!.StartsWith("TradeExpiredOwnerReturn", StringComparison.Ordinal)
-            || message.StartsWith("TradeCancelledOwnerReturn", StringComparison.Ordinal)
-            || message.StartsWith("TradeApplicationFailedOwnerReturn", StringComparison.Ordinal);
     }
 
     private static string FormatGiftItem(GiftItemSummary item)

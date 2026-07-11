@@ -5,6 +5,7 @@ using System.Runtime.Serialization;
 using System.Runtime.Serialization.Json;
 using System.Text;
 using AIRsLight.ClashOfRim.ClientNetwork;
+using AIRsLight.ClashOfRim.Protocol;
 
 namespace AIRsLight.ClashOfRim.Gifts;
 
@@ -37,8 +38,21 @@ internal sealed class GiftPayloadSummary
     [DataMember(Name = "DeliveryKind")]
     public string? DeliveryKind { get; set; }
 
+    [DataMember(Name = "Purpose")]
+    public GiftEventPurpose Purpose { get; set; }
+
     public bool IsForcedDelivery =>
         string.Equals(DeliveryKind, "Forced", StringComparison.OrdinalIgnoreCase);
+
+    public bool IsTradeDelivery =>
+        Purpose is GiftEventPurpose.TradeCompletedOwnerDelivery
+            or GiftEventPurpose.TradeCompletedAcceptorDelivery;
+
+    public bool IsTradeReturn =>
+        Purpose is GiftEventPurpose.TradeExpiredOwnerReturn
+            or GiftEventPurpose.TradeBaselineChangedOwnerReturn
+            or GiftEventPurpose.TradeCancelledOwnerReturn
+            or GiftEventPurpose.TradeApplicationFailedOwnerReturn;
 }
 
 [DataContract]

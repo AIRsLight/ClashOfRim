@@ -1,3 +1,5 @@
+using AIRsLight.ClashOfRim.Protocol;
+
 namespace AIRsLight.ClashOfRim.Events;
 
 public static class GiftReturnEventFactory
@@ -17,7 +19,8 @@ public static class GiftReturnEventFactory
         string returnIdempotencyKey = $"{giftEvent.IdempotencyKey}:return";
         var returnPayload = new GiftEventPayload(
             giftPayload.Items,
-            $"Rejected gift return for {giftEvent.EventId}");
+            $"Rejected gift return for {giftEvent.EventId}",
+            Purpose: GiftEventPurpose.RejectedGiftReturn);
 
         return AuthoritativeEventFactory.Create(
             ServerEventType.GiftReturn,

@@ -12,6 +12,90 @@ using RimWorld.Planet;
 
 namespace AIRsLight.ClashOfRim.MainMenu;
 
+[HarmonyPatch(typeof(MainMenuDrawer), nameof(MainMenuDrawer.DoMainMenuControls))]
+internal static class ClashOfRimMainMenuDrawContextPatch
+{
+    [HarmonyPrefix]
+    private static void Prefix(Rect rect, bool anyMapFiles)
+    {
+        MainMenuDrawContext.Begin(rect.height, anyMapFiles);
+    }
+
+    [HarmonyFinalizer]
+    private static Exception? Finalizer(Exception? __exception)
+    {
+        MainMenuDrawContext.End();
+        return __exception;
+    }
+}
+
+internal static class MainMenuDrawContext
+{
+    [ThreadStatic]
+    private static bool active;
+
+    [ThreadStatic]
+    private static bool primaryOptionsClaimed;
+
+    [ThreadStatic]
+    private static bool anyMapFiles;
+
+    [ThreadStatic]
+    private static float expectedPrimaryHeight;
+
+    public static bool AnyMapFiles => active && anyMapFiles;
+
+    public static void Begin(float primaryHeight, bool hasMapFiles)
+    {
+        active = true;
+        primaryOptionsClaimed = false;
+        anyMapFiles = hasMapFiles;
+        expectedPrimaryHeight = primaryHeight;
+    }
+
+    public static bool TryClaimPrimaryOptions(Rect rect)
+    {
+        const float vanillaPrimaryWidth = 170f;
+        if (!active
+            || primaryOptionsClaimed
+            || !Mathf.Approximately(rect.x, 0f)
+            || !Mathf.Approximately(rect.y, 0f)
+            || !Mathf.Approximately(rect.width, vanillaPrimaryWidth)
+            || !Mathf.Approximately(rect.height, expectedPrimaryHeight))
+        {
+            return false;
+        }
+
+        primaryOptionsClaimed = true;
+        return true;
+    }
+
+    public static void End()
+    {
+        active = false;
+        primaryOptionsClaimed = false;
+        anyMapFiles = false;
+        expectedPrimaryHeight = 0f;
+    }
+}
+
+internal enum ClashOfRimMenuOptionKind
+{
+    ServerEntry,
+    RemoteMapAction
+}
+
+internal sealed class ClashOfRimMenuOption : ListableOption
+{
+    public ClashOfRimMenuOption(ClashOfRimMenuOptionKind kind, string label, Action action)
+        : base(label, action)
+    {
+        Kind = kind;
+    }
+
+    public ClashOfRimMenuOptionKind Kind { get; }
+}
+
 [HarmonyPatch(typeof(OptionListingUtility), nameof(OptionListingUtility.DrawOptionListing))]
 public static class ClashOfRimMainMenuPatches
 {
@@ -26,48 +110,51 @@ public static class ClashOfRimMainMenuPatches
     }
 
     [HarmonyPrefix]
+    [HarmonyPriority(Priority.First)]
     public static void Prefix(Rect rect, List<ListableOption> optList)
     {
         RunQueuedMainThreadActions();
 
-        if (Current.ProgramState != ProgramState.Entry || optList is null)
+        if (optList is null || !MainMenuDrawContext.TryClaimPrimaryOptions(rect))
+        {
+            return;
+        }
+
+        if (Current.ProgramState == ProgramState.Entry)
+        {
+            RewriteEntryMenu(optList);
+            return;
+        }
+
+        if (Current.ProgramState == ProgramState.Playing)
         {
             RewritePlayingMenuForMultiplayer(optList);
-            return;
         }
+    }
 
-        if (!IsEntryMainMenuOptionList(optList))
-        {
-            return;
-        }
-
+    private static void RewriteEntryMenu(List<ListableOption> optList)
+    {
+        const int newColonyIndex = 1;
+        int loadGameIndex = 2 + (Prefs.DevMode ? 1 : 0);
         if (CompatibilityConfigOverlayPath.ServerProfileActive)
         {
-            RedirectSinglePlayerEntryOptionsForServerProfile(optList);
+            ReplaceAt(optList, newColonyIndex, "NewColony".Translate().ToString(), RequestStandaloneRestart);
+            if (MainMenuDrawContext.AnyMapFiles)
+            {
+                ReplaceAt(optList, loadGameIndex, "LoadGame".Translate().ToString(), RequestStandaloneRestart);
+            }
         }
 
         string label = ClashOfRimText.Key("ClashOfRim.ServerEntry.JoinTitle");
-        if (optList.Any(option => string.Equals(option.label, label, System.StringComparison.Ordinal)))
+        if (optList.OfType<ClashOfRimMenuOption>().Any(option => option.Kind == ClashOfRimMenuOptionKind.ServerEntry))
         {
             return;
         }
 
-        int insertIndex = optList.FindIndex(option => LabelEquals(option, "NewColony"));
-        if (insertIndex < 0)
-        {
-            insertIndex = Math.Min(1, optList.Count);
-        }
-
-        optList.Insert(insertIndex, new ListableOption(label, () =>
-        {
-            OpenServerEntryDialog();
-        }));
-    }
-
-    private static void RedirectSinglePlayerEntryOptionsForServerProfile(List<ListableOption> optList)
-    {
-        ReplaceOption(optList, "NewColony", "NewColony".Translate().ToString(), RequestStandaloneRestart);
-        ReplaceOption(optList, "LoadGame", "LoadGame".Translate().ToString(), RequestStandaloneRestart);
+        optList.Insert(Math.Min(1, optList.Count), new ClashOfRimMenuOption(
+            ClashOfRimMenuOptionKind.ServerEntry,
+            label,
+            OpenServerEntryDialog));
     }
 
     private static void RequestStandaloneRestart()
@@ -96,31 +183,29 @@ public static class ClashOfRimMainMenuPatches
         }
     }
 
-    private static void RewritePlayingMenuForMultiplayer(List<ListableOption>? optList)
+    private static void RewritePlayingMenuForMultiplayer(List<ListableOption> optList)
     {
-        if (Current.ProgramState != ProgramState.Playing || optList is null)
-        {
-            return;
-        }
-
         ClashOfRimMod? mod = ClashOfRimMod.Instance ?? LoadedModManager.GetMod<ClashOfRimMod>();
         if (mod is null)
         {
             return;
         }
 
-        if (!IsPlayingGameMenuOptionList(optList))
-        {
-            return;
-        }
-
         ActiveRemoteMapSession? activeRemoteMap = ClashOfRimGameComponent.ActiveRemoteMapSession;
+        bool normalSavePresent = !GameDataSaveLoader.SavingIsTemporarilyDisabled
+            && Current.Game?.Info?.permadeathMode != true;
+        bool loadPresent = MainMenuDrawContext.AnyMapFiles
+            && Current.Game?.Info?.permadeathMode != true;
+        int loadIndex = normalSavePresent ? 1 : 0;
+        bool remoteActionInserted = false;
         if (activeRemoteMap?.IsActive == true)
         {
-            optList.RemoveAll(option => LabelEquals(option, "LoadGame"));
+            RemoveAtIfPresent(optList, loadPresent ? loadIndex : -1);
+            loadPresent = false;
             if (!activeRemoteMap.IsRaidBattle)
             {
-                InsertRemoteMapSessionOptionBeforeSave(optList, mod, activeRemoteMap);
+                InsertRemoteMapSessionOption(optList, mod, activeRemoteMap);
+                remoteActionInserted = true;
             }
         }
 
@@ -129,51 +214,39 @@ public static class ClashOfRimMainMenuPatches
             return;
         }
 
-        optList.RemoveAll(option => LabelEquals(option, "LoadGame"));
-        ReplaceOption(optList, "Save", ClashOfRimText.Key("ClashOfRim.Menu.UploadSnapshot"), () =>
-            StartMenuUpload(mod, onSuccess: null));
-        ReplaceOption(optList, "SaveAndQuitToMainMenu", ClashOfRimText.Key("ClashOfRim.Menu.UploadSnapshotAndQuitToMainMenu"), () =>
-            StartMenuUpload(mod, GenScene.GoToMainMenu));
-        ReplaceOption(optList, "SaveAndQuitToOS", ClashOfRimText.Key("ClashOfRim.Menu.UploadSnapshotAndQuitToOS"), () =>
-            StartMenuUpload(mod, Root.Shutdown));
+        RemoveAtIfPresent(optList, loadPresent ? loadIndex : -1);
+        if (normalSavePresent)
+        {
+            ReplaceAt(optList, remoteActionInserted ? 1 : 0, ClashOfRimText.Key("ClashOfRim.Menu.UploadSnapshot"), () =>
+                StartMenuUpload(mod, onSuccess: null));
+            return;
+        }
+
+        if (Current.Game?.Info?.permadeathMode == true && !GameDataSaveLoader.SavingIsTemporarilyDisabled)
+        {
+            int saveAndQuitIndex = remoteActionInserted ? 3 : 2;
+            ReplaceAt(optList, saveAndQuitIndex, ClashOfRimText.Key("ClashOfRim.Menu.UploadSnapshotAndQuitToMainMenu"), () =>
+                StartMenuUpload(mod, GenScene.GoToMainMenu));
+            ReplaceAt(optList, saveAndQuitIndex + 1, ClashOfRimText.Key("ClashOfRim.Menu.UploadSnapshotAndQuitToOS"), () =>
+                StartMenuUpload(mod, Root.Shutdown));
+        }
     }
 
-    private static void InsertRemoteMapSessionOptionBeforeSave(
+    private static void InsertRemoteMapSessionOption(
         List<ListableOption> optList,
         ClashOfRimMod mod,
         ActiveRemoteMapSession session)
     {
         string label = RemoteMapSessionController.PrimaryActionLabel(session);
-        if (optList.Any(option => string.Equals(option.label, label, System.StringComparison.Ordinal)))
+        if (optList.OfType<ClashOfRimMenuOption>().Any(option => option.Kind == ClashOfRimMenuOptionKind.RemoteMapAction))
         {
             return;
         }
 
-        var option = new ListableOption(label, () => StartRemoteMapSessionMenuAction(mod, session));
-        int saveIndex = optList.FindIndex(option => LabelEquals(option, "Save"));
-        if (saveIndex >= 0)
-        {
-            option.minHeight = optList[saveIndex].minHeight;
-            optList.Insert(saveIndex, option);
-            return;
-        }
-
-        optList.Insert(0, option);
-    }
-
-    private static bool IsEntryMainMenuOptionList(List<ListableOption> optList)
-    {
-        return optList.Any(option =>
-            LabelEquals(option, "NewColony")
-            || LabelEquals(option, "LoadGame"));
-    }
-
-    private static bool IsPlayingGameMenuOptionList(List<ListableOption> optList)
-    {
-        return optList.Any(option =>
-            LabelEquals(option, "Save")
-            || LabelEquals(option, "SaveAndQuitToMainMenu")
-            || LabelEquals(option, "SaveAndQuitToOS"));
+        optList.Insert(0, new ClashOfRimMenuOption(
+            ClashOfRimMenuOptionKind.RemoteMapAction,
+            label,
+            () => StartRemoteMapSessionMenuAction(mod, session)));
     }
 
     private static void StartRemoteMapSessionMenuAction(ClashOfRimMod mod, ActiveRemoteMapSession session)
@@ -186,19 +259,21 @@ public static class ClashOfRimMainMenuPatches
             requireConfirmation: true);
     }
 
-    private static bool LabelEquals(ListableOption option, string translationKey)
+    private static void RemoveAtIfPresent(List<ListableOption> optList, int index)
     {
-        return string.Equals(option.label, translationKey.Translate().ToString(), System.StringComparison.Ordinal);
+        if (index >= 0 && index < optList.Count)
+        {
+            optList.RemoveAt(index);
+        }
     }
 
-    private static void ReplaceOption(
+    private static void ReplaceAt(
         List<ListableOption> optList,
-        string vanillaTranslationKey,
+        int index,
         string replacementLabel,
         Action action)
     {
-        int index = optList.FindIndex(option => LabelEquals(option, vanillaTranslationKey));
-        if (index < 0)
+        if (index < 0 || index >= optList.Count)
         {
             return;
         }

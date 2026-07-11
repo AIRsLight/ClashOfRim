@@ -481,7 +481,7 @@ public sealed class SnapshotUploadReceiver
         WorldObjectSummary worldObject,
         IReadOnlySet<string> playerFactionIds)
     {
-        if (IsSettlement(worldObject))
+        if (WorldObjectTypeIdentity.IsSettlement(worldObject))
         {
             return HasPlayerColonyEvidence(map, worldObject, playerFactionIds);
         }
@@ -503,13 +503,6 @@ public sealed class SnapshotUploadReceiver
         return map.PlayerColonistCount > 0
             || (!string.IsNullOrWhiteSpace(worldObject.Faction)
                 && playerFactionIds.Contains(worldObject.Faction!));
-    }
-
-    private static bool IsSettlement(WorldObjectSummary worldObject)
-    {
-        return string.Equals(worldObject.Def, "Settlement", StringComparison.Ordinal)
-            || (!string.IsNullOrWhiteSpace(worldObject.Class)
-                && worldObject.Class.Contains("Settlement", StringComparison.Ordinal));
     }
 
     private static bool TryParseTile(string? value, out int tile, out int tileLayerId)

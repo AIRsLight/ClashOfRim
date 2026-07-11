@@ -1272,7 +1272,7 @@ try
         .Single(evt => evt.Type == ServerEventType.GiftReturn
             && evt.IdempotencyKey == $"trade-expired-owner-return:{oldTrade.EventId}");
     GiftEventPayload expiredReturnPayload = (GiftEventPayload)expiredReturn.Payload;
-    Equal("TradeExpiredOwnerReturn", expiredReturnPayload.Message, "过期交易单应生成发布者托管物退回事件");
+    Equal(GiftEventPurpose.TradeExpiredOwnerReturn, expiredReturnPayload.Purpose, "过期交易单应生成发布者托管物退回事件");
     Require(expiredReturnPayload.Items.Any(item => item.Def == "Steel" && item.StackCount == 50), "过期退回应包含发布者上架物品");
     string expiredAcceptorNotificationId = $"trade-expired:{oldTrade.EventId}:user-b:colony-b";
     IReadOnlyList<ServerNotificationEventPayload> expiredAcceptorNotifications = state.Ledger.ListForUser("user-b")
@@ -1325,7 +1325,7 @@ try
     AuthoritativeEvent baselineInvalidationReturn = state.Ledger.ListForUser("user-a")
         .Single(evt => evt.Type == ServerEventType.GiftReturn
             && evt.IdempotencyKey == $"trade-baseline-invalidated-owner-return:{obsoleteTrade.EventId}");
-    Equal("TradeBaselineChangedOwnerReturn", ((GiftEventPayload)baselineInvalidationReturn.Payload).Message, "物品基线失效应按撤单退回发布者托管物");
+    Equal(GiftEventPurpose.TradeBaselineChangedOwnerReturn, ((GiftEventPayload)baselineInvalidationReturn.Payload).Purpose, "物品基线失效应按撤单退回发布者托管物");
     Require(
         state.Ledger.ListForUser("user-b").Any(evt =>
             evt.Type == ServerEventType.ServerNotification
@@ -1560,8 +1560,8 @@ try
     Equal(TradeFulfillmentMode.ServerDropPod, directDropPodPayload.FulfillmentMode, "空投履约应记录服务器空投方式");
     GiftEventPayload acceptorDeliveryPayload = (GiftEventPayload)state.Ledger.Find(directDropPodFulfill.AcceptorDeliveryEventId!)!.Payload;
     GiftEventPayload ownerDeliveryPayload = (GiftEventPayload)state.Ledger.Find(directDropPodFulfill.OwnerDeliveryEventId!)!.Payload;
-    Equal("TradeCompletedAcceptorDelivery", acceptorDeliveryPayload.Message, "空投履约应给接单方生成对方物品交付事件");
-    Equal("TradeCompletedOwnerDelivery", ownerDeliveryPayload.Message, "空投履约应给发布者生成己方交付物交付事件");
+    Equal(GiftEventPurpose.TradeCompletedAcceptorDelivery, acceptorDeliveryPayload.Purpose, "空投履约应给接单方生成对方物品交付事件");
+    Equal(GiftEventPurpose.TradeCompletedOwnerDelivery, ownerDeliveryPayload.Purpose, "空投履约应给发布者生成己方交付物交付事件");
     LoginResponse surfaceLogin = await client.LoginAsync(new LoginRequest(
         ProtocolApiVersion.Current,
         "user-surface",
@@ -1590,7 +1590,7 @@ try
     AuthoritativeEvent applicationFailedReturn = state.Ledger.ListForUser("user-orbit")
         .Single(evt => evt.Type == ServerEventType.GiftReturn
             && evt.IdempotencyKey == $"trade-application-failed-owner-return:{directDropPodTrade.EventId}:{directDropPodFulfill.AcceptorDeliveryEventId}");
-    Equal("TradeApplicationFailedOwnerReturn", ((GiftEventPayload)applicationFailedReturn.Payload).Message, "交易落地失败应生成发布者托管物退回事件");
+    Equal(GiftEventPurpose.TradeApplicationFailedOwnerReturn, ((GiftEventPayload)applicationFailedReturn.Payload).Purpose, "交易落地失败应生成发布者托管物退回事件");
 
     AcceptTradeOrderResponse acceptedTrade = await client.AcceptTradeOrderAsync(new AcceptTradeOrderRequest(
         "trade:user-b:accept:001",
@@ -1642,7 +1642,7 @@ try
     AuthoritativeEvent cancelledReturn = state.Ledger.ListForUser("user-a")
         .Single(evt => evt.Type == ServerEventType.GiftReturn
             && evt.IdempotencyKey == $"trade-cancelled-owner-return:{trade.EventId}");
-    Equal("TradeCancelledOwnerReturn", ((GiftEventPayload)cancelledReturn.Payload).Message, "撤单应生成发布者托管物退回事件");
+    Equal(GiftEventPurpose.TradeCancelledOwnerReturn, ((GiftEventPayload)cancelledReturn.Payload).Purpose, "撤单应生成发布者托管物退回事件");
     Require(state.EventNotifications.GetVersion("user-b") > userBVersionBeforeCancel, "撤单应通知 user-b 刷新接单清单");
     Require(state.EventNotifications.GetVersion("user-c") > userCVersionBeforeCancel, "撤单应通知 user-c 刷新接单清单");
 
@@ -1686,7 +1686,7 @@ try
     Require(fulfilledTrade.ReceivedThings.Any(thing => thing.DefName == "Cloth" && thing.StackCount == 50), "自提履约响应应返回接单方获得的发布者物品");
     Require(string.IsNullOrWhiteSpace(fulfilledTrade.AcceptorDeliveryEventId), "自提履约不应再给接单方创建空投收货事件");
     Require(!string.IsNullOrWhiteSpace(fulfilledTrade.OwnerDeliveryEventId), "自提履约应给发布者创建交付物到达事件");
-    Equal("TradeCompletedOwnerDelivery", ((GiftEventPayload)state.Ledger.Find(fulfilledTrade.OwnerDeliveryEventId!)!.Payload).Message, "自提履约应以交易交付文案通知发布者收货");
+    Equal(GiftEventPurpose.TradeCompletedOwnerDelivery, ((GiftEventPayload)state.Ledger.Find(fulfilledTrade.OwnerDeliveryEventId!)!.Payload).Purpose, "自提履约应以交易交付语义通知发布者收货");
     AuthoritativeEvent exchangeEvent = state.Ledger.Find(fulfilledTrade.ExchangeEventId!)!;
     TradeEventPayload exchangePayload = (TradeEventPayload)exchangeEvent.Payload;
     Equal(TradeStage.SelfDeliveryExchange, exchangePayload.Stage, "自提履约应写入自提交换阶段");
@@ -2692,7 +2692,7 @@ static void VerifyPersistentRegistries()
 
         WorldConfigurationDto configuration = BuildMinimalWorldConfiguration();
         WorldSessionState submitted = worldRegistry.Submit("admin-user", configuration);
-        Require(submitted.WorldConfigured, "持久化世界注册表应接受管理员世界配置");
+        Require(!submitted.WorldConfigured, "世界配置在世界底图持久化前不应开放给玩家");
         WorldSubstrateStoreResult storedSubstrate = worldRegistry.StoreWorldSubstrate(
             "admin-user",
             "colony-a",

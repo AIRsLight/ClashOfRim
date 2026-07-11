@@ -1573,7 +1573,7 @@ public static partial class ClashOfRimNetworkServer
                 acceptorParty,
                 tradeOrder.Actor,
                 deliveredThings.Select(thing => ToEventThingReference(thing, request.Acceptor.SnapshotId)).ToList(),
-                "TradeCompletedOwnerDelivery",
+                GiftEventPurpose.TradeCompletedOwnerDelivery,
                 ResolveTradeCompletedOwnerDeliveryTargetContext(tradeOrder, fulfillmentMode),
                 nowUtc);
             ownerDeliveryEventId = ownerDelivery.Event.EventId;
@@ -1592,7 +1592,7 @@ public static partial class ClashOfRimNetworkServer
                     tradeOrder.Actor,
                     acceptorParty,
                     orderPayload.OfferedItems,
-                    "TradeCompletedAcceptorDelivery",
+                    GiftEventPurpose.TradeCompletedAcceptorDelivery,
                     acceptorTargetContext,
                     nowUtc);
                 acceptorDeliveryEventId = acceptorDelivery.Event.EventId;
@@ -1870,7 +1870,7 @@ public static partial class ClashOfRimNetworkServer
                 acceptorParty,
                 tradeOrder.Actor,
                 deliveredThings.Select(thing => ToEventThingReference(thing, acceptedSnapshotId)).ToList(),
-                "TradeCompletedOwnerDelivery",
+                GiftEventPurpose.TradeCompletedOwnerDelivery,
                 ResolveTradeCompletedOwnerDeliveryTargetContext(tradeOrder, fulfillmentMode),
                 nowUtc);
             ownerDeliveryEventId = ownerDelivery.Event.EventId;
@@ -1889,7 +1889,7 @@ public static partial class ClashOfRimNetworkServer
                     tradeOrder.Actor,
                     acceptorParty,
                     orderPayload.OfferedItems,
-                    "TradeCompletedAcceptorDelivery",
+                    GiftEventPurpose.TradeCompletedAcceptorDelivery,
                     acceptorTargetContext,
                     nowUtc);
                 acceptorDeliveryEventId = acceptorDelivery.Event.EventId;
@@ -1984,7 +1984,7 @@ public static partial class ClashOfRimNetworkServer
                 new EventParty("server"),
                 tradeOrder.Actor,
                 ((TradeEventPayload)tradeOrder.Payload).OfferedItems,
-                "TradeExpiredOwnerReturn",
+                GiftEventPurpose.TradeExpiredOwnerReturn,
                 tradeOrder.TargetContext,
                 nowUtc);
 
@@ -2058,7 +2058,7 @@ public static partial class ClashOfRimNetworkServer
                 new EventParty("server"),
                 tradeOrder.Actor,
                 payload.OfferedItems,
-                "TradeBaselineChangedOwnerReturn",
+                GiftEventPurpose.TradeBaselineChangedOwnerReturn,
                 tradeOrder.TargetContext,
                 nowUtc);
 
@@ -2390,7 +2390,7 @@ public static partial class ClashOfRimNetworkServer
                 new EventParty("server"),
                 tradeOrder.Actor,
                 payload.OfferedItems,
-                "TradeCancelledOwnerReturn",
+                GiftEventPurpose.TradeCancelledOwnerReturn,
                 tradeOrder.TargetContext,
                 DateTimeOffset.UtcNow);
         }

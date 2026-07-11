@@ -184,20 +184,7 @@ internal static class PlayerFactionProxyUtility
 
     public static string ProxyOwnerUserId(Faction faction)
     {
-        string? known = FindKnownProxyOwnerUserId(faction);
-        if (!string.IsNullOrWhiteSpace(known))
-        {
-            return known!;
-        }
-
-        string name = faction.Name ?? string.Empty;
-        int suffixStart = name.LastIndexOf('(');
-        if (suffixStart >= 0 && name.EndsWith(")", StringComparison.Ordinal) && suffixStart < name.Length - 1)
-        {
-            return name.Substring(suffixStart + 1, name.Length - suffixStart - 2);
-        }
-
-        return name;
+        return FindKnownProxyOwnerUserId(faction) ?? string.Empty;
     }
 
     public static string BuildReportText(Faction faction)
@@ -260,8 +247,7 @@ internal static class PlayerFactionProxyUtility
         ProxyFactionsByOwnerUserId[userId] = faction;
         if (!string.IsNullOrWhiteSpace(displayFactionName)
             || string.IsNullOrWhiteSpace(faction.Name)
-            || string.Equals(faction.Name, userId, StringComparison.Ordinal)
-            || !IsDisplayNameForUser(faction.Name, userId))
+            || string.Equals(faction.Name, userId, StringComparison.Ordinal))
         {
             faction.Name = BuildDisplayFactionName(userId, displayFactionName);
         }
@@ -286,9 +272,7 @@ internal static class PlayerFactionProxyUtility
     private static bool IsProxyForUser(Faction faction, string userId)
     {
         return IsServerPlayerProxy(faction)
-            && (string.Equals(FindKnownProxyOwnerUserId(faction), userId, StringComparison.Ordinal)
-                || string.Equals(faction.Name, userId, StringComparison.Ordinal)
-                || IsDisplayNameForUser(faction.Name, userId));
+            && string.Equals(FindKnownProxyOwnerUserId(faction), userId, StringComparison.Ordinal);
     }
 
     private static Faction ChooseCanonicalProxy(IReadOnlyList<Faction> candidates)
@@ -347,12 +331,6 @@ internal static class PlayerFactionProxyUtility
     {
         string trimmed = string.IsNullOrWhiteSpace(displayFactionName) ? string.Empty : displayFactionName!.Trim();
         return string.IsNullOrWhiteSpace(trimmed) ? userId : $"{trimmed}({userId})";
-    }
-
-    private static bool IsDisplayNameForUser(string? factionName, string userId)
-    {
-        return !string.IsNullOrWhiteSpace(factionName)
-            && factionName!.EndsWith("(" + userId + ")", StringComparison.Ordinal);
     }
 
     private static Color ColorFromStableText(string text)

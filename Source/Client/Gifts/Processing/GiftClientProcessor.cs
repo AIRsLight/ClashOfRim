@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.Serialization;
 using AIRsLight.ClashOfRim.ClientNetwork;
+using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.ThirdPartyCompatibility;
 using AIRsLight.ClashOfRim.Trades;
 using Verse;
@@ -132,7 +133,7 @@ public static class GiftClientProcessor
 
         string? arrivalLetterLabel = null;
         string? arrivalLetterText = null;
-        if (IsTradeDeliveryPayloadMessage(payload.Message))
+        if (payload.IsTradeDelivery)
         {
             arrivalLetterLabel = ClashOfRimText.Key("ClashOfRim.EventLetter.Label.TradeDelivery");
             arrivalLetterText = ClashOfRimText.Key(
@@ -148,7 +149,7 @@ public static class GiftClientProcessor
             targetContext.LandingMode,
             items,
             requiresSnapshotConfirmation: true,
-            skipFailedItems: string.Equals(payload.Message, "TradeApplicationFailedOwnerReturn", StringComparison.Ordinal),
+            skipFailedItems: payload.Purpose == GiftEventPurpose.TradeApplicationFailedOwnerReturn,
             arrivalLetterLabel: arrivalLetterLabel,
             arrivalLetterText: arrivalLetterText));
     }
@@ -292,17 +293,6 @@ public static class GiftClientProcessor
 
         ClashOfRimCompatibilityApi.NormalizeThingReferenceMetadata(reference);
         return reference.Metadata;
-    }
-
-    private static bool IsTradeDeliveryPayloadMessage(string? message)
-    {
-        if (string.IsNullOrWhiteSpace(message))
-        {
-            return false;
-        }
-
-        return message!.StartsWith("TradeCompletedOwnerDelivery", StringComparison.Ordinal)
-            || message.StartsWith("TradeCompletedAcceptorDelivery", StringComparison.Ordinal);
     }
 
     private static string FormatPayloadThingList(IReadOnlyCollection<GiftItemSummary> items)

@@ -56,6 +56,7 @@ var tests = new (string Name, Action Run)[]
     ,("新玩家进入服务器世界后释放自动会话门禁", VerifyNewWorldEntryReleasesAutomaticSessionGate)
     ,("普通快照下载不记录袭击清理跳过告警", VerifyNormalSnapshotDownloadDoesNotLogRaidCleanupSkip)
     ,("测试版发布说明使用维护的最终改动清单", VerifyDevelopmentReleaseNotesAreCurated)
+    ,("身份和流程分类不依赖显示字符串或宽泛子串", StableIdentityTests.RunAll)
 };
 
 foreach ((string name, Action run) in tests)
@@ -109,7 +110,8 @@ static void VerifyRegisteredModSettingsRemainInCompatibilityBaseline()
     string mainMenuPatchPath = FindRepositoryFile("Source", "Client", "MainMenu", "Entry", "ClashOfRimMainMenuPatches.cs");
     string mainMenuPatch = File.ReadAllText(mainMenuPatchPath);
     Require(
-        mainMenuPatch.Contains("RedirectSinglePlayerEntryOptionsForServerProfile", StringComparison.Ordinal),
+        mainMenuPatch.Contains("CompatibilityConfigOverlayPath.ServerProfileActive", StringComparison.Ordinal)
+        && mainMenuPatch.Contains("RequestStandaloneRestart", StringComparison.Ordinal),
         "以服务器配置启动时，单人入口必须先重启回本地配置");
 
     var registeredWithoutSavedFile = new ModConfigDigest
@@ -225,8 +227,9 @@ static void VerifyCompatibilityMismatchUiUsesAuthoritativeFallback()
         && source.Contains("AppendUnrepresentedFallbackEntries(entries, fallbackIssues, CompatibilityTab.Hash);", StringComparison.Ordinal),
         "模块和文件页也必须保留服务端问题兜底");
     Require(
-        source.Contains("if (ContainsOrdinal(value, \"Config\"))", StringComparison.Ordinal),
-        "配置错误必须在页签分类前被明确识别，不能同时显示为文件错误");
+        source.Contains("CompatibilityIssueClassifier.CategoryFor", StringComparison.Ordinal)
+        && !source.Contains("ContainsOrdinal(value", StringComparison.Ordinal),
+        "配置错误必须按显式错误码分类，不能依赖代码文本片段");
     Require(
         source.Contains("TryApplyServerConfigOverlay", StringComparison.Ordinal)
         && source.Contains("TryOverwriteLocalConfigs", StringComparison.Ordinal),
