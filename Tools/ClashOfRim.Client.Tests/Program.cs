@@ -27,7 +27,7 @@ var tests = new (string Name, Action Run)[]
     ("server entry diagnostics list mods in load order", ServerEntryDiagnosticsListModsInLoadOrder),
     ("only accepted language warnings can be bypassed", OnlyAcceptedLanguageWarningsCanBeBypassed),
     ("visible compatibility warnings request the full server manifest", VisibleCompatibilityWarningsRequestFullManifest),
-    ("dropdown labels show a single ellipsis", DropdownLabelsShowSingleEllipsis)
+    ("selection labels show a single ellipsis", SelectionLabelsShowSingleEllipsis)
 };
 
 foreach ((string name, Action run) in tests)
@@ -372,11 +372,11 @@ static void BeginCycle()
     ClashOfRimCompatibilityApi.BeginRegistrationCycle("client-tests");
 }
 
-static void DropdownLabelsShowSingleEllipsis()
+static void SelectionLabelsShowSingleEllipsis()
 {
-    Assert(AIRsLight.ClashOfRim.ClashOfRimUiUtility.DropdownLabel("Notice") == "Notice ...");
-    Assert(AIRsLight.ClashOfRim.ClashOfRimUiUtility.DropdownLabel("Notice ...") == "Notice ...");
-    Assert(AIRsLight.ClashOfRim.ClashOfRimUiUtility.DropdownLabel("  ") == "...");
+    Assert(AIRsLight.ClashOfRim.ClashOfRimUiUtility.SelectionLabel("Notice") == "Notice ...");
+    Assert(AIRsLight.ClashOfRim.ClashOfRimUiUtility.SelectionLabel("Notice ...") == "Notice ...");
+    Assert(AIRsLight.ClashOfRim.ClashOfRimUiUtility.SelectionLabel("  ") == "...");
 }
 
 static Thing MakeThing(string defName)

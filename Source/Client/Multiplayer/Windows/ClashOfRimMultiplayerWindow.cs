@@ -721,7 +721,9 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
 
         float selectorColumnWidth = Math.Min(360f, (viewRect.width - 18f) / 2f);
         Widgets.Label(new Rect(0f, y + 4f, 72f, 24f), ClashOfRimText.Key("ClashOfRim.Mercenary.Profession"));
-        if (Widgets.ButtonText(new Rect(78f, y, selectorColumnWidth - 78f, 28f), selected?.Label ?? selectedMercenarySkillDefName))
+        if (ClashOfRimUiUtility.SelectionButton(
+                new Rect(78f, y, selectorColumnWidth - 78f, 28f),
+                selected?.Label ?? selectedMercenarySkillDefName))
         {
             List<FloatMenuOption> options = professions
                 .Select(profession => new FloatMenuOption(profession.Label, () =>
@@ -849,7 +851,9 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
 
     private void DrawMercenaryTierDropdown(Rect rect)
     {
-        if (Widgets.ButtonText(rect, MercenarySkillUtility.TierLabel(selectedMercenarySkillLevel)))
+        if (ClashOfRimUiUtility.SelectionButton(
+                rect,
+                MercenarySkillUtility.TierLabel(selectedMercenarySkillLevel)))
         {
             Find.WindowStack.Add(new FloatMenu(new List<FloatMenuOption>
             {
@@ -934,7 +938,9 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
 
     private void DrawMercenaryGuardTierDropdown(Rect rect)
     {
-        if (Widgets.ButtonText(rect, MercenaryGuardTierLabel(selectedMercenaryGuardTier)))
+        if (ClashOfRimUiUtility.SelectionButton(
+                rect,
+                MercenaryGuardTierLabel(selectedMercenaryGuardTier)))
         {
             Find.WindowStack.Add(new FloatMenu(new List<FloatMenuOption>
             {
@@ -1431,7 +1437,10 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
         Widgets.Label(new Rect(inner.x, inner.y, 110f, 30f), ClashOfRimText.Key("ClashOfRim.Multiplayer.TabAchievements"));
         Text.Font = GameFont.Small;
         Rect selectorRect = new(inner.x + 118f, inner.y, Mathf.Max(120f, Mathf.Min(260f, inner.width - 250f)), 30f);
-        if (Widgets.ButtonText(selectorRect, AchievementTargetDisplayName(mod, selectablePlayers)))
+        if (ClashOfRimUiUtility.SelectionButton(
+                selectorRect,
+                AchievementTargetDisplayName(mod, selectablePlayers),
+                tooltip: ClashOfRimText.Key("ClashOfRim.Achievement.SelectPlayer")))
         {
             List<FloatMenuOption> options = selectablePlayers
                 .Select(player => new FloatMenuOption(
@@ -1446,7 +1455,6 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
             Find.WindowStack.Add(new FloatMenu(options));
         }
 
-        TooltipHandler.TipRegion(selectorRect, ClashOfRimText.Key("ClashOfRim.Achievement.SelectPlayer"));
         if (Widgets.ButtonText(new Rect(inner.xMax - 120f, inner.y, 120f, 30f), ClashOfRimText.Key("ClashOfRim.Refresh"), active: !mod.ManualSyncInProgress))
         {
             mod.StartRefreshAchievements(selectedAchievementUserId, selectedAchievementColonyId);

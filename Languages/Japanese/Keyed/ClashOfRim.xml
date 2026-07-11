@@ -1614,7 +1614,7 @@
   <ClashOfRim.Admin.SavedMessage>サーバー設定を更新しました。</ClashOfRim.Admin.SavedMessage>
   <ClashOfRim.Admin.UpdateWorldBaseline>ワールドデータ更新</ClashOfRim.Admin.UpdateWorldBaseline>
   <ClashOfRim.Admin.UpdateWorldBaselineDesc>現在のセーブでサーバーのワールド、派閥、イデオロギーおよび関連基準を置き換えます。全プレイヤーに影響するため、現在のセーブが正しい場合のみ使用してください。</ClashOfRim.Admin.UpdateWorldBaselineDesc>
-  <ClashOfRim.Admin.OpenOptionsMenu>クリックしてオプションメニューを開きます。</ClashOfRim.Admin.OpenOptionsMenu>
+  <ClashOfRim.SelectionButtonTip>クリックして現在の選択を変更します。</ClashOfRim.SelectionButtonTip>
   <ClashOfRim.Admin.WorldBaselineUpdating>ワールドデータを更新しています。</ClashOfRim.Admin.WorldBaselineUpdating>
   <ClashOfRim.Admin.WorldBaselineUpdated>ワールドデータを更新しました: 派閥 {FACTIONS}, ワールドオブジェクト {WORLDOBJECTS}。</ClashOfRim.Admin.WorldBaselineUpdated>
   <ClashOfRim.Admin.WorldBaselineInvalid>ワールド設定を受け入れられません: {REASON}</ClashOfRim.Admin.WorldBaselineInvalid>

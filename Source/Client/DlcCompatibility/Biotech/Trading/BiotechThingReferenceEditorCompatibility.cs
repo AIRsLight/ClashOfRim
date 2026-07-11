@@ -31,7 +31,9 @@ internal static partial class BiotechCompatibility
             string requestLabel = targetGeneDefNames.Count == 0
                 ? ClashOfRimText.Key("ClashOfRim.Trade.SelectGene")
                 : FormatGeneList(targetGeneDefNames);
-            if (Widgets.ButtonText(new Rect(rect.x, rect.y, 150f, rect.height), requestLabel))
+            if (ClashOfRimUiUtility.SelectionButton(
+                    new Rect(rect.x, rect.y, 150f, rect.height),
+                    requestLabel))
             {
                 Find.WindowStack.Add(new BiotechGeneSelectionDialogWindow(item));
             }
@@ -49,7 +51,9 @@ internal static partial class BiotechCompatibility
         string listingLabel = geneDefNames.Count == 0
             ? ClashOfRimText.Key("ClashOfRim.Shop.SelectGenes")
             : FormatGeneList(geneDefNames);
-        if (Widgets.ButtonText(new Rect(rect.x + 130f, rect.y, rect.width - 130f, 28f), listingLabel))
+        if (ClashOfRimUiUtility.SelectionButton(
+                new Rect(rect.x + 130f, rect.y, rect.width - 130f, 28f),
+                listingLabel))
         {
             Find.WindowStack.Add(new BiotechThingReferenceDialogWindow(item));
         }

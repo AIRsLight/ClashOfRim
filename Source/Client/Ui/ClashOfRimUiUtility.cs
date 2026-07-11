@@ -8,7 +8,7 @@ internal static class ClashOfRimUiUtility
     private static readonly Color DangerBackground = new(0.48f, 0.12f, 0.12f);
     private static readonly Color DangerBorder = new(0.88f, 0.32f, 0.28f);
 
-    public static string DropdownLabel(string? label)
+    public static string SelectionLabel(string? label)
     {
         string normalized = label?.Trim() ?? string.Empty;
         return normalized.EndsWith("...", System.StringComparison.Ordinal)
@@ -16,10 +16,14 @@ internal static class ClashOfRimUiUtility
             : string.IsNullOrEmpty(normalized) ? "..." : normalized + " ...";
     }
 
-    public static bool DropdownButton(Rect rect, string label, string tooltip, bool active = true)
+    public static bool SelectionButton(Rect rect, string label, bool active = true, string? tooltip = null)
     {
-        bool pressed = Widgets.ButtonText(rect, DropdownLabel(label), active: active);
-        TooltipHandler.TipRegion(rect, tooltip);
+        bool pressed = Widgets.ButtonText(rect, SelectionLabel(label), active: active);
+        TooltipHandler.TipRegion(
+            rect,
+            string.IsNullOrWhiteSpace(tooltip)
+                ? ClashOfRimText.Key("ClashOfRim.SelectionButtonTip")
+                : tooltip);
         return pressed;
     }
 

@@ -268,7 +268,9 @@ public sealed class ServerShopListingDialogWindow : Window
         string label = IsBuyOrder
             ? ClashOfRimText.Key("ClashOfRim.Shop.KindBuy")
             : ClashOfRimText.Key("ClashOfRim.Shop.KindSell");
-        if (Widgets.ButtonText(new Rect(rect.x + 130f, rect.y, rect.width - 130f, 28f), label))
+        if (ClashOfRimUiUtility.SelectionButton(
+                new Rect(rect.x + 130f, rect.y, rect.width - 130f, 28f),
+                label))
         {
             Find.WindowStack.Add(new FloatMenu(new List<FloatMenuOption>
             {
@@ -361,7 +363,9 @@ public sealed class ServerShopListingDialogWindow : Window
         string label = string.IsNullOrWhiteSpace(selectedStuff)
             ? ClashOfRimText.Key("ClashOfRim.Trade.StuffAny")
             : TradeThingReferenceUtility.StuffLabel(selectedStuff);
-        if (Widgets.ButtonText(new Rect(rect.x + 130f, rect.y, rect.width - 130f, 28f), label))
+        if (ClashOfRimUiUtility.SelectionButton(
+                new Rect(rect.x + 130f, rect.y, rect.width - 130f, 28f),
+                label))
         {
             List<FloatMenuOption> options = new()
             {
@@ -393,7 +397,9 @@ public sealed class ServerShopListingDialogWindow : Window
         string label = string.IsNullOrWhiteSpace(item.Quality)
             ? ClashOfRimText.Key("ClashOfRim.Trade.QualityAny")
             : ClashOfRimText.Key("ClashOfRim.Trade.QualitySelected", TradeUiUtility.FormatQualityLabel(item.Quality).Named("QUALITY"));
-        if (Widgets.ButtonText(new Rect(rect.x + 130f, rect.y, rect.width - 130f, 28f), label))
+        if (ClashOfRimUiUtility.SelectionButton(
+                new Rect(rect.x + 130f, rect.y, rect.width - 130f, 28f),
+                label))
         {
             List<FloatMenuOption> options = new()
             {
@@ -415,7 +421,9 @@ public sealed class ServerShopListingDialogWindow : Window
         string label = ClashOfRimText.Key(string.Equals(qualityRequirementMode, "AtMost", StringComparison.Ordinal)
             ? "ClashOfRim.Shop.QualityAtMost"
             : "ClashOfRim.Shop.QualityAtLeast");
-        if (Widgets.ButtonText(new Rect(rect.x + 130f, rect.y, rect.width - 130f, 28f), label))
+        if (ClashOfRimUiUtility.SelectionButton(
+                new Rect(rect.x + 130f, rect.y, rect.width - 130f, 28f),
+                label))
         {
             Find.WindowStack.Add(new FloatMenu(new List<FloatMenuOption>
             {
@@ -431,7 +439,9 @@ public sealed class ServerShopListingDialogWindow : Window
         string label = ClashOfRimText.Key(string.Equals(hitPointsRequirementMode, "AtMost", StringComparison.Ordinal)
             ? "ClashOfRim.Shop.HitPointsAtMost"
             : "ClashOfRim.Shop.HitPointsAtLeast");
-        if (Widgets.ButtonText(new Rect(rect.x + 130f, rect.y, rect.width - 130f, 28f), label))
+        if (ClashOfRimUiUtility.SelectionButton(
+                new Rect(rect.x + 130f, rect.y, rect.width - 130f, 28f),
+                label))
         {
             Find.WindowStack.Add(new FloatMenu(new List<FloatMenuOption>
             {

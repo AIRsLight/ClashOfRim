@@ -1612,7 +1612,7 @@
   <ClashOfRim.Admin.SavedMessage>服务器配置已更新。</ClashOfRim.Admin.SavedMessage>
   <ClashOfRim.Admin.UpdateWorldBaseline>更新世界资料</ClashOfRim.Admin.UpdateWorldBaseline>
   <ClashOfRim.Admin.UpdateWorldBaselineDesc>用当前存档覆盖服务器的世界、阵营、文化及相关基线。此操作会影响所有玩家，请仅在当前存档正确时使用。</ClashOfRim.Admin.UpdateWorldBaselineDesc>
-  <ClashOfRim.Admin.OpenOptionsMenu>点击打开选项菜单。</ClashOfRim.Admin.OpenOptionsMenu>
+  <ClashOfRim.SelectionButtonTip>点击修改当前选项。</ClashOfRim.SelectionButtonTip>
   <ClashOfRim.Admin.WorldBaselineUpdating>正在更新世界资料。</ClashOfRim.Admin.WorldBaselineUpdating>
   <ClashOfRim.Admin.WorldBaselineUpdated>世界资料已更新：阵营 {FACTIONS}，大地图对象 {WORLDOBJECTS}。</ClashOfRim.Admin.WorldBaselineUpdated>
   <ClashOfRim.Admin.WorldBaselineInvalid>世界设置有误：{REASON}</ClashOfRim.Admin.WorldBaselineInvalid>

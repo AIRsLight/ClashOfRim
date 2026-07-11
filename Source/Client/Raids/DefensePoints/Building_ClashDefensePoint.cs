@@ -153,7 +153,8 @@ public class Building_ClashDefensePoint : Building
 
         yield return new Command_Action
         {
-            defaultLabel = "ClashOfRim.DefensePoint.ModeGizmo".Translate(DefensePointUtility.ModeLabel(aiMode)),
+            defaultLabel = ClashOfRimUiUtility.SelectionLabel(
+                "ClashOfRim.DefensePoint.ModeGizmo".Translate(DefensePointUtility.ModeLabel(aiMode))),
             defaultDesc = "ClashOfRim.DefensePoint.ModeGizmoDesc".Translate(),
             icon = ContentFinder<Texture2D>.Get("UI/Commands/Attack", reportFailure: false) ?? BaseContent.BadTex,
             action = OpenModeMenu
@@ -161,7 +162,8 @@ public class Building_ClashDefensePoint : Building
 
         yield return new Command_Action
         {
-            defaultLabel = "ClashOfRim.DefensePoint.RangeGizmo".Translate(FormatRadius(actionRadius)),
+            defaultLabel = ClashOfRimUiUtility.SelectionLabel(
+                "ClashOfRim.DefensePoint.RangeGizmo".Translate(FormatRadius(actionRadius))),
             defaultDesc = "ClashOfRim.DefensePoint.RangeGizmoDesc".Translate(),
             icon = ContentFinder<Texture2D>.Get("UI/Commands/SetTargetFuelLevel", reportFailure: false) ?? BaseContent.BadTex,
             action = OpenRangeMenu

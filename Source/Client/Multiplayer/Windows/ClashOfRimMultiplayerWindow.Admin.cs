@@ -361,7 +361,7 @@ public sealed partial class ClashOfRimMultiplayerWindow
             Rect modRow = new(0f, y, view.width, 34f);
             Widgets.DrawHighlightIfMouseover(modRow);
             Widgets.Label(new Rect(0f, y + 4f, view.width - 260f, 24f), $"{modEntry.LoadOrder + 1}. {DisplayAdminModName(modEntry)}");
-            if (DrawAdminDropdownButton(
+            if (DrawAdminSelectionButton(
                     new Rect(view.width - 240f, y, 110f, 28f),
                     AdminModRoleLabel(modEntry.Role),
                     !mod.AdminInProgress))
@@ -388,7 +388,7 @@ public sealed partial class ClashOfRimMultiplayerWindow
                 string configLabel = configEntry.FileName
                     + (configEntry.HasSavedFile ? string.Empty : " " + ClashOfRimText.Key("ClashOfRim.Admin.ConfigNotSaved"));
                 Widgets.Label(new Rect(18f, y + 4f, view.width - 180f, 24f), configLabel);
-                if (DrawAdminDropdownButton(
+                if (DrawAdminSelectionButton(
                         new Rect(view.width - 160f, y, 140f, 28f),
                         AdminConfigModeLabel(configEntry.Mode),
                         !mod.AdminInProgress))
@@ -470,10 +470,10 @@ public sealed partial class ClashOfRimMultiplayerWindow
                 continue;
             }
 
-            if (DrawAdminDropdownButton(
+            if (Widgets.ButtonText(
                     new Rect(x, inner.y + 10f, 140f, 30f),
                     ClashOfRimText.Key("ClashOfRim.Admin.PlayerManage"),
-                    !mod.AdminInProgress))
+                    active: !mod.AdminInProgress))
             {
                 OpenAdminPlayerActionMenu(mod, player);
             }
@@ -491,7 +491,7 @@ public sealed partial class ClashOfRimMultiplayerWindow
         DrawAdminSectionTitle(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.SectionBroadcast"));
         Widgets.Label(new Rect(0f, y, 160f, 24f), ClashOfRimText.Key("ClashOfRim.Admin.BroadcastMessage"));
         adminBroadcastMessage = Widgets.TextField(new Rect(170f, y, view.width - 430f, 28f), adminBroadcastMessage);
-        if (DrawAdminDropdownButton(
+        if (DrawAdminSelectionButton(
                 new Rect(view.width - 250f, y, 110f, 28f),
                 AdminBroadcastSeverityLabel(adminBroadcastSeverity),
                 !mod.AdminInProgress))
@@ -514,7 +514,7 @@ public sealed partial class ClashOfRimMultiplayerWindow
 
         y += 36f;
         Widgets.Label(new Rect(0f, y, 160f, 24f), ClashOfRimText.Key("ClashOfRim.Admin.BroadcastTarget"));
-        if (DrawAdminDropdownButton(
+        if (DrawAdminSelectionButton(
                 new Rect(170f, y, 220f, 28f),
                 AdminBroadcastTargetLabel(status),
                 !mod.AdminInProgress))
@@ -684,19 +684,15 @@ public sealed partial class ClashOfRimMultiplayerWindow
         y += 32f;
     }
 
-    private static bool DrawAdminDropdownButton(Rect rect, string label, bool active = true)
+    private static bool DrawAdminSelectionButton(Rect rect, string label, bool active = true)
     {
-        return ClashOfRimUiUtility.DropdownButton(
-            rect,
-            label,
-            ClashOfRimText.Key("ClashOfRim.Admin.OpenOptionsMenu"),
-            active);
+        return ClashOfRimUiUtility.SelectionButton(rect, label, active);
     }
 
     private void DrawAdminTradeFeeStrategyRow(Rect view, ref float y)
     {
         Widgets.Label(new Rect(0f, y, 300f, 24f), ClashOfRimText.Key("ClashOfRim.Admin.TradeFeeStrategy"));
-        if (DrawAdminDropdownButton(
+        if (DrawAdminSelectionButton(
                 new Rect(310f, y, 180f, 26f),
                 AdminTradeFeeStrategyLabel(adminTradeFeeStrategy)))
         {
@@ -729,7 +725,10 @@ public sealed partial class ClashOfRimMultiplayerWindow
         {
             AdminFixedTradeFeeRow row = adminFixedTradeFeeRows[i];
             string thingLabel = AdminThingLabel(row.ThingDefName);
-            if (Widgets.ButtonText(new Rect(20f, y, 300f, 26f), thingLabel, active: !mod.AdminInProgress))
+            if (DrawAdminSelectionButton(
+                    new Rect(20f, y, 300f, 26f),
+                    thingLabel,
+                    !mod.AdminInProgress))
             {
                 AdminFixedTradeFeeRow capturedRow = row;
                 Find.WindowStack.Add(new AdminThingDefSelectionDialogWindow(def =>
@@ -777,7 +776,10 @@ public sealed partial class ClashOfRimMultiplayerWindow
         {
             AdminBankOverduePenaltyStageRow row = adminBankOverduePenaltyStageRows[i];
             row.TriggerPenaltyCount = Widgets.TextField(new Rect(20f, y, 100f, 26f), row.TriggerPenaltyCount);
-            if (Widgets.ButtonText(new Rect(130f, y, 300f, 26f), AdminPenaltyEventLabel(row.Kind), active: !mod.AdminInProgress))
+            if (DrawAdminSelectionButton(
+                    new Rect(130f, y, 300f, 26f),
+                    AdminPenaltyEventLabel(row.Kind),
+                    !mod.AdminInProgress))
             {
                 AdminBankOverduePenaltyStageRow capturedRow = row;
                 Find.WindowStack.Add(new AdminIncidentDefSelectionDialogWindow(def =>

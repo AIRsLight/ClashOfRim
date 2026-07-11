@@ -1614,7 +1614,7 @@
   <ClashOfRim.Admin.SavedMessage>Конфигурация сервера обновлена.</ClashOfRim.Admin.SavedMessage>
   <ClashOfRim.Admin.UpdateWorldBaseline>Обновить данные мира</ClashOfRim.Admin.UpdateWorldBaseline>
   <ClashOfRim.Admin.UpdateWorldBaselineDesc>Заменить серверные данные мира, фракций, идеологий и связанные базовые данные текущим сохранением. Это повлияет на всех игроков; используйте только с корректным сохранением.</ClashOfRim.Admin.UpdateWorldBaselineDesc>
-  <ClashOfRim.Admin.OpenOptionsMenu>Нажмите, чтобы открыть меню вариантов.</ClashOfRim.Admin.OpenOptionsMenu>
+  <ClashOfRim.SelectionButtonTip>Нажмите, чтобы изменить текущий выбор.</ClashOfRim.SelectionButtonTip>
   <ClashOfRim.Admin.WorldBaselineUpdating>Обновление данных мира.</ClashOfRim.Admin.WorldBaselineUpdating>
   <ClashOfRim.Admin.WorldBaselineUpdated>Данные мира обновлены: фракции {FACTIONS}, мировые объекты {WORLDOBJECTS}.</ClashOfRim.Admin.WorldBaselineUpdated>
   <ClashOfRim.Admin.WorldBaselineInvalid>Настройка мира не принята: {REASON}</ClashOfRim.Admin.WorldBaselineInvalid>

@@ -40,7 +40,8 @@ internal static class PlayerColonyAppearanceGizmoPatch
 
         Command_Action command = new()
         {
-            defaultLabel = ClashOfRimText.Key("ClashOfRim.ColonyAppearance.CommandLabel"),
+            defaultLabel = ClashOfRimUiUtility.SelectionLabel(
+                ClashOfRimText.Key("ClashOfRim.ColonyAppearance.CommandLabel")),
             defaultDesc = ClashOfRimText.Key("ClashOfRim.ColonyAppearance.CommandDesc"),
             icon = BuildCommandIcon(mod),
             Order = 980f,

@@ -109,7 +109,7 @@ internal static class OdysseyThingReferenceCompatibility
                 ? "ClashOfRim.Trade.UniqueWeaponTraitsAny"
                 : "ClashOfRim.Shop.SelectUniqueWeaponTraits")
             : string.Join(ClashOfRimText.Key("ClashOfRim.ListSeparator"), item.UniqueWeaponTraits.Select(TraitLabel));
-        if (!Widgets.ButtonText(rect, label))
+        if (!ClashOfRimUiUtility.SelectionButton(rect, label))
         {
             return;
         }

@@ -375,7 +375,7 @@ public sealed class TradeOrderDialogWindow : Window
         string label = string.IsNullOrWhiteSpace(selectedStuff)
             ? ClashOfRimText.Key("ClashOfRim.Trade.StuffAny")
             : TradeThingReferenceUtility.StuffLabel(selectedStuff);
-        if (!Widgets.ButtonText(rect, label))
+        if (!ClashOfRimUiUtility.SelectionButton(rect, label))
         {
             return;
         }
@@ -408,7 +408,7 @@ public sealed class TradeOrderDialogWindow : Window
         string label = string.IsNullOrWhiteSpace(thing.Quality)
             ? ClashOfRimText.Key("ClashOfRim.Trade.QualityAny")
             : ClashOfRimText.Key("ClashOfRim.Trade.QualitySelected", TradeUiUtility.FormatQualityLabel(thing.Quality).Named("QUALITY"));
-        if (Widgets.ButtonText(rect, label))
+        if (ClashOfRimUiUtility.SelectionButton(rect, label))
         {
             List<FloatMenuOption> options = new()
             {

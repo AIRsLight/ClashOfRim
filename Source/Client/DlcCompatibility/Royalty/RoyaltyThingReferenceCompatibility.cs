@@ -120,7 +120,7 @@ internal static class RoyaltyThingReferenceCompatibility
             label = string.Join(ClashOfRimText.Key("ClashOfRim.ListSeparator"), item.UniqueWeaponTraits.Select(TraitLabel));
         }
 
-        if (!Widgets.ButtonText(rect, label))
+        if (!ClashOfRimUiUtility.SelectionButton(rect, label))
         {
             return;
         }

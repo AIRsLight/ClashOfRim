@@ -263,7 +263,7 @@ internal static class CoreThingReferenceMetadata
             : ClashOfRimText.Key(
                 "ClashOfRim.Trade.PawnGenderSelected",
                 PawnGenderLabel(def, selectedGender).Named("GENDER"));
-        if (!Widgets.ButtonText(rect, label))
+        if (!ClashOfRimUiUtility.SelectionButton(rect, label))
         {
             return;
         }
@@ -339,7 +339,7 @@ internal static class CoreThingReferenceMetadata
     private static void DrawBookSkillButton(Rect rect, ModThingReferenceDto item)
     {
         string label = SkillLabel(TargetBookSkillDefName(item));
-        if (!Widgets.ButtonText(rect, label))
+        if (!ClashOfRimUiUtility.SelectionButton(rect, label))
         {
             return;
         }
@@ -363,7 +363,9 @@ internal static class CoreThingReferenceMetadata
         string label = bookSkillDefNames.Count == 0
             ? ClashOfRimText.Key("ClashOfRim.Shop.SelectBookSkills")
             : string.Join(ClashOfRimText.Key("ClashOfRim.ListSeparator"), bookSkillDefNames.Select(SkillLabel));
-        if (Widgets.ButtonText(new Rect(rect.x + 130f, rect.y, rect.width - 130f, 28f), label))
+        if (ClashOfRimUiUtility.SelectionButton(
+                new Rect(rect.x + 130f, rect.y, rect.width - 130f, 28f),
+                label))
         {
             List<FloatMenuOption> options = new()
             {
@@ -412,7 +414,7 @@ internal static class CoreThingReferenceMetadata
         string label = string.IsNullOrWhiteSpace(projectDefName)
             ? ClashOfRimText.Key("ClashOfRim.Trade.SelectResearchProject")
             : ResearchProjectLabel(projectDefName);
-        if (Widgets.ButtonText(rect, label))
+        if (ClashOfRimUiUtility.SelectionButton(rect, label))
         {
             Find.WindowStack.Add(new TradeResearchProjectSelectionDialogWindow(item, requirementMode));
         }
@@ -429,7 +431,9 @@ internal static class CoreThingReferenceMetadata
         string label = string.IsNullOrWhiteSpace(TraitTrainerUtility.TraitDefName(item))
             ? ClashOfRimText.Key("ClashOfRim.TraitTrainer.Select")
             : TraitTrainerUtility.TraitLabel(item);
-        if (Widgets.ButtonText(new Rect(rect.x + 130f, rect.y, rect.width - 130f, 28f), label))
+        if (ClashOfRimUiUtility.SelectionButton(
+                new Rect(rect.x + 130f, rect.y, rect.width - 130f, 28f),
+                label))
         {
             Find.WindowStack.Add(new TraitTrainerSelectionDialogWindow(item));
         }

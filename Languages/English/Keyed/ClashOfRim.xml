@@ -1612,7 +1612,7 @@
   <ClashOfRim.Admin.SavedMessage>Server configuration updated.</ClashOfRim.Admin.SavedMessage>
   <ClashOfRim.Admin.UpdateWorldBaseline>Update world data</ClashOfRim.Admin.UpdateWorldBaseline>
   <ClashOfRim.Admin.UpdateWorldBaselineDesc>Replace the server world, faction, ideology, and related baselines with the current save. This affects every player; use only when the current save is correct.</ClashOfRim.Admin.UpdateWorldBaselineDesc>
-  <ClashOfRim.Admin.OpenOptionsMenu>Click to open the options menu.</ClashOfRim.Admin.OpenOptionsMenu>
+  <ClashOfRim.SelectionButtonTip>Click to change the current selection.</ClashOfRim.SelectionButtonTip>
   <ClashOfRim.Admin.WorldBaselineUpdating>Updating world data.</ClashOfRim.Admin.WorldBaselineUpdating>
   <ClashOfRim.Admin.WorldBaselineUpdated>World data updated: factions {FACTIONS}, world objects {WORLDOBJECTS}.</ClashOfRim.Admin.WorldBaselineUpdated>
   <ClashOfRim.Admin.WorldBaselineInvalid>World setup could not be accepted: {REASON}</ClashOfRim.Admin.WorldBaselineInvalid>
