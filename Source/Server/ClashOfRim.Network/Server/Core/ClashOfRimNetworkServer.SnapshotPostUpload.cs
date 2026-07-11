@@ -217,7 +217,6 @@ public static partial class ClashOfRimNetworkServer
                         ("VALUE", achievement.Value.ToString(System.Globalization.CultureInfo.InvariantCulture))),
                     ServerNotificationSeverity.Info,
                     FromAdministrator: false,
-                    RelatedEventType: "Achievement",
                     RelatedUserId: achievement.UserId,
                     RelatedColonyId: achievement.ColonyId),
                 nowUtc);

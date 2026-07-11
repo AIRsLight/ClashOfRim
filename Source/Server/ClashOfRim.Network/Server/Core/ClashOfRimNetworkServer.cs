@@ -1000,7 +1000,7 @@ public static partial class ClashOfRimNetworkServer
             result.FailureReason ?? T("Events.ApplicationConfirmationRejected"));
     }
 
-    private static ProtocolResponse ToProtocolResponse(GiftApplicationConfirmationResult result)
+    private static ProtocolResponse ToProtocolResponse(ItemDeliveryApplicationConfirmationResult result)
     {
         if (result.Accepted)
         {
@@ -1009,13 +1009,13 @@ public static partial class ClashOfRimNetworkServer
 
         ProtocolErrorCode errorCode = result.Kind switch
         {
-            GiftApplicationConfirmationResultKind.EventNotFound => ProtocolErrorCode.EventNotFound,
-            GiftApplicationConfirmationResultKind.NotTarget => ProtocolErrorCode.EventNotFound,
-            GiftApplicationConfirmationResultKind.SnapshotIdentityMismatch => ProtocolErrorCode.IdentityMismatch,
-            GiftApplicationConfirmationResultKind.SnapshotBaseMismatch => ProtocolErrorCode.SnapshotMismatch,
-            GiftApplicationConfirmationResultKind.NotDelivered => ProtocolErrorCode.SnapshotMismatch,
-            GiftApplicationConfirmationResultKind.RejectedByTarget => ProtocolErrorCode.Conflict,
-            GiftApplicationConfirmationResultKind.NotAnchored => ProtocolErrorCode.Conflict,
+            ItemDeliveryApplicationConfirmationResultKind.EventNotFound => ProtocolErrorCode.EventNotFound,
+            ItemDeliveryApplicationConfirmationResultKind.NotTarget => ProtocolErrorCode.EventNotFound,
+            ItemDeliveryApplicationConfirmationResultKind.SnapshotIdentityMismatch => ProtocolErrorCode.IdentityMismatch,
+            ItemDeliveryApplicationConfirmationResultKind.SnapshotBaseMismatch => ProtocolErrorCode.SnapshotMismatch,
+            ItemDeliveryApplicationConfirmationResultKind.NotDelivered => ProtocolErrorCode.SnapshotMismatch,
+            ItemDeliveryApplicationConfirmationResultKind.RejectedByTarget => ProtocolErrorCode.Conflict,
+            ItemDeliveryApplicationConfirmationResultKind.NotAnchored => ProtocolErrorCode.Conflict,
             _ => ProtocolErrorCode.ValidationFailed
         };
 
@@ -2273,17 +2273,17 @@ public static partial class ClashOfRimNetworkServer
         EventParty actor,
         EventParty target,
         IReadOnlyList<EventThingReference> things,
-        GiftEventPurpose purpose,
+        ItemDeliveryPurpose purpose,
         EventTargetContext? targetContext,
         DateTimeOffset nowUtc)
     {
         AuthoritativeEvent delivery = AuthoritativeEventFactory.Create(
-            ServerEventType.GiftReturn,
+            ServerEventType.ItemDelivery,
             actor,
             target,
             idempotencyKey,
             state.OnlinePresence.IsUserOnline(target.UserId),
-            new GiftEventPayload(things, Message: null, Purpose: purpose),
+            new ItemDeliveryEventPayload(things, Message: null, Purpose: purpose),
             nowUtc,
             targetContext);
         LedgerAppendResult append = state.Ledger.Append(delivery);
@@ -2603,7 +2603,10 @@ public static partial class ClashOfRimNetworkServer
     {
         string returnIdempotencyKey = $"{giftEvent.IdempotencyKey}:return";
         AuthoritativeEvent? ledgerEvent = ledger.FindByIdempotencyKey(returnIdempotencyKey);
-        return ledgerEvent?.Type == ServerEventType.GiftReturn ? ledgerEvent : null;
+        return ledgerEvent?.Type == ServerEventType.ItemDelivery
+            && ledgerEvent.Payload is ItemDeliveryEventPayload { Purpose: ItemDeliveryPurpose.RejectedGiftReturn }
+                ? ledgerEvent
+                : null;
     }
 
     private static AuthoritativeEvent? FindSupportPawnReturnFor(IAuthoritativeEventLedger ledger, AuthoritativeEvent supportEvent)

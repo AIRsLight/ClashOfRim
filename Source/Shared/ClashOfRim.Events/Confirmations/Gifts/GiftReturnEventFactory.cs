@@ -11,19 +11,20 @@ public static class GiftReturnEventFactory
     {
         ArgumentNullException.ThrowIfNull(giftEvent);
 
-        if (giftEvent.Type != ServerEventType.Gift || giftEvent.Payload is not GiftEventPayload giftPayload)
+        if (giftEvent.Type != ServerEventType.ItemDelivery
+            || giftEvent.Payload is not ItemDeliveryEventPayload { Purpose: ItemDeliveryPurpose.Gift } giftPayload)
         {
             throw new InvalidOperationException("Only gift events can create gift return events.");
         }
 
         string returnIdempotencyKey = $"{giftEvent.IdempotencyKey}:return";
-        var returnPayload = new GiftEventPayload(
+        var returnPayload = new ItemDeliveryEventPayload(
             giftPayload.Items,
             $"Rejected gift return for {giftEvent.EventId}",
-            Purpose: GiftEventPurpose.RejectedGiftReturn);
+            Purpose: ItemDeliveryPurpose.RejectedGiftReturn);
 
         return AuthoritativeEventFactory.Create(
-            ServerEventType.GiftReturn,
+            ServerEventType.ItemDelivery,
             giftEvent.Target,
             giftEvent.Actor,
             returnIdempotencyKey,

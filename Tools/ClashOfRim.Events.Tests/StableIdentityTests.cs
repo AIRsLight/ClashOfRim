@@ -8,7 +8,7 @@ internal static class StableIdentityTests
     public static void RunAll()
     {
         VerifyExactWorldObjectIdentity();
-        VerifyGiftPurposeIsStructured();
+        VerifyItemDeliveryPurposeIsStructured();
         VerifyCompatibilityIssueCategoriesAreExplicit();
         VerifyClientAndServerDoNotBranchOnPresentationStrings();
     }
@@ -26,15 +26,15 @@ internal static class StableIdentityTests
         Require(WorldObjectTypeIdentity.IsPlayerColonyMarker(playerColony), "明确的 PlayerColony defName 必须被识别");
     }
 
-    private static void VerifyGiftPurposeIsStructured()
+    private static void VerifyItemDeliveryPurposeIsStructured()
     {
-        var payload = new GiftEventPayload(
+        var payload = new ItemDeliveryEventPayload(
             Array.Empty<EventThingReference>(),
             "TradeCompletedOwnerDelivery-looking user text",
-            Purpose: GiftEventPurpose.Gift);
+            Purpose: ItemDeliveryPurpose.Gift);
 
         Require(!payload.IsTradeDelivery, "普通礼物消息即使含交易前缀也不能被误判为交易交付");
-        Require(payload.Purpose == GiftEventPurpose.Gift, "礼物流程必须由枚举字段表达");
+        Require(payload.Purpose == ItemDeliveryPurpose.Gift, "物品到达子类型必须由枚举字段表达");
     }
 
     private static void VerifyCompatibilityIssueCategoriesAreExplicit()
@@ -60,8 +60,10 @@ internal static class StableIdentityTests
         string root = FindRepositoryRoot();
         string menu = Read(root, "Source", "Client", "MainMenu", "Entry", "ClashOfRimMainMenuPatches.cs");
         string proxy = Read(root, "Source", "Client", "Diplomacy", "Factions", "PlayerFactionProxyUtility.cs");
-        string giftProcessor = Read(root, "Source", "Client", "Gifts", "Processing", "GiftClientProcessor.cs");
+        string giftProcessor = Read(root, "Source", "Client", "Gifts", "Processing", "ItemDeliveryClientProcessor.cs");
         string giftLetters = Read(root, "Source", "Client", "EventLetters", "Runtime", "ClashOfRimMod.EventLetters.cs");
+        string eventDtos = Read(root, "Source", "Client", "ClientNetwork", "Dtos", "ModEventDtos.cs");
+        string protocolEventReference = Read(root, "Source", "Shared", "ClashOfRim.Protocol", "Events", "EventReferenceDto.cs");
         string serverCore = Read(root, "Source", "Server", "ClashOfRim.Network", "Server", "Core", "ClashOfRimNetworkServer.cs");
         string odyssey = Read(root, "Source", "Server", "ClashOfRim.Network", "Plugins", "DlcCompatibility", "Odyssey", "OdysseyServerCompatibility.cs");
         string markerBuilder = Read(root, "Source", "Shared", "ClashOfRim.Events", "WorldMap", "WorldMapMarkerProjectionBuilder.cs");
@@ -74,11 +76,22 @@ internal static class StableIdentityTests
         Require(!giftProcessor.Contains("string.Equals(payload.Message", StringComparison.Ordinal)
             && !giftProcessor.Contains("payload.Message.StartsWith", StringComparison.Ordinal), "礼物处理不能用消息文本决定交易流程");
         Require(!giftLetters.Contains("TradeCompletedOwnerDelivery\"", StringComparison.Ordinal), "信件分类不能匹配交易消息前缀");
+        Require(!giftLetters.Contains("string.Equals(detail.EventType", StringComparison.Ordinal), "信件流程不能比较事件类型字符串");
+        Require(!eventDtos.Contains("public string EventType", StringComparison.Ordinal), "客户端事件 DTO 必须使用协议枚举");
+        Require(!protocolEventReference.Contains("string eventType", StringComparison.Ordinal)
+            && !protocolEventReference.Contains("public string EventType", StringComparison.Ordinal), "协议事件引用必须使用协议枚举");
         Require(!serverCore.Contains("ContainsOrbitalToken", StringComparison.Ordinal), "服务端轨道判定不能搜索名称文本");
         Require(!odyssey.Contains("worldObject.Name", StringComparison.Ordinal)
             && !odyssey.Contains("worldObject.Tile", StringComparison.Ordinal), "Odyssey 分类器不能读取显示名或序列化地块文本");
         Require(!markerBuilder.Contains("Contains(\"PlayerColony\"", StringComparison.Ordinal), "殖民地标记不能按类名子串识别");
         Require(!snapshotReceiver.Contains("Contains(\"Settlement\"", StringComparison.Ordinal), "快照锚点不能按据点类名子串识别");
+
+        string allSource = string.Join("\n", Directory.EnumerateFiles(Path.Combine(root, "Source"), "*.cs", SearchOption.AllDirectories)
+            .Where(path => !path.Contains(Path.DirectorySeparatorChar + "obj" + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+                && !path.Contains(Path.DirectorySeparatorChar + "bin" + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            .Select(File.ReadAllText));
+        Require(!allSource.Contains("ServerEventType.Gift", StringComparison.Ordinal), "Gift 不能继续作为顶层事件类型");
+        Require(!allSource.Contains("ServerEventType.GiftReturn", StringComparison.Ordinal), "GiftReturn 不能继续作为顶层事件类型");
     }
 
     private static string Read(string root, params string[] segments)

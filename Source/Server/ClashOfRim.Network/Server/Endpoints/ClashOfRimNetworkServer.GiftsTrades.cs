@@ -68,12 +68,12 @@ public static partial class ClashOfRimNetworkServer
         }
 
         AuthoritativeEvent giftEvent = AuthoritativeEventFactory.Create(
-            ServerEventType.Gift,
+            ServerEventType.ItemDelivery,
             ToEventParty(request.Actor),
             ToEventParty(request.Target),
             request.IdempotencyKey,
             targetOnline,
-            new GiftEventPayload(
+            new ItemDeliveryEventPayload(
                 giftThings.Select(thing => ToEventThingReference(thing, request.Actor.SnapshotId)).ToList(),
                 request.Message,
                 NormalizeGiftDeliveryKind(request.DeliveryKind)),
@@ -139,7 +139,7 @@ public static partial class ClashOfRimNetworkServer
         AuthoritativeEvent? existingEvent = FindEventByIdempotencyKey(state.Ledger, request.IdempotencyKey);
         if (existingEvent is not null)
         {
-            string? sourceSnapshotId = existingEvent.Payload is GiftEventPayload existingPayload
+            string? sourceSnapshotId = existingEvent.Payload is ItemDeliveryEventPayload existingPayload
                 ? existingPayload.Items.FirstOrDefault()?.SourceSnapshotId
                 : null;
             string? nextLineageToken = FindSnapshotNextLineageToken(
@@ -219,12 +219,12 @@ public static partial class ClashOfRimNetworkServer
         }
 
         AuthoritativeEvent giftEvent = AuthoritativeEventFactory.Create(
-            ServerEventType.Gift,
+            ServerEventType.ItemDelivery,
             ToEventParty(acceptedActor),
             ToEventParty(request.Target),
             request.IdempotencyKey,
             targetOnline,
-            new GiftEventPayload(
+            new ItemDeliveryEventPayload(
                 giftThings.Select(thing => ToEventThingReference(thing, acceptedSnapshotId)).ToList(),
                 request.Message,
                 NormalizeGiftDeliveryKind(request.DeliveryKind)),
@@ -316,7 +316,7 @@ public static partial class ClashOfRimNetworkServer
         }
 
         if (!string.IsNullOrWhiteSpace(request.DeliveryKind)
-            && !string.Equals(request.DeliveryKind, GiftEventPayload.ForcedDeliveryKind, StringComparison.OrdinalIgnoreCase))
+            && !string.Equals(request.DeliveryKind, ItemDeliveryEventPayload.ForcedDeliveryKind, StringComparison.OrdinalIgnoreCase))
         {
             return ProtocolResponse.Reject(
                 ProtocolErrorCode.ValidationFailed,
@@ -555,9 +555,9 @@ public static partial class ClashOfRimNetworkServer
             return null;
         }
 
-        AuthoritativeEvent? latest = state.Ledger.ListByType(ServerEventType.Gift)
+        AuthoritativeEvent? latest = state.Ledger.ListByType(ServerEventType.ItemDelivery)
             .Where(evt => !string.Equals(evt.IdempotencyKey, request.IdempotencyKey, StringComparison.Ordinal))
-            .Where(evt => evt.Payload is GiftEventPayload payload && payload.IsForcedDelivery)
+            .Where(evt => evt.Payload is ItemDeliveryEventPayload payload && payload.IsForcedDelivery)
             .Where(evt => string.Equals(evt.Actor.UserId, request.Actor.UserId, StringComparison.Ordinal)
                 && string.Equals(evt.Actor.ColonyId ?? string.Empty, request.Actor.ColonyId ?? string.Empty, StringComparison.Ordinal)
                 && string.Equals(evt.Target.UserId, request.Target.UserId, StringComparison.Ordinal)
@@ -606,13 +606,13 @@ public static partial class ClashOfRimNetworkServer
 
     private static bool IsForcedGiftDelivery(CreateGiftRequest request)
     {
-        return string.Equals(request.DeliveryKind, GiftEventPayload.ForcedDeliveryKind, StringComparison.OrdinalIgnoreCase);
+        return string.Equals(request.DeliveryKind, ItemDeliveryEventPayload.ForcedDeliveryKind, StringComparison.OrdinalIgnoreCase);
     }
 
     private static string? NormalizeGiftDeliveryKind(string? deliveryKind)
     {
-        return string.Equals(deliveryKind, GiftEventPayload.ForcedDeliveryKind, StringComparison.OrdinalIgnoreCase)
-            ? GiftEventPayload.ForcedDeliveryKind
+        return string.Equals(deliveryKind, ItemDeliveryEventPayload.ForcedDeliveryKind, StringComparison.OrdinalIgnoreCase)
+            ? ItemDeliveryEventPayload.ForcedDeliveryKind
             : null;
     }
 
@@ -640,7 +640,8 @@ public static partial class ClashOfRimNetworkServer
                 returnEventCreated: false));
         }
 
-        if (giftEvent.Type != ServerEventType.Gift || giftEvent.Payload is not GiftEventPayload)
+        if (giftEvent.Type != ServerEventType.ItemDelivery
+            || giftEvent.Payload is not ItemDeliveryEventPayload { Purpose: ItemDeliveryPurpose.Gift })
         {
             return Results.Ok(new RejectGiftResponse(
                 ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("Gift.RejectGiftOnly")),
@@ -1573,7 +1574,7 @@ public static partial class ClashOfRimNetworkServer
                 acceptorParty,
                 tradeOrder.Actor,
                 deliveredThings.Select(thing => ToEventThingReference(thing, request.Acceptor.SnapshotId)).ToList(),
-                GiftEventPurpose.TradeCompletedOwnerDelivery,
+                ItemDeliveryPurpose.TradeCompletedOwnerDelivery,
                 ResolveTradeCompletedOwnerDeliveryTargetContext(tradeOrder, fulfillmentMode),
                 nowUtc);
             ownerDeliveryEventId = ownerDelivery.Event.EventId;
@@ -1592,7 +1593,7 @@ public static partial class ClashOfRimNetworkServer
                     tradeOrder.Actor,
                     acceptorParty,
                     orderPayload.OfferedItems,
-                    GiftEventPurpose.TradeCompletedAcceptorDelivery,
+                    ItemDeliveryPurpose.TradeCompletedAcceptorDelivery,
                     acceptorTargetContext,
                     nowUtc);
                 acceptorDeliveryEventId = acceptorDelivery.Event.EventId;
@@ -1870,7 +1871,7 @@ public static partial class ClashOfRimNetworkServer
                 acceptorParty,
                 tradeOrder.Actor,
                 deliveredThings.Select(thing => ToEventThingReference(thing, acceptedSnapshotId)).ToList(),
-                GiftEventPurpose.TradeCompletedOwnerDelivery,
+                ItemDeliveryPurpose.TradeCompletedOwnerDelivery,
                 ResolveTradeCompletedOwnerDeliveryTargetContext(tradeOrder, fulfillmentMode),
                 nowUtc);
             ownerDeliveryEventId = ownerDelivery.Event.EventId;
@@ -1889,7 +1890,7 @@ public static partial class ClashOfRimNetworkServer
                     tradeOrder.Actor,
                     acceptorParty,
                     orderPayload.OfferedItems,
-                    GiftEventPurpose.TradeCompletedAcceptorDelivery,
+                    ItemDeliveryPurpose.TradeCompletedAcceptorDelivery,
                     acceptorTargetContext,
                     nowUtc);
                 acceptorDeliveryEventId = acceptorDelivery.Event.EventId;
@@ -1984,7 +1985,7 @@ public static partial class ClashOfRimNetworkServer
                 new EventParty("server"),
                 tradeOrder.Actor,
                 ((TradeEventPayload)tradeOrder.Payload).OfferedItems,
-                GiftEventPurpose.TradeExpiredOwnerReturn,
+                ItemDeliveryPurpose.TradeExpiredOwnerReturn,
                 tradeOrder.TargetContext,
                 nowUtc);
 
@@ -2058,7 +2059,7 @@ public static partial class ClashOfRimNetworkServer
                 new EventParty("server"),
                 tradeOrder.Actor,
                 payload.OfferedItems,
-                GiftEventPurpose.TradeBaselineChangedOwnerReturn,
+                ItemDeliveryPurpose.TradeBaselineChangedOwnerReturn,
                 tradeOrder.TargetContext,
                 nowUtc);
 
@@ -2390,7 +2391,7 @@ public static partial class ClashOfRimNetworkServer
                 new EventParty("server"),
                 tradeOrder.Actor,
                 payload.OfferedItems,
-                GiftEventPurpose.TradeCancelledOwnerReturn,
+                ItemDeliveryPurpose.TradeCancelledOwnerReturn,
                 tradeOrder.TargetContext,
                 DateTimeOffset.UtcNow);
         }

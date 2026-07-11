@@ -246,12 +246,12 @@ public static partial class ClashOfRimNetworkServer
     {
         AuthoritativeEvent? ledgerEvent = state.Ledger.Find(application.EventId);
         if (ledgerEvent is not null
-            && ledgerEvent.Type is ServerEventType.Gift or ServerEventType.GiftReturn
-            && ledgerEvent.Payload is GiftEventPayload)
+            && ledgerEvent.Type == ServerEventType.ItemDelivery
+            && ledgerEvent.Payload is ItemDeliveryEventPayload)
         {
-            var giftConsumer = new GiftApplicationConfirmationConsumer(state.Ledger);
-            GiftApplicationConfirmationResult giftResult = giftConsumer.Consume(
-                new GiftApplicationConfirmationRequest(
+            var giftConsumer = new ItemDeliveryApplicationConfirmationConsumer(state.Ledger);
+            ItemDeliveryApplicationConfirmationResult giftResult = giftConsumer.Consume(
+                new ItemDeliveryApplicationConfirmationRequest(
                     application.EventId,
                     userId,
                     colonyId,
@@ -742,7 +742,7 @@ public static partial class ClashOfRimNetworkServer
                 new EventParty("server"),
                 tradeOrder.Actor,
                 orderPayload.OfferedItems,
-                GiftEventPurpose.TradeApplicationFailedOwnerReturn,
+                ItemDeliveryPurpose.TradeApplicationFailedOwnerReturn,
                 tradeOrder.TargetContext,
                 nowUtc);
             affected[returnAppend.Event.EventId] = returnAppend.Event;
@@ -754,7 +754,7 @@ public static partial class ClashOfRimNetworkServer
         string tradeOrderId)
     {
         return state.Ledger.ListByType(ServerEventType.Trade)
-            .Concat(state.Ledger.ListByType(ServerEventType.GiftReturn))
+            .Concat(state.Ledger.ListByType(ServerEventType.ItemDelivery))
             .Where(ledgerEvent =>
                 string.Equals(ledgerEvent.EventId, tradeOrderId, StringComparison.Ordinal)
                 || IsTradeEventForOrder(ledgerEvent, tradeOrderId)
@@ -771,7 +771,7 @@ public static partial class ClashOfRimNetworkServer
 
     private static bool IsTradeDeliveryEventForOrder(AuthoritativeEvent ledgerEvent, string tradeOrderId)
     {
-        return ledgerEvent.Type == ServerEventType.GiftReturn
+        return ledgerEvent.Type == ServerEventType.ItemDelivery
             && IsTradeCompletedDeliveryIdempotencyKey(ledgerEvent.IdempotencyKey, tradeOrderId);
     }
 
@@ -781,7 +781,7 @@ public static partial class ClashOfRimNetworkServer
         out string? tradeOrderId)
     {
         tradeOrderId = null;
-        if (ledgerEvent.Type != ServerEventType.GiftReturn
+        if (ledgerEvent.Type != ServerEventType.ItemDelivery
             || IsTradeApplicationFailedOwnerReturnEvent(ledgerEvent))
         {
             return false;
@@ -806,9 +806,9 @@ public static partial class ClashOfRimNetworkServer
 
     private static bool IsTradeApplicationFailedOwnerReturnEvent(AuthoritativeEvent ledgerEvent)
     {
-        return ledgerEvent.Type == ServerEventType.GiftReturn
+        return ledgerEvent.Type == ServerEventType.ItemDelivery
             && (ledgerEvent.IdempotencyKey.StartsWith("trade-application-failed-owner-return:", StringComparison.Ordinal)
-                || ledgerEvent.Payload is GiftEventPayload { Purpose: GiftEventPurpose.TradeApplicationFailedOwnerReturn });
+                || ledgerEvent.Payload is ItemDeliveryEventPayload { Purpose: ItemDeliveryPurpose.TradeApplicationFailedOwnerReturn });
     }
 
     private static bool IsTradeCompletedDeliveryIdempotencyKey(string idempotencyKey, string tradeOrderId)

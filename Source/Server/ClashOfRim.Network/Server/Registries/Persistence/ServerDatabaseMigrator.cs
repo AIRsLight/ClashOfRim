@@ -16,7 +16,7 @@ public static class ServerDatabaseSchema
 {
     // Version 1 is the known JSON-document persistence layout.
     public const int LegacyJsonDocumentVersion = 1;
-    public const int CurrentVersion = 3;
+    public const int CurrentVersion = 4;
 }
 
 public sealed record ServerDatabaseMigrationOptions(int? DeclaredSourceVersion = null);
@@ -51,7 +51,11 @@ public static class ServerDatabaseMigrator
         new(
             FromVersion: 2,
             ToVersion: 3,
-            Apply: MigrateGiftEventPurpose)
+            Apply: MigrateItemDeliveryPurpose),
+        new(
+            FromVersion: 3,
+            ToVersion: 4,
+            Apply: MigrateItemDeliveryEventHierarchy)
     ];
 
     public static ServerDatabaseMigrationResult ValidateForStartup(string databasePath, string? snapshotDirectory = null)
@@ -311,7 +315,7 @@ public static class ServerDatabaseMigrator
         return new MigrationApplicationResult(true, null);
     }
 
-    private static MigrationApplicationResult MigrateGiftEventPurpose(
+    private static MigrationApplicationResult MigrateItemDeliveryPurpose(
         SqliteConnection connection,
         SqliteTransaction transaction,
         MigrationContext context)
@@ -338,23 +342,23 @@ public static class ServerDatabaseMigrator
             JsonObject payload = JsonNode.Parse(payloadJson)?.AsObject()
                 ?? throw new InvalidOperationException($"Event payload is not a JSON object: {eventId}");
             if (!string.Equals(payload["payloadType"]?.GetValue<string>(), "gift", StringComparison.Ordinal)
-                || payload.ContainsKey(nameof(GiftEventPayload.Purpose)))
+                || payload.ContainsKey(nameof(ItemDeliveryEventPayload.Purpose)))
             {
                 continue;
             }
 
-            string? legacyMessage = payload[nameof(GiftEventPayload.Message)]?.GetValue<string>();
-            GiftEventPurpose purpose = legacyMessage switch
+            string? legacyMessage = payload[nameof(ItemDeliveryEventPayload.Message)]?.GetValue<string>();
+            ItemDeliveryPurpose purpose = legacyMessage switch
             {
-                "TradeCompletedOwnerDelivery" => GiftEventPurpose.TradeCompletedOwnerDelivery,
-                "TradeCompletedAcceptorDelivery" => GiftEventPurpose.TradeCompletedAcceptorDelivery,
-                "TradeExpiredOwnerReturn" => GiftEventPurpose.TradeExpiredOwnerReturn,
-                "TradeBaselineChangedOwnerReturn" => GiftEventPurpose.TradeBaselineChangedOwnerReturn,
-                "TradeCancelledOwnerReturn" => GiftEventPurpose.TradeCancelledOwnerReturn,
-                "TradeApplicationFailedOwnerReturn" => GiftEventPurpose.TradeApplicationFailedOwnerReturn,
-                _ => GiftEventPurpose.Gift
+                "TradeCompletedOwnerDelivery" => ItemDeliveryPurpose.TradeCompletedOwnerDelivery,
+                "TradeCompletedAcceptorDelivery" => ItemDeliveryPurpose.TradeCompletedAcceptorDelivery,
+                "TradeExpiredOwnerReturn" => ItemDeliveryPurpose.TradeExpiredOwnerReturn,
+                "TradeBaselineChangedOwnerReturn" => ItemDeliveryPurpose.TradeBaselineChangedOwnerReturn,
+                "TradeCancelledOwnerReturn" => ItemDeliveryPurpose.TradeCancelledOwnerReturn,
+                "TradeApplicationFailedOwnerReturn" => ItemDeliveryPurpose.TradeApplicationFailedOwnerReturn,
+                _ => ItemDeliveryPurpose.Gift
             };
-            payload[nameof(GiftEventPayload.Purpose)] = (int)purpose;
+            payload[nameof(ItemDeliveryEventPayload.Purpose)] = (int)purpose;
 
             using SqliteCommand update = connection.CreateCommand();
             update.Transaction = transaction;
@@ -365,6 +369,97 @@ public static class ServerDatabaseMigrator
         }
 
         return MigrationApplicationResult.None;
+    }
+
+    private static MigrationApplicationResult MigrateItemDeliveryEventHierarchy(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        MigrationContext context)
+    {
+        if (!TableExists(connection, "events", transaction))
+        {
+            return MigrationApplicationResult.None;
+        }
+
+        var events = new List<(string EventId, string Type, string PayloadJson)>();
+        using (SqliteCommand read = connection.CreateCommand())
+        {
+            read.Transaction = transaction;
+            read.CommandText = "select event_id, type, payload_json from events;";
+            using SqliteDataReader reader = read.ExecuteReader();
+            while (reader.Read())
+            {
+                events.Add((reader.GetString(0), reader.GetString(1), reader.GetString(2)));
+            }
+        }
+
+        foreach ((string eventId, string legacyType, string payloadJson) in events)
+        {
+            JsonObject payload = JsonNode.Parse(payloadJson)?.AsObject()
+                ?? throw new InvalidOperationException($"Event payload is not a JSON object: {eventId}");
+            string migratedType = legacyType;
+            bool changed = false;
+
+            if (legacyType is "Gift" or "GiftReturn")
+            {
+                migratedType = ServerEventType.ItemDelivery.ToString();
+                changed = true;
+            }
+
+            if (string.Equals(payload["payloadType"]?.GetValue<string>(), "gift", StringComparison.Ordinal))
+            {
+                payload["payloadType"] = "itemDelivery";
+                changed = true;
+
+                if (legacyType == "GiftReturn"
+                    && payload[nameof(ItemDeliveryEventPayload.Purpose)]?.GetValue<int>() == (int)ItemDeliveryPurpose.Gift)
+                {
+                    payload[nameof(ItemDeliveryEventPayload.Purpose)] = (int)ItemDeliveryPurpose.RejectedGiftReturn;
+                }
+            }
+
+            if (string.Equals(payload["payloadType"]?.GetValue<string>(), "serverNotification", StringComparison.Ordinal)
+                && payload[nameof(ServerNotificationEventPayload.RelatedEventType)] is JsonValue relatedTypeValue
+                && relatedTypeValue.TryGetValue(out string? relatedTypeText))
+            {
+                if (TryMapLegacyEventType(relatedTypeText, out ServerEventType relatedType))
+                {
+                    payload[nameof(ServerNotificationEventPayload.RelatedEventType)] = (int)relatedType;
+                }
+                else
+                {
+                    payload.Remove(nameof(ServerNotificationEventPayload.RelatedEventType));
+                }
+
+                changed = true;
+            }
+
+            if (!changed)
+            {
+                continue;
+            }
+
+            using SqliteCommand update = connection.CreateCommand();
+            update.Transaction = transaction;
+            update.CommandText = "update events set type = $type, payload_json = $payload_json where event_id = $event_id;";
+            update.Parameters.AddWithValue("$type", migratedType);
+            update.Parameters.AddWithValue("$payload_json", payload.ToJsonString());
+            update.Parameters.AddWithValue("$event_id", eventId);
+            update.ExecuteNonQuery();
+        }
+
+        return MigrationApplicationResult.None;
+    }
+
+    private static bool TryMapLegacyEventType(string? value, out ServerEventType eventType)
+    {
+        if (value is "Gift" or "GiftReturn")
+        {
+            eventType = ServerEventType.ItemDelivery;
+            return true;
+        }
+
+        return Enum.TryParse(value, ignoreCase: false, out eventType);
     }
 
     private static WorldSubstrateRecoveryResult TryRecoverWorldSubstrateFromAdministratorSnapshot(

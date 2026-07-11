@@ -3,53 +3,53 @@ using AIRsLight.ClashOfRim.Protocol;
 
 namespace AIRsLight.ClashOfRim.Events;
 
-public sealed class GiftApplicationConfirmationConsumer
+public sealed class ItemDeliveryApplicationConfirmationConsumer
 {
     private readonly IAuthoritativeEventLedger ledger;
 
-    public GiftApplicationConfirmationConsumer(IAuthoritativeEventLedger ledger)
+    public ItemDeliveryApplicationConfirmationConsumer(IAuthoritativeEventLedger ledger)
     {
         this.ledger = ledger ?? throw new ArgumentNullException(nameof(ledger));
     }
 
-    public GiftApplicationConfirmationResult Consume(
-        GiftApplicationConfirmationRequest request,
+    public ItemDeliveryApplicationConfirmationResult Consume(
+        ItemDeliveryApplicationConfirmationRequest request,
         DateTimeOffset confirmedAtUtc)
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(request.ConfirmedSnapshot);
 
-        AuthoritativeEvent? ledgerEvent = ledger.Find(request.GiftEventId);
+        AuthoritativeEvent? ledgerEvent = ledger.Find(request.ItemDeliveryEventId);
         if (ledgerEvent is null)
         {
-            return new GiftApplicationConfirmationResult(
-                GiftApplicationConfirmationResultKind.EventNotFound,
+            return new ItemDeliveryApplicationConfirmationResult(
+                ItemDeliveryApplicationConfirmationResultKind.EventNotFound,
                 Event: null,
                 AppliedSnapshotId: null,
                 FailureReason: ServerLocalization.Text("Gift.ConfirmationEventNotFound"));
         }
 
-        if (ledgerEvent.Type is not ServerEventType.Gift and not ServerEventType.GiftReturn
-            || ledgerEvent.Payload is not GiftEventPayload)
+        if (ledgerEvent.Type != ServerEventType.ItemDelivery
+            || ledgerEvent.Payload is not ItemDeliveryEventPayload)
         {
             return Rejected(
-                GiftApplicationConfirmationResultKind.NotGiftEvent,
+                ItemDeliveryApplicationConfirmationResultKind.NotItemDeliveryEvent,
                 ledgerEvent,
-                ServerLocalization.Text("Gift.ConfirmationNotGiftEvent"));
+                ServerLocalization.Text("Gift.ConfirmationNotItemDeliveryEvent"));
         }
 
         if (!IsTarget(ledgerEvent, request.OwnerId, request.ColonyId))
         {
             return Rejected(
-                GiftApplicationConfirmationResultKind.NotTarget,
+                ItemDeliveryApplicationConfirmationResultKind.NotTarget,
                 ledgerEvent,
                 ServerLocalization.Text("Gift.ConfirmationNotTarget"));
         }
 
         if (ledgerEvent.Status == ServerEventStatus.AppliedToSnapshot)
         {
-            return new GiftApplicationConfirmationResult(
-                GiftApplicationConfirmationResultKind.AlreadyApplied,
+            return new ItemDeliveryApplicationConfirmationResult(
+                ItemDeliveryApplicationConfirmationResultKind.AlreadyApplied,
                 ledgerEvent,
                 ledgerEvent.AppliedSnapshotId,
                 FailureReason: null);
@@ -58,7 +58,7 @@ public sealed class GiftApplicationConfirmationConsumer
         if (ledgerEvent.Status == ServerEventStatus.RejectedByTarget)
         {
             return Rejected(
-                GiftApplicationConfirmationResultKind.RejectedByTarget,
+                ItemDeliveryApplicationConfirmationResultKind.RejectedByTarget,
                 ledgerEvent,
                 ServerLocalization.Text("Gift.ConfirmationRejectedByTarget"));
         }
@@ -71,7 +71,7 @@ public sealed class GiftApplicationConfirmationConsumer
                 ServerLocalization.Text("Gift.ConfirmationNotDelivered"),
                 nextRetryAtUtc: null);
             return Rejected(
-                GiftApplicationConfirmationResultKind.NotDelivered,
+                ItemDeliveryApplicationConfirmationResultKind.NotDelivered,
                 changed,
                 ServerLocalization.Text("Gift.ConfirmationNotDelivered"));
         }
@@ -85,7 +85,7 @@ public sealed class GiftApplicationConfirmationConsumer
                 ServerLocalization.Text("Gift.ConfirmationSnapshotIdentityMismatch"),
                 nextRetryAtUtc: null);
             return Rejected(
-                GiftApplicationConfirmationResultKind.SnapshotIdentityMismatch,
+                ItemDeliveryApplicationConfirmationResultKind.SnapshotIdentityMismatch,
                 changed,
                 ServerLocalization.Text("Gift.ConfirmationSnapshotIdentityMismatch"));
         }
@@ -98,7 +98,7 @@ public sealed class GiftApplicationConfirmationConsumer
                 ServerLocalization.Text("Gift.ConfirmationSnapshotBaseMismatch"),
                 nextRetryAtUtc: null);
             return Rejected(
-                GiftApplicationConfirmationResultKind.SnapshotBaseMismatch,
+                ItemDeliveryApplicationConfirmationResultKind.SnapshotBaseMismatch,
                 changed,
                 ServerLocalization.Text("Gift.ConfirmationSnapshotBaseMismatch"));
         }
@@ -111,7 +111,7 @@ public sealed class GiftApplicationConfirmationConsumer
                 ServerLocalization.Text("Gift.ConfirmationNotAnchored"),
                 nextRetryAtUtc: null);
             return Rejected(
-                GiftApplicationConfirmationResultKind.NotAnchored,
+                ItemDeliveryApplicationConfirmationResultKind.NotAnchored,
                 changed,
                 ServerLocalization.Text("Gift.ConfirmationNotAnchored"));
         }
@@ -126,8 +126,8 @@ public sealed class GiftApplicationConfirmationConsumer
             failureReason: null,
             nextRetryAtUtc: null);
 
-        return new GiftApplicationConfirmationResult(
-            GiftApplicationConfirmationResultKind.Accepted,
+        return new ItemDeliveryApplicationConfirmationResult(
+            ItemDeliveryApplicationConfirmationResultKind.Accepted,
             reported,
             applied.AppliedSnapshotId,
             FailureReason: null);
@@ -139,7 +139,7 @@ public sealed class GiftApplicationConfirmationConsumer
             && string.Equals(ledgerEvent.Target.ColonyId, colonyId, StringComparison.Ordinal);
     }
 
-    private static bool IdentityMatches(GiftApplicationConfirmationRequest request, SnapshotIdentity confirmedIdentity)
+    private static bool IdentityMatches(ItemDeliveryApplicationConfirmationRequest request, SnapshotIdentity confirmedIdentity)
     {
         return string.Equals(request.OwnerId, confirmedIdentity.OwnerId, StringComparison.Ordinal)
             && string.Equals(request.ColonyId, confirmedIdentity.ColonyId, StringComparison.Ordinal)
@@ -148,16 +148,15 @@ public sealed class GiftApplicationConfirmationConsumer
 
     private static bool IsAnchoredClientResult(string clientApplicationResult)
     {
-        return string.Equals(clientApplicationResult, "GiftAnchored", StringComparison.Ordinal)
-            || string.Equals(clientApplicationResult, "GiftReturnAnchored", StringComparison.Ordinal);
+        return string.Equals(clientApplicationResult, "ItemDeliveryAnchored", StringComparison.Ordinal);
     }
 
-    private static GiftApplicationConfirmationResult Rejected(
-        GiftApplicationConfirmationResultKind kind,
+    private static ItemDeliveryApplicationConfirmationResult Rejected(
+        ItemDeliveryApplicationConfirmationResultKind kind,
         AuthoritativeEvent ledgerEvent,
         string failureReason)
     {
-        return new GiftApplicationConfirmationResult(
+        return new ItemDeliveryApplicationConfirmationResult(
             kind,
             ledgerEvent,
             AppliedSnapshotId: null,

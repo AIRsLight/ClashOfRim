@@ -111,7 +111,7 @@ public static class RaidTimeoutProcessor
                 FromAdministrator: false,
                 AdministratorUserId: null,
                 RelatedEventId: raid.EventId,
-                RelatedEventType: raid.Type.ToString(),
+                RelatedEventType: raid.Type,
                 RelatedUserId: raid.Target.UserId,
                 RelatedColonyId: raid.Target.ColonyId),
             nowUtc,

@@ -9,7 +9,7 @@ public sealed record ServerNotificationEventPayload(
     string? AdministratorUserId = null,
     bool OnlineOnly = false,
     string? RelatedEventId = null,
-    string? RelatedEventType = null,
+    ServerEventType? RelatedEventType = null,
     string? RelatedUserId = null,
     string? RelatedColonyId = null,
     bool? RelatedAccepted = null) : LedgerEventPayload;

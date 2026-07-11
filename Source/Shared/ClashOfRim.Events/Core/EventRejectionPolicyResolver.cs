@@ -6,8 +6,8 @@ public static class EventRejectionPolicyResolver
     {
         return type switch
         {
-            ServerEventType.Gift when payload is GiftEventPayload gift && gift.IsForcedDelivery => EventRejectionPolicy.NotRejectable,
-            ServerEventType.Gift => EventRejectionPolicy.RejectableByTarget,
+            ServerEventType.ItemDelivery when payload is ItemDeliveryEventPayload
+                { Purpose: ItemDeliveryPurpose.Gift, IsForcedDelivery: false } => EventRejectionPolicy.RejectableByTarget,
             ServerEventType.AllianceRequest => EventRejectionPolicy.RejectableByTarget,
             ServerEventType.PeaceRequest => EventRejectionPolicy.RejectableByTarget,
             ServerEventType.SupportPawn when payload is SupportPawnEventPayload support && support.TemporaryControl => EventRejectionPolicy.RejectableByTarget,

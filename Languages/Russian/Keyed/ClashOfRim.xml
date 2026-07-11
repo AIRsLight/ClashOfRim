@@ -825,6 +825,7 @@
   <ClashOfRim.EventType.SupportRequest>Запрос поддержки</ClashOfRim.EventType.SupportRequest>
   <ClashOfRim.EventType.Gift>Подарок</ClashOfRim.EventType.Gift>
   <ClashOfRim.EventType.GiftReturn>Возврат подарка</ClashOfRim.EventType.GiftReturn>
+  <ClashOfRim.EventType.ItemDelivery>Доставка предметов</ClashOfRim.EventType.ItemDelivery>
   <ClashOfRim.EventType.Raid>Рейд</ClashOfRim.EventType.Raid>
   <ClashOfRim.EventType.ServerNotification>Уведомление сервера</ClashOfRim.EventType.ServerNotification>
   <ClashOfRim.EventType.PeaceRequest>Запрос мира</ClashOfRim.EventType.PeaceRequest>

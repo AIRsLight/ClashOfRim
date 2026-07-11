@@ -9,7 +9,6 @@ public sealed class ClashOfRimEventLetterProjection
 {
     public ClashOfRimEventLetterProjection(
         string eventId,
-        string eventType,
         string label,
         string text,
         LetterDef letterDef,
@@ -17,7 +16,6 @@ public sealed class ClashOfRimEventLetterProjection
         IReadOnlyList<ClashOfRimEventLetterActionKind> actions)
     {
         EventId = eventId;
-        EventType = eventType;
         Label = label;
         Text = text;
         LetterDef = letterDef;
@@ -26,8 +24,6 @@ public sealed class ClashOfRimEventLetterProjection
     }
 
     public string EventId { get; }
-
-    public string EventType { get; }
 
     public string Label { get; }
 

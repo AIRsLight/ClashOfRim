@@ -214,15 +214,15 @@ static void VerifyServerDatabaseMigrationUpgradesLegacyGiftPurpose()
     {
         var ledger = new SqliteAuthoritativeEventLedger(path);
         AuthoritativeEvent legacyTradeDelivery = AuthoritativeEventFactory.Create(
-            ServerEventType.GiftReturn,
+            ServerEventType.ItemDelivery,
             new EventParty("owner", "owner-colony"),
             new EventParty("acceptor", "acceptor-colony"),
             "legacy-trade-owner-delivery",
             targetOnline: false,
-            new GiftEventPayload(
+            new ItemDeliveryEventPayload(
                 Array.Empty<EventThingReference>(),
                 "TradeCompletedOwnerDelivery",
-                Purpose: GiftEventPurpose.TradeCompletedOwnerDelivery),
+                Purpose: ItemDeliveryPurpose.TradeCompletedOwnerDelivery),
             DateTimeOffset.UtcNow);
         ledger.Append(legacyTradeDelivery);
 
@@ -233,10 +233,11 @@ static void VerifyServerDatabaseMigrationUpgradesLegacyGiftPurpose()
             read.Parameters.AddWithValue("$event_id", legacyTradeDelivery.EventId);
             var payload = JsonNode.Parse((string)read.ExecuteScalar()!)!.AsObject();
             payload.Remove("Purpose");
+            payload["payloadType"] = "gift";
 
             using SqliteCommand prepare = connection.CreateCommand();
             prepare.CommandText = """
-                update events set payload_json = $payload_json where event_id = $event_id;
+                update events set type = 'GiftReturn', payload_json = $payload_json where event_id = $event_id;
                 create table server_schema_metadata (
                     metadata_key text primary key,
                     metadata_value text not null,
@@ -251,11 +252,13 @@ static void VerifyServerDatabaseMigrationUpgradesLegacyGiftPurpose()
 
         ServerDatabaseMigrationResult result = ServerDatabaseMigrator.Migrate(path);
         Require(result.AppliedMigrations.Contains("2->3", StringComparer.Ordinal), "旧礼物用途应执行 2->3 迁移");
+        Require(result.AppliedMigrations.Contains("3->4", StringComparer.Ordinal), "旧礼物事件层级应执行 3->4 迁移");
         AuthoritativeEvent migrated = new SqliteAuthoritativeEventLedger(path).Find(legacyTradeDelivery.EventId)
             ?? throw new InvalidOperationException("迁移后的交易投递事件丢失");
+        Equal(ServerEventType.ItemDelivery, migrated.Type, "旧 GiftReturn 顶层类型应迁移为 ItemDelivery");
         Equal(
-            GiftEventPurpose.TradeCompletedOwnerDelivery,
-            ((GiftEventPayload)migrated.Payload).Purpose,
+            ItemDeliveryPurpose.TradeCompletedOwnerDelivery,
+            ((ItemDeliveryEventPayload)migrated.Payload).Purpose,
             "旧交易投递消息应迁移为结构化用途");
     }
     finally

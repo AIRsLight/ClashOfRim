@@ -422,7 +422,7 @@ public static partial class ClashOfRimNetworkServer
 
         return ledgerEvent.Type switch
         {
-            ServerEventType.Gift or ServerEventType.GiftReturn => true,
+            ServerEventType.ItemDelivery => true,
             ServerEventType.SupportPawn => true,
             ServerEventType.Trade => ledgerEvent.Payload is TradeEventPayload tradePayload
                 && tradePayload.Stage is not TradeStage.MarketOrder

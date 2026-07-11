@@ -1,6 +1,6 @@
 namespace AIRsLight.ClashOfRim.Protocol;
 
-public enum GiftEventPurpose
+public enum ItemDeliveryPurpose
 {
     Gift = 0,
     RejectedGiftReturn = 1,

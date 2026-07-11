@@ -1,5 +1,6 @@
 using System.Runtime.Serialization;
 using System.Collections.Generic;
+using AIRsLight.ClashOfRim.Protocol;
 
 namespace AIRsLight.ClashOfRim.ClientNetwork;
 
@@ -10,7 +11,7 @@ public sealed class ModEventReferenceDto
     public string EventId { get; set; } = string.Empty;
 
     [DataMember(Name = "eventType")]
-    public string EventType { get; set; } = string.Empty;
+    public ServerEventType EventType { get; set; }
 
     [DataMember(Name = "status")]
     public string Status { get; set; } = string.Empty;
@@ -299,7 +300,7 @@ public sealed class ModEventDetailDto
     public string EventId { get; set; } = string.Empty;
 
     [DataMember(Name = "eventType")]
-    public string EventType { get; set; } = string.Empty;
+    public ServerEventType EventType { get; set; }
 
     [DataMember(Name = "status")]
     public string Status { get; set; } = string.Empty;
@@ -314,7 +315,7 @@ public sealed class ModEventDetailDto
     public ModEventTargetContextDto? TargetContext { get; set; }
 
     [DataMember(Name = "payloadType")]
-    public string PayloadType { get; set; } = string.Empty;
+    public EventPayloadType PayloadType { get; set; }
 
     [DataMember(Name = "payloadSummary")]
     public string PayloadSummary { get; set; } = string.Empty;

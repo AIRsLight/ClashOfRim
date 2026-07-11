@@ -7,6 +7,7 @@ using System.Runtime.Serialization.Json;
 using System.Text;
 using System.Xml;
 using AIRsLight.ClashOfRim.ClientNetwork;
+using AIRsLight.ClashOfRim.Protocol;
 using Verse;
 
 namespace AIRsLight.ClashOfRim.Raids;
@@ -16,7 +17,7 @@ internal static class RaidAttackerLossPayloadReader
     public static bool HasAttackerLoss(ModEventDetailDto detail)
     {
         if (detail is null
-            || !string.Equals(detail.EventType, "Raid", StringComparison.Ordinal)
+            || detail.EventType != ServerEventType.Raid
             || string.IsNullOrWhiteSpace(detail.PayloadSummary))
         {
             return false;
@@ -36,7 +37,7 @@ internal static class RaidAttackerLossPayloadReader
     {
         summary = null;
         if (detail is null
-            || !string.Equals(detail.EventType, "Raid", StringComparison.Ordinal)
+            || detail.EventType != ServerEventType.Raid
             || string.IsNullOrWhiteSpace(detail.PayloadSummary))
         {
             return false;
@@ -62,7 +63,7 @@ internal static class RaidAttackerLossPayloadReader
         request = null;
         message = string.Empty;
         if (detail is null
-            || !string.Equals(detail.EventType, "Raid", StringComparison.Ordinal)
+            || detail.EventType != ServerEventType.Raid
             || string.IsNullOrWhiteSpace(detail.PayloadSummary))
         {
             message = ClashOfRimText.Key("ClashOfRim.Raid.StatusAttackerLossWrongEvent");

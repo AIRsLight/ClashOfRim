@@ -26,7 +26,7 @@ var tests = new (string Name, Action Run)[]
     ("袭击结果可投影为防守方冷却期", VerifyRaidCooldownProjection),
     ("进攻方损失事件客户端应用优先触发原版远行队失踪", VerifyRaidAttackerLossApplication),
     ("进攻方损失确认快照消费账本事件", VerifyRaidAttackerLossConfirmationConsumption),
-    ("礼物落地确认快照消费账本事件", VerifyGiftApplicationConfirmationConsumption),
+    ("礼物落地确认快照消费账本事件", VerifyItemDeliveryApplicationConfirmationConsumption),
     ("礼物交易支援载荷覆盖共同事件外壳", VerifyCommonEventShellForPayloads),
     ("pawn 交换包只允许固定安全 JSON 结构", VerifyPawnExchangePackageSafety),
     ("pawn Scribe 载荷保留并只替换一层引用 pawn", VerifyPawnScribePayloadOneLayerReferenceReplacement),
@@ -1285,46 +1285,46 @@ static void VerifyRaidAttackerLossConfirmationConsumption()
     Equal(ServerEventStatus.PendingOfflineDelivery, wrongEventLedger.Find(gift.EventId)!.Status, "错误事件不应被消费");
 }
 
-static void VerifyGiftApplicationConfirmationConsumption()
+static void VerifyItemDeliveryApplicationConfirmationConsumption()
 {
     var ledger = new InMemoryAuthoritativeEventLedger();
     AuthoritativeEvent gift = GiftEvent("gift-confirm-accepted", targetOnline: false);
     ledger.Append(gift);
     ledger.MarkDelivered(gift.EventId, "target-snapshot-before", DateTimeOffset.UnixEpoch.AddMinutes(1));
-    var consumer = new GiftApplicationConfirmationConsumer(ledger);
+    var consumer = new ItemDeliveryApplicationConfirmationConsumer(ledger);
 
-    GiftApplicationConfirmationResult accepted = consumer.Consume(
-        GiftConfirmation(gift.EventId, "target-snapshot-before", "target-snapshot-after", "GiftAnchored"),
+    ItemDeliveryApplicationConfirmationResult accepted = consumer.Consume(
+        GiftConfirmation(gift.EventId, "target-snapshot-before", "target-snapshot-after", "ItemDeliveryAnchored"),
         DateTimeOffset.UnixEpoch.AddMinutes(2));
 
-    Equal(GiftApplicationConfirmationResultKind.Accepted, accepted.Kind, "礼物确认结果");
+    Equal(ItemDeliveryApplicationConfirmationResultKind.Accepted, accepted.Kind, "礼物确认结果");
     Equal(ServerEventStatus.AppliedToSnapshot, ledger.Find(gift.EventId)!.Status, "礼物确认应消费事件");
     Equal(EventApplicationResultKind.Applied, ledger.Find(gift.EventId)!.LastApplicationResult, "礼物确认应用结果");
     Equal("target-snapshot-after", ledger.Find(gift.EventId)!.AppliedSnapshotId, "礼物确认快照 ID");
 
-    GiftApplicationConfirmationResult repeated = consumer.Consume(
-        GiftConfirmation(gift.EventId, "target-snapshot-before", "target-snapshot-after", "GiftAnchored"),
+    ItemDeliveryApplicationConfirmationResult repeated = consumer.Consume(
+        GiftConfirmation(gift.EventId, "target-snapshot-before", "target-snapshot-after", "ItemDeliveryAnchored"),
         DateTimeOffset.UnixEpoch.AddMinutes(3));
-    Equal(GiftApplicationConfirmationResultKind.AlreadyApplied, repeated.Kind, "礼物重复确认结果");
+    Equal(ItemDeliveryApplicationConfirmationResultKind.AlreadyApplied, repeated.Kind, "礼物重复确认结果");
     Equal("target-snapshot-after", repeated.AppliedSnapshotId, "礼物重复确认保持原应用快照");
 
     var notDeliveredLedger = new InMemoryAuthoritativeEventLedger();
     AuthoritativeEvent notDeliveredGift = GiftEvent("gift-confirm-not-delivered", targetOnline: false);
     notDeliveredLedger.Append(notDeliveredGift);
-    GiftApplicationConfirmationResult notDelivered = new GiftApplicationConfirmationConsumer(notDeliveredLedger).Consume(
-        GiftConfirmation(notDeliveredGift.EventId, "target-snapshot-before", "target-snapshot-after", "GiftAnchored"),
+    ItemDeliveryApplicationConfirmationResult notDelivered = new ItemDeliveryApplicationConfirmationConsumer(notDeliveredLedger).Consume(
+        GiftConfirmation(notDeliveredGift.EventId, "target-snapshot-before", "target-snapshot-after", "ItemDeliveryAnchored"),
         DateTimeOffset.UnixEpoch.AddMinutes(2));
-    Equal(GiftApplicationConfirmationResultKind.NotDelivered, notDelivered.Kind, "未下发礼物不能确认");
+    Equal(ItemDeliveryApplicationConfirmationResultKind.NotDelivered, notDelivered.Kind, "未下发礼物不能确认");
     Equal(ServerEventStatus.Conflict, notDeliveredLedger.Find(notDeliveredGift.EventId)!.Status, "未下发确认应进入冲突");
 
     var mismatchLedger = new InMemoryAuthoritativeEventLedger();
     AuthoritativeEvent mismatchGift = GiftEvent("gift-confirm-mismatch", targetOnline: false);
     mismatchLedger.Append(mismatchGift);
     mismatchLedger.MarkDelivered(mismatchGift.EventId, "target-snapshot-before", DateTimeOffset.UnixEpoch.AddMinutes(1));
-    GiftApplicationConfirmationResult mismatch = new GiftApplicationConfirmationConsumer(mismatchLedger).Consume(
-        GiftConfirmation(mismatchGift.EventId, "target-snapshot-other", "target-snapshot-after", "GiftAnchored"),
+    ItemDeliveryApplicationConfirmationResult mismatch = new ItemDeliveryApplicationConfirmationConsumer(mismatchLedger).Consume(
+        GiftConfirmation(mismatchGift.EventId, "target-snapshot-other", "target-snapshot-after", "ItemDeliveryAnchored"),
         DateTimeOffset.UnixEpoch.AddMinutes(2));
-    Equal(GiftApplicationConfirmationResultKind.SnapshotBaseMismatch, mismatch.Kind, "礼物基线快照不匹配结果");
+    Equal(ItemDeliveryApplicationConfirmationResultKind.SnapshotBaseMismatch, mismatch.Kind, "礼物基线快照不匹配结果");
     Equal(ServerEventStatus.Conflict, mismatchLedger.Find(mismatchGift.EventId)!.Status, "礼物基线不匹配应进入冲突");
 
     var rejectedLedger = new InMemoryAuthoritativeEventLedger();
@@ -1332,35 +1332,35 @@ static void VerifyGiftApplicationConfirmationConsumption()
     rejectedLedger.Append(rejectedGift);
     rejectedLedger.MarkDelivered(rejectedGift.EventId, "target-snapshot-before", DateTimeOffset.UnixEpoch.AddMinutes(1));
     rejectedLedger.MarkRejected(rejectedGift.EventId, DateTimeOffset.UnixEpoch.AddMinutes(2), "不要礼物");
-    GiftApplicationConfirmationResult rejected = new GiftApplicationConfirmationConsumer(rejectedLedger).Consume(
-        GiftConfirmation(rejectedGift.EventId, "target-snapshot-before", "target-snapshot-after", "GiftAnchored"),
+    ItemDeliveryApplicationConfirmationResult rejected = new ItemDeliveryApplicationConfirmationConsumer(rejectedLedger).Consume(
+        GiftConfirmation(rejectedGift.EventId, "target-snapshot-before", "target-snapshot-after", "ItemDeliveryAnchored"),
         DateTimeOffset.UnixEpoch.AddMinutes(3));
-    Equal(GiftApplicationConfirmationResultKind.RejectedByTarget, rejected.Kind, "已拒绝礼物不能确认");
+    Equal(ItemDeliveryApplicationConfirmationResultKind.RejectedByTarget, rejected.Kind, "已拒绝礼物不能确认");
     Equal(ServerEventStatus.RejectedByTarget, rejectedLedger.Find(rejectedGift.EventId)!.Status, "已拒绝礼物保持拒绝状态");
 
     var wrongTargetLedger = new InMemoryAuthoritativeEventLedger();
     AuthoritativeEvent wrongTargetGift = GiftEvent("gift-confirm-wrong-target", targetOnline: false);
     wrongTargetLedger.Append(wrongTargetGift);
     wrongTargetLedger.MarkDelivered(wrongTargetGift.EventId, "target-snapshot-before", DateTimeOffset.UnixEpoch.AddMinutes(1));
-    GiftApplicationConfirmationResult wrongTarget = new GiftApplicationConfirmationConsumer(wrongTargetLedger).Consume(
-        GiftConfirmation(wrongTargetGift.EventId, "target-snapshot-before", "target-snapshot-after", "GiftAnchored") with
+    ItemDeliveryApplicationConfirmationResult wrongTarget = new ItemDeliveryApplicationConfirmationConsumer(wrongTargetLedger).Consume(
+        GiftConfirmation(wrongTargetGift.EventId, "target-snapshot-before", "target-snapshot-after", "ItemDeliveryAnchored") with
         {
             OwnerId = "user-c",
             ColonyId = "colony-c",
             ConfirmedSnapshot = SnapshotRecord("user-c", "colony-c", "target-snapshot-after", Array.Empty<ThingSummary>(), Array.Empty<PawnSummary>())
         },
         DateTimeOffset.UnixEpoch.AddMinutes(2));
-    Equal(GiftApplicationConfirmationResultKind.NotTarget, wrongTarget.Kind, "非目标用户不能确认礼物");
+    Equal(ItemDeliveryApplicationConfirmationResultKind.NotTarget, wrongTarget.Kind, "非目标用户不能确认礼物");
     Equal(ServerEventStatus.DeliveredToClient, wrongTargetLedger.Find(wrongTargetGift.EventId)!.Status, "非目标确认不应消费事件");
 
     var notAnchoredLedger = new InMemoryAuthoritativeEventLedger();
     AuthoritativeEvent notAnchoredGift = GiftEvent("gift-confirm-not-anchored", targetOnline: false);
     notAnchoredLedger.Append(notAnchoredGift);
     notAnchoredLedger.MarkDelivered(notAnchoredGift.EventId, "target-snapshot-before", DateTimeOffset.UnixEpoch.AddMinutes(1));
-    GiftApplicationConfirmationResult notAnchored = new GiftApplicationConfirmationConsumer(notAnchoredLedger).Consume(
+    ItemDeliveryApplicationConfirmationResult notAnchored = new ItemDeliveryApplicationConfirmationConsumer(notAnchoredLedger).Consume(
         GiftConfirmation(notAnchoredGift.EventId, "target-snapshot-before", "target-snapshot-after", string.Empty),
         DateTimeOffset.UnixEpoch.AddMinutes(2));
-    Equal(GiftApplicationConfirmationResultKind.NotAnchored, notAnchored.Kind, "未声明已生成投递结果不能确认");
+    Equal(ItemDeliveryApplicationConfirmationResultKind.NotAnchored, notAnchored.Kind, "未声明已生成投递结果不能确认");
     Equal(ServerEventStatus.Conflict, notAnchoredLedger.Find(notAnchoredGift.EventId)!.Status, "未生成投递结果确认应进入冲突");
 }
 
@@ -1410,7 +1410,7 @@ static void VerifyCommonEventShellForPayloads()
             pawnPackage),
         DateTimeOffset.UnixEpoch);
 
-    Require(gift.Payload is GiftEventPayload, "礼物载荷类型");
+    Require(gift.Payload is ItemDeliveryEventPayload, "礼物载荷类型");
     Require(trade.Payload is TradeEventPayload, "交易载荷类型");
     Require(support.Payload is SupportPawnEventPayload, "支援载荷类型");
     Equal(pawnReference.GlobalId, ((SupportPawnEventPayload)support.Payload).PawnReference!.GlobalId, "支援 pawn 应可携带统一跨地图 pawn 引用");
@@ -1661,7 +1661,7 @@ static void VerifyEventQueueSummary()
     Equal(rejected.EventId, summary.Rejected.Single().EventId, "已拒绝事件");
 
     EventQueueItem waitingItem = summary.WaitingForConfirmation.Single();
-    Equal(ServerEventType.Gift, waitingItem.Type, "摘要事件类型");
+    Equal(ServerEventType.ItemDelivery, waitingItem.Type, "摘要事件类型");
     Equal("Map_0", waitingItem.TargetMapUniqueId, "摘要目标地图");
     Equal(12345, waitingItem.TargetTile, "摘要目标地块");
     Require(waitingItem.NeedsUserChoice, "礼物应需要用户选择");
@@ -1969,7 +1969,7 @@ static void VerifyRejectedGiftCreatesReturnEvent()
 
     Equal(ServerEventStatus.RejectedByTarget, result.RejectedGift.Status, "原礼物拒绝状态");
     Require(result.ReturnEventCreated, "应创建退回事件");
-    Equal(ServerEventType.GiftReturn, result.ReturnEvent.Type, "退回事件类型");
+    Equal(ServerEventType.ItemDelivery, result.ReturnEvent.Type, "退回事件类型");
     Equal("user-b", result.ReturnEvent.Actor.UserId, "退回事件发起方应为拒绝方");
     Equal("user-a", result.ReturnEvent.Target.UserId, "退回事件目标应为原发起方");
     Equal(EventRejectionPolicy.NotRejectable, result.ReturnEvent.RejectionPolicy, "退回事件不可拒绝");
@@ -2667,7 +2667,7 @@ static void VerifyProtocolContractCoverage()
             new ConfirmEventApplicationEntry(
                 "gift-return-001",
                 sourceEventId: null,
-                "GiftReturnAnchored")
+                "ItemDeliveryAnchored")
         });
     Equal("snapshot-before", batchConfirmation.BaseSnapshotId, "批量确认事件必须共享原始快照");
     Equal("snapshot-after", batchConfirmation.ConfirmedSnapshot.SnapshotId, "批量确认事件必须带确认快照");
@@ -2848,15 +2848,15 @@ static void VerifyProtocolContractCoverage()
         {
             new EventDetailDto(
                 "event-001",
-                "Gift",
+                ServerEventType.ItemDelivery,
                 "PendingOfflineDelivery",
                 new ProtocolIdentity("user-a", "colony-a", null),
                 new ProtocolIdentity("user-b", "colony-b", null),
                 new EventTargetContextDto("WorldObject_1", "Map_0", 12345, "StorageZone"),
-                "GiftEventPayload",
+                EventPayloadType.ItemDelivery,
                 "{\"items\":1}")
         });
-    Equal("GiftEventPayload", detailResponse.Events.Single().PayloadType, "事件详情应携带载荷类型");
+    Equal(EventPayloadType.ItemDelivery, detailResponse.Events.Single().PayloadType, "事件详情应携带载荷类型");
     Equal("Map_0", detailResponse.Events.Single().TargetContext!.MapUniqueId, "事件详情应携带目标地图上下文");
 }
 
@@ -2917,7 +2917,7 @@ static void VerifyFileLedgerPersistence()
     Equal("file-snapshot-before", reopened.Find(newer.EventId)!.DeliveredToSnapshotId, "下发快照应持久化");
     Equal("file-snapshot-after", reopened.Find(newer.EventId)!.AppliedSnapshotId, "应用快照应持久化");
     Equal(older.EventId, deliverableForTarget.Single().EventId, "已应用事件不应再次下发");
-    Require(reopened.Find(older.EventId)!.Payload is GiftEventPayload, "载荷类型应恢复");
+    Require(reopened.Find(older.EventId)!.Payload is ItemDeliveryEventPayload, "载荷类型应恢复");
 
     AuthoritativeEvent notice = ServerNotificationEvent("persist-server-notice", targetOnline: false);
     reopened.Append(notice);
@@ -2983,7 +2983,7 @@ static void VerifySqliteLedgerPersistence()
     Equal("Map_0", reopened.Find(oldest.EventId)!.TargetContext!.MapUniqueId, "SQLite 目标地图应恢复");
     Equal(12345, reopened.Find(oldest.EventId)!.TargetContext!.Tile, "SQLite 目标地块应恢复");
     Equal(EventLandingMode.StorageZone, reopened.Find(oldest.EventId)!.TargetContext!.LandingMode, "SQLite 落点策略应恢复");
-    Require(reopened.Find(oldest.EventId)!.Payload is GiftEventPayload, "SQLite 载荷类型应恢复");
+    Require(reopened.Find(oldest.EventId)!.Payload is ItemDeliveryEventPayload, "SQLite 载荷类型应恢复");
 
     LedgerAppendResult duplicate = reopened.Append(GiftEvent("sqlite-pending-oldest", targetOnline: false) with
     {
@@ -3006,7 +3006,7 @@ static void VerifySqliteLedgerPersistence()
     Equal(ServerEventStatus.RejectedByTarget, persistedRejected.Status, "SQLite 拒绝状态应恢复");
     Equal(TargetEventDecision.Rejected, persistedRejected.TargetDecision, "SQLite 拒绝决策应恢复");
     Equal("拒绝礼物", persistedRejected.DecisionReason, "SQLite 拒绝理由应恢复");
-    Equal(ServerEventType.GiftReturn, persistedReturn.Type, "SQLite 退回事件类型应恢复");
+    Equal(ServerEventType.ItemDelivery, persistedReturn.Type, "SQLite 退回事件类型应恢复");
     Equal(EventRejectionPolicy.NotRejectable, persistedReturn.RejectionPolicy, "SQLite 退回事件不可拒绝应恢复");
     Equal("user-a", persistedReturn.Target.UserId, "SQLite 退回事件目标应恢复");
     Require(!reopenedAgain.ListDeliverableForTarget("user-b").Any(evt => evt.EventId == rejected.EventId), "SQLite 拒绝后不应再下发");
@@ -3025,12 +3025,12 @@ static void VerifySqliteLedgerPersistence()
 static AuthoritativeEvent GiftEvent(string idempotencyKey, bool targetOnline)
 {
     return AuthoritativeEventFactory.Create(
-        ServerEventType.Gift,
+        ServerEventType.ItemDelivery,
         Actor(),
         Target(),
         idempotencyKey,
         targetOnline,
-        new GiftEventPayload(new[] { new EventThingReference("thing-gift", "MealFine", 3) }, "gift"),
+        new ItemDeliveryEventPayload(new[] { new EventThingReference("thing-gift", "MealFine", 3) }, "gift"),
         DateTimeOffset.UnixEpoch,
         TargetContext());
 }
@@ -3269,13 +3269,13 @@ static RaidAttackerLossConfirmationRequest AttackerLossConfirmation(
         SnapshotRecord("user-a", "colony-a", confirmedSnapshotId, things, pawns));
 }
 
-static GiftApplicationConfirmationRequest GiftConfirmation(
+static ItemDeliveryApplicationConfirmationRequest GiftConfirmation(
     string giftEventId,
     string baseSnapshotId,
     string confirmedSnapshotId,
     string clientApplicationResult)
 {
-    return new GiftApplicationConfirmationRequest(
+    return new ItemDeliveryApplicationConfirmationRequest(
         giftEventId,
         "user-b",
         "colony-b",

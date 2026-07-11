@@ -7,7 +7,6 @@ namespace AIRsLight.ClashOfRim.EventLetters;
 public sealed class ClashOfRimEventChoiceLetter : ChoiceLetter
 {
     public string EventId = string.Empty;
-    public string EventType = string.Empty;
     public List<ClashOfRimEventLetterActionKind> Actions = new();
     public bool CanAccept;
     public bool CanReject;
@@ -48,7 +47,6 @@ public sealed class ClashOfRimEventChoiceLetter : ChoiceLetter
     {
         base.ExposeData();
         Scribe_Values.Look(ref EventId, "clashOfRimEventId", string.Empty);
-        Scribe_Values.Look(ref EventType, "clashOfRimEventType", string.Empty);
         Scribe_Collections.Look(ref Actions, "clashOfRimActions", LookMode.Value);
         Scribe_Values.Look(ref CanAccept, "clashOfRimCanAccept", false);
         Scribe_Values.Look(ref CanReject, "clashOfRimCanReject", false);

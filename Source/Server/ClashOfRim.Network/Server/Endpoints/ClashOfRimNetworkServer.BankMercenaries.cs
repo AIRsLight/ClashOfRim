@@ -1566,7 +1566,6 @@ public static partial class ClashOfRimNetworkServer
                     ("AMOUNT", debt.AmountSilver.ToString(CultureInfo.InvariantCulture))),
                 ServerNotificationSeverity.Warning,
                 FromAdministrator: false,
-                RelatedEventType: "BankFine",
                 RelatedUserId: context.UserId,
                 RelatedColonyId: context.ColonyId),
             nowUtc);

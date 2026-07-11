@@ -1610,7 +1610,7 @@ public static partial class ClashOfRimNetworkServer
                 accepted ? ServerNotificationSeverity.Info : ServerNotificationSeverity.Warning,
                 FromAdministrator: false,
                 RelatedEventId: diplomacyEvent.EventId,
-                RelatedEventType: diplomacyEvent.Type.ToString(),
+                RelatedEventType: diplomacyEvent.Type,
                 RelatedUserId: diplomacyEvent.Target.UserId,
                 RelatedColonyId: diplomacyEvent.Target.ColonyId,
                 RelatedAccepted: accepted),

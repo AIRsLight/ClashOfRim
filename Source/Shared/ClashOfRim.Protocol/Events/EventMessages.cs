@@ -124,12 +124,12 @@ public sealed class EventDetailDto
 {
     public EventDetailDto(
         string eventId,
-        string eventType,
+        ServerEventType eventType,
         string status,
         ProtocolIdentity actor,
         ProtocolIdentity target,
         EventTargetContextDto? targetContext,
-        string payloadType,
+        EventPayloadType payloadType,
         string payloadSummary)
     {
         EventId = eventId;
@@ -144,7 +144,7 @@ public sealed class EventDetailDto
 
     public string EventId { get; }
 
-    public string EventType { get; }
+    public ServerEventType EventType { get; }
 
     public string Status { get; }
 
@@ -154,7 +154,7 @@ public sealed class EventDetailDto
 
     public EventTargetContextDto? TargetContext { get; }
 
-    public string PayloadType { get; }
+    public EventPayloadType PayloadType { get; }
 
     public string PayloadSummary { get; }
 }

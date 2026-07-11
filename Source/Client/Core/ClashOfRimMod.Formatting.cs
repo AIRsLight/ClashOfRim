@@ -4,6 +4,7 @@ using System.Linq;
 using AIRsLight.ClashOfRim.Bank;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.Gifts;
+using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Trades;
 using AIRsLight.ClashOfRim.WorldObjects;
 using Verse;
@@ -360,7 +361,7 @@ public sealed partial class ClashOfRimMod
             map.Named("MAP"));
     }
 
-    private static string FormatGiftProcessingResult(GiftClientProcessingResult result)
+    private static string FormatGiftProcessingResult(ItemDeliveryClientProcessingResult result)
     {
         if (result.LandingPlan is not null)
         {
@@ -450,21 +451,19 @@ public sealed partial class ClashOfRimMod
         };
     }
 
-    private static string FormatEventTypeForSummary(string? eventType)
+    private static string FormatEventTypeForSummary(ServerEventType eventType)
     {
         return eventType switch
         {
-            "AllianceRequest" => ClashOfRimText.Key("ClashOfRim.EventType.AllianceRequest"),
-            "AllianceCancellation" => ClashOfRimText.Key("ClashOfRim.EventType.AllianceCancellation"),
-            "Gift" => ClashOfRimText.Key("ClashOfRim.EventType.Gift"),
-            "GiftReturn" => ClashOfRimText.Key("ClashOfRim.EventType.GiftReturn"),
-            "PeaceRequest" => ClashOfRimText.Key("ClashOfRim.EventType.PeaceRequest"),
-            "Raid" => ClashOfRimText.Key("ClashOfRim.EventType.Raid"),
-            "ServerNotification" => ClashOfRimText.Key("ClashOfRim.EventType.ServerNotification"),
-            "SupportPawn" => ClashOfRimText.Key("ClashOfRim.EventType.SupportPawn"),
-            "SupportRequest" => ClashOfRimText.Key("ClashOfRim.EventType.SupportRequest"),
-            "Trade" => ClashOfRimText.Key("ClashOfRim.EventType.Trade"),
-            "WarDeclaration" => ClashOfRimText.Key("ClashOfRim.EventType.WarDeclaration"),
+            ServerEventType.AllianceRequest => ClashOfRimText.Key("ClashOfRim.EventType.AllianceRequest"),
+            ServerEventType.AllianceCancellation => ClashOfRimText.Key("ClashOfRim.EventType.AllianceCancellation"),
+            ServerEventType.ItemDelivery => ClashOfRimText.Key("ClashOfRim.EventType.ItemDelivery"),
+            ServerEventType.PeaceRequest => ClashOfRimText.Key("ClashOfRim.EventType.PeaceRequest"),
+            ServerEventType.Raid => ClashOfRimText.Key("ClashOfRim.EventType.Raid"),
+            ServerEventType.ServerNotification => ClashOfRimText.Key("ClashOfRim.EventType.ServerNotification"),
+            ServerEventType.SupportPawn => ClashOfRimText.Key("ClashOfRim.EventType.SupportPawn"),
+            ServerEventType.Trade => ClashOfRimText.Key("ClashOfRim.EventType.Trade"),
+            ServerEventType.WarDeclaration => ClashOfRimText.Key("ClashOfRim.EventType.WarDeclaration"),
             _ => ClashOfRimText.Key("ClashOfRim.EventType.Unknown")
         };
     }

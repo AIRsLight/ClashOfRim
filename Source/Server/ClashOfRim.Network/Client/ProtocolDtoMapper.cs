@@ -141,12 +141,12 @@ public static class ProtocolDtoMapper
     {
         return new EventDetailDto(
             ledgerEvent.EventId,
-            ledgerEvent.Type.ToString(),
+            ledgerEvent.Type,
             ledgerEvent.Status.ToString(),
             ToProtocolIdentity(ledgerEvent.Actor),
             ToProtocolIdentity(ledgerEvent.Target),
             ToDto(ledgerEvent.TargetContext),
-            ledgerEvent.Payload.GetType().Name,
+            ToPayloadType(ledgerEvent.Payload),
             PayloadSummary(ledgerEvent.Payload));
     }
 
@@ -154,12 +154,29 @@ public static class ProtocolDtoMapper
     {
         return new EventReferenceDto(
             item.EventId,
-            item.Type.ToString(),
+            item.Type,
             item.Status.ToString(),
             ToDeliverySemantics(item),
             item.RequiresClientApplication
             && (item.Group == EventQueueGroupKind.DeliveredUnconfirmed ||
                 item.Group == EventQueueGroupKind.DirectlyProcessable));
+    }
+
+    private static EventPayloadType ToPayloadType(LedgerEventPayload payload)
+    {
+        return payload switch
+        {
+            RaidEventPayload => EventPayloadType.Raid,
+            ItemDeliveryEventPayload => EventPayloadType.ItemDelivery,
+            TradeEventPayload => EventPayloadType.Trade,
+            SupportPawnEventPayload => EventPayloadType.SupportPawn,
+            AllianceRequestEventPayload => EventPayloadType.AllianceRequest,
+            AllianceCancellationEventPayload => EventPayloadType.AllianceCancellation,
+            WarDeclarationEventPayload => EventPayloadType.WarDeclaration,
+            PeaceRequestEventPayload => EventPayloadType.PeaceRequest,
+            ServerNotificationEventPayload => EventPayloadType.ServerNotification,
+            _ => EventPayloadType.Unknown
+        };
     }
 
     private static ProtocolIdentity ToProtocolIdentity(EventParty party)
@@ -220,7 +237,7 @@ public static class ProtocolDtoMapper
         string json = JsonSerializer.Serialize(payload, payload.GetType());
         int maxLength = payload switch
         {
-            GiftEventPayload => 3 * 1024 * 1024,
+            ItemDeliveryEventPayload => 3 * 1024 * 1024,
             RaidEventPayload { Settlement: not null } => 2 * 1024 * 1024,
             _ => 4096
         };

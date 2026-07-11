@@ -507,7 +507,7 @@ try
     Require(allianceNotification?.Type == ServerEventType.ServerNotification, "接受结盟应通知发起方");
     var allianceNotificationPayload = (ServerNotificationEventPayload)allianceNotification!.Payload;
     Equal(allianceRequest.EventId!, allianceNotificationPayload.RelatedEventId, "接受结盟通知应携带原外交事件 ID");
-    Equal("AllianceRequest", allianceNotificationPayload.RelatedEventType, "接受结盟通知应携带原外交事件类型");
+    Equal(ServerEventType.AllianceRequest, allianceNotificationPayload.RelatedEventType, "接受结盟通知应携带原外交事件类型");
     Equal("user-b", allianceNotificationPayload.RelatedUserId, "接受结盟通知应携带接受方用户");
     Equal(true, allianceNotificationPayload.RelatedAccepted, "接受结盟通知应携带接受结果");
     ListPlayersResponse playersAfterAlliance = await client.ListPlayersAsync(new ListPlayersRequest(
@@ -594,7 +594,7 @@ try
         deliveryKind: "Forced"));
     Require(forcedGift.Result.Accepted, $"敌对且离线目标应允许强行投递：{forcedGift.Result.ErrorCode} {forcedGift.Result.Message}");
     AuthoritativeEvent forcedGiftEvent = state.Ledger.Find(forcedGift.EventId!)!;
-    Require(forcedGiftEvent.Payload is GiftEventPayload forcedGiftPayload && forcedGiftPayload.IsForcedDelivery, "强投礼物应写入强投载荷");
+    Require(forcedGiftEvent.Payload is ItemDeliveryEventPayload forcedGiftPayload && forcedGiftPayload.IsForcedDelivery, "强投礼物应写入强投载荷");
     Equal(EventRejectionPolicy.NotRejectable, forcedGiftEvent.RejectionPolicy, "强投礼物不可拒绝");
 
     RejectGiftResponse rejectedForcedGift = await client.RejectGiftAsync(new RejectGiftRequest(
@@ -675,8 +675,8 @@ try
         new[] { attackerLoss.EventId }));
     Require(details.Result.Accepted, "拉取事件详情应成功");
     EventDetailDto attackerLossDetail = details.Events.Single(item => item.EventId == attackerLoss.EventId);
-    Equal("Raid", attackerLossDetail.EventType, "事件详情应返回事件类型");
-    Equal("RaidEventPayload", attackerLossDetail.PayloadType, "事件详情应返回载荷类型");
+    Equal(ServerEventType.Raid, attackerLossDetail.EventType, "事件详情应返回事件类型");
+    Equal(EventPayloadType.Raid, attackerLossDetail.PayloadType, "事件详情应返回载荷类型");
     Require(attackerLossDetail.PayloadSummary.Contains("AttackerLoss", StringComparison.Ordinal), "事件详情应返回载荷摘要");
 
     PullEventDetailsResponse hiddenDetails = await client.PullEventDetailsAsync(new PullEventDetailsRequest(
@@ -776,7 +776,7 @@ try
         new[] { new ThingReferenceDto("owner:user-a/colony:colony-a/snapshot:attacker-snapshot-after/map:0/thing:meal", "MealFine", 3) },
         "smoke gift"));
     Require(gift.Result.Accepted, "创建礼物应成功");
-    Require(state.Ledger.Find(gift.EventId!)?.Payload is GiftEventPayload, "礼物事件应进入账本");
+    Require(state.Ledger.Find(gift.EventId!)?.Payload is ItemDeliveryEventPayload, "礼物事件应进入账本");
     Equal(ServerEventStatus.ReadyForImmediateDelivery, state.Ledger.Find(gift.EventId!)!.Status, "在线目标的礼物应标记为即时下发");
 
     WaitForEventsResponse giftNotification = await waitForGift;
@@ -819,7 +819,7 @@ try
         "colony-b",
         "defender-snapshot-before",
         SnapshotMetadata(giftConfirmedPackage),
-        "GiftAnchored",
+        "ItemDeliveryAnchored",
         authToken: userBAuthToken),
         giftConfirmedPackage.Payload);
     Require(
@@ -1035,7 +1035,7 @@ try
         "smoke reject"));
     Require(rejectedGift.Result.Accepted, "拒绝礼物应成功");
     Require(rejectedGift.ReturnEventCreated, "首次拒绝应创建退回事件");
-    Require(state.Ledger.Find(rejectedGift.ReturnEventId!)?.Type == ServerEventType.GiftReturn, "拒绝礼物应创建退回事件");
+    Require(state.Ledger.Find(rejectedGift.ReturnEventId!)?.Type == ServerEventType.ItemDelivery, "拒绝礼物应创建退回事件");
 
     RejectGiftResponse duplicateRejectGift = await client.RejectGiftAsync(new RejectGiftRequest(
         gift.EventId!,
@@ -1269,10 +1269,10 @@ try
     Equal(ServerEventStatus.Cancelled, state.Ledger.Find(oldTrade.EventId)!.Status, "过期交易单应按撤单进入取消状态");
     Equal(ServerEventStatus.Cancelled, state.Ledger.Find(oldTradeMemo.EventId)!.Status, "过期交易单应关闭接单备忘录");
     AuthoritativeEvent expiredReturn = state.Ledger.ListForUser("user-a")
-        .Single(evt => evt.Type == ServerEventType.GiftReturn
+        .Single(evt => evt.Type == ServerEventType.ItemDelivery
             && evt.IdempotencyKey == $"trade-expired-owner-return:{oldTrade.EventId}");
-    GiftEventPayload expiredReturnPayload = (GiftEventPayload)expiredReturn.Payload;
-    Equal(GiftEventPurpose.TradeExpiredOwnerReturn, expiredReturnPayload.Purpose, "过期交易单应生成发布者托管物退回事件");
+    ItemDeliveryEventPayload expiredReturnPayload = (ItemDeliveryEventPayload)expiredReturn.Payload;
+    Equal(ItemDeliveryPurpose.TradeExpiredOwnerReturn, expiredReturnPayload.Purpose, "过期交易单应生成发布者托管物退回事件");
     Require(expiredReturnPayload.Items.Any(item => item.Def == "Steel" && item.StackCount == 50), "过期退回应包含发布者上架物品");
     string expiredAcceptorNotificationId = $"trade-expired:{oldTrade.EventId}:user-b:colony-b";
     IReadOnlyList<ServerNotificationEventPayload> expiredAcceptorNotifications = state.Ledger.ListForUser("user-b")
@@ -1323,9 +1323,9 @@ try
     Equal(ServerEventStatus.Cancelled, state.Ledger.Find(obsoleteTrade.EventId!)!.Status, "物品基线缺失的交易单应自动取消");
     Equal(ServerEventStatus.Cancelled, state.Ledger.Find(obsoleteAccepted.MemoEventId!)!.Status, "物品基线缺失应同步取消接单备忘录");
     AuthoritativeEvent baselineInvalidationReturn = state.Ledger.ListForUser("user-a")
-        .Single(evt => evt.Type == ServerEventType.GiftReturn
+        .Single(evt => evt.Type == ServerEventType.ItemDelivery
             && evt.IdempotencyKey == $"trade-baseline-invalidated-owner-return:{obsoleteTrade.EventId}");
-    Equal(GiftEventPurpose.TradeBaselineChangedOwnerReturn, ((GiftEventPayload)baselineInvalidationReturn.Payload).Purpose, "物品基线失效应按撤单退回发布者托管物");
+    Equal(ItemDeliveryPurpose.TradeBaselineChangedOwnerReturn, ((ItemDeliveryEventPayload)baselineInvalidationReturn.Payload).Purpose, "物品基线失效应按撤单退回发布者托管物");
     Require(
         state.Ledger.ListForUser("user-b").Any(evt =>
             evt.Type == ServerEventType.ServerNotification
@@ -1558,10 +1558,10 @@ try
     TradeEventPayload directDropPodPayload = (TradeEventPayload)state.Ledger.Find(directDropPodFulfill.ExchangeEventId!)!.Payload;
     Equal(TradeStage.ServerDropPodExchange, directDropPodPayload.Stage, "空投履约应写入服务器空投交换阶段");
     Equal(TradeFulfillmentMode.ServerDropPod, directDropPodPayload.FulfillmentMode, "空投履约应记录服务器空投方式");
-    GiftEventPayload acceptorDeliveryPayload = (GiftEventPayload)state.Ledger.Find(directDropPodFulfill.AcceptorDeliveryEventId!)!.Payload;
-    GiftEventPayload ownerDeliveryPayload = (GiftEventPayload)state.Ledger.Find(directDropPodFulfill.OwnerDeliveryEventId!)!.Payload;
-    Equal(GiftEventPurpose.TradeCompletedAcceptorDelivery, acceptorDeliveryPayload.Purpose, "空投履约应给接单方生成对方物品交付事件");
-    Equal(GiftEventPurpose.TradeCompletedOwnerDelivery, ownerDeliveryPayload.Purpose, "空投履约应给发布者生成己方交付物交付事件");
+    ItemDeliveryEventPayload acceptorDeliveryPayload = (ItemDeliveryEventPayload)state.Ledger.Find(directDropPodFulfill.AcceptorDeliveryEventId!)!.Payload;
+    ItemDeliveryEventPayload ownerDeliveryPayload = (ItemDeliveryEventPayload)state.Ledger.Find(directDropPodFulfill.OwnerDeliveryEventId!)!.Payload;
+    Equal(ItemDeliveryPurpose.TradeCompletedAcceptorDelivery, acceptorDeliveryPayload.Purpose, "空投履约应给接单方生成对方物品交付事件");
+    Equal(ItemDeliveryPurpose.TradeCompletedOwnerDelivery, ownerDeliveryPayload.Purpose, "空投履约应给发布者生成己方交付物交付事件");
     LoginResponse surfaceLogin = await client.LoginAsync(new LoginRequest(
         ProtocolApiVersion.Current,
         "user-surface",
@@ -1588,9 +1588,9 @@ try
     Equal(ServerEventStatus.Failed, state.Ledger.Find(directDropPodFulfill.AcceptorDeliveryEventId!)!.Status, "恢复失败应将接收方交付事件标记失败");
     Equal(ServerEventStatus.Failed, state.Ledger.Find(directDropPodFulfill.OwnerDeliveryEventId!)!.Status, "恢复失败应将发布者交付事件标记失败");
     AuthoritativeEvent applicationFailedReturn = state.Ledger.ListForUser("user-orbit")
-        .Single(evt => evt.Type == ServerEventType.GiftReturn
+        .Single(evt => evt.Type == ServerEventType.ItemDelivery
             && evt.IdempotencyKey == $"trade-application-failed-owner-return:{directDropPodTrade.EventId}:{directDropPodFulfill.AcceptorDeliveryEventId}");
-    Equal(GiftEventPurpose.TradeApplicationFailedOwnerReturn, ((GiftEventPayload)applicationFailedReturn.Payload).Purpose, "交易落地失败应生成发布者托管物退回事件");
+    Equal(ItemDeliveryPurpose.TradeApplicationFailedOwnerReturn, ((ItemDeliveryEventPayload)applicationFailedReturn.Payload).Purpose, "交易落地失败应生成发布者托管物退回事件");
 
     AcceptTradeOrderResponse acceptedTrade = await client.AcceptTradeOrderAsync(new AcceptTradeOrderRequest(
         "trade:user-b:accept:001",
@@ -1640,9 +1640,9 @@ try
     Equal(ServerEventStatus.Cancelled, state.Ledger.Find(acceptedTrade.MemoEventId!)!.Status, "撤单后接单人备忘录应进入取消状态");
     Equal(ServerEventStatus.Cancelled, state.Ledger.Find(acceptedByUserC.MemoEventId!)!.Status, "撤单应关闭每个接单人的备忘录");
     AuthoritativeEvent cancelledReturn = state.Ledger.ListForUser("user-a")
-        .Single(evt => evt.Type == ServerEventType.GiftReturn
+        .Single(evt => evt.Type == ServerEventType.ItemDelivery
             && evt.IdempotencyKey == $"trade-cancelled-owner-return:{trade.EventId}");
-    Equal(GiftEventPurpose.TradeCancelledOwnerReturn, ((GiftEventPayload)cancelledReturn.Payload).Purpose, "撤单应生成发布者托管物退回事件");
+    Equal(ItemDeliveryPurpose.TradeCancelledOwnerReturn, ((ItemDeliveryEventPayload)cancelledReturn.Payload).Purpose, "撤单应生成发布者托管物退回事件");
     Require(state.EventNotifications.GetVersion("user-b") > userBVersionBeforeCancel, "撤单应通知 user-b 刷新接单清单");
     Require(state.EventNotifications.GetVersion("user-c") > userCVersionBeforeCancel, "撤单应通知 user-c 刷新接单清单");
 
@@ -1686,7 +1686,7 @@ try
     Require(fulfilledTrade.ReceivedThings.Any(thing => thing.DefName == "Cloth" && thing.StackCount == 50), "自提履约响应应返回接单方获得的发布者物品");
     Require(string.IsNullOrWhiteSpace(fulfilledTrade.AcceptorDeliveryEventId), "自提履约不应再给接单方创建空投收货事件");
     Require(!string.IsNullOrWhiteSpace(fulfilledTrade.OwnerDeliveryEventId), "自提履约应给发布者创建交付物到达事件");
-    Equal(GiftEventPurpose.TradeCompletedOwnerDelivery, ((GiftEventPayload)state.Ledger.Find(fulfilledTrade.OwnerDeliveryEventId!)!.Payload).Purpose, "自提履约应以交易交付语义通知发布者收货");
+    Equal(ItemDeliveryPurpose.TradeCompletedOwnerDelivery, ((ItemDeliveryEventPayload)state.Ledger.Find(fulfilledTrade.OwnerDeliveryEventId!)!.Payload).Purpose, "自提履约应以交易交付语义通知发布者收货");
     AuthoritativeEvent exchangeEvent = state.Ledger.Find(fulfilledTrade.ExchangeEventId!)!;
     TradeEventPayload exchangePayload = (TradeEventPayload)exchangeEvent.Payload;
     Equal(TradeStage.SelfDeliveryExchange, exchangePayload.Stage, "自提履约应写入自提交换阶段");
@@ -2464,12 +2464,12 @@ static async Task VerifyColonyRelocationExplicitConfirmationAsync()
         state.Ledger.ChangeStatus(defendingRaid.EventId, ServerEventStatus.AppliedToSnapshot);
 
         AuthoritativeEvent pendingOldMapGift = AuthoritativeEventFactory.Create(
-            ServerEventType.Gift,
+            ServerEventType.ItemDelivery,
             new EventParty("gift-sender", "gift-sender-colony"),
             new EventParty("reloc-user", "reloc-colony"),
             "relocation-blocked-old-map-gift",
             targetOnline: false,
-            new GiftEventPayload(
+            new ItemDeliveryEventPayload(
                 new[]
                 {
                     new EventThingReference(

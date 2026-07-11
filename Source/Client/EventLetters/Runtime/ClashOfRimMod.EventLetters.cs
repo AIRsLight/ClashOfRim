@@ -12,6 +12,7 @@ using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.Diplomacy;
 using AIRsLight.ClashOfRim.EventLetters;
 using AIRsLight.ClashOfRim.Gifts;
+using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Raids;
 using AIRsLight.ClashOfRim.Support;
 using AIRsLight.ClashOfRim.Trades;
@@ -79,7 +80,7 @@ public sealed partial class ClashOfRimMod
                 reason: ClashOfRimText.Key("ClashOfRim.EventLetter.ReasonAcceptedByLetter"));
         }
 
-        if (!GiftClientProcessor.IsGiftDetail(detail))
+        if (!ItemDeliveryClientProcessor.IsGiftDetail(detail))
         {
             giftProcessingStatus = ClashOfRimText.Key(
                 "ClashOfRim.EventLetter.AcceptUnsupportedTyped",
@@ -265,7 +266,7 @@ public sealed partial class ClashOfRimMod
         }
 
         ClashLog.Message($"[ClashOfRim][{source}] detailCount={details.Count}.");
-        foreach (ModEventDetailDto detail in details.Where(GiftClientProcessor.IsGiftDetail).Take(5))
+        foreach (ModEventDetailDto detail in details.Where(ItemDeliveryClientProcessor.IsGiftDetail).Take(5))
         {
             ClashLog.Message(
                 $"[ClashOfRim][{source}] gift event={detail.EventId} status={detail.Status} targetMap={detail.TargetContext?.MapUniqueId ?? "<null>"} landingMode={detail.TargetContext?.LandingMode ?? "<null>"} payloadLength={detail.PayloadSummary?.Length ?? 0} payloadPreview={Preview(detail.PayloadSummary, 512)}");
@@ -311,7 +312,6 @@ public sealed partial class ClashOfRimMod
                         def = projection.LetterDef,
                         ID = Find.UniqueIDsManager.GetNextLetterID(),
                         EventId = projection.EventId,
-                        EventType = projection.EventType,
                         Actions = projection.Actions.ToList(),
                         CanAccept = projection.Actions.Contains(ClashOfRimEventLetterActionKind.Accept),
                         CanReject = projection.Actions.Contains(ClashOfRimEventLetterActionKind.Reject),
@@ -350,7 +350,6 @@ public sealed partial class ClashOfRimMod
 
         return new ClashOfRimEventLetterProjection(
             detail.EventId,
-            detail.EventType,
             BuildEventLetterLabel(detail),
             BuildEventLetterText(detail, group),
             ResolveLetterDef(detail),
@@ -400,7 +399,7 @@ public sealed partial class ClashOfRimMod
     {
         foreach (ModEventDetailDto detail in details)
         {
-            if (!string.Equals(detail.EventType, "ServerNotification", StringComparison.Ordinal))
+            if (detail.EventType != ServerEventType.ServerNotification)
             {
                 continue;
             }
@@ -417,16 +416,16 @@ public sealed partial class ClashOfRimMod
             if (payload is null
                 || payload.RelatedAccepted != true
                 || string.IsNullOrWhiteSpace(payload.RelatedUserId)
-                || string.IsNullOrWhiteSpace(payload.RelatedEventType))
+                || payload.RelatedEventType is null)
             {
                 continue;
             }
 
-            FactionRelationKind relationKind = ResolveDiplomacyRelationKind(payload.RelatedEventType!);
+            FactionRelationKind relationKind = ResolveDiplomacyRelationKind(payload.RelatedEventType.Value);
             PlayerFactionProxyUtility.SetPlayerRelation(
                 payload.RelatedUserId,
                 relationKind,
-                DiplomacyRelationReason(payload.RelatedEventType!),
+                DiplomacyRelationReason(payload.RelatedEventType.Value),
                 canSendHostilityLetter: true);
             RequestWorldMapMarkerRefresh(ClashOfRimText.Key("ClashOfRim.EventLetter.RefreshReasonDiplomacyResponseNotification"));
             ClashLog.Message(
@@ -534,8 +533,8 @@ public sealed partial class ClashOfRimMod
 
     private static bool CanAutoApplyDirectlyProcessableEvent(ModEventDetailDto detail)
     {
-        return string.Equals(detail.EventType, "GiftReturn", StringComparison.Ordinal)
-            && GiftClientProcessor.IsGiftDetail(detail)
+        return detail.EventType == ServerEventType.ItemDelivery
+            && ItemDeliveryClientProcessor.IsGiftDetail(detail)
             || SupportPawnApplicator.IsReturnToSenderDetail(detail)
             || IsRaidAttackerLossDetail(detail);
     }
@@ -547,7 +546,7 @@ public sealed partial class ClashOfRimMod
 
     private static bool IsRaidSettlementDetail(ModEventDetailDto detail)
     {
-        return string.Equals(detail.EventType, "Raid", StringComparison.Ordinal)
+        return detail.EventType == ServerEventType.Raid
             && detail.PayloadSummary?.IndexOf("\"Settlement\"", StringComparison.OrdinalIgnoreCase) >= 0;
     }
 
@@ -560,15 +559,16 @@ public sealed partial class ClashOfRimMod
 
     private static bool CanAcceptEventFromLetter(ModEventDetailDto detail)
     {
-        return GiftClientProcessor.IsGiftDetail(detail)
+        return ItemDeliveryClientProcessor.IsGiftDetail(detail)
             || SupportPawnApplicator.IsSupportPawnDetail(detail)
             || IsRejectableDiplomacyEvent(detail);
     }
 
     private static bool CanRejectEventFromLetter(ModEventDetailDto detail)
     {
-        return string.Equals(detail.EventType, "Gift", StringComparison.Ordinal)
-            && GiftClientProcessor.IsGiftDetail(detail)
+        return detail.EventType == ServerEventType.ItemDelivery
+            && ItemDeliveryClientProcessor.IsGiftDetail(detail)
+            && IsGiftPurposeDetail(detail)
             && !IsForcedGiftDetail(detail)
             || SupportPawnApplicator.IsRejectableSupportPawnDetail(detail)
             || IsRejectableDiplomacyEvent(detail);
@@ -585,7 +585,7 @@ public sealed partial class ClashOfRimMod
 
     private static LetterDef ResolveLetterDef(ModEventDetailDto detail)
     {
-        if (string.Equals(detail.EventType, "ServerNotification", StringComparison.Ordinal))
+        if (detail.EventType == ServerEventType.ServerNotification)
         {
             ServerNotificationPayloadSummary? payload = ReadServerNotificationPayloadForDisplay(detail);
             return payload?.Severity switch
@@ -598,18 +598,17 @@ public sealed partial class ClashOfRimMod
 
         return detail.EventType switch
         {
-            "Raid" => LetterDefOf.ThreatBig,
-            "WarDeclaration" => LetterDefOf.ThreatBig,
-            "Gift" when IsForcedGiftDetail(detail) => LetterDefOf.NegativeEvent,
-            "Gift" => LetterDefOf.PositiveEvent,
-            "GiftReturn" when IsTradeDeliveryDetail(detail) => LetterDefOf.PositiveEvent,
-            "GiftReturn" => LetterDefOf.NeutralEvent,
-            "Trade" => LetterDefOf.PositiveEvent,
-            "SupportPawn" => LetterDefOf.PositiveEvent,
-            "AllianceRequest" => LetterDefOf.NeutralEvent,
-            "AllianceCancellation" => LetterDefOf.NeutralEvent,
-            "ServerNotification" => LetterDefOf.NeutralEvent,
-            "PeaceRequest" => LetterDefOf.NeutralEvent,
+            ServerEventType.Raid => LetterDefOf.ThreatBig,
+            ServerEventType.WarDeclaration => LetterDefOf.ThreatBig,
+            ServerEventType.ItemDelivery when IsForcedGiftDetail(detail) => LetterDefOf.NegativeEvent,
+            ServerEventType.ItemDelivery when IsRejectedGiftReturnDetail(detail) => LetterDefOf.NeutralEvent,
+            ServerEventType.ItemDelivery => LetterDefOf.PositiveEvent,
+            ServerEventType.Trade => LetterDefOf.PositiveEvent,
+            ServerEventType.SupportPawn => LetterDefOf.PositiveEvent,
+            ServerEventType.AllianceRequest => LetterDefOf.NeutralEvent,
+            ServerEventType.AllianceCancellation => LetterDefOf.NeutralEvent,
+            ServerEventType.ServerNotification => LetterDefOf.NeutralEvent,
+            ServerEventType.PeaceRequest => LetterDefOf.NeutralEvent,
             _ => LetterDefOf.NeutralEvent
         };
     }
@@ -618,45 +617,45 @@ public sealed partial class ClashOfRimMod
     {
         return detail.EventType switch
         {
-            "Raid" when IsRaidAttackerLossDetail(detail) => ClashOfRimText.Key("ClashOfRim.EventLetter.Label.RaidAttackerLoss"),
-            "Raid" when IsRaidSettlementDetail(detail) => ClashOfRimText.Key("ClashOfRim.EventLetter.Label.RaidSettlement"),
-            "Raid" => ClashOfRimText.Key("ClashOfRim.EventLetter.Label.Raid"),
-            "Gift" when IsForcedGiftDetail(detail) => ClashOfRimText.Key("ClashOfRim.EventLetter.Label.ForcedGift"),
-            "Gift" => ClashOfRimText.Key("ClashOfRim.EventLetter.Label.Gift"),
-            "GiftReturn" when IsTradeDeliveryDetail(detail) => ClashOfRimText.Key("ClashOfRim.EventLetter.Label.TradeDelivery"),
-            "GiftReturn" when IsTradeReturnDetail(detail) => ClashOfRimText.Key("ClashOfRim.EventLetter.Label.TradeReturn"),
-            "GiftReturn" => ClashOfRimText.Key("ClashOfRim.EventLetter.Label.GiftReturn"),
-            "Trade" => ClashOfRimText.Key("ClashOfRim.EventLetter.Label.Trade"),
-            "SupportPawn" => ClashOfRimText.Key("ClashOfRim.EventLetter.Label.SupportPawn"),
-            "AllianceRequest" => ClashOfRimText.Key("ClashOfRim.EventLetter.Label.AllianceRequest"),
-            "AllianceCancellation" => ClashOfRimText.Key("ClashOfRim.EventLetter.Label.AllianceCancellation"),
-            "WarDeclaration" => ClashOfRimText.Key("ClashOfRim.EventLetter.Label.WarDeclaration"),
-            "PeaceRequest" => ClashOfRimText.Key("ClashOfRim.EventLetter.Label.PeaceRequest"),
-            "ServerNotification" => BuildServerNotificationEventLetterLabel(detail),
+            ServerEventType.Raid when IsRaidAttackerLossDetail(detail) => ClashOfRimText.Key("ClashOfRim.EventLetter.Label.RaidAttackerLoss"),
+            ServerEventType.Raid when IsRaidSettlementDetail(detail) => ClashOfRimText.Key("ClashOfRim.EventLetter.Label.RaidSettlement"),
+            ServerEventType.Raid => ClashOfRimText.Key("ClashOfRim.EventLetter.Label.Raid"),
+            ServerEventType.ItemDelivery when IsForcedGiftDetail(detail) => ClashOfRimText.Key("ClashOfRim.EventLetter.Label.ForcedGift"),
+            ServerEventType.ItemDelivery when IsTradeDeliveryDetail(detail) => ClashOfRimText.Key("ClashOfRim.EventLetter.Label.TradeDelivery"),
+            ServerEventType.ItemDelivery when IsTradeReturnDetail(detail) => ClashOfRimText.Key("ClashOfRim.EventLetter.Label.TradeReturn"),
+            ServerEventType.ItemDelivery when IsRejectedGiftReturnDetail(detail) => ClashOfRimText.Key("ClashOfRim.EventLetter.Label.GiftReturn"),
+            ServerEventType.ItemDelivery => ClashOfRimText.Key("ClashOfRim.EventLetter.Label.Gift"),
+            ServerEventType.Trade => ClashOfRimText.Key("ClashOfRim.EventLetter.Label.Trade"),
+            ServerEventType.SupportPawn => ClashOfRimText.Key("ClashOfRim.EventLetter.Label.SupportPawn"),
+            ServerEventType.AllianceRequest => ClashOfRimText.Key("ClashOfRim.EventLetter.Label.AllianceRequest"),
+            ServerEventType.AllianceCancellation => ClashOfRimText.Key("ClashOfRim.EventLetter.Label.AllianceCancellation"),
+            ServerEventType.WarDeclaration => ClashOfRimText.Key("ClashOfRim.EventLetter.Label.WarDeclaration"),
+            ServerEventType.PeaceRequest => ClashOfRimText.Key("ClashOfRim.EventLetter.Label.PeaceRequest"),
+            ServerEventType.ServerNotification => BuildServerNotificationEventLetterLabel(detail),
             _ => ClashOfRimText.Key("ClashOfRim.EventLetter.Label.ServerEvent")
         };
     }
 
     private string BuildEventLetterText(ModEventDetailDto detail, string group)
     {
-        if (string.Equals(detail.EventType, "Raid", StringComparison.Ordinal)
+        if (detail.EventType == ServerEventType.Raid
             && TryBuildRaidSettlementEventLetterText(detail, out string raidSettlementText))
         {
             return raidSettlementText;
         }
 
-        if (string.Equals(detail.EventType, "Raid", StringComparison.Ordinal)
+        if (detail.EventType == ServerEventType.Raid
             && TryBuildRaidAttackerLossEventLetterText(detail, out string raidAttackerLossText))
         {
             return raidAttackerLossText;
         }
 
-        if (IsReadOnlyEventGroup(group) && !string.Equals(detail.EventType, "ServerNotification", StringComparison.Ordinal))
+        if (IsReadOnlyEventGroup(group) && detail.EventType != ServerEventType.ServerNotification)
         {
             return BuildReadOnlyEventLetterText(detail, group);
         }
 
-        if (GiftClientProcessor.IsGiftDetail(detail))
+        if (ItemDeliveryClientProcessor.IsGiftDetail(detail))
         {
             return BuildGiftEventLetterText(detail);
         }
@@ -666,12 +665,12 @@ public sealed partial class ClashOfRimMod
             return BuildDiplomacyEventLetterText(detail);
         }
 
-        if (string.Equals(detail.EventType, "SupportPawn", StringComparison.Ordinal))
+        if (detail.EventType == ServerEventType.SupportPawn)
         {
             return BuildSupportPawnEventLetterText(detail, group);
         }
 
-        if (string.Equals(detail.EventType, "ServerNotification", StringComparison.Ordinal))
+        if (detail.EventType == ServerEventType.ServerNotification)
         {
             return BuildServerNotificationEventLetterText(detail);
         }
@@ -707,7 +706,7 @@ public sealed partial class ClashOfRimMod
     private static string BuildGiftEventLetterText(ModEventDetailDto detail)
     {
         string sender = FormatEventParty(detail.Actor);
-        GiftPayloadSummary? payload = ReadGiftPayloadForDisplay(detail);
+        ItemDeliveryPayloadSummary? payload = ReadGiftPayloadForDisplay(detail);
         bool tradeDelivery = payload?.IsTradeDelivery == true;
         bool tradeReturn = payload?.IsTradeReturn == true;
         bool forcedGift = payload?.IsForcedDelivery == true;
@@ -717,14 +716,14 @@ public sealed partial class ClashOfRimMod
             ? ClashOfRimText.Key("ClashOfRim.EventLetter.TradeDeliveryIntro", sender.Named("SENDER"))
             : tradeReturn
                 ? ClashOfRimText.Key("ClashOfRim.EventLetter.TradeReturnIntro")
-                : string.Equals(detail.EventType, "GiftReturn", StringComparison.Ordinal)
+                : IsRejectedGiftReturnDetail(detail)
                     ? ClashOfRimText.Key("ClashOfRim.EventLetter.GiftReturnIntro", sender.Named("SENDER"))
                     : ClashOfRimText.Key("ClashOfRim.EventLetter.GiftIntro", sender.Named("SENDER"));
         string action = forcedGift
             ? ClashOfRimText.Key("ClashOfRim.EventLetter.ForcedGiftAction")
             : tradeDelivery || tradeReturn
             ? ClashOfRimText.Key("ClashOfRim.EventLetter.TradeDeliveryAction")
-            : string.Equals(detail.EventType, "GiftReturn", StringComparison.Ordinal)
+            : IsRejectedGiftReturnDetail(detail)
                 ? ClashOfRimText.Key("ClashOfRim.EventLetter.GiftReturnAction")
                 : ClashOfRimText.Key("ClashOfRim.EventLetter.GiftAction");
         string itemList = payload is null
@@ -745,18 +744,18 @@ public sealed partial class ClashOfRimMod
         string sender = FormatEventParty(detail.Actor);
         string intro = detail.EventType switch
         {
-            "AllianceRequest" => ClashOfRimText.Key("ClashOfRim.EventLetter.AllianceRequestIntro", sender.Named("SENDER")),
-            "AllianceCancellation" => ClashOfRimText.Key("ClashOfRim.EventLetter.AllianceCancellationIntro", sender.Named("SENDER")),
-            "WarDeclaration" => ClashOfRimText.Key("ClashOfRim.EventLetter.WarDeclarationIntro", sender.Named("SENDER")),
-            "PeaceRequest" => ClashOfRimText.Key("ClashOfRim.EventLetter.PeaceRequestIntro", sender.Named("SENDER")),
+            ServerEventType.AllianceRequest => ClashOfRimText.Key("ClashOfRim.EventLetter.AllianceRequestIntro", sender.Named("SENDER")),
+            ServerEventType.AllianceCancellation => ClashOfRimText.Key("ClashOfRim.EventLetter.AllianceCancellationIntro", sender.Named("SENDER")),
+            ServerEventType.WarDeclaration => ClashOfRimText.Key("ClashOfRim.EventLetter.WarDeclarationIntro", sender.Named("SENDER")),
+            ServerEventType.PeaceRequest => ClashOfRimText.Key("ClashOfRim.EventLetter.PeaceRequestIntro", sender.Named("SENDER")),
             _ => ClashOfRimText.Key("ClashOfRim.EventLetter.GenericAction")
         };
         string action = detail.EventType switch
         {
-            "AllianceRequest" => ClashOfRimText.Key("ClashOfRim.EventLetter.AllianceRequestAction"),
-            "AllianceCancellation" => ClashOfRimText.Key("ClashOfRim.EventLetter.AllianceCancellationAction"),
-            "WarDeclaration" => ClashOfRimText.Key("ClashOfRim.EventLetter.WarDeclarationAction"),
-            "PeaceRequest" => ClashOfRimText.Key("ClashOfRim.EventLetter.PeaceRequestAction"),
+            ServerEventType.AllianceRequest => ClashOfRimText.Key("ClashOfRim.EventLetter.AllianceRequestAction"),
+            ServerEventType.AllianceCancellation => ClashOfRimText.Key("ClashOfRim.EventLetter.AllianceCancellationAction"),
+            ServerEventType.WarDeclaration => ClashOfRimText.Key("ClashOfRim.EventLetter.WarDeclarationAction"),
+            ServerEventType.PeaceRequest => ClashOfRimText.Key("ClashOfRim.EventLetter.PeaceRequestAction"),
             _ => ClashOfRimText.Key("ClashOfRim.EventLetter.GenericAction")
         };
         string relation = ClashOfRimText.Key(
@@ -1140,7 +1139,7 @@ public sealed partial class ClashOfRimMod
             return false;
         }
 
-        return string.Equals(payload.RelatedEventType, "Raid", StringComparison.Ordinal)
+        return payload.RelatedEventType == ServerEventType.Raid
             && !string.IsNullOrWhiteSpace(payload.RelatedUserId)
             && string.Equals(detail.Target?.UserId, payload.RelatedUserId, StringComparison.Ordinal)
             && (string.IsNullOrWhiteSpace(payload.RelatedColonyId)
@@ -1149,7 +1148,7 @@ public sealed partial class ClashOfRimMod
 
     private static bool IsDefenderRaidTimeoutNotification(ModEventDetailDto detail)
     {
-        if (!string.Equals(detail.EventType, "ServerNotification", StringComparison.Ordinal))
+        if (detail.EventType != ServerEventType.ServerNotification)
         {
             return false;
         }
@@ -1226,13 +1225,13 @@ public sealed partial class ClashOfRimMod
 
     private static string BuildGiftItemListText(ModEventDetailDto detail)
     {
-        GiftPayloadSummary? payload = ReadGiftPayloadForDisplay(detail);
+        ItemDeliveryPayloadSummary? payload = ReadGiftPayloadForDisplay(detail);
         return payload is null
             ? "- " + ClashOfRimText.Key("ClashOfRim.EventLetter.GiftItemsUnavailable")
             : BuildGiftItemListText(payload);
     }
 
-    private static GiftPayloadSummary? ReadGiftPayloadForDisplay(ModEventDetailDto detail)
+    private static ItemDeliveryPayloadSummary? ReadGiftPayloadForDisplay(ModEventDetailDto detail)
     {
         if (string.IsNullOrWhiteSpace(detail.PayloadSummary))
         {
@@ -1241,7 +1240,7 @@ public sealed partial class ClashOfRimMod
 
         try
         {
-            return GiftPayloadReader.Read(detail.PayloadSummary);
+            return ItemDeliveryPayloadReader.Read(detail.PayloadSummary);
         }
         catch (Exception ex) when (ex is SerializationException or InvalidOperationException)
         {
@@ -1272,23 +1271,35 @@ public sealed partial class ClashOfRimMod
 
     private static bool IsForcedGiftDetail(ModEventDetailDto detail)
     {
-        return GiftClientProcessor.IsGiftDetail(detail)
+        return ItemDeliveryClientProcessor.IsGiftDetail(detail)
             && ReadGiftPayloadForDisplay(detail)?.IsForcedDelivery == true;
+    }
+
+    private static bool IsGiftPurposeDetail(ModEventDetailDto detail)
+    {
+        return ItemDeliveryClientProcessor.IsGiftDetail(detail)
+            && ReadGiftPayloadForDisplay(detail)?.Purpose == ItemDeliveryPurpose.Gift;
+    }
+
+    private static bool IsRejectedGiftReturnDetail(ModEventDetailDto detail)
+    {
+        return ItemDeliveryClientProcessor.IsGiftDetail(detail)
+            && ReadGiftPayloadForDisplay(detail)?.Purpose == ItemDeliveryPurpose.RejectedGiftReturn;
     }
 
     private static bool IsTradeDeliveryDetail(ModEventDetailDto detail)
     {
-        return GiftClientProcessor.IsGiftDetail(detail)
+        return ItemDeliveryClientProcessor.IsGiftDetail(detail)
             && ReadGiftPayloadForDisplay(detail)?.IsTradeDelivery == true;
     }
 
     private static bool IsTradeReturnDetail(ModEventDetailDto detail)
     {
-        return GiftClientProcessor.IsGiftDetail(detail)
+        return ItemDeliveryClientProcessor.IsGiftDetail(detail)
             && ReadGiftPayloadForDisplay(detail)?.IsTradeReturn == true;
     }
 
-    private static string BuildGiftItemListText(GiftPayloadSummary payload)
+    private static string BuildGiftItemListText(ItemDeliveryPayloadSummary payload)
     {
         if (payload.Items.Count == 0)
         {
@@ -1298,7 +1309,7 @@ public sealed partial class ClashOfRimMod
         return string.Join("\n", payload.Items.Select(item => "- " + FormatGiftItem(item)));
     }
 
-    private static string FormatGiftItem(GiftItemSummary item)
+    private static string FormatGiftItem(ItemDeliveryItemSummary item)
     {
         ThingDef? def = TradeUiUtility.ResolveThingDef(item.MinifiedInnerDefName)
             ?? TradeUiUtility.ResolveThingDef(item.Def);
@@ -1311,7 +1322,7 @@ public sealed partial class ClashOfRimMod
         return label + countText + condition;
     }
 
-    private static string FormatGiftItemCondition(GiftItemSummary item, ThingDef? def)
+    private static string FormatGiftItemCondition(ItemDeliveryItemSummary item, ThingDef? def)
     {
         List<string> parts = new();
         string? quality = item.MinifiedInnerQuality ?? item.Quality;
@@ -1421,22 +1432,19 @@ public sealed partial class ClashOfRimMod
             return ClashOfRimText.Key("ClashOfRim.EventLetter.ReadOnlyDeliveredUnconfirmed");
         }
 
-        if (string.Equals(detail.EventType, "Gift", StringComparison.Ordinal))
+        if (detail.EventType == ServerEventType.ItemDelivery)
         {
-            return ClashOfRimText.Key("ClashOfRim.EventLetter.GiftAction");
+            return IsRejectedGiftReturnDetail(detail)
+                ? ClashOfRimText.Key("ClashOfRim.EventLetter.GiftReturnAction")
+                : ClashOfRimText.Key("ClashOfRim.EventLetter.GiftAction");
         }
 
-        if (string.Equals(detail.EventType, "GiftReturn", StringComparison.Ordinal))
-        {
-            return ClashOfRimText.Key("ClashOfRim.EventLetter.GiftReturnAction");
-        }
-
-        if (string.Equals(detail.EventType, "Raid", StringComparison.Ordinal))
+        if (detail.EventType == ServerEventType.Raid)
         {
             return ClashOfRimText.Key("ClashOfRim.EventLetter.RaidAction");
         }
 
-        if (string.Equals(detail.EventType, "Trade", StringComparison.Ordinal))
+        if (detail.EventType == ServerEventType.Trade)
         {
             return ClashOfRimText.Key("ClashOfRim.EventLetter.TradeAction");
         }
@@ -1446,32 +1454,32 @@ public sealed partial class ClashOfRimMod
 
     private static bool IsDiplomacyEvent(ModEventDetailDto detail)
     {
-        return string.Equals(detail.EventType, "AllianceRequest", StringComparison.Ordinal)
-            || string.Equals(detail.EventType, "AllianceCancellation", StringComparison.Ordinal)
-            || string.Equals(detail.EventType, "WarDeclaration", StringComparison.Ordinal)
-            || string.Equals(detail.EventType, "PeaceRequest", StringComparison.Ordinal);
+        return detail.EventType == ServerEventType.AllianceRequest
+            || detail.EventType == ServerEventType.AllianceCancellation
+            || detail.EventType == ServerEventType.WarDeclaration
+            || detail.EventType == ServerEventType.PeaceRequest;
     }
 
     private static bool IsRejectableDiplomacyEvent(ModEventDetailDto detail)
     {
-        return string.Equals(detail.EventType, "AllianceRequest", StringComparison.Ordinal)
-            || string.Equals(detail.EventType, "PeaceRequest", StringComparison.Ordinal);
+        return detail.EventType == ServerEventType.AllianceRequest
+            || detail.EventType == ServerEventType.PeaceRequest;
     }
 
     private static bool IsImmediateDiplomacyEvent(ModEventDetailDto detail)
     {
-        return string.Equals(detail.EventType, "WarDeclaration", StringComparison.Ordinal)
-            || string.Equals(detail.EventType, "AllianceCancellation", StringComparison.Ordinal);
+        return detail.EventType == ServerEventType.WarDeclaration
+            || detail.EventType == ServerEventType.AllianceCancellation;
     }
 
-    private static FactionRelationKind ResolveDiplomacyRelationKind(string eventType)
+    private static FactionRelationKind ResolveDiplomacyRelationKind(ServerEventType eventType)
     {
         return eventType switch
         {
-            "AllianceRequest" => FactionRelationKind.Ally,
-            "AllianceCancellation" => FactionRelationKind.Neutral,
-            "WarDeclaration" => FactionRelationKind.Hostile,
-            "PeaceRequest" => FactionRelationKind.Neutral,
+            ServerEventType.AllianceRequest => FactionRelationKind.Ally,
+            ServerEventType.AllianceCancellation => FactionRelationKind.Neutral,
+            ServerEventType.WarDeclaration => FactionRelationKind.Hostile,
+            ServerEventType.PeaceRequest => FactionRelationKind.Neutral,
             _ => FactionRelationKind.Neutral
         };
     }
@@ -1500,23 +1508,22 @@ public sealed partial class ClashOfRimMod
         return false;
     }
 
-    private static string DiplomacyRelationReason(string eventType)
+    private static string DiplomacyRelationReason(ServerEventType eventType)
     {
         return eventType switch
         {
-            "WarDeclaration" => ClashOfRimText.Key("ClashOfRim.Diplomacy.RelationReasonWarDeclaration"),
-            "AllianceCancellation" => ClashOfRimText.Key("ClashOfRim.Diplomacy.RelationReasonAllianceCancellation"),
-            "AllianceRequest" => ClashOfRimText.Key("ClashOfRim.Diplomacy.RelationReasonAllianceRequest"),
-            "PeaceRequest" => ClashOfRimText.Key("ClashOfRim.Diplomacy.RelationReasonPeaceRequest"),
+            ServerEventType.WarDeclaration => ClashOfRimText.Key("ClashOfRim.Diplomacy.RelationReasonWarDeclaration"),
+            ServerEventType.AllianceCancellation => ClashOfRimText.Key("ClashOfRim.Diplomacy.RelationReasonAllianceCancellation"),
+            ServerEventType.AllianceRequest => ClashOfRimText.Key("ClashOfRim.Diplomacy.RelationReasonAllianceRequest"),
+            ServerEventType.PeaceRequest => ClashOfRimText.Key("ClashOfRim.Diplomacy.RelationReasonPeaceRequest"),
             _ => "ClashOfRim"
         };
     }
 
     private static bool ShouldShowLetterLocation(ModEventDetailDto detail)
     {
-        return !string.Equals(detail.EventType, "Gift", StringComparison.Ordinal)
-            && !string.Equals(detail.EventType, "GiftReturn", StringComparison.Ordinal)
-            && !string.Equals(detail.EventType, "SupportPawn", StringComparison.Ordinal);
+        return detail.EventType != ServerEventType.ItemDelivery
+            && detail.EventType != ServerEventType.SupportPawn;
     }
 
     private static string BuildTargetText(ModEventDetailDto detail)
@@ -1642,21 +1649,20 @@ public sealed partial class ClashOfRimMod
         return string.Equals(currentMapId, normalizedTarget, StringComparison.Ordinal);
     }
 
-    private static string FormatEventType(string eventType)
+    private static string FormatEventType(ServerEventType eventType)
     {
         return eventType switch
         {
-            "Raid" => ClashOfRimText.Key("ClashOfRim.EventType.Raid"),
-            "Gift" => ClashOfRimText.Key("ClashOfRim.EventType.Gift"),
-            "GiftReturn" => ClashOfRimText.Key("ClashOfRim.EventType.GiftReturn"),
-            "Trade" => ClashOfRimText.Key("ClashOfRim.EventType.Trade"),
-            "SupportPawn" => ClashOfRimText.Key("ClashOfRim.EventType.SupportPawn"),
-            "AllianceRequest" => ClashOfRimText.Key("ClashOfRim.EventType.AllianceRequest"),
-            "AllianceCancellation" => ClashOfRimText.Key("ClashOfRim.EventType.AllianceCancellation"),
-            "WarDeclaration" => ClashOfRimText.Key("ClashOfRim.EventType.WarDeclaration"),
-            "PeaceRequest" => ClashOfRimText.Key("ClashOfRim.EventType.PeaceRequest"),
-            "ServerNotification" => ClashOfRimText.Key("ClashOfRim.EventType.ServerNotification"),
-            _ => string.IsNullOrWhiteSpace(eventType) ? ClashOfRimText.Key("ClashOfRim.Unknown") : eventType
+            ServerEventType.Raid => ClashOfRimText.Key("ClashOfRim.EventType.Raid"),
+            ServerEventType.ItemDelivery => ClashOfRimText.Key("ClashOfRim.EventType.ItemDelivery"),
+            ServerEventType.Trade => ClashOfRimText.Key("ClashOfRim.EventType.Trade"),
+            ServerEventType.SupportPawn => ClashOfRimText.Key("ClashOfRim.EventType.SupportPawn"),
+            ServerEventType.AllianceRequest => ClashOfRimText.Key("ClashOfRim.EventType.AllianceRequest"),
+            ServerEventType.AllianceCancellation => ClashOfRimText.Key("ClashOfRim.EventType.AllianceCancellation"),
+            ServerEventType.WarDeclaration => ClashOfRimText.Key("ClashOfRim.EventType.WarDeclaration"),
+            ServerEventType.PeaceRequest => ClashOfRimText.Key("ClashOfRim.EventType.PeaceRequest"),
+            ServerEventType.ServerNotification => ClashOfRimText.Key("ClashOfRim.EventType.ServerNotification"),
+            _ => ClashOfRimText.Key("ClashOfRim.Unknown")
         };
     }
 
@@ -1715,7 +1721,7 @@ internal sealed class ServerNotificationPayloadSummary
     public string? RelatedEventId { get; set; }
 
     [DataMember(Name = "RelatedEventType")]
-    public string? RelatedEventType { get; set; }
+    public ServerEventType? RelatedEventType { get; set; }
 
     [DataMember(Name = "RelatedUserId")]
     public string? RelatedUserId { get; set; }

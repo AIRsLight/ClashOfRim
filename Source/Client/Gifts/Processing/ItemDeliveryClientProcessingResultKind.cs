@@ -1,10 +1,10 @@
 namespace AIRsLight.ClashOfRim.Gifts;
 
-public enum GiftClientProcessingResultKind
+public enum ItemDeliveryClientProcessingResultKind
 {
     AcceptedLandingPlanCreated,
     RejectRequestCreated,
-    NotGiftEvent,
+    NotItemDeliveryEvent,
     MissingPayload,
     PayloadParseFailed,
     MissingTargetMap,

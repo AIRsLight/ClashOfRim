@@ -2,8 +2,8 @@ using AIRsLight.ClashOfRim.Save;
 
 namespace AIRsLight.ClashOfRim.Events;
 
-public sealed record GiftApplicationConfirmationRequest(
-    string GiftEventId,
+public sealed record ItemDeliveryApplicationConfirmationRequest(
+    string ItemDeliveryEventId,
     string OwnerId,
     string ColonyId,
     string BaseSnapshotId,

@@ -824,6 +824,7 @@
   <ClashOfRim.EventType.SupportRequest>Support request</ClashOfRim.EventType.SupportRequest>
   <ClashOfRim.EventType.Gift>Gift</ClashOfRim.EventType.Gift>
   <ClashOfRim.EventType.GiftReturn>Gift return</ClashOfRim.EventType.GiftReturn>
+  <ClashOfRim.EventType.ItemDelivery>Item delivery</ClashOfRim.EventType.ItemDelivery>
   <ClashOfRim.EventType.Raid>Raid</ClashOfRim.EventType.Raid>
   <ClashOfRim.EventType.ServerNotification>Server notification</ClashOfRim.EventType.ServerNotification>
   <ClashOfRim.EventType.PeaceRequest>Peace request</ClashOfRim.EventType.PeaceRequest>

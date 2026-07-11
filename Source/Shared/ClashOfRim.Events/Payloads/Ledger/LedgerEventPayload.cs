@@ -4,7 +4,7 @@ namespace AIRsLight.ClashOfRim.Events;
 
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "payloadType")]
 [JsonDerivedType(typeof(RaidEventPayload), "raid")]
-[JsonDerivedType(typeof(GiftEventPayload), "gift")]
+[JsonDerivedType(typeof(ItemDeliveryEventPayload), "itemDelivery")]
 [JsonDerivedType(typeof(TradeEventPayload), "trade")]
 [JsonDerivedType(typeof(SupportPawnEventPayload), "supportPawn")]
 [JsonDerivedType(typeof(AllianceRequestEventPayload), "allianceRequest")]

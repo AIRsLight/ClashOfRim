@@ -91,8 +91,9 @@ public static class EventLetterProjectionBuilder
         {
             ServerEventType.Raid => EventLetterDefName.ThreatBig,
             ServerEventType.WarDeclaration => EventLetterDefName.ThreatBig,
-            ServerEventType.Gift => EventLetterDefName.PositiveEvent,
-            ServerEventType.GiftReturn => EventLetterDefName.NeutralEvent,
+            ServerEventType.ItemDelivery => IsRejectedGiftReturn(ledgerEvent)
+                ? EventLetterDefName.NeutralEvent
+                : EventLetterDefName.PositiveEvent,
             ServerEventType.Trade => EventLetterDefName.PositiveEvent,
             ServerEventType.SupportPawn => EventLetterDefName.PositiveEvent,
             ServerEventType.AllianceRequest => EventLetterDefName.NeutralEvent,
@@ -127,8 +128,7 @@ public static class EventLetterProjectionBuilder
         string key = item.Type switch
         {
             ServerEventType.Raid => "Letter.TypeRaid",
-            ServerEventType.Gift => "Letter.TypeGift",
-            ServerEventType.GiftReturn => "Letter.TypeGiftReturn",
+            ServerEventType.ItemDelivery => ResolveItemDeliveryTypeKey(ledgerEvent),
             ServerEventType.Trade => "Letter.TypeTrade",
             ServerEventType.SupportPawn => "Letter.TypeSupportPawn",
             ServerEventType.AllianceRequest => "Letter.TypeAllianceRequest",
@@ -178,8 +178,7 @@ public static class EventLetterProjectionBuilder
         string eventText = item.Type switch
         {
             ServerEventType.Raid => ServerLocalization.Text("Letter.TextRaid"),
-            ServerEventType.Gift => ServerLocalization.Text("Letter.TextGift"),
-            ServerEventType.GiftReturn => ServerLocalization.Text("Letter.TextGiftReturn"),
+            ServerEventType.ItemDelivery => ServerLocalization.Text(ResolveItemDeliveryTextKey(ledgerEvent)),
             ServerEventType.Trade => ServerLocalization.Text("Letter.TextTrade"),
             ServerEventType.SupportPawn => ServerLocalization.Text("Letter.TextSupportPawn"),
             ServerEventType.AllianceRequest => ServerLocalization.Text("Letter.TextAllianceRequest"),
@@ -263,6 +262,51 @@ public static class EventLetterProjectionBuilder
             ChangesLedgerState: false));
 
         return actions;
+    }
+
+    private static bool IsRejectedGiftReturn(AuthoritativeEvent? ledgerEvent)
+    {
+        return ledgerEvent?.Payload is ItemDeliveryEventPayload
+        {
+            Purpose: ItemDeliveryPurpose.RejectedGiftReturn
+        };
+    }
+
+    private static string ResolveItemDeliveryTypeKey(AuthoritativeEvent? ledgerEvent)
+    {
+        return GetItemDeliveryPurpose(ledgerEvent) switch
+        {
+            ItemDeliveryPurpose.RejectedGiftReturn => "Letter.TypeGiftReturn",
+            ItemDeliveryPurpose.TradeCompletedOwnerDelivery
+                or ItemDeliveryPurpose.TradeCompletedAcceptorDelivery
+                or ItemDeliveryPurpose.TradeExpiredOwnerReturn
+                or ItemDeliveryPurpose.TradeBaselineChangedOwnerReturn
+                or ItemDeliveryPurpose.TradeCancelledOwnerReturn
+                or ItemDeliveryPurpose.TradeApplicationFailedOwnerReturn => "Letter.TypeTrade",
+            _ => "Letter.TypeGift"
+        };
+    }
+
+    private static string ResolveItemDeliveryTextKey(AuthoritativeEvent? ledgerEvent)
+    {
+        return GetItemDeliveryPurpose(ledgerEvent) switch
+        {
+            ItemDeliveryPurpose.RejectedGiftReturn => "Letter.TextGiftReturn",
+            ItemDeliveryPurpose.TradeCompletedOwnerDelivery
+                or ItemDeliveryPurpose.TradeCompletedAcceptorDelivery
+                or ItemDeliveryPurpose.TradeExpiredOwnerReturn
+                or ItemDeliveryPurpose.TradeBaselineChangedOwnerReturn
+                or ItemDeliveryPurpose.TradeCancelledOwnerReturn
+                or ItemDeliveryPurpose.TradeApplicationFailedOwnerReturn => "Letter.TextTrade",
+            _ => "Letter.TextGift"
+        };
+    }
+
+    private static ItemDeliveryPurpose GetItemDeliveryPurpose(AuthoritativeEvent? ledgerEvent)
+    {
+        return ledgerEvent?.Payload is ItemDeliveryEventPayload payload
+            ? payload.Purpose
+            : ItemDeliveryPurpose.Gift;
     }
 
     private static bool HasJumpTarget(EventQueueItem item)

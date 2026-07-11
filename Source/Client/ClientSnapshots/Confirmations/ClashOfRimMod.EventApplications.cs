@@ -9,6 +9,7 @@ using AIRsLight.ClashOfRim.ClientSnapshots;
 using AIRsLight.ClashOfRim.EventLetters;
 using AIRsLight.ClashOfRim.Gifts;
 using AIRsLight.ClashOfRim.Pawns;
+using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Raids;
 using AIRsLight.ClashOfRim.RemoteMaps;
 using AIRsLight.ClashOfRim.Support;
@@ -402,7 +403,7 @@ public sealed partial class ClashOfRimMod
         ModEventDetailDto? giftDetail;
         lock (eventStateLock)
         {
-            giftDetail = lastEventDetails.FirstOrDefault(GiftClientProcessor.IsGiftDetail);
+            giftDetail = lastEventDetails.FirstOrDefault(ItemDeliveryClientProcessor.IsGiftDetail);
         }
 
         if (giftDetail is null)
@@ -419,7 +420,7 @@ public sealed partial class ClashOfRimMod
     {
         ClashLog.Message(
             $"[ClashOfRim][GiftProcess] selected event={giftDetail.EventId} type={giftDetail.EventType} status={giftDetail.Status} payloadType={giftDetail.PayloadType} payloadLength={giftDetail.PayloadSummary?.Length ?? 0} targetMap={giftDetail.TargetContext?.MapUniqueId ?? "<null>"} landingMode={giftDetail.TargetContext?.LandingMode ?? "<null>"} decision={decision}.");
-        GiftClientProcessingResult result = GiftClientProcessor.Process(
+        ItemDeliveryClientProcessingResult result = ItemDeliveryClientProcessor.Process(
             giftDetail,
             decision,
             settings.UserId,
@@ -456,7 +457,7 @@ public sealed partial class ClashOfRimMod
             pendingGiftConfirmationEventIds.Add(application.EventId);
             StartConfirmGiftApplication(
                 application.EventId,
-                GiftAnchoredClientApplicationResult(giftDetail.EventType));
+                ItemDeliveryAnchoredClientApplicationResult());
         }
         else if (!application.Success)
         {
@@ -664,7 +665,7 @@ public sealed partial class ClashOfRimMod
                 continue;
             }
 
-            if (string.Equals(detail.EventType, "Raid", StringComparison.Ordinal)
+            if (detail.EventType == ServerEventType.Raid
                 && !string.IsNullOrWhiteSpace(attackerLossReadMessage)
                 && RaidAttackerLossPayloadReader.HasAttackerLoss(detail))
             {
@@ -676,7 +677,7 @@ public sealed partial class ClashOfRimMod
                 continue;
             }
 
-            GiftClientProcessingResult prepared = GiftClientProcessor.Process(
+            ItemDeliveryClientProcessingResult prepared = ItemDeliveryClientProcessor.Process(
                 detail,
                 GiftClientDecision.Accept,
                 settings.UserId,
@@ -721,7 +722,7 @@ public sealed partial class ClashOfRimMod
             {
                 EventId = applied.EventId,
                 SourceEventId = null,
-                ClientApplicationResult = GiftAnchoredClientApplicationResult(detail.EventType)
+                ClientApplicationResult = ItemDeliveryAnchoredClientApplicationResult()
             });
 
             pendingGiftConfirmationEventIds.RemoveAll(id => string.Equals(id, applied.EventId, StringComparison.Ordinal));
@@ -1559,7 +1560,7 @@ public sealed partial class ClashOfRimMod
         ModEventDetailDto? giftDetail;
         lock (eventStateLock)
         {
-            giftDetail = lastEventDetails.FirstOrDefault(GiftClientProcessor.IsGiftDetail);
+            giftDetail = lastEventDetails.FirstOrDefault(ItemDeliveryClientProcessor.IsGiftDetail);
         }
 
         if (giftDetail is null)
@@ -1579,7 +1580,7 @@ public sealed partial class ClashOfRimMod
             return false;
         }
 
-        GiftClientProcessingResult prepared = GiftClientProcessor.Process(
+        ItemDeliveryClientProcessingResult prepared = ItemDeliveryClientProcessor.Process(
             giftDetail,
             GiftClientDecision.Reject,
             settings.UserId,
@@ -1727,14 +1728,12 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
-        StartConfirmGiftApplication(pendingGiftConfirmationEventIds[0], "GiftAnchored");
+        StartConfirmGiftApplication(pendingGiftConfirmationEventIds[0], "ItemDeliveryAnchored");
     }
 
-    private static string GiftAnchoredClientApplicationResult(string? eventType)
+    private static string ItemDeliveryAnchoredClientApplicationResult()
     {
-        return string.Equals(eventType, "GiftReturn", StringComparison.Ordinal)
-            ? "GiftReturnAnchored"
-            : "GiftAnchored";
+        return "ItemDeliveryAnchored";
     }
 
     private void StartConfirmGiftApplication(string eventId, string clientApplicationResult)

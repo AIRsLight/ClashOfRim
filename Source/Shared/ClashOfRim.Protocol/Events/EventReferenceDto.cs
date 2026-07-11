@@ -4,7 +4,7 @@ public sealed class EventReferenceDto
 {
     public EventReferenceDto(
         string eventId,
-        string eventType,
+        ServerEventType eventType,
         string status,
         ProtocolDeliverySemantics deliverySemantics,
         bool requiresSnapshotConfirmation)
@@ -18,7 +18,7 @@ public sealed class EventReferenceDto
 
     public string EventId { get; }
 
-    public string EventType { get; }
+    public ServerEventType EventType { get; }
 
     public string Status { get; }
 

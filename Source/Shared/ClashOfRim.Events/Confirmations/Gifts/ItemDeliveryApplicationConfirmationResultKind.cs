@@ -1,11 +1,11 @@
 namespace AIRsLight.ClashOfRim.Events;
 
-public enum GiftApplicationConfirmationResultKind
+public enum ItemDeliveryApplicationConfirmationResultKind
 {
     Accepted,
     AlreadyApplied,
     EventNotFound,
-    NotGiftEvent,
+    NotItemDeliveryEvent,
     NotTarget,
     NotDelivered,
     RejectedByTarget,

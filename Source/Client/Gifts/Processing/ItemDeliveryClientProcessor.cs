@@ -10,9 +10,9 @@ using Verse;
 
 namespace AIRsLight.ClashOfRim.Gifts;
 
-public static class GiftClientProcessor
+public static class ItemDeliveryClientProcessor
 {
-    public static GiftClientProcessingResult Process(
+    public static ItemDeliveryClientProcessingResult Process(
         ModEventDetailDto detail,
         GiftClientDecision decision,
         string userId,
@@ -22,29 +22,29 @@ public static class GiftClientProcessor
     {
         if (detail is null)
         {
-            return GiftClientProcessingResult.Failed(
-                GiftClientProcessingResultKind.NotGiftEvent,
+            return ItemDeliveryClientProcessingResult.Failed(
+                ItemDeliveryClientProcessingResultKind.NotItemDeliveryEvent,
                 ClashOfRimText.Key("ClashOfRim.GiftProcessing.StatusDetailMissing"));
         }
 
         if (!IsGiftDetail(detail))
         {
-            return GiftClientProcessingResult.Failed(
-                GiftClientProcessingResultKind.NotGiftEvent,
-                ClashOfRimText.Key("ClashOfRim.GiftProcessing.StatusNotGiftEvent"));
+            return ItemDeliveryClientProcessingResult.Failed(
+                ItemDeliveryClientProcessingResultKind.NotItemDeliveryEvent,
+                ClashOfRimText.Key("ClashOfRim.GiftProcessing.StatusNotItemDeliveryEvent"));
         }
 
         if (string.IsNullOrWhiteSpace(detail.PayloadSummary))
         {
-            return GiftClientProcessingResult.Failed(
-                GiftClientProcessingResultKind.MissingPayload,
+            return ItemDeliveryClientProcessingResult.Failed(
+                ItemDeliveryClientProcessingResultKind.MissingPayload,
                 ClashOfRimText.Key("ClashOfRim.GiftProcessing.StatusMissingPayload"));
         }
 
-        GiftPayloadSummary payload;
+        ItemDeliveryPayloadSummary payload;
         try
         {
-            payload = GiftPayloadReader.Read(detail.PayloadSummary);
+            payload = ItemDeliveryPayloadReader.Read(detail.PayloadSummary);
             ClashLog.Message(
                 $"[ClashOfRim][GiftProcessor] payload parsed event={detail.EventId} itemCount={payload.Items.Count} message={payload.Message ?? "<null>"}.");
         }
@@ -52,8 +52,8 @@ public static class GiftClientProcessor
         {
             Log.Warning(
                 $"[ClashOfRim][GiftProcessor] payload parse failed event={detail.EventId} payloadLength={detail.PayloadSummary.Length} exception={ex}");
-            return GiftClientProcessingResult.Failed(
-                GiftClientProcessingResultKind.PayloadParseFailed,
+            return ItemDeliveryClientProcessingResult.Failed(
+                ItemDeliveryClientProcessingResultKind.PayloadParseFailed,
                 ClashOfRimText.Key("ClashOfRim.GiftProcessing.StatusPayloadParseFailed", ex.Message.Named("MESSAGE")));
         }
 
@@ -61,8 +61,8 @@ public static class GiftClientProcessor
         {
             if (payload.IsForcedDelivery)
             {
-                return GiftClientProcessingResult.Failed(
-                    GiftClientProcessingResultKind.NotGiftEvent,
+                return ItemDeliveryClientProcessingResult.Failed(
+                    ItemDeliveryClientProcessingResultKind.NotItemDeliveryEvent,
                     ClashOfRimText.Key("ClashOfRim.GiftProcessing.StatusForcedCannotReject"));
             }
 
@@ -70,12 +70,12 @@ public static class GiftClientProcessor
                 || string.IsNullOrWhiteSpace(colonyId)
                 || string.IsNullOrWhiteSpace(currentSnapshotId))
             {
-                return GiftClientProcessingResult.Failed(
-                    GiftClientProcessingResultKind.MissingIdentity,
+                return ItemDeliveryClientProcessingResult.Failed(
+                    ItemDeliveryClientProcessingResultKind.MissingIdentity,
                     ClashOfRimText.Key("ClashOfRim.GiftProcessing.StatusRejectIdentityMissing"));
             }
 
-            return GiftClientProcessingResult.Rejected(new GiftRejectionRequest(
+            return ItemDeliveryClientProcessingResult.Rejected(new GiftRejectionRequest(
                 detail.EventId,
                 userId,
                 colonyId,
@@ -87,13 +87,13 @@ public static class GiftClientProcessor
         string? mapUniqueId = targetContext?.MapUniqueId;
         if (string.IsNullOrWhiteSpace(mapUniqueId))
         {
-            return GiftClientProcessingResult.Failed(
-                GiftClientProcessingResultKind.MissingTargetMap,
+            return ItemDeliveryClientProcessingResult.Failed(
+                ItemDeliveryClientProcessingResultKind.MissingTargetMap,
                 ClashOfRimText.Key("ClashOfRim.GiftProcessing.StatusTargetMapMissing"));
         }
 
         var items = new List<GiftItemReference>();
-        foreach (GiftItemSummary item in payload.Items)
+        foreach (ItemDeliveryItemSummary item in payload.Items)
         {
             string pawnPackageState = item.PawnPackage is not null
                 ? "inline"
@@ -141,7 +141,7 @@ public static class GiftClientProcessor
                 FormatPayloadThingList(payload.Items).Named("THINGS"));
         }
 
-        return GiftClientProcessingResult.Accepted(new GiftLandingPlan(
+        return ItemDeliveryClientProcessingResult.Accepted(new GiftLandingPlan(
             detail.EventId,
             targetContext!.WorldObjectId,
             mapUniqueId!,
@@ -149,7 +149,7 @@ public static class GiftClientProcessor
             targetContext.LandingMode,
             items,
             requiresSnapshotConfirmation: true,
-            skipFailedItems: payload.Purpose == GiftEventPurpose.TradeApplicationFailedOwnerReturn,
+            skipFailedItems: payload.Purpose == ItemDeliveryPurpose.TradeApplicationFailedOwnerReturn,
             arrivalLetterLabel: arrivalLetterLabel,
             arrivalLetterText: arrivalLetterText));
     }
@@ -282,7 +282,7 @@ public static class GiftClientProcessor
         };
     }
 
-    private static IReadOnlyDictionary<string, string?> BuildThingReferenceMetadata(GiftItemSummary item)
+    private static IReadOnlyDictionary<string, string?> BuildThingReferenceMetadata(ItemDeliveryItemSummary item)
     {
         var reference = new ModThingReferenceDto
         {
@@ -295,7 +295,7 @@ public static class GiftClientProcessor
         return reference.Metadata;
     }
 
-    private static string FormatPayloadThingList(IReadOnlyCollection<GiftItemSummary> items)
+    private static string FormatPayloadThingList(IReadOnlyCollection<ItemDeliveryItemSummary> items)
     {
         if (items.Count == 0)
         {
@@ -307,7 +307,7 @@ public static class GiftClientProcessor
             asRequirement: false);
     }
 
-    private static ModThingReferenceDto ToThingReferenceForDisplay(GiftItemSummary item)
+    private static ModThingReferenceDto ToThingReferenceForDisplay(ItemDeliveryItemSummary item)
     {
         return new ModThingReferenceDto
         {
@@ -363,9 +363,8 @@ public static class GiftClientProcessor
 
     public static bool IsGiftDetail(ModEventDetailDto detail)
     {
-        return (string.Equals(detail.EventType, "Gift", StringComparison.Ordinal)
-                || string.Equals(detail.EventType, "GiftReturn", StringComparison.Ordinal))
-            && string.Equals(detail.PayloadType, "GiftEventPayload", StringComparison.Ordinal);
+        return detail.EventType == ServerEventType.ItemDelivery
+            && detail.PayloadType == EventPayloadType.ItemDelivery;
     }
 
 }

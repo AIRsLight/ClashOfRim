@@ -4,6 +4,7 @@ using System.Linq;
 using System.Runtime.Serialization;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.Pawns;
+using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Quests;
 using AIRsLight.ClashOfRim.ThirdPartyCompatibility;
 using RimWorld;
@@ -18,7 +19,7 @@ internal static class SupportPawnApplicator
 {
     public static bool IsSupportPawnDetail(ModEventDetailDto detail)
     {
-        return string.Equals(detail.EventType, "SupportPawn", StringComparison.Ordinal)
+        return detail.EventType == ServerEventType.SupportPawn
             && !string.IsNullOrWhiteSpace(detail.PayloadSummary);
     }
 

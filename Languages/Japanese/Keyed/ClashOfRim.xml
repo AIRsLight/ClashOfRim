@@ -825,6 +825,7 @@
   <ClashOfRim.EventType.SupportRequest>支援要請</ClashOfRim.EventType.SupportRequest>
   <ClashOfRim.EventType.Gift>贈り物</ClashOfRim.EventType.Gift>
   <ClashOfRim.EventType.GiftReturn>贈り物返送</ClashOfRim.EventType.GiftReturn>
+  <ClashOfRim.EventType.ItemDelivery>アイテム配送</ClashOfRim.EventType.ItemDelivery>
   <ClashOfRim.EventType.Raid>襲撃</ClashOfRim.EventType.Raid>
   <ClashOfRim.EventType.ServerNotification>サーバー通知</ClashOfRim.EventType.ServerNotification>
   <ClashOfRim.EventType.PeaceRequest>和平要請</ClashOfRim.EventType.PeaceRequest>

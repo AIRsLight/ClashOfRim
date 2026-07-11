@@ -9,28 +9,28 @@ using AIRsLight.ClashOfRim.Protocol;
 
 namespace AIRsLight.ClashOfRim.Gifts;
 
-internal static class GiftPayloadReader
+internal static class ItemDeliveryPayloadReader
 {
     private static readonly DataContractJsonSerializerSettings JsonSerializerSettings = new()
     {
         UseSimpleDictionaryFormat = true
     };
 
-    internal static GiftPayloadSummary Read(string json)
+    internal static ItemDeliveryPayloadSummary Read(string json)
     {
-        var serializer = new DataContractJsonSerializer(typeof(GiftPayloadSummary), JsonSerializerSettings);
+        var serializer = new DataContractJsonSerializer(typeof(ItemDeliveryPayloadSummary), JsonSerializerSettings);
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
         object? value = serializer.ReadObject(stream);
-        return value as GiftPayloadSummary
+        return value as ItemDeliveryPayloadSummary
             ?? throw new InvalidOperationException("Gift payload type mismatch.");
     }
 }
 
 [DataContract]
-internal sealed class GiftPayloadSummary
+internal sealed class ItemDeliveryPayloadSummary
 {
     [DataMember(Name = "Items")]
-    public List<GiftItemSummary> Items { get; set; } = new();
+    public List<ItemDeliveryItemSummary> Items { get; set; } = new();
 
     [DataMember(Name = "Message")]
     public string? Message { get; set; }
@@ -39,24 +39,24 @@ internal sealed class GiftPayloadSummary
     public string? DeliveryKind { get; set; }
 
     [DataMember(Name = "Purpose")]
-    public GiftEventPurpose Purpose { get; set; }
+    public ItemDeliveryPurpose Purpose { get; set; }
 
     public bool IsForcedDelivery =>
         string.Equals(DeliveryKind, "Forced", StringComparison.OrdinalIgnoreCase);
 
     public bool IsTradeDelivery =>
-        Purpose is GiftEventPurpose.TradeCompletedOwnerDelivery
-            or GiftEventPurpose.TradeCompletedAcceptorDelivery;
+        Purpose is ItemDeliveryPurpose.TradeCompletedOwnerDelivery
+            or ItemDeliveryPurpose.TradeCompletedAcceptorDelivery;
 
     public bool IsTradeReturn =>
-        Purpose is GiftEventPurpose.TradeExpiredOwnerReturn
-            or GiftEventPurpose.TradeBaselineChangedOwnerReturn
-            or GiftEventPurpose.TradeCancelledOwnerReturn
-            or GiftEventPurpose.TradeApplicationFailedOwnerReturn;
+        Purpose is ItemDeliveryPurpose.TradeExpiredOwnerReturn
+            or ItemDeliveryPurpose.TradeBaselineChangedOwnerReturn
+            or ItemDeliveryPurpose.TradeCancelledOwnerReturn
+            or ItemDeliveryPurpose.TradeApplicationFailedOwnerReturn;
 }
 
 [DataContract]
-internal sealed partial class GiftItemSummary
+internal sealed partial class ItemDeliveryItemSummary
 {
     [DataMember(Name = "GlobalKey")]
     public string GlobalKey { get; set; } = string.Empty;
