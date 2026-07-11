@@ -372,7 +372,7 @@ internal static class WorldSubstrateRuntime
         Rand.PushState(GenText.StableStringHash(def.defName + "\u001f" + tile.Layer.LayerID.ToString(CultureInfo.InvariantCulture) + "\u001f" + tile.tileId.ToString(CultureInfo.InvariantCulture) + "\u001f" + ReadLanguage()));
         try
         {
-            return NameGenerator.GenerateName(def.nameMaker, null, false, "r_name");
+            return NameGenerator.GenerateName(def.nameMaker, null, false, "r_name", null, null);
         }
         finally
         {
