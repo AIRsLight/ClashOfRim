@@ -59,6 +59,7 @@ internal static class StableIdentityTests
     {
         string root = FindRepositoryRoot();
         string menu = Read(root, "Source", "Client", "MainMenu", "Entry", "ClashOfRimMainMenuPatches.cs");
+        string serverEntry = Read(root, "Source", "Client", "MainMenu", "Entry", "ClashOfRimServerEntryDialog.cs");
         string proxy = Read(root, "Source", "Client", "Diplomacy", "Factions", "PlayerFactionProxyUtility.cs");
         string giftProcessor = Read(root, "Source", "Client", "Gifts", "Processing", "ItemDeliveryClientProcessor.cs");
         string giftLetters = Read(root, "Source", "Client", "EventLetters", "Runtime", "ClashOfRimMod.EventLetters.cs");
@@ -71,6 +72,12 @@ internal static class StableIdentityTests
 
         Require(!menu.Contains("LabelEquals(", StringComparison.Ordinal), "主菜单不能按翻译后的按钮文本识别原版操作");
         Require(menu.Contains("MainMenuDrawContext", StringComparison.Ordinal), "主菜单补丁必须由原版绘制上下文限定");
+        Require(serverEntry.Contains("ServerAddressInputControl", StringComparison.Ordinal), "登录页必须注册服务器地址焦点");
+        Require(serverEntry.Contains("UserIdInputControl", StringComparison.Ordinal), "登录页必须注册用户 ID 焦点");
+        Require(serverEntry.Contains("PasswordInputControl", StringComparison.Ordinal), "登录页必须注册密码焦点");
+        Require(serverEntry.Contains("KeyCode.Tab", StringComparison.Ordinal), "登录页必须处理 Tab 键");
+        Require(serverEntry.Contains("Event.current.shift", StringComparison.Ordinal), "登录页必须支持 Shift+Tab");
+        Require(serverEntry.Contains("Event.current.Use()", StringComparison.Ordinal), "登录页必须消费 Tab 事件");
         Require(!proxy.Contains("LastIndexOf('('", StringComparison.Ordinal), "代理阵营所有者不能从显示名括号中解析");
         Require(!proxy.Contains("IsDisplayNameForUser", StringComparison.Ordinal), "代理阵营不能用显示名验证所有者");
         Require(!giftProcessor.Contains("string.Equals(payload.Message", StringComparison.Ordinal)
