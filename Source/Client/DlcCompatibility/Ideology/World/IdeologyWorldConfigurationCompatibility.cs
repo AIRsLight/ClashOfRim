@@ -46,6 +46,8 @@ internal static class IdeologyWorldConfigurationCompatibility
             }
         }
 
+        RemoteIdeoDiagnostics.LogCatalogState(ideos, localUserId);
+
         if (appliedIdeos > 0)
         {
             ClashLog.Message($"[ClashOfRim] Applied server ideo catalog: {appliedIdeos}.");

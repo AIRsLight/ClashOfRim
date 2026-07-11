@@ -170,6 +170,18 @@ public static class RemoteIdeoCatalog
         return !string.IsNullOrWhiteSpace(globalKey);
     }
 
+    internal static IReadOnlyList<string> GetGlobalKeys(Ideo ideo)
+    {
+        if (ideo is null || !globalKeysByIdeo.TryGetValue(ideo, out List<string>? globalKeys))
+        {
+            return Array.Empty<string>();
+        }
+
+        return globalKeys
+            .OrderBy(key => key, StringComparer.Ordinal)
+            .ToList();
+    }
+
     public static bool TryGetDisplayMetadata(string globalKey, out RemoteIdeoDisplayMetadata? metadata)
     {
         return metadataByGlobalKey.TryGetValue(globalKey, out metadata);
