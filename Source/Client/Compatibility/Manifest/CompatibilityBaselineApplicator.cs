@@ -24,6 +24,13 @@ internal static class CompatibilityLanguageMismatchPolicy
             StringComparison.OrdinalIgnoreCase);
     }
 
+    public static string ResolveServerLanguage(string? authoritativeWorldLanguage, string? manifestLanguage)
+    {
+        return !string.IsNullOrWhiteSpace(authoritativeWorldLanguage)
+            ? authoritativeWorldLanguage!.Trim()
+            : (manifestLanguage ?? string.Empty).Trim();
+    }
+
     public static bool CanContinue(ModLoginResponseDto? response)
     {
         if (response?.Result?.Accepted != true
@@ -288,6 +295,7 @@ internal sealed class CompatibilityMismatchWindow : Window
     private readonly bool canApplyConfigAndRestart;
     private readonly Action? continueAnyway;
     private readonly Action? cancelContinuation;
+    private readonly string? authoritativeServerGameLanguage;
     private readonly bool canContinueAnyway;
     private bool continuationHandled;
     private CompatibilityTab selectedTab = CompatibilityTab.Overview;
@@ -301,11 +309,13 @@ internal sealed class CompatibilityMismatchWindow : Window
     public CompatibilityMismatchWindow(
         ClashOfRimMod mod,
         ModLoginResponseDto response,
+        string? authoritativeServerGameLanguage = null,
         Action? continueAnyway = null,
         Action? cancelContinuation = null)
     {
         this.mod = mod;
         this.response = response;
+        this.authoritativeServerGameLanguage = authoritativeServerGameLanguage;
         this.continueAnyway = continueAnyway;
         this.cancelContinuation = cancelContinuation;
         serverManifest = UiManifest.Read(response.ServerCompatibilityManifestJson);
@@ -532,7 +542,13 @@ internal sealed class CompatibilityMismatchWindow : Window
         string localId = ShortHash(localManifest?.ManifestId ?? None());
         string serverVersion = serverManifest?.RimWorldVersion ?? None();
         string localVersion = localManifest?.RimWorldVersion ?? None();
-        string serverLanguage = serverManifest?.GameLanguage ?? None();
+        string serverLanguage = CompatibilityLanguageMismatchPolicy.ResolveServerLanguage(
+            authoritativeServerGameLanguage,
+            serverManifest?.GameLanguage);
+        if (string.IsNullOrWhiteSpace(serverLanguage))
+        {
+            serverLanguage = None();
+        }
         string localLanguage = localManifest?.GameLanguage ?? None();
         string languageLine = T(
             "ClashOfRim.Compatibility.GameLanguageLine",

@@ -227,7 +227,8 @@ public sealed partial class ClashOfRimMod
     private void ShowCompatibilityMismatchWindow(
         ModLoginResponseDto? response,
         Action? continueAnyway = null,
-        Action? cancelContinuation = null)
+        Action? cancelContinuation = null,
+        string? authoritativeServerGameLanguage = null)
     {
         if (!ShouldShowCompatibilityMismatchWindow(response))
         {
@@ -258,6 +259,7 @@ public sealed partial class ClashOfRimMod
                 Find.WindowStack.Add(new CompatibilityMismatchWindow(
                     this,
                     response,
+                    authoritativeServerGameLanguage,
                     continueAnyway,
                     cancelContinuation));
             }
@@ -280,7 +282,7 @@ public sealed partial class ClashOfRimMod
             ServerCompatibilityManifestJson = response.ServerCompatibilityManifestJson,
             CompatibilityIssues = response.CompatibilityIssues ?? new List<ModCompatibilityIssueDto>(),
             CanOverrideCompatibilityBaseline = response.CanOverrideCompatibilityBaseline
-        }, continueAnyway, cancelContinuation);
+        }, continueAnyway, cancelContinuation, response.WorldConfiguration?.GameLanguage);
     }
 
     private bool ShouldShowCompatibilityMismatchWindow(ModLoginResponseDto? response)

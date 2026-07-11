@@ -559,7 +559,9 @@ public static partial class ClashOfRimNetworkServer
                     ProtocolResponse.Ok(T("Compatibility.Validated")),
                     authenticatedUserId,
                     auth.DisplayName,
-                    ServerCompatibilityManifestJson: null,
+                    ServerCompatibilityManifestJson: CompatibilityManifestDeliveryPolicy.ShouldIncludeFullManifest(worldLanguageIssues)
+                        ? SerializeCompatibilityManifest(serverCompatibilityManifest, state)
+                        : null,
                     ToCompatibilityIssueDtos(worldLanguageIssues),
                     isAdministrator,
                     RequiresFullCompatibilityManifest: false,
@@ -598,7 +600,9 @@ public static partial class ClashOfRimNetworkServer
                     ProtocolResponse.Ok(T("Compatibility.Validated")),
                     authenticatedUserId,
                     auth.DisplayName,
-                    ServerCompatibilityManifestJson: null,
+                    ServerCompatibilityManifestJson: CompatibilityManifestDeliveryPolicy.ShouldIncludeFullManifest(summaryAcceptedIssues)
+                        ? SerializeCompatibilityManifest(serverCompatibilityManifest, state)
+                        : null,
                     ToCompatibilityIssueDtos(summaryAcceptedIssues),
                     isAdministrator,
                     RequiresFullCompatibilityManifest: false,
@@ -646,6 +650,7 @@ public static partial class ClashOfRimNetworkServer
         }
 
         IReadOnlyList<CompatibilityIssueDto> compatibilityIssues = Array.Empty<CompatibilityIssueDto>();
+        string? acceptedServerCompatibilityManifestJson = null;
         if (clientCompatibilityManifest is not null)
         {
             if (serverCompatibilityManifest is null)
@@ -673,6 +678,10 @@ public static partial class ClashOfRimNetworkServer
                     .Concat(BuildWorldLanguageIssues(state.WorldConfiguration.Current, clientCompatibilityManifest.GameLanguage))
                     .ToList();
                 compatibilityIssues = ToCompatibilityIssueDtos(issues);
+                if (CompatibilityManifestDeliveryPolicy.ShouldIncludeFullManifest(issues))
+                {
+                    acceptedServerCompatibilityManifestJson = SerializeCompatibilityManifest(serverCompatibilityManifest, state);
+                }
                 if (!comparison.Accepted)
                 {
                     return new CompatibilityHandshakeResult(
@@ -694,7 +703,7 @@ public static partial class ClashOfRimNetworkServer
             ProtocolResponse.Ok(T("Compatibility.Validated")),
             authenticatedUserId,
             auth.DisplayName,
-            ServerCompatibilityManifestJson: null,
+            ServerCompatibilityManifestJson: acceptedServerCompatibilityManifestJson,
             compatibilityIssues,
             isAdministrator,
             RequiresFullCompatibilityManifest: false,

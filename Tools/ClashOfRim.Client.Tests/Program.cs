@@ -24,7 +24,8 @@ var tests = new (string Name, Action Run)[]
     ("unfinished thing defs are hidden from request lists", UnfinishedThingDefsAreHidden),
     ("prepared concrete things carry transfer policy metadata", PreparedThingsCarryPolicyMetadata),
     ("server entry diagnostics list mods in load order", ServerEntryDiagnosticsListModsInLoadOrder),
-    ("only accepted language warnings can be bypassed", OnlyAcceptedLanguageWarningsCanBeBypassed)
+    ("only accepted language warnings can be bypassed", OnlyAcceptedLanguageWarningsCanBeBypassed),
+    ("visible compatibility warnings request the full server manifest", VisibleCompatibilityWarningsRequestFullManifest)
 };
 
 foreach ((string name, Action run) in tests)
@@ -289,6 +290,9 @@ static void OnlyAcceptedLanguageWarningsCanBeBypassed()
         "GameLanguageMismatch"));
     Assert(!AIRsLight.ClashOfRim.CompatibilityClient.CompatibilityLanguageMismatchPolicy.IsLanguageMismatch(
         "ModListMismatch"));
+    Assert(AIRsLight.ClashOfRim.CompatibilityClient.CompatibilityLanguageMismatchPolicy.ResolveServerLanguage(
+        "ChineseSimplified",
+        "English") == "ChineseSimplified");
 
     var response = new ModLoginResponseDto
     {
@@ -320,6 +324,25 @@ static void OnlyAcceptedLanguageWarningsCanBeBypassed()
     response.CompatibilityIssues.RemoveAt(response.CompatibilityIssues.Count - 1);
     response.Result.Accepted = false;
     Assert(!AIRsLight.ClashOfRim.CompatibilityClient.CompatibilityLanguageMismatchPolicy.CanContinue(response));
+}
+
+static void VisibleCompatibilityWarningsRequestFullManifest()
+{
+    Assert(!CompatibilityManifestDeliveryPolicy.ShouldIncludeFullManifest(Array.Empty<CompatibilityIssue>()));
+    Assert(!CompatibilityManifestDeliveryPolicy.ShouldIncludeFullManifest(new[]
+    {
+        new CompatibilityIssue(
+            CompatibilityIssueSeverity.Info,
+            CompatibilityIssueCode.AllowedPureTranslationMod,
+            "allowed")
+    }));
+    Assert(CompatibilityManifestDeliveryPolicy.ShouldIncludeFullManifest(new[]
+    {
+        new CompatibilityIssue(
+            CompatibilityIssueSeverity.Warning,
+            CompatibilityIssueCode.GameLanguageMismatch,
+            "language")
+    }));
 }
 
 static void BeginCycle()
