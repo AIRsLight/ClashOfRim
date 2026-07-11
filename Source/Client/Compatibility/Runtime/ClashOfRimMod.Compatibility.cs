@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 using AIRsLight.ClashOfRim.Admin;
 using AIRsLight.ClashOfRim.ClientNetwork;
+using AIRsLight.ClashOfRim.Compatibility;
 using AIRsLight.ClashOfRim.CompatibilityClient;
 using AIRsLight.ClashOfRim.ThirdPartyCompatibility;
 using RimWorld;
@@ -70,6 +71,12 @@ public sealed partial class ClashOfRimMod
             Log.Warning("[ClashOfRim][Compatibility] Failed to build requested client manifest package details: " + ex);
             return null;
         }
+    }
+
+    private static void LogCompatibilityManifestForServerEntry()
+    {
+        CompatibilityManifest manifest = ClientCompatibilityManifestBuilder.Build();
+        Log.Message(ClientCompatibilityManifestDiagnostics.FormatForServerEntry(manifest));
     }
 
     internal void CaptureServerCompatibilityManifest(string? manifestJson)

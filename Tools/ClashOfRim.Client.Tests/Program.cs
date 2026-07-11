@@ -1,4 +1,5 @@
 using AIRsLight.ClashOfRim.ClientNetwork;
+using AIRsLight.ClashOfRim.Compatibility;
 using AIRsLight.ClashOfRim.CoreCompatibility;
 using AIRsLight.ClashOfRim.DlcCompatibility;
 using AIRsLight.ClashOfRim.Protocol;
@@ -21,7 +22,8 @@ var tests = new (string Name, Action Run)[]
     ("biotech operation targets are cleared", BiotechOperationTargetsAreCleared),
     ("unnatural corpses are rejected", UnnaturalCorpsesAreRejected),
     ("unfinished thing defs are hidden from request lists", UnfinishedThingDefsAreHidden),
-    ("prepared concrete things carry transfer policy metadata", PreparedThingsCarryPolicyMetadata)
+    ("prepared concrete things carry transfer policy metadata", PreparedThingsCarryPolicyMetadata),
+    ("server entry diagnostics list mods in load order", ServerEntryDiagnosticsListModsInLoadOrder)
 };
 
 foreach ((string name, Action run) in tests)
@@ -234,6 +236,50 @@ static void PreparedThingsCarryPolicyMetadata()
         out _));
     Assert(reference.Metadata[ThingTransferPolicy.VersionMetadataKey] == ThingTransferPolicy.CurrentVersion);
     Assert(reference.Metadata[ThingTransferPolicy.DecisionMetadataKey] == ThingTransferPolicy.AcceptedDecision);
+}
+
+static void ServerEntryDiagnosticsListModsInLoadOrder()
+{
+    var manifest = new CompatibilityManifest
+    {
+        ManifestId = "manifest-123",
+        ProtocolVersion = "protocol-2",
+        RimWorldVersion = "1.6.9999",
+        GameLanguage = "English",
+        Mods = new List<ModManifestEntry>
+        {
+            new()
+            {
+                LoadOrder = 1,
+                PackageId = "author.second",
+                Name = "Second\nInjected line",
+                Source = "SteamWorkshop",
+                WorkshopId = "200",
+                Role = ModCompatibilityRole.Required
+            },
+            new()
+            {
+                LoadOrder = 0,
+                PackageId = "ludeon.rimworld",
+                Name = "Core",
+                Source = "Official",
+                Role = ModCompatibilityRole.Required
+            }
+        }
+    };
+
+    string text = AIRsLight.ClashOfRim.CompatibilityClient.ClientCompatibilityManifestDiagnostics
+        .FormatForServerEntry(manifest);
+
+    Assert(text.Contains("mods=2"));
+    Assert(text.Contains("manifest=manifest-123"));
+    Assert(text.Contains("protocol=protocol-2"));
+    Assert(text.Contains("RimWorld=1.6.9999"));
+    Assert(text.Contains("language=English"));
+    Assert(text.IndexOf("[0] ludeon.rimworld", StringComparison.Ordinal)
+        < text.IndexOf("[1] author.second", StringComparison.Ordinal));
+    Assert(text.Contains("Second Injected line"));
+    Assert(!text.Contains("Second\nInjected line"));
 }
 
 static void BeginCycle()

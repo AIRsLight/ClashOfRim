@@ -169,6 +169,7 @@ public sealed partial class ClashOfRimMod : Mod
         ClashOfRimModNetworkClient.CompatibilityManifestIdProvider = BuildCompatibilityManifestIdForLogin;
         ClashOfRimModNetworkClient.CompatibilityManifestSummaryJsonProvider = BuildCompatibilityManifestSummaryJsonForLogin;
         ClashOfRimModNetworkClient.CompatibilityManifestJsonForPackagesProvider = BuildCompatibilityManifestJsonForPackages;
+        ClashOfRimModNetworkClient.ServerEntryDiagnosticsLogger = LogCompatibilityManifestForServerEntry;
         ClashLog.Message("[ClashOfRim] Harmony patches applied.");
     }
 
@@ -880,4 +881,3 @@ public sealed partial class ClashOfRimMod : Mod
     }
 
 }
-

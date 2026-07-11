@@ -110,6 +110,7 @@ public sealed class ClashOfRimModNetworkClient
     public static Func<string?>? CompatibilityManifestIdProvider;
     public static Func<string?>? CompatibilityManifestSummaryJsonProvider;
     public static Func<IReadOnlyCollection<string>?, string?>? CompatibilityManifestJsonForPackagesProvider;
+    public static Action? ServerEntryDiagnosticsLogger;
 
     public ClashOfRimModNetworkClient(
         HttpClient httpClient,
@@ -356,6 +357,15 @@ public sealed class ClashOfRimModNetworkClient
             || string.IsNullOrWhiteSpace(context.UserId))
         {
             return await NotConfigured<ModPrepareWorldSessionResponseDto>();
+        }
+
+        try
+        {
+            ServerEntryDiagnosticsLogger?.Invoke();
+        }
+        catch (Exception ex)
+        {
+            Log.Warning("[ClashOfRim][Compatibility] Failed to log the server entry mod list: " + ex);
         }
 
         var request = new ModPrepareWorldSessionRequestDto
