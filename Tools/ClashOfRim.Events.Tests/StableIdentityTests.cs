@@ -60,6 +60,7 @@ internal static class StableIdentityTests
         string root = FindRepositoryRoot();
         string menu = Read(root, "Source", "Client", "MainMenu", "Entry", "ClashOfRimMainMenuPatches.cs");
         string serverEntry = Read(root, "Source", "Client", "MainMenu", "Entry", "ClashOfRimServerEntryDialog.cs");
+        string mainButtonDefs = Read(root, "Defs", "MainButtonDefs", "ClashOfRim_MainButtons.xml");
         string proxy = Read(root, "Source", "Client", "Diplomacy", "Factions", "PlayerFactionProxyUtility.cs");
         string giftProcessor = Read(root, "Source", "Client", "Gifts", "Processing", "ItemDeliveryClientProcessor.cs");
         string giftLetters = Read(root, "Source", "Client", "EventLetters", "Runtime", "ClashOfRimMod.EventLetters.cs");
@@ -78,6 +79,16 @@ internal static class StableIdentityTests
         Require(serverEntry.Contains("KeyCode.Tab", StringComparison.Ordinal), "登录页必须处理 Tab 键");
         Require(serverEntry.Contains("Event.current.shift", StringComparison.Ordinal), "登录页必须支持 Shift+Tab");
         Require(serverEntry.Contains("Event.current.Use()", StringComparison.Ordinal), "登录页必须消费 Tab 事件");
+        const string multiplayerWorkerType = "AIRsLight.ClashOfRim.Multiplayer.MainButtonWorker_ClashOfRimMultiplayer";
+        Require(mainButtonDefs.Contains($"<workerClass>{multiplayerWorkerType}</workerClass>", StringComparison.Ordinal),
+            "多人底栏按钮必须绑定会话可见性 worker");
+        string multiplayerWorkerPath = Path.Combine(root, "Source", "Client", "Multiplayer", "MainButton", "MainButtonWorker_ClashOfRimMultiplayer.cs");
+        Require(File.Exists(multiplayerWorkerPath), "多人底栏按钮会话可见性 worker 必须存在");
+        string multiplayerWorker = File.ReadAllText(multiplayerWorkerPath);
+        Require(multiplayerWorker.Contains("override bool Visible", StringComparison.Ordinal)
+            && multiplayerWorker.Contains("base.Visible", StringComparison.Ordinal)
+            && multiplayerWorker.Contains("ShouldShowMultiplayerMainButton", StringComparison.Ordinal),
+            "多人底栏按钮必须保留原版可见性并要求有效服务器会话");
         Require(!proxy.Contains("LastIndexOf('('", StringComparison.Ordinal), "代理阵营所有者不能从显示名括号中解析");
         Require(!proxy.Contains("IsDisplayNameForUser", StringComparison.Ordinal), "代理阵营不能用显示名验证所有者");
         Require(!giftProcessor.Contains("string.Equals(payload.Message", StringComparison.Ordinal)

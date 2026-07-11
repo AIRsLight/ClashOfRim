@@ -5,6 +5,7 @@
     <label>multiplayer</label>
     <description>Multiplayer</description>
     <iconPath>UI/MainButtons/ClashOfRim/Multiplayer</iconPath>
+    <workerClass>AIRsLight.ClashOfRim.Multiplayer.MainButtonWorker_ClashOfRimMultiplayer</workerClass>
     <tabWindowClass>AIRsLight.ClashOfRim.Multiplayer.ClashOfRimMultiplayerWindow</tabWindowClass>
     <order>75</order>
     <minimized>true</minimized>

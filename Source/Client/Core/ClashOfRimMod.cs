@@ -363,6 +363,10 @@ public sealed partial class ClashOfRimMod : Mod
 
     internal string CurrentUserId => settings.UserId;
 
+    internal bool ShouldShowMultiplayerMainButton =>
+        settings.IsConfigured
+        && !string.IsNullOrWhiteSpace(lastSessionId);
+
     internal bool IsInActiveMultiplayerSession =>
         settings.IsConfigured
         && !string.IsNullOrWhiteSpace(settings.CurrentSnapshotId)
@@ -876,5 +880,4 @@ public sealed partial class ClashOfRimMod : Mod
     }
 
 }
-
 
