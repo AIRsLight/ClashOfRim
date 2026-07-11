@@ -285,6 +285,11 @@ static void ServerEntryDiagnosticsListModsInLoadOrder()
 
 static void OnlyAcceptedLanguageWarningsCanBeBypassed()
 {
+    Assert(AIRsLight.ClashOfRim.CompatibilityClient.CompatibilityLanguageMismatchPolicy.IsLanguageMismatch(
+        "GameLanguageMismatch"));
+    Assert(!AIRsLight.ClashOfRim.CompatibilityClient.CompatibilityLanguageMismatchPolicy.IsLanguageMismatch(
+        "ModListMismatch"));
+
     var response = new ModLoginResponseDto
     {
         Result = new ModProtocolResponseDto { Accepted = true },

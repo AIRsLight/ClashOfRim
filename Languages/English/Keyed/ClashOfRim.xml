@@ -141,6 +141,7 @@
   <ClashOfRim.Compatibility.Issue.ProtocolVersionMismatch>Protocol version mismatch</ClashOfRim.Compatibility.Issue.ProtocolVersionMismatch>
   <ClashOfRim.Compatibility.Issue.RimWorldVersionMismatch>RimWorld version mismatch</ClashOfRim.Compatibility.Issue.RimWorldVersionMismatch>
   <ClashOfRim.Compatibility.Issue.GameLanguageMismatch>Game language differs from the server world language</ClashOfRim.Compatibility.Issue.GameLanguageMismatch>
+  <ClashOfRim.Compatibility.GameLanguageLine>Game language: server {SERVER} / local {LOCAL}</ClashOfRim.Compatibility.GameLanguageLine>
   <ClashOfRim.Compatibility.Issue.DlcListMismatch>DLC list mismatch</ClashOfRim.Compatibility.Issue.DlcListMismatch>
   <ClashOfRim.Compatibility.Issue.ModListMismatch>Mod list mismatch</ClashOfRim.Compatibility.Issue.ModListMismatch>
   <ClashOfRim.Compatibility.Issue.ModOrderMismatch>Mod load order mismatch</ClashOfRim.Compatibility.Issue.ModOrderMismatch>

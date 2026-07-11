@@ -16,6 +16,14 @@ namespace AIRsLight.ClashOfRim.CompatibilityClient;
 
 internal static class CompatibilityLanguageMismatchPolicy
 {
+    public static bool IsLanguageMismatch(string? code)
+    {
+        return string.Equals(
+            code,
+            nameof(CompatibilityIssueCode.GameLanguageMismatch),
+            StringComparison.OrdinalIgnoreCase);
+    }
+
     public static bool CanContinue(ModLoginResponseDto? response)
     {
         if (response?.Result?.Accepted != true
@@ -27,10 +35,7 @@ internal static class CompatibilityLanguageMismatchPolicy
         bool foundLanguageMismatch = false;
         foreach (ModCompatibilityIssueDto issue in issues)
         {
-            if (string.Equals(
-                    issue.Code,
-                    nameof(CompatibilityIssueCode.GameLanguageMismatch),
-                    StringComparison.OrdinalIgnoreCase))
+            if (IsLanguageMismatch(issue.Code))
             {
                 foundLanguageMismatch = true;
                 if (string.Equals(issue.Severity, nameof(CompatibilityIssueSeverity.Error), StringComparison.OrdinalIgnoreCase))
@@ -527,11 +532,23 @@ internal sealed class CompatibilityMismatchWindow : Window
         string localId = ShortHash(localManifest?.ManifestId ?? None());
         string serverVersion = serverManifest?.RimWorldVersion ?? None();
         string localVersion = localManifest?.RimWorldVersion ?? None();
+        string serverLanguage = serverManifest?.GameLanguage ?? None();
+        string localLanguage = localManifest?.GameLanguage ?? None();
+        string languageLine = T(
+            "ClashOfRim.Compatibility.GameLanguageLine",
+            serverLanguage.Named("SERVER"),
+            localLanguage.Named("LOCAL"));
+        if (response.CompatibilityIssues?.Any(issue =>
+                CompatibilityLanguageMismatchPolicy.IsLanguageMismatch(issue.Code)) == true)
+        {
+            languageLine = "<color=#ffd166>" + languageLine + "</color>";
+        }
         Widgets.Label(
             detailRect,
             T("ClashOfRim.Compatibility.ServerManifestLine", serverId.Named("ID"))
             + "\n" + T("ClashOfRim.Compatibility.LocalManifestLine", localId.Named("ID"))
-            + "\nRimWorld：" + serverVersion + " / " + localVersion);
+            + "\nRimWorld: " + serverVersion + " / " + localVersion
+            + "\n" + languageLine);
         y += 128f;
 
         Widgets.Label(
@@ -981,6 +998,11 @@ internal sealed class CompatibilityMismatchWindow : Window
 
     private static bool IssueBelongsToTab(string? code, CompatibilityTab tab)
     {
+        if (CompatibilityLanguageMismatchPolicy.IsLanguageMismatch(code))
+        {
+            return false;
+        }
+
         if (!Enum.TryParse(code, ignoreCase: false, out CompatibilityIssueCode issueCode))
         {
             return tab == CompatibilityTab.Manifest;
@@ -1201,6 +1223,9 @@ internal sealed class CompatibilityMismatchWindow : Window
         [DataMember(Name = "rimWorldVersion")]
         public string RimWorldVersion { get; set; } = string.Empty;
 
+        [DataMember(Name = "gameLanguage")]
+        public string GameLanguage { get; set; } = string.Empty;
+
         [DataMember(Name = "dlcIds")]
         public List<string> DlcIds { get; set; } = new();
 
@@ -1247,6 +1272,7 @@ internal sealed class CompatibilityMismatchWindow : Window
                     ManifestId = manifest.ManifestId,
                     ProtocolVersion = manifest.ProtocolVersion,
                     RimWorldVersion = manifest.RimWorldVersion,
+                    GameLanguage = manifest.GameLanguage,
                     DlcIds = manifest.DlcIds.ToList(),
                     ConfigVersion = manifest.ConfigVersion,
                     ConfigSha256 = manifest.ConfigSha256,

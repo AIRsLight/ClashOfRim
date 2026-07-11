@@ -142,6 +142,7 @@
   <ClashOfRim.Compatibility.Issue.ProtocolVersionMismatch>プロトコルバージョン不一致</ClashOfRim.Compatibility.Issue.ProtocolVersionMismatch>
   <ClashOfRim.Compatibility.Issue.RimWorldVersionMismatch>RimWorld バージョン不一致</ClashOfRim.Compatibility.Issue.RimWorldVersionMismatch>
   <ClashOfRim.Compatibility.Issue.GameLanguageMismatch>ゲーム言語がサーバー世界の言語と一致しません</ClashOfRim.Compatibility.Issue.GameLanguageMismatch>
+  <ClashOfRim.Compatibility.GameLanguageLine>ゲーム言語：サーバー {SERVER} / ローカル {LOCAL}</ClashOfRim.Compatibility.GameLanguageLine>
   <ClashOfRim.Compatibility.Issue.DlcListMismatch>DLCリスト不一致</ClashOfRim.Compatibility.Issue.DlcListMismatch>
   <ClashOfRim.Compatibility.Issue.ModListMismatch>MODリスト不一致</ClashOfRim.Compatibility.Issue.ModListMismatch>
   <ClashOfRim.Compatibility.Issue.ModOrderMismatch>MOD読み込み順不一致</ClashOfRim.Compatibility.Issue.ModOrderMismatch>

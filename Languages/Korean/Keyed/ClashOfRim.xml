@@ -142,6 +142,7 @@
   <ClashOfRim.Compatibility.Issue.ProtocolVersionMismatch>프로토콜 버전 불일치</ClashOfRim.Compatibility.Issue.ProtocolVersionMismatch>
   <ClashOfRim.Compatibility.Issue.RimWorldVersionMismatch>RimWorld 버전 불일치</ClashOfRim.Compatibility.Issue.RimWorldVersionMismatch>
   <ClashOfRim.Compatibility.Issue.GameLanguageMismatch>게임 언어가 서버 세계 언어와 일치하지 않음</ClashOfRim.Compatibility.Issue.GameLanguageMismatch>
+  <ClashOfRim.Compatibility.GameLanguageLine>게임 언어: 서버 {SERVER} / 로컬 {LOCAL}</ClashOfRim.Compatibility.GameLanguageLine>
   <ClashOfRim.Compatibility.Issue.DlcListMismatch>DLC 목록 불일치</ClashOfRim.Compatibility.Issue.DlcListMismatch>
   <ClashOfRim.Compatibility.Issue.ModListMismatch>모드 목록 불일치</ClashOfRim.Compatibility.Issue.ModListMismatch>
   <ClashOfRim.Compatibility.Issue.ModOrderMismatch>모드 로드 순서 불일치</ClashOfRim.Compatibility.Issue.ModOrderMismatch>
