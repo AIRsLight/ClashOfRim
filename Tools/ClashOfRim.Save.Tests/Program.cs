@@ -13,7 +13,14 @@ using System.Xml.Linq;
 var tests = new (string Name, Action Run)[]
 {
     ("服务器数据库新建时写入当前 schema 版本", VerifyServerDatabaseMigrationInitializesNewDatabase),
-    ("服务器启动拒绝无版本的既有数据库", VerifyServerDatabaseMigrationRequiresExplicitLegacyMigration),
+    ("服务器启动可只读识别无版本旧数据库", VerifyServerDatabaseMigrationAssessesLegacyDatabaseWithoutMutation),
+    ("服务器启动自动备份并迁移明确旧版本", VerifyServerPersistenceStartupMigratesKnownVersionWithBackup),
+    ("服务器启动自动补全可识别结构化数据库版本", VerifyServerPersistenceStartupVersionsRecognizedStructuredDatabase),
+    ("服务器启动对混合旧结构返回人工迁移提示", VerifyServerPersistenceStartupDefersAmbiguousDatabase),
+    ("服务器启动对未来版本返回更新提示", VerifyServerPersistenceStartupDefersFutureDatabase),
+    ("服务器启动对当前版本不创建迁移备份", VerifyServerPersistenceStartupSkipsBackupForCurrentData),
+    ("服务器迁移备份保留数据库旁路文件和目录结构", VerifyServerPersistenceBackupPreservesSelectedFiles),
+    ("服务器数据目录租约阻止并发服务端进程", VerifyServerDataDirectoryLeaseIsExclusive),
     ("服务器持久化迁移统一检查数据库和快照格式", VerifyServerPersistenceMigrationCoordinatesDatabaseAndSnapshots),
     ("服务器数据库旧版本按匹配步骤迁移并保留其他数据", VerifyServerDatabaseMigrationUpgradesLegacyDatabase),
     ("服务器数据库迁移旧交易礼物用途为结构化枚举", VerifyServerDatabaseMigrationUpgradesLegacyGiftPurpose),
@@ -121,7 +128,7 @@ static void VerifyServerPersistenceMigrationCoordinatesDatabaseAndSnapshots()
     }
 }
 
-static void VerifyServerDatabaseMigrationRequiresExplicitLegacyMigration()
+static void VerifyServerDatabaseMigrationAssessesLegacyDatabaseWithoutMutation()
 {
     string path = Path.Combine(Path.GetTempPath(), "clashofrim-schema-startup-legacy-" + Guid.NewGuid().ToString("N") + ".sqlite");
     try
@@ -140,22 +147,266 @@ static void VerifyServerDatabaseMigrationRequiresExplicitLegacyMigration()
             command.ExecuteNonQuery();
         }
 
-        bool rejected = false;
-        try
-        {
-            ServerDatabaseMigrator.ValidateForStartup(path);
-        }
-        catch (ServerDatabaseMigrationRequiredException exception)
-        {
-            rejected = exception.Message.Contains("migrate", StringComparison.OrdinalIgnoreCase);
-        }
-
-        Require(rejected, "无版本旧数据库不得在启动时隐式迁移");
-        Equal(0, ServerDatabaseMigrator.ReadVersion(path), "启动拒绝不得写入 schema 版本");
+        ServerDatabaseMigrationAssessment assessment = ServerDatabaseMigrator.Assess(path);
+        Equal(ServerPersistenceMigrationStatus.SafeMigrationAvailable, assessment.Status, "无版本旧数据库状态");
+        Equal(ServerDatabaseSchema.LegacyJsonDocumentVersion, assessment.SourceVersion, "推断出的旧数据库版本");
+        Equal(0, ServerDatabaseMigrator.ReadVersion(path), "只读评估不得写入 schema 版本");
     }
     finally
     {
         DeleteSqliteDatabase(path);
+    }
+}
+
+static void VerifyServerPersistenceStartupMigratesKnownVersionWithBackup()
+{
+    string root = Path.Combine(Path.GetTempPath(), "clashofrim-startup-migrate-" + Guid.NewGuid().ToString("N"));
+    string path = Path.Combine(root, "server.sqlite");
+    try
+    {
+        Directory.CreateDirectory(root);
+        using (SqliteConnection connection = OpenSqliteDatabase(path))
+        using (SqliteCommand command = connection.CreateCommand())
+        {
+            command.CommandText = """
+                create table server_schema_metadata (
+                    metadata_key text primary key not null,
+                    metadata_value text not null,
+                    updated_at_utc text not null
+                );
+                insert into server_schema_metadata values ('schema_version', '3', '2026-01-01T00:00:00.0000000+00:00');
+                """;
+            command.ExecuteNonQuery();
+        }
+
+        ServerPersistenceStartupResult result = new ServerPersistenceMigrationService(root).PrepareForStartup();
+        Require(result.CanStart, "明确旧版本迁移后应允许启动");
+        Require(result.Migration is not null, "明确旧版本应自动执行迁移");
+        Require(!string.IsNullOrWhiteSpace(result.Migration!.BackupDirectory), "修改数据库前应创建备份");
+        string backupDatabase = Path.Combine(result.Migration.BackupDirectory!, "server.sqlite");
+        Require(File.Exists(backupDatabase), "备份应包含 SQLite 主文件");
+        Equal(3, ServerDatabaseMigrator.ReadVersion(backupDatabase), "备份必须保留迁移前版本");
+        Equal(ServerDatabaseSchema.CurrentVersion, ServerDatabaseMigrator.ReadVersion(path), "自动迁移后的版本");
+    }
+    finally
+    {
+        DeleteSqliteDatabase(path);
+        if (Directory.Exists(root))
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+}
+
+static void VerifyServerPersistenceStartupDefersAmbiguousDatabase()
+{
+    string root = Path.Combine(Path.GetTempPath(), "clashofrim-startup-ambiguous-" + Guid.NewGuid().ToString("N"));
+    string path = Path.Combine(root, "server.sqlite");
+    try
+    {
+        Directory.CreateDirectory(root);
+        using (SqliteConnection connection = OpenSqliteDatabase(path))
+        using (SqliteCommand command = connection.CreateCommand())
+        {
+            command.CommandText = """
+                create table server_documents (
+                    document_key text primary key not null,
+                    content_json text not null,
+                    updated_at_utc text not null
+                );
+                create table server_keyed_json_records (
+                    collection_key text not null,
+                    item_key text not null,
+                    content_json text not null,
+                    updated_at_utc text not null,
+                    primary key (collection_key, item_key)
+                );
+                create table server_binary_documents (
+                    document_key text not null,
+                    binary_key text not null,
+                    content_blob blob not null,
+                    updated_at_utc text not null,
+                    primary key (document_key, binary_key)
+                );
+                insert into server_documents values ('players', '{"Players":[],"Tombstones":[]}', '2026-01-01T00:00:00.0000000+00:00');
+                insert into server_keyed_json_records values ('world-configuration', 'state', '{}', '2026-01-01T00:00:00.0000000+00:00');
+                insert into server_binary_documents values ('world-configuration', 'tile-geometry', X'0102', '2026-01-01T00:00:00.0000000+00:00');
+                """;
+            command.ExecuteNonQuery();
+        }
+
+        ServerPersistenceStartupResult result = new ServerPersistenceMigrationService(root).PrepareForStartup();
+        Require(!result.CanStart, "混合旧结构不得自动启动");
+        Equal(ServerPersistenceMigrationStatus.SourceVersionRequired, result.Assessment.Status, "混合旧结构状态");
+        Require(result.Migration is null, "混合旧结构不得执行迁移");
+        Equal(0, ServerDatabaseMigrator.ReadVersion(path), "人工处理提示不得修改数据库");
+        Require(!Directory.Exists(Path.Combine(root, "backups")), "未执行迁移不得创建备份");
+    }
+    finally
+    {
+        DeleteSqliteDatabase(path);
+        if (Directory.Exists(root))
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+}
+
+static void VerifyServerPersistenceStartupVersionsRecognizedStructuredDatabase()
+{
+    string root = Path.Combine(Path.GetTempPath(), "clashofrim-startup-structured-" + Guid.NewGuid().ToString("N"));
+    string path = Path.Combine(root, "server.sqlite");
+    try
+    {
+        Directory.CreateDirectory(root);
+        using (SqliteConnection connection = OpenSqliteDatabase(path))
+        using (SqliteCommand command = connection.CreateCommand())
+        {
+            command.CommandText = """
+                create table server_keyed_json_records (
+                    collection_key text not null,
+                    item_key text not null,
+                    content_json text not null,
+                    updated_at_utc text not null,
+                    primary key (collection_key, item_key)
+                );
+                insert into server_keyed_json_records values ('world-configuration', 'state', '{}', '2026-01-01T00:00:00.0000000+00:00');
+                """;
+            command.ExecuteNonQuery();
+        }
+
+        ServerPersistenceStartupResult result = new ServerPersistenceMigrationService(root).PrepareForStartup();
+        Require(result.CanStart, "可识别结构化数据库应允许启动");
+        Require(result.Migration is not null, "缺失版本元数据应执行安全迁移");
+        Require(!string.IsNullOrWhiteSpace(result.Migration!.BackupDirectory), "补写版本前应备份数据库");
+        Equal(ServerDatabaseSchema.CurrentVersion, ServerDatabaseMigrator.ReadVersion(path), "补写后的数据库版本");
+    }
+    finally
+    {
+        DeleteSqliteDatabase(path);
+        if (Directory.Exists(root))
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+}
+
+static void VerifyServerPersistenceStartupSkipsBackupForCurrentData()
+{
+    string root = Path.Combine(Path.GetTempPath(), "clashofrim-startup-current-" + Guid.NewGuid().ToString("N"));
+    try
+    {
+        ServerPersistenceMigrationResult initialized = new ServerPersistenceMigrationService(root).Migrate();
+        Require(string.IsNullOrWhiteSpace(initialized.BackupDirectory), "新数据库初始化不应备份");
+
+        ServerPersistenceStartupResult result = new ServerPersistenceMigrationService(root).PrepareForStartup();
+        Require(result.CanStart, "当前版本应允许启动");
+        Require(result.Migration is null, "当前版本不应重复迁移");
+        Require(!Directory.Exists(Path.Combine(root, "backups")), "当前版本不应创建备份目录");
+    }
+    finally
+    {
+        DeleteSqliteDatabase(Path.Combine(root, "server.sqlite"));
+        if (Directory.Exists(root))
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+}
+
+static void VerifyServerPersistenceStartupDefersFutureDatabase()
+{
+    string root = Path.Combine(Path.GetTempPath(), "clashofrim-startup-future-" + Guid.NewGuid().ToString("N"));
+    string path = Path.Combine(root, "server.sqlite");
+    try
+    {
+        Directory.CreateDirectory(root);
+        using (SqliteConnection connection = OpenSqliteDatabase(path))
+        using (SqliteCommand command = connection.CreateCommand())
+        {
+            command.CommandText = $$"""
+                create table server_schema_metadata (
+                    metadata_key text primary key not null,
+                    metadata_value text not null,
+                    updated_at_utc text not null
+                );
+                insert into server_schema_metadata values ('schema_version', '{{ServerDatabaseSchema.CurrentVersion + 1}}', '2026-01-01T00:00:00.0000000+00:00');
+                """;
+            command.ExecuteNonQuery();
+        }
+
+        ServerPersistenceStartupResult result = new ServerPersistenceMigrationService(root).PrepareForStartup();
+        Require(!result.CanStart, "未来数据库版本不得由旧服务端启动");
+        Equal(ServerPersistenceMigrationStatus.ServerUpgradeRequired, result.Assessment.Status, "未来数据库版本状态");
+        Require(result.Migration is null, "未来数据库版本不得执行迁移");
+        Require(!Directory.Exists(Path.Combine(root, "backups")), "未执行迁移不得创建备份");
+    }
+    finally
+    {
+        DeleteSqliteDatabase(path);
+        if (Directory.Exists(root))
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+}
+
+static void VerifyServerPersistenceBackupPreservesSelectedFiles()
+{
+    string root = Path.Combine(Path.GetTempPath(), "clashofrim-migration-backup-" + Guid.NewGuid().ToString("N"));
+    try
+    {
+        string database = Path.Combine(root, "server.sqlite");
+        string wal = database + "-wal";
+        string package = Path.Combine(root, "snapshots", "packages", "sample.snapshot.gz");
+        Directory.CreateDirectory(Path.GetDirectoryName(package)!);
+        File.WriteAllText(database, "database");
+        File.WriteAllText(wal, "wal");
+        File.WriteAllText(package, "snapshot");
+
+        string backup = ServerPersistenceMigrationBackup.Create(root, new[] { database, wal, package });
+        Equal("database", File.ReadAllText(Path.Combine(backup, "server.sqlite")), "数据库主文件备份");
+        Equal("wal", File.ReadAllText(Path.Combine(backup, "server.sqlite-wal")), "数据库 WAL 备份");
+        Equal(
+            "snapshot",
+            File.ReadAllText(Path.Combine(backup, "snapshots", "packages", "sample.snapshot.gz")),
+            "快照包目录结构备份");
+    }
+    finally
+    {
+        if (Directory.Exists(root))
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+}
+
+static void VerifyServerDataDirectoryLeaseIsExclusive()
+{
+    string root = Path.Combine(Path.GetTempPath(), "clashofrim-data-lease-" + Guid.NewGuid().ToString("N"));
+    try
+    {
+        using ServerDataDirectoryLease first = ServerDataDirectoryLease.Acquire(root);
+        bool rejected = false;
+        try
+        {
+            using ServerDataDirectoryLease second = ServerDataDirectoryLease.Acquire(root);
+        }
+        catch (IOException)
+        {
+            rejected = true;
+        }
+
+        Require(rejected, "同一数据目录不得被第二个服务端进程占用");
+        first.Dispose();
+        using ServerDataDirectoryLease reopened = ServerDataDirectoryLease.Acquire(root);
+    }
+    finally
+    {
+        if (Directory.Exists(root))
+        {
+            Directory.Delete(root, recursive: true);
+        }
     }
 }
 

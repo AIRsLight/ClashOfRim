@@ -56,10 +56,6 @@ public static partial class ClashOfRimNetworkServer
             networkState = state;
         }
         builder.Services.AddSingleton(networkState);
-        if (persistenceMigrations is not null)
-        {
-            builder.Services.AddSingleton(persistenceMigrations);
-        }
         WebApplication app = builder.Build();
         networkState.SetRuntimeLogger(RuntimeLogger(app.Services.GetRequiredService<ILoggerFactory>()));
         app.Logger.LogInformation(T("Server.LocalizationLoaded", ("LANGUAGES", string.Join(", ", ServerLocalization.LoadedLanguages))));
@@ -112,7 +108,7 @@ public static partial class ClashOfRimNetworkServer
         return app;
     }
 
-    private static string ResolveServerLanguage(string[] args, IConfiguration configuration)
+    public static string ResolveServerLanguage(string[] args, IConfiguration configuration)
     {
         string? language = Environment.GetEnvironmentVariable("CLASH_OF_RIM_SERVER_LANGUAGE");
         if (string.IsNullOrWhiteSpace(language))
