@@ -27,6 +27,7 @@ internal static class AnomalyCompatibilityPackage
             return;
         }
 
+        AnomalyThingTransferCompatibility.Apply();
         ClashOfRimCompatibilityApi.RegisterThingReferenceDefaultMetadataProvider(
             AnomalyTradeThingReferenceCompatibility.ApplyDefaultThingReferenceMetadata);
         ClashOfRimCompatibilityApi.RegisterThingReferenceMetadata(

@@ -58,7 +58,8 @@ internal static class TradeThingReferenceUtility
 
     public static bool IsTradeableItem(Thing thing)
     {
-        return thing.def?.category == ThingCategory.Item || TryGetMinifiedInnerThing(thing, out _);
+        return (thing.def?.category == ThingCategory.Item || TryGetMinifiedInnerThing(thing, out _))
+            && ThingTransferPipeline.CanTransfer(thing, ThingReferenceSurfaces.UiSelection, out _);
     }
 
     public static bool IsTradeableItemDef(ThingDef def)
@@ -71,7 +72,8 @@ internal static class TradeThingReferenceUtility
         Thing thing,
         string globalKey,
         int count,
-        string? biocodedPawnGlobalId)
+        string? biocodedPawnGlobalId,
+        string surface = ThingReferenceSurfaces.TradeOffer)
     {
         Thing metadataThing = ThingForMetadata(thing);
         QualityCategory quality;
@@ -101,12 +103,10 @@ internal static class TradeThingReferenceUtility
             UniqueWeapon = traitWeapon ? true : null,
             UniqueWeaponTraits = WeaponTraitDefNames(metadataThing)
         };
-        Dictionary<string, string?> metadataBeforeExplicitCompatibility = SnapshotMetadata(reference);
         AppendWeaponTraitMetadata(metadataThing, reference);
-        ClashOfRimCompatibilityApi.AppendThingReferenceMetadata(metadataThing, reference);
-        if (!MetadataChanged(metadataBeforeExplicitCompatibility, reference.Metadata))
+        if (!ThingTransferPipeline.TryPrepareOutbound(metadataThing, reference, surface, out string? rejectionCode))
         {
-            ThingStatePackageUtility.TryAttachFallbackPackage(metadataThing, reference);
+            throw new ThingTransferRejectedException(rejectionCode ?? ThingTransferDecision.ProcessorFailureCode);
         }
 
         if (TryGetMinifiedInnerThing(thing, out Thing? innerThing))
@@ -122,46 +122,19 @@ internal static class TradeThingReferenceUtility
         return reference;
     }
 
-    private static Dictionary<string, string?> SnapshotMetadata(ModThingReferenceDto reference)
-    {
-        return reference.Metadata is null
-            ? new Dictionary<string, string?>(StringComparer.Ordinal)
-            : new Dictionary<string, string?>(reference.Metadata, StringComparer.Ordinal);
-    }
-
-    private static bool MetadataChanged(
-        IReadOnlyDictionary<string, string?> previous,
-        IReadOnlyDictionary<string, string?>? current)
-    {
-        if (current is null)
-        {
-            return previous.Count > 0;
-        }
-
-        if (previous.Count != current.Count)
-        {
-            return true;
-        }
-
-        foreach (KeyValuePair<string, string?> entry in previous)
-        {
-            if (!current.TryGetValue(entry.Key, out string? value)
-                || !string.Equals(entry.Value, value, StringComparison.Ordinal))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     public static ThingDef? ResolveReferenceDef(ModThingReferenceDto reference)
     {
         return TradeUiUtility.ResolveThingDef(reference.MinifiedInnerDefName)
             ?? TradeUiUtility.ResolveThingDef(reference.DefName);
     }
 
-    public static bool TryMakeThing(ModThingReferenceDto reference, int stackCount, out Thing? thing, out string? missingDefName)
+    public static bool TryMakeThing(
+        ModThingReferenceDto reference,
+        int stackCount,
+        out Thing? thing,
+        out string? missingDefName,
+        string surface = ThingReferenceSurfaces.ItemDelivery,
+        Faction? receivingFaction = null)
     {
         thing = null;
         missingDefName = null;
@@ -170,7 +143,7 @@ internal static class TradeThingReferenceUtility
             && thing is not null)
         {
             ApplyThingMetadata(thing, reference, reference.Quality, reference.HitPoints, reference.WornByCorpse);
-            if (!ClashOfRimCompatibilityApi.TryApplyThingReferenceMetadata(reference, thing, out missingDefName))
+            if (!ThingTransferPipeline.TryFinalizeInbound(reference, thing, surface, receivingFaction, out missingDefName))
             {
                 thing = null;
                 return false;
@@ -196,7 +169,7 @@ internal static class TradeThingReferenceUtility
                 reference.MinifiedInnerQuality ?? reference.Quality,
                 reference.MinifiedInnerHitPoints ?? reference.HitPoints,
                 reference.WornByCorpse);
-            if (!ClashOfRimCompatibilityApi.TryApplyThingReferenceMetadata(reference, innerThing, out missingDefName))
+            if (!ThingTransferPipeline.TryFinalizeInbound(reference, innerThing, surface, receivingFaction, out missingDefName))
             {
                 return false;
             }
@@ -234,7 +207,7 @@ internal static class TradeThingReferenceUtility
 
         thing.stackCount = Math.Max(1, stackCount);
         ApplyThingMetadata(thing, reference, reference.Quality, reference.HitPoints, reference.WornByCorpse);
-        if (!ClashOfRimCompatibilityApi.TryApplyThingReferenceMetadata(reference, thing, out missingDefName))
+        if (!ThingTransferPipeline.TryFinalizeInbound(reference, thing, surface, receivingFaction, out missingDefName))
         {
             thing = null;
             return false;

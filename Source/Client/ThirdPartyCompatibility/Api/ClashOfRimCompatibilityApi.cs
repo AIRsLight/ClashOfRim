@@ -52,6 +52,7 @@ public static partial class ClashOfRimCompatibilityApi
     private static readonly List<ThingReferenceMetadataNormalizer> ThingReferenceMetadataNormalizers = new();
     private static readonly List<ThingReferenceThingFactoryRegistration> ThingReferenceThingFactories = new();
     private static readonly List<ThingReferenceDefKindPredicateRegistration> ThingReferenceDefKindPredicates = new();
+    private static readonly List<ThingTransferRuleRegistration> ThingTransferRuleRegistrations = new();
     private static readonly List<DefensePointDefNameProvider> DefensePointDefNameProviders = new();
     private static readonly List<CompatibilityRegistrationRecord> RegistrationRecords = new();
     private static readonly List<CompatibilityRegistrationDiagnostic> RegistrationDiagnostics = new();
@@ -479,6 +480,7 @@ public static partial class ClashOfRimCompatibilityApi
         ThingReferenceMetadataNormalizers.Clear();
         ThingReferenceThingFactories.Clear();
         ThingReferenceDefKindPredicates.Clear();
+        ThingTransferRuleRegistrations.Clear();
         DefensePointDefNameProviders.Clear();
         RegistrationRecords.Clear();
         RegistrationDiagnostics.Clear();

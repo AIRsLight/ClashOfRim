@@ -105,6 +105,7 @@ internal static class CoreThingReferenceMetadata
 
     private static void Apply()
     {
+        CoreThingTransferCompatibility.Apply();
         ClashOfRimCompatibilityApi.RegisterThingReferenceThingFactory(CoreThingFactoryKey, TryMakeCoreThingReferenceThing);
         ClashOfRimCompatibilityApi.RegisterThingReferenceDefKindPredicate(DefKindBook, IsBookDef);
         ClashOfRimCompatibilityApi.RegisterThingReferenceDefKindPredicate(DefKindTechprint, IsTechprintDef);

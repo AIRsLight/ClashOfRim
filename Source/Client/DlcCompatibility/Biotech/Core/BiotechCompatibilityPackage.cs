@@ -73,6 +73,7 @@ internal static class BiotechCompatibilityPackage
             BiotechCompatibility.SuppressesStandardThingStats);
         ClashOfRimCompatibilityApi.RegisterThingReferenceCacheKeyPartsProvider(BiotechCompatibility.ThingReferenceCacheKeyParts);
         ClashOfRimCompatibilityApi.RegisterThingReferenceMetadataNormalizer(BiotechCompatibility.NormalizeBiotechThingReferenceMetadata);
+        BiotechThingTransferCompatibility.Apply();
         ClashOfRimCompatibilityApi.RegisterDefensePointDefNameProvider(BiotechCompatibility.BiotechDefensePointDefNames);
         RemoteSessionGlobalStateGuard.RegisterRemoteMapRemovalGlobalEffectsSuppressedHandler(
             RemoteSessionBiotechDissolutionEffectState.ClearPendingRemoteEffectsAfterSuppression);

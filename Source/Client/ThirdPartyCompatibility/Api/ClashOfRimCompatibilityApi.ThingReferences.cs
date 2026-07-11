@@ -10,6 +10,134 @@ namespace AIRsLight.ClashOfRim.ThirdPartyCompatibility;
 
 public static partial class ClashOfRimCompatibilityApi
 {
+    public static void RegisterThingTransferRule(
+        string key,
+        ThingTransferValidator? validator,
+        ThingTransferMetadataCapturer? capturer,
+        ThingTransferFinalizer? finalizer)
+    {
+        if (string.IsNullOrWhiteSpace(key)
+            || (validator is null && capturer is null && finalizer is null))
+        {
+            return;
+        }
+
+        RegisterMetadataKeyedRegistration(
+            ThingTransferRuleRegistrations,
+            new ThingTransferRuleRegistration(key, validator, capturer, finalizer),
+            nameof(ThingTransferRuleRegistration),
+            key,
+            "ThingTransferRuleDuplicateRejected",
+            "ThingTransferRuleDuplicateReplaced");
+    }
+
+    public static bool CanTransferThing(
+        Thing thing,
+        ThingTransferContext context,
+        out string? rejectionCode)
+    {
+        rejectionCode = null;
+        if (thing is null || context is null)
+        {
+            rejectionCode = ThingTransferDecision.ProcessorFailureCode;
+            return false;
+        }
+
+        foreach (ThingTransferRuleRegistration registration in ThingTransferRuleRegistrations.ToList())
+        {
+            if (registration.Validator is null)
+            {
+                continue;
+            }
+
+            if (!TryInvokeCompatibilityCallback(
+                    nameof(CanTransferThing),
+                    registration,
+                    () => registration.Validator(thing, context),
+                    out ThingTransferDecision decision))
+            {
+                rejectionCode = ThingTransferDecision.ProcessorFailureCode;
+                return false;
+            }
+
+            if (!decision.Allowed)
+            {
+                rejectionCode = decision.RejectionCode ?? ThingTransferDecision.ProcessorFailureCode;
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public static bool PrepareThingTransfer(
+        Thing thing,
+        ModThingReferenceDto reference,
+        ThingTransferContext context,
+        out string? rejectionCode)
+    {
+        if (!CanTransferThing(thing, context, out rejectionCode) || reference is null)
+        {
+            rejectionCode ??= ThingTransferDecision.ProcessorFailureCode;
+            return false;
+        }
+
+        foreach (ThingTransferRuleRegistration registration in ThingTransferRuleRegistrations.ToList())
+        {
+            if (registration.Capturer is null)
+            {
+                continue;
+            }
+
+            if (!TryInvokeCompatibilityCallback(
+                    nameof(PrepareThingTransfer),
+                    registration,
+                    () => registration.Capturer(thing, reference, context)))
+            {
+                rejectionCode = ThingTransferDecision.ProcessorFailureCode;
+                return false;
+            }
+        }
+
+        rejectionCode = null;
+        return true;
+    }
+
+    public static bool FinalizeThingTransfer(
+        ModThingReferenceDto reference,
+        Thing thing,
+        ThingTransferContext context,
+        out string? missingDefName)
+    {
+        missingDefName = null;
+        if (reference is null || thing is null || context is null)
+        {
+            return false;
+        }
+
+        foreach (ThingTransferRuleRegistration registration in ThingTransferRuleRegistrations.ToList())
+        {
+            if (registration.Finalizer is null)
+            {
+                continue;
+            }
+
+            string? callbackMissingDefName = null;
+            if (!TryInvokeCompatibilityCallback(
+                    nameof(FinalizeThingTransfer),
+                    registration,
+                    () => registration.Finalizer(reference, thing, context, out callbackMissingDefName),
+                    out bool finalized)
+                || !finalized)
+            {
+                missingDefName = callbackMissingDefName;
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     public static void RegisterThingReferenceEditor(
         ThingReferenceEditorHandler editor,
         ThingReferenceMetadataCleaner cleaner,

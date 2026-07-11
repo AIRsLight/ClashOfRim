@@ -48,6 +48,7 @@ internal static class IdeologyCompatibilityPackage
         ClashOfRimCompatibilityApi.RegisterPawnSoldEffectHandler(IdeologyPawnReferenceCompatibility.ApplyPawnSoldEffects);
         ClashOfRimCompatibilityApi.RegisterTradeablePawnPredicate(IdeologyPawnReferenceCompatibility.IsTradeableSlavePawn);
         ClashOfRimCompatibilityApi.RegisterTradePawnRestoreValidator(IdeologyPawnReferenceCompatibility.IsRestorableTradeSlavePawn);
+        IdeologyThingTransferCompatibility.Apply();
         ClashOfRimCompatibilityApi.RegisterRemoteMapProjectionReferenceRewriter(IdeologyRemoteMapProjectionRewriter.RewriteRemoteIdeoReferences);
     }
 }
