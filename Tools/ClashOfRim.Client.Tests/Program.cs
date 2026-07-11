@@ -19,6 +19,7 @@ var tests = new (string Name, Action Run)[]
     ("unfinished things are rejected", UnfinishedThingsAreRejected),
     ("fertilized eggs retain progress but not parents", FertilizedEggsRetainProgressButNotParents),
     ("ideology relics are rejected", IdeologyRelicsAreRejected),
+    ("adopted npc ideologies fork without splitting shared player ideologies", AdoptedNpcIdeologiesFork),
     ("biotech operation targets are cleared", BiotechOperationTargetsAreCleared),
     ("unnatural corpses are rejected", UnnaturalCorpsesAreRejected),
     ("unfinished thing defs are hidden from request lists", UnfinishedThingDefsAreHidden),
@@ -172,6 +173,26 @@ static void IdeologyRelicsAreRejected()
         ThingTransferContext.Outbound("gift"),
         out string? reason));
     Assert(reason == IdeologyThingTransferCompatibility.RelicRejectionCode);
+}
+
+static void AdoptedNpcIdeologiesFork()
+{
+    Assert(PlayerIdeoForkPolicy.ShouldFork(
+        hasServerGlobalKey: true,
+        referencedByNpcFaction: true,
+        referencedByPlayerProxy: false));
+    Assert(PlayerIdeoForkPolicy.ShouldFork(
+        hasServerGlobalKey: false,
+        referencedByNpcFaction: true,
+        referencedByPlayerProxy: false));
+    Assert(!PlayerIdeoForkPolicy.ShouldFork(
+        hasServerGlobalKey: false,
+        referencedByNpcFaction: false,
+        referencedByPlayerProxy: true));
+    Assert(!PlayerIdeoForkPolicy.ShouldFork(
+        hasServerGlobalKey: false,
+        referencedByNpcFaction: false,
+        referencedByPlayerProxy: false));
 }
 
 static void BiotechOperationTargetsAreCleared()
