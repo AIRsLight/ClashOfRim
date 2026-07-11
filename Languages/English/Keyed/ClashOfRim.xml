@@ -96,6 +96,7 @@
   <ClashOfRim.Compatibility.ConfigApplyAvailable>For configuration differences, use the server overlay or overwrite local configuration before restarting.</ClashOfRim.Compatibility.ConfigApplyAvailable>
   <ClashOfRim.Compatibility.OpenWorkshop>Workshop</ClashOfRim.Compatibility.OpenWorkshop>
   <ClashOfRim.Compatibility.OverrideBaseline>Update server data</ClashOfRim.Compatibility.OverrideBaseline>
+  <ClashOfRim.Compatibility.OverrideBaselineDesc>Replace the server manifest baseline with this client's mod list, file hashes, and configuration rules. This affects future joins for every player; use only after verifying this environment.</ClashOfRim.Compatibility.OverrideBaselineDesc>
   <ClashOfRim.Compatibility.Override.ModListWarning>The current client mod list or load order does not match the server baseline. If you continue, the server will use this client as the new baseline. Make sure you did not load a local single-player mod list.</ClashOfRim.Compatibility.Override.ModListWarning>
   <ClashOfRim.Compatibility.Summary>Mods {MODS} / files {FILES} / config {CONFIGS}</ClashOfRim.Compatibility.Summary>
   <ClashOfRim.Compatibility.SummaryFilesManual>. File differences cannot be auto-fixed. Update mods or wait for a server update.</ClashOfRim.Compatibility.SummaryFilesManual>
@@ -1610,6 +1611,8 @@
   <ClashOfRim.Admin.NotAdministrator>The current user is not an administrator.</ClashOfRim.Admin.NotAdministrator>
   <ClashOfRim.Admin.SavedMessage>Server configuration updated.</ClashOfRim.Admin.SavedMessage>
   <ClashOfRim.Admin.UpdateWorldBaseline>Update world data</ClashOfRim.Admin.UpdateWorldBaseline>
+  <ClashOfRim.Admin.UpdateWorldBaselineDesc>Replace the server world, faction, ideology, and related baselines with the current save. This affects every player; use only when the current save is correct.</ClashOfRim.Admin.UpdateWorldBaselineDesc>
+  <ClashOfRim.Admin.OpenOptionsMenu>Click to open the options menu.</ClashOfRim.Admin.OpenOptionsMenu>
   <ClashOfRim.Admin.WorldBaselineUpdating>Updating world data.</ClashOfRim.Admin.WorldBaselineUpdating>
   <ClashOfRim.Admin.WorldBaselineUpdated>World data updated: factions {FACTIONS}, world objects {WORLDOBJECTS}.</ClashOfRim.Admin.WorldBaselineUpdated>
   <ClashOfRim.Admin.WorldBaselineInvalid>World setup could not be accepted: {REASON}</ClashOfRim.Admin.WorldBaselineInvalid>

@@ -326,12 +326,22 @@ public sealed partial class ClashOfRimMultiplayerWindow
         Widgets.BeginScrollView(scrollRect, ref adminManifestScrollPosition, view);
         float y = 0f;
         DrawAdminSectionTitle(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.SectionManifest"));
-        if (Widgets.ButtonText(new Rect(0f, y, 160f, 30f), ClashOfRimText.Key("ClashOfRim.Compatibility.OverrideBaseline"), active: !mod.AdminInProgress))
+        Rect overrideBaselineRect = new(0f, y, 160f, 30f);
+        if (ClashOfRimUiUtility.DangerButton(
+                overrideBaselineRect,
+                ClashOfRimText.Key("ClashOfRim.Compatibility.OverrideBaseline"),
+                ClashOfRimText.Key("ClashOfRim.Compatibility.OverrideBaselineDesc"),
+                active: !mod.AdminInProgress))
         {
             OpenCompatibilityBaselineOverride(mod, config);
         }
 
-        if (Widgets.ButtonText(new Rect(170f, y, 160f, 30f), ClashOfRimText.Key("ClashOfRim.Admin.UpdateWorldBaseline"), active: !mod.AdminInProgress))
+        Rect updateWorldBaselineRect = new(170f, y, 160f, 30f);
+        if (ClashOfRimUiUtility.DangerButton(
+                updateWorldBaselineRect,
+                ClashOfRimText.Key("ClashOfRim.Admin.UpdateWorldBaseline"),
+                ClashOfRimText.Key("ClashOfRim.Admin.UpdateWorldBaselineDesc"),
+                active: !mod.AdminInProgress))
         {
             mod.StartUpdateServerWorldBaseline();
         }
@@ -351,7 +361,10 @@ public sealed partial class ClashOfRimMultiplayerWindow
             Rect modRow = new(0f, y, view.width, 34f);
             Widgets.DrawHighlightIfMouseover(modRow);
             Widgets.Label(new Rect(0f, y + 4f, view.width - 260f, 24f), $"{modEntry.LoadOrder + 1}. {DisplayAdminModName(modEntry)}");
-            if (Widgets.ButtonText(new Rect(view.width - 240f, y, 110f, 28f), AdminModRoleLabel(modEntry.Role), active: !mod.AdminInProgress))
+            if (DrawAdminDropdownButton(
+                    new Rect(view.width - 240f, y, 110f, 28f),
+                    AdminModRoleLabel(modEntry.Role),
+                    !mod.AdminInProgress))
             {
                 OpenAdminModRoleMenu(modEntry);
             }
@@ -375,7 +388,10 @@ public sealed partial class ClashOfRimMultiplayerWindow
                 string configLabel = configEntry.FileName
                     + (configEntry.HasSavedFile ? string.Empty : " " + ClashOfRimText.Key("ClashOfRim.Admin.ConfigNotSaved"));
                 Widgets.Label(new Rect(18f, y + 4f, view.width - 180f, 24f), configLabel);
-                if (Widgets.ButtonText(new Rect(view.width - 160f, y, 140f, 28f), AdminConfigModeLabel(configEntry.Mode), active: !mod.AdminInProgress))
+                if (DrawAdminDropdownButton(
+                        new Rect(view.width - 160f, y, 140f, 28f),
+                        AdminConfigModeLabel(configEntry.Mode),
+                        !mod.AdminInProgress))
                 {
                     OpenAdminConfigModeMenu(configEntry);
                 }
@@ -454,7 +470,10 @@ public sealed partial class ClashOfRimMultiplayerWindow
                 continue;
             }
 
-            if (Widgets.ButtonText(new Rect(x, inner.y + 10f, 140f, 30f), ClashOfRimText.Key("ClashOfRim.Admin.PlayerManage"), active: !mod.AdminInProgress))
+            if (DrawAdminDropdownButton(
+                    new Rect(x, inner.y + 10f, 140f, 30f),
+                    ClashOfRimText.Key("ClashOfRim.Admin.PlayerManage"),
+                    !mod.AdminInProgress))
             {
                 OpenAdminPlayerActionMenu(mod, player);
             }
@@ -472,7 +491,10 @@ public sealed partial class ClashOfRimMultiplayerWindow
         DrawAdminSectionTitle(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.SectionBroadcast"));
         Widgets.Label(new Rect(0f, y, 160f, 24f), ClashOfRimText.Key("ClashOfRim.Admin.BroadcastMessage"));
         adminBroadcastMessage = Widgets.TextField(new Rect(170f, y, view.width - 430f, 28f), adminBroadcastMessage);
-        if (Widgets.ButtonText(new Rect(view.width - 250f, y, 110f, 28f), AdminBroadcastSeverityLabel(adminBroadcastSeverity), active: !mod.AdminInProgress))
+        if (DrawAdminDropdownButton(
+                new Rect(view.width - 250f, y, 110f, 28f),
+                AdminBroadcastSeverityLabel(adminBroadcastSeverity),
+                !mod.AdminInProgress))
         {
             OpenAdminBroadcastSeverityMenu();
         }
@@ -492,7 +514,10 @@ public sealed partial class ClashOfRimMultiplayerWindow
 
         y += 36f;
         Widgets.Label(new Rect(0f, y, 160f, 24f), ClashOfRimText.Key("ClashOfRim.Admin.BroadcastTarget"));
-        if (Widgets.ButtonText(new Rect(170f, y, 220f, 28f), AdminBroadcastTargetLabel(status), active: !mod.AdminInProgress))
+        if (DrawAdminDropdownButton(
+                new Rect(170f, y, 220f, 28f),
+                AdminBroadcastTargetLabel(status),
+                !mod.AdminInProgress))
         {
             OpenAdminBroadcastTargetMenu(status);
         }
@@ -659,10 +684,21 @@ public sealed partial class ClashOfRimMultiplayerWindow
         y += 32f;
     }
 
+    private static bool DrawAdminDropdownButton(Rect rect, string label, bool active = true)
+    {
+        return ClashOfRimUiUtility.DropdownButton(
+            rect,
+            label,
+            ClashOfRimText.Key("ClashOfRim.Admin.OpenOptionsMenu"),
+            active);
+    }
+
     private void DrawAdminTradeFeeStrategyRow(Rect view, ref float y)
     {
         Widgets.Label(new Rect(0f, y, 300f, 24f), ClashOfRimText.Key("ClashOfRim.Admin.TradeFeeStrategy"));
-        if (Widgets.ButtonText(new Rect(310f, y, 180f, 26f), AdminTradeFeeStrategyLabel(adminTradeFeeStrategy)))
+        if (DrawAdminDropdownButton(
+                new Rect(310f, y, 180f, 26f),
+                AdminTradeFeeStrategyLabel(adminTradeFeeStrategy)))
         {
             OpenAdminTradeFeeStrategyMenu();
         }

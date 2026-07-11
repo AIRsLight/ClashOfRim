@@ -26,7 +26,8 @@ var tests = new (string Name, Action Run)[]
     ("prepared concrete things carry transfer policy metadata", PreparedThingsCarryPolicyMetadata),
     ("server entry diagnostics list mods in load order", ServerEntryDiagnosticsListModsInLoadOrder),
     ("only accepted language warnings can be bypassed", OnlyAcceptedLanguageWarningsCanBeBypassed),
-    ("visible compatibility warnings request the full server manifest", VisibleCompatibilityWarningsRequestFullManifest)
+    ("visible compatibility warnings request the full server manifest", VisibleCompatibilityWarningsRequestFullManifest),
+    ("dropdown labels show a single ellipsis", DropdownLabelsShowSingleEllipsis)
 };
 
 foreach ((string name, Action run) in tests)
@@ -369,6 +370,13 @@ static void VisibleCompatibilityWarningsRequestFullManifest()
 static void BeginCycle()
 {
     ClashOfRimCompatibilityApi.BeginRegistrationCycle("client-tests");
+}
+
+static void DropdownLabelsShowSingleEllipsis()
+{
+    Assert(AIRsLight.ClashOfRim.ClashOfRimUiUtility.DropdownLabel("Notice") == "Notice ...");
+    Assert(AIRsLight.ClashOfRim.ClashOfRimUiUtility.DropdownLabel("Notice ...") == "Notice ...");
+    Assert(AIRsLight.ClashOfRim.ClashOfRimUiUtility.DropdownLabel("  ") == "...");
 }
 
 static Thing MakeThing(string defName)

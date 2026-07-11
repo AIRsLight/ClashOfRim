@@ -407,14 +407,15 @@ internal sealed class CompatibilityMismatchWindow : Window
         if (canApplyConfigAndRestart)
         {
             Rect localConfigRect = new(closeRect.x - 184f, inRect.yMax - 36f, 172f, 32f);
-            if (Widgets.ButtonText(localConfigRect, T("ClashOfRim.Compatibility.ConfigOverwriteLocalAndRestart")))
+            if (ClashOfRimUiUtility.DangerButton(
+                    localConfigRect,
+                    T("ClashOfRim.Compatibility.ConfigOverwriteLocalAndRestart"),
+                    T("ClashOfRim.Compatibility.ConfigOverwriteLocalDesc")))
             {
                 CompatibilityBaselineApplicator.TryOverwriteLocalConfigs(
                     response.ServerCompatibilityManifestJson ?? string.Empty,
                     out status);
             }
-            TooltipHandler.TipRegion(localConfigRect, T("ClashOfRim.Compatibility.ConfigOverwriteLocalDesc"));
-
             Rect overlayConfigRect = new(localConfigRect.x - 184f, inRect.yMax - 36f, 172f, 32f);
             previousButtonRect = overlayConfigRect;
             if (Widgets.ButtonText(overlayConfigRect, T("ClashOfRim.Compatibility.ConfigApplyOverlayAndRestart")))
@@ -446,7 +447,10 @@ internal sealed class CompatibilityMismatchWindow : Window
         if (response.CanOverrideCompatibilityBaseline && !canContinueAnyway)
         {
             Rect overrideRect = new(previousButtonRect.x - 124f, inRect.yMax - 36f, 112f, 32f);
-            if (Widgets.ButtonText(overrideRect, T("ClashOfRim.Compatibility.OverrideBaseline")))
+            if (ClashOfRimUiUtility.DangerButton(
+                    overrideRect,
+                    T("ClashOfRim.Compatibility.OverrideBaseline"),
+                    T("ClashOfRim.Compatibility.OverrideBaselineDesc")))
             {
                 OpenOverrideBaselineWithWarning();
             }

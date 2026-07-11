@@ -96,6 +96,7 @@
   <ClashOfRim.Compatibility.ConfigApplyAvailable>配置不一致时，可采用服务器 Overlay，或直接覆盖本地配置后重启。</ClashOfRim.Compatibility.ConfigApplyAvailable>
   <ClashOfRim.Compatibility.OpenWorkshop>创意工坊</ClashOfRim.Compatibility.OpenWorkshop>
   <ClashOfRim.Compatibility.OverrideBaseline>更新服务器资料</ClashOfRim.Compatibility.OverrideBaseline>
+  <ClashOfRim.Compatibility.OverrideBaselineDesc>用当前客户端的模组列表、文件哈希和配置规则覆盖服务器清单基线。此操作会影响所有玩家后续加入，请仅在确认当前环境正确时使用。</ClashOfRim.Compatibility.OverrideBaselineDesc>
   <ClashOfRim.Compatibility.Override.ModListWarning>当前客户端的模组列表或加载顺序与服务器基线不一致。若继续更新服务器资料，服务器会使用当前客户端的模组列表作为新基线。请确认你没有加载本地单人存档使用的模组列表。</ClashOfRim.Compatibility.Override.ModListWarning>
   <ClashOfRim.Compatibility.Summary>模组 {MODS} / 文件 {FILES} / 配置 {CONFIGS}</ClashOfRim.Compatibility.Summary>
   <ClashOfRim.Compatibility.SummaryFilesManual>。文件差异不能自动修复，请更新模组或等待服务器更新。</ClashOfRim.Compatibility.SummaryFilesManual>
@@ -1610,6 +1611,8 @@
   <ClashOfRim.Admin.NotAdministrator>当前用户不是管理员。</ClashOfRim.Admin.NotAdministrator>
   <ClashOfRim.Admin.SavedMessage>服务器配置已更新。</ClashOfRim.Admin.SavedMessage>
   <ClashOfRim.Admin.UpdateWorldBaseline>更新世界资料</ClashOfRim.Admin.UpdateWorldBaseline>
+  <ClashOfRim.Admin.UpdateWorldBaselineDesc>用当前存档覆盖服务器的世界、阵营、文化及相关基线。此操作会影响所有玩家，请仅在当前存档正确时使用。</ClashOfRim.Admin.UpdateWorldBaselineDesc>
+  <ClashOfRim.Admin.OpenOptionsMenu>点击打开选项菜单。</ClashOfRim.Admin.OpenOptionsMenu>
   <ClashOfRim.Admin.WorldBaselineUpdating>正在更新世界资料。</ClashOfRim.Admin.WorldBaselineUpdating>
   <ClashOfRim.Admin.WorldBaselineUpdated>世界资料已更新：阵营 {FACTIONS}，大地图对象 {WORLDOBJECTS}。</ClashOfRim.Admin.WorldBaselineUpdated>
   <ClashOfRim.Admin.WorldBaselineInvalid>世界设置有误：{REASON}</ClashOfRim.Admin.WorldBaselineInvalid>

@@ -96,6 +96,7 @@
   <ClashOfRim.Compatibility.ConfigApplyAvailable>При различиях настроек можно использовать серверный overlay или перезаписать локальные настройки перед перезапуском.</ClashOfRim.Compatibility.ConfigApplyAvailable>
   <ClashOfRim.Compatibility.OpenWorkshop>Мастерская</ClashOfRim.Compatibility.OpenWorkshop>
   <ClashOfRim.Compatibility.OverrideBaseline>Обновить данные сервера</ClashOfRim.Compatibility.OverrideBaseline>
+  <ClashOfRim.Compatibility.OverrideBaselineDesc>Заменить базовый манифест сервера списком модов, хешами файлов и правилами настроек этого клиента. Это повлияет на последующие подключения всех игроков; используйте только после проверки окружения.</ClashOfRim.Compatibility.OverrideBaselineDesc>
   <ClashOfRim.Compatibility.Override.ModListWarning>Текущий список модов или порядок загрузки клиента не совпадает с базовой линией сервера. Если продолжить, сервер будет использовать этот клиент как новую базовую линию. Убедитесь, что вы не загрузили локальный одиночный список модов.</ClashOfRim.Compatibility.Override.ModListWarning>
   <ClashOfRim.Compatibility.Summary>Моды {MODS} / файлы {FILES} / конфиг {CONFIGS}</ClashOfRim.Compatibility.Summary>
   <ClashOfRim.Compatibility.SummaryFilesManual>. Различия файлов нельзя исправить автоматически. Обновите моды или дождитесь обновления сервера.</ClashOfRim.Compatibility.SummaryFilesManual>
@@ -1612,6 +1613,8 @@
   <ClashOfRim.Admin.NotAdministrator>Текущий пользователь не администратор.</ClashOfRim.Admin.NotAdministrator>
   <ClashOfRim.Admin.SavedMessage>Конфигурация сервера обновлена.</ClashOfRim.Admin.SavedMessage>
   <ClashOfRim.Admin.UpdateWorldBaseline>Обновить данные мира</ClashOfRim.Admin.UpdateWorldBaseline>
+  <ClashOfRim.Admin.UpdateWorldBaselineDesc>Заменить серверные данные мира, фракций, идеологий и связанные базовые данные текущим сохранением. Это повлияет на всех игроков; используйте только с корректным сохранением.</ClashOfRim.Admin.UpdateWorldBaselineDesc>
+  <ClashOfRim.Admin.OpenOptionsMenu>Нажмите, чтобы открыть меню вариантов.</ClashOfRim.Admin.OpenOptionsMenu>
   <ClashOfRim.Admin.WorldBaselineUpdating>Обновление данных мира.</ClashOfRim.Admin.WorldBaselineUpdating>
   <ClashOfRim.Admin.WorldBaselineUpdated>Данные мира обновлены: фракции {FACTIONS}, мировые объекты {WORLDOBJECTS}.</ClashOfRim.Admin.WorldBaselineUpdated>
   <ClashOfRim.Admin.WorldBaselineInvalid>Настройка мира не принята: {REASON}</ClashOfRim.Admin.WorldBaselineInvalid>

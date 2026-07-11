@@ -96,6 +96,7 @@
   <ClashOfRim.Compatibility.ConfigApplyAvailable>설정 차이는 서버 오버레이를 사용하거나 로컬 설정을 덮어쓴 뒤 재시작할 수 있습니다.</ClashOfRim.Compatibility.ConfigApplyAvailable>
   <ClashOfRim.Compatibility.OpenWorkshop>워크샵</ClashOfRim.Compatibility.OpenWorkshop>
   <ClashOfRim.Compatibility.OverrideBaseline>서버 데이터 업데이트</ClashOfRim.Compatibility.OverrideBaseline>
+  <ClashOfRim.Compatibility.OverrideBaselineDesc>현재 클라이언트의 모드 목록, 파일 해시 및 설정 규칙으로 서버 매니페스트 기준을 교체합니다. 모든 플레이어의 이후 접속에 영향을 주므로 현재 환경이 올바른 경우에만 사용하십시오.</ClashOfRim.Compatibility.OverrideBaselineDesc>
   <ClashOfRim.Compatibility.Override.ModListWarning>현재 클라이언트 모드 목록 또는 로드 순서가 서버 기준과 일치하지 않습니다. 계속하면 서버가 이 클라이언트를 새 기준으로 사용합니다. 로컬 싱글플레이 모드 목록을 불러온 것이 아닌지 확인하세요.</ClashOfRim.Compatibility.Override.ModListWarning>
   <ClashOfRim.Compatibility.Summary>모드 {MODS} / 파일 {FILES} / 설정 {CONFIGS}</ClashOfRim.Compatibility.Summary>
   <ClashOfRim.Compatibility.SummaryFilesManual>. 파일 차이는 자동으로 고칠 수 없습니다. 모드를 업데이트하거나 서버 업데이트를 기다리세요.</ClashOfRim.Compatibility.SummaryFilesManual>
@@ -1612,6 +1613,8 @@
   <ClashOfRim.Admin.NotAdministrator>현재 사용자는 관리자가 아닙니다.</ClashOfRim.Admin.NotAdministrator>
   <ClashOfRim.Admin.SavedMessage>서버 설정이 업데이트되었습니다.</ClashOfRim.Admin.SavedMessage>
   <ClashOfRim.Admin.UpdateWorldBaseline>세계 데이터 업데이트</ClashOfRim.Admin.UpdateWorldBaseline>
+  <ClashOfRim.Admin.UpdateWorldBaselineDesc>현재 저장 파일로 서버의 세계, 세력, 이념 및 관련 기준을 교체합니다. 모든 플레이어에게 영향을 주므로 현재 저장이 올바른 경우에만 사용하십시오.</ClashOfRim.Admin.UpdateWorldBaselineDesc>
+  <ClashOfRim.Admin.OpenOptionsMenu>클릭하여 옵션 메뉴를 엽니다.</ClashOfRim.Admin.OpenOptionsMenu>
   <ClashOfRim.Admin.WorldBaselineUpdating>세계 데이터를 업데이트하는 중입니다.</ClashOfRim.Admin.WorldBaselineUpdating>
   <ClashOfRim.Admin.WorldBaselineUpdated>세계 데이터 업데이트됨: 세력 {FACTIONS}, 월드 오브젝트 {WORLDOBJECTS}.</ClashOfRim.Admin.WorldBaselineUpdated>
   <ClashOfRim.Admin.WorldBaselineInvalid>세계 설정을 받을 수 없습니다: {REASON}</ClashOfRim.Admin.WorldBaselineInvalid>

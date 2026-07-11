@@ -96,6 +96,7 @@
   <ClashOfRim.Compatibility.ConfigApplyAvailable>設定の差異は、サーバーオーバーレイを使用するか、ローカル設定を上書きして再起動できます。</ClashOfRim.Compatibility.ConfigApplyAvailable>
   <ClashOfRim.Compatibility.OpenWorkshop>ワークショップ</ClashOfRim.Compatibility.OpenWorkshop>
   <ClashOfRim.Compatibility.OverrideBaseline>サーバーデータを更新</ClashOfRim.Compatibility.OverrideBaseline>
+  <ClashOfRim.Compatibility.OverrideBaselineDesc>現在のクライアントのMOD一覧、ファイルハッシュ、設定ルールでサーバーのマニフェスト基準を置き換えます。全プレイヤーの今後の参加に影響するため、環境が正しいことを確認してから使用してください。</ClashOfRim.Compatibility.OverrideBaselineDesc>
   <ClashOfRim.Compatibility.Override.ModListWarning>現在のクライアントMODリストまたは読み込み順がサーバー基線と一致しません。続行すると、サーバーはこのクライアントを新しい基線として使用します。ローカルのシングルプレイ用MODリストを読み込んでいないことを確認してください。</ClashOfRim.Compatibility.Override.ModListWarning>
   <ClashOfRim.Compatibility.Summary>MOD {MODS} / ファイル {FILES} / 設定 {CONFIGS}</ClashOfRim.Compatibility.Summary>
   <ClashOfRim.Compatibility.SummaryFilesManual>。ファイル差異は自動修正できません。MODを更新するかサーバー更新を待ってください。</ClashOfRim.Compatibility.SummaryFilesManual>
@@ -1612,6 +1613,8 @@
   <ClashOfRim.Admin.NotAdministrator>現在のユーザーは管理者ではありません。</ClashOfRim.Admin.NotAdministrator>
   <ClashOfRim.Admin.SavedMessage>サーバー設定を更新しました。</ClashOfRim.Admin.SavedMessage>
   <ClashOfRim.Admin.UpdateWorldBaseline>ワールドデータ更新</ClashOfRim.Admin.UpdateWorldBaseline>
+  <ClashOfRim.Admin.UpdateWorldBaselineDesc>現在のセーブでサーバーのワールド、派閥、イデオロギーおよび関連基準を置き換えます。全プレイヤーに影響するため、現在のセーブが正しい場合のみ使用してください。</ClashOfRim.Admin.UpdateWorldBaselineDesc>
+  <ClashOfRim.Admin.OpenOptionsMenu>クリックしてオプションメニューを開きます。</ClashOfRim.Admin.OpenOptionsMenu>
   <ClashOfRim.Admin.WorldBaselineUpdating>ワールドデータを更新しています。</ClashOfRim.Admin.WorldBaselineUpdating>
   <ClashOfRim.Admin.WorldBaselineUpdated>ワールドデータを更新しました: 派閥 {FACTIONS}, ワールドオブジェクト {WORLDOBJECTS}。</ClashOfRim.Admin.WorldBaselineUpdated>
   <ClashOfRim.Admin.WorldBaselineInvalid>ワールド設定を受け入れられません: {REASON}</ClashOfRim.Admin.WorldBaselineInvalid>
