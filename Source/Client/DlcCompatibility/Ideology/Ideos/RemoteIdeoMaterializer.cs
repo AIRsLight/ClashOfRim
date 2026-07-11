@@ -106,6 +106,19 @@ public static partial class RemoteIdeoMaterializer
             ideo = null;
         }
 
+        if (TryFindNativeServerFactionIdeo(dto, out ideo) && ideo is not null)
+        {
+            RemoteIdeoCatalog.Register(ideo, dto.GlobalKey, BuildDisplayMetadata(dto));
+            RemoveDuplicateUnreferencedShadows(dto, ideo);
+            ClashLog.Message("[ClashOfRim][Ideo] Bound server ideo to localized faction ideo: "
+                + dto.GlobalKey
+                + ", faction="
+                + dto.FactionDefName
+                + ", ideo="
+                + ideo.name);
+            return true;
+        }
+
         if (RemoteIdeoCatalog.TryFindIdeoByPackageHash(dto.SavedIdeoPackageSha256, out ideo) && ideo is not null)
         {
             RemoteIdeoCatalog.Register(ideo, dto.GlobalKey, BuildDisplayMetadata(dto));
@@ -149,6 +162,23 @@ public static partial class RemoteIdeoMaterializer
         return true;
     }
 
+    private static bool TryFindNativeServerFactionIdeo(ModWorldIdeoSummaryDto dto, out Ideo? ideo)
+    {
+        ideo = null;
+        if (!string.Equals(dto.OwnerUserId, "server", StringComparison.OrdinalIgnoreCase)
+            || string.IsNullOrWhiteSpace(dto.FactionDefName))
+        {
+            return false;
+        }
+
+        ideo = Find.FactionManager?.AllFactionsListForReading?
+            .Where(faction => faction?.def is not null)
+            .Where(faction => string.Equals(faction.def.defName, dto.FactionDefName, StringComparison.Ordinal))
+            .Select(faction => faction.ideos?.PrimaryIdeo)
+            .FirstOrDefault(candidate => candidate is not null);
+        return ideo is not null;
+    }
+
     private static bool CanApplyRemoteShadowFields(Ideo ideo)
     {
         return ideo is not null
@@ -162,8 +192,7 @@ public static partial class RemoteIdeoMaterializer
         out Ideo? ideo)
     {
         ideo = null;
-        if (string.IsNullOrWhiteSpace(dto.SavedIdeoPackageSha256)
-            || Find.IdeoManager?.IdeosListForReading is not { } ideos)
+        if (Find.IdeoManager?.IdeosListForReading is not { } ideos)
         {
             return false;
         }
@@ -172,8 +201,15 @@ public static partial class RemoteIdeoMaterializer
             .Where(candidate => candidate is not null)
             .Where(candidate => candidate.initialPlayerIdeo || IsPrimaryIdeoOfPlayer(candidate)))
         {
-            if (TryGetCachedIdeoPackageSha256(candidate, localIdeoPackageHashes, out string? hash)
+            if (!string.IsNullOrWhiteSpace(dto.SavedIdeoPackageSha256)
+                && TryGetCachedIdeoPackageSha256(candidate, localIdeoPackageHashes, out string? hash)
                 && string.Equals(hash, dto.SavedIdeoPackageSha256, StringComparison.OrdinalIgnoreCase))
+            {
+                ideo = candidate;
+                return true;
+            }
+
+            if (MatchesIdeologyDefinition(candidate, dto))
             {
                 ideo = candidate;
                 return true;
@@ -200,6 +236,49 @@ public static partial class RemoteIdeoMaterializer
 
         localIdeoPackageHashes?.Add(ideo, hash);
         return !string.IsNullOrWhiteSpace(hash);
+    }
+
+    private static bool MatchesIdeologyDefinition(Ideo candidate, ModWorldIdeoSummaryDto dto)
+    {
+        if (!string.Equals(candidate.name, dto.Name, StringComparison.Ordinal)
+            || !string.Equals(candidate.culture?.defName, dto.Culture, StringComparison.Ordinal)
+            || !string.Equals(candidate.foundation?.def?.defName, dto.FoundationDefName, StringComparison.Ordinal)
+            || !string.Equals(candidate.iconDef?.defName, dto.IconDefName, StringComparison.Ordinal)
+            || !string.Equals(candidate.colorDef?.defName, dto.ColorDefName, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        IReadOnlyList<string> candidateMemes = candidate.memes?
+            .Where(meme => meme is not null)
+            .Select(meme => meme.defName)
+            .Where(defName => !string.IsNullOrWhiteSpace(defName))
+            .Distinct(StringComparer.Ordinal)
+            .ToList() ?? new List<string>();
+        IReadOnlyList<string> candidatePrecepts = candidate.PreceptsListForReading?
+            .Where(precept => precept?.def is not null)
+            .Select(precept => precept.def.defName)
+            .Where(defName => !string.IsNullOrWhiteSpace(defName))
+            .Distinct(StringComparer.Ordinal)
+            .ToList() ?? new List<string>();
+        IReadOnlyList<string> candidateStyles = candidate.thingStyleCategories?
+            .Where(style => style?.category is not null)
+            .Select(style => style.category.defName)
+            .Where(defName => !string.IsNullOrWhiteSpace(defName))
+            .Distinct(StringComparer.Ordinal)
+            .ToList() ?? new List<string>();
+
+        return (candidate.memes?.Count ?? 0) == Math.Max(0, dto.MemeCount)
+            && (candidate.PreceptsListForReading?.Count ?? 0) == Math.Max(0, dto.PreceptCount)
+            && SetEquals(candidateMemes, dto.MemeDefNames)
+            && SetEquals(candidatePrecepts, dto.PreceptDefNames)
+            && SetEquals(candidateStyles, dto.StyleCategoryDefNames);
+    }
+
+    private static bool SetEquals(IReadOnlyList<string> left, IReadOnlyList<string> right)
+    {
+        return left.Count == right.Count
+            && new HashSet<string>(left, StringComparer.Ordinal).SetEquals(right);
     }
 
     private static bool IsPrimaryIdeoOfPlayer(Ideo ideo)
