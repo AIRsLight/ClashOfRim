@@ -42,6 +42,7 @@ public sealed class ClashOfRimNetworkState
         ServerShopRegistry? serverShop = null,
         AchievementRegistry? achievements = null,
         SnapshotPostUploadJobRegistry? snapshotPostUploadJobs = null,
+        ISnapshotPostUploadArtifactStore? snapshotPostUploadArtifacts = null,
         ServerPluginRegistry? plugins = null,
         ILogger? runtimeLogger = null)
     {
@@ -79,6 +80,7 @@ public sealed class ClashOfRimNetworkState
         ServerShop = serverShop ?? new ServerShopRegistry();
         Achievements = achievements ?? new AchievementRegistry();
         SnapshotPostUploadJobs = snapshotPostUploadJobs ?? new SnapshotPostUploadJobRegistry();
+        SnapshotPostUploadArtifacts = snapshotPostUploadArtifacts ?? new InMemorySnapshotPostUploadArtifactStore();
         RuntimeLogger = runtimeLogger ?? NullLogger.Instance;
     }
 
@@ -172,6 +174,8 @@ public sealed class ClashOfRimNetworkState
     public AchievementRegistry Achievements { get; }
 
     public SnapshotPostUploadJobRegistry SnapshotPostUploadJobs { get; }
+
+    public ISnapshotPostUploadArtifactStore SnapshotPostUploadArtifacts { get; }
 
     public ServerPluginRegistry Plugins { get; }
 

@@ -54,7 +54,7 @@ public sealed class FileColonySnapshotIndexStore : IColonySnapshotPackageStore, 
             }
         }
 
-        var persisted = new PersistedLatestSnapshot(
+        var persisted = new PersistedSaveSnapshotPackage(
             identity,
             envelope,
             LightweightIndex(rebuiltIndex),
@@ -63,7 +63,7 @@ public sealed class FileColonySnapshotIndexStore : IColonySnapshotPackageStore, 
 
         lock (gate)
         {
-            WriteSnapshotPackageAtomically(PackagePath(key), persisted, package.Payload);
+            SaveSnapshotPackageFileWriter.WriteAtomically(PackagePath(key), persisted, package.Payload);
             latestByColony[key] = snapshot;
             packageFileNameByColony[key] = PackageFileName(key);
             acceptedOriginalHashesByColony[key] = acceptedOriginalHashes;
@@ -82,7 +82,7 @@ public sealed class FileColonySnapshotIndexStore : IColonySnapshotPackageStore, 
             acceptedOriginalHashes.Add(snapshot.Envelope.OriginalSha256);
         }
 
-        var persisted = new PersistedLatestSnapshot(
+        var persisted = new PersistedSaveSnapshotPackage(
             snapshot.Identity,
             snapshot.Envelope,
             LightweightIndex(snapshot.Index),
@@ -91,7 +91,7 @@ public sealed class FileColonySnapshotIndexStore : IColonySnapshotPackageStore, 
 
         lock (gate)
         {
-            WriteSnapshotPackageAtomically(PackagePath(key), persisted, payload: null);
+            SaveSnapshotPackageFileWriter.WriteAtomically(PackagePath(key), persisted, encodedPayload: null);
             latestByColony[key] = snapshot;
             packageFileNameByColony[key] = PackageFileName(key);
             acceptedOriginalHashesByColony[key] = acceptedOriginalHashes;
@@ -194,7 +194,7 @@ public sealed class FileColonySnapshotIndexStore : IColonySnapshotPackageStore, 
     {
         foreach (string path in EnumerateSnapshotPackageFiles())
         {
-            PersistedLatestSnapshot? persisted = ReadPersisted(path);
+            PersistedSaveSnapshotPackage? persisted = ReadPersisted(path);
             if (persisted is null
                 || string.IsNullOrWhiteSpace(persisted.Identity.OwnerId)
                 || string.IsNullOrWhiteSpace(persisted.Identity.ColonyId))
@@ -210,7 +210,7 @@ public sealed class FileColonySnapshotIndexStore : IColonySnapshotPackageStore, 
         }
     }
 
-    private string LoadPersistedSnapshot(PersistedLatestSnapshot persisted)
+    private string LoadPersistedSnapshot(PersistedSaveSnapshotPackage persisted)
     {
         string key = Key(persisted.Identity.OwnerId!, persisted.Identity.ColonyId!);
         latestByColony[key] = new LatestSnapshotRecord(
@@ -238,7 +238,7 @@ public sealed class FileColonySnapshotIndexStore : IColonySnapshotPackageStore, 
             : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
     }
 
-    private static PersistedLatestSnapshot? ReadPersisted(string path)
+    private static PersistedSaveSnapshotPackage? ReadPersisted(string path)
     {
         try
         {
@@ -290,45 +290,7 @@ public sealed class FileColonySnapshotIndexStore : IColonySnapshotPackageStore, 
         return Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
     }
 
-    private static void WriteSnapshotPackageAtomically(
-        string path,
-        PersistedLatestSnapshot metadata,
-        byte[]? payload)
-    {
-        string? directory = Path.GetDirectoryName(path);
-        if (!string.IsNullOrWhiteSpace(directory))
-        {
-            Directory.CreateDirectory(directory);
-        }
-
-        string tempPath = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
-        using (FileStream stream = File.Create(tempPath))
-        {
-            using var gzip = new GZipStream(stream, CompressionLevel.SmallestSize);
-            WriteSnapshotPackage(gzip, metadata, payload);
-        }
-
-        File.Move(tempPath, path, overwrite: true);
-    }
-
-    private static void WriteSnapshotPackage(
-        Stream stream,
-        PersistedLatestSnapshot metadata,
-        byte[]? payload)
-    {
-        byte[] metadataJson = JsonSerializer.SerializeToUtf8Bytes(metadata, JsonOptions);
-        using var writer = new BinaryWriter(stream, Encoding.UTF8, leaveOpen: true);
-        writer.Write(SnapshotPackageMagic);
-        writer.Write((long)metadataJson.LongLength);
-        writer.Write(metadataJson);
-        writer.Write(payload?.LongLength ?? -1L);
-        if (payload is not null)
-        {
-            writer.Write(payload);
-        }
-    }
-
-    private static PersistedLatestSnapshot? ReadSnapshotPackageMetadata(Stream stream)
+    private static PersistedSaveSnapshotPackage? ReadSnapshotPackageMetadata(Stream stream)
     {
         using var gzip = new GZipStream(stream, CompressionMode.Decompress, leaveOpen: true);
         using var reader = new BinaryReader(gzip, Encoding.UTF8, leaveOpen: true);
@@ -349,7 +311,7 @@ public sealed class FileColonySnapshotIndexStore : IColonySnapshotPackageStore, 
             return null;
         }
 
-        return JsonSerializer.Deserialize<PersistedLatestSnapshot>(metadataJson, JsonOptions);
+        return JsonSerializer.Deserialize<PersistedSaveSnapshotPackage>(metadataJson, JsonOptions);
     }
 
     private static byte[]? ReadSnapshotPackagePayload(string path)
@@ -493,10 +455,4 @@ public sealed class FileColonySnapshotIndexStore : IColonySnapshotPackageStore, 
         return target.ToArray();
     }
 
-    private sealed record PersistedLatestSnapshot(
-        SnapshotIdentity Identity,
-        SaveSnapshotEnvelope Envelope,
-        SaveSnapshotIndex Index,
-        DateTimeOffset AcceptedAtUtc,
-        IReadOnlyList<string>? AcceptedOriginalSha256 = null);
 }

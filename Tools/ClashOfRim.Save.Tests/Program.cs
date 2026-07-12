@@ -39,6 +39,7 @@ var tests = new (string Name, Action Run)[]
     ("快照上传通过校验后进入最新索引", VerifySnapshotUploadAccepted),
     ("快照文件存储可在重启后恢复最新索引", VerifyFileSnapshotStorePersistence),
     ("新版单文件快照包可直接解析", VerifySnapshotPackageFileReader),
+    ("快照后处理制品可持久化往返并安全删除", VerifySnapshotPostUploadArtifactStore),
     ("快照上传拒绝身份哈希和版本异常", VerifySnapshotUploadRejections),
     ("袭击结算证据必须携带指定事件的战场地图", VerifyRaidSettlementEvidenceUploadRequiresEventMap),
     ("只读观察加载绑定快照地图和权限边界", VerifyReadOnlyObservationBoundary),
@@ -1330,6 +1331,48 @@ static void VerifySnapshotPackageFileReader()
             packagePath,
             SaveSnapshotPackageFileReader.FindPackagePath(root, "userA", "colonyA"),
             "读者应能按服务器 Data 根目录定位包");
+    }
+    finally
+    {
+        if (Directory.Exists(root))
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+}
+
+static void VerifySnapshotPostUploadArtifactStore()
+{
+    string root = Path.Combine(Path.GetTempPath(), "clash-of-rim-post-upload-artifacts-" + Guid.NewGuid().ToString("N"));
+    try
+    {
+        SaveSnapshotPackage package = BuildFixturePackage("snapshot-artifact-001");
+        var store = new FileSnapshotPostUploadArtifactStore(root);
+        store.Store("raid-settlement:raid-001", package);
+
+        Require(store.Exists("raid-settlement:raid-001"), "写入后制品应存在");
+        SaveSnapshotPackage? restored = store.Read("raid-settlement:raid-001");
+        Require(restored is not null, "制品应可读取为完整快照包");
+        Equal(package.Envelope.Identity.SnapshotId, restored!.Envelope.Identity.SnapshotId, "制品恢复快照 ID");
+        Equal(package.Envelope.PayloadSha256, restored.Envelope.PayloadSha256, "制品恢复载荷哈希");
+        Equal(package.Payload.LongLength, restored.Payload.LongLength, "制品恢复编码载荷长度");
+
+        var reopened = new FileSnapshotPostUploadArtifactStore(root);
+        Require(reopened.Read("raid-settlement:raid-001") is not null, "新实例应能读取已有制品");
+
+        bool rejectedUnsafeId = false;
+        try
+        {
+            store.Store("../outside", package);
+        }
+        catch (ArgumentException)
+        {
+            rejectedUnsafeId = true;
+        }
+
+        Require(rejectedUnsafeId, "制品 ID 不得包含路径分隔符");
+        store.Delete("raid-settlement:raid-001");
+        Require(!store.Exists("raid-settlement:raid-001"), "删除后制品不应存在");
     }
     finally
     {

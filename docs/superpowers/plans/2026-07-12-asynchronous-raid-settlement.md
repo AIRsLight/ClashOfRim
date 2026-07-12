@@ -81,19 +81,19 @@ Run the commands from Step 2. Expected: both pass.
 **Interfaces:**
 - Produces: `SaveSnapshotPackageFileWriter.WriteAtomically`, `ISnapshotPostUploadArtifactStore`, `FileSnapshotPostUploadArtifactStore`, and in-memory test implementation.
 
-- [ ] **Step 1: Write failing round-trip tests**
+- [x] **Step 1: Write failing round-trip tests**
 
 Test that an operation artifact can be written, read through `SaveSnapshotPackageFileReader`, survive a new store instance, and be deleted. Test that an artifact ID containing path separators is rejected.
 
-- [ ] **Step 2: Verify tests fail**
+- [x] **Step 2: Verify tests fail**
 
 Run the save tests. Expected: missing writer and artifact-store types.
 
-- [ ] **Step 3: Extract the package writer**
+- [x] **Step 3: Extract the package writer**
 
 Move the existing `CORSPKG1` atomic gzip package writing logic from `FileColonySnapshotIndexStore` into `SaveSnapshotPackageFileWriter`. Keep the byte format unchanged and make the colony store call the extracted writer.
 
-- [ ] **Step 4: Implement the artifact store**
+- [x] **Step 4: Implement the artifact store**
 
 Use `<snapshot-root>/operations/<sha256-artifact-id>.snapshot.gz`. The public operations are:
 
@@ -106,7 +106,7 @@ void Delete(string artifactId);
 
 Hash artifact IDs before producing paths. Register the file store in persistent state and an in-memory store in default test state.
 
-- [ ] **Step 5: Run save tests**
+- [x] **Step 5: Run save tests**
 
 Expected: package format and artifact round-trip tests pass.
 

@@ -212,6 +212,8 @@ public static partial class ClashOfRimNetworkServer
                 legacyPersistence: null),
             snapshotPostUploadJobs: new SnapshotPostUploadJobRegistry(
                 new SqliteSnapshotPostUploadJobStore(databasePath)),
+            snapshotPostUploadArtifacts: new FileSnapshotPostUploadArtifactStore(
+                Path.Combine(dataDirectory, "snapshots", "operations")),
             adminControl: new AdminControlRegistry(
                 new SqliteKeyedJsonRecordStore(databasePath, "admin-control"),
                 legacyPersistence: null),
