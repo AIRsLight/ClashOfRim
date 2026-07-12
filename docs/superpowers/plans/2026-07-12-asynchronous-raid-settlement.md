@@ -124,19 +124,19 @@ Expected: package format and artifact round-trip tests pass.
 **Interfaces:**
 - Produces: `RaidSettlementDeferredPayload`, `RaidSettlementOrigin`, processor-defined job key support, and prepared-job recovery metadata.
 
-- [ ] **Step 1: Write failing scheduler tests**
+- [x] **Step 1: Write failing scheduler tests**
 
 Test that scheduling raid event `raid-1` twice creates one job with key `raid-settlement:raid-1`, stores one artifact, and returns the same job. Test that a normal autosave context never calls the scheduler.
 
-- [ ] **Step 2: Verify tests fail**
+- [x] **Step 2: Verify tests fail**
 
 Run the pipeline smoke target. Expected: missing scheduler and processor job-key support.
 
-- [ ] **Step 3: Implement compact payload and custom job keys**
+- [x] **Step 3: Implement compact payload and custom job keys**
 
 The JSON record contains only IDs, parties, origin, artifact key, and client application result. Extend deferred preparation so a processor can select a stable job key; default processors retain `snapshotId:processorId`.
 
-- [ ] **Step 4: Implement two-phase scheduling**
+- [x] **Step 4: Implement two-phase scheduling**
 
 The scheduler performs:
 
@@ -149,7 +149,7 @@ mark job Ready
 
 On an exception it deletes the prepared job and artifact where possible, then rethrows. Prepared jobs remain recoverable if the process stops between steps.
 
-- [ ] **Step 5: Run pipeline tests**
+- [x] **Step 5: Run pipeline tests**
 
 Expected: idempotency, autosave short-circuit, and ready transition tests pass.
 
@@ -166,23 +166,23 @@ Expected: idempotency, autosave short-circuit, and ready transition tests pass.
 **Interfaces:**
 - Produces: `RaidSettlementOperationExecutor.Execute` returning `Completed`, `AlreadyCompleted`, `RetryableFailure`, or `ManualReview`.
 
-- [ ] **Step 1: Add failing executor tests**
+- [x] **Step 1: Add failing executor tests**
 
 Using the existing raid fixture builders, prove one execution edits the defender and records settlement; a second execution returns `AlreadyCompleted` without changing the defender snapshot ID or loss records.
 
-- [ ] **Step 2: Verify tests fail**
+- [x] **Step 2: Verify tests fail**
 
 Run the pipeline smoke target. Expected: missing executor.
 
-- [ ] **Step 3: Extract settlement logic**
+- [x] **Step 3: Extract settlement logic**
 
 Move diffing, defender package editing, identity checks, ledger recording, delivery marking, source-event application, and notification signalling from `ConfirmPlayerRaidSettlementAfterSnapshot` into the executor. Re-read the source event inside `RaidSettlementSnapshotMutationGate` immediately before writes.
 
-- [ ] **Step 4: Define failure classification**
+- [x] **Step 4: Define failure classification**
 
 I/O, SQLite, and temporary package-read failures throw for retry. Identity/event mismatches return `ManualReview`, update application diagnostics, and leave the source raid unsettled. Existing settlement records return `AlreadyCompleted`.
 
-- [ ] **Step 5: Run executor tests**
+- [x] **Step 5: Run executor tests**
 
 Expected: first execution completes and duplicate execution is a no-op.
 
@@ -199,19 +199,19 @@ Expected: first execution completes and duplicate execution is a no-op.
 **Interfaces:**
 - Produces: core processor ID `core.raid-settlement`, supporting only `RaidSettlementEvidence`.
 
-- [ ] **Step 1: Add failing processor tests**
+- [x] **Step 1: Add failing processor tests**
 
 Prove the processor is absent for `AuthoritativeColonySnapshot`, queues for `RaidSettlementEvidence`, keeps the defender login lock while queued, retries a transient executor failure, and removes the artifact/job after success.
 
-- [ ] **Step 2: Verify tests fail**
+- [x] **Step 2: Verify tests fail**
 
 Run the pipeline smoke target. Expected: no registered raid settlement processor.
 
-- [ ] **Step 3: Implement processing and recovery**
+- [x] **Step 3: Implement processing and recovery**
 
 `ProcessDeferred` loads the payload and artifact, calls the executor, and deletes the artifact only for `Completed` or `AlreadyCompleted`. Add prepared-job recovery that verifies the artifact and attacker snapshot, completes missing commit steps, then marks the job ready.
 
-- [ ] **Step 4: Run processor tests**
+- [x] **Step 4: Run processor tests**
 
 Expected: queued/retry/completion/restart cases pass.
 
@@ -231,23 +231,23 @@ Expected: queued/retry/completion/restart cases pass.
 - Consumes: scheduler and processor from Tasks 3-5.
 - Produces: accepted response with `ServerValidationResult = "SettlementQueued"` and evidence snapshot ID.
 
-- [ ] **Step 1: Add failing endpoint test**
+- [x] **Step 1: Add failing endpoint test**
 
 Submit valid raid evidence and assert that the response returns before the executor runs, reports `SettlementQueued`, and leaves the source raid unsettled and defender login blocked.
 
-- [ ] **Step 2: Verify endpoint test fails**
+- [x] **Step 2: Verify endpoint test fails**
 
 Run the pipeline smoke target. Expected: current endpoint completes settlement synchronously.
 
-- [ ] **Step 3: Route online settlement through the scheduler**
+- [x] **Step 3: Route online settlement through the scheduler**
 
 For player raid settlement, run inline validation and support-loss processors, schedule the deferred operation, return the evidence snapshot ID, and skip `ConfirmPlayerRaidSettlementAfterSnapshot`. Other event confirmations keep their existing synchronous paths.
 
-- [ ] **Step 4: Update client wording**
+- [x] **Step 4: Update client wording**
 
 On accepted `SettlementQueued`, close the battle map and show “settlement submitted” rather than “settlement completed.” Preserve existing retry UI only for request or durable-commit failure.
 
-- [ ] **Step 5: Run server and client builds**
+- [x] **Step 5: Run server and client builds**
 
 ```powershell
 dotnet build Source\Server\ClashOfRim.Network\ClashOfRim.Network.csproj -c Release --no-restore
@@ -268,23 +268,23 @@ Expected: zero errors.
 - Consumes: `RaidSettlementDeferredScheduler`.
 - Removes: duplicate direct settlement/editor path from offline timeout reconciliation.
 
-- [ ] **Step 1: Add failing offline timeout test**
+- [x] **Step 1: Add failing offline timeout test**
 
 Expire an offline attacker raid, assert one `OfflineTimeout` job is ready, and assert the defender remains locked before worker execution.
 
-- [ ] **Step 2: Verify test fails**
+- [x] **Step 2: Verify test fails**
 
 Run the pipeline smoke target. Expected: timeout path still settles synchronously.
 
-- [ ] **Step 3: Replace direct settlement with scheduling**
+- [x] **Step 3: Replace direct settlement with scheduling**
 
 Copy the selected attacker latest package into the operation artifact store, schedule the same processor with `OfflineTimeout`, and leave the source raid unresolved until the worker completes.
 
-- [ ] **Step 4: Add completion assertions**
+- [x] **Step 4: Add completion assertions**
 
 Run the worker, then assert defender snapshot mutation, attacker/support loss events, source raid completion, notification delivery, artifact deletion, and login unlock.
 
-- [ ] **Step 5: Run pipeline smoke tests**
+- [x] **Step 5: Run pipeline smoke tests**
 
 Expected: online and offline settlement use the same processor behavior.
 
@@ -295,18 +295,18 @@ Expected: online and offline settlement use the same processor behavior.
 **Files:**
 - Verify all files modified in Tasks 1-7.
 
-- [ ] **Step 1: Run focused tests sequentially**
+- [x] **Step 1: Run focused tests sequentially**
 
 ```powershell
 dotnet run --project Tools\ClashOfRim.NetworkSmoke\ClashOfRim.NetworkSmoke.csproj -c Release --no-restore -- --snapshot-pipeline-only
 dotnet run --project Tools\ClashOfRim.Save.Tests\ClashOfRim.Save.Tests.csproj -c Release --no-restore
 ```
 
-- [ ] **Step 2: Build server, client, and plugins sequentially**
+- [x] **Step 2: Build server, client, and plugins sequentially**
 
 Require zero errors from the network server, client mod, AdaptiveStorage plugin, and VehicleFramework plugin projects.
 
-- [ ] **Step 3: Run server packaging**
+- [x] **Step 3: Run server packaging**
 
 ```powershell
 & .\Tools\BuildServerPackage.ps1 -Configuration Release -RuntimeIdentifier win-x64
@@ -314,6 +314,6 @@ Require zero errors from the network server, client mod, AdaptiveStorage plugin,
 
 If the local debug server holds plugin DLLs, stop it through its normal shutdown path before packaging.
 
-- [ ] **Step 4: Inspect repository state**
+- [x] **Step 4: Inspect repository state**
 
 Run `git diff --check`, `git status --short`, and inspect the final diff for generated artifacts, protocol churn, duplicate settlement code, or temporary compatibility paths.
