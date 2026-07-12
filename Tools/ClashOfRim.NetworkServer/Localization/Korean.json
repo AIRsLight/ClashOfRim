@@ -435,6 +435,8 @@
   "Raid.SettlementSnapshotIdentityMismatch": "생성된 방어자 결산 저장의 식별 정보가 일치하지 않아 쓰기를 중단했습니다.",
   "Raid.OfflineTimeoutSettlementMissingSnapshot": "서버가 오프라인 시간초과 결산에 필요한 공격자 또는 방어자 저장을 얻지 못했습니다.",
   "Raid.SettlementRejected": "습격 결산이 서버에 거부되었습니다.",
+  "Raid.SettlementQueued": "습격 결산이 서버 처리 대기열에 등록되었습니다.",
+  "Raid.SettlementQueueFailed": "서버가 습격 결산을 처리 대기열에 등록하지 못했습니다.",
   "Raid.SettlementApplied": "습격 결과가 적용되었습니다.",
   "Gift.Created": "선물을 보냈습니다.",
   "Gift.TransactionMissingPayload": "선물 보내기 실패: 현재 저장이 없습니다.",

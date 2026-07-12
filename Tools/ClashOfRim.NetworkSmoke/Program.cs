@@ -388,6 +388,15 @@ static void VerifyRaidSettlementDeferredSchedulingSemantics()
         now.AddMinutes(-1),
         new EventTargetContext("WorldObject_Defender", "Map_Defender", 101, EventLandingMode.MapEdge));
     raid = ledger.Append(raid).Event;
+    packageStore.StoreLatest(BuildSyntheticSnapshotRecord(
+        "raid-defender",
+        "raid-defender-colony",
+        "defender-snapshot-before",
+        "WorldObject_Defender",
+        "Map_Defender",
+        "MapParent",
+        "Settlement",
+        "101,0"));
 
     LatestSnapshotRecord evidence = BuildSyntheticSnapshotRecord(
         "raid-attacker",

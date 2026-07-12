@@ -63,7 +63,7 @@ public static partial class ClashOfRimNetworkServer
 
         bool playerRaidSettlement = IsPlayerRaidSettlementConfirmation(state, request.EventId, request.SourceEventId);
         SaveSnapshotPackage? originalRaidSnapshot = playerRaidSettlement
-            ? ResolveOriginalRaidSnapshotForConfirmation(state, request.EventId)
+            ? null
             : ResolveOriginalRaidSnapshotForConfirmation(
                 state,
                 request.EventId,
@@ -95,20 +95,59 @@ public static partial class ClashOfRimNetworkServer
                 upload.Kind.ToString()));
         }
 
-        RunSnapshotPostUploadProcessors(
-            state,
-            request.UserId,
-            request.ColonyId,
-            sessionId: null,
-            upload,
-            nowUtc,
-            extraData: new SnapshotPostUploadExtraData(
-                playerRaidSettlement
-                    ? SnapshotUploadKinds.RaidSettlementEvidence
-                    : upload.SnapshotUploadKind,
-                null,
-                null),
-            registerPlayerColonySite: !playerRaidSettlement);
+        var postUploadExtraData = new SnapshotPostUploadExtraData(
+            playerRaidSettlement
+                ? SnapshotUploadKinds.RaidSettlementEvidence
+                : upload.SnapshotUploadKind,
+            null,
+            null)
+        {
+            RaidSettlement = playerRaidSettlement
+                ? new RaidSettlementPostUploadData(
+                    request.EventId,
+                    multipart.Payload,
+                    RaidSettlementOrigin.OnlineEvidence,
+                    request.ClientApplicationResult)
+                : null
+        };
+        try
+        {
+            RunSnapshotPostUploadProcessors(
+                state,
+                request.UserId,
+                request.ColonyId,
+                sessionId: null,
+                upload,
+                nowUtc,
+                extraData: postUploadExtraData,
+                registerPlayerColonySite: !playerRaidSettlement);
+        }
+        catch (Exception ex) when (playerRaidSettlement)
+        {
+            state.RuntimeLogger.LogError(
+                ex,
+                "Failed to durably queue raid settlement: raid={RaidEventId} attacker={UserId}/{ColonyId} snapshot={SnapshotId}",
+                request.EventId,
+                request.UserId,
+                request.ColonyId,
+                upload.AcceptedSnapshot.Identity.SnapshotId);
+            return Results.Ok(new ConfirmEventApplicationResponse(
+                ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, T("Raid.SettlementQueueFailed")),
+                request.EventId,
+                appliedSnapshotId: null,
+                serverValidationResult: "SettlementQueueFailed"));
+        }
+
+        if (playerRaidSettlement)
+        {
+            return Results.Ok(new ConfirmEventApplicationResponse(
+                ProtocolResponse.Ok(T("Raid.SettlementQueued")),
+                request.EventId,
+                upload.AcceptedSnapshot.Identity.SnapshotId,
+                "SettlementQueued",
+                upload.AcceptedSnapshot.Envelope.NextLineageToken));
+        }
+
         ConfirmEventApplicationResultDto result = ConfirmEventApplicationAfterSnapshot(
             new ConfirmEventApplicationEntry(
                 request.EventId,
@@ -121,7 +160,7 @@ public static partial class ClashOfRimNetworkServer
             originalRaidSnapshot,
             state,
             nowUtc,
-            playerRaidSettlement ? multipart.Payload : null);
+            acceptedSnapshotPayload: null);
 
         return Results.Ok(new ConfirmEventApplicationResponse(
             result.Result,

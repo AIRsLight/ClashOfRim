@@ -942,7 +942,7 @@
   <ClashOfRim.Raid.StatusSettlementSupportLossFailed>戦場支援 {PAWN} の損失報告失敗: {CODE} {MESSAGE}</ClashOfRim.Raid.StatusSettlementSupportLossFailed>
   <ClashOfRim.Raid.StatusSettlementSupportLossLocalRemoveFailed>支援 {PAWN} は喪失として報告されましたが、現在の戦場からローカル削除できませんでした。</ClashOfRim.Raid.StatusSettlementSupportLossLocalRemoveFailed>
   <ClashOfRim.Raid.StatusSettlementSupportLossRejected>戦場支援 {PAWN} の損失報告がサーバーに拒否されました: {CODE} {MESSAGE}</ClashOfRim.Raid.StatusSettlementSupportLossRejected>
-  <ClashOfRim.Raid.StatusSettlementSucceeded>襲撃結算が受理され、サーバーセーブを更新しました。</ClashOfRim.Raid.StatusSettlementSucceeded>
+  <ClashOfRim.Raid.StatusSettlementSucceeded>襲撃結算を送信しました。サーバーがバックグラウンドで処理します。</ClashOfRim.Raid.StatusSettlementSucceeded>
   <ClashOfRim.Raid.StatusSettlementUploading>襲撃結算セーブをアップロードしています。</ClashOfRim.Raid.StatusSettlementUploading>
   <ClashOfRim.Raid.StatusSettlementSavingLong>襲撃結算を保存しています。大きなマップでは一時的に応答が止まることがあります。ゲームを強制終了しないでください。</ClashOfRim.Raid.StatusSettlementSavingLong>
   <ClashOfRim.Raid.StatusSettlementFinalDeadlineExpired>襲撃結算の待機時間が切れました。サーバーはタイムアウト時の代替処理を適用します。</ClashOfRim.Raid.StatusSettlementFinalDeadlineExpired>

@@ -942,7 +942,7 @@
   <ClashOfRim.Raid.StatusSettlementSupportLossFailed>전장 지원 {PAWN} 손실 보고 실패: {CODE} {MESSAGE}</ClashOfRim.Raid.StatusSettlementSupportLossFailed>
   <ClashOfRim.Raid.StatusSettlementSupportLossLocalRemoveFailed>지원 {PAWN}은(는) 손실로 보고되었지만 현재 전장에서 로컬 제거할 수 없습니다.</ClashOfRim.Raid.StatusSettlementSupportLossLocalRemoveFailed>
   <ClashOfRim.Raid.StatusSettlementSupportLossRejected>전장 지원 {PAWN} 손실 보고가 서버에 거부되었습니다: {CODE} {MESSAGE}</ClashOfRim.Raid.StatusSettlementSupportLossRejected>
-  <ClashOfRim.Raid.StatusSettlementSucceeded>습격 결산이 수락되어 서버 저장이 업데이트되었습니다.</ClashOfRim.Raid.StatusSettlementSucceeded>
+  <ClashOfRim.Raid.StatusSettlementSucceeded>습격 결산을 제출했습니다. 서버가 백그라운드에서 처리합니다.</ClashOfRim.Raid.StatusSettlementSucceeded>
   <ClashOfRim.Raid.StatusSettlementUploading>습격 결산 저장을 업로드 중입니다.</ClashOfRim.Raid.StatusSettlementUploading>
   <ClashOfRim.Raid.StatusSettlementSavingLong>습격 결산을 저장 중입니다. 큰 지도에서는 잠시 응답이 멈출 수 있으니 게임을 강제 종료하지 마세요.</ClashOfRim.Raid.StatusSettlementSavingLong>
   <ClashOfRim.Raid.StatusSettlementFinalDeadlineExpired>습격 결산 대기 시간이 만료되었습니다. 서버가 시간초과 대체 처리를 적용합니다.</ClashOfRim.Raid.StatusSettlementFinalDeadlineExpired>

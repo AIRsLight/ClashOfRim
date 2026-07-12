@@ -435,6 +435,8 @@
   "Raid.SettlementSnapshotIdentityMismatch": "服务器生成的防守方结算存档身份不一致，已停止写入。",
   "Raid.OfflineTimeoutSettlementMissingSnapshot": "服务器无法取得离线超时结算所需的进攻方或防守方存档。",
   "Raid.SettlementRejected": "袭击结算被服务器拒绝。",
+  "Raid.SettlementQueued": "袭击结算已提交，服务器将在后台处理。",
+  "Raid.SettlementQueueFailed": "服务器无法将袭击结算加入处理队列。",
   "Raid.SettlementApplied": "袭击返回存档已结算。",
   "Gift.Created": "礼物已送出。",
   "Gift.TransactionMissingPayload": "礼物发送失败：缺少当前存档。",

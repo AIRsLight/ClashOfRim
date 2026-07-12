@@ -435,6 +435,8 @@
   "Raid.SettlementSnapshotIdentityMismatch": "生成された防守側結算セーブの識別情報が一致しないため、書き込みを停止しました。",
   "Raid.OfflineTimeoutSettlementMissingSnapshot": "サーバーはオフライン時間切れ結算に必要な攻撃側または防守側セーブを取得できませんでした。",
   "Raid.SettlementRejected": "襲撃結算がサーバーに拒否されました。",
+  "Raid.SettlementQueued": "襲撃結算をサーバーの処理キューに登録しました。",
+  "Raid.SettlementQueueFailed": "サーバーは襲撃結算を処理キューに登録できませんでした。",
   "Raid.SettlementApplied": "襲撃結果を適用しました。",
   "Gift.Created": "贈り物を送信しました。",
   "Gift.TransactionMissingPayload": "贈り物送信に失敗しました: 現在セーブがありません。",

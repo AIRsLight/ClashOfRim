@@ -941,7 +941,7 @@
   <ClashOfRim.Raid.StatusSettlementSupportLossFailed>上报战场增援 {PAWN} 损失失败：{CODE} {MESSAGE}</ClashOfRim.Raid.StatusSettlementSupportLossFailed>
   <ClashOfRim.Raid.StatusSettlementSupportLossLocalRemoveFailed>增援 {PAWN} 已按损失上报，但无法从当前战场移除。</ClashOfRim.Raid.StatusSettlementSupportLossLocalRemoveFailed>
   <ClashOfRim.Raid.StatusSettlementSupportLossRejected>上报战场增援 {PAWN} 损失被服务器拒绝：{CODE} {MESSAGE}</ClashOfRim.Raid.StatusSettlementSupportLossRejected>
-  <ClashOfRim.Raid.StatusSettlementSucceeded>袭击结算已通过，正在应用服务器结果。</ClashOfRim.Raid.StatusSettlementSucceeded>
+  <ClashOfRim.Raid.StatusSettlementSucceeded>袭击结算已提交，服务器将在后台处理。</ClashOfRim.Raid.StatusSettlementSucceeded>
   <ClashOfRim.Raid.StatusSettlementUploading>正在上传袭击结算。</ClashOfRim.Raid.StatusSettlementUploading>
   <ClashOfRim.Raid.StatusSettlementSavingLong>正在保存袭击结算。大型地图可能短暂无响应，请勿强制关闭游戏。</ClashOfRim.Raid.StatusSettlementSavingLong>
   <ClashOfRim.Raid.StatusSettlementFinalDeadlineExpired>袭击结算等待时间已耗尽，服务器将按超时兜底处理。</ClashOfRim.Raid.StatusSettlementFinalDeadlineExpired>

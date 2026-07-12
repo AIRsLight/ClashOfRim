@@ -942,7 +942,7 @@
   <ClashOfRim.Raid.StatusSettlementSupportLossFailed>Не удалось сообщить о потере поддержки {PAWN} на поле боя: {CODE} {MESSAGE}</ClashOfRim.Raid.StatusSettlementSupportLossFailed>
   <ClashOfRim.Raid.StatusSettlementSupportLossLocalRemoveFailed>Поддержка {PAWN} была отмечена потерянной, но ее не удалось локально удалить с текущего поля боя.</ClashOfRim.Raid.StatusSettlementSupportLossLocalRemoveFailed>
   <ClashOfRim.Raid.StatusSettlementSupportLossRejected>Отчет о потере поддержки {PAWN} на поле боя отклонен сервером: {CODE} {MESSAGE}</ClashOfRim.Raid.StatusSettlementSupportLossRejected>
-  <ClashOfRim.Raid.StatusSettlementSucceeded>Расчет рейда принят, серверное сохранение обновлено.</ClashOfRim.Raid.StatusSettlementSucceeded>
+  <ClashOfRim.Raid.StatusSettlementSucceeded>Расчет рейда отправлен и будет обработан сервером в фоне.</ClashOfRim.Raid.StatusSettlementSucceeded>
   <ClashOfRim.Raid.StatusSettlementUploading>Загрузка сохранения расчета рейда.</ClashOfRim.Raid.StatusSettlementUploading>
   <ClashOfRim.Raid.StatusSettlementSavingLong>Сохранение расчета рейда. Большие карты могут ненадолго перестать отвечать; не закрывайте игру принудительно.</ClashOfRim.Raid.StatusSettlementSavingLong>
   <ClashOfRim.Raid.StatusSettlementFinalDeadlineExpired>Время ожидания расчета рейда истекло. Сервер применит запасную обработку тайм-аута.</ClashOfRim.Raid.StatusSettlementFinalDeadlineExpired>

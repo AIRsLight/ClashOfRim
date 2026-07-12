@@ -39,6 +39,23 @@ public static class RaidSettlementDeferredScheduler
             ?? throw new InvalidOperationException("Raid defender colony ID is missing.");
         string evidenceSnapshotId = request.Context.Snapshot.Identity.SnapshotId
             ?? throw new InvalidOperationException("Raid settlement evidence snapshot ID is missing.");
+        if (state.SnapshotStore is not IColonySnapshotPackageStore packageStore)
+        {
+            throw new InvalidOperationException("Raid settlement requires a snapshot package store.");
+        }
+
+        SaveSnapshotPackage? defenderPackage = packageStore.GetLatestPackage(
+            raid.Target.UserId,
+            defenderColonyId);
+        if (defenderPackage is null
+            || !string.Equals(
+                defenderPackage.Envelope.Identity.SnapshotId,
+                raidPayload.DefenderSnapshotId,
+                StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("Raid defender snapshot is missing or no longer matches the raid baseline.");
+        }
+
         string jobId = "raid-settlement:" + raid.EventId;
         SnapshotPostUploadJobRecord? existing = state.SnapshotPostUploadJobs.Find(jobId);
         if (existing is not null)
@@ -76,11 +93,6 @@ public static class RaidSettlementDeferredScheduler
                 request.Context,
                 payload.Serialize());
             jobPersisted = true;
-
-            if (state.SnapshotStore is not IColonySnapshotPackageStore packageStore)
-            {
-                throw new InvalidOperationException("Raid settlement requires a snapshot package store.");
-            }
 
             lock (state.RaidSettlementSnapshotMutationGate)
             {

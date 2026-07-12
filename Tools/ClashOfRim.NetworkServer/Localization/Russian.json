@@ -435,6 +435,8 @@
   "Raid.SettlementSnapshotIdentityMismatch": "Созданное сохранение расчета защитника имеет несовпадающую идентичность; запись остановлена.",
   "Raid.OfflineTimeoutSettlementMissingSnapshot": "Сервер не смог получить сохранение атакующего или защитника, нужное для расчета офлайн-тайм-аута.",
   "Raid.SettlementRejected": "Расчет рейда отклонен сервером.",
+  "Raid.SettlementQueued": "Расчет рейда отправлен на обработку сервером.",
+  "Raid.SettlementQueueFailed": "Серверу не удалось поставить расчет рейда в очередь.",
   "Raid.SettlementApplied": "Результат рейда применен.",
   "Gift.Created": "Подарок отправлен.",
   "Gift.TransactionMissingPayload": "Не удалось отправить подарок: отсутствует текущее сохранение.",

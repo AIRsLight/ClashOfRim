@@ -941,7 +941,7 @@
   <ClashOfRim.Raid.StatusSettlementSupportLossFailed>Battlefield support {PAWN} loss report failed: {CODE} {MESSAGE}</ClashOfRim.Raid.StatusSettlementSupportLossFailed>
   <ClashOfRim.Raid.StatusSettlementSupportLossLocalRemoveFailed>Support {PAWN} was reported lost, but could not be removed from the current battlefield.</ClashOfRim.Raid.StatusSettlementSupportLossLocalRemoveFailed>
   <ClashOfRim.Raid.StatusSettlementSupportLossRejected>Battlefield support {PAWN} loss report was rejected by the server: {CODE} {MESSAGE}</ClashOfRim.Raid.StatusSettlementSupportLossRejected>
-  <ClashOfRim.Raid.StatusSettlementSucceeded>Raid settlement accepted, server save updated.</ClashOfRim.Raid.StatusSettlementSucceeded>
+  <ClashOfRim.Raid.StatusSettlementSucceeded>Raid settlement submitted for server processing.</ClashOfRim.Raid.StatusSettlementSucceeded>
   <ClashOfRim.Raid.StatusSettlementUploading>Uploading raid settlement save.</ClashOfRim.Raid.StatusSettlementUploading>
   <ClashOfRim.Raid.StatusSettlementSavingLong>Saving raid settlement. Large maps may briefly stop responding; do not force-close the game.</ClashOfRim.Raid.StatusSettlementSavingLong>
   <ClashOfRim.Raid.StatusSettlementFinalDeadlineExpired>Raid settlement wait time expired. The server will apply timeout fallback.</ClashOfRim.Raid.StatusSettlementFinalDeadlineExpired>

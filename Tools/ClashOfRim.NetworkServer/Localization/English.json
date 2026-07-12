@@ -435,6 +435,8 @@
   "Raid.SettlementSnapshotIdentityMismatch": "The generated defender settlement save has mismatched identity; write was stopped.",
   "Raid.OfflineTimeoutSettlementMissingSnapshot": "The server could not obtain the attacker or defender save required for offline timeout settlement.",
   "Raid.SettlementRejected": "Raid settlement was rejected by the server.",
+  "Raid.SettlementQueued": "Raid settlement submitted for server processing.",
+  "Raid.SettlementQueueFailed": "The server could not queue the raid settlement.",
   "Raid.SettlementApplied": "Raid result applied.",
   "Gift.Created": "Gift sent.",
   "Gift.TransactionMissingPayload": "Gift sending failed: missing the current save.",
