@@ -12,7 +12,7 @@
   <ClashOfRim.Send>发送</ClashOfRim.Send>
   <ClashOfRim.SessionExpired.Title>服务器会话已过期</ClashOfRim.SessionExpired.Title>
   <ClashOfRim.SessionExpired.Message>服务器会话已过期。请回到主菜单后重新进入服务器。</ClashOfRim.SessionExpired.Message>
-  <ClashOfRim.SessionExpired.ReturnToMainMenu>返回主菜单</ClashOfRim.SessionExpired.ReturnToMainMenu>
+  <ClashOfRim.SessionExpired.ReturnToMainMenu>主菜单</ClashOfRim.SessionExpired.ReturnToMainMenu>
   <ClashOfRim.SessionExpired.Status>服务器会话已过期，需要重新登录。</ClashOfRim.SessionExpired.Status>
   <ClashOfRim.Chat.EmptyMessage>聊天内容不能为空。</ClashOfRim.Chat.EmptyMessage>
   <ClashOfRim.Chat.InvalidPrivateFormat>私聊格式为 @玩家 消息。</ClashOfRim.Chat.InvalidPrivateFormat>
@@ -38,7 +38,7 @@
   <ClashOfRim.Network.StatusNotConfigured>服务器地址、账户或殖民地未配置。</ClashOfRim.Network.StatusNotConfigured>
   <ClashOfRim.Network.StatusDeserializeFailed>无法解析响应类别：{TYPE}</ClashOfRim.Network.StatusDeserializeFailed>
   <ClashOfRim.Chat.Title>聊天</ClashOfRim.Chat.Title>
-  <ClashOfRim.Account.ChangePassword>修改密码</ClashOfRim.Account.ChangePassword>
+  <ClashOfRim.Account.ChangePassword>密码</ClashOfRim.Account.ChangePassword>
   <ClashOfRim.Account.CurrentPassword>当前密码</ClashOfRim.Account.CurrentPassword>
   <ClashOfRim.Account.CurrentUser>当前账户：{USER}</ClashOfRim.Account.CurrentUser>
   <ClashOfRim.Account.NewPassword>新密码</ClashOfRim.Account.NewPassword>
@@ -85,17 +85,18 @@
   <ClashOfRim.Compatibility.FilesMatch>文件一致。</ClashOfRim.Compatibility.FilesMatch>
   <ClashOfRim.Compatibility.ConfigsMatch>配置一致。</ClashOfRim.Compatibility.ConfigsMatch>
   <ClashOfRim.Compatibility.ModsMatch>模组一致。</ClashOfRim.Compatibility.ModsMatch>
-  <ClashOfRim.Compatibility.ApplyAndRestart>套用并重启</ClashOfRim.Compatibility.ApplyAndRestart>
+  <ClashOfRim.Compatibility.ApplyAndRestart>套用</ClashOfRim.Compatibility.ApplyAndRestart>
+  <ClashOfRim.Compatibility.ApplyAndRestartDesc>套用服务器模组列表与加载顺序，然后重启游戏。</ClashOfRim.Compatibility.ApplyAndRestartDesc>
   <ClashOfRim.Compatibility.JoinAnyway>仍然加入</ClashOfRim.Compatibility.JoinAnyway>
-  <ClashOfRim.Compatibility.ConfigApplyOverlayAndRestart>采用 Overlay 并重启</ClashOfRim.Compatibility.ConfigApplyOverlayAndRestart>
-  <ClashOfRim.Compatibility.ConfigOverwriteLocalAndRestart>写入本地并重启</ClashOfRim.Compatibility.ConfigOverwriteLocalAndRestart>
-  <ClashOfRim.Compatibility.ConfigApplyOverlayDesc>采用服务器配置，但不修改本地 Config 文件。</ClashOfRim.Compatibility.ConfigApplyOverlayDesc>
-  <ClashOfRim.Compatibility.ConfigOverwriteLocalDesc>将服务器配置直接写入本地 Config，并移除当前服务器 Overlay。</ClashOfRim.Compatibility.ConfigOverwriteLocalDesc>
+  <ClashOfRim.Compatibility.ConfigApplyOverlayAndRestart>Overlay</ClashOfRim.Compatibility.ConfigApplyOverlayAndRestart>
+  <ClashOfRim.Compatibility.ConfigOverwriteLocalAndRestart>覆盖本地</ClashOfRim.Compatibility.ConfigOverwriteLocalAndRestart>
+  <ClashOfRim.Compatibility.ConfigApplyOverlayDesc>采用服务器配置 Overlay，不修改本地 Config 文件，然后重启游戏。</ClashOfRim.Compatibility.ConfigApplyOverlayDesc>
+  <ClashOfRim.Compatibility.ConfigOverwriteLocalDesc>将服务器配置直接写入本地 Config，移除当前服务器 Overlay，然后重启游戏。</ClashOfRim.Compatibility.ConfigOverwriteLocalDesc>
   <ClashOfRim.Compatibility.ConfigApplyOverlayRestarting>已采用服务器配置 Overlay，正在重启。</ClashOfRim.Compatibility.ConfigApplyOverlayRestarting>
   <ClashOfRim.Compatibility.ConfigOverwriteLocalRestarting>已覆盖本地配置，正在重启。</ClashOfRim.Compatibility.ConfigOverwriteLocalRestarting>
   <ClashOfRim.Compatibility.ConfigApplyAvailable>配置不一致时，可采用服务器 Overlay，或直接覆盖本地配置后重启。</ClashOfRim.Compatibility.ConfigApplyAvailable>
   <ClashOfRim.Compatibility.OpenWorkshop>创意工坊</ClashOfRim.Compatibility.OpenWorkshop>
-  <ClashOfRim.Compatibility.OverrideBaseline>更新服务器资料</ClashOfRim.Compatibility.OverrideBaseline>
+  <ClashOfRim.Compatibility.OverrideBaseline>覆盖清单</ClashOfRim.Compatibility.OverrideBaseline>
   <ClashOfRim.Compatibility.OverrideBaselineDesc>用当前客户端的模组列表、文件哈希和配置规则覆盖服务器清单基线。此操作会影响所有玩家后续加入，请仅在确认当前环境正确时使用。</ClashOfRim.Compatibility.OverrideBaselineDesc>
   <ClashOfRim.Compatibility.Override.ModListWarning>当前客户端的模组列表或加载顺序与服务器基线不一致。若继续更新服务器资料，服务器会使用当前客户端的模组列表作为新基线。请确认你没有加载本地单人存档使用的模组列表。</ClashOfRim.Compatibility.Override.ModListWarning>
   <ClashOfRim.Compatibility.Summary>模组 {MODS} / 文件 {FILES} / 配置 {CONFIGS}</ClashOfRim.Compatibility.Summary>
@@ -178,7 +179,7 @@
   <ClashOfRim.Compatibility.Override.AdminBaselineNotUpdated>但管理员价格表和陷阱清单未更新：{MESSAGE}</ClashOfRim.Compatibility.Override.AdminBaselineNotUpdated>
   <ClashOfRim.Compatibility.Override.Exception>更新异常：{TYPE}</ClashOfRim.Compatibility.Override.Exception>
   <ClashOfRim.Compatibility.Override.Title>更新服务器资料</ClashOfRim.Compatibility.Override.Title>
-  <ClashOfRim.Compatibility.Override.ReturnMainMenu>返回主菜单</ClashOfRim.Compatibility.Override.ReturnMainMenu>
+  <ClashOfRim.Compatibility.Override.ReturnMainMenu>主菜单</ClashOfRim.Compatibility.Override.ReturnMainMenu>
   <ClashOfRim.Compatibility.Override.Success>&lt;color=#7ecf6b&gt;更新成功。&lt;/color&gt;</ClashOfRim.Compatibility.Override.Success>
   <ClashOfRim.Compatibility.Override.Failed>&lt;color=#ff6b6b&gt;更新失败。&lt;/color&gt;</ClashOfRim.Compatibility.Override.Failed>
   <ClashOfRim.Compatibility.ModSettingsLockedTitle>服务器配置已锁定</ClashOfRim.Compatibility.ModSettingsLockedTitle>
@@ -325,7 +326,7 @@
   <ClashOfRim.Achievement.ScoreboardEmpty>暂无成就记录。</ClashOfRim.Achievement.ScoreboardEmpty>
   <ClashOfRim.Achievement.SelectPlayer>选择要查看的玩家</ClashOfRim.Achievement.SelectPlayer>
   <ClashOfRim.Achievement.OwnEmpty>暂无已记录的成就。</ClashOfRim.Achievement.OwnEmpty>
-  <ClashOfRim.Achievement.GetTrophyBlueprint>获取奖杯图纸</ClashOfRim.Achievement.GetTrophyBlueprint>
+  <ClashOfRim.Achievement.GetTrophyBlueprint>图纸</ClashOfRim.Achievement.GetTrophyBlueprint>
   <ClashOfRim.Achievement.GetTrophyBlueprintDesc>生成一张记录该成就的奖杯图纸。</ClashOfRim.Achievement.GetTrophyBlueprintDesc>
   <ClashOfRim.Achievement.TrophyBlueprintSelected>已选择成就奖杯蓝图。</ClashOfRim.Achievement.TrophyBlueprintSelected>
   <ClashOfRim.Achievement.TrophyNoMap>需要进入殖民地地图后才能放置奖杯。</ClashOfRim.Achievement.TrophyNoMap>
@@ -333,7 +334,7 @@
   <ClashOfRim.Achievement.TrophyPlanMissingDef>无法找到成就奖杯图纸定义。</ClashOfRim.Achievement.TrophyPlanMissingDef>
   <ClashOfRim.Achievement.TrophyPlanCreated>已生成奖杯图纸。选择图纸可选择材质并放置奖杯蓝图。</ClashOfRim.Achievement.TrophyPlanCreated>
   <ClashOfRim.Achievement.TrophyPlanCreateFailed>无法生成奖杯图纸。</ClashOfRim.Achievement.TrophyPlanCreateFailed>
-  <ClashOfRim.Achievement.PlaceTrophy>放置奖杯</ClashOfRim.Achievement.PlaceTrophy>
+  <ClashOfRim.Achievement.PlaceTrophy>放置</ClashOfRim.Achievement.PlaceTrophy>
   <ClashOfRim.Achievement.PlaceTrophyDesc>选择材质，并放置记录该成就的奖杯蓝图。</ClashOfRim.Achievement.PlaceTrophyDesc>
   <ClashOfRim.Achievement.TrophyInspectLine>获得者：{OWNER}；成就：{ACHIEVEMENT}；记录值：{VALUE}</ClashOfRim.Achievement.TrophyInspectLine>
   <ClashOfRim.Achievement.TrophyArtDescription>成就：{ACHIEVEMENT}&#10;获得者：{OWNER}&#10;&#10;{DESCRIPTION}&#10;&#10;记录值：{VALUE}</ClashOfRim.Achievement.TrophyArtDescription>
@@ -566,7 +567,7 @@
   <ClashOfRim.RemoteWorldObject.WorldObjectInspect>源世界对象：{ID}</ClashOfRim.RemoteWorldObject.WorldObjectInspect>
   <ClashOfRim.RemoteWorldObject.MapInspect>源地图：{ID}</ClashOfRim.RemoteWorldObject.MapInspect>
   <ClashOfRim.RemoteWorldObject.SnapshotInspect>存档：{ID}</ClashOfRim.RemoteWorldObject.SnapshotInspect>
-  <ClashOfRim.RemoteWorldObject.ActionNotice>查看入口要求</ClashOfRim.RemoteWorldObject.ActionNotice>
+  <ClashOfRim.RemoteWorldObject.ActionNotice>要求</ClashOfRim.RemoteWorldObject.ActionNotice>
   <ClashOfRim.RemoteWorldObject.RaidActionNoticeDesc>袭击需要通过正式袭击流程创建，不能直接从空壳世界对象进入。</ClashOfRim.RemoteWorldObject.RaidActionNoticeDesc>
   <ClashOfRim.RemoteWorldObject.ReinforceActionNoticeDesc>增援需要远行队到达目标地块后，通过远行队命令选择支援单位。</ClashOfRim.RemoteWorldObject.ReinforceActionNoticeDesc>
   <ClashOfRim.RemoteWorldObject.RaidActionNoticeMessage>袭击入口将在袭击实机闭环中接入；当前请先通过多人窗口查看目标状态。</ClashOfRim.RemoteWorldObject.RaidActionNoticeMessage>
@@ -847,14 +848,14 @@
   <ClashOfRim.Support.RejectRejected>支援殖民者拒绝被服务器拒绝：{CODE} {MESSAGE}</ClashOfRim.Support.RejectRejected>
   <ClashOfRim.Support.Rejected>支援殖民者已拒绝，服务器会安排返回。</ClashOfRim.Support.Rejected>
   <ClashOfRim.Support.RejectException>支援殖民者拒绝异常：{TYPE} {MESSAGE}</ClashOfRim.Support.RejectException>
-  <ClashOfRim.Diplomacy.RequestAlliance>请求结盟</ClashOfRim.Diplomacy.RequestAlliance>
+  <ClashOfRim.Diplomacy.RequestAlliance>结盟</ClashOfRim.Diplomacy.RequestAlliance>
   <ClashOfRim.Diplomacy.CancelAlliance>撕毁盟约</ClashOfRim.Diplomacy.CancelAlliance>
-  <ClashOfRim.Diplomacy.RequestSupport>请求增援</ClashOfRim.Diplomacy.RequestSupport>
+  <ClashOfRim.Diplomacy.RequestSupport>增援</ClashOfRim.Diplomacy.RequestSupport>
   <ClashOfRim.Diplomacy.SupportRequestTitle>请求盟友增援</ClashOfRim.Diplomacy.SupportRequestTitle>
   <ClashOfRim.Diplomacy.SupportRequestTarget>发送给：{PLAYER}</ClashOfRim.Diplomacy.SupportRequestTarget>
   <ClashOfRim.Diplomacy.SupportRequestHint>可填写需要的兵力、时间、威胁规模等信息，最多 {COUNT} 字。</ClashOfRim.Diplomacy.SupportRequestHint>
   <ClashOfRim.Diplomacy.DeclareWar>宣战</ClashOfRim.Diplomacy.DeclareWar>
-  <ClashOfRim.Diplomacy.RequestPeace>请求求和</ClashOfRim.Diplomacy.RequestPeace>
+  <ClashOfRim.Diplomacy.RequestPeace>求和</ClashOfRim.Diplomacy.RequestPeace>
   <ClashOfRim.Diplomacy.ConfirmAllianceRequest>确定向 {PLAYER} 发送结盟请求吗？</ClashOfRim.Diplomacy.ConfirmAllianceRequest>
   <ClashOfRim.Diplomacy.ConfirmAllianceCancellation>确定撕毁与 {PLAYER} 的盟约吗？关系将变为中立。</ClashOfRim.Diplomacy.ConfirmAllianceCancellation>
   <ClashOfRim.Diplomacy.ConfirmWarDeclaration>确定向 {PLAYER} 宣战吗？关系将变为敌对。</ClashOfRim.Diplomacy.ConfirmWarDeclaration>
@@ -875,8 +876,8 @@
   <ClashOfRim.Diplomacy.RelationReasonWarDeclaration>宣战</ClashOfRim.Diplomacy.RelationReasonWarDeclaration>
   <ClashOfRim.Diplomacy.RelationReasonPeaceRequest>求和</ClashOfRim.Diplomacy.RelationReasonPeaceRequest>
   <ClashOfRim.PlayerFaction.Report>{PLAYER} 是另一处远方殖民地。这里显示的是你与他们的外交关系、已知位置和往来记录。</ClashOfRim.PlayerFaction.Report>
-  <ClashOfRim.Raid.CaravanGizmo>发起袭击</ClashOfRim.Raid.CaravanGizmo>
-  <ClashOfRim.Raid.CaravanGizmoCount>发起袭击({COUNT})</ClashOfRim.Raid.CaravanGizmoCount>
+  <ClashOfRim.Raid.CaravanGizmo>袭击</ClashOfRim.Raid.CaravanGizmo>
+  <ClashOfRim.Raid.CaravanGizmoCount>袭击({COUNT})</ClashOfRim.Raid.CaravanGizmoCount>
   <ClashOfRim.Raid.CaravanGizmoDesc>远行队已到达可袭击地块。选择目标并开始袭击。</ClashOfRim.Raid.CaravanGizmoDesc>
   <ClashOfRim.Raid.PvpDisabled>服务器已关闭玩家袭击。</ClashOfRim.Raid.PvpDisabled>
   <ClashOfRim.Raid.CaravanTargetOption>{TARGET}，进攻单位 {COUNT}</ClashOfRim.Raid.CaravanTargetOption>
@@ -952,8 +953,8 @@
   <ClashOfRim.Raid.RestoreMissingLocalBattle>服务器存在未完成袭击，但当前存档没有可恢复的战斗地图。</ClashOfRim.Raid.RestoreMissingLocalBattle>
   <ClashOfRim.Raid.RestoreServerAlreadySettled>服务器已结束该袭击，正在刷新事件。</ClashOfRim.Raid.RestoreServerAlreadySettled>
   <ClashOfRim.Raid.RestoreSucceeded>&lt;color=#7ecf6b&gt;袭击已恢复&lt;/color&gt;，剩余 &lt;color=#ff9f43&gt;{SECONDS} 秒&lt;/color&gt;。</ClashOfRim.Raid.RestoreSucceeded>
-  <ClashOfRim.Support.CaravanGizmo>派出支援</ClashOfRim.Support.CaravanGizmo>
-  <ClashOfRim.Support.CaravanGizmoCount>派出支援({COUNT})</ClashOfRim.Support.CaravanGizmoCount>
+  <ClashOfRim.Support.CaravanGizmo>支援</ClashOfRim.Support.CaravanGizmo>
+  <ClashOfRim.Support.CaravanGizmoCount>支援({COUNT})</ClashOfRim.Support.CaravanGizmoCount>
   <ClashOfRim.Support.CaravanGizmoDesc>远行队已到达可增援地块。选择一名成员作为支援加入目标殖民地。</ClashOfRim.Support.CaravanGizmoDesc>
   <ClashOfRim.Support.CaravanPawnOption>{PAWN} -> {TARGET}</ClashOfRim.Support.CaravanPawnOption>
   <ClashOfRim.Support.ConfirmSend>确定让 {PAWN} 前往 {TARGET} 提供支援吗？\n这名殖民者会离开当前远行队，等待对方接收。</ClashOfRim.Support.ConfirmSend>
@@ -964,10 +965,10 @@
   <ClashOfRim.Support.DurationDialogDays>{DAYS} 天</ClashOfRim.Support.DurationDialogDays>
   <ClashOfRim.Support.DurationDialogPermanentSelected>当前选择：永久支援，不会自动返回。</ClashOfRim.Support.DurationDialogPermanentSelected>
   <ClashOfRim.Support.DurationDialogTarget>{PAWN} -> {TARGET}</ClashOfRim.Support.DurationDialogTarget>
-  <ClashOfRim.Support.DurationDialogTemporary>临时支援</ClashOfRim.Support.DurationDialogTemporary>
+  <ClashOfRim.Support.DurationDialogTemporary>临时</ClashOfRim.Support.DurationDialogTemporary>
   <ClashOfRim.Support.DurationDialogTemporarySelected>当前选择：临时支援，到期后自动返回。</ClashOfRim.Support.DurationDialogTemporarySelected>
   <ClashOfRim.Support.DurationDialogTitle>选择支援时间</ClashOfRim.Support.DurationDialogTitle>
-  <ClashOfRim.Support.DurationPermanent>永久支援</ClashOfRim.Support.DurationPermanent>
+  <ClashOfRim.Support.DurationPermanent>永久</ClashOfRim.Support.DurationPermanent>
   <ClashOfRim.Support.ArrivalLetterLabel>支援人员抵达</ClashOfRim.Support.ArrivalLetterLabel>
   <ClashOfRim.Support.ArrivalLetterText>{PAWN} 已经抵达，将暂时加入你的殖民地。</ClashOfRim.Support.ArrivalLetterText>
   <ClashOfRim.Support.PermanentArrivalLetterLabel>殖民者已加入</ClashOfRim.Support.PermanentArrivalLetterLabel>
@@ -1022,14 +1023,14 @@
   <ClashOfRim.Support.TargetLabel>{LABEL}（{USER}/{COLONY}@{TILE}）</ClashOfRim.Support.TargetLabel>
   <ClashOfRim.Trade.Accepted>已接取</ClashOfRim.Trade.Accepted>
   <ClashOfRim.Trade.AcceptedMemoSuffix>，已接 {COUNT}</ClashOfRim.Trade.AcceptedMemoSuffix>
-  <ClashOfRim.Trade.AddToAcceptedList>加入接单列表</ClashOfRim.Trade.AddToAcceptedList>
+  <ClashOfRim.Trade.AddToAcceptedList>接单</ClashOfRim.Trade.AddToAcceptedList>
   <ClashOfRim.Trade.CancelAcceptedMemo>取消接单</ClashOfRim.Trade.CancelAcceptedMemo>
   <ClashOfRim.Trade.CancelOrder>撤回</ClashOfRim.Trade.CancelOrder>
   <ClashOfRim.Trade.ConfirmCancelAcceptedMemo>取消接取这张交易单吗？这只会移除你的备忘记录，不会影响其他玩家接取或完成交易。</ClashOfRim.Trade.ConfirmCancelAcceptedMemo>
   <ClashOfRim.Trade.ConfirmCancelOrder>确定撤回这张交易单吗？已托管的交付物会退回给你，已经接单的玩家会收到通知。</ClashOfRim.Trade.ConfirmCancelOrder>
   <ClashOfRim.Trade.CaravanExchangeApplied>已移交 {REQUESTCOUNT} 项要求物，远行队收到 {STACKCOUNT} 个堆叠。</ClashOfRim.Trade.CaravanExchangeApplied>
-  <ClashOfRim.Trade.CaravanFulfillGizmo>完成交易</ClashOfRim.Trade.CaravanFulfillGizmo>
-  <ClashOfRim.Trade.CaravanFulfillGizmoCount>完成交易({COUNT})</ClashOfRim.Trade.CaravanFulfillGizmoCount>
+  <ClashOfRim.Trade.CaravanFulfillGizmo>交易</ClashOfRim.Trade.CaravanFulfillGizmo>
+  <ClashOfRim.Trade.CaravanFulfillGizmoCount>交易({COUNT})</ClashOfRim.Trade.CaravanFulfillGizmoCount>
   <ClashOfRim.Trade.CaravanFulfillGizmoDesc>远行队已到达可交易地块。提交远行队携带物完成已接取交易单。</ClashOfRim.Trade.CaravanFulfillGizmoDesc>
   <ClashOfRim.Trade.CaravanFulfillOption>{OWNER}：交付 {DELIVER}，获得 {RECEIVE}</ClashOfRim.Trade.CaravanFulfillOption>
   <ClashOfRim.Trade.CaravanInventoryInsufficient>本地远行队库存不足，无法扣除：{THING}</ClashOfRim.Trade.CaravanInventoryInsufficient>
@@ -1040,7 +1041,7 @@
   <ClashOfRim.Trade.ConfirmCreateTitle>确定创建如下交易单吗？</ClashOfRim.Trade.ConfirmCreateTitle>
   <ClashOfRim.Trade.ConfirmNoRequestedThings>你不会在这次交易中收到任何物品，确认要继续吗？</ClashOfRim.Trade.ConfirmNoRequestedThings>
   <ClashOfRim.Trade.ConfirmNoOfferedThings>完成这张交易单后，你不会收到任何物品，确认要继续吗？</ClashOfRim.Trade.ConfirmNoOfferedThings>
-  <ClashOfRim.Trade.CreateOrderTitle>创建交易单</ClashOfRim.Trade.CreateOrderTitle>
+  <ClashOfRim.Trade.CreateOrderTitle>新建</ClashOfRim.Trade.CreateOrderTitle>
   <ClashOfRim.Trade.Disabled>交易所已关闭。</ClashOfRim.Trade.Disabled>
   <ClashOfRim.Trade.EstimatedValues>预估价值：己方 {OFFERED}；对方 {REQUESTED}</ClashOfRim.Trade.EstimatedValues>
   <ClashOfRim.Trade.DeliverLine>交付：{THINGS}</ClashOfRim.Trade.DeliverLine>
@@ -1052,13 +1053,13 @@
   <ClashOfRim.Trade.FeeAndMemoLine>手续费白银：{FEE}；已接取：{COUNT}</ClashOfRim.Trade.FeeAndMemoLine>
   <ClashOfRim.Trade.BookKindAnomalyResearch>异常研究书</ClashOfRim.Trade.BookKindAnomalyResearch>
   <ClashOfRim.Trade.GeneXenotypeName>交易异种基因</ClashOfRim.Trade.GeneXenotypeName>
-  <ClashOfRim.Trade.UniqueWeaponTraitsAny>任意特化武器特质</ClashOfRim.Trade.UniqueWeaponTraitsAny>
-  <ClashOfRim.Trade.PersonaWeaponTraitsAny>任意人格武器特性</ClashOfRim.Trade.PersonaWeaponTraitsAny>
+  <ClashOfRim.Trade.UniqueWeaponTraitsAny>任意特性</ClashOfRim.Trade.UniqueWeaponTraitsAny>
+  <ClashOfRim.Trade.PersonaWeaponTraitsAny>任意特性</ClashOfRim.Trade.PersonaWeaponTraitsAny>
   <ClashOfRim.Trade.UniqueWeaponTraitUnavailable>不可组合</ClashOfRim.Trade.UniqueWeaponTraitUnavailable>
   <ClashOfRim.Shop.UniqueWeaponTraits>特化特质</ClashOfRim.Shop.UniqueWeaponTraits>
-  <ClashOfRim.Shop.SelectUniqueWeaponTraits>选择特化特质</ClashOfRim.Shop.SelectUniqueWeaponTraits>
+  <ClashOfRim.Shop.SelectUniqueWeaponTraits>特性</ClashOfRim.Shop.SelectUniqueWeaponTraits>
   <ClashOfRim.Shop.PersonaWeaponTraits>人格特性</ClashOfRim.Shop.PersonaWeaponTraits>
-  <ClashOfRim.Shop.SelectPersonaWeaponTraits>选择人格特性</ClashOfRim.Shop.SelectPersonaWeaponTraits>
+  <ClashOfRim.Shop.SelectPersonaWeaponTraits>特性</ClashOfRim.Shop.SelectPersonaWeaponTraits>
   <ClashOfRim.Trade.StatusAndExpiryLine>状态：{STATUS}；{EXPIRY}</ClashOfRim.Trade.StatusAndExpiryLine>
   <ClashOfRim.Trade.FeeWithFixed>手续费：&lt;color=#d7dadb&gt;{FEE} 白银&lt;/color&gt;（含固定托管费 {FIXED}，可用 {AVAILABLE}）</ClashOfRim.Trade.FeeWithFixed>
   <ClashOfRim.Trade.FulfillCompletedMessage>自提交易已完成，正在同步当前存档。</ClashOfRim.Trade.FulfillCompletedMessage>
@@ -1091,8 +1092,8 @@
   <ClashOfRim.Trade.PostageUnreachable>&lt;color=#ff6b6b&gt;不可达，无法发送&lt;/color&gt;</ClashOfRim.Trade.PostageUnreachable>
   <ClashOfRim.Trade.PawnRequirement>人员</ClashOfRim.Trade.PawnRequirement>
   <ClashOfRim.Trade.NoPawnHitPoints>无耐久要求</ClashOfRim.Trade.NoPawnHitPoints>
-  <ClashOfRim.Trade.PawnGenderAny>性别:不限</ClashOfRim.Trade.PawnGenderAny>
-  <ClashOfRim.Trade.PawnGenderSelected>性别:{GENDER}</ClashOfRim.Trade.PawnGenderSelected>
+  <ClashOfRim.Trade.PawnGenderAny>任意性别</ClashOfRim.Trade.PawnGenderAny>
+  <ClashOfRim.Trade.PawnGenderSelected>{GENDER}</ClashOfRim.Trade.PawnGenderSelected>
   <ClashOfRim.Trade.PawnGenderRequirement>性别:{GENDER}</ClashOfRim.Trade.PawnGenderRequirement>
   <ClashOfRim.Trade.PawnAge>年龄</ClashOfRim.Trade.PawnAge>
   <ClashOfRim.Trade.PawnAgeYears>岁</ClashOfRim.Trade.PawnAgeYears>
@@ -1100,8 +1101,8 @@
   <ClashOfRim.Trade.PawnAgeRequirementRange>年龄 {MIN}-{MAX} 岁</ClashOfRim.Trade.PawnAgeRequirementRange>
   <ClashOfRim.Trade.PawnAgeRequirementMin>年龄≥{AGE} 岁</ClashOfRim.Trade.PawnAgeRequirementMin>
   <ClashOfRim.Trade.PawnAgeRequirementMax>年龄≤{AGE} 岁</ClashOfRim.Trade.PawnAgeRequirementMax>
-  <ClashOfRim.Trade.QualityAny>品质:不限</ClashOfRim.Trade.QualityAny>
-  <ClashOfRim.Trade.QualitySelected>品质:{QUALITY}</ClashOfRim.Trade.QualitySelected>
+  <ClashOfRim.Trade.QualityAny>任意品质</ClashOfRim.Trade.QualityAny>
+  <ClashOfRim.Trade.QualitySelected>{QUALITY}</ClashOfRim.Trade.QualitySelected>
   <ClashOfRim.Trade.ReceiveLine>获得：{THINGS}</ClashOfRim.Trade.ReceiveLine>
   <ClashOfRim.Trade.RequireBeaconRange>仅使用贸易信标范围内的物品；关闭后使用信标和所有储存区</ClashOfRim.Trade.RequireBeaconRange>
   <ClashOfRim.Trade.RequestedGlobalItems>需求物品（全局物品池）</ClashOfRim.Trade.RequestedGlobalItems>
@@ -1116,11 +1117,11 @@
   <ClashOfRim.Trade.SelectedOffers>已选交付物</ClashOfRim.Trade.SelectedOffers>
   <ClashOfRim.Trade.SelectedRequests>已选需求（数量、品质、耐久为最低要求）</ClashOfRim.Trade.SelectedRequests>
   <ClashOfRim.Trade.SelectOrderForDetails>选择一张交易单查看详情。</ClashOfRim.Trade.SelectOrderForDetails>
-  <ClashOfRim.Trade.SelectGene>选择基因</ClashOfRim.Trade.SelectGene>
+  <ClashOfRim.Trade.SelectGene>基因</ClashOfRim.Trade.SelectGene>
   <ClashOfRim.Trade.SelectGeneTitle>选择目标基因</ClashOfRim.Trade.SelectGeneTitle>
-  <ClashOfRim.Trade.SelectResearchProject>选择研究</ClashOfRim.Trade.SelectResearchProject>
+  <ClashOfRim.Trade.SelectResearchProject>研究</ClashOfRim.Trade.SelectResearchProject>
   <ClashOfRim.Trade.SelectResearchProjectTitle>选择目标研究</ClashOfRim.Trade.SelectResearchProjectTitle>
-  <ClashOfRim.Trade.SendByDropPod>空投发送</ClashOfRim.Trade.SendByDropPod>
+  <ClashOfRim.Trade.SendByDropPod>空投</ClashOfRim.Trade.SendByDropPod>
   <ClashOfRim.Trade.StatusLine>状态：{STATUS}</ClashOfRim.Trade.StatusLine>
   <ClashOfRim.Trade.StatusAcceptedOrder>已接取交易单。</ClashOfRim.Trade.StatusAcceptedOrder>
   <ClashOfRim.Trade.StatusAcceptException>接单异常：{TYPE} {MESSAGE}</ClashOfRim.Trade.StatusAcceptException>
@@ -1172,7 +1173,7 @@
   <ClashOfRim.Trade.StatusFeeReservationIncomplete>手续费扣除不完整，剩余 {REMAINING} 白银未扣除。</ClashOfRim.Trade.StatusFeeReservationIncomplete>
   <ClashOfRim.Trade.StatusFeeSilverInsufficient>&lt;color=#ff6b6b&gt;手续费白银不足&lt;/color&gt;：需要 &lt;color=#d7dadb&gt;{NEEDED}&lt;/color&gt;，可用 &lt;color=#d7dadb&gt;{AVAILABLE}&lt;/color&gt;。</ClashOfRim.Trade.StatusFeeSilverInsufficient>
   <ClashOfRim.Trade.StatusQuotingFee>正在向服务器询问手续费。</ClashOfRim.Trade.StatusQuotingFee>
-  <ClashOfRim.Trade.StatusQuotingFeeShort>确认中...</ClashOfRim.Trade.StatusQuotingFeeShort>
+  <ClashOfRim.Trade.StatusQuotingFeeShort>核验中...</ClashOfRim.Trade.StatusQuotingFeeShort>
   <ClashOfRim.Trade.StatusFeeQuoted>服务器手续费：{FEE} 白银。</ClashOfRim.Trade.StatusFeeQuoted>
   <ClashOfRim.Trade.StatusFeeQuoteRejected>服务器拒绝交易报价：{MESSAGE}</ClashOfRim.Trade.StatusFeeQuoteRejected>
   <ClashOfRim.Trade.StatusFeeQuoteFailed>手续费报价失败：{MESSAGE}</ClashOfRim.Trade.StatusFeeQuoteFailed>
@@ -1209,12 +1210,12 @@
   <ClashOfRim.Trade.StatusTradeThingOutsideBeacon>交易物不在当前选择的交易范围内：{THING}。</ClashOfRim.Trade.StatusTradeThingOutsideBeacon>
   <ClashOfRim.Trade.StatusTradeThingInsufficient>交易物数量不足：{THING} 需要 {NEEDED}，当前 {CURRENT}。</ClashOfRim.Trade.StatusTradeThingInsufficient>
   <ClashOfRim.Trade.StatusTradeThingInvalid>交易物已经不在当前地图或数量有误，请重新打开交易单。</ClashOfRim.Trade.StatusTradeThingInvalid>
-  <ClashOfRim.Trade.StuffAny>材质:不限</ClashOfRim.Trade.StuffAny>
+  <ClashOfRim.Trade.StuffAny>任意材质</ClashOfRim.Trade.StuffAny>
   <ClashOfRim.Trade.StuffRequirement>材质:{STUFF}</ClashOfRim.Trade.StuffRequirement>
   <ClashOfRim.Trade.SubmitHintMissing>至少需要交付物或需求物，并保证有足够手续费白银。</ClashOfRim.Trade.SubmitHintMissing>
   <ClashOfRim.Trade.SubmitHintIncompleteRequest>需求物条件还没有填写完整。</ClashOfRim.Trade.SubmitHintIncompleteRequest>
   <ClashOfRim.Trade.SubmitHintReady>交付 {OFFERCOUNT} 项，需求 {REQUESTCOUNT} 项。交货方式由接单方在实际完成交易时选择。</ClashOfRim.Trade.SubmitHintReady>
-  <ClashOfRim.Trade.SubmitOrder>提交交易单</ClashOfRim.Trade.SubmitOrder>
+  <ClashOfRim.Trade.SubmitOrder>发布</ClashOfRim.Trade.SubmitOrder>
   <ClashOfRim.Trade.TargetBookSkillRequirement>{SKILL}</ClashOfRim.Trade.TargetBookSkillRequirement>
   <ClashOfRim.Trade.TargetResearchProjectRequirement>{PROJECT}</ClashOfRim.Trade.TargetResearchProjectRequirement>
   <ClashOfRim.Trade.SourceLabels>来源 {SOURCES}</ClashOfRim.Trade.SourceLabels>
@@ -1224,16 +1225,16 @@
   <ClashOfRim.Trade.UnknownOwner>未知发布者</ClashOfRim.Trade.UnknownOwner>
   <ClashOfRim.Trade.ViewerAcceptedSuffix>，我已接取</ClashOfRim.Trade.ViewerAcceptedSuffix>
   <ClashOfRim.Trade.ViewOnly>仅查看</ClashOfRim.Trade.ViewOnly>
-  <ClashOfRim.GiftDelivery.CaravanGizmo>投递礼物</ClashOfRim.GiftDelivery.CaravanGizmo>
-  <ClashOfRim.GiftDelivery.CaravanGizmoCount>投递礼物（{COUNT}）</ClashOfRim.GiftDelivery.CaravanGizmoCount>
+  <ClashOfRim.GiftDelivery.CaravanGizmo>送礼</ClashOfRim.GiftDelivery.CaravanGizmo>
+  <ClashOfRim.GiftDelivery.CaravanGizmoCount>送礼（{COUNT}）</ClashOfRim.GiftDelivery.CaravanGizmoCount>
   <ClashOfRim.GiftDelivery.CaravanGizmoDesc>当前远行队已到达其他殖民地地块，可向目标投递礼物。</ClashOfRim.GiftDelivery.CaravanGizmoDesc>
   <ClashOfRim.GiftDelivery.ForcedCaravanGizmo>强行投递</ClashOfRim.GiftDelivery.ForcedCaravanGizmo>
-  <ClashOfRim.GiftDelivery.ForcedCaravanGizmoCount>强行投递（{COUNT}）</ClashOfRim.GiftDelivery.ForcedCaravanGizmoCount>
+  <ClashOfRim.GiftDelivery.ForcedCaravanGizmoCount>强投（{COUNT}）</ClashOfRim.GiftDelivery.ForcedCaravanGizmoCount>
   <ClashOfRim.GiftDelivery.ForcedCaravanGizmoDesc>当前远行队已到达敌对殖民地地块，可向目标强行投递物品。</ClashOfRim.GiftDelivery.ForcedCaravanGizmoDesc>
   <ClashOfRim.GiftDelivery.Title>远行队投递物品</ClashOfRim.GiftDelivery.Title>
   <ClashOfRim.GiftDelivery.TargetLine>目标：{TARGET}</ClashOfRim.GiftDelivery.TargetLine>
   <ClashOfRim.GiftDelivery.TargetOption>{TARGET}</ClashOfRim.GiftDelivery.TargetOption>
-  <ClashOfRim.GiftDelivery.NormalMode>普通礼物</ClashOfRim.GiftDelivery.NormalMode>
+  <ClashOfRim.GiftDelivery.NormalMode>礼物</ClashOfRim.GiftDelivery.NormalMode>
   <ClashOfRim.GiftDelivery.ForcedMode>强行投递</ClashOfRim.GiftDelivery.ForcedMode>
   <ClashOfRim.GiftDelivery.NormalUnavailable>无法普通送礼</ClashOfRim.GiftDelivery.NormalUnavailable>
   <ClashOfRim.GiftDelivery.ForcedUnavailable>不可强投</ClashOfRim.GiftDelivery.ForcedUnavailable>
@@ -1275,7 +1276,7 @@
   <ClashOfRim.SnapshotConfirmationFailure.Message>&lt;b&gt;{OPERATION}&lt;/b&gt; 没有同步到服务器。&lt;color=#ffd166&gt;继续游玩会使本地存档和服务器存档不一致。&lt;/color&gt;请重试上传，或者返回主菜单后重新进入服务器。\n\n当前错误：&lt;color=#ff6b6b&gt;{MESSAGE}&lt;/color&gt;</ClashOfRim.SnapshotConfirmationFailure.Message>
   <ClashOfRim.SnapshotConfirmationFailure.MessageCompact>&lt;b&gt;{OPERATION}&lt;/b&gt; 没有同步到服务器。&lt;color=#ffd166&gt;继续游玩会使本地状态和服务器存档不一致。&lt;/color&gt;请重试上传，或者返回主菜单后重新进入服务器。</ClashOfRim.SnapshotConfirmationFailure.MessageCompact>
   <ClashOfRim.SnapshotConfirmationFailure.RetryUpload>重试上传</ClashOfRim.SnapshotConfirmationFailure.RetryUpload>
-  <ClashOfRim.SnapshotConfirmationFailure.ReturnToMainMenu>返回主菜单</ClashOfRim.SnapshotConfirmationFailure.ReturnToMainMenu>
+  <ClashOfRim.SnapshotConfirmationFailure.ReturnToMainMenu>主菜单</ClashOfRim.SnapshotConfirmationFailure.ReturnToMainMenu>
   <ClashOfRim.SnapshotConfirmationFailure.Waiting>正在处理。完成前游戏会保持暂停，请不要继续操作。</ClashOfRim.SnapshotConfirmationFailure.Waiting>
   <ClashOfRim.SnapshotConfirmationFailure.RetryMissing>没有可重试的上传操作。</ClashOfRim.SnapshotConfirmationFailure.RetryMissing>
   <ClashOfRim.SnapshotConfirmationFailure.ReturningToMainMenu>正在返回主菜单。</ClashOfRim.SnapshotConfirmationFailure.ReturningToMainMenu>
@@ -1288,7 +1289,7 @@
   <ClashOfRim.SnapshotConfirmationFailure.OperationBank>银行操作</ClashOfRim.SnapshotConfirmationFailure.OperationBank>
   <ClashOfRim.SnapshotConfirmationFailure.OperationMercenary>佣兵操作</ClashOfRim.SnapshotConfirmationFailure.OperationMercenary>
   <ClashOfRim.SnapshotConfirmationFailure.OperationColonyRelocation>殖民地搬迁</ClashOfRim.SnapshotConfirmationFailure.OperationColonyRelocation>
-  <ClashOfRim.ColonyRelocation.CommandLabel>搬迁殖民地</ClashOfRim.ColonyRelocation.CommandLabel>
+  <ClashOfRim.ColonyRelocation.CommandLabel>搬迁</ClashOfRim.ColonyRelocation.CommandLabel>
   <ClashOfRim.ColonyRelocation.CommandDesc>让远行队在当前位置建立新的殖民地，并按原版规则废弃当前旧殖民地。服务器保存成功前，不能继续正常游玩。</ClashOfRim.ColonyRelocation.CommandDesc>
   <ClashOfRim.ColonyRelocation.Title>确认搬迁殖民地</ClashOfRim.ColonyRelocation.Title>
   <ClashOfRim.ColonyRelocation.Warning>&lt;color=#ffd166&gt;你将按原版规则废弃当前殖民地 {COLONY}，并在地块 {TILE} 建立新殖民地。&lt;/color&gt;\n\n未随远行队带走的人、动物、物品和建筑不会保留。搬迁成功后，当前位置会成为你的唯一殖民地。\n\n搬迁后必须保存进度。若保存失败，只能重试上传或返回主菜单重新加入服务器。</ClashOfRim.ColonyRelocation.Warning>
@@ -1323,7 +1324,7 @@
   <ClashOfRim.Bank.ConfirmRepay>确定偿还 &lt;color=#d7dadb&gt;{TOTAL} 白银&lt;/color&gt;吗？\n\n本地会扣除白银并结束还款任务，随后必须保存当前状态。</ClashOfRim.Bank.ConfirmRepay>
   <ClashOfRim.Bank.ConfirmRepayDebt>确定偿还这条债务 &lt;color=#d7dadb&gt;{TOTAL} 白银&lt;/color&gt;吗？\n\n来源：{REASON}\n\n本地会扣除白银，随后必须保存当前状态。</ClashOfRim.Bank.ConfirmRepayDebt>
   <ClashOfRim.Bank.CreateHint>金额必须在服务器允许的本金范围内；期限必须在服务器允许范围内。</ClashOfRim.Bank.CreateHint>
-  <ClashOfRim.Bank.CreateLoan>申请贷款</ClashOfRim.Bank.CreateLoan>
+  <ClashOfRim.Bank.CreateLoan>贷款</ClashOfRim.Bank.CreateLoan>
   <ClashOfRim.Bank.Disabled>银行贷款已关闭。</ClashOfRim.Bank.Disabled>
   <ClashOfRim.Bank.DebtItemLine>{TOTAL} 白银；来源：{SOURCE}；状态：{STATUS}</ClashOfRim.Bank.DebtItemLine>
   <ClashOfRim.Bank.DebtListTitle>其他债务</ClashOfRim.Bank.DebtListTitle>
@@ -1426,7 +1427,7 @@
   <ClashOfRim.Mercenary.InspectLoaded>已进入召回穿梭机。</ClashOfRim.Mercenary.InspectLoaded>
   <ClashOfRim.Mercenary.InspectTemporary>将乘坐召回穿梭机离开。</ClashOfRim.Mercenary.InspectTemporary>
   <ClashOfRim.Mercenary.InspectWaitingForShuttle>正在等待乘坐召回穿梭机离开。</ClashOfRim.Mercenary.InspectWaitingForShuttle>
-  <ClashOfRim.Mercenary.LoadRecallShuttle>装载佣兵</ClashOfRim.Mercenary.LoadRecallShuttle>
+  <ClashOfRim.Mercenary.LoadRecallShuttle>装载</ClashOfRim.Mercenary.LoadRecallShuttle>
   <ClashOfRim.Mercenary.LoadRecallShuttleDesc>开始将需要召回的佣兵装入这架穿梭机。</ClashOfRim.Mercenary.LoadRecallShuttleDesc>
   <ClashOfRim.Mercenary.LoadRecallShuttleStarted>正在安排 {PAWN} 进入召回穿梭机。</ClashOfRim.Mercenary.LoadRecallShuttleStarted>
   <ClashOfRim.Mercenary.LoadRecallShuttleAlreadyLoaded>{PAWN} 已在召回穿梭机内。</ClashOfRim.Mercenary.LoadRecallShuttleAlreadyLoaded>
@@ -1516,7 +1517,7 @@
   <ClashOfRim.Support.QuestFullDescriptionPermanent>{PAWN} 由 {OWNER} 派来作为永久支援。除非后续事件结算，否则不会自动返回。</ClashOfRim.Support.QuestFullDescriptionPermanent>
   <ClashOfRim.Support.QuestFullDescriptionTemporary>{PAWN} 由 {OWNER} 派来提供临时支援。期限结束后会自行返回原殖民地。</ClashOfRim.Support.QuestFullDescriptionTemporary>
   <ClashOfRim.Support.QuestName>支援：{PAWN}</ClashOfRim.Support.QuestName>
-  <ClashOfRim.Support.EarlyReturn>提前遣返</ClashOfRim.Support.EarlyReturn>
+  <ClashOfRim.Support.EarlyReturn>遣返</ClashOfRim.Support.EarlyReturn>
   <ClashOfRim.Support.EarlyReturnDesc>命令这名临时支援殖民者离开地图，返回原殖民地。</ClashOfRim.Support.EarlyReturnDesc>
   <ClashOfRim.Support.EarlyReturnUnavailable>当前无法遣返这名支援殖民者。</ClashOfRim.Support.EarlyReturnUnavailable>
   <ClashOfRim.SnapshotConfirmationFailure.OperationSupport>支援殖民者返程</ClashOfRim.SnapshotConfirmationFailure.OperationSupport>
@@ -1561,7 +1562,7 @@
   <ClashOfRim.RemoteSessionMap.RaidObservationNamedLabel>观战：{OWNER} 的 {LABEL}</ClashOfRim.RemoteSessionMap.RaidObservationNamedLabel>
   <ClashOfRim.RemoteSessionMap.RaidBattleLabel>{OWNER} 的袭击战场</ClashOfRim.RemoteSessionMap.RaidBattleLabel>
   <ClashOfRim.RemoteSessionMap.RaidBattleNamedLabel>袭击：{OWNER} 的 {LABEL}</ClashOfRim.RemoteSessionMap.RaidBattleNamedLabel>
-  <ClashOfRim.RemoteSessionMap.Close>关闭观察地图</ClashOfRim.RemoteSessionMap.Close>
+  <ClashOfRim.RemoteSessionMap.Close>关闭</ClashOfRim.RemoteSessionMap.Close>
   <ClashOfRim.RemoteSessionMap.CloseDesc>关闭当前观察地图并恢复正常多人会话。</ClashOfRim.RemoteSessionMap.CloseDesc>
   <ClashOfRim.RemoteSessionMap.Closed>已关闭观察地图。</ClashOfRim.RemoteSessionMap.Closed>
   <ClashOfRim.RemoteSessionMap.ActiveSessionBlocksOpen>已有远方地图正在打开，请先关闭当前地图或完成袭击。</ClashOfRim.RemoteSessionMap.ActiveSessionBlocksOpen>
@@ -1610,7 +1611,7 @@
   <ClashOfRim.Admin.NotConnected>尚未连接服务器。</ClashOfRim.Admin.NotConnected>
   <ClashOfRim.Admin.NotAdministrator>当前用户不是管理员。</ClashOfRim.Admin.NotAdministrator>
   <ClashOfRim.Admin.SavedMessage>服务器配置已更新。</ClashOfRim.Admin.SavedMessage>
-  <ClashOfRim.Admin.UpdateWorldBaseline>更新世界资料</ClashOfRim.Admin.UpdateWorldBaseline>
+  <ClashOfRim.Admin.UpdateWorldBaseline>世界</ClashOfRim.Admin.UpdateWorldBaseline>
   <ClashOfRim.Admin.UpdateWorldBaselineDesc>用当前存档覆盖服务器的世界、阵营、文化及相关基线。此操作会影响所有玩家，请仅在当前存档正确时使用。</ClashOfRim.Admin.UpdateWorldBaselineDesc>
   <ClashOfRim.SelectionButtonTip>点击修改当前选项。</ClashOfRim.SelectionButtonTip>
   <ClashOfRim.Admin.WorldBaselineUpdating>正在更新世界资料。</ClashOfRim.Admin.WorldBaselineUpdating>
@@ -1642,9 +1643,9 @@
   <ClashOfRim.Admin.MaxOpenTradeOrders>每人开放交易单上限</ClashOfRim.Admin.MaxOpenTradeOrders>
   <ClashOfRim.Admin.TradeBaseFeeRate>基础手续费比例</ClashOfRim.Admin.TradeBaseFeeRate>
   <ClashOfRim.Admin.TradeFeeStrategy>手续费策略</ClashOfRim.Admin.TradeFeeStrategy>
-  <ClashOfRim.Admin.TradeFeeStrategyPublisher>按发布方</ClashOfRim.Admin.TradeFeeStrategyPublisher>
-  <ClashOfRim.Admin.TradeFeeStrategyHighestSide>取双方最高</ClashOfRim.Admin.TradeFeeStrategyHighestSide>
-  <ClashOfRim.Admin.TradeFeeStrategySumBothSides>双方合计</ClashOfRim.Admin.TradeFeeStrategySumBothSides>
+  <ClashOfRim.Admin.TradeFeeStrategyPublisher>发布方</ClashOfRim.Admin.TradeFeeStrategyPublisher>
+  <ClashOfRim.Admin.TradeFeeStrategyHighestSide>较高方</ClashOfRim.Admin.TradeFeeStrategyHighestSide>
+  <ClashOfRim.Admin.TradeFeeStrategySumBothSides>合计</ClashOfRim.Admin.TradeFeeStrategySumBothSides>
   <ClashOfRim.Admin.FixedTradeFees>固定手续费</ClashOfRim.Admin.FixedTradeFees>
   <ClashOfRim.Admin.AddFixedTradeFee>新增</ClashOfRim.Admin.AddFixedTradeFee>
   <ClashOfRim.Admin.FixedTradeFeeThing>物品</ClashOfRim.Admin.FixedTradeFeeThing>
@@ -1724,7 +1725,7 @@
   <ClashOfRim.Admin.BroadcastMessage>广播内容</ClashOfRim.Admin.BroadcastMessage>
   <ClashOfRim.Admin.ActionBroadcast>广播</ClashOfRim.Admin.ActionBroadcast>
   <ClashOfRim.Admin.BroadcastTarget>发送目标</ClashOfRim.Admin.BroadcastTarget>
-  <ClashOfRim.Admin.BroadcastTargetAll>所有玩家</ClashOfRim.Admin.BroadcastTargetAll>
+  <ClashOfRim.Admin.BroadcastTargetAll>全员</ClashOfRim.Admin.BroadcastTargetAll>
   <ClashOfRim.Admin.BroadcastPersistent>持久通知</ClashOfRim.Admin.BroadcastPersistent>
   <ClashOfRim.Admin.BroadcastSeverityInfo>通知</ClashOfRim.Admin.BroadcastSeverityInfo>
   <ClashOfRim.Admin.BroadcastSeverityWarning>警告</ClashOfRim.Admin.BroadcastSeverityWarning>
@@ -1732,7 +1733,7 @@
   <ClashOfRim.Admin.MaintenanceLocked>新登录已封锁。</ClashOfRim.Admin.MaintenanceLocked>
   <ClashOfRim.Admin.MaintenanceUnlocked>新登录未封锁。</ClashOfRim.Admin.MaintenanceUnlocked>
   <ClashOfRim.Admin.MaintenanceReason>维护说明</ClashOfRim.Admin.MaintenanceReason>
-  <ClashOfRim.Admin.ActionLockLogin>封锁登录</ClashOfRim.Admin.ActionLockLogin>
+  <ClashOfRim.Admin.ActionLockLogin>封锁</ClashOfRim.Admin.ActionLockLogin>
   <ClashOfRim.Admin.ActionUnlockLogin>解除封锁</ClashOfRim.Admin.ActionUnlockLogin>
   <ClashOfRim.Admin.DevToolsBlocked>多人会话中只有管理员可以使用开发者工具。</ClashOfRim.Admin.DevToolsBlocked>
   <ClashOfRim.Admin.NoManifest>服务器尚未建立模组列表。</ClashOfRim.Admin.NoManifest>
@@ -1740,7 +1741,7 @@
   <ClashOfRim.Admin.ConfigNotSaved>(默认设置，尚未保存)</ClashOfRim.Admin.ConfigNotSaved>
   <ClashOfRim.Admin.ModRoleRequired>必要</ClashOfRim.Admin.ModRoleRequired>
   <ClashOfRim.Admin.ModRoleOptional>可选</ClashOfRim.Admin.ModRoleOptional>
-  <ClashOfRim.Admin.ModRoleTranslation>翻译豁免</ClashOfRim.Admin.ModRoleTranslation>
+  <ClashOfRim.Admin.ModRoleTranslation>翻译</ClashOfRim.Admin.ModRoleTranslation>
   <ClashOfRim.Admin.ConfigModeEnforce>强制</ClashOfRim.Admin.ConfigModeEnforce>
   <ClashOfRim.Admin.ConfigModeWarn>警告</ClashOfRim.Admin.ConfigModeWarn>
   <ClashOfRim.Admin.ConfigModeIgnore>忽略</ClashOfRim.Admin.ConfigModeIgnore>
@@ -1777,8 +1778,8 @@
   <ClashOfRim.Shop.ConfirmSell>确定交付 {COUNT} 份 {THING}，换取 &lt;color=#d7dadb&gt;{PRICE} 白银&lt;/color&gt;？</ClashOfRim.Shop.ConfirmSell>
   <ClashOfRim.Shop.AddListing>上架</ClashOfRim.Shop.AddListing>
   <ClashOfRim.Shop.Kind>类型</ClashOfRim.Shop.Kind>
-  <ClashOfRim.Shop.KindSell>出售给玩家</ClashOfRim.Shop.KindSell>
-  <ClashOfRim.Shop.KindBuy>向玩家收购</ClashOfRim.Shop.KindBuy>
+  <ClashOfRim.Shop.KindSell>出售</ClashOfRim.Shop.KindSell>
+  <ClashOfRim.Shop.KindBuy>收购</ClashOfRim.Shop.KindBuy>
   <ClashOfRim.Shop.StockShort>库存</ClashOfRim.Shop.StockShort>
   <ClashOfRim.Shop.DemandShort>收购</ClashOfRim.Shop.DemandShort>
   <ClashOfRim.Shop.PriceShort>单价</ClashOfRim.Shop.PriceShort>
@@ -1795,20 +1796,20 @@
   <ClashOfRim.Shop.ListingDetails>商品设置</ClashOfRim.Shop.ListingDetails>
   <ClashOfRim.Shop.NoThingSelected>尚未选择物品。</ClashOfRim.Shop.NoThingSelected>
   <ClashOfRim.Shop.Genes>基因组</ClashOfRim.Shop.Genes>
-  <ClashOfRim.Shop.SelectGenes>选择基因</ClashOfRim.Shop.SelectGenes>
+  <ClashOfRim.Shop.SelectGenes>基因</ClashOfRim.Shop.SelectGenes>
   <ClashOfRim.Shop.SelectGenesTitle>选择商品基因组</ClashOfRim.Shop.SelectGenesTitle>
   <ClashOfRim.Shop.BookContent>书籍内容</ClashOfRim.Shop.BookContent>
   <ClashOfRim.Shop.ResearchProject>研究项目</ClashOfRim.Shop.ResearchProject>
-  <ClashOfRim.Shop.SelectBookSkills>选择技能</ClashOfRim.Shop.SelectBookSkills>
+  <ClashOfRim.Shop.SelectBookSkills>技能</ClashOfRim.Shop.SelectBookSkills>
   <ClashOfRim.Shop.Stuff>材质</ClashOfRim.Shop.Stuff>
   <ClashOfRim.Shop.Quality>品质</ClashOfRim.Shop.Quality>
   <ClashOfRim.Shop.QualityRequirement>品质限制</ClashOfRim.Shop.QualityRequirement>
-  <ClashOfRim.Shop.QualityAtLeast>目标品质或更高</ClashOfRim.Shop.QualityAtLeast>
-  <ClashOfRim.Shop.QualityAtMost>目标品质或更低</ClashOfRim.Shop.QualityAtMost>
+  <ClashOfRim.Shop.QualityAtLeast>最低</ClashOfRim.Shop.QualityAtLeast>
+  <ClashOfRim.Shop.QualityAtMost>最高</ClashOfRim.Shop.QualityAtMost>
   <ClashOfRim.Shop.HitPoints>耐久</ClashOfRim.Shop.HitPoints>
   <ClashOfRim.Shop.HitPointsRequirement>耐久限制</ClashOfRim.Shop.HitPointsRequirement>
-  <ClashOfRim.Shop.HitPointsAtLeast>目标耐久或更高</ClashOfRim.Shop.HitPointsAtLeast>
-  <ClashOfRim.Shop.HitPointsAtMost>目标耐久或更低</ClashOfRim.Shop.HitPointsAtMost>
+  <ClashOfRim.Shop.HitPointsAtLeast>最低</ClashOfRim.Shop.HitPointsAtLeast>
+  <ClashOfRim.Shop.HitPointsAtMost>最高</ClashOfRim.Shop.HitPointsAtMost>
   <ClashOfRim.Shop.IncompleteListing>物品属性未选择，请补全特殊物品属性</ClashOfRim.Shop.IncompleteListing>
   <ClashOfRim.Shop.StatusSavingListing>正在保存商品。</ClashOfRim.Shop.StatusSavingListing>
   <ClashOfRim.Shop.StatusSaveFailed>商品保存失败：{CODE} {MESSAGE}</ClashOfRim.Shop.StatusSaveFailed>
@@ -1852,13 +1853,13 @@
   <ClashOfRim.TraitTrainer.NoTrait>未选择特性</ClashOfRim.TraitTrainer.NoTrait>
   <ClashOfRim.TraitTrainer.Random>随机</ClashOfRim.TraitTrainer.Random>
   <ClashOfRim.TraitTrainer.RandomDescription>一种神经训练器，可在使用者的大脑中诱发一个随机特性。</ClashOfRim.TraitTrainer.RandomDescription>
-  <ClashOfRim.TraitTrainer.Select>选择特性</ClashOfRim.TraitTrainer.Select>
+  <ClashOfRim.TraitTrainer.Select>特性</ClashOfRim.TraitTrainer.Select>
   <ClashOfRim.TraitTrainer.SelectTitle>选择特性</ClashOfRim.TraitTrainer.SelectTitle>
   <ClashOfRim.TraitTrainer.Trait>特性</ClashOfRim.TraitTrainer.Trait>
   <ClashOfRim.TraitTrainer.Used>{PAWN} 获得了特性：{TRAIT}。</ClashOfRim.TraitTrainer.Used>
   <ClashOfRim.TraitTrainer.UseLabel>使用特性训练器：{TRAIT}</ClashOfRim.TraitTrainer.UseLabel>
   <ClashOfRim.TraitTrainer.UseRandomLabel>使用随机特性训练器</ClashOfRim.TraitTrainer.UseRandomLabel>
-  <ClashOfRim.ColonyAppearance.CommandLabel>设置多人图标</ClashOfRim.ColonyAppearance.CommandLabel>
+  <ClashOfRim.ColonyAppearance.CommandLabel>图标</ClashOfRim.ColonyAppearance.CommandLabel>
   <ClashOfRim.ColonyAppearance.CommandDesc>设置其他玩家在大地图上看到的殖民地图标。</ClashOfRim.ColonyAppearance.CommandDesc>
   <ClashOfRim.ColonyAppearance.Title>殖民地图标</ClashOfRim.ColonyAppearance.Title>
   <ClashOfRim.ColonyAppearance.Target>目标：{COLONY}</ClashOfRim.ColonyAppearance.Target>

@@ -12,7 +12,7 @@
   <ClashOfRim.Send>Отправить</ClashOfRim.Send>
   <ClashOfRim.SessionExpired.Title>Сеанс сервера истек</ClashOfRim.SessionExpired.Title>
   <ClashOfRim.SessionExpired.Message>Сеанс сервера истек. Вернитесь в главное меню и снова войдите на сервер.</ClashOfRim.SessionExpired.Message>
-  <ClashOfRim.SessionExpired.ReturnToMainMenu>В главное меню</ClashOfRim.SessionExpired.ReturnToMainMenu>
+  <ClashOfRim.SessionExpired.ReturnToMainMenu>В меню</ClashOfRim.SessionExpired.ReturnToMainMenu>
   <ClashOfRim.SessionExpired.Status>Сеанс сервера истек. Войдите снова.</ClashOfRim.SessionExpired.Status>
   <ClashOfRim.Chat.EmptyMessage>Сообщение чата не может быть пустым.</ClashOfRim.Chat.EmptyMessage>
   <ClashOfRim.Chat.InvalidPrivateFormat>Формат личного сообщения: @игрок сообщение.</ClashOfRim.Chat.InvalidPrivateFormat>
@@ -38,7 +38,7 @@
   <ClashOfRim.Network.StatusNotConfigured>Адрес сервера, учетная запись или колония не настроены.</ClashOfRim.Network.StatusNotConfigured>
   <ClashOfRim.Network.StatusDeserializeFailed>Не удалось разобрать тип ответа: {TYPE}</ClashOfRim.Network.StatusDeserializeFailed>
   <ClashOfRim.Chat.Title>Чат</ClashOfRim.Chat.Title>
-  <ClashOfRim.Account.ChangePassword>Сменить пароль</ClashOfRim.Account.ChangePassword>
+  <ClashOfRim.Account.ChangePassword>Пароль</ClashOfRim.Account.ChangePassword>
   <ClashOfRim.Account.CurrentPassword>Текущий пароль</ClashOfRim.Account.CurrentPassword>
   <ClashOfRim.Account.CurrentUser>Текущая учетная запись: {USER}</ClashOfRim.Account.CurrentUser>
   <ClashOfRim.Account.NewPassword>Новый пароль</ClashOfRim.Account.NewPassword>
@@ -85,17 +85,18 @@
   <ClashOfRim.Compatibility.FilesMatch>Файлы совпадают.</ClashOfRim.Compatibility.FilesMatch>
   <ClashOfRim.Compatibility.ConfigsMatch>Конфиг совпадает.</ClashOfRim.Compatibility.ConfigsMatch>
   <ClashOfRim.Compatibility.ModsMatch>Моды совпадают.</ClashOfRim.Compatibility.ModsMatch>
-  <ClashOfRim.Compatibility.ApplyAndRestart>Применить и перезапустить</ClashOfRim.Compatibility.ApplyAndRestart>
-  <ClashOfRim.Compatibility.JoinAnyway>Всё равно присоединиться</ClashOfRim.Compatibility.JoinAnyway>
-  <ClashOfRim.Compatibility.ConfigApplyOverlayAndRestart>Overlay и перезапуск</ClashOfRim.Compatibility.ConfigApplyOverlayAndRestart>
-  <ClashOfRim.Compatibility.ConfigOverwriteLocalAndRestart>Локально и перезапуск</ClashOfRim.Compatibility.ConfigOverwriteLocalAndRestart>
-  <ClashOfRim.Compatibility.ConfigApplyOverlayDesc>Использовать настройки сервера, не изменяя локальные файлы Config.</ClashOfRim.Compatibility.ConfigApplyOverlayDesc>
-  <ClashOfRim.Compatibility.ConfigOverwriteLocalDesc>Записать настройки сервера в локальные файлы Config и удалить активный серверный overlay.</ClashOfRim.Compatibility.ConfigOverwriteLocalDesc>
+  <ClashOfRim.Compatibility.ApplyAndRestart>Применить</ClashOfRim.Compatibility.ApplyAndRestart>
+  <ClashOfRim.Compatibility.ApplyAndRestartDesc>Применить серверный список модов и порядок загрузки, затем перезапустить игру.</ClashOfRim.Compatibility.ApplyAndRestartDesc>
+  <ClashOfRim.Compatibility.JoinAnyway>Войти</ClashOfRim.Compatibility.JoinAnyway>
+  <ClashOfRim.Compatibility.ConfigApplyOverlayAndRestart>Overlay</ClashOfRim.Compatibility.ConfigApplyOverlayAndRestart>
+  <ClashOfRim.Compatibility.ConfigOverwriteLocalAndRestart>Перезаписать</ClashOfRim.Compatibility.ConfigOverwriteLocalAndRestart>
+  <ClashOfRim.Compatibility.ConfigApplyOverlayDesc>Применить настройки сервера как overlay без изменения локальных файлов Config, затем перезапустить игру.</ClashOfRim.Compatibility.ConfigApplyOverlayDesc>
+  <ClashOfRim.Compatibility.ConfigOverwriteLocalDesc>Записать настройки сервера в локальные файлы Config, удалить активный overlay и перезапустить игру.</ClashOfRim.Compatibility.ConfigOverwriteLocalDesc>
   <ClashOfRim.Compatibility.ConfigApplyOverlayRestarting>Серверный overlay настроек применен. Перезапуск.</ClashOfRim.Compatibility.ConfigApplyOverlayRestarting>
   <ClashOfRim.Compatibility.ConfigOverwriteLocalRestarting>Локальные настройки перезаписаны. Перезапуск.</ClashOfRim.Compatibility.ConfigOverwriteLocalRestarting>
   <ClashOfRim.Compatibility.ConfigApplyAvailable>При различиях настроек можно использовать серверный overlay или перезаписать локальные настройки перед перезапуском.</ClashOfRim.Compatibility.ConfigApplyAvailable>
   <ClashOfRim.Compatibility.OpenWorkshop>Мастерская</ClashOfRim.Compatibility.OpenWorkshop>
-  <ClashOfRim.Compatibility.OverrideBaseline>Обновить данные сервера</ClashOfRim.Compatibility.OverrideBaseline>
+  <ClashOfRim.Compatibility.OverrideBaseline>Заменить</ClashOfRim.Compatibility.OverrideBaseline>
   <ClashOfRim.Compatibility.OverrideBaselineDesc>Заменить базовый манифест сервера списком модов, хешами файлов и правилами настроек этого клиента. Это повлияет на последующие подключения всех игроков; используйте только после проверки окружения.</ClashOfRim.Compatibility.OverrideBaselineDesc>
   <ClashOfRim.Compatibility.Override.ModListWarning>Текущий список модов или порядок загрузки клиента не совпадает с базовой линией сервера. Если продолжить, сервер будет использовать этот клиент как новую базовую линию. Убедитесь, что вы не загрузили локальный одиночный список модов.</ClashOfRim.Compatibility.Override.ModListWarning>
   <ClashOfRim.Compatibility.Summary>Моды {MODS} / файлы {FILES} / конфиг {CONFIGS}</ClashOfRim.Compatibility.Summary>
@@ -179,7 +180,7 @@
   <ClashOfRim.Compatibility.Override.AdminBaselineNotUpdated>Таблица цен и список ловушек администратора не обновлены: {MESSAGE}</ClashOfRim.Compatibility.Override.AdminBaselineNotUpdated>
   <ClashOfRim.Compatibility.Override.Exception>Исключение обновления: {TYPE}</ClashOfRim.Compatibility.Override.Exception>
   <ClashOfRim.Compatibility.Override.Title>Обновить данные сервера</ClashOfRim.Compatibility.Override.Title>
-  <ClashOfRim.Compatibility.Override.ReturnMainMenu>Вернуться в главное меню</ClashOfRim.Compatibility.Override.ReturnMainMenu>
+  <ClashOfRim.Compatibility.Override.ReturnMainMenu>В меню</ClashOfRim.Compatibility.Override.ReturnMainMenu>
   <ClashOfRim.Compatibility.Override.Success>&lt;color=#7ecf6b&gt;Обновление успешно.&lt;/color&gt;</ClashOfRim.Compatibility.Override.Success>
   <ClashOfRim.Compatibility.Override.Failed>&lt;color=#ff6b6b&gt;Обновление не удалось.&lt;/color&gt;</ClashOfRim.Compatibility.Override.Failed>
   <ClashOfRim.Compatibility.ModSettingsLockedTitle>Конфиг сервера заблокирован</ClashOfRim.Compatibility.ModSettingsLockedTitle>
@@ -326,7 +327,7 @@
   <ClashOfRim.Achievement.ScoreboardEmpty>Записей достижений пока нет.</ClashOfRim.Achievement.ScoreboardEmpty>
   <ClashOfRim.Achievement.SelectPlayer>Выберите игрока для просмотра</ClashOfRim.Achievement.SelectPlayer>
   <ClashOfRim.Achievement.OwnEmpty>Достижений пока нет.</ClashOfRim.Achievement.OwnEmpty>
-  <ClashOfRim.Achievement.GetTrophyBlueprint>Получить план трофея</ClashOfRim.Achievement.GetTrophyBlueprint>
+  <ClashOfRim.Achievement.GetTrophyBlueprint>Чертёж</ClashOfRim.Achievement.GetTrophyBlueprint>
   <ClashOfRim.Achievement.GetTrophyBlueprintDesc>Создать план трофея с записью этого достижения.</ClashOfRim.Achievement.GetTrophyBlueprintDesc>
   <ClashOfRim.Achievement.TrophyBlueprintSelected>Чертеж трофея достижения выбран.</ClashOfRim.Achievement.TrophyBlueprintSelected>
   <ClashOfRim.Achievement.TrophyNoMap>Войдите на карту колонии, чтобы разместить трофей.</ClashOfRim.Achievement.TrophyNoMap>
@@ -334,7 +335,7 @@
   <ClashOfRim.Achievement.TrophyPlanMissingDef>Определение плана трофея достижения не найдено.</ClashOfRim.Achievement.TrophyPlanMissingDef>
   <ClashOfRim.Achievement.TrophyPlanCreated>План трофея создан. Выберите его, чтобы выбрать материал и разместить чертеж трофея.</ClashOfRim.Achievement.TrophyPlanCreated>
   <ClashOfRim.Achievement.TrophyPlanCreateFailed>Не удалось создать план трофея.</ClashOfRim.Achievement.TrophyPlanCreateFailed>
-  <ClashOfRim.Achievement.PlaceTrophy>Разместить трофей</ClashOfRim.Achievement.PlaceTrophy>
+  <ClashOfRim.Achievement.PlaceTrophy>Разместить</ClashOfRim.Achievement.PlaceTrophy>
   <ClashOfRim.Achievement.PlaceTrophyDesc>Выберите материал и разместите чертеж трофея с записью этого достижения.</ClashOfRim.Achievement.PlaceTrophyDesc>
   <ClashOfRim.Achievement.TrophyInspectLine>Получатель: {OWNER}; достижение: {ACHIEVEMENT}; значение: {VALUE}</ClashOfRim.Achievement.TrophyInspectLine>
   <ClashOfRim.Achievement.TrophyArtDescription>Достижение: {ACHIEVEMENT}&#10;Получатель: {OWNER}&#10;&#10;{DESCRIPTION}&#10;&#10;Записанное значение: {VALUE}</ClashOfRim.Achievement.TrophyArtDescription>
@@ -567,7 +568,7 @@
   <ClashOfRim.RemoteWorldObject.WorldObjectInspect>Исходный мировой объект: {ID}</ClashOfRim.RemoteWorldObject.WorldObjectInspect>
   <ClashOfRim.RemoteWorldObject.MapInspect>Исходная карта: {ID}</ClashOfRim.RemoteWorldObject.MapInspect>
   <ClashOfRim.RemoteWorldObject.SnapshotInspect>Сохранение: {ID}</ClashOfRim.RemoteWorldObject.SnapshotInspect>
-  <ClashOfRim.RemoteWorldObject.ActionNotice>Посмотреть требования входа</ClashOfRim.RemoteWorldObject.ActionNotice>
+  <ClashOfRim.RemoteWorldObject.ActionNotice>Условия</ClashOfRim.RemoteWorldObject.ActionNotice>
   <ClashOfRim.RemoteWorldObject.RaidActionNoticeDesc>Налет нужно создавать через обычный процесс налета; вход напрямую из этого пустого мирового объекта невозможен.</ClashOfRim.RemoteWorldObject.RaidActionNoticeDesc>
   <ClashOfRim.RemoteWorldObject.ReinforceActionNoticeDesc>Для подкрепления караван должен прибыть на целевую клетку, затем командой каравана выбираются посылаемые колонисты.</ClashOfRim.RemoteWorldObject.ReinforceActionNoticeDesc>
   <ClashOfRim.RemoteWorldObject.RaidActionNoticeMessage>Вход в налет будет подключен к рабочему циклу налетов; пока используйте окно мультиплеера для осмотра цели.</ClashOfRim.RemoteWorldObject.RaidActionNoticeMessage>
@@ -848,14 +849,14 @@
   <ClashOfRim.Support.RejectRejected>Сервер отклонил отказ от колониста поддержки: {CODE} {MESSAGE}</ClashOfRim.Support.RejectRejected>
   <ClashOfRim.Support.Rejected>Колонист поддержки отклонен. Сервер организует возврат.</ClashOfRim.Support.Rejected>
   <ClashOfRim.Support.RejectException>Исключение при отклонении колониста поддержки: {TYPE} {MESSAGE}</ClashOfRim.Support.RejectException>
-  <ClashOfRim.Diplomacy.RequestAlliance>Запросить союз</ClashOfRim.Diplomacy.RequestAlliance>
-  <ClashOfRim.Diplomacy.CancelAlliance>Разорвать союз</ClashOfRim.Diplomacy.CancelAlliance>
-  <ClashOfRim.Diplomacy.RequestSupport>Запросить поддержку</ClashOfRim.Diplomacy.RequestSupport>
+  <ClashOfRim.Diplomacy.RequestAlliance>Союз</ClashOfRim.Diplomacy.RequestAlliance>
+  <ClashOfRim.Diplomacy.CancelAlliance>Разорвать</ClashOfRim.Diplomacy.CancelAlliance>
+  <ClashOfRim.Diplomacy.RequestSupport>Поддержка</ClashOfRim.Diplomacy.RequestSupport>
   <ClashOfRim.Diplomacy.SupportRequestTitle>Запросить поддержку союзника</ClashOfRim.Diplomacy.SupportRequestTitle>
   <ClashOfRim.Diplomacy.SupportRequestTarget>Кому: {PLAYER}</ClashOfRim.Diplomacy.SupportRequestTarget>
   <ClashOfRim.Diplomacy.SupportRequestHint>Опишите нужные войска, сроки, масштаб угрозы или другие детали. До {COUNT} символов.</ClashOfRim.Diplomacy.SupportRequestHint>
-  <ClashOfRim.Diplomacy.DeclareWar>Объявить войну</ClashOfRim.Diplomacy.DeclareWar>
-  <ClashOfRim.Diplomacy.RequestPeace>Запросить мир</ClashOfRim.Diplomacy.RequestPeace>
+  <ClashOfRim.Diplomacy.DeclareWar>Война</ClashOfRim.Diplomacy.DeclareWar>
+  <ClashOfRim.Diplomacy.RequestPeace>Мир</ClashOfRim.Diplomacy.RequestPeace>
   <ClashOfRim.Diplomacy.ConfirmAllianceRequest>Отправить запрос союза игроку {PLAYER}?</ClashOfRim.Diplomacy.ConfirmAllianceRequest>
   <ClashOfRim.Diplomacy.ConfirmAllianceCancellation>Разорвать союз с {PLAYER}? Отношения станут нейтральными.</ClashOfRim.Diplomacy.ConfirmAllianceCancellation>
   <ClashOfRim.Diplomacy.ConfirmWarDeclaration>Объявить войну {PLAYER}? Отношения станут враждебными.</ClashOfRim.Diplomacy.ConfirmWarDeclaration>
@@ -876,8 +877,8 @@
   <ClashOfRim.Diplomacy.RelationReasonWarDeclaration>объявление войны</ClashOfRim.Diplomacy.RelationReasonWarDeclaration>
   <ClashOfRim.Diplomacy.RelationReasonPeaceRequest>запрос мира</ClashOfRim.Diplomacy.RelationReasonPeaceRequest>
   <ClashOfRim.PlayerFaction.Report>{PLAYER} - другая удаленная колония. Здесь показаны дипломатия, известные места и сделки с ней.</ClashOfRim.PlayerFaction.Report>
-  <ClashOfRim.Raid.CaravanGizmo>Начать рейд</ClashOfRim.Raid.CaravanGizmo>
-  <ClashOfRim.Raid.CaravanGizmoCount>Начать рейд({COUNT})</ClashOfRim.Raid.CaravanGizmoCount>
+  <ClashOfRim.Raid.CaravanGizmo>Рейд</ClashOfRim.Raid.CaravanGizmo>
+  <ClashOfRim.Raid.CaravanGizmoCount>Рейд ({COUNT})</ClashOfRim.Raid.CaravanGizmoCount>
   <ClashOfRim.Raid.CaravanGizmoDesc>Караван достиг тайла, который можно атаковать. Выберите цель и начните рейд.</ClashOfRim.Raid.CaravanGizmoDesc>
   <ClashOfRim.Raid.PvpDisabled>Сервер отключил рейды против игроков.</ClashOfRim.Raid.PvpDisabled>
   <ClashOfRim.Raid.CaravanTargetOption>{TARGET}, атакующих {COUNT}</ClashOfRim.Raid.CaravanTargetOption>
@@ -953,8 +954,8 @@
   <ClashOfRim.Raid.RestoreMissingLocalBattle>На сервере есть незавершенный рейд {EVENTID}, но в этом сохранении нет восстанавливаемой карты боя.</ClashOfRim.Raid.RestoreMissingLocalBattle>
   <ClashOfRim.Raid.RestoreServerAlreadySettled>Сервер завершил этот рейд. Обновление событий.</ClashOfRim.Raid.RestoreServerAlreadySettled>
   <ClashOfRim.Raid.RestoreSucceeded>&lt;color=#7ecf6b&gt;Рейд восстановлен&lt;/color&gt;, осталось &lt;color=#ff9f43&gt;{SECONDS} сек.&lt;/color&gt;</ClashOfRim.Raid.RestoreSucceeded>
-  <ClashOfRim.Support.CaravanGizmo>Отправить поддержку</ClashOfRim.Support.CaravanGizmo>
-  <ClashOfRim.Support.CaravanGizmoCount>Отправить поддержку({COUNT})</ClashOfRim.Support.CaravanGizmoCount>
+  <ClashOfRim.Support.CaravanGizmo>Поддержка</ClashOfRim.Support.CaravanGizmo>
+  <ClashOfRim.Support.CaravanGizmoCount>Поддержка ({COUNT})</ClashOfRim.Support.CaravanGizmoCount>
   <ClashOfRim.Support.CaravanGizmoDesc>Караван достиг тайла, куда можно отправить подкрепление. Выберите одного участника, который присоединится к целевой колонии как поддержка.</ClashOfRim.Support.CaravanGizmoDesc>
   <ClashOfRim.Support.CaravanPawnOption>{PAWN} -&gt; {TARGET}</ClashOfRim.Support.CaravanPawnOption>
   <ClashOfRim.Support.ConfirmSend>Отправить {PAWN} поддержать {TARGET}?\nЭтот колонист покинет текущий караван и будет ждать приема другой колонией.</ClashOfRim.Support.ConfirmSend>
@@ -965,10 +966,10 @@
   <ClashOfRim.Support.DurationDialogDays>{DAYS} дн.</ClashOfRim.Support.DurationDialogDays>
   <ClashOfRim.Support.DurationDialogPermanentSelected>Текущий выбор: постоянная поддержка. Этот колонист не вернется автоматически.</ClashOfRim.Support.DurationDialogPermanentSelected>
   <ClashOfRim.Support.DurationDialogTarget>{PAWN} -&gt; {TARGET}</ClashOfRim.Support.DurationDialogTarget>
-  <ClashOfRim.Support.DurationDialogTemporary>Временная поддержка</ClashOfRim.Support.DurationDialogTemporary>
+  <ClashOfRim.Support.DurationDialogTemporary>Временно</ClashOfRim.Support.DurationDialogTemporary>
   <ClashOfRim.Support.DurationDialogTemporarySelected>Текущий выбор: временная поддержка. Этот колонист автоматически вернется по окончании срока.</ClashOfRim.Support.DurationDialogTemporarySelected>
   <ClashOfRim.Support.DurationDialogTitle>Выберите срок поддержки</ClashOfRim.Support.DurationDialogTitle>
-  <ClashOfRim.Support.DurationPermanent>Постоянная поддержка</ClashOfRim.Support.DurationPermanent>
+  <ClashOfRim.Support.DurationPermanent>Навсегда</ClashOfRim.Support.DurationPermanent>
   <ClashOfRim.Support.ArrivalLetterLabel>Поддержка прибыла</ClashOfRim.Support.ArrivalLetterLabel>
   <ClashOfRim.Support.ArrivalLetterText>{PAWN} прибыл и временно присоединится к вашей колонии.</ClashOfRim.Support.ArrivalLetterText>
   <ClashOfRim.Support.PermanentArrivalLetterLabel>Колонист присоединился</ClashOfRim.Support.PermanentArrivalLetterLabel>
@@ -1023,14 +1024,14 @@
   <ClashOfRim.Support.TargetLabel>{LABEL} ({USER}/{COLONY}@{TILE})</ClashOfRim.Support.TargetLabel>
   <ClashOfRim.Trade.Accepted>Принято</ClashOfRim.Trade.Accepted>
   <ClashOfRim.Trade.AcceptedMemoSuffix>, принято {COUNT}</ClashOfRim.Trade.AcceptedMemoSuffix>
-  <ClashOfRim.Trade.AddToAcceptedList>Добавить в принятые</ClashOfRim.Trade.AddToAcceptedList>
-  <ClashOfRim.Trade.CancelAcceptedMemo>Отменить принятие</ClashOfRim.Trade.CancelAcceptedMemo>
+  <ClashOfRim.Trade.AddToAcceptedList>Принять</ClashOfRim.Trade.AddToAcceptedList>
+  <ClashOfRim.Trade.CancelAcceptedMemo>Отменить</ClashOfRim.Trade.CancelAcceptedMemo>
   <ClashOfRim.Trade.CancelOrder>Отозвать</ClashOfRim.Trade.CancelOrder>
   <ClashOfRim.Trade.ConfirmCancelAcceptedMemo>Отменить ваше принятие этого торгового заказа? Это удалит только ваше напоминание и не помешает другим игрокам принять или завершить сделку.</ClashOfRim.Trade.ConfirmCancelAcceptedMemo>
   <ClashOfRim.Trade.ConfirmCancelOrder>Отозвать этот торговый заказ? Зарезервированные предложенные товары будут возвращены вам, а игроки, принявшие заказ, получат уведомление.</ClashOfRim.Trade.ConfirmCancelOrder>
   <ClashOfRim.Trade.CaravanExchangeApplied>Передано записей требуемых предметов: {REQUESTCOUNT}; караван получил стопок: {STACKCOUNT}.</ClashOfRim.Trade.CaravanExchangeApplied>
-  <ClashOfRim.Trade.CaravanFulfillGizmo>Выполнить сделку</ClashOfRim.Trade.CaravanFulfillGizmo>
-  <ClashOfRim.Trade.CaravanFulfillGizmoCount>Выполнить сделку({COUNT})</ClashOfRim.Trade.CaravanFulfillGizmoCount>
+  <ClashOfRim.Trade.CaravanFulfillGizmo>Сделка</ClashOfRim.Trade.CaravanFulfillGizmo>
+  <ClashOfRim.Trade.CaravanFulfillGizmoCount>Сделка ({COUNT})</ClashOfRim.Trade.CaravanFulfillGizmoCount>
   <ClashOfRim.Trade.CaravanFulfillGizmoDesc>Караван достиг торгового тайла. Передайте переносимые предметы, чтобы выполнить принятый торговый заказ.</ClashOfRim.Trade.CaravanFulfillGizmoDesc>
   <ClashOfRim.Trade.CaravanFulfillOption>{OWNER}: передать {DELIVER}, получить {RECEIVE}</ClashOfRim.Trade.CaravanFulfillOption>
   <ClashOfRim.Trade.CaravanInventoryInsufficient>Инвентаря локального каравана недостаточно, невозможно удалить: {THING}</ClashOfRim.Trade.CaravanInventoryInsufficient>
@@ -1041,7 +1042,7 @@
   <ClashOfRim.Trade.ConfirmCreateTitle>Создать этот торговый заказ?</ClashOfRim.Trade.ConfirmCreateTitle>
   <ClashOfRim.Trade.ConfirmNoRequestedThings>Вы не получите товаров по этой сделке. Продолжить?</ClashOfRim.Trade.ConfirmNoRequestedThings>
   <ClashOfRim.Trade.ConfirmNoOfferedThings>После выполнения этого торгового заказа вы не получите товаров. Продолжить?</ClashOfRim.Trade.ConfirmNoOfferedThings>
-  <ClashOfRim.Trade.CreateOrderTitle>Создать торговый заказ</ClashOfRim.Trade.CreateOrderTitle>
+  <ClashOfRim.Trade.CreateOrderTitle>Новый</ClashOfRim.Trade.CreateOrderTitle>
   <ClashOfRim.Trade.Disabled>Торговая площадка отключена.</ClashOfRim.Trade.Disabled>
   <ClashOfRim.Trade.EstimatedValues>Оценка стоимости: ваше {OFFERED}; их {REQUESTED}</ClashOfRim.Trade.EstimatedValues>
   <ClashOfRim.Trade.DeliverLine>Передать: {THINGS}</ClashOfRim.Trade.DeliverLine>
@@ -1053,13 +1054,13 @@
   <ClashOfRim.Trade.FeeAndMemoLine>Плата серебром: {FEE}; принято: {COUNT}</ClashOfRim.Trade.FeeAndMemoLine>
   <ClashOfRim.Trade.BookKindAnomalyResearch>Книга исследования аномалии</ClashOfRim.Trade.BookKindAnomalyResearch>
   <ClashOfRim.Trade.GeneXenotypeName>Торговые ксеногены</ClashOfRim.Trade.GeneXenotypeName>
-  <ClashOfRim.Trade.UniqueWeaponTraitsAny>Любые черты специализированного оружия</ClashOfRim.Trade.UniqueWeaponTraitsAny>
-  <ClashOfRim.Trade.PersonaWeaponTraitsAny>Любые черты персонального оружия</ClashOfRim.Trade.PersonaWeaponTraitsAny>
+  <ClashOfRim.Trade.UniqueWeaponTraitsAny>Любые черты</ClashOfRim.Trade.UniqueWeaponTraitsAny>
+  <ClashOfRim.Trade.PersonaWeaponTraitsAny>Любые черты</ClashOfRim.Trade.PersonaWeaponTraitsAny>
   <ClashOfRim.Trade.UniqueWeaponTraitUnavailable>несовместимо</ClashOfRim.Trade.UniqueWeaponTraitUnavailable>
   <ClashOfRim.Shop.UniqueWeaponTraits>Особые черты</ClashOfRim.Shop.UniqueWeaponTraits>
-  <ClashOfRim.Shop.SelectUniqueWeaponTraits>Выбрать особые черты</ClashOfRim.Shop.SelectUniqueWeaponTraits>
+  <ClashOfRim.Shop.SelectUniqueWeaponTraits>Черты</ClashOfRim.Shop.SelectUniqueWeaponTraits>
   <ClashOfRim.Shop.PersonaWeaponTraits>Черты личности</ClashOfRim.Shop.PersonaWeaponTraits>
-  <ClashOfRim.Shop.SelectPersonaWeaponTraits>Выбрать черты личности</ClashOfRim.Shop.SelectPersonaWeaponTraits>
+  <ClashOfRim.Shop.SelectPersonaWeaponTraits>Черты</ClashOfRim.Shop.SelectPersonaWeaponTraits>
   <ClashOfRim.Trade.StatusAndExpiryLine>Статус: {STATUS}; {EXPIRY}</ClashOfRim.Trade.StatusAndExpiryLine>
   <ClashOfRim.Trade.FeeWithFixed>Плата: &lt;color=#d7dadb&gt;{FEE} серебра&lt;/color&gt; (включая фиксированную плату хранения {FIXED}, доступно {AVAILABLE})</ClashOfRim.Trade.FeeWithFixed>
   <ClashOfRim.Trade.FulfillCompletedMessage>Сделка с самовывозом завершена; синхронизация текущего сохранения.</ClashOfRim.Trade.FulfillCompletedMessage>
@@ -1092,8 +1093,8 @@
   <ClashOfRim.Trade.PostageUnreachable>&lt;color=#ff6b6b&gt;Недостижимо, нельзя отправить&lt;/color&gt;</ClashOfRim.Trade.PostageUnreachable>
   <ClashOfRim.Trade.PawnRequirement>Персона</ClashOfRim.Trade.PawnRequirement>
   <ClashOfRim.Trade.NoPawnHitPoints>Нет требования прочности</ClashOfRim.Trade.NoPawnHitPoints>
-  <ClashOfRim.Trade.PawnGenderAny>Пол: любой</ClashOfRim.Trade.PawnGenderAny>
-  <ClashOfRim.Trade.PawnGenderSelected>Пол: {GENDER}</ClashOfRim.Trade.PawnGenderSelected>
+  <ClashOfRim.Trade.PawnGenderAny>Любой пол</ClashOfRim.Trade.PawnGenderAny>
+  <ClashOfRim.Trade.PawnGenderSelected>{GENDER}</ClashOfRim.Trade.PawnGenderSelected>
   <ClashOfRim.Trade.PawnGenderRequirement>пол: {GENDER}</ClashOfRim.Trade.PawnGenderRequirement>
   <ClashOfRim.Trade.PawnAge>Возраст</ClashOfRim.Trade.PawnAge>
   <ClashOfRim.Trade.PawnAgeYears>л.</ClashOfRim.Trade.PawnAgeYears>
@@ -1101,8 +1102,8 @@
   <ClashOfRim.Trade.PawnAgeRequirementRange>возраст {MIN}-{MAX} л.</ClashOfRim.Trade.PawnAgeRequirementRange>
   <ClashOfRim.Trade.PawnAgeRequirementMin>возраст≥{AGE} л.</ClashOfRim.Trade.PawnAgeRequirementMin>
   <ClashOfRim.Trade.PawnAgeRequirementMax>возраст≤{AGE} л.</ClashOfRim.Trade.PawnAgeRequirementMax>
-  <ClashOfRim.Trade.QualityAny>Качество: любое</ClashOfRim.Trade.QualityAny>
-  <ClashOfRim.Trade.QualitySelected>Качество: {QUALITY}</ClashOfRim.Trade.QualitySelected>
+  <ClashOfRim.Trade.QualityAny>Любое</ClashOfRim.Trade.QualityAny>
+  <ClashOfRim.Trade.QualitySelected>{QUALITY}</ClashOfRim.Trade.QualitySelected>
   <ClashOfRim.Trade.ReceiveLine>Получить: {THINGS}</ClashOfRim.Trade.ReceiveLine>
   <ClashOfRim.Trade.RequireBeaconRange>Использовать только предметы в радиусе торгового маяка; отключите, чтобы использовать маяки и все склады</ClashOfRim.Trade.RequireBeaconRange>
   <ClashOfRim.Trade.RequestedGlobalItems>Запрашиваемые предметы (общий пул предметов)</ClashOfRim.Trade.RequestedGlobalItems>
@@ -1117,11 +1118,11 @@
   <ClashOfRim.Trade.SelectedOffers>Выбранные предлагаемые предметы</ClashOfRim.Trade.SelectedOffers>
   <ClashOfRim.Trade.SelectedRequests>Выбранные запросы (количество, качество и прочность являются минимальными требованиями)</ClashOfRim.Trade.SelectedRequests>
   <ClashOfRim.Trade.SelectOrderForDetails>Выберите торговый заказ для просмотра деталей.</ClashOfRim.Trade.SelectOrderForDetails>
-  <ClashOfRim.Trade.SelectGene>Выбрать ген</ClashOfRim.Trade.SelectGene>
+  <ClashOfRim.Trade.SelectGene>Гены</ClashOfRim.Trade.SelectGene>
   <ClashOfRim.Trade.SelectGeneTitle>Выбрать целевые гены</ClashOfRim.Trade.SelectGeneTitle>
-  <ClashOfRim.Trade.SelectResearchProject>Выбрать исследование</ClashOfRim.Trade.SelectResearchProject>
+  <ClashOfRim.Trade.SelectResearchProject>Исследование</ClashOfRim.Trade.SelectResearchProject>
   <ClashOfRim.Trade.SelectResearchProjectTitle>Выбрать целевое исследование</ClashOfRim.Trade.SelectResearchProjectTitle>
-  <ClashOfRim.Trade.SendByDropPod>Отправить капсулой</ClashOfRim.Trade.SendByDropPod>
+  <ClashOfRim.Trade.SendByDropPod>Капсула</ClashOfRim.Trade.SendByDropPod>
   <ClashOfRim.Trade.StatusLine>Статус: {STATUS}</ClashOfRim.Trade.StatusLine>
   <ClashOfRim.Trade.StatusAcceptedOrder>Торговый заказ принят.</ClashOfRim.Trade.StatusAcceptedOrder>
   <ClashOfRim.Trade.StatusAcceptException>Исключение принятия: {TYPE} {MESSAGE}</ClashOfRim.Trade.StatusAcceptException>
@@ -1173,7 +1174,7 @@
   <ClashOfRim.Trade.StatusFeeReservationIncomplete>Резерв платы неполный; {REMAINING} серебра не было удалено.</ClashOfRim.Trade.StatusFeeReservationIncomplete>
   <ClashOfRim.Trade.StatusFeeSilverInsufficient>&lt;color=#ff6b6b&gt;Недостаточно серебра для платы&lt;/color&gt;: нужно &lt;color=#d7dadb&gt;{NEEDED}&lt;/color&gt;, доступно &lt;color=#d7dadb&gt;{AVAILABLE}&lt;/color&gt;.</ClashOfRim.Trade.StatusFeeSilverInsufficient>
   <ClashOfRim.Trade.StatusQuotingFee>Подтверждение платы на сервере.</ClashOfRim.Trade.StatusQuotingFee>
-  <ClashOfRim.Trade.StatusQuotingFeeShort>Подтверждение...</ClashOfRim.Trade.StatusQuotingFeeShort>
+  <ClashOfRim.Trade.StatusQuotingFeeShort>Проверка...</ClashOfRim.Trade.StatusQuotingFeeShort>
   <ClashOfRim.Trade.StatusFeeQuoted>Серверная плата: {FEE} серебра.</ClashOfRim.Trade.StatusFeeQuoted>
   <ClashOfRim.Trade.StatusFeeQuoteRejected>Сервер отклонил торговую расценку: {MESSAGE}</ClashOfRim.Trade.StatusFeeQuoteRejected>
   <ClashOfRim.Trade.StatusFeeQuoteFailed>Не удалось получить расценку платы: {MESSAGE}</ClashOfRim.Trade.StatusFeeQuoteFailed>
@@ -1210,12 +1211,12 @@
   <ClashOfRim.Trade.StatusTradeThingOutsideBeacon>Торговый предмет вне выбранной торговой зоны: {THING}.</ClashOfRim.Trade.StatusTradeThingOutsideBeacon>
   <ClashOfRim.Trade.StatusTradeThingInsufficient>Недостаточно торгового предмета: {THING}, нужно {NEEDED}, сейчас {CURRENT}.</ClashOfRim.Trade.StatusTradeThingInsufficient>
   <ClashOfRim.Trade.StatusTradeThingInvalid>Торгового предмета больше нет на текущей карте или количество неверно. Откройте торговый заказ заново.</ClashOfRim.Trade.StatusTradeThingInvalid>
-  <ClashOfRim.Trade.StuffAny>Материал: любой</ClashOfRim.Trade.StuffAny>
+  <ClashOfRim.Trade.StuffAny>Любой</ClashOfRim.Trade.StuffAny>
   <ClashOfRim.Trade.StuffRequirement>материал: {STUFF}</ClashOfRim.Trade.StuffRequirement>
   <ClashOfRim.Trade.SubmitHintMissing>Нужны предлагаемые или запрашиваемые предметы, а также достаточно серебра для платы.</ClashOfRim.Trade.SubmitHintMissing>
   <ClashOfRim.Trade.SubmitHintIncompleteRequest>Условия запрошенного предмета неполные.</ClashOfRim.Trade.SubmitHintIncompleteRequest>
   <ClashOfRim.Trade.SubmitHintReady>Передать записей: {OFFERCOUNT}, запросить записей: {REQUESTCOUNT}. Способ доставки выбирает принимающий игрок при завершении сделки.</ClashOfRim.Trade.SubmitHintReady>
-  <ClashOfRim.Trade.SubmitOrder>Отправить торговый заказ</ClashOfRim.Trade.SubmitOrder>
+  <ClashOfRim.Trade.SubmitOrder>Опубликовать</ClashOfRim.Trade.SubmitOrder>
   <ClashOfRim.Trade.TargetBookSkillRequirement>{SKILL}</ClashOfRim.Trade.TargetBookSkillRequirement>
   <ClashOfRim.Trade.TargetResearchProjectRequirement>{PROJECT}</ClashOfRim.Trade.TargetResearchProjectRequirement>
   <ClashOfRim.Trade.SourceLabels>Источник {SOURCES}</ClashOfRim.Trade.SourceLabels>
@@ -1225,17 +1226,17 @@
   <ClashOfRim.Trade.UnknownOwner>Неизвестный автор</ClashOfRim.Trade.UnknownOwner>
   <ClashOfRim.Trade.ViewerAcceptedSuffix>, принято мной</ClashOfRim.Trade.ViewerAcceptedSuffix>
   <ClashOfRim.Trade.ViewOnly>Только просмотр</ClashOfRim.Trade.ViewOnly>
-  <ClashOfRim.GiftDelivery.CaravanGizmo>Доставить подарок</ClashOfRim.GiftDelivery.CaravanGizmo>
-  <ClashOfRim.GiftDelivery.CaravanGizmoCount>Доставить подарок ({COUNT})</ClashOfRim.GiftDelivery.CaravanGizmoCount>
+  <ClashOfRim.GiftDelivery.CaravanGizmo>Подарок</ClashOfRim.GiftDelivery.CaravanGizmo>
+  <ClashOfRim.GiftDelivery.CaravanGizmoCount>Подарок ({COUNT})</ClashOfRim.GiftDelivery.CaravanGizmoCount>
   <ClashOfRim.GiftDelivery.CaravanGizmoDesc>Караван достиг тайла другой колонии. Доставить подарки цели.</ClashOfRim.GiftDelivery.CaravanGizmoDesc>
-  <ClashOfRim.GiftDelivery.ForcedCaravanGizmo>Принудительная доставка</ClashOfRim.GiftDelivery.ForcedCaravanGizmo>
-  <ClashOfRim.GiftDelivery.ForcedCaravanGizmoCount>Принудительная доставка ({COUNT})</ClashOfRim.GiftDelivery.ForcedCaravanGizmoCount>
+  <ClashOfRim.GiftDelivery.ForcedCaravanGizmo>Силой</ClashOfRim.GiftDelivery.ForcedCaravanGizmo>
+  <ClashOfRim.GiftDelivery.ForcedCaravanGizmoCount>Силой ({COUNT})</ClashOfRim.GiftDelivery.ForcedCaravanGizmoCount>
   <ClashOfRim.GiftDelivery.ForcedCaravanGizmoDesc>Караван достиг тайла враждебной колонии. Принудительно доставить предметы цели.</ClashOfRim.GiftDelivery.ForcedCaravanGizmoDesc>
   <ClashOfRim.GiftDelivery.Title>Доставка предметов караваном</ClashOfRim.GiftDelivery.Title>
   <ClashOfRim.GiftDelivery.TargetLine>Цель: {TARGET}</ClashOfRim.GiftDelivery.TargetLine>
   <ClashOfRim.GiftDelivery.TargetOption>{TARGET}</ClashOfRim.GiftDelivery.TargetOption>
-  <ClashOfRim.GiftDelivery.NormalMode>Обычный подарок</ClashOfRim.GiftDelivery.NormalMode>
-  <ClashOfRim.GiftDelivery.ForcedMode>Принудительная доставка</ClashOfRim.GiftDelivery.ForcedMode>
+  <ClashOfRim.GiftDelivery.NormalMode>Подарок</ClashOfRim.GiftDelivery.NormalMode>
+  <ClashOfRim.GiftDelivery.ForcedMode>Силой</ClashOfRim.GiftDelivery.ForcedMode>
   <ClashOfRim.GiftDelivery.NormalUnavailable>Обычный подарок недоступен</ClashOfRim.GiftDelivery.NormalUnavailable>
   <ClashOfRim.GiftDelivery.ForcedUnavailable>Недоступно</ClashOfRim.GiftDelivery.ForcedUnavailable>
   <ClashOfRim.GiftDelivery.CaravanItems>Предметы каравана</ClashOfRim.GiftDelivery.CaravanItems>
@@ -1278,7 +1279,7 @@
 Текущая ошибка: &lt;color=#ff6b6b&gt;{MESSAGE}&lt;/color&gt;</ClashOfRim.SnapshotConfirmationFailure.Message>
   <ClashOfRim.SnapshotConfirmationFailure.MessageCompact>&lt;b&gt;{OPERATION}&lt;/b&gt; не было сохранено на сервере. &lt;color=#ffd166&gt;Продолжение оставит локальное состояние не синхронизированным с серверным сохранением.&lt;/color&gt; Повторите загрузку или вернитесь в главное меню и заново войдите на сервер.</ClashOfRim.SnapshotConfirmationFailure.MessageCompact>
   <ClashOfRim.SnapshotConfirmationFailure.RetryUpload>Повторить загрузку</ClashOfRim.SnapshotConfirmationFailure.RetryUpload>
-  <ClashOfRim.SnapshotConfirmationFailure.ReturnToMainMenu>Вернуться в главное меню</ClashOfRim.SnapshotConfirmationFailure.ReturnToMainMenu>
+  <ClashOfRim.SnapshotConfirmationFailure.ReturnToMainMenu>В меню</ClashOfRim.SnapshotConfirmationFailure.ReturnToMainMenu>
   <ClashOfRim.SnapshotConfirmationFailure.Waiting>Идет обработка. Игра останется на паузе до завершения.</ClashOfRim.SnapshotConfirmationFailure.Waiting>
   <ClashOfRim.SnapshotConfirmationFailure.RetryMissing>Нет доступной подтверждающей загрузки для повтора.</ClashOfRim.SnapshotConfirmationFailure.RetryMissing>
   <ClashOfRim.SnapshotConfirmationFailure.ReturningToMainMenu>Возврат в главное меню.</ClashOfRim.SnapshotConfirmationFailure.ReturningToMainMenu>
@@ -1291,7 +1292,7 @@
   <ClashOfRim.SnapshotConfirmationFailure.OperationBank>операция банка</ClashOfRim.SnapshotConfirmationFailure.OperationBank>
   <ClashOfRim.SnapshotConfirmationFailure.OperationMercenary>операция наемников</ClashOfRim.SnapshotConfirmationFailure.OperationMercenary>
   <ClashOfRim.SnapshotConfirmationFailure.OperationColonyRelocation>перенос колонии</ClashOfRim.SnapshotConfirmationFailure.OperationColonyRelocation>
-  <ClashOfRim.ColonyRelocation.CommandLabel>Перенести колонию</ClashOfRim.ColonyRelocation.CommandLabel>
+  <ClashOfRim.ColonyRelocation.CommandLabel>Переезд</ClashOfRim.ColonyRelocation.CommandLabel>
   <ClashOfRim.ColonyRelocation.CommandDesc>Поселить этот караван здесь и покинуть старую колонию по правилам оригинальной игры. Обычная игра не продолжится, пока сервер не сохранит новое состояние.</ClashOfRim.ColonyRelocation.CommandDesc>
   <ClashOfRim.ColonyRelocation.Title>Подтвердить перенос колонии</ClashOfRim.ColonyRelocation.Title>
   <ClashOfRim.ColonyRelocation.Warning>&lt;color=#ffd166&gt;Вы покинете {COLONY} по правилам оригинальной игры и основаете новую колонию на клетке {TILE}.&lt;/color&gt;
@@ -1338,7 +1339,7 @@
 
 Серебро будет удалено локально, а текущее состояние потребуется сохранить.</ClashOfRim.Bank.ConfirmRepayDebt>
   <ClashOfRim.Bank.CreateHint>Сумма и срок должны находиться в пределах серверных лимитов займа.</ClashOfRim.Bank.CreateHint>
-  <ClashOfRim.Bank.CreateLoan>Оформить заем</ClashOfRim.Bank.CreateLoan>
+  <ClashOfRim.Bank.CreateLoan>Заём</ClashOfRim.Bank.CreateLoan>
   <ClashOfRim.Bank.Disabled>Банковские займы отключены.</ClashOfRim.Bank.Disabled>
   <ClashOfRim.Bank.DebtDetailLine>Причина: {REASON}; {DUE}</ClashOfRim.Bank.DebtDetailLine>
   <ClashOfRim.Bank.DebtDueIn>Просрочка через {TIME}</ClashOfRim.Bank.DebtDueIn>
@@ -1432,7 +1433,7 @@
   <ClashOfRim.Mercenary.DeathLetterLabel>Инцидент с наемником</ClashOfRim.Mercenary.DeathLetterLabel>
   <ClashOfRim.Mercenary.DeathLetterText>Наемное задание {PAWN} неожиданно завершилось.</ClashOfRim.Mercenary.DeathLetterText>
   <ClashOfRim.Mercenary.DurationLine>Срок найма: {DAYS} игровых дней</ClashOfRim.Mercenary.DurationLine>
-  <ClashOfRim.Mercenary.EarlyRecall>Отозвать досрочно</ClashOfRim.Mercenary.EarlyRecall>
+  <ClashOfRim.Mercenary.EarlyRecall>Отозвать</ClashOfRim.Mercenary.EarlyRecall>
   <ClashOfRim.Mercenary.EarlyRecallDesc>Вызвать шаттл возврата, чтобы забрать этого наемника сейчас. Задание завершится после успешного отбытия наемника.</ClashOfRim.Mercenary.EarlyRecallDesc>
   <ClashOfRim.Mercenary.EarlyRecallUnavailable>Этого наемника сейчас нельзя отозвать.</ClashOfRim.Mercenary.EarlyRecallUnavailable>
   <ClashOfRim.Mercenary.Hire>Нанять</ClashOfRim.Mercenary.Hire>
@@ -1441,7 +1442,7 @@
   <ClashOfRim.Mercenary.InspectLoaded>На борту шаттла возврата.</ClashOfRim.Mercenary.InspectLoaded>
   <ClashOfRim.Mercenary.InspectTemporary>Покинет колонию на шаттле возврата.</ClashOfRim.Mercenary.InspectTemporary>
   <ClashOfRim.Mercenary.InspectWaitingForShuttle>Ждет отбытия на шаттле возврата.</ClashOfRim.Mercenary.InspectWaitingForShuttle>
-  <ClashOfRim.Mercenary.LoadRecallShuttle>Погрузить наемника</ClashOfRim.Mercenary.LoadRecallShuttle>
+  <ClashOfRim.Mercenary.LoadRecallShuttle>Погрузить</ClashOfRim.Mercenary.LoadRecallShuttle>
   <ClashOfRim.Mercenary.LoadRecallShuttleDesc>Начать погрузку отзываемого наемника в этот шаттл.</ClashOfRim.Mercenary.LoadRecallShuttleDesc>
   <ClashOfRim.Mercenary.LoadRecallShuttleStarted>Приказ {PAWN} войти в шаттл возврата.</ClashOfRim.Mercenary.LoadRecallShuttleStarted>
   <ClashOfRim.Mercenary.LoadRecallShuttleAlreadyLoaded>{PAWN} уже на борту шаттла возврата.</ClashOfRim.Mercenary.LoadRecallShuttleAlreadyLoaded>
@@ -1518,7 +1519,7 @@
   <ClashOfRim.Support.QuestFullDescriptionPermanent>{PAWN} был отправлен {OWNER} как постоянная поддержка. Он не вернется автоматически, если более позднее событие поселения не обработает его.</ClashOfRim.Support.QuestFullDescriptionPermanent>
   <ClashOfRim.Support.QuestFullDescriptionTemporary>{PAWN} был отправлен {OWNER} как временная поддержка. По окончании срока он самостоятельно вернется в родную колонию.</ClashOfRim.Support.QuestFullDescriptionTemporary>
   <ClashOfRim.Support.QuestName>Поддержка: {PAWN}</ClashOfRim.Support.QuestName>
-  <ClashOfRim.Support.EarlyReturn>Отправить назад досрочно</ClashOfRim.Support.EarlyReturn>
+  <ClashOfRim.Support.EarlyReturn>Вернуть</ClashOfRim.Support.EarlyReturn>
   <ClashOfRim.Support.EarlyReturnDesc>Приказать этому временному колонисту поддержки покинуть карту и вернуться в родную колонию.</ClashOfRim.Support.EarlyReturnDesc>
   <ClashOfRim.Support.EarlyReturnUnavailable>Этого колониста поддержки сейчас нельзя отправить назад.</ClashOfRim.Support.EarlyReturnUnavailable>
   <ClashOfRim.SnapshotConfirmationFailure.OperationSupport>возврат колониста подкрепления</ClashOfRim.SnapshotConfirmationFailure.OperationSupport>
@@ -1538,7 +1539,7 @@
   <ClashOfRim.RemoteWorldObject.ScoutDesc>Разведать последнее состояние другой колонии.</ClashOfRim.RemoteWorldObject.ScoutDesc>
   <ClashOfRim.RemoteWorldObject.ObserveAlly>Наблюдать союзника</ClashOfRim.RemoteWorldObject.ObserveAlly>
   <ClashOfRim.RemoteWorldObject.ObserveAllyDesc>Наблюдать последнее состояние союзника.</ClashOfRim.RemoteWorldObject.ObserveAllyDesc>
-  <ClashOfRim.RemoteWorldObject.ObserveRaid>Наблюдать бой</ClashOfRim.RemoteWorldObject.ObserveRaid>
+  <ClashOfRim.RemoteWorldObject.ObserveRaid>Наблюдать</ClashOfRim.RemoteWorldObject.ObserveRaid>
   <ClashOfRim.RemoteWorldObject.ObserveRaidDesc>Смотреть последнее состояние текущего налета.</ClashOfRim.RemoteWorldObject.ObserveRaidDesc>
   <ClashOfRim.Observation.StatusNotConfigured>Адрес сервера, пользователь или колония не настроены; разведка и наблюдение невозможны.</ClashOfRim.Observation.StatusNotConfigured>
   <ClashOfRim.Observation.StatusBusy>Операция сервера уже выполняется.</ClashOfRim.Observation.StatusBusy>
@@ -1563,7 +1564,7 @@
   <ClashOfRim.RemoteSessionMap.RaidObservationNamedLabel>Боевой обзор: {LABEL} игрока {OWNER}</ClashOfRim.RemoteSessionMap.RaidObservationNamedLabel>
   <ClashOfRim.RemoteSessionMap.RaidBattleLabel>Налет игрока {OWNER}</ClashOfRim.RemoteSessionMap.RaidBattleLabel>
   <ClashOfRim.RemoteSessionMap.RaidBattleNamedLabel>Налет: {LABEL} игрока {OWNER}</ClashOfRim.RemoteSessionMap.RaidBattleNamedLabel>
-  <ClashOfRim.RemoteSessionMap.Close>Закрыть карту наблюдения</ClashOfRim.RemoteSessionMap.Close>
+  <ClashOfRim.RemoteSessionMap.Close>Закрыть</ClashOfRim.RemoteSessionMap.Close>
   <ClashOfRim.RemoteSessionMap.CloseDesc>Закрыть текущую карту наблюдения и вернуться к обычной многопользовательской сессии.</ClashOfRim.RemoteSessionMap.CloseDesc>
   <ClashOfRim.RemoteSessionMap.Closed>Карта наблюдения закрыта.</ClashOfRim.RemoteSessionMap.Closed>
   <ClashOfRim.RemoteSessionMap.ActiveSessionBlocksOpen>Удаленная карта уже открыта. Закройте ее или завершите налет.</ClashOfRim.RemoteSessionMap.ActiveSessionBlocksOpen>
@@ -1612,7 +1613,7 @@
   <ClashOfRim.Admin.NotConnected>Нет подключения к серверу.</ClashOfRim.Admin.NotConnected>
   <ClashOfRim.Admin.NotAdministrator>Текущий пользователь не администратор.</ClashOfRim.Admin.NotAdministrator>
   <ClashOfRim.Admin.SavedMessage>Конфигурация сервера обновлена.</ClashOfRim.Admin.SavedMessage>
-  <ClashOfRim.Admin.UpdateWorldBaseline>Обновить данные мира</ClashOfRim.Admin.UpdateWorldBaseline>
+  <ClashOfRim.Admin.UpdateWorldBaseline>Мир</ClashOfRim.Admin.UpdateWorldBaseline>
   <ClashOfRim.Admin.UpdateWorldBaselineDesc>Заменить серверные данные мира, фракций, идеологий и связанные базовые данные текущим сохранением. Это повлияет на всех игроков; используйте только с корректным сохранением.</ClashOfRim.Admin.UpdateWorldBaselineDesc>
   <ClashOfRim.SelectionButtonTip>Нажмите, чтобы изменить текущий выбор.</ClashOfRim.SelectionButtonTip>
   <ClashOfRim.Admin.WorldBaselineUpdating>Обновление данных мира.</ClashOfRim.Admin.WorldBaselineUpdating>
@@ -1644,9 +1645,9 @@
   <ClashOfRim.Admin.MaxOpenTradeOrders>Лимит открытых сделок на игрока</ClashOfRim.Admin.MaxOpenTradeOrders>
   <ClashOfRim.Admin.TradeBaseFeeRate>Базовая ставка сбора</ClashOfRim.Admin.TradeBaseFeeRate>
   <ClashOfRim.Admin.TradeFeeStrategy>Стратегия сбора</ClashOfRim.Admin.TradeFeeStrategy>
-  <ClashOfRim.Admin.TradeFeeStrategyPublisher>Сторона автора</ClashOfRim.Admin.TradeFeeStrategyPublisher>
-  <ClashOfRim.Admin.TradeFeeStrategyHighestSide>Более дорогая сторона</ClashOfRim.Admin.TradeFeeStrategyHighestSide>
-  <ClashOfRim.Admin.TradeFeeStrategySumBothSides>Сумма обеих сторон</ClashOfRim.Admin.TradeFeeStrategySumBothSides>
+  <ClashOfRim.Admin.TradeFeeStrategyPublisher>Автор</ClashOfRim.Admin.TradeFeeStrategyPublisher>
+  <ClashOfRim.Admin.TradeFeeStrategyHighestSide>Максимум</ClashOfRim.Admin.TradeFeeStrategyHighestSide>
+  <ClashOfRim.Admin.TradeFeeStrategySumBothSides>Сумма</ClashOfRim.Admin.TradeFeeStrategySumBothSides>
   <ClashOfRim.Admin.FixedTradeFees>Фиксированные сборы</ClashOfRim.Admin.FixedTradeFees>
   <ClashOfRim.Admin.AddFixedTradeFee>Добавить</ClashOfRim.Admin.AddFixedTradeFee>
   <ClashOfRim.Admin.FixedTradeFeeThing>Предмет</ClashOfRim.Admin.FixedTradeFeeThing>
@@ -1668,7 +1669,7 @@
   <ClashOfRim.Admin.BankPenaltyInterval>Интервал штрафа просрочки</ClashOfRim.Admin.BankPenaltyInterval>
   <ClashOfRim.Admin.BankPenaltyPoints>Очки механоидов за серебро</ClashOfRim.Admin.BankPenaltyPoints>
   <ClashOfRim.Admin.BankOverduePenaltyStages>Негативные события просрочки</ClashOfRim.Admin.BankOverduePenaltyStages>
-  <ClashOfRim.Admin.AddBankPenaltyEvent>Добавить событие</ClashOfRim.Admin.AddBankPenaltyEvent>
+  <ClashOfRim.Admin.AddBankPenaltyEvent>Добавить</ClashOfRim.Admin.AddBankPenaltyEvent>
   <ClashOfRim.Admin.BankPenaltyStartCount>Начальное число</ClashOfRim.Admin.BankPenaltyStartCount>
   <ClashOfRim.Admin.BankPenaltyEvent>Событие</ClashOfRim.Admin.BankPenaltyEvent>
   <ClashOfRim.Admin.BankPenaltySeverity>Серьезность</ClashOfRim.Admin.BankPenaltySeverity>
@@ -1717,10 +1718,10 @@
   <ClashOfRim.Admin.BroadcastMessage>Сообщение</ClashOfRim.Admin.BroadcastMessage>
   <ClashOfRim.Admin.ActionBroadcast>Рассылка</ClashOfRim.Admin.ActionBroadcast>
   <ClashOfRim.Admin.BroadcastTarget>Цель</ClashOfRim.Admin.BroadcastTarget>
-  <ClashOfRim.Admin.BroadcastTargetAll>Все игроки</ClashOfRim.Admin.BroadcastTargetAll>
+  <ClashOfRim.Admin.BroadcastTargetAll>Все</ClashOfRim.Admin.BroadcastTargetAll>
   <ClashOfRim.Admin.BroadcastPersistent>Постоянное</ClashOfRim.Admin.BroadcastPersistent>
   <ClashOfRim.Admin.BroadcastSeverityInfo>Уведомление</ClashOfRim.Admin.BroadcastSeverityInfo>
-  <ClashOfRim.Admin.BroadcastSeverityWarning>Предупреждение</ClashOfRim.Admin.BroadcastSeverityWarning>
+  <ClashOfRim.Admin.BroadcastSeverityWarning>Внимание</ClashOfRim.Admin.BroadcastSeverityWarning>
   <ClashOfRim.Admin.BroadcastSeverityError>Ошибка</ClashOfRim.Admin.BroadcastSeverityError>
   <ClashOfRim.Admin.MaintenanceLocked>Новые входы заблокированы.</ClashOfRim.Admin.MaintenanceLocked>
   <ClashOfRim.Admin.MaintenanceUnlocked>Новые входы не заблокированы.</ClashOfRim.Admin.MaintenanceUnlocked>
@@ -1732,8 +1733,8 @@
   <ClashOfRim.Admin.NoConfigFiles>Нет файлов конфига</ClashOfRim.Admin.NoConfigFiles>
   <ClashOfRim.Admin.ConfigNotSaved>(настройки по умолчанию, не сохранены)</ClashOfRim.Admin.ConfigNotSaved>
   <ClashOfRim.Admin.ModRoleRequired>Обязательный</ClashOfRim.Admin.ModRoleRequired>
-  <ClashOfRim.Admin.ModRoleOptional>Необязательный</ClashOfRim.Admin.ModRoleOptional>
-  <ClashOfRim.Admin.ModRoleTranslation>Исключение перевода</ClashOfRim.Admin.ModRoleTranslation>
+  <ClashOfRim.Admin.ModRoleOptional>Опция</ClashOfRim.Admin.ModRoleOptional>
+  <ClashOfRim.Admin.ModRoleTranslation>Перевод</ClashOfRim.Admin.ModRoleTranslation>
   <ClashOfRim.Admin.ConfigModeEnforce>Принудительно</ClashOfRim.Admin.ConfigModeEnforce>
   <ClashOfRim.Admin.ConfigModeWarn>Предупреждать</ClashOfRim.Admin.ConfigModeWarn>
   <ClashOfRim.Admin.ConfigModeIgnore>Игнорировать</ClashOfRim.Admin.ConfigModeIgnore>
@@ -1770,8 +1771,8 @@
   <ClashOfRim.Shop.ConfirmSell>Передать {COUNT} x {THING} за &lt;color=#d7dadb&gt;{PRICE} серебра&lt;/color&gt;?</ClashOfRim.Shop.ConfirmSell>
   <ClashOfRim.Shop.AddListing>Добавить</ClashOfRim.Shop.AddListing>
   <ClashOfRim.Shop.Kind>Тип</ClashOfRim.Shop.Kind>
-  <ClashOfRim.Shop.KindSell>Продажа игрокам</ClashOfRim.Shop.KindSell>
-  <ClashOfRim.Shop.KindBuy>Покупка у игроков</ClashOfRim.Shop.KindBuy>
+  <ClashOfRim.Shop.KindSell>Продажа</ClashOfRim.Shop.KindSell>
+  <ClashOfRim.Shop.KindBuy>Закупка</ClashOfRim.Shop.KindBuy>
   <ClashOfRim.Shop.StockShort>Запас</ClashOfRim.Shop.StockShort>
   <ClashOfRim.Shop.DemandShort>Спрос</ClashOfRim.Shop.DemandShort>
   <ClashOfRim.Shop.PriceShort>Цена</ClashOfRim.Shop.PriceShort>
@@ -1788,20 +1789,20 @@
   <ClashOfRim.Shop.ListingDetails>Позиция</ClashOfRim.Shop.ListingDetails>
   <ClashOfRim.Shop.NoThingSelected>Предмет не выбран.</ClashOfRim.Shop.NoThingSelected>
   <ClashOfRim.Shop.Genes>Гены</ClashOfRim.Shop.Genes>
-  <ClashOfRim.Shop.SelectGenes>Выбрать гены</ClashOfRim.Shop.SelectGenes>
+  <ClashOfRim.Shop.SelectGenes>Гены</ClashOfRim.Shop.SelectGenes>
   <ClashOfRim.Shop.SelectGenesTitle>Выбор генов позиции</ClashOfRim.Shop.SelectGenesTitle>
   <ClashOfRim.Shop.BookContent>Содержание книги</ClashOfRim.Shop.BookContent>
   <ClashOfRim.Shop.ResearchProject>Исследование</ClashOfRim.Shop.ResearchProject>
-  <ClashOfRim.Shop.SelectBookSkills>Выбрать навыки</ClashOfRim.Shop.SelectBookSkills>
+  <ClashOfRim.Shop.SelectBookSkills>Навыки</ClashOfRim.Shop.SelectBookSkills>
   <ClashOfRim.Shop.Stuff>Материал</ClashOfRim.Shop.Stuff>
   <ClashOfRim.Shop.Quality>Качество</ClashOfRim.Shop.Quality>
   <ClashOfRim.Shop.QualityRequirement>Ограничение качества</ClashOfRim.Shop.QualityRequirement>
-  <ClashOfRim.Shop.QualityAtLeast>Целевое качество или выше</ClashOfRim.Shop.QualityAtLeast>
-  <ClashOfRim.Shop.QualityAtMost>Целевое качество или ниже</ClashOfRim.Shop.QualityAtMost>
+  <ClashOfRim.Shop.QualityAtLeast>Минимум</ClashOfRim.Shop.QualityAtLeast>
+  <ClashOfRim.Shop.QualityAtMost>Максимум</ClashOfRim.Shop.QualityAtMost>
   <ClashOfRim.Shop.HitPoints>Прочность</ClashOfRim.Shop.HitPoints>
   <ClashOfRim.Shop.HitPointsRequirement>Ограничение прочности</ClashOfRim.Shop.HitPointsRequirement>
-  <ClashOfRim.Shop.HitPointsAtLeast>Целевая прочность или выше</ClashOfRim.Shop.HitPointsAtLeast>
-  <ClashOfRim.Shop.HitPointsAtMost>Целевая прочность или ниже</ClashOfRim.Shop.HitPointsAtMost>
+  <ClashOfRim.Shop.HitPointsAtLeast>Минимум</ClashOfRim.Shop.HitPointsAtLeast>
+  <ClashOfRim.Shop.HitPointsAtMost>Максимум</ClashOfRim.Shop.HitPointsAtMost>
   <ClashOfRim.Shop.IncompleteListing>Свойства предмета не выбраны. Заполните особые свойства предмета.</ClashOfRim.Shop.IncompleteListing>
   <ClashOfRim.Shop.StatusSavingListing>Сохранение позиции магазина.</ClashOfRim.Shop.StatusSavingListing>
   <ClashOfRim.Shop.StatusSaveFailed>Не удалось сохранить позицию магазина: {CODE} {MESSAGE}</ClashOfRim.Shop.StatusSaveFailed>
@@ -1845,13 +1846,13 @@
   <ClashOfRim.TraitTrainer.NoTrait>Черта не выбрана</ClashOfRim.TraitTrainer.NoTrait>
   <ClashOfRim.TraitTrainer.Random>случайная</ClashOfRim.TraitTrainer.Random>
   <ClashOfRim.TraitTrainer.RandomDescription>Нейротренажер, внедряющий случайную черту в сознание пользователя.</ClashOfRim.TraitTrainer.RandomDescription>
-  <ClashOfRim.TraitTrainer.Select>Выбрать черту</ClashOfRim.TraitTrainer.Select>
+  <ClashOfRim.TraitTrainer.Select>Черта</ClashOfRim.TraitTrainer.Select>
   <ClashOfRim.TraitTrainer.SelectTitle>Выбор черты</ClashOfRim.TraitTrainer.SelectTitle>
   <ClashOfRim.TraitTrainer.Trait>Черта</ClashOfRim.TraitTrainer.Trait>
   <ClashOfRim.TraitTrainer.Used>{PAWN} получил черту: {TRAIT}.</ClashOfRim.TraitTrainer.Used>
   <ClashOfRim.TraitTrainer.UseLabel>Использовать тренажер черт: {TRAIT}</ClashOfRim.TraitTrainer.UseLabel>
   <ClashOfRim.TraitTrainer.UseRandomLabel>Использовать случайный тренажер черт</ClashOfRim.TraitTrainer.UseRandomLabel>
-  <ClashOfRim.ColonyAppearance.CommandLabel>Настроить значок мультиплеера</ClashOfRim.ColonyAppearance.CommandLabel>
+  <ClashOfRim.ColonyAppearance.CommandLabel>Значок</ClashOfRim.ColonyAppearance.CommandLabel>
   <ClashOfRim.ColonyAppearance.CommandDesc>Настроить значок колонии, видимый другим игрокам на карте мира.</ClashOfRim.ColonyAppearance.CommandDesc>
   <ClashOfRim.ColonyAppearance.Title>Значок колонии</ClashOfRim.ColonyAppearance.Title>
   <ClashOfRim.ColonyAppearance.Target>Цель: {COLONY}</ClashOfRim.ColonyAppearance.Target>

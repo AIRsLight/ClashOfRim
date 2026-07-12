@@ -442,6 +442,7 @@ internal sealed class CompatibilityMismatchWindow : Window
                     status = message;
                 }
             }
+            TooltipHandler.TipRegion(applyRect, T("ClashOfRim.Compatibility.ApplyAndRestartDesc"));
         }
 
         if (response.CanOverrideCompatibilityBaseline && !canContinueAnyway)

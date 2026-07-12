@@ -12,7 +12,7 @@
   <ClashOfRim.Send>보내기</ClashOfRim.Send>
   <ClashOfRim.SessionExpired.Title>서버 세션 만료</ClashOfRim.SessionExpired.Title>
   <ClashOfRim.SessionExpired.Message>서버 세션이 만료되었습니다. 메인 메뉴로 돌아가 서버에 다시 접속하세요.</ClashOfRim.SessionExpired.Message>
-  <ClashOfRim.SessionExpired.ReturnToMainMenu>메인 메뉴로 돌아가기</ClashOfRim.SessionExpired.ReturnToMainMenu>
+  <ClashOfRim.SessionExpired.ReturnToMainMenu>메뉴</ClashOfRim.SessionExpired.ReturnToMainMenu>
   <ClashOfRim.SessionExpired.Status>서버 세션이 만료되었습니다. 다시 로그인하세요.</ClashOfRim.SessionExpired.Status>
   <ClashOfRim.Chat.EmptyMessage>채팅 내용은 비워 둘 수 없습니다.</ClashOfRim.Chat.EmptyMessage>
   <ClashOfRim.Chat.InvalidPrivateFormat>귓속말 형식: @플레이어 메시지.</ClashOfRim.Chat.InvalidPrivateFormat>
@@ -38,7 +38,7 @@
   <ClashOfRim.Network.StatusNotConfigured>서버 주소, 계정 또는 식민지가 설정되지 않았습니다.</ClashOfRim.Network.StatusNotConfigured>
   <ClashOfRim.Network.StatusDeserializeFailed>응답 형식을 해석할 수 없습니다: {TYPE}</ClashOfRim.Network.StatusDeserializeFailed>
   <ClashOfRim.Chat.Title>채팅</ClashOfRim.Chat.Title>
-  <ClashOfRim.Account.ChangePassword>비밀번호 변경</ClashOfRim.Account.ChangePassword>
+  <ClashOfRim.Account.ChangePassword>비밀번호</ClashOfRim.Account.ChangePassword>
   <ClashOfRim.Account.CurrentPassword>현재 비밀번호</ClashOfRim.Account.CurrentPassword>
   <ClashOfRim.Account.CurrentUser>현재 계정: {USER}</ClashOfRim.Account.CurrentUser>
   <ClashOfRim.Account.NewPassword>새 비밀번호</ClashOfRim.Account.NewPassword>
@@ -85,17 +85,18 @@
   <ClashOfRim.Compatibility.FilesMatch>파일이 일치합니다.</ClashOfRim.Compatibility.FilesMatch>
   <ClashOfRim.Compatibility.ConfigsMatch>설정이 일치합니다.</ClashOfRim.Compatibility.ConfigsMatch>
   <ClashOfRim.Compatibility.ModsMatch>모드가 일치합니다.</ClashOfRim.Compatibility.ModsMatch>
-  <ClashOfRim.Compatibility.ApplyAndRestart>적용 후 재시작</ClashOfRim.Compatibility.ApplyAndRestart>
+  <ClashOfRim.Compatibility.ApplyAndRestart>적용</ClashOfRim.Compatibility.ApplyAndRestart>
+  <ClashOfRim.Compatibility.ApplyAndRestartDesc>서버 모드 목록과 로드 순서를 적용한 후 게임을 다시 시작합니다.</ClashOfRim.Compatibility.ApplyAndRestartDesc>
   <ClashOfRim.Compatibility.JoinAnyway>계속 참가</ClashOfRim.Compatibility.JoinAnyway>
-  <ClashOfRim.Compatibility.ConfigApplyOverlayAndRestart>오버레이 적용 후 재시작</ClashOfRim.Compatibility.ConfigApplyOverlayAndRestart>
-  <ClashOfRim.Compatibility.ConfigOverwriteLocalAndRestart>로컬에 쓰고 재시작</ClashOfRim.Compatibility.ConfigOverwriteLocalAndRestart>
-  <ClashOfRim.Compatibility.ConfigApplyOverlayDesc>로컬 Config 파일을 수정하지 않고 서버 설정을 사용합니다.</ClashOfRim.Compatibility.ConfigApplyOverlayDesc>
-  <ClashOfRim.Compatibility.ConfigOverwriteLocalDesc>서버 설정을 로컬 Config 파일에 쓰고 현재 서버 오버레이를 제거합니다.</ClashOfRim.Compatibility.ConfigOverwriteLocalDesc>
+  <ClashOfRim.Compatibility.ConfigApplyOverlayAndRestart>오버레이</ClashOfRim.Compatibility.ConfigApplyOverlayAndRestart>
+  <ClashOfRim.Compatibility.ConfigOverwriteLocalAndRestart>로컬 덮어쓰기</ClashOfRim.Compatibility.ConfigOverwriteLocalAndRestart>
+  <ClashOfRim.Compatibility.ConfigApplyOverlayDesc>로컬 Config 파일을 수정하지 않고 서버 설정을 오버레이로 적용한 후 게임을 다시 시작합니다.</ClashOfRim.Compatibility.ConfigApplyOverlayDesc>
+  <ClashOfRim.Compatibility.ConfigOverwriteLocalDesc>서버 설정을 로컬 Config 파일에 쓰고 현재 오버레이를 제거한 후 게임을 다시 시작합니다.</ClashOfRim.Compatibility.ConfigOverwriteLocalDesc>
   <ClashOfRim.Compatibility.ConfigApplyOverlayRestarting>서버 설정 오버레이를 적용했습니다. 재시작 중입니다.</ClashOfRim.Compatibility.ConfigApplyOverlayRestarting>
   <ClashOfRim.Compatibility.ConfigOverwriteLocalRestarting>로컬 설정을 덮어썼습니다. 재시작 중입니다.</ClashOfRim.Compatibility.ConfigOverwriteLocalRestarting>
   <ClashOfRim.Compatibility.ConfigApplyAvailable>설정 차이는 서버 오버레이를 사용하거나 로컬 설정을 덮어쓴 뒤 재시작할 수 있습니다.</ClashOfRim.Compatibility.ConfigApplyAvailable>
   <ClashOfRim.Compatibility.OpenWorkshop>워크샵</ClashOfRim.Compatibility.OpenWorkshop>
-  <ClashOfRim.Compatibility.OverrideBaseline>서버 데이터 업데이트</ClashOfRim.Compatibility.OverrideBaseline>
+  <ClashOfRim.Compatibility.OverrideBaseline>덮어쓰기</ClashOfRim.Compatibility.OverrideBaseline>
   <ClashOfRim.Compatibility.OverrideBaselineDesc>현재 클라이언트의 모드 목록, 파일 해시 및 설정 규칙으로 서버 매니페스트 기준을 교체합니다. 모든 플레이어의 이후 접속에 영향을 주므로 현재 환경이 올바른 경우에만 사용하십시오.</ClashOfRim.Compatibility.OverrideBaselineDesc>
   <ClashOfRim.Compatibility.Override.ModListWarning>현재 클라이언트 모드 목록 또는 로드 순서가 서버 기준과 일치하지 않습니다. 계속하면 서버가 이 클라이언트를 새 기준으로 사용합니다. 로컬 싱글플레이 모드 목록을 불러온 것이 아닌지 확인하세요.</ClashOfRim.Compatibility.Override.ModListWarning>
   <ClashOfRim.Compatibility.Summary>모드 {MODS} / 파일 {FILES} / 설정 {CONFIGS}</ClashOfRim.Compatibility.Summary>
@@ -179,7 +180,7 @@
   <ClashOfRim.Compatibility.Override.AdminBaselineNotUpdated>관리자 가격표와 함정 목록이 업데이트되지 않았습니다: {MESSAGE}</ClashOfRim.Compatibility.Override.AdminBaselineNotUpdated>
   <ClashOfRim.Compatibility.Override.Exception>업데이트 예외: {TYPE}</ClashOfRim.Compatibility.Override.Exception>
   <ClashOfRim.Compatibility.Override.Title>서버 데이터 업데이트</ClashOfRim.Compatibility.Override.Title>
-  <ClashOfRim.Compatibility.Override.ReturnMainMenu>메인 메뉴로 돌아가기</ClashOfRim.Compatibility.Override.ReturnMainMenu>
+  <ClashOfRim.Compatibility.Override.ReturnMainMenu>메뉴</ClashOfRim.Compatibility.Override.ReturnMainMenu>
   <ClashOfRim.Compatibility.Override.Success>&lt;color=#7ecf6b&gt;업데이트 성공.&lt;/color&gt;</ClashOfRim.Compatibility.Override.Success>
   <ClashOfRim.Compatibility.Override.Failed>&lt;color=#ff6b6b&gt;업데이트 실패.&lt;/color&gt;</ClashOfRim.Compatibility.Override.Failed>
   <ClashOfRim.Compatibility.ModSettingsLockedTitle>서버 설정 잠김</ClashOfRim.Compatibility.ModSettingsLockedTitle>
@@ -326,7 +327,7 @@
   <ClashOfRim.Achievement.ScoreboardEmpty>아직 업적 기록이 없습니다.</ClashOfRim.Achievement.ScoreboardEmpty>
   <ClashOfRim.Achievement.SelectPlayer>표시할 플레이어 선택</ClashOfRim.Achievement.SelectPlayer>
   <ClashOfRim.Achievement.OwnEmpty>기록된 업적이 아직 없습니다.</ClashOfRim.Achievement.OwnEmpty>
-  <ClashOfRim.Achievement.GetTrophyBlueprint>트로피 도면 받기</ClashOfRim.Achievement.GetTrophyBlueprint>
+  <ClashOfRim.Achievement.GetTrophyBlueprint>도면</ClashOfRim.Achievement.GetTrophyBlueprint>
   <ClashOfRim.Achievement.GetTrophyBlueprintDesc>이 업적을 기록하는 트로피 도면을 생성합니다.</ClashOfRim.Achievement.GetTrophyBlueprintDesc>
   <ClashOfRim.Achievement.TrophyBlueprintSelected>업적 트로피 청사진을 선택했습니다.</ClashOfRim.Achievement.TrophyBlueprintSelected>
   <ClashOfRim.Achievement.TrophyNoMap>트로피를 배치하려면 식민지 지도에 들어가세요.</ClashOfRim.Achievement.TrophyNoMap>
@@ -334,7 +335,7 @@
   <ClashOfRim.Achievement.TrophyPlanMissingDef>업적 트로피 도면 정의를 찾을 수 없습니다.</ClashOfRim.Achievement.TrophyPlanMissingDef>
   <ClashOfRim.Achievement.TrophyPlanCreated>트로피 도면을 생성했습니다. 도면을 선택해 재료를 고르고 트로피 청사진을 배치할 수 있습니다.</ClashOfRim.Achievement.TrophyPlanCreated>
   <ClashOfRim.Achievement.TrophyPlanCreateFailed>트로피 도면을 생성할 수 없습니다.</ClashOfRim.Achievement.TrophyPlanCreateFailed>
-  <ClashOfRim.Achievement.PlaceTrophy>트로피 배치</ClashOfRim.Achievement.PlaceTrophy>
+  <ClashOfRim.Achievement.PlaceTrophy>배치</ClashOfRim.Achievement.PlaceTrophy>
   <ClashOfRim.Achievement.PlaceTrophyDesc>재료를 고르고 이 업적을 기록하는 트로피 청사진을 배치합니다.</ClashOfRim.Achievement.PlaceTrophyDesc>
   <ClashOfRim.Achievement.TrophyInspectLine>달성자: {OWNER}; 업적: {ACHIEVEMENT}; 기록값: {VALUE}</ClashOfRim.Achievement.TrophyInspectLine>
   <ClashOfRim.Achievement.TrophyArtDescription>업적: {ACHIEVEMENT}&#10;달성자: {OWNER}&#10;&#10;{DESCRIPTION}&#10;&#10;기록값: {VALUE}</ClashOfRim.Achievement.TrophyArtDescription>
@@ -567,7 +568,7 @@
   <ClashOfRim.RemoteWorldObject.WorldObjectInspect>원본 월드 오브젝트: {ID}</ClashOfRim.RemoteWorldObject.WorldObjectInspect>
   <ClashOfRim.RemoteWorldObject.MapInspect>원본 지도: {ID}</ClashOfRim.RemoteWorldObject.MapInspect>
   <ClashOfRim.RemoteWorldObject.SnapshotInspect>저장: {ID}</ClashOfRim.RemoteWorldObject.SnapshotInspect>
-  <ClashOfRim.RemoteWorldObject.ActionNotice>진입 조건 보기</ClashOfRim.RemoteWorldObject.ActionNotice>
+  <ClashOfRim.RemoteWorldObject.ActionNotice>조건</ClashOfRim.RemoteWorldObject.ActionNotice>
   <ClashOfRim.RemoteWorldObject.RaidActionNoticeDesc>습격은 정식 습격 절차로 생성해야 하며, 이 빈 월드 오브젝트에서 직접 들어갈 수 없습니다.</ClashOfRim.RemoteWorldObject.RaidActionNoticeDesc>
   <ClashOfRim.RemoteWorldObject.ReinforceActionNoticeDesc>증원은 대상 타일에 대상단을 도착시킨 뒤, 대상단 명령으로 지원할 정착민을 선택해야 합니다.</ClashOfRim.RemoteWorldObject.ReinforceActionNoticeDesc>
   <ClashOfRim.RemoteWorldObject.RaidActionNoticeMessage>습격 입구는 실제 습격 루프에 연결됩니다. 지금은 멀티플레이 창에서 대상을 확인하세요.</ClashOfRim.RemoteWorldObject.RaidActionNoticeMessage>
@@ -848,14 +849,14 @@
   <ClashOfRim.Support.RejectRejected>서버가 지원 정착민 거부를 거부했습니다: {CODE} {MESSAGE}</ClashOfRim.Support.RejectRejected>
   <ClashOfRim.Support.Rejected>지원 정착민을 거부했습니다. 서버가 귀환을 준비합니다.</ClashOfRim.Support.Rejected>
   <ClashOfRim.Support.RejectException>지원 정착민 거부 예외: {TYPE} {MESSAGE}</ClashOfRim.Support.RejectException>
-  <ClashOfRim.Diplomacy.RequestAlliance>동맹 요청</ClashOfRim.Diplomacy.RequestAlliance>
+  <ClashOfRim.Diplomacy.RequestAlliance>동맹</ClashOfRim.Diplomacy.RequestAlliance>
   <ClashOfRim.Diplomacy.CancelAlliance>동맹 파기</ClashOfRim.Diplomacy.CancelAlliance>
-  <ClashOfRim.Diplomacy.RequestSupport>지원 요청</ClashOfRim.Diplomacy.RequestSupport>
+  <ClashOfRim.Diplomacy.RequestSupport>지원</ClashOfRim.Diplomacy.RequestSupport>
   <ClashOfRim.Diplomacy.SupportRequestTitle>동맹에게 지원 요청</ClashOfRim.Diplomacy.SupportRequestTitle>
   <ClashOfRim.Diplomacy.SupportRequestTarget>보낼 대상: {PLAYER}</ClashOfRim.Diplomacy.SupportRequestTarget>
   <ClashOfRim.Diplomacy.SupportRequestHint>필요 병력, 시기, 위협 규모 또는 기타 세부사항을 적으세요. 최대 {COUNT}자.</ClashOfRim.Diplomacy.SupportRequestHint>
   <ClashOfRim.Diplomacy.DeclareWar>선전포고</ClashOfRim.Diplomacy.DeclareWar>
-  <ClashOfRim.Diplomacy.RequestPeace>평화 요청</ClashOfRim.Diplomacy.RequestPeace>
+  <ClashOfRim.Diplomacy.RequestPeace>평화</ClashOfRim.Diplomacy.RequestPeace>
   <ClashOfRim.Diplomacy.ConfirmAllianceRequest>{PLAYER}에게 동맹 요청을 보낼까요?</ClashOfRim.Diplomacy.ConfirmAllianceRequest>
   <ClashOfRim.Diplomacy.ConfirmAllianceCancellation>{PLAYER}와의 동맹을 파기할까요? 관계가 중립이 됩니다.</ClashOfRim.Diplomacy.ConfirmAllianceCancellation>
   <ClashOfRim.Diplomacy.ConfirmWarDeclaration>{PLAYER}에게 선전포고할까요? 관계가 적대가 됩니다.</ClashOfRim.Diplomacy.ConfirmWarDeclaration>
@@ -876,8 +877,8 @@
   <ClashOfRim.Diplomacy.RelationReasonWarDeclaration>선전포고</ClashOfRim.Diplomacy.RelationReasonWarDeclaration>
   <ClashOfRim.Diplomacy.RelationReasonPeaceRequest>평화 요청</ClashOfRim.Diplomacy.RelationReasonPeaceRequest>
   <ClashOfRim.PlayerFaction.Report>{PLAYER}은(는) 다른 원거리 정착지입니다. 이 항목에는 외교 관계, 알려진 위치, 거래가 표시됩니다.</ClashOfRim.PlayerFaction.Report>
-  <ClashOfRim.Raid.CaravanGizmo>습격 시작</ClashOfRim.Raid.CaravanGizmo>
-  <ClashOfRim.Raid.CaravanGizmoCount>습격 시작({COUNT})</ClashOfRim.Raid.CaravanGizmoCount>
+  <ClashOfRim.Raid.CaravanGizmo>습격</ClashOfRim.Raid.CaravanGizmo>
+  <ClashOfRim.Raid.CaravanGizmoCount>습격 ({COUNT})</ClashOfRim.Raid.CaravanGizmoCount>
   <ClashOfRim.Raid.CaravanGizmoDesc>카라반이 습격 가능한 타일에 도착했습니다. 대상을 선택하고 습격을 시작하세요.</ClashOfRim.Raid.CaravanGizmoDesc>
   <ClashOfRim.Raid.PvpDisabled>서버에서 플레이어 습격이 비활성화되었습니다.</ClashOfRim.Raid.PvpDisabled>
   <ClashOfRim.Raid.CaravanTargetOption>{TARGET}, 공격자 {COUNT}명</ClashOfRim.Raid.CaravanTargetOption>
@@ -953,8 +954,8 @@
   <ClashOfRim.Raid.RestoreMissingLocalBattle>서버에 미완료 습격 {EVENTID}가 있지만 이 저장에는 복구 가능한 전투 지도가 없습니다.</ClashOfRim.Raid.RestoreMissingLocalBattle>
   <ClashOfRim.Raid.RestoreServerAlreadySettled>서버가 이 습격을 이미 종료했습니다. 이벤트를 새로고침합니다.</ClashOfRim.Raid.RestoreServerAlreadySettled>
   <ClashOfRim.Raid.RestoreSucceeded>&lt;color=#7ecf6b&gt;습격 복원됨&lt;/color&gt;, 남은 시간 &lt;color=#ff9f43&gt;{SECONDS}초&lt;/color&gt;.</ClashOfRim.Raid.RestoreSucceeded>
-  <ClashOfRim.Support.CaravanGizmo>지원 보내기</ClashOfRim.Support.CaravanGizmo>
-  <ClashOfRim.Support.CaravanGizmoCount>지원 보내기({COUNT})</ClashOfRim.Support.CaravanGizmoCount>
+  <ClashOfRim.Support.CaravanGizmo>지원</ClashOfRim.Support.CaravanGizmo>
+  <ClashOfRim.Support.CaravanGizmoCount>지원 ({COUNT})</ClashOfRim.Support.CaravanGizmoCount>
   <ClashOfRim.Support.CaravanGizmoDesc>카라반이 증원 가능한 타일에 도착했습니다. 대상 거주지에 지원으로 합류할 구성원 한 명을 선택하세요.</ClashOfRim.Support.CaravanGizmoDesc>
   <ClashOfRim.Support.CaravanPawnOption>{PAWN} -&gt; {TARGET}</ClashOfRim.Support.CaravanPawnOption>
   <ClashOfRim.Support.ConfirmSend>{PAWN}을(를) {TARGET} 지원으로 보낼까요?\n이 정착민은 현재 카라반을 떠나 다른 거주지의 수령을 기다립니다.</ClashOfRim.Support.ConfirmSend>
@@ -965,10 +966,10 @@
   <ClashOfRim.Support.DurationDialogDays>{DAYS}일</ClashOfRim.Support.DurationDialogDays>
   <ClashOfRim.Support.DurationDialogPermanentSelected>현재 선택: 영구 지원. 이 정착민은 자동으로 돌아오지 않습니다.</ClashOfRim.Support.DurationDialogPermanentSelected>
   <ClashOfRim.Support.DurationDialogTarget>{PAWN} -&gt; {TARGET}</ClashOfRim.Support.DurationDialogTarget>
-  <ClashOfRim.Support.DurationDialogTemporary>임시 지원</ClashOfRim.Support.DurationDialogTemporary>
+  <ClashOfRim.Support.DurationDialogTemporary>임시</ClashOfRim.Support.DurationDialogTemporary>
   <ClashOfRim.Support.DurationDialogTemporarySelected>현재 선택: 임시 지원. 기간이 끝나면 이 정착민은 자동으로 돌아옵니다.</ClashOfRim.Support.DurationDialogTemporarySelected>
   <ClashOfRim.Support.DurationDialogTitle>지원 기간 선택</ClashOfRim.Support.DurationDialogTitle>
-  <ClashOfRim.Support.DurationPermanent>영구 지원</ClashOfRim.Support.DurationPermanent>
+  <ClashOfRim.Support.DurationPermanent>영구</ClashOfRim.Support.DurationPermanent>
   <ClashOfRim.Support.ArrivalLetterLabel>지원 도착</ClashOfRim.Support.ArrivalLetterLabel>
   <ClashOfRim.Support.ArrivalLetterText>{PAWN}이(가) 도착했으며 일시적으로 당신의 거주지에 합류합니다.</ClashOfRim.Support.ArrivalLetterText>
   <ClashOfRim.Support.PermanentArrivalLetterLabel>정착민 합류</ClashOfRim.Support.PermanentArrivalLetterLabel>
@@ -1023,14 +1024,14 @@
   <ClashOfRim.Support.TargetLabel>{LABEL} ({USER}/{COLONY}@{TILE})</ClashOfRim.Support.TargetLabel>
   <ClashOfRim.Trade.Accepted>접수됨</ClashOfRim.Trade.Accepted>
   <ClashOfRim.Trade.AcceptedMemoSuffix>, 접수 {COUNT}</ClashOfRim.Trade.AcceptedMemoSuffix>
-  <ClashOfRim.Trade.AddToAcceptedList>접수 목록에 추가</ClashOfRim.Trade.AddToAcceptedList>
+  <ClashOfRim.Trade.AddToAcceptedList>접수</ClashOfRim.Trade.AddToAcceptedList>
   <ClashOfRim.Trade.CancelAcceptedMemo>접수 취소</ClashOfRim.Trade.CancelAcceptedMemo>
   <ClashOfRim.Trade.CancelOrder>철회</ClashOfRim.Trade.CancelOrder>
   <ClashOfRim.Trade.ConfirmCancelAcceptedMemo>이 거래 주문의 접수를 취소할까요? 이는 내 알림 기록만 제거하며, 다른 플레이어가 거래를 접수하거나 완료하는 것을 막지 않습니다.</ClashOfRim.Trade.ConfirmCancelAcceptedMemo>
   <ClashOfRim.Trade.ConfirmCancelOrder>이 거래 주문을 철회할까요? 보관 중인 제시 물품은 반환되고, 접수한 플레이어에게 알림이 전송됩니다.</ClashOfRim.Trade.ConfirmCancelOrder>
   <ClashOfRim.Trade.CaravanExchangeApplied>요구 물품 {REQUESTCOUNT}개 항목을 전달했습니다. 원정대가 {STACKCOUNT}개 더미를 받았습니다.</ClashOfRim.Trade.CaravanExchangeApplied>
   <ClashOfRim.Trade.CaravanFulfillGizmo>거래 이행</ClashOfRim.Trade.CaravanFulfillGizmo>
-  <ClashOfRim.Trade.CaravanFulfillGizmoCount>거래 이행({COUNT})</ClashOfRim.Trade.CaravanFulfillGizmoCount>
+  <ClashOfRim.Trade.CaravanFulfillGizmoCount>거래 ({COUNT})</ClashOfRim.Trade.CaravanFulfillGizmoCount>
   <ClashOfRim.Trade.CaravanFulfillGizmoDesc>원정대가 거래 가능한 타일에 도착했습니다. 휴대 물품을 제출해 접수한 거래 주문을 완료합니다.</ClashOfRim.Trade.CaravanFulfillGizmoDesc>
   <ClashOfRim.Trade.CaravanFulfillOption>{OWNER}: {DELIVER} 전달, {RECEIVE} 수령</ClashOfRim.Trade.CaravanFulfillOption>
   <ClashOfRim.Trade.CaravanInventoryInsufficient>로컬 원정대 재고가 부족하여 제거할 수 없습니다: {THING}</ClashOfRim.Trade.CaravanInventoryInsufficient>
@@ -1041,7 +1042,7 @@
   <ClashOfRim.Trade.ConfirmCreateTitle>이 거래 주문을 만들까요?</ClashOfRim.Trade.ConfirmCreateTitle>
   <ClashOfRim.Trade.ConfirmNoRequestedThings>이 거래에서 아무 물품도 받지 않습니다. 계속할까요?</ClashOfRim.Trade.ConfirmNoRequestedThings>
   <ClashOfRim.Trade.ConfirmNoOfferedThings>이 거래 주문을 이행해도 아무 물품도 받지 않습니다. 계속할까요?</ClashOfRim.Trade.ConfirmNoOfferedThings>
-  <ClashOfRim.Trade.CreateOrderTitle>거래 주문 생성</ClashOfRim.Trade.CreateOrderTitle>
+  <ClashOfRim.Trade.CreateOrderTitle>새 주문</ClashOfRim.Trade.CreateOrderTitle>
   <ClashOfRim.Trade.Disabled>거래 시장이 비활성화되었습니다.</ClashOfRim.Trade.Disabled>
   <ClashOfRim.Trade.EstimatedValues>예상 가치: 내 물품 {OFFERED}; 상대 물품 {REQUESTED}</ClashOfRim.Trade.EstimatedValues>
   <ClashOfRim.Trade.DeliverLine>전달: {THINGS}</ClashOfRim.Trade.DeliverLine>
@@ -1053,13 +1054,13 @@
   <ClashOfRim.Trade.FeeAndMemoLine>수수료 은: {FEE}; 접수: {COUNT}</ClashOfRim.Trade.FeeAndMemoLine>
   <ClashOfRim.Trade.BookKindAnomalyResearch>이상현상 연구서</ClashOfRim.Trade.BookKindAnomalyResearch>
   <ClashOfRim.Trade.GeneXenotypeName>거래 이종 유전자</ClashOfRim.Trade.GeneXenotypeName>
-  <ClashOfRim.Trade.UniqueWeaponTraitsAny>특화 무기 특성 무관</ClashOfRim.Trade.UniqueWeaponTraitsAny>
-  <ClashOfRim.Trade.PersonaWeaponTraitsAny>인격 무기 특성 무관</ClashOfRim.Trade.PersonaWeaponTraitsAny>
+  <ClashOfRim.Trade.UniqueWeaponTraitsAny>특성 무관</ClashOfRim.Trade.UniqueWeaponTraitsAny>
+  <ClashOfRim.Trade.PersonaWeaponTraitsAny>특성 무관</ClashOfRim.Trade.PersonaWeaponTraitsAny>
   <ClashOfRim.Trade.UniqueWeaponTraitUnavailable>호환 불가</ClashOfRim.Trade.UniqueWeaponTraitUnavailable>
   <ClashOfRim.Shop.UniqueWeaponTraits>특화 특성</ClashOfRim.Shop.UniqueWeaponTraits>
-  <ClashOfRim.Shop.SelectUniqueWeaponTraits>특화 특성 선택</ClashOfRim.Shop.SelectUniqueWeaponTraits>
+  <ClashOfRim.Shop.SelectUniqueWeaponTraits>특성</ClashOfRim.Shop.SelectUniqueWeaponTraits>
   <ClashOfRim.Shop.PersonaWeaponTraits>인격 특성</ClashOfRim.Shop.PersonaWeaponTraits>
-  <ClashOfRim.Shop.SelectPersonaWeaponTraits>인격 특성 선택</ClashOfRim.Shop.SelectPersonaWeaponTraits>
+  <ClashOfRim.Shop.SelectPersonaWeaponTraits>특성</ClashOfRim.Shop.SelectPersonaWeaponTraits>
   <ClashOfRim.Trade.StatusAndExpiryLine>상태: {STATUS}; {EXPIRY}</ClashOfRim.Trade.StatusAndExpiryLine>
   <ClashOfRim.Trade.FeeWithFixed>수수료: &lt;color=#d7dadb&gt;{FEE} 은&lt;/color&gt; (고정 보관료 {FIXED} 포함, 보유 {AVAILABLE})</ClashOfRim.Trade.FeeWithFixed>
   <ClashOfRim.Trade.FulfillCompletedMessage>직접 수령 거래가 완료되었습니다. 현재 저장을 동기화합니다.</ClashOfRim.Trade.FulfillCompletedMessage>
@@ -1092,8 +1093,8 @@
   <ClashOfRim.Trade.PostageUnreachable>&lt;color=#ff6b6b&gt;도달 불가, 보낼 수 없음&lt;/color&gt;</ClashOfRim.Trade.PostageUnreachable>
   <ClashOfRim.Trade.PawnRequirement>인원</ClashOfRim.Trade.PawnRequirement>
   <ClashOfRim.Trade.NoPawnHitPoints>내구도 요구 없음</ClashOfRim.Trade.NoPawnHitPoints>
-  <ClashOfRim.Trade.PawnGenderAny>성별: 무관</ClashOfRim.Trade.PawnGenderAny>
-  <ClashOfRim.Trade.PawnGenderSelected>성별: {GENDER}</ClashOfRim.Trade.PawnGenderSelected>
+  <ClashOfRim.Trade.PawnGenderAny>성별 무관</ClashOfRim.Trade.PawnGenderAny>
+  <ClashOfRim.Trade.PawnGenderSelected>{GENDER}</ClashOfRim.Trade.PawnGenderSelected>
   <ClashOfRim.Trade.PawnGenderRequirement>성별: {GENDER}</ClashOfRim.Trade.PawnGenderRequirement>
   <ClashOfRim.Trade.PawnAge>나이</ClashOfRim.Trade.PawnAge>
   <ClashOfRim.Trade.PawnAgeYears>세</ClashOfRim.Trade.PawnAgeYears>
@@ -1101,8 +1102,8 @@
   <ClashOfRim.Trade.PawnAgeRequirementRange>나이 {MIN}-{MAX}세</ClashOfRim.Trade.PawnAgeRequirementRange>
   <ClashOfRim.Trade.PawnAgeRequirementMin>나이≥{AGE}세</ClashOfRim.Trade.PawnAgeRequirementMin>
   <ClashOfRim.Trade.PawnAgeRequirementMax>나이≤{AGE}세</ClashOfRim.Trade.PawnAgeRequirementMax>
-  <ClashOfRim.Trade.QualityAny>품질: 무관</ClashOfRim.Trade.QualityAny>
-  <ClashOfRim.Trade.QualitySelected>품질: {QUALITY}</ClashOfRim.Trade.QualitySelected>
+  <ClashOfRim.Trade.QualityAny>품질 무관</ClashOfRim.Trade.QualityAny>
+  <ClashOfRim.Trade.QualitySelected>{QUALITY}</ClashOfRim.Trade.QualitySelected>
   <ClashOfRim.Trade.ReceiveLine>수령: {THINGS}</ClashOfRim.Trade.ReceiveLine>
   <ClashOfRim.Trade.RequireBeaconRange>거래 신호기 범위 안의 물품만 사용; 끄면 신호기와 모든 저장 구역을 사용합니다</ClashOfRim.Trade.RequireBeaconRange>
   <ClashOfRim.Trade.RequestedGlobalItems>요구 물품(전체 물품 풀)</ClashOfRim.Trade.RequestedGlobalItems>
@@ -1117,11 +1118,11 @@
   <ClashOfRim.Trade.SelectedOffers>선택한 제시 물품</ClashOfRim.Trade.SelectedOffers>
   <ClashOfRim.Trade.SelectedRequests>선택한 요구 조건(수량, 품질, 내구도는 최소 조건)</ClashOfRim.Trade.SelectedRequests>
   <ClashOfRim.Trade.SelectOrderForDetails>상세 정보를 볼 거래 주문을 선택하세요.</ClashOfRim.Trade.SelectOrderForDetails>
-  <ClashOfRim.Trade.SelectGene>유전자 선택</ClashOfRim.Trade.SelectGene>
+  <ClashOfRim.Trade.SelectGene>유전자</ClashOfRim.Trade.SelectGene>
   <ClashOfRim.Trade.SelectGeneTitle>대상 유전자 선택</ClashOfRim.Trade.SelectGeneTitle>
-  <ClashOfRim.Trade.SelectResearchProject>연구 선택</ClashOfRim.Trade.SelectResearchProject>
+  <ClashOfRim.Trade.SelectResearchProject>연구</ClashOfRim.Trade.SelectResearchProject>
   <ClashOfRim.Trade.SelectResearchProjectTitle>대상 연구 선택</ClashOfRim.Trade.SelectResearchProjectTitle>
-  <ClashOfRim.Trade.SendByDropPod>수송 포드로 보내기</ClashOfRim.Trade.SendByDropPod>
+  <ClashOfRim.Trade.SendByDropPod>포드</ClashOfRim.Trade.SendByDropPod>
   <ClashOfRim.Trade.StatusLine>상태: {STATUS}</ClashOfRim.Trade.StatusLine>
   <ClashOfRim.Trade.StatusAcceptedOrder>거래 주문을 접수했습니다.</ClashOfRim.Trade.StatusAcceptedOrder>
   <ClashOfRim.Trade.StatusAcceptException>접수 예외: {TYPE} {MESSAGE}</ClashOfRim.Trade.StatusAcceptException>
@@ -1215,7 +1216,7 @@
   <ClashOfRim.Trade.SubmitHintMissing>제시 물품 또는 요구 물품과 충분한 수수료 은이 필요합니다.</ClashOfRim.Trade.SubmitHintMissing>
   <ClashOfRim.Trade.SubmitHintIncompleteRequest>요구 물품 조건이 불완전합니다.</ClashOfRim.Trade.SubmitHintIncompleteRequest>
   <ClashOfRim.Trade.SubmitHintReady>제시 {OFFERCOUNT}개 항목, 요구 {REQUESTCOUNT}개 항목. 배송 방식은 거래 완료 시 접수자가 선택합니다.</ClashOfRim.Trade.SubmitHintReady>
-  <ClashOfRim.Trade.SubmitOrder>거래 주문 제출</ClashOfRim.Trade.SubmitOrder>
+  <ClashOfRim.Trade.SubmitOrder>게시</ClashOfRim.Trade.SubmitOrder>
   <ClashOfRim.Trade.TargetBookSkillRequirement>{SKILL}</ClashOfRim.Trade.TargetBookSkillRequirement>
   <ClashOfRim.Trade.TargetResearchProjectRequirement>{PROJECT}</ClashOfRim.Trade.TargetResearchProjectRequirement>
   <ClashOfRim.Trade.SourceLabels>출처 {SOURCES}</ClashOfRim.Trade.SourceLabels>
@@ -1225,16 +1226,16 @@
   <ClashOfRim.Trade.UnknownOwner>알 수 없는 게시자</ClashOfRim.Trade.UnknownOwner>
   <ClashOfRim.Trade.ViewerAcceptedSuffix>, 내가 접수함</ClashOfRim.Trade.ViewerAcceptedSuffix>
   <ClashOfRim.Trade.ViewOnly>보기 전용</ClashOfRim.Trade.ViewOnly>
-  <ClashOfRim.GiftDelivery.CaravanGizmo>선물 전달</ClashOfRim.GiftDelivery.CaravanGizmo>
-  <ClashOfRim.GiftDelivery.CaravanGizmoCount>선물 전달 ({COUNT})</ClashOfRim.GiftDelivery.CaravanGizmoCount>
+  <ClashOfRim.GiftDelivery.CaravanGizmo>선물</ClashOfRim.GiftDelivery.CaravanGizmo>
+  <ClashOfRim.GiftDelivery.CaravanGizmoCount>선물 ({COUNT})</ClashOfRim.GiftDelivery.CaravanGizmoCount>
   <ClashOfRim.GiftDelivery.CaravanGizmoDesc>대상이 있는 다른 거주지 타일에 카라반이 도착했습니다. 대상에게 선물을 전달합니다.</ClashOfRim.GiftDelivery.CaravanGizmoDesc>
   <ClashOfRim.GiftDelivery.ForcedCaravanGizmo>강제 투하</ClashOfRim.GiftDelivery.ForcedCaravanGizmo>
-  <ClashOfRim.GiftDelivery.ForcedCaravanGizmoCount>강제 투하 ({COUNT})</ClashOfRim.GiftDelivery.ForcedCaravanGizmoCount>
+  <ClashOfRim.GiftDelivery.ForcedCaravanGizmoCount>강제 ({COUNT})</ClashOfRim.GiftDelivery.ForcedCaravanGizmoCount>
   <ClashOfRim.GiftDelivery.ForcedCaravanGizmoDesc>적대 거주지 타일에 카라반이 도착했습니다. 대상에게 물품을 강제로 투하합니다.</ClashOfRim.GiftDelivery.ForcedCaravanGizmoDesc>
   <ClashOfRim.GiftDelivery.Title>카라반 물품 배송</ClashOfRim.GiftDelivery.Title>
   <ClashOfRim.GiftDelivery.TargetLine>대상: {TARGET}</ClashOfRim.GiftDelivery.TargetLine>
   <ClashOfRim.GiftDelivery.TargetOption>{TARGET}</ClashOfRim.GiftDelivery.TargetOption>
-  <ClashOfRim.GiftDelivery.NormalMode>일반 선물</ClashOfRim.GiftDelivery.NormalMode>
+  <ClashOfRim.GiftDelivery.NormalMode>일반</ClashOfRim.GiftDelivery.NormalMode>
   <ClashOfRim.GiftDelivery.ForcedMode>강제 투하</ClashOfRim.GiftDelivery.ForcedMode>
   <ClashOfRim.GiftDelivery.NormalUnavailable>일반 선물 불가</ClashOfRim.GiftDelivery.NormalUnavailable>
   <ClashOfRim.GiftDelivery.ForcedUnavailable>사용 불가</ClashOfRim.GiftDelivery.ForcedUnavailable>
@@ -1278,7 +1279,7 @@
 현재 오류: &lt;color=#ff6b6b&gt;{MESSAGE}&lt;/color&gt;</ClashOfRim.SnapshotConfirmationFailure.Message>
   <ClashOfRim.SnapshotConfirmationFailure.MessageCompact>&lt;b&gt;{OPERATION}&lt;/b&gt;이(가) 서버에 저장되지 않았습니다. &lt;color=#ffd166&gt;계속하면 로컬 상태와 서버 저장이 동기화되지 않습니다.&lt;/color&gt; 업로드를 다시 시도하거나 메인 메뉴로 돌아가 서버에 다시 입장하세요.</ClashOfRim.SnapshotConfirmationFailure.MessageCompact>
   <ClashOfRim.SnapshotConfirmationFailure.RetryUpload>업로드 다시 시도</ClashOfRim.SnapshotConfirmationFailure.RetryUpload>
-  <ClashOfRim.SnapshotConfirmationFailure.ReturnToMainMenu>메인 메뉴로 돌아가기</ClashOfRim.SnapshotConfirmationFailure.ReturnToMainMenu>
+  <ClashOfRim.SnapshotConfirmationFailure.ReturnToMainMenu>메뉴</ClashOfRim.SnapshotConfirmationFailure.ReturnToMainMenu>
   <ClashOfRim.SnapshotConfirmationFailure.Waiting>처리 중입니다. 완료될 때까지 게임이 일시 정지됩니다.</ClashOfRim.SnapshotConfirmationFailure.Waiting>
   <ClashOfRim.SnapshotConfirmationFailure.RetryMissing>다시 시도할 확인 업로드가 없습니다.</ClashOfRim.SnapshotConfirmationFailure.RetryMissing>
   <ClashOfRim.SnapshotConfirmationFailure.ReturningToMainMenu>메인 메뉴로 돌아가는 중입니다.</ClashOfRim.SnapshotConfirmationFailure.ReturningToMainMenu>
@@ -1291,7 +1292,7 @@
   <ClashOfRim.SnapshotConfirmationFailure.OperationBank>은행 작업</ClashOfRim.SnapshotConfirmationFailure.OperationBank>
   <ClashOfRim.SnapshotConfirmationFailure.OperationMercenary>용병 작업</ClashOfRim.SnapshotConfirmationFailure.OperationMercenary>
   <ClashOfRim.SnapshotConfirmationFailure.OperationColonyRelocation>정착지 이전</ClashOfRim.SnapshotConfirmationFailure.OperationColonyRelocation>
-  <ClashOfRim.ColonyRelocation.CommandLabel>정착지 이전</ClashOfRim.ColonyRelocation.CommandLabel>
+  <ClashOfRim.ColonyRelocation.CommandLabel>이전</ClashOfRim.ColonyRelocation.CommandLabel>
   <ClashOfRim.ColonyRelocation.CommandDesc>이 대상단을 이곳에 정착시키고 원판 규칙으로 이전 정착지를 포기합니다. 서버가 새 상태를 저장할 때까지 정상 플레이를 계속할 수 없습니다.</ClashOfRim.ColonyRelocation.CommandDesc>
   <ClashOfRim.ColonyRelocation.Title>정착지 이전 확인</ClashOfRim.ColonyRelocation.Title>
   <ClashOfRim.ColonyRelocation.Warning>&lt;color=#ffd166&gt;원판 규칙으로 {COLONY}을(를) 포기하고 타일 {TILE}에 새 정착지를 세웁니다.&lt;/color&gt;
@@ -1441,7 +1442,7 @@
   <ClashOfRim.Mercenary.InspectLoaded>회수 셔틀에 탑승함.</ClashOfRim.Mercenary.InspectLoaded>
   <ClashOfRim.Mercenary.InspectTemporary>회수 셔틀로 떠날 예정.</ClashOfRim.Mercenary.InspectTemporary>
   <ClashOfRim.Mercenary.InspectWaitingForShuttle>회수 셔틀로 떠나기를 기다리는 중.</ClashOfRim.Mercenary.InspectWaitingForShuttle>
-  <ClashOfRim.Mercenary.LoadRecallShuttle>용병 탑승</ClashOfRim.Mercenary.LoadRecallShuttle>
+  <ClashOfRim.Mercenary.LoadRecallShuttle>탑승</ClashOfRim.Mercenary.LoadRecallShuttle>
   <ClashOfRim.Mercenary.LoadRecallShuttleDesc>소환 대상 용병을 이 셔틀에 싣기 시작합니다.</ClashOfRim.Mercenary.LoadRecallShuttleDesc>
   <ClashOfRim.Mercenary.LoadRecallShuttleStarted>{PAWN}에게 회수 셔틀에 탑승하도록 명령하는 중입니다.</ClashOfRim.Mercenary.LoadRecallShuttleStarted>
   <ClashOfRim.Mercenary.LoadRecallShuttleAlreadyLoaded>{PAWN}은 이미 회수 셔틀에 탑승했습니다.</ClashOfRim.Mercenary.LoadRecallShuttleAlreadyLoaded>
@@ -1518,7 +1519,7 @@
   <ClashOfRim.Support.QuestFullDescriptionPermanent>{PAWN}은(는) {OWNER}가 영구 지원으로 보냈습니다. 이후 정착지 이벤트가 처리하지 않는 한 자동으로 돌아가지 않습니다.</ClashOfRim.Support.QuestFullDescriptionPermanent>
   <ClashOfRim.Support.QuestFullDescriptionTemporary>{PAWN}은(는) {OWNER}가 임시 지원으로 보냈습니다. 기간이 끝나면 스스로 원래 거주지로 돌아갑니다.</ClashOfRim.Support.QuestFullDescriptionTemporary>
   <ClashOfRim.Support.QuestName>지원: {PAWN}</ClashOfRim.Support.QuestName>
-  <ClashOfRim.Support.EarlyReturn>조기 귀환</ClashOfRim.Support.EarlyReturn>
+  <ClashOfRim.Support.EarlyReturn>귀환</ClashOfRim.Support.EarlyReturn>
   <ClashOfRim.Support.EarlyReturnDesc>이 임시 지원 정착민에게 지도를 떠나 원래 거주지로 돌아가라고 명령합니다.</ClashOfRim.Support.EarlyReturnDesc>
   <ClashOfRim.Support.EarlyReturnUnavailable>이 지원 정착민은 지금 돌려보낼 수 없습니다.</ClashOfRim.Support.EarlyReturnUnavailable>
   <ClashOfRim.SnapshotConfirmationFailure.OperationSupport>지원 정착민 귀환</ClashOfRim.SnapshotConfirmationFailure.OperationSupport>
@@ -1538,7 +1539,7 @@
   <ClashOfRim.RemoteWorldObject.ScoutDesc>상대 정착지의 최신 상태를 정찰합니다.</ClashOfRim.RemoteWorldObject.ScoutDesc>
   <ClashOfRim.RemoteWorldObject.ObserveAlly>동맹 관찰</ClashOfRim.RemoteWorldObject.ObserveAlly>
   <ClashOfRim.RemoteWorldObject.ObserveAllyDesc>동맹의 최신 상태를 관찰합니다.</ClashOfRim.RemoteWorldObject.ObserveAllyDesc>
-  <ClashOfRim.RemoteWorldObject.ObserveRaid>전투 관전</ClashOfRim.RemoteWorldObject.ObserveRaid>
+  <ClashOfRim.RemoteWorldObject.ObserveRaid>관전</ClashOfRim.RemoteWorldObject.ObserveRaid>
   <ClashOfRim.RemoteWorldObject.ObserveRaidDesc>진행 중인 습격의 최신 상태를 관전합니다.</ClashOfRim.RemoteWorldObject.ObserveRaidDesc>
   <ClashOfRim.Observation.StatusNotConfigured>서버 주소, 사용자 또는 정착지가 설정되지 않아 정찰 또는 관찰할 수 없습니다.</ClashOfRim.Observation.StatusNotConfigured>
   <ClashOfRim.Observation.StatusBusy>서버 작업이 이미 진행 중입니다.</ClashOfRim.Observation.StatusBusy>
@@ -1563,7 +1564,7 @@
   <ClashOfRim.RemoteSessionMap.RaidObservationNamedLabel>전투 시점: {OWNER}의 {LABEL}</ClashOfRim.RemoteSessionMap.RaidObservationNamedLabel>
   <ClashOfRim.RemoteSessionMap.RaidBattleLabel>{OWNER}의 습격 전투</ClashOfRim.RemoteSessionMap.RaidBattleLabel>
   <ClashOfRim.RemoteSessionMap.RaidBattleNamedLabel>습격: {OWNER}의 {LABEL}</ClashOfRim.RemoteSessionMap.RaidBattleNamedLabel>
-  <ClashOfRim.RemoteSessionMap.Close>관찰 지도 닫기</ClashOfRim.RemoteSessionMap.Close>
+  <ClashOfRim.RemoteSessionMap.Close>닫기</ClashOfRim.RemoteSessionMap.Close>
   <ClashOfRim.RemoteSessionMap.CloseDesc>현재 관찰 지도를 닫고 일반 멀티플레이 세션으로 돌아갑니다.</ClashOfRim.RemoteSessionMap.CloseDesc>
   <ClashOfRim.RemoteSessionMap.Closed>관찰 지도를 닫았습니다.</ClashOfRim.RemoteSessionMap.Closed>
   <ClashOfRim.RemoteSessionMap.ActiveSessionBlocksOpen>원격 지도가 이미 열려 있습니다. 닫거나 습격을 완료하세요.</ClashOfRim.RemoteSessionMap.ActiveSessionBlocksOpen>
@@ -1612,7 +1613,7 @@
   <ClashOfRim.Admin.NotConnected>서버에 연결되어 있지 않습니다.</ClashOfRim.Admin.NotConnected>
   <ClashOfRim.Admin.NotAdministrator>현재 사용자는 관리자가 아닙니다.</ClashOfRim.Admin.NotAdministrator>
   <ClashOfRim.Admin.SavedMessage>서버 설정이 업데이트되었습니다.</ClashOfRim.Admin.SavedMessage>
-  <ClashOfRim.Admin.UpdateWorldBaseline>세계 데이터 업데이트</ClashOfRim.Admin.UpdateWorldBaseline>
+  <ClashOfRim.Admin.UpdateWorldBaseline>세계</ClashOfRim.Admin.UpdateWorldBaseline>
   <ClashOfRim.Admin.UpdateWorldBaselineDesc>현재 저장 파일로 서버의 세계, 세력, 이념 및 관련 기준을 교체합니다. 모든 플레이어에게 영향을 주므로 현재 저장이 올바른 경우에만 사용하십시오.</ClashOfRim.Admin.UpdateWorldBaselineDesc>
   <ClashOfRim.SelectionButtonTip>클릭하여 현재 선택을 변경합니다.</ClashOfRim.SelectionButtonTip>
   <ClashOfRim.Admin.WorldBaselineUpdating>세계 데이터를 업데이트하는 중입니다.</ClashOfRim.Admin.WorldBaselineUpdating>
@@ -1717,7 +1718,7 @@
   <ClashOfRim.Admin.BroadcastMessage>메시지</ClashOfRim.Admin.BroadcastMessage>
   <ClashOfRim.Admin.ActionBroadcast>방송</ClashOfRim.Admin.ActionBroadcast>
   <ClashOfRim.Admin.BroadcastTarget>대상</ClashOfRim.Admin.BroadcastTarget>
-  <ClashOfRim.Admin.BroadcastTargetAll>모든 플레이어</ClashOfRim.Admin.BroadcastTargetAll>
+  <ClashOfRim.Admin.BroadcastTargetAll>전체</ClashOfRim.Admin.BroadcastTargetAll>
   <ClashOfRim.Admin.BroadcastPersistent>지속</ClashOfRim.Admin.BroadcastPersistent>
   <ClashOfRim.Admin.BroadcastSeverityInfo>알림</ClashOfRim.Admin.BroadcastSeverityInfo>
   <ClashOfRim.Admin.BroadcastSeverityWarning>경고</ClashOfRim.Admin.BroadcastSeverityWarning>
@@ -1733,7 +1734,7 @@
   <ClashOfRim.Admin.ConfigNotSaved>(기본 설정, 저장되지 않음)</ClashOfRim.Admin.ConfigNotSaved>
   <ClashOfRim.Admin.ModRoleRequired>필수</ClashOfRim.Admin.ModRoleRequired>
   <ClashOfRim.Admin.ModRoleOptional>선택</ClashOfRim.Admin.ModRoleOptional>
-  <ClashOfRim.Admin.ModRoleTranslation>번역 예외</ClashOfRim.Admin.ModRoleTranslation>
+  <ClashOfRim.Admin.ModRoleTranslation>번역</ClashOfRim.Admin.ModRoleTranslation>
   <ClashOfRim.Admin.ConfigModeEnforce>강제</ClashOfRim.Admin.ConfigModeEnforce>
   <ClashOfRim.Admin.ConfigModeWarn>경고</ClashOfRim.Admin.ConfigModeWarn>
   <ClashOfRim.Admin.ConfigModeIgnore>무시</ClashOfRim.Admin.ConfigModeIgnore>
@@ -1770,8 +1771,8 @@
   <ClashOfRim.Shop.ConfirmSell>{COUNT} x {THING}을(를) 납품하고 &lt;color=#d7dadb&gt;{PRICE} 은&lt;/color&gt;을 받을까요?</ClashOfRim.Shop.ConfirmSell>
   <ClashOfRim.Shop.AddListing>추가</ClashOfRim.Shop.AddListing>
   <ClashOfRim.Shop.Kind>유형</ClashOfRim.Shop.Kind>
-  <ClashOfRim.Shop.KindSell>플레이어에게 판매</ClashOfRim.Shop.KindSell>
-  <ClashOfRim.Shop.KindBuy>플레이어에게서 매입</ClashOfRim.Shop.KindBuy>
+  <ClashOfRim.Shop.KindSell>판매</ClashOfRim.Shop.KindSell>
+  <ClashOfRim.Shop.KindBuy>매입</ClashOfRim.Shop.KindBuy>
   <ClashOfRim.Shop.StockShort>재고</ClashOfRim.Shop.StockShort>
   <ClashOfRim.Shop.DemandShort>매입</ClashOfRim.Shop.DemandShort>
   <ClashOfRim.Shop.PriceShort>가격</ClashOfRim.Shop.PriceShort>
@@ -1788,20 +1789,20 @@
   <ClashOfRim.Shop.ListingDetails>상품 설정</ClashOfRim.Shop.ListingDetails>
   <ClashOfRim.Shop.NoThingSelected>선택된 물품이 없습니다.</ClashOfRim.Shop.NoThingSelected>
   <ClashOfRim.Shop.Genes>유전자</ClashOfRim.Shop.Genes>
-  <ClashOfRim.Shop.SelectGenes>유전자 선택</ClashOfRim.Shop.SelectGenes>
+  <ClashOfRim.Shop.SelectGenes>유전자</ClashOfRim.Shop.SelectGenes>
   <ClashOfRim.Shop.SelectGenesTitle>상품 유전자 선택</ClashOfRim.Shop.SelectGenesTitle>
   <ClashOfRim.Shop.BookContent>책 내용</ClashOfRim.Shop.BookContent>
   <ClashOfRim.Shop.ResearchProject>연구</ClashOfRim.Shop.ResearchProject>
-  <ClashOfRim.Shop.SelectBookSkills>기술 선택</ClashOfRim.Shop.SelectBookSkills>
+  <ClashOfRim.Shop.SelectBookSkills>기술</ClashOfRim.Shop.SelectBookSkills>
   <ClashOfRim.Shop.Stuff>재료</ClashOfRim.Shop.Stuff>
   <ClashOfRim.Shop.Quality>품질</ClashOfRim.Shop.Quality>
   <ClashOfRim.Shop.QualityRequirement>품질 제한</ClashOfRim.Shop.QualityRequirement>
-  <ClashOfRim.Shop.QualityAtLeast>목표 품질 이상</ClashOfRim.Shop.QualityAtLeast>
-  <ClashOfRim.Shop.QualityAtMost>목표 품질 이하</ClashOfRim.Shop.QualityAtMost>
+  <ClashOfRim.Shop.QualityAtLeast>최소</ClashOfRim.Shop.QualityAtLeast>
+  <ClashOfRim.Shop.QualityAtMost>최대</ClashOfRim.Shop.QualityAtMost>
   <ClashOfRim.Shop.HitPoints>내구도</ClashOfRim.Shop.HitPoints>
   <ClashOfRim.Shop.HitPointsRequirement>내구도 제한</ClashOfRim.Shop.HitPointsRequirement>
-  <ClashOfRim.Shop.HitPointsAtLeast>목표 내구도 이상</ClashOfRim.Shop.HitPointsAtLeast>
-  <ClashOfRim.Shop.HitPointsAtMost>목표 내구도 이하</ClashOfRim.Shop.HitPointsAtMost>
+  <ClashOfRim.Shop.HitPointsAtLeast>최소</ClashOfRim.Shop.HitPointsAtLeast>
+  <ClashOfRim.Shop.HitPointsAtMost>최대</ClashOfRim.Shop.HitPointsAtMost>
   <ClashOfRim.Shop.IncompleteListing>물품 속성이 선택되지 않았습니다. 특수 물품 속성을 완성하세요.</ClashOfRim.Shop.IncompleteListing>
   <ClashOfRim.Shop.StatusSavingListing>상점 상품 저장 중입니다.</ClashOfRim.Shop.StatusSavingListing>
   <ClashOfRim.Shop.StatusSaveFailed>상점 상품 저장 실패: {CODE} {MESSAGE}</ClashOfRim.Shop.StatusSaveFailed>
@@ -1845,13 +1846,13 @@
   <ClashOfRim.TraitTrainer.NoTrait>선택된 특성 없음</ClashOfRim.TraitTrainer.NoTrait>
   <ClashOfRim.TraitTrainer.Random>무작위</ClashOfRim.TraitTrainer.Random>
   <ClashOfRim.TraitTrainer.RandomDescription>사용자의 정신에 무작위 특성을 유도하는 뉴로트레이너입니다.</ClashOfRim.TraitTrainer.RandomDescription>
-  <ClashOfRim.TraitTrainer.Select>특성 선택</ClashOfRim.TraitTrainer.Select>
+  <ClashOfRim.TraitTrainer.Select>특성</ClashOfRim.TraitTrainer.Select>
   <ClashOfRim.TraitTrainer.SelectTitle>특성 선택</ClashOfRim.TraitTrainer.SelectTitle>
   <ClashOfRim.TraitTrainer.Trait>특성</ClashOfRim.TraitTrainer.Trait>
   <ClashOfRim.TraitTrainer.Used>{PAWN}이(가) 특성을 얻었습니다: {TRAIT}.</ClashOfRim.TraitTrainer.Used>
   <ClashOfRim.TraitTrainer.UseLabel>특성 훈련기 사용: {TRAIT}</ClashOfRim.TraitTrainer.UseLabel>
   <ClashOfRim.TraitTrainer.UseRandomLabel>무작위 특성 훈련기 사용</ClashOfRim.TraitTrainer.UseRandomLabel>
-  <ClashOfRim.ColonyAppearance.CommandLabel>멀티플레이 아이콘 설정</ClashOfRim.ColonyAppearance.CommandLabel>
+  <ClashOfRim.ColonyAppearance.CommandLabel>아이콘</ClashOfRim.ColonyAppearance.CommandLabel>
   <ClashOfRim.ColonyAppearance.CommandDesc>세계 지도에서 다른 플레이어에게 표시될 정착지 아이콘을 설정합니다.</ClashOfRim.ColonyAppearance.CommandDesc>
   <ClashOfRim.ColonyAppearance.Title>정착지 아이콘</ClashOfRim.ColonyAppearance.Title>
   <ClashOfRim.ColonyAppearance.Target>대상: {COLONY}</ClashOfRim.ColonyAppearance.Target>

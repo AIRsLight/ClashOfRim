@@ -12,7 +12,7 @@
   <ClashOfRim.Send>Send</ClashOfRim.Send>
   <ClashOfRim.SessionExpired.Title>Server session expired</ClashOfRim.SessionExpired.Title>
   <ClashOfRim.SessionExpired.Message>The server session has expired. Return to the main menu and join the server again.</ClashOfRim.SessionExpired.Message>
-  <ClashOfRim.SessionExpired.ReturnToMainMenu>Return to main menu</ClashOfRim.SessionExpired.ReturnToMainMenu>
+  <ClashOfRim.SessionExpired.ReturnToMainMenu>Main menu</ClashOfRim.SessionExpired.ReturnToMainMenu>
   <ClashOfRim.SessionExpired.Status>The server session has expired. Log in again.</ClashOfRim.SessionExpired.Status>
   <ClashOfRim.Chat.EmptyMessage>Chat message cannot be empty.</ClashOfRim.Chat.EmptyMessage>
   <ClashOfRim.Chat.InvalidPrivateFormat>Private chat format: @player message.</ClashOfRim.Chat.InvalidPrivateFormat>
@@ -38,7 +38,7 @@
   <ClashOfRim.Network.StatusNotConfigured>Server address, account, or colony is not configured.</ClashOfRim.Network.StatusNotConfigured>
   <ClashOfRim.Network.StatusDeserializeFailed>Could not deserialize response type: {TYPE}</ClashOfRim.Network.StatusDeserializeFailed>
   <ClashOfRim.Chat.Title>Chat</ClashOfRim.Chat.Title>
-  <ClashOfRim.Account.ChangePassword>Change password</ClashOfRim.Account.ChangePassword>
+  <ClashOfRim.Account.ChangePassword>Password</ClashOfRim.Account.ChangePassword>
   <ClashOfRim.Account.CurrentPassword>Current password</ClashOfRim.Account.CurrentPassword>
   <ClashOfRim.Account.CurrentUser>Current account: {USER}</ClashOfRim.Account.CurrentUser>
   <ClashOfRim.Account.NewPassword>New password</ClashOfRim.Account.NewPassword>
@@ -85,17 +85,18 @@
   <ClashOfRim.Compatibility.FilesMatch>Files match.</ClashOfRim.Compatibility.FilesMatch>
   <ClashOfRim.Compatibility.ConfigsMatch>Config matches.</ClashOfRim.Compatibility.ConfigsMatch>
   <ClashOfRim.Compatibility.ModsMatch>Mods match.</ClashOfRim.Compatibility.ModsMatch>
-  <ClashOfRim.Compatibility.ApplyAndRestart>Apply and restart</ClashOfRim.Compatibility.ApplyAndRestart>
+  <ClashOfRim.Compatibility.ApplyAndRestart>Apply</ClashOfRim.Compatibility.ApplyAndRestart>
+  <ClashOfRim.Compatibility.ApplyAndRestartDesc>Apply the server mod list and load order, then restart the game.</ClashOfRim.Compatibility.ApplyAndRestartDesc>
   <ClashOfRim.Compatibility.JoinAnyway>Join anyway</ClashOfRim.Compatibility.JoinAnyway>
-  <ClashOfRim.Compatibility.ConfigApplyOverlayAndRestart>Overlay + restart</ClashOfRim.Compatibility.ConfigApplyOverlayAndRestart>
-  <ClashOfRim.Compatibility.ConfigOverwriteLocalAndRestart>Local + restart</ClashOfRim.Compatibility.ConfigOverwriteLocalAndRestart>
-  <ClashOfRim.Compatibility.ConfigApplyOverlayDesc>Use the server configuration without modifying local Config files.</ClashOfRim.Compatibility.ConfigApplyOverlayDesc>
-  <ClashOfRim.Compatibility.ConfigOverwriteLocalDesc>Write the server configuration to local Config files and remove the active server overlay.</ClashOfRim.Compatibility.ConfigOverwriteLocalDesc>
+  <ClashOfRim.Compatibility.ConfigApplyOverlayAndRestart>Overlay</ClashOfRim.Compatibility.ConfigApplyOverlayAndRestart>
+  <ClashOfRim.Compatibility.ConfigOverwriteLocalAndRestart>Overwrite</ClashOfRim.Compatibility.ConfigOverwriteLocalAndRestart>
+  <ClashOfRim.Compatibility.ConfigApplyOverlayDesc>Use the server configuration as an overlay without modifying local Config files, then restart the game.</ClashOfRim.Compatibility.ConfigApplyOverlayDesc>
+  <ClashOfRim.Compatibility.ConfigOverwriteLocalDesc>Write the server configuration to local Config files, remove the active server overlay, then restart the game.</ClashOfRim.Compatibility.ConfigOverwriteLocalDesc>
   <ClashOfRim.Compatibility.ConfigApplyOverlayRestarting>Server configuration overlay applied. Restarting.</ClashOfRim.Compatibility.ConfigApplyOverlayRestarting>
   <ClashOfRim.Compatibility.ConfigOverwriteLocalRestarting>Local configuration overwritten. Restarting.</ClashOfRim.Compatibility.ConfigOverwriteLocalRestarting>
   <ClashOfRim.Compatibility.ConfigApplyAvailable>For configuration differences, use the server overlay or overwrite local configuration before restarting.</ClashOfRim.Compatibility.ConfigApplyAvailable>
   <ClashOfRim.Compatibility.OpenWorkshop>Workshop</ClashOfRim.Compatibility.OpenWorkshop>
-  <ClashOfRim.Compatibility.OverrideBaseline>Update server data</ClashOfRim.Compatibility.OverrideBaseline>
+  <ClashOfRim.Compatibility.OverrideBaseline>Overwrite</ClashOfRim.Compatibility.OverrideBaseline>
   <ClashOfRim.Compatibility.OverrideBaselineDesc>Replace the server manifest baseline with this client's mod list, file hashes, and configuration rules. This affects future joins for every player; use only after verifying this environment.</ClashOfRim.Compatibility.OverrideBaselineDesc>
   <ClashOfRim.Compatibility.Override.ModListWarning>The current client mod list or load order does not match the server baseline. If you continue, the server will use this client as the new baseline. Make sure you did not load a local single-player mod list.</ClashOfRim.Compatibility.Override.ModListWarning>
   <ClashOfRim.Compatibility.Summary>Mods {MODS} / files {FILES} / config {CONFIGS}</ClashOfRim.Compatibility.Summary>
@@ -178,7 +179,7 @@
   <ClashOfRim.Compatibility.Override.AdminBaselineNotUpdated>Admin price table and trap list were not updated: {MESSAGE}</ClashOfRim.Compatibility.Override.AdminBaselineNotUpdated>
   <ClashOfRim.Compatibility.Override.Exception>Update exception: {TYPE}</ClashOfRim.Compatibility.Override.Exception>
   <ClashOfRim.Compatibility.Override.Title>Update server data</ClashOfRim.Compatibility.Override.Title>
-  <ClashOfRim.Compatibility.Override.ReturnMainMenu>Return to main menu</ClashOfRim.Compatibility.Override.ReturnMainMenu>
+  <ClashOfRim.Compatibility.Override.ReturnMainMenu>Main menu</ClashOfRim.Compatibility.Override.ReturnMainMenu>
   <ClashOfRim.Compatibility.Override.Success>&lt;color=#7ecf6b&gt;Update succeeded.&lt;/color&gt;</ClashOfRim.Compatibility.Override.Success>
   <ClashOfRim.Compatibility.Override.Failed>&lt;color=#ff6b6b&gt;Update failed.&lt;/color&gt;</ClashOfRim.Compatibility.Override.Failed>
   <ClashOfRim.Compatibility.ModSettingsLockedTitle>Server config locked</ClashOfRim.Compatibility.ModSettingsLockedTitle>
@@ -325,7 +326,7 @@
   <ClashOfRim.Achievement.ScoreboardEmpty>No achievement records yet.</ClashOfRim.Achievement.ScoreboardEmpty>
   <ClashOfRim.Achievement.SelectPlayer>Select player to view</ClashOfRim.Achievement.SelectPlayer>
   <ClashOfRim.Achievement.OwnEmpty>No achievements recorded yet.</ClashOfRim.Achievement.OwnEmpty>
-  <ClashOfRim.Achievement.GetTrophyBlueprint>Get trophy plan</ClashOfRim.Achievement.GetTrophyBlueprint>
+  <ClashOfRim.Achievement.GetTrophyBlueprint>Blueprint</ClashOfRim.Achievement.GetTrophyBlueprint>
   <ClashOfRim.Achievement.GetTrophyBlueprintDesc>Create a trophy plan recording this achievement.</ClashOfRim.Achievement.GetTrophyBlueprintDesc>
   <ClashOfRim.Achievement.TrophyBlueprintSelected>Achievement trophy blueprint selected.</ClashOfRim.Achievement.TrophyBlueprintSelected>
   <ClashOfRim.Achievement.TrophyNoMap>Enter a colony map before placing a trophy.</ClashOfRim.Achievement.TrophyNoMap>
@@ -333,7 +334,7 @@
   <ClashOfRim.Achievement.TrophyPlanMissingDef>Achievement trophy plan definition was not found.</ClashOfRim.Achievement.TrophyPlanMissingDef>
   <ClashOfRim.Achievement.TrophyPlanCreated>Trophy plan created. Select the plan to choose material and place the trophy blueprint.</ClashOfRim.Achievement.TrophyPlanCreated>
   <ClashOfRim.Achievement.TrophyPlanCreateFailed>Could not create the trophy plan.</ClashOfRim.Achievement.TrophyPlanCreateFailed>
-  <ClashOfRim.Achievement.PlaceTrophy>Place trophy</ClashOfRim.Achievement.PlaceTrophy>
+  <ClashOfRim.Achievement.PlaceTrophy>Place</ClashOfRim.Achievement.PlaceTrophy>
   <ClashOfRim.Achievement.PlaceTrophyDesc>Choose material and place a trophy blueprint recording this achievement.</ClashOfRim.Achievement.PlaceTrophyDesc>
   <ClashOfRim.Achievement.TrophyInspectLine>Achiever: {OWNER}; achievement: {ACHIEVEMENT}; value: {VALUE}</ClashOfRim.Achievement.TrophyInspectLine>
   <ClashOfRim.Achievement.TrophyArtDescription>Achievement: {ACHIEVEMENT}&#10;Achiever: {OWNER}&#10;&#10;{DESCRIPTION}&#10;&#10;Recorded value: {VALUE}</ClashOfRim.Achievement.TrophyArtDescription>
@@ -566,7 +567,7 @@
   <ClashOfRim.RemoteWorldObject.WorldObjectInspect>Source world object: {ID}</ClashOfRim.RemoteWorldObject.WorldObjectInspect>
   <ClashOfRim.RemoteWorldObject.MapInspect>Source map: {ID}</ClashOfRim.RemoteWorldObject.MapInspect>
   <ClashOfRim.RemoteWorldObject.SnapshotInspect>Save: {ID}</ClashOfRim.RemoteWorldObject.SnapshotInspect>
-  <ClashOfRim.RemoteWorldObject.ActionNotice>View entrance requirements</ClashOfRim.RemoteWorldObject.ActionNotice>
+  <ClashOfRim.RemoteWorldObject.ActionNotice>Requirements</ClashOfRim.RemoteWorldObject.ActionNotice>
   <ClashOfRim.RemoteWorldObject.RaidActionNoticeDesc>Raids must be created through the formal raid flow and cannot enter directly from this shell world object.</ClashOfRim.RemoteWorldObject.RaidActionNoticeDesc>
   <ClashOfRim.RemoteWorldObject.ReinforceActionNoticeDesc>Reinforcement requires a caravan to arrive at the target tile, then use the caravan command to select support colonists.</ClashOfRim.RemoteWorldObject.ReinforceActionNoticeDesc>
   <ClashOfRim.RemoteWorldObject.RaidActionNoticeMessage>The raid entrance will be connected in the live raid loop; use the multiplayer window to inspect the target for now.</ClashOfRim.RemoteWorldObject.RaidActionNoticeMessage>
@@ -847,14 +848,14 @@
   <ClashOfRim.Support.RejectRejected>Support colonist rejection rejected by server: {CODE} {MESSAGE}</ClashOfRim.Support.RejectRejected>
   <ClashOfRim.Support.Rejected>Support colonist rejected. The server will arrange the return.</ClashOfRim.Support.Rejected>
   <ClashOfRim.Support.RejectException>Support colonist rejection exception: {TYPE} {MESSAGE}</ClashOfRim.Support.RejectException>
-  <ClashOfRim.Diplomacy.RequestAlliance>Request alliance</ClashOfRim.Diplomacy.RequestAlliance>
-  <ClashOfRim.Diplomacy.CancelAlliance>Break alliance</ClashOfRim.Diplomacy.CancelAlliance>
-  <ClashOfRim.Diplomacy.RequestSupport>Request support</ClashOfRim.Diplomacy.RequestSupport>
+  <ClashOfRim.Diplomacy.RequestAlliance>Alliance</ClashOfRim.Diplomacy.RequestAlliance>
+  <ClashOfRim.Diplomacy.CancelAlliance>Break pact</ClashOfRim.Diplomacy.CancelAlliance>
+  <ClashOfRim.Diplomacy.RequestSupport>Support</ClashOfRim.Diplomacy.RequestSupport>
   <ClashOfRim.Diplomacy.SupportRequestTitle>Request ally support</ClashOfRim.Diplomacy.SupportRequestTitle>
   <ClashOfRim.Diplomacy.SupportRequestTarget>Send to: {PLAYER}</ClashOfRim.Diplomacy.SupportRequestTarget>
   <ClashOfRim.Diplomacy.SupportRequestHint>Describe needed troops, timing, threat scale, or other details. Up to {COUNT} characters.</ClashOfRim.Diplomacy.SupportRequestHint>
-  <ClashOfRim.Diplomacy.DeclareWar>Declare war</ClashOfRim.Diplomacy.DeclareWar>
-  <ClashOfRim.Diplomacy.RequestPeace>Request peace</ClashOfRim.Diplomacy.RequestPeace>
+  <ClashOfRim.Diplomacy.DeclareWar>War</ClashOfRim.Diplomacy.DeclareWar>
+  <ClashOfRim.Diplomacy.RequestPeace>Peace</ClashOfRim.Diplomacy.RequestPeace>
   <ClashOfRim.Diplomacy.ConfirmAllianceRequest>Send an alliance request to {PLAYER}?</ClashOfRim.Diplomacy.ConfirmAllianceRequest>
   <ClashOfRim.Diplomacy.ConfirmAllianceCancellation>Break the alliance with {PLAYER}? Relations will become neutral.</ClashOfRim.Diplomacy.ConfirmAllianceCancellation>
   <ClashOfRim.Diplomacy.ConfirmWarDeclaration>Declare war on {PLAYER}? Relations will become hostile.</ClashOfRim.Diplomacy.ConfirmWarDeclaration>
@@ -875,8 +876,8 @@
   <ClashOfRim.Diplomacy.RelationReasonWarDeclaration>war declaration</ClashOfRim.Diplomacy.RelationReasonWarDeclaration>
   <ClashOfRim.Diplomacy.RelationReasonPeaceRequest>peace request</ClashOfRim.Diplomacy.RelationReasonPeaceRequest>
   <ClashOfRim.PlayerFaction.Report>{PLAYER} is another distant colony. This entry shows your diplomacy, known locations, and dealings with them.</ClashOfRim.PlayerFaction.Report>
-  <ClashOfRim.Raid.CaravanGizmo>Start raid</ClashOfRim.Raid.CaravanGizmo>
-  <ClashOfRim.Raid.CaravanGizmoCount>Start raid({COUNT})</ClashOfRim.Raid.CaravanGizmoCount>
+  <ClashOfRim.Raid.CaravanGizmo>Raid</ClashOfRim.Raid.CaravanGizmo>
+  <ClashOfRim.Raid.CaravanGizmoCount>Raid ({COUNT})</ClashOfRim.Raid.CaravanGizmoCount>
   <ClashOfRim.Raid.CaravanGizmoDesc>The caravan has reached a raidable tile. Choose a target and begin the raid.</ClashOfRim.Raid.CaravanGizmoDesc>
   <ClashOfRim.Raid.PvpDisabled>The server has disabled player raids.</ClashOfRim.Raid.PvpDisabled>
   <ClashOfRim.Raid.CaravanTargetOption>{TARGET}, attackers {COUNT}</ClashOfRim.Raid.CaravanTargetOption>
@@ -952,8 +953,8 @@
   <ClashOfRim.Raid.RestoreMissingLocalBattle>The server has unfinished raid {EVENTID}, but this save has no recoverable battle map.</ClashOfRim.Raid.RestoreMissingLocalBattle>
   <ClashOfRim.Raid.RestoreServerAlreadySettled>The server has ended this raid. Refreshing events.</ClashOfRim.Raid.RestoreServerAlreadySettled>
   <ClashOfRim.Raid.RestoreSucceeded>&lt;color=#7ecf6b&gt;Raid restored&lt;/color&gt; with &lt;color=#ff9f43&gt;{SECONDS} second(s)&lt;/color&gt; remaining.</ClashOfRim.Raid.RestoreSucceeded>
-  <ClashOfRim.Support.CaravanGizmo>Send support</ClashOfRim.Support.CaravanGizmo>
-  <ClashOfRim.Support.CaravanGizmoCount>Send support({COUNT})</ClashOfRim.Support.CaravanGizmoCount>
+  <ClashOfRim.Support.CaravanGizmo>Support</ClashOfRim.Support.CaravanGizmo>
+  <ClashOfRim.Support.CaravanGizmoCount>Support ({COUNT})</ClashOfRim.Support.CaravanGizmoCount>
   <ClashOfRim.Support.CaravanGizmoDesc>The caravan has reached a reinforceable tile. Choose one member to join the target colony as support.</ClashOfRim.Support.CaravanGizmoDesc>
   <ClashOfRim.Support.CaravanPawnOption>{PAWN} -> {TARGET}</ClashOfRim.Support.CaravanPawnOption>
   <ClashOfRim.Support.ConfirmSend>Send {PAWN} to support {TARGET}?\nThis colonist will leave the current caravan and wait for the other colony to receive them.</ClashOfRim.Support.ConfirmSend>
@@ -964,10 +965,10 @@
   <ClashOfRim.Support.DurationDialogDays>{DAYS} days</ClashOfRim.Support.DurationDialogDays>
   <ClashOfRim.Support.DurationDialogPermanentSelected>Current choice: permanent support. This colonist will not return automatically.</ClashOfRim.Support.DurationDialogPermanentSelected>
   <ClashOfRim.Support.DurationDialogTarget>{PAWN} -> {TARGET}</ClashOfRim.Support.DurationDialogTarget>
-  <ClashOfRim.Support.DurationDialogTemporary>Temporary support</ClashOfRim.Support.DurationDialogTemporary>
+  <ClashOfRim.Support.DurationDialogTemporary>Temporary</ClashOfRim.Support.DurationDialogTemporary>
   <ClashOfRim.Support.DurationDialogTemporarySelected>Current choice: temporary support. This colonist will return automatically when the term ends.</ClashOfRim.Support.DurationDialogTemporarySelected>
   <ClashOfRim.Support.DurationDialogTitle>Choose support term</ClashOfRim.Support.DurationDialogTitle>
-  <ClashOfRim.Support.DurationPermanent>Permanent support</ClashOfRim.Support.DurationPermanent>
+  <ClashOfRim.Support.DurationPermanent>Permanent</ClashOfRim.Support.DurationPermanent>
   <ClashOfRim.Support.ArrivalLetterLabel>Support arrived</ClashOfRim.Support.ArrivalLetterLabel>
   <ClashOfRim.Support.ArrivalLetterText>{PAWN} has arrived and will temporarily join your colony.</ClashOfRim.Support.ArrivalLetterText>
   <ClashOfRim.Support.PermanentArrivalLetterLabel>Colonist joined</ClashOfRim.Support.PermanentArrivalLetterLabel>
@@ -1022,14 +1023,14 @@
   <ClashOfRim.Support.TargetLabel>{LABEL} ({USER}/{COLONY}@{TILE})</ClashOfRim.Support.TargetLabel>
   <ClashOfRim.Trade.Accepted>Accepted</ClashOfRim.Trade.Accepted>
   <ClashOfRim.Trade.AcceptedMemoSuffix>, accepted {COUNT}</ClashOfRim.Trade.AcceptedMemoSuffix>
-  <ClashOfRim.Trade.AddToAcceptedList>Add to accepted list</ClashOfRim.Trade.AddToAcceptedList>
-  <ClashOfRim.Trade.CancelAcceptedMemo>Cancel acceptance</ClashOfRim.Trade.CancelAcceptedMemo>
+  <ClashOfRim.Trade.AddToAcceptedList>Accept</ClashOfRim.Trade.AddToAcceptedList>
+  <ClashOfRim.Trade.CancelAcceptedMemo>Undo</ClashOfRim.Trade.CancelAcceptedMemo>
   <ClashOfRim.Trade.CancelOrder>Withdraw</ClashOfRim.Trade.CancelOrder>
   <ClashOfRim.Trade.ConfirmCancelAcceptedMemo>Cancel your acceptance of this trade order? This only removes your reminder and does not prevent other players from accepting or completing the trade.</ClashOfRim.Trade.ConfirmCancelAcceptedMemo>
   <ClashOfRim.Trade.ConfirmCancelOrder>Withdraw this trade order? Reserved offered items will be returned to you, and players who accepted it will be notified.</ClashOfRim.Trade.ConfirmCancelOrder>
   <ClashOfRim.Trade.CaravanExchangeApplied>Delivered {REQUESTCOUNT} required item entries; the caravan received {STACKCOUNT} stacks.</ClashOfRim.Trade.CaravanExchangeApplied>
-  <ClashOfRim.Trade.CaravanFulfillGizmo>Fulfill trade</ClashOfRim.Trade.CaravanFulfillGizmo>
-  <ClashOfRim.Trade.CaravanFulfillGizmoCount>Fulfill trade({COUNT})</ClashOfRim.Trade.CaravanFulfillGizmoCount>
+  <ClashOfRim.Trade.CaravanFulfillGizmo>Trade</ClashOfRim.Trade.CaravanFulfillGizmo>
+  <ClashOfRim.Trade.CaravanFulfillGizmoCount>Trade ({COUNT})</ClashOfRim.Trade.CaravanFulfillGizmoCount>
   <ClashOfRim.Trade.CaravanFulfillGizmoDesc>The caravan has reached a tradeable tile. Submit carried items to complete an accepted trade order.</ClashOfRim.Trade.CaravanFulfillGizmoDesc>
   <ClashOfRim.Trade.CaravanFulfillOption>{OWNER}: deliver {DELIVER}, receive {RECEIVE}</ClashOfRim.Trade.CaravanFulfillOption>
   <ClashOfRim.Trade.CaravanInventoryInsufficient>Local caravan inventory is insufficient and cannot remove: {THING}</ClashOfRim.Trade.CaravanInventoryInsufficient>
@@ -1040,7 +1041,7 @@
   <ClashOfRim.Trade.ConfirmCreateTitle>Create this trade order?</ClashOfRim.Trade.ConfirmCreateTitle>
   <ClashOfRim.Trade.ConfirmNoRequestedThings>You will not receive any goods from this trade. Continue?</ClashOfRim.Trade.ConfirmNoRequestedThings>
   <ClashOfRim.Trade.ConfirmNoOfferedThings>You will not receive any goods after fulfilling this trade order. Continue?</ClashOfRim.Trade.ConfirmNoOfferedThings>
-  <ClashOfRim.Trade.CreateOrderTitle>Create trade order</ClashOfRim.Trade.CreateOrderTitle>
+  <ClashOfRim.Trade.CreateOrderTitle>New order</ClashOfRim.Trade.CreateOrderTitle>
   <ClashOfRim.Trade.Disabled>Marketplace disabled.</ClashOfRim.Trade.Disabled>
   <ClashOfRim.Trade.EstimatedValues>Estimated value: yours {OFFERED}; theirs {REQUESTED}</ClashOfRim.Trade.EstimatedValues>
   <ClashOfRim.Trade.DeliverLine>Deliver: {THINGS}</ClashOfRim.Trade.DeliverLine>
@@ -1052,13 +1053,13 @@
   <ClashOfRim.Trade.FeeAndMemoLine>Fee silver: {FEE}; accepted: {COUNT}</ClashOfRim.Trade.FeeAndMemoLine>
   <ClashOfRim.Trade.BookKindAnomalyResearch>Anomaly research book</ClashOfRim.Trade.BookKindAnomalyResearch>
   <ClashOfRim.Trade.GeneXenotypeName>Trade xenogenes</ClashOfRim.Trade.GeneXenotypeName>
-  <ClashOfRim.Trade.UniqueWeaponTraitsAny>Any specialized weapon traits</ClashOfRim.Trade.UniqueWeaponTraitsAny>
-  <ClashOfRim.Trade.PersonaWeaponTraitsAny>Any persona weapon traits</ClashOfRim.Trade.PersonaWeaponTraitsAny>
+  <ClashOfRim.Trade.UniqueWeaponTraitsAny>Any traits</ClashOfRim.Trade.UniqueWeaponTraitsAny>
+  <ClashOfRim.Trade.PersonaWeaponTraitsAny>Any traits</ClashOfRim.Trade.PersonaWeaponTraitsAny>
   <ClashOfRim.Trade.UniqueWeaponTraitUnavailable>incompatible</ClashOfRim.Trade.UniqueWeaponTraitUnavailable>
   <ClashOfRim.Shop.UniqueWeaponTraits>Specialized traits</ClashOfRim.Shop.UniqueWeaponTraits>
-  <ClashOfRim.Shop.SelectUniqueWeaponTraits>Select specialized traits</ClashOfRim.Shop.SelectUniqueWeaponTraits>
+  <ClashOfRim.Shop.SelectUniqueWeaponTraits>Traits</ClashOfRim.Shop.SelectUniqueWeaponTraits>
   <ClashOfRim.Shop.PersonaWeaponTraits>Persona traits</ClashOfRim.Shop.PersonaWeaponTraits>
-  <ClashOfRim.Shop.SelectPersonaWeaponTraits>Select persona traits</ClashOfRim.Shop.SelectPersonaWeaponTraits>
+  <ClashOfRim.Shop.SelectPersonaWeaponTraits>Traits</ClashOfRim.Shop.SelectPersonaWeaponTraits>
   <ClashOfRim.Trade.StatusAndExpiryLine>Status: {STATUS}; {EXPIRY}</ClashOfRim.Trade.StatusAndExpiryLine>
   <ClashOfRim.Trade.FeeWithFixed>Fee: &lt;color=#d7dadb&gt;{FEE} silver&lt;/color&gt; (includes fixed custody fee {FIXED}, available {AVAILABLE})</ClashOfRim.Trade.FeeWithFixed>
   <ClashOfRim.Trade.FulfillCompletedMessage>Self-pickup trade completed; syncing current save.</ClashOfRim.Trade.FulfillCompletedMessage>
@@ -1091,8 +1092,8 @@
   <ClashOfRim.Trade.PostageUnreachable>&lt;color=#ff6b6b&gt;Unreachable, cannot send&lt;/color&gt;</ClashOfRim.Trade.PostageUnreachable>
   <ClashOfRim.Trade.PawnRequirement>Person</ClashOfRim.Trade.PawnRequirement>
   <ClashOfRim.Trade.NoPawnHitPoints>No hit point requirement</ClashOfRim.Trade.NoPawnHitPoints>
-  <ClashOfRim.Trade.PawnGenderAny>Sex: any</ClashOfRim.Trade.PawnGenderAny>
-  <ClashOfRim.Trade.PawnGenderSelected>Sex: {GENDER}</ClashOfRim.Trade.PawnGenderSelected>
+  <ClashOfRim.Trade.PawnGenderAny>Any sex</ClashOfRim.Trade.PawnGenderAny>
+  <ClashOfRim.Trade.PawnGenderSelected>{GENDER}</ClashOfRim.Trade.PawnGenderSelected>
   <ClashOfRim.Trade.PawnGenderRequirement>sex: {GENDER}</ClashOfRim.Trade.PawnGenderRequirement>
   <ClashOfRim.Trade.PawnAge>Age</ClashOfRim.Trade.PawnAge>
   <ClashOfRim.Trade.PawnAgeYears>y</ClashOfRim.Trade.PawnAgeYears>
@@ -1100,8 +1101,8 @@
   <ClashOfRim.Trade.PawnAgeRequirementRange>age {MIN}-{MAX}y</ClashOfRim.Trade.PawnAgeRequirementRange>
   <ClashOfRim.Trade.PawnAgeRequirementMin>age &gt;= {AGE}y</ClashOfRim.Trade.PawnAgeRequirementMin>
   <ClashOfRim.Trade.PawnAgeRequirementMax>age &lt;= {AGE}y</ClashOfRim.Trade.PawnAgeRequirementMax>
-  <ClashOfRim.Trade.QualityAny>Quality: any</ClashOfRim.Trade.QualityAny>
-  <ClashOfRim.Trade.QualitySelected>Quality: {QUALITY}</ClashOfRim.Trade.QualitySelected>
+  <ClashOfRim.Trade.QualityAny>Any quality</ClashOfRim.Trade.QualityAny>
+  <ClashOfRim.Trade.QualitySelected>{QUALITY}</ClashOfRim.Trade.QualitySelected>
   <ClashOfRim.Trade.ReceiveLine>Receive: {THINGS}</ClashOfRim.Trade.ReceiveLine>
   <ClashOfRim.Trade.RequireBeaconRange>Only use items in trade beacon range; turn off to use beacons and all storage</ClashOfRim.Trade.RequireBeaconRange>
   <ClashOfRim.Trade.RequestedGlobalItems>Requested items (global item pool)</ClashOfRim.Trade.RequestedGlobalItems>
@@ -1116,11 +1117,11 @@
   <ClashOfRim.Trade.SelectedOffers>Selected offered items</ClashOfRim.Trade.SelectedOffers>
   <ClashOfRim.Trade.SelectedRequests>Selected requests (count, quality, and hit points are minimum requirements)</ClashOfRim.Trade.SelectedRequests>
   <ClashOfRim.Trade.SelectOrderForDetails>Select a trade order to view details.</ClashOfRim.Trade.SelectOrderForDetails>
-  <ClashOfRim.Trade.SelectGene>Select gene</ClashOfRim.Trade.SelectGene>
+  <ClashOfRim.Trade.SelectGene>Genes</ClashOfRim.Trade.SelectGene>
   <ClashOfRim.Trade.SelectGeneTitle>Select target genes</ClashOfRim.Trade.SelectGeneTitle>
-  <ClashOfRim.Trade.SelectResearchProject>Select research</ClashOfRim.Trade.SelectResearchProject>
+  <ClashOfRim.Trade.SelectResearchProject>Research</ClashOfRim.Trade.SelectResearchProject>
   <ClashOfRim.Trade.SelectResearchProjectTitle>Select target research</ClashOfRim.Trade.SelectResearchProjectTitle>
-  <ClashOfRim.Trade.SendByDropPod>Send by drop pod</ClashOfRim.Trade.SendByDropPod>
+  <ClashOfRim.Trade.SendByDropPod>Drop pod</ClashOfRim.Trade.SendByDropPod>
   <ClashOfRim.Trade.StatusLine>Status: {STATUS}</ClashOfRim.Trade.StatusLine>
   <ClashOfRim.Trade.StatusAcceptedOrder>Trade order accepted.</ClashOfRim.Trade.StatusAcceptedOrder>
   <ClashOfRim.Trade.StatusAcceptException>Accept exception: {TYPE} {MESSAGE}</ClashOfRim.Trade.StatusAcceptException>
@@ -1172,7 +1173,7 @@
   <ClashOfRim.Trade.StatusFeeReservationIncomplete>Fee reservation incomplete; {REMAINING} silver was not removed.</ClashOfRim.Trade.StatusFeeReservationIncomplete>
   <ClashOfRim.Trade.StatusFeeSilverInsufficient>&lt;color=#ff6b6b&gt;Insufficient fee silver&lt;/color&gt;: need &lt;color=#d7dadb&gt;{NEEDED}&lt;/color&gt;, available &lt;color=#d7dadb&gt;{AVAILABLE}&lt;/color&gt;.</ClashOfRim.Trade.StatusFeeSilverInsufficient>
   <ClashOfRim.Trade.StatusQuotingFee>Confirming the fee with the server.</ClashOfRim.Trade.StatusQuotingFee>
-  <ClashOfRim.Trade.StatusQuotingFeeShort>Confirming...</ClashOfRim.Trade.StatusQuotingFeeShort>
+  <ClashOfRim.Trade.StatusQuotingFeeShort>Checking...</ClashOfRim.Trade.StatusQuotingFeeShort>
   <ClashOfRim.Trade.StatusFeeQuoted>Server fee: {FEE} silver.</ClashOfRim.Trade.StatusFeeQuoted>
   <ClashOfRim.Trade.StatusFeeQuoteRejected>Server rejected the trade quote: {MESSAGE}</ClashOfRim.Trade.StatusFeeQuoteRejected>
   <ClashOfRim.Trade.StatusFeeQuoteFailed>Fee quote failed: {MESSAGE}</ClashOfRim.Trade.StatusFeeQuoteFailed>
@@ -1209,12 +1210,12 @@
   <ClashOfRim.Trade.StatusTradeThingOutsideBeacon>Trade item is outside the selected trade range: {THING}.</ClashOfRim.Trade.StatusTradeThingOutsideBeacon>
   <ClashOfRim.Trade.StatusTradeThingInsufficient>Trade item count insufficient: {THING} needs {NEEDED}, current {CURRENT}.</ClashOfRim.Trade.StatusTradeThingInsufficient>
   <ClashOfRim.Trade.StatusTradeThingInvalid>A trade item is no longer on the current map or has an invalid count. Reopen the trade order.</ClashOfRim.Trade.StatusTradeThingInvalid>
-  <ClashOfRim.Trade.StuffAny>Stuff: any</ClashOfRim.Trade.StuffAny>
+  <ClashOfRim.Trade.StuffAny>Any stuff</ClashOfRim.Trade.StuffAny>
   <ClashOfRim.Trade.StuffRequirement>stuff: {STUFF}</ClashOfRim.Trade.StuffRequirement>
   <ClashOfRim.Trade.SubmitHintMissing>Requires offered items or requested items, plus enough fee silver.</ClashOfRim.Trade.SubmitHintMissing>
   <ClashOfRim.Trade.SubmitHintIncompleteRequest>Requested item conditions are incomplete.</ClashOfRim.Trade.SubmitHintIncompleteRequest>
   <ClashOfRim.Trade.SubmitHintReady>Deliver {OFFERCOUNT} entries, request {REQUESTCOUNT} entries. Delivery method is selected by the accepter when completing the trade.</ClashOfRim.Trade.SubmitHintReady>
-  <ClashOfRim.Trade.SubmitOrder>Submit trade order</ClashOfRim.Trade.SubmitOrder>
+  <ClashOfRim.Trade.SubmitOrder>Publish</ClashOfRim.Trade.SubmitOrder>
   <ClashOfRim.Trade.TargetBookSkillRequirement>{SKILL}</ClashOfRim.Trade.TargetBookSkillRequirement>
   <ClashOfRim.Trade.TargetResearchProjectRequirement>{PROJECT}</ClashOfRim.Trade.TargetResearchProjectRequirement>
   <ClashOfRim.Trade.SourceLabels>Source {SOURCES}</ClashOfRim.Trade.SourceLabels>
@@ -1224,17 +1225,17 @@
   <ClashOfRim.Trade.UnknownOwner>Unknown publisher</ClashOfRim.Trade.UnknownOwner>
   <ClashOfRim.Trade.ViewerAcceptedSuffix>, accepted by me</ClashOfRim.Trade.ViewerAcceptedSuffix>
   <ClashOfRim.Trade.ViewOnly>View only</ClashOfRim.Trade.ViewOnly>
-  <ClashOfRim.GiftDelivery.CaravanGizmo>Deliver gift</ClashOfRim.GiftDelivery.CaravanGizmo>
-  <ClashOfRim.GiftDelivery.CaravanGizmoCount>Deliver gift ({COUNT})</ClashOfRim.GiftDelivery.CaravanGizmoCount>
+  <ClashOfRim.GiftDelivery.CaravanGizmo>Gift</ClashOfRim.GiftDelivery.CaravanGizmo>
+  <ClashOfRim.GiftDelivery.CaravanGizmoCount>Gift ({COUNT})</ClashOfRim.GiftDelivery.CaravanGizmoCount>
   <ClashOfRim.GiftDelivery.CaravanGizmoDesc>The caravan has reached another colony tile. Deliver gifts to the target.</ClashOfRim.GiftDelivery.CaravanGizmoDesc>
-  <ClashOfRim.GiftDelivery.ForcedCaravanGizmo>Force delivery</ClashOfRim.GiftDelivery.ForcedCaravanGizmo>
-  <ClashOfRim.GiftDelivery.ForcedCaravanGizmoCount>Force delivery ({COUNT})</ClashOfRim.GiftDelivery.ForcedCaravanGizmoCount>
+  <ClashOfRim.GiftDelivery.ForcedCaravanGizmo>Force</ClashOfRim.GiftDelivery.ForcedCaravanGizmo>
+  <ClashOfRim.GiftDelivery.ForcedCaravanGizmoCount>Force ({COUNT})</ClashOfRim.GiftDelivery.ForcedCaravanGizmoCount>
   <ClashOfRim.GiftDelivery.ForcedCaravanGizmoDesc>The caravan has reached a hostile colony tile. Force-deliver items to the target.</ClashOfRim.GiftDelivery.ForcedCaravanGizmoDesc>
   <ClashOfRim.GiftDelivery.Title>Caravan item delivery</ClashOfRim.GiftDelivery.Title>
   <ClashOfRim.GiftDelivery.TargetLine>Target: {TARGET}</ClashOfRim.GiftDelivery.TargetLine>
   <ClashOfRim.GiftDelivery.TargetOption>{TARGET}</ClashOfRim.GiftDelivery.TargetOption>
-  <ClashOfRim.GiftDelivery.NormalMode>Normal gift</ClashOfRim.GiftDelivery.NormalMode>
-  <ClashOfRim.GiftDelivery.ForcedMode>Forced delivery</ClashOfRim.GiftDelivery.ForcedMode>
+  <ClashOfRim.GiftDelivery.NormalMode>Gift</ClashOfRim.GiftDelivery.NormalMode>
+  <ClashOfRim.GiftDelivery.ForcedMode>Forced</ClashOfRim.GiftDelivery.ForcedMode>
   <ClashOfRim.GiftDelivery.NormalUnavailable>Normal gift unavailable</ClashOfRim.GiftDelivery.NormalUnavailable>
   <ClashOfRim.GiftDelivery.ForcedUnavailable>Unavailable</ClashOfRim.GiftDelivery.ForcedUnavailable>
   <ClashOfRim.GiftDelivery.CaravanItems>Caravan items</ClashOfRim.GiftDelivery.CaravanItems>
@@ -1275,7 +1276,7 @@
   <ClashOfRim.SnapshotConfirmationFailure.Message>&lt;b&gt;{OPERATION}&lt;/b&gt; was not saved to the server. &lt;color=#ffd166&gt;Continuing would leave the local save out of sync with the server save.&lt;/color&gt; Retry the upload, or return to the main menu and re-enter the server.\n\nCurrent error: &lt;color=#ff6b6b&gt;{MESSAGE}&lt;/color&gt;</ClashOfRim.SnapshotConfirmationFailure.Message>
   <ClashOfRim.SnapshotConfirmationFailure.MessageCompact>&lt;b&gt;{OPERATION}&lt;/b&gt; was not saved to the server. &lt;color=#ffd166&gt;Continuing would leave local state out of sync with the server save.&lt;/color&gt; Retry the upload, or return to the main menu and re-enter the server.</ClashOfRim.SnapshotConfirmationFailure.MessageCompact>
   <ClashOfRim.SnapshotConfirmationFailure.RetryUpload>Retry upload</ClashOfRim.SnapshotConfirmationFailure.RetryUpload>
-  <ClashOfRim.SnapshotConfirmationFailure.ReturnToMainMenu>Return to main menu</ClashOfRim.SnapshotConfirmationFailure.ReturnToMainMenu>
+  <ClashOfRim.SnapshotConfirmationFailure.ReturnToMainMenu>Main menu</ClashOfRim.SnapshotConfirmationFailure.ReturnToMainMenu>
   <ClashOfRim.SnapshotConfirmationFailure.Waiting>Processing. The game remains paused until this finishes.</ClashOfRim.SnapshotConfirmationFailure.Waiting>
   <ClashOfRim.SnapshotConfirmationFailure.RetryMissing>No confirmation upload is available to retry.</ClashOfRim.SnapshotConfirmationFailure.RetryMissing>
   <ClashOfRim.SnapshotConfirmationFailure.ReturningToMainMenu>Returning to the main menu.</ClashOfRim.SnapshotConfirmationFailure.ReturningToMainMenu>
@@ -1288,7 +1289,7 @@
   <ClashOfRim.SnapshotConfirmationFailure.OperationBank>Bank operation</ClashOfRim.SnapshotConfirmationFailure.OperationBank>
   <ClashOfRim.SnapshotConfirmationFailure.OperationMercenary>Mercenary operation</ClashOfRim.SnapshotConfirmationFailure.OperationMercenary>
   <ClashOfRim.SnapshotConfirmationFailure.OperationColonyRelocation>Colony relocation</ClashOfRim.SnapshotConfirmationFailure.OperationColonyRelocation>
-  <ClashOfRim.ColonyRelocation.CommandLabel>Relocate colony</ClashOfRim.ColonyRelocation.CommandLabel>
+  <ClashOfRim.ColonyRelocation.CommandLabel>Relocate</ClashOfRim.ColonyRelocation.CommandLabel>
   <ClashOfRim.ColonyRelocation.CommandDesc>Settle this caravan here and abandon the old colony using vanilla rules. Normal play cannot continue until the server saves the new state.</ClashOfRim.ColonyRelocation.CommandDesc>
   <ClashOfRim.ColonyRelocation.Title>Confirm colony relocation</ClashOfRim.ColonyRelocation.Title>
   <ClashOfRim.ColonyRelocation.Warning>&lt;color=#ffd166&gt;You will abandon {COLONY} using vanilla rules and found a new colony on tile {TILE}.&lt;/color&gt;\n\nPeople, animals, items, and buildings not carried by the caravan will not be preserved. After relocation succeeds, the new tile will become your only colony.\n\nRelocation must save progress afterward. If saving fails, you can only retry the upload or return to the main menu and rejoin the server.</ClashOfRim.ColonyRelocation.Warning>
@@ -1323,7 +1324,7 @@
   <ClashOfRim.Bank.ConfirmRepay>Repay &lt;color=#d7dadb&gt;{TOTAL} silver&lt;/color&gt;?\n\nSilver will be removed locally, the repayment quest will end, and the current state must be saved.</ClashOfRim.Bank.ConfirmRepay>
   <ClashOfRim.Bank.ConfirmRepayDebt>Repay this debt of &lt;color=#d7dadb&gt;{TOTAL} silver&lt;/color&gt;?\n\nSource: {REASON}\n\nSilver will be removed locally and the current state must be saved.</ClashOfRim.Bank.ConfirmRepayDebt>
   <ClashOfRim.Bank.CreateHint>Amount and duration must be within the server loan limits.</ClashOfRim.Bank.CreateHint>
-  <ClashOfRim.Bank.CreateLoan>Create loan</ClashOfRim.Bank.CreateLoan>
+  <ClashOfRim.Bank.CreateLoan>Borrow</ClashOfRim.Bank.CreateLoan>
   <ClashOfRim.Bank.Disabled>Bank loans disabled.</ClashOfRim.Bank.Disabled>
   <ClashOfRim.Bank.DebtDetailLine>Reason: {REASON}; {DUE}</ClashOfRim.Bank.DebtDetailLine>
   <ClashOfRim.Bank.DebtDueIn>Overdue in {TIME}</ClashOfRim.Bank.DebtDueIn>
@@ -1417,7 +1418,7 @@
   <ClashOfRim.Mercenary.DeathLetterLabel>Mercenary incident</ClashOfRim.Mercenary.DeathLetterLabel>
   <ClashOfRim.Mercenary.DeathLetterText>{PAWN}'s hired assignment ended unexpectedly.</ClashOfRim.Mercenary.DeathLetterText>
   <ClashOfRim.Mercenary.DurationLine>Hire duration: {DAYS} game days</ClashOfRim.Mercenary.DurationLine>
-  <ClashOfRim.Mercenary.EarlyRecall>Recall early</ClashOfRim.Mercenary.EarlyRecall>
+  <ClashOfRim.Mercenary.EarlyRecall>Recall</ClashOfRim.Mercenary.EarlyRecall>
   <ClashOfRim.Mercenary.EarlyRecallDesc>Call a recall shuttle to pick up this mercenary now. The assignment ends after the mercenary successfully leaves.</ClashOfRim.Mercenary.EarlyRecallDesc>
   <ClashOfRim.Mercenary.EarlyRecallUnavailable>This mercenary cannot be recalled right now.</ClashOfRim.Mercenary.EarlyRecallUnavailable>
   <ClashOfRim.Mercenary.Hire>Hire</ClashOfRim.Mercenary.Hire>
@@ -1426,7 +1427,7 @@
   <ClashOfRim.Mercenary.InspectLoaded>Aboard the recall shuttle.</ClashOfRim.Mercenary.InspectLoaded>
   <ClashOfRim.Mercenary.InspectTemporary>Will leave by recall shuttle.</ClashOfRim.Mercenary.InspectTemporary>
   <ClashOfRim.Mercenary.InspectWaitingForShuttle>Waiting to leave by recall shuttle.</ClashOfRim.Mercenary.InspectWaitingForShuttle>
-  <ClashOfRim.Mercenary.LoadRecallShuttle>Load mercenary</ClashOfRim.Mercenary.LoadRecallShuttle>
+  <ClashOfRim.Mercenary.LoadRecallShuttle>Load</ClashOfRim.Mercenary.LoadRecallShuttle>
   <ClashOfRim.Mercenary.LoadRecallShuttleDesc>Start loading the recalled mercenary into this shuttle.</ClashOfRim.Mercenary.LoadRecallShuttleDesc>
   <ClashOfRim.Mercenary.LoadRecallShuttleStarted>Ordering {PAWN} into the recall shuttle.</ClashOfRim.Mercenary.LoadRecallShuttleStarted>
   <ClashOfRim.Mercenary.LoadRecallShuttleAlreadyLoaded>{PAWN} is already aboard the recall shuttle.</ClashOfRim.Mercenary.LoadRecallShuttleAlreadyLoaded>
@@ -1516,7 +1517,7 @@
   <ClashOfRim.Support.QuestFullDescriptionPermanent>{PAWN} was sent by {OWNER} as permanent support. They will not return automatically unless a later settlement event handles them.</ClashOfRim.Support.QuestFullDescriptionPermanent>
   <ClashOfRim.Support.QuestFullDescriptionTemporary>{PAWN} was sent by {OWNER} as temporary support. They will return to their home colony on their own when the term ends.</ClashOfRim.Support.QuestFullDescriptionTemporary>
   <ClashOfRim.Support.QuestName>Support: {PAWN}</ClashOfRim.Support.QuestName>
-  <ClashOfRim.Support.EarlyReturn>Send back early</ClashOfRim.Support.EarlyReturn>
+  <ClashOfRim.Support.EarlyReturn>Return</ClashOfRim.Support.EarlyReturn>
   <ClashOfRim.Support.EarlyReturnDesc>Order this temporary support colonist to leave the map and return to their home colony.</ClashOfRim.Support.EarlyReturnDesc>
   <ClashOfRim.Support.EarlyReturnUnavailable>This support colonist cannot be sent back right now.</ClashOfRim.Support.EarlyReturnUnavailable>
   <ClashOfRim.SnapshotConfirmationFailure.OperationSupport>Support colonist return</ClashOfRim.SnapshotConfirmationFailure.OperationSupport>
@@ -1536,7 +1537,7 @@
   <ClashOfRim.RemoteWorldObject.ScoutDesc>Scout the latest state of the other colony.</ClashOfRim.RemoteWorldObject.ScoutDesc>
   <ClashOfRim.RemoteWorldObject.ObserveAlly>Observe ally</ClashOfRim.RemoteWorldObject.ObserveAlly>
   <ClashOfRim.RemoteWorldObject.ObserveAllyDesc>Observe the latest state of an ally.</ClashOfRim.RemoteWorldObject.ObserveAllyDesc>
-  <ClashOfRim.RemoteWorldObject.ObserveRaid>Observe battle</ClashOfRim.RemoteWorldObject.ObserveRaid>
+  <ClashOfRim.RemoteWorldObject.ObserveRaid>Observe</ClashOfRim.RemoteWorldObject.ObserveRaid>
   <ClashOfRim.RemoteWorldObject.ObserveRaidDesc>Watch the latest state of an ongoing raid.</ClashOfRim.RemoteWorldObject.ObserveRaidDesc>
   <ClashOfRim.Observation.StatusNotConfigured>Server address, user, or colony is not configured; cannot scout or observe.</ClashOfRim.Observation.StatusNotConfigured>
   <ClashOfRim.Observation.StatusBusy>A server operation is already in progress.</ClashOfRim.Observation.StatusBusy>
@@ -1561,7 +1562,7 @@
   <ClashOfRim.RemoteSessionMap.RaidObservationNamedLabel>Battle view: {OWNER}'s {LABEL}</ClashOfRim.RemoteSessionMap.RaidObservationNamedLabel>
   <ClashOfRim.RemoteSessionMap.RaidBattleLabel>{OWNER}'s raid battle</ClashOfRim.RemoteSessionMap.RaidBattleLabel>
   <ClashOfRim.RemoteSessionMap.RaidBattleNamedLabel>Raid: {OWNER}'s {LABEL}</ClashOfRim.RemoteSessionMap.RaidBattleNamedLabel>
-  <ClashOfRim.RemoteSessionMap.Close>Close observation map</ClashOfRim.RemoteSessionMap.Close>
+  <ClashOfRim.RemoteSessionMap.Close>Close</ClashOfRim.RemoteSessionMap.Close>
   <ClashOfRim.RemoteSessionMap.CloseDesc>Close the current observation map and return to the normal multiplayer session.</ClashOfRim.RemoteSessionMap.CloseDesc>
   <ClashOfRim.RemoteSessionMap.Closed>Observation map closed.</ClashOfRim.RemoteSessionMap.Closed>
   <ClashOfRim.RemoteSessionMap.ActiveSessionBlocksOpen>A distant map is already open. Close it or finish the raid first.</ClashOfRim.RemoteSessionMap.ActiveSessionBlocksOpen>
@@ -1610,7 +1611,7 @@
   <ClashOfRim.Admin.NotConnected>Not connected to the server.</ClashOfRim.Admin.NotConnected>
   <ClashOfRim.Admin.NotAdministrator>The current user is not an administrator.</ClashOfRim.Admin.NotAdministrator>
   <ClashOfRim.Admin.SavedMessage>Server configuration updated.</ClashOfRim.Admin.SavedMessage>
-  <ClashOfRim.Admin.UpdateWorldBaseline>Update world data</ClashOfRim.Admin.UpdateWorldBaseline>
+  <ClashOfRim.Admin.UpdateWorldBaseline>World</ClashOfRim.Admin.UpdateWorldBaseline>
   <ClashOfRim.Admin.UpdateWorldBaselineDesc>Replace the server world, faction, ideology, and related baselines with the current save. This affects every player; use only when the current save is correct.</ClashOfRim.Admin.UpdateWorldBaselineDesc>
   <ClashOfRim.SelectionButtonTip>Click to change the current selection.</ClashOfRim.SelectionButtonTip>
   <ClashOfRim.Admin.WorldBaselineUpdating>Updating world data.</ClashOfRim.Admin.WorldBaselineUpdating>
@@ -1642,9 +1643,9 @@
   <ClashOfRim.Admin.MaxOpenTradeOrders>Open trade limit per player</ClashOfRim.Admin.MaxOpenTradeOrders>
   <ClashOfRim.Admin.TradeBaseFeeRate>Base fee rate</ClashOfRim.Admin.TradeBaseFeeRate>
   <ClashOfRim.Admin.TradeFeeStrategy>Fee strategy</ClashOfRim.Admin.TradeFeeStrategy>
-  <ClashOfRim.Admin.TradeFeeStrategyPublisher>Publisher side</ClashOfRim.Admin.TradeFeeStrategyPublisher>
-  <ClashOfRim.Admin.TradeFeeStrategyHighestSide>Highest side</ClashOfRim.Admin.TradeFeeStrategyHighestSide>
-  <ClashOfRim.Admin.TradeFeeStrategySumBothSides>Both sides total</ClashOfRim.Admin.TradeFeeStrategySumBothSides>
+  <ClashOfRim.Admin.TradeFeeStrategyPublisher>Publisher</ClashOfRim.Admin.TradeFeeStrategyPublisher>
+  <ClashOfRim.Admin.TradeFeeStrategyHighestSide>Highest</ClashOfRim.Admin.TradeFeeStrategyHighestSide>
+  <ClashOfRim.Admin.TradeFeeStrategySumBothSides>Combined</ClashOfRim.Admin.TradeFeeStrategySumBothSides>
   <ClashOfRim.Admin.FixedTradeFees>Fixed fees</ClashOfRim.Admin.FixedTradeFees>
   <ClashOfRim.Admin.AddFixedTradeFee>Add</ClashOfRim.Admin.AddFixedTradeFee>
   <ClashOfRim.Admin.FixedTradeFeeThing>Thing</ClashOfRim.Admin.FixedTradeFeeThing>
@@ -1724,7 +1725,7 @@
   <ClashOfRim.Admin.BroadcastMessage>Message</ClashOfRim.Admin.BroadcastMessage>
   <ClashOfRim.Admin.ActionBroadcast>Broadcast</ClashOfRim.Admin.ActionBroadcast>
   <ClashOfRim.Admin.BroadcastTarget>Target</ClashOfRim.Admin.BroadcastTarget>
-  <ClashOfRim.Admin.BroadcastTargetAll>All players</ClashOfRim.Admin.BroadcastTargetAll>
+  <ClashOfRim.Admin.BroadcastTargetAll>Everyone</ClashOfRim.Admin.BroadcastTargetAll>
   <ClashOfRim.Admin.BroadcastPersistent>Persistent</ClashOfRim.Admin.BroadcastPersistent>
   <ClashOfRim.Admin.BroadcastSeverityInfo>Notice</ClashOfRim.Admin.BroadcastSeverityInfo>
   <ClashOfRim.Admin.BroadcastSeverityWarning>Warning</ClashOfRim.Admin.BroadcastSeverityWarning>
@@ -1732,7 +1733,7 @@
   <ClashOfRim.Admin.MaintenanceLocked>New logins are blocked.</ClashOfRim.Admin.MaintenanceLocked>
   <ClashOfRim.Admin.MaintenanceUnlocked>New logins are not blocked.</ClashOfRim.Admin.MaintenanceUnlocked>
   <ClashOfRim.Admin.MaintenanceReason>Reason</ClashOfRim.Admin.MaintenanceReason>
-  <ClashOfRim.Admin.ActionLockLogin>Lock login</ClashOfRim.Admin.ActionLockLogin>
+  <ClashOfRim.Admin.ActionLockLogin>Lock</ClashOfRim.Admin.ActionLockLogin>
   <ClashOfRim.Admin.ActionUnlockLogin>Unlock</ClashOfRim.Admin.ActionUnlockLogin>
   <ClashOfRim.Admin.DevToolsBlocked>Only administrators can use developer tools during a multiplayer session.</ClashOfRim.Admin.DevToolsBlocked>
   <ClashOfRim.Admin.NoManifest>No server mod list.</ClashOfRim.Admin.NoManifest>
@@ -1740,7 +1741,7 @@
   <ClashOfRim.Admin.ConfigNotSaved>(default settings, not saved)</ClashOfRim.Admin.ConfigNotSaved>
   <ClashOfRim.Admin.ModRoleRequired>Required</ClashOfRim.Admin.ModRoleRequired>
   <ClashOfRim.Admin.ModRoleOptional>Optional</ClashOfRim.Admin.ModRoleOptional>
-  <ClashOfRim.Admin.ModRoleTranslation>Translation exempt</ClashOfRim.Admin.ModRoleTranslation>
+  <ClashOfRim.Admin.ModRoleTranslation>Translation</ClashOfRim.Admin.ModRoleTranslation>
   <ClashOfRim.Admin.ConfigModeEnforce>Enforce</ClashOfRim.Admin.ConfigModeEnforce>
   <ClashOfRim.Admin.ConfigModeWarn>Warn</ClashOfRim.Admin.ConfigModeWarn>
   <ClashOfRim.Admin.ConfigModeIgnore>Ignore</ClashOfRim.Admin.ConfigModeIgnore>
@@ -1777,8 +1778,8 @@
   <ClashOfRim.Shop.ConfirmSell>Deliver {COUNT} x {THING} for &lt;color=#d7dadb&gt;{PRICE} silver&lt;/color&gt;?</ClashOfRim.Shop.ConfirmSell>
   <ClashOfRim.Shop.AddListing>Add</ClashOfRim.Shop.AddListing>
   <ClashOfRim.Shop.Kind>Type</ClashOfRim.Shop.Kind>
-  <ClashOfRim.Shop.KindSell>Sell to players</ClashOfRim.Shop.KindSell>
-  <ClashOfRim.Shop.KindBuy>Buy from players</ClashOfRim.Shop.KindBuy>
+  <ClashOfRim.Shop.KindSell>Selling</ClashOfRim.Shop.KindSell>
+  <ClashOfRim.Shop.KindBuy>Buying</ClashOfRim.Shop.KindBuy>
   <ClashOfRim.Shop.StockShort>Stock</ClashOfRim.Shop.StockShort>
   <ClashOfRim.Shop.DemandShort>Demand</ClashOfRim.Shop.DemandShort>
   <ClashOfRim.Shop.PriceShort>Price</ClashOfRim.Shop.PriceShort>
@@ -1795,20 +1796,20 @@
   <ClashOfRim.Shop.ListingDetails>Listing</ClashOfRim.Shop.ListingDetails>
   <ClashOfRim.Shop.NoThingSelected>No item selected.</ClashOfRim.Shop.NoThingSelected>
   <ClashOfRim.Shop.Genes>Genes</ClashOfRim.Shop.Genes>
-  <ClashOfRim.Shop.SelectGenes>Select genes</ClashOfRim.Shop.SelectGenes>
+  <ClashOfRim.Shop.SelectGenes>Genes</ClashOfRim.Shop.SelectGenes>
   <ClashOfRim.Shop.SelectGenesTitle>Select listing genes</ClashOfRim.Shop.SelectGenesTitle>
   <ClashOfRim.Shop.BookContent>Book content</ClashOfRim.Shop.BookContent>
   <ClashOfRim.Shop.ResearchProject>Research</ClashOfRim.Shop.ResearchProject>
-  <ClashOfRim.Shop.SelectBookSkills>Select skills</ClashOfRim.Shop.SelectBookSkills>
+  <ClashOfRim.Shop.SelectBookSkills>Skills</ClashOfRim.Shop.SelectBookSkills>
   <ClashOfRim.Shop.Stuff>Stuff</ClashOfRim.Shop.Stuff>
   <ClashOfRim.Shop.Quality>Quality</ClashOfRim.Shop.Quality>
   <ClashOfRim.Shop.QualityRequirement>Quality limit</ClashOfRim.Shop.QualityRequirement>
-  <ClashOfRim.Shop.QualityAtLeast>Target quality or better</ClashOfRim.Shop.QualityAtLeast>
-  <ClashOfRim.Shop.QualityAtMost>Target quality or lower</ClashOfRim.Shop.QualityAtMost>
+  <ClashOfRim.Shop.QualityAtLeast>Minimum</ClashOfRim.Shop.QualityAtLeast>
+  <ClashOfRim.Shop.QualityAtMost>Maximum</ClashOfRim.Shop.QualityAtMost>
   <ClashOfRim.Shop.HitPoints>Hit points</ClashOfRim.Shop.HitPoints>
   <ClashOfRim.Shop.HitPointsRequirement>Hit point limit</ClashOfRim.Shop.HitPointsRequirement>
-  <ClashOfRim.Shop.HitPointsAtLeast>Target hit points or higher</ClashOfRim.Shop.HitPointsAtLeast>
-  <ClashOfRim.Shop.HitPointsAtMost>Target hit points or lower</ClashOfRim.Shop.HitPointsAtMost>
+  <ClashOfRim.Shop.HitPointsAtLeast>Minimum</ClashOfRim.Shop.HitPointsAtLeast>
+  <ClashOfRim.Shop.HitPointsAtMost>Maximum</ClashOfRim.Shop.HitPointsAtMost>
   <ClashOfRim.Shop.IncompleteListing>Item properties are not selected. Complete the special item properties.</ClashOfRim.Shop.IncompleteListing>
   <ClashOfRim.Shop.StatusSavingListing>Saving shop listing.</ClashOfRim.Shop.StatusSavingListing>
   <ClashOfRim.Shop.StatusSaveFailed>Shop listing save failed: {CODE} {MESSAGE}</ClashOfRim.Shop.StatusSaveFailed>
@@ -1852,13 +1853,13 @@
   <ClashOfRim.TraitTrainer.NoTrait>No trait selected</ClashOfRim.TraitTrainer.NoTrait>
   <ClashOfRim.TraitTrainer.Random>random</ClashOfRim.TraitTrainer.Random>
   <ClashOfRim.TraitTrainer.RandomDescription>A neurotrainer which induces a random trait in the user's mind.</ClashOfRim.TraitTrainer.RandomDescription>
-  <ClashOfRim.TraitTrainer.Select>Select trait</ClashOfRim.TraitTrainer.Select>
+  <ClashOfRim.TraitTrainer.Select>Trait</ClashOfRim.TraitTrainer.Select>
   <ClashOfRim.TraitTrainer.SelectTitle>Select trait</ClashOfRim.TraitTrainer.SelectTitle>
   <ClashOfRim.TraitTrainer.Trait>Trait</ClashOfRim.TraitTrainer.Trait>
   <ClashOfRim.TraitTrainer.Used>{PAWN} gained trait: {TRAIT}.</ClashOfRim.TraitTrainer.Used>
   <ClashOfRim.TraitTrainer.UseLabel>Use trait trainer: {TRAIT}</ClashOfRim.TraitTrainer.UseLabel>
   <ClashOfRim.TraitTrainer.UseRandomLabel>Use random trait trainer</ClashOfRim.TraitTrainer.UseRandomLabel>
-  <ClashOfRim.ColonyAppearance.CommandLabel>Set multiplayer icon</ClashOfRim.ColonyAppearance.CommandLabel>
+  <ClashOfRim.ColonyAppearance.CommandLabel>Icon</ClashOfRim.ColonyAppearance.CommandLabel>
   <ClashOfRim.ColonyAppearance.CommandDesc>Set the colony icon shown to other players on the world map.</ClashOfRim.ColonyAppearance.CommandDesc>
   <ClashOfRim.ColonyAppearance.Title>Colony icon</ClashOfRim.ColonyAppearance.Title>
   <ClashOfRim.ColonyAppearance.Target>Target: {COLONY}</ClashOfRim.ColonyAppearance.Target>
