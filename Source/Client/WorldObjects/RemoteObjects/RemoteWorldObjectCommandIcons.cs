@@ -5,6 +5,7 @@ using Verse;
 
 namespace AIRsLight.ClashOfRim.WorldObjects;
 
+[StaticConstructorOnStartup]
 internal static class RemoteWorldObjectCommandIcons
 {
     public static readonly Texture2D ShowMap = ClashCommandIcons.ScoutObserve;

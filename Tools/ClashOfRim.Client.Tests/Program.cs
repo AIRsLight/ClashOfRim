@@ -3,6 +3,7 @@ using AIRsLight.ClashOfRim.Compatibility;
 using AIRsLight.ClashOfRim.CoreCompatibility;
 using AIRsLight.ClashOfRim.DlcCompatibility;
 using AIRsLight.ClashOfRim.Protocol;
+using AIRsLight.ClashOfRim.RemoteMaps;
 using AIRsLight.ClashOfRim.ThirdPartyCompatibility;
 using AIRsLight.ClashOfRim.Trades;
 using RimWorld;
@@ -27,7 +28,8 @@ var tests = new (string Name, Action Run)[]
     ("server entry diagnostics list mods in load order", ServerEntryDiagnosticsListModsInLoadOrder),
     ("only accepted language warnings can be bypassed", OnlyAcceptedLanguageWarningsCanBeBypassed),
     ("visible compatibility warnings request the full server manifest", VisibleCompatibilityWarningsRequestFullManifest),
-    ("selection labels show a single ellipsis", SelectionLabelsShowSingleEllipsis)
+    ("selection labels show a single ellipsis", SelectionLabelsShowSingleEllipsis),
+    ("remote projection defers addiction need lookup until pawn needs load", RemoteProjectionDefersAddictionNeedLookup)
 };
 
 foreach ((string name, Action run) in tests)
@@ -377,6 +379,22 @@ static void SelectionLabelsShowSingleEllipsis()
     Assert(AIRsLight.ClashOfRim.ClashOfRimUiUtility.SelectionLabel("Notice") == "Notice ...");
     Assert(AIRsLight.ClashOfRim.ClashOfRimUiUtility.SelectionLabel("Notice ...") == "Notice ...");
     Assert(AIRsLight.ClashOfRim.ClashOfRimUiUtility.SelectionLabel("  ") == "...");
+}
+
+static void RemoteProjectionDefersAddictionNeedLookup()
+{
+    var pawn = (Pawn)FormatterServices.GetUninitializedObject(typeof(Pawn));
+    var addiction = (Hediff_Addiction)FormatterServices.GetUninitializedObject(typeof(Hediff_Addiction));
+    addiction.pawn = pawn;
+
+    Need_Chemical? result = null;
+    Assert(RemoteMapProjectionAddictionLoadPatch.Prefix(addiction, ref result));
+
+    using (RemoteMapProjectionLoadScope.Begin())
+    {
+        Assert(!RemoteMapProjectionAddictionLoadPatch.Prefix(addiction, ref result));
+        Assert(result is null);
+    }
 }
 
 static Thing MakeThing(string defName)
