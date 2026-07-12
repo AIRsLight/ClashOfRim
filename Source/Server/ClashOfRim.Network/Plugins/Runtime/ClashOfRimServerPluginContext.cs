@@ -14,6 +14,7 @@ public sealed class ClashOfRimServerPluginContext
     private readonly List<IRaidSettlementSnapshotEditorExtension> raidSettlementSnapshotEditorExtensions = new();
     private readonly List<AchievementDefinition> achievementDefinitions = new();
     private readonly List<ISnapshotAchievementMetricProvider> snapshotAchievementMetricProviders = new();
+    private readonly List<ISnapshotPostUploadProcessor> snapshotPostUploadProcessors = new();
     private readonly List<IAuthoritativeEventAchievementMetricProvider> authoritativeEventAchievementMetricProviders = new();
 
     public ClashOfRimServerPluginContext(string contentRootPath)
@@ -41,6 +42,8 @@ public sealed class ClashOfRimServerPluginContext
 
     public IReadOnlyList<ISnapshotAchievementMetricProvider> SnapshotAchievementMetricProviders =>
         snapshotAchievementMetricProviders;
+
+    public IReadOnlyList<ISnapshotPostUploadProcessor> SnapshotPostUploadProcessors => snapshotPostUploadProcessors;
 
     public IReadOnlyList<IAuthoritativeEventAchievementMetricProvider> AuthoritativeEventAchievementMetricProviders =>
         authoritativeEventAchievementMetricProviders;
@@ -98,6 +101,12 @@ public sealed class ClashOfRimServerPluginContext
     {
         ArgumentNullException.ThrowIfNull(provider);
         snapshotAchievementMetricProviders.Add(provider);
+    }
+
+    public void RegisterSnapshotPostUploadProcessor(ISnapshotPostUploadProcessor processor)
+    {
+        ArgumentNullException.ThrowIfNull(processor);
+        snapshotPostUploadProcessors.Add(processor);
     }
 
     public void RegisterAuthoritativeEventAchievementMetricProvider(IAuthoritativeEventAchievementMetricProvider provider)

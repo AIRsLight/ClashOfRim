@@ -21,4 +21,7 @@ public sealed record ClashOfRimServerPluginDescriptor(
     IReadOnlyList<AIRsLight.ClashOfRim.Save.IRaidSettlementSnapshotEditorExtension>? RaidSettlementSnapshotEditorExtensions = null,
     IReadOnlyList<string>? IgnoredRaidSettlementThingDefNames = null,
     IReadOnlyList<string>? RequiredPackageIds = null,
-    int Order = 0);
+    int Order = 0)
+{
+    public IReadOnlyList<ISnapshotPostUploadProcessor>? SnapshotPostUploadProcessors { get; init; }
+}

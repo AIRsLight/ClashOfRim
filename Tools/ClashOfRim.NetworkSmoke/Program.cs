@@ -15,6 +15,17 @@ using System.Text;
 using System.Net.Http.Json;
 using System.Text.Json;
 
+VerifySnapshotPostUploadPipelineSemantics();
+VerifySnapshotPostUploadProcessorIdsAreUnique();
+VerifySnapshotPostUploadProcessorPluginFiltering();
+VerifyDeferredSnapshotPostUploadEnqueueSemantics();
+VerifyDeferredSnapshotPostUploadRetrySemantics();
+if (args.Contains("--snapshot-pipeline-only", StringComparer.Ordinal))
+{
+    Console.WriteLine("通过：快照后处理管线定向测试");
+    return;
+}
+
 VerifyPendingLoginSessionCanBeReplaced();
 VerifyPersistentRegistries();
 VerifyServerShopRegistrySemantics();
@@ -29,10 +40,314 @@ await VerifyOnlinePresenceLeaseExpiryAsync();
 await VerifyDefaultPersistentServerStateAsync();
 await VerifyDiplomacyRelationCooldownAsync();
 
+static void VerifySnapshotPostUploadPipelineSemantics()
+{
+    var execution = new List<string>();
+    var state = new ClashOfRimNetworkState();
+    var context = new SnapshotPostUploadContext(
+        state,
+        SnapshotPostUploadKind.AuthoritativeColonySnapshot,
+        Snapshot: null!,
+        "pipeline-user",
+        "pipeline-colony",
+        SessionId: null,
+        DateTimeOffset.UtcNow,
+        SnapshotPostUploadExtraData.Empty,
+        RegisterPlayerColonySite: true);
+    ISnapshotPostUploadProcessor[] processors =
+    {
+        new RecordingSnapshotPostUploadProcessor(
+            "derived",
+            SnapshotPostUploadStage.DerivedMetrics,
+            order: 0,
+            SnapshotPostUploadFailureMode.AbortPipeline,
+            new[] { SnapshotPostUploadKind.AuthoritativeColonySnapshot },
+            execution),
+        new RecordingSnapshotPostUploadProcessor(
+            "projection-late",
+            SnapshotPostUploadStage.AuthoritativeProjection,
+            order: 20,
+            SnapshotPostUploadFailureMode.AbortPipeline,
+            new[] { SnapshotPostUploadKind.AuthoritativeColonySnapshot },
+            execution),
+        new RecordingSnapshotPostUploadProcessor(
+            "projection-early",
+            SnapshotPostUploadStage.AuthoritativeProjection,
+            order: 10,
+            SnapshotPostUploadFailureMode.AbortPipeline,
+            new[] { SnapshotPostUploadKind.AuthoritativeColonySnapshot },
+            execution),
+        new RecordingSnapshotPostUploadProcessor(
+            "raid-only",
+            SnapshotPostUploadStage.EventReconciliation,
+            order: 0,
+            SnapshotPostUploadFailureMode.AbortPipeline,
+            new[] { SnapshotPostUploadKind.RaidSettlementEvidence },
+            execution)
+    };
+
+    SnapshotPostUploadPipeline.Run(context, processors);
+    Equal(
+        "projection-early,projection-late,derived",
+        string.Join(',', execution),
+        "快照后处理应按阶段、顺序和支持的快照类型稳定执行");
+
+    execution.Clear();
+    ISnapshotPostUploadProcessor[] continueProcessors =
+    {
+        new RecordingSnapshotPostUploadProcessor(
+            "optional-failure",
+            SnapshotPostUploadStage.DerivedMetrics,
+            order: 0,
+            SnapshotPostUploadFailureMode.ContinuePipeline,
+            new[] { SnapshotPostUploadKind.AuthoritativeColonySnapshot },
+            execution,
+            throwOnProcess: true),
+        new RecordingSnapshotPostUploadProcessor(
+            "after-optional-failure",
+            SnapshotPostUploadStage.EventReconciliation,
+            order: 0,
+            SnapshotPostUploadFailureMode.AbortPipeline,
+            new[] { SnapshotPostUploadKind.AuthoritativeColonySnapshot },
+            execution)
+    };
+    SnapshotPostUploadPipeline.Run(context, continueProcessors);
+    Equal(
+        "optional-failure,after-optional-failure",
+        string.Join(',', execution),
+        "可选后处理失败后应继续执行后续处理器");
+
+    execution.Clear();
+    ISnapshotPostUploadProcessor[] abortProcessors =
+    {
+        new RecordingSnapshotPostUploadProcessor(
+            "required-failure",
+            SnapshotPostUploadStage.DerivedMetrics,
+            order: 0,
+            SnapshotPostUploadFailureMode.AbortPipeline,
+            new[] { SnapshotPostUploadKind.AuthoritativeColonySnapshot },
+            execution,
+            throwOnProcess: true),
+        new RecordingSnapshotPostUploadProcessor(
+            "must-not-run",
+            SnapshotPostUploadStage.EventReconciliation,
+            order: 0,
+            SnapshotPostUploadFailureMode.AbortPipeline,
+            new[] { SnapshotPostUploadKind.AuthoritativeColonySnapshot },
+            execution)
+    };
+    bool aborted = false;
+    try
+    {
+        SnapshotPostUploadPipeline.Run(context, abortProcessors);
+    }
+    catch (InvalidOperationException)
+    {
+        aborted = true;
+    }
+
+    Require(aborted, "必需后处理失败应终止管线并向调用方传播异常");
+    Equal("required-failure", string.Join(',', execution), "终止后不应继续执行后续处理器");
+}
+
+static void VerifySnapshotPostUploadProcessorIdsAreUnique()
+{
+    var state = new ClashOfRimNetworkState();
+    var context = new SnapshotPostUploadContext(
+        state,
+        SnapshotPostUploadKind.AuthoritativeColonySnapshot,
+        Snapshot: null!,
+        "duplicate-user",
+        "duplicate-colony",
+        SessionId: null,
+        DateTimeOffset.UtcNow,
+        SnapshotPostUploadExtraData.Empty,
+        RegisterPlayerColonySite: true);
+    var execution = new List<string>();
+    ISnapshotPostUploadProcessor[] processors =
+    {
+        new RecordingSnapshotPostUploadProcessor(
+            "duplicate-id",
+            SnapshotPostUploadStage.AuthoritativeProjection,
+            order: 0,
+            SnapshotPostUploadFailureMode.AbortPipeline,
+            new[] { SnapshotPostUploadKind.AuthoritativeColonySnapshot },
+            execution),
+        new RecordingSnapshotPostUploadProcessor(
+            "duplicate-id",
+            SnapshotPostUploadStage.DerivedMetrics,
+            order: 0,
+            SnapshotPostUploadFailureMode.AbortPipeline,
+            new[] { SnapshotPostUploadKind.AuthoritativeColonySnapshot },
+            execution)
+    };
+
+    bool rejected = false;
+    try
+    {
+        SnapshotPostUploadPipeline.Run(context, processors);
+    }
+    catch (InvalidOperationException ex)
+    {
+        rejected = ex.Message.Contains("duplicate-id", StringComparison.Ordinal);
+    }
+
+    Require(rejected, "重复的快照后处理器 ID 应在执行前被明确拒绝");
+    Equal(0, execution.Count, "重复 ID 校验失败时不应执行任何处理器");
+}
+
+static void VerifySnapshotPostUploadProcessorPluginFiltering()
+{
+    var processor = new RecordingSnapshotPostUploadProcessor(
+        "plugin-processor",
+        SnapshotPostUploadStage.DerivedMetrics,
+        order: 0,
+        SnapshotPostUploadFailureMode.AbortPipeline,
+        new[] { SnapshotPostUploadKind.AuthoritativeColonySnapshot },
+        new List<string>());
+    var descriptor = new ClashOfRimServerPluginDescriptor(
+        Id: "smoke.snapshot-post-upload",
+        Name: "Smoke snapshot post-upload plugin",
+        Version: "1.0.0",
+        AssemblyName: "ClashOfRim.NetworkSmoke",
+        FileName: string.Empty,
+        Capabilities: Array.Empty<string>(),
+        RequiredPackageIds: new[] { "smoke.required.mod" })
+    {
+        SnapshotPostUploadProcessors = new[] { processor }
+    };
+    var registry = new ServerPluginRegistry(new[] { descriptor });
+    var missingManifest = new CompatibilityManifest
+    {
+        Mods = new[]
+        {
+            new ModManifestEntry { PackageId = "ludeon.rimworld", Name = "Core" }
+        }
+    };
+    var matchingManifest = new CompatibilityManifest
+    {
+        Mods = new[]
+        {
+            new ModManifestEntry { PackageId = "ludeon.rimworld", Name = "Core" },
+            new ModManifestEntry { PackageId = "smoke.required.mod", Name = "Required Mod" }
+        }
+    };
+
+    Equal(
+        0,
+        registry.ActiveSnapshotPostUploadProcessors(missingManifest).Count,
+        "缺少所需模组时不应启用插件快照后处理器");
+    Equal(
+        1,
+        registry.ActiveSnapshotPostUploadProcessors(matchingManifest).Count,
+        "清单满足要求时应启用插件快照后处理器");
+}
+
+static void VerifyDeferredSnapshotPostUploadEnqueueSemantics()
+{
+    var jobs = new SnapshotPostUploadJobRegistry();
+    var state = new ClashOfRimNetworkState(snapshotPostUploadJobs: jobs);
+    var context = new SnapshotPostUploadContext(
+        state,
+        SnapshotPostUploadKind.AuthoritativeColonySnapshot,
+        Snapshot: null!,
+        "deferred-user",
+        "deferred-colony",
+        SessionId: null,
+        DateTimeOffset.UtcNow,
+        SnapshotPostUploadExtraData.Empty,
+        RegisterPlayerColonySite: true);
+    var execution = new List<string>();
+    var processor = new RecordingDeferredSnapshotPostUploadProcessor(
+        "deferred-processor",
+        SnapshotPostUploadStage.DerivedMetrics,
+        order: 0,
+        new[] { SnapshotPostUploadKind.AuthoritativeColonySnapshot },
+        execution,
+        payloadJson: "{\"metric\":42}");
+
+    SnapshotPostUploadPipeline.Run(context, new[] { processor });
+
+    Equal(0, execution.Count, "延迟后处理器不应阻塞上传请求内联执行");
+    SnapshotPostUploadJobRecord job = jobs.ListReady(DateTimeOffset.UtcNow).Single();
+    Equal("deferred-processor", job.ProcessorId, "延迟任务应记录处理器 ID");
+    Equal("{\"metric\":42}", job.PayloadJson, "延迟任务应只持久化处理器提取的紧凑载荷");
+
+    int completed = SnapshotPostUploadJobExecutor.ProcessReady(
+        state,
+        new ISnapshotPostUploadProcessor[] { processor },
+        DateTimeOffset.UtcNow);
+    Equal(1, completed, "后台执行器应处理已到期的延迟任务");
+    Equal("deferred-processor", string.Join(',', execution), "后台执行器应调用对应延迟处理器");
+    Equal(0, jobs.ListReady(DateTimeOffset.MaxValue).Count, "成功任务应从持久 outbox 移除");
+}
+
+static void VerifyDeferredSnapshotPostUploadRetrySemantics()
+{
+    var jobs = new SnapshotPostUploadJobRegistry();
+    var state = new ClashOfRimNetworkState(snapshotPostUploadJobs: jobs);
+    DateTimeOffset now = DateTimeOffset.UtcNow;
+    var context = new SnapshotPostUploadContext(
+        state,
+        SnapshotPostUploadKind.AuthoritativeColonySnapshot,
+        Snapshot: null!,
+        "retry-user",
+        "retry-colony",
+        SessionId: null,
+        now,
+        SnapshotPostUploadExtraData.Empty,
+        RegisterPlayerColonySite: true);
+    var execution = new List<string>();
+    var processor = new RecordingDeferredSnapshotPostUploadProcessor(
+        "retry-processor",
+        SnapshotPostUploadStage.Notification,
+        order: 0,
+        new[] { SnapshotPostUploadKind.AuthoritativeColonySnapshot },
+        execution,
+        payloadJson: "{}",
+        failuresBeforeSuccess: 1);
+
+    SnapshotPostUploadPipeline.Run(context, new[] { processor });
+    Equal(
+        0,
+        SnapshotPostUploadJobExecutor.ProcessReady(state, new[] { processor }, now),
+        "延迟任务失败时不应计为完成");
+    SnapshotPostUploadJobRecord failed = jobs.ListReady(DateTimeOffset.MaxValue).Single();
+    Equal(1, failed.AttemptCount, "延迟任务失败后应记录尝试次数");
+    Require(failed.NextAttemptAtUtc > now, "延迟任务失败后应推迟下一次执行");
+
+    Equal(
+        1,
+        SnapshotPostUploadJobExecutor.ProcessReady(state, new[] { processor }, failed.NextAttemptAtUtc),
+        "延迟任务到达重试时间后应再次执行");
+    Equal(0, jobs.ListReady(DateTimeOffset.MaxValue).Count, "重试成功后应移除延迟任务");
+}
+
+var uploadedSnapshotProcessorExecution = new List<string>();
+var uploadedSnapshotProcessor = new RecordingSnapshotPostUploadProcessor(
+    "smoke-upload-processor",
+    SnapshotPostUploadStage.Notification,
+    order: 0,
+    SnapshotPostUploadFailureMode.AbortPipeline,
+    new[] { SnapshotPostUploadKind.AuthoritativeColonySnapshot },
+    uploadedSnapshotProcessorExecution);
+var uploadedSnapshotPlugin = new ClashOfRimServerPluginDescriptor(
+    Id: "smoke.upload-processor",
+    Name: "Smoke upload processor",
+    Version: "1.0.0",
+    AssemblyName: "ClashOfRim.NetworkSmoke",
+    FileName: string.Empty,
+    Capabilities: Array.Empty<string>())
+{
+    SnapshotPostUploadProcessors = new[] { uploadedSnapshotProcessor }
+};
+var smokePlugins = new ServerPluginRegistry(new[] { uploadedSnapshotPlugin })
+    .WithBuiltInPlugins(BuiltInServerPlugins.Descriptors);
 var state = new ClashOfRimNetworkState(
     serverConfiguration: new ClashOfRimServerConfiguration(
         maxOpenTradeOrdersPerOwner: 2,
-        diplomacyRelationChangeCooldown: TimeSpan.Zero));
+        diplomacyRelationChangeCooldown: TimeSpan.Zero),
+    plugins: smokePlugins);
 AuthoritativeEvent attackerLoss = SeedAttackerLossEvent(state.Ledger);
 
 WebApplication app = ClashOfRimNetworkServer.Build(Array.Empty<string>(), state);
@@ -472,6 +787,9 @@ try
         uploadedPackage.Payload);
     Require(upload.Result.Accepted, "上传快照应通过服务器校验");
     Equal("attacker-snapshot-after", upload.AcceptedSnapshotId, "上传确认快照 ID");
+    Require(
+        uploadedSnapshotProcessorExecution.Contains("smoke-upload-processor"),
+        "已注册的插件快照后处理器应由真实上传入口调用");
     SaveSnapshotPackage uploadedConfirmationPackage = BuildFixturePackageForWithLineage(
         "user-a",
         "colony-a",
@@ -3683,4 +4001,109 @@ static async Task<string> ReadWebSocketEventAsync(ClientWebSocket webSocket)
     }
 
     throw new InvalidOperationException("等待 WS 事件超时。");
+}
+
+sealed class RecordingSnapshotPostUploadProcessor : IInlineSnapshotPostUploadProcessor
+{
+    private readonly IReadOnlyCollection<SnapshotPostUploadKind> supportedKinds;
+    private readonly List<string> execution;
+    private readonly bool throwOnProcess;
+
+    public RecordingSnapshotPostUploadProcessor(
+        string id,
+        SnapshotPostUploadStage stage,
+        int order,
+        SnapshotPostUploadFailureMode failureMode,
+        IReadOnlyCollection<SnapshotPostUploadKind> supportedKinds,
+        List<string> execution,
+        bool throwOnProcess = false)
+    {
+        Id = id;
+        Stage = stage;
+        Order = order;
+        FailureMode = failureMode;
+        this.supportedKinds = supportedKinds;
+        this.execution = execution;
+        this.throwOnProcess = throwOnProcess;
+    }
+
+    public string Id { get; }
+
+    public SnapshotPostUploadStage Stage { get; }
+
+    public int Order { get; }
+
+    public SnapshotPostUploadFailureMode FailureMode { get; }
+
+    public SnapshotPostUploadExecutionMode ExecutionMode => SnapshotPostUploadExecutionMode.Inline;
+
+    public bool Supports(SnapshotPostUploadKind kind)
+    {
+        return supportedKinds.Contains(kind);
+    }
+
+    public void Process(SnapshotPostUploadContext context)
+    {
+        execution.Add(Id);
+        if (throwOnProcess)
+        {
+            throw new InvalidOperationException(Id);
+        }
+    }
+}
+
+sealed class RecordingDeferredSnapshotPostUploadProcessor : IDeferredSnapshotPostUploadProcessor
+{
+    private readonly IReadOnlyCollection<SnapshotPostUploadKind> supportedKinds;
+    private readonly List<string> execution;
+    private readonly string payloadJson;
+    private int remainingFailures;
+
+    public RecordingDeferredSnapshotPostUploadProcessor(
+        string id,
+        SnapshotPostUploadStage stage,
+        int order,
+        IReadOnlyCollection<SnapshotPostUploadKind> supportedKinds,
+        List<string> execution,
+        string payloadJson,
+        int failuresBeforeSuccess = 0)
+    {
+        Id = id;
+        Stage = stage;
+        Order = order;
+        this.supportedKinds = supportedKinds;
+        this.execution = execution;
+        this.payloadJson = payloadJson;
+        remainingFailures = failuresBeforeSuccess;
+    }
+
+    public string Id { get; }
+
+    public SnapshotPostUploadStage Stage { get; }
+
+    public int Order { get; }
+
+    public SnapshotPostUploadFailureMode FailureMode => SnapshotPostUploadFailureMode.ContinuePipeline;
+
+    public SnapshotPostUploadExecutionMode ExecutionMode => SnapshotPostUploadExecutionMode.Deferred;
+
+    public bool Supports(SnapshotPostUploadKind kind)
+    {
+        return supportedKinds.Contains(kind);
+    }
+
+    public string CapturePayload(SnapshotPostUploadContext context)
+    {
+        return payloadJson;
+    }
+
+    public void ProcessDeferred(SnapshotPostUploadDeferredContext context)
+    {
+        execution.Add(Id);
+        if (remainingFailures > 0)
+        {
+            remainingFailures--;
+            throw new InvalidOperationException("Deferred processor test failure.");
+        }
+    }
 }

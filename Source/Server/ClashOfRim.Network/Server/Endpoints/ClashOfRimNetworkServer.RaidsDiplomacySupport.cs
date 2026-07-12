@@ -1702,30 +1702,6 @@ public static partial class ClashOfRimNetworkServer
         }
     }
 
-    private static void RunSnapshotUploadedLifecycleHooks(
-        ClashOfRimNetworkState state,
-        string userId,
-        string colonyId,
-        string? sessionId,
-        SnapshotUploadResult upload,
-        DateTimeOffset occurredAtUtc)
-    {
-        if (upload.AcceptedSnapshot is null ||
-            string.IsNullOrWhiteSpace(upload.AcceptedSnapshot.Identity.SnapshotId))
-        {
-            return;
-        }
-
-        RunClientLifecycleHooks(
-            state,
-            ClientLifecycleEvent.SnapshotUploaded(
-                userId,
-                colonyId,
-                sessionId,
-                upload.AcceptedSnapshot.Identity.SnapshotId,
-                occurredAtUtc));
-    }
-
     private static void ReconcileRaidTimeoutsOnClientLifecycle(
         ClashOfRimNetworkState state,
         ClientLifecycleEvent lifecycleEvent)
@@ -1840,15 +1816,12 @@ public static partial class ClashOfRimNetworkServer
             return;
         }
 
-        if (lifecycleEvent.Kind != ClientLifecycleEventKind.SnapshotUploaded)
-        {
-            ReconcilePendingConfirmationsForColony(
-                state,
-                lifecycleEvent.UserId,
-                lifecycleEvent.ColonyId,
-                lifecycleEvent.OccurredAtUtc,
-                forceCancel: false);
-        }
+        ReconcilePendingConfirmationsForColony(
+            state,
+            lifecycleEvent.UserId,
+            lifecycleEvent.ColonyId,
+            lifecycleEvent.OccurredAtUtc,
+            forceCancel: false);
     }
 
     private static PendingConfirmationReconciliationResult ReconcilePendingConfirmationsForColony(
@@ -1897,42 +1870,6 @@ public static partial class ClashOfRimNetworkServer
             ProtocolErrorCode.Conflict,
             T("PendingConfirmation.ExpiredCancelled"));
         return true;
-    }
-
-    private static void ConfirmPendingOperationsOnClientLifecycle(
-        ClashOfRimNetworkState state,
-        ClientLifecycleEvent lifecycleEvent)
-    {
-        if (lifecycleEvent.Kind != ClientLifecycleEventKind.SnapshotUploaded
-            || string.IsNullOrWhiteSpace(lifecycleEvent.UserId)
-            || string.IsNullOrWhiteSpace(lifecycleEvent.ColonyId)
-            || string.IsNullOrWhiteSpace(lifecycleEvent.CurrentSnapshotId))
-        {
-            return;
-        }
-
-        LatestSnapshotRecord? latest = state.SnapshotStore.GetLatest(
-            lifecycleEvent.UserId,
-            lifecycleEvent.ColonyId);
-        if (!string.Equals(
-                latest?.Identity.SnapshotId,
-                lifecycleEvent.CurrentSnapshotId,
-                StringComparison.Ordinal))
-        {
-            return;
-        }
-
-        state.BankLoans.ConfirmPendingForSnapshot(
-            lifecycleEvent.UserId,
-            lifecycleEvent.ColonyId,
-            lifecycleEvent.CurrentSnapshotId!,
-            latest?.Envelope.GameTicks,
-            lifecycleEvent.OccurredAtUtc);
-        state.MercenaryContracts.ConfirmPendingForSnapshot(
-            lifecycleEvent.UserId,
-            lifecycleEvent.ColonyId,
-            lifecycleEvent.CurrentSnapshotId!,
-            lifecycleEvent.OccurredAtUtc);
     }
 
     private static void ReconcileAbandonedColonyOnClientLifecycle(
@@ -2578,7 +2515,6 @@ public static partial class ClashOfRimNetworkServer
     {
         InitialWorldSessionPrepared,
         LoggedIn,
-        SnapshotUploaded,
         ColonyAbandoned,
         Disconnected
     }
@@ -2615,22 +2551,6 @@ public static partial class ClashOfRimNetworkServer
         {
             return new ClientLifecycleEvent(
                 ClientLifecycleEventKind.LoggedIn,
-                userId,
-                colonyId,
-                currentSnapshotId,
-                sessionId,
-                occurredAtUtc);
-        }
-
-        public static ClientLifecycleEvent SnapshotUploaded(
-            string userId,
-            string colonyId,
-            string? sessionId,
-            string currentSnapshotId,
-            DateTimeOffset occurredAtUtc)
-        {
-            return new ClientLifecycleEvent(
-                ClientLifecycleEventKind.SnapshotUploaded,
                 userId,
                 colonyId,
                 currentSnapshotId,

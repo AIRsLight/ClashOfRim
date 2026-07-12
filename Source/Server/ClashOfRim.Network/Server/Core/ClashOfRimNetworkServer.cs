@@ -37,7 +37,6 @@ public static partial class ClashOfRimNetworkServer
         ReconcileRaidTimeoutsOnClientLifecycle,
         ActivateRaidProtectionOnClientLifecycle,
         ReconcilePendingConfirmationsOnClientLifecycle,
-        ConfirmPendingOperationsOnClientLifecycle,
         ReconcileAbandonedColonyOnClientLifecycle
     };
 

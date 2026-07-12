@@ -16,7 +16,7 @@ public static class ServerDatabaseSchema
 {
     // Version 1 is the known JSON-document persistence layout.
     public const int LegacyJsonDocumentVersion = 1;
-    public const int CurrentVersion = 4;
+    public const int CurrentVersion = 5;
 }
 
 public sealed record ServerDatabaseMigrationOptions(int? DeclaredSourceVersion = null);
@@ -69,7 +69,11 @@ public static class ServerDatabaseMigrator
         new(
             FromVersion: 3,
             ToVersion: 4,
-            Apply: MigrateItemDeliveryEventHierarchy)
+            Apply: MigrateItemDeliveryEventHierarchy),
+        new(
+            FromVersion: 4,
+            ToVersion: 5,
+            Apply: CreateSnapshotPostUploadJobTable)
     ];
 
     public static ServerDatabaseMigrationAssessment Assess(
@@ -531,6 +535,36 @@ public static class ServerDatabaseMigrator
             update.ExecuteNonQuery();
         }
 
+        return MigrationApplicationResult.None;
+    }
+
+    private static MigrationApplicationResult CreateSnapshotPostUploadJobTable(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        MigrationContext context)
+    {
+        using SqliteCommand command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            create table if not exists server_snapshot_post_upload_jobs (
+                job_id text primary key not null,
+                processor_id text not null,
+                snapshot_kind integer not null,
+                user_id text not null,
+                colony_id text not null,
+                session_id text null,
+                snapshot_id text not null,
+                occurred_at_utc text not null,
+                payload_json text not null,
+                attempt_count integer not null,
+                next_attempt_at_utc text not null,
+                last_error text null
+            );
+
+            create index if not exists idx_server_snapshot_post_upload_jobs_ready
+                on server_snapshot_post_upload_jobs(next_attempt_at_utc, job_id);
+            """;
+        command.ExecuteNonQuery();
         return MigrationApplicationResult.None;
     }
 

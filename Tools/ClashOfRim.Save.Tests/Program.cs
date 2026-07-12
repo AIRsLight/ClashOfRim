@@ -15,6 +15,7 @@ var tests = new (string Name, Action Run)[]
     ("服务器数据库新建时写入当前 schema 版本", VerifyServerDatabaseMigrationInitializesNewDatabase),
     ("服务器启动可只读识别无版本旧数据库", VerifyServerDatabaseMigrationAssessesLegacyDatabaseWithoutMutation),
     ("服务器启动自动备份并迁移明确旧版本", VerifyServerPersistenceStartupMigratesKnownVersionWithBackup),
+    ("服务器数据库迁移创建快照后处理任务表", VerifyServerDatabaseMigrationCreatesSnapshotPostUploadJobTable),
     ("服务器启动自动补全可识别结构化数据库版本", VerifyServerPersistenceStartupVersionsRecognizedStructuredDatabase),
     ("服务器启动对混合旧结构返回人工迁移提示", VerifyServerPersistenceStartupDefersAmbiguousDatabase),
     ("服务器启动对未来版本返回更新提示", VerifyServerPersistenceStartupDefersFutureDatabase),
@@ -75,6 +76,40 @@ var tests = new (string Name, Action Run)[]
     ("同一对象堆叠减少按减少量结算", VerifyStackReductionDiff),
     ("单件和奇数堆叠使用确定性随机取整", VerifyFractionalStackLoss)
 };
+
+static void VerifyServerDatabaseMigrationCreatesSnapshotPostUploadJobTable()
+{
+    string path = Path.Combine(Path.GetTempPath(), "clashofrim-post-upload-migration-" + Guid.NewGuid().ToString("N") + ".sqlite");
+    try
+    {
+        using (SqliteConnection connection = OpenSqliteDatabase(path))
+        using (SqliteCommand command = connection.CreateCommand())
+        {
+            command.CommandText = """
+                create table server_schema_metadata (
+                    metadata_key text primary key not null,
+                    metadata_value text not null,
+                    updated_at_utc text not null
+                );
+                insert into server_schema_metadata values ('schema_version', '4', '2026-01-01T00:00:00.0000000+00:00');
+                """;
+            command.ExecuteNonQuery();
+        }
+
+        ServerDatabaseMigrationResult result = ServerDatabaseMigrator.Migrate(path);
+        Equal(ServerDatabaseSchema.CurrentVersion, result.FinalVersion, "快照后处理任务表迁移后的版本");
+        Require(result.AppliedMigrations.Contains("4->5"), "迁移结果应记录 4->5");
+
+        using SqliteConnection verification = OpenSqliteDatabase(path);
+        using SqliteCommand table = verification.CreateCommand();
+        table.CommandText = "select count(*) from sqlite_master where type = 'table' and name = 'server_snapshot_post_upload_jobs';";
+        Equal(1L, Convert.ToInt64(table.ExecuteScalar()), "迁移应创建快照后处理任务表");
+    }
+    finally
+    {
+        DeleteSqliteDatabase(path);
+    }
+}
 
 foreach ((string name, Action run) in tests)
 {

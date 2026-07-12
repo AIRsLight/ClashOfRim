@@ -16,6 +16,7 @@ public sealed class ServerPluginRegistry
     private readonly IReadOnlyList<IWorldObjectClassifier> worldObjectClassifiers;
     private readonly IReadOnlyList<AchievementDefinition> achievementDefinitions;
     private readonly IReadOnlyList<ISnapshotAchievementMetricProvider> snapshotAchievementMetricProviders;
+    private readonly IReadOnlyList<ISnapshotPostUploadProcessor> snapshotPostUploadProcessors;
     private readonly IReadOnlyList<IAuthoritativeEventAchievementMetricProvider> authoritativeEventAchievementMetricProviders;
     private readonly IReadOnlyList<IRaidSettlementSnapshotEditorExtension> raidSettlementSnapshotEditorExtensions;
     private readonly IReadOnlyList<string> ignoredRaidSettlementThingDefNames;
@@ -49,6 +50,9 @@ public sealed class ServerPluginRegistry
             .ToList();
         snapshotAchievementMetricProviders = this.plugins
             .SelectMany(plugin => plugin.SnapshotAchievementMetricProviders ?? Array.Empty<ISnapshotAchievementMetricProvider>())
+            .ToList();
+        snapshotPostUploadProcessors = this.plugins
+            .SelectMany(plugin => plugin.SnapshotPostUploadProcessors ?? Array.Empty<ISnapshotPostUploadProcessor>())
             .ToList();
         authoritativeEventAchievementMetricProviders = this.plugins
             .SelectMany(plugin => plugin.AuthoritativeEventAchievementMetricProviders ?? Array.Empty<IAuthoritativeEventAchievementMetricProvider>())
@@ -84,6 +88,8 @@ public sealed class ServerPluginRegistry
 
     public IReadOnlyList<ISnapshotAchievementMetricProvider> SnapshotAchievementMetricProviders =>
         snapshotAchievementMetricProviders;
+
+    public IReadOnlyList<ISnapshotPostUploadProcessor> SnapshotPostUploadProcessors => snapshotPostUploadProcessors;
 
     public IReadOnlyList<IAuthoritativeEventAchievementMetricProvider> AuthoritativeEventAchievementMetricProviders =>
         authoritativeEventAchievementMetricProviders;
@@ -128,6 +134,11 @@ public sealed class ServerPluginRegistry
     public IReadOnlyList<ISnapshotAchievementMetricProvider> ActiveSnapshotAchievementMetricProviders(CompatibilityManifest? manifest)
     {
         return ActiveSelection(manifest).SnapshotAchievementMetricProviders;
+    }
+
+    public IReadOnlyList<ISnapshotPostUploadProcessor> ActiveSnapshotPostUploadProcessors(CompatibilityManifest? manifest)
+    {
+        return ActiveSelection(manifest).SnapshotPostUploadProcessors;
     }
 
     public IReadOnlyList<IAuthoritativeEventAchievementMetricProvider> ActiveAuthoritativeEventAchievementMetricProviders(
@@ -197,6 +208,9 @@ public sealed class ServerPluginRegistry
                 .ToList(),
             activePlugins
                 .SelectMany(plugin => plugin.SnapshotAchievementMetricProviders ?? Array.Empty<ISnapshotAchievementMetricProvider>())
+                .ToList(),
+            activePlugins
+                .SelectMany(plugin => plugin.SnapshotPostUploadProcessors ?? Array.Empty<ISnapshotPostUploadProcessor>())
                 .ToList(),
             activePlugins
                 .SelectMany(plugin => plugin.AuthoritativeEventAchievementMetricProviders ?? Array.Empty<IAuthoritativeEventAchievementMetricProvider>())
@@ -389,6 +403,7 @@ public sealed class ServerPluginRegistry
             IReadOnlyList<IWorldObjectClassifier> worldObjectClassifiers,
             IReadOnlyList<AchievementDefinition> achievementDefinitions,
             IReadOnlyList<ISnapshotAchievementMetricProvider> snapshotAchievementMetricProviders,
+            IReadOnlyList<ISnapshotPostUploadProcessor> snapshotPostUploadProcessors,
             IReadOnlyList<IAuthoritativeEventAchievementMetricProvider> authoritativeEventAchievementMetricProviders,
             IReadOnlyList<ISaveIndexExtension> saveIndexExtensions,
             IReadOnlyList<IRaidSettlementSnapshotEditorExtension> raidSettlementSnapshotEditorExtensions,
@@ -401,6 +416,7 @@ public sealed class ServerPluginRegistry
             WorldObjectClassifiers = worldObjectClassifiers;
             AchievementDefinitions = achievementDefinitions;
             SnapshotAchievementMetricProviders = snapshotAchievementMetricProviders;
+            SnapshotPostUploadProcessors = snapshotPostUploadProcessors;
             AuthoritativeEventAchievementMetricProviders = authoritativeEventAchievementMetricProviders;
             SaveIndexExtensions = saveIndexExtensions;
             RaidSettlementSnapshotEditorExtensions = raidSettlementSnapshotEditorExtensions;
@@ -420,6 +436,8 @@ public sealed class ServerPluginRegistry
         public IReadOnlyList<AchievementDefinition> AchievementDefinitions { get; }
 
         public IReadOnlyList<ISnapshotAchievementMetricProvider> SnapshotAchievementMetricProviders { get; }
+
+        public IReadOnlyList<ISnapshotPostUploadProcessor> SnapshotPostUploadProcessors { get; }
 
         public IReadOnlyList<IAuthoritativeEventAchievementMetricProvider> AuthoritativeEventAchievementMetricProviders { get; }
 

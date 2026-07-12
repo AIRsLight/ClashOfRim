@@ -169,6 +169,10 @@ public static class ServerPluginLoader
                 (descriptor.SnapshotAchievementMetricProviders ?? Array.Empty<ISnapshotAchievementMetricProvider>())
                 .Concat(context.SnapshotAchievementMetricProviders)
                 .ToList(),
+            SnapshotPostUploadProcessors =
+                (descriptor.SnapshotPostUploadProcessors ?? Array.Empty<ISnapshotPostUploadProcessor>())
+                .Concat(context.SnapshotPostUploadProcessors)
+                .ToList(),
             AuthoritativeEventAchievementMetricProviders =
                 (descriptor.AuthoritativeEventAchievementMetricProviders ?? Array.Empty<IAuthoritativeEventAchievementMetricProvider>())
                 .Concat(context.AuthoritativeEventAchievementMetricProviders)
@@ -313,6 +317,11 @@ public static class ServerPluginLoader
         if (context.SnapshotAchievementMetricProviders.Count > 0)
         {
             capabilities.Add("snapshot-achievement-metrics");
+        }
+
+        if (context.SnapshotPostUploadProcessors.Count > 0)
+        {
+            capabilities.Add("snapshot-post-upload-processors");
         }
 
         if (context.AuthoritativeEventAchievementMetricProviders.Count > 0)

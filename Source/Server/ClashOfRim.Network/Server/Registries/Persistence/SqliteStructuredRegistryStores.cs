@@ -1,4 +1,5 @@
 using System.Globalization;
+using AIRsLight.ClashOfRim.Network.Plugins;
 using Microsoft.Data.Sqlite;
 
 namespace AIRsLight.ClashOfRim.Network;
@@ -49,6 +50,15 @@ internal interface IKeyedJsonRecordStore
     IReadOnlyDictionary<string, string> ReadAll();
 
     void ReplaceAll(IReadOnlyDictionary<string, string> records);
+}
+
+internal interface ISnapshotPostUploadJobStore
+{
+    IReadOnlyList<SnapshotPostUploadJobRecord> ReadAll();
+
+    void Upsert(SnapshotPostUploadJobRecord record);
+
+    void Delete(string jobId);
 }
 
 internal abstract class SqliteStructuredRegistryStore
@@ -304,6 +314,156 @@ internal sealed class SqliteKeyedJsonRecordStore : SqliteStructuredRegistryStore
 
             create index if not exists idx_server_keyed_json_records_collection
                 on server_keyed_json_records(collection_key);
+            """;
+        command.ExecuteNonQuery();
+    }
+}
+
+internal sealed class SqliteSnapshotPostUploadJobStore : SqliteStructuredRegistryStore, ISnapshotPostUploadJobStore
+{
+    public SqliteSnapshotPostUploadJobStore(string databasePath)
+        : base(databasePath)
+    {
+        Initialize();
+    }
+
+    public IReadOnlyList<SnapshotPostUploadJobRecord> ReadAll()
+    {
+        using SqliteConnection connection = OpenConnection();
+        using SqliteCommand command = connection.CreateCommand();
+        command.CommandText = """
+            select job_id,
+                   processor_id,
+                   snapshot_kind,
+                   user_id,
+                   colony_id,
+                   session_id,
+                   snapshot_id,
+                   occurred_at_utc,
+                   payload_json,
+                   attempt_count,
+                   next_attempt_at_utc,
+                   last_error
+            from server_snapshot_post_upload_jobs
+            order by next_attempt_at_utc, job_id;
+            """;
+        using SqliteDataReader reader = command.ExecuteReader();
+        var records = new List<SnapshotPostUploadJobRecord>();
+        while (reader.Read())
+        {
+            records.Add(new SnapshotPostUploadJobRecord(
+                reader.GetString(reader.GetOrdinal("job_id")),
+                reader.GetString(reader.GetOrdinal("processor_id")),
+                (SnapshotPostUploadKind)reader.GetInt32(reader.GetOrdinal("snapshot_kind")),
+                reader.GetString(reader.GetOrdinal("user_id")),
+                reader.GetString(reader.GetOrdinal("colony_id")),
+                NullableString(reader, "session_id"),
+                reader.GetString(reader.GetOrdinal("snapshot_id")),
+                DateValue(reader, "occurred_at_utc"),
+                reader.GetString(reader.GetOrdinal("payload_json")),
+                reader.GetInt32(reader.GetOrdinal("attempt_count")),
+                DateValue(reader, "next_attempt_at_utc"),
+                NullableString(reader, "last_error")));
+        }
+
+        return records;
+    }
+
+    public void Upsert(SnapshotPostUploadJobRecord record)
+    {
+        ArgumentNullException.ThrowIfNull(record);
+
+        using SqliteConnection connection = OpenConnection();
+        using SqliteCommand command = connection.CreateCommand();
+        command.CommandText = """
+            insert into server_snapshot_post_upload_jobs (
+                job_id,
+                processor_id,
+                snapshot_kind,
+                user_id,
+                colony_id,
+                session_id,
+                snapshot_id,
+                occurred_at_utc,
+                payload_json,
+                attempt_count,
+                next_attempt_at_utc,
+                last_error
+            ) values (
+                $job_id,
+                $processor_id,
+                $snapshot_kind,
+                $user_id,
+                $colony_id,
+                $session_id,
+                $snapshot_id,
+                $occurred_at_utc,
+                $payload_json,
+                $attempt_count,
+                $next_attempt_at_utc,
+                $last_error
+            )
+            on conflict(job_id) do update set
+                processor_id = excluded.processor_id,
+                snapshot_kind = excluded.snapshot_kind,
+                user_id = excluded.user_id,
+                colony_id = excluded.colony_id,
+                session_id = excluded.session_id,
+                snapshot_id = excluded.snapshot_id,
+                occurred_at_utc = excluded.occurred_at_utc,
+                payload_json = excluded.payload_json,
+                attempt_count = excluded.attempt_count,
+                next_attempt_at_utc = excluded.next_attempt_at_utc,
+                last_error = excluded.last_error;
+            """;
+        command.Parameters.AddWithValue("$job_id", record.JobId);
+        command.Parameters.AddWithValue("$processor_id", record.ProcessorId);
+        command.Parameters.AddWithValue("$snapshot_kind", (int)record.Kind);
+        command.Parameters.AddWithValue("$user_id", record.UserId);
+        command.Parameters.AddWithValue("$colony_id", record.ColonyId);
+        command.Parameters.AddWithValue("$session_id", DbValue(record.SessionId));
+        command.Parameters.AddWithValue("$snapshot_id", record.SnapshotId);
+        command.Parameters.AddWithValue("$occurred_at_utc", DateString(record.OccurredAtUtc));
+        command.Parameters.AddWithValue("$payload_json", record.PayloadJson);
+        command.Parameters.AddWithValue("$attempt_count", record.AttemptCount);
+        command.Parameters.AddWithValue("$next_attempt_at_utc", DateString(record.NextAttemptAtUtc));
+        command.Parameters.AddWithValue("$last_error", DbValue(record.LastError));
+        command.ExecuteNonQuery();
+    }
+
+    public void Delete(string jobId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(jobId);
+
+        using SqliteConnection connection = OpenConnection();
+        using SqliteCommand command = connection.CreateCommand();
+        command.CommandText = "delete from server_snapshot_post_upload_jobs where job_id = $job_id;";
+        command.Parameters.AddWithValue("$job_id", jobId);
+        command.ExecuteNonQuery();
+    }
+
+    private void Initialize()
+    {
+        using SqliteConnection connection = OpenConnection();
+        using SqliteCommand command = connection.CreateCommand();
+        command.CommandText = """
+            create table if not exists server_snapshot_post_upload_jobs (
+                job_id text primary key not null,
+                processor_id text not null,
+                snapshot_kind integer not null,
+                user_id text not null,
+                colony_id text not null,
+                session_id text null,
+                snapshot_id text not null,
+                occurred_at_utc text not null,
+                payload_json text not null,
+                attempt_count integer not null,
+                next_attempt_at_utc text not null,
+                last_error text null
+            );
+
+            create index if not exists idx_server_snapshot_post_upload_jobs_ready
+                on server_snapshot_post_upload_jobs(next_attempt_at_utc, job_id);
             """;
         command.ExecuteNonQuery();
     }

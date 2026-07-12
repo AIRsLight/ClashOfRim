@@ -55,7 +55,14 @@ public static partial class ClashOfRimNetworkServer
         {
             networkState = state;
         }
+        SnapshotPostUploadPipeline.ValidateRegistrations(
+            CoreSnapshotPostUploadProcessors
+                .Concat(networkState.Plugins.SnapshotPostUploadProcessors)
+                .ToList());
         builder.Services.AddSingleton(networkState);
+        builder.Services.AddSingleton(new SnapshotPostUploadProcessorSource(
+            () => ResolveSnapshotPostUploadProcessors(networkState)));
+        builder.Services.AddHostedService<SnapshotPostUploadBackgroundService>();
         WebApplication app = builder.Build();
         networkState.SetRuntimeLogger(RuntimeLogger(app.Services.GetRequiredService<ILoggerFactory>()));
         app.Logger.LogInformation(T("Server.LocalizationLoaded", ("LANGUAGES", string.Join(", ", ServerLocalization.LoadedLanguages))));
@@ -203,6 +210,8 @@ public static partial class ClashOfRimNetworkServer
             achievements: new AchievementRegistry(
                 new SqliteKeyedJsonRecordStore(databasePath, "achievements"),
                 legacyPersistence: null),
+            snapshotPostUploadJobs: new SnapshotPostUploadJobRegistry(
+                new SqliteSnapshotPostUploadJobStore(databasePath)),
             adminControl: new AdminControlRegistry(
                 new SqliteKeyedJsonRecordStore(databasePath, "admin-control"),
                 legacyPersistence: null),
