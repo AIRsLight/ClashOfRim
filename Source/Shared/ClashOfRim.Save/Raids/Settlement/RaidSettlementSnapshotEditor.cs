@@ -174,11 +174,9 @@ public static class RaidSettlementSnapshotEditor
                     return true;
                 }
             }
-            catch (InvalidOperationException)
+            catch (Exception ex) when (ex is InvalidOperationException or FormatException)
             {
-            }
-            catch (FormatException)
-            {
+                throw ExtensionFailure(extension, "damage application", ex);
             }
         }
 
@@ -201,13 +199,21 @@ public static class RaidSettlementSnapshotEditor
             {
                 extension.ApplyPostSettlementEdit(targetMap, settlement);
             }
-            catch (InvalidOperationException)
+            catch (Exception ex) when (ex is InvalidOperationException or FormatException)
             {
-            }
-            catch (FormatException)
-            {
+                throw ExtensionFailure(extension, "post-settlement edit", ex);
             }
         }
+    }
+
+    private static InvalidOperationException ExtensionFailure(
+        IRaidSettlementSnapshotEditorExtension extension,
+        string stage,
+        Exception innerException)
+    {
+        return new InvalidOperationException(
+            $"Raid settlement editor extension '{extension.GetType().FullName}' failed during {stage}.",
+            innerException);
     }
 
     private static XElement? FindMap(XDocument document, string mapUniqueId)

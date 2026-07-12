@@ -65,6 +65,8 @@ var tests = new (string Name, Action Run)[]
     ("第三方载具被摧毁时库存按全损移除", VerifyVehicleFrameworkDestroyedVehicleCargoSettlesAsFullLoss),
     ("第三方载具结算只降低组件生命值", VerifyVehicleFrameworkSettlementComponentDamage),
     ("第三方载具仍存在时保留组件生命损伤", VerifyVehicleFrameworkExistingComponentDamage),
+    ("袭击结算扩展异常中止编辑而非静默回退", VerifyRaidSettlementExtensionFailuresAbortEditing),
+    ("第三方载具服务端插件仅在载具框架存在时启用", VerifyVehicleFrameworkServerPluginRequiresVehicleFramework),
     ("可打包建筑未全损时降低生命值", VerifyPackableBuildingSettlementDamage),
     ("可打包建筑降耐久遵守最低生命比例", VerifyPackableBuildingMinimumRemainingHitPointsRatio),
     ("不可打包建筑消失时只降低生命值", VerifyNonPackableBuildingSettlementDamage),
@@ -3275,6 +3277,98 @@ static void VerifyVehicleFrameworkExistingComponentDamage()
     Equal("90", componentHealths[1], "第二个组件应保留战斗后生命");
 }
 
+static void VerifyVehicleFrameworkServerPluginRequiresVehicleFramework()
+{
+    ClashOfRimServerPluginDescriptor descriptor = new VehicleFrameworkServerPlugin().Describe();
+
+    Require(descriptor.RequiredPackageIds is { Count: 1 }, "载具兼容插件应声明唯一的必要模组");
+    Equal(
+        "SmashPhil.VehicleFramework",
+        descriptor.RequiredPackageIds![0],
+        "载具兼容插件必要模组");
+}
+
+static void VerifyRaidSettlementExtensionFailuresAbortEditing()
+{
+    var identity = new SnapshotIdentity("defender", "colony-a", "base-snapshot");
+    SaveSnapshotPackage original = XmlSettlementPackage(
+        identity,
+        """
+        <?xml version="1.0" encoding="utf-8"?>
+        <savegame>
+          <meta><gameVersion>1.6-test</gameVersion></meta>
+          <game>
+            <maps>
+              <li>
+                <uniqueID>0</uniqueID>
+                <things>
+                  <thing Class="Building"><id>building-a</id><def>TestBuilding</def><health>100</health></thing>
+                </things>
+              </li>
+            </maps>
+          </game>
+        </savegame>
+        """);
+    var settlement = new RaidSettlementReturnResult(
+        RaidSettlementReturnResultKind.Accepted,
+        "raid-extension-failure",
+        original.Envelope.Identity,
+        original.Envelope.Identity with { SnapshotId = "raid-evidence" },
+        "0",
+        new RaidSettlementDiffResult(
+            MissingThings: Array.Empty<ThingSummary>(),
+            Losses: new[]
+            {
+                new RaidSettlementLoss(
+                    ThingWithDef("building-a", "TestBuilding", "Building"),
+                    OriginalStackCount: 1,
+                    ReturnedStackCount: 1,
+                    StolenStackCount: 0,
+                    BaseLossCapCount: 0,
+                    FractionalCapChance: 0,
+                    FractionalRoll: 0,
+                    MaxLossCount: 0,
+                    LossCount: 0,
+                    RemainingHitPointsAfterDamage: 50)
+            },
+            IgnoredExtraThingCount: 0,
+            LossRatio: 1.0));
+
+    RequireSettlementEditorThrows(
+        original,
+        settlement,
+        new ThrowingRaidSettlementEditorExtension(throwDuringDamage: true),
+        "伤害扩展异常应中止防守方快照编辑");
+    RequireSettlementEditorThrows(
+        original,
+        settlement,
+        new ThrowingRaidSettlementEditorExtension(throwDuringDamage: false),
+        "结算后扩展异常应中止防守方快照编辑");
+}
+
+static void RequireSettlementEditorThrows(
+    SaveSnapshotPackage original,
+    RaidSettlementReturnResult settlement,
+    IRaidSettlementSnapshotEditorExtension extension,
+    string message)
+{
+    try
+    {
+        RaidSettlementSnapshotEditor.ApplySettlementLosses(
+            original,
+            settlement,
+            "edited-extension-failure",
+            DateTimeOffset.UnixEpoch.AddMinutes(1),
+            new[] { extension });
+    }
+    catch (InvalidOperationException)
+    {
+        return;
+    }
+
+    throw new InvalidOperationException(message);
+}
+
 static void VerifyPackableBuildingSettlementDamage()
 {
     var identity = new SnapshotIdentity("defender", "colony-a", "base-snapshot");
@@ -4598,5 +4692,33 @@ static void Require(bool condition, string message)
     if (!condition)
     {
         throw new InvalidOperationException(message);
+    }
+}
+
+sealed class ThrowingRaidSettlementEditorExtension : IRaidSettlementSnapshotEditorExtension
+{
+    private readonly bool throwDuringDamage;
+
+    public ThrowingRaidSettlementEditorExtension(bool throwDuringDamage)
+    {
+        this.throwDuringDamage = throwDuringDamage;
+    }
+
+    public bool TryApplySettlementDamage(XElement thing, RaidSettlementLoss loss)
+    {
+        if (throwDuringDamage)
+        {
+            throw new InvalidOperationException("damage extension failure");
+        }
+
+        return false;
+    }
+
+    public void ApplyPostSettlementEdit(XElement targetMap, RaidSettlementDiffResult settlement)
+    {
+        if (!throwDuringDamage)
+        {
+            throw new FormatException("post-settlement extension failure");
+        }
     }
 }
