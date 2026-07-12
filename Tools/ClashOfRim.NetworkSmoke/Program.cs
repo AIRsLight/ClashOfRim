@@ -21,6 +21,7 @@ VerifySnapshotPostUploadProcessorPluginFiltering();
 VerifyDeferredSnapshotPostUploadEnqueueSemantics();
 VerifyDeferredSnapshotPostUploadRetrySemantics();
 VerifyPreparedSnapshotPostUploadJobSemantics();
+VerifyRaidSettlementDeferredSchedulingSemantics();
 if (args.Contains("--snapshot-pipeline-only", StringComparer.Ordinal))
 {
     Console.WriteLine("通过：快照后处理管线定向测试");
@@ -354,6 +355,78 @@ static void VerifyPreparedSnapshotPostUploadJobSemantics()
     Equal(SnapshotPostUploadJobState.Ready, ready.State, "提交完成后任务应切换为 Ready");
     Equal(0, jobs.ListPrepared().Count, "Ready 任务不应继续出现在恢复列表");
     Equal(1, jobs.ListReady(now).Count, "Ready 任务应可被后台执行");
+}
+
+static void VerifyRaidSettlementDeferredSchedulingSemantics()
+{
+    var packageStore = new RecordingSnapshotPackageStore();
+    var artifacts = new InMemorySnapshotPostUploadArtifactStore();
+    var jobs = new SnapshotPostUploadJobRegistry();
+    var ledger = new InMemoryAuthoritativeEventLedger();
+    var state = new ClashOfRimNetworkState(
+        ledger: ledger,
+        snapshotStore: packageStore,
+        snapshotPostUploadJobs: jobs,
+        snapshotPostUploadArtifacts: artifacts);
+    DateTimeOffset now = DateTimeOffset.UtcNow;
+    AuthoritativeEvent raid = AuthoritativeEventFactory.Create(
+        ServerEventType.Raid,
+        new EventParty("raid-attacker", "raid-attacker-colony", "Faction_Attacker"),
+        new EventParty("raid-defender", "raid-defender-colony", "Faction_Defender"),
+        "raid-schedule-test",
+        targetOnline: false,
+        new RaidEventPayload(
+            "defender-snapshot-before",
+            ReturnedSnapshotId: null,
+            StartedAtUtc: now.AddMinutes(-1),
+            FinishedAtUtc: null,
+            Settlement: null,
+            AttackForce: new RaidAttackForceRecord(
+                "attacker-snapshot-before",
+                Array.Empty<string>(),
+                Array.Empty<EventThingReference>())),
+        now.AddMinutes(-1),
+        new EventTargetContext("WorldObject_Defender", "Map_Defender", 101, EventLandingMode.MapEdge));
+    raid = ledger.Append(raid).Event;
+
+    LatestSnapshotRecord evidence = BuildSyntheticSnapshotRecord(
+        "raid-attacker",
+        "raid-attacker-colony",
+        "raid-evidence-001",
+        "WorldObject_Defender",
+        "Map_Defender",
+        "RemoteSessionMapParent",
+        "Settlement",
+        "101,0");
+    var context = new SnapshotPostUploadContext(
+        state,
+        SnapshotPostUploadKind.RaidSettlementEvidence,
+        evidence,
+        "raid-attacker",
+        "raid-attacker-colony",
+        SessionId: null,
+        now,
+        SnapshotPostUploadExtraData.Empty,
+        RegisterPlayerColonySite: false);
+    var request = new RaidSettlementScheduleRequest(
+        raid.EventId,
+        context,
+        EvidencePayload: Array.Empty<byte>(),
+        RaidSettlementOrigin.OnlineEvidence,
+        ClientApplicationResult: "Applied");
+
+    SnapshotPostUploadJobRecord first = RaidSettlementDeferredScheduler.Schedule(state, request);
+    SnapshotPostUploadJobRecord duplicate = RaidSettlementDeferredScheduler.Schedule(state, request);
+
+    Equal(first.JobId, duplicate.JobId, "同一袭击重复调度应返回同一作业");
+    Equal("raid-settlement:" + raid.EventId, first.JobId, "袭击结算作业应以事件 ID 幂等");
+    Equal(SnapshotPostUploadJobState.Ready, first.State, "完整提交后的袭击结算作业应为 Ready");
+    Equal(1, jobs.ListReady(now).Count, "同一袭击只能存在一个可执行结算作业");
+    RaidSettlementDeferredPayload payload = RaidSettlementDeferredPayload.Deserialize(first.PayloadJson);
+    Equal(raid.EventId, payload.RaidEventId, "紧凑载荷应记录源袭击事件");
+    Equal("defender-snapshot-before", payload.DefenderSnapshotId, "紧凑载荷应记录防守方基准快照");
+    Require(artifacts.Exists(payload.EvidenceArtifactId), "调度应持久化不可变证据制品");
+    Equal("raid-evidence-001", packageStore.GetLatest("raid-attacker", "raid-attacker-colony")?.Identity.SnapshotId, "响应前应安装进攻方证据快照");
 }
 
 var uploadedSnapshotProcessorExecution = new List<string>();
@@ -4138,5 +4211,55 @@ sealed class RecordingDeferredSnapshotPostUploadProcessor : IDeferredSnapshotPos
             remainingFailures--;
             throw new InvalidOperationException("Deferred processor test failure.");
         }
+    }
+}
+
+sealed class RecordingSnapshotPackageStore : IColonySnapshotPackageStore
+{
+    private readonly Dictionary<string, SaveSnapshotPackage> packages = new(StringComparer.Ordinal);
+
+    public void StoreLatest(SaveSnapshotPackage package, SaveSnapshotIndex rebuiltIndex, DateTimeOffset acceptedAtUtc)
+    {
+        packages[Key(package.Envelope.Identity.OwnerId!, package.Envelope.Identity.ColonyId!)] =
+            package with { Index = rebuiltIndex };
+    }
+
+    public void StoreLatest(LatestSnapshotRecord snapshot)
+    {
+        packages[Key(snapshot.Identity.OwnerId!, snapshot.Identity.ColonyId!)] =
+            new SaveSnapshotPackage(snapshot.Envelope, Array.Empty<byte>(), snapshot.Index);
+    }
+
+    public LatestSnapshotRecord? GetLatest(string ownerId, string colonyId)
+    {
+        return packages.TryGetValue(Key(ownerId, colonyId), out SaveSnapshotPackage? package)
+            ? new LatestSnapshotRecord(package.Envelope.Identity, package.Envelope, package.Index, package.Envelope.CreatedAtUtc)
+            : null;
+    }
+
+    public SaveSnapshotPackage? GetLatestPackage(string ownerId, string colonyId)
+    {
+        return packages.TryGetValue(Key(ownerId, colonyId), out SaveSnapshotPackage? package) ? package : null;
+    }
+
+    public IReadOnlyList<LatestSnapshotRecord> ListLatest()
+    {
+        return packages.Values
+            .Select(package => new LatestSnapshotRecord(
+                package.Envelope.Identity,
+                package.Envelope,
+                package.Index,
+                package.Envelope.CreatedAtUtc))
+            .ToList();
+    }
+
+    public bool RemoveLatest(string ownerId, string colonyId)
+    {
+        return packages.Remove(Key(ownerId, colonyId));
+    }
+
+    private static string Key(string ownerId, string colonyId)
+    {
+        return ownerId + "\u001f" + colonyId;
     }
 }

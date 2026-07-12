@@ -119,6 +119,16 @@ public sealed class SnapshotPostUploadJobRegistry
         }
     }
 
+    public SnapshotPostUploadJobRecord? Find(string jobId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(jobId);
+        lock (gate)
+        {
+            jobsById.TryGetValue(jobId, out SnapshotPostUploadJobRecord? record);
+            return record;
+        }
+    }
+
     public SnapshotPostUploadJobRecord MarkReady(string jobId, DateTimeOffset readyAtUtc)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(jobId);
