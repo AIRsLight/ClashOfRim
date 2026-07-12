@@ -2101,8 +2101,18 @@ public static partial class ClashOfRimNetworkServer
         RaidCleanupEventAppendResult cleanupEvents;
         lock (state.RaidSettlementSnapshotMutationGate)
         {
-            SettleOfflineTimedOutRaidSnapshots(state, result.OfflineFailedRaids, nowUtc);
-            cleanupEvents = CleanupTimedOutRaidAttackerSnapshots(state, result.FailedRaids, nowUtc);
+            IReadOnlySet<string> queuedOfflineSettlements = SettleOfflineTimedOutRaidSnapshots(
+                state,
+                result.OfflineFailedRaids,
+                nowUtc);
+            HashSet<string> offlineRaidIds = result.OfflineFailedRaids
+                .Select(raid => raid.EventId)
+                .ToHashSet(StringComparer.Ordinal);
+            IReadOnlyList<AuthoritativeEvent> cleanupEligibleRaids = result.FailedRaids
+                .Where(raid => !offlineRaidIds.Contains(raid.EventId)
+                    || queuedOfflineSettlements.Contains(raid.EventId))
+                .ToList();
+            cleanupEvents = CleanupTimedOutRaidAttackerSnapshots(state, cleanupEligibleRaids, nowUtc);
         }
 
         IReadOnlyList<string> usersToSignal = result.NotificationEvents
@@ -2117,14 +2127,15 @@ public static partial class ClashOfRimNetworkServer
         return result;
     }
 
-    private static void SettleOfflineTimedOutRaidSnapshots(
+    private static IReadOnlySet<string> SettleOfflineTimedOutRaidSnapshots(
         ClashOfRimNetworkState state,
         IReadOnlyList<AuthoritativeEvent> offlineFailedRaids,
         DateTimeOffset nowUtc)
     {
+        var queuedRaidIds = new HashSet<string>(StringComparer.Ordinal);
         if (offlineFailedRaids.Count == 0 || state.SnapshotStore is not IColonySnapshotPackageStore packageStore)
         {
-            return;
+            return queuedRaidIds;
         }
 
         foreach (AuthoritativeEvent raid in offlineFailedRaids)
@@ -2206,6 +2217,7 @@ public static partial class ClashOfRimNetworkServer
                     defenderUserId,
                     defenderColonyId,
                     attackerEvidencePackage.Envelope.Identity.SnapshotId);
+                queuedRaidIds.Add(raid.EventId);
             }
             catch (Exception ex) when (ex is InvalidOperationException or IOException)
             {
@@ -2219,6 +2231,8 @@ public static partial class ClashOfRimNetworkServer
                     defenderColonyId);
             }
         }
+
+        return queuedRaidIds;
     }
 
     private static RaidCleanupEventAppendResult CleanupTimedOutRaidAttackerSnapshots(

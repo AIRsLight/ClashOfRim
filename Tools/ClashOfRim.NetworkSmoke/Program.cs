@@ -323,6 +323,24 @@ static void VerifyDeferredSnapshotPostUploadRetrySemantics()
         SnapshotPostUploadJobExecutor.ProcessReady(state, new[] { processor }, failed.NextAttemptAtUtc),
         "延迟任务到达重试时间后应再次执行");
     Equal(0, jobs.ListReady(DateTimeOffset.MaxValue).Count, "重试成功后应移除延迟任务");
+
+    var manualJobs = new SnapshotPostUploadJobRegistry();
+    var manualState = new ClashOfRimNetworkState(snapshotPostUploadJobs: manualJobs);
+    var manualContext = context with { State = manualState, OccurredAtUtc = now.AddSeconds(1) };
+    var manualProcessor = new RecordingDeferredSnapshotPostUploadProcessor(
+        "manual-review-processor",
+        SnapshotPostUploadStage.EventReconciliation,
+        order: 0,
+        new[] { SnapshotPostUploadKind.AuthoritativeColonySnapshot },
+        new List<string>(),
+        payloadJson: "{}",
+        requireManualReview: true);
+    SnapshotPostUploadPipeline.Run(manualContext, new[] { manualProcessor });
+    Equal(
+        0,
+        SnapshotPostUploadJobExecutor.ProcessReady(manualState, new[] { manualProcessor }, manualContext.OccurredAtUtc),
+        "需要人工审核的任务不得计为完成");
+    Equal(1, manualJobs.ListManualReview().Count, "需要人工审核的任务和诊断信息必须持久保留");
 }
 
 static void VerifyPreparedSnapshotPostUploadJobSemantics()
@@ -355,6 +373,18 @@ static void VerifyPreparedSnapshotPostUploadJobSemantics()
     Equal(SnapshotPostUploadJobState.Ready, ready.State, "提交完成后任务应切换为 Ready");
     Equal(0, jobs.ListPrepared().Count, "Ready 任务不应继续出现在恢复列表");
     Equal(1, jobs.ListReady(now).Count, "Ready 任务应可被后台执行");
+
+    SnapshotPostUploadJobRecord manualPrepared = jobs.EnqueuePrepared(
+        "raid-settlement:raid-manual-review",
+        "core.raid-settlement",
+        context,
+        "{\"raidEventId\":\"raid-manual-review\"}");
+    SnapshotPostUploadJobRecord manualReview = jobs.MarkManualReview(
+        manualPrepared.JobId,
+        "identity mismatch");
+    Equal(SnapshotPostUploadJobState.ManualReview, manualReview.State, "人工审核任务应进入持久终态");
+    Equal(1, jobs.ListManualReview().Count, "人工审核任务应保留在 outbox 中供诊断");
+    Equal(1, jobs.ListReady(DateTimeOffset.MaxValue).Count, "人工审核任务不得进入后台重试队列");
 }
 
 static void VerifyRaidSettlementDeferredSchedulingSemantics()
@@ -436,6 +466,20 @@ static void VerifyRaidSettlementDeferredSchedulingSemantics()
     Equal("defender-snapshot-before", payload.DefenderSnapshotId, "紧凑载荷应记录防守方基准快照");
     Require(artifacts.Exists(payload.EvidenceArtifactId), "调度应持久化不可变证据制品");
     Equal("raid-evidence-001", packageStore.GetLatest("raid-attacker", "raid-attacker-colony")?.Identity.SnapshotId, "响应前应安装进攻方证据快照");
+
+    state.Players.RecordLatestSnapshotReference(
+        "raid-attacker",
+        "raid-attacker-colony",
+        "stale-player-reference",
+        now.AddSeconds(1));
+    RaidSettlementDeferredScheduler.RecoverPrepared(
+        state,
+        first with { State = SnapshotPostUploadJobState.Prepared },
+        now.AddSeconds(2));
+    Equal(
+        "raid-evidence-001",
+        state.Players.FindByUserId("raid-attacker")?.CurrentSnapshotId,
+        "Prepared 恢复应独立修复玩家最新快照引用");
 }
 
 var uploadedSnapshotProcessorExecution = new List<string>();
@@ -4172,6 +4216,7 @@ sealed class RecordingDeferredSnapshotPostUploadProcessor : IDeferredSnapshotPos
     private readonly IReadOnlyCollection<SnapshotPostUploadKind> supportedKinds;
     private readonly List<string> execution;
     private readonly string payloadJson;
+    private readonly bool requireManualReview;
     private int remainingFailures;
 
     public RecordingDeferredSnapshotPostUploadProcessor(
@@ -4181,7 +4226,8 @@ sealed class RecordingDeferredSnapshotPostUploadProcessor : IDeferredSnapshotPos
         IReadOnlyCollection<SnapshotPostUploadKind> supportedKinds,
         List<string> execution,
         string payloadJson,
-        int failuresBeforeSuccess = 0)
+        int failuresBeforeSuccess = 0,
+        bool requireManualReview = false)
     {
         Id = id;
         Stage = stage;
@@ -4190,6 +4236,7 @@ sealed class RecordingDeferredSnapshotPostUploadProcessor : IDeferredSnapshotPos
         this.execution = execution;
         this.payloadJson = payloadJson;
         remainingFailures = failuresBeforeSuccess;
+        this.requireManualReview = requireManualReview;
     }
 
     public string Id { get; }
@@ -4215,6 +4262,11 @@ sealed class RecordingDeferredSnapshotPostUploadProcessor : IDeferredSnapshotPos
     public void ProcessDeferred(SnapshotPostUploadDeferredContext context)
     {
         execution.Add(Id);
+        if (requireManualReview)
+        {
+            throw new SnapshotPostUploadManualReviewException("Manual review requested by test processor.");
+        }
+
         if (remainingFailures > 0)
         {
             remainingFailures--;

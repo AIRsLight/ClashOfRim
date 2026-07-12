@@ -30,19 +30,9 @@ public static class RaidUnsettledProjector
         ArgumentException.ThrowIfNullOrWhiteSpace(defenderUserId);
         ArgumentNullException.ThrowIfNull(events);
 
-        var completedKeys = new HashSet<string>(StringComparer.Ordinal);
         var candidateRaids = new List<AuthoritativeEvent>();
         foreach (AuthoritativeEvent evt in events)
         {
-            if (IsCompletedRaid(evt))
-            {
-                string completionKey = RaidCompletionKey(evt);
-                if (!string.IsNullOrWhiteSpace(completionKey))
-                {
-                    completedKeys.Add(completionKey);
-                }
-            }
-
             if (IsUnsettledSourceRaid(evt, includeFailedAwaitingSettlement: true)
                 && string.Equals(evt.Target.UserId, defenderUserId, StringComparison.Ordinal)
                 && (string.IsNullOrWhiteSpace(defenderColonyId) ||
@@ -52,15 +42,7 @@ public static class RaidUnsettledProjector
             }
         }
 
-        var unsettledRaids = new List<AuthoritativeEvent>(candidateRaids.Count);
-        for (int index = 0; index < candidateRaids.Count; index++)
-        {
-            AuthoritativeEvent raid = candidateRaids[index];
-            if (!completedKeys.Contains(RaidCompletionKey(raid)))
-            {
-                unsettledRaids.Add(raid);
-            }
-        }
+        var unsettledRaids = new List<AuthoritativeEvent>(candidateRaids);
 
         unsettledRaids.Sort(static (left, right) => left.CreatedAtUtc.CompareTo(right.CreatedAtUtc));
         return unsettledRaids;
@@ -145,28 +127,4 @@ public static class RaidUnsettledProjector
             and not ServerEventStatus.RejectedByTarget;
     }
 
-    private static bool IsCompletedRaid(AuthoritativeEvent evt)
-    {
-        return evt.Type == ServerEventType.Raid &&
-            evt.Payload is RaidEventPayload { OpponentKind: RaidOpponentKind.Player } payload &&
-            (payload.FinishedAtUtc != null || payload.Settlement != null || payload.ReturnedSnapshotId != null);
-    }
-
-    private static string RaidCompletionKey(AuthoritativeEvent evt)
-    {
-        if (evt.Payload is not RaidEventPayload payload)
-        {
-            return "";
-        }
-
-        return evt.Actor.UserId
-            + "|"
-            + evt.Target.UserId
-            + "|"
-            + (evt.Target.ColonyId ?? "")
-            + "|"
-            + (evt.TargetContext?.MapUniqueId ?? "")
-            + "|"
-            + payload.DefenderSnapshotId;
-    }
 }

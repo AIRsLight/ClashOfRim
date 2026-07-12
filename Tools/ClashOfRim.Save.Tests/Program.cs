@@ -1362,6 +1362,22 @@ static void VerifySnapshotPostUploadArtifactStore()
 
         var reopened = new FileSnapshotPostUploadArtifactStore(root);
         Require(reopened.Read("raid-settlement:raid-001") is not null, "新实例应能读取已有制品");
+        reopened.Store("raid-settlement:orphan", BuildFixturePackage("snapshot-artifact-orphan"));
+        reopened.DeleteUnreferenced(new HashSet<string>(new[] { "raid-settlement:raid-001" }, StringComparer.Ordinal));
+        Require(reopened.Exists("raid-settlement:raid-001"), "被作业引用的制品不得被启动清理删除");
+        Require(!reopened.Exists("raid-settlement:orphan"), "未被作业引用的崩溃遗留制品应被清理");
+        reopened.Store("raid-settlement:raid-001", package);
+        bool rejectedArtifactReplacement = false;
+        try
+        {
+            reopened.Store("raid-settlement:raid-001", BuildFixturePackage("snapshot-artifact-replacement"));
+        }
+        catch (InvalidOperationException)
+        {
+            rejectedArtifactReplacement = true;
+        }
+
+        Require(rejectedArtifactReplacement, "不可变制品不得被同 ID 的不同快照覆盖");
 
         bool rejectedUnsafeId = false;
         try
@@ -2504,17 +2520,18 @@ static void VerifyRaidSettlementPostUploadProcessor()
                 RaidSettlementOrigin.OnlineEvidence,
                 "Applied")
         };
+        var raidContext = new SnapshotPostUploadContext(
+            state,
+            SnapshotPostUploadKind.RaidSettlementEvidence,
+            new LatestSnapshotRecord(evidence.Envelope.Identity, evidence.Envelope, evidence.Index, now),
+            "processor-attacker",
+            "processor-attacker-colony",
+            SessionId: null,
+            now,
+            extraData,
+            RegisterPlayerColonySite: false);
         SnapshotPostUploadPipeline.Run(
-            new SnapshotPostUploadContext(
-                state,
-                SnapshotPostUploadKind.RaidSettlementEvidence,
-                new LatestSnapshotRecord(evidence.Envelope.Identity, evidence.Envelope, evidence.Index, now),
-                "processor-attacker",
-                "processor-attacker-colony",
-                SessionId: null,
-                now,
-                extraData,
-                RegisterPlayerColonySite: false),
+            raidContext,
             new ISnapshotPostUploadProcessor[] { processor });
 
         SnapshotPostUploadJobRecord queued = jobs.ListReady(now).Single();
@@ -2532,6 +2549,16 @@ static void VerifyRaidSettlementPostUploadProcessor()
         Equal(ServerEventStatus.AppliedToSnapshot, ledger.Find(raid.EventId)!.Status, "后台结算完成后源袭击应标记已应用");
         Equal(0, jobs.ListReady(DateTimeOffset.MaxValue).Count, "完成的袭击结算任务应移除");
         Require(!artifacts.Exists(queuedPayload.EvidenceArtifactId), "完成后应删除袭击证据制品");
+
+        jobs.Enqueue(processor.Id, raidContext, queued.PayloadJson);
+        Equal(
+            1,
+            SnapshotPostUploadJobExecutor.ProcessReady(
+                state,
+                new ISnapshotPostUploadProcessor[] { processor },
+                now.AddSeconds(1)),
+            "源袭击已完成时，即使证据已删除也应清理遗留 Ready 任务");
+        Equal(0, jobs.ListReady(DateTimeOffset.MaxValue).Count, "已完成袭击的遗留任务不得永久重试");
     }
     finally
     {

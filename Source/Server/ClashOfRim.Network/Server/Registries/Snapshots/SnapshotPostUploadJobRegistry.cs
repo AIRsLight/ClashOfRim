@@ -120,6 +120,18 @@ public sealed class SnapshotPostUploadJobRegistry
         }
     }
 
+    public IReadOnlyList<SnapshotPostUploadJobRecord> ListManualReview()
+    {
+        lock (gate)
+        {
+            return jobsById.Values
+                .Where(job => job.State == SnapshotPostUploadJobState.ManualReview)
+                .OrderBy(job => job.OccurredAtUtc)
+                .ThenBy(job => job.JobId, StringComparer.Ordinal)
+                .ToList();
+        }
+    }
+
     public SnapshotPostUploadJobRecord? Find(string jobId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(jobId);
@@ -127,6 +139,17 @@ public sealed class SnapshotPostUploadJobRegistry
         {
             jobsById.TryGetValue(jobId, out SnapshotPostUploadJobRecord? record);
             return record;
+        }
+    }
+
+    public IReadOnlyList<SnapshotPostUploadJobRecord> ListAll()
+    {
+        lock (gate)
+        {
+            return jobsById.Values
+                .OrderBy(job => job.OccurredAtUtc)
+                .ThenBy(job => job.JobId, StringComparer.Ordinal)
+                .ToList();
         }
     }
 
@@ -184,6 +207,29 @@ public sealed class SnapshotPostUploadJobRegistry
         }
     }
 
+    public SnapshotPostUploadJobRecord MarkManualReview(string jobId, string error)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(jobId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(error);
+        lock (gate)
+        {
+            if (!jobsById.TryGetValue(jobId, out SnapshotPostUploadJobRecord? current))
+            {
+                throw new KeyNotFoundException($"Snapshot post-upload job '{jobId}' was not found.");
+            }
+
+            SnapshotPostUploadJobRecord updated = current with
+            {
+                State = SnapshotPostUploadJobState.ManualReview,
+                AttemptCount = current.AttemptCount + 1,
+                LastError = error
+            };
+            persistence?.Upsert(updated);
+            jobsById[jobId] = updated;
+            return updated;
+        }
+    }
+
     private void Load()
     {
         if (persistence is null)
@@ -204,7 +250,8 @@ public sealed class SnapshotPostUploadJobRegistry
 public enum SnapshotPostUploadJobState
 {
     Prepared = 0,
-    Ready = 1
+    Ready = 1,
+    ManualReview = 2
 }
 
 public sealed record SnapshotPostUploadJobRecord(

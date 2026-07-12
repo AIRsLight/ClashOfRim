@@ -17,6 +17,16 @@ public static class RaidSettlementDeferredScheduler
     {
         ArgumentNullException.ThrowIfNull(state);
         ArgumentNullException.ThrowIfNull(request);
+        lock (state.RaidSettlementSnapshotMutationGate)
+        {
+            return ScheduleUnderLock(state, request);
+        }
+    }
+
+    private static SnapshotPostUploadJobRecord ScheduleUnderLock(
+        ClashOfRimNetworkState state,
+        RaidSettlementScheduleRequest request)
+    {
         ArgumentException.ThrowIfNullOrWhiteSpace(request.RaidEventId);
         ArgumentNullException.ThrowIfNull(request.Context);
         ArgumentNullException.ThrowIfNull(request.EvidencePayload);
@@ -39,6 +49,19 @@ public static class RaidSettlementDeferredScheduler
             ?? throw new InvalidOperationException("Raid defender colony ID is missing.");
         string evidenceSnapshotId = request.Context.Snapshot.Identity.SnapshotId
             ?? throw new InvalidOperationException("Raid settlement evidence snapshot ID is missing.");
+        string jobId = "raid-settlement:" + raid.EventId;
+        SnapshotPostUploadJobRecord? existing = state.SnapshotPostUploadJobs.Find(jobId);
+        if (existing is not null)
+        {
+            return existing.State switch
+            {
+                SnapshotPostUploadJobState.Prepared => RecoverPrepared(state, existing, request.Context.OccurredAtUtc),
+                SnapshotPostUploadJobState.Ready => existing,
+                _ => throw new InvalidOperationException(
+                    $"Raid settlement '{raid.EventId}' is awaiting manual review: {existing.LastError}")
+            };
+        }
+
         if (state.SnapshotStore is not IColonySnapshotPackageStore packageStore)
         {
             throw new InvalidOperationException("Raid settlement requires a snapshot package store.");
@@ -54,15 +77,6 @@ public static class RaidSettlementDeferredScheduler
                 StringComparison.Ordinal))
         {
             throw new InvalidOperationException("Raid defender snapshot is missing or no longer matches the raid baseline.");
-        }
-
-        string jobId = "raid-settlement:" + raid.EventId;
-        SnapshotPostUploadJobRecord? existing = state.SnapshotPostUploadJobs.Find(jobId);
-        if (existing is not null)
-        {
-            return existing.State == SnapshotPostUploadJobState.Prepared
-                ? RecoverPrepared(state, existing, request.Context.OccurredAtUtc)
-                : existing;
         }
 
         string artifactId = BuildArtifactId(raid.EventId, evidenceSnapshotId);
@@ -100,12 +114,12 @@ public static class RaidSettlementDeferredScheduler
                     evidencePackage,
                     evidencePackage.Index,
                     request.Context.OccurredAtUtc);
+                evidenceInstalled = true;
                 state.Players.RecordLatestSnapshotReference(
                     raid.Actor.UserId,
                     attackerColonyId,
                     evidenceSnapshotId,
                     request.Context.OccurredAtUtc);
-                evidenceInstalled = true;
             }
 
             return state.SnapshotPostUploadJobs.MarkReady(prepared.JobId, request.Context.OccurredAtUtc);
@@ -152,12 +166,13 @@ public static class RaidSettlementDeferredScheduler
             if (!string.Equals(latest?.Identity.SnapshotId, payload.EvidenceSnapshotId, StringComparison.Ordinal))
             {
                 packageStore.StoreLatest(evidencePackage, evidencePackage.Index, job.OccurredAtUtc);
-                state.Players.RecordLatestSnapshotReference(
-                    payload.AttackerUserId,
-                    payload.AttackerColonyId,
-                    payload.EvidenceSnapshotId,
-                    job.OccurredAtUtc);
             }
+
+            state.Players.RecordLatestSnapshotReference(
+                payload.AttackerUserId,
+                payload.AttackerColonyId,
+                payload.EvidenceSnapshotId,
+                job.OccurredAtUtc);
         }
 
         return state.SnapshotPostUploadJobs.MarkReady(job.JobId, nowUtc);

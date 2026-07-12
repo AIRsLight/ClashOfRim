@@ -62,6 +62,18 @@ public static partial class ClashOfRimNetworkServer
         }
 
         bool playerRaidSettlement = IsPlayerRaidSettlementConfirmation(state, request.EventId, request.SourceEventId);
+        if (playerRaidSettlement
+            && state.Ledger.Find(request.EventId)?.Status == ServerEventStatus.AppliedToSnapshot)
+        {
+            LatestSnapshotRecord? latestAttacker = state.SnapshotStore.GetLatest(request.UserId, request.ColonyId);
+            return Results.Ok(new ConfirmEventApplicationResponse(
+                new ProtocolResponse(true, ProtocolErrorCode.DuplicateRequest, T("Raid.SettlementAlreadyConfirmed")),
+                request.EventId,
+                latestAttacker?.Identity.SnapshotId,
+                "AlreadyApplied",
+                latestAttacker?.Envelope.NextLineageToken));
+        }
+
         SnapshotUploadResult upload = ReceiveSnapshot(
             state,
             request.UserId,

@@ -13,6 +13,8 @@ public interface ISnapshotPostUploadArtifactStore
     bool Exists(string artifactId);
 
     void Delete(string artifactId);
+
+    void DeleteUnreferenced(IReadOnlySet<string> referencedArtifactIds);
 }
 
 public sealed class InMemorySnapshotPostUploadArtifactStore : ISnapshotPostUploadArtifactStore
@@ -26,6 +28,12 @@ public sealed class InMemorySnapshotPostUploadArtifactStore : ISnapshotPostUploa
         ArgumentNullException.ThrowIfNull(package);
         lock (gate)
         {
+            if (packages.TryGetValue(artifactId, out SaveSnapshotPackage? existing))
+            {
+                EnsureSameArtifact(artifactId, existing, package);
+                return;
+            }
+
             packages[artifactId] = package with { Payload = package.Payload.ToArray() };
         }
     }
@@ -59,12 +67,37 @@ public sealed class InMemorySnapshotPostUploadArtifactStore : ISnapshotPostUploa
         }
     }
 
+    public void DeleteUnreferenced(IReadOnlySet<string> referencedArtifactIds)
+    {
+        ArgumentNullException.ThrowIfNull(referencedArtifactIds);
+        lock (gate)
+        {
+            foreach (string artifactId in packages.Keys.Where(id => !referencedArtifactIds.Contains(id)).ToList())
+            {
+                packages.Remove(artifactId);
+            }
+        }
+    }
+
     internal static void ValidateArtifactId(string artifactId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(artifactId);
         if (artifactId.Contains('/') || artifactId.Contains('\\'))
         {
             throw new ArgumentException("Snapshot post-upload artifact IDs cannot contain path separators.", nameof(artifactId));
+        }
+    }
+
+    internal static void EnsureSameArtifact(
+        string artifactId,
+        SaveSnapshotPackage existing,
+        SaveSnapshotPackage candidate)
+    {
+        if (!Equals(existing.Envelope.Identity, candidate.Envelope.Identity)
+            || !string.Equals(existing.Envelope.PayloadSha256, candidate.Envelope.PayloadSha256, StringComparison.OrdinalIgnoreCase)
+            || !existing.Payload.AsSpan().SequenceEqual(candidate.Payload))
+        {
+            throw new InvalidOperationException($"Snapshot post-upload artifact '{artifactId}' is immutable and already contains different data.");
         }
     }
 }
@@ -93,7 +126,15 @@ public sealed class FileSnapshotPostUploadArtifactStore : ISnapshotPostUploadArt
             package.Envelope.CreatedAtUtc);
         lock (gate)
         {
-            SaveSnapshotPackageFileWriter.WriteAtomically(PathFor(artifactId), metadata, package.Payload);
+            string path = PathFor(artifactId);
+            SaveSnapshotPackage? existing = SaveSnapshotPackageFileReader.ReadPackage(path)?.Package;
+            if (existing is not null)
+            {
+                InMemorySnapshotPostUploadArtifactStore.EnsureSameArtifact(artifactId, existing, package);
+                return;
+            }
+
+            SaveSnapshotPackageFileWriter.WriteAtomically(path, metadata, package.Payload);
         }
     }
 
@@ -124,6 +165,28 @@ public sealed class FileSnapshotPostUploadArtifactStore : ISnapshotPostUploadArt
             if (File.Exists(path))
             {
                 File.Delete(path);
+            }
+        }
+    }
+
+    public void DeleteUnreferenced(IReadOnlySet<string> referencedArtifactIds)
+    {
+        ArgumentNullException.ThrowIfNull(referencedArtifactIds);
+        lock (gate)
+        {
+            HashSet<string> referencedPaths = referencedArtifactIds
+                .Select(PathFor)
+                .Select(Path.GetFullPath)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            foreach (string path in Directory.EnumerateFiles(
+                rootDirectory,
+                "*" + SaveSnapshotPackageFileReader.PackageExtension,
+                SearchOption.TopDirectoryOnly))
+            {
+                if (!referencedPaths.Contains(Path.GetFullPath(path)))
+                {
+                    File.Delete(path);
+                }
             }
         }
     }

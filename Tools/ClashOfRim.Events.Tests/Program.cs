@@ -801,13 +801,21 @@ static void VerifyRaidDefenseLoginLock()
     Equal("Map_0", locked.ActiveLocks.Single().TargetMapUniqueId, "锁定目标地图");
     Equal(TimeSpan.FromMinutes(105), locked.LongestRemaining, "锁定剩余时间");
 
-    RaidDefenseLockStatus unlockedBySettlement = RaidDefenseLockProjector.BuildForDefender(
+    RaidDefenseLockStatus stillLockedBeforeSourceApplied = RaidDefenseLockProjector.BuildForDefender(
         "user-b",
         "colony-b",
         new[] { activeRaid, completedRaid },
         DateTimeOffset.UnixEpoch.AddHours(1.25),
         policy);
-    Require(!unlockedBySettlement.IsLocked, "同目标快照完成结算后应解除锁定");
+    Require(stillLockedBeforeSourceApplied.IsLocked, "仅写入结算事件但源袭击未提交完成时不得提前解除锁定");
+
+    RaidDefenseLockStatus unlockedByAppliedSource = RaidDefenseLockProjector.BuildForDefender(
+        "user-b",
+        "colony-b",
+        new[] { activeRaid with { Status = ServerEventStatus.AppliedToSnapshot }, completedRaid },
+        DateTimeOffset.UnixEpoch.AddHours(1.25),
+        policy);
+    Require(!unlockedByAppliedSource.IsLocked, "源袭击提交完成后应解除锁定");
 
     RaidDefenseLockStatus unlockedByTimeout = RaidDefenseLockProjector.BuildForDefender(
         "user-b",
@@ -866,9 +874,12 @@ static void VerifyRaidUnsettledProjection()
         DateTimeOffset.UnixEpoch.AddMinutes(30),
         defenderOnline: false);
     Equal(RaidSettlementLedgerRecordResultKind.SettlementEventCreated, settlement.Kind, "防守方结算事件应创建");
-    Equal(0, RaidUnsettledProjector.BuildForDefender("user-b", "colony-b", ledger.ListAll()).Count, "防守方结算后不再被源袭击阻挡登录");
-    Equal(1, RaidUnsettledProjector.BuildForAttacker("user-a", "colony-a", ledger.ListAll()).Count, "防守方结算不代表进攻方袭击已结束");
-    Equal(1, RaidUnsettledProjector.BuildActiveSourceForAttacker("user-a", "colony-a", ledger.ListAll()).Count, "防守方结算后进攻方仍不能重新登录到旧进攻状态");
+    Equal(1, RaidUnsettledProjector.BuildForDefender("user-b", "colony-b", ledger.ListAll()).Count, "仅创建结算事件时仍应保持防守方登录锁");
+    ledger.MarkDelivered(activeRaid.EventId, "snapshot-before", DateTimeOffset.UnixEpoch.AddMinutes(30));
+    ledger.MarkApplied(activeRaid.EventId, "snapshot-after", DateTimeOffset.UnixEpoch.AddMinutes(31));
+    Equal(0, RaidUnsettledProjector.BuildForDefender("user-b", "colony-b", ledger.ListAll()).Count, "源袭击提交完成后不再阻挡防守方登录");
+    Equal(0, RaidUnsettledProjector.BuildForAttacker("user-a", "colony-a", ledger.ListAll()).Count, "源袭击提交完成后不再限制进攻方");
+    Equal(0, RaidUnsettledProjector.BuildActiveSourceForAttacker("user-a", "colony-a", ledger.ListAll()).Count, "源袭击提交完成后不再恢复旧进攻状态");
 
     RaidTimeoutProcessingResult timeout = RaidTimeoutProcessor.ProcessExpiredRaids(
         ledger,
@@ -1055,7 +1066,7 @@ static void VerifyRaidSettlementThenAttackerTimeout()
         defenderOnline: false);
 
     Equal(RaidSettlementLedgerRecordResultKind.SettlementEventCreated, settlement.Kind, "防守方结算应先入账");
-    Equal(ServerEventStatus.PendingOfflineDelivery, ledger.Find(activeRaid.EventId)!.Status, "防守方结算不应结束源袭击");
+    Equal(ServerEventStatus.PendingOfflineDelivery, ledger.Find(activeRaid.EventId)!.Status, "结算事件写入后仍需等待源袭击提交完成");
 
     RaidDefenseLockStatus lockAfterSettlement = RaidDefenseLockProjector.BuildForDefender(
         "user-b",
@@ -1063,7 +1074,17 @@ static void VerifyRaidSettlementThenAttackerTimeout()
         ledger.ListForUser("user-b"),
         DateTimeOffset.UnixEpoch.AddMinutes(30),
         policy);
-    Require(!lockAfterSettlement.ActiveLocks.Any(lockState => lockState.RaidEventId == activeRaid.EventId), "防守方结算后应解除登录锁");
+    Require(lockAfterSettlement.ActiveLocks.Any(lockState => lockState.RaidEventId == activeRaid.EventId), "源袭击未提交完成时应继续锁定防守方");
+
+    ledger.MarkDelivered(activeRaid.EventId, "snapshot-before", DateTimeOffset.UnixEpoch.AddMinutes(30));
+    ledger.MarkApplied(activeRaid.EventId, "snapshot-after", DateTimeOffset.UnixEpoch.AddMinutes(31));
+    RaidDefenseLockStatus lockAfterApplied = RaidDefenseLockProjector.BuildForDefender(
+        "user-b",
+        "colony-b",
+        ledger.ListForUser("user-b"),
+        DateTimeOffset.UnixEpoch.AddMinutes(31),
+        policy);
+    Require(!lockAfterApplied.ActiveLocks.Any(lockState => lockState.RaidEventId == activeRaid.EventId), "源袭击提交完成后应解除登录锁");
 
     RaidTimeoutProcessingResult timeout = RaidTimeoutProcessor.ProcessExpiredRaids(
         ledger,
@@ -1071,8 +1092,8 @@ static void VerifyRaidSettlementThenAttackerTimeout()
         DateTimeOffset.UnixEpoch.AddHours(2),
         policy);
 
-    Equal(1, timeout.FailedRaidCount, "源袭击仍应在超时后失败");
-    Equal(ServerEventStatus.Failed, ledger.Find(activeRaid.EventId)!.Status, "源袭击应标记失败");
+    Equal(0, timeout.FailedRaidCount, "已提交完成的源袭击不应再次超时失败");
+    Equal(ServerEventStatus.AppliedToSnapshot, ledger.Find(activeRaid.EventId)!.Status, "源袭击应保持已提交状态");
     Equal(0, timeout.AttackerLossEventCount, "超时处理器不应直接生成进攻方损失事件");
     Require(ledger.ListForUser("user-b").Any(evt => evt.EventId == settlement.SettlementEvent!.EventId), "防守方结算事件应仍然存在");
 

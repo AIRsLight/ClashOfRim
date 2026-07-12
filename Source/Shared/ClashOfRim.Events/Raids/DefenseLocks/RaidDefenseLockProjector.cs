@@ -13,19 +13,9 @@ public static class RaidDefenseLockProjector
         ArgumentNullException.ThrowIfNull(events);
 
         RaidDefenseLockPolicy activePolicy = policy ?? RaidDefenseLockPolicy.Default;
-        var completedKeys = new HashSet<string>(StringComparer.Ordinal);
         var candidateRaids = new List<AuthoritativeEvent>();
         foreach (AuthoritativeEvent evt in events)
         {
-            if (IsCompletedRaid(evt))
-            {
-                string completionKey = RaidCompletionKey(evt);
-                if (!string.IsNullOrWhiteSpace(completionKey))
-                {
-                    completedKeys.Add(completionKey);
-                }
-            }
-
             if (IsActiveRaidForDefender(evt, defenderUserId, defenderColonyId))
             {
                 candidateRaids.Add(evt);
@@ -36,11 +26,6 @@ public static class RaidDefenseLockProjector
         for (int index = 0; index < candidateRaids.Count; index++)
         {
             AuthoritativeEvent raid = candidateRaids[index];
-            if (completedKeys.Contains(RaidCompletionKey(raid)))
-            {
-                continue;
-            }
-
             RaidDefenseLock lockState = ToLock(raid, activePolicy);
             if (lockState.LockedUntilUtc > checkedAtUtc)
             {
@@ -79,13 +64,6 @@ public static class RaidDefenseLockProjector
             and not ServerEventStatus.Conflict;
     }
 
-    private static bool IsCompletedRaid(AuthoritativeEvent evt)
-    {
-        return evt.Type == ServerEventType.Raid &&
-            evt.Payload is RaidEventPayload { OpponentKind: RaidOpponentKind.Player } payload &&
-            (payload.FinishedAtUtc != null || payload.Settlement != null || payload.ReturnedSnapshotId != null);
-    }
-
     private static RaidDefenseLock ToLock(AuthoritativeEvent evt, RaidDefenseLockPolicy policy)
     {
         var payload = (RaidEventPayload)evt.Payload;
@@ -100,21 +78,4 @@ public static class RaidDefenseLockProjector
             startedAt + policy.MaxRaidDuration);
     }
 
-    private static string RaidCompletionKey(AuthoritativeEvent evt)
-    {
-        if (evt.Payload is not RaidEventPayload payload)
-        {
-            return "";
-        }
-
-        return evt.Actor.UserId
-            + "|"
-            + evt.Target.UserId
-            + "|"
-            + (evt.Target.ColonyId ?? "")
-            + "|"
-            + (evt.TargetContext?.MapUniqueId ?? "")
-            + "|"
-            + payload.DefenderSnapshotId;
-    }
 }

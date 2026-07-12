@@ -5,7 +5,9 @@ namespace AIRsLight.ClashOfRim.Network;
 
 public sealed class RaidSettlementPostUploadProcessor :
     IScheduledDeferredSnapshotPostUploadProcessor,
-    IRecoverableDeferredSnapshotPostUploadProcessor
+    IRecoverableDeferredSnapshotPostUploadProcessor,
+    IDeferredSnapshotPostUploadCompletionHandler,
+    IDeferredSnapshotPostUploadArtifactReconciler
 {
     public string Id => RaidSettlementDeferredScheduler.ProcessorId;
 
@@ -46,6 +48,11 @@ public sealed class RaidSettlementPostUploadProcessor :
     {
         ArgumentNullException.ThrowIfNull(context);
         RaidSettlementDeferredPayload payload = RaidSettlementDeferredPayload.Deserialize(context.PayloadJson);
+        if (context.State.Ledger.Find(payload.RaidEventId)?.Status == Events.ServerEventStatus.AppliedToSnapshot)
+        {
+            return;
+        }
+
         Save.SaveSnapshotPackage evidence = context.State.SnapshotPostUploadArtifacts.Read(payload.EvidenceArtifactId)
             ?? throw new IOException($"Raid settlement evidence artifact '{payload.EvidenceArtifactId}' was not found.");
         RaidSettlementOperationResult result = RaidSettlementOperationExecutor.Execute(
@@ -56,15 +63,11 @@ public sealed class RaidSettlementPostUploadProcessor :
         if (result.Kind is RaidSettlementOperationResultKind.Completed
             or RaidSettlementOperationResultKind.AlreadyCompleted)
         {
-            context.State.SnapshotPostUploadArtifacts.Delete(payload.EvidenceArtifactId);
             return;
         }
 
-        context.State.RuntimeLogger.LogError(
-            "Deferred raid settlement stopped for manual review: raid={RaidEventId} job={JobId} reason={Reason}",
-            payload.RaidEventId,
-            context.JobId,
-            result.Message);
+        throw new SnapshotPostUploadManualReviewException(
+            result.Message ?? $"Raid settlement '{payload.RaidEventId}' requires manual review.");
     }
 
     public void RecoverPrepared(
@@ -73,5 +76,22 @@ public sealed class RaidSettlementPostUploadProcessor :
         DateTimeOffset nowUtc)
     {
         RaidSettlementDeferredScheduler.RecoverPrepared(state, job, nowUtc);
+    }
+
+    public void OnDeferredCompleted(SnapshotPostUploadDeferredContext context)
+    {
+        RaidSettlementDeferredPayload payload = RaidSettlementDeferredPayload.Deserialize(context.PayloadJson);
+        context.State.SnapshotPostUploadArtifacts.Delete(payload.EvidenceArtifactId);
+    }
+
+    public void ReconcileArtifacts(ClashOfRimNetworkState state)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        HashSet<string> referencedArtifactIds = state.SnapshotPostUploadJobs.ListAll()
+            .Where(job => string.Equals(job.ProcessorId, Id, StringComparison.Ordinal))
+            .Select(job => RaidSettlementDeferredPayload.Deserialize(job.PayloadJson).EvidenceArtifactId)
+            .Where(artifactId => !string.IsNullOrWhiteSpace(artifactId))
+            .ToHashSet(StringComparer.Ordinal);
+        state.SnapshotPostUploadArtifacts.DeleteUnreferenced(referencedArtifactIds);
     }
 }

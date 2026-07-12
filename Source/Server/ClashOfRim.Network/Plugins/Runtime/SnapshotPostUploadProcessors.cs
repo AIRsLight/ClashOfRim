@@ -104,6 +104,24 @@ public interface IRecoverableDeferredSnapshotPostUploadProcessor : IDeferredSnap
         DateTimeOffset nowUtc);
 }
 
+public interface IDeferredSnapshotPostUploadCompletionHandler : IDeferredSnapshotPostUploadProcessor
+{
+    void OnDeferredCompleted(SnapshotPostUploadDeferredContext context);
+}
+
+public interface IDeferredSnapshotPostUploadArtifactReconciler : IDeferredSnapshotPostUploadProcessor
+{
+    void ReconcileArtifacts(ClashOfRimNetworkState state);
+}
+
+public sealed class SnapshotPostUploadManualReviewException : Exception
+{
+    public SnapshotPostUploadManualReviewException(string message)
+        : base(message)
+    {
+    }
+}
+
 public static class SnapshotPostUploadPipeline
 {
     public static void Run(

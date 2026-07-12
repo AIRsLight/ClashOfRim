@@ -66,7 +66,7 @@ public static class SnapshotPostUploadJobExecutor
 
             try
             {
-                processor.ProcessDeferred(new SnapshotPostUploadDeferredContext(
+                var deferredContext = new SnapshotPostUploadDeferredContext(
                     state,
                     job.JobId,
                     job.ProcessorId,
@@ -77,9 +77,35 @@ public static class SnapshotPostUploadJobExecutor
                     job.SnapshotId,
                     job.OccurredAtUtc,
                     job.PayloadJson,
-                    job.AttemptCount));
+                    job.AttemptCount);
+                processor.ProcessDeferred(deferredContext);
                 state.SnapshotPostUploadJobs.MarkCompleted(job.JobId);
+                if (processor is IDeferredSnapshotPostUploadCompletionHandler completionHandler)
+                {
+                    try
+                    {
+                        completionHandler.OnDeferredCompleted(deferredContext);
+                    }
+                    catch (Exception ex)
+                    {
+                        state.RuntimeLogger.LogWarning(
+                            ex,
+                            "Deferred snapshot post-upload completion cleanup failed after job removal: processor={ProcessorId} job={JobId}",
+                            job.ProcessorId,
+                            job.JobId);
+                    }
+                }
                 completed++;
+            }
+            catch (SnapshotPostUploadManualReviewException ex)
+            {
+                state.RuntimeLogger.LogError(
+                    ex,
+                    "Deferred snapshot post-upload job requires manual review: processor={ProcessorId} kind={Kind} snapshot={SnapshotId}",
+                    job.ProcessorId,
+                    job.Kind,
+                    job.SnapshotId);
+                state.SnapshotPostUploadJobs.MarkManualReview(job.JobId, ex.Message);
             }
             catch (Exception ex)
             {
@@ -141,6 +167,22 @@ internal sealed class SnapshotPostUploadBackgroundService : BackgroundService
     {
         try
         {
+            foreach (IDeferredSnapshotPostUploadArtifactReconciler reconciler in processors.Resolve()
+                .OfType<IDeferredSnapshotPostUploadArtifactReconciler>())
+            {
+                try
+                {
+                    reconciler.ReconcileArtifacts(state);
+                }
+                catch (Exception ex)
+                {
+                    state.RuntimeLogger.LogWarning(
+                        ex,
+                        "Snapshot post-upload artifact reconciliation failed: processor={ProcessorId}",
+                        reconciler.Id);
+                }
+            }
+
             while (!stoppingToken.IsCancellationRequested)
             {
                 int completed = SnapshotPostUploadJobExecutor.ProcessReady(
