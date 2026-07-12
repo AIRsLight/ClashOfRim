@@ -55,6 +55,7 @@ var tests = new (string Name, Action Run)[]
     ("袭击结算忽略策略扩展指定的对象", VerifyRaidSettlementIgnoresPolicyDefs),
     ("袭击结算纳入防守方种植区植物损失", VerifyRaidSettlementIncludesGrowingZonePlants),
     ("袭击结算编辑防守方快照而不是保存战斗快照", VerifyRaidSettlementSnapshotEditor),
+    ("袭击结算执行器幂等编辑防守方快照", VerifyRaidSettlementOperationExecutor),
     ("袭击结算把战场覆盖层带回防守方快照", VerifyRaidSettlementSnapshotEditorAddsBattlefieldResidues),
     ("第三方存储兼容解析容器内物品", VerifyAdaptiveStorageSaveIndexExtension),
     ("第三方载具兼容解析货物和乘员", VerifyVehicleFrameworkSaveIndexExtension),
@@ -2310,6 +2311,109 @@ static void VerifyRaidSettlementSnapshotEditor()
     Equal("null", colonist.Element("mindState")?.Element("enemyTarget")?.Value, "指向被删物的心智目标应被清空");
     Equal("edited-snapshot", edited.Envelope.Identity.SnapshotId, "编辑后快照 id");
     Equal("base-snapshot", edited.Envelope.PreviousSnapshotId, "编辑后快照应连接原防守快照");
+}
+
+static void VerifyRaidSettlementOperationExecutor()
+{
+    string root = Path.Combine(Path.GetTempPath(), "clashofrim-raid-operation-" + Guid.NewGuid().ToString("N"));
+    try
+    {
+        SaveSnapshotPackage original = XmlSettlementPackage(
+            new SnapshotIdentity("raid-defender", "raid-defender-colony", "defender-base"),
+            """
+            <?xml version="1.0" encoding="utf-8"?>
+            <savegame>
+              <meta><gameVersion>1.6-test</gameVersion></meta>
+              <game>
+                <components>
+                  <li Class="AIRsLight.ClashOfRim.ClashOfRimGameComponent">
+                    <clashOfRimLineageSnapshotId>defender-base</clashOfRimLineageSnapshotId>
+                    <clashOfRimLineageToken>defender-token</clashOfRimLineageToken>
+                  </li>
+                </components>
+                <maps>
+                  <li>
+                    <uniqueID>0</uniqueID>
+                    <things>
+                      <thing Class="ThingWithComps"><id>steel-stack</id><def>Steel</def><stackCount>10</stackCount></thing>
+                    </things>
+                  </li>
+                </maps>
+              </game>
+            </savegame>
+            """);
+        SaveSnapshotPackage evidence = XmlSettlementPackage(
+            new SnapshotIdentity("raid-attacker", "raid-attacker-colony", "raid-evidence"),
+            """
+            <?xml version="1.0" encoding="utf-8"?>
+            <savegame>
+              <meta><gameVersion>1.6-test</gameVersion></meta>
+              <game>
+                <maps><li><uniqueID>0</uniqueID><things /></li></maps>
+              </game>
+            </savegame>
+            """);
+        var snapshots = new FileColonySnapshotIndexStore(root);
+        snapshots.StoreLatest(original, original.Index, DateTimeOffset.UnixEpoch);
+        var ledger = new InMemoryAuthoritativeEventLedger();
+        DateTimeOffset now = DateTimeOffset.UnixEpoch.AddHours(1);
+        AuthoritativeEvent raid = AuthoritativeEventFactory.Create(
+            ServerEventType.Raid,
+            new EventParty("raid-attacker", "raid-attacker-colony", "Faction_Attacker"),
+            new EventParty("raid-defender", "raid-defender-colony", "Faction_Defender"),
+            "raid-operation-test",
+            targetOnline: false,
+            new RaidEventPayload(
+                "defender-base",
+                ReturnedSnapshotId: null,
+                StartedAtUtc: DateTimeOffset.UnixEpoch,
+                FinishedAtUtc: null,
+                Settlement: null,
+                AttackForce: new RaidAttackForceRecord(
+                    "attacker-before",
+                    Array.Empty<string>(),
+                    Array.Empty<EventThingReference>())),
+            DateTimeOffset.UnixEpoch,
+            new EventTargetContext("WorldObject_Defender", "Map_0", 100, EventLandingMode.MapEdge));
+        raid = ledger.Append(raid).Event;
+        var state = new ClashOfRimNetworkState(ledger: ledger, snapshotStore: snapshots);
+        var payload = new RaidSettlementDeferredPayload(
+            raid.EventId,
+            "raid-attacker",
+            "raid-attacker-colony",
+            "raid-defender",
+            "raid-defender-colony",
+            "raid-evidence",
+            "defender-base",
+            "raid-artifact",
+            RaidSettlementOrigin.OnlineEvidence,
+            ClientApplicationResult: "Applied");
+
+        RaidSettlementOperationResult first = RaidSettlementOperationExecutor.Execute(state, payload, evidence, now);
+        Require(first.Kind == RaidSettlementOperationResultKind.Completed, "首次袭击结算应完成");
+        string? editedSnapshotId = snapshots.GetLatest("raid-defender", "raid-defender-colony")?.Identity.SnapshotId;
+        Require(!string.IsNullOrWhiteSpace(editedSnapshotId) && editedSnapshotId != "defender-base", "结算应生成新的防守方快照");
+        Equal(ServerEventStatus.AppliedToSnapshot, ledger.Find(raid.EventId)!.Status, "结算后源袭击应标记为已应用");
+
+        RaidSettlementOperationResult duplicate = RaidSettlementOperationExecutor.Execute(
+            state,
+            payload,
+            evidence,
+            now.AddSeconds(1));
+        Require(duplicate.Kind == RaidSettlementOperationResultKind.AlreadyCompleted, "重复结算应识别为已完成");
+        Equal(editedSnapshotId, snapshots.GetLatest("raid-defender", "raid-defender-colony")?.Identity.SnapshotId, "重复结算不得再次改写防守方快照");
+        Equal(
+            1,
+            ledger.ListAll().Count(evt => evt.IdempotencyKey == "raid-settlement:" + raid.EventId),
+            "重复结算不得创建第二个结算事件");
+    }
+    finally
+    {
+        if (Directory.Exists(root))
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
 }
 
 static void VerifyRaidSettlementSnapshotEditorAddsBattlefieldResidues()
