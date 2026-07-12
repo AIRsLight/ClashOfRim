@@ -33,11 +33,11 @@
 - Produces: `SnapshotPostUploadJobState`, `EnqueuePrepared`, `MarkReady`, `ListPrepared`, and schema version 6.
 - Preserves: existing `Enqueue` behavior for ordinary deferred processors by inserting them directly as `Ready`.
 
-- [ ] **Step 1: Write failing registry tests**
+- [x] **Step 1: Write failing registry tests**
 
 Add tests that create a prepared job, prove `ListReady` excludes it, call `MarkReady`, and prove it becomes executable. Add a SQLite migration test that starts at schema version 5 and verifies a non-null `job_state` column after migration to version 6.
 
-- [ ] **Step 2: Run the focused tests and verify failure**
+- [x] **Step 2: Run the focused tests and verify failure**
 
 Run:
 
@@ -48,7 +48,7 @@ dotnet run --project Tools\ClashOfRim.Save.Tests\ClashOfRim.Save.Tests.csproj -c
 
 Expected: compilation fails because prepared-job APIs and schema version 6 do not exist.
 
-- [ ] **Step 3: Implement job state and migration**
+- [x] **Step 3: Implement job state and migration**
 
 Add:
 
@@ -62,7 +62,7 @@ public enum SnapshotPostUploadJobState
 
 Store the state in every job record. `ListReady` selects only `Ready`; `ListPrepared` selects only `Prepared`; `MarkReady` atomically persists the state before changing memory. Migration `5 -> 6` adds `job_state integer not null default 1`, preserving all existing jobs as ready.
 
-- [ ] **Step 4: Run focused tests**
+- [x] **Step 4: Run focused tests**
 
 Run the commands from Step 2. Expected: both pass.
 

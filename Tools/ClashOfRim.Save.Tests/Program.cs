@@ -16,6 +16,7 @@ var tests = new (string Name, Action Run)[]
     ("服务器启动可只读识别无版本旧数据库", VerifyServerDatabaseMigrationAssessesLegacyDatabaseWithoutMutation),
     ("服务器启动自动备份并迁移明确旧版本", VerifyServerPersistenceStartupMigratesKnownVersionWithBackup),
     ("服务器数据库迁移创建快照后处理任务表", VerifyServerDatabaseMigrationCreatesSnapshotPostUploadJobTable),
+    ("服务器数据库迁移快照后处理任务为两阶段状态", VerifyServerDatabaseMigrationAddsSnapshotPostUploadJobState),
     ("服务器启动自动补全可识别结构化数据库版本", VerifyServerPersistenceStartupVersionsRecognizedStructuredDatabase),
     ("服务器启动对混合旧结构返回人工迁移提示", VerifyServerPersistenceStartupDefersAmbiguousDatabase),
     ("服务器启动对未来版本返回更新提示", VerifyServerPersistenceStartupDefersFutureDatabase),
@@ -104,6 +105,58 @@ static void VerifyServerDatabaseMigrationCreatesSnapshotPostUploadJobTable()
         using SqliteCommand table = verification.CreateCommand();
         table.CommandText = "select count(*) from sqlite_master where type = 'table' and name = 'server_snapshot_post_upload_jobs';";
         Equal(1L, Convert.ToInt64(table.ExecuteScalar()), "迁移应创建快照后处理任务表");
+    }
+    finally
+    {
+        DeleteSqliteDatabase(path);
+    }
+}
+
+static void VerifyServerDatabaseMigrationAddsSnapshotPostUploadJobState()
+{
+    string path = Path.Combine(Path.GetTempPath(), "clashofrim-post-upload-state-migration-" + Guid.NewGuid().ToString("N") + ".sqlite");
+    try
+    {
+        using (SqliteConnection connection = OpenSqliteDatabase(path))
+        using (SqliteCommand command = connection.CreateCommand())
+        {
+            command.CommandText = """
+                create table server_schema_metadata (
+                    metadata_key text primary key not null,
+                    metadata_value text not null,
+                    updated_at_utc text not null
+                );
+                insert into server_schema_metadata values ('schema_version', '5', '2026-01-01T00:00:00.0000000+00:00');
+                create table server_snapshot_post_upload_jobs (
+                    job_id text primary key not null,
+                    processor_id text not null,
+                    snapshot_kind integer not null,
+                    user_id text not null,
+                    colony_id text not null,
+                    session_id text null,
+                    snapshot_id text not null,
+                    occurred_at_utc text not null,
+                    payload_json text not null,
+                    attempt_count integer not null,
+                    next_attempt_at_utc text not null,
+                    last_error text null
+                );
+                insert into server_snapshot_post_upload_jobs values (
+                    'legacy-ready-job', 'processor', 0, 'user', 'colony', null, 'snapshot',
+                    '2026-01-01T00:00:00.0000000+00:00', '{}', 0,
+                    '2026-01-01T00:00:00.0000000+00:00', null
+                );
+                """;
+            command.ExecuteNonQuery();
+        }
+
+        ServerDatabaseMigrationResult result = ServerDatabaseMigrator.Migrate(path);
+        Require(result.AppliedMigrations.Contains("5->6"), "迁移结果应记录 5->6");
+
+        using SqliteConnection verification = OpenSqliteDatabase(path);
+        using SqliteCommand state = verification.CreateCommand();
+        state.CommandText = "select job_state from server_snapshot_post_upload_jobs where job_id = 'legacy-ready-job';";
+        Equal(1L, Convert.ToInt64(state.ExecuteScalar()), "旧 outbox 作业迁移后应保持 Ready");
     }
     finally
     {

@@ -31,6 +31,42 @@ public sealed class SnapshotPostUploadJobRegistry
         string snapshotId = context.Snapshot?.Identity.SnapshotId
             ?? $"{context.UserId}:{context.ColonyId}:{context.OccurredAtUtc.UtcTicks}";
         string jobId = snapshotId + ":" + processorId;
+        return EnqueueCore(
+            jobId,
+            processorId,
+            context,
+            payloadJson,
+            SnapshotPostUploadJobState.Ready);
+    }
+
+    public SnapshotPostUploadJobRecord EnqueuePrepared(
+        string jobId,
+        string processorId,
+        SnapshotPostUploadContext context,
+        string payloadJson)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(jobId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(processorId);
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(payloadJson);
+
+        return EnqueueCore(
+            jobId,
+            processorId,
+            context,
+            payloadJson,
+            SnapshotPostUploadJobState.Prepared);
+    }
+
+    private SnapshotPostUploadJobRecord EnqueueCore(
+        string jobId,
+        string processorId,
+        SnapshotPostUploadContext context,
+        string payloadJson,
+        SnapshotPostUploadJobState state)
+    {
+        string snapshotId = context.Snapshot?.Identity.SnapshotId
+            ?? $"{context.UserId}:{context.ColonyId}:{context.OccurredAtUtc.UtcTicks}";
         lock (gate)
         {
             if (jobsById.TryGetValue(jobId, out SnapshotPostUploadJobRecord? existing))
@@ -48,6 +84,7 @@ public sealed class SnapshotPostUploadJobRegistry
                 snapshotId,
                 context.OccurredAtUtc,
                 payloadJson,
+                state,
                 AttemptCount: 0,
                 NextAttemptAtUtc: context.OccurredAtUtc,
                 LastError: null);
@@ -62,10 +99,45 @@ public sealed class SnapshotPostUploadJobRegistry
         lock (gate)
         {
             return jobsById.Values
-                .Where(job => job.NextAttemptAtUtc <= nowUtc)
+                .Where(job => job.State == SnapshotPostUploadJobState.Ready
+                    && job.NextAttemptAtUtc <= nowUtc)
                 .OrderBy(job => job.NextAttemptAtUtc)
                 .ThenBy(job => job.JobId, StringComparer.Ordinal)
                 .ToList();
+        }
+    }
+
+    public IReadOnlyList<SnapshotPostUploadJobRecord> ListPrepared()
+    {
+        lock (gate)
+        {
+            return jobsById.Values
+                .Where(job => job.State == SnapshotPostUploadJobState.Prepared)
+                .OrderBy(job => job.OccurredAtUtc)
+                .ThenBy(job => job.JobId, StringComparer.Ordinal)
+                .ToList();
+        }
+    }
+
+    public SnapshotPostUploadJobRecord MarkReady(string jobId, DateTimeOffset readyAtUtc)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(jobId);
+        lock (gate)
+        {
+            if (!jobsById.TryGetValue(jobId, out SnapshotPostUploadJobRecord? current))
+            {
+                throw new KeyNotFoundException($"Snapshot post-upload job '{jobId}' was not found.");
+            }
+
+            SnapshotPostUploadJobRecord updated = current with
+            {
+                State = SnapshotPostUploadJobState.Ready,
+                NextAttemptAtUtc = readyAtUtc,
+                LastError = null
+            };
+            persistence?.Upsert(updated);
+            jobsById[jobId] = updated;
+            return updated;
         }
     }
 
@@ -118,6 +190,12 @@ public sealed class SnapshotPostUploadJobRegistry
     }
 }
 
+public enum SnapshotPostUploadJobState
+{
+    Prepared = 0,
+    Ready = 1
+}
+
 public sealed record SnapshotPostUploadJobRecord(
     string JobId,
     string ProcessorId,
@@ -128,6 +206,7 @@ public sealed record SnapshotPostUploadJobRecord(
     string SnapshotId,
     DateTimeOffset OccurredAtUtc,
     string PayloadJson,
+    SnapshotPostUploadJobState State,
     int AttemptCount,
     DateTimeOffset NextAttemptAtUtc,
     string? LastError);

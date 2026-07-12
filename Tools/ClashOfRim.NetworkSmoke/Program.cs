@@ -20,6 +20,7 @@ VerifySnapshotPostUploadProcessorIdsAreUnique();
 VerifySnapshotPostUploadProcessorPluginFiltering();
 VerifyDeferredSnapshotPostUploadEnqueueSemantics();
 VerifyDeferredSnapshotPostUploadRetrySemantics();
+VerifyPreparedSnapshotPostUploadJobSemantics();
 if (args.Contains("--snapshot-pipeline-only", StringComparer.Ordinal))
 {
     Console.WriteLine("通过：快照后处理管线定向测试");
@@ -321,6 +322,38 @@ static void VerifyDeferredSnapshotPostUploadRetrySemantics()
         SnapshotPostUploadJobExecutor.ProcessReady(state, new[] { processor }, failed.NextAttemptAtUtc),
         "延迟任务到达重试时间后应再次执行");
     Equal(0, jobs.ListReady(DateTimeOffset.MaxValue).Count, "重试成功后应移除延迟任务");
+}
+
+static void VerifyPreparedSnapshotPostUploadJobSemantics()
+{
+    var jobs = new SnapshotPostUploadJobRegistry();
+    var state = new ClashOfRimNetworkState(snapshotPostUploadJobs: jobs);
+    DateTimeOffset now = DateTimeOffset.UtcNow;
+    var context = new SnapshotPostUploadContext(
+        state,
+        SnapshotPostUploadKind.RaidSettlementEvidence,
+        Snapshot: null!,
+        "prepared-user",
+        "prepared-colony",
+        SessionId: null,
+        now,
+        SnapshotPostUploadExtraData.Empty,
+        RegisterPlayerColonySite: false);
+
+    SnapshotPostUploadJobRecord prepared = jobs.EnqueuePrepared(
+        "raid-settlement:raid-prepared",
+        "core.raid-settlement",
+        context,
+        "{\"raidEventId\":\"raid-prepared\"}");
+
+    Equal(SnapshotPostUploadJobState.Prepared, prepared.State, "两阶段任务应以 Prepared 状态写入");
+    Equal(0, jobs.ListReady(DateTimeOffset.MaxValue).Count, "Prepared 任务不得被后台执行");
+    Equal(1, jobs.ListPrepared().Count, "Prepared 任务应可供启动恢复扫描");
+
+    SnapshotPostUploadJobRecord ready = jobs.MarkReady(prepared.JobId, now);
+    Equal(SnapshotPostUploadJobState.Ready, ready.State, "提交完成后任务应切换为 Ready");
+    Equal(0, jobs.ListPrepared().Count, "Ready 任务不应继续出现在恢复列表");
+    Equal(1, jobs.ListReady(now).Count, "Ready 任务应可被后台执行");
 }
 
 var uploadedSnapshotProcessorExecution = new List<string>();

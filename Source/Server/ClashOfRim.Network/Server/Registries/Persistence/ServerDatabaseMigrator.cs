@@ -16,7 +16,7 @@ public static class ServerDatabaseSchema
 {
     // Version 1 is the known JSON-document persistence layout.
     public const int LegacyJsonDocumentVersion = 1;
-    public const int CurrentVersion = 5;
+    public const int CurrentVersion = 6;
 }
 
 public sealed record ServerDatabaseMigrationOptions(int? DeclaredSourceVersion = null);
@@ -73,7 +73,11 @@ public static class ServerDatabaseMigrator
         new(
             FromVersion: 4,
             ToVersion: 5,
-            Apply: CreateSnapshotPostUploadJobTable)
+            Apply: CreateSnapshotPostUploadJobTable),
+        new(
+            FromVersion: 5,
+            ToVersion: 6,
+            Apply: AddSnapshotPostUploadJobState)
     ];
 
     public static ServerDatabaseMigrationAssessment Assess(
@@ -563,6 +567,29 @@ public static class ServerDatabaseMigrator
 
             create index if not exists idx_server_snapshot_post_upload_jobs_ready
                 on server_snapshot_post_upload_jobs(next_attempt_at_utc, job_id);
+            """;
+        command.ExecuteNonQuery();
+        return MigrationApplicationResult.None;
+    }
+
+    private static MigrationApplicationResult AddSnapshotPostUploadJobState(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        MigrationContext context)
+    {
+        if (!TableExists(connection, "server_snapshot_post_upload_jobs", transaction))
+        {
+            return MigrationApplicationResult.None;
+        }
+
+        using SqliteCommand command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            alter table server_snapshot_post_upload_jobs
+                add column job_state integer not null default 1;
+            drop index if exists idx_server_snapshot_post_upload_jobs_ready;
+            create index idx_server_snapshot_post_upload_jobs_ready
+                on server_snapshot_post_upload_jobs(job_state, next_attempt_at_utc, job_id);
             """;
         command.ExecuteNonQuery();
         return MigrationApplicationResult.None;

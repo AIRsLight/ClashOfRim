@@ -341,6 +341,7 @@ internal sealed class SqliteSnapshotPostUploadJobStore : SqliteStructuredRegistr
                    snapshot_id,
                    occurred_at_utc,
                    payload_json,
+                   job_state,
                    attempt_count,
                    next_attempt_at_utc,
                    last_error
@@ -361,6 +362,7 @@ internal sealed class SqliteSnapshotPostUploadJobStore : SqliteStructuredRegistr
                 reader.GetString(reader.GetOrdinal("snapshot_id")),
                 DateValue(reader, "occurred_at_utc"),
                 reader.GetString(reader.GetOrdinal("payload_json")),
+                (SnapshotPostUploadJobState)reader.GetInt32(reader.GetOrdinal("job_state")),
                 reader.GetInt32(reader.GetOrdinal("attempt_count")),
                 DateValue(reader, "next_attempt_at_utc"),
                 NullableString(reader, "last_error")));
@@ -386,6 +388,7 @@ internal sealed class SqliteSnapshotPostUploadJobStore : SqliteStructuredRegistr
                 snapshot_id,
                 occurred_at_utc,
                 payload_json,
+                job_state,
                 attempt_count,
                 next_attempt_at_utc,
                 last_error
@@ -399,6 +402,7 @@ internal sealed class SqliteSnapshotPostUploadJobStore : SqliteStructuredRegistr
                 $snapshot_id,
                 $occurred_at_utc,
                 $payload_json,
+                $job_state,
                 $attempt_count,
                 $next_attempt_at_utc,
                 $last_error
@@ -412,6 +416,7 @@ internal sealed class SqliteSnapshotPostUploadJobStore : SqliteStructuredRegistr
                 snapshot_id = excluded.snapshot_id,
                 occurred_at_utc = excluded.occurred_at_utc,
                 payload_json = excluded.payload_json,
+                job_state = excluded.job_state,
                 attempt_count = excluded.attempt_count,
                 next_attempt_at_utc = excluded.next_attempt_at_utc,
                 last_error = excluded.last_error;
@@ -425,6 +430,7 @@ internal sealed class SqliteSnapshotPostUploadJobStore : SqliteStructuredRegistr
         command.Parameters.AddWithValue("$snapshot_id", record.SnapshotId);
         command.Parameters.AddWithValue("$occurred_at_utc", DateString(record.OccurredAtUtc));
         command.Parameters.AddWithValue("$payload_json", record.PayloadJson);
+        command.Parameters.AddWithValue("$job_state", (int)record.State);
         command.Parameters.AddWithValue("$attempt_count", record.AttemptCount);
         command.Parameters.AddWithValue("$next_attempt_at_utc", DateString(record.NextAttemptAtUtc));
         command.Parameters.AddWithValue("$last_error", DbValue(record.LastError));
@@ -457,13 +463,14 @@ internal sealed class SqliteSnapshotPostUploadJobStore : SqliteStructuredRegistr
                 snapshot_id text not null,
                 occurred_at_utc text not null,
                 payload_json text not null,
+                job_state integer not null,
                 attempt_count integer not null,
                 next_attempt_at_utc text not null,
                 last_error text null
             );
 
             create index if not exists idx_server_snapshot_post_upload_jobs_ready
-                on server_snapshot_post_upload_jobs(next_attempt_at_utc, job_id);
+                on server_snapshot_post_upload_jobs(job_state, next_attempt_at_utc, job_id);
             """;
         command.ExecuteNonQuery();
     }
