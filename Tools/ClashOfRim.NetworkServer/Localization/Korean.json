@@ -134,6 +134,7 @@
   "WorldMap.ActivePlayerRaidLabel": "플레이어 공격 중",
   "WorldMap.AttackingPlayerLabel": "플레이어 공격",
   "Server.LogFilePath": "ClashOfRim 네트워크 서버 파일 로그: {PATH}",
+  "Server.WorldExtensionsRecovered": "최신 스냅샷 {COUNT}개에서 월드 구성 확장을 복구했습니다.",
   "Server.MaxRequestBodySize": "서버 최대 요청 본문 크기: {BYTES} 바이트.",
   "Server.LocalizationLoaded": "서버 현지화 로드됨: {LANGUAGES}",
   "Server.LanguageUnavailable": "설정된 서버 언어 {LANGUAGE}를 현지화 리소스에서 찾을 수 없습니다.",

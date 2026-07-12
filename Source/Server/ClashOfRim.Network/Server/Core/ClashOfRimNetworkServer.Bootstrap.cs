@@ -67,6 +67,14 @@ public static partial class ClashOfRimNetworkServer
         }
 
         app.Logger.LogInformation(T("Server.LogFilePath", ("PATH", logFilePath)));
+        int recoveredWorldExtensionSnapshots = RecoverWorldConfigurationExtensionsFromLatestSnapshots(networkState);
+        if (recoveredWorldExtensionSnapshots > 0)
+        {
+            app.Logger.LogInformation(
+                T("Server.WorldExtensionsRecovered", ("COUNT", "{SnapshotCount}")),
+                recoveredWorldExtensionSnapshots);
+        }
+
         if (persistenceMigrationResult is not null)
         {
             ServerDatabaseMigrationResult databaseMigration = persistenceMigrationResult.Database;

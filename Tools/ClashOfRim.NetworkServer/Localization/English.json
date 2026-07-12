@@ -134,6 +134,7 @@
   "WorldMap.ActivePlayerRaidLabel": "Under player attack",
   "WorldMap.AttackingPlayerLabel": "Attacking player",
   "Server.LogFilePath": "ClashOfRim network server file log: {PATH}",
+  "Server.WorldExtensionsRecovered": "Recovered world configuration extensions from {COUNT} latest snapshots.",
   "Server.MaxRequestBodySize": "Server max request body size: {BYTES} bytes.",
   "Server.LocalizationLoaded": "Server localization loaded: {LANGUAGES}",
   "Server.LanguageUnavailable": "Configured server language {LANGUAGE} was not found in localization resources.",

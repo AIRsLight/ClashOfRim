@@ -300,43 +300,7 @@ public static partial class ClashOfRimNetworkServer
             return;
         }
 
-        IReadOnlyList<SnapshotColonyAnchor> anchors = ExtractSnapshotColonyAnchors(state, upload.AcceptedSnapshot.Index);
-        if (anchors.Count != 1)
-        {
-            return;
-        }
-
-        SnapshotColonyAnchor anchor = anchors[0];
         WorldConfigurationDto currentConfiguration = state.WorldConfiguration.Current;
-        PlayerColonySiteDto? existingSite = currentConfiguration.PlayerColonySites.FirstOrDefault(site =>
-            string.Equals(site.UserId, userId, StringComparison.Ordinal)
-            && string.Equals(site.ColonyId, colonyId, StringComparison.Ordinal));
-        PlayerColonySiteDto site = new(
-            userId,
-            colonyId,
-            anchor.WorldObjectId,
-            anchor.MapUniqueId,
-            anchor.Tile,
-            string.IsNullOrWhiteSpace(anchor.Label) ? colonyId : anchor.Label,
-            existingSite?.FactionName,
-            existingSite?.Appearance,
-            anchor.TileLayerId);
-        IReadOnlyList<PlayerColonySiteDto> normalizedSites = NormalizePlayerColonySites(
-            userId,
-            colonyId,
-            new[] { site });
-        if (normalizedSites.Count != 1)
-        {
-            return;
-        }
-
-        if (FindExistingUserColonyConflict(currentConfiguration.PlayerColonySites, normalizedSites, userId, colonyId) is not null
-            || FindExistingSameColonySiteOnDifferentTile(currentConfiguration.PlayerColonySites, normalizedSites, userId, colonyId) is not null
-            || FindSameTilePlayerColonyConflict(currentConfiguration.PlayerColonySites, normalizedSites, userId, colonyId) is not null)
-        {
-            return;
-        }
-
         WorldConfigurationExtensionService activeWorldExtensions = ActiveWorldConfigurationExtensions(state);
         IReadOnlyList<WorldConfigurationExtensionDto> extensions =
             activeWorldExtensions.BuildExtensionsFromAcceptedSnapshot(
@@ -345,6 +309,53 @@ public static partial class ClashOfRimNetworkServer
                     userId,
                     colonyId,
                     currentConfiguration.Extensions));
+        IReadOnlyList<WorldConfigurationExtensionDto> mergedExtensions = activeWorldExtensions.MergeExtensions(
+            new WorldConfigurationExtensionContext(
+                userId,
+                colonyId,
+                currentConfiguration.WorldConfigurationId),
+            currentConfiguration.Extensions,
+            extensions);
+        bool extensionsChanged = !WorldConfigurationExtensionsEqual(
+            currentConfiguration.Extensions,
+            mergedExtensions);
+
+        IReadOnlyList<SnapshotColonyAnchor> anchors = ExtractSnapshotColonyAnchors(state, upload.AcceptedSnapshot.Index);
+        IReadOnlyList<PlayerColonySiteDto> normalizedSites = Array.Empty<PlayerColonySiteDto>();
+        if (anchors.Count == 1)
+        {
+            SnapshotColonyAnchor anchor = anchors[0];
+            PlayerColonySiteDto? existingSite = currentConfiguration.PlayerColonySites.FirstOrDefault(site =>
+                string.Equals(site.UserId, userId, StringComparison.Ordinal)
+                && string.Equals(site.ColonyId, colonyId, StringComparison.Ordinal));
+            PlayerColonySiteDto site = new(
+                userId,
+                colonyId,
+                anchor.WorldObjectId,
+                anchor.MapUniqueId,
+                anchor.Tile,
+                string.IsNullOrWhiteSpace(anchor.Label) ? colonyId : anchor.Label,
+                existingSite?.FactionName,
+                existingSite?.Appearance,
+                anchor.TileLayerId);
+            IReadOnlyList<PlayerColonySiteDto> candidateSites = NormalizePlayerColonySites(
+                userId,
+                colonyId,
+                new[] { site });
+            if (candidateSites.Count == 1
+                && FindExistingUserColonyConflict(currentConfiguration.PlayerColonySites, candidateSites, userId, colonyId) is null
+                && FindExistingSameColonySiteOnDifferentTile(currentConfiguration.PlayerColonySites, candidateSites, userId, colonyId) is null
+                && FindSameTilePlayerColonyConflict(currentConfiguration.PlayerColonySites, candidateSites, userId, colonyId) is null)
+            {
+                normalizedSites = candidateSites;
+            }
+        }
+
+        if (normalizedSites.Count == 0 && !extensionsChanged)
+        {
+            return;
+        }
+
         state.WorldConfiguration.RegisterPlayerColonySites(
             userId,
             colonyId,

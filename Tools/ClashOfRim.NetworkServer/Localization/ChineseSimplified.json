@@ -134,6 +134,7 @@
   "WorldMap.ActivePlayerRaidLabel": "正在被玩家进攻",
   "WorldMap.AttackingPlayerLabel": "正在进攻玩家",
   "Server.LogFilePath": "ClashOfRim 网络服务器文件日志：{PATH}",
+  "Server.WorldExtensionsRecovered": "已从 {COUNT} 个最新快照补齐世界配置扩展。",
   "Server.MaxRequestBodySize": "服务器最大请求体：{BYTES} 字节。",
   "Server.LocalizationLoaded": "服务器本地化已加载：{LANGUAGES}",
   "Server.LanguageUnavailable": "配置的服务器语言 {LANGUAGE} 不存在于本地化资源中。",
