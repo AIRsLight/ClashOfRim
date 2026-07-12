@@ -36,6 +36,8 @@ public sealed record SnapshotPostUploadExtraData(
     IReadOnlyCollection<SnapshotAchievementCandidateDto>? AchievementCandidates)
 {
     public static SnapshotPostUploadExtraData Empty { get; } = new(null, null, null);
+
+    public RaidSettlementPostUploadData? RaidSettlement { get; init; }
 }
 
 public sealed record SnapshotPostUploadContext(
@@ -87,6 +89,19 @@ public interface IDeferredSnapshotPostUploadProcessor : ISnapshotPostUploadProce
     string CapturePayload(SnapshotPostUploadContext context);
 
     void ProcessDeferred(SnapshotPostUploadDeferredContext context);
+}
+
+public interface IScheduledDeferredSnapshotPostUploadProcessor : IDeferredSnapshotPostUploadProcessor
+{
+    SnapshotPostUploadJobRecord Schedule(SnapshotPostUploadContext context);
+}
+
+public interface IRecoverableDeferredSnapshotPostUploadProcessor : IDeferredSnapshotPostUploadProcessor
+{
+    void RecoverPrepared(
+        ClashOfRimNetworkState state,
+        SnapshotPostUploadJobRecord job,
+        DateTimeOffset nowUtc);
 }
 
 public static class SnapshotPostUploadPipeline
@@ -150,8 +165,15 @@ public static class SnapshotPostUploadPipeline
                         $"Deferred snapshot post-upload processor '{processor.Id}' does not implement {nameof(IDeferredSnapshotPostUploadProcessor)}.");
                 }
 
-                string payloadJson = deferredProcessor.CapturePayload(context);
-                context.State.SnapshotPostUploadJobs.Enqueue(processor.Id, context, payloadJson);
+                if (deferredProcessor is IScheduledDeferredSnapshotPostUploadProcessor scheduledProcessor)
+                {
+                    scheduledProcessor.Schedule(context);
+                }
+                else
+                {
+                    string payloadJson = deferredProcessor.CapturePayload(context);
+                    context.State.SnapshotPostUploadJobs.Enqueue(processor.Id, context, payloadJson);
+                }
             }
             else
             {

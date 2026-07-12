@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using AIRsLight.ClashOfRim.Events;
+using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Save;
 using Microsoft.Extensions.Logging;
 
@@ -179,13 +180,6 @@ public static class RaidSettlementOperationExecutor
                 return ManualReview(state, payload.RaidEventId, "Raid defender snapshot changed before settlement commit.");
             }
 
-            packageStore.StoreLatest(editedPackage, editedPackage.Index, nowUtc);
-            state.Players.RecordLatestSnapshotReference(
-                payload.DefenderUserId,
-                payload.DefenderColonyId,
-                editedPackage.Envelope.Identity.SnapshotId,
-                nowUtc);
-
             record = RaidSettlementLedgerRecorder.Record(
                 state.Ledger,
                 sourceRaid.EventId,
@@ -201,6 +195,13 @@ public static class RaidSettlementOperationExecutor
                     record.SettlementEvent?.EventId,
                     record.FailureReason ?? $"Raid settlement ledger rejected result {record.Kind}.");
             }
+
+            packageStore.StoreLatest(editedPackage, editedPackage.Index, nowUtc);
+            state.Players.RecordLatestSnapshotReference(
+                payload.DefenderUserId,
+                payload.DefenderColonyId,
+                editedPackage.Envelope.Identity.SnapshotId,
+                nowUtc);
 
             if (string.IsNullOrWhiteSpace(sourceRaid.DeliveredToSnapshotId))
             {
@@ -247,6 +248,20 @@ public static class RaidSettlementOperationExecutor
         DateTimeOffset nowUtc)
     {
         string appliedSnapshotId = defenderSnapshotId ?? sourceRaid.AppliedSnapshotId ?? "raid-settlement";
+        state.Players.RecordLatestSnapshotReference(
+            sourceRaid.Target.UserId,
+            sourceRaid.Target.ColonyId ?? string.Empty,
+            appliedSnapshotId,
+            nowUtc);
+        if (string.IsNullOrWhiteSpace(sourceRaid.DeliveredToSnapshotId))
+        {
+            state.Ledger.MarkDelivered(
+                sourceRaid.EventId,
+                sourceRaid.Payload is RaidEventPayload raidPayload
+                    ? raidPayload.DefenderSnapshotId
+                    : appliedSnapshotId,
+                nowUtc);
+        }
         state.Ledger.MarkApplied(sourceRaid.EventId, appliedSnapshotId, nowUtc);
         state.Ledger.ReportApplicationResult(
             sourceRaid.EventId,

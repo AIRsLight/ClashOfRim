@@ -8,6 +8,12 @@ public enum RaidSettlementOrigin
     OfflineTimeout
 }
 
+public sealed record RaidSettlementPostUploadData(
+    string RaidEventId,
+    byte[] EvidencePayload,
+    RaidSettlementOrigin Origin,
+    string? ClientApplicationResult);
+
 public sealed record RaidSettlementDeferredPayload(
     string RaidEventId,
     string AttackerUserId,

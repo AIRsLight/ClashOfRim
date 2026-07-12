@@ -86,7 +86,8 @@ public static partial class ClashOfRimNetworkServer
                     SnapshotPostUploadKind.AuthoritativeColonySnapshot,
                     SnapshotPostUploadKind.RaidSettlementEvidence
                 },
-                ConfirmPendingOperationsFromSnapshot)
+                ConfirmPendingOperationsFromSnapshot),
+            new RaidSettlementPostUploadProcessor()
         };
 
     private static IReadOnlyList<ISnapshotPostUploadProcessor> ResolveSnapshotPostUploadProcessors(

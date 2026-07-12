@@ -19,6 +19,37 @@ public static class SnapshotPostUploadJobExecutor
             .Where(processor => processor.ExecutionMode == SnapshotPostUploadExecutionMode.Deferred)
             .GroupBy(processor => processor.Id, StringComparer.Ordinal)
             .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
+        foreach (SnapshotPostUploadJobRecord job in state.SnapshotPostUploadJobs.ListPrepared(nowUtc))
+        {
+            if (!deferredById.TryGetValue(job.ProcessorId, out IDeferredSnapshotPostUploadProcessor? deferred)
+                || deferred is not IRecoverableDeferredSnapshotPostUploadProcessor recoverable
+                || !recoverable.Supports(job.Kind))
+            {
+                MarkFailed(
+                    state,
+                    job,
+                    $"Prepared snapshot post-upload processor '{job.ProcessorId}' is not currently recoverable.",
+                    nowUtc);
+                continue;
+            }
+
+            try
+            {
+                recoverable.RecoverPrepared(state, job, nowUtc);
+            }
+            catch (Exception ex)
+            {
+                state.RuntimeLogger.LogWarning(
+                    ex,
+                    "Prepared snapshot post-upload job recovery failed: processor={ProcessorId} kind={Kind} snapshot={SnapshotId} attempt={Attempt}",
+                    job.ProcessorId,
+                    job.Kind,
+                    job.SnapshotId,
+                    job.AttemptCount + 1);
+                MarkFailed(state, job, ex.Message, nowUtc);
+            }
+        }
+
         int completed = 0;
         foreach (SnapshotPostUploadJobRecord job in state.SnapshotPostUploadJobs.ListReady(nowUtc))
         {

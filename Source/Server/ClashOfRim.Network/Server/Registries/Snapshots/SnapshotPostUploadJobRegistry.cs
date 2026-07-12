@@ -107,12 +107,13 @@ public sealed class SnapshotPostUploadJobRegistry
         }
     }
 
-    public IReadOnlyList<SnapshotPostUploadJobRecord> ListPrepared()
+    public IReadOnlyList<SnapshotPostUploadJobRecord> ListPrepared(DateTimeOffset? nowUtc = null)
     {
         lock (gate)
         {
             return jobsById.Values
-                .Where(job => job.State == SnapshotPostUploadJobState.Prepared)
+                .Where(job => job.State == SnapshotPostUploadJobState.Prepared
+                    && (!nowUtc.HasValue || job.NextAttemptAtUtc <= nowUtc.Value))
                 .OrderBy(job => job.OccurredAtUtc)
                 .ThenBy(job => job.JobId, StringComparer.Ordinal)
                 .ToList();

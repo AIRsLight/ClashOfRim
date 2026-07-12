@@ -1,4 +1,5 @@
 using AIRsLight.ClashOfRim.Network.Plugins.DlcCompatibility;
+using AIRsLight.ClashOfRim.Network.Plugins;
 using AIRsLight.ClashOfRim.Network;
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Protocol;
@@ -56,6 +57,7 @@ var tests = new (string Name, Action Run)[]
     ("袭击结算纳入防守方种植区植物损失", VerifyRaidSettlementIncludesGrowingZonePlants),
     ("袭击结算编辑防守方快照而不是保存战斗快照", VerifyRaidSettlementSnapshotEditor),
     ("袭击结算执行器幂等编辑防守方快照", VerifyRaidSettlementOperationExecutor),
+    ("袭击结算后处理器只异步处理袭击证据", VerifyRaidSettlementPostUploadProcessor),
     ("袭击结算把战场覆盖层带回防守方快照", VerifyRaidSettlementSnapshotEditorAddsBattlefieldResidues),
     ("第三方存储兼容解析容器内物品", VerifyAdaptiveStorageSaveIndexExtension),
     ("第三方载具兼容解析货物和乘员", VerifyVehicleFrameworkSaveIndexExtension),
@@ -2406,6 +2408,130 @@ static void VerifyRaidSettlementOperationExecutor()
             1,
             ledger.ListAll().Count(evt => evt.IdempotencyKey == "raid-settlement:" + raid.EventId),
             "重复结算不得创建第二个结算事件");
+    }
+    finally
+    {
+        if (Directory.Exists(root))
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+}
+
+static void VerifyRaidSettlementPostUploadProcessor()
+{
+    string root = Path.Combine(Path.GetTempPath(), "clashofrim-raid-processor-" + Guid.NewGuid().ToString("N"));
+    try
+    {
+        SaveSnapshotPackage original = XmlSettlementPackage(
+            new SnapshotIdentity("processor-defender", "processor-defender-colony", "processor-defender-base"),
+            """
+            <?xml version="1.0" encoding="utf-8"?>
+            <savegame>
+              <meta><gameVersion>1.6-test</gameVersion></meta>
+              <game>
+                <components>
+                  <li Class="AIRsLight.ClashOfRim.ClashOfRimGameComponent">
+                    <clashOfRimLineageSnapshotId>processor-defender-base</clashOfRimLineageSnapshotId>
+                    <clashOfRimLineageToken>processor-defender-token</clashOfRimLineageToken>
+                  </li>
+                </components>
+                <maps><li><uniqueID>0</uniqueID><things><thing Class="ThingWithComps"><id>steel-stack</id><def>Steel</def><stackCount>10</stackCount></thing></things></li></maps>
+              </game>
+            </savegame>
+            """);
+        SaveSnapshotPackage evidence = XmlSettlementPackage(
+            new SnapshotIdentity("processor-attacker", "processor-attacker-colony", "processor-evidence"),
+            """
+            <?xml version="1.0" encoding="utf-8"?>
+            <savegame>
+              <meta><gameVersion>1.6-test</gameVersion></meta>
+              <game><maps><li><uniqueID>0</uniqueID><things /></li></maps></game>
+            </savegame>
+            """);
+        var snapshots = new FileColonySnapshotIndexStore(root);
+        snapshots.StoreLatest(original, original.Index, DateTimeOffset.UnixEpoch);
+        var ledger = new InMemoryAuthoritativeEventLedger();
+        var jobs = new SnapshotPostUploadJobRegistry();
+        var artifacts = new InMemorySnapshotPostUploadArtifactStore();
+        var state = new ClashOfRimNetworkState(
+            ledger: ledger,
+            snapshotStore: snapshots,
+            snapshotPostUploadJobs: jobs,
+            snapshotPostUploadArtifacts: artifacts);
+        DateTimeOffset now = DateTimeOffset.UnixEpoch.AddHours(2);
+        AuthoritativeEvent raid = AuthoritativeEventFactory.Create(
+            ServerEventType.Raid,
+            new EventParty("processor-attacker", "processor-attacker-colony", "Faction_Attacker"),
+            new EventParty("processor-defender", "processor-defender-colony", "Faction_Defender"),
+            "raid-processor-test",
+            targetOnline: false,
+            new RaidEventPayload(
+                "processor-defender-base",
+                ReturnedSnapshotId: null,
+                StartedAtUtc: now.AddMinutes(-1),
+                FinishedAtUtc: null,
+                Settlement: null,
+                AttackForce: new RaidAttackForceRecord(
+                    "processor-attacker-before",
+                    Array.Empty<string>(),
+                    Array.Empty<EventThingReference>())),
+            now.AddMinutes(-1),
+            new EventTargetContext("WorldObject_Defender", "Map_0", 100, EventLandingMode.MapEdge));
+        raid = ledger.Append(raid).Event;
+        var processor = new RaidSettlementPostUploadProcessor();
+
+        Require(!processor.Supports(SnapshotPostUploadKind.AuthoritativeColonySnapshot), "普通自动保存必须短路袭击结算处理器");
+        SnapshotPostUploadPipeline.Run(
+            new SnapshotPostUploadContext(
+                state,
+                SnapshotPostUploadKind.AuthoritativeColonySnapshot,
+                new LatestSnapshotRecord(evidence.Envelope.Identity, evidence.Envelope, evidence.Index, now),
+                "processor-attacker",
+                "processor-attacker-colony",
+                SessionId: null,
+                now,
+                SnapshotPostUploadExtraData.Empty,
+                RegisterPlayerColonySite: true),
+            new ISnapshotPostUploadProcessor[] { processor });
+        Equal(0, jobs.ListReady(DateTimeOffset.MaxValue).Count, "普通自动保存不得创建袭击结算任务");
+
+        var extraData = SnapshotPostUploadExtraData.Empty with
+        {
+            RaidSettlement = new RaidSettlementPostUploadData(
+                raid.EventId,
+                evidence.Payload,
+                RaidSettlementOrigin.OnlineEvidence,
+                "Applied")
+        };
+        SnapshotPostUploadPipeline.Run(
+            new SnapshotPostUploadContext(
+                state,
+                SnapshotPostUploadKind.RaidSettlementEvidence,
+                new LatestSnapshotRecord(evidence.Envelope.Identity, evidence.Envelope, evidence.Index, now),
+                "processor-attacker",
+                "processor-attacker-colony",
+                SessionId: null,
+                now,
+                extraData,
+                RegisterPlayerColonySite: false),
+            new ISnapshotPostUploadProcessor[] { processor });
+
+        SnapshotPostUploadJobRecord queued = jobs.ListReady(now).Single();
+        RaidSettlementDeferredPayload queuedPayload = RaidSettlementDeferredPayload.Deserialize(queued.PayloadJson);
+        Equal(ServerEventStatus.PendingOfflineDelivery, ledger.Find(raid.EventId)!.Status, "排队后源袭击仍应保持未结算");
+        Require(artifacts.Exists(queuedPayload.EvidenceArtifactId), "排队时应保留不可变袭击证据");
+
+        Equal(
+            1,
+            SnapshotPostUploadJobExecutor.ProcessReady(
+                state,
+                new ISnapshotPostUploadProcessor[] { processor },
+                now),
+            "后台执行器应完成袭击结算任务");
+        Equal(ServerEventStatus.AppliedToSnapshot, ledger.Find(raid.EventId)!.Status, "后台结算完成后源袭击应标记已应用");
+        Equal(0, jobs.ListReady(DateTimeOffset.MaxValue).Count, "完成的袭击结算任务应移除");
+        Require(!artifacts.Exists(queuedPayload.EvidenceArtifactId), "完成后应删除袭击证据制品");
     }
     finally
     {

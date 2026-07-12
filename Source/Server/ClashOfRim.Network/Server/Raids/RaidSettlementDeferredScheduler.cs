@@ -43,7 +43,9 @@ public static class RaidSettlementDeferredScheduler
         SnapshotPostUploadJobRecord? existing = state.SnapshotPostUploadJobs.Find(jobId);
         if (existing is not null)
         {
-            return existing;
+            return existing.State == SnapshotPostUploadJobState.Prepared
+                ? RecoverPrepared(state, existing, request.Context.OccurredAtUtc)
+                : existing;
         }
 
         string artifactId = BuildArtifactId(raid.EventId, evidenceSnapshotId);
@@ -65,6 +67,7 @@ public static class RaidSettlementDeferredScheduler
 
         state.SnapshotPostUploadArtifacts.Store(artifactId, evidencePackage);
         bool jobPersisted = false;
+        bool evidenceInstalled = false;
         try
         {
             SnapshotPostUploadJobRecord prepared = state.SnapshotPostUploadJobs.EnqueuePrepared(
@@ -90,20 +93,62 @@ public static class RaidSettlementDeferredScheduler
                     attackerColonyId,
                     evidenceSnapshotId,
                     request.Context.OccurredAtUtc);
+                evidenceInstalled = true;
             }
 
             return state.SnapshotPostUploadJobs.MarkReady(prepared.JobId, request.Context.OccurredAtUtc);
         }
         catch
         {
-            if (jobPersisted)
+            if (jobPersisted && !evidenceInstalled)
             {
                 state.SnapshotPostUploadJobs.MarkCompleted(jobId);
             }
 
-            state.SnapshotPostUploadArtifacts.Delete(artifactId);
+            if (!evidenceInstalled)
+            {
+                state.SnapshotPostUploadArtifacts.Delete(artifactId);
+            }
             throw;
         }
+    }
+
+    public static SnapshotPostUploadJobRecord RecoverPrepared(
+        ClashOfRimNetworkState state,
+        SnapshotPostUploadJobRecord job,
+        DateTimeOffset nowUtc)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        ArgumentNullException.ThrowIfNull(job);
+        if (job.State != SnapshotPostUploadJobState.Prepared
+            || !string.Equals(job.ProcessorId, ProcessorId, StringComparison.Ordinal))
+        {
+            return job;
+        }
+
+        RaidSettlementDeferredPayload payload = RaidSettlementDeferredPayload.Deserialize(job.PayloadJson);
+        SaveSnapshotPackage evidencePackage = state.SnapshotPostUploadArtifacts.Read(payload.EvidenceArtifactId)
+            ?? throw new IOException($"Raid settlement evidence artifact '{payload.EvidenceArtifactId}' was not found.");
+        if (state.SnapshotStore is not IColonySnapshotPackageStore packageStore)
+        {
+            throw new InvalidOperationException("Raid settlement requires a snapshot package store.");
+        }
+
+        lock (state.RaidSettlementSnapshotMutationGate)
+        {
+            LatestSnapshotRecord? latest = packageStore.GetLatest(payload.AttackerUserId, payload.AttackerColonyId);
+            if (!string.Equals(latest?.Identity.SnapshotId, payload.EvidenceSnapshotId, StringComparison.Ordinal))
+            {
+                packageStore.StoreLatest(evidencePackage, evidencePackage.Index, job.OccurredAtUtc);
+                state.Players.RecordLatestSnapshotReference(
+                    payload.AttackerUserId,
+                    payload.AttackerColonyId,
+                    payload.EvidenceSnapshotId,
+                    job.OccurredAtUtc);
+            }
+        }
+
+        return state.SnapshotPostUploadJobs.MarkReady(job.JobId, nowUtc);
     }
 
     private static string BuildArtifactId(string raidEventId, string evidenceSnapshotId)
