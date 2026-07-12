@@ -62,14 +62,6 @@ public static partial class ClashOfRimNetworkServer
         }
 
         bool playerRaidSettlement = IsPlayerRaidSettlementConfirmation(state, request.EventId, request.SourceEventId);
-        SaveSnapshotPackage? originalRaidSnapshot = playerRaidSettlement
-            ? null
-            : ResolveOriginalRaidSnapshotForConfirmation(
-                state,
-                request.EventId,
-                request.UserId,
-                request.ColonyId,
-                request.BaseSnapshotId);
         SnapshotUploadResult upload = ReceiveSnapshot(
             state,
             request.UserId,
@@ -157,10 +149,8 @@ public static partial class ClashOfRimNetworkServer
             request.ColonyId,
             request.BaseSnapshotId,
             upload.AcceptedSnapshot,
-            originalRaidSnapshot,
             state,
-            nowUtc,
-            acceptedSnapshotPayload: null);
+            nowUtc);
 
         return Results.Ok(new ConfirmEventApplicationResponse(
             result.Result,
@@ -260,7 +250,6 @@ public static partial class ClashOfRimNetworkServer
                 request.ColonyId,
                 request.BaseSnapshotId,
                 upload.AcceptedSnapshot,
-                originalRaidSnapshot: null,
                 state,
                 nowUtc));
         }
@@ -278,10 +267,8 @@ public static partial class ClashOfRimNetworkServer
         string colonyId,
         string baseSnapshotId,
         LatestSnapshotRecord acceptedSnapshot,
-        SaveSnapshotPackage? originalRaidSnapshot,
         ClashOfRimNetworkState state,
-        DateTimeOffset nowUtc,
-        byte[]? acceptedSnapshotPayload = null)
+        DateTimeOffset nowUtc)
     {
         AuthoritativeEvent? ledgerEvent = state.Ledger.Find(application.EventId);
         if (ledgerEvent is not null
@@ -304,24 +291,6 @@ public static partial class ClashOfRimNetworkServer
                 ToProtocolResponse(giftResult),
                 giftResult.AppliedSnapshotId,
                 giftResult.Kind.ToString());
-        }
-
-        if (ledgerEvent is not null
-            && ledgerEvent.Type == ServerEventType.Raid
-            && ledgerEvent.Payload is RaidEventPayload { OpponentKind: RaidOpponentKind.Player, AttackerLoss: null } raidPayload
-            && string.IsNullOrWhiteSpace(application.SourceEventId))
-        {
-            return ConfirmPlayerRaidSettlementAfterSnapshot(
-                application,
-                userId,
-                colonyId,
-                acceptedSnapshot,
-                originalRaidSnapshot,
-                ledgerEvent,
-                raidPayload,
-                state,
-                nowUtc,
-                acceptedSnapshotPayload);
         }
 
         if (ledgerEvent is not null

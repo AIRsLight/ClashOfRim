@@ -964,6 +964,10 @@ static void VerifyRaidTimeoutProcessing()
             .OfType<RaidEventPayload>()
             .Any(payload => payload.Settlement != null || payload.ReturnedSnapshotId != null),
         "没有最终结算快照时，超时不应凭空生成防守方损失结算");
+    Equal(
+        1,
+        RaidUnsettledProjector.BuildForDefender("user-b", "colony-b", ledger.ListAll()).Count,
+        "超时源袭击在后台结算完成前仍应锁定防守方登录");
 
     RaidDefenseLockStatus lockStatus = RaidDefenseLockProjector.BuildForDefender(
         "user-b",

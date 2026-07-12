@@ -43,7 +43,7 @@ public static class RaidUnsettledProjector
                 }
             }
 
-            if (IsUnsettledSourceRaid(evt)
+            if (IsUnsettledSourceRaid(evt, includeFailedAwaitingSettlement: true)
                 && string.Equals(evt.Target.UserId, defenderUserId, StringComparison.Ordinal)
                 && (string.IsNullOrWhiteSpace(defenderColonyId) ||
                     string.Equals(evt.Target.ColonyId, defenderColonyId, StringComparison.Ordinal)))
@@ -75,7 +75,7 @@ public static class RaidUnsettledProjector
         ArgumentNullException.ThrowIfNull(events);
 
         return events
-            .Where(IsUnsettledSourceRaid)
+            .Where(evt => IsUnsettledSourceRaid(evt))
             .Where(evt => string.Equals(evt.Actor.UserId, attackerUserId, StringComparison.Ordinal))
             .Where(evt => string.IsNullOrWhiteSpace(attackerColonyId) ||
                 string.Equals(evt.Actor.ColonyId, attackerColonyId, StringComparison.Ordinal))
@@ -83,7 +83,9 @@ public static class RaidUnsettledProjector
             .ToList();
     }
 
-    private static bool IsUnsettledSourceRaid(AuthoritativeEvent evt)
+    private static bool IsUnsettledSourceRaid(
+        AuthoritativeEvent evt,
+        bool includeFailedAwaitingSettlement = false)
     {
         if (evt.Type != ServerEventType.Raid ||
             evt.Payload is not RaidEventPayload payload ||
@@ -104,8 +106,8 @@ public static class RaidUnsettledProjector
         }
 
         return evt.Status is not ServerEventStatus.Cancelled
-            and not ServerEventStatus.Failed
-            and not ServerEventStatus.RejectedByTarget;
+            and not ServerEventStatus.RejectedByTarget
+            && (includeFailedAwaitingSettlement || evt.Status != ServerEventStatus.Failed);
     }
 
     private static bool IsUnsettledForAttacker(

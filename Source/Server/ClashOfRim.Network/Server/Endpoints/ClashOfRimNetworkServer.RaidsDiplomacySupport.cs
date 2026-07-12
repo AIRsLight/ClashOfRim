@@ -1,4 +1,5 @@
 using AIRsLight.ClashOfRim.Events;
+using AIRsLight.ClashOfRim.Network.Plugins;
 using AIRsLight.ClashOfRim.Network.Plugins.CoreCompatibility;
 using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Save;
@@ -2172,114 +2173,50 @@ public static partial class ClashOfRimNetworkServer
                 continue;
             }
 
-            string targetMapId = raid.TargetContext?.MapUniqueId ?? string.Empty;
-            string returnedMapId = ResolveRaidSettlementEvidenceMapId(attackerEvidencePackage.Index, targetMapId, raid.EventId);
-            RaidSettlementReturnResult settlement = RaidSettlementReturnProcessor.Process(
-                new RaidSettlementReturnRequest(
-                    raid.EventId,
-                    originalDefensePackage.Envelope.Identity,
-                    originalDefensePackage,
-                    attackerEvidencePackage,
-                    targetMapId,
-                    LossRatio: state.ServerConfiguration.RaidSettlementLossRatio,
-                    PackableBuildingDefNames: state.AdminBaseline.Current?.PackableBuildingDefNames,
-                    BuildingMaxHitPointsByDefName: state.AdminBaseline.Current?.EstimatedSettlementMaxHitPointsByDefName,
-                    StuffHitPointFactorByDefName: state.AdminBaseline.Current?.StuffHitPointFactorByDefName,
-                    StuffHitPointOffsetByDefName: state.AdminBaseline.Current?.StuffHitPointOffsetByDefName,
-                    MinimumRemainingHitPointsRatio: state.ServerConfiguration.RaidSettlementMinimumRemainingHitPointsRatio,
-                    IgnoredThingDefNames: state.Plugins.ActiveIgnoredRaidSettlementThingDefNames(state.CompatibilityBaseline.Current),
-                    ReturnedMapUniqueId: returnedMapId,
-                    BuildingHitPointsLossRatio: state.ServerConfiguration.RaidSettlementBuildingHitPointsLossRatio,
-                    TrapDefNames: state.AdminBaseline.Current?.ApprovedTrapDefNames));
-
-            if (!settlement.Accepted)
+            try
             {
-                state.RuntimeLogger.LogWarning(
-                    "Offline raid timeout settlement rejected: raid={RaidEventId} attacker={AttackerUserId}/{AttackerColonyId} defender={DefenderUserId}/{DefenderColonyId} kind={SettlementKind} returnedMap={ReturnedMapId}",
+                var context = new SnapshotPostUploadContext(
+                    state,
+                    SnapshotPostUploadKind.RaidSettlementEvidence,
+                    new LatestSnapshotRecord(
+                        attackerEvidencePackage.Envelope.Identity,
+                        attackerEvidencePackage.Envelope,
+                        attackerEvidencePackage.Index,
+                        nowUtc),
+                    attackerUserId,
+                    attackerColonyId,
+                    SessionId: null,
+                    nowUtc,
+                    SnapshotPostUploadExtraData.Empty,
+                    RegisterPlayerColonySite: false);
+                SnapshotPostUploadJobRecord job = RaidSettlementDeferredScheduler.Schedule(
+                    state,
+                    new RaidSettlementScheduleRequest(
+                        raid.EventId,
+                        context,
+                        attackerEvidencePackage.Payload,
+                        RaidSettlementOrigin.OfflineTimeout,
+                        ClientApplicationResult: "OfflineTimeout"));
+                state.RuntimeLogger.LogInformation(
+                    "Queued offline raid timeout settlement: raid={RaidEventId} job={JobId} attacker={AttackerUserId}/{AttackerColonyId} defender={DefenderUserId}/{DefenderColonyId} evidence={EvidenceSnapshotId}",
                     raid.EventId,
+                    job.JobId,
                     attackerUserId,
                     attackerColonyId,
                     defenderUserId,
                     defenderColonyId,
-                    settlement.Kind,
-                    returnedMapId);
-                RaidSettlementLedgerRecorder.Record(
-                    state.Ledger,
-                    raid.EventId,
-                    settlement,
-                    nowUtc,
-                    defenderOnline: false);
-                continue;
+                    attackerEvidencePackage.Envelope.Identity.SnapshotId);
             }
-
-            string editedSnapshotId = BuildRaidSettlementSnapshotId(defenderColonyId, raid.EventId, nowUtc);
-            SaveSnapshotPackage editedDefensePackage;
-            try
-            {
-                editedDefensePackage = RaidSettlementSnapshotEditor.ApplySettlementLosses(
-                    originalDefensePackage,
-                    settlement,
-                    editedSnapshotId,
-                    nowUtc,
-                    state.Plugins.ActiveRaidSettlementSnapshotEditorExtensions(state.CompatibilityBaseline.Current));
-            }
-            catch (Exception ex) when (ex is InvalidOperationException or IOException or System.Xml.XmlException)
+            catch (Exception ex) when (ex is InvalidOperationException or IOException)
             {
                 state.RuntimeLogger.LogWarning(
                     ex,
-                    "Offline raid timeout defender snapshot edit failed: raid={RaidEventId} defender={DefenderUserId}/{DefenderColonyId} editedSnapshot={EditedSnapshotId}",
+                    "Offline raid timeout settlement could not be queued: raid={RaidEventId} attacker={AttackerUserId}/{AttackerColonyId} defender={DefenderUserId}/{DefenderColonyId}",
                     raid.EventId,
+                    attackerUserId,
+                    attackerColonyId,
                     defenderUserId,
-                    defenderColonyId,
-                    editedSnapshotId);
-                state.Ledger.ReportApplicationResult(
-                    raid.EventId,
-                    EventApplicationResultKind.NeedsManualReview,
-                    T("Raid.SettlementSnapshotEditFailed", ("MESSAGE", ex.Message)),
-                    nextRetryAtUtc: null);
-                continue;
-            }
-
-            if (!string.Equals(editedDefensePackage.Envelope.Identity.OwnerId, defenderUserId, StringComparison.Ordinal)
-                || !string.Equals(editedDefensePackage.Envelope.Identity.ColonyId, defenderColonyId, StringComparison.Ordinal))
-            {
-                state.RuntimeLogger.LogWarning(
-                    "Offline raid timeout defender snapshot identity mismatch: raid={RaidEventId} expected={ExpectedUserId}/{ExpectedColonyId} actual={ActualUserId}/{ActualColonyId}",
-                    raid.EventId,
-                    defenderUserId,
-                    defenderColonyId,
-                    editedDefensePackage.Envelope.Identity.OwnerId,
-                    editedDefensePackage.Envelope.Identity.ColonyId);
-                state.Ledger.ReportApplicationResult(
-                    raid.EventId,
-                    EventApplicationResultKind.NeedsManualReview,
-                    T("Raid.SettlementSnapshotIdentityMismatch"),
-                    nextRetryAtUtc: null);
-                continue;
-            }
-
-            packageStore.StoreLatest(editedDefensePackage, editedDefensePackage.Index, nowUtc);
-            RecordLatestSnapshotReference(
-                state,
-                defenderUserId,
-                defenderColonyId,
-                new LatestSnapshotRecord(editedDefensePackage.Envelope.Identity, editedDefensePackage.Envelope, editedDefensePackage.Index, nowUtc),
-                nowUtc);
-
-            RaidSettlementLedgerRecordResult record = RaidSettlementLedgerRecorder.Record(
-                state.Ledger,
-                raid.EventId,
-                settlement,
-                nowUtc,
-                defenderOnline: false);
-            if (record.Kind is RaidSettlementLedgerRecordResultKind.SettlementEventCreated
-                or RaidSettlementLedgerRecordResultKind.SettlementEventAlreadyExists)
-            {
-                state.Ledger.ReportApplicationResult(
-                    raid.EventId,
-                    EventApplicationResultKind.Applied,
-                    failureReason: null,
-                    nextRetryAtUtc: null);
+                    defenderColonyId);
             }
         }
     }
