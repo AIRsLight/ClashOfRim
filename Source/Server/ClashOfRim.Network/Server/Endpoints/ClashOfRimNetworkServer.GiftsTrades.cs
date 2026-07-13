@@ -610,18 +610,13 @@ public static partial class ClashOfRimNetworkServer
         string? defenderColonyId,
         DateTimeOffset nowUtc)
     {
-        RaidCooldownStatus cooldown = RaidCooldownProjector.BuildForDefender(
-            defenderUserId,
-            defenderColonyId,
-            state.Ledger.ListByTypeForTarget(ServerEventType.Raid, defenderUserId, defenderColonyId),
-            policy: BuildRaidCooldownPolicy(state.ServerConfiguration),
-            defenderProtectionStartResolver: raid => ResolveRaidProtectionActivatedAt(state, raid),
-            requireDefenderProtectionActivation: true);
-        return cooldown.Records
-            .Where(record => record.CooldownUntilUtc > nowUtc)
-            .OrderByDescending(record => record.CooldownUntilUtc)
-            .Select(record => (DateTimeOffset?)record.CooldownUntilUtc)
-            .FirstOrDefault();
+        return string.IsNullOrWhiteSpace(defenderColonyId)
+            ? null
+            : RaidCooldownRuntimeService.CurrentUntil(
+                state,
+                defenderUserId,
+                defenderColonyId,
+                nowUtc);
     }
 
     private static bool IsForcedGiftDelivery(CreateGiftRequest request)

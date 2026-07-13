@@ -35,6 +35,7 @@ public sealed class ClashOfRimNetworkState
         ThingPackageRegistry? thingPackages = null,
         RaidPreparationRegistry? raidPreparations = null,
         RaidProtectionActivationRegistry? raidProtectionActivations = null,
+        RaidCooldownOverrideRegistry? raidCooldownOverrides = null,
         BankLoanRegistry? bankLoans = null,
         MercenaryContractRegistry? mercenaryContracts = null,
         MercenaryGuardContractRegistry? mercenaryGuards = null,
@@ -73,6 +74,7 @@ public sealed class ClashOfRimNetworkState
         ThingPackages = thingPackages ?? new ThingPackageRegistry();
         RaidPreparations = raidPreparations ?? new RaidPreparationRegistry();
         RaidProtectionActivations = raidProtectionActivations ?? new RaidProtectionActivationRegistry();
+        RaidCooldownOverrides = raidCooldownOverrides ?? new RaidCooldownOverrideRegistry();
         BankLoans = bankLoans ?? new BankLoanRegistry();
         MercenaryContracts = mercenaryContracts ?? new MercenaryContractRegistry();
         MercenaryGuards = mercenaryGuards ?? new MercenaryGuardContractRegistry();
@@ -160,6 +162,8 @@ public sealed class ClashOfRimNetworkState
     public RaidPreparationRegistry RaidPreparations { get; }
 
     public RaidProtectionActivationRegistry RaidProtectionActivations { get; }
+
+    public RaidCooldownOverrideRegistry RaidCooldownOverrides { get; }
 
     public BankLoanRegistry BankLoans { get; }
 

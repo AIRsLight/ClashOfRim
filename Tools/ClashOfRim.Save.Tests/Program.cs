@@ -232,6 +232,7 @@ static void VerifyServerDatabaseMigrationCreatesDomainRegistryTables()
 
         ServerDatabaseMigrationResult result = ServerDatabaseMigrator.Migrate(path);
         Require(result.AppliedMigrations.Contains("6->7"), "迁移结果应记录 6->7");
+        Require(result.AppliedMigrations.Contains("7->8"), "迁移结果应记录 7->8");
 
         string[] expectedTables =
         [
@@ -245,6 +246,8 @@ static void VerifyServerDatabaseMigrationCreatesDomainRegistryTables()
             "server_shop_completed_purchases",
             "server_diplomacy_relations",
             "server_raid_protection_activations",
+            "server_raid_cooldown_overrides",
+            "server_raid_cooldown_suppressions",
             "server_chat_messages",
             "server_achievement_events",
             "server_achievement_aggregates",

@@ -144,6 +144,10 @@ internal static class ServerConsoleCommandService
                 RequireArgs(args, 2, T("Cli.UsageRetryPostUpload"));
                 RetryPostUploadJob(state, args[1]);
                 break;
+            case "setcooldown":
+                RequireArgs(args, 3, T("Cli.UsageSetCooldown"));
+                SetRaidCooldown(state, args[1], args[2]);
+                break;
             case "broadcast":
                 Broadcast(state, args.Skip(1).ToList());
                 break;
@@ -331,6 +335,64 @@ internal static class ServerConsoleCommandService
         state.SnapshotPostUploadJobs.MarkReady(job.JobId, DateTimeOffset.UtcNow);
         state.AdminControl.AddAudit("RetrySnapshotPostUploadJob", ActorUserId, null, job.JobId, DateTimeOffset.UtcNow);
         Console.WriteLine(T("Cli.PostUploadJobRetried", ("JOB", job.JobId)));
+    }
+
+    private static void SetRaidCooldown(
+        ClashOfRimNetworkState state,
+        string userId,
+        string hoursText)
+    {
+        PlayerSessionRecord? player = state.Players.FindByUserId(userId);
+        if (player is null || string.IsNullOrWhiteSpace(player.ColonyId))
+        {
+            Console.WriteLine(T("Cli.PlayerColonyNotFound", ("USER", userId)));
+            return;
+        }
+
+        if (!double.TryParse(
+                hoursText,
+                System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out double hours)
+            || !double.IsFinite(hours)
+            || hours < 0d)
+        {
+            Console.WriteLine(T("Cli.UsageSetCooldown"));
+            return;
+        }
+
+        DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
+        RaidCooldownOverrideRecord record;
+        try
+        {
+            record = RaidCooldownRuntimeService.SetCurrent(
+                state,
+                player.UserId,
+                player.ColonyId,
+                hours,
+                nowUtc);
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            Console.WriteLine(T("Cli.UsageSetCooldown"));
+            return;
+        }
+
+        state.AdminControl.AddAudit(
+            "SetRaidCooldown",
+            ActorUserId,
+            player.UserId,
+            $"colony={player.ColonyId};hours={hours.ToString(System.Globalization.CultureInfo.InvariantCulture)};until={record.CooldownUntilUtc:O}",
+            nowUtc);
+        SignalWorldConfigurationUsers(state);
+        Console.WriteLine(hours == 0d
+            ? T("Cli.RaidCooldownCleared", ("USER", player.UserId), ("COLONY", player.ColonyId))
+            : T(
+                "Cli.RaidCooldownSet",
+                ("USER", player.UserId),
+                ("COLONY", player.ColonyId),
+                ("HOURS", hours.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+                ("UNTIL", record.CooldownUntilUtc.ToString("O", System.Globalization.CultureInfo.InvariantCulture))));
     }
 
     private static void Broadcast(ClashOfRimNetworkState state, IReadOnlyList<string> args)

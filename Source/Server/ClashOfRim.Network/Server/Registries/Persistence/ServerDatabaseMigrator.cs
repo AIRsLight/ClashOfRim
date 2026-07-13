@@ -16,7 +16,7 @@ public static class ServerDatabaseSchema
 {
     // Version 1 is the known JSON-document persistence layout.
     public const int LegacyJsonDocumentVersion = 1;
-    public const int CurrentVersion = 7;
+    public const int CurrentVersion = 8;
 }
 
 public sealed record ServerDatabaseMigrationOptions(int? DeclaredSourceVersion = null);
@@ -81,7 +81,11 @@ public static class ServerDatabaseMigrator
         new(
             FromVersion: 6,
             ToVersion: 7,
-            Apply: CreateDomainRegistryTables)
+            Apply: CreateDomainRegistryTables),
+        new(
+            FromVersion: 7,
+            ToVersion: 8,
+            Apply: CreateRaidCooldownOverrideTables)
     ];
 
     public static ServerDatabaseMigrationAssessment Assess(
@@ -606,6 +610,16 @@ public static class ServerDatabaseMigrator
     {
         _ = context;
         SqliteDomainRegistrySchema.MigrateFromKeyedJson(connection, transaction);
+        return MigrationApplicationResult.None;
+    }
+
+    private static MigrationApplicationResult CreateRaidCooldownOverrideTables(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        MigrationContext context)
+    {
+        _ = context;
+        SqliteRaidCooldownOverrideStore.EnsureTables(connection, transaction);
         return MigrationApplicationResult.None;
     }
 

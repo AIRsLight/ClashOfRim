@@ -26,6 +26,7 @@ VerifyCorruptOfflineAccountRowsAreQuarantined();
 VerifyDomainRegistryStoreAppliesAtomicDeltas();
 VerifyBankRegistryUpdatesOnlyChangedRows();
 VerifyPlayerRegistryUpdatesOnlyChangedRows();
+VerifyRaidCooldownOverrideSemantics();
 await VerifyMultipartClientAddsAuthHeaderAsync();
 VerifyMultipartPreAuthentication();
 VerifyDeferredSnapshotPostUploadEnqueueSemantics();
@@ -203,6 +204,80 @@ static void VerifyDomainRegistryStoreAppliesAtomicDeltas()
         using SqliteCommand generated = verification.CreateCommand();
         generated.CommandText = "select status from server_bank_loans where loan_id = 'loan-a';";
         Equal("Repaid", Convert.ToString(generated.ExecuteScalar()), "专用表生成列应反映最新权威状态");
+    }
+    finally
+    {
+        SqliteConnection.ClearAllPools();
+        if (Directory.Exists(directory))
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+}
+
+static void VerifyRaidCooldownOverrideSemantics()
+{
+    DateTimeOffset nowUtc = DateTimeOffset.Parse("2026-07-14T12:00:00+00:00");
+    RaidCooldownRecord existingRaid = new(
+        "raid-existing",
+        "f",
+        "colony-f",
+        RaidCooldownReason.SettlementCompleted,
+        nowUtc.AddHours(-1),
+        nowUtc.AddDays(3));
+    RaidCooldownRecord futureRaid = existingRaid with
+    {
+        RaidEventId = "raid-future",
+        StartsAtUtc = nowUtc.AddHours(1),
+        CooldownUntilUtc = nowUtc.AddDays(4)
+    };
+
+    var registry = new RaidCooldownOverrideRegistry();
+    registry.SetCurrent(
+        "f",
+        "colony-f",
+        nowUtc,
+        nowUtc.AddHours(2),
+        [existingRaid.RaidEventId]);
+    Equal(
+        nowUtc.AddHours(2),
+        registry.ResolveCurrentUntil("f", "colony-f", nowUtc, [existingRaid]),
+        "管理员设置应覆盖已有袭击冷却");
+
+    DateTimeOffset clearAtUtc = nowUtc.AddMinutes(1);
+    registry.SetCurrent(
+        "f",
+        "colony-f",
+        clearAtUtc,
+        clearAtUtc,
+        [existingRaid.RaidEventId]);
+    Equal(
+        null,
+        registry.ResolveCurrentUntil("f", "colony-f", clearAtUtc, [existingRaid]),
+        "设置零小时应清除当前袭击冷却");
+    Equal(
+        futureRaid.CooldownUntilUtc,
+        registry.ResolveCurrentUntil("f", "colony-f", clearAtUtc, [existingRaid, futureRaid]),
+        "清除当前冷却不得禁用未来袭击产生的保护");
+
+    string directory = Path.Combine(Path.GetTempPath(), "clashofrim-raid-cooldown-" + Guid.NewGuid().ToString("N"));
+    string databasePath = Path.Combine(directory, "server.sqlite");
+    Directory.CreateDirectory(directory);
+    try
+    {
+        var persistent = new RaidCooldownOverrideRegistry(new SqliteRaidCooldownOverrideStore(databasePath));
+        persistent.SetCurrent(
+            "f",
+            "colony-f",
+            nowUtc,
+            nowUtc.AddHours(6),
+            [existingRaid.RaidEventId]);
+
+        var reloaded = new RaidCooldownOverrideRegistry(new SqliteRaidCooldownOverrideStore(databasePath));
+        Equal(
+            nowUtc.AddHours(6),
+            reloaded.ResolveCurrentUntil("f", "colony-f", nowUtc, [existingRaid]),
+            "袭击冷却覆盖应在服务器重启后恢复");
     }
     finally
     {

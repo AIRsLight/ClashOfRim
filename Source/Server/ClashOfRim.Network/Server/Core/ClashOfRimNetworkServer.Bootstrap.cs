@@ -211,6 +211,8 @@ public static partial class ClashOfRimNetworkServer
             raidProtectionActivations: new RaidProtectionActivationRegistry(
                 new SqliteDomainKeyedJsonRecordStore(databasePath, SqliteDomainRegistrySchema.RaidProtectionActivations),
                 legacyPersistence: null),
+            raidCooldownOverrides: new RaidCooldownOverrideRegistry(
+                new SqliteRaidCooldownOverrideStore(databasePath)),
             bankLoans: new BankLoanRegistry(
                 new SqliteDomainKeyedJsonRecordStore(databasePath, SqliteDomainRegistrySchema.BankLoans),
                 legacyPersistence: null),
