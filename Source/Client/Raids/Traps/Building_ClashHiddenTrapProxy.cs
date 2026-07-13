@@ -32,10 +32,12 @@ public sealed class Building_ClashHiddenTrapProxy : Building
 
     public override string LabelMouseover => string.Empty;
 
-    public void BindOriginalTrap(Thing trap)
+    public void BindOriginalTrap(Thing trap, string? sourceThingId = null)
     {
         originalTrap = trap;
-        originalTrapId = trap.ThingID ?? trap.GetUniqueLoadID();
+        originalTrapId = string.IsNullOrWhiteSpace(sourceThingId)
+            ? trap.ThingID ?? trap.GetUniqueLoadID()
+            : sourceThingId!;
         originalTrapDefName = trap.def?.defName ?? string.Empty;
         areaSpringRadiusResolved = false;
         areaSpringRadius = 0f;

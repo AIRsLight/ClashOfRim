@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using AIRsLight.ClashOfRim.RemoteMaps;
 using Verse;
 
 namespace AIRsLight.ClashOfRim.Raids;
@@ -28,6 +29,7 @@ public static class RaidHiddenTrapProxyManager
             IntVec3 position = trap.Position;
             Rot4 rotation = trap.Rotation;
             Map trapMap = trap.Map;
+            string originalTrapId = ResolveOriginalTrapId(trapMap, trap);
             trap.DeSpawn(DestroyMode.Vanish);
 
             Thing proxyThing = ThingMaker.MakeThing(proxyDef);
@@ -38,7 +40,7 @@ public static class RaidHiddenTrapProxyManager
                 continue;
             }
 
-            proxy.BindOriginalTrap(trap);
+            proxy.BindOriginalTrap(trap, originalTrapId);
             GenSpawn.Spawn(proxy, position, trapMap, rotation);
             RaidTrapVisibilityController.RegisterHiddenThing(proxy);
             replaced++;
@@ -50,6 +52,18 @@ public static class RaidHiddenTrapProxyManager
         }
 
         return replaced;
+    }
+
+    private static string ResolveOriginalTrapId(Map map, Thing trap)
+    {
+        string projectedThingId = trap.ThingID ?? trap.GetUniqueLoadID();
+        return RemoteMapThingIdentityResolver.TryResolveOriginalThingId(
+            ClashOfRimGameComponent.CopyRemoteMapThingIdentities(),
+            map.GetUniqueLoadID(),
+            projectedThingId,
+            out string originalThingId)
+            ? originalThingId
+            : projectedThingId;
     }
 
     public static int RestoreUntriggeredProxies(Map map)

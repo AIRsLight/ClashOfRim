@@ -29,7 +29,8 @@ var tests = new (string Name, Action Run)[]
     ("only accepted language warnings can be bypassed", OnlyAcceptedLanguageWarningsCanBeBypassed),
     ("visible compatibility warnings request the full server manifest", VisibleCompatibilityWarningsRequestFullManifest),
     ("selection labels show a single ellipsis", SelectionLabelsShowSingleEllipsis),
-    ("remote projection defers addiction need lookup until pawn needs load", RemoteProjectionDefersAddictionNeedLookup)
+    ("remote projection defers addiction need lookup until pawn needs load", RemoteProjectionDefersAddictionNeedLookup),
+    ("hidden trap proxies retain source snapshot identity", HiddenTrapProxiesRetainSourceSnapshotIdentity)
 };
 
 foreach ((string name, Action run) in tests)
@@ -161,6 +162,26 @@ static void FertilizedEggsRetainProgressButNotParents()
     Assert(restoredHatcher.hatcheeParent is null);
     Assert(restoredHatcher.otherParent is null);
     Assert(ReferenceEquals(restoredHatcher.hatcheeFaction, receivingFaction));
+}
+
+static void HiddenTrapProxiesRetainSourceSnapshotIdentity()
+{
+    var identities = new[]
+    {
+        new RemoteMapThingIdentityRecord
+        {
+            MapUniqueId = "3",
+            ProjectedThingId = "cor_remote_raid_TrapIED_Smoke24411",
+            OriginalThingId = "TrapIED_Smoke24411"
+        }
+    };
+
+    Assert(RemoteMapThingIdentityResolver.TryResolveOriginalThingId(
+        identities,
+        "Map_3",
+        "Thing_cor_remote_raid_TrapIED_Smoke24411",
+        out string originalThingId));
+    Assert(originalThingId == "TrapIED_Smoke24411");
 }
 
 static void IdeologyRelicsAreRejected()

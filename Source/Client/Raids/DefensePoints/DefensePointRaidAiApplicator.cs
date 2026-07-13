@@ -50,6 +50,7 @@ public static class DefensePointRaidAiApplicator
             PreparePawnsForDefenseAi(pawns);
             Lord lord = MakeLordForPoint(map, defenderFaction, point, pawns);
             RefreshLordDuties(lord);
+            StartDefenseJobs(pawns);
             pointLordCount++;
             assignedByMode[point.AiMode] = assignedByMode.TryGetValue(point.AiMode, out int current)
                 ? current + pawns.Count
@@ -75,6 +76,7 @@ public static class DefensePointRaidAiApplicator
                 map,
                 unassigned);
             RefreshLordDuties(fallbackLord);
+            StartDefenseJobs(unassigned);
         }
 
         int pawnsWithLord = 0;
@@ -192,11 +194,29 @@ public static class DefensePointRaidAiApplicator
             RestUtility.WakeUp(pawn, true);
             if (pawn.CurJob is not null)
             {
-                pawn.jobs?.EndCurrentJob(JobCondition.InterruptForced, startNewJob: true, canReturnToPool: true);
+                pawn.jobs?.EndCurrentJob(JobCondition.InterruptForced, startNewJob: false, canReturnToPool: true);
             }
+
+            pawn.jobs?.ClearQueuedJobs();
+            pawn.pather?.StopDead();
 
             pawn.mindState.enemyTarget = null;
             pawn.mindState.meleeThreat = null;
+        }
+    }
+
+    private static void StartDefenseJobs(IEnumerable<Pawn> pawns)
+    {
+        foreach (Pawn pawn in pawns)
+        {
+            if (pawn is null || pawn.Destroyed || pawn.Dead || !pawn.Spawned)
+            {
+                continue;
+            }
+
+            // EndCurrentJob starts a think-tree evaluation even when no current job exists.
+            // Run it only after the new Lord duty has been assigned.
+            pawn.jobs?.EndCurrentJob(JobCondition.InterruptForced, startNewJob: true, canReturnToPool: true);
         }
     }
 }
