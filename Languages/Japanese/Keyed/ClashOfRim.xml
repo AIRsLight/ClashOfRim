@@ -111,6 +111,7 @@
   <ClashOfRim.Compatibility.LocalColumn>ローカル</ClashOfRim.Compatibility.LocalColumn>
   <ClashOfRim.Compatibility.SchemaVersion>MODリストスキーマバージョン</ClashOfRim.Compatibility.SchemaVersion>
   <ClashOfRim.Compatibility.ProtocolVersion>プロトコルバージョン</ClashOfRim.Compatibility.ProtocolVersion>
+  <ClashOfRim.Compatibility.ProtocolVersionLine>プロトコル：サーバー {SERVER} / ローカル {LOCAL}</ClashOfRim.Compatibility.ProtocolVersionLine>
   <ClashOfRim.Compatibility.RimWorldVersion>RimWorld バージョン</ClashOfRim.Compatibility.RimWorldVersion>
   <ClashOfRim.Compatibility.DlcList>有効なDLCリスト</ClashOfRim.Compatibility.DlcList>
   <ClashOfRim.Compatibility.MissingRequiredMod>サーバー必須MODがありません</ClashOfRim.Compatibility.MissingRequiredMod>

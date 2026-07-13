@@ -4,7 +4,8 @@ public enum CompatibilityIssueCategory
 {
     Manifest,
     Hash,
-    Config
+    Config,
+    Overview
 }
 
 public static class CompatibilityIssueClassifier
@@ -27,8 +28,8 @@ public static class CompatibilityIssueClassifier
                 or CompatibilityIssueCode.ConfigFileMissing
                 or CompatibilityIssueCode.ConfigFileUnexpected
                 or CompatibilityIssueCode.ConfigFileWarning => CompatibilityIssueCategory.Config,
+            CompatibilityIssueCode.ProtocolVersionMismatch => CompatibilityIssueCategory.Overview,
             CompatibilityIssueCode.SchemaVersionMismatch
-                or CompatibilityIssueCode.ProtocolVersionMismatch
                 or CompatibilityIssueCode.RimWorldVersionMismatch
                 or CompatibilityIssueCode.GameLanguageMismatch
                 or CompatibilityIssueCode.DlcListMismatch

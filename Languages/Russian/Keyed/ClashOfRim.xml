@@ -111,6 +111,7 @@
   <ClashOfRim.Compatibility.LocalColumn>Локально</ClashOfRim.Compatibility.LocalColumn>
   <ClashOfRim.Compatibility.SchemaVersion>Версия схемы списка модов</ClashOfRim.Compatibility.SchemaVersion>
   <ClashOfRim.Compatibility.ProtocolVersion>Версия протокола</ClashOfRim.Compatibility.ProtocolVersion>
+  <ClashOfRim.Compatibility.ProtocolVersionLine>Протокол: сервер {SERVER} / локально {LOCAL}</ClashOfRim.Compatibility.ProtocolVersionLine>
   <ClashOfRim.Compatibility.RimWorldVersion>Версия RimWorld</ClashOfRim.Compatibility.RimWorldVersion>
   <ClashOfRim.Compatibility.DlcList>Список включенных DLC</ClashOfRim.Compatibility.DlcList>
   <ClashOfRim.Compatibility.MissingRequiredMod>Отсутствует обязательный мод сервера</ClashOfRim.Compatibility.MissingRequiredMod>

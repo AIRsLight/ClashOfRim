@@ -290,6 +290,7 @@ internal sealed class CompatibilityMismatchWindow : Window
     private readonly int manifestMismatchCount;
     private readonly int hashMismatchCount;
     private readonly int configMismatchCount;
+    private readonly bool protocolMismatch;
     private readonly bool onlyFileMismatch;
     private readonly bool canApplyAndRestart;
     private readonly bool canApplyConfigAndRestart;
@@ -329,7 +330,16 @@ internal sealed class CompatibilityMismatchWindow : Window
         manifestMismatchCount = visibleManifestEntries.Count;
         hashMismatchCount = visibleHashEntries.Count;
         configMismatchCount = visibleConfigEntries.Count;
-        onlyFileMismatch = manifestMismatchCount == 0 && configMismatchCount == 0 && hashMismatchCount > 0;
+        string serverProtocolVersion = serverManifest?.ProtocolVersion ?? response.ServerProtocolVersion ?? string.Empty;
+        string localProtocolVersion = localManifest?.ProtocolVersion ?? ClashOfRimVersion.ProtocolVersion;
+        protocolMismatch = response.CompatibilityIssues?.Any(issue =>
+                string.Equals(issue.Code, nameof(CompatibilityIssueCode.ProtocolVersionMismatch), StringComparison.Ordinal)) == true
+            || (!string.IsNullOrWhiteSpace(serverProtocolVersion)
+                && !string.Equals(serverProtocolVersion, localProtocolVersion, StringComparison.Ordinal));
+        onlyFileMismatch = !protocolMismatch
+            && manifestMismatchCount == 0
+            && configMismatchCount == 0
+            && hashMismatchCount > 0;
         canContinueAnyway = continueAnyway is not null
             && CompatibilityLanguageMismatchPolicy.CanContinue(response);
         canApplyAndRestart = manifestMismatchCount > 0 && !onlyFileMismatch && !canContinueAnyway;
@@ -541,8 +551,8 @@ internal sealed class CompatibilityMismatchWindow : Window
         Widgets.Label(new Rect(contentRect.x, y, contentRect.width, 54f), BuildIntro(manifestCount, hashCount, configCount, onlyFileMismatch));
         y += 66f;
 
-        Widgets.DrawBox(new Rect(contentRect.x, y, contentRect.width, 112f));
-        Rect detailRect = new(contentRect.x + 12f, y + 10f, contentRect.width - 24f, 94f);
+        Widgets.DrawBox(new Rect(contentRect.x, y, contentRect.width, 134f));
+        Rect detailRect = new(contentRect.x + 12f, y + 10f, contentRect.width - 24f, 116f);
         string serverId = ShortHash(serverManifest?.ManifestId ?? None());
         string localId = ShortHash(localManifest?.ManifestId ?? None());
         string serverVersion = serverManifest?.RimWorldVersion ?? None();
@@ -555,6 +565,16 @@ internal sealed class CompatibilityMismatchWindow : Window
             serverLanguage = None();
         }
         string localLanguage = localManifest?.GameLanguage ?? None();
+        string serverProtocol = serverManifest?.ProtocolVersion ?? response.ServerProtocolVersion ?? None();
+        string localProtocol = localManifest?.ProtocolVersion ?? ClashOfRimVersion.ProtocolVersion;
+        string protocolLine = T(
+            "ClashOfRim.Compatibility.ProtocolVersionLine",
+            serverProtocol.Named("SERVER"),
+            localProtocol.Named("LOCAL"));
+        if (protocolMismatch)
+        {
+            protocolLine = "<color=#ff6b6b>" + protocolLine + "</color>";
+        }
         string languageLine = T(
             "ClashOfRim.Compatibility.GameLanguageLine",
             serverLanguage.Named("SERVER"),
@@ -569,8 +589,9 @@ internal sealed class CompatibilityMismatchWindow : Window
             T("ClashOfRim.Compatibility.ServerManifestLine", serverId.Named("ID"))
             + "\n" + T("ClashOfRim.Compatibility.LocalManifestLine", localId.Named("ID"))
             + "\nRimWorld: " + serverVersion + " / " + localVersion
+            + "\n" + protocolLine
             + "\n" + languageLine);
-        y += 128f;
+        y += 150f;
 
         Widgets.Label(
             new Rect(contentRect.x, y, contentRect.width, 80f),
@@ -745,7 +766,6 @@ internal sealed class CompatibilityMismatchWindow : Window
         }
 
         AddScalar(entries, T("ClashOfRim.Compatibility.SchemaVersion"), server.SchemaVersion.ToString(), local.SchemaVersion.ToString());
-        AddScalar(entries, T("ClashOfRim.Compatibility.ProtocolVersion"), server.ProtocolVersion, local.ProtocolVersion);
         AddScalar(entries, T("ClashOfRim.Compatibility.RimWorldVersion"), server.RimWorldVersion, local.RimWorldVersion);
         AddSequence(entries, T("ClashOfRim.Compatibility.DlcList"), server.DlcIds, local.DlcIds);
 
@@ -1035,6 +1055,7 @@ internal sealed class CompatibilityMismatchWindow : Window
             CompatibilityIssueCategory.Manifest => tab == CompatibilityTab.Manifest,
             CompatibilityIssueCategory.Hash => tab == CompatibilityTab.Hash,
             CompatibilityIssueCategory.Config => tab == CompatibilityTab.Config,
+            CompatibilityIssueCategory.Overview => tab == CompatibilityTab.Overview,
             _ => false
         };
     }

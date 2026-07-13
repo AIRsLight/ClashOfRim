@@ -53,6 +53,9 @@ internal static class StableIdentityTests
         Require(
             CompatibilityIssueClassifier.CategoryFor(CompatibilityIssueCode.ModOrderMismatch) == CompatibilityIssueCategory.Manifest,
             "模组顺序错误必须进入清单页");
+        Require(
+            CompatibilityIssueClassifier.CategoryFor(CompatibilityIssueCode.ProtocolVersionMismatch) == CompatibilityIssueCategory.Overview,
+            "协议版本错误必须进入总览页");
     }
 
     private static void VerifyClientAndServerDoNotBranchOnPresentationStrings()

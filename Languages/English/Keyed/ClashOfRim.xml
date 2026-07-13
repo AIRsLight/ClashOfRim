@@ -111,6 +111,7 @@
   <ClashOfRim.Compatibility.LocalColumn>Local</ClashOfRim.Compatibility.LocalColumn>
   <ClashOfRim.Compatibility.SchemaVersion>Mod list schema version</ClashOfRim.Compatibility.SchemaVersion>
   <ClashOfRim.Compatibility.ProtocolVersion>Protocol version</ClashOfRim.Compatibility.ProtocolVersion>
+  <ClashOfRim.Compatibility.ProtocolVersionLine>Protocol: server {SERVER} / local {LOCAL}</ClashOfRim.Compatibility.ProtocolVersionLine>
   <ClashOfRim.Compatibility.RimWorldVersion>RimWorld version</ClashOfRim.Compatibility.RimWorldVersion>
   <ClashOfRim.Compatibility.DlcList>Enabled DLC list</ClashOfRim.Compatibility.DlcList>
   <ClashOfRim.Compatibility.MissingRequiredMod>Missing server-required mod</ClashOfRim.Compatibility.MissingRequiredMod>

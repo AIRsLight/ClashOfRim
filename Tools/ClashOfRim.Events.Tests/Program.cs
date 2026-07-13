@@ -257,6 +257,12 @@ static void VerifyCompatibilityMismatchUiUsesAuthoritativeFallback()
         && !source.Contains("ContainsOrdinal(value", StringComparison.Ordinal),
         "配置错误必须按显式错误码分类，不能依赖代码文本片段");
     Require(
+        !source.Contains("AddScalar(entries, T(\"ClashOfRim.Compatibility.ProtocolVersion\")", StringComparison.Ordinal),
+        "协议版本错误不得作为模组清单条目显示");
+    Require(
+        source.Contains("ClashOfRim.Compatibility.ProtocolVersionLine", StringComparison.Ordinal),
+        "总览页必须显示服务端与客户端协议版本");
+    Require(
         source.Contains("TryApplyServerConfigOverlay", StringComparison.Ordinal)
         && source.Contains("TryOverwriteLocalConfigs", StringComparison.Ordinal),
         "配置页必须分别提供 overlay 套用和本地覆盖两条重启路径");

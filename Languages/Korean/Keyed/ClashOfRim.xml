@@ -111,6 +111,7 @@
   <ClashOfRim.Compatibility.LocalColumn>로컬</ClashOfRim.Compatibility.LocalColumn>
   <ClashOfRim.Compatibility.SchemaVersion>모드 목록 스키마 버전</ClashOfRim.Compatibility.SchemaVersion>
   <ClashOfRim.Compatibility.ProtocolVersion>프로토콜 버전</ClashOfRim.Compatibility.ProtocolVersion>
+  <ClashOfRim.Compatibility.ProtocolVersionLine>프로토콜: 서버 {SERVER} / 로컬 {LOCAL}</ClashOfRim.Compatibility.ProtocolVersionLine>
   <ClashOfRim.Compatibility.RimWorldVersion>RimWorld 버전</ClashOfRim.Compatibility.RimWorldVersion>
   <ClashOfRim.Compatibility.DlcList>활성 DLC 목록</ClashOfRim.Compatibility.DlcList>
   <ClashOfRim.Compatibility.MissingRequiredMod>서버 필수 모드 누락</ClashOfRim.Compatibility.MissingRequiredMod>

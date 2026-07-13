@@ -111,6 +111,7 @@
   <ClashOfRim.Compatibility.LocalColumn>本地</ClashOfRim.Compatibility.LocalColumn>
   <ClashOfRim.Compatibility.SchemaVersion>模组列表版本</ClashOfRim.Compatibility.SchemaVersion>
   <ClashOfRim.Compatibility.ProtocolVersion>协议版本</ClashOfRim.Compatibility.ProtocolVersion>
+  <ClashOfRim.Compatibility.ProtocolVersionLine>协议版本：服务器 {SERVER} / 本地 {LOCAL}</ClashOfRim.Compatibility.ProtocolVersionLine>
   <ClashOfRim.Compatibility.RimWorldVersion>RimWorld 版本</ClashOfRim.Compatibility.RimWorldVersion>
   <ClashOfRim.Compatibility.DlcList>DLC 启用列表</ClashOfRim.Compatibility.DlcList>
   <ClashOfRim.Compatibility.MissingRequiredMod>缺少服务器要求的模组</ClashOfRim.Compatibility.MissingRequiredMod>
