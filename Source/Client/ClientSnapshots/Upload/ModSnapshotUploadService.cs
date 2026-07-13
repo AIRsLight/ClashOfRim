@@ -77,6 +77,7 @@ public sealed class ModSnapshotUploadService
             }
 
             build.Package.SnapshotUploadKind = snapshotUploadKind;
+            build.Package.DefenderThreatPoints = saveCapture.DefenderThreatPoints;
 
             using var httpClient = new HttpClient();
             var context = ClashOfRimClientNetworkContext.FromSettings(settings);
@@ -224,7 +225,9 @@ public sealed class ModSnapshotUploadService
                     return;
                 }
 
-                completion.TrySetResult(SnapshotSaveCapture.Ok(saveBytes));
+                completion.TrySetResult(SnapshotSaveCapture.Ok(
+                    saveBytes,
+                    SnapshotDefenderThreatPointsCapture.TryCapture()));
             }
             catch (Exception ex)
             {
@@ -274,10 +277,16 @@ public sealed class ModSnapshotUploadService
 
     private sealed class SnapshotSaveCapture
     {
-        private SnapshotSaveCapture(bool success, byte[]? saveBytes, string? errorCode, string? message)
+        private SnapshotSaveCapture(
+            bool success,
+            byte[]? saveBytes,
+            float? defenderThreatPoints,
+            string? errorCode,
+            string? message)
         {
             Success = success;
             SaveBytes = saveBytes;
+            DefenderThreatPoints = defenderThreatPoints;
             ErrorCode = errorCode;
             Message = message;
         }
@@ -286,18 +295,20 @@ public sealed class ModSnapshotUploadService
 
         public byte[]? SaveBytes { get; }
 
+        public float? DefenderThreatPoints { get; }
+
         public string? ErrorCode { get; }
 
         public string? Message { get; }
 
-        public static SnapshotSaveCapture Ok(byte[] saveBytes)
+        public static SnapshotSaveCapture Ok(byte[] saveBytes, float? defenderThreatPoints)
         {
-            return new SnapshotSaveCapture(true, saveBytes, null, null);
+            return new SnapshotSaveCapture(true, saveBytes, defenderThreatPoints, null, null);
         }
 
         public static SnapshotSaveCapture Failed(string errorCode, string message)
         {
-            return new SnapshotSaveCapture(false, null, errorCode, message);
+            return new SnapshotSaveCapture(false, null, null, errorCode, message);
         }
     }
 }

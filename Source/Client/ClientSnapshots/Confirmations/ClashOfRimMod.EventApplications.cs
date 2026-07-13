@@ -836,6 +836,8 @@ public sealed partial class ClashOfRimMod
             return false;
         }
 
+        build.Package.DefenderThreatPoints = SnapshotDefenderThreatPointsCapture.TryCapture();
+
         failureReason = string.Empty;
         return true;
     }

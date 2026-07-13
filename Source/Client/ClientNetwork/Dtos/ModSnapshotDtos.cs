@@ -74,6 +74,9 @@ public sealed class ModSnapshotPackageMetadataDto
 
     [DataMember(Name = "snapshotUploadKind")]
     public string? SnapshotUploadKind { get; set; }
+
+    [DataMember(Name = "defenderThreatPoints")]
+    public float? DefenderThreatPoints { get; set; }
 }
 
 [DataContract]

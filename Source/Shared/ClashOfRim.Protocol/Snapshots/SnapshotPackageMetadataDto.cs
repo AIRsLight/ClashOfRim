@@ -17,7 +17,8 @@ public sealed class SnapshotPackageMetadataDto
         string? lineageToken = null,
         string? nextLineageToken = null,
         long? gameTicks = null,
-        string? snapshotUploadKind = null)
+        string? snapshotUploadKind = null,
+        float? defenderThreatPoints = null)
     {
         PackageVersion = packageVersion;
         OwnerId = ownerId;
@@ -34,6 +35,7 @@ public sealed class SnapshotPackageMetadataDto
         NextLineageToken = nextLineageToken;
         GameTicks = gameTicks;
         SnapshotUploadKind = snapshotUploadKind;
+        DefenderThreatPoints = defenderThreatPoints;
     }
 
     public string PackageVersion { get; }
@@ -65,4 +67,6 @@ public sealed class SnapshotPackageMetadataDto
     public long? GameTicks { get; }
 
     public string? SnapshotUploadKind { get; }
+
+    public float? DefenderThreatPoints { get; }
 }

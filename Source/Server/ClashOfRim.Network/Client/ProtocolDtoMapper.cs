@@ -108,7 +108,8 @@ public static class ProtocolDtoMapper
             dto.PreviousSnapshotId,
             dto.LineageToken,
             dto.NextLineageToken,
-            dto.GameTicks);
+            dto.GameTicks,
+            NormalizeDefenderThreatPoints(dto.DefenderThreatPoints));
 
         return new SaveSnapshotPackage(
             envelope,
@@ -134,7 +135,15 @@ public static class ProtocolDtoMapper
             envelope.PreviousSnapshotId,
             envelope.LineageToken,
             envelope.NextLineageToken,
-            envelope.GameTicks);
+            envelope.GameTicks,
+            defenderThreatPoints: envelope.DefenderThreatPoints);
+    }
+
+    private static float? NormalizeDefenderThreatPoints(float? value)
+    {
+        return value.HasValue && !float.IsNaN(value.Value) && !float.IsInfinity(value.Value)
+            ? Math.Clamp(value.Value, 0f, 10000f)
+            : null;
     }
 
     public static EventDetailDto ToDetailDto(AuthoritativeEvent ledgerEvent)

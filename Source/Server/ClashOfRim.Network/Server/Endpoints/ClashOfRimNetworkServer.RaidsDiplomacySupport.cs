@@ -580,7 +580,7 @@ public static partial class ClashOfRimNetworkServer
                 request.Defender.ColonyId,
                 raidEventId,
                 defenderWealth,
-                defenderPackage.Index)));
+                defenderPackage)));
     }
 
     private static RaidGuardDeploymentDto? BuildRaidGuardDeployment(
@@ -589,7 +589,7 @@ public static partial class ClashOfRimNetworkServer
         string defenderColonyId,
         string raidEventId,
         int defenderWealth,
-        SaveSnapshotIndex defenderIndex)
+        SaveSnapshotPackage defenderSnapshot)
     {
         MercenaryGuardContractRecord? guard = state.MercenaryGuards.FindActiveForColony(defenderUserId, defenderColonyId);
         if (guard is null)
@@ -598,7 +598,7 @@ public static partial class ClashOfRimNetworkServer
         }
 
         int basePoints = CoreRaidDifficultyServerCompatibility.EstimateDefaultThreatPointsForSnapshot(
-            defenderIndex,
+            defenderSnapshot,
             defenderWealth,
             state.ServerConfiguration.RaidMinimumDefenderWealth,
             state.WorldConfiguration.Current?.Extensions);

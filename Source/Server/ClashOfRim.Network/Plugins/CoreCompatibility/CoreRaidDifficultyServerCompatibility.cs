@@ -91,11 +91,19 @@ internal static class CoreRaidDifficultyServerCompatibility
     }
 
     internal static int EstimateDefaultThreatPointsForSnapshot(
-        SaveSnapshotIndex index,
+        SaveSnapshotPackage snapshot,
         int defenderWealth,
         int minimumDefenderWealth,
         IReadOnlyList<WorldConfigurationExtensionDto>? extensions)
     {
+        if (snapshot.Envelope.DefenderThreatPoints is float clientThreatPoints
+            && !float.IsNaN(clientThreatPoints)
+            && !float.IsInfinity(clientThreatPoints))
+        {
+            return (int)Math.Ceiling(Math.Clamp(clientThreatPoints, GlobalPointsMin, GlobalPointsMax));
+        }
+
+        SaveSnapshotIndex index = snapshot.Index;
         int wealth = Math.Max(0, Math.Max(defenderWealth, minimumDefenderWealth));
         int colonists = index.Maps.Sum(map => Math.Max(0, map.PlayerColonistCount));
         if (colonists <= 0 && index.Maps.Count == 0 && index.HistoryPlayerColonistCount is int historyColonists)

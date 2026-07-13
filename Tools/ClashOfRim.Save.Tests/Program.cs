@@ -7,6 +7,7 @@ using AIRsLight.ClashOfRim.Save;
 using AIRsLight.ClashOfRim.ThirdPartyCompat.ServerPlugin;
 using Microsoft.Data.Sqlite;
 using System.IO.Compression;
+using System.Reflection;
 using System.Text;
 using System.Text.Json.Nodes;
 using System.Xml.Linq;
@@ -36,6 +37,7 @@ var tests = new (string Name, Action Run)[]
     ("世界底图包持久化后才开放世界会话", VerifyWorldSubstrateRegistryReadiness),
     ("压缩财富历史可作为榜单财富兜底", VerifyDeflatedWealthHistoryFallback),
     ("玩家殖民者人数索引只统计玩家类人 pawn", VerifyPlayerColonistCountIndex),
+    ("护卫队优先采用防守方快照的原版威胁点数", VerifyGuardUsesSnapshotThreatPoints),
     ("快照封装保留身份版本和稳定哈希", VerifySnapshotPackageEnvelope),
     ("快照上传通过校验后进入最新索引", VerifySnapshotUploadAccepted),
     ("快照文件存储可在重启后恢复最新索引", VerifyFileSnapshotStorePersistence),
@@ -1195,6 +1197,10 @@ static void VerifySnapshotPackageEnvelope()
             identity,
             DateTimeOffset.UnixEpoch,
             SnapshotPayloadEncoding.GzipRws);
+        package = package with
+        {
+            Envelope = package.Envelope with { DefenderThreatPoints = 777f }
+        };
         SaveSnapshotPackage repeated = SaveSnapshotPackageBuilder.FromFile(
             samplePath,
             identity,
@@ -1213,6 +1219,7 @@ static void VerifySnapshotPackageEnvelope()
         Equal(new FileInfo(samplePath).Length, package.Envelope.OriginalSaveBytes, "原始存档大小");
         Equal(package.Payload.LongLength, package.Envelope.PayloadBytes, "载荷大小");
         Equal(SnapshotPayloadEncoding.GzipRws, package.Envelope.PayloadEncoding, "压缩载荷编码");
+        Equal(777f, package.Envelope.DefenderThreatPoints, "防守方原版威胁点数应保存在快照封装中");
         Equal(package.Envelope.OriginalSha256, repeated.Envelope.OriginalSha256, "同一存档原始哈希稳定");
         Equal(package.Envelope.PayloadSha256, repeated.Envelope.PayloadSha256, "同一存档压缩载荷哈希稳定");
         Equal(raw.Envelope.OriginalSha256, raw.Envelope.PayloadSha256, "原始载荷哈希应等于原始存档哈希");
@@ -1224,6 +1231,35 @@ static void VerifySnapshotPackageEnvelope()
     {
         File.Delete(samplePath);
     }
+}
+
+static void VerifyGuardUsesSnapshotThreatPoints()
+{
+    SaveSnapshotPackage fixture = BuildFixturePackage("guard-threat-points");
+    SaveSnapshotPackage package = fixture with
+    {
+        Envelope = fixture.Envelope with { DefenderThreatPoints = 777f }
+    };
+    Type compatibility = typeof(ClashOfRimNetworkServer).Assembly.GetType(
+        "AIRsLight.ClashOfRim.Network.Plugins.CoreCompatibility.CoreRaidDifficultyServerCompatibility")
+        ?? throw new InvalidOperationException("袭击难度兼容组件不存在");
+    MethodInfo calculator = compatibility.GetMethod(
+        "EstimateDefaultThreatPointsForSnapshot",
+        BindingFlags.Static | BindingFlags.NonPublic,
+        binder: null,
+        new[] { typeof(SaveSnapshotPackage), typeof(int), typeof(int), typeof(IReadOnlyList<WorldConfigurationExtensionDto>) },
+        modifiers: null)
+        ?? throw new InvalidOperationException("护卫队快照点数计算入口不存在");
+
+    int actual = (int)(calculator.Invoke(null, new object?[]
+    {
+        package,
+        0,
+        0,
+        Array.Empty<WorldConfigurationExtensionDto>()
+    }) ?? throw new InvalidOperationException("护卫队点数计算没有返回结果"));
+
+    Equal(777, actual, "护卫队基础点数应采用防守方客户端随快照提交的原版威胁点数");
 }
 
 static void VerifySnapshotUploadAccepted()

@@ -14,4 +14,5 @@ public sealed record SaveSnapshotEnvelope(
     string? PreviousSnapshotId = null,
     string? LineageToken = null,
     string? NextLineageToken = null,
-    long? GameTicks = null);
+    long? GameTicks = null,
+    float? DefenderThreatPoints = null);
