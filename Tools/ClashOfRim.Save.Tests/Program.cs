@@ -1147,6 +1147,7 @@ static void VerifyPlayerColonistCountIndex()
                         <def>Dog</def>
                         <kindDef>Husky</kindDef>
                         <faction>Faction_7</faction>
+                        <story IsNull="True" />
                       </thing>
                       <thing Class="Pawn">
                         <id>Visitor1</id>

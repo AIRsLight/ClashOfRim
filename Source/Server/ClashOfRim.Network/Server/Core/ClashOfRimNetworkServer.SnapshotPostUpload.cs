@@ -218,7 +218,7 @@ public static partial class ClashOfRimNetworkServer
                 nowUtc);
         }
 
-        int colonistCount = CalculateSnapshotPlayerColonists(state, snapshot);
+        int colonistCount = CalculateSnapshotPlayerColonists(snapshot);
         metrics[AchievementRegistry.MetricPlayerColonists] = colonistCount;
         AddMetricIfPresent(metrics, AchievementRegistry.MetricWealthItems, snapshot.Index.HistoryWealthItems);
         AddMetricIfPresent(metrics, AchievementRegistry.MetricWealthBuildings, snapshot.Index.HistoryWealthBuildings);
@@ -331,48 +331,9 @@ public static partial class ClashOfRimNetworkServer
         }
     }
 
-    private static int CalculateSnapshotPlayerColonists(ClashOfRimNetworkState state, LatestSnapshotRecord snapshot)
+    private static int CalculateSnapshotPlayerColonists(LatestSnapshotRecord snapshot)
     {
-        if (snapshot.Index.HistoryPlayerColonistCount is int historyPlayerColonistCount)
-        {
-            return Math.Max(0, historyPlayerColonistCount);
-        }
-
-        IReadOnlyList<SnapshotColonyAnchor> anchors = ExtractSnapshotColonyAnchors(state, snapshot.Index);
-        if (anchors.Count == 0)
-        {
-            return 0;
-        }
-
-        var colonyMapIds = new HashSet<string>(StringComparer.Ordinal);
-        var colonyWorldObjectIds = new HashSet<string>(StringComparer.Ordinal);
-        foreach (SnapshotColonyAnchor anchor in anchors)
-        {
-            if (!string.IsNullOrWhiteSpace(anchor.MapUniqueId))
-            {
-                colonyMapIds.Add(anchor.MapUniqueId!);
-            }
-
-            if (!string.IsNullOrWhiteSpace(anchor.WorldObjectId))
-            {
-                colonyWorldObjectIds.Add(anchor.WorldObjectId!);
-            }
-        }
-
-        int total = 0;
-        foreach (MapSummary map in snapshot.Index.Maps)
-        {
-            string? mapUniqueId = NormalizeSnapshotMapUniqueId(map.UniqueId);
-            if ((string.IsNullOrWhiteSpace(mapUniqueId) || !colonyMapIds.Contains(mapUniqueId!))
-                && (string.IsNullOrWhiteSpace(map.ParentWorldObjectId) || !colonyWorldObjectIds.Contains(map.ParentWorldObjectId!)))
-            {
-                continue;
-            }
-
-            total += Math.Max(0, map.PlayerColonistCount);
-        }
-
-        return total;
+        return Math.Max(0, snapshot.Index.HistoryPlayerColonistCount ?? 0);
     }
 
     private static void CollectPluginSnapshotAchievementMetrics(

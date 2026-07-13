@@ -260,9 +260,16 @@ public static class RimWorldSaveIndexReader
     {
         return !string.IsNullOrWhiteSpace(playerFactionUniqueLoadId)
             && IsPawnElement(thing)
-            && thing.Element("story") is not null
+            && HasNonNullElement(thing, "story")
             && string.Equals(Text(thing, "faction"), playerFactionUniqueLoadId, StringComparison.Ordinal)
             && ReadPawnDead(thing, "map") != true;
+    }
+
+    private static bool HasNonNullElement(XElement parent, string elementName)
+    {
+        XElement? element = parent.Element(elementName);
+        return element is not null
+            && !string.Equals(element.Attribute("IsNull")?.Value, "True", StringComparison.OrdinalIgnoreCase);
     }
 
     private static float? ReadMapWealthTotal(XElement map)
