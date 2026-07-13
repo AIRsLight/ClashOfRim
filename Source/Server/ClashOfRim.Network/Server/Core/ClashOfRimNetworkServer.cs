@@ -908,10 +908,26 @@ public static partial class ClashOfRimNetworkServer
         }
 
         TRequest? request = JsonSerializer.Deserialize<TRequest>(requestJson, MultipartJsonOptions);
+        if (payloadFile.Length < 0 || payloadFile.Length > int.MaxValue)
+        {
+            return null;
+        }
+
         await using Stream stream = payloadFile.OpenReadStream();
-        using var memory = new MemoryStream();
-        await stream.CopyToAsync(memory);
-        return new MultipartSnapshotRequest<TRequest>(request, memory.ToArray());
+        byte[] payload = new byte[(int)payloadFile.Length];
+        int offset = 0;
+        while (offset < payload.Length)
+        {
+            int read = await stream.ReadAsync(payload.AsMemory(offset, payload.Length - offset));
+            if (read == 0)
+            {
+                return null;
+            }
+
+            offset += read;
+        }
+
+        return new MultipartSnapshotRequest<TRequest>(request, payload);
     }
 
     private static async Task<TRequest?> ReadJsonRequest<TRequest>(HttpRequest httpRequest)

@@ -19,6 +19,7 @@ var tests = new (string Name, Action Run)[]
     ("服务器启动自动备份并迁移明确旧版本", VerifyServerPersistenceStartupMigratesKnownVersionWithBackup),
     ("服务器数据库迁移创建快照后处理任务表", VerifyServerDatabaseMigrationCreatesSnapshotPostUploadJobTable),
     ("服务器数据库迁移快照后处理任务为两阶段状态", VerifyServerDatabaseMigrationAddsSnapshotPostUploadJobState),
+    ("服务器数据库迁移高频注册表到专用表", VerifyServerDatabaseMigrationCreatesDomainRegistryTables),
     ("服务器启动自动补全可识别结构化数据库版本", VerifyServerPersistenceStartupVersionsRecognizedStructuredDatabase),
     ("服务器启动对混合旧结构返回人工迁移提示", VerifyServerPersistenceStartupDefersAmbiguousDatabase),
     ("服务器启动对未来版本返回更新提示", VerifyServerPersistenceStartupDefersFutureDatabase),
@@ -37,13 +38,14 @@ var tests = new (string Name, Action Run)[]
     ("世界底图包持久化后才开放世界会话", VerifyWorldSubstrateRegistryReadiness),
     ("压缩财富历史可作为榜单财富兜底", VerifyDeflatedWealthHistoryFallback),
     ("玩家殖民者人数索引只统计玩家类人 pawn", VerifyPlayerColonistCountIndex),
-    ("护卫队优先采用防守方快照的原版威胁点数", VerifyGuardUsesSnapshotThreatPoints),
+    ("护卫队采用客户端威胁点数但受服务器上限约束", VerifyGuardCapsClientThreatPoints),
     ("快照封装保留身份版本和稳定哈希", VerifySnapshotPackageEnvelope),
     ("快照上传通过校验后进入最新索引", VerifySnapshotUploadAccepted),
     ("快照文件存储可在重启后恢复最新索引", VerifyFileSnapshotStorePersistence),
     ("新版单文件快照包可直接解析", VerifySnapshotPackageFileReader),
     ("快照后处理制品可持久化往返并安全删除", VerifySnapshotPostUploadArtifactStore),
     ("快照上传拒绝身份哈希和版本异常", VerifySnapshotUploadRejections),
+    ("快照上传在解压超过硬上限时立即拒绝", VerifySnapshotUploadRejectsOversizedDecompressedPayload),
     ("袭击结算证据必须携带指定事件的战场地图", VerifyRaidSettlementEvidenceUploadRequiresEventMap),
     ("只读观察加载绑定快照地图和权限边界", VerifyReadOnlyObservationBoundary),
     ("袭击副本陷阱按批准清单隐藏和揭示", VerifyRaidTrapVisibility),
@@ -165,6 +167,122 @@ static void VerifyServerDatabaseMigrationAddsSnapshotPostUploadJobState()
         using SqliteCommand state = verification.CreateCommand();
         state.CommandText = "select job_state from server_snapshot_post_upload_jobs where job_id = 'legacy-ready-job';";
         Equal(1L, Convert.ToInt64(state.ExecuteScalar()), "旧 outbox 作业迁移后应保持 Ready");
+    }
+    finally
+    {
+        DeleteSqliteDatabase(path);
+    }
+}
+
+static void VerifyServerDatabaseMigrationCreatesDomainRegistryTables()
+{
+    string path = Path.Combine(Path.GetTempPath(), "clashofrim-domain-registry-migration-" + Guid.NewGuid().ToString("N") + ".sqlite");
+    try
+    {
+        using (SqliteConnection connection = OpenSqliteDatabase(path))
+        using (SqliteCommand command = connection.CreateCommand())
+        {
+            command.CommandText = """
+                create table server_schema_metadata (
+                    metadata_key text primary key not null,
+                    metadata_value text not null,
+                    updated_at_utc text not null
+                );
+                insert into server_schema_metadata values ('schema_version', '6', '2026-01-01T00:00:00.0000000+00:00');
+                create table server_keyed_json_records (
+                    collection_key text not null,
+                    item_key text not null,
+                    content_json text not null,
+                    updated_at_utc text not null,
+                    primary key (collection_key, item_key)
+                );
+                insert into server_keyed_json_records values (
+                    'bank-loans',
+                    'loan:loan-1',
+                    '{"LoanId":"loan-1","IdempotencyKey":"loan-key","UserId":"user-a","ColonyId":"colony-a","SnapshotId":"snapshot-a","PrincipalSilver":1000,"InterestSilver":100,"TotalDueSilver":1100,"DurationDays":7,"CreatedAtGameTicks":100,"DueAtGameTicks":420100,"Status":"Active","CreatedAtUtc":"2026-01-01T00:00:00+00:00","RepaidAtUtc":null,"RepaidAtGameTicks":null,"RepaymentIdempotencyKey":null,"RepaymentRequestedAtUtc":null,"RepaymentRequestedAtGameTicks":null}',
+                    '2026-01-01T00:00:00.0000000+00:00'
+                );
+                insert into server_keyed_json_records values (
+                    'bank-loans',
+                    char(0) || 'initialized',
+                    '{}',
+                    '2026-01-01T00:00:00.0000000+00:00'
+                );
+                insert into server_keyed_json_records values (
+                    'bank-loans',
+                    'extension:future-data',
+                    '{"Future":true}',
+                    '2026-01-01T00:00:00.0000000+00:00'
+                );
+                insert into server_keyed_json_records values (
+                    'chat-messages',
+                    'message:00000000000000000001',
+                    '{"sequence":1,"messageId":"message-1","fromUserId":"user-a","fromColonyId":"colony-a","targetUserId":null,"text":"hello","sentAtUtc":"2026-01-01T00:00:00+00:00"}',
+                    '2026-01-01T00:00:00.0000000+00:00'
+                );
+                insert into server_keyed_json_records values (
+                    'bank-loans',
+                    'debt:broken',
+                    '{not-json',
+                    '2026-01-01T00:00:00.0000000+00:00'
+                );
+                """;
+            command.ExecuteNonQuery();
+        }
+
+        ServerDatabaseMigrationResult result = ServerDatabaseMigrator.Migrate(path);
+        Require(result.AppliedMigrations.Contains("6->7"), "迁移结果应记录 6->7");
+
+        string[] expectedTables =
+        [
+            "server_offline_accounts",
+            "server_bank_loans",
+            "server_bank_debts",
+            "server_mercenary_contracts",
+            "server_mercenary_guard_contracts",
+            "server_shop_listings",
+            "server_shop_buyer_purchases",
+            "server_shop_completed_purchases",
+            "server_diplomacy_relations",
+            "server_raid_protection_activations",
+            "server_chat_messages",
+            "server_achievement_events",
+            "server_achievement_aggregates",
+            "server_achievement_metric_events",
+            "server_achievement_metric_aggregates"
+        ];
+        using SqliteConnection verification = OpenSqliteDatabase(path);
+        foreach (string tableName in expectedTables)
+        {
+            using SqliteCommand table = verification.CreateCommand();
+            table.CommandText = "select count(*) from sqlite_master where type = 'table' and name = $table_name;";
+            table.Parameters.AddWithValue("$table_name", tableName);
+            Equal(1L, Convert.ToInt64(table.ExecuteScalar()), $"迁移应创建 {tableName}");
+        }
+
+        using (SqliteCommand loan = verification.CreateCommand())
+        {
+            loan.CommandText = "select user_id || ':' || principal_silver from server_bank_loans where loan_id = 'loan-1';";
+            Equal("user-a:1000", Convert.ToString(loan.ExecuteScalar()), "贷款记录应迁入专用表");
+        }
+
+        using (SqliteCommand chat = verification.CreateCommand())
+        {
+            chat.CommandText = "select message_id || ':' || message_text from server_chat_messages where sequence = 1;";
+            Equal("message-1:hello", Convert.ToString(chat.ExecuteScalar()), "聊天记录应迁入专用表");
+        }
+
+        using (SqliteCommand legacy = verification.CreateCommand())
+        {
+            legacy.CommandText = "select group_concat(item_key, ',') from server_keyed_json_records where collection_key in ('bank-loans', 'chat-messages');";
+            Equal("extension:future-data", Convert.ToString(legacy.ExecuteScalar()), "迁移后应保留未知扩展行且移除已迁移行和初始化键");
+        }
+
+        using (SqliteCommand quarantine = verification.CreateCommand())
+        {
+            quarantine.CommandText = "select error_text from server_registry_quarantine where collection_key = 'bank-loans' and item_key = 'debt:broken';";
+            Equal("Invalid JSON", Convert.ToString(quarantine.ExecuteScalar()), "损坏注册表行应隔离且不阻断迁移");
+        }
     }
     finally
     {
@@ -1233,12 +1351,16 @@ static void VerifySnapshotPackageEnvelope()
     }
 }
 
-static void VerifyGuardUsesSnapshotThreatPoints()
+static void VerifyGuardCapsClientThreatPoints()
 {
     SaveSnapshotPackage fixture = BuildFixturePackage("guard-threat-points");
-    SaveSnapshotPackage package = fixture with
+    SaveSnapshotPackage legitimatePackage = fixture with
     {
         Envelope = fixture.Envelope with { DefenderThreatPoints = 777f }
+    };
+    SaveSnapshotPackage forgedPackage = fixture with
+    {
+        Envelope = fixture.Envelope with { DefenderThreatPoints = 10000f }
     };
     Type compatibility = typeof(ClashOfRimNetworkServer).Assembly.GetType(
         "AIRsLight.ClashOfRim.Network.Plugins.CoreCompatibility.CoreRaidDifficultyServerCompatibility")
@@ -1251,15 +1373,31 @@ static void VerifyGuardUsesSnapshotThreatPoints()
         modifiers: null)
         ?? throw new InvalidOperationException("护卫队快照点数计算入口不存在");
 
-    int actual = (int)(calculator.Invoke(null, new object?[]
+    int authoritative = (int)(calculator.Invoke(null, new object?[]
     {
-        package,
+        fixture,
+        400000,
         0,
+        Array.Empty<WorldConfigurationExtensionDto>()
+    }) ?? throw new InvalidOperationException("护卫队点数计算没有返回结果"));
+    int legitimate = (int)(calculator.Invoke(null, new object?[]
+    {
+        legitimatePackage,
+        400000,
+        0,
+        Array.Empty<WorldConfigurationExtensionDto>()
+    }) ?? throw new InvalidOperationException("护卫队点数计算没有返回结果"));
+    int forged = (int)(calculator.Invoke(null, new object?[]
+    {
+        forgedPackage,
+        400000,
         0,
         Array.Empty<WorldConfigurationExtensionDto>()
     }) ?? throw new InvalidOperationException("护卫队点数计算没有返回结果"));
 
-    Equal(777, actual, "护卫队基础点数应采用防守方客户端随快照提交的原版威胁点数");
+    Equal(777, legitimate, "服务器上限内的客户端原版威胁点数应保留");
+    Equal(authoritative, forged, "客户端威胁点数超过服务器上限时必须封顶");
+    Require(authoritative > legitimate, "测试快照的服务器上限必须高于正常客户端值");
 }
 
 static void VerifySnapshotUploadAccepted()
@@ -1486,6 +1624,49 @@ static void VerifySnapshotUploadRejections()
     SnapshotUploadResult versionResult = receiver.Receive(context, package, DateTimeOffset.UnixEpoch);
     Equal(SnapshotUploadResultKind.IncompatibleRimWorldVersion, versionResult.Kind, "不兼容版本应拒绝");
     Equal(null, store.GetLatest("userA", "colonyA"), "被拒绝快照不应进入最新索引");
+}
+
+static void VerifySnapshotUploadRejectsOversizedDecompressedPayload()
+{
+    Equal(
+        200L * 1024L * 1024L,
+        SnapshotUploadPolicy.DefaultMaximumOriginalSaveBytes,
+        "快照解压默认硬上限应为 200 MiB");
+
+    SaveSnapshotPackage package = BuildFixturePackage("snapshot-upload-decompression-limit");
+    byte[] expanded = new byte[2 * 1024 * 1024];
+    Array.Fill(expanded, (byte)'A');
+    byte[] compressed;
+    using (var target = new MemoryStream())
+    {
+        using (var gzip = new GZipStream(target, CompressionLevel.SmallestSize, leaveOpen: true))
+        {
+            gzip.Write(expanded);
+        }
+
+        compressed = target.ToArray();
+    }
+
+    SaveSnapshotPackage oversized = package with
+    {
+        Envelope = package.Envelope with
+        {
+            OriginalSaveBytes = 512 * 1024,
+            PayloadBytes = compressed.LongLength,
+            PayloadSha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(compressed)).ToLowerInvariant()
+        },
+        Payload = compressed
+    };
+    var receiver = new SnapshotUploadReceiver(
+        new InMemoryColonySnapshotIndexStore(),
+        SnapshotUploadPolicy.AllowAnyVersion with { MaximumOriginalSaveBytes = 1024 * 1024 });
+    SnapshotUploadResult result = receiver.Receive(
+        new SnapshotUploadContext("userA", "colonyA", "snapshot-upload-decompression-limit"),
+        oversized,
+        DateTimeOffset.UnixEpoch);
+
+    Equal(SnapshotUploadResultKind.InvalidPayload, result.Kind, "超过解压上限的快照应拒绝");
+    Require(result.Message.Contains("maximum", StringComparison.OrdinalIgnoreCase), "拒绝原因应明确为解压上限");
 }
 
 static void VerifyRaidSettlementEvidenceUploadRequiresEventMap()

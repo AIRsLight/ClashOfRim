@@ -166,6 +166,7 @@ public sealed class SnapshotPostUploadJobRegistry
             SnapshotPostUploadJobRecord updated = current with
             {
                 State = SnapshotPostUploadJobState.Ready,
+                AttemptCount = 0,
                 NextAttemptAtUtc = readyAtUtc,
                 LastError = null
             };

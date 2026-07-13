@@ -10,6 +10,7 @@ using System.Runtime.Serialization.Json;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using AIRsLight.ClashOfRim.Protocol;
 using Verse;
 
 namespace AIRsLight.ClashOfRim.ClientNetwork;
@@ -2954,6 +2955,12 @@ public sealed class ClashOfRimModNetworkClient
                 Content = content
             };
             content = null;
+            if (!string.IsNullOrWhiteSpace(context.AuthToken))
+            {
+                message.Headers.TryAddWithoutValidation(
+                    MultipartSnapshotTransport.AuthenticationHeaderName,
+                    context.AuthToken);
+            }
             AddClientLanguageHeader(message);
             using HttpResponseMessage response = await httpClient.SendAsync(message, cancellationToken).ConfigureAwait(false);
             string body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);

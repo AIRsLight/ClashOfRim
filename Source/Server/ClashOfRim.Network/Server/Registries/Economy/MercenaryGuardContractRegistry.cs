@@ -112,7 +112,7 @@ public sealed class MercenaryGuardContractRegistry
             contracts[contract.ContractId] = contract;
             idByIdempotencyKey[contract.IdempotencyKey] = contract.ContractId;
             activeContractByColony[ColonyKey(userId, colonyId)] = contract.ContractId;
-            SaveLocked();
+            PersistContracts([contract]);
             return contract;
         }
     }
@@ -141,7 +141,7 @@ public sealed class MercenaryGuardContractRegistry
             };
             contracts[consumed.ContractId] = consumed;
             activeContractByColony.Remove(ColonyKey(userId, colonyId));
-            SaveLocked();
+            PersistContracts([consumed]);
             return consumed;
         }
     }
@@ -172,7 +172,10 @@ public sealed class MercenaryGuardContractRegistry
             && LoadLegacyReadOnly();
         if (importedLegacy && structuredPersistence is not null)
         {
-            SaveLocked();
+            structuredPersistence.ReplaceAllForImport(contracts.ToDictionary(
+                pair => ContractRowKey(pair.Key),
+                pair => JsonSerializer.Serialize(pair.Value, JsonOptions),
+                StringComparer.Ordinal));
         }
     }
 
@@ -238,15 +241,6 @@ public sealed class MercenaryGuardContractRegistry
 
     private void SaveLocked()
     {
-        if (structuredPersistence is not null)
-        {
-            structuredPersistence.ReplaceAll(contracts.ToDictionary(
-                pair => ContractRowKey(pair.Key),
-                pair => JsonSerializer.Serialize(pair.Value, JsonOptions),
-                StringComparer.Ordinal));
-            return;
-        }
-
         if (legacyPersistence is null)
         {
             return;
@@ -258,6 +252,22 @@ public sealed class MercenaryGuardContractRegistry
                 .ToList()),
             JsonOptions);
         legacyPersistence.Write(json);
+    }
+
+    private void PersistContracts(IReadOnlyCollection<MercenaryGuardContractRecord> upserts)
+    {
+        if (structuredPersistence is not null)
+        {
+            structuredPersistence.ApplyBatch(
+                upserts.ToDictionary(
+                    contract => ContractRowKey(contract.ContractId),
+                    contract => JsonSerializer.Serialize(contract, JsonOptions),
+                    StringComparer.Ordinal),
+                Array.Empty<string>());
+            return;
+        }
+
+        SaveLocked();
     }
 
     private static string ColonyKey(string userId, string colonyId)

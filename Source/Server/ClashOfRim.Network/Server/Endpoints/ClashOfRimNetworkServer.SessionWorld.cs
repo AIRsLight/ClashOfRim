@@ -359,6 +359,16 @@ public static partial class ClashOfRimNetworkServer
                 false, 0, 0, BuildWorldConfigurationForDelivery(state.WorldConfiguration.Current, state)));
         }
 
+        if (!MultipartSnapshotAuthentication.MatchesPrincipal(
+                httpRequest,
+                request.UserId,
+                request.ColonyId))
+        {
+            return Results.Ok(new UploadWorldSubstrateResponse(
+                ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed")),
+                false, 0, 0, BuildWorldConfigurationForDelivery(state.WorldConfiguration.Current, state)));
+        }
+
         AuthenticationValidationResult auth = ValidateAuthentication(
             state, request.UserId, request.SteamAuthTicket, request.Password, DateTimeOffset.UtcNow);
         if (!auth.Accepted || string.IsNullOrWhiteSpace(auth.AuthenticatedUserId))

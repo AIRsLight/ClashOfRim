@@ -50,10 +50,22 @@ public sealed class SnapshotUploadReceiver
                 "Uploaded payload SHA-256 does not match the package envelope.");
         }
 
+        long maximumOriginalSaveBytes = Math.Max(1, policy.MaximumOriginalSaveBytes);
+        if (envelope.OriginalSaveBytes < 0 || envelope.OriginalSaveBytes > maximumOriginalSaveBytes)
+        {
+            return SnapshotUploadResult.Reject(
+                SnapshotUploadResultKind.InvalidPayload,
+                $"Snapshot original save exceeds the configured maximum of {maximumOriginalSaveBytes} bytes.");
+        }
+
         byte[] originalPayload;
         try
         {
-            originalPayload = DecodePayload(package.Payload, envelope.PayloadEncoding);
+            originalPayload = DecodePayload(
+                package.Payload,
+                envelope.PayloadEncoding,
+                envelope.OriginalSaveBytes,
+                maximumOriginalSaveBytes);
         }
         catch (NotSupportedException)
         {
@@ -620,23 +632,61 @@ public sealed class SnapshotUploadReceiver
         }
     }
 
-    private static byte[] DecodePayload(byte[] payload, SnapshotPayloadEncoding encoding)
+    private static byte[] DecodePayload(
+        byte[] payload,
+        SnapshotPayloadEncoding encoding,
+        long expectedOriginalSaveBytes,
+        long maximumOriginalSaveBytes)
     {
         return encoding switch
         {
-            SnapshotPayloadEncoding.RawRws => payload,
-            SnapshotPayloadEncoding.GzipRws => Gunzip(payload),
+            SnapshotPayloadEncoding.RawRws when payload.LongLength <= maximumOriginalSaveBytes => payload,
+            SnapshotPayloadEncoding.RawRws => throw new InvalidDataException(
+                $"Snapshot original save exceeds the configured maximum of {maximumOriginalSaveBytes} bytes."),
+            SnapshotPayloadEncoding.GzipRws => Gunzip(
+                payload,
+                expectedOriginalSaveBytes,
+                maximumOriginalSaveBytes),
             _ => throw new NotSupportedException($"Unsupported snapshot payload encoding: {encoding}.")
         };
     }
 
-    private static byte[] Gunzip(byte[] payload)
+    private static byte[] Gunzip(
+        byte[] payload,
+        long expectedOriginalSaveBytes,
+        long maximumOriginalSaveBytes)
     {
+        if (expectedOriginalSaveBytes < 0
+            || expectedOriginalSaveBytes > maximumOriginalSaveBytes
+            || expectedOriginalSaveBytes > int.MaxValue)
+        {
+            throw new InvalidDataException(
+                $"Snapshot original save exceeds the configured maximum of {maximumOriginalSaveBytes} bytes.");
+        }
+
         using var source = new MemoryStream(payload);
         using var gzip = new GZipStream(source, CompressionMode.Decompress);
-        using var target = new MemoryStream();
-        gzip.CopyTo(target);
-        return target.ToArray();
+        byte[] decoded = new byte[(int)expectedOriginalSaveBytes];
+        int offset = 0;
+        while (offset < decoded.Length)
+        {
+            int read = gzip.Read(decoded, offset, decoded.Length - offset);
+            if (read == 0)
+            {
+                throw new InvalidDataException(
+                    "Snapshot decompressed data is shorter than the declared original save size.");
+            }
+
+            offset += read;
+        }
+
+        if (gzip.ReadByte() != -1)
+        {
+            throw new InvalidDataException(
+                $"Snapshot original save exceeds its declared size or the configured maximum of {maximumOriginalSaveBytes} bytes.");
+        }
+
+        return decoded;
     }
 
     private static bool HashMatches(byte[] payload, string expectedSha256)

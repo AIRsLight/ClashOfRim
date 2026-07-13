@@ -93,7 +93,12 @@ public sealed class ServerShopRegistry
                 actorUserId);
             listings[id] = record;
             InvalidateListingCache();
-            Save();
+            PersistShopChanges(
+                new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    [ListingRowKey(record.ListingId)] = JsonSerializer.Serialize(record, JsonOptions)
+                },
+                Array.Empty<string>());
             return record;
         }
     }
@@ -102,12 +107,19 @@ public sealed class ServerShopRegistry
     {
         lock (sync)
         {
+            string buyerPrefix = listingId + "\u001f";
+            string[] buyerRows = buyerPurchaseCounts.Keys
+                .Where(key => key.StartsWith(buyerPrefix, StringComparison.Ordinal))
+                .Select(key => "buyer:" + key)
+                .ToArray();
             bool removed = listings.Remove(listingId);
             if (removed)
             {
                 RemoveBuyerPurchaseCountsLocked(listingId);
                 InvalidateListingCache();
-                Save();
+                PersistShopChanges(
+                    new Dictionary<string, string>(StringComparer.Ordinal),
+                    [ListingRowKey(listingId), .. buyerRows]);
             }
 
             return removed;
@@ -308,7 +320,19 @@ public sealed class ServerShopRegistry
         completedPurchaseKeys.Add(idempotencyKey);
         AddBuyerPurchaseCountLocked(listingId, buyer, purchaseCount, updated.ListingKind);
         InvalidateListingCache();
-        Save();
+        string buyerKey = BuyerPurchaseKey(listingId, buyer.UserId, buyer.ColonyId!);
+        ServerShopBuyerPurchaseRecord purchase = ServerShopBuyerPurchaseRecord.FromKey(
+            buyerKey,
+            buyerPurchaseCounts[buyerKey])!;
+        PersistShopChanges(
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                [ListingRowKey(updated.ListingId)] = JsonSerializer.Serialize(updated, JsonOptions),
+                [BuyerPurchaseRowKey(purchase.ListingId, purchase.UserId, purchase.ColonyId)] =
+                    JsonSerializer.Serialize(purchase, JsonOptions),
+                [CompletedPurchaseRowKey(idempotencyKey)] = JsonSerializer.Serialize(idempotencyKey, JsonOptions)
+            },
+            Array.Empty<string>());
         return new ServerShopPurchaseResult(true, false, updated, updated.StockCount, null);
     }
 
@@ -321,7 +345,7 @@ public sealed class ServerShopRegistry
             && LoadLegacyReadOnly();
         if (importedLegacy && structuredPersistence is not null)
         {
-            Save();
+            structuredPersistence.ReplaceAllForImport(BuildStructuredRows());
         }
     }
 
@@ -429,35 +453,6 @@ public sealed class ServerShopRegistry
 
     private void Save()
     {
-        if (structuredPersistence is not null)
-        {
-            Dictionary<string, string> rows = new(StringComparer.Ordinal);
-            foreach (ServerShopListingRecord listing in listings.Values.OrderBy(listing => listing.ListingId, StringComparer.Ordinal))
-            {
-                rows[ListingRowKey(listing.ListingId)] = JsonSerializer.Serialize(listing, JsonOptions);
-            }
-
-            foreach (ServerShopBuyerPurchaseRecord purchase in buyerPurchaseCounts
-                         .Select(pair => ServerShopBuyerPurchaseRecord.FromKey(pair.Key, pair.Value))
-                         .Where(record => record is not null)
-                         .Cast<ServerShopBuyerPurchaseRecord>()
-                         .OrderBy(record => record.ListingId, StringComparer.Ordinal)
-                         .ThenBy(record => record.UserId, StringComparer.Ordinal)
-                         .ThenBy(record => record.ColonyId, StringComparer.Ordinal))
-            {
-                rows[BuyerPurchaseRowKey(purchase.ListingId, purchase.UserId, purchase.ColonyId)] =
-                    JsonSerializer.Serialize(purchase, JsonOptions);
-            }
-
-            foreach (string key in completedPurchaseKeys.OrderBy(key => key, StringComparer.Ordinal))
-            {
-                rows[CompletedPurchaseRowKey(key)] = JsonSerializer.Serialize(key, JsonOptions);
-            }
-
-            structuredPersistence.ReplaceAll(rows);
-            return;
-        }
-
         legacyPersistence?.Write(JsonSerializer.Serialize(
             new ServerShopRegistryPersistence(
                 listings.Values.OrderBy(listing => listing.ListingId, StringComparer.Ordinal).ToList(),
@@ -471,6 +466,44 @@ public sealed class ServerShopRegistry
                     .ToList(),
                 completedPurchaseKeys.OrderBy(key => key, StringComparer.Ordinal).ToList()),
             JsonOptions));
+    }
+
+    private Dictionary<string, string> BuildStructuredRows()
+    {
+        Dictionary<string, string> rows = new(StringComparer.Ordinal);
+        foreach (ServerShopListingRecord listing in listings.Values)
+        {
+            rows[ListingRowKey(listing.ListingId)] = JsonSerializer.Serialize(listing, JsonOptions);
+        }
+
+        foreach (ServerShopBuyerPurchaseRecord purchase in buyerPurchaseCounts
+                     .Select(pair => ServerShopBuyerPurchaseRecord.FromKey(pair.Key, pair.Value))
+                     .Where(record => record is not null)
+                     .Cast<ServerShopBuyerPurchaseRecord>())
+        {
+            rows[BuyerPurchaseRowKey(purchase.ListingId, purchase.UserId, purchase.ColonyId)] =
+                JsonSerializer.Serialize(purchase, JsonOptions);
+        }
+
+        foreach (string key in completedPurchaseKeys)
+        {
+            rows[CompletedPurchaseRowKey(key)] = JsonSerializer.Serialize(key, JsonOptions);
+        }
+
+        return rows;
+    }
+
+    private void PersistShopChanges(
+        IReadOnlyDictionary<string, string> upserts,
+        IReadOnlyCollection<string> deletes)
+    {
+        if (structuredPersistence is not null)
+        {
+            structuredPersistence.ApplyBatch(upserts, deletes);
+            return;
+        }
+
+        Save();
     }
 
     private void InvalidateListingCache()

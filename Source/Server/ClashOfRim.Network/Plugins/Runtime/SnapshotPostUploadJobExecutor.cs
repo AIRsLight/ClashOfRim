@@ -5,6 +5,8 @@ namespace AIRsLight.ClashOfRim.Network.Plugins;
 
 public static class SnapshotPostUploadJobExecutor
 {
+    public const int MaximumAutomaticAttempts = 8;
+
     public static int ProcessReady(
         ClashOfRimNetworkState state,
         IReadOnlyCollection<ISnapshotPostUploadProcessor> processors,
@@ -129,6 +131,18 @@ public static class SnapshotPostUploadJobExecutor
         string error,
         DateTimeOffset nowUtc)
     {
+        if (job.AttemptCount + 1 >= MaximumAutomaticAttempts)
+        {
+            state.RuntimeLogger.LogError(
+                "Snapshot post-upload job exhausted automatic retries and requires manual review: processor={ProcessorId} kind={Kind} snapshot={SnapshotId} attempts={Attempts}",
+                job.ProcessorId,
+                job.Kind,
+                job.SnapshotId,
+                MaximumAutomaticAttempts);
+            state.SnapshotPostUploadJobs.MarkManualReview(job.JobId, error);
+            return;
+        }
+
         int exponent = Math.Min(job.AttemptCount, 8);
         TimeSpan retryDelay = TimeSpan.FromSeconds(Math.Min(300, 1 << exponent));
         state.SnapshotPostUploadJobs.MarkFailed(job.JobId, error, nowUtc.Add(retryDelay));

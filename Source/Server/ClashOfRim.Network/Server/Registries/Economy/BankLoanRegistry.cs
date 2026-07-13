@@ -142,7 +142,7 @@ public sealed class BankLoanRegistry
             debts[debtId] = debt;
             RegisterDebtIdempotencyKeys(debt);
             InvalidateOpenDebtCache(debt);
-            SaveLocked();
+            PersistBankRecords(Array.Empty<BankLoanRecord>(), [debt], Array.Empty<string>(), Array.Empty<string>());
             return debt;
         }
     }
@@ -193,7 +193,7 @@ public sealed class BankLoanRegistry
             debts[debtId] = updated;
             RegisterDebtIdempotencyKeys(updated);
             InvalidateOpenDebtCache(updated);
-            SaveLocked();
+            PersistBankRecords(Array.Empty<BankLoanRecord>(), [updated], Array.Empty<string>(), Array.Empty<string>());
             return updated;
         }
     }
@@ -238,7 +238,7 @@ public sealed class BankLoanRegistry
             debts[debtId] = updated;
             RegisterDebtIdempotencyKeys(updated);
             InvalidateOpenDebtCache(updated);
-            SaveLocked();
+            PersistBankRecords(Array.Empty<BankLoanRecord>(), [updated], Array.Empty<string>(), Array.Empty<string>());
             return updated;
         }
     }
@@ -294,7 +294,7 @@ public sealed class BankLoanRegistry
             loans[loanId] = loan;
             idByIdempotencyKey[idempotencyKey] = loanId;
             activeLoanIdByColony[ColonyKey(userId, colonyId)] = loanId;
-            SaveLocked();
+            PersistBankRecords([loan], Array.Empty<BankDebtRecord>(), Array.Empty<string>(), Array.Empty<string>());
             return loan;
         }
     }
@@ -330,7 +330,7 @@ public sealed class BankLoanRegistry
             };
             loans[loanId] = updated;
             idByIdempotencyKey[idempotencyKey] = loanId;
-            SaveLocked();
+            PersistBankRecords([updated], Array.Empty<BankDebtRecord>(), Array.Empty<string>(), Array.Empty<string>());
             return updated;
         }
     }
@@ -376,7 +376,7 @@ public sealed class BankLoanRegistry
             loans[activeLoanId] = updated;
             idByIdempotencyKey[idempotencyKey] = activeLoanId;
             activeLoanIdByColony.Remove(colonyKey);
-            SaveLocked();
+            PersistBankRecords([updated], Array.Empty<BankDebtRecord>(), Array.Empty<string>(), Array.Empty<string>());
             return updated;
         }
     }
@@ -445,7 +445,11 @@ public sealed class BankLoanRegistry
 
             if (confirmedLoan is not null || confirmedDebts.Count > 0)
             {
-                SaveLocked();
+                PersistBankRecords(
+                    confirmedLoan is null ? Array.Empty<BankLoanRecord>() : [confirmedLoan],
+                    confirmedDebts,
+                    Array.Empty<string>(),
+                    Array.Empty<string>());
             }
 
             return new BankConfirmationResult(confirmedLoan, confirmedDebts);
@@ -466,6 +470,10 @@ public sealed class BankLoanRegistry
             int cancelledDebtActivations = 0;
             int revertedLoanRepayments = 0;
             int revertedDebtRepayments = 0;
+            List<BankLoanRecord> changedLoans = new();
+            List<BankDebtRecord> changedDebts = new();
+            List<string> deletedLoanIds = new();
+            List<string> deletedDebtIds = new();
             string colonyKey = ColonyKey(userId, colonyId);
             if (activeLoanIdByColony.TryGetValue(colonyKey, out string? loanId)
                 && loans.TryGetValue(loanId, out BankLoanRecord? loan))
@@ -476,6 +484,7 @@ public sealed class BankLoanRegistry
                     loans.Remove(loanId);
                     idByIdempotencyKey.Remove(loan.IdempotencyKey);
                     activeLoanIdByColony.Remove(colonyKey);
+                    deletedLoanIds.Add(loanId);
                     cancelledLoanActivations++;
                     changed = true;
                 }
@@ -490,6 +499,7 @@ public sealed class BankLoanRegistry
                         RepaymentRequestedAtGameTicks = null
                     };
                     loans[loanId] = reverted;
+                    changedLoans.Add(reverted);
                     if (!string.IsNullOrWhiteSpace(loan.RepaymentIdempotencyKey))
                     {
                         idByIdempotencyKey.Remove(loan.RepaymentIdempotencyKey!);
@@ -512,6 +522,7 @@ public sealed class BankLoanRegistry
                 }
 
                 debts.Remove(debt.DebtId);
+                deletedDebtIds.Add(debt.DebtId);
                 RemoveDebtIdempotencyKeys(debt);
                 InvalidateOpenDebtCache(debt);
                 cancelledDebtActivations++;
@@ -538,6 +549,7 @@ public sealed class BankLoanRegistry
                     RepaymentRequestedAtGameTicks = null
                 };
                 debts[debt.DebtId] = reverted;
+                changedDebts.Add(reverted);
                 RemoveDebtRepaymentIdempotencyKey(debt);
                 InvalidateOpenDebtCache(reverted);
                 revertedDebtRepayments++;
@@ -546,7 +558,7 @@ public sealed class BankLoanRegistry
 
             if (changed)
             {
-                SaveLocked();
+                PersistBankRecords(changedLoans, changedDebts, deletedLoanIds, deletedDebtIds);
             }
 
             return new BankPendingConfirmationReconciliationResult(
@@ -598,7 +610,11 @@ public sealed class BankLoanRegistry
 
             if (removed.Count > 0 || removedDebts.Count > 0)
             {
-                SaveLocked();
+                PersistBankRecords(
+                    Array.Empty<BankLoanRecord>(),
+                    Array.Empty<BankDebtRecord>(),
+                    removed,
+                    removedDebts);
             }
 
             return removed.Count + removedDebts.Count;
@@ -614,7 +630,18 @@ public sealed class BankLoanRegistry
             && LoadLegacyReadOnly();
         if (importedLegacy && structuredPersistence is not null)
         {
-            SaveLocked();
+            Dictionary<string, string> rows = new(StringComparer.Ordinal);
+            foreach (BankLoanRecord loan in loans.Values)
+            {
+                rows[LoanRowKey(loan.LoanId)] = JsonSerializer.Serialize(loan, JsonOptions);
+            }
+
+            foreach (BankDebtRecord debt in debts.Values)
+            {
+                rows[DebtRowKey(debt.DebtId)] = JsonSerializer.Serialize(debt, JsonOptions);
+            }
+
+            structuredPersistence.ReplaceAllForImport(rows);
         }
     }
 
@@ -636,6 +663,13 @@ public sealed class BankLoanRegistry
                     {
                         RegisterLoadedLoan(loan, overwrite: true);
                     }
+                    else
+                    {
+                        RegistryPersistenceDiagnostics.ReportInvalidRecord(
+                            "bank-loans",
+                            pair.Key,
+                            new InvalidDataException("The loan record deserialized to null."));
+                    }
                 }
                 else if (pair.Key.StartsWith("debt:", StringComparison.Ordinal))
                 {
@@ -644,10 +678,18 @@ public sealed class BankLoanRegistry
                     {
                         RegisterLoadedDebt(debt, overwrite: true);
                     }
+                    else
+                    {
+                        RegistryPersistenceDiagnostics.ReportInvalidRecord(
+                            "bank-loans",
+                            pair.Key,
+                            new InvalidDataException("The debt record deserialized to null."));
+                    }
                 }
             }
-            catch (JsonException)
+            catch (JsonException ex)
             {
+                RegistryPersistenceDiagnostics.ReportInvalidRecord("bank-loans", pair.Key, ex);
             }
         }
     }
@@ -739,23 +781,6 @@ public sealed class BankLoanRegistry
 
     private void SaveLocked()
     {
-        if (structuredPersistence is not null)
-        {
-            Dictionary<string, string> rows = new(StringComparer.Ordinal);
-            foreach (BankLoanRecord loan in loans.Values.OrderBy(loan => loan.CreatedAtUtc))
-            {
-                rows[LoanRowKey(loan.LoanId)] = JsonSerializer.Serialize(loan, JsonOptions);
-            }
-
-            foreach (BankDebtRecord debt in debts.Values.OrderBy(debt => debt.CreatedAtUtc))
-            {
-                rows[DebtRowKey(debt.DebtId)] = JsonSerializer.Serialize(debt, JsonOptions);
-            }
-
-            structuredPersistence.ReplaceAll(rows);
-            return;
-        }
-
         if (legacyPersistence is null)
         {
             return;
@@ -771,6 +796,34 @@ public sealed class BankLoanRegistry
                     .ToList()),
             JsonOptions);
         legacyPersistence.Write(json);
+    }
+
+    private void PersistBankRecords(
+        IReadOnlyCollection<BankLoanRecord> loanUpserts,
+        IReadOnlyCollection<BankDebtRecord> debtUpserts,
+        IReadOnlyCollection<string> loanDeletes,
+        IReadOnlyCollection<string> debtDeletes)
+    {
+        if (structuredPersistence is not null)
+        {
+            Dictionary<string, string> upserts = new(StringComparer.Ordinal);
+            foreach (BankLoanRecord loan in loanUpserts)
+            {
+                upserts[LoanRowKey(loan.LoanId)] = JsonSerializer.Serialize(loan, JsonOptions);
+            }
+
+            foreach (BankDebtRecord debt in debtUpserts)
+            {
+                upserts[DebtRowKey(debt.DebtId)] = JsonSerializer.Serialize(debt, JsonOptions);
+            }
+
+            structuredPersistence.ApplyBatch(
+                upserts,
+                loanDeletes.Select(LoanRowKey).Concat(debtDeletes.Select(DebtRowKey)).ToArray());
+            return;
+        }
+
+        SaveLocked();
     }
 
     private bool RegisterLoadedLoan(BankLoanRecord loan, bool overwrite)

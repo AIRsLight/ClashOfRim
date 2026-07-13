@@ -136,6 +136,17 @@ public static partial class ClashOfRimNetworkServer
                 ProtocolDeliverySemantics.OnlineImmediate));
         }
 
+        if (!MultipartSnapshotAuthentication.MatchesPrincipal(
+                httpRequest,
+                request.Actor.UserId,
+                request.Actor.ColonyId))
+        {
+            return Results.Ok(new EventCreationResponse(
+                ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed")),
+                eventId: null,
+                ProtocolDeliverySemantics.OnlineImmediate));
+        }
+
         AuthoritativeEvent? existingEvent = FindEventByIdempotencyKey(state.Ledger, request.IdempotencyKey);
         if (existingEvent is not null)
         {
@@ -982,6 +993,17 @@ public static partial class ClashOfRimNetworkServer
                 ProtocolDeliverySemantics.OnlineImmediate));
         }
 
+        if (!MultipartSnapshotAuthentication.MatchesPrincipal(
+                httpRequest,
+                request.Owner.UserId,
+                request.Owner.ColonyId))
+        {
+            return Results.Ok(new EventCreationResponse(
+                ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed")),
+                eventId: null,
+                ProtocolDeliverySemantics.OnlineImmediate));
+        }
+
         ApplyTradeOrderExpirations(state, DateTimeOffset.UtcNow);
         AuthoritativeEvent? existingEvent = FindEventByIdempotencyKey(state.Ledger, request.IdempotencyKey);
         if (existingEvent is not null)
@@ -1676,6 +1698,22 @@ public static partial class ClashOfRimNetworkServer
         {
             return Results.Ok(new FulfillTradeOrderResponse(
                 validation,
+                request.TradeEventId,
+                request.AcceptedMemoEventId,
+                exchangeEventId: null,
+                exchangeCreated: false,
+                Array.Empty<ThingReferenceDto>(),
+                Array.Empty<string>(),
+                tradeStatus: string.Empty));
+        }
+
+        if (!MultipartSnapshotAuthentication.MatchesPrincipal(
+                httpRequest,
+                request.Acceptor.UserId,
+                request.Acceptor.ColonyId))
+        {
+            return Results.Ok(new FulfillTradeOrderResponse(
+                ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed")),
                 request.TradeEventId,
                 request.AcceptedMemoEventId,
                 exchangeEventId: null,

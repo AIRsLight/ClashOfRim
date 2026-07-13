@@ -153,6 +153,17 @@ public static partial class ClashOfRimNetworkServer
                 remainingStockCount: 0));
         }
 
+        if (!MultipartSnapshotAuthentication.MatchesPrincipal(
+                httpRequest,
+                request.Buyer.UserId,
+                request.Buyer.ColonyId))
+        {
+            return Results.Ok(new PurchaseServerShopListingResponse(
+                ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed")),
+                request.ListingId,
+                remainingStockCount: 0));
+        }
+
         DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
         string normalizedListingKind = NormalizeShopListingKind(request.ListingKind);
         ServerShopPurchaseResult prevalidation = state.ServerShop.ValidatePurchase(

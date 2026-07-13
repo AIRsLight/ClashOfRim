@@ -4,6 +4,7 @@ using AIRsLight.ClashOfRim.Save;
 using AIRsLight.ClashOfRim.Network.Plugins;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -117,6 +118,24 @@ public static partial class ClashOfRimNetworkServer
         {
             KeepAliveInterval = TimeSpan.FromSeconds(20)
         });
+        app.Use(async (context, next) =>
+        {
+            if (MultipartSnapshotAuthentication.IsProtectedRoute(context.Request.Path)
+                && !MultipartSnapshotAuthentication.TryAuthorize(
+                    context.Request,
+                    networkState,
+                    DateTimeOffset.UtcNow))
+            {
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                await context.Response.WriteAsJsonAsync(
+                    ProtocolResponse.Reject(
+                        ProtocolErrorCode.Unauthorized,
+                        T("Auth.Failed")));
+                return;
+            }
+
+            await next(context);
+        });
         UseRequestDiagnostics(app);
         MapEndpoints(app);
         plugins.MapEndpoints(app);
@@ -181,7 +200,7 @@ public static partial class ClashOfRimNetworkServer
                 new SqlitePlayerRegistryStore(databasePath),
                 legacyPersistence: null),
             diplomacyRelations: new DiplomacyRelationRegistry(
-                new SqliteKeyedJsonRecordStore(databasePath, "diplomacy-relations"),
+                new SqliteDomainKeyedJsonRecordStore(databasePath, SqliteDomainRegistrySchema.DiplomacyRelations),
                 legacyPersistence: null),
             pawnPackages: new PawnPackageRegistry(
                 new SqlitePawnPackageStore(databasePath),
@@ -190,25 +209,25 @@ public static partial class ClashOfRimNetworkServer
                 new SqliteThingPackageStore(databasePath),
                 legacyPersistence: null),
             raidProtectionActivations: new RaidProtectionActivationRegistry(
-                new SqliteKeyedJsonRecordStore(databasePath, "raid-protection-activations"),
+                new SqliteDomainKeyedJsonRecordStore(databasePath, SqliteDomainRegistrySchema.RaidProtectionActivations),
                 legacyPersistence: null),
             bankLoans: new BankLoanRegistry(
-                new SqliteKeyedJsonRecordStore(databasePath, "bank-loans"),
+                new SqliteDomainKeyedJsonRecordStore(databasePath, SqliteDomainRegistrySchema.BankLoans),
                 legacyPersistence: null),
             mercenaryContracts: new MercenaryContractRegistry(
-                new SqliteKeyedJsonRecordStore(databasePath, "mercenary-contracts"),
+                new SqliteDomainKeyedJsonRecordStore(databasePath, SqliteDomainRegistrySchema.MercenaryContracts),
                 legacyPersistence: null),
             mercenaryGuards: new MercenaryGuardContractRegistry(
-                new SqliteKeyedJsonRecordStore(databasePath, "mercenary-guards"),
+                new SqliteDomainKeyedJsonRecordStore(databasePath, SqliteDomainRegistrySchema.MercenaryGuards),
                 legacyPersistence: null),
             chatMessages: new ChatMessageRegistry(
-                new SqliteKeyedJsonRecordStore(databasePath, "chat-messages"),
+                new SqliteDomainKeyedJsonRecordStore(databasePath, SqliteDomainRegistrySchema.ChatMessages),
                 legacyPersistence: null),
             serverShop: new ServerShopRegistry(
-                new SqliteKeyedJsonRecordStore(databasePath, "server-shop"),
+                new SqliteDomainKeyedJsonRecordStore(databasePath, SqliteDomainRegistrySchema.ServerShop),
                 legacyPersistence: null),
             achievements: new AchievementRegistry(
-                new SqliteKeyedJsonRecordStore(databasePath, "achievements"),
+                new SqliteDomainKeyedJsonRecordStore(databasePath, SqliteDomainRegistrySchema.Achievements),
                 legacyPersistence: null),
             snapshotPostUploadJobs: new SnapshotPostUploadJobRegistry(
                 new SqliteSnapshotPostUploadJobStore(databasePath)),
@@ -218,7 +237,7 @@ public static partial class ClashOfRimNetworkServer
                 new SqliteKeyedJsonRecordStore(databasePath, "admin-control"),
                 legacyPersistence: null),
             offlineAccounts: new OfflineAccountRegistry(
-                new SqliteKeyedJsonRecordStore(databasePath, "offline-accounts"),
+                new SqliteDomainKeyedJsonRecordStore(databasePath, SqliteDomainRegistrySchema.OfflineAccounts),
                 legacyPersistence: null),
             steamAuthTickets: BuildSteamAuthTicketValidator(serverConfiguration),
             plugins: plugins), migration);

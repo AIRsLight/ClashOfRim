@@ -12,7 +12,13 @@ internal interface IPlayerRegistryPersistenceStore
 
     IReadOnlyList<PlayerColonyTombstoneRecord> ReadTombstones();
 
-    void ReplaceAll(
+    void ApplyBatch(
+        IReadOnlyCollection<PlayerSessionRecord> playerUpserts,
+        IReadOnlyCollection<string> playerDeletes,
+        IReadOnlyCollection<PlayerColonyTombstoneRecord> tombstoneUpserts,
+        IReadOnlyCollection<(string UserId, string ColonyId)> tombstoneDeletes);
+
+    void ReplaceAllForImport(
         IReadOnlyList<PlayerSessionRecord> players,
         IReadOnlyList<PlayerColonyTombstoneRecord> tombstones);
 }
@@ -48,6 +54,12 @@ internal interface IKeyedJsonRecordStore
     bool IsInitialized();
 
     IReadOnlyDictionary<string, string> ReadAll();
+
+    void ApplyBatch(
+        IReadOnlyDictionary<string, string> upserts,
+        IReadOnlyCollection<string> deletes);
+
+    void ReplaceAllForImport(IReadOnlyDictionary<string, string> records);
 
     void ReplaceAll(IReadOnlyDictionary<string, string> records);
 }
@@ -297,6 +309,82 @@ internal sealed class SqliteKeyedJsonRecordStore : SqliteStructuredRegistryStore
         }
 
         transaction.Commit();
+    }
+
+    public void ReplaceAllForImport(IReadOnlyDictionary<string, string> records)
+    {
+        ReplaceAll(records);
+    }
+
+    public void ApplyBatch(
+        IReadOnlyDictionary<string, string> upserts,
+        IReadOnlyCollection<string> deletes)
+    {
+        ArgumentNullException.ThrowIfNull(upserts);
+        ArgumentNullException.ThrowIfNull(deletes);
+
+        using SqliteConnection connection = OpenConnection();
+        using SqliteTransaction transaction = connection.BeginTransaction();
+        string updatedAtUtc = DateString(DateTimeOffset.UtcNow);
+        UpsertRecord(connection, transaction, InitializationMarkerKey, "{}", updatedAtUtc);
+        foreach (KeyValuePair<string, string> pair in upserts)
+        {
+            if (!string.IsNullOrWhiteSpace(pair.Key) && !string.IsNullOrWhiteSpace(pair.Value))
+            {
+                UpsertRecord(connection, transaction, pair.Key, pair.Value, updatedAtUtc);
+            }
+        }
+
+        using SqliteCommand delete = connection.CreateCommand();
+        delete.Transaction = transaction;
+        delete.CommandText = """
+            delete from server_keyed_json_records
+            where collection_key = $collection_key
+                and item_key = $item_key
+                and item_key <> $marker_key;
+            """;
+        delete.Parameters.AddWithValue("$collection_key", collectionKey);
+        SqliteParameter deleteKey = delete.Parameters.Add("$item_key", SqliteType.Text);
+        delete.Parameters.AddWithValue("$marker_key", InitializationMarkerKey);
+        foreach (string itemKey in deletes.Where(key => !string.IsNullOrWhiteSpace(key)).Distinct(StringComparer.Ordinal))
+        {
+            deleteKey.Value = itemKey;
+            delete.ExecuteNonQuery();
+        }
+
+        transaction.Commit();
+    }
+
+    private void UpsertRecord(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        string itemKey,
+        string contentJson,
+        string updatedAtUtc)
+    {
+        using SqliteCommand command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            insert into server_keyed_json_records (
+                collection_key,
+                item_key,
+                content_json,
+                updated_at_utc
+            ) values (
+                $collection_key,
+                $item_key,
+                $content_json,
+                $updated_at_utc
+            )
+            on conflict(collection_key, item_key) do update set
+                content_json = excluded.content_json,
+                updated_at_utc = excluded.updated_at_utc;
+            """;
+        command.Parameters.AddWithValue("$collection_key", collectionKey);
+        command.Parameters.AddWithValue("$item_key", itemKey);
+        command.Parameters.AddWithValue("$content_json", contentJson);
+        command.Parameters.AddWithValue("$updated_at_utc", updatedAtUtc);
+        command.ExecuteNonQuery();
     }
 
     private void Initialize()
@@ -551,7 +639,7 @@ internal sealed class SqlitePlayerRegistryStore : SqliteStructuredRegistryStore,
         return tombstones;
     }
 
-    public void ReplaceAll(
+    public void ReplaceAllForImport(
         IReadOnlyList<PlayerSessionRecord> players,
         IReadOnlyList<PlayerColonyTombstoneRecord> tombstones)
     {
@@ -626,6 +714,101 @@ internal sealed class SqlitePlayerRegistryStore : SqliteStructuredRegistryStore,
         }
 
         transaction.Commit();
+    }
+
+    public void ApplyBatch(
+        IReadOnlyCollection<PlayerSessionRecord> playerUpserts,
+        IReadOnlyCollection<string> playerDeletes,
+        IReadOnlyCollection<PlayerColonyTombstoneRecord> tombstoneUpserts,
+        IReadOnlyCollection<(string UserId, string ColonyId)> tombstoneDeletes)
+    {
+        using SqliteConnection connection = OpenConnection();
+        using SqliteTransaction transaction = connection.BeginTransaction();
+        MarkRegistryInitialized(connection, transaction, RegistryKey);
+        foreach (PlayerSessionRecord player in playerUpserts)
+        {
+            UpsertPlayer(connection, transaction, player);
+        }
+
+        foreach (string userId in playerDeletes.Where(value => !string.IsNullOrWhiteSpace(value)).Distinct(StringComparer.Ordinal))
+        {
+            using SqliteCommand command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = "delete from server_players where user_id = $user_id;";
+            command.Parameters.AddWithValue("$user_id", userId);
+            command.ExecuteNonQuery();
+        }
+
+        foreach (PlayerColonyTombstoneRecord tombstone in tombstoneUpserts)
+        {
+            UpsertTombstone(connection, transaction, tombstone);
+        }
+
+        foreach ((string userId, string colonyId) in tombstoneDeletes.Distinct())
+        {
+            using SqliteCommand command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = "delete from server_player_colony_tombstones where user_id = $user_id and colony_id = $colony_id;";
+            command.Parameters.AddWithValue("$user_id", userId);
+            command.Parameters.AddWithValue("$colony_id", colonyId);
+            command.ExecuteNonQuery();
+        }
+
+        transaction.Commit();
+    }
+
+    private static void UpsertPlayer(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        PlayerSessionRecord player)
+    {
+        using SqliteCommand command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            insert into server_players (
+                user_id, colony_id, current_snapshot_id, last_seen_at_utc, display_name,
+                latest_snapshot_wealth, latest_snapshot_wealth_snapshot_id
+            ) values (
+                $user_id, $colony_id, $current_snapshot_id, $last_seen_at_utc, $display_name,
+                $latest_snapshot_wealth, $latest_snapshot_wealth_snapshot_id
+            )
+            on conflict(user_id) do update set
+                colony_id = excluded.colony_id,
+                current_snapshot_id = excluded.current_snapshot_id,
+                last_seen_at_utc = excluded.last_seen_at_utc,
+                display_name = excluded.display_name,
+                latest_snapshot_wealth = excluded.latest_snapshot_wealth,
+                latest_snapshot_wealth_snapshot_id = excluded.latest_snapshot_wealth_snapshot_id;
+            """;
+        command.Parameters.AddWithValue("$user_id", player.UserId);
+        command.Parameters.AddWithValue("$colony_id", player.ColonyId);
+        command.Parameters.AddWithValue("$current_snapshot_id", DbValue(player.CurrentSnapshotId));
+        command.Parameters.AddWithValue("$last_seen_at_utc", DateString(player.LastSeenAtUtc));
+        command.Parameters.AddWithValue("$display_name", DbValue(player.DisplayName));
+        command.Parameters.AddWithValue("$latest_snapshot_wealth", DbValue(player.LatestSnapshotWealth));
+        command.Parameters.AddWithValue("$latest_snapshot_wealth_snapshot_id", DbValue(player.LatestSnapshotWealthSnapshotId));
+        command.ExecuteNonQuery();
+    }
+
+    private static void UpsertTombstone(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        PlayerColonyTombstoneRecord tombstone)
+    {
+        using SqliteCommand command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            insert into server_player_colony_tombstones (user_id, colony_id, last_snapshot_id, deleted_at_utc)
+            values ($user_id, $colony_id, $last_snapshot_id, $deleted_at_utc)
+            on conflict(user_id, colony_id) do update set
+                last_snapshot_id = excluded.last_snapshot_id,
+                deleted_at_utc = excluded.deleted_at_utc;
+            """;
+        command.Parameters.AddWithValue("$user_id", tombstone.UserId);
+        command.Parameters.AddWithValue("$colony_id", tombstone.ColonyId);
+        command.Parameters.AddWithValue("$last_snapshot_id", DbValue(tombstone.LastSnapshotId));
+        command.Parameters.AddWithValue("$deleted_at_utc", DateString(tombstone.DeletedAtUtc));
+        command.ExecuteNonQuery();
     }
 
     private void Initialize()

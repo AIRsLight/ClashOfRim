@@ -777,13 +777,15 @@ public static partial class ClashOfRimNetworkServer
 
     private static string LocalizeOfflineAccountFailure(string? failure)
     {
-        return string.Equals(failure, OfflineAccountRegistry.MissingUserKey, StringComparison.Ordinal)
-            ? T("OfflineAuth.MissingUser")
-            : string.Equals(failure, OfflineAccountRegistry.InvalidPasswordKey, StringComparison.Ordinal)
-                ? T("OfflineAuth.InvalidPassword")
-                : string.IsNullOrWhiteSpace(failure)
-                    ? T("OfflineAuth.Failed")
-                    : failure!;
+        return failure switch
+        {
+            OfflineAccountRegistry.MissingUserKey => T("OfflineAuth.MissingUser"),
+            OfflineAccountRegistry.InvalidPasswordKey => T("OfflineAuth.InvalidPassword"),
+            OfflineAccountRegistry.RateLimitedKey => T("OfflineAuth.RateLimited"),
+            string value when string.IsNullOrWhiteSpace(value) => T("OfflineAuth.Failed"),
+            null => T("OfflineAuth.Failed"),
+            _ => failure
+        };
     }
 
     private static IResult Login(

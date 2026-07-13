@@ -52,16 +52,22 @@ public sealed class ChatMessageRegistry
         lock (gate)
         {
             ChatMessageRecord record = new(
-                nextSequence++,
+                nextSequence,
                 "chat-" + Guid.NewGuid().ToString("N"),
                 fromUserId,
                 fromColonyId,
                 string.IsNullOrWhiteSpace(targetUserId) ? null : targetUserId!.Trim(),
                 NormalizeText(text),
                 sentAtUtc);
+            int removeCount = Math.Max(0, messages.Count + 1 - MaxStoredMessages);
+            List<string> removedKeys = messages
+                .Take(removeCount)
+                .Select(message => MessageRowKey(message.Sequence))
+                .ToList();
+            PersistMessage(record, removedKeys);
+            nextSequence++;
             messages.Add(record);
             TrimLocked();
-            SaveLocked();
             return record;
         }
     }
@@ -128,7 +134,10 @@ public sealed class ChatMessageRegistry
         if (importedLegacy && structuredPersistence is not null)
         {
             TrimLocked();
-            SaveLocked();
+            structuredPersistence.ReplaceAllForImport(messages.ToDictionary(
+                message => MessageRowKey(message.Sequence),
+                message => JsonSerializer.Serialize(message, JsonOptions),
+                StringComparer.Ordinal));
         }
 
         nextSequence = Math.Max(
@@ -202,14 +211,16 @@ public sealed class ChatMessageRegistry
         return false;
     }
 
-    private void SaveLocked()
+    private void PersistMessage(ChatMessageRecord record, IReadOnlyCollection<string> removedKeys)
     {
         if (structuredPersistence is not null)
         {
-            structuredPersistence.ReplaceAll(messages.ToDictionary(
-                message => MessageRowKey(message.Sequence),
-                message => JsonSerializer.Serialize(message, JsonOptions),
-                StringComparer.Ordinal));
+            structuredPersistence.ApplyBatch(
+                new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    [MessageRowKey(record.Sequence)] = JsonSerializer.Serialize(record, JsonOptions)
+                },
+                removedKeys);
             return;
         }
 
@@ -219,7 +230,9 @@ public sealed class ChatMessageRegistry
         }
 
         string json = JsonSerializer.Serialize(
-            new ChatMessageRegistryPersistence(nextSequence, messages.ToList()),
+            new ChatMessageRegistryPersistence(
+                record.Sequence + 1,
+                messages.Append(record).TakeLast(MaxStoredMessages).ToList()),
             JsonOptions);
         legacyPersistence.Write(json);
     }

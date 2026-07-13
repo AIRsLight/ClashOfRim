@@ -25,7 +25,7 @@ internal static class LegacyJsonStructuredRegistryMigrator
             new SqlitePlayerRegistryStore(databasePath),
             new SqliteJsonPersistenceSlot(databasePath, "players"));
         _ = new DiplomacyRelationRegistry(
-            new SqliteKeyedJsonRecordStore(databasePath, "diplomacy-relations"),
+            new SqliteDomainKeyedJsonRecordStore(databasePath, SqliteDomainRegistrySchema.DiplomacyRelations),
             new SqliteJsonPersistenceSlot(databasePath, "diplomacy-relations"));
         _ = new PawnPackageRegistry(
             new SqlitePawnPackageStore(databasePath),
@@ -34,31 +34,31 @@ internal static class LegacyJsonStructuredRegistryMigrator
             new SqliteThingPackageStore(databasePath),
             new SqliteJsonPersistenceSlot(databasePath, "thing-packages"));
         _ = new RaidProtectionActivationRegistry(
-            new SqliteKeyedJsonRecordStore(databasePath, "raid-protection-activations"),
+            new SqliteDomainKeyedJsonRecordStore(databasePath, SqliteDomainRegistrySchema.RaidProtectionActivations),
             new SqliteJsonPersistenceSlot(databasePath, "raid-protection-activations"));
         _ = new BankLoanRegistry(
-            new SqliteKeyedJsonRecordStore(databasePath, "bank-loans"),
+            new SqliteDomainKeyedJsonRecordStore(databasePath, SqliteDomainRegistrySchema.BankLoans),
             new SqliteJsonPersistenceSlot(databasePath, "bank-loans"));
         _ = new MercenaryContractRegistry(
-            new SqliteKeyedJsonRecordStore(databasePath, "mercenary-contracts"),
+            new SqliteDomainKeyedJsonRecordStore(databasePath, SqliteDomainRegistrySchema.MercenaryContracts),
             new SqliteJsonPersistenceSlot(databasePath, "mercenary-contracts"));
         _ = new MercenaryGuardContractRegistry(
-            new SqliteKeyedJsonRecordStore(databasePath, "mercenary-guards"),
+            new SqliteDomainKeyedJsonRecordStore(databasePath, SqliteDomainRegistrySchema.MercenaryGuards),
             new SqliteJsonPersistenceSlot(databasePath, "mercenary-guards"));
         _ = new ChatMessageRegistry(
-            new SqliteKeyedJsonRecordStore(databasePath, "chat-messages"),
+            new SqliteDomainKeyedJsonRecordStore(databasePath, SqliteDomainRegistrySchema.ChatMessages),
             new SqliteJsonPersistenceSlot(databasePath, "chat-messages"));
         _ = new ServerShopRegistry(
-            new SqliteKeyedJsonRecordStore(databasePath, "server-shop"),
+            new SqliteDomainKeyedJsonRecordStore(databasePath, SqliteDomainRegistrySchema.ServerShop),
             new SqliteJsonPersistenceSlot(databasePath, "server-shop"));
         _ = new AchievementRegistry(
-            new SqliteKeyedJsonRecordStore(databasePath, "achievements"),
+            new SqliteDomainKeyedJsonRecordStore(databasePath, SqliteDomainRegistrySchema.Achievements),
             new SqliteJsonPersistenceSlot(databasePath, "achievements"));
         _ = new AdminControlRegistry(
             new SqliteKeyedJsonRecordStore(databasePath, "admin-control"),
             new SqliteJsonPersistenceSlot(databasePath, "admin-control"));
         _ = new OfflineAccountRegistry(
-            new SqliteKeyedJsonRecordStore(databasePath, "offline-accounts"),
+            new SqliteDomainKeyedJsonRecordStore(databasePath, SqliteDomainRegistrySchema.OfflineAccounts),
             new SqliteJsonPersistenceSlot(databasePath, "offline-accounts"));
     }
 }

@@ -72,6 +72,7 @@ public sealed class ClashOfRimNetworkClient
             ProtocolContractManifest.Find(ProtocolMessageKind.UploadSnapshot).Route,
             request,
             payload,
+            request.AuthToken,
             cancellationToken);
     }
 
@@ -126,6 +127,7 @@ public sealed class ClashOfRimNetworkClient
             ProtocolContractManifest.Find(ProtocolMessageKind.ConfirmEventApplication).Route,
             request,
             payload,
+            request.AuthToken,
             cancellationToken);
     }
 
@@ -138,6 +140,7 @@ public sealed class ClashOfRimNetworkClient
             ProtocolContractManifest.Find(ProtocolMessageKind.ConfirmEventApplications).Route,
             request,
             payload,
+            request.AuthToken,
             cancellationToken);
     }
 
@@ -279,6 +282,7 @@ public sealed class ClashOfRimNetworkClient
         CreateRaidRequest raid,
         SnapshotPackageMetadataDto confirmedSnapshot,
         byte[] payload,
+        string authToken,
         CancellationToken cancellationToken = default)
     {
         return PostSnapshotMultipartAsync<CreateRaidWithSnapshotRequest, EventCreationResponse>(
@@ -287,7 +291,8 @@ public sealed class ClashOfRimNetworkClient
                 raid,
                 confirmedSnapshot),
             payload,
-            cancellationToken);
+            authToken,
+            cancellationToken: cancellationToken);
     }
 
     public Task<WorldMapMarkerDeliveryDto> SyncWorldMapMarkersAsync(SyncWorldMapMarkersRequest request, CancellationToken cancellationToken = default)
@@ -333,7 +338,8 @@ public sealed class ClashOfRimNetworkClient
             ProtocolContractManifest.Find(ProtocolMessageKind.UploadWorldSubstrate).Route,
             request,
             payload,
-            cancellationToken);
+            request.AuthToken,
+            cancellationToken: cancellationToken);
     }
 
     public async Task<byte[]> DownloadWorldSubstrateAsync(
@@ -420,6 +426,7 @@ public sealed class ClashOfRimNetworkClient
         string route,
         TRequest request,
         byte[] payload,
+        string? authToken,
         CancellationToken cancellationToken)
     {
         using var content = new MultipartFormDataContent();
@@ -427,7 +434,13 @@ public sealed class ClashOfRimNetworkClient
             new StringContent(JsonSerializer.Serialize(request, JsonOptions), Encoding.UTF8, "application/json"),
             "request");
         content.Add(new ByteArrayContent(payload), "payload", "snapshot.payload");
-        using HttpResponseMessage response = await httpClient.PostAsync(route, content, cancellationToken);
+        using var message = new HttpRequestMessage(HttpMethod.Post, route) { Content = content };
+        if (!string.IsNullOrWhiteSpace(authToken))
+        {
+            message.Headers.TryAddWithoutValidation(MultipartSnapshotTransport.AuthenticationHeaderName, authToken);
+        }
+
+        using HttpResponseMessage response = await httpClient.SendAsync(message, cancellationToken);
         response.EnsureSuccessStatusCode();
 
         TResponse? body = await response.Content.ReadFromJsonAsync<TResponse>(cancellationToken: cancellationToken);

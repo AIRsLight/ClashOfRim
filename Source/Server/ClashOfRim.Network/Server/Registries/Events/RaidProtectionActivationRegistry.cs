@@ -74,12 +74,18 @@ public sealed class RaidProtectionActivationRegistry
                 return false;
             }
 
-            activations[raidEventId] = new RaidProtectionActivationRecord(
+            var record = new RaidProtectionActivationRecord(
                 raidEventId,
                 defenderUserId,
                 string.IsNullOrWhiteSpace(defenderColonyId) ? null : defenderColonyId,
                 activatedAtUtc);
-            SaveLocked();
+            PersistChanges(
+                new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    [raidEventId] = JsonSerializer.Serialize(record, JsonOptions)
+                },
+                Array.Empty<string>());
+            activations[raidEventId] = record;
             return true;
         }
     }
@@ -107,12 +113,11 @@ public sealed class RaidProtectionActivationRegistry
                 return 0;
             }
 
+            PersistChanges(new Dictionary<string, string>(StringComparer.Ordinal), removed);
             foreach (string key in removed)
             {
                 activations.Remove(key);
             }
-
-            SaveLocked();
             return removed.Count;
         }
     }
@@ -126,7 +131,10 @@ public sealed class RaidProtectionActivationRegistry
             && LoadLegacyReadOnly();
         if (importedLegacy && structuredPersistence is not null)
         {
-            SaveLocked();
+            structuredPersistence.ReplaceAllForImport(activations.ToDictionary(
+                pair => pair.Key,
+                pair => JsonSerializer.Serialize(pair.Value, JsonOptions),
+                StringComparer.Ordinal));
         }
     }
 
@@ -199,14 +207,13 @@ public sealed class RaidProtectionActivationRegistry
         return imported;
     }
 
-    private void SaveLocked()
+    private void PersistChanges(
+        IReadOnlyDictionary<string, string> upserts,
+        IReadOnlyCollection<string> deletes)
     {
         if (structuredPersistence is not null)
         {
-            structuredPersistence.ReplaceAll(activations.ToDictionary(
-                pair => pair.Key,
-                pair => JsonSerializer.Serialize(pair.Value, JsonOptions),
-                StringComparer.Ordinal));
+            structuredPersistence.ApplyBatch(upserts, deletes);
             return;
         }
 
@@ -215,8 +222,23 @@ public sealed class RaidProtectionActivationRegistry
             return;
         }
 
+        Dictionary<string, RaidProtectionActivationRecord> next = new(activations, StringComparer.Ordinal);
+        foreach (string key in deletes)
+        {
+            next.Remove(key);
+        }
+
+        foreach (KeyValuePair<string, string> pair in upserts)
+        {
+            RaidProtectionActivationRecord? record = JsonSerializer.Deserialize<RaidProtectionActivationRecord>(pair.Value, JsonOptions);
+            if (record is not null)
+            {
+                next[pair.Key] = record;
+            }
+        }
+
         string json = JsonSerializer.Serialize(
-            new RaidProtectionActivationRegistryPersistence(activations.Values.ToList()),
+            new RaidProtectionActivationRegistryPersistence(next.Values.ToList()),
             JsonOptions);
         legacyPersistence.Write(json);
     }

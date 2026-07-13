@@ -229,7 +229,8 @@ public sealed class UploadWorldSubstrateRequest
         string colonyId,
         string worldConfigurationId,
         string? steamAuthTicket = null,
-        string? password = null)
+        string? password = null,
+        string? authToken = null)
     {
         ProtocolVersion = protocolVersion;
         UserId = userId;
@@ -237,6 +238,7 @@ public sealed class UploadWorldSubstrateRequest
         WorldConfigurationId = worldConfigurationId;
         SteamAuthTicket = steamAuthTicket;
         Password = password;
+        AuthToken = authToken;
     }
 
     public string ProtocolVersion { get; }
@@ -250,6 +252,8 @@ public sealed class UploadWorldSubstrateRequest
     public string? SteamAuthTicket { get; }
 
     public string? Password { get; }
+
+    public string? AuthToken { get; }
 }
 
 public sealed class UploadWorldSubstrateResponse

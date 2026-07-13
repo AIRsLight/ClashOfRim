@@ -106,8 +106,14 @@ public sealed class DiplomacyRelationRegistry
 
         lock (gate)
         {
-            records[RelationKey(first, second)] = record;
-            SaveLocked();
+            string key = RelationKey(first, second);
+            PersistChanges(
+                new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    [key] = JsonSerializer.Serialize(record, JsonOptions)
+                },
+                Array.Empty<string>());
+            records[key] = record;
             return record;
         }
     }
@@ -137,14 +143,13 @@ public sealed class DiplomacyRelationRegistry
                     || IsEndpoint(pair.Value.UserB, pair.Value.ColonyB, userId, colonyId))
                 .Select(pair => pair.Key)
                 .ToList();
-            foreach (string key in removedKeys)
-            {
-                records.Remove(key);
-            }
-
             if (removedKeys.Count > 0)
             {
-                SaveLocked();
+                PersistChanges(new Dictionary<string, string>(StringComparer.Ordinal), removedKeys);
+                foreach (string key in removedKeys)
+                {
+                    records.Remove(key);
+                }
             }
 
             return removedKeys.Count;
@@ -175,7 +180,10 @@ public sealed class DiplomacyRelationRegistry
             && LoadLegacyReadOnly();
         if (importedLegacy && structuredPersistence is not null)
         {
-            SaveLocked();
+            structuredPersistence.ReplaceAllForImport(records.ToDictionary(
+                pair => pair.Key,
+                pair => JsonSerializer.Serialize(pair.Value, JsonOptions),
+                StringComparer.Ordinal));
         }
     }
 
@@ -258,14 +266,13 @@ public sealed class DiplomacyRelationRegistry
         }
     }
 
-    private void SaveLocked()
+    private void PersistChanges(
+        IReadOnlyDictionary<string, string> upserts,
+        IReadOnlyCollection<string> deletes)
     {
         if (structuredPersistence is not null)
         {
-            structuredPersistence.ReplaceAll(records.ToDictionary(
-                pair => pair.Key,
-                pair => JsonSerializer.Serialize(pair.Value, JsonOptions),
-                StringComparer.Ordinal));
+            structuredPersistence.ApplyBatch(upserts, deletes);
             return;
         }
 
@@ -274,8 +281,23 @@ public sealed class DiplomacyRelationRegistry
             return;
         }
 
+        Dictionary<string, DiplomacyRelationRecord> next = new(records, StringComparer.Ordinal);
+        foreach (string key in deletes)
+        {
+            next.Remove(key);
+        }
+
+        foreach (KeyValuePair<string, string> pair in upserts)
+        {
+            DiplomacyRelationRecord? record = JsonSerializer.Deserialize<DiplomacyRelationRecord>(pair.Value, JsonOptions);
+            if (record is not null)
+            {
+                next[pair.Key] = record;
+            }
+        }
+
         string json = JsonSerializer.Serialize(
-            new DiplomacyRelationRegistryPersistence(records.Values
+            new DiplomacyRelationRegistryPersistence(next.Values
                 .OrderBy(record => record.UserA, StringComparer.Ordinal)
                 .ThenBy(record => record.ColonyA, StringComparer.Ordinal)
                 .ThenBy(record => record.UserB, StringComparer.Ordinal)

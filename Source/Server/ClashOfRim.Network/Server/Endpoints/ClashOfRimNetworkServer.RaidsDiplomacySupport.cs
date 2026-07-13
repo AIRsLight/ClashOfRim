@@ -198,6 +198,17 @@ public static partial class ClashOfRimNetworkServer
                 ProtocolDeliverySemantics.OnlineImmediate));
         }
 
+        if (!MultipartSnapshotAuthentication.MatchesPrincipal(
+                httpRequest,
+                request.Attacker.UserId,
+                request.Attacker.ColonyId))
+        {
+            return Results.Ok(new EventCreationResponse(
+                ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed")),
+                eventId: null,
+                ProtocolDeliverySemantics.OnlineImmediate));
+        }
+
         DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
         ReconcileExpiredRaidEvents(state, nowUtc);
         AuthoritativeEvent? existingEvent = FindEventByIdempotencyKey(state.Ledger, request.IdempotencyKey);
@@ -901,6 +912,17 @@ public static partial class ClashOfRimNetworkServer
         {
             return Results.Ok(new EventCreationResponse(
                 validation,
+                eventId: null,
+                ProtocolDeliverySemantics.OnlineImmediate));
+        }
+
+        if (!MultipartSnapshotAuthentication.MatchesPrincipal(
+                httpRequest,
+                request.Actor.UserId,
+                request.Actor.ColonyId))
+        {
+            return Results.Ok(new EventCreationResponse(
+                ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed")),
                 eventId: null,
                 ProtocolDeliverySemantics.OnlineImmediate));
         }

@@ -9,7 +9,9 @@ using Microsoft.Data.Sqlite;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
+using System.Net;
 using System.Net.WebSockets;
 using System.Text;
 using System.Net.Http.Json;
@@ -18,8 +20,17 @@ using System.Text.Json;
 VerifySnapshotPostUploadPipelineSemantics();
 VerifySnapshotPostUploadProcessorIdsAreUnique();
 VerifySnapshotPostUploadProcessorPluginFiltering();
+VerifyOfflineAccountsAllowLegacyPasswordLengths();
+VerifyOfflineAccountsRateLimitFailures();
+VerifyCorruptOfflineAccountRowsAreQuarantined();
+VerifyDomainRegistryStoreAppliesAtomicDeltas();
+VerifyBankRegistryUpdatesOnlyChangedRows();
+VerifyPlayerRegistryUpdatesOnlyChangedRows();
+await VerifyMultipartClientAddsAuthHeaderAsync();
+VerifyMultipartPreAuthentication();
 VerifyDeferredSnapshotPostUploadEnqueueSemantics();
 VerifyDeferredSnapshotPostUploadRetrySemantics();
+VerifyDeferredSnapshotPostUploadDeadLetterSemantics();
 VerifyPreparedSnapshotPostUploadJobSemantics();
 VerifyRaidSettlementDeferredSchedulingSemantics();
 if (args.Contains("--snapshot-pipeline-only", StringComparer.Ordinal))
@@ -41,6 +52,381 @@ await VerifyColonyRelocationExplicitConfirmationAsync();
 await VerifyOnlinePresenceLeaseExpiryAsync();
 await VerifyDefaultPersistentServerStateAsync();
 await VerifyDiplomacyRelationCooldownAsync();
+
+static void VerifyOfflineAccountsAllowLegacyPasswordLengths()
+{
+    var accounts = new OfflineAccountRegistry();
+    OfflineAccountAuthenticationResult empty = accounts.Authenticate(
+        "empty-password-user",
+        string.Empty,
+        DateTimeOffset.UtcNow);
+    OfflineAccountAuthenticationResult shortPassword = accounts.Authenticate(
+        "short-password-user",
+        "1234567",
+        DateTimeOffset.UtcNow);
+    Require(empty.Accepted, "历史空密码离线账户应允许注册和登录");
+    Require(shortPassword.Accepted, "历史短密码离线账户应允许注册和登录");
+    Require(
+        accounts.ChangePassword(
+            "short-password-user",
+            "1234567",
+            "1",
+            DateTimeOffset.UtcNow,
+            out _),
+        "修改密码不得强制八字符最小长度");
+    Require(
+        accounts.Authenticate("short-password-user", "1", DateTimeOffset.UtcNow).Accepted,
+        "修改后的短密码应能登录");
+    Require(
+        accounts.ResetPassword("short-password-user", string.Empty, DateTimeOffset.UtcNow, out _),
+        "管理员应能将离线账户重置为空密码");
+    Require(
+        accounts.Authenticate("short-password-user", string.Empty, DateTimeOffset.UtcNow).Accepted,
+        "重置后的空密码应能登录");
+}
+
+static void VerifyOfflineAccountsRateLimitFailures()
+{
+    var accounts = new OfflineAccountRegistry();
+    DateTimeOffset now = DateTimeOffset.UtcNow;
+    Require(
+        accounts.Authenticate("rate-limited-user", "correct-password", now).Accepted,
+        "限流测试账户应先成功注册");
+
+    for (int attempt = 0; attempt < 5; attempt++)
+    {
+        Require(
+            !accounts.Authenticate("rate-limited-user", "wrong-password", now.AddSeconds(attempt)).Accepted,
+            "错误密码不得通过认证");
+    }
+
+    Require(
+        !accounts.Authenticate("rate-limited-user", "correct-password", now.AddSeconds(6)).Accepted,
+        "连续认证失败后应暂时锁定账户");
+    Require(
+        accounts.Authenticate("rate-limited-user", "correct-password", now.AddMinutes(16)).Accepted,
+        "认证锁定期结束后应允许正确密码登录");
+}
+
+static void VerifyCorruptOfflineAccountRowsAreQuarantined()
+{
+    string directory = Path.Combine(Path.GetTempPath(), "clashofrim-corrupt-account-" + Guid.NewGuid().ToString("N"));
+    string databasePath = Path.Combine(directory, "server.sqlite");
+    Directory.CreateDirectory(directory);
+    TextWriter originalError = Console.Error;
+    var capturedError = new StringWriter();
+    try
+    {
+        var store = new SqliteKeyedJsonRecordStore(databasePath, "offline-accounts");
+        store.ReplaceAll(new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["account:corrupt-user"] = "{not-json"
+        });
+        Console.SetError(capturedError);
+        var accounts = new OfflineAccountRegistry(store, legacyPersistence: null);
+
+        OfflineAccountAuthenticationResult authentication = accounts.Authenticate(
+            "corrupt-user",
+            "replacement-password",
+            DateTimeOffset.UtcNow);
+        Require(!authentication.Accepted, "损坏账户记录不得退化为可重新注册的新账户");
+        Require(
+            capturedError.ToString().Contains("offline-accounts", StringComparison.Ordinal)
+            && capturedError.ToString().Contains("account:corrupt-user", StringComparison.Ordinal),
+            "损坏账户记录应输出集合和行键诊断");
+
+        Require(
+            accounts.ResetPassword("corrupt-user", "recovered-password", DateTimeOffset.UtcNow, out _),
+            "管理员重置密码应能修复隔离账户");
+        Require(
+            accounts.Authenticate("corrupt-user", "recovered-password", DateTimeOffset.UtcNow).Accepted,
+            "隔离账户重置密码后应恢复认证");
+
+        capturedError.GetStringBuilder().Clear();
+        var bankStore = new SqliteKeyedJsonRecordStore(databasePath, "bank-loans");
+        bankStore.ReplaceAll(new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["loan:corrupt-loan"] = "{not-json"
+        });
+        _ = new BankLoanRegistry(bankStore, legacyPersistence: null);
+        Require(
+            capturedError.ToString().Contains("bank-loans", StringComparison.Ordinal)
+            && capturedError.ToString().Contains("loan:corrupt-loan", StringComparison.Ordinal),
+            "损坏贷款记录应输出集合和行键诊断");
+    }
+    finally
+    {
+        Console.SetError(originalError);
+        capturedError.Dispose();
+        SqliteConnection.ClearAllPools();
+        if (Directory.Exists(directory))
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+}
+
+static void VerifyDomainRegistryStoreAppliesAtomicDeltas()
+{
+    string directory = Path.Combine(Path.GetTempPath(), "clashofrim-domain-store-" + Guid.NewGuid().ToString("N"));
+    string databasePath = Path.Combine(directory, "server.sqlite");
+    Directory.CreateDirectory(directory);
+    try
+    {
+        var store = new SqliteDomainKeyedJsonRecordStore(databasePath, SqliteDomainRegistrySchema.BankLoans);
+        store.ReplaceAllForImport(new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["loan:loan-a"] = "{\"LoanId\":\"loan-a\",\"IdempotencyKey\":\"key-a\",\"UserId\":\"user\",\"ColonyId\":\"colony\",\"PrincipalSilver\":100,\"Status\":\"Active\"}",
+            ["debt:debt-a"] = "{\"DebtId\":\"debt-a\",\"IdempotencyKey\":\"debt-key-a\",\"UserId\":\"user\",\"ColonyId\":\"colony\",\"AmountSilver\":50,\"Status\":\"Active\"}"
+        });
+
+        store.ApplyBatch(
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["loan:loan-a"] = "{\"LoanId\":\"loan-a\",\"IdempotencyKey\":\"key-a\",\"UserId\":\"user\",\"ColonyId\":\"colony\",\"PrincipalSilver\":100,\"Status\":\"Repaid\"}",
+                ["debt:debt-b"] = "{\"DebtId\":\"debt-b\",\"IdempotencyKey\":\"debt-key-b\",\"UserId\":\"user\",\"ColonyId\":\"colony\",\"AmountSilver\":75,\"Status\":\"Active\"}"
+            },
+            ["debt:debt-a"]);
+
+        IReadOnlyDictionary<string, string> records = store.ReadAll();
+        Equal(2, records.Count, "增量事务应只保留目标记录");
+        Require(records["loan:loan-a"].Contains("Repaid", StringComparison.Ordinal), "增量事务应更新贷款行");
+        Require(records.ContainsKey("debt:debt-b"), "增量事务应插入债务行");
+        Require(!records.ContainsKey("debt:debt-a"), "增量事务应删除指定债务行");
+
+        using var verification = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = databasePath,
+            Mode = SqliteOpenMode.ReadWriteCreate
+        }.ToString());
+        verification.Open();
+        using SqliteCommand generated = verification.CreateCommand();
+        generated.CommandText = "select status from server_bank_loans where loan_id = 'loan-a';";
+        Equal("Repaid", Convert.ToString(generated.ExecuteScalar()), "专用表生成列应反映最新权威状态");
+    }
+    finally
+    {
+        SqliteConnection.ClearAllPools();
+        if (Directory.Exists(directory))
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+}
+
+static void VerifyBankRegistryUpdatesOnlyChangedRows()
+{
+    string directory = Path.Combine(Path.GetTempPath(), "clashofrim-bank-delta-" + Guid.NewGuid().ToString("N"));
+    string databasePath = Path.Combine(directory, "server.sqlite");
+    Directory.CreateDirectory(directory);
+    try
+    {
+        var store = new SqliteDomainKeyedJsonRecordStore(databasePath, SqliteDomainRegistrySchema.BankLoans);
+        var registry = new BankLoanRegistry(store, legacyPersistence: null);
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        BankDebtRecord first = registry.CreateDebt("debt-key-a", "user", "colony", "snapshot", 50, "Fine", "a", "source-a", 1, now);
+        registry.CreateDebt("debt-key-b", "user", "colony", "snapshot", 75, "Fine", "b", "source-b", 1, now);
+
+        using (var connection = OpenWritableSqlite(databasePath))
+        using (SqliteCommand command = connection.CreateCommand())
+        {
+            command.CommandText = """
+                create table write_audit (action text not null, item_key text not null);
+                create trigger audit_bank_update after update on server_bank_debts
+                begin insert into write_audit values ('update', new.item_key); end;
+                create trigger audit_bank_delete after delete on server_bank_debts
+                begin insert into write_audit values ('delete', old.item_key); end;
+                create trigger audit_bank_insert after insert on server_bank_debts
+                begin insert into write_audit values ('insert', new.item_key); end;
+                """;
+            command.ExecuteNonQuery();
+        }
+
+        registry.MarkDebtRepaymentPending("repay-a", "user", "colony", first.DebtId, 2, now.AddMinutes(1));
+        using var verification = OpenWritableSqlite(databasePath);
+        using SqliteCommand audit = verification.CreateCommand();
+        audit.CommandText = "select action || ':' || item_key from write_audit order by rowid;";
+        using SqliteDataReader reader = audit.ExecuteReader();
+        var rows = new List<string>();
+        while (reader.Read())
+        {
+            rows.Add(reader.GetString(0));
+        }
+
+        Equal(1, rows.Count, "修改单笔债务不应重写其他债务行");
+        Equal("update:debt:" + first.DebtId, rows[0], "债务更新应只写目标行");
+    }
+    finally
+    {
+        SqliteConnection.ClearAllPools();
+        if (Directory.Exists(directory))
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+}
+
+static void VerifyPlayerRegistryUpdatesOnlyChangedRows()
+{
+    string directory = Path.Combine(Path.GetTempPath(), "clashofrim-player-delta-" + Guid.NewGuid().ToString("N"));
+    string databasePath = Path.Combine(directory, "server.sqlite");
+    Directory.CreateDirectory(directory);
+    try
+    {
+        var store = new SqlitePlayerRegistryStore(databasePath);
+        var registry = new PlayerRegistry(store, legacyPersistence: null);
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        registry.Record("user-a", "colony-a", "snapshot-a", now);
+        registry.Record("user-b", "colony-b", "snapshot-b", now);
+
+        using (var connection = OpenWritableSqlite(databasePath))
+        using (SqliteCommand command = connection.CreateCommand())
+        {
+            command.CommandText = """
+                create table player_write_audit (action text not null, user_id text not null);
+                create trigger audit_player_update after update on server_players
+                begin insert into player_write_audit values ('update', new.user_id); end;
+                create trigger audit_player_delete after delete on server_players
+                begin insert into player_write_audit values ('delete', old.user_id); end;
+                """;
+            command.ExecuteNonQuery();
+        }
+
+        registry.RecordLatestSnapshotReference("user-a", "colony-a", "snapshot-a2", now.AddMinutes(1));
+        using var verification = OpenWritableSqlite(databasePath);
+        using SqliteCommand audit = verification.CreateCommand();
+        audit.CommandText = "select action || ':' || user_id from player_write_audit order by rowid;";
+        Equal("update:user-a", Convert.ToString(audit.ExecuteScalar()), "玩家状态更新应只写目标玩家行");
+        using SqliteCommand count = verification.CreateCommand();
+        count.CommandText = "select count(*) from player_write_audit;";
+        Equal(1L, Convert.ToInt64(count.ExecuteScalar()), "玩家状态更新不应删除并重建整表");
+    }
+    finally
+    {
+        SqliteConnection.ClearAllPools();
+        if (Directory.Exists(directory))
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+}
+
+static SqliteConnection OpenWritableSqlite(string databasePath)
+{
+    var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+    {
+        DataSource = databasePath,
+        Mode = SqliteOpenMode.ReadWriteCreate
+    }.ToString());
+    connection.Open();
+    return connection;
+}
+
+static async Task VerifyMultipartClientAddsAuthHeaderAsync()
+{
+    var handler = new CaptureRequestHandler();
+    var client = new ClashOfRimNetworkClient(new HttpClient(handler)
+    {
+        BaseAddress = new Uri("http://localhost/")
+    });
+    const string token = "auth:multipart-client-token";
+    var package = new SnapshotPackageMetadataDto(
+        "1",
+        "multipart-user",
+        "multipart-colony",
+        "multipart-snapshot",
+        "1.6-test",
+        "GzipRws",
+        1,
+        1,
+        "original-hash",
+        "payload-hash");
+    var request = new UploadSnapshotMetadataRequest(
+        "multipart-idempotency",
+        "multipart-user",
+        "multipart-colony",
+        "multipart-snapshot",
+        package,
+        token);
+
+    try
+    {
+        await client.UploadSnapshotAsync(request, new byte[] { 1 });
+    }
+    catch (HttpRequestException)
+    {
+    }
+
+    Equal(token, handler.AuthToken, "multipart 客户端必须在读取载荷前发送认证头");
+}
+
+static void VerifyMultipartPreAuthentication()
+{
+    ProtocolMessageKind[] protectedKinds =
+    {
+        ProtocolMessageKind.UploadSnapshot,
+        ProtocolMessageKind.ConfirmEventApplication,
+        ProtocolMessageKind.ConfirmEventApplications,
+        ProtocolMessageKind.CreateGiftWithSnapshot,
+        ProtocolMessageKind.CreateTradeOrderWithSnapshot,
+        ProtocolMessageKind.FulfillTradeOrderWithSnapshot,
+        ProtocolMessageKind.PurchaseServerShopListingWithSnapshot,
+        ProtocolMessageKind.CreateRaidWithSnapshot,
+        ProtocolMessageKind.CreateSupportPawnWithSnapshot,
+        ProtocolMessageKind.UploadWorldSubstrate,
+        ProtocolMessageKind.CreateBankLoanWithSnapshot,
+        ProtocolMessageKind.RepayBankLoanWithSnapshot,
+        ProtocolMessageKind.RepayBankDebtWithSnapshot,
+        ProtocolMessageKind.HireMercenaryWithSnapshot,
+        ProtocolMessageKind.HireMercenaryGuardWithSnapshot
+    };
+    foreach (ProtocolMessageKind kind in protectedKinds)
+    {
+        Require(
+            MultipartSnapshotAuthentication.IsProtectedRoute(
+                ProtocolContractManifest.Find(kind).Route),
+            $"multipart 路由必须前置认证：{kind}");
+    }
+    Require(
+        !MultipartSnapshotAuthentication.IsProtectedRoute(
+            ProtocolContractManifest.Find(ProtocolMessageKind.Login).Route),
+        "普通 JSON 登录路由不得误用 multipart 前置认证");
+
+    var state = new ClashOfRimNetworkState();
+    DateTimeOffset now = DateTimeOffset.UtcNow;
+    Require(
+        state.LoginSessions.TryCreate("multipart-user", "multipart-colony", now, out string sessionId),
+        "应创建 multipart 认证测试会话");
+    string token = state.AuthTokens.Issue(
+        "multipart-user",
+        "multipart-user",
+        "multipart-colony",
+        sessionId,
+        now);
+
+    var missing = new DefaultHttpContext();
+    Require(
+        !MultipartSnapshotAuthentication.TryAuthorize(missing.Request, state, now),
+        "缺少认证头时必须在读取 multipart 请求体前拒绝");
+
+    var valid = new DefaultHttpContext();
+    valid.Request.Headers[MultipartSnapshotAuthentication.HeaderName] = token;
+    Require(
+        MultipartSnapshotAuthentication.TryAuthorize(valid.Request, state, now),
+        "有效认证头应允许进入 multipart 解析阶段");
+    Require(
+        MultipartSnapshotAuthentication.MatchesPrincipal(
+            valid.Request,
+            "multipart-user",
+            "multipart-colony"),
+        "multipart 请求身份必须与认证头主体一致");
+    Require(
+        !MultipartSnapshotAuthentication.MatchesPrincipal(
+            valid.Request,
+            "other-user",
+            "other-colony"),
+        "multipart 请求不得冒用其他殖民地身份");
+}
 
 static void VerifySnapshotPostUploadPipelineSemantics()
 {
@@ -341,6 +727,46 @@ static void VerifyDeferredSnapshotPostUploadRetrySemantics()
         SnapshotPostUploadJobExecutor.ProcessReady(manualState, new[] { manualProcessor }, manualContext.OccurredAtUtc),
         "需要人工审核的任务不得计为完成");
     Equal(1, manualJobs.ListManualReview().Count, "需要人工审核的任务和诊断信息必须持久保留");
+}
+
+static void VerifyDeferredSnapshotPostUploadDeadLetterSemantics()
+{
+    var jobs = new SnapshotPostUploadJobRegistry();
+    var state = new ClashOfRimNetworkState(snapshotPostUploadJobs: jobs);
+    DateTimeOffset now = DateTimeOffset.UtcNow;
+    var context = new SnapshotPostUploadContext(
+        state,
+        SnapshotPostUploadKind.AuthoritativeColonySnapshot,
+        Snapshot: null!,
+        "dead-letter-user",
+        "dead-letter-colony",
+        SessionId: null,
+        now,
+        SnapshotPostUploadExtraData.Empty,
+        RegisterPlayerColonySite: true);
+    var processor = new RecordingDeferredSnapshotPostUploadProcessor(
+        "dead-letter-processor",
+        SnapshotPostUploadStage.Notification,
+        order: 0,
+        new[] { SnapshotPostUploadKind.AuthoritativeColonySnapshot },
+        new List<string>(),
+        payloadJson: "{}",
+        failuresBeforeSuccess: int.MaxValue);
+
+    SnapshotPostUploadPipeline.Run(context, new[] { processor });
+    for (int attempt = 0; attempt < 8; attempt++)
+    {
+        SnapshotPostUploadJobRecord ready = jobs.ListReady(DateTimeOffset.MaxValue).Single();
+        SnapshotPostUploadJobExecutor.ProcessReady(state, new[] { processor }, ready.NextAttemptAtUtc);
+    }
+
+    SnapshotPostUploadJobRecord deadLetter = jobs.ListManualReview().Single();
+    Equal(8, deadLetter.AttemptCount, "永久失败任务应在有限次数后停止重试");
+    Equal(0, jobs.ListReady(DateTimeOffset.MaxValue).Count, "死信任务不得继续进入后台重试队列");
+
+    SnapshotPostUploadJobRecord retried = jobs.MarkReady(deadLetter.JobId, now.AddHours(1));
+    Equal(0, retried.AttemptCount, "管理员重试死信任务时应开启新的重试周期");
+    Equal(1, jobs.ListReady(DateTimeOffset.MaxValue).Count, "管理员应能将死信任务重新投入队列");
 }
 
 static void VerifyPreparedSnapshotPostUploadJobSemantics()
@@ -2276,7 +2702,8 @@ try
         new[] { "owner:user-a/colony:colony-a/snapshot:attacker-snapshot-after/map:caravan/thing:pawn-1" },
         new[] { ConcreteThing("owner:user-a/colony:colony-a/snapshot:attacker-snapshot-after/map:caravan/thing:medicine", "MedicineIndustrial", 8) }),
         SnapshotMetadata(raidBattlefieldPackage),
-        raidBattlefieldPackage.Payload);
+        raidBattlefieldPackage.Payload,
+        login.AuthToken!);
     Require(raid.Result.Accepted, "创建袭击应成功");
     Require(state.Ledger.Find(raid.EventId!)?.Payload is RaidEventPayload, "袭击事件应进入账本");
     Equal("attacker-snapshot-after-player-raid", raid.AppliedSnapshotId, "玩家袭击创建应确认攻击方战场快照");
@@ -4272,6 +4699,23 @@ sealed class RecordingDeferredSnapshotPostUploadProcessor : IDeferredSnapshotPos
             remainingFailures--;
             throw new InvalidOperationException("Deferred processor test failure.");
         }
+    }
+}
+
+sealed class CaptureRequestHandler : HttpMessageHandler
+{
+    public string? AuthToken { get; private set; }
+
+    protected override Task<HttpResponseMessage> SendAsync(
+        HttpRequestMessage request,
+        CancellationToken cancellationToken)
+    {
+        AuthToken = request.Headers.TryGetValues(
+            MultipartSnapshotAuthentication.HeaderName,
+            out IEnumerable<string>? values)
+            ? values.SingleOrDefault()
+            : null;
+        return Task.FromResult(new HttpResponseMessage(HttpStatusCode.Unauthorized));
     }
 }
 

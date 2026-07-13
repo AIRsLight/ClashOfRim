@@ -96,13 +96,6 @@ internal static class CoreRaidDifficultyServerCompatibility
         int minimumDefenderWealth,
         IReadOnlyList<WorldConfigurationExtensionDto>? extensions)
     {
-        if (snapshot.Envelope.DefenderThreatPoints is float clientThreatPoints
-            && !float.IsNaN(clientThreatPoints)
-            && !float.IsInfinity(clientThreatPoints))
-        {
-            return (int)Math.Ceiling(Math.Clamp(clientThreatPoints, GlobalPointsMin, GlobalPointsMax));
-        }
-
         SaveSnapshotIndex index = snapshot.Index;
         int wealth = Math.Max(0, Math.Max(defenderWealth, minimumDefenderWealth));
         int colonists = index.Maps.Sum(map => Math.Max(0, map.PlayerColonistCount));
@@ -115,7 +108,15 @@ internal static class CoreRaidDifficultyServerCompatibility
         float colonistPoints = colonists * EvaluateCurve(PointsPerColonistByWealthCurve, wealth);
         float threatScale = ParseBaselineFloat(ReadBaseline(extensions)?.ThreatScale, 1f);
         float points = (wealthPoints + colonistPoints) * Math.Max(0f, threatScale);
-        return (int)Math.Ceiling(Math.Clamp(points, GlobalPointsMin, GlobalPointsMax));
+        int serverMaximum = (int)Math.Ceiling(Math.Clamp(points, GlobalPointsMin, GlobalPointsMax));
+        if (snapshot.Envelope.DefenderThreatPoints is not float clientThreatPoints
+            || float.IsNaN(clientThreatPoints)
+            || float.IsInfinity(clientThreatPoints))
+        {
+            return serverMaximum;
+        }
+
+        return (int)Math.Ceiling(Math.Clamp(clientThreatPoints, GlobalPointsMin, serverMaximum));
     }
 
     private static float EvaluateCurve(IReadOnlyList<CurvePointData> curve, float x)

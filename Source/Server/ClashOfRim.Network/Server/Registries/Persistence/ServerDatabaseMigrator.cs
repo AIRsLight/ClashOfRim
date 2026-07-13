@@ -16,7 +16,7 @@ public static class ServerDatabaseSchema
 {
     // Version 1 is the known JSON-document persistence layout.
     public const int LegacyJsonDocumentVersion = 1;
-    public const int CurrentVersion = 6;
+    public const int CurrentVersion = 7;
 }
 
 public sealed record ServerDatabaseMigrationOptions(int? DeclaredSourceVersion = null);
@@ -77,7 +77,11 @@ public static class ServerDatabaseMigrator
         new(
             FromVersion: 5,
             ToVersion: 6,
-            Apply: AddSnapshotPostUploadJobState)
+            Apply: AddSnapshotPostUploadJobState),
+        new(
+            FromVersion: 6,
+            ToVersion: 7,
+            Apply: CreateDomainRegistryTables)
     ];
 
     public static ServerDatabaseMigrationAssessment Assess(
@@ -595,6 +599,16 @@ public static class ServerDatabaseMigrator
         return MigrationApplicationResult.None;
     }
 
+    private static MigrationApplicationResult CreateDomainRegistryTables(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        MigrationContext context)
+    {
+        _ = context;
+        SqliteDomainRegistrySchema.MigrateFromKeyedJson(connection, transaction);
+        return MigrationApplicationResult.None;
+    }
+
     private static bool TryMapLegacyEventType(string? value, out ServerEventType eventType)
     {
         if (value is "Gift" or "GiftReturn")
@@ -957,7 +971,22 @@ public static class ServerDatabaseMigrator
             "server_keyed_json_records",
             "server_players",
             "server_pawn_packages",
-            "server_thing_packages"
+            "server_thing_packages",
+            "server_offline_accounts",
+            "server_bank_loans",
+            "server_bank_debts",
+            "server_mercenary_contracts",
+            "server_mercenary_guard_contracts",
+            "server_shop_listings",
+            "server_shop_buyer_purchases",
+            "server_shop_completed_purchases",
+            "server_diplomacy_relations",
+            "server_raid_protection_activations",
+            "server_chat_messages",
+            "server_achievement_events",
+            "server_achievement_aggregates",
+            "server_achievement_metric_events",
+            "server_achievement_metric_aggregates"
         ];
         foreach (string table in knownTables)
         {

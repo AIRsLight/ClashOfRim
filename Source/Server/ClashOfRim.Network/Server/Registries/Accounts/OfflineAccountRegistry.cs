@@ -8,13 +8,19 @@ public sealed class OfflineAccountRegistry
     private const int SaltBytes = 16;
     private const int HashBytes = 32;
     private const int Iterations = 120_000;
+    private const int MaximumFailures = 5;
+    private static readonly TimeSpan FailureWindow = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan LockoutDuration = TimeSpan.FromMinutes(15);
     public const string MissingUserKey = "OfflineAuth.MissingUser";
     public const string InvalidPasswordKey = "OfflineAuth.InvalidPassword";
+    public const string RateLimitedKey = "OfflineAuth.RateLimited";
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
     private readonly object gate = new();
     private readonly IKeyedJsonRecordStore? structuredPersistence;
     private readonly IJsonPersistenceSlot? legacyPersistence;
     private readonly Dictionary<string, OfflineAccountRecord> accounts = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, AuthenticationFailureState> authenticationFailures = new(StringComparer.Ordinal);
+    private readonly HashSet<string> quarantinedUserIds = new(StringComparer.Ordinal);
 
     public OfflineAccountRegistry()
         : this((IJsonPersistenceSlot?)null)
@@ -46,24 +52,36 @@ public sealed class OfflineAccountRegistry
             return OfflineAccountAuthenticationResult.Reject(MissingUserKey);
         }
 
+        string suppliedPassword = password ?? string.Empty;
         lock (gate)
         {
-            if (!accounts.TryGetValue(normalizedUserId, out OfflineAccountRecord? account))
-            {
-                account = CreateRecord(
-                    normalizedUserId,
-                    password ?? string.Empty,
-                    nowUtc);
-                accounts[normalizedUserId] = account;
-                Save();
-            }
-
-            string suppliedPassword = password ?? string.Empty;
-            if (!VerifyPassword(suppliedPassword, account))
+            if (quarantinedUserIds.Contains(normalizedUserId))
             {
                 return OfflineAccountAuthenticationResult.Reject(InvalidPasswordKey);
             }
 
+            if (IsLockedOut(normalizedUserId, nowUtc))
+            {
+                return OfflineAccountAuthenticationResult.Reject(RateLimitedKey);
+            }
+
+            if (!accounts.TryGetValue(normalizedUserId, out OfflineAccountRecord? account))
+            {
+                account = CreateRecord(
+                    normalizedUserId,
+                    suppliedPassword,
+                    nowUtc);
+                PersistAccount(account);
+                accounts[normalizedUserId] = account;
+            }
+
+            if (!VerifyPassword(suppliedPassword, account))
+            {
+                RecordAuthenticationFailure(normalizedUserId, nowUtc);
+                return OfflineAccountAuthenticationResult.Reject(InvalidPasswordKey);
+            }
+
+            authenticationFailures.Remove(normalizedUserId);
             return OfflineAccountAuthenticationResult.Accept(normalizedUserId, account.DisplayName);
         }
     }
@@ -71,6 +89,7 @@ public sealed class OfflineAccountRegistry
     public bool ChangePassword(string userId, string? currentPassword, string? newPassword, DateTimeOffset nowUtc, out string failure)
     {
         string normalizedUserId = NormalizeUserId(userId);
+        string replacementPassword = newPassword ?? string.Empty;
         failure = string.Empty;
         if (string.IsNullOrWhiteSpace(normalizedUserId))
         {
@@ -92,13 +111,14 @@ public sealed class OfflineAccountRegistry
                 return false;
             }
 
-            accounts[normalizedUserId] = CreateRecord(
+            OfflineAccountRecord replacement = CreateRecord(
                 normalizedUserId,
-                newPassword ?? string.Empty,
+                replacementPassword,
                 account.CreatedAtUtc,
                 account.DisplayName,
                 nowUtc);
-            Save();
+            PersistAccount(replacement);
+            accounts[normalizedUserId] = replacement;
             return true;
         }
     }
@@ -106,6 +126,7 @@ public sealed class OfflineAccountRegistry
     public bool ResetPassword(string userId, string? newPassword, DateTimeOffset nowUtc, out string failure)
     {
         string normalizedUserId = NormalizeUserId(userId);
+        string replacementPassword = newPassword ?? string.Empty;
         failure = string.Empty;
         if (string.IsNullOrWhiteSpace(normalizedUserId))
         {
@@ -119,13 +140,15 @@ public sealed class OfflineAccountRegistry
                 ? account.CreatedAtUtc
                 : nowUtc;
             string? displayName = account?.DisplayName;
-            accounts[normalizedUserId] = CreateRecord(
+            OfflineAccountRecord replacement = CreateRecord(
                 normalizedUserId,
-                newPassword ?? string.Empty,
+                replacementPassword,
                 createdAtUtc,
                 displayName,
                 nowUtc);
-            Save();
+            PersistAccount(replacement);
+            accounts[normalizedUserId] = replacement;
+            quarantinedUserIds.Remove(normalizedUserId);
             return true;
         }
     }
@@ -139,7 +162,10 @@ public sealed class OfflineAccountRegistry
             && LoadLegacyReadOnly();
         if (importedLegacy && structuredPersistence is not null)
         {
-            Save();
+            structuredPersistence.ReplaceAllForImport(accounts.ToDictionary(
+                pair => AccountRowKey(pair.Key),
+                pair => JsonSerializer.Serialize(pair.Value, JsonOptions),
+                StringComparer.Ordinal));
         }
     }
 
@@ -155,10 +181,16 @@ public sealed class OfflineAccountRegistry
             try
             {
                 OfflineAccountRecord? account = JsonSerializer.Deserialize<OfflineAccountRecord>(pair.Value, JsonOptions);
-                RegisterLoadedAccount(account, overwrite: true);
+                if (!RegisterLoadedAccount(account, overwrite: true))
+                {
+                    QuarantineStructuredAccount(
+                        pair.Key,
+                        new InvalidDataException("The account record is missing required identity or password fields."));
+                }
             }
-            catch (JsonException)
+            catch (JsonException ex)
             {
+                QuarantineStructuredAccount(pair.Key, ex);
             }
         }
     }
@@ -182,25 +214,48 @@ public sealed class OfflineAccountRegistry
 
             return imported;
         }
-        catch
+        catch (Exception ex) when (ex is JsonException or NotSupportedException)
         {
+            RegistryPersistenceDiagnostics.ReportInvalidRecord("offline-accounts", "<legacy>", ex);
             return false;
         }
     }
 
-    private void Save()
+    private void QuarantineStructuredAccount(string rowKey, Exception exception)
+    {
+        RegistryPersistenceDiagnostics.ReportInvalidRecord("offline-accounts", rowKey, exception);
+        const string prefix = "account:";
+        if (!rowKey.StartsWith(prefix, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        string userId = NormalizeUserId(rowKey.Substring(prefix.Length));
+        if (!string.IsNullOrWhiteSpace(userId))
+        {
+            quarantinedUserIds.Add(userId);
+        }
+    }
+
+    private void PersistAccount(OfflineAccountRecord account)
     {
         if (structuredPersistence is not null)
         {
-            structuredPersistence.ReplaceAll(accounts.ToDictionary(
-                pair => AccountRowKey(pair.Key),
-                pair => JsonSerializer.Serialize(pair.Value, JsonOptions),
-                StringComparer.Ordinal));
+            structuredPersistence.ApplyBatch(
+                new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    [AccountRowKey(account.UserId)] = JsonSerializer.Serialize(account, JsonOptions)
+                },
+                Array.Empty<string>());
             return;
         }
 
         legacyPersistence?.Write(JsonSerializer.Serialize(
-            new OfflineAccountPersistence(accounts.Values.OrderBy(account => account.UserId, StringComparer.Ordinal).ToList()),
+            new OfflineAccountPersistence(accounts.Values
+                .Where(existing => !string.Equals(existing.UserId, account.UserId, StringComparison.Ordinal))
+                .Append(account)
+                .OrderBy(existing => existing.UserId, StringComparer.Ordinal)
+                .ToList()),
             JsonOptions));
     }
 
@@ -282,7 +337,48 @@ public sealed class OfflineAccountRegistry
         return "account:" + userId;
     }
 
+    private bool IsLockedOut(string userId, DateTimeOffset nowUtc)
+    {
+        if (!authenticationFailures.TryGetValue(userId, out AuthenticationFailureState? state))
+        {
+            return false;
+        }
+
+        if (state.LockedUntilUtc is DateTimeOffset lockedUntilUtc && lockedUntilUtc > nowUtc)
+        {
+            return true;
+        }
+
+        if (nowUtc - state.WindowStartedAtUtc >= FailureWindow)
+        {
+            authenticationFailures.Remove(userId);
+        }
+
+        return false;
+    }
+
+    private void RecordAuthenticationFailure(string userId, DateTimeOffset nowUtc)
+    {
+        if (!authenticationFailures.TryGetValue(userId, out AuthenticationFailureState? state)
+            || nowUtc - state.WindowStartedAtUtc >= FailureWindow)
+        {
+            authenticationFailures[userId] = new AuthenticationFailureState(nowUtc, 1, null);
+            return;
+        }
+
+        int failureCount = state.FailureCount + 1;
+        authenticationFailures[userId] = state with
+        {
+            FailureCount = failureCount,
+            LockedUntilUtc = failureCount >= MaximumFailures ? nowUtc.Add(LockoutDuration) : null
+        };
+    }
+
     private sealed record OfflineAccountPersistence(IReadOnlyList<OfflineAccountRecord> Accounts);
+    private sealed record AuthenticationFailureState(
+        DateTimeOffset WindowStartedAtUtc,
+        int FailureCount,
+        DateTimeOffset? LockedUntilUtc);
 
     private sealed record OfflineAccountRecord(
         string UserId,

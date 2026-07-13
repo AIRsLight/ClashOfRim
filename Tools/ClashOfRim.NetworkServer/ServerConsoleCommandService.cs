@@ -137,6 +137,13 @@ internal static class ServerConsoleCommandService
                 RequireArgs(args, 2, T("Cli.UsageResetPassword"));
                 ResetPassword(state, args[1], args.Count >= 3 ? args[2] : string.Empty);
                 break;
+            case "post-upload-jobs":
+                PrintPostUploadJobs(state);
+                break;
+            case "retry-post-upload":
+                RequireArgs(args, 2, T("Cli.UsageRetryPostUpload"));
+                RetryPostUploadJob(state, args[1]);
+                break;
             case "broadcast":
                 Broadcast(state, args.Skip(1).ToList());
                 break;
@@ -289,6 +296,41 @@ internal static class ServerConsoleCommandService
 
         state.AdminControl.AddAudit("ResetOfflinePassword", ActorUserId, userId, null, DateTimeOffset.UtcNow);
         Console.WriteLine(T("Cli.PasswordReset", ("USER", userId)));
+    }
+
+    private static void PrintPostUploadJobs(ClashOfRimNetworkState state)
+    {
+        IReadOnlyList<SnapshotPostUploadJobRecord> jobs = state.SnapshotPostUploadJobs.ListManualReview();
+        if (jobs.Count == 0)
+        {
+            Console.WriteLine(T("Cli.NoPostUploadJobs"));
+            return;
+        }
+
+        foreach (SnapshotPostUploadJobRecord job in jobs)
+        {
+            Console.WriteLine(T(
+                "Cli.PostUploadJobLine",
+                ("JOB", job.JobId),
+                ("PROCESSOR", job.ProcessorId),
+                ("SNAPSHOT", job.SnapshotId),
+                ("ATTEMPTS", job.AttemptCount.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+                ("ERROR", job.LastError ?? "-")));
+        }
+    }
+
+    private static void RetryPostUploadJob(ClashOfRimNetworkState state, string jobId)
+    {
+        SnapshotPostUploadJobRecord? job = state.SnapshotPostUploadJobs.Find(jobId);
+        if (job is null || job.State != SnapshotPostUploadJobState.ManualReview)
+        {
+            Console.WriteLine(T("Cli.PostUploadJobNotFound", ("JOB", jobId)));
+            return;
+        }
+
+        state.SnapshotPostUploadJobs.MarkReady(job.JobId, DateTimeOffset.UtcNow);
+        state.AdminControl.AddAudit("RetrySnapshotPostUploadJob", ActorUserId, null, job.JobId, DateTimeOffset.UtcNow);
+        Console.WriteLine(T("Cli.PostUploadJobRetried", ("JOB", job.JobId)));
     }
 
     private static void Broadcast(ClashOfRimNetworkState state, IReadOnlyList<string> args)
