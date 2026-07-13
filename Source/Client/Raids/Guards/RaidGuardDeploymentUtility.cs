@@ -53,8 +53,9 @@ internal static class RaidGuardDeploymentUtility
                     canPickUpOpportunisticWeapons: false),
                 map,
                 guards);
+            IntVec3 dropCenter = ResolveDropCenter(map);
             DropPodUtility.DropThingsNear(
-                map.Center,
+                dropCenter,
                 map,
                 guards.Cast<Thing>(),
                 openDelay: 110,
@@ -73,12 +74,33 @@ internal static class RaidGuardDeploymentUtility
                 + session.GuardDeploymentPoints
                 + ", pawns="
                 + guards.Count
+                + ", dropCenter="
+                + dropCenter
                 + ".");
         }
         catch (Exception ex)
         {
             Log.Warning("[ClashOfRim][RaidGuard] Guard deployment failed: " + ex);
         }
+    }
+
+    private static IntVec3 ResolveDropCenter(Map map)
+    {
+        if (DropCellFinder.TryFindDropSpotNear(
+                map.Center,
+                map,
+                out IntVec3 dropCenter,
+                allowFogged: true,
+                canRoofPunch: true,
+                maxRadius: 48,
+                allowIndoors: true,
+                size: null,
+                mustBeReachableFromCenter: false))
+        {
+            return dropCenter;
+        }
+
+        return DropCellFinder.RandomDropSpot(map);
     }
 
     private static List<Pawn> GenerateGuards(Map map, Faction faction, int points, int seed)

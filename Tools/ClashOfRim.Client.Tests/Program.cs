@@ -9,8 +9,11 @@ using AIRsLight.ClashOfRim.Trades;
 using RimWorld;
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.Serialization;
+using System.Xml.Linq;
 using Verse;
 
 var tests = new (string Name, Action Run)[]
@@ -30,7 +33,8 @@ var tests = new (string Name, Action Run)[]
     ("visible compatibility warnings request the full server manifest", VisibleCompatibilityWarningsRequestFullManifest),
     ("selection labels show a single ellipsis", SelectionLabelsShowSingleEllipsis),
     ("remote projection defers addiction need lookup until pawn needs load", RemoteProjectionDefersAddictionNeedLookup),
-    ("hidden trap proxies retain source snapshot identity", HiddenTrapProxiesRetainSourceSnapshotIdentity)
+    ("hidden trap proxies retain source snapshot identity", HiddenTrapProxiesRetainSourceSnapshotIdentity),
+    ("defense duty returns to its radius without consuming wander cadence", DefenseDutyUsesIndependentReturnNode)
 };
 
 foreach ((string name, Action run) in tests)
@@ -416,6 +420,46 @@ static void RemoteProjectionDefersAddictionNeedLookup()
         Assert(!RemoteMapProjectionAddictionLoadPatch.Prefix(addiction, ref result));
         Assert(result is null);
     }
+}
+
+static void DefenseDutyUsesIndependentReturnNode()
+{
+    string dutiesPath = FindRepositoryFile(Path.Combine("Defs", "DutyDefs", "ClashOfRim_Duties.xml"));
+    XDocument document = XDocument.Load(dutiesPath);
+    XElement defendDuty = document
+        .Descendants("DutyDef")
+        .Single(def => string.Equals(
+            def.Element("defName")?.Value,
+            "ClashOfRim_DefendDefensePoint",
+            StringComparison.Ordinal));
+    List<string> jobGivers = defendDuty
+        .Descendants("subNodes")
+        .Elements("li")
+        .Select(node => node.Attribute("Class")?.Value ?? string.Empty)
+        .ToList();
+
+    Assert(jobGivers.Contains("AIRsLight.ClashOfRim.Raids.JobGiver_ClashReturnToDefensePoint"));
+    Assert(!jobGivers.Contains("JobGiver_GotoTravelDestination"));
+}
+
+static string FindRepositoryFile(string relativePath)
+{
+    foreach (string startPath in new[] { Environment.CurrentDirectory, AppContext.BaseDirectory })
+    {
+        DirectoryInfo? directory = new(startPath);
+        while (directory is not null)
+        {
+            string candidate = Path.Combine(directory.FullName, relativePath);
+            if (File.Exists(candidate))
+            {
+                return candidate;
+            }
+
+            directory = directory.Parent;
+        }
+    }
+
+    throw new FileNotFoundException("Could not locate repository file.", relativePath);
 }
 
 static Thing MakeThing(string defName)

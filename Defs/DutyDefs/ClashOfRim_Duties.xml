@@ -30,10 +30,7 @@
         <li Class="JobGiver_TakeCombatEnhancingDrug">
           <onlyIfInDanger>true</onlyIfInDanger>
         </li>
-        <li Class="JobGiver_GotoTravelDestination">
-          <locomotionUrgency>Jog</locomotionUrgency>
-          <wanderOnArrival>false</wanderOnArrival>
-        </li>
+        <li Class="AIRsLight.ClashOfRim.Raids.JobGiver_ClashReturnToDefensePoint" />
         <li Class="JobGiver_AIDefendPoint">
           <targetAcquireRadius>65</targetAcquireRadius>
           <targetKeepRadius>72</targetKeepRadius>
@@ -41,6 +38,7 @@
         <li Class="JobGiver_WanderNearDutyLocation">
           <wanderRadius>8</wanderRadius>
           <locomotionUrgencyOutsideRadius>Sprint</locomotionUrgencyOutsideRadius>
+          <expireOnNearbyEnemy>true</expireOnNearbyEnemy>
         </li>
       </subNodes>
     </thinkNode>
