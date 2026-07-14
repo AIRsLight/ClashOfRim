@@ -11,9 +11,24 @@
   <ClashOfRim.Password>パスワード</ClashOfRim.Password>
   <ClashOfRim.Send>送信</ClashOfRim.Send>
   <ClashOfRim.SessionExpired.Title>サーバーセッションの期限切れ</ClashOfRim.SessionExpired.Title>
-  <ClashOfRim.SessionExpired.Message>サーバーセッションの期限が切れました。メインメニューに戻ってサーバーへ再参加してください。</ClashOfRim.SessionExpired.Message>
+  <ClashOfRim.SessionExpired.Message>サーバーセッションの期限が切れました。再接続するか、メインメニューに戻ってください。</ClashOfRim.SessionExpired.Message>
   <ClashOfRim.SessionExpired.ReturnToMainMenu>メニュー</ClashOfRim.SessionExpired.ReturnToMainMenu>
   <ClashOfRim.SessionExpired.Status>サーバーセッションの期限が切れました。再ログインしてください。</ClashOfRim.SessionExpired.Status>
+  <ClashOfRim.SessionExpired.ConnectionLostTitle>接続が切断されました</ClashOfRim.SessionExpired.ConnectionLostTitle>
+  <ClashOfRim.SessionExpired.ConnectionLostMessage>サーバー接続が中断されました。サーバー復旧後に再接続できます。</ClashOfRim.SessionExpired.ConnectionLostMessage>
+  <ClashOfRim.SessionExpired.ConnectionLostStatus>サーバー接続が中断されました。</ClashOfRim.SessionExpired.ConnectionLostStatus>
+  <ClashOfRim.SessionExpired.Reconnect>再接続</ClashOfRim.SessionExpired.Reconnect>
+  <ClashOfRim.SessionExpired.Reconnecting>再接続中...</ClashOfRim.SessionExpired.Reconnecting>
+  <ClashOfRim.SessionExpired.ReconnectSucceeded>サーバーセッションを復元しました。</ClashOfRim.SessionExpired.ReconnectSucceeded>
+  <ClashOfRim.SessionExpired.ReconnectReason>セッション再接続</ClashOfRim.SessionExpired.ReconnectReason>
+  <ClashOfRim.SessionExpired.ReconnectNotPlaying>現在の状態では再接続できません。メインメニューに戻ってください。</ClashOfRim.SessionExpired.ReconnectNotPlaying>
+  <ClashOfRim.SessionExpired.ReconnectMissingIdentity>コロニーまたはスナップショット情報が不足しています。メインメニューに戻ってください。</ClashOfRim.SessionExpired.ReconnectMissingIdentity>
+  <ClashOfRim.SessionExpired.ReconnectBusy>保存または同期処理中です。しばらくしてから再試行してください。</ClashOfRim.SessionExpired.ReconnectBusy>
+  <ClashOfRim.SessionExpired.ReconnectAtomicPending>サーバー確認待ちの操作があります。状態の分岐を防ぐため、メインメニューから再読込してください。</ClashOfRim.SessionExpired.ReconnectAtomicPending>
+  <ClashOfRim.SessionExpired.ReconnectNetworkFailed>再接続失敗: {MESSAGE}</ClashOfRim.SessionExpired.ReconnectNetworkFailed>
+  <ClashOfRim.SessionExpired.ReconnectRejected>再接続が拒否されました: {MESSAGE}</ClashOfRim.SessionExpired.ReconnectRejected>
+  <ClashOfRim.SessionExpired.ReconnectSnapshotChanged>サーバーのスナップショットが変更されています。メインメニューから再読込してください。</ClashOfRim.SessionExpired.ReconnectSnapshotChanged>
+  <ClashOfRim.SessionExpired.ReconnectIdentityChanged>サーバーのプレイヤー情報が現在のゲームと一致しません。メインメニューに戻ってください。</ClashOfRim.SessionExpired.ReconnectIdentityChanged>
   <ClashOfRim.Chat.EmptyMessage>チャット内容は空にできません。</ClashOfRim.Chat.EmptyMessage>
   <ClashOfRim.Chat.InvalidPrivateFormat>個人チャット形式: @プレイヤー メッセージ。</ClashOfRim.Chat.InvalidPrivateFormat>
   <ClashOfRim.Chat.Minimize>最小化</ClashOfRim.Chat.Minimize>

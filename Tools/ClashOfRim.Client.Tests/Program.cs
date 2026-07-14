@@ -34,7 +34,9 @@ var tests = new (string Name, Action Run)[]
     ("selection labels show a single ellipsis", SelectionLabelsShowSingleEllipsis),
     ("remote projection defers addiction need lookup until pawn needs load", RemoteProjectionDefersAddictionNeedLookup),
     ("hidden trap proxies retain source snapshot identity", HiddenTrapProxiesRetainSourceSnapshotIdentity),
-    ("defense duty returns to its radius without consuming wander cadence", DefenseDutyUsesIndependentReturnNode)
+    ("defense duty returns to its radius without consuming wander cadence", DefenseDutyUsesIndependentReturnNode),
+    ("session reconnect blocks unfinished atomic mutations", SessionReconnectBlocksAtomicMutations),
+    ("session reconnect requires the same authoritative snapshot", SessionReconnectRequiresSameSnapshot)
 };
 
 foreach ((string name, Action run) in tests)
@@ -186,6 +188,47 @@ static void HiddenTrapProxiesRetainSourceSnapshotIdentity()
         "Thing_cor_remote_raid_TrapIED_Smoke24411",
         out string originalThingId));
     Assert(originalThingId == "TrapIED_Smoke24411");
+}
+
+static void SessionReconnectBlocksAtomicMutations()
+{
+    SessionReconnectBlockReason reason = SessionReconnectSafetyPolicy.EvaluateLocalState(
+        isPlaying: true,
+        hasGame: true,
+        isConfigured: true,
+        userId: "player-a",
+        colonyId: "colony-a",
+        currentSnapshotId: "snapshot-a",
+        synchronizationBusy: false,
+        atomicMutationPending: true);
+
+    Assert(reason == SessionReconnectBlockReason.AtomicMutationPending);
+}
+
+static void SessionReconnectRequiresSameSnapshot()
+{
+    SessionReconnectBlockReason local = SessionReconnectSafetyPolicy.EvaluateLocalState(
+        isPlaying: true,
+        hasGame: true,
+        isConfigured: true,
+        userId: "player-a",
+        colonyId: "colony-a",
+        currentSnapshotId: "snapshot-a",
+        synchronizationBusy: false,
+        atomicMutationPending: false);
+    Assert(local == SessionReconnectBlockReason.None);
+    Assert(SessionReconnectSafetyPolicy.MatchesAuthoritativeSnapshot(
+        "colony-a",
+        "snapshot-a",
+        hasExistingColony: true,
+        assignedColonyId: "colony-a",
+        latestSnapshotId: "snapshot-a"));
+    Assert(!SessionReconnectSafetyPolicy.MatchesAuthoritativeSnapshot(
+        "colony-a",
+        "snapshot-a",
+        hasExistingColony: true,
+        assignedColonyId: "colony-a",
+        latestSnapshotId: "snapshot-b"));
 }
 
 static void IdeologyRelicsAreRejected()

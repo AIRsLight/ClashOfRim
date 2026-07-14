@@ -11,9 +11,24 @@
   <ClashOfRim.Password>Пароль</ClashOfRim.Password>
   <ClashOfRim.Send>Отправить</ClashOfRim.Send>
   <ClashOfRim.SessionExpired.Title>Сеанс сервера истек</ClashOfRim.SessionExpired.Title>
-  <ClashOfRim.SessionExpired.Message>Сеанс сервера истек. Вернитесь в главное меню и снова войдите на сервер.</ClashOfRim.SessionExpired.Message>
+  <ClashOfRim.SessionExpired.Message>Сеанс сервера истек. Попробуйте переподключиться или вернитесь в главное меню.</ClashOfRim.SessionExpired.Message>
   <ClashOfRim.SessionExpired.ReturnToMainMenu>В меню</ClashOfRim.SessionExpired.ReturnToMainMenu>
   <ClashOfRim.SessionExpired.Status>Сеанс сервера истек. Войдите снова.</ClashOfRim.SessionExpired.Status>
+  <ClashOfRim.SessionExpired.ConnectionLostTitle>Соединение потеряно</ClashOfRim.SessionExpired.ConnectionLostTitle>
+  <ClashOfRim.SessionExpired.ConnectionLostMessage>Соединение с сервером прервано. После восстановления сервера можно переподключиться.</ClashOfRim.SessionExpired.ConnectionLostMessage>
+  <ClashOfRim.SessionExpired.ConnectionLostStatus>Соединение с сервером прервано.</ClashOfRim.SessionExpired.ConnectionLostStatus>
+  <ClashOfRim.SessionExpired.Reconnect>Подключиться</ClashOfRim.SessionExpired.Reconnect>
+  <ClashOfRim.SessionExpired.Reconnecting>Подключение...</ClashOfRim.SessionExpired.Reconnecting>
+  <ClashOfRim.SessionExpired.ReconnectSucceeded>Сеанс сервера восстановлен.</ClashOfRim.SessionExpired.ReconnectSucceeded>
+  <ClashOfRim.SessionExpired.ReconnectReason>Переподключение</ClashOfRim.SessionExpired.ReconnectReason>
+  <ClashOfRim.SessionExpired.ReconnectNotPlaying>В этом состоянии переподключение невозможно. Вернитесь в главное меню.</ClashOfRim.SessionExpired.ReconnectNotPlaying>
+  <ClashOfRim.SessionExpired.ReconnectMissingIdentity>Нет данных колонии или снимка. Вернитесь в главное меню.</ClashOfRim.SessionExpired.ReconnectMissingIdentity>
+  <ClashOfRim.SessionExpired.ReconnectBusy>Сохранение или синхронизация еще выполняется. Повторите позже.</ClashOfRim.SessionExpired.ReconnectBusy>
+  <ClashOfRim.SessionExpired.ReconnectAtomicPending>Операция еще не подтверждена сервером. Во избежание расхождения загрузитесь из главного меню.</ClashOfRim.SessionExpired.ReconnectAtomicPending>
+  <ClashOfRim.SessionExpired.ReconnectNetworkFailed>Ошибка подключения: {MESSAGE}</ClashOfRim.SessionExpired.ReconnectNetworkFailed>
+  <ClashOfRim.SessionExpired.ReconnectRejected>Переподключение отклонено: {MESSAGE}</ClashOfRim.SessionExpired.ReconnectRejected>
+  <ClashOfRim.SessionExpired.ReconnectSnapshotChanged>Снимок сервера изменился. Вернитесь в главное меню и загрузите его заново.</ClashOfRim.SessionExpired.ReconnectSnapshotChanged>
+  <ClashOfRim.SessionExpired.ReconnectIdentityChanged>Сервер вернул другого игрока. Вернитесь в главное меню.</ClashOfRim.SessionExpired.ReconnectIdentityChanged>
   <ClashOfRim.Chat.EmptyMessage>Сообщение чата не может быть пустым.</ClashOfRim.Chat.EmptyMessage>
   <ClashOfRim.Chat.InvalidPrivateFormat>Формат личного сообщения: @игрок сообщение.</ClashOfRim.Chat.InvalidPrivateFormat>
   <ClashOfRim.Chat.Minimize>Свернуть</ClashOfRim.Chat.Minimize>

@@ -11,9 +11,24 @@
   <ClashOfRim.Password>비밀번호</ClashOfRim.Password>
   <ClashOfRim.Send>보내기</ClashOfRim.Send>
   <ClashOfRim.SessionExpired.Title>서버 세션 만료</ClashOfRim.SessionExpired.Title>
-  <ClashOfRim.SessionExpired.Message>서버 세션이 만료되었습니다. 메인 메뉴로 돌아가 서버에 다시 접속하세요.</ClashOfRim.SessionExpired.Message>
+  <ClashOfRim.SessionExpired.Message>서버 세션이 만료되었습니다. 다시 연결하거나 메인 메뉴로 돌아가세요.</ClashOfRim.SessionExpired.Message>
   <ClashOfRim.SessionExpired.ReturnToMainMenu>메뉴</ClashOfRim.SessionExpired.ReturnToMainMenu>
   <ClashOfRim.SessionExpired.Status>서버 세션이 만료되었습니다. 다시 로그인하세요.</ClashOfRim.SessionExpired.Status>
+  <ClashOfRim.SessionExpired.ConnectionLostTitle>연결 끊김</ClashOfRim.SessionExpired.ConnectionLostTitle>
+  <ClashOfRim.SessionExpired.ConnectionLostMessage>서버 연결이 중단되었습니다. 서버가 복구되면 다시 연결할 수 있습니다.</ClashOfRim.SessionExpired.ConnectionLostMessage>
+  <ClashOfRim.SessionExpired.ConnectionLostStatus>서버 연결이 중단되었습니다.</ClashOfRim.SessionExpired.ConnectionLostStatus>
+  <ClashOfRim.SessionExpired.Reconnect>재연결</ClashOfRim.SessionExpired.Reconnect>
+  <ClashOfRim.SessionExpired.Reconnecting>재연결 중...</ClashOfRim.SessionExpired.Reconnecting>
+  <ClashOfRim.SessionExpired.ReconnectSucceeded>서버 세션을 복구했습니다.</ClashOfRim.SessionExpired.ReconnectSucceeded>
+  <ClashOfRim.SessionExpired.ReconnectReason>세션 재연결</ClashOfRim.SessionExpired.ReconnectReason>
+  <ClashOfRim.SessionExpired.ReconnectNotPlaying>현재 상태에서는 재연결할 수 없습니다. 메인 메뉴로 돌아가세요.</ClashOfRim.SessionExpired.ReconnectNotPlaying>
+  <ClashOfRim.SessionExpired.ReconnectMissingIdentity>정착지 또는 스냅샷 정보가 없습니다. 메인 메뉴로 돌아가세요.</ClashOfRim.SessionExpired.ReconnectMissingIdentity>
+  <ClashOfRim.SessionExpired.ReconnectBusy>저장 또는 동기화가 진행 중입니다. 잠시 후 다시 시도하세요.</ClashOfRim.SessionExpired.ReconnectBusy>
+  <ClashOfRim.SessionExpired.ReconnectAtomicPending>서버 확인을 기다리는 작업이 있습니다. 상태 분기를 막기 위해 메인 메뉴에서 다시 불러오세요.</ClashOfRim.SessionExpired.ReconnectAtomicPending>
+  <ClashOfRim.SessionExpired.ReconnectNetworkFailed>재연결 실패: {MESSAGE}</ClashOfRim.SessionExpired.ReconnectNetworkFailed>
+  <ClashOfRim.SessionExpired.ReconnectRejected>재연결 거부: {MESSAGE}</ClashOfRim.SessionExpired.ReconnectRejected>
+  <ClashOfRim.SessionExpired.ReconnectSnapshotChanged>서버 스냅샷이 변경되었습니다. 메인 메뉴에서 다시 불러오세요.</ClashOfRim.SessionExpired.ReconnectSnapshotChanged>
+  <ClashOfRim.SessionExpired.ReconnectIdentityChanged>서버의 플레이어 정보가 현재 게임과 다릅니다. 메인 메뉴로 돌아가세요.</ClashOfRim.SessionExpired.ReconnectIdentityChanged>
   <ClashOfRim.Chat.EmptyMessage>채팅 내용은 비워 둘 수 없습니다.</ClashOfRim.Chat.EmptyMessage>
   <ClashOfRim.Chat.InvalidPrivateFormat>귓속말 형식: @플레이어 메시지.</ClashOfRim.Chat.InvalidPrivateFormat>
   <ClashOfRim.Chat.Minimize>접기</ClashOfRim.Chat.Minimize>

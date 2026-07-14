@@ -11,9 +11,24 @@
   <ClashOfRim.Password>密码</ClashOfRim.Password>
   <ClashOfRim.Send>发送</ClashOfRim.Send>
   <ClashOfRim.SessionExpired.Title>服务器会话已过期</ClashOfRim.SessionExpired.Title>
-  <ClashOfRim.SessionExpired.Message>服务器会话已过期。请回到主菜单后重新进入服务器。</ClashOfRim.SessionExpired.Message>
+  <ClashOfRim.SessionExpired.Message>服务器会话已过期。可以尝试恢复当前会话，或返回主菜单重新进入服务器。</ClashOfRim.SessionExpired.Message>
   <ClashOfRim.SessionExpired.ReturnToMainMenu>主菜单</ClashOfRim.SessionExpired.ReturnToMainMenu>
   <ClashOfRim.SessionExpired.Status>服务器会话已过期，需要重新登录。</ClashOfRim.SessionExpired.Status>
+  <ClashOfRim.SessionExpired.ConnectionLostTitle>与服务器断开连接</ClashOfRim.SessionExpired.ConnectionLostTitle>
+  <ClashOfRim.SessionExpired.ConnectionLostMessage>连接已中断。服务器恢复后，可以尝试继续当前游戏。</ClashOfRim.SessionExpired.ConnectionLostMessage>
+  <ClashOfRim.SessionExpired.ConnectionLostStatus>与服务器的连接已中断。</ClashOfRim.SessionExpired.ConnectionLostStatus>
+  <ClashOfRim.SessionExpired.Reconnect>重连</ClashOfRim.SessionExpired.Reconnect>
+  <ClashOfRim.SessionExpired.Reconnecting>正在重新连接...</ClashOfRim.SessionExpired.Reconnecting>
+  <ClashOfRim.SessionExpired.ReconnectSucceeded>已恢复服务器会话。</ClashOfRim.SessionExpired.ReconnectSucceeded>
+  <ClashOfRim.SessionExpired.ReconnectReason>会话重连</ClashOfRim.SessionExpired.ReconnectReason>
+  <ClashOfRim.SessionExpired.ReconnectNotPlaying>当前游戏状态不能在线重连，请返回主菜单。</ClashOfRim.SessionExpired.ReconnectNotPlaying>
+  <ClashOfRim.SessionExpired.ReconnectMissingIdentity>当前殖民地或快照信息不完整，请返回主菜单。</ClashOfRim.SessionExpired.ReconnectMissingIdentity>
+  <ClashOfRim.SessionExpired.ReconnectBusy>当前仍有保存或同步操作，请稍后重试。</ClashOfRim.SessionExpired.ReconnectBusy>
+  <ClashOfRim.SessionExpired.ReconnectAtomicPending>当前操作尚未完成服务器确认。为避免状态分叉，请返回主菜单重新加载。</ClashOfRim.SessionExpired.ReconnectAtomicPending>
+  <ClashOfRim.SessionExpired.ReconnectNetworkFailed>重连失败：{MESSAGE}</ClashOfRim.SessionExpired.ReconnectNetworkFailed>
+  <ClashOfRim.SessionExpired.ReconnectRejected>服务器拒绝重连：{MESSAGE}</ClashOfRim.SessionExpired.ReconnectRejected>
+  <ClashOfRim.SessionExpired.ReconnectSnapshotChanged>服务器快照已变化，不能继续使用当前状态。请返回主菜单重新加载。</ClashOfRim.SessionExpired.ReconnectSnapshotChanged>
+  <ClashOfRim.SessionExpired.ReconnectIdentityChanged>服务器返回的玩家身份与当前游戏不一致。请返回主菜单。</ClashOfRim.SessionExpired.ReconnectIdentityChanged>
   <ClashOfRim.Chat.EmptyMessage>聊天内容不能为空。</ClashOfRim.Chat.EmptyMessage>
   <ClashOfRim.Chat.InvalidPrivateFormat>私聊格式为 @玩家 消息。</ClashOfRim.Chat.InvalidPrivateFormat>
   <ClashOfRim.Chat.Minimize>收起</ClashOfRim.Chat.Minimize>

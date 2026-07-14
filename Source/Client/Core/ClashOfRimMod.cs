@@ -110,6 +110,7 @@ public sealed partial class ClashOfRimMod : Mod
     private bool chatRefreshInProgress;
     private bool chatSendInProgress;
     private bool sessionExpiredHandling;
+    private bool sessionReconnectInProgress;
     private bool languageMismatchAcceptedForCurrentServerEntry;
     private bool blockAutomaticMapSessionForServerEntrySourceGame;
     private CancellationTokenSource? presenceCancellation;
@@ -390,6 +391,7 @@ public sealed partial class ClashOfRimMod : Mod
         && Find.CurrentMap is not null
         && !manualSyncInProgress
         && !snapshotUploadInProgress
+        && !sessionExpiredHandling
         && !IsBlockedServerEntrySourceGame()
         && !ClashOfRimGameComponent.HasActiveRaidBattleSession
         && !ClashOfRimGameComponent.HasActiveObservationSession

@@ -11,9 +11,24 @@
   <ClashOfRim.Password>Password</ClashOfRim.Password>
   <ClashOfRim.Send>Send</ClashOfRim.Send>
   <ClashOfRim.SessionExpired.Title>Server session expired</ClashOfRim.SessionExpired.Title>
-  <ClashOfRim.SessionExpired.Message>The server session has expired. Return to the main menu and join the server again.</ClashOfRim.SessionExpired.Message>
+  <ClashOfRim.SessionExpired.Message>The server session has expired. You can try to resume it or return to the main menu.</ClashOfRim.SessionExpired.Message>
   <ClashOfRim.SessionExpired.ReturnToMainMenu>Main menu</ClashOfRim.SessionExpired.ReturnToMainMenu>
   <ClashOfRim.SessionExpired.Status>The server session has expired. Log in again.</ClashOfRim.SessionExpired.Status>
+  <ClashOfRim.SessionExpired.ConnectionLostTitle>Connection lost</ClashOfRim.SessionExpired.ConnectionLostTitle>
+  <ClashOfRim.SessionExpired.ConnectionLostMessage>The server connection was interrupted. Try to resume after the server is available.</ClashOfRim.SessionExpired.ConnectionLostMessage>
+  <ClashOfRim.SessionExpired.ConnectionLostStatus>The server connection was interrupted.</ClashOfRim.SessionExpired.ConnectionLostStatus>
+  <ClashOfRim.SessionExpired.Reconnect>Reconnect</ClashOfRim.SessionExpired.Reconnect>
+  <ClashOfRim.SessionExpired.Reconnecting>Reconnecting...</ClashOfRim.SessionExpired.Reconnecting>
+  <ClashOfRim.SessionExpired.ReconnectSucceeded>Server session resumed.</ClashOfRim.SessionExpired.ReconnectSucceeded>
+  <ClashOfRim.SessionExpired.ReconnectReason>Session reconnect</ClashOfRim.SessionExpired.ReconnectReason>
+  <ClashOfRim.SessionExpired.ReconnectNotPlaying>This game state cannot reconnect in place. Return to the main menu.</ClashOfRim.SessionExpired.ReconnectNotPlaying>
+  <ClashOfRim.SessionExpired.ReconnectMissingIdentity>The colony or snapshot identity is incomplete. Return to the main menu.</ClashOfRim.SessionExpired.ReconnectMissingIdentity>
+  <ClashOfRim.SessionExpired.ReconnectBusy>A save or sync operation is still running. Try again shortly.</ClashOfRim.SessionExpired.ReconnectBusy>
+  <ClashOfRim.SessionExpired.ReconnectAtomicPending>This operation has not been confirmed by the server. Return to the main menu to avoid a forked state.</ClashOfRim.SessionExpired.ReconnectAtomicPending>
+  <ClashOfRim.SessionExpired.ReconnectNetworkFailed>Reconnect failed: {MESSAGE}</ClashOfRim.SessionExpired.ReconnectNetworkFailed>
+  <ClashOfRim.SessionExpired.ReconnectRejected>Reconnect rejected: {MESSAGE}</ClashOfRim.SessionExpired.ReconnectRejected>
+  <ClashOfRim.SessionExpired.ReconnectSnapshotChanged>The server snapshot has changed. Return to the main menu and reload it.</ClashOfRim.SessionExpired.ReconnectSnapshotChanged>
+  <ClashOfRim.SessionExpired.ReconnectIdentityChanged>The server returned a different player identity. Return to the main menu.</ClashOfRim.SessionExpired.ReconnectIdentityChanged>
   <ClashOfRim.Chat.EmptyMessage>Chat message cannot be empty.</ClashOfRim.Chat.EmptyMessage>
   <ClashOfRim.Chat.InvalidPrivateFormat>Private chat format: @player message.</ClashOfRim.Chat.InvalidPrivateFormat>
   <ClashOfRim.Chat.Minimize>Minimize</ClashOfRim.Chat.Minimize>
