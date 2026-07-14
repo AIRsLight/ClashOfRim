@@ -139,12 +139,23 @@ public static class GiftLandingApplicator
             $"[ClashOfRim][GiftLanding] placing event={plan.EventId} mode={landingMode} rootCell={rootCell} stacks={preparedThings.Count}.");
 
         var placedThings = new List<Thing>();
+        var arrivalTargets = new List<Thing>();
         foreach (Thing thing in preparedThings)
         {
             bool placed;
+            Thing? notificationTarget = null;
             try
             {
-                placed = GenPlace.TryPlaceThing(thing, rootCell, map, ThingPlaceMode.Near);
+                placed = GenPlace.TryPlaceThing(
+                    thing,
+                    rootCell,
+                    map,
+                    ThingPlaceMode.Near,
+                    placedAction: (resultingThing, _) =>
+                    {
+                        notificationTarget ??= resultingThing;
+                        AddArrivalTarget(arrivalTargets, resultingThing);
+                    });
             }
             catch (Exception ex)
             {
@@ -177,12 +188,12 @@ public static class GiftLandingApplicator
             placedThings.Add(thing);
             ClashLog.Message(
                 $"[ClashOfRim][GiftLanding] placed event={plan.EventId} thing={thing.def?.defName ?? "<unknown>"} stack={thing.stackCount} spawned={thing.Spawned} pos={thing.Position} map={CurrentMapLoadId(map)}.");
-            NotifyDirectPlacement(plan.EventId, thing, map);
+            NotifyDirectPlacement(plan.EventId, notificationTarget ?? thing);
         }
 
-        if (placedThings.Count > 0)
+        if (arrivalTargets.Count > 0)
         {
-            NotifyArrivalLetter(plan, placedThings[0], map);
+            NotifyArrivalLetter(plan, arrivalTargets);
         }
 
         return null;
@@ -235,7 +246,7 @@ public static class GiftLandingApplicator
         ClashLog.Message(
             $"[ClashOfRim][GiftLanding] DropThingsNear returned event={plan.EventId}; drop pods were created and snapshot can be confirmed.");
         NotifyDropPodPlacement(plan.EventId, dropCenter, map);
-        NotifyArrivalLetter(plan, new TargetInfo(dropCenter, map));
+        NotifyArrivalLetter(plan, preparedThings);
 
         return null;
     }
@@ -743,7 +754,7 @@ public static class GiftLandingApplicator
         }
     }
 
-    private static void NotifyDirectPlacement(string eventId, Thing thing, Map map)
+    private static void NotifyDirectPlacement(string eventId, Thing thing)
     {
         try
         {
@@ -754,7 +765,7 @@ public static class GiftLandingApplicator
                         : "ClashOfRim.GiftArrivedMessage",
                     thing.LabelCap.ToString().Named("THING"),
                     thing.stackCount.Named("COUNT")),
-                new TargetInfo(thing.Position, map),
+                new TargetInfo(thing),
                 MessageTypeDefOf.PositiveEvent,
                 historical: false);
         }
@@ -791,17 +802,17 @@ public static class GiftLandingApplicator
             && value.IndexOf("trade-completed", StringComparison.OrdinalIgnoreCase) >= 0;
     }
 
-    private static void NotifyArrivalLetter(GiftLandingPlan plan, Thing thing, Map map)
+    private static void AddArrivalTarget(ICollection<Thing> targets, Thing? thing)
     {
-        if (thing is null || !thing.Spawned)
+        if (thing is null || thing.Destroyed || targets.Contains(thing))
         {
             return;
         }
 
-        NotifyArrivalLetter(plan, new TargetInfo(thing.Position, map));
+        targets.Add(thing);
     }
 
-    private static void NotifyArrivalLetter(GiftLandingPlan plan, TargetInfo target)
+    private static void NotifyArrivalLetter(GiftLandingPlan plan, IEnumerable<Thing> things)
     {
         if (string.IsNullOrWhiteSpace(plan.ArrivalLetterLabel)
             || string.IsNullOrWhiteSpace(plan.ArrivalLetterText))
@@ -811,16 +822,25 @@ public static class GiftLandingApplicator
 
         try
         {
+            List<Thing> targets = things
+                .Where(thing => thing is not null && !thing.Destroyed)
+                .Distinct()
+                .ToList();
+            if (targets.Count == 0)
+            {
+                return;
+            }
+
             Find.LetterStack.ReceiveLetter(
                 plan.ArrivalLetterLabel,
                 plan.ArrivalLetterText,
                 LetterDefOf.PositiveEvent,
-                new LookTargets(target));
+                new LookTargets(targets));
         }
         catch (Exception ex)
         {
             Log.Warning(
-                $"[ClashOfRim][GiftLanding] notify arrival letter failed event={plan.EventId} target={target.Cell} exception={ex}");
+                $"[ClashOfRim][GiftLanding] notify arrival letter failed event={plan.EventId} exception={ex}");
         }
     }
 }
