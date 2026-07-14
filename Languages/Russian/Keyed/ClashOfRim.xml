@@ -1879,4 +1879,6 @@
   <ClashOfRim.ColonyAppearance.Reset>По умолчанию</ClashOfRim.ColonyAppearance.Reset>
   <ClashOfRim.ColonyAppearance.SavedMessage>Значок колонии обновлен.</ClashOfRim.ColonyAppearance.SavedMessage>
   <ClashOfRim.ColonyAppearance.RegistrationReason>обновление значка колонии</ClashOfRim.ColonyAppearance.RegistrationReason>
+  <ClashOfRim.Mercenary.GuardArrivalLetterLabel>Прибыла охрана</ClashOfRim.Mercenary.GuardArrivalLetterLabel>
+  <ClashOfRim.Mercenary.GuardArrivalLetterText>Нанятый защитниками отряд охраны прибыл на поле боя в транспортных капсулах. Он поможет оборонять поселение.</ClashOfRim.Mercenary.GuardArrivalLetterText>
 </LanguageData>

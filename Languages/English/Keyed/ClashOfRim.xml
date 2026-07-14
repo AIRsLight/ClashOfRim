@@ -1479,6 +1479,8 @@
   <ClashOfRim.Mercenary.GuardStatusHiring>Hiring a guard team.</ClashOfRim.Mercenary.GuardStatusHiring>
   <ClashOfRim.Mercenary.GuardStatusPurchased>Guard contract prepared. Price {PRICE} silver. Saving current state.</ClashOfRim.Mercenary.GuardStatusPurchased>
   <ClashOfRim.Mercenary.GuardStatusConfirmed>Guard contract is active. Price {PRICE} silver.</ClashOfRim.Mercenary.GuardStatusConfirmed>
+  <ClashOfRim.Mercenary.GuardArrivalLetterLabel>Guard team arrived</ClashOfRim.Mercenary.GuardArrivalLetterLabel>
+  <ClashOfRim.Mercenary.GuardArrivalLetterText>A guard team hired by the defenders has arrived by drop pod. They will help defend this colony.</ClashOfRim.Mercenary.GuardArrivalLetterText>
   <ClashOfRim.Mercenary.SelectPawn>Select mercenary</ClashOfRim.Mercenary.SelectPawn>
   <ClashOfRim.Mercenary.Profession>Profession</ClashOfRim.Mercenary.Profession>
   <ClashOfRim.Mercenary.ProfessionArtist>Artist</ClashOfRim.Mercenary.ProfessionArtist>

@@ -65,6 +65,7 @@ internal static class RaidGuardDeploymentUtility
                 forbid: false,
                 allowFogged: true,
                 faction: guardFaction);
+            SendArrivalLetter(guards);
 
             ClashLog.Message("[ClashOfRim][RaidGuard] Deployed guard team: contract="
                 + session.GuardDeploymentId
@@ -81,6 +82,27 @@ internal static class RaidGuardDeploymentUtility
         catch (Exception ex)
         {
             Log.Warning("[ClashOfRim][RaidGuard] Guard deployment failed: " + ex);
+        }
+    }
+
+    private static void SendArrivalLetter(IReadOnlyCollection<Pawn> guards)
+    {
+        if (guards.Count == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            Find.LetterStack.ReceiveLetter(
+                ClashOfRimText.Key("ClashOfRim.Mercenary.GuardArrivalLetterLabel"),
+                ClashOfRimText.Key("ClashOfRim.Mercenary.GuardArrivalLetterText"),
+                LetterDefOf.ThreatBig,
+                new LookTargets(guards));
+        }
+        catch (Exception ex)
+        {
+            Log.Warning("[ClashOfRim][RaidGuard] Arrival letter failed: " + ex);
         }
     }
 

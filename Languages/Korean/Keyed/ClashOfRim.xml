@@ -1879,4 +1879,6 @@
   <ClashOfRim.ColonyAppearance.Reset>기본값</ClashOfRim.ColonyAppearance.Reset>
   <ClashOfRim.ColonyAppearance.SavedMessage>정착지 아이콘이 업데이트되었습니다.</ClashOfRim.ColonyAppearance.SavedMessage>
   <ClashOfRim.ColonyAppearance.RegistrationReason>정착지 아이콘 업데이트</ClashOfRim.ColonyAppearance.RegistrationReason>
+  <ClashOfRim.Mercenary.GuardArrivalLetterLabel>호위대 도착</ClashOfRim.Mercenary.GuardArrivalLetterLabel>
+  <ClashOfRim.Mercenary.GuardArrivalLetterText>방어 측이 고용한 호위대가 강하 포드로 전장에 도착했습니다. 이들은 정착지 방어에 합류합니다.</ClashOfRim.Mercenary.GuardArrivalLetterText>
 </LanguageData>

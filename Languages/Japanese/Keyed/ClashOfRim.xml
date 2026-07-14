@@ -1879,4 +1879,6 @@
   <ClashOfRim.ColonyAppearance.Reset>既定</ClashOfRim.ColonyAppearance.Reset>
   <ClashOfRim.ColonyAppearance.SavedMessage>コロニーアイコンを更新しました。</ClashOfRim.ColonyAppearance.SavedMessage>
   <ClashOfRim.ColonyAppearance.RegistrationReason>コロニーアイコン更新</ClashOfRim.ColonyAppearance.RegistrationReason>
+  <ClashOfRim.Mercenary.GuardArrivalLetterLabel>護衛隊が到着</ClashOfRim.Mercenary.GuardArrivalLetterLabel>
+  <ClashOfRim.Mercenary.GuardArrivalLetterText>防衛側が雇った護衛隊が降下ポッドで戦場に到着しました。彼らはこの入植地の防衛に加わります。</ClashOfRim.Mercenary.GuardArrivalLetterText>
 </LanguageData>

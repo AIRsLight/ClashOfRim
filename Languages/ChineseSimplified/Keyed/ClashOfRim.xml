@@ -1479,6 +1479,8 @@
   <ClashOfRim.Mercenary.GuardStatusHiring>正在雇佣护卫队。</ClashOfRim.Mercenary.GuardStatusHiring>
   <ClashOfRim.Mercenary.GuardStatusPurchased>护卫队合同已准备，费用 {PRICE} 白银。正在保存当前状态。</ClashOfRim.Mercenary.GuardStatusPurchased>
   <ClashOfRim.Mercenary.GuardStatusConfirmed>护卫队合同已生效，费用 {PRICE} 白银。</ClashOfRim.Mercenary.GuardStatusConfirmed>
+  <ClashOfRim.Mercenary.GuardArrivalLetterLabel>护卫队抵达</ClashOfRim.Mercenary.GuardArrivalLetterLabel>
+  <ClashOfRim.Mercenary.GuardArrivalLetterText>防守方雇佣的护卫队已通过空投抵达战场。他们将协助防守这座殖民地。</ClashOfRim.Mercenary.GuardArrivalLetterText>
   <ClashOfRim.Mercenary.SelectPawn>选择佣兵</ClashOfRim.Mercenary.SelectPawn>
   <ClashOfRim.Mercenary.Profession>职业</ClashOfRim.Mercenary.Profession>
   <ClashOfRim.Mercenary.ProfessionArtist>艺术家</ClashOfRim.Mercenary.ProfessionArtist>
