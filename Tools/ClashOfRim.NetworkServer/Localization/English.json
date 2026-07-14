@@ -306,6 +306,8 @@
   "Mercenary.GuardQuoteMismatch": "Mercenary guard price has changed. Refresh and retry.",
   "Mercenary.GuardContractLedgerFailed": "Mercenary guard contract could not be saved. Rejoin the server and retry.",
   "Mercenary.GuardActivated": "Mercenary guard team is on standby.",
+  "Mercenary.GuardDeployedTitle": "Guard team deployed",
+  "Mercenary.GuardDeployedMessage": "Your hired guard team has deployed to defend against this raid. The contract has been fulfilled.",
   "Mercenary.GuardChanged": "Defender guard status changed. Start the raid again.",
   "Protocol.IncompatibleVersion": "Client version does not match the server.",
   "WorldSession.MissingIdentity": "Entering the world is missing user or colony.",

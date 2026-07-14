@@ -307,6 +307,8 @@
   "Mercenary.GuardQuoteMismatch": "Цена отряда наемной охраны изменилась. Обновите и повторите попытку.",
   "Mercenary.GuardContractLedgerFailed": "Не удалось сохранить контракт отряда наемной охраны. Перезайдите на сервер и повторите попытку.",
   "Mercenary.GuardActivated": "Отряд наемной охраны находится в резерве.",
+  "Mercenary.GuardDeployedTitle": "Отряд охраны развернут",
+  "Mercenary.GuardDeployedMessage": "Нанятый вами отряд охраны вступил в бой для защиты от этого нападения. Контракт выполнен.",
   "Mercenary.GuardChanged": "Состояние охраны защитника изменилось. Начните налет заново.",
   "Protocol.IncompatibleVersion": "Версия клиента не совпадает с сервером.",
   "WorldSession.MissingIdentity": "Для входа в мир отсутствует пользователь или колония.",

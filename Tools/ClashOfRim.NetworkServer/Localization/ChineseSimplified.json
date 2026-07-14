@@ -306,6 +306,8 @@
   "Mercenary.GuardQuoteMismatch": "护卫队报价已变化，请刷新后重试。",
   "Mercenary.GuardContractLedgerFailed": "护卫队合同保存失败，请重新加入服务器后重试。",
   "Mercenary.GuardActivated": "护卫队已进入待命状态。",
+  "Mercenary.GuardDeployedTitle": "护卫队已出动",
+  "Mercenary.GuardDeployedMessage": "你雇佣的护卫队已在本次袭击中投入防御，合同已经履行。",
   "Mercenary.GuardChanged": "防守方护卫队状态已变化，请重新发起袭击。",
   "Protocol.IncompatibleVersion": "客户端版本与服务器不一致。",
   "WorldSession.MissingIdentity": "进入世界缺少用户或殖民地。",

@@ -306,6 +306,8 @@
   "Mercenary.GuardQuoteMismatch": "傭兵護衛隊の価格が変更されました。更新して再試行してください。",
   "Mercenary.GuardContractLedgerFailed": "傭兵護衛隊契約を保存できませんでした。サーバーに再参加して再試行してください。",
   "Mercenary.GuardActivated": "傭兵護衛隊が待機状態になりました。",
+  "Mercenary.GuardDeployedTitle": "護衛隊が出動しました",
+  "Mercenary.GuardDeployedMessage": "雇用した護衛隊が今回の襲撃に対する防衛に投入されました。契約は履行されました。",
   "Mercenary.GuardChanged": "防衛側の護衛隊状態が変わりました。襲撃を再度開始してください。",
   "Protocol.IncompatibleVersion": "クライアントバージョンがサーバーと一致しません。",
   "WorldSession.MissingIdentity": "ワールド参加にユーザーまたはコロニーがありません。",

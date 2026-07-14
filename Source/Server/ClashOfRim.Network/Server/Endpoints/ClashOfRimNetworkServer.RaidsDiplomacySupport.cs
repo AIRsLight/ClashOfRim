@@ -397,12 +397,28 @@ public static partial class ClashOfRimNetworkServer
             {
                 if (!string.IsNullOrWhiteSpace(request.GuardDeploymentId))
                 {
-                    state.MercenaryGuards.ConsumeForRaid(
+                    MercenaryGuardContractRecord? consumedGuard = state.MercenaryGuards.ConsumeForRaid(
                         request.Defender.UserId,
                         request.Defender.ColonyId ?? string.Empty,
                         result.RaidEvent.EventId,
                         request.GuardDeploymentId!,
                         nowUtc);
+                    AuthoritativeEvent? guardNotification = MercenaryGuardActivationNotificationFactory.Create(
+                        consumedGuard,
+                        result.RaidEvent,
+                        state.OnlinePresence.IsUserOnline(request.Defender.UserId),
+                        T("Mercenary.GuardDeployedTitle"),
+                        T("Mercenary.GuardDeployedMessage"),
+                        nowUtc);
+                    if (guardNotification is not null)
+                    {
+                        LedgerAppendResult guardNotificationAppend = state.Ledger.Append(guardNotification);
+                        LogEventAppend(state, guardNotificationAppend, "mercenary-guard-activated");
+                        if (guardNotificationAppend.Created)
+                        {
+                            state.EventNotifications.SignalUser(request.Defender.UserId);
+                        }
+                    }
                 }
 
                 state.EventNotifications.SignalUser(result.RaidEvent.Target.UserId);

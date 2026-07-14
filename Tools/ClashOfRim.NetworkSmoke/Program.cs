@@ -27,6 +27,7 @@ VerifyDomainRegistryStoreAppliesAtomicDeltas();
 VerifyBankRegistryUpdatesOnlyChangedRows();
 VerifyPlayerRegistryUpdatesOnlyChangedRows();
 VerifyRaidCooldownOverrideSemantics();
+VerifyMercenaryGuardActivationNotificationSemantics();
 await VerifyMultipartClientAddsAuthHeaderAsync();
 VerifyMultipartPreAuthentication();
 VerifyDeferredSnapshotPostUploadEnqueueSemantics();
@@ -84,6 +85,69 @@ static void VerifyOfflineAccountsAllowLegacyPasswordLengths()
     Require(
         accounts.Authenticate("short-password-user", string.Empty, DateTimeOffset.UtcNow).Accepted,
         "重置后的空密码应能登录");
+}
+
+static void VerifyMercenaryGuardActivationNotificationSemantics()
+{
+    DateTimeOffset now = DateTimeOffset.UtcNow;
+    var consumedGuard = new MercenaryGuardContractRecord(
+        "guard-contract",
+        "guard-idempotency",
+        "defender",
+        "colony-defender",
+        "defender-snapshot",
+        "Master",
+        3000,
+        1.1f,
+        12000,
+        now.AddMinutes(-5),
+        MercenaryGuardContractRegistry.StatusConsumed,
+        "raid:guard-test",
+        now);
+    AuthoritativeEvent raidEvent = AuthoritativeEventFactory.Create(
+        ServerEventType.Raid,
+        new EventParty("attacker", "colony-attacker"),
+        new EventParty("defender", "colony-defender"),
+        "guard-test",
+        targetOnline: false,
+        new RaidEventPayload(
+            "defender-snapshot",
+            ReturnedSnapshotId: null,
+            StartedAtUtc: now,
+            FinishedAtUtc: null,
+            Settlement: null),
+        now);
+
+    AuthoritativeEvent? notification = MercenaryGuardActivationNotificationFactory.Create(
+        consumedGuard,
+        raidEvent,
+        targetOnline: false,
+        "Guard team deployed",
+        "The guard team has deployed.",
+        now);
+    Require(notification is not null, "已消费护卫合同应创建通知");
+    Require(notification!.Type == ServerEventType.ServerNotification, "护卫通知应使用服务器通知类型");
+    Require(
+        notification.Target.UserId == "defender" && notification.Target.ColonyId == "colony-defender",
+        "护卫通知目标应为防守方");
+    var payload = (ServerNotificationEventPayload)notification.Payload;
+    Require(!payload.OnlineOnly, "护卫通知必须支持离线投递");
+    Require(
+        payload.RelatedEventId == raidEvent.EventId && payload.RelatedEventType == ServerEventType.Raid,
+        "护卫通知应关联袭击事件");
+
+    var ledger = new InMemoryAuthoritativeEventLedger();
+    Require(ledger.Append(notification).Created, "首次追加护卫通知应成功");
+    Require(!ledger.Append(notification).Created, "重复追加同一护卫通知应幂等");
+    Require(
+        MercenaryGuardActivationNotificationFactory.Create(
+            null,
+            raidEvent,
+            targetOnline: false,
+            "title",
+            "message",
+            now) is null,
+        "合同未消费时不得创建护卫通知");
 }
 
 static void VerifyOfflineAccountsRateLimitFailures()
