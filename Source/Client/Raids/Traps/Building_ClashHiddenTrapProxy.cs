@@ -239,6 +239,21 @@ public sealed class Building_ClashHiddenTrapProxy : Building
         GenSpawn.Spawn(trapThing, position, map, rotation);
         WakeRestoredTrap(trapThing);
 
+        if (trapThing is Building_Trap restoredTrap)
+        {
+            // The pawn is already standing in the trigger area when the real trap is restored.
+            // Its normal Tick therefore cannot observe a fresh entry; spring it through the
+            // vanilla entry point so overridden SpringSub implementations and trap comps run.
+            restoredTrap.Spring(pawn);
+        }
+        else
+        {
+            Log.Warning("[ClashOfRim][TrapProxy] Restored hidden tactical object has no supported trigger entry point: def="
+                + trapThing.def?.defName
+                + ", type="
+                + trapThing.GetType().FullName);
+        }
+
         // The proxy def is intentionally non-destroyable so players cannot interact with it as a real building.
         // Once despawned it is no longer owned by the map; do not call Destroy on it.
         originalTrap = null;
