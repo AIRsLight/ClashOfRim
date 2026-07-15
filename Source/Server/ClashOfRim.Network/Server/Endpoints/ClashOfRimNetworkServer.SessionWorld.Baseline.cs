@@ -514,14 +514,21 @@ public static partial class ClashOfRimNetworkServer
         string? compatibilityManifestJson,
         string? compatibilityManifestId,
         string? compatibilityManifestSummaryJson,
-        DateTimeOffset nowUtc)
+        DateTimeOffset nowUtc,
+        bool createAccountIfMissing = false)
     {
-        AuthenticationValidationResult auth = ValidateAuthentication(state, userId, steamAuthTicket, password, nowUtc);
+        AuthenticationValidationResult auth = ValidateAuthentication(
+            state,
+            userId,
+            steamAuthTicket,
+            password,
+            nowUtc,
+            createAccountIfMissing);
         CompatibilityManifest? serverCompatibilityManifest = state.CompatibilityBaseline.Current;
         if (!auth.Accepted || string.IsNullOrWhiteSpace(auth.AuthenticatedUserId))
         {
             return new CompatibilityHandshakeResult(
-                ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, auth.Message ?? T("Steam.Failed")),
+                ProtocolResponse.Reject(auth.ErrorCode, auth.Message ?? T("Steam.Failed")),
                 SteamId: null,
                 DisplayName: null,
                 serverCompatibilityManifest is null ? null : SerializeCompatibilityManifest(serverCompatibilityManifest, state),
@@ -727,7 +734,8 @@ public static partial class ClashOfRimNetworkServer
         string userId,
         string? steamAuthTicket,
         string? password,
-        DateTimeOffset nowUtc)
+        DateTimeOffset nowUtc,
+        bool createAccountIfMissing = false)
     {
         ClashOfRimServerConfiguration configuration = state.ServerConfiguration;
         if (configuration.AuthenticationDebugMode)
@@ -749,10 +757,15 @@ public static partial class ClashOfRimNetworkServer
         OfflineAccountAuthenticationResult offlineAuth = state.OfflineAccounts.Authenticate(
             userId,
             password,
-            nowUtc);
+            nowUtc,
+            createAccountIfMissing);
         return offlineAuth.Accepted && !string.IsNullOrWhiteSpace(offlineAuth.UserId)
             ? AuthenticationValidationResult.Accept(offlineAuth.UserId!, offlineAuth.DisplayName)
-            : AuthenticationValidationResult.Reject(LocalizeOfflineAccountFailure(offlineAuth.Message));
+            : AuthenticationValidationResult.Reject(
+                LocalizeOfflineAccountFailure(offlineAuth.Message),
+                string.Equals(offlineAuth.Message, OfflineAccountRegistry.MissingUserKey, StringComparison.Ordinal)
+                    ? ProtocolErrorCode.AccountNotFound
+                    : ProtocolErrorCode.Unauthorized);
     }
 
     private static IResult ChangeOfflinePassword(ChangeOfflinePasswordRequest request, ClashOfRimNetworkState state)

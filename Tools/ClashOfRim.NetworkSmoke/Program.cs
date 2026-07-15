@@ -20,9 +20,11 @@ using System.Text.Json;
 VerifySnapshotPostUploadPipelineSemantics();
 VerifySnapshotPostUploadProcessorIdsAreUnique();
 VerifySnapshotPostUploadProcessorPluginFiltering();
+VerifyOfflineAccountsRequireExplicitRegistration();
 VerifyOfflineAccountsAllowLegacyPasswordLengths();
 VerifyOfflineAccountsRateLimitFailures();
 VerifyCorruptOfflineAccountRowsAreQuarantined();
+await VerifyMissingAccountCannotClaimAdministratorAsync();
 VerifyDomainRegistryStoreAppliesAtomicDeltas();
 VerifyBankRegistryUpdatesOnlyChangedRows();
 VerifyPlayerRegistryUpdatesOnlyChangedRows();
@@ -61,11 +63,13 @@ static void VerifyOfflineAccountsAllowLegacyPasswordLengths()
     OfflineAccountAuthenticationResult empty = accounts.Authenticate(
         "empty-password-user",
         string.Empty,
-        DateTimeOffset.UtcNow);
+        DateTimeOffset.UtcNow,
+        createIfMissing: true);
     OfflineAccountAuthenticationResult shortPassword = accounts.Authenticate(
         "short-password-user",
         "1234567",
-        DateTimeOffset.UtcNow);
+        DateTimeOffset.UtcNow,
+        createIfMissing: true);
     Require(empty.Accepted, "历史空密码离线账户应允许注册和登录");
     Require(shortPassword.Accepted, "历史短密码离线账户应允许注册和登录");
     Require(
@@ -85,6 +89,72 @@ static void VerifyOfflineAccountsAllowLegacyPasswordLengths()
     Require(
         accounts.Authenticate("short-password-user", string.Empty, DateTimeOffset.UtcNow).Accepted,
         "重置后的空密码应能登录");
+}
+
+static void VerifyOfflineAccountsRequireExplicitRegistration()
+{
+    var accounts = new OfflineAccountRegistry();
+    DateTimeOffset now = DateTimeOffset.UtcNow;
+    OfflineAccountAuthenticationResult missing = accounts.Authenticate(
+        "new-user",
+        "password",
+        now);
+    Require(!missing.Accepted, "不存在的离线账户不得在普通登录时隐式创建");
+    Require(
+        string.Equals(missing.Message, OfflineAccountRegistry.MissingUserKey, StringComparison.Ordinal),
+        "不存在的离线账户应返回明确的缺失账户结果");
+    Require(
+        accounts.Authenticate("new-user", "password", now, createIfMissing: true).Accepted,
+        "显式注册请求应创建并认证离线账户");
+    Require(
+        accounts.Authenticate("new-user", "password", now).Accepted,
+        "显式注册后的账户应能通过普通登录认证");
+}
+
+static async Task VerifyMissingAccountCannotClaimAdministratorAsync()
+{
+    var state = new ClashOfRimNetworkState();
+    WebApplication app = ClashOfRimNetworkServer.Build(Array.Empty<string>(), state);
+    app.Urls.Add("http://127.0.0.1:0");
+    await app.StartAsync();
+    try
+    {
+        var client = new ClashOfRimNetworkClient(new HttpClient
+        {
+            BaseAddress = new Uri(ServerAddress(app))
+        });
+        string manifest = BuildSmokeCompatibilityManifestJson("explicit-registration-manifest");
+        PrepareWorldSessionResponse missing = await client.PrepareWorldSessionAsync(
+            new PrepareWorldSessionRequest(
+                ProtocolApiVersion.Current,
+                "unregistered-user",
+                "colony-unregistered",
+                compatibilityManifestJson: manifest,
+                password: "password"));
+        Require(!missing.Result.Accepted, "未注册账户的普通登录请求不得被接受");
+        Require(
+            missing.Result.ErrorCode == ProtocolErrorCode.AccountNotFound,
+            "未注册账户应返回 AccountNotFound");
+        Require(
+            state.WorldConfiguration.ListAdministrators().Count == 0,
+            "认证失败的账户不得在认证前占用管理员身份");
+
+        PrepareWorldSessionResponse registered = await client.PrepareWorldSessionAsync(
+            new PrepareWorldSessionRequest(
+                ProtocolApiVersion.Current,
+                "unregistered-user",
+                "colony-unregistered",
+                compatibilityManifestJson: manifest,
+                password: "password",
+                createAccountIfMissing: true));
+        Require(registered.Result.Accepted, "显式注册请求应创建账户并准备世界会话");
+        Require(registered.IsAdministrator, "首个成功注册的账户应成为管理员");
+    }
+    finally
+    {
+        await app.StopAsync();
+        await app.DisposeAsync();
+    }
 }
 
 static void VerifyMercenaryGuardActivationNotificationSemantics()
@@ -155,7 +225,7 @@ static void VerifyOfflineAccountsRateLimitFailures()
     var accounts = new OfflineAccountRegistry();
     DateTimeOffset now = DateTimeOffset.UtcNow;
     Require(
-        accounts.Authenticate("rate-limited-user", "correct-password", now).Accepted,
+        accounts.Authenticate("rate-limited-user", "correct-password", now, createIfMissing: true).Accepted,
         "限流测试账户应先成功注册");
 
     for (int attempt = 0; attempt < 5; attempt++)
@@ -1093,7 +1163,8 @@ try
             "user-a",
             "colony-a",
             compatibilityManifestJson: BuildSmokeCompatibilityManifestJson("smoke-main-manifest"),
-            password: string.Empty));
+            password: string.Empty,
+            createAccountIfMissing: true));
     Require(firstWorldSession.Result.Accepted, $"首个用户应能准备世界会话：{firstWorldSession.Result.ErrorCode} {firstWorldSession.Result.Message}");
     Require(firstWorldSession.IsAdministrator, "首个用户应成为默认管理员");
     Require(firstWorldSession.RequiresInitialWorldConfiguration, "首个管理员应进入初始世界配置分支");
@@ -3412,7 +3483,8 @@ static async Task VerifyColonyRelocationExplicitConfirmationAsync()
                 "reloc-user",
                 "reloc-colony",
                 compatibilityManifestJson: compatibilityManifestJson,
-                password: string.Empty));
+                password: string.Empty,
+                createAccountIfMissing: true));
         Require(prepared.Result.Accepted, $"搬迁测试管理员应能准备世界会话：{prepared.Result.ErrorCode} {prepared.Result.Message}");
 
         SubmitWorldConfigurationResponse submitted = await client.SubmitWorldConfigurationAsync(
@@ -3859,7 +3931,8 @@ static async Task VerifyDefaultPersistentServerStateAsync()
                     "admin-user",
                     "colony-a",
                     compatibilityManifestJson: compatibilityManifestJson,
-                    password: string.Empty));
+                    password: string.Empty,
+                    createAccountIfMissing: true));
             Require(prepared.IsAdministrator, "默认持久化服务端应记录首个管理员");
 
             SubmitWorldConfigurationResponse submitted = await firstClient.SubmitWorldConfigurationAsync(
@@ -3941,7 +4014,8 @@ static async Task VerifyDefaultPersistentServerStateAsync()
                     "user-c",
                     "colony-c",
                     password: string.Empty,
-                    compatibilityManifestId: "persistent-manifest"));
+                    compatibilityManifestId: "persistent-manifest",
+                    createAccountIfMissing: true));
             Require(!reopened.IsAdministrator, "默认持久化服务端重启后不应重置管理员");
             Equal("admin-user", reopened.AdministratorUserId, "默认持久化服务端重启后的管理员");
             Require(!reopened.HasExistingColony, "未登记的新用户不应被识别为已有殖民地");
@@ -4113,7 +4187,8 @@ static PrepareWorldSessionRequest SmokePrepareWorldSessionRequest(string userId,
         userId,
         colonyId,
         password: string.Empty,
-        compatibilityManifestId: "smoke-main-manifest");
+        compatibilityManifestId: "smoke-main-manifest",
+        createAccountIfMissing: true);
 }
 
 static GetWorldConfigurationRequest SmokeGetWorldConfigurationRequest(string userId, string colonyId)

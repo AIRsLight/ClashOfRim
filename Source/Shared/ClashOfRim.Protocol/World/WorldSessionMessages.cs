@@ -13,7 +13,8 @@ public sealed class PrepareWorldSessionRequest
         string? steamAuthTicket = null,
         string? password = null,
         string? compatibilityManifestId = null,
-        string? compatibilityManifestSummaryJson = null)
+        string? compatibilityManifestSummaryJson = null,
+        bool createAccountIfMissing = false)
     {
         ProtocolVersion = protocolVersion;
         UserId = userId;
@@ -23,6 +24,7 @@ public sealed class PrepareWorldSessionRequest
         Password = password;
         CompatibilityManifestId = compatibilityManifestId;
         CompatibilityManifestSummaryJson = compatibilityManifestSummaryJson;
+        CreateAccountIfMissing = createAccountIfMissing;
     }
 
     public string ProtocolVersion { get; }
@@ -40,6 +42,8 @@ public sealed class PrepareWorldSessionRequest
     public string? CompatibilityManifestId { get; }
 
     public string? CompatibilityManifestSummaryJson { get; }
+
+    public bool CreateAccountIfMissing { get; }
 }
 
 public sealed class PrepareWorldSessionResponse

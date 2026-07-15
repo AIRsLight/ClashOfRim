@@ -44,7 +44,8 @@ public sealed class OfflineAccountRegistry
     public OfflineAccountAuthenticationResult Authenticate(
         string userId,
         string? password,
-        DateTimeOffset nowUtc)
+        DateTimeOffset nowUtc,
+        bool createIfMissing = false)
     {
         string normalizedUserId = NormalizeUserId(userId);
         if (string.IsNullOrWhiteSpace(normalizedUserId))
@@ -67,6 +68,11 @@ public sealed class OfflineAccountRegistry
 
             if (!accounts.TryGetValue(normalizedUserId, out OfflineAccountRecord? account))
             {
+                if (!createIfMissing)
+                {
+                    return OfflineAccountAuthenticationResult.Reject(MissingUserKey);
+                }
+
                 account = CreateRecord(
                     normalizedUserId,
                     suppliedPassword,

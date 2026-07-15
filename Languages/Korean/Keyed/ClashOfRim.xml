@@ -227,6 +227,14 @@
   <ClashOfRim.ServerEntry.ProtocolMismatch>클라이언트와 서버 버전이 호환되지 않습니다. 클라이언트 {CLIENT}, 서버 {SERVER}. 클라이언트를 업데이트하거나 관리자가 서버를 업데이트할 때까지 기다리세요.</ClashOfRim.ServerEntry.ProtocolMismatch>
   <ClashOfRim.ServerEntry.StatusFlowException>서버 입장 요청 예외: {TYPE} {MESSAGE}</ClashOfRim.ServerEntry.StatusFlowException>
   <ClashOfRim.ServerEntry.StatusLoginFallback>로그인 실패.</ClashOfRim.ServerEntry.StatusLoginFallback>
+  <ClashOfRim.ServerEntry.AccountMissingTitle>계정을 찾을 수 없음</ClashOfRim.ServerEntry.AccountMissingTitle>
+  <ClashOfRim.ServerEntry.AccountMissingPrompt>이 서버에 계정 {USER}이(가) 없습니다. 생성하시겠습니까?</ClashOfRim.ServerEntry.AccountMissingPrompt>
+  <ClashOfRim.ServerEntry.CreateAccountTitle>계정 생성</ClashOfRim.ServerEntry.CreateAccountTitle>
+  <ClashOfRim.ServerEntry.CreateAccountUser>계정: {USER}</ClashOfRim.ServerEntry.CreateAccountUser>
+  <ClashOfRim.ServerEntry.CreateAccount>생성</ClashOfRim.ServerEntry.CreateAccount>
+  <ClashOfRim.ServerEntry.PasswordConfirmation>비밀번호 확인</ClashOfRim.ServerEntry.PasswordConfirmation>
+  <ClashOfRim.ServerEntry.PasswordRequired>계정 비밀번호를 입력하세요.</ClashOfRim.ServerEntry.PasswordRequired>
+  <ClashOfRim.ServerEntry.PasswordMismatch>비밀번호가 일치하지 않습니다.</ClashOfRim.ServerEntry.PasswordMismatch>
   <ClashOfRim.ServerEntry.ReasonServerSnapshotLoaded>서버 저장 불러옴</ClashOfRim.ServerEntry.ReasonServerSnapshotLoaded>
   <ClashOfRim.ServerEntry.ReasonRaidRecovery>습격 복구</ClashOfRim.ServerEntry.ReasonRaidRecovery>
   <ClashOfRim.WorldBaseline.StatusConfigMissing>초기 세계 설정이 제출되지 않았습니다: 서버, 사용자 또는 식민지가 설정되지 않았습니다.</ClashOfRim.WorldBaseline.StatusConfigMissing>

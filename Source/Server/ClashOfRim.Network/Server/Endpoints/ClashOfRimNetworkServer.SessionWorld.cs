@@ -47,6 +47,32 @@ public static partial class ClashOfRimNetworkServer
         }
 
         DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
+        CompatibilityHandshakeResult compatibility = ValidateCompatibilityHandshake(
+            state,
+            request.UserId,
+            request.SteamAuthTicket,
+            request.Password,
+            request.CompatibilityManifestJson,
+            request.CompatibilityManifestId,
+            request.CompatibilityManifestSummaryJson,
+            nowUtc,
+            request.CreateAccountIfMissing);
+        if (!compatibility.Result.Accepted)
+        {
+            return Results.Ok(new PrepareWorldSessionResponse(
+                compatibility.Result,
+                isAdministrator: false,
+                worldConfigured: false,
+                requiresInitialWorldConfiguration: false,
+                administratorUserId: null,
+                worldConfiguration: null,
+                serverCompatibilityManifestJson: compatibility.ServerCompatibilityManifestJson,
+                compatibilityIssues: compatibility.CompatibilityIssues,
+                canOverrideCompatibilityBaseline: false,
+                requiresFullCompatibilityManifest: compatibility.RequiresFullCompatibilityManifest,
+                requestedCompatibilityPackageIds: compatibility.RequestedCompatibilityPackageIds));
+        }
+
         ReconcileExpiredRaidEvents(state, nowUtc);
         string requestedColonyId = string.IsNullOrWhiteSpace(request.ColonyId)
             ? CreateDefaultColonyId(request.UserId)
@@ -84,34 +110,6 @@ public static partial class ClashOfRimNetworkServer
         }
 
         bool hasExistingColony = latestSnapshot is not null || hasRegisteredColonySite;
-        CompatibilityHandshakeResult compatibility = ValidateCompatibilityHandshake(
-            state,
-            request.UserId,
-            request.SteamAuthTicket,
-            request.Password,
-            request.CompatibilityManifestJson,
-            request.CompatibilityManifestId,
-            request.CompatibilityManifestSummaryJson,
-            nowUtc);
-        if (!compatibility.Result.Accepted)
-        {
-            return Results.Ok(new PrepareWorldSessionResponse(
-                compatibility.Result,
-                session.IsAdministrator,
-                session.WorldConfigured,
-                session.RequiresInitialWorldConfiguration,
-                session.AdministratorUserId,
-                worldConfiguration: null,
-                hasExistingColony,
-                latestSnapshot?.Identity.SnapshotId,
-                serverCompatibilityManifestJson: compatibility.ServerCompatibilityManifestJson,
-                compatibilityIssues: compatibility.CompatibilityIssues,
-                canOverrideCompatibilityBaseline: compatibility.CanOverrideCompatibilityBaseline,
-                assignedColonyId,
-                requiresFullCompatibilityManifest: compatibility.RequiresFullCompatibilityManifest,
-                requestedCompatibilityPackageIds: compatibility.RequestedCompatibilityPackageIds));
-        }
-
         if (state.AdminControl.MaintenanceLoginLocked && !session.IsAdministrator)
         {
             string reason = string.IsNullOrWhiteSpace(state.AdminControl.MaintenanceReason)

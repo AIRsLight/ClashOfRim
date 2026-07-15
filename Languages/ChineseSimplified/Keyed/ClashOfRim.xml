@@ -226,6 +226,14 @@
   <ClashOfRim.ServerEntry.ProtocolMismatch>客户端和服务器版本不兼容。客户端 {CLIENT}，服务器 {SERVER}。请更新客户端或等待管理员更新服务器。</ClashOfRim.ServerEntry.ProtocolMismatch>
   <ClashOfRim.ServerEntry.StatusFlowException>入服请求异常：{TYPE} {MESSAGE}</ClashOfRim.ServerEntry.StatusFlowException>
   <ClashOfRim.ServerEntry.StatusLoginFallback>登录失败。</ClashOfRim.ServerEntry.StatusLoginFallback>
+  <ClashOfRim.ServerEntry.AccountMissingTitle>账户不存在</ClashOfRim.ServerEntry.AccountMissingTitle>
+  <ClashOfRim.ServerEntry.AccountMissingPrompt>服务器中不存在账户 {USER}。是否创建该账户？</ClashOfRim.ServerEntry.AccountMissingPrompt>
+  <ClashOfRim.ServerEntry.CreateAccountTitle>创建账户</ClashOfRim.ServerEntry.CreateAccountTitle>
+  <ClashOfRim.ServerEntry.CreateAccountUser>账户：{USER}</ClashOfRim.ServerEntry.CreateAccountUser>
+  <ClashOfRim.ServerEntry.CreateAccount>创建</ClashOfRim.ServerEntry.CreateAccount>
+  <ClashOfRim.ServerEntry.PasswordConfirmation>确认密码</ClashOfRim.ServerEntry.PasswordConfirmation>
+  <ClashOfRim.ServerEntry.PasswordRequired>请输入账户密码。</ClashOfRim.ServerEntry.PasswordRequired>
+  <ClashOfRim.ServerEntry.PasswordMismatch>两次输入的密码不一致。</ClashOfRim.ServerEntry.PasswordMismatch>
   <ClashOfRim.ServerEntry.ReasonServerSnapshotLoaded>服务器存档加载</ClashOfRim.ServerEntry.ReasonServerSnapshotLoaded>
   <ClashOfRim.ServerEntry.ReasonRaidRecovery>袭击恢复</ClashOfRim.ServerEntry.ReasonRaidRecovery>
   <ClashOfRim.WorldBaseline.StatusConfigMissing>初始世界配置未提交：服务器地址、用户或殖民地未配置。</ClashOfRim.WorldBaseline.StatusConfigMissing>

@@ -214,6 +214,9 @@ public sealed class ModPrepareWorldSessionRequestDto
 
     [DataMember(Name = "password")]
     public string? Password { get; set; }
+
+    [DataMember(Name = "createAccountIfMissing")]
+    public bool CreateAccountIfMissing { get; set; }
 }
 
 [DataContract]

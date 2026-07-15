@@ -226,6 +226,14 @@
   <ClashOfRim.ServerEntry.ProtocolMismatch>The client and server versions are incompatible. Client {CLIENT}, server {SERVER}. Update the client or wait for the administrator to update the server.</ClashOfRim.ServerEntry.ProtocolMismatch>
   <ClashOfRim.ServerEntry.StatusFlowException>Server entry request exception: {TYPE} {MESSAGE}</ClashOfRim.ServerEntry.StatusFlowException>
   <ClashOfRim.ServerEntry.StatusLoginFallback>Login failed.</ClashOfRim.ServerEntry.StatusLoginFallback>
+  <ClashOfRim.ServerEntry.AccountMissingTitle>Account not found</ClashOfRim.ServerEntry.AccountMissingTitle>
+  <ClashOfRim.ServerEntry.AccountMissingPrompt>Account {USER} does not exist on this server. Create it?</ClashOfRim.ServerEntry.AccountMissingPrompt>
+  <ClashOfRim.ServerEntry.CreateAccountTitle>Create account</ClashOfRim.ServerEntry.CreateAccountTitle>
+  <ClashOfRim.ServerEntry.CreateAccountUser>Account: {USER}</ClashOfRim.ServerEntry.CreateAccountUser>
+  <ClashOfRim.ServerEntry.CreateAccount>Create</ClashOfRim.ServerEntry.CreateAccount>
+  <ClashOfRim.ServerEntry.PasswordConfirmation>Confirm password</ClashOfRim.ServerEntry.PasswordConfirmation>
+  <ClashOfRim.ServerEntry.PasswordRequired>Enter an account password.</ClashOfRim.ServerEntry.PasswordRequired>
+  <ClashOfRim.ServerEntry.PasswordMismatch>The passwords do not match.</ClashOfRim.ServerEntry.PasswordMismatch>
   <ClashOfRim.ServerEntry.ReasonServerSnapshotLoaded>server save loaded</ClashOfRim.ServerEntry.ReasonServerSnapshotLoaded>
   <ClashOfRim.ServerEntry.ReasonRaidRecovery>raid recovery</ClashOfRim.ServerEntry.ReasonRaidRecovery>
   <ClashOfRim.WorldBaseline.StatusConfigMissing>Initial world configuration was not submitted: server, user, or colony is not configured.</ClashOfRim.WorldBaseline.StatusConfigMissing>

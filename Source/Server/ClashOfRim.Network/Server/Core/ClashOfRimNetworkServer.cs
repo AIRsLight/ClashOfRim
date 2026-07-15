@@ -2815,16 +2815,19 @@ public static partial class ClashOfRimNetworkServer
         bool Accepted,
         string? AuthenticatedUserId,
         string? DisplayName,
-        string? Message)
+        string? Message,
+        ProtocolErrorCode ErrorCode)
     {
         public static AuthenticationValidationResult Accept(string authenticatedUserId, string? displayName = null)
         {
-            return new AuthenticationValidationResult(true, authenticatedUserId, displayName, null);
+            return new AuthenticationValidationResult(true, authenticatedUserId, displayName, null, ProtocolErrorCode.None);
         }
 
-        public static AuthenticationValidationResult Reject(string message)
+        public static AuthenticationValidationResult Reject(
+            string message,
+            ProtocolErrorCode errorCode = ProtocolErrorCode.Unauthorized)
         {
-            return new AuthenticationValidationResult(false, null, null, message);
+            return new AuthenticationValidationResult(false, null, null, message, errorCode);
         }
     }
 

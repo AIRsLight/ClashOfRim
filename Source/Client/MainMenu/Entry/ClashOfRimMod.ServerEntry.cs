@@ -40,7 +40,11 @@ public sealed partial class ClashOfRimMod
         return $"{mapText} {configuration} {snapshot}";
     }
 
-    internal bool StartMainMenuServerEntryFlow(string? serverBaseUrl, string? userId, string? password)
+    internal bool StartMainMenuServerEntryFlow(
+        string? serverBaseUrl,
+        string? userId,
+        string? password,
+        bool createAccountIfMissing = false)
     {
         EnsureStatusDefaultsInitialized();
         if (!ClashOfRimServerUrlUtility.TryNormalizeHttpBaseUrl(serverBaseUrl, out string normalizedServerBaseUrl))
@@ -127,7 +131,7 @@ public sealed partial class ClashOfRimMod
                 }
 
                 ClashOfRimClientNetworkResult<ModPrepareWorldSessionResponseDto> result =
-                    await client.PrepareWorldSessionAsync();
+                    await client.PrepareWorldSessionAsync(createAccountIfMissing);
                 if (result.Success
                     && result.Response?.Result?.Accepted == true
                     && result.Response.WorldConfigured
@@ -357,6 +361,25 @@ public sealed partial class ClashOfRimMod
             }
 
             ModPrepareWorldSessionResponseDto response = result.Response;
+            if (response.Result?.Accepted != true
+                && response.Result?.ErrorCode == (int)ProtocolErrorCode.AccountNotFound)
+            {
+                CloseServerEntryProgressWindowNow();
+                string server = settings.ServerBaseUrl;
+                string account = settings.UserId;
+                Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation(
+                    ClashOfRimText.Key(
+                        "ClashOfRim.ServerEntry.AccountMissingPrompt",
+                        account.Named("USER")),
+                    () => Find.WindowStack.Add(new ClashOfRimAccountRegistrationDialog(
+                        this,
+                        server,
+                        account)),
+                    destructive: false,
+                    title: ClashOfRimText.Key("ClashOfRim.ServerEntry.AccountMissingTitle")));
+                return;
+            }
+
             CaptureServerCompatibilityManifest(response.ServerCompatibilityManifestJson);
             if (!string.IsNullOrWhiteSpace(response.AssignedColonyId)
                 && !string.Equals(settings.ColonyId, response.AssignedColonyId, StringComparison.Ordinal))

@@ -12,5 +12,6 @@ public enum ProtocolErrorCode
     ValidationFailed,
     ServerRejected,
     Conflict,
-    LossNotReflected
+    LossNotReflected,
+    AccountNotFound
 }

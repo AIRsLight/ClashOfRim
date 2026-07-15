@@ -227,6 +227,14 @@
   <ClashOfRim.ServerEntry.ProtocolMismatch>クライアントとサーバーのバージョンに互換性がありません。クライアント {CLIENT}, サーバー {SERVER}。クライアントを更新するか、管理者がサーバーを更新するのを待ってください。</ClashOfRim.ServerEntry.ProtocolMismatch>
   <ClashOfRim.ServerEntry.StatusFlowException>サーバー参加要求例外: {TYPE} {MESSAGE}</ClashOfRim.ServerEntry.StatusFlowException>
   <ClashOfRim.ServerEntry.StatusLoginFallback>ログインに失敗しました。</ClashOfRim.ServerEntry.StatusLoginFallback>
+  <ClashOfRim.ServerEntry.AccountMissingTitle>アカウントが見つかりません</ClashOfRim.ServerEntry.AccountMissingTitle>
+  <ClashOfRim.ServerEntry.AccountMissingPrompt>このサーバーにアカウント {USER} は存在しません。作成しますか？</ClashOfRim.ServerEntry.AccountMissingPrompt>
+  <ClashOfRim.ServerEntry.CreateAccountTitle>アカウント作成</ClashOfRim.ServerEntry.CreateAccountTitle>
+  <ClashOfRim.ServerEntry.CreateAccountUser>アカウント：{USER}</ClashOfRim.ServerEntry.CreateAccountUser>
+  <ClashOfRim.ServerEntry.CreateAccount>作成</ClashOfRim.ServerEntry.CreateAccount>
+  <ClashOfRim.ServerEntry.PasswordConfirmation>パスワード確認</ClashOfRim.ServerEntry.PasswordConfirmation>
+  <ClashOfRim.ServerEntry.PasswordRequired>アカウントのパスワードを入力してください。</ClashOfRim.ServerEntry.PasswordRequired>
+  <ClashOfRim.ServerEntry.PasswordMismatch>パスワードが一致しません。</ClashOfRim.ServerEntry.PasswordMismatch>
   <ClashOfRim.ServerEntry.ReasonServerSnapshotLoaded>サーバーセーブ読み込み</ClashOfRim.ServerEntry.ReasonServerSnapshotLoaded>
   <ClashOfRim.ServerEntry.ReasonRaidRecovery>襲撃復旧</ClashOfRim.ServerEntry.ReasonRaidRecovery>
   <ClashOfRim.WorldBaseline.StatusConfigMissing>初期ワールド設定は送信されませんでした: サーバー、ユーザー、またはコロニーが設定されていません。</ClashOfRim.WorldBaseline.StatusConfigMissing>

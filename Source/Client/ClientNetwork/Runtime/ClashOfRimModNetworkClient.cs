@@ -352,6 +352,7 @@ public sealed class ClashOfRimModNetworkClient
     }
 
     public async Task<ClashOfRimClientNetworkResult<ModPrepareWorldSessionResponseDto>> PrepareWorldSessionAsync(
+        bool createAccountIfMissing = false,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(context.ServerBaseUrl)
@@ -377,7 +378,8 @@ public sealed class ClashOfRimModNetworkClient
             SteamAuthTicket = string.IsNullOrWhiteSpace(context.SteamAuthTicket)
                 ? context.UserId
                 : context.SteamAuthTicket,
-            Password = context.OfflinePassword
+            Password = context.OfflinePassword,
+            CreateAccountIfMissing = createAccountIfMissing
         };
 
         ClashOfRimClientNetworkResult<ModPrepareWorldSessionResponseDto> result =

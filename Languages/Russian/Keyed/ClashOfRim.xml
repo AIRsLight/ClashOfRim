@@ -227,6 +227,14 @@
   <ClashOfRim.ServerEntry.ProtocolMismatch>Версии клиента и сервера несовместимы. Клиент {CLIENT}, сервер {SERVER}. Обновите клиент или дождитесь обновления сервера администратором.</ClashOfRim.ServerEntry.ProtocolMismatch>
   <ClashOfRim.ServerEntry.StatusFlowException>Исключение запроса входа на сервер: {TYPE} {MESSAGE}</ClashOfRim.ServerEntry.StatusFlowException>
   <ClashOfRim.ServerEntry.StatusLoginFallback>Вход не удался.</ClashOfRim.ServerEntry.StatusLoginFallback>
+  <ClashOfRim.ServerEntry.AccountMissingTitle>Учётная запись не найдена</ClashOfRim.ServerEntry.AccountMissingTitle>
+  <ClashOfRim.ServerEntry.AccountMissingPrompt>Учётной записи {USER} нет на этом сервере. Создать её?</ClashOfRim.ServerEntry.AccountMissingPrompt>
+  <ClashOfRim.ServerEntry.CreateAccountTitle>Создание учётной записи</ClashOfRim.ServerEntry.CreateAccountTitle>
+  <ClashOfRim.ServerEntry.CreateAccountUser>Учётная запись: {USER}</ClashOfRim.ServerEntry.CreateAccountUser>
+  <ClashOfRim.ServerEntry.CreateAccount>Создать</ClashOfRim.ServerEntry.CreateAccount>
+  <ClashOfRim.ServerEntry.PasswordConfirmation>Подтвердите пароль</ClashOfRim.ServerEntry.PasswordConfirmation>
+  <ClashOfRim.ServerEntry.PasswordRequired>Введите пароль учётной записи.</ClashOfRim.ServerEntry.PasswordRequired>
+  <ClashOfRim.ServerEntry.PasswordMismatch>Пароли не совпадают.</ClashOfRim.ServerEntry.PasswordMismatch>
   <ClashOfRim.ServerEntry.ReasonServerSnapshotLoaded>серверное сохранение загружено</ClashOfRim.ServerEntry.ReasonServerSnapshotLoaded>
   <ClashOfRim.ServerEntry.ReasonRaidRecovery>восстановление налета</ClashOfRim.ServerEntry.ReasonRaidRecovery>
   <ClashOfRim.WorldBaseline.StatusConfigMissing>Начальная конфигурация мира не отправлена: сервер, пользователь или колония не настроены.</ClashOfRim.WorldBaseline.StatusConfigMissing>
