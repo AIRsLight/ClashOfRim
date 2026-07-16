@@ -73,6 +73,8 @@
   <ClashOfRim.DefensePoint.AssignMechGizmoDesc>이 메카노이드 방어 지점에 메카노이드를 지정합니다. 습격을 받으면 해당 메카노이드는 이 지점에 설정된 방어 행동을 따릅니다.</ClashOfRim.DefensePoint.AssignMechGizmoDesc>
   <ClashOfRim.DefensePoint.AssignMechOnly>자신의 식민지 메카노이드만 지정할 수 있습니다.</ClashOfRim.DefensePoint.AssignMechOnly>
   <ClashOfRim.DefensePoint.AssignPlayerOnly>자신의 식민지 구성원만 지정할 수 있습니다.</ClashOfRim.DefensePoint.AssignPlayerOnly>
+  <ClashOfRim.DefensePoint.SelectAssignedGizmo>{0} 선택</ClashOfRim.DefensePoint.SelectAssignedGizmo>
+  <ClashOfRim.DefensePoint.SelectAssignedGizmoDesc>이 방어 지점에 지정된 {0}을(를) 선택합니다.</ClashOfRim.DefensePoint.SelectAssignedGizmoDesc>
   <ClashOfRim.DefensePoint.Mode.Hold>고수</ClashOfRim.DefensePoint.Mode.Hold>
   <ClashOfRim.DefensePoint.Mode.Defend>방어</ClashOfRim.DefensePoint.Mode.Defend>
   <ClashOfRim.DefensePoint.Mode.Assault>돌격</ClashOfRim.DefensePoint.Mode.Assault>

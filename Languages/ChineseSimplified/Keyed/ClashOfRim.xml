@@ -73,6 +73,8 @@
   <ClashOfRim.DefensePoint.AssignMechGizmoDesc>为该机械体防御点绑定一台机械体。在遭到袭击时,该机械体会按此防御点设置的防守行为行动。</ClashOfRim.DefensePoint.AssignMechGizmoDesc>
   <ClashOfRim.DefensePoint.AssignMechOnly>只能分配己方机械体。</ClashOfRim.DefensePoint.AssignMechOnly>
   <ClashOfRim.DefensePoint.AssignPlayerOnly>只能分配己方殖民地成员。</ClashOfRim.DefensePoint.AssignPlayerOnly>
+  <ClashOfRim.DefensePoint.SelectAssignedGizmo>选择 {0}</ClashOfRim.DefensePoint.SelectAssignedGizmo>
+  <ClashOfRim.DefensePoint.SelectAssignedGizmoDesc>选中绑定到该防御点的 {0}。</ClashOfRim.DefensePoint.SelectAssignedGizmoDesc>
   <ClashOfRim.DefensePoint.Mode.Hold>固守</ClashOfRim.DefensePoint.Mode.Hold>
   <ClashOfRim.DefensePoint.Mode.Defend>防御</ClashOfRim.DefensePoint.Mode.Defend>
   <ClashOfRim.DefensePoint.Mode.Assault>出击</ClashOfRim.DefensePoint.Mode.Assault>

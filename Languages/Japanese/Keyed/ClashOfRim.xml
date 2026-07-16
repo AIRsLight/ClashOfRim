@@ -73,6 +73,8 @@
   <ClashOfRim.DefensePoint.AssignMechGizmoDesc>このメカノイド防衛地点にメカノイドを割り当てます。襲撃時、そのメカノイドはこの防衛地点で設定された防衛行動に従います。</ClashOfRim.DefensePoint.AssignMechGizmoDesc>
   <ClashOfRim.DefensePoint.AssignMechOnly>自コロニーのメカノイドのみ割り当てられます。</ClashOfRim.DefensePoint.AssignMechOnly>
   <ClashOfRim.DefensePoint.AssignPlayerOnly>自コロニーの構成員のみ割り当てられます。</ClashOfRim.DefensePoint.AssignPlayerOnly>
+  <ClashOfRim.DefensePoint.SelectAssignedGizmo>{0} を選択</ClashOfRim.DefensePoint.SelectAssignedGizmo>
+  <ClashOfRim.DefensePoint.SelectAssignedGizmoDesc>この防衛地点に割り当てられた {0} を選択します。</ClashOfRim.DefensePoint.SelectAssignedGizmoDesc>
   <ClashOfRim.DefensePoint.Mode.Hold>固守</ClashOfRim.DefensePoint.Mode.Hold>
   <ClashOfRim.DefensePoint.Mode.Defend>防衛</ClashOfRim.DefensePoint.Mode.Defend>
   <ClashOfRim.DefensePoint.Mode.Assault>突撃</ClashOfRim.DefensePoint.Mode.Assault>

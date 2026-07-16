@@ -73,6 +73,8 @@
   <ClashOfRim.DefensePoint.AssignMechGizmoDesc>Bind a mech to this mech defense point. During a raid, the mech will follow the defensive behavior configured on this point.</ClashOfRim.DefensePoint.AssignMechGizmoDesc>
   <ClashOfRim.DefensePoint.AssignMechOnly>Only your colony mechs can be assigned.</ClashOfRim.DefensePoint.AssignMechOnly>
   <ClashOfRim.DefensePoint.AssignPlayerOnly>Only your colony members can be assigned.</ClashOfRim.DefensePoint.AssignPlayerOnly>
+  <ClashOfRim.DefensePoint.SelectAssignedGizmo>Select {0}</ClashOfRim.DefensePoint.SelectAssignedGizmo>
+  <ClashOfRim.DefensePoint.SelectAssignedGizmoDesc>Select {0}, who is assigned to this defense point.</ClashOfRim.DefensePoint.SelectAssignedGizmoDesc>
   <ClashOfRim.DefensePoint.Mode.Hold>Hold</ClashOfRim.DefensePoint.Mode.Hold>
   <ClashOfRim.DefensePoint.Mode.Defend>Defend</ClashOfRim.DefensePoint.Mode.Defend>
   <ClashOfRim.DefensePoint.Mode.Assault>Assault</ClashOfRim.DefensePoint.Mode.Assault>

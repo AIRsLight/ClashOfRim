@@ -73,6 +73,8 @@
   <ClashOfRim.DefensePoint.AssignMechGizmoDesc>Назначает меха на эту точку обороны. Во время рейда он будет действовать согласно настройкам этой точки.</ClashOfRim.DefensePoint.AssignMechGizmoDesc>
   <ClashOfRim.DefensePoint.AssignMechOnly>Можно назначать только мехов вашей колонии.</ClashOfRim.DefensePoint.AssignMechOnly>
   <ClashOfRim.DefensePoint.AssignPlayerOnly>Можно назначать только жителей вашей колонии.</ClashOfRim.DefensePoint.AssignPlayerOnly>
+  <ClashOfRim.DefensePoint.SelectAssignedGizmo>Выбрать: {0}</ClashOfRim.DefensePoint.SelectAssignedGizmo>
+  <ClashOfRim.DefensePoint.SelectAssignedGizmoDesc>Выбрать {0}, назначенного на эту точку обороны.</ClashOfRim.DefensePoint.SelectAssignedGizmoDesc>
   <ClashOfRim.DefensePoint.Mode.Hold>Удерживать</ClashOfRim.DefensePoint.Mode.Hold>
   <ClashOfRim.DefensePoint.Mode.Defend>Оборона</ClashOfRim.DefensePoint.Mode.Defend>
   <ClashOfRim.DefensePoint.Mode.Assault>Штурм</ClashOfRim.DefensePoint.Mode.Assault>

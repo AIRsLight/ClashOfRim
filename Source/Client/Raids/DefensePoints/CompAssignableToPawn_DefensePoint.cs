@@ -7,6 +7,20 @@ namespace AIRsLight.ClashOfRim.Raids;
 
 public sealed class CompAssignableToPawn_DefensePoint : CompAssignableToPawn
 {
+    public override IEnumerable<Gizmo> CompGetGizmosExtra()
+    {
+        foreach (Gizmo gizmo in base.CompGetGizmosExtra())
+        {
+            yield return gizmo;
+        }
+
+        Gizmo? selectAssignedPawn = DefensePointUtility.CreateSelectAssignedPawnGizmo(this);
+        if (selectAssignedPawn is not null)
+        {
+            yield return selectAssignedPawn;
+        }
+    }
+
     public override void DrawGUIOverlay()
     {
         if (AssignedPawnsForReading.Count > 0 || Building_ClashDefensePoint.ShouldShowOverlay(parent))

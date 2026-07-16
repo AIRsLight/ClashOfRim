@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using AIRsLight.ClashOfRim.ThirdPartyCompatibility;
 using RimWorld;
+using UnityEngine;
 using Verse;
 
 namespace AIRsLight.ClashOfRim.Raids;
@@ -46,6 +47,40 @@ public static class DefensePointUtility
     public static string ModeLabel(DefensePointAiMode mode)
     {
         return ("ClashOfRim.DefensePoint.Mode." + mode).Translate().ToString();
+    }
+
+    public static Gizmo? CreateSelectAssignedPawnGizmo(CompAssignableToPawn assignmentComp)
+    {
+        Pawn? pawn = assignmentComp.AssignedPawnsForReading.FirstOrDefault();
+        if (pawn is null || pawn.Destroyed || !pawn.def.selectable)
+        {
+            return null;
+        }
+
+        RenderTexture portrait = PortraitsCache.Get(
+            pawn,
+            new Vector2(75f, 75f),
+            Rot4.South,
+            default,
+            1f,
+            supersample: true,
+            compensateForUIScale: true,
+            renderHeadgear: true,
+            renderClothes: true,
+            healthStateOverride: PawnHealthState.Mobile);
+
+        return new Command_Action
+        {
+            defaultLabel = "ClashOfRim.DefensePoint.SelectAssignedGizmo".Translate(pawn.LabelShort),
+            defaultDesc = "ClashOfRim.DefensePoint.SelectAssignedGizmoDesc".Translate(pawn.LabelShort),
+            icon = portrait,
+            iconDrawScale = 0.85f,
+            action = () =>
+            {
+                Find.Selector.ClearSelection();
+                Find.Selector.Select(pawn, playSound: true, forceDesignatorDeselect: true);
+            }
+        };
     }
 
     public static bool IsDefensePointDef(string? defName)
