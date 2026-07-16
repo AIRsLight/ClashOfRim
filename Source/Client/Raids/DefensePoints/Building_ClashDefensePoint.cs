@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using AIRsLight.ClashOfRim.Visuals;
 using RimWorld;
 using UnityEngine;
 using Verse;
@@ -156,7 +157,7 @@ public class Building_ClashDefensePoint : Building
             defaultLabel = ClashOfRimUiUtility.SelectionLabel(
                 "ClashOfRim.DefensePoint.ModeGizmo".Translate(DefensePointUtility.ModeLabel(aiMode))),
             defaultDesc = "ClashOfRim.DefensePoint.ModeGizmoDesc".Translate(),
-            icon = ContentFinder<Texture2D>.Get("UI/Commands/Attack", reportFailure: false) ?? BaseContent.BadTex,
+            icon = ClashCommandIcons.DefensePointMode(aiMode),
             action = OpenModeMenu
         };
 
@@ -178,7 +179,9 @@ public class Building_ClashDefensePoint : Building
             DefensePointAiMode captured = mode;
             options.Add(new FloatMenuOption(
                 DefensePointUtility.ModeLabel(captured),
-                () => aiMode = captured));
+                () => aiMode = captured,
+                ClashCommandIcons.DefensePointMode(captured),
+                Color.white));
         }
 
         Find.WindowStack.Add(new FloatMenu(options));
