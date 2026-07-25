@@ -34,6 +34,10 @@ internal interface IPawnPackagePersistenceStore
     void Upsert(StoredPawnPackageRecord record);
 
     void MapIdempotencyKey(string idempotencyKey, string packageId);
+
+    void StorePreview(StoredPawnPackagePreviewRecord preview);
+
+    bool TryReadPreview(string packageId, out StoredPawnPackagePreviewRecord? preview);
 }
 
 internal interface IThingPackagePersistenceStore
@@ -932,6 +936,102 @@ internal sealed class SqlitePawnPackageStore : SqliteStructuredRegistryStore, IP
         transaction.Commit();
     }
 
+    public void StorePreview(StoredPawnPackagePreviewRecord preview)
+    {
+        using SqliteConnection connection = OpenConnection();
+        using SqliteTransaction transaction = connection.BeginTransaction();
+
+        using (SqliteCommand blobCommand = connection.CreateCommand())
+        {
+            blobCommand.Transaction = transaction;
+            blobCommand.CommandText = """
+                insert into server_pawn_package_preview_blobs (
+                    content_sha256,
+                    png_blob,
+                    width,
+                    height,
+                    byte_length,
+                    created_at_utc
+                ) values (
+                    $content_sha256,
+                    $png_blob,
+                    $width,
+                    $height,
+                    $byte_length,
+                    $created_at_utc
+                )
+                on conflict(content_sha256) do nothing;
+                """;
+            blobCommand.Parameters.AddWithValue("$content_sha256", preview.ContentSha256);
+            blobCommand.Parameters.Add("$png_blob", SqliteType.Blob).Value = preview.PngBytes;
+            blobCommand.Parameters.AddWithValue("$width", preview.Width);
+            blobCommand.Parameters.AddWithValue("$height", preview.Height);
+            blobCommand.Parameters.AddWithValue("$byte_length", preview.PngBytes.Length);
+            blobCommand.Parameters.AddWithValue("$created_at_utc", DateString(preview.CreatedAtUtc));
+            blobCommand.ExecuteNonQuery();
+        }
+
+        using (SqliteCommand mappingCommand = connection.CreateCommand())
+        {
+            mappingCommand.Transaction = transaction;
+            mappingCommand.CommandText = """
+                insert into server_pawn_package_previews (
+                    package_id,
+                    content_sha256,
+                    updated_at_utc
+                ) values (
+                    $package_id,
+                    $content_sha256,
+                    $updated_at_utc
+                )
+                on conflict(package_id) do update set
+                    content_sha256 = excluded.content_sha256,
+                    updated_at_utc = excluded.updated_at_utc;
+                """;
+            mappingCommand.Parameters.AddWithValue("$package_id", preview.PackageId);
+            mappingCommand.Parameters.AddWithValue("$content_sha256", preview.ContentSha256);
+            mappingCommand.Parameters.AddWithValue("$updated_at_utc", DateString(preview.CreatedAtUtc));
+            mappingCommand.ExecuteNonQuery();
+        }
+
+        transaction.Commit();
+    }
+
+    public bool TryReadPreview(string packageId, out StoredPawnPackagePreviewRecord? preview)
+    {
+        using SqliteConnection connection = OpenConnection();
+        using SqliteCommand command = connection.CreateCommand();
+        command.CommandText = """
+            select
+                mappings.package_id,
+                blobs.content_sha256,
+                blobs.png_blob,
+                blobs.width,
+                blobs.height,
+                blobs.created_at_utc
+            from server_pawn_package_previews mappings
+            join server_pawn_package_preview_blobs blobs
+                on blobs.content_sha256 = mappings.content_sha256
+            where mappings.package_id = $package_id;
+            """;
+        command.Parameters.AddWithValue("$package_id", packageId);
+        using SqliteDataReader reader = command.ExecuteReader();
+        if (!reader.Read())
+        {
+            preview = null;
+            return false;
+        }
+
+        preview = new StoredPawnPackagePreviewRecord(
+            reader.GetString(reader.GetOrdinal("package_id")),
+            reader.GetString(reader.GetOrdinal("content_sha256")),
+            (byte[])reader["png_blob"],
+            reader.GetInt32(reader.GetOrdinal("width")),
+            reader.GetInt32(reader.GetOrdinal("height")),
+            DateValue(reader, "created_at_utc"));
+        return true;
+    }
+
     private static void UpsertPackage(SqliteConnection connection, SqliteTransaction transaction, StoredPawnPackageRecord record)
     {
         using SqliteCommand command = connection.CreateCommand();
@@ -1035,6 +1135,24 @@ internal sealed class SqlitePawnPackageStore : SqliteStructuredRegistryStore, IP
                 on server_pawn_packages(owner_user_id, owner_colony_id);
             create index if not exists idx_server_pawn_package_idempotency_package
                 on server_pawn_package_idempotency(package_id);
+
+            create table if not exists server_pawn_package_preview_blobs (
+                content_sha256 text primary key not null,
+                png_blob blob not null,
+                width integer not null,
+                height integer not null,
+                byte_length integer not null,
+                created_at_utc text not null
+            );
+
+            create table if not exists server_pawn_package_previews (
+                package_id text primary key not null,
+                content_sha256 text not null,
+                updated_at_utc text not null
+            );
+
+            create index if not exists idx_server_pawn_package_previews_hash
+                on server_pawn_package_previews(content_sha256);
             """;
         command.ExecuteNonQuery();
     }

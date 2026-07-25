@@ -483,6 +483,8 @@
   <ClashOfRim.PawnPackage.DownloadFailed>Не удалось скачать сведения персонажа: {CODE} {MESSAGE}</ClashOfRim.PawnPackage.DownloadFailed>
   <ClashOfRim.PawnPackage.DownloadRejected>Скачивание сведений персонажа отклонено сервером: {CODE} {MESSAGE}</ClashOfRim.PawnPackage.DownloadRejected>
   <ClashOfRim.PawnPackage.DownloadMissingPackage>Сервер не вернул сведения персонажа.</ClashOfRim.PawnPackage.DownloadMissingPackage>
+  <ClashOfRim.Trade.PawnDetailsLoading>Загрузка сведений персонажа.</ClashOfRim.Trade.PawnDetailsLoading>
+  <ClashOfRim.Trade.PawnDetailsFailed>Не удалось загрузить сведения персонажа: {MESSAGE}</ClashOfRim.Trade.PawnDetailsFailed>
   <ClashOfRim.PawnExchange.ValidatorSupport>Сведения колониста подкрепления не могут быть приняты.</ClashOfRim.PawnExchange.ValidatorSupport>
   <ClashOfRim.PawnExchange.ValidatorAnimalGift>Подаренное существо не является животным.</ClashOfRim.PawnExchange.ValidatorAnimalGift>
   <ClashOfRim.PawnExchange.ValidatorTradePawn>Обменянный персонаж или животное не соответствует требованию.</ClashOfRim.PawnExchange.ValidatorTradePawn>

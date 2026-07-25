@@ -615,6 +615,11 @@ public sealed partial class ClashOfRimMod : Mod
 
     internal bool IsNetworkConfigured => settings.IsConfigured;
 
+    internal ClashOfRimClientNetworkContext CreateNetworkContext()
+    {
+        return ClashOfRimClientNetworkContext.FromSettings(settings);
+    }
+
     internal bool TradeMarketplaceEnabled => tradeMarketplaceEnabled;
 
     internal bool TradeOrdersHasMore => tradeOrdersHasMore;

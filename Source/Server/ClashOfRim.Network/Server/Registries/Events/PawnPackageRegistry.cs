@@ -89,6 +89,27 @@ public sealed class PawnPackageRegistry
         return true;
     }
 
+    public bool TryGetRecord(string packageId, out StoredPawnPackageRecord? record)
+    {
+        return packages.TryGetValue(packageId, out record);
+    }
+
+    public void StorePreview(StoredPawnPackagePreviewRecord preview)
+    {
+        if (structuredPersistence is null)
+        {
+            throw new InvalidOperationException("Pawn preview persistence is unavailable.");
+        }
+
+        structuredPersistence.StorePreview(preview);
+    }
+
+    public bool TryGetPreview(string packageId, out StoredPawnPackagePreviewRecord? preview)
+    {
+        preview = null;
+        return structuredPersistence?.TryReadPreview(packageId, out preview) == true;
+    }
+
     private void Load()
     {
         bool hasStructured = structuredPersistence?.IsInitialized() == true;
@@ -228,3 +249,11 @@ public sealed record StoredPawnPackageRecord(
     string? PawnName,
     string? ThingDef,
     string PackageJson);
+
+public sealed record StoredPawnPackagePreviewRecord(
+    string PackageId,
+    string ContentSha256,
+    byte[] PngBytes,
+    int Width,
+    int Height,
+    DateTimeOffset CreatedAtUtc);

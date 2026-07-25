@@ -4,7 +4,6 @@ using System.Globalization;
 using System.Linq;
 using System.Text;
 using AIRsLight.ClashOfRim.ClientNetwork;
-using AIRsLight.ClashOfRim.Gifts;
 using AIRsLight.ClashOfRim.ThirdPartyCompatibility;
 using RimWorld;
 using UnityEngine;
@@ -24,8 +23,6 @@ internal static class TradeUiUtility
     private static readonly Dictionary<string, string> ConcreteThingLabelCache = new(StringComparer.Ordinal);
     private static readonly Dictionary<string, string> ThingLabelCache = new(StringComparer.Ordinal);
     private static readonly Dictionary<string, Thing> ConcreteThingIconCache = new(StringComparer.Ordinal);
-    private static readonly Dictionary<string, Pawn> PawnPreviewCache = new(StringComparer.Ordinal);
-    private static readonly HashSet<string> FailedPawnPreviewCache = new(StringComparer.Ordinal);
     private static readonly Dictionary<ThingDef, Pawn> PawnDefIconCache = new();
     private static readonly Dictionary<ThingDef, PawnKindDef?> PawnKindByRaceCache = new();
     private static readonly HashSet<ThingDef> FailedPawnDefIconCache = new();
@@ -334,36 +331,30 @@ internal static class TradeUiUtility
     public static void DrawThingIcon(Rect rect, ModThingReferenceDto thing)
     {
         bool isPawnReference = TradePawnUtility.IsPawnReference(thing);
-        bool requiresConcretePawnPreview = RequiresConcretePawnPreview(thing);
-        if (isPawnReference && TryGetOrBuildPawnPreview(thing, out Pawn? previewPawn) && previewPawn is not null)
+        if (isPawnReference)
         {
-            try
+            if (TradePawnPreviewService.TryGetTexture(thing, out Texture2D? preview)
+                && preview is not null)
             {
-                Widgets.ThingIcon(rect, previewPawn, 1f, null, false, 1f, false);
+                GUI.DrawTexture(rect, preview, ScaleMode.ScaleToFit, alphaBlend: true);
                 return;
             }
-            catch (Exception ex)
+
+            TradePawnPreviewService.RequestPreview(thing);
+            ThingDef? pawnDef = TradeThingReferenceUtility.ResolveReferenceDef(thing);
+            if (pawnDef is not null
+                && TryGetOrBuildPawnDefIcon(pawnDef, out Pawn? fallbackPawn)
+                && fallbackPawn is not null)
             {
-                Log.Warning("[ClashOfRim] Failed to draw cached pawn trade preview icon for "
-                    + (thing.DisplayLabel ?? thing.DefName ?? "<unknown>")
-                    + ": "
-                    + ex.GetType().Name
-                    + " "
-                    + ex.Message);
+                Widgets.ThingIcon(rect, fallbackPawn, 1f, null, false, 1f, false);
+                return;
             }
 
             DrawPawnPreviewUnavailable(rect);
             return;
         }
 
-        if (requiresConcretePawnPreview)
-        {
-            DrawPawnPreviewUnavailable(rect);
-            return;
-        }
-
-        if (!isPawnReference
-            && TryGetConcreteIconThing(thing, out Thing? concreteThing)
+        if (TryGetConcreteIconThing(thing, out Thing? concreteThing)
             && concreteThing is not null)
         {
             try
@@ -406,21 +397,12 @@ internal static class TradeUiUtility
     public static bool DrawThingIconWithInfo(Rect rect, ModThingReferenceDto thing)
     {
         DrawThingIcon(rect, thing);
-        bool requiresConcretePawnPreview = RequiresConcretePawnPreview(thing);
-        if (TradePawnUtility.IsPawnReference(thing)
-            && TryGetOrBuildPawnPreview(thing, out Pawn? previewPawn)
-            && previewPawn is not null)
+        if (TradePawnUtility.IsPawnReference(thing))
         {
-            return DrawInfoButtonHotspot(rect, () => OpenThingInfo(previewPawn));
+            return DrawInfoButtonHotspot(rect, () => TradePawnPreviewService.OpenDetails(thing));
         }
 
-        if (requiresConcretePawnPreview)
-        {
-            return false;
-        }
-
-        if (!TradePawnUtility.IsPawnReference(thing)
-            && TryGetConcreteIconThing(thing, out Thing? concreteThing)
+        if (TryGetConcreteIconThing(thing, out Thing? concreteThing)
             && concreteThing is not null)
         {
             return DrawInfoButtonHotspot(rect, () => OpenThingInfo(concreteThing));
@@ -455,8 +437,8 @@ internal static class TradeUiUtility
 
         foreach (ModTradeOrderSummaryDto order in orders)
         {
-            PreparePawnPreviews(order.OfferedThings, order.EventId);
-            PreparePawnPreviews(order.RequestedThings, order.EventId);
+            PreparePawnPreviews(order.OfferedThings);
+            PreparePawnPreviews(order.RequestedThings);
         }
     }
 
@@ -464,10 +446,10 @@ internal static class TradeUiUtility
         IReadOnlyList<ModThingReferenceDto>? things,
         string? sourceId = null)
     {
-        PreparePawnPreviews(things, sourceId);
+        PreparePawnPreviews(things);
     }
 
-    private static void PreparePawnPreviews(IReadOnlyList<ModThingReferenceDto>? things, string? eventId)
+    private static void PreparePawnPreviews(IReadOnlyList<ModThingReferenceDto>? things)
     {
         if (things is null || things.Count == 0)
         {
@@ -476,62 +458,11 @@ internal static class TradeUiUtility
 
         foreach (ModThingReferenceDto reference in BuildDisplayGroupRepresentatives(things))
         {
-            PreparePawnPreview(reference, eventId);
+            if (TradePawnUtility.IsPawnReference(reference))
+            {
+                TradePawnPreviewService.RequestPreview(reference);
+            }
         }
-    }
-
-    private static void PreparePawnPreview(ModThingReferenceDto reference, string? eventId)
-    {
-        if (!TradePawnUtility.IsPawnReference(reference) || reference.PawnPackage is null)
-        {
-            return;
-        }
-
-        string cacheKey = PawnPreviewCacheKey(reference);
-        if (string.IsNullOrWhiteSpace(cacheKey))
-        {
-            return;
-        }
-
-        if (PawnPreviewCache.ContainsKey(cacheKey) || FailedPawnPreviewCache.Contains(cacheKey))
-        {
-            return;
-        }
-
-        if (!GiftPawnPackageUtility.TryRestoreTradePawn(reference.PawnPackage, out Pawn? pawn, out string message)
-            || pawn is null)
-        {
-            FailedPawnPreviewCache.Add(cacheKey);
-            Log.Warning("[ClashOfRim] Failed to restore trade pawn preview for order "
-                + (eventId ?? "<unknown>")
-                + " item "
-                + (reference.DisplayLabel ?? reference.DefName ?? "<unknown>")
-                + ": "
-                + message);
-            return;
-        }
-
-        if (!TryWarmPawnPreviewGraphics(pawn, reference, eventId))
-        {
-            FailedPawnPreviewCache.Add(cacheKey);
-            return;
-        }
-
-        if (PawnPreviewCache.Count > 128)
-        {
-            PawnPreviewCache.Clear();
-            FailedPawnPreviewCache.Clear();
-        }
-
-        PawnPreviewCache[cacheKey] = pawn;
-    }
-
-    private static bool TryWarmPawnPreviewGraphics(Pawn pawn, ModThingReferenceDto reference, string? eventId)
-    {
-        return TryWarmPawnPreviewGraphics(
-            pawn,
-            reference.DisplayLabel ?? reference.DefName ?? "<unknown>",
-            eventId);
     }
 
     private static bool TryWarmPawnPreviewGraphics(Pawn pawn, string itemLabel, string? eventId)
@@ -608,28 +539,6 @@ internal static class TradeUiUtility
         GUI.color = previousColor;
     }
 
-    private static bool TryGetOrBuildPawnPreview(ModThingReferenceDto reference, out Pawn? pawn)
-    {
-        pawn = null;
-        string cacheKey = PawnPreviewCacheKey(reference);
-        if (!TradePawnUtility.IsPawnReference(reference) || string.IsNullOrWhiteSpace(cacheKey))
-        {
-            return false;
-        }
-
-        if (PawnPreviewCache.TryGetValue(cacheKey, out pawn))
-        {
-            return true;
-        }
-
-        return false;
-    }
-
-    private static bool RequiresConcretePawnPreview(ModThingReferenceDto reference)
-    {
-        return false;
-    }
-
     private static bool TryGetOrBuildPawnDefIcon(ThingDef raceDef, out Pawn? pawn)
     {
         pawn = null;
@@ -699,23 +608,6 @@ internal static class TradeUiUtility
             .FirstOrDefault(kind => kind.race == raceDef);
         PawnKindByRaceCache[raceDef] = pawnKind;
         return pawnKind;
-    }
-
-    private static string PawnPreviewCacheKey(ModThingReferenceDto reference)
-    {
-        if (!string.IsNullOrWhiteSpace(reference.PawnPackageId))
-        {
-            return "id:" + reference.PawnPackageId;
-        }
-
-        string? globalId = reference.PawnPackage?.Reference?.GlobalId;
-        string? xmlHash = reference.PawnPackage?.Scribe?.XmlSha256;
-        if (!string.IsNullOrWhiteSpace(globalId) || !string.IsNullOrWhiteSpace(xmlHash))
-        {
-            return "inline:" + (globalId ?? string.Empty) + "\u001f" + (xmlHash ?? string.Empty);
-        }
-
-        return string.IsNullOrWhiteSpace(reference.GlobalKey) ? string.Empty : "key:" + reference.GlobalKey;
     }
 
     private static bool TryGetConcreteIconThing(ModThingReferenceDto reference, out Thing? thing)

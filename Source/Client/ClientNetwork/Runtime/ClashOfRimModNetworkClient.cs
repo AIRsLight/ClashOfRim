@@ -37,6 +37,8 @@ public sealed class ClashOfRimModNetworkClient
     private const string CreateGiftWithSnapshotRoute = "/events/gifts/create-with-snapshot";
     private const string StorePawnPackageRoute = "/pawns/packages/store";
     private const string GetPawnPackageRoute = "/pawns/packages/get";
+    private const string StorePawnPackagePreviewRoute = "/pawns/packages/preview/store";
+    private const string GetPawnPackagePreviewRoute = "/pawns/packages/preview/get";
     private const string StoreThingPackageRoute = "/things/packages/store";
     private const string GetThingPackageRoute = "/things/packages/get";
     private const string QuoteTradeOrderFeeRoute = "/events/trades/quote-fee";
@@ -1870,6 +1872,60 @@ public sealed class ClashOfRimModNetworkClient
             cancellationToken);
     }
 
+    public Task<ClashOfRimClientNetworkResult<ModStorePawnPackagePreviewResponseDto>> StorePawnPackagePreviewAsync(
+        string pawnPackageId,
+        byte[] previewPng,
+        CancellationToken cancellationToken = default)
+    {
+        if (!context.IsConfigured)
+        {
+            return NotConfigured<ModStorePawnPackagePreviewResponseDto>();
+        }
+
+        var request = new ModStorePawnPackagePreviewRequestDto
+        {
+            Owner = new ModProtocolIdentityDto
+            {
+                UserId = context.UserId,
+                ColonyId = context.ColonyId,
+                SnapshotId = context.CurrentSnapshotId
+            },
+            PawnPackageId = pawnPackageId
+        };
+
+        return PostSnapshotMultipartAsync<ModStorePawnPackagePreviewRequestDto, ModStorePawnPackagePreviewResponseDto>(
+            StorePawnPackagePreviewRoute,
+            request,
+            previewPng,
+            cancellationToken);
+    }
+
+    public Task<ClashOfRimClientNetworkResult<byte[]>> GetPawnPackagePreviewAsync(
+        string pawnPackageId,
+        CancellationToken cancellationToken = default)
+    {
+        if (!context.IsConfigured)
+        {
+            return NotConfigured<byte[]>();
+        }
+
+        var request = new ModGetPawnPackagePreviewRequestDto
+        {
+            Requester = new ModProtocolIdentityDto
+            {
+                UserId = context.UserId,
+                ColonyId = context.ColonyId,
+                SnapshotId = context.CurrentSnapshotId
+            },
+            PawnPackageId = pawnPackageId
+        };
+
+        return PostForBytesAsync(
+            GetPawnPackagePreviewRoute,
+            request,
+            cancellationToken);
+    }
+
     public Task<ClashOfRimClientNetworkResult<ModStoreThingPackageResponseDto>> StoreThingPackageAsync(
         string idempotencyKey,
         ModThingStatePackageDto thingPackage,
@@ -2916,6 +2972,13 @@ public sealed class ClashOfRimModNetworkClient
                 Content = content
             };
             AddClientLanguageHeader(message);
+            if (!string.IsNullOrWhiteSpace(context.AuthToken))
+            {
+                message.Headers.TryAddWithoutValidation(
+                    MultipartSnapshotTransport.AuthenticationHeaderName,
+                    context.AuthToken);
+            }
+
             using HttpResponseMessage response = await httpClient.SendAsync(
                 message,
                 HttpCompletionOption.ResponseHeadersRead,

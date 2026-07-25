@@ -28,6 +28,8 @@ await VerifyMissingAccountCannotClaimAdministratorAsync();
 VerifyDomainRegistryStoreAppliesAtomicDeltas();
 VerifyBankRegistryUpdatesOnlyChangedRows();
 VerifyPlayerRegistryUpdatesOnlyChangedRows();
+VerifyPawnPackagePreviewValidation();
+VerifyPawnPackagePreviewPersistence();
 VerifyRaidCooldownOverrideSemantics();
 VerifyMercenaryGuardActivationNotificationSemantics();
 await VerifyMultipartClientAddsAuthHeaderAsync();
@@ -89,6 +91,99 @@ static void VerifyOfflineAccountsAllowLegacyPasswordLengths()
     Require(
         accounts.Authenticate("short-password-user", string.Empty, DateTimeOffset.UtcNow).Accepted,
         "重置后的空密码应能登录");
+}
+
+static void VerifyPawnPackagePreviewValidation()
+{
+    byte[] png = Convert.FromBase64String(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGBgAAAABQABpfZFQAAAAABJRU5ErkJggg==");
+    Require(
+        PawnPackagePreviewValidator.TryValidate(
+            png,
+            out int width,
+            out int height,
+            out string hash,
+            out _),
+        "合法 PNG 应通过人员预览校验");
+    Equal(1, width, "人员预览宽度应从 PNG 读取");
+    Equal(1, height, "人员预览高度应从 PNG 读取");
+    Require(hash.Length == 64, "人员预览应生成 SHA-256");
+
+    byte[] oversized = new byte[PawnPackagePreviewValidator.MaximumBytes + 1];
+    Require(
+        !PawnPackagePreviewValidator.TryValidate(
+            oversized,
+            out _,
+            out _,
+            out _,
+            out _),
+        "超大人员预览应被拒绝");
+
+    byte[] corrupt = png.ToArray();
+    corrupt[corrupt.Length / 2] ^= 0x7f;
+    Require(
+        !PawnPackagePreviewValidator.TryValidate(
+            corrupt,
+            out _,
+            out _,
+            out _,
+            out _),
+        "CRC 损坏的人员预览应被拒绝");
+}
+
+static void VerifyPawnPackagePreviewPersistence()
+{
+    string directory = Path.Combine(Path.GetTempPath(), "clashofrim-pawn-preview-" + Guid.NewGuid().ToString("N"));
+    Directory.CreateDirectory(directory);
+    string databasePath = Path.Combine(directory, "server.sqlite");
+    try
+    {
+        byte[] png = Convert.FromBase64String(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGBgAAAABQABpfZFQAAAAABJRU5ErkJggg==");
+        Require(
+            PawnPackagePreviewValidator.TryValidate(
+                png,
+                out int width,
+                out int height,
+                out string hash,
+                out string error),
+            "测试人员预览应有效: " + error);
+
+        var store = new SqlitePawnPackageStore(databasePath);
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        store.StorePreview(new StoredPawnPackagePreviewRecord(
+            "pawnpkg-a",
+            hash,
+            png,
+            width,
+            height,
+            now));
+        store.StorePreview(new StoredPawnPackagePreviewRecord(
+            "pawnpkg-b",
+            hash,
+            png,
+            width,
+            height,
+            now));
+
+        Require(store.TryReadPreview("pawnpkg-a", out StoredPawnPackagePreviewRecord? restored), "人员预览应可读取");
+        Equal(hash, restored?.ContentSha256, "读取的人员预览哈希应一致");
+        Require(restored?.PngBytes.SequenceEqual(png) == true, "读取的人员预览内容应一致");
+
+        using (var connection = new SqliteConnection("Data Source=" + databasePath))
+        {
+            connection.Open();
+            using SqliteCommand command = connection.CreateCommand();
+            command.CommandText = "select count(*) from server_pawn_package_preview_blobs;";
+            Equal(1L, Convert.ToInt64(command.ExecuteScalar()), "相同人员预览内容应只保存一份");
+        }
+
+        SqliteConnection.ClearAllPools();
+    }
+    finally
+    {
+        Directory.Delete(directory, recursive: true);
+    }
 }
 
 static void VerifyOfflineAccountsRequireExplicitRegistration()
@@ -583,6 +678,8 @@ static void VerifyMultipartPreAuthentication()
         ProtocolMessageKind.CreateRaidWithSnapshot,
         ProtocolMessageKind.CreateSupportPawnWithSnapshot,
         ProtocolMessageKind.UploadWorldSubstrate,
+        ProtocolMessageKind.StorePawnPackagePreview,
+        ProtocolMessageKind.GetPawnPackagePreview,
         ProtocolMessageKind.CreateBankLoanWithSnapshot,
         ProtocolMessageKind.RepayBankLoanWithSnapshot,
         ProtocolMessageKind.RepayBankDebtWithSnapshot,

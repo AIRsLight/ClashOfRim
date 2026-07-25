@@ -231,6 +231,39 @@ public sealed class ModGetPawnPackageResponseDto
 }
 
 [DataContract]
+public sealed class ModStorePawnPackagePreviewRequestDto
+{
+    [DataMember(Name = "owner")]
+    public ModProtocolIdentityDto? Owner { get; set; }
+
+    [DataMember(Name = "pawnPackageId")]
+    public string PawnPackageId { get; set; } = string.Empty;
+}
+
+[DataContract]
+public sealed class ModStorePawnPackagePreviewResponseDto
+{
+    [DataMember(Name = "result")]
+    public ModProtocolResponseDto? Result { get; set; }
+
+    [DataMember(Name = "pawnPackageId")]
+    public string? PawnPackageId { get; set; }
+
+    [DataMember(Name = "contentSha256")]
+    public string? ContentSha256 { get; set; }
+}
+
+[DataContract]
+public sealed class ModGetPawnPackagePreviewRequestDto
+{
+    [DataMember(Name = "requester")]
+    public ModProtocolIdentityDto? Requester { get; set; }
+
+    [DataMember(Name = "pawnPackageId")]
+    public string PawnPackageId { get; set; } = string.Empty;
+}
+
+[DataContract]
 public sealed class ModStoreThingPackageRequestDto
 {
     [DataMember(Name = "idempotencyKey")]

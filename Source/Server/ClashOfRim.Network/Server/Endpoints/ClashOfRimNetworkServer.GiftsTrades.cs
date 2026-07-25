@@ -418,6 +418,127 @@ public static partial class ClashOfRimNetworkServer
             ToPawnExchangePackageDto(package)));
     }
 
+    private static async Task<IResult> StorePawnPackagePreview(
+        HttpRequest httpRequest,
+        ClashOfRimNetworkState state)
+    {
+        MultipartSnapshotRequest<StorePawnPackagePreviewRequest>? multipart =
+            await ReadMultipartSnapshotRequest<StorePawnPackagePreviewRequest>(httpRequest);
+        StorePawnPackagePreviewRequest? request = multipart?.Request;
+        if (request?.Owner is null
+            || string.IsNullOrWhiteSpace(request.Owner.UserId)
+            || string.IsNullOrWhiteSpace(request.PawnPackageId)
+            || multipart is null)
+        {
+            return Results.Ok(new StorePawnPackagePreviewResponse(
+                ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("PawnPackage.PreviewMissingFields")),
+                request?.PawnPackageId,
+                contentSha256: null));
+        }
+
+        if (!MultipartSnapshotAuthentication.MatchesPrincipal(
+                httpRequest,
+                request.Owner.UserId,
+                request.Owner.ColonyId))
+        {
+            return Results.Ok(new StorePawnPackagePreviewResponse(
+                ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed")),
+                request.PawnPackageId,
+                contentSha256: null));
+        }
+
+        if (!state.PawnPackages.TryGetRecord(request.PawnPackageId, out StoredPawnPackageRecord? package)
+            || package is null)
+        {
+            return Results.Ok(new StorePawnPackagePreviewResponse(
+                ProtocolResponse.Reject(ProtocolErrorCode.EventNotFound, T("PawnPackage.NotFound")),
+                request.PawnPackageId,
+                contentSha256: null));
+        }
+
+        if (!string.Equals(package.OwnerUserId, request.Owner.UserId, StringComparison.Ordinal)
+            || !string.Equals(package.OwnerColonyId, request.Owner.ColonyId, StringComparison.Ordinal))
+        {
+            return Results.Ok(new StorePawnPackagePreviewResponse(
+                ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed")),
+                request.PawnPackageId,
+                contentSha256: null));
+        }
+
+        if (!PawnPackagePreviewValidator.TryValidate(
+                multipart.Payload,
+                out int width,
+                out int height,
+                out string contentSha256,
+                out string validationError))
+        {
+            return Results.Ok(new StorePawnPackagePreviewResponse(
+                ProtocolResponse.Reject(
+                    ProtocolErrorCode.ValidationFailed,
+                    T("PawnPackage.PreviewInvalid", ("MESSAGE", validationError))),
+                request.PawnPackageId,
+                contentSha256: null));
+        }
+
+        try
+        {
+            state.PawnPackages.StorePreview(new StoredPawnPackagePreviewRecord(
+                request.PawnPackageId,
+                contentSha256,
+                multipart.Payload,
+                width,
+                height,
+                DateTimeOffset.UtcNow));
+            return Results.Ok(new StorePawnPackagePreviewResponse(
+                ProtocolResponse.Ok(T("PawnPackage.PreviewStored")),
+                request.PawnPackageId,
+                contentSha256));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.Ok(new StorePawnPackagePreviewResponse(
+                ProtocolResponse.Reject(
+                    ProtocolErrorCode.ServerRejected,
+                    T("PawnPackage.PreviewStoreFailed", ("MESSAGE", ex.Message))),
+                request.PawnPackageId,
+                contentSha256: null));
+        }
+    }
+
+    private static IResult GetPawnPackagePreview(
+        HttpRequest httpRequest,
+        GetPawnPackagePreviewRequest request,
+        ClashOfRimNetworkState state)
+    {
+        if (request.Requester is null
+            || string.IsNullOrWhiteSpace(request.Requester.UserId)
+            || string.IsNullOrWhiteSpace(request.PawnPackageId))
+        {
+            return Results.BadRequest(T("PawnPackage.PreviewMissingFields"));
+        }
+
+        if (!MultipartSnapshotAuthentication.MatchesPrincipal(
+                httpRequest,
+                request.Requester.UserId,
+                request.Requester.ColonyId))
+        {
+            return Results.Unauthorized();
+        }
+
+        if (!state.PawnPackages.TryGetPreview(
+                request.PawnPackageId,
+                out StoredPawnPackagePreviewRecord? preview)
+            || preview is null)
+        {
+            return Results.NotFound(T("PawnPackage.PreviewNotFound"));
+        }
+
+        return Results.File(
+            preview.PngBytes,
+            "image/png",
+            enableRangeProcessing: false);
+    }
+
     private static IResult StoreThingPackage(StoreThingPackageRequest request, ClashOfRimNetworkState state)
     {
         if (string.IsNullOrWhiteSpace(request.IdempotencyKey)

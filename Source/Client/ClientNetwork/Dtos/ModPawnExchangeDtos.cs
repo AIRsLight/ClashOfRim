@@ -41,6 +41,9 @@ public sealed partial class ModCrossMapPawnReferenceDto
 [DataContract]
 public sealed class ModPawnExchangePackageDto
 {
+    // Client-only sidecar uploaded separately from the authoritative pawn package JSON.
+    public byte[]? PendingPreviewPng { get; set; }
+
     [DataMember(Name = "packageVersion")]
     public int PackageVersion { get; set; } = 1;
 

@@ -92,8 +92,21 @@ internal static class TradePawnUtility
         string userId,
         string colonyId,
         string snapshotId,
-        string containerKey)
+        string containerKey,
+        bool includePreview = false)
     {
+        ModPawnExchangePackageDto package = GiftPawnPackageUtility.BuildPackage(
+            pawn,
+            globalKey,
+            userId,
+            colonyId,
+            snapshotId,
+            containerKey);
+        if (includePreview)
+        {
+            package.PendingPreviewPng = TradePawnPreviewCaptureUtility.TryCapture(pawn);
+        }
+
         return new ModThingReferenceDto
         {
             GlobalKey = globalKey,
@@ -102,13 +115,7 @@ internal static class TradePawnUtility
             DisplayLabel = PawnTradeLabel(pawn),
             MarketValue = pawn.MarketValue,
             Metadata = BuildPawnSummaryMetadata(pawn),
-            PawnPackage = GiftPawnPackageUtility.BuildPackage(
-                pawn,
-                globalKey,
-                userId,
-                colonyId,
-                snapshotId,
-                containerKey)
+            PawnPackage = package
         };
     }
 

@@ -909,7 +909,8 @@ public sealed class TradeOrderDialogWindow : Window
                 mod.UserId,
                 mod.ColonyId,
                 mod.CurrentSnapshotId,
-                "trade-order:" + map.uniqueID);
+                "trade-order:" + map.uniqueID,
+                includePreview: true);
         }
 
         CompBiocodable? biocodable = thing.TryGetComp<CompBiocodable>();

@@ -483,6 +483,8 @@
   <ClashOfRim.PawnPackage.DownloadFailed>人物情報ダウンロード失敗: {CODE} {MESSAGE}</ClashOfRim.PawnPackage.DownloadFailed>
   <ClashOfRim.PawnPackage.DownloadRejected>人物情報ダウンロードはサーバーに拒否されました: {CODE} {MESSAGE}</ClashOfRim.PawnPackage.DownloadRejected>
   <ClashOfRim.PawnPackage.DownloadMissingPackage>サーバーが人物情報を返しませんでした。</ClashOfRim.PawnPackage.DownloadMissingPackage>
+  <ClashOfRim.Trade.PawnDetailsLoading>人物の詳細を読み込んでいます。</ClashOfRim.Trade.PawnDetailsLoading>
+  <ClashOfRim.Trade.PawnDetailsFailed>人物の詳細を読み込めませんでした: {MESSAGE}</ClashOfRim.Trade.PawnDetailsFailed>
   <ClashOfRim.PawnExchange.ValidatorSupport>支援入植者情報を受け入れられませんでした。</ClashOfRim.PawnExchange.ValidatorSupport>
   <ClashOfRim.PawnExchange.ValidatorAnimalGift>贈られた生物は動物ではありません。</ClashOfRim.PawnExchange.ValidatorAnimalGift>
   <ClashOfRim.PawnExchange.ValidatorTradePawn>取引された人物または動物が条件を満たしていません。</ClashOfRim.PawnExchange.ValidatorTradePawn>

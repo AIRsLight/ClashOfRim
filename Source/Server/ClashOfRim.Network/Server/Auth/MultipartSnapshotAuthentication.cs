@@ -19,6 +19,8 @@ public static class MultipartSnapshotAuthentication
             ProtocolMessageKind.CreateRaidWithSnapshot,
             ProtocolMessageKind.CreateSupportPawnWithSnapshot,
             ProtocolMessageKind.UploadWorldSubstrate,
+            ProtocolMessageKind.StorePawnPackagePreview,
+            ProtocolMessageKind.GetPawnPackagePreview,
             ProtocolMessageKind.CreateBankLoanWithSnapshot,
             ProtocolMessageKind.RepayBankLoanWithSnapshot,
             ProtocolMessageKind.RepayBankDebtWithSnapshot,

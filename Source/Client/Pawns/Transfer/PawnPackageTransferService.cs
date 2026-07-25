@@ -53,8 +53,48 @@ internal static class PawnPackageTransferService
                 throw new InvalidOperationException(ClashOfRimText.Key("ClashOfRim.PawnPackage.StoreMissingId"));
             }
 
+            byte[]? previewPng = thing.PawnPackage.PendingPreviewPng;
+            if (previewPng is { Length: > 0 })
+            {
+                await TryStorePawnPackagePreviewAsync(
+                    client,
+                    result.Response.PawnPackageId!,
+                    previewPng).ConfigureAwait(false);
+            }
+
             thing.PawnPackageId = result.Response.PawnPackageId;
             thing.PawnPackage = null;
+        }
+    }
+
+    private static async Task TryStorePawnPackagePreviewAsync(
+        ClashOfRimModNetworkClient client,
+        string pawnPackageId,
+        byte[] previewPng)
+    {
+        ClashOfRimClientNetworkResult<ModStorePawnPackagePreviewResponseDto> result =
+            await client.StorePawnPackagePreviewAsync(
+                pawnPackageId,
+                previewPng).ConfigureAwait(false);
+        if (!result.Success || result.Response is null)
+        {
+            Log.Warning("[ClashOfRim] Pawn preview upload failed for package "
+                + pawnPackageId
+                + ": "
+                + (result.ErrorCode ?? "<unknown>")
+                + " "
+                + (result.Message ?? string.Empty));
+            return;
+        }
+
+        if (result.Response.Result is { Accepted: false } response)
+        {
+            Log.Warning("[ClashOfRim] Pawn preview upload rejected for package "
+                + pawnPackageId
+                + ": "
+                + response.ErrorCode
+                + " "
+                + (response.Message ?? string.Empty));
         }
     }
 

@@ -482,6 +482,8 @@
   <ClashOfRim.PawnPackage.DownloadFailed>人员信息下载失败：{CODE} {MESSAGE}</ClashOfRim.PawnPackage.DownloadFailed>
   <ClashOfRim.PawnPackage.DownloadRejected>人员信息下载被拒绝：{CODE} {MESSAGE}</ClashOfRim.PawnPackage.DownloadRejected>
   <ClashOfRim.PawnPackage.DownloadMissingPackage>服务器未返回人员信息。</ClashOfRim.PawnPackage.DownloadMissingPackage>
+  <ClashOfRim.Trade.PawnDetailsLoading>正在读取人员详情。</ClashOfRim.Trade.PawnDetailsLoading>
+  <ClashOfRim.Trade.PawnDetailsFailed>无法读取人员详情：{MESSAGE}</ClashOfRim.Trade.PawnDetailsFailed>
   <ClashOfRim.PawnExchange.ValidatorSupport>支援殖民者信息有误。</ClashOfRim.PawnExchange.ValidatorSupport>
   <ClashOfRim.PawnExchange.ValidatorAnimalGift>礼物中的生物不是动物。</ClashOfRim.PawnExchange.ValidatorAnimalGift>
   <ClashOfRim.PawnExchange.ValidatorTradePawn>交易中的人员或动物不符合要求。</ClashOfRim.PawnExchange.ValidatorTradePawn>

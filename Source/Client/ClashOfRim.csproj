@@ -36,6 +36,10 @@
       <HintPath>$(NuGetPackageRoot)krafs.rimworld.ref\1.6.4566\ref\net472\UnityEngine.IMGUIModule.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <Reference Include="UnityEngine.ImageConversionModule">
+      <HintPath>$(NuGetPackageRoot)krafs.rimworld.ref\1.6.4566\ref\net472\UnityEngine.ImageConversionModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Reference Include="0Harmony">
       <HintPath>$(NuGetPackageRoot)lib.harmony\2.4.1\lib\net472\0Harmony.dll</HintPath>
       <Private>false</Private>

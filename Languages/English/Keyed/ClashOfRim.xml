@@ -482,6 +482,8 @@
   <ClashOfRim.PawnPackage.DownloadFailed>Person information download failed: {CODE} {MESSAGE}</ClashOfRim.PawnPackage.DownloadFailed>
   <ClashOfRim.PawnPackage.DownloadRejected>Person information download rejected by the server: {CODE} {MESSAGE}</ClashOfRim.PawnPackage.DownloadRejected>
   <ClashOfRim.PawnPackage.DownloadMissingPackage>The server did not return person information.</ClashOfRim.PawnPackage.DownloadMissingPackage>
+  <ClashOfRim.Trade.PawnDetailsLoading>Loading person details.</ClashOfRim.Trade.PawnDetailsLoading>
+  <ClashOfRim.Trade.PawnDetailsFailed>Could not load person details: {MESSAGE}</ClashOfRim.Trade.PawnDetailsFailed>
   <ClashOfRim.PawnExchange.ValidatorSupport>Support colonist information could not be accepted.</ClashOfRim.PawnExchange.ValidatorSupport>
   <ClashOfRim.PawnExchange.ValidatorAnimalGift>The gifted creature is not an animal.</ClashOfRim.PawnExchange.ValidatorAnimalGift>
   <ClashOfRim.PawnExchange.ValidatorTradePawn>The traded person or animal does not meet the requirement.</ClashOfRim.PawnExchange.ValidatorTradePawn>

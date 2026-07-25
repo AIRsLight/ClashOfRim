@@ -586,6 +586,55 @@ public sealed class GetPawnPackageResponse
     public PawnExchangePackageDto? PawnPackage { get; }
 }
 
+public sealed class StorePawnPackagePreviewRequest
+{
+    public StorePawnPackagePreviewRequest(
+        ProtocolIdentity owner,
+        string pawnPackageId)
+    {
+        Owner = owner;
+        PawnPackageId = pawnPackageId;
+    }
+
+    public ProtocolIdentity Owner { get; }
+
+    public string PawnPackageId { get; }
+}
+
+public sealed class StorePawnPackagePreviewResponse
+{
+    public StorePawnPackagePreviewResponse(
+        ProtocolResponse result,
+        string? pawnPackageId,
+        string? contentSha256)
+    {
+        Result = result;
+        PawnPackageId = pawnPackageId;
+        ContentSha256 = contentSha256;
+    }
+
+    public ProtocolResponse Result { get; }
+
+    public string? PawnPackageId { get; }
+
+    public string? ContentSha256 { get; }
+}
+
+public sealed class GetPawnPackagePreviewRequest
+{
+    public GetPawnPackagePreviewRequest(
+        ProtocolIdentity requester,
+        string pawnPackageId)
+    {
+        Requester = requester;
+        PawnPackageId = pawnPackageId;
+    }
+
+    public ProtocolIdentity Requester { get; }
+
+    public string PawnPackageId { get; }
+}
+
 public sealed class StoreThingPackageRequest
 {
     public StoreThingPackageRequest(

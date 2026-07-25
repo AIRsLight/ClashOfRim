@@ -653,7 +653,6 @@ public sealed partial class ClashOfRimMod
 
                 foreach (ModTradeOrderSummaryDto order in pageOrders)
                 {
-                    await HydrateTradeOrderPawnPackagesAsync(client, new[] { order });
                     ModTradeOrderSummaryDto capturedOrder = order;
                     ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
                         TradeUiUtility.PreparePawnPreviewsForTradeOrders(new[] { capturedOrder }));
@@ -716,47 +715,6 @@ public sealed partial class ClashOfRimMod
                 "ClashOfRim.Trade.PageStatus",
                 lastTradeOrders.Count.Named("LOADED"),
                 Math.Max(tradeOrdersTotalCount, lastTradeOrders.Count).Named("TOTAL"));
-        }
-    }
-
-    private static async Task HydrateTradeOrderPawnPackagesAsync(
-        ClashOfRimModNetworkClient client,
-        IReadOnlyList<ModTradeOrderSummaryDto>? orders)
-    {
-        if (orders is null || orders.Count == 0)
-        {
-            return;
-        }
-
-        foreach (ModTradeOrderSummaryDto order in orders)
-        {
-            await TryHydrateTradeOrderPawnPackagesForPreviewAsync(client, order.OfferedThings, order.EventId);
-            await TryHydrateTradeOrderPawnPackagesForPreviewAsync(client, order.RequestedThings, order.EventId);
-        }
-    }
-
-    private static async Task TryHydrateTradeOrderPawnPackagesForPreviewAsync(
-        ClashOfRimModNetworkClient client,
-        IReadOnlyList<ModThingReferenceDto>? things,
-        string? eventId)
-    {
-        if (things is null || things.Count == 0)
-        {
-            return;
-        }
-
-        try
-        {
-            IReadOnlyList<ModThingReferenceDto> representatives =
-                TradeUiUtility.BuildDisplayGroupRepresentatives(things);
-            await HydratePawnPackagesForTradeAsync(client, representatives);
-        }
-        catch (Exception ex)
-        {
-            Log.Warning("[ClashOfRim] Failed to hydrate trade pawn preview packages for order "
-                + (eventId ?? "<unknown>")
-                + ": "
-                + ex.Message);
         }
     }
 

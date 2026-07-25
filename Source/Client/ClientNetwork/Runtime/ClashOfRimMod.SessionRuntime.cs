@@ -348,6 +348,7 @@ public sealed partial class ClashOfRimMod
     {
         ClearLocalAtomicMutation();
         ClearPendingUnconfirmedSnapshotFailure();
+        TradePawnPreviewService.Reset();
         lock (automaticEventRefreshLock)
         {
             automaticEventRefreshInProgress = false;
@@ -790,7 +791,6 @@ public sealed partial class ClashOfRimMod
 
                 IReadOnlyList<ModTradeOrderSummaryDto> tradeOrders =
                     trades.Response.Orders ?? new List<ModTradeOrderSummaryDto>();
-                await HydrateTradeOrderPawnPackagesAsync(client, tradeOrders);
                 ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
                     TradeUiUtility.PreparePawnPreviewsForTradeOrders(tradeOrders));
                 lock (eventStateLock)
