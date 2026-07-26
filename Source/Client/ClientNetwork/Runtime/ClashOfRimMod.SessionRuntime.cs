@@ -1386,7 +1386,14 @@ public sealed partial class ClashOfRimMod
                     }
                     else
                     {
-                        ApplyServerWorldConfigurationExtensionCatalog(configuration);
+                        if (configuration is not null)
+                        {
+                            ApplyRuntimeWorldConfigurationUpdate(configuration);
+                        }
+                        else
+                        {
+                            ApplyServerWorldConfigurationExtensionCatalog(configuration);
+                        }
                     }
 
                     UpdateOccupiedPlayerColonySites(configuration);

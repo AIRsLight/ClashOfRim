@@ -478,7 +478,9 @@ public sealed partial class ClashOfRimMod
                     loginStatus,
                     0.05f,
                     canClose: false);
-                continuingAsyncFlow = StartRestoreExistingColonySnapshot(latestSnapshotId);
+                continuingAsyncFlow = StartRestoreExistingColonySnapshot(
+                    latestSnapshotId,
+                    worldConfiguration: response.WorldConfiguration);
                 return;
             }
 
@@ -586,7 +588,8 @@ public sealed partial class ClashOfRimMod
     private bool StartRestoreExistingColonySnapshot(
         string? expectedSnapshotId,
         Action<string>? restoreFailureCallback = null,
-        bool allowDifferentSnapshotId = false)
+        bool allowDifferentSnapshotId = false,
+        ModWorldConfigurationDto? worldConfiguration = null)
     {
         if (string.IsNullOrWhiteSpace(expectedSnapshotId))
         {
@@ -683,7 +686,13 @@ public sealed partial class ClashOfRimMod
                     0.82f,
                     canClose: false);
                 EnqueueClashOfRimMainThreadAction(() =>
-                    FinishRestoreExistingColonySnapshot(expected, result, payloadResult, restoreFailureCallback, allowDifferentSnapshotId));
+                    FinishRestoreExistingColonySnapshot(
+                        expected,
+                        result,
+                        payloadResult,
+                        restoreFailureCallback,
+                        allowDifferentSnapshotId,
+                        worldConfiguration));
             }
             catch (Exception ex)
             {
@@ -707,7 +716,8 @@ public sealed partial class ClashOfRimMod
         ClashOfRimClientNetworkResult<ModDownloadLatestSnapshotResponseDto> result,
         ClashOfRimClientNetworkResult<byte[]>? payloadResult,
         Action<string>? restoreFailureCallback,
-        bool allowDifferentSnapshotId)
+        bool allowDifferentSnapshotId,
+        ModWorldConfigurationDto? worldConfiguration)
     {
         try
         {
@@ -811,6 +821,11 @@ public sealed partial class ClashOfRimMod
             ServerSessionGameDataLoader.LoadGame(saveBytes, saveName, () =>
             {
                 ClearServerEntrySourceGameBlock("server-snapshot-loaded");
+                if (worldConfiguration is not null)
+                {
+                    ApplyRuntimeWorldConfigurationUpdate(worldConfiguration);
+                }
+
                 if (!string.IsNullOrWhiteSpace(settings.CurrentLineageToken))
                 {
                     ClashOfRimGameComponent.SetSnapshotLineage(

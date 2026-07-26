@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using System.Net;
 using System.Net.WebSockets;
+using System.Reflection;
 using System.Text;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -42,6 +43,13 @@ VerifyRaidSettlementDeferredSchedulingSemantics();
 if (args.Contains("--snapshot-pipeline-only", StringComparer.Ordinal))
 {
     Console.WriteLine("通过：快照后处理管线定向测试");
+    return;
+}
+
+VerifyLightweightWorldConfigurationKeepsRuntimeDifficulty();
+if (args.Contains("--world-difficulty-only", StringComparer.Ordinal))
+{
+    Console.WriteLine("通过：轻量世界配置难度基线定向测试");
     return;
 }
 
@@ -91,6 +99,28 @@ static void VerifyOfflineAccountsAllowLegacyPasswordLengths()
     Require(
         accounts.Authenticate("short-password-user", string.Empty, DateTimeOffset.UtcNow).Accepted,
         "重置后的空密码应能登录");
+}
+
+static void VerifyLightweightWorldConfigurationKeepsRuntimeDifficulty()
+{
+    const string difficultyXml =
+        "<saveable Class=\"RimWorld.Difficulty\"><threatScale>2.35</threatScale></saveable>";
+    WorldConfigurationDto source = BuildMinimalWorldConfiguration(difficultyXml);
+    MethodInfo? deliveryMethod = typeof(ClashOfRimNetworkServer).GetMethod(
+        "BuildWorldConfigurationForDelivery",
+        BindingFlags.NonPublic | BindingFlags.Static);
+    Require(deliveryMethod is not null, "应能定位世界配置交付裁剪入口");
+
+    var state = new ClashOfRimNetworkState();
+    var delivered = (WorldConfigurationDto?)deliveryMethod!.Invoke(
+        null,
+        new object?[] { source, state, false, true, true });
+    Require(delivered is not null, "轻量世界配置交付不应为空");
+    Require(delivered!.SeedString is null, "轻量世界配置不应携带世界生成种子");
+    Require(delivered.FactionDefNames.Count == 0, "轻量世界配置不应携带完整阵营生成基线");
+    Equal("Cassandra", delivered.StorytellerDefName, "轻量世界配置仍应携带服务器讲述人");
+    Equal("Medium", delivered.DifficultyDefName, "轻量世界配置仍应携带服务器难度");
+    Equal(difficultyXml, delivered.DifficultyValuesXml, "轻量世界配置仍应携带袭击倍率等自定义难度值");
 }
 
 static void VerifyPawnPackagePreviewValidation()
@@ -1293,6 +1323,7 @@ try
                 "Cassandra",
                 "Medium",
                 BuildSmokeWorldTileGeometry(),
+                difficultyValuesXml: "<saveable Class=\"RimWorld.Difficulty\"><threatScale>2.35</threatScale></saveable>",
                 extensions: WorldDlcExtensions(
                     new[] { new WorldPollutedTileDto(3, 0.5f) },
                     new WorldIdeoSummaryDto(
@@ -1403,6 +1434,10 @@ try
     Equal("seed-a", secondWorld?.SeedString, "后续用户应收到服务器世界配置");
     Equal("Cassandra", secondWorld?.StorytellerDefName, "后续用户应收到服务器讲述人基线");
     Equal("Medium", secondWorld?.DifficultyDefName, "后续用户应收到服务器难度基线");
+    Equal(
+        "<saveable Class=\"RimWorld.Difficulty\"><threatScale>2.35</threatScale></saveable>",
+        secondWorld?.DifficultyValuesXml,
+        "后续用户应收到完整自定义难度基线");
     Require(secondWorld?.FactionDefNames.Contains("OutlanderCivil") == true, "后续用户应收到服务器阵营定义列表");
     Require(secondWorld?.Features.Count == 1, "后续用户应收到服务器世界特征基线");
     Require(secondWorld?.Roads.Count == 1, "后续用户应收到服务器道路基线");
@@ -1416,6 +1451,26 @@ try
     Equal("粗犷文化", secondIdeos.Single().CultureLabel, "文化显示名应随服务器目录下发");
     Equal("UI/Ideoligions/Icons/Classic", secondIdeos.Single().IconPath, "文化图标路径应随服务器目录下发");
     Equal(9, secondWorld?.PlayerColonySites.Single().Tile, "玩家殖民地占用地块应保持服务器权威值");
+
+    GetWorldConfigurationResponse lightweightWorldResponse = await client.GetWorldConfigurationAsync(
+        new GetWorldConfigurationRequest(
+            ProtocolApiVersion.Current,
+            "user-b",
+            "colony-b",
+            password: string.Empty,
+            includeGenerationBaseline: false,
+            includePlayerColonySites: true,
+            includeWorldExtensions: true));
+    Require(lightweightWorldResponse.Result.Accepted, "老玩家应能下载轻量世界配置");
+    WorldConfigurationDto? lightweightWorld = lightweightWorldResponse.WorldConfiguration;
+    Require(lightweightWorld?.SeedString is null, "轻量世界配置不应携带世界生成种子");
+    Require(lightweightWorld?.FactionDefNames.Count == 0, "轻量世界配置不应携带完整阵营生成基线");
+    Equal("Cassandra", lightweightWorld?.StorytellerDefName, "轻量世界配置仍应携带服务器讲述人");
+    Equal("Medium", lightweightWorld?.DifficultyDefName, "轻量世界配置仍应携带服务器难度");
+    Equal(
+        "<saveable Class=\"RimWorld.Difficulty\"><threatScale>2.35</threatScale></saveable>",
+        lightweightWorld?.DifficultyValuesXml,
+        "轻量世界配置仍应携带袭击倍率等自定义难度值");
 
     RegisterPlayerColonySitesResponse registeredColonySites = await client.RegisterPlayerColonySitesAsync(
         new RegisterPlayerColonySitesRequest(
@@ -4297,7 +4352,7 @@ static GetWorldConfigurationRequest SmokeGetWorldConfigurationRequest(string use
         password: string.Empty);
 }
 
-static WorldConfigurationDto BuildMinimalWorldConfiguration()
+static WorldConfigurationDto BuildMinimalWorldConfiguration(string? difficultyValuesXml = null)
 {
     return new WorldConfigurationDto(
         "world:persistent",
@@ -4319,7 +4374,8 @@ static WorldConfigurationDto BuildMinimalWorldConfiguration()
         new[] { new PlayerColonySiteDto("admin-user", "colony-a", "WorldObject_10", "Map_10", 10, "管理员") },
         "Cassandra",
         "Medium",
-        BuildSmokeWorldTileGeometry());
+        BuildSmokeWorldTileGeometry(),
+        difficultyValuesXml: difficultyValuesXml);
 }
 
 static string BuildSmokeCompatibilityManifestJson(string manifestId)

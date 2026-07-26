@@ -294,10 +294,10 @@ public static partial class ClashOfRimNetworkServer
             includeGenerationBaseline ? configuration.Roads : Array.Empty<WorldRoadDto>(),
             includeGenerationBaseline ? configuration.WorldObjects : Array.Empty<WorldObjectBaselineDto>(),
             occupiedSites,
-            includeGenerationBaseline ? configuration.StorytellerDefName : null,
-            includeGenerationBaseline ? configuration.DifficultyDefName : null,
+            configuration.StorytellerDefName,
+            configuration.DifficultyDefName,
             tileGeometry: null,
-            difficultyValuesXml: includeGenerationBaseline ? configuration.DifficultyValuesXml : null,
+            difficultyValuesXml: configuration.DifficultyValuesXml,
             extensions: extensions,
             gameLanguage: configuration.GameLanguage,
             featureNameCatalogs: includeGenerationBaseline ? configuration.FeatureNameCatalogs : Array.Empty<WorldFeatureNameCatalogDto>());

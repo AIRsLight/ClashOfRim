@@ -1290,6 +1290,7 @@ public sealed partial class ClashOfRimMod
         ApplyWorldRoads(configuration.Roads);
         ApplyServerWorldConfigurationExtensions(configuration, applyPollution);
         ApplyWorldObjectLabels(configuration.WorldObjects);
+        ApplyStorytellerBaselineIfPlaying(configuration);
     }
 
     private void StartSubmitWorldFeatureNameCatalog(
