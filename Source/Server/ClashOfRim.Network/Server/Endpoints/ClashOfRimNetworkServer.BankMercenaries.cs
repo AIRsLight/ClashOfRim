@@ -872,6 +872,15 @@ public static partial class ClashOfRimNetworkServer
 
     private static IResult HireMercenary(HireMercenaryRequest request, ClashOfRimNetworkState state)
     {
+        lock (state.RaidSettlementSnapshotMutationGate)
+        {
+            RecoverSnapshotCommits(state);
+            return HireMercenaryLocked(request, state);
+        }
+    }
+
+    private static IResult HireMercenaryLocked(HireMercenaryRequest request, ClashOfRimNetworkState state)
+    {
         DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
         BankRequestContext? context = ValidateBankRequest(
             state,
@@ -962,171 +971,58 @@ public static partial class ClashOfRimNetworkServer
 
     private static async Task<IResult> HireMercenaryWithSnapshot(HttpRequest httpRequest, ClashOfRimNetworkState state)
     {
-        MultipartSnapshotRequest<HireMercenaryWithSnapshotRequest>? multipart =
-            await ReadMultipartSnapshotRequest<HireMercenaryWithSnapshotRequest>(httpRequest);
-        if (multipart is null || multipart.Request is null || multipart.Payload is null)
-        {
-            return Results.Ok(new MercenaryHireResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("Mercenary.TransactionMissingPayload")),
-                contract: null,
-                bankStatus: null));
-        }
-
-        HireMercenaryWithSnapshotRequest request = multipart.Request;
+        var multipart = await ReadMultipartSnapshotRequest<HireMercenaryWithSnapshotRequest>(httpRequest);
+        if (multipart?.Request is null || multipart.Payload is null)
+            return Results.Ok(new MercenaryHireResponse(ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed,
+                T("Mercenary.TransactionMissingPayload")), null, null));
+        var request = multipart.Request;
+        if (string.IsNullOrWhiteSpace(request.IdempotencyKey) || string.IsNullOrWhiteSpace(request.RequestedContractId)
+            || string.IsNullOrWhiteSpace(request.ConfirmedSnapshot?.SnapshotId))
+            return Results.Ok(new MercenaryHireResponse(ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed,
+                T("Mercenary.TransactionMissingFields")), null, null));
+        if (!MultipartSnapshotAuthentication.MatchesPrincipal(httpRequest, request.UserId, request.ColonyId))
+            return Results.Ok(new MercenaryHireResponse(ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed")), null, null));
+        RecoverSnapshotCommits(state);
+        var existing = state.MercenaryContracts.FindByIdempotencyKey(request.IdempotencyKey);
         DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
-        BankRequestContext? context = ValidateBankRequest(
-            state,
-            request.UserId,
-            request.ColonyId,
-            request.CurrentSnapshotId,
-            request.AuthToken,
-            request.CurrentGameTicks,
-            colonyWealth: 0,
-            nowUtc,
-            out ProtocolResponse? rejection);
-        if (context is null)
+        var context = ValidateBankRequest(state, request.UserId, request.ColonyId, request.CurrentSnapshotId, request.AuthToken,
+            request.CurrentGameTicks, 0, nowUtc, out var rejection,
+            committedSnapshotId: MatchesMercenarySnapshot(existing, request) ? existing!.SnapshotId : null);
+        if (context is null) return Results.Ok(new MercenaryHireResponse(rejection!, null, null));
+        if (existing is not null) return MercenarySnapshotReplayResponse(state, request, existing, context);
+        IResult Failure(ProtocolResponse failure) => Results.Ok(new MercenaryHireResponse(failure, null,
+            BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
+        var validation = ValidateMercenarySnapshotHire(state, request);
+        if (validation is not null) return Failure(validation);
+        if (TryRejectExpiredPendingConfirmationSnapshot(state, request.UserId, request.ColonyId, nowUtc, out var pendingRejection))
+            return Failure(pendingRejection!);
+        var upload = ReceiveSnapshot(state, request.UserId, request.ColonyId, request.ConfirmedSnapshot!.SnapshotId!,
+            request.ConfirmedSnapshot, multipart.Payload, nowUtc, storeAccepted: false);
+        if (!upload.Accepted || upload.AcceptedSnapshot is null) return Failure(ToProtocolResponse(upload));
+
+        lock (state.RaidSettlementSnapshotMutationGate)
+        lock (state.MercenaryContracts.SnapshotCommitGate)
         {
-            return Results.Ok(new MercenaryHireResponse(rejection!, contract: null, bankStatus: null));
+            RecoverSnapshotCommits(state);
+            existing = state.MercenaryContracts.FindByIdempotencyKey(request.IdempotencyKey);
+            if (existing is not null) return MercenarySnapshotReplayResponse(state, request, existing, context);
+            validation = ValidateMercenarySnapshotHire(state, request);
+            if (validation is not null) return Failure(validation);
+            var package = ProtocolDtoMapper.ToSaveSnapshotPackage(request.ConfirmedSnapshot, multipart.Payload);
+            upload = CreateSnapshotReceiver(state).CommitPrepared(new SnapshotUploadContext(request.UserId, request.ColonyId,
+                request.ConfirmedSnapshot.SnapshotId!, null, upload.SnapshotUploadKind), package, upload, storeAccepted: false);
+            if (!upload.Accepted || upload.AcceptedSnapshot is null) return Failure(ToProtocolResponse(upload));
+            string snapshotId = upload.AcceptedSnapshot.Identity.SnapshotId!;
+            var contract = new MercenaryContractRecord(request.RequestedContractId, request.IdempotencyKey, request.UserId,
+                request.ColonyId, snapshotId, request.SkillDefName, request.SkillLevel, request.DurationDays,
+                request.ExpectedPriceSilver, request.ExpectedHarmfulSurgeryFineSilver, request.ExpectedDeathFineSilver,
+                context.CurrentGameTicks, checked(context.CurrentGameTicks + request.DurationDays * BankLoanPolicy.GameTicksPerDay),
+                nowUtc, MercenaryContractRegistry.StatusActive, nowUtc);
+            CommitMercenarySnapshot(state, package, upload, new MercenarySnapshotMutation(Contract: contract,
+                MaximumOpenContracts: state.ServerConfiguration.MaxActiveMercenariesPerColony));
+            return Results.Ok(new MercenaryHireResponse(ProtocolResponse.Ok(T("Mercenary.Activated")), ToMercenaryContractDto(contract),
+                BuildBankStatusResponse(state, context, ProtocolResponse.Ok()), snapshotId, upload.AcceptedSnapshot.Envelope.NextLineageToken));
         }
-
-        if (string.IsNullOrWhiteSpace(request.IdempotencyKey)
-            || string.IsNullOrWhiteSpace(request.RequestedContractId)
-            || request.ConfirmedSnapshot is null
-            || string.IsNullOrWhiteSpace(request.ConfirmedSnapshot.SnapshotId))
-        {
-            return Results.Ok(new MercenaryHireResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("Mercenary.TransactionMissingFields")),
-                contract: null,
-                BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
-        }
-
-        MercenaryContractRecord? existingByKey = state.MercenaryContracts.FindByIdempotencyKey(request.IdempotencyKey);
-        if (existingByKey is not null)
-        {
-            string? nextLineageToken = FindSnapshotNextLineageToken(
-                state,
-                request.UserId,
-                request.ColonyId,
-                existingByKey.SnapshotId);
-            return Results.Ok(new MercenaryHireResponse(
-                new ProtocolResponse(true, ProtocolErrorCode.DuplicateRequest, T("Mercenary.DuplicateTransaction")),
-                ToMercenaryContractDto(existingByKey),
-                BuildBankStatusResponse(state, context, ProtocolResponse.Ok()),
-                existingByKey.SnapshotId,
-                nextLineageToken));
-        }
-
-        if (!state.ServerConfiguration.MercenariesEnabled)
-        {
-            return Results.Ok(new MercenaryHireResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, T("Mercenary.Disabled")),
-                contract: null,
-                BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
-        }
-
-        ProtocolResponse? validation = ValidateMercenaryRequestShape(
-            request.SkillDefName,
-            request.SkillLevel,
-            request.DurationDays,
-            state.ServerConfiguration);
-        if (validation is not null)
-        {
-            return Results.Ok(new MercenaryHireResponse(
-                validation,
-                contract: null,
-                BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
-        }
-
-        ProtocolResponse? limitRejection = ValidateMercenaryActiveLimit(state, request.UserId, request.ColonyId);
-        if (limitRejection is not null)
-        {
-            return Results.Ok(new MercenaryHireResponse(
-                limitRejection,
-                contract: null,
-                BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
-        }
-
-        int priceSilver = CalculateMercenaryPriceSilver(
-            request.SkillLevel,
-            request.DurationDays,
-            state.ServerConfiguration);
-        int deathFineSilver = CalculateMercenaryDeathFineSilver(request.SkillLevel, state.ServerConfiguration);
-        if (request.ExpectedPriceSilver != priceSilver
-            || request.ExpectedHarmfulSurgeryFineSilver != state.ServerConfiguration.MercenaryHarmfulSurgeryFineSilver
-            || request.ExpectedDeathFineSilver != deathFineSilver)
-        {
-            return Results.Ok(new MercenaryHireResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("Mercenary.QuoteMismatch")),
-                contract: null,
-                BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
-        }
-
-        if (TryRejectExpiredPendingConfirmationSnapshot(
-                state,
-                request.UserId,
-                request.ColonyId,
-                nowUtc,
-                out ProtocolResponse? pendingRejection))
-        {
-            return Results.Ok(new MercenaryHireResponse(
-                pendingRejection!,
-                contract: null,
-                BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
-        }
-
-        SnapshotUploadResult upload = ReceiveSnapshot(
-            state,
-            request.UserId,
-            request.ColonyId,
-            request.ConfirmedSnapshot.SnapshotId!,
-            request.ConfirmedSnapshot,
-            multipart.Payload,
-            nowUtc);
-        if (!upload.Accepted || upload.AcceptedSnapshot is null)
-        {
-            return Results.Ok(new MercenaryHireResponse(
-                ToProtocolResponse(upload),
-                contract: null,
-                BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
-        }
-
-        string acceptedSnapshotId = upload.AcceptedSnapshot.Identity.SnapshotId ?? request.ConfirmedSnapshot.SnapshotId!;
-        MercenaryContractRecord? contract = state.MercenaryContracts.ActivateWithSnapshot(
-            request.IdempotencyKey,
-            request.UserId,
-            request.ColonyId,
-            request.RequestedContractId,
-            acceptedSnapshotId,
-            request.SkillDefName,
-            request.SkillLevel,
-            request.DurationDays,
-            priceSilver,
-            state.ServerConfiguration.MercenaryHarmfulSurgeryFineSilver,
-            deathFineSilver,
-            context.CurrentGameTicks,
-            nowUtc);
-        if (contract is null)
-        {
-            return Results.Ok(new MercenaryHireResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Mercenary.ContractLedgerFailed")),
-                contract: null,
-                BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
-        }
-
-        RunSnapshotPostUploadProcessors(
-            state,
-            request.UserId,
-            request.ColonyId,
-            sessionId: null,
-            upload,
-            nowUtc);
-
-        return Results.Ok(new MercenaryHireResponse(
-            ProtocolResponse.Ok(T("Mercenary.Activated")),
-            ToMercenaryContractDto(contract),
-            BuildBankStatusResponse(state, context, ProtocolResponse.Ok()),
-            acceptedSnapshotId,
-            upload.AcceptedSnapshot.Envelope.NextLineageToken));
     }
 
     private static IResult QuoteMercenary(QuoteMercenaryRequest request, ClashOfRimNetworkState state)
@@ -1284,171 +1180,68 @@ public static partial class ClashOfRimNetworkServer
 
     private static async Task<IResult> HireMercenaryGuardWithSnapshot(HttpRequest httpRequest, ClashOfRimNetworkState state)
     {
-        MultipartSnapshotRequest<HireMercenaryGuardWithSnapshotRequest>? multipart =
-            await ReadMultipartSnapshotRequest<HireMercenaryGuardWithSnapshotRequest>(httpRequest);
-        if (multipart is null || multipart.Request is null || multipart.Payload is null)
-        {
-            return Results.Ok(new MercenaryGuardHireResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("Mercenary.GuardTransactionMissingPayload")),
-                contract: null,
-                bankStatus: null));
-        }
-
-        HireMercenaryGuardWithSnapshotRequest request = multipart.Request;
+        var multipart = await ReadMultipartSnapshotRequest<HireMercenaryGuardWithSnapshotRequest>(httpRequest);
+        if (multipart?.Request is null || multipart.Payload is null)
+            return Results.Ok(new MercenaryGuardHireResponse(ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed,
+                T("Mercenary.GuardTransactionMissingPayload")), null, null));
+        var request = multipart.Request;
+        if (string.IsNullOrWhiteSpace(request.IdempotencyKey) || string.IsNullOrWhiteSpace(request.RequestedContractId)
+            || string.IsNullOrWhiteSpace(request.ConfirmedSnapshot?.SnapshotId))
+            return Results.Ok(new MercenaryGuardHireResponse(ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed,
+                T("Mercenary.GuardTransactionMissingFields")), null, null));
+        if (!MultipartSnapshotAuthentication.MatchesPrincipal(httpRequest, request.UserId, request.ColonyId))
+            return Results.Ok(new MercenaryGuardHireResponse(ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed")), null, null));
+        RecoverSnapshotCommits(state);
+        var existing = state.MercenaryGuards.FindByIdempotencyKey(request.IdempotencyKey);
         DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
-        BankRequestContext? context = ValidateBankRequest(
-            state,
-            request.UserId,
-            request.ColonyId,
-            request.CurrentSnapshotId,
-            request.AuthToken,
-            request.CurrentGameTicks,
-            colonyWealth: 0,
-            nowUtc,
-            out ProtocolResponse? rejection);
-        if (context is null)
+        var context = ValidateBankRequest(state, request.UserId, request.ColonyId, request.CurrentSnapshotId, request.AuthToken,
+            request.CurrentGameTicks, 0, nowUtc, out var rejection,
+            committedSnapshotId: MatchesGuardSnapshot(existing, request) ? existing!.SnapshotId : null);
+        if (context is null) return Results.Ok(new MercenaryGuardHireResponse(rejection!, null, null));
+        if (existing is not null) return GuardSnapshotReplayResponse(state, request, existing, context);
+        IResult Failure(ProtocolResponse failure) => Results.Ok(new MercenaryGuardHireResponse(failure, null,
+            BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
+        var validation = ValidateGuardSnapshotHire(state, request);
+        if (validation is not null) return Failure(validation);
+        if (TryRejectExpiredPendingConfirmationSnapshot(state, request.UserId, request.ColonyId, nowUtc, out var pendingRejection))
+            return Failure(pendingRejection!);
+        var upload = ReceiveSnapshot(state, request.UserId, request.ColonyId, request.ConfirmedSnapshot!.SnapshotId!,
+            request.ConfirmedSnapshot, multipart.Payload, nowUtc, storeAccepted: false);
+        if (!upload.Accepted || upload.AcceptedSnapshot is null) return Failure(ToProtocolResponse(upload));
+
+        lock (state.RaidSettlementSnapshotMutationGate)
+        lock (state.MercenaryGuards.SnapshotCommitGate)
         {
-            return Results.Ok(new MercenaryGuardHireResponse(rejection!, contract: null, bankStatus: null));
+            RecoverSnapshotCommits(state);
+            existing = state.MercenaryGuards.FindByIdempotencyKey(request.IdempotencyKey);
+            if (existing is not null) return GuardSnapshotReplayResponse(state, request, existing, context);
+            validation = ValidateGuardSnapshotHire(state, request);
+            if (validation is not null) return Failure(validation);
+            var package = ProtocolDtoMapper.ToSaveSnapshotPackage(request.ConfirmedSnapshot, multipart.Payload);
+            upload = CreateSnapshotReceiver(state).CommitPrepared(new SnapshotUploadContext(request.UserId, request.ColonyId,
+                request.ConfirmedSnapshot.SnapshotId!, null, upload.SnapshotUploadKind), package, upload, storeAccepted: false);
+            if (!upload.Accepted || upload.AcceptedSnapshot is null) return Failure(ToProtocolResponse(upload));
+            string snapshotId = upload.AcceptedSnapshot.Identity.SnapshotId!;
+            var contract = new MercenaryGuardContractRecord(request.RequestedContractId, request.IdempotencyKey, request.UserId,
+                request.ColonyId, snapshotId, NormalizeMercenaryGuardTier(request.Tier), request.ExpectedPriceSilver,
+                CalculateMercenaryGuardPointRatio(NormalizeMercenaryGuardTier(request.Tier), state.ServerConfiguration),
+                context.CurrentGameTicks, nowUtc, MercenaryGuardContractRegistry.StatusActive, null, null);
+            CommitMercenarySnapshot(state, package, upload, new MercenarySnapshotMutation(Guard: contract));
+            return Results.Ok(new MercenaryGuardHireResponse(ProtocolResponse.Ok(T("Mercenary.GuardActivated")), ToMercenaryGuardContractDto(contract),
+                BuildBankStatusResponse(state, context, ProtocolResponse.Ok()), snapshotId, upload.AcceptedSnapshot.Envelope.NextLineageToken));
         }
-
-        string tier = NormalizeMercenaryGuardTier(request.Tier);
-        if (string.IsNullOrWhiteSpace(request.IdempotencyKey)
-            || string.IsNullOrWhiteSpace(request.RequestedContractId)
-            || string.IsNullOrWhiteSpace(tier)
-            || request.ConfirmedSnapshot is null
-            || string.IsNullOrWhiteSpace(request.ConfirmedSnapshot.SnapshotId))
-        {
-            return Results.Ok(new MercenaryGuardHireResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("Mercenary.GuardTransactionMissingFields")),
-                contract: null,
-                BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
-        }
-
-        MercenaryGuardContractRecord? existingByKey = state.MercenaryGuards.FindByIdempotencyKey(request.IdempotencyKey);
-        if (existingByKey is not null)
-        {
-            string? nextLineageToken = FindSnapshotNextLineageToken(
-                state,
-                request.UserId,
-                request.ColonyId,
-                existingByKey.SnapshotId);
-            return Results.Ok(new MercenaryGuardHireResponse(
-                new ProtocolResponse(true, ProtocolErrorCode.DuplicateRequest, T("Mercenary.GuardDuplicateTransaction")),
-                ToMercenaryGuardContractDto(existingByKey),
-                BuildBankStatusResponse(state, context, ProtocolResponse.Ok()),
-                existingByKey.SnapshotId,
-                nextLineageToken));
-        }
-
-        if (!state.ServerConfiguration.PvpEnabled)
-        {
-            return Results.Ok(new MercenaryGuardHireResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, T("Mercenary.GuardPvpDisabled")),
-                contract: null,
-                BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
-        }
-
-        if (!state.ServerConfiguration.MercenariesEnabled || !state.ServerConfiguration.MercenaryGuardsEnabled)
-        {
-            return Results.Ok(new MercenaryGuardHireResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, T("Mercenary.GuardDisabled")),
-                contract: null,
-                BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
-        }
-
-        if (!IsValidMercenaryGuardTier(tier))
-        {
-            return Results.Ok(new MercenaryGuardHireResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("Mercenary.GuardInvalidTier")),
-                contract: null,
-                BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
-        }
-
-        if (state.MercenaryGuards.HasActiveForColony(request.UserId, request.ColonyId))
-        {
-            return Results.Ok(new MercenaryGuardHireResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Mercenary.GuardAlreadyActive")),
-                contract: null,
-                BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
-        }
-
-        int priceSilver = CalculateMercenaryGuardPriceSilver(tier, state.ServerConfiguration);
-        float pointRatio = CalculateMercenaryGuardPointRatio(tier, state.ServerConfiguration);
-        if (request.ExpectedPriceSilver != priceSilver
-            || Math.Abs(request.ExpectedPointRatio - pointRatio) > 0.0001f)
-        {
-            return Results.Ok(new MercenaryGuardHireResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("Mercenary.GuardQuoteMismatch")),
-                contract: null,
-                BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
-        }
-
-        if (TryRejectExpiredPendingConfirmationSnapshot(
-                state,
-                request.UserId,
-                request.ColonyId,
-                nowUtc,
-                out ProtocolResponse? pendingRejection))
-        {
-            return Results.Ok(new MercenaryGuardHireResponse(
-                pendingRejection!,
-                contract: null,
-                BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
-        }
-
-        SnapshotUploadResult upload = ReceiveSnapshot(
-            state,
-            request.UserId,
-            request.ColonyId,
-            request.ConfirmedSnapshot.SnapshotId!,
-            request.ConfirmedSnapshot,
-            multipart.Payload,
-            nowUtc);
-        if (!upload.Accepted || upload.AcceptedSnapshot is null)
-        {
-            return Results.Ok(new MercenaryGuardHireResponse(
-                ToProtocolResponse(upload),
-                contract: null,
-                BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
-        }
-
-        string acceptedSnapshotId = upload.AcceptedSnapshot.Identity.SnapshotId ?? request.ConfirmedSnapshot.SnapshotId!;
-        MercenaryGuardContractRecord? contract = state.MercenaryGuards.ActivateWithSnapshot(
-            request.IdempotencyKey,
-            request.UserId,
-            request.ColonyId,
-            request.RequestedContractId,
-            acceptedSnapshotId,
-            tier,
-            priceSilver,
-            pointRatio,
-            context.CurrentGameTicks,
-            nowUtc);
-        if (contract is null)
-        {
-            return Results.Ok(new MercenaryGuardHireResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Mercenary.GuardContractLedgerFailed")),
-                contract: null,
-                BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
-        }
-
-        RunSnapshotPostUploadProcessors(
-            state,
-            request.UserId,
-            request.ColonyId,
-            sessionId: null,
-            upload,
-            nowUtc);
-
-        return Results.Ok(new MercenaryGuardHireResponse(
-            ProtocolResponse.Ok(T("Mercenary.GuardActivated")),
-            ToMercenaryGuardContractDto(contract),
-            BuildBankStatusResponse(state, context, ProtocolResponse.Ok()),
-            acceptedSnapshotId,
-            upload.AcceptedSnapshot.Envelope.NextLineageToken));
     }
 
     private static IResult ReportMercenaryIncident(ReportMercenaryIncidentRequest request, ClashOfRimNetworkState state)
+    {
+        lock (state.RaidSettlementSnapshotMutationGate)
+        {
+            RecoverSnapshotCommits(state);
+            return ReportMercenaryIncidentLocked(request, state);
+        }
+    }
+
+    private static IResult ReportMercenaryIncidentLocked(ReportMercenaryIncidentRequest request, ClashOfRimNetworkState state)
     {
         DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
         BankRequestContext? context = ValidateBankRequest(
@@ -1893,7 +1686,7 @@ public static partial class ClashOfRimNetworkServer
                 T("Mercenary.ActiveLimitReached", ("MAX", "0")));
         }
 
-        int active = state.MercenaryContracts.CountActiveForColony(userId, colonyId);
+        int active = state.MercenaryContracts.CountOpenForColony(userId, colonyId);
         return active >= limit
             ? ProtocolResponse.Reject(
                 ProtocolErrorCode.ServerRejected,

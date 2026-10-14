@@ -10,11 +10,21 @@ internal static class SnapshotEndpointTestClient
         JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(
             Path.Combine(AppContext.BaseDirectory, "TestLocalization", "English.json")))!);
 
-    public static async Task<T> Invoke<T>(string name, ClashOfRimNetworkState state, object request, byte[] payload, ProtocolIdentity principal)
+    public static Task<T> Invoke<T>(string name, ClashOfRimNetworkState state, object request, byte[] payload, ProtocolIdentity principal)
+        => Invoke<T>(name, state, _ => request, payload, principal);
+
+    public static async Task<T> Invoke<T>(string name, ClashOfRimNetworkState state, Func<string, object> requestFactory,
+        byte[] payload, ProtocolIdentity principal, string? authToken = null)
     {
         DateTimeOffset now = DateTimeOffset.UtcNow;
-        state.LoginSessions.TryCreate(principal.UserId, principal.ColonyId!, now, out string sessionId);
-        string token = state.AuthTokens.Issue(principal.UserId, principal.UserId, principal.ColonyId!, sessionId, now);
+        string token;
+        if (authToken is not null) token = authToken;
+        else
+        {
+            state.LoginSessions.TryCreate(principal.UserId, principal.ColonyId!, now, out string sessionId);
+            token = state.AuthTokens.Issue(principal.UserId, principal.UserId, principal.ColonyId!, sessionId, now);
+        }
+        object request = requestFactory(token);
         using var multipart = new MultipartFormDataContent();
         multipart.Add(new StringContent(JsonSerializer.Serialize(request)), "request");
         multipart.Add(new ByteArrayContent(payload), "payload", "snapshot.gz");

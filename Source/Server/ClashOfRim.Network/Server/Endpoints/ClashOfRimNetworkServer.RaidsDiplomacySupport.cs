@@ -397,12 +397,17 @@ public static partial class ClashOfRimNetworkServer
             {
                 if (!string.IsNullOrWhiteSpace(request.GuardDeploymentId))
                 {
-                    MercenaryGuardContractRecord? consumedGuard = state.MercenaryGuards.ConsumeForRaid(
-                        request.Defender.UserId,
-                        request.Defender.ColonyId ?? string.Empty,
-                        result.RaidEvent.EventId,
-                        request.GuardDeploymentId!,
-                        nowUtc);
+                    MercenaryGuardContractRecord? consumedGuard;
+                    lock (state.RaidSettlementSnapshotMutationGate)
+                    {
+                        RecoverSnapshotCommits(state);
+                        consumedGuard = state.MercenaryGuards.ConsumeForRaid(
+                            request.Defender.UserId,
+                            request.Defender.ColonyId ?? string.Empty,
+                            result.RaidEvent.EventId,
+                            request.GuardDeploymentId!,
+                            nowUtc);
+                    }
                     AuthoritativeEvent? guardNotification = MercenaryGuardActivationNotificationFactory.Create(
                         consumedGuard,
                         result.RaidEvent,
@@ -1912,6 +1917,17 @@ public static partial class ClashOfRimNetworkServer
     }
 
     private static void ReconcileAbandonedColonyOnClientLifecycle(
+        ClashOfRimNetworkState state,
+        ClientLifecycleEvent lifecycleEvent)
+    {
+        lock (state.RaidSettlementSnapshotMutationGate)
+        {
+            RecoverSnapshotCommits(state);
+            ReconcileAbandonedColonyLocked(state, lifecycleEvent);
+        }
+    }
+
+    private static void ReconcileAbandonedColonyLocked(
         ClashOfRimNetworkState state,
         ClientLifecycleEvent lifecycleEvent)
     {

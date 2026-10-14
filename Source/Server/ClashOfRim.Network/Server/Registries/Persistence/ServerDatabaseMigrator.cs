@@ -16,7 +16,7 @@ public static class ServerDatabaseSchema
 {
     // Version 1 is the known JSON-document persistence layout.
     public const int LegacyJsonDocumentVersion = 1;
-    public const int CurrentVersion = 12;
+    public const int CurrentVersion = 13;
 }
 
 public sealed record ServerDatabaseMigrationOptions(int? DeclaredSourceVersion = null);
@@ -109,7 +109,9 @@ public static class ServerDatabaseMigrator
             {
                 SqliteDomainRegistrySchema.EnsureTables(connection, transaction);
                 return MigrationApplicationResult.None;
-            })
+            }),
+        // Version 13 recovers both mercenary and guard activation intents before serving traffic.
+        new(FromVersion: 12, ToVersion: 13, Apply: (_, _, _) => MigrationApplicationResult.None)
     ];
 
     public static ServerDatabaseMigrationAssessment Assess(

@@ -31,19 +31,21 @@ public sealed class SnapshotCommitService
         {
             SnapshotCommitIntent intent = JsonSerializer.Deserialize<SnapshotCommitIntent>(File.ReadAllBytes(path))
                 ?? throw new InvalidDataException("Empty snapshot commit: " + path);
-            if (intent.Version is not (1 or 2 or 3 or 4) || Path.GetFileNameWithoutExtension(path) != intent.Id)
+            if (intent.Version is not (1 or 2 or 3 or 4 or 5) || Path.GetFileNameWithoutExtension(path) != intent.Id)
                 throw new InvalidDataException("Unsupported snapshot commit: " + path);
             SnapshotIdentity identity = intent.Package.Envelope.Identity;
-            if (intent.Loan is null && intent.Debt is null && intent.Gift is null && intent.Trade is null && intent.Shop is null
+            if (intent.Loan is null && intent.Debt is null && intent.Gift is null && intent.Trade is null && intent.Shop is null && intent.Mercenary is null
                 || intent.Loan is { } loan && (loan.UserId != identity.OwnerId || loan.ColonyId != identity.ColonyId || loan.SnapshotId != identity.SnapshotId)
                 || intent.Debt is { } debt && (debt.UserId != identity.OwnerId || debt.ColonyId != identity.ColonyId || debt.SnapshotId != identity.SnapshotId)
                 || intent.Gift is { } gift && (intent.Version != 2 || intent.Loan is not null || intent.Debt is not null
                     || !GiftSnapshotReplayPolicy.Matches(gift, identity.OwnerId!, identity.ColonyId, identity.SnapshotId))
                 || intent.Trade is not null && (intent.Version != 3 || intent.Loan is not null || intent.Debt is not null || intent.Gift is not null)
-                || intent.Shop is not null && (intent.Version != 4 || intent.Loan is not null || intent.Debt is not null || intent.Gift is not null || intent.Trade is not null))
+                || intent.Shop is not null && (intent.Version != 4 || intent.Loan is not null || intent.Debt is not null || intent.Gift is not null || intent.Trade is not null)
+                || intent.Mercenary is not null && (intent.Version != 5 || intent.Loan is not null || intent.Debt is not null || intent.Gift is not null || intent.Trade is not null || intent.Shop is not null))
                 throw new InvalidDataException("Snapshot journal identity mismatch: " + path);
             intent.Trade?.Validate(identity);
             intent.Shop?.Validate(identity);
+            intent.Mercenary?.Validate(identity);
             yield return intent;
         }
     }
@@ -70,10 +72,35 @@ public sealed class SnapshotCommitService
 
     public void Recover(IColonySnapshotIndexStore snapshots, BankLoanRegistry bank,
         Action<LatestSnapshotRecord, string?> postUpload, IAuthoritativeEventLedger? ledger,
-        Action<string>? signalUser = null, Action<AuthoritativeEvent>? recordTrade = null, ServerShopRegistry? shop = null)
+        Action<string>? signalUser = null, Action<AuthoritativeEvent>? recordTrade = null, ServerShopRegistry? shop = null,
+        MercenaryContractRegistry? contracts = null, MercenaryGuardContractRegistry? guards = null)
     {
         if (applying) return; // A post-upload processor may re-enter the snapshot mutation coordinator.
-        foreach (SnapshotCommitIntent intent in pending.Values.ToArray()) Apply(intent, snapshots, bank, postUpload, ledger, signalUser, recordTrade, shop);
+        foreach (SnapshotCommitIntent intent in pending.Values.ToArray()) Apply(intent, snapshots, bank, postUpload, ledger, signalUser, recordTrade, shop, contracts, guards);
+    }
+
+    public void CommitMercenary(IColonySnapshotIndexStore snapshots, BankLoanRegistry bank,
+        MercenaryContractRegistry contracts, MercenaryGuardContractRegistry guards, SaveSnapshotPackage package,
+        LatestSnapshotRecord snapshot, MercenarySnapshotMutation mutation, Action<LatestSnapshotRecord, string?> postUpload,
+        string? snapshotUploadKind = null)
+    {
+        lock (mutation.Gate(contracts, guards))
+        {
+            if (pending.Count != 0) throw new InvalidOperationException("Recover pending snapshot commits before accepting new work.");
+            mutation.Validate(snapshot.Identity);
+            mutation.Preflight(contracts, guards);
+            if (mutation.Contract is { } contract && contracts.FindByIdempotencyKey(contract.IdempotencyKey) is not null
+                || mutation.Guard is { } guard && guards.FindByIdempotencyKey(guard.IdempotencyKey) is not null)
+                throw new InvalidOperationException("Use the existing mercenary contract instead of committing it again.");
+            LatestSnapshotRecord? previous = snapshots.GetLatest(snapshot.Identity.OwnerId!, snapshot.Identity.ColonyId!);
+            var intent = new SnapshotCommitIntent(5, Guid.NewGuid().ToString("N"),
+                previous?.Identity.SnapshotId, previous?.Envelope.NextLineageToken,
+                package with { Envelope = snapshot.Envelope, Index = snapshot.Index }, snapshot.AcceptedAtUtc,
+                null, null, snapshotUploadKind, Mercenary: mutation);
+            Write(intent);
+            pending.Add(intent.Id, intent);
+            Apply(intent, snapshots, bank, postUpload, contracts: contracts, guards: guards);
+        }
     }
 
     public void CommitShop(IColonySnapshotIndexStore snapshots, BankLoanRegistry bank, ServerShopRegistry shop,
@@ -139,20 +166,26 @@ public sealed class SnapshotCommitService
 
     private void Apply(SnapshotCommitIntent intent, IColonySnapshotIndexStore snapshots, BankLoanRegistry bank,
         Action<LatestSnapshotRecord, string?> postUpload, IAuthoritativeEventLedger? ledger = null,
-        Action<string>? signalUser = null, Action<AuthoritativeEvent>? recordTrade = null, ServerShopRegistry? shop = null)
+        Action<string>? signalUser = null, Action<AuthoritativeEvent>? recordTrade = null, ServerShopRegistry? shop = null,
+        MercenaryContractRegistry? contracts = null, MercenaryGuardContractRegistry? guards = null)
     {
         if (intent.Shop is not null)
         {
             if (shop is null) throw new InvalidOperationException("Shop recovery requires the shop registry.");
             // Hold the shop gate across preflight, snapshot publication and business commit.
-            lock (shop.SnapshotCommitGate) ApplyCore(intent, snapshots, bank, postUpload, ledger, signalUser, recordTrade, shop);
+            lock (shop.SnapshotCommitGate) ApplyCore(intent, snapshots, bank, postUpload, ledger, signalUser, recordTrade, shop, contracts, guards);
         }
-        else ApplyCore(intent, snapshots, bank, postUpload, ledger, signalUser, recordTrade, shop);
+        else if (intent.Mercenary is { } mercenary)
+        {
+            lock (mercenary.Gate(contracts, guards)) ApplyCore(intent, snapshots, bank, postUpload, ledger, signalUser, recordTrade, shop, contracts, guards);
+        }
+        else ApplyCore(intent, snapshots, bank, postUpload, ledger, signalUser, recordTrade, shop, contracts, guards);
     }
 
     private void ApplyCore(SnapshotCommitIntent intent, IColonySnapshotIndexStore snapshots, BankLoanRegistry bank,
         Action<LatestSnapshotRecord, string?> postUpload, IAuthoritativeEventLedger? ledger,
-        Action<string>? signalUser, Action<AuthoritativeEvent>? recordTrade, ServerShopRegistry? shop)
+        Action<string>? signalUser, Action<AuthoritativeEvent>? recordTrade, ServerShopRegistry? shop,
+        MercenaryContractRegistry? contracts, MercenaryGuardContractRegistry? guards)
     {
         applying = true;
         try
@@ -160,6 +193,7 @@ public sealed class SnapshotCommitService
             SaveSnapshotPackage package = intent.Package;
             SnapshotIdentity identity = package.Envelope.Identity;
             if (intent.Shop is { } pendingShop) shop!.ValidateSnapshotCommit(pendingShop);
+            intent.Mercenary?.Preflight(contracts, guards);
             if (intent.Trade is { } pendingTrade)
             {
                 if (ledger is null) throw new InvalidOperationException("Trade recovery requires the event ledger.");
@@ -201,6 +235,7 @@ public sealed class SnapshotCommitService
                 foreach (string userId in trade.NotifyUsers) signalUser?.Invoke(userId);
             }
             else if (intent.Shop is { } shopMutation) shop!.ApplySnapshotCommit(shopMutation);
+            else if (intent.Mercenary is { } mercenary) mercenary.Apply(contracts, guards);
             else bank.ApplySnapshotCommit(intent.Loan, intent.Debt);
             // Processors are idempotent; retain the intent if scheduling downstream work fails.
             postUpload(snapshot, intent.SnapshotUploadKind);
@@ -226,4 +261,5 @@ public sealed class SnapshotCommitService
 
 public sealed record SnapshotCommitIntent(int Version, string Id, string? PreviousSnapshotId, string? PreviousLineageToken,
     SaveSnapshotPackage Package, DateTimeOffset AcceptedAtUtc, BankLoanRecord? Loan, BankDebtRecord? Debt, string? SnapshotUploadKind,
-    AuthoritativeEvent? Gift = null, TradeSnapshotMutation? Trade = null, ShopSnapshotMutation? Shop = null);
+    AuthoritativeEvent? Gift = null, TradeSnapshotMutation? Trade = null, ShopSnapshotMutation? Shop = null,
+    MercenarySnapshotMutation? Mercenary = null);

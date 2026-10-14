@@ -13,6 +13,7 @@ public sealed class MercenaryGuardContractRegistry
     };
 
     private readonly object gate = new();
+    internal object SnapshotCommitGate => gate;
     private readonly IKeyedJsonRecordStore? structuredPersistence;
     private readonly IJsonPersistenceSlot? legacyPersistence;
     private readonly Dictionary<string, MercenaryGuardContractRecord> contracts = new(StringComparer.Ordinal);
@@ -44,6 +45,37 @@ public sealed class MercenaryGuardContractRegistry
         {
             return FindByIdempotencyKeyNoLock(idempotencyKey);
         }
+    }
+
+    internal void ValidateSnapshotCommit(MercenaryGuardContractRecord contract)
+    {
+        lock (gate)
+        {
+            var existing = FindByIdempotencyKeyNoLock(contract.IdempotencyKey);
+            if (existing is not null)
+            {
+                if (existing.Status is not (StatusActive or StatusConsumed)
+                    || existing with { Status = contract.Status, ConsumedRaidEventId = null, ConsumedAtUtc = null } != contract)
+                    throw new InvalidDataException("Guard journal conflicts with an existing contract.");
+                return;
+            }
+            if (contracts.ContainsKey(contract.ContractId) || FindActiveForColonyNoLock(contract.UserId, contract.ColonyId) is not null)
+                throw new InvalidDataException("Guard contract ID or active deployment conflicts with the pending commit.");
+        }
+    }
+
+    internal void ApplySnapshotCommit(MercenaryGuardContractRecord contract)
+    {
+        lock (gate)
+        {
+            ValidateSnapshotCommit(contract);
+            if (FindByIdempotencyKeyNoLock(contract.IdempotencyKey) is null) PersistContracts([contract]);
+        }
+    }
+
+    internal bool ContainsContractId(string contractId)
+    {
+        lock (gate) return contracts.ContainsKey(contractId);
     }
 
     public MercenaryGuardContractRecord? FindActiveForColony(string userId, string colonyId)

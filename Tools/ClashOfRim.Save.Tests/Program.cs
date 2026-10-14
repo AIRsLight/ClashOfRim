@@ -22,6 +22,7 @@ var tests = new (string Name, Action Run)[]
     ("商店持久化失败保留库存缓存且允许重试", ShopRegistryPersistenceTests.Run),
     ("商店快照和购买回执共同恢复且限制重复请求身份", () => ShopCommitCrashTests.Run(BuildFixturePackage)),
     ("雇佣合同与护卫队持久化失败不污染缓存和索引", MercenaryRegistryPersistenceTests.Run),
+    ("雇佣付款快照与合同共同恢复且限制重复请求身份", () => MercenaryCommitCrashTests.Run(BuildFixturePackage)),
     ("并发准备的快照在提交时重新验证 lineage", VerifyPreparedSnapshotsCannotOverwrite),
     ("服务器数据库新建时写入当前 schema 版本", VerifyServerDatabaseMigrationInitializesNewDatabase),
     ("服务器启动可只读识别无版本旧数据库", VerifyServerDatabaseMigrationAssessesLegacyDatabaseWithoutMutation),

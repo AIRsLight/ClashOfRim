@@ -14,6 +14,7 @@ public sealed class MercenaryContractRegistry
     };
 
     private readonly object gate = new();
+    internal object SnapshotCommitGate => gate;
     private readonly IKeyedJsonRecordStore? structuredPersistence;
     private readonly IJsonPersistenceSlot? legacyPersistence;
     private readonly Dictionary<string, MercenaryContractRecord> contracts = new(StringComparer.Ordinal);
@@ -47,6 +48,32 @@ public sealed class MercenaryContractRegistry
                 && contracts.TryGetValue(contractId, out MercenaryContractRecord? contract)
                     ? contract
                     : null;
+        }
+    }
+
+    internal void ValidateSnapshotCommit(MercenaryContractRecord contract, int maximumOpenContracts)
+    {
+        lock (gate)
+        {
+            var existing = FindByIdempotencyKeyNoLock(contract.IdempotencyKey);
+            if (existing is not null)
+            {
+                if (existing.Status is not (StatusActive or StatusCompleted) || existing with { Status = contract.Status } != contract)
+                    throw new InvalidDataException("Mercenary journal conflicts with an existing contract.");
+                return;
+            }
+            if (contracts.ContainsKey(contract.ContractId) || CountOpenForColony(contract.UserId, contract.ColonyId) >= maximumOpenContracts)
+                throw new InvalidDataException("Mercenary contract ID or colony capacity conflicts with the pending commit.");
+        }
+    }
+
+    internal void ApplySnapshotCommit(MercenaryContractRecord contract, int maximumOpenContracts)
+    {
+        lock (gate)
+        {
+            ValidateSnapshotCommit(contract, maximumOpenContracts);
+            if (FindByIdempotencyKeyNoLock(contract.IdempotencyKey) is null)
+                PersistContracts([contract], Array.Empty<string>());
         }
     }
 
