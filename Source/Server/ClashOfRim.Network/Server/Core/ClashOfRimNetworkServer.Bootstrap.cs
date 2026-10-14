@@ -66,7 +66,7 @@ public static partial class ClashOfRimNetworkServer
         builder.Services.AddHostedService<SnapshotPostUploadBackgroundService>();
         WebApplication app = builder.Build();
         networkState.SetRuntimeLogger(RuntimeLogger(app.Services.GetRequiredService<ILoggerFactory>()));
-        RecoverBankSnapshotCommits(networkState);
+        RecoverSnapshotCommits(networkState);
         app.Logger.LogInformation(T("Server.LocalizationLoaded", ("LANGUAGES", string.Join(", ", ServerLocalization.LoadedLanguages))));
         if (plugins.Plugins.Count > 0)
         {
@@ -140,7 +140,7 @@ public static partial class ClashOfRimNetworkServer
         UseRequestDiagnostics(app);
         app.Use(async (context, next) =>
         {
-            RecoverBankSnapshotCommits(networkState);
+            RecoverSnapshotCommits(networkState);
             await next(context);
         });
         MapEndpoints(app);
@@ -191,7 +191,8 @@ public static partial class ClashOfRimNetworkServer
         }
 
         return (new ClashOfRimNetworkState(
-            bankSnapshotCommits: new BankSnapshotCommitService(Path.Combine(dataDirectory, "bank-snapshot-commits")),
+            // Keep the original directory name so pending version 1 bank intents survive upgrades.
+            snapshotCommits: new SnapshotCommitService(Path.Combine(dataDirectory, "bank-snapshot-commits")),
             ledger: new SqliteAuthoritativeEventLedger(databasePath),
             snapshotStore: new FileColonySnapshotIndexStore(Path.Combine(dataDirectory, "snapshots")),
             serverConfiguration: serverConfiguration,

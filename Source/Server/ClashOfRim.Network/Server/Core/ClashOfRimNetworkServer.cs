@@ -553,7 +553,7 @@ public static partial class ClashOfRimNetworkServer
         if (!prepared.Accepted) return prepared;
         lock (state.RaidSettlementSnapshotMutationGate)
         {
-            RecoverBankSnapshotCommits(state);
+            RecoverSnapshotCommits(state);
             return receiver.CommitPrepared(context, savePackage, prepared, storeAccepted, validateGameplayContinuity);
         }
     }

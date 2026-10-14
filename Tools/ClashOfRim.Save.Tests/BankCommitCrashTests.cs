@@ -25,7 +25,7 @@ internal static class BankCommitCrashTests
                 {
                     Status = BankLoanRegistry.StatusRepaid, SnapshotId = "bank-commit", RepaymentIdempotencyKey = "repayment"
                 };
-                var commits = new BankSnapshotCommitService(Path.Combine(root, "intents"));
+                var commits = new SnapshotCommitService(Path.Combine(root, "intents"));
                 if (crashAt == 3) Execute(database,
                     "create trigger fail_bank_commit before insert on server_bank_loans begin select raise(abort, 'injected bank persistence failure'); end;");
                 bool failed = false;
@@ -45,9 +45,16 @@ internal static class BankCommitCrashTests
                 }
 
                 // Reopen both durable stores; no in-memory cache survives the simulated crash.
+                // Version 1 journals written before gift support have no Gift property.
+                foreach (string path in Directory.EnumerateFiles(Path.Combine(root, "intents"), "*.json"))
+                {
+                    var json = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(path))!;
+                    json.AsObject().Remove("Gift");
+                    File.WriteAllText(path, json.ToJsonString());
+                }
                 bank = CreateBank(database, seed: false);
                 files = new FileColonySnapshotIndexStore(Path.Combine(root, "snapshots"));
-                commits = new BankSnapshotCommitService(Path.Combine(root, "intents"));
+                commits = new SnapshotCommitService(Path.Combine(root, "intents"));
                 int processed = 0;
                 commits.Recover(files, bank, (_, _) => processed++);
                 commits.Recover(files, bank, (_, _) => processed++);

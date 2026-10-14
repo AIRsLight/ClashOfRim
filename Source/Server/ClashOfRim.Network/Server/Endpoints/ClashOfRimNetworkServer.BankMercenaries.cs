@@ -316,7 +316,7 @@ public static partial class ClashOfRimNetworkServer
         lock (state.RaidSettlementSnapshotMutationGate)
             lock (state.BankLoans.SnapshotCommitGate)
             {
-                RecoverBankSnapshotCommits(state);
+                RecoverSnapshotCommits(state);
                 if (state.BankLoans.GetActive(request.UserId, request.ColonyId) is not null) return Results.Ok(new BankLoanResponse(ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Bank.LoanCannotRepay")), null, 0, null));
                 upload = CreateSnapshotReceiver(state).CommitPrepared(
                     new SnapshotUploadContext(request.UserId, request.ColonyId, request.ConfirmedSnapshot.SnapshotId!,
@@ -336,10 +336,10 @@ public static partial class ClashOfRimNetworkServer
                     request.IdempotencyKey, request.UserId, request.ColonyId,
                     upload.AcceptedSnapshot.Identity.SnapshotId!, request.PrincipalSilver, interestSilver,
                     request.DurationDays, context.CurrentGameTicks, nowUtc, request.RequestedLoanId);
-                state.BankSnapshotCommits.Commit(state.SnapshotStore, state.BankLoans,
+                state.SnapshotCommits.Commit(state.SnapshotStore, state.BankLoans,
                     ProtocolDtoMapper.ToSaveSnapshotPackage(request.ConfirmedSnapshot, multipart.Payload),
                     upload.AcceptedSnapshot, confirmedLoan, null,
-                    (snapshot, kind) => RunBankSnapshotPostUpload(state, snapshot, kind), upload.SnapshotUploadKind);
+                    (snapshot, kind) => RunCommittedSnapshotPostUpload(state, snapshot, kind), upload.SnapshotUploadKind);
 
                 BankRequestContext updatedContext = context with { ActiveLoan = confirmedLoan };
                 return Results.Ok(new BankLoanResponse(
@@ -479,7 +479,7 @@ public static partial class ClashOfRimNetworkServer
         lock (state.RaidSettlementSnapshotMutationGate)
             lock (state.BankLoans.SnapshotCommitGate)
             {
-                RecoverBankSnapshotCommits(state);
+                RecoverSnapshotCommits(state);
                 if (state.BankLoans.GetActive(request.UserId, request.ColonyId) != active) return Results.Ok(new BankLoanResponse(ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Bank.LoanCannotRepay")), null, 0, null));
                 upload = CreateSnapshotReceiver(state).CommitPrepared(
                     new SnapshotUploadContext(request.UserId, request.ColonyId, request.ConfirmedSnapshot.SnapshotId!,
@@ -506,10 +506,10 @@ public static partial class ClashOfRimNetworkServer
                     RepaymentRequestedAtUtc = nowUtc,
                     RepaymentRequestedAtGameTicks = upload.AcceptedSnapshot.Envelope.GameTicks ?? context.CurrentGameTicks
                 };
-                state.BankSnapshotCommits.Commit(state.SnapshotStore, state.BankLoans,
+                state.SnapshotCommits.Commit(state.SnapshotStore, state.BankLoans,
                     ProtocolDtoMapper.ToSaveSnapshotPackage(request.ConfirmedSnapshot, multipart.Payload),
                     upload.AcceptedSnapshot, repaid, null,
-                    (snapshot, kind) => RunBankSnapshotPostUpload(state, snapshot, kind), upload.SnapshotUploadKind);
+                    (snapshot, kind) => RunCommittedSnapshotPostUpload(state, snapshot, kind), upload.SnapshotUploadKind);
 
                 return Results.Ok(new BankLoanResponse(
                     ProtocolResponse.Ok(T("Bank.LoanRepaidWithSnapshot")),
@@ -727,7 +727,7 @@ public static partial class ClashOfRimNetworkServer
         lock (state.RaidSettlementSnapshotMutationGate)
             lock (state.BankLoans.SnapshotCommitGate)
             {
-                RecoverBankSnapshotCommits(state);
+                RecoverSnapshotCommits(state);
                 if (state.BankLoans.FindDebt(request.UserId, request.ColonyId, request.DebtId) != debt) return Results.Ok(new BankDebtResponse(ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Bank.DebtCannotRepay")), null, 0, null));
                 upload = CreateSnapshotReceiver(state).CommitPrepared(
                     new SnapshotUploadContext(request.UserId, request.ColonyId, request.ConfirmedSnapshot.SnapshotId!,
@@ -754,10 +754,10 @@ public static partial class ClashOfRimNetworkServer
                     RepaymentRequestedAtUtc = nowUtc,
                     RepaymentRequestedAtGameTicks = upload.AcceptedSnapshot.Envelope.GameTicks ?? context.CurrentGameTicks
                 };
-                state.BankSnapshotCommits.Commit(state.SnapshotStore, state.BankLoans,
+                state.SnapshotCommits.Commit(state.SnapshotStore, state.BankLoans,
                     ProtocolDtoMapper.ToSaveSnapshotPackage(request.ConfirmedSnapshot, multipart.Payload),
                     upload.AcceptedSnapshot, null, repaid,
-                    (snapshot, kind) => RunBankSnapshotPostUpload(state, snapshot, kind), upload.SnapshotUploadKind);
+                    (snapshot, kind) => RunCommittedSnapshotPostUpload(state, snapshot, kind), upload.SnapshotUploadKind);
 
                 return Results.Ok(new BankDebtResponse(
                     ProtocolResponse.Ok(T("Bank.DebtRepaidWithSnapshot")),

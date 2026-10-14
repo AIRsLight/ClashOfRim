@@ -10,82 +10,93 @@ public static partial class ClashOfRimNetworkServer
 {
     private static IResult CreateGift(CreateGiftRequest request, ClashOfRimNetworkState state)
     {
-        ProtocolResponse? validation = ValidateGiftCreationRequest(request);
-        if (validation is not null)
+        lock (state.RaidSettlementSnapshotMutationGate)
         {
-            return Results.Ok(new EventCreationResponse(
-                validation,
-                eventId: null,
-                ProtocolDeliverySemantics.OfflinePending));
-        }
-
-        if (!state.ServerConfiguration.GiftsEnabled)
-        {
-            return Results.Ok(new EventCreationResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, T("Gift.Disabled")),
-                eventId: null,
-                ProtocolDeliverySemantics.ServerNotification));
-        }
-
-        DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
-        AuthoritativeEvent? existingEvent = FindEventByIdempotencyKey(state.Ledger, request.IdempotencyKey);
-        if (existingEvent is not null)
-        {
-            return Results.Ok(new EventCreationResponse(
-                new ProtocolResponse(true, ProtocolErrorCode.DuplicateRequest, T("Gift.TransactionDuplicate")),
-                existingEvent.EventId,
-                existingEvent.Status == ServerEventStatus.ReadyForImmediateDelivery
-                    ? ProtocolDeliverySemantics.OnlineImmediate
-                    : ProtocolDeliverySemantics.OfflinePending));
-        }
-
-        EventTargetContext? targetContext = ResolveGiftTargetContext(request, state);
-        if (IsForcedGiftDelivery(request))
-        {
-            ProtocolResponse? forcedValidation = ValidateForcedGiftDelivery(request, state, nowUtc, targetContext);
-            if (forcedValidation is not null)
+            RecoverSnapshotCommits(state);
+            ProtocolResponse? validation = ValidateGiftCreationRequest(request);
+            if (validation is not null)
             {
                 return Results.Ok(new EventCreationResponse(
-                    forcedValidation,
+                    validation,
+                    eventId: null,
+                    ProtocolDeliverySemantics.OfflinePending));
+            }
+
+            if (!state.ServerConfiguration.GiftsEnabled)
+            {
+                return Results.Ok(new EventCreationResponse(
+                    ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, T("Gift.Disabled")),
                     eventId: null,
                     ProtocolDeliverySemantics.ServerNotification));
             }
+
+            DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
+            AuthoritativeEvent? existingEvent = FindEventByIdempotencyKey(state.Ledger, request.IdempotencyKey);
+            if (existingEvent is not null)
+            {
+                if (existingEvent.Type != ServerEventType.ItemDelivery
+                    || existingEvent.Payload is not ItemDeliveryEventPayload { Purpose: ItemDeliveryPurpose.Gift }
+                    || existingEvent.Actor.UserId != request.Actor.UserId || existingEvent.Actor.ColonyId != request.Actor.ColonyId
+                    || existingEvent.Target.UserId != request.Target.UserId || existingEvent.Target.ColonyId != request.Target.ColonyId)
+                    return Results.Ok(new EventCreationResponse(
+                        ProtocolResponse.Reject(ProtocolErrorCode.Conflict, "Gift idempotency key belongs to another operation."),
+                        null, ProtocolDeliverySemantics.OfflinePending));
+                return Results.Ok(new EventCreationResponse(
+                    new ProtocolResponse(true, ProtocolErrorCode.DuplicateRequest, T("Gift.TransactionDuplicate")),
+                    existingEvent.EventId,
+                    existingEvent.Status == ServerEventStatus.ReadyForImmediateDelivery
+                        ? ProtocolDeliverySemantics.OnlineImmediate
+                        : ProtocolDeliverySemantics.OfflinePending));
+            }
+
+            EventTargetContext? targetContext = ResolveGiftTargetContext(request, state);
+            if (IsForcedGiftDelivery(request))
+            {
+                ProtocolResponse? forcedValidation = ValidateForcedGiftDelivery(request, state, nowUtc, targetContext);
+                if (forcedValidation is not null)
+                {
+                    return Results.Ok(new EventCreationResponse(
+                        forcedValidation,
+                        eventId: null,
+                        ProtocolDeliverySemantics.ServerNotification));
+                }
+            }
+
+            bool targetOnline = state.OnlinePresence.IsUserOnline(request.Target.UserId);
+            if (!TryStoreInlinePawnPackages(
+                    state,
+                    request.Actor,
+                    "gift:" + request.IdempotencyKey,
+                    request.Things,
+                    out IReadOnlyList<ThingReferenceDto> giftThings,
+                    out ProtocolResponse? packageFailure))
+            {
+                return Results.Ok(new EventCreationResponse(
+                    packageFailure ?? ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("PawnPackage.ParseFailed")),
+                    eventId: null,
+                    ProtocolDeliverySemantics.OfflinePending));
+            }
+
+            AuthoritativeEvent giftEvent = AuthoritativeEventFactory.Create(
+                ServerEventType.ItemDelivery,
+                ToEventParty(request.Actor),
+                ToEventParty(request.Target),
+                request.IdempotencyKey,
+                targetOnline,
+                new ItemDeliveryEventPayload(
+                    giftThings.Select(thing => ToEventThingReference(thing, request.Actor.SnapshotId)).ToList(),
+                    request.Message,
+                    NormalizeGiftDeliveryKind(request.DeliveryKind)),
+                nowUtc,
+                targetContext);
+
+            LedgerAppendResult append = state.Ledger.Append(giftEvent);
+            SignalIfCreated(state, append, giftEvent.Target.UserId);
+            return Results.Ok(ToEventCreationResponse(
+                append,
+                targetOnline ? ProtocolDeliverySemantics.OnlineImmediate : ProtocolDeliverySemantics.OfflinePending,
+                T("Gift.Created")));
         }
-
-        bool targetOnline = state.OnlinePresence.IsUserOnline(request.Target.UserId);
-        if (!TryStoreInlinePawnPackages(
-                state,
-                request.Actor,
-                "gift:" + request.IdempotencyKey,
-                request.Things,
-                out IReadOnlyList<ThingReferenceDto> giftThings,
-                out ProtocolResponse? packageFailure))
-        {
-            return Results.Ok(new EventCreationResponse(
-                packageFailure ?? ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("PawnPackage.ParseFailed")),
-                eventId: null,
-                ProtocolDeliverySemantics.OfflinePending));
-        }
-
-        AuthoritativeEvent giftEvent = AuthoritativeEventFactory.Create(
-            ServerEventType.ItemDelivery,
-            ToEventParty(request.Actor),
-            ToEventParty(request.Target),
-            request.IdempotencyKey,
-            targetOnline,
-            new ItemDeliveryEventPayload(
-                giftThings.Select(thing => ToEventThingReference(thing, request.Actor.SnapshotId)).ToList(),
-                request.Message,
-                NormalizeGiftDeliveryKind(request.DeliveryKind)),
-            nowUtc,
-            targetContext);
-
-        LedgerAppendResult append = state.Ledger.Append(giftEvent);
-        SignalIfCreated(state, append, giftEvent.Target.UserId);
-        return Results.Ok(ToEventCreationResponse(
-            append,
-            targetOnline ? ProtocolDeliverySemantics.OnlineImmediate : ProtocolDeliverySemantics.OfflinePending,
-            T("Gift.Created")));
     }
 
     private static async Task<IResult> CreateGiftWithSnapshot(HttpRequest httpRequest, ClashOfRimNetworkState state)
@@ -147,25 +158,12 @@ public static partial class ClashOfRimNetworkServer
                 ProtocolDeliverySemantics.OnlineImmediate));
         }
 
-        AuthoritativeEvent? existingEvent = FindEventByIdempotencyKey(state.Ledger, request.IdempotencyKey);
-        if (existingEvent is not null)
+        lock (state.RaidSettlementSnapshotMutationGate)
         {
-            string? sourceSnapshotId = existingEvent.Payload is ItemDeliveryEventPayload existingPayload
-                ? existingPayload.Items.FirstOrDefault()?.SourceSnapshotId
-                : null;
-            string? nextLineageToken = FindSnapshotNextLineageToken(
-                state,
-                request.Actor.UserId,
-                request.Actor.ColonyId ?? string.Empty,
-                sourceSnapshotId);
-            return Results.Ok(new EventCreationResponse(
-                new ProtocolResponse(true, ProtocolErrorCode.DuplicateRequest, T("Gift.TransactionDuplicate")),
-                existingEvent.EventId,
-                existingEvent.Status == ServerEventStatus.ReadyForImmediateDelivery
-                    ? ProtocolDeliverySemantics.OnlineImmediate
-                    : ProtocolDeliverySemantics.OfflinePending,
-                sourceSnapshotId,
-                nextLineageToken));
+            RecoverSnapshotCommits(state);
+            AuthoritativeEvent? existingEvent = FindEventByIdempotencyKey(state.Ledger, request.IdempotencyKey);
+            if (existingEvent is not null)
+                return GiftSnapshotReplayResponse(state, request, transaction.ConfirmedSnapshot.SnapshotId!, existingEvent);
         }
 
         DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
@@ -211,7 +209,7 @@ public static partial class ClashOfRimNetworkServer
             transaction.ConfirmedSnapshot.SnapshotId!,
             transaction.ConfirmedSnapshot,
             multipart.Payload,
-            nowUtc);
+            nowUtc, storeAccepted: false);
         if (!upload.Accepted || upload.AcceptedSnapshot is null)
         {
             return Results.Ok(new EventCreationResponse(
@@ -220,57 +218,86 @@ public static partial class ClashOfRimNetworkServer
                 ProtocolDeliverySemantics.OnlineImmediate));
         }
 
-        string acceptedSnapshotId = upload.AcceptedSnapshot.Identity.SnapshotId
-            ?? transaction.ConfirmedSnapshot.SnapshotId!;
-        bool targetOnline = state.OnlinePresence.IsUserOnline(request.Target.UserId);
-        var acceptedActor = new ProtocolIdentity(request.Actor.UserId, request.Actor.ColonyId, acceptedSnapshotId);
-        if (!TryStoreInlinePawnPackages(
-                state,
-                acceptedActor,
-                "gift:" + request.IdempotencyKey,
-                request.Things,
-                out IReadOnlyList<ThingReferenceDto> giftThings,
-                out packageFailure))
+        lock (state.RaidSettlementSnapshotMutationGate)
         {
+            RecoverSnapshotCommits(state);
+            AuthoritativeEvent? existingEvent = FindEventByIdempotencyKey(state.Ledger, request.IdempotencyKey);
+            if (existingEvent is not null)
+                return GiftSnapshotReplayResponse(state, request, transaction.ConfirmedSnapshot.SnapshotId!, existingEvent);
+            upload = CreateSnapshotReceiver(state).CommitPrepared(
+                new SnapshotUploadContext(request.Actor.UserId, request.Actor.ColonyId ?? string.Empty,
+                    transaction.ConfirmedSnapshot.SnapshotId!, null, upload.SnapshotUploadKind),
+                ProtocolDtoMapper.ToSaveSnapshotPackage(transaction.ConfirmedSnapshot, multipart.Payload),
+                upload, storeAccepted: false);
+            if (!upload.Accepted || upload.AcceptedSnapshot is null)
+                return Results.Ok(new EventCreationResponse(ToProtocolResponse(upload), null,
+                    ProtocolDeliverySemantics.OnlineImmediate));
+            string acceptedSnapshotId = upload.AcceptedSnapshot.Identity.SnapshotId
+                ?? transaction.ConfirmedSnapshot.SnapshotId!;
+            bool targetOnline = state.OnlinePresence.IsUserOnline(request.Target.UserId);
+            var acceptedActor = new ProtocolIdentity(request.Actor.UserId, request.Actor.ColonyId, acceptedSnapshotId);
+            string giftCommitId = Guid.NewGuid().ToString("N");
+            if (!TryStoreInlinePawnPackages(
+                    state,
+                    acceptedActor,
+                    "gift-commit:" + giftCommitId,
+                    request.Things,
+                    out IReadOnlyList<ThingReferenceDto> giftThings,
+                    out packageFailure))
+            {
+                return Results.Ok(new EventCreationResponse(
+                    packageFailure ?? ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("PawnPackage.ParseFailed")),
+                    eventId: null,
+                    ProtocolDeliverySemantics.OnlineImmediate));
+            }
+
+            AuthoritativeEvent giftEvent = AuthoritativeEventFactory.Create(
+                ServerEventType.ItemDelivery,
+                ToEventParty(acceptedActor),
+                ToEventParty(request.Target),
+                request.IdempotencyKey,
+                targetOnline,
+                new ItemDeliveryEventPayload(
+                    giftThings.Select(thing => ToEventThingReference(thing, acceptedSnapshotId)).ToList(),
+                    request.Message,
+                    NormalizeGiftDeliveryKind(request.DeliveryKind)),
+                nowUtc,
+                targetContext) with
+            { EventId = "gift:" + giftCommitId };
+
+            state.SnapshotCommits.CommitGift(state.SnapshotStore, state.BankLoans, state.Ledger,
+                ProtocolDtoMapper.ToSaveSnapshotPackage(transaction.ConfirmedSnapshot, multipart.Payload),
+                upload.AcceptedSnapshot, giftEvent,
+                (snapshot, kind) => RunCommittedSnapshotPostUpload(state, snapshot, kind),
+                userId => state.EventNotifications.SignalUsers(new[] { userId }), upload.SnapshotUploadKind);
+            var append = new LedgerAppendResult(giftEvent, Created: true);
+            EventCreationResponse created = ToEventCreationResponse(
+                append,
+                targetOnline ? ProtocolDeliverySemantics.OnlineImmediate : ProtocolDeliverySemantics.OfflinePending,
+                T("Gift.Created"));
             return Results.Ok(new EventCreationResponse(
-                packageFailure ?? ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("PawnPackage.ParseFailed")),
-                eventId: null,
-                ProtocolDeliverySemantics.OnlineImmediate));
+                created.Result,
+                created.EventId,
+                created.DeliverySemantics,
+                acceptedSnapshotId,
+                upload.AcceptedSnapshot.Envelope.NextLineageToken));
         }
+    }
 
-        AuthoritativeEvent giftEvent = AuthoritativeEventFactory.Create(
-            ServerEventType.ItemDelivery,
-            ToEventParty(acceptedActor),
-            ToEventParty(request.Target),
-            request.IdempotencyKey,
-            targetOnline,
-            new ItemDeliveryEventPayload(
-                giftThings.Select(thing => ToEventThingReference(thing, acceptedSnapshotId)).ToList(),
-                request.Message,
-                NormalizeGiftDeliveryKind(request.DeliveryKind)),
-            nowUtc,
-            targetContext);
-
-        LedgerAppendResult append = state.Ledger.Append(giftEvent);
-        SignalIfCreated(state, append, giftEvent.Target.UserId);
-        RunSnapshotPostUploadProcessors(
-            state,
-            request.Actor.UserId,
-            request.Actor.ColonyId ?? string.Empty,
-            sessionId: null,
-            upload,
-            nowUtc);
-
-        EventCreationResponse created = ToEventCreationResponse(
-            append,
-            targetOnline ? ProtocolDeliverySemantics.OnlineImmediate : ProtocolDeliverySemantics.OfflinePending,
-            T("Gift.Created"));
+    private static IResult GiftSnapshotReplayResponse(ClashOfRimNetworkState state, CreateGiftRequest request,
+        string snapshotId, AuthoritativeEvent existing)
+    {
+        if (!GiftSnapshotReplayPolicy.Matches(existing, request.Actor.UserId, request.Actor.ColonyId, snapshotId)
+            || existing.Target.UserId != request.Target.UserId || existing.Target.ColonyId != request.Target.ColonyId)
+            return Results.Ok(new EventCreationResponse(
+                ProtocolResponse.Reject(ProtocolErrorCode.Conflict, "Gift idempotency key belongs to another operation."),
+                null, ProtocolDeliverySemantics.OnlineImmediate));
         return Results.Ok(new EventCreationResponse(
-            created.Result,
-            created.EventId,
-            created.DeliverySemantics,
-            acceptedSnapshotId,
-            upload.AcceptedSnapshot.Envelope.NextLineageToken));
+            new ProtocolResponse(true, ProtocolErrorCode.DuplicateRequest, T("Gift.TransactionDuplicate")),
+            existing.EventId,
+            existing.Status == ServerEventStatus.ReadyForImmediateDelivery
+                ? ProtocolDeliverySemantics.OnlineImmediate : ProtocolDeliverySemantics.OfflinePending,
+            snapshotId, FindSnapshotNextLineageToken(state, request.Actor.UserId, request.Actor.ColonyId ?? string.Empty, snapshotId)));
     }
 
     private static ProtocolResponse? ValidateGiftCreationRequest(CreateGiftRequest request)
@@ -1553,10 +1580,10 @@ public static partial class ClashOfRimNetworkServer
                 PostagePaidByAcceptor: request.PostagePaidByAcceptor),
             DateTimeOffset.UtcNow,
             tradeOrder.TargetContext) with
-            {
-                Status = ServerEventStatus.Recorded,
-                LastApplicationResult = EventApplicationResultKind.ReadyToApply
-            };
+        {
+            Status = ServerEventStatus.Recorded,
+            LastApplicationResult = EventApplicationResultKind.ReadyToApply
+        };
 
         LedgerAppendResult append = state.Ledger.Append(memoEvent);
         LogEventAppend(state, append, "trade-order-accepted-memo");

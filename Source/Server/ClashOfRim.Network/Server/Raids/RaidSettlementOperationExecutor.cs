@@ -152,7 +152,7 @@ public static class RaidSettlementOperationExecutor
         RaidSettlementLedgerRecordResult record;
         lock (state.RaidSettlementSnapshotMutationGate)
         {
-            ClashOfRimNetworkServer.RecoverBankSnapshotCommits(state);
+            ClashOfRimNetworkServer.RecoverSnapshotCommits(state);
             sourceRaid = state.Ledger.Find(payload.RaidEventId);
             existingSettlement = FindSettlementEvent(state.Ledger, payload.RaidEventId);
             if (sourceRaid?.Status == ServerEventStatus.AppliedToSnapshot)

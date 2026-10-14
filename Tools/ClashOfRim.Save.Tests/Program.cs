@@ -15,6 +15,7 @@ using System.Xml.Linq;
 var tests = new (string Name, Action Run)[]
 {
     ("银行快照提交跨崩溃恢复且重试幂等", () => BankCommitCrashTests.Run(BuildFixturePackage)),
+    ("礼物快照提交跨崩溃恢复且冲突拒绝覆盖", () => GiftCommitCrashTests.Run(BuildFixturePackage)),
     ("并发准备的快照在提交时重新验证 lineage", VerifyPreparedSnapshotsCannotOverwrite),
     ("服务器数据库新建时写入当前 schema 版本", VerifyServerDatabaseMigrationInitializesNewDatabase),
     ("服务器启动可只读识别无版本旧数据库", VerifyServerDatabaseMigrationAssessesLegacyDatabaseWithoutMutation),
@@ -236,6 +237,7 @@ static void VerifyServerDatabaseMigrationCreatesDomainRegistryTables()
         Require(result.AppliedMigrations.Contains("6->7"), "迁移结果应记录 6->7");
         Require(result.AppliedMigrations.Contains("7->8"), "迁移结果应记录 7->8");
         Require(result.AppliedMigrations.Contains("8->9"), "提交日志启用时应升级到需要恢复能力的版本");
+        Require(result.AppliedMigrations.Contains("9->10"), "礼物提交日志启用时应升级到支持礼物恢复的版本");
 
         string[] expectedTables =
         [

@@ -16,7 +16,7 @@ public static class ServerDatabaseSchema
 {
     // Version 1 is the known JSON-document persistence layout.
     public const int LegacyJsonDocumentVersion = 1;
-    public const int CurrentVersion = 9;
+    public const int CurrentVersion = 10;
 }
 
 public sealed record ServerDatabaseMigrationOptions(int? DeclaredSourceVersion = null);
@@ -91,6 +91,11 @@ public static class ServerDatabaseMigrator
         new(
             FromVersion: 8,
             ToVersion: 9,
+            Apply: (_, _, _) => MigrationApplicationResult.None),
+        // Version 10 also recovers gift intents from the shared snapshot journal.
+        new(
+            FromVersion: 9,
+            ToVersion: 10,
             Apply: (_, _, _) => MigrationApplicationResult.None)
     ];
 

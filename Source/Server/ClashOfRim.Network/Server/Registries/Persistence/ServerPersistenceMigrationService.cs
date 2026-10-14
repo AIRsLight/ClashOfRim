@@ -18,7 +18,7 @@ public sealed class ServerPersistenceMigrationService
 
     public ServerPersistenceMigrationAssessment Assess(ServerDatabaseMigrationOptions? databaseOptions = null)
     {
-        BankSnapshotCommitService.ValidateDirectory(Path.Combine(DataDirectory, "bank-snapshot-commits"));
+        SnapshotCommitService.ValidateDirectory(Path.Combine(DataDirectory, "bank-snapshot-commits"));
         string databasePath = Path.Combine(DataDirectory, "server.sqlite");
         string snapshotDirectory = Path.Combine(DataDirectory, "snapshots");
         ServerDatabaseMigrationAssessment database = ServerDatabaseMigrator.Assess(databasePath, databaseOptions);
@@ -58,7 +58,7 @@ public sealed class ServerPersistenceMigrationService
 
     public ServerPersistenceMigrationResult ValidateForStartup()
     {
-        BankSnapshotCommitService.ValidateDirectory(Path.Combine(DataDirectory, "bank-snapshot-commits"));
+        SnapshotCommitService.ValidateDirectory(Path.Combine(DataDirectory, "bank-snapshot-commits"));
         string snapshotDirectory = Path.Combine(DataDirectory, "snapshots");
         ServerSnapshotPackageMigrationAssessment snapshotAssessment = ServerSnapshotPackageMigrator.Assess(snapshotDirectory);
         if (snapshotAssessment.Status != ServerPersistenceMigrationStatus.Ready)
