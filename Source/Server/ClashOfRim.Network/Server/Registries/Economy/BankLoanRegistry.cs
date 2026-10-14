@@ -39,8 +39,6 @@ public sealed class BankLoanRegistry
                 throw new InvalidOperationException("Snapshot commits require the migrated structured bank store.");
             // Persist before publishing to the cache, so a failed write remains safely retryable.
             PersistBankRecords(loan is null ? [] : [loan], debt is null ? [] : [debt], [], []);
-            if (loan is not null) RegisterLoadedLoan(loan, overwrite: true);
-            if (debt is not null) RegisterLoadedDebt(debt, overwrite: true);
         }
     }
     private readonly IKeyedJsonRecordStore? structuredPersistence;
@@ -166,9 +164,6 @@ public sealed class BankLoanRegistry
                 RepaymentIdempotencyKey: null,
                 RepaymentRequestedAtUtc: null,
                 RepaymentRequestedAtGameTicks: null);
-            debts[debtId] = debt;
-            RegisterDebtIdempotencyKeys(debt);
-            InvalidateOpenDebtCache(debt);
             PersistBankRecords(Array.Empty<BankLoanRecord>(), [debt], Array.Empty<string>(), Array.Empty<string>());
             return debt;
         }
@@ -217,9 +212,6 @@ public sealed class BankLoanRegistry
                 RepaymentRequestedAtUtc = requestedAtUtc,
                 RepaymentRequestedAtGameTicks = requestedAtGameTicks
             };
-            debts[debtId] = updated;
-            RegisterDebtIdempotencyKeys(updated);
-            InvalidateOpenDebtCache(updated);
             PersistBankRecords(Array.Empty<BankLoanRecord>(), [updated], Array.Empty<string>(), Array.Empty<string>());
             return updated;
         }
@@ -262,9 +254,6 @@ public sealed class BankLoanRegistry
                 RepaymentRequestedAtUtc = paidAtUtc,
                 RepaymentRequestedAtGameTicks = paidAtGameTicks
             };
-            debts[debtId] = updated;
-            RegisterDebtIdempotencyKeys(updated);
-            InvalidateOpenDebtCache(updated);
             PersistBankRecords(Array.Empty<BankLoanRecord>(), [updated], Array.Empty<string>(), Array.Empty<string>());
             return updated;
         }
@@ -318,9 +307,6 @@ public sealed class BankLoanRegistry
                 RepaymentRequestedAtUtc: null,
                 RepaymentRequestedAtGameTicks: null);
 
-            loans[loanId] = loan;
-            idByIdempotencyKey[idempotencyKey] = loanId;
-            activeLoanIdByColony[ColonyKey(userId, colonyId)] = loanId;
             PersistBankRecords([loan], Array.Empty<BankDebtRecord>(), Array.Empty<string>(), Array.Empty<string>());
             return loan;
         }
@@ -355,8 +341,6 @@ public sealed class BankLoanRegistry
                 RepaymentRequestedAtUtc = requestedAtUtc,
                 RepaymentRequestedAtGameTicks = requestedAtGameTicks
             };
-            loans[loanId] = updated;
-            idByIdempotencyKey[idempotencyKey] = loanId;
             PersistBankRecords([updated], Array.Empty<BankDebtRecord>(), Array.Empty<string>(), Array.Empty<string>());
             return updated;
         }
@@ -400,9 +384,6 @@ public sealed class BankLoanRegistry
                 RepaymentRequestedAtUtc = paidAtUtc,
                 RepaymentRequestedAtGameTicks = paidAtGameTicks
             };
-            loans[activeLoanId] = updated;
-            idByIdempotencyKey[idempotencyKey] = activeLoanId;
-            activeLoanIdByColony.Remove(colonyKey);
             PersistBankRecords([updated], Array.Empty<BankDebtRecord>(), Array.Empty<string>(), Array.Empty<string>());
             return updated;
         }
@@ -429,7 +410,6 @@ public sealed class BankLoanRegistry
                         Status = StatusActive,
                         SnapshotId = acceptedSnapshotId
                     };
-                    loans[loanId] = confirmedLoan;
                 }
                 else if (string.Equals(loan.Status, StatusPendingRepayment, StringComparison.Ordinal))
                 {
@@ -440,8 +420,6 @@ public sealed class BankLoanRegistry
                         RepaidAtUtc = confirmedAtUtc,
                         RepaidAtGameTicks = acceptedSnapshotGameTicks ?? loan.RepaymentRequestedAtGameTicks
                     };
-                    loans[loanId] = confirmedLoan;
-                    activeLoanIdByColony.Remove(colonyKey);
                 }
             }
 
@@ -465,8 +443,6 @@ public sealed class BankLoanRegistry
                         PaidAtUtc = confirmedAtUtc,
                         PaidAtGameTicks = acceptedSnapshotGameTicks ?? debt.RepaymentRequestedAtGameTicks
                     };
-                debts[debt.DebtId] = confirmed;
-                InvalidateOpenDebtCache(confirmed);
                 confirmedDebts.Add(confirmed);
             }
 
@@ -508,9 +484,6 @@ public sealed class BankLoanRegistry
                 if (string.Equals(loan.Status, StatusPendingActivation, StringComparison.Ordinal)
                     && ShouldCancelPending(loan.CreatedAtUtc, nowUtc, timeout, forceCancel))
                 {
-                    loans.Remove(loanId);
-                    idByIdempotencyKey.Remove(loan.IdempotencyKey);
-                    activeLoanIdByColony.Remove(colonyKey);
                     deletedLoanIds.Add(loanId);
                     cancelledLoanActivations++;
                     changed = true;
@@ -525,12 +498,7 @@ public sealed class BankLoanRegistry
                         RepaymentRequestedAtUtc = null,
                         RepaymentRequestedAtGameTicks = null
                     };
-                    loans[loanId] = reverted;
                     changedLoans.Add(reverted);
-                    if (!string.IsNullOrWhiteSpace(loan.RepaymentIdempotencyKey))
-                    {
-                        idByIdempotencyKey.Remove(loan.RepaymentIdempotencyKey!);
-                    }
 
                     revertedLoanRepayments++;
                     changed = true;
@@ -548,10 +516,7 @@ public sealed class BankLoanRegistry
                     continue;
                 }
 
-                debts.Remove(debt.DebtId);
                 deletedDebtIds.Add(debt.DebtId);
-                RemoveDebtIdempotencyKeys(debt);
-                InvalidateOpenDebtCache(debt);
                 cancelledDebtActivations++;
                 changed = true;
             }
@@ -575,10 +540,7 @@ public sealed class BankLoanRegistry
                     RepaymentRequestedAtUtc = null,
                     RepaymentRequestedAtGameTicks = null
                 };
-                debts[debt.DebtId] = reverted;
                 changedDebts.Add(reverted);
-                RemoveDebtRepaymentIdempotencyKey(debt);
-                InvalidateOpenDebtCache(reverted);
                 revertedDebtRepayments++;
                 changed = true;
             }
@@ -600,7 +562,6 @@ public sealed class BankLoanRegistry
     {
         lock (gate)
         {
-            string colonyKey = ColonyKey(userId, colonyId);
             List<string> removed = loans
                 .Where(pair => string.Equals(pair.Value.UserId, userId, StringComparison.Ordinal)
                     && string.Equals(pair.Value.ColonyId, colonyId, StringComparison.Ordinal))
@@ -611,30 +572,6 @@ public sealed class BankLoanRegistry
                     && string.Equals(pair.Value.ColonyId, colonyId, StringComparison.Ordinal))
                 .Select(pair => pair.Key)
                 .ToList();
-            foreach (string loanId in removed)
-            {
-                BankLoanRecord loan = loans[loanId];
-                loans.Remove(loanId);
-                idByIdempotencyKey.Remove(loan.IdempotencyKey);
-                if (!string.IsNullOrWhiteSpace(loan.RepaymentIdempotencyKey))
-                {
-                    idByIdempotencyKey.Remove(loan.RepaymentIdempotencyKey!);
-                }
-            }
-
-            foreach (string debtId in removedDebts)
-            {
-                BankDebtRecord debt = debts[debtId];
-                debts.Remove(debtId);
-                RemoveDebtIdempotencyKeys(debt);
-            }
-
-            activeLoanIdByColony.Remove(colonyKey);
-            if (removedDebts.Count > 0)
-            {
-                InvalidateOpenDebtCache(userId, colonyId);
-            }
-
             if (removed.Count > 0 || removedDebts.Count > 0)
             {
                 PersistBankRecords(
@@ -806,19 +743,26 @@ public sealed class BankLoanRegistry
         openDebtsByColony.Remove(ColonyKey(userId, colonyId));
     }
 
-    private void SaveLocked()
+    private void SaveCandidate(IReadOnlyCollection<BankLoanRecord> loanUpserts, IReadOnlyCollection<BankDebtRecord> debtUpserts,
+        IReadOnlyCollection<string> loanDeletes, IReadOnlyCollection<string> debtDeletes)
     {
         if (legacyPersistence is null)
         {
             return;
         }
 
+        var candidateLoans = new Dictionary<string, BankLoanRecord>(loans, StringComparer.Ordinal);
+        var candidateDebts = new Dictionary<string, BankDebtRecord>(debts, StringComparer.Ordinal);
+        foreach (string id in loanDeletes) candidateLoans.Remove(id);
+        foreach (string id in debtDeletes) candidateDebts.Remove(id);
+        foreach (var loan in loanUpserts) candidateLoans[loan.LoanId] = loan;
+        foreach (var debt in debtUpserts) candidateDebts[debt.DebtId] = debt;
         string json = JsonSerializer.Serialize(
             new BankLoanRegistryPersistence(
-                loans.Values
+                candidateLoans.Values
                     .OrderBy(loan => loan.CreatedAtUtc)
                     .ToList(),
-                debts.Values
+                candidateDebts.Values
                     .OrderBy(debt => debt.CreatedAtUtc)
                     .ToList()),
             JsonOptions);
@@ -847,10 +791,25 @@ public sealed class BankLoanRegistry
             structuredPersistence.ApplyBatch(
                 upserts,
                 loanDeletes.Select(LoanRowKey).Concat(debtDeletes.Select(DebtRowKey)).ToArray());
-            return;
         }
+        else SaveCandidate(loanUpserts, debtUpserts, loanDeletes, debtDeletes);
 
-        SaveLocked();
+        foreach (string id in loanDeletes)
+        {
+            if (!loans.Remove(id, out var loan)) continue;
+            idByIdempotencyKey.Remove(loan.IdempotencyKey);
+            if (loan.RepaymentIdempotencyKey is not null) idByIdempotencyKey.Remove(loan.RepaymentIdempotencyKey);
+            if (activeLoanIdByColony.GetValueOrDefault(ColonyKey(loan.UserId, loan.ColonyId)) == id)
+                activeLoanIdByColony.Remove(ColonyKey(loan.UserId, loan.ColonyId));
+        }
+        foreach (string id in debtDeletes)
+        {
+            if (!debts.Remove(id, out var debt)) continue;
+            RemoveDebtIdempotencyKeys(debt);
+            InvalidateOpenDebtCache(debt);
+        }
+        foreach (var loan in loanUpserts) RegisterLoadedLoan(loan, overwrite: true);
+        foreach (var debt in debtUpserts) RegisterLoadedDebt(debt, overwrite: true);
     }
 
     private bool RegisterLoadedLoan(BankLoanRecord loan, bool overwrite)
