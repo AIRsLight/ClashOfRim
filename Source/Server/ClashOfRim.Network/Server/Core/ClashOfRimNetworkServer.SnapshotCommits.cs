@@ -1,4 +1,5 @@
 using AIRsLight.ClashOfRim.Save;
+using AIRsLight.ClashOfRim.Events;
 
 namespace AIRsLight.ClashOfRim.Network;
 
@@ -10,6 +11,7 @@ public static partial class ClashOfRimNetworkServer
         {
             if (state.ColonyDeletions.IsApplying)
                 throw new InvalidOperationException("Cannot begin nested mutations while a colony deletion is being applied.");
+            RecoverWorldLayerNotifications(state);
             state.ColonyDeletions.Recover(intent => ApplyColonyDeletion(state, intent));
             state.SnapshotCommits.Recover(state.SnapshotStore, state.BankLoans,
                 (snapshot, kind) => RunCommittedSnapshotPostUpload(state, snapshot, kind), state.Ledger,
@@ -23,6 +25,20 @@ public static partial class ClashOfRimNetworkServer
     private static void RecoverMercenaryIncidents(ClashOfRimNetworkState state) =>
         MercenaryIncidentRecovery.Recover(state.BankLoans, state.MercenaryContracts, state.Ledger,
             debt => CreateBankFineNotification(state, debt), user => state.EventNotifications.SignalUser(user));
+
+    internal static void RecoverWorldLayerNotifications(ClashOfRimNetworkState state)
+    {
+        using (state.EnterSnapshotMutation())
+        {
+            foreach (var work in state.WorldConfiguration.ListPendingLayerNotifications())
+            {
+                state.Ledger.ApplyBatch(new LedgerBatch(work.Notifications, []));
+                state.EventNotifications.SignalUsers(work.Notifications.Select(item => item.Target.UserId));
+                state.WorldConfigurationNotifications.SignalUsers(work.WorldNotifyUsers.Concat(state.Players.List().Select(player => player.UserId)));
+                state.WorldConfiguration.CompleteLayerNotifications(work.Id);
+            }
+        }
+    }
 
     private static void RunCommittedSnapshotPostUpload(ClashOfRimNetworkState state, LatestSnapshotRecord snapshot, string? kind)
     {

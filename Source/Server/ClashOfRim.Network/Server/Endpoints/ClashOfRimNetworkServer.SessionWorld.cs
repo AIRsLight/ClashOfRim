@@ -1078,7 +1078,7 @@ public static partial class ClashOfRimNetworkServer
             .FirstOrDefault();
     }
 
-    private static int CreateWorldTileFloatLayerIncreaseNotifications(
+    private static IReadOnlyList<AuthoritativeEvent> BuildWorldTileFloatLayerIncreaseNotifications(
         ClashOfRimNetworkState state,
         string userId,
         string colonyId,
@@ -1088,7 +1088,7 @@ public static partial class ClashOfRimNetworkServer
     {
         if (increases.Count == 0 || state.WorldConfiguration.Current is not WorldConfigurationDto configuration)
         {
-            return 0;
+            return [];
         }
 
         WorldTileGeometryDistanceSource? geometry = BuildWorldTileGeometryDistanceSource(configuration);
@@ -1096,7 +1096,7 @@ public static partial class ClashOfRimNetworkServer
         EventParty actor = new(userId, colonyId, snapshotId);
         string actorLabel = ResolvePlayerDisplayName(state, userId, colonyId);
         var notificationContext = new WorldTileFloatLayerNotificationContext(actorLabel);
-        int notified = 0;
+        var notifications = new Dictionary<string, AuthoritativeEvent>(StringComparer.Ordinal);
         foreach (WorldTileFloatLayerIncrease increase in increases)
         {
             WorldTileFloatLayerIncreaseNotification? notification =
@@ -1141,13 +1141,11 @@ public static partial class ClashOfRimNetworkServer
                         FromAdministrator: false),
                     nowUtc,
                     new EventTargetContext(site.WorldObjectId, site.MapUniqueId, site.Tile, EventLandingMode.MapEdge));
-                LogEventAppend(state, state.Ledger.Append(worldLayerNotification), "world-layer-notification");
-                state.EventNotifications.SignalUser(site.UserId);
-                notified++;
+                notifications.TryAdd(notificationId, worldLayerNotification);
             }
         }
 
-        return notified;
+        return notifications.Values.ToArray();
     }
 
     private static int ResolveSurfaceLayerId(WorldConfigurationDto configuration)

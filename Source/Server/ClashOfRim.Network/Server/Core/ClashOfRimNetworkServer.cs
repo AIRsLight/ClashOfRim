@@ -803,7 +803,9 @@ public static partial class ClashOfRimNetworkServer
         SnapshotUploadResult upload,
         DateTimeOffset acceptedAtUtc)
     {
-        if (upload.AcceptedSnapshot is null)
+        using var mutation = state.EnterSnapshotMutation();
+        RecoverWorldLayerNotifications(state);
+        if (upload.AcceptedSnapshot is null || state.WorldConfiguration.Current is null)
         {
             return;
         }
@@ -838,33 +840,20 @@ public static partial class ClashOfRimNetworkServer
                 return;
             }
 
-            bool changed = false;
             foreach (WorldTileFloatLayerProjection projection in projections)
             {
-                IReadOnlyList<WorldTileFloatLayerIncrease> increases =
-                    state.WorldConfiguration.ConfirmWorldTileFloatLayer(
+                state.WorldConfiguration.ConfirmWorldTileFloatLayerWithNotifications(
                         projection.LayerId,
                         projection.Values,
-                        activeWorldExtensions);
-                if (increases.Count == 0)
-                {
-                    continue;
-                }
-
-                changed = true;
-                CreateWorldTileFloatLayerIncreaseNotifications(
-                    state,
-                    userId,
-                    colonyId,
-                    upload.AcceptedSnapshot.Identity.SnapshotId ?? string.Empty,
-                    increases,
-                    acceptedAtUtc);
+                        activeWorldExtensions,
+                        increases => new WorldLayerNotificationWork(1, Guid.NewGuid().ToString("N"),
+                            state.WorldConfiguration.Current!.WorldConfigurationId,
+                            new EventParty(userId, colonyId, upload.AcceptedSnapshot.Identity.SnapshotId), projection.LayerId,
+                            increases, BuildWorldTileFloatLayerIncreaseNotifications(state, userId, colonyId,
+                                upload.AcceptedSnapshot.Identity.SnapshotId!, increases, acceptedAtUtc),
+                            state.Players.List().Select(player => player.UserId).Append(userId).Distinct(StringComparer.Ordinal).ToArray()));
             }
-
-            if (changed)
-            {
-                SignalWorldConfigurationChanged(state, userId);
-            }
+            RecoverWorldLayerNotifications(state);
         }
         catch (Exception ex) when (ex is InvalidDataException or XmlException or FormatException)
         {

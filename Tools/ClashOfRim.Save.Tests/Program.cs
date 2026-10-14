@@ -21,6 +21,7 @@ var tests = new (string Name, Action Run)[]
     ("快照成就通知在中断后重放且保持来源隔离", () => SnapshotAchievementRecoveryTests.Run(BuildFixturePackage)),
     ("快照支援死亡原子提交且中断后恢复通知", () => SnapshotSupportDeathTests.Run(BuildFixturePackage)),
     ("快照世界投影保存失败保留缓存且重试保留增量", SnapshotWorldProjectionTests.Run),
+    ("世界图层与通知待办共同持久化并在中断后恢复", () => WorldLayerNotificationRecoveryTests.Run(BuildFixturePackage)),
     ("交易关闭退货原子提交且不重复补偿已入档物品", TradeClosureTests.Run),
     ("商店持久化失败保留库存缓存且允许重试", ShopRegistryPersistenceTests.Run),
     ("商店快照和购买回执共同恢复且限制重复请求身份", () => ShopCommitCrashTests.Run(BuildFixturePackage)),

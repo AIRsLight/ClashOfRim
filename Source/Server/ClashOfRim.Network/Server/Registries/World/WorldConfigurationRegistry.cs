@@ -26,6 +26,22 @@ public sealed class WorldConfigurationRegistry
     private HashSet<string> administratorUserIds = new(StringComparer.Ordinal);
     private WorldConfigurationDto? worldConfiguration;
     private byte[]? worldSubstratePayload;
+    private IReadOnlyList<WorldLayerNotificationWork> pendingLayerNotifications = [];
+
+    internal bool HasPendingLayerNotifications { get { lock (gate) return pendingLayerNotifications.Count > 0; } }
+    internal IReadOnlyList<WorldLayerNotificationWork> ListPendingLayerNotifications()
+    { lock (gate) return pendingLayerNotifications.ToArray(); }
+
+    internal void CompleteLayerNotifications(string id)
+    {
+        lock (gate)
+        {
+            var remaining = pendingLayerNotifications.Where(work => work.Id != id).ToArray();
+            if (remaining.Length == pendingLayerNotifications.Count) return;
+            SaveLocked(worldConfiguration, writeSubstrate: false, remaining);
+            pendingLayerNotifications = remaining;
+        }
+    }
 
     public WorldConfigurationRegistry(string? persistencePath = null)
         : this(
@@ -516,6 +532,16 @@ public sealed class WorldConfigurationRegistry
         string layerId,
         IReadOnlyList<WorldTileFloatLayerValue> values,
         WorldConfigurationExtensionService? activeWorldExtensions = null)
+        => ConfirmWorldTileFloatLayerCore(layerId, values, activeWorldExtensions, null);
+
+    internal IReadOnlyList<WorldTileFloatLayerIncrease> ConfirmWorldTileFloatLayerWithNotifications(
+        string layerId, IReadOnlyList<WorldTileFloatLayerValue> values, WorldConfigurationExtensionService activeWorldExtensions,
+        Func<IReadOnlyList<WorldTileFloatLayerIncrease>, WorldLayerNotificationWork> prepareNotifications)
+        => ConfirmWorldTileFloatLayerCore(layerId, values, activeWorldExtensions, prepareNotifications);
+
+    private IReadOnlyList<WorldTileFloatLayerIncrease> ConfirmWorldTileFloatLayerCore(
+        string layerId, IReadOnlyList<WorldTileFloatLayerValue> values, WorldConfigurationExtensionService? activeWorldExtensions,
+        Func<IReadOnlyList<WorldTileFloatLayerIncrease>, WorldLayerNotificationWork>? prepareNotifications)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(layerId);
         ArgumentNullException.ThrowIfNull(values);
@@ -563,10 +589,20 @@ public sealed class WorldConfigurationRegistry
                         .Select(pair => new WorldTileFloatLayerValue(pair.Key, pair.Value))
                         .ToList(),
                     extensionsService);
-                // Failed persistence must not consume the increase in the cache:
-                // a retry must compute the same delta from the durable baseline.
-                SaveLocked(candidate, writeSubstrate: false);
+                var pending = pendingLayerNotifications;
+                if (prepareNotifications is not null)
+                {
+                    WorldLayerNotificationWork work = prepareNotifications(increases.ToArray());
+                    work.Validate();
+                    if (work.WorldConfigurationId != worldConfiguration.WorldConfigurationId || work.LayerId != layerId
+                        || !work.Increases.SequenceEqual(increases) || pending.Any(item => item.Id == work.Id))
+                        throw new InvalidOperationException("World-layer work does not match its projection.");
+                    pending = pending.Append(work).ToArray();
+                }
+                // The configuration and its fixed notifications share one durable write.
+                SaveLocked(candidate, writeSubstrate: false, pending);
                 worldConfiguration = candidate;
+                pendingLayerNotifications = pending;
             }
 
             return increases;
@@ -878,6 +914,9 @@ public sealed class WorldConfigurationRegistry
                 return;
             }
 
+            pendingLayerNotifications = rows.TryGetValue("pending-layer-notifications", out string? pendingJson)
+                ? ReadPendingLayerNotifications(pendingJson) : [];
+
             WorldConfigurationStateRecord? state = TryDeserializeRow<WorldConfigurationStateRecord>(rows, "state");
             administratorUserId = string.IsNullOrWhiteSpace(state?.AdministratorUserId)
                 ? null
@@ -943,6 +982,10 @@ public sealed class WorldConfigurationRegistry
                 return false;
             }
 
+            using (JsonDocument document = JsonDocument.Parse(json))
+                pendingLayerNotifications = document.RootElement.TryGetProperty("PendingLayerNotifications", out var pendingJson)
+                    ? ReadPendingLayerNotifications(pendingJson.GetRawText()) : [];
+
             WorldConfigurationPersistence? persisted =
                 JsonSerializer.Deserialize<WorldConfigurationPersistence>(json, JsonOptions);
             administratorUserId = string.IsNullOrWhiteSpace(persisted?.AdministratorUserId)
@@ -975,11 +1018,13 @@ public sealed class WorldConfigurationRegistry
     private void SaveLocked()
         => SaveLocked(worldConfiguration, writeSubstrate: true);
 
-    private void SaveLocked(WorldConfigurationDto? configuration, bool writeSubstrate)
+    private void SaveLocked(WorldConfigurationDto? configuration, bool writeSubstrate,
+        IReadOnlyList<WorldLayerNotificationWork>? pending = null)
     {
+        pending ??= pendingLayerNotifications;
         if (structuredPersistence is not null)
         {
-            structuredPersistence.ReplaceAll(BuildStructuredRows(configuration));
+            structuredPersistence.ReplaceAll(BuildStructuredRows(configuration, pending));
             if (writeSubstrate) binaryPersistence?.WriteBinary("world-substrate", worldSubstratePayload);
             return;
         }
@@ -990,7 +1035,7 @@ public sealed class WorldConfigurationRegistry
         }
 
         string json = JsonSerializer.Serialize(
-            BuildPersistenceSnapshot(administratorUserId, administratorUserIds, configuration),
+            BuildPersistenceSnapshot(administratorUserId, administratorUserIds, configuration) with { PendingLayerNotifications = pending },
             JsonOptions);
         legacyPersistence.Write(json);
         if (writeSubstrate) binaryPersistence?.WriteBinary("world-substrate", worldSubstratePayload);
@@ -999,10 +1044,12 @@ public sealed class WorldConfigurationRegistry
     private IReadOnlyDictionary<string, string> BuildStructuredRows()
         => BuildStructuredRows(worldConfiguration);
 
-    private IReadOnlyDictionary<string, string> BuildStructuredRows(WorldConfigurationDto? configuration)
+    private IReadOnlyDictionary<string, string> BuildStructuredRows(WorldConfigurationDto? configuration,
+        IReadOnlyList<WorldLayerNotificationWork>? pending = null)
     {
         Dictionary<string, string> rows = new(StringComparer.Ordinal)
         {
+            ["pending-layer-notifications"] = JsonSerializer.Serialize(pending ?? pendingLayerNotifications, JsonOptions),
             ["state"] = JsonSerializer.Serialize(
                 new WorldConfigurationStateRecord(administratorUserId, administratorUserIds.ToList()),
                 JsonOptions)
@@ -1235,10 +1282,29 @@ public sealed class WorldConfigurationRegistry
         }
     }
 
+    private static IReadOnlyList<WorldLayerNotificationWork> ReadPendingLayerNotifications(string json)
+    {
+        try
+        {
+            var result = JsonSerializer.Deserialize<WorldLayerNotificationWork[]>(json, JsonOptions)
+                ?? throw new InvalidOperationException("Missing pending world-layer notification list.");
+            foreach (var work in result)
+            {
+                if (work is null) throw new InvalidOperationException("Null pending world-layer notification work.");
+                work.Validate();
+            }
+            if (result.Select(work => work.Id).Distinct(StringComparer.Ordinal).Count() != result.Length)
+                throw new InvalidOperationException("Duplicate pending world-layer notification identity.");
+            return result;
+        }
+        catch (JsonException ex) { throw new InvalidOperationException("Unreadable pending world-layer notifications.", ex); }
+    }
+
     private sealed record WorldConfigurationPersistence(
         string? AdministratorUserId,
         IReadOnlyList<string>? AdministratorUserIds,
-        WorldConfigurationDto? WorldConfiguration);
+        WorldConfigurationDto? WorldConfiguration,
+        IReadOnlyList<WorldLayerNotificationWork>? PendingLayerNotifications = null);
 }
 
 public sealed record WorldSessionState(
