@@ -4,6 +4,7 @@ using Verse;
 
 namespace AIRsLight.ClashOfRim.Visuals;
 
+[StaticConstructorOnStartup]
 internal static class ClashCommandIcons
 {
     public static readonly Texture2D GiftDelivery = Load("GiftDelivery");
@@ -16,6 +17,8 @@ internal static class ClashCommandIcons
     public static readonly Texture2D DefensePointAssault = Load("DefensePointAssault");
     public static readonly Texture2D DefensePointOperateEquipment = Load("DefensePointOperateEquipment");
     public static readonly Texture2D LaunchRaid = ContentFinder<Texture2D>.Get("UI/Commands/AttackSettlement", reportFailure: false)
+        ?? BaseContent.BadTex;
+    public static readonly Texture2D LoadTransporter = ContentFinder<Texture2D>.Get("UI/Commands/LoadTransporter", reportFailure: false)
         ?? BaseContent.BadTex;
 
     public static Texture2D DefensePointMode(DefensePointAiMode mode)

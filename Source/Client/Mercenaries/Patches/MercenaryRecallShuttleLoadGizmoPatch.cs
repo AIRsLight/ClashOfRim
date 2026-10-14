@@ -1,7 +1,7 @@
 using System.Collections.Generic;
+using AIRsLight.ClashOfRim.Visuals;
 using HarmonyLib;
 using RimWorld;
-using UnityEngine;
 using Verse;
 
 namespace AIRsLight.ClashOfRim.Mercenaries;
@@ -9,8 +9,6 @@ namespace AIRsLight.ClashOfRim.Mercenaries;
 [HarmonyPatch(typeof(CompShuttle), nameof(CompShuttle.CompGetGizmosExtra))]
 public static class MercenaryRecallShuttleLoadGizmoPatch
 {
-    private static Texture2D? loadTransporterIcon;
-
     public static IEnumerable<Gizmo> Postfix(IEnumerable<Gizmo> __result, CompShuttle __instance)
     {
         foreach (Gizmo gizmo in __result)
@@ -31,7 +29,7 @@ public static class MercenaryRecallShuttleLoadGizmoPatch
         {
             defaultLabel = ClashOfRimText.Key("ClashOfRim.Mercenary.LoadRecallShuttle"),
             defaultDesc = ClashOfRimText.Key("ClashOfRim.Mercenary.LoadRecallShuttleDesc"),
-            icon = LoadTransporterIcon,
+            icon = ClashCommandIcons.LoadTransporter,
             action = () =>
             {
                 if (mercenaryPart is null)
@@ -114,6 +112,4 @@ public static class MercenaryRecallShuttleLoadGizmoPatch
         return null;
     }
 
-    private static Texture2D LoadTransporterIcon =>
-        loadTransporterIcon ??= ContentFinder<Texture2D>.Get("UI/Commands/LoadTransporter", reportFailure: false) ?? BaseContent.BadTex;
 }
