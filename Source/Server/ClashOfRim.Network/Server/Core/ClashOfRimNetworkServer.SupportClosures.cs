@@ -8,20 +8,21 @@ public static partial class ClashOfRimNetworkServer
     private enum SupportClosureKind { Return, Loss, Rejection }
     private sealed record SupportClosure(AuthoritativeEvent Event, SupportClosureKind Kind);
 
+    private static bool IsSupportClosureCandidate(AuthoritativeEvent source, AuthoritativeEvent item) =>
+        item.IdempotencyKey == source.IdempotencyKey + ":rejected-return"
+        || item.Payload is SupportPawnEventPayload payload
+            && (payload.ReturnToSender && payload.SourceEventId == source.EventId
+                || SupportClosureKeys.IsFinish(item.IdempotencyKey, source.EventId, payload.ReturnReason)
+                || SupportClosureKeys.IsLoss(item.IdempotencyKey, source.EventId, payload.ReturnReason));
+
     private static SupportClosure? FindSupportClosure(IAuthoritativeEventLedger ledger, AuthoritativeEvent source)
     {
         // IDs and reasons may both contain colons. A source prefix is not a relation:
         // compare the complete key using the stored reason as well as the explicit source ID.
         // Either match still exposes a malformed source/return flag to validation below.
         var candidates = ledger.ListAll()
-            .Where(item => item.Payload is SupportPawnEventPayload payload
-                && (payload.ReturnToSender && payload.SourceEventId == source.EventId
-                    || item.IdempotencyKey == $"support-finish:{source.EventId}:{payload.ReturnReason}"
-                    || item.IdempotencyKey == $"support-loss:{source.EventId}:{payload.ReturnReason}"))
+            .Where(item => IsSupportClosureCandidate(source, item))
             .ToDictionary(item => item.EventId, StringComparer.Ordinal);
-        // Inspect the legacy rejection key even when its payload is malformed.
-        if (ledger.FindByIdempotencyKey(source.IdempotencyKey + ":rejected-return") is { } rejected)
-            candidates.TryAdd(rejected.EventId, rejected);
         if (candidates.Count == 0) return null;
         if (candidates.Count != 1) throw new InvalidOperationException("Support has conflicting completion events.");
         var item = candidates.Values.Single();
@@ -33,9 +34,9 @@ public static partial class ClashOfRimNetworkServer
             throw new InvalidOperationException("Support completion conflicts with its source.");
         if (item.IdempotencyKey == source.IdempotencyKey + ":rejected-return" && result.ReturnReason == "Rejected")
             return new(item, SupportClosureKind.Rejection);
-        if (item.IdempotencyKey == $"support-finish:{source.EventId}:{result.ReturnReason}" && result.PawnPackage is not null)
+        if (SupportClosureKeys.IsFinish(item.IdempotencyKey, source.EventId, result.ReturnReason) && result.PawnPackage is not null)
             return new(item, SupportClosureKind.Return);
-        if (item.IdempotencyKey == $"support-loss:{source.EventId}:{result.ReturnReason}" && result.PawnPackage is null)
+        if (SupportClosureKeys.IsLoss(item.IdempotencyKey, source.EventId, result.ReturnReason) && result.PawnPackage is null)
             return new(item, SupportClosureKind.Loss);
         throw new InvalidOperationException("Unrecognized support completion identity.");
     }

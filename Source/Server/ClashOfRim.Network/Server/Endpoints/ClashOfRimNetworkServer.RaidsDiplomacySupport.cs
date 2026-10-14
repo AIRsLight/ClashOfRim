@@ -2238,13 +2238,8 @@ public static partial class ClashOfRimNetworkServer
         IReadOnlyList<AuthoritativeEvent> allEvents)
     {
         string deathId = $"support-death:{supportEvent.EventId}:RaidSettlementLost";
-        string returnId = $"support-finish:{supportEvent.EventId}:RaidSettlementLost";
-        string lossId = $"support-loss:{supportEvent.EventId}:RaidSettlementLost";
         return allEvents.Any(evt =>
-            evt.Payload is SupportPawnEventPayload { ReturnToSender: true } returned && returned.SourceEventId == supportEvent.EventId
-            || string.Equals(evt.IdempotencyKey, returnId, StringComparison.Ordinal)
-            || string.Equals(evt.IdempotencyKey, lossId, StringComparison.Ordinal)
-            || string.Equals(evt.IdempotencyKey, $"{supportEvent.IdempotencyKey}:rejected-return", StringComparison.Ordinal)
+            IsSupportClosureCandidate(supportEvent, evt)
             || (evt.Payload is ServerNotificationEventPayload notification
                 && string.Equals(notification.NotificationId, deathId, StringComparison.Ordinal)));
     }

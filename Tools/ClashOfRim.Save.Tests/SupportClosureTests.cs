@@ -33,10 +33,13 @@ internal static class SupportClosureTests
         ConcurrentFinish();
         OtherClosureProducers(fixture);
         foreach (string storage in new[] { "memory", "file", "sqlite" })
-        foreach (string kind in Kinds) NestedSourceIdentities(storage, kind);
+        foreach (string kind in Kinds)
+        foreach (bool legacyChild in new[] { false, true }) NestedSourceIdentities(storage, kind, legacyChild);
+        KeyEncodingAndMigration();
+        LegacyLossCannotSuppressOtherSource();
     }
 
-    private static void NestedSourceIdentities(string storage, string kind) => WithDirectory(root =>
+    private static void NestedSourceIdentities(string storage, string kind, bool legacyChild) => WithDirectory(root =>
     {
         IAuthoritativeEventLedger Open() => storage switch
         {
@@ -48,22 +51,21 @@ internal static class SupportClosureTests
         var parent = Source();
         var child = Source() with { EventId = "source:child", IdempotencyKey = "source:child" };
         ledger.Append(parent); ledger.Append(child);
+        if (legacyChild)
+        {
+            var legacy = AsLegacy(Closure(child, kind, "manual:finished"));
+            ledger.Append(legacy);
+            ledger.MarkDelivered(legacy.EventId, "owner-base", OriginalTime);
+            ledger.MarkApplied(legacy.EventId, "owner-consumed", OriginalTime);
+        }
         var state = new ClashOfRimNetworkState(ledger: ledger);
         var childResult = Call(state, kind, reason: "manual:finished", eventId: child.EventId);
-        Require(childResult.Accepted && childResult.Created, "nested source could not finish");
+        Require(childResult.Accepted && childResult.Created != legacyChild, "nested source could not finish");
         var childClosure = ledger.Find(childResult.ReturnId!)!;
         var endedChild = ledger.Find(child.EventId)!;
         if (storage != "memory") state = new ClashOfRimNetworkState(ledger: Open());
-        if (kind != "reject")
-        {
-            // Existing key encoding is ambiguous if a reason reproduces another source's suffix.
-            // A complete key collision must fail without consuming or reusing the other return.
-            Expect<InvalidOperationException>(() => Call(state, kind, reason: "child:manual:finished"),
-                "a full return key collision reused a different source");
-            Require(state.Ledger.ListAll().Count == 3 && Same(parent, state.Ledger.Find(parent.EventId)!)
-                && Same(childClosure, state.Ledger.Find(childClosure.EventId)!), "full key collision mutated support");
-        }
-        var parentResult = Call(state, kind, reason: "manual:finished");
+        // These tuples produced exactly the same legacy finish/loss key. Both must now succeed.
+        var parentResult = Call(state, kind, reason: "child:manual:finished");
         Require(parentResult.Accepted && parentResult.Created && parentResult.ReturnId != childResult.ReturnId,
             "a nested source closure was treated as the parent closure");
         Require(Same(childClosure, state.Ledger.Find(childClosure.EventId)!) && Same(endedChild, state.Ledger.Find(child.EventId)!),
@@ -152,7 +154,7 @@ internal static class SupportClosureTests
         };
         var ledger = Open(); ledger.Append(Source());
         var source = ledger.Find("source")!;
-        var closure = Closure(source, kind);
+        var closure = AsLegacy(Closure(source, kind));
         ledger.Append(closure); // Historical append succeeded but closing the source failed.
         var state = new ClashOfRimNetworkState(ledger: ledger);
         Require(Call(state, kind, "retry reason").Accepted, "legacy return was not recovered");
@@ -271,15 +273,58 @@ internal static class SupportClosureTests
             new(xml, SafePawnExchangeSerializer.ComputeScribeXmlSha256(xml), []));
     }
 
-    private static AuthoritativeEvent Closure(AuthoritativeEvent source, string kind)
+    private static AuthoritativeEvent Closure(AuthoritativeEvent source, string kind, string reason = "original")
     {
         var payload = (SupportPawnEventPayload)source.Payload;
         return kind switch
         {
-            "reject" => Invoke<AuthoritativeEvent>("CreateRejectedSupportPawnReturnEvent", source, payload, "original", false, OriginalTime),
-            "loss" => Invoke<AuthoritativeEvent>("CreateSupportPawnLossReturnEvent", source, payload, "Ally", "original", false, OriginalTime),
-            _ => Invoke<AuthoritativeEvent>("CreateSupportPawnFinishReturnEvent", source, payload, Request("return"), Package(), false, OriginalTime)
+            "reject" => Invoke<AuthoritativeEvent>("CreateRejectedSupportPawnReturnEvent", source, payload, reason, false, OriginalTime),
+            "loss" => Invoke<AuthoritativeEvent>("CreateSupportPawnLossReturnEvent", source, payload, "Ally", reason, false, OriginalTime),
+            _ => Invoke<AuthoritativeEvent>("CreateSupportPawnFinishReturnEvent", source, payload, Request("return", reason), Package(), false, OriginalTime)
         };
+    }
+
+    private static AuthoritativeEvent AsLegacy(AuthoritativeEvent item)
+    {
+        var payload = (SupportPawnEventPayload)item.Payload;
+        if (item.IdempotencyKey.EndsWith(":rejected-return", StringComparison.Ordinal)) return item;
+        string key = $"support-{(payload.PawnPackage is null ? "loss" : "finish")}:{payload.SourceEventId}:{payload.ReturnReason}";
+        return item with { EventId = AuthoritativeEventFactory.BuildEventId(item.Type, key), IdempotencyKey = key };
+    }
+
+    private static void KeyEncodingAndMigration() => WithDirectory(root =>
+    {
+        string[] values = ["source", "source:child", "a:b", "a-b", "a_b", "a/b", "a+b", "中文", "[\"x\"]"];
+        var keys = new HashSet<string>(StringComparer.Ordinal);
+        var ids = new HashSet<string>(StringComparer.Ordinal);
+        foreach (string source in values)
+        foreach (string reason in values)
+        foreach (string key in new[] { SupportClosureKeys.Finish(source, reason), SupportClosureKeys.Loss(source, reason) })
+            Require(keys.Add(key) && ids.Add(AuthoritativeEventFactory.BuildEventId(ServerEventType.SupportPawn, key)),
+                "tuple encoding or event normalization collapsed distinct identities");
+        string database = Path.Combine(root, "server.sqlite");
+        ServerDatabaseMigrator.Migrate(database);
+        var ledger = new SqliteAuthoritativeEventLedger(database); var sourceEvent = Source();
+        ledger.Append(sourceEvent); ledger.Append(AsLegacy(Closure(sourceEvent, "loss")));
+        Sql(database, "update server_schema_metadata set metadata_value = '23' where metadata_key = 'schema_version';");
+        var original = ledger.ListAll().ToDictionary(item => item.EventId);
+        var migration = ServerDatabaseMigrator.Migrate(database);
+        Require(migration.AppliedMigrations.Contains("23->24") && migration.FinalVersion == 24, "support key migration missing");
+        var reopened = new SqliteAuthoritativeEventLedger(database);
+        Require(original.All(pair => Same(pair.Value, reopened.Find(pair.Key)!)), "migration renamed legacy support data");
+    });
+
+    private static void LegacyLossCannotSuppressOtherSource()
+    {
+        var state = new ClashOfRimNetworkState(); var first = Source();
+        var second = Source() with { EventId = "source:child", IdempotencyKey = "source:child" };
+        state.Ledger.Append(first); state.Ledger.Append(second);
+        var legacy = AsLegacy(Closure(first, "loss", "child:RaidSettlementLost"));
+        state.Ledger.Append(legacy);
+        Require(!Invoke<bool>("HasSupportFinishEvent", second, state.Ledger.ListAll()), "another source's legacy key suppressed raid cleanup");
+        Require(Call(state, "loss", reason: "RaidSettlementLost", eventId: second.EventId).Created,
+            "another source's legacy key suppressed a new loss");
+        Require(Same(legacy, state.Ledger.Find(legacy.EventId)!), "new loss rewrote another source's legacy return");
     }
 
     private static FinishSupportPawnRequest Request(string kind, string reason = "original", string user = "userA",

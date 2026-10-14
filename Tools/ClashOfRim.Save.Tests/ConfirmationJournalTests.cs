@@ -171,7 +171,7 @@ internal static class ConfirmationJournalTests
         var response = f.Confirm(package: package);
         Require(!response.Applications.Single(item => item.EventId == "support").Result.Accepted
             && f.State.Ledger.Find("support")!.Status == ServerEventStatus.Failed
-            && f.State.Ledger.FindByIdempotencyKey("support-loss:support:SnapshotDeath") is not null,
+            && f.State.Ledger.FindByIdempotencyKey(SupportClosureKeys.Loss("support", "SnapshotDeath")) is not null,
             "confirmation undid support death or lost its return event");
     }
 

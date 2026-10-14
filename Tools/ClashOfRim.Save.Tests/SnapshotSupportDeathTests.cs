@@ -86,7 +86,9 @@ internal static class SnapshotSupportDeathTests
             _ => new SqliteAuthoritativeEventLedger(Path.Combine(root, "events.sqlite"))
         };
         var sources = Seed(ledger);
-        var priorLoss = Loss(sources[0]) with { CreatedAtUtc = Accepted.AddMinutes(-1) };
+        string legacyKey = $"support-loss:{sources[0].EventId}:SnapshotDeath";
+        var priorLoss = Loss(sources[0]) with { CreatedAtUtc = Accepted.AddMinutes(-1), IdempotencyKey = legacyKey,
+            EventId = AuthoritativeEventFactory.BuildEventId(ServerEventType.SupportPawn, legacyKey) };
         // Legacy half-commit: the loss is present, but its source was never closed.
         ledger.Append(priorLoss);
         var ignored = new List<AuthoritativeEvent>();
@@ -181,7 +183,8 @@ internal static class SnapshotSupportDeathTests
         foreach (var source in sources)
         {
             Require(state.Ledger.Find(source.EventId)!.Status == ServerEventStatus.Failed, "source was not closed");
-            var loss = state.Ledger.FindByIdempotencyKey(Loss(source).IdempotencyKey);
+            var loss = state.Ledger.FindByIdempotencyKey(Loss(source).IdempotencyKey)
+                ?? state.Ledger.FindByIdempotencyKey($"support-loss:{source.EventId}:SnapshotDeath");
             Require(loss is { Type: ServerEventType.SupportPawn } && loss.Actor == source.Target && loss.Target == source.Actor
                 && loss.Payload is SupportPawnEventPayload { ReturnToSender: true, TemporaryControl: false, PawnPackage: null,
                     ReturnReason: "SnapshotDeath" } payload && payload.SourceEventId == source.EventId,

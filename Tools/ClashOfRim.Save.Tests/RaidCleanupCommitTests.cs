@@ -19,7 +19,33 @@ internal static class RaidCleanupCommitTests
         {
             WithFixture(original, timeout, f => Guard(f, "owner"));
             WithFixture(original, timeout, f => Guard(f, "raid"));
+            foreach (bool committed in new[] { false, true })
+                WithFixture(original, timeout, f => LegacyKeyRecovery(f, committed));
         }
+    }
+
+    private static void LegacyKeyRecovery(Fixture f, bool committed)
+    {
+        var generated = f.Mutation.Batch.Events.Single(item => item.Type == ServerEventType.SupportPawn);
+        string key = $"support-loss:{f.Support.EventId}:RaidSettlementLost";
+        var legacy = generated with { IdempotencyKey = key, EventId = AuthoritativeEventFactory.BuildEventId(generated.Type, key) };
+        var mutation = f.Mutation with { Batch = f.Mutation.Batch with
+            { Events = f.Mutation.Batch.Events.Select(item => item.EventId == generated.EventId ? legacy : item).ToArray() } };
+        if (!committed) f.Store.Fault = "before";
+        Fails(() => f.State.SnapshotCommits.CommitRaidCleanup(f.Store, f.State.BankLoans, f.State.Ledger, f.State.Players,
+            f.Cleaned, mutation, f.Now, _ => throw new IOException("before wake")), "Legacy journal interruption not reached.");
+        if (committed)
+        {
+            f.State.Ledger.MarkDelivered(legacy.EventId, "base", f.Now);
+            legacy = f.State.Ledger.MarkApplied(legacy.EventId, "consumed", f.Now);
+        }
+        f.Open();
+        ClashOfRimNetworkServer.RecoverSnapshotCommits(f.State);
+        f.InvokeCleanup();
+        var actual = f.State.Ledger.Find(legacy.EventId);
+        Require(actual is not null && JsonSerializer.Serialize(actual) == JsonSerializer.Serialize(legacy)
+            && f.State.Ledger.Find(generated.EventId) is null && f.State.Ledger.ListAll().Count == 4
+            && !Directory.EnumerateFiles(f.Journal, "*.json").Any(), "Legacy cleanup recovery renamed or duplicated support loss.");
     }
 
     private static void Recovery(Fixture f, string fault, bool reopen)
@@ -28,7 +54,7 @@ internal static class RaidCleanupCommitTests
         f.Store.Fault = fault == "after" ? "after" : fault == "before" || conflict ? "before" : null;
         if (fault == "player") f.Sql("create trigger fail_write before insert on server_players begin select raise(abort, 'player'); end;");
         if (fault is "loss" or "support") f.Sql("create trigger fail_write before insert on events when NEW.idempotency_key like '"
-            + (fault == "loss" ? "raid-attacker-loss:%" : "support-loss:%") + "' begin select raise(abort, 'event'); end;");
+            + (fault == "loss" ? "raid-attacker-loss:%" : "supportlossv2:%") + "' begin select raise(abort, 'event'); end;");
         if (fault == "status") f.Sql("create trigger fail_write before update on events begin select raise(abort, 'status'); end;");
         if (fault is "signal" or "advanced")
             Fails(() => f.State.SnapshotCommits.CommitRaidCleanup(f.Store, f.State.BankLoans, f.State.Ledger, f.State.Players,

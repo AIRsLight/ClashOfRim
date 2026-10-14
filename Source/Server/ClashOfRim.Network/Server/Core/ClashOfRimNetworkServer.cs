@@ -1045,7 +1045,10 @@ public static partial class ClashOfRimNetworkServer
                 continue;
             }
 
-            AuthoritativeEvent? existing = state.Ledger.FindByIdempotencyKey($"support-loss:{supportEvent.EventId}:SnapshotDeath");
+            SupportClosure? closure = FindSupportClosure(state.Ledger, supportEvent);
+            if (closure is not null && (closure.Kind != SupportClosureKind.Loss
+                || ((SupportPawnEventPayload)closure.Event.Payload).ReturnReason != "SnapshotDeath")) continue;
+            AuthoritativeEvent? existing = closure?.Event;
             if (existing is null && HasSupportFinishEvent(supportEvent, allEvents)) continue;
             // A failed source alone is not evidence of snapshot death. Only replay
             // an existing loss; otherwise leave unrelated terminal events alone.
@@ -1061,6 +1064,8 @@ public static partial class ClashOfRimNetworkServer
                 "SnapshotDeath",
                 state.OnlinePresence.IsUserOnline(supportEvent.Actor.UserId),
                 existing?.CreatedAtUtc ?? upload.AcceptedSnapshot.AcceptedAtUtc);
+            // A pre-upgrade loss may already be consumed. Reuse its persisted identity on recovery.
+            if (existing is not null) lossEvent = lossEvent with { EventId = existing.EventId, IdempotencyKey = existing.IdempotencyKey };
             losses.Add(lossEvent);
             statuses.Add(new LedgerStatusChange(supportEvent.EventId, supportEvent.Status, ServerEventStatus.Failed, payload, payload));
             notifyUsers.Add(supportEvent.Actor.UserId);
@@ -2756,7 +2761,7 @@ public static partial class ClashOfRimNetworkServer
             ServerEventType.SupportPawn,
             supportEvent.Target,
             supportEvent.Actor,
-            $"support-finish:{supportEvent.EventId}:{request.FinishReason}",
+            SupportClosureKeys.Finish(supportEvent.EventId, request.FinishReason),
             originalActorOnline,
             returnPayload,
             createdAtUtc,
@@ -2797,7 +2802,7 @@ public static partial class ClashOfRimNetworkServer
             ServerEventType.SupportPawn,
             supportEvent.Target,
             supportEvent.Actor,
-            $"support-loss:{supportEvent.EventId}:{finishReason}",
+            SupportClosureKeys.Loss(supportEvent.EventId, finishReason),
             originalActorOnline,
             returnPayload,
             createdAtUtc,
