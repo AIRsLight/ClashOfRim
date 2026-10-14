@@ -29,15 +29,6 @@ public sealed class RaidAttackerLossConfirmationConsumer
                 FailureReason: ServerLocalization.Text("Raid.AttackerLossEventNotFound"));
         }
 
-        if (ledgerEvent.Status == ServerEventStatus.AppliedToSnapshot)
-        {
-            return new RaidAttackerLossConfirmationResult(
-                RaidAttackerLossConfirmationResultKind.AlreadyApplied,
-                ledgerEvent,
-                ledgerEvent.AppliedSnapshotId,
-                FailureReason: null);
-        }
-
         if (ledgerEvent.Payload is not RaidEventPayload raidPayload || raidPayload.AttackerLoss == null)
         {
             return new RaidAttackerLossConfirmationResult(
@@ -48,9 +39,15 @@ public sealed class RaidAttackerLossConfirmationConsumer
         }
 
         RaidAttackerLossRecord loss = raidPayload.AttackerLoss;
+        SnapshotIdentity confirmedIdentity = request.ConfirmedSnapshot.Identity;
+        if (!IdentityMatches(request, ledgerEvent, confirmedIdentity))
+        {
+            return Rejected(RaidAttackerLossConfirmationResultKind.SnapshotIdentityMismatch, ledgerEvent,
+                ServerLocalization.Text("Raid.AttackerLossSnapshotIdentityMismatch"));
+        }
         if (!string.Equals(request.SourceRaidEventId, loss.SourceRaidEventId, StringComparison.Ordinal))
         {
-            AuthoritativeEvent changed = ledger.ReportApplicationResult(
+            AuthoritativeEvent changed = ledgerEvent.Status == ServerEventStatus.AppliedToSnapshot ? ledgerEvent : ledger.ReportApplicationResult(
                 ledgerEvent.EventId,
                 EventApplicationResultKind.SnapshotBaseMismatch,
                 ServerLocalization.Text("Raid.AttackerLossSourceMismatch"),
@@ -61,18 +58,12 @@ public sealed class RaidAttackerLossConfirmationConsumer
                 ServerLocalization.Text("Raid.AttackerLossSourceMismatch"));
         }
 
-        SnapshotIdentity confirmedIdentity = request.ConfirmedSnapshot.Identity;
-        if (!IdentityMatches(request, ledgerEvent, confirmedIdentity))
+        if (ledgerEvent.Status == ServerEventStatus.AppliedToSnapshot)
         {
-            AuthoritativeEvent changed = ledger.ReportApplicationResult(
-                ledgerEvent.EventId,
-                EventApplicationResultKind.SnapshotBaseMismatch,
-                ServerLocalization.Text("Raid.AttackerLossSnapshotIdentityMismatch"),
-                nextRetryAtUtc: null);
-            return Rejected(
-                RaidAttackerLossConfirmationResultKind.SnapshotIdentityMismatch,
-                changed,
-                ServerLocalization.Text("Raid.AttackerLossSnapshotIdentityMismatch"));
+            ledgerEvent = SnapshotApplicationCommit.Apply(ledger, ledgerEvent, request.AttackerSnapshotId,
+                confirmedIdentity.SnapshotId!, confirmedAtUtc);
+            return new RaidAttackerLossConfirmationResult(RaidAttackerLossConfirmationResultKind.AlreadyApplied,
+                ledgerEvent, ledgerEvent.AppliedSnapshotId, FailureReason: null);
         }
 
         if (!SnapshotBaseMatches(request, ledgerEvent, loss))
@@ -106,19 +97,12 @@ public sealed class RaidAttackerLossConfirmationConsumer
                     new Dictionary<string, string?> { ["KEYS"] = string.Join(", ", remainingKeys) }));
         }
 
-        AuthoritativeEvent applied = ledger.MarkApplied(
-            ledgerEvent.EventId,
-            confirmedIdentity.SnapshotId!,
-            confirmedAtUtc);
-        AuthoritativeEvent reported = ledger.ReportApplicationResult(
-            ledgerEvent.EventId,
-            EventApplicationResultKind.Applied,
-            failureReason: null,
-            nextRetryAtUtc: null);
+        AuthoritativeEvent applied = SnapshotApplicationCommit.Apply(ledger, ledgerEvent, request.AttackerSnapshotId,
+            confirmedIdentity.SnapshotId!, confirmedAtUtc);
 
         return new RaidAttackerLossConfirmationResult(
             RaidAttackerLossConfirmationResultKind.Accepted,
-            reported,
+            applied,
             applied.AppliedSnapshotId,
             FailureReason: null);
     }

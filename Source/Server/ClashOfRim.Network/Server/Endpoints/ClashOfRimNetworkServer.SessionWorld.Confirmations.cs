@@ -375,27 +375,24 @@ public static partial class ClashOfRimNetworkServer
         ClashOfRimNetworkState state,
         DateTimeOffset nowUtc)
     {
-        if (supportEvent.Status == ServerEventStatus.AppliedToSnapshot)
-        {
-            return new ConfirmEventApplicationResultDto(
-                application.EventId,
-                new ProtocolResponse(true, ProtocolErrorCode.DuplicateRequest, T("Support.ArrivalAlreadyConfirmed")),
-                supportEvent.AppliedSnapshotId,
-                "AlreadyApplied");
-        }
-
         if (!IsVisibleParty(supportEvent.Target, userId, colonyId))
         {
-            state.Ledger.ReportApplicationResult(
-                supportEvent.EventId,
-                EventApplicationResultKind.SnapshotBaseMismatch,
-                T("Support.ArrivalTargetMismatch"),
-                nextRetryAtUtc: null);
             return new ConfirmEventApplicationResultDto(
                 application.EventId,
                 ProtocolResponse.Reject(ProtocolErrorCode.EventNotFound, T("Support.EventNotFoundOrInvisible")),
                 appliedSnapshotId: null,
                 "TargetIdentityMismatch");
+        }
+
+        if (supportEvent.Status == ServerEventStatus.AppliedToSnapshot)
+        {
+            AuthoritativeEvent repaired = SnapshotApplicationCommit.Apply(state.Ledger, supportEvent,
+                baseSnapshotId, acceptedSnapshot.Identity.SnapshotId!, nowUtc);
+            return new ConfirmEventApplicationResultDto(
+                application.EventId,
+                new ProtocolResponse(true, ProtocolErrorCode.DuplicateRequest, T("Support.ArrivalAlreadyConfirmed")),
+                repaired.AppliedSnapshotId,
+                "AlreadyApplied");
         }
 
         if (supportEvent.Status is ServerEventStatus.RejectedByTarget
@@ -445,18 +442,8 @@ public static partial class ClashOfRimNetworkServer
                 "NotArrived");
         }
 
-        AuthoritativeEvent delivered = string.IsNullOrWhiteSpace(supportEvent.DeliveredToSnapshotId)
-            ? state.Ledger.MarkDelivered(supportEvent.EventId, baseSnapshotId, nowUtc)
-            : supportEvent;
-        AuthoritativeEvent applied = state.Ledger.MarkApplied(
-            delivered.EventId,
-            identity.SnapshotId!,
-            nowUtc);
-        state.Ledger.ReportApplicationResult(
-            supportEvent.EventId,
-            EventApplicationResultKind.Applied,
-            failureReason: null,
-            nextRetryAtUtc: null);
+        AuthoritativeEvent applied = SnapshotApplicationCommit.Apply(state.Ledger, supportEvent,
+            baseSnapshotId, identity.SnapshotId!, nowUtc);
 
         return new ConfirmEventApplicationResultDto(
             application.EventId,
@@ -488,22 +475,8 @@ public static partial class ClashOfRimNetworkServer
         ClashOfRimNetworkState state,
         DateTimeOffset nowUtc)
     {
-        if (exchangeEvent.Status == ServerEventStatus.AppliedToSnapshot)
-        {
-            return new ConfirmEventApplicationResultDto(
-                application.EventId,
-                new ProtocolResponse(true, ProtocolErrorCode.DuplicateRequest, T("Trade.ExchangeAlreadyConfirmed")),
-                exchangeEvent.AppliedSnapshotId,
-                "AlreadyApplied");
-        }
-
         if (!IsVisibleParty(exchangeEvent.Actor, userId, colonyId))
         {
-            state.Ledger.ReportApplicationResult(
-                exchangeEvent.EventId,
-                EventApplicationResultKind.SnapshotBaseMismatch,
-                T("Trade.ExchangeActorMismatchLedger"),
-                nextRetryAtUtc: null);
             return new ConfirmEventApplicationResultDto(
                 application.EventId,
                 ProtocolResponse.Reject(ProtocolErrorCode.SnapshotMismatch, T("Trade.ExchangeActorMismatch")),
@@ -514,16 +487,30 @@ public static partial class ClashOfRimNetworkServer
         if (string.IsNullOrWhiteSpace(application.SourceEventId)
             || !string.Equals(application.SourceEventId, exchangePayload.TradeId, StringComparison.Ordinal))
         {
-            state.Ledger.ReportApplicationResult(
-                exchangeEvent.EventId,
-                EventApplicationResultKind.SnapshotBaseMismatch,
-                T("Trade.ExchangeSourceMismatch"),
-                nextRetryAtUtc: null);
+            if (exchangeEvent.Status != ServerEventStatus.AppliedToSnapshot)
+                state.Ledger.ReportApplicationResult(
+                    exchangeEvent.EventId,
+                    EventApplicationResultKind.SnapshotBaseMismatch,
+                    T("Trade.ExchangeSourceMismatch"),
+                    nextRetryAtUtc: null);
             return new ConfirmEventApplicationResultDto(
                 application.EventId,
                 ProtocolResponse.Reject(ProtocolErrorCode.SnapshotMismatch, T("Trade.ExchangeSourceMismatch")),
                 appliedSnapshotId: null,
                 "SourceTradeMismatch");
+        }
+
+        if (exchangeEvent.Status == ServerEventStatus.AppliedToSnapshot)
+        {
+            AuthoritativeEvent repaired = SnapshotApplicationCommit.Apply(state.Ledger, exchangeEvent,
+                baseSnapshotId, acceptedSnapshot.Identity.SnapshotId!, nowUtc);
+            if (!string.IsNullOrWhiteSpace(repaired.AppliedSnapshotId) && repaired.AppliedAtUtc is { } appliedAtUtc)
+                RecordAuthoritativeEventAchievements(state, repaired, appliedAtUtc);
+            return new ConfirmEventApplicationResultDto(
+                application.EventId,
+                new ProtocolResponse(true, ProtocolErrorCode.DuplicateRequest, T("Trade.ExchangeAlreadyConfirmed")),
+                repaired.AppliedSnapshotId,
+                "AlreadyApplied");
         }
 
         SnapshotIdentity identity = acceptedSnapshot.Identity;
@@ -558,18 +545,8 @@ public static partial class ClashOfRimNetworkServer
                 "SnapshotBaseMismatch");
         }
 
-        AuthoritativeEvent delivered = string.IsNullOrWhiteSpace(exchangeEvent.DeliveredToSnapshotId)
-            ? state.Ledger.MarkDelivered(exchangeEvent.EventId, baseSnapshotId, nowUtc)
-            : exchangeEvent;
-        AuthoritativeEvent applied = state.Ledger.MarkApplied(
-            delivered.EventId,
-            identity.SnapshotId!,
-            nowUtc);
-        state.Ledger.ReportApplicationResult(
-            exchangeEvent.EventId,
-            EventApplicationResultKind.Applied,
-            failureReason: null,
-            nextRetryAtUtc: null);
+        AuthoritativeEvent applied = SnapshotApplicationCommit.Apply(state.Ledger, exchangeEvent,
+            baseSnapshotId, identity.SnapshotId!, nowUtc);
         RecordAuthoritativeEventAchievements(state, applied, nowUtc);
 
         return new ConfirmEventApplicationResultDto(

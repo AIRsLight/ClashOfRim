@@ -10,7 +10,7 @@ public sealed record LedgerApplicationChange(AuthoritativeEvent Expected, string
     public AuthoritativeEvent Updated => Expected with
     {
         Status = ServerEventStatus.AppliedToSnapshot,
-        DeliveredToSnapshotId = Expected.DeliveredToSnapshotId ?? DeliveredSnapshotId,
+        DeliveredToSnapshotId = string.IsNullOrWhiteSpace(Expected.DeliveredToSnapshotId) ? DeliveredSnapshotId : Expected.DeliveredToSnapshotId,
         DeliveredAtUtc = Expected.DeliveredAtUtc ?? AppliedAtUtc,
         AppliedSnapshotId = AppliedSnapshotId,
         AppliedAtUtc = AppliedAtUtc,
@@ -66,7 +66,8 @@ public static class LedgerBatchValidation
                 || string.IsNullOrWhiteSpace(change.AppliedSnapshotId) || string.IsNullOrWhiteSpace(change.DeliveredSnapshotId))
                 throw new InvalidOperationException("Batch application targets must be distinct existing events with snapshot identities.");
             var current = find(change.Expected.EventId);
-            if (!Same(current, change.Expected) && !(alreadyCommitted && Same(current, change.Updated)))
+            bool applicationOnlyReplay = batch.Events.Count == 0 && batch.StatusChanges.Count == 0;
+            if (!Same(current, change.Expected) && !((alreadyCommitted || applicationOnlyReplay) && Same(current, change.Updated)))
                 throw new InvalidOperationException("Batch application target changed since preparation.");
         }
     }

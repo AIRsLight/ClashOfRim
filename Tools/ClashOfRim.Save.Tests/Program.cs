@@ -23,6 +23,7 @@ var tests = new (string Name, Action Run)[]
     ("快照世界投影保存失败保留缓存且重试保留增量", SnapshotWorldProjectionTests.Run),
     ("世界图层与通知待办共同持久化并在中断后恢复", () => WorldLayerNotificationRecoveryTests.Run(BuildFixturePackage)),
     ("普通上传保留原始后处理上下文并跨中断恢复", () => OrdinaryUploadRecoveryTests.Run(BuildFixturePackage)),
+    ("事件入档原子提交且重复确认恢复应用结果与交易成就", () => EventConfirmationStageTests.Run(BuildFixturePackage)),
     ("交易关闭退货原子提交且不重复补偿已入档物品", TradeClosureTests.Run),
     ("商店持久化失败保留库存缓存且允许重试", ShopRegistryPersistenceTests.Run),
     ("商店快照和购买回执共同恢复且限制重复请求身份", () => ShopCommitCrashTests.Run(BuildFixturePackage)),

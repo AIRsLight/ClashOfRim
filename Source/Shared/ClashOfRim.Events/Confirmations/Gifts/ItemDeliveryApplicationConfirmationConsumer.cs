@@ -48,6 +48,8 @@ public sealed class ItemDeliveryApplicationConfirmationConsumer
 
         if (ledgerEvent.Status == ServerEventStatus.AppliedToSnapshot)
         {
+            ledgerEvent = SnapshotApplicationCommit.Apply(ledger, ledgerEvent, request.BaseSnapshotId,
+                request.ConfirmedSnapshot.Identity.SnapshotId!, confirmedAtUtc);
             return new ItemDeliveryApplicationConfirmationResult(
                 ItemDeliveryApplicationConfirmationResultKind.AlreadyApplied,
                 ledgerEvent,
@@ -116,19 +118,12 @@ public sealed class ItemDeliveryApplicationConfirmationConsumer
                 ServerLocalization.Text("Gift.ConfirmationNotAnchored"));
         }
 
-        AuthoritativeEvent applied = ledger.MarkApplied(
-            ledgerEvent.EventId,
-            confirmedIdentity.SnapshotId!,
-            confirmedAtUtc);
-        AuthoritativeEvent reported = ledger.ReportApplicationResult(
-            ledgerEvent.EventId,
-            EventApplicationResultKind.Applied,
-            failureReason: null,
-            nextRetryAtUtc: null);
+        AuthoritativeEvent applied = SnapshotApplicationCommit.Apply(ledger, ledgerEvent, request.BaseSnapshotId,
+            confirmedIdentity.SnapshotId!, confirmedAtUtc);
 
         return new ItemDeliveryApplicationConfirmationResult(
             ItemDeliveryApplicationConfirmationResultKind.Accepted,
-            reported,
+            applied,
             applied.AppliedSnapshotId,
             FailureReason: null);
     }
