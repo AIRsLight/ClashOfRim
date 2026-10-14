@@ -6,6 +6,7 @@ using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.RemoteMaps;
 using AIRsLight.ClashOfRim.ThirdPartyCompatibility;
 using AIRsLight.ClashOfRim.Trades;
+using AIRsLight.ClashOfRim.Gifts;
 using RimWorld;
 using System;
 using System.Collections.Generic;
@@ -18,6 +19,7 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("failed trade buyer refunds retain their wire purpose", FailedTradeBuyerRefundPurpose),
     ("registered rejection is shared by UI and authoritative preparation", RegisteredRejectionIsShared),
     ("registered capture and finalize handlers run", RegisteredCaptureAndFinalizeHandlersRun),
     ("unfinished things are rejected", UnfinishedThingsAreRejected),
@@ -38,6 +40,14 @@ var tests = new (string Name, Action Run)[]
     ("session reconnect blocks unfinished atomic mutations", SessionReconnectBlocksAtomicMutations),
     ("session reconnect requires the same authoritative snapshot", SessionReconnectRequiresSameSnapshot)
 };
+
+static void FailedTradeBuyerRefundPurpose()
+{
+    ItemDeliveryPayloadSummary payload = ItemDeliveryPayloadReader.Read("{\"Purpose\":8,\"Items\":[]}");
+    if (payload.Purpose != ItemDeliveryPurpose.TradeApplicationFailedAcceptorReturn || !payload.IsTradeReturn
+        || payload.IsTradeDelivery || (int)ItemDeliveryPurpose.TradeApplicationFailedOwnerReturn != 7)
+        throw new Exception("Buyer refund wire purpose must remain distinct from a gift or completed trade delivery.");
+}
 
 foreach ((string name, Action run) in tests)
 {

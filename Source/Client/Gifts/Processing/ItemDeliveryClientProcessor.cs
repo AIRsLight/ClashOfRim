@@ -149,7 +149,7 @@ public static class ItemDeliveryClientProcessor
             targetContext.LandingMode,
             items,
             requiresSnapshotConfirmation: true,
-            skipFailedItems: payload.Purpose == ItemDeliveryPurpose.TradeApplicationFailedOwnerReturn,
+            skipFailedItems: payload.Purpose is ItemDeliveryPurpose.TradeApplicationFailedOwnerReturn or ItemDeliveryPurpose.TradeApplicationFailedAcceptorReturn,
             arrivalLetterLabel: arrivalLetterLabel,
             arrivalLetterText: arrivalLetterText));
     }

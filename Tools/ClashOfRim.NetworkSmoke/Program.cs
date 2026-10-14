@@ -2854,7 +2854,7 @@ try
     Equal(ServerEventStatus.Failed, state.Ledger.Find(directDropPodFulfill.OwnerDeliveryEventId!)!.Status, "恢复失败应将发布者交付事件标记失败");
     AuthoritativeEvent applicationFailedReturn = state.Ledger.ListForUser("user-orbit")
         .Single(evt => evt.Type == ServerEventType.ItemDelivery
-            && evt.IdempotencyKey == $"trade-application-failed-owner-return:{directDropPodTrade.EventId}:{directDropPodFulfill.AcceptorDeliveryEventId}");
+            && evt.IdempotencyKey == $"trade-application-failed-owner-return:{directDropPodTrade.EventId}");
     Equal(ItemDeliveryPurpose.TradeApplicationFailedOwnerReturn, ((ItemDeliveryEventPayload)applicationFailedReturn.Payload).Purpose, "交易落地失败应生成发布者托管物退回事件");
 
     AcceptTradeOrderResponse acceptedTrade = await client.AcceptTradeOrderAsync(new AcceptTradeOrderRequest(

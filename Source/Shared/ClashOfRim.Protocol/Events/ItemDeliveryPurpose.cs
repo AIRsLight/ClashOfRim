@@ -9,5 +9,6 @@ public enum ItemDeliveryPurpose
     TradeExpiredOwnerReturn = 4,
     TradeBaselineChangedOwnerReturn = 5,
     TradeCancelledOwnerReturn = 6,
-    TradeApplicationFailedOwnerReturn = 7
+    TradeApplicationFailedOwnerReturn = 7,
+    TradeApplicationFailedAcceptorReturn = 8
 }

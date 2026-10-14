@@ -52,7 +52,8 @@ internal sealed class ItemDeliveryPayloadSummary
         Purpose is ItemDeliveryPurpose.TradeExpiredOwnerReturn
             or ItemDeliveryPurpose.TradeBaselineChangedOwnerReturn
             or ItemDeliveryPurpose.TradeCancelledOwnerReturn
-            or ItemDeliveryPurpose.TradeApplicationFailedOwnerReturn;
+            or ItemDeliveryPurpose.TradeApplicationFailedOwnerReturn
+            or ItemDeliveryPurpose.TradeApplicationFailedAcceptorReturn;
 }
 
 [DataContract]

@@ -282,7 +282,8 @@ public static class EventLetterProjectionBuilder
                 or ItemDeliveryPurpose.TradeExpiredOwnerReturn
                 or ItemDeliveryPurpose.TradeBaselineChangedOwnerReturn
                 or ItemDeliveryPurpose.TradeCancelledOwnerReturn
-                or ItemDeliveryPurpose.TradeApplicationFailedOwnerReturn => "Letter.TypeTrade",
+                or ItemDeliveryPurpose.TradeApplicationFailedOwnerReturn
+                or ItemDeliveryPurpose.TradeApplicationFailedAcceptorReturn => "Letter.TypeTrade",
             _ => "Letter.TypeGift"
         };
     }
@@ -297,7 +298,8 @@ public static class EventLetterProjectionBuilder
                 or ItemDeliveryPurpose.TradeExpiredOwnerReturn
                 or ItemDeliveryPurpose.TradeBaselineChangedOwnerReturn
                 or ItemDeliveryPurpose.TradeCancelledOwnerReturn
-                or ItemDeliveryPurpose.TradeApplicationFailedOwnerReturn => "Letter.TextTrade",
+                or ItemDeliveryPurpose.TradeApplicationFailedOwnerReturn
+                or ItemDeliveryPurpose.TradeApplicationFailedAcceptorReturn => "Letter.TextTrade",
             _ => "Letter.TextGift"
         };
     }

@@ -1730,27 +1730,20 @@ public static partial class ClashOfRimNetworkServer
                 DateTimeOffset.UtcNow,
                 tradeOrder.TargetContext);
 
-            LedgerAppendResult append = state.Ledger.Append(exchangeEvent);
-            LogEventAppend(state, append, "trade-fulfillment-exchange");
+            var append = new LedgerAppendResult(exchangeEvent, Created: true);
             string? acceptorDeliveryEventId = null;
             string? ownerDeliveryEventId = null;
             if (append.Created)
             {
-                state.Ledger.ChangeStatus(tradeOrder.EventId, ServerEventStatus.AppliedToSnapshot);
                 IReadOnlyList<AuthoritativeEvent> activeMemos = FindActiveTradeAcceptanceMemos(state.Ledger, tradeOrder.EventId);
-                foreach (AuthoritativeEvent memo in activeMemos)
-                {
-                    state.Ledger.ChangeStatus(
-                        memo.EventId,
-                        acceptedMemo is not null
-                            && string.Equals(memo.EventId, acceptedMemo.EventId, StringComparison.Ordinal)
-                            ? ServerEventStatus.AppliedToSnapshot
-                            : ServerEventStatus.Cancelled);
-                }
+                var changes = activeMemos.Select(memo => new LedgerStatusChange(memo.EventId, memo.Status,
+                    memo.EventId == acceptedMemo?.EventId ? ServerEventStatus.AppliedToSnapshot : ServerEventStatus.Cancelled)).ToList();
+                changes.Add(new LedgerStatusChange(tradeOrder.EventId, tradeOrder.Status, ServerEventStatus.AppliedToSnapshot));
+                var events = new List<AuthoritativeEvent> { exchangeEvent };
 
                 DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
                 string fulfillmentKey = acceptedMemo?.EventId ?? request.Acceptor.UserId + ":" + request.Acceptor.ColonyId;
-                LedgerAppendResult ownerDelivery = AppendTradeItemDeliveryEvent(
+                AuthoritativeEvent ownerDelivery = CreateTradeItemDeliveryEvent(
                     state,
                     $"trade-completed-owner-delivery:{tradeOrder.EventId}:{fulfillmentKey}",
                     acceptorParty,
@@ -1759,7 +1752,8 @@ public static partial class ClashOfRimNetworkServer
                     ItemDeliveryPurpose.TradeCompletedOwnerDelivery,
                     ResolveTradeCompletedOwnerDeliveryTargetContext(tradeOrder, fulfillmentMode),
                     nowUtc);
-                ownerDeliveryEventId = ownerDelivery.Event.EventId;
+                ownerDeliveryEventId = ownerDelivery.EventId;
+                events.Add(ownerDelivery);
 
                 if (fulfillmentMode == TradeFulfillmentMode.ServerDropPod)
                 {
@@ -1769,7 +1763,7 @@ public static partial class ClashOfRimNetworkServer
                         request.Acceptor.ColonyId ?? string.Empty,
                         request.Acceptor.SnapshotId ?? string.Empty,
                         EventLandingMode.DropPod);
-                    LedgerAppendResult acceptorDelivery = AppendTradeItemDeliveryEvent(
+                    AuthoritativeEvent acceptorDelivery = CreateTradeItemDeliveryEvent(
                         state,
                         $"trade-completed-acceptor-delivery:{tradeOrder.EventId}:{fulfillmentKey}",
                         tradeOrder.Actor,
@@ -1778,9 +1772,12 @@ public static partial class ClashOfRimNetworkServer
                         ItemDeliveryPurpose.TradeCompletedAcceptorDelivery,
                         acceptorTargetContext,
                         nowUtc);
-                    acceptorDeliveryEventId = acceptorDelivery.Event.EventId;
+                    acceptorDeliveryEventId = acceptorDelivery.EventId;
+                    events.Add(acceptorDelivery);
                 }
 
+                state.Ledger.ApplyBatch(new LedgerBatch(events, changes));
+                LogEventAppend(state, append, "trade-fulfillment-exchange");
                 IReadOnlyList<string> notifiedUsers = activeMemos
                     .Select(memo => memo.Target.UserId)
                     .Append(tradeOrder.Actor.UserId)
@@ -2130,13 +2127,8 @@ public static partial class ClashOfRimNetworkServer
                     state.Ledger,
                     tradeOrder.EventId);
 
-                state.Ledger.ChangeStatus(tradeOrder.EventId, ServerEventStatus.Cancelled);
-                foreach (AuthoritativeEvent memo in activeMemos)
-                {
-                    state.Ledger.ChangeStatus(memo.EventId, ServerEventStatus.Cancelled);
-                }
-
-                AppendTradeItemDeliveryEvent(
+                var events = new List<AuthoritativeEvent>();
+                events.Add(CreateTradeItemDeliveryEvent(
                     state,
                     $"trade-expired-owner-return:{tradeOrder.EventId}",
                     new EventParty("server"),
@@ -2144,7 +2136,7 @@ public static partial class ClashOfRimNetworkServer
                     ((TradeEventPayload)tradeOrder.Payload).OfferedItems,
                     ItemDeliveryPurpose.TradeExpiredOwnerReturn,
                     tradeOrder.TargetContext,
-                    nowUtc);
+                    nowUtc));
 
                 IReadOnlyList<EventParty> targets = new[] { tradeOrder.Actor }
                     .Concat(activeMemos.Select(memo => memo.Target))
@@ -2157,9 +2149,11 @@ public static partial class ClashOfRimNetworkServer
                 {
                     bool targetIsOwner = string.Equals(target.UserId, tradeOrder.Actor.UserId, StringComparison.Ordinal)
                         && string.Equals(target.ColonyId, tradeOrder.Actor.ColonyId, StringComparison.Ordinal);
-                    AppendTradeExpiredNotification(state, tradeOrder, target, targetIsOwner, nowUtc);
+                    events.Add(CreateTradeExpiredNotification(state, tradeOrder, target, targetIsOwner, nowUtc));
                 }
 
+                state.Ledger.ApplyBatch(BuildTradeClosureBatch(tradeOrder, activeMemos,
+                    ServerEventStatus.Cancelled, ServerEventStatus.Cancelled, events));
                 state.EventNotifications.SignalUsers(
                     targets.Select(target => target.UserId).Distinct(StringComparer.Ordinal));
             }
@@ -2208,13 +2202,8 @@ public static partial class ClashOfRimNetworkServer
                     state.Ledger,
                     tradeOrder.EventId);
 
-                state.Ledger.ChangeStatus(tradeOrder.EventId, ServerEventStatus.Cancelled);
-                foreach (AuthoritativeEvent memo in activeMemos)
-                {
-                    state.Ledger.ChangeStatus(memo.EventId, ServerEventStatus.Cancelled);
-                }
-
-                AppendTradeItemDeliveryEvent(
+                var events = new List<AuthoritativeEvent>();
+                events.Add(CreateTradeItemDeliveryEvent(
                     state,
                     $"trade-baseline-invalidated-owner-return:{tradeOrder.EventId}",
                     new EventParty("server"),
@@ -2222,7 +2211,7 @@ public static partial class ClashOfRimNetworkServer
                     payload.OfferedItems,
                     ItemDeliveryPurpose.TradeBaselineChangedOwnerReturn,
                     tradeOrder.TargetContext,
-                    nowUtc);
+                    nowUtc));
 
                 IReadOnlyList<EventParty> targets = new[] { tradeOrder.Actor }
                     .Concat(activeMemos.Select(memo => memo.Target))
@@ -2235,9 +2224,11 @@ public static partial class ClashOfRimNetworkServer
                 {
                     bool targetIsOwner = string.Equals(target.UserId, tradeOrder.Actor.UserId, StringComparison.Ordinal)
                         && string.Equals(target.ColonyId, tradeOrder.Actor.ColonyId, StringComparison.Ordinal);
-                    AppendTradeBaselineInvalidatedNotification(state, tradeOrder, target, targetIsOwner, unavailableDefs, nowUtc);
+                    events.Add(CreateTradeBaselineInvalidatedNotification(state, tradeOrder, target, targetIsOwner, unavailableDefs, nowUtc));
                 }
 
+                state.Ledger.ApplyBatch(BuildTradeClosureBatch(tradeOrder, activeMemos,
+                    ServerEventStatus.Cancelled, ServerEventStatus.Cancelled, events));
                 state.EventNotifications.SignalUsers(
                     targets.Select(target => target.UserId).Distinct(StringComparer.Ordinal));
                 cancelled++;
@@ -2333,7 +2324,7 @@ public static partial class ClashOfRimNetworkServer
             && string.IsNullOrWhiteSpace(thing.PawnPackageId);
     }
 
-    private static void AppendTradeExpiredNotification(
+    private static AuthoritativeEvent CreateTradeExpiredNotification(
         ClashOfRimNetworkState state,
         AuthoritativeEvent tradeOrder,
         EventParty target,
@@ -2357,10 +2348,10 @@ public static partial class ClashOfRimNetworkServer
                 ServerNotificationSeverity.Warning,
                 FromAdministrator: false),
             nowUtc);
-        LogEventAppend(state, state.Ledger.Append(notification), "trade-expired-notification");
+        return notification;
     }
 
-    private static void AppendTradeBaselineInvalidatedNotification(
+    private static AuthoritativeEvent CreateTradeBaselineInvalidatedNotification(
         ClashOfRimNetworkState state,
         AuthoritativeEvent tradeOrder,
         EventParty target,
@@ -2386,7 +2377,7 @@ public static partial class ClashOfRimNetworkServer
                 ServerNotificationSeverity.Warning,
                 FromAdministrator: false),
             nowUtc);
-        LogEventAppend(state, state.Ledger.Append(notification), "trade-baseline-invalidated-notification");
+        return notification;
     }
 
     private static IResult CancelTradeOrder(CloseTradeOrderRequest request, ClashOfRimNetworkState state)
@@ -2550,15 +2541,10 @@ public static partial class ClashOfRimNetworkServer
             IReadOnlyList<AuthoritativeEvent> activeMemos = FindActiveTradeAcceptanceMemos(
                 state.Ledger,
                 tradeOrder.EventId);
-            state.Ledger.ChangeStatus(tradeOrder.EventId, tradeTerminalStatus);
-            foreach (AuthoritativeEvent memo in activeMemos)
-            {
-                state.Ledger.ChangeStatus(memo.EventId, memoTerminalStatus);
-            }
-
+            var events = new List<AuthoritativeEvent>();
             if (tradeTerminalStatus == ServerEventStatus.Cancelled)
             {
-                AppendTradeItemDeliveryEvent(
+                events.Add(CreateTradeItemDeliveryEvent(
                     state,
                     $"trade-cancelled-owner-return:{tradeOrder.EventId}",
                     new EventParty("server"),
@@ -2566,9 +2552,11 @@ public static partial class ClashOfRimNetworkServer
                     payload.OfferedItems,
                     ItemDeliveryPurpose.TradeCancelledOwnerReturn,
                     tradeOrder.TargetContext,
-                    DateTimeOffset.UtcNow);
+                    DateTimeOffset.UtcNow));
             }
 
+            state.Ledger.ApplyBatch(BuildTradeClosureBatch(tradeOrder, activeMemos,
+                tradeTerminalStatus, memoTerminalStatus, events));
             IReadOnlyList<string> notifiedUsers = activeMemos
                 .Select(memo => memo.Target.UserId)
                 .Where(userId => !string.IsNullOrWhiteSpace(userId))
