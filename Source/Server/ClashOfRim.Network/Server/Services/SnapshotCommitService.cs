@@ -31,10 +31,10 @@ public sealed class SnapshotCommitService
         {
             SnapshotCommitIntent intent = JsonSerializer.Deserialize<SnapshotCommitIntent>(File.ReadAllBytes(path))
                 ?? throw new InvalidDataException("Empty snapshot commit: " + path);
-            if (intent.Version is not (1 or 2 or 3 or 4 or 5 or 6 or 7 or 8) || Path.GetFileNameWithoutExtension(path) != intent.Id)
+            if (intent.Version is not (1 or 2 or 3 or 4 or 5 or 6 or 7 or 8 or 9) || Path.GetFileNameWithoutExtension(path) != intent.Id)
                 throw new InvalidDataException("Unsupported snapshot commit: " + path);
             SnapshotIdentity identity = intent.Package.Envelope.Identity;
-            if (intent.Loan is null && intent.Debt is null && intent.Gift is null && intent.Trade is null && intent.Shop is null && intent.Mercenary is null && intent.PendingOperations is null && intent.Raid is null && intent.RaidSettlement is null
+            if (intent.Loan is null && intent.Debt is null && intent.Gift is null && intent.Trade is null && intent.Shop is null && intent.Mercenary is null && intent.PendingOperations is null && intent.Raid is null && intent.RaidSettlement is null && intent.RaidCleanup is null
                 || intent.Loan is { } loan && (loan.UserId != identity.OwnerId || loan.ColonyId != identity.ColonyId || loan.SnapshotId != identity.SnapshotId)
                 || intent.Debt is { } debt && (debt.UserId != identity.OwnerId || debt.ColonyId != identity.ColonyId || debt.SnapshotId != identity.SnapshotId)
                 || intent.Gift is { } gift && (intent.Version is not (2 or 6) || intent.Loan is not null || intent.Debt is not null
@@ -53,6 +53,12 @@ public sealed class SnapshotCommitService
                     || intent.Trade is not null || intent.Shop is not null || intent.Mercenary is not null || intent.Raid is not null || intent.PendingOperations is not null))
                 throw new InvalidDataException("Raid settlement journal contains incompatible mutations: " + path);
             intent.RaidSettlement?.Validate(identity);
+            if ((intent.Version == 9) != (intent.RaidCleanup is not null)
+                || intent.RaidCleanup is not null && (intent.Loan is not null || intent.Debt is not null || intent.Gift is not null
+                    || intent.Trade is not null || intent.Shop is not null || intent.Mercenary is not null || intent.Raid is not null
+                    || intent.RaidSettlement is not null || intent.PendingOperations is not null))
+                throw new InvalidDataException("Raid cleanup journal contains incompatible mutations: " + path);
+            intent.RaidCleanup?.Validate(identity);
             intent.Trade?.Validate(identity);
             intent.Shop?.Validate(identity);
             intent.Mercenary?.Validate(identity);
@@ -182,6 +188,22 @@ public sealed class SnapshotCommitService
             throw new InvalidDataException("Raid defender snapshot changed before intent creation.");
         var intent = new SnapshotCommitIntent(8, Guid.NewGuid().ToString("N"), mutation.Previous.Identity.SnapshotId,
             mutation.Previous.NextLineageToken, package, mutation.AppliedAtUtc, null, null, null, RaidSettlement: mutation);
+        Write(intent);
+        pending.Add(intent.Id, intent);
+        Apply(intent, snapshots, bank, (_, _) => { }, ledger, signalUser, players: players);
+    }
+
+    public void CommitRaidCleanup(IColonySnapshotIndexStore snapshots, BankLoanRegistry bank, IAuthoritativeEventLedger ledger,
+        PlayerRegistry players, SaveSnapshotPackage package, RaidCleanupSnapshotMutation mutation,
+        DateTimeOffset acceptedAtUtc, Action<string> signalUser)
+    {
+        if (pending.Count != 0) throw new InvalidOperationException("Recover pending snapshot commits before accepting new work.");
+        mutation.Validate(package.Envelope.Identity);
+        mutation.Preflight(ledger);
+        if (!SameVersion(snapshots.GetLatest(package.Envelope.Identity.OwnerId!, package.Envelope.Identity.ColonyId!)?.Envelope, mutation.Previous))
+            throw new InvalidDataException("Raid attacker snapshot changed before cleanup intent creation.");
+        var intent = new SnapshotCommitIntent(9, Guid.NewGuid().ToString("N"), mutation.Previous.Identity.SnapshotId,
+            mutation.Previous.NextLineageToken, package, acceptedAtUtc, null, null, null, RaidCleanup: mutation);
         Write(intent);
         pending.Add(intent.Id, intent);
         Apply(intent, snapshots, bank, (_, _) => { }, ledger, signalUser, players: players);
@@ -335,6 +357,11 @@ public sealed class SnapshotCommitService
             intent.Mercenary?.Preflight(contracts, guards);
             intent.Raid?.Preflight(ledger!, guards!);
             LedgerBatch? settlementBatch = null;
+            if (intent.RaidCleanup is { } pendingCleanup)
+            {
+                if (ledger is null || players is null) throw new InvalidOperationException("Raid cleanup recovery requires the ledger and players.");
+                pendingCleanup.Preflight(ledger);
+            }
             if (intent.RaidSettlement is { } pendingSettlement)
             {
                 if (ledger is null || players is null) throw new InvalidOperationException("Raid settlement recovery requires the ledger and players.");
@@ -358,10 +385,11 @@ public sealed class SnapshotCommitService
                 && latest?.Envelope.OriginalSha256 == package.Envelope.OriginalSha256;
             bool stillAtParent = latest?.Identity.SnapshotId == intent.PreviousSnapshotId
                 && latest?.Envelope.NextLineageToken == intent.PreviousLineageToken;
-            if (intent.RaidSettlement is { } settlementVersion)
+            SaveSnapshotEnvelope? maintenancePrevious = intent.RaidSettlement?.Previous ?? intent.RaidCleanup?.Previous;
+            if (maintenancePrevious is not null)
             {
                 alreadyPublished = SameVersion(latest?.Envelope, package.Envelope);
-                stillAtParent = SameVersion(latest?.Envelope, settlementVersion.Previous);
+                stillAtParent = SameVersion(latest?.Envelope, maintenancePrevious);
             }
             if (!stillAtParent && !alreadyPublished)
                 throw new InvalidDataException("A pending snapshot commit conflicts with a newer snapshot; refusing to overwrite it.");
@@ -370,7 +398,14 @@ public sealed class SnapshotCommitService
                 if (snapshots is IColonySnapshotPackageStore packages) packages.StoreLatest(package, package.Index, intent.AcceptedAtUtc);
                 else snapshots.StoreLatest(snapshot);
             }
-            if (intent.RaidSettlement is { } raidSettlement)
+            if (intent.RaidCleanup is { } raidCleanup)
+            {
+                players!.RecordLatestSnapshotReference(identity.OwnerId!, identity.ColonyId!, identity.SnapshotId, intent.AcceptedAtUtc);
+                ledger!.ApplyBatch(raidCleanup.Batch);
+                foreach (string user in raidCleanup.Batch.Events.Select(item => item.Target.UserId).Distinct(StringComparer.Ordinal))
+                    signalUser?.Invoke(user);
+            }
+            else if (intent.RaidSettlement is { } raidSettlement)
             {
                 players!.RecordLatestSnapshotReference(identity.OwnerId!, identity.ColonyId!, identity.SnapshotId, intent.AcceptedAtUtc);
                 ledger!.ApplyBatch(settlementBatch!);
@@ -435,4 +470,4 @@ public sealed record SnapshotCommitIntent(int Version, string Id, string? Previo
     SaveSnapshotPackage Package, DateTimeOffset AcceptedAtUtc, BankLoanRecord? Loan, BankDebtRecord? Debt, string? SnapshotUploadKind,
     AuthoritativeEvent? Gift = null, TradeSnapshotMutation? Trade = null, ShopSnapshotMutation? Shop = null,
     MercenarySnapshotMutation? Mercenary = null, PendingSnapshotOperations? PendingOperations = null, RaidSnapshotMutation? Raid = null,
-    RaidSettlementSnapshotMutation? RaidSettlement = null);
+    RaidSettlementSnapshotMutation? RaidSettlement = null, RaidCleanupSnapshotMutation? RaidCleanup = null);

@@ -1335,9 +1335,7 @@ public static partial class ClashOfRimNetworkServer
             LatestSnapshotRecord? latest = packageStore.GetLatest(userId, colonyId);
             // A download captures a point-in-time version. Cleanup is a mutation and must not
             // publish that version over a newer upload, a removed colony, or an unfinished intent.
-            if (latest?.Identity != package.Envelope.Identity
-                || latest.Envelope.OriginalSha256 != package.Envelope.OriginalSha256
-                || latest.Envelope.NextLineageToken != package.Envelope.NextLineageToken) return package;
+            if (!SnapshotCommitService.SameVersion(latest?.Envelope, package.Envelope)) return package;
             return CleanupSettledRaidBattleSnapshotBeforeDownloadLocked(state, packageStore, package, userId, colonyId, nowUtc);
         }
     }
@@ -1366,8 +1364,10 @@ public static partial class ClashOfRimNetworkServer
         {
             return package;
         }
+        if (!CanCleanupRaidBattleSnapshot(state, raid, package)) return package;
 
         string cleanedSnapshotId = BuildTimedOutRaidCleanupSnapshotId(colonyId, raidEventId, nowUtc);
+        bool commitStarted = false;
         try
         {
             if (!RaidAttackerSnapshotCleanupEditor.TryRemoveRaidBattleState(
@@ -1380,32 +1380,10 @@ public static partial class ClashOfRimNetworkServer
                 return package;
             }
 
-            packageStore.StoreLatest(cleaned, cleaned.Index, nowUtc);
-            RecordLatestSnapshotReference(
-                state,
-                userId,
-                colonyId,
-                new LatestSnapshotRecord(cleaned.Envelope.Identity, cleaned.Envelope, cleaned.Index, nowUtc),
-                nowUtc);
-            var attackerLossEvents = new List<AuthoritativeEvent>();
-            var supportLossNotifications = new List<AuthoritativeEvent>();
-            AppendRaidCleanupLossEvents(
-                state,
-                raid,
-                raidPayload,
-                cleaned,
-                cleanupResult,
-                nowUtc,
-                attackerLossEvents,
-                supportLossNotifications,
-                "map-cleanup");
-            IReadOnlyList<string> usersToSignal = attackerLossEvents
-                .Select(evt => evt.Target.UserId)
-                .Concat(supportLossNotifications.Select(evt => evt.Target.UserId))
-                .Where(id => !string.IsNullOrWhiteSpace(id))
-                .Distinct(StringComparer.Ordinal)
-                .ToList();
-            state.EventNotifications.SignalUsers(usersToSignal);
+            var mutation = BuildRaidCleanupMutation(state, raid, raidPayload, package, cleaned, cleanupResult, nowUtc, "map-cleanup");
+            commitStarted = true;
+            state.SnapshotCommits.CommitRaidCleanup(packageStore, state.BankLoans, state.Ledger, state.Players,
+                cleaned, mutation, nowUtc, user => state.EventNotifications.SignalUser(user));
             state.RuntimeLogger.LogInformation(
                 "Cleaned stale raid battle snapshot before download: user={UserId} colony={ColonyId} sourceSnapshot={SourceSnapshotId} cleanedSnapshot={CleanedSnapshotId} removedMaps={RemovedMapCount} lostAttackPawns={LostAttackPawns} lostSupportPawns={LostSupportPawns}",
                 userId,
@@ -1417,7 +1395,7 @@ public static partial class ClashOfRimNetworkServer
                 cleanupResult.LostSupportPawns.Count);
             return cleaned;
         }
-        catch (Exception ex) when (ex is IOException or InvalidDataException or System.Xml.XmlException or InvalidOperationException)
+        catch (Exception ex) when (!commitStarted && (ex is IOException or InvalidDataException or System.Xml.XmlException or InvalidOperationException))
         {
             state.RuntimeLogger.LogWarning(
                 ex,

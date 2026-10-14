@@ -2105,6 +2105,8 @@ public static partial class ClashOfRimNetworkServer
             }
 
             string snapshotId = BuildTimedOutRaidCleanupSnapshotId(attackerColonyId, raid.EventId, nowUtc);
+            if (!CanCleanupRaidBattleSnapshot(state, raid, package)) continue;
+            bool commitStarted = false;
             try
             {
                 if (!RaidAttackerSnapshotCleanupEditor.TryRemoveRaidBattleState(
@@ -2123,23 +2125,12 @@ public static partial class ClashOfRimNetworkServer
                     continue;
                 }
 
-                packageStore.StoreLatest(cleaned, cleaned.Index, nowUtc);
-                RecordLatestSnapshotReference(
-                    state,
-                    attackerUserId,
-                    attackerColonyId,
-                    new LatestSnapshotRecord(cleaned.Envelope.Identity, cleaned.Envelope, cleaned.Index, nowUtc),
-                    nowUtc);
-
-                AppendRaidCleanupLossEvents(
-                    state,
-                    raid,
-                    raidPayload,
-                    cleaned,
-                    cleanupResult,
-                    nowUtc,
-                    attackerLossEvents,
-                    supportLossNotifications);
+                var mutation = BuildRaidCleanupMutation(state, raid, raidPayload, package, cleaned, cleanupResult, nowUtc);
+                commitStarted = true;
+                state.SnapshotCommits.CommitRaidCleanup(packageStore, state.BankLoans, state.Ledger, state.Players,
+                    cleaned, mutation, nowUtc, user => state.EventNotifications.SignalUser(user));
+                attackerLossEvents.AddRange(mutation.Batch.Events.Where(item => item.Type == ServerEventType.Raid));
+                supportLossNotifications.AddRange(mutation.Batch.Events.Where(item => item.Type == ServerEventType.SupportPawn));
                 state.RuntimeLogger.LogInformation(
                     "Timed out raid attacker cleanup stored cleaned snapshot: raid={RaidEventId} attacker={AttackerUserId}/{AttackerColonyId} sourceSnapshot={SourceSnapshotId} cleanedSnapshot={CleanedSnapshotId} removedMaps={RemovedMapCount} lostAttackPawns={LostAttackPawns} lostSupportPawns={LostSupportPawns}",
                     raid.EventId,
@@ -2151,7 +2142,7 @@ public static partial class ClashOfRimNetworkServer
                     cleanupResult.LostAttackPawns.Count,
                     cleanupResult.LostSupportPawns.Count);
             }
-            catch (Exception ex) when (ex is IOException or InvalidDataException or System.Xml.XmlException or InvalidOperationException)
+            catch (Exception ex) when (!commitStarted && (ex is IOException or InvalidDataException or System.Xml.XmlException or InvalidOperationException))
             {
                 state.RuntimeLogger.LogWarning(
                     ex,
@@ -2166,17 +2157,19 @@ public static partial class ClashOfRimNetworkServer
         return new RaidCleanupEventAppendResult(attackerLossEvents, supportLossNotifications);
     }
 
-    private static void AppendRaidCleanupLossEvents(
+    private static RaidCleanupSnapshotMutation BuildRaidCleanupMutation(
         ClashOfRimNetworkState state,
         AuthoritativeEvent raid,
         RaidEventPayload raidPayload,
+        SaveSnapshotPackage originalAttackerPackage,
         SaveSnapshotPackage cleanedAttackerPackage,
         RaidAttackerSnapshotCleanupResult cleanupResult,
         DateTimeOffset nowUtc,
-        List<AuthoritativeEvent> attackerLossEvents,
-        List<AuthoritativeEvent> supportLossNotifications,
         string lossReason = "timeout")
     {
+        var events = new List<AuthoritativeEvent>();
+        var supportSources = new List<AuthoritativeEvent>();
+        var statuses = new List<LedgerStatusChange>();
         if (cleanupResult.LostAttackPawns.Count > 0)
         {
             string cleanedSnapshotId = cleanedAttackerPackage.Envelope.Identity.SnapshotId ?? string.Empty;
@@ -2204,16 +2197,11 @@ public static partial class ClashOfRimNetworkServer
                 nowUtc,
                 raid.TargetContext);
 
-            LedgerAppendResult append = state.Ledger.Append(lossEvent);
-            LogEventAppend(state, append, "raid-attacker-map-loss");
-            if (append.Created)
-            {
-                attackerLossEvents.Add(append.Event);
-            }
+            events.Add(lossEvent);
         }
 
         IReadOnlyList<AuthoritativeEvent> allEvents = state.Ledger.ListAll();
-        foreach (RaidBattleLostSupportPawnSummary lostSupport in cleanupResult.LostSupportPawns)
+        foreach (RaidBattleLostSupportPawnSummary lostSupport in cleanupResult.LostSupportPawns.DistinctBy(pawn => pawn.EventId))
         {
             AuthoritativeEvent? supportEvent = state.Ledger.Find(lostSupport.EventId);
             if (supportEvent?.Payload is not SupportPawnEventPayload payload)
@@ -2237,14 +2225,19 @@ public static partial class ClashOfRimNetworkServer
                 "RaidSettlementLost",
                 state.OnlinePresence.IsUserOnline(supportEvent.Actor.UserId),
                 nowUtc);
-            LedgerAppendResult append = state.Ledger.Append(notification);
-            LogEventAppend(state, append, "raid-support-map-loss");
-            state.Ledger.ChangeStatus(supportEvent.EventId, ServerEventStatus.Failed);
-            if (append.Created)
-            {
-                supportLossNotifications.Add(append.Event);
-            }
+            events.Add(notification);
+            supportSources.Add(supportEvent);
+            statuses.Add(new LedgerStatusChange(supportEvent.EventId, supportEvent.Status, ServerEventStatus.Failed));
         }
+        return new RaidCleanupSnapshotMutation(raid, originalAttackerPackage.Envelope, new LedgerBatch(events, statuses), supportSources);
+    }
+
+    private static bool CanCleanupRaidBattleSnapshot(ClashOfRimNetworkState state, AuthoritativeEvent raid, SaveSnapshotPackage package)
+    {
+        if (raid.Actor.UserId != package.Envelope.Identity.OwnerId || raid.Actor.ColonyId != package.Envelope.Identity.ColonyId
+            || FindActiveSourceRaidForAttacker(state, raid.Actor.UserId, raid.Actor.ColonyId) is not null) return false;
+        var battles = package.Index.WorldObjects.Where(item => item.Def == "ClashOfRim_RemoteRaidBattleMapParent").ToArray();
+        return battles.Length > 0 && battles.All(item => item.ClashOfRimRelatedEventId == raid.EventId);
     }
 
     private static string BuildTimedOutRaidCleanupSnapshotId(string colonyId, string raidEventId, DateTimeOffset nowUtc)
