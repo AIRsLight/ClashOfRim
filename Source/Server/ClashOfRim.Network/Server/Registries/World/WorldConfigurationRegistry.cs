@@ -484,14 +484,17 @@ public sealed class WorldConfigurationRegistry
                 if (removed > 0)
                 {
                     WorldConfigurationExtensionService extensionsService = ResolveWorldExtensions(activeWorldExtensions);
-                    worldConfiguration = CopyWithPlayerColonySitesAndExtensions(
+                    WorldConfigurationDto candidate = CopyWithPlayerColonySitesAndExtensions(
                         worldConfiguration,
                         retained,
                         extensionsService.RemoveColonyExtensions(
                             userId,
                             colonyId,
                             worldConfiguration.Extensions));
-                    SaveLocked();
+                    // Site removal does not change the substrate. Persist the candidate
+                    // before publishing it, so a failed deletion can be retried in-process.
+                    SaveLocked(candidate, writeSubstrate: false);
+                    worldConfiguration = candidate;
                 }
             }
 
@@ -964,11 +967,14 @@ public sealed class WorldConfigurationRegistry
     }
 
     private void SaveLocked()
+        => SaveLocked(worldConfiguration, writeSubstrate: true);
+
+    private void SaveLocked(WorldConfigurationDto? configuration, bool writeSubstrate)
     {
         if (structuredPersistence is not null)
         {
-            structuredPersistence.ReplaceAll(BuildStructuredRows());
-            binaryPersistence?.WriteBinary("world-substrate", worldSubstratePayload);
+            structuredPersistence.ReplaceAll(BuildStructuredRows(configuration));
+            if (writeSubstrate) binaryPersistence?.WriteBinary("world-substrate", worldSubstratePayload);
             return;
         }
 
@@ -978,13 +984,16 @@ public sealed class WorldConfigurationRegistry
         }
 
         string json = JsonSerializer.Serialize(
-            BuildPersistenceSnapshot(administratorUserId, administratorUserIds, worldConfiguration),
+            BuildPersistenceSnapshot(administratorUserId, administratorUserIds, configuration),
             JsonOptions);
         legacyPersistence.Write(json);
-        binaryPersistence?.WriteBinary("world-substrate", worldSubstratePayload);
+        if (writeSubstrate) binaryPersistence?.WriteBinary("world-substrate", worldSubstratePayload);
     }
 
     private IReadOnlyDictionary<string, string> BuildStructuredRows()
+        => BuildStructuredRows(worldConfiguration);
+
+    private IReadOnlyDictionary<string, string> BuildStructuredRows(WorldConfigurationDto? configuration)
     {
         Dictionary<string, string> rows = new(StringComparer.Ordinal)
         {
@@ -993,12 +1002,11 @@ public sealed class WorldConfigurationRegistry
                 JsonOptions)
         };
 
-        if (worldConfiguration is null)
+        if (configuration is null)
         {
             return rows;
         }
 
-        WorldConfigurationDto configuration = worldConfiguration;
         rows["core"] = JsonSerializer.Serialize(WorldConfigurationCoreRecord.FromDto(configuration), JsonOptions);
         rows["features"] = JsonSerializer.Serialize(new WorldConfigurationListRecord<WorldFeatureDto>(configuration.Features), JsonOptions);
         rows["factions"] = JsonSerializer.Serialize(new WorldConfigurationListRecord<WorldFactionDto>(configuration.Factions), JsonOptions);

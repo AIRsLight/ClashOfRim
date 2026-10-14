@@ -1709,99 +1709,46 @@ public static partial class ClashOfRimNetworkServer
 
         string userId = lifecycleEvent.UserId;
         string colonyId = lifecycleEvent.ColonyId;
-        DateTimeOffset nowUtc = lifecycleEvent.OccurredAtUtc;
 
         state.RaidPreparations.RemoveForColony(userId, colonyId);
         state.RaidProtectionActivations.RemoveForColony(userId, colonyId);
         state.MercenaryContracts.CloseForColony(userId, colonyId);
 
-        HashSet<string> usersToSignal = new(StringComparer.Ordinal);
-        foreach (AuthoritativeEvent ledgerEvent in state.Ledger.ListAll())
-        {
-            if (IsTerminalForAbandonedColonyCleanup(ledgerEvent.Status)
-                || IsColonyTombstoneEvent(ledgerEvent, userId, colonyId))
-            {
-                continue;
-            }
-
-            bool actorMatches = IsVisibleParty(ledgerEvent.Actor, userId, colonyId);
-            bool targetMatches = IsVisibleParty(ledgerEvent.Target, userId, colonyId);
-            if (!actorMatches && !targetMatches)
-            {
-                continue;
-            }
-
-            if (TryCloseAbandonedTradeEvent(state, ledgerEvent, userId, colonyId, nowUtc, usersToSignal))
-            {
-                continue;
-            }
-
-            ServerEventStatus terminalStatus = ResolveAbandonedColonyTerminalStatus(ledgerEvent, actorMatches, targetMatches);
-            state.Ledger.ChangeStatus(ledgerEvent.EventId, terminalStatus);
-            AddSignalUser(usersToSignal, ledgerEvent.Actor.UserId);
-            AddSignalUser(usersToSignal, ledgerEvent.Target.UserId);
-        }
-
-        if (usersToSignal.Count > 0)
-        {
-            state.EventNotifications.SignalUsers(usersToSignal);
-        }
+        LedgerBatch batch = BuildAbandonedColonyEventClosure(state.Ledger, userId, colonyId, out HashSet<string> usersToSignal);
+        if (batch.StatusChanges.Count > 0) state.Ledger.ApplyBatch(batch);
+        if (usersToSignal.Count > 0) state.EventNotifications.SignalUsers(usersToSignal);
     }
 
-    private static bool TryCloseAbandonedTradeEvent(
-        ClashOfRimNetworkState state,
-        AuthoritativeEvent ledgerEvent,
-        string abandonedUserId,
-        string abandonedColonyId,
-        DateTimeOffset nowUtc,
-        HashSet<string> usersToSignal)
+    // Build the complete graph before changing any status. An order and its
+    // acceptance memos must not be split by a persistence failure.
+    private static LedgerBatch BuildAbandonedColonyEventClosure(
+        IAuthoritativeEventLedger ledger, string userId, string colonyId, out HashSet<string> usersToSignal)
     {
-        if (ledgerEvent.Type != ServerEventType.Trade
-            || ledgerEvent.Payload is not TradeEventPayload payload)
+        var users = new HashSet<string>(StringComparer.Ordinal);
+        var changes = new Dictionary<string, LedgerStatusChange>(StringComparer.Ordinal);
+        void Close(AuthoritativeEvent item, ServerEventStatus status)
         {
-            return false;
+            changes[item.EventId] = new LedgerStatusChange(item.EventId, item.Status, status);
+            AddSignalUser(users, item.Actor.UserId);
+            AddSignalUser(users, item.Target.UserId);
         }
 
-        if (payload.Stage == TradeStage.MarketOrder)
+        foreach (AuthoritativeEvent item in ledger.ListAll())
         {
-            if (!IsVisibleParty(ledgerEvent.Actor, abandonedUserId, abandonedColonyId))
+            if (IsTerminalForAbandonedColonyCleanup(item.Status) || IsColonyTombstoneEvent(item, userId, colonyId)) continue;
+            bool actorMatches = IsVisibleParty(item.Actor, userId, colonyId);
+            if (!actorMatches && !IsVisibleParty(item.Target, userId, colonyId)) continue;
+
+            if (item.Type == ServerEventType.Trade && actorMatches
+                && item.Payload is TradeEventPayload { Stage: TradeStage.MarketOrder })
             {
-                return false;
+                foreach (AuthoritativeEvent memo in FindActiveTradeAcceptanceMemos(ledger, item.EventId))
+                    Close(memo, ServerEventStatus.Cancelled);
             }
-
-            state.Ledger.ChangeStatus(ledgerEvent.EventId, ServerEventStatus.Cancelled);
-            foreach (AuthoritativeEvent memo in FindActiveTradeAcceptanceMemos(state.Ledger, ledgerEvent.EventId))
-            {
-                state.Ledger.ChangeStatus(memo.EventId, ServerEventStatus.Cancelled);
-                AddSignalUser(usersToSignal, memo.Target.UserId);
-            }
-
-            AddSignalUser(usersToSignal, ledgerEvent.Actor.UserId);
-            return true;
+            Close(item, item.Type == ServerEventType.Raid && actorMatches ? ServerEventStatus.Failed : ServerEventStatus.Cancelled);
         }
-
-        if (payload.Stage == TradeStage.AcceptedMemo
-            && IsVisibleParty(ledgerEvent.Actor, abandonedUserId, abandonedColonyId))
-        {
-            state.Ledger.ChangeStatus(ledgerEvent.EventId, ServerEventStatus.Cancelled);
-            AddSignalUser(usersToSignal, ledgerEvent.Actor.UserId);
-            return true;
-        }
-
-        return false;
-    }
-
-    private static ServerEventStatus ResolveAbandonedColonyTerminalStatus(
-        AuthoritativeEvent ledgerEvent,
-        bool actorMatches,
-        bool targetMatches)
-    {
-        if (ledgerEvent.Type == ServerEventType.Raid && actorMatches)
-        {
-            return ServerEventStatus.Failed;
-        }
-
-        return ServerEventStatus.Cancelled;
+        usersToSignal = users;
+        return new LedgerBatch(Array.Empty<AuthoritativeEvent>(), changes.Values.ToArray());
     }
 
     private static int ReconcileFailedSupportPawnEventsForDeletedActors(
