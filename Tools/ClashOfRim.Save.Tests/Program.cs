@@ -25,6 +25,7 @@ var tests = new (string Name, Action Run)[]
     ("普通上传保留原始后处理上下文并跨中断恢复", () => OrdinaryUploadRecoveryTests.Run(BuildFixturePackage)),
     ("事件入档原子提交且重复确认恢复应用结果与交易成就", () => EventConfirmationStageTests.Run(BuildFixturePackage)),
     ("单条批量事件确认跨中断恢复且保留原始结果回执", () => ConfirmationJournalTests.Run(BuildFixturePackage)),
+    ("支援结束与拒绝原子提交且按源事件去重", () => SupportClosureTests.Run(BuildFixturePackage)),
     ("交易关闭退货原子提交且不重复补偿已入档物品", TradeClosureTests.Run),
     ("商店持久化失败保留库存缓存且允许重试", ShopRegistryPersistenceTests.Run),
     ("商店快照和购买回执共同恢复且限制重复请求身份", () => ShopCommitCrashTests.Run(BuildFixturePackage)),

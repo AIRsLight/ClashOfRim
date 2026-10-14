@@ -2,7 +2,16 @@ namespace AIRsLight.ClashOfRim.Events;
 
 /// <summary>Expected statuses prevent a stale trade settlement from closing a changed order.</summary>
 public sealed record LedgerStatusChange(string EventId, ServerEventStatus ExpectedStatus, ServerEventStatus Status,
-    LedgerEventPayload? ExpectedPayload = null, LedgerEventPayload? Payload = null);
+    LedgerEventPayload? ExpectedPayload = null, LedgerEventPayload? Payload = null, AuthoritativeEvent? ExpectedEvent = null);
+
+public sealed record LedgerRejectionChange(AuthoritativeEvent Expected, DateTimeOffset RejectedAtUtc, string? Reason)
+{
+    public AuthoritativeEvent Updated => Expected.Status == ServerEventStatus.RejectedByTarget ? Expected : Expected with
+    {
+        Status = ServerEventStatus.RejectedByTarget, TargetDecision = TargetEventDecision.Rejected,
+        DecisionAtUtc = RejectedAtUtc, DecisionReason = Reason, LastApplicationResult = EventApplicationResultKind.Rejected
+    };
+}
 
 public sealed record LedgerApplicationChange(AuthoritativeEvent Expected, string DeliveredSnapshotId,
     string AppliedSnapshotId, DateTimeOffset AppliedAtUtc)
@@ -25,7 +34,8 @@ public sealed record LedgerConfirmationChange(AuthoritativeEvent Expected, Autho
 
 public sealed record LedgerBatch(IReadOnlyList<AuthoritativeEvent> Events, IReadOnlyList<LedgerStatusChange> StatusChanges,
     IReadOnlyList<LedgerApplicationChange>? ApplicationChanges = null,
-    IReadOnlyList<LedgerConfirmationChange>? ConfirmationChanges = null);
+    IReadOnlyList<LedgerConfirmationChange>? ConfirmationChanges = null,
+    IReadOnlyList<LedgerRejectionChange>? RejectionChanges = null);
 
 public static class LedgerBatchValidation
 {
@@ -59,6 +69,9 @@ public static class LedgerBatchValidation
                 ?? throw new InvalidOperationException("Batch status target is missing.");
             if (current.Status != change.ExpectedStatus && !(alreadyCommitted && current.Status == change.Status))
                 throw new InvalidOperationException("Batch status target changed since preparation.");
+            if (change.ExpectedEvent is { } expected && (expected.EventId != change.EventId || expected.Status != change.ExpectedStatus
+                || !Same(current, expected) && !(alreadyCommitted && Same(current, expected with { Status = change.Status, Payload = change.Payload ?? expected.Payload }))))
+                throw new InvalidOperationException("Batch status source changed since preparation.");
             if ((change.ExpectedPayload is null) != (change.Payload is null)
                 || change.ExpectedPayload is not null && !SamePayload(current.Payload, change.ExpectedPayload)
                     && !(alreadyCommitted && SamePayload(current.Payload, change.Payload!)))
@@ -70,7 +83,8 @@ public static class LedgerBatchValidation
                 || string.IsNullOrWhiteSpace(change.AppliedSnapshotId) || string.IsNullOrWhiteSpace(change.DeliveredSnapshotId))
                 throw new InvalidOperationException("Batch application targets must be distinct existing events with snapshot identities.");
             var current = find(change.Expected.EventId);
-            bool applicationOnlyReplay = batch.Events.Count == 0 && batch.StatusChanges.Count == 0 && (batch.ConfirmationChanges?.Count ?? 0) == 0;
+            bool applicationOnlyReplay = batch.Events.Count == 0 && batch.StatusChanges.Count == 0
+                && (batch.ConfirmationChanges?.Count ?? 0) == 0 && (batch.RejectionChanges?.Count ?? 0) == 0;
             if (!Same(current, change.Expected) && !((alreadyCommitted || applicationOnlyReplay) && Same(current, change.Updated)))
                 throw new InvalidOperationException("Batch application target changed since preparation.");
         }
@@ -91,6 +105,18 @@ public static class LedgerBatchValidation
             var current = find(change.Expected.EventId);
             if (!Same(current, change.Expected) && !Same(current, change.Updated))
                 throw new InvalidOperationException("Confirmation target changed since preparation.");
+        }
+        foreach (LedgerRejectionChange change in batch.RejectionChanges ?? [])
+        {
+            if (!changedIds.Add(change.Expected.EventId) || ids.Contains(change.Expected.EventId)
+                || change.Expected.RejectionPolicy != EventRejectionPolicy.RejectableByTarget
+                || change.Expected.Status is ServerEventStatus.AppliedToSnapshot or ServerEventStatus.Cancelled or ServerEventStatus.Failed
+                || change.Expected.Status == ServerEventStatus.RejectedByTarget
+                    && (change.Expected.TargetDecision != TargetEventDecision.Rejected || change.Expected.DecisionAtUtc is null))
+                throw new InvalidOperationException("Invalid batch rejection target.");
+            var current = find(change.Expected.EventId);
+            if (!Same(current, change.Expected) && !(alreadyCommitted && Same(current, change.Updated)))
+                throw new InvalidOperationException("Batch rejection source changed since preparation.");
         }
     }
 

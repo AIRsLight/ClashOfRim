@@ -59,7 +59,8 @@ public sealed class SqliteAuthoritativeEventLedger : IAuthoritativeEventLedger
             command.ExecuteNonQuery();
         }
         foreach (AuthoritativeEvent updated in (batch.ApplicationChanges ?? []).Select(change => change.Updated)
-            .Concat((batch.ConfirmationChanges ?? []).Select(change => change.Updated)))
+            .Concat((batch.ConfirmationChanges ?? []).Select(change => change.Updated))
+            .Concat((batch.RejectionChanges ?? []).Select(change => change.Updated)))
         {
             using SqliteCommand command = connection.CreateCommand();
             command.Transaction = transaction;
@@ -67,7 +68,8 @@ public sealed class SqliteAuthoritativeEventLedger : IAuthoritativeEventLedger
                 update events set status = $status, delivered_to_snapshot_id = $delivered,
                     delivered_at_utc = $delivered_at, applied_snapshot_id = $applied,
                     applied_at_utc = $applied_at, last_application_result = $result,
-                    last_failure_reason = $failure, next_retry_at_utc = $retry where event_id = $id;
+                    last_failure_reason = $failure, next_retry_at_utc = $retry,
+                    target_decision = $decision, decision_at_utc = $decision_at, decision_reason = $reason where event_id = $id;
                 """;
             command.Parameters.AddWithValue("$status", updated.Status.ToString());
             command.Parameters.AddWithValue("$delivered", (object?)updated.DeliveredToSnapshotId ?? DBNull.Value);
@@ -76,6 +78,9 @@ public sealed class SqliteAuthoritativeEventLedger : IAuthoritativeEventLedger
             command.Parameters.AddWithValue("$applied_at", (object?)updated.AppliedAtUtc?.ToString("O", CultureInfo.InvariantCulture) ?? DBNull.Value);
             command.Parameters.AddWithValue("$failure", (object?)updated.LastFailureReason ?? DBNull.Value);
             command.Parameters.AddWithValue("$retry", (object?)updated.NextRetryAtUtc?.ToString("O", CultureInfo.InvariantCulture) ?? DBNull.Value);
+            command.Parameters.AddWithValue("$decision", updated.TargetDecision.ToString());
+            command.Parameters.AddWithValue("$decision_at", (object?)updated.DecisionAtUtc?.ToString("O", CultureInfo.InvariantCulture) ?? DBNull.Value);
+            command.Parameters.AddWithValue("$reason", (object?)updated.DecisionReason ?? DBNull.Value);
             command.Parameters.AddWithValue("$result", updated.LastApplicationResult.ToString());
             command.Parameters.AddWithValue("$id", updated.EventId);
             command.ExecuteNonQuery();

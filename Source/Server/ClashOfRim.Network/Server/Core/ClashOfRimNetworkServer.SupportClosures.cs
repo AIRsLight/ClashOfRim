@@ -1,0 +1,65 @@
+using AIRsLight.ClashOfRim.Events;
+using AIRsLight.ClashOfRim.Protocol;
+
+namespace AIRsLight.ClashOfRim.Network;
+
+public static partial class ClashOfRimNetworkServer
+{
+    private enum SupportClosureKind { Return, Loss, Rejection }
+    private sealed record SupportClosure(AuthoritativeEvent Event, SupportClosureKind Kind);
+
+    private static SupportClosure? FindSupportClosure(IAuthoritativeEventLedger ledger, AuthoritativeEvent source)
+    {
+        // Inspect both identity and payload: corrupt historical records must not enable a second return.
+        var candidates = ledger.ListAll()
+            .Where(item => item.Payload is SupportPawnEventPayload { ReturnToSender: true } payload && payload.SourceEventId == source.EventId
+                || item.IdempotencyKey.StartsWith($"support-finish:{source.EventId}:", StringComparison.Ordinal)
+                || item.IdempotencyKey.StartsWith($"support-loss:{source.EventId}:", StringComparison.Ordinal))
+            .ToDictionary(item => item.EventId, StringComparer.Ordinal);
+        // Inspect the legacy rejection key even when its payload is malformed.
+        if (ledger.FindByIdempotencyKey(source.IdempotencyKey + ":rejected-return") is { } rejected)
+            candidates.TryAdd(rejected.EventId, rejected);
+        if (candidates.Count == 0) return null;
+        if (candidates.Count != 1) throw new InvalidOperationException("Support has conflicting completion events.");
+        var item = candidates.Values.Single();
+        var payload = (SupportPawnEventPayload)source.Payload;
+        if (item.Type != ServerEventType.SupportPawn || item.Payload is not SupportPawnEventPayload result
+            || !result.ReturnToSender || result.TemporaryControl || result.SourceEventId != source.EventId
+            || item.Actor != source.Target || item.Target != source.Actor || result.PawnGlobalKey != payload.PawnGlobalKey
+            || result.SourceSnapshotId != payload.SourceSnapshotId)
+            throw new InvalidOperationException("Support completion conflicts with its source.");
+        if (item.IdempotencyKey == source.IdempotencyKey + ":rejected-return" && result.ReturnReason == "Rejected")
+            return new(item, SupportClosureKind.Rejection);
+        if (item.IdempotencyKey == $"support-finish:{source.EventId}:{result.ReturnReason}" && result.PawnPackage is not null)
+            return new(item, SupportClosureKind.Return);
+        if (item.IdempotencyKey == $"support-loss:{source.EventId}:{result.ReturnReason}" && result.PawnPackage is null)
+            return new(item, SupportClosureKind.Loss);
+        throw new InvalidOperationException("Unrecognized support completion identity.");
+    }
+
+    private static bool CommitSupportClosure(ClashOfRimNetworkState state, AuthoritativeEvent source, SupportClosure closure)
+    {
+        bool created = state.Ledger.Find(closure.Event.EventId) is null;
+        ServerEventStatus status = closure.Kind switch
+        {
+            SupportClosureKind.Loss => ServerEventStatus.Failed,
+            SupportClosureKind.Rejection => ServerEventStatus.RejectedByTarget,
+            _ => ServerEventStatus.AppliedToSnapshot
+        };
+        if (source.Status is ServerEventStatus.Cancelled or ServerEventStatus.Failed or ServerEventStatus.RejectedByTarget
+            && source.Status != status)
+            throw new InvalidOperationException("Support completion conflicts with an ended source.");
+        if (closure.Kind == SupportClosureKind.Rejection && source.Status == ServerEventStatus.RejectedByTarget
+            && (source.DecisionAtUtc != closure.Event.CreatedAtUtc
+                || source.DecisionReason != ((SupportPawnEventPayload)closure.Event.Payload).RejectionReason))
+            throw new InvalidOperationException("Support return conflicts with its original rejection decision.");
+        LedgerBatch batch = closure.Kind == SupportClosureKind.Rejection
+            ? new([closure.Event], [], RejectionChanges: [new(source, closure.Event.CreatedAtUtc,
+                ((SupportPawnEventPayload)closure.Event.Payload).RejectionReason)])
+            : new([closure.Event], [new(source.EventId, source.Status, status, ExpectedEvent: source)]);
+        state.Ledger.ApplyBatch(batch);
+        // The event itself is durable. Retry the transient wake-up even after a previous batch committed.
+        state.EventNotifications.SignalUser(source.Actor.UserId);
+        return created;
+    }
+}

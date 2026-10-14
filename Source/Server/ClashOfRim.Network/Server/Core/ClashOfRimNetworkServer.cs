@@ -992,6 +992,15 @@ public static partial class ClashOfRimNetworkServer
         ClashOfRimNetworkState state,
         SnapshotUploadResult upload)
     {
+        using (state.EnterSnapshotMutation())
+        {
+            if (!state.SnapshotCommits.IsApplying) RecoverSnapshotCommits(state);
+            ProcessSupportPawnDeathsFromSnapshotLocked(state, upload);
+        }
+    }
+
+    private static void ProcessSupportPawnDeathsFromSnapshotLocked(ClashOfRimNetworkState state, SnapshotUploadResult upload)
+    {
         if (!upload.Accepted || upload.AcceptedSnapshot is null)
         {
             return;
@@ -1006,6 +1015,7 @@ public static partial class ClashOfRimNetworkServer
         var losses = new List<AuthoritativeEvent>();
         var statuses = new List<LedgerStatusChange>();
         var notifyUsers = new HashSet<string>(StringComparer.Ordinal);
+        IReadOnlyList<AuthoritativeEvent> allEvents = state.Ledger.ListAll();
         foreach (AuthoritativeEvent supportEvent in state.Ledger.ListForUser(identity.OwnerId!)
             .Where(evt => evt.Type == ServerEventType.SupportPawn)
             .Where(evt => evt.Status is ServerEventStatus.PendingOfflineDelivery
@@ -1036,6 +1046,7 @@ public static partial class ClashOfRimNetworkServer
             }
 
             AuthoritativeEvent? existing = state.Ledger.FindByIdempotencyKey($"support-loss:{supportEvent.EventId}:SnapshotDeath");
+            if (existing is null && HasSupportFinishEvent(supportEvent, allEvents)) continue;
             // A failed source alone is not evidence of snapshot death. Only replay
             // an existing loss; otherwise leave unrelated terminal events alone.
             if (supportEvent.Status == ServerEventStatus.Failed && existing is null)
@@ -2709,23 +2720,6 @@ public static partial class ClashOfRimNetworkServer
             && ledgerEvent.Payload is ItemDeliveryEventPayload { Purpose: ItemDeliveryPurpose.RejectedGiftReturn }
                 ? ledgerEvent
                 : null;
-    }
-
-    private static AuthoritativeEvent? FindSupportPawnReturnFor(IAuthoritativeEventLedger ledger, AuthoritativeEvent supportEvent)
-    {
-        string returnIdempotencyKey = $"{supportEvent.IdempotencyKey}:rejected-return";
-        AuthoritativeEvent? ledgerEvent = ledger.FindByIdempotencyKey(returnIdempotencyKey);
-        return ledgerEvent?.Type == ServerEventType.SupportPawn ? ledgerEvent : null;
-    }
-
-    private static AuthoritativeEvent? FindSupportFinishEventFor(
-        IAuthoritativeEventLedger ledger,
-        AuthoritativeEvent supportEvent,
-        string finishReason)
-    {
-        string idempotencyKey = $"support-finish:{supportEvent.EventId}:{finishReason}";
-        return ledger.FindByIdempotencyKey(idempotencyKey)
-            ?? ledger.FindByIdempotencyKey($"support-loss:{supportEvent.EventId}:{finishReason}");
     }
 
     private static AuthoritativeEvent CreateSupportPawnFinishReturnEvent(

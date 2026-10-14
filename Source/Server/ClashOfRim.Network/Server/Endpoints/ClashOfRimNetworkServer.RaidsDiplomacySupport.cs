@@ -855,6 +855,15 @@ public static partial class ClashOfRimNetworkServer
 
     private static IResult FinishSupportPawn(FinishSupportPawnRequest request, ClashOfRimNetworkState state)
     {
+        using (state.EnterSnapshotMutation())
+        {
+            RecoverSnapshotCommits(state);
+            return FinishSupportPawnLocked(request, state);
+        }
+    }
+
+    private static IResult FinishSupportPawnLocked(FinishSupportPawnRequest request, ClashOfRimNetworkState state)
+    {
         ProtocolResponse? validation = ValidateFinishSupportPawnRequest(request);
         if (validation is not null)
         {
@@ -875,30 +884,20 @@ public static partial class ClashOfRimNetworkServer
                 created: false));
         }
 
-        if (supportEvent.Status == ServerEventStatus.AppliedToSnapshot)
+        if (payload.ReturnToSender || request.PawnGlobalKey != payload.PawnGlobalKey)
+            return Results.Ok(new FinishSupportPawnResponse(
+                ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("Support.ReferenceMismatch")), request.EventId, null, null, false));
+
+        if (FindSupportClosure(state.Ledger, supportEvent) is { } existing)
         {
-            AuthoritativeEvent? existing = FindSupportFinishEventFor(state.Ledger, supportEvent, request.FinishReason);
-            if (existing is not null)
-            {
-                return Results.Ok(new FinishSupportPawnResponse(
-                    new ProtocolResponse(true, ProtocolErrorCode.DuplicateRequest, T("Support.AlreadyEnded")),
-                    supportEvent.EventId,
-                    existing.Type == ServerEventType.SupportPawn ? existing.EventId : null,
-                    existing.Type == ServerEventType.ServerNotification ? existing.EventId : null,
-                    created: false));
-            }
-        }
-        else if (supportEvent.Status is ServerEventStatus.Cancelled or ServerEventStatus.Failed)
-        {
-            AuthoritativeEvent? existing = FindSupportFinishEventFor(state.Ledger, supportEvent, request.FinishReason);
+            CommitSupportClosure(state, supportEvent, existing);
             return Results.Ok(new FinishSupportPawnResponse(
                 new ProtocolResponse(true, ProtocolErrorCode.DuplicateRequest, T("Support.AlreadyEnded")),
-                supportEvent.EventId,
-                existing?.Type == ServerEventType.SupportPawn ? existing.EventId : null,
-                existing?.Type == ServerEventType.ServerNotification ? existing.EventId : null,
-                created: false));
+                supportEvent.EventId, existing.Event.EventId, null, false));
         }
-
+        if (supportEvent.Status is ServerEventStatus.Cancelled or ServerEventStatus.Failed or ServerEventStatus.RejectedByTarget)
+            return Results.Ok(new FinishSupportPawnResponse(
+                ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Support.AlreadyEnded")), supportEvent.EventId, null, null, false));
         PawnExchangePackage? pawnPackage = null;
         if (!request.PawnDead)
         {
@@ -912,6 +911,10 @@ public static partial class ClashOfRimNetworkServer
                     null,
                     created: false));
             }
+            if (pawnPackage.Reference.GlobalId != payload.PawnGlobalKey)
+                return Results.Ok(new FinishSupportPawnResponse(
+                    ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("Support.PackageReferenceMismatch")),
+                    request.EventId, null, null, false));
 
             try
             {
@@ -933,21 +936,22 @@ public static partial class ClashOfRimNetworkServer
         AuthoritativeEvent finishEvent = request.PawnDead
             ? CreateSupportPawnLossReturnEvent(supportEvent, payload, request.PawnName, request.FinishReason, ownerOnline, nowUtc)
             : CreateSupportPawnFinishReturnEvent(supportEvent, payload, request, pawnPackage, ownerOnline, nowUtc);
-        LedgerAppendResult append = state.Ledger.Append(finishEvent);
-        state.Ledger.ChangeStatus(supportEvent.EventId, request.PawnDead ? ServerEventStatus.Failed : ServerEventStatus.AppliedToSnapshot);
-        SignalIfCreated(state, append, supportEvent.Actor.UserId);
-
+        bool created = CommitSupportClosure(state, supportEvent,
+            new SupportClosure(finishEvent, request.PawnDead ? SupportClosureKind.Loss : SupportClosureKind.Return));
         return Results.Ok(new FinishSupportPawnResponse(
-            append.Created
-                ? ProtocolResponse.Ok(request.PawnDead ? ServerLocalization.Text("Support.Dead") : ServerLocalization.Text("Support.Finished"))
-                : new ProtocolResponse(true, ProtocolErrorCode.DuplicateRequest, ServerLocalization.Text("Support.FinishDuplicate")),
-            supportEvent.EventId,
-            finishEvent.Type == ServerEventType.SupportPawn ? finishEvent.EventId : null,
-            finishEvent.Type == ServerEventType.ServerNotification ? finishEvent.EventId : null,
-            append.Created));
+            ProtocolResponse.Ok(request.PawnDead ? T("Support.Dead") : T("Support.Finished")),
+            supportEvent.EventId, finishEvent.EventId, null, created));
+    }
+    private static IResult RejectSupportPawn(RejectSupportPawnRequest request, ClashOfRimNetworkState state)
+    {
+        using (state.EnterSnapshotMutation())
+        {
+            RecoverSnapshotCommits(state);
+            return RejectSupportPawnLocked(request, state);
+        }
     }
 
-    private static IResult RejectSupportPawn(RejectSupportPawnRequest request, ClashOfRimNetworkState state)
+    private static IResult RejectSupportPawnLocked(RejectSupportPawnRequest request, ClashOfRimNetworkState state)
     {
         if (string.IsNullOrWhiteSpace(request.EventId)
             || string.IsNullOrWhiteSpace(request.UserId)
@@ -989,49 +993,31 @@ public static partial class ClashOfRimNetworkServer
                 returnEventCreated: false));
         }
 
-        if (supportEvent.Status == ServerEventStatus.AppliedToSnapshot)
+        if (FindSupportClosure(state.Ledger, supportEvent) is { } existing)
         {
-            return Results.Ok(new RejectSupportPawnResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Support.AlreadyAppliedCannotReject")),
-                request.EventId,
-                returnEventId: null,
-                returnEventCreated: false));
-        }
-
-        if (supportEvent.Status == ServerEventStatus.RejectedByTarget)
-        {
-            AuthoritativeEvent? existingReturn = FindSupportPawnReturnFor(state.Ledger, supportEvent);
-            if (existingReturn is not null)
-            {
+            if (existing.Kind != SupportClosureKind.Rejection)
                 return Results.Ok(new RejectSupportPawnResponse(
-                    new ProtocolResponse(true, ProtocolErrorCode.DuplicateRequest, ServerLocalization.Text("Support.RejectedDuplicate")),
-                    supportEvent.EventId,
-                    existingReturn.EventId,
-                    returnEventCreated: false));
-            }
+                    ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Support.AlreadyEnded")), request.EventId, null, false));
+            CommitSupportClosure(state, supportEvent, existing);
+            return Results.Ok(new RejectSupportPawnResponse(
+                new ProtocolResponse(true, ProtocolErrorCode.DuplicateRequest, T("Support.RejectedDuplicate")),
+                supportEvent.EventId, existing.Event.EventId, false));
         }
+        if (supportEvent.Status is ServerEventStatus.AppliedToSnapshot or ServerEventStatus.Cancelled or ServerEventStatus.Failed)
+            return Results.Ok(new RejectSupportPawnResponse(
+                ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Support.AlreadyAppliedCannotReject")), request.EventId, null, false));
 
-        DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
-        AuthoritativeEvent rejected = state.Ledger.MarkRejected(supportEvent.EventId, nowUtc, request.Reason);
-        bool originalActorOnline = state.OnlinePresence.IsUserOnline(supportEvent.Actor.UserId);
-        AuthoritativeEvent returnEvent = CreateRejectedSupportPawnReturnEvent(
-            rejected,
-            supportPayload,
-            request.Reason,
-            originalActorOnline,
-            nowUtc);
-        LedgerAppendResult append = state.Ledger.Append(returnEvent);
-        SignalIfCreated(state, append, supportEvent.Actor.UserId);
-
-        return Results.Ok(new RejectSupportPawnResponse(
-            append.Created
-                ? ProtocolResponse.Ok(ServerLocalization.Text("Support.Rejected"))
-                : new ProtocolResponse(true, ProtocolErrorCode.DuplicateRequest, ServerLocalization.Text("Support.RejectedDuplicate")),
-            rejected.EventId,
-            append.Event.EventId,
-            append.Created));
+        // A legacy MarkRejected may have committed without its return event. Keep its original decision.
+        DateTimeOffset nowUtc = supportEvent.Status == ServerEventStatus.RejectedByTarget
+            ? supportEvent.DecisionAtUtc ?? throw new InvalidOperationException("Rejected support has no original decision time.")
+            : DateTimeOffset.UtcNow;
+        string? reason = supportEvent.Status == ServerEventStatus.RejectedByTarget ? supportEvent.DecisionReason : request.Reason;
+        AuthoritativeEvent rejected = new LedgerRejectionChange(supportEvent, nowUtc, reason).Updated;
+        AuthoritativeEvent returnEvent = CreateRejectedSupportPawnReturnEvent(rejected, supportPayload, reason,
+            state.OnlinePresence.IsUserOnline(supportEvent.Actor.UserId), nowUtc);
+        bool created = CommitSupportClosure(state, supportEvent, new SupportClosure(returnEvent, SupportClosureKind.Rejection));
+        return Results.Ok(new RejectSupportPawnResponse(ProtocolResponse.Ok(T("Support.Rejected")), supportEvent.EventId, returnEvent.EventId, created));
     }
-
     private static ProtocolResponse? ValidateSupportPawnRequest(CreateSupportPawnRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.IdempotencyKey)
@@ -2255,7 +2241,8 @@ public static partial class ClashOfRimNetworkServer
         string returnId = $"support-finish:{supportEvent.EventId}:RaidSettlementLost";
         string lossId = $"support-loss:{supportEvent.EventId}:RaidSettlementLost";
         return allEvents.Any(evt =>
-            string.Equals(evt.IdempotencyKey, returnId, StringComparison.Ordinal)
+            evt.Payload is SupportPawnEventPayload { ReturnToSender: true } returned && returned.SourceEventId == supportEvent.EventId
+            || string.Equals(evt.IdempotencyKey, returnId, StringComparison.Ordinal)
             || string.Equals(evt.IdempotencyKey, lossId, StringComparison.Ordinal)
             || string.Equals(evt.IdempotencyKey, $"{supportEvent.IdempotencyKey}:rejected-return", StringComparison.Ordinal)
             || (evt.Payload is ServerNotificationEventPayload notification

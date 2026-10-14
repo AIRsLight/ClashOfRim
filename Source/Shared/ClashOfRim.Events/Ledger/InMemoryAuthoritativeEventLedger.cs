@@ -41,6 +41,8 @@ public sealed class InMemoryAuthoritativeEventLedger : IAuthoritativeEventLedger
                 prepared[change.Expected.EventId] = change.Updated;
             foreach (LedgerConfirmationChange change in batch.ConfirmationChanges ?? [])
                 prepared[change.Expected.EventId] = change.Updated;
+            foreach (LedgerRejectionChange change in batch.RejectionChanges ?? [])
+                prepared[change.Expected.EventId] = change.Updated;
             // Persist before publishing caches; readers only see the complete batch.
             eventsById.Clear();
             eventIdByIdempotencyKey.Clear();
