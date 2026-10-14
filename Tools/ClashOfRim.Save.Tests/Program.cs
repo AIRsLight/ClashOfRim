@@ -19,6 +19,7 @@ var tests = new (string Name, Action Run)[]
     ("交易快照与成交事件跨崩溃恢复且并发买家互斥", () => TradeCommitCrashTests.Run(BuildFixturePackage)),
     ("交易成就统计与通知在写入失败后可以恢复", AchievementRecoveryTests.Run),
     ("交易关闭退货原子提交且不重复补偿已入档物品", TradeClosureTests.Run),
+    ("商店持久化失败保留库存缓存且允许重试", ShopRegistryPersistenceTests.Run),
     ("并发准备的快照在提交时重新验证 lineage", VerifyPreparedSnapshotsCannotOverwrite),
     ("服务器数据库新建时写入当前 schema 版本", VerifyServerDatabaseMigrationInitializesNewDatabase),
     ("服务器启动可只读识别无版本旧数据库", VerifyServerDatabaseMigrationAssessesLegacyDatabaseWithoutMutation),

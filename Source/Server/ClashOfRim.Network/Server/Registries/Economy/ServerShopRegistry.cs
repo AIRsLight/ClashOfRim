@@ -91,8 +91,6 @@ public sealed class ServerShopRegistry
                 createdAt,
                 nowUtc,
                 actorUserId);
-            listings[id] = record;
-            InvalidateListingCache();
             PersistShopChanges(
                 new Dictionary<string, string>(StringComparer.Ordinal)
                 {
@@ -112,11 +110,9 @@ public sealed class ServerShopRegistry
                 .Where(key => key.StartsWith(buyerPrefix, StringComparison.Ordinal))
                 .Select(key => "buyer:" + key)
                 .ToArray();
-            bool removed = listings.Remove(listingId);
+            bool removed = listings.ContainsKey(listingId);
             if (removed)
             {
-                RemoveBuyerPurchaseCountsLocked(listingId);
-                InvalidateListingCache();
                 PersistShopChanges(
                     new Dictionary<string, string>(StringComparer.Ordinal),
                     [ListingRowKey(listingId), .. buyerRows]);
@@ -178,8 +174,8 @@ public sealed class ServerShopRegistry
                 return validation;
             }
 
-            // The caller performs the save-package commit while this lock is held, so the
-            // accepted snapshot and the shop ledger cannot diverge under a concurrent admin edit.
+            // This only excludes concurrent edits. A durable snapshot intent is required
+            // to recover interruptions between the callback and the shop write.
             if (!commit(validation))
             {
                 return new ServerShopPurchaseResult(
@@ -316,14 +312,8 @@ public sealed class ServerShopRegistry
             StockCount = Math.Max(0, listing.StockCount - purchaseCount),
             UpdatedAtUtc = nowUtc
         };
-        listings[listingId] = updated;
-        completedPurchaseKeys.Add(idempotencyKey);
-        AddBuyerPurchaseCountLocked(listingId, buyer, purchaseCount, updated.ListingKind);
-        InvalidateListingCache();
-        string buyerKey = BuyerPurchaseKey(listingId, buyer.UserId, buyer.ColonyId!);
-        ServerShopBuyerPurchaseRecord purchase = ServerShopBuyerPurchaseRecord.FromKey(
-            buyerKey,
-            buyerPurchaseCounts[buyerKey])!;
+        var purchase = new ServerShopBuyerPurchaseRecord(listingId, buyer.UserId, buyer.ColonyId!,
+            checked(validation.BuyerPurchaseCount + purchaseCount));
         PersistShopChanges(
             new Dictionary<string, string>(StringComparer.Ordinal)
             {
@@ -356,7 +346,12 @@ public sealed class ServerShopRegistry
             return;
         }
 
-        foreach (KeyValuePair<string, string> pair in structuredPersistence.ReadAll())
+        LoadRows(structuredPersistence.ReadAll());
+    }
+
+    private void LoadRows(IReadOnlyDictionary<string, string> rows)
+    {
+        foreach (KeyValuePair<string, string> pair in rows)
         {
             try
             {
@@ -451,12 +446,18 @@ public sealed class ServerShopRegistry
         return imported;
     }
 
-    private void Save()
+    private void SaveCandidate(IReadOnlyDictionary<string, string> upserts, IReadOnlyCollection<string> deletes)
     {
-        legacyPersistence?.Write(JsonSerializer.Serialize(
+        if (legacyPersistence is null) return;
+        Dictionary<string, string> rows = BuildStructuredRows();
+        foreach (string key in deletes) rows.Remove(key);
+        foreach (var pair in upserts) rows[pair.Key] = pair.Value;
+        var candidate = new ServerShopRegistry();
+        candidate.LoadRows(rows);
+        legacyPersistence.Write(JsonSerializer.Serialize(
             new ServerShopRegistryPersistence(
-                listings.Values.OrderBy(listing => listing.ListingId, StringComparer.Ordinal).ToList(),
-                buyerPurchaseCounts
+                candidate.listings.Values.OrderBy(listing => listing.ListingId, StringComparer.Ordinal).ToList(),
+                candidate.buyerPurchaseCounts
                     .Select(pair => ServerShopBuyerPurchaseRecord.FromKey(pair.Key, pair.Value))
                     .Where(record => record is not null)
                     .Cast<ServerShopBuyerPurchaseRecord>()
@@ -464,7 +465,7 @@ public sealed class ServerShopRegistry
                     .ThenBy(record => record.UserId, StringComparer.Ordinal)
                     .ThenBy(record => record.ColonyId, StringComparer.Ordinal)
                     .ToList(),
-                completedPurchaseKeys.OrderBy(key => key, StringComparer.Ordinal).ToList()),
+                candidate.completedPurchaseKeys.OrderBy(key => key, StringComparer.Ordinal).ToList()),
             JsonOptions));
     }
 
@@ -500,10 +501,18 @@ public sealed class ServerShopRegistry
         if (structuredPersistence is not null)
         {
             structuredPersistence.ApplyBatch(upserts, deletes);
-            return;
         }
+        else SaveCandidate(upserts, deletes);
 
-        Save();
+        // Only publish changes after the complete durable batch has succeeded.
+        foreach (string key in deletes)
+        {
+            if (key.StartsWith("listing:", StringComparison.Ordinal)) listings.Remove(key[8..]);
+            else if (key.StartsWith("buyer:", StringComparison.Ordinal)) buyerPurchaseCounts.Remove(key[6..]);
+            else if (key.StartsWith("completed:", StringComparison.Ordinal)) completedPurchaseKeys.Remove(key[10..]);
+        }
+        LoadRows(upserts);
+        InvalidateListingCache();
     }
 
     private void InvalidateListingCache()
@@ -606,32 +615,6 @@ public sealed class ServerShopRegistry
         return buyerPurchaseCounts.TryGetValue(BuyerPurchaseKey(listingId, buyer.UserId, buyer.ColonyId!), out int count)
             ? Math.Max(0, count)
             : 0;
-    }
-
-    private void AddBuyerPurchaseCountLocked(string listingId, ProtocolIdentity buyer, int purchaseCount, string listingKind)
-    {
-        if (!ServerShopListingKinds.IsKnown(listingKind)
-            || string.IsNullOrWhiteSpace(listingId)
-            || string.IsNullOrWhiteSpace(buyer.UserId)
-            || string.IsNullOrWhiteSpace(buyer.ColonyId)
-            || purchaseCount <= 0)
-        {
-            return;
-        }
-
-        string key = BuyerPurchaseKey(listingId, buyer.UserId, buyer.ColonyId!);
-        buyerPurchaseCounts[key] = buyerPurchaseCounts.TryGetValue(key, out int existing)
-            ? Math.Max(0, existing) + purchaseCount
-            : purchaseCount;
-    }
-
-    private void RemoveBuyerPurchaseCountsLocked(string listingId)
-    {
-        string prefix = listingId + "\u001f";
-        foreach (string key in buyerPurchaseCounts.Keys.Where(key => key.StartsWith(prefix, StringComparison.Ordinal)).ToList())
-        {
-            buyerPurchaseCounts.Remove(key);
-        }
     }
 
     private static string BuyerPurchaseKey(string listingId, string userId, string colonyId)
