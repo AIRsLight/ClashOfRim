@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Defs>
+  <HediffDef>
+    <defName>ClashOfRim_RaidLootDissolver</defName>
+    <label>battlefield fail-safe implant</label>
+    <description>A temporary battlefield protection marker. Equipment and apparel dissolve when removed from the wearer.</description>
+    <isBad>false</isBad>
+    <scenarioCanAdd>false</scenarioCanAdd>
+    <initialSeverity>1</initialSeverity>
+    <maxSeverity>1</maxSeverity>
+    <stages>
+      <li>
+        <label>active</label>
+      </li>
+    </stages>
+  </HediffDef>
+</Defs>

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <ClashOfRim_PlayerProxy.label>遠方のコロニー</ClashOfRim_PlayerProxy.label>
+  <ClashOfRim_PlayerProxy.description>同じ惑星上の別のコロニーです。同盟、交易、支援交換が可能ですが、関係が崩れれば公然たる衝突にもなります。</ClashOfRim_PlayerProxy.description>
+  <ClashOfRim_PlayerProxy.pawnSingular>入植者</ClashOfRim_PlayerProxy.pawnSingular>
+  <ClashOfRim_PlayerProxy.pawnsPlural>入植者</ClashOfRim_PlayerProxy.pawnsPlural>
+  <ClashOfRim_PlayerProxy.leaderTitle>管理者</ClashOfRim_PlayerProxy.leaderTitle>
+  <ClashOfRim_ServerMercenaries.label>辺境傭兵団</ClashOfRim_ServerMercenaries.label>
+  <ClashOfRim_ServerMercenaries.description>辺境コロニー間で活動する傭兵会社です。構成員は短期任務で雇用でき、任務中は雇用主の命令に従い、終了時に離脱します。</ClashOfRim_ServerMercenaries.description>
+  <ClashOfRim_ServerMercenaries.pawnSingular>傭兵</ClashOfRim_ServerMercenaries.pawnSingular>
+  <ClashOfRim_ServerMercenaries.pawnsPlural>傭兵</ClashOfRim_ServerMercenaries.pawnsPlural>
+  <ClashOfRim_ServerMercenaries.leaderTitle>傭兵隊長</ClashOfRim_ServerMercenaries.leaderTitle>
+</LanguageData>

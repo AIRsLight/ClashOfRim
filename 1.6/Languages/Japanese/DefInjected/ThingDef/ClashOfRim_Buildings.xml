@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <ClashOfRim_CaravanDeliveryPoint.label>キャラバン配送地点</ClashOfRim_CaravanDeliveryPoint.label>
+  <ClashOfRim_CaravanDeliveryPoint.description>キャラバンで届く物資の到着場所を指定します。配送地点がない場合、物資はマップ端または中央付近に置かれます。</ClashOfRim_CaravanDeliveryPoint.description>
+  <ClashOfRim_DefensePoint.label>防衛地点</ClashOfRim_DefensePoint.label>
+  <ClashOfRim_DefensePoint.description>他コロニーから攻撃された時に入植者がどう防衛するかを設定します。入植者を1人割り当て、固守、防衛、突撃、近くの防衛設備操作を選択します。</ClashOfRim_DefensePoint.description>
+  <ClashOfRim_MechDefensePoint.label>メカノイド防衛地点</ClashOfRim_MechDefensePoint.label>
+  <ClashOfRim_MechDefensePoint.description>他コロニーから攻撃された時にメカノイドがどう防衛するかを設定します。メカノイドを1体割り当て、固守、防衛、突撃を選択します。</ClashOfRim_MechDefensePoint.description>
+  <ClashOfRim_AchievementTrophy.label>実績トロフィー</ClashOfRim_AchievementTrophy.label>
+  <ClashOfRim_AchievementTrophy.description>マルチプレイ実績を記念するトロフィーです。達成者と実績の詳細を記録します。梱包はできず、解体のみ可能です。</ClashOfRim_AchievementTrophy.description>
+  <ClashOfRim_AchievementTrophyPlan.label>実績トロフィー計画書</ClashOfRim_AchievementTrophyPlan.label>
+  <ClashOfRim_AchievementTrophyPlan.description>マルチプレイ実績トロフィーの計画書です。選択すると素材を選び、建設可能な実績トロフィー設計図を配置できます。</ClashOfRim_AchievementTrophyPlan.description>
+</LanguageData>

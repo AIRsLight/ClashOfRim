@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <ClashOfRim_RemoteRuntimeWorldObject.label>遠方の目標</ClashOfRim_RemoteRuntimeWorldObject.label>
+  <ClashOfRim_RemoteColonyMapParent.label>遠方のコロニー</ClashOfRim_RemoteColonyMapParent.label>
+  <ClashOfRim_RemoteSessionMapParent.label>遠方のマップ</ClashOfRim_RemoteSessionMapParent.label>
+  <ClashOfRim_RemoteScoutMapParent.label>偵察マップ</ClashOfRim_RemoteScoutMapParent.label>
+  <ClashOfRim_RemoteRaidObservationMapParent.label>戦闘観戦マップ</ClashOfRim_RemoteRaidObservationMapParent.label>
+  <ClashOfRim_RemoteRaidBattleMapParent.label>襲撃戦場</ClashOfRim_RemoteRaidBattleMapParent.label>
+</LanguageData>

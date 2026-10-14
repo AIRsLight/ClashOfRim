@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net472</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <AssemblyName>AIRsLight.ClashOfRim</AssemblyName>
     <RootNamespace>AIRsLight.ClashOfRim</RootNamespace>
     <LangVersion>10.0</LangVersion>
@@ -10,43 +10,10 @@
     <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(NuGetPackageRoot)' == ''">
-    <NuGetPackageRoot>$(UserProfile)\.nuget\packages\</NuGetPackageRoot>
-  </PropertyGroup>
+  <Import Project="../../Tools/RimWorld.Client.props" />
 
   <ItemGroup>
     <ProjectReference Include="..\Shared\ClashOfRim.Compatibility\ClashOfRim.Compatibility.csproj" />
     <ProjectReference Include="..\Shared\ClashOfRim.Protocol\ClashOfRim.Protocol.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Reference Include="Assembly-CSharp">
-      <HintPath>$(NuGetPackageRoot)krafs.rimworld.ref\1.6.4566\ref\net472\Assembly-CSharp.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="UnityEngine.CoreModule">
-      <HintPath>$(NuGetPackageRoot)krafs.rimworld.ref\1.6.4566\ref\net472\UnityEngine.CoreModule.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="UnityEngine.TextRenderingModule">
-      <HintPath>$(NuGetPackageRoot)krafs.rimworld.ref\1.6.4566\ref\net472\UnityEngine.TextRenderingModule.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="UnityEngine.IMGUIModule">
-      <HintPath>$(NuGetPackageRoot)krafs.rimworld.ref\1.6.4566\ref\net472\UnityEngine.IMGUIModule.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="UnityEngine.ImageConversionModule">
-      <HintPath>$(NuGetPackageRoot)krafs.rimworld.ref\1.6.4566\ref\net472\UnityEngine.ImageConversionModule.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="0Harmony">
-      <HintPath>$(NuGetPackageRoot)lib.harmony\2.4.1\lib\net472\0Harmony.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="System.IO.Compression" />
-    <Reference Include="System.Net.Http" />
-    <Reference Include="System.Runtime.Serialization" />
-    <Reference Include="System.Xml.Linq" />
   </ItemGroup>
 </Project>

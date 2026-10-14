@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <ClashOfRim_CaravanDeliveryPoint.label>원정대 배송 지점</ClashOfRim_CaravanDeliveryPoint.label>
+  <ClashOfRim_CaravanDeliveryPoint.description>원정대로 배송된 물품이 도착할 위치를 표시합니다. 배송 지점이 없으면 물품은 지도 가장자리나 중앙 근처에 놓입니다.</ClashOfRim_CaravanDeliveryPoint.description>
+  <ClashOfRim_DefensePoint.label>방어 지점</ClashOfRim_DefensePoint.label>
+  <ClashOfRim_DefensePoint.description>다른 식민지가 공격할 때 정착민이 어떻게 방어할지 설정합니다. 정착민 한 명을 지정한 뒤 고수, 방어, 돌격, 근처 방어 장비 운용 중 선택합니다.</ClashOfRim_DefensePoint.description>
+  <ClashOfRim_MechDefensePoint.label>메카노이드 방어 지점</ClashOfRim_MechDefensePoint.label>
+  <ClashOfRim_MechDefensePoint.description>다른 식민지가 공격할 때 메카노이드가 어떻게 방어할지 설정합니다. 메카노이드 한 대를 지정한 뒤 고수, 방어, 돌격 중 선택합니다.</ClashOfRim_MechDefensePoint.description>
+  <ClashOfRim_AchievementTrophy.label>업적 트로피</ClashOfRim_AchievementTrophy.label>
+  <ClashOfRim_AchievementTrophy.description>멀티플레이 업적을 기념하는 트로피입니다. 달성자와 업적 내용을 기록합니다. 포장할 수 없고 해체만 가능합니다.</ClashOfRim_AchievementTrophy.description>
+  <ClashOfRim_AchievementTrophyPlan.label>업적 트로피 도면</ClashOfRim_AchievementTrophyPlan.label>
+  <ClashOfRim_AchievementTrophyPlan.description>멀티플레이 업적 트로피 도면입니다. 선택하면 재료를 고르고 건설 가능한 업적 트로피 청사진을 배치할 수 있습니다.</ClashOfRim_AchievementTrophyPlan.description>
+</LanguageData>

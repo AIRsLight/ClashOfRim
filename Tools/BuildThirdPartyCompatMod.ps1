@@ -1,5 +1,6 @@
 param(
     [string]$Configuration = "Debug",
+    [string]$RimWorldManagedDir = "",
     [switch]$NoRestore,
     [switch]$Clean,
     [switch]$IncludeSymbols = $true,
@@ -11,6 +12,7 @@ $ErrorActionPreference = "Stop"
 $script = Join-Path $PSScriptRoot "BuildThirdPartyCompatPackage.ps1"
 $scriptParameters = @{
     Configuration = $Configuration
+    RimWorldManagedDir = $RimWorldManagedDir
 }
 if ($NoRestore) {
     $scriptParameters.NoRestore = $true

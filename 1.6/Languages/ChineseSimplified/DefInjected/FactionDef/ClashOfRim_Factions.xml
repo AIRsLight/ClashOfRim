@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <ClashOfRim_PlayerProxy.label>远方殖民地</ClashOfRim_PlayerProxy.label>
+  <ClashOfRim_PlayerProxy.description>来自同一片星球上的另一座殖民地。你可以与他们结盟、交易、互派支援，也可能在关系恶化后爆发冲突。</ClashOfRim_PlayerProxy.description>
+  <ClashOfRim_PlayerProxy.pawnSingular>殖民者</ClashOfRim_PlayerProxy.pawnSingular>
+  <ClashOfRim_PlayerProxy.pawnsPlural>殖民者</ClashOfRim_PlayerProxy.pawnsPlural>
+  <ClashOfRim_PlayerProxy.leaderTitle>管理者</ClashOfRim_PlayerProxy.leaderTitle>
+  <ClashOfRim_ServerMercenaries.label>边境佣兵团</ClashOfRim_ServerMercenaries.label>
+  <ClashOfRim_ServerMercenaries.description>一支在边境殖民地之间活动的佣兵组织。成员可被短期雇佣，在任务期限内听从雇主指挥，期限结束后会离开。</ClashOfRim_ServerMercenaries.description>
+  <ClashOfRim_ServerMercenaries.pawnSingular>佣兵</ClashOfRim_ServerMercenaries.pawnSingular>
+  <ClashOfRim_ServerMercenaries.pawnsPlural>佣兵</ClashOfRim_ServerMercenaries.pawnsPlural>
+  <ClashOfRim_ServerMercenaries.leaderTitle>佣兵队长</ClashOfRim_ServerMercenaries.leaderTitle>
+</LanguageData>

@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<LanguageData>
+
+  <ClashOfRim_MercenaryGunner.degreeDatas.0.label>傭兵ガンナー</ClashOfRim_MercenaryGunner.degreeDatas.0.label>
+  <ClashOfRim_MercenaryGunner.degreeDatas.0.description>{PAWN_nameDef} は雇われたガンナーで、射撃任務と基本作業のみを行います。</ClashOfRim_MercenaryGunner.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryWarrior.degreeDatas.0.label>傭兵戦士</ClashOfRim_MercenaryWarrior.degreeDatas.0.label>
+  <ClashOfRim_MercenaryWarrior.degreeDatas.0.description>{PAWN_nameDef} は雇われた戦士で、近接戦闘任務と基本作業のみを行います。</ClashOfRim_MercenaryWarrior.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryDoctor.degreeDatas.0.label>傭兵医師</ClashOfRim_MercenaryDoctor.degreeDatas.0.label>
+  <ClashOfRim_MercenaryDoctor.degreeDatas.0.description>{PAWN_nameDef} は雇われた医師で、医療任務と基本作業のみを行います。</ClashOfRim_MercenaryDoctor.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryCook.degreeDatas.0.label>傭兵料理人</ClashOfRim_MercenaryCook.degreeDatas.0.label>
+  <ClashOfRim_MercenaryCook.degreeDatas.0.description>{PAWN_nameDef} は雇われた料理人で、調理任務と基本作業のみを行います。</ClashOfRim_MercenaryCook.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryBuilder.degreeDatas.0.label>傭兵建築士</ClashOfRim_MercenaryBuilder.degreeDatas.0.label>
+  <ClashOfRim_MercenaryBuilder.degreeDatas.0.description>{PAWN_nameDef} は雇われた建築士で、建築任務と基本作業のみを行います。</ClashOfRim_MercenaryBuilder.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryMiner.degreeDatas.0.label>傭兵採掘者</ClashOfRim_MercenaryMiner.degreeDatas.0.label>
+  <ClashOfRim_MercenaryMiner.degreeDatas.0.description>{PAWN_nameDef} は雇われた採掘者で、採掘任務と基本作業のみを行います。</ClashOfRim_MercenaryMiner.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryFarmer.degreeDatas.0.label>傭兵農夫</ClashOfRim_MercenaryFarmer.degreeDatas.0.label>
+  <ClashOfRim_MercenaryFarmer.degreeDatas.0.description>{PAWN_nameDef} は雇われた農夫で、農業任務と基本作業のみを行います。</ClashOfRim_MercenaryFarmer.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryHandler.degreeDatas.0.label>傭兵調教師</ClashOfRim_MercenaryHandler.degreeDatas.0.label>
+  <ClashOfRim_MercenaryHandler.degreeDatas.0.description>{PAWN_nameDef} は雇われた調教師で、動物取扱任務と基本作業のみを行います。</ClashOfRim_MercenaryHandler.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryCrafter.degreeDatas.0.label>傭兵職人</ClashOfRim_MercenaryCrafter.degreeDatas.0.label>
+  <ClashOfRim_MercenaryCrafter.degreeDatas.0.description>{PAWN_nameDef} は雇われた職人で、製作任務と基本作業のみを行います。</ClashOfRim_MercenaryCrafter.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryArtist.degreeDatas.0.label>傭兵芸術家</ClashOfRim_MercenaryArtist.degreeDatas.0.label>
+  <ClashOfRim_MercenaryArtist.degreeDatas.0.description>{PAWN_nameDef} は雇われた芸術家で、芸術任務と基本作業のみを行います。</ClashOfRim_MercenaryArtist.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryNegotiator.degreeDatas.0.label>傭兵交渉人</ClashOfRim_MercenaryNegotiator.degreeDatas.0.label>
+  <ClashOfRim_MercenaryNegotiator.degreeDatas.0.description>{PAWN_nameDef} は雇われた交渉人で、交渉任務と基本作業のみを行います。</ClashOfRim_MercenaryNegotiator.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryResearcher.degreeDatas.0.label>傭兵研究者</ClashOfRim_MercenaryResearcher.degreeDatas.0.label>
+  <ClashOfRim_MercenaryResearcher.degreeDatas.0.description>{PAWN_nameDef} は雇われた研究者で、研究任務と基本作業のみを行います。</ClashOfRim_MercenaryResearcher.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryPorter.degreeDatas.0.label>傭兵運搬人</ClashOfRim_MercenaryPorter.degreeDatas.0.label>
+  <ClashOfRim_MercenaryPorter.degreeDatas.0.description>{PAWN_nameDef} は雇われた運搬人で、運搬、清掃、基本作業のみを行います。</ClashOfRim_MercenaryPorter.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryWorkerApprentice.degreeDatas.0.label>見習い専門家</ClashOfRim_MercenaryWorkerApprentice.degreeDatas.0.label>
+  <ClashOfRim_MercenaryWorkerApprentice.degreeDatas.0.description>{PAWN_nameDef} は雇用された専門作業をより速く行います。</ClashOfRim_MercenaryWorkerApprentice.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryWorkerSkilled.degreeDatas.0.label>熟練専門家</ClashOfRim_MercenaryWorkerSkilled.degreeDatas.0.label>
+  <ClashOfRim_MercenaryWorkerSkilled.degreeDatas.0.description>{PAWN_nameDef} は雇用された専門作業をより速く行います。</ClashOfRim_MercenaryWorkerSkilled.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryWorkerMaster.degreeDatas.0.label>達人専門家</ClashOfRim_MercenaryWorkerMaster.degreeDatas.0.label>
+  <ClashOfRim_MercenaryWorkerMaster.degreeDatas.0.description>{PAWN_nameDef} は雇用された専門作業をより速く行います。</ClashOfRim_MercenaryWorkerMaster.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryCombatApprentice.degreeDatas.0.label>見習い戦闘員</ClashOfRim_MercenaryCombatApprentice.degreeDatas.0.label>
+  <ClashOfRim_MercenaryCombatApprentice.degreeDatas.0.description>{PAWN_nameDef} は戦場生存訓練を受けており、受けるダメージが少なくなります。</ClashOfRim_MercenaryCombatApprentice.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryCombatSkilled.degreeDatas.0.label>熟練戦闘員</ClashOfRim_MercenaryCombatSkilled.degreeDatas.0.label>
+  <ClashOfRim_MercenaryCombatSkilled.degreeDatas.0.description>{PAWN_nameDef} は戦場生存訓練を受けており、受けるダメージが少なくなります。</ClashOfRim_MercenaryCombatSkilled.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryCombatMaster.degreeDatas.0.label>達人戦闘員</ClashOfRim_MercenaryCombatMaster.degreeDatas.0.label>
+  <ClashOfRim_MercenaryCombatMaster.degreeDatas.0.description>{PAWN_nameDef} は戦場生存訓練を受けており、受けるダメージが少なくなります。</ClashOfRim_MercenaryCombatMaster.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryPorterApprentice.degreeDatas.0.label>見習い運搬人</ClashOfRim_MercenaryPorterApprentice.degreeDatas.0.label>
+  <ClashOfRim_MercenaryPorterApprentice.degreeDatas.0.description>{PAWN_nameDef} は基本的な運搬訓練を受けており、移動速度、運搬量、清掃速度が少し向上します。</ClashOfRim_MercenaryPorterApprentice.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryPorterSkilled.degreeDatas.0.label>熟練運搬人</ClashOfRim_MercenaryPorterSkilled.degreeDatas.0.label>
+  <ClashOfRim_MercenaryPorterSkilled.degreeDatas.0.description>{PAWN_nameDef} は熟練した運搬訓練を受けており、移動速度、運搬量、清掃速度が向上します。</ClashOfRim_MercenaryPorterSkilled.degreeDatas.0.description>
+
+  <ClashOfRim_MercenaryPorterMaster.degreeDatas.0.label>達人運搬人</ClashOfRim_MercenaryPorterMaster.degreeDatas.0.label>
+  <ClashOfRim_MercenaryPorterMaster.degreeDatas.0.description>{PAWN_nameDef} は優れた運搬人で、移動速度、運搬量、清掃速度に大きなボーナスを得ます。</ClashOfRim_MercenaryPorterMaster.degreeDatas.0.description>
+
+</LanguageData>

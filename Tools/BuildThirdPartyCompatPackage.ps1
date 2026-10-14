@@ -1,5 +1,6 @@
 param(
     [string]$Configuration = "Debug",
+    [string]$RimWorldManagedDir = "",
     [switch]$NoRestore,
     [switch]$Clean,
     [switch]$IncludeSymbols = $true,
@@ -7,20 +8,19 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "ModPackageUtility.ps1")
+$clientDotNet = Get-ClientDotNet
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $packageId = "AIRsLight.ClashOfRim.ThirdPartyCompat"
 $packageName = "ClashOfRim.ThirdPartyCompat"
 $packageRoot = Join-Path $repoRoot "Build\$packageName"
-$versionRoot = Join-Path $packageRoot "1.6"
-$assemblyRoot = Join-Path $versionRoot "Assemblies"
+$assemblyRoot = Join-Path $packageRoot "Assemblies"
 $serverPluginRoot = Join-Path $repoRoot "Build\ServerPlugins"
 $modProject = Join-Path $repoRoot "ThirdPartyCompat\Source\ClashOfRim.ThirdPartyCompat.csproj"
 $serverPluginProjectsRoot = Join-Path $repoRoot "ThirdPartyCompat\ServerPlugins"
 $aboutSource = Join-Path $repoRoot "ThirdPartyCompat\About\About.xml"
 $previewSource = Join-Path $repoRoot "ThirdPartyCompat\About\Preview.png"
-$languagesSource = Join-Path $repoRoot "ThirdPartyCompat\Languages"
-$defsSource = Join-Path $repoRoot "ThirdPartyCompat\Defs"
 
 function Invoke-DotNetBuild {
     param(
@@ -29,11 +29,12 @@ function Invoke-DotNetBuild {
     )
 
     $args = @("build", $ProjectPath, "-c", $Configuration)
+    if ($RimWorldManagedDir) { $args += "-p:RimWorldManagedDir=$RimWorldManagedDir" }
     if ($NoRestore) {
         $args += "--no-restore"
     }
 
-    dotnet @args
+    & $clientDotNet @args
     if ($LASTEXITCODE -ne 0) {
         throw "dotnet build failed for $ProjectPath with exit code $LASTEXITCODE"
     }
@@ -74,16 +75,6 @@ function Assert-MainModDependency {
 
 Assert-MainModDependency -AboutPath $aboutSource
 
-if ($Clean -and (Test-Path -LiteralPath $packageRoot)) {
-    $resolvedBuildRoot = [System.IO.Path]::GetFullPath((Join-Path $repoRoot "Build"))
-    $resolvedPackageRoot = [System.IO.Path]::GetFullPath($packageRoot)
-    if (-not $resolvedPackageRoot.StartsWith($resolvedBuildRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
-        throw "Refusing to clean outside Build directory: $resolvedPackageRoot"
-    }
-
-    Remove-Item -LiteralPath $packageRoot -Recurse -Force
-}
-
 if (-not $SkipServerPlugins -and $Clean -and (Test-Path -LiteralPath $serverPluginRoot)) {
     $resolvedBuildRoot = [System.IO.Path]::GetFullPath((Join-Path $repoRoot "Build"))
     $resolvedServerPluginRoot = [System.IO.Path]::GetFullPath($serverPluginRoot)
@@ -108,7 +99,7 @@ if (-not $SkipServerPlugins) {
     }
 }
 
-New-Item -ItemType Directory -Force -Path (Join-Path $packageRoot "About") | Out-Null
+Initialize-ModPackage -SourceRoot (Join-Path $repoRoot "ThirdPartyCompat") -PackageRoot $packageRoot
 New-Item -ItemType Directory -Force -Path $assemblyRoot | Out-Null
 if (-not $SkipServerPlugins) {
     New-Item -ItemType Directory -Force -Path $serverPluginRoot | Out-Null
@@ -119,24 +110,6 @@ if (Test-Path -LiteralPath $previewSource) {
     Copy-Item -LiteralPath $previewSource -Destination (Join-Path $packageRoot "About\Preview.png") -Force
 }
 Copy-RequiredFile -Source (Join-Path $repoRoot "Assemblies\$packageId\$packageId.dll") -Destination (Join-Path $assemblyRoot "$packageId.dll")
-
-if (Test-Path -LiteralPath $languagesSource) {
-    $languagesTarget = Join-Path $packageRoot "Languages"
-    if (Test-Path -LiteralPath $languagesTarget) {
-        Remove-Item -LiteralPath $languagesTarget -Recurse -Force
-    }
-
-    Copy-Item -LiteralPath $languagesSource -Destination $languagesTarget -Recurse -Force
-}
-
-if (Test-Path -LiteralPath $defsSource) {
-    $defsTarget = Join-Path $packageRoot "Defs"
-    if (Test-Path -LiteralPath $defsTarget) {
-        Remove-Item -LiteralPath $defsTarget -Recurse -Force
-    }
-
-    Copy-Item -LiteralPath $defsSource -Destination $defsTarget -Recurse -Force
-}
 
 if ($IncludeSymbols) {
     $modPdb = Join-Path $repoRoot "Assemblies\$packageId\$packageId.pdb"
@@ -170,14 +143,7 @@ if (-not $SkipServerPlugins) {
     }
 }
 
-@"
-<loadFolders>
-  <v1.6>
-    <li>/</li>
-    <li>1.6</li>
-  </v1.6>
-</loadFolders>
-"@ | Set-Content -LiteralPath (Join-Path $packageRoot "LoadFolders.xml") -Encoding UTF8
+& (Join-Path $PSScriptRoot "Test-FrozenLegacy.ps1") -PackageRoot $packageRoot -PackageName "ClashOfRim.ThirdPartyCompat"
 
 Write-Host "Third-party compatibility mod package generated: $packageRoot"
 if ($SkipServerPlugins) {

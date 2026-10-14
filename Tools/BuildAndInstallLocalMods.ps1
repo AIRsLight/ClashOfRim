@@ -101,7 +101,7 @@ function Get-RimWorldPathFromSteamLibraries {
 
     foreach ($libraryPath in Read-SteamLibraryPaths -SteamPath $steamPath) {
         $candidate = Join-Path $libraryPath "steamapps\common\RimWorld"
-        if ((Test-Path -LiteralPath $candidate) -and (Test-Path -LiteralPath (Join-Path $candidate "RimWorldWin64.exe"))) {
+        if ((Test-Path -LiteralPath (Join-Path $candidate "RimWorld.exe")) -and (Test-Path -LiteralPath (Join-Path $candidate "UnityStubs.dll"))) {
             return [System.IO.Path]::GetFullPath($candidate)
         }
     }
@@ -161,6 +161,9 @@ function Copy-ModPackage {
 }
 
 $rimWorldRoot = Resolve-RimWorldPath
+if (-not (Test-Path -LiteralPath (Join-Path $rimWorldRoot "UnityStubs.dll"))) {
+    throw "The development install target must be RimWorld 1.7. Use the frozen package for 1.6."
+}
 $modsRoot = Join-Path $rimWorldRoot "Mods"
 if (-not (Test-Path -LiteralPath $modsRoot)) {
     New-Item -ItemType Directory -Force -Path $modsRoot | Out-Null
@@ -171,11 +174,14 @@ $compatBuildScript = Join-Path $PSScriptRoot "BuildThirdPartyCompatPackage.ps1"
 
 $clientBuildParameters = @{
     Configuration = $Configuration
+    RimWorldManagedDir = $rimWorldRoot
 }
+if ($NoRestore) { $clientBuildParameters.NoRestore = $true }
 & $clientBuildScript @clientBuildParameters
 
 $compatBuildParameters = @{
     Configuration = $Configuration
+    RimWorldManagedDir = $rimWorldRoot
     SkipServerPlugins = $true
 }
 if ($NoRestore) {

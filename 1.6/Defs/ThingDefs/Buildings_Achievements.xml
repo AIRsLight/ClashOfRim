@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Defs>
+  <ThingDef ParentName="BuildingBase">
+    <defName>ClashOfRim_AchievementTrophy</defName>
+    <label>achievement trophy</label>
+    <description>A memorial trophy for a multiplayer achievement.</description>
+    <thingClass>AIRsLight.ClashOfRim.Achievements.Building_ClashAchievementTrophy</thingClass>
+    <!-- Keep this constructible for all ideoligions, but omit a designation category so it is only placed from the trophy plan. -->
+    <canGenerateDefaultDesignator>true</canGenerateDefaultDesignator>
+    <blueprintDef>Blueprint_ClashOfRim_AchievementTrophy</blueprintDef>
+    <frameDef>Frame_ClashOfRim_AchievementTrophy</frameDef>
+    <altitudeLayer>Building</altitudeLayer>
+    <passability>PassThroughOnly</passability>
+    <fillPercent>0.50</fillPercent>
+    <canOverlapZones>false</canOverlapZones>
+    <pathCost>50</pathCost>
+    <rotatable>false</rotatable>
+    <castEdgeShadows>true</castEdgeShadows>
+    <size>(2,1)</size>
+    <uiIconScale>0.8</uiIconScale>
+    <uiIconOffset>(0, 0.04)</uiIconOffset>
+    <terrainAffordanceNeeded>Medium</terrainAffordanceNeeded>
+    <stuffCategories>
+      <li>Metallic</li>
+      <li>Woody</li>
+      <li>Stony</li>
+    </stuffCategories>
+    <costStuffCount>125</costStuffCount>
+    <graphicData>
+      <graphicClass>Graphic_Single</graphicClass>
+      <texPath>Things/Building/ClashOfRim/AchievementTrophy</texPath>
+      <drawSize>(4,4)</drawSize>
+      <drawOffset>(0,0,1.1)</drawOffset>
+      <shadowData>
+        <volume>(1.5, 0.6, 1.5)</volume>
+        <offset>(0, 0, 0.73)</offset>
+      </shadowData>
+      <damageData>
+        <rect>(0.1,0.1,1.9,0.9)</rect>
+      </damageData>
+    </graphicData>
+    <statBases>
+      <MaxHitPoints>300</MaxHitPoints>
+      <WorkToBuild>26000</WorkToBuild>
+      <Beauty>300</Beauty>
+      <MarketValue>0</MarketValue>
+    </statBases>
+    <building>
+      <paintable>true</paintable>
+      <blueprintClass>AIRsLight.ClashOfRim.Achievements.Blueprint_ClashAchievementTrophy</blueprintClass>
+      <ai_neverTrashThis>true</ai_neverTrashThis>
+    </building>
+    <comps>
+      <li Class="CompProperties_Art">
+        <nameMaker>NamerArtFurniture</nameMaker>
+        <descriptionMaker>ArtDescription_Furniture</descriptionMaker>
+        <minQualityForArtistic>Awful</minQualityForArtistic>
+      </li>
+      <li Class="CompProperties_Glower">
+        <glowRadius>2.5</glowRadius>
+        <glowColor>(216,219,180,0)</glowColor>
+      </li>
+    </comps>
+    <inspectorTabs>
+      <li>ITab_Art</li>
+    </inspectorTabs>
+    <leaveResourcesWhenKilled>false</leaveResourcesWhenKilled>
+  </ThingDef>
+
+  <ThingDef>
+    <defName>Blueprint_ClashOfRim_AchievementTrophy</defName>
+    <label>achievement trophy blueprint</label>
+    <category>Ethereal</category>
+    <thingClass>AIRsLight.ClashOfRim.Achievements.Blueprint_ClashAchievementTrophy</thingClass>
+    <altitudeLayer>Blueprint</altitudeLayer>
+    <useHitPoints>false</useHitPoints>
+    <selectable>true</selectable>
+    <seeThroughFog>true</seeThroughFog>
+    <drawerType>MapMeshOnly</drawerType>
+    <size>(2,1)</size>
+    <clearBuildingArea>true</clearBuildingArea>
+    <rotatable>false</rotatable>
+    <entityDefToBuild>ClashOfRim_AchievementTrophy</entityDefToBuild>
+    <graphicData>
+      <graphicClass>Graphic_Single</graphicClass>
+      <texPath>Things/Building/ClashOfRim/AchievementTrophy</texPath>
+      <shaderType>EdgeDetect</shaderType>
+      <color>(0.5, 0.75, 1, 0.35)</color>
+      <colorTwo>(1, 1, 1)</colorTwo>
+      <drawSize>(4,4)</drawSize>
+      <drawOffset>(0,0,1.1)</drawOffset>
+      <renderQueue>2950</renderQueue>
+    </graphicData>
+    <comps>
+      <li Class="CompProperties_Forbiddable" />
+      <li Class="CompProperties_Styleable" />
+    </comps>
+  </ThingDef>
+
+  <ThingDef>
+    <defName>Frame_ClashOfRim_AchievementTrophy</defName>
+    <label>achievement trophy frame</label>
+    <description>A memorial trophy for a multiplayer achievement.</description>
+    <thingClass>Frame</thingClass>
+    <category>Building</category>
+    <isFrameInt>true</isFrameInt>
+    <altitudeLayer>Building</altitudeLayer>
+    <useHitPoints>true</useHitPoints>
+    <selectable>true</selectable>
+    <drawerType>RealtimeOnly</drawerType>
+    <size>(2,1)</size>
+    <fillPercent>0.2</fillPercent>
+    <passability>PassThroughOnly</passability>
+    <pathCost>14</pathCost>
+    <rotatable>false</rotatable>
+    <clearBuildingArea>true</clearBuildingArea>
+    <entityDefToBuild>ClashOfRim_AchievementTrophy</entityDefToBuild>
+    <stuffCategories>
+      <li>Metallic</li>
+      <li>Woody</li>
+      <li>Stony</li>
+    </stuffCategories>
+    <statBases>
+      <MaxHitPoints>50</MaxHitPoints>
+      <Beauty>-8</Beauty>
+    </statBases>
+    <building>
+      <isEdifice>false</isEdifice>
+      <ai_neverTrashThis>true</ai_neverTrashThis>
+    </building>
+    <comps>
+      <li Class="CompProperties_Forbiddable" />
+      <li Class="CompProperties_Styleable" />
+    </comps>
+    <scatterableOnMapGen>false</scatterableOnMapGen>
+    <leaveResourcesWhenKilled>true</leaveResourcesWhenKilled>
+  </ThingDef>
+
+  <ThingDef>
+    <defName>ClashOfRim_AchievementTrophyPlan</defName>
+    <label>achievement trophy blueprint</label>
+    <description>A sealed blueprint for an achievement trophy. Select it to choose a material and place the trophy blueprint.</description>
+    <thingClass>AIRsLight.ClashOfRim.Achievements.Thing_ClashAchievementTrophyPlan</thingClass>
+    <category>Item</category>
+    <selectable>true</selectable>
+    <thingCategories>
+      <li>ItemsMisc</li>
+    </thingCategories>
+    <graphicData>
+      <texPath>Things/Item/Book/Schematic/Schematic</texPath>
+      <graphicClass>Graphic_Single</graphicClass>
+      <drawSize>0.8</drawSize>
+    </graphicData>
+    <uiIconPath>Things/Item/Book/Schematic/Schematic</uiIconPath>
+    <drawGUIOverlay>false</drawGUIOverlay>
+    <statBases>
+      <MaxHitPoints>60</MaxHitPoints>
+      <Mass>0.05</Mass>
+      <MarketValue>0</MarketValue>
+      <DeteriorationRate>0</DeteriorationRate>
+      <Flammability>0.4</Flammability>
+    </statBases>
+    <altitudeLayer>Item</altitudeLayer>
+    <alwaysHaulable>true</alwaysHaulable>
+    <rotatable>false</rotatable>
+    <pathCost>14</pathCost>
+    <stackLimit>1</stackLimit>
+    <tradeNeverStack>true</tradeNeverStack>
+    <tradeability>None</tradeability>
+    <drawerType>MapMeshOnly</drawerType>
+    <comps>
+      <li Class="CompProperties_Forbiddable" />
+    </comps>
+  </ThingDef>
+</Defs>

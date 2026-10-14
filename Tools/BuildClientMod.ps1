@@ -1,68 +1,28 @@
 param(
-    [string]$Configuration = "Debug"
+    [string]$Configuration = "Debug",
+    [string]$RimWorldManagedDir = "",
+    [switch]$NoRestore
 )
 
 $ErrorActionPreference = "Stop"
-
+. (Join-Path $PSScriptRoot "ModPackageUtility.ps1")
 $repoRoot = Split-Path -Parent $PSScriptRoot
-$packageId = "AIRsLight.ClashOfRim"
-$packageName = "ClashOfRim"
-$packageRoot = Join-Path $repoRoot "Build\$packageName"
-$versionRoot = Join-Path $packageRoot "1.6"
-$assemblyRoot = Join-Path $versionRoot "Assemblies"
-$languagesRoot = Join-Path $packageRoot "Languages"
-$defsRoot = Join-Path $packageRoot "Defs"
-$texturesRoot = Join-Path $packageRoot "Textures"
+$packageRoot = Join-Path $repoRoot "Build/ClashOfRim"
+$buildArgs = @("build", (Join-Path $repoRoot "Source/Client/ClashOfRim.csproj"), "-c", $Configuration)
+if ($RimWorldManagedDir) { $buildArgs += "-p:RimWorldManagedDir=$RimWorldManagedDir" }
+if ($NoRestore) { $buildArgs += "--no-restore" }
+$clientDotNet = Get-ClientDotNet
+& $clientDotNet @buildArgs
+if ($LASTEXITCODE -ne 0) { throw "Client build failed with exit code $LASTEXITCODE" }
 
-dotnet build (Join-Path $repoRoot "Source\Client\ClashOfRim.csproj") -c $Configuration --no-restore
-
-New-Item -ItemType Directory -Force -Path (Join-Path $packageRoot "About") | Out-Null
-New-Item -ItemType Directory -Force -Path $assemblyRoot | Out-Null
-
-Copy-Item -LiteralPath (Join-Path $repoRoot "About\About.xml") -Destination (Join-Path $packageRoot "About\About.xml") -Force
-$previewPath = Join-Path $repoRoot "About\Preview.png"
-if (Test-Path -LiteralPath $previewPath) {
-    Copy-Item -LiteralPath $previewPath -Destination (Join-Path $packageRoot "About\Preview.png") -Force
+Initialize-ModPackage -SourceRoot $repoRoot -PackageRoot $packageRoot
+$assemblyRoot = Join-Path $packageRoot "Assemblies"
+foreach ($name in @("AIRsLight.ClashOfRim", "ClashOfRim.Protocol", "ClashOfRim.Compatibility")) {
+    $dll = Join-Path $repoRoot "Assemblies/$name.dll"
+    if (-not (Test-Path -LiteralPath $dll)) { throw "Required client output missing: $dll" }
+    Copy-Item -LiteralPath $dll -Destination $assemblyRoot
+    $pdb = Join-Path $repoRoot "Assemblies/$name.pdb"
+    if (Test-Path -LiteralPath $pdb) { Copy-Item -LiteralPath $pdb -Destination $assemblyRoot }
 }
-if (Test-Path -LiteralPath $languagesRoot) {
-    Remove-Item -LiteralPath $languagesRoot -Recurse -Force
-}
-Copy-Item -LiteralPath (Join-Path $repoRoot "Languages") -Destination $languagesRoot -Recurse -Force
-if (Test-Path -LiteralPath $defsRoot) {
-    Remove-Item -LiteralPath $defsRoot -Recurse -Force
-}
-Copy-Item -LiteralPath (Join-Path $repoRoot "Defs") -Destination $defsRoot -Recurse -Force
-if (Test-Path -LiteralPath (Join-Path $repoRoot "Textures")) {
-    if (Test-Path -LiteralPath $texturesRoot) {
-        Remove-Item -LiteralPath $texturesRoot -Recurse -Force
-    }
-    Copy-Item -LiteralPath (Join-Path $repoRoot "Textures") -Destination $texturesRoot -Recurse -Force
-}
-Copy-Item -LiteralPath (Join-Path $repoRoot "Assemblies\$packageId.dll") -Destination (Join-Path $assemblyRoot "$packageId.dll") -Force
-
-$protocolAssembly = Join-Path $repoRoot "Source\Shared\ClashOfRim.Protocol\bin\$Configuration\netstandard2.0\ClashOfRim.Protocol.dll"
-if (-not (Test-Path -LiteralPath $protocolAssembly)) {
-    throw "Client protocol assembly was not built: $protocolAssembly"
-}
-Copy-Item -LiteralPath $protocolAssembly -Destination (Join-Path $assemblyRoot "ClashOfRim.Protocol.dll") -Force
-
-$compatAssembly = Join-Path $repoRoot "Assemblies\ClashOfRim.Compatibility.dll"
-if (Test-Path -LiteralPath $compatAssembly) {
-    Copy-Item -LiteralPath $compatAssembly -Destination (Join-Path $assemblyRoot "ClashOfRim.Compatibility.dll") -Force
-}
-
-$pdbPath = Join-Path $repoRoot "Assemblies\$packageId.pdb"
-if (Test-Path -LiteralPath $pdbPath) {
-    Copy-Item -LiteralPath $pdbPath -Destination (Join-Path $assemblyRoot "$packageId.pdb") -Force
-}
-
-@"
-<loadFolders>
-  <v1.6>
-    <li>/</li>
-    <li>1.6</li>
-  </v1.6>
-</loadFolders>
-"@ | Set-Content -LiteralPath (Join-Path $packageRoot "LoadFolders.xml") -Encoding UTF8
-
-Write-Host "Client mod package generated: $packageRoot"
+& (Join-Path $PSScriptRoot "Test-FrozenLegacy.ps1") -PackageRoot $packageRoot
+Write-Host "Client package generated (active 1.7, frozen 1.6): $packageRoot"

@@ -6,3 +6,7 @@
 *.jpg binary
 *.jpeg binary
 *.ogg binary
+
+# Preserve the exact released bytes checked by Legacy/1.6/manifest.json.
+1.6/** -text
+Legacy/1.6/*.zip binary

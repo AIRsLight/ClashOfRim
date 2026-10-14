@@ -1,5 +1,42 @@
 # ClashOfRim Server
 
+## Game version policy
+
+Starting with 0.4.0, active development targets **RimWorld 1.7 / Waylith only**. Clients require the .NET 10 SDK and Harmony 3; the independent server remains on .NET 8.
+
+**RimWorld 1.6 is frozen at 0.3.4 and is no longer maintained.** Each client package loads only `1.6/` on 1.6 and only current root content on 1.7. Frozen assemblies, definitions, translations and textures must not be rebuilt or updated. `Legacy/1.6/manifest.json` records source commits and exact SHA-256 hashes; packaging and CI verify them. Git attributes preserve the original frozen bytes across platforms.
+
+Use `Legacy/1.6/ClashOfRim.NetworkServer-win-x64.zip` with the frozen clients (.NET 8 Runtime required), or build other platforms from the recorded source commits. Future servers do not promise compatibility with frozen clients. Keep 1.6 and 1.7 worlds separate. Test snapshot loading, resaving and compatibility baseline migration on a backup before upgrading an existing world.
+
+The first installation of this dual-version package moves legacy root resources into `1.6/`. An existing 1.6 server therefore needs an administrator to update its strict file/path baseline to this frozen package after backing up, or players can keep their original 1.6 installations. Subsequent 1.7 updates leave the frozen directory unchanged.
+
+### Building the 1.7 clients
+
+With .NET 10 SDK and initialized submodules:
+
+Build scripts prefer .NET 10+ on PATH and also accept a repository-local SDK at `LocalOnly/toolchains/dotnet/`, without changing the system PATH.
+
+```powershell
+pwsh -File ./Tools/BuildClientMod.ps1 -Configuration Release
+pwsh -File ./Tools/BuildThirdPartyCompatMod.ps1 -Configuration Release
+pwsh -File ./Tools/Test-ModPackages.ps1
+```
+
+Builds use pinned 1.7 NuGet reference assemblies by default. To use an installed game, pass `-RimWorldManagedDir` to either script or set `RIMWORLD_ASSEMBLY_DIR` to the directory containing Assembly-CSharp.dll, UnityStubs.dll and Waylith.dll. Reference versions live in `Tools/RimWorld.Client.props`; game and Harmony DLLs are never packaged with the mod.
+
+After closing the game, `pwsh -File ./Tools/BuildAndInstallLocalMods.ps1 -Configuration Release` discovers a local 1.7 installation, builds against its assemblies and replaces both local mod packages. Override discovery with `-RimWorldPath`.
+
+Client tests require actual game assemblies, not NuGet reference assemblies:
+
+```powershell
+dotnet run --project Tools/ClashOfRim.Client.Tests -c Release -p:RimWorldManagedDir=E:/SteamLibrary/steamapps/common/RimWorld
+pwsh -File ./Tools/Test-FrozenLegacy.ps1
+```
+
+Use an isolated `-savedatafolder=...` and `-mod=brrainz.harmony,AIRsLight.ClashOfRim,AIRsLight.ClashOfRim.ThirdPartyCompat` for startup checks. Graphics require a normal launch or `-NoWindow`; `-Headless` cannot validate portraits or UI. Release validation also requires two-client transfers, remote maps, raid settlement, reconnection and the actual third-party mod combinations.
+
+ThirdPartyCompat is a separate Git submodule: commit its changes and frozen payload before updating the parent repository pointer.
+
 ## Project Introduction
 
 ClashOfRim is designed for RimWorld communities that want a shared world without

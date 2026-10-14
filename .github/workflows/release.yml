@@ -142,33 +142,11 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: 10.0.x
 
-      - name: Restore RimWorld client reference packages
+      - name: Verify frozen 1.6 payload
         shell: pwsh
-        run: |
-          $restoreRoot = Join-Path $PWD "Build/ClientReferenceRestore"
-          if (Test-Path -LiteralPath $restoreRoot) {
-            Remove-Item -LiteralPath $restoreRoot -Recurse -Force
-          }
-
-          New-Item -ItemType Directory -Force -Path $restoreRoot | Out-Null
-          @"
-          <Project Sdk="Microsoft.NET.Sdk">
-            <PropertyGroup>
-              <TargetFramework>net472</TargetFramework>
-            </PropertyGroup>
-            <ItemGroup>
-              <PackageReference Include="krafs.rimworld.ref" Version="1.6.4566" PrivateAssets="all" />
-              <PackageReference Include="lib.harmony" Version="2.4.1" PrivateAssets="all" />
-            </ItemGroup>
-          </Project>
-          "@ | Set-Content -LiteralPath (Join-Path $restoreRoot "ClientReferenceRestore.csproj") -Encoding UTF8
-
-          dotnet restore (Join-Path $restoreRoot "ClientReferenceRestore.csproj")
-          if ($LASTEXITCODE -ne 0) {
-            throw "RimWorld client reference package restore failed with exit code $LASTEXITCODE"
-          }
+        run: ./Tools/Test-FrozenLegacy.ps1
 
       - name: Restore main client mod
         shell: pwsh
@@ -182,6 +160,10 @@ jobs:
         shell: pwsh
         run: ./Tools/BuildThirdPartyCompatMod.ps1 -Configuration Release -Clean
 
+      - name: Verify version isolation and frozen content
+        shell: pwsh
+        run: ./Tools/Test-ModPackages.ps1
+
       - name: Archive client mods
         shell: pwsh
         run: |
@@ -189,6 +171,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path $artifactRoot | Out-Null
           Compress-Archive -LiteralPath (Join-Path $PWD "Build/ClashOfRim") -DestinationPath (Join-Path $artifactRoot "ClashOfRim.ClientMod-${{ needs.metadata.outputs.artifact_suffix }}.zip") -Force
           Compress-Archive -LiteralPath (Join-Path $PWD "Build/ClashOfRim.ThirdPartyCompat") -DestinationPath (Join-Path $artifactRoot "ClashOfRim.ThirdPartyCompat.ClientMod-${{ needs.metadata.outputs.artifact_suffix }}.zip") -Force
+          Copy-Item -LiteralPath "Legacy/1.6/ClashOfRim.NetworkServer-win-x64.zip" -Destination (Join-Path $artifactRoot "ClashOfRim.NetworkServer-win-x64-1.6-frozen-0.3.4.zip")
 
       - name: Upload client mod artifacts
         uses: actions/upload-artifact@v4

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <ClashOfRim_TraitTrainer.label>тренажер черт</ClashOfRim_TraitTrainer.label>
+  <ClashOfRim_TraitTrainer.description>Нейротренажер, вызывающий выбранную черту в сознании пользователя.</ClashOfRim_TraitTrainer.description>
+  <ClashOfRim_RandomTraitTrainer.label>тренажер черт (случайный)</ClashOfRim_RandomTraitTrainer.label>
+  <ClashOfRim_RandomTraitTrainer.description>Нейротренажер, вызывающий случайную черту в сознании пользователя.</ClashOfRim_RandomTraitTrainer.description>
+</LanguageData>

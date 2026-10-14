@@ -172,7 +172,10 @@ public sealed partial class ClashOfRimMod : Mod
         ClashOfRimModNetworkClient.CompatibilityManifestSummaryJsonProvider = BuildCompatibilityManifestSummaryJsonForLogin;
         ClashOfRimModNetworkClient.CompatibilityManifestJsonForPackagesProvider = BuildCompatibilityManifestJsonForPackages;
         ClashOfRimModNetworkClient.ServerEntryDiagnosticsLogger = LogCompatibilityManifestForServerEntry;
-        ClashLog.Message("[ClashOfRim] Harmony patches applied.");
+        Log.Message("[ClashOfRim] Initialized for RimWorld " + VersionControl.CurrentVersionString
+            + "; runtime=" + Environment.Version
+            + "; Harmony=" + typeof(Harmony).Assembly.GetName().Version
+            + "; patched methods=" + harmony.GetPatchedMethods().Count() + ".");
     }
 
     private void EnsureStatusDefaultsInitialized()

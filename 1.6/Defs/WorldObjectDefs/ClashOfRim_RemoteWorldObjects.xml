@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Defs>
+  <WorldObjectDef>
+    <defName>ClashOfRim_RemoteRuntimeWorldObject</defName>
+    <label>remote multiplayer object</label>
+    <worldObjectClass>AIRsLight.ClashOfRim.WorldObjects.RemoteRuntimeWorldObject</worldObjectClass>
+    <texture>World/WorldObjects/Caravan</texture>
+    <expandingIcon>true</expandingIcon>
+    <expandingIconTexture>World/WorldObjects/Expanding/Caravan</expandingIconTexture>
+    <expandingIconPriority>100</expandingIconPriority>
+    <fullyExpandedInSpace>true</fullyExpandedInSpace>
+    <selectable>true</selectable>
+  </WorldObjectDef>
+
+  <WorldObjectDef>
+    <defName>ClashOfRim_RemoteColonyMapParent</defName>
+    <label>remote player colony</label>
+    <worldObjectClass>AIRsLight.ClashOfRim.WorldObjects.RemoteColonyMapParent</worldObjectClass>
+    <texture>World/WorldObjects/DefaultSettlement</texture>
+    <expandingIcon>true</expandingIcon>
+    <expandingIconTexture>World/WorldObjects/Expanding/Town</expandingIconTexture>
+    <expandingIconPriority>10</expandingIconPriority>
+    <fullyExpandedInSpace>true</fullyExpandedInSpace>
+    <selectable>true</selectable>
+    <saved>false</saved>
+    <canHaveMap>true</canHaveMap>
+    <validLaunchTarget>true</validLaunchTarget>
+    <mapGenerator>Encounter</mapGenerator>
+  </WorldObjectDef>
+
+  <WorldObjectDef>
+    <defName>ClashOfRim_RemoteSessionMapParent</defName>
+    <label>remote session map</label>
+    <worldObjectClass>AIRsLight.ClashOfRim.RemoteMaps.RemoteSessionMapParent</worldObjectClass>
+    <texture>World/WorldObjects/DefaultSettlement</texture>
+    <expandingIcon>true</expandingIcon>
+    <expandingIconTexture>World/WorldObjects/Expanding/Town</expandingIconTexture>
+    <expandingIconPriority>10</expandingIconPriority>
+    <fullyExpandedInSpace>true</fullyExpandedInSpace>
+    <selectable>true</selectable>
+    <saved>true</saved>
+    <canHaveMap>true</canHaveMap>
+    <validLaunchTarget>false</validLaunchTarget>
+    <mapGenerator>Encounter</mapGenerator>
+  </WorldObjectDef>
+
+  <WorldObjectDef>
+    <defName>ClashOfRim_RemoteScoutMapParent</defName>
+    <label>remote scout map</label>
+    <worldObjectClass>AIRsLight.ClashOfRim.RemoteMaps.RemoteSessionMapParent</worldObjectClass>
+    <texture>World/WorldObjects/PeaceTalks</texture>
+    <expandingIcon>true</expandingIcon>
+    <expandingIconTexture>World/WorldObjects/Expanding/PeaceTalks</expandingIconTexture>
+    <expandingIconColor>(110,170,255,255)</expandingIconColor>
+    <expandingIconPriority>98</expandingIconPriority>
+    <fullyExpandedInSpace>true</fullyExpandedInSpace>
+    <selectable>true</selectable>
+    <saved>true</saved>
+    <canHaveMap>true</canHaveMap>
+    <validLaunchTarget>false</validLaunchTarget>
+    <mapGenerator>Encounter</mapGenerator>
+  </WorldObjectDef>
+
+  <WorldObjectDef>
+    <defName>ClashOfRim_RemoteRaidObservationMapParent</defName>
+    <label>remote battle observation map</label>
+    <worldObjectClass>AIRsLight.ClashOfRim.RemoteMaps.RemoteSessionMapParent</worldObjectClass>
+    <texture>World/WorldObjects/Ambush</texture>
+    <expandingIcon>true</expandingIcon>
+    <expandingIconTexture>World/WorldObjects/Expanding/Ambush</expandingIconTexture>
+    <expandingIconColor>(255,190,90,255)</expandingIconColor>
+    <expandingIconPriority>99</expandingIconPriority>
+    <fullyExpandedInSpace>true</fullyExpandedInSpace>
+    <selectable>true</selectable>
+    <saved>true</saved>
+    <canHaveMap>true</canHaveMap>
+    <validLaunchTarget>false</validLaunchTarget>
+    <mapGenerator>Encounter</mapGenerator>
+  </WorldObjectDef>
+
+  <WorldObjectDef>
+    <defName>ClashOfRim_RemoteRaidBattleMapParent</defName>
+    <label>remote raid battle map</label>
+    <worldObjectClass>AIRsLight.ClashOfRim.RemoteMaps.RemoteSessionMapParent</worldObjectClass>
+    <texture>World/WorldObjects/Ambush</texture>
+    <expandingIcon>true</expandingIcon>
+    <expandingIconTexture>World/WorldObjects/Expanding/Ambush</expandingIconTexture>
+    <expandingIconColor>(255,80,80,255)</expandingIconColor>
+    <expandingIconPriority>100</expandingIconPriority>
+    <fullyExpandedInSpace>true</fullyExpandedInSpace>
+    <selectable>true</selectable>
+    <saved>true</saved>
+    <canHaveMap>true</canHaveMap>
+    <validLaunchTarget>true</validLaunchTarget>
+    <mapGenerator>Encounter</mapGenerator>
+    <comps>
+      <li Class="WorldObjectCompProperties_FormCaravan" />
+    </comps>
+  </WorldObjectDef>
+</Defs>

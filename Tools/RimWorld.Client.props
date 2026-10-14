@@ -1,0 +1,34 @@
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RimWorldReferenceVersion>1.7.4977-alpha.1</RimWorldReferenceVersion>
+    <HarmonyVersion>3.0.0-rc.2</HarmonyVersion>
+    <RimWorldManagedDir Condition="'$(RimWorldManagedDir)' == ''">$(RIMWORLD_ASSEMBLY_DIR)</RimWorldManagedDir>
+    <RimWorldCopyLocal Condition="'$(RimWorldCopyLocal)' == ''">false</RimWorldCopyLocal>
+    <GenerateDependencyFile>false</GenerateDependencyFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Lib.Harmony" Version="$(HarmonyVersion)" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(RimWorldManagedDir)' == ''">
+    <PackageReference Include="Krafs.Rimworld.Ref" Version="$(RimWorldReferenceVersion)" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(RimWorldManagedDir)' != ''">
+    <Reference Include="Assembly-CSharp">
+      <HintPath>$(RimWorldManagedDir)/Assembly-CSharp.dll</HintPath>
+      <Private>$(RimWorldCopyLocal)</Private>
+    </Reference>
+    <Reference Include="UnityStubs">
+      <HintPath>$(RimWorldManagedDir)/UnityStubs.dll</HintPath>
+      <Private>$(RimWorldCopyLocal)</Private>
+    </Reference>
+    <Reference Include="Waylith">
+      <HintPath>$(RimWorldManagedDir)/Waylith.dll</HintPath>
+      <Private>$(RimWorldCopyLocal)</Private>
+    </Reference>
+  </ItemGroup>
+  <Target Name="ValidateRimWorld17References" BeforeTargets="ResolveReferences" Condition="'$(RimWorldManagedDir)' != ''">
+    <Error Condition="!Exists('$(RimWorldManagedDir)/Assembly-CSharp.dll') Or !Exists('$(RimWorldManagedDir)/UnityStubs.dll') Or !Exists('$(RimWorldManagedDir)/Waylith.dll')"
+           Text="RimWorldManagedDir must point to a RimWorld 1.7 assembly directory containing Assembly-CSharp.dll, UnityStubs.dll and Waylith.dll." />
+  </Target>
+</Project>

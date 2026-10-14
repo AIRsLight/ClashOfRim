@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <ClashOfRim_PlayerProxy.label>distant colony</ClashOfRim_PlayerProxy.label>
+  <ClashOfRim_PlayerProxy.description>Another colony on the same planet. You can form alliances, trade, exchange support, or fall into open conflict if relations collapse.</ClashOfRim_PlayerProxy.description>
+  <ClashOfRim_PlayerProxy.pawnSingular>colonist</ClashOfRim_PlayerProxy.pawnSingular>
+  <ClashOfRim_PlayerProxy.pawnsPlural>colonists</ClashOfRim_PlayerProxy.pawnsPlural>
+  <ClashOfRim_PlayerProxy.leaderTitle>administrator</ClashOfRim_PlayerProxy.leaderTitle>
+  <ClashOfRim_ServerMercenaries.label>frontier mercenaries</ClashOfRim_ServerMercenaries.label>
+  <ClashOfRim_ServerMercenaries.description>A mercenary company operating between frontier colonies. Members can be hired for short assignments, follow the employer's orders during the job, and leave when it ends.</ClashOfRim_ServerMercenaries.description>
+  <ClashOfRim_ServerMercenaries.pawnSingular>mercenary</ClashOfRim_ServerMercenaries.pawnSingular>
+  <ClashOfRim_ServerMercenaries.pawnsPlural>mercenaries</ClashOfRim_ServerMercenaries.pawnsPlural>
+  <ClashOfRim_ServerMercenaries.leaderTitle>mercenary captain</ClashOfRim_ServerMercenaries.leaderTitle>
+</LanguageData>

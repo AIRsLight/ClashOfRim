@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <ClashOfRim_CaravanDeliveryPoint.label>caravan delivery point</ClashOfRim_CaravanDeliveryPoint.label>
+  <ClashOfRim_CaravanDeliveryPoint.description>Marks where caravan-delivered goods should arrive. Without a delivery point, goods are placed at the map edge or near the center.</ClashOfRim_CaravanDeliveryPoint.description>
+  <ClashOfRim_DefensePoint.label>defense point</ClashOfRim_DefensePoint.label>
+  <ClashOfRim_DefensePoint.description>Sets how a colonist defends when another colony attacks. Assign one colonist, then choose hold, defend, assault, or operate nearby defensive equipment.</ClashOfRim_DefensePoint.description>
+  <ClashOfRim_MechDefensePoint.label>mech defense point</ClashOfRim_MechDefensePoint.label>
+  <ClashOfRim_MechDefensePoint.description>Sets how a mech defends when another colony attacks. Assign one mech, then choose hold, defend, or assault.</ClashOfRim_MechDefensePoint.description>
+  <ClashOfRim_AchievementTrophy.label>achievement trophy</ClashOfRim_AchievementTrophy.label>
+  <ClashOfRim_AchievementTrophy.description>A memorial trophy for a multiplayer achievement. It records the achiever and achievement details. It cannot be packed, only deconstructed.</ClashOfRim_AchievementTrophy.description>
+  <ClashOfRim_AchievementTrophyPlan.label>achievement trophy plan</ClashOfRim_AchievementTrophyPlan.label>
+  <ClashOfRim_AchievementTrophyPlan.description>A plan for a multiplayer achievement trophy. Select it to choose material and place a buildable achievement trophy blueprint.</ClashOfRim_AchievementTrophyPlan.description>
+</LanguageData>

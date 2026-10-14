@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <ClashOfRim_CaravanDeliveryPoint.label>远行队交货点</ClashOfRim_CaravanDeliveryPoint.label>
+  <ClashOfRim_CaravanDeliveryPoint.description>指定远行队运送物品的交付位置。没有交货点时，货物会改送到地图边缘或中心附近。</ClashOfRim_CaravanDeliveryPoint.description>
+  <ClashOfRim_DefensePoint.label>防御点</ClashOfRim_DefensePoint.label>
+  <ClashOfRim_DefensePoint.description>指定殖民者在遭到其他殖民地袭击时的防守方式。可绑定一名殖民者，并选择固守、防御、出击或操作附近防御设备。</ClashOfRim_DefensePoint.description>
+  <ClashOfRim_MechDefensePoint.label>机械体防御点</ClashOfRim_MechDefensePoint.label>
+  <ClashOfRim_MechDefensePoint.description>指定机械体在遭到其他殖民地袭击时的防守方式。可绑定一台机械体，并选择固守、防御或出击。</ClashOfRim_MechDefensePoint.description>
+  <ClashOfRim_AchievementTrophy.label>成就奖杯</ClashOfRim_AchievementTrophy.label>
+  <ClashOfRim_AchievementTrophy.description>用于纪念多人模式成就的奖杯。奖杯会记录获得者与成就内容，不能打包，只能拆除。</ClashOfRim_AchievementTrophy.description>
+  <ClashOfRim_AchievementTrophyPlan.label>成就奖杯图纸</ClashOfRim_AchievementTrophyPlan.label>
+  <ClashOfRim_AchievementTrophyPlan.description>一张记录多人模式成就的奖杯图纸。选择后可指定材质，并在地上放置可建造的成就奖杯蓝图。</ClashOfRim_AchievementTrophyPlan.description>
+</LanguageData>

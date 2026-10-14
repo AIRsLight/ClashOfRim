@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Defs>
+  <ThingDef>
+    <defName>ClashOfRim_TraitTrainer</defName>
+    <label>trait trainer</label>
+    <description>A neurotrainer which induces a selected trait in the user's mind.</description>
+    <thingClass>AIRsLight.ClashOfRim.Traits.Thing_TraitTrainer</thingClass>
+    <category>Item</category>
+    <selectable>true</selectable>
+    <graphicData>
+      <texPath>Things/Item/Special/MechSerumNeurotrainer</texPath>
+      <graphicClass>Graphic_Single</graphicClass>
+    </graphicData>
+    <drawGUIOverlay>false</drawGUIOverlay>
+    <statBases>
+      <MaxHitPoints>80</MaxHitPoints>
+      <Mass>0.2</Mass>
+      <MarketValue>1000</MarketValue>
+      <DeteriorationRate>2</DeteriorationRate>
+      <Flammability>0.2</Flammability>
+    </statBases>
+    <techLevel>Ultra</techLevel>
+    <altitudeLayer>Item</altitudeLayer>
+    <alwaysHaulable>true</alwaysHaulable>
+    <rotatable>false</rotatable>
+    <pathCost>14</pathCost>
+    <stackLimit>1</stackLimit>
+    <tradeNeverStack>true</tradeNeverStack>
+    <tradeability>None</tradeability>
+    <drawerType>MapMeshOnly</drawerType>
+    <comps>
+      <li Class="CompProperties_Forbiddable" />
+      <li Class="AIRsLight.ClashOfRim.Traits.CompProperties_TraitTrainerUsable">
+        <useJob>UseNeurotrainer</useJob>
+        <useDuration>250</useDuration>
+      </li>
+      <li Class="CompProperties_UseEffectPlaySound">
+        <soundOnUsed>MechSerumUsed</soundOnUsed>
+      </li>
+      <li Class="AIRsLight.ClashOfRim.Traits.CompProperties_UseEffectAddTrait" />
+      <li Class="CompProperties_UseEffectDestroySelf" />
+    </comps>
+  </ThingDef>
+
+  <ThingDef>
+    <defName>ClashOfRim_RandomTraitTrainer</defName>
+    <label>trait trainer (random)</label>
+    <description>A neurotrainer which induces a random trait in the user's mind.</description>
+    <thingClass>AIRsLight.ClashOfRim.Traits.Thing_TraitTrainer</thingClass>
+    <category>Item</category>
+    <selectable>true</selectable>
+    <graphicData>
+      <texPath>Things/Item/Special/MechSerumNeurotrainer</texPath>
+      <graphicClass>Graphic_Single</graphicClass>
+    </graphicData>
+    <drawGUIOverlay>false</drawGUIOverlay>
+    <statBases>
+      <MaxHitPoints>80</MaxHitPoints>
+      <Mass>0.2</Mass>
+      <MarketValue>1000</MarketValue>
+      <DeteriorationRate>2</DeteriorationRate>
+      <Flammability>0.2</Flammability>
+    </statBases>
+    <techLevel>Ultra</techLevel>
+    <altitudeLayer>Item</altitudeLayer>
+    <alwaysHaulable>true</alwaysHaulable>
+    <rotatable>false</rotatable>
+    <pathCost>14</pathCost>
+    <stackLimit>1</stackLimit>
+    <tradeNeverStack>true</tradeNeverStack>
+    <tradeability>None</tradeability>
+    <drawerType>MapMeshOnly</drawerType>
+    <comps>
+      <li Class="CompProperties_Forbiddable" />
+      <li Class="AIRsLight.ClashOfRim.Traits.CompProperties_TraitTrainerUsable">
+        <useJob>UseNeurotrainer</useJob>
+        <useDuration>250</useDuration>
+      </li>
+      <li Class="CompProperties_UseEffectPlaySound">
+        <soundOnUsed>MechSerumUsed</soundOnUsed>
+      </li>
+      <li Class="AIRsLight.ClashOfRim.Traits.CompProperties_UseEffectAddTrait">
+        <randomTrait>true</randomTrait>
+      </li>
+      <li Class="CompProperties_UseEffectDestroySelf" />
+    </comps>
+  </ThingDef>
+</Defs>

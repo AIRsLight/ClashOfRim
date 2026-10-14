@@ -1,0 +1,322 @@
+{
+  "gameVersion": "1.6",
+  "productVersion": "0.3.4",
+  "frozenAt": "2026-10-14",
+  "sourceCommit": "1066e1693e8db57ce7e7cd81b4fe8eaa3cc89a2f",
+  "compatibilityCommit": "95c5c6956fc01ae94fcd39ed4429dabaec45e622",
+  "roots": [
+    "1.6",
+    "ThirdPartyCompat/1.6",
+    "Legacy/1.6"
+  ],
+  "files": [
+    {
+      "path": "1.6/Assemblies/AIRsLight.ClashOfRim.dll",
+      "sha256": "0f40fe7fbd89b5960f6525ae11449249661efae3a7a76088e9f010ce632e9f5a"
+    },
+    {
+      "path": "1.6/Textures/Things/Building/ClashOfRim/AchievementTrophy.png",
+      "sha256": "4ec371cd71bce902b0cdd7f338c6aa0dd6c1dad55bf48c7a23e1302ee9d3070e"
+    },
+    {
+      "path": "1.6/Languages/Russian/Keyed/ClashOfRim.xml",
+      "sha256": "298b78835efca12463b27a8faf0bd4912c6c25771eb9a2ccf501479f47ae438d"
+    },
+    {
+      "path": "1.6/Languages/Russian/DefInjected/WorldObjectDef/ClashOfRim_RemoteWorldObjects.xml",
+      "sha256": "585f620a061cfc8f993945d930f2b69165649847cd6980466a33fab813dce5a2"
+    },
+    {
+      "path": "1.6/Languages/Russian/DefInjected/TraitDef/ClashOfRim_MercenaryTraits.xml",
+      "sha256": "041cc794035721fc8f2a77715e548bd9454dd8d143c526f79ef9b92872036a00"
+    },
+    {
+      "path": "1.6/Languages/Russian/DefInjected/ThingDef/ClashOfRim_Items.xml",
+      "sha256": "321583fc921e069e910a6567fdfc9206153a038b3b6e78caed832447eae6732f"
+    },
+    {
+      "path": "1.6/Languages/Russian/DefInjected/ThingDef/ClashOfRim_Buildings.xml",
+      "sha256": "5a09f08d40a792d4244bc6e94f3be48a6db41e3ee4c3a9a6d3b1353aba9170c2"
+    },
+    {
+      "path": "1.6/Languages/Russian/DefInjected/MainButtonDef/ClashOfRim_MainButtons.xml",
+      "sha256": "c3592c5ca623a9878ec233861f3057d354039ac226404f0e0ea38d58255a137e"
+    },
+    {
+      "path": "1.6/Languages/Russian/DefInjected/HediffDef/ClashOfRim_Hediffs.xml",
+      "sha256": "b027232187503a2f4a11fee347ef5219ea589f8833b843fd11ff07e5b4ee2c55"
+    },
+    {
+      "path": "1.6/Languages/Russian/DefInjected/FactionDef/ClashOfRim_Factions.xml",
+      "sha256": "0ad04f503602f99a1859eea408f5ea5b57d028d9e241413a9e96b21a3c9d8e5b"
+    },
+    {
+      "path": "1.6/Languages/Korean/Keyed/ClashOfRim.xml",
+      "sha256": "890836056e006622ab9c0273357f4fca95c955a0cc5cda0cf50fc9bcd0cdb980"
+    },
+    {
+      "path": "1.6/Languages/Korean/DefInjected/WorldObjectDef/ClashOfRim_RemoteWorldObjects.xml",
+      "sha256": "13cdadeccfa714b399967e663bbd29815afaea6e4f851ffb61986a4abd832bf6"
+    },
+    {
+      "path": "1.6/Languages/Korean/DefInjected/TraitDef/ClashOfRim_MercenaryTraits.xml",
+      "sha256": "1d3dff84b8e60a3167769601947d320737b8aee35109793898fed88fcb4b28dd"
+    },
+    {
+      "path": "1.6/Languages/Korean/DefInjected/ThingDef/ClashOfRim_Items.xml",
+      "sha256": "ad264363a6123e21f02aab05ed7d158d46ca9066baee37e4c3508c6f47bcbafd"
+    },
+    {
+      "path": "1.6/Languages/Korean/DefInjected/ThingDef/ClashOfRim_Buildings.xml",
+      "sha256": "412095eb29e8c5f11814d10117c779306c7f94bc94b50670022ba3c3c3556a2e"
+    },
+    {
+      "path": "1.6/Languages/Korean/DefInjected/MainButtonDef/ClashOfRim_MainButtons.xml",
+      "sha256": "6e950d13c647dd1c96ad077ba56a453d2a299b71a0e4e5005bac119f0a258a36"
+    },
+    {
+      "path": "1.6/Textures/UI/ClashOfRim/AchievementDefault.png",
+      "sha256": "7a834209ef667224cf6d5ffd2ec785baaa8409bad39b3b0f27fc6d44c676d246"
+    },
+    {
+      "path": "1.6/Textures/UI/ClashOfRim/ModIcon.png",
+      "sha256": "96297dc1edd15d32d9bbc8be3232fc2232893f98d9be40984d137aa9e9b76768"
+    },
+    {
+      "path": "1.6/Textures/UI/Commands/ClashOfRim/DefensePointAssault.png",
+      "sha256": "f9aba43cd91892bf7d063df2a736a35a351a44c24898a3d605f9c726e7477343"
+    },
+    {
+      "path": "1.6/Textures/UI/Commands/ClashOfRim/DefensePointDefend.png",
+      "sha256": "1c9c4e5552598377da5107130b5b5ecb00fb2fb428c1a8f52b104fd2193b8ec6"
+    },
+    {
+      "path": "ThirdPartyCompat/1.6/Languages/Korean/Keyed/ClashOfRimVehicleFramework.xml",
+      "sha256": "ee0504f592d369cf90fe76b528b9c6772abed0f1cba8d8d76bd49e7630bba20c"
+    },
+    {
+      "path": "ThirdPartyCompat/1.6/Languages/Japanese/Keyed/ClashOfRimVehicleFramework.xml",
+      "sha256": "1a41ce4db9578ae71ee05fc379f1dcc75efd152b2e9c5c7d69c4b3573cd26e80"
+    },
+    {
+      "path": "ThirdPartyCompat/1.6/Languages/English/Keyed/ClashOfRimVehicleFramework.xml",
+      "sha256": "de7d414f7e43c94f820ae252676c52caf72e4316c83771ae1115ee7a8a622963"
+    },
+    {
+      "path": "ThirdPartyCompat/1.6/Languages/ChineseSimplified/Keyed/ClashOfRimVehicleFramework.xml",
+      "sha256": "f1a54cfc7df6ec4cfbda07b56ab0272ea646c0696420fb5e79c4ed67d7c4b7e5"
+    },
+    {
+      "path": "ThirdPartyCompat/1.6/Defs/DutyDefs/ClashOfRimVehicleFramework_Duties.xml",
+      "sha256": "5c9812bcb7b59d49866036354e9400e4250a1f17cce4fd052d1057823cd84721"
+    },
+    {
+      "path": "ThirdPartyCompat/1.6/Assemblies/AIRsLight.ClashOfRim.ThirdPartyCompat.pdb",
+      "sha256": "bcbc71c97fbb6667889b470c250db295f7a600d85a6cc5b53b2259075f397799"
+    },
+    {
+      "path": "ThirdPartyCompat/1.6/Assemblies/AIRsLight.ClashOfRim.ThirdPartyCompat.dll",
+      "sha256": "41d41d4c3941e047e7674f069eff1406b666e2f59c120ceb600607c522cae33a"
+    },
+    {
+      "path": "1.6/Languages/Korean/DefInjected/HediffDef/ClashOfRim_Hediffs.xml",
+      "sha256": "e115931d921cc27dde766f1e634e120a8fed2095b46c5e8d8a02c154d90c446e"
+    },
+    {
+      "path": "1.6/Textures/UI/MainButtons/ClashOfRim/Multiplayer.png",
+      "sha256": "488c8d3e264c793ee5d7859e05c9f1bceec55c722b567919e323666b21f16711"
+    },
+    {
+      "path": "1.6/Textures/UI/Commands/ClashOfRim/SendSupport.png",
+      "sha256": "1bd582754d7f6f9c4a8baa154239a4d50ac0345f64c33025f1221c74e9343505"
+    },
+    {
+      "path": "1.6/Textures/UI/Commands/ClashOfRim/ScoutObserve.png",
+      "sha256": "fdd297216573847f8ddae6605eb25a96d87b2d8ff06e6dc652f9a2fdc2647755"
+    },
+    {
+      "path": "1.6/Textures/UI/Commands/ClashOfRim/LaunchRaid.png",
+      "sha256": "9d1bb86e06c91b61db312c4079f626ff8d9de5fd181bf2d6fa8afeda2b7eb056"
+    },
+    {
+      "path": "1.6/Textures/UI/Commands/ClashOfRim/GiftDelivery.png",
+      "sha256": "c9588769dd2333c9617bc144f00488a8ebb31008e308d191443cc63bd5dda119"
+    },
+    {
+      "path": "1.6/Textures/UI/Commands/ClashOfRim/ForcedDelivery.png",
+      "sha256": "ebdb476fb336c0e344d100593ec5f07e88887eed94a6ab0b67fd51fc826db6cd"
+    },
+    {
+      "path": "1.6/Textures/UI/Commands/ClashOfRim/DefensePointOperateEquipment.png",
+      "sha256": "1ff2202377a0ef66e0c0c2532643927621ba5f88ba5c41fa75567c4cb590f334"
+    },
+    {
+      "path": "1.6/Textures/UI/Commands/ClashOfRim/DefensePointHold.png",
+      "sha256": "a92bde490fc7a78462ebaba94589ee9328096b1ab83d0cf3bffd02a23c19bc9c"
+    },
+    {
+      "path": "1.6/Textures/UI/Commands/ClashOfRim/TradeFulfill.png",
+      "sha256": "46efd34519a527414d71427dd564a4e4b53eb24e220cfd0fadcb600ac827670d"
+    },
+    {
+      "path": "ThirdPartyCompat/1.6/Languages/Russian/Keyed/ClashOfRimVehicleFramework.xml",
+      "sha256": "ac3e0bea88c885999d2c6ea03e96cc2875126db70b0eded72106d46103bd7007"
+    },
+    {
+      "path": "1.6/Languages/Korean/DefInjected/FactionDef/ClashOfRim_Factions.xml",
+      "sha256": "86c4066037780db34e9b7717a8c636ee7d27aaa0d21e4894b857837effc1d6d6"
+    },
+    {
+      "path": "1.6/Languages/Japanese/DefInjected/WorldObjectDef/ClashOfRim_RemoteWorldObjects.xml",
+      "sha256": "70059293e6ae6ad68e73e78f9ddd7ce3f887ab22675011860cd27503e0504ed5"
+    },
+    {
+      "path": "1.6/Languages/ChineseSimplified/DefInjected/HediffDef/ClashOfRim_Hediffs.xml",
+      "sha256": "75e23657aceeb0f5328eed27525504121e509b0deaefd2f19d914dfdb832cd9e"
+    },
+    {
+      "path": "1.6/Languages/ChineseSimplified/DefInjected/FactionDef/ClashOfRim_Factions.xml",
+      "sha256": "b3158a2cc3fa8df543c99abcbc3925f9a1fc517c9be830390f5faff66fad2be2"
+    },
+    {
+      "path": "1.6/Defs/WorldObjectDefs/ClashOfRim_RemoteWorldObjects.xml",
+      "sha256": "9ce852736f5cd04bd88205921a294e6e0672daa8d923292f6f327c3bbc5ab483"
+    },
+    {
+      "path": "1.6/Defs/TraitDefs/ClashOfRim_MercenaryTraits.xml",
+      "sha256": "f496b8f7ad4e185833b154364242cdfcc3aace2bcf51df9b1939a77472328468"
+    },
+    {
+      "path": "1.6/Defs/ThingDefs/Items_TraitTrainer.xml",
+      "sha256": "c36344a372207b36d3779e3e841cb4e96034660e15f0928564efcbdc009291b1"
+    },
+    {
+      "path": "1.6/Defs/ThingDefs/Buildings_Misc.xml",
+      "sha256": "60b27f8052d865d8aa4f8427ab2a9dbdb13df13d44b846fb829491e03ffbe7de"
+    },
+    {
+      "path": "1.6/Defs/ThingDefs/Buildings_Achievements.xml",
+      "sha256": "3adecddee916e65ab789a8ed91a7ce1ab7842f73db37c9b78842093d7dc4b2a5"
+    },
+    {
+      "path": "1.6/Defs/QuestScriptDefs/ClashOfRim_Quests.xml",
+      "sha256": "3febc3b6104e7e8a1884d317ed9a21914b15463d66e3e36d65d1ab62d8b23179"
+    },
+    {
+      "path": "1.6/Defs/MainButtonDefs/ClashOfRim_MainButtons.xml",
+      "sha256": "0405ee06f08d6c82ce9c2dbdb5e70f2e461dd6167ae774cc5317208b95b615d8"
+    },
+    {
+      "path": "1.6/Defs/HediffDefs/ClashOfRim_Hediffs.xml",
+      "sha256": "2f1c74bf67fcac1dc802628dd9fa78c33635af5e5faeb39fd4a69ce20371fa9f"
+    },
+    {
+      "path": "1.6/Defs/FactionDefs/ClashOfRim_Factions.xml",
+      "sha256": "c3b4fdc55d4c6730c2d20c5d5d805d44860aea905690662673c3e4b23e8c54f6"
+    },
+    {
+      "path": "1.6/Defs/DutyDefs/ClashOfRim_Duties.xml",
+      "sha256": "306741f22563a53b3a3b1e5ac0d0a02cd41b9d7f49ef97fc75c09f5ce2425eca"
+    },
+    {
+      "path": "1.6/Assemblies/ClashOfRim.Protocol.dll",
+      "sha256": "67c4b856d41e86a1806b8e7f5af6a6755c4e871de5142ed2d90f37c7b90fda37"
+    },
+    {
+      "path": "1.6/Assemblies/ClashOfRim.Compatibility.dll",
+      "sha256": "7fe64bd3f363cc9d002b9b78d48f7ee8e0a18f749bab689d60631f730d62a10c"
+    },
+    {
+      "path": "1.6/Assemblies/AIRsLight.ClashOfRim.pdb",
+      "sha256": "609e2aecbca6a229517375f6fcbf91aade1a396d18c0c2efa9411705c3086b12"
+    },
+    {
+      "path": "1.6/Languages/ChineseSimplified/DefInjected/MainButtonDef/ClashOfRim_MainButtons.xml",
+      "sha256": "1254f29acaadc14194199d96c5cbd2ac6150073a1d76cf772bb3ecb5a6485d01"
+    },
+    {
+      "path": "1.6/Languages/ChineseSimplified/DefInjected/ThingDef/ClashOfRim_Buildings.xml",
+      "sha256": "f10f431fa0c522962f1c93a490e308daa69a53caec7e2f74a2831ca0b7dbcb3c"
+    },
+    {
+      "path": "1.6/Languages/ChineseSimplified/DefInjected/ThingDef/ClashOfRim_Items.xml",
+      "sha256": "02be0331c130bfead82dbcb1da613f02e93a9dc5c841dd2410a46a115b123ff6"
+    },
+    {
+      "path": "1.6/Languages/ChineseSimplified/DefInjected/TraitDef/ClashOfRim_MercenaryTraits.xml",
+      "sha256": "b797e41b81269a8f48b985ebb16002dea177eeb999fbbfa823cb32f64309473a"
+    },
+    {
+      "path": "1.6/Languages/Japanese/DefInjected/TraitDef/ClashOfRim_MercenaryTraits.xml",
+      "sha256": "e4b53a378cc7db30d2f30589507da4f79c98de08c7c670157521afaf9cbd0685"
+    },
+    {
+      "path": "1.6/Languages/Japanese/DefInjected/ThingDef/ClashOfRim_Items.xml",
+      "sha256": "28219e3120d90ae4cb6c6030d59086b0033159f1a3e1e9e16ab8e04d063ebc02"
+    },
+    {
+      "path": "1.6/Languages/Japanese/DefInjected/ThingDef/ClashOfRim_Buildings.xml",
+      "sha256": "7555a77c48fbca8c1de5d7f7d3840feba66ac4d07742eaf21b2e32dc3a7861d6"
+    },
+    {
+      "path": "1.6/Languages/Japanese/DefInjected/MainButtonDef/ClashOfRim_MainButtons.xml",
+      "sha256": "5e5799b8ef0e1d81ef2d5a39b16801da59ee36f00360660c2e32e557f8d4af25"
+    },
+    {
+      "path": "1.6/Languages/Japanese/DefInjected/HediffDef/ClashOfRim_Hediffs.xml",
+      "sha256": "4c6c24165a889ba94832c240f27bd69b53e88e4f6594c3558523d6de1b8cfa8c"
+    },
+    {
+      "path": "1.6/Languages/Japanese/DefInjected/FactionDef/ClashOfRim_Factions.xml",
+      "sha256": "970a18509735e1309bf1961ed9760bcbaef712392676c964a5e3ec99c68ec535"
+    },
+    {
+      "path": "1.6/Languages/English/Keyed/ClashOfRim.xml",
+      "sha256": "5fee3a03b03cb1d7b5b36b6340db0689e3a48132089e6b4edc2f6829e3c96f85"
+    },
+    {
+      "path": "1.6/Languages/Japanese/Keyed/ClashOfRim.xml",
+      "sha256": "ad551d7578aaab9bd018f41658f9c8ebce32162f647a2249e52b9115a1495cd3"
+    },
+    {
+      "path": "1.6/Languages/English/DefInjected/WorldObjectDef/ClashOfRim_RemoteWorldObjects.xml",
+      "sha256": "8204021dcbf534dd3ce88596e11903f073acb85456a56adf54f81f2df6c3fd9f"
+    },
+    {
+      "path": "1.6/Languages/English/DefInjected/ThingDef/ClashOfRim_Items.xml",
+      "sha256": "36e13028656b2d9c67d872245bb10678496e5928dd017c05a630e10271fce7a7"
+    },
+    {
+      "path": "1.6/Languages/English/DefInjected/ThingDef/ClashOfRim_Buildings.xml",
+      "sha256": "fd980712d93be61bef813e0f4d04e37389fa60ff57486ec0395007e9084485f7"
+    },
+    {
+      "path": "1.6/Languages/English/DefInjected/MainButtonDef/ClashOfRim_MainButtons.xml",
+      "sha256": "945968c82c50b70f4a372359ce2f44e7f085fa4bcb511dfc3367a25dc6090177"
+    },
+    {
+      "path": "1.6/Languages/English/DefInjected/HediffDef/ClashOfRim_Hediffs.xml",
+      "sha256": "5ced8254e6e3f29f8758a87b4590d7549083ec868b5d6f599116275ba9669e2f"
+    },
+    {
+      "path": "1.6/Languages/English/DefInjected/FactionDef/ClashOfRim_Factions.xml",
+      "sha256": "73e19e91fdf2626e8885665787ebd3d26ef4ecc0e03751f9a1d7ad2e1f06549b"
+    },
+    {
+      "path": "1.6/Languages/ChineseSimplified/Keyed/ClashOfRim.xml",
+      "sha256": "b3cd470e7bb3bb45cc5d436cfe865e746c021ee37b212727d9a29795622c112f"
+    },
+    {
+      "path": "1.6/Languages/ChineseSimplified/DefInjected/WorldObjectDef/ClashOfRim_RemoteWorldObjects.xml",
+      "sha256": "35e84a95ed8641c3661facd0be0032a0b714faed96372ee21366a0ea5ad16d89"
+    },
+    {
+      "path": "1.6/Languages/English/DefInjected/TraitDef/ClashOfRim_MercenaryTraits.xml",
+      "sha256": "dc11dc32a666015594b647f7672124cc12a8f755cab8ec8e3a59e9a994d3647c"
+    },
+    {
+      "path": "Legacy/1.6/ClashOfRim.NetworkServer-win-x64.zip",
+      "sha256": "89e4dc56628aaebe5ec3bdbcce4b1dc2619945af4b572042ccbe4ff40976e2ef"
+    }
+  ]
+}

@@ -1,5 +1,42 @@
 # ClashOfRim 服务器
 
+## 游戏版本与维护策略
+
+从 0.4.0 起，当前源码和所有新功能仅面向 **RimWorld 1.7 / Waylith**。客户端使用 .NET 10、Harmony 3；独立服务端仍使用 .NET 8。
+
+**1.6 已冻结在 0.3.4，不再维护。** 发布包通过 `LoadFolders.xml` 让 1.6 只加载 `1.6/`，1.7 只加载当前根目录内容。主模组及 ThirdPartyCompat 的 `1.6/` 包含冻结的 DLL、Defs、语言和贴图；不要重新编译、更新或将根目录资源加入 1.6 的加载列表。`Legacy/1.6/manifest.json` 记录原始提交和全部文件哈希，打包及 CI 会校验冻结内容。`.gitattributes` 保留冻结文件原始字节，避免跨平台换行转换破坏哈希。
+
+1.6 服务器使用 `Legacy/1.6/ClashOfRim.NetworkServer-win-x64.zip`（需要 .NET 8 Runtime），或从清单中的原始提交构建其他平台版本。后续服务端不承诺兼容冻结客户端；不要让 1.6 与 1.7 混用同一世界。升级现有服务器时，先备份 Data，在副本验证旧快照加载、重新保存及兼容基线升级，不要直接修改存档中的版本字符串。
+
+首次换装此双版本包会把原先根目录的 1.6 资源移至冻结目录，因此已有 1.6 服务器的严格文件路径/哈希基线需要管理员在备份后更新为该冻结包的基线；也可以继续保留原来的 1.6 客户端安装。后续 1.7 更新不会改变冻结目录。
+
+### 构建和验证 1.7 客户端
+
+安装 .NET 10 SDK，初始化子模块后执行：
+
+构建脚本优先使用 PATH 中的 .NET 10+ SDK，也支持仓库本地 `LocalOnly/toolchains/dotnet/` SDK，不修改系统 PATH。
+
+```powershell
+pwsh -File ./Tools/BuildClientMod.ps1 -Configuration Release
+pwsh -File ./Tools/BuildThirdPartyCompatMod.ps1 -Configuration Release
+pwsh -File ./Tools/Test-ModPackages.ps1
+```
+
+默认使用固定版本的 RimWorld 1.7 NuGet **引用程序集**，无需安装游戏即可构建。也可为两个构建脚本传入 `-RimWorldManagedDir 'E:/SteamLibrary/steamapps/common/RimWorld'`，或设置 `RIMWORLD_ASSEMBLY_DIR`；该目录必须包含 Assembly-CSharp、UnityStubs 和 Waylith。程序集版本在 `Tools/RimWorld.Client.props` 集中维护。游戏 DLL 和 Harmony DLL 不随模组发布。
+
+`pwsh -File ./Tools/BuildAndInstallLocalMods.ps1 -Configuration Release` 会检测本地 1.7、使用实际游戏程序集编译，并替换本地安装的两个模组。运行前退出游戏。安装目录可用 `-RimWorldPath` 指定。
+
+客户端测试需要真实游戏程序集，不能运行 NuGet 引用程序集：
+
+```powershell
+dotnet run --project Tools/ClashOfRim.Client.Tests -c Release -p:RimWorldManagedDir=E:/SteamLibrary/steamapps/common/RimWorld
+pwsh -File ./Tools/Test-FrozenLegacy.ps1
+```
+
+启动检查可以使用 `-mod=brrainz.harmony,AIRsLight.ClashOfRim,AIRsLight.ClashOfRim.ThirdPartyCompat` 和独立 `-savedatafolder=...`。图形检查需正常启动或 `-NoWindow`，`-Headless` 无法验证头像、贴图及 UI。完整发布验收还需双客户端交易、人物流转、远程地图、袭击结算、断线恢复，以及实际第三方模组组合测试。
+
+ThirdPartyCompat 是独立 Git 子模块，发布时须先提交其工程和冻结内容，再更新主仓库引用。
+
 ## 项目介绍
 
 ClashOfRim 面向希望共享同一个 RimWorld 世界、但不想把游戏改造成确定性锁步模拟的社群。每个玩家仍然在本地运行正常的 RimWorld 殖民地。服务器提供的是围绕这些殖民地的持久共享层：身份、世界成员、存档快照、事件、经济、外交、袭击、聊天、管理和兼容性策略。

@@ -2,6 +2,8 @@
 
 ## Current development changes
 
+- **RimWorld 1.7 migration:** active clients now target Waylith, .NET 10 and Harmony 3. Existing 1.6 support is frozen at 0.3.4, with isolated client resources and a preserved Windows server package; all future features target 1.7.
+
 - **Authoritative world baseline:** new players receive the server's complete world substrate, preventing divergent world generation when all players use the same baseline.
 - **Storyteller and difficulty synchronization:** server storyteller, custom difficulty, and threat-scale settings are now enforced after snapshot loading, lightweight world refreshes, and live baseline updates.
 - **Compatibility and configuration:** registered mod settings are checked consistently; configuration differences are shown separately from file differences. You can either use a server-scoped configuration overlay or write the server configuration into local `Config` files before restarting.
