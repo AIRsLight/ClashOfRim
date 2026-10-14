@@ -536,6 +536,15 @@ public static partial class ClashOfRimNetworkServer
         string? snapshotUploadKind = null,
         string? requiredRaidEventId = null,
         bool allowRaidSettlementEvidenceSnapshotKind = false)
+        => ReceiveSnapshotCore(state, userId, colonyId, snapshotId, package, payload, acceptedAtUtc, storeAccepted,
+            validateGameplayContinuity, confirmationOperation, snapshotUploadKind, requiredRaidEventId, allowRaidSettlementEvidenceSnapshotKind);
+
+    private static SnapshotUploadResult ReceiveSnapshotCore(
+        ClashOfRimNetworkState state, string userId, string colonyId, string snapshotId, SnapshotPackageMetadataDto package,
+        byte[] payload, DateTimeOffset acceptedAtUtc, bool storeAccepted = true, bool validateGameplayContinuity = true,
+        string? confirmationOperation = null, string? snapshotUploadKind = null, string? requiredRaidEventId = null,
+        bool allowRaidSettlementEvidenceSnapshotKind = false, SnapshotPostUploadExtraData? postUploadData = null,
+        Func<string?>? validateCommit = null)
     {
         var receiver = CreateSnapshotReceiver(state);
         string normalizedSnapshotUploadKind = NormalizeSnapshotUploadKind(
@@ -554,9 +563,35 @@ public static partial class ClashOfRimNetworkServer
         using (state.EnterSnapshotMutation())
         {
             RecoverSnapshotCommits(state);
+            if (state.SnapshotCommits.IsApplying)
+                throw new InvalidOperationException("Cannot publish a nested snapshot while a commit is being applied.");
+            if (validateCommit?.Invoke() is { } authFailure)
+                return SnapshotUploadResult.Reject(SnapshotUploadResultKind.IdentityMismatch, authFailure);
+            if (postUploadData is not null)
+            {
+                // A lost response must not create a new lineage token or run supplied
+                // candidates again. Recovery above already used the original context.
+                var latest = state.SnapshotStore.GetLatest(userId, colonyId);
+                if (latest?.Identity.SnapshotId == snapshotId)
+                {
+                    return latest.Envelope.OriginalSha256 == prepared.AcceptedSnapshot!.Envelope.OriginalSha256
+                        && latest.Envelope.PayloadSha256 == prepared.AcceptedSnapshot.Envelope.PayloadSha256
+                        ? SnapshotUploadResult.Accept(latest, normalizedSnapshotUploadKind)
+                        : SnapshotUploadResult.Reject(SnapshotUploadResultKind.SnapshotReplayDetected,
+                            "Snapshot identity was already accepted with different content.");
+                }
+            }
             var operations = PendingSnapshotOperations.Capture(state.BankLoans, state.MercenaryContracts, prepared.AcceptedSnapshot!);
             var upload = receiver.CommitPrepared(context, savePackage, prepared,
-                storeAccepted: storeAccepted && operations.IsEmpty, validateGameplayContinuity);
+                storeAccepted: storeAccepted && operations.IsEmpty && postUploadData is null, validateGameplayContinuity);
+            if (postUploadData is not null && upload.Accepted && upload.AcceptedSnapshot is not null)
+            {
+                state.SnapshotCommits.CommitUpload(state.SnapshotStore, state.BankLoans, state.MercenaryContracts,
+                    savePackage, upload.AcceptedSnapshot, operations, upload.SnapshotUploadKind,
+                    postUploadData.ConfirmationOperation, postUploadData.AchievementCandidates,
+                    (snapshot, kind, mutation) => RunCommittedOrdinaryUpload(state, snapshot, kind, mutation));
+                return upload;
+            }
             if (!storeAccepted || !upload.Accepted || upload.AcceptedSnapshot is null || operations.IsEmpty) return upload;
             state.SnapshotCommits.CommitPendingOperations(state.SnapshotStore, state.BankLoans, state.MercenaryContracts,
                 savePackage, upload.AcceptedSnapshot, operations, upload.SnapshotUploadKind);

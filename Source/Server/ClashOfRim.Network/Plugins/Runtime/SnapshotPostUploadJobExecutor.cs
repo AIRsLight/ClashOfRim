@@ -205,12 +205,12 @@ internal sealed class SnapshotPostUploadBackgroundService : BackgroundService
                     nextTimeoutRecovery = DateTimeOffset.UtcNow.AddSeconds(5);
                     try
                     {
-                        if (state.ColonyDeletions.HasPending || state.WorldConfiguration.HasPendingLayerNotifications)
+                        if (state.ColonyDeletions.HasPending || state.WorldConfiguration.HasPendingLayerNotifications || state.SnapshotCommits.HasPendingUploads)
                             ClashOfRimNetworkServer.RecoverSnapshotCommits(state);
                     }
                     catch (Exception ex)
                     {
-                        state.RuntimeLogger.LogWarning(ex, "World notification or colony deletion recovery failed; intent retained.");
+                        state.RuntimeLogger.LogWarning(ex, "Snapshot, world notification or colony deletion recovery failed; intent retained.");
                     }
                     try
                     {

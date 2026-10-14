@@ -16,10 +16,10 @@ public sealed record PendingSnapshotOperations(BankLoanRecord? Loan, IReadOnlyLi
         return batch with { Mercenaries = contracts?.CapturePendingOperations(identity.OwnerId!, identity.ColonyId!) ?? [] };
     }
 
-    internal void Validate(LatestSnapshotRecord snapshot)
+    internal void Validate(LatestSnapshotRecord snapshot, bool allowEmpty = false)
     {
         bool Owner(string user, string colony) => user == snapshot.Identity.OwnerId && colony == snapshot.Identity.ColonyId;
-        if (Debts is null || Mercenaries is null || IsEmpty
+        if (Debts is null || Mercenaries is null || !allowEmpty && IsEmpty
             || Loan is { } loan && (!Owner(loan.UserId, loan.ColonyId) || loan.Status is not (BankLoanRegistry.StatusPendingActivation or BankLoanRegistry.StatusPendingRepayment))
             || Debts.Any(debt => !Owner(debt.UserId, debt.ColonyId) || debt.Status is not (BankLoanRegistry.StatusPendingActivation or BankLoanRegistry.StatusPendingRepayment))
             || Mercenaries.Any(contract => !Owner(contract.UserId, contract.ColonyId) || contract.Status != MercenaryContractRegistry.StatusPendingActivation)

@@ -1146,7 +1146,7 @@ public static partial class ClashOfRimNetworkServer
                 uploadResult: "PendingConfirmationExpired"));
         }
 
-        SnapshotUploadResult upload = ReceiveSnapshot(
+        SnapshotUploadResult upload = ReceiveSnapshotCore(
             state,
             request.UserId,
             request.ColonyId,
@@ -1154,7 +1154,10 @@ public static partial class ClashOfRimNetworkServer
             request.Package,
             multipart.Payload,
             nowUtc,
-            confirmationOperation: request.ConfirmationOperation);
+            confirmationOperation: request.ConfirmationOperation,
+            postUploadData: new SnapshotPostUploadExtraData(request.Package.SnapshotUploadKind, request.ConfirmationOperation, request.AchievementCandidates),
+            validateCommit: () => IsAuthorizedForColony(state, request.AuthToken, request.UserId, request.ColonyId,
+                null, null, DateTimeOffset.UtcNow, out string failure) ? null : failure);
         if (!upload.Accepted)
         {
             state.RuntimeLogger.LogWarning(
@@ -1167,23 +1170,6 @@ public static partial class ClashOfRimNetworkServer
                 upload.Message,
                 request.ConfirmationOperation);
         }
-        RunSnapshotPostUploadProcessors(
-            state,
-            request.UserId,
-            request.ColonyId,
-            sessionId: null,
-            upload,
-            nowUtc,
-            extraData: new SnapshotPostUploadExtraData(
-                upload.SnapshotUploadKind,
-                request.ConfirmationOperation,
-                request.AchievementCandidates),
-            registerPlayerColonySite: !string.Equals(
-                request.ConfirmationOperation,
-                SnapshotConfirmationOperations.ColonyRelocation,
-                StringComparison.Ordinal),
-            achievementCandidates: request.AchievementCandidates);
-
         return Results.Ok(new UploadSnapshotResponse(
             ToProtocolResponse(upload),
             upload.AcceptedSnapshot?.Identity.SnapshotId,

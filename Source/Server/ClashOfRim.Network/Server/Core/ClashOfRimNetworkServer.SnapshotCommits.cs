@@ -1,5 +1,7 @@
 using AIRsLight.ClashOfRim.Save;
 using AIRsLight.ClashOfRim.Events;
+using AIRsLight.ClashOfRim.Protocol;
+using AIRsLight.ClashOfRim.Network.Plugins;
 
 namespace AIRsLight.ClashOfRim.Network;
 
@@ -17,7 +19,8 @@ public static partial class ClashOfRimNetworkServer
                 (snapshot, kind) => RunCommittedSnapshotPostUpload(state, snapshot, kind), state.Ledger,
                 userId => state.EventNotifications.SignalUsers(new[] { userId }),
                 item => RecordAuthoritativeEventAchievements(state, item, item.CreatedAtUtc), state.ServerShop,
-                state.MercenaryContracts, state.MercenaryGuards, state.Players);
+                state.MercenaryContracts, state.MercenaryGuards, state.Players,
+                (snapshot, kind, mutation) => RunCommittedOrdinaryUpload(state, snapshot, kind, mutation));
             RecoverMercenaryIncidents(state);
         }
     }
@@ -44,5 +47,14 @@ public static partial class ClashOfRimNetworkServer
     {
         RunSnapshotPostUploadProcessors(state, snapshot.Identity.OwnerId!, snapshot.Identity.ColonyId!, null,
             SnapshotUploadResult.Accept(snapshot, kind), snapshot.AcceptedAtUtc);
+    }
+
+    private static void RunCommittedOrdinaryUpload(ClashOfRimNetworkState state, LatestSnapshotRecord snapshot, string? kind,
+        SnapshotUploadMutation mutation)
+    {
+        RunSnapshotPostUploadProcessors(state, snapshot.Identity.OwnerId!, snapshot.Identity.ColonyId!, null,
+            SnapshotUploadResult.Accept(snapshot, kind), snapshot.AcceptedAtUtc,
+            new SnapshotPostUploadExtraData(kind, mutation.ConfirmationOperation, mutation.AchievementCandidates),
+            registerPlayerColonySite: mutation.ConfirmationOperation != SnapshotConfirmationOperations.ColonyRelocation);
     }
 }
