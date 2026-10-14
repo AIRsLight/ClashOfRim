@@ -432,7 +432,7 @@ public sealed class WorldConfigurationRegistry
                 }
 
                 WorldConfigurationExtensionService extensionsService = ResolveWorldExtensions(activeWorldExtensions);
-                worldConfiguration = CopyWithPlayerColonySitesAndExtensions(
+                WorldConfigurationDto candidate = CopyWithPlayerColonySitesAndExtensions(
                     worldConfiguration,
                     mergedSites,
                     extensionsService.MergeExtensions(
@@ -442,7 +442,10 @@ public sealed class WorldConfigurationRegistry
                             worldConfiguration.WorldConfigurationId),
                         worldConfiguration.Extensions,
                         extensions ?? Array.Empty<WorldConfigurationExtensionDto>()));
-                SaveLocked();
+                // Registration changes sites/extensions, not the substrate. Publish
+                // only after persistence so upload recovery still sees the old state.
+                SaveLocked(candidate, writeSubstrate: false);
+                worldConfiguration = candidate;
             }
 
             return new WorldSessionState(
@@ -551,7 +554,7 @@ public sealed class WorldConfigurationRegistry
 
             if (increases.Count > 0)
             {
-                worldConfiguration = CopyWithTileFloatLayer(
+                WorldConfigurationDto candidate = CopyWithTileFloatLayer(
                     worldConfiguration,
                     layerId,
                     current
@@ -560,7 +563,10 @@ public sealed class WorldConfigurationRegistry
                         .Select(pair => new WorldTileFloatLayerValue(pair.Key, pair.Value))
                         .ToList(),
                     extensionsService);
-                SaveLocked();
+                // Failed persistence must not consume the increase in the cache:
+                // a retry must compute the same delta from the durable baseline.
+                SaveLocked(candidate, writeSubstrate: false);
+                worldConfiguration = candidate;
             }
 
             return increases;
