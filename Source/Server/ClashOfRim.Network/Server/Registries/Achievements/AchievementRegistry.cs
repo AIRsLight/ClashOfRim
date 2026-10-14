@@ -126,6 +126,7 @@ public sealed class AchievementRegistry
     private readonly IKeyedJsonRecordStore? structuredPersistence;
     private readonly IJsonPersistenceSlot? legacyPersistence;
     private readonly Dictionary<string, AchievementEventRecord> eventsByKey = new(StringComparer.Ordinal);
+    private readonly Dictionary<(string User, string Colony, string Snapshot), Dictionary<string, AchievementEventRecord>> eventsBySnapshot = new();
     private readonly Dictionary<string, AchievementAggregateRecord> aggregatesByKey = new(StringComparer.Ordinal);
     private readonly Dictionary<string, AchievementMetricEventRecord> metricEventsByKey = new(StringComparer.Ordinal);
     private readonly Dictionary<string, AchievementMetricAggregateRecord> metricAggregatesByKey = new(StringComparer.Ordinal);
@@ -495,6 +496,18 @@ public sealed class AchievementRegistry
         }
     }
 
+    internal IReadOnlyList<AchievementEventRecord> ListSnapshotEvents(string userId, string colonyId, string snapshotId)
+    {
+        lock (gate)
+        {
+            return eventsBySnapshot.TryGetValue((userId, colonyId, snapshotId), out var events)
+                ? events.Values.OrderBy(record => record.RecordedAtUtc)
+                    .ThenBy(record => record.AchievementId, StringComparer.Ordinal)
+                    .ThenBy(record => record.EventKey, StringComparer.Ordinal).ToArray()
+                : Array.Empty<AchievementEventRecord>();
+        }
+    }
+
     public IReadOnlyList<AchievementAggregateRecord> ListAggregates()
     {
         lock (gate)
@@ -712,12 +725,22 @@ public sealed class AchievementRegistry
         }
 
         string key = EventRecordKey(record.UserId, record.ColonyId, record.AchievementId, record.EventKey);
-        if (eventsByKey.ContainsKey(key) && !overwrite)
+        if (eventsByKey.TryGetValue(key, out var previous))
         {
-            return false;
+            if (!overwrite) return false;
+            var previousSource = (previous.UserId, previous.ColonyId, previous.SourceSnapshotId);
+            if (eventsBySnapshot.TryGetValue(previousSource, out var previousEvents))
+            {
+                previousEvents.Remove(key);
+                if (previousEvents.Count == 0) eventsBySnapshot.Remove(previousSource);
+            }
         }
 
         eventsByKey[key] = record;
+        var source = (record.UserId, record.ColonyId, record.SourceSnapshotId);
+        if (!eventsBySnapshot.TryGetValue(source, out var sourceEvents))
+            eventsBySnapshot[source] = sourceEvents = new Dictionary<string, AchievementEventRecord>(StringComparer.Ordinal);
+        sourceEvents[key] = record;
         return true;
     }
 

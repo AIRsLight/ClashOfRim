@@ -18,6 +18,7 @@ var tests = new (string Name, Action Run)[]
     ("礼物快照提交跨崩溃恢复且冲突拒绝覆盖", () => GiftCommitCrashTests.Run(BuildFixturePackage)),
     ("交易快照与成交事件跨崩溃恢复且并发买家互斥", () => TradeCommitCrashTests.Run(BuildFixturePackage)),
     ("交易成就统计与通知在写入失败后可以恢复", AchievementRecoveryTests.Run),
+    ("快照成就通知在中断后重放且保持来源隔离", () => SnapshotAchievementRecoveryTests.Run(BuildFixturePackage)),
     ("交易关闭退货原子提交且不重复补偿已入档物品", TradeClosureTests.Run),
     ("商店持久化失败保留库存缓存且允许重试", ShopRegistryPersistenceTests.Run),
     ("商店快照和购买回执共同恢复且限制重复请求身份", () => ShopCommitCrashTests.Run(BuildFixturePackage)),

@@ -232,26 +232,25 @@ public static partial class ClashOfRimNetworkServer
             return;
         }
 
-        var newlyRecordedAchievements = new List<AchievementEventRecord>();
-        newlyRecordedAchievements.AddRange(state.Achievements.RecordSnapshotMetricAchievements(
+        state.Achievements.RecordSnapshotMetricAchievements(
             ownerId,
             colonyId,
             snapshotId!,
             metrics,
             state.Plugins.ActiveAchievementDefinitions(state.CompatibilityBaseline.Current),
-            nowUtc));
+            nowUtc);
 
         foreach (SnapshotAchievementCandidateDto candidate in achievementCandidates ?? Array.Empty<SnapshotAchievementCandidateDto>())
         {
-            if (state.Achievements.TryRecord(ownerId, colonyId, snapshotId!, candidate, nowUtc, out AchievementEventRecord? record))
-            {
-                newlyRecordedAchievements.Add(record!);
-            }
+            state.Achievements.TryRecord(ownerId, colonyId, snapshotId!, candidate, nowUtc, out _);
         }
 
-        if (newlyRecordedAchievements.Count > 0)
+        // A previous attempt may have persisted an unlock and then failed to append
+        // its notification. Replay all durable unlocks from this exact snapshot.
+        var snapshotAchievements = state.Achievements.ListSnapshotEvents(ownerId, colonyId, snapshotId!);
+        if (snapshotAchievements.Count > 0)
         {
-            NotifyUnlockedAchievements(state, ownerId, colonyId, newlyRecordedAchievements, nowUtc);
+            NotifyUnlockedAchievements(state, ownerId, colonyId, snapshotAchievements, nowUtc);
         }
     }
 
