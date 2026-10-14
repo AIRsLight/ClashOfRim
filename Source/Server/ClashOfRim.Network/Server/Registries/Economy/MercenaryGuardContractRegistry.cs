@@ -109,9 +109,6 @@ public sealed class MercenaryGuardContractRegistry
                 StatusActive,
                 ConsumedRaidEventId: null,
                 ConsumedAtUtc: null);
-            contracts[contract.ContractId] = contract;
-            idByIdempotencyKey[contract.IdempotencyKey] = contract.ContractId;
-            activeContractByColony[ColonyKey(userId, colonyId)] = contract.ContractId;
             PersistContracts([contract]);
             return contract;
         }
@@ -139,8 +136,6 @@ public sealed class MercenaryGuardContractRegistry
                 ConsumedRaidEventId = raidEventId,
                 ConsumedAtUtc = nowUtc
             };
-            contracts[consumed.ContractId] = consumed;
-            activeContractByColony.Remove(ColonyKey(userId, colonyId));
             PersistContracts([consumed]);
             return consumed;
         }
@@ -239,15 +234,17 @@ public sealed class MercenaryGuardContractRegistry
         }
     }
 
-    private void SaveLocked()
+    private void SaveCandidate(IReadOnlyCollection<MercenaryGuardContractRecord> upserts)
     {
         if (legacyPersistence is null)
         {
             return;
         }
 
+        var candidate = new Dictionary<string, MercenaryGuardContractRecord>(contracts, StringComparer.Ordinal);
+        foreach (var contract in upserts) candidate[contract.ContractId] = contract;
         string json = JsonSerializer.Serialize(
-            new MercenaryGuardContractRegistryPersistence(contracts.Values
+            new MercenaryGuardContractRegistryPersistence(candidate.Values
                 .OrderBy(contract => contract.CreatedAtUtc)
                 .ToList()),
             JsonOptions);
@@ -264,10 +261,9 @@ public sealed class MercenaryGuardContractRegistry
                     contract => JsonSerializer.Serialize(contract, JsonOptions),
                     StringComparer.Ordinal),
                 Array.Empty<string>());
-            return;
         }
-
-        SaveLocked();
+        else SaveCandidate(upserts);
+        foreach (var contract in upserts) RegisterLoadedContract(contract, overwrite: true);
     }
 
     private static string ColonyKey(string userId, string colonyId)

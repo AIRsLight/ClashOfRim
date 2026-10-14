@@ -140,9 +140,6 @@ public sealed class MercenaryContractRegistry
                 createdAtUtc,
                 StatusPendingActivation,
                 ActivatedAtUtc: null);
-            contracts[contractId] = contract;
-            idByIdempotencyKey[idempotencyKey] = contractId;
-            RegisterOpenContract(contract);
             PersistContracts([contract], Array.Empty<string>());
             return contract;
         }
@@ -197,9 +194,6 @@ public sealed class MercenaryContractRegistry
                 createdAtUtc,
                 StatusActive,
                 ActivatedAtUtc: createdAtUtc);
-            contracts[resolvedContractId] = contract;
-            idByIdempotencyKey[idempotencyKey] = resolvedContractId;
-            RegisterOpenContract(contract);
             PersistContracts([contract], Array.Empty<string>());
             return contract;
         }
@@ -226,7 +220,6 @@ public sealed class MercenaryContractRegistry
                     SnapshotId = acceptedSnapshotId,
                     ActivatedAtUtc = confirmedAtUtc
                 };
-                contracts[contract.ContractId] = active;
                 confirmed.Add(active);
             }
 
@@ -254,13 +247,6 @@ public sealed class MercenaryContractRegistry
                     && string.Equals(contract.Status, StatusPendingActivation, StringComparison.Ordinal)
                     && ShouldCancelPending(contract.CreatedAtUtc, nowUtc, timeout, forceCancel))
                 .ToList();
-            foreach (MercenaryContractRecord contract in pending)
-            {
-                contracts.Remove(contract.ContractId);
-                idByIdempotencyKey.Remove(contract.IdempotencyKey);
-                UnregisterOpenContract(contract);
-            }
-
             if (pending.Count > 0)
             {
                 PersistContracts(
@@ -290,8 +276,6 @@ public sealed class MercenaryContractRegistry
             {
                 Status = StatusCompleted
             };
-            contracts[contract.ContractId] = completed;
-            UnregisterOpenContract(contract);
             PersistContracts([completed], Array.Empty<string>());
             return completed;
         }
@@ -313,9 +297,7 @@ public sealed class MercenaryContractRegistry
                 {
                     Status = StatusCompleted
                 };
-                contracts[contract.ContractId] = updated;
                 completed.Add(updated);
-                UnregisterOpenContract(contract);
             }
 
             if (open.Count > 0)
@@ -410,15 +392,18 @@ public sealed class MercenaryContractRegistry
         }
     }
 
-    private void SaveLocked()
+    private void SaveCandidate(IReadOnlyCollection<MercenaryContractRecord> upserts, IReadOnlyCollection<string> deletes)
     {
         if (legacyPersistence is null)
         {
             return;
         }
 
+        var candidate = new Dictionary<string, MercenaryContractRecord>(contracts, StringComparer.Ordinal);
+        foreach (string id in deletes) candidate.Remove(id);
+        foreach (var contract in upserts) candidate[contract.ContractId] = contract;
         string json = JsonSerializer.Serialize(
-            new MercenaryContractRegistryPersistence(contracts.Values
+            new MercenaryContractRegistryPersistence(candidate.Values
                 .OrderBy(contract => contract.CreatedAtUtc)
                 .ToList()),
             JsonOptions);
@@ -437,10 +422,15 @@ public sealed class MercenaryContractRegistry
                     contract => JsonSerializer.Serialize(contract, JsonOptions),
                     StringComparer.Ordinal),
                 deletes.Select(ContractRowKey).ToArray());
-            return;
         }
-
-        SaveLocked();
+        else SaveCandidate(upserts, deletes);
+        foreach (string id in deletes)
+        {
+            if (!contracts.Remove(id, out var removed)) continue;
+            idByIdempotencyKey.Remove(removed.IdempotencyKey);
+            UnregisterOpenContract(removed);
+        }
+        foreach (var contract in upserts) RegisterLoadedContract(contract, overwrite: true);
     }
 
     private sealed record MercenaryContractRegistryPersistence(IReadOnlyList<MercenaryContractRecord> Contracts);
