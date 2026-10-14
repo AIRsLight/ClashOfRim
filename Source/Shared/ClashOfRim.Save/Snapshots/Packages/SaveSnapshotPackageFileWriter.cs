@@ -20,6 +20,17 @@ public static class SaveSnapshotPackageFileWriter
         PersistedSaveSnapshotPackage metadata,
         byte[]? encodedPayload)
     {
+        using PreparedFile prepared = Prepare(path, metadata, encodedPayload);
+        prepared.Publish();
+    }
+
+    // Preparation never changes the destination. The caller may reject a stale
+    // candidate and dispose it before preparing another one.
+    internal static PreparedFile Prepare(
+        string path,
+        PersistedSaveSnapshotPackage metadata,
+        byte[]? encodedPayload)
+    {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
         ArgumentNullException.ThrowIfNull(metadata);
 
@@ -38,14 +49,31 @@ public static class SaveSnapshotPackageFileWriter
                 Write(gzip, metadata, encodedPayload);
             }
 
-            File.Move(tempPath, path, overwrite: true);
+            return new PreparedFile(path, tempPath);
         }
-        finally
+        catch
         {
-            if (File.Exists(tempPath))
-            {
-                File.Delete(tempPath);
-            }
+            File.Delete(tempPath);
+            throw;
+        }
+    }
+
+    internal sealed class PreparedFile(string destinationPath, string tempPath) : IDisposable
+    {
+        private string? pendingPath = tempPath;
+
+        public void Publish()
+        {
+            if (pendingPath is null) throw new InvalidOperationException("Prepared package has already been consumed.");
+            File.Move(pendingPath, destinationPath, overwrite: true);
+            pendingPath = null;
+        }
+
+        public void Dispose()
+        {
+            if (pendingPath is null) return;
+            File.Delete(pendingPath);
+            pendingPath = null;
         }
     }
 

@@ -38,42 +38,29 @@ public sealed class FileColonySnapshotIndexStore : IColonySnapshotPackageStore, 
         ArgumentNullException.ThrowIfNull(package);
         ArgumentNullException.ThrowIfNull(rebuiltIndex);
 
-        SaveSnapshotEnvelope envelope = package.Envelope;
-        SnapshotIdentity identity = envelope.Identity;
-        ValidateIdentity(identity);
-
-        string key = Key(identity.OwnerId!, identity.ColonyId!);
-        var snapshot = new LatestSnapshotRecord(identity, envelope, rebuiltIndex, acceptedAtUtc);
-        lock (gate)
-        {
-            HashSet<string> acceptedOriginalHashes = CopyAcceptedOriginalHashes(key);
-            if (!string.IsNullOrWhiteSpace(envelope.OriginalSha256))
-            {
-                acceptedOriginalHashes.Add(envelope.OriginalSha256);
-            }
-            var persisted = new PersistedSaveSnapshotPackage(
-                identity,
-                envelope,
-                LightweightIndex(rebuiltIndex),
-                acceptedAtUtc,
-                acceptedOriginalHashes.OrderBy(hash => hash, StringComparer.OrdinalIgnoreCase).ToList());
-
-            SaveSnapshotPackageFileWriter.WriteAtomically(PackagePath(key), persisted, package.Payload);
-            latestByColony[key] = snapshot;
-            packageFileNameByColony[key] = PackageFileName(key);
-            acceptedOriginalHashesByColony[key] = acceptedOriginalHashes;
-        }
+        StoreLatest(new LatestSnapshotRecord(package.Envelope.Identity, package.Envelope, rebuiltIndex, acceptedAtUtc), package.Payload);
     }
 
     public void StoreLatest(LatestSnapshotRecord snapshot)
+        => StoreLatest(snapshot, encodedPayload: null);
+
+    private void StoreLatest(LatestSnapshotRecord snapshot, byte[]? encodedPayload)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
         ValidateIdentity(snapshot.Identity);
 
         string key = Key(snapshot.Identity.OwnerId!, snapshot.Identity.ColonyId!);
-        lock (gate)
+        while (true)
         {
-            HashSet<string> acceptedOriginalHashes = CopyAcceptedOriginalHashes(key);
+            HashSet<string>? previousHashes;
+            lock (gate)
+                acceptedOriginalHashesByColony.TryGetValue(key, out previousHashes);
+
+            // Published sets are never mutated. Their reference is also the revision
+            // token, so replacement or deletion invalidates an in-flight candidate.
+            var acceptedOriginalHashes = previousHashes is null
+                ? new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                : new HashSet<string>(previousHashes, StringComparer.OrdinalIgnoreCase);
             if (!string.IsNullOrWhiteSpace(snapshot.Envelope.OriginalSha256))
             {
                 acceptedOriginalHashes.Add(snapshot.Envelope.OriginalSha256);
@@ -85,10 +72,18 @@ public sealed class FileColonySnapshotIndexStore : IColonySnapshotPackageStore, 
                 snapshot.AcceptedAtUtc,
                 acceptedOriginalHashes.OrderBy(hash => hash, StringComparer.OrdinalIgnoreCase).ToList());
 
-            SaveSnapshotPackageFileWriter.WriteAtomically(PackagePath(key), persisted, encodedPayload: null);
-            latestByColony[key] = snapshot;
-            packageFileNameByColony[key] = PackageFileName(key);
-            acceptedOriginalHashesByColony[key] = acceptedOriginalHashes;
+            using var prepared = SaveSnapshotPackageFileWriter.Prepare(PackagePath(key), persisted, encodedPayload);
+            lock (gate)
+            {
+                acceptedOriginalHashesByColony.TryGetValue(key, out HashSet<string>? currentHashes);
+                if (!ReferenceEquals(previousHashes, currentHashes)) continue;
+
+                prepared.Publish();
+                latestByColony[key] = snapshot;
+                packageFileNameByColony[key] = PackageFileName(key);
+                acceptedOriginalHashesByColony[key] = acceptedOriginalHashes;
+                return;
+            }
         }
     }
 
@@ -226,13 +221,6 @@ public sealed class FileColonySnapshotIndexStore : IColonySnapshotPackageStore, 
 
         acceptedOriginalHashesByColony[key] = hashes;
         return key;
-    }
-
-    private HashSet<string> CopyAcceptedOriginalHashes(string key)
-    {
-        return acceptedOriginalHashesByColony.TryGetValue(key, out HashSet<string>? hashes)
-            ? new HashSet<string>(hashes, StringComparer.OrdinalIgnoreCase)
-            : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
     }
 
     private static PersistedSaveSnapshotPackage? ReadPersisted(string path)

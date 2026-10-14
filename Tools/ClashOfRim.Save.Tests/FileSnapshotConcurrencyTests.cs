@@ -14,12 +14,132 @@ internal static class FileSnapshotConcurrencyTests
         try
         {
             foreach (SnapshotPayloadEncoding encoding in new[] { SnapshotPayloadEncoding.RawRws, SnapshotPayloadEncoding.GzipRws })
+            {
                 VerifyPausedRead(root, fixture, encoding);
+                foreach (bool metadataOnly in new[] { false, true })
+                    foreach (string mutation in new[] { "replace", "delete", "recreate", "unrelated" })
+                        VerifyPausedWrite(root, fixture, encoding, metadataOnly, mutation);
+            }
+            VerifyFailedPreparation(root, fixture);
             VerifyConcurrentHistoryAndReaders(root, fixture);
             VerifyMissingPayload(root, fixture);
             if (OperatingSystem.IsWindows()) VerifyFailedFileMutation(root, fixture);
         }
         finally { Directory.Delete(root, recursive: true); }
+    }
+
+    private static void VerifyPausedWrite(string root, Func<string, SaveSnapshotPackage> fixture,
+        SnapshotPayloadEncoding encoding, bool metadataOnly, string mutation)
+    {
+        string directory = Path.Combine(root, $"write-{encoding}-{metadataOnly}-{mutation}");
+        var store = new FileColonySnapshotIndexStore(directory);
+        SaveSnapshotPackage before = Package(root, fixture, "write-before", encoding);
+        SaveSnapshotPackage pending = Package(root, fixture, "write-pending", encoding);
+        SaveSnapshotPackage competing = Package(root, fixture, "write-competing", encoding);
+        SaveSnapshotPackage unrelated = Package(root, fixture, "write-unrelated", encoding, "other-user", "other-colony");
+        Store(store, before);
+        using var entered = new ManualResetEventSlim();
+        using var release = new ManualResetEventSlim();
+        var factions = new ObservedList<FactionSummary>(pending.Index.Factions, () =>
+        {
+            entered.Set();
+            Require(release.Wait(TimeSpan.FromSeconds(30)), "writer preparation was not released");
+        });
+        SaveSnapshotIndex index = pending.Index with { Factions = factions };
+        Task write = Task.Run(() =>
+        {
+            if (metadataOnly)
+                store.StoreLatest(new LatestSnapshotRecord(pending.Envelope.Identity, pending.Envelope, index, DateTimeOffset.UtcNow));
+            else store.StoreLatest(pending, index, DateTimeOffset.UtcNow);
+        });
+        Task? mutate = null;
+        try
+        {
+            Require(entered.Wait(TimeSpan.FromSeconds(10)), "writer did not reach serialization");
+            mutate = Task.Run(() =>
+            {
+                Require(store.GetLatest("userA", "colonyA")?.Identity == before.Envelope.Identity,
+                    "preparation published metadata before the file");
+                VerifyPackage(store.GetLatestPackage("userA", "colonyA")!);
+                Require(new FileColonySnapshotIndexStore(directory).GetLatest("userA", "colonyA")?.Identity == before.Envelope.Identity,
+                    "reopen loaded an uncommitted temporary package");
+                Store(store, unrelated);
+                if (mutation is "delete" or "recreate") Require(store.RemoveLatest("userA", "colonyA"), "delete failed during preparation");
+                if (mutation is "replace" or "recreate") Store(store, competing);
+            });
+            Require(mutate.Wait(TimeSpan.FromSeconds(10)), "package preparation held the shared storage lock");
+        }
+        finally
+        {
+            release.Set();
+            Task.WaitAll(mutate is null ? new[] { write } : new[] { write, mutate }, TimeSpan.FromSeconds(30));
+        }
+        write.GetAwaiter().GetResult();
+        Require(factions.Enumerations == (mutation == "unrelated" ? 1 : 2), "candidate was not retried only for the same colony revision");
+        foreach (var current in new[] { store, new FileColonySnapshotIndexStore(directory) })
+        {
+            Require(current.GetLatest("userA", "colonyA")?.Identity == pending.Envelope.Identity, "prepared write did not publish its coherent version");
+            Require(current.HasAcceptedOriginalHash("userA", "colonyA", before.Envelope.OriginalSha256) == (mutation is "replace" or "unrelated"),
+                "preparation restored deleted history or lost earlier history");
+            Require(current.HasAcceptedOriginalHash("userA", "colonyA", competing.Envelope.OriginalSha256) == (mutation is "replace" or "recreate"),
+                "prepared publication lost competing history");
+            Require(current.HasAcceptedOriginalHash("userA", "colonyA", pending.Envelope.OriginalSha256), "prepared publication omitted its own history");
+            Require(current.GetLatest("other-user", "other-colony")?.Identity == unrelated.Envelope.Identity, "prepared write changed another colony");
+            SaveSnapshotPackage? result = current.GetLatestPackage("userA", "colonyA");
+            if (metadataOnly) Require(result is null, "metadata-only publication retained an unrelated payload");
+            else
+            {
+                Require(result is not null && result.Payload.SequenceEqual(pending.Payload), "prepared write mixed payload versions");
+                VerifyPackage(result!);
+            }
+        }
+        Require(!Directory.EnumerateFiles(Path.Combine(directory, "packages"), "*.tmp").Any(), "discarded candidate leaked a temporary file");
+    }
+
+    private static void VerifyFailedPreparation(string root, Func<string, SaveSnapshotPackage> fixture)
+    {
+        string directory = Path.Combine(root, "prepare-failure");
+        var store = new FileColonySnapshotIndexStore(directory);
+        SaveSnapshotPackage before = Package(root, fixture, "prepare-before", SnapshotPayloadEncoding.RawRws);
+        SaveSnapshotPackage next = Package(root, fixture, "prepare-next", SnapshotPayloadEncoding.RawRws);
+        Store(store, before);
+        foreach (bool metadataOnly in new[] { false, true })
+        {
+            var index = next.Index with
+            {
+                Factions = new ObservedList<FactionSummary>(next.Index.Factions, () => throw new InvalidOperationException("injected preparation failure"))
+            };
+            bool failed = false;
+            try
+            {
+                if (metadataOnly) store.StoreLatest(new LatestSnapshotRecord(next.Envelope.Identity, next.Envelope, index, DateTimeOffset.UtcNow));
+                else store.StoreLatest(next, index, DateTimeOffset.UtcNow);
+            }
+            catch (InvalidOperationException ex) when (ex.Message == "injected preparation failure") { failed = true; }
+            Require(failed, "preparation failure did not propagate");
+            foreach (var current in new[] { store, new FileColonySnapshotIndexStore(directory) })
+            {
+                Require(current.GetLatest("userA", "colonyA")?.Identity == before.Envelope.Identity, "preparation failure changed latest snapshot");
+                Require(!current.HasAcceptedOriginalHash("userA", "colonyA", next.Envelope.OriginalSha256), "preparation failure published history");
+                VerifyPackage(current.GetLatestPackage("userA", "colonyA")!);
+            }
+            Require(!Directory.EnumerateFiles(Path.Combine(directory, "packages"), "*.tmp").Any(), "preparation failure leaked temporary file");
+        }
+        Store(store, next);
+        VerifyPackage(store.GetLatestPackage("userA", "colonyA")!);
+    }
+
+    private sealed class ObservedList<T>(IReadOnlyList<T> items, Action onFirstEnumeration) : IReadOnlyList<T>
+    {
+        public int Enumerations { get; private set; }
+        public int Count => items.Count;
+        public T this[int index] => items[index];
+        public IEnumerator<T> GetEnumerator()
+        {
+            if (++Enumerations == 1) onFirstEnumeration();
+            return items.GetEnumerator();
+        }
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
     }
 
     private static void VerifyPausedRead(string root, Func<string, SaveSnapshotPackage> fixture, SnapshotPayloadEncoding encoding)
