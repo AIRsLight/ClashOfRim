@@ -925,169 +925,173 @@ public static partial class ClashOfRimNetworkServer
 
     private static IResult CreateTradeOrder(CreateTradeOrderRequest request, ClashOfRimNetworkState state)
     {
-        ApplyTradeOrderExpirations(state, DateTimeOffset.UtcNow);
-        AuthoritativeEvent? existingEvent = FindEventByIdempotencyKey(state.Ledger, request.IdempotencyKey);
-        if (existingEvent is not null)
+        lock (state.RaidSettlementSnapshotMutationGate)
         {
-            return Results.Ok(ToEventCreationResponse(
-                new LedgerAppendResult(existingEvent, Created: false),
-                ProtocolDeliverySemantics.OfflinePending,
-                T("Trade.OrderCreated")));
-        }
+            RecoverSnapshotCommits(state);
+            ApplyTradeOrderExpirations(state, DateTimeOffset.UtcNow);
+            AuthoritativeEvent? existingEvent = FindEventByIdempotencyKey(state.Ledger, request.IdempotencyKey);
+            if (existingEvent is not null)
+            {
+                return Results.Ok(ToEventCreationResponse(
+                    new LedgerAppendResult(existingEvent, Created: false),
+                    ProtocolDeliverySemantics.OfflinePending,
+                    T("Trade.OrderCreated")));
+            }
 
-        if (!state.ServerConfiguration.TradeMarketplaceEnabled)
-        {
-            return Results.Ok(new EventCreationResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, T("Trade.Disabled")),
-                eventId: null,
-                ProtocolDeliverySemantics.OfflinePending));
-        }
+            if (!state.ServerConfiguration.TradeMarketplaceEnabled)
+            {
+                return Results.Ok(new EventCreationResponse(
+                    ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, T("Trade.Disabled")),
+                    eventId: null,
+                    ProtocolDeliverySemantics.OfflinePending));
+            }
 
-        if ((request.OfferedThings is null || request.OfferedThings.Count == 0)
-            && (request.RequestedThings is null || request.RequestedThings.Count == 0))
-        {
-            return Results.Ok(new EventCreationResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("Trade.OrderMissingFields")),
-                eventId: null,
-                ProtocolDeliverySemantics.OfflinePending));
-        }
+            if ((request.OfferedThings is null || request.OfferedThings.Count == 0)
+                && (request.RequestedThings is null || request.RequestedThings.Count == 0))
+            {
+                return Results.Ok(new EventCreationResponse(
+                    ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("Trade.OrderMissingFields")),
+                    eventId: null,
+                    ProtocolDeliverySemantics.OfflinePending));
+            }
 
-        if (ContainsConcreteThingPackage(request.RequestedThings))
-        {
-            return Results.Ok(new EventCreationResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, "trade request requirements cannot carry thing packages"),
-                eventId: null,
-                ProtocolDeliverySemantics.OfflinePending));
-        }
+            if (ContainsConcreteThingPackage(request.RequestedThings))
+            {
+                return Results.Ok(new EventCreationResponse(
+                    ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, "trade request requirements cannot carry thing packages"),
+                    eventId: null,
+                    ProtocolDeliverySemantics.OfflinePending));
+            }
 
-        if (!TryStoreInlinePawnPackages(
-                state,
-                request.Owner,
-                "trade-order-offer:" + request.IdempotencyKey,
-                request.OfferedThings ?? Array.Empty<ThingReferenceDto>(),
-                out IReadOnlyList<ThingReferenceDto> offeredThings,
-                out ProtocolResponse? pawnFailure)
-            || !TryStoreInlinePawnPackages(
-                state,
-                request.Owner,
-                "trade-order-request:" + request.IdempotencyKey,
-                request.RequestedThings ?? Array.Empty<ThingReferenceDto>(),
-                out IReadOnlyList<ThingReferenceDto> requestedThings,
-                out pawnFailure))
-        {
-            return Results.Ok(new EventCreationResponse(
-                pawnFailure ?? ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("PawnPackage.ParseFailed")),
-                eventId: null,
-                ProtocolDeliverySemantics.OfflinePending));
-        }
+            if (!TryStoreInlinePawnPackages(
+                    state,
+                    request.Owner,
+                    "trade-order-offer:" + request.IdempotencyKey,
+                    request.OfferedThings ?? Array.Empty<ThingReferenceDto>(),
+                    out IReadOnlyList<ThingReferenceDto> offeredThings,
+                    out ProtocolResponse? pawnFailure)
+                || !TryStoreInlinePawnPackages(
+                    state,
+                    request.Owner,
+                    "trade-order-request:" + request.IdempotencyKey,
+                    request.RequestedThings ?? Array.Empty<ThingReferenceDto>(),
+                    out IReadOnlyList<ThingReferenceDto> requestedThings,
+                    out pawnFailure))
+            {
+                return Results.Ok(new EventCreationResponse(
+                    pawnFailure ?? ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("PawnPackage.ParseFailed")),
+                    eventId: null,
+                    ProtocolDeliverySemantics.OfflinePending));
+            }
 
-        AdminBaselineSnapshot? currentBaseline = state.AdminBaseline.Current;
-        IReadOnlyList<string> invalidBaselineDefs = currentBaseline is null
-            ? Array.Empty<string>()
-            : FindUnavailableTradeThingDefs(
-                offeredThings.Select(thing => ToEventThingReference(thing, request.Owner.SnapshotId)),
-                currentBaseline,
-                BuildValidTradeThingDefSet(currentBaseline, state.ServerConfiguration));
-        IReadOnlyList<string> invalidRequestedPackableDefs = currentBaseline is null
-            ? Array.Empty<string>()
-            : FindUnavailablePackableBuildingDefs(
-                requestedThings.Select(thing => ToEventThingReference(thing, request.Owner.SnapshotId)),
-                currentBaseline);
-        if (invalidBaselineDefs.Count > 0)
-        {
-            return Results.Ok(new EventCreationResponse(
-                ProtocolResponse.Reject(
-                    ProtocolErrorCode.ServerRejected,
-                    T("Trade.MissingMarketValues", ("DEFS", string.Join(", ", invalidBaselineDefs)))),
-                eventId: null,
-                ProtocolDeliverySemantics.OfflinePending));
-        }
+            AdminBaselineSnapshot? currentBaseline = state.AdminBaseline.Current;
+            IReadOnlyList<string> invalidBaselineDefs = currentBaseline is null
+                ? Array.Empty<string>()
+                : FindUnavailableTradeThingDefs(
+                    offeredThings.Select(thing => ToEventThingReference(thing, request.Owner.SnapshotId)),
+                    currentBaseline,
+                    BuildValidTradeThingDefSet(currentBaseline, state.ServerConfiguration));
+            IReadOnlyList<string> invalidRequestedPackableDefs = currentBaseline is null
+                ? Array.Empty<string>()
+                : FindUnavailablePackableBuildingDefs(
+                    requestedThings.Select(thing => ToEventThingReference(thing, request.Owner.SnapshotId)),
+                    currentBaseline);
+            if (invalidBaselineDefs.Count > 0)
+            {
+                return Results.Ok(new EventCreationResponse(
+                    ProtocolResponse.Reject(
+                        ProtocolErrorCode.ServerRejected,
+                        T("Trade.MissingMarketValues", ("DEFS", string.Join(", ", invalidBaselineDefs)))),
+                    eventId: null,
+                    ProtocolDeliverySemantics.OfflinePending));
+            }
 
-        if (invalidRequestedPackableDefs.Count > 0)
-        {
-            return Results.Ok(new EventCreationResponse(
-                ProtocolResponse.Reject(
-                    ProtocolErrorCode.ServerRejected,
-                    T("Trade.MissingMarketValues", ("DEFS", string.Join(", ", invalidRequestedPackableDefs)))),
-                eventId: null,
-                ProtocolDeliverySemantics.OfflinePending));
-        }
+            if (invalidRequestedPackableDefs.Count > 0)
+            {
+                return Results.Ok(new EventCreationResponse(
+                    ProtocolResponse.Reject(
+                        ProtocolErrorCode.ServerRejected,
+                        T("Trade.MissingMarketValues", ("DEFS", string.Join(", ", invalidRequestedPackableDefs)))),
+                    eventId: null,
+                    ProtocolDeliverySemantics.OfflinePending));
+            }
 
-        TradeFeeCalculationResult feeCalculation =
-            state.AdminBaseline.BuildEffectiveTradeFeePolicy(state.ServerConfiguration)
-                .CalculateRequiredFeeResult(offeredThings, requestedThings);
-        if (!feeCalculation.Accepted)
-        {
-            return Results.Ok(new EventCreationResponse(
-                ProtocolResponse.Reject(
-                    ProtocolErrorCode.ServerRejected,
-                    T("Trade.MissingMarketValues", ("DEFS", string.Join(", ", feeCalculation.MissingMarketValueDefs)))),
-                eventId: null,
-                ProtocolDeliverySemantics.OfflinePending));
-        }
+            TradeFeeCalculationResult feeCalculation =
+                state.AdminBaseline.BuildEffectiveTradeFeePolicy(state.ServerConfiguration)
+                    .CalculateRequiredFeeResult(offeredThings, requestedThings);
+            if (!feeCalculation.Accepted)
+            {
+                return Results.Ok(new EventCreationResponse(
+                    ProtocolResponse.Reject(
+                        ProtocolErrorCode.ServerRejected,
+                        T("Trade.MissingMarketValues", ("DEFS", string.Join(", ", feeCalculation.MissingMarketValueDefs)))),
+                    eventId: null,
+                    ProtocolDeliverySemantics.OfflinePending));
+            }
 
-        if (request.FeeSilver < feeCalculation.RequiredFeeSilver)
-        {
-            return Results.Ok(new EventCreationResponse(
-                ProtocolResponse.Reject(
-                    ProtocolErrorCode.ServerRejected,
-                    T(
-                        "Trade.InsufficientFee",
-                        ("SUBMITTED", request.FeeSilver.ToString(CultureInfo.InvariantCulture)),
-                        ("REQUIRED", feeCalculation.RequiredFeeSilver.ToString(CultureInfo.InvariantCulture)))),
-                eventId: null,
-                ProtocolDeliverySemantics.OfflinePending));
-        }
-
-        int maxOpenOrders = state.ServerConfiguration.MaxOpenTradeOrdersPerOwner;
-        if (maxOpenOrders > 0)
-        {
-            int openOrderCount = CountOpenMarketTradeOrdersForOwner(state.Ledger, request.Owner);
-            if (openOrderCount >= maxOpenOrders)
+            if (request.FeeSilver < feeCalculation.RequiredFeeSilver)
             {
                 return Results.Ok(new EventCreationResponse(
                     ProtocolResponse.Reject(
                         ProtocolErrorCode.ServerRejected,
                         T(
-                            "Trade.OpenOrderLimitReached",
-                            ("CURRENT", openOrderCount.ToString(CultureInfo.InvariantCulture)),
-                            ("MAX", maxOpenOrders.ToString(CultureInfo.InvariantCulture)))),
+                            "Trade.InsufficientFee",
+                            ("SUBMITTED", request.FeeSilver.ToString(CultureInfo.InvariantCulture)),
+                            ("REQUIRED", feeCalculation.RequiredFeeSilver.ToString(CultureInfo.InvariantCulture)))),
                     eventId: null,
                     ProtocolDeliverySemantics.OfflinePending));
             }
-        }
 
-        AuthoritativeEvent tradeEvent = AuthoritativeEventFactory.Create(
-            ServerEventType.Trade,
-            ToEventParty(request.Owner),
-            new EventParty("server"),
-            request.IdempotencyKey,
-            targetOnline: false,
-            new TradeEventPayload(
+            int maxOpenOrders = state.ServerConfiguration.MaxOpenTradeOrdersPerOwner;
+            if (maxOpenOrders > 0)
+            {
+                int openOrderCount = CountOpenMarketTradeOrdersForOwner(state.Ledger, request.Owner);
+                if (openOrderCount >= maxOpenOrders)
+                {
+                    return Results.Ok(new EventCreationResponse(
+                        ProtocolResponse.Reject(
+                            ProtocolErrorCode.ServerRejected,
+                            T(
+                                "Trade.OpenOrderLimitReached",
+                                ("CURRENT", openOrderCount.ToString(CultureInfo.InvariantCulture)),
+                                ("MAX", maxOpenOrders.ToString(CultureInfo.InvariantCulture)))),
+                        eventId: null,
+                        ProtocolDeliverySemantics.OfflinePending));
+                }
+            }
+
+            AuthoritativeEvent tradeEvent = AuthoritativeEventFactory.Create(
+                ServerEventType.Trade,
+                ToEventParty(request.Owner),
+                new EventParty("server"),
                 request.IdempotencyKey,
-                TradeStage.MarketOrder,
-                offeredThings.Select(thing => ToEventThingReference(thing, request.Owner.SnapshotId)).ToList(),
-                requestedThings.Select(thing => ToEventThingReference(thing, request.Owner.SnapshotId)).ToList(),
-                request.FeeSilver,
-                AcceptedByUserId: null,
-                FulfillmentMode: ResolveTradeFulfillmentMode(request),
-                PostagePaidByAcceptor: false),
-            DateTimeOffset.UtcNow,
-            ResolveTradeOwnerTargetContext(request, state));
+                targetOnline: false,
+                new TradeEventPayload(
+                    request.IdempotencyKey,
+                    TradeStage.MarketOrder,
+                    offeredThings.Select(thing => ToEventThingReference(thing, request.Owner.SnapshotId)).ToList(),
+                    requestedThings.Select(thing => ToEventThingReference(thing, request.Owner.SnapshotId)).ToList(),
+                    request.FeeSilver,
+                    AcceptedByUserId: null,
+                    FulfillmentMode: ResolveTradeFulfillmentMode(request),
+                    PostagePaidByAcceptor: false),
+                DateTimeOffset.UtcNow,
+                ResolveTradeOwnerTargetContext(request, state));
 
-        LedgerAppendResult append = state.Ledger.Append(tradeEvent);
-        LogEventAppend(state, append, "trade-order-created");
-        if (append.Created)
-        {
-            state.EventNotifications.SignalUsers(
-                state.OnlinePresence.ListOnlineUsers()
-                    .Where(userId => !string.Equals(userId, request.Owner.UserId, StringComparison.Ordinal)));
+            LedgerAppendResult append = state.Ledger.Append(tradeEvent);
+            LogEventAppend(state, append, "trade-order-created");
+            if (append.Created)
+            {
+                state.EventNotifications.SignalUsers(
+                    state.OnlinePresence.ListOnlineUsers()
+                        .Where(userId => !string.Equals(userId, request.Owner.UserId, StringComparison.Ordinal)));
+            }
+
+            return Results.Ok(ToEventCreationResponse(
+                append,
+                ProtocolDeliverySemantics.OfflinePending,
+                T("Trade.OrderCreated")));
         }
-
-        return Results.Ok(ToEventCreationResponse(
-            append,
-            ProtocolDeliverySemantics.OfflinePending,
-            T("Trade.OrderCreated")));
     }
 
     private static int CountOpenMarketTradeOrdersForOwner(
@@ -1148,25 +1152,13 @@ public static partial class ClashOfRimNetworkServer
         }
 
         ApplyTradeOrderExpirations(state, DateTimeOffset.UtcNow);
-        AuthoritativeEvent? existingEvent = FindEventByIdempotencyKey(state.Ledger, request.IdempotencyKey);
-        if (existingEvent is not null)
+        lock (state.RaidSettlementSnapshotMutationGate)
         {
-            string? sourceSnapshotId = existingEvent.Payload is TradeEventPayload existingPayload
-                ? existingPayload.OfferedItems.FirstOrDefault()?.SourceSnapshotId
-                : null;
-            string? nextLineageToken = FindSnapshotNextLineageToken(
-                state,
-                request.Owner.UserId,
-                request.Owner.ColonyId ?? string.Empty,
-                sourceSnapshotId);
-            return Results.Ok(new EventCreationResponse(
-                new ProtocolResponse(true, ProtocolErrorCode.DuplicateRequest, T("Trade.OrderTransactionDuplicate")),
-                existingEvent.EventId,
-                ProtocolDeliverySemantics.OfflinePending,
-                sourceSnapshotId,
-                nextLineageToken));
+            RecoverSnapshotCommits(state);
+            AuthoritativeEvent? existingEvent = state.Ledger.FindByIdempotencyKey(request.IdempotencyKey);
+            if (existingEvent is not null)
+                return TradeOrderReplayResponse(state, request, transaction.ConfirmedSnapshot.SnapshotId!, existingEvent);
         }
-
         if (!state.ServerConfiguration.TradeMarketplaceEnabled)
         {
             return Results.Ok(new EventCreationResponse(
@@ -1253,7 +1245,7 @@ public static partial class ClashOfRimNetworkServer
             transaction.ConfirmedSnapshot.SnapshotId!,
             transaction.ConfirmedSnapshot,
             multipart.Payload,
-            nowUtc);
+            nowUtc, storeAccepted: false);
         if (!upload.Accepted || upload.AcceptedSnapshot is null)
         {
             return Results.Ok(new EventCreationResponse(
@@ -1262,89 +1254,94 @@ public static partial class ClashOfRimNetworkServer
                 ProtocolDeliverySemantics.OnlineImmediate));
         }
 
-        string acceptedSnapshotId = upload.AcceptedSnapshot.Identity.SnapshotId
-            ?? transaction.ConfirmedSnapshot.SnapshotId!;
-        if (!TryStoreInlinePawnPackages(
-                state,
-                request.Owner,
-                "trade-order-offer:" + request.IdempotencyKey,
-                request.OfferedThings ?? Array.Empty<ThingReferenceDto>(),
-                out IReadOnlyList<ThingReferenceDto> offeredThings,
-                out pawnFailure)
-            || !TryStoreInlinePawnPackages(
-                state,
-                request.Owner,
-                "trade-order-request:" + request.IdempotencyKey,
-                request.RequestedThings ?? Array.Empty<ThingReferenceDto>(),
-                out IReadOnlyList<ThingReferenceDto> requestedThings,
-                out pawnFailure))
+        lock (state.RaidSettlementSnapshotMutationGate)
         {
-            return Results.Ok(new EventCreationResponse(
-                pawnFailure ?? ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("PawnPackage.ParseFailed")),
-                eventId: null,
-                ProtocolDeliverySemantics.OnlineImmediate));
-        }
-        TradeDeliveryEndpoint ownerEndpoint = ResolveTradeDeliveryEndpoint(
-            state,
-            request.Owner.UserId,
-            request.Owner.ColonyId,
-            acceptedSnapshotId,
-            preferredContext: null);
-        EventTargetContext? targetContext = ownerEndpoint.WorldObjectId is null
-            && ownerEndpoint.MapUniqueId is null
-            && ownerEndpoint.Tile is null
-                ? null
-                : new EventTargetContext(
-                    ownerEndpoint.WorldObjectId,
-                    ownerEndpoint.MapUniqueId,
-                    ownerEndpoint.Tile,
-                    EventLandingMode.DropPod);
+            RecoverSnapshotCommits(state);
+            ApplyTradeOrderExpirations(state, DateTimeOffset.UtcNow);
+            AuthoritativeEvent? existing = state.Ledger.FindByIdempotencyKey(request.IdempotencyKey);
+            if (existing is not null)
+                return TradeOrderReplayResponse(state, request, transaction.ConfirmedSnapshot.SnapshotId!, existing);
+            if (maxOpenOrders > 0 && CountOpenMarketTradeOrdersForOwner(state.Ledger, request.Owner) >= maxOpenOrders)
+                return Results.Ok(new EventCreationResponse(ProtocolResponse.Reject(ProtocolErrorCode.Conflict,
+                    "Open trade order limit reached during preparation."), null, ProtocolDeliverySemantics.OfflinePending));
+            upload = CreateSnapshotReceiver(state).CommitPrepared(
+                new SnapshotUploadContext(request.Owner.UserId, request.Owner.ColonyId!, transaction.ConfirmedSnapshot.SnapshotId!, null, upload.SnapshotUploadKind),
+                ProtocolDtoMapper.ToSaveSnapshotPackage(transaction.ConfirmedSnapshot, multipart.Payload), upload, storeAccepted: false);
+            if (!upload.Accepted || upload.AcceptedSnapshot is null)
+                return Results.Ok(new EventCreationResponse(ToProtocolResponse(upload), null, ProtocolDeliverySemantics.OfflinePending));
+            string commitId = Guid.NewGuid().ToString("N");
+            string acceptedSnapshotId = upload.AcceptedSnapshot.Identity.SnapshotId
+                ?? transaction.ConfirmedSnapshot.SnapshotId!;
+            if (!TryStoreInlinePawnPackages(
+                    state,
+                    new ProtocolIdentity(request.Owner.UserId, request.Owner.ColonyId, acceptedSnapshotId),
+                    "trade-order-offer:" + commitId,
+                    request.OfferedThings ?? Array.Empty<ThingReferenceDto>(),
+                    out IReadOnlyList<ThingReferenceDto> offeredThings,
+                    out pawnFailure)
+                || !TryStoreInlinePawnPackages(
+                    state,
+                    new ProtocolIdentity(request.Owner.UserId, request.Owner.ColonyId, acceptedSnapshotId),
+                    "trade-order-request:" + commitId,
+                    request.RequestedThings ?? Array.Empty<ThingReferenceDto>(),
+                    out IReadOnlyList<ThingReferenceDto> requestedThings,
+                    out pawnFailure))
+            {
+                return Results.Ok(new EventCreationResponse(
+                    pawnFailure ?? ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("PawnPackage.ParseFailed")),
+                    eventId: null,
+                    ProtocolDeliverySemantics.OnlineImmediate));
+            }
+            TradeDeliveryEndpoint ownerEndpoint = ResolveTradeDeliveryEndpoint(
+                state,
+                request.Owner.UserId,
+                request.Owner.ColonyId,
+                acceptedSnapshotId,
+                preferredContext: null, upload.AcceptedSnapshot);
+            EventTargetContext? targetContext = ownerEndpoint.WorldObjectId is null
+                && ownerEndpoint.MapUniqueId is null
+                && ownerEndpoint.Tile is null
+                    ? null
+                    : new EventTargetContext(
+                        ownerEndpoint.WorldObjectId,
+                        ownerEndpoint.MapUniqueId,
+                        ownerEndpoint.Tile,
+                        EventLandingMode.DropPod);
 
-        AuthoritativeEvent tradeEvent = AuthoritativeEventFactory.Create(
-            ServerEventType.Trade,
-            ToEventParty(request.Owner),
-            new EventParty("server"),
-            request.IdempotencyKey,
-            targetOnline: false,
-            new TradeEventPayload(
+            AuthoritativeEvent tradeEvent = AuthoritativeEventFactory.Create(
+                ServerEventType.Trade,
+                ToEventParty(request.Owner),
+                new EventParty("server"),
                 request.IdempotencyKey,
-                TradeStage.MarketOrder,
-                offeredThings.Select(thing => ToEventThingReference(thing, acceptedSnapshotId)).ToList(),
-                requestedThings.Select(thing => ToEventThingReference(thing, acceptedSnapshotId)).ToList(),
-                request.FeeSilver,
-                AcceptedByUserId: null,
-                FulfillmentMode: ResolveTradeFulfillmentMode(request),
-                PostagePaidByAcceptor: false),
-            nowUtc,
-            targetContext);
+                targetOnline: false,
+                new TradeEventPayload(
+                    request.IdempotencyKey,
+                    TradeStage.MarketOrder,
+                    offeredThings.Select(thing => ToEventThingReference(thing, acceptedSnapshotId)).ToList(),
+                    requestedThings.Select(thing => ToEventThingReference(thing, acceptedSnapshotId)).ToList(),
+                    request.FeeSilver,
+                    AcceptedByUserId: null,
+                    FulfillmentMode: ResolveTradeFulfillmentMode(request),
+                    PostagePaidByAcceptor: false),
+                nowUtc,
+                targetContext);
 
-        LedgerAppendResult append = state.Ledger.Append(tradeEvent);
-        LogEventAppend(state, append, "trade-order-created-with-snapshot");
-        if (append.Created)
-        {
-            state.EventNotifications.SignalUsers(
-                state.OnlinePresence.ListOnlineUsers()
-                    .Where(userId => !string.Equals(userId, request.Owner.UserId, StringComparison.Ordinal)));
+            tradeEvent = tradeEvent with { EventId = "trade-order:" + commitId };
+            CommitTradeSnapshot(state, ProtocolDtoMapper.ToSaveSnapshotPackage(transaction.ConfirmedSnapshot, multipart.Payload), upload,
+                new TradeSnapshotMutation(new LedgerBatch(new[] { tradeEvent }, Array.Empty<LedgerStatusChange>()),
+                    state.OnlinePresence.ListOnlineUsers().Where(user => user != request.Owner.UserId).ToArray()));
+            var append = new LedgerAppendResult(tradeEvent, Created: true);
+            EventCreationResponse created = ToEventCreationResponse(
+                append,
+                ProtocolDeliverySemantics.OfflinePending,
+                T("Trade.OrderCreated"));
+            return Results.Ok(new EventCreationResponse(
+                created.Result,
+                created.EventId,
+                created.DeliverySemantics,
+                acceptedSnapshotId,
+                upload.AcceptedSnapshot.Envelope.NextLineageToken));
         }
-
-        RunSnapshotPostUploadProcessors(
-            state,
-            request.Owner.UserId,
-            request.Owner.ColonyId ?? string.Empty,
-            sessionId: null,
-            upload,
-            nowUtc);
-
-        EventCreationResponse created = ToEventCreationResponse(
-            append,
-            ProtocolDeliverySemantics.OfflinePending,
-            T("Trade.OrderCreated"));
-        return Results.Ok(new EventCreationResponse(
-            created.Result,
-            created.EventId,
-            created.DeliverySemantics,
-            acceptedSnapshotId,
-            upload.AcceptedSnapshot.Envelope.NextLineageToken));
     }
 
     private static IResult ListTradeOrders(ListTradeOrdersRequest request, ClashOfRimNetworkState state)
@@ -1505,300 +1502,308 @@ public static partial class ClashOfRimNetworkServer
 
     private static IResult AcceptTradeOrder(AcceptTradeOrderRequest request, ClashOfRimNetworkState state)
     {
-        ApplyTradeOrderExpirations(state, DateTimeOffset.UtcNow);
-
-        ProtocolResponse? validation = ValidateTradeAcceptanceRequest(request);
-        if (validation is not null)
+        lock (state.RaidSettlementSnapshotMutationGate)
         {
-            return Results.Ok(new AcceptTradeOrderResponse(
-                validation,
-                request.TradeEventId,
-                memoEventId: null,
-                memoCreated: false));
-        }
+            RecoverSnapshotCommits(state);
+            ApplyTradeOrderExpirations(state, DateTimeOffset.UtcNow);
 
-        AuthoritativeEvent? tradeOrder = state.Ledger.Find(request.TradeEventId);
-        if (tradeOrder is null || !IsOpenMarketTradeOrder(tradeOrder, request.Acceptor.UserId))
-        {
-            return Results.Ok(new AcceptTradeOrderResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.EventNotFound, T("Trade.OrderNotAcceptable")),
-                request.TradeEventId,
-                memoEventId: null,
-                memoCreated: false));
-        }
-
-        AuthoritativeEvent? existingMemo = FindTradeAcceptanceMemo(
-            state.Ledger,
-            request.TradeEventId,
-            request.Acceptor.UserId,
-            request.Acceptor.ColonyId);
-        if (existingMemo is not null)
-        {
-            return Results.Ok(new AcceptTradeOrderResponse(
-                new ProtocolResponse(true, ProtocolErrorCode.DuplicateRequest, ServerLocalization.Text("Trade.OrderAcceptedDuplicate")),
-                request.TradeEventId,
-                existingMemo.EventId,
-                memoCreated: false));
-        }
-
-        if (request.PostagePaidByAcceptor)
-        {
-            TradePostageQuoteDto postage = BuildTradePostageQuote(
-                state,
-                tradeOrder,
-                request.Acceptor.UserId,
-                request.Acceptor.ColonyId ?? string.Empty,
-                request.Acceptor.SnapshotId ?? string.Empty);
-            if (!postage.Reachable || postage.PostageSilver is null)
+            ProtocolResponse? validation = ValidateTradeAcceptanceRequest(request);
+            if (validation is not null)
             {
                 return Results.Ok(new AcceptTradeOrderResponse(
-                    ProtocolResponse.Reject(
-                        ProtocolErrorCode.ServerRejected,
-                        T("Trade.DropPodUnavailable", ("STATUS", postage.Status))),
+                    validation,
                     request.TradeEventId,
                     memoEventId: null,
                     memoCreated: false));
             }
-        }
 
-        var acceptorParty = ToEventParty(request.Acceptor);
-        TradeEventPayload orderPayload = (TradeEventPayload)tradeOrder.Payload;
-        AuthoritativeEvent memoEvent = AuthoritativeEventFactory.Create(
-            ServerEventType.Trade,
-            acceptorParty,
-            acceptorParty,
-            request.IdempotencyKey,
-            targetOnline: state.OnlinePresence.IsUserOnline(request.Acceptor.UserId),
-            new TradeEventPayload(
+            AuthoritativeEvent? tradeOrder = state.Ledger.Find(request.TradeEventId);
+            if (tradeOrder is null || !IsOpenMarketTradeOrder(tradeOrder, request.Acceptor.UserId))
+            {
+                return Results.Ok(new AcceptTradeOrderResponse(
+                    ProtocolResponse.Reject(ProtocolErrorCode.EventNotFound, T("Trade.OrderNotAcceptable")),
+                    request.TradeEventId,
+                    memoEventId: null,
+                    memoCreated: false));
+            }
+
+            AuthoritativeEvent? existingMemo = FindTradeAcceptanceMemo(
+                state.Ledger,
+                request.TradeEventId,
+                request.Acceptor.UserId,
+                request.Acceptor.ColonyId);
+            if (existingMemo is not null)
+            {
+                return Results.Ok(new AcceptTradeOrderResponse(
+                    new ProtocolResponse(true, ProtocolErrorCode.DuplicateRequest, ServerLocalization.Text("Trade.OrderAcceptedDuplicate")),
+                    request.TradeEventId,
+                    existingMemo.EventId,
+                    memoCreated: false));
+            }
+
+            if (request.PostagePaidByAcceptor)
+            {
+                TradePostageQuoteDto postage = BuildTradePostageQuote(
+                    state,
+                    tradeOrder,
+                    request.Acceptor.UserId,
+                    request.Acceptor.ColonyId ?? string.Empty,
+                    request.Acceptor.SnapshotId ?? string.Empty);
+                if (!postage.Reachable || postage.PostageSilver is null)
+                {
+                    return Results.Ok(new AcceptTradeOrderResponse(
+                        ProtocolResponse.Reject(
+                            ProtocolErrorCode.ServerRejected,
+                            T("Trade.DropPodUnavailable", ("STATUS", postage.Status))),
+                        request.TradeEventId,
+                        memoEventId: null,
+                        memoCreated: false));
+                }
+            }
+
+            var acceptorParty = ToEventParty(request.Acceptor);
+            TradeEventPayload orderPayload = (TradeEventPayload)tradeOrder.Payload;
+            AuthoritativeEvent memoEvent = AuthoritativeEventFactory.Create(
+                ServerEventType.Trade,
+                acceptorParty,
+                acceptorParty,
+                request.IdempotencyKey,
+                targetOnline: state.OnlinePresence.IsUserOnline(request.Acceptor.UserId),
+                new TradeEventPayload(
+                    tradeOrder.EventId,
+                    TradeStage.AcceptedMemo,
+                    orderPayload.OfferedItems,
+                    orderPayload.RequestedItems,
+                    orderPayload.FeeSilver,
+                    AcceptedByUserId: request.Acceptor.UserId,
+                    FulfillmentMode: TradeFulfillmentMode.Unspecified,
+                    PostagePaidByAcceptor: request.PostagePaidByAcceptor),
+                DateTimeOffset.UtcNow,
+                tradeOrder.TargetContext) with
+            {
+                Status = ServerEventStatus.Recorded,
+                LastApplicationResult = EventApplicationResultKind.ReadyToApply
+            };
+
+            LedgerAppendResult append = state.Ledger.Append(memoEvent);
+            LogEventAppend(state, append, "trade-order-accepted-memo");
+
+            return Results.Ok(new AcceptTradeOrderResponse(
+                append.Created
+                    ? ProtocolResponse.Ok(ServerLocalization.Text("Trade.OrderAccepted"))
+                    : new ProtocolResponse(true, ProtocolErrorCode.DuplicateRequest, ServerLocalization.Text("Trade.OrderAcceptedDuplicate")),
                 tradeOrder.EventId,
-                TradeStage.AcceptedMemo,
-                orderPayload.OfferedItems,
-                orderPayload.RequestedItems,
-                orderPayload.FeeSilver,
-                AcceptedByUserId: request.Acceptor.UserId,
-                FulfillmentMode: TradeFulfillmentMode.Unspecified,
-                PostagePaidByAcceptor: request.PostagePaidByAcceptor),
-            DateTimeOffset.UtcNow,
-            tradeOrder.TargetContext) with
-        {
-            Status = ServerEventStatus.Recorded,
-            LastApplicationResult = EventApplicationResultKind.ReadyToApply
-        };
-
-        LedgerAppendResult append = state.Ledger.Append(memoEvent);
-        LogEventAppend(state, append, "trade-order-accepted-memo");
-
-        return Results.Ok(new AcceptTradeOrderResponse(
-            append.Created
-                ? ProtocolResponse.Ok(ServerLocalization.Text("Trade.OrderAccepted"))
-                : new ProtocolResponse(true, ProtocolErrorCode.DuplicateRequest, ServerLocalization.Text("Trade.OrderAcceptedDuplicate")),
-            tradeOrder.EventId,
-            append.Event.EventId,
-            append.Created));
+                append.Event.EventId,
+                append.Created));
+        }
     }
 
     private static IResult FulfillTradeOrder(FulfillTradeOrderRequest request, ClashOfRimNetworkState state)
     {
-        ApplyTradeOrderExpirations(state, DateTimeOffset.UtcNow);
-
-        ProtocolResponse? validation = ValidateTradeFulfillmentRequest(request);
-        if (validation is not null)
+        lock (state.RaidSettlementSnapshotMutationGate)
         {
-            return Results.Ok(new FulfillTradeOrderResponse(
-                validation,
-                request.TradeEventId,
-                request.AcceptedMemoEventId,
-                exchangeEventId: null,
-                exchangeCreated: false,
-                Array.Empty<ThingReferenceDto>(),
-                Array.Empty<string>(),
-                tradeStatus: string.Empty));
-        }
+            RecoverSnapshotCommits(state);
+            ApplyTradeOrderExpirations(state, DateTimeOffset.UtcNow);
 
-        TradeFulfillmentMode fulfillmentMode = ResolveRequestedTradeFulfillmentMode(request.FulfillmentMode);
-        if (fulfillmentMode is not TradeFulfillmentMode.SelfDelivery and not TradeFulfillmentMode.ServerDropPod)
-        {
-            return Results.Ok(new FulfillTradeOrderResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("Trade.InvalidFulfillmentMode")),
-                request.TradeEventId,
-                request.AcceptedMemoEventId,
-                exchangeEventId: null,
-                exchangeCreated: false,
-                Array.Empty<ThingReferenceDto>(),
-                Array.Empty<string>(),
-                tradeStatus: string.Empty));
-        }
-
-        AuthoritativeEvent? existingExchange = FindTradeExchangeByIdempotencyKey(state.Ledger, request.IdempotencyKey);
-        if (existingExchange is not null && existingExchange.Payload is TradeEventPayload existingPayload)
-        {
-            return Results.Ok(new FulfillTradeOrderResponse(
-                new ProtocolResponse(true, ProtocolErrorCode.DuplicateRequest, ServerLocalization.Text("Trade.FulfillmentDuplicate")),
-                existingPayload.TradeId,
-                existingPayload.AcceptedMemoEventId,
-                existingExchange.EventId,
-                exchangeCreated: false,
-                existingPayload.OfferedItems.Select(ToThingReferenceDto).ToList(),
-                Array.Empty<string>(),
-                state.Ledger.Find(existingPayload.TradeId)?.Status.ToString() ?? existingExchange.Status.ToString()));
-        }
-
-        AuthoritativeEvent? tradeOrder = state.Ledger.Find(request.TradeEventId);
-        AuthoritativeEvent? acceptedMemo = string.IsNullOrWhiteSpace(request.AcceptedMemoEventId)
-            ? null
-            : state.Ledger.Find(request.AcceptedMemoEventId);
-        if (tradeOrder is null
-            || !IsOpenMarketTradeOrder(tradeOrder, request.Acceptor.UserId)
-            || tradeOrder.Payload is not TradeEventPayload orderPayload
-            || (fulfillmentMode == TradeFulfillmentMode.SelfDelivery
-                && (acceptedMemo is null
-                    || !IsMatchingActiveTradeAcceptanceMemo(acceptedMemo, tradeOrder.EventId, request.Acceptor.UserId, request.Acceptor.ColonyId))))
-        {
-            return Results.Ok(new FulfillTradeOrderResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.EventNotFound, T("Trade.OrderOrMemoUnavailable")),
-                request.TradeEventId,
-                request.AcceptedMemoEventId,
-                exchangeEventId: null,
-                exchangeCreated: false,
-                Array.Empty<ThingReferenceDto>(),
-                Array.Empty<string>(),
-                tradeOrder?.Status.ToString() ?? string.Empty));
-        }
-
-        if (!TryStoreInlinePawnPackages(
-                state,
-                request.Acceptor,
-                "trade-fulfill-delivered:" + request.IdempotencyKey,
-                request.DeliveredThings,
-                out IReadOnlyList<ThingReferenceDto> deliveredThings,
-                out ProtocolResponse? pawnFailure))
-        {
-            return Results.Ok(new FulfillTradeOrderResponse(
-                pawnFailure ?? ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("PawnPackage.ParseFailed")),
-                tradeOrder.EventId,
-                acceptedMemo?.EventId,
-                exchangeEventId: null,
-                exchangeCreated: false,
-                orderPayload.OfferedItems.Select(ToThingReferenceDto).ToList(),
-                Array.Empty<string>(),
-                tradeOrder.Status.ToString()));
-        }
-        IReadOnlyList<ThingReferenceDto> requiredThings = orderPayload.RequestedItems.Select(ToThingReferenceDto).ToList();
-        if (!TradeThingRequirementMatcher.Satisfies(
-                requiredThings,
-                deliveredThings,
-                out IReadOnlyList<string> missingRequirements,
-                state.Plugins.ActiveTradeThingMetadataMatchers(state.CompatibilityBaseline.Current)))
-        {
-            return Results.Ok(new FulfillTradeOrderResponse(
-                ProtocolResponse.Reject(
-                    ProtocolErrorCode.ValidationFailed,
-                    T("Trade.MissingRequirements", ("MISSING", string.Join("; ", missingRequirements)))),
-                tradeOrder.EventId,
-                acceptedMemo?.EventId,
-                exchangeEventId: null,
-                exchangeCreated: false,
-                orderPayload.OfferedItems.Select(ToThingReferenceDto).ToList(),
-                missingRequirements,
-                tradeOrder.Status.ToString()));
-        }
-
-        var acceptorParty = ToEventParty(request.Acceptor);
-        TradeStage exchangeStage = fulfillmentMode == TradeFulfillmentMode.ServerDropPod
-            ? TradeStage.ServerDropPodExchange
-            : TradeStage.SelfDeliveryExchange;
-        AuthoritativeEvent exchangeEvent = AuthoritativeEventFactory.Create(
-            ServerEventType.Trade,
-            acceptorParty,
-            tradeOrder.Actor,
-            request.IdempotencyKey,
-            targetOnline: state.OnlinePresence.IsUserOnline(tradeOrder.Actor.UserId),
-            new TradeEventPayload(
-                tradeOrder.EventId,
-                exchangeStage,
-                orderPayload.OfferedItems,
-                deliveredThings.Select(thing => ToEventThingReference(thing, request.Acceptor.SnapshotId)).ToList(),
-                orderPayload.FeeSilver,
-                AcceptedByUserId: request.Acceptor.UserId,
-                AcceptedMemoEventId: acceptedMemo?.EventId,
-                FulfillmentMode: fulfillmentMode,
-                PostagePaidByAcceptor: fulfillmentMode == TradeFulfillmentMode.ServerDropPod),
-            DateTimeOffset.UtcNow,
-            tradeOrder.TargetContext);
-
-        LedgerAppendResult append = state.Ledger.Append(exchangeEvent);
-        LogEventAppend(state, append, "trade-fulfillment-exchange");
-        string? acceptorDeliveryEventId = null;
-        string? ownerDeliveryEventId = null;
-        if (append.Created)
-        {
-            state.Ledger.ChangeStatus(tradeOrder.EventId, ServerEventStatus.AppliedToSnapshot);
-            IReadOnlyList<AuthoritativeEvent> activeMemos = FindActiveTradeAcceptanceMemos(state.Ledger, tradeOrder.EventId);
-            foreach (AuthoritativeEvent memo in activeMemos)
+            ProtocolResponse? validation = ValidateTradeFulfillmentRequest(request);
+            if (validation is not null)
             {
-                state.Ledger.ChangeStatus(
-                    memo.EventId,
-                    acceptedMemo is not null
-                        && string.Equals(memo.EventId, acceptedMemo.EventId, StringComparison.Ordinal)
-                        ? ServerEventStatus.AppliedToSnapshot
-                        : ServerEventStatus.Cancelled);
+                return Results.Ok(new FulfillTradeOrderResponse(
+                    validation,
+                    request.TradeEventId,
+                    request.AcceptedMemoEventId,
+                    exchangeEventId: null,
+                    exchangeCreated: false,
+                    Array.Empty<ThingReferenceDto>(),
+                    Array.Empty<string>(),
+                    tradeStatus: string.Empty));
             }
 
-            DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
-            string fulfillmentKey = acceptedMemo?.EventId ?? request.Acceptor.UserId + ":" + request.Acceptor.ColonyId;
-            LedgerAppendResult ownerDelivery = AppendTradeItemDeliveryEvent(
-                state,
-                $"trade-completed-owner-delivery:{tradeOrder.EventId}:{fulfillmentKey}",
+            TradeFulfillmentMode fulfillmentMode = ResolveRequestedTradeFulfillmentMode(request.FulfillmentMode);
+            if (fulfillmentMode is not TradeFulfillmentMode.SelfDelivery and not TradeFulfillmentMode.ServerDropPod)
+            {
+                return Results.Ok(new FulfillTradeOrderResponse(
+                    ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("Trade.InvalidFulfillmentMode")),
+                    request.TradeEventId,
+                    request.AcceptedMemoEventId,
+                    exchangeEventId: null,
+                    exchangeCreated: false,
+                    Array.Empty<ThingReferenceDto>(),
+                    Array.Empty<string>(),
+                    tradeStatus: string.Empty));
+            }
+
+            AuthoritativeEvent? existingExchange = FindTradeExchangeByIdempotencyKey(state.Ledger, request.IdempotencyKey);
+            if (existingExchange is not null && existingExchange.Payload is TradeEventPayload existingPayload)
+            {
+                return Results.Ok(new FulfillTradeOrderResponse(
+                    new ProtocolResponse(true, ProtocolErrorCode.DuplicateRequest, ServerLocalization.Text("Trade.FulfillmentDuplicate")),
+                    existingPayload.TradeId,
+                    existingPayload.AcceptedMemoEventId,
+                    existingExchange.EventId,
+                    exchangeCreated: false,
+                    existingPayload.OfferedItems.Select(ToThingReferenceDto).ToList(),
+                    Array.Empty<string>(),
+                    state.Ledger.Find(existingPayload.TradeId)?.Status.ToString() ?? existingExchange.Status.ToString()));
+            }
+
+            AuthoritativeEvent? tradeOrder = state.Ledger.Find(request.TradeEventId);
+            AuthoritativeEvent? acceptedMemo = string.IsNullOrWhiteSpace(request.AcceptedMemoEventId)
+                ? null
+                : state.Ledger.Find(request.AcceptedMemoEventId);
+            if (tradeOrder is null
+                || !IsOpenMarketTradeOrder(tradeOrder, request.Acceptor.UserId)
+                || tradeOrder.Payload is not TradeEventPayload orderPayload
+                || (fulfillmentMode == TradeFulfillmentMode.SelfDelivery
+                    && (acceptedMemo is null
+                        || !IsMatchingActiveTradeAcceptanceMemo(acceptedMemo, tradeOrder.EventId, request.Acceptor.UserId, request.Acceptor.ColonyId))))
+            {
+                return Results.Ok(new FulfillTradeOrderResponse(
+                    ProtocolResponse.Reject(ProtocolErrorCode.EventNotFound, T("Trade.OrderOrMemoUnavailable")),
+                    request.TradeEventId,
+                    request.AcceptedMemoEventId,
+                    exchangeEventId: null,
+                    exchangeCreated: false,
+                    Array.Empty<ThingReferenceDto>(),
+                    Array.Empty<string>(),
+                    tradeOrder?.Status.ToString() ?? string.Empty));
+            }
+
+            if (!TryStoreInlinePawnPackages(
+                    state,
+                    request.Acceptor,
+                    "trade-fulfill-delivered:" + request.IdempotencyKey,
+                    request.DeliveredThings,
+                    out IReadOnlyList<ThingReferenceDto> deliveredThings,
+                    out ProtocolResponse? pawnFailure))
+            {
+                return Results.Ok(new FulfillTradeOrderResponse(
+                    pawnFailure ?? ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("PawnPackage.ParseFailed")),
+                    tradeOrder.EventId,
+                    acceptedMemo?.EventId,
+                    exchangeEventId: null,
+                    exchangeCreated: false,
+                    orderPayload.OfferedItems.Select(ToThingReferenceDto).ToList(),
+                    Array.Empty<string>(),
+                    tradeOrder.Status.ToString()));
+            }
+            IReadOnlyList<ThingReferenceDto> requiredThings = orderPayload.RequestedItems.Select(ToThingReferenceDto).ToList();
+            if (!TradeThingRequirementMatcher.Satisfies(
+                    requiredThings,
+                    deliveredThings,
+                    out IReadOnlyList<string> missingRequirements,
+                    state.Plugins.ActiveTradeThingMetadataMatchers(state.CompatibilityBaseline.Current)))
+            {
+                return Results.Ok(new FulfillTradeOrderResponse(
+                    ProtocolResponse.Reject(
+                        ProtocolErrorCode.ValidationFailed,
+                        T("Trade.MissingRequirements", ("MISSING", string.Join("; ", missingRequirements)))),
+                    tradeOrder.EventId,
+                    acceptedMemo?.EventId,
+                    exchangeEventId: null,
+                    exchangeCreated: false,
+                    orderPayload.OfferedItems.Select(ToThingReferenceDto).ToList(),
+                    missingRequirements,
+                    tradeOrder.Status.ToString()));
+            }
+
+            var acceptorParty = ToEventParty(request.Acceptor);
+            TradeStage exchangeStage = fulfillmentMode == TradeFulfillmentMode.ServerDropPod
+                ? TradeStage.ServerDropPodExchange
+                : TradeStage.SelfDeliveryExchange;
+            AuthoritativeEvent exchangeEvent = AuthoritativeEventFactory.Create(
+                ServerEventType.Trade,
                 acceptorParty,
                 tradeOrder.Actor,
-                deliveredThings.Select(thing => ToEventThingReference(thing, request.Acceptor.SnapshotId)).ToList(),
-                ItemDeliveryPurpose.TradeCompletedOwnerDelivery,
-                ResolveTradeCompletedOwnerDeliveryTargetContext(tradeOrder, fulfillmentMode),
-                nowUtc);
-            ownerDeliveryEventId = ownerDelivery.Event.EventId;
-
-            if (fulfillmentMode == TradeFulfillmentMode.ServerDropPod)
-            {
-                EventTargetContext? acceptorTargetContext = ResolveTradeTargetContext(
-                    state,
-                    request.Acceptor.UserId,
-                    request.Acceptor.ColonyId ?? string.Empty,
-                    request.Acceptor.SnapshotId ?? string.Empty,
-                    EventLandingMode.DropPod);
-                LedgerAppendResult acceptorDelivery = AppendTradeItemDeliveryEvent(
-                    state,
-                    $"trade-completed-acceptor-delivery:{tradeOrder.EventId}:{fulfillmentKey}",
-                    tradeOrder.Actor,
-                    acceptorParty,
+                request.IdempotencyKey,
+                targetOnline: state.OnlinePresence.IsUserOnline(tradeOrder.Actor.UserId),
+                new TradeEventPayload(
+                    tradeOrder.EventId,
+                    exchangeStage,
                     orderPayload.OfferedItems,
-                    ItemDeliveryPurpose.TradeCompletedAcceptorDelivery,
-                    acceptorTargetContext,
+                    deliveredThings.Select(thing => ToEventThingReference(thing, request.Acceptor.SnapshotId)).ToList(),
+                    orderPayload.FeeSilver,
+                    AcceptedByUserId: request.Acceptor.UserId,
+                    AcceptedMemoEventId: acceptedMemo?.EventId,
+                    FulfillmentMode: fulfillmentMode,
+                    PostagePaidByAcceptor: fulfillmentMode == TradeFulfillmentMode.ServerDropPod),
+                DateTimeOffset.UtcNow,
+                tradeOrder.TargetContext);
+
+            LedgerAppendResult append = state.Ledger.Append(exchangeEvent);
+            LogEventAppend(state, append, "trade-fulfillment-exchange");
+            string? acceptorDeliveryEventId = null;
+            string? ownerDeliveryEventId = null;
+            if (append.Created)
+            {
+                state.Ledger.ChangeStatus(tradeOrder.EventId, ServerEventStatus.AppliedToSnapshot);
+                IReadOnlyList<AuthoritativeEvent> activeMemos = FindActiveTradeAcceptanceMemos(state.Ledger, tradeOrder.EventId);
+                foreach (AuthoritativeEvent memo in activeMemos)
+                {
+                    state.Ledger.ChangeStatus(
+                        memo.EventId,
+                        acceptedMemo is not null
+                            && string.Equals(memo.EventId, acceptedMemo.EventId, StringComparison.Ordinal)
+                            ? ServerEventStatus.AppliedToSnapshot
+                            : ServerEventStatus.Cancelled);
+                }
+
+                DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
+                string fulfillmentKey = acceptedMemo?.EventId ?? request.Acceptor.UserId + ":" + request.Acceptor.ColonyId;
+                LedgerAppendResult ownerDelivery = AppendTradeItemDeliveryEvent(
+                    state,
+                    $"trade-completed-owner-delivery:{tradeOrder.EventId}:{fulfillmentKey}",
+                    acceptorParty,
+                    tradeOrder.Actor,
+                    deliveredThings.Select(thing => ToEventThingReference(thing, request.Acceptor.SnapshotId)).ToList(),
+                    ItemDeliveryPurpose.TradeCompletedOwnerDelivery,
+                    ResolveTradeCompletedOwnerDeliveryTargetContext(tradeOrder, fulfillmentMode),
                     nowUtc);
-                acceptorDeliveryEventId = acceptorDelivery.Event.EventId;
+                ownerDeliveryEventId = ownerDelivery.Event.EventId;
+
+                if (fulfillmentMode == TradeFulfillmentMode.ServerDropPod)
+                {
+                    EventTargetContext? acceptorTargetContext = ResolveTradeTargetContext(
+                        state,
+                        request.Acceptor.UserId,
+                        request.Acceptor.ColonyId ?? string.Empty,
+                        request.Acceptor.SnapshotId ?? string.Empty,
+                        EventLandingMode.DropPod);
+                    LedgerAppendResult acceptorDelivery = AppendTradeItemDeliveryEvent(
+                        state,
+                        $"trade-completed-acceptor-delivery:{tradeOrder.EventId}:{fulfillmentKey}",
+                        tradeOrder.Actor,
+                        acceptorParty,
+                        orderPayload.OfferedItems,
+                        ItemDeliveryPurpose.TradeCompletedAcceptorDelivery,
+                        acceptorTargetContext,
+                        nowUtc);
+                    acceptorDeliveryEventId = acceptorDelivery.Event.EventId;
+                }
+
+                IReadOnlyList<string> notifiedUsers = activeMemos
+                    .Select(memo => memo.Target.UserId)
+                    .Append(tradeOrder.Actor.UserId)
+                    .Where(userId => !string.IsNullOrWhiteSpace(userId))
+                    .Distinct(StringComparer.Ordinal)
+                    .ToList();
+                state.EventNotifications.SignalUsers(notifiedUsers);
             }
 
-            IReadOnlyList<string> notifiedUsers = activeMemos
-                .Select(memo => memo.Target.UserId)
-                .Append(tradeOrder.Actor.UserId)
-                .Where(userId => !string.IsNullOrWhiteSpace(userId))
-                .Distinct(StringComparer.Ordinal)
-                .ToList();
-            state.EventNotifications.SignalUsers(notifiedUsers);
+            return Results.Ok(new FulfillTradeOrderResponse(
+                append.Created
+                    ? ProtocolResponse.Ok(ServerLocalization.Text("Trade.FulfillmentCreated"))
+                    : new ProtocolResponse(true, ProtocolErrorCode.DuplicateRequest, ServerLocalization.Text("Trade.FulfillmentDuplicate")),
+                tradeOrder.EventId,
+                acceptedMemo?.EventId,
+                append.Event.EventId,
+                append.Created,
+                orderPayload.OfferedItems.Select(ToThingReferenceDto).ToList(),
+                Array.Empty<string>(),
+                state.Ledger.Find(tradeOrder.EventId)?.Status.ToString() ?? tradeOrder.Status.ToString(),
+                acceptorDeliveryEventId,
+                ownerDeliveryEventId));
         }
-
-        return Results.Ok(new FulfillTradeOrderResponse(
-            append.Created
-                ? ProtocolResponse.Ok(ServerLocalization.Text("Trade.FulfillmentCreated"))
-                : new ProtocolResponse(true, ProtocolErrorCode.DuplicateRequest, ServerLocalization.Text("Trade.FulfillmentDuplicate")),
-            tradeOrder.EventId,
-            acceptedMemo?.EventId,
-            append.Event.EventId,
-            append.Created,
-            orderPayload.OfferedItems.Select(ToThingReferenceDto).ToList(),
-            Array.Empty<string>(),
-            state.Ledger.Find(tradeOrder.EventId)?.Status.ToString() ?? tradeOrder.Status.ToString(),
-            acceptorDeliveryEventId,
-            ownerDeliveryEventId));
     }
 
     private static async Task<IResult> FulfillTradeOrderWithSnapshot(HttpRequest httpRequest, ClashOfRimNetworkState state)
@@ -1880,27 +1885,13 @@ public static partial class ClashOfRimNetworkServer
                 tradeStatus: string.Empty));
         }
 
-        AuthoritativeEvent? existingExchange = FindTradeExchangeByIdempotencyKey(state.Ledger, request.IdempotencyKey);
-        if (existingExchange is not null && existingExchange.Payload is TradeEventPayload existingPayload)
+        lock (state.RaidSettlementSnapshotMutationGate)
         {
-            string? nextLineageToken = FindSnapshotNextLineageToken(
-                state,
-                request.Acceptor.UserId,
-                request.Acceptor.ColonyId ?? string.Empty,
-                existingExchange.AppliedSnapshotId);
-            return Results.Ok(new FulfillTradeOrderResponse(
-                new ProtocolResponse(true, ProtocolErrorCode.DuplicateRequest, ServerLocalization.Text("Trade.FulfillmentTransactionDuplicate")),
-                existingPayload.TradeId,
-                existingPayload.AcceptedMemoEventId,
-                existingExchange.EventId,
-                exchangeCreated: false,
-                existingPayload.OfferedItems.Select(ToThingReferenceDto).ToList(),
-                Array.Empty<string>(),
-                state.Ledger.Find(existingPayload.TradeId)?.Status.ToString() ?? existingExchange.Status.ToString(),
-                appliedSnapshotId: existingExchange.AppliedSnapshotId,
-                nextLineageToken: nextLineageToken));
+            RecoverSnapshotCommits(state);
+            AuthoritativeEvent? existing = state.Ledger.FindByIdempotencyKey(request.IdempotencyKey);
+            if (existing is not null)
+                return TradeFulfillmentReplayResponse(state, request, transaction.ConfirmedSnapshot.SnapshotId!, existing);
         }
-
         AuthoritativeEvent? tradeOrder = state.Ledger.Find(request.TradeEventId);
         AuthoritativeEvent? acceptedMemo = string.IsNullOrWhiteSpace(request.AcceptedMemoEventId)
             ? null
@@ -1983,7 +1974,7 @@ public static partial class ClashOfRimNetworkServer
             transaction.ConfirmedSnapshot.SnapshotId!,
             transaction.ConfirmedSnapshot,
             multipart.Payload,
-            nowUtc);
+            nowUtc, storeAccepted: false);
         if (!upload.Accepted || upload.AcceptedSnapshot is null)
         {
             return Results.Ok(new FulfillTradeOrderResponse(
@@ -1997,143 +1988,111 @@ public static partial class ClashOfRimNetworkServer
                 tradeOrder.Status.ToString()));
         }
 
-        string acceptedSnapshotId = upload.AcceptedSnapshot.Identity.SnapshotId
-            ?? transaction.ConfirmedSnapshot.SnapshotId!;
-        if (!TryStoreInlinePawnPackages(
-                state,
-                request.Acceptor,
-                "trade-fulfill-delivered:" + request.IdempotencyKey,
-                request.DeliveredThings,
-                out IReadOnlyList<ThingReferenceDto> deliveredThings,
-                out pawnFailure))
+        lock (state.RaidSettlementSnapshotMutationGate)
         {
-            return Results.Ok(new FulfillTradeOrderResponse(
-                pawnFailure ?? ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("PawnPackage.ParseFailed")),
-                tradeOrder.EventId,
-                acceptedMemo?.EventId,
-                exchangeEventId: null,
-                exchangeCreated: false,
-                orderPayload.OfferedItems.Select(ToThingReferenceDto).ToList(),
-                Array.Empty<string>(),
-                tradeOrder.Status.ToString()));
-        }
-        var acceptorParty = ToEventParty(request.Acceptor);
-        TradeStage exchangeStage = fulfillmentMode == TradeFulfillmentMode.ServerDropPod
-            ? TradeStage.ServerDropPodExchange
-            : TradeStage.SelfDeliveryExchange;
-        AuthoritativeEvent exchangeEvent = AuthoritativeEventFactory.Create(
-            ServerEventType.Trade,
-            acceptorParty,
-            tradeOrder.Actor,
-            request.IdempotencyKey,
-            targetOnline: state.OnlinePresence.IsUserOnline(tradeOrder.Actor.UserId),
-            new TradeEventPayload(
-                tradeOrder.EventId,
-                exchangeStage,
-                orderPayload.OfferedItems,
-                deliveredThings.Select(thing => ToEventThingReference(thing, acceptedSnapshotId)).ToList(),
-                orderPayload.FeeSilver,
-                AcceptedByUserId: request.Acceptor.UserId,
-                AcceptedMemoEventId: acceptedMemo?.EventId,
-                FulfillmentMode: fulfillmentMode,
-                PostagePaidByAcceptor: fulfillmentMode == TradeFulfillmentMode.ServerDropPod),
-            nowUtc,
-            tradeOrder.TargetContext);
-
-        LedgerAppendResult append = state.Ledger.Append(exchangeEvent);
-        LogEventAppend(state, append, "trade-fulfillment-exchange-with-snapshot");
-        string? acceptorDeliveryEventId = null;
-        string? ownerDeliveryEventId = null;
-        AuthoritativeEvent appliedExchange = append.Event;
-        if (append.Created)
-        {
-            state.Ledger.ChangeStatus(tradeOrder.EventId, ServerEventStatus.AppliedToSnapshot);
-            IReadOnlyList<AuthoritativeEvent> activeMemos = FindActiveTradeAcceptanceMemos(state.Ledger, tradeOrder.EventId);
-            foreach (AuthoritativeEvent memo in activeMemos)
+            RecoverSnapshotCommits(state);
+            ApplyTradeOrderExpirations(state, DateTimeOffset.UtcNow);
+            AuthoritativeEvent? existing = state.Ledger.FindByIdempotencyKey(request.IdempotencyKey);
+            if (existing is not null)
+                return TradeFulfillmentReplayResponse(state, request, transaction.ConfirmedSnapshot.SnapshotId!, existing);
+            tradeOrder = state.Ledger.Find(request.TradeEventId);
+            acceptedMemo = string.IsNullOrWhiteSpace(request.AcceptedMemoEventId) ? null : state.Ledger.Find(request.AcceptedMemoEventId);
+            if (tradeOrder is null || !IsOpenMarketTradeOrder(tradeOrder, request.Acceptor.UserId)
+                || tradeOrder.Payload is not TradeEventPayload currentPayload
+                || (fulfillmentMode == TradeFulfillmentMode.SelfDelivery && acceptedMemo is null)
+                || (TradeFulfillmentMemoId(request) is not null && (acceptedMemo is null
+                    || !IsMatchingActiveTradeAcceptanceMemo(acceptedMemo, tradeOrder.EventId, request.Acceptor.UserId, request.Acceptor.ColonyId))))
+                return TradeFulfillmentFailure(request, ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Trade.OrderOrMemoUnavailable")));
+            orderPayload = currentPayload;
+            upload = CreateSnapshotReceiver(state).CommitPrepared(
+                new SnapshotUploadContext(request.Acceptor.UserId, request.Acceptor.ColonyId!, transaction.ConfirmedSnapshot.SnapshotId!, null, upload.SnapshotUploadKind),
+                ProtocolDtoMapper.ToSaveSnapshotPackage(transaction.ConfirmedSnapshot, multipart.Payload), upload, storeAccepted: false);
+            if (!upload.Accepted || upload.AcceptedSnapshot is null)
+                return TradeFulfillmentFailure(request, ToProtocolResponse(upload));
+            string commitId = Guid.NewGuid().ToString("N");
+            string acceptedSnapshotId = upload.AcceptedSnapshot.Identity.SnapshotId
+                ?? transaction.ConfirmedSnapshot.SnapshotId!;
+            if (!TryStoreInlinePawnPackages(
+                    state,
+                    new ProtocolIdentity(request.Acceptor.UserId, request.Acceptor.ColonyId, acceptedSnapshotId),
+                    "trade-fulfill-delivered:" + commitId,
+                    request.DeliveredThings,
+                    out IReadOnlyList<ThingReferenceDto> deliveredThings,
+                    out pawnFailure))
             {
-                state.Ledger.ChangeStatus(
-                    memo.EventId,
-                    acceptedMemo is not null
-                        && string.Equals(memo.EventId, acceptedMemo.EventId, StringComparison.Ordinal)
-                        ? ServerEventStatus.AppliedToSnapshot
-                        : ServerEventStatus.Cancelled);
+                return Results.Ok(new FulfillTradeOrderResponse(
+                    pawnFailure ?? ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("PawnPackage.ParseFailed")),
+                    tradeOrder.EventId,
+                    acceptedMemo?.EventId,
+                    exchangeEventId: null,
+                    exchangeCreated: false,
+                    orderPayload.OfferedItems.Select(ToThingReferenceDto).ToList(),
+                    Array.Empty<string>(),
+                    tradeOrder.Status.ToString()));
             }
-
-            string fulfillmentKey = acceptedMemo?.EventId ?? request.Acceptor.UserId + ":" + request.Acceptor.ColonyId;
-            LedgerAppendResult ownerDelivery = AppendTradeItemDeliveryEvent(
-                state,
-                $"trade-completed-owner-delivery:{tradeOrder.EventId}:{fulfillmentKey}",
+            var acceptorParty = ToEventParty(request.Acceptor);
+            TradeStage exchangeStage = fulfillmentMode == TradeFulfillmentMode.ServerDropPod
+                ? TradeStage.ServerDropPodExchange
+                : TradeStage.SelfDeliveryExchange;
+            AuthoritativeEvent exchangeEvent = AuthoritativeEventFactory.Create(
+                ServerEventType.Trade,
                 acceptorParty,
                 tradeOrder.Actor,
-                deliveredThings.Select(thing => ToEventThingReference(thing, acceptedSnapshotId)).ToList(),
-                ItemDeliveryPurpose.TradeCompletedOwnerDelivery,
-                ResolveTradeCompletedOwnerDeliveryTargetContext(tradeOrder, fulfillmentMode),
-                nowUtc);
-            ownerDeliveryEventId = ownerDelivery.Event.EventId;
+                request.IdempotencyKey,
+                targetOnline: state.OnlinePresence.IsUserOnline(tradeOrder.Actor.UserId),
+                new TradeEventPayload(
+                    tradeOrder.EventId,
+                    exchangeStage,
+                    orderPayload.OfferedItems,
+                    deliveredThings.Select(thing => ToEventThingReference(thing, acceptedSnapshotId)).ToList(),
+                    orderPayload.FeeSilver,
+                    AcceptedByUserId: request.Acceptor.UserId,
+                    AcceptedMemoEventId: acceptedMemo?.EventId,
+                    FulfillmentMode: fulfillmentMode,
+                    PostagePaidByAcceptor: fulfillmentMode == TradeFulfillmentMode.ServerDropPod),
+                nowUtc,
+                tradeOrder.TargetContext);
 
+            exchangeEvent = exchangeEvent with
+            {
+                EventId = "trade-exchange:" + commitId,
+                Status = ServerEventStatus.AppliedToSnapshot,
+                DeliveredToSnapshotId = request.Acceptor.SnapshotId,
+                DeliveredAtUtc = nowUtc,
+                AppliedSnapshotId = acceptedSnapshotId,
+                AppliedAtUtc = nowUtc,
+                LastApplicationResult = EventApplicationResultKind.Applied
+            };
+            IReadOnlyList<AuthoritativeEvent> activeMemos = FindActiveTradeAcceptanceMemos(state.Ledger, tradeOrder.EventId);
+            var changes = activeMemos.Select(memo => new LedgerStatusChange(memo.EventId, memo.Status,
+                memo.EventId == acceptedMemo?.EventId ? ServerEventStatus.AppliedToSnapshot : ServerEventStatus.Cancelled)).ToList();
+            changes.Insert(0, new LedgerStatusChange(tradeOrder.EventId, tradeOrder.Status, ServerEventStatus.AppliedToSnapshot));
+            string fulfillmentKey = acceptedMemo?.EventId ?? request.Acceptor.UserId + ":" + request.Acceptor.ColonyId;
+            AuthoritativeEvent ownerDelivery = CreateTradeItemDeliveryEvent(state,
+                $"trade-completed-owner-delivery:{tradeOrder.EventId}:{fulfillmentKey}", acceptorParty, tradeOrder.Actor,
+                deliveredThings.Select(thing => ToEventThingReference(thing, acceptedSnapshotId)).ToList(),
+                ItemDeliveryPurpose.TradeCompletedOwnerDelivery, ResolveTradeCompletedOwnerDeliveryTargetContext(tradeOrder, fulfillmentMode), nowUtc);
+            var events = new List<AuthoritativeEvent> { exchangeEvent, ownerDelivery };
+            AuthoritativeEvent? acceptorDelivery = null;
             if (fulfillmentMode == TradeFulfillmentMode.ServerDropPod)
             {
-                EventTargetContext? acceptorTargetContext = ResolveTradeTargetContext(
-                    state,
-                    request.Acceptor.UserId,
-                    request.Acceptor.ColonyId ?? string.Empty,
-                    acceptedSnapshotId,
-                    EventLandingMode.DropPod);
-                LedgerAppendResult acceptorDelivery = AppendTradeItemDeliveryEvent(
-                    state,
-                    $"trade-completed-acceptor-delivery:{tradeOrder.EventId}:{fulfillmentKey}",
-                    tradeOrder.Actor,
-                    acceptorParty,
-                    orderPayload.OfferedItems,
-                    ItemDeliveryPurpose.TradeCompletedAcceptorDelivery,
-                    acceptorTargetContext,
-                    nowUtc);
-                acceptorDeliveryEventId = acceptorDelivery.Event.EventId;
+                acceptorDelivery = CreateTradeItemDeliveryEvent(state,
+                    $"trade-completed-acceptor-delivery:{tradeOrder.EventId}:{fulfillmentKey}", tradeOrder.Actor, acceptorParty,
+                    orderPayload.OfferedItems, ItemDeliveryPurpose.TradeCompletedAcceptorDelivery,
+                    ResolveTradeTargetContext(state, request.Acceptor.UserId, request.Acceptor.ColonyId!, acceptedSnapshotId,
+                        EventLandingMode.DropPod, upload.AcceptedSnapshot), nowUtc);
+                events.Add(acceptorDelivery);
             }
-
-            AuthoritativeEvent delivered = state.Ledger.MarkDelivered(append.Event.EventId, request.Acceptor.SnapshotId ?? string.Empty, nowUtc);
-            appliedExchange = state.Ledger.MarkApplied(delivered.EventId, acceptedSnapshotId, nowUtc);
-            state.Ledger.ReportApplicationResult(
-                appliedExchange.EventId,
-                EventApplicationResultKind.Applied,
-                failureReason: null,
-                nextRetryAtUtc: null);
-            RecordAuthoritativeEventAchievements(state, appliedExchange, nowUtc);
-
-            IReadOnlyList<string> notifiedUsers = activeMemos
-                .Select(memo => memo.Target.UserId)
-                .Append(tradeOrder.Actor.UserId)
-                .Where(userId => !string.IsNullOrWhiteSpace(userId))
-                .Distinct(StringComparer.Ordinal)
-                .ToList();
-            state.EventNotifications.SignalUsers(notifiedUsers);
+            CommitTradeSnapshot(state, ProtocolDtoMapper.ToSaveSnapshotPackage(transaction.ConfirmedSnapshot, multipart.Payload), upload,
+                new TradeSnapshotMutation(new LedgerBatch(events, changes), activeMemos.Select(memo => memo.Target.UserId)
+                    .Append(tradeOrder.Actor.UserId).Append(request.Acceptor.UserId).Distinct(StringComparer.Ordinal).ToArray()));
+            return Results.Ok(new FulfillTradeOrderResponse(
+                ProtocolResponse.Ok(T("Trade.FulfillmentTransactionCreated")), tradeOrder.EventId, acceptedMemo?.EventId,
+                exchangeEvent.EventId, true, orderPayload.OfferedItems.Select(ToThingReferenceDto).ToList(), Array.Empty<string>(),
+                ServerEventStatus.AppliedToSnapshot.ToString(), acceptorDelivery?.EventId, ownerDelivery.EventId,
+                acceptedSnapshotId, upload.AcceptedSnapshot.Envelope.NextLineageToken));
         }
-
-        RunSnapshotPostUploadProcessors(
-            state,
-            request.Acceptor.UserId,
-            request.Acceptor.ColonyId ?? string.Empty,
-            sessionId: null,
-            upload,
-            nowUtc);
-
-        return Results.Ok(new FulfillTradeOrderResponse(
-            append.Created
-                ? ProtocolResponse.Ok(ServerLocalization.Text("Trade.FulfillmentTransactionCreated"))
-                : new ProtocolResponse(true, ProtocolErrorCode.DuplicateRequest, ServerLocalization.Text("Trade.FulfillmentTransactionDuplicate")),
-            tradeOrder.EventId,
-            acceptedMemo?.EventId,
-            append.Event.EventId,
-            append.Created,
-            orderPayload.OfferedItems.Select(ToThingReferenceDto).ToList(),
-            Array.Empty<string>(),
-            state.Ledger.Find(tradeOrder.EventId)?.Status.ToString() ?? tradeOrder.Status.ToString(),
-            acceptorDeliveryEventId,
-            ownerDeliveryEventId,
-            appliedExchange.AppliedSnapshotId ?? acceptedSnapshotId,
-            upload.AcceptedSnapshot.Envelope.NextLineageToken));
     }
-
     private static EventTargetContext? ResolveTradeCompletedOwnerDeliveryTargetContext(
         AuthoritativeEvent tradeOrder,
         TradeFulfillmentMode fulfillmentMode)
@@ -2151,55 +2110,59 @@ public static partial class ClashOfRimNetworkServer
 
     private static void ApplyTradeOrderExpirations(ClashOfRimNetworkState state, DateTimeOffset nowUtc)
     {
-        TimeSpan expiration = state.ServerConfiguration.TradeOrderExpiration;
-        if (expiration <= TimeSpan.Zero)
+        lock (state.RaidSettlementSnapshotMutationGate)
         {
-            return;
-        }
-
-        IReadOnlyList<AuthoritativeEvent> expiredOrders = state.Ledger.ListByType(ServerEventType.Trade)
-            .Where(IsOpenMarketTradeOrderForOwner)
-            .Where(tradeOrder => nowUtc - tradeOrder.CreatedAtUtc >= expiration)
-            .ToList();
-
-        foreach (AuthoritativeEvent tradeOrder in expiredOrders)
-        {
-            IReadOnlyList<AuthoritativeEvent> activeMemos = FindActiveTradeAcceptanceMemos(
-                state.Ledger,
-                tradeOrder.EventId);
-
-            state.Ledger.ChangeStatus(tradeOrder.EventId, ServerEventStatus.Cancelled);
-            foreach (AuthoritativeEvent memo in activeMemos)
+            RecoverSnapshotCommits(state);
+            TimeSpan expiration = state.ServerConfiguration.TradeOrderExpiration;
+            if (expiration <= TimeSpan.Zero)
             {
-                state.Ledger.ChangeStatus(memo.EventId, ServerEventStatus.Cancelled);
+                return;
             }
 
-            AppendTradeItemDeliveryEvent(
-                state,
-                $"trade-expired-owner-return:{tradeOrder.EventId}",
-                new EventParty("server"),
-                tradeOrder.Actor,
-                ((TradeEventPayload)tradeOrder.Payload).OfferedItems,
-                ItemDeliveryPurpose.TradeExpiredOwnerReturn,
-                tradeOrder.TargetContext,
-                nowUtc);
-
-            IReadOnlyList<EventParty> targets = new[] { tradeOrder.Actor }
-                .Concat(activeMemos.Select(memo => memo.Target))
-                .Where(target => !string.IsNullOrWhiteSpace(target.UserId))
-                .GroupBy(target => target.UserId + "\n" + target.ColonyId, StringComparer.Ordinal)
-                .Select(group => group.First())
+            IReadOnlyList<AuthoritativeEvent> expiredOrders = state.Ledger.ListByType(ServerEventType.Trade)
+                .Where(IsOpenMarketTradeOrderForOwner)
+                .Where(tradeOrder => nowUtc - tradeOrder.CreatedAtUtc >= expiration)
                 .ToList();
 
-            foreach (EventParty target in targets)
+            foreach (AuthoritativeEvent tradeOrder in expiredOrders)
             {
-                bool targetIsOwner = string.Equals(target.UserId, tradeOrder.Actor.UserId, StringComparison.Ordinal)
-                    && string.Equals(target.ColonyId, tradeOrder.Actor.ColonyId, StringComparison.Ordinal);
-                AppendTradeExpiredNotification(state, tradeOrder, target, targetIsOwner, nowUtc);
-            }
+                IReadOnlyList<AuthoritativeEvent> activeMemos = FindActiveTradeAcceptanceMemos(
+                    state.Ledger,
+                    tradeOrder.EventId);
 
-            state.EventNotifications.SignalUsers(
-                targets.Select(target => target.UserId).Distinct(StringComparer.Ordinal));
+                state.Ledger.ChangeStatus(tradeOrder.EventId, ServerEventStatus.Cancelled);
+                foreach (AuthoritativeEvent memo in activeMemos)
+                {
+                    state.Ledger.ChangeStatus(memo.EventId, ServerEventStatus.Cancelled);
+                }
+
+                AppendTradeItemDeliveryEvent(
+                    state,
+                    $"trade-expired-owner-return:{tradeOrder.EventId}",
+                    new EventParty("server"),
+                    tradeOrder.Actor,
+                    ((TradeEventPayload)tradeOrder.Payload).OfferedItems,
+                    ItemDeliveryPurpose.TradeExpiredOwnerReturn,
+                    tradeOrder.TargetContext,
+                    nowUtc);
+
+                IReadOnlyList<EventParty> targets = new[] { tradeOrder.Actor }
+                    .Concat(activeMemos.Select(memo => memo.Target))
+                    .Where(target => !string.IsNullOrWhiteSpace(target.UserId))
+                    .GroupBy(target => target.UserId + "\n" + target.ColonyId, StringComparer.Ordinal)
+                    .Select(group => group.First())
+                    .ToList();
+
+                foreach (EventParty target in targets)
+                {
+                    bool targetIsOwner = string.Equals(target.UserId, tradeOrder.Actor.UserId, StringComparison.Ordinal)
+                        && string.Equals(target.ColonyId, tradeOrder.Actor.ColonyId, StringComparison.Ordinal);
+                    AppendTradeExpiredNotification(state, tradeOrder, target, targetIsOwner, nowUtc);
+                }
+
+                state.EventNotifications.SignalUsers(
+                    targets.Select(target => target.UserId).Distinct(StringComparer.Ordinal));
+            }
         }
     }
 
@@ -2208,76 +2171,80 @@ public static partial class ClashOfRimNetworkServer
         AdminBaselineSnapshot baseline,
         DateTimeOffset nowUtc)
     {
-        HashSet<string> validThingDefs = BuildValidTradeThingDefSet(baseline, state.ServerConfiguration);
-
-        if (validThingDefs.Count == 0)
+        lock (state.RaidSettlementSnapshotMutationGate)
         {
-            return 0;
-        }
+            RecoverSnapshotCommits(state);
+            HashSet<string> validThingDefs = BuildValidTradeThingDefSet(baseline, state.ServerConfiguration);
 
-        int cancelled = 0;
-        IReadOnlyList<AuthoritativeEvent> invalidOrders = state.Ledger.ListByType(ServerEventType.Trade)
-            .Where(IsOpenMarketTradeOrderForOwner)
-            .Where(tradeOrder => tradeOrder.Payload is TradeEventPayload payload
-                && FindUnavailableTradeThingDefs(payload.OfferedItems.Concat(payload.RequestedItems), baseline, validThingDefs).Count > 0)
-            .ToList();
-
-        foreach (AuthoritativeEvent tradeOrder in invalidOrders)
-        {
-            if (tradeOrder.Payload is not TradeEventPayload payload)
+            if (validThingDefs.Count == 0)
             {
-                continue;
+                return 0;
             }
 
-            IReadOnlyList<string> unavailableDefs = FindUnavailableTradeThingDefs(
-                payload.OfferedItems.Concat(payload.RequestedItems),
-                baseline,
-                validThingDefs);
-            if (unavailableDefs.Count == 0)
-            {
-                continue;
-            }
-
-            IReadOnlyList<AuthoritativeEvent> activeMemos = FindActiveTradeAcceptanceMemos(
-                state.Ledger,
-                tradeOrder.EventId);
-
-            state.Ledger.ChangeStatus(tradeOrder.EventId, ServerEventStatus.Cancelled);
-            foreach (AuthoritativeEvent memo in activeMemos)
-            {
-                state.Ledger.ChangeStatus(memo.EventId, ServerEventStatus.Cancelled);
-            }
-
-            AppendTradeItemDeliveryEvent(
-                state,
-                $"trade-baseline-invalidated-owner-return:{tradeOrder.EventId}",
-                new EventParty("server"),
-                tradeOrder.Actor,
-                payload.OfferedItems,
-                ItemDeliveryPurpose.TradeBaselineChangedOwnerReturn,
-                tradeOrder.TargetContext,
-                nowUtc);
-
-            IReadOnlyList<EventParty> targets = new[] { tradeOrder.Actor }
-                .Concat(activeMemos.Select(memo => memo.Target))
-                .Where(target => !string.IsNullOrWhiteSpace(target.UserId))
-                .GroupBy(target => target.UserId + "\n" + target.ColonyId, StringComparer.Ordinal)
-                .Select(group => group.First())
+            int cancelled = 0;
+            IReadOnlyList<AuthoritativeEvent> invalidOrders = state.Ledger.ListByType(ServerEventType.Trade)
+                .Where(IsOpenMarketTradeOrderForOwner)
+                .Where(tradeOrder => tradeOrder.Payload is TradeEventPayload payload
+                    && FindUnavailableTradeThingDefs(payload.OfferedItems.Concat(payload.RequestedItems), baseline, validThingDefs).Count > 0)
                 .ToList();
 
-            foreach (EventParty target in targets)
+            foreach (AuthoritativeEvent tradeOrder in invalidOrders)
             {
-                bool targetIsOwner = string.Equals(target.UserId, tradeOrder.Actor.UserId, StringComparison.Ordinal)
-                    && string.Equals(target.ColonyId, tradeOrder.Actor.ColonyId, StringComparison.Ordinal);
-                AppendTradeBaselineInvalidatedNotification(state, tradeOrder, target, targetIsOwner, unavailableDefs, nowUtc);
+                if (tradeOrder.Payload is not TradeEventPayload payload)
+                {
+                    continue;
+                }
+
+                IReadOnlyList<string> unavailableDefs = FindUnavailableTradeThingDefs(
+                    payload.OfferedItems.Concat(payload.RequestedItems),
+                    baseline,
+                    validThingDefs);
+                if (unavailableDefs.Count == 0)
+                {
+                    continue;
+                }
+
+                IReadOnlyList<AuthoritativeEvent> activeMemos = FindActiveTradeAcceptanceMemos(
+                    state.Ledger,
+                    tradeOrder.EventId);
+
+                state.Ledger.ChangeStatus(tradeOrder.EventId, ServerEventStatus.Cancelled);
+                foreach (AuthoritativeEvent memo in activeMemos)
+                {
+                    state.Ledger.ChangeStatus(memo.EventId, ServerEventStatus.Cancelled);
+                }
+
+                AppendTradeItemDeliveryEvent(
+                    state,
+                    $"trade-baseline-invalidated-owner-return:{tradeOrder.EventId}",
+                    new EventParty("server"),
+                    tradeOrder.Actor,
+                    payload.OfferedItems,
+                    ItemDeliveryPurpose.TradeBaselineChangedOwnerReturn,
+                    tradeOrder.TargetContext,
+                    nowUtc);
+
+                IReadOnlyList<EventParty> targets = new[] { tradeOrder.Actor }
+                    .Concat(activeMemos.Select(memo => memo.Target))
+                    .Where(target => !string.IsNullOrWhiteSpace(target.UserId))
+                    .GroupBy(target => target.UserId + "\n" + target.ColonyId, StringComparer.Ordinal)
+                    .Select(group => group.First())
+                    .ToList();
+
+                foreach (EventParty target in targets)
+                {
+                    bool targetIsOwner = string.Equals(target.UserId, tradeOrder.Actor.UserId, StringComparison.Ordinal)
+                        && string.Equals(target.ColonyId, tradeOrder.Actor.ColonyId, StringComparison.Ordinal);
+                    AppendTradeBaselineInvalidatedNotification(state, tradeOrder, target, targetIsOwner, unavailableDefs, nowUtc);
+                }
+
+                state.EventNotifications.SignalUsers(
+                    targets.Select(target => target.UserId).Distinct(StringComparer.Ordinal));
+                cancelled++;
             }
 
-            state.EventNotifications.SignalUsers(
-                targets.Select(target => target.UserId).Distinct(StringComparer.Ordinal));
-            cancelled++;
+            return cancelled;
         }
-
-        return cancelled;
     }
 
     private static IReadOnlyList<string> FindUnavailableTradeThingDefs(
@@ -2424,35 +2391,39 @@ public static partial class ClashOfRimNetworkServer
 
     private static IResult CancelTradeOrder(CloseTradeOrderRequest request, ClashOfRimNetworkState state)
     {
-        ApplyTradeOrderExpirations(state, DateTimeOffset.UtcNow);
-
-        ProtocolResponse? validation = ValidateTradeCloseRequest(request);
-        if (validation is not null)
+        lock (state.RaidSettlementSnapshotMutationGate)
         {
-            return Results.Ok(new CloseTradeOrderResponse(
-                validation,
-                request.TradeEventId,
-                string.Empty,
-                notifiedAcceptorCount: 0));
-        }
+            RecoverSnapshotCommits(state);
+            ApplyTradeOrderExpirations(state, DateTimeOffset.UtcNow);
 
-        AuthoritativeEvent? tradeOrder = state.Ledger.Find(request.TradeEventId);
-        if (tradeOrder is not null
-            && tradeOrder.Type == ServerEventType.Trade
-            && tradeOrder.Payload is TradeEventPayload { Stage: TradeStage.MarketOrder }
-            && (!string.Equals(tradeOrder.Actor.UserId, request.Owner.UserId, StringComparison.Ordinal)
-                || !string.Equals(tradeOrder.Actor.ColonyId, request.Owner.ColonyId, StringComparison.Ordinal)))
-        {
-            return CancelTradeAcceptanceMemo(request, state, tradeOrder);
-        }
+            ProtocolResponse? validation = ValidateTradeCloseRequest(request);
+            if (validation is not null)
+            {
+                return Results.Ok(new CloseTradeOrderResponse(
+                    validation,
+                    request.TradeEventId,
+                    string.Empty,
+                    notifiedAcceptorCount: 0));
+            }
 
-        return CloseTradeOrder(
-            request,
-            state,
-            ServerEventStatus.Cancelled,
-            ServerEventStatus.Cancelled,
-            T("Trade.CancelledWithNotifications"),
-            T("Trade.Cancelled"));
+            AuthoritativeEvent? tradeOrder = state.Ledger.Find(request.TradeEventId);
+            if (tradeOrder is not null
+                && tradeOrder.Type == ServerEventType.Trade
+                && tradeOrder.Payload is TradeEventPayload { Stage: TradeStage.MarketOrder }
+                && (!string.Equals(tradeOrder.Actor.UserId, request.Owner.UserId, StringComparison.Ordinal)
+                    || !string.Equals(tradeOrder.Actor.ColonyId, request.Owner.ColonyId, StringComparison.Ordinal)))
+            {
+                return CancelTradeAcceptanceMemo(request, state, tradeOrder);
+            }
+
+            return CloseTradeOrder(
+                request,
+                state,
+                ServerEventStatus.Cancelled,
+                ServerEventStatus.Cancelled,
+                T("Trade.CancelledWithNotifications"),
+                T("Trade.Cancelled"));
+        }
     }
 
     private static IResult CancelTradeAcceptanceMemo(
@@ -2460,45 +2431,49 @@ public static partial class ClashOfRimNetworkServer
         ClashOfRimNetworkState state,
         AuthoritativeEvent tradeOrder)
     {
-        if (!IsOpenMarketTradeOrderForOwner(tradeOrder))
+        lock (state.RaidSettlementSnapshotMutationGate)
         {
-            return Results.Ok(new CloseTradeOrderResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Trade.NotOpen")),
-                tradeOrder.EventId,
-                tradeOrder.Status.ToString(),
-                notifiedAcceptorCount: 0));
-        }
-
-        AuthoritativeEvent? memo = FindTradeAcceptanceMemo(
-            state.Ledger,
-            tradeOrder.EventId,
-            request.Owner.UserId,
-            request.Owner.ColonyId);
-        if (memo is null)
-        {
-            return Results.Ok(new CloseTradeOrderResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.EventNotFound, T("Trade.AcceptanceMemoNotFound")),
-                tradeOrder.EventId,
-                string.Empty,
-                notifiedAcceptorCount: 0));
-        }
-
-        state.Ledger.ChangeStatus(memo.EventId, ServerEventStatus.Cancelled);
-        IReadOnlyList<string> notifiedUsers = new[]
+            RecoverSnapshotCommits(state);
+            if (!IsOpenMarketTradeOrderForOwner(tradeOrder))
             {
+                return Results.Ok(new CloseTradeOrderResponse(
+                    ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Trade.NotOpen")),
+                    tradeOrder.EventId,
+                    tradeOrder.Status.ToString(),
+                    notifiedAcceptorCount: 0));
+            }
+
+            AuthoritativeEvent? memo = FindTradeAcceptanceMemo(
+                state.Ledger,
+                tradeOrder.EventId,
+                request.Owner.UserId,
+                request.Owner.ColonyId);
+            if (memo is null)
+            {
+                return Results.Ok(new CloseTradeOrderResponse(
+                    ProtocolResponse.Reject(ProtocolErrorCode.EventNotFound, T("Trade.AcceptanceMemoNotFound")),
+                    tradeOrder.EventId,
+                    string.Empty,
+                    notifiedAcceptorCount: 0));
+            }
+
+            state.Ledger.ChangeStatus(memo.EventId, ServerEventStatus.Cancelled);
+            IReadOnlyList<string> notifiedUsers = new[]
+                {
                 tradeOrder.Actor.UserId,
                 request.Owner.UserId
             }
-            .Where(userId => !string.IsNullOrWhiteSpace(userId))
-            .Distinct(StringComparer.Ordinal)
-            .ToList();
-        state.EventNotifications.SignalUsers(notifiedUsers);
+                .Where(userId => !string.IsNullOrWhiteSpace(userId))
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
+            state.EventNotifications.SignalUsers(notifiedUsers);
 
-        return Results.Ok(new CloseTradeOrderResponse(
-            ProtocolResponse.Ok(T("Trade.AcceptanceMemoCancelled")),
-            tradeOrder.EventId,
-            ServerEventStatus.Cancelled.ToString(),
-            notifiedUsers.Count));
+            return Results.Ok(new CloseTradeOrderResponse(
+                ProtocolResponse.Ok(T("Trade.AcceptanceMemoCancelled")),
+                tradeOrder.EventId,
+                ServerEventStatus.Cancelled.ToString(),
+                notifiedUsers.Count));
+        }
     }
 
     private static IResult CompleteTradeOrder(CloseTradeOrderRequest request, ClashOfRimNetworkState state)
@@ -2520,88 +2495,92 @@ public static partial class ClashOfRimNetworkServer
         string successMessage,
         string alreadyClosedMessage)
     {
-        ApplyTradeOrderExpirations(state, DateTimeOffset.UtcNow);
-
-        ProtocolResponse? validation = ValidateTradeCloseRequest(request);
-        if (validation is not null)
+        lock (state.RaidSettlementSnapshotMutationGate)
         {
-            return Results.Ok(new CloseTradeOrderResponse(
-                validation,
-                request.TradeEventId,
-                string.Empty,
-                notifiedAcceptorCount: 0));
-        }
+            RecoverSnapshotCommits(state);
+            ApplyTradeOrderExpirations(state, DateTimeOffset.UtcNow);
 
-        AuthoritativeEvent? tradeOrder = state.Ledger.Find(request.TradeEventId);
-        if (tradeOrder is null
-            || tradeOrder.Type != ServerEventType.Trade
-            || tradeOrder.Payload is not TradeEventPayload payload
-            || payload.Stage != TradeStage.MarketOrder
-            || !string.Equals(tradeOrder.Actor.UserId, request.Owner.UserId, StringComparison.Ordinal)
-            || !string.Equals(tradeOrder.Actor.ColonyId, request.Owner.ColonyId, StringComparison.Ordinal))
-        {
-            return Results.Ok(new CloseTradeOrderResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.EventNotFound, T("Trade.CloseNotOwner")),
-                request.TradeEventId,
-                string.Empty,
-                notifiedAcceptorCount: 0));
-        }
+            ProtocolResponse? validation = ValidateTradeCloseRequest(request);
+            if (validation is not null)
+            {
+                return Results.Ok(new CloseTradeOrderResponse(
+                    validation,
+                    request.TradeEventId,
+                    string.Empty,
+                    notifiedAcceptorCount: 0));
+            }
 
-        if (tradeOrder.Status == tradeTerminalStatus)
-        {
-            IReadOnlyList<AuthoritativeEvent> existingMemos = FindActiveTradeAcceptanceMemos(
+            AuthoritativeEvent? tradeOrder = state.Ledger.Find(request.TradeEventId);
+            if (tradeOrder is null
+                || tradeOrder.Type != ServerEventType.Trade
+                || tradeOrder.Payload is not TradeEventPayload payload
+                || payload.Stage != TradeStage.MarketOrder
+                || !string.Equals(tradeOrder.Actor.UserId, request.Owner.UserId, StringComparison.Ordinal)
+                || !string.Equals(tradeOrder.Actor.ColonyId, request.Owner.ColonyId, StringComparison.Ordinal))
+            {
+                return Results.Ok(new CloseTradeOrderResponse(
+                    ProtocolResponse.Reject(ProtocolErrorCode.EventNotFound, T("Trade.CloseNotOwner")),
+                    request.TradeEventId,
+                    string.Empty,
+                    notifiedAcceptorCount: 0));
+            }
+
+            if (tradeOrder.Status == tradeTerminalStatus)
+            {
+                IReadOnlyList<AuthoritativeEvent> existingMemos = FindActiveTradeAcceptanceMemos(
+                    state.Ledger,
+                    tradeOrder.EventId);
+                state.EventNotifications.SignalUsers(existingMemos.Select(memo => memo.Target.UserId));
+                return Results.Ok(new CloseTradeOrderResponse(
+                    new ProtocolResponse(true, ProtocolErrorCode.DuplicateRequest, alreadyClosedMessage),
+                    tradeOrder.EventId,
+                    tradeTerminalStatus.ToString(),
+                    existingMemos.Select(memo => memo.Target.UserId).Distinct(StringComparer.Ordinal).Count()));
+            }
+
+            if (!IsOpenMarketTradeOrderForOwner(tradeOrder))
+            {
+                return Results.Ok(new CloseTradeOrderResponse(
+                    ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Trade.NotOpen")),
+                    tradeOrder.EventId,
+                    tradeOrder.Status.ToString(),
+                    notifiedAcceptorCount: 0));
+            }
+
+            IReadOnlyList<AuthoritativeEvent> activeMemos = FindActiveTradeAcceptanceMemos(
                 state.Ledger,
                 tradeOrder.EventId);
-            state.EventNotifications.SignalUsers(existingMemos.Select(memo => memo.Target.UserId));
+            state.Ledger.ChangeStatus(tradeOrder.EventId, tradeTerminalStatus);
+            foreach (AuthoritativeEvent memo in activeMemos)
+            {
+                state.Ledger.ChangeStatus(memo.EventId, memoTerminalStatus);
+            }
+
+            if (tradeTerminalStatus == ServerEventStatus.Cancelled)
+            {
+                AppendTradeItemDeliveryEvent(
+                    state,
+                    $"trade-cancelled-owner-return:{tradeOrder.EventId}",
+                    new EventParty("server"),
+                    tradeOrder.Actor,
+                    payload.OfferedItems,
+                    ItemDeliveryPurpose.TradeCancelledOwnerReturn,
+                    tradeOrder.TargetContext,
+                    DateTimeOffset.UtcNow);
+            }
+
+            IReadOnlyList<string> notifiedUsers = activeMemos
+                .Select(memo => memo.Target.UserId)
+                .Where(userId => !string.IsNullOrWhiteSpace(userId))
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
+            state.EventNotifications.SignalUsers(notifiedUsers);
+
             return Results.Ok(new CloseTradeOrderResponse(
-                new ProtocolResponse(true, ProtocolErrorCode.DuplicateRequest, alreadyClosedMessage),
+                ProtocolResponse.Ok(successMessage),
                 tradeOrder.EventId,
                 tradeTerminalStatus.ToString(),
-                existingMemos.Select(memo => memo.Target.UserId).Distinct(StringComparer.Ordinal).Count()));
+                notifiedUsers.Count));
         }
-
-        if (!IsOpenMarketTradeOrderForOwner(tradeOrder))
-        {
-            return Results.Ok(new CloseTradeOrderResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Trade.NotOpen")),
-                tradeOrder.EventId,
-                tradeOrder.Status.ToString(),
-                notifiedAcceptorCount: 0));
-        }
-
-        IReadOnlyList<AuthoritativeEvent> activeMemos = FindActiveTradeAcceptanceMemos(
-            state.Ledger,
-            tradeOrder.EventId);
-        state.Ledger.ChangeStatus(tradeOrder.EventId, tradeTerminalStatus);
-        foreach (AuthoritativeEvent memo in activeMemos)
-        {
-            state.Ledger.ChangeStatus(memo.EventId, memoTerminalStatus);
-        }
-
-        if (tradeTerminalStatus == ServerEventStatus.Cancelled)
-        {
-            AppendTradeItemDeliveryEvent(
-                state,
-                $"trade-cancelled-owner-return:{tradeOrder.EventId}",
-                new EventParty("server"),
-                tradeOrder.Actor,
-                payload.OfferedItems,
-                ItemDeliveryPurpose.TradeCancelledOwnerReturn,
-                tradeOrder.TargetContext,
-                DateTimeOffset.UtcNow);
-        }
-
-        IReadOnlyList<string> notifiedUsers = activeMemos
-            .Select(memo => memo.Target.UserId)
-            .Where(userId => !string.IsNullOrWhiteSpace(userId))
-            .Distinct(StringComparer.Ordinal)
-            .ToList();
-        state.EventNotifications.SignalUsers(notifiedUsers);
-
-        return Results.Ok(new CloseTradeOrderResponse(
-            ProtocolResponse.Ok(successMessage),
-            tradeOrder.EventId,
-            tradeTerminalStatus.ToString(),
-            notifiedUsers.Count));
     }
 }

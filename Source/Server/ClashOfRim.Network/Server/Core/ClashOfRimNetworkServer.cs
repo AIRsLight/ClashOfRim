@@ -1828,14 +1828,15 @@ public static partial class ClashOfRimNetworkServer
         string userId,
         string? colonyId,
         string? snapshotId,
-        EventTargetContext? preferredContext)
+        EventTargetContext? preferredContext,
+        LatestSnapshotRecord? preparedSnapshot = null)
     {
         if (string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(colonyId))
         {
             return TradeDeliveryEndpoint.Unavailable(T("Trade.EndpointMissingIdentity"));
         }
 
-        LatestSnapshotRecord? snapshot = state.SnapshotStore.GetLatest(userId, colonyId!);
+        LatestSnapshotRecord? snapshot = preparedSnapshot ?? state.SnapshotStore.GetLatest(userId, colonyId!);
         if (snapshot is null)
         {
             return TradeDeliveryEndpoint.Unavailable(T("Trade.EndpointMissingSnapshot"));
@@ -2309,7 +2310,17 @@ public static partial class ClashOfRimNetworkServer
         EventTargetContext? targetContext,
         DateTimeOffset nowUtc)
     {
-        AuthoritativeEvent delivery = AuthoritativeEventFactory.Create(
+        AuthoritativeEvent delivery = CreateTradeItemDeliveryEvent(state, idempotencyKey, actor, target, things, purpose, targetContext, nowUtc);
+        LedgerAppendResult append = state.Ledger.Append(delivery);
+        SignalIfCreated(state, append, target.UserId);
+        return append;
+    }
+
+    private static AuthoritativeEvent CreateTradeItemDeliveryEvent(
+        ClashOfRimNetworkState state, string idempotencyKey, EventParty actor, EventParty target,
+        IReadOnlyList<EventThingReference> things, ItemDeliveryPurpose purpose, EventTargetContext? targetContext, DateTimeOffset nowUtc)
+    {
+        return AuthoritativeEventFactory.Create(
             ServerEventType.ItemDelivery,
             actor,
             target,
@@ -2318,9 +2329,6 @@ public static partial class ClashOfRimNetworkServer
             new ItemDeliveryEventPayload(things, Message: null, Purpose: purpose),
             nowUtc,
             targetContext);
-        LedgerAppendResult append = state.Ledger.Append(delivery);
-        SignalIfCreated(state, append, target.UserId);
-        return append;
     }
 
     private static EventTargetContext? ResolveTradeTargetContext(
@@ -2328,14 +2336,15 @@ public static partial class ClashOfRimNetworkServer
         string userId,
         string colonyId,
         string snapshotId,
-        EventLandingMode landingMode)
+        EventLandingMode landingMode,
+        LatestSnapshotRecord? preparedSnapshot = null)
     {
         TradeDeliveryEndpoint endpoint = ResolveTradeDeliveryEndpoint(
             state,
             userId,
             colonyId,
             snapshotId,
-            preferredContext: null);
+            preferredContext: null, preparedSnapshot);
         if (!endpoint.Available && endpoint.WorldObjectId is null && endpoint.MapUniqueId is null)
         {
             return null;

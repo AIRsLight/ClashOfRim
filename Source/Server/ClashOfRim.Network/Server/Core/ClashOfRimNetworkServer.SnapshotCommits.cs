@@ -10,7 +10,8 @@ public static partial class ClashOfRimNetworkServer
         {
             state.SnapshotCommits.Recover(state.SnapshotStore, state.BankLoans,
                 (snapshot, kind) => RunCommittedSnapshotPostUpload(state, snapshot, kind), state.Ledger,
-                userId => state.EventNotifications.SignalUsers(new[] { userId }));
+                userId => state.EventNotifications.SignalUsers(new[] { userId }),
+                item => RecordAuthoritativeEventAchievements(state, item, item.CreatedAtUtc));
         }
     }
 

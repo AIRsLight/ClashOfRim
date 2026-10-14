@@ -596,74 +596,78 @@ public static partial class ClashOfRimNetworkServer
         ReportEventApplicationFailureRequest request,
         ClashOfRimNetworkState state)
     {
-        if (string.IsNullOrWhiteSpace(request.IdempotencyKey)
-            || string.IsNullOrWhiteSpace(request.EventId)
-            || string.IsNullOrWhiteSpace(request.UserId)
-            || string.IsNullOrWhiteSpace(request.ColonyId)
-            || string.IsNullOrWhiteSpace(request.CurrentSnapshotId)
-            || string.IsNullOrWhiteSpace(request.Reason))
+        lock (state.RaidSettlementSnapshotMutationGate)
         {
-            return Results.Ok(new ReportEventApplicationFailureResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("Events.ReportFailureMissingFields")),
-                request.EventId ?? string.Empty,
-                string.Empty,
-                affectedEventCount: 0));
-        }
+            RecoverSnapshotCommits(state);
+            if (string.IsNullOrWhiteSpace(request.IdempotencyKey)
+                || string.IsNullOrWhiteSpace(request.EventId)
+                || string.IsNullOrWhiteSpace(request.UserId)
+                || string.IsNullOrWhiteSpace(request.ColonyId)
+                || string.IsNullOrWhiteSpace(request.CurrentSnapshotId)
+                || string.IsNullOrWhiteSpace(request.Reason))
+            {
+                return Results.Ok(new ReportEventApplicationFailureResponse(
+                    ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("Events.ReportFailureMissingFields")),
+                    request.EventId ?? string.Empty,
+                    string.Empty,
+                    affectedEventCount: 0));
+            }
 
-        DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
-        if (!IsAuthorizedForColony(
+            DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
+            if (!IsAuthorizedForColony(
+                    state,
+                    request.AuthToken,
+                    request.UserId,
+                    request.ColonyId,
+                    request.EventId,
+                    authorizationScope: null,
+                    nowUtc,
+                    out string authFailure))
+            {
+                return Results.Ok(new ReportEventApplicationFailureResponse(
+                    ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, authFailure),
+                    request.EventId,
+                    string.Empty,
+                    affectedEventCount: 0));
+            }
+
+            AuthoritativeEvent? ledgerEvent = state.Ledger.Find(request.EventId);
+            if (ledgerEvent is null || !IsVisibleTo(ledgerEvent, request.UserId, request.ColonyId))
+            {
+                return Results.Ok(new ReportEventApplicationFailureResponse(
+                    ProtocolResponse.Reject(ProtocolErrorCode.EventNotFound, T("Events.NotFoundOrNotVisible")),
+                    request.EventId,
+                    string.Empty,
+                    affectedEventCount: 0));
+            }
+
+            if (ledgerEvent.Status == ServerEventStatus.Failed)
+            {
+                return Results.Ok(new ReportEventApplicationFailureResponse(
+                    new ProtocolResponse(true, ProtocolErrorCode.DuplicateRequest, T("Events.AlreadyFailed")),
+                    ledgerEvent.EventId,
+                    ServerEventStatus.Failed.ToString(),
+                    affectedEventCount: 0));
+            }
+
+            IReadOnlyCollection<AuthoritativeEvent> affected = FailEventApplicationGraph(
                 state,
-                request.AuthToken,
-                request.UserId,
-                request.ColonyId,
-                request.EventId,
-                authorizationScope: null,
-                nowUtc,
-                out string authFailure))
-        {
-            return Results.Ok(new ReportEventApplicationFailureResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, authFailure),
-                request.EventId,
-                string.Empty,
-                affectedEventCount: 0));
-        }
+                ledgerEvent,
+                request.SourceEventId,
+                request.Reason,
+                nowUtc);
+            state.EventNotifications.SignalUsers(affected
+                .SelectMany(evt => new[] { evt.Actor.UserId, evt.Target.UserId })
+                .Where(userId => !string.IsNullOrWhiteSpace(userId))
+                .Distinct(StringComparer.Ordinal));
 
-        AuthoritativeEvent? ledgerEvent = state.Ledger.Find(request.EventId);
-        if (ledgerEvent is null || !IsVisibleTo(ledgerEvent, request.UserId, request.ColonyId))
-        {
+            AuthoritativeEvent? updatedRoot = state.Ledger.Find(ledgerEvent.EventId);
             return Results.Ok(new ReportEventApplicationFailureResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.EventNotFound, T("Events.NotFoundOrNotVisible")),
-                request.EventId,
-                string.Empty,
-                affectedEventCount: 0));
-        }
-
-        if (ledgerEvent.Status == ServerEventStatus.Failed)
-        {
-            return Results.Ok(new ReportEventApplicationFailureResponse(
-                new ProtocolResponse(true, ProtocolErrorCode.DuplicateRequest, T("Events.AlreadyFailed")),
+                ProtocolResponse.Ok(T("Events.FailureRecorded")),
                 ledgerEvent.EventId,
-                ServerEventStatus.Failed.ToString(),
-                affectedEventCount: 0));
+                updatedRoot?.Status.ToString() ?? ServerEventStatus.Failed.ToString(),
+                affected.Count));
         }
-
-        IReadOnlyCollection<AuthoritativeEvent> affected = FailEventApplicationGraph(
-            state,
-            ledgerEvent,
-            request.SourceEventId,
-            request.Reason,
-            nowUtc);
-        state.EventNotifications.SignalUsers(affected
-            .SelectMany(evt => new[] { evt.Actor.UserId, evt.Target.UserId })
-            .Where(userId => !string.IsNullOrWhiteSpace(userId))
-            .Distinct(StringComparer.Ordinal));
-
-        AuthoritativeEvent? updatedRoot = state.Ledger.Find(ledgerEvent.EventId);
-        return Results.Ok(new ReportEventApplicationFailureResponse(
-            ProtocolResponse.Ok(T("Events.FailureRecorded")),
-            ledgerEvent.EventId,
-            updatedRoot?.Status.ToString() ?? ServerEventStatus.Failed.ToString(),
-            affected.Count));
     }
 
     private static IReadOnlyCollection<AuthoritativeEvent> FailEventApplicationGraph(

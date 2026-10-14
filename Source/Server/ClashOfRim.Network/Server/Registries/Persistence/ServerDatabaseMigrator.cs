@@ -16,7 +16,7 @@ public static class ServerDatabaseSchema
 {
     // Version 1 is the known JSON-document persistence layout.
     public const int LegacyJsonDocumentVersion = 1;
-    public const int CurrentVersion = 10;
+    public const int CurrentVersion = 11;
 }
 
 public sealed record ServerDatabaseMigrationOptions(int? DeclaredSourceVersion = null);
@@ -96,6 +96,10 @@ public static class ServerDatabaseMigrator
         new(
             FromVersion: 9,
             ToVersion: 10,
+            Apply: (_, _, _) => MigrationApplicationResult.None),
+        new(
+            FromVersion: 10,
+            ToVersion: 11,
             Apply: (_, _, _) => MigrationApplicationResult.None)
     ];
 

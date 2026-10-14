@@ -5,7 +5,7 @@ public sealed record LedgerStatusChange(string EventId, ServerEventStatus Expect
 
 public sealed record LedgerBatch(IReadOnlyList<AuthoritativeEvent> Events, IReadOnlyList<LedgerStatusChange> StatusChanges);
 
-internal static class LedgerBatchValidation
+public static class LedgerBatchValidation
 {
     public static void Validate(LedgerBatch batch, Func<string, AuthoritativeEvent?> find,
         Func<string, AuthoritativeEvent?> findByKey)

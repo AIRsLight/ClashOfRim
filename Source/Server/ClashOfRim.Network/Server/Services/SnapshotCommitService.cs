@@ -31,15 +31,17 @@ public sealed class SnapshotCommitService
         {
             SnapshotCommitIntent intent = JsonSerializer.Deserialize<SnapshotCommitIntent>(File.ReadAllBytes(path))
                 ?? throw new InvalidDataException("Empty snapshot commit: " + path);
-            if (intent.Version is not (1 or 2) || Path.GetFileNameWithoutExtension(path) != intent.Id)
+            if (intent.Version is not (1 or 2 or 3) || Path.GetFileNameWithoutExtension(path) != intent.Id)
                 throw new InvalidDataException("Unsupported snapshot commit: " + path);
             SnapshotIdentity identity = intent.Package.Envelope.Identity;
-            if (intent.Loan is null && intent.Debt is null && intent.Gift is null
+            if (intent.Loan is null && intent.Debt is null && intent.Gift is null && intent.Trade is null
                 || intent.Loan is { } loan && (loan.UserId != identity.OwnerId || loan.ColonyId != identity.ColonyId || loan.SnapshotId != identity.SnapshotId)
                 || intent.Debt is { } debt && (debt.UserId != identity.OwnerId || debt.ColonyId != identity.ColonyId || debt.SnapshotId != identity.SnapshotId)
                 || intent.Gift is { } gift && (intent.Version != 2 || intent.Loan is not null || intent.Debt is not null
-                    || !GiftSnapshotReplayPolicy.Matches(gift, identity.OwnerId!, identity.ColonyId, identity.SnapshotId)))
+                    || !GiftSnapshotReplayPolicy.Matches(gift, identity.OwnerId!, identity.ColonyId, identity.SnapshotId))
+                || intent.Trade is not null && (intent.Version != 3 || intent.Loan is not null || intent.Debt is not null || intent.Gift is not null))
                 throw new InvalidDataException("Snapshot journal identity mismatch: " + path);
+            intent.Trade?.Validate(identity);
             yield return intent;
         }
     }
@@ -66,10 +68,28 @@ public sealed class SnapshotCommitService
 
     public void Recover(IColonySnapshotIndexStore snapshots, BankLoanRegistry bank,
         Action<LatestSnapshotRecord, string?> postUpload, IAuthoritativeEventLedger? ledger,
-        Action<string>? signalUser = null)
+        Action<string>? signalUser = null, Action<AuthoritativeEvent>? recordTrade = null)
     {
         if (applying) return; // A post-upload processor may re-enter the snapshot mutation coordinator.
-        foreach (SnapshotCommitIntent intent in pending.Values.ToArray()) Apply(intent, snapshots, bank, postUpload, ledger, signalUser);
+        foreach (SnapshotCommitIntent intent in pending.Values.ToArray()) Apply(intent, snapshots, bank, postUpload, ledger, signalUser, recordTrade);
+    }
+
+    public void CommitTrade(IColonySnapshotIndexStore snapshots, BankLoanRegistry bank,
+        IAuthoritativeEventLedger ledger, SaveSnapshotPackage package, LatestSnapshotRecord snapshot,
+        TradeSnapshotMutation trade, Action<LatestSnapshotRecord, string?> postUpload, Action<string> signalUser,
+        Action<AuthoritativeEvent> recordTrade, string? snapshotUploadKind = null)
+    {
+        if (pending.Count != 0) throw new InvalidOperationException("Recover pending snapshot commits before accepting new work.");
+        trade.Validate(snapshot.Identity);
+        LedgerBatchValidation.Validate(trade.Batch, ledger.Find, ledger.FindByIdempotencyKey);
+        LatestSnapshotRecord? previous = snapshots.GetLatest(snapshot.Identity.OwnerId!, snapshot.Identity.ColonyId!);
+        var intent = new SnapshotCommitIntent(3, Guid.NewGuid().ToString("N"),
+            previous?.Identity.SnapshotId, previous?.Envelope.NextLineageToken,
+            package with { Envelope = snapshot.Envelope, Index = snapshot.Index }, snapshot.AcceptedAtUtc,
+            null, null, snapshotUploadKind, Trade: trade);
+        Write(intent);
+        pending.Add(intent.Id, intent);
+        Apply(intent, snapshots, bank, postUpload, ledger, signalUser, recordTrade);
     }
 
     public void CommitGift(IColonySnapshotIndexStore snapshots, BankLoanRegistry bank,
@@ -95,13 +115,18 @@ public sealed class SnapshotCommitService
 
     private void Apply(SnapshotCommitIntent intent, IColonySnapshotIndexStore snapshots, BankLoanRegistry bank,
         Action<LatestSnapshotRecord, string?> postUpload, IAuthoritativeEventLedger? ledger = null,
-        Action<string>? signalUser = null)
+        Action<string>? signalUser = null, Action<AuthoritativeEvent>? recordTrade = null)
     {
         applying = true;
         try
         {
             SaveSnapshotPackage package = intent.Package;
             SnapshotIdentity identity = package.Envelope.Identity;
+            if (intent.Trade is { } pendingTrade)
+            {
+                if (ledger is null) throw new InvalidOperationException("Trade recovery requires the event ledger.");
+                LedgerBatchValidation.Validate(pendingTrade.Batch, ledger.Find, ledger.FindByIdempotencyKey);
+            }
             if (intent.Gift is { } pendingGift)
             {
                 if (ledger is null) throw new InvalidOperationException("Gift recovery requires the event ledger.");
@@ -131,6 +156,12 @@ public sealed class SnapshotCommitService
                 // Repeat the wake-up on recovery even if Append already succeeded before interruption.
                 signalUser?.Invoke(gift.Target.UserId);
             }
+            else if (intent.Trade is { } trade)
+            {
+                ledger!.ApplyBatch(trade.Batch);
+                recordTrade?.Invoke(trade.Batch.Events[0]);
+                foreach (string userId in trade.NotifyUsers) signalUser?.Invoke(userId);
+            }
             else bank.ApplySnapshotCommit(intent.Loan, intent.Debt);
             // Processors are idempotent; retain the intent if scheduling downstream work fails.
             postUpload(snapshot, intent.SnapshotUploadKind);
@@ -156,4 +187,4 @@ public sealed class SnapshotCommitService
 
 public sealed record SnapshotCommitIntent(int Version, string Id, string? PreviousSnapshotId, string? PreviousLineageToken,
     SaveSnapshotPackage Package, DateTimeOffset AcceptedAtUtc, BankLoanRecord? Loan, BankDebtRecord? Debt, string? SnapshotUploadKind,
-    AuthoritativeEvent? Gift = null);
+    AuthoritativeEvent? Gift = null, TradeSnapshotMutation? Trade = null);
