@@ -56,7 +56,8 @@ public sealed class ServerShopListingDto
 
     public int PriceSilver { get; }
 
-    public int BasePriceSilver { get; }
+    // Constructor binding requires the same CLR type; missing/null wire values use PriceSilver above.
+    public int? BasePriceSilver { get; }
 
     public double PriceIncreaseRatio { get; }
 

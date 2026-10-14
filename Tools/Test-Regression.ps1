@@ -14,11 +14,11 @@ try {
         if ($LASTEXITCODE -ne 0) { throw "$project failed ($LASTEXITCODE)." }
     }
 
-    # This subset is self-contained. The extended smoke scenario needs local SaveSample fixtures.
+    # The complete network scenario uses redistributable synthetic fixtures copied by the project.
     Push-Location (Join-Path $repoRoot 'Tools/ClashOfRim.NetworkServer')
     try {
-        & dotnet run --project ../ClashOfRim.NetworkSmoke -c $Configuration -- --snapshot-pipeline-only
-        if ($LASTEXITCODE -ne 0) { throw "Network snapshot pipeline regressions failed ($LASTEXITCODE)." }
+        & dotnet run --project ../ClashOfRim.NetworkSmoke -c $Configuration
+        if ($LASTEXITCODE -ne 0) { throw "Complete network regressions failed ($LASTEXITCODE)." }
     }
     finally { Pop-Location }
 

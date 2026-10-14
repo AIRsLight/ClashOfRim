@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Synthetic server-test data, authored for this repository; not an engine-loadable game save. -->
+<savegame>
+  <meta>
+    <gameVersion>1.7.4977</gameVersion>
+    <modIds />
+    <modSteamIds />
+    <modNames />
+  </meta>
+  <game>
+    <tickManager><ticksGame>1000</ticksGame></tickManager>
+    <world>
+      <factionManager><allFactions>
+        <li><loadID>0</loadID><def>PlayerColony</def><name>Network Fixture Colony</name></li>
+        <li><loadID>1</loadID><def>OutlanderCivil</def><name>Network Fixture Neighbors</name></li>
+      </allFactions></factionManager>
+      <worldObjects><worldObjects>
+        <li Class="RimWorld.Settlement">
+          <ID>100</ID><def>Settlement</def><tile>9,0</tile><faction>Faction_0</faction><nameInt>Network Fixture Site</nameInt>
+        </li>
+      </worldObjects></worldObjects>
+    </world>
+    <maps><li>
+      <uniqueID>Map_0</uniqueID><generatedId>Generated_0</generatedId>
+      <mapInfo><parent>WorldObject_100</parent><size>(250, 1, 250)</size></mapInfo>
+      <compressedThingMap /><terrainGrid /><roofGrid /><fogGrid />
+      <things>
+        <thing Class="Pawn">
+          <id>Human1</id><def>Human</def><kindDef>Colonist</kindDef><faction>Faction_0</faction><pos>(11, 0, 10)</pos>
+          <name Class="NameTriple"><first>Fixture</first><nick>Colonist</nick><last>Test</last></name>
+          <story />
+          <healthTracker><healthState>Mobile</healthState><hediffSet><hediffs /></hediffSet></healthTracker>
+        </thing>
+        <thing Class="ThingWithComps">
+          <id>Silver1</id><def>Silver</def><pos>(10, 0, 10)</pos><faction>Faction_0</faction><stackCount>1000</stackCount><health>100</health>
+        </thing>
+      </things>
+    </li></maps>
+  </game>
+</savegame>

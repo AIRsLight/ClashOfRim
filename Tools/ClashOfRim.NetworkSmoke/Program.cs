@@ -56,6 +56,7 @@ if (args.Contains("--world-difficulty-only", StringComparer.Ordinal))
 VerifyPendingLoginSessionCanBeReplaced();
 VerifyPersistentRegistries();
 VerifyServerShopRegistrySemantics();
+ProtocolHttpContractTests.Run();
 VerifyAchievementRegistryThresholdDefinitions();
 VerifyPlayerRegistryColonyTombstones();
 await VerifyPlayerListUsesLatestSnapshotWealthFallbackAsync();
@@ -1344,7 +1345,7 @@ try
                         "UI/Ideoligions/Icons/Classic",
                         "IdeoColor_Red",
                         "#FF0000FF",
-                        "<savedideo><meta><gameVersion>1.6.4633</gameVersion></meta><ideo /></savedideo>",
+                        "<savedideo><meta><gameVersion>1.7.4977</gameVersion></meta><ideo /></savedideo>",
                         null,
                         null,
                         new[] { "Collectivist" },
@@ -1355,8 +1356,9 @@ try
                         memeCount: 1,
                         preceptCount: 1)))));
     Require(submittedWorld.Result.Accepted, "管理员应能提交初始世界配置");
-    Require(submittedWorld.WorldConfigured, "提交后服务器应标记已有世界配置");
-    Equal("seed-a", submittedWorld.WorldConfiguration?.SeedString, "服务器应保留世界种子");
+    Require(!submittedWorld.WorldConfigured, "世界底图上传前基线应保持未就绪");
+    await UploadSmokeWorldSubstrate(httpClient, "user-a", "colony-a", "world:test", BuildSmokeCompatibilityManifestJson("smoke-main-manifest"));
+    Equal("seed-a", state.WorldConfiguration.Current?.SeedString, "底图提交后服务器应保留世界种子");
 
     SubmitAdminBaselineResponse adminBaseline = await client.SubmitAdminBaselineAsync(
         new SubmitAdminBaselineRequest(
@@ -1524,7 +1526,7 @@ try
                     null,
                     null,
                     null,
-                    "<savedideo><meta><gameVersion>1.6.4633</gameVersion></meta><ideo /></savedideo>",
+                    "<savedideo><meta><gameVersion>1.7.4977</gameVersion></meta><ideo /></savedideo>",
                     null,
                     null,
                     new[] { "Individualist" },
@@ -1669,7 +1671,7 @@ try
                     memeCount: 2,
                     preceptCount: 2))));
     Require(summaryOnlyIdeoRefresh.Result.Accepted, "文化摘要刷新不应被拒绝");
-    WorldIdeoSummaryDto refreshedUserBIdeo = ReadIdeoExtension(summaryOnlyIdeoRefresh.WorldConfiguration).Single(ideo => ideo.GlobalKey == "owner:user-b/colony:colony-b/ideo:7");
+    WorldIdeoSummaryDto refreshedUserBIdeo = ReadIdeoExtension(summaryOnlyIdeoRefresh.WorldConfiguration).Single(ideo => ideo.GlobalKey == "owner:user-b/ideo:7");
     Equal("玩家B文化已演进", refreshedUserBIdeo.Name, "文化摘要刷新应更新显示字段");
     Require(!string.IsNullOrWhiteSpace(refreshedUserBIdeo.SavedIdeoPackageXml), "文化摘要刷新不能覆盖已有完整文化包");
 
@@ -1987,9 +1989,11 @@ try
         "smoke-main-manifest",
         password: string.Empty,
         compatibilityManifestId: "smoke-main-manifest"));
-    Require(!duplicatePendingLogin.Result.Accepted, "已登录但未建立在线流的玩家不应再次触发登录");
-    Equal(ProtocolErrorCode.ServerRejected, duplicatePendingLogin.Result.ErrorCode, "待驻留会话重复登录应由服务器拒绝");
-    Require(duplicatePendingLogin.SessionId is null, "待驻留会话重复登录不应获得新会话");
+    Require(duplicatePendingLogin.Result.Accepted && duplicatePendingLogin.SessionId != userBLogin.SessionId,
+        "尚未驻留的登录应允许重新登录并替换旧会话");
+    Require(!state.LoginSessions.Refresh("user-b", "colony-b", userBLogin.SessionId!, DateTimeOffset.UtcNow), "替换后的旧会话必须失效");
+    userBLogin = duplicatePendingLogin;
+    userBAuthToken = duplicatePendingLogin.AuthToken!;
 
     using var presenceCancellation = new CancellationTokenSource();
     Task<MaintainPresenceResponse> userBPresence = client.MaintainPresenceAsync(new MaintainPresenceRequest(
@@ -2012,6 +2016,11 @@ try
     Require(!duplicateOnlineLogin.Result.Accepted, "在线玩家不应能再次触发登录");
     Equal(ProtocolErrorCode.ServerRejected, duplicateOnlineLogin.Result.ErrorCode, "在线玩家重复登录应由服务器拒绝");
     Require(duplicateOnlineLogin.SessionId is null, "在线玩家重复登录不应获得新会话");
+    var sameSessionPresence = await client.MaintainPresenceAsync(new MaintainPresenceRequest(
+        "user-b", "colony-b", "defender-snapshot-before", userBLogin.SessionId!));
+    Require(!sameSessionPresence.Result.Accepted
+        && state.LoginSessions.IsValid("user-b", "colony-b", userBLogin.SessionId!, DateTimeOffset.UtcNow),
+        "相同会话的第二条驻留连接应被拒绝，且不能关闭原会话");
     MaintainPresenceResponse duplicatePresence = await client.MaintainPresenceAsync(new MaintainPresenceRequest(
         "user-b",
         "colony-b",
@@ -2131,6 +2140,8 @@ try
     WaitForEventsResponse offlineWaitNotification = await waitWithoutPresence;
     Require(offlineWaitNotification.Changed, "离线事件仍应唤醒事件等待通道刷新队列");
 
+    Require((await client.PrepareWorldSessionAsync(SmokePrepareWorldSessionRequest("user-d", "colony-d"))).Result.Accepted,
+        "WebSocket 测试用户应先显式注册");
     LoginResponse userDLogin = await client.LoginAsync(new LoginRequest(
         ProtocolApiVersion.Current,
         "user-d",
@@ -2212,7 +2223,7 @@ try
                     null,
                     null,
                     null,
-                    "<savedideo><meta><gameVersion>1.6.4633</gameVersion></meta><ideo /></savedideo>",
+                    "<savedideo><meta><gameVersion>1.7.4977</gameVersion></meta><ideo /></savedideo>",
                     null,
                     null,
                     new[] { "Collectivist" },
@@ -2827,6 +2838,8 @@ try
     ItemDeliveryEventPayload ownerDeliveryPayload = (ItemDeliveryEventPayload)state.Ledger.Find(directDropPodFulfill.OwnerDeliveryEventId!)!.Payload;
     Equal(ItemDeliveryPurpose.TradeCompletedAcceptorDelivery, acceptorDeliveryPayload.Purpose, "空投履约应给接单方生成对方物品交付事件");
     Equal(ItemDeliveryPurpose.TradeCompletedOwnerDelivery, ownerDeliveryPayload.Purpose, "空投履约应给发布者生成己方交付物交付事件");
+    Require((await client.PrepareWorldSessionAsync(SmokePrepareWorldSessionRequest("user-surface", "colony-surface"))).Result.Accepted,
+        "地表交易测试用户应先显式注册");
     LoginResponse surfaceLogin = await client.LoginAsync(new LoginRequest(
         ProtocolApiVersion.Current,
         "user-surface",
@@ -3082,7 +3095,7 @@ try
     Equal(ProtocolErrorCode.ServerRejected, forcedGiftDuringRaid.Result.ErrorCode, "未结算袭击强投保护应由服务器拒绝");
     Require(!string.IsNullOrWhiteSpace(forcedGiftDuringRaid.Result.Message), "强投拒绝应返回可显示原因");
 
-    EventCreationResponse blockedSecondRaid = await client.CreateRaidAsync(new CreateRaidRequest(
+    EventCreationResponse blockedSecondRaid = await client.CreateRaidWithSnapshotAsync(new CreateRaidRequest(
         "raid:user-a:user-b:blocked-second",
         new ProtocolIdentity("user-a", "colony-a", "attacker-snapshot-after-player-raid"),
         new ProtocolIdentity("user-b", "colony-b", "defender-snapshot-before"),
@@ -3095,7 +3108,7 @@ try
         defenderMap,
         "defender-snapshot-before",
         new[] { "owner:user-a/colony:colony-a/snapshot:attacker-snapshot-after/map:caravan/thing:pawn-2" },
-        Array.Empty<ThingReferenceDto>()));
+        Array.Empty<ThingReferenceDto>()), SnapshotMetadata(raidBattlefieldPackage), raidBattlefieldPackage.Payload, login.AuthToken!);
     Require(!blockedSecondRaid.Result.Accepted, "存在未结算袭击时同一玩家不能再次发动袭击");
     Equal(ProtocolErrorCode.ServerRejected, blockedSecondRaid.Result.ErrorCode, "未结算袭击限制应由服务器拒绝");
     Equal(raid.EventId, blockedSecondRaid.EventId, "重复袭击拒绝响应应指向阻挡的新近袭击");
@@ -3221,6 +3234,8 @@ try
         "Settlement",
         "901",
         Array.Empty<IdeoSummary>()));
+    Require((await client.PrepareWorldSessionAsync(SmokePrepareWorldSessionRequest("user-f", "colony-f"))).Result.Accepted,
+        "删除殖民地测试用户应先显式注册");
     LoginResponse userFLogin = await client.LoginAsync(new LoginRequest(
         ProtocolApiVersion.Current,
         "user-f",
@@ -3252,7 +3267,7 @@ try
     Require(!adminDeletedPlayerSession.HasExistingColony, "管理员删除后同一玩家不应被识别为已有殖民地");
     Require(!string.Equals(adminDeletedPlayerSession.AssignedColonyId, "colony-f", StringComparison.Ordinal), "管理员删除后同名重建应分配新的殖民地实例");
 
-    Console.WriteLine("通过：网络层最小闭环和事件创建接口");
+    Console.WriteLine("通过：完整网络回归（HTTP、WebSocket、持久化重启、快照和事件流程）");
 }
 finally
 {
@@ -3309,7 +3324,7 @@ static SaveSnapshotPackage BuildFixturePackageFor(
     string snapshotId,
     int? playerSettlementTile = null)
 {
-    string samplePath = ResolveSampleSavePath("SaveHediffFixture.rws");
+    string samplePath = Path.Combine(AppContext.BaseDirectory, "Fixtures", "NetworkSnapshot.rws");
     Require(File.Exists(samplePath), $"缺少样本存档：{samplePath}");
 
     if (playerSettlementTile is not null)
@@ -3332,23 +3347,6 @@ static SaveSnapshotPackage BuildFixturePackageFor(
         SnapshotPayloadEncoding.GzipRws);
 }
 
-static string ResolveSampleSavePath(string fileName)
-{
-    DirectoryInfo? directory = new(Environment.CurrentDirectory);
-    while (directory is not null)
-    {
-        string candidate = Path.Combine(directory.FullName, "SaveSample", fileName);
-        if (File.Exists(candidate))
-        {
-            return candidate;
-        }
-
-        directory = directory.Parent;
-    }
-
-    return Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, "SaveSample", fileName));
-}
-
 static SaveSnapshotPackage BuildFixturePackageForWithLineage(
     string ownerId,
     string colonyId,
@@ -3359,7 +3357,7 @@ static SaveSnapshotPackage BuildFixturePackageForWithLineage(
     int? playerSettlementTile = null,
     Action<System.Xml.Linq.XDocument>? extraMutate = null)
 {
-    string samplePath = ResolveSampleSavePath("SaveHediffFixture.rws");
+    string samplePath = Path.Combine(AppContext.BaseDirectory, "Fixtures", "NetworkSnapshot.rws");
     Require(File.Exists(samplePath), $"缺少样本存档：{samplePath}");
 
     return BuildModifiedFixturePackage(
@@ -3681,6 +3679,10 @@ static async Task VerifyColonyRelocationExplicitConfirmationAsync()
             compatibilityManifestJson: compatibilityManifestJson));
         Require(login.Result.Accepted, $"搬迁测试用户应能登录：{login.Result.ErrorCode} {login.Result.Message}");
         Require(!string.IsNullOrWhiteSpace(login.AuthToken), "搬迁测试登录应返回鉴权令牌");
+        var substrate = await client.UploadWorldSubstrateAsync(new UploadWorldSubstrateRequest(ProtocolApiVersion.Current,
+            "reloc-user", "reloc-colony", "world:relocation", password: string.Empty, authToken: login.AuthToken),
+            BuildSmokeWorldSubstrate(BuildSmokeWorldTileGeometry()));
+        Require(substrate.Result.Accepted && state.WorldConfiguration.Current is not null, "搬迁测试应上传世界底图使基线就绪");
 
         SaveSnapshotPackage initialPackage = BuildFixturePackageFor(
             "reloc-user",
@@ -3696,6 +3698,8 @@ static async Task VerifyColonyRelocationExplicitConfirmationAsync()
             authToken: login.AuthToken),
             initialPackage.Payload);
         Require(initialUpload.Result.Accepted, "搬迁测试初始快照应能上传");
+        Require(state.WorldConfiguration.Current?.PlayerColonySites.Any(site => site.UserId == "reloc-user" && site.Tile == 101) == true,
+            "初始上传应登记搬迁起点：" + JsonSerializer.Serialize(new { initialPackage.Index.Maps, initialPackage.Index.WorldObjects, initialPackage.Index.Factions, state.WorldConfiguration.Current }));
 
         AuthoritativeEvent defendingRaid = AuthoritativeEventFactory.Create(
             ServerEventType.Raid,
@@ -4075,7 +4079,8 @@ static async Task VerifyDefaultPersistentServerStateAsync()
         await firstApp.StartAsync();
         try
         {
-            var firstClient = new ClashOfRimNetworkClient(new HttpClient { BaseAddress = new Uri(ServerAddress(firstApp)) });
+            using var firstHttp = new HttpClient { BaseAddress = new Uri(ServerAddress(firstApp)) };
+            var firstClient = new ClashOfRimNetworkClient(firstHttp);
             string compatibilityManifestJson = BuildSmokeCompatibilityManifestJson("persistent-manifest");
             PrepareWorldSessionResponse prepared = await firstClient.PrepareWorldSessionAsync(
                 new PrepareWorldSessionRequest(
@@ -4094,6 +4099,11 @@ static async Task VerifyDefaultPersistentServerStateAsync()
                     "colony-a",
                     BuildMinimalWorldConfiguration()));
             Require(submitted.Result.Accepted, "默认持久化服务端应接受世界配置");
+            await UploadSmokeWorldSubstrate(firstHttp, "admin-user", "colony-a", "world:persistent", compatibilityManifestJson);
+            var siteOwner = await firstClient.PrepareWorldSessionAsync(new PrepareWorldSessionRequest(
+                ProtocolApiVersion.Current, "user-b", "colony-b", password: string.Empty,
+                compatibilityManifestJson: compatibilityManifestJson, createAccountIfMissing: true));
+            Require(siteOwner.Result.Accepted, "登记地块前应先注册其玩家账户");
 
             RegisterPlayerColonySitesResponse registered = await firstClient.RegisterPlayerColonySitesAsync(
                 new RegisterPlayerColonySitesRequest(
@@ -4200,6 +4210,10 @@ static async Task VerifyDefaultPersistentServerStateAsync()
                 compatibilityManifestId: "persistent-manifest"));
             Require(reopenedAdminLogin.Result.Accepted, $"默认持久化服务端重启后应允许管理员重新登录：{reopenedAdminLogin.Result.ErrorCode} {reopenedAdminLogin.Result.Message}");
             Require(!string.IsNullOrWhiteSpace(reopenedAdminLogin.AuthToken), "默认持久化服务端重启后登录应返回鉴权令牌");
+            var observerPrepared = await secondClient.PrepareWorldSessionAsync(new PrepareWorldSessionRequest(
+                ProtocolApiVersion.Current, "observer-user", "observer-colony", password: string.Empty,
+                compatibilityManifestJson: BuildSmokeCompatibilityManifestJson("persistent-observer-manifest"), createAccountIfMissing: true));
+            Require(observerPrepared.Result.Accepted, "持久化测试观察者应先显式注册账户");
             LoginResponse observerLogin = await secondClient.LoginAsync(new LoginRequest(
                 ProtocolApiVersion.Current,
                 "observer-user",
@@ -4385,20 +4399,14 @@ static string BuildSmokeCompatibilityManifestJson(string manifestId)
         SchemaVersion = 1,
         ManifestId = manifestId,
         ProtocolVersion = ProtocolApiVersion.Current,
-        RimWorldVersion = "1.6.4633",
+        RimWorldVersion = "1.7.4977",
         ConfigVersion = "smoke",
         ConfigSha256 = "smoke",
-        Mods = new[]
-        {
-            new ModManifestEntry
+        Mods = new[] { "ludeon.rimworld", "ludeon.rimworld.ideology", "ludeon.rimworld.biotech" }
+            .Select((packageId, order) => new ModManifestEntry
             {
-                LoadOrder = 0,
-                PackageId = "ludeon.rimworld",
-                Name = "Core",
-                Source = "Smoke",
-                Role = ModCompatibilityRole.Required
-            }
-        }
+                LoadOrder = order, PackageId = packageId, Name = packageId, Source = "Smoke", Role = ModCompatibilityRole.Required
+            }).ToArray()
     });
 }
 
@@ -4540,6 +4548,20 @@ static WorldTileGeometryDto BuildSmokeWorldTileGeometry()
                 new WorldTileCenterDto(900, 2f, 0f, 0f)
             })
     });
+}
+
+static async Task UploadSmokeWorldSubstrate(HttpClient http, string user, string colony, string world, string manifest)
+{
+    var client = new ClashOfRimNetworkClient(http);
+    var login = await client.LoginAsync(new LoginRequest(ProtocolApiVersion.Current, user, colony, null, "substrate-login",
+        password: string.Empty, compatibilityManifestJson: manifest));
+    Require(login.Result.Accepted, "世界底图上传前管理员应能登录");
+    var uploaded = await client.UploadWorldSubstrateAsync(new UploadWorldSubstrateRequest(ProtocolApiVersion.Current,
+        user, colony, world, password: string.Empty, authToken: login.AuthToken), BuildSmokeWorldSubstrate(BuildSmokeWorldTileGeometry()));
+    Require(uploaded.Result.Accepted && uploaded.WorldConfiguration is not null, "独立上传世界底图后基线应就绪");
+    using var logout = await http.PostAsJsonAsync(ProtocolContractManifest.Find(ProtocolMessageKind.Logout).Route,
+        new LogoutRequest(user, colony, login.SessionId));
+    logout.EnsureSuccessStatusCode();
 }
 
 static byte[] BuildSmokeWorldSubstrate(WorldTileGeometryDto? geometry)

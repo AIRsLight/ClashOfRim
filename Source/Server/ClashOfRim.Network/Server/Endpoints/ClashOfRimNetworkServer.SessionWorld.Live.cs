@@ -499,7 +499,7 @@ public static partial class ClashOfRimNetworkServer
                 online: false));
         }
 
-        if (!state.LoginSessions.IsValid(request.UserId, request.ColonyId, request.SessionId, DateTimeOffset.UtcNow))
+        if (!state.LoginSessions.TryBeginStream(request.UserId, request.ColonyId, request.SessionId, DateTimeOffset.UtcNow))
         {
             return Results.Ok(new MaintainPresenceResponse(
                 ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, T("Presence.InvalidSession")),
@@ -509,6 +509,7 @@ public static partial class ClashOfRimNetworkServer
 
         if (!state.OnlinePresence.TryConnectExclusive(request.UserId, out OnlinePresenceLease? presence))
         {
+            state.LoginSessions.End(request.UserId, request.SessionId);
             RuntimeLogger(loggerFactory).LogWarning(
                 "玩家上线被拒绝：user={UserId} colony={ColonyId} session={SessionId} reason=AlreadyOnline channel=presence",
                 request.UserId,
@@ -539,7 +540,8 @@ public static partial class ClashOfRimNetworkServer
                 while (!linkedCancellationToken.IsCancellationRequested)
                 {
                     await Task.Delay(SessionStreamWaitTimeout, linkedCancellationToken);
-                    if (!presence!.Touch())
+                    if (!state.LoginSessions.Refresh(request.UserId, request.ColonyId, request.SessionId, DateTimeOffset.UtcNow)
+                        || !presence!.Touch())
                     {
                         break;
                     }
