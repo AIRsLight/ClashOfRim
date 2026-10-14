@@ -182,7 +182,8 @@ public static partial class ClashOfRimNetworkServer
             request.CurrentGameTicks,
             request.ColonyWealth,
             nowUtc,
-            out ProtocolResponse? rejection);
+            out ProtocolResponse? rejection,
+            committedSnapshotId: BankSnapshotReplayPolicy.FindLoanSnapshot(state.BankLoans, request.IdempotencyKey, request.UserId, request.ColonyId, request.ConfirmedSnapshot?.SnapshotId, repayment: false));
         if (context is null)
         {
             return Results.Ok(new BankLoanResponse(rejection!, loan: null, silverDelta: 0, status: null));
@@ -203,6 +204,8 @@ public static partial class ClashOfRimNetworkServer
         BankLoanRecord? existingByKey = state.BankLoans.FindByIdempotencyKey(request.IdempotencyKey);
         if (existingByKey is not null)
         {
+            if (BankSnapshotReplayPolicy.FindLoanSnapshot(state.BankLoans, request.IdempotencyKey, request.UserId, request.ColonyId, request.ConfirmedSnapshot?.SnapshotId, repayment: false) is null)
+                return Results.Ok(new BankLoanResponse(ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Bank.RequestMissingIdentity")), null, 0, null));
             string? nextLineageToken = FindSnapshotNextLineageToken(
                 state,
                 request.UserId,
@@ -300,7 +303,7 @@ public static partial class ClashOfRimNetworkServer
             request.ConfirmedSnapshot.SnapshotId!,
             request.ConfirmedSnapshot,
             multipart.Payload,
-            nowUtc);
+            nowUtc, storeAccepted: false);
         if (!upload.Accepted || upload.AcceptedSnapshot is null)
         {
             return Results.Ok(new BankLoanResponse(
@@ -310,40 +313,43 @@ public static partial class ClashOfRimNetworkServer
                 BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
         }
 
-        BankLoanRecord loan = state.BankLoans.Create(
-            request.IdempotencyKey,
-            request.UserId,
-            request.ColonyId,
-            upload.AcceptedSnapshot.Identity.SnapshotId ?? request.ConfirmedSnapshot.SnapshotId!,
-            request.PrincipalSilver,
-            interestSilver,
-            request.DurationDays,
-            context.CurrentGameTicks,
-            nowUtc,
-            request.RequestedLoanId);
-        BankConfirmationResult confirmation = state.BankLoans.ConfirmPendingForSnapshot(
-            request.UserId,
-            request.ColonyId,
-            upload.AcceptedSnapshot.Identity.SnapshotId ?? request.ConfirmedSnapshot.SnapshotId!,
-            upload.AcceptedSnapshot.Envelope.GameTicks,
-            nowUtc);
-        BankLoanRecord confirmedLoan = confirmation.Loan ?? loan;
-        RunSnapshotPostUploadProcessors(
-            state,
-            request.UserId,
-            request.ColonyId,
-            sessionId: null,
-            upload,
-            nowUtc);
+        lock (state.RaidSettlementSnapshotMutationGate)
+            lock (state.BankLoans.SnapshotCommitGate)
+            {
+                RecoverBankSnapshotCommits(state);
+                if (state.BankLoans.GetActive(request.UserId, request.ColonyId) is not null) return Results.Ok(new BankLoanResponse(ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Bank.LoanCannotRepay")), null, 0, null));
+                upload = CreateSnapshotReceiver(state).CommitPrepared(
+                    new SnapshotUploadContext(request.UserId, request.ColonyId, request.ConfirmedSnapshot.SnapshotId!,
+                        null, NormalizeSnapshotUploadKind(request.ConfirmedSnapshot.SnapshotUploadKind)),
+                    ProtocolDtoMapper.ToSaveSnapshotPackage(request.ConfirmedSnapshot, multipart.Payload),
+                    upload, storeAccepted: false);
+                if (!upload.Accepted || upload.AcceptedSnapshot is null)
+                {
+                    return Results.Ok(new BankLoanResponse(
+                        ToProtocolResponse(upload),
+                        loan: null,
+                        silverDelta: 0,
+                        BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
+                }
 
-        BankRequestContext updatedContext = context with { ActiveLoan = confirmedLoan };
-        return Results.Ok(new BankLoanResponse(
-            ProtocolResponse.Ok(T("Bank.LoanActivated")),
-            ToBankLoanSummary(confirmedLoan, state.ServerConfiguration),
-            confirmedLoan.PrincipalSilver,
-            BuildBankStatusResponse(state, updatedContext, ProtocolResponse.Ok()),
-            upload.AcceptedSnapshot.Identity.SnapshotId,
-            upload.AcceptedSnapshot.Envelope.NextLineageToken));
+                BankLoanRecord confirmedLoan = state.BankLoans.PrepareActivatedLoan(
+                    request.IdempotencyKey, request.UserId, request.ColonyId,
+                    upload.AcceptedSnapshot.Identity.SnapshotId!, request.PrincipalSilver, interestSilver,
+                    request.DurationDays, context.CurrentGameTicks, nowUtc, request.RequestedLoanId);
+                state.BankSnapshotCommits.Commit(state.SnapshotStore, state.BankLoans,
+                    ProtocolDtoMapper.ToSaveSnapshotPackage(request.ConfirmedSnapshot, multipart.Payload),
+                    upload.AcceptedSnapshot, confirmedLoan, null,
+                    (snapshot, kind) => RunBankSnapshotPostUpload(state, snapshot, kind), upload.SnapshotUploadKind);
+
+                BankRequestContext updatedContext = context with { ActiveLoan = confirmedLoan };
+                return Results.Ok(new BankLoanResponse(
+                    ProtocolResponse.Ok(T("Bank.LoanActivated")),
+                    ToBankLoanSummary(confirmedLoan, state.ServerConfiguration),
+                    confirmedLoan.PrincipalSilver,
+                    BuildBankStatusResponse(state, updatedContext, ProtocolResponse.Ok()),
+                    upload.AcceptedSnapshot.Identity.SnapshotId,
+                    upload.AcceptedSnapshot.Envelope.NextLineageToken));
+            }
     }
 
     private static async Task<IResult> RepayBankLoanWithSnapshot(HttpRequest httpRequest, ClashOfRimNetworkState state)
@@ -370,7 +376,8 @@ public static partial class ClashOfRimNetworkServer
             request.CurrentGameTicks,
             colonyWealth: 0,
             nowUtc,
-            out ProtocolResponse? rejection);
+            out ProtocolResponse? rejection,
+            committedSnapshotId: BankSnapshotReplayPolicy.FindLoanSnapshot(state.BankLoans, request.IdempotencyKey, request.UserId, request.ColonyId, request.ConfirmedSnapshot?.SnapshotId, repayment: true));
         if (context is null)
         {
             return Results.Ok(new BankLoanResponse(rejection!, loan: null, silverDelta: 0, status: null));
@@ -391,6 +398,8 @@ public static partial class ClashOfRimNetworkServer
         BankLoanRecord? existingByKey = state.BankLoans.FindByIdempotencyKey(request.IdempotencyKey);
         if (existingByKey is not null)
         {
+            if (BankSnapshotReplayPolicy.FindLoanSnapshot(state.BankLoans, request.IdempotencyKey, request.UserId, request.ColonyId, request.ConfirmedSnapshot?.SnapshotId, repayment: true) is null)
+                return Results.Ok(new BankLoanResponse(ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Bank.RequestMissingIdentity")), null, 0, null));
             string? nextLineageToken = FindSnapshotNextLineageToken(
                 state,
                 request.UserId,
@@ -457,7 +466,7 @@ public static partial class ClashOfRimNetworkServer
             request.ConfirmedSnapshot.SnapshotId!,
             request.ConfirmedSnapshot,
             multipart.Payload,
-            nowUtc);
+            nowUtc, storeAccepted: false);
         if (!upload.Accepted || upload.AcceptedSnapshot is null)
         {
             return Results.Ok(new BankLoanResponse(
@@ -467,40 +476,49 @@ public static partial class ClashOfRimNetworkServer
                 BuildBankStatusResponse(state, context with { ActiveLoan = active }, ProtocolResponse.Ok())));
         }
 
-        string acceptedSnapshotId = upload.AcceptedSnapshot.Identity.SnapshotId ?? request.ConfirmedSnapshot.SnapshotId!;
-        BankLoanRecord? repaid = state.BankLoans.MarkRepaidWithSnapshot(
-            request.IdempotencyKey,
-            request.UserId,
-            request.ColonyId,
-            request.LoanId,
-            acceptedSnapshotId,
-            request.SilverPaid,
-            upload.AcceptedSnapshot.Envelope.GameTicks ?? context.CurrentGameTicks,
-            nowUtc);
-        if (repaid is null)
-        {
-            return Results.Ok(new BankLoanResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Bank.LoanRepaymentLedgerFailed")),
-                loan: null,
-                silverDelta: 0,
-                BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
-        }
+        lock (state.RaidSettlementSnapshotMutationGate)
+            lock (state.BankLoans.SnapshotCommitGate)
+            {
+                RecoverBankSnapshotCommits(state);
+                if (state.BankLoans.GetActive(request.UserId, request.ColonyId) != active) return Results.Ok(new BankLoanResponse(ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Bank.LoanCannotRepay")), null, 0, null));
+                upload = CreateSnapshotReceiver(state).CommitPrepared(
+                    new SnapshotUploadContext(request.UserId, request.ColonyId, request.ConfirmedSnapshot.SnapshotId!,
+                        null, NormalizeSnapshotUploadKind(request.ConfirmedSnapshot.SnapshotUploadKind)),
+                    ProtocolDtoMapper.ToSaveSnapshotPackage(request.ConfirmedSnapshot, multipart.Payload),
+                    upload, storeAccepted: false);
+                if (!upload.Accepted || upload.AcceptedSnapshot is null)
+                {
+                    return Results.Ok(new BankLoanResponse(
+                        ToProtocolResponse(upload),
+                        loan: null,
+                        silverDelta: 0,
+                        BuildBankStatusResponse(state, context with { ActiveLoan = active }, ProtocolResponse.Ok())));
+                }
 
-        RunSnapshotPostUploadProcessors(
-            state,
-            request.UserId,
-            request.ColonyId,
-            sessionId: null,
-            upload,
-            nowUtc);
+                string acceptedSnapshotId = upload.AcceptedSnapshot.Identity.SnapshotId ?? request.ConfirmedSnapshot.SnapshotId!;
+                BankLoanRecord repaid = active with
+                {
+                    Status = BankLoanRegistry.StatusRepaid,
+                    SnapshotId = acceptedSnapshotId,
+                    RepaidAtUtc = nowUtc,
+                    RepaidAtGameTicks = upload.AcceptedSnapshot.Envelope.GameTicks ?? context.CurrentGameTicks,
+                    RepaymentIdempotencyKey = request.IdempotencyKey,
+                    RepaymentRequestedAtUtc = nowUtc,
+                    RepaymentRequestedAtGameTicks = upload.AcceptedSnapshot.Envelope.GameTicks ?? context.CurrentGameTicks
+                };
+                state.BankSnapshotCommits.Commit(state.SnapshotStore, state.BankLoans,
+                    ProtocolDtoMapper.ToSaveSnapshotPackage(request.ConfirmedSnapshot, multipart.Payload),
+                    upload.AcceptedSnapshot, repaid, null,
+                    (snapshot, kind) => RunBankSnapshotPostUpload(state, snapshot, kind), upload.SnapshotUploadKind);
 
-        return Results.Ok(new BankLoanResponse(
-            ProtocolResponse.Ok(T("Bank.LoanRepaidWithSnapshot")),
-            ToBankLoanSummary(repaid, state.ServerConfiguration),
-            silverDelta: -repaid.TotalDueSilver,
-            BuildBankStatusResponse(state, context with { ActiveLoan = null }, ProtocolResponse.Ok()),
-            acceptedSnapshotId,
-            upload.AcceptedSnapshot.Envelope.NextLineageToken));
+                return Results.Ok(new BankLoanResponse(
+                    ProtocolResponse.Ok(T("Bank.LoanRepaidWithSnapshot")),
+                    ToBankLoanSummary(repaid, state.ServerConfiguration),
+                    silverDelta: -repaid.TotalDueSilver,
+                    BuildBankStatusResponse(state, context with { ActiveLoan = null }, ProtocolResponse.Ok()),
+                    acceptedSnapshotId,
+                    upload.AcceptedSnapshot.Envelope.NextLineageToken));
+            }
     }
 
     private static IResult RepayBankLoan(RepayBankLoanRequest request, ClashOfRimNetworkState state)
@@ -607,7 +625,8 @@ public static partial class ClashOfRimNetworkServer
             request.CurrentGameTicks,
             colonyWealth: 0,
             nowUtc,
-            out ProtocolResponse? rejection);
+            out ProtocolResponse? rejection,
+            committedSnapshotId: BankSnapshotReplayPolicy.FindDebtSnapshot(state.BankLoans, request.IdempotencyKey, request.UserId, request.ColonyId, request.ConfirmedSnapshot?.SnapshotId));
         if (context is null)
         {
             return Results.Ok(new BankDebtResponse(rejection!, debt: null, silverDelta: 0, status: null));
@@ -628,6 +647,8 @@ public static partial class ClashOfRimNetworkServer
         BankDebtRecord? existingByKey = state.BankLoans.FindDebtByIdempotencyKey(request.IdempotencyKey);
         if (existingByKey is not null)
         {
+            if (BankSnapshotReplayPolicy.FindDebtSnapshot(state.BankLoans, request.IdempotencyKey, request.UserId, request.ColonyId, request.ConfirmedSnapshot?.SnapshotId) is null)
+                return Results.Ok(new BankDebtResponse(ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Bank.RequestMissingIdentity")), null, 0, null));
             string? nextLineageToken = FindSnapshotNextLineageToken(
                 state,
                 request.UserId,
@@ -693,7 +714,7 @@ public static partial class ClashOfRimNetworkServer
             request.ConfirmedSnapshot.SnapshotId!,
             request.ConfirmedSnapshot,
             multipart.Payload,
-            nowUtc);
+            nowUtc, storeAccepted: false);
         if (!upload.Accepted || upload.AcceptedSnapshot is null)
         {
             return Results.Ok(new BankDebtResponse(
@@ -703,40 +724,49 @@ public static partial class ClashOfRimNetworkServer
                 BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
         }
 
-        string acceptedSnapshotId = upload.AcceptedSnapshot.Identity.SnapshotId ?? request.ConfirmedSnapshot.SnapshotId!;
-        BankDebtRecord? repaid = state.BankLoans.MarkDebtRepaidWithSnapshot(
-            request.IdempotencyKey,
-            request.UserId,
-            request.ColonyId,
-            request.DebtId,
-            acceptedSnapshotId,
-            request.SilverPaid,
-            upload.AcceptedSnapshot.Envelope.GameTicks ?? context.CurrentGameTicks,
-            nowUtc);
-        if (repaid is null)
-        {
-            return Results.Ok(new BankDebtResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Bank.DebtRepaymentLedgerFailed")),
-                debt: null,
-                silverDelta: 0,
-                BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
-        }
+        lock (state.RaidSettlementSnapshotMutationGate)
+            lock (state.BankLoans.SnapshotCommitGate)
+            {
+                RecoverBankSnapshotCommits(state);
+                if (state.BankLoans.FindDebt(request.UserId, request.ColonyId, request.DebtId) != debt) return Results.Ok(new BankDebtResponse(ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Bank.DebtCannotRepay")), null, 0, null));
+                upload = CreateSnapshotReceiver(state).CommitPrepared(
+                    new SnapshotUploadContext(request.UserId, request.ColonyId, request.ConfirmedSnapshot.SnapshotId!,
+                        null, NormalizeSnapshotUploadKind(request.ConfirmedSnapshot.SnapshotUploadKind)),
+                    ProtocolDtoMapper.ToSaveSnapshotPackage(request.ConfirmedSnapshot, multipart.Payload),
+                    upload, storeAccepted: false);
+                if (!upload.Accepted || upload.AcceptedSnapshot is null)
+                {
+                    return Results.Ok(new BankDebtResponse(
+                        ToProtocolResponse(upload),
+                        debt: null,
+                        silverDelta: 0,
+                        BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
+                }
 
-        RunSnapshotPostUploadProcessors(
-            state,
-            request.UserId,
-            request.ColonyId,
-            sessionId: null,
-            upload,
-            nowUtc);
+                string acceptedSnapshotId = upload.AcceptedSnapshot.Identity.SnapshotId ?? request.ConfirmedSnapshot.SnapshotId!;
+                BankDebtRecord repaid = debt with
+                {
+                    Status = BankLoanRegistry.StatusRepaid,
+                    SnapshotId = acceptedSnapshotId,
+                    PaidAtUtc = nowUtc,
+                    PaidAtGameTicks = upload.AcceptedSnapshot.Envelope.GameTicks ?? context.CurrentGameTicks,
+                    RepaymentIdempotencyKey = request.IdempotencyKey,
+                    RepaymentRequestedAtUtc = nowUtc,
+                    RepaymentRequestedAtGameTicks = upload.AcceptedSnapshot.Envelope.GameTicks ?? context.CurrentGameTicks
+                };
+                state.BankSnapshotCommits.Commit(state.SnapshotStore, state.BankLoans,
+                    ProtocolDtoMapper.ToSaveSnapshotPackage(request.ConfirmedSnapshot, multipart.Payload),
+                    upload.AcceptedSnapshot, null, repaid,
+                    (snapshot, kind) => RunBankSnapshotPostUpload(state, snapshot, kind), upload.SnapshotUploadKind);
 
-        return Results.Ok(new BankDebtResponse(
-            ProtocolResponse.Ok(T("Bank.DebtRepaidWithSnapshot")),
-            ToBankDebtSummary(repaid),
-            silverDelta: -repaid.AmountSilver,
-            BuildBankStatusResponse(state, context, ProtocolResponse.Ok()),
-            acceptedSnapshotId,
-            upload.AcceptedSnapshot.Envelope.NextLineageToken));
+                return Results.Ok(new BankDebtResponse(
+                    ProtocolResponse.Ok(T("Bank.DebtRepaidWithSnapshot")),
+                    ToBankDebtSummary(repaid),
+                    silverDelta: -repaid.AmountSilver,
+                    BuildBankStatusResponse(state, context, ProtocolResponse.Ok()),
+                    acceptedSnapshotId,
+                    upload.AcceptedSnapshot.Envelope.NextLineageToken));
+            }
     }
 
     private static IResult RepayBankDebt(RepayBankDebtRequest request, ClashOfRimNetworkState state)
@@ -1586,7 +1616,8 @@ public static partial class ClashOfRimNetworkServer
         long requestedCurrentGameTicks,
         int colonyWealth,
         DateTimeOffset nowUtc,
-        out ProtocolResponse? rejection)
+        out ProtocolResponse? rejection,
+        string? committedSnapshotId = null)
     {
         rejection = null;
         if (string.IsNullOrWhiteSpace(userId)
@@ -1618,7 +1649,8 @@ public static partial class ClashOfRimNetworkServer
             return null;
         }
 
-        if (!string.Equals(latest.Identity.SnapshotId, currentSnapshotId, StringComparison.Ordinal))
+        if (!string.Equals(latest.Identity.SnapshotId, currentSnapshotId, StringComparison.Ordinal)
+            && !string.Equals(latest.Identity.SnapshotId, committedSnapshotId, StringComparison.Ordinal))
         {
             rejection = ProtocolResponse.Reject(ProtocolErrorCode.SnapshotMismatch, T("Bank.SnapshotNotLatest"));
             return null;

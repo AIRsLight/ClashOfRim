@@ -16,7 +16,7 @@ public static class ServerDatabaseSchema
 {
     // Version 1 is the known JSON-document persistence layout.
     public const int LegacyJsonDocumentVersion = 1;
-    public const int CurrentVersion = 8;
+    public const int CurrentVersion = 9;
 }
 
 public sealed record ServerDatabaseMigrationOptions(int? DeclaredSourceVersion = null);
@@ -85,7 +85,13 @@ public static class ServerDatabaseMigrator
         new(
             FromVersion: 7,
             ToVersion: 8,
-            Apply: CreateRaidCooldownOverrideTables)
+            Apply: CreateRaidCooldownOverrideTables),
+        // Version 9 requires bank snapshot journal recovery before serving traffic.
+        // No SQL layout changes; the version prevents older servers from ignoring pending intents.
+        new(
+            FromVersion: 8,
+            ToVersion: 9,
+            Apply: (_, _, _) => MigrationApplicationResult.None)
     ];
 
     public static ServerDatabaseMigrationAssessment Assess(

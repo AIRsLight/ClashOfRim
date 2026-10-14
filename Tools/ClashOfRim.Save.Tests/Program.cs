@@ -14,6 +14,8 @@ using System.Xml.Linq;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("银行快照提交跨崩溃恢复且重试幂等", () => BankCommitCrashTests.Run(BuildFixturePackage)),
+    ("并发准备的快照在提交时重新验证 lineage", VerifyPreparedSnapshotsCannotOverwrite),
     ("服务器数据库新建时写入当前 schema 版本", VerifyServerDatabaseMigrationInitializesNewDatabase),
     ("服务器启动可只读识别无版本旧数据库", VerifyServerDatabaseMigrationAssessesLegacyDatabaseWithoutMutation),
     ("服务器启动自动备份并迁移明确旧版本", VerifyServerPersistenceStartupMigratesKnownVersionWithBackup),
@@ -233,6 +235,7 @@ static void VerifyServerDatabaseMigrationCreatesDomainRegistryTables()
         ServerDatabaseMigrationResult result = ServerDatabaseMigrator.Migrate(path);
         Require(result.AppliedMigrations.Contains("6->7"), "迁移结果应记录 6->7");
         Require(result.AppliedMigrations.Contains("7->8"), "迁移结果应记录 7->8");
+        Require(result.AppliedMigrations.Contains("8->9"), "提交日志启用时应升级到需要恢复能力的版本");
 
         string[] expectedTables =
         [
@@ -1428,6 +1431,27 @@ static void VerifySnapshotUploadAccepted()
     Equal("snapshot-upload-001", latest!.Identity.SnapshotId, "最新快照 ID");
     Equal(DateTimeOffset.UnixEpoch.AddHours(1), latest.AcceptedAtUtc, "接受时间");
     Require(latest.Index.Things.Any(thing => thing.GlobalKey.Contains("snapshot:snapshot-upload-001", StringComparison.Ordinal)), "服务端重建索引应使用上传身份");
+}
+
+static void VerifyPreparedSnapshotsCannotOverwrite()
+{
+    var store = new InMemoryColonySnapshotIndexStore();
+    var receiver = new SnapshotUploadReceiver(store);
+    var gate = new object();
+    var packages = new[] { BuildFixturePackage("prepared-a"), BuildFixturePackage("prepared-b") };
+    var contexts = packages.Select(p => new SnapshotUploadContext("userA", "colonyA", p.Envelope.Identity.SnapshotId!)).ToArray();
+    var prepared = new SnapshotUploadResult[2];
+    Parallel.For(0, 2, i => prepared[i] = receiver.Prepare(contexts[i], packages[i], DateTimeOffset.UnixEpoch));
+    Require(prepared.All(p => p.Accepted), "两份快照都应能完成无状态准备");
+    Require(store.GetLatest("userA", "colonyA") is null, "准备不能发布快照");
+    var committed = new SnapshotUploadResult[2];
+    Parallel.For(0, 2, i =>
+    {
+        lock (gate) committed[i] = receiver.CommitPrepared(contexts[i], packages[i], prepared[i]);
+    });
+    Equal(1, committed.Count(p => p.Accepted), "同一 lineage 的并发提交只能接受一份");
+    Require(committed.Single(p => !p.Accepted).Kind is SnapshotUploadResultKind.SnapshotLineageMismatch or SnapshotUploadResultKind.SnapshotReplayDetected,
+        "过时准备必须重验 lineage 和历史重放");
 }
 
 static void VerifyFileSnapshotStorePersistence()

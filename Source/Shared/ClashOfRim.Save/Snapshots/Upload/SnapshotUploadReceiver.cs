@@ -25,11 +25,16 @@ public sealed class SnapshotUploadReceiver
     }
 
     public SnapshotUploadResult Receive(
+        SnapshotUploadContext context, SaveSnapshotPackage package, DateTimeOffset acceptedAtUtc,
+        bool storeAccepted = true, bool validateGameplayContinuity = true)
+    {
+        return CommitPrepared(context, package, Prepare(context, package, acceptedAtUtc), storeAccepted, validateGameplayContinuity);
+    }
+
+    public SnapshotUploadResult Prepare(
         SnapshotUploadContext context,
         SaveSnapshotPackage package,
-        DateTimeOffset acceptedAtUtc,
-        bool storeAccepted = true,
-        bool validateGameplayContinuity = true)
+        DateTimeOffset acceptedAtUtc)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(package);
@@ -128,6 +133,25 @@ public sealed class SnapshotUploadReceiver
                 "RimWorld version is outside the server allowed range.");
         }
 
+        return SnapshotUploadResult.Accept(new LatestSnapshotRecord(identity, payloadEnvelope, rebuiltIndex, acceptedAtUtc), context.SnapshotUploadKind);
+    }
+
+    /// <summary>Revalidates against current authoritative state. The caller serializes this commit with other snapshot mutations.</summary>
+    public SnapshotUploadResult CommitPrepared(
+        SnapshotUploadContext context, SaveSnapshotPackage package, SnapshotUploadResult prepared,
+        bool storeAccepted = true, bool validateGameplayContinuity = true)
+    {
+        if (!prepared.Accepted || prepared.AcceptedSnapshot is null) return prepared;
+        LatestSnapshotRecord candidate = prepared.AcceptedSnapshot;
+        SaveSnapshotEnvelope payloadEnvelope = candidate.Envelope;
+        SnapshotIdentity identity = candidate.Identity;
+        SaveSnapshotIndex rebuiltIndex = candidate.Index;
+        DateTimeOffset acceptedAtUtc = candidate.AcceptedAtUtc;
+        SnapshotUploadResult? identityRejection = ValidateEnvelope(context, payloadEnvelope);
+        if (identityRejection is not null) return identityRejection;
+        if (package.Envelope.Identity != identity || package.Envelope.PayloadSha256 != payloadEnvelope.PayloadSha256)
+            return SnapshotUploadResult.Reject(SnapshotUploadResultKind.InvalidPayload,
+                "Prepared snapshot does not belong to the supplied package.");
         LatestSnapshotRecord? previous = GetPreviousSnapshot(identity);
         SnapshotUploadResult? replayRejection = ValidateSnapshotReplay(previous, payloadEnvelope);
         if (replayRejection is not null)

@@ -190,7 +190,7 @@ public sealed partial class ClashOfRimMod
         giftProcessingStatus = accepted
             ? ClashOfRimText.Key("ClashOfRim.EventLetter.DiplomacyRespondingAccept", detail.EventId.Named("EVENTID"))
             : ClashOfRimText.Key("ClashOfRim.EventLetter.DiplomacyRespondingReject", detail.EventId.Named("EVENTID"));
-        Task.Run(async () =>
+        ClientSessionWork.Run(async () =>
         {
             try
             {
@@ -199,7 +199,7 @@ public sealed partial class ClashOfRimMod
                     httpClient,
                     ClashOfRimClientNetworkContext.FromSettings(settings));
                 ClashOfRimClientNetworkResult<ModDiplomacyEventResponseDto> result =
-                    await client.RespondDiplomacyEventAsync(detail.EventId, accepted, reason);
+                    await ClientSessionWork.Observe(client.RespondDiplomacyEventAsync(detail.EventId, accepted, reason));
 
                 if (!result.Success || result.Response is null)
                 {
@@ -241,6 +241,7 @@ public sealed partial class ClashOfRimMod
                 });
             }
             catch (Exception ex)
+            when (ClientSessionWork.IsCurrent)
             {
                 giftProcessingStatus = ClashOfRimText.Key(
                     "ClashOfRim.EventLetter.DiplomacyResponseException",
@@ -250,7 +251,10 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                manualSyncInProgress = false;
+                if (ClientSessionWork.IsCurrent)
+                {
+                    manualSyncInProgress = false;
+                }
             }
         });
 

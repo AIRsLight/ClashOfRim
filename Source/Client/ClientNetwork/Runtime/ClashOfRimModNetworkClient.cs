@@ -23,86 +23,86 @@ public sealed class ClashOfRimModNetworkClient
     };
     private static readonly TimeSpan SessionWebSocketPingInterval = TimeSpan.FromSeconds(10);
 
-    private const string LoginRoute = "/session/login";
-    private const string StreamSessionRoute = "/session/stream";
-    private const string MaintainPresenceRoute = "/session/presence";
-    private const string LogoutRoute = "/session/logout";
-    private const string ChangeOfflinePasswordRoute = "/session/password";
-    private const string ListPlayersRoute = "/players/list";
-    private const string ListAchievementsRoute = "/achievements/list";
-    private const string WaitForEventsRoute = "/events/wait";
-    private const string PullPendingEventsRoute = "/events/pending";
-    private const string PullEventDetailsRoute = "/events/details";
-    private const string CreateGiftRoute = "/events/gifts";
-    private const string CreateGiftWithSnapshotRoute = "/events/gifts/create-with-snapshot";
-    private const string StorePawnPackageRoute = "/pawns/packages/store";
-    private const string GetPawnPackageRoute = "/pawns/packages/get";
-    private const string StorePawnPackagePreviewRoute = "/pawns/packages/preview/store";
-    private const string GetPawnPackagePreviewRoute = "/pawns/packages/preview/get";
-    private const string StoreThingPackageRoute = "/things/packages/store";
-    private const string GetThingPackageRoute = "/things/packages/get";
-    private const string QuoteTradeOrderFeeRoute = "/events/trades/quote-fee";
-    private const string CreateTradeOrderRoute = "/events/trades";
-    private const string CreateTradeOrderWithSnapshotRoute = "/events/trades/create-with-snapshot";
-    private const string ListTradeOrdersRoute = "/events/trades/market";
-    private const string AcceptTradeOrderRoute = "/events/trades/accept";
-    private const string FulfillTradeOrderRoute = "/events/trades/fulfill";
-    private const string FulfillTradeOrderWithSnapshotRoute = "/events/trades/fulfill-with-snapshot";
-    private const string CancelTradeOrderRoute = "/events/trades/cancel";
-    private const string ListServerShopRoute = "/shop/list";
-    private const string UpsertServerShopListingRoute = "/shop/admin/upsert";
-    private const string RemoveServerShopListingRoute = "/shop/admin/remove";
-    private const string PurchaseServerShopListingWithSnapshotRoute = "/shop/purchase-with-snapshot";
-    private const string PrepareRaidRoute = "/events/raids/prepare";
-    private const string CreateRaidRoute = "/events/raids";
-    private const string CreateRaidWithSnapshotRoute = "/events/raids/create-with-snapshot";
-    private const string RejectGiftRoute = "/events/gifts/reject";
-    private const string CreateDiplomacyEventRoute = "/events/diplomacy";
-    private const string RespondDiplomacyEventRoute = "/events/diplomacy/respond";
-    private const string CreateSupportPawnRoute = "/events/support-pawns";
-    private const string CreateSupportPawnWithSnapshotRoute = "/events/support-pawns/create-with-snapshot";
-    private const string RejectSupportPawnRoute = "/events/support-pawns/reject";
-    private const string FinishSupportPawnRoute = "/events/support-pawns/finish";
-    private const string UploadSnapshotRoute = "/snapshots/upload";
-    private const string DownloadLatestSnapshotRoute = "/snapshots/latest";
-    private const string DownloadLatestSnapshotPayloadRoute = "/snapshots/latest/payload";
-    private const string ConfirmEventApplicationRoute = "/events/confirm-application";
-    private const string ConfirmEventApplicationsRoute = "/events/confirm-applications";
-    private const string ReportEventApplicationFailureRoute = "/events/application-failure";
-    private const string SyncWorldMapMarkersRoute = "/world/markers";
-    private const string SyncRuntimeWorldObjectsRoute = "/world/runtime-objects";
-    private const string PrepareWorldSessionRoute = "/world/session";
-    private const string GetWorldConfigurationRoute = "/world/configuration/current";
-    private const string SubmitWorldConfigurationRoute = "/world/configuration";
-    private const string UploadWorldSubstrateRoute = "/world/configuration/substrate";
-    private const string DownloadWorldSubstrateRoute = "/world/configuration/substrate/download";
-    private const string SubmitWorldFeatureNamesRoute = "/world/configuration/feature-names";
-    private const string RegisterPlayerColonySitesRoute = "/world/colony-sites";
-    private const string PreflightColonyRelocationRoute = "/world/colony-sites/relocation/preflight";
-    private const string ConfirmColonyRelocationRoute = "/world/colony-sites/relocation/confirm";
-    private const string AbandonPlayerColonyRoute = "/world/colony-sites/abandon";
-    private const string GetAdminBaselineRequirementsRoute = "/admin/baseline/requirements";
-    private const string SubmitAdminBaselineRoute = "/admin/baseline";
-    private const string GetBankStatusRoute = "/bank/status";
-    private const string CreateBankLoanWithSnapshotRoute = "/bank/loans/create-with-snapshot";
-    private const string CreateBankLoanRoute = "/bank/loans";
-    private const string RepayBankLoanWithSnapshotRoute = "/bank/loans/repay-with-snapshot";
-    private const string RepayBankLoanRoute = "/bank/loans/repay";
-    private const string RepayBankDebtWithSnapshotRoute = "/bank/debts/repay-with-snapshot";
-    private const string RepayBankDebtRoute = "/bank/debts/repay";
-    private const string QuoteMercenaryRoute = "/mercenaries/quote";
-    private const string HireMercenaryWithSnapshotRoute = "/mercenaries/hire-with-snapshot";
-    private const string HireMercenaryRoute = "/mercenaries/hire";
-    private const string QuoteMercenaryGuardRoute = "/mercenaries/guards/quote";
-    private const string HireMercenaryGuardWithSnapshotRoute = "/mercenaries/guards/hire-with-snapshot";
-    private const string ReportMercenaryIncidentRoute = "/mercenaries/incidents";
-    private const string SendChatMessageRoute = "/chat/send";
-    private const string ListChatMessagesRoute = "/chat/list";
-    private const string OverrideCompatibilityBaselineRoute = "/compatibility/baseline/override";
-    private const string AdminStatusRoute = "/admin/status";
-    private const string AdminUpdateConfigurationRoute = "/admin/configuration";
-    private const string AdminActionRoute = "/admin/action";
-    private const string ServerHelloRoute = "/server/hello";
+    private static readonly string LoginRoute = ProtocolContractManifest.Find(ProtocolMessageKind.Login).Route;
+    private static readonly string StreamSessionRoute = ProtocolContractManifest.Find(ProtocolMessageKind.StreamSession).Route;
+    private static readonly string MaintainPresenceRoute = ProtocolContractManifest.Find(ProtocolMessageKind.MaintainPresence).Route;
+    private static readonly string LogoutRoute = ProtocolContractManifest.Find(ProtocolMessageKind.Logout).Route;
+    private static readonly string ChangeOfflinePasswordRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ChangeOfflinePassword).Route;
+    private static readonly string ListPlayersRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ListPlayers).Route;
+    private static readonly string ListAchievementsRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ListAchievements).Route;
+    private static readonly string WaitForEventsRoute = ProtocolContractManifest.Find(ProtocolMessageKind.WaitForEvents).Route;
+    private static readonly string PullPendingEventsRoute = ProtocolContractManifest.Find(ProtocolMessageKind.PullPendingEvents).Route;
+    private static readonly string PullEventDetailsRoute = ProtocolContractManifest.Find(ProtocolMessageKind.PullEventDetails).Route;
+    private static readonly string CreateGiftRoute = ProtocolContractManifest.Find(ProtocolMessageKind.CreateGift).Route;
+    private static readonly string CreateGiftWithSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.CreateGiftWithSnapshot).Route;
+    private static readonly string StorePawnPackageRoute = ProtocolContractManifest.Find(ProtocolMessageKind.StorePawnPackage).Route;
+    private static readonly string GetPawnPackageRoute = ProtocolContractManifest.Find(ProtocolMessageKind.GetPawnPackage).Route;
+    private static readonly string StorePawnPackagePreviewRoute = ProtocolContractManifest.Find(ProtocolMessageKind.StorePawnPackagePreview).Route;
+    private static readonly string GetPawnPackagePreviewRoute = ProtocolContractManifest.Find(ProtocolMessageKind.GetPawnPackagePreview).Route;
+    private static readonly string StoreThingPackageRoute = ProtocolContractManifest.Find(ProtocolMessageKind.StoreThingPackage).Route;
+    private static readonly string GetThingPackageRoute = ProtocolContractManifest.Find(ProtocolMessageKind.GetThingPackage).Route;
+    private static readonly string QuoteTradeOrderFeeRoute = ProtocolContractManifest.Find(ProtocolMessageKind.QuoteTradeOrderFee).Route;
+    private static readonly string CreateTradeOrderRoute = ProtocolContractManifest.Find(ProtocolMessageKind.CreateTradeOrder).Route;
+    private static readonly string CreateTradeOrderWithSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.CreateTradeOrderWithSnapshot).Route;
+    private static readonly string ListTradeOrdersRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ListTradeOrders).Route;
+    private static readonly string AcceptTradeOrderRoute = ProtocolContractManifest.Find(ProtocolMessageKind.AcceptTradeOrder).Route;
+    private static readonly string FulfillTradeOrderRoute = ProtocolContractManifest.Find(ProtocolMessageKind.FulfillTradeOrder).Route;
+    private static readonly string FulfillTradeOrderWithSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.FulfillTradeOrderWithSnapshot).Route;
+    private static readonly string CancelTradeOrderRoute = ProtocolContractManifest.Find(ProtocolMessageKind.CancelTradeOrder).Route;
+    private static readonly string ListServerShopRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ListServerShop).Route;
+    private static readonly string UpsertServerShopListingRoute = ProtocolContractManifest.Find(ProtocolMessageKind.UpsertServerShopListing).Route;
+    private static readonly string RemoveServerShopListingRoute = ProtocolContractManifest.Find(ProtocolMessageKind.RemoveServerShopListing).Route;
+    private static readonly string PurchaseServerShopListingWithSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.PurchaseServerShopListingWithSnapshot).Route;
+    private static readonly string PrepareRaidRoute = ProtocolContractManifest.Find(ProtocolMessageKind.PrepareRaid).Route;
+    private static readonly string CreateRaidRoute = ProtocolContractManifest.Find(ProtocolMessageKind.CreateRaid).Route;
+    private static readonly string CreateRaidWithSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.CreateRaidWithSnapshot).Route;
+    private static readonly string RejectGiftRoute = ProtocolContractManifest.Find(ProtocolMessageKind.RejectGift).Route;
+    private static readonly string CreateDiplomacyEventRoute = ProtocolContractManifest.Find(ProtocolMessageKind.CreateDiplomacyEvent).Route;
+    private static readonly string RespondDiplomacyEventRoute = ProtocolContractManifest.Find(ProtocolMessageKind.RespondDiplomacyEvent).Route;
+    private static readonly string CreateSupportPawnRoute = ProtocolContractManifest.Find(ProtocolMessageKind.CreateSupportPawn).Route;
+    private static readonly string CreateSupportPawnWithSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.CreateSupportPawnWithSnapshot).Route;
+    private static readonly string RejectSupportPawnRoute = ProtocolContractManifest.Find(ProtocolMessageKind.RejectSupportPawn).Route;
+    private static readonly string FinishSupportPawnRoute = ProtocolContractManifest.Find(ProtocolMessageKind.FinishSupportPawn).Route;
+    private static readonly string UploadSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.UploadSnapshot).Route;
+    private static readonly string DownloadLatestSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.DownloadLatestSnapshot).Route;
+    private static readonly string DownloadLatestSnapshotPayloadRoute = ProtocolContractManifest.Find(ProtocolMessageKind.DownloadLatestSnapshotPayload).Route;
+    private static readonly string ConfirmEventApplicationRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ConfirmEventApplication).Route;
+    private static readonly string ConfirmEventApplicationsRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ConfirmEventApplications).Route;
+    private static readonly string ReportEventApplicationFailureRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ReportEventApplicationFailure).Route;
+    private static readonly string SyncWorldMapMarkersRoute = ProtocolContractManifest.Find(ProtocolMessageKind.SyncWorldMapMarkers).Route;
+    private static readonly string SyncRuntimeWorldObjectsRoute = ProtocolContractManifest.Find(ProtocolMessageKind.SyncRuntimeWorldObjects).Route;
+    private static readonly string PrepareWorldSessionRoute = ProtocolContractManifest.Find(ProtocolMessageKind.PrepareWorldSession).Route;
+    private static readonly string GetWorldConfigurationRoute = ProtocolContractManifest.Find(ProtocolMessageKind.GetWorldConfiguration).Route;
+    private static readonly string SubmitWorldConfigurationRoute = ProtocolContractManifest.Find(ProtocolMessageKind.SubmitWorldConfiguration).Route;
+    private static readonly string UploadWorldSubstrateRoute = ProtocolContractManifest.Find(ProtocolMessageKind.UploadWorldSubstrate).Route;
+    private static readonly string DownloadWorldSubstrateRoute = ProtocolContractManifest.Find(ProtocolMessageKind.DownloadWorldSubstrate).Route;
+    private static readonly string SubmitWorldFeatureNamesRoute = ProtocolContractManifest.Find(ProtocolMessageKind.SubmitWorldFeatureNames).Route;
+    private static readonly string RegisterPlayerColonySitesRoute = ProtocolContractManifest.Find(ProtocolMessageKind.RegisterPlayerColonySites).Route;
+    private static readonly string PreflightColonyRelocationRoute = ProtocolContractManifest.Find(ProtocolMessageKind.PreflightColonyRelocation).Route;
+    private static readonly string ConfirmColonyRelocationRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ConfirmColonyRelocation).Route;
+    private static readonly string AbandonPlayerColonyRoute = ProtocolContractManifest.Find(ProtocolMessageKind.AbandonPlayerColony).Route;
+    private static readonly string GetAdminBaselineRequirementsRoute = ProtocolContractManifest.Find(ProtocolMessageKind.GetAdminBaselineRequirements).Route;
+    private static readonly string SubmitAdminBaselineRoute = ProtocolContractManifest.Find(ProtocolMessageKind.SubmitAdminBaseline).Route;
+    private static readonly string GetBankStatusRoute = ProtocolContractManifest.Find(ProtocolMessageKind.GetBankStatus).Route;
+    private static readonly string CreateBankLoanWithSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.CreateBankLoanWithSnapshot).Route;
+    private static readonly string CreateBankLoanRoute = ProtocolContractManifest.Find(ProtocolMessageKind.CreateBankLoan).Route;
+    private static readonly string RepayBankLoanWithSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.RepayBankLoanWithSnapshot).Route;
+    private static readonly string RepayBankLoanRoute = ProtocolContractManifest.Find(ProtocolMessageKind.RepayBankLoan).Route;
+    private static readonly string RepayBankDebtWithSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.RepayBankDebtWithSnapshot).Route;
+    private static readonly string RepayBankDebtRoute = ProtocolContractManifest.Find(ProtocolMessageKind.RepayBankDebt).Route;
+    private static readonly string QuoteMercenaryRoute = ProtocolContractManifest.Find(ProtocolMessageKind.QuoteMercenary).Route;
+    private static readonly string HireMercenaryWithSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.HireMercenaryWithSnapshot).Route;
+    private static readonly string HireMercenaryRoute = ProtocolContractManifest.Find(ProtocolMessageKind.HireMercenary).Route;
+    private static readonly string QuoteMercenaryGuardRoute = ProtocolContractManifest.Find(ProtocolMessageKind.QuoteMercenaryGuard).Route;
+    private static readonly string HireMercenaryGuardWithSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.HireMercenaryGuardWithSnapshot).Route;
+    private static readonly string ReportMercenaryIncidentRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ReportMercenaryIncident).Route;
+    private static readonly string SendChatMessageRoute = ProtocolContractManifest.Find(ProtocolMessageKind.SendChatMessage).Route;
+    private static readonly string ListChatMessagesRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ListChatMessages).Route;
+    private static readonly string OverrideCompatibilityBaselineRoute = ProtocolContractManifest.Find(ProtocolMessageKind.OverrideCompatibilityBaseline).Route;
+    private static readonly string AdminStatusRoute = ProtocolContractManifest.Find(ProtocolMessageKind.AdminStatus).Route;
+    private static readonly string AdminUpdateConfigurationRoute = ProtocolContractManifest.Find(ProtocolMessageKind.AdminUpdateConfiguration).Route;
+    private static readonly string AdminActionRoute = ProtocolContractManifest.Find(ProtocolMessageKind.AdminAction).Route;
+    private static readonly string ServerHelloRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ServerHello).Route;
     private const string LanguageHeader = "X-ClashOfRim-Language";
 
     private readonly HttpClient httpClient;
@@ -1169,6 +1169,8 @@ public sealed class ClashOfRimModNetworkClient
         Action<ModSessionStreamEvent> onEvent,
         CancellationToken cancellationToken = default)
     {
+        using var sessionCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, ClientSessionWork.Token);
+        cancellationToken = sessionCancellation.Token;
         if (!context.IsConfigured)
         {
             return await NotConfigured<ModSessionStreamClosedDto>();
@@ -2910,6 +2912,8 @@ public sealed class ClashOfRimModNetworkClient
                 Content = content
             };
             AddClientLanguageHeader(message);
+            using var sessionCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, ClientSessionWork.Token);
+            cancellationToken = sessionCancellation.Token;
             using HttpResponseMessage response = await httpClient.SendAsync(message, cancellationToken).ConfigureAwait(false);
             string body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
@@ -2938,6 +2942,8 @@ public sealed class ClashOfRimModNetworkClient
         {
             using var message = new HttpRequestMessage(HttpMethod.Get, BuildRequestUri(route));
             AddClientLanguageHeader(message);
+            using var sessionCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, ClientSessionWork.Token);
+            cancellationToken = sessionCancellation.Token;
             using HttpResponseMessage response = await httpClient.SendAsync(message, cancellationToken).ConfigureAwait(false);
             string body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
@@ -2979,6 +2985,8 @@ public sealed class ClashOfRimModNetworkClient
                     context.AuthToken);
             }
 
+            using var sessionCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, ClientSessionWork.Token);
+            cancellationToken = sessionCancellation.Token;
             using HttpResponseMessage response = await httpClient.SendAsync(
                 message,
                 HttpCompletionOption.ResponseHeadersRead,
@@ -3027,6 +3035,8 @@ public sealed class ClashOfRimModNetworkClient
                     context.AuthToken);
             }
             AddClientLanguageHeader(message);
+            using var sessionCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, ClientSessionWork.Token);
+            cancellationToken = sessionCancellation.Token;
             using HttpResponseMessage response = await httpClient.SendAsync(message, cancellationToken).ConfigureAwait(false);
             string body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)

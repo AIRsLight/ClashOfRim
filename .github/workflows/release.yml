@@ -15,6 +15,10 @@ env:
   NUGET_XMLDOC_MODE: skip
 
 jobs:
+  tests:
+    uses: ./.github/workflows/tests.yml
+    secrets: inherit
+
   metadata:
     name: Prepare release metadata
     runs-on: ubuntu-latest
@@ -183,6 +187,7 @@ jobs:
   release:
     name: Publish GitHub release
     needs:
+      - tests
       - metadata
       - build-server
       - build-client-mods

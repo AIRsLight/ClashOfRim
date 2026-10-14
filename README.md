@@ -180,6 +180,13 @@ Configuration notes:
 - The first player who completes initial server setup becomes the initial
   administrator.
 
+## Architecture remediation and regression tests
+
+For the 1.7 architecture defect register, implemented boundaries, regression commands,
+and remaining work, see [architecture remediation](docs/architecture-remediation.md).
+Run `pwsh ./Tools/Test-Regression.ps1` for portable regressions; add
+`-IncludeClient -RimWorldManagedDir <RimWorld directory>` for game-dependent client tests.
+
 ## Acknowledgements
 
 ClashOfRim was developed with research and comparison against existing RimWorld

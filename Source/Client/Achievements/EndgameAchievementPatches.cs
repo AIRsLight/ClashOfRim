@@ -133,15 +133,15 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
-        Task.Run(async () =>
+        ClientSessionWork.Run(async () =>
         {
             try
             {
                 var service = new ModSnapshotUploadService(settings);
-                ModSnapshotUploadResult result = await service.UploadConfiguredSnapshotAsync(
+                ModSnapshotUploadResult result = await ClientSessionWork.Observe(service.UploadConfiguredSnapshotAsync(
                     removeRaidBattleSessions: false,
                     confirmationOperation: EndgameAchievementRuntime.EndgameConfirmationOperation,
-                    snapshotUploadKind: ModSnapshotUploadKinds.EndgameAchievement);
+                    snapshotUploadKind: ModSnapshotUploadKinds.EndgameAchievement));
                 if (result.Success)
                 {
                     snapshotUploadStatus = ClashOfRimText.Key("ClashOfRim.Endgame.UploadSucceeded");
@@ -157,6 +157,7 @@ public sealed partial class ClashOfRimMod
                 }
             }
             catch (Exception ex)
+            when (ClientSessionWork.IsCurrent)
             {
                 snapshotUploadStatus = ClashOfRimText.Key("ClashOfRim.Endgame.UploadFailed", ex.Message.Named("REASON"));
                 NotifyPlayerMessage(snapshotUploadStatus, MessageTypeDefOf.RejectInput);
@@ -164,8 +165,11 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                EndSnapshotUploadTransaction();
-                CompleteLocalAtomicMutation();
+                if (ClientSessionWork.IsCurrent)
+                {
+                    EndSnapshotUploadTransaction();
+                    CompleteLocalAtomicMutation();
+                }
             }
         });
     }

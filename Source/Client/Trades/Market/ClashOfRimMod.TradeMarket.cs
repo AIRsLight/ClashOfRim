@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
@@ -114,7 +114,7 @@ public sealed partial class ClashOfRimMod
 
         BeginLocalAtomicMutation(operation, ClashOfRimText.Key("ClashOfRim.Trade.StatusOrderSubmittingTransaction"));
         tradeStatus = ClashOfRimText.Key("ClashOfRim.Trade.StatusSubmittingOrder", draft.FeeSilver.Named("FEE"));
-        Task.Run(async () =>
+        ClientSessionWork.Run(async () =>
         {
             try
             {
@@ -122,12 +122,12 @@ public sealed partial class ClashOfRimMod
                 var client = new ClashOfRimModNetworkClient(
                     httpClient,
                     ClashOfRimClientNetworkContext.FromSettings(settings));
-                await UploadPawnPackagesForTradeAsync(
+                await ClientSessionWork.Observe(UploadPawnPackagesForTradeAsync(
                     client,
                     draft.OfferedThings.Concat(draft.RequestedThings).ToList(),
-                        idempotencyKey);
+                        idempotencyKey));
                 ClashOfRimClientNetworkResult<ModEventCreationResponseDto> created =
-                    await client.CreateTradeOrderWithSnapshotAsync(
+                    await ClientSessionWork.Observe(client.CreateTradeOrderWithSnapshotAsync(
                         idempotencyKey,
                         draft.OfferedThings,
                         draft.RequestedThings,
@@ -135,7 +135,7 @@ public sealed partial class ClashOfRimMod
                         draft.AllowSelfPickup,
                         draft.AllowServerDropPod,
                         confirmedSnapshot,
-                        confirmedPayload);
+                        confirmedPayload));
                 tradeStatus = FormatCreationResult(created, ClashOfRimText.Key("ClashOfRim.Trade.OrderName"));
                 ModEventCreationResponseDto? response = created.Response;
                 if (created.Success
@@ -178,6 +178,7 @@ public sealed partial class ClashOfRimMod
                 }
             }
             catch (Exception ex)
+            when (ClientSessionWork.IsCurrent)
             {
                 tradeStatus = ClashOfRimText.Key("ClashOfRim.Trade.StatusOrderSubmitException", ex.GetType().Name.Named("TYPE"), ex.Message.Named("MESSAGE"));
                 ShowUnconfirmedSnapshotFailure(
@@ -188,7 +189,10 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                EndSnapshotUploadTransaction();
+                if (ClientSessionWork.IsCurrent)
+                {
+                    EndSnapshotUploadTransaction();
+                }
             }
         });
     }
@@ -391,7 +395,7 @@ public sealed partial class ClashOfRimMod
         tradeStatus = ClashOfRimText.Key("ClashOfRim.Trade.StatusCancellingOrder");
         string tradeEventId = order.EventId;
         string scope = tradeOrdersScope;
-        Task.Run(async () =>
+        ClientSessionWork.Run(async () =>
         {
             try
             {
@@ -400,10 +404,10 @@ public sealed partial class ClashOfRimMod
                     httpClient,
                     ClashOfRimClientNetworkContext.FromSettings(settings));
                 ClashOfRimClientNetworkResult<ModCloseTradeOrderResponseDto> result =
-                    await client.CancelTradeOrderAsync(
+                    await ClientSessionWork.Observe(client.CancelTradeOrderAsync(
                         "trade-cancel:" + tradeEventId + ":" + DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
                         tradeEventId,
-                        "OwnerCancelled");
+                        "OwnerCancelled"));
                 if (!result.Success || result.Response is null)
                 {
                     tradeStatus = ClashOfRimText.Key(
@@ -434,6 +438,7 @@ public sealed partial class ClashOfRimMod
                 StartRefreshTradeOrders(scope);
             }
             catch (Exception ex)
+            when (ClientSessionWork.IsCurrent)
             {
                 tradeStatus = ClashOfRimText.Key(
                     "ClashOfRim.Trade.StatusCancelException",
@@ -467,7 +472,7 @@ public sealed partial class ClashOfRimMod
         tradeStatus = ClashOfRimText.Key("ClashOfRim.Trade.StatusCancellingAcceptedMemo");
         string tradeEventId = order.EventId;
         string scope = tradeOrdersScope;
-        Task.Run(async () =>
+        ClientSessionWork.Run(async () =>
         {
             try
             {
@@ -476,10 +481,10 @@ public sealed partial class ClashOfRimMod
                     httpClient,
                     ClashOfRimClientNetworkContext.FromSettings(settings));
                 ClashOfRimClientNetworkResult<ModCloseTradeOrderResponseDto> result =
-                    await client.CancelTradeOrderAsync(
+                    await ClientSessionWork.Observe(client.CancelTradeOrderAsync(
                         "trade-cancel-memo:" + settings.UserId + ":" + tradeEventId + ":" + DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
                         tradeEventId,
-                        "AcceptorCancelledMemo");
+                        "AcceptorCancelledMemo"));
                 if (!result.Success || result.Response is null)
                 {
                     tradeStatus = ClashOfRimText.Key(
@@ -503,6 +508,7 @@ public sealed partial class ClashOfRimMod
                 StartRefreshTradeOrders(scope);
             }
             catch (Exception ex)
+            when (ClientSessionWork.IsCurrent)
             {
                 tradeStatus = ClashOfRimText.Key(
                     "ClashOfRim.Trade.StatusCancelAcceptedMemoException",
@@ -601,7 +607,7 @@ public sealed partial class ClashOfRimMod
         tradeStatus = reset
             ? ClashOfRimText.Key("ClashOfRim.Trade.StatusRefreshingMarket")
             : ClashOfRimText.Key("ClashOfRim.Trade.StatusLoadingMoreMarket");
-        Task.Run(async () =>
+        ClientSessionWork.Run(async () =>
         {
             try
             {
@@ -611,7 +617,7 @@ public sealed partial class ClashOfRimMod
                     ClashOfRimClientNetworkContext.FromSettings(settings));
                 int pageSize = TradeOrdersPageSizeForScope(scope);
                 ClashOfRimClientNetworkResult<ModListTradeOrdersResponseDto> result =
-                    await client.ListTradeOrdersAsync(scope, offset, pageSize);
+                    await ClientSessionWork.Observe(client.ListTradeOrdersAsync(scope, offset, pageSize));
                 if (!result.Success || result.Response is null)
                 {
                     tradeStatus = ClashOfRimText.Key("ClashOfRim.Trade.StatusMarketRefreshFailed", result.ErrorCode.Named("CODE"), result.Message.Named("MESSAGE"));
@@ -661,13 +667,17 @@ public sealed partial class ClashOfRimMod
                 }
             }
             catch (Exception ex)
+            when (ClientSessionWork.IsCurrent)
             {
                 tradeStatus = ClashOfRimText.Key("ClashOfRim.Trade.StatusMarketException", ex.GetType().Name.Named("TYPE"), ex.Message.Named("MESSAGE"));
                 Log.Warning("[ClashOfRim] Trade market refresh failed: " + ex);
             }
             finally
             {
-                tradeOrdersPageLoadInProgress = false;
+                if (ClientSessionWork.IsCurrent)
+                {
+                    tradeOrdersPageLoadInProgress = false;
+                }
             }
         });
     }

@@ -31,7 +31,7 @@ public sealed partial class ClashOfRimMod
 
         serverShopInProgress = true;
         serverShopStatus = ClashOfRimText.Key("ClashOfRim.Shop.StatusRefreshing");
-        Task.Run(async () =>
+        ClientSessionWork.Run(async () =>
         {
             try
             {
@@ -40,7 +40,7 @@ public sealed partial class ClashOfRimMod
                     httpClient,
                     ClashOfRimClientNetworkContext.FromSettings(settings));
                 ClashOfRimClientNetworkResult<ModListServerShopResponseDto> result =
-                    await client.ListServerShopAsync();
+                    await ClientSessionWork.Observe(client.ListServerShopAsync());
                 if (!result.Success || result.Response is null)
                 {
                     serverShopStatus = ClashOfRimText.Key(
@@ -59,7 +59,7 @@ public sealed partial class ClashOfRimMod
                     return;
                 }
 
-                await HydrateServerShopListingPawnPackagesAsync(client, result.Response.Listings);
+                await ClientSessionWork.Observe(HydrateServerShopListingPawnPackagesAsync(client, result.Response.Listings));
                 ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
                     PrepareServerShopPawnPreviews(result.Response.Listings));
                 lock (eventStateLock)
@@ -74,6 +74,7 @@ public sealed partial class ClashOfRimMod
                     lastServerShopListings.Count.Named("COUNT"));
             }
             catch (Exception ex)
+            when (ClientSessionWork.IsCurrent)
             {
                 serverShopStatus = ClashOfRimText.Key(
                     "ClashOfRim.Shop.StatusException",
@@ -83,7 +84,10 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                serverShopInProgress = false;
+                if (ClientSessionWork.IsCurrent)
+                {
+                    serverShopInProgress = false;
+                }
             }
         });
     }
@@ -117,7 +121,7 @@ public sealed partial class ClashOfRimMod
 
         serverShopInProgress = true;
         serverShopStatus = ClashOfRimText.Key("ClashOfRim.Shop.StatusSavingListing");
-        Task.Run(async () =>
+        ClientSessionWork.Run(async () =>
         {
             try
             {
@@ -126,7 +130,7 @@ public sealed partial class ClashOfRimMod
                     httpClient,
                     ClashOfRimClientNetworkContext.FromSettings(settings));
                 ClashOfRimClientNetworkResult<ModUpsertServerShopListingResponseDto> result =
-                    await client.UpsertServerShopListingAsync(
+                    await ClientSessionWork.Observe(client.UpsertServerShopListingAsync(
                         listingId,
                         listingKind,
                         item,
@@ -134,7 +138,7 @@ public sealed partial class ClashOfRimMod
                         stockCount,
                         priceIncreaseRatio,
                         NormalizeServerShopRequirementMode(qualityRequirementMode),
-                        NormalizeServerShopRequirementMode(hitPointsRequirementMode));
+                        NormalizeServerShopRequirementMode(hitPointsRequirementMode)));
                 if (!result.Success || result.Response is null)
                 {
                     serverShopStatus = ClashOfRimText.Key(
@@ -155,7 +159,7 @@ public sealed partial class ClashOfRimMod
 
                 if (result.Response.Listing is not null)
                 {
-                    await HydrateServerShopListingPawnPackagesAsync(client, result.Response.Listing);
+                    await ClientSessionWork.Observe(HydrateServerShopListingPawnPackagesAsync(client, result.Response.Listing));
                     ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
                         PrepareServerShopPawnPreviews(new[] { result.Response.Listing }));
                 }
@@ -184,6 +188,7 @@ public sealed partial class ClashOfRimMod
                 serverShopStatus = ClashOfRimText.Key("ClashOfRim.Shop.StatusListingSaved");
             }
             catch (Exception ex)
+            when (ClientSessionWork.IsCurrent)
             {
                 serverShopStatus = ClashOfRimText.Key(
                     "ClashOfRim.Shop.StatusException",
@@ -193,7 +198,10 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                serverShopInProgress = false;
+                if (ClientSessionWork.IsCurrent)
+                {
+                    serverShopInProgress = false;
+                }
             }
         });
     }
@@ -219,7 +227,7 @@ public sealed partial class ClashOfRimMod
 
         serverShopInProgress = true;
         serverShopStatus = ClashOfRimText.Key("ClashOfRim.Shop.StatusRemovingListing");
-        Task.Run(async () =>
+        ClientSessionWork.Run(async () =>
         {
             try
             {
@@ -228,7 +236,7 @@ public sealed partial class ClashOfRimMod
                     httpClient,
                     ClashOfRimClientNetworkContext.FromSettings(settings));
                 ClashOfRimClientNetworkResult<ModRemoveServerShopListingResponseDto> result =
-                    await client.RemoveServerShopListingAsync(listing.ListingId);
+                    await ClientSessionWork.Observe(client.RemoveServerShopListingAsync(listing.ListingId));
                 if (!result.Success || result.Response is null)
                 {
                     serverShopStatus = ClashOfRimText.Key(
@@ -262,6 +270,7 @@ public sealed partial class ClashOfRimMod
                 serverShopStatus = ClashOfRimText.Key("ClashOfRim.Shop.StatusListingRemoved");
             }
             catch (Exception ex)
+            when (ClientSessionWork.IsCurrent)
             {
                 serverShopStatus = ClashOfRimText.Key(
                     "ClashOfRim.Shop.StatusException",
@@ -271,7 +280,10 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                serverShopInProgress = false;
+                if (ClientSessionWork.IsCurrent)
+                {
+                    serverShopInProgress = false;
+                }
             }
         });
     }
@@ -437,7 +449,7 @@ public sealed partial class ClashOfRimMod
 
         serverShopInProgress = true;
         serverShopStatus = ClashOfRimText.Key("ClashOfRim.Shop.StatusUploadingPurchase");
-        Task.Run(async () =>
+        ClientSessionWork.Run(async () =>
         {
             try
             {
@@ -446,7 +458,7 @@ public sealed partial class ClashOfRimMod
                     httpClient,
                     ClashOfRimClientNetworkContext.FromSettings(settings));
                 ClashOfRimClientNetworkResult<ModPurchaseServerShopListingResponseDto> result =
-                    await client.PurchaseServerShopListingWithSnapshotAsync(
+                    await ClientSessionWork.Observe(client.PurchaseServerShopListingWithSnapshotAsync(
                         idempotencyKey,
                         listing.ListingId,
                         NormalizeServerShopListingKind(listing.ListingKind),
@@ -455,7 +467,7 @@ public sealed partial class ClashOfRimMod
                         purchaseCount,
                         deliveredThings,
                         build.Package!,
-                        build.Payload!);
+                        build.Payload!));
                 if (!result.Success || result.Response is null)
                 {
                     serverShopStatus = ClashOfRimText.Key(
@@ -504,6 +516,7 @@ public sealed partial class ClashOfRimMod
                 });
             }
             catch (Exception ex)
+            when (ClientSessionWork.IsCurrent)
             {
                 serverShopStatus = ClashOfRimText.Key(
                     "ClashOfRim.Shop.StatusException",
@@ -517,8 +530,11 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                EndSnapshotUploadTransaction();
-                serverShopInProgress = false;
+                if (ClientSessionWork.IsCurrent)
+                {
+                    EndSnapshotUploadTransaction();
+                    serverShopInProgress = false;
+                }
             }
         });
     }
@@ -875,7 +891,7 @@ public sealed partial class ClashOfRimMod
 
         serverShopInProgress = true;
         serverShopStatus = ClashOfRimText.Key("ClashOfRim.Shop.StatusRefreshing");
-        Task.Run(async () =>
+        ClientSessionWork.Run(async () =>
         {
             try
             {
@@ -883,7 +899,7 @@ public sealed partial class ClashOfRimMod
                 var client = new ClashOfRimModNetworkClient(
                     httpClient,
                     ClashOfRimClientNetworkContext.FromSettings(settings));
-                await HydrateServerShopListingPawnPackagesAsync(client, listing);
+                await ClientSessionWork.Observe(HydrateServerShopListingPawnPackagesAsync(client, listing));
                 ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
                 {
                     PrepareServerShopPawnPreviews(new[] { listing });
@@ -891,7 +907,7 @@ public sealed partial class ClashOfRimMod
                     StartPurchaseServerShopListing(listing, purchaseCount);
                 });
             }
-            catch (Exception ex) when (ex is InvalidOperationException or HttpRequestException or TaskCanceledException)
+            catch (Exception ex) when (ClientSessionWork.IsCurrent && (ex is InvalidOperationException or HttpRequestException or TaskCanceledException))
             {
                 serverShopStatus = ClashOfRimText.Key(
                     "ClashOfRim.PawnPackage.DownloadException",

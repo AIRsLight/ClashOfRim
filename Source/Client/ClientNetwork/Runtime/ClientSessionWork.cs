@@ -1,0 +1,108 @@
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Runtime.CompilerServices;
+
+namespace AIRsLight.ClashOfRim.ClientNetwork;
+
+/// <summary>Owns asynchronous work across login/exit boundaries, independently of the game engine.</summary>
+public static class ClientSessionWork
+{
+    private static readonly object Gate = new();
+    private static readonly AsyncLocal<CancellationToken?> Ambient = new();
+    private static volatile CancellationTokenSource current = new();
+
+    public static CancellationToken Token => Ambient.Value ?? current.Token;
+    public static bool IsCurrent => Token == current.Token && !Token.IsCancellationRequested;
+
+    public static void Reset()
+    {
+        CancellationTokenSource previous;
+        lock (Gate)
+        {
+            previous = current;
+            current = new CancellationTokenSource();
+            Ambient.Value = null;
+        }
+        // Cancel outside the gate: callbacks may wait for network completions.
+        previous.Cancel();
+        // Tokens can still be registered by finishing work, so do not dispose the old source here.
+    }
+
+    public static Task Run(Func<Task> action)
+    {
+        CancellationToken token = Token;
+        return Task.Run(async () =>
+        {
+            Ambient.Value = token;
+            try
+            {
+                ThrowIfExpired();
+                await action();
+            }
+            catch (Exception) when (!IsCurrent)
+            {
+                // The owner exited. Its catch/finally state updates must also check IsCurrent.
+            }
+        });
+    }
+
+    public static async Task<T> Observe<T>(Task<T> task)
+    {
+        T result = await task;
+        ThrowIfExpired();
+        return result;
+    }
+
+    public static async Task Observe(Task task)
+    {
+        await task;
+        ThrowIfExpired();
+    }
+
+    public static async Task<T> Observe<T>(ConfiguredTaskAwaitable<T> task)
+    {
+        T result = await task;
+        ThrowIfExpired();
+        return result;
+    }
+
+    public static async Task Observe(ConfiguredTaskAwaitable task)
+    {
+        await task;
+        ThrowIfExpired();
+    }
+
+    public static Action Guard(Action action, Action? onDiscard = null)
+    {
+        CancellationToken token = Token;
+        return () =>
+        {
+            // Queued game actions run on the same main thread as session exit/login.
+            if (token != current.Token || token.IsCancellationRequested)
+            {
+                onDiscard?.Invoke();
+                return;
+            }
+            CancellationToken? previous = Ambient.Value;
+            Ambient.Value = token;
+            try { action(); }
+            finally { Ambient.Value = previous; }
+        };
+    }
+
+    public static bool TryApply(Action action)
+    {
+        lock (Gate)
+        {
+            if (!IsCurrent) return false;
+            action();
+            return true;
+        }
+    }
+
+    private static void ThrowIfExpired()
+    {
+        if (!IsCurrent) throw new OperationCanceledException("The multiplayer session ended.", Token);
+    }
+}

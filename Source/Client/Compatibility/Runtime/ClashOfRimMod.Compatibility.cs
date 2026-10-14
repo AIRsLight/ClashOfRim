@@ -127,7 +127,7 @@ public sealed partial class ClashOfRimMod
         }
 
         progress?.Invoke(ClashOfRimText.Key("ClashOfRim.Compatibility.Override.StageUpload"), 0.24f);
-        Task.Run(async () =>
+        ClientSessionWork.Run(async () =>
         {
             string message;
             bool accepted = false;
@@ -142,7 +142,7 @@ public sealed partial class ClashOfRimMod
                     httpClient,
                     ClashOfRimClientNetworkContext.FromSettings(settings));
                 ClashOfRimClientNetworkResult<ModOverrideCompatibilityBaselineResponseDto> result =
-                    await client.OverrideCompatibilityBaselineAsync(manifestJson!);
+                    await ClientSessionWork.Observe(client.OverrideCompatibilityBaselineAsync(manifestJson!));
                 accepted = result.Success && (result.Response?.Result?.Accepted ?? false);
                 message = accepted
                     ? ClashOfRimText.Key("ClashOfRim.Compatibility.Override.Accepted")
@@ -156,7 +156,7 @@ public sealed partial class ClashOfRimMod
                     EnqueueClashOfRimMainThreadAction(() =>
                         progress?.Invoke(ClashOfRimText.Key("ClashOfRim.Compatibility.Override.StageAdminBaseline"), 0.56f));
                     ClashOfRimClientNetworkResult<ModGetAdminBaselineRequirementsResponseDto> requirementsResult =
-                        await client.GetAdminBaselineRequirementsAsync();
+                        await ClientSessionWork.Observe(client.GetAdminBaselineRequirementsAsync());
                     if (!requirementsResult.Success || requirementsResult.Response?.Result?.Accepted != true)
                     {
                         string requirementMessage = requirementsResult.Response?.Result?.Message
@@ -171,12 +171,12 @@ public sealed partial class ClashOfRimMod
                         return;
                     }
 
-                    ModSubmitAdminBaselineRequestDto adminBaseline = await BuildAdminBaselineOnMainThreadAsync(
-                        requirementsResult.Response.BaselineExtensions);
+                    ModSubmitAdminBaselineRequestDto adminBaseline = await ClientSessionWork.Observe(BuildAdminBaselineOnMainThreadAsync(
+                        requirementsResult.Response.BaselineExtensions));
                     EnqueueClashOfRimMainThreadAction(() =>
                         progress?.Invoke(ClashOfRimText.Key("ClashOfRim.Compatibility.Override.StageSubmitAdminBaseline"), 0.72f));
                     ClashOfRimClientNetworkResult<ModSubmitAdminBaselineResponseDto> baselineResult =
-                        await client.SubmitAdminBaselineAsync(adminBaseline);
+                        await ClientSessionWork.Observe(client.SubmitAdminBaselineAsync(adminBaseline));
                     if (baselineResult.Success && baselineResult.Response?.Result?.Accepted == true)
                     {
                         ModSubmitAdminBaselineResponseDto baseline = baselineResult.Response;
@@ -207,6 +207,7 @@ public sealed partial class ClashOfRimMod
                     + message);
             }
             catch (Exception ex)
+            when (ClientSessionWork.IsCurrent)
             {
                 message = ClashOfRimText.Key("ClashOfRim.Compatibility.Override.Exception", ex.GetType().Name.Named("TYPE"));
                 Log.Warning("[ClashOfRim][Compatibility] Failed to override server baseline: " + ex);

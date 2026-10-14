@@ -19,6 +19,7 @@ public static class RaidSettlementDeferredScheduler
         ArgumentNullException.ThrowIfNull(request);
         lock (state.RaidSettlementSnapshotMutationGate)
         {
+            ClashOfRimNetworkServer.RecoverBankSnapshotCommits(state);
             return ScheduleUnderLock(state, request);
         }
     }
@@ -110,6 +111,7 @@ public static class RaidSettlementDeferredScheduler
 
             lock (state.RaidSettlementSnapshotMutationGate)
             {
+                ClashOfRimNetworkServer.RecoverBankSnapshotCommits(state);
                 packageStore.StoreLatest(
                     evidencePackage,
                     evidencePackage.Index,
@@ -162,6 +164,7 @@ public static class RaidSettlementDeferredScheduler
 
         lock (state.RaidSettlementSnapshotMutationGate)
         {
+            ClashOfRimNetworkServer.RecoverBankSnapshotCommits(state);
             LatestSnapshotRecord? latest = packageStore.GetLatest(payload.AttackerUserId, payload.AttackerColonyId);
             if (!string.Equals(latest?.Identity.SnapshotId, payload.EvidenceSnapshotId, StringComparison.Ordinal))
             {

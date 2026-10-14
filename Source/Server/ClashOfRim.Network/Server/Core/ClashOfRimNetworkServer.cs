@@ -537,7 +537,30 @@ public static partial class ClashOfRimNetworkServer
         string? requiredRaidEventId = null,
         bool allowRaidSettlementEvidenceSnapshotKind = false)
     {
-        var receiver = new SnapshotUploadReceiver(
+        var receiver = CreateSnapshotReceiver(state);
+        string normalizedSnapshotUploadKind = NormalizeSnapshotUploadKind(
+            snapshotUploadKind ?? package.SnapshotUploadKind, confirmationOperation);
+        if (!allowRaidSettlementEvidenceSnapshotKind
+            && string.Equals(normalizedSnapshotUploadKind, SnapshotUploadKinds.RaidSettlementEvidence, StringComparison.Ordinal))
+        {
+            return SnapshotUploadResult.Reject(SnapshotUploadResultKind.InvalidPayload,
+                "Raid settlement evidence snapshots are only accepted by the raid settlement confirmation endpoint.");
+        }
+        var context = new SnapshotUploadContext(userId, colonyId, snapshotId, confirmationOperation,
+            normalizedSnapshotUploadKind, requiredRaidEventId);
+        SaveSnapshotPackage savePackage = ProtocolDtoMapper.ToSaveSnapshotPackage(package, payload);
+        SnapshotUploadResult prepared = SnapshotPreparationService.Prepare(receiver, context, savePackage, acceptedAtUtc);
+        if (!prepared.Accepted) return prepared;
+        lock (state.RaidSettlementSnapshotMutationGate)
+        {
+            RecoverBankSnapshotCommits(state);
+            return receiver.CommitPrepared(context, savePackage, prepared, storeAccepted, validateGameplayContinuity);
+        }
+    }
+
+    private static SnapshotUploadReceiver CreateSnapshotReceiver(ClashOfRimNetworkState state)
+    {
+        return new SnapshotUploadReceiver(
             state.SnapshotStore,
             state.SnapshotUploadPolicy,
             state.Plugins.ActiveSaveIndexExtensions(state.CompatibilityBaseline.Current),
@@ -545,33 +568,6 @@ public static partial class ClashOfRimNetworkServer
                 .ActiveWorldObjectClassifiers(state.CompatibilityBaseline.Current)
                 .Select(classifier => (Func<WorldObjectSummary, bool>)classifier.IsPlayerColonyAnchor)
                 .ToList());
-        lock (state.RaidSettlementSnapshotMutationGate)
-        {
-            string normalizedSnapshotUploadKind = NormalizeSnapshotUploadKind(
-                snapshotUploadKind ?? package.SnapshotUploadKind,
-                confirmationOperation);
-            if (!allowRaidSettlementEvidenceSnapshotKind
-                && string.Equals(normalizedSnapshotUploadKind, SnapshotUploadKinds.RaidSettlementEvidence, StringComparison.Ordinal))
-            {
-                return SnapshotUploadResult.Reject(
-                    SnapshotUploadResultKind.InvalidPayload,
-                    "Raid settlement evidence snapshots are only accepted by the raid settlement confirmation endpoint.");
-            }
-
-            SnapshotUploadResult result = receiver.Receive(
-                new SnapshotUploadContext(
-                    userId,
-                    colonyId,
-                    snapshotId,
-                    confirmationOperation,
-                    normalizedSnapshotUploadKind,
-                    requiredRaidEventId),
-                ProtocolDtoMapper.ToSaveSnapshotPackage(package, payload),
-                acceptedAtUtc,
-                storeAccepted,
-                validateGameplayContinuity);
-            return result;
-        }
     }
 
     private static void RecordAcceptedSnapshotReference(

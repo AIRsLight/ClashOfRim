@@ -53,7 +53,7 @@ public sealed partial class ClashOfRimMod
         }
 
         playerListStatus = ClashOfRimText.Key("ClashOfRim.Players.StatusRefreshing");
-        Task.Run(async () =>
+        ClientSessionWork.Run(async () =>
         {
             try
             {
@@ -61,7 +61,7 @@ public sealed partial class ClashOfRimMod
                 var client = new ClashOfRimModNetworkClient(
                     httpClient,
                     ClashOfRimClientNetworkContext.FromSettings(settings));
-                ClashOfRimClientNetworkResult<ModListPlayersResponseDto> result = await client.ListPlayersAsync();
+                ClashOfRimClientNetworkResult<ModListPlayersResponseDto> result = await ClientSessionWork.Observe(client.ListPlayersAsync());
                 if (!result.Success || result.Response is null)
                 {
                     playerListStatus = ClashOfRimText.Key(
@@ -108,6 +108,7 @@ public sealed partial class ClashOfRimMod
                     FormatPlayers(result.Response.Players).Named("PLAYERS"));
             }
             catch (Exception ex)
+            when (ClientSessionWork.IsCurrent)
             {
                 playerListStatus = ClashOfRimText.Key(
                     "ClashOfRim.Players.StatusException",
@@ -117,9 +118,12 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                if (requireManualGate)
+                if (ClientSessionWork.IsCurrent)
                 {
-                    manualSyncInProgress = false;
+                    if (requireManualGate)
+                    {
+                        manualSyncInProgress = false;
+                    }
                 }
             }
         });
@@ -235,7 +239,7 @@ public sealed partial class ClashOfRimMod
         }
 
         manualSyncInProgress = true;
-        Task.Run(async () =>
+        ClientSessionWork.Run(async () =>
         {
             try
             {
@@ -245,7 +249,7 @@ public sealed partial class ClashOfRimMod
                     ClashOfRimClientNetworkContext.FromSettings(settings));
                 string idempotencyKey = $"diplomacy:{settings.UserId}:{settings.TargetUserId}:{kind}:{DateTime.UtcNow.Ticks}";
                 ClashOfRimClientNetworkResult<ModDiplomacyEventResponseDto> result =
-                    await client.CreateDiplomacyEventAsync(
+                    await ClientSessionWork.Observe(client.CreateDiplomacyEventAsync(
                         idempotencyKey,
                         settings.TargetUserId,
                         settings.TargetColonyId,
@@ -256,7 +260,7 @@ public sealed partial class ClashOfRimMod
                             || kind.Equals("AllianceCancellation", StringComparison.OrdinalIgnoreCase)
                             || kind.Equals("SupportRequest", StringComparison.OrdinalIgnoreCase)
                             ? null
-                            : DateTimeOffset.UtcNow.AddDays(3));
+                            : DateTimeOffset.UtcNow.AddDays(3)));
 
                 if (!result.Success || result.Response is null)
                 {
@@ -299,12 +303,16 @@ public sealed partial class ClashOfRimMod
                         historical: false));
             }
             catch (Exception ex)
+            when (ClientSessionWork.IsCurrent)
             {
                 Log.Warning("[ClashOfRim] Diplomacy event creation failed: " + ex);
             }
             finally
             {
-                manualSyncInProgress = false;
+                if (ClientSessionWork.IsCurrent)
+                {
+                    manualSyncInProgress = false;
+                }
             }
         });
     }

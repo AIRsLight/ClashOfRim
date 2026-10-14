@@ -25,7 +25,7 @@ public sealed partial class ClashOfRimMod
 
         adminInProgress = true;
         adminStatus = ClashOfRimText.Key("ClashOfRim.Admin.StatusRefreshing");
-        Task.Run(async () =>
+        ClientSessionWork.Run(async () =>
         {
             try
             {
@@ -33,7 +33,7 @@ public sealed partial class ClashOfRimMod
                 var client = new ClashOfRimModNetworkClient(
                     httpClient,
                     ClashOfRimClientNetworkContext.FromSettings(settings));
-                ClashOfRimClientNetworkResult<ModAdminStatusResponseDto> result = await client.AdminStatusAsync();
+                ClashOfRimClientNetworkResult<ModAdminStatusResponseDto> result = await ClientSessionWork.Observe(client.AdminStatusAsync());
                 if (!result.Success || result.Response is null)
                 {
                     adminStatus = ClashOfRimText.Key(
@@ -58,6 +58,7 @@ public sealed partial class ClashOfRimMod
                 adminStatus = ClashOfRimText.Key("ClashOfRim.Admin.StatusRefreshed");
             }
             catch (Exception ex)
+            when (ClientSessionWork.IsCurrent)
             {
                 adminStatus = ClashOfRimText.Key(
                     "ClashOfRim.Admin.StatusException",
@@ -67,7 +68,10 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                adminInProgress = false;
+                if (ClientSessionWork.IsCurrent)
+                {
+                    adminInProgress = false;
+                }
             }
         });
     }
@@ -82,7 +86,7 @@ public sealed partial class ClashOfRimMod
 
         adminInProgress = true;
         adminStatus = ClashOfRimText.Key("ClashOfRim.Admin.StatusSaving");
-        Task.Run(async () =>
+        ClientSessionWork.Run(async () =>
         {
             try
             {
@@ -91,7 +95,7 @@ public sealed partial class ClashOfRimMod
                     httpClient,
                     ClashOfRimClientNetworkContext.FromSettings(settings));
                 ClashOfRimClientNetworkResult<ModAdminUpdateConfigurationResponseDto> result =
-                    await client.AdminUpdateConfigurationAsync(configuration);
+                    await ClientSessionWork.Observe(client.AdminUpdateConfigurationAsync(configuration));
                 if (!result.Success || result.Response is null)
                 {
                     adminStatus = ClashOfRimText.Key(
@@ -121,6 +125,7 @@ public sealed partial class ClashOfRimMod
                     Messages.Message(ClashOfRimText.Key("ClashOfRim.Admin.SavedMessage"), MessageTypeDefOf.PositiveEvent));
             }
             catch (Exception ex)
+            when (ClientSessionWork.IsCurrent)
             {
                 adminStatus = ClashOfRimText.Key(
                     "ClashOfRim.Admin.StatusException",
@@ -130,7 +135,10 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                adminInProgress = false;
+                if (ClientSessionWork.IsCurrent)
+                {
+                    adminInProgress = false;
+                }
             }
         });
     }
@@ -151,7 +159,7 @@ public sealed partial class ClashOfRimMod
 
         adminInProgress = true;
         adminStatus = ClashOfRimText.Key("ClashOfRim.Admin.StatusSendingAction");
-        Task.Run(async () =>
+        ClientSessionWork.Run(async () =>
         {
             try
             {
@@ -160,13 +168,13 @@ public sealed partial class ClashOfRimMod
                     httpClient,
                     ClashOfRimClientNetworkContext.FromSettings(settings));
                 ClashOfRimClientNetworkResult<ModAdminActionResponseDto> result =
-                    await client.AdminActionAsync(
+                    await ClientSessionWork.Observe(client.AdminActionAsync(
                         actionKind,
                         targetUserId,
                         targetColonyId,
                         message,
                         notificationSeverity,
-                        persistentNotification);
+                        persistentNotification));
                 if (!result.Success || result.Response is null)
                 {
                     adminStatus = ClashOfRimText.Key(
@@ -192,6 +200,7 @@ public sealed partial class ClashOfRimMod
                     Messages.Message(adminStatus, MessageTypeDefOf.PositiveEvent));
             }
             catch (Exception ex)
+            when (ClientSessionWork.IsCurrent)
             {
                 adminStatus = ClashOfRimText.Key(
                     "ClashOfRim.Admin.StatusException",
@@ -201,7 +210,10 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                adminInProgress = false;
+                if (ClientSessionWork.IsCurrent)
+                {
+                    adminInProgress = false;
+                }
             }
         });
     }

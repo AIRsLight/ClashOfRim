@@ -24,7 +24,7 @@ public sealed partial class ClashOfRimMod
             ? settings.ColonyId
             : targetColonyId!.Trim();
         achievementStatus = ClashOfRimText.Key("ClashOfRim.Achievement.StatusRefreshing");
-        Task.Run(async () =>
+        ClientSessionWork.Run(async () =>
         {
             try
             {
@@ -33,7 +33,7 @@ public sealed partial class ClashOfRimMod
                     httpClient,
                     ClashOfRimClientNetworkContext.FromSettings(settings));
                 ClashOfRimClientNetworkResult<ModListAchievementsResponseDto> result =
-                    await client.ListAchievementsAsync(requestedTargetUserId, requestedTargetColonyId);
+                    await ClientSessionWork.Observe(client.ListAchievementsAsync(requestedTargetUserId, requestedTargetColonyId));
                 if (!result.Success || result.Response is null)
                 {
                     achievementStatus = ClashOfRimText.Key(
@@ -66,6 +66,7 @@ public sealed partial class ClashOfRimMod
                 achievementStatus = ClashOfRimText.Key("ClashOfRim.Achievement.StatusRefreshed");
             }
             catch (Exception ex)
+            when (ClientSessionWork.IsCurrent)
             {
                 achievementStatus = ClashOfRimText.Key(
                     "ClashOfRim.Achievement.StatusException",

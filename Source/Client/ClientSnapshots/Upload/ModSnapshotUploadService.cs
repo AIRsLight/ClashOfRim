@@ -34,9 +34,12 @@ public sealed class ModSnapshotUploadService
         IReadOnlyList<ModSnapshotAchievementCandidateDto>? achievementCandidates = null,
         CancellationToken cancellationToken = default)
     {
+        using var sessionCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, ClientSessionWork.Token);
+        cancellationToken = sessionCancellation.Token;
         await UploadGate.WaitAsync(cancellationToken);
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (!settings.IsConfigured)
             {
                 return ModSnapshotUploadResult.Failed(
@@ -47,6 +50,7 @@ public sealed class ModSnapshotUploadService
             SnapshotSaveCapture saveCapture = await CaptureSaveBytesOnMainThreadAsync(
                 removeRaidBattleSessions,
                 cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
             if (!saveCapture.Success)
             {
                 return ModSnapshotUploadResult.Failed(
@@ -119,8 +123,11 @@ public sealed class ModSnapshotUploadService
             }
 
             string acceptedSnapshotId = upload.Response.AcceptedSnapshotId ?? build.Package.SnapshotId;
-            settings.CurrentSnapshotId = acceptedSnapshotId;
-            settings.CurrentLineageToken = upload.Response.NextLineageToken ?? settings.CurrentLineageToken;
+            if (!ClientSessionWork.TryApply(() =>
+                {
+                    settings.CurrentSnapshotId = acceptedSnapshotId;
+                    settings.CurrentLineageToken = upload.Response.NextLineageToken ?? settings.CurrentLineageToken;
+                })) throw new OperationCanceledException(ClientSessionWork.Token);
             ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
             {
                 if (!string.IsNullOrWhiteSpace(upload.Response.NextLineageToken))
@@ -188,7 +195,7 @@ public sealed class ModSnapshotUploadService
         }
     }
 
-    private Task<SnapshotSaveCapture> CaptureSaveBytesOnMainThreadAsync(
+    private async Task<SnapshotSaveCapture> CaptureSaveBytesOnMainThreadAsync(
         bool removeRaidBattleSessions,
         CancellationToken cancellationToken)
     {
@@ -196,10 +203,10 @@ public sealed class ModSnapshotUploadService
         if (cancellationToken.IsCancellationRequested)
         {
             completion.SetCanceled();
-            return completion.Task;
+            return await completion.Task;
         }
 
-        CancellationTokenRegistration registration = cancellationToken.Register(() => completion.TrySetCanceled());
+        using CancellationTokenRegistration registration = cancellationToken.Register(() => completion.TrySetCanceled());
         ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
         {
             try
@@ -233,13 +240,9 @@ public sealed class ModSnapshotUploadService
             {
                 completion.TrySetResult(SnapshotSaveCapture.Failed("SaveToMemoryException", $"{ex.GetType().Name} {ex.Message}"));
             }
-            finally
-            {
-                registration.Dispose();
-            }
-        });
+        }, onDiscard: () => completion.TrySetCanceled());
 
-        return completion.Task;
+        return await completion.Task;
     }
 
     private bool TryValidateCurrentGameForUpload(out string failureReason)

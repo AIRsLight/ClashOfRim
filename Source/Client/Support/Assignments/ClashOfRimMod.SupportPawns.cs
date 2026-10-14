@@ -277,7 +277,7 @@ public sealed partial class ClashOfRimMod
             "ClashOfRim.Support.StatusSubmitting",
             pawn.LabelShort.Named("PAWN"),
             FormatSupportTargetLabel(target).Named("TARGET"));
-        Task.Run(async () =>
+        ClientSessionWork.Run(async () =>
         {
             try
             {
@@ -286,7 +286,7 @@ public sealed partial class ClashOfRimMod
                     httpClient,
                     ClashOfRimClientNetworkContext.FromSettings(settings));
                 ClashOfRimClientNetworkResult<ModEventCreationResponseDto> result =
-                    await client.CreateSupportPawnWithSnapshotAsync(
+                    await ClientSessionWork.Observe(client.CreateSupportPawnWithSnapshotAsync(
                         idempotencyKey,
                         target.OwnerUserId,
                         target.OwnerColonyId ?? string.Empty,
@@ -303,7 +303,7 @@ public sealed partial class ClashOfRimMod
                         expiresAtGameTicks: null,
                         autoReturnOnSettlement,
                         confirmedSnapshot,
-                        confirmedPayload);
+                        confirmedPayload));
 
                 if (!result.Success || result.Response is null)
                 {
@@ -375,6 +375,7 @@ public sealed partial class ClashOfRimMod
                 });
             }
             catch (Exception ex)
+            when (ClientSessionWork.IsCurrent)
             {
                 tradeStatus = ClashOfRimText.Key("ClashOfRim.Support.StatusException", ex.GetType().Name.Named("TYPE"), ex.Message.Named("MESSAGE"));
                 ShowUnconfirmedSnapshotFailure(
@@ -397,7 +398,10 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                EndSnapshotUploadTransaction();
+                if (ClientSessionWork.IsCurrent)
+                {
+                    EndSnapshotUploadTransaction();
+                }
             }
         });
     }
@@ -617,7 +621,7 @@ public sealed partial class ClashOfRimMod
     {
         string idempotencyKey = $"support-finish:{settings.UserId}:{settings.ColonyId}:{assignment.EventId}:{finishReason}";
 
-        Task.Run(async () =>
+        ClientSessionWork.Run(async () =>
         {
             try
             {
@@ -626,14 +630,14 @@ public sealed partial class ClashOfRimMod
                     httpClient,
                     ClashOfRimClientNetworkContext.FromSettings(settings));
                 ClashOfRimClientNetworkResult<ModFinishSupportPawnResponseDto> result =
-                    await client.FinishSupportPawnAsync(
+                    await ClientSessionWork.Observe(client.FinishSupportPawnAsync(
                         idempotencyKey,
                         assignment.EventId,
                         finishReason,
                         assignment.PawnGlobalKey,
                         pawnLabel,
                         pawnDead: package is null,
-                        package);
+                        package));
 
                 if (!result.Success || result.Response is null)
                 {
@@ -667,6 +671,7 @@ public sealed partial class ClashOfRimMod
                 });
             }
             catch (Exception ex)
+            when (ClientSessionWork.IsCurrent)
             {
                 tradeStatus = ClashOfRimText.Key(
                     "ClashOfRim.Support.StatusFinishException",

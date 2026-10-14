@@ -95,7 +95,7 @@ public sealed partial class ClashOfRimMod
             loginStatus,
             -1f,
             canClose: false);
-        Task.Run(async () =>
+        ClientSessionWork.Run(async () =>
         {
             try
             {
@@ -117,7 +117,7 @@ public sealed partial class ClashOfRimMod
                     -1f,
                     canClose: false);
                 ClashOfRimClientNetworkResult<ModServerHelloResponseDto> hello =
-                    await client.ServerHelloAsync();
+                    await ClientSessionWork.Observe(client.ServerHelloAsync());
                 if (!TryValidateServerHello(hello, out string helloFailure))
                 {
                     ClashOfRimMainMenuPatches.EnqueueMainThreadAction(() =>
@@ -131,7 +131,7 @@ public sealed partial class ClashOfRimMod
                 }
 
                 ClashOfRimClientNetworkResult<ModPrepareWorldSessionResponseDto> result =
-                    await client.PrepareWorldSessionAsync(createAccountIfMissing);
+                    await ClientSessionWork.Observe(client.PrepareWorldSessionAsync(createAccountIfMissing));
                 if (result.Success
                     && result.Response?.Result?.Accepted == true
                     && result.Response.WorldConfigured
@@ -153,10 +153,10 @@ public sealed partial class ClashOfRimMod
                             settings.OfflinePassword,
                             settings.AuthToken));
                     ClashOfRimClientNetworkResult<ModGetWorldConfigurationResponseDto> worldConfiguration =
-                        await configurationClient.GetWorldConfigurationAsync(
+                        await ClientSessionWork.Observe(configurationClient.GetWorldConfigurationAsync(
                             includeGenerationBaseline: !result.Response.HasExistingColony,
                             includePlayerColonySites: true,
-                            includeWorldExtensions: true);
+                            includeWorldExtensions: true));
                     if (!worldConfiguration.Success || worldConfiguration.Response is null)
                     {
                         if (!result.Response.HasExistingColony)
@@ -197,6 +197,7 @@ public sealed partial class ClashOfRimMod
                     FinishMainMenuServerEntryFlow(result));
             }
             catch (Exception ex)
+            when (ClientSessionWork.IsCurrent)
             {
                 ClashOfRimMainMenuPatches.EnqueueMainThreadAction(() =>
                 {
@@ -269,6 +270,8 @@ public sealed partial class ClashOfRimMod
 
     private void ResetRuntimeSessionStateForMainMenuLogin()
     {
+        ClientSessionWork.Reset();
+        ClearTransientMultiplayerSessionStateForExit();
         presenceCancellation?.Cancel();
         presenceCancellation = null;
         presenceInProgress = false;
@@ -530,7 +533,7 @@ public sealed partial class ClashOfRimMod
             return false;
         }
 
-        Task.Run(async () =>
+        ClientSessionWork.Run(async () =>
         {
             try
             {
@@ -538,9 +541,9 @@ public sealed partial class ClashOfRimMod
                 var client = new ClashOfRimModNetworkClient(
                     httpClient,
                     ClashOfRimClientNetworkContext.FromSettings(settings));
-                ClashOfRimClientNetworkResult<byte[]> result = await client
+                ClashOfRimClientNetworkResult<byte[]> result = await ClientSessionWork.Observe(client
                     .DownloadWorldSubstrateAsync(configuration.WorldConfigurationId)
-                    .ConfigureAwait(false);
+                    .ConfigureAwait(false));
                 string? failure = null;
                 WorldSubstratePackage? substrate = null;
                 bool decoded = result.Success
@@ -571,6 +574,7 @@ public sealed partial class ClashOfRimMod
                 });
             }
             catch (Exception ex)
+            when (ClientSessionWork.IsCurrent)
             {
                 EnqueueClashOfRimMainThreadAction(() =>
                 {
@@ -608,7 +612,7 @@ public sealed partial class ClashOfRimMod
             0.1f,
             canClose: false);
         string expected = expectedSnapshotId!;
-        Task.Run(async () =>
+        ClientSessionWork.Run(async () =>
         {
             try
             {
@@ -627,7 +631,7 @@ public sealed partial class ClashOfRimMod
                         0.2f,
                         canClose: false);
                     ClashOfRimClientNetworkResult<ModLoginResponseDto> login =
-                        await client.LoginAsync("restore-existing-snapshot");
+                        await ClientSessionWork.Observe(client.LoginAsync("restore-existing-snapshot"));
                     if (!login.Success || login.Response is null || login.Response.Result?.Accepted != true)
                     {
                         string message = login.Response?.Result?.Message
@@ -662,7 +666,7 @@ public sealed partial class ClashOfRimMod
                     0.35f,
                     canClose: false);
                 ClashOfRimClientNetworkResult<ModDownloadLatestSnapshotResponseDto> result =
-                    await client.DownloadLatestSnapshotAsync();
+                    await ClientSessionWork.Observe(client.DownloadLatestSnapshotAsync());
                 ClashOfRimClientNetworkResult<byte[]>? payloadResult = null;
                 if (result.Success
                     && result.Response?.Result?.Accepted == true
@@ -676,8 +680,8 @@ public sealed partial class ClashOfRimMod
                             snapshotIdForProgress.Named("SNAPSHOT")),
                         0.58f,
                         canClose: false);
-                    payloadResult = await client.DownloadLatestSnapshotPayloadAsync(
-                        snapshotIdForProgress);
+                    payloadResult = await ClientSessionWork.Observe(client.DownloadLatestSnapshotPayloadAsync(
+                        snapshotIdForProgress));
                 }
 
                 ShowServerEntryProgressWindow(
@@ -695,6 +699,7 @@ public sealed partial class ClashOfRimMod
                         worldConfiguration));
             }
             catch (Exception ex)
+            when (ClientSessionWork.IsCurrent)
             {
                 EnqueueClashOfRimMainThreadAction(() =>
                 {
@@ -1040,7 +1045,7 @@ public sealed partial class ClashOfRimMod
             out parsed);
     }
 
-    private static void EnqueueClashOfRimMainThreadAction(Action action)
+    private static void EnqueueClashOfRimMainThreadAction(Action action, Action? onDiscard = null)
     {
         if (action is null)
         {
@@ -1049,11 +1054,11 @@ public sealed partial class ClashOfRimMod
 
         if (Current.ProgramState == ProgramState.Playing)
         {
-            ClashOfRimGameComponent.EnqueueMainThreadAction(action);
+            ClashOfRimGameComponent.EnqueueMainThreadAction(action, onDiscard);
         }
         else
         {
-            ClashOfRimMainMenuPatches.EnqueueMainThreadAction(action);
+            ClashOfRimMainMenuPatches.EnqueueMainThreadAction(action, onDiscard);
         }
     }
 

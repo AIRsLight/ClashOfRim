@@ -20,12 +20,9 @@ namespace AIRsLight.ClashOfRim.RemoteMaps;
 
 public static class RemoteMapSnapshotProjector
 {
-    private const string ReferencePawnsNodeName = "clashOfRimReferencePawns";
     public const string RemoteNpcFactionName = "ClashOfRim remote NPC";
     private const string RemoteNpcFactionNamePrefix = RemoteNpcFactionName + ":";
     private const int MaxReferencePawns = 256;
-    private static readonly FieldInfo? LoadedObjectDirectoryField =
-        typeof(CrossRefHandler).GetField("loadedObjectDirectory", BindingFlags.Instance | BindingFlags.NonPublic);
     private static readonly MethodInfo? FactionManagerRemoveMethod =
         typeof(FactionManager).GetMethod("Remove", BindingFlags.Instance | BindingFlags.NonPublic);
 
@@ -139,7 +136,7 @@ public static class RemoteMapSnapshotProjector
         {
             WriteSingleMapDocument(tempPath, mapElement, referencePawnsElement);
             MarkStage("write-temp-save");
-            if (!TryLoadSingleMap(tempPath, carrier, factionProjection.RemoteFactions, mappedReferences, out map, out failureReason))
+            if (!RemoteMapRuntimeLoader.TryLoadSingleMap(tempPath, carrier, factionProjection.RemoteFactions, mappedReferences, out map, out failureReason))
             {
                 return false;
             }
@@ -170,109 +167,6 @@ public static class RemoteMapSnapshotProjector
             map.uniqueID.ToString(),
             projectedThingIdentities);
         return true;
-    }
-
-    private static bool TryLoadSingleMap(
-        string tempPath,
-        MapParent carrier,
-        IReadOnlyCollection<Faction> remoteNpcFactions,
-        IReadOnlyList<ILoadReferenceable> mappedReferences,
-        out Map? map,
-        out string failureReason)
-    {
-        map = null;
-        failureReason = string.Empty;
-        List<Map>? maps = null;
-        List<Pawn>? referencePawns = null;
-
-        try
-        {
-            Faction? carrierFaction = carrier.Faction;
-            if (carrierFaction is not null)
-            {
-                carrierFaction.leader = null;
-            }
-
-            using (RemoteMapProjectionLoadScope.Begin())
-            {
-                Scribe.loader.InitLoading(tempPath);
-                RegisterExternalLoadReference(carrier);
-                RegisterExternalLoadReference(carrierFaction);
-                foreach (Faction remoteNpcFaction in remoteNpcFactions)
-                {
-                    RegisterExternalLoadReference(remoteNpcFaction);
-                }
-
-                foreach (ILoadReferenceable reference in mappedReferences)
-                {
-                    RegisterExternalLoadReference(reference);
-                }
-
-                Scribe_Collections.Look(ref referencePawns, ReferencePawnsNodeName, LookMode.Deep);
-                Scribe_Collections.Look(ref maps, "maps", LookMode.Deep);
-                Scribe.loader.FinalizeLoading();
-            }
-        }
-        catch (Exception ex)
-        {
-            failureReason = ClashOfRimText.Key(
-                "ClashOfRim.RemoteMapProjection.StatusScribeFailed",
-                ex.GetType().Name.Named("TYPE"),
-                ex.Message.Named("MESSAGE"));
-            try
-            {
-                Scribe.ForceStop();
-            }
-            catch (Exception forceStopEx)
-            {
-                Log.Warning("[ClashOfRim] Failed to force-stop Scribe after remote map projection failure: " + forceStopEx);
-            }
-
-            return false;
-        }
-
-        map = maps?.FirstOrDefault(candidate => candidate is not null);
-        if (map is null)
-        {
-            failureReason = ClashOfRimText.Key("ClashOfRim.RemoteMapProjection.StatusNoMapLoaded");
-            return false;
-        }
-
-        map.info.parent = carrier;
-        map.generatorDef ??= carrier.MapGeneratorDef;
-        RemoteSessionThingCleanup.KeepReferencePawnsForCleanup(referencePawns, carrier as RemoteSessionMapParent);
-
-        if (carrier.HasMap)
-        {
-            using (RemoteSessionGlobalStateGuard.BeginSuppressRemoteMapRemovalGlobalEffects())
-            {
-                Current.Game.DeinitAndRemoveMap(carrier.Map, notifyPlayer: false);
-            }
-        }
-
-        using (RemoteMapProjectionLoadScope.Begin())
-        {
-            Current.Game.AddMap(map);
-            map.FinalizeLoading();
-        }
-
-        carrier.FinalizeLoading();
-        RemoteSessionThingCleanup.MarkMapThingsForCleanup(map, carrier as RemoteSessionMapParent);
-        Current.Game.CurrentMap = map;
-        return true;
-    }
-
-    private static void RegisterExternalLoadReference(ILoadReferenceable? reference)
-    {
-        if (reference is null)
-        {
-            return;
-        }
-
-        if (LoadedObjectDirectoryField?.GetValue(Scribe.loader.crossRefs) is LoadedObjectDirectory directory)
-        {
-            directory.RegisterLoaded(reference);
-        }
     }
 
     private static bool TryDecodeOriginalPayload(
@@ -1187,7 +1081,7 @@ public static class RemoteMapSnapshotProjector
         Dictionary<string, XElement> worldPawns = ReadWorldPawnElementsByLoadId(document);
         if (worldPawns.Count == 0)
         {
-            return new XElement(ReferencePawnsNodeName);
+            return new XElement(RemoteMapRuntimeLoader.ReferencePawnsNodeName);
         }
 
         List<string> initialReferenceIds = CollectThingLoadIds(mapElement)
@@ -1221,7 +1115,7 @@ public static class RemoteMapSnapshotProjector
             }
         }
 
-        XElement references = new(ReferencePawnsNodeName);
+        XElement references = new(RemoteMapRuntimeLoader.ReferencePawnsNodeName);
         foreach (string id in selectedIds)
         {
             references.Add(new XElement(worldPawns[id]));

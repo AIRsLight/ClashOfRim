@@ -1,0 +1,34 @@
+name: Regression tests
+
+on:
+  pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Checkout compatibility test dependencies
+        shell: pwsh
+        env:
+          SUBMODULES_TOKEN: ${{ secrets.SUBMODULES_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          $token = $env:SUBMODULES_TOKEN
+          if ([string]::IsNullOrWhiteSpace($token)) { $token = $env:GITHUB_TOKEN }
+          $encoded = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("x-access-token:$token"))
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $encoded" submodule update --init --recursive
+          if ($LASTEXITCODE -ne 0) { throw 'Unable to checkout compatibility test dependencies.' }
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Run behavior regressions
+        shell: pwsh
+        run: ./Tools/Test-Regression.ps1
+      - name: Verify frozen 1.6 payload
+        shell: pwsh
+        run: ./Tools/Test-FrozenLegacy.ps1

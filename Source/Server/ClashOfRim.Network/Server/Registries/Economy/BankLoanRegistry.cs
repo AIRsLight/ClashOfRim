@@ -16,6 +16,33 @@ public sealed class BankLoanRegistry
     };
 
     private readonly object gate = new();
+    internal object SnapshotCommitGate => gate;
+
+    internal BankLoanRecord PrepareActivatedLoan(string key, string userId, string colonyId, string snapshotId,
+        int principal, int interest, int days, long ticks, DateTimeOffset now, string? requestedId)
+    {
+        lock (gate)
+        {
+            string id = string.IsNullOrWhiteSpace(requestedId) || loans.ContainsKey(requestedId)
+                ? "bankloan-" + Guid.NewGuid().ToString("N") : requestedId;
+            return new BankLoanRecord(id, key, userId, colonyId, snapshotId, principal, interest,
+                principal + interest, days, ticks, ticks + days * BankLoanPolicy.GameTicksPerDay,
+                StatusActive, now, null, null, null, null, null);
+        }
+    }
+
+    internal void ApplySnapshotCommit(BankLoanRecord? loan, BankDebtRecord? debt)
+    {
+        lock (gate)
+        {
+            if (legacyPersistence is not null)
+                throw new InvalidOperationException("Snapshot commits require the migrated structured bank store.");
+            // Persist before publishing to the cache, so a failed write remains safely retryable.
+            PersistBankRecords(loan is null ? [] : [loan], debt is null ? [] : [debt], [], []);
+            if (loan is not null) RegisterLoadedLoan(loan, overwrite: true);
+            if (debt is not null) RegisterLoadedDebt(debt, overwrite: true);
+        }
+    }
     private readonly IKeyedJsonRecordStore? structuredPersistence;
     private readonly IJsonPersistenceSlot? legacyPersistence;
     private readonly Dictionary<string, BankLoanRecord> loans = new(StringComparer.Ordinal);
@@ -437,7 +464,7 @@ public sealed class BankLoanRegistry
                         SnapshotId = acceptedSnapshotId,
                         PaidAtUtc = confirmedAtUtc,
                         PaidAtGameTicks = acceptedSnapshotGameTicks ?? debt.RepaymentRequestedAtGameTicks
-                };
+                    };
                 debts[debt.DebtId] = confirmed;
                 InvalidateOpenDebtCache(confirmed);
                 confirmedDebts.Add(confirmed);

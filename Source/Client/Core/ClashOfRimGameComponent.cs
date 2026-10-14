@@ -146,11 +146,13 @@ public sealed class ClashOfRimGameComponent : GameComponent
         }
     }
 
-    internal static void EnqueueMainThreadAction(Action action)
+    internal static void EnqueueMainThreadAction(Action action, Action? onDiscard = null)
     {
         if (action is not null)
         {
-            MainThreadActions.Enqueue(action);
+            Game? owner = Verse.Current.Game;
+            Action guarded = ClientSessionWork.Guard(action, onDiscard);
+            MainThreadActions.Enqueue(() => { if (ReferenceEquals(owner, Verse.Current.Game)) guarded(); else onDiscard?.Invoke(); });
         }
     }
 
@@ -171,7 +173,10 @@ public sealed class ClashOfRimGameComponent : GameComponent
         int dueTick = currentTicks + delayTicks;
         lock (DelayedMainThreadActionsGate)
         {
-            DelayedMainThreadActions.Enqueue(new DelayedMainThreadAction(dueTick, action));
+            Game? owner = Verse.Current.Game;
+            Action guarded = ClientSessionWork.Guard(action);
+            DelayedMainThreadActions.Enqueue(new DelayedMainThreadAction(dueTick,
+                () => { if (ReferenceEquals(owner, Verse.Current.Game)) guarded(); }));
             if (dueTick < nextDelayedMainThreadActionTick)
             {
                 nextDelayedMainThreadActionTick = dueTick;

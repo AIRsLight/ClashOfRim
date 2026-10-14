@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.ClientNetwork;
 using HarmonyLib;
 using RimWorld;
 using System;
@@ -101,11 +102,11 @@ public static class ClashOfRimMainMenuPatches
 {
     private static readonly ConcurrentQueue<Action> MainThreadActions = new();
 
-    public static void EnqueueMainThreadAction(Action action)
+    public static void EnqueueMainThreadAction(Action action, Action? onDiscard = null)
     {
         if (action is not null)
         {
-            MainThreadActions.Enqueue(action);
+            MainThreadActions.Enqueue(ClientSessionWork.Guard(action, onDiscard));
         }
     }
 

@@ -123,6 +123,10 @@ Build\ClashOfRim.NetworkServer\win-x64
 - 未配置 Steam Web API key 时，服务器使用离线账户和密码登录。
 - 首个完成服务器初始化的玩家会成为初始管理员。
 
+## 架构修复与回归验证
+
+缺陷、修复范围、验证结果与后续顺序见 [1.7 架构修复记录](docs/architecture-remediation.md)。运行 `pwsh ./Tools/Test-Regression.ps1` 执行可移植回归；追加 `-IncludeClient -RimWorldManagedDir <RimWorld目录>` 执行需要本地 1.7 游戏运行库的客户端测试。
+
 ## 致谢
 
 ClashOfRim 在设计和实现过程中参考研究了多个 RimWorld 多人和模组项目：

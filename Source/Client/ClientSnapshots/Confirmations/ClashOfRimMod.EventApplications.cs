@@ -48,7 +48,7 @@ public sealed partial class ClashOfRimMod
         }
 
         eventQueueStatus = ClashOfRimText.Key("ClashOfRim.Events.StatusAutoRefreshing", reason.Named("REASON"));
-        Task.Run(async () =>
+        ClientSessionWork.Run(async () =>
         {
             try
             {
@@ -58,7 +58,7 @@ public sealed partial class ClashOfRimMod
                     ClashOfRimClientNetworkContext.FromSettings(settings));
 
                 ClashOfRimClientNetworkResult<ModPullPendingEventsResponseDto> queue =
-                    await client.PullPendingEventsAsync();
+                    await ClientSessionWork.Observe(client.PullPendingEventsAsync());
                 if (!queue.Success || queue.Response is null)
                 {
                     eventQueueStatus = ClashOfRimText.Key(
@@ -88,7 +88,7 @@ public sealed partial class ClashOfRimMod
                 }
 
                 ClashOfRimClientNetworkResult<ModPullEventDetailsResponseDto> details =
-                    await client.PullEventDetailsAsync(eventIds);
+                    await ClientSessionWork.Observe(client.PullEventDetailsAsync(eventIds));
                 if (!details.Success || details.Response is null)
                 {
                     eventDetailsStatus = ClashOfRimText.Key(
@@ -128,6 +128,7 @@ public sealed partial class ClashOfRimMod
                         automaticApplications = ApplyDirectlyProcessableEvents(events);
                     }
                     catch (Exception ex)
+                    when (ClientSessionWork.IsCurrent)
                     {
                         eventDetailsStatus = ClashOfRimText.Key(
                             "ClashOfRim.Events.StatusAutoApplyException",
@@ -151,6 +152,7 @@ public sealed partial class ClashOfRimMod
                 });
             }
             catch (Exception ex)
+            when (ClientSessionWork.IsCurrent)
             {
                 eventQueueStatus = ClashOfRimText.Key(
                     "ClashOfRim.Events.StatusAutoException",
@@ -160,17 +162,20 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                bool runAgain;
-                lock (automaticEventRefreshLock)
+                if (ClientSessionWork.IsCurrent)
                 {
-                    runAgain = automaticEventRefreshQueued;
-                    automaticEventRefreshQueued = false;
-                    automaticEventRefreshInProgress = false;
-                }
+                    bool runAgain;
+                    lock (automaticEventRefreshLock)
+                    {
+                        runAgain = automaticEventRefreshQueued;
+                        automaticEventRefreshQueued = false;
+                        automaticEventRefreshInProgress = false;
+                    }
 
-                if (runAgain)
-                {
-                    StartAutomaticEventRefresh(ClashOfRimText.Key("ClashOfRim.Events.ReasonMergedNotifications"));
+                    if (runAgain)
+                    {
+                        StartAutomaticEventRefresh(ClashOfRimText.Key("ClashOfRim.Events.ReasonMergedNotifications"));
+                    }
                 }
             }
         });
@@ -217,7 +222,7 @@ public sealed partial class ClashOfRimMod
         manualSyncInProgress = true;
         eventQueueStatus = ClashOfRimText.Key("ClashOfRim.Events.StatusPullingPending");
 
-        Task.Run(async () =>
+        ClientSessionWork.Run(async () =>
         {
             try
             {
@@ -227,7 +232,7 @@ public sealed partial class ClashOfRimMod
                     ClashOfRimClientNetworkContext.FromSettings(settings));
 
                 ClashOfRimClientNetworkResult<ModPullPendingEventsResponseDto> result =
-                    await client.PullPendingEventsAsync();
+                    await ClientSessionWork.Observe(client.PullPendingEventsAsync());
 
                 if (!result.Success || result.Response is null)
                 {
@@ -252,6 +257,7 @@ public sealed partial class ClashOfRimMod
                 CaptureEventIds(result.Response.EventQueue);
             }
             catch (Exception ex)
+            when (ClientSessionWork.IsCurrent)
             {
                 eventQueueStatus = ClashOfRimText.Key(
                     "ClashOfRim.Events.StatusQueueException",
@@ -261,7 +267,10 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                manualSyncInProgress = false;
+                if (ClientSessionWork.IsCurrent)
+                {
+                    manualSyncInProgress = false;
+                }
             }
         });
     }
@@ -277,7 +286,7 @@ public sealed partial class ClashOfRimMod
         manualSyncInProgress = true;
         eventQueueStatus = ClashOfRimText.Key("ClashOfRim.Events.StatusWaitingOnline");
 
-        Task.Run(async () =>
+        ClientSessionWork.Run(async () =>
         {
             try
             {
@@ -287,7 +296,7 @@ public sealed partial class ClashOfRimMod
                     ClashOfRimClientNetworkContext.FromSettings(settings));
 
                 ClashOfRimClientNetworkResult<ModWaitForEventsResponseDto> result =
-                    await client.WaitForEventsAsync(lastNotificationVersion, timeoutSeconds: 15);
+                    await ClientSessionWork.Observe(client.WaitForEventsAsync(lastNotificationVersion, timeoutSeconds: 15));
 
                 if (!result.Success || result.Response is null)
                 {
@@ -315,6 +324,7 @@ public sealed partial class ClashOfRimMod
                 CaptureEventIds(result.Response.EventQueue);
             }
             catch (Exception ex)
+            when (ClientSessionWork.IsCurrent)
             {
                 eventQueueStatus = ClashOfRimText.Key(
                     "ClashOfRim.Events.StatusOnlineException",
@@ -324,7 +334,10 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                manualSyncInProgress = false;
+                if (ClientSessionWork.IsCurrent)
+                {
+                    manualSyncInProgress = false;
+                }
             }
         });
     }
@@ -347,7 +360,7 @@ public sealed partial class ClashOfRimMod
         manualSyncInProgress = true;
         eventDetailsStatus = ClashOfRimText.Key("ClashOfRim.Events.StatusPullingDetails");
 
-        Task.Run(async () =>
+        ClientSessionWork.Run(async () =>
         {
             try
             {
@@ -357,7 +370,7 @@ public sealed partial class ClashOfRimMod
                     ClashOfRimClientNetworkContext.FromSettings(settings));
 
                 ClashOfRimClientNetworkResult<ModPullEventDetailsResponseDto> result =
-                    await client.PullEventDetailsAsync(eventIds);
+                    await ClientSessionWork.Observe(client.PullEventDetailsAsync(eventIds));
 
                 if (!result.Success || result.Response is null)
                 {
@@ -384,6 +397,7 @@ public sealed partial class ClashOfRimMod
                 ClashOfRimGameComponent.EnqueueMainThreadAction(() => PostEventLetters(events, ClashOfRimText.Key("ClashOfRim.Events.ReasonManualDetails")));
             }
             catch (Exception ex)
+            when (ClientSessionWork.IsCurrent)
             {
                 eventDetailsStatus = ClashOfRimText.Key(
                     "ClashOfRim.Events.StatusDetailsException",
@@ -393,7 +407,10 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                manualSyncInProgress = false;
+                if (ClientSessionWork.IsCurrent)
+                {
+                    manualSyncInProgress = false;
+                }
             }
         });
     }
@@ -557,7 +574,7 @@ public sealed partial class ClashOfRimMod
         }
 
         string currentSnapshotId = settings.CurrentSnapshotId ?? string.Empty;
-        Task.Run(async () =>
+        ClientSessionWork.Run(async () =>
         {
             try
             {
@@ -566,12 +583,12 @@ public sealed partial class ClashOfRimMod
                     httpClient,
                     ClashOfRimClientNetworkContext.FromSettings(settings));
                 ClashOfRimClientNetworkResult<ModReportEventApplicationFailureResponseDto> result =
-                    await client.ReportEventApplicationFailureAsync(
+                    await ClientSessionWork.Observe(client.ReportEventApplicationFailureAsync(
                         $"event-application-failure:{settings.UserId}:{eventId}:{DateTime.UtcNow.Ticks}",
                         eventId,
                         sourceEventId,
                         currentSnapshotId,
-                        reason);
+                        reason));
                 if (!result.Success || result.Response is null)
                 {
                     Log.Warning("[ClashOfRim][EventFailure] report failed event=" + eventId + " error=" + result.ErrorCode + " " + result.Message);
@@ -588,7 +605,7 @@ public sealed partial class ClashOfRimMod
                 ClashLog.Message("[ClashOfRim][EventFailure] reported event=" + eventId + " affected=" + result.Response.AffectedEventCount);
                 StartAutomaticEventRefresh(ClashOfRimText.Key("ClashOfRim.Events.ReasonFailureReport"));
             }
-            catch (Exception ex) when (ex is InvalidOperationException or HttpRequestException or TaskCanceledException)
+            catch (Exception ex) when (ClientSessionWork.IsCurrent && (ex is InvalidOperationException or HttpRequestException or TaskCanceledException))
             {
                 Log.Warning("[ClashOfRim][EventFailure] report exception event=" + eventId + ": " + ex);
             }
@@ -1043,7 +1060,7 @@ public sealed partial class ClashOfRimMod
         byte[] confirmedPayload = build.Payload!;
         SetEventApplicationSnapshotConfirmationStatus(request, request.UploadingStatus);
 
-        Task.Run(async () =>
+        ClientSessionWork.Run(async () =>
         {
             try
             {
@@ -1053,14 +1070,14 @@ public sealed partial class ClashOfRimMod
                     ClashOfRimClientNetworkContext.FromSettings(settings));
                 string idempotencyKey = $"{request.IdempotencyPrefix}:{settings.UserId}:{settings.ColonyId}:{eventId}:{confirmedSnapshot.SnapshotId}";
                 ClashOfRimClientNetworkResult<ModConfirmEventApplicationResponseDto> result =
-                    await client.ConfirmEventApplicationAsync(
+                    await ClientSessionWork.Observe(client.ConfirmEventApplicationAsync(
                         idempotencyKey,
                         eventId,
                         request.SourceEventId,
                         baseSnapshotId,
                         confirmedSnapshot,
                         confirmedPayload,
-                        request.ClientApplicationResult);
+                        request.ClientApplicationResult));
 
                 if (!result.Success || result.Response is null)
                 {
@@ -1112,6 +1129,7 @@ public sealed partial class ClashOfRimMod
                 });
             }
             catch (Exception ex)
+            when (ClientSessionWork.IsCurrent)
             {
                 string status = request.BuildExceptionStatus?.Invoke(ex)
                     ?? ClashOfRimText.Key(
@@ -1129,7 +1147,10 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                EndSnapshotUploadTransaction();
+                if (ClientSessionWork.IsCurrent)
+                {
+                    EndSnapshotUploadTransaction();
+                }
             }
         });
     }
@@ -1206,7 +1227,7 @@ public sealed partial class ClashOfRimMod
         byte[] confirmedPayload = build.Payload!;
         SetEventApplicationsSnapshotConfirmationStatus(request, request.UploadingStatus);
 
-        Task.Run(async () =>
+        ClientSessionWork.Run(async () =>
         {
             try
             {
@@ -1217,12 +1238,12 @@ public sealed partial class ClashOfRimMod
                 string eventDigest = string.Join(",", entries.Select(entry => entry.EventId).OrderBy(id => id, StringComparer.Ordinal));
                 string idempotencyKey = $"{request.IdempotencyPrefix}:{settings.UserId}:{settings.ColonyId}:{eventDigest}:{confirmedSnapshot.SnapshotId}";
                 ClashOfRimClientNetworkResult<ModConfirmEventApplicationsResponseDto> result =
-                    await client.ConfirmEventApplicationsAsync(
+                    await ClientSessionWork.Observe(client.ConfirmEventApplicationsAsync(
                         idempotencyKey,
                         baseSnapshotId,
                         confirmedSnapshot,
                         confirmedPayload,
-                        entries);
+                        entries));
 
                 if (!result.Success || result.Response is null)
                 {
@@ -1271,6 +1292,7 @@ public sealed partial class ClashOfRimMod
                 });
             }
             catch (Exception ex)
+            when (ClientSessionWork.IsCurrent)
             {
                 string status = request.BuildExceptionStatus?.Invoke(ex)
                     ?? ClashOfRimText.Key(
@@ -1287,7 +1309,10 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                EndSnapshotUploadTransaction();
+                if (ClientSessionWork.IsCurrent)
+                {
+                    EndSnapshotUploadTransaction();
+                }
             }
         });
     }
@@ -1409,7 +1434,7 @@ public sealed partial class ClashOfRimMod
             + (confirmedSnapshot.SnapshotId ?? string.Empty)
             + ".");
 
-        Task.Run(async () =>
+        ClientSessionWork.Run(async () =>
         {
             try
             {
@@ -1425,15 +1450,15 @@ public sealed partial class ClashOfRimMod
                 ClashOfRimClientNetworkResult<ModConfirmEventApplicationResponseDto> result =
                     string.Equals(request.UserId, settings.UserId, StringComparison.Ordinal)
                     && string.Equals(request.ColonyId, settings.ColonyId, StringComparison.Ordinal)
-                        ? await client.ConfirmEventApplicationAsync(
+                        ? await ClientSessionWork.Observe(client.ConfirmEventApplicationAsync(
                             request.IdempotencyKey,
                             request.EventId,
                             request.SourceEventId,
                             request.BaseSnapshotId,
                             confirmedSnapshot,
                             confirmedPayload,
-                            request.ClientApplicationResult)
-                        : await client.ConfirmEventApplicationForIdentityAsync(
+                            request.ClientApplicationResult))
+                        : await ClientSessionWork.Observe(client.ConfirmEventApplicationForIdentityAsync(
                             request.IdempotencyKey,
                             request.EventId,
                             request.SourceEventId,
@@ -1442,7 +1467,7 @@ public sealed partial class ClashOfRimMod
                             request.BaseSnapshotId,
                             confirmedSnapshot,
                             confirmedPayload,
-                            request.ClientApplicationResult);
+                            request.ClientApplicationResult));
 
                 if (!result.Success || result.Response is null)
                 {
@@ -1518,6 +1543,7 @@ public sealed partial class ClashOfRimMod
                 });
             }
             catch (Exception ex)
+            when (ClientSessionWork.IsCurrent)
             {
                 string status = request.BuildExceptionStatus?.Invoke(ex)
                     ?? ClashOfRimText.Key(
@@ -1530,9 +1556,12 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                if (uploadTransactionOwned)
+                if (ClientSessionWork.IsCurrent)
                 {
-                    EndSnapshotUploadTransaction();
+                    if (uploadTransactionOwned)
+                    {
+                        EndSnapshotUploadTransaction();
+                    }
                 }
             }
         });
@@ -1598,7 +1627,7 @@ public sealed partial class ClashOfRimMod
 
         manualSyncInProgress = true;
         giftProcessingStatus = ClashOfRimText.Key("ClashOfRim.GiftProcessing.RejectSubmitting");
-        Task.Run(async () =>
+        ClientSessionWork.Run(async () =>
         {
             try
             {
@@ -1607,7 +1636,7 @@ public sealed partial class ClashOfRimMod
                     httpClient,
                     ClashOfRimClientNetworkContext.FromSettings(settings));
                 ClashOfRimClientNetworkResult<ModRejectGiftResponseDto> result =
-                    await client.RejectGiftAsync(prepared.RejectionRequest.EventId, prepared.RejectionRequest.Reason);
+                    await ClientSessionWork.Observe(client.RejectGiftAsync(prepared.RejectionRequest.EventId, prepared.RejectionRequest.Reason));
 
                 if (!result.Success || result.Response is null)
                 {
@@ -1636,6 +1665,7 @@ public sealed partial class ClashOfRimMod
                     ClashOfRimGameComponent.MarkManualEventHandled(giftDetail.EventId));
             }
             catch (Exception ex)
+            when (ClientSessionWork.IsCurrent)
             {
                 giftProcessingStatus = ClashOfRimText.Key(
                     "ClashOfRim.GiftProcessing.RejectException",
@@ -1645,7 +1675,10 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                manualSyncInProgress = false;
+                if (ClientSessionWork.IsCurrent)
+                {
+                    manualSyncInProgress = false;
+                }
             }
         });
 
@@ -1662,7 +1695,7 @@ public sealed partial class ClashOfRimMod
 
         manualSyncInProgress = true;
         giftProcessingStatus = ClashOfRimText.Key("ClashOfRim.Support.RejectSubmitting", supportDetail.EventId.Named("EVENTID"));
-        Task.Run(async () =>
+        ClientSessionWork.Run(async () =>
         {
             try
             {
@@ -1671,7 +1704,7 @@ public sealed partial class ClashOfRimMod
                     httpClient,
                     ClashOfRimClientNetworkContext.FromSettings(settings));
                 ClashOfRimClientNetworkResult<ModRejectSupportPawnResponseDto> result =
-                    await client.RejectSupportPawnAsync(supportDetail.EventId, reason);
+                    await ClientSessionWork.Observe(client.RejectSupportPawnAsync(supportDetail.EventId, reason));
 
                 if (!result.Success || result.Response is null)
                 {
@@ -1706,6 +1739,7 @@ public sealed partial class ClashOfRimMod
                 });
             }
             catch (Exception ex)
+            when (ClientSessionWork.IsCurrent)
             {
                 giftProcessingStatus = ClashOfRimText.Key(
                     "ClashOfRim.Support.RejectException",
@@ -1715,7 +1749,10 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                manualSyncInProgress = false;
+                if (ClientSessionWork.IsCurrent)
+                {
+                    manualSyncInProgress = false;
+                }
             }
         });
 
@@ -1820,14 +1857,14 @@ public sealed partial class ClashOfRimMod
 
         BeginLocalAtomicMutation(request.Operation, request.UploadingStatus);
         SetLocalMutationSnapshotConfirmationStatus(request, request.UploadingStatus);
-        Task.Run(async () =>
+        ClientSessionWork.Run(async () =>
         {
             try
             {
                 var service = new ModSnapshotUploadService(settings);
-                ModSnapshotUploadResult result = await service.UploadConfiguredSnapshotAsync(
+                ModSnapshotUploadResult result = await ClientSessionWork.Observe(service.UploadConfiguredSnapshotAsync(
                     request.RemoveRaidBattleSessions,
-                    snapshotUploadKind: ModSnapshotUploadKinds.EventApplicationConfirmation);
+                    snapshotUploadKind: ModSnapshotUploadKinds.EventApplicationConfirmation));
                 if (!result.Success)
                 {
                     string status = request.BuildFailureStatus?.Invoke(result)
@@ -1876,6 +1913,7 @@ public sealed partial class ClashOfRimMod
                 });
             }
             catch (Exception ex)
+            when (ClientSessionWork.IsCurrent)
             {
                 string status = request.BuildExceptionStatus?.Invoke(ex)
                     ?? ClashOfRimText.Key(
@@ -1904,7 +1942,10 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                EndSnapshotUploadTransaction();
+                if (ClientSessionWork.IsCurrent)
+                {
+                    EndSnapshotUploadTransaction();
+                }
             }
         });
     }
@@ -1942,13 +1983,13 @@ public sealed partial class ClashOfRimMod
 
         snapshotUploadStatus = ClashOfRimText.Key("ClashOfRim.SnapshotUpload.Uploading");
 
-        Task.Run(async () =>
+        ClientSessionWork.Run(async () =>
         {
             try
             {
                 var service = new ModSnapshotUploadService(settings);
-                ModSnapshotUploadResult result = await service.UploadConfiguredSnapshotAsync(
-                    snapshotUploadKind: ModSnapshotUploadKinds.ManualUpload);
+                ModSnapshotUploadResult result = await ClientSessionWork.Observe(service.UploadConfiguredSnapshotAsync(
+                    snapshotUploadKind: ModSnapshotUploadKinds.ManualUpload));
                 if (result.Success)
                 {
                     snapshotUploadStatus = ClashOfRimText.Key("ClashOfRim.SnapshotUpload.Succeeded", (result.AcceptedSnapshotId ?? string.Empty).Named("SNAPSHOT"));
@@ -1968,6 +2009,7 @@ public sealed partial class ClashOfRimMod
                 }
             }
             catch (Exception ex)
+            when (ClientSessionWork.IsCurrent)
             {
                 snapshotUploadStatus = ClashOfRimText.Key(
                     "ClashOfRim.SnapshotUpload.Exception",
@@ -1978,7 +2020,10 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                EndSnapshotUploadTransaction();
+                if (ClientSessionWork.IsCurrent)
+                {
+                    EndSnapshotUploadTransaction();
+                }
             }
         });
     }
@@ -2008,13 +2053,13 @@ public sealed partial class ClashOfRimMod
 
         snapshotUploadStatus = ClashOfRimText.Key("ClashOfRim.Menu.UploadSnapshotUploading");
 
-        Task.Run(async () =>
+        ClientSessionWork.Run(async () =>
         {
             try
             {
                 var service = new ModSnapshotUploadService(settings);
-                ModSnapshotUploadResult result = await service.UploadConfiguredSnapshotAsync(
-                    snapshotUploadKind: ModSnapshotUploadKinds.ManualUpload);
+                ModSnapshotUploadResult result = await ClientSessionWork.Observe(service.UploadConfiguredSnapshotAsync(
+                    snapshotUploadKind: ModSnapshotUploadKinds.ManualUpload));
                 if (!result.Success)
                 {
                     snapshotUploadStatus = ClashOfRimText.Key(
@@ -2043,6 +2088,7 @@ public sealed partial class ClashOfRimMod
                 });
             }
             catch (Exception ex)
+            when (ClientSessionWork.IsCurrent)
             {
                 snapshotUploadStatus = ClashOfRimText.Key(
                     "ClashOfRim.Menu.UploadSnapshotException",
@@ -2054,7 +2100,10 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                EndSnapshotUploadTransaction();
+                if (ClientSessionWork.IsCurrent)
+                {
+                    EndSnapshotUploadTransaction();
+                }
             }
         });
     }
@@ -2086,13 +2135,13 @@ public sealed partial class ClashOfRimMod
 
         snapshotUploadStatus = ClashOfRimText.Key("ClashOfRim.AutosaveSnapshot.Uploading");
 
-        Task.Run(async () =>
+        ClientSessionWork.Run(async () =>
         {
             try
             {
                 var service = new ModSnapshotUploadService(settings);
-                ModSnapshotUploadResult result = await service.UploadConfiguredSnapshotAsync(
-                    snapshotUploadKind: ModSnapshotUploadKinds.AutoSave);
+                ModSnapshotUploadResult result = await ClientSessionWork.Observe(service.UploadConfiguredSnapshotAsync(
+                    snapshotUploadKind: ModSnapshotUploadKinds.AutoSave));
                 if (!result.Success)
                 {
                     snapshotUploadStatus = ClashOfRimText.Key(
@@ -2115,6 +2164,7 @@ public sealed partial class ClashOfRimMod
                 });
             }
             catch (Exception ex)
+            when (ClientSessionWork.IsCurrent)
             {
                 snapshotUploadStatus = ClashOfRimText.Key(
                     "ClashOfRim.AutosaveSnapshot.Exception",
@@ -2125,7 +2175,10 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                EndSnapshotUploadTransaction();
+                if (ClientSessionWork.IsCurrent)
+                {
+                    EndSnapshotUploadTransaction();
+                }
             }
         });
     }

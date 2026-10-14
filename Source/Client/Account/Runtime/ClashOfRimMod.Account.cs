@@ -34,7 +34,7 @@ public sealed partial class ClashOfRimMod
 
         accountPasswordInProgress = true;
         accountPasswordStatus = ClashOfRimText.Key("ClashOfRim.Account.PasswordChanging");
-        Task.Run(async () =>
+        ClientSessionWork.Run(async () =>
         {
             try
             {
@@ -43,7 +43,7 @@ public sealed partial class ClashOfRimMod
                     httpClient,
                     ClashOfRimClientNetworkContext.FromSettings(settings));
                 ClashOfRimClientNetworkResult<ModChangeOfflinePasswordResponseDto> result =
-                    await client.ChangeOfflinePasswordAsync(currentPassword, newPassword);
+                    await ClientSessionWork.Observe(client.ChangeOfflinePasswordAsync(currentPassword, newPassword));
                 if (!result.Success || result.Response?.Result is null)
                 {
                     accountPasswordStatus = ClashOfRimText.Key(
@@ -69,6 +69,7 @@ public sealed partial class ClashOfRimMod
                     Messages.Message(accountPasswordStatus, MessageTypeDefOf.PositiveEvent, historical: false));
             }
             catch (Exception ex)
+            when (ClientSessionWork.IsCurrent)
             {
                 accountPasswordStatus = ClashOfRimText.Key(
                     "ClashOfRim.Account.PasswordException",
@@ -78,7 +79,10 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                accountPasswordInProgress = false;
+                if (ClientSessionWork.IsCurrent)
+                {
+                    accountPasswordInProgress = false;
+                }
             }
         });
     }

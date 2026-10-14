@@ -534,12 +534,12 @@ public sealed class TradeOrderDialogWindow : Window
         quoteInProgress = true;
         quoteStatus = ClashOfRimText.Key("ClashOfRim.Trade.StatusQuotingFee");
 
-        Task.Run(async () =>
+        ClientSessionWork.Run(async () =>
         {
             try
             {
                 ClashOfRimClientNetworkResult<ModTradeOrderFeeQuoteResponseDto> quote =
-                    await mod.QuoteTradeOrderFeeAsync(offeredReferences, requestedReferences);
+                    await ClientSessionWork.Observe(mod.QuoteTradeOrderFeeAsync(offeredReferences, requestedReferences));
                 ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
                 {
                     if (version != quoteRequestVersion)
@@ -587,6 +587,7 @@ public sealed class TradeOrderDialogWindow : Window
                 });
             }
             catch (Exception ex)
+            when (ClientSessionWork.IsCurrent)
             {
                 ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
                 {
