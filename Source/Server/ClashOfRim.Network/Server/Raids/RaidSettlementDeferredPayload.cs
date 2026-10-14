@@ -24,7 +24,8 @@ public sealed record RaidSettlementDeferredPayload(
     string DefenderSnapshotId,
     string EvidenceArtifactId,
     RaidSettlementOrigin Origin,
-    string? ClientApplicationResult)
+    string? ClientApplicationResult,
+    RaidEvidencePublication? Publication = null)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -40,6 +41,11 @@ public sealed record RaidSettlementDeferredPayload(
             ?? throw new InvalidOperationException("Raid settlement deferred payload is empty.");
     }
 }
+
+// Null Publication identifies legacy jobs, whose original destination was not recorded.
+public sealed record RaidEvidencePublication(
+    Save.SaveSnapshotEnvelope? Previous,
+    Save.SaveSnapshotEnvelope Evidence);
 
 public sealed record RaidSettlementScheduleRequest(
     string RaidEventId,

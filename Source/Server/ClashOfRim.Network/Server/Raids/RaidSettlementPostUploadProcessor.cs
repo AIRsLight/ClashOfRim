@@ -87,6 +87,7 @@ public sealed class RaidSettlementPostUploadProcessor :
     public void ReconcileArtifacts(ClashOfRimNetworkState state)
     {
         ArgumentNullException.ThrowIfNull(state);
+        using var mutation = state.EnterSnapshotMutation();
         HashSet<string> referencedArtifactIds = state.SnapshotPostUploadJobs.ListAll()
             .Where(job => string.Equals(job.ProcessorId, Id, StringComparison.Ordinal))
             .Select(job => RaidSettlementDeferredPayload.Deserialize(job.PayloadJson).EvidenceArtifactId)

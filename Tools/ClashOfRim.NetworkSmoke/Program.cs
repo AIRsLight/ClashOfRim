@@ -1221,6 +1221,11 @@ static void VerifyRaidSettlementDeferredSchedulingSemantics()
         "RemoteSessionMapParent",
         "Settlement",
         "101,0");
+    evidence = evidence with { Envelope = evidence.Envelope with
+    {
+        PayloadBytes = 0,
+        PayloadSha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Array.Empty<byte>()))
+    } };
     var context = new SnapshotPostUploadContext(
         state,
         SnapshotPostUploadKind.RaidSettlementEvidence,
@@ -1261,9 +1266,9 @@ static void VerifyRaidSettlementDeferredSchedulingSemantics()
         first with { State = SnapshotPostUploadJobState.Prepared },
         now.AddSeconds(2));
     Equal(
-        "raid-evidence-001",
+        "stale-player-reference",
         state.Players.FindByUserId("raid-attacker")?.CurrentSnapshotId,
-        "Prepared 恢复应独立修复玩家最新快照引用");
+        "过时 Prepared 扫描不得修改已 Ready 作业的玩家引用");
 }
 
 var uploadedSnapshotProcessorExecution = new List<string>();

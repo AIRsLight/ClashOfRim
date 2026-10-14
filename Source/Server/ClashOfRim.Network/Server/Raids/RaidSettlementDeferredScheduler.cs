@@ -45,15 +45,32 @@ public static class RaidSettlementDeferredScheduler
             throw new InvalidOperationException($"Event '{request.RaidEventId}' is not a player raid requiring settlement.");
         }
 
-        string attackerColonyId = raid.Actor.ColonyId ?? request.Context.ColonyId;
+        string attackerColonyId = raid.Actor.ColonyId
+            ?? throw new InvalidOperationException("Raid attacker colony ID is missing.");
         string defenderColonyId = raid.Target.ColonyId
             ?? throw new InvalidOperationException("Raid defender colony ID is missing.");
         string evidenceSnapshotId = request.Context.Snapshot.Identity.SnapshotId
             ?? throw new InvalidOperationException("Raid settlement evidence snapshot ID is missing.");
+        var evidencePackage = new SaveSnapshotPackage(
+            request.Context.Snapshot.Envelope,
+            request.EvidencePayload,
+            request.Context.Snapshot.Index);
+        if (request.Context.UserId != raid.Actor.UserId || request.Context.ColonyId != attackerColonyId
+            || request.Context.Snapshot.Identity != evidencePackage.Envelope.Identity
+            || evidencePackage.Envelope.Identity != new SnapshotIdentity(raid.Actor.UserId, attackerColonyId, evidenceSnapshotId))
+            throw new InvalidOperationException("Raid evidence does not belong to the attacker.");
+        ValidatePayload(evidencePackage);
         string jobId = "raid-settlement:" + raid.EventId;
         SnapshotPostUploadJobRecord? existing = state.SnapshotPostUploadJobs.Find(jobId);
         if (existing is not null)
         {
+            RaidSettlementDeferredPayload original = RaidSettlementDeferredPayload.Deserialize(existing.PayloadJson);
+            SaveSnapshotPackage artifact = ReadEvidence(state, existing, original);
+            if (original.RaidEventId != raid.EventId || original.DefenderUserId != raid.Target.UserId
+                || original.DefenderColonyId != defenderColonyId || original.DefenderSnapshotId != raidPayload.DefenderSnapshotId
+                || original.Origin != request.Origin || original.ClientApplicationResult != request.ClientApplicationResult
+                || artifact.Envelope != (evidencePackage.Envelope with { NextLineageToken = artifact.Envelope.NextLineageToken }))
+                throw new InvalidOperationException("Raid settlement retry differs from the prepared request.");
             return existing.State switch
             {
                 SnapshotPostUploadJobState.Prepared => RecoverPrepared(state, existing, request.Context.OccurredAtUtc),
@@ -80,11 +97,18 @@ public static class RaidSettlementDeferredScheduler
             throw new InvalidOperationException("Raid defender snapshot is missing or no longer matches the raid baseline.");
         }
 
+        SaveSnapshotEnvelope? previous = packageStore.GetLatest(raid.Actor.UserId, attackerColonyId)?.Envelope;
+        if (!SameVersion(previous, evidencePackage.Envelope))
+        {
+            if (request.Origin == RaidSettlementOrigin.OfflineTimeout
+                || (previous is null && (evidencePackage.Envelope.PreviousSnapshotId is not null || evidencePackage.Envelope.LineageToken is not null))
+                || (!string.IsNullOrWhiteSpace(evidencePackage.Envelope.PreviousSnapshotId)
+                    && evidencePackage.Envelope.PreviousSnapshotId != previous?.Identity.SnapshotId)
+                || (!string.IsNullOrWhiteSpace(previous?.NextLineageToken)
+                    && evidencePackage.Envelope.LineageToken != previous.NextLineageToken))
+                throw new InvalidOperationException("Raid evidence no longer follows the attacker snapshot baseline.");
+        }
         string artifactId = BuildArtifactId(raid.EventId, evidenceSnapshotId);
-        var evidencePackage = new SaveSnapshotPackage(
-            request.Context.Snapshot.Envelope,
-            request.EvidencePayload,
-            request.Context.Snapshot.Index);
         var payload = new RaidSettlementDeferredPayload(
             raid.EventId,
             raid.Actor.UserId,
@@ -95,50 +119,19 @@ public static class RaidSettlementDeferredScheduler
             raidPayload.DefenderSnapshotId,
             artifactId,
             request.Origin,
-            request.ClientApplicationResult);
+            request.ClientApplicationResult,
+            new RaidEvidencePublication(previous, evidencePackage.Envelope));
 
+        // No job references this raid's artifact yet. Replace any orphan from a failed enqueue.
+        state.SnapshotPostUploadArtifacts.Delete(artifactId);
         state.SnapshotPostUploadArtifacts.Store(artifactId, evidencePackage);
-        bool jobPersisted = false;
-        bool evidenceInstalled = false;
-        try
-        {
-            SnapshotPostUploadJobRecord prepared = state.SnapshotPostUploadJobs.EnqueuePrepared(
-                jobId,
-                ProcessorId,
-                request.Context,
-                payload.Serialize());
-            jobPersisted = true;
-
-            using (state.EnterSnapshotMutation())
-            {
-                ClashOfRimNetworkServer.RecoverSnapshotCommits(state);
-                packageStore.StoreLatest(
-                    evidencePackage,
-                    evidencePackage.Index,
-                    request.Context.OccurredAtUtc);
-                evidenceInstalled = true;
-                state.Players.RecordLatestSnapshotReference(
-                    raid.Actor.UserId,
-                    attackerColonyId,
-                    evidenceSnapshotId,
-                    request.Context.OccurredAtUtc);
-            }
-
-            return state.SnapshotPostUploadJobs.MarkReady(prepared.JobId, request.Context.OccurredAtUtc);
-        }
-        catch
-        {
-            if (jobPersisted && !evidenceInstalled)
-            {
-                state.SnapshotPostUploadJobs.MarkCompleted(jobId);
-            }
-
-            if (!evidenceInstalled)
-            {
-                state.SnapshotPostUploadArtifacts.Delete(artifactId);
-            }
-            throw;
-        }
+        SnapshotPostUploadJobRecord prepared = state.SnapshotPostUploadJobs.EnqueuePrepared(
+            jobId,
+            ProcessorId,
+            request.Context,
+            payload.Serialize());
+        // A store can publish and then throw. Retain both intent and evidence on every failure.
+        return RecoverPrepared(state, prepared, request.Context.OccurredAtUtc);
     }
 
     public static SnapshotPostUploadJobRecord RecoverPrepared(
@@ -148,26 +141,23 @@ public static class RaidSettlementDeferredScheduler
     {
         ArgumentNullException.ThrowIfNull(state);
         ArgumentNullException.ThrowIfNull(job);
-        if (job.State != SnapshotPostUploadJobState.Prepared
-            || !string.Equals(job.ProcessorId, ProcessorId, StringComparison.Ordinal))
-        {
-            return job;
-        }
-
-        RaidSettlementDeferredPayload payload = RaidSettlementDeferredPayload.Deserialize(job.PayloadJson);
-        SaveSnapshotPackage evidencePackage = state.SnapshotPostUploadArtifacts.Read(payload.EvidenceArtifactId)
-            ?? throw new IOException($"Raid settlement evidence artifact '{payload.EvidenceArtifactId}' was not found.");
-        if (state.SnapshotStore is not IColonySnapshotPackageStore packageStore)
-        {
-            throw new InvalidOperationException("Raid settlement requires a snapshot package store.");
-        }
-
         using (state.EnterSnapshotMutation())
         {
             ClashOfRimNetworkServer.RecoverSnapshotCommits(state);
-            LatestSnapshotRecord? latest = packageStore.GetLatest(payload.AttackerUserId, payload.AttackerColonyId);
-            if (!string.Equals(latest?.Identity.SnapshotId, payload.EvidenceSnapshotId, StringComparison.Ordinal))
+            // Background scans may hold a stale Prepared record after another request completed it.
+            SnapshotPostUploadJobRecord? current = state.SnapshotPostUploadJobs.Find(job.JobId);
+            if (current is null) return job;
+            job = current;
+            if (job.State != SnapshotPostUploadJobState.Prepared || job.ProcessorId != ProcessorId) return job;
+            RaidSettlementDeferredPayload payload = RaidSettlementDeferredPayload.Deserialize(job.PayloadJson);
+            SaveSnapshotPackage evidencePackage = ReadEvidence(state, job, payload);
+            if (state.SnapshotStore is not IColonySnapshotPackageStore packageStore)
+                throw new InvalidOperationException("Raid settlement requires a snapshot package store.");
+            SaveSnapshotEnvelope? latest = packageStore.GetLatest(payload.AttackerUserId, payload.AttackerColonyId)?.Envelope;
+            if (!SameVersion(latest, evidencePackage.Envelope))
             {
+                if (payload.Publication is null || !SameVersion(latest, payload.Publication.Previous))
+                    throw new InvalidOperationException("Raid evidence destination changed or its original baseline is unknown; recovery cannot overwrite it.");
                 packageStore.StoreLatest(evidencePackage, evidencePackage.Index, job.OccurredAtUtc);
             }
 
@@ -176,10 +166,43 @@ public static class RaidSettlementDeferredScheduler
                 payload.AttackerColonyId,
                 payload.EvidenceSnapshotId,
                 job.OccurredAtUtc);
+            return state.SnapshotPostUploadJobs.MarkReady(job.JobId, nowUtc);
         }
-
-        return state.SnapshotPostUploadJobs.MarkReady(job.JobId, nowUtc);
     }
+
+    private static SaveSnapshotPackage ReadEvidence(ClashOfRimNetworkState state,
+        SnapshotPostUploadJobRecord job, RaidSettlementDeferredPayload payload)
+    {
+        AuthoritativeEvent? raid = state.Ledger.Find(payload.RaidEventId);
+        SaveSnapshotPackage evidence = state.SnapshotPostUploadArtifacts.Read(payload.EvidenceArtifactId)
+            ?? throw new IOException($"Raid settlement evidence artifact '{payload.EvidenceArtifactId}' was not found.");
+        if (raid?.Type != ServerEventType.Raid || raid.Payload is not RaidEventPayload raidPayload
+            || raid.Actor.UserId != payload.AttackerUserId || raid.Actor.ColonyId != payload.AttackerColonyId
+            || raid.Target.UserId != payload.DefenderUserId || raid.Target.ColonyId != payload.DefenderColonyId
+            || raidPayload.DefenderSnapshotId != payload.DefenderSnapshotId
+            || job.ProcessorId != ProcessorId || job.Kind != SnapshotPostUploadKind.RaidSettlementEvidence
+            || job.JobId != "raid-settlement:" + payload.RaidEventId
+            || job.UserId != payload.AttackerUserId || job.ColonyId != payload.AttackerColonyId
+            || job.SnapshotId != payload.EvidenceSnapshotId
+            || payload.EvidenceArtifactId != BuildArtifactId(payload.RaidEventId, payload.EvidenceSnapshotId)
+            || evidence.Envelope.Identity != new SnapshotIdentity(payload.AttackerUserId, payload.AttackerColonyId, payload.EvidenceSnapshotId)
+            || (payload.Publication is not null && evidence.Envelope != payload.Publication.Evidence))
+            throw new InvalidDataException("Raid evidence artifact does not match its prepared job.");
+        ValidatePayload(evidence);
+        return evidence;
+    }
+
+    private static void ValidatePayload(SaveSnapshotPackage evidence)
+    {
+        if (evidence.Payload.LongLength != evidence.Envelope.PayloadBytes
+            || !string.Equals(Convert.ToHexString(SHA256.HashData(evidence.Payload)), evidence.Envelope.PayloadSha256, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException("Raid evidence payload does not match its envelope.");
+    }
+
+    private static bool SameVersion(SaveSnapshotEnvelope? left, SaveSnapshotEnvelope? right) =>
+        left is null || right is null ? left is null && right is null : left.Identity == right.Identity
+            && left.OriginalSha256 == right.OriginalSha256 && left.PayloadSha256 == right.PayloadSha256
+            && left.NextLineageToken == right.NextLineageToken;
 
     private static string BuildArtifactId(string raidEventId, string evidenceSnapshotId)
     {
