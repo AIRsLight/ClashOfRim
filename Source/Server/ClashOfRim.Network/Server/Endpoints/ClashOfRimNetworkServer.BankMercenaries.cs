@@ -1268,6 +1268,24 @@ public static partial class ClashOfRimNetworkServer
                 BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
         }
 
+        BankDebtRecord? existingDebt = state.BankLoans.FindDebtByIdempotencyKey(request.IdempotencyKey);
+        if (existingDebt is not null)
+        {
+            if (existingDebt.IdempotencyKey != request.IdempotencyKey || existingDebt.UserId != request.UserId
+                || existingDebt.ColonyId != request.ColonyId || existingDebt.SourceId != request.ContractId
+                || existingDebt.SourceKind != BankLoanRegistry.DebtSourceFine || existingDebt.Reason != "Mercenary:" + request.IncidentKind)
+                return Results.Ok(new MercenaryIncidentResponse(ProtocolResponse.Reject(ProtocolErrorCode.Conflict,
+                    T("Mercenary.IncidentMissingFields")), null, null));
+            return Results.Ok(new MercenaryIncidentResponse(
+                new ProtocolResponse(true, ProtocolErrorCode.DuplicateRequest, T("Mercenary.DuplicateIncident")),
+                ToBankDebtSummary(existingDebt), BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
+        }
+        if (state.BankLoans.ListUnfinalizedMercenaryIncidents().Any(debt => debt.UserId == request.UserId
+                && debt.ColonyId == request.ColonyId && debt.SourceId == request.ContractId
+                && debt.Status == BankLoanRegistry.StatusPendingActivation && MercenaryIncidentRecovery.ClosesContract(debt.Reason)))
+            return Results.Ok(new MercenaryIncidentResponse(ProtocolResponse.Reject(ProtocolErrorCode.Conflict,
+                T("Mercenary.ContractLedgerFailed")), null, BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
+
         if (string.Equals(request.IncidentKind, "Completed", StringComparison.Ordinal))
         {
             MercenaryContractRecord? completionContract = state.MercenaryContracts.Find(request.ContractId);
@@ -1297,15 +1315,6 @@ public static partial class ClashOfRimNetworkServer
             return Results.Ok(new MercenaryIncidentResponse(
                 ProtocolResponse.Ok(T("Mercenary.Completed")),
                 debt: null,
-                BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
-        }
-
-        BankDebtRecord? existingDebt = state.BankLoans.FindDebtByIdempotencyKey(request.IdempotencyKey);
-        if (existingDebt is not null)
-        {
-            return Results.Ok(new MercenaryIncidentResponse(
-                new ProtocolResponse(true, ProtocolErrorCode.DuplicateRequest, T("Mercenary.DuplicateIncident")),
-                ToBankDebtSummary(existingDebt),
                 BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
         }
 
@@ -1349,13 +1358,8 @@ public static partial class ClashOfRimNetworkServer
             context.CurrentGameTicks,
             nowUtc,
             pendingActivation: true);
-        CreateBankFineNotification(state, context, debt, nowUtc);
-
-        if (string.Equals(request.IncidentKind, "Death", StringComparison.Ordinal)
-            || string.Equals(request.IncidentKind, "ShuttleDestroyed", StringComparison.Ordinal))
-        {
-            state.MercenaryContracts.Complete(contract.ContractId, request.UserId, request.ColonyId);
-        }
+        // The client's next confirmed snapshot makes this fine authoritative. Until then,
+        // cancellation must leave the contract open and must not publish a fine notification.
 
         return Results.Ok(new MercenaryIncidentResponse(
             ProtocolResponse.Ok(T("Mercenary.FineCreated")),
@@ -1363,24 +1367,17 @@ public static partial class ClashOfRimNetworkServer
             BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
     }
 
-    private static void CreateBankFineNotification(
+    private static AuthoritativeEvent CreateBankFineNotification(
         ClashOfRimNetworkState state,
-        BankRequestContext context,
-        BankDebtRecord debt,
-        DateTimeOffset nowUtc)
+        BankDebtRecord debt)
     {
-        if (!string.Equals(debt.SourceKind, BankLoanRegistry.DebtSourceFine, StringComparison.Ordinal))
-        {
-            return;
-        }
-
         string notificationId = "bank-fine-created:" + debt.DebtId;
-        AuthoritativeEvent notification = AuthoritativeEventFactory.Create(
+        return AuthoritativeEventFactory.Create(
             ServerEventType.ServerNotification,
             new EventParty("server"),
-            new EventParty(context.UserId, context.ColonyId),
+            new EventParty(debt.UserId, debt.ColonyId),
             notificationId,
-            state.OnlinePresence.IsUserOnline(context.UserId),
+            state.OnlinePresence.IsUserOnline(debt.UserId),
             new ServerNotificationEventPayload(
                 notificationId,
                 T("Bank.FineCreatedTitle"),
@@ -1389,15 +1386,9 @@ public static partial class ClashOfRimNetworkServer
                     ("AMOUNT", debt.AmountSilver.ToString(CultureInfo.InvariantCulture))),
                 ServerNotificationSeverity.Warning,
                 FromAdministrator: false,
-                RelatedUserId: context.UserId,
-                RelatedColonyId: context.ColonyId),
-            nowUtc);
-        LedgerAppendResult append = state.Ledger.Append(notification);
-        LogEventAppend(state, append, "bank-fine-created");
-        if (append.Created)
-        {
-            state.EventNotifications.SignalUser(context.UserId);
-        }
+                RelatedUserId: debt.UserId,
+                RelatedColonyId: debt.ColonyId),
+            debt.CreatedAtUtc);
     }
 
     private static BankRequestContext? ValidateBankRequest(

@@ -124,6 +124,22 @@ public sealed class BankLoanRegistry
         }
     }
 
+    internal IReadOnlyList<BankDebtRecord> ListUnfinalizedMercenaryIncidents()
+    {
+        lock (gate) return debts.Values.Where(debt => !debt.MercenaryIncidentFinalized
+            && debt.SourceKind == DebtSourceFine && debt.Reason.StartsWith("Mercenary:", StringComparison.Ordinal)).ToArray();
+    }
+
+    internal void MarkMercenaryIncidentFinalized(string debtId)
+    {
+        lock (gate)
+        {
+            if (!debts.TryGetValue(debtId, out var debt) || debt.MercenaryIncidentFinalized) return;
+            if (debt.Status == StatusPendingActivation) throw new InvalidOperationException("An unconfirmed incident cannot be finalized.");
+            PersistBankRecords([], [debt with { MercenaryIncidentFinalized = true }], [], []);
+        }
+    }
+
     public BankDebtRecord CreateDebt(
         string idempotencyKey,
         string userId,
@@ -959,7 +975,8 @@ public sealed record BankDebtRecord(
     long? PaidAtGameTicks,
     string? RepaymentIdempotencyKey,
     DateTimeOffset? RepaymentRequestedAtUtc,
-    long? RepaymentRequestedAtGameTicks);
+    long? RepaymentRequestedAtGameTicks,
+    bool MercenaryIncidentFinalized = false);
 
 public sealed record BankConfirmationResult(
     BankLoanRecord? Loan,

@@ -13,8 +13,13 @@ public static partial class ClashOfRimNetworkServer
                 userId => state.EventNotifications.SignalUsers(new[] { userId }),
                 item => RecordAuthoritativeEventAchievements(state, item, item.CreatedAtUtc), state.ServerShop,
                 state.MercenaryContracts, state.MercenaryGuards);
+            RecoverMercenaryIncidents(state);
         }
     }
+
+    private static void RecoverMercenaryIncidents(ClashOfRimNetworkState state) =>
+        MercenaryIncidentRecovery.Recover(state.BankLoans, state.MercenaryContracts, state.Ledger,
+            debt => CreateBankFineNotification(state, debt), user => state.EventNotifications.SignalUser(user));
 
     private static void RunCommittedSnapshotPostUpload(ClashOfRimNetworkState state, LatestSnapshotRecord snapshot, string? kind)
     {

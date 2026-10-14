@@ -160,6 +160,12 @@ public static partial class ClashOfRimNetworkServer
 
     private static void ConfirmPendingOperationsFromSnapshot(SnapshotPostUploadContext context)
     {
+        lock (context.State.RaidSettlementSnapshotMutationGate)
+            ConfirmPendingOperationsFromSnapshotLocked(context);
+    }
+
+    private static void ConfirmPendingOperationsFromSnapshotLocked(SnapshotPostUploadContext context)
+    {
         string? snapshotId = context.Snapshot.Identity.SnapshotId;
         if (string.IsNullOrWhiteSpace(snapshotId))
         {
@@ -183,6 +189,7 @@ public static partial class ClashOfRimNetworkServer
             context.ColonyId,
             snapshotId!,
             context.OccurredAtUtc);
+        RecoverMercenaryIncidents(context.State);
     }
 
     private static void RecordSnapshotMetricsAndAchievements(
