@@ -691,5 +691,8 @@
   "Shop.PurchaseDuplicate": "ショップ購入はすでに処理済みです。",
   "Shop.Purchased": "ショップ購入を確認しました。",
   "WorldPollution.NotificationTitle": "汚染拡散",
-  "WorldPollution.NotificationMessage": "{ACTOR} がタイル {TILE} の汚染を {DELTA} 増加させました。"
+  "WorldPollution.NotificationMessage": "{ACTOR} がタイル {TILE} の汚染を {DELTA} 増加させました。",
+  "Events.FailureReportUnsupported": "このイベントは適用失敗の報告に対応していません。",
+  "Events.FailureReportSourceMismatch": "報告された発生元がこのイベントと一致しません。",
+  "Events.FailureReportAlreadyEnded": "このイベントまたは取引注文は既に完了または終了しています。"
 }

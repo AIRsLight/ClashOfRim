@@ -692,5 +692,8 @@
   "Shop.PurchaseDuplicate": "Покупка магазина уже обработана.",
   "Shop.Purchased": "Покупка магазина подтверждена.",
   "WorldPollution.NotificationTitle": "Распространение загрязнения",
-  "WorldPollution.NotificationMessage": "{ACTOR} увеличил загрязнение клетки {TILE} на {DELTA}."
+  "WorldPollution.NotificationMessage": "{ACTOR} увеличил загрязнение клетки {TILE} на {DELTA}.",
+  "Events.FailureReportUnsupported": "Для этого события нельзя сообщить об ошибке применения.",
+  "Events.FailureReportSourceMismatch": "Указанный источник не соответствует этому событию.",
+  "Events.FailureReportAlreadyEnded": "Это событие или его торговый заказ уже завершены или закрыты."
 }

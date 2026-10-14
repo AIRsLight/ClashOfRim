@@ -691,5 +691,8 @@
   "Shop.PurchaseDuplicate": "商店购买已处理。",
   "Shop.Purchased": "商店购买已确认。",
   "WorldPollution.NotificationTitle": "污染扩散",
-  "WorldPollution.NotificationMessage": "{ACTOR} 造成了 {TILE} 地块的污染增加了 {DELTA}。"
+  "WorldPollution.NotificationMessage": "{ACTOR} 造成了 {TILE} 地块的污染增加了 {DELTA}。",
+  "Events.FailureReportUnsupported": "此事件不支持应用失败报告。",
+  "Events.FailureReportSourceMismatch": "报告的来源与此事件不匹配。",
+  "Events.FailureReportAlreadyEnded": "此事件或其交易订单已完成或关闭。"
 }

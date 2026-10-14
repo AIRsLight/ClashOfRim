@@ -535,7 +535,7 @@ public static partial class ClashOfRimNetworkServer
             }
 
             AuthoritativeEvent? ledgerEvent = state.Ledger.Find(request.EventId);
-            if (ledgerEvent is null || !IsVisibleTo(ledgerEvent, request.UserId, request.ColonyId))
+            if (ledgerEvent is null || !IsVisibleParty(FailureReportingParty(ledgerEvent), request.UserId, request.ColonyId))
             {
                 return Results.Ok(new ReportEventApplicationFailureResponse(
                     ProtocolResponse.Reject(ProtocolErrorCode.EventNotFound, T("Events.NotFoundOrNotVisible")),
@@ -544,10 +544,17 @@ public static partial class ClashOfRimNetworkServer
                     affectedEventCount: 0));
             }
 
+            ProtocolResponse? reportValidation = ValidateFailureReport(state, ledgerEvent, request.SourceEventId);
+            if (reportValidation is not null)
+                return Results.Ok(new ReportEventApplicationFailureResponse(reportValidation, ledgerEvent.EventId,
+                    ledgerEvent.Status.ToString(), 0));
+
+            IReadOnlyList<AuthoritativeEvent> notifications = FindFailureNotifications(state, ledgerEvent);
             if (ledgerEvent.Status == ServerEventStatus.Failed
-                || ledgerEvent.Status == ServerEventStatus.Conflict && state.Ledger.FindByIdempotencyKey(
-                    $"event-application-failed:{ledgerEvent.EventId}:{request.UserId}:{request.ColonyId}") is not null)
+                || ledgerEvent.Status == ServerEventStatus.Conflict && notifications.Count > 0)
             {
+                // Wake durable notification recipients and root parties without recalculating refunds or failure reasons.
+                SignalFailureReport(state, ledgerEvent, notifications);
                 return Results.Ok(new ReportEventApplicationFailureResponse(
                     new ProtocolResponse(true, ProtocolErrorCode.DuplicateRequest, T("Events.AlreadyFailed")),
                     ledgerEvent.EventId,
@@ -582,6 +589,9 @@ public static partial class ClashOfRimNetworkServer
         string reason,
         DateTimeOffset nowUtc)
     {
+        if (ValidateFailureReport(state, rootEvent, sourceEventId) is { } invalid)
+            throw new InvalidOperationException(invalid.Message);
+        var before = state.Ledger.ListAll().ToDictionary(item => item.EventId, StringComparer.Ordinal);
         var affected = new Dictionary<string, AuthoritativeEvent>(StringComparer.Ordinal);
 
         void MarkFailed(AuthoritativeEvent? ledgerEvent)
@@ -610,18 +620,15 @@ public static partial class ClashOfRimNetworkServer
         else
         {
             MarkFailed(rootEvent);
-
-            if (!string.IsNullOrWhiteSpace(sourceEventId))
-            {
-                MarkFailed(state.Ledger.Find(sourceEventId!));
-            }
+            // A support return or raid loss references an earlier operation, not another failed delivery.
+            // The optional client source is an assertion only; it never authorizes closing the parent.
         }
 
-        var events = affected.Values.Where(item => state.Ledger.Find(item.EventId) is null).ToList();
+        var events = affected.Values.Where(item => !before.ContainsKey(item.EventId)).ToList();
         events.AddRange(CreateEventApplicationFailureNotifications(state, rootEvent, affected.Values.ToList(), reason, nowUtc));
-        var changes = affected.Values.Select(item => (Prepared: item, Current: state.Ledger.Find(item.EventId)))
-            .Where(pair => pair.Current is not null && pair.Current.Status != pair.Prepared.Status)
-            .Select(pair => new LedgerStatusChange(pair.Prepared.EventId, pair.Current!.Status, pair.Prepared.Status)).ToArray();
+        var changes = affected.Values.Where(item => before.ContainsKey(item.EventId))
+            .Select(item => new LedgerStatusChange(item.EventId, before[item.EventId].Status, item.Status,
+                ExpectedEvent: before[item.EventId])).ToArray();
         state.Ledger.ApplyBatch(new LedgerBatch(events, changes));
         return affected.Values.ToList();
     }
@@ -651,8 +658,7 @@ public static partial class ClashOfRimNetworkServer
         IReadOnlyList<AuthoritativeEvent> graph = FindTradeApplicationGraph(state, tradeOrderId);
         bool hasAppliedDelivery = graph.Any(item => item.Status == ServerEventStatus.AppliedToSnapshot
             && (item.Type == ServerEventType.ItemDelivery
-                || item.Payload is TradeEventPayload { Stage: TradeStage.SelfDeliveryExchange }
-                    && !string.IsNullOrWhiteSpace(item.AppliedSnapshotId)));
+                || item.Payload is TradeEventPayload { Stage: TradeStage.SelfDeliveryExchange }));
         Mark(tradeOrder, hasAppliedDelivery ? ServerEventStatus.Conflict : ServerEventStatus.Cancelled);
 
         foreach (AuthoritativeEvent related in graph)
@@ -670,7 +676,7 @@ public static partial class ClashOfRimNetworkServer
             else
             {
                 // An acknowledged delivery cannot be undone by changing its ledger status.
-                Mark(related, related.Type == ServerEventType.ItemDelivery && related.Status == ServerEventStatus.AppliedToSnapshot
+                Mark(related, related.Status == ServerEventStatus.AppliedToSnapshot
                     ? related.Status : hasAppliedDelivery ? ServerEventStatus.Conflict : ServerEventStatus.Failed);
             }
         }
@@ -735,6 +741,7 @@ public static partial class ClashOfRimNetworkServer
     private static bool IsTradeDeliveryEventForOrder(AuthoritativeEvent ledgerEvent, string tradeOrderId)
     {
         return ledgerEvent.Type == ServerEventType.ItemDelivery
+            && ledgerEvent.Payload is ItemDeliveryEventPayload { IsTradeDelivery: true }
             && IsTradeCompletedDeliveryIdempotencyKey(ledgerEvent.IdempotencyKey, tradeOrderId);
     }
 
@@ -745,6 +752,7 @@ public static partial class ClashOfRimNetworkServer
     {
         tradeOrderId = null;
         if (ledgerEvent.Type != ServerEventType.ItemDelivery
+            || ledgerEvent.Payload is not ItemDeliveryEventPayload { IsTradeDelivery: true }
             || IsTradeApplicationFailedOwnerReturnEvent(ledgerEvent))
         {
             return false;
@@ -857,6 +865,12 @@ public static partial class ClashOfRimNetworkServer
         foreach (EventParty target in targets)
         {
             string notificationId = $"event-application-failed:{rootEvent.EventId}:{target.UserId}:{target.ColonyId}";
+            if (state.Ledger.FindByIdempotencyKey(notificationId) is { } existing)
+            {
+                ValidateFailureNotification(rootEvent, existing);
+                yield return existing;
+                continue;
+            }
             AuthoritativeEvent notification = AuthoritativeEventFactory.Create(
                 ServerEventType.ServerNotification,
                 new EventParty("server"),
@@ -868,7 +882,7 @@ public static partial class ClashOfRimNetworkServer
                     T("Events.ApplicationFailedTitle"),
                     T("Events.ApplicationFailedMessage", ("EVENT", rootEvent.EventId), ("REASON", reason)),
                     ServerNotificationSeverity.Warning,
-                    FromAdministrator: false),
+                    FromAdministrator: false, RelatedEventId: rootEvent.EventId, RelatedEventType: rootEvent.Type),
                 nowUtc,
                 rootEvent.TargetContext);
             yield return notification;

@@ -691,5 +691,8 @@
   "Shop.PurchaseDuplicate": "Shop purchase was already handled.",
   "Shop.Purchased": "Shop purchase confirmed.",
   "WorldPollution.NotificationTitle": "Pollution spread",
-  "WorldPollution.NotificationMessage": "{ACTOR} increased pollution on tile {TILE} by {DELTA}."
+  "WorldPollution.NotificationMessage": "{ACTOR} increased pollution on tile {TILE} by {DELTA}.",
+  "Events.FailureReportUnsupported": "This event does not support application failure reports.",
+  "Events.FailureReportSourceMismatch": "The reported source does not match this event.",
+  "Events.FailureReportAlreadyEnded": "This event or its trade order has already completed or closed."
 }
