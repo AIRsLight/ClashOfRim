@@ -1,4 +1,5 @@
 {
+  "Events.ConfirmationAlreadyEnded": "This event has already ended and cannot be confirmed.",
   "Server.InternalError": "Internal server error. Details were written to the server log.",
   "Auth.Failed": "Authentication failed. Please log in to the server again.",
   "Auth.SessionExpired": "The session has expired. Return to the main menu and log in to the server again.",

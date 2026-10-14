@@ -544,7 +544,7 @@ public static partial class ClashOfRimNetworkServer
         byte[] payload, DateTimeOffset acceptedAtUtc, bool storeAccepted = true, bool validateGameplayContinuity = true,
         string? confirmationOperation = null, string? snapshotUploadKind = null, string? requiredRaidEventId = null,
         bool allowRaidSettlementEvidenceSnapshotKind = false, SnapshotPostUploadExtraData? postUploadData = null,
-        Func<string?>? validateCommit = null)
+        Func<string?>? validateCommit = null, SnapshotConfirmationRequest? confirmation = null)
     {
         var receiver = CreateSnapshotReceiver(state);
         string normalizedSnapshotUploadKind = NormalizeSnapshotUploadKind(
@@ -569,10 +569,19 @@ public static partial class ClashOfRimNetworkServer
                 return SnapshotUploadResult.Reject(SnapshotUploadResultKind.IdentityMismatch, authFailure);
             if (postUploadData is not null)
             {
+                if (confirmation is not null && state.SnapshotCommits.FindConfirmationReceipt(prepared.AcceptedSnapshot!.Envelope) is { } receipt)
+                {
+                    return confirmation.Matches(receipt.Request)
+                        && prepared.AcceptedSnapshot.Envelope.OriginalSha256 == receipt.Envelope.OriginalSha256
+                        && prepared.AcceptedSnapshot.Envelope.PayloadSha256 == receipt.Envelope.PayloadSha256
+                        ? SnapshotUploadResult.Accept(new LatestSnapshotRecord(receipt.Envelope.Identity, receipt.Envelope,
+                            prepared.AcceptedSnapshot.Index, receipt.AcceptedAtUtc), normalizedSnapshotUploadKind)
+                        : SnapshotUploadResult.Reject(SnapshotUploadResultKind.SnapshotReplayDetected, "Snapshot confirmation differs from its original request.");
+                }
                 // A lost response must not create a new lineage token or run supplied
                 // candidates again. Recovery above already used the original context.
                 var latest = state.SnapshotStore.GetLatest(userId, colonyId);
-                if (latest?.Identity.SnapshotId == snapshotId)
+                if (latest?.Identity.SnapshotId == snapshotId && confirmation is null)
                 {
                     return latest.Envelope.OriginalSha256 == prepared.AcceptedSnapshot!.Envelope.OriginalSha256
                         && latest.Envelope.PayloadSha256 == prepared.AcceptedSnapshot.Envelope.PayloadSha256
@@ -589,7 +598,9 @@ public static partial class ClashOfRimNetworkServer
                 state.SnapshotCommits.CommitUpload(state.SnapshotStore, state.BankLoans, state.MercenaryContracts,
                     savePackage, upload.AcceptedSnapshot, operations, upload.SnapshotUploadKind,
                     postUploadData.ConfirmationOperation, postUploadData.AchievementCandidates,
-                    (snapshot, kind, mutation) => RunCommittedOrdinaryUpload(state, snapshot, kind, mutation));
+                    (snapshot, kind, mutation) => RunCommittedOrdinaryUpload(state, snapshot, kind, mutation), confirmation, state.Ledger,
+                    item => RecordAuthoritativeEventAchievements(state, item, item.AppliedAtUtc ?? item.CreatedAtUtc),
+                    (mutation, snapshot) => PlanSnapshotConfirmations(state, mutation, snapshot));
                 return upload;
             }
             if (!storeAccepted || !upload.Accepted || upload.AcceptedSnapshot is null || operations.IsEmpty) return upload;

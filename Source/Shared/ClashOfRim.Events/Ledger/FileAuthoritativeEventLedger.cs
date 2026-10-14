@@ -53,6 +53,8 @@ public sealed class FileAuthoritativeEventLedger : IAuthoritativeEventLedger
                 prepared[change.EventId] = prepared[change.EventId] with { Status = change.Status, Payload = change.Payload ?? prepared[change.EventId].Payload };
             foreach (LedgerApplicationChange change in batch.ApplicationChanges ?? [])
                 prepared[change.Expected.EventId] = change.Updated;
+            foreach (LedgerConfirmationChange change in batch.ConfirmationChanges ?? [])
+                prepared[change.Expected.EventId] = change.Updated;
             // Persist before publishing caches; readers only see the complete batch.
             Save(prepared.Values);
             eventsById.Clear();

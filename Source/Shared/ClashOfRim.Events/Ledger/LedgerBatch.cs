@@ -20,8 +20,12 @@ public sealed record LedgerApplicationChange(AuthoritativeEvent Expected, string
     };
 }
 
+/// <summary>A fixed confirmation decision, including rejected application metadata.</summary>
+public sealed record LedgerConfirmationChange(AuthoritativeEvent Expected, AuthoritativeEvent Updated);
+
 public sealed record LedgerBatch(IReadOnlyList<AuthoritativeEvent> Events, IReadOnlyList<LedgerStatusChange> StatusChanges,
-    IReadOnlyList<LedgerApplicationChange>? ApplicationChanges = null);
+    IReadOnlyList<LedgerApplicationChange>? ApplicationChanges = null,
+    IReadOnlyList<LedgerConfirmationChange>? ConfirmationChanges = null);
 
 public static class LedgerBatchValidation
 {
@@ -66,9 +70,27 @@ public static class LedgerBatchValidation
                 || string.IsNullOrWhiteSpace(change.AppliedSnapshotId) || string.IsNullOrWhiteSpace(change.DeliveredSnapshotId))
                 throw new InvalidOperationException("Batch application targets must be distinct existing events with snapshot identities.");
             var current = find(change.Expected.EventId);
-            bool applicationOnlyReplay = batch.Events.Count == 0 && batch.StatusChanges.Count == 0;
+            bool applicationOnlyReplay = batch.Events.Count == 0 && batch.StatusChanges.Count == 0 && (batch.ConfirmationChanges?.Count ?? 0) == 0;
             if (!Same(current, change.Expected) && !((alreadyCommitted || applicationOnlyReplay) && Same(current, change.Updated)))
                 throw new InvalidOperationException("Batch application target changed since preparation.");
+        }
+        foreach (LedgerConfirmationChange change in batch.ConfirmationChanges ?? [])
+        {
+            var permitted = change.Expected with { Status = change.Updated.Status,
+                DeliveredToSnapshotId = change.Updated.DeliveredToSnapshotId, DeliveredAtUtc = change.Updated.DeliveredAtUtc,
+                AppliedSnapshotId = change.Updated.AppliedSnapshotId, AppliedAtUtc = change.Updated.AppliedAtUtc,
+                LastApplicationResult = change.Updated.LastApplicationResult, LastFailureReason = change.Updated.LastFailureReason,
+                NextRetryAtUtc = change.Updated.NextRetryAtUtc };
+            if (!changedIds.Add(change.Expected.EventId) || ids.Contains(change.Expected.EventId)
+                || !Same(permitted, change.Updated)
+                || change.Updated.Status != change.Expected.Status && change.Updated.Status != ServerEventStatus.AppliedToSnapshot
+                    && !(change.Updated.Status == ServerEventStatus.Conflict && change.Updated.LastApplicationResult is
+                        EventApplicationResultKind.SnapshotBaseMismatch or EventApplicationResultKind.TargetObjectMissing
+                        or EventApplicationResultKind.LossNotReflected or EventApplicationResultKind.NeedsManualReview))
+                throw new InvalidOperationException("Invalid confirmation batch mutation.");
+            var current = find(change.Expected.EventId);
+            if (!Same(current, change.Expected) && !Same(current, change.Updated))
+                throw new InvalidOperationException("Confirmation target changed since preparation.");
         }
     }
 

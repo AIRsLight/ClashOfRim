@@ -47,6 +47,16 @@ public static partial class ClashOfRimNetworkServer
                 serverValidationResult: "AuthFailed"));
         }
 
+        bool playerRaidSettlement = IsPlayerRaidSettlementConfirmation(state, request.EventId, request.SourceEventId);
+        if (!playerRaidSettlement)
+        {
+            var response = ReceiveConfirmationSnapshot(state, request.UserId, request.ColonyId, request.AuthToken,
+                request.ConfirmedSnapshot, multipart.Payload, new SnapshotConfirmationRequest(request.BaseSnapshotId,
+                    [new ConfirmEventApplicationEntry(request.EventId, request.SourceEventId, request.ClientApplicationResult)], true), nowUtc);
+            var result = response.Applications.FirstOrDefault();
+            return Results.Ok(new ConfirmEventApplicationResponse(result?.Result ?? response.Result, request.EventId,
+                result?.AppliedSnapshotId, result?.ServerValidationResult ?? "InvalidConfirmation", response.NextLineageToken));
+        }
         if (TryRejectExpiredPendingConfirmationSnapshot(
                 state,
                 request.UserId,
@@ -61,9 +71,8 @@ public static partial class ClashOfRimNetworkServer
                 serverValidationResult: "PendingConfirmationExpired"));
         }
 
-        bool playerRaidSettlement = IsPlayerRaidSettlementConfirmation(state, request.EventId, request.SourceEventId);
-        if (playerRaidSettlement
-            && state.Ledger.Find(request.EventId)?.Status == ServerEventStatus.AppliedToSnapshot)
+
+        if (state.Ledger.Find(request.EventId)?.Status == ServerEventStatus.AppliedToSnapshot)
         {
             LatestSnapshotRecord? latestAttacker = state.SnapshotStore.GetLatest(request.UserId, request.ColonyId);
             return Results.Ok(new ConfirmEventApplicationResponse(
@@ -82,13 +91,11 @@ public static partial class ClashOfRimNetworkServer
             request.ConfirmedSnapshot,
             multipart.Payload,
             nowUtc,
-            storeAccepted: !playerRaidSettlement,
+            storeAccepted: false,
             validateGameplayContinuity: true,
-            snapshotUploadKind: playerRaidSettlement
-                ? SnapshotUploadKinds.RaidSettlementEvidence
-                : request.ConfirmedSnapshot.SnapshotUploadKind,
-            requiredRaidEventId: playerRaidSettlement ? request.EventId : null,
-            allowRaidSettlementEvidenceSnapshotKind: playerRaidSettlement);
+            snapshotUploadKind: SnapshotUploadKinds.RaidSettlementEvidence,
+            requiredRaidEventId: request.EventId,
+            allowRaidSettlementEvidenceSnapshotKind: true);
 
         if (!upload.Accepted || upload.AcceptedSnapshot == null)
         {
@@ -100,19 +107,15 @@ public static partial class ClashOfRimNetworkServer
         }
 
         var postUploadExtraData = new SnapshotPostUploadExtraData(
-            playerRaidSettlement
-                ? SnapshotUploadKinds.RaidSettlementEvidence
-                : upload.SnapshotUploadKind,
+            SnapshotUploadKinds.RaidSettlementEvidence,
             null,
             null)
         {
-            RaidSettlement = playerRaidSettlement
-                ? new RaidSettlementPostUploadData(
+            RaidSettlement = new RaidSettlementPostUploadData(
                     request.EventId,
                     multipart.Payload,
                     RaidSettlementOrigin.OnlineEvidence,
                     request.ClientApplicationResult)
-                : null
         };
         try
         {
@@ -124,9 +127,9 @@ public static partial class ClashOfRimNetworkServer
                 upload,
                 nowUtc,
                 extraData: postUploadExtraData,
-                registerPlayerColonySite: !playerRaidSettlement);
+                registerPlayerColonySite: false);
         }
-        catch (Exception ex) when (playerRaidSettlement)
+        catch (Exception ex)
         {
             state.RuntimeLogger.LogError(
                 ex,
@@ -142,36 +145,10 @@ public static partial class ClashOfRimNetworkServer
                 serverValidationResult: "SettlementQueueFailed"));
         }
 
-        if (playerRaidSettlement)
-        {
-            return Results.Ok(new ConfirmEventApplicationResponse(
-                ProtocolResponse.Ok(T("Raid.SettlementQueued")),
-                request.EventId,
-                upload.AcceptedSnapshot.Identity.SnapshotId,
-                "SettlementQueued",
-                upload.AcceptedSnapshot.Envelope.NextLineageToken));
-        }
-
-        ConfirmEventApplicationResultDto result = ConfirmEventApplicationAfterSnapshot(
-            new ConfirmEventApplicationEntry(
-                request.EventId,
-                request.SourceEventId,
-                request.ClientApplicationResult),
-            request.UserId,
-            request.ColonyId,
-            request.BaseSnapshotId,
-            upload.AcceptedSnapshot,
-            state,
-            nowUtc);
-
         return Results.Ok(new ConfirmEventApplicationResponse(
-            result.Result,
-            result.EventId,
-            result.AppliedSnapshotId,
-            result.ServerValidationResult,
-            upload.AcceptedSnapshot.Envelope.NextLineageToken));
+            ProtocolResponse.Ok(T("Raid.SettlementQueued")), request.EventId,
+            upload.AcceptedSnapshot.Identity.SnapshotId, "SettlementQueued", upload.AcceptedSnapshot.Envelope.NextLineageToken));
     }
-
     private static async Task<IResult> ConfirmEventApplications(HttpRequest httpRequest, ClashOfRimNetworkState state)
     {
         MultipartSnapshotRequest<ConfirmEventApplicationsMetadataRequest>? multipart =
@@ -202,77 +179,10 @@ public static partial class ClashOfRimNetworkServer
                 applications: Array.Empty<ConfirmEventApplicationResultDto>()));
         }
 
-        if (TryRejectExpiredPendingConfirmationSnapshot(
-                state,
-                request.UserId,
-                request.ColonyId,
-                nowUtc,
-                out ProtocolResponse? pendingConfirmationFailure))
-        {
-            IReadOnlyList<ConfirmEventApplicationResultDto> rejectedApplications =
-                request.Applications.Select(application => new ConfirmEventApplicationResultDto(
-                    application.EventId,
-                    pendingConfirmationFailure!,
-                    appliedSnapshotId: null,
-                    "PendingConfirmationExpired")).ToList();
-
-            return Results.Ok(new ConfirmEventApplicationsResponse(
-                pendingConfirmationFailure!,
-                appliedSnapshotId: null,
-                rejectedApplications));
-        }
-
-        SnapshotUploadResult upload = ReceiveSnapshot(
-            state,
-            request.UserId,
-            request.ColonyId,
-            request.ConfirmedSnapshot.SnapshotId,
-            request.ConfirmedSnapshot,
-            multipart.Payload,
-            nowUtc);
-
-        if (!upload.Accepted || upload.AcceptedSnapshot == null)
-        {
-            IReadOnlyList<ConfirmEventApplicationResultDto> rejectedApplications =
-                request.Applications.Select(application => new ConfirmEventApplicationResultDto(
-                    application.EventId,
-                    ToProtocolResponse(upload),
-                    appliedSnapshotId: null,
-                    upload.Kind.ToString())).ToList();
-
-            return Results.Ok(new ConfirmEventApplicationsResponse(
-                ToProtocolResponse(upload),
-                appliedSnapshotId: null,
-                rejectedApplications));
-        }
-
-        RunSnapshotPostUploadProcessors(
-            state,
-            request.UserId,
-            request.ColonyId,
-            sessionId: null,
-            upload,
-            nowUtc);
-        var results = new List<ConfirmEventApplicationResultDto>();
-        foreach (ConfirmEventApplicationEntry application in request.Applications)
-        {
-            results.Add(ConfirmEventApplicationAfterSnapshot(
-                application,
-                request.UserId,
-                request.ColonyId,
-                request.BaseSnapshotId,
-                upload.AcceptedSnapshot,
-                state,
-                nowUtc));
-        }
-
-        return Results.Ok(new ConfirmEventApplicationsResponse(
-            ProtocolResponse.Ok(T("Events.BatchApplicationConfirmed")),
-            upload.AcceptedSnapshot.Identity.SnapshotId,
-            results,
-            upload.AcceptedSnapshot.Envelope.NextLineageToken));
+        return Results.Ok(ReceiveConfirmationSnapshot(state, request.UserId, request.ColonyId, request.AuthToken,
+            request.ConfirmedSnapshot, multipart.Payload,
+            new SnapshotConfirmationRequest(request.BaseSnapshotId, request.Applications, false), nowUtc));
     }
-
     private static ConfirmEventApplicationResultDto ConfirmEventApplicationAfterSnapshot(
         ConfirmEventApplicationEntry application,
         string userId,
@@ -281,13 +191,29 @@ public static partial class ClashOfRimNetworkServer
         LatestSnapshotRecord acceptedSnapshot,
         ClashOfRimNetworkState state,
         DateTimeOffset nowUtc)
+        => EvaluateEventApplication(application, userId, colonyId, baseSnapshotId, acceptedSnapshot, state.Ledger, nowUtc,
+            item => RecordAuthoritativeEventAchievements(state, item, item.AppliedAtUtc ?? nowUtc));
+    private static ConfirmEventApplicationResultDto EvaluateEventApplication(
+        ConfirmEventApplicationEntry application,
+        string userId,
+        string colonyId,
+        string baseSnapshotId,
+        LatestSnapshotRecord acceptedSnapshot,
+        IAuthoritativeEventLedger ledger,
+        DateTimeOffset nowUtc, Action<AuthoritativeEvent>? recordTrade = null)
     {
-        AuthoritativeEvent? ledgerEvent = state.Ledger.Find(application.EventId);
+        AuthoritativeEvent? ledgerEvent = ledger.Find(application.EventId);
+        if (ledgerEvent is not null && !IsVisibleParty(ledgerEvent.Type == ServerEventType.Trade ? ledgerEvent.Actor : ledgerEvent.Target, userId, colonyId))
+            return new ConfirmEventApplicationResultDto(application.EventId,
+                ProtocolResponse.Reject(ProtocolErrorCode.EventNotFound, T("Events.NotFoundOrNotVisible")), null, "TargetIdentityMismatch");
+        if (ledgerEvent?.Status is ServerEventStatus.Cancelled or ServerEventStatus.Failed or ServerEventStatus.RejectedByTarget)
+            return new ConfirmEventApplicationResultDto(application.EventId,
+                ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Events.ConfirmationAlreadyEnded")), null, ledgerEvent.Status.ToString());
         if (ledgerEvent is not null
             && ledgerEvent.Type == ServerEventType.ItemDelivery
             && ledgerEvent.Payload is ItemDeliveryEventPayload)
         {
-            var giftConsumer = new ItemDeliveryApplicationConfirmationConsumer(state.Ledger);
+            var giftConsumer = new ItemDeliveryApplicationConfirmationConsumer(ledger);
             ItemDeliveryApplicationConfirmationResult giftResult = giftConsumer.Consume(
                 new ItemDeliveryApplicationConfirmationRequest(
                     application.EventId,
@@ -317,8 +243,8 @@ public static partial class ClashOfRimNetworkServer
                 acceptedSnapshot,
                 ledgerEvent,
                 tradePayload,
-                state,
-                nowUtc);
+                ledger,
+                nowUtc, recordTrade);
         }
 
         if (ledgerEvent is not null
@@ -333,8 +259,8 @@ public static partial class ClashOfRimNetworkServer
                 acceptedSnapshot,
                 ledgerEvent,
                 supportPayload,
-                state,
-                nowUtc);
+                ledger,
+                nowUtc, recordTrade);
         }
 
         if (string.IsNullOrWhiteSpace(application.SourceEventId))
@@ -346,7 +272,7 @@ public static partial class ClashOfRimNetworkServer
                 "MissingSourceEventId");
         }
 
-        var consumer = new RaidAttackerLossConfirmationConsumer(state.Ledger);
+        var consumer = new RaidAttackerLossConfirmationConsumer(ledger);
         RaidAttackerLossConfirmationResult result = consumer.Consume(
             new RaidAttackerLossConfirmationRequest(
                 application.EventId,
@@ -372,8 +298,8 @@ public static partial class ClashOfRimNetworkServer
         LatestSnapshotRecord acceptedSnapshot,
         AuthoritativeEvent supportEvent,
         SupportPawnEventPayload supportPayload,
-        ClashOfRimNetworkState state,
-        DateTimeOffset nowUtc)
+        IAuthoritativeEventLedger ledger,
+        DateTimeOffset nowUtc, Action<AuthoritativeEvent>? recordTrade = null)
     {
         if (!IsVisibleParty(supportEvent.Target, userId, colonyId))
         {
@@ -386,7 +312,7 @@ public static partial class ClashOfRimNetworkServer
 
         if (supportEvent.Status == ServerEventStatus.AppliedToSnapshot)
         {
-            AuthoritativeEvent repaired = SnapshotApplicationCommit.Apply(state.Ledger, supportEvent,
+            AuthoritativeEvent repaired = SnapshotApplicationCommit.Apply(ledger, supportEvent,
                 baseSnapshotId, acceptedSnapshot.Identity.SnapshotId!, nowUtc);
             return new ConfirmEventApplicationResultDto(
                 application.EventId,
@@ -399,7 +325,7 @@ public static partial class ClashOfRimNetworkServer
             or ServerEventStatus.Cancelled
             or ServerEventStatus.Failed)
         {
-            state.Ledger.ReportApplicationResult(
+            ledger.ReportApplicationResult(
                 supportEvent.EventId,
                 EventApplicationResultKind.NeedsManualReview,
                 T("Support.ArrivalAlreadyEnded"),
@@ -416,7 +342,7 @@ public static partial class ClashOfRimNetworkServer
             || !string.Equals(identity.ColonyId, colonyId, StringComparison.Ordinal)
             || string.IsNullOrWhiteSpace(identity.SnapshotId))
         {
-            state.Ledger.ReportApplicationResult(
+            ledger.ReportApplicationResult(
                 supportEvent.EventId,
                 EventApplicationResultKind.SnapshotBaseMismatch,
                 T("Support.ArrivalSnapshotIdentityMismatch"),
@@ -430,7 +356,7 @@ public static partial class ClashOfRimNetworkServer
 
         if (!IsSupportPawnAppliedClientResult(application.ClientApplicationResult, supportPayload))
         {
-            state.Ledger.ReportApplicationResult(
+            ledger.ReportApplicationResult(
                 supportEvent.EventId,
                 EventApplicationResultKind.NeedsManualReview,
                 T("Support.ArrivalClientResultMissing"),
@@ -442,7 +368,7 @@ public static partial class ClashOfRimNetworkServer
                 "NotArrived");
         }
 
-        AuthoritativeEvent applied = SnapshotApplicationCommit.Apply(state.Ledger, supportEvent,
+        AuthoritativeEvent applied = SnapshotApplicationCommit.Apply(ledger, supportEvent,
             baseSnapshotId, identity.SnapshotId!, nowUtc);
 
         return new ConfirmEventApplicationResultDto(
@@ -472,8 +398,8 @@ public static partial class ClashOfRimNetworkServer
         LatestSnapshotRecord acceptedSnapshot,
         AuthoritativeEvent exchangeEvent,
         TradeEventPayload exchangePayload,
-        ClashOfRimNetworkState state,
-        DateTimeOffset nowUtc)
+        IAuthoritativeEventLedger ledger,
+        DateTimeOffset nowUtc, Action<AuthoritativeEvent>? recordTrade = null)
     {
         if (!IsVisibleParty(exchangeEvent.Actor, userId, colonyId))
         {
@@ -488,7 +414,7 @@ public static partial class ClashOfRimNetworkServer
             || !string.Equals(application.SourceEventId, exchangePayload.TradeId, StringComparison.Ordinal))
         {
             if (exchangeEvent.Status != ServerEventStatus.AppliedToSnapshot)
-                state.Ledger.ReportApplicationResult(
+                ledger.ReportApplicationResult(
                     exchangeEvent.EventId,
                     EventApplicationResultKind.SnapshotBaseMismatch,
                     T("Trade.ExchangeSourceMismatch"),
@@ -502,10 +428,10 @@ public static partial class ClashOfRimNetworkServer
 
         if (exchangeEvent.Status == ServerEventStatus.AppliedToSnapshot)
         {
-            AuthoritativeEvent repaired = SnapshotApplicationCommit.Apply(state.Ledger, exchangeEvent,
+            AuthoritativeEvent repaired = SnapshotApplicationCommit.Apply(ledger, exchangeEvent,
                 baseSnapshotId, acceptedSnapshot.Identity.SnapshotId!, nowUtc);
             if (!string.IsNullOrWhiteSpace(repaired.AppliedSnapshotId) && repaired.AppliedAtUtc is { } appliedAtUtc)
-                RecordAuthoritativeEventAchievements(state, repaired, appliedAtUtc);
+                recordTrade?.Invoke(repaired);
             return new ConfirmEventApplicationResultDto(
                 application.EventId,
                 new ProtocolResponse(true, ProtocolErrorCode.DuplicateRequest, T("Trade.ExchangeAlreadyConfirmed")),
@@ -518,7 +444,7 @@ public static partial class ClashOfRimNetworkServer
             || !string.Equals(identity.ColonyId, colonyId, StringComparison.Ordinal)
             || string.IsNullOrWhiteSpace(identity.SnapshotId))
         {
-            state.Ledger.ReportApplicationResult(
+            ledger.ReportApplicationResult(
                 exchangeEvent.EventId,
                 EventApplicationResultKind.SnapshotBaseMismatch,
                 T("Trade.ExchangeSnapshotIdentityMismatch"),
@@ -533,7 +459,7 @@ public static partial class ClashOfRimNetworkServer
         if (!TradeExchangeBaseSnapshotMatches(exchangePayload, baseSnapshotId)
             || !string.Equals(acceptedSnapshot.Envelope.PreviousSnapshotId, baseSnapshotId, StringComparison.Ordinal))
         {
-            state.Ledger.ReportApplicationResult(
+            ledger.ReportApplicationResult(
                 exchangeEvent.EventId,
                 EventApplicationResultKind.SnapshotBaseMismatch,
                 T("Trade.ExchangeBaseSnapshotMismatch"),
@@ -545,9 +471,9 @@ public static partial class ClashOfRimNetworkServer
                 "SnapshotBaseMismatch");
         }
 
-        AuthoritativeEvent applied = SnapshotApplicationCommit.Apply(state.Ledger, exchangeEvent,
+        AuthoritativeEvent applied = SnapshotApplicationCommit.Apply(ledger, exchangeEvent,
             baseSnapshotId, identity.SnapshotId!, nowUtc);
-        RecordAuthoritativeEventAchievements(state, applied, nowUtc);
+        recordTrade?.Invoke(applied);
 
         return new ConfirmEventApplicationResultDto(
             application.EventId,
