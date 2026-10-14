@@ -38,6 +38,15 @@ public static partial class ClashOfRimNetworkServer
 
     private static IResult UpsertServerShopListingCore(UpsertServerShopListingRequest request, ClashOfRimNetworkState state)
     {
+        lock (state.RaidSettlementSnapshotMutationGate)
+        {
+            RecoverSnapshotCommits(state);
+            return UpsertServerShopListingLocked(request, state);
+        }
+    }
+
+    private static IResult UpsertServerShopListingLocked(UpsertServerShopListingRequest request, ClashOfRimNetworkState state)
+    {
         ProtocolResponse? adminValidation = ValidateShopAdminRequest(request.UserId, state);
         if (adminValidation is not null)
         {
@@ -95,6 +104,15 @@ public static partial class ClashOfRimNetworkServer
 
     private static IResult RemoveServerShopListing(RemoveServerShopListingRequest request, ClashOfRimNetworkState state)
     {
+        lock (state.RaidSettlementSnapshotMutationGate)
+        {
+            RecoverSnapshotCommits(state);
+            return RemoveServerShopListingLocked(request, state);
+        }
+    }
+
+    private static IResult RemoveServerShopListingLocked(RemoveServerShopListingRequest request, ClashOfRimNetworkState state)
+    {
         ProtocolResponse? adminValidation = ValidateShopAdminRequest(request.UserId, state);
         if (adminValidation is not null)
         {
@@ -136,6 +154,7 @@ public static partial class ClashOfRimNetworkServer
             || string.IsNullOrWhiteSpace(request.IdempotencyKey)
             || string.IsNullOrWhiteSpace(request.Buyer.UserId)
             || string.IsNullOrWhiteSpace(request.Buyer.ColonyId)
+            || !ServerShopListingKinds.IsKnown(request.ListingKind)
             || string.IsNullOrWhiteSpace(request.ListingId))
         {
             return Results.Ok(new PurchaseServerShopListingResponse(
@@ -166,6 +185,7 @@ public static partial class ClashOfRimNetworkServer
 
         DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
         string normalizedListingKind = NormalizeShopListingKind(request.ListingKind);
+        RecoverSnapshotCommits(state);
         ServerShopPurchaseResult prevalidation = state.ServerShop.ValidatePurchase(
             request.IdempotencyKey,
             request.ListingId,
@@ -185,17 +205,7 @@ public static partial class ClashOfRimNetworkServer
 
         if (prevalidation.Duplicate)
         {
-            state.RuntimeLogger.LogInformation(
-                "Server shop purchase duplicate: listing={ListingId} user={UserId} colony={ColonyId} key={IdempotencyKey} stock={Stock}",
-                request.ListingId,
-                request.Buyer.UserId,
-                request.Buyer.ColonyId,
-                request.IdempotencyKey,
-                prevalidation.RemainingStockCount);
-            return Results.Ok(new PurchaseServerShopListingResponse(
-                new ProtocolResponse(true, ProtocolErrorCode.DuplicateRequest, T("Shop.PurchaseDuplicate")),
-                request.ListingId,
-                prevalidation.RemainingStockCount));
+            return ShopPurchaseReplayResponse(state, request, multipart.Request.ConfirmedSnapshot.SnapshotId!);
         }
 
         if (string.Equals(normalizedListingKind, ServerShopListingKinds.BuyFromPlayer, StringComparison.Ordinal)
@@ -254,141 +264,69 @@ public static partial class ClashOfRimNetworkServer
                 remainingStockCount: state.ServerShop.Find(request.ListingId)?.StockCount ?? 0));
         }
 
-        SnapshotUploadResult? upload = null;
-        ProtocolResponse? finalDeliveredThingsRejection = null;
-        ServerShopPurchaseResult purchase = state.ServerShop.TryPurchaseAfterCommit(
-            request.IdempotencyKey,
-            request.ListingId,
-            normalizedListingKind,
-            request.UnitPriceSilver,
-            request.TotalPriceSilver,
-            request.PurchaseCount,
-            request.Buyer,
-            nowUtc,
-            finalValidation =>
+        SnapshotUploadResult upload = ReceiveSnapshot(state, request.Buyer.UserId, request.Buyer.ColonyId!,
+            multipart.Request.ConfirmedSnapshot.SnapshotId!, multipart.Request.ConfirmedSnapshot,
+            multipart.Payload, nowUtc, storeAccepted: false);
+        if (!upload.Accepted || upload.AcceptedSnapshot is null)
+            return Results.Ok(new PurchaseServerShopListingResponse(ToProtocolResponse(upload), request.ListingId, prevalidation.RemainingStockCount));
+
+        // Fixed order: snapshot mutation gate, then shop gate. Preparation above never holds the shop gate.
+        lock (state.RaidSettlementSnapshotMutationGate)
+        lock (state.ServerShop.SnapshotCommitGate)
+        {
+            RecoverSnapshotCommits(state);
+            var purchase = state.ServerShop.ValidatePurchase(request.IdempotencyKey, request.ListingId,
+                normalizedListingKind, request.UnitPriceSilver, request.TotalPriceSilver, request.PurchaseCount, request.Buyer);
+            if (!purchase.Accepted)
             {
-                if (string.Equals(normalizedListingKind, ServerShopListingKinds.BuyFromPlayer, StringComparison.Ordinal)
-                    && finalValidation.Listing is not null
-                    && !TradeThingRequirementMatcher.Satisfies(
-                        new[] { MultiplyShopRequirement(finalValidation.Listing.Item, request.PurchaseCount) },
-                        request.DeliveredThings ?? Array.Empty<ThingReferenceDto>(),
-                        out IReadOnlyList<string> finalMissing,
-                        state.Plugins.ActiveTradeThingMetadataMatchers(state.CompatibilityBaseline.Current),
-                        finalValidation.Listing.QualityRequirementMode,
-                        finalValidation.Listing.HitPointsRequirementMode))
-                {
-                    finalDeliveredThingsRejection = ProtocolResponse.Reject(
-                        ProtocolErrorCode.ValidationFailed,
-                        T("Shop.DeliveredThingsMismatch", ("MISSING", string.Join("; ", finalMissing))));
-                    state.RuntimeLogger.LogWarning(
-                        "Server shop purchase rejected: phase=final-delivered-things listing={ListingId} user={UserId} colony={ColonyId} count={Count} missing={Missing}",
-                        request.ListingId,
-                        request.Buyer.UserId,
-                        request.Buyer.ColonyId,
-                        request.PurchaseCount,
-                        string.Join("; ", finalMissing));
-                    return false;
-                }
+                LogServerShopPurchaseRejection(state, request, purchase, "final-validation");
+                return Results.Ok(new PurchaseServerShopListingResponse(BuildServerShopPurchaseRejection(purchase, request),
+                    request.ListingId, purchase.RemainingStockCount));
+            }
+            if (purchase.Duplicate)
+                return ShopPurchaseReplayResponse(state, request, multipart.Request.ConfirmedSnapshot.SnapshotId!);
+            if (normalizedListingKind == ServerShopListingKinds.BuyFromPlayer
+                && !TradeThingRequirementMatcher.Satisfies(
+                    new[] { MultiplyShopRequirement(purchase.Listing!.Item, request.PurchaseCount) },
+                    request.DeliveredThings ?? Array.Empty<ThingReferenceDto>(), out IReadOnlyList<string> finalMissing,
+                    state.Plugins.ActiveTradeThingMetadataMatchers(state.CompatibilityBaseline.Current),
+                    purchase.Listing.QualityRequirementMode, purchase.Listing.HitPointsRequirementMode))
+                return Results.Ok(new PurchaseServerShopListingResponse(ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed,
+                    T("Shop.DeliveredThingsMismatch", ("MISSING", string.Join("; ", finalMissing)))), request.ListingId, purchase.RemainingStockCount));
 
-                upload = ReceiveSnapshot(
-                    state,
-                    request.Buyer.UserId,
-                    request.Buyer.ColonyId ?? string.Empty,
-                    multipart.Request.ConfirmedSnapshot.SnapshotId!,
-                    multipart.Request.ConfirmedSnapshot,
-                    multipart.Payload,
-                    nowUtc);
-                return upload.Accepted && upload.AcceptedSnapshot is not null;
-            });
+            var package = ProtocolDtoMapper.ToSaveSnapshotPackage(multipart.Request.ConfirmedSnapshot, multipart.Payload);
+            upload = CreateSnapshotReceiver(state).CommitPrepared(
+                new SnapshotUploadContext(request.Buyer.UserId, request.Buyer.ColonyId!,
+                    multipart.Request.ConfirmedSnapshot.SnapshotId!, null, upload.SnapshotUploadKind),
+                package, upload, storeAccepted: false);
+            if (!upload.Accepted || upload.AcceptedSnapshot is null)
+                return Results.Ok(new PurchaseServerShopListingResponse(ToProtocolResponse(upload), request.ListingId, purchase.RemainingStockCount));
 
-        if (finalDeliveredThingsRejection is not null)
-        {
-            return Results.Ok(new PurchaseServerShopListingResponse(
-                finalDeliveredThingsRejection,
-                request.ListingId,
-                remainingStockCount: state.ServerShop.Find(request.ListingId)?.StockCount ?? 0));
-        }
-
-        if (upload is not null && (!upload.Accepted || upload.AcceptedSnapshot is null))
-        {
-            state.RuntimeLogger.LogWarning(
-                "Server shop purchase rejected: phase=snapshot listing={ListingId} user={UserId} colony={ColonyId} snapshot={SnapshotId} count={Count} unitPrice={UnitPrice} message={Message}",
-                request.ListingId,
-                request.Buyer.UserId,
-                request.Buyer.ColonyId,
-                multipart.Request.ConfirmedSnapshot.SnapshotId,
-                request.PurchaseCount,
-                request.UnitPriceSilver,
-                upload.Message);
-            return Results.Ok(new PurchaseServerShopListingResponse(
-                ToProtocolResponse(upload),
-                request.ListingId,
-                remainingStockCount: state.ServerShop.Find(request.ListingId)?.StockCount ?? 0));
-        }
-
-        if (!purchase.Accepted)
-        {
-            LogServerShopPurchaseRejection(state, request, purchase, "final-validation");
-            return Results.Ok(new PurchaseServerShopListingResponse(
-                BuildServerShopPurchaseRejection(purchase, request),
-                request.ListingId,
-                purchase.RemainingStockCount));
-        }
-
-        if (purchase.Duplicate)
-        {
+            var mutation = state.ServerShop.PrepareSnapshotCommit(request, upload.AcceptedSnapshot);
+            state.SnapshotCommits.CommitShop(state.SnapshotStore, state.BankLoans, state.ServerShop,
+                package, upload.AcceptedSnapshot, mutation,
+                (snapshot, kind) => RunCommittedSnapshotPostUpload(state, snapshot, kind), upload.SnapshotUploadKind);
             state.RuntimeLogger.LogInformation(
-                "Server shop purchase duplicate: listing={ListingId} user={UserId} colony={ColonyId} key={IdempotencyKey} stock={Stock}",
-                request.ListingId,
-                request.Buyer.UserId,
-                request.Buyer.ColonyId,
-                request.IdempotencyKey,
-                purchase.RemainingStockCount);
-            return Results.Ok(new PurchaseServerShopListingResponse(
-                new ProtocolResponse(true, ProtocolErrorCode.DuplicateRequest, T("Shop.PurchaseDuplicate")),
-                request.ListingId,
-                purchase.RemainingStockCount));
+                "Server shop purchase accepted: listing={ListingId} user={UserId} colony={ColonyId} snapshot={SnapshotId} count={Count} stock={Stock}",
+                request.ListingId, request.Buyer.UserId, request.Buyer.ColonyId, mutation.Receipt.SnapshotId,
+                request.PurchaseCount, mutation.Receipt.RemainingStockCount);
+            return Results.Ok(new PurchaseServerShopListingResponse(ProtocolResponse.Ok(T("Shop.Purchased")),
+                request.ListingId, mutation.Receipt.RemainingStockCount, mutation.Receipt.SnapshotId,
+                upload.AcceptedSnapshot.Envelope.NextLineageToken));
         }
+    }
 
-        if (upload?.AcceptedSnapshot is null)
-        {
-            state.RuntimeLogger.LogWarning(
-                "Server shop purchase rejected: phase=snapshot-not-committed listing={ListingId} user={UserId} colony={ColonyId} count={Count} unitPrice={UnitPrice}",
-                request.ListingId,
-                request.Buyer.UserId,
-                request.Buyer.ColonyId,
-                request.PurchaseCount,
-                request.UnitPriceSilver);
+    private static IResult ShopPurchaseReplayResponse(ClashOfRimNetworkState state,
+        PurchaseServerShopListingRequest request, string snapshotId)
+    {
+        var receipt = state.ServerShop.FindReceipt(request.IdempotencyKey);
+        if (receipt is null || !receipt.Matches(request, snapshotId))
             return Results.Ok(new PurchaseServerShopListingResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, T("Shop.SnapshotRejected")),
-                request.ListingId,
-                purchase.RemainingStockCount));
-        }
-
-        RunSnapshotPostUploadProcessors(
-            state,
-            request.Buyer.UserId,
-            request.Buyer.ColonyId ?? string.Empty,
-            sessionId: null,
-            upload,
-            nowUtc);
-
-        state.RuntimeLogger.LogInformation(
-            "Server shop purchase accepted: listing={ListingId} user={UserId} colony={ColonyId} snapshot={SnapshotId} count={Count} unitPrice={UnitPrice} stock={Stock}",
-            request.ListingId,
-            request.Buyer.UserId,
-            request.Buyer.ColonyId,
-            upload.AcceptedSnapshot.Identity.SnapshotId,
-            request.PurchaseCount,
-            request.UnitPriceSilver,
-            purchase.RemainingStockCount);
-
+                ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Shop.PurchaseRejected")), request.ListingId, 0));
         return Results.Ok(new PurchaseServerShopListingResponse(
-            ProtocolResponse.Ok(T("Shop.Purchased")),
-            request.ListingId,
-            purchase.RemainingStockCount,
-            upload.AcceptedSnapshot.Identity.SnapshotId ?? multipart.Request.ConfirmedSnapshot.SnapshotId,
-            upload.AcceptedSnapshot.Envelope.NextLineageToken));
+            new ProtocolResponse(true, ProtocolErrorCode.DuplicateRequest, T("Shop.PurchaseDuplicate")), request.ListingId,
+            receipt.RemainingStockCount, receipt.SnapshotId,
+            FindSnapshotNextLineageToken(state, receipt.UserId, receipt.ColonyId, receipt.SnapshotId)));
     }
 
     private static ProtocolResponse BuildServerShopPurchaseRejection(

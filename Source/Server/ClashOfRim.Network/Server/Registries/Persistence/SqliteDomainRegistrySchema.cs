@@ -30,7 +30,8 @@ internal static class SqliteDomainRegistrySchema
             [
                 new("listing:", "server_shop_listings"),
                 new("buyer:", "server_shop_buyer_purchases"),
-                new("completed:", "server_shop_completed_purchases")
+                new("completed:", "server_shop_completed_purchases"),
+                new("receipt:", "server_shop_purchase_receipts")
             ]),
             [DiplomacyRelations] = new(DiplomacyRelations, [new(string.Empty, "server_diplomacy_relations")]),
             [RaidProtectionActivations] = new(RaidProtectionActivations, [new(string.Empty, "server_raid_protection_activations")]),
@@ -196,6 +197,17 @@ internal static class SqliteDomainRegistrySchema
                 idempotency_key text generated always as (json_extract(content_json, '$')) stored
             );
             create unique index if not exists ux_server_shop_completed_idempotency on server_shop_completed_purchases(idempotency_key);
+
+            create table if not exists server_shop_purchase_receipts (
+                item_key text primary key not null,
+                content_json text not null check (json_valid(content_json)),
+                updated_at_utc text not null,
+                idempotency_key text generated always as (json_extract(content_json, '$.idempotencyKey')) stored,
+                user_id text generated always as (json_extract(content_json, '$.userId')) stored,
+                colony_id text generated always as (json_extract(content_json, '$.colonyId')) stored,
+                snapshot_id text generated always as (json_extract(content_json, '$.snapshotId')) stored
+            );
+            create unique index if not exists ux_server_shop_receipts_idempotency on server_shop_purchase_receipts(idempotency_key);
 
             create table if not exists server_diplomacy_relations (
                 item_key text primary key not null,

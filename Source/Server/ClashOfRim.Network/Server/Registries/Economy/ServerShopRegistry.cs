@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 
 namespace AIRsLight.ClashOfRim.Network;
 
-public sealed class ServerShopRegistry
+public sealed partial class ServerShopRegistry
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
@@ -382,6 +382,11 @@ public sealed class ServerShopRegistry
                         completedPurchaseKeys.Add(key);
                     }
                 }
+                else if (pair.Key.StartsWith("receipt:", StringComparison.Ordinal))
+                {
+                    var receipt = JsonSerializer.Deserialize<ServerShopPurchaseReceipt>(pair.Value, JsonOptions);
+                    if (receipt is not null) receipts[receipt.IdempotencyKey] = receipt;
+                }
             }
             catch (JsonException)
             {
@@ -443,6 +448,8 @@ public sealed class ServerShopRegistry
             }
         }
 
+        foreach (var receipt in persisted.Receipts ?? Array.Empty<ServerShopPurchaseReceipt>())
+            imported |= receipts.TryAdd(receipt.IdempotencyKey, receipt);
         return imported;
     }
 
@@ -465,7 +472,8 @@ public sealed class ServerShopRegistry
                     .ThenBy(record => record.UserId, StringComparer.Ordinal)
                     .ThenBy(record => record.ColonyId, StringComparer.Ordinal)
                     .ToList(),
-                candidate.completedPurchaseKeys.OrderBy(key => key, StringComparer.Ordinal).ToList()),
+                candidate.completedPurchaseKeys.OrderBy(key => key, StringComparer.Ordinal).ToList(),
+                candidate.receipts.Values.OrderBy(receipt => receipt.IdempotencyKey, StringComparer.Ordinal).ToList()),
             JsonOptions));
     }
 
@@ -490,6 +498,8 @@ public sealed class ServerShopRegistry
         {
             rows[CompletedPurchaseRowKey(key)] = JsonSerializer.Serialize(key, JsonOptions);
         }
+        foreach (var receipt in receipts.Values)
+            rows["receipt:" + receipt.IdempotencyKey] = JsonSerializer.Serialize(receipt, JsonOptions);
 
         return rows;
     }
@@ -510,6 +520,7 @@ public sealed class ServerShopRegistry
             if (key.StartsWith("listing:", StringComparison.Ordinal)) listings.Remove(key[8..]);
             else if (key.StartsWith("buyer:", StringComparison.Ordinal)) buyerPurchaseCounts.Remove(key[6..]);
             else if (key.StartsWith("completed:", StringComparison.Ordinal)) completedPurchaseKeys.Remove(key[10..]);
+            else if (key.StartsWith("receipt:", StringComparison.Ordinal)) receipts.Remove(key[8..]);
         }
         LoadRows(upserts);
         InvalidateListingCache();
@@ -640,7 +651,8 @@ public sealed class ServerShopRegistry
     private sealed record ServerShopRegistryPersistence(
         IReadOnlyList<ServerShopListingRecord> Listings,
         IReadOnlyList<ServerShopBuyerPurchaseRecord> BuyerPurchaseCounts,
-        IReadOnlyList<string> CompletedPurchaseKeys);
+        IReadOnlyList<string> CompletedPurchaseKeys,
+        IReadOnlyList<ServerShopPurchaseReceipt>? Receipts = null);
 }
 
 public sealed record ServerShopListingRecord(

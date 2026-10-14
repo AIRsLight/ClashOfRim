@@ -16,7 +16,7 @@ public static class ServerDatabaseSchema
 {
     // Version 1 is the known JSON-document persistence layout.
     public const int LegacyJsonDocumentVersion = 1;
-    public const int CurrentVersion = 11;
+    public const int CurrentVersion = 12;
 }
 
 public sealed record ServerDatabaseMigrationOptions(int? DeclaredSourceVersion = null);
@@ -100,7 +100,16 @@ public static class ServerDatabaseMigrator
         new(
             FromVersion: 10,
             ToVersion: 11,
-            Apply: (_, _, _) => MigrationApplicationResult.None)
+            Apply: (_, _, _) => MigrationApplicationResult.None),
+        // Shop receipts and journal recovery must be understood before serving traffic.
+        new(
+            FromVersion: 11,
+            ToVersion: 12,
+            Apply: (connection, transaction, _) =>
+            {
+                SqliteDomainRegistrySchema.EnsureTables(connection, transaction);
+                return MigrationApplicationResult.None;
+            })
     ];
 
     public static ServerDatabaseMigrationAssessment Assess(
@@ -1009,6 +1018,7 @@ public static class ServerDatabaseMigrator
             "server_shop_listings",
             "server_shop_buyer_purchases",
             "server_shop_completed_purchases",
+            "server_shop_purchase_receipts",
             "server_diplomacy_relations",
             "server_raid_protection_activations",
             "server_chat_messages",
