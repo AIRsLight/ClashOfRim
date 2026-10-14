@@ -18,6 +18,7 @@ public sealed class ServerPersistenceMigrationService
 
     public ServerPersistenceMigrationAssessment Assess(ServerDatabaseMigrationOptions? databaseOptions = null)
     {
+        ColonyDeletionService.ValidateDirectory(Path.Combine(DataDirectory, "colony-deletions"));
         SnapshotCommitService.ValidateDirectory(Path.Combine(DataDirectory, "bank-snapshot-commits"));
         string databasePath = Path.Combine(DataDirectory, "server.sqlite");
         string snapshotDirectory = Path.Combine(DataDirectory, "snapshots");
@@ -58,6 +59,7 @@ public sealed class ServerPersistenceMigrationService
 
     public ServerPersistenceMigrationResult ValidateForStartup()
     {
+        ColonyDeletionService.ValidateDirectory(Path.Combine(DataDirectory, "colony-deletions"));
         SnapshotCommitService.ValidateDirectory(Path.Combine(DataDirectory, "bank-snapshot-commits"));
         string snapshotDirectory = Path.Combine(DataDirectory, "snapshots");
         ServerSnapshotPackageMigrationAssessment snapshotAssessment = ServerSnapshotPackageMigrator.Assess(snapshotDirectory);

@@ -8,6 +8,9 @@ public static partial class ClashOfRimNetworkServer
     {
         using (state.EnterSnapshotMutation())
         {
+            if (state.ColonyDeletions.IsApplying)
+                throw new InvalidOperationException("Cannot begin nested mutations while a colony deletion is being applied.");
+            state.ColonyDeletions.Recover(intent => ApplyColonyDeletion(state, intent));
             state.SnapshotCommits.Recover(state.SnapshotStore, state.BankLoans,
                 (snapshot, kind) => RunCommittedSnapshotPostUpload(state, snapshot, kind), state.Ledger,
                 userId => state.EventNotifications.SignalUsers(new[] { userId }),

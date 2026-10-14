@@ -815,8 +815,7 @@ public static partial class ClashOfRimNetworkServer
             && string.Equals(payload.NotificationId, BuildColonyTombstoneNotificationId(userId, colonyId), StringComparison.Ordinal));
     }
 
-    private static void AppendColonyTombstoneEvent(
-        ClashOfRimNetworkState state,
+    private static AuthoritativeEvent CreateColonyTombstoneEvent(
         string userId,
         string colonyId,
         string? abandonedSnapshotId,
@@ -854,7 +853,7 @@ public static partial class ClashOfRimNetworkServer
             DeliveredAtUtc: null,
             AppliedSnapshotId: abandonedSnapshotId,
             AppliedAtUtc: nowUtc);
-        state.Ledger.Append(tombstone);
+        return tombstone;
     }
 
     private static string BuildColonyTombstoneNotificationId(string userId, string colonyId)

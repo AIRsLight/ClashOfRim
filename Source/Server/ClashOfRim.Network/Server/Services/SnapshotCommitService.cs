@@ -10,6 +10,7 @@ public sealed class SnapshotCommitService
     private readonly string? directory;
     private readonly Dictionary<string, SnapshotCommitIntent> pending = new(StringComparer.Ordinal);
     private bool applying;
+    internal bool HasPending => pending.Count != 0;
 
     public SnapshotCommitService(string? directory = null)
     {

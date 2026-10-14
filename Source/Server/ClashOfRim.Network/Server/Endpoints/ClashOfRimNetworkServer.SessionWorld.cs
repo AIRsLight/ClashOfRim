@@ -481,6 +481,13 @@ public static partial class ClashOfRimNetworkServer
         ClashOfRimNetworkState state,
         ILoggerFactory loggerFactory)
     {
+        using var mutation = state.EnterSnapshotMutation();
+        RecoverSnapshotCommits(state);
+        if (!string.IsNullOrWhiteSpace(request.UserId) && !string.IsNullOrWhiteSpace(request.ColonyId)
+            && state.Players.IsDeleted(request.UserId, request.ColonyId))
+            return Results.Ok(new RegisterPlayerColonySitesResponse(
+                ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, T("Auth.IdentityDenied")), 0,
+                BuildWorldConfigurationForDelivery(state.WorldConfiguration.Current, state), null));
         if (!string.Equals(request.ProtocolVersion, ProtocolApiVersion.Current, StringComparison.Ordinal))
         {
             return Results.Ok(new RegisterPlayerColonySitesResponse(
@@ -679,6 +686,8 @@ public static partial class ClashOfRimNetworkServer
         ClashOfRimNetworkState state,
         ILoggerFactory loggerFactory)
     {
+        using var mutation = state.EnterSnapshotMutation();
+        RecoverSnapshotCommits(state);
         DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
         if (!ValidateColonyRelocationConfirmationRequest(
                 state,
@@ -1300,7 +1309,26 @@ public static partial class ClashOfRimNetworkServer
     private static AbandonedColonyCleanupResult CleanupAbandonedColonyLocked(
         ClashOfRimNetworkState state, string userId, string colonyId, LatestSnapshotRecord? latest, DateTimeOffset nowUtc)
     {
-        string? abandonedSnapshotId = latest?.Identity.SnapshotId;
+        if (state.SnapshotCommits.HasPending)
+            throw new InvalidOperationException("Finish snapshot commits before beginning colony deletion.");
+        LedgerBatch closure = BuildAbandonedColonyEventClosure(state.Ledger, userId, colonyId, out var notifyUsers);
+        var existing = state.Ledger.FindByIdempotencyKey("colony-abandoned:" + userId + ":" + colonyId);
+        if (existing is not null && latest is not null)
+            throw new InvalidDataException("A deleted colony has a snapshot again; refusing to reuse its tombstone.");
+        AuthoritativeEvent tombstone = existing ?? CreateColonyTombstoneEvent(userId, colonyId, latest?.Identity.SnapshotId, nowUtc);
+        notifyUsers.Add(userId);
+        var intent = new ColonyDeletionIntent(1, Guid.NewGuid().ToString("N"), userId, colonyId, latest?.Envelope,
+            tombstone.CreatedAtUtc, closure with { Events = [tombstone] },
+            closure.StatusChanges.Select(change => state.Ledger.Find(change.EventId)!).ToArray(), notifyUsers.ToArray(),
+            state.Players.List().Select(player => player.UserId).Append(userId).Distinct(StringComparer.Ordinal).ToArray());
+        intent.Preflight(state.SnapshotStore, state.Ledger);
+        return state.ColonyDeletions.Commit(intent, pending => ApplyColonyDeletion(state, pending));
+    }
+
+    private static AbandonedColonyCleanupResult ApplyColonyDeletion(ClashOfRimNetworkState state, ColonyDeletionIntent intent)
+    {
+        intent.Preflight(state.SnapshotStore, state.Ledger);
+        string userId = intent.UserId, colonyId = intent.ColonyId;
         bool snapshotRemoved = state.SnapshotStore.RemoveLatest(userId, colonyId);
         RemovePlayerColonySitesResult removedSites = state.WorldConfiguration.RemovePlayerColonySites(
             userId,
@@ -1310,18 +1338,14 @@ public static partial class ClashOfRimNetworkServer
         int removedRuntimeMarkers = state.RuntimeWorldObjectMarkers.RemoveForOwner(userId, colonyId);
         state.DiplomacyRelations.RemoveForColony(userId, colonyId);
         state.BankLoans.RemoveForColony(userId, colonyId);
-        state.Players.MarkDeleted(userId, colonyId, abandonedSnapshotId, nowUtc);
-        AppendColonyTombstoneEvent(state, userId, colonyId, abandonedSnapshotId, nowUtc);
+        state.Players.MarkDeleted(userId, colonyId, intent.Tombstone.AppliedSnapshotId, intent.DeletedAtUtc);
+        state.RaidPreparations.RemoveForColony(userId, colonyId);
+        state.RaidProtectionActivations.RemoveForColony(userId, colonyId);
+        state.MercenaryContracts.CloseForColony(userId, colonyId);
+        state.Ledger.ApplyBatch(intent.Batch);
         state.AuthTokens.RevokeForColony(userId, colonyId);
-        state.EventNotifications.SignalUser(userId);
-        SignalWorldConfigurationChanged(state, userId);
-        RunClientLifecycleHooks(
-            state,
-            ClientLifecycleEvent.ColonyAbandoned(
-                userId,
-                colonyId,
-                abandonedSnapshotId,
-                nowUtc));
+        state.EventNotifications.SignalUsers(intent.NotifyUsers);
+        state.WorldConfigurationNotifications.SignalUsers(intent.WorldNotifyUsers.Concat(state.Players.List().Select(player => player.UserId)));
 
         return new AbandonedColonyCleanupResult(
             snapshotRemoved,

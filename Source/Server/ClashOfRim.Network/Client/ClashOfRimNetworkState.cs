@@ -46,7 +46,8 @@ public sealed class ClashOfRimNetworkState
         ISnapshotPostUploadArtifactStore? snapshotPostUploadArtifacts = null,
         ServerPluginRegistry? plugins = null,
         ILogger? runtimeLogger = null,
-        SnapshotCommitService? snapshotCommits = null)
+        SnapshotCommitService? snapshotCommits = null,
+        ColonyDeletionService? colonyDeletions = null)
     {
         Plugins = plugins ?? new ServerPluginRegistry().WithBuiltInPlugins(BuiltInServerPlugins.Descriptors);
         Ledger = ledger ?? new InMemoryAuthoritativeEventLedger();
@@ -86,6 +87,7 @@ public sealed class ClashOfRimNetworkState
         SnapshotPostUploadArtifacts = snapshotPostUploadArtifacts ?? new InMemorySnapshotPostUploadArtifactStore();
         RuntimeLogger = runtimeLogger ?? NullLogger.Instance;
         SnapshotCommits = snapshotCommits ?? new SnapshotCommitService();
+        ColonyDeletions = colonyDeletions ?? new ColonyDeletionService();
     }
 
     public IAuthoritativeEventLedger Ledger { get; }
@@ -96,6 +98,7 @@ public sealed class ClashOfRimNetworkState
     internal SnapshotMutationScope EnterSnapshotMutation([System.Runtime.CompilerServices.CallerMemberName] string operation = "")
         => new(RaidSettlementSnapshotMutationGate, operation);
     public SnapshotCommitService SnapshotCommits { get; }
+    public ColonyDeletionService ColonyDeletions { get; }
 
     public SnapshotUploadPolicy SnapshotUploadPolicy { get; }
 

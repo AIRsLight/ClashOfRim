@@ -16,7 +16,7 @@ public static class ServerDatabaseSchema
 {
     // Version 1 is the known JSON-document persistence layout.
     public const int LegacyJsonDocumentVersion = 1;
-    public const int CurrentVersion = 19;
+    public const int CurrentVersion = 20;
 }
 
 public sealed record ServerDatabaseMigrationOptions(int? DeclaredSourceVersion = null);
@@ -123,7 +123,9 @@ public static class ServerDatabaseMigrator
         // Battle cleanup snapshots and loss notifications recover through journal format 9.
         new(FromVersion: 17, ToVersion: 18, Apply: (_, _, _) => MigrationApplicationResult.None),
         // Timed-out raids retain durable downstream work until settlement scheduling and cleanup finish.
-        new(FromVersion: 18, ToVersion: 19, Apply: (_, _, _) => MigrationApplicationResult.None)
+        new(FromVersion: 18, ToVersion: 19, Apply: (_, _, _) => MigrationApplicationResult.None),
+        // Colony deletion journals must finish before new snapshot mutations are accepted.
+        new(FromVersion: 19, ToVersion: 20, Apply: (_, _, _) => MigrationApplicationResult.None)
     ];
 
     public static ServerDatabaseMigrationAssessment Assess(

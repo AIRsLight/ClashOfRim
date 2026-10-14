@@ -32,6 +32,7 @@ var tests = new (string Name, Action Run)[]
     ("并发准备的快照在提交时重新验证 lineage", VerifyPreparedSnapshotsCannotOverwrite),
     ("废弃殖民地在恢复后锁内重验快照与认证", () => ColonyAbandonmentBaselineTests.Run(BuildFixturePackage)),
     ("殖民地删除阶段失败保留地点缓存且原子关闭事件", ColonyDeletionStageTests.Run),
+    ("殖民地删除意图跨存储恢复且拒绝新版本冲突", () => ColonyDeletionRecoveryTests.Run(BuildFixturePackage)),
     ("服务器数据库新建时写入当前 schema 版本", VerifyServerDatabaseMigrationInitializesNewDatabase),
     ("服务器启动可只读识别无版本旧数据库", VerifyServerDatabaseMigrationAssessesLegacyDatabaseWithoutMutation),
     ("服务器启动自动备份并迁移明确旧版本", VerifyServerPersistenceStartupMigratesKnownVersionWithBackup),

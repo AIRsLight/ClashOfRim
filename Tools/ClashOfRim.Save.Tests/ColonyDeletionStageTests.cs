@@ -57,12 +57,12 @@ internal static class ColonyDeletionStageTests
         });
     }
 
-    private static void SeedWorld(WorldConfigurationRegistry world)
+    internal static void SeedWorld(WorldConfigurationRegistry world, string user = "owner", string colony = "abandoned")
     {
         world.Prepare("admin");
         world.Submit("admin", new WorldConfigurationDto("world-stage-test", "admin", "admin-colony", DateTimeOffset.UnixEpoch,
             "seed", "0.3", "Normal", "Normal", "Normal", "Normal", "10", ["OutlanderCivil"], [], [], [], [],
-            [new("owner", "abandoned", "1", "1", 1, "first"), new("owner", "abandoned", "2", "2", 2, "second"),
+            [new(user, colony, "1", "1", 1, "first"), new(user, colony, "2", "2", 2, "second"),
              new("owner", "other-colony", "3", "3", 3, "same user"), new("other-user", "other", "4", "4", 4, "other user")]));
         byte[] geometry = WorldTileGeometryBinaryCodec.Encode(new WorldTileGeometryDto(
             [new WorldTileLayerGeometryDto(0, "Surface", 1, [new WorldTileCenterDto(0, 1, 0, 0)])]))!;

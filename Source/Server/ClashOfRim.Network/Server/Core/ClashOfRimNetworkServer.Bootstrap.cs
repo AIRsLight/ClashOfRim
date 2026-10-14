@@ -193,6 +193,7 @@ public static partial class ClashOfRimNetworkServer
         return (new ClashOfRimNetworkState(
             // Keep the original directory name so pending version 1 bank intents survive upgrades.
             snapshotCommits: new SnapshotCommitService(Path.Combine(dataDirectory, "bank-snapshot-commits")),
+            colonyDeletions: new ColonyDeletionService(Path.Combine(dataDirectory, "colony-deletions")),
             ledger: new SqliteAuthoritativeEventLedger(databasePath),
             snapshotStore: new FileColonySnapshotIndexStore(Path.Combine(dataDirectory, "snapshots")),
             serverConfiguration: serverConfiguration,
