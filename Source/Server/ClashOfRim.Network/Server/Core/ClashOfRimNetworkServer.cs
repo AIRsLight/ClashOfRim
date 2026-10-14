@@ -968,12 +968,15 @@ public static partial class ClashOfRimNetworkServer
             return;
         }
 
-        DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
+        var losses = new List<AuthoritativeEvent>();
+        var statuses = new List<LedgerStatusChange>();
+        var notifyUsers = new HashSet<string>(StringComparer.Ordinal);
         foreach (AuthoritativeEvent supportEvent in state.Ledger.ListForUser(identity.OwnerId!)
             .Where(evt => evt.Type == ServerEventType.SupportPawn)
             .Where(evt => evt.Status is ServerEventStatus.PendingOfflineDelivery
                 or ServerEventStatus.ReadyForImmediateDelivery
-                or ServerEventStatus.DeliveredToClient)
+                or ServerEventStatus.DeliveredToClient
+                or ServerEventStatus.Failed)
             .Where(evt => IsVisibleParty(evt.Target, identity.OwnerId!, identity.ColonyId!)))
         {
             if (supportEvent.Payload is not SupportPawnEventPayload payload
@@ -997,16 +1000,32 @@ public static partial class ClashOfRimNetworkServer
                 continue;
             }
 
+            AuthoritativeEvent? existing = state.Ledger.FindByIdempotencyKey($"support-loss:{supportEvent.EventId}:SnapshotDeath");
+            // A failed source alone is not evidence of snapshot death. Only replay
+            // an existing loss; otherwise leave unrelated terminal events alone.
+            if (supportEvent.Status == ServerEventStatus.Failed && existing is null)
+            {
+                continue;
+            }
+
             AuthoritativeEvent lossEvent = CreateSupportPawnLossReturnEvent(
                 supportEvent,
                 payload,
-                pawn.Name ?? payload.PawnName,
+                existing?.Payload is SupportPawnEventPayload savedLoss ? savedLoss.PawnName : pawn.Name ?? payload.PawnName,
                 "SnapshotDeath",
                 state.OnlinePresence.IsUserOnline(supportEvent.Actor.UserId),
-                nowUtc);
-            LedgerAppendResult append = state.Ledger.Append(lossEvent);
-            state.Ledger.ChangeStatus(supportEvent.EventId, ServerEventStatus.Failed);
-            SignalIfCreated(state, append, supportEvent.Actor.UserId);
+                existing?.CreatedAtUtc ?? upload.AcceptedSnapshot.AcceptedAtUtc);
+            losses.Add(lossEvent);
+            statuses.Add(new LedgerStatusChange(supportEvent.EventId, supportEvent.Status, ServerEventStatus.Failed, payload, payload));
+            notifyUsers.Add(supportEvent.Actor.UserId);
+        }
+
+        if (losses.Count > 0)
+        {
+            // Validate existing loss ownership/payload and commit the whole death
+            // batch before waking owners. Replay preserves consumed loss events.
+            state.Ledger.ApplyBatch(new LedgerBatch(losses, statuses));
+            state.EventNotifications.SignalUsers(notifyUsers);
         }
     }
 
