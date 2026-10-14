@@ -16,7 +16,7 @@ public static class ServerDatabaseSchema
 {
     // Version 1 is the known JSON-document persistence layout.
     public const int LegacyJsonDocumentVersion = 1;
-    public const int CurrentVersion = 15;
+    public const int CurrentVersion = 16;
 }
 
 public sealed record ServerDatabaseMigrationOptions(int? DeclaredSourceVersion = null);
@@ -115,7 +115,9 @@ public static class ServerDatabaseMigrator
         // Confirmed mercenary fines carry resumable contract/notification finalization work.
         new(FromVersion: 13, ToVersion: 14, Apply: (_, _, _) => MigrationApplicationResult.None),
         // Pending operation confirmations are captured in the snapshot journal, format 6.
-        new(FromVersion: 14, ToVersion: 15, Apply: (_, _, _) => MigrationApplicationResult.None)
+        new(FromVersion: 14, ToVersion: 15, Apply: (_, _, _) => MigrationApplicationResult.None),
+        // Raid publication and guard deployment recover together through snapshot journal format 7.
+        new(FromVersion: 15, ToVersion: 16, Apply: (_, _, _) => MigrationApplicationResult.None)
     ];
 
     public static ServerDatabaseMigrationAssessment Assess(

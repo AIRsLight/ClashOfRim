@@ -19,7 +19,21 @@ public static class RaidInitiationService
             return RecordRejectedStart(ledger, request, eligibility);
         }
 
-        AuthoritativeEvent raidEvent = AuthoritativeEventFactory.Create(
+        AuthoritativeEvent raidEvent = CreateRaidEvent(request);
+
+        LedgerAppendResult appendResult = ledger.Append(raidEvent);
+        return new RaidInitiationResult(
+            appendResult.Created
+                ? RaidInitiationResultKind.RaidEventCreated
+                : RaidInitiationResultKind.RaidEventAlreadyExists,
+            eligibility,
+            appendResult.Event,
+            NotificationEvent: null,
+            appendResult.Created);
+    }
+
+    /// <summary>Builds an event without publishing it. The caller validates eligibility before committing.</summary>
+    public static AuthoritativeEvent CreateRaidEvent(RaidInitiationRequest request) => AuthoritativeEventFactory.Create(
             ServerEventType.Raid,
             request.Eligibility.Attacker!,
             request.Eligibility.Defender!,
@@ -34,17 +48,6 @@ public static class RaidInitiationService
                 AttackForce: request.AttackForce),
             request.CreatedAtUtc,
             request.TargetContext);
-
-        LedgerAppendResult appendResult = ledger.Append(raidEvent);
-        return new RaidInitiationResult(
-            appendResult.Created
-                ? RaidInitiationResultKind.RaidEventCreated
-                : RaidInitiationResultKind.RaidEventAlreadyExists,
-            eligibility,
-            appendResult.Event,
-            NotificationEvent: null,
-            appendResult.Created);
-    }
 
     private static RaidInitiationResult RecordRejectedStart(
         IAuthoritativeEventLedger ledger,

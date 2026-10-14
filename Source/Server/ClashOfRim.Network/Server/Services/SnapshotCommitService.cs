@@ -31,10 +31,10 @@ public sealed class SnapshotCommitService
         {
             SnapshotCommitIntent intent = JsonSerializer.Deserialize<SnapshotCommitIntent>(File.ReadAllBytes(path))
                 ?? throw new InvalidDataException("Empty snapshot commit: " + path);
-            if (intent.Version is not (1 or 2 or 3 or 4 or 5 or 6) || Path.GetFileNameWithoutExtension(path) != intent.Id)
+            if (intent.Version is not (1 or 2 or 3 or 4 or 5 or 6 or 7) || Path.GetFileNameWithoutExtension(path) != intent.Id)
                 throw new InvalidDataException("Unsupported snapshot commit: " + path);
             SnapshotIdentity identity = intent.Package.Envelope.Identity;
-            if (intent.Loan is null && intent.Debt is null && intent.Gift is null && intent.Trade is null && intent.Shop is null && intent.Mercenary is null && intent.PendingOperations is null
+            if (intent.Loan is null && intent.Debt is null && intent.Gift is null && intent.Trade is null && intent.Shop is null && intent.Mercenary is null && intent.PendingOperations is null && intent.Raid is null
                 || intent.Loan is { } loan && (loan.UserId != identity.OwnerId || loan.ColonyId != identity.ColonyId || loan.SnapshotId != identity.SnapshotId)
                 || intent.Debt is { } debt && (debt.UserId != identity.OwnerId || debt.ColonyId != identity.ColonyId || debt.SnapshotId != identity.SnapshotId)
                 || intent.Gift is { } gift && (intent.Version is not (2 or 6) || intent.Loan is not null || intent.Debt is not null
@@ -43,10 +43,15 @@ public sealed class SnapshotCommitService
                 || intent.Shop is not null && (intent.Version is not (4 or 6) || intent.Loan is not null || intent.Debt is not null || intent.Gift is not null || intent.Trade is not null)
                 || intent.Mercenary is not null && (intent.Version is not (5 or 6) || intent.Loan is not null || intent.Debt is not null || intent.Gift is not null || intent.Trade is not null || intent.Shop is not null))
                 throw new InvalidDataException("Snapshot journal identity mismatch: " + path);
+            if ((intent.Version == 7) != (intent.Raid is not null)
+                || intent.Raid is not null && (intent.Loan is not null || intent.Debt is not null || intent.Gift is not null
+                    || intent.Trade is not null || intent.Shop is not null || intent.Mercenary is not null))
+                throw new InvalidDataException("Raid journal contains incompatible primary mutations: " + path);
+            intent.Raid?.Validate(identity);
             intent.Trade?.Validate(identity);
             intent.Shop?.Validate(identity);
             intent.Mercenary?.Validate(identity);
-            if ((intent.Version == 6) != (intent.PendingOperations is not null))
+            if (intent.Version == 6 && intent.PendingOperations is null || intent.Version < 6 && intent.PendingOperations is not null)
                 throw new InvalidDataException("Snapshot confirmation journal is missing its operations: " + path);
             if (intent.PendingOperations is { } operations)
             {
@@ -138,7 +143,28 @@ public sealed class SnapshotCommitService
         batch.Validate(snapshot);
         bank.ValidatePendingOperations(batch, snapshot);
         contracts?.ValidatePendingOperations(batch, snapshot);
-        return intent with { Version = 6, PendingOperations = batch };
+        return intent with { Version = Math.Max(intent.Version, 6), PendingOperations = batch };
+    }
+
+    public void CommitRaid(IColonySnapshotIndexStore snapshots, BankLoanRegistry bank, IAuthoritativeEventLedger ledger,
+        MercenaryContractRegistry contracts, MercenaryGuardContractRegistry guards, SaveSnapshotPackage package,
+        LatestSnapshotRecord snapshot, RaidSnapshotMutation mutation, Action<LatestSnapshotRecord, string?> postUpload,
+        Action<string> signalUser, string? snapshotUploadKind = null)
+    {
+        lock (guards.SnapshotCommitGate)
+        {
+            if (pending.Count != 0) throw new InvalidOperationException("Recover pending snapshot commits before accepting new work.");
+            mutation.Validate(snapshot.Identity);
+            if (mutation.Preflight(ledger, guards)) throw new InvalidOperationException("Use the existing raid instead of committing it again.");
+            var previous = snapshots.GetLatest(snapshot.Identity.OwnerId!, snapshot.Identity.ColonyId!);
+            var intent = new SnapshotCommitIntent(7, Guid.NewGuid().ToString("N"), previous?.Identity.SnapshotId,
+                previous?.Envelope.NextLineageToken, package with { Envelope = snapshot.Envelope, Index = snapshot.Index },
+                snapshot.AcceptedAtUtc, null, null, snapshotUploadKind, Raid: mutation);
+            intent = AttachPendingOperations(intent, bank, contracts);
+            Write(intent);
+            pending.Add(intent.Id, intent);
+            Apply(intent, snapshots, bank, postUpload, ledger, signalUser, contracts: contracts, guards: guards);
+        }
     }
 
     public void CommitMercenary(IColonySnapshotIndexStore snapshots, BankLoanRegistry bank,
@@ -251,7 +277,12 @@ public sealed class SnapshotCommitService
         Action<string>? signalUser, Action<AuthoritativeEvent>? recordTrade, ServerShopRegistry? shop,
         MercenaryContractRegistry? contracts, MercenaryGuardContractRegistry? guards)
     {
-        if (intent.Shop is not null)
+        if (intent.Raid is not null)
+        {
+            if (guards is null || ledger is null) throw new InvalidOperationException("Raid recovery requires the guard registry and ledger.");
+            lock (guards.SnapshotCommitGate) ApplyCore(intent, snapshots, bank, postUpload, ledger, signalUser, recordTrade, shop, contracts, guards);
+        }
+        else if (intent.Shop is not null)
         {
             if (shop is null) throw new InvalidOperationException("Shop recovery requires the shop registry.");
             // Hold the shop gate across preflight, snapshot publication and business commit.
@@ -282,6 +313,7 @@ public sealed class SnapshotCommitService
             }
             if (intent.Shop is { } pendingShop) shop!.ValidateSnapshotCommit(pendingShop);
             intent.Mercenary?.Preflight(contracts, guards);
+            intent.Raid?.Preflight(ledger!, guards!);
             if (intent.Trade is { } pendingTrade)
             {
                 if (ledger is null) throw new InvalidOperationException("Trade recovery requires the event ledger.");
@@ -307,7 +339,12 @@ public sealed class SnapshotCommitService
                 if (snapshots is IColonySnapshotPackageStore packages) packages.StoreLatest(package, package.Index, intent.AcceptedAtUtc);
                 else snapshots.StoreLatest(snapshot);
             }
-            if (intent.Gift is { } gift)
+            if (intent.Raid is { } raid)
+            {
+                raid.Apply(ledger!, guards!);
+                signalUser?.Invoke(raid.Raid.Target.UserId);
+            }
+            else if (intent.Gift is { } gift)
             {
                 LedgerAppendResult append = ledger!.Append(gift);
                 if (append.Event.EventId != gift.EventId)
@@ -332,7 +369,7 @@ public sealed class SnapshotCommitService
             // Processors are idempotent; retain the intent if scheduling downstream work fails.
             // A pure confirmation intent only owns these records. Its caller still owns event/raid-specific post-upload data.
             if (intent.Loan is not null || intent.Debt is not null || intent.Gift is not null || intent.Trade is not null
-                || intent.Shop is not null || intent.Mercenary is not null) postUpload(snapshot, intent.SnapshotUploadKind);
+                || intent.Shop is not null || intent.Mercenary is not null || intent.Raid is not null) postUpload(snapshot, intent.SnapshotUploadKind);
             if (directory is not null) File.Delete(Path.Combine(directory, intent.Id + ".json"));
             pending.Remove(intent.Id);
         }
@@ -356,4 +393,4 @@ public sealed class SnapshotCommitService
 public sealed record SnapshotCommitIntent(int Version, string Id, string? PreviousSnapshotId, string? PreviousLineageToken,
     SaveSnapshotPackage Package, DateTimeOffset AcceptedAtUtc, BankLoanRecord? Loan, BankDebtRecord? Debt, string? SnapshotUploadKind,
     AuthoritativeEvent? Gift = null, TradeSnapshotMutation? Trade = null, ShopSnapshotMutation? Shop = null,
-    MercenarySnapshotMutation? Mercenary = null, PendingSnapshotOperations? PendingOperations = null);
+    MercenarySnapshotMutation? Mercenary = null, PendingSnapshotOperations? PendingOperations = null, RaidSnapshotMutation? Raid = null);

@@ -173,6 +173,28 @@ public sealed class MercenaryGuardContractRegistry
         }
     }
 
+    internal void ValidateRaidConsumption(MercenaryGuardContractRecord original, string raidId, DateTimeOffset at)
+    {
+        lock (gate)
+        {
+            if (!contracts.TryGetValue(original.ContractId, out var current)
+                || current != original && current != Consumed(original, raidId, at))
+                throw new InvalidDataException("Guard deployment changed after the raid intent was prepared.");
+        }
+    }
+
+    internal void ApplyRaidConsumption(MercenaryGuardContractRecord original, string raidId, DateTimeOffset at)
+    {
+        lock (gate)
+        {
+            ValidateRaidConsumption(original, raidId, at);
+            if (contracts[original.ContractId] == original) PersistContracts([Consumed(original, raidId, at)]);
+        }
+    }
+
+    internal static MercenaryGuardContractRecord Consumed(MercenaryGuardContractRecord original, string raidId, DateTimeOffset at) =>
+        original with { Status = StatusConsumed, ConsumedRaidEventId = raidId, ConsumedAtUtc = at };
+
     private MercenaryGuardContractRecord? FindByIdempotencyKeyNoLock(string idempotencyKey)
     {
         return idByIdempotencyKey.TryGetValue(idempotencyKey, out string? contractId)

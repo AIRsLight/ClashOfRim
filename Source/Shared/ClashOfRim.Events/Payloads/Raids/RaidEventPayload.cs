@@ -8,7 +8,8 @@ public sealed record RaidEventPayload(
     RaidSettlementRecord? Settlement,
     RaidAttackForceRecord? AttackForce = null,
     RaidAttackerLossRecord? AttackerLoss = null,
-    RaidOpponentKind OpponentKind = RaidOpponentKind.Player) : LedgerEventPayload
+    RaidOpponentKind OpponentKind = RaidOpponentKind.Player,
+    string? GuardDeploymentId = null) : LedgerEventPayload
 {
     public bool RequiresSettlement => OpponentKind == RaidOpponentKind.Player;
 }

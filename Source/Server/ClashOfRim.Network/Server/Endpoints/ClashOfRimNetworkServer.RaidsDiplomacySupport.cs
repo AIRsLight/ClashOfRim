@@ -18,6 +18,8 @@ public static partial class ClashOfRimNetworkServer
         AuthoritativeEvent? existingEvent = FindEventByIdempotencyKey(state.Ledger, request.IdempotencyKey);
         if (existingEvent is not null && existingEvent.Type == ServerEventType.Raid)
         {
+            if (!MatchesRaidSnapshotRequest(existingEvent, request, request.Attacker.SnapshotId))
+                return RaidStartRejected(ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Raid.Rejected")));
             return Results.Ok(CreateRaidEventCreationResponse(
                 state,
                 new ProtocolResponse(true, ProtocolErrorCode.DuplicateRequest, ServerLocalization.Text("Raid.Duplicate")),
@@ -189,6 +191,7 @@ public static partial class ClashOfRimNetworkServer
             || string.IsNullOrWhiteSpace(request.TargetWorldObjectId)
             || string.IsNullOrWhiteSpace(request.TargetMapId)
             || string.IsNullOrWhiteSpace(request.DefenderSnapshotId)
+            || request.PawnGlobalKeys is null || request.CarriedThings is null
             || transaction.ConfirmedSnapshot is null
             || string.IsNullOrWhiteSpace(transaction.ConfirmedSnapshot.SnapshotId))
         {
@@ -209,251 +212,7 @@ public static partial class ClashOfRimNetworkServer
                 ProtocolDeliverySemantics.OnlineImmediate));
         }
 
-        DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
-        ReconcileExpiredRaidEvents(state, nowUtc);
-        AuthoritativeEvent? existingEvent = FindEventByIdempotencyKey(state.Ledger, request.IdempotencyKey);
-        if (existingEvent is not null && existingEvent.Type == ServerEventType.Raid)
-        {
-            string? attackerSnapshotId = existingEvent.Payload is RaidEventPayload payload
-                ? payload.AttackForce?.AttackerSnapshotId
-                : null;
-            string? nextLineageToken = FindSnapshotNextLineageToken(
-                state,
-                request.Attacker.UserId,
-                request.Attacker.ColonyId ?? string.Empty,
-                attackerSnapshotId);
-            return Results.Ok(CreateRaidEventCreationResponse(
-                state,
-                new ProtocolResponse(true, ProtocolErrorCode.DuplicateRequest, ServerLocalization.Text("Raid.TransactionDuplicate")),
-                existingEvent,
-                ProtocolDeliverySemantics.OnlineImmediate,
-                attackerSnapshotId,
-                nextLineageToken));
-        }
-
-        if (!state.ServerConfiguration.PvpEnabled)
-        {
-            return Results.Ok(new EventCreationResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, ServerLocalization.Text("Pvp.Disabled")),
-                eventId: null,
-                ProtocolDeliverySemantics.OnlineImmediate));
-        }
-
-        AuthoritativeEvent? blockingRaid = FindUnsettledAttackerRaid(
-            state,
-            request.Attacker.UserId,
-            request.Attacker.ColonyId,
-            request.IdempotencyKey);
-        if (blockingRaid is not null)
-        {
-            return Results.Ok(new EventCreationResponse(
-                ProtocolResponse.Reject(
-                    ProtocolErrorCode.ServerRejected,
-                    ServerLocalization.Text("Raid.BlockedByUnsettledAttackerRaid")),
-                eventId: blockingRaid.EventId,
-                ProtocolDeliverySemantics.ServerNotification));
-        }
-
-        RaidOpponentKind opponentKind = ResolveRaidOpponentKind(request.OpponentKind);
-        if (opponentKind != RaidOpponentKind.Player)
-        {
-            return Results.Ok(new EventCreationResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, ServerLocalization.Text("Raid.PlayerOnlyTransaction")),
-                eventId: null,
-                ProtocolDeliverySemantics.OnlineImmediate));
-        }
-
-        LatestSnapshotRecord? defenderSnapshot = state.SnapshotStore.GetLatest(
-            request.Defender.UserId,
-            request.Defender.ColonyId ?? string.Empty);
-        if (defenderSnapshot == null)
-        {
-            return Results.Ok(new EventCreationResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.SnapshotMismatch, ServerLocalization.Text("Raid.MissingDefenderSnapshot")),
-                eventId: null,
-                ProtocolDeliverySemantics.OnlineImmediate));
-        }
-
-        if (!IsCurrentDefenderSnapshot(request.DefenderSnapshotId, defenderSnapshot))
-        {
-            return Results.Ok(new EventCreationResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.SnapshotMismatch, ServerLocalization.Text("Raid.DefenderSnapshotChanged")),
-                eventId: null,
-                ProtocolDeliverySemantics.OnlineImmediate));
-        }
-
-        string relationKind = state.DiplomacyRelations.GetRelationKind(
-            request.Attacker.UserId,
-            request.Attacker.ColonyId,
-            request.Defender.UserId,
-            request.Defender.ColonyId);
-        int defenderWealth = CalculateSnapshotWealth(new LatestSnapshotRecord(
-            defenderSnapshot.Identity,
-            defenderSnapshot.Envelope,
-            defenderSnapshot.Index,
-            defenderSnapshot.AcceptedAtUtc))
-            ?? 0;
-        var eligibilityRequest = new RaidEligibilityRequest(
-            ToEventParty(request.Attacker),
-            ToEventParty(request.Defender),
-            string.Equals(relationKind, DiplomacyRelationRegistry.RelationHostile, StringComparison.Ordinal),
-            request.DefenderOnline || state.OnlinePresence.IsUserOnline(request.Defender.UserId),
-            nowUtc,
-            CurrentRaidCooldownUntil(state, request.Defender.UserId, request.Defender.ColonyId, nowUtc),
-            defenderWealth,
-            defenderSnapshot.Identity,
-            defenderSnapshot.Index.Maps,
-            request.TargetMapId);
-        RaidEligibilityResult eligibility = RaidEligibilityChecker.Check(
-            eligibilityRequest,
-            BuildRaidEligibilityPolicy(state.ServerConfiguration));
-        if (!eligibility.Eligible)
-        {
-            return Results.Ok(new EventCreationResponse(
-                ProtocolResponse.Reject(
-                    ProtocolErrorCode.ServerRejected,
-                    T("Raid.PrepareRejected", ("REASONS", string.Join(", ", eligibility.FailureReasons)))),
-                eventId: null,
-                ProtocolDeliverySemantics.OnlineImmediate));
-        }
-
-        if (TryRejectExpiredPendingConfirmationSnapshot(
-                state,
-                request.Attacker.UserId,
-                request.Attacker.ColonyId ?? string.Empty,
-                nowUtc,
-                out ProtocolResponse? pendingRejection))
-        {
-            return Results.Ok(new EventCreationResponse(
-                pendingRejection!,
-                eventId: null,
-                ProtocolDeliverySemantics.OnlineImmediate));
-        }
-
-        if (!string.IsNullOrWhiteSpace(request.GuardDeploymentId))
-        {
-            MercenaryGuardContractRecord? activeGuard = state.MercenaryGuards.FindActiveForColony(
-                request.Defender.UserId,
-                request.Defender.ColonyId ?? string.Empty);
-            if (activeGuard is null
-                || !string.Equals(activeGuard.ContractId, request.GuardDeploymentId, StringComparison.Ordinal))
-            {
-                return Results.Ok(new EventCreationResponse(
-                    ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Mercenary.GuardChanged")),
-                    eventId: null,
-                    ProtocolDeliverySemantics.OnlineImmediate));
-            }
-        }
-
-        SnapshotUploadResult upload = ReceiveSnapshot(
-            state,
-            request.Attacker.UserId,
-            request.Attacker.ColonyId ?? string.Empty,
-            transaction.ConfirmedSnapshot.SnapshotId!,
-            transaction.ConfirmedSnapshot,
-            multipart.Payload,
-            nowUtc);
-        if (!upload.Accepted || upload.AcceptedSnapshot is null)
-        {
-            return Results.Ok(new EventCreationResponse(
-                ToProtocolResponse(upload),
-                eventId: null,
-                ProtocolDeliverySemantics.OnlineImmediate));
-        }
-
-        string acceptedSnapshotId = upload.AcceptedSnapshot.Identity.SnapshotId
-            ?? transaction.ConfirmedSnapshot.SnapshotId!;
-        var initiationRequest = new RaidInitiationRequest(
-            request.IdempotencyKey,
-            eligibilityRequest,
-            new EventTargetContext(
-                request.TargetWorldObjectId,
-                request.TargetMapId,
-                request.TargetTile,
-                EventLandingMode.MapEdge),
-            AttackerOnline: true,
-            nowUtc,
-            new RaidAttackForceRecord(
-                acceptedSnapshotId,
-                request.PawnGlobalKeys,
-                request.CarriedThings.Select(thing => ToEventThingReference(thing, acceptedSnapshotId)).ToList()));
-
-        RaidInitiationResult result = RaidInitiationService.StartRaid(
-            state.Ledger,
-            initiationRequest,
-            BuildRaidEligibilityPolicy(state.ServerConfiguration));
-        RunSnapshotPostUploadProcessors(
-            state,
-            request.Attacker.UserId,
-            request.Attacker.ColonyId ?? string.Empty,
-            sessionId: null,
-            upload,
-            nowUtc);
-
-        if (result.Started && result.RaidEvent != null)
-        {
-            LogEventAppend(state, new LedgerAppendResult(result.RaidEvent, result.Created), "raid-start-with-snapshot");
-            if (result.Created)
-            {
-                if (!string.IsNullOrWhiteSpace(request.GuardDeploymentId))
-                {
-                    MercenaryGuardContractRecord? consumedGuard;
-                    lock (state.RaidSettlementSnapshotMutationGate)
-                    {
-                        RecoverSnapshotCommits(state);
-                        consumedGuard = state.MercenaryGuards.ConsumeForRaid(
-                            request.Defender.UserId,
-                            request.Defender.ColonyId ?? string.Empty,
-                            result.RaidEvent.EventId,
-                            request.GuardDeploymentId!,
-                            nowUtc);
-                    }
-                    AuthoritativeEvent? guardNotification = MercenaryGuardActivationNotificationFactory.Create(
-                        consumedGuard,
-                        result.RaidEvent,
-                        state.OnlinePresence.IsUserOnline(request.Defender.UserId),
-                        T("Mercenary.GuardDeployedTitle"),
-                        T("Mercenary.GuardDeployedMessage"),
-                        nowUtc);
-                    if (guardNotification is not null)
-                    {
-                        LedgerAppendResult guardNotificationAppend = state.Ledger.Append(guardNotification);
-                        LogEventAppend(state, guardNotificationAppend, "mercenary-guard-activated");
-                        if (guardNotificationAppend.Created)
-                        {
-                            state.EventNotifications.SignalUser(request.Defender.UserId);
-                        }
-                    }
-                }
-
-                state.EventNotifications.SignalUser(result.RaidEvent.Target.UserId);
-            }
-
-            return Results.Ok(CreateRaidEventCreationResponse(
-                state,
-                result.Created
-                    ? ProtocolResponse.Ok(ServerLocalization.Text("Raid.CreatedWithSnapshot"))
-                    : new ProtocolResponse(true, ProtocolErrorCode.DuplicateRequest, ServerLocalization.Text("Raid.Duplicate")),
-                result.RaidEvent,
-                ProtocolDeliverySemantics.OnlineImmediate,
-                acceptedSnapshotId,
-                upload.AcceptedSnapshot.Envelope.NextLineageToken));
-        }
-
-        if (result.Created && result.NotificationEvent != null)
-        {
-            LogEventAppend(state, new LedgerAppendResult(result.NotificationEvent, result.Created), "raid-start-with-snapshot-rejected");
-            state.EventNotifications.SignalUser(result.NotificationEvent.Target.UserId);
-        }
-
-        return Results.Ok(new EventCreationResponse(
-            result.Created
-                ? ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, ServerLocalization.Text("Raid.RejectedWithNotification"))
-                : ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, ServerLocalization.Text("Raid.Rejected")),
-            result.NotificationEvent?.EventId,
-            ProtocolDeliverySemantics.ServerNotification,
-            acceptedSnapshotId,
-            upload.AcceptedSnapshot.Envelope.NextLineageToken));
+        return CommitRaidWithSnapshot(state, transaction, multipart.Payload);
     }
 
     private static IResult PrepareRaid(PrepareRaidRequest request, ClashOfRimNetworkState state)
@@ -2148,6 +1907,15 @@ public static partial class ClashOfRimNetworkServer
     private static RaidTimeoutProcessingResult ReconcileExpiredRaidEvents(
         ClashOfRimNetworkState state,
         DateTimeOffset nowUtc)
+    {
+        lock (state.RaidSettlementSnapshotMutationGate)
+        {
+            RecoverSnapshotCommits(state);
+            return ReconcileExpiredRaidEventsLocked(state, nowUtc);
+        }
+    }
+
+    private static RaidTimeoutProcessingResult ReconcileExpiredRaidEventsLocked(ClashOfRimNetworkState state, DateTimeOffset nowUtc)
     {
         RaidTimeoutProcessingResult result = RaidTimeoutProcessor.ProcessExpiredRaids(
             state.Ledger,

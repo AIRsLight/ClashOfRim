@@ -26,6 +26,7 @@ var tests = new (string Name, Action Run)[]
     ("银行普通写入与批量确认失败不污染缓存和幂等索引", BankRegistryPersistenceTests.Run),
     ("雇佣罚款随快照确认并恢复合同关闭与通知", () => MercenaryIncidentRecoveryTests.Run(BuildFixturePackage)),
     ("普通快照固定待确认批次并跨中断恢复", () => PendingOperationCommitCrashTests.Run(BuildFixturePackage)),
+    ("袭击出征快照与护卫队消耗和通知共同恢复", () => RaidCommitCrashTests.Run(BuildFixturePackage)),
     ("并发准备的快照在提交时重新验证 lineage", VerifyPreparedSnapshotsCannotOverwrite),
     ("服务器数据库新建时写入当前 schema 版本", VerifyServerDatabaseMigrationInitializesNewDatabase),
     ("服务器启动可只读识别无版本旧数据库", VerifyServerDatabaseMigrationAssessesLegacyDatabaseWithoutMutation),
