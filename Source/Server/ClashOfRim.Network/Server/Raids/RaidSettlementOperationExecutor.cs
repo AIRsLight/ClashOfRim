@@ -150,7 +150,7 @@ public static class RaidSettlementOperationExecutor
         }
 
         RaidSettlementLedgerRecordResult record;
-        lock (state.RaidSettlementSnapshotMutationGate)
+        using (state.EnterSnapshotMutation())
         {
             ClashOfRimNetworkServer.RecoverSnapshotCommits(state);
             sourceRaid = state.Ledger.Find(payload.RaidEventId);

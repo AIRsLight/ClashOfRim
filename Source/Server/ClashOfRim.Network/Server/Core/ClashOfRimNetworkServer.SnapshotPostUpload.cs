@@ -160,7 +160,7 @@ public static partial class ClashOfRimNetworkServer
 
     private static void ConfirmPendingOperationsFromSnapshot(SnapshotPostUploadContext context)
     {
-        lock (context.State.RaidSettlementSnapshotMutationGate)
+        using (context.State.EnterSnapshotMutation())
             ConfirmPendingOperationsFromSnapshotLocked(context);
     }
 

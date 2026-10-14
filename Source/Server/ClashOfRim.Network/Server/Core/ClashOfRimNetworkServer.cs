@@ -551,7 +551,7 @@ public static partial class ClashOfRimNetworkServer
         SaveSnapshotPackage savePackage = ProtocolDtoMapper.ToSaveSnapshotPackage(package, payload);
         SnapshotUploadResult prepared = SnapshotPreparationService.Prepare(receiver, context, savePackage, acceptedAtUtc);
         if (!prepared.Accepted) return prepared;
-        lock (state.RaidSettlementSnapshotMutationGate)
+        using (state.EnterSnapshotMutation())
         {
             RecoverSnapshotCommits(state);
             var operations = PendingSnapshotOperations.Capture(state.BankLoans, state.MercenaryContracts, prepared.AcceptedSnapshot!);

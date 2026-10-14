@@ -51,7 +51,7 @@ public static partial class ClashOfRimNetworkServer
 
     private static IResult CreateBankLoan(CreateBankLoanRequest request, ClashOfRimNetworkState state)
     {
-        lock (state.RaidSettlementSnapshotMutationGate)
+        using (state.EnterSnapshotMutation())
         {
             RecoverSnapshotCommits(state);
             return CreateBankLoanLocked(request, state);
@@ -326,7 +326,7 @@ public static partial class ClashOfRimNetworkServer
                 BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
         }
 
-        lock (state.RaidSettlementSnapshotMutationGate)
+        using (state.EnterSnapshotMutation())
             lock (state.BankLoans.SnapshotCommitGate)
             {
                 RecoverSnapshotCommits(state);
@@ -493,7 +493,7 @@ public static partial class ClashOfRimNetworkServer
                 BuildBankStatusResponse(state, context with { ActiveLoan = active }, ProtocolResponse.Ok())));
         }
 
-        lock (state.RaidSettlementSnapshotMutationGate)
+        using (state.EnterSnapshotMutation())
             lock (state.BankLoans.SnapshotCommitGate)
             {
                 RecoverSnapshotCommits(state);
@@ -541,7 +541,7 @@ public static partial class ClashOfRimNetworkServer
 
     private static IResult RepayBankLoan(RepayBankLoanRequest request, ClashOfRimNetworkState state)
     {
-        lock (state.RaidSettlementSnapshotMutationGate)
+        using (state.EnterSnapshotMutation())
         {
             RecoverSnapshotCommits(state);
             return RepayBankLoanLocked(request, state);
@@ -752,7 +752,7 @@ public static partial class ClashOfRimNetworkServer
                 BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
         }
 
-        lock (state.RaidSettlementSnapshotMutationGate)
+        using (state.EnterSnapshotMutation())
             lock (state.BankLoans.SnapshotCommitGate)
             {
                 RecoverSnapshotCommits(state);
@@ -800,7 +800,7 @@ public static partial class ClashOfRimNetworkServer
 
     private static IResult RepayBankDebt(RepayBankDebtRequest request, ClashOfRimNetworkState state)
     {
-        lock (state.RaidSettlementSnapshotMutationGate)
+        using (state.EnterSnapshotMutation())
         {
             RecoverSnapshotCommits(state);
             return RepayBankDebtLocked(request, state);
@@ -910,7 +910,7 @@ public static partial class ClashOfRimNetworkServer
 
     private static IResult HireMercenary(HireMercenaryRequest request, ClashOfRimNetworkState state)
     {
-        lock (state.RaidSettlementSnapshotMutationGate)
+        using (state.EnterSnapshotMutation())
         {
             RecoverSnapshotCommits(state);
             return HireMercenaryLocked(request, state);
@@ -1038,7 +1038,7 @@ public static partial class ClashOfRimNetworkServer
             request.ConfirmedSnapshot, multipart.Payload, nowUtc, storeAccepted: false);
         if (!upload.Accepted || upload.AcceptedSnapshot is null) return Failure(ToProtocolResponse(upload));
 
-        lock (state.RaidSettlementSnapshotMutationGate)
+        using (state.EnterSnapshotMutation())
         lock (state.MercenaryContracts.SnapshotCommitGate)
         {
             RecoverSnapshotCommits(state);
@@ -1247,7 +1247,7 @@ public static partial class ClashOfRimNetworkServer
             request.ConfirmedSnapshot, multipart.Payload, nowUtc, storeAccepted: false);
         if (!upload.Accepted || upload.AcceptedSnapshot is null) return Failure(ToProtocolResponse(upload));
 
-        lock (state.RaidSettlementSnapshotMutationGate)
+        using (state.EnterSnapshotMutation())
         lock (state.MercenaryGuards.SnapshotCommitGate)
         {
             RecoverSnapshotCommits(state);
@@ -1272,7 +1272,7 @@ public static partial class ClashOfRimNetworkServer
 
     private static IResult ReportMercenaryIncident(ReportMercenaryIncidentRequest request, ClashOfRimNetworkState state)
     {
-        lock (state.RaidSettlementSnapshotMutationGate)
+        using (state.EnterSnapshotMutation())
         {
             RecoverSnapshotCommits(state);
             return ReportMercenaryIncidentLocked(request, state);

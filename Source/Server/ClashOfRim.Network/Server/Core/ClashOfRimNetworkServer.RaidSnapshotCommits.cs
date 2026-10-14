@@ -12,7 +12,7 @@ public static partial class ClashOfRimNetworkServer
     {
         var request = transaction.Raid;
         var now = DateTimeOffset.UtcNow;
-        lock (state.RaidSettlementSnapshotMutationGate)
+        using (state.EnterSnapshotMutation())
         {
             RecoverSnapshotCommits(state);
             ReconcileExpiredRaidEvents(state, now);
@@ -24,7 +24,7 @@ public static partial class ClashOfRimNetworkServer
         var upload = ReceiveSnapshot(state, request.Attacker.UserId, request.Attacker.ColonyId!,
             transaction.ConfirmedSnapshot.SnapshotId!, transaction.ConfirmedSnapshot, bytes, now, storeAccepted: false);
         if (!upload.Accepted || upload.AcceptedSnapshot is null) return RaidStartRejected(ToProtocolResponse(upload));
-        lock (state.RaidSettlementSnapshotMutationGate)
+        using (state.EnterSnapshotMutation())
         {
             RecoverSnapshotCommits(state);
             if (state.Ledger.FindByIdempotencyKey(request.IdempotencyKey) is { } existing)

@@ -17,7 +17,7 @@ public static class RaidSettlementDeferredScheduler
     {
         ArgumentNullException.ThrowIfNull(state);
         ArgumentNullException.ThrowIfNull(request);
-        lock (state.RaidSettlementSnapshotMutationGate)
+        using (state.EnterSnapshotMutation())
         {
             ClashOfRimNetworkServer.RecoverSnapshotCommits(state);
             return ScheduleUnderLock(state, request);
@@ -109,7 +109,7 @@ public static class RaidSettlementDeferredScheduler
                 payload.Serialize());
             jobPersisted = true;
 
-            lock (state.RaidSettlementSnapshotMutationGate)
+            using (state.EnterSnapshotMutation())
             {
                 ClashOfRimNetworkServer.RecoverSnapshotCommits(state);
                 packageStore.StoreLatest(
@@ -162,7 +162,7 @@ public static class RaidSettlementDeferredScheduler
             throw new InvalidOperationException("Raid settlement requires a snapshot package store.");
         }
 
-        lock (state.RaidSettlementSnapshotMutationGate)
+        using (state.EnterSnapshotMutation())
         {
             ClashOfRimNetworkServer.RecoverSnapshotCommits(state);
             LatestSnapshotRecord? latest = packageStore.GetLatest(payload.AttackerUserId, payload.AttackerColonyId);

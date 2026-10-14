@@ -10,7 +10,7 @@ public static partial class ClashOfRimNetworkServer
 {
     private static IResult CreateGift(CreateGiftRequest request, ClashOfRimNetworkState state)
     {
-        lock (state.RaidSettlementSnapshotMutationGate)
+        using (state.EnterSnapshotMutation())
         {
             RecoverSnapshotCommits(state);
             ProtocolResponse? validation = ValidateGiftCreationRequest(request);
@@ -158,7 +158,7 @@ public static partial class ClashOfRimNetworkServer
                 ProtocolDeliverySemantics.OnlineImmediate));
         }
 
-        lock (state.RaidSettlementSnapshotMutationGate)
+        using (state.EnterSnapshotMutation())
         {
             RecoverSnapshotCommits(state);
             AuthoritativeEvent? existingEvent = FindEventByIdempotencyKey(state.Ledger, request.IdempotencyKey);
@@ -218,7 +218,7 @@ public static partial class ClashOfRimNetworkServer
                 ProtocolDeliverySemantics.OnlineImmediate));
         }
 
-        lock (state.RaidSettlementSnapshotMutationGate)
+        using (state.EnterSnapshotMutation())
         {
             RecoverSnapshotCommits(state);
             AuthoritativeEvent? existingEvent = FindEventByIdempotencyKey(state.Ledger, request.IdempotencyKey);
@@ -925,7 +925,7 @@ public static partial class ClashOfRimNetworkServer
 
     private static IResult CreateTradeOrder(CreateTradeOrderRequest request, ClashOfRimNetworkState state)
     {
-        lock (state.RaidSettlementSnapshotMutationGate)
+        using (state.EnterSnapshotMutation())
         {
             RecoverSnapshotCommits(state);
             ApplyTradeOrderExpirations(state, DateTimeOffset.UtcNow);
@@ -1152,7 +1152,7 @@ public static partial class ClashOfRimNetworkServer
         }
 
         ApplyTradeOrderExpirations(state, DateTimeOffset.UtcNow);
-        lock (state.RaidSettlementSnapshotMutationGate)
+        using (state.EnterSnapshotMutation())
         {
             RecoverSnapshotCommits(state);
             AuthoritativeEvent? existingEvent = state.Ledger.FindByIdempotencyKey(request.IdempotencyKey);
@@ -1254,7 +1254,7 @@ public static partial class ClashOfRimNetworkServer
                 ProtocolDeliverySemantics.OnlineImmediate));
         }
 
-        lock (state.RaidSettlementSnapshotMutationGate)
+        using (state.EnterSnapshotMutation())
         {
             RecoverSnapshotCommits(state);
             ApplyTradeOrderExpirations(state, DateTimeOffset.UtcNow);
@@ -1502,7 +1502,7 @@ public static partial class ClashOfRimNetworkServer
 
     private static IResult AcceptTradeOrder(AcceptTradeOrderRequest request, ClashOfRimNetworkState state)
     {
-        lock (state.RaidSettlementSnapshotMutationGate)
+        using (state.EnterSnapshotMutation())
         {
             RecoverSnapshotCommits(state);
             ApplyTradeOrderExpirations(state, DateTimeOffset.UtcNow);
@@ -1600,7 +1600,7 @@ public static partial class ClashOfRimNetworkServer
 
     private static IResult FulfillTradeOrder(FulfillTradeOrderRequest request, ClashOfRimNetworkState state)
     {
-        lock (state.RaidSettlementSnapshotMutationGate)
+        using (state.EnterSnapshotMutation())
         {
             RecoverSnapshotCommits(state);
             ApplyTradeOrderExpirations(state, DateTimeOffset.UtcNow);
@@ -1882,7 +1882,7 @@ public static partial class ClashOfRimNetworkServer
                 tradeStatus: string.Empty));
         }
 
-        lock (state.RaidSettlementSnapshotMutationGate)
+        using (state.EnterSnapshotMutation())
         {
             RecoverSnapshotCommits(state);
             AuthoritativeEvent? existing = state.Ledger.FindByIdempotencyKey(request.IdempotencyKey);
@@ -1985,7 +1985,7 @@ public static partial class ClashOfRimNetworkServer
                 tradeOrder.Status.ToString()));
         }
 
-        lock (state.RaidSettlementSnapshotMutationGate)
+        using (state.EnterSnapshotMutation())
         {
             RecoverSnapshotCommits(state);
             ApplyTradeOrderExpirations(state, DateTimeOffset.UtcNow);
@@ -2107,7 +2107,7 @@ public static partial class ClashOfRimNetworkServer
 
     private static void ApplyTradeOrderExpirations(ClashOfRimNetworkState state, DateTimeOffset nowUtc)
     {
-        lock (state.RaidSettlementSnapshotMutationGate)
+        using (state.EnterSnapshotMutation())
         {
             RecoverSnapshotCommits(state);
             TimeSpan expiration = state.ServerConfiguration.TradeOrderExpiration;
@@ -2165,7 +2165,7 @@ public static partial class ClashOfRimNetworkServer
         AdminBaselineSnapshot baseline,
         DateTimeOffset nowUtc)
     {
-        lock (state.RaidSettlementSnapshotMutationGate)
+        using (state.EnterSnapshotMutation())
         {
             RecoverSnapshotCommits(state);
             HashSet<string> validThingDefs = BuildValidTradeThingDefSet(baseline, state.ServerConfiguration);
@@ -2382,7 +2382,7 @@ public static partial class ClashOfRimNetworkServer
 
     private static IResult CancelTradeOrder(CloseTradeOrderRequest request, ClashOfRimNetworkState state)
     {
-        lock (state.RaidSettlementSnapshotMutationGate)
+        using (state.EnterSnapshotMutation())
         {
             RecoverSnapshotCommits(state);
             ApplyTradeOrderExpirations(state, DateTimeOffset.UtcNow);
@@ -2422,7 +2422,7 @@ public static partial class ClashOfRimNetworkServer
         ClashOfRimNetworkState state,
         AuthoritativeEvent tradeOrder)
     {
-        lock (state.RaidSettlementSnapshotMutationGate)
+        using (state.EnterSnapshotMutation())
         {
             RecoverSnapshotCommits(state);
             if (!IsOpenMarketTradeOrderForOwner(tradeOrder))
@@ -2486,7 +2486,7 @@ public static partial class ClashOfRimNetworkServer
         string successMessage,
         string alreadyClosedMessage)
     {
-        lock (state.RaidSettlementSnapshotMutationGate)
+        using (state.EnterSnapshotMutation())
         {
             RecoverSnapshotCommits(state);
             ApplyTradeOrderExpirations(state, DateTimeOffset.UtcNow);

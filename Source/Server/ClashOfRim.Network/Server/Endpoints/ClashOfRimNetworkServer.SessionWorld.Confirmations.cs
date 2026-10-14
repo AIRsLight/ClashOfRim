@@ -596,7 +596,7 @@ public static partial class ClashOfRimNetworkServer
         ReportEventApplicationFailureRequest request,
         ClashOfRimNetworkState state)
     {
-        lock (state.RaidSettlementSnapshotMutationGate)
+        using (state.EnterSnapshotMutation())
         {
             RecoverSnapshotCommits(state);
             if (string.IsNullOrWhiteSpace(request.IdempotencyKey)

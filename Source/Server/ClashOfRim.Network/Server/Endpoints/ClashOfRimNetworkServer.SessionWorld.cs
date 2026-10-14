@@ -1270,7 +1270,7 @@ public static partial class ClashOfRimNetworkServer
         LatestSnapshotRecord? latest,
         DateTimeOffset nowUtc)
     {
-        lock (state.RaidSettlementSnapshotMutationGate)
+        using (state.EnterSnapshotMutation())
         {
             RecoverSnapshotCommits(state);
             return CleanupAbandonedColonyLocked(state, userId, colonyId, state.SnapshotStore.GetLatest(userId, colonyId), nowUtc);

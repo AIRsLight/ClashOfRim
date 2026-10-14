@@ -93,6 +93,8 @@ public sealed class ClashOfRimNetworkState
     public IColonySnapshotIndexStore SnapshotStore { get; }
 
     public object RaidSettlementSnapshotMutationGate { get; } = new();
+    internal SnapshotMutationScope EnterSnapshotMutation([System.Runtime.CompilerServices.CallerMemberName] string operation = "")
+        => new(RaidSettlementSnapshotMutationGate, operation);
     public SnapshotCommitService SnapshotCommits { get; }
 
     public SnapshotUploadPolicy SnapshotUploadPolicy { get; }

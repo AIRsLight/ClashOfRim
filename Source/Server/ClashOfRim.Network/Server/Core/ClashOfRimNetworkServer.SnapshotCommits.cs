@@ -6,7 +6,7 @@ public static partial class ClashOfRimNetworkServer
 {
     internal static void RecoverSnapshotCommits(ClashOfRimNetworkState state)
     {
-        lock (state.RaidSettlementSnapshotMutationGate)
+        using (state.EnterSnapshotMutation())
         {
             state.SnapshotCommits.Recover(state.SnapshotStore, state.BankLoans,
                 (snapshot, kind) => RunCommittedSnapshotPostUpload(state, snapshot, kind), state.Ledger,

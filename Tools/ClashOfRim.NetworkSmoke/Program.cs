@@ -18,6 +18,24 @@ using System.Text;
 using System.Net.Http.Json;
 using System.Text.Json;
 
+SnapshotMutationMetricsTests.Run();
+int contentionProbe = Array.IndexOf(args, "--snapshot-contention-probe");
+if (contentionProbe >= 0)
+{
+    if (contentionProbe + 1 >= args.Length) throw new ArgumentException("Specify the contention report JSON path.");
+    await SnapshotContentionProbe.RunAsync(args[contentionProbe + 1], (user, colony, id, previous, token, ticks, things) =>
+        BuildFixturePackageForWithLineage(user, colony, id, previous, token, ticks,
+            extraMutate: document =>
+            {
+                var container = document.Root!.Element("game")!.Element("maps")!.Element("li")!.Element("things")!;
+                for (int index = 0; index < things; index++)
+                    container.Add(new System.Xml.Linq.XElement("thing", new System.Xml.Linq.XAttribute("Class", "ThingWithComps"),
+                        new System.Xml.Linq.XElement("id", "Steel" + index), new System.Xml.Linq.XElement("def", "Steel"),
+                        new System.Xml.Linq.XElement("pos", $"({index % 250}, 0, {index / 250})"),
+                        new System.Xml.Linq.XElement("stackCount", 75), new System.Xml.Linq.XElement("health", 100)));
+            }));
+    return;
+}
 VerifySnapshotPostUploadPipelineSemantics();
 VerifySnapshotPostUploadProcessorIdsAreUnique();
 VerifySnapshotPostUploadProcessorPluginFiltering();

@@ -38,7 +38,7 @@ public static partial class ClashOfRimNetworkServer
 
     private static IResult UpsertServerShopListingCore(UpsertServerShopListingRequest request, ClashOfRimNetworkState state)
     {
-        lock (state.RaidSettlementSnapshotMutationGate)
+        using (state.EnterSnapshotMutation())
         {
             RecoverSnapshotCommits(state);
             return UpsertServerShopListingLocked(request, state);
@@ -104,7 +104,7 @@ public static partial class ClashOfRimNetworkServer
 
     private static IResult RemoveServerShopListing(RemoveServerShopListingRequest request, ClashOfRimNetworkState state)
     {
-        lock (state.RaidSettlementSnapshotMutationGate)
+        using (state.EnterSnapshotMutation())
         {
             RecoverSnapshotCommits(state);
             return RemoveServerShopListingLocked(request, state);
@@ -271,7 +271,7 @@ public static partial class ClashOfRimNetworkServer
             return Results.Ok(new PurchaseServerShopListingResponse(ToProtocolResponse(upload), request.ListingId, prevalidation.RemainingStockCount));
 
         // Fixed order: snapshot mutation gate, then shop gate. Preparation above never holds the shop gate.
-        lock (state.RaidSettlementSnapshotMutationGate)
+        using (state.EnterSnapshotMutation())
         lock (state.ServerShop.SnapshotCommitGate)
         {
             RecoverSnapshotCommits(state);

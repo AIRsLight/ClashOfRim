@@ -1634,7 +1634,7 @@ public static partial class ClashOfRimNetworkServer
         DateTimeOffset nowUtc,
         bool forceCancel)
     {
-        lock (state.RaidSettlementSnapshotMutationGate)
+        using (state.EnterSnapshotMutation())
         {
             RecoverSnapshotCommits(state);
             return ReconcilePendingConfirmationsLocked(state, userId, colonyId, nowUtc, forceCancel);
@@ -1689,7 +1689,7 @@ public static partial class ClashOfRimNetworkServer
         ClashOfRimNetworkState state,
         ClientLifecycleEvent lifecycleEvent)
     {
-        lock (state.RaidSettlementSnapshotMutationGate)
+        using (state.EnterSnapshotMutation())
         {
             RecoverSnapshotCommits(state);
             ReconcileAbandonedColonyLocked(state, lifecycleEvent);
@@ -1908,7 +1908,7 @@ public static partial class ClashOfRimNetworkServer
         ClashOfRimNetworkState state,
         DateTimeOffset nowUtc)
     {
-        lock (state.RaidSettlementSnapshotMutationGate)
+        using (state.EnterSnapshotMutation())
         {
             RecoverSnapshotCommits(state);
             return ReconcileExpiredRaidEventsLocked(state, nowUtc);
@@ -1931,7 +1931,7 @@ public static partial class ClashOfRimNetworkServer
         }
 
         RaidCleanupEventAppendResult cleanupEvents;
-        lock (state.RaidSettlementSnapshotMutationGate)
+        using (state.EnterSnapshotMutation())
         {
             IReadOnlySet<string> queuedOfflineSettlements = SettleOfflineTimedOutRaidSnapshots(
                 state,
