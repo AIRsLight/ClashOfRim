@@ -10,11 +10,14 @@ public static partial class ClashOfRimNetworkServer
 
     private static SupportClosure? FindSupportClosure(IAuthoritativeEventLedger ledger, AuthoritativeEvent source)
     {
-        // Inspect both identity and payload: corrupt historical records must not enable a second return.
+        // IDs and reasons may both contain colons. A source prefix is not a relation:
+        // compare the complete key using the stored reason as well as the explicit source ID.
+        // Either match still exposes a malformed source/return flag to validation below.
         var candidates = ledger.ListAll()
-            .Where(item => item.Payload is SupportPawnEventPayload { ReturnToSender: true } payload && payload.SourceEventId == source.EventId
-                || item.IdempotencyKey.StartsWith($"support-finish:{source.EventId}:", StringComparison.Ordinal)
-                || item.IdempotencyKey.StartsWith($"support-loss:{source.EventId}:", StringComparison.Ordinal))
+            .Where(item => item.Payload is SupportPawnEventPayload payload
+                && (payload.ReturnToSender && payload.SourceEventId == source.EventId
+                    || item.IdempotencyKey == $"support-finish:{source.EventId}:{payload.ReturnReason}"
+                    || item.IdempotencyKey == $"support-loss:{source.EventId}:{payload.ReturnReason}"))
             .ToDictionary(item => item.EventId, StringComparer.Ordinal);
         // Inspect the legacy rejection key even when its payload is malformed.
         if (ledger.FindByIdempotencyKey(source.IdempotencyKey + ":rejected-return") is { } rejected)

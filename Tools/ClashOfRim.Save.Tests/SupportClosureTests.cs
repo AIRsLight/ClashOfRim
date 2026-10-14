@@ -32,7 +32,49 @@ internal static class SupportClosureTests
         ConflictingReturns();
         ConcurrentFinish();
         OtherClosureProducers(fixture);
+        foreach (string storage in new[] { "memory", "file", "sqlite" })
+        foreach (string kind in Kinds) NestedSourceIdentities(storage, kind);
     }
+
+    private static void NestedSourceIdentities(string storage, string kind) => WithDirectory(root =>
+    {
+        IAuthoritativeEventLedger Open() => storage switch
+        {
+            "file" => new FileAuthoritativeEventLedger(Path.Combine(root, "events.json")),
+            "sqlite" => new SqliteAuthoritativeEventLedger(Path.Combine(root, "events.sqlite")),
+            _ => new InMemoryAuthoritativeEventLedger()
+        };
+        var ledger = Open();
+        var parent = Source();
+        var child = Source() with { EventId = "source:child", IdempotencyKey = "source:child" };
+        ledger.Append(parent); ledger.Append(child);
+        var state = new ClashOfRimNetworkState(ledger: ledger);
+        var childResult = Call(state, kind, reason: "manual:finished", eventId: child.EventId);
+        Require(childResult.Accepted && childResult.Created, "nested source could not finish");
+        var childClosure = ledger.Find(childResult.ReturnId!)!;
+        var endedChild = ledger.Find(child.EventId)!;
+        if (storage != "memory") state = new ClashOfRimNetworkState(ledger: Open());
+        if (kind != "reject")
+        {
+            // Existing key encoding is ambiguous if a reason reproduces another source's suffix.
+            // A complete key collision must fail without consuming or reusing the other return.
+            Expect<InvalidOperationException>(() => Call(state, kind, reason: "child:manual:finished"),
+                "a full return key collision reused a different source");
+            Require(state.Ledger.ListAll().Count == 3 && Same(parent, state.Ledger.Find(parent.EventId)!)
+                && Same(childClosure, state.Ledger.Find(childClosure.EventId)!), "full key collision mutated support");
+        }
+        var parentResult = Call(state, kind, reason: "manual:finished");
+        Require(parentResult.Accepted && parentResult.Created && parentResult.ReturnId != childResult.ReturnId,
+            "a nested source closure was treated as the parent closure");
+        Require(Same(childClosure, state.Ledger.Find(childClosure.EventId)!) && Same(endedChild, state.Ledger.Find(child.EventId)!),
+            "ending the parent modified the nested source");
+        foreach (var pair in new[] { (parent.EventId, parentResult.ReturnId), (child.EventId, childResult.ReturnId) })
+        {
+            var retry = Call(state, kind, reason: "different:retry", eventId: pair.EventId);
+            Require(retry.Accepted && !retry.Created && retry.ReturnId == pair.ReturnId, "nested identity replay chose another closure");
+        }
+        Require(state.Ledger.ListAll().Count == 4, "nested identity created extra closures");
+    });
 
     private static void Rollback(string kind, string failure, bool reopen) => WithDirectory(root =>
     {
