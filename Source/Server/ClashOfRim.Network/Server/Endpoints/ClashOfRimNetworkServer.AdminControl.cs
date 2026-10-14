@@ -701,8 +701,7 @@ public static partial class ClashOfRimNetworkServer
             affected++;
         }
 
-        LatestSnapshotRecord? latest = state.SnapshotStore.GetLatest(targetUserId, colonyId);
-        CleanupAbandonedColony(state, targetUserId, colonyId, latest, nowUtc);
+        CleanupAbandonedColony(state, targetUserId, colonyId, nowUtc);
         return ProtocolResponse.Ok(T("Admin.Action.PlayerSaveDeleted"));
     }
 

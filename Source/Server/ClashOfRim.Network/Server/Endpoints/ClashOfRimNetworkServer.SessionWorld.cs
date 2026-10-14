@@ -1199,47 +1199,68 @@ public static partial class ClashOfRimNetworkServer
         }
 
         DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
-        if (!IsAuthorizedForColony(
+        // Reject unauthenticated requests before doing recovery work. Repeat this
+        // check under the gate because a valid request may wait behind a deletion.
+        if (!IsAuthorizedForColony(state, request.AuthToken, request.UserId, request.ColonyId,
+                authorizationEventId: null, authorizationScope: null, nowUtc, out string earlyAuthFailure))
+        {
+            return Results.Ok(new AbandonPlayerColonyResponse(
+                ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, earlyAuthFailure),
+                removedSnapshots: 0,
+                removedSites: 0,
+                removedEvents: 0,
+                removedRuntimeMarkers: 0,
+                worldConfiguration: BuildWorldConfigurationForDelivery(state.WorldConfiguration.Current, state),
+                worldMapMarkers: null));
+        }
+
+        AbandonedColonyCleanupResult cleanup;
+        using (state.EnterSnapshotMutation())
+        {
+            RecoverSnapshotCommits(state);
+            nowUtc = DateTimeOffset.UtcNow;
+            if (!IsAuthorizedForColony(
+                    state,
+                    request.AuthToken,
+                    request.UserId,
+                    request.ColonyId,
+                    authorizationEventId: null,
+                    authorizationScope: null,
+                    nowUtc,
+                    out string authFailure))
+            {
+                return Results.Ok(new AbandonPlayerColonyResponse(
+                    ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, authFailure),
+                    removedSnapshots: 0,
+                    removedSites: 0,
+                    removedEvents: 0,
+                    removedRuntimeMarkers: 0,
+                    worldConfiguration: BuildWorldConfigurationForDelivery(state.WorldConfiguration.Current, state),
+                    worldMapMarkers: null));
+            }
+
+            LatestSnapshotRecord? latest = state.SnapshotStore.GetLatest(request.UserId, request.ColonyId);
+            if (!string.IsNullOrWhiteSpace(request.CurrentSnapshotId)
+                && latest is not null
+                && !string.Equals(latest.Identity.SnapshotId, request.CurrentSnapshotId, StringComparison.Ordinal))
+            {
+                return Results.Ok(new AbandonPlayerColonyResponse(
+                    ProtocolResponse.Reject(ProtocolErrorCode.SnapshotMismatch, T("AbandonColony.SnapshotNotLatest")),
+                    removedSnapshots: 0,
+                    removedSites: 0,
+                    removedEvents: 0,
+                    removedRuntimeMarkers: 0,
+                    worldConfiguration: BuildWorldConfigurationForDelivery(state.WorldConfiguration.Current, state),
+                    worldMapMarkers: null));
+            }
+
+            cleanup = CleanupAbandonedColonyLocked(
                 state,
-                request.AuthToken,
                 request.UserId,
                 request.ColonyId,
-                authorizationEventId: null,
-                authorizationScope: null,
-                nowUtc,
-                out string authFailure))
-        {
-            return Results.Ok(new AbandonPlayerColonyResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, authFailure),
-                removedSnapshots: 0,
-                removedSites: 0,
-                removedEvents: 0,
-                removedRuntimeMarkers: 0,
-                worldConfiguration: BuildWorldConfigurationForDelivery(state.WorldConfiguration.Current, state),
-                worldMapMarkers: null));
+                latest,
+                nowUtc);
         }
-
-        LatestSnapshotRecord? latest = state.SnapshotStore.GetLatest(request.UserId, request.ColonyId);
-        if (!string.IsNullOrWhiteSpace(request.CurrentSnapshotId)
-            && latest is not null
-            && !string.Equals(latest.Identity.SnapshotId, request.CurrentSnapshotId, StringComparison.Ordinal))
-        {
-            return Results.Ok(new AbandonPlayerColonyResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.SnapshotMismatch, T("AbandonColony.SnapshotNotLatest")),
-                removedSnapshots: 0,
-                removedSites: 0,
-                removedEvents: 0,
-                removedRuntimeMarkers: 0,
-                worldConfiguration: BuildWorldConfigurationForDelivery(state.WorldConfiguration.Current, state),
-                worldMapMarkers: null));
-        }
-
-        AbandonedColonyCleanupResult cleanup = CleanupAbandonedColony(
-            state,
-            request.UserId,
-            request.ColonyId,
-            latest,
-            nowUtc);
 
         WorldConfigurationDto? deliveredConfiguration = BuildWorldConfigurationForDelivery(
             cleanup.RemovedSites.Session.WorldConfiguration,
@@ -1267,7 +1288,6 @@ public static partial class ClashOfRimNetworkServer
         ClashOfRimNetworkState state,
         string userId,
         string colonyId,
-        LatestSnapshotRecord? latest,
         DateTimeOffset nowUtc)
     {
         using (state.EnterSnapshotMutation())

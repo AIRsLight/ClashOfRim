@@ -30,6 +30,7 @@ var tests = new (string Name, Action Run)[]
     ("袭击证据发布恢复保留基线且拒绝覆盖新快照", () => RaidEvidenceRecoveryTests.Run(BuildFixturePackage)),
     ("守方结算快照与账本批次在中断后共同恢复", RaidSettlementCommitTests.Run),
     ("并发准备的快照在提交时重新验证 lineage", VerifyPreparedSnapshotsCannotOverwrite),
+    ("废弃殖民地在恢复后锁内重验快照与认证", () => ColonyAbandonmentBaselineTests.Run(BuildFixturePackage)),
     ("服务器数据库新建时写入当前 schema 版本", VerifyServerDatabaseMigrationInitializesNewDatabase),
     ("服务器启动可只读识别无版本旧数据库", VerifyServerDatabaseMigrationAssessesLegacyDatabaseWithoutMutation),
     ("服务器启动自动备份并迁移明确旧版本", VerifyServerPersistenceStartupMigratesKnownVersionWithBackup),
