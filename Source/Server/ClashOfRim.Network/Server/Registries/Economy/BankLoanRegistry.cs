@@ -18,6 +18,11 @@ public sealed partial class BankLoanRegistry
     private readonly object gate = new();
     internal object SnapshotCommitGate => gate;
 
+    internal bool ContainsLoanId(string loanId)
+    {
+        lock (gate) return loans.ContainsKey(loanId);
+    }
+
     internal BankLoanRecord PrepareActivatedLoan(string key, string userId, string colonyId, string snapshotId,
         int principal, int interest, int days, long ticks, DateTimeOffset now, string? requestedId)
     {

@@ -213,7 +213,11 @@ public static partial class ClashOfRimNetworkServer
         BankLoanRecord? existingByKey = state.BankLoans.FindByIdempotencyKey(request.IdempotencyKey);
         if (existingByKey is not null)
         {
-            if (BankSnapshotReplayPolicy.FindLoanSnapshot(state.BankLoans, request.IdempotencyKey, request.UserId, request.ColonyId, request.ConfirmedSnapshot?.SnapshotId, repayment: false) is null)
+            if (BankSnapshotReplayPolicy.FindLoanSnapshot(state.BankLoans, request.IdempotencyKey, request.UserId, request.ColonyId, request.ConfirmedSnapshot?.SnapshotId, repayment: false) is null
+                || existingByKey.LoanId != request.RequestedLoanId
+                || existingByKey.PrincipalSilver != request.PrincipalSilver
+                || existingByKey.DurationDays != request.DurationDays
+                || existingByKey.InterestSilver != request.ExpectedInterestSilver)
                 return Results.Ok(new BankLoanResponse(ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Bank.RequestMissingIdentity")), null, 0, null));
             string? nextLineageToken = FindSnapshotNextLineageToken(
                 state,
@@ -326,6 +330,9 @@ public static partial class ClashOfRimNetworkServer
             lock (state.BankLoans.SnapshotCommitGate)
             {
                 RecoverSnapshotCommits(state);
+                if (state.BankLoans.FindByIdempotencyKey(request.IdempotencyKey) is not null
+                    || state.BankLoans.ContainsLoanId(request.RequestedLoanId))
+                    return Results.Ok(new BankLoanResponse(ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Bank.RequestMissingIdentity")), null, 0, null));
                 if (state.BankLoans.GetActive(request.UserId, request.ColonyId) is not null) return Results.Ok(new BankLoanResponse(ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Bank.LoanCannotRepay")), null, 0, null));
                 upload = CreateSnapshotReceiver(state).CommitPrepared(
                     new SnapshotUploadContext(request.UserId, request.ColonyId, request.ConfirmedSnapshot.SnapshotId!,
@@ -407,7 +414,8 @@ public static partial class ClashOfRimNetworkServer
         BankLoanRecord? existingByKey = state.BankLoans.FindByIdempotencyKey(request.IdempotencyKey);
         if (existingByKey is not null)
         {
-            if (BankSnapshotReplayPolicy.FindLoanSnapshot(state.BankLoans, request.IdempotencyKey, request.UserId, request.ColonyId, request.ConfirmedSnapshot?.SnapshotId, repayment: true) is null)
+            if (BankSnapshotReplayPolicy.FindLoanSnapshot(state.BankLoans, request.IdempotencyKey, request.UserId, request.ColonyId, request.ConfirmedSnapshot?.SnapshotId, repayment: true) is null
+                || existingByKey.LoanId != request.LoanId || request.SilverPaid < existingByKey.TotalDueSilver)
                 return Results.Ok(new BankLoanResponse(ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Bank.RequestMissingIdentity")), null, 0, null));
             string? nextLineageToken = FindSnapshotNextLineageToken(
                 state,
@@ -489,7 +497,8 @@ public static partial class ClashOfRimNetworkServer
             lock (state.BankLoans.SnapshotCommitGate)
             {
                 RecoverSnapshotCommits(state);
-                if (state.BankLoans.GetActive(request.UserId, request.ColonyId) != active) return Results.Ok(new BankLoanResponse(ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Bank.LoanCannotRepay")), null, 0, null));
+                if (state.BankLoans.FindByIdempotencyKey(request.IdempotencyKey) is not null
+                    || state.BankLoans.GetActive(request.UserId, request.ColonyId) != active) return Results.Ok(new BankLoanResponse(ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Bank.LoanCannotRepay")), null, 0, null));
                 upload = CreateSnapshotReceiver(state).CommitPrepared(
                     new SnapshotUploadContext(request.UserId, request.ColonyId, request.ConfirmedSnapshot.SnapshotId!,
                         null, NormalizeSnapshotUploadKind(request.ConfirmedSnapshot.SnapshotUploadKind)),
@@ -665,7 +674,8 @@ public static partial class ClashOfRimNetworkServer
         BankDebtRecord? existingByKey = state.BankLoans.FindDebtByIdempotencyKey(request.IdempotencyKey);
         if (existingByKey is not null)
         {
-            if (BankSnapshotReplayPolicy.FindDebtSnapshot(state.BankLoans, request.IdempotencyKey, request.UserId, request.ColonyId, request.ConfirmedSnapshot?.SnapshotId) is null)
+            if (BankSnapshotReplayPolicy.FindDebtSnapshot(state.BankLoans, request.IdempotencyKey, request.UserId, request.ColonyId, request.ConfirmedSnapshot?.SnapshotId) is null
+                || existingByKey.DebtId != request.DebtId || request.SilverPaid < existingByKey.AmountSilver)
                 return Results.Ok(new BankDebtResponse(ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Bank.RequestMissingIdentity")), null, 0, null));
             string? nextLineageToken = FindSnapshotNextLineageToken(
                 state,
@@ -746,7 +756,8 @@ public static partial class ClashOfRimNetworkServer
             lock (state.BankLoans.SnapshotCommitGate)
             {
                 RecoverSnapshotCommits(state);
-                if (state.BankLoans.FindDebt(request.UserId, request.ColonyId, request.DebtId) != debt) return Results.Ok(new BankDebtResponse(ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Bank.DebtCannotRepay")), null, 0, null));
+                if (state.BankLoans.FindDebtByIdempotencyKey(request.IdempotencyKey) is not null
+                    || state.BankLoans.FindDebt(request.UserId, request.ColonyId, request.DebtId) != debt) return Results.Ok(new BankDebtResponse(ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Bank.DebtCannotRepay")), null, 0, null));
                 upload = CreateSnapshotReceiver(state).CommitPrepared(
                     new SnapshotUploadContext(request.UserId, request.ColonyId, request.ConfirmedSnapshot.SnapshotId!,
                         null, NormalizeSnapshotUploadKind(request.ConfirmedSnapshot.SnapshotUploadKind)),

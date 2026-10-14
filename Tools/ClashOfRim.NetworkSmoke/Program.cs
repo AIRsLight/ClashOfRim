@@ -57,6 +57,9 @@ VerifyPendingLoginSessionCanBeReplaced();
 VerifyPersistentRegistries();
 VerifyServerShopRegistrySemantics();
 ProtocolHttpContractTests.Run();
+await BankHttpRecoveryTests.RunAsync((id, previous, token) => BuildFixturePackageForWithLineage(
+    "bank-user", "bank-colony", id, previous, token, previous is null ? 1000 : 1100));
+if (args.Contains("--bank-http-only", StringComparer.Ordinal)) return;
 VerifyAchievementRegistryThresholdDefinitions();
 VerifyPlayerRegistryColonyTombstones();
 await VerifyPlayerListUsesLatestSnapshotWealthFallbackAsync();
