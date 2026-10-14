@@ -15,12 +15,13 @@ using Microsoft.Extensions.DependencyInjection;
 internal static class SnapshotContentionProbe
 {
     internal static async Task RunAsync(string outputPath,
-        Func<string, string, string, string?, string?, long, int, SaveSnapshotPackage> fixture)
+        Func<string, string, string, string?, string?, long, int, SaveSnapshotPackage> fixture,
+        bool includeDownloads = false)
     {
         var results = new List<object>();
         foreach (int things in new[] { 0, 5000 })
             foreach (int concurrency in new[] { 1, 4, 8 })
-                results.Add(await MeasureAsync(concurrency, things, fixture));
+                results.Add(await MeasureAsync(concurrency, things, fixture, includeDownloads));
         string fullOutput = Path.GetFullPath(outputPath);
         Directory.CreateDirectory(Path.GetDirectoryName(fullOutput)!);
         await File.WriteAllTextAsync(fullOutput, JsonSerializer.Serialize(new
@@ -29,14 +30,15 @@ internal static class SnapshotContentionProbe
             runtime = RuntimeInformation.FrameworkDescription,
             operatingSystem = RuntimeInformation.OSDescription,
             processorCount = Environment.ProcessorCount,
-            scope = "Synthetic loopback HTTP uploads; file snapshots and journals, SQLite bank/ledger; other registries in memory. Five measured waves after one warm-up wave. Client package creation is excluded. Not a production throughput estimate or a gameplay test.",
+            includeDownloads,
+            scope = "Synthetic loopback HTTP uploads with optional concurrent metadata downloads (server rebuilds full package indexes); file snapshots and journals, SQLite bank/ledger; other registries in memory. Five measured waves after one warm-up wave. Client package creation is excluded. Not a production throughput estimate or a gameplay test.",
             results
         }, new JsonSerializerOptions { WriteIndented = true }));
         Console.WriteLine("提交锁测量已保存：" + fullOutput);
     }
 
     private static async Task<object> MeasureAsync(int concurrency, int things,
-        Func<string, string, string, string?, string?, long, int, SaveSnapshotPackage> fixture)
+        Func<string, string, string, string?, string?, long, int, SaveSnapshotPackage> fixture, bool includeDownloads)
     {
         string root = Path.Combine(Path.GetTempPath(), "cor-contention-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
@@ -86,15 +88,18 @@ internal static class SnapshotContentionProbe
                 using var http = new HttpClient { BaseAddress = new Uri(address), Timeout = TimeSpan.FromSeconds(120) };
                 var client = new ClashOfRimNetworkClient(http);
                 var latencies = new ConcurrentBag<double>();
+                var downloadLatencies = new ConcurrentBag<double>();
                 double elapsedMs = 0;
                 for (int wave = 0; wave < 6; wave++)
                 {
                     // Prepare packages and pending business before timing, to isolate server work.
                     var packages = new SaveSnapshotPackage[concurrency];
+                    var previousSnapshots = new LatestSnapshotRecord[concurrency];
                     for (int index = 0; index < concurrency; index++)
                     {
                         string user = "probe-user-" + index, colony = "probe-colony-" + index;
                         var previous = state.SnapshotStore.GetLatest(user, colony)!;
+                        previousSnapshots[index] = previous;
                         packages[index] = fixture(user, colony, "wave-" + wave, previous.Identity.SnapshotId,
                             previous.Envelope.NextLineageToken, 1100 + wave * 100, things);
                         state.BankLoans.CreateDebt($"pending-{index}-{wave}", user, colony, previous.Identity.SnapshotId!,
@@ -102,7 +107,7 @@ internal static class SnapshotContentionProbe
                     }
                     Volatile.Write(ref collecting, wave > 0);
                     long started = Stopwatch.GetTimestamp();
-                    await Task.WhenAll(packages.Select(async (package, index) =>
+                    Task[] uploads = packages.Select(async (package, index) =>
                     {
                         long requestStarted = Stopwatch.GetTimestamp();
                         var identity = package.Envelope.Identity;
@@ -113,7 +118,23 @@ internal static class SnapshotContentionProbe
                             || string.IsNullOrEmpty(response.NextLineageToken))
                             throw new Exception("Probe upload rejected: " + response.Result.Message);
                         if (wave > 0) latencies.Add(Stopwatch.GetElapsedTime(requestStarted).TotalMilliseconds);
-                    }));
+                    }).ToArray();
+                    Task[] downloads = includeDownloads ? packages.Select(async (package, index) =>
+                    {
+                        long requestStarted = Stopwatch.GetTimestamp();
+                        var identity = package.Envelope.Identity;
+                        DownloadLatestSnapshotResponse response = await client.DownloadLatestSnapshotAsync(
+                            new DownloadLatestSnapshotRequest(identity.OwnerId!, identity.ColonyId!, tokens[index]));
+                        // A concurrent read may capture either complete version, never a mixture.
+                        SaveSnapshotEnvelope expected = response.SnapshotId == identity.SnapshotId
+                            ? package.Envelope : previousSnapshots[index].Envelope;
+                        if (!response.Result.Accepted || response.SnapshotId != expected.Identity.SnapshotId
+                            || response.Package is null || response.Package.SnapshotId != response.SnapshotId
+                            || response.Package.PayloadSha256 != expected.PayloadSha256)
+                            throw new Exception("Probe concurrent download returned mismatched metadata: " + response.Result.Message);
+                        if (wave > 0) downloadLatencies.Add(Stopwatch.GetElapsedTime(requestStarted).TotalMilliseconds);
+                    }).ToArray() : Array.Empty<Task>();
+                    await Task.WhenAll(uploads.Concat(downloads));
                     if (wave > 0) elapsedMs += Stopwatch.GetElapsedTime(started).TotalMilliseconds;
                     Volatile.Write(ref collecting, false);
                 }
@@ -127,10 +148,12 @@ internal static class SnapshotContentionProbe
                     throw new Exception("Probe left an incomplete commit.");
                 return new
                 {
-                    concurrency, extraThings = things, originalBytes, payloadBytes, acceptedRequests = concurrency * 5,
+                    concurrency, extraThings = things, originalBytes, payloadBytes,
+                    acceptedRequests = concurrency * 5 * (includeDownloads ? 2 : 1),
                     measuredHttpMilliseconds = Math.Round(elapsedMs, 2),
-                    requestsPerMeasuredSecond = Math.Round(concurrency * 5 * 1000 / elapsedMs, 2),
+                    requestsPerMeasuredSecond = Math.Round(concurrency * 5 * (includeDownloads ? 2 : 1) * 1000 / elapsedMs, 2),
                     httpLatency = Summarize(latencies),
+                    downloadLatency = includeDownloads ? Summarize(downloadLatencies) : null,
                     locks = measurements.GroupBy(sample => new { sample.Operation, sample.Instrument })
                         .OrderBy(group => group.Key.Operation).ThenBy(group => group.Key.Instrument)
                         .Select(group => new { operation = group.Key.Operation, instrument = group.Key.Instrument,

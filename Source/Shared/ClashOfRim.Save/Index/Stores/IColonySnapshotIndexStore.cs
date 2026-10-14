@@ -15,6 +15,8 @@ public interface IColonySnapshotPackageStore : IColonySnapshotIndexStore
 {
     void StoreLatest(SaveSnapshotPackage package, SaveSnapshotIndex rebuiltIndex, DateTimeOffset acceptedAtUtc);
 
+    // Returns one coherent version captured during the call. A concurrent publication or removal
+    // may finish before decoding does; callers that mutate state must revalidate their baseline.
     SaveSnapshotPackage? GetLatestPackage(string ownerId, string colonyId);
 }
 

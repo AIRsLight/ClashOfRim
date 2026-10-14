@@ -1327,6 +1327,29 @@ public static partial class ClashOfRimNetworkServer
         string colonyId,
         DateTimeOffset nowUtc)
     {
+        if (!package.Index.WorldObjects.Any(worldObject =>
+                worldObject.Def == "ClashOfRim_RemoteRaidBattleMapParent")) return package;
+        using (state.EnterSnapshotMutation())
+        {
+            RecoverSnapshotCommits(state);
+            LatestSnapshotRecord? latest = packageStore.GetLatest(userId, colonyId);
+            // A download captures a point-in-time version. Cleanup is a mutation and must not
+            // publish that version over a newer upload, a removed colony, or an unfinished intent.
+            if (latest?.Identity != package.Envelope.Identity
+                || latest.Envelope.OriginalSha256 != package.Envelope.OriginalSha256
+                || latest.Envelope.NextLineageToken != package.Envelope.NextLineageToken) return package;
+            return CleanupSettledRaidBattleSnapshotBeforeDownloadLocked(state, packageStore, package, userId, colonyId, nowUtc);
+        }
+    }
+
+    private static SaveSnapshotPackage CleanupSettledRaidBattleSnapshotBeforeDownloadLocked(
+        ClashOfRimNetworkState state,
+        IColonySnapshotPackageStore packageStore,
+        SaveSnapshotPackage package,
+        string userId,
+        string colonyId,
+        DateTimeOffset nowUtc)
+    {
         if (FindActiveSourceRaidForAttacker(state, userId, colonyId) is not null)
         {
             return package;

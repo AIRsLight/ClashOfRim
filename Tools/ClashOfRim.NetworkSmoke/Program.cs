@@ -33,7 +33,7 @@ if (contentionProbe >= 0)
                         new System.Xml.Linq.XElement("id", "Steel" + index), new System.Xml.Linq.XElement("def", "Steel"),
                         new System.Xml.Linq.XElement("pos", $"({index % 250}, 0, {index / 250})"),
                         new System.Xml.Linq.XElement("stackCount", 75), new System.Xml.Linq.XElement("health", 100)));
-            }));
+            }), includeDownloads: args.Contains("--with-downloads", StringComparer.Ordinal));
     return;
 }
 VerifySnapshotPostUploadPipelineSemantics();

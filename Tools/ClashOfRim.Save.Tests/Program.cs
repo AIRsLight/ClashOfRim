@@ -56,6 +56,7 @@ var tests = new (string Name, Action Run)[]
     ("快照封装保留身份版本和稳定哈希", VerifySnapshotPackageEnvelope),
     ("快照上传通过校验后进入最新索引", VerifySnapshotUploadAccepted),
     ("快照文件存储可在重启后恢复最新索引", VerifyFileSnapshotStorePersistence),
+    ("快照解压索引不占共享锁且并发发布保留完整历史", () => FileSnapshotConcurrencyTests.Run(BuildFixturePackage)),
     ("新版单文件快照包可直接解析", VerifySnapshotPackageFileReader),
     ("快照后处理制品可持久化往返并安全删除", VerifySnapshotPostUploadArtifactStore),
     ("快照上传拒绝身份哈希和版本异常", VerifySnapshotUploadRejections),
@@ -4439,7 +4440,7 @@ static void VerifyRaidAttackerSnapshotCleanupOnlyRemovesRaidBattleMap()
                     <ID>123</ID>
                     <tile>20</tile>
                     <clashOfRimMode>RaidBattle</clashOfRimMode>
-                    <relatedEventId>raid-timeout-001</relatedEventId>
+                    <clashOfRimRelatedEventId>raid-timeout-001</clashOfRimRelatedEventId>
                   </li>
                 </worldObjects>
               </worldObjects>
@@ -4568,6 +4569,7 @@ static void VerifyRaidAttackerSnapshotCleanupOnlyRemovesRaidBattleMap()
         </savegame>
         """);
 
+    DownloadCleanupBaselineTests.Run(original);
     bool cleaned = RaidAttackerSnapshotCleanupEditor.TryRemoveRaidBattleState(
         original,
         "attacker-after-timeout-cleanup",
