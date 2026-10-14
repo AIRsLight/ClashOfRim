@@ -4,6 +4,9 @@ public interface IAuthoritativeEventLedger
 {
     LedgerAppendResult Append(AuthoritativeEvent ledgerEvent);
 
+    /// <summary>Atomically applies the whole batch; replay preserves the lifecycle of existing events.</summary>
+    void ApplyBatch(LedgerBatch batch);
+
     AuthoritativeEvent? Find(string eventId);
 
     AuthoritativeEvent? FindByIdempotencyKey(string idempotencyKey);

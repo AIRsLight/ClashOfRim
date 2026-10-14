@@ -30,14 +30,37 @@ public sealed class SqliteAuthoritativeEventLedger : IAuthoritativeEventLedger
     public LedgerAppendResult Append(AuthoritativeEvent ledgerEvent)
     {
         ArgumentNullException.ThrowIfNull(ledgerEvent);
-
         using SqliteConnection connection = OpenConnection();
         using SqliteTransaction transaction = connection.BeginTransaction();
+        LedgerAppendResult result = Append(connection, transaction, ledgerEvent);
+        transaction.Commit();
+        return result;
+    }
 
+    public void ApplyBatch(LedgerBatch batch)
+    {
+        using SqliteConnection connection = OpenConnection();
+        using SqliteTransaction transaction = connection.BeginTransaction();
+        LedgerBatchValidation.Validate(batch, id => Find(connection, transaction, id),
+            key => FindByIdempotencyKey(connection, transaction, key));
+        foreach (AuthoritativeEvent item in batch.Events) Append(connection, transaction, item);
+        foreach (LedgerStatusChange change in batch.StatusChanges)
+        {
+            using SqliteCommand command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = "update events set status = $status where event_id = $id;";
+            command.Parameters.AddWithValue("$status", change.Status.ToString());
+            command.Parameters.AddWithValue("$id", change.EventId);
+            command.ExecuteNonQuery();
+        }
+        transaction.Commit();
+    }
+
+    private static LedgerAppendResult Append(SqliteConnection connection, SqliteTransaction transaction, AuthoritativeEvent ledgerEvent)
+    {
         AuthoritativeEvent? existing = FindByIdempotencyKey(connection, transaction, ledgerEvent.IdempotencyKey);
         if (existing is not null)
         {
-            transaction.Commit();
             return new LedgerAppendResult(existing, Created: false);
         }
 
@@ -111,7 +134,6 @@ public sealed class SqliteAuthoritativeEventLedger : IAuthoritativeEventLedger
             """;
         AddEventParameters(command, ledgerEvent);
         command.ExecuteNonQuery();
-        transaction.Commit();
 
         return new LedgerAppendResult(ledgerEvent, Created: true);
     }

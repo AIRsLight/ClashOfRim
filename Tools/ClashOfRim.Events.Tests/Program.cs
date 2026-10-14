@@ -8,6 +8,7 @@ LoadServerLocalizationForTests();
 
 var tests = new (string Name, Action Run)[]
 {
+    ("账本批量提交原子回滚、重试与并发互斥", LedgerBatchTests.Run),
     ("幂等键阻止重复事件", VerifyIdempotentAppend),
     ("在线和离线事件进入同一账本", VerifyOnlineAndOfflineDelivery),
     ("袭击账本保存结算明细", VerifyRaidSettlementLedgerRecord),
