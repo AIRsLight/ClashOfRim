@@ -28,6 +28,7 @@ var tests = new (string Name, Action Run)[]
     ("普通快照固定待确认批次并跨中断恢复", () => PendingOperationCommitCrashTests.Run(BuildFixturePackage)),
     ("袭击出征快照与护卫队消耗和通知共同恢复", () => RaidCommitCrashTests.Run(BuildFixturePackage)),
     ("袭击证据发布恢复保留基线且拒绝覆盖新快照", () => RaidEvidenceRecoveryTests.Run(BuildFixturePackage)),
+    ("守方结算快照与账本批次在中断后共同恢复", RaidSettlementCommitTests.Run),
     ("并发准备的快照在提交时重新验证 lineage", VerifyPreparedSnapshotsCannotOverwrite),
     ("服务器数据库新建时写入当前 schema 版本", VerifyServerDatabaseMigrationInitializesNewDatabase),
     ("服务器启动可只读识别无版本旧数据库", VerifyServerDatabaseMigrationAssessesLegacyDatabaseWithoutMutation),

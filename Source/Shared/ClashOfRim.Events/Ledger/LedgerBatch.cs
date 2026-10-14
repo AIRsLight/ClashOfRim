@@ -3,7 +3,24 @@ namespace AIRsLight.ClashOfRim.Events;
 /// <summary>Expected statuses prevent a stale trade settlement from closing a changed order.</summary>
 public sealed record LedgerStatusChange(string EventId, ServerEventStatus ExpectedStatus, ServerEventStatus Status);
 
-public sealed record LedgerBatch(IReadOnlyList<AuthoritativeEvent> Events, IReadOnlyList<LedgerStatusChange> StatusChanges);
+public sealed record LedgerApplicationChange(AuthoritativeEvent Expected, string DeliveredSnapshotId,
+    string AppliedSnapshotId, DateTimeOffset AppliedAtUtc)
+{
+    public AuthoritativeEvent Updated => Expected with
+    {
+        Status = ServerEventStatus.AppliedToSnapshot,
+        DeliveredToSnapshotId = Expected.DeliveredToSnapshotId ?? DeliveredSnapshotId,
+        DeliveredAtUtc = Expected.DeliveredAtUtc ?? AppliedAtUtc,
+        AppliedSnapshotId = AppliedSnapshotId,
+        AppliedAtUtc = AppliedAtUtc,
+        LastApplicationResult = EventApplicationResultKind.Applied,
+        LastFailureReason = null,
+        NextRetryAtUtc = null
+    };
+}
+
+public sealed record LedgerBatch(IReadOnlyList<AuthoritativeEvent> Events, IReadOnlyList<LedgerStatusChange> StatusChanges,
+    IReadOnlyList<LedgerApplicationChange>? ApplicationChanges = null);
 
 public static class LedgerBatchValidation
 {
@@ -38,5 +55,17 @@ public static class LedgerBatchValidation
             if (current.Status != change.ExpectedStatus && !(alreadyCommitted && current.Status == change.Status))
                 throw new InvalidOperationException("Batch status target changed since preparation.");
         }
+        foreach (LedgerApplicationChange change in batch.ApplicationChanges ?? [])
+        {
+            if (!changedIds.Add(change.Expected.EventId) || ids.Contains(change.Expected.EventId)
+                || string.IsNullOrWhiteSpace(change.AppliedSnapshotId) || string.IsNullOrWhiteSpace(change.DeliveredSnapshotId))
+                throw new InvalidOperationException("Batch application targets must be distinct existing events with snapshot identities.");
+            var current = find(change.Expected.EventId);
+            if (!Same(current, change.Expected) && !(alreadyCommitted && Same(current, change.Updated)))
+                throw new InvalidOperationException("Batch application target changed since preparation.");
+        }
     }
+
+    private static bool Same(AuthoritativeEvent? left, AuthoritativeEvent right) => left is not null
+        && System.Text.Json.JsonSerializer.Serialize(left, LedgerJson.Options) == System.Text.Json.JsonSerializer.Serialize(right, LedgerJson.Options);
 }

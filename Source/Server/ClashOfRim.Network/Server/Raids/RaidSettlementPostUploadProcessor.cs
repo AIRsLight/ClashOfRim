@@ -48,6 +48,7 @@ public sealed class RaidSettlementPostUploadProcessor :
     {
         ArgumentNullException.ThrowIfNull(context);
         RaidSettlementDeferredPayload payload = RaidSettlementDeferredPayload.Deserialize(context.PayloadJson);
+        ClashOfRimNetworkServer.RecoverSnapshotCommits(context.State);
         if (context.State.Ledger.Find(payload.RaidEventId)?.Status == Events.ServerEventStatus.AppliedToSnapshot)
         {
             return;

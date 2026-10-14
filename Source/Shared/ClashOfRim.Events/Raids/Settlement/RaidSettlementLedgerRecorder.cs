@@ -66,16 +66,6 @@ public static class RaidSettlementLedgerRecorder
                 failureReason);
         }
 
-        string originalSnapshotId = settlementResult.OriginalSnapshot?.SnapshotId
-            ?? sourcePayload.DefenderSnapshotId;
-        string returnedSnapshotId = settlementResult.ReturnedSnapshot?.SnapshotId
-            ?? "unknown-returned-snapshot";
-
-        RaidSettlementRecord settlement = RaidSettlementRecord.FromDiff(
-            originalSnapshotId,
-            returnedSnapshotId,
-            settlementResult.Settlement);
-
         string settlementIdempotencyKey = $"raid-settlement:{sourceRaid.EventId}";
         AuthoritativeEvent? existingSettlement = ledger.FindByIdempotencyKey(settlementIdempotencyKey)
             ?? ledger.ListAll().FirstOrDefault(evt =>
@@ -92,20 +82,7 @@ public static class RaidSettlementLedgerRecorder
                 FailureReason: null);
         }
 
-        AuthoritativeEvent settlementEvent = AuthoritativeEventFactory.Create(
-            ServerEventType.Raid,
-            sourceRaid.Actor,
-            sourceRaid.Target,
-            settlementIdempotencyKey,
-            defenderOnline,
-            new RaidEventPayload(
-                originalSnapshotId,
-                returnedSnapshotId,
-                sourcePayload.StartedAtUtc,
-                recordedAtUtc,
-                settlement),
-            recordedAtUtc,
-            sourceRaid.TargetContext);
+        AuthoritativeEvent settlementEvent = CreateSettlementEvent(sourceRaid, settlementResult, recordedAtUtc, defenderOnline);
 
         LedgerAppendResult appendResult = ledger.Append(settlementEvent);
         return new RaidSettlementLedgerRecordResult(
@@ -116,5 +93,19 @@ public static class RaidSettlementLedgerRecorder
             appendResult.Event,
             appendResult.Created,
             FailureReason: null);
+    }
+
+    public static AuthoritativeEvent CreateSettlementEvent(AuthoritativeEvent sourceRaid,
+        RaidSettlementReturnResult settlementResult, DateTimeOffset recordedAtUtc, bool defenderOnline)
+    {
+        if (sourceRaid.Payload is not RaidEventPayload sourcePayload || !settlementResult.Accepted || settlementResult.Settlement is null)
+            throw new InvalidOperationException("A valid raid settlement result is required.");
+        string originalSnapshotId = settlementResult.OriginalSnapshot?.SnapshotId ?? sourcePayload.DefenderSnapshotId;
+        string returnedSnapshotId = settlementResult.ReturnedSnapshot?.SnapshotId ?? "unknown-returned-snapshot";
+        var settlement = RaidSettlementRecord.FromDiff(originalSnapshotId, returnedSnapshotId, settlementResult.Settlement);
+        return AuthoritativeEventFactory.Create(ServerEventType.Raid, sourceRaid.Actor, sourceRaid.Target,
+            "raid-settlement:" + sourceRaid.EventId, defenderOnline,
+            new RaidEventPayload(originalSnapshotId, returnedSnapshotId, sourcePayload.StartedAtUtc, recordedAtUtc, settlement),
+            recordedAtUtc, sourceRaid.TargetContext);
     }
 }

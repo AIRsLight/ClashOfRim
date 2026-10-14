@@ -12,7 +12,7 @@ public static partial class ClashOfRimNetworkServer
                 (snapshot, kind) => RunCommittedSnapshotPostUpload(state, snapshot, kind), state.Ledger,
                 userId => state.EventNotifications.SignalUsers(new[] { userId }),
                 item => RecordAuthoritativeEventAchievements(state, item, item.CreatedAtUtc), state.ServerShop,
-                state.MercenaryContracts, state.MercenaryGuards);
+                state.MercenaryContracts, state.MercenaryGuards, state.Players);
             RecoverMercenaryIncidents(state);
         }
     }

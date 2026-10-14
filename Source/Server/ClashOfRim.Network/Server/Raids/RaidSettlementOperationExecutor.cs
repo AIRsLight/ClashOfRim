@@ -32,12 +32,16 @@ public static class RaidSettlementOperationExecutor
         ArgumentNullException.ThrowIfNull(payload);
         ArgumentNullException.ThrowIfNull(evidencePackage);
 
+        ClashOfRimNetworkServer.RecoverSnapshotCommits(state);
         AuthoritativeEvent? sourceRaid = state.Ledger.Find(payload.RaidEventId);
         if (sourceRaid is null)
         {
             return ManualReview(state, payload.RaidEventId, "Raid settlement source event was not found.");
         }
 
+        if (!TryValidateSource(sourceRaid, payload, out _, out string? sourceFailure))
+            return ManualReview(state, payload.RaidEventId, sourceFailure!);
+        AuthoritativeEvent preparedSource = sourceRaid;
         AuthoritativeEvent? existingSettlement = FindSettlementEvent(state.Ledger, payload.RaidEventId);
         if (sourceRaid.Status == ServerEventStatus.AppliedToSnapshot)
         {
@@ -46,11 +50,6 @@ public static class RaidSettlementOperationExecutor
                 sourceRaid.AppliedSnapshotId,
                 existingSettlement?.EventId,
                 null);
-        }
-
-        if (!TryValidateSource(sourceRaid, payload, out RaidEventPayload? raidPayload, out string? validationFailure))
-        {
-            return ManualReview(state, payload.RaidEventId, validationFailure!);
         }
 
         if (state.SnapshotStore is not IColonySnapshotPackageStore packageStore)
@@ -76,20 +75,6 @@ public static class RaidSettlementOperationExecutor
                 payload.DefenderSnapshotId,
                 StringComparison.Ordinal))
         {
-            if (existingSettlement is not null
-                && string.Equals(
-                    originalDefensePackage.Envelope.PreviousSnapshotId,
-                    payload.DefenderSnapshotId,
-                    StringComparison.Ordinal))
-            {
-                return CompletePreviouslyStoredSettlement(
-                    state,
-                    sourceRaid,
-                    originalDefensePackage.Envelope.Identity.SnapshotId,
-                    existingSettlement,
-                    nowUtc);
-            }
-
             return ManualReview(state, payload.RaidEventId, "Raid defender snapshot changed before settlement completed.");
         }
 
@@ -114,17 +99,7 @@ public static class RaidSettlementOperationExecutor
                 TrapDefNames: state.AdminBaseline.Current?.ApprovedTrapDefNames));
         if (!settlement.Accepted)
         {
-            RaidSettlementLedgerRecordResult rejected = RaidSettlementLedgerRecorder.Record(
-                state.Ledger,
-                sourceRaid.EventId,
-                settlement,
-                nowUtc,
-                state.OnlinePresence.IsUserOnline(sourceRaid.Target.UserId));
-            return new RaidSettlementOperationResult(
-                RaidSettlementOperationResultKind.ManualReview,
-                null,
-                rejected.SettlementEvent?.EventId,
-                rejected.FailureReason ?? $"Raid settlement was rejected: {settlement.Kind}.");
+            return ManualReview(state, payload.RaidEventId, $"Raid settlement was rejected: {settlement.Kind}.");
         }
 
         string editedSnapshotId = BuildSettlementSnapshotId(payload.DefenderColonyId, sourceRaid.EventId);
@@ -149,82 +124,31 @@ public static class RaidSettlementOperationExecutor
             return ManualReview(state, payload.RaidEventId, "Edited raid defender snapshot identity does not match the scheduled operation.");
         }
 
-        RaidSettlementLedgerRecordResult record;
+        AuthoritativeEvent settlementEvent;
         using (state.EnterSnapshotMutation())
         {
             ClashOfRimNetworkServer.RecoverSnapshotCommits(state);
             sourceRaid = state.Ledger.Find(payload.RaidEventId);
             existingSettlement = FindSettlementEvent(state.Ledger, payload.RaidEventId);
             if (sourceRaid?.Status == ServerEventStatus.AppliedToSnapshot)
-            {
-                return new RaidSettlementOperationResult(
-                    RaidSettlementOperationResultKind.AlreadyCompleted,
-                    sourceRaid.AppliedSnapshotId,
-                    existingSettlement?.EventId,
-                    null);
-            }
-
-            if (sourceRaid is null)
-            {
-                return ManualReview(state, payload.RaidEventId, "Raid settlement source event disappeared before commit.");
-            }
-
-            SaveSnapshotPackage? currentDefenderPackage = packageStore.GetLatestPackage(
-                payload.DefenderUserId,
-                payload.DefenderColonyId);
-            if (currentDefenderPackage is null
-                || !string.Equals(
-                    currentDefenderPackage.Envelope.Identity.SnapshotId,
-                    payload.DefenderSnapshotId,
-                    StringComparison.Ordinal))
-            {
+                return new RaidSettlementOperationResult(RaidSettlementOperationResultKind.AlreadyCompleted,
+                    sourceRaid.AppliedSnapshotId, existingSettlement?.EventId, null);
+            if (sourceRaid is null || !TryValidateSource(sourceRaid, payload, out _, out _)
+                || !RaidSettlementSnapshotMutation.SameSource(sourceRaid, preparedSource))
+                return ManualReview(state, payload.RaidEventId, "Raid settlement source changed before commit.");
+            if (existingSettlement is not null)
+                return ManualReview(state, payload.RaidEventId, "An unjournaled settlement event already exists; automatic replay is unsafe.");
+            if (!SnapshotCommitService.SameVersion(packageStore.GetLatest(payload.DefenderUserId, payload.DefenderColonyId)?.Envelope,
+                    originalDefensePackage.Envelope))
                 return ManualReview(state, payload.RaidEventId, "Raid defender snapshot changed before settlement commit.");
-            }
 
-            record = RaidSettlementLedgerRecorder.Record(
-                state.Ledger,
-                sourceRaid.EventId,
-                settlement,
-                nowUtc,
+            settlementEvent = RaidSettlementLedgerRecorder.CreateSettlementEvent(sourceRaid, settlement, nowUtc,
                 state.OnlinePresence.IsUserOnline(sourceRaid.Target.UserId));
-            if (record.Kind is not (RaidSettlementLedgerRecordResultKind.SettlementEventCreated
-                or RaidSettlementLedgerRecordResultKind.SettlementEventAlreadyExists))
-            {
-                return new RaidSettlementOperationResult(
-                    RaidSettlementOperationResultKind.ManualReview,
-                    editedPackage.Envelope.Identity.SnapshotId,
-                    record.SettlementEvent?.EventId,
-                    record.FailureReason ?? $"Raid settlement ledger rejected result {record.Kind}.");
-            }
-
-            packageStore.StoreLatest(editedPackage, editedPackage.Index, nowUtc);
-            state.Players.RecordLatestSnapshotReference(
-                payload.DefenderUserId,
-                payload.DefenderColonyId,
-                editedPackage.Envelope.Identity.SnapshotId,
-                nowUtc);
-
-            if (string.IsNullOrWhiteSpace(sourceRaid.DeliveredToSnapshotId))
-            {
-                state.Ledger.MarkDelivered(
-                    sourceRaid.EventId,
-                    originalDefensePackage.Envelope.Identity.SnapshotId ?? raidPayload!.DefenderSnapshotId,
-                    nowUtc);
-            }
-
-            state.Ledger.MarkApplied(sourceRaid.EventId, editedSnapshotId, nowUtc);
-            state.Ledger.ReportApplicationResult(
-                sourceRaid.EventId,
-                EventApplicationResultKind.Applied,
-                failureReason: null,
-                nextRetryAtUtc: null);
+            var mutation = new RaidSettlementSnapshotMutation(sourceRaid, settlementEvent, originalDefensePackage.Envelope,
+                editedSnapshotId, nowUtc);
+            state.SnapshotCommits.CommitRaidSettlement(packageStore, state.BankLoans, state.Ledger, state.Players,
+                editedPackage, mutation, user => state.EventNotifications.SignalUser(user));
         }
-
-        if (record.SettlementEvent is not null)
-        {
-            state.EventNotifications.SignalUser(record.SettlementEvent.Target.UserId);
-        }
-
         state.RuntimeLogger.LogInformation(
             "Completed deferred raid settlement: raid={RaidEventId} attacker={AttackerUserId}/{AttackerColonyId} defender={DefenderUserId}/{DefenderColonyId} evidence={EvidenceSnapshotId} defenderSnapshot={DefenderSnapshotId}",
             payload.RaidEventId,
@@ -237,42 +161,6 @@ public static class RaidSettlementOperationExecutor
         return new RaidSettlementOperationResult(
             RaidSettlementOperationResultKind.Completed,
             editedSnapshotId,
-            record.SettlementEvent?.EventId,
-            null);
-    }
-
-    private static RaidSettlementOperationResult CompletePreviouslyStoredSettlement(
-        ClashOfRimNetworkState state,
-        AuthoritativeEvent sourceRaid,
-        string? defenderSnapshotId,
-        AuthoritativeEvent settlementEvent,
-        DateTimeOffset nowUtc)
-    {
-        string appliedSnapshotId = defenderSnapshotId ?? sourceRaid.AppliedSnapshotId ?? "raid-settlement";
-        state.Players.RecordLatestSnapshotReference(
-            sourceRaid.Target.UserId,
-            sourceRaid.Target.ColonyId ?? string.Empty,
-            appliedSnapshotId,
-            nowUtc);
-        if (string.IsNullOrWhiteSpace(sourceRaid.DeliveredToSnapshotId))
-        {
-            state.Ledger.MarkDelivered(
-                sourceRaid.EventId,
-                sourceRaid.Payload is RaidEventPayload raidPayload
-                    ? raidPayload.DefenderSnapshotId
-                    : appliedSnapshotId,
-                nowUtc);
-        }
-        state.Ledger.MarkApplied(sourceRaid.EventId, appliedSnapshotId, nowUtc);
-        state.Ledger.ReportApplicationResult(
-            sourceRaid.EventId,
-            EventApplicationResultKind.Applied,
-            failureReason: null,
-            nextRetryAtUtc: null);
-        state.EventNotifications.SignalUser(settlementEvent.Target.UserId);
-        return new RaidSettlementOperationResult(
-            RaidSettlementOperationResultKind.Completed,
-            appliedSnapshotId,
             settlementEvent.EventId,
             null);
     }
@@ -330,6 +218,11 @@ public static class RaidSettlementOperationExecutor
         string raidEventId,
         string message)
     {
+        using var mutation = state.EnterSnapshotMutation();
+        ClashOfRimNetworkServer.RecoverSnapshotCommits(state);
+        if (state.Ledger.Find(raidEventId) is { Status: ServerEventStatus.AppliedToSnapshot } completed)
+            return new RaidSettlementOperationResult(RaidSettlementOperationResultKind.AlreadyCompleted,
+                completed.AppliedSnapshotId, FindSettlementEvent(state.Ledger, raidEventId)?.EventId, null);
         if (state.Ledger.Find(raidEventId) is not null)
         {
             state.Ledger.ReportApplicationResult(

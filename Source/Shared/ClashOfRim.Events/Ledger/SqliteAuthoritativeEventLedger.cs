@@ -53,6 +53,26 @@ public sealed class SqliteAuthoritativeEventLedger : IAuthoritativeEventLedger
             command.Parameters.AddWithValue("$id", change.EventId);
             command.ExecuteNonQuery();
         }
+        foreach (LedgerApplicationChange change in batch.ApplicationChanges ?? [])
+        {
+            AuthoritativeEvent updated = change.Updated;
+            using SqliteCommand command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = """
+                update events set status = $status, delivered_to_snapshot_id = $delivered,
+                    delivered_at_utc = $delivered_at, applied_snapshot_id = $applied,
+                    applied_at_utc = $applied_at, last_application_result = $result,
+                    last_failure_reason = null, next_retry_at_utc = null where event_id = $id;
+                """;
+            command.Parameters.AddWithValue("$status", updated.Status.ToString());
+            command.Parameters.AddWithValue("$delivered", updated.DeliveredToSnapshotId!);
+            command.Parameters.AddWithValue("$delivered_at", updated.DeliveredAtUtc!.Value.ToString("O", CultureInfo.InvariantCulture));
+            command.Parameters.AddWithValue("$applied", updated.AppliedSnapshotId!);
+            command.Parameters.AddWithValue("$applied_at", updated.AppliedAtUtc!.Value.ToString("O", CultureInfo.InvariantCulture));
+            command.Parameters.AddWithValue("$result", updated.LastApplicationResult.ToString());
+            command.Parameters.AddWithValue("$id", updated.EventId);
+            command.ExecuteNonQuery();
+        }
         transaction.Commit();
     }
 
