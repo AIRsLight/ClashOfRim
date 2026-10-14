@@ -735,7 +735,7 @@ public static partial class ClashOfRimNetworkServer
         foreach (PlayerSessionRecord player in players)
         {
             string idempotencyKey = $"admin-broadcast:{actorUserId}:{player.UserId}:{nowUtc:O}";
-            AuthoritativeEvent notification = AuthoritativeEventFactory.Create(
+            AuthoritativeEvent notification = AuthoritativeEventFactory.CreateForLedger(state.Ledger,
                 ServerEventType.ServerNotification,
                 new EventParty("server"),
                 new EventParty(player.UserId, player.ColonyId),

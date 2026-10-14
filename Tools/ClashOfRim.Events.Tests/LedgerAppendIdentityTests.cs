@@ -15,7 +15,9 @@ internal static class LedgerAppendIdentityTests
             ReplayPreservesLifecycle(storage);
             ConcurrentIdentityClaims(storage);
             OptionalPartyIdentity(storage);
+            LegacyIdentityResolution(storage);
         }
+        EncodedEventIds();
         SqlRollback();
         if (OperatingSystem.IsWindows())
             foreach (string failure in new[] { "write", "replace" }) FileRollback(failure);
@@ -48,12 +50,13 @@ internal static class LedgerAppendIdentityTests
                 Require(reopened.ListAll().Count == 1 && Same(source, reopened.Find(source.EventId)!), "conflict changed persisted event");
             }
         }
-        // Catch the old normalization collision without treating a different key as a replay.
-        var punctuation = Event("a:b"); var other = Event("a-b");
-        Require(punctuation.EventId == other.EventId, "fixture no longer exercises the legacy ID collision");
+        // A new safe-looking key must not reuse the ID occupied by a different legacy key.
+        var punctuation = Event("a:b") with { EventId = AuthoritativeEventFactory.BuildLegacyEventId(ServerEventType.ItemDelivery, "a:b") };
+        var other = Event("a-b");
+        Require(punctuation.EventId != other.EventId, "new identity overlaps legacy normalization");
         ledger.Append(punctuation);
-        Expect<InvalidOperationException>(() => ledger.Append(other), "different keys sharing a legacy ID were conflated");
-        Require(ledger.FindByIdempotencyKey("a-b") is null, "colliding key acquired an alias");
+        Require(ledger.Append(other).Created && ledger.FindByIdempotencyKey("a-b")!.EventId == other.EventId,
+            "a distinct key was conflated with a legacy identity");
     });
 
     private static void ReplayPreservesLifecycle(string storage) => WithDirectory(root =>
@@ -104,6 +107,60 @@ internal static class LedgerAppendIdentityTests
         Require(Same(stored, ledger.Find(source.EventId)!), "normalized batch replay rewrote original party fields");
         Expect<InvalidOperationException>(() => ledger.Append(normalized with { Target = new("receiver", "actual-colony") }),
             "missing colony was treated as a wildcard identity");
+    });
+
+    private static void EncodedEventIds()
+    {
+        string[] keys = ["a:b", "a-b", "a_b", "a/b", "a\\b", "a+b", "a b", "a.b", "a~b", "v2~003A", "中文", "é", "e\u0301", "😀"];
+        var ids = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var type in new[] { ServerEventType.ItemDelivery, ServerEventType.Trade, ServerEventType.Raid })
+        foreach (string key in keys)
+        {
+            string id = AuthoritativeEventFactory.BuildEventId(type, key);
+            Require(ids.Add(id) && id == AuthoritativeEventFactory.BuildEventId(type, key)
+                && id.Contains(":v2~", StringComparison.Ordinal) && AuthoritativeEventFactory.IsKnownEventId(type, key, id),
+                "encoded event identities collide or are unstable");
+            Require(AuthoritativeEventFactory.IsKnownEventId(type, key, AuthoritativeEventFactory.BuildLegacyEventId(type, key)),
+                "legacy identity validation failed");
+        }
+    }
+
+    private static void LegacyIdentityResolution(string storage) => WithDirectory(root =>
+    {
+        var ledger = Open(storage, root);
+        var legacy = Event("a:b") with { EventId = AuthoritativeEventFactory.BuildLegacyEventId(ServerEventType.ItemDelivery, "a:b") };
+        ledger.Append(legacy); ledger.MarkDelivered(legacy.EventId, "base", Created); ledger.MarkApplied(legacy.EventId, "consumed", Created);
+        if (storage != "memory") ledger = Open(storage, root);
+        var consumed = ledger.Find(legacy.EventId)!;
+        var resolved = AuthoritativeEventFactory.CreateForLedger(ledger, legacy.Type, legacy.Actor, legacy.Target,
+            legacy.IdempotencyKey, true, legacy.Payload, Created.AddDays(1));
+        Require(resolved.EventId == legacy.EventId, "regeneration did not resolve legacy identity before linking");
+        var dependent = AuthoritativeEventFactory.Create(ServerEventType.ServerNotification, new("server"), legacy.Actor,
+            "dependent", false, new ServerNotificationEventPayload("dependent", "title", "message", ServerNotificationSeverity.Info, false,
+                RelatedEventId: resolved.EventId), Created);
+        ledger.ApplyBatch(new LedgerBatch([resolved, dependent], []));
+        Require(Same(consumed, ledger.Find(legacy.EventId)!) && ledger.Find(Event("a:b").EventId) is null
+            && ((ServerNotificationEventPayload)ledger.Find(dependent.EventId)!.Payload).RelatedEventId == legacy.EventId,
+            "regeneration rewrote history or linked a nonexistent ID");
+        var distinct = AuthoritativeEventFactory.CreateForLedger(ledger, legacy.Type, legacy.Actor, legacy.Target,
+            "a-b", false, legacy.Payload, Created);
+        Require(ledger.Append(distinct).Created && distinct.EventId != legacy.EventId, "legacy punctuation occupied the new key's ID");
+        Expect<InvalidOperationException>(() => AuthoritativeEventFactory.CreateForLedger(ledger, legacy.Type,
+            new("attacker"), legacy.Target, legacy.IdempotencyKey, false, legacy.Payload, Created), "identity resolver accepted a different actor");
+        Expect<InvalidOperationException>(() => AuthoritativeEventFactory.CreateForLedger(ledger, ServerEventType.Trade,
+            legacy.Actor, legacy.Target, legacy.IdempotencyKey, false, legacy.Payload, Created), "identity resolver accepted a different type");
+        Expect<InvalidOperationException>(() => AuthoritativeEventFactory.ResolvePersistedIdentity(ledger, resolved with { EventId = "invented" }),
+            "identity resolver accepted an arbitrary new alias");
+
+        var gift = Event("legacy-gift") with { EventId = AuthoritativeEventFactory.BuildLegacyEventId(ServerEventType.ItemDelivery, "legacy-gift") };
+        ledger.Append(gift); ledger.MarkRejected(gift.EventId, Created, "original");
+        var returned = GiftReturnEventFactory.CreateReturnEvent(gift, Created, false);
+        returned = returned with { EventId = AuthoritativeEventFactory.BuildLegacyEventId(returned.Type, returned.IdempotencyKey) };
+        ledger.Append(returned); ledger.MarkDelivered(returned.EventId, "base", Created); ledger.MarkApplied(returned.EventId, "home", Created);
+        var before = ledger.Find(returned.EventId)!;
+        var retry = ledger.RejectGiftAndCreateReturn(gift.EventId, Created.AddDays(1), "retry", false);
+        Require(Same(before, ledger.Find(returned.EventId)!) && ledger.FindByIdempotencyKey(returned.IdempotencyKey)!.EventId == returned.EventId,
+            "legacy gift rejection changed return identity or consumption");
     });
 
     private static void FileRollback(string failure) => WithDirectory(root =>

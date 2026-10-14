@@ -31,6 +31,8 @@ public static class RaidTimeoutProcessor
             var defenderNotification = CreateTimeoutNotification(raid, raid.Target,
                 ServerLocalization.Text("Raid.TimeoutDefenderTitle"),
                 ServerLocalization.Text("Raid.TimeoutDefenderMessage", new Dictionary<string, string?> { ["EVENT"] = raid.EventId }), nowUtc);
+            attackerNotification = AuthoritativeEventFactory.ResolvePersistedIdentity(ledger, attackerNotification);
+            defenderNotification = AuthoritativeEventFactory.ResolvePersistedIdentity(ledger, defenderNotification);
             ledger.ApplyBatch(new LedgerBatch([attackerNotification, defenderNotification],
                 [new LedgerStatusChange(raid.EventId, raid.Status, ServerEventStatus.Failed, payload, timeoutPayload)]));
             AuthoritativeEvent failed = ledger.Find(raid.EventId)!;

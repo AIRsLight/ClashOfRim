@@ -1410,7 +1410,7 @@ public static partial class ClashOfRimNetworkServer
         BankDebtRecord debt)
     {
         string notificationId = "bank-fine-created:" + debt.DebtId;
-        return AuthoritativeEventFactory.Create(
+        return AuthoritativeEventFactory.CreateForLedger(state.Ledger,
             ServerEventType.ServerNotification,
             new EventParty("server"),
             new EventParty(debt.UserId, debt.ColonyId),

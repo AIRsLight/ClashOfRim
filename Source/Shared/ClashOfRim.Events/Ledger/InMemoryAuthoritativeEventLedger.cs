@@ -305,6 +305,7 @@ public sealed class InMemoryAuthoritativeEventLedger : IAuthoritativeEventLedger
                 rejectedGift,
                 rejectedAtUtc,
                 originalActorOnline);
+            returnEvent = AuthoritativeEventFactory.ResolvePersistedIdentity(this, returnEvent);
             LedgerAppendResult appendResult = Append(returnEvent);
             return new GiftReturnResult(rejectedGift, appendResult.Event, appendResult.Created);
         }

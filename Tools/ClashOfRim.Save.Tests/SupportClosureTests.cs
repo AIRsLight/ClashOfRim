@@ -289,7 +289,7 @@ internal static class SupportClosureTests
         var payload = (SupportPawnEventPayload)item.Payload;
         if (item.IdempotencyKey.EndsWith(":rejected-return", StringComparison.Ordinal)) return item;
         string key = $"support-{(payload.PawnPackage is null ? "loss" : "finish")}:{payload.SourceEventId}:{payload.ReturnReason}";
-        return item with { EventId = AuthoritativeEventFactory.BuildEventId(item.Type, key), IdempotencyKey = key };
+        return item with { EventId = AuthoritativeEventFactory.BuildLegacyEventId(item.Type, key), IdempotencyKey = key };
     }
 
     private static void KeyEncodingAndMigration() => WithDirectory(root =>
@@ -309,7 +309,7 @@ internal static class SupportClosureTests
         Sql(database, "update server_schema_metadata set metadata_value = '23' where metadata_key = 'schema_version';");
         var original = ledger.ListAll().ToDictionary(item => item.EventId);
         var migration = ServerDatabaseMigrator.Migrate(database);
-        Require(migration.AppliedMigrations.Contains("23->24") && migration.FinalVersion == 24, "support key migration missing");
+        Require(migration.AppliedMigrations.Contains("23->24") && migration.FinalVersion == ServerDatabaseSchema.CurrentVersion, "support key migration missing");
         var reopened = new SqliteAuthoritativeEventLedger(database);
         Require(original.All(pair => Same(pair.Value, reopened.Find(pair.Key)!)), "migration renamed legacy support data");
     });

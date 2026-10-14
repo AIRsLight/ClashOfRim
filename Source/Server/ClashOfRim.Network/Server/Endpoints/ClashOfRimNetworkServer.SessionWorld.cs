@@ -1127,7 +1127,7 @@ public static partial class ClashOfRimNetworkServer
                 }
 
                 string notificationId = $"{notification.Kind}:{userId}:{colonyId}:{snapshotId}:{increase.LayerId}:{increase.Tile}:{site.UserId}:{site.ColonyId}";
-                AuthoritativeEvent worldLayerNotification = AuthoritativeEventFactory.Create(
+                AuthoritativeEvent worldLayerNotification = AuthoritativeEventFactory.CreateForLedger(state.Ledger,
                     ServerEventType.ServerNotification,
                     actor,
                     new EventParty(site.UserId, site.ColonyId),

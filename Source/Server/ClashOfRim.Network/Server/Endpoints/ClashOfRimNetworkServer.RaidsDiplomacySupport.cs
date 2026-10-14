@@ -454,7 +454,7 @@ public static partial class ClashOfRimNetworkServer
         }
 
         bool targetOnline = state.OnlinePresence.IsUserOnline(request.Target.UserId);
-        AuthoritativeEvent diplomacyEvent = AuthoritativeEventFactory.Create(
+        AuthoritativeEvent diplomacyEvent = AuthoritativeEventFactory.CreateForLedger(state.Ledger,
             type,
             ToEventParty(request.Actor),
             ToEventParty(request.Target),
@@ -561,6 +561,7 @@ public static partial class ClashOfRimNetworkServer
             request.Accepted,
             state.OnlinePresence.IsUserOnline(changed.Actor.UserId),
             nowUtc);
+        notification = AuthoritativeEventFactory.ResolvePersistedIdentity(state.Ledger, notification);
         LedgerAppendResult notificationAppend = state.Ledger.Append(notification);
         string? relationKind = request.Accepted && changed.Type is ServerEventType.AllianceRequest or ServerEventType.PeaceRequest
             ? PersistDiplomacyRelation(state, changed, accepted: true, nowUtc)
@@ -629,7 +630,7 @@ public static partial class ClashOfRimNetworkServer
         }
 
         bool targetOnline = state.OnlinePresence.IsUserOnline(request.Target.UserId);
-        AuthoritativeEvent supportEvent = AuthoritativeEventFactory.Create(
+        AuthoritativeEvent supportEvent = AuthoritativeEventFactory.CreateForLedger(state.Ledger,
             ServerEventType.SupportPawn,
             ToEventParty(request.Actor),
             ToEventParty(request.Target),
@@ -804,7 +805,7 @@ public static partial class ClashOfRimNetworkServer
         string acceptedSnapshotId = upload.AcceptedSnapshot.Identity.SnapshotId
             ?? multipart.Request.ConfirmedSnapshot.SnapshotId!;
         bool targetOnline = state.OnlinePresence.IsUserOnline(request.Target.UserId);
-        AuthoritativeEvent supportEvent = AuthoritativeEventFactory.Create(
+        AuthoritativeEvent supportEvent = AuthoritativeEventFactory.CreateForLedger(state.Ledger,
             ServerEventType.SupportPawn,
             ToEventParty(request.Actor),
             ToEventParty(request.Target),
@@ -2161,7 +2162,7 @@ public static partial class ClashOfRimNetworkServer
                 raidPayload.AttackForce?.CarriedThings ?? Array.Empty<EventThingReference>(),
                 lossReason);
 
-            AuthoritativeEvent lossEvent = AuthoritativeEventFactory.Create(
+            AuthoritativeEvent lossEvent = AuthoritativeEventFactory.CreateForLedger(state.Ledger,
                 ServerEventType.Raid,
                 new EventParty("server"),
                 raid.Actor,

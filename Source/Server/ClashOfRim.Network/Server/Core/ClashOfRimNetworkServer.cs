@@ -2397,7 +2397,7 @@ public static partial class ClashOfRimNetworkServer
         ClashOfRimNetworkState state, string idempotencyKey, EventParty actor, EventParty target,
         IReadOnlyList<EventThingReference> things, ItemDeliveryPurpose purpose, EventTargetContext? targetContext, DateTimeOffset nowUtc)
     {
-        return AuthoritativeEventFactory.Create(
+        return AuthoritativeEventFactory.CreateForLedger(state.Ledger,
             ServerEventType.ItemDelivery,
             actor,
             target,

@@ -104,7 +104,7 @@ internal sealed record ColonyDeletionIntent(int Version, string Id, string UserI
         if (Tombstone.Type != ServerEventType.ServerNotification || Tombstone.Actor != new EventParty(UserId, ColonyId)
             || Tombstone.Target != new EventParty("server") || Tombstone.Status != ServerEventStatus.AppliedToSnapshot
             || Tombstone.IdempotencyKey != "colony-abandoned:" + UserId + ":" + ColonyId
-            || Tombstone.EventId != AuthoritativeEventFactory.BuildEventId(ServerEventType.ServerNotification, Tombstone.IdempotencyKey)
+            || !AuthoritativeEventFactory.IsKnownEventId(ServerEventType.ServerNotification, Tombstone.IdempotencyKey, Tombstone.EventId)
             || Tombstone.CreatedAtUtc != DeletedAtUtc || Tombstone.AppliedAtUtc != DeletedAtUtc
             || Previous is not null && Tombstone.AppliedSnapshotId != Previous.Identity.SnapshotId
             || Tombstone.Payload is not ServerNotificationEventPayload payload

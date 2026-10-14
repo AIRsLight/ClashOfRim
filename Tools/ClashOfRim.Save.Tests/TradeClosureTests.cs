@@ -9,6 +9,7 @@ internal static class TradeClosureTests
     public static void Run()
     {
         SnapshotEndpointTestClient.LoadLocalization();
+        VerifyLegacyReturnRecovery();
         foreach (string scenario in new[] { "cancel", "expire", "baseline", "failure", "legacy-fulfill" })
         foreach (string phase in new[] { "insert", "update" })
         {
@@ -67,7 +68,40 @@ internal static class TradeClosureTests
         }
     }
 
-    private static (AuthoritativeEvent Order, AuthoritativeEvent? Delivery) Seed(ClashOfRimNetworkState state, bool fulfilled, bool selfDelivery = false)
+    private static void VerifyLegacyReturnRecovery()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "cor-legacy-trade-return-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            string database = Path.Combine(root, "server.sqlite");
+            ServerDatabaseMigrator.Migrate(database);
+            var state = new ClashOfRimNetworkState(ledger: new SqliteAuthoritativeEventLedger(database), serverConfiguration: new ClashOfRimServerConfiguration(tradeOrderExpiration: TimeSpan.Zero));
+            var (order, _) = Seed(state, false, legacyOrder: true);
+            string key = "trade-cancelled-owner-return:" + order.EventId;
+            var returned = AuthoritativeEventFactory.Create(ServerEventType.ItemDelivery, new("server"), order.Actor,
+                key, false, new ItemDeliveryEventPayload(((TradeEventPayload)order.Payload).OfferedItems, null,
+                    Purpose: ItemDeliveryPurpose.TradeCancelledOwnerReturn), DateTimeOffset.UnixEpoch)
+                with { EventId = AuthoritativeEventFactory.BuildLegacyEventId(ServerEventType.ItemDelivery, key) };
+            // A pre-upgrade partial closure already returned the escrow, but left the order open.
+            state.Ledger.Append(returned);
+            state.Ledger.MarkDelivered(returned.EventId, "before", DateTimeOffset.UnixEpoch);
+            state.Ledger.MarkApplied(returned.EventId, "after", DateTimeOffset.UnixEpoch);
+            var consumed = state.Ledger.Find(returned.EventId)!;
+            state = new ClashOfRimNetworkState(ledger: new SqliteAuthoritativeEventLedger(database), serverConfiguration: new ClashOfRimServerConfiguration(tradeOrderExpiration: TimeSpan.Zero));
+            Close(state, "cancel", order, null);
+            Require(state.Ledger.Find(order.EventId)!.Status == ServerEventStatus.Cancelled
+                && state.Ledger.ListByType(ServerEventType.ItemDelivery).Count == 1
+                && System.Text.Json.JsonSerializer.Serialize(state.Ledger.Find(returned.EventId)) == System.Text.Json.JsonSerializer.Serialize(consumed)
+                && state.Ledger.Find(AuthoritativeEventFactory.BuildEventId(ServerEventType.ItemDelivery, key)) is null,
+                "upgraded cancellation lost the legacy return or reset its consumption");
+            Close(state, "cancel", order, null);
+            Require(state.Ledger.ListByType(ServerEventType.ItemDelivery).Count == 1, "repeated legacy cancellation returned escrow twice");
+        }
+        finally { SqliteConnection.ClearAllPools(); Directory.Delete(root, recursive: true); }
+    }
+
+    private static (AuthoritativeEvent Order, AuthoritativeEvent? Delivery) Seed(ClashOfRimNetworkState state, bool fulfilled, bool selfDelivery = false, bool legacyOrder = false)
     {
         var seller = new EventParty("seller", "seller-colony");
         var buyer = new EventParty("buyer", "buyer-colony");
@@ -75,6 +109,7 @@ internal static class TradeClosureTests
         var paid = new[] { new EventThingReference("silver", "Silver", 20, "buyer-snapshot") };
         var order = AuthoritativeEventFactory.Create(ServerEventType.Trade, seller, new EventParty("server"), "close-order", false,
             new TradeEventPayload("close-order", TradeStage.MarketOrder, offered, paid, 0), DateTimeOffset.UnixEpoch);
+        if (legacyOrder) order = order with { EventId = AuthoritativeEventFactory.BuildLegacyEventId(order.Type, order.IdempotencyKey) };
         if (fulfilled) order = order with { Status = ServerEventStatus.AppliedToSnapshot };
         state.Ledger.Append(order);
         state.Ledger.Append(AuthoritativeEventFactory.Create(ServerEventType.Trade, buyer, buyer, "memo", false,

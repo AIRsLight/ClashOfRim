@@ -77,7 +77,7 @@ public static partial class ClashOfRimNetworkServer
                     ProtocolDeliverySemantics.OfflinePending));
             }
 
-            AuthoritativeEvent giftEvent = AuthoritativeEventFactory.Create(
+            AuthoritativeEvent giftEvent = AuthoritativeEventFactory.CreateForLedger(state.Ledger,
                 ServerEventType.ItemDelivery,
                 ToEventParty(request.Actor),
                 ToEventParty(request.Target),
@@ -251,7 +251,7 @@ public static partial class ClashOfRimNetworkServer
                     ProtocolDeliverySemantics.OnlineImmediate));
             }
 
-            AuthoritativeEvent giftEvent = AuthoritativeEventFactory.Create(
+            AuthoritativeEvent giftEvent = AuthoritativeEventFactory.CreateForLedger(state.Ledger,
                 ServerEventType.ItemDelivery,
                 ToEventParty(acceptedActor),
                 ToEventParty(request.Target),
@@ -1060,7 +1060,7 @@ public static partial class ClashOfRimNetworkServer
                 }
             }
 
-            AuthoritativeEvent tradeEvent = AuthoritativeEventFactory.Create(
+            AuthoritativeEvent tradeEvent = AuthoritativeEventFactory.CreateForLedger(state.Ledger,
                 ServerEventType.Trade,
                 ToEventParty(request.Owner),
                 new EventParty("server"),
@@ -1308,7 +1308,7 @@ public static partial class ClashOfRimNetworkServer
                         ownerEndpoint.Tile,
                         EventLandingMode.DropPod);
 
-            AuthoritativeEvent tradeEvent = AuthoritativeEventFactory.Create(
+            AuthoritativeEvent tradeEvent = AuthoritativeEventFactory.CreateForLedger(state.Ledger,
                 ServerEventType.Trade,
                 ToEventParty(request.Owner),
                 new EventParty("server"),
@@ -1563,7 +1563,7 @@ public static partial class ClashOfRimNetworkServer
 
             var acceptorParty = ToEventParty(request.Acceptor);
             TradeEventPayload orderPayload = (TradeEventPayload)tradeOrder.Payload;
-            AuthoritativeEvent memoEvent = AuthoritativeEventFactory.Create(
+            AuthoritativeEvent memoEvent = AuthoritativeEventFactory.CreateForLedger(state.Ledger,
                 ServerEventType.Trade,
                 acceptorParty,
                 acceptorParty,
@@ -1711,7 +1711,7 @@ public static partial class ClashOfRimNetworkServer
             TradeStage exchangeStage = fulfillmentMode == TradeFulfillmentMode.ServerDropPod
                 ? TradeStage.ServerDropPodExchange
                 : TradeStage.SelfDeliveryExchange;
-            AuthoritativeEvent exchangeEvent = AuthoritativeEventFactory.Create(
+            AuthoritativeEvent exchangeEvent = AuthoritativeEventFactory.CreateForLedger(state.Ledger,
                 ServerEventType.Trade,
                 acceptorParty,
                 tradeOrder.Actor,
@@ -2031,7 +2031,7 @@ public static partial class ClashOfRimNetworkServer
             TradeStage exchangeStage = fulfillmentMode == TradeFulfillmentMode.ServerDropPod
                 ? TradeStage.ServerDropPodExchange
                 : TradeStage.SelfDeliveryExchange;
-            AuthoritativeEvent exchangeEvent = AuthoritativeEventFactory.Create(
+            AuthoritativeEvent exchangeEvent = AuthoritativeEventFactory.CreateForLedger(state.Ledger,
                 ServerEventType.Trade,
                 acceptorParty,
                 tradeOrder.Actor,
@@ -2335,7 +2335,7 @@ public static partial class ClashOfRimNetworkServer
         string message = targetIsOwner
             ? T("Trade.ExpiredOwnerMessage", ("EVENT", tradeOrder.EventId))
             : T("Trade.ExpiredAcceptorMessage", ("EVENT", tradeOrder.EventId));
-        AuthoritativeEvent notification = AuthoritativeEventFactory.Create(
+        AuthoritativeEvent notification = AuthoritativeEventFactory.CreateForLedger(state.Ledger,
             ServerEventType.ServerNotification,
             new EventParty("server"),
             target,
@@ -2364,7 +2364,7 @@ public static partial class ClashOfRimNetworkServer
         string message = targetIsOwner
             ? T("Trade.BaselineInvalidatedOwnerMessage", ("EVENT", tradeOrder.EventId), ("ITEMS", unavailable))
             : T("Trade.BaselineInvalidatedAcceptorMessage", ("EVENT", tradeOrder.EventId), ("ITEMS", unavailable));
-        AuthoritativeEvent notification = AuthoritativeEventFactory.Create(
+        AuthoritativeEvent notification = AuthoritativeEventFactory.CreateForLedger(state.Ledger,
             ServerEventType.ServerNotification,
             new EventParty("server"),
             target,

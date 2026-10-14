@@ -236,7 +236,8 @@ internal static class EventFailureReportTests
         var seller = new EventParty("seller", "seller-colony"); var buyer = new EventParty("buyer", "buyer-colony");
         AuthoritativeEvent Create(ServerEventType type, string key, LedgerEventPayload payload, EventParty? actor = null, EventParty? target = null) =>
             AuthoritativeEventFactory.Create(type, actor ?? seller, target ?? buyer, key, true, payload, Original)
-                with { Status = ServerEventStatus.DeliveredToClient };
+                // Keep this graph as pre-upgrade data; failure handling must preserve its old links.
+                with { EventId = AuthoritativeEventFactory.BuildLegacyEventId(type, key), Status = ServerEventStatus.DeliveredToClient };
         AuthoritativeEvent root;
         if (kind is "trade" or "self")
         {

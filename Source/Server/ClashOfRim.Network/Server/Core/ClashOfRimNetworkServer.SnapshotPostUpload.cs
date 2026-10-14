@@ -273,7 +273,7 @@ public static partial class ClashOfRimNetworkServer
                 + ":"
                 + achievement.EventKey;
             string label = ResolveAchievementNotificationLabel(achievement);
-            AuthoritativeEvent notification = AuthoritativeEventFactory.Create(
+            AuthoritativeEvent notification = AuthoritativeEventFactory.CreateForLedger(state.Ledger,
                 ServerEventType.ServerNotification,
                 new EventParty("server"),
                 new EventParty(userId, colonyId),

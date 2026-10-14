@@ -16,7 +16,7 @@ public static class ServerDatabaseSchema
 {
     // Version 1 is the known JSON-document persistence layout.
     public const int LegacyJsonDocumentVersion = 1;
-    public const int CurrentVersion = 24;
+    public const int CurrentVersion = 25;
 }
 
 public sealed record ServerDatabaseMigrationOptions(int? DeclaredSourceVersion = null);
@@ -133,7 +133,9 @@ public static class ServerDatabaseMigrator
         // Confirmation plans and receipts must be recovered before accepting further snapshots.
         new(FromVersion: 22, ToVersion: 23, Apply: (_, _, _) => MigrationApplicationResult.None),
         // Support completion keys use versioned tuples; old keys and fixed journal batches remain readable.
-        new(FromVersion: 23, ToVersion: 24, Apply: (_, _, _) => MigrationApplicationResult.None)
+        new(FromVersion: 23, ToVersion: 24, Apply: (_, _, _) => MigrationApplicationResult.None),
+        // Event IDs preserve unsafe-key distinctions; regeneration must resolve existing identities first.
+        new(FromVersion: 24, ToVersion: 25, Apply: (_, _, _) => MigrationApplicationResult.None)
     ];
 
     public static ServerDatabaseMigrationAssessment Assess(

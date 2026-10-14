@@ -28,7 +28,7 @@ internal static class RaidCleanupCommitTests
     {
         var generated = f.Mutation.Batch.Events.Single(item => item.Type == ServerEventType.SupportPawn);
         string key = $"support-loss:{f.Support.EventId}:RaidSettlementLost";
-        var legacy = generated with { IdempotencyKey = key, EventId = AuthoritativeEventFactory.BuildEventId(generated.Type, key) };
+        var legacy = generated with { IdempotencyKey = key, EventId = AuthoritativeEventFactory.BuildLegacyEventId(generated.Type, key) };
         var mutation = f.Mutation with { Batch = f.Mutation.Batch with
             { Events = f.Mutation.Batch.Events.Select(item => item.EventId == generated.EventId ? legacy : item).ToArray() } };
         if (!committed) f.Store.Fault = "before";

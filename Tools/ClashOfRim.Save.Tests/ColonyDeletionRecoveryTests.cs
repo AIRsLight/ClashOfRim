@@ -29,6 +29,31 @@ internal static class ColonyDeletionRecoveryTests
         WithFixture(fixture, VerifyLateSiteRegistration);
         WithFixture(fixture, VerifyNestedMutation);
         WithFixture(fixture, VerifyJournalValidation);
+        foreach (bool admin in new[] { false, true })
+            WithFixture(fixture, f => VerifyLegacyIdentityRecovery(f, admin));
+    }
+
+    private static void VerifyLegacyIdentityRecovery(Fixture f, bool admin)
+    {
+        f.Store.Fault = "before";
+        Fails(() => f.Delete(admin));
+        string path = Directory.EnumerateFiles(f.Journal, "*.json").Single();
+        var intent = JsonSerializer.Deserialize<ColonyDeletionIntent>(File.ReadAllBytes(path))!;
+        string newId = intent.Tombstone.EventId;
+        var legacy = intent.Tombstone with
+        {
+            EventId = AuthoritativeEventFactory.BuildLegacyEventId(intent.Tombstone.Type, intent.Tombstone.IdempotencyKey)
+        };
+        intent = intent with { Batch = intent.Batch with { Events = new[] { legacy } } };
+        File.WriteAllBytes(path, JsonSerializer.SerializeToUtf8Bytes(intent));
+        f.Open();
+        f.Recover();
+        VerifyCompleted(f, intent);
+        Require(f.State.Ledger.Find(newId) is null, "legacy deletion recovery generated a second tombstone identity");
+        f.Open();
+        f.Delete(admin: true);
+        VerifyCompleted(f, intent);
+        Require(f.State.Ledger.Find(newId) is null, "repeated deletion replaced the legacy tombstone identity");
     }
 
     private static void VerifyRecovery(Fixture f, bool admin, bool reopen, string fault)

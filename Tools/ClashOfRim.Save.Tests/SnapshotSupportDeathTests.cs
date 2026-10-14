@@ -88,7 +88,7 @@ internal static class SnapshotSupportDeathTests
         var sources = Seed(ledger);
         string legacyKey = $"support-loss:{sources[0].EventId}:SnapshotDeath";
         var priorLoss = Loss(sources[0]) with { CreatedAtUtc = Accepted.AddMinutes(-1), IdempotencyKey = legacyKey,
-            EventId = AuthoritativeEventFactory.BuildEventId(ServerEventType.SupportPawn, legacyKey) };
+            EventId = AuthoritativeEventFactory.BuildLegacyEventId(ServerEventType.SupportPawn, legacyKey) };
         // Legacy half-commit: the loss is present, but its source was never closed.
         ledger.Append(priorLoss);
         var ignored = new List<AuthoritativeEvent>();

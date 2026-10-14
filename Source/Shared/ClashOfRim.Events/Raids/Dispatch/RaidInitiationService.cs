@@ -19,7 +19,7 @@ public static class RaidInitiationService
             return RecordRejectedStart(ledger, request, eligibility);
         }
 
-        AuthoritativeEvent raidEvent = CreateRaidEvent(request);
+        AuthoritativeEvent raidEvent = AuthoritativeEventFactory.ResolvePersistedIdentity(ledger, CreateRaidEvent(request));
 
         LedgerAppendResult appendResult = ledger.Append(raidEvent);
         return new RaidInitiationResult(
@@ -65,7 +65,7 @@ public static class RaidInitiationService
         }
 
         string reasonText = string.Join(", ", eligibility.FailureReasons);
-        AuthoritativeEvent notification = AuthoritativeEventFactory.Create(
+        AuthoritativeEvent notification = AuthoritativeEventFactory.CreateForLedger(ledger,
             ServerEventType.ServerNotification,
             new EventParty("server"),
             request.Eligibility.Attacker,

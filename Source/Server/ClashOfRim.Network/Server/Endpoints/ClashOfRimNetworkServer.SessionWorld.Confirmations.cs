@@ -871,7 +871,7 @@ public static partial class ClashOfRimNetworkServer
                 yield return existing;
                 continue;
             }
-            AuthoritativeEvent notification = AuthoritativeEventFactory.Create(
+            AuthoritativeEvent notification = AuthoritativeEventFactory.CreateForLedger(state.Ledger,
                 ServerEventType.ServerNotification,
                 new EventParty("server"),
                 target,
