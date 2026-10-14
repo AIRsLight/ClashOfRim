@@ -264,7 +264,7 @@ public static partial class ClashOfRimNetworkServer
         IReadOnlyCollection<AchievementEventRecord> achievements,
         DateTimeOffset nowUtc)
     {
-        bool createdAny = false;
+        bool hasNotifications = false;
         foreach (AchievementEventRecord achievement in achievements)
         {
             string notificationId = "achievement-unlocked:"
@@ -296,10 +296,10 @@ public static partial class ClashOfRimNetworkServer
                 nowUtc);
             LedgerAppendResult append = state.Ledger.Append(notification);
             LogEventAppend(state, append, "achievement-unlocked");
-            createdAny |= append.Created;
+            hasNotifications = true; // Retry wake-up even when the notification was persisted before interruption.
         }
 
-        if (createdAny)
+        if (hasNotifications)
         {
             state.EventNotifications.SignalUser(userId);
         }

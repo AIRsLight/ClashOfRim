@@ -115,7 +115,7 @@ public static partial class ClashOfRimNetworkServer
             sourceSnapshotId,
             metricDeltas,
             state.Plugins.ActiveAchievementDefinitions(state.CompatibilityBaseline.Current),
-            nowUtc);
+            nowUtc, includePreviouslyRecorded: true);
         if (newlyRecorded.Count > 0)
         {
             NotifyUnlockedAchievements(state, userId!, colonyId!, newlyRecorded, nowUtc);

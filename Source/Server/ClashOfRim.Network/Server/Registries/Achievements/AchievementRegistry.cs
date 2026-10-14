@@ -216,7 +216,7 @@ public sealed class AchievementRegistry
         string? sourceSnapshotId,
         IReadOnlyDictionary<string, long> metricDeltas,
         IEnumerable<AchievementDefinition>? additionalDefinitions,
-        DateTimeOffset recordedAtUtc)
+        DateTimeOffset recordedAtUtc, bool includePreviouslyRecorded = false)
     {
         if (string.IsNullOrWhiteSpace(userId)
             || string.IsNullOrWhiteSpace(colonyId)
@@ -229,6 +229,7 @@ public sealed class AchievementRegistry
         var totals = new Dictionary<string, long>(StringComparer.Ordinal);
         var metricEvents = new List<AchievementMetricEventRecord>();
         var metricAggregates = new List<AchievementMetricAggregateRecord>();
+        var stagedMetricKeys = new HashSet<string>(StringComparer.Ordinal);
         lock (gate)
         {
             foreach (KeyValuePair<string, long> pair in metricDeltas)
@@ -241,8 +242,11 @@ public sealed class AchievementRegistry
                 string metricId = NormalizeId(pair.Key);
                 string eventKey = NormalizeId(sourceEventKey);
                 string metricEventKey = MetricEventRecordKey(userId, colonyId, metricId, eventKey);
+                if (!stagedMetricKeys.Add(metricEventKey)) continue;
                 if (metricEventsByKey.ContainsKey(metricEventKey))
                 {
+                    if (metricAggregatesByKey.TryGetValue(MetricAggregateKey(userId, colonyId, metricId), out var previousTotal))
+                        totals[metricId] = previousTotal.Value;
                     continue;
                 }
 
@@ -255,7 +259,6 @@ public sealed class AchievementRegistry
                     Math.Max(0, pair.Value),
                     snapshotId,
                     recordedAtUtc);
-                metricEventsByKey[metricEventKey] = metricEvent;
                 metricEvents.Add(metricEvent);
 
                 string aggregateKey = MetricAggregateKey(userId, colonyId, metricId);
@@ -279,12 +282,11 @@ public sealed class AchievementRegistry
                         recordedAtUtc);
                 }
 
-                metricAggregatesByKey[aggregateKey] = aggregate;
                 metricAggregates.Add(aggregate);
                 totals[metricId] = aggregate.Value;
             }
 
-            if (totals.Count > 0)
+            if (metricEvents.Count > 0)
             {
                 PersistAchievementRecords(
                     Array.Empty<AchievementEventRecord>(),
@@ -313,6 +315,14 @@ public sealed class AchievementRegistry
                         out AchievementEventRecord? record))
                 {
                     recorded.Add(record!);
+                }
+                else if (includePreviouslyRecorded)
+                {
+                    lock (gate)
+                    {
+                        if (eventsByKey.TryGetValue(EventRecordKey(userId, colonyId, NormalizeId(candidate!.AchievementId), NormalizeId(candidate.EventKey)), out var existing))
+                            recorded.Add(existing);
+                    }
                 }
             }
         }
@@ -430,8 +440,6 @@ public sealed class AchievementRegistry
                         SourceSnapshotId = sourceSnapshotId,
                         UpdatedAtUtc = recordedAtUtc
                     };
-                    aggregatesByKey[aggregateKey] = updatedAggregate;
-                    sortedAggregatesCache = null;
                     PersistAchievementRecords(
                         Array.Empty<AchievementEventRecord>(),
                         [updatedAggregate],
@@ -441,8 +449,6 @@ public sealed class AchievementRegistry
 
                 return false;
             }
-
-            eventsByKey[eventRecordKey] = eventRecord;
 
             AchievementAggregateRecord aggregate;
             if (aggregatesByKey.TryGetValue(aggregateKey, out AchievementAggregateRecord? current))
@@ -461,7 +467,6 @@ public sealed class AchievementRegistry
                     SourceSnapshotId = sourceSnapshotId,
                     UpdatedAtUtc = recordedAtUtc
                 };
-                aggregatesByKey[aggregateKey] = aggregate;
             }
             else
             {
@@ -479,10 +484,7 @@ public sealed class AchievementRegistry
                 {
                     Color = color
                 };
-                aggregatesByKey[aggregateKey] = aggregate;
             }
-
-            sortedAggregatesCache = null;
             PersistAchievementRecords(
                 [eventRecord],
                 [aggregate],
@@ -622,37 +624,6 @@ public sealed class AchievementRegistry
         }
     }
 
-    private void SaveLocked()
-    {
-        if (legacyPersistence is null)
-        {
-            return;
-        }
-
-        string json = JsonSerializer.Serialize(
-            new AchievementRegistryPersistence(
-                eventsByKey.Values
-                    .OrderBy(record => record.RecordedAtUtc)
-                    .ThenBy(record => record.UserId, StringComparer.Ordinal)
-                    .ThenBy(record => record.AchievementId, StringComparer.Ordinal)
-                    .ThenBy(record => record.EventKey, StringComparer.Ordinal)
-                    .ToArray(),
-                ListAggregatesLocked(),
-                metricEventsByKey.Values
-                    .OrderBy(record => record.RecordedAtUtc)
-                    .ThenBy(record => record.UserId, StringComparer.Ordinal)
-                    .ThenBy(record => record.MetricId, StringComparer.Ordinal)
-                    .ThenBy(record => record.EventKey, StringComparer.Ordinal)
-                    .ToArray(),
-                metricAggregatesByKey.Values
-                    .OrderBy(record => record.UserId, StringComparer.Ordinal)
-                    .ThenBy(record => record.ColonyId, StringComparer.Ordinal)
-                    .ThenBy(record => record.MetricId, StringComparer.Ordinal)
-                    .ToArray()),
-            JsonOptions);
-        legacyPersistence.Write(json);
-    }
-
     private Dictionary<string, string> BuildStructuredRows()
     {
         Dictionary<string, string> rows = new(StringComparer.Ordinal);
@@ -671,10 +642,29 @@ public sealed class AchievementRegistry
             Dictionary<string, string> rows = new(StringComparer.Ordinal);
             AddAchievementRows(rows, eventUpserts, aggregateUpserts, metricEventUpserts, metricAggregateUpserts);
             structuredPersistence.ApplyBatch(rows, Array.Empty<string>());
-            return;
+        }
+        else if (legacyPersistence is not null)
+        {
+            var prepared = new AchievementRegistryPersistence(
+                MergeRecords(eventsByKey, eventUpserts, r => EventRecordKey(r.UserId, r.ColonyId, r.AchievementId, r.EventKey)),
+                MergeRecords(aggregatesByKey, aggregateUpserts, r => AggregateKey(r.UserId, r.ColonyId, r.AchievementId)),
+                MergeRecords(metricEventsByKey, metricEventUpserts, r => MetricEventRecordKey(r.UserId, r.ColonyId, r.MetricId, r.EventKey)),
+                MergeRecords(metricAggregatesByKey, metricAggregateUpserts, r => MetricAggregateKey(r.UserId, r.ColonyId, r.MetricId)));
+            legacyPersistence.Write(JsonSerializer.Serialize(prepared, JsonOptions));
         }
 
-        SaveLocked();
+        // Publish only after durable persistence succeeds, so a retry cannot mistake failed writes for committed records.
+        foreach (var record in eventUpserts) RegisterLoadedEvent(record, overwrite: true);
+        foreach (var record in aggregateUpserts) RegisterLoadedAggregate(record, overwrite: true);
+        foreach (var record in metricEventUpserts) RegisterLoadedMetricEvent(record, overwrite: true);
+        foreach (var record in metricAggregateUpserts) RegisterLoadedMetricAggregate(record, overwrite: true);
+    }
+
+    private static T[] MergeRecords<T>(Dictionary<string, T> current, IEnumerable<T> upserts, Func<T, string> key)
+    {
+        var prepared = new Dictionary<string, T>(current, StringComparer.Ordinal);
+        foreach (T record in upserts) prepared[key(record)] = record;
+        return prepared.Values.ToArray();
     }
 
     private static void AddAchievementRows(

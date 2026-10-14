@@ -17,6 +17,7 @@ var tests = new (string Name, Action Run)[]
     ("银行快照提交跨崩溃恢复且重试幂等", () => BankCommitCrashTests.Run(BuildFixturePackage)),
     ("礼物快照提交跨崩溃恢复且冲突拒绝覆盖", () => GiftCommitCrashTests.Run(BuildFixturePackage)),
     ("交易快照与成交事件跨崩溃恢复且并发买家互斥", () => TradeCommitCrashTests.Run(BuildFixturePackage)),
+    ("交易成就统计与通知在写入失败后可以恢复", AchievementRecoveryTests.Run),
     ("并发准备的快照在提交时重新验证 lineage", VerifyPreparedSnapshotsCannotOverwrite),
     ("服务器数据库新建时写入当前 schema 版本", VerifyServerDatabaseMigrationInitializesNewDatabase),
     ("服务器启动可只读识别无版本旧数据库", VerifyServerDatabaseMigrationAssessesLegacyDatabaseWithoutMutation),
