@@ -33,6 +33,7 @@ internal static class ShopCommitCrashTests
             Seed(shop);
             var files = new FileColonySnapshotIndexStore(snapshotDirectory);
             var bank = new BankLoanRegistry();
+            if (fault == 1) PendingOperationCommitCrashTests.AddAncillary(bank);
             SaveSnapshotPackage package = fixture("shop-commit");
             LatestSnapshotRecord snapshot = new SnapshotUploadReceiver(files).Receive(
                 new SnapshotUploadContext("userA", "colonyA", "shop-commit"), package,
@@ -86,6 +87,7 @@ internal static class ShopCommitCrashTests
             commits.Recover(files, bank, (_, _) => processed++, null, shop: shop);
             commits.Recover(files, bank, (_, _) => processed++, null, shop: shop);
             Require(processed == 1 && !Directory.EnumerateFiles(journal, "*.json").Any(), "Recovery did not finish exactly once.");
+            if (fault == 1) PendingOperationCommitCrashTests.VerifyAncillary(bank, "shop-commit");
             Require(files.GetLatest("userA", "colonyA")!.Envelope.NextLineageToken == snapshot.Envelope.NextLineageToken
                 && files.GetLatestPackage("userA", "colonyA")!.Payload.SequenceEqual(package.Payload), "Recovery changed the accepted snapshot.");
             foreach (var recovered in new[] { shop, OpenShop() })

@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace AIRsLight.ClashOfRim.Network;
 
-public sealed class BankLoanRegistry
+public sealed partial class BankLoanRegistry
 {
     public const string StatusPendingActivation = "PendingActivation";
     public const string StatusActive = "Active";

@@ -6,6 +6,8 @@ using AIRsLight.ClashOfRim.Save;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Data.Sqlite;
 using System.Reflection;
+using System.IO.Compression;
+using System.Xml.Linq;
 
 internal static class MercenaryIncidentRecoveryTests
 {
@@ -102,7 +104,23 @@ internal static class MercenaryIncidentRecoveryTests
                     && state.Ledger.ListAll().Count == 0, "Cancelling an unconfirmed fine left irreversible side effects.");
                 continue;
             }
-            LatestSnapshotRecord latest = StoreSnapshot(state, fixture("confirmed"), "confirmed");
+            var package = fixture("confirmed");
+            using (var compressed = new MemoryStream(package.Payload))
+            using (var gzip = new GZipStream(compressed, CompressionMode.Decompress))
+            {
+                var document = XDocument.Load(gzip);
+                document.Root!.Add(new XComment("Incident confirmation save"));
+                string path = Path.Combine(Path.GetTempPath(), "cor-incident-confirm-" + Guid.NewGuid().ToString("N") + ".rws");
+                try
+                {
+                    document.Save(path);
+                    package = SaveSnapshotPackageBuilder.FromFile(path, new SnapshotIdentity("user", "colony", "confirmed"), DateTimeOffset.UtcNow);
+                }
+                finally { File.Delete(path); }
+            }
+            var upload = PendingOperationCommitCrashTests.Receive(state, package);
+            Require(upload.Accepted, "Incident confirmation snapshot was rejected: " + upload);
+            LatestSnapshotRecord latest = upload.AcceptedSnapshot!;
             var context = new SnapshotPostUploadContext(state, SnapshotPostUploadKind.AuthoritativeColonySnapshot, latest,
                 "user", "colony", null, DateTimeOffset.UtcNow, new SnapshotPostUploadExtraData(null, null, null), false);
             Invoke("ConfirmPendingOperationsFromSnapshot", context);

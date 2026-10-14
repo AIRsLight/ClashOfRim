@@ -1270,6 +1270,16 @@ public static partial class ClashOfRimNetworkServer
         LatestSnapshotRecord? latest,
         DateTimeOffset nowUtc)
     {
+        lock (state.RaidSettlementSnapshotMutationGate)
+        {
+            RecoverSnapshotCommits(state);
+            return CleanupAbandonedColonyLocked(state, userId, colonyId, state.SnapshotStore.GetLatest(userId, colonyId), nowUtc);
+        }
+    }
+
+    private static AbandonedColonyCleanupResult CleanupAbandonedColonyLocked(
+        ClashOfRimNetworkState state, string userId, string colonyId, LatestSnapshotRecord? latest, DateTimeOffset nowUtc)
+    {
         string? abandonedSnapshotId = latest?.Identity.SnapshotId;
         bool snapshotRemoved = state.SnapshotStore.RemoveLatest(userId, colonyId);
         RemovePlayerColonySitesResult removedSites = state.WorldConfiguration.RemovePlayerColonySites(

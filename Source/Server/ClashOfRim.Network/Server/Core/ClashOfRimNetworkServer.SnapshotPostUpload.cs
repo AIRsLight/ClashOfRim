@@ -178,17 +178,8 @@ public static partial class ClashOfRimNetworkServer
             return;
         }
 
-        context.State.BankLoans.ConfirmPendingForSnapshot(
-            context.UserId,
-            context.ColonyId,
-            snapshotId!,
-            latest?.Envelope.GameTicks,
-            context.OccurredAtUtc);
-        context.State.MercenaryContracts.ConfirmPendingForSnapshot(
-            context.UserId,
-            context.ColonyId,
-            snapshotId!,
-            context.OccurredAtUtc);
+        // Confirmation is captured and committed with snapshot publication. Never rescan here:
+        // a later request may have created new pending work after this snapshot was accepted.
         RecoverMercenaryIncidents(context.State);
     }
 

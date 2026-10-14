@@ -23,6 +23,7 @@ internal static class GiftCommitCrashTests
                 ServerDatabaseMigrator.Migrate(database);
                 var ledger = new SqliteAuthoritativeEventLedger(database);
                 var bank = new BankLoanRegistry();
+                if (crashAt == 1) PendingOperationCommitCrashTests.AddAncillary(bank);
                 string snapshotDirectory = Path.Combine(root, "snapshots");
                 string journalDirectory = Path.Combine(root, "intents");
                 var files = new FileColonySnapshotIndexStore(snapshotDirectory);
@@ -81,6 +82,7 @@ internal static class GiftCommitCrashTests
                 commits.Recover(files, bank, (_, _) => processed++, ledger, _ => signaled++);
                 commits.Recover(files, bank, (_, _) => processed++, ledger, _ => signaled++);
                 AuthoritativeEvent? recovered = ledger.FindByIdempotencyKey("gift-key");
+                if (crashAt == 1) PendingOperationCommitCrashTests.VerifyAncillary(bank, "gift-commit");
                 if (recovered?.EventId != gift.EventId || recovered.Target != gift.Target
                     || recovered.Payload is not ItemDeliveryEventPayload { Message: "礼物" } payload
                     || payload.Items.Single().StackCount != 100 || ledger.ListAll().Count != 1

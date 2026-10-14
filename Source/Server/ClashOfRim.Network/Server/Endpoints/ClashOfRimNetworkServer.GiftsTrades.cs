@@ -269,7 +269,7 @@ public static partial class ClashOfRimNetworkServer
                 ProtocolDtoMapper.ToSaveSnapshotPackage(transaction.ConfirmedSnapshot, multipart.Payload),
                 upload.AcceptedSnapshot, giftEvent,
                 (snapshot, kind) => RunCommittedSnapshotPostUpload(state, snapshot, kind),
-                userId => state.EventNotifications.SignalUsers(new[] { userId }), upload.SnapshotUploadKind);
+                userId => state.EventNotifications.SignalUsers(new[] { userId }), upload.SnapshotUploadKind, state.MercenaryContracts);
             var append = new LedgerAppendResult(giftEvent, Created: true);
             EventCreationResponse created = ToEventCreationResponse(
                 append,

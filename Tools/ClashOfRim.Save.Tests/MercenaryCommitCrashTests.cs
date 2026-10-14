@@ -34,6 +34,7 @@ internal static class MercenaryCommitCrashTests
             string snapshotDirectory = Path.Combine(root, "snapshots"), journal = Path.Combine(root, "intents");
             var files = new FileColonySnapshotIndexStore(snapshotDirectory);
             var bank = new BankLoanRegistry();
+            if (fault == 1) PendingOperationCommitCrashTests.AddAncillary(bank);
             var package = fixture("mercenary-commit");
             var snapshot = new SnapshotUploadReceiver(files).Receive(new SnapshotUploadContext("userA", "colonyA", "mercenary-commit"),
                 package, DateTimeOffset.UnixEpoch, storeAccepted: false).AcceptedSnapshot!;
@@ -105,6 +106,7 @@ internal static class MercenaryCommitCrashTests
             Require(processed == 1 && !Directory.EnumerateFiles(journal, "*.json").Any()
                 && files.GetLatest("userA", "colonyA")!.Envelope.NextLineageToken == snapshot.Envelope.NextLineageToken,
                 "Mercenary recovery lost its snapshot or did not finish.");
+            if (fault == 1) PendingOperationCommitCrashTests.VerifyAncillary(bank, "mercenary-commit");
             if (guard)
             {
                 var expected = fault == 7 ? guardContract with { Status = MercenaryGuardContractRegistry.StatusConsumed, ConsumedRaidEventId = "raid", ConsumedAtUtc = DateTimeOffset.UnixEpoch } : guardContract;

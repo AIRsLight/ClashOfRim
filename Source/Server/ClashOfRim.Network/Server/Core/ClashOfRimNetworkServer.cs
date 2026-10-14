@@ -554,7 +554,14 @@ public static partial class ClashOfRimNetworkServer
         lock (state.RaidSettlementSnapshotMutationGate)
         {
             RecoverSnapshotCommits(state);
-            return receiver.CommitPrepared(context, savePackage, prepared, storeAccepted, validateGameplayContinuity);
+            var operations = PendingSnapshotOperations.Capture(state.BankLoans, state.MercenaryContracts, prepared.AcceptedSnapshot!);
+            var upload = receiver.CommitPrepared(context, savePackage, prepared,
+                storeAccepted: storeAccepted && operations.IsEmpty, validateGameplayContinuity);
+            if (!storeAccepted || !upload.Accepted || upload.AcceptedSnapshot is null || operations.IsEmpty) return upload;
+            state.SnapshotCommits.CommitPendingOperations(state.SnapshotStore, state.BankLoans, state.MercenaryContracts,
+                savePackage, upload.AcceptedSnapshot, operations, upload.SnapshotUploadKind);
+            RecoverMercenaryIncidents(state);
+            return upload;
         }
     }
 

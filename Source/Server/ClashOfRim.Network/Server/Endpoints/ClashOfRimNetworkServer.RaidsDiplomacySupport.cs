@@ -1875,6 +1875,16 @@ public static partial class ClashOfRimNetworkServer
         DateTimeOffset nowUtc,
         bool forceCancel)
     {
+        lock (state.RaidSettlementSnapshotMutationGate)
+        {
+            RecoverSnapshotCommits(state);
+            return ReconcilePendingConfirmationsLocked(state, userId, colonyId, nowUtc, forceCancel);
+        }
+    }
+
+    private static PendingConfirmationReconciliationResult ReconcilePendingConfirmationsLocked(
+        ClashOfRimNetworkState state, string userId, string colonyId, DateTimeOffset nowUtc, bool forceCancel)
+    {
         TimeSpan timeout = state.ServerConfiguration.PendingConfirmationTimeout;
         BankPendingConfirmationReconciliationResult bankResult = state.BankLoans.ReconcilePendingConfirmations(
             userId,

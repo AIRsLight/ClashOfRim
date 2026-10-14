@@ -51,6 +51,15 @@ public static partial class ClashOfRimNetworkServer
 
     private static IResult CreateBankLoan(CreateBankLoanRequest request, ClashOfRimNetworkState state)
     {
+        lock (state.RaidSettlementSnapshotMutationGate)
+        {
+            RecoverSnapshotCommits(state);
+            return CreateBankLoanLocked(request, state);
+        }
+    }
+
+    private static IResult CreateBankLoanLocked(CreateBankLoanRequest request, ClashOfRimNetworkState state)
+    {
         DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
         BankRequestContext? context = ValidateBankRequest(
             state,
@@ -339,7 +348,7 @@ public static partial class ClashOfRimNetworkServer
                 state.SnapshotCommits.Commit(state.SnapshotStore, state.BankLoans,
                     ProtocolDtoMapper.ToSaveSnapshotPackage(request.ConfirmedSnapshot, multipart.Payload),
                     upload.AcceptedSnapshot, confirmedLoan, null,
-                    (snapshot, kind) => RunCommittedSnapshotPostUpload(state, snapshot, kind), upload.SnapshotUploadKind);
+                    (snapshot, kind) => RunCommittedSnapshotPostUpload(state, snapshot, kind), upload.SnapshotUploadKind, state.MercenaryContracts);
 
                 BankRequestContext updatedContext = context with { ActiveLoan = confirmedLoan };
                 return Results.Ok(new BankLoanResponse(
@@ -509,7 +518,7 @@ public static partial class ClashOfRimNetworkServer
                 state.SnapshotCommits.Commit(state.SnapshotStore, state.BankLoans,
                     ProtocolDtoMapper.ToSaveSnapshotPackage(request.ConfirmedSnapshot, multipart.Payload),
                     upload.AcceptedSnapshot, repaid, null,
-                    (snapshot, kind) => RunCommittedSnapshotPostUpload(state, snapshot, kind), upload.SnapshotUploadKind);
+                    (snapshot, kind) => RunCommittedSnapshotPostUpload(state, snapshot, kind), upload.SnapshotUploadKind, state.MercenaryContracts);
 
                 return Results.Ok(new BankLoanResponse(
                     ProtocolResponse.Ok(T("Bank.LoanRepaidWithSnapshot")),
@@ -522,6 +531,15 @@ public static partial class ClashOfRimNetworkServer
     }
 
     private static IResult RepayBankLoan(RepayBankLoanRequest request, ClashOfRimNetworkState state)
+    {
+        lock (state.RaidSettlementSnapshotMutationGate)
+        {
+            RecoverSnapshotCommits(state);
+            return RepayBankLoanLocked(request, state);
+        }
+    }
+
+    private static IResult RepayBankLoanLocked(RepayBankLoanRequest request, ClashOfRimNetworkState state)
     {
         DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
         BankRequestContext? context = ValidateBankRequest(
@@ -757,7 +775,7 @@ public static partial class ClashOfRimNetworkServer
                 state.SnapshotCommits.Commit(state.SnapshotStore, state.BankLoans,
                     ProtocolDtoMapper.ToSaveSnapshotPackage(request.ConfirmedSnapshot, multipart.Payload),
                     upload.AcceptedSnapshot, null, repaid,
-                    (snapshot, kind) => RunCommittedSnapshotPostUpload(state, snapshot, kind), upload.SnapshotUploadKind);
+                    (snapshot, kind) => RunCommittedSnapshotPostUpload(state, snapshot, kind), upload.SnapshotUploadKind, state.MercenaryContracts);
 
                 return Results.Ok(new BankDebtResponse(
                     ProtocolResponse.Ok(T("Bank.DebtRepaidWithSnapshot")),
@@ -770,6 +788,15 @@ public static partial class ClashOfRimNetworkServer
     }
 
     private static IResult RepayBankDebt(RepayBankDebtRequest request, ClashOfRimNetworkState state)
+    {
+        lock (state.RaidSettlementSnapshotMutationGate)
+        {
+            RecoverSnapshotCommits(state);
+            return RepayBankDebtLocked(request, state);
+        }
+    }
+
+    private static IResult RepayBankDebtLocked(RepayBankDebtRequest request, ClashOfRimNetworkState state)
     {
         DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
         BankRequestContext? context = ValidateBankRequest(
