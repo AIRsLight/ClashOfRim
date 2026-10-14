@@ -36,7 +36,7 @@ public sealed class InMemoryAuthoritativeEventLedger : IAuthoritativeEventLedger
             var prepared = new Dictionary<string, AuthoritativeEvent>(eventsById, StringComparer.Ordinal);
             foreach (AuthoritativeEvent item in batch.Events) prepared.TryAdd(item.EventId, item);
             foreach (LedgerStatusChange change in batch.StatusChanges)
-                prepared[change.EventId] = prepared[change.EventId] with { Status = change.Status };
+                prepared[change.EventId] = prepared[change.EventId] with { Status = change.Status, Payload = change.Payload ?? prepared[change.EventId].Payload };
             foreach (LedgerApplicationChange change in batch.ApplicationChanges ?? [])
                 prepared[change.Expected.EventId] = change.Updated;
             // Persist before publishing caches; readers only see the complete batch.

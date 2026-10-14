@@ -23,27 +23,25 @@ public static class RaidTimeoutProcessor
         foreach (AuthoritativeEvent raid in events.Where(evt => IsExpiredActiveRaid(evt, nowUtc, activePolicy, isAttackerOnline)))
         {
             bool attackerOffline = isAttackerOnline is not null && !isAttackerOnline(raid.Actor);
-            AuthoritativeEvent failed = ledger.ChangeStatus(raid.EventId, ServerEventStatus.Failed);
+            var payload = (RaidEventPayload)raid.Payload;
+            var timeoutPayload = payload with { TimeoutWork = new RaidTimeoutWork(nowUtc, attackerOffline) };
+            var attackerNotification = CreateTimeoutNotification(raid, raid.Actor,
+                ServerLocalization.Text("Raid.TimeoutAttackerTitle"),
+                ServerLocalization.Text("Raid.TimeoutAttackerMessage", new Dictionary<string, string?> { ["EVENT"] = raid.EventId }), nowUtc);
+            var defenderNotification = CreateTimeoutNotification(raid, raid.Target,
+                ServerLocalization.Text("Raid.TimeoutDefenderTitle"),
+                ServerLocalization.Text("Raid.TimeoutDefenderMessage", new Dictionary<string, string?> { ["EVENT"] = raid.EventId }), nowUtc);
+            ledger.ApplyBatch(new LedgerBatch([attackerNotification, defenderNotification],
+                [new LedgerStatusChange(raid.EventId, raid.Status, ServerEventStatus.Failed, payload, timeoutPayload)]));
+            AuthoritativeEvent failed = ledger.Find(raid.EventId)!;
             failedRaids.Add(failed);
             if (attackerOffline)
             {
                 offlineFailedRaids.Add(failed);
             }
 
-            notifications.Add(AppendTimeoutNotification(
-                ledger,
-                failed,
-                failed.Actor,
-                ServerLocalization.Text("Raid.TimeoutAttackerTitle"),
-                ServerLocalization.Text("Raid.TimeoutAttackerMessage", new Dictionary<string, string?> { ["EVENT"] = raid.EventId }),
-                nowUtc).Event);
-            notifications.Add(AppendTimeoutNotification(
-                ledger,
-                failed,
-                failed.Target,
-                ServerLocalization.Text("Raid.TimeoutDefenderTitle"),
-                ServerLocalization.Text("Raid.TimeoutDefenderMessage", new Dictionary<string, string?> { ["EVENT"] = raid.EventId }),
-                nowUtc).Event);
+            notifications.Add(attackerNotification);
+            notifications.Add(defenderNotification);
         }
 
         return new RaidTimeoutProcessingResult(failedRaids, notifications, attackerLossEvents, offlineFailedRaids);
@@ -89,8 +87,19 @@ public static class RaidTimeoutProcessor
         return isAttackerOnline is not null && !isAttackerOnline(evt.Actor);
     }
 
-    private static LedgerAppendResult AppendTimeoutNotification(
-        IAuthoritativeEventLedger ledger,
+    public static IReadOnlyList<AuthoritativeEvent> PendingWork(IAuthoritativeEventLedger ledger) =>
+        ledger.ListByType(ServerEventType.Raid).Where(item => item.Status is not (ServerEventStatus.Cancelled or ServerEventStatus.RejectedByTarget)
+            && item.Payload is RaidEventPayload { TimeoutWork: { Completed: false } }).ToArray();
+
+    public static void CompleteWork(IAuthoritativeEventLedger ledger, string raidEventId)
+    {
+        var raid = ledger.Find(raidEventId);
+        if (raid?.Payload is not RaidEventPayload { TimeoutWork: { Completed: false } work } payload) return;
+        ledger.ApplyBatch(new LedgerBatch([], [new LedgerStatusChange(raid.EventId, raid.Status, raid.Status,
+            payload, payload with { TimeoutWork = work with { Completed = true } })]));
+    }
+
+    private static AuthoritativeEvent CreateTimeoutNotification(
         AuthoritativeEvent raid,
         EventParty target,
         string title,
@@ -117,6 +126,6 @@ public static class RaidTimeoutProcessor
             nowUtc,
             raid.TargetContext);
 
-        return ledger.Append(notification);
+        return notification;
     }
 }

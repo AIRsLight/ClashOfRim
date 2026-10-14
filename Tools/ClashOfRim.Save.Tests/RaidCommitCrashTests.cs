@@ -79,6 +79,10 @@ internal static class RaidCommitCrashTests
             {
                 ledger.MarkDelivered(raid.EventId, "settled", DateTimeOffset.UnixEpoch.AddHours(1));
                 ledger.MarkApplied(raid.EventId, "settled", DateTimeOffset.UnixEpoch.AddHours(1));
+                var advancedRaid = ledger.Find(raid.EventId)!;
+                ledger.ApplyBatch(new LedgerBatch([], [new LedgerStatusChange(advancedRaid.EventId, advancedRaid.Status, advancedRaid.Status,
+                    advancedRaid.Payload, ((RaidEventPayload)advancedRaid.Payload) with
+                        { TimeoutWork = new RaidTimeoutWork(DateTimeOffset.UnixEpoch.AddMinutes(30), true, Completed: true) })]));
                 if (notice is not null)
                 {
                     ledger.MarkDelivered(notice.EventId, "notified", DateTimeOffset.UnixEpoch.AddHours(1));
@@ -116,6 +120,7 @@ internal static class RaidCommitCrashTests
                 && guards.FindActiveForColony("userB", "colonyB")?.ContractId == (fault == 10 ? "replacement" : null),
                 "Raid recovery consumed a replacement or reopened the original guard.");
             if (fault == 10) Require(ledger.Find(raid.EventId)!.AppliedSnapshotId == "settled"
+                && ledger.Find(raid.EventId)!.Payload is RaidEventPayload { TimeoutWork.Completed: true }
                 && (notice is null || ledger.Find(notice.EventId)!.AppliedSnapshotId == "notified"), "Raid recovery reset later event application.");
         });
     }

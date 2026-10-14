@@ -1,7 +1,8 @@
 namespace AIRsLight.ClashOfRim.Events;
 
 /// <summary>Expected statuses prevent a stale trade settlement from closing a changed order.</summary>
-public sealed record LedgerStatusChange(string EventId, ServerEventStatus ExpectedStatus, ServerEventStatus Status);
+public sealed record LedgerStatusChange(string EventId, ServerEventStatus ExpectedStatus, ServerEventStatus Status,
+    LedgerEventPayload? ExpectedPayload = null, LedgerEventPayload? Payload = null);
 
 public sealed record LedgerApplicationChange(AuthoritativeEvent Expected, string DeliveredSnapshotId,
     string AppliedSnapshotId, DateTimeOffset AppliedAtUtc)
@@ -54,6 +55,10 @@ public static class LedgerBatchValidation
                 ?? throw new InvalidOperationException("Batch status target is missing.");
             if (current.Status != change.ExpectedStatus && !(alreadyCommitted && current.Status == change.Status))
                 throw new InvalidOperationException("Batch status target changed since preparation.");
+            if ((change.ExpectedPayload is null) != (change.Payload is null)
+                || change.ExpectedPayload is not null && !SamePayload(current.Payload, change.ExpectedPayload)
+                    && !(alreadyCommitted && SamePayload(current.Payload, change.Payload!)))
+                throw new InvalidOperationException("Batch payload target changed since preparation.");
         }
         foreach (LedgerApplicationChange change in batch.ApplicationChanges ?? [])
         {
@@ -68,4 +73,7 @@ public static class LedgerBatchValidation
 
     private static bool Same(AuthoritativeEvent? left, AuthoritativeEvent right) => left is not null
         && System.Text.Json.JsonSerializer.Serialize(left, LedgerJson.Options) == System.Text.Json.JsonSerializer.Serialize(right, LedgerJson.Options);
+
+    private static bool SamePayload(LedgerEventPayload left, LedgerEventPayload right) =>
+        System.Text.Json.JsonSerializer.Serialize(left, LedgerJson.Options) == System.Text.Json.JsonSerializer.Serialize(right, LedgerJson.Options);
 }

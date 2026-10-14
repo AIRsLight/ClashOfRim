@@ -14,7 +14,7 @@ public sealed record RaidSnapshotMutation(AuthoritativeEvent Raid, MercenaryGuar
             || Raid.Payload is not RaidEventPayload { OpponentKind: RaidOpponentKind.Player, AttackForce: not null } payload
             || payload.AttackForce.AttackerSnapshotId != identity.SnapshotId || payload.StartedAtUtc != Raid.CreatedAtUtc
             || payload.ReturnedSnapshotId is not null || payload.Settlement is not null || payload.FinishedAtUtc is not null
-            || payload.AttackerLoss is not null || string.IsNullOrWhiteSpace(Raid.Target.ColonyId)
+            || payload.AttackerLoss is not null || payload.TimeoutWork is not null || string.IsNullOrWhiteSpace(Raid.Target.ColonyId)
             || (Guard is null) != (GuardNotification is null) || payload.GuardDeploymentId != Guard?.ContractId)
             throw new InvalidDataException("Raid intent does not match its confirmed snapshot.");
         if (Guard is { } guard && (guard.Status != MercenaryGuardContractRegistry.StatusActive
@@ -64,7 +64,7 @@ public sealed record RaidSnapshotMutation(AuthoritativeEvent Raid, MercenaryGuar
         // Settlement and delivery can advance after publication. Recovery must preserve them.
         if (payload is RaidEventPayload raid && expected.Payload is RaidEventPayload original)
             payload = raid with { ReturnedSnapshotId = original.ReturnedSnapshotId, FinishedAtUtc = original.FinishedAtUtc,
-                Settlement = original.Settlement, AttackerLoss = original.AttackerLoss };
+                Settlement = original.Settlement, AttackerLoss = original.AttackerLoss, TimeoutWork = original.TimeoutWork };
         return JsonSerializer.Serialize(payload) == JsonSerializer.Serialize(expected.Payload);
     }
 }

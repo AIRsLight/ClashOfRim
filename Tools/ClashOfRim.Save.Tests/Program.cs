@@ -4573,6 +4573,7 @@ static void VerifyRaidAttackerSnapshotCleanupOnlyRemovesRaidBattleMap()
 
     DownloadCleanupBaselineTests.Run(original);
     RaidCleanupCommitTests.Run(original);
+    RaidTimeoutRecoveryTests.Run(original);
     bool cleaned = RaidAttackerSnapshotCleanupEditor.TryRemoveRaidBattleState(
         original,
         "attacker-after-timeout-cleanup",

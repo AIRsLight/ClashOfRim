@@ -197,8 +197,22 @@ internal sealed class SnapshotPostUploadBackgroundService : BackgroundService
                 }
             }
 
+            DateTimeOffset nextTimeoutRecovery = DateTimeOffset.MinValue;
             while (!stoppingToken.IsCancellationRequested)
             {
+                if (DateTimeOffset.UtcNow >= nextTimeoutRecovery)
+                {
+                    nextTimeoutRecovery = DateTimeOffset.UtcNow.AddSeconds(5);
+                    try
+                    {
+                        if (Events.RaidTimeoutProcessor.PendingWork(state.Ledger).Count > 0)
+                            ClashOfRimNetworkServer.RecoverPendingRaidTimeoutWork(state, DateTimeOffset.UtcNow);
+                    }
+                    catch (Exception ex)
+                    {
+                        state.RuntimeLogger.LogWarning(ex, "Pending raid timeout recovery failed; retry marker retained.");
+                    }
+                }
                 int completed = SnapshotPostUploadJobExecutor.ProcessReady(
                     state,
                     processors.Resolve(),

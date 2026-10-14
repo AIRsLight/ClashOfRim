@@ -49,6 +49,11 @@ public sealed class SqliteAuthoritativeEventLedger : IAuthoritativeEventLedger
             using SqliteCommand command = connection.CreateCommand();
             command.Transaction = transaction;
             command.CommandText = "update events set status = $status where event_id = $id;";
+            if (change.Payload is not null)
+            {
+                command.CommandText = "update events set status = $status, payload_json = $payload where event_id = $id;";
+                command.Parameters.AddWithValue("$payload", JsonSerializer.Serialize(change.Payload, LedgerJson.Options));
+            }
             command.Parameters.AddWithValue("$status", change.Status.ToString());
             command.Parameters.AddWithValue("$id", change.EventId);
             command.ExecuteNonQuery();
