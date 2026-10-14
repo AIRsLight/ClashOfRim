@@ -14,6 +14,7 @@ public sealed class InMemoryAuthoritativeEventLedger : IAuthoritativeEventLedger
 
             if (eventIdByIdempotencyKey.TryGetValue(ledgerEvent.IdempotencyKey, out string? existingEventId))
             {
+                LedgerEventIdentity.ValidateReplay(eventsById[existingEventId], ledgerEvent);
                 return new LedgerAppendResult(eventsById[existingEventId], Created: false);
             }
 

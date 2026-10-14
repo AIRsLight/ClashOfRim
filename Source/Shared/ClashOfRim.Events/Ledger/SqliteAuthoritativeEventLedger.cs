@@ -93,6 +93,7 @@ public sealed class SqliteAuthoritativeEventLedger : IAuthoritativeEventLedger
         AuthoritativeEvent? existing = FindByIdempotencyKey(connection, transaction, ledgerEvent.IdempotencyKey);
         if (existing is not null)
         {
+            LedgerEventIdentity.ValidateReplay(existing, ledgerEvent);
             return new LedgerAppendResult(existing, Created: false);
         }
 

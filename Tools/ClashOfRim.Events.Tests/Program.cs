@@ -9,6 +9,7 @@ LoadServerLocalizationForTests();
 var tests = new (string Name, Action Run)[]
 {
     ("账本批量提交原子回滚、重试与并发互斥", LedgerBatchTests.Run),
+    ("账本追加绑定完整身份且持久化失败不污染索引", LedgerAppendIdentityTests.Run),
     ("幂等键阻止重复事件", VerifyIdempotentAppend),
     ("在线和离线事件进入同一账本", VerifyOnlineAndOfflineDelivery),
     ("袭击账本保存结算明细", VerifyRaidSettlementLedgerRecord),
@@ -98,10 +99,7 @@ static void VerifyIdempotentAppend()
 {
     var ledger = new InMemoryAuthoritativeEventLedger();
     AuthoritativeEvent first = GiftEvent("gift-001", targetOnline: false);
-    AuthoritativeEvent duplicate = GiftEvent("gift-001", targetOnline: false) with
-    {
-        EventId = "gift:manually-changed-id"
-    };
+    AuthoritativeEvent duplicate = GiftEvent("gift-001", targetOnline: false);
 
     LedgerAppendResult firstResult = ledger.Append(first);
     LedgerAppendResult duplicateResult = ledger.Append(duplicate);
@@ -2982,10 +2980,7 @@ static void VerifyFileLedgerPersistence()
     var reopenedWithNotice = new FileAuthoritativeEventLedger(path);
     Require(reopenedWithNotice.Find(notice.EventId)!.Payload is ServerNotificationEventPayload, "服务器通知载荷类型应恢复");
 
-    LedgerAppendResult duplicate = reopened.Append(GiftEvent("persist-offline", targetOnline: false) with
-    {
-        EventId = "gift:changed-after-reopen"
-    });
+    LedgerAppendResult duplicate = reopened.Append(GiftEvent("persist-offline", targetOnline: false));
     Require(!duplicate.Created, "重启后幂等键仍应阻止重复事件");
     Equal(older.EventId, duplicate.Event.EventId, "重启后重复提交应返回原事件");
 }
@@ -3043,10 +3038,7 @@ static void VerifySqliteLedgerPersistence()
     Equal(EventLandingMode.StorageZone, reopened.Find(oldest.EventId)!.TargetContext!.LandingMode, "SQLite 落点策略应恢复");
     Require(reopened.Find(oldest.EventId)!.Payload is ItemDeliveryEventPayload, "SQLite 载荷类型应恢复");
 
-    LedgerAppendResult duplicate = reopened.Append(GiftEvent("sqlite-pending-oldest", targetOnline: false) with
-    {
-        EventId = "gift:sqlite-changed-after-reopen"
-    });
+    LedgerAppendResult duplicate = reopened.Append(GiftEvent("sqlite-pending-oldest", targetOnline: false));
     Require(!duplicate.Created, "SQLite 重启后幂等键仍应阻止重复事件");
     Equal(oldest.EventId, duplicate.Event.EventId, "SQLite 重启后重复提交应返回原事件");
 

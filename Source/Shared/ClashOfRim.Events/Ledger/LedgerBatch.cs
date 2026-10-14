@@ -54,8 +54,7 @@ public static class LedgerBatchValidation
             AuthoritativeEvent? byKey = findByKey(item.IdempotencyKey);
             alreadyCommitted &= byId is not null;
             if ((byId is null) != (byKey is null) || byId is not null &&
-                (byKey!.EventId != item.EventId || byId.IdempotencyKey != item.IdempotencyKey
-                || byId.Actor != item.Actor || byId.Target != item.Target || byId.Type != item.Type
+                (byKey!.EventId != item.EventId || !LedgerEventIdentity.Matches(byId, item)
                 || System.Text.Json.JsonSerializer.Serialize(byId.Payload, LedgerJson.Options)
                     != System.Text.Json.JsonSerializer.Serialize(item.Payload, LedgerJson.Options)))
                 throw new InvalidOperationException("Batch event conflicts with an existing event.");

@@ -27,6 +27,7 @@ public sealed class FileAuthoritativeEventLedger : IAuthoritativeEventLedger
 
             if (eventIdByIdempotencyKey.TryGetValue(ledgerEvent.IdempotencyKey, out string? existingEventId))
             {
+                LedgerEventIdentity.ValidateReplay(eventsById[existingEventId], ledgerEvent);
                 return new LedgerAppendResult(eventsById[existingEventId], Created: false);
             }
 
@@ -35,9 +36,10 @@ public sealed class FileAuthoritativeEventLedger : IAuthoritativeEventLedger
                 throw new InvalidOperationException($"Event id already exists: {ledgerEvent.EventId}");
             }
 
+            // Publish both indexes only after the complete candidate file was atomically persisted.
+            Save(eventsById.Values.Append(ledgerEvent));
             eventsById.Add(ledgerEvent.EventId, ledgerEvent);
             eventIdByIdempotencyKey.Add(ledgerEvent.IdempotencyKey, ledgerEvent.EventId);
-            Save();
             return new LedgerAppendResult(ledgerEvent, Created: true);
         }
     }

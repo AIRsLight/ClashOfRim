@@ -2,6 +2,10 @@ namespace AIRsLight.ClashOfRim.Events;
 
 public interface IAuthoritativeEventLedger
 {
+    /// <summary>
+    /// Appends atomically, or returns the original event when key, ID, type and parties match.
+    /// Replay retains the stored payload and lifecycle; callers must validate business-request equivalence.
+    /// </summary>
     LedgerAppendResult Append(AuthoritativeEvent ledgerEvent);
 
     /// <summary>Atomically applies the whole batch; replay preserves the lifecycle of existing events.</summary>
