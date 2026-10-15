@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.ThirdPartyCompatibility;
 using AIRsLight.ClashOfRim.WorldObjects;
 using RimWorld;
@@ -103,6 +102,11 @@ public sealed class RemoteGiftTransportersArrivalAction : TransportersArrivalAct
             return FloatMenuAcceptanceReport.WithFailReason(ClashOfRimText.Key("ClashOfRim.GiftDelivery.StatusTargetIncomplete"));
         }
 
+        ClashOfRimMod mod = LoadedModManager.GetMod<ClashOfRimMod>();
+        if (!mod.GiftsEnabled || forcedDelivery && !mod.PvpEnabled)
+            return FloatMenuAcceptanceReport.WithFailReason(ClashOfRimText.Key(!mod.GiftsEnabled
+                ? "ClashOfRim.GiftDelivery.Disabled" : "ClashOfRim.Raid.PvpDisabled"));
+
         return GiftTransporterPayloadUtility.CanSend(
             pods,
             forcedDelivery ? ThingReferenceSurfaces.ForcedDelivery : ThingReferenceSurfaces.Gift);
@@ -127,13 +131,6 @@ public sealed class RemoteGiftTransportersArrivalAction : TransportersArrivalAct
         }
 
         ClashOfRimMod mod = LoadedModManager.GetMod<ClashOfRimMod>();
-        IReadOnlyList<ModThingReferenceDto> things = GiftTransporterPayloadUtility.BuildReferences(
-            transporters,
-            mod.UserId,
-            mod.ColonyId,
-            mod.CurrentSnapshotId,
-            transporterKey,
-            forcedDelivery);
         mod.StartCreateGiftFromTransportPods(
             transporterKey,
             targetUserId,
@@ -143,7 +140,7 @@ public sealed class RemoteGiftTransportersArrivalAction : TransportersArrivalAct
             targetWorldObjectId,
             tile,
             targetLabel,
-            things,
+            transporters,
             forcedDelivery);
     }
 

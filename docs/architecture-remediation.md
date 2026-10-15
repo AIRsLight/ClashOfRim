@@ -543,3 +543,14 @@
 - `TradeFailureGraphTests` 覆盖三种账本下 18 个自提/有备忘空投/直接空投及新旧返还场景、162 个首次/重试损坏关联场景、缺失重试返还、已消费记录和取消回执保留；另实际执行三种 multipart 快照履约后再报告失败。既有失败报告的 SQL 插入/更新、文件替换、提交后中断重开、并发与源记录变更测试继续执行。旧自提测试夹具改为实际的单侧交付，入档夹具补齐成功元数据，未放宽真实校验来适应不完整合成记录。
 - 负向日志：`LocalOnly/trade-failure-negative-receipt.log`、`LocalOnly/trade-failure-negative-consumed.log`、`LocalOnly/trade-failure-negative-graph.log`、`LocalOnly/trade-failure-negative-prefix.log`；定向日志 `LocalOnly/trade-failure-targeted.log`。本步不重新计算历史价格规则，不为证据不完整的历史记录补造付款事实。数据库仍为版本 26。后续继续无快照经济写入口及其实际调用方迁移，再推进锁范围、真实服务职责和 DTO 收敛。
 - 验证：默认完整回归通过（Events 全部、Save 110、Client.Core 5 组及完整 NetworkSmoke），HTTP 失败重试保持完整账本且再次唤醒接收者，日志 `LocalOnly/trade-failure-regression.log`。补充旧无交付交换的重复失败断言后，两个失败报告测试组复测通过，日志 `LocalOnly/trade-failure-final-targeted.log`。77 个 1.6 冻结文件与差异格式检查通过；本步没有新增 RimTest 交付失败实机场景，multipart 与故障注入测试不作为该场景的实机证据。
+
+## 续修：运输舱赠送迁移至快照事务
+
+- 运输舱到达原先直接调用无快照的 JSON 礼物入口，发送方货物移除没有与服务端礼物共同提交。现改为复用商队赠送的 `StartSubmitRemovedGift` 流程：打包货物移除后的快照，通过认证的 multipart 礼物入口提交，成功后更新本地 lineage；失败保留未确认事务和重试窗口，提交重试沿用原快照、载荷和幂等键。普通赠送与强制投递共用该路径。
+- 不能在到达回调中立即保存游戏。本机 1.7.4979 rev109 的 `Assembly-CSharp.dll`（SHA256 `a97a01c4319414414c0ca39f3565215e83300dc608dc94b69a27720095b4e751`）静态 IL 显示：引擎先设置 arrived 标记并调用到达动作，回调返回后才清空运输舱列表并销毁世界对象。到达动作同步占用本地变更边界、复制货物容器引用，主线程下一次处理队列时再提取物品和打包快照。准备失败保留容器供重试，不把引擎随后清空的原列表用于延迟读取。
+- 新增 `RemoteGiftArrivalGuard`，在引擎设置 arrived 标记之前阻止与快照上传、手动同步或未确认本地变更重叠的赠送到达；未配置/缺少当前快照时也暂缓。忙碌期间保留航程及货物，之后可以重试。其他到达动作继续执行；赠送/PVP 功能关闭由有效性检查交回原引擎回退策略。
+- `TransportPodGiftTests.Run` 用真正的网络客户端检查普通/强制两种 multipart 请求的认证、落点、快照用途及 lineage，模拟一次 503 后确认重试正文和载荷不变。此测试只验证传输契约，不声称模拟了游戏内断网重试窗口或进程崩溃恢复。
+- `TransportPodGiftTests.StartInGame` 是仅供隔离游戏主线程调用的显式测试夹具：创建 5 木材的运输舱，依次置入三种忙碌标记并调用真实已打补丁的引擎到达方法，确认到达标记未消费、世界对象与货物保留；恢复空闲后确认先占用事务、引擎随后完成清理。临时 RimTest 命令 `clash.test.transport-gift` 调用该夹具，测试端检查服务端快照确实不含原运输舱/木材、礼物物品绑定新快照，并让 B 接收后核对物资准确增加 5。此场景属于合成货物 + 真实到达/提交/接收，不覆盖运输舱发射 UI。
+- RimTest 两客户端共 20 项通过（既有 19 项及新增 `transport-pod-gift-snapshot`），包括运行时错误检查；报告 `G:/RimTestRuns/ClashOfRim/20261015-165417-f91d8245/report.json`，日志 `LocalOnly/pod-gift-rimtest.log`。临时桥接/测试编排由 `LocalOnly/Run-PodGiftProbe.ps1` 注入并在 finally 恢复原文件，未把已有未提交的框架改动混入本步；两份测试进程均已退出。报告仍为有限覆盖，未增加真实强制投递、断网重试或崩溃重启的实机场景。
+- 当前 Mod 已没有 `CreateGiftAsync`、`CreateTradeOrderAsync`、`FulfillTradeOrderAsync` 的实际调用，只剩方法声明；服务端旧 JSON 路由和相关网络测试尚未退役。下一步迁移仍依赖旧路由的测试夹具，再关闭无快照经济写入口，不能以本次调用方迁移认定所有旁路已经消除。之后继续业务锁范围、真实服务职责与 DTO 收敛。数据库仍为版本 26，1.6 冻结不变。
+- 验证：完整 `Test-Regression.ps1 -IncludeClient` 通过（Events 全部、Save 110、Client.Core 5 组、完整 NetworkSmoke、客户端 27 项），日志 `LocalOnly/pod-gift-regression.log`；客户端 Mod 构建通过，日志 `LocalOnly/pod-gift-build.log`。77 个 1.6 冻结文件及差异格式检查通过。本步未改变持久化格式。

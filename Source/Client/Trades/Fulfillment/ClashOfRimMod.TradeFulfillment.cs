@@ -383,10 +383,10 @@ public sealed partial class ClashOfRimMod
             LandingMode = "MapEdge"
         };
         string idempotencyKey = $"gift-caravan:{settings.UserId}:{settings.CurrentSnapshotId}:{caravan.GetUniqueLoadID()}:{target.OwnerUserId}:{target.OwnerColonyId}:{DateTime.UtcNow.Ticks}";
-        StartSubmitRemovedCaravanGift(target, things, targetContext, forcedDelivery, message, idempotencyKey, removeMessage);
+        StartSubmitRemovedGift(target, things, targetContext, forcedDelivery, message, idempotencyKey, removeMessage);
     }
 
-    private void StartSubmitRemovedCaravanGift(
+    private void StartSubmitRemovedGift(
         ModWorldMapMarkerDto target,
         IReadOnlyList<ModThingReferenceDto> things,
         ModEventTargetContextDto targetContext,
@@ -414,11 +414,11 @@ public sealed partial class ClashOfRimMod
             ShowUnconfirmedSnapshotFailure(
                 operation,
                 giftProcessingStatus,
-                () => StartSubmitRemovedCaravanGift(target, things, targetContext, forcedDelivery, message, idempotencyKey, removeMessage));
+                () => StartSubmitRemovedGift(target, things, targetContext, forcedDelivery, message, idempotencyKey, removeMessage));
             return;
         }
 
-        StartSubmitRemovedCaravanGiftWithSnapshot(
+        StartSubmitRemovedGiftWithSnapshot(
             target,
             things,
             targetContext,
@@ -430,7 +430,7 @@ public sealed partial class ClashOfRimMod
             build.Payload!);
     }
 
-    private void StartSubmitRemovedCaravanGiftWithSnapshot(
+    private void StartSubmitRemovedGiftWithSnapshot(
         ModWorldMapMarkerDto target,
         IReadOnlyList<ModThingReferenceDto> things,
         ModEventTargetContextDto targetContext,
@@ -486,7 +486,7 @@ public sealed partial class ClashOfRimMod
                     ShowUnconfirmedSnapshotFailure(
                         operation,
                         giftProcessingStatus,
-                        () => StartSubmitRemovedCaravanGiftWithSnapshot(target, things, targetContext, forcedDelivery, message, idempotencyKey, removeMessage, confirmedSnapshot, confirmedPayload));
+                        () => StartSubmitRemovedGiftWithSnapshot(target, things, targetContext, forcedDelivery, message, idempotencyKey, removeMessage, confirmedSnapshot, confirmedPayload));
                     return;
                 }
 
@@ -497,7 +497,7 @@ public sealed partial class ClashOfRimMod
                     ShowUnconfirmedSnapshotFailure(
                         operation,
                         giftProcessingStatus,
-                        () => StartSubmitRemovedCaravanGiftWithSnapshot(target, things, targetContext, forcedDelivery, message, idempotencyKey, removeMessage, confirmedSnapshot, confirmedPayload));
+                        () => StartSubmitRemovedGiftWithSnapshot(target, things, targetContext, forcedDelivery, message, idempotencyKey, removeMessage, confirmedSnapshot, confirmedPayload));
                     return;
                 }
 
@@ -526,8 +526,8 @@ public sealed partial class ClashOfRimMod
                 ShowUnconfirmedSnapshotFailure(
                     operation,
                     giftProcessingStatus,
-                    () => StartSubmitRemovedCaravanGiftWithSnapshot(target, things, targetContext, forcedDelivery, message, idempotencyKey, removeMessage, confirmedSnapshot, confirmedPayload));
-                Log.Warning("[ClashOfRim] Caravan gift delivery failed: " + ex);
+                    () => StartSubmitRemovedGiftWithSnapshot(target, things, targetContext, forcedDelivery, message, idempotencyKey, removeMessage, confirmedSnapshot, confirmedPayload));
+                Log.Warning("[ClashOfRim] Gift delivery failed: " + ex);
             }
             finally
             {
@@ -548,7 +548,7 @@ public sealed partial class ClashOfRimMod
         string targetWorldObjectId,
         PlanetTile targetTile,
         string targetLabel,
-        IReadOnlyList<ModThingReferenceDto> things,
+        IReadOnlyList<ActiveTransporterInfo> transporters,
         bool forcedDelivery)
     {
         if (!giftsEnabled)
@@ -579,7 +579,7 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
-        if (things.Count == 0)
+        if (transporters.Count == 0)
         {
             giftProcessingStatus = ClashOfRimText.Key("ClashOfRim.GiftDelivery.StatusNoSelectedItems");
             return;
@@ -593,61 +593,37 @@ public sealed partial class ClashOfRimMod
             LandingMode = "DropPod"
         };
         string idempotencyKey = $"gift-transport-pods:{settings.UserId}:{settings.CurrentSnapshotId}:{transporterKey}";
-        manualSyncInProgress = true;
-        giftProcessingStatus = ClashOfRimText.Key(
-            forcedDelivery ? "ClashOfRim.GiftDelivery.StatusSubmittingForced" : "ClashOfRim.GiftDelivery.StatusSubmittingNormal",
-            (string.IsNullOrWhiteSpace(targetLabel) ? targetUserId : targetLabel).Named("TARGET"));
-        ClientSessionWork.Run(async () =>
+        var target = new ModWorldMapMarkerDto
+        {
+            OwnerUserId = targetUserId, OwnerColonyId = targetColonyId, SnapshotId = targetSnapshotId,
+            MapId = targetMapId, WorldObjectId = targetWorldObjectId, Tile = targetTile, Label = targetLabel
+        };
+        // The engine clears its list immediately after Arrived returns. Keep the holders for capture/retry,
+        // but only serialize the game after the travelling world object has been removed.
+        var cargo = transporters.ToArray();
+        string sourceUser = settings.UserId, sourceColony = settings.ColonyId, sourceSnapshot = settings.CurrentSnapshotId;
+        string operation = ClashOfRimText.Key("ClashOfRim.GiftDelivery.OperationSend");
+        BeginLocalAtomicMutation(operation, ClashOfRimText.Key("ClashOfRim.GiftDelivery.StatusPackagingSnapshot"));
+        void PrepareAfterArrival()
         {
             try
             {
-                using var httpClient = new HttpClient();
-                var client = new ClashOfRimModNetworkClient(
-                    httpClient,
-                    ClashOfRimClientNetworkContext.FromSettings(settings));
-                ClashOfRimClientNetworkResult<ModEventCreationResponseDto> result = await ClientSessionWork.Observe(client.CreateGiftAsync(
-                    idempotencyKey,
-                    targetUserId,
-                    targetColonyId,
-                    null,
-                    things,
-                    null,
-                    targetContext,
-                    forcedDelivery ? "Forced" : null));
-
-                if (!result.Success || result.Response is null)
-                {
-                    giftProcessingStatus = ClashOfRimText.Key("ClashOfRim.GiftDelivery.StatusCreateFailed", result.ErrorCode.Named("CODE"), result.Message.Named("MESSAGE"));
-                    return;
-                }
-
-                ModProtocolResponseDto? response = result.Response.Result;
-                if (response is not null && !response.Accepted)
-                {
-                    giftProcessingStatus = ClashOfRimText.Key("ClashOfRim.GiftDelivery.StatusCreateRejected", response.ErrorCode.Named("CODE"), response.Message.Named("MESSAGE"));
-                    return;
-                }
-
-                giftProcessingStatus = ClashOfRimText.Key(
-                    forcedDelivery ? "ClashOfRim.GiftDelivery.StatusForcedDropPodCreated" : "ClashOfRim.GiftDelivery.StatusDropPodCreated",
-                    (result.Response.EventId ?? string.Empty).Named("EVENTID"));
-                StartAutomaticEventRefresh(ClashOfRimText.Key("ClashOfRim.GiftDelivery.ReasonTransportPodGift"));
+                var things = GiftTransporterPayloadUtility.BuildReferences(cargo, sourceUser, sourceColony, sourceSnapshot, transporterKey, forcedDelivery);
+                StartSubmitRemovedGift(target, things, targetContext, forcedDelivery, null, idempotencyKey,
+                    ClashOfRimText.Key("ClashOfRim.GiftDelivery.ReasonTransportPodGift"));
             }
             catch (Exception ex)
-            when (ClientSessionWork.IsCurrent)
             {
                 giftProcessingStatus = ClashOfRimText.Key("ClashOfRim.GiftDelivery.StatusCreateException", ex.GetType().Name.Named("TYPE"), ex.Message.Named("MESSAGE"));
-                Log.Warning("[ClashOfRim] Gift transport-pod delivery failed: " + ex);
+                ShowUnconfirmedSnapshotFailure(operation, giftProcessingStatus, PrepareAfterArrival);
+                Log.Warning("[ClashOfRim] Transport-pod gift preparation failed: " + ex);
             }
-            finally
-            {
-                if (ClientSessionWork.IsCurrent)
-                {
-                    manualSyncInProgress = false;
-                }
-            }
-        });
+        }
+        ClashOfRimGameComponent.EnqueueMainThreadAction(PrepareAfterArrival);
     }
+
+    internal bool CanStartTransportPodGiftArrival() => !SnapshotUploadInProgress && !ManualSyncInProgress
+        && !LocalAtomicMutationPending && CanRunManualSync(out _);
 
     internal void OpenCaravanTradeFulfillmentMenu(
         Caravan caravan,
