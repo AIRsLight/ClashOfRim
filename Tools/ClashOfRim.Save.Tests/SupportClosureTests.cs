@@ -8,7 +8,7 @@ using AIRsLight.ClashOfRim.Save;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Data.Sqlite;
 
-internal static class SupportClosureTests
+internal static partial class SupportClosureTests
 {
     private const string PawnKey = "owner:owner/colony:home/pawn:Pawn_1";
     private static readonly DateTimeOffset OriginalTime = DateTimeOffset.UnixEpoch.AddDays(2);
@@ -18,6 +18,7 @@ internal static class SupportClosureTests
     public static void Run(Func<string, SaveSnapshotPackage> fixture)
     {
         SnapshotEndpointTestClient.LoadLocalization();
+        RunRecoveryPreparation(fixture);
         foreach (string kind in Kinds)
         {
             foreach (bool reopen in new[] { false, true })

@@ -6,6 +6,12 @@ namespace AIRsLight.ClashOfRim.Network;
 
 public static partial class ClashOfRimNetworkServer
 {
+    private static RecoveredSnapshotMutation EnterColonySnapshotMutation(ClashOfRimNetworkState state,
+        string? token, string userId, string colonyId, [System.Runtime.CompilerServices.CallerMemberName] string operation = "")
+        => EnterRecoveredSnapshotMutation(state, () => IsAuthorizedForColony(state, token, userId, colonyId,
+            null, null, DateTimeOffset.UtcNow, out string failure)
+                ? null : ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, failure), operation);
+
     private static RecoveredSnapshotMutation EnterPrincipalSnapshotMutation(HttpRequest http, ClashOfRimNetworkState state,
         ProtocolIdentity principal, [System.Runtime.CompilerServices.CallerMemberName] string operation = "")
         => EnterRecoveredSnapshotMutation(state, () => ReauthorizeSnapshotPrincipal(http, state, principal)

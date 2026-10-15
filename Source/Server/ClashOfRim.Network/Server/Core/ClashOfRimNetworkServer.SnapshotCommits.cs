@@ -31,7 +31,8 @@ public static partial class ClashOfRimNetworkServer
                 if (preparation is null || !preparation.NeedsPreparation)
                 {
                     RecoverSnapshotCommitRecords(state);
-                    return new(scope, null);
+                    // Recovery itself can revoke a session or change event-based authorization.
+                    return new(scope, authorize?.Invoke());
                 }
             }
             catch { scope.Dispose(); throw; }
@@ -52,7 +53,7 @@ public static partial class ClashOfRimNetworkServer
                     if (preparation.TryInstall())
                     {
                         RecoverSnapshotCommitRecords(state);
-                        return new(scope, null);
+                        return new(scope, authorize?.Invoke());
                     }
                 }
             }
