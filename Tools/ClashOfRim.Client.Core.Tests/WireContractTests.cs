@@ -47,6 +47,18 @@ internal static class WireContractTests
         {
             EventId = "legacy-gift", UserId = "玩家", ColonyId = "colony", CurrentSnapshotId = "snapshot", AuthToken = null
         });
+        foreach (string? token in new[] { null, "support-token" })
+        {
+            RoundTrip<ModRejectSupportPawnRequestDto, RejectSupportPawnRequest>(new()
+            {
+                EventId = "support", UserId = "玩家", ColonyId = "colony", CurrentSnapshotId = "base", Reason = "拒绝", AuthToken = token
+            });
+            RoundTrip<ModFinishSupportPawnRequestDto, FinishSupportPawnRequest>(new()
+            {
+                IdempotencyKey = "finish", EventId = "support", UserId = "玩家", ColonyId = "colony", CurrentSnapshotId = "base",
+                FinishReason = "Expired", PawnGlobalKey = "owner:player/pawn:1", PawnName = "支援者", PawnDead = true, PawnPackage = null, AuthToken = token
+            });
+        }
         var response = new ListChatMessagesResponse(ProtocolResponse.Ok(),
             new[] { new ChatMessageDto(42, "message", "private", "玩家", "colony", null, "你好", DateTimeOffset.UnixEpoch) }, 42);
         byte[] serverBytes = JsonSerializer.SerializeToUtf8Bytes(response, ServerJson);

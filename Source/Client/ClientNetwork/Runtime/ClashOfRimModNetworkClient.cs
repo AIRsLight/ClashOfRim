@@ -1498,6 +1498,7 @@ public sealed class ClashOfRimModNetworkClient
         var request = new ModRejectSupportPawnRequestDto
         {
             EventId = eventId,
+            AuthToken = context.AuthToken,
             UserId = context.UserId,
             ColonyId = context.ColonyId,
             CurrentSnapshotId = context.CurrentSnapshotId ?? string.Empty,
@@ -1529,6 +1530,7 @@ public sealed class ClashOfRimModNetworkClient
         {
             IdempotencyKey = idempotencyKey,
             EventId = eventId,
+            AuthToken = context.AuthToken,
             UserId = context.UserId,
             ColonyId = context.ColonyId,
             CurrentSnapshotId = context.CurrentSnapshotId ?? string.Empty,

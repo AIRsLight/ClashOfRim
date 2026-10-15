@@ -856,6 +856,10 @@ public static partial class ClashOfRimNetworkServer
 
     private static IResult FinishSupportPawn(FinishSupportPawnRequest request, ClashOfRimNetworkState state)
     {
+        if (!IsAuthorizedForColony(state, request.AuthToken, request.UserId, request.ColonyId,
+                authorizationEventId: null, authorizationScope: null, DateTimeOffset.UtcNow, out string failure))
+            return Results.Ok(new FinishSupportPawnResponse(
+                ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, failure), request.EventId, null, null, false));
         using (state.EnterSnapshotMutation())
         {
             RecoverSnapshotCommits(state);
@@ -945,6 +949,10 @@ public static partial class ClashOfRimNetworkServer
     }
     private static IResult RejectSupportPawn(RejectSupportPawnRequest request, ClashOfRimNetworkState state)
     {
+        if (!IsAuthorizedForColony(state, request.AuthToken, request.UserId, request.ColonyId,
+                authorizationEventId: null, authorizationScope: null, DateTimeOffset.UtcNow, out string failure))
+            return Results.Ok(new RejectSupportPawnResponse(
+                ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, failure), request.EventId, null, false));
         using (state.EnterSnapshotMutation())
         {
             RecoverSnapshotCommits(state);

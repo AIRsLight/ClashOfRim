@@ -167,6 +167,9 @@ public sealed class ModRejectGiftResponseDto
 [DataContract]
 public sealed class ModRejectSupportPawnRequestDto
 {
+    [DataMember(Name = "authToken")]
+    public string? AuthToken { get; set; }
+
     [DataMember(Name = "eventId")]
     public string EventId { get; set; } = string.Empty;
 
@@ -202,6 +205,9 @@ public sealed class ModRejectSupportPawnResponseDto
 [DataContract]
 public sealed class ModFinishSupportPawnRequestDto
 {
+    [DataMember(Name = "authToken")]
+    public string? AuthToken { get; set; }
+
     [DataMember(Name = "idempotencyKey")]
     public string IdempotencyKey { get; set; } = string.Empty;
 

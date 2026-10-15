@@ -13,6 +13,7 @@ internal static class SupportClosureTests
     private const string PawnKey = "owner:owner/colony:home/pawn:Pawn_1";
     private static readonly DateTimeOffset OriginalTime = DateTimeOffset.UnixEpoch.AddDays(2);
     private static readonly string[] Kinds = ["return", "loss", "reject"];
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ClashOfRimNetworkState, Dictionary<string, string>> Tokens = new();
 
     public static void Run(Func<string, SaveSnapshotPackage> fixture)
     {
@@ -29,6 +30,7 @@ internal static class SupportClosureTests
             StaleSource(kind);
         }
         Guards();
+        AuthenticationGuards();
         ConflictingReturns();
         ConcurrentFinish();
         OtherClosureProducers(fixture);
@@ -328,22 +330,66 @@ internal static class SupportClosureTests
     }
 
     private static FinishSupportPawnRequest Request(string kind, string reason = "original", string user = "userA",
-        string pawnKey = PawnKey, string packageKey = PawnKey, string eventId = "source") =>
+        string pawnKey = PawnKey, string packageKey = PawnKey, string eventId = "source", string? token = null) =>
         new("request-" + reason, eventId, user, "colonyA", "current", reason, pawnKey, "Ally", kind == "loss",
-            kind == "loss" ? null : Invoke<PawnExchangePackageDto>("ToPawnExchangePackageDto", Package(packageKey)));
+            kind == "loss" ? null : Invoke<PawnExchangePackageDto>("ToPawnExchangePackageDto", Package(packageKey)), token);
 
     private static (bool Accepted, bool Created, string? ReturnId) Call(ClashOfRimNetworkState state, string kind,
-        string reason = "original", string user = "userA", string pawnKey = PawnKey, string packageKey = PawnKey, string eventId = "source")
+        string reason = "original", string user = "userA", string pawnKey = PawnKey, string packageKey = PawnKey, string eventId = "source",
+        string? token = null, bool authenticate = true)
     {
+        if (authenticate) token = Token(state, user);
         if (kind == "reject")
         {
             var response = (RejectSupportPawnResponse)Invoke<IValueHttpResult>("RejectSupportPawn",
-                new RejectSupportPawnRequest(eventId, user, "colonyA", "current", reason), state).Value!;
+                new RejectSupportPawnRequest(eventId, user, "colonyA", "current", reason, token), state).Value!;
             return (response.Result.Accepted, response.ReturnEventCreated, response.ReturnEventId);
         }
         var finish = (FinishSupportPawnResponse)Invoke<IValueHttpResult>("FinishSupportPawn",
-            Request(kind, reason, user, pawnKey, packageKey, eventId), state).Value!;
+            Request(kind, reason, user, pawnKey, packageKey, eventId, token), state).Value!;
         return (finish.Result.Accepted, finish.Created, finish.ReturnEventId);
+    }
+
+    private static string Token(ClashOfRimNetworkState state, string user, string colony = "colonyA")
+    {
+        var tokens = Tokens.GetOrCreateValue(state);
+        lock (tokens)
+        {
+            string key = user + "/" + colony;
+            if (tokens.TryGetValue(key, out var token)) return token;
+            var now = DateTimeOffset.UtcNow;
+            Require(state.LoginSessions.TryCreate(user, colony, now, out var session), "cannot create test session");
+            return tokens[key] = state.AuthTokens.Issue(user, user, colony, session, now);
+        }
+    }
+
+    private static void AuthenticationGuards()
+    {
+        foreach (string kind in Kinds)
+        foreach (bool replay in new[] { false, true })
+        foreach (string bad in new[] { "missing", "invalid", "owner", "colony", "expired", "replaced" })
+        {
+            var state = new ClashOfRimNetworkState(); state.Ledger.Append(Source());
+            string valid = Token(state, "userA");
+            if (replay) Require(Call(state, kind).Accepted, "authenticated initial closure failed");
+            string? token = bad switch
+            {
+                "missing" => null,
+                "invalid" => "invalid-token",
+                "owner" => Token(state, "owner", "home"),
+                "colony" => Token(state, "userA", "other-colony"),
+                _ => valid
+            };
+            if (bad == "expired") state.LoginSessions.EndUser("userA");
+            if (bad == "replaced") state.LoginSessions.TryCreate("userA", "colonyA", DateTimeOffset.UtcNow, out _);
+            string before = JsonSerializer.Serialize(state.Ledger.ListAll());
+            long ownerVersion = state.EventNotifications.GetVersion("owner"), targetVersion = state.EventNotifications.GetVersion("userA");
+            Require(!Call(state, kind, token: token, authenticate: false).Accepted,
+                $"{kind}/{bad}/replay={replay}: unauthorized support closure accepted");
+            Require(before == JsonSerializer.Serialize(state.Ledger.ListAll())
+                && ownerVersion == state.EventNotifications.GetVersion("owner") && targetVersion == state.EventNotifications.GetVersion("userA"),
+                "unauthorized closure changed events or signalled players");
+        }
     }
 
     private static void Verify(IAuthoritativeEventLedger ledger, string kind)

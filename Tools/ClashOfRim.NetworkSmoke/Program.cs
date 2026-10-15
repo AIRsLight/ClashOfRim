@@ -2436,12 +2436,20 @@ try
     Require(state.Ledger.Find(supportPawn.EventId!)?.Payload is SupportPawnEventPayload, "支援 pawn 应进入账本");
     Equal(EventRejectionPolicy.RejectableByTarget, state.Ledger.Find(supportPawn.EventId!)!.RejectionPolicy, "临时控制支援 pawn 应可被目标拒绝");
 
+    foreach (string? badToken in new[] { null, "invalid-support-token", userAAuthToken })
+    {
+        var before = System.Text.Json.JsonSerializer.Serialize(state.Ledger.Find(supportPawn.EventId!));
+        var denied = await client.RejectSupportPawnAsync(new RejectSupportPawnRequest(supportPawn.EventId!, "user-b", "colony-b",
+            supportTargetSnapshotId, "unauthorized rejection", badToken));
+        Require(!denied.Result.Accepted && denied.Result.ErrorCode == ProtocolErrorCode.ServerRejected
+            && before == System.Text.Json.JsonSerializer.Serialize(state.Ledger.Find(supportPawn.EventId!)), "HTTP 支援拒绝必须校验认证身份");
+    }
     RejectSupportPawnResponse rejectedSupport = await client.RejectSupportPawnAsync(new RejectSupportPawnRequest(
         supportPawn.EventId!,
         "user-b",
         "colony-b",
         supportTargetSnapshotId,
-        "smoke support reject"));
+        "smoke support reject", authToken: userBAuthToken));
     Require(rejectedSupport.Result.Accepted, "拒绝支援 pawn 应成功");
     Require(rejectedSupport.ReturnEventCreated, "首次拒绝支援 pawn 应创建退回事件");
     AuthoritativeEvent rejectedSupportEvent = state.Ledger.Find(supportPawn.EventId!)!;
@@ -2462,7 +2470,7 @@ try
         "user-b",
         "colony-b",
         supportTargetSnapshotId,
-        "smoke support reject duplicate"));
+        "smoke support reject duplicate", authToken: userBAuthToken));
     Equal(ProtocolErrorCode.DuplicateRequest, duplicateRejectedSupport.Result.ErrorCode, "重复拒绝支援 pawn 应返回幂等结果");
     Equal(rejectedSupport.ReturnEventId, duplicateRejectedSupport.ReturnEventId, "重复拒绝支援 pawn 应返回既有退回事件");
 
@@ -2519,6 +2527,14 @@ try
         autoReturnOnSettlement: true));
     Require(finishingSupport.Result.Accepted, "创建用于结束的支援 pawn 应成功");
     state.Ledger.ChangeStatus(finishingSupport.EventId!, ServerEventStatus.AppliedToSnapshot);
+    foreach (string? badToken in new[] { null, "invalid-support-token", userAAuthToken })
+    {
+        var before = System.Text.Json.JsonSerializer.Serialize(state.Ledger.Find(finishingSupport.EventId!));
+        var denied = await client.FinishSupportPawnAsync(new FinishSupportPawnRequest("unauthorized", finishingSupport.EventId!, "user-b", "colony-b",
+            supportTargetSnapshotId, "Expired", finishingSupportPawnGlobalKey, "support", false, finishingSupportPawnPackage, badToken));
+        Require(!denied.Result.Accepted && denied.Result.ErrorCode == ProtocolErrorCode.ServerRejected
+            && before == System.Text.Json.JsonSerializer.Serialize(state.Ledger.Find(finishingSupport.EventId!)), "HTTP 支援结束必须校验认证身份");
+    }
     FinishSupportPawnResponse finishedSupport = await client.FinishSupportPawnAsync(new FinishSupportPawnRequest(
         "support-finish:user-b:colony-b:finish-001",
         finishingSupport.EventId!,
@@ -2529,7 +2545,7 @@ try
         finishingSupportPawnGlobalKey,
         "测试支援者二号",
         pawnDead: false,
-        finishingSupportPawnPackage));
+        finishingSupportPawnPackage, authToken: userBAuthToken));
     Require(finishedSupport.Result.Accepted, "结束支援 pawn 应成功");
     Require(!string.IsNullOrWhiteSpace(finishedSupport.ReturnEventId), "结束支援 pawn 应生成退回事件");
     Equal(ServerEventStatus.AppliedToSnapshot, state.Ledger.Find(finishingSupport.EventId!)!.Status, "结束后的原支援 pawn 应标记已应用");

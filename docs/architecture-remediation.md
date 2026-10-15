@@ -457,3 +457,12 @@
 - HTTP 网络测试增加缺失/伪造/冒用令牌拒绝及合法拒收重试；测试中的驻留断开已经关闭会话，因此写操作前改为正常重新登录。客户端测试通过真正的 `RejectGiftAsync` 检查路由、身份、快照、原因及令牌；实际两端 JSON 序列化器验证有/无令牌契约。
 - 验证：当前工作区完整 `Test-Regression.ps1 -IncludeClient` 通过（Events 52、Save 103、Client.Core 5 组、完整 NetworkSmoke、本地运行库客户端 24）；负向测试后恢复实现的端点组再次通过。日志 `LocalOnly/gift-endpoint-regression-final.log`、`LocalOnly/gift-endpoint-final-targeted.log`。77 个 1.6 冻结文件未变。数据库仍为版本 25，未新增持久化格式。
 - 本步没有新增 RimTest 礼物拒收实机场景，已有双客户端赠送接收证据不能替代拒收验收。接下来继续支援结束/拒绝、交易端点的身份与幂等绑定审计，再推进锁范围、职责与 DTO 收敛。
+
+## 续修：支援结束与拒绝入口认证
+
+- 两条支援关闭入口原先仅比对客户端自报的接收者身份。共享协议和客户端 DTO 增加可选 `AuthToken`，正常客户端随请求发送当前会话令牌；服务端在恢复待办及读取事件前检查令牌、存活会话和准确的用户/殖民地归属，不接受远程观察或袭击授权。无令牌 JSON 仍可反序列化，但操作会拒绝，旧 1.7 客户端需更新。
+- 原子关闭批次、历史返还修复、按源事件去重及重复通知语义保持不变。既有中断、持久化重开和并发测试改为使用真实会话，新增三类结束 × 首次/重试 × 缺失、伪造、错误用户、错误殖民地、失效、被替换会话共 36 个认证边界场景，拒绝请求不得修改账本或唤醒玩家。
+- HTTP 测试分别验证两条入口的无令牌、伪造和冒用请求；客户端传输测试核对实际路由、正文和令牌；两端真实 JSON 序列化器检查有/无令牌契约。临时分别移除两个认证检查均复现 `unauthorized support closure accepted`，恢复后支援完整测试组再次通过。
+- 验证：完整 `Test-Regression.ps1 -IncludeClient` 通过（Events 52、Save 103、Client.Core 5 组、完整 NetworkSmoke、客户端 25），日志 `LocalOnly/support-auth-regression.log`；负向及恢复验证见 `LocalOnly/support-auth-negative-Finish.log`、`LocalOnly/support-auth-negative-Reject.log`、`LocalOnly/support-auth-final-targeted.log`。77 个 1.6 冻结文件未变，数据库仍为版本 25。
+- RimTest 使用当前工作区和本机 1.7 游戏，两客户端现有 19 项全部通过，包含支援发送/提前返回及交易、银行、雇佣和袭击流程。证据：`G:/RimTestRuns/ClashOfRim/20261015-151002-29caf28e/report.json`，日志 `LocalOnly/support-auth-rimtest.log`。报告仍明确 `fullCoverage: false`，未将提前返回算作拒绝、死亡、到期或故障恢复的实机覆盖；两份测试进程均已退出。
+- 下一步：交易接单/取消/完成仍缺少会话认证，继续修复；同时继续审计等待业务锁期间会话撤销、交易身份及幂等关联。业务锁范围、职责和 DTO 收敛仍未完成。

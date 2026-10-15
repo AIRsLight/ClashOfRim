@@ -1533,16 +1533,20 @@ public sealed class RejectSupportPawnRequest
         string userId,
         string colonyId,
         string currentSnapshotId,
-        string? reason)
+        string? reason,
+        string? authToken = null)
     {
         EventId = eventId;
         UserId = userId;
         ColonyId = colonyId;
         CurrentSnapshotId = currentSnapshotId;
         Reason = reason;
+        AuthToken = authToken;
     }
 
     public string EventId { get; }
+
+    public string? AuthToken { get; }
 
     public string UserId { get; }
 
@@ -1588,7 +1592,8 @@ public sealed class FinishSupportPawnRequest
         string pawnGlobalKey,
         string? pawnName,
         bool pawnDead,
-        PawnExchangePackageDto? pawnPackage)
+        PawnExchangePackageDto? pawnPackage,
+        string? authToken = null)
     {
         IdempotencyKey = idempotencyKey;
         EventId = eventId;
@@ -1600,11 +1605,14 @@ public sealed class FinishSupportPawnRequest
         PawnName = pawnName;
         PawnDead = pawnDead;
         PawnPackage = pawnPackage;
+        AuthToken = authToken;
     }
 
     public string IdempotencyKey { get; }
 
     public string EventId { get; }
+
+    public string? AuthToken { get; }
 
     public string UserId { get; }
 
