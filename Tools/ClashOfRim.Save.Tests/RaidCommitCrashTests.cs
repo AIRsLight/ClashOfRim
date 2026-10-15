@@ -7,12 +7,13 @@ using System.IO.Compression;
 using System.Text.Json;
 using System.Xml.Linq;
 
-internal static class RaidCommitCrashTests
+internal static partial class RaidCommitCrashTests
 {
     private static readonly ProtocolIdentity Attacker = new("userA", "colonyA", "before");
     private static readonly ProtocolIdentity Defender = new("userB", "colonyB", "defender");
     public static void Run(Func<string, SaveSnapshotPackage> fixture)
     {
+        RunBindings(fixture);
         foreach (bool guarded in new[] { false, true })
         {
             foreach (bool reopen in new[] { false, true })
@@ -214,7 +215,7 @@ internal static class RaidCommitCrashTests
     }
 
     internal static Task<EventCreationResponse> Invoke(ClashOfRimNetworkState state, SaveSnapshotPackage package, bool guarded,
-        string? changed = null, ProtocolIdentity? principal = null, string key = "raid", string? token = null, ProtocolIdentity? actorOverride = null)
+        string? changed = null, ProtocolIdentity? principal = null, string key = "raid", string? token = null, ProtocolIdentity? actorOverride = null, Action<System.Text.Json.Nodes.JsonObject>? mutate = null)
     {
         var actor = actorOverride ?? (changed == "owner" ? new ProtocolIdentity("other", "other-colony", "before") : Attacker);
         var target = changed == "defender" ? new ProtocolIdentity("other", "other-colony", "defender") : Defender;
@@ -225,8 +226,14 @@ internal static class RaidCommitCrashTests
             changed == "pawns" ? ["other-pawn"] : ["pawn"], changed == "items" ? [new ThingReferenceDto("item", "Silver", 1)] : [],
             changed == "tile" ? 999 : 1, changed == "opponent" ? "VanillaNpc" : "Player",
             changed == "guard" ? "changed-guard" : guarded ? "guard" : null);
+        object body = new CreateRaidWithSnapshotRequest(raid, metadata);
+        if (mutate is not null)
+        {
+            var node = System.Text.Json.Nodes.JsonNode.Parse(JsonSerializer.Serialize(body))!.AsObject();
+            mutate(node); body = node;
+        }
         return SnapshotEndpointTestClient.Invoke<EventCreationResponse>("CreateRaidWithSnapshot", state,
-            _ => new CreateRaidWithSnapshotRequest(raid, metadata), package.Payload, principal ?? actor, token);
+            _ => body, package.Payload, principal ?? actor, token);
     }
 
     internal static SaveSnapshotPackage Setup(ClashOfRimNetworkState state, Func<string, SaveSnapshotPackage> fixture, bool guarded,

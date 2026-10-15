@@ -11,6 +11,7 @@ public static partial class ClashOfRimNetworkServer
     private static IResult CommitRaidWithSnapshot(HttpRequest httpRequest, ClashOfRimNetworkState state, CreateRaidWithSnapshotRequest transaction, byte[] bytes)
     {
         var request = transaction.Raid;
+        string binding = SnapshotRequestBinding.Hash(transaction, bytes);
         var now = DateTimeOffset.UtcNow;
         using (state.EnterSnapshotMutation())
         {
@@ -24,7 +25,7 @@ public static partial class ClashOfRimNetworkServer
                 return RaidStartRejected(ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed")));
             RecoverSnapshotCommits(state);
             if (state.Ledger.FindByIdempotencyKey(request.IdempotencyKey) is { } existing)
-                return RaidSnapshotReplayResponse(state, transaction, existing);
+                return RaidSnapshotReplayResponse(state, transaction, existing, binding);
             var rejection = ValidateRaidSnapshotStart(state, request, now, out _, out _, out var blockingRaidId);
             if (rejection is not null) return RaidStartRejected(rejection, blockingRaidId);
         }
@@ -36,7 +37,7 @@ public static partial class ClashOfRimNetworkServer
                 return RaidStartRejected(ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed")));
             RecoverSnapshotCommits(state);
             if (state.Ledger.FindByIdempotencyKey(request.IdempotencyKey) is { } existing)
-                return RaidSnapshotReplayResponse(state, transaction, existing);
+                return RaidSnapshotReplayResponse(state, transaction, existing, binding);
             if (!upload.Accepted || upload.AcceptedSnapshot is null) return RaidStartRejected(ToProtocolResponse(upload));
             now = DateTimeOffset.UtcNow;
             var rejection = ValidateRaidSnapshotStart(state, request, now, out var eligibility, out var guard, out var blockingRaidId);
@@ -51,7 +52,8 @@ public static partial class ClashOfRimNetworkServer
                 true, now, new RaidAttackForceRecord(snapshotId, request.PawnGlobalKeys,
                     request.CarriedThings.Select(thing => ToEventThingReference(thing, snapshotId)).ToArray()));
             var raid = RaidInitiationService.CreateRaidEvent(initiation);
-            raid = raid with { Payload = ((RaidEventPayload)raid.Payload) with { GuardDeploymentId = guard?.ContractId } };
+            raid = raid with { Payload = ((RaidEventPayload)raid.Payload) with
+                { GuardDeploymentId = guard?.ContractId, CreationRequestHash = binding } };
             var notice = MercenaryGuardActivationNotificationFactory.Create(
                 guard is null ? null : MercenaryGuardContractRegistry.Consumed(guard, raid.EventId, now), raid,
                 eligibility!.DefenderOnline, T("Mercenary.GuardDeployedTitle"), T("Mercenary.GuardDeployedMessage"), now);
@@ -105,9 +107,10 @@ public static partial class ClashOfRimNetworkServer
     }
 
     private static IResult RaidSnapshotReplayResponse(ClashOfRimNetworkState state, CreateRaidWithSnapshotRequest transaction,
-        AuthoritativeEvent existing)
+        AuthoritativeEvent existing, string binding)
     {
-        if (transaction.ConfirmedSnapshot.OwnerId != transaction.Raid.Attacker.UserId
+        if (existing.Payload is not RaidEventPayload payload || payload.CreationRequestHash != binding
+            || transaction.ConfirmedSnapshot.OwnerId != transaction.Raid.Attacker.UserId
             || transaction.ConfirmedSnapshot.ColonyId != transaction.Raid.Attacker.ColonyId
             || !MatchesRaidSnapshotRequest(existing, transaction.Raid, transaction.ConfirmedSnapshot.SnapshotId))
             return RaidStartRejected(ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Raid.Rejected")));
