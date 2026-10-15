@@ -316,7 +316,7 @@ public static partial class ClashOfRimNetworkServer
             var mutation = state.ServerShop.PrepareSnapshotCommit(request, upload.AcceptedSnapshot);
             state.SnapshotCommits.CommitShop(state.SnapshotStore, state.BankLoans, state.ServerShop,
                 package, upload.AcceptedSnapshot, mutation,
-                (snapshot, kind) => RunCommittedSnapshotPostUpload(state, snapshot, kind), upload.SnapshotUploadKind, state.MercenaryContracts);
+                (snapshot, kind) => RunCommittedSnapshotPostUpload(state, snapshot, kind), upload.SnapshotUploadKind, state.MercenaryContracts, preparedStoragePayload: upload.PreparedStoragePayload);
             state.RuntimeLogger.LogInformation(
                 "Server shop purchase accepted: listing={ListingId} user={UserId} colony={ColonyId} snapshot={SnapshotId} count={Count} stock={Stock}",
                 request.ListingId, request.Buyer.UserId, request.Buyer.ColonyId, mutation.Receipt.SnapshotId,

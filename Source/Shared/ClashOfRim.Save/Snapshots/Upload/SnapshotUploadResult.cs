@@ -6,6 +6,9 @@ public sealed record SnapshotUploadResult(
     LatestSnapshotRecord? AcceptedSnapshot = null,
     string? SnapshotUploadKind = null)
 {
+    [System.Text.Json.Serialization.JsonIgnore]
+    public PreparedSnapshotPayload? PreparedStoragePayload { get; init; }
+
     public bool Accepted => Kind == SnapshotUploadResultKind.Accepted;
 
     public static SnapshotUploadResult Reject(SnapshotUploadResultKind kind, string message)

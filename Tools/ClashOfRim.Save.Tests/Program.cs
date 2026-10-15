@@ -14,6 +14,7 @@ using System.Xml.Linq;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("快照载荷压缩在业务锁外准备且保持格式与恢复兼容", () => PreparedSnapshotPayloadTests.Run(BuildFixturePackage)),
     ("银行并发快照重试与会话失效", () => BankSnapshotReplayRaceTests.Run(BuildFixturePackage)),
     ("银行快照提交跨崩溃恢复且重试幂等", () => BankCommitCrashTests.Run(BuildFixturePackage)),
     ("礼物快照提交跨崩溃恢复且冲突拒绝覆盖", () => GiftCommitCrashTests.Run(BuildFixturePackage)),

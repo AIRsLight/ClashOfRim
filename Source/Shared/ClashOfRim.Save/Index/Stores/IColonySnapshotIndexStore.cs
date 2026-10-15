@@ -24,3 +24,12 @@ public interface IColonySnapshotHistoryStore : IColonySnapshotIndexStore
 {
     bool HasAcceptedOriginalHash(string ownerId, string colonyId, string originalSha256);
 }
+
+/// <summary>Stores that can prepare payload compression before the caller enters its business mutation gate.</summary>
+public interface IPreparedColonySnapshotPackageStore : IColonySnapshotPackageStore
+{
+    PreparedSnapshotPayload PreparePayload(byte[] payload);
+
+    void StorePrepared(SaveSnapshotPackage package, SaveSnapshotIndex rebuiltIndex, DateTimeOffset acceptedAtUtc,
+        PreparedSnapshotPayload preparedPayload);
+}

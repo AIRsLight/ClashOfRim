@@ -57,7 +57,7 @@ public static partial class ClashOfRimNetworkServer
             state.SnapshotCommits.CommitSupport(state.SnapshotStore, state.BankLoans, state.Ledger, package,
                 upload.AcceptedSnapshot, new SupportSnapshotMutation(support),
                 (snapshot, kind) => RunCommittedSnapshotPostUpload(state, snapshot, kind),
-                user => state.EventNotifications.SignalUser(user), upload.SnapshotUploadKind, state.MercenaryContracts);
+                user => state.EventNotifications.SignalUser(user), upload.SnapshotUploadKind, state.MercenaryContracts, preparedStoragePayload: upload.PreparedStoragePayload);
             return Results.Ok(new EventCreationResponse(ProtocolResponse.Ok(T("Support.Created")), support.EventId,
                 online ? ProtocolDeliverySemantics.OnlineImmediate : ProtocolDeliverySemantics.OfflinePending,
                 metadata.SnapshotId, upload.AcceptedSnapshot.Envelope.NextLineageToken));

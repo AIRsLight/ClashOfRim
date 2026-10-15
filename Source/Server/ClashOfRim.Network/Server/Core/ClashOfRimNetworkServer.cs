@@ -600,12 +600,12 @@ public static partial class ClashOfRimNetworkServer
                     postUploadData.ConfirmationOperation, postUploadData.AchievementCandidates,
                     (snapshot, kind, mutation) => RunCommittedOrdinaryUpload(state, snapshot, kind, mutation), confirmation, state.Ledger,
                     item => RecordAuthoritativeEventAchievements(state, item, item.AppliedAtUtc ?? item.CreatedAtUtc),
-                    (mutation, snapshot) => PlanSnapshotConfirmations(state, mutation, snapshot));
+                    (mutation, snapshot) => PlanSnapshotConfirmations(state, mutation, snapshot), preparedStoragePayload: upload.PreparedStoragePayload);
                 return upload;
             }
             if (!storeAccepted || !upload.Accepted || upload.AcceptedSnapshot is null || operations.IsEmpty) return upload;
             state.SnapshotCommits.CommitPendingOperations(state.SnapshotStore, state.BankLoans, state.MercenaryContracts,
-                savePackage, upload.AcceptedSnapshot, operations, upload.SnapshotUploadKind);
+                savePackage, upload.AcceptedSnapshot, operations, upload.SnapshotUploadKind, preparedStoragePayload: upload.PreparedStoragePayload);
             RecoverMercenaryIncidents(state);
             return upload;
         }

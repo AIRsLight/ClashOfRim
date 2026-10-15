@@ -20,7 +20,7 @@ public static partial class ClashOfRimNetworkServer
             package, upload.AcceptedSnapshot!, mutation,
             (snapshot, kind) => RunCommittedSnapshotPostUpload(state, snapshot, kind),
             user => state.EventNotifications.SignalUsers(new[] { user }),
-            item => RecordAuthoritativeEventAchievements(state, item, item.CreatedAtUtc), upload.SnapshotUploadKind, state.MercenaryContracts);
+            item => RecordAuthoritativeEventAchievements(state, item, item.CreatedAtUtc), upload.SnapshotUploadKind, state.MercenaryContracts, preparedStoragePayload: upload.PreparedStoragePayload);
     }
 
     private static IResult TradeOrderReplayResponse(ClashOfRimNetworkState state, CreateTradeOrderRequest request,

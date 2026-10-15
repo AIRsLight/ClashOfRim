@@ -314,7 +314,7 @@ public static partial class ClashOfRimNetworkServer
                 state.SnapshotCommits.Commit(state.SnapshotStore, state.BankLoans,
                     ProtocolDtoMapper.ToSaveSnapshotPackage(request.ConfirmedSnapshot, multipart.Payload),
                     upload.AcceptedSnapshot, confirmedLoan, null,
-                    (snapshot, kind) => RunCommittedSnapshotPostUpload(state, snapshot, kind), upload.SnapshotUploadKind, state.MercenaryContracts);
+                    (snapshot, kind) => RunCommittedSnapshotPostUpload(state, snapshot, kind), upload.SnapshotUploadKind, state.MercenaryContracts, preparedStoragePayload: upload.PreparedStoragePayload);
 
                 BankRequestContext updatedContext = context with { ActiveLoan = confirmedLoan };
                 return Results.Ok(new BankLoanResponse(
@@ -448,7 +448,7 @@ public static partial class ClashOfRimNetworkServer
                 state.SnapshotCommits.Commit(state.SnapshotStore, state.BankLoans,
                     ProtocolDtoMapper.ToSaveSnapshotPackage(request.ConfirmedSnapshot, multipart.Payload),
                     upload.AcceptedSnapshot, repaid, null,
-                    (snapshot, kind) => RunCommittedSnapshotPostUpload(state, snapshot, kind), upload.SnapshotUploadKind, state.MercenaryContracts);
+                    (snapshot, kind) => RunCommittedSnapshotPostUpload(state, snapshot, kind), upload.SnapshotUploadKind, state.MercenaryContracts, preparedStoragePayload: upload.PreparedStoragePayload);
 
                 return Results.Ok(new BankLoanResponse(
                     ProtocolResponse.Ok(T("Bank.LoanRepaidWithSnapshot")),
@@ -669,7 +669,7 @@ public static partial class ClashOfRimNetworkServer
                 state.SnapshotCommits.Commit(state.SnapshotStore, state.BankLoans,
                     ProtocolDtoMapper.ToSaveSnapshotPackage(request.ConfirmedSnapshot, multipart.Payload),
                     upload.AcceptedSnapshot, null, repaid,
-                    (snapshot, kind) => RunCommittedSnapshotPostUpload(state, snapshot, kind), upload.SnapshotUploadKind, state.MercenaryContracts);
+                    (snapshot, kind) => RunCommittedSnapshotPostUpload(state, snapshot, kind), upload.SnapshotUploadKind, state.MercenaryContracts, preparedStoragePayload: upload.PreparedStoragePayload);
 
                 return Results.Ok(new BankDebtResponse(
                     ProtocolResponse.Ok(T("Bank.DebtRepaidWithSnapshot")),

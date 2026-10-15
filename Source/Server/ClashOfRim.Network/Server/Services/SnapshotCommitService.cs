@@ -103,7 +103,7 @@ public sealed partial class SnapshotCommitService
     public void Commit(
         IColonySnapshotIndexStore snapshots, BankLoanRegistry bank, SaveSnapshotPackage package,
         LatestSnapshotRecord snapshot, BankLoanRecord? loan, BankDebtRecord? debt,
-        Action<LatestSnapshotRecord, string?> postUpload, string? snapshotUploadKind = null, MercenaryContractRegistry? contracts = null)
+        Action<LatestSnapshotRecord, string?> postUpload, string? snapshotUploadKind = null, MercenaryContractRegistry? contracts = null, PreparedSnapshotPayload? preparedStoragePayload = null)
     {
         if (loan is null && debt is null) throw new ArgumentException("A bank mutation is required.");
         if (pending.Count != 0) throw new InvalidOperationException("Recover pending snapshot commits before accepting new work.");
@@ -113,6 +113,7 @@ public sealed partial class SnapshotCommitService
             previous?.Identity.SnapshotId, previous?.Envelope.NextLineageToken,
             package with { Envelope = snapshot.Envelope, Index = snapshot.Index }, snapshot.AcceptedAtUtc, loan, debt, snapshotUploadKind);
         intent = AttachPendingOperations(intent, bank, contracts);
+        intent = intent with { PreparedStoragePayload = preparedStoragePayload };
         Write(intent);
         pending.Add(intent.Id, intent);
         Apply(intent, snapshots, bank, postUpload, contracts: contracts);
@@ -157,7 +158,7 @@ public sealed partial class SnapshotCommitService
         string? kind, string? confirmationOperation, IReadOnlyCollection<SnapshotAchievementCandidateDto>? candidates,
         Action<LatestSnapshotRecord, string?, SnapshotUploadMutation> postUpload, SnapshotConfirmationRequest? confirmation = null,
         IAuthoritativeEventLedger? ledger = null, Action<AuthoritativeEvent>? recordTrade = null,
-        Func<SnapshotConfirmationMutation, LatestSnapshotRecord, SnapshotConfirmationPlan>? planConfirmation = null)
+        Func<SnapshotConfirmationMutation, LatestSnapshotRecord, SnapshotConfirmationPlan>? planConfirmation = null, PreparedSnapshotPayload? preparedStoragePayload = null)
     {
         if (pending.Count != 0) throw new InvalidOperationException("Recover pending snapshot commits before accepting new work.");
         lock (bank.SnapshotCommitGate)
@@ -173,6 +174,7 @@ public sealed partial class SnapshotCommitService
                 previous?.Envelope.NextLineageToken, package with { Envelope = snapshot.Envelope, Index = snapshot.Index },
                 snapshot.AcceptedAtUtc, null, null, kind, PendingOperations: operations, Upload: mutation);
             mutation.Validate(intent);
+            intent = intent with { PreparedStoragePayload = preparedStoragePayload };
             Write(intent);
             pending.Add(intent.Id, intent);
             Interlocked.Increment(ref pendingUploads);
@@ -183,7 +185,7 @@ public sealed partial class SnapshotCommitService
 
     public void CommitPendingOperations(IColonySnapshotIndexStore snapshots, BankLoanRegistry bank,
         MercenaryContractRegistry contracts, SaveSnapshotPackage package, LatestSnapshotRecord snapshot,
-        PendingSnapshotOperations operations, string? snapshotUploadKind = null)
+        PendingSnapshotOperations operations, string? snapshotUploadKind = null, PreparedSnapshotPayload? preparedStoragePayload = null)
     {
         if (pending.Count != 0) throw new InvalidOperationException("Recover pending snapshot commits before accepting new work.");
         operations.Validate(snapshot);
@@ -194,6 +196,7 @@ public sealed partial class SnapshotCommitService
             previous?.Identity.SnapshotId, previous?.Envelope.NextLineageToken,
             package with { Envelope = snapshot.Envelope, Index = snapshot.Index }, snapshot.AcceptedAtUtc,
             null, null, snapshotUploadKind, PendingOperations: operations);
+        intent = intent with { PreparedStoragePayload = preparedStoragePayload };
         Write(intent);
         pending.Add(intent.Id, intent);
         Apply(intent, snapshots, bank, (_, _) => { }, contracts: contracts);
@@ -221,7 +224,7 @@ public sealed partial class SnapshotCommitService
     public void CommitRaid(IColonySnapshotIndexStore snapshots, BankLoanRegistry bank, IAuthoritativeEventLedger ledger,
         MercenaryContractRegistry contracts, MercenaryGuardContractRegistry guards, SaveSnapshotPackage package,
         LatestSnapshotRecord snapshot, RaidSnapshotMutation mutation, Action<LatestSnapshotRecord, string?> postUpload,
-        Action<string> signalUser, string? snapshotUploadKind = null)
+        Action<string> signalUser, string? snapshotUploadKind = null, PreparedSnapshotPayload? preparedStoragePayload = null)
     {
         lock (guards.SnapshotCommitGate)
         {
@@ -233,6 +236,7 @@ public sealed partial class SnapshotCommitService
                 previous?.Envelope.NextLineageToken, package with { Envelope = snapshot.Envelope, Index = snapshot.Index },
                 snapshot.AcceptedAtUtc, null, null, snapshotUploadKind, Raid: mutation);
             intent = AttachPendingOperations(intent, bank, contracts);
+            intent = intent with { PreparedStoragePayload = preparedStoragePayload };
             Write(intent);
             pending.Add(intent.Id, intent);
             Apply(intent, snapshots, bank, postUpload, ledger, signalUser, contracts: contracts, guards: guards);
@@ -273,7 +277,7 @@ public sealed partial class SnapshotCommitService
     public void CommitMercenary(IColonySnapshotIndexStore snapshots, BankLoanRegistry bank,
         MercenaryContractRegistry contracts, MercenaryGuardContractRegistry guards, SaveSnapshotPackage package,
         LatestSnapshotRecord snapshot, MercenarySnapshotMutation mutation, Action<LatestSnapshotRecord, string?> postUpload,
-        string? snapshotUploadKind = null)
+        string? snapshotUploadKind = null, PreparedSnapshotPayload? preparedStoragePayload = null)
     {
         lock (mutation.Gate(contracts, guards))
         {
@@ -289,6 +293,7 @@ public sealed partial class SnapshotCommitService
                 package with { Envelope = snapshot.Envelope, Index = snapshot.Index }, snapshot.AcceptedAtUtc,
                 null, null, snapshotUploadKind, Mercenary: mutation);
             intent = AttachPendingOperations(intent, bank, contracts);
+            intent = intent with { PreparedStoragePayload = preparedStoragePayload };
             Write(intent);
             pending.Add(intent.Id, intent);
             Apply(intent, snapshots, bank, postUpload, contracts: contracts, guards: guards);
@@ -297,7 +302,7 @@ public sealed partial class SnapshotCommitService
 
     public void CommitShop(IColonySnapshotIndexStore snapshots, BankLoanRegistry bank, ServerShopRegistry shop,
         SaveSnapshotPackage package, LatestSnapshotRecord snapshot, ShopSnapshotMutation mutation,
-        Action<LatestSnapshotRecord, string?> postUpload, string? snapshotUploadKind = null, MercenaryContractRegistry? contracts = null)
+        Action<LatestSnapshotRecord, string?> postUpload, string? snapshotUploadKind = null, MercenaryContractRegistry? contracts = null, PreparedSnapshotPayload? preparedStoragePayload = null)
     {
         lock (shop.SnapshotCommitGate)
         {
@@ -312,6 +317,7 @@ public sealed partial class SnapshotCommitService
                 package with { Envelope = snapshot.Envelope, Index = snapshot.Index }, snapshot.AcceptedAtUtc,
                 null, null, snapshotUploadKind, Shop: mutation);
             intent = AttachPendingOperations(intent, bank, contracts);
+            intent = intent with { PreparedStoragePayload = preparedStoragePayload };
             Write(intent);
             pending.Add(intent.Id, intent);
             Apply(intent, snapshots, bank, postUpload, shop: shop, contracts: contracts);
@@ -321,7 +327,7 @@ public sealed partial class SnapshotCommitService
     public void CommitTrade(IColonySnapshotIndexStore snapshots, BankLoanRegistry bank,
         IAuthoritativeEventLedger ledger, SaveSnapshotPackage package, LatestSnapshotRecord snapshot,
         TradeSnapshotMutation trade, Action<LatestSnapshotRecord, string?> postUpload, Action<string> signalUser,
-        Action<AuthoritativeEvent> recordTrade, string? snapshotUploadKind = null, MercenaryContractRegistry? contracts = null)
+        Action<AuthoritativeEvent> recordTrade, string? snapshotUploadKind = null, MercenaryContractRegistry? contracts = null, PreparedSnapshotPayload? preparedStoragePayload = null)
     {
         if (pending.Count != 0) throw new InvalidOperationException("Recover pending snapshot commits before accepting new work.");
         trade.Validate(snapshot.Identity);
@@ -332,6 +338,7 @@ public sealed partial class SnapshotCommitService
             package with { Envelope = snapshot.Envelope, Index = snapshot.Index }, snapshot.AcceptedAtUtc,
             null, null, snapshotUploadKind, Trade: trade);
         intent = AttachPendingOperations(intent, bank, contracts);
+        intent = intent with { PreparedStoragePayload = preparedStoragePayload };
         Write(intent);
         pending.Add(intent.Id, intent);
         Apply(intent, snapshots, bank, postUpload, ledger, signalUser, recordTrade, contracts: contracts);
@@ -340,7 +347,7 @@ public sealed partial class SnapshotCommitService
     public void CommitGift(IColonySnapshotIndexStore snapshots, BankLoanRegistry bank,
         IAuthoritativeEventLedger ledger, SaveSnapshotPackage package, LatestSnapshotRecord snapshot,
         AuthoritativeEvent gift, Action<LatestSnapshotRecord, string?> postUpload, Action<string> signalUser,
-        string? snapshotUploadKind = null, MercenaryContractRegistry? contracts = null)
+        string? snapshotUploadKind = null, MercenaryContractRegistry? contracts = null, PreparedSnapshotPayload? preparedStoragePayload = null)
     {
         if (pending.Count != 0) throw new InvalidOperationException("Recover pending snapshot commits before accepting new work.");
         SnapshotIdentity identity = snapshot.Identity;
@@ -354,6 +361,7 @@ public sealed partial class SnapshotCommitService
             package with { Envelope = snapshot.Envelope, Index = snapshot.Index }, snapshot.AcceptedAtUtc,
             null, null, snapshotUploadKind, gift);
         intent = AttachPendingOperations(intent, bank, contracts);
+        intent = intent with { PreparedStoragePayload = preparedStoragePayload };
         Write(intent);
         pending.Add(intent.Id, intent);
         Apply(intent, snapshots, bank, postUpload, ledger, signalUser, contracts: contracts);
@@ -362,7 +370,7 @@ public sealed partial class SnapshotCommitService
     public void CommitSupport(IColonySnapshotIndexStore snapshots, BankLoanRegistry bank,
         IAuthoritativeEventLedger ledger, SaveSnapshotPackage package, LatestSnapshotRecord snapshot,
         SupportSnapshotMutation mutation, Action<LatestSnapshotRecord, string?> postUpload, Action<string> signalUser,
-        string? snapshotUploadKind = null, MercenaryContractRegistry? contracts = null)
+        string? snapshotUploadKind = null, MercenaryContractRegistry? contracts = null, PreparedSnapshotPayload? preparedStoragePayload = null)
     {
         if (pending.Count != 0) throw new InvalidOperationException("Recover pending snapshot commits before accepting new work.");
         mutation.Validate(snapshot.Identity);
@@ -372,6 +380,7 @@ public sealed partial class SnapshotCommitService
             previous?.Envelope.NextLineageToken, package with { Envelope = snapshot.Envelope, Index = snapshot.Index },
             snapshot.AcceptedAtUtc, null, null, snapshotUploadKind, Support: mutation);
         intent = AttachPendingOperations(intent, bank, contracts);
+        intent = intent with { PreparedStoragePayload = preparedStoragePayload };
         Write(intent);
         pending.Add(intent.Id, intent);
         Apply(intent, snapshots, bank, postUpload, ledger, signalUser, contracts: contracts);
@@ -490,7 +499,9 @@ public sealed partial class SnapshotCommitService
                 throw new InvalidDataException("A pending snapshot commit conflicts with a newer snapshot; refusing to overwrite it.");
             if (!alreadyPublished)
             {
-                if (snapshots is IColonySnapshotPackageStore packages) packages.StoreLatest(package, package.Index, intent.AcceptedAtUtc);
+                if (snapshots is IPreparedColonySnapshotPackageStore preparedStore && intent.PreparedStoragePayload is { } preparedPayload)
+                    preparedStore.StorePrepared(package, package.Index, intent.AcceptedAtUtc, preparedPayload);
+                else if (snapshots is IColonySnapshotPackageStore packages) packages.StoreLatest(package, package.Index, intent.AcceptedAtUtc);
                 else snapshots.StoreLatest(snapshot);
             }
             if (intent.RaidCleanup is { } raidCleanup)
@@ -571,6 +582,7 @@ public sealed partial class SnapshotCommitService
 
     private void Write(SnapshotCommitIntent intent, bool replace = false)
     {
+        intent.PreparedStoragePayload?.Validate(intent.Package.Payload);
         if (directory is null) return;
         string path = Path.Combine(directory, intent.Id + ".json");
         string temporary = path + ".tmp";
@@ -588,4 +600,8 @@ public sealed record SnapshotCommitIntent(int Version, string Id, string? Previo
     AuthoritativeEvent? Gift = null, TradeSnapshotMutation? Trade = null, ShopSnapshotMutation? Shop = null,
     MercenarySnapshotMutation? Mercenary = null, PendingSnapshotOperations? PendingOperations = null, RaidSnapshotMutation? Raid = null,
     RaidSettlementSnapshotMutation? RaidSettlement = null, RaidCleanupSnapshotMutation? RaidCleanup = null,
-    SnapshotUploadMutation? Upload = null, SupportSnapshotMutation? Support = null);
+    SnapshotUploadMutation? Upload = null, SupportSnapshotMutation? Support = null)
+{
+    [System.Text.Json.Serialization.JsonIgnore]
+    public PreparedSnapshotPayload? PreparedStoragePayload { get; init; }
+}

@@ -29,10 +29,12 @@ public static class SaveSnapshotPackageFileWriter
     internal static PreparedFile Prepare(
         string path,
         PersistedSaveSnapshotPackage metadata,
-        byte[]? encodedPayload)
+        byte[]? encodedPayload,
+        PreparedSnapshotPayload? preparedPayload = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
         ArgumentNullException.ThrowIfNull(metadata);
+        if (preparedPayload is not null) preparedPayload.Validate(encodedPayload!);
 
         string? directory = Path.GetDirectoryName(path);
         if (!string.IsNullOrWhiteSpace(directory))
@@ -44,9 +46,12 @@ public static class SaveSnapshotPackageFileWriter
         try
         {
             using (FileStream stream = File.Create(tempPath))
-            using (var gzip = new GZipStream(stream, CompressionLevel.SmallestSize))
             {
-                Write(gzip, metadata, encodedPayload);
+                // Concatenated gzip members decode to the unchanged CORSPKG1 byte stream.
+                // Only the state-dependent metadata prefix is compressed during publication.
+                using (var gzip = new GZipStream(stream, CompressionLevel.SmallestSize, leaveOpen: true))
+                    Write(gzip, metadata, encodedPayload, writePayload: preparedPayload is null);
+                preparedPayload?.WriteTo(stream);
             }
 
             return new PreparedFile(path, tempPath);
@@ -80,7 +85,8 @@ public static class SaveSnapshotPackageFileWriter
     private static void Write(
         Stream stream,
         PersistedSaveSnapshotPackage metadata,
-        byte[]? encodedPayload)
+        byte[]? encodedPayload,
+        bool writePayload = true)
     {
         byte[] metadataJson = JsonSerializer.SerializeToUtf8Bytes(metadata, JsonOptions);
         using var writer = new BinaryWriter(stream, Encoding.UTF8, leaveOpen: true);
@@ -88,7 +94,7 @@ public static class SaveSnapshotPackageFileWriter
         writer.Write((long)metadataJson.LongLength);
         writer.Write(metadataJson);
         writer.Write(encodedPayload?.LongLength ?? -1L);
-        if (encodedPayload is not null)
+        if (writePayload && encodedPayload is not null)
         {
             writer.Write(encodedPayload);
         }

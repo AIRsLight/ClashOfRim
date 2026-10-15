@@ -53,7 +53,7 @@ public static partial class ClashOfRimNetworkServer
             state.SnapshotCommits.CommitRaid(state.SnapshotStore, state.BankLoans, state.Ledger, state.MercenaryContracts,
                 state.MercenaryGuards, package, upload.AcceptedSnapshot, new RaidSnapshotMutation(raid, guard, notice),
                 (snapshot, kind) => RunCommittedSnapshotPostUpload(state, snapshot, kind), user => state.EventNotifications.SignalUser(user),
-                upload.SnapshotUploadKind);
+                upload.SnapshotUploadKind, preparedStoragePayload: upload.PreparedStoragePayload);
             LogEventAppend(state, new LedgerAppendResult(raid, true), "raid-start-with-snapshot");
             return Results.Ok(CreateRaidEventCreationResponse(state, ProtocolResponse.Ok(T("Raid.CreatedWithSnapshot")), raid,
                 ProtocolDeliverySemantics.OnlineImmediate, snapshotId, upload.AcceptedSnapshot.Envelope.NextLineageToken));

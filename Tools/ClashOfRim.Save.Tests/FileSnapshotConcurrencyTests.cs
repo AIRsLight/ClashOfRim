@@ -28,8 +28,8 @@ internal static class FileSnapshotConcurrencyTests
         finally { Directory.Delete(root, recursive: true); }
     }
 
-    private static void VerifyPausedWrite(string root, Func<string, SaveSnapshotPackage> fixture,
-        SnapshotPayloadEncoding encoding, bool metadataOnly, string mutation)
+    internal static void VerifyPausedWrite(string root, Func<string, SaveSnapshotPackage> fixture,
+        SnapshotPayloadEncoding encoding, bool metadataOnly, string mutation, bool preparePayload = false)
     {
         string directory = Path.Combine(root, $"write-{encoding}-{metadataOnly}-{mutation}");
         var store = new FileColonySnapshotIndexStore(directory);
@@ -50,6 +50,7 @@ internal static class FileSnapshotConcurrencyTests
         {
             if (metadataOnly)
                 store.StoreLatest(new LatestSnapshotRecord(pending.Envelope.Identity, pending.Envelope, index, DateTimeOffset.UtcNow));
+            else if (preparePayload) store.StorePrepared(pending, index, DateTimeOffset.UtcNow, store.PreparePayload(pending.Payload));
             else store.StoreLatest(pending, index, DateTimeOffset.UtcNow);
         });
         Task? mutate = null;

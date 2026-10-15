@@ -6,7 +6,7 @@ using System.Text.Json.Serialization;
 
 namespace AIRsLight.ClashOfRim.Save;
 
-public sealed class FileColonySnapshotIndexStore : IColonySnapshotPackageStore, IColonySnapshotHistoryStore
+public sealed class FileColonySnapshotIndexStore : IPreparedColonySnapshotPackageStore, IColonySnapshotHistoryStore
 {
     private static readonly byte[] SnapshotPackageMagic = Encoding.ASCII.GetBytes("CORSPKG1");
 
@@ -44,7 +44,19 @@ public sealed class FileColonySnapshotIndexStore : IColonySnapshotPackageStore, 
     public void StoreLatest(LatestSnapshotRecord snapshot)
         => StoreLatest(snapshot, encodedPayload: null);
 
-    private void StoreLatest(LatestSnapshotRecord snapshot, byte[]? encodedPayload)
+    public PreparedSnapshotPayload PreparePayload(byte[] payload) => PreparedSnapshotPayload.Create(payload);
+
+    public void StorePrepared(SaveSnapshotPackage package, SaveSnapshotIndex rebuiltIndex, DateTimeOffset acceptedAtUtc,
+        PreparedSnapshotPayload preparedPayload)
+    {
+        ArgumentNullException.ThrowIfNull(package);
+        ArgumentNullException.ThrowIfNull(rebuiltIndex);
+        ArgumentNullException.ThrowIfNull(preparedPayload);
+        StoreLatest(new LatestSnapshotRecord(package.Envelope.Identity, package.Envelope, rebuiltIndex, acceptedAtUtc),
+            package.Payload, preparedPayload);
+    }
+
+    private void StoreLatest(LatestSnapshotRecord snapshot, byte[]? encodedPayload, PreparedSnapshotPayload? preparedPayload = null)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
         ValidateIdentity(snapshot.Identity);
@@ -72,7 +84,7 @@ public sealed class FileColonySnapshotIndexStore : IColonySnapshotPackageStore, 
                 snapshot.AcceptedAtUtc,
                 acceptedOriginalHashes.OrderBy(hash => hash, StringComparer.OrdinalIgnoreCase).ToList());
 
-            using var prepared = SaveSnapshotPackageFileWriter.Prepare(PackagePath(key), persisted, encodedPayload);
+            using var prepared = SaveSnapshotPackageFileWriter.Prepare(PackagePath(key), persisted, encodedPayload, preparedPayload);
             lock (gate)
             {
                 acceptedOriginalHashesByColony.TryGetValue(key, out HashSet<string>? currentHashes);

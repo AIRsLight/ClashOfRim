@@ -84,5 +84,5 @@ public static partial class ClashOfRimNetworkServer
         SnapshotUploadResult upload, MercenarySnapshotMutation mutation) =>
         state.SnapshotCommits.CommitMercenary(state.SnapshotStore, state.BankLoans, state.MercenaryContracts, state.MercenaryGuards,
             package, upload.AcceptedSnapshot!, mutation,
-            (snapshot, kind) => RunCommittedSnapshotPostUpload(state, snapshot, kind), upload.SnapshotUploadKind);
+            (snapshot, kind) => RunCommittedSnapshotPostUpload(state, snapshot, kind), upload.SnapshotUploadKind, preparedStoragePayload: upload.PreparedStoragePayload);
 }

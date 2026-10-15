@@ -133,7 +133,11 @@ public sealed class SnapshotUploadReceiver
                 "RimWorld version is outside the server allowed range.");
         }
 
-        return SnapshotUploadResult.Accept(new LatestSnapshotRecord(identity, payloadEnvelope, rebuiltIndex, acceptedAtUtc), context.SnapshotUploadKind);
+        return SnapshotUploadResult.Accept(new LatestSnapshotRecord(identity, payloadEnvelope, rebuiltIndex, acceptedAtUtc), context.SnapshotUploadKind) with
+        {
+            PreparedStoragePayload = store is IPreparedColonySnapshotPackageStore preparedStore
+                ? preparedStore.PreparePayload(package.Payload) : null
+        };
     }
 
     /// <summary>Revalidates against current authoritative state. The caller serializes this commit with other snapshot mutations.</summary>
@@ -209,7 +213,11 @@ public sealed class SnapshotUploadReceiver
         var snapshot = new LatestSnapshotRecord(identity, acceptedEnvelope, rebuiltIndex, acceptedAtUtc);
         if (storeAccepted)
         {
-            if (store is IColonySnapshotPackageStore packageStore)
+            if (store is IPreparedColonySnapshotPackageStore preparedStore && prepared.PreparedStoragePayload is { } storagePayload)
+            {
+                preparedStore.StorePrepared(acceptedPackage, rebuiltIndex, acceptedAtUtc, storagePayload);
+            }
+            else if (store is IColonySnapshotPackageStore packageStore)
             {
                 packageStore.StoreLatest(acceptedPackage, rebuiltIndex, acceptedAtUtc);
             }
@@ -219,7 +227,7 @@ public sealed class SnapshotUploadReceiver
             }
         }
 
-        return SnapshotUploadResult.Accept(snapshot, context.SnapshotUploadKind);
+        return SnapshotUploadResult.Accept(snapshot, context.SnapshotUploadKind) with { PreparedStoragePayload = prepared.PreparedStoragePayload };
     }
 
     private static SaveSnapshotEnvelope ApplyPayloadMetadata(SaveSnapshotEnvelope envelope, byte[] originalPayload)
