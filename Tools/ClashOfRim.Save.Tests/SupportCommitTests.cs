@@ -17,7 +17,7 @@ internal static class SupportCommitTests
     private static PawnExchangePackage Pawn => new(1, new(PawnKey, "before", "support", false, "PlayerColony"),
         new("Human", "Colonist", "PlayerColony", "Female"), new("support", null, null, null, null, null, null),
         new(false, 1000, 1000, null, "Mobile"), [], [], [], new(Xml, SafePawnExchangeSerializer.ComputeScribeXmlSha256(Xml), []));
-    private static CreateSupportPawnWithSnapshotRequest Request(SaveSnapshotPackage package, string key = "support")
+    internal static CreateSupportPawnWithSnapshotRequest Request(SaveSnapshotPackage package, string key = "support")
     {
         var pawn = JsonSerializer.Deserialize<PawnExchangePackageDto>(JsonSerializer.Serialize(Pawn))!;
         return new(new CreateSupportPawnRequest(key, Actor, Target, PawnKey, "before", "support", true, null,
@@ -47,7 +47,7 @@ internal static class SupportCommitTests
         snapshotStore: snapshots ?? new FileColonySnapshotIndexStore(Path.Combine(root, "snapshots")),
         snapshotCommits: new SnapshotCommitService(Path.Combine(root, "intents")));
 
-    private static SaveSnapshotPackage Prepare(Func<string, SaveSnapshotPackage> fixture, ClashOfRimNetworkState state, string root)
+    internal static SaveSnapshotPackage Prepare(Func<string, SaveSnapshotPackage> fixture, ClashOfRimNetworkState state, string root)
     {
         var before = fixture("before");
         before = before with { Envelope = before.Envelope with { NextLineageToken = "parent-token" } };

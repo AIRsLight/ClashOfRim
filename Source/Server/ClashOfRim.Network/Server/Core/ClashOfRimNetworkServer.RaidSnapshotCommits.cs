@@ -13,29 +13,27 @@ public static partial class ClashOfRimNetworkServer
         var request = transaction.Raid;
         string binding = SnapshotRequestBinding.Hash(transaction, bytes);
         var now = DateTimeOffset.UtcNow;
-        using (state.EnterSnapshotMutation())
+        using (var recovery = EnterPrincipalSnapshotMutation(httpRequest, state, request.Attacker))
         {
-            if (!ReauthorizeSnapshotPrincipal(httpRequest, state, request.Attacker))
+            if (recovery.Rejection is not null)
                 return RaidStartRejected(ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed")));
         }
         ReconcileExpiredRaidEvents(state, now);
-        using (state.EnterSnapshotMutation())
+        using (var recovery = EnterPrincipalSnapshotMutation(httpRequest, state, request.Attacker))
         {
-            if (!ReauthorizeSnapshotPrincipal(httpRequest, state, request.Attacker))
+            if (recovery.Rejection is not null)
                 return RaidStartRejected(ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed")));
-            RecoverSnapshotCommits(state);
             if (state.Ledger.FindByIdempotencyKey(request.IdempotencyKey) is { } existing)
                 return RaidSnapshotReplayResponse(state, transaction, existing, binding);
             var rejection = ValidateRaidSnapshotStart(state, request, now, out _, out _, out var blockingRaidId);
             if (rejection is not null) return RaidStartRejected(rejection, blockingRaidId);
         }
-        var upload = ReceiveSnapshot(state, request.Attacker.UserId, request.Attacker.ColonyId!,
-            transaction.ConfirmedSnapshot.SnapshotId!, transaction.ConfirmedSnapshot, bytes, now, storeAccepted: false);
-        using (state.EnterSnapshotMutation())
+        var upload = PrepareTransactionSnapshot(state, request.Attacker.UserId, request.Attacker.ColonyId!,
+            transaction.ConfirmedSnapshot.SnapshotId!, transaction.ConfirmedSnapshot, bytes, now);
+        using (var recovery = EnterPrincipalSnapshotMutation(httpRequest, state, request.Attacker))
         {
-            if (!ReauthorizeSnapshotPrincipal(httpRequest, state, request.Attacker))
+            if (recovery.Rejection is not null)
                 return RaidStartRejected(ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed")));
-            RecoverSnapshotCommits(state);
             if (state.Ledger.FindByIdempotencyKey(request.IdempotencyKey) is { } existing)
                 return RaidSnapshotReplayResponse(state, transaction, existing, binding);
             if (!upload.Accepted || upload.AcceptedSnapshot is null) return RaidStartRejected(ToProtocolResponse(upload));

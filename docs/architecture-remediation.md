@@ -9,7 +9,7 @@
 | 1 | 发布只检查构建和包结构，未执行行为回归 | P2 | 已落实 | PR 执行可移植测试；发布依赖测试成功；本机提供完整客户端测试入口 |
 | 2 | 退出后后台响应和主线程动作可能污染新会话 | P1 | 已落实退出与重新登录边界 | 会话取消、迟到响应、排队动作失效与等待者取消均有回归测试 |
 | 3 | 快照文件与业务账本分步提交 | P1 | 银行、礼物、交易、商店、雇佣、普通上传、单条/批量事件入档确认及待确认业务批次、袭击发起/证据/结算/清理/超时及殖民地删除已接入恢复；图层变化与通知待办共同持久化；支援结束/拒绝改为原子批次；支援创建已接入可恢复提交与严格请求绑定；在线袭击证据已补提交认证、攻击方绑定与入队重试；礼物、挂单、成交、袭击发起及在线袭击结算证据已保存完整请求绑定，历史无绑定请求拒绝猜测确认；其他入口审计仍待完成；正常业务已有 RimTest 覆盖 | 提交中断可恢复，重试幂等，失败不能丢失业务意图 |
-| 4 | 全服锁覆盖解压、解析和存储 | P2 | 主要上传、结算压缩及下载/超时战场清理准备已移出业务锁；殖民地快照与证据制品文件处理已缩小存储锁；离线证据首次调度已移出业务锁；Prepared 证据独立恢复及在线证据调度已接入锁外准备；独立提交日志恢复及银行、商店、雇佣、护卫、赠送、交易挂单和成交快照入口已在锁外准备恢复载荷；日志序列化及其余嵌套恢复调用链仍待处理 | 无状态准备移出锁，提交重验 lineage；并发提交不覆盖新状态 |
+| 4 | 全服锁覆盖解压、解析和存储 | P2 | 主要上传、结算压缩及下载/超时战场清理准备已移出业务锁；殖民地快照与证据制品文件处理已缩小存储锁；离线证据首次调度已移出业务锁；Prepared 证据独立恢复及在线证据调度已接入锁外准备；独立提交日志恢复及银行、商店、雇佣、护卫、赠送、交易挂单、成交、支援创建和袭击发起快照入口的初始/最终提交边界已在锁外准备恢复载荷；日志序列化及其余嵌套恢复调用链仍待处理 | 无状态准备移出锁，提交重验 lineage；并发提交不覆盖新状态 |
 | 5 | Mod 和端点大类共享过多状态与职责 | P2 | 首轮边界已抽出 | 会话工作、银行提交、快照准备和远程地图引擎加载有独立入口 |
 | 6 | 客户端手写路由、DTO 与共享协议重复 | P2 | 路由已统一；关键 DTO 已加契约检查 | 所有客户端路由读取协议清单；银行、快照、聊天传输模型用实际序列化器验证 |
 
@@ -842,3 +842,15 @@
 - 五项反向检查分别取消摘要比较、忽略实际上传字节、不持久化摘要、最终重放使用存储摘要代替当前请求摘要、恢复预检忽略摘要，均被新断言捕获。日志为 `LocalOnly/raid-creation-binding-negative-compare.log`、`raid-creation-binding-negative-bytes.log`、`raid-creation-binding-negative-persist.log`、`raid-creation-binding-negative-final.log`、`raid-creation-binding-negative-preflight.log`。串行执行并按原字节恢复；恢复后的定向测试通过，日志 `LocalOnly/raid-creation-binding-restored.log`。
 - 完整 `Test-Regression.ps1 -IncludeClient` 通过：Events 52 项、Save 115 组、Client.Core 5 组、完整 NetworkSmoke、客户端 28 项；日志 `LocalOnly/raid-creation-binding-regression.log`。出征/护卫/恢复定向组在 `DOTNET_PROCESSOR_COUNT=1` 下通过，日志 `LocalOnly/raid-creation-binding-single-core.log`。77 个 1.6 冻结文件通过，日志 `LocalOnly/raid-creation-binding-frozen.log`。
 - RimTest 双客户端 21/21 通过、0 项未执行，覆盖共享世界、主线程交接、银行/商店/交易、商队与运输舱赠送、支援、雇佣、袭击发起与结算及运行时错误；报告 `G:/RimTestRuns/ClashOfRim/20261015-223920-c4136a13/report.json`，日志 `LocalOnly/raid-creation-binding-rimtest.log`。两个游戏进程 43104、85676 均退出，临时桥接与编排已恢复。实机覆盖正常业务，完整请求变化、日志冲突和提交竞态由服务端场景验证；其他入口审计和后续锁范围、职责、DTO 改进仍待完成。
+
+
+## 续修：支援创建与袭击发起的授权恢复作用域
+
+- 支援创建及袭击发起的显式初始/最终提交边界改用带请求头身份复验的恢复作用域。恢复需要的压缩准备在全服锁外完成；重新取得锁后再次认证、复验待办版本、安装准备结果并完成原意图，再继续幂等重放和当前业务校验。被撤销的请求不发布待恢复业务，不返回确认凭据；竞争恢复完成时重新读取结果，不把失效准备的错误优先于原成功回执。
+- 两个入口的上传阶段使用 `PrepareTransactionSnapshot`，不再通过 `ReceiveSnapshot` 隐式恢复日志；上传期间新增的意图由最终授权作用域处理。袭击发起在调用超时维护之前先经过一次授权恢复，避免原本的前置维护先同步恢复已有意图。既有超时维护函数内部的嵌套恢复与其他后台调用仍待分别审计；本步没有修改其业务锁边界或宣称全部袭击生命周期已完成锁外恢复。
+- 新增 65 个场景：支援、普通袭击、带护卫袭击 × 初始/最终恢复 × 正常/退出/换会话/撤销/新快照/竞争恢复/准备失败/撤销且失败，共 48 个；各业务 12 请求并发恢复 3 个，正文身份与认证主体不符 3 个；准备期间支援源快照推进、目标删除/移动 3 个，以及两种袭击的 PvP 关闭、外交变化、防守快照变化和护卫变化 8 个。验证锁可被另一线程取得，拒绝保留意图及原状态，成功只发布一次、保留事件/令牌/护卫消费。最终恢复注入来自真实 HTTP 中断的持久意图，避免在单核限流器内嵌套新请求。
+- 保留已有完整请求摘要、终态和护卫重放约束。快照文件发布、日志序列化、后处理和真正嵌套调用仍持有提交锁；数据库版本 27、日志版本 1–12、协议字段和 1.6 冻结文件不变。
+
+- 四项反向验证分别恢复旧支援入口、恢复旧袭击入口、删除恢复作用域的身份复验、改回上传阶段隐式 `ReceiveSnapshot`，均被新断言捕获。日志为 `LocalOnly/raid-creation-binding-expedition-negative-support-old.log`、`raid-creation-binding-expedition-negative-raid-old.log`、`raid-creation-binding-expedition-negative-auth.log`、`raid-creation-binding-expedition-negative-upload.log`。串行执行并按原字节恢复；恢复后定向组通过，日志 `LocalOnly/raid-creation-binding-expedition-restored.log`。
+- 完整 `Test-Regression.ps1 -IncludeClient` 通过：Events 52 项、Save 115 组、Client.Core 5 组、完整 NetworkSmoke、客户端 28 项；日志 `LocalOnly/expedition-recovery-regression.log`。出征与支援恢复定向组在 `DOTNET_PROCESSOR_COUNT=1` 下通过，日志 `LocalOnly/raid-creation-binding-expedition-single-core.log`。77 个 1.6 冻结文件校验通过，日志 `LocalOnly/expedition-recovery-frozen.log`。
+- RimTest 双客户端 21/21 通过、0 项未执行，覆盖共享世界、主线程交接、银行/商店/交易、赠送、支援、雇佣、袭击与运行时错误检查；报告 `G:/RimTestRuns/ClashOfRim/20261015-224909-28ed1760/report.json`，日志 `LocalOnly/expedition-recovery-rimtest.log`。游戏进程 73220、86164 均退出，临时桥接与编排已恢复。实机验证正常业务；恢复中断、准备交错、会话失效和业务状态变化由服务端测试验证。

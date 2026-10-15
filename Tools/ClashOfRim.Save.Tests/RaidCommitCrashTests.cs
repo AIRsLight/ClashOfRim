@@ -14,6 +14,7 @@ internal static partial class RaidCommitCrashTests
     public static void Run(Func<string, SaveSnapshotPackage> fixture)
     {
         RunBindings(fixture);
+        ExpeditionEndpointRecoveryPreparationTests.Run(fixture);
         foreach (bool guarded in new[] { false, true })
         {
             foreach (bool reopen in new[] { false, true })

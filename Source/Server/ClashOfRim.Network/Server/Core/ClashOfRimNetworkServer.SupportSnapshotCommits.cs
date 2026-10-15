@@ -25,22 +25,20 @@ public static partial class ClashOfRimNetworkServer
                 T("Support.PawnPackageInvalid", ("MESSAGE", ex.Message))), null, ProtocolDeliverySemantics.OnlineImmediate));
         }
         string binding = SupportSnapshotMutation.RequestHash(transaction, bytes);
-        using (state.EnterSnapshotMutation())
+        using (var recovery = EnterPrincipalSnapshotMutation(http, state, request.Actor))
         {
-            if (!AuthorizeSupportCommit(http, state, request)) return SupportStartRejected(ProtocolErrorCode.Unauthorized, "Auth.Failed");
-            RecoverSnapshotCommits(state);
+            if (recovery.Rejection is not null) return SupportStartRejected(ProtocolErrorCode.Unauthorized, "Auth.Failed");
             if (state.Ledger.FindByIdempotencyKey(request.IdempotencyKey) is { } existing)
                 return SupportSnapshotReplayResponse(state, transaction, pawn, binding, existing);
             var rejection = ValidateSupportSnapshotStart(state, request, out _);
             if (rejection is not null) return Results.Ok(new EventCreationResponse(rejection, null, ProtocolDeliverySemantics.OnlineImmediate));
         }
-        var upload = ReceiveSnapshot(state, request.Actor.UserId, request.Actor.ColonyId!, metadata.SnapshotId,
-            metadata, bytes, DateTimeOffset.UtcNow, storeAccepted: false);
+        var upload = PrepareTransactionSnapshot(state, request.Actor.UserId, request.Actor.ColonyId!, metadata.SnapshotId,
+            metadata, bytes, DateTimeOffset.UtcNow);
         // Even a preparation rejection can race a successful identical commit; check its receipt under the gate first.
-        using (state.EnterSnapshotMutation())
+        using (var recovery = EnterPrincipalSnapshotMutation(http, state, request.Actor))
         {
-            if (!AuthorizeSupportCommit(http, state, request)) return SupportStartRejected(ProtocolErrorCode.Unauthorized, "Auth.Failed");
-            RecoverSnapshotCommits(state);
+            if (recovery.Rejection is not null) return SupportStartRejected(ProtocolErrorCode.Unauthorized, "Auth.Failed");
             if (state.Ledger.FindByIdempotencyKey(request.IdempotencyKey) is { } existing)
                 return SupportSnapshotReplayResponse(state, transaction, pawn, binding, existing);
             if (!upload.Accepted || upload.AcceptedSnapshot is null)
@@ -63,10 +61,6 @@ public static partial class ClashOfRimNetworkServer
                 metadata.SnapshotId, upload.AcceptedSnapshot.Envelope.NextLineageToken));
         }
     }
-
-    private static bool AuthorizeSupportCommit(HttpRequest http, ClashOfRimNetworkState state, CreateSupportPawnRequest request) =>
-        MultipartSnapshotAuthentication.TryAuthorize(http, state, DateTimeOffset.UtcNow)
-        && MultipartSnapshotAuthentication.MatchesPrincipal(http, request.Actor.UserId, request.Actor.ColonyId);
 
     private static ProtocolResponse? ValidateSupportSnapshotStart(ClashOfRimNetworkState state, CreateSupportPawnRequest request,
         out EventTargetContext? context)
