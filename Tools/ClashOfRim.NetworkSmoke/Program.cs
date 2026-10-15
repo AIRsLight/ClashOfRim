@@ -3012,6 +3012,13 @@ try
         allowSelfPickup: true,
         allowServerDropPod: false));
     Require(tradeToComplete.Result.Accepted, "创建待完成交易单应成功");
+    string ledgerBeforeAcceptanceKeyReuse = JsonSerializer.Serialize(state.Ledger.ListAll());
+    var reusedAcceptanceKey = await client.AcceptTradeOrderAsync(new AcceptTradeOrderRequest(
+        "trade:user-b:accept:001", tradeToComplete.EventId!,
+        new ProtocolIdentity("user-b", "colony-b", "defender-snapshot-after-gift"), false, userBAuthToken));
+    Require(!reusedAcceptanceKey.Result.Accepted && reusedAcceptanceKey.Result.ErrorCode == ProtocolErrorCode.Conflict
+        && ledgerBeforeAcceptanceKeyReuse == JsonSerializer.Serialize(state.Ledger.ListAll()),
+        "不能把已用于另一订单的接单键作为新订单的接单成功响应");
     AcceptTradeOrderResponse acceptedTradeToComplete = await client.AcceptTradeOrderAsync(new AcceptTradeOrderRequest(
         "trade:user-b:accept:complete-source",
         tradeToComplete.EventId!,
