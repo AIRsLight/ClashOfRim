@@ -621,3 +621,13 @@
 - 验证：Save 113 组全部通过（含上述并发场景和原有商店/雇佣/袭击持久化中断恢复），日志 `LocalOnly/service-replay-race-save.log`；其余回归按 `Test-Regression.ps1` 的相同项目顺序运行，Events 全部、Client.Core 5 组、完整 NetworkSmoke、客户端 27 项通过，日志 `LocalOnly/service-replay-race-regression.log`。77 个 1.6 冻结文件验证通过。
 - 边界与下一步：未改变数据库版本 27 或持久日志格式；未把锁外准备扩为无锁提交，也未将完整请求指纹推广到这些业务。银行借款、还贷、还债仍需单独修正：最终阶段目前会把已存在的键直接判作冲突，需要统一校验业务回执后重放，再处理准备错误及排队期间的会话失效。完成这项后继续文档中的锁范围、服务职责和 DTO 收敛。
 - RimTest 首次运行在 `shared-world-entry` 超时：A 客户端保持 `manualSyncInProgress=true`，未产生初始快照，后续业务场景未执行。失败报告 `G:/RimTestRuns/ClashOfRim/20261015-181723-da288724/report.json` 与日志 `LocalOnly/service-replay-race-rimtest.log` 保留，不计为通过。同一代码重新建立独立环境后 20/20 通过、0 项未执行，覆盖商店、雇佣、护卫队、袭击和运输舱赠送；报告 `G:/RimTestRuns/ClashOfRim/20261015-182010-4d639245/report.json`，日志 `LocalOnly/service-replay-race-rimtest-retry.log`。两次的游戏进程均退出，临时桥接改动均恢复。本步未修复首次建档停滞，根因待定位；复跑成功不能消除这项稳定性缺陷。并发与会话失效由服务端测试验证，未宣称在实机运行了 12 请求并发。
+
+## 续修：银行快照并发回执与历史借款状态约束
+
+- 借款、还贷、还债原先在准备失败时直接返回，最终锁内还会把任何已占用幂等键当作冲突。现在首次与最终检查复用 `BankSnapshotReplay` 的同一业务回执规则：在快照变更锁及银行锁内重新认证 multipart 主体、恢复待办、验证正文令牌和最新快照，再校验原记录的归属、业务 ID、金额/期限/利息及确认快照。已提交的同键结果优先于准备错误，未提交的新请求仍执行原有快照连续性、贷款 ID、当前贷款/债务状态和提交前比对。
+- 首次银行上下文、键查询和业务预检现在处于同一锁范围，避免另一笔提交穿插造成上下文与回执不一致。解压/索引准备保持在锁外；最终阶段重新读取银行上下文。正文令牌不能替代请求头主体，准备期间注销或替换会话返回 Unauthorized，不发布银行记录、快照或通知。
+- 顺带修复已还款贷款被原借款键重放的错误：还款会覆盖贷款记录的 `SnapshotId`，旧规则允许原借款键配合这个还款快照返回正的借款金额。借款回执现在只接受 Active 贷款；还款仍要求正确的还款键与 Repaid 状态。无法证明原借款快照的已关闭/待确认记录不返回借款成功，不补造历史回执；本步没有新增独立的历史借款凭据或修改数据库版本 27。
+- `BankSnapshotReplayRaceTests` 复用测试内准备限流器屏障，覆盖三类业务 × 同键/不同键/准备期间注销/替换会话 × 12 请求，共 144 个并发请求。验证恰好一次新提交、同键的业务 ID/确认快照/lineage/银币变动/业务摘要完全一致，不同键仅一个成功；注销或替换会话后完整银行记录、快照、账本和通知版本保持不变。之后验证串行重试、篡改业务 ID/金额/期限/利息/确认快照、请求头主体与正文令牌不一致、无效正文令牌，以及已还贷后伪装借款重试。
+- 原实现负向证据：`LocalOnly/bank-replay-race-negative.log` 复现 12 个同键借款请求中 11 个误报父快照已变；`LocalOnly/bank-replay-history-negative.log` 复现已还款记录被当作借款回执。真实 Kestrel/SQLite 的 `BankHttpRecoveryTests` 将原来的“只要求一个首次成功，允许其他请求失败”改为“全部同键请求成功、恰好一个首次提交”，并继续覆盖 SQL 中断、重启恢复、第二次重启不重复、身份与字段冲突。
+- 边界：仍沿用银行既有请求关联语义，未引入完整请求哈希；还款提交金额可以不小于应付金额，实际回执只返回应付金额。历史借款记录的原快照没有被补造；以后如需支持跨还款生命周期的借款成功回执，必须持久化独立凭据，不能再次放宽当前状态规则。下一步先定位前轮 RimTest 初始世界提交停滞，再继续文档中的锁范围、服务职责及 DTO 收敛。
+- 验证：最终 Save 114 组全部通过，日志 `LocalOnly/bank-replay-race-save.log`；Events 全部、Client.Core 5 组、完整 NetworkSmoke、客户端 27 项通过，日志 `LocalOnly/bank-replay-race-regression.log`。增加历史借款状态约束后重新运行 Save 及完整 NetworkSmoke，后者日志 `LocalOnly/bank-replay-history-network.log`；77 个 1.6 冻结文件再次验证通过。RimTest 双客户端本轮 20/20 通过、0 项未执行，报告 `G:/RimTestRuns/ClashOfRim/20261015-183036-0e096ffd/report.json`，日志 `LocalOnly/bank-replay-race-rimtest.log`；临时桥接代码恢复，两个游戏进程均退出。该成功记录不代表前轮偶发建档超时已修复，也不代替服务端并发与存储故障测试。

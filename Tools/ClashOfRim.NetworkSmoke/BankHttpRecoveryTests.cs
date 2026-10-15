@@ -83,9 +83,10 @@ internal static class BankHttpRecoveryTests
                 }
                 else
                 {
-                    // Competing first requests may lose the snapshot race; all subsequent retries must succeed.
+                    // Concurrent same-key requests must replay the winner even if their preparation saw the advanced snapshot.
                     JsonObject[] first = await Task.WhenAll(Enumerable.Range(0, 4).Select(_ => ReadAsync(host.Client, MakeRequest(token), token)));
-                    Require(first.Count(reply => reply["result"]!["accepted"]!.GetValue<bool>()
+                    Require(first.All(reply => reply["result"]!["accepted"]!.GetValue<bool>())
+                        && first.Count(reply => reply["result"]!["accepted"]!.GetValue<bool>()
                         && reply["result"]!["errorCode"]!.GetValue<int>() == (int)ProtocolErrorCode.None) == 1, "concurrent first requests did not commit exactly once");
                 }
             }

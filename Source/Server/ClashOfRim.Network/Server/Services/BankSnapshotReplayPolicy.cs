@@ -10,7 +10,9 @@ internal static class BankSnapshotReplayPolicy
         BankLoanRecord? loan = bank.FindByIdempotencyKey(key);
         return loan is not null && loan.UserId == userId && loan.ColonyId == colonyId
             && loan.SnapshotId == confirmedSnapshotId
-            && (repayment ? loan.RepaymentIdempotencyKey == key && loan.Status == BankLoanRegistry.StatusRepaid : loan.IdempotencyKey == key)
+            // Repayment replaces SnapshotId. A closed loan cannot prove its original borrowing snapshot.
+            && (repayment ? loan.RepaymentIdempotencyKey == key && loan.Status == BankLoanRegistry.StatusRepaid
+                : loan.IdempotencyKey == key && loan.Status == BankLoanRegistry.StatusActive)
                 ? loan.SnapshotId : null;
     }
 

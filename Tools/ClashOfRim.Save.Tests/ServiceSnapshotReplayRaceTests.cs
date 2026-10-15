@@ -87,7 +87,7 @@ internal static class ServiceSnapshotReplayRaceTests
         Check(replay.Result.ErrorCode == ProtocolErrorCode.DuplicateRequest && replay.Id == winner.Id && before == Evidence(), "later service replay changed state");
     }
 
-    private static T[] Race<T>(Func<int, Task<T>> call, Action beforeRelease)
+    internal static T[] Race<T>(Func<int, Task<T>> call, Action beforeRelease)
     {
         var slots = (SemaphoreSlim)typeof(ClashOfRimNetworkServer).Assembly.GetType("AIRsLight.ClashOfRim.Network.SnapshotPreparationService")!
             .GetField("Slots", BindingFlags.Static | BindingFlags.NonPublic)!.GetValue(null)!;

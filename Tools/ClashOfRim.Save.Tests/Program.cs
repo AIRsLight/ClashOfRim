@@ -14,6 +14,7 @@ using System.Xml.Linq;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("银行并发快照重试与会话失效", () => BankSnapshotReplayRaceTests.Run(BuildFixturePackage)),
     ("银行快照提交跨崩溃恢复且重试幂等", () => BankCommitCrashTests.Run(BuildFixturePackage)),
     ("礼物快照提交跨崩溃恢复且冲突拒绝覆盖", () => GiftCommitCrashTests.Run(BuildFixturePackage)),
     ("经济快照同键并发重放优先于准备失败", () => EconomicSnapshotReplayRaceTests.Run(BuildFixturePackage)),
