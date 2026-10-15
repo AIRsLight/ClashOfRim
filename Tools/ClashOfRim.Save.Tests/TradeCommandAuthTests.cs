@@ -39,6 +39,7 @@ internal static class TradeCommandAuthTests
         string user = kind is "accept" or "memo-cancel" ? "buyer" : "seller";
         string token = Token(state, user);
         if (kind == "memo-cancel") Require(Call(state, order, "accept", user, token).Accepted, "memo setup failed");
+        if (kind == "complete") TradeCompletionTests.SeedCompleted(state.Ledger, order);
         return (state, order, user, token);
     }
 

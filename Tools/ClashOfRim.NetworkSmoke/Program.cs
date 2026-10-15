@@ -3024,6 +3024,12 @@ try
         allowSelfPickup: true,
         allowServerDropPod: false));
     Require(tradeToComplete.Result.Accepted, "创建待完成交易单应成功");
+    var directCompletion = new CloseTradeOrderRequest("trade:user-a:direct-complete", tradeToComplete.EventId!,
+        new ProtocolIdentity("user-a", "colony-a", "attacker-snapshot-after"), null, userAAuthToken);
+    string ledgerBeforeDirectCompletion = JsonSerializer.Serialize(state.Ledger.ListAll());
+    var unfulfilledCompletion = await client.CompleteTradeOrderAsync(directCompletion);
+    Require(!unfulfilledCompletion.Result.Accepted && unfulfilledCompletion.Result.ErrorCode == ProtocolErrorCode.Conflict
+        && ledgerBeforeDirectCompletion == JsonSerializer.Serialize(state.Ledger.ListAll()), "不能直接完成尚无快照履约的交易单");
     string ledgerBeforeAcceptanceKeyReuse = JsonSerializer.Serialize(state.Ledger.ListAll());
     var reusedAcceptanceKey = await client.AcceptTradeOrderAsync(new AcceptTradeOrderRequest(
         "trade:user-b:accept:001", tradeToComplete.EventId!,
@@ -3070,6 +3076,10 @@ try
     Equal(TradeFulfillmentMode.SelfDelivery, exchangePayload.FulfillmentMode, "交换事件应记录远行队自提履约方式");
     Equal(ServerEventStatus.AppliedToSnapshot, state.Ledger.Find(tradeToComplete.EventId!)!.Status, "自提交易成立后市场交易单应进入完成状态");
     Equal(ServerEventStatus.AppliedToSnapshot, state.Ledger.Find(acceptedTradeToComplete.MemoEventId!)!.Status, "自提交易成立后接单备忘录应进入完成状态");
+    ledgerBeforeDirectCompletion = JsonSerializer.Serialize(state.Ledger.ListAll());
+    var incompleteProofCompletion = await client.CompleteTradeOrderAsync(directCompletion);
+    Require(!incompleteProofCompletion.Result.Accepted && incompleteProofCompletion.Result.ErrorCode == ProtocolErrorCode.Conflict
+        && ledgerBeforeDirectCompletion == JsonSerializer.Serialize(state.Ledger.ListAll()), "订单完成标记不能代替交换的付款快照证据");
     ListTradeOrdersResponse ownerTradeHistory = await client.ListTradeOrdersAsync(new ListTradeOrdersRequest(
         "user-a",
         "colony-a",

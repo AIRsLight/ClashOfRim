@@ -505,3 +505,13 @@
 - 验证：完整 `Test-Regression.ps1 -IncludeClient` 通过（Events 52、Save 106、Client.Core 5 组、完整 NetworkSmoke、客户端 26），日志 `LocalOnly/trade-memo-cancel-regression.log`。定向和负向证据见 `LocalOnly/trade-memo-cancel-targeted.log`、`LocalOnly/trade-memo-cancel-negative.log`、`LocalOnly/trade-memo-cancel-negative-retry.log`。77 个 1.6 冻结文件与差异格式检查通过。
 - 本步没有新增 RimTest 的买家取消/重新接单/旧取消重试场景，前一步 19 项结果不替代该路径的实机验收。通知补发依赖相同请求重试，不新增后台回执扫描。下一步审计旧直接完成交易入口的成交证据约束，再继续其余生命周期、业务锁、职责及 DTO 收敛。
 - 删除已无调用的弱关联 `FindTradeAcceptanceMemo` 辅助方法，接单和取消共用严格候选检查；清理后相关三个测试组再次通过，日志 `LocalOnly/trade-memo-cancel-final-targeted.log`。
+
+## 续修：直接完成交易入口的履约证据约束
+
+- 原 `CompleteTradeOrder` 与取消共用通用关闭函数，卖家只需给出订单身份就能把未履约订单和备忘标为 AppliedToSnapshot；已完成分支也不检查交换/交付证据，并因只找活跃备忘而遗漏通知。旧实现负向测试明确复现 `completion bypassed snapshot fulfillment: Recorded`。
+- 完成入口独立为 `TradeCompletion`，在锁内认证并恢复既有提交日志后，仅确认账本中已提交的履约结果。订单必须已完成，且只有一条匹配的交换；检查交换的付款快照标识、投递/入档时间与成功标记、买卖双方、原订单货物和费用、履约方式及支付物来源。自提必须有被实际使用的备忘；带备忘空投和直接空投分别验证其关联。相关备忘须有一致的身份、载荷及完成/取消终态。
+- 配套交付按完整键查找并校验类型、用途、双方和物品；自提不能额外生成买家收货事件，空投必须具有双方交付。拒绝缺失、多份、损坏或失败/冲突记录，不猜测旧半完成状态。只持有旧订单完成标记、缺少匹配快照履约元数据的历史记录也不会被自动认定为成功；本步不重算历史交易规则或补造历史快照。
+- 合法请求返回 DuplicateRequest，重发实际买家、持久备忘参与者和卖家的通知。它不追加账本记录、不改变状态、不重复发货，也不修改已消费交付。完成请求键只保留协议必填校验，不创建新的业务操作或别名。原通用关闭函数收窄为 `CancelOwnedTradeOrder`，取消不再接收任意终态参数。
+- `TradeCompletionTests` 覆盖三种账本的 7 类无履约/终态组合、三种履约模式与持久化重开、36 类损坏/冲突证据、已消费交付保留、重复唤醒及错误身份。只读账本代理阻止该入口调用任何写方法；另外实际调用 multipart 快照履约入口，验证自提、带备忘空投和直接空投产生的结果均可确认。原认证测试改用合法已提交交易，继续覆盖无效令牌及排队撤销。
+- 验证：默认完整回归通过（Events 52、Save 107、Client.Core 5 组、完整 NetworkSmoke），HTTP 验证合法卖家也不能直接关闭未履约订单，订单完成标记不能替代付款快照证据。日志 `LocalOnly/trade-completion-regression.log`、`LocalOnly/trade-completion-targeted.log`、`LocalOnly/trade-completion-negative.log`。77 个 1.6 冻结文件与差异格式检查通过，数据库仍为版本 26，无协议字段或持久格式变化。
+- 该兼容入口未被当前 Mod 正常交易流程调用，本步没有新增对应 RimTest 实机场景；multipart 端点测试不等同于游戏内测试。下一步继续卖家撤单的返还关联/半完成状态及重复通知审计；其重复分支仍只找活跃备忘。无快照经济写入口也需逐项收口，尤其 JSON 发单/履约以及仍被运输舱赠送调用的 JSON 礼物入口；不能在未迁移实际调用方前简单移除。后续业务锁、职责和 DTO 收敛仍待推进。

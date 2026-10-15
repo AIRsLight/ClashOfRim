@@ -2232,34 +2232,11 @@ public static partial class ClashOfRimNetworkServer
                 return CancelTradeAcceptanceMemo(request, state, tradeOrder);
             }
 
-            return CloseTradeOrder(
-                request,
-                state,
-                ServerEventStatus.Cancelled,
-                ServerEventStatus.Cancelled,
-                T("Trade.CancelledWithNotifications"),
-                T("Trade.Cancelled"));
+            return CancelOwnedTradeOrder(request, state);
         }
     }
 
-    private static IResult CompleteTradeOrder(CloseTradeOrderRequest request, ClashOfRimNetworkState state)
-    {
-        return CloseTradeOrder(
-            request,
-            state,
-            ServerEventStatus.AppliedToSnapshot,
-            ServerEventStatus.AppliedToSnapshot,
-            T("Trade.CompletedWithNotifications"),
-            T("Trade.Completed"));
-    }
-
-    private static IResult CloseTradeOrder(
-        CloseTradeOrderRequest request,
-        ClashOfRimNetworkState state,
-        ServerEventStatus tradeTerminalStatus,
-        ServerEventStatus memoTerminalStatus,
-        string successMessage,
-        string alreadyClosedMessage)
+    private static IResult CancelOwnedTradeOrder(CloseTradeOrderRequest request, ClashOfRimNetworkState state)
     {
         using (state.EnterSnapshotMutation())
         {
@@ -2296,16 +2273,16 @@ public static partial class ClashOfRimNetworkServer
                     notifiedAcceptorCount: 0));
             }
 
-            if (tradeOrder.Status == tradeTerminalStatus)
+            if (tradeOrder.Status == ServerEventStatus.Cancelled)
             {
                 IReadOnlyList<AuthoritativeEvent> existingMemos = FindActiveTradeAcceptanceMemos(
                     state.Ledger,
                     tradeOrder.EventId);
                 state.EventNotifications.SignalUsers(existingMemos.Select(memo => memo.Target.UserId));
                 return Results.Ok(new CloseTradeOrderResponse(
-                    new ProtocolResponse(true, ProtocolErrorCode.DuplicateRequest, alreadyClosedMessage),
+                    new ProtocolResponse(true, ProtocolErrorCode.DuplicateRequest, T("Trade.Cancelled")),
                     tradeOrder.EventId,
-                    tradeTerminalStatus.ToString(),
+                    ServerEventStatus.Cancelled.ToString(),
                     existingMemos.Select(memo => memo.Target.UserId).Distinct(StringComparer.Ordinal).Count()));
             }
 
@@ -2321,10 +2298,7 @@ public static partial class ClashOfRimNetworkServer
             IReadOnlyList<AuthoritativeEvent> activeMemos = FindActiveTradeAcceptanceMemos(
                 state.Ledger,
                 tradeOrder.EventId);
-            var events = new List<AuthoritativeEvent>();
-            if (tradeTerminalStatus == ServerEventStatus.Cancelled)
-            {
-                events.Add(CreateTradeItemDeliveryEvent(
+            var events = new[] { CreateTradeItemDeliveryEvent(
                     state,
                     $"trade-cancelled-owner-return:{tradeOrder.EventId}",
                     new EventParty("server"),
@@ -2332,11 +2306,10 @@ public static partial class ClashOfRimNetworkServer
                     payload.OfferedItems,
                     ItemDeliveryPurpose.TradeCancelledOwnerReturn,
                     tradeOrder.TargetContext,
-                    DateTimeOffset.UtcNow));
-            }
+                    DateTimeOffset.UtcNow) };
 
             state.Ledger.ApplyBatch(BuildTradeClosureBatch(tradeOrder, activeMemos,
-                tradeTerminalStatus, memoTerminalStatus, events));
+                ServerEventStatus.Cancelled, ServerEventStatus.Cancelled, events));
             IReadOnlyList<string> notifiedUsers = activeMemos
                 .Select(memo => memo.Target.UserId)
                 .Where(userId => !string.IsNullOrWhiteSpace(userId))
@@ -2345,9 +2318,9 @@ public static partial class ClashOfRimNetworkServer
             state.EventNotifications.SignalUsers(notifiedUsers);
 
             return Results.Ok(new CloseTradeOrderResponse(
-                ProtocolResponse.Ok(successMessage),
+                ProtocolResponse.Ok(T("Trade.CancelledWithNotifications")),
                 tradeOrder.EventId,
-                tradeTerminalStatus.ToString(),
+                ServerEventStatus.Cancelled.ToString(),
                 notifiedUsers.Count));
         }
     }
