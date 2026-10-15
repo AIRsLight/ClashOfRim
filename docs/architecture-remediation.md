@@ -524,3 +524,12 @@
 - `TradeCancellationTests` 覆盖三种账本的 6 个提交后中断/重开场景、18 个历史半完成与旧事件 ID 场景、114 个损坏/冲突场景、缺失返还、36 个并发请求、订单/备忘/返还的同状态证据变更及文件发布失败；原 SQLite 撤单插入/更新回滚测试继续执行。HTTP 回归验证重试保持账本不变并重新通知卖家与两名买家。负向日志 `LocalOnly/trade-owner-cancel-negative-notify.log`、`LocalOnly/trade-owner-cancel-negative-proof.log`，定向日志 `LocalOnly/trade-owner-cancel-targeted.log`。
 - 范围：本步校验卖家请求入口。自动过期、基线失效和履约失败处理仍需统一返还关联规则，尤其旧半完成订单在自动扫描时的处理；不能把卖家入口的校验当作这些入口已经完成。没有为取消请求键新建回执，卖家撤单仍以订单及唯一返还记录实现幂等。数据库仍为版本 26，1.6 冻结不变。后续继续自动关闭路径与无快照经济入口，再推进锁范围、职责和 DTO 收敛。
 - 验证：默认完整回归通过（Events 全部、Save 108、Client.Core 5 组及完整 NetworkSmoke），日志 `LocalOnly/trade-owner-cancel-regression.log`；77 个 1.6 冻结文件未变。RimTest 双客户端既有 19 项全部通过，含撤单退款和空投履约，报告 `G:/RimTestRuns/ClashOfRim/20261015-161503-499bc2ef/report.json`，日志 `LocalOnly/trade-owner-cancel-rimtest.log`；测试进程均已退出。报告仍为有限覆盖，通知中断、损坏返还和持久化故障由服务端/HTTP 测试验证，没有宣称已有对应实机场景。
+
+## 续修：自动过期与基线失效共用返还决策
+
+- 两个自动扫描原先仅选择开放订单，分别用过期/基线返还键创建退货。历史半完成订单若已存在卖家撤单或另一种原因产生的返还，扫描可能再退一次托管物。旧实现负向测试明确复现 `automatic closure returned escrow twice: expire/cancel`；另一条负向测试复现损坏通知身份抛异常并中断扫描。
+- 将卖家撤单的准备逻辑扩展为三种关闭原因共用的 `TryPrepareTradeCancellation`：统一检查备忘、成交证据和唯一返还，复用已有有效返还；仅在没有返还且订单仍开放时按本次原因创建。所有状态变更带完整预期源记录，既有入档返还保留。过期/基线扫描及通知构造集中到 `TradeAutomaticClosure`，扫描仅负责选择符合条件的订单，不再自行拼装退款规则。
+- 自动关闭将返还、订单/备忘状态和参与者站内通知放入同一原子批次。历史通知校验身份、状态、通知标识和结构字段，保留其原本地化标题/正文及消费状态；不用当前文案重写旧通知。冲突订单记录警告并跳过，其他有效订单仍可处理；存储失败继续向上抛出，不把失败算作关闭成功。
+- `TradeAutomaticClosureTests` 覆盖三种账本 × 两条入口 × 三类既有返还的 18 个旧 ID/已入档场景，66 个损坏返还/备忘/通知与履约冲突场景，6 个提交后中断与重开、48 个并发扫描、SQLite 通知插入阶段回滚、同状态通知证据改变、未到期/关闭过期功能/有效基线不变场景。既有卖家撤单和 SQLite 自动关闭插入/更新回滚测试继续通过。负向日志 `LocalOnly/trade-auto-close-negative-duplicate.log`、`LocalOnly/trade-auto-close-negative-conflict.log`；定向日志 `LocalOnly/trade-auto-close-targeted.log`。
+- 边界：本步不扫描全部已关闭订单来重新发送内存唤醒。提交后中断仍保留完整返还和站内通知，玩家重新拉取队列或登录可恢复；即时唤醒不是新的持久 outbox。冲突保留原证据供审计，不猜测、不补偿已履约交易。履约失败补偿的图关联和旧前缀返还匹配仍需继续修复，之后处理无快照经济写入口、锁范围、职责及 DTO。没有新增数据库格式，版本仍为 26。
+- 验证：默认完整回归通过（Events 全部、Save 109、Client.Core 5 组及完整 NetworkSmoke），日志 `LocalOnly/trade-auto-close-regression.log`；77 个 1.6 冻结文件及差异格式检查通过。本步没有新增自动过期/基线失效的 RimTest 实机场景，不用上一轮 19 项结果替代该路径的实机验证。
