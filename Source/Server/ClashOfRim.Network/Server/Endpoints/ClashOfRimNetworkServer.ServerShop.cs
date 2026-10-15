@@ -186,13 +186,17 @@ public static partial class ClashOfRimNetworkServer
         DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
         string normalizedListingKind = NormalizeShopListingKind(request.ListingKind);
         ServerShopPurchaseResult prevalidation;
-        using (state.EnterSnapshotMutation())
+        using (var recovery = EnterRecoveredSnapshotMutation(state, () =>
+            ReauthorizeSnapshotPrincipal(httpRequest, state, request.Buyer)
+                ? null : ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed"))))
         lock (state.ServerShop.SnapshotCommitGate)
         {
+            if (recovery.Rejection is { } denied)
+                return Results.Ok(new PurchaseServerShopListingResponse(denied, request.ListingId, 0));
             if (!ReauthorizeSnapshotPrincipal(httpRequest, state, request.Buyer))
                 return Results.Ok(new PurchaseServerShopListingResponse(
                     ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed")), request.ListingId, 0));
-            RecoverSnapshotCommits(state);
+
             prevalidation = state.ServerShop.ValidatePurchase(
                 request.IdempotencyKey,
                 request.ListingId,
@@ -272,18 +276,22 @@ public static partial class ClashOfRimNetworkServer
                 remainingStockCount: state.ServerShop.Find(request.ListingId)?.StockCount ?? 0));
         }
 
-        SnapshotUploadResult upload = ReceiveSnapshot(state, request.Buyer.UserId, request.Buyer.ColonyId!,
+        SnapshotUploadResult upload = PrepareTransactionSnapshot(state, request.Buyer.UserId, request.Buyer.ColonyId!,
             multipart.Request.ConfirmedSnapshot.SnapshotId!, multipart.Request.ConfirmedSnapshot,
-            multipart.Payload, nowUtc, storeAccepted: false);
+            multipart.Payload, nowUtc);
 
         // Fixed order: snapshot mutation gate, then shop gate. Preparation above never holds the shop gate.
-        using (state.EnterSnapshotMutation())
+        using (var recovery = EnterRecoveredSnapshotMutation(state, () =>
+            ReauthorizeSnapshotPrincipal(httpRequest, state, request.Buyer)
+                ? null : ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed"))))
         lock (state.ServerShop.SnapshotCommitGate)
         {
+            if (recovery.Rejection is { } denied)
+                return Results.Ok(new PurchaseServerShopListingResponse(denied, request.ListingId, 0));
             if (!ReauthorizeSnapshotPrincipal(httpRequest, state, request.Buyer))
                 return Results.Ok(new PurchaseServerShopListingResponse(
                     ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed")), request.ListingId, 0));
-            RecoverSnapshotCommits(state);
+
             var purchase = state.ServerShop.ValidatePurchase(request.IdempotencyKey, request.ListingId,
                 normalizedListingKind, request.UnitPriceSilver, request.TotalPriceSilver, request.PurchaseCount, request.Buyer);
             if (!purchase.Accepted)

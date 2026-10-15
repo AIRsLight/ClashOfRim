@@ -184,7 +184,7 @@ public static partial class ClashOfRimNetworkServer
         DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
         BankRequestContext context;
         int interestSilver;
-        using (var mutation = EnterBankSnapshotMutation(httpRequest, state, request.UserId, request.ColonyId, request.CurrentSnapshotId, request.AuthToken))
+        using (var mutation = EnterColonySnapshotMutation(httpRequest, state, request.UserId, request.ColonyId, request.CurrentSnapshotId, request.AuthToken))
         lock (state.BankLoans.SnapshotCommitGate)
         {
             if (mutation.Rejection is { } denied) return Results.Ok(new BankLoanResponse(denied, null, 0, null));
@@ -268,7 +268,7 @@ public static partial class ClashOfRimNetworkServer
             }
         }
 
-        SnapshotUploadResult upload = PrepareBankSnapshot(
+        SnapshotUploadResult upload = PrepareTransactionSnapshot(
             state,
             request.UserId,
             request.ColonyId,
@@ -276,7 +276,7 @@ public static partial class ClashOfRimNetworkServer
             request.ConfirmedSnapshot,
             multipart.Payload,
             nowUtc);
-        using (var mutation = EnterBankSnapshotMutation(httpRequest, state, request.UserId, request.ColonyId, request.CurrentSnapshotId, request.AuthToken))
+        using (var mutation = EnterColonySnapshotMutation(httpRequest, state, request.UserId, request.ColonyId, request.CurrentSnapshotId, request.AuthToken))
             lock (state.BankLoans.SnapshotCommitGate)
             {
                 if (mutation.Rejection is { } denied) return Results.Ok(new BankLoanResponse(denied, null, 0, null));
@@ -346,7 +346,7 @@ public static partial class ClashOfRimNetworkServer
         DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
         BankRequestContext context;
         BankLoanRecord? active;
-        using (var mutation = EnterBankSnapshotMutation(httpRequest, state, request.UserId, request.ColonyId, request.CurrentSnapshotId, request.AuthToken))
+        using (var mutation = EnterColonySnapshotMutation(httpRequest, state, request.UserId, request.ColonyId, request.CurrentSnapshotId, request.AuthToken))
         lock (state.BankLoans.SnapshotCommitGate)
         {
             if (mutation.Rejection is { } denied) return Results.Ok(new BankLoanResponse(denied, null, 0, null));
@@ -399,7 +399,7 @@ public static partial class ClashOfRimNetworkServer
             }
         }
 
-        SnapshotUploadResult upload = PrepareBankSnapshot(
+        SnapshotUploadResult upload = PrepareTransactionSnapshot(
             state,
             request.UserId,
             request.ColonyId,
@@ -407,7 +407,7 @@ public static partial class ClashOfRimNetworkServer
             request.ConfirmedSnapshot,
             multipart.Payload,
             nowUtc);
-        using (var mutation = EnterBankSnapshotMutation(httpRequest, state, request.UserId, request.ColonyId, request.CurrentSnapshotId, request.AuthToken))
+        using (var mutation = EnterColonySnapshotMutation(httpRequest, state, request.UserId, request.ColonyId, request.CurrentSnapshotId, request.AuthToken))
             lock (state.BankLoans.SnapshotCommitGate)
             {
                 if (mutation.Rejection is { } denied) return Results.Ok(new BankLoanResponse(denied, null, 0, null));
@@ -570,7 +570,7 @@ public static partial class ClashOfRimNetworkServer
         DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
         BankRequestContext context;
         BankDebtRecord? debt;
-        using (var mutation = EnterBankSnapshotMutation(httpRequest, state, request.UserId, request.ColonyId, request.CurrentSnapshotId, request.AuthToken))
+        using (var mutation = EnterColonySnapshotMutation(httpRequest, state, request.UserId, request.ColonyId, request.CurrentSnapshotId, request.AuthToken))
         lock (state.BankLoans.SnapshotCommitGate)
         {
             if (mutation.Rejection is { } denied) return Results.Ok(new BankDebtResponse(denied, null, 0, null));
@@ -622,7 +622,7 @@ public static partial class ClashOfRimNetworkServer
             }
         }
 
-        SnapshotUploadResult upload = PrepareBankSnapshot(
+        SnapshotUploadResult upload = PrepareTransactionSnapshot(
             state,
             request.UserId,
             request.ColonyId,
@@ -630,7 +630,7 @@ public static partial class ClashOfRimNetworkServer
             request.ConfirmedSnapshot,
             multipart.Payload,
             nowUtc);
-        using (var mutation = EnterBankSnapshotMutation(httpRequest, state, request.UserId, request.ColonyId, request.CurrentSnapshotId, request.AuthToken))
+        using (var mutation = EnterColonySnapshotMutation(httpRequest, state, request.UserId, request.ColonyId, request.CurrentSnapshotId, request.AuthToken))
             lock (state.BankLoans.SnapshotCommitGate)
             {
                 if (mutation.Rejection is { } denied) return Results.Ok(new BankDebtResponse(denied, null, 0, null));
@@ -913,12 +913,15 @@ public static partial class ClashOfRimNetworkServer
         BankRequestContext? context = null;
         IResult Failure(ProtocolResponse failure) => Results.Ok(new MercenaryHireResponse(failure, null,
             context is null ? null : BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
-        using (state.EnterSnapshotMutation())
+        using (var recovery = EnterColonySnapshotMutation(httpRequest, state, request.UserId, request.ColonyId,
+            request.CurrentSnapshotId, request.AuthToken))
         lock (state.MercenaryContracts.SnapshotCommitGate)
         {
+            if (recovery.Rejection is { } denied)
+                return Results.Ok(new MercenaryHireResponse(denied, null, null));
             if (!ReauthorizeSnapshotPrincipal(httpRequest, state, new ProtocolIdentity(request.UserId, request.ColonyId, request.CurrentSnapshotId)))
                 return Results.Ok(new MercenaryHireResponse(ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed")), null, null));
-            RecoverSnapshotCommits(state);
+
             var existing = state.MercenaryContracts.FindByIdempotencyKey(request.IdempotencyKey);
             context = ValidateBankRequest(state, request.UserId, request.ColonyId, request.CurrentSnapshotId, request.AuthToken,
                 request.CurrentGameTicks, 0, nowUtc, out var rejection,
@@ -930,15 +933,18 @@ public static partial class ClashOfRimNetworkServer
             if (TryRejectExpiredPendingConfirmationSnapshot(state, request.UserId, request.ColonyId, nowUtc, out var pendingRejection))
                 return Failure(pendingRejection!);
         }
-        var upload = ReceiveSnapshot(state, request.UserId, request.ColonyId, request.ConfirmedSnapshot!.SnapshotId!,
-            request.ConfirmedSnapshot, multipart.Payload, nowUtc, storeAccepted: false);
+        var upload = PrepareTransactionSnapshot(state, request.UserId, request.ColonyId, request.ConfirmedSnapshot!.SnapshotId!,
+            request.ConfirmedSnapshot, multipart.Payload, nowUtc);
 
-        using (state.EnterSnapshotMutation())
+        using (var recovery = EnterColonySnapshotMutation(httpRequest, state, request.UserId, request.ColonyId,
+            request.CurrentSnapshotId, request.AuthToken))
         lock (state.MercenaryContracts.SnapshotCommitGate)
         {
+            if (recovery.Rejection is { } denied)
+                return Results.Ok(new MercenaryHireResponse(denied, null, null));
             if (!ReauthorizeSnapshotPrincipal(httpRequest, state, new ProtocolIdentity(request.UserId, request.ColonyId, request.CurrentSnapshotId)))
                 return Results.Ok(new MercenaryHireResponse(ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed")), null, null));
-            RecoverSnapshotCommits(state);
+
             nowUtc = DateTimeOffset.UtcNow;
             var existing = state.MercenaryContracts.FindByIdempotencyKey(request.IdempotencyKey);
             context = ValidateBankRequest(state, request.UserId, request.ColonyId, request.CurrentSnapshotId, request.AuthToken,
@@ -1136,12 +1142,15 @@ public static partial class ClashOfRimNetworkServer
         BankRequestContext? context = null;
         IResult Failure(ProtocolResponse failure) => Results.Ok(new MercenaryGuardHireResponse(failure, null,
             context is null ? null : BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
-        using (state.EnterSnapshotMutation())
+        using (var recovery = EnterColonySnapshotMutation(httpRequest, state, request.UserId, request.ColonyId,
+            request.CurrentSnapshotId, request.AuthToken))
         lock (state.MercenaryGuards.SnapshotCommitGate)
         {
+            if (recovery.Rejection is { } denied)
+                return Results.Ok(new MercenaryGuardHireResponse(denied, null, null));
             if (!ReauthorizeSnapshotPrincipal(httpRequest, state, new ProtocolIdentity(request.UserId, request.ColonyId, request.CurrentSnapshotId)))
                 return Results.Ok(new MercenaryGuardHireResponse(ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed")), null, null));
-            RecoverSnapshotCommits(state);
+
             var existing = state.MercenaryGuards.FindByIdempotencyKey(request.IdempotencyKey);
             context = ValidateBankRequest(state, request.UserId, request.ColonyId, request.CurrentSnapshotId, request.AuthToken,
                 request.CurrentGameTicks, 0, nowUtc, out var rejection,
@@ -1153,15 +1162,18 @@ public static partial class ClashOfRimNetworkServer
             if (TryRejectExpiredPendingConfirmationSnapshot(state, request.UserId, request.ColonyId, nowUtc, out var pendingRejection))
                 return Failure(pendingRejection!);
         }
-        var upload = ReceiveSnapshot(state, request.UserId, request.ColonyId, request.ConfirmedSnapshot!.SnapshotId!,
-            request.ConfirmedSnapshot, multipart.Payload, nowUtc, storeAccepted: false);
+        var upload = PrepareTransactionSnapshot(state, request.UserId, request.ColonyId, request.ConfirmedSnapshot!.SnapshotId!,
+            request.ConfirmedSnapshot, multipart.Payload, nowUtc);
 
-        using (state.EnterSnapshotMutation())
+        using (var recovery = EnterColonySnapshotMutation(httpRequest, state, request.UserId, request.ColonyId,
+            request.CurrentSnapshotId, request.AuthToken))
         lock (state.MercenaryGuards.SnapshotCommitGate)
         {
+            if (recovery.Rejection is { } denied)
+                return Results.Ok(new MercenaryGuardHireResponse(denied, null, null));
             if (!ReauthorizeSnapshotPrincipal(httpRequest, state, new ProtocolIdentity(request.UserId, request.ColonyId, request.CurrentSnapshotId)))
                 return Results.Ok(new MercenaryGuardHireResponse(ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed")), null, null));
-            RecoverSnapshotCommits(state);
+
             nowUtc = DateTimeOffset.UtcNow;
             var existing = state.MercenaryGuards.FindByIdempotencyKey(request.IdempotencyKey);
             context = ValidateBankRequest(state, request.UserId, request.ColonyId, request.CurrentSnapshotId, request.AuthToken,

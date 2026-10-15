@@ -13,6 +13,7 @@ internal static class ServiceSnapshotReplayRaceTests
     public static void Run(Func<string, SaveSnapshotPackage> fixture)
     {
         SnapshotEndpointTestClient.LoadLocalization();
+        SnapshotEndpointRecoveryPreparationTests.RunServices(fixture);
         foreach (string kind in new[] { "shop-sell", "shop-buy", "mercenary", "guard", "raid", "guarded-raid" })
         foreach (string mode in new[] { "same", "different", "revoke", "replace" }) RunScenario(fixture, kind, mode);
     }

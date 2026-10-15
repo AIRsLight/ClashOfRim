@@ -772,3 +772,18 @@
 - 完整 `Test-Regression.ps1 -IncludeClient` 通过：Events 52 项、Save 115 组、Client.Core 5 组、完整 NetworkSmoke、客户端 28 项；日志 `LocalOnly/bank-recovery-regression.log`，包含全部 54 个新增场景及原银行竞态、独立恢复用例。77 个 1.6 冻结文件通过，日志 `LocalOnly/bank-recovery-frozen.log`。完整回归后补强实际发布时仍持有业务锁的断言，该断言参与上述锁所有权反向验证及最终普通/单核定向测试；生产代码未再改动。
 
 - RimTest 双客户端 21/21 通过、0 项未执行，覆盖共享世界、主线程交接、聊天、经济、赠送、支援、雇佣、袭击结算及运行时错误检查；报告 `G:/RimTestRuns/ClashOfRim/20261015-210254-224434cd/report.json`，日志 `LocalOnly/bank-recovery-rimtest.log`。两个游戏测试进程均退出，临时桥接及编排均已恢复。实机验证正常业务流程，授权失效、恢复中断及并发边界由上述服务端测试覆盖。
+
+
+## 续修：商店与雇佣付款入口的授权恢复边界
+
+- 商店购买（含服务器买入和卖出）、雇佣及护卫付款三个 multipart 入口接入已建立的恢复作用域。初始检查和最终提交先认证、捕获日志，再在全服锁及领域锁之外准备恢复载荷；恢复完成后保留全服锁，依次取得商店或合同锁，继续业务检查与提交。商店校验请求头身份，雇佣与护卫同时校验请求头会话和正文殖民地令牌；恢复后仍复验身份，拒绝回复不携带快照、lineage 或之前捕获的银行状态。
+- 银行原有准备辅助函数按职责更名为 `EnterColonySnapshotMutation` 与 `PrepareTransactionSnapshot`，由上述入口复用。上传中途只做载荷校验、索引与预压缩，不再经过通用 ReceiveSnapshot 的隐式恢复。上传期间出现的新日志由最终恢复作用域处理。最终的价格、罚金、库存、交付物匹配、合同名额、合同 ID 与 lineage 复验均保留，恢复出的相同请求仍返回原确认结果。
+- 银行恢复测试重命名为 `SnapshotEndpointRecoveryPreparationTests`，共享文件快照、SQLite、日志中断和双锁探针；原 54 个银行场景继续执行。新增 79 个服务场景：四种业务 × 初始/最终恢复 × 正常、注销、替换会话、撤销令牌、目标更新、竞争恢复、准备失败、撤销并失败，共 64 个；无效正文令牌 2 个；每种业务各 12 个持久请求并发重试，共 4 个；上传准备期间修改报价/罚金、库存/名额及买入物品要求，共 9 个。拒绝不改持久状态，合法恢复只发布一次并返回日志中的原令牌；正常和异常退出后另一线程均可取得两把锁。
+- 构造同步竞争意图时首次用例使用了两次 UtcNow，导致合同创建和激活时间不等，被已有日志校验正确拒绝；测试改为捕获同一时间后通过。生产实现未放宽日志校验。新增测试与原服务竞态组已通过；认证、正文令牌、上传隐式恢复、锁所有权的反向检查见本节后续验证记录。
+- 本步不更改线协议、日志版本、数据库版本 27 或 1.6 冻结内容。发布、持久日志序列化与后处理仍在提交锁内；其他带外层锁的旧调用仍需继续迁移。文档第 4 项尚未整体完成，之后继续审计剩余恢复入口与日志 I/O，再推进状态职责和 DTO 收敛。
+
+- 七项反向验证均实际触发断言：恢复旧商店入口或给殖民地恢复加外层锁时未进入锁外准备；删除准备后的认证时失效会话改变持久状态；跳过正文令牌时无效请求开始恢复；换回 ReceiveSnapshot 时绕过最终准备边界；提前释放作用域时发布未持有全服锁；删除雇佣最终报价校验时接受旧罚金。日志为 `LocalOnly/service-recovery-shop-old.log`、`service-recovery-outer.log`、`service-recovery-auth.log`、`service-recovery-body.log`、`service-recovery-upload.log`、`service-recovery-ownership.log`、`service-recovery-terms.log`。所有临时源码变异和 Program.cs 筛选均按原字节恢复。
+
+- 完整 `Test-Regression.ps1 -IncludeClient` 通过：Events 52 项、Save 115 组、Client.Core 5 组、完整 NetworkSmoke、客户端 28 项；日志 `LocalOnly/service-recovery-regression.log`，包括新增 79 个服务场景、原 54 个银行场景及既有恢复与并发测试。77 个 1.6 冻结文件通过，日志 `LocalOnly/service-recovery-frozen.log`。恢复正式源码后，服务与银行定向组在 `DOTNET_PROCESSOR_COUNT=1` 下再次通过，日志 `LocalOnly/service-recovery-single-core.log`、`LocalOnly/bank-recovery-service-single-core.log`。
+
+- RimTest 双客户端 21/21 通过、0 项未执行，覆盖共享世界、主线程交接、银行与商店、交易、赠送、支援、雇佣、袭击结算和运行时错误检查；报告 `G:/RimTestRuns/ClashOfRim/20261015-211605-5ba743ba/report.json`，日志 `LocalOnly/service-recovery-rimtest.log`。两个测试游戏进程均退出，临时桥接与编排已恢复。实机验证正常业务流程；持久恢复中断、授权失效与准备交错由上述服务端测试验证。

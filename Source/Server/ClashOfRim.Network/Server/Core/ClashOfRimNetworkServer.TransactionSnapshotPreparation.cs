@@ -6,7 +6,7 @@ namespace AIRsLight.ClashOfRim.Network;
 
 public static partial class ClashOfRimNetworkServer
 {
-    private static RecoveredSnapshotMutation EnterBankSnapshotMutation(HttpRequest http, ClashOfRimNetworkState state,
+    private static RecoveredSnapshotMutation EnterColonySnapshotMutation(HttpRequest http, ClashOfRimNetworkState state,
         string userId, string colonyId, string snapshotId, string? token,
         [System.Runtime.CompilerServices.CallerMemberName] string operation = "")
         => EnterRecoveredSnapshotMutation(state, () =>
@@ -17,7 +17,7 @@ public static partial class ClashOfRimNetworkServer
                 ? null : ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, failure);
         }, operation);
 
-    private static SnapshotUploadResult PrepareBankSnapshot(ClashOfRimNetworkState state, string userId, string colonyId,
+    private static SnapshotUploadResult PrepareTransactionSnapshot(ClashOfRimNetworkState state, string userId, string colonyId,
         string snapshotId, SnapshotPackageMetadataDto metadata, byte[] payload, DateTimeOffset at)
     {
         string? kind = NormalizeSnapshotUploadKind(metadata.SnapshotUploadKind);
