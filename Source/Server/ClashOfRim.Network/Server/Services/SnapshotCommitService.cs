@@ -469,9 +469,8 @@ public sealed partial class SnapshotCommitService
             if (intent.Gift is { } pendingGift)
             {
                 if (ledger is null) throw new InvalidOperationException("Gift recovery requires the event ledger.");
-                AuthoritativeEvent? existing = ledger.FindByIdempotencyKey(pendingGift.IdempotencyKey);
-                if (existing is not null && existing.EventId != pendingGift.EventId)
-                    throw new InvalidDataException("Gift journal conflicts with an existing event.");
+                try { LedgerBatchValidation.Validate(new LedgerBatch([pendingGift], []), ledger.Find, ledger.FindByIdempotencyKey); }
+                catch (InvalidOperationException ex) { throw new InvalidDataException("Gift journal conflicts with an existing event.", ex); }
             }
             if (intent.Support is { } pendingSupport)
             {

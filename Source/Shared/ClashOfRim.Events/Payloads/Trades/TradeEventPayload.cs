@@ -9,4 +9,5 @@ public sealed record TradeEventPayload(
     string? AcceptedByUserId = null,
     string? AcceptedMemoEventId = null,
     TradeFulfillmentMode FulfillmentMode = TradeFulfillmentMode.Unspecified,
-    bool PostagePaidByAcceptor = false) : LedgerEventPayload;
+    bool PostagePaidByAcceptor = false,
+    string? CreationRequestHash = null) : LedgerEventPayload;

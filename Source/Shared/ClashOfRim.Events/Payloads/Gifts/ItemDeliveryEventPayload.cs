@@ -6,7 +6,8 @@ public sealed record ItemDeliveryEventPayload(
     IReadOnlyList<EventThingReference> Items,
     string? Message,
     string? DeliveryKind = null,
-    ItemDeliveryPurpose Purpose = ItemDeliveryPurpose.Gift) : LedgerEventPayload
+    ItemDeliveryPurpose Purpose = ItemDeliveryPurpose.Gift,
+    string? CreationRequestHash = null) : LedgerEventPayload
 {
     public const string ForcedDeliveryKind = "Forced";
 

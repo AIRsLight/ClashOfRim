@@ -2644,14 +2644,28 @@ try
     Equal("Expired", finishedReturnPayload.ReturnReason, "结束支援退回载荷应记录返回原因");
     Equal(SafePawnExchangeSerializer.ComputeScribeXmlSha256(finishingSupportScribeXml), finishedReturnPayload.PawnPackage?.Scribe?.XmlSha256, "结束支援退回应携带最新 pawn Scribe 包");
 
-    EventCreationResponse duplicateGift = await CreateSnapshotGift(new CreateGiftRequest(
+    string giftReplayBefore = JsonSerializer.Serialize(state.Ledger.ListAll())
+        + JsonSerializer.Serialize(state.SnapshotStore.GetLatest("user-a", "colony-a")!.Envelope);
+    EventCreationResponse changedGift = await CreateSnapshotGift(new CreateGiftRequest(
         "gift:user-a:user-b:001",
         new ProtocolIdentity("user-a", "colony-a", "attacker-snapshot-after"),
         new ProtocolIdentity("user-b", "colony-b", "defender-snapshot-before"),
         new[] { ConcreteThing("owner:user-a/colony:colony-a/snapshot:attacker-snapshot-after/map:0/thing:meal", "MealFine", 3) },
         "smoke gift duplicate"));
+    Equal(ProtocolErrorCode.Conflict, changedGift.Result.ErrorCode, "同键礼物修改消息必须拒绝确认");
+    Require(changedGift.EventId is null && changedGift.AppliedSnapshotId is null && changedGift.NextLineageToken is null
+        && giftReplayBefore == JsonSerializer.Serialize(state.Ledger.ListAll())
+            + JsonSerializer.Serialize(state.SnapshotStore.GetLatest("user-a", "colony-a")!.Envelope), "修改的礼物请求不能改写状态或取得快照凭据");
+    EventCreationResponse duplicateGift = await CreateSnapshotGift(new CreateGiftRequest(
+        "gift:user-a:user-b:001",
+        new ProtocolIdentity("user-a", "colony-a", "attacker-snapshot-after"),
+        new ProtocolIdentity("user-b", "colony-b", "defender-snapshot-before"),
+        new[] { ConcreteThing("owner:user-a/colony:colony-a/snapshot:attacker-snapshot-after/map:0/thing:meal", "MealFine", 3) },
+        "smoke gift"));
     Equal(ProtocolErrorCode.DuplicateRequest, duplicateGift.Result.ErrorCode, "重复礼物请求应返回幂等结果");
     Equal(gift.EventId, duplicateGift.EventId, "重复礼物请求应返回既有事件");
+    Require(duplicateGift.AppliedSnapshotId == gift.AppliedSnapshotId && duplicateGift.NextLineageToken is null,
+        "历史礼物只能返回原快照 ID，不能返回较新快照的 lineage");
     await RetiredGiftEndpointTests.RunAsync(httpClient, state, userAAuthToken, "gift:user-a:user-b:001");
 
     AuthoritativeEvent oldTrade = AuthoritativeEventFactory.Create(

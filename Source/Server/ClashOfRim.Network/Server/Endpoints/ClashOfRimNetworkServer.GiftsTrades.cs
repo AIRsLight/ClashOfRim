@@ -76,6 +76,8 @@ public static partial class ClashOfRimNetworkServer
                 ProtocolDeliverySemantics.OnlineImmediate));
         }
 
+        // Hash the typed request and actual bytes before taking the business gate; header credentials are not part of the body.
+        string binding = SnapshotRequestBinding.Hash(transaction, multipart.Payload);
         using (var recovery = EnterPrincipalSnapshotMutation(httpRequest, state, request.Actor))
         {
             if (recovery.Rejection is { } denied)
@@ -85,7 +87,7 @@ public static partial class ClashOfRimNetworkServer
 
             AuthoritativeEvent? existingEvent = FindEventByIdempotencyKey(state.Ledger, request.IdempotencyKey);
             if (existingEvent is not null)
-                return GiftSnapshotReplayResponse(state, request, transaction.ConfirmedSnapshot.SnapshotId!, existingEvent);
+                return GiftSnapshotReplayResponse(state, request, transaction.ConfirmedSnapshot.SnapshotId!, existingEvent, binding);
         }
 
         DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
@@ -140,7 +142,7 @@ public static partial class ClashOfRimNetworkServer
                 return Results.Ok(new EventCreationResponse(ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed")), null, ProtocolDeliverySemantics.OnlineImmediate));
             AuthoritativeEvent? existingEvent = FindEventByIdempotencyKey(state.Ledger, request.IdempotencyKey);
             if (existingEvent is not null)
-                return GiftSnapshotReplayResponse(state, request, transaction.ConfirmedSnapshot.SnapshotId!, existingEvent);
+                return GiftSnapshotReplayResponse(state, request, transaction.ConfirmedSnapshot.SnapshotId!, existingEvent, binding);
             if (!upload.Accepted || upload.AcceptedSnapshot is null)
             {
                 return Results.Ok(new EventCreationResponse(
@@ -191,7 +193,7 @@ public static partial class ClashOfRimNetworkServer
                 new ItemDeliveryEventPayload(
                     giftThings.Select(thing => ToEventThingReference(thing, acceptedSnapshotId)).ToList(),
                     request.Message,
-                    NormalizeGiftDeliveryKind(request.DeliveryKind)),
+                    NormalizeGiftDeliveryKind(request.DeliveryKind), CreationRequestHash: binding),
                 nowUtc,
                 targetContext) with
             { EventId = "gift:" + giftCommitId };
@@ -216,9 +218,10 @@ public static partial class ClashOfRimNetworkServer
     }
 
     private static IResult GiftSnapshotReplayResponse(ClashOfRimNetworkState state, CreateGiftRequest request,
-        string snapshotId, AuthoritativeEvent existing)
+        string snapshotId, AuthoritativeEvent existing, string binding)
     {
-        if (!GiftSnapshotReplayPolicy.Matches(existing, request.Actor.UserId, request.Actor.ColonyId, snapshotId)
+        if (existing.Payload is not ItemDeliveryEventPayload payload || payload.CreationRequestHash != binding
+            || !GiftSnapshotReplayPolicy.Matches(existing, request.Actor.UserId, request.Actor.ColonyId, snapshotId)
             || existing.Target.UserId != request.Target.UserId || existing.Target.ColonyId != request.Target.ColonyId)
             return Results.Ok(new EventCreationResponse(
                 ProtocolResponse.Reject(ProtocolErrorCode.Conflict, "Gift idempotency key belongs to another operation."),
@@ -839,6 +842,8 @@ public static partial class ClashOfRimNetworkServer
                 ProtocolDeliverySemantics.OnlineImmediate));
         }
 
+        // Hash the typed request and actual bytes before taking the business gate; header credentials are not part of the body.
+        string binding = SnapshotRequestBinding.Hash(transaction, multipart.Payload);
         using (var recovery = EnterPrincipalSnapshotMutation(httpRequest, state, request.Owner))
         {
             if (recovery.Rejection is { } denied)
@@ -848,7 +853,7 @@ public static partial class ClashOfRimNetworkServer
             ApplyTradeOrderExpirations(state, DateTimeOffset.UtcNow);
             AuthoritativeEvent? existingEvent = state.Ledger.FindByIdempotencyKey(request.IdempotencyKey);
             if (existingEvent is not null)
-                return TradeOrderReplayResponse(state, request, transaction.ConfirmedSnapshot.SnapshotId!, existingEvent);
+                return TradeOrderReplayResponse(state, request, transaction.ConfirmedSnapshot.SnapshotId!, existingEvent, binding);
         }
         if (!state.ServerConfiguration.TradeMarketplaceEnabled)
             return Results.Ok(new EventCreationResponse(ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected,
@@ -917,7 +922,7 @@ public static partial class ClashOfRimNetworkServer
             ApplyTradeOrderExpirations(state, DateTimeOffset.UtcNow);
             AuthoritativeEvent? existing = state.Ledger.FindByIdempotencyKey(request.IdempotencyKey);
             if (existing is not null)
-                return TradeOrderReplayResponse(state, request, transaction.ConfirmedSnapshot.SnapshotId!, existing);
+                return TradeOrderReplayResponse(state, request, transaction.ConfirmedSnapshot.SnapshotId!, existing, binding);
             if (!upload.Accepted || upload.AcceptedSnapshot is null)
             {
                 return Results.Ok(new EventCreationResponse(
@@ -989,7 +994,7 @@ public static partial class ClashOfRimNetworkServer
                     request.FeeSilver,
                     AcceptedByUserId: null,
                     FulfillmentMode: ResolveTradeFulfillmentMode(request),
-                    PostagePaidByAcceptor: false),
+                    PostagePaidByAcceptor: false, CreationRequestHash: binding),
                 nowUtc,
                 targetContext);
 
@@ -1250,6 +1255,8 @@ public static partial class ClashOfRimNetworkServer
                 tradeStatus: string.Empty));
         }
 
+        // Hash the typed request and actual bytes before taking the business gate; header credentials are not part of the body.
+        string binding = SnapshotRequestBinding.Hash(transaction, multipart.Payload);
         using (var recovery = EnterPrincipalSnapshotMutation(httpRequest, state, request.Acceptor))
         {
             if (recovery.Rejection is { } denied)
@@ -1259,7 +1266,7 @@ public static partial class ClashOfRimNetworkServer
             ApplyTradeOrderExpirations(state, DateTimeOffset.UtcNow);
             AuthoritativeEvent? existing = state.Ledger.FindByIdempotencyKey(request.IdempotencyKey);
             if (existing is not null)
-                return TradeFulfillmentReplayResponse(state, request, transaction.ConfirmedSnapshot.SnapshotId!, existing);
+                return TradeFulfillmentReplayResponse(state, request, transaction.ConfirmedSnapshot.SnapshotId!, existing, binding);
         }
         AuthoritativeEvent? tradeOrder = state.Ledger.Find(request.TradeEventId);
         AuthoritativeEvent? acceptedMemo = string.IsNullOrWhiteSpace(request.AcceptedMemoEventId)
@@ -1353,7 +1360,7 @@ public static partial class ClashOfRimNetworkServer
             ApplyTradeOrderExpirations(state, DateTimeOffset.UtcNow);
             AuthoritativeEvent? existing = state.Ledger.FindByIdempotencyKey(request.IdempotencyKey);
             if (existing is not null)
-                return TradeFulfillmentReplayResponse(state, request, transaction.ConfirmedSnapshot.SnapshotId!, existing);
+                return TradeFulfillmentReplayResponse(state, request, transaction.ConfirmedSnapshot.SnapshotId!, existing, binding);
             if (!upload.Accepted || upload.AcceptedSnapshot is null)
             {
                 return Results.Ok(new FulfillTradeOrderResponse(
@@ -1420,7 +1427,7 @@ public static partial class ClashOfRimNetworkServer
                     AcceptedByUserId: request.Acceptor.UserId,
                     AcceptedMemoEventId: acceptedMemo?.EventId,
                     FulfillmentMode: fulfillmentMode,
-                    PostagePaidByAcceptor: fulfillmentMode == TradeFulfillmentMode.ServerDropPod),
+                    PostagePaidByAcceptor: fulfillmentMode == TradeFulfillmentMode.ServerDropPod, CreationRequestHash: binding),
                 nowUtc,
                 tradeOrder.TargetContext);
 

@@ -6,10 +6,11 @@ using Microsoft.Data.Sqlite;
 using System.Text.Json;
 using TestStore = SnapshotEndpointRecoveryPreparationTests.Store;
 
-internal static class EconomicEndpointRecoveryPreparationTests
+internal static partial class EconomicEndpointRecoveryPreparationTests
 {
     public static void Run(Func<string, SaveSnapshotPackage> factory)
     {
+        RunBindings(factory);
         foreach (string change in new[] { "normal-move", "forced-none", "forced-move", "forced-remove", "forced-peace", "forced-pvp" })
             With(factory, "gift", f => VerifyGiftTarget(f, change));
         foreach (string kind in new[] { "gift", "order", "self-delivery", "drop-pod" })
@@ -140,7 +141,7 @@ internal static class EconomicEndpointRecoveryPreparationTests
     private sealed record Reply(ProtocolResponse Result, string? Id, string? Snapshot, string? Token,
         string? Owner = null, string? Buyer = null, bool Created = false);
 
-    private sealed class Fixture
+    private sealed partial class Fixture
     {
         private static readonly ProtocolIdentity Actor = new("userA", "colonyA", "before");
         private readonly string root, database;
@@ -185,7 +186,7 @@ internal static class EconomicEndpointRecoveryPreparationTests
             State.LoginSessions.TryCreate("userA", "colonyA", DateTimeOffset.UtcNow, out string session);
             token = State.AuthTokens.Issue("userA", "userA", "colonyA", session, DateTimeOffset.UtcNow);
         }
-        public Reply Call(bool wrongPrincipal = false)
+        public Reply Call(bool wrongPrincipal = false, Action<System.Text.Json.Nodes.JsonObject>? mutate = null, byte[]? bytes = null)
         {
             var actor = wrongPrincipal ? new ProtocolIdentity("other", "other-colony", "before") : Actor;
             var metadata = ProtocolDtoMapper.ToMetadataDto(Package);
@@ -198,14 +199,19 @@ internal static class EconomicEndpointRecoveryPreparationTests
                 _ => new FulfillTradeOrderWithSnapshotRequest(new FulfillTradeOrderRequest("operation", orderId, memoId, actor,
                     [new("paid", "Silver", 20)], Kind == "self-delivery" ? "SelfDelivery" : "ServerDropPod"), metadata)
             };
+            if (mutate is not null)
+            {
+                var body = JsonSerializer.SerializeToNode(request)!.AsObject();
+                mutate(body); request = body;
+            }
             if (Kind is "gift" or "order")
             {
                 var r = SnapshotEndpointTestClient.Invoke<EventCreationResponse>(Kind == "gift" ? "CreateGiftWithSnapshot" : "CreateTradeOrderWithSnapshot",
-                    State, _ => request, Package.Payload, Actor, token).GetAwaiter().GetResult();
+                    State, _ => request, bytes ?? Package.Payload, Actor, token).GetAwaiter().GetResult();
                 return new(r.Result, r.EventId, r.AppliedSnapshotId, r.NextLineageToken);
             }
             var result = SnapshotEndpointTestClient.Invoke<FulfillTradeOrderResponse>("FulfillTradeOrderWithSnapshot", State, _ => request,
-                Package.Payload, Actor, token).GetAwaiter().GetResult();
+                bytes ?? Package.Payload, Actor, token).GetAwaiter().GetResult();
             return new(result.Result, result.ExchangeEventId, result.AppliedSnapshotId, result.NextLineageToken,
                 result.OwnerDeliveryEventId, result.AcceptorDeliveryEventId, result.ExchangeCreated);
         }

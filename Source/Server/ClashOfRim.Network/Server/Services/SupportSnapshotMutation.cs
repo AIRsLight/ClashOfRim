@@ -1,5 +1,3 @@
-using System.Security.Cryptography;
-using System.Text.Json;
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Save;
@@ -50,34 +48,8 @@ public sealed record SupportSnapshotMutation(AuthoritativeEvent Support)
         && current.IdempotencyKey == expected.IdempotencyKey && current.TargetContext == expected.TargetContext
         && current.RejectionPolicy == expected.RejectionPolicy && Canonical(current.Payload) == Canonical(expected.Payload);
 
-    // v1 binds the typed request (including parent/target identities, metadata and pawn package) and actual payload bytes.
-    // Object property order is immaterial, but array order and all values are retained.
-    internal static string RequestHash(CreateSupportPawnWithSnapshotRequest request, byte[] payload) =>
-        "v1:" + Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(
-            Canonical(request) + "\n" + Convert.ToHexString(SHA256.HashData(payload)))));
+    internal static string RequestHash(CreateSupportPawnWithSnapshotRequest request, byte[] payload)
+        => SnapshotRequestBinding.Hash(request, payload);
 
-    private static string Canonical<T>(T value)
-    {
-        using var stream = new MemoryStream();
-        using (var writer = new Utf8JsonWriter(stream)) Write(JsonSerializer.SerializeToElement(value), writer);
-        return System.Text.Encoding.UTF8.GetString(stream.ToArray());
-    }
-
-    private static void Write(JsonElement element, Utf8JsonWriter writer)
-    {
-        if (element.ValueKind == JsonValueKind.Object)
-        {
-            writer.WriteStartObject();
-            foreach (var property in element.EnumerateObject().OrderBy(p => p.Name, StringComparer.Ordinal))
-            { writer.WritePropertyName(property.Name); Write(property.Value, writer); }
-            writer.WriteEndObject();
-        }
-        else if (element.ValueKind == JsonValueKind.Array)
-        {
-            writer.WriteStartArray();
-            foreach (var item in element.EnumerateArray()) Write(item, writer);
-            writer.WriteEndArray();
-        }
-        else element.WriteTo(writer);
-    }
+    private static string Canonical<T>(T value) => SnapshotRequestBinding.Canonical(value);
 }

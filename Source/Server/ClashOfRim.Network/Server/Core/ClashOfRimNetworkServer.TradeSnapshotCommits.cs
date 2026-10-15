@@ -24,9 +24,10 @@ public static partial class ClashOfRimNetworkServer
     }
 
     private static IResult TradeOrderReplayResponse(ClashOfRimNetworkState state, CreateTradeOrderRequest request,
-        string snapshotId, AuthoritativeEvent existing)
+        string snapshotId, AuthoritativeEvent existing, string binding)
     {
-        if (!TradeSnapshotReplayPolicy.Matches(existing, request.Owner.UserId, request.Owner.ColonyId, snapshotId, order: true))
+        if (existing.Payload is not TradeEventPayload payload || payload.CreationRequestHash != binding
+            || !TradeSnapshotReplayPolicy.Matches(existing, request.Owner.UserId, request.Owner.ColonyId, snapshotId, order: true))
             return Results.Ok(new EventCreationResponse(ProtocolResponse.Reject(ProtocolErrorCode.Conflict,
                 "Trade idempotency key belongs to another operation."), null, ProtocolDeliverySemantics.OfflinePending));
         return Results.Ok(new EventCreationResponse(
@@ -40,10 +41,10 @@ public static partial class ClashOfRimNetworkServer
             null, false, Array.Empty<ThingReferenceDto>(), Array.Empty<string>(), string.Empty));
 
     private static IResult TradeFulfillmentReplayResponse(ClashOfRimNetworkState state, FulfillTradeOrderRequest request,
-        string snapshotId, AuthoritativeEvent existing)
+        string snapshotId, AuthoritativeEvent existing, string binding)
     {
         if (!TradeSnapshotReplayPolicy.Matches(existing, request.Acceptor.UserId, request.Acceptor.ColonyId, snapshotId, order: false)
-            || existing.Payload is not TradeEventPayload payload || payload.TradeId != request.TradeEventId
+            || existing.Payload is not TradeEventPayload payload || payload.CreationRequestHash != binding || payload.TradeId != request.TradeEventId
             || payload.AcceptedMemoEventId != TradeFulfillmentMemoId(request)
             || payload.FulfillmentMode != ResolveRequestedTradeFulfillmentMode(request.FulfillmentMode))
             return TradeFulfillmentFailure(request, ProtocolResponse.Reject(ProtocolErrorCode.Conflict,
