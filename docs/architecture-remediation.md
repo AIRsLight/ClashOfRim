@@ -429,3 +429,11 @@
 - `RimTest/tools/Test.ps1` 40/40 通过。`Tools/Test-Regression.ps1 -IncludeClient` 完整通过（Events 52、Save 102、Client.Core 5 组、完整 NetworkSmoke、本地游戏运行库客户端 23）；日志 `LocalOnly/rimtest-architecture-regression.log`。77 个 1.6 冻结文件通过校验，主包与兼容包 1.6/1.7 内容隔离通过。
 - 覆盖边界：上述结论是现有全部自动测试通过，不是产品全部分支已实机验收。故障重启/掉线、切服、拒绝/到期/永久支援、袭击破坏与战利品、成就解锁、DLC/第三方组合等仍需新增实机场景；具体矩阵见 `docs/rimtest.md`。既有服务器崩溃恢复回归继续承担持久化故障验证。已运行普通借还款与袭击结算，可移除这两条基本流程的“等待可交互桌面”阻塞；故障恢复实机验收保留。
 - 按文档继续修复文件账本其他写方法的缓存发布顺序；接着审计幂等键直接返回路径及业务身份绑定。尚未完成的锁范围、职责与 DTO 收敛不变。
+
+## 续修：文件账本状态更新与删除在持久化后发布
+
+- `ChangeStatus`、`MarkDelivered`、`MarkApplied`、`MarkAccepted`、`MarkRejected`、`ReportApplicationResult` 原先先替换缓存记录再保存文件；`DeleteForColony` 先删除事件和幂等索引。写盘异常后，同进程可看到磁盘不存在的状态，删除重试甚至会错误返回 0。旧实现负向回归分别复现状态更新与删除的缓存污染。
+- 六个单记录更新统一经 `PersistReplacement` 构造候选文件，在现有账本锁内保存成功后才替换缓存；不改变事件身份索引。删除先固定完整匹配集合并保存剩余事件，再移除两个缓存索引；无匹配时仍不写盘。现有 Append、ApplyBatch 的先持久化后发布顺序保持一致。
+- 新增 `FileLedgerPublicationTests`，纳入原账本持久化测试组。七类操作 × Windows 临时文件写入/最终替换失败共 14 组合；每组合在同一实例连续失败两次，检查原记录、重开记录及完整幂等索引不变，再解除故障重试，比较内存账本预期结果、持久化重开与队列投影。删除还覆盖发送方、接收方、自己发给自己不重复计数、同用户不同殖民地保留及无匹配删除。
+- 验证：完整 Events 52 项及默认完整回归（Save 102、Client.Core 5 组、完整 NetworkSmoke）通过；日志 `LocalOnly/file-ledger-publication-regression.log`。77 个 1.6 冻结文件未变，差异格式检查通过。此次改动只影响服务端文件账本，实机运行器使用 SQLite，未将前述 19 项实机结果冒充为文件故障测试。
+- 数据库仍为版本 25，文件格式无变更。此次保证每次单独持久化的失败隔离，不将多个调用组成的业务流程自动变成事务；例如共享账本旧 `RejectGiftAndCreateReturn` 的拒绝与返还仍为两次提交，需要单独审计调用范围。继续按文档推进身份/幂等键绑定和其余生命周期入口，再处理锁、职责与 DTO。

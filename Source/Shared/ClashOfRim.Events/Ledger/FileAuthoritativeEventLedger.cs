@@ -182,15 +182,13 @@ public sealed class FileAuthoritativeEventLedger : IAuthoritativeEventLedger
                     IsColonyParty(ledgerEvent.Actor, userId, colonyId)
                     || IsColonyParty(ledgerEvent.Target, userId, colonyId))
                 .ToList();
+            if (matching.Count == 0) return 0;
+            var removedIds = matching.Select(item => item.EventId).ToHashSet(StringComparer.Ordinal);
+            Save(eventsById.Values.Where(item => !removedIds.Contains(item.EventId)));
             foreach (AuthoritativeEvent ledgerEvent in matching)
             {
                 eventsById.Remove(ledgerEvent.EventId);
                 eventIdByIdempotencyKey.Remove(ledgerEvent.IdempotencyKey);
-            }
-
-            if (matching.Count > 0)
-            {
-                Save();
             }
 
             return matching.Count;
@@ -219,9 +217,7 @@ public sealed class FileAuthoritativeEventLedger : IAuthoritativeEventLedger
                 ?? throw new KeyNotFoundException($"Event id not found: {eventId}");
 
             AuthoritativeEvent changed = ledgerEvent with { Status = status };
-            eventsById[eventId] = changed;
-            Save();
-            return changed;
+            return PersistReplacement(changed);
         }
     }
 
@@ -240,9 +236,7 @@ public sealed class FileAuthoritativeEventLedger : IAuthoritativeEventLedger
                 DeliveredToSnapshotId = deliveredToSnapshotId,
                 DeliveredAtUtc = deliveredAtUtc
             };
-            eventsById[eventId] = changed;
-            Save();
-            return changed;
+            return PersistReplacement(changed);
         }
     }
 
@@ -265,9 +259,7 @@ public sealed class FileAuthoritativeEventLedger : IAuthoritativeEventLedger
                 AppliedSnapshotId = appliedSnapshotId,
                 AppliedAtUtc = appliedAtUtc
             };
-            eventsById[eventId] = changed;
-            Save();
-            return changed;
+            return PersistReplacement(changed);
         }
     }
 
@@ -287,9 +279,7 @@ public sealed class FileAuthoritativeEventLedger : IAuthoritativeEventLedger
                 LastApplicationResult = EventApplicationResultKind.Applied,
                 AppliedAtUtc = acceptedAtUtc
             };
-            eventsById[eventId] = changed;
-            Save();
-            return changed;
+            return PersistReplacement(changed);
         }
     }
 
@@ -312,9 +302,7 @@ public sealed class FileAuthoritativeEventLedger : IAuthoritativeEventLedger
                 DecisionReason = reason,
                 LastApplicationResult = EventApplicationResultKind.Rejected
             };
-            eventsById[eventId] = changed;
-            Save();
-            return changed;
+            return PersistReplacement(changed);
         }
     }
 
@@ -360,9 +348,7 @@ public sealed class FileAuthoritativeEventLedger : IAuthoritativeEventLedger
                 LastFailureReason = failureReason,
                 NextRetryAtUtc = nextRetryAtUtc
             };
-            eventsById[eventId] = changed;
-            Save();
-            return changed;
+            return PersistReplacement(changed);
         }
     }
 
@@ -397,7 +383,13 @@ public sealed class FileAuthoritativeEventLedger : IAuthoritativeEventLedger
         }
     }
 
-    private void Save() => Save(eventsById.Values);
+    // Call only under gate. A failed write must leave both reads and subsequent retries on the old state.
+    private AuthoritativeEvent PersistReplacement(AuthoritativeEvent changed)
+    {
+        Save(eventsById.Values.Select(item => item.EventId == changed.EventId ? changed : item));
+        eventsById[changed.EventId] = changed;
+        return changed;
+    }
 
     private void Save(IEnumerable<AuthoritativeEvent> records)
     {
