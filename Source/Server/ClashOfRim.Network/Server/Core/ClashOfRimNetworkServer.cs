@@ -2245,20 +2245,6 @@ public static partial class ClashOfRimNetworkServer
                 || string.Equals(ledgerEvent.Actor.ColonyId, acceptorColonyId, StringComparison.Ordinal));
     }
 
-    private static AuthoritativeEvent? FindTradeExchangeByIdempotencyKey(
-        IAuthoritativeEventLedger ledger,
-        string idempotencyKey)
-    {
-        AuthoritativeEvent? ledgerEvent = string.IsNullOrWhiteSpace(idempotencyKey)
-            ? null
-            : ledger.FindByIdempotencyKey(idempotencyKey);
-        return ledgerEvent?.Type == ServerEventType.Trade
-            && ledgerEvent.Payload is TradeEventPayload payload
-            && payload.Stage is TradeStage.SelfDeliveryExchange or TradeStage.ServerDropPodExchange
-                ? ledgerEvent
-                : null;
-    }
-
     private static IReadOnlyList<AuthoritativeEvent> FindActiveTradeAcceptanceMemos(
         IAuthoritativeEventLedger ledger,
         string tradeEventId)

@@ -497,6 +497,7 @@
   "Gift.SnapshotEndpointRequired": "贈り物の送信にはセーブデータの同時確認が必要です。クライアントを更新し、スナップショット付きで送信してください。",
   "Gift.Disabled": "このサーバーでは贈り物と強制投送が無効です。",
   "Trade.OrderCreated": "取引注文を投稿しました。",
+  "Trade.SnapshotEndpointRequired": "取引の出品と履行にはセーブデータの同時確認が必要です。クライアントを更新し、スナップショット付きで送信してください。",
   "Trade.Disabled": "市場は無効です。新しい取引注文は送信できません。",
   "Trade.FeeQuoted": "取引手数料見積もりを作成しました。",
   "Trade.MissingMarketValues": "サーバー価格表にアイテム価格がありません: {DEFS}",

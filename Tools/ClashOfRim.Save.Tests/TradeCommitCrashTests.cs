@@ -80,6 +80,64 @@ internal static class TradeCommitCrashTests
             finally { SqliteConnection.ClearAllPools(); Directory.Delete(root, recursive: true); }
         }
         VerifyEndpoints(fixture).GetAwaiter().GetResult();
+        VerifyEndpointStorageFailures(fixture).GetAwaiter().GetResult();
+    }
+
+    // Replaces the retired JSON fulfillment's SQL tests with the real snapshot transaction and restart recovery.
+    private static async Task VerifyEndpointStorageFailures(Func<string, SaveSnapshotPackage> fixture)
+    {
+        foreach (string phase in new[] { "insert", "update" })
+        foreach (string mode in new[] { "SelfDelivery", "ServerDropPod", "DirectDropPod" })
+        {
+            string root = Path.Combine(Path.GetTempPath(), "cor-trade-endpoint-fault-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(root);
+            try
+            {
+                string database = Path.Combine(root, "server.sqlite"), intents = Path.Combine(root, "intents");
+                ServerDatabaseMigrator.Migrate(database);
+                ClashOfRimNetworkState Open() => new(ledger: new SqliteAuthoritativeEventLedger(database),
+                    snapshotStore: new FileColonySnapshotIndexStore(Path.Combine(root, "snapshots")), snapshotCommits: new SnapshotCommitService(intents));
+                var state = Open(); var order = SeedOrder(state.Ledger);
+                var buyer = new ProtocolIdentity("userA", "colonyA", "before");
+                string memoId = "drop-pod-direct:" + order.EventId;
+                if (mode != "DirectDropPod")
+                {
+                    var memo = AuthoritativeEventFactory.Create(ServerEventType.Trade, new EventParty("userA", "colonyA"),
+                        new EventParty("userA", "colonyA"), "memo", false, ((TradeEventPayload)order.Payload) with
+                        { TradeId = order.EventId, Stage = TradeStage.AcceptedMemo, AcceptedByUserId = "userA" }, DateTimeOffset.UtcNow)
+                        with { Status = ServerEventStatus.Recorded };
+                    state.Ledger.Append(memo); memoId = memo.EventId;
+                }
+                var package = fixture("trade-endpoint-fault");
+                var request = new FulfillTradeOrderWithSnapshotRequest(new FulfillTradeOrderRequest("fulfill", order.EventId, memoId,
+                    buyer, new[] { new ThingReferenceDto("paid", "Silver", 20) }, mode == "SelfDelivery" ? mode : "ServerDropPod"), ProtocolDtoMapper.ToMetadataDto(package));
+                string before = System.Text.Json.JsonSerializer.Serialize(state.Ledger.ListAll());
+                Execute(database, $"create trigger fail_trade before {phase} on events begin select raise(abort, 'injected endpoint batch failure'); end;");
+                bool failed = false;
+                try { await SnapshotEndpointTestClient.Invoke<FulfillTradeOrderResponse>("FulfillTradeOrderWithSnapshot", state, request, package.Payload, buyer); }
+                catch (SqliteException) { failed = true; }
+                Require(failed && System.Text.Json.JsonSerializer.Serialize(Open().Ledger.ListAll()) == before,
+                    "Real fulfillment did not roll back the complete ledger batch: " + mode + "/" + phase);
+                Require(Directory.EnumerateFiles(intents, "*.json").Any(), "Failed fulfillment lost its durable intent.");
+                Execute(database, "drop trigger fail_trade;");
+                state = Open();
+                var recovered = await SnapshotEndpointTestClient.Invoke<FulfillTradeOrderResponse>("FulfillTradeOrderWithSnapshot", state, request, package.Payload, buyer);
+                Require(recovered.Result.Accepted && recovered.Result.ErrorCode == ProtocolErrorCode.DuplicateRequest && !recovered.ExchangeCreated
+                    && recovered.AppliedSnapshotId == "trade-endpoint-fault"
+                    && state.SnapshotStore.GetLatest("userA", "colonyA")!.Identity.SnapshotId == recovered.AppliedSnapshotId
+                    && state.Ledger.Find(order.EventId)!.Status == ServerEventStatus.AppliedToSnapshot
+                    && state.Ledger.Find(recovered.ExchangeEventId!)!.AppliedSnapshotId == recovered.AppliedSnapshotId
+                    && state.Ledger.ListByType(ServerEventType.ItemDelivery).Count == (mode == "SelfDelivery" ? 1 : 2)
+                    && !Directory.EnumerateFiles(intents, "*.json").Any(), "Restart did not recover exactly one complete fulfillment.");
+                string committed = System.Text.Json.JsonSerializer.Serialize(state.Ledger.ListAll());
+                state = Open();
+                var replay = await SnapshotEndpointTestClient.Invoke<FulfillTradeOrderResponse>("FulfillTradeOrderWithSnapshot", state, request, package.Payload, buyer);
+                Require(replay.Result.Accepted && replay.ExchangeEventId == recovered.ExchangeEventId && replay.OwnerDeliveryEventId == recovered.OwnerDeliveryEventId
+                    && replay.AcceptorDeliveryEventId == recovered.AcceptorDeliveryEventId && committed == System.Text.Json.JsonSerializer.Serialize(state.Ledger.ListAll()),
+                    "Second restart/replay changed recovered fulfillment.");
+            }
+            finally { SqliteConnection.ClearAllPools(); Directory.Delete(root, recursive: true); }
+        }
     }
 
     private static AuthoritativeEvent SeedOrder(IAuthoritativeEventLedger ledger)

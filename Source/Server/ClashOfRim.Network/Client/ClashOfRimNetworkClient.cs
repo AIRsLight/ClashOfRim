@@ -230,6 +230,7 @@ public sealed class ClashOfRimNetworkClient
             cancellationToken);
     }
 
+    [Obsolete("The JSON trade creation endpoint is retired. Use CreateTradeOrderWithSnapshotAsync.")]
     public Task<EventCreationResponse> CreateTradeOrderAsync(CreateTradeOrderRequest request, CancellationToken cancellationToken = default)
     {
         return PostAsync<CreateTradeOrderRequest, EventCreationResponse>(
@@ -237,6 +238,18 @@ public sealed class ClashOfRimNetworkClient
             request,
             cancellationToken);
     }
+
+    public Task<EventCreationResponse> CreateTradeOrderWithSnapshotAsync(CreateTradeOrderRequest order,
+        SnapshotPackageMetadataDto confirmedSnapshot, byte[] payload, string authToken, CancellationToken cancellationToken = default)
+        => PostSnapshotMultipartAsync<CreateTradeOrderWithSnapshotRequest, EventCreationResponse>(
+            ProtocolContractManifest.Find(ProtocolMessageKind.CreateTradeOrderWithSnapshot).Route,
+            new CreateTradeOrderWithSnapshotRequest(order, confirmedSnapshot), payload, authToken, cancellationToken: cancellationToken);
+
+    public Task<FulfillTradeOrderResponse> FulfillTradeOrderWithSnapshotAsync(FulfillTradeOrderRequest fulfillment,
+        SnapshotPackageMetadataDto confirmedSnapshot, byte[] payload, string authToken, CancellationToken cancellationToken = default)
+        => PostSnapshotMultipartAsync<FulfillTradeOrderWithSnapshotRequest, FulfillTradeOrderResponse>(
+            ProtocolContractManifest.Find(ProtocolMessageKind.FulfillTradeOrderWithSnapshot).Route,
+            new FulfillTradeOrderWithSnapshotRequest(fulfillment, confirmedSnapshot), payload, authToken, cancellationToken: cancellationToken);
 
     public Task<ListTradeOrdersResponse> ListTradeOrdersAsync(ListTradeOrdersRequest request, CancellationToken cancellationToken = default)
     {
@@ -254,6 +267,7 @@ public sealed class ClashOfRimNetworkClient
             cancellationToken);
     }
 
+    [Obsolete("The JSON trade fulfillment endpoint is retired. Use FulfillTradeOrderWithSnapshotAsync.")]
     public Task<FulfillTradeOrderResponse> FulfillTradeOrderAsync(FulfillTradeOrderRequest request, CancellationToken cancellationToken = default)
     {
         return PostAsync<FulfillTradeOrderRequest, FulfillTradeOrderResponse>(

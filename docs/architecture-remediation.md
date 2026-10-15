@@ -563,3 +563,14 @@
 - 新增 `RetiredGiftEndpointTests`：新/旧键 × 缺失/伪造/有效认证 × 普通/强投共 12 次请求，加上空正文、null、空对象和非法 JSON 共 4 个请求。全部明确拒绝，完整账本、发送方快照和双方通知版本保持不变。临时恢复旧入口后，该组明确失败为 `Retired gift endpoint did not return an explicit non-success migration response`；日志 `LocalOnly/retire-gift-negative.log`。恢复修复后运行完整回归。
 - 边界：本步仅退役礼物 JSON 路由。交易发单和履约的无快照路由仍开放，且网络测试与旧履约的存储故障测试仍依赖它们；下一步迁移这些用例并关闭路由，再推进其余经济入口审计、业务锁范围、服务职责与 DTO 收敛。没有新增持久化格式，数据库仍为版本 26。
 - 验证：完整 `Test-Regression.ps1 -IncludeClient` 通过（Events 全部、Save 110、Client.Core 5 组、完整 NetworkSmoke、客户端 27 项），日志 `LocalOnly/retire-gift-regression.log`；77 个 1.6 冻结文件及差异格式检查通过。RimTest 双客户端 20 项通过，包含商队赠送和上一节的运输舱到达夹具，报告 `G:/RimTestRuns/ClashOfRim/20261015-170443-7371f1ab/report.json`、日志 `LocalOnly/retire-gift-rimtest.log`，两个测试进程均已退出；桥接临时改动已恢复。旧路由拒绝由 HTTP 测试验证，不宣称旧客户端 UI 已有实机覆盖。
+
+## 续修：关闭无快照交易发单与履约入口
+
+- 两个旧 JSON 入口原先可不经认证直接创建托管订单，或在未提交买家付款快照时生成成交及交付事件。现与礼物入口一样保留明确的升级响应，处理函数不绑定请求/业务状态、不恢复待办或扫描过期交易；所有新建及重复请求都返回 `ServerRejected`，不返回交易/备忘/交换/交付 ID、物资或确认快照。五种语言提示客户端改用快照提交，协议枚举与路由地址不变。
+- 删除 Mod 中已无调用的两条 JSON 方法及常量、服务端旧履约专用的弱交换查找方法；保留快照发单仍使用的开放订单计数。通用 .NET 客户端增加两个认证 multipart 方法，旧方法标记 Obsolete 并继续获得拒绝响应。没有保留调试或兼容写入旁路。
+- NetworkSmoke 的 9 次发单和 4 次履约改为真实快照请求，使用有效会话、当前父快照与 lineage；同一操作按幂等键保留原提交包。发送方的地图标识、世界对象及地块图层写入 XML 夹具，继续验证地表邮费和轨道跨层固定距离。发单推进快照后，查询和投递使用最新快照，未放宽生产快照匹配校验。夹具同时填充 XML 与元数据的父快照、令牌和 ticks，避免把未提取 lineage 的原始封装误当成完整元数据。
+- 自提不再采用旧的“先创建交换、再单独确认付款”两步测试。真实履约返回成功时，交换必须已入档并绑定对应快照；随后直接完成查询只确认既有结果，账本保持不变。原先无付款证据直接完成的拒绝测试继续保留。空投失败改为验证保留已入档付款证据、关闭交付、准确退回买家的 100 白银，并继续检查卖家退货和幂等通知重放；不沿用旧 JSON 未付款交换的失败状态断言。
+- `RetiredTradeEndpointTests` 覆盖发单/履约、旧/新键、缺失/伪造/本方/另一方令牌及自提/空投共 24 次请求，以及两条路由各 4 种空/畸形正文，共 32 个拒绝场景。完整账本、全部最新快照和参与者通知版本保持不变。分别临时恢复旧发单与旧履约实现，两次均明确复现 `Retired trade endpoint accepted or disclosed an operation`，日志 `LocalOnly/retire-trade-negative-CreateTradeOrder.log` 和 `LocalOnly/retire-trade-negative-FulfillTradeOrder.log`。
+- 将 `TradeClosureTests` 中旧 JSON 履约的两个 SQL 故障场景迁到 `TradeCommitCrashTests` 的真实 multipart 入口，并扩展为自提/有备忘空投/直接空投 × 插入/更新故障共 6 场景。失败时持久账本整批回滚且提交意图仍在；重开文件存储、SQLite 和提交服务后，相同请求完成恢复，快照/交换/订单/一侧或两侧交付一致，第二次重开重试不重复发货。原撤单、过期、基线和失败关闭故障测试继续执行。
+- 边界：本步退役两条交易 JSON 写入口，未改变持久化格式，数据库仍为版本 26。支援创建仍有无快照入口；旧袭击入口在分流/拒绝前还会处理历史事件与幂等重试，需要继续审计调用和状态副作用。之后继续业务锁范围、真实服务职责与 DTO 收敛，不能把三种礼物/交易路由关闭视为全部架构问题已经完成。
+- 验证：完整 `Test-Regression.ps1 -IncludeClient` 通过（Events 全部、Save 110、Client.Core 5 组、完整 NetworkSmoke、客户端 27 项），日志 `LocalOnly/retire-trade-regression.log`；32 个退役入口场景及 6 个新存储故障场景包含在该回归中。77 个 1.6 冻结文件及差异格式检查通过。RimTest 双客户端 20 项通过，包含撤单退款、空投履约及运输舱探针，报告 `G:/RimTestRuns/ClashOfRim/20261015-172040-f2f8638b/report.json`，日志 `LocalOnly/retire-trade-rimtest.log`；临时桥接改动已恢复，两个测试进程均已退出。自提、跨层邮费与存储故障由服务器/HTTP 测试验证，未宣称新增了对应游戏内 UI 场景。

@@ -10,7 +10,7 @@ internal static class TradeClosureTests
     {
         SnapshotEndpointTestClient.LoadLocalization();
         VerifyLegacyReturnRecovery();
-        foreach (string scenario in new[] { "cancel", "expire", "baseline", "failure", "legacy-fulfill" })
+        foreach (string scenario in new[] { "cancel", "expire", "baseline", "failure" })
         foreach (string phase in new[] { "insert", "update" })
         {
             string root = Path.Combine(Path.GetTempPath(), "cor-trade-close-" + Guid.NewGuid().ToString("N"));
@@ -35,10 +35,9 @@ internal static class TradeClosureTests
                 Execute(database, "drop trigger fail_close;");
                 Close(state, scenario, order, delivery);
                 state = Open();
-                Require(state.Ledger.Find(order.EventId)!.Status == (scenario == "legacy-fulfill" ? ServerEventStatus.AppliedToSnapshot : ServerEventStatus.Cancelled), "Order was not closed.");
+                Require(state.Ledger.Find(order.EventId)!.Status == ServerEventStatus.Cancelled, "Order was not closed.");
                 var returns = state.Ledger.ListByType(ServerEventType.ItemDelivery).Where(item => item.Payload is ItemDeliveryEventPayload p && p.IsTradeReturn).ToArray();
-                Require(returns.Length == (scenario == "failure" ? 2 : scenario == "legacy-fulfill" ? 0 : 1), "Escrow returns were lost or duplicated.");
-                if (scenario == "legacy-fulfill") Require(state.Ledger.ListByType(ServerEventType.ItemDelivery).Count == 2, "Legacy fulfillment lost a delivery.");
+                Require(returns.Length == (scenario == "failure" ? 2 : 1), "Escrow returns were lost or duplicated.");
                 if (scenario == "failure")
                     Require(returns.Single(item => item.Target.UserId == "buyer").Payload is ItemDeliveryEventPayload
                         { Purpose: ItemDeliveryPurpose.TradeApplicationFailedAcceptorReturn } p && p.Items.Single().StackCount == 20,
@@ -151,8 +150,6 @@ internal static class TradeClosureTests
                 // The public endpoint returns DuplicateRequest once the durable failure batch is present.
                 if (current.Status == ServerEventStatus.Failed) return;
                 Invoke("FailEventApplicationGraph", state, current, null, "delivery failed", DateTimeOffset.UtcNow); break;
-            case "legacy-fulfill": Invoke("FulfillTradeOrder", new FulfillTradeOrderRequest("fulfill", order.EventId, "",
-                new ProtocolIdentity("buyer", "buyer-colony", "buyer-snapshot"), new[] { new ThingReferenceDto("paid", "Silver", 20) }, "ServerDropPod"), state); break;
         }
     }
 

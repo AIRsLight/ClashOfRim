@@ -497,6 +497,7 @@
   "Gift.SnapshotEndpointRequired": "Gift creation now requires a confirmed save. Update the client and use snapshot gift submission.",
   "Gift.Disabled": "Gifts and forced deliveries are disabled on this server.",
   "Trade.OrderCreated": "Trade order posted.",
+  "Trade.SnapshotEndpointRequired": "Creating or fulfilling a trade requires a confirmed save. Update the client and submit the trade with a snapshot.",
   "Trade.Disabled": "The marketplace is disabled; new trade orders cannot be submitted.",
   "Trade.FeeQuoted": "Trade fee quote created.",
   "Trade.MissingMarketValues": "Server price table is missing item prices: {DEFS}",

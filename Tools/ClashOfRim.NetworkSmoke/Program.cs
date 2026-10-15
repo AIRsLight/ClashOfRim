@@ -1766,11 +1766,61 @@ try
         uploadedSnapshotProcessorExecution.Contains("smoke-upload-processor"),
         "已注册的插件快照后处理器应由真实上传入口调用");
     var giftPackages = new Dictionary<string, SaveSnapshotPackage>(StringComparer.Ordinal);
+    var tradePackages = new Dictionary<string, SaveSnapshotPackage>(StringComparer.Ordinal);
+    var tradeTokens = new Dictionary<string, string> { ["user-a"] = userAAuthToken };
     SaveSnapshotPackage NextSourcePackage(string owner, string colony, string id)
     {
         var latest = state.SnapshotStore.GetLatest(owner, colony) ?? throw new Exception("Missing source snapshot.");
-        return BuildFixturePackageForWithLineage(owner, colony, id, latest.Identity.SnapshotId,
-            latest.Envelope.NextLineageToken, (latest.Envelope.GameTicks ?? 0) + 1);
+        var package = BuildFixturePackageForWithLineage(owner, colony, id, latest.Identity.SnapshotId,
+            latest.Envelope.NextLineageToken, (latest.Envelope.GameTicks ?? 0) + 1,
+            extraMutate: document =>
+            {
+                // Preserve the fixture's home map, especially its orbital layer and delivery destination.
+                var map = latest.Index.Maps.First();
+                var worldObject = latest.Index.WorldObjects.Single(w => w.UniqueLoadId == map.ParentWorldObjectId);
+                var game = document.Root!.Element("game")!;
+                var mapXml = game.Element("maps")!.Element("li")!;
+                SetElement(mapXml, "uniqueID", map.UniqueId!);
+                SetElement(mapXml.Element("mapInfo")!, "parent", worldObject.UniqueLoadId!);
+                var worldXml = game.Element("world")!.Element("worldObjects")!.Element("worldObjects")!.Element("li")!;
+                SetElement(worldXml, "ID", worldObject.UniqueLoadId!["WorldObject_".Length..]);
+                SetElement(worldXml, "def", worldObject.Def!); SetElement(worldXml, "tile", worldObject.Tile!);
+                worldXml.SetAttributeValue("Class", worldObject.Class!);
+            });
+        return package with { Envelope = package.Envelope with { PreviousSnapshotId = latest.Identity.SnapshotId,
+            LineageToken = latest.Envelope.NextLineageToken, GameTicks = (latest.Envelope.GameTicks ?? 0) + 1 } };
+    }
+    SaveSnapshotPackage TradePackage(string key, ProtocolIdentity actor)
+    {
+        if (!tradePackages.TryGetValue(key, out var package))
+            tradePackages.Add(key, package = NextSourcePackage(actor.UserId, actor.ColonyId!, "trade-confirm-" + Guid.NewGuid().ToString("N")));
+        return package;
+    }
+    async Task<EventCreationResponse> CreateSnapshotTrade(CreateTradeOrderRequest request)
+    {
+        var package = TradePackage("create:" + request.IdempotencyKey, request.Owner);
+        var bound = new CreateTradeOrderRequest(request.IdempotencyKey,
+            new ProtocolIdentity(request.Owner.UserId, request.Owner.ColonyId, package.Envelope.PreviousSnapshotId),
+            request.OfferedThings, request.RequestedThings, request.FeeSilver, request.AllowSelfPickup, request.AllowServerDropPod);
+        var response = await client.CreateTradeOrderWithSnapshotAsync(bound, SnapshotMetadata(package), package.Payload, tradeTokens[request.Owner.UserId]);
+        if (response.Result.Accepted)
+            Equal(package.Envelope.Identity.SnapshotId, response.AppliedSnapshotId, "发单必须提交发送方快照");
+        return response;
+    }
+    async Task<FulfillTradeOrderResponse> FulfillSnapshotTrade(FulfillTradeOrderRequest request)
+    {
+        var package = TradePackage("fulfill:" + request.IdempotencyKey, request.Acceptor);
+        var bound = new FulfillTradeOrderRequest(request.IdempotencyKey, request.TradeEventId, request.AcceptedMemoEventId,
+            new ProtocolIdentity(request.Acceptor.UserId, request.Acceptor.ColonyId, package.Envelope.PreviousSnapshotId), request.DeliveredThings, request.FulfillmentMode);
+        var response = await client.FulfillTradeOrderWithSnapshotAsync(bound, SnapshotMetadata(package), package.Payload, tradeTokens[request.Acceptor.UserId]);
+        if (response.Result.Accepted)
+        {
+            Equal(package.Envelope.Identity.SnapshotId, response.AppliedSnapshotId, "履约必须提交付款快照");
+            var exchange = state.Ledger.Find(response.ExchangeEventId!)!;
+            Require(exchange.Status == ServerEventStatus.AppliedToSnapshot && exchange.AppliedSnapshotId == response.AppliedSnapshotId,
+                "履约返回成功前交换必须有入档证据");
+        }
+        return response;
     }
     async Task<EventCreationResponse> CreateSnapshotGift(CreateGiftRequest request)
     {
@@ -2642,7 +2692,7 @@ try
         "过期交易单应给接单玩家发送服务器通知事件；当前通知="
         + string.Join(", ", expiredAcceptorNotifications.Select(notification => notification.NotificationId)));
 
-    EventCreationResponse obsoleteTrade = await client.CreateTradeOrderAsync(new CreateTradeOrderRequest(
+    EventCreationResponse obsoleteTrade = await CreateSnapshotTrade(new CreateTradeOrderRequest(
         "trade:user-a:baseline-invalidated",
         new ProtocolIdentity("user-a", "colony-a", "attacker-snapshot-after"),
         new[] { ConcreteThing("owner:user-a/colony:colony-a/snapshot:attacker-snapshot-after/map:0/thing:meal-obsolete", "MealFine", 1) },
@@ -2705,7 +2755,7 @@ try
             Array.Empty<TrapClassificationDto>()));
     Require(baselineRestored.Result.Accepted, "恢复管理员物品基线应成功");
 
-    EventCreationResponse underpaidWasteTrade = await client.CreateTradeOrderAsync(new CreateTradeOrderRequest(
+    EventCreationResponse underpaidWasteTrade = await CreateSnapshotTrade(new CreateTradeOrderRequest(
         "trade:user-a:waste-underpaid",
         new ProtocolIdentity("user-a", "colony-a", "attacker-snapshot-after"),
         new[] { ConcreteThing("owner:user-a/colony:colony-a/snapshot:attacker-snapshot-after/map:0/thing:wastepack", "Wastepack", 2) },
@@ -2716,7 +2766,7 @@ try
     Require(!underpaidWasteTrade.Result.Accepted, "有毒垃圾交易单低于固定托管费应被服务器拒绝");
     Equal(ProtocolErrorCode.ServerRejected, underpaidWasteTrade.Result.ErrorCode, "固定托管费不足应返回服务器拒绝");
 
-    EventCreationResponse wasteTrade = await client.CreateTradeOrderAsync(new CreateTradeOrderRequest(
+    EventCreationResponse wasteTrade = await CreateSnapshotTrade(new CreateTradeOrderRequest(
         "trade:user-a:waste-paid",
         new ProtocolIdentity("user-a", "colony-a", "attacker-snapshot-after"),
         new[] { ConcreteThing("owner:user-a/colony:colony-a/snapshot:attacker-snapshot-after/map:0/thing:wastepack", "Wastepack", 2) },
@@ -2726,7 +2776,7 @@ try
         allowServerDropPod: false));
     Require(wasteTrade.Result.Accepted, "有毒垃圾交易单支付固定托管费后应允许创建");
 
-    EventCreationResponse trade = await client.CreateTradeOrderAsync(new CreateTradeOrderRequest(
+    EventCreationResponse trade = await CreateSnapshotTrade(new CreateTradeOrderRequest(
         "trade:user-a:001",
         new ProtocolIdentity("user-a", "colony-a", "attacker-snapshot-after"),
         new[] { ConcreteThing("owner:user-a/colony:colony-a/snapshot:attacker-snapshot-after/map:0/thing:steel", "Steel", 100) },
@@ -2737,7 +2787,7 @@ try
     Require(trade.Result.Accepted, "创建交易单应成功");
     Require(state.Ledger.Find(trade.EventId!)?.Payload is TradeEventPayload, "交易单事件应进入账本");
 
-    EventCreationResponse tooManyTrades = await client.CreateTradeOrderAsync(new CreateTradeOrderRequest(
+    EventCreationResponse tooManyTrades = await CreateSnapshotTrade(new CreateTradeOrderRequest(
         "trade:user-a:too-many",
         new ProtocolIdentity("user-a", "colony-a", "attacker-snapshot-after"),
         new[] { ConcreteThing("owner:user-a/colony:colony-a/snapshot:attacker-snapshot-after/map:0/thing:wood", "WoodLog", 25) },
@@ -2851,9 +2901,35 @@ try
     Equal("测试远行队", runtimeCaravan.Label, "运行时远行队标记应保留原版显示名");
     Require(!runtimeCaravan.CanTrade && !runtimeCaravan.CanRaid && !runtimeCaravan.CanReinforce, "运行时远行队仅作为位置标记");
 
-    EventCreationResponse surfaceTrade = await client.CreateTradeOrderAsync(new CreateTradeOrderRequest(
+    Require((await client.PrepareWorldSessionAsync(SmokePrepareWorldSessionRequest("user-surface", "colony-surface"))).Result.Accepted,
+        "地表交易测试用户应先显式注册");
+    LoginResponse surfaceLogin = await client.LoginAsync(new LoginRequest(
+        ProtocolApiVersion.Current,
+        "user-surface",
+        "colony-surface",
+        state.SnapshotStore.GetLatest("user-surface", "colony-surface")!.Identity.SnapshotId!,
+        "smoke-main-manifest",
+        password: string.Empty,
+        compatibilityManifestId: "smoke-main-manifest"));
+    Require(surfaceLogin.Result.Accepted, $"地表玩家应能登录以回报事件应用失败：{surfaceLogin.Result.ErrorCode} {surfaceLogin.Result.Message}");
+
+    Require((await client.PrepareWorldSessionAsync(SmokePrepareWorldSessionRequest("user-orbit", "colony-orbit"))).Result.Accepted,
+        "地表交易测试用户应先显式注册");
+    LoginResponse orbitLogin = await client.LoginAsync(new LoginRequest(
+        ProtocolApiVersion.Current,
+        "user-orbit",
+        "colony-orbit",
+        state.SnapshotStore.GetLatest("user-orbit", "colony-orbit")!.Identity.SnapshotId!,
+        "smoke-main-manifest",
+        password: string.Empty,
+        compatibilityManifestId: "smoke-main-manifest"));
+    Require(orbitLogin.Result.Accepted, $"地表玩家应能登录以回报事件应用失败：{orbitLogin.Result.ErrorCode} {orbitLogin.Result.Message}");
+
+    tradeTokens["user-surface"] = surfaceLogin.AuthToken!;
+    tradeTokens["user-orbit"] = orbitLogin.AuthToken!;
+    EventCreationResponse surfaceTrade = await CreateSnapshotTrade(new CreateTradeOrderRequest(
         "trade:user-surface:001",
-        new ProtocolIdentity("user-surface", "colony-surface", "surface-snapshot"),
+        new ProtocolIdentity("user-surface", "colony-surface", state.SnapshotStore.GetLatest("user-surface", "colony-surface")!.Identity.SnapshotId!),
         new[] { ConcreteThing("owner:user-surface/colony:colony-surface/snapshot:surface-snapshot/map:901/thing:component", "ComponentIndustrial", 2) },
         new[] { new ThingReferenceDto("market:any/thing:silver", "Silver", 100) },
         feeSilver: 10,
@@ -2867,9 +2943,9 @@ try
     TradeOrderSummaryDto surfaceVisibleTrade = surfaceMarket.Orders.Single(order => order.EventId == surfaceTrade.EventId);
     Require(surfaceVisibleTrade.ServerDropPodPostage is { Reachable: true, PostageSilver: not null, DistanceTiles: not null }, "默认服务器地块距离估算应允许地表空投邮费计算");
 
-    EventCreationResponse orbitalTrade = await client.CreateTradeOrderAsync(new CreateTradeOrderRequest(
+    EventCreationResponse orbitalTrade = await CreateSnapshotTrade(new CreateTradeOrderRequest(
         "trade:user-orbit:001",
-        new ProtocolIdentity("user-orbit", "colony-orbit", "orbit-snapshot"),
+        new ProtocolIdentity("user-orbit", "colony-orbit", state.SnapshotStore.GetLatest("user-orbit", "colony-orbit")!.Identity.SnapshotId!),
         new[] { ConcreteThing("owner:user-orbit/colony:colony-orbit/snapshot:orbit-snapshot/map:900/thing:component", "ComponentIndustrial", 4) },
         new[] { new ThingReferenceDto("market:any/thing:silver", "Silver", 100) },
         feeSilver: 10,
@@ -2879,44 +2955,33 @@ try
     ListTradeOrdersResponse orbitalMarket = await client.ListTradeOrdersAsync(new ListTradeOrdersRequest(
         "user-surface",
         "colony-surface",
-        "surface-snapshot"));
+        state.SnapshotStore.GetLatest("user-surface", "colony-surface")!.Identity.SnapshotId!));
     TradeOrderSummaryDto orbitalVisibleTrade = orbitalMarket.Orders.Single(order => order.EventId == orbitalTrade.EventId);
-    Require(orbitalVisibleTrade.ServerDropPodPostage is { Reachable: true, PostageSilver: 300, DistanceTiles: 120 }, "跨层轨道空投应按投影距离和配置跨层距离计费");
-    Require((await client.PrepareWorldSessionAsync(SmokePrepareWorldSessionRequest("user-surface", "colony-surface"))).Result.Accepted,
-        "地表交易测试用户应先显式注册");
-    LoginResponse surfaceLogin = await client.LoginAsync(new LoginRequest(
-        ProtocolApiVersion.Current,
-        "user-surface",
-        "colony-surface",
-        "surface-snapshot",
-        "smoke-main-manifest",
-        password: string.Empty,
-        compatibilityManifestId: "smoke-main-manifest"));
-    Require(surfaceLogin.Result.Accepted, $"地表玩家应能登录以回报事件应用失败：{surfaceLogin.Result.ErrorCode} {surfaceLogin.Result.Message}");
+    Require(orbitalVisibleTrade.ServerDropPodPostage is { Reachable: true, PostageSilver: 300, DistanceTiles: 120 }, "跨层轨道空投应按投影距离和配置跨层距离计费：" + JsonSerializer.Serialize(orbitalVisibleTrade.ServerDropPodPostage));
     AcceptTradeOrderResponse orbitalAcceptedTrade = await client.AcceptTradeOrderAsync(new AcceptTradeOrderRequest(
         "trade:user-surface:accept:orbit",
         orbitalTrade.EventId!,
-        new ProtocolIdentity("user-surface", "colony-surface", "surface-snapshot"),
+        new ProtocolIdentity("user-surface", "colony-surface", state.SnapshotStore.GetLatest("user-surface", "colony-surface")!.Identity.SnapshotId!),
         postagePaidByAcceptor: true, authToken: surfaceLogin.AuthToken));
     Require(orbitalAcceptedTrade.Result.Accepted, "轨道空投可达时应允许使用服务器空投接单");
 
-    EventCreationResponse directDropPodTrade = await client.CreateTradeOrderAsync(new CreateTradeOrderRequest(
+    EventCreationResponse directDropPodTrade = await CreateSnapshotTrade(new CreateTradeOrderRequest(
         "trade:user-orbit:direct-drop-pod",
-        new ProtocolIdentity("user-orbit", "colony-orbit", "orbit-snapshot"),
+        new ProtocolIdentity("user-orbit", "colony-orbit", state.SnapshotStore.GetLatest("user-orbit", "colony-orbit")!.Identity.SnapshotId!),
         new[] { ConcreteThing("owner:user-orbit/colony:colony-orbit/snapshot:orbit-snapshot/map:900/thing:meal", "MealFine", 1) },
         new[] { new ThingReferenceDto("market:any/thing:silver", "Silver", 100) },
         feeSilver: 10,
         allowSelfPickup: true,
         allowServerDropPod: true));
     Require(directDropPodTrade.Result.Accepted, "可达交易单应允许创建直接空投履约测试");
-    FulfillTradeOrderResponse directDropPodFulfill = await client.FulfillTradeOrderAsync(new FulfillTradeOrderRequest(
+    FulfillTradeOrderResponse directDropPodFulfill = await FulfillSnapshotTrade(new FulfillTradeOrderRequest(
         "trade:user-surface:fulfill:direct-drop-pod",
         directDropPodTrade.EventId!,
         "drop-pod-direct:" + directDropPodTrade.EventId,
-        new ProtocolIdentity("user-surface", "colony-surface", "surface-snapshot"),
+        new ProtocolIdentity("user-surface", "colony-surface", state.SnapshotStore.GetLatest("user-surface", "colony-surface")!.Identity.SnapshotId!),
         new[] { ConcreteThing("owner:user-surface/colony:colony-surface/snapshot:surface-snapshot/map:901/thing:silver", "Silver", 100) },
         "ServerDropPod"));
-    Require(directDropPodFulfill.Result.Accepted, "空投履约不应要求已有接单备忘录");
+    Require(directDropPodFulfill.Result.Accepted, "空投履约不应要求已有接单备忘录：" + JsonSerializer.Serialize(directDropPodFulfill));
     Require(directDropPodFulfill.ExchangeCreated, "空投履约应创建交换事件");
     Require(!string.IsNullOrWhiteSpace(directDropPodFulfill.AcceptorDeliveryEventId), "空投履约应创建接单方收货事件");
     Require(!string.IsNullOrWhiteSpace(directDropPodFulfill.OwnerDeliveryEventId), "空投履约应创建发布者收货事件");
@@ -2933,14 +2998,14 @@ try
             directDropPodFulfill.AcceptorDeliveryEventId!,
             "user-surface",
             "colony-surface",
-            "surface-snapshot",
+            state.SnapshotStore.GetLatest("user-surface", "colony-surface")!.Identity.SnapshotId!,
             "接收方 pawn 恢复失败。",
             sourceEventId: directDropPodFulfill.ExchangeEventId,
             authToken: surfaceLogin.AuthToken));
     Require(failedDropPodApplication.Result.Accepted, "恢复失败应允许上报为事件应用失败");
     Equal(ServerEventStatus.Failed.ToString(), failedDropPodApplication.TerminalStatus, "恢复失败上报应返回失败终态");
     Equal(ServerEventStatus.Cancelled, state.Ledger.Find(directDropPodTrade.EventId!)!.Status, "交易落地失败应按撤单取消原交易单");
-    Equal(ServerEventStatus.Failed, state.Ledger.Find(directDropPodFulfill.ExchangeEventId!)!.Status, "恢复失败应将交换事件标记失败");
+    Equal(ServerEventStatus.AppliedToSnapshot, state.Ledger.Find(directDropPodFulfill.ExchangeEventId!)!.Status, "恢复失败必须保留已入档的付款证据");
     Equal(ServerEventStatus.Failed, state.Ledger.Find(directDropPodFulfill.AcceptorDeliveryEventId!)!.Status, "恢复失败应将接收方交付事件标记失败");
     Equal(ServerEventStatus.Failed, state.Ledger.Find(directDropPodFulfill.OwnerDeliveryEventId!)!.Status, "恢复失败应将发布者交付事件标记失败");
     AuthoritativeEvent applicationFailedReturn = state.Ledger.ListForUser("user-orbit")
@@ -2948,11 +3013,16 @@ try
             && evt.IdempotencyKey == $"trade-application-failed-owner-return:{directDropPodTrade.EventId}");
     Equal(ItemDeliveryPurpose.TradeApplicationFailedOwnerReturn, ((ItemDeliveryEventPayload)applicationFailedReturn.Payload).Purpose, "交易落地失败应生成发布者托管物退回事件");
 
+    AuthoritativeEvent buyerPaymentReturn = state.Ledger.FindByIdempotencyKey(
+        $"trade-application-failed-acceptor-return:{directDropPodTrade.EventId}:{directDropPodFulfill.ExchangeEventId}")!;
+    Require(buyerPaymentReturn is { Payload: ItemDeliveryEventPayload { Purpose: ItemDeliveryPurpose.TradeApplicationFailedAcceptorReturn } payment }
+        && buyerPaymentReturn.Target.UserId == "user-surface" && payment.Items.Single().Def == "Silver" && payment.Items.Single().StackCount == 100,
+        "空投失败必须准确退回已被快照确认的买家付款");
     string failedTradeLedger = JsonSerializer.Serialize(state.Ledger.ListAll());
     long failedTradeBuyerVersion = state.EventNotifications.GetVersion("user-surface");
     var failedTradeRetry = await client.ReportEventApplicationFailureAsync(new ReportEventApplicationFailureRequest(
         "event-application-failed:" + directDropPodFulfill.AcceptorDeliveryEventId, directDropPodFulfill.AcceptorDeliveryEventId!,
-        "user-surface", "colony-surface", "surface-snapshot", "重试失败报告", directDropPodFulfill.ExchangeEventId, surfaceLogin.AuthToken));
+        "user-surface", "colony-surface", state.SnapshotStore.GetLatest("user-surface", "colony-surface")!.Identity.SnapshotId!, "重试失败报告", directDropPodFulfill.ExchangeEventId, surfaceLogin.AuthToken));
     Require(failedTradeRetry.Result.Accepted && failedTradeRetry.Result.ErrorCode == ProtocolErrorCode.DuplicateRequest
         && failedTradeLedger == JsonSerializer.Serialize(state.Ledger.ListAll())
         && state.EventNotifications.GetVersion("user-surface") > failedTradeBuyerVersion, "失败交易重试应校验原履约和返还并只重发通知");
@@ -3054,7 +3124,7 @@ try
         && cancelledVersions.All(pair => state.EventNotifications.GetVersion(pair.Key) > pair.Value),
         "卖家撤单重试应保留账本并再次通知已取消接单的全部参与者");
 
-    EventCreationResponse tradeToComplete = await client.CreateTradeOrderAsync(new CreateTradeOrderRequest(
+    EventCreationResponse tradeToComplete = await CreateSnapshotTrade(new CreateTradeOrderRequest(
         "trade:user-a:complete-source",
         new ProtocolIdentity("user-a", "colony-a", "attacker-snapshot-after"),
         new[] { ConcreteThing("owner:user-a/colony:colony-a/snapshot:attacker-snapshot-after/map:0/thing:cloth", "Cloth", 50) },
@@ -3084,7 +3154,8 @@ try
     Require(acceptedTradeToComplete.Result.Accepted, "待完成交易单接单应成功");
     long userAVersionBeforeFulfill = state.EventNotifications.GetVersion("user-a");
     long userBVersionBeforeFulfill = state.EventNotifications.GetVersion("user-b");
-    FulfillTradeOrderResponse insufficientFulfill = await client.FulfillTradeOrderAsync(new FulfillTradeOrderRequest(
+    tradeTokens["user-b"] = userBAuthToken;
+    FulfillTradeOrderResponse insufficientFulfill = await FulfillSnapshotTrade(new FulfillTradeOrderRequest(
         "trade:user-b:fulfill:missing",
         tradeToComplete.EventId!,
         acceptedTradeToComplete.MemoEventId!,
@@ -3095,7 +3166,7 @@ try
     Require(insufficientFulfill.MissingRequirements.Count > 0, "携带物不足应返回缺失要求");
     Equal(ServerEventStatus.PendingOfflineDelivery, state.Ledger.Find(tradeToComplete.EventId!)!.Status, "履约失败不应关闭市场交易单");
 
-    FulfillTradeOrderResponse fulfilledTrade = await client.FulfillTradeOrderAsync(new FulfillTradeOrderRequest(
+    FulfillTradeOrderResponse fulfilledTrade = await FulfillSnapshotTrade(new FulfillTradeOrderRequest(
         "trade:user-b:fulfill:complete-source",
         tradeToComplete.EventId!,
         acceptedTradeToComplete.MemoEventId!,
@@ -3116,9 +3187,9 @@ try
     Equal(ServerEventStatus.AppliedToSnapshot, state.Ledger.Find(tradeToComplete.EventId!)!.Status, "自提交易成立后市场交易单应进入完成状态");
     Equal(ServerEventStatus.AppliedToSnapshot, state.Ledger.Find(acceptedTradeToComplete.MemoEventId!)!.Status, "自提交易成立后接单备忘录应进入完成状态");
     ledgerBeforeDirectCompletion = JsonSerializer.Serialize(state.Ledger.ListAll());
-    var incompleteProofCompletion = await client.CompleteTradeOrderAsync(directCompletion);
-    Require(!incompleteProofCompletion.Result.Accepted && incompleteProofCompletion.Result.ErrorCode == ProtocolErrorCode.Conflict
-        && ledgerBeforeDirectCompletion == JsonSerializer.Serialize(state.Ledger.ListAll()), "订单完成标记不能代替交换的付款快照证据");
+    var committedCompletion = await client.CompleteTradeOrderAsync(directCompletion);
+    Require(committedCompletion.Result.Accepted && committedCompletion.Result.ErrorCode == ProtocolErrorCode.DuplicateRequest
+        && ledgerBeforeDirectCompletion == JsonSerializer.Serialize(state.Ledger.ListAll()), "已提交快照履约的完成查询应确认既有结果并保持账本不变");
     ListTradeOrdersResponse ownerTradeHistory = await client.ListTradeOrdersAsync(new ListTradeOrdersRequest(
         "user-a",
         "colony-a",
@@ -3130,41 +3201,7 @@ try
     Require(state.EventNotifications.GetVersion("user-a") > userAVersionBeforeFulfill, "自提履约应通知发布者刷新交易状态");
     Require(state.EventNotifications.GetVersion("user-b") > userBVersionBeforeFulfill, "自提履约应通知接单方刷新接单清单");
 
-    SaveSnapshotPackage tradeConfirmedPackage = BuildFixturePackageForWithLineage(
-        "user-b",
-        "colony-b",
-        "defender-snapshot-after-trade",
-        previousSnapshotId: "defender-snapshot-after-gift",
-        giftConfirm.NextLineageToken,
-        gameTicks: (userBInitialPackage.Envelope.GameTicks ?? 0) + 2,
-        playerSettlementTile: 42);
-    LoginResponse userBTradeLogin = await client.LoginAsync(new LoginRequest(
-        ProtocolApiVersion.Current,
-        "user-b",
-        "colony-b",
-        "defender-snapshot-after-gift",
-        "smoke-main-manifest",
-        password: string.Empty,
-        compatibilityManifestId: "smoke-main-manifest"));
-    Require(userBTradeLogin.Result.Accepted, $"交易确认前 user-b 应能重新建立当前会话：{userBTradeLogin.Result.ErrorCode} {userBTradeLogin.Result.Message}");
-    ConfirmEventApplicationResponse tradeConfirm = await client.ConfirmEventApplicationAsync(new ConfirmEventApplicationMetadataRequest(
-        "confirm:trade:user-b:defender-snapshot-after-trade",
-        fulfilledTrade.ExchangeEventId!,
-        tradeToComplete.EventId!,
-        "user-b",
-        "colony-b",
-        "defender-snapshot-after-gift",
-        SnapshotMetadata(tradeConfirmedPackage),
-        "SelfDeliveryExchangeApplied",
-        authToken: userBTradeLogin.AuthToken),
-        tradeConfirmedPackage.Payload);
-    Require(
-        tradeConfirm.Result.Accepted,
-        $"自提交易交换确认应通过服务器校验：{tradeConfirm.Result.ErrorCode} {tradeConfirm.Result.Message} {tradeConfirm.ServerValidationResult}");
-    Equal("defender-snapshot-after-trade", tradeConfirm.AppliedSnapshotId, "自提交易交换应用快照 ID");
-    Equal(ServerEventStatus.AppliedToSnapshot, state.Ledger.Find(fulfilledTrade.ExchangeEventId!)!.Status, "自提交易交换事件应被标记为已应用");
-
-    FulfillTradeOrderResponse duplicateFulfill = await client.FulfillTradeOrderAsync(new FulfillTradeOrderRequest(
+    FulfillTradeOrderResponse duplicateFulfill = await FulfillSnapshotTrade(new FulfillTradeOrderRequest(
         "trade:user-b:fulfill:complete-source",
         tradeToComplete.EventId!,
         acceptedTradeToComplete.MemoEventId!,
@@ -3174,6 +3211,8 @@ try
     Require(duplicateFulfill.Result.Accepted, "重复自提履约请求应按幂等键返回既有交换事件");
     Require(!duplicateFulfill.ExchangeCreated, "重复自提履约不应创建第二个交换事件");
     Equal(fulfilledTrade.ExchangeEventId, duplicateFulfill.ExchangeEventId, "重复自提履约应返回同一个交换事件");
+    await RetiredTradeEndpointTests.RunAsync(httpClient, state, userAAuthToken, userBAuthToken,
+        tradeToComplete.EventId!, acceptedTradeToComplete.MemoEventId!, "trade:user-a:complete-source", "trade:user-b:fulfill:complete-source");
 
     SaveSnapshotPackage defenderPackage = BuildFixturePackageFor(
         "user-b",

@@ -41,11 +41,9 @@ public sealed class ClashOfRimModNetworkClient
     private static readonly string StoreThingPackageRoute = ProtocolContractManifest.Find(ProtocolMessageKind.StoreThingPackage).Route;
     private static readonly string GetThingPackageRoute = ProtocolContractManifest.Find(ProtocolMessageKind.GetThingPackage).Route;
     private static readonly string QuoteTradeOrderFeeRoute = ProtocolContractManifest.Find(ProtocolMessageKind.QuoteTradeOrderFee).Route;
-    private static readonly string CreateTradeOrderRoute = ProtocolContractManifest.Find(ProtocolMessageKind.CreateTradeOrder).Route;
     private static readonly string CreateTradeOrderWithSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.CreateTradeOrderWithSnapshot).Route;
     private static readonly string ListTradeOrdersRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ListTradeOrders).Route;
     private static readonly string AcceptTradeOrderRoute = ProtocolContractManifest.Find(ProtocolMessageKind.AcceptTradeOrder).Route;
-    private static readonly string FulfillTradeOrderRoute = ProtocolContractManifest.Find(ProtocolMessageKind.FulfillTradeOrder).Route;
     private static readonly string FulfillTradeOrderWithSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.FulfillTradeOrderWithSnapshot).Route;
     private static readonly string CancelTradeOrderRoute = ProtocolContractManifest.Find(ProtocolMessageKind.CancelTradeOrder).Route;
     private static readonly string ListServerShopRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ListServerShop).Route;
@@ -1667,42 +1665,6 @@ public sealed class ClashOfRimModNetworkClient
             cancellationToken);
     }
 
-    public Task<ClashOfRimClientNetworkResult<ModEventCreationResponseDto>> CreateTradeOrderAsync(
-        string idempotencyKey,
-        IReadOnlyList<ModThingReferenceDto> offeredThings,
-        IReadOnlyList<ModThingReferenceDto> requestedThings,
-        int feeSilver,
-        bool allowSelfPickup,
-        bool allowServerDropPod,
-        CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModEventCreationResponseDto>();
-        }
-
-        var request = new ModCreateTradeOrderRequestDto
-        {
-            IdempotencyKey = idempotencyKey,
-            Owner = new ModProtocolIdentityDto
-            {
-                UserId = context.UserId,
-                ColonyId = context.ColonyId,
-                SnapshotId = context.CurrentSnapshotId
-            },
-            OfferedThings = offeredThings.ToList(),
-            RequestedThings = requestedThings.ToList(),
-            FeeSilver = feeSilver,
-            AllowSelfPickup = allowSelfPickup,
-            AllowServerDropPod = allowServerDropPod
-        };
-
-        return PostAsync<ModCreateTradeOrderRequestDto, ModEventCreationResponseDto>(
-            CreateTradeOrderRoute,
-            request,
-            cancellationToken);
-    }
-
     public Task<ClashOfRimClientNetworkResult<ModTradeOrderFeeQuoteResponseDto>> QuoteTradeOrderFeeAsync(
         IReadOnlyList<ModThingReferenceDto> offeredThings,
         IReadOnlyList<ModThingReferenceDto> requestedThings,
@@ -1993,40 +1955,6 @@ public sealed class ClashOfRimModNetworkClient
 
         return PostAsync<ModAcceptTradeOrderRequestDto, ModAcceptTradeOrderResponseDto>(
             AcceptTradeOrderRoute,
-            request,
-            cancellationToken);
-    }
-
-    public Task<ClashOfRimClientNetworkResult<ModFulfillTradeOrderResponseDto>> FulfillTradeOrderAsync(
-        string idempotencyKey,
-        string tradeEventId,
-        string acceptedMemoEventId,
-        IReadOnlyList<ModThingReferenceDto> deliveredThings,
-        string fulfillmentMode = "SelfDelivery",
-        CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModFulfillTradeOrderResponseDto>();
-        }
-
-        var request = new ModFulfillTradeOrderRequestDto
-        {
-            IdempotencyKey = idempotencyKey,
-            TradeEventId = tradeEventId,
-            AcceptedMemoEventId = acceptedMemoEventId,
-            Acceptor = new ModProtocolIdentityDto
-            {
-                UserId = context.UserId,
-                ColonyId = context.ColonyId,
-                SnapshotId = context.CurrentSnapshotId
-            },
-            DeliveredThings = deliveredThings.ToList(),
-            FulfillmentMode = fulfillmentMode
-        };
-
-        return PostAsync<ModFulfillTradeOrderRequestDto, ModFulfillTradeOrderResponseDto>(
-            FulfillTradeOrderRoute,
             request,
             cancellationToken);
     }

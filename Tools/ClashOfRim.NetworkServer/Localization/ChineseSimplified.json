@@ -497,6 +497,7 @@
   "Gift.SnapshotEndpointRequired": "赠送礼物必须同时确认存档。请更新客户端，使用带快照的赠送提交。",
   "Gift.Disabled": "服务器已关闭礼物和强行投递。",
   "Trade.OrderCreated": "交易单已发布。",
+  "Trade.SnapshotEndpointRequired": "发布或履行交易必须同时确认存档。请更新客户端，使用带快照的交易提交。",
   "Trade.Disabled": "交易所当前已关闭，不能提交新的交易单。",
   "Trade.FeeQuoted": "交易手续费报价已生成。",
   "Trade.MissingMarketValues": "服务器价格表缺少物品价格：{DEFS}",
