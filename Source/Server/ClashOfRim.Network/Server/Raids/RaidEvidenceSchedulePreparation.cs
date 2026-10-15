@@ -78,7 +78,7 @@ internal sealed class RaidEvidenceSchedulePreparation : IDisposable
             read = ((IVersionedSnapshotPostUploadArtifactStore)state.SnapshotPostUploadArtifacts).ReadCaptured(artifactId);
             var original = read.Package ?? throw new IOException("Raid evidence artifact is missing.");
             RaidSettlementDeferredScheduler.ValidatePayload(original);
-            if (payload!.Origin != request.Origin || payload.ClientApplicationResult != request.ClientApplicationResult
+            if (payload!.RequestHash != request.RequestHash || payload.Origin != request.Origin || payload.ClientApplicationResult != request.ClientApplicationResult
                 || original.Envelope != (evidence.Envelope with { CreatedAtUtc = original.Envelope.CreatedAtUtc, NextLineageToken = original.Envelope.NextLineageToken })
                 || !original.Payload.AsSpan().SequenceEqual(evidence.Payload))
                 throw new InvalidOperationException("Raid evidence retry differs from its original request.");
@@ -135,7 +135,7 @@ internal sealed class RaidEvidenceSchedulePreparation : IDisposable
             if (!write!.TryPublish()) throw new InvalidOperationException("Raid artifact preparation became stale.");
             payload = new(source.EventId, source.Actor.UserId, source.Actor.ColonyId!, source.Target.UserId, source.Target.ColonyId!,
                 evidence.Envelope.Identity.SnapshotId!, ((RaidEventPayload)source.Payload).DefenderSnapshotId, artifactId,
-                request.Origin, request.ClientApplicationResult, new RaidEvidencePublication(previous, evidence.Envelope));
+                request.Origin, request.ClientApplicationResult, new RaidEvidencePublication(previous, evidence.Envelope), request.RequestHash);
             job = state.SnapshotPostUploadJobs.EnqueuePrepared(jobId, RaidSettlementDeferredScheduler.ProcessorId, context, payload.Serialize());
         }
         consumed = true;

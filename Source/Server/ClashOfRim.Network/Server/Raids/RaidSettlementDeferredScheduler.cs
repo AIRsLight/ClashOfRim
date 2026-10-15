@@ -68,7 +68,7 @@ public static class RaidSettlementDeferredScheduler
             SaveSnapshotPackage artifact = ReadEvidence(state, existing, original);
             if (original.RaidEventId != raid.EventId || original.DefenderUserId != raid.Target.UserId
                 || original.DefenderColonyId != defenderColonyId || original.DefenderSnapshotId != raidPayload.DefenderSnapshotId
-                || original.Origin != request.Origin || original.ClientApplicationResult != request.ClientApplicationResult
+                || original.RequestHash != request.RequestHash || original.Origin != request.Origin || original.ClientApplicationResult != request.ClientApplicationResult
                 || artifact.Envelope != (evidencePackage.Envelope with { NextLineageToken = artifact.Envelope.NextLineageToken }))
                 throw new InvalidOperationException("Raid settlement retry differs from the prepared request.");
             return existing.State switch
@@ -120,7 +120,7 @@ public static class RaidSettlementDeferredScheduler
             artifactId,
             request.Origin,
             request.ClientApplicationResult,
-            new RaidEvidencePublication(previous, evidencePackage.Envelope));
+            new RaidEvidencePublication(previous, evidencePackage.Envelope), request.RequestHash);
 
         // No job references this raid's artifact yet. Replace any orphan from a failed enqueue.
         state.SnapshotPostUploadArtifacts.Delete(artifactId);

@@ -117,7 +117,7 @@ internal static partial class RaidEvidenceAuthorizationTests
         }
         var context = new SnapshotPostUploadContext(f.State, SnapshotPostUploadKind.RaidSettlementEvidence, snapshot,
             "userA", "colonyA", null, snapshot.AcceptedAtUtc, SnapshotPostUploadExtraData.Empty, false);
-        RaidSettlementDeferredScheduler.Schedule(f.State, new(f.Raid.EventId, context, f.Package.Payload, RaidSettlementOrigin.OnlineEvidence, "Applied"));
+        RaidSettlementDeferredScheduler.Schedule(f.State, new(f.Raid.EventId, context, f.Package.Payload, RaidSettlementOrigin.OnlineEvidence, "Applied", f.Binding()));
         return new(ProtocolResponse.Ok("queued"), f.Raid.EventId, snapshot.Identity.SnapshotId, "SettlementQueued", snapshot.Envelope.NextLineageToken);
     }
 

@@ -10,7 +10,8 @@ public sealed record RaidEventPayload(
     RaidAttackerLossRecord? AttackerLoss = null,
     RaidOpponentKind OpponentKind = RaidOpponentKind.Player,
     string? GuardDeploymentId = null,
-    RaidTimeoutWork? TimeoutWork = null) : LedgerEventPayload
+    RaidTimeoutWork? TimeoutWork = null,
+    string? EvidenceRequestHash = null) : LedgerEventPayload
 {
     public bool RequiresSettlement => OpponentKind == RaidOpponentKind.Player;
 }

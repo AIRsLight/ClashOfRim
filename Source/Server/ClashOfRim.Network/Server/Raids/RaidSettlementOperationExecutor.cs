@@ -146,6 +146,8 @@ public static class RaidSettlementOperationExecutor
 
             settlementEvent = RaidSettlementLedgerRecorder.CreateSettlementEvent(sourceRaid, settlement, nowUtc,
                 state.OnlinePresence.IsUserOnline(sourceRaid.Target.UserId));
+            settlementEvent = settlementEvent with { Payload = ((RaidEventPayload)settlementEvent.Payload) with
+                { EvidenceRequestHash = payload.Origin == RaidSettlementOrigin.OnlineEvidence ? payload.RequestHash : null } };
             var mutation = new RaidSettlementSnapshotMutation(sourceRaid, settlementEvent, originalDefensePackage.Envelope,
                 editedSnapshotId, nowUtc);
             state.SnapshotCommits.CommitRaidSettlement(packageStore, state.BankLoans, state.Ledger, state.Players,

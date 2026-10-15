@@ -12,7 +12,8 @@ public sealed record RaidSettlementPostUploadData(
     string RaidEventId,
     byte[] EvidencePayload,
     RaidSettlementOrigin Origin,
-    string? ClientApplicationResult)
+    string? ClientApplicationResult,
+    string? RequestHash = null)
 {
     [System.Text.Json.Serialization.JsonIgnore]
     internal RaidEvidenceSchedulePreparation? PreparedSchedule { get; init; }
@@ -29,7 +30,8 @@ public sealed record RaidSettlementDeferredPayload(
     string EvidenceArtifactId,
     RaidSettlementOrigin Origin,
     string? ClientApplicationResult,
-    RaidEvidencePublication? Publication = null)
+    RaidEvidencePublication? Publication = null,
+    string? RequestHash = null)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -56,4 +58,5 @@ public sealed record RaidSettlementScheduleRequest(
     Plugins.SnapshotPostUploadContext Context,
     byte[] EvidencePayload,
     RaidSettlementOrigin Origin,
-    string? ClientApplicationResult);
+    string? ClientApplicationResult,
+    string? RequestHash = null);

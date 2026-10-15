@@ -11,6 +11,7 @@ internal static partial class RaidEvidenceAuthorizationTests
     {
         SnapshotEndpointTestClient.LoadLocalization();
         RunOnline(fixture);
+        RunBindings(fixture);
         foreach (string change in new[] { "none", "logout", "replace", "revoke", "cancel", "source-content" })
             WithFixture(fixture, f => VerifyPreparing(f, change));
         foreach (bool applied in new[] { false, true })
@@ -58,12 +59,12 @@ internal static partial class RaidEvidenceAuthorizationTests
         var reply = f.Invoke(identity);
         if (applied && identity == "delegated")
             Require(reply.NextLineageToken != "defender-next", "Cross-party raid replay disclosed the defender lineage token.");
-        bool accepted = identity == "attacker";
+        bool accepted = identity == "attacker" && !applied;
         Require(reply.Result.Accepted == accepted, "Raid evidence did not bind its caller/metadata to the attacker: " + applied + "/" + identity);
         if (!accepted)
             Require(reply.AppliedSnapshotId is null && reply.NextLineageToken is null && f.StateEvidence() == before,
                 "Rejected or wrong-party replay leaked snapshot credentials or changed persistent state.");
-        if (applied && accepted) Require(reply.NextLineageToken == "attacker-next", "Valid completed replay lost its result.");
+
     }
 
     private static void WithFixture(Func<string, string, SaveSnapshotPackage> fixture, Action<Fixture> run, bool persistent = false, bool legacyArtifacts = false)
@@ -78,7 +79,7 @@ internal static partial class RaidEvidenceAuthorizationTests
         finally { SqliteConnection.ClearAllPools(); if (Directory.Exists(root)) Directory.Delete(root, true); }
     }
     private static void Require(bool value, string message) { if (!value) throw new Exception(message); }
-    private sealed class Fixture
+    private sealed partial class Fixture
     {
         public string Artifacts { get; }
         public SaveSnapshotPackage Package { get; }
@@ -99,7 +100,8 @@ internal static partial class RaidEvidenceAuthorizationTests
             if (persistent) { database = Path.Combine(root, "server.sqlite"); ServerDatabaseMigrator.Migrate(database); }
             Open();
             Raid = AuthoritativeEventFactory.Create(ServerEventType.Raid, new EventParty("userA", "colonyA"), new EventParty("userB", "colonyB"),
-                "raid-auth", false, new RaidEventPayload("defender", null, DateTimeOffset.UtcNow, null, null), DateTimeOffset.UtcNow);
+                "raid-auth", false, new RaidEventPayload("defender", null, DateTimeOffset.UtcNow, null, null), DateTimeOffset.UtcNow,
+                new EventTargetContext("WorldObject_0", "Map_0", 1, EventLandingMode.MapEdge));
             State.Ledger.Append(Raid);
             Package = fixture("evidence", Raid.EventId);
             var defender = Package with { Envelope = Package.Envelope with { Identity = new SnapshotIdentity("userB", "colonyB", "defender"), NextLineageToken = "defender-next" } };
@@ -111,6 +113,7 @@ internal static partial class RaidEvidenceAuthorizationTests
             ArtifactStore = new ObservedArtifacts(Artifacts);
             State = new ClashOfRimNetworkState(snapshotStore: Store, snapshotPostUploadArtifacts: legacyArtifacts ? new LegacyArtifacts(ArtifactStore.Inner) : ArtifactStore,
                 ledger: database is null ? null : new SqliteAuthoritativeEventLedger(database),
+                snapshotCommits: new SnapshotCommitService(Path.Combine(root, "intents")),
                 playerRegistry: database is null ? null : new PlayerRegistry(new SqlitePlayerRegistryStore(database), null),
                 snapshotPostUploadJobs: database is null ? null : new SnapshotPostUploadJobRegistry(new SqliteSnapshotPostUploadJobStore(database)),
                 plugins: new AIRsLight.ClashOfRim.Network.Plugins.ServerPluginRegistry().WithBuiltInPlugins([
@@ -133,16 +136,19 @@ internal static partial class RaidEvidenceAuthorizationTests
         public string StateEvidence() => JsonSerializer.Serialize(new { snapshots = Store.ListLatest(), ledger = State.Ledger.ListAll(),
             jobs = State.SnapshotPostUploadJobs.ListAll(), artifacts = Directory.EnumerateFiles(Artifacts, "*.snapshot.gz").Order().Select(path =>
                 Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(path)))).ToArray(), players = new[] { State.Players.FindByUserId("userA"), State.Players.FindByUserId("userB") } });
-        public ConfirmEventApplicationResponse Invoke(string identity = "attacker", SaveSnapshotPackage? package = null, string result = "Applied")
+        public ConfirmEventApplicationResponse Invoke(string identity = "attacker", SaveSnapshotPackage? package = null, string result = "Applied", Action<System.Text.Json.Nodes.JsonObject>? mutate = null)
         {
             package ??= Package;
             bool defender = identity is "defender" or "delegated";
             string owner = defender ? "userB" : "userA", colony = defender ? "colonyB" : "colonyA";
             var metadata = ProtocolDtoMapper.ToMetadataDto(package);
             if (identity is "defender" or "delegated" or "metadata") metadata = ProtocolDtoMapper.ToMetadataDto(package with { Envelope = Package.Envelope with { Identity = new SnapshotIdentity("userB", "colonyB", "evidence") } });
+            var request = new ConfirmEventApplicationMetadataRequest("request", Raid.EventId, null, owner, colony, "before", metadata, result,
+                defender && identity != "delegated" ? defenderToken : attackerToken);
+            object body = request;
+            if (mutate is not null) { var node = System.Text.Json.Nodes.JsonNode.Parse(JsonSerializer.Serialize(request))!.AsObject(); mutate(node); body = node; }
             return SnapshotEndpointTestClient.Invoke<ConfirmEventApplicationResponse>("ConfirmEventApplication", State,
-                _ => new ConfirmEventApplicationMetadataRequest("request", Raid.EventId, null, owner, colony, "before", metadata, result,
-                    defender && identity != "delegated" ? defenderToken : attackerToken), package.Payload,
+                _ => body, package.Payload,
                 new ProtocolIdentity(identity == "header" ? "userB" : identity == "delegated" ? "userA" : owner,
                     identity == "header" ? "colonyB" : identity == "delegated" ? "colonyA" : colony, null),
                 identity == "header" || defender && identity != "delegated" ? defenderToken : attackerToken).GetAwaiter().GetResult();

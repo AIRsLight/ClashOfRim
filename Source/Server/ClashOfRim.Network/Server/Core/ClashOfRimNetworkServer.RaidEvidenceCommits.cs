@@ -12,6 +12,7 @@ public static partial class ClashOfRimNetworkServer
     private static IResult ConfirmRaidEvidenceSnapshot(HttpRequest http, ClashOfRimNetworkState state,
         ConfirmEventApplicationMetadataRequest request, byte[] bytes, DateTimeOffset nowUtc)
     {
+        string binding = RaidEvidenceRequestBinding.Hash(request, bytes);
         AuthoritativeEvent source;
         using (state.EnterSnapshotMutation())
         {
@@ -19,7 +20,11 @@ public static partial class ClashOfRimNetworkServer
             if (failure is not null) return RaidEvidenceRejected(request, failure, "AuthOrSourceFailed");
             if (TryRejectExpiredPendingConfirmationSnapshot(state, request.UserId, request.ColonyId, DateTimeOffset.UtcNow, out var pending))
                 return RaidEvidenceRejected(request, pending!, "PendingConfirmationExpired");
-            if (source.Status == ServerEventStatus.AppliedToSnapshot) return CompletedRaidEvidenceReply(state, request);
+            if (source.Status == ServerEventStatus.AppliedToSnapshot) return CompletedRaidEvidenceReply(state, request, binding);
+            var existing = state.SnapshotPostUploadJobs.Find("raid-settlement:" + request.EventId);
+            if (existing is not null && RaidSettlementDeferredPayload.Deserialize(existing.PayloadJson).RequestHash != binding)
+                return RaidEvidenceRejected(request, ProtocolResponse.Reject(ProtocolErrorCode.Conflict,
+                    T("Raid.SettlementQueueFailed")), "QueuedRequestConflict");
         }
         var receiver = CreateSnapshotReceiver(state);
         var package = ProtocolDtoMapper.ToSaveSnapshotPackage(request.ConfirmedSnapshot, bytes);
@@ -31,7 +36,7 @@ public static partial class ClashOfRimNetworkServer
             RaidEvidenceSchedulePreparation preparation;
             using (state.EnterSnapshotMutation())
             {
-                var rejection = RevalidateRaidEvidence(http, state, request, source);
+                var rejection = RevalidateRaidEvidence(http, state, request, source, binding);
                 if (rejection is not null) return rejection;
                 if (!preparedUpload.Accepted || preparedUpload.AcceptedSnapshot is null)
                     return RaidEvidenceRejected(request, ToProtocolResponse(preparedUpload), preparedUpload.Kind.ToString());
@@ -41,13 +46,13 @@ public static partial class ClashOfRimNetworkServer
                     var upload = replay ? preparedUpload : receiver.CommitPrepared(uploadContext, package, preparedUpload, storeAccepted: false);
                     if (!upload.Accepted || upload.AcceptedSnapshot is null)
                         return RaidEvidenceRejected(request, ToProtocolResponse(upload), upload.Kind.ToString());
-                    var context = CreateRaidEvidenceContext(state, request, bytes, upload.AcceptedSnapshot, nowUtc);
+                    var context = CreateRaidEvidenceContext(state, request, bytes, upload.AcceptedSnapshot, nowUtc, binding);
                     if (!RaidEvidenceSchedulePreparation.Supports(state))
                         return RunLegacyRaidEvidencePipeline(state, request, context, replay);
                     try
                     {
                         preparation = new RaidEvidenceSchedulePreparation(state,
-                            new RaidSettlementScheduleRequest(source.EventId, context, bytes, RaidSettlementOrigin.OnlineEvidence, request.ClientApplicationResult));
+                            new RaidSettlementScheduleRequest(source.EventId, context, bytes, RaidSettlementOrigin.OnlineEvidence, request.ClientApplicationResult, binding));
                     }
                     catch (Exception ex) { return RaidEvidenceQueueFailure(state, request, ex); }
                 }
@@ -59,7 +64,7 @@ public static partial class ClashOfRimNetworkServer
                 catch (Exception ex) { prepareFailure = ex; }
                 using (state.EnterSnapshotMutation())
                 {
-                    var rejection = RevalidateRaidEvidence(http, state, request, source);
+                    var rejection = RevalidateRaidEvidence(http, state, request, source, binding);
                     if (rejection is not null) return rejection;
                     lock (state.SnapshotPostUploadJobs.SnapshotCommitGate)
                     {
@@ -83,7 +88,7 @@ public static partial class ClashOfRimNetworkServer
     }
 
     private static IResult? RevalidateRaidEvidence(HttpRequest http, ClashOfRimNetworkState state,
-        ConfirmEventApplicationMetadataRequest request, AuthoritativeEvent source)
+        ConfirmEventApplicationMetadataRequest request, AuthoritativeEvent source, string binding)
     {
         var failure = ValidateRaidEvidenceAuthority(http, state, request, out _);
         if (failure is not null) return RaidEvidenceRejected(request, failure, "AuthOrSourceFailed");
@@ -94,14 +99,14 @@ public static partial class ClashOfRimNetworkServer
             return RaidEvidenceRejected(request, ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Raid.SettlementQueueFailed")), "SourceChanged");
         if (TryRejectExpiredPendingConfirmationSnapshot(state, request.UserId, request.ColonyId, DateTimeOffset.UtcNow, out var pending))
             return RaidEvidenceRejected(request, pending!, "PendingConfirmationExpired");
-        return current.Status == ServerEventStatus.AppliedToSnapshot ? CompletedRaidEvidenceReply(state, request) : null;
+        return current.Status == ServerEventStatus.AppliedToSnapshot ? CompletedRaidEvidenceReply(state, request, binding) : null;
     }
 
     private static SnapshotPostUploadContext CreateRaidEvidenceContext(ClashOfRimNetworkState state,
-        ConfirmEventApplicationMetadataRequest request, byte[] bytes, LatestSnapshotRecord snapshot, DateTimeOffset at)
+        ConfirmEventApplicationMetadataRequest request, byte[] bytes, LatestSnapshotRecord snapshot, DateTimeOffset at, string binding)
         => new(state, SnapshotPostUploadKind.RaidSettlementEvidence, snapshot, request.UserId, request.ColonyId, null, at,
             new SnapshotPostUploadExtraData(SnapshotUploadKinds.RaidSettlementEvidence, null, null)
-            { RaidSettlement = new(request.EventId, bytes, RaidSettlementOrigin.OnlineEvidence, request.ClientApplicationResult) }, false);
+            { RaidSettlement = new(request.EventId, bytes, RaidSettlementOrigin.OnlineEvidence, request.ClientApplicationResult, binding) }, false);
 
     private static IResult RunLegacyRaidEvidencePipeline(ClashOfRimNetworkState state,
         ConfirmEventApplicationMetadataRequest request, SnapshotPostUploadContext context, bool replay)
@@ -118,7 +123,7 @@ public static partial class ClashOfRimNetworkServer
                 RaidSettlementDeferredScheduler.ValidatePayload(original);
                 RaidSettlementDeferredScheduler.ValidateEvidenceBinding(state, job, payload, original);
                 if (job.State is not (SnapshotPostUploadJobState.Prepared or SnapshotPostUploadJobState.Ready)
-                    || payload.Origin != data.Origin || payload.ClientApplicationResult != data.ClientApplicationResult
+                    || payload.RequestHash != data.RequestHash || payload.Origin != data.Origin || payload.ClientApplicationResult != data.ClientApplicationResult
                     || original.Envelope != (context.Snapshot.Envelope with { CreatedAtUtc = original.Envelope.CreatedAtUtc, NextLineageToken = original.Envelope.NextLineageToken })
                     || !original.Payload.AsSpan().SequenceEqual(data.EvidencePayload))
                     throw new InvalidOperationException("Raid evidence retry differs from its original request.");

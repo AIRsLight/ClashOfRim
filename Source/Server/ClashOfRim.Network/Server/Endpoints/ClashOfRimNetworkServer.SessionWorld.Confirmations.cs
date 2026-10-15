@@ -82,12 +82,21 @@ public static partial class ClashOfRimNetworkServer
     private static IResult RaidEvidenceRejected(ConfirmEventApplicationMetadataRequest request, ProtocolResponse failure, string validation)
         => Results.Ok(new ConfirmEventApplicationResponse(failure, request.EventId, null, validation));
 
-    private static IResult CompletedRaidEvidenceReply(ClashOfRimNetworkState state, ConfirmEventApplicationMetadataRequest request)
+    private static IResult CompletedRaidEvidenceReply(ClashOfRimNetworkState state, ConfirmEventApplicationMetadataRequest request, string binding)
     {
-        var latest = state.SnapshotStore.GetLatest(request.UserId, request.ColonyId);
+        var source = state.Ledger.Find(request.EventId)!;
+        var settlement = state.Ledger.FindByIdempotencyKey("raid-settlement:" + request.EventId);
+        if (settlement?.Type != ServerEventType.Raid || settlement.Actor != source.Actor || settlement.Target != source.Target
+            || settlement.TargetContext != source.TargetContext
+            || settlement.Payload is not RaidEventPayload { Settlement: not null } receipt
+            || receipt.EvidenceRequestHash != binding || receipt.ReturnedSnapshotId != request.ConfirmedSnapshot.SnapshotId
+            || receipt.DefenderSnapshotId != ((RaidEventPayload)source.Payload).DefenderSnapshotId)
+            return RaidEvidenceRejected(request, ProtocolResponse.Reject(ProtocolErrorCode.Conflict,
+                T("Raid.SettlementQueueFailed")), "CompletedRequestConflict");
         return Results.Ok(new ConfirmEventApplicationResponse(
             new ProtocolResponse(true, ProtocolErrorCode.DuplicateRequest, T("Raid.SettlementAlreadyConfirmed")),
-            request.EventId, latest?.Identity.SnapshotId, "AlreadyApplied", latest?.Envelope.NextLineageToken));
+            request.EventId, receipt.ReturnedSnapshotId, "AlreadyApplied",
+            FindSnapshotNextLineageToken(state, request.UserId, request.ColonyId, receipt.ReturnedSnapshotId)));
     }
 
     private static async Task<IResult> ConfirmEventApplications(HttpRequest httpRequest, ClashOfRimNetworkState state)

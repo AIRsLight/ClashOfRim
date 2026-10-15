@@ -37,7 +37,8 @@ public sealed class RaidSettlementPostUploadProcessor :
                 context,
                 data.EvidencePayload,
                 data.Origin,
-                data.ClientApplicationResult));
+                data.ClientApplicationResult,
+                data.RequestHash));
     }
 
     public string CapturePayload(SnapshotPostUploadContext context)
