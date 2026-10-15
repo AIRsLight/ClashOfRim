@@ -46,13 +46,7 @@ public static partial class ClashOfRimNetworkServer
             if (byKey is not null && !MatchesTradeAcceptance(byKey, tradeOrder, request)) return Conflict();
 
             // A second key may retry the same active acceptance, but cannot mask another key's owner.
-            var candidates = state.Ledger.ListForUser(request.Acceptor.UserId).Where(item =>
-                item.Payload is TradeEventPayload { Stage: TradeStage.AcceptedMemo } payload
-                && payload.TradeId == tradeOrder.EventId
-                && item.Status is not (ServerEventStatus.Cancelled or ServerEventStatus.Failed or ServerEventStatus.RejectedByTarget
-                    or ServerEventStatus.AppliedToSnapshot or ServerEventStatus.Conflict)
-                && (IsVisibleParty(item.Actor, request.Acceptor.UserId, request.Acceptor.ColonyId!)
-                    || IsVisibleParty(item.Target, request.Acceptor.UserId, request.Acceptor.ColonyId!))).ToArray();
+            var candidates = FindActiveAcceptanceCandidates(state.Ledger, tradeOrder.EventId, request.Acceptor);
             if (candidates.Length > 1 || candidates.Any(item => !MatchesTradeAcceptance(item, tradeOrder, request))) return Conflict();
             AuthoritativeEvent? existingMemo = candidates.SingleOrDefault();
             if (existingMemo is not null)
@@ -128,6 +122,14 @@ public static partial class ClashOfRimNetworkServer
                 append.Created));
         }
     }
+
+    private static AuthoritativeEvent[] FindActiveAcceptanceCandidates(IAuthoritativeEventLedger ledger, string orderId, ProtocolIdentity identity) =>
+        ledger.ListForUser(identity.UserId).Where(item =>
+            item.Payload is TradeEventPayload { Stage: TradeStage.AcceptedMemo } payload && payload.TradeId == orderId
+            && item.Status is not (ServerEventStatus.Cancelled or ServerEventStatus.Failed or ServerEventStatus.RejectedByTarget
+                or ServerEventStatus.AppliedToSnapshot or ServerEventStatus.Conflict)
+            && (IsVisibleParty(item.Actor, identity.UserId, identity.ColonyId!)
+                || IsVisibleParty(item.Target, identity.UserId, identity.ColonyId!))).ToArray();
 
     private static bool MatchesTradeAcceptance(AuthoritativeEvent memo, AuthoritativeEvent order, AcceptTradeOrderRequest request)
     {

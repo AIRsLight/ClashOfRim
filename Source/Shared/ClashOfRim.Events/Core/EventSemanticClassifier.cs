@@ -45,6 +45,7 @@ public static class EventSemanticClassifier
     {
         return tradePayload.Stage is TradeStage.MarketOrder
             or TradeStage.AcceptedMemo
-            or TradeStage.Completed;
+            or TradeStage.Completed
+            or TradeStage.AcceptanceCancelled;
     }
 }

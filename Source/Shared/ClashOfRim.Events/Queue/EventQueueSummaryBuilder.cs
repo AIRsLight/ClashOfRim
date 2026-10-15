@@ -98,7 +98,7 @@ public static class EventQueueSummaryBuilder
     private static bool IsTradeAcceptanceMemoEvent(AuthoritativeEvent ledgerEvent)
     {
         return ledgerEvent.Type == ServerEventType.Trade
-            && ledgerEvent.Payload is TradeEventPayload { Stage: TradeStage.AcceptedMemo };
+            && ledgerEvent.Payload is TradeEventPayload { Stage: TradeStage.AcceptedMemo or TradeStage.AcceptanceCancelled };
     }
 
     private static EventQueueGroupKind? ResolveGroup(AuthoritativeEvent ledgerEvent)

@@ -6,5 +6,6 @@ public enum TradeStage
     AcceptedMemo,
     SelfDeliveryExchange,
     ServerDropPodExchange,
-    Completed
+    Completed,
+    AcceptanceCancelled
 }

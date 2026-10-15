@@ -2259,22 +2259,6 @@ public static partial class ClashOfRimNetworkServer
                 : null;
     }
 
-    private static AuthoritativeEvent? FindTradeAcceptanceMemo(
-        IAuthoritativeEventLedger ledger,
-        string tradeEventId,
-        string acceptorUserId,
-        string? acceptorColonyId)
-    {
-        return ledger.ListForUser(acceptorUserId)
-            .FirstOrDefault(ledgerEvent =>
-                IsActiveTradeAcceptanceMemo(ledgerEvent)
-                && ledgerEvent.Payload is TradeEventPayload payload
-                && string.Equals(payload.TradeId, tradeEventId, StringComparison.Ordinal)
-                && string.Equals(payload.AcceptedByUserId, acceptorUserId, StringComparison.Ordinal)
-                && (string.IsNullOrWhiteSpace(acceptorColonyId)
-                    || string.Equals(ledgerEvent.Target.ColonyId, acceptorColonyId, StringComparison.Ordinal)));
-    }
-
     private static IReadOnlyList<AuthoritativeEvent> FindActiveTradeAcceptanceMemos(
         IAuthoritativeEventLedger ledger,
         string tradeEventId)

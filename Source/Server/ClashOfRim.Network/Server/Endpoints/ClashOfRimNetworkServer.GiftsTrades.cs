@@ -2220,6 +2220,9 @@ public static partial class ClashOfRimNetworkServer
             }
 
             AuthoritativeEvent? tradeOrder = state.Ledger.Find(request.TradeEventId);
+            var cancellation = state.Ledger.FindByIdempotencyKey(request.IdempotencyKey);
+            if (cancellation?.Payload is TradeEventPayload { Stage: TradeStage.AcceptanceCancelled })
+                return ReplayTradeMemoCancellation(request, state, tradeOrder, cancellation, duplicate: true);
             if (tradeOrder is not null
                 && tradeOrder.Type == ServerEventType.Trade
                 && tradeOrder.Payload is TradeEventPayload { Stage: TradeStage.MarketOrder }
@@ -2236,56 +2239,6 @@ public static partial class ClashOfRimNetworkServer
                 ServerEventStatus.Cancelled,
                 T("Trade.CancelledWithNotifications"),
                 T("Trade.Cancelled"));
-        }
-    }
-
-    private static IResult CancelTradeAcceptanceMemo(
-        CloseTradeOrderRequest request,
-        ClashOfRimNetworkState state,
-        AuthoritativeEvent tradeOrder)
-    {
-        using (state.EnterSnapshotMutation())
-        {
-            RecoverSnapshotCommits(state);
-            if (!IsOpenMarketTradeOrderForOwner(tradeOrder))
-            {
-                return Results.Ok(new CloseTradeOrderResponse(
-                    ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Trade.NotOpen")),
-                    tradeOrder.EventId,
-                    tradeOrder.Status.ToString(),
-                    notifiedAcceptorCount: 0));
-            }
-
-            AuthoritativeEvent? memo = FindTradeAcceptanceMemo(
-                state.Ledger,
-                tradeOrder.EventId,
-                request.Owner.UserId,
-                request.Owner.ColonyId);
-            if (memo is null)
-            {
-                return Results.Ok(new CloseTradeOrderResponse(
-                    ProtocolResponse.Reject(ProtocolErrorCode.EventNotFound, T("Trade.AcceptanceMemoNotFound")),
-                    tradeOrder.EventId,
-                    string.Empty,
-                    notifiedAcceptorCount: 0));
-            }
-
-            state.Ledger.ChangeStatus(memo.EventId, ServerEventStatus.Cancelled);
-            IReadOnlyList<string> notifiedUsers = new[]
-                {
-                tradeOrder.Actor.UserId,
-                request.Owner.UserId
-            }
-                .Where(userId => !string.IsNullOrWhiteSpace(userId))
-                .Distinct(StringComparer.Ordinal)
-                .ToList();
-            state.EventNotifications.SignalUsers(notifiedUsers);
-
-            return Results.Ok(new CloseTradeOrderResponse(
-                ProtocolResponse.Ok(T("Trade.AcceptanceMemoCancelled")),
-                tradeOrder.EventId,
-                ServerEventStatus.Cancelled.ToString(),
-                notifiedUsers.Count));
         }
     }
 

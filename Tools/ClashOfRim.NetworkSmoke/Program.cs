@@ -2955,6 +2955,18 @@ try
     Equal(ProtocolErrorCode.DuplicateRequest, duplicateAcceptedTrade.Result.ErrorCode, "同一玩家重复接取应返回既有备忘录");
     Equal(acceptedTrade.MemoEventId, duplicateAcceptedTrade.MemoEventId, "重复接取应返回同一个备忘录");
 
+    var cancelBuyerMemo = new CloseTradeOrderRequest("trade:user-b:cancel-memo", trade.EventId!,
+        new ProtocolIdentity("user-b", "colony-b", "defender-snapshot-before"), "cancel memo", userBAuthToken);
+    Require((await client.CancelTradeOrderAsync(cancelBuyerMemo)).Result.Accepted, "接单方可以取消自己的备忘");
+    string oldMemoId = acceptedTrade.MemoEventId!;
+    acceptedTrade = await client.AcceptTradeOrderAsync(new AcceptTradeOrderRequest("trade:user-b:reaccept", trade.EventId!,
+        new ProtocolIdentity("user-b", "colony-b", "defender-snapshot-before"), false, userBAuthToken));
+    Require(acceptedTrade.Result.Accepted && acceptedTrade.MemoCreated && acceptedTrade.MemoEventId != oldMemoId, "取消备忘后可以重新接单");
+    string beforeOldCancellationRetry = JsonSerializer.Serialize(state.Ledger.ListAll());
+    var oldCancellationRetry = await client.CancelTradeOrderAsync(cancelBuyerMemo);
+    Require(oldCancellationRetry.Result.Accepted && oldCancellationRetry.Result.ErrorCode == ProtocolErrorCode.DuplicateRequest
+        && beforeOldCancellationRetry == JsonSerializer.Serialize(state.Ledger.ListAll()), "旧取消重试不能关闭新的接单备忘");
+
     LoginResponse userCTradeLogin = await client.LoginAsync(new LoginRequest(ProtocolApiVersion.Current, "user-c", "colony-c",
         "third-party-snapshot", "smoke-main-manifest", password: string.Empty, compatibilityManifestId: "smoke-main-manifest"));
     Require(userCTradeLogin.Result.Accepted && !string.IsNullOrWhiteSpace(userCTradeLogin.AuthToken), "第三方接单前应建立有效会话");

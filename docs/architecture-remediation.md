@@ -494,3 +494,14 @@
 - 验证：默认完整回归通过（Events 52、Save 105、Client.Core 5 组、完整 NetworkSmoke），日志 `LocalOnly/trade-acceptance-regression.log`；最终限定查询为玩家相关事件后，接单认证与新关联测试组复测通过，日志 `LocalOnly/trade-acceptance-final-targeted.log`。负向证据 `LocalOnly/trade-acceptance-negative.log`。77 个 1.6 冻结文件与差异格式检查通过，数据库仍为版本 25，无新格式。
 - 下一步：取消备忘的请求必须绑定具体备忘并可重放通知，不能在重新接单后让旧取消重试关闭新备忘；旧直接完成接口的成交证据约束仍待处理。未把本步接单校验当作所有交易生命周期或后续职责/DTO 收敛已经完成。
 - RimTest 当前双客户端的既有 19 项流程全部通过，报告 `G:/RimTestRuns/ClashOfRim/20261015-153624-b168b48a/report.json`，日志 `LocalOnly/trade-acceptance-rimtest.log`；包括游戏内交易接单、撤单退款和履约，测试进程均已退出。该运行仍是有限场景覆盖，损坏账本和冲突键以服务端/HTTP 测试为证据。
+
+## 续修：取消接单的持久回执与通知重放
+
+- 原买家取消备忘只修改当前找到的活跃备忘。提交后、通知前中断会丢失唤醒；玩家重新接单后，旧取消请求重试还会选择并关闭新的备忘。请求幂等键完全未参与关联。
+- 新增 `TradeStage.AcceptanceCancelled`，回执绑定取消请求键、原订单、原备忘、买卖双方和完整交易载荷。回执与原备忘的取消状态在同一 `LedgerBatch` 提交，携带完整预期备忘；SQLite 事务、文件候选发布和内存账本沿用统一原子规则。回执自身为取消终态，按无需快照的交易记录分类且明确排除玩家事件队列，不制造游戏入档证据。
+- 取消逻辑抽到独立 `TradeMemoCancellation` 文件。首次取消复用接单的完整关联校验和唯一性检查；已占用请求键不能转用于取消。重试按回执找到原备忘，验证原记录仍为已取消且双方、订单及载荷一致，再重发双方唤醒；即使订单后来关闭或买家重新接单，也不会修改新备忘。新键仍可明确取消新的活跃备忘。损坏/冲突回执保留并拒绝，不自动推断或改写。
+- 数据库版本 25→26，无新 SQL 表；版本门槛防止旧服务端忽略回执、重新选择备忘。新阶段追加到枚举末尾，已有数值不变；迁移不改写历史事件。备份范围仍为原账本/数据库，回执为持久业务记录，不能按缓存清理。历史取消没有回执时无法证明原请求与备忘的关联，本步不补造未知意图。
+- `TradeMemoCancellationTests` 覆盖三种账本 × 同进程/重开 6 个提交后中断场景、重新接单后的旧重试、订单关闭后重放、键冲突、历史无回执、每种账本 13 类损坏关联及各 12 个并发请求；另有 SQLite 插入/更新失败回滚、Windows 文件替换失败、队列隔离和 25→26 迁移保留历史记录。两组旧实现负向测试分别复现已占用键被取消接受、旧重试取消新备忘。HTTP 回归执行实际取消、重新接单和旧请求重试，确认账本不变。
+- 验证：完整 `Test-Regression.ps1 -IncludeClient` 通过（Events 52、Save 106、Client.Core 5 组、完整 NetworkSmoke、客户端 26），日志 `LocalOnly/trade-memo-cancel-regression.log`。定向和负向证据见 `LocalOnly/trade-memo-cancel-targeted.log`、`LocalOnly/trade-memo-cancel-negative.log`、`LocalOnly/trade-memo-cancel-negative-retry.log`。77 个 1.6 冻结文件与差异格式检查通过。
+- 本步没有新增 RimTest 的买家取消/重新接单/旧取消重试场景，前一步 19 项结果不替代该路径的实机验收。通知补发依赖相同请求重试，不新增后台回执扫描。下一步审计旧直接完成交易入口的成交证据约束，再继续其余生命周期、业务锁、职责及 DTO 收敛。
+- 删除已无调用的弱关联 `FindTradeAcceptanceMemo` 辅助方法，接单和取消共用严格候选检查；清理后相关三个测试组再次通过，日志 `LocalOnly/trade-memo-cancel-final-targeted.log`。
