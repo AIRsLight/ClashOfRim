@@ -1180,129 +1180,72 @@ public static partial class ClashOfRimNetworkServer
     private static IResult DownloadLatestSnapshot(DownloadLatestSnapshotRequest request, ClashOfRimNetworkState state)
     {
         if (string.IsNullOrWhiteSpace(request.UserId) || string.IsNullOrWhiteSpace(request.ColonyId))
-        {
             return Results.Ok(new DownloadLatestSnapshotResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("Snapshot.DownloadMissingIdentity")),
-                snapshotId: null,
-                package: null));
-        }
+                ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("Snapshot.DownloadMissingIdentity")), null, null));
 
-        DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
-        ReconcileExpiredRaidEvents(state, nowUtc);
-        if (!IsAuthorizedForColony(
-                state,
-                request.AuthToken,
-                request.UserId,
-                request.ColonyId,
-                request.AuthorizationEventId,
-                request.AuthorizationScope,
-                nowUtc,
-                out string authFailure))
-        {
-            return Results.Ok(new DownloadLatestSnapshotResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, authFailure),
-                snapshotId: null,
-                package: null));
-        }
-
-        if (state.SnapshotStore is not IColonySnapshotPackageStore packageStore)
-        {
-            return Results.Ok(new DownloadLatestSnapshotResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, T("Snapshot.StoreDownloadUnsupported")),
-                snapshotId: null,
-                package: null));
-        }
-
-        SaveSnapshotPackage? package = packageStore.GetLatestPackage(request.UserId, request.ColonyId);
-        if (package is null)
-        {
-            return Results.Ok(new DownloadLatestSnapshotResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.EventNotFound, T("Snapshot.LatestNotFound")),
-                snapshotId: null,
-                package: null));
-        }
-
-        package = CleanupSettledRaidBattleSnapshotBeforeDownload(
-            state,
-            packageStore,
-            package,
-            request.UserId,
-            request.ColonyId,
-            nowUtc);
-
-        return Results.Ok(new DownloadLatestSnapshotResponse(
-            ProtocolResponse.Ok(T("Snapshot.LatestReturned")),
-            package.Envelope.Identity.SnapshotId,
-            ProtocolDtoMapper.ToMetadataDto(package),
-            BuildActiveRaidRecoveryDto(state, request.UserId, request.ColonyId, nowUtc)));
+        var download = CaptureSnapshotDownload(state, request.UserId, request.ColonyId, request.AuthToken,
+            request.AuthorizationEventId, request.AuthorizationScope, requestedSnapshotId: null);
+        return Results.Ok(new DownloadLatestSnapshotResponse(download.Result, download.Package?.Envelope.Identity.SnapshotId,
+            download.Package is null ? null : ProtocolDtoMapper.ToMetadataDto(download.Package), download.Recovery));
     }
 
     private static IResult DownloadLatestSnapshotPayload(DownloadLatestSnapshotPayloadRequest request, ClashOfRimNetworkState state)
     {
-        if (string.IsNullOrWhiteSpace(request.UserId)
-            || string.IsNullOrWhiteSpace(request.ColonyId)
+        if (string.IsNullOrWhiteSpace(request.UserId) || string.IsNullOrWhiteSpace(request.ColonyId)
             || string.IsNullOrWhiteSpace(request.SnapshotId))
-        {
-            return Results.BadRequest(new
-            {
-                result = ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("Snapshot.PayloadDownloadMissingIdentity"))
-            });
-        }
+            return Results.BadRequest(new { result = ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed,
+                T("Snapshot.PayloadDownloadMissingIdentity")) });
 
+        var download = CaptureSnapshotDownload(state, request.UserId, request.ColonyId, request.AuthToken,
+            request.AuthorizationEventId, request.AuthorizationScope, request.SnapshotId);
+        if (download.Package is null) return Results.Json(new { result = download.Result }, statusCode: download.HttpStatusCode);
+        return Results.File(download.Package.Payload, "application/octet-stream",
+            (download.Package.Envelope.Identity.SnapshotId ?? "latest") + ".payload");
+    }
+
+    private sealed record SnapshotDownloadResult(ProtocolResponse Result, SaveSnapshotPackage? Package,
+        ActiveRaidRecoveryDto? Recovery = null, int HttpStatusCode = StatusCodes.Status200OK);
+
+    private static SnapshotDownloadResult CaptureSnapshotDownload(ClashOfRimNetworkState state, string userId, string colonyId,
+        string? authToken, string? authorizationEventId, string? authorizationScope, string? requestedSnapshotId)
+    {
+        ProtocolResponse? Authorize() => IsAuthorizedForColony(state, authToken, userId, colonyId,
+            authorizationEventId, authorizationScope, DateTimeOffset.UtcNow, out string failure)
+                ? null : ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, failure);
+        SnapshotDownloadResult Denied(ProtocolResponse failure) => new(failure, null, HttpStatusCode: StatusCodes.Status401Unauthorized);
+
+        using (var recovery = EnterRecoveredSnapshotMutation(state, Authorize))
+        {
+            if (recovery.Rejection is { } failure) return Denied(failure);
+        }
         DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
-        if (!IsAuthorizedForColony(
-                state,
-                request.AuthToken,
-                request.UserId,
-                request.ColonyId,
-                request.AuthorizationEventId,
-                request.AuthorizationScope,
-                nowUtc,
-                out string authFailure))
-        {
-            return Results.Json(
-                new
-                {
-                    result = ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, authFailure)
-                },
-                statusCode: StatusCodes.Status401Unauthorized);
-        }
-
+        // Timeout maintenance is server work; the caller's access is checked again before cleanup and delivery.
+        if (requestedSnapshotId is null) ReconcileExpiredRaidEvents(state, nowUtc);
         if (state.SnapshotStore is not IColonySnapshotPackageStore packageStore)
-        {
-            return Results.Json(
-                new
-                {
-                    result = ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, T("Snapshot.StoreDownloadUnsupported"))
-                },
-                statusCode: StatusCodes.Status500InternalServerError);
-        }
+            return new(ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, T("Snapshot.StoreDownloadUnsupported")),
+                null, HttpStatusCode: StatusCodes.Status500InternalServerError);
 
-        SaveSnapshotPackage? package = packageStore.GetLatestPackage(request.UserId, request.ColonyId);
+        var package = packageStore.GetLatestPackage(userId, colonyId);
         if (package is not null)
-        {
-            package = CleanupSettledRaidBattleSnapshotBeforeDownload(
-                state,
-                packageStore,
-                package,
-                request.UserId,
-                request.ColonyId,
-                nowUtc);
-        }
+            package = CleanupSettledRaidBattleSnapshotBeforeDownload(state, packageStore, package, userId, colonyId, nowUtc, Authorize);
 
-        if (package is null
-            || !string.Equals(package.Envelope.Identity.SnapshotId, request.SnapshotId, StringComparison.Ordinal))
+        using (state.EnterSnapshotMutation())
         {
-            return Results.Json(
-                new
-                {
-                    result = ProtocolResponse.Reject(ProtocolErrorCode.EventNotFound, T("Snapshot.PayloadNotFound"))
-                },
-                statusCode: StatusCodes.Status404NotFound);
+            if (Authorize() is { } failure) return Denied(failure);
+            if (package is null)
+                return new(ProtocolResponse.Reject(ProtocolErrorCode.EventNotFound,
+                    T(requestedSnapshotId is null ? "Snapshot.LatestNotFound" : "Snapshot.PayloadNotFound")),
+                    null, HttpStatusCode: StatusCodes.Status404NotFound);
+            // A skipped cleanup returns its captured package. It must still be current at the response boundary.
+            if (!SnapshotCommitService.SameVersion(packageStore.GetLatest(userId, colonyId)?.Envelope, package.Envelope))
+                return new(ProtocolResponse.Reject(ProtocolErrorCode.SnapshotMismatch, T("Snapshot.PayloadNotFound")),
+                    null, HttpStatusCode: StatusCodes.Status404NotFound);
+            if (requestedSnapshotId is not null && package.Envelope.Identity.SnapshotId != requestedSnapshotId)
+                return new(ProtocolResponse.Reject(ProtocolErrorCode.EventNotFound, T("Snapshot.PayloadNotFound")),
+                    null, HttpStatusCode: StatusCodes.Status404NotFound);
+            return new(ProtocolResponse.Ok(T("Snapshot.LatestReturned")), package,
+                requestedSnapshotId is null ? BuildActiveRaidRecoveryDto(state, userId, colonyId, DateTimeOffset.UtcNow) : null);
         }
-
-        string fileName = (package.Envelope.Identity.SnapshotId ?? "latest") + ".payload";
-        return Results.File(package.Payload, "application/octet-stream", fileName);
     }
 
     private static SaveSnapshotPackage CleanupSettledRaidBattleSnapshotBeforeDownload(
@@ -1311,13 +1254,15 @@ public static partial class ClashOfRimNetworkServer
         SaveSnapshotPackage package,
         string userId,
         string colonyId,
-        DateTimeOffset nowUtc)
+        DateTimeOffset nowUtc,
+        Func<ProtocolResponse?>? authorize = null)
     {
         if (!package.Index.WorldObjects.Any(worldObject =>
                 worldObject.Def == "ClashOfRim_RemoteRaidBattleMapParent")) return package;
         AuthoritativeEvent raid;
-        using (EnterRecoveredSnapshotMutation(state))
+        using (var recovery = EnterRecoveredSnapshotMutation(state, authorize))
         {
+            if (recovery.Rejection is not null) return package;
             if (!SnapshotCommitService.SameVersion(packageStore.GetLatest(userId, colonyId)?.Envelope, package.Envelope)) return package;
             string? raidEventId = package.Index.WorldObjects
                 .Where(item => item.Def == "ClashOfRim_RemoteRaidBattleMapParent")
@@ -1347,8 +1292,9 @@ public static partial class ClashOfRimNetworkServer
         }
         if (!prepared.Changed) return package;
 
-        using (EnterRecoveredSnapshotMutation(state))
+        using (var recovery = EnterRecoveredSnapshotMutation(state, authorize))
         {
+            if (recovery.Rejection is not null) return package;
             // Preparation may overlap an upload, deletion, a new raid or a support closure.
             // Rebuild the loss batch from current support records only after revalidating the source.
             var current = state.Ledger.Find(raid.EventId);

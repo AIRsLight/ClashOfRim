@@ -40,7 +40,7 @@ internal static class DownloadCleanupBaselineTests
                     store.StoreLatest(captured with { Envelope = newerEnvelope }, captured.Index, DateTimeOffset.UtcNow);
                 LatestSnapshotRecord? before = store.GetLatest(identity.OwnerId!, identity.ColonyId!);
                 var returned = (SaveSnapshotPackage)cleanup.Invoke(null,
-                    new object[] { state, store, captured, identity.OwnerId!, identity.ColonyId!, DateTimeOffset.UtcNow })!;
+                    new object?[] { state, store, captured, identity.OwnerId!, identity.ColonyId!, DateTimeOffset.UtcNow, null })!;
                 LatestSnapshotRecord? after = store.GetLatest(identity.OwnerId!, identity.ColonyId!);
                 if (change == "unchanged")
                 {

@@ -12,6 +12,7 @@ internal static partial class RaidCleanupCommitTests
     public static void Run(SaveSnapshotPackage original)
     {
         RunDownloadJournalRecovery(original);
+        RunDownloadAuthorization(original);
         foreach (string change in new[] { "none", "newer", "token", "removed", "source", "owner", "new-raid", "support-closed", "delivery" })
             WithFixture(original, false, f => VerifyUnlockedPreparation(f, change));
         WithFixture(original, false, f =>
@@ -241,7 +242,7 @@ internal static partial class RaidCleanupCommitTests
         {
             if (timeout) Invoke("CleanupTimedOutRaidAttackerSnapshots", State, new[] { Raid }, Now);
             else Invoke("CleanupSettledRaidBattleSnapshotBeforeDownload", State, Store,
-                Store.GetLatestPackage("attacker", "colony-a")!, "attacker", "colony-a", Now);
+                Store.GetLatestPackage("attacker", "colony-a")!, "attacker", "colony-a", Now, null!);
         }
         public void Sql(string sql)
         {
@@ -256,7 +257,7 @@ internal static partial class RaidCleanupCommitTests
     {
         public string? Fault;
         public int Writes, Preparations, PreparedWrites;
-        public Action? BeforePrepare;
+        public Action? BeforePrepare, AfterRead;
         public bool FailPreparation;
         public Dictionary<string, int> WritesByOwner = new();
         public PreparedSnapshotPayload PreparePayload(byte[] bytes)
@@ -285,7 +286,12 @@ internal static partial class RaidCleanupCommitTests
         }
         public void StoreLatest(LatestSnapshotRecord snapshot) => inner.StoreLatest(snapshot);
         public LatestSnapshotRecord? GetLatest(string owner, string colony) => inner.GetLatest(owner, colony);
-        public SaveSnapshotPackage? GetLatestPackage(string owner, string colony) => ReadOverride ?? inner.GetLatestPackage(owner, colony);
+        public SaveSnapshotPackage? GetLatestPackage(string owner, string colony)
+        {
+            var package = ReadOverride ?? inner.GetLatestPackage(owner, colony);
+            AfterRead?.Invoke();
+            return package;
+        }
         public IReadOnlyList<LatestSnapshotRecord> ListLatest() => inner.ListLatest();
         public bool RemoveLatest(string owner, string colony) => inner.RemoveLatest(owner, colony);
     }
