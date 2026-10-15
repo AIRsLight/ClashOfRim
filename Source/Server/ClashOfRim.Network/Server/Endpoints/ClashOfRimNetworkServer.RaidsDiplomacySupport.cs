@@ -1494,9 +1494,8 @@ public static partial class ClashOfRimNetworkServer
         DateTimeOffset nowUtc)
     {
         RaidTimeoutProcessingResult result;
-        using (state.EnterSnapshotMutation())
+        using (EnterRecoveredSnapshotMutation(state))
         {
-            RecoverSnapshotCommits(state);
             result = RaidTimeoutProcessor.ProcessExpiredRaids(state.Ledger,
                 state.Ledger.ListByType(ServerEventType.Raid), nowUtc,
                 BuildRaidDefenseLockPolicy(state.ServerConfiguration), party => state.OnlinePresence.IsUserOnline(party.UserId));
@@ -1511,9 +1510,8 @@ public static partial class ClashOfRimNetworkServer
         RaidTimeoutProcessingResult result, DateTimeOffset nowUtc)
     {
         IReadOnlyList<AuthoritativeEvent> pendingTimeouts;
-        using (state.EnterSnapshotMutation())
+        using (EnterRecoveredSnapshotMutation(state))
         {
-            RecoverSnapshotCommits(state);
             pendingTimeouts = RaidTimeoutProcessor.PendingWork(state.Ledger);
         }
         if (pendingTimeouts.Count == 0) return result;
@@ -1533,9 +1531,8 @@ public static partial class ClashOfRimNetworkServer
             .Where(userId => !string.IsNullOrWhiteSpace(userId)).Distinct(StringComparer.Ordinal).ToArray();
         state.EventNotifications.SignalUsers(usersToSignal);
         // A stale completion cannot acknowledge changed timeout work or a changed source.
-        using (state.EnterSnapshotMutation())
+        using (EnterRecoveredSnapshotMutation(state))
         {
-            RecoverSnapshotCommits(state);
             lock (state.SnapshotPostUploadJobs.SnapshotCommitGate)
             {
                 foreach (var completed in cleanupEvents.CompletedRaids)
@@ -1619,9 +1616,8 @@ public static partial class ClashOfRimNetworkServer
                     raid.EventId, owner, colony);
                 continue;
             }
-            using (state.EnterSnapshotMutation())
+            using (EnterRecoveredSnapshotMutation(state))
             {
-                RecoverSnapshotCommits(state);
                 var current = state.Ledger.Find(raid.EventId);
                 if (!SameRaidCleanupSource(current, raid) || !CanFinishOfflineTimeoutCleanup(state, current!)
                     || !SnapshotCommitService.SameVersion(packageStore.GetLatest(owner, colony)?.Envelope, package.Envelope)) continue;
@@ -1658,9 +1654,8 @@ public static partial class ClashOfRimNetworkServer
                     raid.EventId, package.Envelope.Identity.SnapshotId);
                 continue;
             }
-            using (state.EnterSnapshotMutation())
+            using (EnterRecoveredSnapshotMutation(state))
             {
-                RecoverSnapshotCommits(state);
                 lock (state.SnapshotPostUploadJobs.SnapshotCommitGate)
                 {
                     var current = state.Ledger.Find(raid.EventId);

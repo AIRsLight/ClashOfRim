@@ -7,11 +7,12 @@ using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Save;
 using Microsoft.Data.Sqlite;
 
-internal static class RaidTimeoutRecoveryTests
+internal static partial class RaidTimeoutRecoveryTests
 {
     public static void Run(SaveSnapshotPackage original)
     {
         SnapshotEndpointTestClient.LoadLocalization();
+        RunJournalPreparation(original);
         foreach (bool offline in new[] { false, true })
         {
             foreach (bool recovery in new[] { false, true })
@@ -324,7 +325,7 @@ internal static class RaidTimeoutRecoveryTests
         try { run(new Fixture(root, original)); }
         finally { SqliteConnection.ClearAllPools(); Directory.Delete(root, true); }
     }
-    private sealed class Fixture
+    private sealed partial class Fixture
     {
         public string Root { get; }
         public string Database => Path.Combine(Root, "server.sqlite");
@@ -395,6 +396,8 @@ internal static class RaidTimeoutRecoveryTests
     {
         public string? Fault;
         public int PreparedWrites, Preparations;
+        public bool FailPreparation;
+        public Dictionary<string, int> WritesByOwner = new();
         public Action? BeforePublication;
         public Action? BeforePrepare;
         public Action<string>? BeforeRead;
@@ -402,6 +405,7 @@ internal static class RaidTimeoutRecoveryTests
         {
             Interlocked.Increment(ref Preparations);
             BeforePrepare?.Invoke();
+            if (FailPreparation) throw new IOException("injected recovery preparation failure");
             return inner.PreparePayload(bytes);
         }
         public void StorePrepared(SaveSnapshotPackage package, SaveSnapshotIndex index, DateTimeOffset at, PreparedSnapshotPayload prepared)
@@ -410,12 +414,14 @@ internal static class RaidTimeoutRecoveryTests
             PreparedWrites++;
             if (Fault == "before") throw new IOException("before cleanup");
             inner.StorePrepared(package, index, at, prepared);
+            WritesByOwner[package.Envelope.Identity.OwnerId!] = WritesByOwner.GetValueOrDefault(package.Envelope.Identity.OwnerId!) + 1;
             if (Fault == "after") throw new IOException("after cleanup");
         }
         public void StoreLatest(SaveSnapshotPackage package, SaveSnapshotIndex index, DateTimeOffset at)
         {
             if (Fault == "before") throw new IOException("before cleanup");
             inner.StoreLatest(package, index, at);
+            WritesByOwner[package.Envelope.Identity.OwnerId!] = WritesByOwner.GetValueOrDefault(package.Envelope.Identity.OwnerId!) + 1;
             if (Fault == "after") throw new IOException("after cleanup");
         }
         public void StoreLatest(LatestSnapshotRecord snapshot) => inner.StoreLatest(snapshot);

@@ -24,9 +24,8 @@ public static partial class ClashOfRimNetworkServer
         SaveSnapshotEnvelope? attackerVersion, defenderVersion;
         SnapshotPostUploadJobRecord? existing;
         string? artifactId = null;
-        using (state.EnterSnapshotMutation())
+        using (EnterRecoveredSnapshotMutation(state))
         {
-            RecoverSnapshotCommits(state);
             lock (state.SnapshotPostUploadJobs.SnapshotCommitGate)
             {
                 if (!SameRaidCleanupSource(state.Ledger.Find(raid.EventId), raid)) return null;
@@ -67,9 +66,8 @@ public static partial class ClashOfRimNetworkServer
             RaidSettlementDeferredScheduler.ValidatePayload(evidence);
             return (state.SnapshotPostUploadArtifacts as IPreparedSnapshotPostUploadArtifactStore)?.Prepare(artifactId!, evidence!);
         });
-        using (state.EnterSnapshotMutation())
+        using (EnterRecoveredSnapshotMutation(state))
         {
-            RecoverSnapshotCommits(state);
             lock (state.SnapshotPostUploadJobs.SnapshotCommitGate)
             {
                 if (!SameRaidCleanupSource(state.Ledger.Find(raid.EventId), raid)
