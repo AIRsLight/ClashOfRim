@@ -1741,6 +1741,7 @@ static void VerifySnapshotUploadRejectsOversizedDecompressedPayload()
 
 static void VerifyRaidSettlementEvidenceUploadRequiresEventMap()
 {
+    RaidEvidenceAuthorizationTests.Run(BuildFixturePackageWithRaidBattleMap);
     SaveSnapshotPackage missingMap = BuildFixturePackage("snapshot-raid-evidence-missing-map");
     SnapshotUploadResult missing = Receive(
         missingMap,

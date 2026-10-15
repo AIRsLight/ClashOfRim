@@ -57,98 +57,92 @@ public static partial class ClashOfRimNetworkServer
             return Results.Ok(new ConfirmEventApplicationResponse(result?.Result ?? response.Result, request.EventId,
                 result?.AppliedSnapshotId, result?.ServerValidationResult ?? "InvalidConfirmation", response.NextLineageToken));
         }
-        if (TryRejectExpiredPendingConfirmationSnapshot(
-                state,
-                request.UserId,
-                request.ColonyId,
-                nowUtc,
-                out ProtocolResponse? pendingConfirmationFailure))
+        AuthoritativeEvent source;
+        using (state.EnterSnapshotMutation())
         {
-            return Results.Ok(new ConfirmEventApplicationResponse(
-                pendingConfirmationFailure!,
-                request.EventId,
-                appliedSnapshotId: null,
-                serverValidationResult: "PendingConfirmationExpired"));
+            var failure = ValidateRaidEvidenceAuthority(httpRequest, state, request, out source!);
+            if (failure is not null) return RaidEvidenceRejected(request, failure, "AuthOrSourceFailed");
+            if (TryRejectExpiredPendingConfirmationSnapshot(state, request.UserId, request.ColonyId,
+                DateTimeOffset.UtcNow, out var pendingFailure))
+                return RaidEvidenceRejected(request, pendingFailure!, "PendingConfirmationExpired");
+            if (source.Status == ServerEventStatus.AppliedToSnapshot) return CompletedRaidEvidenceReply(state, request);
         }
 
-
-        if (state.Ledger.Find(request.EventId)?.Status == ServerEventStatus.AppliedToSnapshot)
+        var receiver = CreateSnapshotReceiver(state);
+        var package = ProtocolDtoMapper.ToSaveSnapshotPackage(request.ConfirmedSnapshot, multipart.Payload);
+        var uploadContext = new SnapshotUploadContext(request.UserId, request.ColonyId, request.ConfirmedSnapshot.SnapshotId,
+            SnapshotUploadKind: SnapshotUploadKinds.RaidSettlementEvidence, RequiredRaidEventId: request.EventId);
+        var upload = SnapshotPreparationService.Prepare(receiver, uploadContext, package, nowUtc);
+        using (state.EnterSnapshotMutation())
         {
-            LatestSnapshotRecord? latestAttacker = state.SnapshotStore.GetLatest(request.UserId, request.ColonyId);
-            return Results.Ok(new ConfirmEventApplicationResponse(
-                new ProtocolResponse(true, ProtocolErrorCode.DuplicateRequest, T("Raid.SettlementAlreadyConfirmed")),
-                request.EventId,
-                latestAttacker?.Identity.SnapshotId,
-                "AlreadyApplied",
-                latestAttacker?.Envelope.NextLineageToken));
+            var failure = ValidateRaidEvidenceAuthority(httpRequest, state, request, out _);
+            if (failure is not null) return RaidEvidenceRejected(request, failure, "AuthOrSourceFailed");
+            RecoverSnapshotCommits(state);
+            var current = state.Ledger.Find(request.EventId);
+            if (current is null || !RaidSettlementSnapshotMutation.SameSource(current, source)
+                || current.Status != source.Status && current.Status != ServerEventStatus.AppliedToSnapshot)
+                return RaidEvidenceRejected(request, ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Raid.SettlementQueueFailed")), "SourceChanged");
+            if (TryRejectExpiredPendingConfirmationSnapshot(state, request.UserId, request.ColonyId,
+                DateTimeOffset.UtcNow, out var pendingFailure))
+                return RaidEvidenceRejected(request, pendingFailure!, "PendingConfirmationExpired");
+            if (current.Status == ServerEventStatus.AppliedToSnapshot) return CompletedRaidEvidenceReply(state, request);
+            if (!upload.Accepted || upload.AcceptedSnapshot is null)
+                return RaidEvidenceRejected(request, ToProtocolResponse(upload), upload.Kind.ToString());
+            upload = receiver.CommitPrepared(uploadContext, package, upload, storeAccepted: false, validateGameplayContinuity: true);
+            if (!upload.Accepted || upload.AcceptedSnapshot is null)
+                return RaidEvidenceRejected(request, ToProtocolResponse(upload), upload.Kind.ToString());
+
+            var postUploadExtraData = new SnapshotPostUploadExtraData(SnapshotUploadKinds.RaidSettlementEvidence, null, null)
+            {
+                RaidSettlement = new RaidSettlementPostUploadData(request.EventId, multipart.Payload,
+                    RaidSettlementOrigin.OnlineEvidence, request.ClientApplicationResult)
+            };
+            try
+            {
+                RunSnapshotPostUploadProcessors(state, request.UserId, request.ColonyId, sessionId: null, upload, nowUtc,
+                    extraData: postUploadExtraData, registerPlayerColonySite: false);
+            }
+            catch (Exception ex)
+            {
+                state.RuntimeLogger.LogError(ex, "Failed to durably queue raid settlement: raid={RaidEventId} attacker={UserId}/{ColonyId} snapshot={SnapshotId}",
+                    request.EventId, request.UserId, request.ColonyId, upload.AcceptedSnapshot.Identity.SnapshotId);
+                return RaidEvidenceRejected(request, ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, T("Raid.SettlementQueueFailed")), "SettlementQueueFailed");
+            }
+            return Results.Ok(new ConfirmEventApplicationResponse(ProtocolResponse.Ok(T("Raid.SettlementQueued")), request.EventId,
+                upload.AcceptedSnapshot.Identity.SnapshotId, "SettlementQueued", upload.AcceptedSnapshot.Envelope.NextLineageToken));
         }
-
-        SnapshotUploadResult upload = ReceiveSnapshot(
-            state,
-            request.UserId,
-            request.ColonyId,
-            request.ConfirmedSnapshot.SnapshotId,
-            request.ConfirmedSnapshot,
-            multipart.Payload,
-            nowUtc,
-            storeAccepted: false,
-            validateGameplayContinuity: true,
-            snapshotUploadKind: SnapshotUploadKinds.RaidSettlementEvidence,
-            requiredRaidEventId: request.EventId,
-            allowRaidSettlementEvidenceSnapshotKind: true);
-
-        if (!upload.Accepted || upload.AcceptedSnapshot == null)
-        {
-            return Results.Ok(new ConfirmEventApplicationResponse(
-                ToProtocolResponse(upload),
-                request.EventId,
-                appliedSnapshotId: null,
-                upload.Kind.ToString()));
-        }
-
-        var postUploadExtraData = new SnapshotPostUploadExtraData(
-            SnapshotUploadKinds.RaidSettlementEvidence,
-            null,
-            null)
-        {
-            RaidSettlement = new RaidSettlementPostUploadData(
-                    request.EventId,
-                    multipart.Payload,
-                    RaidSettlementOrigin.OnlineEvidence,
-                    request.ClientApplicationResult)
-        };
-        try
-        {
-            RunSnapshotPostUploadProcessors(
-                state,
-                request.UserId,
-                request.ColonyId,
-                sessionId: null,
-                upload,
-                nowUtc,
-                extraData: postUploadExtraData,
-                registerPlayerColonySite: false);
-        }
-        catch (Exception ex)
-        {
-            state.RuntimeLogger.LogError(
-                ex,
-                "Failed to durably queue raid settlement: raid={RaidEventId} attacker={UserId}/{ColonyId} snapshot={SnapshotId}",
-                request.EventId,
-                request.UserId,
-                request.ColonyId,
-                upload.AcceptedSnapshot.Identity.SnapshotId);
-            return Results.Ok(new ConfirmEventApplicationResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, T("Raid.SettlementQueueFailed")),
-                request.EventId,
-                appliedSnapshotId: null,
-                serverValidationResult: "SettlementQueueFailed"));
-        }
-
-        return Results.Ok(new ConfirmEventApplicationResponse(
-            ProtocolResponse.Ok(T("Raid.SettlementQueued")), request.EventId,
-            upload.AcceptedSnapshot.Identity.SnapshotId, "SettlementQueued", upload.AcceptedSnapshot.Envelope.NextLineageToken));
     }
+
+    private static ProtocolResponse? ValidateRaidEvidenceAuthority(HttpRequest http, ClashOfRimNetworkState state,
+        ConfirmEventApplicationMetadataRequest request, out AuthoritativeEvent? source)
+    {
+        source = null;
+        var now = DateTimeOffset.UtcNow;
+        if (!MultipartSnapshotAuthentication.TryAuthorize(http, state, now)
+            || !MultipartSnapshotAuthentication.MatchesPrincipal(http, request.UserId, request.ColonyId)
+            || !IsAuthorizedForColony(state, request.AuthToken, request.UserId, request.ColonyId, request.EventId, null, now, out _))
+            return ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed"));
+        source = state.Ledger.Find(request.EventId);
+        if (source?.Type != ServerEventType.Raid
+            || source.Payload is not RaidEventPayload { OpponentKind: RaidOpponentKind.Player, AttackerLoss: null }
+            || source.Actor.UserId != request.UserId || source.Actor.ColonyId != request.ColonyId
+            || request.ConfirmedSnapshot.OwnerId != request.UserId || request.ConfirmedSnapshot.ColonyId != request.ColonyId
+            || source.Status is ServerEventStatus.Cancelled or ServerEventStatus.RejectedByTarget or ServerEventStatus.Conflict)
+            return ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Auth.IdentityDenied"));
+        return null;
+    }
+
+    private static IResult RaidEvidenceRejected(ConfirmEventApplicationMetadataRequest request, ProtocolResponse failure, string validation)
+        => Results.Ok(new ConfirmEventApplicationResponse(failure, request.EventId, null, validation));
+
+    private static IResult CompletedRaidEvidenceReply(ClashOfRimNetworkState state, ConfirmEventApplicationMetadataRequest request)
+    {
+        var latest = state.SnapshotStore.GetLatest(request.UserId, request.ColonyId);
+        return Results.Ok(new ConfirmEventApplicationResponse(
+            new ProtocolResponse(true, ProtocolErrorCode.DuplicateRequest, T("Raid.SettlementAlreadyConfirmed")),
+            request.EventId, latest?.Identity.SnapshotId, "AlreadyApplied", latest?.Envelope.NextLineageToken));
+    }
+
     private static async Task<IResult> ConfirmEventApplications(HttpRequest httpRequest, ClashOfRimNetworkState state)
     {
         MultipartSnapshotRequest<ConfirmEventApplicationsMetadataRequest>? multipart =
