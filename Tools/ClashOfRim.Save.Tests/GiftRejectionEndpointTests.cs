@@ -4,15 +4,17 @@ using System.Text.Json;
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Network;
 using AIRsLight.ClashOfRim.Protocol;
+using AIRsLight.ClashOfRim.Save;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Data.Sqlite;
 
-internal static class GiftRejectionEndpointTests
+internal static partial class GiftRejectionEndpointTests
 {
     private static readonly DateTimeOffset At = DateTimeOffset.UnixEpoch.AddDays(4);
-    public static void Run()
+    public static void Run(Func<string, SaveSnapshotPackage> factory)
     {
         SnapshotEndpointTestClient.LoadLocalization();
+        RecoveryPreparation(factory);
         Guards();
         foreach (bool replay in new[] { false, true })
         foreach (bool replaced in new[] { false, true })

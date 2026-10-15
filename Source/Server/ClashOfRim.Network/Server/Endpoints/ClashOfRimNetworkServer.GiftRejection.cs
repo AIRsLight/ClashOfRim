@@ -13,13 +13,10 @@ public static partial class ClashOfRimNetworkServer
         if (string.IsNullOrWhiteSpace(request.EventId) || string.IsNullOrWhiteSpace(request.UserId)
             || string.IsNullOrWhiteSpace(request.ColonyId) || string.IsNullOrWhiteSpace(request.CurrentSnapshotId))
             return Reject(ProtocolErrorCode.ValidationFailed, T("Gift.RejectMissingFields"));
-        using (state.EnterSnapshotMutation())
+        using (var mutation = EnterColonySnapshotMutation(state, request.AuthToken, request.UserId, request.ColonyId))
         {
-            // Check the live session after waiting for the commit gate; remote grants cannot reject gifts.
-            if (!IsAuthorizedForColony(state, request.AuthToken, request.UserId, request.ColonyId,
-                    authorizationEventId: null, authorizationScope: null, DateTimeOffset.UtcNow, out string failure))
-                return Reject(ProtocolErrorCode.ServerRejected, failure);
-            RecoverSnapshotCommits(state);
+            if (mutation.Rejection is { } rejection)
+                return Reject(rejection.ErrorCode, rejection.Message ?? T("Auth.IdentityDenied"));
             var gift = state.Ledger.Find(request.EventId);
             if (gift is null || !IsVisibleParty(gift.Target, request.UserId, request.ColonyId))
                 return Reject(ProtocolErrorCode.EventNotFound, T("Gift.NotFoundOrInvisible"));
