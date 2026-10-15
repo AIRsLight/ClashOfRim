@@ -12,6 +12,7 @@ internal static partial class RaidEvidenceAuthorizationTests
         SnapshotEndpointTestClient.LoadLocalization();
         RunOnline(fixture);
         RunBindings(fixture);
+        RunJournalRecovery(fixture);
         foreach (string change in new[] { "none", "logout", "replace", "revoke", "cancel", "source-content" })
             WithFixture(fixture, f => VerifyPreparing(f, change));
         foreach (bool applied in new[] { false, true })
@@ -160,13 +161,24 @@ internal static partial class RaidEvidenceAuthorizationTests
         public Action? BeforePrepare, BeforeRead;
         public string? Fault;
         public int PreparedWrites, RawWrites;
-        public PreparedSnapshotPayload PreparePayload(byte[] bytes) { BeforePrepare?.Invoke(); return Inner.PreparePayload(bytes); }
+        public bool FailRecoveryPublication, FailPreparation;
+        public Dictionary<string, int> WritesByOwner = new();
+        public PreparedSnapshotPayload PreparePayload(byte[] bytes) {
+            BeforePrepare?.Invoke();
+            if (FailPreparation) throw new IOException("recovery preparation failed");
+            return Inner.PreparePayload(bytes);
+        }
         public void StorePrepared(SaveSnapshotPackage p, SaveSnapshotIndex i, DateTimeOffset at, PreparedSnapshotPayload prepared) {
             if (Fault == "before") throw new IOException("before publication");
             Inner.StorePrepared(p, i, at, prepared); PreparedWrites++;
+            WritesByOwner[p.Envelope.Identity.OwnerId!] = WritesByOwner.GetValueOrDefault(p.Envelope.Identity.OwnerId!) + 1;
             if (Fault == "after") throw new IOException("after publication");
         }
-        public void StoreLatest(SaveSnapshotPackage p, SaveSnapshotIndex i, DateTimeOffset at) { RawWrites++; Inner.StoreLatest(p, i, at); }
+        public void StoreLatest(SaveSnapshotPackage p, SaveSnapshotIndex i, DateTimeOffset at) {
+            if (FailRecoveryPublication) throw new IOException("recovery publication interrupted");
+            RawWrites++; Inner.StoreLatest(p, i, at);
+            WritesByOwner[p.Envelope.Identity.OwnerId!] = WritesByOwner.GetValueOrDefault(p.Envelope.Identity.OwnerId!) + 1;
+        }
         public void StoreLatest(LatestSnapshotRecord record) => Inner.StoreLatest(record);
         public LatestSnapshotRecord? GetLatest(string owner, string colony) => Inner.GetLatest(owner, colony);
         public SaveSnapshotPackage? GetLatestPackage(string owner, string colony) { BeforeRead?.Invoke(); return Inner.GetLatestPackage(owner, colony); }

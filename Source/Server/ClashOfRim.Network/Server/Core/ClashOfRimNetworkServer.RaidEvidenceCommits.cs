@@ -14,8 +14,10 @@ public static partial class ClashOfRimNetworkServer
     {
         string binding = RaidEvidenceRequestBinding.Hash(request, bytes);
         AuthoritativeEvent source;
-        using (state.EnterSnapshotMutation())
+        using (var mutation = EnterRecoveredSnapshotMutation(state,
+            () => ValidateRaidEvidenceAuthority(http, state, request, out _)))
         {
+            if (mutation.Rejection is { } denied) return RaidEvidenceRejected(request, denied, "AuthOrSourceFailed");
             var failure = ValidateRaidEvidenceAuthority(http, state, request, out source!);
             if (failure is not null) return RaidEvidenceRejected(request, failure, "AuthOrSourceFailed");
             if (TryRejectExpiredPendingConfirmationSnapshot(state, request.UserId, request.ColonyId, DateTimeOffset.UtcNow, out var pending))
@@ -34,8 +36,10 @@ public static partial class ClashOfRimNetworkServer
         while (true)
         {
             RaidEvidenceSchedulePreparation preparation;
-            using (state.EnterSnapshotMutation())
+            using (var mutation = EnterRecoveredSnapshotMutation(state,
+                () => ValidateRaidEvidenceAuthority(http, state, request, out _)))
             {
+                if (mutation.Rejection is { } denied) return RaidEvidenceRejected(request, denied, "AuthOrSourceFailed");
                 var rejection = RevalidateRaidEvidence(http, state, request, source, binding);
                 if (rejection is not null) return rejection;
                 if (!preparedUpload.Accepted || preparedUpload.AcceptedSnapshot is null)
@@ -62,8 +66,10 @@ public static partial class ClashOfRimNetworkServer
                 Exception? prepareFailure = null;
                 try { SnapshotPreparationService.Run(() => { preparation.Prepare(preparedUpload.PreparedStoragePayload); return true; }); }
                 catch (Exception ex) { prepareFailure = ex; }
-                using (state.EnterSnapshotMutation())
+                using (var mutation = EnterRecoveredSnapshotMutation(state,
+                    () => ValidateRaidEvidenceAuthority(http, state, request, out _)))
                 {
+                    if (mutation.Rejection is { } denied) return RaidEvidenceRejected(request, denied, "AuthOrSourceFailed");
                     var rejection = RevalidateRaidEvidence(http, state, request, source, binding);
                     if (rejection is not null) return rejection;
                     lock (state.SnapshotPostUploadJobs.SnapshotCommitGate)
@@ -92,7 +98,6 @@ public static partial class ClashOfRimNetworkServer
     {
         var failure = ValidateRaidEvidenceAuthority(http, state, request, out _);
         if (failure is not null) return RaidEvidenceRejected(request, failure, "AuthOrSourceFailed");
-        RecoverSnapshotCommits(state);
         var current = state.Ledger.Find(request.EventId);
         if (current is null || !RaidSettlementSnapshotMutation.SameSource(current, source)
             || current.Status != source.Status && current.Status != ServerEventStatus.AppliedToSnapshot)
