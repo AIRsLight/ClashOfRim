@@ -554,3 +554,12 @@
 - RimTest 两客户端共 20 项通过（既有 19 项及新增 `transport-pod-gift-snapshot`），包括运行时错误检查；报告 `G:/RimTestRuns/ClashOfRim/20261015-165417-f91d8245/report.json`，日志 `LocalOnly/pod-gift-rimtest.log`。临时桥接/测试编排由 `LocalOnly/Run-PodGiftProbe.ps1` 注入并在 finally 恢复原文件，未把已有未提交的框架改动混入本步；两份测试进程均已退出。报告仍为有限覆盖，未增加真实强制投递、断网重试或崩溃重启的实机场景。
 - 当前 Mod 已没有 `CreateGiftAsync`、`CreateTradeOrderAsync`、`FulfillTradeOrderAsync` 的实际调用，只剩方法声明；服务端旧 JSON 路由和相关网络测试尚未退役。下一步迁移仍依赖旧路由的测试夹具，再关闭无快照经济写入口，不能以本次调用方迁移认定所有旁路已经消除。之后继续业务锁范围、真实服务职责与 DTO 收敛。数据库仍为版本 26，1.6 冻结不变。
 - 验证：完整 `Test-Regression.ps1 -IncludeClient` 通过（Events 全部、Save 110、Client.Core 5 组、完整 NetworkSmoke、客户端 27 项），日志 `LocalOnly/pod-gift-regression.log`；客户端 Mod 构建通过，日志 `LocalOnly/pod-gift-build.log`。77 个 1.6 冻结文件及差异格式检查通过。本步未改变持久化格式。
+
+## 续修：关闭无快照 JSON 礼物入口
+
+- 运输舱迁移后，旧 JSON 礼物路由仍可被外部调用直接新增物资事件，绕过会话认证与发送方快照提交。现保留该路由的明确升级响应，但处理函数不再绑定请求或业务状态、不执行待办恢复：新建和重复请求均返回 `ServerRejected`，没有事件 ID 或确认快照。五种服务端语言提供更新客户端并使用快照提交的提示；不根据旧幂等键返回成功，也不提供调试开关绕过。
+- 删除 Mod 中已无调用的 `CreateGiftAsync` 和旧路由常量。.NET 网络客户端增加认证 multipart 的 `CreateGiftWithSnapshotAsync`；保留旧方法供外部调用方接收迁移拒绝，标记 Obsolete。协议清单与枚举数值保持不变，不重编译冻结 1.6 客户端/服务器。
+- NetworkSmoke 原有 11 次 JSON 礼物调用全部迁移至真实 multipart 请求，覆盖普通/强投、冷却、空载荷、自赠落点、在线等待、离线队列、WebSocket 通知、投递确认、拒收、重复及未结算袭击保护。夹具根据最新服务端快照构建带 lineage 的新存档，并按幂等键保留原始提交包；成功响应必须返回该包的快照 ID，账本物品必须绑定它。由于赠送会推进发送方快照，后续损失确认和袭击也改为使用最新父快照构建，未放宽生产连续性校验。
+- 新增 `RetiredGiftEndpointTests`：新/旧键 × 缺失/伪造/有效认证 × 普通/强投共 12 次请求，加上空正文、null、空对象和非法 JSON 共 4 个请求。全部明确拒绝，完整账本、发送方快照和双方通知版本保持不变。临时恢复旧入口后，该组明确失败为 `Retired gift endpoint did not return an explicit non-success migration response`；日志 `LocalOnly/retire-gift-negative.log`。恢复修复后运行完整回归。
+- 边界：本步仅退役礼物 JSON 路由。交易发单和履约的无快照路由仍开放，且网络测试与旧履约的存储故障测试仍依赖它们；下一步迁移这些用例并关闭路由，再推进其余经济入口审计、业务锁范围、服务职责与 DTO 收敛。没有新增持久化格式，数据库仍为版本 26。
+- 验证：完整 `Test-Regression.ps1 -IncludeClient` 通过（Events 全部、Save 110、Client.Core 5 组、完整 NetworkSmoke、客户端 27 项），日志 `LocalOnly/retire-gift-regression.log`；77 个 1.6 冻结文件及差异格式检查通过。RimTest 双客户端 20 项通过，包含商队赠送和上一节的运输舱到达夹具，报告 `G:/RimTestRuns/ClashOfRim/20261015-170443-7371f1ab/report.json`、日志 `LocalOnly/retire-gift-rimtest.log`，两个测试进程均已退出；桥接临时改动已恢复。旧路由拒绝由 HTTP 测试验证，不宣称旧客户端 UI 已有实机覆盖。

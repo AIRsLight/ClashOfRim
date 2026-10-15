@@ -495,6 +495,7 @@
   "Gift.AlreadyAppliedCannotReject": "선물이 이미 저장에 적용되어 거부할 수 없습니다.",
   "Gift.RejectedDuplicate": "선물이 이미 거부되었고 반환 배송도 이미 생성되었습니다.",
   "Gift.RejectedReturnCreated": "선물을 거부하고 반환 배송을 생성했습니다.",
+  "Gift.SnapshotEndpointRequired": "선물 전송에는 저장 데이터 확인이 필요합니다. 클라이언트를 업데이트하고 스냅샷과 함께 전송하세요.",
   "Gift.Disabled": "이 서버에서는 선물과 강제 투하가 비활성화되어 있습니다.",
   "Trade.OrderCreated": "거래 주문이 게시되었습니다.",
   "Trade.Disabled": "시장이 비활성화되어 새 거래 주문을 제출할 수 없습니다.",

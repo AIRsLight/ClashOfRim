@@ -154,12 +154,28 @@ public sealed class ClashOfRimNetworkClient
             cancellationToken);
     }
 
+    [Obsolete("The JSON gift endpoint is retired. Use CreateGiftWithSnapshotAsync.")]
     public Task<EventCreationResponse> CreateGiftAsync(CreateGiftRequest request, CancellationToken cancellationToken = default)
     {
         return PostAsync<CreateGiftRequest, EventCreationResponse>(
             ProtocolContractManifest.Find(ProtocolMessageKind.CreateGift).Route,
             request,
             cancellationToken);
+    }
+
+    public Task<EventCreationResponse> CreateGiftWithSnapshotAsync(
+        CreateGiftRequest gift,
+        SnapshotPackageMetadataDto confirmedSnapshot,
+        byte[] payload,
+        string authToken,
+        CancellationToken cancellationToken = default)
+    {
+        return PostSnapshotMultipartAsync<CreateGiftWithSnapshotRequest, EventCreationResponse>(
+            ProtocolContractManifest.Find(ProtocolMessageKind.CreateGiftWithSnapshot).Route,
+            new CreateGiftWithSnapshotRequest(gift, confirmedSnapshot),
+            payload,
+            authToken,
+            cancellationToken: cancellationToken);
     }
 
     public Task<RejectGiftResponse> RejectGiftAsync(RejectGiftRequest request, CancellationToken cancellationToken = default)

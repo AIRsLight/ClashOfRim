@@ -494,6 +494,7 @@
   "Gift.AlreadyAppliedCannotReject": "贈り物はすでにセーブへ適用済みのため拒否できません。",
   "Gift.RejectedDuplicate": "贈り物はすでに拒否済みで、返送配送も作成済みです。",
   "Gift.RejectedReturnCreated": "贈り物を拒否し、返送配送を作成しました。",
+  "Gift.SnapshotEndpointRequired": "贈り物の送信にはセーブデータの同時確認が必要です。クライアントを更新し、スナップショット付きで送信してください。",
   "Gift.Disabled": "このサーバーでは贈り物と強制投送が無効です。",
   "Trade.OrderCreated": "取引注文を投稿しました。",
   "Trade.Disabled": "市場は無効です。新しい取引注文は送信できません。",

@@ -1765,13 +1765,32 @@ try
     Require(
         uploadedSnapshotProcessorExecution.Contains("smoke-upload-processor"),
         "已注册的插件快照后处理器应由真实上传入口调用");
-    SaveSnapshotPackage uploadedConfirmationPackage = BuildFixturePackageForWithLineage(
-        "user-a",
-        "colony-a",
-        "attacker-snapshot-after",
-        previousSnapshotId: "attacker-snapshot-after",
-        upload.NextLineageToken,
-        gameTicks: (uploadedPackage.Envelope.GameTicks ?? 0) + 1);
+    var giftPackages = new Dictionary<string, SaveSnapshotPackage>(StringComparer.Ordinal);
+    SaveSnapshotPackage NextSourcePackage(string owner, string colony, string id)
+    {
+        var latest = state.SnapshotStore.GetLatest(owner, colony) ?? throw new Exception("Missing source snapshot.");
+        return BuildFixturePackageForWithLineage(owner, colony, id, latest.Identity.SnapshotId,
+            latest.Envelope.NextLineageToken, (latest.Envelope.GameTicks ?? 0) + 1);
+    }
+    async Task<EventCreationResponse> CreateSnapshotGift(CreateGiftRequest request)
+    {
+        if (!giftPackages.TryGetValue(request.IdempotencyKey, out var package))
+        {
+            package = NextSourcePackage(request.Actor.UserId, request.Actor.ColonyId!, "gift-confirm-" + Guid.NewGuid().ToString("N"));
+            giftPackages.Add(request.IdempotencyKey, package);
+        }
+        var boundRequest = new CreateGiftRequest(request.IdempotencyKey,
+            new ProtocolIdentity(request.Actor.UserId, request.Actor.ColonyId, package.Envelope.PreviousSnapshotId),
+            request.Target, request.Things, request.Message, request.TargetContext, request.DeliveryKind);
+        var response = await client.CreateGiftWithSnapshotAsync(boundRequest, SnapshotMetadata(package), package.Payload, userAAuthToken);
+        if (response.Result.Accepted)
+        {
+            Equal(package.Envelope.Identity.SnapshotId, response.AppliedSnapshotId, "赠送必须确认对应发送方快照");
+            var payload = (ItemDeliveryEventPayload)state.Ledger.Find(response.EventId!)!.Payload;
+            Require(payload.Items.All(item => item.SourceSnapshotId == response.AppliedSnapshotId), "礼物必须绑定确认后的快照");
+        }
+        return response;
+    }
     DiplomacyEventResponse allianceRequest = await client.CreateDiplomacyEventAsync(new CreateDiplomacyEventRequest(
         "diplomacy:user-a:user-b:alliance",
         new ProtocolIdentity("user-a", "colony-a", "attacker-snapshot-after"),
@@ -1877,7 +1896,7 @@ try
     Require(warAfterCancellation.Result.Accepted, "撕毁盟约变为中立后应允许宣战");
     Equal("Hostile", warAfterCancellation.RelationKind, "宣战后关系应变为敌对");
 
-    EventCreationResponse forcedGift = await client.CreateGiftAsync(new CreateGiftRequest(
+    EventCreationResponse forcedGift = await CreateSnapshotGift(new CreateGiftRequest(
         "gift:user-a:user-b:forced-001",
         new ProtocolIdentity("user-a", "colony-a", "attacker-snapshot-after"),
         new ProtocolIdentity("user-b", "colony-b", "defender-snapshot-before"),
@@ -1890,7 +1909,7 @@ try
     Require(forcedGiftEvent.Payload is ItemDeliveryEventPayload forcedGiftPayload && forcedGiftPayload.IsForcedDelivery, "强投礼物应写入强投载荷");
     Equal(EventRejectionPolicy.NotRejectable, forcedGiftEvent.RejectionPolicy, "强投礼物不可拒绝");
 
-    EventCreationResponse repeatedForcedGift = await client.CreateGiftAsync(new CreateGiftRequest(
+    EventCreationResponse repeatedForcedGift = await CreateSnapshotGift(new CreateGiftRequest(
         "gift:user-a:user-b:forced-002",
         new ProtocolIdentity("user-a", "colony-a", "attacker-snapshot-after"),
         new ProtocolIdentity("user-b", "colony-b", "defender-snapshot-before"),
@@ -1901,7 +1920,7 @@ try
     Require(!repeatedForcedGift.Result.Accepted, "同一发送方对同一目标不能连续强行投递");
     Equal(ProtocolErrorCode.ServerRejected, repeatedForcedGift.Result.ErrorCode, "强投冷却应由服务器拒绝");
 
-    EventCreationResponse normalGiftToEnemy = await client.CreateGiftAsync(new CreateGiftRequest(
+    EventCreationResponse normalGiftToEnemy = await CreateSnapshotGift(new CreateGiftRequest(
         "gift:user-a:user-b:normal-while-hostile",
         new ProtocolIdentity("user-a", "colony-a", "attacker-snapshot-after"),
         new ProtocolIdentity("user-b", "colony-b", "defender-snapshot-before"),
@@ -1917,7 +1936,7 @@ try
         !forcedGiftCooldownProjection.Records.Any(record => string.Equals(record.RaidEventId, forcedGift.EventId, StringComparison.Ordinal)),
         "强投成功不应使目标进入入侵后保护投影");
 
-    EventCreationResponse emptyGift = await client.CreateGiftAsync(new CreateGiftRequest(
+    EventCreationResponse emptyGift = await CreateSnapshotGift(new CreateGiftRequest(
         "gift:user-a:self:empty",
         new ProtocolIdentity("user-a", "colony-a", "attacker-snapshot-after"),
         new ProtocolIdentity("user-a", "colony-a", "attacker-snapshot-after"),
@@ -1927,7 +1946,7 @@ try
     Require(!emptyGift.Result.Accepted, "服务器不应创建空礼物");
     Equal(ProtocolErrorCode.ValidationFailed, emptyGift.Result.ErrorCode, "空礼物应被校验拒绝");
 
-    EventCreationResponse selfGift = await client.CreateGiftAsync(new CreateGiftRequest(
+    EventCreationResponse selfGift = await CreateSnapshotGift(new CreateGiftRequest(
         "gift:user-a:self:context",
         new ProtocolIdentity("user-a", "colony-a", "attacker-snapshot-after"),
         new ProtocolIdentity("user-a", "colony-a", "attacker-snapshot-after"),
@@ -1971,6 +1990,7 @@ try
     Require(!hiddenDetails.Result.Accepted, "其他玩家不能拉取不可见事件详情");
     Equal(ProtocolErrorCode.EventNotFound, hiddenDetails.Result.ErrorCode, "不可见事件不应泄露存在性");
 
+    SaveSnapshotPackage uploadedConfirmationPackage = NextSourcePackage("user-a", "colony-a", "attacker-snapshot-after-confirm");
     ConfirmEventApplicationResponse confirm = await client.ConfirmEventApplicationAsync(new ConfirmEventApplicationMetadataRequest(
         "confirm:attacker-loss-001:attacker-snapshot-after",
         attackerLoss.EventId,
@@ -1983,7 +2003,7 @@ try
         authToken: userAAuthToken),
         uploadedConfirmationPackage.Payload);
     Require(confirm.Result.Accepted, "确认事件应用应通过服务器校验");
-    Equal("attacker-snapshot-after", confirm.AppliedSnapshotId, "事件应用快照 ID");
+    Equal("attacker-snapshot-after-confirm", confirm.AppliedSnapshotId, "事件应用快照 ID");
     Equal(ServerEventStatus.AppliedToSnapshot, state.Ledger.Find(attackerLoss.EventId)!.Status, "账本事件应被标记为已应用");
 
     LoginResponse userBLogin = await client.LoginAsync(new LoginRequest(
@@ -2060,7 +2080,7 @@ try
         timeoutSeconds: 10));
     await Task.Delay(100);
 
-    EventCreationResponse gift = await client.CreateGiftAsync(new CreateGiftRequest(
+    EventCreationResponse gift = await CreateSnapshotGift(new CreateGiftRequest(
         "gift:user-a:user-b:001",
         new ProtocolIdentity("user-a", "colony-a", "attacker-snapshot-after"),
         new ProtocolIdentity("user-b", "colony-b", "defender-snapshot-before"),
@@ -2077,7 +2097,7 @@ try
     Require(giftNotification.EventQueue.WaitingForUserChoice.Any(item => item.EventId == gift.EventId), "在线等待返回队列应包含礼物事件");
     Equal(ProtocolDeliverySemantics.OnlineImmediate, giftNotification.EventQueue.WaitingForUserChoice.Single(item => item.EventId == gift.EventId).DeliverySemantics, "在线礼物应标记为即时语义");
 
-    EventCreationResponse giftToConfirm = await client.CreateGiftAsync(new CreateGiftRequest(
+    EventCreationResponse giftToConfirm = await CreateSnapshotGift(new CreateGiftRequest(
         "gift:user-a:user-b:confirm",
         new ProtocolIdentity("user-a", "colony-a", "attacker-snapshot-after"),
         new ProtocolIdentity("user-b", "colony-b", "defender-snapshot-before"),
@@ -2146,7 +2166,7 @@ try
         knownNotificationVersion: 0,
         timeoutSeconds: 10));
     await Task.Delay(100);
-    EventCreationResponse offlineGiftWhileWaiting = await client.CreateGiftAsync(new CreateGiftRequest(
+    EventCreationResponse offlineGiftWhileWaiting = await CreateSnapshotGift(new CreateGiftRequest(
         "gift:user-a:user-c:offline-waiting",
         new ProtocolIdentity("user-a", "colony-a", "attacker-snapshot-after"),
         new ProtocolIdentity("user-c", "colony-c", "third-party-snapshot"),
@@ -2199,7 +2219,7 @@ try
     Require(wsPresence.Contains("\"eventName\":\"presence\"", StringComparison.Ordinal), "WS 首条事件应确认在线");
 
     Task<string> wsLedgerChanged = ReadWebSocketEventAsync(ws);
-    EventCreationResponse wsGift = await client.CreateGiftAsync(new CreateGiftRequest(
+    EventCreationResponse wsGift = await CreateSnapshotGift(new CreateGiftRequest(
         "gift:user-a:user-d:ws",
         new ProtocolIdentity("user-a", "colony-a", "attacker-snapshot-after"),
         new ProtocolIdentity("user-d", "colony-d", "ws-snapshot"),
@@ -2556,7 +2576,7 @@ try
     Equal("Expired", finishedReturnPayload.ReturnReason, "结束支援退回载荷应记录返回原因");
     Equal(SafePawnExchangeSerializer.ComputeScribeXmlSha256(finishingSupportScribeXml), finishedReturnPayload.PawnPackage?.Scribe?.XmlSha256, "结束支援退回应携带最新 pawn Scribe 包");
 
-    EventCreationResponse duplicateGift = await client.CreateGiftAsync(new CreateGiftRequest(
+    EventCreationResponse duplicateGift = await CreateSnapshotGift(new CreateGiftRequest(
         "gift:user-a:user-b:001",
         new ProtocolIdentity("user-a", "colony-a", "attacker-snapshot-after"),
         new ProtocolIdentity("user-b", "colony-b", "defender-snapshot-before"),
@@ -2564,6 +2584,7 @@ try
         "smoke gift duplicate"));
     Equal(ProtocolErrorCode.DuplicateRequest, duplicateGift.Result.ErrorCode, "重复礼物请求应返回幂等结果");
     Equal(gift.EventId, duplicateGift.EventId, "重复礼物请求应返回既有事件");
+    await RetiredGiftEndpointTests.RunAsync(httpClient, state, userAAuthToken, "gift:user-a:user-b:001");
 
     AuthoritativeEvent oldTrade = AuthoritativeEventFactory.Create(
         ServerEventType.Trade,
@@ -3181,13 +3202,7 @@ try
         TimeSpan.FromMinutes(10));
     Require(!string.IsNullOrWhiteSpace(preparedRaid.PreparationId), "袭击准备应返回准备令牌");
 
-    SaveSnapshotPackage raidBattlefieldPackage = BuildFixturePackageForWithLineage(
-        "user-a",
-        "colony-a",
-        "attacker-snapshot-after-player-raid",
-        previousSnapshotId: "attacker-snapshot-after",
-        confirm.NextLineageToken,
-        gameTicks: (uploadedConfirmationPackage.Envelope.GameTicks ?? 0) + 1);
+    SaveSnapshotPackage raidBattlefieldPackage = NextSourcePackage("user-a", "colony-a", "attacker-snapshot-after-player-raid");
     EventCreationResponse raid = await client.CreateRaidWithSnapshotAsync(new CreateRaidRequest(
         "raid:user-a:user-b:001",
         new ProtocolIdentity("user-a", "colony-a", "attacker-snapshot-after"),
@@ -3209,7 +3224,7 @@ try
     Require(state.Ledger.Find(raid.EventId!)?.Payload is RaidEventPayload, "袭击事件应进入账本");
     Equal("attacker-snapshot-after-player-raid", raid.AppliedSnapshotId, "玩家袭击创建应确认攻击方战场快照");
 
-    EventCreationResponse forcedGiftDuringRaid = await client.CreateGiftAsync(new CreateGiftRequest(
+    EventCreationResponse forcedGiftDuringRaid = await CreateSnapshotGift(new CreateGiftRequest(
         "gift:user-a:user-b:forced-during-raid",
         new ProtocolIdentity("user-a", "colony-a", "attacker-snapshot-after-player-raid"),
         new ProtocolIdentity("user-b", "colony-b", "defender-snapshot-before"),

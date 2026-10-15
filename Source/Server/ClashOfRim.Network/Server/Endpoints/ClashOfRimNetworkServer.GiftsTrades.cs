@@ -8,96 +8,10 @@ namespace AIRsLight.ClashOfRim.Network;
 
 public static partial class ClashOfRimNetworkServer
 {
-    private static IResult CreateGift(CreateGiftRequest request, ClashOfRimNetworkState state)
-    {
-        using (state.EnterSnapshotMutation())
-        {
-            RecoverSnapshotCommits(state);
-            ProtocolResponse? validation = ValidateGiftCreationRequest(request);
-            if (validation is not null)
-            {
-                return Results.Ok(new EventCreationResponse(
-                    validation,
-                    eventId: null,
-                    ProtocolDeliverySemantics.OfflinePending));
-            }
-
-            if (!state.ServerConfiguration.GiftsEnabled)
-            {
-                return Results.Ok(new EventCreationResponse(
-                    ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, T("Gift.Disabled")),
-                    eventId: null,
-                    ProtocolDeliverySemantics.ServerNotification));
-            }
-
-            DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
-            AuthoritativeEvent? existingEvent = FindEventByIdempotencyKey(state.Ledger, request.IdempotencyKey);
-            if (existingEvent is not null)
-            {
-                if (existingEvent.Type != ServerEventType.ItemDelivery
-                    || existingEvent.Payload is not ItemDeliveryEventPayload { Purpose: ItemDeliveryPurpose.Gift }
-                    || existingEvent.Actor.UserId != request.Actor.UserId || existingEvent.Actor.ColonyId != request.Actor.ColonyId
-                    || existingEvent.Target.UserId != request.Target.UserId || existingEvent.Target.ColonyId != request.Target.ColonyId)
-                    return Results.Ok(new EventCreationResponse(
-                        ProtocolResponse.Reject(ProtocolErrorCode.Conflict, "Gift idempotency key belongs to another operation."),
-                        null, ProtocolDeliverySemantics.OfflinePending));
-                return Results.Ok(new EventCreationResponse(
-                    new ProtocolResponse(true, ProtocolErrorCode.DuplicateRequest, T("Gift.TransactionDuplicate")),
-                    existingEvent.EventId,
-                    existingEvent.Status == ServerEventStatus.ReadyForImmediateDelivery
-                        ? ProtocolDeliverySemantics.OnlineImmediate
-                        : ProtocolDeliverySemantics.OfflinePending));
-            }
-
-            EventTargetContext? targetContext = ResolveGiftTargetContext(request, state);
-            if (IsForcedGiftDelivery(request))
-            {
-                ProtocolResponse? forcedValidation = ValidateForcedGiftDelivery(request, state, nowUtc, targetContext);
-                if (forcedValidation is not null)
-                {
-                    return Results.Ok(new EventCreationResponse(
-                        forcedValidation,
-                        eventId: null,
-                        ProtocolDeliverySemantics.ServerNotification));
-                }
-            }
-
-            bool targetOnline = state.OnlinePresence.IsUserOnline(request.Target.UserId);
-            if (!TryStoreInlinePawnPackages(
-                    state,
-                    request.Actor,
-                    "gift:" + request.IdempotencyKey,
-                    request.Things,
-                    out IReadOnlyList<ThingReferenceDto> giftThings,
-                    out ProtocolResponse? packageFailure))
-            {
-                return Results.Ok(new EventCreationResponse(
-                    packageFailure ?? ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("PawnPackage.ParseFailed")),
-                    eventId: null,
-                    ProtocolDeliverySemantics.OfflinePending));
-            }
-
-            AuthoritativeEvent giftEvent = AuthoritativeEventFactory.CreateForLedger(state.Ledger,
-                ServerEventType.ItemDelivery,
-                ToEventParty(request.Actor),
-                ToEventParty(request.Target),
-                request.IdempotencyKey,
-                targetOnline,
-                new ItemDeliveryEventPayload(
-                    giftThings.Select(thing => ToEventThingReference(thing, request.Actor.SnapshotId)).ToList(),
-                    request.Message,
-                    NormalizeGiftDeliveryKind(request.DeliveryKind)),
-                nowUtc,
-                targetContext);
-
-            LedgerAppendResult append = state.Ledger.Append(giftEvent);
-            SignalIfCreated(state, append, giftEvent.Target.UserId);
-            return Results.Ok(ToEventCreationResponse(
-                append,
-                targetOnline ? ProtocolDeliverySemantics.OnlineImmediate : ProtocolDeliverySemantics.OfflinePending,
-                T("Gift.Created")));
-        }
-    }
+    // Keep the route as an explicit upgrade response, without binding state or recovering pending writes.
+    private static IResult CreateGift() => Results.Ok(new EventCreationResponse(
+        ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, T("Gift.SnapshotEndpointRequired")),
+        eventId: null, ProtocolDeliverySemantics.ServerNotification));
 
     private static async Task<IResult> CreateGiftWithSnapshot(HttpRequest httpRequest, ClashOfRimNetworkState state)
     {

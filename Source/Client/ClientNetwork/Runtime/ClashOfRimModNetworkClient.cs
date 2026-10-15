@@ -33,7 +33,6 @@ public sealed class ClashOfRimModNetworkClient
     private static readonly string WaitForEventsRoute = ProtocolContractManifest.Find(ProtocolMessageKind.WaitForEvents).Route;
     private static readonly string PullPendingEventsRoute = ProtocolContractManifest.Find(ProtocolMessageKind.PullPendingEvents).Route;
     private static readonly string PullEventDetailsRoute = ProtocolContractManifest.Find(ProtocolMessageKind.PullEventDetails).Route;
-    private static readonly string CreateGiftRoute = ProtocolContractManifest.Find(ProtocolMessageKind.CreateGift).Route;
     private static readonly string CreateGiftWithSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.CreateGiftWithSnapshot).Route;
     private static readonly string StorePawnPackageRoute = ProtocolContractManifest.Find(ProtocolMessageKind.StorePawnPackage).Route;
     private static readonly string GetPawnPackageRoute = ProtocolContractManifest.Find(ProtocolMessageKind.GetPawnPackage).Route;
@@ -1611,51 +1610,6 @@ public sealed class ClashOfRimModNetworkClient
 
         return PostAsync<ModRespondDiplomacyEventRequestDto, ModDiplomacyEventResponseDto>(
             RespondDiplomacyEventRoute,
-            request,
-            cancellationToken);
-    }
-
-    public Task<ClashOfRimClientNetworkResult<ModEventCreationResponseDto>> CreateGiftAsync(
-        string idempotencyKey,
-        string targetUserId,
-        string targetColonyId,
-        string? targetSnapshotId,
-        IReadOnlyList<ModThingReferenceDto> things,
-        string? message,
-        ModEventTargetContextDto? targetContext = null,
-        string? deliveryKind = null,
-        CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModEventCreationResponseDto>();
-        }
-
-        var actor = new ModProtocolIdentityDto
-        {
-            UserId = context.UserId,
-            ColonyId = context.ColonyId,
-            SnapshotId = context.CurrentSnapshotId
-        };
-        var target = new ModProtocolIdentityDto
-        {
-            UserId = targetUserId,
-            ColonyId = targetColonyId,
-            SnapshotId = null
-        };
-        var request = new ModCreateGiftRequestDto
-        {
-            IdempotencyKey = idempotencyKey,
-            Actor = actor,
-            Target = target,
-            Things = things.ToList(),
-            Message = message,
-            TargetContext = targetContext,
-            DeliveryKind = deliveryKind
-        };
-
-        return PostAsync<ModCreateGiftRequestDto, ModEventCreationResponseDto>(
-            CreateGiftRoute,
             request,
             cancellationToken);
     }
