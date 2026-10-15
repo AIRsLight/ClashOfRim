@@ -430,6 +430,9 @@ public sealed class ModListTradeOrdersResponseDto
 [DataContract]
 public sealed class ModAcceptTradeOrderRequestDto
 {
+    [DataMember(Name = "authToken")]
+    public string? AuthToken { get; set; }
+
     [DataMember(Name = "idempotencyKey")]
     public string IdempotencyKey { get; set; } = string.Empty;
 
@@ -534,6 +537,9 @@ public sealed class ModFulfillTradeOrderResponseDto
 [DataContract]
 public sealed class ModCloseTradeOrderRequestDto
 {
+    [DataMember(Name = "authToken")]
+    public string? AuthToken { get; set; }
+
     [DataMember(Name = "idempotencyKey")]
     public string IdempotencyKey { get; set; } = string.Empty;
 

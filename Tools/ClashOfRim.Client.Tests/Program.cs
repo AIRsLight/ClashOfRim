@@ -22,6 +22,7 @@ var tests = new (string Name, Action Run)[]
     ("failed trade buyer refunds retain their wire purpose", FailedTradeBuyerRefundPurpose),
     ("gift rejection sends recipient authentication", GiftRejectionTransportTests.Run),
     ("support closure sends recipient authentication", SupportClosureTransportTests.Run),
+    ("trade commands send colony authentication", TradeCommandTransportTests.Run),
     ("registered rejection is shared by UI and authoritative preparation", RegisteredRejectionIsShared),
     ("registered capture and finalize handlers run", RegisteredCaptureAndFinalizeHandlersRun),
     ("unfinished things are rejected", UnfinishedThingsAreRejected),

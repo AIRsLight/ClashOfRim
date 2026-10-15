@@ -1419,6 +1419,11 @@ public static partial class ClashOfRimNetworkServer
     {
         using (state.EnterSnapshotMutation())
         {
+            string failure = T("Auth.IdentityDenied");
+            if (request.Acceptor is null || !IsAuthorizedForColony(state, request.AuthToken, request.Acceptor.UserId,
+                    request.Acceptor.ColonyId ?? string.Empty, null, null, DateTimeOffset.UtcNow, out failure))
+                return Results.Ok(new AcceptTradeOrderResponse(
+                    ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, failure), request.TradeEventId, null, false));
             RecoverSnapshotCommits(state);
             ApplyTradeOrderExpirations(state, DateTimeOffset.UtcNow);
 
@@ -2299,6 +2304,11 @@ public static partial class ClashOfRimNetworkServer
     {
         using (state.EnterSnapshotMutation())
         {
+            string failure = T("Auth.IdentityDenied");
+            if (request.Owner is null || !IsAuthorizedForColony(state, request.AuthToken, request.Owner.UserId,
+                    request.Owner.ColonyId ?? string.Empty, null, null, DateTimeOffset.UtcNow, out failure))
+                return Results.Ok(new CloseTradeOrderResponse(
+                    ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, failure), request.TradeEventId, string.Empty, 0));
             RecoverSnapshotCommits(state);
             ApplyTradeOrderExpirations(state, DateTimeOffset.UtcNow);
 
@@ -2403,6 +2413,11 @@ public static partial class ClashOfRimNetworkServer
     {
         using (state.EnterSnapshotMutation())
         {
+            string failure = T("Auth.IdentityDenied");
+            if (request.Owner is null || !IsAuthorizedForColony(state, request.AuthToken, request.Owner.UserId,
+                    request.Owner.ColonyId ?? string.Empty, null, null, DateTimeOffset.UtcNow, out failure))
+                return Results.Ok(new CloseTradeOrderResponse(
+                    ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, failure), request.TradeEventId, string.Empty, 0));
             RecoverSnapshotCommits(state);
             ApplyTradeOrderExpirations(state, DateTimeOffset.UtcNow);
 

@@ -965,12 +965,14 @@ public sealed class AcceptTradeOrderRequest
         string idempotencyKey,
         string tradeEventId,
         ProtocolIdentity acceptor,
-        bool postagePaidByAcceptor)
+        bool postagePaidByAcceptor,
+        string? authToken = null)
     {
         IdempotencyKey = idempotencyKey;
         TradeEventId = tradeEventId;
         Acceptor = acceptor;
         PostagePaidByAcceptor = postagePaidByAcceptor;
+        AuthToken = authToken;
     }
 
     public string IdempotencyKey { get; }
@@ -980,6 +982,8 @@ public sealed class AcceptTradeOrderRequest
     public ProtocolIdentity Acceptor { get; }
 
     public bool PostagePaidByAcceptor { get; }
+
+    public string? AuthToken { get; }
 }
 
 public sealed class AcceptTradeOrderResponse
@@ -1112,12 +1116,14 @@ public sealed class CloseTradeOrderRequest
         string idempotencyKey,
         string tradeEventId,
         ProtocolIdentity owner,
-        string? reason)
+        string? reason,
+        string? authToken = null)
     {
         IdempotencyKey = idempotencyKey;
         TradeEventId = tradeEventId;
         Owner = owner;
         Reason = reason;
+        AuthToken = authToken;
     }
 
     public string IdempotencyKey { get; }
@@ -1127,6 +1133,8 @@ public sealed class CloseTradeOrderRequest
     public ProtocolIdentity Owner { get; }
 
     public string? Reason { get; }
+
+    public string? AuthToken { get; }
 }
 
 public sealed class CloseTradeOrderResponse

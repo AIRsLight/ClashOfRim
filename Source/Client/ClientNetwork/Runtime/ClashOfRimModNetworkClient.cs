@@ -2025,6 +2025,7 @@ public sealed class ClashOfRimModNetworkClient
 
         var request = new ModAcceptTradeOrderRequestDto
         {
+            AuthToken = context.AuthToken,
             IdempotencyKey = idempotencyKey,
             TradeEventId = tradeEventId,
             Acceptor = new ModProtocolIdentityDto
@@ -2133,6 +2134,7 @@ public sealed class ClashOfRimModNetworkClient
 
         var request = new ModCloseTradeOrderRequestDto
         {
+            AuthToken = context.AuthToken,
             IdempotencyKey = idempotencyKey,
             TradeEventId = tradeEventId,
             Owner = new ModProtocolIdentityDto

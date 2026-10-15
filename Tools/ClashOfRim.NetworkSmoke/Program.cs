@@ -2634,7 +2634,7 @@ try
         "trade:user-b:accept:baseline-invalidated",
         obsoleteTrade.EventId!,
         new ProtocolIdentity("user-b", "colony-b", "defender-snapshot-before"),
-        postagePaidByAcceptor: false));
+        postagePaidByAcceptor: false, authToken: userBAuthToken));
     Require(obsoleteAccepted.Result.Accepted, "基线失效测试交易单应允许接单");
     SubmitAdminBaselineResponse baselineWithoutMeal = await client.SubmitAdminBaselineAsync(
         new SubmitAdminBaselineRequest(
@@ -2861,11 +2861,22 @@ try
         "surface-snapshot"));
     TradeOrderSummaryDto orbitalVisibleTrade = orbitalMarket.Orders.Single(order => order.EventId == orbitalTrade.EventId);
     Require(orbitalVisibleTrade.ServerDropPodPostage is { Reachable: true, PostageSilver: 300, DistanceTiles: 120 }, "跨层轨道空投应按投影距离和配置跨层距离计费");
+    Require((await client.PrepareWorldSessionAsync(SmokePrepareWorldSessionRequest("user-surface", "colony-surface"))).Result.Accepted,
+        "地表交易测试用户应先显式注册");
+    LoginResponse surfaceLogin = await client.LoginAsync(new LoginRequest(
+        ProtocolApiVersion.Current,
+        "user-surface",
+        "colony-surface",
+        "surface-snapshot",
+        "smoke-main-manifest",
+        password: string.Empty,
+        compatibilityManifestId: "smoke-main-manifest"));
+    Require(surfaceLogin.Result.Accepted, $"地表玩家应能登录以回报事件应用失败：{surfaceLogin.Result.ErrorCode} {surfaceLogin.Result.Message}");
     AcceptTradeOrderResponse orbitalAcceptedTrade = await client.AcceptTradeOrderAsync(new AcceptTradeOrderRequest(
         "trade:user-surface:accept:orbit",
         orbitalTrade.EventId!,
         new ProtocolIdentity("user-surface", "colony-surface", "surface-snapshot"),
-        postagePaidByAcceptor: true));
+        postagePaidByAcceptor: true, authToken: surfaceLogin.AuthToken));
     Require(orbitalAcceptedTrade.Result.Accepted, "轨道空投可达时应允许使用服务器空投接单");
 
     EventCreationResponse directDropPodTrade = await client.CreateTradeOrderAsync(new CreateTradeOrderRequest(
@@ -2895,17 +2906,6 @@ try
     ItemDeliveryEventPayload ownerDeliveryPayload = (ItemDeliveryEventPayload)state.Ledger.Find(directDropPodFulfill.OwnerDeliveryEventId!)!.Payload;
     Equal(ItemDeliveryPurpose.TradeCompletedAcceptorDelivery, acceptorDeliveryPayload.Purpose, "空投履约应给接单方生成对方物品交付事件");
     Equal(ItemDeliveryPurpose.TradeCompletedOwnerDelivery, ownerDeliveryPayload.Purpose, "空投履约应给发布者生成己方交付物交付事件");
-    Require((await client.PrepareWorldSessionAsync(SmokePrepareWorldSessionRequest("user-surface", "colony-surface"))).Result.Accepted,
-        "地表交易测试用户应先显式注册");
-    LoginResponse surfaceLogin = await client.LoginAsync(new LoginRequest(
-        ProtocolApiVersion.Current,
-        "user-surface",
-        "colony-surface",
-        "surface-snapshot",
-        "smoke-main-manifest",
-        password: string.Empty,
-        compatibilityManifestId: "smoke-main-manifest"));
-    Require(surfaceLogin.Result.Accepted, $"地表玩家应能登录以回报事件应用失败：{surfaceLogin.Result.ErrorCode} {surfaceLogin.Result.Message}");
     ReportEventApplicationFailureResponse failedDropPodApplication = await client.ReportEventApplicationFailureAsync(
         new ReportEventApplicationFailureRequest(
             "event-application-failed:" + directDropPodFulfill.AcceptorDeliveryEventId,
@@ -2927,11 +2927,19 @@ try
             && evt.IdempotencyKey == $"trade-application-failed-owner-return:{directDropPodTrade.EventId}");
     Equal(ItemDeliveryPurpose.TradeApplicationFailedOwnerReturn, ((ItemDeliveryEventPayload)applicationFailedReturn.Payload).Purpose, "交易落地失败应生成发布者托管物退回事件");
 
+    foreach (string? badToken in new[] { null, "invalid-trade-token", userAAuthToken })
+    {
+        string before = JsonSerializer.Serialize(state.Ledger.ListAll());
+        var denied = await client.AcceptTradeOrderAsync(new AcceptTradeOrderRequest("unauthorized-accept", trade.EventId!,
+            new ProtocolIdentity("user-b", "colony-b", "defender-snapshot-before"), false, badToken));
+        Require(!denied.Result.Accepted && denied.Result.ErrorCode == ProtocolErrorCode.ServerRejected
+            && before == JsonSerializer.Serialize(state.Ledger.ListAll()), "未经认证不能代替其他玩家接单");
+    }
     AcceptTradeOrderResponse acceptedTrade = await client.AcceptTradeOrderAsync(new AcceptTradeOrderRequest(
         "trade:user-b:accept:001",
         trade.EventId!,
         new ProtocolIdentity("user-b", "colony-b", "defender-snapshot-before"),
-        postagePaidByAcceptor: false));
+        postagePaidByAcceptor: false, authToken: userBAuthToken));
     Require(acceptedTrade.Result.Accepted, "接取交易单应成功");
     Require(acceptedTrade.MemoCreated, "首次接取应创建备忘录");
     AuthoritativeEvent acceptedMemo = state.Ledger.Find(acceptedTrade.MemoEventId!)!;
@@ -2943,15 +2951,18 @@ try
         "trade:user-b:accept:duplicate",
         trade.EventId!,
         new ProtocolIdentity("user-b", "colony-b", "defender-snapshot-before"),
-        postagePaidByAcceptor: false));
+        postagePaidByAcceptor: false, authToken: userBAuthToken));
     Equal(ProtocolErrorCode.DuplicateRequest, duplicateAcceptedTrade.Result.ErrorCode, "同一玩家重复接取应返回既有备忘录");
     Equal(acceptedTrade.MemoEventId, duplicateAcceptedTrade.MemoEventId, "重复接取应返回同一个备忘录");
 
+    LoginResponse userCTradeLogin = await client.LoginAsync(new LoginRequest(ProtocolApiVersion.Current, "user-c", "colony-c",
+        "third-party-snapshot", "smoke-main-manifest", password: string.Empty, compatibilityManifestId: "smoke-main-manifest"));
+    Require(userCTradeLogin.Result.Accepted && !string.IsNullOrWhiteSpace(userCTradeLogin.AuthToken), "第三方接单前应建立有效会话");
     AcceptTradeOrderResponse acceptedByUserC = await client.AcceptTradeOrderAsync(new AcceptTradeOrderRequest(
         "trade:user-c:accept:001",
         trade.EventId!,
         new ProtocolIdentity("user-c", "colony-c", "third-party-snapshot"),
-        postagePaidByAcceptor: false));
+        postagePaidByAcceptor: false, authToken: userCTradeLogin.AuthToken));
     Require(acceptedByUserC.Result.Accepted, "交易单应允许多个玩家接取");
     Require(acceptedByUserC.MemoCreated, "第二个玩家接取应创建独立备忘录");
 
@@ -2961,13 +2972,24 @@ try
         "ws-snapshot"));
     Equal(2, marketAfterAccept.Orders.Single(order => order.EventId == trade.EventId).AcceptedMemoCount, "多人接取后市场应显示备忘录计数");
 
+    foreach (string? badToken in new[] { null, "invalid-trade-token", userBAuthToken })
+    {
+        string before = JsonSerializer.Serialize(state.Ledger.ListAll());
+        var unauthorized = new CloseTradeOrderRequest("unauthorized-close", trade.EventId!,
+            new ProtocolIdentity("user-a", "colony-a", "attacker-snapshot-after"), "unauthorized", badToken);
+        var deniedCancel = await client.CancelTradeOrderAsync(unauthorized);
+        var deniedComplete = await client.CompleteTradeOrderAsync(unauthorized);
+        Require(!deniedCancel.Result.Accepted && deniedCancel.Result.ErrorCode == ProtocolErrorCode.ServerRejected
+            && !deniedComplete.Result.Accepted && deniedComplete.Result.ErrorCode == ProtocolErrorCode.ServerRejected
+            && before == JsonSerializer.Serialize(state.Ledger.ListAll()), "未经认证不能取消或完成其他玩家的交易");
+    }
     long userBVersionBeforeCancel = state.EventNotifications.GetVersion("user-b");
     long userCVersionBeforeCancel = state.EventNotifications.GetVersion("user-c");
     CloseTradeOrderResponse cancelledTrade = await client.CancelTradeOrderAsync(new CloseTradeOrderRequest(
         "trade:user-a:cancel:001",
         trade.EventId!,
         new ProtocolIdentity("user-a", "colony-a", "attacker-snapshot-after"),
-        "smoke cancel"));
+        "smoke cancel", authToken: userAAuthToken));
     Require(cancelledTrade.Result.Accepted, "发布者撤单应成功");
     Equal(ServerEventStatus.Cancelled.ToString(), cancelledTrade.TerminalStatus, "撤单终态状态");
     Equal(2, cancelledTrade.NotifiedAcceptorCount, "撤单应通知所有已接单玩家");
@@ -2994,7 +3016,7 @@ try
         "trade:user-b:accept:complete-source",
         tradeToComplete.EventId!,
         new ProtocolIdentity("user-b", "colony-b", "defender-snapshot-after-gift"),
-        postagePaidByAcceptor: false));
+        postagePaidByAcceptor: false, authToken: userBAuthToken));
     Require(acceptedTradeToComplete.Result.Accepted, "待完成交易单接单应成功");
     long userAVersionBeforeFulfill = state.EventNotifications.GetVersion("user-a");
     long userBVersionBeforeFulfill = state.EventNotifications.GetVersion("user-b");

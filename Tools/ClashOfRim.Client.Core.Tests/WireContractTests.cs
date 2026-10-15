@@ -59,6 +59,19 @@ internal static class WireContractTests
                 FinishReason = "Expired", PawnGlobalKey = "owner:player/pawn:1", PawnName = "支援者", PawnDead = true, PawnPackage = null, AuthToken = token
             });
         }
+        foreach (string? token in new string?[] { null, "trade-token" })
+        {
+            RoundTrip<ModAcceptTradeOrderRequestDto, AcceptTradeOrderRequest>(new()
+            {
+                IdempotencyKey = "accept", TradeEventId = "order", AuthToken = token, PostagePaidByAcceptor = true,
+                Acceptor = new() { UserId = "交易者", ColonyId = "colony", SnapshotId = "base" }
+            });
+            RoundTrip<ModCloseTradeOrderRequestDto, CloseTradeOrderRequest>(new()
+            {
+                IdempotencyKey = "close", TradeEventId = "order", AuthToken = token, Reason = "取消",
+                Owner = new() { UserId = "交易者", ColonyId = "colony", SnapshotId = "base" }
+            });
+        }
         var response = new ListChatMessagesResponse(ProtocolResponse.Ok(),
             new[] { new ChatMessageDto(42, "message", "private", "玩家", "colony", null, "你好", DateTimeOffset.UnixEpoch) }, 42);
         byte[] serverBytes = JsonSerializer.SerializeToUtf8Bytes(response, ServerJson);

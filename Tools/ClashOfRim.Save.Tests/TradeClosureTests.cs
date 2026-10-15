@@ -140,7 +140,7 @@ internal static class TradeClosureTests
         switch (scenario)
         {
             case "cancel": Invoke("CancelTradeOrder", new CloseTradeOrderRequest("cancel", order.EventId,
-                new ProtocolIdentity("seller", "seller-colony", "seller-snapshot"), null), state); break;
+                new ProtocolIdentity("seller", "seller-colony", "seller-snapshot"), null, TradeCommandAuthTests.Token(state, "seller")), state); break;
             case "expire": Invoke("ApplyTradeOrderExpirations", state, DateTimeOffset.UtcNow); break;
             case "baseline": Invoke("ApplyTradeOrderBaselineInvalidations", state,
                 new AdminBaselineSnapshot("admin", "admin-colony", DateTimeOffset.UtcNow, new Dictionary<string, float> { ["Silver"] = 1 },

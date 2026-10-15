@@ -28,6 +28,7 @@ var tests = new (string Name, Action Run)[]
     ("支援结束与拒绝原子提交且按源事件去重", () => SupportClosureTests.Run(BuildFixturePackage)),
     ("事件失败报告限定接收方和来源且重试恢复通知", EventFailureReportTests.Run),
     ("礼物拒收认证与关联校验及通知重放", GiftRejectionEndpointTests.Run),
+    ("交易接单和关闭认证及排队期间会话撤销", TradeCommandAuthTests.Run),
     ("交易关闭退货原子提交且不重复补偿已入档物品", TradeClosureTests.Run),
     ("商店持久化失败保留库存缓存且允许重试", ShopRegistryPersistenceTests.Run),
     ("商店快照和购买回执共同恢复且限制重复请求身份", () => ShopCommitCrashTests.Run(BuildFixturePackage)),

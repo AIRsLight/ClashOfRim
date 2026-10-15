@@ -466,3 +466,13 @@
 - 验证：完整 `Test-Regression.ps1 -IncludeClient` 通过（Events 52、Save 103、Client.Core 5 组、完整 NetworkSmoke、客户端 25），日志 `LocalOnly/support-auth-regression.log`；负向及恢复验证见 `LocalOnly/support-auth-negative-Finish.log`、`LocalOnly/support-auth-negative-Reject.log`、`LocalOnly/support-auth-final-targeted.log`。77 个 1.6 冻结文件未变，数据库仍为版本 25。
 - RimTest 使用当前工作区和本机 1.7 游戏，两客户端现有 19 项全部通过，包含支援发送/提前返回及交易、银行、雇佣和袭击流程。证据：`G:/RimTestRuns/ClashOfRim/20261015-151002-29caf28e/report.json`，日志 `LocalOnly/support-auth-rimtest.log`。报告仍明确 `fullCoverage: false`，未将提前返回算作拒绝、死亡、到期或故障恢复的实机覆盖；两份测试进程均已退出。
 - 下一步：交易接单/取消/完成仍缺少会话认证，继续修复；同时继续审计等待业务锁期间会话撤销、交易身份及幂等关联。业务锁范围、职责和 DTO 收敛仍未完成。
+
+## 续修：交易接单、取消与完成的会话认证
+
+- 三个公开入口此前信任请求自报的接单方/所有者，允许无有效会话的调用创建备忘、取消交易或标记完成。`AcceptTradeOrderRequest` 和 `CloseTradeOrderRequest` 新增可选 `AuthToken`，Mod 的接单/取消传输发送当前令牌；完成入口共用关闭协议。无令牌仍可反序列化，但服务端拒绝执行，旧 1.7 调用方需更新，1.6 冻结不变。
+- 在取得快照业务锁后、恢复待办及处理过期订单之前验证准确的用户、殖民地和当前会话。不接受远程地图代理授权；卖家撤单和买家撤销备忘都必须通过验证，重复请求同样认证。检查放在锁内，等待提交锁时退出或被替换的会话不能继续执行。保留现有交易原子关闭与退款批次，不改变订单和备忘的业务状态规则。
+- `TradeCommandAuthTests` 覆盖接单、卖家取消、买家撤销备忘、完成四路径 × 首次/重试 × 缺失、伪造、错误用户、错误殖民地、结束会话、被替换会话共 48 场景；另有 4 个真实锁等待期间撤销会话和 4 个空身份场景。拒绝请求必须保持完整账本和双方通知版本不变。既有交易关闭回滚、重开和旧返还修复测试使用真实会话继续执行。
+- HTTP 网络回归补齐正常登录并验证三条入口的缺失/伪造/冒用令牌；客户端传输核对实际路由、身份、快照及令牌；两端序列化器覆盖有/无令牌契约。分别去掉三处认证检查均复现未授权写入；将接单认证移到锁外也复现排队期间注销仍执行，恢复实现后两组交易测试通过。
+- 验证：完整 `Test-Regression.ps1 -IncludeClient` 通过（Events 52、Save 104、Client.Core 5 组、完整 NetworkSmoke、客户端 26），日志 `LocalOnly/trade-auth-regression.log`。负向证据见 `LocalOnly/trade-auth-negative-0.log` 至 `-2.log`、`LocalOnly/trade-auth-negative-wait.log`；恢复后验证见 `LocalOnly/trade-auth-final-targeted.log`。无新增持久化格式，数据库仍为版本 25。
+- 边界：此步限定入口认证，接单幂等键与历史备忘关联、取消备忘的重试通知、旧直接完成接口的成交证据约束仍需单独审计。礼物拒收与支援结束/拒绝的锁外认证也需要补齐等待期间的撤销校验；锁范围、服务职责和 DTO 收敛继续保留。
+- RimTest 再次运行当前两客户端的 19 项既有流程全部通过，含真实交易接单/撤单退款和空投履约；报告 `G:/RimTestRuns/ClashOfRim/20261015-152202-36ddf8de/report.json`，日志 `LocalOnly/trade-auth-rimtest.log`，测试进程均已退出。报告仍为有限覆盖，不代表旧直接完成入口、所有鉴权失败或持久化故障均有实机场景。77 个 1.6 冻结文件及差异格式检查通过。
