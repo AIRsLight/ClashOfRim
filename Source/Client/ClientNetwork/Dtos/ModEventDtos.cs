@@ -129,6 +129,9 @@ public sealed class ModPullEventDetailsResponseDto
 [DataContract]
 public sealed class ModRejectGiftRequestDto
 {
+    [DataMember(Name = "authToken")]
+    public string? AuthToken { get; set; }
+
     [DataMember(Name = "eventId")]
     public string EventId { get; set; } = string.Empty;
 

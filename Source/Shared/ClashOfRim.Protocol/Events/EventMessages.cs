@@ -471,13 +471,15 @@ public sealed class RejectGiftRequest
         string userId,
         string colonyId,
         string currentSnapshotId,
-        string? reason)
+        string? reason,
+        string? authToken = null)
     {
         EventId = eventId;
         UserId = userId;
         ColonyId = colonyId;
         CurrentSnapshotId = currentSnapshotId;
         Reason = reason;
+        AuthToken = authToken;
     }
 
     public string EventId { get; }
@@ -489,6 +491,8 @@ public sealed class RejectGiftRequest
     public string CurrentSnapshotId { get; }
 
     public string? Reason { get; }
+
+    public string? AuthToken { get; }
 }
 
 public sealed class RejectGiftResponse

@@ -1890,15 +1890,6 @@ try
     Require(forcedGiftEvent.Payload is ItemDeliveryEventPayload forcedGiftPayload && forcedGiftPayload.IsForcedDelivery, "强投礼物应写入强投载荷");
     Equal(EventRejectionPolicy.NotRejectable, forcedGiftEvent.RejectionPolicy, "强投礼物不可拒绝");
 
-    RejectGiftResponse rejectedForcedGift = await client.RejectGiftAsync(new RejectGiftRequest(
-        forcedGift.EventId!,
-        "user-b",
-        "colony-b",
-        "defender-snapshot-before",
-        "不想收垃圾。"));
-    Require(!rejectedForcedGift.Result.Accepted, "强投礼物拒绝接口应被服务器拒绝");
-    Equal(ProtocolErrorCode.ServerRejected, rejectedForcedGift.Result.ErrorCode, "强投礼物不可拒绝应返回服务器拒绝");
-
     EventCreationResponse repeatedForcedGift = await client.CreateGiftAsync(new CreateGiftRequest(
         "gift:user-a:user-b:forced-002",
         new ProtocolIdentity("user-a", "colony-a", "attacker-snapshot-after"),
@@ -2329,12 +2320,36 @@ try
             .Any(item => item.EventId == onlineOnlyNotice.EventId),
         "在线一次性服务器通知不应进入离线队列");
 
+    // The presence-disconnect scenario above ended B's session. Reauthenticate before protected writes.
+    userBLogin = await client.LoginAsync(new LoginRequest(ProtocolApiVersion.Current, "user-b", "colony-b",
+        "defender-snapshot-after-gift", "smoke-main-manifest", password: string.Empty, compatibilityManifestId: "smoke-main-manifest"));
+    Require(userBLogin.Result.Accepted && !string.IsNullOrWhiteSpace(userBLogin.AuthToken), "礼物拒收前重新登录应成功");
+    userBAuthToken = userBLogin.AuthToken!;
+    RejectGiftResponse rejectedForcedGift = await client.RejectGiftAsync(new RejectGiftRequest(
+        forcedGift.EventId!,
+        "user-b",
+        "colony-b",
+        "defender-snapshot-before",
+        "不想收垃圾。", authToken: userBAuthToken));
+    Require(!rejectedForcedGift.Result.Accepted, "强投礼物拒绝接口应被服务器拒绝");
+    Equal(ProtocolErrorCode.ServerRejected, rejectedForcedGift.Result.ErrorCode, "强投礼物不可拒绝应返回服务器拒绝");
+
+    foreach (string? invalidToken in new[] { null, "invalid-gift-token", userAAuthToken })
+    {
+        var rejectedAuth = await client.RejectGiftAsync(new RejectGiftRequest(gift.EventId!, "user-b", "colony-b",
+            "defender-snapshot-before", "unauthorized rejection", authToken: invalidToken));
+        Require(!rejectedAuth.Result.Accepted && rejectedAuth.Result.ErrorCode == ProtocolErrorCode.ServerRejected,
+            "HTTP 礼物拒收必须拒绝缺失、伪造及冒用令牌");
+        Require(state.Ledger.Find(gift.EventId!)!.Status != ServerEventStatus.RejectedByTarget
+            && state.Ledger.FindByIdempotencyKey(state.Ledger.Find(gift.EventId!)!.IdempotencyKey + ":return") is null,
+            "未授权 HTTP 请求不得拒收或生成返还");
+    }
     RejectGiftResponse rejectedGift = await client.RejectGiftAsync(new RejectGiftRequest(
         gift.EventId!,
         "user-b",
         "colony-b",
         "defender-snapshot-before",
-        "smoke reject"));
+        "smoke reject", authToken: userBAuthToken));
     Require(rejectedGift.Result.Accepted, "拒绝礼物应成功");
     Require(rejectedGift.ReturnEventCreated, "首次拒绝应创建退回事件");
     Require(state.Ledger.Find(rejectedGift.ReturnEventId!)?.Type == ServerEventType.ItemDelivery, "拒绝礼物应创建退回事件");
@@ -2344,7 +2359,7 @@ try
         "user-b",
         "colony-b",
         "defender-snapshot-before",
-        "smoke reject duplicate"));
+        "smoke reject duplicate", authToken: userBAuthToken));
     Equal(ProtocolErrorCode.DuplicateRequest, duplicateRejectGift.Result.ErrorCode, "重复拒绝应返回幂等结果");
     Equal(rejectedGift.ReturnEventId, duplicateRejectGift.ReturnEventId, "重复拒绝应返回既有退回事件");
 
@@ -2353,9 +2368,9 @@ try
         "user-c",
         "colony-c",
         "other-snapshot",
-        "not visible"));
+        "not visible", authToken: userBAuthToken));
     Require(!rejectedByOtherUser.Result.Accepted, "非目标用户不能拒绝礼物");
-    Equal(ProtocolErrorCode.EventNotFound, rejectedByOtherUser.Result.ErrorCode, "非目标用户不应得知事件存在");
+    Equal(ProtocolErrorCode.ServerRejected, rejectedByOtherUser.Result.ErrorCode, "身份冒用应在读取礼物前拒绝");
 
     string supportPawnGlobalKey = "owner:user-a/colony:colony-a/snapshot:attacker-snapshot-after/caravan:Caravan_9/pawn:Pawn_1";
     var supportPawnReference = new CrossMapPawnReferenceDto(

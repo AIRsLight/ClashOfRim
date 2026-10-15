@@ -38,6 +38,15 @@ internal static class WireContractTests
         {
             UserId = "玩家", ColonyId = "colony", AuthToken = null, TargetUserId = "friend", Text = "你好\nworld"
         });
+        RoundTrip<ModRejectGiftRequestDto, RejectGiftRequest>(new()
+        {
+            EventId = "gift:v2~003A", UserId = "玩家", ColonyId = "colony", CurrentSnapshotId = "snapshot",
+            Reason = "拒收", AuthToken = "gift-token"
+        });
+        RoundTrip<ModRejectGiftRequestDto, RejectGiftRequest>(new()
+        {
+            EventId = "legacy-gift", UserId = "玩家", ColonyId = "colony", CurrentSnapshotId = "snapshot", AuthToken = null
+        });
         var response = new ListChatMessagesResponse(ProtocolResponse.Ok(),
             new[] { new ChatMessageDto(42, "message", "private", "玩家", "colony", null, "你好", DateTimeOffset.UnixEpoch) }, 42);
         byte[] serverBytes = JsonSerializer.SerializeToUtf8Bytes(response, ServerJson);

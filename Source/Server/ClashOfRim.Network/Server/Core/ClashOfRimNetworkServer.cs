@@ -2717,16 +2717,6 @@ public static partial class ClashOfRimNetworkServer
             || string.Equals(party.ColonyId, colonyId, StringComparison.Ordinal);
     }
 
-    private static AuthoritativeEvent? FindGiftReturnFor(IAuthoritativeEventLedger ledger, AuthoritativeEvent giftEvent)
-    {
-        string returnIdempotencyKey = $"{giftEvent.IdempotencyKey}:return";
-        AuthoritativeEvent? ledgerEvent = ledger.FindByIdempotencyKey(returnIdempotencyKey);
-        return ledgerEvent?.Type == ServerEventType.ItemDelivery
-            && ledgerEvent.Payload is ItemDeliveryEventPayload { Purpose: ItemDeliveryPurpose.RejectedGiftReturn }
-                ? ledgerEvent
-                : null;
-    }
-
     private static AuthoritativeEvent CreateSupportPawnFinishReturnEvent(
         AuthoritativeEvent supportEvent,
         SupportPawnEventPayload payload,

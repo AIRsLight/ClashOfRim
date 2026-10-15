@@ -1475,7 +1475,8 @@ public sealed class ClashOfRimModNetworkClient
             UserId = context.UserId,
             ColonyId = context.ColonyId,
             CurrentSnapshotId = context.CurrentSnapshotId ?? string.Empty,
-            Reason = reason
+            Reason = reason,
+            AuthToken = context.AuthToken
         };
 
         return PostAsync<ModRejectGiftRequestDto, ModRejectGiftResponseDto>(
