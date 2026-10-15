@@ -39,6 +39,7 @@ public interface IAuthoritativeEventLedger
 
     AuthoritativeEvent MarkRejected(string eventId, DateTimeOffset rejectedAtUtc, string? reason);
 
+    /// <summary>Atomically rejects a gift and creates its return; replay retains the first decision and return lifecycle.</summary>
     GiftReturnResult RejectGiftAndCreateReturn(
         string eventId,
         DateTimeOffset rejectedAtUtc,

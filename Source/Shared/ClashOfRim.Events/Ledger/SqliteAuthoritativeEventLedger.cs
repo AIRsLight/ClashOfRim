@@ -41,6 +41,12 @@ public sealed class SqliteAuthoritativeEventLedger : IAuthoritativeEventLedger
     {
         using SqliteConnection connection = OpenConnection();
         using SqliteTransaction transaction = connection.BeginTransaction();
+        ApplyBatch(connection, transaction, batch);
+        transaction.Commit();
+    }
+
+    private static void ApplyBatch(SqliteConnection connection, SqliteTransaction transaction, LedgerBatch batch)
+    {
         LedgerBatchValidation.Validate(batch, id => Find(connection, transaction, id),
             key => FindByIdempotencyKey(connection, transaction, key));
         foreach (AuthoritativeEvent item in batch.Events) Append(connection, transaction, item);
@@ -85,7 +91,6 @@ public sealed class SqliteAuthoritativeEventLedger : IAuthoritativeEventLedger
             command.Parameters.AddWithValue("$id", updated.EventId);
             command.ExecuteNonQuery();
         }
-        transaction.Commit();
     }
 
     private static LedgerAppendResult Append(SqliteConnection connection, SqliteTransaction transaction, AuthoritativeEvent ledgerEvent)
@@ -585,14 +590,16 @@ public sealed class SqliteAuthoritativeEventLedger : IAuthoritativeEventLedger
         string? reason,
         bool originalActorOnline)
     {
-        AuthoritativeEvent rejectedGift = MarkRejected(eventId, rejectedAtUtc, reason);
-        AuthoritativeEvent returnEvent = GiftReturnEventFactory.CreateReturnEvent(
-            rejectedGift,
-            rejectedAtUtc,
-            originalActorOnline);
-        returnEvent = AuthoritativeEventFactory.ResolvePersistedIdentity(this, returnEvent);
-        LedgerAppendResult appendResult = Append(returnEvent);
-        return new GiftReturnResult(rejectedGift, appendResult.Event, appendResult.Created);
+        ArgumentException.ThrowIfNullOrWhiteSpace(eventId);
+        using SqliteConnection connection = OpenConnection();
+        using SqliteTransaction transaction = connection.BeginTransaction();
+        var source = Find(connection, transaction, eventId)
+            ?? throw new KeyNotFoundException($"Event id not found: {eventId}");
+        var plan = GiftRejectionPlan.Prepare(source, key => FindByIdempotencyKey(connection, transaction, key),
+            rejectedAtUtc, reason, originalActorOnline);
+        ApplyBatch(connection, transaction, plan.Batch);
+        transaction.Commit();
+        return plan.Result;
     }
 
     public AuthoritativeEvent ReportApplicationResult(

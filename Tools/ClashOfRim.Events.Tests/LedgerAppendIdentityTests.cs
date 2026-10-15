@@ -10,6 +10,7 @@ internal static class LedgerAppendIdentityTests
     public static void Run()
     {
         FileLedgerPublicationTests.Run();
+        GiftRejectionAtomicityTests.Run();
         foreach (string storage in new[] { "memory", "file", "sqlite" })
         {
             IdentityConflicts(storage);

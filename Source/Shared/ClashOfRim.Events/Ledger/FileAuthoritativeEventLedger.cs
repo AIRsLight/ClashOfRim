@@ -314,14 +314,10 @@ public sealed class FileAuthoritativeEventLedger : IAuthoritativeEventLedger
     {
         lock (gate)
         {
-            AuthoritativeEvent rejectedGift = MarkRejected(eventId, rejectedAtUtc, reason);
-            AuthoritativeEvent returnEvent = GiftReturnEventFactory.CreateReturnEvent(
-                rejectedGift,
-                rejectedAtUtc,
-                originalActorOnline);
-            returnEvent = AuthoritativeEventFactory.ResolvePersistedIdentity(this, returnEvent);
-            LedgerAppendResult appendResult = Append(returnEvent);
-            return new GiftReturnResult(rejectedGift, appendResult.Event, appendResult.Created);
+            var source = Find(eventId) ?? throw new KeyNotFoundException($"Event id not found: {eventId}");
+            var plan = GiftRejectionPlan.Prepare(source, FindByIdempotencyKey, rejectedAtUtc, reason, originalActorOnline);
+            ApplyBatch(plan.Batch);
+            return plan.Result;
         }
     }
 
