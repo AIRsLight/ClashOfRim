@@ -29,6 +29,18 @@ public interface IPreparedSnapshotPostUploadArtifact : IDisposable
     bool TryPublish();
 }
 
+/// <summary>A captured read whose version can be checked under the caller's business mutation boundary.</summary>
+public interface IVersionedSnapshotPostUploadArtifactStore : ISnapshotPostUploadArtifactStore
+{
+    ISnapshotPostUploadArtifactRead ReadCaptured(string artifactId);
+}
+
+public interface ISnapshotPostUploadArtifactRead : IDisposable
+{
+    SaveSnapshotPackage? Package { get; }
+    bool IsCurrent { get; }
+}
+
 public sealed class InMemorySnapshotPostUploadArtifactStore : ISnapshotPostUploadArtifactStore
 {
     private readonly object gate = new();
@@ -114,7 +126,7 @@ public sealed class InMemorySnapshotPostUploadArtifactStore : ISnapshotPostUploa
     }
 }
 
-public sealed class FileSnapshotPostUploadArtifactStore : IPreparedSnapshotPostUploadArtifactStore
+public sealed class FileSnapshotPostUploadArtifactStore : IPreparedSnapshotPostUploadArtifactStore, IVersionedSnapshotPostUploadArtifactStore
 {
     private readonly object gate = new();
     private readonly string rootDirectory;
@@ -126,7 +138,7 @@ public sealed class FileSnapshotPostUploadArtifactStore : IPreparedSnapshotPostU
         Directory.CreateDirectory(this.rootDirectory);
     }
 
-    // Entries exist only while a preparation is alive; deleted artifact IDs do not accumulate tombstones.
+    // Entries exist only while a preparation or captured read is alive; deleted IDs do not accumulate tombstones.
     private readonly Dictionary<string, WriteRevision> activePreparations = new(StringComparer.OrdinalIgnoreCase);
     private sealed class WriteRevision
     {
@@ -191,6 +203,52 @@ public sealed class FileSnapshotPostUploadArtifactStore : IPreparedSnapshotPostU
         // Close the file before decoding, so Windows deletion/recreation is not blocked by a reader.
         lock (gate) captured = Capture(PathFor(artifactId));
         return Decode(captured);
+    }
+
+    public ISnapshotPostUploadArtifactRead ReadCaptured(string artifactId)
+    {
+        InMemorySnapshotPostUploadArtifactStore.ValidateArtifactId(artifactId);
+        string path = PathFor(artifactId);
+        WriteRevision revision;
+        object token;
+        byte[]? captured;
+        lock (gate)
+        {
+            if (!activePreparations.TryGetValue(path, out revision!)) activePreparations.Add(path, revision = new());
+            revision.Users++;
+            token = revision.Token;
+            try { captured = Capture(path); }
+            catch { Release(path, revision); throw; }
+        }
+        try { return new CapturedRead(this, path, revision, token, Decode(captured)); }
+        catch { lock (gate) Release(path, revision); throw; }
+    }
+
+    private sealed class CapturedRead(FileSnapshotPostUploadArtifactStore owner, string path,
+        WriteRevision revision, object token, SaveSnapshotPackage? package) : ISnapshotPostUploadArtifactRead
+    {
+        private bool disposed;
+        public SaveSnapshotPackage? Package => package;
+        public bool IsCurrent
+        {
+            get
+            {
+                lock (owner.gate)
+                {
+                    ObjectDisposedException.ThrowIf(disposed, this);
+                    return ReferenceEquals(revision.Token, token);
+                }
+            }
+        }
+        public void Dispose()
+        {
+            lock (owner.gate)
+            {
+                if (disposed) return;
+                owner.Release(path, revision);
+                disposed = true;
+            }
+        }
     }
 
     private static byte[]? Capture(string path)

@@ -135,6 +135,75 @@ public static class RaidSettlementDeferredScheduler
     }
 
     public static SnapshotPostUploadJobRecord RecoverPrepared(
+        ClashOfRimNetworkState state, SnapshotPostUploadJobRecord job, DateTimeOffset nowUtc)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        ArgumentNullException.ThrowIfNull(job);
+        // Online scheduling still owns an outer gate; custom stores retain their original recovery boundary.
+        if (Monitor.IsEntered(state.RaidSettlementSnapshotMutationGate)
+            || state.SnapshotPostUploadArtifacts is not IVersionedSnapshotPostUploadArtifactStore artifacts)
+            return RecoverPreparedUnderLock(state, job, nowUtc);
+
+        RaidSettlementDeferredPayload payload;
+        IColonySnapshotPackageStore packages;
+        SaveSnapshotEnvelope? latest;
+        using (state.EnterSnapshotMutation())
+        {
+            ClashOfRimNetworkServer.RecoverSnapshotCommits(state);
+            lock (state.SnapshotPostUploadJobs.SnapshotCommitGate)
+            {
+                var current = state.SnapshotPostUploadJobs.Find(job.JobId);
+                if (current is null) return job;
+                job = current;
+                if (job.State != SnapshotPostUploadJobState.Prepared || job.ProcessorId != ProcessorId) return job;
+                payload = RaidSettlementDeferredPayload.Deserialize(job.PayloadJson);
+                packages = state.SnapshotStore as IColonySnapshotPackageStore
+                    ?? throw new InvalidOperationException("Raid settlement requires a snapshot package store.");
+                latest = packages.GetLatest(payload.AttackerUserId, payload.AttackerColonyId)?.Envelope;
+            }
+        }
+        ISnapshotPostUploadArtifactRead? captured = null;
+        SaveSnapshotPackage? evidence = null;
+        PreparedSnapshotPayload? storage = null;
+        Exception? preparationFailure = null;
+        try
+        {
+            try
+            {
+                SnapshotPreparationService.Run(() =>
+                {
+                    captured = artifacts.ReadCaptured(payload.EvidenceArtifactId);
+                    evidence = captured.Package ?? throw new IOException($"Raid settlement evidence artifact '{payload.EvidenceArtifactId}' was not found.");
+                    ValidatePayload(evidence);
+                    if (!SameVersion(latest, evidence.Envelope))
+                        storage = (packages as IPreparedColonySnapshotPackageStore)?.PreparePayload(evidence.Payload);
+                    return true;
+                });
+            }
+            catch (Exception ex) when (ex is IOException or InvalidOperationException or UnauthorizedAccessException
+                or System.Xml.XmlException or System.Text.Json.JsonException) { preparationFailure = ex; }
+            using (state.EnterSnapshotMutation())
+            {
+                ClashOfRimNetworkServer.RecoverSnapshotCommits(state);
+                lock (state.SnapshotPostUploadJobs.SnapshotCommitGate)
+                {
+                    var current = state.SnapshotPostUploadJobs.Find(job.JobId);
+                    if (current is null) return job;
+                    if (current != job) return current; // A removed, completed or revised task cannot be revived by old preparation.
+                    if (preparationFailure is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(preparationFailure).Throw();
+                    if (!captured!.IsCurrent) throw new InvalidOperationException("Raid evidence changed during recovery preparation.");
+                    ValidateEvidenceBinding(state, job, payload, evidence!);
+                    if (packages is IPreparedColonySnapshotPackageStore && storage is null
+                        && !SameVersion(packages.GetLatest(payload.AttackerUserId, payload.AttackerColonyId)?.Envelope, evidence!.Envelope))
+                        throw new InvalidOperationException("Raid evidence destination changed during recovery preparation.");
+                    return CompletePreparedEvidence(state, job, payload, evidence!, nowUtc, storage);
+                }
+            }
+        }
+        finally { captured?.Dispose(); }
+    }
+
+    private static SnapshotPostUploadJobRecord RecoverPreparedUnderLock(
         ClashOfRimNetworkState state,
         SnapshotPostUploadJobRecord job,
         DateTimeOffset nowUtc)
@@ -160,7 +229,8 @@ public static class RaidSettlementDeferredScheduler
 
     // Called after evidence validation, while the caller owns the business mutation boundary.
     internal static SnapshotPostUploadJobRecord CompletePreparedEvidence(ClashOfRimNetworkState state,
-        SnapshotPostUploadJobRecord job, RaidSettlementDeferredPayload payload, SaveSnapshotPackage evidencePackage, DateTimeOffset nowUtc)
+        SnapshotPostUploadJobRecord job, RaidSettlementDeferredPayload payload, SaveSnapshotPackage evidencePackage, DateTimeOffset nowUtc,
+        PreparedSnapshotPayload? storage = null)
     {
         if (state.SnapshotStore is not IColonySnapshotPackageStore packageStore)
             throw new InvalidOperationException("Raid settlement requires a snapshot package store.");
@@ -169,7 +239,9 @@ public static class RaidSettlementDeferredScheduler
         {
             if (payload.Publication is null || !SameVersion(latest, payload.Publication.Previous))
                 throw new InvalidOperationException("Raid evidence destination changed or its original baseline is unknown; recovery cannot overwrite it.");
-            packageStore.StoreLatest(evidencePackage, evidencePackage.Index, job.OccurredAtUtc);
+            if (storage is not null && packageStore is IPreparedColonySnapshotPackageStore preparedStore)
+                preparedStore.StorePrepared(evidencePackage, evidencePackage.Index, job.OccurredAtUtc, storage);
+            else packageStore.StoreLatest(evidencePackage, evidencePackage.Index, job.OccurredAtUtc);
         }
 
         state.Players.RecordLatestSnapshotReference(
@@ -183,9 +255,18 @@ public static class RaidSettlementDeferredScheduler
     private static SaveSnapshotPackage ReadEvidence(ClashOfRimNetworkState state,
         SnapshotPostUploadJobRecord job, RaidSettlementDeferredPayload payload)
     {
-        AuthoritativeEvent? raid = state.Ledger.Find(payload.RaidEventId);
+
         SaveSnapshotPackage evidence = state.SnapshotPostUploadArtifacts.Read(payload.EvidenceArtifactId)
             ?? throw new IOException($"Raid settlement evidence artifact '{payload.EvidenceArtifactId}' was not found.");
+        ValidateEvidenceBinding(state, job, payload, evidence);
+        ValidatePayload(evidence);
+        return evidence;
+    }
+
+    private static void ValidateEvidenceBinding(ClashOfRimNetworkState state, SnapshotPostUploadJobRecord job,
+        RaidSettlementDeferredPayload payload, SaveSnapshotPackage evidence)
+    {
+        AuthoritativeEvent? raid = state.Ledger.Find(payload.RaidEventId);
         if (raid?.Type != ServerEventType.Raid || raid.Payload is not RaidEventPayload raidPayload
             || raid.Actor.UserId != payload.AttackerUserId || raid.Actor.ColonyId != payload.AttackerColonyId
             || raid.Target.UserId != payload.DefenderUserId || raid.Target.ColonyId != payload.DefenderColonyId
@@ -198,8 +279,6 @@ public static class RaidSettlementDeferredScheduler
             || evidence.Envelope.Identity != new SnapshotIdentity(payload.AttackerUserId, payload.AttackerColonyId, payload.EvidenceSnapshotId)
             || (payload.Publication is not null && evidence.Envelope != payload.Publication.Evidence))
             throw new InvalidDataException("Raid evidence artifact does not match its prepared job.");
-        ValidatePayload(evidence);
-        return evidence;
     }
 
     internal static void ValidatePayload(SaveSnapshotPackage evidence)

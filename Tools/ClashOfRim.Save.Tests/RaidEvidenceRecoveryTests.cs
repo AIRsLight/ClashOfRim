@@ -19,6 +19,97 @@ internal static class RaidEvidenceRecoveryTests
         }
         WithStorage(fixture, VerifyRetriesAndStaleScans);
         WithStorage(fixture, VerifyPreparationRace);
+        foreach (bool reopen in new[] { false, true })
+        {
+            foreach (string phase in new[] { "read", "compress" })
+            foreach (string change in new[] { "none", "newer", "token", "removed", "owner", "artifact-deleted", "artifact-recreated", "artifact-token", "manual", "job-removed", "job-failed", "competing" })
+                WithStorage(fixture, f => VerifyRecoveryPreparation(f, reopen, phase, change));
+            WithStorage(fixture, f => VerifyRecoveryPreparation(f, reopen, "capture", "missing-completed"));
+            foreach (bool rollback in new[] { false, true }) WithStorage(fixture, f => VerifyInstalledPreparation(f, reopen, rollback));
+        }
+    }
+
+    private static void VerifyInstalledPreparation(Fixture f, bool reopen, bool rollback)
+    {
+        f.Faults.Fault = "after";
+        Fails(() => RaidSettlementDeferredScheduler.Schedule(f.State, f.Request), "Expected already-published Prepared evidence.");
+        f.Faults.Fault = null;
+        if (reopen) f.Open();
+        f.Faults.Writes = 0;
+        var job = f.State.SnapshotPostUploadJobs.ListPrepared().Single();
+        Exception? failure = null;
+        SnapshotPreparationGateProbe.Run(f.State.RaidSettlementSnapshotMutationGate, hook => f.Artifacts.AfterCapture = hook,
+            () => { try { RaidSettlementDeferredScheduler.RecoverPrepared(f.State, job, f.Now); } catch (InvalidOperationException ex) { failure = ex; } },
+            () => { if (rollback) f.Files.StoreLatest(f.Before, f.Before.Index, f.Now); });
+        Require((failure is not null) == rollback && f.Faults.Writes == 0 && f.Faults.PreparedWrites == 0
+            && f.Artifacts.ActiveReads == 0, "Installed-evidence recovery compressed or rewrote without preparation.");
+        Require(f.State.SnapshotPostUploadJobs.Find(job.JobId)!.State == (rollback ? SnapshotPostUploadJobState.Prepared : SnapshotPostUploadJobState.Ready),
+            "Changed installed evidence was incorrectly readied.");
+        if (rollback)
+        {
+            RaidSettlementDeferredScheduler.RecoverPrepared(f.State, job, f.Now);
+            Require(f.Faults.Writes == 1 && f.Faults.PreparedWrites == 1 && f.State.SnapshotPostUploadJobs.ListPrepared().Count == 0,
+                "Rolled-back evidence could not resume with newly prepared compression.");
+        }
+    }
+
+    private static void VerifyRecoveryPreparation(Fixture f, bool reopen, string phase, string change)
+    {
+        f.Faults.Fault = "before";
+        Fails(() => RaidSettlementDeferredScheduler.Schedule(f.State, f.Request), "Expected Prepared evidence.");
+        f.Faults.Fault = null;
+        if (reopen) f.Open();
+        f.Faults.Writes = 0;
+        var job = f.State.SnapshotPostUploadJobs.ListPrepared().Single();
+        var payload = Payload(job);
+        Exception? error = null;
+        SnapshotPostUploadJobRecord? reply = null;
+        SnapshotPreparationGateProbe.Run(f.State.RaidSettlementSnapshotMutationGate, hook =>
+            {
+                if (phase == "read") f.Artifacts.AfterCapture = hook;
+                else if (phase == "capture") f.Artifacts.BeforeCapture = hook;
+                else f.Faults.BeforePrepare = hook;
+            }, () =>
+            {
+                try { reply = RaidSettlementDeferredScheduler.RecoverPrepared(f.State, job, f.Now); }
+                catch (Exception ex) { error = ex; }
+            }, () =>
+            {
+                Require(f.State.SnapshotPostUploadJobs.Find(job.JobId)!.State == SnapshotPostUploadJobState.Prepared
+                    && f.Faults.Writes == 0, "Recovery published before preparation finished.");
+                if (change is "newer" or "token")
+                {
+                    var envelope = change == "newer" ? f.Before.Envelope with { Identity = f.Before.Envelope.Identity with { SnapshotId = "newer" } }
+                        : f.Before.Envelope with { NextLineageToken = "changed-token" };
+                    f.Files.StoreLatest(f.Before with { Envelope = envelope }, f.Before.Index, f.Now);
+                }
+                if (change == "removed") f.Files.RemoveLatest("userA", "colonyA");
+                if (change == "owner") f.Sql("update events set actor_user_id = 'other' where type = 'Raid';");
+                if (change.StartsWith("artifact-") || change == "missing-completed")
+                {
+                    f.Artifacts.Delete(payload.EvidenceArtifactId);
+                    if (change is "artifact-recreated" or "artifact-token")
+                        f.Artifacts.Store(payload.EvidenceArtifactId, change == "artifact-token"
+                            ? f.Evidence with { Envelope = f.Evidence.Envelope with { NextLineageToken = "other" } } : f.Evidence);
+                }
+                if (change == "manual") f.State.SnapshotPostUploadJobs.MarkManualReview(job.JobId, "review");
+                if (change is "job-removed" or "missing-completed") f.State.SnapshotPostUploadJobs.MarkCompleted(job.JobId);
+                if (change == "job-failed") f.State.SnapshotPostUploadJobs.MarkFailed(job.JobId, "retry later", f.Now.AddMinutes(1));
+                if (change == "competing") RaidSettlementDeferredScheduler.RecoverPrepared(f.State, job, f.Now);
+            });
+        bool completed = change is "none" or "competing";
+        bool staleJob = change is "manual" or "job-removed" or "job-failed" or "missing-completed";
+        Require((error is null) == (completed || staleJob), "Recovery returned the wrong conflict result: " + phase + "/" + change + ": " + error);
+        Require(f.Faults.Writes == (completed ? 1 : 0) && f.Faults.PreparedWrites == (change == "none" ? 1 : 0),
+            "Recovery lost prepared compression or published a stale result: " + phase + "/" + change);
+        var current = f.State.SnapshotPostUploadJobs.Find(job.JobId);
+        Require(current?.State == (change is "job-removed" or "missing-completed" ? null : completed ? SnapshotPostUploadJobState.Ready
+            : change == "manual" ? SnapshotPostUploadJobState.ManualReview : SnapshotPostUploadJobState.Prepared), "Recovery revived or advanced a stale job.");
+        Require(f.Files.GetLatest("userA", "colonyA")?.Identity.SnapshotId == (completed ? "evidence" : change == "removed" ? null : change == "newer" ? "newer" : "before")
+            && f.State.Players.FindByUserId("userA")!.CurrentSnapshotId == (completed ? "evidence" : "before"), "Recovery changed a newer snapshot or player reference.");
+        Require(change != "job-failed" || current!.AttemptCount == 1 && current.NextAttemptAtUtc == f.Now.AddMinutes(1), "Recovery reset a revised retry schedule.");
+        Require(completed ? reply?.State == SnapshotPostUploadJobState.Ready : true, "Successful recovery returned no Ready task.");
+        Require(f.Artifacts.ActiveReads == 0, "Recovery leaked an artifact revision lease.");
     }
 
     private static void VerifyRecovery(Fixture f, string fault, bool reopen)
@@ -185,6 +276,7 @@ internal static class RaidEvidenceRecoveryTests
         public SaveSnapshotPackage Evidence { get; }
         public FileColonySnapshotIndexStore Files = null!;
         public CrashStore Faults = null!;
+        public ObservedArtifacts Artifacts = null!;
         public ClashOfRimNetworkState State = null!;
         public RaidSettlementScheduleRequest Request = null!;
         private readonly AuthoritativeEvent raid;
@@ -214,10 +306,11 @@ internal static class RaidEvidenceRecoveryTests
         {
             Files = new FileColonySnapshotIndexStore(Path.Combine(root, "snapshots"));
             Faults = new CrashStore(Files);
+            Artifacts = new ObservedArtifacts(new FileSnapshotPostUploadArtifactStore(Path.Combine(root, "artifacts")));
             State = new ClashOfRimNetworkState(ledger: new SqliteAuthoritativeEventLedger(Database), snapshotStore: Faults,
                 playerRegistry: new PlayerRegistry(new SqlitePlayerRegistryStore(Database), null),
                 snapshotPostUploadJobs: new SnapshotPostUploadJobRegistry(new SqliteSnapshotPostUploadJobStore(Database)),
-                snapshotPostUploadArtifacts: new FileSnapshotPostUploadArtifactStore(Path.Combine(root, "artifacts")));
+                snapshotPostUploadArtifacts: Artifacts);
             var context = new SnapshotPostUploadContext(State, SnapshotPostUploadKind.RaidSettlementEvidence,
                 new LatestSnapshotRecord(Evidence.Envelope.Identity, Evidence.Envelope, Evidence.Index, Now),
                 "userA", "colonyA", null, Now, SnapshotPostUploadExtraData.Empty, false);
@@ -232,10 +325,42 @@ internal static class RaidEvidenceRecoveryTests
             command.ExecuteNonQuery();
         }
     }
-    private sealed class CrashStore(IColonySnapshotPackageStore inner) : IColonySnapshotPackageStore
+    private sealed class ObservedArtifacts(FileSnapshotPostUploadArtifactStore inner) : IVersionedSnapshotPostUploadArtifactStore
+    {
+        public Action? BeforeCapture, AfterCapture;
+        public int ActiveReads => ((System.Collections.IDictionary)typeof(FileSnapshotPostUploadArtifactStore)
+            .GetField("activePreparations", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(inner)!).Count;
+        public ISnapshotPostUploadArtifactRead ReadCaptured(string id)
+        {
+            BeforeCapture?.Invoke();
+            var captured = inner.ReadCaptured(id);
+            try { AfterCapture?.Invoke(); return captured; }
+            catch { captured.Dispose(); throw; }
+        }
+        public SaveSnapshotPackage? Read(string id) => inner.Read(id);
+        public void Store(string id, SaveSnapshotPackage package) => inner.Store(id, package);
+        public bool Exists(string id) => inner.Exists(id);
+        public void Delete(string id) => inner.Delete(id);
+        public void DeleteUnreferenced(IReadOnlySet<string> ids) => inner.DeleteUnreferenced(ids);
+    }
+    private sealed class CrashStore(FileColonySnapshotIndexStore inner) : IPreparedColonySnapshotPackageStore
     {
         public string? Fault;
-        public int Writes;
+        public int Writes, PreparedWrites;
+        public Action? BeforePrepare;
+        public PreparedSnapshotPayload PreparePayload(byte[] payload)
+        {
+            BeforePrepare?.Invoke();
+            return inner.PreparePayload(payload);
+        }
+        public void StorePrepared(SaveSnapshotPackage package, SaveSnapshotIndex index, DateTimeOffset at, PreparedSnapshotPayload prepared)
+        {
+            Writes++;
+            PreparedWrites++;
+            if (Fault == "before") throw new IOException("before publication");
+            inner.StorePrepared(package, index, at, prepared);
+            if (Fault == "after") throw new IOException("after publication");
+        }
         public void StoreLatest(SaveSnapshotPackage package, SaveSnapshotIndex index, DateTimeOffset at)
         {
             Writes++;

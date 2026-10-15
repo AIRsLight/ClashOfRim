@@ -18,6 +18,7 @@ internal static class ArtifactStoreConcurrencyTests
             foreach (bool raw in new[] { false, true })
             {
                 VerifyRead(Path.Combine(root, "read-" + raw), fixture, raw);
+                VerifyRead(Path.Combine(root, "captured-read-" + raw), fixture, raw, versioned: true);
                 foreach (string change in new[] { "unrelated", "delete", "replace", "recreate" })
                     VerifyWrite(Path.Combine(root, "write-" + raw + change), fixture, raw, change);
                 VerifyPreparation(Path.Combine(root, "prepare-" + raw), fixture, raw);
@@ -28,7 +29,7 @@ internal static class ArtifactStoreConcurrencyTests
         finally { Extension.Disarm(); Directory.Delete(root, true); }
     }
 
-    private static void VerifyRead(string root, Func<string, SaveSnapshotPackage> fixture, bool raw)
+    private static void VerifyRead(string root, Func<string, SaveSnapshotPackage> fixture, bool raw, bool versioned = false)
     {
         var store = new FileSnapshotPostUploadArtifactStore(root);
         var before = Package(fixture, "read-before", raw);
@@ -37,7 +38,13 @@ internal static class ArtifactStoreConcurrencyTests
         using var entered = new ManualResetEventSlim();
         using var release = new ManualResetEventSlim();
         Extension.Arm(before.Envelope.Identity.SnapshotId!, entered, release);
-        var read = Task.Run(() => store.Read("id"));
+        var read = Task.Run(() =>
+        {
+            if (!versioned) return store.Read("id");
+            using var captured = store.ReadCaptured("id");
+            Check(!captured.IsCurrent, "captured read missed a deletion/recreation during decoding");
+            return captured.Package;
+        });
         Task? mutation = null;
         try
         {
@@ -133,6 +140,24 @@ internal static class ArtifactStoreConcurrencyTests
         Check(SaveSnapshotPackageFileReader.ReadPackage(stream) is not null && stream.CanRead, "stream reader changed source ownership");
         using var invalid = new MemoryStream(new byte[] { 0, 1, 2 });
         Check(SaveSnapshotPackageFileReader.ReadPackage(invalid) is null && invalid.CanRead, "invalid stream was closed or accepted");
+        using (var captured = store.ReadCaptured("id"))
+        {
+            store.Store("id", first with { Payload = original });
+            Check(captured.IsCurrent, "identical publication invalidated a captured read");
+            store.Delete("unrelated");
+            Check(captured.IsCurrent, "unrelated deletion invalidated a captured read");
+            store.Delete("id");
+            store.Store("id", first with { Payload = original });
+            Check(!captured.IsCurrent, "same-content recreation resurrected a read version");
+            captured.Dispose();
+            Throws<ObjectDisposedException>(() => { _ = captured.IsCurrent; });
+        }
+        using (var missing = store.ReadCaptured("missing"))
+        {
+            Check(missing.Package is null && missing.IsCurrent, "missing read did not capture absence");
+            store.Delete("missing");
+            Check(!missing.IsCurrent, "deletion of an absent ID did not invalidate a captured read");
+        }
         Clean(store, root);
     }
 

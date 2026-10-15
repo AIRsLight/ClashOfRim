@@ -375,8 +375,9 @@ internal static class RaidTimeoutRecoveryTests
             command.ExecuteNonQuery();
         }
     }
-    private sealed class ObservedArtifactStore(FileSnapshotPostUploadArtifactStore inner) : IPreparedSnapshotPostUploadArtifactStore
+    private sealed class ObservedArtifactStore(FileSnapshotPostUploadArtifactStore inner) : IPreparedSnapshotPostUploadArtifactStore, IVersionedSnapshotPostUploadArtifactStore
     {
+        public ISnapshotPostUploadArtifactRead ReadCaptured(string id) => inner.ReadCaptured(id);
         public Action? BeforePrepare;
         public IPreparedSnapshotPostUploadArtifact Prepare(string id, SaveSnapshotPackage package)
         {
