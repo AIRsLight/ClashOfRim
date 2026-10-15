@@ -8,12 +8,14 @@ namespace AIRsLight.ClashOfRim.Network;
 
 public static partial class ClashOfRimNetworkServer
 {
-    private static IResult CommitRaidWithSnapshot(ClashOfRimNetworkState state, CreateRaidWithSnapshotRequest transaction, byte[] bytes)
+    private static IResult CommitRaidWithSnapshot(HttpRequest httpRequest, ClashOfRimNetworkState state, CreateRaidWithSnapshotRequest transaction, byte[] bytes)
     {
         var request = transaction.Raid;
         var now = DateTimeOffset.UtcNow;
         using (state.EnterSnapshotMutation())
         {
+            if (!ReauthorizeSnapshotPrincipal(httpRequest, state, request.Attacker))
+                return RaidStartRejected(ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed")));
             RecoverSnapshotCommits(state);
             ReconcileExpiredRaidEvents(state, now);
             if (state.Ledger.FindByIdempotencyKey(request.IdempotencyKey) is { } existing)
@@ -23,12 +25,14 @@ public static partial class ClashOfRimNetworkServer
         }
         var upload = ReceiveSnapshot(state, request.Attacker.UserId, request.Attacker.ColonyId!,
             transaction.ConfirmedSnapshot.SnapshotId!, transaction.ConfirmedSnapshot, bytes, now, storeAccepted: false);
-        if (!upload.Accepted || upload.AcceptedSnapshot is null) return RaidStartRejected(ToProtocolResponse(upload));
         using (state.EnterSnapshotMutation())
         {
+            if (!ReauthorizeSnapshotPrincipal(httpRequest, state, request.Attacker))
+                return RaidStartRejected(ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed")));
             RecoverSnapshotCommits(state);
             if (state.Ledger.FindByIdempotencyKey(request.IdempotencyKey) is { } existing)
                 return RaidSnapshotReplayResponse(state, transaction, existing);
+            if (!upload.Accepted || upload.AcceptedSnapshot is null) return RaidStartRejected(ToProtocolResponse(upload));
             now = DateTimeOffset.UtcNow;
             var rejection = ValidateRaidSnapshotStart(state, request, now, out var eligibility, out var guard, out var blockingRaidId);
             if (rejection is not null) return RaidStartRejected(rejection, blockingRaidId);

@@ -213,7 +213,7 @@ internal static class RaidCommitCrashTests
         finally { SqliteConnection.ClearAllPools(); Directory.Delete(root, true); }
     }
 
-    private static Task<EventCreationResponse> Invoke(ClashOfRimNetworkState state, SaveSnapshotPackage package, bool guarded,
+    internal static Task<EventCreationResponse> Invoke(ClashOfRimNetworkState state, SaveSnapshotPackage package, bool guarded,
         string? changed = null, ProtocolIdentity? principal = null, string key = "raid", string? token = null, ProtocolIdentity? actorOverride = null)
     {
         var actor = actorOverride ?? (changed == "owner" ? new ProtocolIdentity("other", "other-colony", "before") : Attacker);
@@ -229,7 +229,7 @@ internal static class RaidCommitCrashTests
             _ => new CreateRaidWithSnapshotRequest(raid, metadata), package.Payload, principal ?? actor, token);
     }
 
-    private static SaveSnapshotPackage Setup(ClashOfRimNetworkState state, Func<string, SaveSnapshotPackage> fixture, bool guarded,
+    internal static SaveSnapshotPackage Setup(ClashOfRimNetworkState state, Func<string, SaveSnapshotPackage> fixture, bool guarded,
         ProtocolIdentity? actor = null)
     {
         actor ??= Attacker;

@@ -84,7 +84,7 @@ public static partial class ClashOfRimNetworkServer
                 ProtocolDeliverySemantics.OnlineImmediate));
         }
 
-        return CommitRaidWithSnapshot(state, transaction, multipart.Payload);
+        return CommitRaidWithSnapshot(httpRequest, state, transaction, multipart.Payload);
     }
 
     private static IResult PrepareRaid(PrepareRaidRequest request, ClashOfRimNetworkState state)

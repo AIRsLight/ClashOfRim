@@ -209,7 +209,7 @@ internal static class MercenaryCommitCrashTests
         finally { SqliteConnection.ClearAllPools(); Directory.Delete(root, recursive: true); }
     }
 
-    private static async Task<Reply> Invoke(ClashOfRimNetworkState state, SaveSnapshotPackage package, ProtocolIdentity owner,
+    internal static async Task<Reply> Invoke(ClashOfRimNetworkState state, SaveSnapshotPackage package, ProtocolIdentity owner,
         bool guard, string key = "hire", string contractId = "contract", string? change = null, ProtocolIdentity? principal = null, string? token = null)
     {
         var metadata = ProtocolDtoMapper.ToMetadataDto(change == "snapshot"
@@ -232,7 +232,7 @@ internal static class MercenaryCommitCrashTests
         }
     }
 
-    private static SaveSnapshotPackage PrepareEndpoint(ClashOfRimNetworkState state, Func<string, SaveSnapshotPackage> fixture,
+    internal static SaveSnapshotPackage PrepareEndpoint(ClashOfRimNetworkState state, Func<string, SaveSnapshotPackage> fixture,
         ProtocolIdentity owner, string snapshotId)
     {
         var baseline = fixture("before");
@@ -259,10 +259,10 @@ internal static class MercenaryCommitCrashTests
         MercenaryContractRegistry.StatusActive, DateTimeOffset.UnixEpoch);
     private static MercenaryGuardContractRecord Guard(string key, string id, string snapshot) => new(id, key, "userA", "colonyA", snapshot,
         "Apprentice", 600, 0.35f, 1000, DateTimeOffset.UnixEpoch, MercenaryGuardContractRegistry.StatusActive, null, null);
-    private static ClashOfRimServerConfiguration Configuration() => new(pvpEnabled: true, maxActiveMercenariesPerColony: 1);
+    internal static ClashOfRimServerConfiguration Configuration() => new(pvpEnabled: true, maxActiveMercenariesPerColony: 1);
     private static MercenaryContractRegistry Contracts(string database) => new(new SqliteDomainKeyedJsonRecordStore(database, SqliteDomainRegistrySchema.MercenaryContracts), null);
     private static MercenaryGuardContractRegistry Guards(string database) => new(new SqliteDomainKeyedJsonRecordStore(database, SqliteDomainRegistrySchema.MercenaryGuards), null);
-    private sealed record Reply(ProtocolResponse Result, string? ContractId, string? SnapshotId, string? Token);
+    internal sealed record Reply(ProtocolResponse Result, string? ContractId, string? SnapshotId, string? Token);
     private static void Execute(string database, string sql)
     {
         using var connection = new SqliteConnection("Data Source=" + database);

@@ -1020,31 +1020,45 @@ public static partial class ClashOfRimNetworkServer
                 T("Mercenary.TransactionMissingFields")), null, null));
         if (!MultipartSnapshotAuthentication.MatchesPrincipal(httpRequest, request.UserId, request.ColonyId))
             return Results.Ok(new MercenaryHireResponse(ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed")), null, null));
-        RecoverSnapshotCommits(state);
-        var existing = state.MercenaryContracts.FindByIdempotencyKey(request.IdempotencyKey);
         DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
-        var context = ValidateBankRequest(state, request.UserId, request.ColonyId, request.CurrentSnapshotId, request.AuthToken,
-            request.CurrentGameTicks, 0, nowUtc, out var rejection,
-            committedSnapshotId: MatchesMercenarySnapshot(existing, request) ? existing!.SnapshotId : null);
-        if (context is null) return Results.Ok(new MercenaryHireResponse(rejection!, null, null));
-        if (existing is not null) return MercenarySnapshotReplayResponse(state, request, existing, context);
+        BankRequestContext? context = null;
         IResult Failure(ProtocolResponse failure) => Results.Ok(new MercenaryHireResponse(failure, null,
-            BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
-        var validation = ValidateMercenarySnapshotHire(state, request);
-        if (validation is not null) return Failure(validation);
-        if (TryRejectExpiredPendingConfirmationSnapshot(state, request.UserId, request.ColonyId, nowUtc, out var pendingRejection))
-            return Failure(pendingRejection!);
+            context is null ? null : BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
+        using (state.EnterSnapshotMutation())
+        lock (state.MercenaryContracts.SnapshotCommitGate)
+        {
+            if (!ReauthorizeSnapshotPrincipal(httpRequest, state, new ProtocolIdentity(request.UserId, request.ColonyId, request.CurrentSnapshotId)))
+                return Results.Ok(new MercenaryHireResponse(ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed")), null, null));
+            RecoverSnapshotCommits(state);
+            var existing = state.MercenaryContracts.FindByIdempotencyKey(request.IdempotencyKey);
+            context = ValidateBankRequest(state, request.UserId, request.ColonyId, request.CurrentSnapshotId, request.AuthToken,
+                request.CurrentGameTicks, 0, nowUtc, out var rejection,
+                committedSnapshotId: MatchesMercenarySnapshot(existing, request) ? existing!.SnapshotId : null);
+            if (context is null) return Failure(rejection!);
+            if (existing is not null) return MercenarySnapshotReplayResponse(state, request, existing, context);
+            var validation = ValidateMercenarySnapshotHire(state, request);
+            if (validation is not null) return Failure(validation);
+            if (TryRejectExpiredPendingConfirmationSnapshot(state, request.UserId, request.ColonyId, nowUtc, out var pendingRejection))
+                return Failure(pendingRejection!);
+        }
         var upload = ReceiveSnapshot(state, request.UserId, request.ColonyId, request.ConfirmedSnapshot!.SnapshotId!,
             request.ConfirmedSnapshot, multipart.Payload, nowUtc, storeAccepted: false);
-        if (!upload.Accepted || upload.AcceptedSnapshot is null) return Failure(ToProtocolResponse(upload));
 
         using (state.EnterSnapshotMutation())
         lock (state.MercenaryContracts.SnapshotCommitGate)
         {
+            if (!ReauthorizeSnapshotPrincipal(httpRequest, state, new ProtocolIdentity(request.UserId, request.ColonyId, request.CurrentSnapshotId)))
+                return Results.Ok(new MercenaryHireResponse(ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed")), null, null));
             RecoverSnapshotCommits(state);
-            existing = state.MercenaryContracts.FindByIdempotencyKey(request.IdempotencyKey);
+            nowUtc = DateTimeOffset.UtcNow;
+            var existing = state.MercenaryContracts.FindByIdempotencyKey(request.IdempotencyKey);
+            context = ValidateBankRequest(state, request.UserId, request.ColonyId, request.CurrentSnapshotId, request.AuthToken,
+                request.CurrentGameTicks, 0, nowUtc, out var rejection,
+                committedSnapshotId: MatchesMercenarySnapshot(existing, request) ? existing!.SnapshotId : null);
+            if (context is null) return Failure(rejection!);
             if (existing is not null) return MercenarySnapshotReplayResponse(state, request, existing, context);
-            validation = ValidateMercenarySnapshotHire(state, request);
+            if (!upload.Accepted || upload.AcceptedSnapshot is null) return Failure(ToProtocolResponse(upload));
+            var validation = ValidateMercenarySnapshotHire(state, request);
             if (validation is not null) return Failure(validation);
             var package = ProtocolDtoMapper.ToSaveSnapshotPackage(request.ConfirmedSnapshot, multipart.Payload);
             upload = CreateSnapshotReceiver(state).CommitPrepared(new SnapshotUploadContext(request.UserId, request.ColonyId,
@@ -1229,31 +1243,45 @@ public static partial class ClashOfRimNetworkServer
                 T("Mercenary.GuardTransactionMissingFields")), null, null));
         if (!MultipartSnapshotAuthentication.MatchesPrincipal(httpRequest, request.UserId, request.ColonyId))
             return Results.Ok(new MercenaryGuardHireResponse(ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed")), null, null));
-        RecoverSnapshotCommits(state);
-        var existing = state.MercenaryGuards.FindByIdempotencyKey(request.IdempotencyKey);
         DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
-        var context = ValidateBankRequest(state, request.UserId, request.ColonyId, request.CurrentSnapshotId, request.AuthToken,
-            request.CurrentGameTicks, 0, nowUtc, out var rejection,
-            committedSnapshotId: MatchesGuardSnapshot(existing, request) ? existing!.SnapshotId : null);
-        if (context is null) return Results.Ok(new MercenaryGuardHireResponse(rejection!, null, null));
-        if (existing is not null) return GuardSnapshotReplayResponse(state, request, existing, context);
+        BankRequestContext? context = null;
         IResult Failure(ProtocolResponse failure) => Results.Ok(new MercenaryGuardHireResponse(failure, null,
-            BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
-        var validation = ValidateGuardSnapshotHire(state, request);
-        if (validation is not null) return Failure(validation);
-        if (TryRejectExpiredPendingConfirmationSnapshot(state, request.UserId, request.ColonyId, nowUtc, out var pendingRejection))
-            return Failure(pendingRejection!);
+            context is null ? null : BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
+        using (state.EnterSnapshotMutation())
+        lock (state.MercenaryGuards.SnapshotCommitGate)
+        {
+            if (!ReauthorizeSnapshotPrincipal(httpRequest, state, new ProtocolIdentity(request.UserId, request.ColonyId, request.CurrentSnapshotId)))
+                return Results.Ok(new MercenaryGuardHireResponse(ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed")), null, null));
+            RecoverSnapshotCommits(state);
+            var existing = state.MercenaryGuards.FindByIdempotencyKey(request.IdempotencyKey);
+            context = ValidateBankRequest(state, request.UserId, request.ColonyId, request.CurrentSnapshotId, request.AuthToken,
+                request.CurrentGameTicks, 0, nowUtc, out var rejection,
+                committedSnapshotId: MatchesGuardSnapshot(existing, request) ? existing!.SnapshotId : null);
+            if (context is null) return Failure(rejection!);
+            if (existing is not null) return GuardSnapshotReplayResponse(state, request, existing, context);
+            var validation = ValidateGuardSnapshotHire(state, request);
+            if (validation is not null) return Failure(validation);
+            if (TryRejectExpiredPendingConfirmationSnapshot(state, request.UserId, request.ColonyId, nowUtc, out var pendingRejection))
+                return Failure(pendingRejection!);
+        }
         var upload = ReceiveSnapshot(state, request.UserId, request.ColonyId, request.ConfirmedSnapshot!.SnapshotId!,
             request.ConfirmedSnapshot, multipart.Payload, nowUtc, storeAccepted: false);
-        if (!upload.Accepted || upload.AcceptedSnapshot is null) return Failure(ToProtocolResponse(upload));
 
         using (state.EnterSnapshotMutation())
         lock (state.MercenaryGuards.SnapshotCommitGate)
         {
+            if (!ReauthorizeSnapshotPrincipal(httpRequest, state, new ProtocolIdentity(request.UserId, request.ColonyId, request.CurrentSnapshotId)))
+                return Results.Ok(new MercenaryGuardHireResponse(ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed")), null, null));
             RecoverSnapshotCommits(state);
-            existing = state.MercenaryGuards.FindByIdempotencyKey(request.IdempotencyKey);
+            nowUtc = DateTimeOffset.UtcNow;
+            var existing = state.MercenaryGuards.FindByIdempotencyKey(request.IdempotencyKey);
+            context = ValidateBankRequest(state, request.UserId, request.ColonyId, request.CurrentSnapshotId, request.AuthToken,
+                request.CurrentGameTicks, 0, nowUtc, out var rejection,
+                committedSnapshotId: MatchesGuardSnapshot(existing, request) ? existing!.SnapshotId : null);
+            if (context is null) return Failure(rejection!);
             if (existing is not null) return GuardSnapshotReplayResponse(state, request, existing, context);
-            validation = ValidateGuardSnapshotHire(state, request);
+            if (!upload.Accepted || upload.AcceptedSnapshot is null) return Failure(ToProtocolResponse(upload));
+            var validation = ValidateGuardSnapshotHire(state, request);
             if (validation is not null) return Failure(validation);
             var package = ProtocolDtoMapper.ToSaveSnapshotPackage(request.ConfirmedSnapshot, multipart.Payload);
             upload = CreateSnapshotReceiver(state).CommitPrepared(new SnapshotUploadContext(request.UserId, request.ColonyId,

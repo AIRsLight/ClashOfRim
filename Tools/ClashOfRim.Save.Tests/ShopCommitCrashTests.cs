@@ -222,11 +222,11 @@ internal static class ShopCommitCrashTests
         SnapshotEndpointTestClient.Invoke<PurchaseServerShopListingResponse>("PurchaseServerShopListingWithSnapshot", state,
             new PurchaseServerShopListingWithSnapshotRequest(request, ProtocolDtoMapper.ToMetadataDto(package)), package.Payload, principal);
 
-    private static PurchaseServerShopListingRequest Request(string key = "purchase", string kind = ServerShopListingKinds.SellToPlayer,
+    internal static PurchaseServerShopListingRequest Request(string key = "purchase", string kind = ServerShopListingKinds.SellToPlayer,
         ProtocolIdentity? buyer = null, string listing = "listing", int count = 1, int unitPrice = 10, int totalPrice = 10) =>
         new(key, buyer ?? Buyer, listing, unitPrice, totalPrice, count, kind, new[] { new ThingReferenceDto("steel", "Steel", count) });
 
-    private static void Seed(ServerShopRegistry shop, int stock = 3, string kind = ServerShopListingKinds.SellToPlayer) =>
+    internal static void Seed(ServerShopRegistry shop, int stock = 3, string kind = ServerShopListingKinds.SellToPlayer) =>
         shop.Upsert("listing", kind, new ThingReferenceDto("steel", "Steel", 1), 10, stock, 1,
             ServerShopQualityRequirementModes.AtLeast, ServerShopHitPointsRequirementModes.AtLeast, "admin", DateTimeOffset.UnixEpoch);
 

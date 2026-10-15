@@ -185,27 +185,35 @@ public static partial class ClashOfRimNetworkServer
 
         DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
         string normalizedListingKind = NormalizeShopListingKind(request.ListingKind);
-        RecoverSnapshotCommits(state);
-        ServerShopPurchaseResult prevalidation = state.ServerShop.ValidatePurchase(
-            request.IdempotencyKey,
-            request.ListingId,
-            normalizedListingKind,
-            request.UnitPriceSilver,
-            request.TotalPriceSilver,
-            request.PurchaseCount,
-            request.Buyer);
-        if (!prevalidation.Accepted)
+        ServerShopPurchaseResult prevalidation;
+        using (state.EnterSnapshotMutation())
+        lock (state.ServerShop.SnapshotCommitGate)
         {
-            LogServerShopPurchaseRejection(state, request, prevalidation, "prevalidation");
-            return Results.Ok(new PurchaseServerShopListingResponse(
-                BuildServerShopPurchaseRejection(prevalidation, request),
+            if (!ReauthorizeSnapshotPrincipal(httpRequest, state, request.Buyer))
+                return Results.Ok(new PurchaseServerShopListingResponse(
+                    ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed")), request.ListingId, 0));
+            RecoverSnapshotCommits(state);
+            prevalidation = state.ServerShop.ValidatePurchase(
+                request.IdempotencyKey,
                 request.ListingId,
-                prevalidation.RemainingStockCount));
-        }
+                normalizedListingKind,
+                request.UnitPriceSilver,
+                request.TotalPriceSilver,
+                request.PurchaseCount,
+                request.Buyer);
+            if (!prevalidation.Accepted)
+            {
+                LogServerShopPurchaseRejection(state, request, prevalidation, "prevalidation");
+                return Results.Ok(new PurchaseServerShopListingResponse(
+                    BuildServerShopPurchaseRejection(prevalidation, request),
+                    request.ListingId,
+                    prevalidation.RemainingStockCount));
+            }
 
-        if (prevalidation.Duplicate)
-        {
-            return ShopPurchaseReplayResponse(state, request, multipart.Request.ConfirmedSnapshot.SnapshotId!);
+            if (prevalidation.Duplicate)
+            {
+                return ShopPurchaseReplayResponse(state, request, multipart.Request.ConfirmedSnapshot.SnapshotId!);
+            }
         }
 
         if (string.Equals(normalizedListingKind, ServerShopListingKinds.BuyFromPlayer, StringComparison.Ordinal)
@@ -267,13 +275,14 @@ public static partial class ClashOfRimNetworkServer
         SnapshotUploadResult upload = ReceiveSnapshot(state, request.Buyer.UserId, request.Buyer.ColonyId!,
             multipart.Request.ConfirmedSnapshot.SnapshotId!, multipart.Request.ConfirmedSnapshot,
             multipart.Payload, nowUtc, storeAccepted: false);
-        if (!upload.Accepted || upload.AcceptedSnapshot is null)
-            return Results.Ok(new PurchaseServerShopListingResponse(ToProtocolResponse(upload), request.ListingId, prevalidation.RemainingStockCount));
 
         // Fixed order: snapshot mutation gate, then shop gate. Preparation above never holds the shop gate.
         using (state.EnterSnapshotMutation())
         lock (state.ServerShop.SnapshotCommitGate)
         {
+            if (!ReauthorizeSnapshotPrincipal(httpRequest, state, request.Buyer))
+                return Results.Ok(new PurchaseServerShopListingResponse(
+                    ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed")), request.ListingId, 0));
             RecoverSnapshotCommits(state);
             var purchase = state.ServerShop.ValidatePurchase(request.IdempotencyKey, request.ListingId,
                 normalizedListingKind, request.UnitPriceSilver, request.TotalPriceSilver, request.PurchaseCount, request.Buyer);
@@ -285,6 +294,8 @@ public static partial class ClashOfRimNetworkServer
             }
             if (purchase.Duplicate)
                 return ShopPurchaseReplayResponse(state, request, multipart.Request.ConfirmedSnapshot.SnapshotId!);
+            if (!upload.Accepted || upload.AcceptedSnapshot is null)
+                return Results.Ok(new PurchaseServerShopListingResponse(ToProtocolResponse(upload), request.ListingId, purchase.RemainingStockCount));
             if (normalizedListingKind == ServerShopListingKinds.BuyFromPlayer
                 && !TradeThingRequirementMatcher.Satisfies(
                     new[] { MultiplyShopRequirement(purchase.Listing!.Item, request.PurchaseCount) },

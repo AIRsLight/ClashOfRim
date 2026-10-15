@@ -17,6 +17,7 @@ var tests = new (string Name, Action Run)[]
     ("银行快照提交跨崩溃恢复且重试幂等", () => BankCommitCrashTests.Run(BuildFixturePackage)),
     ("礼物快照提交跨崩溃恢复且冲突拒绝覆盖", () => GiftCommitCrashTests.Run(BuildFixturePackage)),
     ("经济快照同键并发重放优先于准备失败", () => EconomicSnapshotReplayRaceTests.Run(BuildFixturePackage)),
+    ("商店雇佣袭击快照并发重试与会话失效", () => ServiceSnapshotReplayRaceTests.Run(BuildFixturePackage)),
     ("支援快照创建原子恢复且完整绑定重试", () => SupportCommitTests.Run(BuildFixturePackage)),
     ("交易快照与成交事件跨崩溃恢复且并发买家互斥", () => TradeCommitCrashTests.Run(BuildFixturePackage)),
     ("交易成就统计与通知在写入失败后可以恢复", AchievementRecoveryTests.Run),
