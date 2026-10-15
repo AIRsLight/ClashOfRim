@@ -9,48 +9,62 @@ public static partial class ClashOfRimNetworkServer
 {
     internal static void RecoverSnapshotCommits(ClashOfRimNetworkState state)
     {
-        // Reentrant callers may own other business gates. They keep their existing synchronous boundary.
-        if (Monitor.IsEntered(state.RaidSettlementSnapshotMutationGate))
-        {
-            RecoverSnapshotCommitsUnderLock(state);
-            return;
-        }
+        using var mutation = EnterRecoveredSnapshotMutation(state);
+    }
+
+    // Returns ownership of the mutation gate on this thread. Callers must dispose before awaiting.
+    private static RecoveredSnapshotMutation EnterRecoveredSnapshotMutation(ClashOfRimNetworkState state,
+        Func<ProtocolResponse?>? authorize = null, [System.Runtime.CompilerServices.CallerMemberName] string operation = "")
+    {
+        bool nested = Monitor.IsEntered(state.RaidSettlementSnapshotMutationGate);
         while (true)
         {
-            SnapshotCommitService.RecoveryPreparation preparation;
-            using (state.EnterSnapshotMutation())
+            SnapshotCommitService.RecoveryPreparation? preparation;
+            var scope = state.EnterSnapshotMutation(operation);
+            try
             {
+                var rejection = authorize?.Invoke();
+                if (rejection is not null) return new(scope, rejection);
                 RecoverBeforeSnapshotCommits(state);
-                preparation = state.SnapshotCommits.CaptureRecoveryPreparation(state.SnapshotStore);
-                if (!preparation.NeedsPreparation)
+                preparation = nested ? null : state.SnapshotCommits.CaptureRecoveryPreparation(state.SnapshotStore);
+                // A nested caller may own other domain gates, so its existing boundary cannot be released here.
+                if (preparation is null || !preparation.NeedsPreparation)
                 {
                     RecoverSnapshotCommitRecords(state);
-                    return;
+                    return new(scope, null);
                 }
             }
+            catch { scope.Dispose(); throw; }
+            scope.Dispose();
             Exception? failure = null;
             try { SnapshotPreparationService.Run(() => { preparation.Prepare(); return true; }); }
             catch (Exception ex) { failure = ex; }
-            using (state.EnterSnapshotMutation())
+            scope = state.EnterSnapshotMutation(operation);
+            try
             {
+                var rejection = authorize?.Invoke();
+                if (rejection is not null) return new(scope, rejection);
                 RecoverBeforeSnapshotCommits(state);
                 // A competing recovery may already have completed or replaced the captured intent.
-                if (!preparation.IsCurrent) continue;
-                if (failure is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
-                if (!preparation.TryInstall()) continue;
-                RecoverSnapshotCommitRecords(state);
-                return;
+                if (preparation.IsCurrent)
+                {
+                    if (failure is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
+                    if (preparation.TryInstall())
+                    {
+                        RecoverSnapshotCommitRecords(state);
+                        return new(scope, null);
+                    }
+                }
             }
+            catch { scope.Dispose(); throw; }
+            scope.Dispose();
         }
     }
 
-    private static void RecoverSnapshotCommitsUnderLock(ClashOfRimNetworkState state)
+    private sealed class RecoveredSnapshotMutation(SnapshotMutationScope scope, ProtocolResponse? rejection) : IDisposable
     {
-        using (state.EnterSnapshotMutation())
-        {
-            RecoverBeforeSnapshotCommits(state);
-            RecoverSnapshotCommitRecords(state);
-        }
+        public ProtocolResponse? Rejection { get; } = rejection;
+        public void Dispose() => scope.Dispose();
     }
 
     private static void RecoverBeforeSnapshotCommits(ClashOfRimNetworkState state)

@@ -184,9 +184,10 @@ public static partial class ClashOfRimNetworkServer
         DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
         BankRequestContext context;
         int interestSilver;
-        using (state.EnterSnapshotMutation())
+        using (var mutation = EnterBankSnapshotMutation(httpRequest, state, request.UserId, request.ColonyId, request.CurrentSnapshotId, request.AuthToken))
         lock (state.BankLoans.SnapshotCommitGate)
         {
+            if (mutation.Rejection is { } denied) return Results.Ok(new BankLoanResponse(denied, null, 0, null));
             var replay = CheckCreateBankLoanWithSnapshotReplay(httpRequest, state, request, nowUtc, out var checkedContext);
             if (replay is not null) return replay;
             context = checkedContext!;
@@ -267,17 +268,18 @@ public static partial class ClashOfRimNetworkServer
             }
         }
 
-        SnapshotUploadResult upload = ReceiveSnapshot(
+        SnapshotUploadResult upload = PrepareBankSnapshot(
             state,
             request.UserId,
             request.ColonyId,
             request.ConfirmedSnapshot.SnapshotId!,
             request.ConfirmedSnapshot,
             multipart.Payload,
-            nowUtc, storeAccepted: false);
-        using (state.EnterSnapshotMutation())
+            nowUtc);
+        using (var mutation = EnterBankSnapshotMutation(httpRequest, state, request.UserId, request.ColonyId, request.CurrentSnapshotId, request.AuthToken))
             lock (state.BankLoans.SnapshotCommitGate)
             {
+                if (mutation.Rejection is { } denied) return Results.Ok(new BankLoanResponse(denied, null, 0, null));
                 nowUtc = DateTimeOffset.UtcNow;
                 var replay = CheckCreateBankLoanWithSnapshotReplay(httpRequest, state, request, nowUtc, out var checkedContext);
                 if (replay is not null) return replay;
@@ -344,9 +346,10 @@ public static partial class ClashOfRimNetworkServer
         DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
         BankRequestContext context;
         BankLoanRecord? active;
-        using (state.EnterSnapshotMutation())
+        using (var mutation = EnterBankSnapshotMutation(httpRequest, state, request.UserId, request.ColonyId, request.CurrentSnapshotId, request.AuthToken))
         lock (state.BankLoans.SnapshotCommitGate)
         {
+            if (mutation.Rejection is { } denied) return Results.Ok(new BankLoanResponse(denied, null, 0, null));
             var replay = CheckRepayBankLoanWithSnapshotReplay(httpRequest, state, request, nowUtc, out var checkedContext);
             if (replay is not null) return replay;
             context = checkedContext!;
@@ -396,17 +399,18 @@ public static partial class ClashOfRimNetworkServer
             }
         }
 
-        SnapshotUploadResult upload = ReceiveSnapshot(
+        SnapshotUploadResult upload = PrepareBankSnapshot(
             state,
             request.UserId,
             request.ColonyId,
             request.ConfirmedSnapshot.SnapshotId!,
             request.ConfirmedSnapshot,
             multipart.Payload,
-            nowUtc, storeAccepted: false);
-        using (state.EnterSnapshotMutation())
+            nowUtc);
+        using (var mutation = EnterBankSnapshotMutation(httpRequest, state, request.UserId, request.ColonyId, request.CurrentSnapshotId, request.AuthToken))
             lock (state.BankLoans.SnapshotCommitGate)
             {
+                if (mutation.Rejection is { } denied) return Results.Ok(new BankLoanResponse(denied, null, 0, null));
                 nowUtc = DateTimeOffset.UtcNow;
                 var replay = CheckRepayBankLoanWithSnapshotReplay(httpRequest, state, request, nowUtc, out var checkedContext);
                 if (replay is not null) return replay;
@@ -566,9 +570,10 @@ public static partial class ClashOfRimNetworkServer
         DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
         BankRequestContext context;
         BankDebtRecord? debt;
-        using (state.EnterSnapshotMutation())
+        using (var mutation = EnterBankSnapshotMutation(httpRequest, state, request.UserId, request.ColonyId, request.CurrentSnapshotId, request.AuthToken))
         lock (state.BankLoans.SnapshotCommitGate)
         {
+            if (mutation.Rejection is { } denied) return Results.Ok(new BankDebtResponse(denied, null, 0, null));
             var replay = CheckRepayBankDebtWithSnapshotReplay(httpRequest, state, request, nowUtc, out var checkedContext);
             if (replay is not null) return replay;
             context = checkedContext!;
@@ -617,17 +622,18 @@ public static partial class ClashOfRimNetworkServer
             }
         }
 
-        SnapshotUploadResult upload = ReceiveSnapshot(
+        SnapshotUploadResult upload = PrepareBankSnapshot(
             state,
             request.UserId,
             request.ColonyId,
             request.ConfirmedSnapshot.SnapshotId!,
             request.ConfirmedSnapshot,
             multipart.Payload,
-            nowUtc, storeAccepted: false);
-        using (state.EnterSnapshotMutation())
+            nowUtc);
+        using (var mutation = EnterBankSnapshotMutation(httpRequest, state, request.UserId, request.ColonyId, request.CurrentSnapshotId, request.AuthToken))
             lock (state.BankLoans.SnapshotCommitGate)
             {
+                if (mutation.Rejection is { } denied) return Results.Ok(new BankDebtResponse(denied, null, 0, null));
                 nowUtc = DateTimeOffset.UtcNow;
                 var replay = CheckRepayBankDebtWithSnapshotReplay(httpRequest, state, request, nowUtc, out var checkedContext);
                 if (replay is not null) return replay;

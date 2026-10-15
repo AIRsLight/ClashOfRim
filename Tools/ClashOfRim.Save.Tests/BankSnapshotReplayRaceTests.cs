@@ -11,6 +11,7 @@ internal static class BankSnapshotReplayRaceTests
     public static void Run(Func<string, SaveSnapshotPackage> fixture)
     {
         SnapshotEndpointTestClient.LoadLocalization();
+        BankEndpointRecoveryPreparationTests.Run(fixture);
         foreach (string kind in new[] { "borrow", "loan", "debt" })
         foreach (string mode in new[] { "same", "different", "revoke", "replace" }) RunScenario(fixture, kind, mode);
     }
