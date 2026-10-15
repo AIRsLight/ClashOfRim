@@ -1316,9 +1316,8 @@ public static partial class ClashOfRimNetworkServer
         if (!package.Index.WorldObjects.Any(worldObject =>
                 worldObject.Def == "ClashOfRim_RemoteRaidBattleMapParent")) return package;
         AuthoritativeEvent raid;
-        using (state.EnterSnapshotMutation())
+        using (EnterRecoveredSnapshotMutation(state))
         {
-            RecoverSnapshotCommits(state);
             if (!SnapshotCommitService.SameVersion(packageStore.GetLatest(userId, colonyId)?.Envelope, package.Envelope)) return package;
             string? raidEventId = package.Index.WorldObjects
                 .Where(item => item.Def == "ClashOfRim_RemoteRaidBattleMapParent")
@@ -1348,11 +1347,10 @@ public static partial class ClashOfRimNetworkServer
         }
         if (!prepared.Changed) return package;
 
-        using (state.EnterSnapshotMutation())
+        using (EnterRecoveredSnapshotMutation(state))
         {
             // Preparation may overlap an upload, deletion, a new raid or a support closure.
             // Rebuild the loss batch from current support records only after revalidating the source.
-            RecoverSnapshotCommits(state);
             var current = state.Ledger.Find(raid.EventId);
             if (!SnapshotCommitService.SameVersion(packageStore.GetLatest(userId, colonyId)?.Envelope, package.Envelope)
                 || current?.Payload is not RaidEventPayload payload || current.Status != raid.Status

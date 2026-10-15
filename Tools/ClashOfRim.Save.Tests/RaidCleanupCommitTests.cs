@@ -7,10 +7,11 @@ using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Save;
 using Microsoft.Data.Sqlite;
 
-internal static class RaidCleanupCommitTests
+internal static partial class RaidCleanupCommitTests
 {
     public static void Run(SaveSnapshotPackage original)
     {
+        RunDownloadJournalRecovery(original);
         foreach (string change in new[] { "none", "newer", "token", "removed", "source", "owner", "new-raid", "support-closed", "delivery" })
             WithFixture(original, false, f => VerifyUnlockedPreparation(f, change));
         WithFixture(original, false, f =>
@@ -193,7 +194,7 @@ internal static class RaidCleanupCommitTests
         try { run(new Fixture(root, original, timeout)); }
         finally { SqliteConnection.ClearAllPools(); Directory.Delete(root, true); }
     }
-    private sealed class Fixture
+    private sealed partial class Fixture
     {
         private readonly string root;
         private readonly bool timeout;
@@ -256,10 +257,13 @@ internal static class RaidCleanupCommitTests
         public string? Fault;
         public int Writes, Preparations, PreparedWrites;
         public Action? BeforePrepare;
+        public bool FailPreparation;
+        public Dictionary<string, int> WritesByOwner = new();
         public PreparedSnapshotPayload PreparePayload(byte[] bytes)
         {
             Interlocked.Increment(ref Preparations);
             BeforePrepare?.Invoke();
+            if (FailPreparation) throw new IOException("recovery preparation failed");
             return inner.PreparePayload(bytes);
         }
         public void StorePrepared(SaveSnapshotPackage package, SaveSnapshotIndex index, DateTimeOffset at, PreparedSnapshotPayload prepared)
@@ -267,6 +271,7 @@ internal static class RaidCleanupCommitTests
             Writes++; PreparedWrites++;
             if (Fault == "before") throw new IOException("before file");
             inner.StorePrepared(package, index, at, prepared);
+            WritesByOwner[package.Envelope.Identity.OwnerId!] = WritesByOwner.GetValueOrDefault(package.Envelope.Identity.OwnerId!) + 1;
             if (Fault == "after") throw new IOException("after file");
         }
         public SaveSnapshotPackage? ReadOverride;
@@ -275,6 +280,7 @@ internal static class RaidCleanupCommitTests
             Writes++;
             if (Fault == "before") throw new IOException("before file");
             inner.StoreLatest(package, index, at);
+            WritesByOwner[package.Envelope.Identity.OwnerId!] = WritesByOwner.GetValueOrDefault(package.Envelope.Identity.OwnerId!) + 1;
             if (Fault == "after") throw new IOException("after file");
         }
         public void StoreLatest(LatestSnapshotRecord snapshot) => inner.StoreLatest(snapshot);
