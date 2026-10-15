@@ -16,8 +16,13 @@ public static partial class ClashOfRimNetworkServer
         {
             if (!ReauthorizeSnapshotPrincipal(httpRequest, state, request.Attacker))
                 return RaidStartRejected(ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed")));
+        }
+        ReconcileExpiredRaidEvents(state, now);
+        using (state.EnterSnapshotMutation())
+        {
+            if (!ReauthorizeSnapshotPrincipal(httpRequest, state, request.Attacker))
+                return RaidStartRejected(ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed")));
             RecoverSnapshotCommits(state);
-            ReconcileExpiredRaidEvents(state, now);
             if (state.Ledger.FindByIdempotencyKey(request.IdempotencyKey) is { } existing)
                 return RaidSnapshotReplayResponse(state, transaction, existing);
             var rejection = ValidateRaidSnapshotStart(state, request, now, out _, out _, out var blockingRaidId);

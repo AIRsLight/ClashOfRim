@@ -5,6 +5,8 @@ namespace AIRsLight.ClashOfRim.Network;
 public sealed class SnapshotPostUploadJobRegistry
 {
     private readonly object gate = new();
+    // Cross-store commits acquire the snapshot mutation gate before this gate.
+    internal object SnapshotCommitGate => gate;
     private readonly Dictionary<string, SnapshotPostUploadJobRecord> jobsById = new(StringComparer.Ordinal);
     private readonly ISnapshotPostUploadJobStore? persistence;
 

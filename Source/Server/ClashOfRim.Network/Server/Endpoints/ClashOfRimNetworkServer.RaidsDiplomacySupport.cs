@@ -1493,78 +1493,85 @@ public static partial class ClashOfRimNetworkServer
         ClashOfRimNetworkState state,
         DateTimeOffset nowUtc)
     {
+        RaidTimeoutProcessingResult result;
         using (state.EnterSnapshotMutation())
         {
             RecoverSnapshotCommits(state);
-            return ReconcileExpiredRaidEventsLocked(state, nowUtc);
+            result = RaidTimeoutProcessor.ProcessExpiredRaids(state.Ledger,
+                state.Ledger.ListByType(ServerEventType.Raid), nowUtc,
+                BuildRaidDefenseLockPolicy(state.ServerConfiguration), party => state.OnlinePresence.IsUserOnline(party.UserId));
         }
-    }
-
-    private static RaidTimeoutProcessingResult ReconcileExpiredRaidEventsLocked(ClashOfRimNetworkState state, DateTimeOffset nowUtc)
-    {
-        RaidTimeoutProcessingResult result = RaidTimeoutProcessor.ProcessExpiredRaids(
-            state.Ledger,
-            state.Ledger.ListByType(ServerEventType.Raid),
-            nowUtc,
-            BuildRaidDefenseLockPolicy(state.ServerConfiguration),
-            party => state.OnlinePresence.IsUserOnline(party.UserId));
         return CompletePendingRaidTimeoutWork(state, result, nowUtc);
     }
 
     internal static void RecoverPendingRaidTimeoutWork(ClashOfRimNetworkState state, DateTimeOffset nowUtc)
-    {
-        using (state.EnterSnapshotMutation())
-        {
-            RecoverSnapshotCommits(state);
-            CompletePendingRaidTimeoutWork(state, new RaidTimeoutProcessingResult([], [], [], []), nowUtc);
-        }
-    }
+        => CompletePendingRaidTimeoutWork(state, new RaidTimeoutProcessingResult([], [], [], []), nowUtc);
 
     private static RaidTimeoutProcessingResult CompletePendingRaidTimeoutWork(ClashOfRimNetworkState state,
         RaidTimeoutProcessingResult result, DateTimeOffset nowUtc)
     {
-        IReadOnlyList<AuthoritativeEvent> pendingTimeouts = RaidTimeoutProcessor.PendingWork(state.Ledger);
-        if (pendingTimeouts.Count == 0)
-        {
-            return result;
-        }
-
-        RaidCleanupEventAppendResult cleanupEvents;
+        IReadOnlyList<AuthoritativeEvent> cleanupEligibleRaids;
         using (state.EnterSnapshotMutation())
         {
+            RecoverSnapshotCommits(state);
+            var pendingTimeouts = RaidTimeoutProcessor.PendingWork(state.Ledger);
+            if (pendingTimeouts.Count == 0) return result;
             var offlinePending = pendingTimeouts.Where(raid => raid.Payload is RaidEventPayload { TimeoutWork: { AttackerWasOffline: true } }).ToArray();
-            IReadOnlySet<string> queuedOfflineSettlements = SettleOfflineTimedOutRaidSnapshots(
-                state,
-                offlinePending.Where(raid => raid.Status != ServerEventStatus.AppliedToSnapshot).ToArray(),
-                nowUtc);
-            HashSet<string> offlineRaidIds = offlinePending
-                .Select(raid => raid.EventId)
-                .ToHashSet(StringComparer.Ordinal);
-            IReadOnlyList<AuthoritativeEvent> cleanupEligibleRaids = pendingTimeouts
-                .Where(raid => !offlineRaidIds.Contains(raid.EventId)
-                    || queuedOfflineSettlements.Contains(raid.EventId) || raid.Status == ServerEventStatus.AppliedToSnapshot)
-                .ToList();
-            cleanupEvents = CleanupTimedOutRaidAttackerSnapshots(state, cleanupEligibleRaids, nowUtc);
+            // Retain offline evidence and its durable job before permitting attacker cleanup.
+            var queuedOfflineSettlements = SettleOfflineTimedOutRaidSnapshots(state,
+                offlinePending.Where(raid => raid.Status != ServerEventStatus.AppliedToSnapshot).ToArray(), nowUtc);
+            var offlineRaidIds = offlinePending.Select(raid => raid.EventId).ToHashSet(StringComparer.Ordinal);
+            cleanupEligibleRaids = pendingTimeouts.Where(raid => !offlineRaidIds.Contains(raid.EventId)
+                || queuedOfflineSettlements.Contains(raid.EventId) || raid.Status == ServerEventStatus.AppliedToSnapshot).ToArray();
         }
 
-        IReadOnlyList<string> usersToSignal = result.NotificationEvents
-            .Select(evt => evt.Target.UserId)
+        var cleanupEvents = CleanupTimedOutRaidAttackerSnapshots(state, cleanupEligibleRaids, nowUtc);
+        var usersToSignal = result.NotificationEvents.Select(evt => evt.Target.UserId)
             .Concat(result.AttackerLossEvents.Select(evt => evt.Target.UserId))
             .Concat(cleanupEvents.AttackerLossEvents.Select(evt => evt.Target.UserId))
             .Concat(cleanupEvents.SupportLossNotifications.Select(evt => evt.Target.UserId))
-            .Where(userId => !string.IsNullOrWhiteSpace(userId))
-            .Distinct(StringComparer.Ordinal)
-            .ToList();
+            .Where(userId => !string.IsNullOrWhiteSpace(userId)).Distinct(StringComparer.Ordinal).ToArray();
         state.EventNotifications.SignalUsers(usersToSignal);
-        // Wake-ups and downstream work must finish before clearing the persisted retry marker.
-        foreach (string raidId in cleanupEvents.CompletedRaidIds)
+        // A stale completion cannot acknowledge changed timeout work or a changed source.
+        using (state.EnterSnapshotMutation())
         {
-            var raid = state.Ledger.Find(raidId)!;
-            state.EventNotifications.SignalUsers(new[] { raid.Actor.UserId, raid.Target.UserId });
-            RaidTimeoutProcessor.CompleteWork(state.Ledger, raidId);
+            RecoverSnapshotCommits(state);
+            lock (state.SnapshotPostUploadJobs.SnapshotCommitGate)
+            {
+                foreach (var completed in cleanupEvents.CompletedRaids)
+                {
+                    var current = state.Ledger.Find(completed.Raid.EventId);
+                    if (!SameRaidCleanupSource(current, completed.Raid) || !CanFinishOfflineTimeoutCleanup(state, current!)
+                        || !SnapshotCommitService.SameVersion(state.SnapshotStore.GetLatest(current!.Actor.UserId, current.Actor.ColonyId!)?.Envelope,
+                            completed.Snapshot)) continue;
+                    state.EventNotifications.SignalUsers(new[] { current!.Actor.UserId, current.Target.UserId });
+                    RaidTimeoutProcessor.CompleteWork(state.Ledger, current.EventId);
+                }
+            }
         }
         return result;
     }
+
+    private static bool SameRaidCleanupSource(AuthoritativeEvent? current, AuthoritativeEvent expected)
+        => current is not null && current.Status == expected.Status && RaidSettlementSnapshotMutation.SameSource(current, expected);
+
+    private static bool MatchesRaidSettlementJob(AuthoritativeEvent raid, SnapshotPostUploadJobRecord job)
+    {
+        var scheduled = RaidSettlementDeferredPayload.Deserialize(job.PayloadJson);
+        return job.ProcessorId == RaidSettlementDeferredScheduler.ProcessorId
+            && job.Kind == SnapshotPostUploadKind.RaidSettlementEvidence
+            && job.UserId == raid.Actor.UserId && job.ColonyId == raid.Actor.ColonyId
+            && scheduled.RaidEventId == raid.EventId && scheduled.AttackerUserId == raid.Actor.UserId
+            && scheduled.AttackerColonyId == raid.Actor.ColonyId && scheduled.DefenderUserId == raid.Target.UserId
+            && scheduled.DefenderColonyId == raid.Target.ColonyId && job.SnapshotId == scheduled.EvidenceSnapshotId
+            && raid.Payload is RaidEventPayload payload && payload.DefenderSnapshotId == scheduled.DefenderSnapshotId;
+    }
+
+    private static bool CanFinishOfflineTimeoutCleanup(ClashOfRimNetworkState state, AuthoritativeEvent raid)
+        => raid.Status == ServerEventStatus.AppliedToSnapshot
+            || raid.Payload is not RaidEventPayload { TimeoutWork: { AttackerWasOffline: true } }
+            || state.SnapshotPostUploadJobs.Find("raid-settlement:" + raid.EventId) is { State: SnapshotPostUploadJobState.Ready } job
+                && MatchesRaidSettlementJob(raid, job);
 
     private static IReadOnlySet<string> SettleOfflineTimedOutRaidSnapshots(
         ClashOfRimNetworkState state,
@@ -1582,14 +1589,7 @@ public static partial class ClashOfRimNetworkServer
             SnapshotPostUploadJobRecord? existingJob = state.SnapshotPostUploadJobs.Find("raid-settlement:" + raid.EventId);
             if (existingJob is not null)
             {
-                var scheduled = RaidSettlementDeferredPayload.Deserialize(existingJob.PayloadJson);
-                if (existingJob.ProcessorId != RaidSettlementDeferredScheduler.ProcessorId
-                    || existingJob.Kind != SnapshotPostUploadKind.RaidSettlementEvidence
-                    || existingJob.UserId != raid.Actor.UserId || existingJob.ColonyId != raid.Actor.ColonyId
-                    || scheduled.RaidEventId != raid.EventId || scheduled.AttackerUserId != raid.Actor.UserId
-                    || scheduled.AttackerColonyId != raid.Actor.ColonyId || scheduled.DefenderUserId != raid.Target.UserId
-                    || scheduled.DefenderColonyId != raid.Target.ColonyId || existingJob.SnapshotId != scheduled.EvidenceSnapshotId
-                    || raid.Payload is not RaidEventPayload queuedRaid || queuedRaid.DefenderSnapshotId != scheduled.DefenderSnapshotId)
+                if (!MatchesRaidSettlementJob(raid, existingJob))
                     throw new InvalidDataException("Timed-out raid has a conflicting settlement job.");
                 if (existingJob.State == SnapshotPostUploadJobState.ManualReview) continue;
                 if (existingJob.State == SnapshotPostUploadJobState.Prepared)
@@ -1698,96 +1698,83 @@ public static partial class ClashOfRimNetworkServer
         DateTimeOffset nowUtc)
     {
         if (failedRaids.Count == 0 || state.SnapshotStore is not IColonySnapshotPackageStore packageStore)
-        {
             return RaidCleanupEventAppendResult.Empty;
-        }
-
         var attackerLossEvents = new List<AuthoritativeEvent>();
         var supportLossNotifications = new List<AuthoritativeEvent>();
-        var completedRaidIds = new List<string>();
-        foreach (AuthoritativeEvent raid in failedRaids)
+        var completedRaids = new List<RaidCleanupCompletion>();
+        foreach (var raid in failedRaids)
         {
-            if (raid.Payload is not RaidEventPayload { OpponentKind: RaidOpponentKind.Player } raidPayload)
-            {
-                continue;
-            }
-
-            string attackerUserId = raid.Actor.UserId;
-            string attackerColonyId = raid.Actor.ColonyId ?? string.Empty;
-            if (string.IsNullOrWhiteSpace(attackerUserId) || string.IsNullOrWhiteSpace(attackerColonyId))
-            {
-                continue;
-            }
-
-            SaveSnapshotPackage? package = packageStore.GetLatestPackage(attackerUserId, attackerColonyId);
+            if (raid.Payload is not RaidEventPayload { OpponentKind: RaidOpponentKind.Player }
+                || string.IsNullOrWhiteSpace(raid.Actor.UserId) || string.IsNullOrWhiteSpace(raid.Actor.ColonyId)) continue;
+            string owner = raid.Actor.UserId, colony = raid.Actor.ColonyId;
+            var package = SnapshotPreparationService.Run(() => packageStore.GetLatestPackage(owner, colony));
             if (package is null)
             {
-                state.RuntimeLogger.LogWarning(
-                    "Timed out raid attacker cleanup skipped because latest attacker snapshot is missing: raid={RaidEventId} attacker={AttackerUserId}/{AttackerColonyId}",
-                    raid.EventId,
-                    attackerUserId,
-                    attackerColonyId);
+                state.RuntimeLogger.LogWarning("Timed out raid cleanup skipped missing snapshot: raid={RaidEventId} attacker={AttackerUserId}/{AttackerColonyId}",
+                    raid.EventId, owner, colony);
                 continue;
             }
-
-            string snapshotId = BuildTimedOutRaidCleanupSnapshotId(attackerColonyId, raid.EventId, nowUtc);
-            if (!package.Index.WorldObjects.Any(item => item.Def == "ClashOfRim_RemoteRaidBattleMapParent"))
+            using (state.EnterSnapshotMutation())
             {
-                // A previous cleanup may have completed immediately before the acknowledgement failed.
-                completedRaidIds.Add(raid.EventId);
-                continue;
-            }
-            if (!CanCleanupRaidBattleSnapshot(state, raid, package)) continue;
-            bool commitStarted = false;
-            try
-            {
-                if (!RaidAttackerSnapshotCleanupEditor.TryRemoveRaidBattleState(
-                        package,
-                        snapshotId,
-                        nowUtc,
-                        out SaveSnapshotPackage cleaned,
-                        out RaidAttackerSnapshotCleanupResult cleanupResult))
+                RecoverSnapshotCommits(state);
+                var current = state.Ledger.Find(raid.EventId);
+                if (!SameRaidCleanupSource(current, raid) || !CanFinishOfflineTimeoutCleanup(state, current!)
+                    || !SnapshotCommitService.SameVersion(packageStore.GetLatest(owner, colony)?.Envelope, package.Envelope)) continue;
+                if (!package.Index.WorldObjects.Any(item => item.Def == "ClashOfRim_RemoteRaidBattleMapParent"))
                 {
-                    state.RuntimeLogger.LogWarning(
-                        "Timed out raid attacker cleanup found no removable raid battle state: raid={RaidEventId} attacker={AttackerUserId}/{AttackerColonyId} sourceSnapshot={SourceSnapshotId}",
-                        raid.EventId,
-                        attackerUserId,
-                        attackerColonyId,
-                        package.Envelope.Identity.SnapshotId);
+                    // Publication may already have completed before its acknowledgement failed.
+                    completedRaids.Add(new RaidCleanupCompletion(current!, package.Envelope));
                     continue;
                 }
-
-                var mutation = BuildRaidCleanupMutation(state, raid, raidPayload, package, cleaned, cleanupResult, nowUtc);
-                commitStarted = true;
-                state.SnapshotCommits.CommitRaidCleanup(packageStore, state.BankLoans, state.Ledger, state.Players,
-                    cleaned, mutation, nowUtc, user => state.EventNotifications.SignalUser(user));
-                attackerLossEvents.AddRange(mutation.Batch.Events.Where(item => item.Type == ServerEventType.Raid));
-                supportLossNotifications.AddRange(mutation.Batch.Events.Where(item => item.Type == ServerEventType.SupportPawn));
-                completedRaidIds.Add(raid.EventId);
-                state.RuntimeLogger.LogInformation(
-                    "Timed out raid attacker cleanup stored cleaned snapshot: raid={RaidEventId} attacker={AttackerUserId}/{AttackerColonyId} sourceSnapshot={SourceSnapshotId} cleanedSnapshot={CleanedSnapshotId} removedMaps={RemovedMapCount} lostAttackPawns={LostAttackPawns} lostSupportPawns={LostSupportPawns}",
-                    raid.EventId,
-                    attackerUserId,
-                    attackerColonyId,
-                    package.Envelope.Identity.SnapshotId,
-                    cleaned.Envelope.Identity.SnapshotId,
-                    cleanupResult.RemovedMapCount,
-                    cleanupResult.LostAttackPawns.Count,
-                    cleanupResult.LostSupportPawns.Count);
+                if (!CanCleanupRaidBattleSnapshot(state, current!, package)) continue;
             }
-            catch (Exception ex) when (!commitStarted && (ex is IOException or InvalidDataException or System.Xml.XmlException or InvalidOperationException))
+
+            (bool Changed, SaveSnapshotPackage Package, RaidAttackerSnapshotCleanupResult Result, PreparedSnapshotPayload? Storage) prepared;
+            try
             {
-                state.RuntimeLogger.LogWarning(
-                    ex,
-                    "Timed out raid attacker cleanup failed: raid={RaidEventId} attacker={AttackerUserId}/{AttackerColonyId} sourceSnapshot={SourceSnapshotId}",
-                    raid.EventId,
-                    attackerUserId,
-                    attackerColonyId,
-                    package.Envelope.Identity.SnapshotId);
+                prepared = SnapshotPreparationService.Run(() =>
+                {
+                    bool changed = RaidAttackerSnapshotCleanupEditor.TryRemoveRaidBattleState(package,
+                        BuildTimedOutRaidCleanupSnapshotId(colony, raid.EventId, nowUtc), nowUtc,
+                        out var cleaned, out RaidAttackerSnapshotCleanupResult cleanup);
+                    var storage = changed ? (packageStore as IPreparedColonySnapshotPackageStore)?.PreparePayload(cleaned.Payload) : null;
+                    return (changed, cleaned, cleanup, storage);
+                });
             }
+            catch (Exception ex) when (ex is IOException or InvalidDataException or System.Xml.XmlException or InvalidOperationException)
+            {
+                state.RuntimeLogger.LogWarning(ex, "Timed out raid cleanup preparation failed: raid={RaidEventId} attacker={AttackerUserId}/{AttackerColonyId}",
+                    raid.EventId, owner, colony);
+                continue;
+            }
+            if (!prepared.Changed)
+            {
+                state.RuntimeLogger.LogWarning("Timed out raid cleanup found no removable battle: raid={RaidEventId} sourceSnapshot={SourceSnapshotId}",
+                    raid.EventId, package.Envelope.Identity.SnapshotId);
+                continue;
+            }
+            using (state.EnterSnapshotMutation())
+            {
+                RecoverSnapshotCommits(state);
+                lock (state.SnapshotPostUploadJobs.SnapshotCommitGate)
+                {
+                    var current = state.Ledger.Find(raid.EventId);
+                    if (!SameRaidCleanupSource(current, raid) || !CanFinishOfflineTimeoutCleanup(state, current!) || current!.Payload is not RaidEventPayload payload
+                        || !SnapshotCommitService.SameVersion(packageStore.GetLatest(owner, colony)?.Envelope, package.Envelope)
+                        || !CanCleanupRaidBattleSnapshot(state, current, package)) continue;
+                    var mutation = BuildRaidCleanupMutation(state, current, payload, package, prepared.Package, prepared.Result, nowUtc);
+                    state.SnapshotCommits.CommitRaidCleanup(packageStore, state.BankLoans, state.Ledger, state.Players,
+                        prepared.Package, mutation, nowUtc, user => state.EventNotifications.SignalUser(user), prepared.Storage);
+                    attackerLossEvents.AddRange(mutation.Batch.Events.Where(item => item.Type == ServerEventType.Raid));
+                    supportLossNotifications.AddRange(mutation.Batch.Events.Where(item => item.Type == ServerEventType.SupportPawn));
+                    completedRaids.Add(new RaidCleanupCompletion(current, prepared.Package.Envelope));
+                }
+            }
+            state.RuntimeLogger.LogInformation(
+                "Timed out raid cleanup stored snapshot: raid={RaidEventId} attacker={AttackerUserId}/{AttackerColonyId} sourceSnapshot={SourceSnapshotId} cleanedSnapshot={CleanedSnapshotId}",
+                raid.EventId, owner, colony, package.Envelope.Identity.SnapshotId, prepared.Package.Envelope.Identity.SnapshotId);
         }
-
-        return new RaidCleanupEventAppendResult(attackerLossEvents, supportLossNotifications, completedRaidIds);
+        return new RaidCleanupEventAppendResult(attackerLossEvents, supportLossNotifications, completedRaids);
     }
 
     private static RaidCleanupSnapshotMutation BuildRaidCleanupMutation(
@@ -1907,15 +1894,17 @@ public static partial class ClashOfRimNetworkServer
         public bool Changed => Bank.Changed || Mercenary.Changed;
     }
 
+    private sealed record RaidCleanupCompletion(AuthoritativeEvent Raid, SaveSnapshotEnvelope Snapshot);
+
     private sealed record RaidCleanupEventAppendResult(
         IReadOnlyList<AuthoritativeEvent> AttackerLossEvents,
         IReadOnlyList<AuthoritativeEvent> SupportLossNotifications,
-        IReadOnlyList<string> CompletedRaidIds)
+        IReadOnlyList<RaidCleanupCompletion> CompletedRaids)
     {
         public static RaidCleanupEventAppendResult Empty { get; } = new(
             Array.Empty<AuthoritativeEvent>(),
             Array.Empty<AuthoritativeEvent>(),
-            Array.Empty<string>());
+            Array.Empty<RaidCleanupCompletion>());
     }
 
     private enum ClientLifecycleEventKind

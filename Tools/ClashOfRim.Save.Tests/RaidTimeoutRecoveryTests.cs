@@ -11,6 +11,16 @@ internal static class RaidTimeoutRecoveryTests
 {
     public static void Run(SaveSnapshotPackage original)
     {
+        SnapshotEndpointTestClient.LoadLocalization();
+        foreach (bool offline in new[] { false, true })
+        {
+            foreach (bool recovery in new[] { false, true })
+            foreach (string change in new[] { "none", "newer", "token", "removed", "source", "owner", "new-raid", "job-review", "job-removed" }.Where(change => offline || !change.StartsWith("job-")))
+                WithFixture(original, f => VerifyPreparation(f, original, offline, recovery, change));
+            WithFixture(original, f => VerifyConcurrent(f, offline));
+        }
+        foreach (bool revoke in new[] { false, true }) WithFixture(original, f => VerifyRaidEntry(f, original, revoke));
+        foreach (bool changedSnapshot in new[] { false, true }) WithFixture(original, f => VerifyStaleCompletion(f, original, changedSnapshot));
         foreach (bool offline in new[] { false, true })
         foreach (bool reopen in new[] { false, true })
         foreach (string fault in new[] { "notification", "mark", "before", "after", "loss", "ack", "schedule", "settled" })
@@ -20,6 +30,97 @@ internal static class RaidTimeoutRecoveryTests
         }
         foreach (string kind in new[] { "memory", "file", "sqlite" }) WithFixture(original, f => VerifyBatch(f, kind));
         WithFixture(original, VerifyBackgroundRecovery);
+    }
+
+    private static void VerifyPreparation(Fixture f, SaveSnapshotPackage original, bool offline, bool recovery, string change)
+    {
+        f.Store.BeforePublication = () => Require(Monitor.IsEntered(f.State.SnapshotPostUploadJobs.SnapshotCommitGate),
+            "New timeout publication did not serialize job state changes.");
+        if (!offline) f.State.OnlinePresence.TryConnectExclusive("attacker", out _);
+        if (recovery) RaidTimeoutProcessor.ProcessExpiredRaids(f.State.Ledger, f.State.Ledger.ListAll(), f.Now, isAttackerOnline: _ => !offline);
+        SnapshotPreparationGateProbe.Run(f.State.RaidSettlementSnapshotMutationGate, hook => f.Store.BeforePrepare = hook,
+            () => { if (recovery) ClashOfRimNetworkServer.RecoverPendingRaidTimeoutWork(f.State, f.Now); else f.Reconcile(); }, () =>
+            {
+                Require(f.Store.PreparedWrites == 0 && ((RaidEventPayload)f.State.Ledger.Find(f.Raid.EventId)!.Payload).TimeoutWork is { Completed: false } work
+                    && work.AttackerWasOffline == offline && f.State.Ledger.ListAll().Count == 3, "Timeout classification was not durable before preparation.");
+                var job = f.State.SnapshotPostUploadJobs.ListAll().SingleOrDefault();
+                Require((job is not null) == offline, "Offline cleanup ran before evidence scheduling, or online cleanup scheduled evidence.");
+                if (job is not null)
+                {
+                    var payload = RaidSettlementDeferredPayload.Deserialize(job.PayloadJson);
+                    Require(job.State == SnapshotPostUploadJobState.Ready
+                        && f.State.SnapshotPostUploadArtifacts.Read(payload.EvidenceArtifactId)!.Payload.SequenceEqual(original.Payload),
+                        "Offline cleanup lost its original evidence.");
+                }
+                if (change is "newer" or "token")
+                {
+                    var envelope = change == "newer" ? original.Envelope with { Identity = original.Envelope.Identity with { SnapshotId = "newer" } }
+                        : original.Envelope with { NextLineageToken = "replacement-token" };
+                    f.Files.StoreLatest(original with { Envelope = envelope }, original.Index, f.Now);
+                }
+                if (change == "job-review") f.State.SnapshotPostUploadJobs.MarkManualReview(job!.JobId, "review during preparation");
+                if (change == "job-removed") f.State.SnapshotPostUploadJobs.MarkCompleted(job!.JobId);
+                if (change == "removed") f.Files.RemoveLatest("attacker", "colony-a");
+                if (change == "source") f.State.Ledger.ChangeStatus(f.Raid.EventId, ServerEventStatus.Cancelled);
+                if (change == "owner") f.Sql("update events set actor_user_id = 'other' where event_id = 'raid-timeout-001';");
+                if (change == "new-raid") f.State.Ledger.Append(f.Raid with { EventId = "new-raid", IdempotencyKey = "new-raid",
+                    Payload = ((RaidEventPayload)f.Raid.Payload) with { StartedAtUtc = f.Now, AttackForce = new RaidAttackForceRecord("new", [], []) } });
+            });
+        var source = f.State.Ledger.Find(f.Raid.EventId)!;
+        Require(f.Store.Preparations == 1 && f.Store.PreparedWrites == (change == "none" ? 1 : 0)
+            && ((RaidEventPayload)source.Payload).TimeoutWork!.Completed == (change == "none")
+            && f.State.Ledger.ListAll().Count == (change is "none" or "new-raid" ? 4 : 3)
+            && !Directory.EnumerateFiles(f.Journal, "*.json").Any(), "Timeout committed or acknowledged stale preparation: " + change);
+        if (change != "none") Require(f.Files.GetLatest("attacker", "colony-a")?.Identity.SnapshotId ==
+            (change == "removed" ? null : change == "newer" ? "newer" : original.Envelope.Identity.SnapshotId)
+            && (change != "token" || f.Files.GetLatest("attacker", "colony-a")!.Envelope.NextLineageToken == "replacement-token"),
+            "Timeout overwrote a competing snapshot.");
+    }
+
+    private static void VerifyConcurrent(Fixture f, bool offline)
+    {
+        if (!offline) f.State.OnlinePresence.TryConnectExclusive("attacker", out _);
+        Task.WhenAll(Enumerable.Range(0, 4).Select(_ => Task.Run(f.Reconcile))).GetAwaiter().GetResult();
+        Require(f.Store.PreparedWrites == 1 && f.State.Ledger.ListAll().Count == 4
+            && RaidTimeoutProcessor.PendingWork(f.State.Ledger).Count == 0
+            && f.State.SnapshotPostUploadJobs.ListAll().Count == (offline ? 1 : 0), "Concurrent timeouts duplicated cleanup, evidence or notifications.");
+    }
+
+    private static void VerifyRaidEntry(Fixture f, SaveSnapshotPackage original, bool revoke)
+    {
+        f.State.OnlinePresence.TryConnectExclusive("attacker", out _);
+        EventCreationResponse? reply = null;
+        SnapshotPreparationGateProbe.Run(f.State.RaidSettlementSnapshotMutationGate, hook => f.Store.BeforePrepare = hook,
+            () => reply = RaidCommitCrashTests.Invoke(f.State, original, false).GetAwaiter().GetResult(),
+            () => { if (revoke) f.State.LoginSessions.EndUser("userA"); });
+        Require(f.Store.PreparedWrites == 1 && RaidTimeoutProcessor.PendingWork(f.State.Ledger).Count == 0
+            && reply is { Result.Accepted: false } && (!revoke || reply.Result.ErrorCode == ProtocolErrorCode.Unauthorized)
+            && f.State.Ledger.ListAll().Count == 4, "Raid entry held an outer lock or failed to reauthorize after timeout cleanup.");
+    }
+
+    private static void VerifyStaleCompletion(Fixture f, SaveSnapshotPackage original, bool changedSnapshot)
+    {
+        // A second missing colony pauses the batch after the first cleanup committed but before acknowledgement.
+        var later = f.Raid with { EventId = "later", IdempotencyKey = "later", Actor = new EventParty("later", "later-colony"), CreatedAtUtc = f.Raid.CreatedAtUtc.AddSeconds(1) };
+        f.State.Ledger.Append(later);
+        RaidTimeoutProcessor.ProcessExpiredRaids(f.State.Ledger, f.State.Ledger.ListAll(), f.Now, isAttackerOnline: _ => true);
+        SnapshotPreparationGateProbe.Run(f.State.RaidSettlementSnapshotMutationGate,
+            hook => f.Store.BeforeRead = owner => { if (owner == "later") hook?.Invoke(); },
+            () => ClashOfRimNetworkServer.RecoverPendingRaidTimeoutWork(f.State, f.Now), () =>
+            {
+                Require(f.Store.PreparedWrites == 1, "Completion probe ran before the first cleanup.");
+                if (changedSnapshot)
+                {
+                    f.Files.StoreLatest(original with { Envelope = original.Envelope with { Identity = original.Envelope.Identity with { SnapshotId = "later-upload" } } }, original.Index, f.Now);
+                    return;
+                }
+                var raid = f.State.Ledger.Find(f.Raid.EventId)!;
+                var payload = (RaidEventPayload)raid.Payload;
+                f.State.Ledger.ApplyBatch(new LedgerBatch([], [new LedgerStatusChange(raid.EventId, raid.Status, raid.Status,
+                    payload, payload with { TimeoutWork = payload.TimeoutWork! with { TimedOutAtUtc = f.Now.AddMinutes(1) } })]));
+            });
+        Require(((RaidEventPayload)f.State.Ledger.Find(f.Raid.EventId)!.Payload).TimeoutWork is { Completed: false }
+            && f.Store.PreparedWrites == 1, "An old cleanup acknowledged a changed timeout marker.");
     }
 
     private static void Recovery(Fixture f, bool offline, bool reopen, string fault)
@@ -184,9 +285,27 @@ internal static class RaidTimeoutRecoveryTests
             command.ExecuteNonQuery();
         }
     }
-    private sealed class CrashStore(IColonySnapshotPackageStore inner) : IColonySnapshotPackageStore
+    private sealed class CrashStore(FileColonySnapshotIndexStore inner) : IPreparedColonySnapshotPackageStore
     {
         public string? Fault;
+        public int PreparedWrites, Preparations;
+        public Action? BeforePublication;
+        public Action? BeforePrepare;
+        public Action<string>? BeforeRead;
+        public PreparedSnapshotPayload PreparePayload(byte[] bytes)
+        {
+            Interlocked.Increment(ref Preparations);
+            BeforePrepare?.Invoke();
+            return inner.PreparePayload(bytes);
+        }
+        public void StorePrepared(SaveSnapshotPackage package, SaveSnapshotIndex index, DateTimeOffset at, PreparedSnapshotPayload prepared)
+        {
+            BeforePublication?.Invoke();
+            PreparedWrites++;
+            if (Fault == "before") throw new IOException("before cleanup");
+            inner.StorePrepared(package, index, at, prepared);
+            if (Fault == "after") throw new IOException("after cleanup");
+        }
         public void StoreLatest(SaveSnapshotPackage package, SaveSnapshotIndex index, DateTimeOffset at)
         {
             if (Fault == "before") throw new IOException("before cleanup");
@@ -195,7 +314,11 @@ internal static class RaidTimeoutRecoveryTests
         }
         public void StoreLatest(LatestSnapshotRecord snapshot) => inner.StoreLatest(snapshot);
         public LatestSnapshotRecord? GetLatest(string owner, string colony) => inner.GetLatest(owner, colony);
-        public SaveSnapshotPackage? GetLatestPackage(string owner, string colony) => inner.GetLatestPackage(owner, colony);
+        public SaveSnapshotPackage? GetLatestPackage(string owner, string colony)
+        {
+            BeforeRead?.Invoke(owner);
+            return inner.GetLatestPackage(owner, colony);
+        }
         public IReadOnlyList<LatestSnapshotRecord> ListLatest() => inner.ListLatest();
         public bool RemoveLatest(string owner, string colony) => inner.RemoveLatest(owner, colony);
     }
