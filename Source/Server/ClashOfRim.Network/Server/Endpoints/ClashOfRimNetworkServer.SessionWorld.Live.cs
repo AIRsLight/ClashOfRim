@@ -1315,81 +1315,57 @@ public static partial class ClashOfRimNetworkServer
     {
         if (!package.Index.WorldObjects.Any(worldObject =>
                 worldObject.Def == "ClashOfRim_RemoteRaidBattleMapParent")) return package;
+        AuthoritativeEvent raid;
         using (state.EnterSnapshotMutation())
         {
             RecoverSnapshotCommits(state);
-            LatestSnapshotRecord? latest = packageStore.GetLatest(userId, colonyId);
-            // A download captures a point-in-time version. Cleanup is a mutation and must not
-            // publish that version over a newer upload, a removed colony, or an unfinished intent.
-            if (!SnapshotCommitService.SameVersion(latest?.Envelope, package.Envelope)) return package;
-            return CleanupSettledRaidBattleSnapshotBeforeDownloadLocked(state, packageStore, package, userId, colonyId, nowUtc);
-        }
-    }
-
-    private static SaveSnapshotPackage CleanupSettledRaidBattleSnapshotBeforeDownloadLocked(
-        ClashOfRimNetworkState state,
-        IColonySnapshotPackageStore packageStore,
-        SaveSnapshotPackage package,
-        string userId,
-        string colonyId,
-        DateTimeOffset nowUtc)
-    {
-        if (FindActiveSourceRaidForAttacker(state, userId, colonyId) is not null)
-        {
-            return package;
+            if (!SnapshotCommitService.SameVersion(packageStore.GetLatest(userId, colonyId)?.Envelope, package.Envelope)) return package;
+            string? raidEventId = package.Index.WorldObjects
+                .Where(item => item.Def == "ClashOfRim_RemoteRaidBattleMapParent")
+                .Select(item => item.ClashOfRimRelatedEventId).FirstOrDefault(id => !string.IsNullOrWhiteSpace(id));
+            var source = string.IsNullOrWhiteSpace(raidEventId) ? null : state.Ledger.Find(raidEventId);
+            if (source?.Payload is not RaidEventPayload || !CanCleanupRaidBattleSnapshot(state, source, package)) return package;
+            raid = source;
         }
 
-        string? raidEventId = package.Index.WorldObjects
-            .Where(worldObject => string.Equals(worldObject.Def, "ClashOfRim_RemoteRaidBattleMapParent", StringComparison.Ordinal))
-            .Select(worldObject => worldObject.ClashOfRimRelatedEventId)
-            .FirstOrDefault(id => !string.IsNullOrWhiteSpace(id));
-        AuthoritativeEvent? raid = string.IsNullOrWhiteSpace(raidEventId)
-            ? null
-            : state.Ledger.Find(raidEventId!);
-        if (string.IsNullOrWhiteSpace(raidEventId) || raid?.Payload is not RaidEventPayload raidPayload)
-        {
-            return package;
-        }
-        if (!CanCleanupRaidBattleSnapshot(state, raid, package)) return package;
-
-        string cleanedSnapshotId = BuildTimedOutRaidCleanupSnapshotId(colonyId, raidEventId, nowUtc);
-        bool commitStarted = false;
+        (bool Changed, SaveSnapshotPackage Package, RaidAttackerSnapshotCleanupResult Result, PreparedSnapshotPayload? Storage) prepared;
         try
         {
-            if (!RaidAttackerSnapshotCleanupEditor.TryRemoveRaidBattleState(
-                    package,
-                    cleanedSnapshotId,
-                    nowUtc,
-                    out SaveSnapshotPackage cleaned,
-                    out RaidAttackerSnapshotCleanupResult cleanupResult))
+            prepared = SnapshotPreparationService.Run(() =>
             {
-                return package;
-            }
-
-            var mutation = BuildRaidCleanupMutation(state, raid, raidPayload, package, cleaned, cleanupResult, nowUtc, "map-cleanup");
-            commitStarted = true;
-            state.SnapshotCommits.CommitRaidCleanup(packageStore, state.BankLoans, state.Ledger, state.Players,
-                cleaned, mutation, nowUtc, user => state.EventNotifications.SignalUser(user));
-            state.RuntimeLogger.LogInformation(
-                "Cleaned stale raid battle snapshot before download: user={UserId} colony={ColonyId} sourceSnapshot={SourceSnapshotId} cleanedSnapshot={CleanedSnapshotId} removedMaps={RemovedMapCount} lostAttackPawns={LostAttackPawns} lostSupportPawns={LostSupportPawns}",
-                userId,
-                colonyId,
-                package.Envelope.Identity.SnapshotId,
-                cleaned.Envelope.Identity.SnapshotId,
-                cleanupResult.RemovedMapCount,
-                cleanupResult.LostAttackPawns.Count,
-                cleanupResult.LostSupportPawns.Count);
-            return cleaned;
+                bool changed = RaidAttackerSnapshotCleanupEditor.TryRemoveRaidBattleState(package,
+                    BuildTimedOutRaidCleanupSnapshotId(colonyId, raid.EventId, nowUtc), nowUtc, out var cleaned, out RaidAttackerSnapshotCleanupResult result);
+                var storage = changed ? (packageStore as IPreparedColonySnapshotPackageStore)?.PreparePayload(cleaned.Payload) : null;
+                return (changed, cleaned, result, storage);
+            });
         }
-        catch (Exception ex) when (!commitStarted && (ex is IOException or InvalidDataException or System.Xml.XmlException or InvalidOperationException))
+        catch (Exception ex) when (ex is IOException or InvalidDataException or System.Xml.XmlException or InvalidOperationException)
         {
-            state.RuntimeLogger.LogWarning(
-                ex,
-                "Failed to clean stale raid battle snapshot before download: user={UserId} colony={ColonyId} sourceSnapshot={SourceSnapshotId}",
-                userId,
-                colonyId,
-                package.Envelope.Identity.SnapshotId);
+            state.RuntimeLogger.LogWarning(ex,
+                "Failed to prepare stale raid battle cleanup: user={UserId} colony={ColonyId} sourceSnapshot={SourceSnapshotId}",
+                userId, colonyId, package.Envelope.Identity.SnapshotId);
             return package;
         }
+        if (!prepared.Changed) return package;
+
+        using (state.EnterSnapshotMutation())
+        {
+            // Preparation may overlap an upload, deletion, a new raid or a support closure.
+            // Rebuild the loss batch from current support records only after revalidating the source.
+            RecoverSnapshotCommits(state);
+            var current = state.Ledger.Find(raid.EventId);
+            if (!SnapshotCommitService.SameVersion(packageStore.GetLatest(userId, colonyId)?.Envelope, package.Envelope)
+                || current?.Payload is not RaidEventPayload payload || current.Status != raid.Status
+                || !RaidSettlementSnapshotMutation.SameSource(current, raid)
+                || !CanCleanupRaidBattleSnapshot(state, current, package)) return package;
+            var mutation = BuildRaidCleanupMutation(state, current, payload, package, prepared.Package, prepared.Result, nowUtc, "map-cleanup");
+            state.SnapshotCommits.CommitRaidCleanup(packageStore, state.BankLoans, state.Ledger, state.Players,
+                prepared.Package, mutation, nowUtc, user => state.EventNotifications.SignalUser(user), prepared.Storage);
+        }
+        state.RuntimeLogger.LogInformation(
+            "Cleaned stale raid battle snapshot before download: user={UserId} colony={ColonyId} sourceSnapshot={SourceSnapshotId} cleanedSnapshot={CleanedSnapshotId} removedMaps={RemovedMapCount} lostAttackPawns={LostAttackPawns} lostSupportPawns={LostSupportPawns}",
+            userId, colonyId, package.Envelope.Identity.SnapshotId, prepared.Package.Envelope.Identity.SnapshotId,
+            prepared.Result.RemovedMapCount, prepared.Result.LostAttackPawns.Count, prepared.Result.LostSupportPawns.Count);
+        return prepared.Package;
     }
 }

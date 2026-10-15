@@ -9,6 +9,8 @@ internal static class RaidSettlementCommitTests
 {
     public static void Run()
     {
+        foreach (string change in new[] { "none", "newer", "token", "removed", "source", "delivery" })
+            WithFixture(f => VerifyUnlockedCompression(f, change));
         foreach (bool reopen in new[] { false, true })
         foreach (string fault in new[] { "before", "after", "player", "insert", "update", "signal", "advanced", "newer", "removed", "hash", "token", "published-hash", "published-payload", "published-token", "source", "collision" })
             WithFixture(f => Recovery(f, fault, reopen));
@@ -16,6 +18,37 @@ internal static class RaidSettlementCommitTests
         foreach (string change in new[] { "hash", "source", "delivery" }) WithFixture(f => VerifyPreparationRace(f, change));
         foreach (bool child in new[] { false, true }) WithFixture(f => VerifyLegacy(f, child));
         foreach (string kind in new[] { "memory", "file", "sqlite" }) WithFixture(f => VerifyBatch(f, kind));
+    }
+
+    private static void VerifyUnlockedCompression(Fixture f, string change)
+    {
+        RaidSettlementOperationResult? result = null;
+        SnapshotPreparationGateProbe.Run(f.State.RaidSettlementSnapshotMutationGate, hook => f.Store.BeforePrepare = hook,
+            () => result = RaidSettlementOperationExecutor.Execute(f.State, f.Payload, f.Evidence, f.Now), () =>
+            {
+                Require(f.Store.Writes == 0 && f.State.Ledger.ListAll().Count == 1
+                    && !Directory.EnumerateFiles(f.Journal, "*.json").Any(), "Settlement published during preparation.");
+                if (change is "newer" or "token")
+                {
+                    var envelope = change == "newer" ? f.Original.Envelope with { Identity = f.Original.Envelope.Identity with { SnapshotId = "newer" } }
+                        : f.Original.Envelope with { NextLineageToken = "replacement-token" };
+                    f.Files.StoreLatest(f.Original with { Envelope = envelope }, f.Original.Index, f.Now);
+                }
+                if (change == "removed") f.Files.RemoveLatest("defender", "defender-colony");
+                if (change == "source") f.Sql("update events set target_map_unique_id = 'changed';");
+                if (change == "delivery") f.State.Ledger.MarkDelivered(f.Raid.EventId, "delivered-during-compression", f.Now);
+            });
+        bool accepted = change is "none" or "delivery";
+        Require(result?.Kind == (accepted ? RaidSettlementOperationResultKind.Completed : RaidSettlementOperationResultKind.ManualReview)
+            && f.Store.Preparations == 1 && f.Store.Writes == (accepted ? 1 : 0) && f.Store.PreparedWrites == f.Store.Writes
+            && f.State.Ledger.ListAll().Count == (accepted ? 2 : 1) && !Directory.EnumerateFiles(f.Journal, "*.json").Any(),
+            "Settlement lost prepared bytes or overwrote competing state: " + change);
+        if (change == "delivery") Require(f.State.Ledger.Find(f.Raid.EventId)!.DeliveredToSnapshotId == "delivered-during-compression",
+            "Settlement lost concurrent delivery metadata.");
+        if (!accepted) Require(f.Files.GetLatest("defender", "defender-colony")?.Identity.SnapshotId ==
+            (change == "removed" ? null : change == "newer" ? "newer" : "before")
+            && (change != "token" || f.Files.GetLatest("defender", "defender-colony")!.Envelope.NextLineageToken == "replacement-token"),
+            "Rejected settlement changed its defender snapshot.");
     }
 
     private static void Recovery(Fixture f, string fault, bool reopen)
@@ -235,10 +268,24 @@ internal static class RaidSettlementCommitTests
             command.ExecuteNonQuery();
         }
     }
-    private sealed class CrashStore(IColonySnapshotPackageStore inner) : IColonySnapshotPackageStore
+    private sealed class CrashStore(FileColonySnapshotIndexStore inner) : IPreparedColonySnapshotPackageStore
     {
         public string? Fault;
-        public int Writes;
+        public int Writes, Preparations, PreparedWrites;
+        public Action? BeforePrepare;
+        public PreparedSnapshotPayload PreparePayload(byte[] bytes)
+        {
+            Interlocked.Increment(ref Preparations);
+            BeforePrepare?.Invoke();
+            return inner.PreparePayload(bytes);
+        }
+        public void StorePrepared(SaveSnapshotPackage package, SaveSnapshotIndex index, DateTimeOffset at, PreparedSnapshotPayload prepared)
+        {
+            Writes++; PreparedWrites++;
+            if (Fault == "before") throw new IOException("before file");
+            inner.StorePrepared(package, index, at, prepared);
+            if (Fault == "after") throw new IOException("after file");
+        }
         public Action? AfterRead;
         public void StoreLatest(SaveSnapshotPackage package, SaveSnapshotIndex index, DateTimeOffset at)
         {

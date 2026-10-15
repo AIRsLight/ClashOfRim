@@ -124,6 +124,8 @@ public static class RaidSettlementOperationExecutor
             return ManualReview(state, payload.RaidEventId, "Edited raid defender snapshot identity does not match the scheduled operation.");
         }
 
+        var preparedPayload = SnapshotPreparationService.Run(() =>
+            (packageStore as IPreparedColonySnapshotPackageStore)?.PreparePayload(editedPackage.Payload));
         AuthoritativeEvent settlementEvent;
         using (state.EnterSnapshotMutation())
         {
@@ -147,7 +149,7 @@ public static class RaidSettlementOperationExecutor
             var mutation = new RaidSettlementSnapshotMutation(sourceRaid, settlementEvent, originalDefensePackage.Envelope,
                 editedSnapshotId, nowUtc);
             state.SnapshotCommits.CommitRaidSettlement(packageStore, state.BankLoans, state.Ledger, state.Players,
-                editedPackage, mutation, user => state.EventNotifications.SignalUser(user));
+                editedPackage, mutation, user => state.EventNotifications.SignalUser(user), preparedPayload);
         }
         state.RuntimeLogger.LogInformation(
             "Completed deferred raid settlement: raid={RaidEventId} attacker={AttackerUserId}/{AttackerColonyId} defender={DefenderUserId}/{DefenderColonyId} evidence={EvidenceSnapshotId} defenderSnapshot={DefenderSnapshotId}",

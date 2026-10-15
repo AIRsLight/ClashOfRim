@@ -244,7 +244,7 @@ public sealed partial class SnapshotCommitService
     }
 
     public void CommitRaidSettlement(IColonySnapshotIndexStore snapshots, BankLoanRegistry bank, IAuthoritativeEventLedger ledger,
-        PlayerRegistry players, SaveSnapshotPackage package, RaidSettlementSnapshotMutation mutation, Action<string> signalUser)
+        PlayerRegistry players, SaveSnapshotPackage package, RaidSettlementSnapshotMutation mutation, Action<string> signalUser, PreparedSnapshotPayload? preparedStoragePayload = null)
     {
         if (pending.Count != 0) throw new InvalidOperationException("Recover pending snapshot commits before accepting new work.");
         mutation.Validate(package.Envelope.Identity);
@@ -252,7 +252,7 @@ public sealed partial class SnapshotCommitService
         if (!SameVersion(snapshots.GetLatest(package.Envelope.Identity.OwnerId!, package.Envelope.Identity.ColonyId!)?.Envelope, mutation.Previous))
             throw new InvalidDataException("Raid defender snapshot changed before intent creation.");
         var intent = new SnapshotCommitIntent(8, Guid.NewGuid().ToString("N"), mutation.Previous.Identity.SnapshotId,
-            mutation.Previous.NextLineageToken, package, mutation.AppliedAtUtc, null, null, null, RaidSettlement: mutation);
+            mutation.Previous.NextLineageToken, package, mutation.AppliedAtUtc, null, null, null, RaidSettlement: mutation) { PreparedStoragePayload = preparedStoragePayload };
         Write(intent);
         pending.Add(intent.Id, intent);
         Apply(intent, snapshots, bank, (_, _) => { }, ledger, signalUser, players: players);
@@ -260,7 +260,7 @@ public sealed partial class SnapshotCommitService
 
     public void CommitRaidCleanup(IColonySnapshotIndexStore snapshots, BankLoanRegistry bank, IAuthoritativeEventLedger ledger,
         PlayerRegistry players, SaveSnapshotPackage package, RaidCleanupSnapshotMutation mutation,
-        DateTimeOffset acceptedAtUtc, Action<string> signalUser)
+        DateTimeOffset acceptedAtUtc, Action<string> signalUser, PreparedSnapshotPayload? preparedStoragePayload = null)
     {
         if (pending.Count != 0) throw new InvalidOperationException("Recover pending snapshot commits before accepting new work.");
         mutation.Validate(package.Envelope.Identity);
@@ -268,7 +268,7 @@ public sealed partial class SnapshotCommitService
         if (!SameVersion(snapshots.GetLatest(package.Envelope.Identity.OwnerId!, package.Envelope.Identity.ColonyId!)?.Envelope, mutation.Previous))
             throw new InvalidDataException("Raid attacker snapshot changed before cleanup intent creation.");
         var intent = new SnapshotCommitIntent(9, Guid.NewGuid().ToString("N"), mutation.Previous.Identity.SnapshotId,
-            mutation.Previous.NextLineageToken, package, acceptedAtUtc, null, null, null, RaidCleanup: mutation);
+            mutation.Previous.NextLineageToken, package, acceptedAtUtc, null, null, null, RaidCleanup: mutation) { PreparedStoragePayload = preparedStoragePayload };
         Write(intent);
         pending.Add(intent.Id, intent);
         Apply(intent, snapshots, bank, (_, _) => { }, ledger, signalUser, players: players);

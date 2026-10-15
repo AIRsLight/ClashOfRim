@@ -11,6 +11,14 @@ internal static class RaidCleanupCommitTests
 {
     public static void Run(SaveSnapshotPackage original)
     {
+        foreach (string change in new[] { "none", "newer", "token", "removed", "source", "owner", "new-raid", "support-closed", "delivery" })
+            WithFixture(original, false, f => VerifyUnlockedPreparation(f, change));
+        WithFixture(original, false, f =>
+        {
+            Task.WhenAll(Enumerable.Range(0, 4).Select(_ => Task.Run(f.InvokeCleanup))).GetAwaiter().GetResult();
+            Require(f.Store.Writes == 1 && f.Store.PreparedWrites == 1 && f.State.Ledger.ListAll().Count == 4,
+                "Concurrent download cleanup duplicated publication or losses.");
+        });
         foreach (bool timeout in new[] { false, true })
         foreach (bool reopen in new[] { false, true })
         foreach (string fault in new[] { "before", "after", "player", "loss", "support", "status", "signal", "advanced", "newer", "removed", "token", "source", "support-source" })
@@ -22,6 +30,47 @@ internal static class RaidCleanupCommitTests
             foreach (bool committed in new[] { false, true })
                 WithFixture(original, timeout, f => LegacyKeyRecovery(f, committed));
         }
+    }
+
+    private static void VerifyUnlockedPreparation(Fixture f, string change)
+    {
+        SnapshotPreparationGateProbe.Run(f.State.RaidSettlementSnapshotMutationGate, hook => f.Store.BeforePrepare = hook,
+            f.InvokeCleanup, () =>
+            {
+                Require(f.Store.Writes == 0 && f.State.Ledger.ListAll().Count == 2
+                    && !Directory.EnumerateFiles(f.Journal, "*.json").Any(), "Cleanup published before preparation finished.");
+                if (change is "newer" or "token")
+                {
+                    var envelope = change == "newer" ? f.Original.Envelope with { Identity = f.Original.Envelope.Identity with { SnapshotId = "newer" } }
+                        : f.Original.Envelope with { NextLineageToken = "replacement-token" };
+                    f.Files.StoreLatest(f.Original with { Envelope = envelope }, f.Original.Index, f.Now);
+                }
+                if (change == "removed") f.Files.RemoveLatest("attacker", "colony-a");
+                if (change == "source") f.State.Ledger.ChangeStatus(f.Raid.EventId, ServerEventStatus.Failed);
+                if (change == "owner") f.Sql("update events set actor_user_id = 'other' where event_id = 'raid-timeout-001';");
+                if (change == "new-raid") f.State.Ledger.Append(f.Raid with
+                    { EventId = "new-raid", IdempotencyKey = "new-raid", Status = ServerEventStatus.Recorded,
+                        Payload = ((RaidEventPayload)f.Raid.Payload) with { FinishedAtUtc = null, AttackForce = new RaidAttackForceRecord("new-attack", [], []) } });
+                if (change == "support-closed") f.State.Ledger.ChangeStatus(f.Support.EventId, ServerEventStatus.Cancelled);
+                if (change == "delivery") f.State.Ledger.MarkDelivered(f.Support.EventId, "delivered-during-preparation", f.Now);
+            });
+        bool accepted = change is "none" or "support-closed" or "delivery";
+        Require(f.Store.Preparations == 1 && f.Store.Writes == (accepted ? 1 : 0)
+            && f.Store.PreparedWrites == f.Store.Writes && !Directory.EnumerateFiles(f.Journal, "*.json").Any(),
+            "Cleanup lost prepared bytes or committed stale preparation: " + change);
+        if (accepted)
+        {
+            Require(!f.Files.GetLatestPackage("attacker", "colony-a")!.Index.WorldObjects.Any(item => item.Def == "ClashOfRim_RemoteRaidBattleMapParent")
+                && f.State.Ledger.ListAll().Count == (change == "support-closed" ? 3 : 4)
+                && f.State.Ledger.Find(f.Support.EventId)!.Status == (change == "support-closed" ? ServerEventStatus.Cancelled : ServerEventStatus.Failed),
+                "Cleanup did not rebuild its losses from current support state.");
+            if (change == "delivery") Require(f.State.Ledger.Find(f.Support.EventId)!.DeliveredToSnapshotId == "delivered-during-preparation",
+                "Cleanup lost a concurrent support delivery.");
+        }
+        else Require(f.State.Ledger.ListAll().Count == (change == "new-raid" ? 3 : 2)
+            && f.Files.GetLatest("attacker", "colony-a")?.Identity.SnapshotId == (change == "removed" ? null : change == "newer" ? "newer" : f.Original.Envelope.Identity.SnapshotId)
+            && (change != "token" || f.Files.GetLatest("attacker", "colony-a")!.Envelope.NextLineageToken == "replacement-token"),
+            "Rejected cleanup altered the competing snapshot or ledger.");
     }
 
     private static void LegacyKeyRecovery(Fixture f, bool committed)
@@ -202,10 +251,24 @@ internal static class RaidCleanupCommitTests
             command.ExecuteNonQuery();
         }
     }
-    private sealed class CrashStore(IColonySnapshotPackageStore inner) : IColonySnapshotPackageStore
+    private sealed class CrashStore(FileColonySnapshotIndexStore inner) : IPreparedColonySnapshotPackageStore
     {
         public string? Fault;
-        public int Writes;
+        public int Writes, Preparations, PreparedWrites;
+        public Action? BeforePrepare;
+        public PreparedSnapshotPayload PreparePayload(byte[] bytes)
+        {
+            Interlocked.Increment(ref Preparations);
+            BeforePrepare?.Invoke();
+            return inner.PreparePayload(bytes);
+        }
+        public void StorePrepared(SaveSnapshotPackage package, SaveSnapshotIndex index, DateTimeOffset at, PreparedSnapshotPayload prepared)
+        {
+            Writes++; PreparedWrites++;
+            if (Fault == "before") throw new IOException("before file");
+            inner.StorePrepared(package, index, at, prepared);
+            if (Fault == "after") throw new IOException("after file");
+        }
         public SaveSnapshotPackage? ReadOverride;
         public void StoreLatest(SaveSnapshotPackage package, SaveSnapshotIndex index, DateTimeOffset at)
         {

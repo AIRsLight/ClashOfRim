@@ -651,3 +651,15 @@
 - 真实商店 multipart 测试在载荷准备处暂停，要求另一个线程可以取得业务锁，且此时无快照或购买回执；随后分别正常提交、注销会话、发布竞争快照，验证只在最终锁内发布，过期准备不能越过复验。临时删除商店入口的准备结果转发后，测试明确失败于 `network path lost its prepared storage payload`，日志 `LocalOnly/payload-preparation-negative-forwarding.log`。
 - 验证：Save 115 组通过，日志 `LocalOnly/payload-preparation-save.log`；其余回归按相同项目顺序执行，Events 全部、Client.Core 5 组、完整 NetworkSmoke、客户端 28 项通过，日志 `LocalOnly/payload-preparation-regression.log`。服务器构建零警告、零错误，日志 `LocalOnly/payload-preparation-build.log`。后续继续检查服务端生成快照及日志工作占锁的边界，再推进真实业务服务职责与 DTO 收敛；不在状态归属尚未明确时直接改成按殖民地并发提交。
 - RimTest 双客户端 21/21 通过、0 项未执行，覆盖共享世界进入、银行、商店、交易、赠送、支援、雇佣、袭击及运行时错误检查；报告 `G:/RimTestRuns/ClashOfRim/20261015-185433-ded636a4/report.json`，日志 `LocalOnly/payload-preparation-rimtest.log`。临时桥接及编排代码已恢复，两个测试游戏进程均已退出。实机覆盖正常业务；锁交错、注销及恢复由服务端测试验证。77 个 1.6 冻结文件和提交差异格式检查通过。
+
+## 续修：袭击结算与下载清理的锁外准备
+
+- 下载前清理遗留袭击战场原先在全服快照变更锁内执行 XML 解压、编辑、重建索引和文件载荷压缩。现分为首次锁内选择有效源、锁外准备、最终锁内发布三个阶段。无状态编辑与预压缩使用现有快照准备限流器；等待准备名额时也不持有业务锁。最终重新恢复待办并复验快照完整版本、源袭击状态和内容、当前是否有活动袭击，不允许旧准备覆盖新上传、删除或新袭击。
+- 损失账本批次在最终锁内按当前支援记录生成。准备期间已经关闭的支援不再生成损失返还，仍有效但刚投递的支援保留投递元数据。已开始持久提交后发生异常继续向调用方传播，保留恢复意图；仅无状态准备失败可以记录警告后返回原下载版本。下载仍采用既有的时间点快照语义，准备失效时不会把原版本重新写入服务器。
+- 延迟袭击结算已有锁外 XML 编辑和最终版本复验，现补充在业务锁外、准备限流器内压缩编辑后的载荷，再显式传入提交协调器。结算及清理日志沿用原版本 8/9，准备对象不序列化；进程重开恢复继续从原始包生成文件，不依赖暂存缓冲。数据库版本仍为 27。
+- `SnapshotPreparationGateProbe` 在真实存储准备入口暂停工作线程，由另一线程取得业务锁并改变状态，最后释放并等待原操作结束。结算新增正常/替换快照/替换令牌/删除/修改来源/推进投递六种场景；下载清理新增正常/替换快照/替换令牌/删除/改变源状态/改变归属/发起新袭击/关闭支援/推进支援投递九种场景。另四个并发下载要求恰好发布一次且只追加一批损失。原结算、清理的文件发布前后、玩家引用、SQL 账本、通知、中断恢复及历史键测试继续覆盖新准备路径。
+- 本步边界：超时批处理的调用链仍持有外层业务锁，尚未接入锁外清理，不能仅给其内层方法添加准备调用。提交日志序列化、持久写入和恢复仍在业务锁内；延迟结算的原有 XML 编辑已在锁外，本次仅为它增加载荷预压缩限流。下一步梳理超时工作标记、离线证据调度与清理的共同状态边界，再处理日志和服务职责。
+- 负向验证：恢复旧下载清理后，新测试因没有进入载荷准备而明确失败；删除结算提交的准备结果转发后，明确失败于丢失预压缩结果。日志 `LocalOnly/raid-preparation-cleanup.log`、`LocalOnly/raid-preparation-settlement.log`。恢复正式代码后两组定向测试通过，日志 `LocalOnly/raid-preparation-positive.log`；定向脚本首次漏载全套测试早先初始化的本地化资源，已保留失败日志 `LocalOnly/raid-preparation-positive-initial.log`，仅补充脚本初始化后复测，未放宽生产行为。
+- 验证：Save 115 组全部通过，日志 `LocalOnly/raid-preparation-save.log`；Events 全部、Client.Core 5 组、完整 NetworkSmoke、客户端 28 项和 77 个 1.6 冻结文件通过，日志 `LocalOnly/raid-preparation-regression.log`。本步未修改冻结文件或客户端。
+- 后续调用链证据：`ReconcileExpiredRaidEvents`、`RecoverPendingRaidTimeoutWork` 与 `CompletePendingRaidTimeoutWork` 自身都有锁范围；`CommitRaidWithSnapshot` 首次预检还在外层锁内调用前者。超时改造必须同时处理这些调用边界，并保留首次认证、已持久超时分类、离线证据先调度后清理、完成标记最后确认的顺序，不能仅改动编辑器调用位置。
+- RimTest 双客户端 21/21 通过、0 项未执行，含袭击发起与结算、支援、雇佣和运行时错误检查；报告 `G:/RimTestRuns/ClashOfRim/20261015-190306-dd4b20d8/report.json`，日志 `LocalOnly/raid-preparation-rimtest.log`。两个测试游戏进程均已退出，临时桥接和测试编排已恢复。实机验证正常流程，准备交错、SQL 中断与重开恢复由服务器测试覆盖，未将其描述为实机故障注入。
