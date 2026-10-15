@@ -597,3 +597,16 @@
 
 - 验证：完整 `Test-Regression.ps1 -IncludeClient` 通过（Events 全部、Save 111、Client.Core 5 组、完整 NetworkSmoke、客户端 27 项），日志 `LocalOnly/support-commit-regression.log`。77 个 1.6 冻结文件与差异格式检查通过。RimTest 双客户端 20 项全部通过，包括支援发送/提前返回、交易与袭击流程；报告 `G:/RimTestRuns/ClashOfRim/20261015-175348-aeb885fa/report.json`，日志 `LocalOnly/support-commit-rimtest.log`。临时桥接代码已恢复，两个游戏进程均已退出。故障恢复由服务端存储和 multipart 测试证明，不宣称实机执行了进程崩溃恢复。
 - 下一步优先检查礼物、交易等类似快照入口的同键并发准备失败路径：支援测试已经证明，锁外准备看到其他请求刚提交的新快照时，不能直接将合法重复请求判作过期；其他端点是否满足这一点需逐项复现和修正。
+
+
+## 续修：礼物与交易并发重试不再被准备错误掩盖
+
+- 礼物创建、交易发单与交易履约原先在 `ReceiveSnapshot` 返回失败后直接退出，尚未执行最终的幂等结果查询。多个同键请求都通过首次查询后，先完成的请求推进快照，后续准备/验证因 lineage 已改变而失败，即使业务已经成功提交也会返回失败。现在即使准备失败，也先进入快照变更锁恢复待办、查询并校验同键业务结果；只有没有匹配结果时才返回准备错误。不同请求仍执行原有快照连续性、开放订单/备忘和提交条件检查。
+- 三条入口的首次和最终业务锁内均重新验证 multipart 会话，拒绝准备期间已注销或被替换的身份，随后才允许恢复/读取提交结果。未移入锁外的业务提交仍在同一锁内执行；本步没有扩大无状态快照准备的锁范围，没有新增持久格式或修改数据库版本 27。
+- `EconomicSnapshotReplayRaceTests` 使用真实 multipart 处理、生产快照接收器和提交服务。在测试中暂时占满既有准备限流器，观察每个请求已完成首次键查询后才释放，避免多数请求在第一个提交完成后才进入端点。礼物、发单、自提履约和空投履约四类流程分别执行 12 个同键、12 个不同键、12 个准备期间撤销会话的请求，共 144 个并发请求。检查同键恰好一个首次提交、所有回复指向同一快照/lineage/事件及交付；不同键只有一个成功；撤销会话不发布快照、账本或通知。随后单独重试验证持久结果不变化。
+- 本步沿用各业务现有的重试关联规则，没有将支援新增的完整请求指纹推广到其他业务。商店、银行、雇佣和袭击入口仍需审计相同的准备/重试和会话失效路径；银行最后提交阶段另有将已占用键直接视为冲突的逻辑，需要结合其业务回执单独处理，不能仅移动准备错误检查。之后继续锁范围、服务职责和 DTO 收敛。
+
+- 负向证据：原礼物实现只让一个同键请求成功，其余被误判为 lineage 失效；分别恢复原发单和履约实现也复现 `Concurrent economic replay rejected or duplicated`。禁用锁内重新认证则复现 `revoked session committed or replayed a prepared operation`。日志分别为 `LocalOnly/economic-replay-race-negative.log`、`LocalOnly/economic-replay-race-negative-CreateTradeOrderWithSnapshot.log`、`LocalOnly/economic-replay-race-negative-FulfillTradeOrderWithSnapshot.log`、`LocalOnly/economic-replay-race-negative-authorization.log`。
+- 验证：完整 `Test-Regression.ps1 -IncludeClient` 通过（Events 全部、Save 112、Client.Core 5 组、完整 NetworkSmoke、客户端 27 项），日志 `LocalOnly/economic-replay-race-regression.log`。77 个 1.6 冻结文件与差异格式检查通过。
+
+- RimTest 双客户端 20 项通过，包含商队赠送、运输舱赠送、撤单退款与空投履约；报告 `G:/RimTestRuns/ClashOfRim/20261015-180559-8db3c7f3/report.json`，日志 `LocalOnly/economic-replay-race-rimtest.log`。临时桥接改动恢复，两个游戏进程均已退出。本轮实机验证正常流程，未宣称游戏内执行了 12 请求并发或准备期间注销场景。
