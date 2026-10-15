@@ -26,7 +26,7 @@ public static class SaveSnapshotPackageFileWriter
 
     // Preparation never changes the destination. The caller may reject a stale
     // candidate and dispose it before preparing another one.
-    internal static PreparedFile Prepare(
+    public static PreparedFile Prepare(
         string path,
         PersistedSaveSnapshotPackage metadata,
         byte[]? encodedPayload,
@@ -63,9 +63,16 @@ public static class SaveSnapshotPackageFileWriter
         }
     }
 
-    internal sealed class PreparedFile(string destinationPath, string tempPath) : IDisposable
+    public sealed class PreparedFile : IDisposable
     {
-        private string? pendingPath = tempPath;
+        private readonly string destinationPath;
+        private string? pendingPath;
+
+        internal PreparedFile(string destinationPath, string tempPath)
+        {
+            this.destinationPath = destinationPath;
+            pendingPath = tempPath;
+        }
 
         public void Publish()
         {

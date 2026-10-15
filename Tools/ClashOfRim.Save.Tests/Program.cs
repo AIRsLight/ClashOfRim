@@ -1592,6 +1592,7 @@ static void VerifySnapshotPackageFileReader()
 
 static void VerifySnapshotPostUploadArtifactStore()
 {
+    ArtifactStoreConcurrencyTests.Run(BuildFixturePackage);
     string root = Path.Combine(Path.GetTempPath(), "clash-of-rim-post-upload-artifacts-" + Guid.NewGuid().ToString("N"));
     try
     {

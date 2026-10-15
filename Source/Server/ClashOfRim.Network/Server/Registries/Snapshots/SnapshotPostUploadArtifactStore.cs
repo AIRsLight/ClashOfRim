@@ -17,6 +17,18 @@ public interface ISnapshotPostUploadArtifactStore
     void DeleteUnreferenced(IReadOnlySet<string> referencedArtifactIds);
 }
 
+/// <summary>Prepares bytes without publishing them; callers revalidate their business state before publishing.</summary>
+public interface IPreparedSnapshotPostUploadArtifactStore : ISnapshotPostUploadArtifactStore
+{
+    IPreparedSnapshotPostUploadArtifact Prepare(string artifactId, SaveSnapshotPackage package);
+}
+
+public interface IPreparedSnapshotPostUploadArtifact : IDisposable
+{
+    // False means this ID changed after capture; dispose and prepare again outside business locks.
+    bool TryPublish();
+}
+
 public sealed class InMemorySnapshotPostUploadArtifactStore : ISnapshotPostUploadArtifactStore
 {
     private readonly object gate = new();
@@ -102,7 +114,7 @@ public sealed class InMemorySnapshotPostUploadArtifactStore : ISnapshotPostUploa
     }
 }
 
-public sealed class FileSnapshotPostUploadArtifactStore : ISnapshotPostUploadArtifactStore
+public sealed class FileSnapshotPostUploadArtifactStore : IPreparedSnapshotPostUploadArtifactStore
 {
     private readonly object gate = new();
     private readonly string rootDirectory;
@@ -114,36 +126,127 @@ public sealed class FileSnapshotPostUploadArtifactStore : ISnapshotPostUploadArt
         Directory.CreateDirectory(this.rootDirectory);
     }
 
+    // Entries exist only while a preparation is alive; deleted artifact IDs do not accumulate tombstones.
+    private readonly Dictionary<string, WriteRevision> activePreparations = new(StringComparer.OrdinalIgnoreCase);
+    private sealed class WriteRevision
+    {
+        public int Users;
+        public object Token = new();
+    }
+
     public void Store(string artifactId, SaveSnapshotPackage package)
+    {
+        while (true)
+        {
+            using var prepared = Prepare(artifactId, package);
+            if (prepared.TryPublish()) return;
+        }
+    }
+
+    public IPreparedSnapshotPostUploadArtifact Prepare(string artifactId, SaveSnapshotPackage package)
     {
         InMemorySnapshotPostUploadArtifactStore.ValidateArtifactId(artifactId);
         ArgumentNullException.ThrowIfNull(package);
-
-        var metadata = new PersistedSaveSnapshotPackage(
-            package.Envelope.Identity,
-            package.Envelope,
-            LightweightIndex(package.Index),
-            package.Envelope.CreatedAtUtc);
+        string path = PathFor(artifactId);
+        WriteRevision revision;
+        object token;
+        byte[]? captured;
         lock (gate)
         {
-            string path = PathFor(artifactId);
-            SaveSnapshotPackage? existing = SaveSnapshotPackageFileReader.ReadPackage(path)?.Package;
-            if (existing is not null)
+            if (!activePreparations.TryGetValue(path, out revision!)) activePreparations.Add(path, revision = new());
+            revision.Users++;
+            token = revision.Token;
+            try { captured = Capture(path); }
+            catch { Release(path, revision); throw; }
+        }
+        SaveSnapshotPackageFileWriter.PreparedFile? file = null;
+        try
+        {
+            // Own the input used for comparison and file serialization, even if the caller later changes its array.
+            var candidate = package with { Payload = package.Payload.ToArray() };
+            var existing = Decode(captured);
+            bool conflict = existing is not null && (!Equals(existing.Envelope.Identity, candidate.Envelope.Identity)
+                || !string.Equals(existing.Envelope.PayloadSha256, candidate.Envelope.PayloadSha256, StringComparison.OrdinalIgnoreCase)
+                || !existing.Payload.AsSpan().SequenceEqual(candidate.Payload));
+            if (existing is null)
             {
-                InMemorySnapshotPostUploadArtifactStore.EnsureSameArtifact(artifactId, existing, package);
-                return;
+                var metadata = new PersistedSaveSnapshotPackage(candidate.Envelope.Identity, candidate.Envelope,
+                    LightweightIndex(candidate.Index), candidate.Envelope.CreatedAtUtc);
+                file = SaveSnapshotPackageFileWriter.Prepare(path, metadata, candidate.Payload);
             }
-
-            SaveSnapshotPackageFileWriter.WriteAtomically(path, metadata, package.Payload);
+            return new Preparation(this, artifactId, path, revision, token, conflict, file);
+        }
+        catch
+        {
+            file?.Dispose();
+            lock (gate) Release(path, revision);
+            throw;
         }
     }
 
     public SaveSnapshotPackage? Read(string artifactId)
     {
         InMemorySnapshotPostUploadArtifactStore.ValidateArtifactId(artifactId);
-        lock (gate)
+        byte[]? captured;
+        // Close the file before decoding, so Windows deletion/recreation is not blocked by a reader.
+        lock (gate) captured = Capture(PathFor(artifactId));
+        return Decode(captured);
+    }
+
+    private static byte[]? Capture(string path)
+    {
+        try { return File.ReadAllBytes(path); }
+        catch (IOException) { return null; }
+    }
+
+    private static SaveSnapshotPackage? Decode(byte[]? bytes)
+    {
+        if (bytes is null) return null;
+        using var stream = new MemoryStream(bytes, writable: false);
+        return SaveSnapshotPackageFileReader.ReadPackage(stream)?.Package;
+    }
+
+    // Called only under gate, including when a successful delete found no existing file.
+    private void Changed(string path)
+    {
+        if (activePreparations.TryGetValue(path, out var revision)) revision.Token = new();
+    }
+
+    private void Release(string path, WriteRevision revision)
+    {
+        if (--revision.Users == 0) activePreparations.Remove(path);
+    }
+
+    private sealed class Preparation(FileSnapshotPostUploadArtifactStore owner, string id, string path,
+        WriteRevision revision, object token, bool conflict, SaveSnapshotPackageFileWriter.PreparedFile? file)
+        : IPreparedSnapshotPostUploadArtifact
+    {
+        private bool disposed, published;
+        public bool TryPublish()
         {
-            return SaveSnapshotPackageFileReader.ReadPackage(PathFor(artifactId))?.Package;
+            lock (owner.gate)
+            {
+                ObjectDisposedException.ThrowIf(disposed, this);
+                if (published) throw new InvalidOperationException("Artifact preparation has already been published.");
+                if (!ReferenceEquals(revision.Token, token)) return false;
+                if (conflict) throw new InvalidOperationException($"Snapshot post-upload artifact '{id}' is immutable and already contains different data.");
+                if (file is not null)
+                {
+                    file.Publish();
+                    owner.Changed(path);
+                }
+                published = true;
+                return true;
+            }
+        }
+        public void Dispose()
+        {
+            lock (owner.gate)
+            {
+                if (disposed) return;
+                try { file?.Dispose(); }
+                finally { owner.Release(path, revision); disposed = true; }
+            }
         }
     }
 
@@ -166,6 +269,7 @@ public sealed class FileSnapshotPostUploadArtifactStore : ISnapshotPostUploadArt
             {
                 File.Delete(path);
             }
+            Changed(path);
         }
     }
 
@@ -186,6 +290,7 @@ public sealed class FileSnapshotPostUploadArtifactStore : ISnapshotPostUploadArt
                 if (!referencedPaths.Contains(Path.GetFullPath(path)))
                 {
                     File.Delete(path);
+                    Changed(path);
                 }
             }
         }

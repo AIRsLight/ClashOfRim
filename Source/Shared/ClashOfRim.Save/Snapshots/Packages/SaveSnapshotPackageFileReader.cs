@@ -99,12 +99,22 @@ public static class SaveSnapshotPackageFileReader
         string path,
         SaveSnapshotPackageFileReadOptions? options = null)
     {
-        options ??= new SaveSnapshotPackageFileReadOptions();
-
         try
         {
             using FileStream stream = File.OpenRead(path);
-            using var gzip = new GZipStream(stream, CompressionMode.Decompress);
+            return ReadPackage(stream, options);
+        }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or JsonException) { return null; }
+    }
+
+    /// <summary>Reads the captured package from the current position, leaving the source stream open.</summary>
+    public static SaveSnapshotPackageFileReadResult? ReadPackage(Stream stream, SaveSnapshotPackageFileReadOptions? options = null)
+    {
+        ArgumentNullException.ThrowIfNull(stream);
+        options ??= new SaveSnapshotPackageFileReadOptions();
+        try
+        {
+            using var gzip = new GZipStream(stream, CompressionMode.Decompress, leaveOpen: true);
             using var reader = new BinaryReader(gzip, Encoding.UTF8, leaveOpen: true);
             if (!ReadAndValidatePackageMagic(reader))
             {
