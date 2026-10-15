@@ -76,11 +76,13 @@ public static partial class ClashOfRimNetworkServer
                 ProtocolDeliverySemantics.OnlineImmediate));
         }
 
-        using (state.EnterSnapshotMutation())
+        using (var recovery = EnterPrincipalSnapshotMutation(httpRequest, state, request.Actor))
         {
+            if (recovery.Rejection is { } denied)
+                return Results.Ok(new EventCreationResponse(denied, null, ProtocolDeliverySemantics.OnlineImmediate));
             if (!ReauthorizeSnapshotPrincipal(httpRequest, state, request.Actor))
                 return Results.Ok(new EventCreationResponse(ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed")), null, ProtocolDeliverySemantics.OnlineImmediate));
-            RecoverSnapshotCommits(state);
+
             AuthoritativeEvent? existingEvent = FindEventByIdempotencyKey(state.Ledger, request.IdempotencyKey);
             if (existingEvent is not null)
                 return GiftSnapshotReplayResponse(state, request, transaction.ConfirmedSnapshot.SnapshotId!, existingEvent);
@@ -122,19 +124,20 @@ public static partial class ClashOfRimNetworkServer
                 ProtocolDeliverySemantics.OnlineImmediate));
         }
 
-        SnapshotUploadResult upload = ReceiveSnapshot(
+        SnapshotUploadResult upload = PrepareTransactionSnapshot(
             state,
             request.Actor.UserId,
             request.Actor.ColonyId ?? string.Empty,
             transaction.ConfirmedSnapshot.SnapshotId!,
             transaction.ConfirmedSnapshot,
             multipart.Payload,
-            nowUtc, storeAccepted: false);
-        using (state.EnterSnapshotMutation())
+            nowUtc);
+        using (var recovery = EnterPrincipalSnapshotMutation(httpRequest, state, request.Actor))
         {
+            if (recovery.Rejection is { } denied)
+                return Results.Ok(new EventCreationResponse(denied, null, ProtocolDeliverySemantics.OnlineImmediate));
             if (!ReauthorizeSnapshotPrincipal(httpRequest, state, request.Actor))
                 return Results.Ok(new EventCreationResponse(ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed")), null, ProtocolDeliverySemantics.OnlineImmediate));
-            RecoverSnapshotCommits(state);
             AuthoritativeEvent? existingEvent = FindEventByIdempotencyKey(state.Ledger, request.IdempotencyKey);
             if (existingEvent is not null)
                 return GiftSnapshotReplayResponse(state, request, transaction.ConfirmedSnapshot.SnapshotId!, existingEvent);
@@ -145,6 +148,13 @@ public static partial class ClashOfRimNetworkServer
                     eventId: null,
                     ProtocolDeliverySemantics.OnlineImmediate));
             }
+            if (!state.ServerConfiguration.GiftsEnabled)
+                return Results.Ok(new EventCreationResponse(ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected,
+                    T("Gift.Disabled")), null, ProtocolDeliverySemantics.OnlineImmediate));
+            nowUtc = DateTimeOffset.UtcNow;
+            targetContext = ResolveGiftTargetContext(request, state);
+            if (IsForcedGiftDelivery(request) && ValidateForcedGiftDelivery(request, state, nowUtc, targetContext) is { } finalGiftFailure)
+                return Results.Ok(new EventCreationResponse(finalGiftFailure, null, ProtocolDeliverySemantics.ServerNotification));
             upload = CreateSnapshotReceiver(state).CommitPrepared(
                 new SnapshotUploadContext(request.Actor.UserId, request.Actor.ColonyId ?? string.Empty,
                     transaction.ConfirmedSnapshot.SnapshotId!, null, upload.SnapshotUploadKind),
@@ -763,6 +773,21 @@ public static partial class ClashOfRimNetworkServer
         ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, T("Trade.SnapshotEndpointRequired")),
         eventId: null, ProtocolDeliverySemantics.ServerNotification));
 
+    private static ProtocolResponse? ValidateTradeOrderConfiguration(ClashOfRimNetworkState state, CreateTradeOrderRequest request)
+    {
+        if (!state.ServerConfiguration.TradeMarketplaceEnabled)
+            return ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, T("Trade.Disabled"));
+        var fee = state.AdminBaseline.BuildEffectiveTradeFeePolicy(state.ServerConfiguration).CalculateRequiredFeeResult(
+            request.OfferedThings ?? Array.Empty<ThingReferenceDto>(), request.RequestedThings ?? Array.Empty<ThingReferenceDto>());
+        if (!fee.Accepted)
+            return ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected,
+                T("Trade.MissingMarketValues", ("DEFS", string.Join(", ", fee.MissingMarketValueDefs))));
+        return request.FeeSilver < fee.RequiredFeeSilver
+            ? ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, T("Trade.InsufficientFee",
+                ("SUBMITTED", request.FeeSilver.ToString(CultureInfo.InvariantCulture)),
+                ("REQUIRED", fee.RequiredFeeSilver.ToString(CultureInfo.InvariantCulture)))) : null;
+    }
+
     private static int CountOpenMarketTradeOrdersForOwner(IAuthoritativeEventLedger ledger, ProtocolIdentity owner)
         => ledger.ListByTypeForActor(ServerEventType.Trade, owner.UserId, owner.ColonyId).Count(IsOpenMarketTradeOrderForOwner);
 
@@ -814,23 +839,20 @@ public static partial class ClashOfRimNetworkServer
                 ProtocolDeliverySemantics.OnlineImmediate));
         }
 
-        ApplyTradeOrderExpirations(state, DateTimeOffset.UtcNow);
-        using (state.EnterSnapshotMutation())
+        using (var recovery = EnterPrincipalSnapshotMutation(httpRequest, state, request.Owner))
         {
+            if (recovery.Rejection is { } denied)
+                return Results.Ok(new EventCreationResponse(denied, null, ProtocolDeliverySemantics.OnlineImmediate));
             if (!ReauthorizeSnapshotPrincipal(httpRequest, state, request.Owner))
                 return Results.Ok(new EventCreationResponse(ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed")), null, ProtocolDeliverySemantics.OnlineImmediate));
-            RecoverSnapshotCommits(state);
+            ApplyTradeOrderExpirations(state, DateTimeOffset.UtcNow);
             AuthoritativeEvent? existingEvent = state.Ledger.FindByIdempotencyKey(request.IdempotencyKey);
             if (existingEvent is not null)
                 return TradeOrderReplayResponse(state, request, transaction.ConfirmedSnapshot.SnapshotId!, existingEvent);
         }
         if (!state.ServerConfiguration.TradeMarketplaceEnabled)
-        {
-            return Results.Ok(new EventCreationResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, T("Trade.Disabled")),
-                eventId: null,
-                ProtocolDeliverySemantics.OnlineImmediate));
-        }
+            return Results.Ok(new EventCreationResponse(ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected,
+                T("Trade.Disabled")), null, ProtocolDeliverySemantics.OnlineImmediate));
 
         if (!TryValidateInlinePawnPackages(request.OfferedThings ?? Array.Empty<ThingReferenceDto>(), out ProtocolResponse? pawnFailure)
             || !TryValidateInlinePawnPackages(request.RequestedThings ?? Array.Empty<ThingReferenceDto>(), out pawnFailure)
@@ -843,33 +865,8 @@ public static partial class ClashOfRimNetworkServer
                 ProtocolDeliverySemantics.OnlineImmediate));
         }
 
-        TradeFeeCalculationResult feeCalculation =
-            state.AdminBaseline.BuildEffectiveTradeFeePolicy(state.ServerConfiguration)
-                .CalculateRequiredFeeResult(
-                    request.OfferedThings ?? Array.Empty<ThingReferenceDto>(),
-                    request.RequestedThings ?? Array.Empty<ThingReferenceDto>());
-        if (!feeCalculation.Accepted)
-        {
-            return Results.Ok(new EventCreationResponse(
-                ProtocolResponse.Reject(
-                    ProtocolErrorCode.ServerRejected,
-                    T("Trade.MissingMarketValues", ("DEFS", string.Join(", ", feeCalculation.MissingMarketValueDefs)))),
-                eventId: null,
-                ProtocolDeliverySemantics.OnlineImmediate));
-        }
-
-        if (request.FeeSilver < feeCalculation.RequiredFeeSilver)
-        {
-            return Results.Ok(new EventCreationResponse(
-                ProtocolResponse.Reject(
-                    ProtocolErrorCode.ServerRejected,
-                    T(
-                        "Trade.InsufficientFee",
-                        ("SUBMITTED", request.FeeSilver.ToString(CultureInfo.InvariantCulture)),
-                        ("REQUIRED", feeCalculation.RequiredFeeSilver.ToString(CultureInfo.InvariantCulture)))),
-                eventId: null,
-                ProtocolDeliverySemantics.OnlineImmediate));
-        }
+        if (ValidateTradeOrderConfiguration(state, request) is { } configurationFailure)
+            return Results.Ok(new EventCreationResponse(configurationFailure, null, ProtocolDeliverySemantics.OnlineImmediate));
 
         int maxOpenOrders = state.ServerConfiguration.MaxOpenTradeOrdersPerOwner;
         if (maxOpenOrders > 0)
@@ -903,19 +900,20 @@ public static partial class ClashOfRimNetworkServer
                 ProtocolDeliverySemantics.OnlineImmediate));
         }
 
-        SnapshotUploadResult upload = ReceiveSnapshot(
+        SnapshotUploadResult upload = PrepareTransactionSnapshot(
             state,
             request.Owner.UserId,
             request.Owner.ColonyId ?? string.Empty,
             transaction.ConfirmedSnapshot.SnapshotId!,
             transaction.ConfirmedSnapshot,
             multipart.Payload,
-            nowUtc, storeAccepted: false);
-        using (state.EnterSnapshotMutation())
+            nowUtc);
+        using (var recovery = EnterPrincipalSnapshotMutation(httpRequest, state, request.Owner))
         {
+            if (recovery.Rejection is { } denied)
+                return Results.Ok(new EventCreationResponse(denied, null, ProtocolDeliverySemantics.OnlineImmediate));
             if (!ReauthorizeSnapshotPrincipal(httpRequest, state, request.Owner))
                 return Results.Ok(new EventCreationResponse(ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed")), null, ProtocolDeliverySemantics.OnlineImmediate));
-            RecoverSnapshotCommits(state);
             ApplyTradeOrderExpirations(state, DateTimeOffset.UtcNow);
             AuthoritativeEvent? existing = state.Ledger.FindByIdempotencyKey(request.IdempotencyKey);
             if (existing is not null)
@@ -927,6 +925,9 @@ public static partial class ClashOfRimNetworkServer
                     eventId: null,
                     ProtocolDeliverySemantics.OnlineImmediate));
             }
+            if (ValidateTradeOrderConfiguration(state, request) is { } finalConfigurationFailure)
+                return Results.Ok(new EventCreationResponse(finalConfigurationFailure, null, ProtocolDeliverySemantics.OnlineImmediate));
+            maxOpenOrders = state.ServerConfiguration.MaxOpenTradeOrdersPerOwner;
             if (maxOpenOrders > 0 && CountOpenMarketTradeOrdersForOwner(state.Ledger, request.Owner) >= maxOpenOrders)
                 return Results.Ok(new EventCreationResponse(ProtocolResponse.Reject(ProtocolErrorCode.Conflict,
                     "Open trade order limit reached during preparation."), null, ProtocolDeliverySemantics.OfflinePending));
@@ -1205,7 +1206,6 @@ public static partial class ClashOfRimNetworkServer
                 tradeStatus: string.Empty));
         }
 
-        ApplyTradeOrderExpirations(state, DateTimeOffset.UtcNow);
         ProtocolResponse? validation = ValidateTradeFulfillmentRequest(request);
         if (validation is not null)
         {
@@ -1250,11 +1250,13 @@ public static partial class ClashOfRimNetworkServer
                 tradeStatus: string.Empty));
         }
 
-        using (state.EnterSnapshotMutation())
+        using (var recovery = EnterPrincipalSnapshotMutation(httpRequest, state, request.Acceptor))
         {
+            if (recovery.Rejection is { } denied)
+                return TradeFulfillmentFailure(request, denied);
             if (!ReauthorizeSnapshotPrincipal(httpRequest, state, request.Acceptor))
                 return TradeFulfillmentFailure(request, ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed")));
-            RecoverSnapshotCommits(state);
+            ApplyTradeOrderExpirations(state, DateTimeOffset.UtcNow);
             AuthoritativeEvent? existing = state.Ledger.FindByIdempotencyKey(request.IdempotencyKey);
             if (existing is not null)
                 return TradeFulfillmentReplayResponse(state, request, transaction.ConfirmedSnapshot.SnapshotId!, existing);
@@ -1334,19 +1336,20 @@ public static partial class ClashOfRimNetworkServer
                 tradeOrder.Status.ToString()));
         }
 
-        SnapshotUploadResult upload = ReceiveSnapshot(
+        SnapshotUploadResult upload = PrepareTransactionSnapshot(
             state,
             request.Acceptor.UserId,
             request.Acceptor.ColonyId ?? string.Empty,
             transaction.ConfirmedSnapshot.SnapshotId!,
             transaction.ConfirmedSnapshot,
             multipart.Payload,
-            nowUtc, storeAccepted: false);
-        using (state.EnterSnapshotMutation())
+            nowUtc);
+        using (var recovery = EnterPrincipalSnapshotMutation(httpRequest, state, request.Acceptor))
         {
+            if (recovery.Rejection is { } denied)
+                return TradeFulfillmentFailure(request, denied);
             if (!ReauthorizeSnapshotPrincipal(httpRequest, state, request.Acceptor))
                 return TradeFulfillmentFailure(request, ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed")));
-            RecoverSnapshotCommits(state);
             ApplyTradeOrderExpirations(state, DateTimeOffset.UtcNow);
             AuthoritativeEvent? existing = state.Ledger.FindByIdempotencyKey(request.IdempotencyKey);
             if (existing is not null)

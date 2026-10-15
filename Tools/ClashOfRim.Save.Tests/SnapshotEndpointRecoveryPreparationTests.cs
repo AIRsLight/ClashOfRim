@@ -301,7 +301,7 @@ internal static class SnapshotEndpointRecoveryPreparationTests
             contract = State.MercenaryContracts.FindByIdempotencyKey("operation"), guard = State.MercenaryGuards.FindByIdempotencyKey("operation"),
             journal = Directory.EnumerateFiles(Journal, "*.json").Order().Select(File.ReadAllText).ToArray() });
     }
-    private sealed class Store(string root) : IPreparedColonySnapshotPackageStore
+    internal sealed class Store(string root) : IPreparedColonySnapshotPackageStore
     {
         public FileColonySnapshotIndexStore Inner { get; } = new(root);
         public Action? BeforePrepare;
