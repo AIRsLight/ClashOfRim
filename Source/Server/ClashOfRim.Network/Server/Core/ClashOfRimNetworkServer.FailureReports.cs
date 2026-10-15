@@ -40,6 +40,10 @@ public static partial class ClashOfRimNetworkServer
         if (root.Status is ServerEventStatus.AppliedToSnapshot or ServerEventStatus.Cancelled or ServerEventStatus.RejectedByTarget)
             return ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Events.FailureReportAlreadyEnded"));
 
+        if (root.Payload is ItemDeliveryEventPayload { IsTradeDelivery: true } && tradeId is null
+            || tradeId is not null && !TryReadTradeFailureGraph(state, root, tradeId, out _))
+            return ProtocolResponse.Reject(ProtocolErrorCode.Conflict, "Trade failure conflicts with its fulfillment or escrow returns.");
+
         // Failed roots can be replayed after their order was closed by the original atomic batch.
         if (tradeId is not null && root.Status != ServerEventStatus.Failed
             && !(root.Status == ServerEventStatus.Conflict && FindFailureNotifications(state, root).Count > 0))

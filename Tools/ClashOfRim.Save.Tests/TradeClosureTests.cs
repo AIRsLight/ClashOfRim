@@ -119,7 +119,8 @@ internal static class TradeClosureTests
         state.Ledger.Append(AuthoritativeEventFactory.Create(ServerEventType.Trade, buyer, seller, "exchange", false,
             new TradeEventPayload(order.EventId, selfDelivery ? TradeStage.SelfDeliveryExchange : TradeStage.ServerDropPodExchange,
                 offered, paid, 0, AcceptedByUserId: "buyer"), DateTimeOffset.UnixEpoch)
-            with { Status = ServerEventStatus.AppliedToSnapshot, AppliedSnapshotId = "buyer-snapshot" });
+            with { Status = ServerEventStatus.AppliedToSnapshot, AppliedSnapshotId = "buyer-snapshot",
+                AppliedAtUtc = DateTimeOffset.UnixEpoch, LastApplicationResult = EventApplicationResultKind.Applied });
         AuthoritativeEvent Delivery(bool toOwner) => AuthoritativeEventFactory.Create(ServerEventType.ItemDelivery,
             toOwner ? buyer : seller, toOwner ? seller : buyer,
             (toOwner ? "trade-completed-owner-delivery:" : "trade-completed-acceptor-delivery:") + order.EventId + ":buyer:buyer-colony", false,

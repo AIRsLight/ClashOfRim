@@ -139,6 +139,9 @@ internal static class EventFailureReportTests
         Require(!Report(tradeState, pending, user: "seller", colony: "seller-colony").Result.Accepted, "exchange target reported actor failure");
         Require(Report(tradeState, pending, user: "buyer", colony: "buyer-colony", source: "trade:second-order").Result.Accepted,
             "exchange actor could not report failure");
+        string abandoned = Snapshot(ledger);
+        Require(Report(tradeState, pending, user: "buyer", colony: "buyer-colony", source: "trade:second-order").Result.Accepted
+            && abandoned == Snapshot(ledger), "legacy exchange without deliveries could not replay its recorded failure");
     });
 
     private static void StaleSource(string kind)
@@ -247,13 +250,17 @@ internal static class EventFailureReportTests
                 with { Status = ServerEventStatus.AppliedToSnapshot });
             ledger.Append(Create(ServerEventType.Trade, "exchange", new TradeEventPayload("trade:order",
                 kind == "self" ? TradeStage.SelfDeliveryExchange : TradeStage.ServerDropPodExchange, offered, paid, 0), buyer, seller)
-                with { Status = ServerEventStatus.AppliedToSnapshot, AppliedSnapshotId = "buyer-paid", AppliedAtUtc = Original });
+                with { Status = ServerEventStatus.AppliedToSnapshot, AppliedSnapshotId = "buyer-paid", AppliedAtUtc = Original,
+                    LastApplicationResult = EventApplicationResultKind.Applied });
             var observer = new EventParty("observer", "observer-colony");
-            ledger.Append(Create(ServerEventType.Trade, "memo", new TradeEventPayload("trade:order", TradeStage.AcceptedMemo, offered, paid, 0), observer, observer));
+            ledger.Append(Create(ServerEventType.Trade, "memo", new TradeEventPayload("trade:order", TradeStage.AcceptedMemo, offered, paid, 0,
+                AcceptedByUserId: "observer"), observer, observer));
             root = Create(ServerEventType.ItemDelivery, "trade-completed-acceptor-delivery:trade:order:buyer:buyer-colony",
                 new ItemDeliveryEventPayload(offered, null, Purpose: ItemDeliveryPurpose.TradeCompletedAcceptorDelivery));
-            ledger.Append(Create(ServerEventType.ItemDelivery, "trade-completed-owner-delivery:trade:order:buyer:buyer-colony",
-                new ItemDeliveryEventPayload(paid, null, Purpose: ItemDeliveryPurpose.TradeCompletedOwnerDelivery), buyer, seller));
+            var ownerDelivery = Create(ServerEventType.ItemDelivery, "trade-completed-owner-delivery:trade:order:buyer:buyer-colony",
+                new ItemDeliveryEventPayload(paid, null, Purpose: ItemDeliveryPurpose.TradeCompletedOwnerDelivery), buyer, seller);
+            if (kind == "self") root = ownerDelivery;
+            else ledger.Append(ownerDelivery);
         }
         else if (kind == "loss")
             root = Create(ServerEventType.Raid, "loss" + suffix, new RaidEventPayload("base", null, null, null, null,

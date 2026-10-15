@@ -2927,6 +2927,15 @@ try
             && evt.IdempotencyKey == $"trade-application-failed-owner-return:{directDropPodTrade.EventId}");
     Equal(ItemDeliveryPurpose.TradeApplicationFailedOwnerReturn, ((ItemDeliveryEventPayload)applicationFailedReturn.Payload).Purpose, "交易落地失败应生成发布者托管物退回事件");
 
+    string failedTradeLedger = JsonSerializer.Serialize(state.Ledger.ListAll());
+    long failedTradeBuyerVersion = state.EventNotifications.GetVersion("user-surface");
+    var failedTradeRetry = await client.ReportEventApplicationFailureAsync(new ReportEventApplicationFailureRequest(
+        "event-application-failed:" + directDropPodFulfill.AcceptorDeliveryEventId, directDropPodFulfill.AcceptorDeliveryEventId!,
+        "user-surface", "colony-surface", "surface-snapshot", "重试失败报告", directDropPodFulfill.ExchangeEventId, surfaceLogin.AuthToken));
+    Require(failedTradeRetry.Result.Accepted && failedTradeRetry.Result.ErrorCode == ProtocolErrorCode.DuplicateRequest
+        && failedTradeLedger == JsonSerializer.Serialize(state.Ledger.ListAll())
+        && state.EventNotifications.GetVersion("user-surface") > failedTradeBuyerVersion, "失败交易重试应校验原履约和返还并只重发通知");
+
     foreach (string? badToken in new[] { null, "invalid-trade-token", userAAuthToken })
     {
         string before = JsonSerializer.Serialize(state.Ledger.ListAll());
