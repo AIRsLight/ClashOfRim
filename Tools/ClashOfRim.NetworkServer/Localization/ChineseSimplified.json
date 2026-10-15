@@ -494,6 +494,8 @@
   "Gift.AlreadyAppliedCannotReject": "礼物已应用到存档，不能再拒绝。",
   "Gift.RejectedDuplicate": "礼物已拒绝，退回安排已经存在。",
   "Gift.RejectedReturnCreated": "礼物已拒绝，退回安排已经创建。",
+  "Support.SnapshotEndpointRequired": "请更新客户端，并通过快照事务提交支援人员。",
+  "Raid.SnapshotEndpointRequired": "请更新客户端，并通过快照事务发起袭击。",
   "Gift.SnapshotEndpointRequired": "赠送礼物必须同时确认存档。请更新客户端，使用带快照的赠送提交。",
   "Gift.Disabled": "服务器已关闭礼物和强行投递。",
   "Trade.OrderCreated": "交易单已发布。",

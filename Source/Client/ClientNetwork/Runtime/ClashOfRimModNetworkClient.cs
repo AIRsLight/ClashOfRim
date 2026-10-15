@@ -51,12 +51,10 @@ public sealed class ClashOfRimModNetworkClient
     private static readonly string RemoveServerShopListingRoute = ProtocolContractManifest.Find(ProtocolMessageKind.RemoveServerShopListing).Route;
     private static readonly string PurchaseServerShopListingWithSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.PurchaseServerShopListingWithSnapshot).Route;
     private static readonly string PrepareRaidRoute = ProtocolContractManifest.Find(ProtocolMessageKind.PrepareRaid).Route;
-    private static readonly string CreateRaidRoute = ProtocolContractManifest.Find(ProtocolMessageKind.CreateRaid).Route;
     private static readonly string CreateRaidWithSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.CreateRaidWithSnapshot).Route;
     private static readonly string RejectGiftRoute = ProtocolContractManifest.Find(ProtocolMessageKind.RejectGift).Route;
     private static readonly string CreateDiplomacyEventRoute = ProtocolContractManifest.Find(ProtocolMessageKind.CreateDiplomacyEvent).Route;
     private static readonly string RespondDiplomacyEventRoute = ProtocolContractManifest.Find(ProtocolMessageKind.RespondDiplomacyEvent).Route;
-    private static readonly string CreateSupportPawnRoute = ProtocolContractManifest.Find(ProtocolMessageKind.CreateSupportPawn).Route;
     private static readonly string CreateSupportPawnWithSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.CreateSupportPawnWithSnapshot).Route;
     private static readonly string RejectSupportPawnRoute = ProtocolContractManifest.Find(ProtocolMessageKind.RejectSupportPawn).Route;
     private static readonly string FinishSupportPawnRoute = ProtocolContractManifest.Find(ProtocolMessageKind.FinishSupportPawn).Route;
@@ -2191,64 +2189,6 @@ public sealed class ClashOfRimModNetworkClient
         return ModSnapshotUploadKinds.ManualUpload;
     }
 
-    public Task<ClashOfRimClientNetworkResult<ModEventCreationResponseDto>> CreateRaidAsync(
-        string idempotencyKey,
-        string? raidPreparationId,
-        string targetUserId,
-        string targetColonyId,
-        string? targetSnapshotId,
-        string targetWorldObjectId,
-        string targetMapId,
-        int? targetTile,
-        bool isHostile,
-        bool defenderOnline,
-        int defenderWealth,
-        string? defenderRaidCooldownUntilUtc,
-        IReadOnlyList<string> pawnGlobalKeys,
-        IReadOnlyList<ModThingReferenceDto> carriedThings,
-        string opponentKind = "Player",
-        CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModEventCreationResponseDto>();
-        }
-
-        var request = new ModCreateRaidRequestDto
-        {
-            IdempotencyKey = idempotencyKey,
-            Attacker = new ModProtocolIdentityDto
-            {
-                UserId = context.UserId,
-                ColonyId = context.ColonyId,
-                SnapshotId = context.CurrentSnapshotId
-            },
-            Defender = new ModProtocolIdentityDto
-            {
-                UserId = targetUserId,
-                ColonyId = targetColonyId,
-                SnapshotId = null
-            },
-            IsHostile = isHostile,
-            DefenderOnline = defenderOnline,
-            DefenderWealth = defenderWealth,
-            DefenderRaidCooldownUntilUtc = defenderRaidCooldownUntilUtc,
-            RaidPreparationId = raidPreparationId,
-            TargetWorldObjectId = targetWorldObjectId,
-            TargetMapId = targetMapId,
-            TargetTile = targetTile,
-            DefenderSnapshotId = string.Empty,
-            OpponentKind = opponentKind,
-            PawnGlobalKeys = pawnGlobalKeys.ToList(),
-            CarriedThings = carriedThings.ToList()
-        };
-
-        return PostAsync<ModCreateRaidRequestDto, ModEventCreationResponseDto>(
-            CreateRaidRoute,
-            request,
-            cancellationToken);
-    }
-
     public Task<ClashOfRimClientNetworkResult<ModEventCreationResponseDto>> CreateRaidWithSnapshotAsync(
         string idempotencyKey,
         string? raidPreparationId,
@@ -2359,66 +2299,6 @@ public sealed class ClashOfRimModNetworkClient
 
         return PostAsync<ModPrepareRaidRequestDto, ModPrepareRaidResponseDto>(
             PrepareRaidRoute,
-            request,
-            cancellationToken);
-    }
-
-    public Task<ClashOfRimClientNetworkResult<ModEventCreationResponseDto>> CreateSupportPawnAsync(
-        string idempotencyKey,
-        string targetUserId,
-        string targetColonyId,
-        string? targetSnapshotId,
-        string pawnGlobalKey,
-        string pawnName,
-        ModCrossMapPawnReferenceDto pawnReference,
-        ModPawnExchangePackageDto pawnPackage,
-        ModEventTargetContextDto targetContext,
-        int sourceTile,
-        string? sourceCaravanLoadId,
-        bool permanentSupport,
-        int? supportDurationDays,
-        long? expiresAtGameTicks,
-        bool autoReturnOnSettlement,
-        CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModEventCreationResponseDto>();
-        }
-
-        var request = new ModCreateSupportPawnRequestDto
-        {
-            IdempotencyKey = idempotencyKey,
-            Actor = new ModProtocolIdentityDto
-            {
-                UserId = context.UserId,
-                ColonyId = context.ColonyId,
-                SnapshotId = context.CurrentSnapshotId
-            },
-            Target = new ModProtocolIdentityDto
-            {
-                UserId = targetUserId,
-                ColonyId = targetColonyId,
-                SnapshotId = null
-            },
-            PawnGlobalKey = pawnGlobalKey,
-            SourceSnapshotId = context.CurrentSnapshotId ?? string.Empty,
-            PawnName = pawnName,
-            TemporaryControl = true,
-            ExpectedReturnAtUtc = null,
-            PawnReference = pawnReference,
-            PawnPackage = pawnPackage,
-            TargetContext = targetContext,
-            SourceTile = sourceTile,
-            SourceCaravanLoadId = sourceCaravanLoadId,
-            PermanentSupport = permanentSupport,
-            SupportDurationDays = supportDurationDays,
-            ExpiresAtGameTicks = expiresAtGameTicks,
-            AutoReturnOnSettlement = autoReturnOnSettlement
-        };
-
-        return PostAsync<ModCreateSupportPawnRequestDto, ModEventCreationResponseDto>(
-            CreateSupportPawnRoute,
             request,
             cancellationToken);
     }

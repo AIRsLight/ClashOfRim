@@ -206,12 +206,22 @@ public sealed class ClashOfRimNetworkClient
             cancellationToken);
     }
 
+    [Obsolete("The JSON endpoint is retired. Use CreateSupportPawnWithSnapshotAsync.")]
     public Task<EventCreationResponse> CreateSupportPawnAsync(CreateSupportPawnRequest request, CancellationToken cancellationToken = default)
     {
         return PostAsync<CreateSupportPawnRequest, EventCreationResponse>(
             ProtocolContractManifest.Find(ProtocolMessageKind.CreateSupportPawn).Route,
             request,
             cancellationToken);
+    }
+
+    public Task<EventCreationResponse> CreateSupportPawnWithSnapshotAsync(CreateSupportPawnRequest supportPawn,
+        SnapshotPackageMetadataDto confirmedSnapshot, byte[] payload, string authToken, CancellationToken cancellationToken = default)
+    {
+        return PostSnapshotMultipartAsync<CreateSupportPawnWithSnapshotRequest, EventCreationResponse>(
+            ProtocolContractManifest.Find(ProtocolMessageKind.CreateSupportPawnWithSnapshot).Route,
+            new CreateSupportPawnWithSnapshotRequest(supportPawn, confirmedSnapshot), payload, authToken,
+            cancellationToken: cancellationToken);
     }
 
     public Task<RejectSupportPawnResponse> RejectSupportPawnAsync(RejectSupportPawnRequest request, CancellationToken cancellationToken = default)
@@ -292,6 +302,7 @@ public sealed class ClashOfRimNetworkClient
             cancellationToken);
     }
 
+    [Obsolete("The JSON endpoint is retired. Use CreateRaidWithSnapshotAsync.")]
     public Task<EventCreationResponse> CreateRaidAsync(CreateRaidRequest request, CancellationToken cancellationToken = default)
     {
         return PostAsync<CreateRaidRequest, EventCreationResponse>(

@@ -1822,6 +1822,24 @@ try
         }
         return response;
     }
+    async Task<EventCreationResponse> CreateSnapshotSupport(CreateSupportPawnRequest request)
+    {
+        var package = NextSourcePackage(request.Actor.UserId, request.Actor.ColonyId!, "support-confirm-" + Guid.NewGuid().ToString("N"));
+        var bound = new CreateSupportPawnRequest(request.IdempotencyKey,
+            new ProtocolIdentity(request.Actor.UserId, request.Actor.ColonyId, package.Envelope.PreviousSnapshotId),
+            request.Target, request.PawnGlobalKey, package.Envelope.PreviousSnapshotId!, request.PawnName,
+            request.TemporaryControl, request.ExpectedReturnAtUtc, request.PawnReference, request.PawnPackage,
+            request.TargetContext, request.SourceTile, request.SourceCaravanLoadId, request.PermanentSupport,
+            request.SupportDurationDays, request.ExpiresAtGameTicks, request.AutoReturnOnSettlement);
+        var response = await client.CreateSupportPawnWithSnapshotAsync(bound, SnapshotMetadata(package), package.Payload, userAAuthToken);
+        if (response.Result.Accepted)
+        {
+            Equal(package.Envelope.Identity.SnapshotId, response.AppliedSnapshotId, "支援创建必须确认发送方快照");
+            Equal(response.AppliedSnapshotId, ((SupportPawnEventPayload)state.Ledger.Find(response.EventId!)!.Payload).SourceSnapshotId,
+                "支援事件必须绑定确认后的快照");
+        }
+        return response;
+    }
     async Task<EventCreationResponse> CreateSnapshotGift(CreateGiftRequest request)
     {
         if (!giftPackages.TryGetValue(request.IdempotencyKey, out var package))
@@ -2484,7 +2502,7 @@ try
     int supportTargetTile = int.TryParse(supportTargetWorldObject?.Tile, out int parsedSupportTargetTile)
         ? parsedSupportTargetTile
         : 42;
-    EventCreationResponse supportPawn = await client.CreateSupportPawnAsync(new CreateSupportPawnRequest(
+    EventCreationResponse supportPawn = await CreateSnapshotSupport(new CreateSupportPawnRequest(
         "support:user-a:user-b:001",
         new ProtocolIdentity("user-a", "colony-a", "attacker-snapshot-after"),
         new ProtocolIdentity("user-b", "colony-b", supportTargetSnapshotId),
@@ -2577,7 +2595,7 @@ try
             finishingSupportScribeXml,
             SafePawnExchangeSerializer.ComputeScribeXmlSha256(finishingSupportScribeXml),
             Array.Empty<PawnScribePawnReferenceReplacementDto>()));
-    EventCreationResponse finishingSupport = await client.CreateSupportPawnAsync(new CreateSupportPawnRequest(
+    EventCreationResponse finishingSupport = await CreateSnapshotSupport(new CreateSupportPawnRequest(
         "support:user-a:user-b:finish-001",
         new ProtocolIdentity("user-a", "colony-a", "attacker-snapshot-after"),
         new ProtocolIdentity("user-b", "colony-b", supportTargetSnapshotId),
@@ -3294,10 +3312,10 @@ try
     Equal(raid.EventId, blockedSecondRaid.EventId, "重复袭击拒绝响应应指向阻挡的新近袭击");
     state.Ledger.ChangeStatus(raid.EventId!, ServerEventStatus.Cancelled);
 
-    EventCreationResponse npcTargetRaid = await client.CreateRaidAsync(new CreateRaidRequest(
+    EventCreationResponse npcTargetRaid = await client.CreateRaidWithSnapshotAsync(new CreateRaidRequest(
         "raid:user-a:npc:001",
         new ProtocolIdentity("user-a", "colony-a", "attacker-snapshot-after-player-raid"),
-        new ProtocolIdentity("npc", null, null),
+        new ProtocolIdentity("npc", "npc-colony", "npc-snapshot"),
         true,
         false,
         0,
@@ -3305,16 +3323,19 @@ try
         null,
         "WorldObject_NPC_1",
         "Map_NPC_1",
-        string.Empty,
+        "npc-snapshot",
         new[] { "owner:user-a/colony:colony-a/snapshot:attacker-snapshot-after-player-raid/map:caravan/thing:pawn-2" },
         Array.Empty<ThingReferenceDto>(),
         targetTile: 812,
-        opponentKind: "VanillaNpc"));
+        opponentKind: "VanillaNpc"), SnapshotMetadata(raidBattlefieldPackage), raidBattlefieldPackage.Payload, userAAuthToken);
     Require(!npcTargetRaid.Result.Accepted, "主动进攻 NPC 不再创建多人事件");
     Equal(ProtocolErrorCode.ValidationFailed, npcTargetRaid.Result.ErrorCode, "主动进攻 NPC 应被视为本地事件拒绝");
     Require(string.IsNullOrWhiteSpace(npcTargetRaid.EventId), "主动进攻 NPC 不应返回多人账本事件");
     Require(WorldMapMarkerProjectionBuilder.BuildActiveRaidTargetMarkers(state.Ledger.ListAll(), DateTimeOffset.UtcNow)
         .All(marker => marker.RelatedEventId != "raid:user-a:npc:001"), "主动进攻 NPC 不应广播支援标记");
+
+    await RetiredSupportRaidEndpointTests.RunAsync(httpClient, state, userAAuthToken, userBAuthToken,
+        supportPawn.EventId!, raid.EventId!, supportPawnPackage);
 
     RegisterPlayerColonySitesResponse transientColonySites = await client.RegisterPlayerColonySitesAsync(
         new RegisterPlayerColonySitesRequest(

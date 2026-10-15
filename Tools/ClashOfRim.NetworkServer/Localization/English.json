@@ -494,6 +494,8 @@
   "Gift.AlreadyAppliedCannotReject": "Gift has already been applied to a save and cannot be rejected.",
   "Gift.RejectedDuplicate": "Gift already rejected; a return delivery already exists.",
   "Gift.RejectedReturnCreated": "Gift rejected and return delivery created.",
+  "Support.SnapshotEndpointRequired": "Update your client and submit support pawns with a source snapshot.",
+  "Raid.SnapshotEndpointRequired": "Update your client and start raids with a source snapshot.",
   "Gift.SnapshotEndpointRequired": "Gift creation now requires a confirmed save. Update the client and use snapshot gift submission.",
   "Gift.Disabled": "Gifts and forced deliveries are disabled on this server.",
   "Trade.OrderCreated": "Trade order posted.",
