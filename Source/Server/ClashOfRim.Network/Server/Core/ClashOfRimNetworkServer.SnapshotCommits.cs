@@ -9,21 +9,68 @@ public static partial class ClashOfRimNetworkServer
 {
     internal static void RecoverSnapshotCommits(ClashOfRimNetworkState state)
     {
+        // Reentrant callers may own other business gates. They keep their existing synchronous boundary.
+        if (Monitor.IsEntered(state.RaidSettlementSnapshotMutationGate))
+        {
+            RecoverSnapshotCommitsUnderLock(state);
+            return;
+        }
+        while (true)
+        {
+            SnapshotCommitService.RecoveryPreparation preparation;
+            using (state.EnterSnapshotMutation())
+            {
+                RecoverBeforeSnapshotCommits(state);
+                preparation = state.SnapshotCommits.CaptureRecoveryPreparation(state.SnapshotStore);
+                if (!preparation.NeedsPreparation)
+                {
+                    RecoverSnapshotCommitRecords(state);
+                    return;
+                }
+            }
+            Exception? failure = null;
+            try { SnapshotPreparationService.Run(() => { preparation.Prepare(); return true; }); }
+            catch (Exception ex) { failure = ex; }
+            using (state.EnterSnapshotMutation())
+            {
+                RecoverBeforeSnapshotCommits(state);
+                // A competing recovery may already have completed or replaced the captured intent.
+                if (!preparation.IsCurrent) continue;
+                if (failure is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
+                if (!preparation.TryInstall()) continue;
+                RecoverSnapshotCommitRecords(state);
+                return;
+            }
+        }
+    }
+
+    private static void RecoverSnapshotCommitsUnderLock(ClashOfRimNetworkState state)
+    {
         using (state.EnterSnapshotMutation())
         {
-            if (state.ColonyDeletions.IsApplying)
-                throw new InvalidOperationException("Cannot begin nested mutations while a colony deletion is being applied.");
-            RecoverWorldLayerNotifications(state);
-            state.ColonyDeletions.Recover(intent => ApplyColonyDeletion(state, intent));
-            state.SnapshotCommits.Recover(state.SnapshotStore, state.BankLoans,
-                (snapshot, kind) => RunCommittedSnapshotPostUpload(state, snapshot, kind), state.Ledger,
-                userId => state.EventNotifications.SignalUsers(new[] { userId }),
-                item => RecordAuthoritativeEventAchievements(state, item, item.AppliedAtUtc ?? item.CreatedAtUtc), state.ServerShop,
-                state.MercenaryContracts, state.MercenaryGuards, state.Players,
-                (snapshot, kind, mutation) => RunCommittedOrdinaryUpload(state, snapshot, kind, mutation),
-                (mutation, snapshot) => PlanSnapshotConfirmations(state, mutation, snapshot));
-            RecoverMercenaryIncidents(state);
+            RecoverBeforeSnapshotCommits(state);
+            RecoverSnapshotCommitRecords(state);
         }
+    }
+
+    private static void RecoverBeforeSnapshotCommits(ClashOfRimNetworkState state)
+    {
+        if (state.ColonyDeletions.IsApplying)
+            throw new InvalidOperationException("Cannot begin nested mutations while a colony deletion is being applied.");
+        RecoverWorldLayerNotifications(state);
+        state.ColonyDeletions.Recover(intent => ApplyColonyDeletion(state, intent));
+    }
+
+    private static void RecoverSnapshotCommitRecords(ClashOfRimNetworkState state)
+    {
+        state.SnapshotCommits.Recover(state.SnapshotStore, state.BankLoans,
+            (snapshot, kind) => RunCommittedSnapshotPostUpload(state, snapshot, kind), state.Ledger,
+            userId => state.EventNotifications.SignalUsers(new[] { userId }),
+            item => RecordAuthoritativeEventAchievements(state, item, item.AppliedAtUtc ?? item.CreatedAtUtc), state.ServerShop,
+            state.MercenaryContracts, state.MercenaryGuards, state.Players,
+            (snapshot, kind, mutation) => RunCommittedOrdinaryUpload(state, snapshot, kind, mutation),
+            (mutation, snapshot) => PlanSnapshotConfirmations(state, mutation, snapshot));
+        RecoverMercenaryIncidents(state);
     }
 
     private static void RecoverMercenaryIncidents(ClashOfRimNetworkState state) =>

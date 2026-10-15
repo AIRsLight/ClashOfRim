@@ -9,6 +9,7 @@ internal static class PreparedSnapshotPayloadTests
     public static void Run(Func<string, SaveSnapshotPackage> fixture)
     {
         SnapshotEndpointTestClient.LoadLocalization();
+        SnapshotJournalRecoveryPreparationTests.Run(fixture);
         string root = Path.Combine(Path.GetTempPath(), "cor-prepared-payload-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
         try
