@@ -66,24 +66,13 @@ internal static class TradeCommandAuthTests
     private static void RevokedWhileWaiting(string kind)
     {
         var (state, order, user, token) = Setup(kind);
-        string before = Snapshot(state);
-        ProtocolResponse? result = null; Exception? error = null;
-        var thread = new Thread(() =>
+        foreach (bool replaced in new[] { false, true })
         {
-            try { result = Call(state, order, kind, user, token); }
-            catch (Exception ex) { error = ex; }
-        }) { IsBackground = true };
-        bool waiting;
-        lock (state.RaidSettlementSnapshotMutationGate)
-        {
-            thread.Start();
-            waiting = SpinWait.SpinUntil(() => (thread.ThreadState & ThreadState.WaitSleepJoin) != 0, TimeSpan.FromSeconds(5));
-            state.LoginSessions.EndUser(user);
+            // Each attempt needs a live session before the request starts waiting.
+            token = Token(state, user);
+            MutationAuthenticationTests.RevokedWhileWaiting(state, user, user + "-colony", replaced,
+                () => Call(state, order, kind, user, token).Accepted);
         }
-        Require(thread.Join(TimeSpan.FromSeconds(5)), "trade command did not release business lock");
-        Require(waiting && error is null, "trade command did not wait on the business lock: " + error);
-        Require(result is { Accepted: false, ErrorCode: ProtocolErrorCode.ServerRejected } && before == Snapshot(state),
-            "session revoked while waiting still executed trade command: " + kind);
     }
 
     private static void NullIdentity(string kind)

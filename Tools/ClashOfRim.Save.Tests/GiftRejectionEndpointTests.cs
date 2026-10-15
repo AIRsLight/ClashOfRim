@@ -14,6 +14,15 @@ internal static class GiftRejectionEndpointTests
     {
         SnapshotEndpointTestClient.LoadLocalization();
         Guards();
+        foreach (bool replay in new[] { false, true })
+        foreach (bool replaced in new[] { false, true })
+        {
+            var state = new ClashOfRimNetworkState(); var gift = Seed(state.Ledger);
+            string token = Token(state, "receiver", "away");
+            if (replay) Require(Reject(state, Request(gift, token)).Result.Accepted, "initial gift rejection for queued retry failed");
+            MutationAuthenticationTests.RevokedWhileWaiting(state, "receiver", "away", replaced,
+                () => Reject(state, Request(gift, token)).Result.Accepted);
+        }
         foreach (string storage in new[] { "memory", "file", "sqlite" })
         {
             foreach (bool reopen in new[] { false, true }) InterruptedNotification(storage, reopen);

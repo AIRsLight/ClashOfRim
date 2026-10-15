@@ -13,13 +13,12 @@ public static partial class ClashOfRimNetworkServer
         if (string.IsNullOrWhiteSpace(request.EventId) || string.IsNullOrWhiteSpace(request.UserId)
             || string.IsNullOrWhiteSpace(request.ColonyId) || string.IsNullOrWhiteSpace(request.CurrentSnapshotId))
             return Reject(ProtocolErrorCode.ValidationFailed, T("Gift.RejectMissingFields"));
-        // Rejection belongs to the recipient's own colony; remote raid/scout grants do not authorize it.
-        if (!IsAuthorizedForColony(state, request.AuthToken, request.UserId, request.ColonyId,
-                authorizationEventId: null, authorizationScope: null, DateTimeOffset.UtcNow, out string failure))
-            return Reject(ProtocolErrorCode.ServerRejected, failure);
-
         using (state.EnterSnapshotMutation())
         {
+            // Check the live session after waiting for the commit gate; remote grants cannot reject gifts.
+            if (!IsAuthorizedForColony(state, request.AuthToken, request.UserId, request.ColonyId,
+                    authorizationEventId: null, authorizationScope: null, DateTimeOffset.UtcNow, out string failure))
+                return Reject(ProtocolErrorCode.ServerRejected, failure);
             RecoverSnapshotCommits(state);
             var gift = state.Ledger.Find(request.EventId);
             if (gift is null || !IsVisibleParty(gift.Target, request.UserId, request.ColonyId))

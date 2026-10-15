@@ -476,3 +476,11 @@
 - 验证：完整 `Test-Regression.ps1 -IncludeClient` 通过（Events 52、Save 104、Client.Core 5 组、完整 NetworkSmoke、客户端 26），日志 `LocalOnly/trade-auth-regression.log`。负向证据见 `LocalOnly/trade-auth-negative-0.log` 至 `-2.log`、`LocalOnly/trade-auth-negative-wait.log`；恢复后验证见 `LocalOnly/trade-auth-final-targeted.log`。无新增持久化格式，数据库仍为版本 25。
 - 边界：此步限定入口认证，接单幂等键与历史备忘关联、取消备忘的重试通知、旧直接完成接口的成交证据约束仍需单独审计。礼物拒收与支援结束/拒绝的锁外认证也需要补齐等待期间的撤销校验；锁范围、服务职责和 DTO 收敛继续保留。
 - RimTest 再次运行当前两客户端的 19 项既有流程全部通过，含真实交易接单/撤单退款和空投履约；报告 `G:/RimTestRuns/ClashOfRim/20261015-152202-36ddf8de/report.json`，日志 `LocalOnly/trade-auth-rimtest.log`，测试进程均已退出。报告仍为有限覆盖，不代表旧直接完成入口、所有鉴权失败或持久化故障均有实机场景。77 个 1.6 冻结文件及差异格式检查通过。
+
+## 续修：礼物和支援排队期间的会话撤销
+
+- 礼物拒收、支援结束和拒绝原先在取得业务锁前认证。其他提交占用锁时，请求可能已通过认证却尚未执行；此时退出或重新登录替换会话，旧请求仍能关闭事件或发出重复通知。认证检查现移到取得锁之后、恢复待办之前，使用当时的有效会话状态决定是否执行。
+- 新增共享测试辅助 `MutationAuthenticationTests`：主线程持有真实提交锁，后台请求确实阻塞后注销或替换会话，再放开锁；验证响应拒绝、完整账本和所有原事件参与者的通知版本不变。支援三种结束 × 首次/重试 × 注销/替换 12 场景，礼物拒收同类 4 场景；交易四路径复用辅助并增加替换会话，共 8 场景，合计 24 个锁等待场景。
+- 修改服务端前，支援和礼物测试均明确复现 `revoked session executed mutation after lock wait`；日志 `LocalOnly/auth-wait-negative-支援结束.log`、`LocalOnly/auth-wait-negative-礼物拒收.log`。修复后相关三个完整测试组通过，日志 `LocalOnly/auth-wait-targeted.log`。
+- 验证：默认完整回归通过（Events 52、Save 104、Client.Core 5 组、完整 NetworkSmoke），日志 `LocalOnly/auth-wait-regression.log`。77 个 1.6 冻结文件与差异格式检查通过。此次只调整服务端检查时机，未改客户端协议、数据库版本或日志格式；没有新增实机锁等待场景，前一步的 19 项 RimTest 结果不作为这个并发窗口的实机证据。
+- 剩余工作仍按顺序推进：交易接单身份/幂等关联、备忘取消的通知重放与旧完成入口约束，之后继续业务锁、职责和 DTO 改进。此次没有将会话注销与整个业务事务合并成单一跨注册表事务，不承诺认证后任意时刻注销都能撤销已开始提交的操作。

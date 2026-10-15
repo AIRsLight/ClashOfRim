@@ -31,6 +31,16 @@ internal static class SupportClosureTests
         }
         Guards();
         AuthenticationGuards();
+        foreach (string kind in Kinds)
+        foreach (bool replay in new[] { false, true })
+        foreach (bool replaced in new[] { false, true })
+        {
+            var state = new ClashOfRimNetworkState(); state.Ledger.Append(Source());
+            string token = Token(state, "userA");
+            if (replay) Require(Call(state, kind).Accepted, "initial closure for queued retry failed");
+            MutationAuthenticationTests.RevokedWhileWaiting(state, "userA", "colonyA", replaced,
+                () => Call(state, kind, token: token, authenticate: false).Accepted);
+        }
         ConflictingReturns();
         ConcurrentFinish();
         OtherClosureProducers(fixture);
