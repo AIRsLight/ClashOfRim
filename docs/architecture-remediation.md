@@ -9,7 +9,7 @@
 | 1 | 发布只检查构建和包结构，未执行行为回归 | P2 | 已落实 | PR 执行可移植测试；发布依赖测试成功；本机提供完整客户端测试入口 |
 | 2 | 退出后后台响应和主线程动作可能污染新会话 | P1 | 已落实退出与重新登录边界 | 会话取消、迟到响应、排队动作失效与等待者取消均有回归测试 |
 | 3 | 快照文件与业务账本分步提交 | P1 | 银行、礼物、交易、商店、雇佣、普通上传、单条/批量事件入档确认及待确认业务批次、袭击发起/证据/结算/清理/超时及殖民地删除已接入恢复；图层变化与通知待办共同持久化；支援结束/拒绝改为原子批次；支援创建已接入可恢复提交与严格请求绑定；其他入口审计及实机验证待完成 | 提交中断可恢复，重试幂等，失败不能丢失业务意图 |
-| 4 | 全服锁覆盖解压、解析和存储 | P2 | 主要上传、结算压缩及下载/超时战场清理准备已移出业务锁；殖民地快照与证据制品文件处理已缩小存储锁；证据调度、提交日志与恢复仍待处理 | 无状态准备移出锁，提交重验 lineage；并发提交不覆盖新状态 |
+| 4 | 全服锁覆盖解压、解析和存储 | P2 | 主要上传、结算压缩及下载/超时战场清理准备已移出业务锁；殖民地快照与证据制品文件处理已缩小存储锁；离线证据首次调度已移出业务锁；在线证据、提交日志与恢复仍待处理 | 无状态准备移出锁，提交重验 lineage；并发提交不覆盖新状态 |
 | 5 | Mod 和端点大类共享过多状态与职责 | P2 | 首轮边界已抽出 | 会话工作、银行提交、快照准备和远程地图引擎加载有独立入口 |
 | 6 | 客户端手写路由、DTO 与共享协议重复 | P2 | 路由已统一；关键 DTO 已加契约检查 | 所有客户端路由读取协议清单；银行、快照、聊天传输模型用实际序列化器验证 |
 
@@ -689,5 +689,17 @@
 - `ArtifactStoreConcurrencyTests` 覆盖 RawRws/GzipRws 的读取暂停后删除重建、写入暂停后的其他 ID 写入/删除/竞争发布/删除重建，以及显式准备的过期重复、过期冲突、未引用清理、输入副本、释放后拒绝发布、文件重开和流所有权。另有 12 个相同请求与 12 个不同内容竞争同一 ID，验证幂等及恰好一个竞争者成功。Windows 占用目标文件时实际返回 UnauthorizedAccessException；首次完整 Save 运行因测试误预期 IOException 停止，已按观测修正断言，未吞掉生产发布异常。原失败记录保留于 `LocalOnly/artifact-preparation-save.log`。
 - 负向验证分别将解码、压缩放回存储锁，以及删除最终版本复验，三次均被新测试捕获，日志为 `LocalOnly/artifact-preparation-read.log`、`LocalOnly/artifact-preparation-write.log`、`LocalOnly/artifact-preparation-revision.log`。恢复正式代码后定向组通过，日志 `LocalOnly/artifact-preparation-positive.log`；所有临时测试筛选和源码变异已恢复。
 - 本步仅建立制品存储层边界：文件字节捕获及原子发布仍在存储锁内，版本复验范围是同一存储实例；离线证据调度仍在外层业务锁内调用 Store，尚未接入显式准备接口，因此没有宣称调度已释放全服锁。后续必须同时复验源袭击、证据绑定、任务状态及调用方外层锁，保持证据先落盘、Ready 任务后保存、攻击方最后清理的顺序。提交日志及恢复仍待处理，1.6 冻结内容不变。
-- 最终完整 `Test-Regression.ps1 -IncludeClient` 通过（Events 58 项、Save 115 组、Client.Core 5 组、完整 NetworkSmoke、客户端 28 项），日志 `LocalOnly/artifact-preparation-regression.log`；77 个 1.6 冻结文件通过，日志 `LocalOnly/artifact-preparation-frozen.log`。最终回归包含上述全部并发及故障场景。
+- 最终完整 `Test-Regression.ps1 -IncludeClient` 通过（Events 52 项、Save 115 组、Client.Core 5 组、完整 NetworkSmoke、客户端 28 项），日志 `LocalOnly/artifact-preparation-regression.log`；77 个 1.6 冻结文件通过，日志 `LocalOnly/artifact-preparation-frozen.log`。最终回归包含上述全部并发及故障场景。
 - RimTest 双客户端 21/21 通过、0 项未执行，包含共享世界、银行、商店、交易、赠送、支援、雇佣、袭击结算及运行时错误检查；报告 `G:/RimTestRuns/ClashOfRim/20261015-193536-3da238f6/report.json`，日志 `LocalOnly/artifact-preparation-rimtest.log`。临时桥接和编排代码已恢复，两个测试游戏进程均退出。实机验证正常流程，存储锁交错和发布失败由服务端测试验证。
+
+## 续修：离线超时证据首次调度在业务锁外准备
+
+- 超时批处理不再持有外层业务锁执行整批离线证据调度。首次调度在短锁内捕获源袭击、双方快照版本及任务状态，仅在没有任务引用时删除上次入队失败留下的孤立制品；随后在现有准备限流器内读取双方完整包、验证证据载荷并准备制品临时文件。读取、解压、索引、哈希及文件压缩均在业务锁外，不在等待准备名额时占锁。
+- 发布前重新恢复待办，并按“业务变更锁 → 任务表锁”复验源状态和内容、双方快照身份/哈希/令牌、当前任务及是否出现新的活动袭击。准备期间任何一方上传、删除、令牌变化、来源变化或新袭击都不会发布旧证据；同时检查制品存储自己的准备版本。失效对象释放临时文件，持久超时工作标记留给后续扫描，未用旧准备覆盖新状态。
+- 保持证据文件先发布、Prepared 任务后落盘、玩家快照引用修复后 MarkReady、攻击方战场最后清理的顺序。首次离线证据本来就是当前攻击方快照，可直接使用已验证包完成引用与 Ready 保存，避免再次读取、解压和校验刚发布的制品。抽取的完成方法与原持久任务恢复共用；失败保留已发布证据和已入队意图。原恢复路径补上任务表锁，避免查询 Prepared 与 MarkReady 之间穿插任务状态变更。
+- 准备期间出现另一份 Ready、Prepared 或 ManualReview 任务时，复验其绑定并保留现有状态；不删除它引用的制品，也不把人工审查恢复成 Ready。Prepared 任务留待既有恢复流程继续；对应 SQL 故障及下一轮继续处理均已加入测试。缺失快照的人工审查结果也在最终版本复验后保存，读取期间恢复快照时不会按旧缺失状态标记人工审查。
+- `RaidTimeoutRecoveryTests` 新增首次处理/恢复扫描 × 快照读取/制品准备 × 正常、攻击方上传/令牌、守方上传/令牌、删除攻击方、取消来源、改变归属、新袭击、竞争 Ready/Prepared/ManualReview 任务、制品删除，共 52 个交错场景；另 4 个缺失守方快照及读取期间恢复场景，共 56 个。验证准备时另一线程可取得业务锁，分类已持久化但尚无任务或清理发布；拒绝过期准备后不丢工作标记、不泄漏临时文件，制品失效与竞争 Prepared 任务可在下一轮完成。原在线/离线并发、SQL/文件中断、同进程与重开恢复测试继续执行。
+- 负向验证：恢复旧外层锁后失败于 `Snapshot preparation holds the business mutation gate`；移除源复验或攻击方版本复验后产生了不应创建的任务；移除守方版本复验后发布/确认了旧证据。日志 `LocalOnly/offline-evidence-outer.log`、`LocalOnly/offline-evidence-source.log`、`LocalOnly/offline-evidence-version.log`、`LocalOnly/offline-evidence-defender.log`。恢复正式实现后袭击证据恢复与超时清理两组通过，日志 `LocalOnly/offline-evidence-positive.log`；后加竞争 Prepared 任务及再次扫描用例纳入最终完整回归。
+- 边界：本步完成离线超时的首次证据准备，不代表所有证据调度已释放业务锁。在线证据上传仍走原调度器；已存在 Prepared 任务的读取、校验和恢复发布仍在自身业务锁内。未实现准备接口的自定义制品存储保留锁内 Store 回退，生产文件存储使用显式准备。下一步处理在线证据调用链及持久任务恢复的准备边界，然后继续提交日志、状态所有权和 DTO 收敛。持久格式、数据库版本 27 及 1.6 冻结文件不变。
+- 最终完整 `Test-Regression.ps1 -IncludeClient` 通过：Events 52 项、Save 115 组、Client.Core 5 组、完整 NetworkSmoke、客户端 28 项；日志 `LocalOnly/offline-evidence-regression.log`。77 个 1.6 冻结文件通过，日志 `LocalOnly/offline-evidence-frozen.log`。按实际测试入口复核计数，并修正上一节将网络输出计入 Events 后写成 58 项的记录；上一轮通过结果不变。
+- RimTest 双客户端 21/21 通过、0 项未执行，覆盖共享世界、主线程交接、经济、赠送、支援、雇佣、袭击结算与运行时错误检查；报告 `G:/RimTestRuns/ClashOfRim/20261015-194836-1a9dfb2f/report.json`，日志 `LocalOnly/offline-evidence-rimtest.log`。临时桥接及编排代码已恢复，两个游戏测试进程均退出。离线超时故障和并发交错由服务器测试证明，未宣称实机执行了这些故障注入。

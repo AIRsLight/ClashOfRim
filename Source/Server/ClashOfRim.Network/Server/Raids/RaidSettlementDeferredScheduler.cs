@@ -144,30 +144,40 @@ public static class RaidSettlementDeferredScheduler
         using (state.EnterSnapshotMutation())
         {
             ClashOfRimNetworkServer.RecoverSnapshotCommits(state);
-            // Background scans may hold a stale Prepared record after another request completed it.
-            SnapshotPostUploadJobRecord? current = state.SnapshotPostUploadJobs.Find(job.JobId);
-            if (current is null) return job;
-            job = current;
-            if (job.State != SnapshotPostUploadJobState.Prepared || job.ProcessorId != ProcessorId) return job;
-            RaidSettlementDeferredPayload payload = RaidSettlementDeferredPayload.Deserialize(job.PayloadJson);
-            SaveSnapshotPackage evidencePackage = ReadEvidence(state, job, payload);
-            if (state.SnapshotStore is not IColonySnapshotPackageStore packageStore)
-                throw new InvalidOperationException("Raid settlement requires a snapshot package store.");
-            SaveSnapshotEnvelope? latest = packageStore.GetLatest(payload.AttackerUserId, payload.AttackerColonyId)?.Envelope;
-            if (!SameVersion(latest, evidencePackage.Envelope))
+            lock (state.SnapshotPostUploadJobs.SnapshotCommitGate)
             {
-                if (payload.Publication is null || !SameVersion(latest, payload.Publication.Previous))
-                    throw new InvalidOperationException("Raid evidence destination changed or its original baseline is unknown; recovery cannot overwrite it.");
-                packageStore.StoreLatest(evidencePackage, evidencePackage.Index, job.OccurredAtUtc);
+                // Background scans may hold a stale Prepared record after another request completed it.
+                SnapshotPostUploadJobRecord? current = state.SnapshotPostUploadJobs.Find(job.JobId);
+                if (current is null) return job;
+                job = current;
+                if (job.State != SnapshotPostUploadJobState.Prepared || job.ProcessorId != ProcessorId) return job;
+                RaidSettlementDeferredPayload payload = RaidSettlementDeferredPayload.Deserialize(job.PayloadJson);
+                SaveSnapshotPackage evidencePackage = ReadEvidence(state, job, payload);
+                return CompletePreparedEvidence(state, job, payload, evidencePackage, nowUtc);
             }
-
-            state.Players.RecordLatestSnapshotReference(
-                payload.AttackerUserId,
-                payload.AttackerColonyId,
-                payload.EvidenceSnapshotId,
-                job.OccurredAtUtc);
-            return state.SnapshotPostUploadJobs.MarkReady(job.JobId, nowUtc);
         }
+    }
+
+    // Called after evidence validation, while the caller owns the business mutation boundary.
+    internal static SnapshotPostUploadJobRecord CompletePreparedEvidence(ClashOfRimNetworkState state,
+        SnapshotPostUploadJobRecord job, RaidSettlementDeferredPayload payload, SaveSnapshotPackage evidencePackage, DateTimeOffset nowUtc)
+    {
+        if (state.SnapshotStore is not IColonySnapshotPackageStore packageStore)
+            throw new InvalidOperationException("Raid settlement requires a snapshot package store.");
+        SaveSnapshotEnvelope? latest = packageStore.GetLatest(payload.AttackerUserId, payload.AttackerColonyId)?.Envelope;
+        if (!SameVersion(latest, evidencePackage.Envelope))
+        {
+            if (payload.Publication is null || !SameVersion(latest, payload.Publication.Previous))
+                throw new InvalidOperationException("Raid evidence destination changed or its original baseline is unknown; recovery cannot overwrite it.");
+            packageStore.StoreLatest(evidencePackage, evidencePackage.Index, job.OccurredAtUtc);
+        }
+
+        state.Players.RecordLatestSnapshotReference(
+            payload.AttackerUserId,
+            payload.AttackerColonyId,
+            payload.EvidenceSnapshotId,
+            job.OccurredAtUtc);
+        return state.SnapshotPostUploadJobs.MarkReady(job.JobId, nowUtc);
     }
 
     private static SaveSnapshotPackage ReadEvidence(ClashOfRimNetworkState state,
@@ -192,19 +202,19 @@ public static class RaidSettlementDeferredScheduler
         return evidence;
     }
 
-    private static void ValidatePayload(SaveSnapshotPackage evidence)
+    internal static void ValidatePayload(SaveSnapshotPackage evidence)
     {
         if (evidence.Payload.LongLength != evidence.Envelope.PayloadBytes
             || !string.Equals(Convert.ToHexString(SHA256.HashData(evidence.Payload)), evidence.Envelope.PayloadSha256, StringComparison.OrdinalIgnoreCase))
             throw new InvalidDataException("Raid evidence payload does not match its envelope.");
     }
 
-    private static bool SameVersion(SaveSnapshotEnvelope? left, SaveSnapshotEnvelope? right) =>
+    internal static bool SameVersion(SaveSnapshotEnvelope? left, SaveSnapshotEnvelope? right) =>
         left is null || right is null ? left is null && right is null : left.Identity == right.Identity
             && left.OriginalSha256 == right.OriginalSha256 && left.PayloadSha256 == right.PayloadSha256
             && left.NextLineageToken == right.NextLineageToken;
 
-    private static string BuildArtifactId(string raidEventId, string evidenceSnapshotId)
+    internal static string BuildArtifactId(string raidEventId, string evidenceSnapshotId)
     {
         byte[] hash = SHA256.HashData(Encoding.UTF8.GetBytes(raidEventId + "\u001f" + evidenceSnapshotId));
         return "raid-settlement-" + Convert.ToHexString(hash).ToLowerInvariant();

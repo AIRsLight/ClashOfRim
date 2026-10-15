@@ -1510,20 +1510,20 @@ public static partial class ClashOfRimNetworkServer
     private static RaidTimeoutProcessingResult CompletePendingRaidTimeoutWork(ClashOfRimNetworkState state,
         RaidTimeoutProcessingResult result, DateTimeOffset nowUtc)
     {
-        IReadOnlyList<AuthoritativeEvent> cleanupEligibleRaids;
+        IReadOnlyList<AuthoritativeEvent> pendingTimeouts;
         using (state.EnterSnapshotMutation())
         {
             RecoverSnapshotCommits(state);
-            var pendingTimeouts = RaidTimeoutProcessor.PendingWork(state.Ledger);
-            if (pendingTimeouts.Count == 0) return result;
-            var offlinePending = pendingTimeouts.Where(raid => raid.Payload is RaidEventPayload { TimeoutWork: { AttackerWasOffline: true } }).ToArray();
-            // Retain offline evidence and its durable job before permitting attacker cleanup.
-            var queuedOfflineSettlements = SettleOfflineTimedOutRaidSnapshots(state,
-                offlinePending.Where(raid => raid.Status != ServerEventStatus.AppliedToSnapshot).ToArray(), nowUtc);
-            var offlineRaidIds = offlinePending.Select(raid => raid.EventId).ToHashSet(StringComparer.Ordinal);
-            cleanupEligibleRaids = pendingTimeouts.Where(raid => !offlineRaidIds.Contains(raid.EventId)
-                || queuedOfflineSettlements.Contains(raid.EventId) || raid.Status == ServerEventStatus.AppliedToSnapshot).ToArray();
+            pendingTimeouts = RaidTimeoutProcessor.PendingWork(state.Ledger);
         }
+        if (pendingTimeouts.Count == 0) return result;
+        var offlinePending = pendingTimeouts.Where(raid => raid.Payload is RaidEventPayload { TimeoutWork: { AttackerWasOffline: true } }).ToArray();
+        // Retain offline evidence and its durable job before permitting attacker cleanup; preparation owns no outer lock.
+        var queuedOfflineSettlements = SettleOfflineTimedOutRaidSnapshots(state,
+            offlinePending.Where(raid => raid.Status != ServerEventStatus.AppliedToSnapshot).ToArray(), nowUtc);
+        var offlineRaidIds = offlinePending.Select(raid => raid.EventId).ToHashSet(StringComparer.Ordinal);
+        var cleanupEligibleRaids = pendingTimeouts.Where(raid => !offlineRaidIds.Contains(raid.EventId)
+            || queuedOfflineSettlements.Contains(raid.EventId) || raid.Status == ServerEventStatus.AppliedToSnapshot).ToArray();
 
         var cleanupEvents = CleanupTimedOutRaidAttackerSnapshots(state, cleanupEligibleRaids, nowUtc);
         var usersToSignal = result.NotificationEvents.Select(evt => evt.Target.UserId)
@@ -1579,116 +1579,21 @@ public static partial class ClashOfRimNetworkServer
         DateTimeOffset nowUtc)
     {
         var queuedRaidIds = new HashSet<string>(StringComparer.Ordinal);
-        if (offlineFailedRaids.Count == 0 || state.SnapshotStore is not IColonySnapshotPackageStore packageStore)
+        foreach (var raid in offlineFailedRaids)
         {
-            return queuedRaidIds;
-        }
-
-        foreach (AuthoritativeEvent raid in offlineFailedRaids)
-        {
-            SnapshotPostUploadJobRecord? existingJob = state.SnapshotPostUploadJobs.Find("raid-settlement:" + raid.EventId);
-            if (existingJob is not null)
-            {
-                if (!MatchesRaidSettlementJob(raid, existingJob))
-                    throw new InvalidDataException("Timed-out raid has a conflicting settlement job.");
-                if (existingJob.State == SnapshotPostUploadJobState.ManualReview) continue;
-                if (existingJob.State == SnapshotPostUploadJobState.Prepared)
-                    RaidSettlementDeferredScheduler.RecoverPrepared(state, existingJob, nowUtc);
-                queuedRaidIds.Add(raid.EventId);
-                continue;
-            }
-            if (raid.Payload is not RaidEventPayload { OpponentKind: RaidOpponentKind.Player } payload
-                || payload.Settlement is not null
-                || payload.ReturnedSnapshotId is not null)
-            {
-                continue;
-            }
-
-            string attackerUserId = raid.Actor.UserId;
-            string attackerColonyId = raid.Actor.ColonyId ?? string.Empty;
-            string defenderUserId = raid.Target.UserId;
-            string defenderColonyId = raid.Target.ColonyId ?? string.Empty;
-            if (string.IsNullOrWhiteSpace(attackerUserId)
-                || string.IsNullOrWhiteSpace(attackerColonyId)
-                || string.IsNullOrWhiteSpace(defenderUserId)
-                || string.IsNullOrWhiteSpace(defenderColonyId))
-            {
-                continue;
-            }
-
-            SaveSnapshotPackage? attackerEvidencePackage = packageStore.GetLatestPackage(attackerUserId, attackerColonyId);
-            SaveSnapshotPackage? originalDefensePackage = packageStore.GetLatestPackage(defenderUserId, defenderColonyId);
-            if (attackerEvidencePackage is null
-                || originalDefensePackage is null
-                || !string.Equals(originalDefensePackage.Envelope.Identity.SnapshotId, payload.DefenderSnapshotId, StringComparison.Ordinal))
-            {
-                state.RuntimeLogger.LogWarning(
-                    "Offline raid timeout settlement missing snapshot: raid={RaidEventId} attacker={AttackerUserId}/{AttackerColonyId} defender={DefenderUserId}/{DefenderColonyId} attackerSnapshotFound={AttackerSnapshotFound} defenderSnapshotFound={DefenderSnapshotFound} expectedDefenderSnapshot={ExpectedDefenderSnapshot} actualDefenderSnapshot={ActualDefenderSnapshot}",
-                    raid.EventId,
-                    attackerUserId,
-                    attackerColonyId,
-                    defenderUserId,
-                    defenderColonyId,
-                    attackerEvidencePackage is not null,
-                    originalDefensePackage is not null,
-                    payload.DefenderSnapshotId,
-                    originalDefensePackage?.Envelope.Identity.SnapshotId ?? string.Empty);
-                state.Ledger.ReportApplicationResult(
-                    raid.EventId,
-                    EventApplicationResultKind.NeedsManualReview,
-                    T("Raid.OfflineTimeoutSettlementMissingSnapshot"),
-                    nextRetryAtUtc: null);
-                continue;
-            }
-
             try
             {
-                var context = new SnapshotPostUploadContext(
-                    state,
-                    SnapshotPostUploadKind.RaidSettlementEvidence,
-                    new LatestSnapshotRecord(
-                        attackerEvidencePackage.Envelope.Identity,
-                        attackerEvidencePackage.Envelope,
-                        attackerEvidencePackage.Index,
-                        nowUtc),
-                    attackerUserId,
-                    attackerColonyId,
-                    SessionId: null,
-                    nowUtc,
-                    SnapshotPostUploadExtraData.Empty,
-                    RegisterPlayerColonySite: false);
-                SnapshotPostUploadJobRecord job = RaidSettlementDeferredScheduler.Schedule(
-                    state,
-                    new RaidSettlementScheduleRequest(
-                        raid.EventId,
-                        context,
-                        attackerEvidencePackage.Payload,
-                        RaidSettlementOrigin.OfflineTimeout,
-                        ClientApplicationResult: "OfflineTimeout"));
-                state.RuntimeLogger.LogInformation(
-                    "Queued offline raid timeout settlement: raid={RaidEventId} job={JobId} attacker={AttackerUserId}/{AttackerColonyId} defender={DefenderUserId}/{DefenderColonyId} evidence={EvidenceSnapshotId}",
-                    raid.EventId,
-                    job.JobId,
-                    attackerUserId,
-                    attackerColonyId,
-                    defenderUserId,
-                    defenderColonyId,
-                    attackerEvidencePackage.Envelope.Identity.SnapshotId);
+                var job = ScheduleOfflineTimedOutRaid(state, raid, nowUtc);
+                if (job is null) continue;
                 queuedRaidIds.Add(raid.EventId);
+                state.RuntimeLogger.LogInformation("Queued offline raid timeout settlement: raid={RaidEventId} job={JobId} evidence={EvidenceSnapshotId}",
+                    raid.EventId, job.JobId, job.SnapshotId);
             }
             catch (Exception ex) when (ex is InvalidOperationException or IOException)
             {
-                state.RuntimeLogger.LogWarning(
-                    ex,
-                    "Offline raid timeout settlement could not be queued: raid={RaidEventId} attacker={AttackerUserId}/{AttackerColonyId} defender={DefenderUserId}/{DefenderColonyId}",
-                    raid.EventId,
-                    attackerUserId,
-                    attackerColonyId,
-                    defenderUserId,
-                    defenderColonyId);
+                state.RuntimeLogger.LogWarning(ex, "Offline raid timeout settlement could not be queued: raid={RaidEventId}", raid.EventId);
             }
         }
-
         return queuedRaidIds;
     }
 

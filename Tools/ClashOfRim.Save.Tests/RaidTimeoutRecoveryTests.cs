@@ -19,6 +19,13 @@ internal static class RaidTimeoutRecoveryTests
                 WithFixture(original, f => VerifyPreparation(f, original, offline, recovery, change));
             WithFixture(original, f => VerifyConcurrent(f, offline));
         }
+        foreach (bool recovery in new[] { false, true })
+        foreach (string phase in new[] { "read", "artifact" })
+        foreach (string change in new[] { "none", "newer", "token", "defender", "defender-token", "removed", "source", "owner", "new-raid", "job-review", "job-prepared", "competing", "artifact-deleted" })
+            WithFixture(original, f => VerifyOfflineEvidencePreparation(f, original, recovery, phase, change));
+        foreach (bool recovery in new[] { false, true })
+        foreach (string change in new[] { "missing", "restored" })
+            WithFixture(original, f => VerifyOfflineEvidencePreparation(f, original, recovery, "read", change));
         foreach (bool revoke in new[] { false, true }) WithFixture(original, f => VerifyRaidEntry(f, original, revoke));
         foreach (bool changedSnapshot in new[] { false, true }) WithFixture(original, f => VerifyStaleCompletion(f, original, changedSnapshot));
         foreach (bool offline in new[] { false, true })
@@ -30,6 +37,87 @@ internal static class RaidTimeoutRecoveryTests
         }
         foreach (string kind in new[] { "memory", "file", "sqlite" }) WithFixture(original, f => VerifyBatch(f, kind));
         WithFixture(original, VerifyBackgroundRecovery);
+    }
+
+    private static void VerifyOfflineEvidencePreparation(Fixture f, SaveSnapshotPackage original, bool recovery, string phase, string change)
+    {
+        var defense = f.Files.GetLatestPackage("defender", "defender-colony")!;
+        if (change is "missing" or "restored") f.Files.RemoveLatest("defender", "defender-colony");
+        if (recovery) RaidTimeoutProcessor.ProcessExpiredRaids(f.State.Ledger, f.State.Ledger.ListAll(), f.Now, isAttackerOnline: _ => false);
+        SnapshotPreparationGateProbe.Run(f.State.RaidSettlementSnapshotMutationGate,
+            hook => { if (phase == "read") f.Store.BeforeRead = owner => { if (owner == "attacker") hook?.Invoke(); }; else f.Artifacts.BeforePrepare = hook; },
+            () => { if (recovery) ClashOfRimNetworkServer.RecoverPendingRaidTimeoutWork(f.State, f.Now); else f.Reconcile(); }, () =>
+            {
+                Require(f.State.SnapshotPostUploadJobs.ListAll().Count == 0 && f.Store.PreparedWrites == 0
+                    && ((RaidEventPayload)f.State.Ledger.Find(f.Raid.EventId)!.Payload).TimeoutWork is { Completed: false, AttackerWasOffline: true },
+                    "Offline evidence preparation published a job or cleanup before classification/preparation finished.");
+                if (change is "newer" or "token")
+                {
+                    var envelope = change == "newer" ? original.Envelope with { Identity = original.Envelope.Identity with { SnapshotId = "newer" } }
+                        : original.Envelope with { NextLineageToken = "replacement-token" };
+                    f.Files.StoreLatest(original with { Envelope = envelope }, original.Index, f.Now);
+                }
+                if (change == "restored") f.Files.StoreLatest(defense, defense.Index, f.Now);
+                if (change is "defender" or "defender-token")
+                {
+                    var package = f.Files.GetLatestPackage("defender", "defender-colony")!;
+                    var envelope = change == "defender" ? package.Envelope with { Identity = package.Envelope.Identity with { SnapshotId = "new-defense" } }
+                        : package.Envelope with { NextLineageToken = "new-defense-token" };
+                    f.Files.StoreLatest(package with { Envelope = envelope }, package.Index, f.Now);
+                }
+                if (change == "removed") f.Files.RemoveLatest("attacker", "colony-a");
+                if (change == "source") f.State.Ledger.ChangeStatus(f.Raid.EventId, ServerEventStatus.Cancelled);
+                if (change == "owner") f.Sql("update events set actor_user_id = 'other' where event_id = 'raid-timeout-001';");
+                if (change == "new-raid") f.State.Ledger.Append(f.Raid with { EventId = "new-raid", IdempotencyKey = "new-raid",
+                    Payload = ((RaidEventPayload)f.Raid.Payload) with { StartedAtUtc = f.Now, AttackForce = new RaidAttackForceRecord("new", [], []) } });
+                if (change is "job-review" or "job-prepared" or "competing")
+                {
+                    var package = f.Files.GetLatestPackage("attacker", "colony-a")!;
+                    var context = new SnapshotPostUploadContext(f.State, SnapshotPostUploadKind.RaidSettlementEvidence,
+                        new LatestSnapshotRecord(package.Envelope.Identity, package.Envelope, package.Index, f.Now),
+                        "attacker", "colony-a", null, f.Now, SnapshotPostUploadExtraData.Empty, false);
+                    var request = new RaidSettlementScheduleRequest(f.Raid.EventId, context, package.Payload, RaidSettlementOrigin.OfflineTimeout, "OfflineTimeout");
+                    if (change == "job-prepared")
+                    {
+                        f.Sql("create trigger fail_ready before insert on server_snapshot_post_upload_jobs when NEW.job_state = 1 begin select raise(abort, 'ready'); end;");
+                        Fails(() => RaidSettlementDeferredScheduler.Schedule(f.State, request), "Expected competing Prepared intent.");
+                        f.Sql("drop trigger fail_ready;");
+                    }
+                    else
+                    {
+                        var job = RaidSettlementDeferredScheduler.Schedule(f.State, request);
+                        if (change == "job-review") f.State.SnapshotPostUploadJobs.MarkManualReview(job.JobId, "review during preparation");
+                    }
+                }
+                if (change == "artifact-deleted") f.Artifacts.Delete(RaidSettlementDeferredScheduler.BuildArtifactId(f.Raid.EventId, original.Envelope.Identity.SnapshotId!));
+            });
+        if (change is "missing" or "restored")
+            Require((f.State.Ledger.Find(f.Raid.EventId)!.LastApplicationResult == EventApplicationResultKind.NeedsManualReview) == (change == "missing"),
+                "Missing-snapshot decision ignored a concurrently restored version.");
+        bool committed = change is "none" or "competing" || (change == "artifact-deleted" && phase == "read");
+        var source = f.State.Ledger.Find(f.Raid.EventId)!;
+        Require(f.Store.PreparedWrites == (committed ? 1 : 0)
+            && ((RaidEventPayload)source.Payload).TimeoutWork!.Completed == committed,
+            "Stale offline evidence was published or acknowledged: " + phase + "/" + change);
+        var jobs = f.State.SnapshotPostUploadJobs.ListAll();
+        Require(jobs.Count == (committed || change is "job-review" or "job-prepared" ? 1 : 0)
+            && (change != "job-review" || jobs.Single().State == SnapshotPostUploadJobState.ManualReview),
+            "Offline preparation replaced a competing/manual-review job: " + phase + "/" + change);
+        if (committed)
+        {
+            var payload = RaidSettlementDeferredPayload.Deserialize(jobs.Single().PayloadJson);
+            Require(f.Artifacts.Read(payload.EvidenceArtifactId)!.Payload.SequenceEqual(original.Payload), "Offline evidence was not retained before cleanup.");
+        }
+        else Require(f.Files.GetLatest("attacker", "colony-a")?.Identity.SnapshotId ==
+            (change == "removed" ? null : change == "newer" ? "newer" : original.Envelope.Identity.SnapshotId), "Stale scheduling changed the attacker snapshot.");
+        Require(!Directory.EnumerateFiles(Path.Combine(f.Root, "artifacts"), "*.tmp").Any(), "Offline preparation leaked temporary files.");
+        if (change == "job-prepared" || (change == "artifact-deleted" && phase == "artifact"))
+        {
+            f.Reconcile();
+            Require(f.Store.PreparedWrites == 1 && RaidTimeoutProcessor.PendingWork(f.State.Ledger).Count == 0
+                && f.State.SnapshotPostUploadJobs.ListReady(f.Now).Count == 1,
+                "Discarded preparation or competing Prepared job could not resume on the next scan.");
+        }
     }
 
     private static void VerifyPreparation(Fixture f, SaveSnapshotPackage original, bool offline, bool recovery, string change)
@@ -245,6 +333,7 @@ internal static class RaidTimeoutRecoveryTests
         public AuthoritativeEvent Raid;
         public FileColonySnapshotIndexStore Files = null!;
         public CrashStore Store = null!;
+        public ObservedArtifactStore Artifacts = null!;
         public ClashOfRimNetworkState State = null!;
         public Fixture(string root, SaveSnapshotPackage original)
         {
@@ -266,10 +355,11 @@ internal static class RaidTimeoutRecoveryTests
         {
             Files = new FileColonySnapshotIndexStore(Path.Combine(Root, "snapshots"));
             Store = new CrashStore(Files);
+            Artifacts = new ObservedArtifactStore(new FileSnapshotPostUploadArtifactStore(Path.Combine(Root, "artifacts")));
             State = new ClashOfRimNetworkState(ledger: new SqliteAuthoritativeEventLedger(Database), snapshotStore: Store,
                 playerRegistry: new PlayerRegistry(new SqlitePlayerRegistryStore(Database), null), snapshotCommits: new SnapshotCommitService(Journal),
                 snapshotPostUploadJobs: new SnapshotPostUploadJobRegistry(new SqliteSnapshotPostUploadJobStore(Database)),
-                snapshotPostUploadArtifacts: new FileSnapshotPostUploadArtifactStore(Path.Combine(Root, "artifacts")));
+                snapshotPostUploadArtifacts: Artifacts);
         }
         public void Reconcile()
         {
@@ -284,6 +374,21 @@ internal static class RaidTimeoutRecoveryTests
             command.CommandText = sql;
             command.ExecuteNonQuery();
         }
+    }
+    private sealed class ObservedArtifactStore(FileSnapshotPostUploadArtifactStore inner) : IPreparedSnapshotPostUploadArtifactStore
+    {
+        public Action? BeforePrepare;
+        public IPreparedSnapshotPostUploadArtifact Prepare(string id, SaveSnapshotPackage package)
+        {
+            var prepared = inner.Prepare(id, package);
+            try { BeforePrepare?.Invoke(); return prepared; }
+            catch { prepared.Dispose(); throw; }
+        }
+        public void Store(string id, SaveSnapshotPackage package) => inner.Store(id, package);
+        public SaveSnapshotPackage? Read(string id) => inner.Read(id);
+        public bool Exists(string id) => inner.Exists(id);
+        public void Delete(string id) => inner.Delete(id);
+        public void DeleteUnreferenced(IReadOnlySet<string> ids) => inner.DeleteUnreferenced(ids);
     }
     private sealed class CrashStore(FileColonySnapshotIndexStore inner) : IPreparedColonySnapshotPackageStore
     {
