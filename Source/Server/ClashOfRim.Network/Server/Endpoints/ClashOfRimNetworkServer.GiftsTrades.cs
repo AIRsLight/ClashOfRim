@@ -2273,52 +2273,26 @@ public static partial class ClashOfRimNetworkServer
                     notifiedAcceptorCount: 0));
             }
 
-            if (tradeOrder.Status == ServerEventStatus.Cancelled)
-            {
-                IReadOnlyList<AuthoritativeEvent> existingMemos = FindActiveTradeAcceptanceMemos(
-                    state.Ledger,
-                    tradeOrder.EventId);
-                state.EventNotifications.SignalUsers(existingMemos.Select(memo => memo.Target.UserId));
-                return Results.Ok(new CloseTradeOrderResponse(
-                    new ProtocolResponse(true, ProtocolErrorCode.DuplicateRequest, T("Trade.Cancelled")),
-                    tradeOrder.EventId,
-                    ServerEventStatus.Cancelled.ToString(),
-                    existingMemos.Select(memo => memo.Target.UserId).Distinct(StringComparer.Ordinal).Count()));
-            }
-
-            if (!IsOpenMarketTradeOrderForOwner(tradeOrder))
-            {
-                return Results.Ok(new CloseTradeOrderResponse(
-                    ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Trade.NotOpen")),
-                    tradeOrder.EventId,
-                    tradeOrder.Status.ToString(),
-                    notifiedAcceptorCount: 0));
-            }
-
-            IReadOnlyList<AuthoritativeEvent> activeMemos = FindActiveTradeAcceptanceMemos(
-                state.Ledger,
-                tradeOrder.EventId);
-            var events = new[] { CreateTradeItemDeliveryEvent(
-                    state,
-                    $"trade-cancelled-owner-return:{tradeOrder.EventId}",
-                    new EventParty("server"),
-                    tradeOrder.Actor,
-                    payload.OfferedItems,
-                    ItemDeliveryPurpose.TradeCancelledOwnerReturn,
-                    tradeOrder.TargetContext,
-                    DateTimeOffset.UtcNow) };
-
-            state.Ledger.ApplyBatch(BuildTradeClosureBatch(tradeOrder, activeMemos,
-                ServerEventStatus.Cancelled, ServerEventStatus.Cancelled, events));
+            bool duplicate = tradeOrder.Status == ServerEventStatus.Cancelled;
+            if (!duplicate && !IsOpenMarketTradeOrderForOwner(tradeOrder))
+                return Results.Ok(new CloseTradeOrderResponse(ProtocolResponse.Reject(ProtocolErrorCode.Conflict,
+                    T("Trade.NotOpen")), tradeOrder.EventId, tradeOrder.Status.ToString(), 0));
+            IResult Conflict() => Results.Ok(new CloseTradeOrderResponse(ProtocolResponse.Reject(ProtocolErrorCode.Conflict,
+                "Trade cancellation conflicts with its memos, fulfillment or escrow return."), tradeOrder.EventId, tradeOrder.Status.ToString(), 0));
+            if (!TryPrepareOwnedTradeCancellation(state, tradeOrder, out var activeMemos, out var batch)) return Conflict();
+            try { if (batch is not null) state.Ledger.ApplyBatch(batch); }
+            catch (InvalidOperationException) { return Conflict(); }
             IReadOnlyList<string> notifiedUsers = activeMemos
                 .Select(memo => memo.Target.UserId)
                 .Where(userId => !string.IsNullOrWhiteSpace(userId))
                 .Distinct(StringComparer.Ordinal)
                 .ToList();
-            state.EventNotifications.SignalUsers(notifiedUsers);
+            // Cancellation creates an automatic item-return event for the owner too.
+            // Without this signal a connected seller waits for an unrelated event or reconnect.
+            state.EventNotifications.SignalUsers(notifiedUsers.Append(tradeOrder.Actor.UserId));
 
             return Results.Ok(new CloseTradeOrderResponse(
-                ProtocolResponse.Ok(T("Trade.CancelledWithNotifications")),
+                new ProtocolResponse(true, duplicate ? ProtocolErrorCode.DuplicateRequest : ProtocolErrorCode.None, T("Trade.CancelledWithNotifications")),
                 tradeOrder.EventId,
                 ServerEventStatus.Cancelled.ToString(),
                 notifiedUsers.Count));

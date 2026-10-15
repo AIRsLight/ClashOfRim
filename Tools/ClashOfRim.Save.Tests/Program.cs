@@ -32,6 +32,7 @@ var tests = new (string Name, Action Run)[]
     ("交易接单幂等键与完整备忘关联且并发不重复", TradeAcceptanceTests.Run),
     ("取消接单回执与备忘共同提交且旧重试不取消新接单", TradeMemoCancellationTests.Run),
     ("交易完成仅确认快照履约证据且保留账本与通知重放", () => TradeCompletionTests.Run(BuildFixturePackage)),
+    ("卖家撤单校验返还关联并重放已取消参与者通知", TradeCancellationTests.Run),
     ("交易关闭退货原子提交且不重复补偿已入档物品", TradeClosureTests.Run),
     ("商店持久化失败保留库存缓存且允许重试", ShopRegistryPersistenceTests.Run),
     ("商店快照和购买回执共同恢复且限制重复请求身份", () => ShopCommitCrashTests.Run(BuildFixturePackage)),

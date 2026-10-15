@@ -515,3 +515,12 @@
 - `TradeCompletionTests` 覆盖三种账本的 7 类无履约/终态组合、三种履约模式与持久化重开、36 类损坏/冲突证据、已消费交付保留、重复唤醒及错误身份。只读账本代理阻止该入口调用任何写方法；另外实际调用 multipart 快照履约入口，验证自提、带备忘空投和直接空投产生的结果均可确认。原认证测试改用合法已提交交易，继续覆盖无效令牌及排队撤销。
 - 验证：默认完整回归通过（Events 52、Save 107、Client.Core 5 组、完整 NetworkSmoke），HTTP 验证合法卖家也不能直接关闭未履约订单，订单完成标记不能替代付款快照证据。日志 `LocalOnly/trade-completion-regression.log`、`LocalOnly/trade-completion-targeted.log`、`LocalOnly/trade-completion-negative.log`。77 个 1.6 冻结文件与差异格式检查通过，数据库仍为版本 26，无协议字段或持久格式变化。
 - 该兼容入口未被当前 Mod 正常交易流程调用，本步没有新增对应 RimTest 实机场景；multipart 端点测试不等同于游戏内测试。下一步继续卖家撤单的返还关联/半完成状态及重复通知审计；其重复分支仍只找活跃备忘。无快照经济写入口也需逐项收口，尤其 JSON 发单/履约以及仍被运输舱赠送调用的 JSON 礼物入口；不能在未迁移实际调用方前简单移除。后续业务锁、职责和 DTO 收敛仍待推进。
+
+## 续修：卖家撤单的返还证据与重复通知
+
+- 原重复分支只找活跃备忘；首次提交已将备忘取消，提交后、通知前中断会让买家永久漏掉这次唤醒。重复请求还只凭订单 Cancelled 就返回成功，未验证返还物品及接收者。恢复旧实现分别复现 `owner cancellation retry lost cancelled participants` 和 `corrupt owner cancellation accepted: target/closed=True`。
+- 新增 `TradeCancellation` 准备逻辑，校验全部关联备忘的身份、载荷、上下文及允许状态，拒绝多份活跃接单、已履约交换、成交交付或履约失败补偿。撤单、过期和基线失效三个返还键中只允许一份有效记录，核对类型、双方、物品、用途、上下文、合法新旧事件 ID 和可用状态。保留既有卖家唤醒，并从持久备忘恢复全部接单参与者，已取消备忘也可收到重复通知。
+- 已有合法返还但订单或备忘未关闭时，原子补齐关闭，不重新发货；已消费返还的状态和元数据不变。订单已取消却缺少返还证据时返回 Conflict，不推断托管物仍可退回。完整重复请求只读账本并补发唤醒。更新批次带完整预期订单、备忘及已有返还记录，防止仅状态未变而证据已被修改的竞态。
+- `TradeCancellationTests` 覆盖三种账本的 6 个提交后中断/重开场景、18 个历史半完成与旧事件 ID 场景、114 个损坏/冲突场景、缺失返还、36 个并发请求、订单/备忘/返还的同状态证据变更及文件发布失败；原 SQLite 撤单插入/更新回滚测试继续执行。HTTP 回归验证重试保持账本不变并重新通知卖家与两名买家。负向日志 `LocalOnly/trade-owner-cancel-negative-notify.log`、`LocalOnly/trade-owner-cancel-negative-proof.log`，定向日志 `LocalOnly/trade-owner-cancel-targeted.log`。
+- 范围：本步校验卖家请求入口。自动过期、基线失效和履约失败处理仍需统一返还关联规则，尤其旧半完成订单在自动扫描时的处理；不能把卖家入口的校验当作这些入口已经完成。没有为取消请求键新建回执，卖家撤单仍以订单及唯一返还记录实现幂等。数据库仍为版本 26，1.6 冻结不变。后续继续自动关闭路径与无快照经济入口，再推进锁范围、职责和 DTO 收敛。
+- 验证：默认完整回归通过（Events 全部、Save 108、Client.Core 5 组及完整 NetworkSmoke），日志 `LocalOnly/trade-owner-cancel-regression.log`；77 个 1.6 冻结文件未变。RimTest 双客户端既有 19 项全部通过，含撤单退款和空投履约，报告 `G:/RimTestRuns/ClashOfRim/20261015-161503-499bc2ef/report.json`，日志 `LocalOnly/trade-owner-cancel-rimtest.log`；测试进程均已退出。报告仍为有限覆盖，通知中断、损坏返还和持久化故障由服务端/HTTP 测试验证，没有宣称已有对应实机场景。

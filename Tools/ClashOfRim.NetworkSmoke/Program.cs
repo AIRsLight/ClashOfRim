@@ -3015,6 +3015,15 @@ try
     Require(state.EventNotifications.GetVersion("user-b") > userBVersionBeforeCancel, "撤单应通知 user-b 刷新接单清单");
     Require(state.EventNotifications.GetVersion("user-c") > userCVersionBeforeCancel, "撤单应通知 user-c 刷新接单清单");
 
+    string cancelledLedger = JsonSerializer.Serialize(state.Ledger.ListAll());
+    var cancelledVersions = new[] { "user-a", "user-b", "user-c" }.ToDictionary(user => user, state.EventNotifications.GetVersion);
+    var ownerCancellationRetry = await client.CancelTradeOrderAsync(new CloseTradeOrderRequest("trade:user-a:cancel:001", trade.EventId!,
+        new ProtocolIdentity("user-a", "colony-a", "attacker-snapshot-after"), "smoke cancel", authToken: userAAuthToken));
+    Require(ownerCancellationRetry.Result.Accepted && ownerCancellationRetry.Result.ErrorCode == ProtocolErrorCode.DuplicateRequest
+        && ownerCancellationRetry.NotifiedAcceptorCount == 2 && cancelledLedger == JsonSerializer.Serialize(state.Ledger.ListAll())
+        && cancelledVersions.All(pair => state.EventNotifications.GetVersion(pair.Key) > pair.Value),
+        "卖家撤单重试应保留账本并再次通知已取消接单的全部参与者");
+
     EventCreationResponse tradeToComplete = await client.CreateTradeOrderAsync(new CreateTradeOrderRequest(
         "trade:user-a:complete-source",
         new ProtocolIdentity("user-a", "colony-a", "attacker-snapshot-after"),
