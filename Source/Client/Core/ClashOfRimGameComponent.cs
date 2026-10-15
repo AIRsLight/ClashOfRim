@@ -1446,6 +1446,9 @@ public sealed class ClashOfRimGameComponent : GameComponent
 
     private static void RunMainThreadActions()
     {
+        // Setup continuations can be queued just before the entry UI stops updating.
+        // Their session guard remains valid when the same login enters the game.
+        MainMenu.ClashOfRimMainMenuPatches.RunQueuedMainThreadActions();
         RunDueDelayedMainThreadActions();
         while (MainThreadActions.TryDequeue(out Action action))
         {

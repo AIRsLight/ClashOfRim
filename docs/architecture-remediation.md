@@ -631,3 +631,12 @@
 - 原实现负向证据：`LocalOnly/bank-replay-race-negative.log` 复现 12 个同键借款请求中 11 个误报父快照已变；`LocalOnly/bank-replay-history-negative.log` 复现已还款记录被当作借款回执。真实 Kestrel/SQLite 的 `BankHttpRecoveryTests` 将原来的“只要求一个首次成功，允许其他请求失败”改为“全部同键请求成功、恰好一个首次提交”，并继续覆盖 SQL 中断、重启恢复、第二次重启不重复、身份与字段冲突。
 - 边界：仍沿用银行既有请求关联语义，未引入完整请求哈希；还款提交金额可以不小于应付金额，实际回执只返回应付金额。历史借款记录的原快照没有被补造；以后如需支持跨还款生命周期的借款成功回执，必须持久化独立凭据，不能再次放宽当前状态规则。下一步先定位前轮 RimTest 初始世界提交停滞，再继续文档中的锁范围、服务职责及 DTO 收敛。
 - 验证：最终 Save 114 组全部通过，日志 `LocalOnly/bank-replay-race-save.log`；Events 全部、Client.Core 5 组、完整 NetworkSmoke、客户端 27 项通过，日志 `LocalOnly/bank-replay-race-regression.log`。增加历史借款状态约束后重新运行 Save 及完整 NetworkSmoke，后者日志 `LocalOnly/bank-replay-history-network.log`；77 个 1.6 冻结文件再次验证通过。RimTest 双客户端本轮 20/20 通过、0 项未执行，报告 `G:/RimTestRuns/ClashOfRim/20261015-183036-0e096ffd/report.json`，日志 `LocalOnly/bank-replay-race-rimtest.log`；临时桥接代码恢复，两个游戏进程均退出。该成功记录不代表前轮偶发建档超时已修复，也不代替服务端并发与存储故障测试。
+
+## 续修：入图后继续处理主菜单会话回调
+
+- 前轮失败运行 `20261015-181723-da288724` 的 SQLite 中已有 `world-configuration/world-substrate`（2,037,337 字节），但没有 `admin-baseline`；客户端持续处于初始提交状态。代码显示管理员基线由 `BuildAdminBaselineOnMainThreadAsync` 排入主线程后等待，分派器在排队时按 Entry/Playing 选择主菜单或游戏队列。若回调排入主菜单队列后立即进入游戏，Entry UI 停止更新，而游戏更新只处理自己的队列，等待者就可能无限等待。该窗口与失败证据一致，并已用确定性测试复现；未把所有建档超时归为同一原因。
+- 游戏主线程处理函数现在先处理遗留的主菜单队列，再处理游戏延迟/即时队列。主菜单动作仍受原会话 token 约束，允许同一登录从选址进入游戏后继续完成初始世界与管理员基线提交；游戏动作原有的游戏实例归属检查保持不变。未改为后台直接访问游戏对象，也未通过延长测试超时掩盖等待缺口。
+- 新增 `MainThreadDispatchTests` 使用实际客户端分派器与队列：Entry 排队后切换 Playing，只调用游戏处理入口，任务必须完成且多次处理不重复执行；排队后注销/新会话必须取消等待者；同一会话切换游戏实例时，原游戏动作必须丢弃；主菜单回调中新增游戏动作能够恰好执行一次。旧实现明确失败于 `Entry continuation was stranded after entering the game`，日志 `LocalOnly/entry-dispatch-negative.log`。
+- 另增加测试程序集内的实机探针，只向遗留主菜单队列排入计数回调并读取完成状态，测试自身不调用队列处理函数、不修改业务状态。通过临时 RimTest 桥接在已入图、暂停且 headless 的客户端调用，验证真实更新循环能够完成它；正式模组不包含探针或测试命令。
+- 客户端 28 项、Client.Core 5 组和 77 个 1.6 冻结文件校验通过，日志 `LocalOnly/entry-dispatch-client.log`、`LocalOnly/entry-dispatch-core.log`。本步只修改客户端队列交接，未重复执行未受影响的服务器存储/网络套件。后续继续文档中的锁范围、服务职责与 DTO 收敛；如后续建档仍超时，应按其具体等待阶段重新取证。
+- RimTest 扩展为 21 项（原 20 项加主菜单队列交接探针），最终 21/21 通过、0 项未执行；报告 `G:/RimTestRuns/ClashOfRim/20261015-183931-11c3cc6f/report.json`，日志 `LocalOnly/entry-dispatch-rimtest-retry.log`。首次探针运行在建档成功后被测试框架拒绝，因为临时状态查询误登记为 `read` 而非 `observe`，失败报告 `G:/RimTestRuns/ClashOfRim/20261015-183755-a3bfa975/report.json` 保留；仅修正测试命令声明后重新执行，未放宽框架轮询校验。两次临时桥接代码均恢复，测试游戏进程均退出。
