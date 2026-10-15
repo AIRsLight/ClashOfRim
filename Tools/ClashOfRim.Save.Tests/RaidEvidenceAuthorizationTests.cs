@@ -3,12 +3,14 @@ using AIRsLight.ClashOfRim.Network;
 using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Save;
 using System.Text.Json;
+using Microsoft.Data.Sqlite;
 
-internal static class RaidEvidenceAuthorizationTests
+internal static partial class RaidEvidenceAuthorizationTests
 {
     public static void Run(Func<string, string, SaveSnapshotPackage> fixture)
     {
         SnapshotEndpointTestClient.LoadLocalization();
+        RunOnline(fixture);
         foreach (string change in new[] { "none", "logout", "replace", "revoke", "cancel", "source-content" })
             WithFixture(fixture, f => VerifyPreparing(f, change));
         foreach (bool applied in new[] { false, true })
@@ -64,33 +66,64 @@ internal static class RaidEvidenceAuthorizationTests
         if (applied && accepted) Require(reply.NextLineageToken == "attacker-next", "Valid completed replay lost its result.");
     }
 
-    private static void WithFixture(Func<string, string, SaveSnapshotPackage> fixture, Action<Fixture> run)
+    private static void WithFixture(Func<string, string, SaveSnapshotPackage> fixture, Action<Fixture> run, bool persistent = false, bool legacyArtifacts = false)
     {
         string root = Path.Combine(Path.GetTempPath(), "cor-raid-auth-" + Guid.NewGuid().ToString("N"));
-        try { run(new Fixture(root, fixture)); }
-        finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
+        try
+        {
+            var f = new Fixture(root, fixture, persistent, legacyArtifacts);
+            run(f);
+            Require(f.ArtifactStore.ActiveHandles == 0, "Online request leaked artifact revision handles.");
+        }
+        finally { SqliteConnection.ClearAllPools(); if (Directory.Exists(root)) Directory.Delete(root, true); }
     }
     private static void Require(bool value, string message) { if (!value) throw new Exception(message); }
     private sealed class Fixture
     {
         public string Artifacts { get; }
         public SaveSnapshotPackage Package { get; }
-        public ObservedStore Store { get; }
-        public ClashOfRimNetworkState State { get; }
+        public ObservedStore Store { get; private set; } = null!;
+        public ObservedArtifacts ArtifactStore { get; private set; } = null!;
+        public Action<AIRsLight.ClashOfRim.Network.Plugins.SnapshotPostUploadContext>? BeforeSchedule, AfterSchedule;
+        public ClashOfRimNetworkState State { get; private set; } = null!;
         public AuthoritativeEvent Raid { get; }
-        private readonly string attackerToken, defenderToken;
-        public Fixture(string root, Func<string, string, SaveSnapshotPackage> fixture)
+        private string attackerToken = "", defenderToken = "";
+        private readonly string root;
+        private readonly string? database;
+        private readonly bool legacyArtifacts;
+        public Fixture(string root, Func<string, string, SaveSnapshotPackage> fixture, bool persistent, bool legacyArtifacts)
         {
             Artifacts = Path.Combine(root, "artifacts");
-            Store = new ObservedStore(Path.Combine(root, "snapshots"));
-            State = new ClashOfRimNetworkState(snapshotStore: Store, snapshotPostUploadArtifacts: new FileSnapshotPostUploadArtifactStore(Artifacts));
+            this.root = root;
+            this.legacyArtifacts = legacyArtifacts;
+            if (persistent) { database = Path.Combine(root, "server.sqlite"); ServerDatabaseMigrator.Migrate(database); }
+            Open();
             Raid = AuthoritativeEventFactory.Create(ServerEventType.Raid, new EventParty("userA", "colonyA"), new EventParty("userB", "colonyB"),
                 "raid-auth", false, new RaidEventPayload("defender", null, DateTimeOffset.UtcNow, null, null), DateTimeOffset.UtcNow);
             State.Ledger.Append(Raid);
             Package = fixture("evidence", Raid.EventId);
             var defender = Package with { Envelope = Package.Envelope with { Identity = new SnapshotIdentity("userB", "colonyB", "defender"), NextLineageToken = "defender-next" } };
             Store.Inner.StoreLatest(defender, defender.Index, DateTimeOffset.UtcNow);
+        }
+        public void Open()
+        {
+            Store = new ObservedStore(Path.Combine(root, "snapshots"));
+            ArtifactStore = new ObservedArtifacts(Artifacts);
+            State = new ClashOfRimNetworkState(snapshotStore: Store, snapshotPostUploadArtifacts: legacyArtifacts ? new LegacyArtifacts(ArtifactStore.Inner) : ArtifactStore,
+                ledger: database is null ? null : new SqliteAuthoritativeEventLedger(database),
+                playerRegistry: database is null ? null : new PlayerRegistry(new SqlitePlayerRegistryStore(database), null),
+                snapshotPostUploadJobs: database is null ? null : new SnapshotPostUploadJobRegistry(new SqliteSnapshotPostUploadJobStore(database)),
+                plugins: new AIRsLight.ClashOfRim.Network.Plugins.ServerPluginRegistry().WithBuiltInPlugins([
+                    new("test.evidence", "evidence", "1", "test", "", []) { SnapshotPostUploadProcessors = [
+                        new EvidenceProcessor(250, context => BeforeSchedule?.Invoke(context)),
+                        new EvidenceProcessor(350, context => AfterSchedule?.Invoke(context))] }]));
             attackerToken = Token("userA", "colonyA"); defenderToken = Token("userB", "colonyB");
+        }
+        public void Sql(string sql)
+        {
+            using var connection = new SqliteConnection("Data Source=" + database);
+            connection.Open();
+            using var command = connection.CreateCommand(); command.CommandText = sql; command.ExecuteNonQuery();
         }
         private string Token(string user, string colony)
         {
@@ -98,17 +131,18 @@ internal static class RaidEvidenceAuthorizationTests
             return State.AuthTokens.Issue(user, user, colony, session, DateTimeOffset.UtcNow);
         }
         public string StateEvidence() => JsonSerializer.Serialize(new { snapshots = Store.ListLatest(), ledger = State.Ledger.ListAll(),
-            jobs = State.SnapshotPostUploadJobs.ListAll(), artifacts = Directory.EnumerateFiles(Artifacts).Order().Select(path =>
+            jobs = State.SnapshotPostUploadJobs.ListAll(), artifacts = Directory.EnumerateFiles(Artifacts, "*.snapshot.gz").Order().Select(path =>
                 Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(path)))).ToArray(), players = new[] { State.Players.FindByUserId("userA"), State.Players.FindByUserId("userB") } });
-        public ConfirmEventApplicationResponse Invoke(string identity = "attacker")
+        public ConfirmEventApplicationResponse Invoke(string identity = "attacker", SaveSnapshotPackage? package = null, string result = "Applied")
         {
+            package ??= Package;
             bool defender = identity is "defender" or "delegated";
             string owner = defender ? "userB" : "userA", colony = defender ? "colonyB" : "colonyA";
-            var metadata = ProtocolDtoMapper.ToMetadataDto(Package);
-            if (identity is "defender" or "delegated" or "metadata") metadata = ProtocolDtoMapper.ToMetadataDto(Package with { Envelope = Package.Envelope with { Identity = new SnapshotIdentity("userB", "colonyB", "evidence") } });
+            var metadata = ProtocolDtoMapper.ToMetadataDto(package);
+            if (identity is "defender" or "delegated" or "metadata") metadata = ProtocolDtoMapper.ToMetadataDto(package with { Envelope = Package.Envelope with { Identity = new SnapshotIdentity("userB", "colonyB", "evidence") } });
             return SnapshotEndpointTestClient.Invoke<ConfirmEventApplicationResponse>("ConfirmEventApplication", State,
-                _ => new ConfirmEventApplicationMetadataRequest("request", Raid.EventId, null, owner, colony, "before", metadata, "Applied",
-                    defender && identity != "delegated" ? defenderToken : attackerToken), Package.Payload,
+                _ => new ConfirmEventApplicationMetadataRequest("request", Raid.EventId, null, owner, colony, "before", metadata, result,
+                    defender && identity != "delegated" ? defenderToken : attackerToken), package.Payload,
                 new ProtocolIdentity(identity == "header" ? "userB" : identity == "delegated" ? "userA" : owner,
                     identity == "header" ? "colonyB" : identity == "delegated" ? "colonyA" : colony, null),
                 identity == "header" || defender && identity != "delegated" ? defenderToken : attackerToken).GetAwaiter().GetResult();
@@ -117,13 +151,19 @@ internal static class RaidEvidenceAuthorizationTests
     private sealed class ObservedStore(string root) : IPreparedColonySnapshotPackageStore
     {
         public FileColonySnapshotIndexStore Inner { get; } = new(root);
-        public Action? BeforePrepare;
+        public Action? BeforePrepare, BeforeRead;
+        public string? Fault;
+        public int PreparedWrites, RawWrites;
         public PreparedSnapshotPayload PreparePayload(byte[] bytes) { BeforePrepare?.Invoke(); return Inner.PreparePayload(bytes); }
-        public void StorePrepared(SaveSnapshotPackage p, SaveSnapshotIndex i, DateTimeOffset at, PreparedSnapshotPayload prepared) => Inner.StorePrepared(p, i, at, prepared);
-        public void StoreLatest(SaveSnapshotPackage p, SaveSnapshotIndex i, DateTimeOffset at) => Inner.StoreLatest(p, i, at);
+        public void StorePrepared(SaveSnapshotPackage p, SaveSnapshotIndex i, DateTimeOffset at, PreparedSnapshotPayload prepared) {
+            if (Fault == "before") throw new IOException("before publication");
+            Inner.StorePrepared(p, i, at, prepared); PreparedWrites++;
+            if (Fault == "after") throw new IOException("after publication");
+        }
+        public void StoreLatest(SaveSnapshotPackage p, SaveSnapshotIndex i, DateTimeOffset at) { RawWrites++; Inner.StoreLatest(p, i, at); }
         public void StoreLatest(LatestSnapshotRecord record) => Inner.StoreLatest(record);
         public LatestSnapshotRecord? GetLatest(string owner, string colony) => Inner.GetLatest(owner, colony);
-        public SaveSnapshotPackage? GetLatestPackage(string owner, string colony) => Inner.GetLatestPackage(owner, colony);
+        public SaveSnapshotPackage? GetLatestPackage(string owner, string colony) { BeforeRead?.Invoke(); return Inner.GetLatestPackage(owner, colony); }
         public IReadOnlyList<LatestSnapshotRecord> ListLatest() => Inner.ListLatest();
         public bool RemoveLatest(string owner, string colony) => Inner.RemoveLatest(owner, colony);
     }

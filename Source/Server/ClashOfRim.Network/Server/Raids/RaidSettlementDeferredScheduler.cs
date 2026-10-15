@@ -263,7 +263,7 @@ public static class RaidSettlementDeferredScheduler
         return evidence;
     }
 
-    private static void ValidateEvidenceBinding(ClashOfRimNetworkState state, SnapshotPostUploadJobRecord job,
+    internal static void ValidateEvidenceBinding(ClashOfRimNetworkState state, SnapshotPostUploadJobRecord job,
         RaidSettlementDeferredPayload payload, SaveSnapshotPackage evidence)
     {
         AuthoritativeEvent? raid = state.Ledger.Find(payload.RaidEventId);

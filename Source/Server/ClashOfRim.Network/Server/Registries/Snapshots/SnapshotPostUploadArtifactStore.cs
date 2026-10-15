@@ -26,6 +26,7 @@ public interface IPreparedSnapshotPostUploadArtifactStore : ISnapshotPostUploadA
 public interface IPreparedSnapshotPostUploadArtifact : IDisposable
 {
     // False means this ID changed after capture; dispose and prepare again outside business locks.
+    bool IsCurrent { get; }
     bool TryPublish();
 }
 
@@ -280,6 +281,17 @@ public sealed class FileSnapshotPostUploadArtifactStore : IPreparedSnapshotPostU
         : IPreparedSnapshotPostUploadArtifact
     {
         private bool disposed, published;
+        public bool IsCurrent
+        {
+            get
+            {
+                lock (owner.gate)
+                {
+                    ObjectDisposedException.ThrowIf(disposed, this);
+                    return !published && ReferenceEquals(revision.Token, token);
+                }
+            }
+        }
         public bool TryPublish()
         {
             lock (owner.gate)

@@ -12,7 +12,11 @@ public sealed record RaidSettlementPostUploadData(
     string RaidEventId,
     byte[] EvidencePayload,
     RaidSettlementOrigin Origin,
-    string? ClientApplicationResult);
+    string? ClientApplicationResult)
+{
+    [System.Text.Json.Serialization.JsonIgnore]
+    internal RaidEvidenceSchedulePreparation? PreparedSchedule { get; init; }
+}
 
 public sealed record RaidSettlementDeferredPayload(
     string RaidEventId,

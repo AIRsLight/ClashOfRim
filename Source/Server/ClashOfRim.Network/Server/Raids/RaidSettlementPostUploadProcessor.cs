@@ -29,6 +29,7 @@ public sealed class RaidSettlementPostUploadProcessor :
         ArgumentNullException.ThrowIfNull(context);
         RaidSettlementPostUploadData data = context.ExtraData.RaidSettlement
             ?? throw new InvalidOperationException("Raid settlement post-upload data is missing.");
+        if (data.PreparedSchedule is { } prepared) return prepared.Commit(context);
         return RaidSettlementDeferredScheduler.Schedule(
             context.State,
             new RaidSettlementScheduleRequest(
