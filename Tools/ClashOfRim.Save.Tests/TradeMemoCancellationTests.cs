@@ -153,7 +153,7 @@ internal static class TradeMemoCancellationTests
         }
         Require(ServerDatabaseMigrator.Assess(path).Status == ServerPersistenceMigrationStatus.SafeMigrationAvailable, "version 25 not migratable");
         ServerDatabaseMigrator.Migrate(path);
-        Require(ServerDatabaseMigrator.ReadVersion(path) == 26 && before == Snapshot(Open("sqlite", root)), "version gate rewrote legacy events");
+        Require(ServerDatabaseMigrator.ReadVersion(path) == ServerDatabaseSchema.CurrentVersion && before == Snapshot(Open("sqlite", root)), "version gate rewrote legacy events");
     });
 
     private static AuthoritativeEvent Order(string key) => AuthoritativeEventFactory.Create(ServerEventType.Trade, new("seller", "seller-colony"),

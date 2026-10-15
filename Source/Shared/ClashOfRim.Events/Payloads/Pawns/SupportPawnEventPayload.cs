@@ -17,4 +17,5 @@ public sealed record SupportPawnEventPayload(
     long? ExpiresAtGameTicks = null,
     bool AutoReturnOnSettlement = false,
     string? SourceEventId = null,
-    string? ReturnReason = null) : LedgerEventPayload;
+    string? ReturnReason = null,
+    string? CreationRequestHash = null) : LedgerEventPayload;

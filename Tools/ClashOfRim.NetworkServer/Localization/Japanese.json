@@ -494,6 +494,7 @@
   "Gift.AlreadyAppliedCannotReject": "贈り物はすでにセーブへ適用済みのため拒否できません。",
   "Gift.RejectedDuplicate": "贈り物はすでに拒否済みで、返送配送も作成済みです。",
   "Gift.RejectedReturnCreated": "贈り物を拒否し、返送配送を作成しました。",
+  "Support.TransactionConflict": "支援要求が送信元のスナップショットまたは既存の操作と一致しません。",
   "Support.SnapshotEndpointRequired": "クライアントを更新し、送信元のスナップショットと共に支援者を送信してください。",
   "Raid.SnapshotEndpointRequired": "クライアントを更新し、攻撃側のスナップショットと共に襲撃を開始してください。",
   "Gift.SnapshotEndpointRequired": "贈り物の送信にはセーブデータの同時確認が必要です。クライアントを更新し、スナップショット付きで送信してください。",

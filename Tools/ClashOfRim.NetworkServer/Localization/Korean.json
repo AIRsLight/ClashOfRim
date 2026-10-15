@@ -495,6 +495,7 @@
   "Gift.AlreadyAppliedCannotReject": "선물이 이미 저장에 적용되어 거부할 수 없습니다.",
   "Gift.RejectedDuplicate": "선물이 이미 거부되었고 반환 배송도 이미 생성되었습니다.",
   "Gift.RejectedReturnCreated": "선물을 거부하고 반환 배송을 생성했습니다.",
+  "Support.TransactionConflict": "지원 요청이 원본 스냅샷 또는 기존 작업과 일치하지 않습니다.",
   "Support.SnapshotEndpointRequired": "클라이언트를 업데이트하고 원본 스냅샷과 함께 지원 인원을 보내세요.",
   "Raid.SnapshotEndpointRequired": "클라이언트를 업데이트하고 공격자 스냅샷과 함께 습격을 시작하세요.",
   "Gift.SnapshotEndpointRequired": "선물 전송에는 저장 데이터 확인이 필요합니다. 클라이언트를 업데이트하고 스냅샷과 함께 전송하세요.",
