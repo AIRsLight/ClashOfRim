@@ -807,7 +807,8 @@ public sealed class ListTradeOrdersRequest
         string currentSnapshotId,
         string scope = "Open",
         int offset = 0,
-        int limit = 10)
+        int limit = 10,
+        string? authToken = null)
     {
         UserId = userId;
         ColonyId = colonyId;
@@ -815,9 +816,12 @@ public sealed class ListTradeOrdersRequest
         Scope = scope;
         Offset = offset;
         Limit = limit;
+        AuthToken = authToken;
     }
 
     public string UserId { get; }
+
+    public string? AuthToken { get; }
 
     public string ColonyId { get; }
 

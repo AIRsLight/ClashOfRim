@@ -9,7 +9,39 @@ using AIRsLight.ClashOfRim.Protocol;
 
 internal static class TradeCommandTransportTests
 {
-    public static void Run() => Verify().GetAwaiter().GetResult();
+    public static void Run()
+    {
+        Verify().GetAwaiter().GetResult();
+        foreach (string scope in new[] { "Open", "Mine", "AcceptedByMe", "History" })
+        foreach (bool defaults in new[] { false, true }) VerifyMarket(scope, defaults).GetAwaiter().GetResult();
+    }
+
+    private static async Task VerifyMarket(string scope, bool defaults)
+    {
+        ClientSessionWork.Reset();
+        using var handler = new MarketHandler(scope, defaults); using var http = new HttpClient(handler);
+        var context = new ClashOfRimClientNetworkContext("http://127.0.0.1:12345", "trader", "colony", "base", null, null, "market-token");
+        var client = new ClashOfRimModNetworkClient(http, context);
+        var result = await client.ListTradeOrdersAsync(scope, defaults ? -3 : 4, defaults ? 0 : 17);
+        if (!result.Success || result.Response?.Result?.Accepted != true || handler.Calls != 1 || context.AuthToken != "market-token")
+            throw new Exception("Trade market transport failed or changed credentials.");
+    }
+
+    private sealed class MarketHandler : HttpMessageHandler
+    {
+        private readonly string scope; private readonly bool defaults; public int Calls;
+        public MarketHandler(string scope, bool defaults) { this.scope = scope; this.defaults = defaults; }
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Calls++;
+            var body = JsonSerializer.Deserialize<ListTradeOrdersRequest>(await request.Content!.ReadAsStringAsync(cancellationToken), new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
+            if (request.Method != HttpMethod.Post || request.RequestUri!.AbsolutePath != ProtocolContractManifest.Find(ProtocolMessageKind.ListTradeOrders).Route
+                || body.AuthToken != "market-token" || body.UserId != "trader" || body.ColonyId != "colony" || body.CurrentSnapshotId != "base"
+                || body.Scope != scope || body.Offset != (defaults ? 0 : 4) || body.Limit != (defaults ? 10 : 17))
+                throw new Exception("Serialized market query does not match the authenticated server contract.");
+            return new(HttpStatusCode.OK) { Content = new StringContent("{\"result\":{\"accepted\":true},\"orders\":[]}") };
+        }
+    }
     private static async Task Verify()
     {
         ClientSessionWork.Reset();

@@ -8,25 +8,28 @@ public static partial class ClashOfRimNetworkServer
 {
     private static void ApplyTradeOrderExpirations(ClashOfRimNetworkState state, DateTimeOffset nowUtc)
     {
-        using (state.EnterSnapshotMutation())
-        {
-            RecoverSnapshotCommits(state);
-            TimeSpan expiration = state.ServerConfiguration.TradeOrderExpiration;
-            if (expiration <= TimeSpan.Zero) return;
-            var expiredOrders = state.Ledger.ListByType(ServerEventType.Trade)
-                .Where(IsOpenMarketTradeOrderForOwner)
-                .Where(order => nowUtc - order.CreatedAtUtc >= expiration).ToArray();
-            foreach (var order in expiredOrders)
-                ApplyAutomaticTradeCancellation(state, order, TradeCancellationReason.Expired, [], nowUtc);
-        }
+        using (EnterRecoveredSnapshotMutation(state)) ApplyRecoveredTradeOrderExpirations(state, nowUtc);
+    }
+
+    // Authorized callers already own the recovered mutation scope. Do not recover again here.
+    private static void ApplyRecoveredTradeOrderExpirations(ClashOfRimNetworkState state, DateTimeOffset nowUtc)
+    {
+        if (!Monitor.IsEntered(state.RaidSettlementSnapshotMutationGate))
+            throw new InvalidOperationException("Trade expiration requires the recovered mutation scope.");
+        TimeSpan expiration = state.ServerConfiguration.TradeOrderExpiration;
+        if (expiration <= TimeSpan.Zero) return;
+        var expiredOrders = state.Ledger.ListByType(ServerEventType.Trade)
+            .Where(IsOpenMarketTradeOrderForOwner)
+            .Where(order => nowUtc - order.CreatedAtUtc >= expiration).ToArray();
+        foreach (var order in expiredOrders)
+            ApplyAutomaticTradeCancellation(state, order, TradeCancellationReason.Expired, [], nowUtc);
     }
 
     private static int ApplyTradeOrderBaselineInvalidations(ClashOfRimNetworkState state,
         AdminBaselineSnapshot baseline, DateTimeOffset nowUtc)
     {
-        using (state.EnterSnapshotMutation())
+        using (EnterRecoveredSnapshotMutation(state))
         {
-            RecoverSnapshotCommits(state);
             var validDefs = BuildValidTradeThingDefSet(baseline, state.ServerConfiguration);
             if (validDefs.Count == 0) return 0;
             int cancelled = 0;

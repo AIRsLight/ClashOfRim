@@ -2709,7 +2709,7 @@ try
     ListTradeOrdersResponse expiredSweep = await client.ListTradeOrdersAsync(new ListTradeOrdersRequest(
         "user-b",
         "colony-b",
-        "defender-snapshot-before"));
+        "defender-snapshot-before", authToken: userBAuthToken));
     Require(expiredSweep.Result.Accepted, "交易市场查询应触发过期交易单扫描");
     Equal(ServerEventStatus.Cancelled, state.Ledger.Find(oldTrade.EventId)!.Status, "过期交易单应按撤单进入取消状态");
     Equal(ServerEventStatus.Cancelled, state.Ledger.Find(oldTradeMemo.EventId)!.Status, "过期交易单应关闭接单备忘录");
@@ -2842,14 +2842,14 @@ try
     ListTradeOrdersResponse marketForOwner = await client.ListTradeOrdersAsync(new ListTradeOrdersRequest(
         "user-a",
         "colony-a",
-        "attacker-snapshot-after"));
+        "attacker-snapshot-after", authToken: userAAuthToken));
     Require(marketForOwner.Result.Accepted, "交易市场列表应允许发单人查询");
     Require(!marketForOwner.Orders.Any(order => order.EventId == trade.EventId), "发单人不应在可接单市场中看到自己的交易单");
 
     ListTradeOrdersResponse marketForUserB = await client.ListTradeOrdersAsync(new ListTradeOrdersRequest(
         "user-b",
         "colony-b",
-        "defender-snapshot-before"));
+        "defender-snapshot-before", authToken: userBAuthToken));
     Require(marketForUserB.Result.Accepted, "其他玩家应能拉取交易市场列表");
     TradeOrderSummaryDto visibleTrade = marketForUserB.Orders.Single(order => order.EventId == trade.EventId);
     Equal("user-a", visibleTrade.Owner.UserId, "交易市场摘要应显示发单人");
@@ -2966,6 +2966,13 @@ try
         compatibilityManifestId: "smoke-main-manifest"));
     Require(orbitLogin.Result.Accepted, $"地表玩家应能登录以回报事件应用失败：{orbitLogin.Result.ErrorCode} {orbitLogin.Result.Message}");
 
+    Require((await client.PrepareWorldSessionAsync(SmokePrepareWorldSessionRequest("user-ground", "colony-ground"))).Result.Accepted,
+        "地表市场查询用户应先显式注册");
+    LoginResponse groundLogin = await client.LoginAsync(new LoginRequest(
+        ProtocolApiVersion.Current, "user-ground", "colony-ground", "ground-snapshot", "smoke-main-manifest",
+        password: string.Empty, compatibilityManifestId: "smoke-main-manifest"));
+    Require(groundLogin.Result.Accepted, "地表市场查询用户应登录并取得令牌");
+
     tradeTokens["user-surface"] = surfaceLogin.AuthToken!;
     tradeTokens["user-orbit"] = orbitLogin.AuthToken!;
     EventCreationResponse surfaceTrade = await CreateSnapshotTrade(new CreateTradeOrderRequest(
@@ -2980,7 +2987,7 @@ try
     ListTradeOrdersResponse surfaceMarket = await client.ListTradeOrdersAsync(new ListTradeOrdersRequest(
         "user-ground",
         "colony-ground",
-        "ground-snapshot"));
+        "ground-snapshot", authToken: groundLogin.AuthToken));
     TradeOrderSummaryDto surfaceVisibleTrade = surfaceMarket.Orders.Single(order => order.EventId == surfaceTrade.EventId);
     Require(surfaceVisibleTrade.ServerDropPodPostage is { Reachable: true, PostageSilver: not null, DistanceTiles: not null }, "默认服务器地块距离估算应允许地表空投邮费计算");
 
@@ -2996,7 +3003,7 @@ try
     ListTradeOrdersResponse orbitalMarket = await client.ListTradeOrdersAsync(new ListTradeOrdersRequest(
         "user-surface",
         "colony-surface",
-        state.SnapshotStore.GetLatest("user-surface", "colony-surface")!.Identity.SnapshotId!));
+        state.SnapshotStore.GetLatest("user-surface", "colony-surface")!.Identity.SnapshotId!, authToken: surfaceLogin.AuthToken));
     TradeOrderSummaryDto orbitalVisibleTrade = orbitalMarket.Orders.Single(order => order.EventId == orbitalTrade.EventId);
     Require(orbitalVisibleTrade.ServerDropPodPostage is { Reachable: true, PostageSilver: 300, DistanceTiles: 120 }, "跨层轨道空投应按投影距离和配置跨层距离计费：" + JsonSerializer.Serialize(orbitalVisibleTrade.ServerDropPodPostage));
     AcceptTradeOrderResponse orbitalAcceptedTrade = await client.AcceptTradeOrderAsync(new AcceptTradeOrderRequest(
@@ -3119,10 +3126,15 @@ try
     Require(acceptedByUserC.Result.Accepted, "交易单应允许多个玩家接取");
     Require(acceptedByUserC.MemoCreated, "第二个玩家接取应创建独立备忘录");
 
+    LoginResponse userDMarketLogin = await client.LoginAsync(new LoginRequest(ProtocolApiVersion.Current, "user-d", "colony-d",
+        "ws-snapshot", "smoke-main-manifest", password: string.Empty, compatibilityManifestId: "smoke-main-manifest"));
+    Require(userDMarketLogin.Result.Accepted && !string.IsNullOrWhiteSpace(userDMarketLogin.AuthToken), "已结束 WS 会话的市场查看者应重新登录");
+    userDAuthToken = userDMarketLogin.AuthToken!;
     ListTradeOrdersResponse marketAfterAccept = await client.ListTradeOrdersAsync(new ListTradeOrdersRequest(
         "user-d",
         "colony-d",
-        "ws-snapshot"));
+        "ws-snapshot", authToken: userDAuthToken));
+    Require(marketAfterAccept.Result.Accepted, "有效市场会话应能查看接单人数：" + marketAfterAccept.Result.Message);
     Equal(2, marketAfterAccept.Orders.Single(order => order.EventId == trade.EventId).AcceptedMemoCount, "多人接取后市场应显示备忘录计数");
 
     foreach (string? badToken in new[] { null, "invalid-trade-token", userBAuthToken })
@@ -3235,7 +3247,7 @@ try
         "user-a",
         "colony-a",
         "attacker-snapshot-after",
-        scope: "History"));
+        scope: "History", authToken: userAAuthToken));
     TradeOrderSummaryDto completedHistoryOrder = ownerTradeHistory.Orders.Single(order => order.EventId == tradeToComplete.EventId);
     Equal("user-b", completedHistoryOrder.Counterparty?.UserId, "交易历史应显示实际完成交易的接单方");
     Equal("colony-b", completedHistoryOrder.Counterparty?.ColonyId, "交易历史应显示实际完成交易方殖民地");

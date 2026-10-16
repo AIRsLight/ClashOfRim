@@ -118,7 +118,7 @@ public static partial class ClashOfRimNetworkServer
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.QuoteTradeOrderFee).Route, QuoteTradeOrderFee);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.CreateTradeOrder).Route, CreateTradeOrder).WithMetadata(EndpointSnapshotRecovery.Instance);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.CreateTradeOrderWithSnapshot).Route, CreateTradeOrderWithSnapshot).WithMetadata(EndpointSnapshotRecovery.Instance);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.ListTradeOrders).Route, ListTradeOrders);
+        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.ListTradeOrders).Route, ListTradeOrders).WithMetadata(EndpointSnapshotRecovery.Instance);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.AcceptTradeOrder).Route, AcceptTradeOrder).WithMetadata(EndpointSnapshotRecovery.Instance);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.FulfillTradeOrder).Route, FulfillTradeOrder).WithMetadata(EndpointSnapshotRecovery.Instance);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.FulfillTradeOrderWithSnapshot).Route, FulfillTradeOrderWithSnapshot).WithMetadata(EndpointSnapshotRecovery.Instance);

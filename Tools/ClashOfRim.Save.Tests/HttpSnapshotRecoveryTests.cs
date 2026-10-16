@@ -21,7 +21,7 @@ internal static class HttpSnapshotRecoveryTests
         ProtocolMessageKind.ConfirmEventApplications, ProtocolMessageKind.ReportEventApplicationFailure,
         ProtocolMessageKind.CreateGift, ProtocolMessageKind.CreateGiftWithSnapshot, ProtocolMessageKind.RejectGift,
         ProtocolMessageKind.CreateTradeOrder, ProtocolMessageKind.CreateTradeOrderWithSnapshot,
-        ProtocolMessageKind.AcceptTradeOrder, ProtocolMessageKind.FulfillTradeOrder,
+        ProtocolMessageKind.AcceptTradeOrder, ProtocolMessageKind.ListTradeOrders, ProtocolMessageKind.FulfillTradeOrder,
         ProtocolMessageKind.FulfillTradeOrderWithSnapshot, ProtocolMessageKind.CancelTradeOrder,
         ProtocolMessageKind.CompleteTradeOrder, ProtocolMessageKind.PurchaseServerShopListingWithSnapshot,
         ProtocolMessageKind.CreateRaid, ProtocolMessageKind.CreateRaidWithSnapshot,

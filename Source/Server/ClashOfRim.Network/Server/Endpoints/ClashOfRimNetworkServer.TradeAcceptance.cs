@@ -17,7 +17,7 @@ public static partial class ClashOfRimNetworkServer
             request.Acceptor.ColonyId ?? string.Empty))
         {
             if (mutation.Rejection is { } rejection) return Reject(rejection);
-            ApplyTradeOrderExpirations(state, DateTimeOffset.UtcNow);
+            ApplyRecoveredTradeOrderExpirations(state, DateTimeOffset.UtcNow);
 
             ProtocolResponse? validation = ValidateTradeAcceptanceRequest(request);
             if (validation is not null)

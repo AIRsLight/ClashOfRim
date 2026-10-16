@@ -1894,6 +1894,7 @@ public sealed partial class ClashOfRimModNetworkClient
 
         var request = new ModListTradeOrdersRequestDto
         {
+            AuthToken = context.AuthToken,
             UserId = context.UserId,
             ColonyId = context.ColonyId,
             CurrentSnapshotId = context.CurrentSnapshotId ?? string.Empty,

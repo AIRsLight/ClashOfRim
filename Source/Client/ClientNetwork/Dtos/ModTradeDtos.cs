@@ -315,6 +315,9 @@ public sealed class ModGetThingPackageResponseDto
 [DataContract]
 public sealed class ModListTradeOrdersRequestDto
 {
+    [DataMember(Name = "authToken")]
+    public string? AuthToken { get; set; }
+
     [DataMember(Name = "userId")]
     public string UserId { get; set; } = string.Empty;
 
