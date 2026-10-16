@@ -108,3 +108,8 @@ HTTP 与 WebSocket 现在共用 `ServerLocalization.EncodeLanguageHeader`：规�
 - 1.7 的 Core 角色也有外观基因，原实现只在 Biotech 激活时重写 Gene ID，远端地图/支援角色混入本地世界后触发重复 load ID。
 - 基因身份迁移改为共用 Core 能力，远端 XML 重写与角色交换始终注册；Biotech 仍负责其专有缓存，复用同一个 ID 分配循环。
 - 上述 `RepairFinal` Core 全场 42/42，通过远端观察、支援、突袭、存读档后的错误日志检查，未忽略原 `Gene_14/Gene_15` 报错。
+
+### 扩展回归：人口与地标密度存读档复原
+
+- 原版 WorldInfo 没有序列化 `overallPopulation`、`landmarkDensity`；读档后变成 Normal。增加两个模组命名的存档字段，旧存档缺字段时保留原版默认值。
+- `RepairDlcFinal/20261016-112848-2c9c9ad3/dry-sparse-german/20261016-112858-da356cdc` 全场通过，覆盖干旱/稀疏世界；同批 DLC 压力场景的 Crowded 地标与 0.25 污染存读档断言通过。
