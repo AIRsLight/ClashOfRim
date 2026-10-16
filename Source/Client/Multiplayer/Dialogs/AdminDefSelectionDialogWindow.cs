@@ -117,7 +117,7 @@ internal sealed class AdminThingDefSelectionDialogWindow : Window
     private static IReadOnlyList<ThingDef> SelectableThingDefs()
     {
         return cachedSelectableThingDefs ??= DefDatabase<ThingDef>.AllDefsListForReading
-            .Where(def => IsPackableBuildingDef(def)
+            .Where(def => TradeThingReferenceUtility.IsPackableItemDef(def)
                 || TradeThingReferenceUtility.IsBookDef(def)
                 || TradeThingReferenceUtility.IsTradeableItemDef(def))
             .Where(def => !def.HasComp(typeof(CompUniqueWeapon)))
@@ -127,12 +127,7 @@ internal sealed class AdminThingDefSelectionDialogWindow : Window
             .ToList();
     }
 
-    private static bool IsPackableBuildingDef(ThingDef def)
-    {
-        return def.category == ThingCategory.Building
-            && def.Minifiable
-            && def.minifiedDef is not null;
-    }
+
 }
 
 internal sealed class AdminIncidentDefSelectionDialogWindow : Window

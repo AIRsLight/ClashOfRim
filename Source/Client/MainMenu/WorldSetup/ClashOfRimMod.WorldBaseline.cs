@@ -723,9 +723,7 @@ public sealed partial class ClashOfRimMod
         return DefDatabase<ThingDef>.AllDefsListForReading
             .Where(def => def != null
                 && !string.IsNullOrWhiteSpace(def.defName)
-                && def.category == ThingCategory.Building
-                && def.Minifiable
-                && def.minifiedDef is not null)
+                && Trades.TradeThingReferenceUtility.IsPackableItemDef(def))
             .Select(def => new ModPackableBuildingDto
             {
                 DefName = def.defName,

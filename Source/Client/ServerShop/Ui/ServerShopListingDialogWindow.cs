@@ -313,7 +313,7 @@ public sealed class ServerShopListingDialogWindow : Window
     private static List<ThingDef> SearchableThingDefs()
     {
         return cachedSearchableThingDefs ??= DefDatabase<ThingDef>.AllDefsListForReading
-            .Where(def => IsPackableBuildingDef(def)
+            .Where(def => TradeThingReferenceUtility.IsPackableItemDef(def)
                 || TradeThingReferenceUtility.IsBookDef(def)
                 || TradeThingReferenceUtility.IsTradeableItemDef(def))
             .Where(def => !def.IsCorpse)
@@ -324,7 +324,7 @@ public sealed class ServerShopListingDialogWindow : Window
 
     private static ModThingReferenceDto BuildItemReference(ThingDef def)
     {
-        bool packableBuilding = IsPackableBuildingDef(def);
+        bool packableBuilding = TradeThingReferenceUtility.IsPackableItemDef(def);
         ThingDef effectiveDef = packableBuilding ? def.minifiedDef! : def;
         var reference = new ModThingReferenceDto
         {
@@ -346,13 +346,6 @@ public sealed class ServerShopListingDialogWindow : Window
         }
 
         return reference;
-    }
-
-    private static bool IsPackableBuildingDef(ThingDef def)
-    {
-        return TradeThingReferenceUtility.IsTradeableItemDef(def)
-            && def.Minifiable
-            && def.minifiedDef is not null;
     }
 
     private static void DrawStuffEditor(Rect rect, ThingDef def, ModThingReferenceDto item)

@@ -796,7 +796,7 @@ public sealed class TradeOrderDialogWindow : Window
             ModThingReferenceDto reference = new()
             {
                 GlobalKey = globalKey,
-                DefName = IsPackableBuildingDef(def) ? def.minifiedDef?.defName : def.defName,
+                DefName = TradeThingReferenceUtility.IsPackableItemDef(def) ? def.minifiedDef?.defName : def.defName,
                 StackCount = 1,
                 HitPoints = TradeUiUtility.DefSupportsHitPoints(def)
                     ? TradeUiUtility.DefaultHitPoints(def)
@@ -804,7 +804,7 @@ public sealed class TradeOrderDialogWindow : Window
             };
             ClashOfRimCompatibilityApi.ApplyThingReferenceDefaultMetadata(ThingReferenceSurfaces.TradeRequest, def, reference);
 
-            if (IsPackableBuildingDef(def))
+            if (TradeThingReferenceUtility.IsPackableItemDef(def))
             {
                 reference.MinifiedInnerDefName = def.defName;
                 reference.MinifiedInnerStuffDefName = null;
@@ -838,7 +838,7 @@ public sealed class TradeOrderDialogWindow : Window
     private static List<ThingDef> RequestableThingDefs()
     {
         return cachedRequestableThingDefs ??= DefDatabase<ThingDef>.AllDefsListForReading
-            .Where(def => IsPackableBuildingDef(def)
+            .Where(def => TradeThingReferenceUtility.IsPackableItemDef(def)
                 || TradeThingReferenceUtility.IsBookDef(def)
                 || IsRequestableTradeThingDef(def))
             .Where(def => !def.IsCorpse)
@@ -867,16 +867,9 @@ public sealed class TradeOrderDialogWindow : Window
         return def.race?.IsMechanoid == true;
     }
 
-    private static bool IsPackableBuildingDef(ThingDef def)
-    {
-        return def.category == ThingCategory.Building
-            && def.Minifiable
-            && def.minifiedDef is not null;
-    }
-
     private static string RequestedThingKey(ThingDef def)
     {
-        return IsPackableBuildingDef(def)
+        return TradeThingReferenceUtility.IsPackableItemDef(def)
             ? "minified:" + def.defName
             : def.defName;
     }

@@ -87,6 +87,11 @@ internal static class TradeThingReferenceUtility
             || (def.building?.isNaturalRock != true && def.Minifiable);
     }
 
+    public static bool IsPackableItemDef(ThingDef def)
+    {
+        return IsTradeableItemDef(def) && def.Minifiable && def.minifiedDef is not null;
+    }
+
     public static ModThingReferenceDto BuildThingReference(
         Thing thing,
         string globalKey,
