@@ -578,7 +578,8 @@ public sealed class SqliteAuthoritativeEventLedger : IAuthoritativeEventLedger
         string eventId,
         DateTimeOffset rejectedAtUtc,
         string? reason,
-        bool originalActorOnline)
+        bool originalActorOnline,
+        EventTargetContext? returnTargetContext = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(eventId);
         using SqliteConnection connection = OpenConnection();
@@ -586,7 +587,7 @@ public sealed class SqliteAuthoritativeEventLedger : IAuthoritativeEventLedger
         var source = Find(connection, transaction, eventId)
             ?? throw new KeyNotFoundException($"Event id not found: {eventId}");
         var plan = GiftRejectionPlan.Prepare(source, key => FindByIdempotencyKey(connection, transaction, key),
-            rejectedAtUtc, reason, originalActorOnline);
+            rejectedAtUtc, reason, originalActorOnline, returnTargetContext);
         ApplyBatch(connection, transaction, plan.Batch);
         transaction.Commit();
         return plan.Result;

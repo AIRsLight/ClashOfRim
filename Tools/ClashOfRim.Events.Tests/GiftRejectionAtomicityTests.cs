@@ -16,6 +16,7 @@ internal static class GiftRejectionAtomicityTests
             ReplayAndLegacyRepair(storage);
             ValidationRollback(storage);
             ConcurrentRejections(storage);
+            ReturnRouting(storage);
         }
         if (OperatingSystem.IsWindows())
             foreach (string phase in new[] { "write", "replace" }) FileFailure(phase);
@@ -120,6 +121,25 @@ internal static class GiftRejectionAtomicityTests
     private static AuthoritativeEvent Gift() => AuthoritativeEventFactory.Create(ServerEventType.ItemDelivery,
         new("owner", "home"), new("receiver", "away"), "gift", false,
         new ItemDeliveryEventPayload([new("steel", "Steel", 10, "source")], "gift"), At);
+
+    private static void ReturnRouting(string storage) => WithRoot(root =>
+    {
+        var ledger = Open(storage, root);
+        var receiverMap = new EventTargetContext("receiver-site", "Map_9", 99, EventLandingMode.MapEdge);
+        var senderMap = new EventTargetContext("sender-site", "Map_7", 77, EventLandingMode.DropPod);
+        var gift = Gift() with { TargetContext = receiverMap };
+        ledger.Append(gift);
+        Require(GiftReturnEventFactory.CreateReturnEvent(gift, At, false).TargetContext is null,
+            "return factory guessed the receiver's map when sender routing was absent");
+        var result = ledger.RejectGiftAndCreateReturn(gift.EventId, At, "declined", false, senderMap);
+        Require(result.ReturnEvent.Target == gift.Actor && result.ReturnEvent.TargetContext == senderMap,
+            "return routed to the original recipient");
+        if (storage != "memory") ledger = Open(storage, root);
+        var replay = ledger.RejectGiftAndCreateReturn(gift.EventId, At.AddMinutes(1), "retry", true,
+            senderMap with { MapUniqueId = "Map_8" });
+        Require(!replay.ReturnEventCreated && replay.ReturnEvent.TargetContext == senderMap,
+            "rejection replay changed the committed return route");
+    });
     private static GiftReturnResult Reject(IAuthoritativeEventLedger ledger, AuthoritativeEvent source) =>
         ledger.RejectGiftAndCreateReturn(source.EventId, At, "declined", false);
     private static IAuthoritativeEventLedger Open(string storage, string root) => storage switch

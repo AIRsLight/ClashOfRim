@@ -4,11 +4,12 @@ namespace AIRsLight.ClashOfRim.Events;
 internal sealed record GiftRejectionPlan(LedgerBatch Batch, GiftReturnResult Result)
 {
     internal static GiftRejectionPlan Prepare(AuthoritativeEvent source,
-        Func<string, AuthoritativeEvent?> findByKey, DateTimeOffset rejectedAtUtc, string? reason, bool actorOnline)
+        Func<string, AuthoritativeEvent?> findByKey, DateTimeOffset rejectedAtUtc, string? reason, bool actorOnline,
+        EventTargetContext? returnTargetContext)
     {
         var rejection = new LedgerRejectionChange(source, rejectedAtUtc, reason);
         var rejected = rejection.Updated;
-        var candidate = GiftReturnEventFactory.CreateReturnEvent(rejected, rejected.DecisionAtUtc ?? rejectedAtUtc, actorOnline);
+        var candidate = GiftReturnEventFactory.CreateReturnEvent(rejected, rejected.DecisionAtUtc ?? rejectedAtUtc, actorOnline, returnTargetContext);
         var existing = findByKey(candidate.IdempotencyKey);
         if (existing is not null) candidate = candidate with { EventId = existing.EventId };
         // Batch validation binds the complete return identity/payload and the original source record.

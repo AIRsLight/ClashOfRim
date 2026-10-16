@@ -280,12 +280,13 @@ public sealed class InMemoryAuthoritativeEventLedger : IAuthoritativeEventLedger
         string eventId,
         DateTimeOffset rejectedAtUtc,
         string? reason,
-        bool originalActorOnline)
+        bool originalActorOnline,
+        EventTargetContext? returnTargetContext = null)
     {
         lock (gate)
         {
             var source = Find(eventId) ?? throw new KeyNotFoundException($"Event id not found: {eventId}");
-            var plan = GiftRejectionPlan.Prepare(source, FindByIdempotencyKey, rejectedAtUtc, reason, originalActorOnline);
+            var plan = GiftRejectionPlan.Prepare(source, FindByIdempotencyKey, rejectedAtUtc, reason, originalActorOnline, returnTargetContext);
             ApplyBatch(plan.Batch);
             return plan.Result;
         }

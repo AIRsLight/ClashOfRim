@@ -2421,26 +2421,26 @@ public static partial class ClashOfRimNetworkServer
             EventLandingMode requestedLandingMode = requestedContext.LandingMode == EventLandingMode.Unspecified
                 ? EventLandingMode.DropPod
                 : requestedContext.LandingMode;
-            return ResolveLatestGiftTargetContext(request, state, requestedLandingMode);
+            return ResolveLatestDeliveryTargetContext(request.Target, state, requestedLandingMode);
         }
 
-        return ResolveLatestGiftTargetContext(request, state, EventLandingMode.DropPod);
+        return ResolveLatestDeliveryTargetContext(request.Target, state, EventLandingMode.DropPod);
     }
 
-    private static EventTargetContext? ResolveLatestGiftTargetContext(
-        CreateGiftRequest request,
+    private static EventTargetContext? ResolveLatestDeliveryTargetContext(
+        ProtocolIdentity target,
         ClashOfRimNetworkState state,
         EventLandingMode landingMode)
     {
-        if (string.IsNullOrWhiteSpace(request.Target.UserId)
-            || string.IsNullOrWhiteSpace(request.Target.ColonyId))
+        if (string.IsNullOrWhiteSpace(target.UserId)
+            || string.IsNullOrWhiteSpace(target.ColonyId))
         {
             return null;
         }
 
         LatestSnapshotRecord? snapshot = state.SnapshotStore.GetLatest(
-            request.Target.UserId,
-            request.Target.ColonyId!);
+            target.UserId,
+            target.ColonyId!);
         if (snapshot is null)
         {
             return null;

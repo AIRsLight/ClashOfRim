@@ -7,7 +7,8 @@ public static class GiftReturnEventFactory
     public static AuthoritativeEvent CreateReturnEvent(
         AuthoritativeEvent giftEvent,
         DateTimeOffset createdAtUtc,
-        bool originalActorOnline)
+        bool originalActorOnline,
+        EventTargetContext? returnTargetContext = null)
     {
         ArgumentNullException.ThrowIfNull(giftEvent);
 
@@ -31,6 +32,6 @@ public static class GiftReturnEventFactory
             originalActorOnline,
             returnPayload,
             createdAtUtc,
-            giftEvent.TargetContext);
+            returnTargetContext);
     }
 }

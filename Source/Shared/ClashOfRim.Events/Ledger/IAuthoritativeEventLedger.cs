@@ -44,7 +44,8 @@ public interface IAuthoritativeEventLedger
         string eventId,
         DateTimeOffset rejectedAtUtc,
         string? reason,
-        bool originalActorOnline);
+        bool originalActorOnline,
+        EventTargetContext? returnTargetContext = null);
 
     AuthoritativeEvent ReportApplicationResult(
         string eventId,

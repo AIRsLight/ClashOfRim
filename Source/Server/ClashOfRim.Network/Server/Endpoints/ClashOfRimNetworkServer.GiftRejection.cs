@@ -32,7 +32,8 @@ public static partial class ClashOfRimNetworkServer
             {
                 // Replays run the same source/return validation and preserve the original decision.
                 result = state.Ledger.RejectGiftAndCreateReturn(gift.EventId, DateTimeOffset.UtcNow, request.Reason,
-                    state.OnlinePresence.IsUserOnline(gift.Actor.UserId));
+                    state.OnlinePresence.IsUserOnline(gift.Actor.UserId),
+                    ResolveLatestDeliveryTargetContext(new ProtocolIdentity(gift.Actor.UserId, gift.Actor.ColonyId, null), state, EventLandingMode.DropPod));
             }
             catch (InvalidOperationException)
             {

@@ -65,6 +65,20 @@ internal static class EventReadHttpTests
             using var longJson = System.Text.Json.JsonDocument.Parse(longResponse.Events.Single().PayloadSummary);
             Require(longJson.RootElement.GetProperty("Message").GetString() == longMessage, "HTTP notification lost text");
 
+            // The sender has moved since sending; the recipient's map must never be reused for the return.
+            var sender = state.SnapshotStore.GetLatest("other", "away")!;
+            var senderMap = sender.Index.Maps.First() with { UniqueId = "Map_7", ParentWorldObjectId = "sender-site" };
+            state.SnapshotStore.StoreLatest(sender with { Index = sender.Index with { Maps = [senderMap] } });
+            var routedGift = gift with { EventId = "routed-gift", IdempotencyKey = "routed-gift",
+                TargetContext = new("receiver-site", "Map_9", 99, EventLandingMode.MapEdge) };
+            state.Ledger.Append(routedGift);
+            var rejection = await client.RejectGiftAsync(new(routedGift.EventId, "reader", "home", "current", "declined", token));
+            var returned = state.Ledger.Find(rejection.ReturnEventId!)!;
+            Require(rejection.Result.Accepted && returned.Target.UserId == "other" && returned.TargetContext?.MapUniqueId == "Map_7"
+                && returned.TargetContext.WorldObjectId == "sender-site" && returned.TargetContext.Tile != 99, "HTTP return used receiver routing");
+            var returnDetails = await client.PullEventDetailsAsync(new("other", "away", "other-current", [returned.EventId], other));
+            Require(returnDetails.Result.Accepted && returnDetails.Events.Single().TargetContext?.MapUniqueId == "Map_7", "return details lost sender routing");
+
             foreach (bool replaceSession in new[] { true, false })
             {
                 var wait = client.WaitForEventsAsync(new("reader", "home", "current", state.EventNotifications.GetVersion("reader"), 10, token));
