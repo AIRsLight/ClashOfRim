@@ -9,8 +9,6 @@ using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Save;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Data.Sqlite;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using TestStore = SnapshotEndpointRecoveryPreparationTests.Store;
 
 internal static class HttpSnapshotRecoveryTests
@@ -178,7 +176,7 @@ internal static class HttpSnapshotRecoveryTests
         public void Start()
         {
             Directory.CreateDirectory(Path.Combine(root, "Localization"));
-            File.Copy(Path.Combine(AppContext.BaseDirectory, "TestLocalization", "English.json"), Path.Combine(root, "Localization", "English.json"));
+            File.Copy(Path.Combine(AppContext.BaseDirectory, "TestLocalization", "English.json"), Path.Combine(root, "Localization", "English.json"), true);
             app = ClashOfRimNetworkServer.Build(["--contentRoot", root, "--urls", "http://127.0.0.1:0", "--language=English",
                 "--Logging:LogLevel:Default", "Warning"], State);
             app.StartAsync().GetAwaiter().GetResult();
@@ -214,10 +212,7 @@ internal static class HttpSnapshotRecoveryTests
             Client?.Dispose();
             if (app is not null)
             {
-                // Bootstrap currently registers the file logger as an externally owned instance.
-                var fileLoggers = app.Services.GetServices<ILoggerProvider>().OfType<ClashOfRimFileLoggerProvider>().ToArray();
                 app.StopAsync().GetAwaiter().GetResult(); app.DisposeAsync().AsTask().GetAwaiter().GetResult();
-                foreach (var logger in fileLoggers) logger.Dispose();
             }
             SqliteConnection.ClearAllPools(); Directory.Delete(root, recursive: true);
         }

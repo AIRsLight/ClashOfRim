@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace AIRsLight.ClashOfRim.Network;
 
@@ -8,6 +9,7 @@ public sealed class ClashOfRimFileLoggerProvider : ILoggerProvider
     private readonly ConcurrentDictionary<string, ClashOfRimFileLogger> loggers = new(StringComparer.Ordinal);
     private readonly object syncRoot = new();
     private readonly StreamWriter writer;
+    private bool disposed;
 
     public ClashOfRimFileLoggerProvider(string logFilePath)
     {
@@ -29,25 +31,37 @@ public sealed class ClashOfRimFileLoggerProvider : ILoggerProvider
 
     public ILogger CreateLogger(string categoryName)
     {
-        return loggers.GetOrAdd(categoryName, name => new ClashOfRimFileLogger(name, writer, syncRoot));
+        lock (syncRoot)
+        {
+            return disposed ? NullLogger.Instance
+                : loggers.GetOrAdd(categoryName, name => new ClashOfRimFileLogger(name, this));
+        }
     }
 
     public void Dispose()
     {
-        writer.Dispose();
+        lock (syncRoot)
+        {
+            if (disposed) return;
+            disposed = true;
+            loggers.Clear();
+            writer.Dispose();
+        }
     }
 
     private sealed class ClashOfRimFileLogger : ILogger
     {
         private readonly string categoryName;
+        private readonly ClashOfRimFileLoggerProvider owner;
         private readonly StreamWriter writer;
         private readonly object syncRoot;
 
-        public ClashOfRimFileLogger(string categoryName, StreamWriter writer, object syncRoot)
+        public ClashOfRimFileLogger(string categoryName, ClashOfRimFileLoggerProvider owner)
         {
             this.categoryName = categoryName;
-            this.writer = writer;
-            this.syncRoot = syncRoot;
+            this.owner = owner;
+            writer = owner.writer;
+            syncRoot = owner.syncRoot;
         }
 
         public IDisposable? BeginScope<TState>(TState state)
@@ -58,7 +72,7 @@ public sealed class ClashOfRimFileLoggerProvider : ILoggerProvider
 
         public bool IsEnabled(LogLevel logLevel)
         {
-            return logLevel != LogLevel.None;
+            return logLevel != LogLevel.None && !Volatile.Read(ref owner.disposed);
         }
 
         public void Log<TState>(
@@ -81,6 +95,8 @@ public sealed class ClashOfRimFileLoggerProvider : ILoggerProvider
 
             lock (syncRoot)
             {
+                // Formatting runs outside the sink lock and may finish after shutdown.
+                if (owner.disposed) return;
                 writer.Write(DateTimeOffset.Now.ToString("O"));
                 writer.Write(" [");
                 writer.Write(logLevel);

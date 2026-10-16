@@ -27,128 +27,145 @@ public static partial class ClashOfRimNetworkServer
         builder.Logging.AddFilter<ConsoleLoggerProvider>("Microsoft.AspNetCore.Hosting.Diagnostics", LogLevel.Warning);
         builder.Logging.AddFilter<ConsoleLoggerProvider>("Microsoft.AspNetCore.Routing.EndpointMiddleware", LogLevel.Warning);
         builder.Logging.AddFilter<ConsoleLoggerProvider>("Microsoft.AspNetCore.Http.Result", LogLevel.Warning);
-        builder.Logging.AddProvider(new ClashOfRimFileLoggerProvider(logFilePath));
-        ServerLocalizationFileLoader.Load(builder.Environment.ContentRootPath);
-        string serverLanguage = ResolveServerLanguage(args, builder.Configuration);
-        if (!ServerLocalization.HasLanguage(serverLanguage))
+        ClashOfRimFileLoggerProvider? fileLogger = null;
+        WebApplication? app = null;
+        ClashOfRimNetworkState? networkState = state;
+        ILogger? previousRuntimeLogger = null;
+        try
         {
-            throw new InvalidOperationException(T("Server.LanguageUnavailable", ("LANGUAGE", serverLanguage)));
-        }
-
-        ServerLocalization.SetDefaultLanguage(serverLanguage);
-        ServerPluginRegistry plugins = ServerPluginLoader
-            .Load(builder.Environment.ContentRootPath)
-            .WithBuiltInPlugins(BuiltInServerPlugins.Descriptors);
-        ClashOfRimNetworkState networkState;
-        ServerPersistenceMigrationResult? persistenceMigrationResult = null;
-        ServerPersistenceMigrationService? persistenceMigrations = null;
-        if (state is null)
-        {
-            string dataDirectory = ResolveDataDirectory(builder.Configuration, builder.Environment.ContentRootPath);
-            persistenceMigrations = new ServerPersistenceMigrationService(dataDirectory);
-            (networkState, persistenceMigrationResult) = CreatePersistentNetworkState(
-                builder.Configuration,
-                builder.Environment.ContentRootPath,
-                plugins,
-                persistenceMigrations);
-        }
-        else
-        {
-            networkState = state;
-        }
-        SnapshotPostUploadPipeline.ValidateRegistrations(
-            CoreSnapshotPostUploadProcessors
-                .Concat(networkState.Plugins.SnapshotPostUploadProcessors)
-                .ToList());
-        builder.Services.AddSingleton(networkState);
-        builder.Services.AddSingleton(new SnapshotPostUploadProcessorSource(
-            () => ResolveSnapshotPostUploadProcessors(networkState)));
-        builder.Services.AddHostedService<SnapshotPostUploadBackgroundService>();
-        WebApplication app = builder.Build();
-        networkState.SetRuntimeLogger(RuntimeLogger(app.Services.GetRequiredService<ILoggerFactory>()));
-        RecoverSnapshotCommits(networkState);
-        app.Logger.LogInformation(T("Server.LocalizationLoaded", ("LANGUAGES", string.Join(", ", ServerLocalization.LoadedLanguages))));
-        if (plugins.Plugins.Count > 0)
-        {
-            app.Logger.LogInformation(
-                T("Server.PluginsLoaded", ("PLUGINS", "{Plugins}")),
-                string.Join(", ", plugins.Plugins.Select(plugin => $"{plugin.Id}:{string.Join("+", plugin.Capabilities)}")));
-        }
-
-        app.Logger.LogInformation(T("Server.LogFilePath", ("PATH", logFilePath)));
-        int recoveredWorldExtensionSnapshots = RecoverWorldConfigurationExtensionsFromLatestSnapshots(networkState);
-        if (recoveredWorldExtensionSnapshots > 0)
-        {
-            app.Logger.LogInformation(
-                T("Server.WorldExtensionsRecovered", ("COUNT", "{SnapshotCount}")),
-                recoveredWorldExtensionSnapshots);
-        }
-
-        if (persistenceMigrationResult is not null)
-        {
-            ServerDatabaseMigrationResult databaseMigration = persistenceMigrationResult.Database;
-            app.Logger.LogInformation(
-                T(
-                    "Server.DatabaseSchemaReady",
-                    ("FROM", databaseMigration.StartingVersion.ToString()),
-                    ("TO", databaseMigration.FinalVersion.ToString()),
-                    ("MIGRATIONS", databaseMigration.AppliedMigrations.Count == 0
-                        ? "none"
-                        : string.Join(", ", databaseMigration.AppliedMigrations))));
-            if (databaseMigration.RequiresWorldSubstrateRebaseline)
+            // A factory registration gives the host ownership; defer opening until its services need logging.
+            builder.Services.AddSingleton<ILoggerProvider>(_ => fileLogger = new ClashOfRimFileLoggerProvider(logFilePath));
+            ServerLocalizationFileLoader.Load(builder.Environment.ContentRootPath);
+            string serverLanguage = ResolveServerLanguage(args, builder.Configuration);
+            if (!ServerLocalization.HasLanguage(serverLanguage))
             {
-                app.Logger.LogWarning(T("Server.DatabaseWorldRebaselineRequired"));
+                throw new InvalidOperationException(T("Server.LanguageUnavailable", ("LANGUAGE", serverLanguage)));
             }
-            else if (!string.IsNullOrWhiteSpace(databaseMigration.RecoveredWorldSubstrateSnapshotId))
+
+            ServerLocalization.SetDefaultLanguage(serverLanguage);
+            ServerPluginRegistry plugins = ServerPluginLoader
+                .Load(builder.Environment.ContentRootPath)
+                .WithBuiltInPlugins(BuiltInServerPlugins.Descriptors);
+            ServerPersistenceMigrationResult? persistenceMigrationResult = null;
+            ServerPersistenceMigrationService? persistenceMigrations = null;
+            if (state is null)
+            {
+                string dataDirectory = ResolveDataDirectory(builder.Configuration, builder.Environment.ContentRootPath);
+                persistenceMigrations = new ServerPersistenceMigrationService(dataDirectory);
+                (networkState, persistenceMigrationResult) = CreatePersistentNetworkState(
+                    builder.Configuration,
+                    builder.Environment.ContentRootPath,
+                    plugins,
+                    persistenceMigrations);
+            }
+            else
+            {
+                networkState = state;
+            }
+            SnapshotPostUploadPipeline.ValidateRegistrations(
+                CoreSnapshotPostUploadProcessors
+                    .Concat(networkState.Plugins.SnapshotPostUploadProcessors)
+                    .ToList());
+            builder.Services.AddSingleton(networkState);
+            builder.Services.AddSingleton(new SnapshotPostUploadProcessorSource(
+                () => ResolveSnapshotPostUploadProcessors(networkState)));
+            builder.Services.AddHostedService<SnapshotPostUploadBackgroundService>();
+            app = builder.Build();
+            previousRuntimeLogger = networkState.RuntimeLogger;
+            networkState.SetRuntimeLogger(RuntimeLogger(app.Services.GetRequiredService<ILoggerFactory>()));
+            RecoverSnapshotCommits(networkState);
+            app.Logger.LogInformation(T("Server.LocalizationLoaded", ("LANGUAGES", string.Join(", ", ServerLocalization.LoadedLanguages))));
+            if (plugins.Plugins.Count > 0)
             {
                 app.Logger.LogInformation(
-                    T("Server.DatabaseWorldSubstrateRecovered", ("SNAPSHOT", databaseMigration.RecoveredWorldSubstrateSnapshotId)));
-            }
-            app.Logger.LogInformation(
-                T(
-                    "Server.SnapshotPackagesReady",
-                    ("TOTAL", persistenceMigrationResult.Snapshots.TotalPackages.ToString()),
-                    ("CURRENT", persistenceMigrationResult.Snapshots.CurrentPackages.ToString()),
-                    ("MIGRATIONS", persistenceMigrationResult.Snapshots.AppliedMigrations.Count == 0
-                        ? "none"
-                        : string.Join(", ", persistenceMigrationResult.Snapshots.AppliedMigrations))));
-        }
-        app.Logger.LogInformation(
-            T("Server.MaxRequestBodySize", ("BYTES", ResolveMaxRequestBodySizeBytes(builder.Configuration).ToString())));
-        app.UseWebSockets(new WebSocketOptions
-        {
-            KeepAliveInterval = TimeSpan.FromSeconds(20)
-        });
-        app.Use(async (context, next) =>
-        {
-            if (MultipartSnapshotAuthentication.IsProtectedRoute(context.Request.Path)
-                && !MultipartSnapshotAuthentication.TryAuthorize(
-                    context.Request,
-                    networkState,
-                    DateTimeOffset.UtcNow))
-            {
-                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                await context.Response.WriteAsJsonAsync(
-                    ProtocolResponse.Reject(
-                        ProtocolErrorCode.Unauthorized,
-                        T("Auth.Failed")));
-                return;
+                    T("Server.PluginsLoaded", ("PLUGINS", "{Plugins}")),
+                    string.Join(", ", plugins.Plugins.Select(plugin => $"{plugin.Id}:{string.Join("+", plugin.Capabilities)}")));
             }
 
-            await next(context);
-        });
-        UseRequestDiagnostics(app);
-        app.Use(async (context, next) =>
+            app.Logger.LogInformation(T("Server.LogFilePath", ("PATH", logFilePath)));
+            int recoveredWorldExtensionSnapshots = RecoverWorldConfigurationExtensionsFromLatestSnapshots(networkState);
+            if (recoveredWorldExtensionSnapshots > 0)
+            {
+                app.Logger.LogInformation(
+                    T("Server.WorldExtensionsRecovered", ("COUNT", "{SnapshotCount}")),
+                    recoveredWorldExtensionSnapshots);
+            }
+
+            if (persistenceMigrationResult is not null)
+            {
+                ServerDatabaseMigrationResult databaseMigration = persistenceMigrationResult.Database;
+                app.Logger.LogInformation(
+                    T(
+                        "Server.DatabaseSchemaReady",
+                        ("FROM", databaseMigration.StartingVersion.ToString()),
+                        ("TO", databaseMigration.FinalVersion.ToString()),
+                        ("MIGRATIONS", databaseMigration.AppliedMigrations.Count == 0
+                            ? "none"
+                            : string.Join(", ", databaseMigration.AppliedMigrations))));
+                if (databaseMigration.RequiresWorldSubstrateRebaseline)
+                {
+                    app.Logger.LogWarning(T("Server.DatabaseWorldRebaselineRequired"));
+                }
+                else if (!string.IsNullOrWhiteSpace(databaseMigration.RecoveredWorldSubstrateSnapshotId))
+                {
+                    app.Logger.LogInformation(
+                        T("Server.DatabaseWorldSubstrateRecovered", ("SNAPSHOT", databaseMigration.RecoveredWorldSubstrateSnapshotId)));
+                }
+                app.Logger.LogInformation(
+                    T(
+                        "Server.SnapshotPackagesReady",
+                        ("TOTAL", persistenceMigrationResult.Snapshots.TotalPackages.ToString()),
+                        ("CURRENT", persistenceMigrationResult.Snapshots.CurrentPackages.ToString()),
+                        ("MIGRATIONS", persistenceMigrationResult.Snapshots.AppliedMigrations.Count == 0
+                            ? "none"
+                            : string.Join(", ", persistenceMigrationResult.Snapshots.AppliedMigrations))));
+            }
+            app.Logger.LogInformation(
+                T("Server.MaxRequestBodySize", ("BYTES", ResolveMaxRequestBodySizeBytes(builder.Configuration).ToString())));
+            app.UseWebSockets(new WebSocketOptions
+            {
+                KeepAliveInterval = TimeSpan.FromSeconds(20)
+            });
+            app.Use(async (context, next) =>
+            {
+                if (MultipartSnapshotAuthentication.IsProtectedRoute(context.Request.Path)
+                    && !MultipartSnapshotAuthentication.TryAuthorize(
+                        context.Request,
+                        networkState,
+                        DateTimeOffset.UtcNow))
+                {
+                    context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                    await context.Response.WriteAsJsonAsync(
+                        ProtocolResponse.Reject(
+                            ProtocolErrorCode.Unauthorized,
+                            T("Auth.Failed")));
+                    return;
+                }
+
+                await next(context);
+            });
+            UseRequestDiagnostics(app);
+            app.Use(async (context, next) =>
+            {
+                // Let endpoints with explicit ownership control validation and recovery order.
+                // Keep the fallback for routes that have not yet acquired explicit recovery ownership.
+                if (context.GetEndpoint()?.Metadata.GetMetadata<EndpointSnapshotRecovery>() is null)
+                    RecoverSnapshotCommits(networkState);
+                await next(context);
+            });
+            MapEndpoints(app);
+            plugins.MapEndpoints(app);
+            return app;
+        }
+        catch
         {
-            // Let endpoints with explicit ownership control validation and recovery order.
-            // Keep the fallback for routes that have not yet acquired explicit recovery ownership.
-            if (context.GetEndpoint()?.Metadata.GetMetadata<EndpointSnapshotRecovery>() is null)
-                RecoverSnapshotCommits(networkState);
-            await next(context);
-        });
-        MapEndpoints(app);
-        plugins.MapEndpoints(app);
-        return app;
+            // Build may fail after creating the service provider or during startup recovery.
+            // The caller cannot dispose a host that was never returned.
+            if (previousRuntimeLogger is not null) networkState?.SetRuntimeLogger(previousRuntimeLogger);
+            try { app?.DisposeAsync().AsTask().GetAwaiter().GetResult(); }
+            finally { fileLogger?.Dispose(); }
+            throw;
+        }
     }
 
     public static string ResolveServerLanguage(string[] args, IConfiguration configuration)
