@@ -3,8 +3,8 @@ namespace AIRsLight.ClashOfRim.Events;
 public sealed class InMemoryAuthoritativeEventLedger : IAuthoritativeEventLedger
 {
     private readonly object gate = new();
-    private readonly Dictionary<string, AuthoritativeEvent> eventsById = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, string> eventIdByIdempotencyKey = new(StringComparer.Ordinal);
+    private Dictionary<string, AuthoritativeEvent> eventsById = new(StringComparer.Ordinal);
+    private Dictionary<string, string> eventIdByIdempotencyKey = new(StringComparer.Ordinal);
 
     public LedgerAppendResult Append(AuthoritativeEvent ledgerEvent)
     {
@@ -33,25 +33,9 @@ public sealed class InMemoryAuthoritativeEventLedger : IAuthoritativeEventLedger
     {
         lock (gate)
         {
-            LedgerBatchValidation.Validate(batch, Find, FindByIdempotencyKey);
-            var prepared = new Dictionary<string, AuthoritativeEvent>(eventsById, StringComparer.Ordinal);
-            foreach (AuthoritativeEvent item in batch.Events) prepared.TryAdd(item.EventId, item);
-            foreach (LedgerStatusChange change in batch.StatusChanges)
-                prepared[change.EventId] = prepared[change.EventId] with { Status = change.Status, Payload = change.Payload ?? prepared[change.EventId].Payload };
-            foreach (LedgerApplicationChange change in batch.ApplicationChanges ?? [])
-                prepared[change.Expected.EventId] = change.Updated;
-            foreach (LedgerConfirmationChange change in batch.ConfirmationChanges ?? [])
-                prepared[change.Expected.EventId] = change.Updated;
-            foreach (LedgerRejectionChange change in batch.RejectionChanges ?? [])
-                prepared[change.Expected.EventId] = change.Updated;
-            // Persist before publishing caches; readers only see the complete batch.
-            eventsById.Clear();
-            eventIdByIdempotencyKey.Clear();
-            foreach (AuthoritativeEvent item in prepared.Values)
-            {
-                eventsById.Add(item.EventId, item);
-                eventIdByIdempotencyKey.Add(item.IdempotencyKey, item.EventId);
-            }
+            var (events, keys) = LedgerBatchPlan.Prepare(batch, Find, FindByIdempotencyKey).BuildCandidate(eventsById);
+            eventsById = events;
+            eventIdByIdempotencyKey = keys;
         }
     }
     public AuthoritativeEvent? Find(string eventId)

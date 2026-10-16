@@ -47,36 +47,21 @@ public sealed class SqliteAuthoritativeEventLedger : IAuthoritativeEventLedger
 
     private static void ApplyBatch(SqliteConnection connection, SqliteTransaction transaction, LedgerBatch batch)
     {
-        LedgerBatchValidation.Validate(batch, id => Find(connection, transaction, id),
+        var plan = LedgerBatchPlan.Prepare(batch, id => Find(connection, transaction, id),
             key => FindByIdempotencyKey(connection, transaction, key));
-        foreach (AuthoritativeEvent item in batch.Events) Append(connection, transaction, item);
-        foreach (LedgerStatusChange change in batch.StatusChanges)
-        {
-            using SqliteCommand command = connection.CreateCommand();
-            command.Transaction = transaction;
-            command.CommandText = "update events set status = $status where event_id = $id;";
-            if (change.Payload is not null)
-            {
-                command.CommandText = "update events set status = $status, payload_json = $payload where event_id = $id;";
-                command.Parameters.AddWithValue("$payload", JsonSerializer.Serialize(change.Payload, LedgerJson.Options));
-            }
-            command.Parameters.AddWithValue("$status", change.Status.ToString());
-            command.Parameters.AddWithValue("$id", change.EventId);
-            command.ExecuteNonQuery();
-        }
-        foreach (AuthoritativeEvent updated in (batch.ApplicationChanges ?? []).Select(change => change.Updated)
-            .Concat((batch.ConfirmationChanges ?? []).Select(change => change.Updated))
-            .Concat((batch.RejectionChanges ?? []).Select(change => change.Updated)))
+        foreach (var item in plan.Additions) Insert(connection, transaction, item);
+        foreach (var updated in plan.Updates)
         {
             using SqliteCommand command = connection.CreateCommand();
             command.Transaction = transaction;
             command.CommandText = """
-                update events set status = $status, delivered_to_snapshot_id = $delivered,
+                update events set status = $status, payload_json = $payload, delivered_to_snapshot_id = $delivered,
                     delivered_at_utc = $delivered_at, applied_snapshot_id = $applied,
                     applied_at_utc = $applied_at, last_application_result = $result,
                     last_failure_reason = $failure, next_retry_at_utc = $retry,
                     target_decision = $decision, decision_at_utc = $decision_at, decision_reason = $reason where event_id = $id;
                 """;
+            command.Parameters.AddWithValue("$payload", JsonSerializer.Serialize(updated.Payload, LedgerJson.Options));
             command.Parameters.AddWithValue("$status", updated.Status.ToString());
             command.Parameters.AddWithValue("$delivered", (object?)updated.DeliveredToSnapshotId ?? DBNull.Value);
             command.Parameters.AddWithValue("$delivered_at", (object?)updated.DeliveredAtUtc?.ToString("O", CultureInfo.InvariantCulture) ?? DBNull.Value);
@@ -107,6 +92,11 @@ public sealed class SqliteAuthoritativeEventLedger : IAuthoritativeEventLedger
             throw new InvalidOperationException($"Event id already exists: {ledgerEvent.EventId}");
         }
 
+        return Insert(connection, transaction, ledgerEvent);
+    }
+
+    private static LedgerAppendResult Insert(SqliteConnection connection, SqliteTransaction transaction, AuthoritativeEvent ledgerEvent)
+    {
         using SqliteCommand command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = """

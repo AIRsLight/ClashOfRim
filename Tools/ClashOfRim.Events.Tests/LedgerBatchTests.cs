@@ -1,6 +1,7 @@
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Protocol;
 using Microsoft.Data.Sqlite;
+using System.Text.Json;
 
 internal static class LedgerBatchTests
 {
@@ -64,6 +65,7 @@ internal static class LedgerBatchTests
                     catch (InvalidOperationException) { }
                 });
                 Require(accepted == 1, "Concurrent settlement must have exactly one winner.");
+                VerifyMixedBatch(ledger, database, json);
             }
         }
         finally
@@ -72,6 +74,61 @@ internal static class LedgerBatchTests
             Directory.Delete(root, recursive: true);
         }
     }
+
+    private static void VerifyMixedBatch(IAuthoritativeEventLedger ledger, string database, string json)
+    {
+        var at = DateTimeOffset.UnixEpoch.AddDays(2);
+        var status = Event("mixed-status") with { LastFailureReason = "preserve", NextRetryAtUtc = at };
+        var applied = Event("mixed-applied") with { Status = ServerEventStatus.DeliveredToClient,
+            DeliveredToSnapshotId = "existing-delivery", DeliveredAtUtc = at, LastFailureReason = "old", NextRetryAtUtc = at,
+            TargetDecision = TargetEventDecision.Accepted, DecisionAtUtc = at, DecisionReason = "keep decision" };
+        var confirmation = Event("mixed-confirmation");
+        var rejected = Event("mixed-rejection") with { RejectionPolicy = EventRejectionPolicy.RejectableByTarget };
+        foreach (var source in new[] { status, applied, confirmation, rejected }) ledger.Append(source);
+        var added = Event("mixed-added");
+        var payload = new ItemDeliveryEventPayload([new("gold", "Gold", 4, "changed-source")], "changed payload");
+        var confirmed = confirmation with { Status = ServerEventStatus.Conflict, DeliveredToSnapshotId = "base",
+            DeliveredAtUtc = at, LastApplicationResult = EventApplicationResultKind.NeedsManualReview,
+            LastFailureReason = "review", NextRetryAtUtc = at.AddHours(1) };
+        var batch = new LedgerBatch([added], [new(status.EventId, status.Status, ServerEventStatus.Cancelled, status.Payload, payload, status)],
+            [new(applied, "ignored-delivery", "applied-snapshot", at.AddMinutes(1))],
+            [new(confirmation, confirmed)], [new(rejected, at.AddMinutes(2), "declined")]);
+        string before = Snapshot(ledger);
+        if (ledger is SqliteAuthoritativeEventLedger)
+        {
+            Execute(database, "create trigger fail_mixed before update on events when new.event_id = 'mixed-confirmation' begin select raise(abort, 'mixed batch failure'); end;");
+            ExpectFailure(() => ledger.ApplyBatch(batch));
+            Require(before == Snapshot(ledger) && before == Snapshot(new SqliteAuthoritativeEventLedger(database)), "Mixed SQL failure committed earlier updates.");
+            Execute(database, "drop trigger fail_mixed;");
+        }
+        if (ledger is FileAuthoritativeEventLedger)
+        {
+            Directory.CreateDirectory(json + ".tmp");
+            ExpectFailure(() => ledger.ApplyBatch(batch));
+            Require(before == Snapshot(ledger) && before == Snapshot(new FileAuthoritativeEventLedger(json)), "Mixed file failure published candidate state.");
+            Directory.Delete(json + ".tmp");
+        }
+        ledger.ApplyBatch(batch);
+        var expected = new[] { added, status with { Status = ServerEventStatus.Cancelled, Payload = payload },
+            applied with { Status = ServerEventStatus.AppliedToSnapshot, AppliedSnapshotId = "applied-snapshot", AppliedAtUtc = at.AddMinutes(1),
+                LastApplicationResult = EventApplicationResultKind.Applied, LastFailureReason = null, NextRetryAtUtc = null }, confirmed,
+            rejected with { Status = ServerEventStatus.RejectedByTarget, TargetDecision = TargetEventDecision.Rejected,
+                DecisionAtUtc = at.AddMinutes(2), DecisionReason = "declined", LastApplicationResult = EventApplicationResultKind.Rejected } };
+        foreach (var item in expected)
+            Require(JsonSerializer.Serialize(ledger.Find(item.EventId)) == JsonSerializer.Serialize(item)
+                && JsonSerializer.Serialize(ledger.FindByIdempotencyKey(item.IdempotencyKey)) == JsonSerializer.Serialize(item),
+                "Mixed batch changed fields or index differently: " + ledger.GetType().Name + "/" + item.EventId);
+        ledger.MarkDelivered(added.EventId, "delivered", at.AddMinutes(3));
+        ledger.MarkApplied(added.EventId, "consumed", at.AddMinutes(4));
+        string committed = Snapshot(ledger);
+        ledger.ApplyBatch(batch);
+        Require(committed == Snapshot(ledger), "Mixed replay reset an existing event's lifecycle.");
+        IAuthoritativeEventLedger reopened = ledger is FileAuthoritativeEventLedger ? new FileAuthoritativeEventLedger(json)
+            : ledger is SqliteAuthoritativeEventLedger ? new SqliteAuthoritativeEventLedger(database) : ledger;
+        Require(committed == Snapshot(reopened), "Mixed batch was not durable.");
+    }
+
+    private static string Snapshot(IAuthoritativeEventLedger ledger) => JsonSerializer.Serialize(ledger.ListAll().OrderBy(item => item.EventId, StringComparer.Ordinal));
 
     private static AuthoritativeEvent Event(string key) => AuthoritativeEventFactory.Create(ServerEventType.ItemDelivery,
         new EventParty("sender", "colony"), new EventParty("recipient", "target"), key, false,
