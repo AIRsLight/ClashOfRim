@@ -9,14 +9,14 @@ public static partial class ClashOfRimNetworkServer
 {
     private static IResult AcceptTradeOrder(AcceptTradeOrderRequest request, ClashOfRimNetworkState state)
     {
-        using (state.EnterSnapshotMutation())
+        IResult Reject(ProtocolResponse rejection) => Results.Ok(new AcceptTradeOrderResponse(
+            rejection, request.TradeEventId, null, false));
+        if (request.Acceptor is null)
+            return Reject(ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, T("Auth.IdentityDenied")));
+        using (var mutation = EnterColonySnapshotMutation(state, request.AuthToken, request.Acceptor.UserId,
+            request.Acceptor.ColonyId ?? string.Empty))
         {
-            string failure = T("Auth.IdentityDenied");
-            if (request.Acceptor is null || !IsAuthorizedForColony(state, request.AuthToken, request.Acceptor.UserId,
-                    request.Acceptor.ColonyId ?? string.Empty, null, null, DateTimeOffset.UtcNow, out failure))
-                return Results.Ok(new AcceptTradeOrderResponse(
-                    ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, failure), request.TradeEventId, null, false));
-            RecoverSnapshotCommits(state);
+            if (mutation.Rejection is { } rejection) return Reject(rejection);
             ApplyTradeOrderExpirations(state, DateTimeOffset.UtcNow);
 
             ProtocolResponse? validation = ValidateTradeAcceptanceRequest(request);

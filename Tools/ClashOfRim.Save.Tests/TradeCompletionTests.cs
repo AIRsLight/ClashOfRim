@@ -14,6 +14,7 @@ internal static class TradeCompletionTests
     public static void Run(Func<string, SaveSnapshotPackage> fixture)
     {
         SnapshotEndpointTestClient.LoadLocalization();
+        TradeLifecycleRecoveryTests.Run(fixture);
         foreach (string storage in new[] { "memory", "file", "sqlite" })
         {
             Unfulfilled(storage);

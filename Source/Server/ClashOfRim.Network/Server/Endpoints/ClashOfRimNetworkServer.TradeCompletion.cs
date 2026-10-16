@@ -9,17 +9,21 @@ public static partial class ClashOfRimNetworkServer
 {
     private static IResult CompleteTradeOrder(CloseTradeOrderRequest request, ClashOfRimNetworkState state)
     {
-        using (state.EnterSnapshotMutation())
+        ProtocolResponse? AuthorizeAndValidate()
         {
-            IResult Reject(ProtocolErrorCode code, string message) => Results.Ok(new CloseTradeOrderResponse(
-                ProtocolResponse.Reject(code, message), request.TradeEventId, string.Empty, 0));
             string failure = T("Auth.IdentityDenied");
             if (request.Owner is null || !IsAuthorizedForColony(state, request.AuthToken, request.Owner.UserId,
                     request.Owner.ColonyId ?? string.Empty, null, null, DateTimeOffset.UtcNow, out failure))
-                return Reject(ProtocolErrorCode.ServerRejected, failure);
-            if (ValidateTradeCloseRequest(request) is { } invalid)
-                return Results.Ok(new CloseTradeOrderResponse(invalid, request.TradeEventId, string.Empty, 0));
-            RecoverSnapshotCommits(state);
+                return ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, failure);
+            // Invalid legacy completion requests must not trigger journal recovery.
+            return ValidateTradeCloseRequest(request);
+        }
+        using (var mutation = EnterRecoveredSnapshotMutation(state, AuthorizeAndValidate))
+        {
+            IResult Reject(ProtocolErrorCode code, string message) => Results.Ok(new CloseTradeOrderResponse(
+                ProtocolResponse.Reject(code, message), request.TradeEventId, string.Empty, 0));
+            if (mutation.Rejection is { } rejection)
+                return Results.Ok(new CloseTradeOrderResponse(rejection, request.TradeEventId, string.Empty, 0));
             var order = state.Ledger.Find(request.TradeEventId);
             if (order?.Type != ServerEventType.Trade || order.Payload is not TradeEventPayload { Stage: TradeStage.MarketOrder }
                 || !IsVisibleParty(order.Actor, request.Owner.UserId, request.Owner.ColonyId!))
