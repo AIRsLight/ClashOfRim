@@ -700,5 +700,6 @@
   "WorldPollution.NotificationMessage": "{ACTOR} がタイル {TILE} の汚染を {DELTA} 増加させました。",
   "Events.FailureReportUnsupported": "このイベントは適用失敗の報告に対応していません。",
   "Events.FailureReportSourceMismatch": "報告された発生元がこのイベントと一致しません。",
-  "Events.FailureReportAlreadyEnded": "このイベントまたは取引注文は既に完了または終了しています。"
+  "Events.FailureReportAlreadyEnded": "このイベントまたは取引注文は既に完了または終了しています。",
+  "Economy.SnapshotEndpointRequired": "経済操作には確認済みセーブの同時送信が必要です。クライアントを更新し、スナップショット付き送信を使用してください。"
 }

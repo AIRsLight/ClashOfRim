@@ -701,5 +701,6 @@
   "WorldPollution.NotificationMessage": "{ACTOR}이(가) 타일 {TILE}의 오염을 {DELTA} 증가시켰습니다.",
   "Events.FailureReportUnsupported": "이 이벤트는 적용 실패 보고를 지원하지 않습니다.",
   "Events.FailureReportSourceMismatch": "보고된 원본이 이 이벤트와 일치하지 않습니다.",
-  "Events.FailureReportAlreadyEnded": "이 이벤트 또는 거래 주문은 이미 완료되거나 종료되었습니다."
+  "Events.FailureReportAlreadyEnded": "이 이벤트 또는 거래 주문은 이미 완료되거나 종료되었습니다.",
+  "Economy.SnapshotEndpointRequired": "경제 작업에는 확인된 저장 파일을 함께 제출해야 합니다. 클라이언트를 업데이트하고 스냅샷 제출을 사용하세요."
 }

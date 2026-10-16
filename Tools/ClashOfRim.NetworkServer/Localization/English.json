@@ -700,5 +700,6 @@
   "WorldPollution.NotificationMessage": "{ACTOR} increased pollution on tile {TILE} by {DELTA}.",
   "Events.FailureReportUnsupported": "This event does not support application failure reports.",
   "Events.FailureReportSourceMismatch": "The reported source does not match this event.",
-  "Events.FailureReportAlreadyEnded": "This event or its trade order has already completed or closed."
+  "Events.FailureReportAlreadyEnded": "This event or its trade order has already completed or closed.",
+  "Economy.SnapshotEndpointRequired": "Economic changes now require a confirmed save. Update the client and use snapshot submission."
 }

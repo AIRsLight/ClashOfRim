@@ -701,5 +701,6 @@
   "WorldPollution.NotificationMessage": "{ACTOR} увеличил загрязнение клетки {TILE} на {DELTA}.",
   "Events.FailureReportUnsupported": "Для этого события нельзя сообщить об ошибке применения.",
   "Events.FailureReportSourceMismatch": "Указанный источник не соответствует этому событию.",
-  "Events.FailureReportAlreadyEnded": "Это событие или его торговый заказ уже завершены или закрыты."
+  "Events.FailureReportAlreadyEnded": "Это событие или его торговый заказ уже завершены или закрыты.",
+  "Economy.SnapshotEndpointRequired": "Экономические операции теперь требуют подтверждённого сохранения. Обновите клиент и используйте отправку со снимком."
 }

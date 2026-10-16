@@ -56,6 +56,7 @@ var tests = new (string Name, Action Run)[]
     ("管理员基线认证与恢复提交边界", () => AdminBaselineAuthorizationTests.Run(BuildFixturePackage)),
     ("管理员基线与固定订单失效批次共同恢复", AdminBaselineRecoveryTests.Run),
     ("交易市场授权与到期维护恢复边界", () => TradeMarketRecoveryTests.Run(BuildFixturePackage)),
+    ("退役银行与雇佣 JSON 入口拒绝且无副作用", () => RetiredEconomyEndpointTests.Run(BuildFixturePackage)),
     ("世界配置提交认证与恢复边界", () => WorldConfigurationAuthorizationTests.Run(BuildFixturePackage)),
     ("世界配置与底图引用共同发布且失败保持原状态", WorldConfigurationPersistenceTests.Run),
     ("普通上传和事件确认在恢复前后复验身份且锁外准备", () => UploadConfirmationRecoveryTests.Run(BuildFixturePackage)),

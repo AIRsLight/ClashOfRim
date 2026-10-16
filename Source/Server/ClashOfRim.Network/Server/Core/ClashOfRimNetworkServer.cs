@@ -153,14 +153,14 @@ public static partial class ClashOfRimNetworkServer
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.SubmitAdminBaseline).Route, SubmitAdminBaseline).WithMetadata(EndpointSnapshotRecovery.Instance);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.GetBankStatus).Route, GetBankStatus);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.CreateBankLoanWithSnapshot).Route, CreateBankLoanWithSnapshot).WithMetadata(EndpointSnapshotRecovery.Instance);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.CreateBankLoan).Route, CreateBankLoan);
+        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.CreateBankLoan).Route, CreateBankLoan).WithMetadata(EndpointSnapshotRecovery.Instance);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.RepayBankLoanWithSnapshot).Route, RepayBankLoanWithSnapshot).WithMetadata(EndpointSnapshotRecovery.Instance);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.RepayBankLoan).Route, RepayBankLoan);
+        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.RepayBankLoan).Route, RepayBankLoan).WithMetadata(EndpointSnapshotRecovery.Instance);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.RepayBankDebtWithSnapshot).Route, RepayBankDebtWithSnapshot).WithMetadata(EndpointSnapshotRecovery.Instance);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.RepayBankDebt).Route, RepayBankDebt);
+        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.RepayBankDebt).Route, RepayBankDebt).WithMetadata(EndpointSnapshotRecovery.Instance);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.QuoteMercenary).Route, QuoteMercenary);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.HireMercenaryWithSnapshot).Route, HireMercenaryWithSnapshot).WithMetadata(EndpointSnapshotRecovery.Instance);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.HireMercenary).Route, HireMercenary);
+        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.HireMercenary).Route, HireMercenary).WithMetadata(EndpointSnapshotRecovery.Instance);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.QuoteMercenaryGuard).Route, QuoteMercenaryGuard);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.HireMercenaryGuardWithSnapshot).Route, HireMercenaryGuardWithSnapshot).WithMetadata(EndpointSnapshotRecovery.Instance);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.ReportMercenaryIncident).Route, ReportMercenaryIncident);

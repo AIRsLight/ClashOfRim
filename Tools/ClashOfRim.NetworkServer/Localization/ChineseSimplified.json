@@ -700,5 +700,6 @@
   "WorldPollution.NotificationMessage": "{ACTOR} 造成了 {TILE} 地块的污染增加了 {DELTA}。",
   "Events.FailureReportUnsupported": "此事件不支持应用失败报告。",
   "Events.FailureReportSourceMismatch": "报告的来源与此事件不匹配。",
-  "Events.FailureReportAlreadyEnded": "此事件或其交易订单已完成或关闭。"
+  "Events.FailureReportAlreadyEnded": "此事件或其交易订单已完成或关闭。",
+  "Economy.SnapshotEndpointRequired": "经济操作现在必须同时提交确认存档。请更新客户端并使用带快照的提交入口。"
 }
