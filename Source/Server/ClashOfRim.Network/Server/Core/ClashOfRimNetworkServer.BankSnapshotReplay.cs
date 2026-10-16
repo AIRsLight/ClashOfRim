@@ -39,7 +39,7 @@ public static partial class ClashOfRimNetworkServer
         context = null;
         if (!ReauthorizeSnapshotPrincipal(httpRequest, state, new ProtocolIdentity(request.UserId, request.ColonyId, request.CurrentSnapshotId)))
             return Results.Ok(new BankLoanResponse(ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed")), null, 0, null));
-        context = ReconcileBankRequestContext(
+        context = ReadBankRequestContext(
             state,
             request.UserId,
             request.ColonyId,
@@ -89,7 +89,9 @@ public static partial class ClashOfRimNetworkServer
                 existingByKey.SnapshotId,
                 nextLineageToken));
         }
-        return null;
+        context = ReconcileBankSnapshotContext(state, context, nowUtc, out rejection);
+        return rejection is null ? null : Results.Ok(new BankLoanResponse(rejection, null, 0,
+            BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
     }
 
     // Caller holds the snapshot mutation gate, then the bank gate, for both checks.
@@ -99,7 +101,7 @@ public static partial class ClashOfRimNetworkServer
         context = null;
         if (!ReauthorizeSnapshotPrincipal(httpRequest, state, new ProtocolIdentity(request.UserId, request.ColonyId, request.CurrentSnapshotId)))
             return Results.Ok(new BankLoanResponse(ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed")), null, 0, null));
-        context = ReconcileBankRequestContext(
+        context = ReadBankRequestContext(
             state,
             request.UserId,
             request.ColonyId,
@@ -146,7 +148,9 @@ public static partial class ClashOfRimNetworkServer
                 existingByKey.SnapshotId,
                 nextLineageToken));
         }
-        return null;
+        context = ReconcileBankSnapshotContext(state, context, nowUtc, out rejection);
+        return rejection is null ? null : Results.Ok(new BankLoanResponse(rejection, null, 0,
+            BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
     }
 
     // Caller holds the snapshot mutation gate, then the bank gate, for both checks.
@@ -156,7 +160,7 @@ public static partial class ClashOfRimNetworkServer
         context = null;
         if (!ReauthorizeSnapshotPrincipal(httpRequest, state, new ProtocolIdentity(request.UserId, request.ColonyId, request.CurrentSnapshotId)))
             return Results.Ok(new BankDebtResponse(ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed")), null, 0, null));
-        context = ReconcileBankRequestContext(
+        context = ReadBankRequestContext(
             state,
             request.UserId,
             request.ColonyId,
@@ -203,6 +207,8 @@ public static partial class ClashOfRimNetworkServer
                 existingByKey.SnapshotId,
                 nextLineageToken));
         }
-        return null;
+        context = ReconcileBankSnapshotContext(state, context, nowUtc, out rejection);
+        return rejection is null ? null : Results.Ok(new BankDebtResponse(rejection, null, 0,
+            BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
     }
 }

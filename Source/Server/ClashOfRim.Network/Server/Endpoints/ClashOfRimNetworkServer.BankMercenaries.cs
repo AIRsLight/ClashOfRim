@@ -73,19 +73,6 @@ public static partial class ClashOfRimNetworkServer
             if (validation is not null)
                 return Results.Ok(new BankLoanResponse(validation, null, 0,
                     BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
-            if (TryRejectExpiredPendingConfirmationSnapshot(
-                    state,
-                    request.UserId,
-                    request.ColonyId,
-                    nowUtc,
-                    out ProtocolResponse? pendingRejection))
-            {
-                return Results.Ok(new BankLoanResponse(
-                    pendingRejection!,
-                    loan: null,
-                    silverDelta: 0,
-                    BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
-            }
         }
 
         SnapshotUploadResult upload = PrepareTransactionSnapshot(
@@ -203,20 +190,6 @@ public static partial class ClashOfRimNetworkServer
                     ToBankLoanSummary(active, state.ServerConfiguration),
                     silverDelta: 0,
                     BuildBankStatusResponse(state, context with { ActiveLoan = active }, ProtocolResponse.Ok())));
-            }
-
-            if (TryRejectExpiredPendingConfirmationSnapshot(
-                    state,
-                    request.UserId,
-                    request.ColonyId,
-                    nowUtc,
-                    out ProtocolResponse? pendingRejection))
-            {
-                return Results.Ok(new BankLoanResponse(
-                    pendingRejection!,
-                    loan: null,
-                    silverDelta: 0,
-                    BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
             }
         }
 
@@ -343,20 +316,6 @@ public static partial class ClashOfRimNetworkServer
                     silverDelta: 0,
                     BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
             }
-
-            if (TryRejectExpiredPendingConfirmationSnapshot(
-                    state,
-                    request.UserId,
-                    request.ColonyId,
-                    nowUtc,
-                    out ProtocolResponse? pendingRejection))
-            {
-                return Results.Ok(new BankDebtResponse(
-                    pendingRejection!,
-                    debt: null,
-                    silverDelta: 0,
-                    BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
-            }
         }
 
         SnapshotUploadResult upload = PrepareTransactionSnapshot(
@@ -461,15 +420,15 @@ public static partial class ClashOfRimNetworkServer
                 return Results.Ok(new MercenaryHireResponse(ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed")), null, null));
 
             var existing = state.MercenaryContracts.FindByIdempotencyKey(request.IdempotencyKey);
-            context = ReconcileBankRequestContext(state, request.UserId, request.ColonyId, request.CurrentSnapshotId, request.AuthToken,
+            context = ReadBankRequestContext(state, request.UserId, request.ColonyId, request.CurrentSnapshotId, request.AuthToken,
                 request.CurrentGameTicks, 0, nowUtc, out var rejection,
                 committedSnapshotId: MatchesMercenarySnapshot(existing, request) ? existing!.SnapshotId : null);
             if (context is null) return Failure(rejection!);
             if (existing is not null) return MercenarySnapshotReplayResponse(state, request, existing, context);
+            context = ReconcileBankSnapshotContext(state, context, nowUtc, out rejection);
+            if (rejection is not null) return Failure(rejection);
             var validation = ValidateMercenarySnapshotHire(state, request);
             if (validation is not null) return Failure(validation);
-            if (TryRejectExpiredPendingConfirmationSnapshot(state, request.UserId, request.ColonyId, nowUtc, out var pendingRejection))
-                return Failure(pendingRejection!);
         }
         var upload = PrepareTransactionSnapshot(state, request.UserId, request.ColonyId, request.ConfirmedSnapshot!.SnapshotId!,
             request.ConfirmedSnapshot, multipart.Payload, nowUtc);
@@ -485,11 +444,13 @@ public static partial class ClashOfRimNetworkServer
 
             nowUtc = DateTimeOffset.UtcNow;
             var existing = state.MercenaryContracts.FindByIdempotencyKey(request.IdempotencyKey);
-            context = ReconcileBankRequestContext(state, request.UserId, request.ColonyId, request.CurrentSnapshotId, request.AuthToken,
+            context = ReadBankRequestContext(state, request.UserId, request.ColonyId, request.CurrentSnapshotId, request.AuthToken,
                 request.CurrentGameTicks, 0, nowUtc, out var rejection,
                 committedSnapshotId: MatchesMercenarySnapshot(existing, request) ? existing!.SnapshotId : null);
             if (context is null) return Failure(rejection!);
             if (existing is not null) return MercenarySnapshotReplayResponse(state, request, existing, context);
+            context = ReconcileBankSnapshotContext(state, context, nowUtc, out rejection);
+            if (rejection is not null) return Failure(rejection);
             if (!upload.Accepted || upload.AcceptedSnapshot is null) return Failure(ToProtocolResponse(upload));
             var validation = ValidateMercenarySnapshotHire(state, request);
             if (validation is not null) return Failure(validation);
@@ -672,15 +633,15 @@ public static partial class ClashOfRimNetworkServer
                 return Results.Ok(new MercenaryGuardHireResponse(ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed")), null, null));
 
             var existing = state.MercenaryGuards.FindByIdempotencyKey(request.IdempotencyKey);
-            context = ReconcileBankRequestContext(state, request.UserId, request.ColonyId, request.CurrentSnapshotId, request.AuthToken,
+            context = ReadBankRequestContext(state, request.UserId, request.ColonyId, request.CurrentSnapshotId, request.AuthToken,
                 request.CurrentGameTicks, 0, nowUtc, out var rejection,
                 committedSnapshotId: MatchesGuardSnapshot(existing, request) ? existing!.SnapshotId : null);
             if (context is null) return Failure(rejection!);
             if (existing is not null) return GuardSnapshotReplayResponse(state, request, existing, context);
+            context = ReconcileBankSnapshotContext(state, context, nowUtc, out rejection);
+            if (rejection is not null) return Failure(rejection);
             var validation = ValidateGuardSnapshotHire(state, request);
             if (validation is not null) return Failure(validation);
-            if (TryRejectExpiredPendingConfirmationSnapshot(state, request.UserId, request.ColonyId, nowUtc, out var pendingRejection))
-                return Failure(pendingRejection!);
         }
         var upload = PrepareTransactionSnapshot(state, request.UserId, request.ColonyId, request.ConfirmedSnapshot!.SnapshotId!,
             request.ConfirmedSnapshot, multipart.Payload, nowUtc);
@@ -696,11 +657,13 @@ public static partial class ClashOfRimNetworkServer
 
             nowUtc = DateTimeOffset.UtcNow;
             var existing = state.MercenaryGuards.FindByIdempotencyKey(request.IdempotencyKey);
-            context = ReconcileBankRequestContext(state, request.UserId, request.ColonyId, request.CurrentSnapshotId, request.AuthToken,
+            context = ReadBankRequestContext(state, request.UserId, request.ColonyId, request.CurrentSnapshotId, request.AuthToken,
                 request.CurrentGameTicks, 0, nowUtc, out var rejection,
                 committedSnapshotId: MatchesGuardSnapshot(existing, request) ? existing!.SnapshotId : null);
             if (context is null) return Failure(rejection!);
             if (existing is not null) return GuardSnapshotReplayResponse(state, request, existing, context);
+            context = ReconcileBankSnapshotContext(state, context, nowUtc, out rejection);
+            if (rejection is not null) return Failure(rejection);
             if (!upload.Accepted || upload.AcceptedSnapshot is null) return Failure(ToProtocolResponse(upload));
             var validation = ValidateGuardSnapshotHire(state, request);
             if (validation is not null) return Failure(validation);

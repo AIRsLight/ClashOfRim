@@ -9,6 +9,7 @@ internal static class SnapshotEndpointRecoveryPreparationTests
 {
     public static void Run(Func<string, SaveSnapshotPackage> factory)
     {
+        RunPendingConfirmationPolicy(factory);
         foreach (string change in new[] { "none", "disabled", "rate", "minimum", "maximum", "wealth", "duration-min", "duration-max" })
             WithFixture(factory, "borrow", f => VerifyBorrowTerms(f, change));
         WithFixture(factory, "borrow", VerifyBorrowReplayAfterPolicyChange);
@@ -20,6 +21,90 @@ internal static class SnapshotEndpointRecoveryPreparationTests
             WithFixture(factory, kind, VerifyInvalidBody);
             WithFixture(factory, kind, VerifyConcurrentRetries);
         }
+    }
+
+    public static void RunPendingConfirmationPolicy(Func<string, SaveSnapshotPackage> factory)
+    {
+        foreach (string kind in new[] { "borrow", "loan", "debt", "shop-sell", "shop-buy", "mercenary", "guard" })
+        {
+            foreach (bool final in new[] { false, true })
+            foreach (string pending in new[] { "debt-activation", "debt-repayment", "mercenary" })
+                WithFixture(factory, kind, f => VerifyExpiredConfirmation(f, final, pending));
+            WithFixture(factory, kind, VerifyReplayDoesNotCancelUnrelatedProgress);
+        }
+        foreach (bool final in new[] { false, true })
+        {
+            WithFixture(factory, "borrow", f => VerifyExpiredConfirmation(f, final, "loan-activation"));
+            WithFixture(factory, "loan", f => VerifyExpiredConfirmation(f, final, "loan-repayment"));
+        }
+    }
+
+    private static void VerifyExpiredConfirmation(Fixture f, bool final, string pending)
+    {
+        Reply? reply = null;
+        Func<bool>? reconciled = null;
+        f.Store.Reset();
+        if (final)
+            SnapshotPreparationGateProbe.Run(f.State.RaidSettlementSnapshotMutationGate, hook => f.Store.BeforePrepare = hook,
+                () => reply = f.Call(), () => reconciled = SeedExpiredConfirmation(f, pending));
+        else
+        {
+            reconciled = SeedExpiredConfirmation(f, pending);
+            reply = f.Call();
+        }
+        Require(reply is { Result.Accepted: false, Result.ErrorCode: ProtocolErrorCode.Conflict, Snapshot: null, Token: null }
+            && reply.Result.Message == "Pending confirmation expired and was cancelled. Discard the unconfirmed progress and rejoin the server."
+            && reply.Id == f.DeniedId && f.Store.Writes == 0 && !f.State.SnapshotCommits.HasPending
+            && f.Store.GetLatest("userA", "colonyA")!.Identity.SnapshotId == "before" && reconciled!(),
+            "Expired confirmation was consumed without rejecting the new snapshot: " + f.Kind + "/" + final + "/" + pending);
+        Require(f.State.BankLoans.FindByIdempotencyKey("operation") is null
+            && f.State.BankLoans.FindDebtByIdempotencyKey("operation") is null
+            && f.State.ServerShop.FindReceipt("operation") is null
+            && f.State.MercenaryContracts.FindByIdempotencyKey("operation") is null
+            && f.State.MercenaryGuards.FindByIdempotencyKey("operation") is null,
+            "Expiry rejection committed a business record.");
+        AssertGatesReleased(f);
+    }
+
+    private static void VerifyReplayDoesNotCancelUnrelatedProgress(Fixture f)
+    {
+        var first = f.Call();
+        Require(first.Result.Accepted, "Expiry replay fixture failed: " + f.Kind);
+        var reconciled = SeedExpiredConfirmation(f, "debt-activation");
+        string before = f.Evidence();
+        f.Store.Reset();
+        var replay = f.Call();
+        Require(replay.Result is { Accepted: true, ErrorCode: ProtocolErrorCode.DuplicateRequest }
+            && replay.Id == first.Id && replay.Snapshot == first.Snapshot && replay.Token == first.Token && replay.Delta == first.Delta
+            && f.Store.Writes == 0 && before == f.Evidence() && !reconciled(),
+            "A committed receipt cleaned up unrelated pending progress: " + f.Kind);
+        AssertGatesReleased(f);
+    }
+
+    private static Func<bool> SeedExpiredConfirmation(Fixture f, string kind)
+    {
+        var expired = DateTimeOffset.UtcNow.AddDays(-2);
+        if (kind == "mercenary")
+        {
+            var contract = f.State.MercenaryContracts.Create("expired-contract", "userA", "colonyA", "before",
+                "Shooting", 7, 7, 560, 1000, 1500, 1000, expired);
+            return () => f.State.MercenaryContracts.Find(contract.ContractId) is null;
+        }
+        if (kind == "loan-activation")
+        {
+            f.State.BankLoans.Create("expired-loan", "userA", "colonyA", "before", 100, 0, 1, 1000, expired, "expired-loan");
+            return () => f.State.BankLoans.FindByIdempotencyKey("expired-loan") is null;
+        }
+        if (kind == "loan-repayment")
+        {
+            f.State.BankLoans.MarkRepaymentPending("expired-repayment", "userA", "colonyA", 1000, expired);
+            return () => f.State.BankLoans.GetActive("userA", "colonyA") is { Status: BankLoanRegistry.StatusActive, RepaymentIdempotencyKey: null };
+        }
+        var debt = f.State.BankLoans.CreateDebt("expired-debt", "userA", "colonyA", "before", 10,
+            "Test", "test", "source", 1000, expired, pendingActivation: kind == "debt-activation");
+        if (kind == "debt-activation") return () => f.State.BankLoans.FindDebtByIdempotencyKey("expired-debt") is null;
+        f.State.BankLoans.MarkDebtRepaymentPending("expired-repayment", "userA", "colonyA", debt.DebtId, 1000, expired);
+        return () => f.State.BankLoans.FindDebtByIdempotencyKey("expired-debt") is { Status: BankLoanRegistry.StatusActive, RepaymentIdempotencyKey: null };
     }
 
     private static void VerifyBorrowTerms(Fixture f, string change)

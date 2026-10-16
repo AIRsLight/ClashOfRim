@@ -235,27 +235,6 @@ public static partial class ClashOfRimNetworkServer
                 prevalidation.RemainingStockCount));
         }
 
-        if (TryRejectExpiredPendingConfirmationSnapshot(
-                state,
-                request.Buyer.UserId,
-                request.Buyer.ColonyId ?? string.Empty,
-                nowUtc,
-                out ProtocolResponse? pendingRejection))
-        {
-            state.RuntimeLogger.LogWarning(
-                "Server shop purchase rejected: phase=pending-confirmation listing={ListingId} user={UserId} colony={ColonyId} count={Count} unitPrice={UnitPrice} message={Message}",
-                request.ListingId,
-                request.Buyer.UserId,
-                request.Buyer.ColonyId,
-                request.PurchaseCount,
-                request.UnitPriceSilver,
-                pendingRejection?.Message);
-            return Results.Ok(new PurchaseServerShopListingResponse(
-                pendingRejection!,
-                request.ListingId,
-                remainingStockCount: state.ServerShop.Find(request.ListingId)?.StockCount ?? 0));
-        }
-
         SnapshotUploadResult upload = PrepareTransactionSnapshot(state, request.Buyer.UserId, request.Buyer.ColonyId!,
             multipart.Request.ConfirmedSnapshot.SnapshotId!, multipart.Request.ConfirmedSnapshot,
             multipart.Payload, nowUtc);
@@ -282,6 +261,12 @@ public static partial class ClashOfRimNetworkServer
             }
             if (purchase.Duplicate)
                 return ShopPurchaseReplayResponse(state, request, multipart.Request.ConfirmedSnapshot.SnapshotId!);
+            // Reconcile once at the final authorized boundary, after resolving committed receipts.
+            var pendingRejection = ReconcileSnapshotConfirmationsLocked(state, request.Buyer.UserId,
+                request.Buyer.ColonyId!, DateTimeOffset.UtcNow);
+            if (pendingRejection is not null)
+                return Results.Ok(new PurchaseServerShopListingResponse(pendingRejection,
+                    request.ListingId, purchase.RemainingStockCount));
             if (!upload.Accepted || upload.AcceptedSnapshot is null)
                 return Results.Ok(new PurchaseServerShopListingResponse(ToProtocolResponse(upload), request.ListingId, purchase.RemainingStockCount));
             if (normalizedListingKind == ServerShopListingKinds.BuyFromPlayer

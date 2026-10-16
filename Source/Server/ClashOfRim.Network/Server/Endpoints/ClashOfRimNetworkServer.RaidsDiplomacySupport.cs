@@ -1307,17 +1307,12 @@ public static partial class ClashOfRimNetworkServer
             colonyId,
             nowUtc,
             forceCancel: false);
-        if (!result.Changed)
-        {
-            rejection = null;
-            return false;
-        }
-
-        rejection = ProtocolResponse.Reject(
-            ProtocolErrorCode.Conflict,
-            T("PendingConfirmation.ExpiredCancelled"));
-        return true;
+        rejection = PendingConfirmationRejection(result);
+        return rejection is not null;
     }
+
+    private static ProtocolResponse? PendingConfirmationRejection(PendingConfirmationReconciliationResult result) =>
+        !result.Changed ? null : ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("PendingConfirmation.ExpiredCancelled"));
 
     private static void ReconcileAbandonedColonyOnClientLifecycle(
         ClashOfRimNetworkState state,

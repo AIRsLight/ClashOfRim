@@ -32,18 +32,21 @@ public static partial class ClashOfRimNetworkServer
         catch { mutation.Dispose(); throw; }
     }
 
-    // Snapshot commands already own an authorized recovered scope; never recover again while reading their context.
-    private static BankRequestContext? ReconcileBankRequestContext(ClashOfRimNetworkState state,
-        string userId, string colonyId, string currentSnapshotId, string? authToken, long requestedCurrentGameTicks,
-        int colonyWealth, DateTimeOffset nowUtc, out ProtocolResponse? rejection, string? committedSnapshotId = null)
+    // Only new snapshot work reconciles pending operations; a committed receipt replays without cleanup.
+    private static BankRequestContext ReconcileBankSnapshotContext(ClashOfRimNetworkState state,
+        BankRequestContext context, DateTimeOffset nowUtc, out ProtocolResponse? rejection)
+    {
+        rejection = ReconcileSnapshotConfirmationsLocked(state, context.UserId, context.ColonyId, nowUtc);
+        return context with { ActiveLoan = state.BankLoans.GetActive(context.UserId, context.ColonyId) };
+    }
+
+    private static ProtocolResponse? ReconcileSnapshotConfirmationsLocked(ClashOfRimNetworkState state,
+        string userId, string colonyId, DateTimeOffset nowUtc)
     {
         if (!Monitor.IsEntered(state.RaidSettlementSnapshotMutationGate))
-            throw new InvalidOperationException("Bank reconciliation requires the recovered mutation scope.");
-        var context = ReadBankRequestContext(state, userId, colonyId, currentSnapshotId, authToken,
-            requestedCurrentGameTicks, colonyWealth, nowUtc, out rejection, committedSnapshotId);
-        if (context is null) return null;
-        ReconcilePendingConfirmationsLocked(state, userId, colonyId, nowUtc, forceCancel: false);
-        return context with { ActiveLoan = state.BankLoans.GetActive(userId, colonyId) };
+            throw new InvalidOperationException("Snapshot reconciliation requires the recovered mutation scope.");
+        return PendingConfirmationRejection(
+            ReconcilePendingConfirmationsLocked(state, userId, colonyId, nowUtc, forceCancel: false));
     }
 
     private static ProtocolResponse? ValidateMercenaryIncidentShape(ReportMercenaryIncidentRequest request)

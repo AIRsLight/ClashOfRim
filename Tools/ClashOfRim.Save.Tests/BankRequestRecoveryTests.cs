@@ -84,8 +84,8 @@ internal static class BankRequestRecoveryTests
         var args = new object?[] { e.F.State, "receiver", "away", "base", e.F.Token, 0L, 10000, DateTimeOffset.UtcNow, null, null };
         Require(read.Invoke(null, args) is not null && args[8] is null, "Valid read-only bank context rejected.");
         e.F.AssertPending(before, "read-only context"); Require(e.Bank() == bank, "Read-only context reconciled bank state.");
-        var reconcile = typeof(ClashOfRimNetworkServer).GetMethod("ReconcileBankRequestContext", BindingFlags.Static | BindingFlags.NonPublic)!;
-        bool denied = false; try { reconcile.Invoke(null, args); } catch (TargetInvocationException ex) when (ex.InnerException is InvalidOperationException) { denied = true; }
+        var reconcile = typeof(ClashOfRimNetworkServer).GetMethod("ReconcileSnapshotConfirmationsLocked", BindingFlags.Static | BindingFlags.NonPublic)!;
+        bool denied = false; try { reconcile.Invoke(null, [e.F.State, "receiver", "away", DateTimeOffset.UtcNow]); } catch (TargetInvocationException ex) when (ex.InnerException is InvalidOperationException) { denied = true; }
         Require(denied && bank == e.Bank(), "Bank reconciliation ran outside the mutation scope.");
     }
     private static void Policy(Func<string, SaveSnapshotPackage> factory, string change)
