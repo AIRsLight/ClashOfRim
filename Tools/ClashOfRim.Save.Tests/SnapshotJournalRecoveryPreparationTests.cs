@@ -4,11 +4,13 @@ using AIRsLight.ClashOfRim.Network.Plugins;
 using AIRsLight.ClashOfRim.Save;
 using Microsoft.Data.Sqlite;
 using System.Text.Json;
+using System.Reflection;
 
 internal static class SnapshotJournalRecoveryPreparationTests
 {
     public static void Run(Func<string, SaveSnapshotPackage> factory)
     {
+        RunLifecycleBoundaries(factory);
         foreach (bool reopen in new[] { false, true })
         foreach (bool after in new[] { false, true })
         foreach (string change in new[] { "none", "newer", "token", "remove", "published", "compete", "replace", "failure", "obsolete-failure" })
@@ -19,6 +21,78 @@ internal static class SnapshotJournalRecoveryPreparationTests
         foreach (string fault in new[] { "before", "after", "bank", "processor" })
             WithFixture(factory, f => VerifyRecoveryFailure(f, reopen, fault));
         WithFixture(factory, VerifyRollbackInBatch);
+    }
+
+    public static void RunLifecycleBoundaries(Func<string, SaveSnapshotPackage> factory)
+    {
+        foreach (string entry in new[] { "pending", "login", "abandoned" })
+        foreach (string mode in new[] { "prepare", "reopen", "nested", "failure" })
+            WithFixture(factory, f =>
+            {
+                f.Seed("evidence");
+                if (mode == "reopen") f.Open();
+                f.Store.Reset();
+                if (mode == "nested")
+                {
+                    using (f.State.EnterSnapshotMutation())
+                    {
+                        CallEntry(f, entry);
+                        Require(Monitor.IsEntered(f.State.RaidSettlementSnapshotMutationGate), "Nested cleanup released its caller's gate.");
+                    }
+                }
+                else if (mode == "failure")
+                {
+                    f.Store.FailPreparation = true;
+                    bool failed = false;
+                    try { CallEntry(f, entry); } catch (IOException) { failed = true; }
+                    Require(failed && f.State.SnapshotCommits.HasPending && f.Store.Writes == 0, "Cleanup swallowed recovery failure.");
+                    f.Store.FailPreparation = false;
+                    CallEntry(f, entry);
+                }
+                else SnapshotPreparationGateProbe.Run(f.State.RaidSettlementSnapshotMutationGate,
+                    hook => f.Store.BeforePrepare = hook, () => CallEntry(f, entry),
+                    () => Require(f.Store.Writes == 0 && f.PostCalls == 0, "Lifecycle published during preparation."));
+                Require(!f.State.SnapshotCommits.HasPending && f.PostCalls == 1 && f.Store.Writes == 1
+                    && f.Store.RawWrites == (mode == "nested" ? 1 : 0)
+                    && f.State.BankLoans.FindByIdempotencyKey("commit-evidence") is not null, "Cleanup did not recover once: " + entry + "/" + mode);
+                Require(!Monitor.IsEntered(f.State.RaidSettlementSnapshotMutationGate), "Cleanup leaked its mutation gate.");
+            });
+        foreach (string kind in new[] { "LoggedIn", "InitialWorldSessionPrepared", "Disconnected", "ColonyAbandoned" })
+        foreach (string invalid in new[] { "none", "user", "colony" })
+            WithFixture(factory, f =>
+            {
+                f.Seed("evidence"); f.Store.Reset();
+                string before = f.PersistentState();
+                // The other lifecycle handler owns this event; empty identity belongs to neither.
+                string hook = kind == "ColonyAbandoned" ? "ReconcilePendingConfirmationsOnClientLifecycle" : "ReconcileAbandonedColonyOnClientLifecycle";
+                Invoke(hook, f.State, Lifecycle(kind, invalid == "user" ? "" : "userA", invalid == "colony" ? "" : "colonyA"));
+                if (invalid != "none")
+                    Invoke(kind == "ColonyAbandoned" ? "ReconcileAbandonedColonyOnClientLifecycle" : "ReconcilePendingConfirmationsOnClientLifecycle",
+                        f.State, Lifecycle(kind, invalid == "user" ? "" : "userA", invalid == "colony" ? "" : "colonyA"));
+                Require(f.State.SnapshotCommits.HasPending && f.Store.Preparations == 0 && f.Store.Writes == 0
+                    && f.PostCalls == 0 && before == f.PersistentState(), "Unrelated lifecycle hook started recovery.");
+            });
+    }
+
+    private static void CallEntry(Fixture f, string entry)
+    {
+        if (entry == "pending") Invoke("ReconcilePendingConfirmationsForColony", f.State, "userA", "colonyA", DateTimeOffset.UtcNow, true);
+        else Invoke(entry == "login" ? "ReconcilePendingConfirmationsOnClientLifecycle" : "ReconcileAbandonedColonyOnClientLifecycle",
+            f.State, Lifecycle(entry == "login" ? "LoggedIn" : "ColonyAbandoned", "userA", "colonyA"));
+    }
+
+    private static object Lifecycle(string kind, string user, string colony)
+    {
+        var type = typeof(ClashOfRimNetworkServer).GetNestedType("ClientLifecycleEvent", BindingFlags.NonPublic)!;
+        var kinds = typeof(ClashOfRimNetworkServer).GetNestedType("ClientLifecycleEventKind", BindingFlags.NonPublic)!;
+        return Activator.CreateInstance(type, Enum.Parse(kinds, kind), user, colony, "evidence", "session", DateTimeOffset.UtcNow)!;
+    }
+
+    private static void Invoke(string name, params object[] args)
+    {
+        try { typeof(ClashOfRimNetworkServer).GetMethod(name, BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, args); }
+        catch (TargetInvocationException ex) when (ex.InnerException is not null)
+        { System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(ex.InnerException).Throw(); }
     }
 
     private static void VerifyPaused(Fixture f, bool reopen, bool after, string change)

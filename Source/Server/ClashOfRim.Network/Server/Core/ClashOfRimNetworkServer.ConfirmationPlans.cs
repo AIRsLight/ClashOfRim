@@ -28,7 +28,7 @@ public static partial class ClashOfRimNetworkServer
             {
                 // Recovery may have published this receipt; do not expire a committed confirmation.
                 if (state.SnapshotCommits.FindConfirmationReceipt(new SnapshotIdentity(userId, colonyId, metadata.SnapshotId), metadata.OriginalSha256, metadata.PayloadSha256) is null)
-                    TryRejectExpiredPendingConfirmationSnapshot(state, userId, colonyId, DateTimeOffset.UtcNow, out validationFailure);
+                    validationFailure = ReconcileSnapshotConfirmationsLocked(state, userId, colonyId, DateTimeOffset.UtcNow);
                 return validationFailure?.Message;
             });
         if (!upload.Accepted || upload.AcceptedSnapshot is null)

@@ -1235,21 +1235,11 @@ public static partial class ClashOfRimNetworkServer
         ClashOfRimNetworkState state,
         ClientLifecycleEvent lifecycleEvent)
     {
-        if (string.IsNullOrWhiteSpace(lifecycleEvent.UserId)
+        // Abandonment reconciles and closes the colony in one recovered boundary below.
+        if (lifecycleEvent.Kind == ClientLifecycleEventKind.ColonyAbandoned
+            || string.IsNullOrWhiteSpace(lifecycleEvent.UserId)
             || string.IsNullOrWhiteSpace(lifecycleEvent.ColonyId))
         {
-            return;
-        }
-
-        if (lifecycleEvent.Kind is ClientLifecycleEventKind.LoggedIn
-            or ClientLifecycleEventKind.InitialWorldSessionPrepared)
-        {
-            ReconcilePendingConfirmationsForColony(
-                state,
-                lifecycleEvent.UserId,
-                lifecycleEvent.ColonyId,
-                lifecycleEvent.OccurredAtUtc,
-                forceCancel: true);
             return;
         }
 
@@ -1258,7 +1248,8 @@ public static partial class ClashOfRimNetworkServer
             lifecycleEvent.UserId,
             lifecycleEvent.ColonyId,
             lifecycleEvent.OccurredAtUtc,
-            forceCancel: false);
+            forceCancel: lifecycleEvent.Kind is ClientLifecycleEventKind.LoggedIn
+                or ClientLifecycleEventKind.InitialWorldSessionPrepared);
     }
 
     private static PendingConfirmationReconciliationResult ReconcilePendingConfirmationsForColony(
@@ -1268,11 +1259,8 @@ public static partial class ClashOfRimNetworkServer
         DateTimeOffset nowUtc,
         bool forceCancel)
     {
-        using (state.EnterSnapshotMutation())
-        {
-            RecoverSnapshotCommits(state);
-            return ReconcilePendingConfirmationsLocked(state, userId, colonyId, nowUtc, forceCancel);
-        }
+        using var mutation = EnterRecoveredSnapshotMutation(state);
+        return ReconcilePendingConfirmationsLocked(state, userId, colonyId, nowUtc, forceCancel);
     }
 
     private static PendingConfirmationReconciliationResult ReconcilePendingConfirmationsLocked(
@@ -1318,17 +1306,6 @@ public static partial class ClashOfRimNetworkServer
         ClashOfRimNetworkState state,
         ClientLifecycleEvent lifecycleEvent)
     {
-        using (state.EnterSnapshotMutation())
-        {
-            RecoverSnapshotCommits(state);
-            ReconcileAbandonedColonyLocked(state, lifecycleEvent);
-        }
-    }
-
-    private static void ReconcileAbandonedColonyLocked(
-        ClashOfRimNetworkState state,
-        ClientLifecycleEvent lifecycleEvent)
-    {
         if (lifecycleEvent.Kind != ClientLifecycleEventKind.ColonyAbandoned
             || string.IsNullOrWhiteSpace(lifecycleEvent.UserId)
             || string.IsNullOrWhiteSpace(lifecycleEvent.ColonyId))
@@ -1336,6 +1313,15 @@ public static partial class ClashOfRimNetworkServer
             return;
         }
 
+        using var mutation = EnterRecoveredSnapshotMutation(state);
+        ReconcilePendingConfirmationsLocked(state, lifecycleEvent.UserId, lifecycleEvent.ColonyId,
+            lifecycleEvent.OccurredAtUtc, forceCancel: false);
+        ReconcileAbandonedColonyLocked(state, lifecycleEvent);
+    }
+
+    private static void ReconcileAbandonedColonyLocked(
+        ClashOfRimNetworkState state, ClientLifecycleEvent lifecycleEvent)
+    {
         string userId = lifecycleEvent.UserId;
         string colonyId = lifecycleEvent.ColonyId;
 
