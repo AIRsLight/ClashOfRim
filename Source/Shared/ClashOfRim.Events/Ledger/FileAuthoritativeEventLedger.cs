@@ -215,12 +215,7 @@ public sealed class FileAuthoritativeEventLedger : IAuthoritativeEventLedger
             AuthoritativeEvent ledgerEvent = Find(eventId)
                 ?? throw new KeyNotFoundException($"Event id not found: {eventId}");
 
-            AuthoritativeEvent changed = ledgerEvent with
-            {
-                Status = ServerEventStatus.DeliveredToClient,
-                DeliveredToSnapshotId = deliveredToSnapshotId,
-                DeliveredAtUtc = deliveredAtUtc
-            };
+            AuthoritativeEvent changed = new LedgerDeliveryChange(ledgerEvent, deliveredToSnapshotId, deliveredAtUtc).Updated;
             return PersistReplacement(changed);
         }
     }
@@ -255,15 +250,7 @@ public sealed class FileAuthoritativeEventLedger : IAuthoritativeEventLedger
             AuthoritativeEvent ledgerEvent = Find(eventId)
                 ?? throw new KeyNotFoundException($"Event id not found: {eventId}");
 
-            AuthoritativeEvent changed = ledgerEvent with
-            {
-                Status = ServerEventStatus.AppliedToSnapshot,
-                TargetDecision = TargetEventDecision.Accepted,
-                DecisionAtUtc = acceptedAtUtc,
-                DecisionReason = reason,
-                LastApplicationResult = EventApplicationResultKind.Applied,
-                AppliedAtUtc = acceptedAtUtc
-            };
+            AuthoritativeEvent changed = new LedgerAcceptanceChange(ledgerEvent, acceptedAtUtc, reason).Updated;
             return PersistReplacement(changed);
         }
     }

@@ -12,6 +12,7 @@ internal static class EventReadHttpTests
     public static async Task RunAsync(Func<string, string, string, SaveSnapshotPackage> fixture)
     {
         EventPayloadWireTests.Run();
+        EventDeliveryBatchTests.Run();
         var state = new ClashOfRimNetworkState();
         void Snapshot(string user, string colony, string id)
         {
@@ -78,6 +79,25 @@ internal static class EventReadHttpTests
                 && returned.TargetContext.WorldObjectId == "sender-site" && returned.TargetContext.Tile != 99, "HTTP return used receiver routing");
             var returnDetails = await client.PullEventDetailsAsync(new("other", "away", "other-current", [returned.EventId], other));
             Require(returnDetails.Result.Accepted && returnDetails.Events.Single().TargetContext?.MapUniqueId == "Map_7", "return details lost sender routing");
+
+            var batchNotice = notice with { EventId = "batch-notice", IdempotencyKey = "batch-notice" };
+            var batchGift = gift with { EventId = "batch-gift", IdempotencyKey = "batch-gift" };
+            var conflict = gift with { EventId = "conflict", IdempotencyKey = "conflict", Status = ServerEventStatus.Conflict };
+            state.Ledger.Append(batchNotice); state.Ledger.Append(batchGift); state.Ledger.Append(conflict);
+            string beforeBatch = System.Text.Json.JsonSerializer.Serialize(state.Ledger.ListAll());
+            foreach (string invalidId in new[] { "missing", "old-colony" })
+            {
+                var rejectedBatch = await client.PullEventDetailsAsync(new("reader", "home", "current",
+                    [batchNotice.EventId, conflict.EventId, batchGift.EventId, invalidId], token));
+                Require(!rejectedBatch.Result.Accepted && rejectedBatch.Events.Count == 0
+                    && System.Text.Json.JsonSerializer.Serialize(state.Ledger.ListAll()) == beforeBatch,
+                    "invalid batch consumed notifications, cancelled terminal events or marked delivery");
+            }
+            var completedBatch = await client.PullEventDetailsAsync(new("reader", "home", "current",
+                [batchNotice.EventId, conflict.EventId, batchGift.EventId, batchNotice.EventId], token));
+            Require(completedBatch.Result.Accepted && completedBatch.Events.Count == 3
+                && completedBatch.Events.Single(e => e.EventId == conflict.EventId).Status == nameof(ServerEventStatus.Conflict)
+                && state.Ledger.Find(conflict.EventId)!.Status == ServerEventStatus.Cancelled, "valid batch lost terminal details or duplicated records");
 
             foreach (bool replaceSession in new[] { true, false })
             {

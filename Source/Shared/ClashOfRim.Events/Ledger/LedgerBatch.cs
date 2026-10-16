@@ -35,7 +35,9 @@ public sealed record LedgerConfirmationChange(AuthoritativeEvent Expected, Autho
 public sealed record LedgerBatch(IReadOnlyList<AuthoritativeEvent> Events, IReadOnlyList<LedgerStatusChange> StatusChanges,
     IReadOnlyList<LedgerApplicationChange>? ApplicationChanges = null,
     IReadOnlyList<LedgerConfirmationChange>? ConfirmationChanges = null,
-    IReadOnlyList<LedgerRejectionChange>? RejectionChanges = null);
+    IReadOnlyList<LedgerRejectionChange>? RejectionChanges = null,
+    IReadOnlyList<LedgerDeliveryChange>? DeliveryChanges = null,
+    IReadOnlyList<LedgerAcceptanceChange>? AcceptanceChanges = null);
 
 public static class LedgerBatchValidation
 {
@@ -116,6 +118,25 @@ public static class LedgerBatchValidation
             var current = find(change.Expected.EventId);
             if (!Same(current, change.Expected) && !(alreadyCommitted && Same(current, change.Updated)))
                 throw new InvalidOperationException("Batch rejection source changed since preparation.");
+        }
+        foreach (var change in batch.DeliveryChanges ?? [])
+        {
+            if (string.IsNullOrWhiteSpace(change.SnapshotId))
+                throw new InvalidOperationException("Delivery requires a snapshot.");
+            ValidateReadChange(change.Expected);
+        }
+        foreach (var change in batch.AcceptanceChanges ?? [])
+        {
+            if (!EventSemanticClassifier.IsSnapshotlessNotification(change.Expected))
+                throw new InvalidOperationException("Reading an event cannot accept a player decision.");
+            ValidateReadChange(change.Expected);
+        }
+        void ValidateReadChange(AuthoritativeEvent expected)
+        {
+            if (!changedIds.Add(expected.EventId) || ids.Contains(expected.EventId)
+                || expected.Status is not (ServerEventStatus.PendingOfflineDelivery or ServerEventStatus.ReadyForImmediateDelivery or ServerEventStatus.DeliveredToClient)
+                || !Same(find(expected.EventId), expected))
+                throw new InvalidOperationException("Batch delivery source changed since preparation.");
         }
     }
 

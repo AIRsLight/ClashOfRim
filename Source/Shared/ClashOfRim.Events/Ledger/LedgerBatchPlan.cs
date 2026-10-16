@@ -17,6 +17,8 @@ internal sealed record LedgerBatchPlan(IReadOnlyList<AuthoritativeEvent> Additio
         updates.AddRange((batch.ApplicationChanges ?? []).Select(change => change.Updated));
         updates.AddRange((batch.ConfirmationChanges ?? []).Select(change => change.Updated));
         updates.AddRange((batch.RejectionChanges ?? []).Select(change => change.Updated));
+        updates.AddRange((batch.DeliveryChanges ?? []).Select(change => change.Updated));
+        updates.AddRange((batch.AcceptanceChanges ?? []).Select(change => change.Updated));
         return new(additions, updates);
     }
 

@@ -968,10 +968,9 @@ public static partial class ClashOfRimNetworkServer
                 Array.Empty<EventDetailDto>()));
         }
 
-        ReconcileExpiredDeliveredEvents(state, request.UserId, DateTimeOffset.UtcNow);
-        ReconcileFailedSupportPawnEventsForDeletedActors(state, request.UserId);
-        var details = new List<EventDetailDto>();
-        foreach (string eventId in request.EventIds.Distinct(StringComparer.Ordinal))
+        string[] eventIds = request.EventIds.Distinct(StringComparer.Ordinal).ToArray();
+        // Validate the entire batch before maintenance, consumption, or delivery side effects.
+        foreach (string eventId in eventIds)
         {
             AuthoritativeEvent? ledgerEvent = state.Ledger.Find(eventId);
             if (ledgerEvent is null || !IsVisibleTo(ledgerEvent, request.UserId, request.ColonyId))
@@ -980,7 +979,18 @@ public static partial class ClashOfRimNetworkServer
                     ProtocolResponse.Reject(ProtocolErrorCode.EventNotFound, T("Events.NotFoundOrInvisible")),
                     Array.Empty<EventDetailDto>()));
             }
+        }
 
+        ReconcileExpiredDeliveredEvents(state, request.UserId, DateTimeOffset.UtcNow);
+        ReconcileFailedSupportPawnEventsForDeletedActors(state, request.UserId);
+        var details = new List<EventDetailDto>();
+        var deliveries = new List<LedgerDeliveryChange>();
+        var acceptances = new List<LedgerAcceptanceChange>();
+        var statuses = new List<LedgerStatusChange>();
+        DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
+        foreach (string eventId in eventIds)
+        {
+            AuthoritativeEvent ledgerEvent = state.Ledger.Find(eventId)!;
             bool visibleToTarget = IsVisibleParty(ledgerEvent.Target, request.UserId, request.ColonyId);
             if (visibleToTarget
                 && IsSnapshotlessServerNotification(ledgerEvent)
@@ -988,11 +998,9 @@ public static partial class ClashOfRimNetworkServer
                     or ServerEventStatus.ReadyForImmediateDelivery
                     or ServerEventStatus.DeliveredToClient)
             {
-                DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
-                ledgerEvent = state.Ledger.MarkAccepted(
-                    ledgerEvent.EventId,
-                    nowUtc,
-                    T("Events.ServerNotificationDelivered"));
+                var change = new LedgerAcceptanceChange(ledgerEvent, nowUtc, T("Events.ServerNotificationDelivered"));
+                acceptances.Add(change);
+                ledgerEvent = change.Updated;
             }
             else if (visibleToTarget
                 && (ledgerEvent.Status is ServerEventStatus.PendingOfflineDelivery or ServerEventStatus.ReadyForImmediateDelivery
@@ -1001,24 +1009,24 @@ public static partial class ClashOfRimNetworkServer
                     // client snapshot or a delivery whose decision is already made.
                     || ledgerEvent.Status == ServerEventStatus.DeliveredToClient
                         && EventSemanticClassifier.RequiresTargetDecision(ledgerEvent)
-                        && ledgerEvent.DeliveredToSnapshotId != request.CurrentSnapshotId
-                        && state.SnapshotStore.GetLatest(request.UserId, request.ColonyId)?.Identity.SnapshotId == request.CurrentSnapshotId))
+                        && ledgerEvent.DeliveredToSnapshotId != request.CurrentSnapshotId))
             {
-                DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
-                ledgerEvent = state.Ledger.MarkDelivered(
-                    ledgerEvent.EventId,
-                    request.CurrentSnapshotId,
-                    nowUtc);
+                var change = new LedgerDeliveryChange(ledgerEvent, request.CurrentSnapshotId, nowUtc);
+                deliveries.Add(change);
+                ledgerEvent = change.Updated;
             }
 
             details.Add(ProtocolDtoMapper.ToDetailDto(ledgerEvent));
             if (IsVisibleParty(ledgerEvent.Target, request.UserId, request.ColonyId)
                 && IsReadOnlyTerminalEvent(ledgerEvent))
             {
-                state.Ledger.ChangeStatus(ledgerEvent.EventId, ServerEventStatus.Cancelled);
+                statuses.Add(new LedgerStatusChange(ledgerEvent.EventId, ledgerEvent.Status, ServerEventStatus.Cancelled, ExpectedEvent: ledgerEvent));
             }
         }
 
+        // Serialize all details before publishing the batch; storage backends commit it atomically.
+        if (deliveries.Count + acceptances.Count + statuses.Count > 0)
+            state.Ledger.ApplyBatch(new LedgerBatch([], statuses, DeliveryChanges: deliveries, AcceptanceChanges: acceptances));
         return Results.Ok(new PullEventDetailsResponse(
             ProtocolResponse.Ok(T("Events.DetailsReturned")),
             details));

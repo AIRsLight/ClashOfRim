@@ -417,12 +417,7 @@ public sealed class SqliteAuthoritativeEventLedger : IAuthoritativeEventLedger
 
         AuthoritativeEvent ledgerEvent = Find(connection, transaction, eventId)
             ?? throw new KeyNotFoundException($"Event id not found: {eventId}");
-        AuthoritativeEvent changed = ledgerEvent with
-        {
-            Status = ServerEventStatus.DeliveredToClient,
-            DeliveredToSnapshotId = deliveredToSnapshotId,
-            DeliveredAtUtc = deliveredAtUtc
-        };
+        AuthoritativeEvent changed = new LedgerDeliveryChange(ledgerEvent, deliveredToSnapshotId, deliveredAtUtc).Updated;
 
         using SqliteCommand command = connection.CreateCommand();
         command.Transaction = transaction;
@@ -493,15 +488,7 @@ public sealed class SqliteAuthoritativeEventLedger : IAuthoritativeEventLedger
 
         AuthoritativeEvent ledgerEvent = Find(connection, transaction, eventId)
             ?? throw new KeyNotFoundException($"Event id not found: {eventId}");
-        AuthoritativeEvent changed = ledgerEvent with
-        {
-            Status = ServerEventStatus.AppliedToSnapshot,
-            TargetDecision = TargetEventDecision.Accepted,
-            DecisionAtUtc = acceptedAtUtc,
-            DecisionReason = reason,
-            LastApplicationResult = EventApplicationResultKind.Applied,
-            AppliedAtUtc = acceptedAtUtc
-        };
+        AuthoritativeEvent changed = new LedgerAcceptanceChange(ledgerEvent, acceptedAtUtc, reason).Updated;
 
         using SqliteCommand command = connection.CreateCommand();
         command.Transaction = transaction;
