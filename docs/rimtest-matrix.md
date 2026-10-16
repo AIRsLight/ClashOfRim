@@ -133,3 +133,25 @@ pwsh ./Tools/Test-RimTestMatrix.ps1 `
 上述选取报告共 69 项通过、10 项失败、135 项因依赖未执行，不能换算成全部功能通过率。所有旧失败都保留。业务链较早运行 `G:/RimTestRuns/VerifiedCore/20261016-101925-1a4a9513` 已逐项通过银行、商店、交易、十次成交成就、联盟、观察、远行队、礼物、支援、雇佣/召回；随后在旧退出夹具下袭击遇到守方自动重连导致快照变化。更早的 `ExpandedCore/20261016-100305-b8add63c` 通过了正常袭击结算，但也不能替代最新退出路径验证。
 
 可移植和独立验证：`Test-Regression.ps1 -IncludeClient` 通过；银行修复后的客户端测试通过；RimTest 40/40 通过；包含真实返回菜单的独立 live smoke 通过；冻结 1.6 的 77 个文件哈希通过。测试驱动并分别提交了语言请求头编码、世界底图就绪通知时机、重复借款前置拒绝三项产品修复。当前实机矩阵保留红项，未把它们标成预期通过。
+
+## 2026-10-16 修复后复测
+
+上节是修复前的历史结果，保持原样。最新结果见 [修复验收 JSON](rimtest-repair-results-2026-10-16.json) 与 [修复原因和提交记录](rimtest-findings-2026-10-16.md#修复验收与提交)。
+
+| 场景 | 最新通过 / 失败 / 未执行 |
+| --- | --- |
+| core-features | 42 / 0 / 0 |
+| coverage50-french | 14 / 0 / 0 |
+| coverage100-chinese-host | 14 / 0 / 0 |
+| dry-sparse-german | 14 / 0 / 0 |
+| wet-crowded-turkish | 14 / 0 / 0 |
+| cold-extreme | 14 / 0 / 0 |
+| hot-custom-comma | 14 / 0 / 0 |
+| dlc-cultures | 42 / 0 / 0 |
+| mod-storyteller100 | 14 / 0 / 0 |
+| dlc-culture-stress | 14 / 0 / 0 |
+| gift-repeat-accept | 18 / 0 / 0 |
+
+合计 214 次通过、43 个不同用例。证据由一次完整矩阵的九个未受后续 DLC 修复影响的场景，以及最终构建的两个 DLC 场景组成；各批内二进制清单一致，批间不同。完整矩阵原本为 213/214，所有中间失败仍保留，不称作一次固定构建全绿。
+
+最终构建曾有一次用例开始前的 CLR/MonoMod 启动崩溃（42 项未执行），同构建重跑完整 DLC 场景通过；启动异常根因仍待定位。语义用例通过不代表覆盖上节列出的所有实机分支，`fullCoverage` 保持 false。

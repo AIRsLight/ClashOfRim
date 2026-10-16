@@ -1,0 +1,1338 @@
+{
+  "date": "2026-10-16",
+  "gameVersion": "1.7.4980 rev60",
+  "passed": true,
+  "fullCoverage": false,
+  "evidenceKind": "Latest evidence per profile: one complete 214-case matrix (213 passed, 1 failed), followed by two fresh DLC scenarios after fixing ideology setup and load normalization. The full DLC profile had one startup CLR crash before any case and was rerun with identical binaries. Nine unchanged profiles retain baseline evidence. This is not one immutable all-green run. All game runs used the workspace including pre-existing uncommitted changes; original inputs.json records those changes and binary hashes.",
+  "plannedCaseExecutions": 214,
+  "executed": 214,
+  "passedCases": 214,
+  "failedCases": 0,
+  "notRun": [],
+  "distinctCases": 43,
+  "baseline": {
+    "path": "G:\\RimTestRuns\\RepairAcceptance\\20261016-113341-76ac2e98\\matrix.json",
+    "sha256": "14dea3f4720bbf2bfa5973f07e06792e11b49a164b79fa3f4f32f609cf68a6c0",
+    "passed": false,
+    "executed": 214,
+    "passedCases": 213,
+    "failedCases": 1,
+    "notRun": 0,
+    "notAttempted": []
+  },
+  "intermediateCacheAttempt": {
+    "path": "G:\\RimTestRuns\\RepairIdeologyCache\\20261016-115222-17f8d3aa\\matrix.json",
+    "sha256": "594a9e98c2986ccb111645ad91fc7482a6cf91453dab29b421fc2c431f9f117c",
+    "passed": false,
+    "executed": 56,
+    "passedCases": 55,
+    "failedCases": 1,
+    "notRun": 0,
+    "notAttempted": []
+  },
+  "intermediateClassicAttempt": {
+    "path": "G:\\RimTestRuns\\RepairClassicIdeology\\20261016-120249-9f056412\\matrix.json",
+    "sha256": "8e7b15759ad6de9e26c5838bcac85bc40319f06a4d0786684157e514c1eebe84",
+    "passed": false,
+    "executed": 48,
+    "passedCases": 45,
+    "failedCases": 3,
+    "notRun": 8,
+    "notAttempted": []
+  },
+  "intermediateSharedSetupAttempt": {
+    "path": "G:\\RimTestRuns\\RepairSharedSetup\\20261016-121023-193255a9\\matrix.json",
+    "sha256": "994aabb50c2deed7ea3165de19f21690319eb308c62e83c020d6f134740e4ede",
+    "passed": false,
+    "executed": 56,
+    "passedCases": 54,
+    "failedCases": 2,
+    "notRun": 0,
+    "notAttempted": []
+  },
+  "intermediateCanonicalAttempt": {
+    "path": "G:\\RimTestRuns\\RepairCanonicalIdeology\\20261016-121639-7668782d\\matrix.json",
+    "sha256": "d08c4ff9163aeea716aa06a2d706168e3e2a976601a245a1b0a5163162dc0763",
+    "passed": false,
+    "executed": 48,
+    "passedCases": 46,
+    "failedCases": 2,
+    "notRun": 8,
+    "notAttempted": []
+  },
+  "lifecycleAttempt": {
+    "path": "G:\\RimTestRuns\\RepairIdeologyLifecycle\\20261016-122159-06b2e4c4\\matrix.json",
+    "sha256": "a6bd2404a3b0110a58d96f95280624ccd3af32cc971ccf18a01d694b8e37cd34",
+    "passed": false,
+    "executed": 14,
+    "passedCases": 14,
+    "failedCases": 0,
+    "notRun": 42,
+    "notAttempted": []
+  },
+  "followup": {
+    "path": "G:\\RimTestRuns\\RepairDlcBusinessRepeat\\20261016-122358-e4935b52\\matrix.json",
+    "sha256": "83d8317d43945e65670c1332ed00b1690f3aedfa363248e8516c4331b8b6d29d",
+    "passed": true,
+    "executed": 42,
+    "passedCases": 42,
+    "failedCases": 0,
+    "notRun": 0,
+    "notAttempted": []
+  },
+  "binaryManifestsIdentical": false,
+  "binaryManifestsIdenticalWithinEachBatch": true,
+  "binaryBatches": {
+    "complete-baseline": [
+      {
+        "name": "AIRsLight.ClashOfRim.dll",
+        "sha256": "0959307A7AC47B6587F42F3F37B8E2133F8087FD47FFCBDB92B40D39FD3E4F97"
+      },
+      {
+        "name": "ClashOfRim.Compatibility.dll",
+        "sha256": "2DD29A9EFC78D74E807D6E74A04C040EE78554B990019BBA5CAB3AD5DB4BE89D"
+      },
+      {
+        "name": "ClashOfRim.Events.dll",
+        "sha256": "C44B869F8F2DD4565298C7015B0EE87B7D6611F61FA06590C8BC9F35849D2DEE"
+      },
+      {
+        "name": "ClashOfRim.GameTests.dll",
+        "sha256": "55B5F2E3A0EE794DD0C5C4528E2A8514085A4A377A24EE092A241C1E5652190B"
+      },
+      {
+        "name": "ClashOfRim.Network.dll",
+        "sha256": "1B5B2F433461B80F17941B2E80DF5DE1B3EA8BA61411369A391E3302F09536C9"
+      },
+      {
+        "name": "ClashOfRim.Protocol.dll",
+        "sha256": "2890DE9FB86D11F7F7869A0276E46555373332089E1C35F2EBC560371C5F378E"
+      },
+      {
+        "name": "ClashOfRim.RimTestBridge.dll",
+        "sha256": "CE4DC9A26C29A590758D0ADC9251AC1C8F5A75071EF1C994CC1DF6D1F3F8FB4F"
+      },
+      {
+        "name": "ClashOfRim.Save.dll",
+        "sha256": "3F75FD5C078AD067544757EBC2B141D31C37CF9A17C8E6CCBEA6BAE08A8FF13D"
+      },
+      {
+        "name": "Microsoft.Data.Sqlite.dll",
+        "sha256": "4FFA9156EBB9332BC53196CDE2E62997447AD046629216BE555E07D5D65F6C19"
+      },
+      {
+        "name": "RimTest.Client.dll",
+        "sha256": "2C8BEF43967578041E910A1F2DA084D715B93E6008A6F41B8A1DAA68517169D9"
+      },
+      {
+        "name": "RimTest.Protocol.dll",
+        "sha256": "8CC14566D226813EA48F9E7DD422F942BAFFB8F90BB190A2836AE53750AB2D0F"
+      },
+      {
+        "name": "RimTest.RimWorld.dll",
+        "sha256": "011E8E31B0405C950A600E1F3A191530FA1737C748A88E6279E6E91EF4E0AB34"
+      },
+      {
+        "name": "RimTest.Runtime.dll",
+        "sha256": "92E1F46DFD1DD03FA6945A21AB40596BA130D8795725F46CE4D5082C63250634"
+      },
+      {
+        "name": "RimTest.Testing.dll",
+        "sha256": "72488629FB62A3BDDB2BB7C49CE4DBA81092924CFB46A35D09F990717AB6232B"
+      },
+      {
+        "name": "SQLitePCLRaw.batteries_v2.dll",
+        "sha256": "94AC800C6B93AE50A025F247547781DEBE18391110667C5E242F51D8AC188FFB"
+      },
+      {
+        "name": "SQLitePCLRaw.core.dll",
+        "sha256": "3D2ED8E186F124F988EBDB45D0354185B424357BE2433BBA0033AB9EC31BD25B"
+      },
+      {
+        "name": "SQLitePCLRaw.provider.e_sqlite3.dll",
+        "sha256": "232990C8372AFF30574EEF9CC280B486EE6F39F8A66F83EA495DD0DBAE98740C"
+      }
+    ],
+    "classic-ideology-followup": [
+      {
+        "name": "AIRsLight.ClashOfRim.dll",
+        "sha256": "951E18219A238F21BEE0EBD9ABC386D7CCF55B1F2FBB6F53657291B2A915F7B5"
+      },
+      {
+        "name": "ClashOfRim.Compatibility.dll",
+        "sha256": "2DD29A9EFC78D74E807D6E74A04C040EE78554B990019BBA5CAB3AD5DB4BE89D"
+      },
+      {
+        "name": "ClashOfRim.Events.dll",
+        "sha256": "C44B869F8F2DD4565298C7015B0EE87B7D6611F61FA06590C8BC9F35849D2DEE"
+      },
+      {
+        "name": "ClashOfRim.GameTests.dll",
+        "sha256": "9D06BB80B83E7FB7898947349E49B71FDD71385DE0772ECF3B7C3D05E4FB9308"
+      },
+      {
+        "name": "ClashOfRim.Network.dll",
+        "sha256": "1B5B2F433461B80F17941B2E80DF5DE1B3EA8BA61411369A391E3302F09536C9"
+      },
+      {
+        "name": "ClashOfRim.Protocol.dll",
+        "sha256": "2890DE9FB86D11F7F7869A0276E46555373332089E1C35F2EBC560371C5F378E"
+      },
+      {
+        "name": "ClashOfRim.RimTestBridge.dll",
+        "sha256": "3A03E2B2617EF4CF37345312D1EA23F9F8107BA584948C0F6A8FEFBDBEEC5E63"
+      },
+      {
+        "name": "ClashOfRim.Save.dll",
+        "sha256": "3F75FD5C078AD067544757EBC2B141D31C37CF9A17C8E6CCBEA6BAE08A8FF13D"
+      },
+      {
+        "name": "Microsoft.Data.Sqlite.dll",
+        "sha256": "4FFA9156EBB9332BC53196CDE2E62997447AD046629216BE555E07D5D65F6C19"
+      },
+      {
+        "name": "RimTest.Client.dll",
+        "sha256": "2C8BEF43967578041E910A1F2DA084D715B93E6008A6F41B8A1DAA68517169D9"
+      },
+      {
+        "name": "RimTest.Protocol.dll",
+        "sha256": "8CC14566D226813EA48F9E7DD422F942BAFFB8F90BB190A2836AE53750AB2D0F"
+      },
+      {
+        "name": "RimTest.RimWorld.dll",
+        "sha256": "011E8E31B0405C950A600E1F3A191530FA1737C748A88E6279E6E91EF4E0AB34"
+      },
+      {
+        "name": "RimTest.Runtime.dll",
+        "sha256": "92E1F46DFD1DD03FA6945A21AB40596BA130D8795725F46CE4D5082C63250634"
+      },
+      {
+        "name": "RimTest.Testing.dll",
+        "sha256": "72488629FB62A3BDDB2BB7C49CE4DBA81092924CFB46A35D09F990717AB6232B"
+      },
+      {
+        "name": "SQLitePCLRaw.batteries_v2.dll",
+        "sha256": "94AC800C6B93AE50A025F247547781DEBE18391110667C5E242F51D8AC188FFB"
+      },
+      {
+        "name": "SQLitePCLRaw.core.dll",
+        "sha256": "3D2ED8E186F124F988EBDB45D0354185B424357BE2433BBA0033AB9EC31BD25B"
+      },
+      {
+        "name": "SQLitePCLRaw.provider.e_sqlite3.dll",
+        "sha256": "232990C8372AFF30574EEF9CC280B486EE6F39F8A66F83EA495DD0DBAE98740C"
+      }
+    ]
+  },
+  "scenarios": [
+    {
+      "id": "core-features",
+      "batch": "complete-baseline",
+      "passed": true,
+      "executed": 42,
+      "notRun": [],
+      "cases": [
+        {
+          "id": "launch-profile",
+          "status": "passed"
+        },
+        {
+          "id": "shared-world-entry",
+          "status": "passed"
+        },
+        {
+          "id": "world-parameters",
+          "status": "passed"
+        },
+        {
+          "id": "world-geometry",
+          "status": "passed"
+        },
+        {
+          "id": "world-tile-data",
+          "status": "passed"
+        },
+        {
+          "id": "world-feature-identities",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-difficulty",
+          "status": "passed"
+        },
+        {
+          "id": "culture-references",
+          "status": "passed"
+        },
+        {
+          "id": "world-persistence",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-permission",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-difficulty-sync",
+          "status": "passed"
+        },
+        {
+          "id": "account-password-change",
+          "status": "passed"
+        },
+        {
+          "id": "colony-appearance-sync",
+          "status": "passed"
+        },
+        {
+          "id": "public-chat",
+          "status": "passed"
+        },
+        {
+          "id": "private-chat-read",
+          "status": "passed"
+        },
+        {
+          "id": "unicode-chat-blank-rejection",
+          "status": "passed"
+        },
+        {
+          "id": "admin-configuration-permissions",
+          "status": "passed"
+        },
+        {
+          "id": "admin-action-permissions",
+          "status": "passed"
+        },
+        {
+          "id": "admin-role-grant-revoke",
+          "status": "passed"
+        },
+        {
+          "id": "admin-broadcast",
+          "status": "passed"
+        },
+        {
+          "id": "admin-kick-reconnect",
+          "status": "passed"
+        },
+        {
+          "id": "admin-ban-unban",
+          "status": "passed"
+        },
+        {
+          "id": "maintenance-password-rejection",
+          "status": "passed"
+        },
+        {
+          "id": "bank-input-rejection",
+          "status": "passed"
+        },
+        {
+          "id": "bank-loan-repayment",
+          "status": "passed"
+        },
+        {
+          "id": "shop-purchase-stock",
+          "status": "passed"
+        },
+        {
+          "id": "shop-buyback-stock-rejection",
+          "status": "passed"
+        },
+        {
+          "id": "trade-cancel-refund",
+          "status": "passed"
+        },
+        {
+          "id": "trade-memo-cancel",
+          "status": "passed"
+        },
+        {
+          "id": "trade-drop-pod-fulfillment",
+          "status": "passed"
+        },
+        {
+          "id": "achievement-unlock-leaderboard",
+          "status": "passed"
+        },
+        {
+          "id": "alliance-request-accept",
+          "status": "passed"
+        },
+        {
+          "id": "ally-observation-close",
+          "status": "passed"
+        },
+        {
+          "id": "caravan-load-travel",
+          "status": "passed"
+        },
+        {
+          "id": "caravan-gift-accept",
+          "status": "passed"
+        },
+        {
+          "id": "support-send-early-return",
+          "status": "passed"
+        },
+        {
+          "id": "mercenary-hire",
+          "status": "passed"
+        },
+        {
+          "id": "mercenary-recall",
+          "status": "passed"
+        },
+        {
+          "id": "raid-open-settle",
+          "status": "passed"
+        },
+        {
+          "id": "snapshot-save-reload",
+          "status": "passed"
+        },
+        {
+          "id": "session-reconnect",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-errors",
+          "status": "passed"
+        }
+      ],
+      "report": "G:\\RimTestRuns\\RepairAcceptance\\20261016-113341-76ac2e98\\core-features\\20261016-113351-d7d47c2e\\report.json",
+      "reportSha256": "c60b16f45a528666d0e7f19af4759e063173e47b84594675a8b02abf04815987",
+      "inputsSha256": "ad9caae17d903cb5eaf31ce6e5ee4d3ede97258084a02081248e7e714c2e8697",
+      "profileSha256": "709BE88557ECFFEDECAEEDD0FACCEECAB64673F0EFF1BCD18E8C53E619CC4050",
+      "repositoryCommit": "9aaab4189d80b2be2e1b97d45d54f06d504e556c",
+      "frameworkCommit": "143559423dc8cee5d46a694186743b311c15c0e5"
+    },
+    {
+      "id": "coverage50-french",
+      "batch": "complete-baseline",
+      "passed": true,
+      "executed": 14,
+      "notRun": [],
+      "cases": [
+        {
+          "id": "launch-profile",
+          "status": "passed"
+        },
+        {
+          "id": "shared-world-entry",
+          "status": "passed"
+        },
+        {
+          "id": "world-parameters",
+          "status": "passed"
+        },
+        {
+          "id": "world-geometry",
+          "status": "passed"
+        },
+        {
+          "id": "world-tile-data",
+          "status": "passed"
+        },
+        {
+          "id": "world-feature-identities",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-difficulty",
+          "status": "passed"
+        },
+        {
+          "id": "culture-references",
+          "status": "passed"
+        },
+        {
+          "id": "world-persistence",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-permission",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-difficulty-sync",
+          "status": "passed"
+        },
+        {
+          "id": "snapshot-save-reload",
+          "status": "passed"
+        },
+        {
+          "id": "session-reconnect",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-errors",
+          "status": "passed"
+        }
+      ],
+      "report": "G:\\RimTestRuns\\RepairAcceptance\\20261016-113341-76ac2e98\\coverage50-french\\20261016-113739-2c50fbb6\\report.json",
+      "reportSha256": "90c518c5a4d0d58ce1a32e49eea1ec0c0fd3635ccb62a4fb92215e98a80c6edb",
+      "inputsSha256": "347786416763feec6712c7dbb6f11cf7f43b8b500ea37c5fda8afefaf4c56dd0",
+      "profileSha256": "17A0353ABE93A38DE156371472219E619AA5E7CCB2704C6E41249FE8F07E5576",
+      "repositoryCommit": "9aaab4189d80b2be2e1b97d45d54f06d504e556c",
+      "frameworkCommit": "143559423dc8cee5d46a694186743b311c15c0e5"
+    },
+    {
+      "id": "coverage100-chinese-host",
+      "batch": "complete-baseline",
+      "passed": true,
+      "executed": 14,
+      "notRun": [],
+      "cases": [
+        {
+          "id": "launch-profile",
+          "status": "passed"
+        },
+        {
+          "id": "shared-world-entry",
+          "status": "passed"
+        },
+        {
+          "id": "world-parameters",
+          "status": "passed"
+        },
+        {
+          "id": "world-geometry",
+          "status": "passed"
+        },
+        {
+          "id": "world-tile-data",
+          "status": "passed"
+        },
+        {
+          "id": "world-feature-identities",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-difficulty",
+          "status": "passed"
+        },
+        {
+          "id": "culture-references",
+          "status": "passed"
+        },
+        {
+          "id": "world-persistence",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-permission",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-difficulty-sync",
+          "status": "passed"
+        },
+        {
+          "id": "snapshot-save-reload",
+          "status": "passed"
+        },
+        {
+          "id": "session-reconnect",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-errors",
+          "status": "passed"
+        }
+      ],
+      "report": "G:\\RimTestRuns\\RepairAcceptance\\20261016-113341-76ac2e98\\coverage100-chinese-host\\20261016-113841-ee20cf82\\report.json",
+      "reportSha256": "f22ecda1f47f8dc44f0861e3ea5a664fa0087acf0ab8663a6bd3002b5e532fa2",
+      "inputsSha256": "4a6ad10436754fad89836a5b41cdb162fa1e395688478f51a75225a7de9f2ad6",
+      "profileSha256": "CD06B9EF34C2DDA9BEDF533A73BEED423FA6AF92E84635C6E5CBA044CD427F6D",
+      "repositoryCommit": "9aaab4189d80b2be2e1b97d45d54f06d504e556c",
+      "frameworkCommit": "143559423dc8cee5d46a694186743b311c15c0e5"
+    },
+    {
+      "id": "dry-sparse-german",
+      "batch": "complete-baseline",
+      "passed": true,
+      "executed": 14,
+      "notRun": [],
+      "cases": [
+        {
+          "id": "launch-profile",
+          "status": "passed"
+        },
+        {
+          "id": "shared-world-entry",
+          "status": "passed"
+        },
+        {
+          "id": "world-parameters",
+          "status": "passed"
+        },
+        {
+          "id": "world-geometry",
+          "status": "passed"
+        },
+        {
+          "id": "world-tile-data",
+          "status": "passed"
+        },
+        {
+          "id": "world-feature-identities",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-difficulty",
+          "status": "passed"
+        },
+        {
+          "id": "culture-references",
+          "status": "passed"
+        },
+        {
+          "id": "world-persistence",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-permission",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-difficulty-sync",
+          "status": "passed"
+        },
+        {
+          "id": "snapshot-save-reload",
+          "status": "passed"
+        },
+        {
+          "id": "session-reconnect",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-errors",
+          "status": "passed"
+        }
+      ],
+      "report": "G:\\RimTestRuns\\RepairAcceptance\\20261016-113341-76ac2e98\\dry-sparse-german\\20261016-114011-b316c84a\\report.json",
+      "reportSha256": "c8b582290cd5149c33a64961cc8e4dc020c17dabd211ce5e7ac12593aa89d391",
+      "inputsSha256": "d6e082ec8da3b919e83aecb3af05c2670e677a34058381abaf032e74af81babf",
+      "profileSha256": "18121452B6B826B08BB4AF12F35888EABEDDF5B7A835640434F12A5D3B40C711",
+      "repositoryCommit": "9aaab4189d80b2be2e1b97d45d54f06d504e556c",
+      "frameworkCommit": "143559423dc8cee5d46a694186743b311c15c0e5"
+    },
+    {
+      "id": "wet-crowded-turkish",
+      "batch": "complete-baseline",
+      "passed": true,
+      "executed": 14,
+      "notRun": [],
+      "cases": [
+        {
+          "id": "launch-profile",
+          "status": "passed"
+        },
+        {
+          "id": "shared-world-entry",
+          "status": "passed"
+        },
+        {
+          "id": "world-parameters",
+          "status": "passed"
+        },
+        {
+          "id": "world-geometry",
+          "status": "passed"
+        },
+        {
+          "id": "world-tile-data",
+          "status": "passed"
+        },
+        {
+          "id": "world-feature-identities",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-difficulty",
+          "status": "passed"
+        },
+        {
+          "id": "culture-references",
+          "status": "passed"
+        },
+        {
+          "id": "world-persistence",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-permission",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-difficulty-sync",
+          "status": "passed"
+        },
+        {
+          "id": "snapshot-save-reload",
+          "status": "passed"
+        },
+        {
+          "id": "session-reconnect",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-errors",
+          "status": "passed"
+        }
+      ],
+      "report": "G:\\RimTestRuns\\RepairAcceptance\\20261016-113341-76ac2e98\\wet-crowded-turkish\\20261016-114050-7f337fdb\\report.json",
+      "reportSha256": "e2be88b0ea45e169eac4a434f62bebf8bb76e86945e09342b05470d764a7e37b",
+      "inputsSha256": "d68dca82f2b67d654a5f9995f64c5f6deae2acbb1eb5593b119c9ec8d06bdcdd",
+      "profileSha256": "BDD86AB98674F4D51EA3B59F884BD0AFE586D43FAF138A278E3656875A10BF8E",
+      "repositoryCommit": "9aaab4189d80b2be2e1b97d45d54f06d504e556c",
+      "frameworkCommit": "143559423dc8cee5d46a694186743b311c15c0e5"
+    },
+    {
+      "id": "cold-extreme",
+      "batch": "complete-baseline",
+      "passed": true,
+      "executed": 14,
+      "notRun": [],
+      "cases": [
+        {
+          "id": "launch-profile",
+          "status": "passed"
+        },
+        {
+          "id": "shared-world-entry",
+          "status": "passed"
+        },
+        {
+          "id": "world-parameters",
+          "status": "passed"
+        },
+        {
+          "id": "world-geometry",
+          "status": "passed"
+        },
+        {
+          "id": "world-tile-data",
+          "status": "passed"
+        },
+        {
+          "id": "world-feature-identities",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-difficulty",
+          "status": "passed"
+        },
+        {
+          "id": "culture-references",
+          "status": "passed"
+        },
+        {
+          "id": "world-persistence",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-permission",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-difficulty-sync",
+          "status": "passed"
+        },
+        {
+          "id": "snapshot-save-reload",
+          "status": "passed"
+        },
+        {
+          "id": "session-reconnect",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-errors",
+          "status": "passed"
+        }
+      ],
+      "report": "G:\\RimTestRuns\\RepairAcceptance\\20261016-113341-76ac2e98\\cold-extreme\\20261016-114152-84e63669\\report.json",
+      "reportSha256": "fc033f6d5f0a283258c80a6504b5ec62738093ebb89d4acdb86e6228d5d2d40b",
+      "inputsSha256": "7552f115fa2d16b208c7026ee10bdd70b134fbfd22600c0ee5bef922b0144f7f",
+      "profileSha256": "0EBE809380B949486BC6E5BFA1EE11CEBB7A71F64A76F06705E39DB3BAD4B3C6",
+      "repositoryCommit": "9aaab4189d80b2be2e1b97d45d54f06d504e556c",
+      "frameworkCommit": "143559423dc8cee5d46a694186743b311c15c0e5"
+    },
+    {
+      "id": "hot-custom-comma",
+      "batch": "complete-baseline",
+      "passed": true,
+      "executed": 14,
+      "notRun": [],
+      "cases": [
+        {
+          "id": "launch-profile",
+          "status": "passed"
+        },
+        {
+          "id": "shared-world-entry",
+          "status": "passed"
+        },
+        {
+          "id": "world-parameters",
+          "status": "passed"
+        },
+        {
+          "id": "world-geometry",
+          "status": "passed"
+        },
+        {
+          "id": "world-tile-data",
+          "status": "passed"
+        },
+        {
+          "id": "world-feature-identities",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-difficulty",
+          "status": "passed"
+        },
+        {
+          "id": "culture-references",
+          "status": "passed"
+        },
+        {
+          "id": "world-persistence",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-permission",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-difficulty-sync",
+          "status": "passed"
+        },
+        {
+          "id": "snapshot-save-reload",
+          "status": "passed"
+        },
+        {
+          "id": "session-reconnect",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-errors",
+          "status": "passed"
+        }
+      ],
+      "report": "G:\\RimTestRuns\\RepairAcceptance\\20261016-113341-76ac2e98\\hot-custom-comma\\20261016-114235-8c31b562\\report.json",
+      "reportSha256": "f56ea789715806bc417d5e74d50eeca134b61b98bcecf15f2f3fdd09167deb52",
+      "inputsSha256": "e343797d91a4b49d10d37c2e736a58f7c2ac315f77477277e62a15b3b9f457ae",
+      "profileSha256": "EAB557689995A3DD61FE50BCCA1022BC4DF766450DDAA58E5170645F54FD121E",
+      "repositoryCommit": "9aaab4189d80b2be2e1b97d45d54f06d504e556c",
+      "frameworkCommit": "143559423dc8cee5d46a694186743b311c15c0e5"
+    },
+    {
+      "id": "dlc-cultures",
+      "batch": "classic-ideology-followup",
+      "passed": true,
+      "executed": 42,
+      "notRun": [],
+      "cases": [
+        {
+          "id": "launch-profile",
+          "status": "passed"
+        },
+        {
+          "id": "shared-world-entry",
+          "status": "passed"
+        },
+        {
+          "id": "world-parameters",
+          "status": "passed"
+        },
+        {
+          "id": "world-geometry",
+          "status": "passed"
+        },
+        {
+          "id": "world-tile-data",
+          "status": "passed"
+        },
+        {
+          "id": "world-feature-identities",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-difficulty",
+          "status": "passed"
+        },
+        {
+          "id": "culture-references",
+          "status": "passed"
+        },
+        {
+          "id": "world-persistence",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-permission",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-difficulty-sync",
+          "status": "passed"
+        },
+        {
+          "id": "account-password-change",
+          "status": "passed"
+        },
+        {
+          "id": "colony-appearance-sync",
+          "status": "passed"
+        },
+        {
+          "id": "public-chat",
+          "status": "passed"
+        },
+        {
+          "id": "private-chat-read",
+          "status": "passed"
+        },
+        {
+          "id": "unicode-chat-blank-rejection",
+          "status": "passed"
+        },
+        {
+          "id": "admin-configuration-permissions",
+          "status": "passed"
+        },
+        {
+          "id": "admin-action-permissions",
+          "status": "passed"
+        },
+        {
+          "id": "admin-role-grant-revoke",
+          "status": "passed"
+        },
+        {
+          "id": "admin-broadcast",
+          "status": "passed"
+        },
+        {
+          "id": "admin-kick-reconnect",
+          "status": "passed"
+        },
+        {
+          "id": "admin-ban-unban",
+          "status": "passed"
+        },
+        {
+          "id": "maintenance-password-rejection",
+          "status": "passed"
+        },
+        {
+          "id": "bank-input-rejection",
+          "status": "passed"
+        },
+        {
+          "id": "bank-loan-repayment",
+          "status": "passed"
+        },
+        {
+          "id": "shop-purchase-stock",
+          "status": "passed"
+        },
+        {
+          "id": "shop-buyback-stock-rejection",
+          "status": "passed"
+        },
+        {
+          "id": "trade-cancel-refund",
+          "status": "passed"
+        },
+        {
+          "id": "trade-memo-cancel",
+          "status": "passed"
+        },
+        {
+          "id": "trade-drop-pod-fulfillment",
+          "status": "passed"
+        },
+        {
+          "id": "achievement-unlock-leaderboard",
+          "status": "passed"
+        },
+        {
+          "id": "alliance-request-accept",
+          "status": "passed"
+        },
+        {
+          "id": "ally-observation-close",
+          "status": "passed"
+        },
+        {
+          "id": "caravan-load-travel",
+          "status": "passed"
+        },
+        {
+          "id": "caravan-gift-accept",
+          "status": "passed"
+        },
+        {
+          "id": "support-send-early-return",
+          "status": "passed"
+        },
+        {
+          "id": "mercenary-hire",
+          "status": "passed"
+        },
+        {
+          "id": "mercenary-recall",
+          "status": "passed"
+        },
+        {
+          "id": "raid-open-settle",
+          "status": "passed"
+        },
+        {
+          "id": "snapshot-save-reload",
+          "status": "passed"
+        },
+        {
+          "id": "session-reconnect",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-errors",
+          "status": "passed"
+        }
+      ],
+      "report": "G:\\RimTestRuns\\RepairDlcBusinessRepeat\\20261016-122358-e4935b52\\dlc-cultures\\20261016-122358-9c1834d9\\report.json",
+      "reportSha256": "bf124827ab5060eb3000c0dcd50e5c0eb535fe925a50a4532dc7078a32604622",
+      "inputsSha256": "d85511c7d81634a882fc37a9d2353e605ad1d1bfa64bdf93315b4878c7470174",
+      "profileSha256": "B6C656650BB7FFC31138437754D60F4CF2C9E069771E90CBB838312003C91740",
+      "repositoryCommit": "9aaab4189d80b2be2e1b97d45d54f06d504e556c",
+      "frameworkCommit": "143559423dc8cee5d46a694186743b311c15c0e5"
+    },
+    {
+      "id": "mod-storyteller100",
+      "batch": "complete-baseline",
+      "passed": true,
+      "executed": 14,
+      "notRun": [],
+      "cases": [
+        {
+          "id": "launch-profile",
+          "status": "passed"
+        },
+        {
+          "id": "shared-world-entry",
+          "status": "passed"
+        },
+        {
+          "id": "world-parameters",
+          "status": "passed"
+        },
+        {
+          "id": "world-geometry",
+          "status": "passed"
+        },
+        {
+          "id": "world-tile-data",
+          "status": "passed"
+        },
+        {
+          "id": "world-feature-identities",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-difficulty",
+          "status": "passed"
+        },
+        {
+          "id": "culture-references",
+          "status": "passed"
+        },
+        {
+          "id": "world-persistence",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-permission",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-difficulty-sync",
+          "status": "passed"
+        },
+        {
+          "id": "snapshot-save-reload",
+          "status": "passed"
+        },
+        {
+          "id": "session-reconnect",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-errors",
+          "status": "passed"
+        }
+      ],
+      "report": "G:\\RimTestRuns\\RepairAcceptance\\20261016-113341-76ac2e98\\mod-storyteller100\\20261016-114828-be47faae\\report.json",
+      "reportSha256": "0a7bcd5d68a153ec351449e56f3ce8a35c6314af479e0ea75fb7e52e459783d4",
+      "inputsSha256": "3a923a1c25152e7c290688a4ea5cc6a0d3eb395eeb8321a3b3dbd036fe801e19",
+      "profileSha256": "A6FC736E9500EB329DEBFFABDEC94ADBC322195CBF3DA8BFC318BF197B4654A7",
+      "repositoryCommit": "9aaab4189d80b2be2e1b97d45d54f06d504e556c",
+      "frameworkCommit": "143559423dc8cee5d46a694186743b311c15c0e5"
+    },
+    {
+      "id": "dlc-culture-stress",
+      "batch": "classic-ideology-followup",
+      "passed": true,
+      "executed": 14,
+      "notRun": [],
+      "cases": [
+        {
+          "id": "launch-profile",
+          "status": "passed"
+        },
+        {
+          "id": "shared-world-entry",
+          "status": "passed"
+        },
+        {
+          "id": "world-parameters",
+          "status": "passed"
+        },
+        {
+          "id": "world-geometry",
+          "status": "passed"
+        },
+        {
+          "id": "world-tile-data",
+          "status": "passed"
+        },
+        {
+          "id": "world-feature-identities",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-difficulty",
+          "status": "passed"
+        },
+        {
+          "id": "culture-references",
+          "status": "passed"
+        },
+        {
+          "id": "world-persistence",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-permission",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-difficulty-sync",
+          "status": "passed"
+        },
+        {
+          "id": "snapshot-save-reload",
+          "status": "passed"
+        },
+        {
+          "id": "session-reconnect",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-errors",
+          "status": "passed"
+        }
+      ],
+      "report": "G:\\RimTestRuns\\RepairIdeologyLifecycle\\20261016-122159-06b2e4c4\\dlc-culture-stress\\20261016-122225-b218e071\\report.json",
+      "reportSha256": "c59e12614165a06e6eea37973f59c5c6fa18761f92435e636d224576b9195575",
+      "inputsSha256": "48961d83a98c988dc9519d301558915ebc5d5d11ac157d485f9596e912acbd68",
+      "profileSha256": "0E758FF9ADC879C6410A68DFF4CAF39F9EFC9B48D8F8CA097330908D440D0298",
+      "repositoryCommit": "9aaab4189d80b2be2e1b97d45d54f06d504e556c",
+      "frameworkCommit": "143559423dc8cee5d46a694186743b311c15c0e5"
+    },
+    {
+      "id": "gift-repeat-accept",
+      "batch": "complete-baseline",
+      "passed": true,
+      "executed": 18,
+      "notRun": [],
+      "cases": [
+        {
+          "id": "launch-profile",
+          "status": "passed"
+        },
+        {
+          "id": "shared-world-entry",
+          "status": "passed"
+        },
+        {
+          "id": "world-parameters",
+          "status": "passed"
+        },
+        {
+          "id": "world-geometry",
+          "status": "passed"
+        },
+        {
+          "id": "world-tile-data",
+          "status": "passed"
+        },
+        {
+          "id": "world-feature-identities",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-difficulty",
+          "status": "passed"
+        },
+        {
+          "id": "culture-references",
+          "status": "passed"
+        },
+        {
+          "id": "world-persistence",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-permission",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-difficulty-sync",
+          "status": "passed"
+        },
+        {
+          "id": "alliance-request-accept",
+          "status": "passed"
+        },
+        {
+          "id": "caravan-load-travel",
+          "status": "passed"
+        },
+        {
+          "id": "caravan-gift-accept",
+          "status": "passed"
+        },
+        {
+          "id": "gift-repeat-accept",
+          "status": "passed"
+        },
+        {
+          "id": "snapshot-save-reload",
+          "status": "passed"
+        },
+        {
+          "id": "session-reconnect",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-errors",
+          "status": "passed"
+        }
+      ],
+      "report": "G:\\RimTestRuns\\RepairAcceptance\\20261016-113341-76ac2e98\\gift-repeat-accept\\20261016-115048-1ca0e37c\\report.json",
+      "reportSha256": "bcaf69d52ea144eae0a86004375a1ec619672720e836c6c99b3b822a100a1d69",
+      "inputsSha256": "0f1915a057afe821d63117fd01e739b5a6f3877655a357ada5016cc4096fad53",
+      "profileSha256": "5518536163C5367AB23B6869192BAE7448D31A375F9534A5FED089D7C201E52F",
+      "repositoryCommit": "9aaab4189d80b2be2e1b97d45d54f06d504e556c",
+      "frameworkCommit": "143559423dc8cee5d46a694186743b311c15c0e5"
+    }
+  ],
+  "fixCommits": [
+    "94a8c544d7cefb7a6e1e9666461c292e53093f44 Reject stale event letter actions before applying deliveries",
+    "bed32c835bc86397f2176a7518ee5d7a906098ac Block automatic session admission from the game being unloaded",
+    "5f57cd4ae4dcb01cb319a00338078c4fec7a3c7a Preserve numeric game data across client cultures",
+    "57b43a45c069530d914b30bc90493b1a54c4a573 Restore default feature IDs and use supported world text rendering",
+    "98458a9ea08795c6e203565afe9fd9b39d82d025 Synchronize shared message formatting across network and UI threads",
+    "24fb74875ecd9dd115da9d6221fe88955188fca9 Localize Core pawn gene identities without requiring Biotech",
+    "098061577150bbf3d692d7ea93b5267a12efd1c5 Persist population and landmark density in world saves",
+    "89b2d9daf8e2cd866583dcafb2c09fee9b815956 Apply canonical NPC ideology definitions across client languages",
+    "9aaab4189d80b2be2e1b97d45d54f06d504e556c Preserve ideology metadata and canonical summary semantics on rebuild",
+    "d3e8c403afe3d547dca6dd25651a1cdbcbb64cfb Preserve shared ideology definitions through setup and pawn exchange"
+  ],
+  "commands": [
+    "pwsh ./Tools/Test-RimTestMatrix.ps1 -RimWorldPath E:/SteamLibrary/steamapps/common/RimWorld -HarmonyPath E:/SteamLibrary/steamapps/workshop/content/294100/2009463077 -RunsDirectory G:/RimTestRuns/RepairAcceptance -Headless",
+    "pwsh ./Tools/Test-RimTestMatrix.ps1 -RimWorldPath E:/SteamLibrary/steamapps/common/RimWorld -HarmonyPath E:/SteamLibrary/steamapps/workshop/content/294100/2009463077 -RunsDirectory G:/RimTestRuns/RepairIdeologyLifecycle -Headless -Scenario dlc-cultures,dlc-culture-stress",
+    "pwsh ./Tools/Test-RimTestMatrix.ps1 -RimWorldPath E:/SteamLibrary/steamapps/common/RimWorld -HarmonyPath E:/SteamLibrary/steamapps/workshop/content/294100/2009463077 -RunsDirectory G:/RimTestRuns/RepairDlcBusinessRepeat -Headless -Scenario dlc-cultures -SkipBuild"
+  ],
+  "isolatedSourceChecks": {
+    "description": "HEAD 9aaab418 archive without unrelated workspace edits; client also tested with the final ideology fixes and new binding test applied.",
+    "baseClient": {
+      "log": "LocalOnly/repair-committed-client.log",
+      "logSha256": "92509e22f648620f1e775705666f1204d42292e9f16e42c73d0b59389ccc91de",
+      "passed": true
+    },
+    "serverBuild": {
+      "log": "LocalOnly/repair-committed-server.log",
+      "logSha256": "c46ea467dcf95792e626a95ee0483d29b1453fd292dc4b4017f1e330abd26527",
+      "passed": true
+    },
+    "metadata": {
+      "log": "LocalOnly/repair-committed-metadata.log",
+      "logSha256": "87edf3f9c42905927702e823cf0065cf3ef64d31c4aac597a81ea878453ec3ad",
+      "passed": true
+    },
+    "oldBindingNegative": {
+      "log": "LocalOnly/repair-ideo-negative.log",
+      "logSha256": "9f1bcd4021dbc238deafde1433d938c43da2d2d60b22ba4bee4c49345c63e343",
+      "expectedExitCode": 1,
+      "expectedFailure": "A superseded catalog entry won over the faction's current primary ideology."
+    },
+    "finalClient": {
+      "log": "LocalOnly/repair-ideo-committed-positive.log",
+      "logSha256": "21cca45c61cfb5a6166111c61f3c075602f909c94767c4a67c6cb188877dc589",
+      "passed": true
+    }
+  },
+  "regression": {
+    "log": "LocalOnly/repair-regression.log",
+    "logSha256": "840f8c1f01a5e7e7d0bbb25d0e9840e59deafecadb6e52b8a052cdd410fcc503",
+    "passed": true,
+    "exitCode": 0,
+    "description": "Full regression before the final DLC-only followup; final client suite rerun separately.",
+    "command": "pwsh ./Tools/Test-Regression.ps1 -IncludeClient -RimWorldManagedDir E:/SteamLibrary/steamapps/common/RimWorld"
+  },
+  "finalClient": {
+    "log": "LocalOnly/repair-ideo-client.log",
+    "logSha256": "820ec3fea60b2df1e9eb1eacb16021d6bfe5791b88355a1900f60d20dd9ff4a7",
+    "passed": true
+  },
+  "frozen16": {
+    "log": "LocalOnly/repair-frozen.log",
+    "logSha256": "5f69d35ac81006bd3f7c2029341f2d598a40e6397dafd5c8fd138b610a686781",
+    "passed": true,
+    "files": 77,
+    "command": "pwsh ./Tools/Test-FrozenLegacy.ps1"
+  },
+  "renderedControl": {
+    "passed": true,
+    "scenario": "coverage50-french",
+    "executed": 14,
+    "report": "G:\\RimTestRuns\\RepairRendered\\20261016-113002-d859e7b7\\coverage50-french\\20261016-113002-fefbbc3e\\report.json",
+    "reportSha256": "3905db6fbf5f03e7b6a847e2316c65c107078ca2f25260aed4d63b02746623ca",
+    "limitation": "Semantic assertions and runtime error gate with rendering enabled; not pixel/font/layout or mouse interaction verification."
+  },
+  "unresolvedFindings": [
+    {
+      "kind": "startup-runtime-crash",
+      "code": "0x80131506",
+      "description": "One client terminated in CoreCLR/MonoMod JIT before runtime.hello and before any test case. The same-build profile rerun passed; the native failure cause has not been fixed or established.",
+      "evidence": "G:\\RimTestRuns\\RepairIdeologyLifecycle\\20261016-122159-06b2e4c4\\dlc-cultures\\20261016-122204-ddc76ace"
+    }
+  ],
+  "coverageLimits": [
+    "Two real Steam identities not exercised",
+    "Gravship long-flight and DLC-subset/Workshop combinations remain outside this matrix",
+    "Three-player conflicts, runtime crash injection, complex cargo and every real combat-loss branch are not covered by these game scenarios",
+    "Fixes prevent new corruption; historical numeric/world corruption is not automatically repaired."
+  ]
+}
