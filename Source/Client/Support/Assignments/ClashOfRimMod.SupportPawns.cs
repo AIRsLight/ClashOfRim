@@ -430,7 +430,7 @@ public sealed partial class ClashOfRimMod
         }
 
         Pawn? pawn = FindSupportPawnByThingId(assignment.PawnThingId);
-        if (pawn is null || pawn.Dead)
+        if (pawn is null)
         {
             return false;
         }
@@ -475,11 +475,14 @@ public sealed partial class ClashOfRimMod
             return false;
         }
 
-        component.MarkSupportAssignmentInProgress(assignment.EventId, inProgress: true);
-        if (!pawn.Dead)
+        if (pawn.Dead)
         {
-            PawnExchangeLifecycleService.StripExchangeTags(pawn);
+            StartFinishDepartedSupportPawn(component, assignment, pawn, finishReason);
+            return true;
         }
+
+        component.MarkSupportAssignmentInProgress(assignment.EventId, inProgress: true);
+        PawnExchangeLifecycleService.StripExchangeTags(pawn);
 
         Faction? originalFaction = SupportPawnFactionUtility.ResolveOriginalFaction(assignment);
         PrepareSupportPawnForReturn(pawn, originalFaction);

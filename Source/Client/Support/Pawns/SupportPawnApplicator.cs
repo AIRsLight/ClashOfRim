@@ -207,7 +207,8 @@ internal static class SupportPawnApplicator
             return false;
         }
 
-        return string.Equals(payload.ReturnReason, "RaidSettlementLost", StringComparison.Ordinal)
+        return payload.PawnReference?.Dead == true
+            || string.Equals(payload.ReturnReason, "RaidSettlementLost", StringComparison.Ordinal)
             || string.Equals(payload.ReturnReason, "MapUnloaded", StringComparison.Ordinal)
             || string.Equals(payload.ReturnReason, "SnapshotDeath", StringComparison.Ordinal);
     }

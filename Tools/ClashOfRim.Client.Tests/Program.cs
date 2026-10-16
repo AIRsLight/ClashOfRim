@@ -24,6 +24,7 @@ var tests = new (string Name, Action Run)[]
     ("shop distinguishes minifiable contents from empty wrappers", ShopDefinitionEligibilityTests.Run),
     ("battle reload addiction guard is limited to missing needs during load", AddictionLoadStateTests.Run),
     ("vanilla transfer state survives cultures and rejects partial invalid state", CoreTransferStateTests.Run),
+    ("support death returns use explicit state and preserve legacy loss reasons", SupportLossClassificationTests.Run),
     ("server ideology catalog follows replaced faction primary instances", IdeologyCatalogBindingTests.Run),
     ("concurrent localized messages retain their own arguments", ConcurrentFormattingTests.Run),
     ("Scribe XML preserves fractional values across cultures", ScribeCultureTests.Run),

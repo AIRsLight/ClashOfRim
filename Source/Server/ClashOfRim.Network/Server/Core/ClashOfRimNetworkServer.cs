@@ -2746,7 +2746,7 @@ public static partial class ClashOfRimNetworkServer
             pawnName ?? payload.PawnName,
             TemporaryControl: false,
             ExpectedReturnAtUtc: null,
-            payload.PawnReference,
+            (payload.PawnReference ?? new CrossMapPawnReference(payload.PawnGlobalKey, payload.SourceSnapshotId, pawnName ?? payload.PawnName, null, null)) with { Dead = true },
             PawnPackage: null,
             payload.SourceTile,
             payload.SourceCaravanLoadId,

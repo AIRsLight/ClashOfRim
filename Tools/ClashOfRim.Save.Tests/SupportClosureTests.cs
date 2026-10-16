@@ -358,6 +358,9 @@ internal static partial class SupportClosureTests
         }
         var finish = (FinishSupportPawnResponse)Invoke<IValueHttpResult>("FinishSupportPawn",
             Request(kind, reason, user, pawnKey, packageKey, eventId, token), state).Value!;
+        if (kind == "loss" && finish.Result.Accepted && finish.Created)
+            Require(((SupportPawnEventPayload)state.Ledger.Find(finish.ReturnEventId!)!.Payload).PawnReference?.Dead == true,
+                "Loss return did not explicitly identify the dead pawn independently of its reason.");
         return (finish.Result.Accepted, finish.Created, finish.ReturnEventId);
     }
 
