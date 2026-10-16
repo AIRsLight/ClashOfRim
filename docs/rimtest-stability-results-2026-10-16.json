@@ -1,0 +1,942 @@
+{
+  "date": "2026-10-16",
+  "gameVersion": "1.7.4980 rev60",
+  "passed": true,
+  "fullCoverage": false,
+  "evidenceKind": "Latest complete evidence across incremental builds. The full DLC editor catalog is covered by four disjoint samples; all four independently enumerate the same 853-definition universe, and their purchased union exactly equals it. Other canonical profiles have one complete run each. Not one immutable all-green run. Original failed runs remain in the report. Live runs include pre-existing uncommitted workspace/framework changes; inputs.json retains exact binary hashes. Committed client sources were separately exported and unit-tested.",
+  "canonicalProfiles": 10,
+  "scenarioExecutions": 13,
+  "dlcCatalogCoverage": {
+    "definitions": 853,
+    "purchased": 853,
+    "duplicates": 0,
+    "missing": [],
+    "definitionSetSha256": "ebd459c6e4a21d89b5ba6c384ddaa668bc352670a06644290059570ad5b8938e"
+  },
+  "executed": 217,
+  "passedCases": 217,
+  "distinctCases": 30,
+  "failedCases": 0,
+  "notRun": [],
+  "profiles": [
+    {
+      "id": "stability-transfers-core",
+      "report": {
+        "path": "G:\\RimTestRuns\\StabilityItemsFixed\\20261016-132750-9a72d968\\stability-transfers-core\\20261016-132750-bfba82f9\\report.json",
+        "sha256": "6713e364c834f4749f115f45efd6e5ef9870b00353a53f6d3845421ac4824102"
+      },
+      "inputs": {
+        "path": "G:\\RimTestRuns\\StabilityItemsFixed\\20261016-132750-9a72d968\\stability-transfers-core\\20261016-132750-bfba82f9\\inputs.json",
+        "sha256": "c9980c37ff211cc7d25ff6c2ac16528d69882a24ccb913207e2dabca1c4695ec"
+      },
+      "profile": {
+        "path": "G:\\RimTestRuns\\StabilityItemsFixed\\20261016-132750-9a72d968\\stability-transfers-core\\20261016-132750-bfba82f9\\profile.json",
+        "sha256": "f0a6b9a479db9a96029c914d44d9c87ea3c5e3a9a401609454750b1f5f340ec8"
+      },
+      "repositoryCommitAtRun": "6aa3726a803bb1903a8578a9e87f14ed6496e5b3",
+      "frameworkCommitAtRun": "143559423dc8cee5d46a694186743b311c15c0e5",
+      "hadUncommittedWorkspaceChanges": true,
+      "hadUncommittedFrameworkChanges": true,
+      "passed": true,
+      "cases": [
+        "launch-profile",
+        "shared-world-entry",
+        "world-parameters",
+        "world-geometry",
+        "world-tile-data",
+        "world-feature-identities",
+        "storyteller-difficulty",
+        "culture-references",
+        "world-persistence",
+        "storyteller-permission",
+        "runtime-difficulty-sync",
+        "alliance-request-accept",
+        "remote-map-isolation-repeat",
+        "pawn-state-fixture",
+        "caravan-load-travel",
+        "support-state-early-return",
+        "support-state-rejected-return",
+        "support-state-expired-return",
+        "raid-loss-reload-settlement",
+        "snapshot-save-reload",
+        "session-reconnect",
+        "runtime-errors"
+      ],
+      "notRun": []
+    },
+    {
+      "id": "stability-transfers-dlc",
+      "report": {
+        "path": "G:\\RimTestRuns\\StabilityItemsFixed\\20261016-132750-9a72d968\\stability-transfers-dlc\\20261016-133021-e6774b2f\\report.json",
+        "sha256": "07dbb4096f4912299d03cbb60d5490e50b9f4daf09fd124e04573271da7c21e8"
+      },
+      "inputs": {
+        "path": "G:\\RimTestRuns\\StabilityItemsFixed\\20261016-132750-9a72d968\\stability-transfers-dlc\\20261016-133021-e6774b2f\\inputs.json",
+        "sha256": "9ddbafe6905797d566fb9b7af4b2050378cba4692f752c1920d606065f260185"
+      },
+      "profile": {
+        "path": "G:\\RimTestRuns\\StabilityItemsFixed\\20261016-132750-9a72d968\\stability-transfers-dlc\\20261016-133021-e6774b2f\\profile.json",
+        "sha256": "48a169ad4842335d6d3f18a12cdfd5e9482bfacc0a0949a0271f1029adf471a7"
+      },
+      "repositoryCommitAtRun": "6aa3726a803bb1903a8578a9e87f14ed6496e5b3",
+      "frameworkCommitAtRun": "143559423dc8cee5d46a694186743b311c15c0e5",
+      "hadUncommittedWorkspaceChanges": true,
+      "hadUncommittedFrameworkChanges": true,
+      "passed": true,
+      "cases": [
+        "launch-profile",
+        "shared-world-entry",
+        "world-parameters",
+        "world-geometry",
+        "world-tile-data",
+        "world-feature-identities",
+        "storyteller-difficulty",
+        "culture-references",
+        "world-persistence",
+        "storyteller-permission",
+        "runtime-difficulty-sync",
+        "alliance-request-accept",
+        "remote-map-isolation-repeat",
+        "pawn-state-fixture",
+        "caravan-load-travel",
+        "support-state-early-return",
+        "support-state-rejected-return",
+        "support-state-expired-return",
+        "raid-loss-reload-settlement",
+        "snapshot-save-reload",
+        "session-reconnect",
+        "runtime-errors"
+      ],
+      "notRun": []
+    },
+    {
+      "id": "stability-items-core",
+      "report": {
+        "path": "G:\\RimTestRuns\\StabilityItemsFixed\\20261016-132750-9a72d968\\stability-items-core\\20261016-133336-87b7805b\\report.json",
+        "sha256": "bf30b6cc4fdcbcdedcdaacb1163dd35ceecde06605e9434def68e3d856083180"
+      },
+      "inputs": {
+        "path": "G:\\RimTestRuns\\StabilityItemsFixed\\20261016-132750-9a72d968\\stability-items-core\\20261016-133336-87b7805b\\inputs.json",
+        "sha256": "4f6be548994958ed6e0ca665d5f86409f10420842bc46473ddab89f945ee69f7"
+      },
+      "profile": {
+        "path": "G:\\RimTestRuns\\StabilityItemsFixed\\20261016-132750-9a72d968\\stability-items-core\\20261016-133336-87b7805b\\profile.json",
+        "sha256": "25538a38973620f6959fce29fe5c5c6dabb498e6efc3724611e3129f0b0c0741"
+      },
+      "repositoryCommitAtRun": "6aa3726a803bb1903a8578a9e87f14ed6496e5b3",
+      "frameworkCommitAtRun": "143559423dc8cee5d46a694186743b311c15c0e5",
+      "hadUncommittedWorkspaceChanges": true,
+      "hadUncommittedFrameworkChanges": true,
+      "passed": true,
+      "cases": [
+        "launch-profile",
+        "shared-world-entry",
+        "world-parameters",
+        "world-geometry",
+        "world-tile-data",
+        "world-feature-identities",
+        "storyteller-difficulty",
+        "culture-references",
+        "world-persistence",
+        "storyteller-permission",
+        "runtime-difficulty-sync",
+        "complex-item-fixture",
+        "complex-item-cancel-refund",
+        "complex-item-trade-delivery",
+        "snapshot-save-reload",
+        "session-reconnect",
+        "runtime-errors"
+      ],
+      "notRun": []
+    },
+    {
+      "id": "stability-items-dlc",
+      "report": {
+        "path": "G:\\RimTestRuns\\StabilityItemsFixed\\20261016-132750-9a72d968\\stability-items-dlc\\20261016-133522-87289920\\report.json",
+        "sha256": "0c68248d886ab37f51dbc12c64798bd5a7b568607c063d38a58d421284880fef"
+      },
+      "inputs": {
+        "path": "G:\\RimTestRuns\\StabilityItemsFixed\\20261016-132750-9a72d968\\stability-items-dlc\\20261016-133522-87289920\\inputs.json",
+        "sha256": "688203bf3043cf13d2adb2e272f61b49d62f3c3e89574d96e15f433ac9493144"
+      },
+      "profile": {
+        "path": "G:\\RimTestRuns\\StabilityItemsFixed\\20261016-132750-9a72d968\\stability-items-dlc\\20261016-133522-87289920\\profile.json",
+        "sha256": "628de1282237dded6ef744ba542f90a46c3e6ad19552fc7acc46661b26e867d3"
+      },
+      "repositoryCommitAtRun": "6aa3726a803bb1903a8578a9e87f14ed6496e5b3",
+      "frameworkCommitAtRun": "143559423dc8cee5d46a694186743b311c15c0e5",
+      "hadUncommittedWorkspaceChanges": true,
+      "hadUncommittedFrameworkChanges": true,
+      "passed": true,
+      "cases": [
+        "launch-profile",
+        "shared-world-entry",
+        "world-parameters",
+        "world-geometry",
+        "world-tile-data",
+        "world-feature-identities",
+        "storyteller-difficulty",
+        "culture-references",
+        "world-persistence",
+        "storyteller-permission",
+        "runtime-difficulty-sync",
+        "complex-item-fixture",
+        "complex-item-cancel-refund",
+        "complex-item-trade-delivery",
+        "snapshot-save-reload",
+        "session-reconnect",
+        "runtime-errors"
+      ],
+      "notRun": []
+    },
+    {
+      "id": "stability-support-permanent",
+      "report": {
+        "path": "G:\\RimTestRuns\\StabilityLoadFixed\\20261016-131424-a31d89d5\\stability-support-permanent\\20261016-131959-2ebdd101\\report.json",
+        "sha256": "e55b680a3d0e04474bb724ca5e7ec7e030059a3a81b96e147c4a34caa7908ba9"
+      },
+      "inputs": {
+        "path": "G:\\RimTestRuns\\StabilityLoadFixed\\20261016-131424-a31d89d5\\stability-support-permanent\\20261016-131959-2ebdd101\\inputs.json",
+        "sha256": "133dd755c08b2a3a3333941e2c0e302eb49906078e5707dd66eb935a8a50bb59"
+      },
+      "profile": {
+        "path": "G:\\RimTestRuns\\StabilityLoadFixed\\20261016-131424-a31d89d5\\stability-support-permanent\\20261016-131959-2ebdd101\\profile.json",
+        "sha256": "31897f1483546b7bf67d2f25602de25205b64eb224df0ec44f8d629b59783256"
+      },
+      "repositoryCommitAtRun": "6aa3726a803bb1903a8578a9e87f14ed6496e5b3",
+      "frameworkCommitAtRun": "143559423dc8cee5d46a694186743b311c15c0e5",
+      "hadUncommittedWorkspaceChanges": true,
+      "hadUncommittedFrameworkChanges": true,
+      "passed": true,
+      "cases": [
+        "launch-profile",
+        "shared-world-entry",
+        "world-parameters",
+        "world-geometry",
+        "world-tile-data",
+        "world-feature-identities",
+        "storyteller-difficulty",
+        "culture-references",
+        "world-persistence",
+        "storyteller-permission",
+        "runtime-difficulty-sync",
+        "alliance-request-accept",
+        "caravan-load-travel",
+        "support-permanent-state",
+        "snapshot-save-reload",
+        "session-reconnect",
+        "runtime-errors"
+      ],
+      "notRun": []
+    },
+    {
+      "id": "stability-support-death",
+      "report": {
+        "path": "G:\\RimTestRuns\\StabilityDeathFinal\\20261016-134924-0e86295a\\stability-support-death\\20261016-134924-6d5bc6bd\\report.json",
+        "sha256": "d1955b02e1b1be073b75d5757ed924d84e113791e0638b2e93a3bc547424159e"
+      },
+      "inputs": {
+        "path": "G:\\RimTestRuns\\StabilityDeathFinal\\20261016-134924-0e86295a\\stability-support-death\\20261016-134924-6d5bc6bd\\inputs.json",
+        "sha256": "7b047a88d1e59289d7faaf403f6cc26c5198a4c6d8d6c536845d98c5e03d9a5d"
+      },
+      "profile": {
+        "path": "G:\\RimTestRuns\\StabilityDeathFinal\\20261016-134924-0e86295a\\stability-support-death\\20261016-134924-6d5bc6bd\\profile.json",
+        "sha256": "18d7f3c6847d7620e405578451ff78153bbe20b713c110f266f69d7cd8619370"
+      },
+      "repositoryCommitAtRun": "cc0b2899e389be31c8d205b337d427e9be98f54c",
+      "frameworkCommitAtRun": "143559423dc8cee5d46a694186743b311c15c0e5",
+      "hadUncommittedWorkspaceChanges": true,
+      "hadUncommittedFrameworkChanges": true,
+      "passed": true,
+      "cases": [
+        "launch-profile",
+        "shared-world-entry",
+        "world-parameters",
+        "world-geometry",
+        "world-tile-data",
+        "world-feature-identities",
+        "storyteller-difficulty",
+        "culture-references",
+        "world-persistence",
+        "storyteller-permission",
+        "runtime-difficulty-sync",
+        "alliance-request-accept",
+        "caravan-load-travel",
+        "support-death-expiry",
+        "snapshot-save-reload",
+        "session-reconnect",
+        "runtime-errors"
+      ],
+      "notRun": []
+    },
+    {
+      "id": "stability-shop-regression",
+      "report": {
+        "path": "G:\\RimTestRuns\\StabilityShopRegression\\20261016-134212-f494038a\\stability-shop-regression\\20261016-134213-6f67cb1e\\report.json",
+        "sha256": "b21678541728ac20d05af22e5d2c2bf69e55601812c1ff3b11f9600024613ad0"
+      },
+      "inputs": {
+        "path": "G:\\RimTestRuns\\StabilityShopRegression\\20261016-134212-f494038a\\stability-shop-regression\\20261016-134213-6f67cb1e\\inputs.json",
+        "sha256": "fe28f3c8d3e8ff38b50e0ffd6ef4dd653134c7ee9f7ad20f3acaa96fe2fe567d"
+      },
+      "profile": {
+        "path": "G:\\RimTestRuns\\StabilityShopRegression\\20261016-134212-f494038a\\stability-shop-regression\\20261016-134213-6f67cb1e\\profile.json",
+        "sha256": "ae60a801208d192b18429cb86668e1c6db286e762be1d2ffa530dbf8633372b9"
+      },
+      "repositoryCommitAtRun": "101a3667816092ac96ca8367e2e08b118b334258",
+      "frameworkCommitAtRun": "143559423dc8cee5d46a694186743b311c15c0e5",
+      "hadUncommittedWorkspaceChanges": true,
+      "hadUncommittedFrameworkChanges": true,
+      "passed": true,
+      "cases": [
+        "launch-profile",
+        "shared-world-entry",
+        "world-parameters",
+        "world-geometry",
+        "world-tile-data",
+        "world-feature-identities",
+        "storyteller-difficulty",
+        "culture-references",
+        "world-persistence",
+        "storyteller-permission",
+        "runtime-difficulty-sync",
+        "shop-selected-catalog",
+        "snapshot-save-reload",
+        "session-reconnect",
+        "runtime-errors"
+      ],
+      "notRun": [],
+      "shop-catalog": {
+        "path": "G:\\RimTestRuns\\StabilityShopRegression\\20261016-134212-f494038a\\stability-shop-regression\\20261016-134213-6f67cb1e\\shop-catalog.json",
+        "sha256": "cf0cc97138b5086a870273f26eb9783a747d4935cf7f4de7277067e624b447b8",
+        "total": 6,
+        "purchased": 6,
+        "failed": 0,
+        "fullCatalog": false
+      }
+    },
+    {
+      "id": "stability-shop-stress",
+      "report": {
+        "path": "G:\\RimTestRuns\\StabilityFixed\\20261016-125715-619ac948\\stability-shop-stress\\20261016-130024-c1bb4f11\\report.json",
+        "sha256": "8bef41bb9437fe68ce9fe85edb23be189dbb60b8082d6cd8429f7eb2f08adbe6"
+      },
+      "inputs": {
+        "path": "G:\\RimTestRuns\\StabilityFixed\\20261016-125715-619ac948\\stability-shop-stress\\20261016-130024-c1bb4f11\\inputs.json",
+        "sha256": "1294df42399f565a9c3ea6ee5d1026558448ad4519e667484fb2c270532a3052"
+      },
+      "profile": {
+        "path": "G:\\RimTestRuns\\StabilityFixed\\20261016-125715-619ac948\\stability-shop-stress\\20261016-130024-c1bb4f11\\profile.json",
+        "sha256": "fd451527c8c7bbdf42686bfc17a408b91cd30f1bce65aef9c2fe311d244f1ea4"
+      },
+      "repositoryCommitAtRun": "e8605ce27a3d1ca7094b8537bdbfeaaea06a2126",
+      "frameworkCommitAtRun": "143559423dc8cee5d46a694186743b311c15c0e5",
+      "hadUncommittedWorkspaceChanges": true,
+      "hadUncommittedFrameworkChanges": true,
+      "passed": true,
+      "cases": [
+        "launch-profile",
+        "shared-world-entry",
+        "world-parameters",
+        "world-geometry",
+        "world-tile-data",
+        "world-feature-identities",
+        "storyteller-difficulty",
+        "culture-references",
+        "world-persistence",
+        "storyteller-permission",
+        "runtime-difficulty-sync",
+        "shop-large-data",
+        "snapshot-save-reload",
+        "session-reconnect",
+        "runtime-errors"
+      ],
+      "notRun": [],
+      "shop-stress": {
+        "path": "G:\\RimTestRuns\\StabilityFixed\\20261016-125715-619ac948\\stability-shop-stress\\20261016-130024-c1bb4f11\\shop-stress.json",
+        "sha256": "043dd1d7c75a8721dad60bacc0c46a076f0190bcc20a48389eb599661117e801",
+        "measurements": [
+          {
+            "size": 1000,
+            "populateMs": 3541.1276,
+            "registryJsonBytes": 914620,
+            "refreshMs": [
+              273.0474,
+              276.4851,
+              262.4869
+            ],
+            "purchaseMs": 2629.498,
+            "reopenMs": 92.864,
+            "clientWorkingSetBytes": {
+              "A": 1473892352,
+              "B": 1699446784
+            },
+            "registryContenders": 64,
+            "distinctRegistryPurchases": 20
+          },
+          {
+            "size": 10000,
+            "populateMs": 31557.3934,
+            "registryJsonBytes": 9156143,
+            "refreshMs": [
+              264.6048,
+              263.206,
+              262.0732
+            ],
+            "purchaseMs": 4004.4939,
+            "reopenMs": 197.3231,
+            "clientWorkingSetBytes": {
+              "A": 1500524544,
+              "B": 1644548096
+            },
+            "registryContenders": 64,
+            "distinctRegistryPurchases": 20
+          },
+          {
+            "size": 50000,
+            "populateMs": 151394.1637,
+            "registryJsonBytes": 45825333,
+            "refreshMs": [
+              1356.4681,
+              1339.701,
+              1309.9974
+            ],
+            "purchaseMs": 4947.224,
+            "reopenMs": 1017.374,
+            "clientWorkingSetBytes": {
+              "A": 1624485888,
+              "B": 2288324608
+            },
+            "registryContenders": 64,
+            "distinctRegistryPurchases": 20
+          }
+        ]
+      }
+    },
+    {
+      "id": "stability-shop-core",
+      "report": {
+        "path": "G:\\RimTestRuns\\StabilityCatalogFinalCore\\20261016-133140-6efb0ecd\\stability-shop-core\\20261016-133140-8e6cdbf2\\report.json",
+        "sha256": "7a9ac0d43c0cd230b8e07e92f5be85152fe9019f8643cac05095967a47796515"
+      },
+      "inputs": {
+        "path": "G:\\RimTestRuns\\StabilityCatalogFinalCore\\20261016-133140-6efb0ecd\\stability-shop-core\\20261016-133140-8e6cdbf2\\inputs.json",
+        "sha256": "5ab5825ef70a2f5c5d47c5610df249e2348fe74bae8e0e3dcb314427d049bff8"
+      },
+      "profile": {
+        "path": "G:\\RimTestRuns\\StabilityCatalogFinalCore\\20261016-133140-6efb0ecd\\stability-shop-core\\20261016-133140-8e6cdbf2\\profile.json",
+        "sha256": "90394a08e655eec7abffeb6d1c2f5904b2546b4762cdba8b5d9b2fa5c081e909"
+      },
+      "repositoryCommitAtRun": "6aa3726a803bb1903a8578a9e87f14ed6496e5b3",
+      "frameworkCommitAtRun": "143559423dc8cee5d46a694186743b311c15c0e5",
+      "hadUncommittedWorkspaceChanges": true,
+      "hadUncommittedFrameworkChanges": true,
+      "passed": true,
+      "cases": [
+        "launch-profile",
+        "shared-world-entry",
+        "world-parameters",
+        "world-geometry",
+        "world-tile-data",
+        "world-feature-identities",
+        "storyteller-difficulty",
+        "culture-references",
+        "world-persistence",
+        "storyteller-permission",
+        "runtime-difficulty-sync",
+        "shop-complete-catalog",
+        "snapshot-save-reload",
+        "session-reconnect",
+        "runtime-errors"
+      ],
+      "notRun": [],
+      "shop-catalog": {
+        "path": "G:\\RimTestRuns\\StabilityCatalogFinalCore\\20261016-133140-6efb0ecd\\stability-shop-core\\20261016-133140-8e6cdbf2\\shop-catalog.json",
+        "sha256": "a67be25d71d62c53afb62d175f33b5b9d3b0b6793789276909c5c3cefd450b69",
+        "total": 397,
+        "purchased": 397,
+        "failed": 0,
+        "fullCatalog": true
+      }
+    },
+    {
+      "id": "stability-shop-dlc-part-1",
+      "report": {
+        "path": "G:\\RimTestRuns\\StabilityDlcCatalogLease\\part-1\\20261016-142833-c4f0cb27\\report.json",
+        "sha256": "b1537a9eb3da6125377bd813ac35907d097f8e0974496bfa03cf811313beb4fd"
+      },
+      "inputs": {
+        "path": "G:\\RimTestRuns\\StabilityDlcCatalogLease\\part-1\\20261016-142833-c4f0cb27\\inputs.json",
+        "sha256": "3e95ab42e2b7fcd32b42d05727dda272bfe0bcf55b32ff5eeff0bb9e806ba4d4"
+      },
+      "profile": {
+        "path": "G:\\RimTestRuns\\StabilityDlcCatalogLease\\part-1\\20261016-142833-c4f0cb27\\profile.json",
+        "sha256": "9c18d3e4c86521055597c4cfbc4fdd2acd649b9216494b9796b74885abff36e0"
+      },
+      "repositoryCommitAtRun": "095b36abb5fd8bb2b26d801b74d8c177f8ecf1b7",
+      "frameworkCommitAtRun": "143559423dc8cee5d46a694186743b311c15c0e5",
+      "hadUncommittedWorkspaceChanges": true,
+      "hadUncommittedFrameworkChanges": true,
+      "passed": true,
+      "cases": [
+        "launch-profile",
+        "shared-world-entry",
+        "world-parameters",
+        "world-geometry",
+        "world-tile-data",
+        "world-feature-identities",
+        "storyteller-difficulty",
+        "culture-references",
+        "world-persistence",
+        "storyteller-permission",
+        "runtime-difficulty-sync",
+        "shop-selected-catalog",
+        "snapshot-save-reload",
+        "session-reconnect",
+        "runtime-errors"
+      ],
+      "notRun": [],
+      "shop-catalog": {
+        "path": "G:\\RimTestRuns\\StabilityDlcCatalogLease\\part-1\\20261016-142833-c4f0cb27\\shop-catalog.json",
+        "sha256": "7dd4301441e311d9fd40e9da4ddd1ac9b8d7ac3625cae6d6fbc8678f64e5b08f",
+        "total": 214,
+        "purchased": 214,
+        "failed": 0,
+        "fullCatalog": false
+      }
+    },
+    {
+      "id": "stability-shop-dlc-part-2",
+      "report": {
+        "path": "G:\\RimTestRuns\\StabilityDlcCatalogLeaseRetry\\part-2\\20261016-143008-fc9c0686\\report.json",
+        "sha256": "5cd9b2ac9e43b8b0530926cdfd05fc857233b042dc17923270a63f2ccb7843ec"
+      },
+      "inputs": {
+        "path": "G:\\RimTestRuns\\StabilityDlcCatalogLeaseRetry\\part-2\\20261016-143008-fc9c0686\\inputs.json",
+        "sha256": "eb8cc270d340f207ac9034fbbe36528dda30606ab93975a5ab659b3ccf9deafc"
+      },
+      "profile": {
+        "path": "G:\\RimTestRuns\\StabilityDlcCatalogLeaseRetry\\part-2\\20261016-143008-fc9c0686\\profile.json",
+        "sha256": "e60c49f450d26e1e229d558e1b008460283b93e697a892153114088baac00abd"
+      },
+      "repositoryCommitAtRun": "095b36abb5fd8bb2b26d801b74d8c177f8ecf1b7",
+      "frameworkCommitAtRun": "143559423dc8cee5d46a694186743b311c15c0e5",
+      "hadUncommittedWorkspaceChanges": true,
+      "hadUncommittedFrameworkChanges": true,
+      "passed": true,
+      "cases": [
+        "launch-profile",
+        "shared-world-entry",
+        "world-parameters",
+        "world-geometry",
+        "world-tile-data",
+        "world-feature-identities",
+        "storyteller-difficulty",
+        "culture-references",
+        "world-persistence",
+        "storyteller-permission",
+        "runtime-difficulty-sync",
+        "shop-selected-catalog",
+        "snapshot-save-reload",
+        "session-reconnect",
+        "runtime-errors"
+      ],
+      "notRun": [],
+      "shop-catalog": {
+        "path": "G:\\RimTestRuns\\StabilityDlcCatalogLeaseRetry\\part-2\\20261016-143008-fc9c0686\\shop-catalog.json",
+        "sha256": "8f0c630fcd8079dc715c7dd9150e76c9d1d4cbf37408f4efe9e4ce74b0da2371",
+        "total": 213,
+        "purchased": 213,
+        "failed": 0,
+        "fullCatalog": false
+      }
+    },
+    {
+      "id": "stability-shop-dlc-part-3",
+      "report": {
+        "path": "G:\\RimTestRuns\\StabilityDlcCatalogLease\\part-3\\20261016-144156-01ddaf01\\report.json",
+        "sha256": "fab279eaeeef1c466473fb6bfc3240af9ca66be332ca9fc39b3a6f19e835d8c5"
+      },
+      "inputs": {
+        "path": "G:\\RimTestRuns\\StabilityDlcCatalogLease\\part-3\\20261016-144156-01ddaf01\\inputs.json",
+        "sha256": "1d880341b446ddf3e1600ffd5465f8981b67fae510d0bd464097f8fead64edf2"
+      },
+      "profile": {
+        "path": "G:\\RimTestRuns\\StabilityDlcCatalogLease\\part-3\\20261016-144156-01ddaf01\\profile.json",
+        "sha256": "2bbd53dcf4da2f70edc5e25f1be400948923722997ddf1c7705d945231194d0a"
+      },
+      "repositoryCommitAtRun": "095b36abb5fd8bb2b26d801b74d8c177f8ecf1b7",
+      "frameworkCommitAtRun": "143559423dc8cee5d46a694186743b311c15c0e5",
+      "hadUncommittedWorkspaceChanges": true,
+      "hadUncommittedFrameworkChanges": true,
+      "passed": true,
+      "cases": [
+        "launch-profile",
+        "shared-world-entry",
+        "world-parameters",
+        "world-geometry",
+        "world-tile-data",
+        "world-feature-identities",
+        "storyteller-difficulty",
+        "culture-references",
+        "world-persistence",
+        "storyteller-permission",
+        "runtime-difficulty-sync",
+        "shop-selected-catalog",
+        "snapshot-save-reload",
+        "session-reconnect",
+        "runtime-errors"
+      ],
+      "notRun": [],
+      "shop-catalog": {
+        "path": "G:\\RimTestRuns\\StabilityDlcCatalogLease\\part-3\\20261016-144156-01ddaf01\\shop-catalog.json",
+        "sha256": "d912fc583121002769eebcd94c33ce693878939b79f2a63f98486be8a4b287a4",
+        "total": 213,
+        "purchased": 213,
+        "failed": 0,
+        "fullCatalog": false
+      }
+    },
+    {
+      "id": "stability-shop-dlc-part-4",
+      "report": {
+        "path": "G:\\RimTestRuns\\StabilityDlcCatalogLease\\part-4\\20261016-144422-b2121ac7\\report.json",
+        "sha256": "38bf5789b198c72a3dd94d46df4604d73f3d3d56ae9e316a1c18cb193097c434"
+      },
+      "inputs": {
+        "path": "G:\\RimTestRuns\\StabilityDlcCatalogLease\\part-4\\20261016-144422-b2121ac7\\inputs.json",
+        "sha256": "b09d13419cdaa037ae93cbcadf0f78760250a08f32a83f3671a0146e9ae38ebb"
+      },
+      "profile": {
+        "path": "G:\\RimTestRuns\\StabilityDlcCatalogLease\\part-4\\20261016-144422-b2121ac7\\profile.json",
+        "sha256": "368b51b3f040562e84d8f8616d6297638a974f0698ba4420a8358c8fa3d6c703"
+      },
+      "repositoryCommitAtRun": "095b36abb5fd8bb2b26d801b74d8c177f8ecf1b7",
+      "frameworkCommitAtRun": "143559423dc8cee5d46a694186743b311c15c0e5",
+      "hadUncommittedWorkspaceChanges": true,
+      "hadUncommittedFrameworkChanges": true,
+      "passed": true,
+      "cases": [
+        "launch-profile",
+        "shared-world-entry",
+        "world-parameters",
+        "world-geometry",
+        "world-tile-data",
+        "world-feature-identities",
+        "storyteller-difficulty",
+        "culture-references",
+        "world-persistence",
+        "storyteller-permission",
+        "runtime-difficulty-sync",
+        "shop-selected-catalog",
+        "snapshot-save-reload",
+        "session-reconnect",
+        "runtime-errors"
+      ],
+      "notRun": [],
+      "shop-catalog": {
+        "path": "G:\\RimTestRuns\\StabilityDlcCatalogLease\\part-4\\20261016-144422-b2121ac7\\shop-catalog.json",
+        "sha256": "d6176d468a0cb407ed40fb4a129f2c70657ef2a6d27668c04f56381f91a608df",
+        "total": 213,
+        "purchased": 213,
+        "failed": 0,
+        "fullCatalog": false
+      }
+    }
+  ],
+  "supplementaryRegression": {
+    "scenarioExecutions": 3,
+    "passedCases": 99,
+    "profiles": [
+      {
+        "id": "core-features",
+        "report": {
+          "path": "G:\\RimTestRuns\\StabilityBusinessFinal\\20261016-135903-b114e584\\core-features\\20261016-135903-10f7f65e\\report.json",
+          "sha256": "6160b9503ad4241c90799fc2595a3bd3a6ff7657e8d2974deaaeba246a547e6a"
+        },
+        "inputs": {
+          "path": "G:\\RimTestRuns\\StabilityBusinessFinal\\20261016-135903-b114e584\\core-features\\20261016-135903-10f7f65e\\inputs.json",
+          "sha256": "7558532efb04b7ed0ee37b23b017620d4239503ca98bd9b3df1b1ec047739730"
+        },
+        "profile": {
+          "path": "G:\\RimTestRuns\\StabilityBusinessFinal\\20261016-135903-b114e584\\core-features\\20261016-135903-10f7f65e\\profile.json",
+          "sha256": "709be88557ecffedecaeedd0facceecab64673f0eff1bcd18e8c53e619cc4050"
+        },
+        "passed": true,
+        "cases": [
+          "launch-profile",
+          "shared-world-entry",
+          "world-parameters",
+          "world-geometry",
+          "world-tile-data",
+          "world-feature-identities",
+          "storyteller-difficulty",
+          "culture-references",
+          "world-persistence",
+          "storyteller-permission",
+          "runtime-difficulty-sync",
+          "account-password-change",
+          "colony-appearance-sync",
+          "public-chat",
+          "private-chat-read",
+          "unicode-chat-blank-rejection",
+          "admin-configuration-permissions",
+          "admin-action-permissions",
+          "admin-role-grant-revoke",
+          "admin-broadcast",
+          "admin-kick-reconnect",
+          "admin-ban-unban",
+          "maintenance-password-rejection",
+          "bank-input-rejection",
+          "bank-loan-repayment",
+          "shop-purchase-stock",
+          "shop-buyback-stock-rejection",
+          "trade-cancel-refund",
+          "trade-memo-cancel",
+          "trade-drop-pod-fulfillment",
+          "achievement-unlock-leaderboard",
+          "alliance-request-accept",
+          "ally-observation-close",
+          "caravan-load-travel",
+          "caravan-gift-accept",
+          "support-send-early-return",
+          "mercenary-hire",
+          "mercenary-recall",
+          "raid-open-settle",
+          "snapshot-save-reload",
+          "session-reconnect",
+          "runtime-errors"
+        ],
+        "notRun": []
+      },
+      {
+        "id": "dlc-cultures",
+        "report": {
+          "path": "G:\\RimTestRuns\\StabilityDlcBusinessReady\\20261016-145532-5ac0f679\\report.json",
+          "sha256": "fcf494b3308bc4419fe49ea7a9c2f2982814bbabb3e1f15bccb5b03433f2a34e"
+        },
+        "inputs": {
+          "path": "G:\\RimTestRuns\\StabilityDlcBusinessReady\\20261016-145532-5ac0f679\\inputs.json",
+          "sha256": "d1c0763cd699bddd0f436c3e8643be00a13dfae47469fc750fb811cca9c2a0db"
+        },
+        "profile": {
+          "path": "G:\\RimTestRuns\\StabilityDlcBusinessReady\\20261016-145532-5ac0f679\\profile.json",
+          "sha256": "b6c656650bb7ffc31138437754d60f4cf2c9e069771e90cbb838312003c91740"
+        },
+        "passed": true,
+        "cases": [
+          "launch-profile",
+          "shared-world-entry",
+          "world-parameters",
+          "world-geometry",
+          "world-tile-data",
+          "world-feature-identities",
+          "storyteller-difficulty",
+          "culture-references",
+          "world-persistence",
+          "storyteller-permission",
+          "runtime-difficulty-sync",
+          "account-password-change",
+          "colony-appearance-sync",
+          "public-chat",
+          "private-chat-read",
+          "unicode-chat-blank-rejection",
+          "admin-configuration-permissions",
+          "admin-action-permissions",
+          "admin-role-grant-revoke",
+          "admin-broadcast",
+          "admin-kick-reconnect",
+          "admin-ban-unban",
+          "maintenance-password-rejection",
+          "bank-input-rejection",
+          "bank-loan-repayment",
+          "shop-purchase-stock",
+          "shop-buyback-stock-rejection",
+          "trade-cancel-refund",
+          "trade-memo-cancel",
+          "trade-drop-pod-fulfillment",
+          "achievement-unlock-leaderboard",
+          "alliance-request-accept",
+          "ally-observation-close",
+          "caravan-load-travel",
+          "caravan-gift-accept",
+          "support-send-early-return",
+          "mercenary-hire",
+          "mercenary-recall",
+          "raid-open-settle",
+          "snapshot-save-reload",
+          "session-reconnect",
+          "runtime-errors"
+        ],
+        "notRun": []
+      },
+      {
+        "id": "stability-shop-dlc-regression",
+        "report": {
+          "path": "G:\\RimTestRuns\\StabilityDlcItemsReady\\20261016-141840-3e33fc03\\report.json",
+          "sha256": "fbfc0e6d76105597a90016051e77cca9a326da14f22d432c4bd4ea888f8f763d"
+        },
+        "inputs": {
+          "path": "G:\\RimTestRuns\\StabilityDlcItemsReady\\20261016-141840-3e33fc03\\inputs.json",
+          "sha256": "28053f816c7794bd3a7d64d61c202d89e9b4400759983df2fcaae87bd4974dc2"
+        },
+        "profile": {
+          "path": "G:\\RimTestRuns\\StabilityDlcItemsReady\\20261016-141840-3e33fc03\\profile.json",
+          "sha256": "512822888ba843d845b997c1d2e281333805d50ebec89c935fb542be9a36fa85"
+        },
+        "passed": true,
+        "cases": [
+          "launch-profile",
+          "shared-world-entry",
+          "world-parameters",
+          "world-geometry",
+          "world-tile-data",
+          "world-feature-identities",
+          "storyteller-difficulty",
+          "culture-references",
+          "world-persistence",
+          "storyteller-permission",
+          "runtime-difficulty-sync",
+          "shop-selected-catalog",
+          "snapshot-save-reload",
+          "session-reconnect",
+          "runtime-errors"
+        ],
+        "notRun": []
+      }
+    ]
+  },
+  "regressionLogs": [
+    {
+      "path": "D:\\Projects\\ClashOfRim\\LocalOnly\\stability-final-regression.log",
+      "sha256": "40931bced81d55a00c9ba95367ceebc9c7b79f5c79e16b75d2024b1cfaa1275d"
+    },
+    {
+      "path": "D:\\Projects\\ClashOfRim\\LocalOnly\\stability-death-server-tests.log",
+      "sha256": "2206beb4f2dba49c4e36f6fdbd5fe9b86f3e131c7ac5a81fa8fc25869b1a7408"
+    },
+    {
+      "path": "D:\\Projects\\ClashOfRim\\LocalOnly\\stability-client-tests.log",
+      "sha256": "0a9accdd14684d6ed26242b32c3ff083303374c53bf39b94e693d1deb36bf4eb"
+    },
+    {
+      "path": "D:\\Projects\\ClashOfRim\\LocalOnly\\stability-committed-client-tests-final.log",
+      "sha256": "e314bb01228acdb55f56fc20b3981b37b942c71b70950a77acb69766a5755c45"
+    },
+    {
+      "path": "D:\\Projects\\ClashOfRim\\LocalOnly\\stability-isolated-suite-build.log",
+      "sha256": "ec749b294cc48244b07ac89a8222348f3e485765846e28f31cc46a82f5287889"
+    }
+  ],
+  "retainedFailedMatrices": [
+    {
+      "path": "G:\\RimTestRuns\\StabilityTransfers\\20261016-124537-724b2a96\\matrix.json",
+      "sha256": "57275bd931cc00411f208eacda51d1ce90e0c2d241b39a98a9f8d567cc97cb59"
+    },
+    {
+      "path": "G:\\RimTestRuns\\StabilityRound2\\20261016-124920-4fd6abc4\\matrix.json",
+      "sha256": "edd6f9ae304e76b02dfb66f50dd2792813c68cc1539f8f44fd28faef5bb315a5"
+    },
+    {
+      "path": "G:\\RimTestRuns\\StabilityFixed\\20261016-125715-619ac948\\matrix.json",
+      "sha256": "83c0718f52857be81989bb82260760d03b5d3c30ffd31f933303b5ea0bb08d20"
+    },
+    {
+      "path": "G:\\RimTestRuns\\StabilityStress\\20261016-125447-7fdd08bd\\matrix.json",
+      "sha256": "68c5814bd77194cf4c61df98c0f341402f3cc35d131653a12d8d6c3046085162"
+    },
+    {
+      "path": "G:\\RimTestRuns\\StabilityExpanded\\20261016-130345-47bb17d5\\matrix.json",
+      "sha256": "b5756c55921c07df01e09028c05ac79bf1ede33b816be6a6bc73b49a1503fe88"
+    },
+    {
+      "path": "G:\\RimTestRuns\\StabilityLoadFixed\\20261016-131424-a31d89d5\\matrix.json",
+      "sha256": "83f2d73a790177475915772fc94405c3bcca6a26c1db32e4aeb55e72c5d32f38"
+    },
+    {
+      "path": "G:\\RimTestRuns\\StabilityItems\\20261016-132018-43440262\\matrix.json",
+      "sha256": "3431bdcd060737a42ea0b53222dcc86060804ec9467b0ba06f826dcbadeb525e"
+    },
+    {
+      "path": "G:\\RimTestRuns\\StabilityCatalogFixed\\20261016-130927-f111fac6\\matrix.json",
+      "sha256": "a87efd1f9298f39db266d7c2017d93446ed046d5e3cf722bf5e2496776b6af6a"
+    },
+    {
+      "path": "G:\\RimTestRuns\\StabilityDeath\\20261016-133456-b47350e8\\matrix.json",
+      "sha256": "1fd577b2edd7862540089b1abf758d939717f3457f111ff34ca87f2bdecead1a"
+    },
+    {
+      "path": "G:\\RimTestRuns\\StabilityDeathFixed\\20261016-133927-466b89d5\\matrix.json",
+      "sha256": "de6570de411312587cca39d6844d242e803a1888c7fef149e17da2037d5ae46f"
+    },
+    {
+      "path": "G:\\RimTestRuns\\StabilityDeathRetry\\20261016-134026-f1a27e6a\\matrix.json",
+      "sha256": "badb132e92d116b436ba307d1f7f7560c17b11f80bf11bdacd6d9fe9e68b9edd"
+    }
+  ],
+  "additionalFailedCatalog": {
+    "path": "G:\\RimTestRuns\\StabilityCatalogFinalDlc\\20261016-133140-eb7e8970\\stability-shop-dlc\\20261016-133140-112d7b68\\report.json",
+    "sha256": "4b4082ba2743fef5e5dbe66bf25071c4a0b752deeee6f7d1baecc7e194210708"
+  },
+  "otherRetainedFailures": [
+    {
+      "path": "G:\\RimTestRuns\\StabilityDlcItemFix\\20261016-140512-2929ddc9\\report.json",
+      "sha256": "41aca9d1d4efe68666f606b4f3decb59fdd25a8712978a8050240ac12b15b111"
+    },
+    {
+      "path": "G:\\RimTestRuns\\StabilityDlcItemVerified\\20261016-140731-49dcab97\\report.json",
+      "sha256": "203b4db7da942a87cdb1f648337c5f4ec79496a4a2640c12e34aaf6d2005f84b"
+    },
+    {
+      "path": "G:\\RimTestRuns\\StabilityDlcCatalogParts\\part-1\\20261016-140731-e8bb7113\\report.json",
+      "sha256": "46c645a0891a6eb930ad3dd7b86d65bedee020430778a4590118519815e66fd1"
+    },
+    {
+      "path": "G:\\RimTestRuns\\StabilityDlcCatalogParts\\part-2\\20261016-140731-425aa907\\report.json",
+      "sha256": "dfae6f8c271ab8d8791298387789994629309dbe2b70e6fb2bc7620dcc09b940"
+    },
+    {
+      "path": "G:\\RimTestRuns\\StabilityDlcCatalogParts\\part-3\\20261016-140731-b2880c4f\\report.json",
+      "sha256": "47fd66791095dc0e374a6425af18fa0b79d897d27b10fe5995849d9ea7c7cf3a"
+    },
+    {
+      "path": "G:\\RimTestRuns\\StabilityDlcCatalogParts\\part-4\\20261016-140731-23506558\\report.json",
+      "sha256": "830d6ba4d58f5630258b7980ab3e59651682812c7195ad77f32aafd806dc4ac2"
+    },
+    {
+      "path": "G:\\RimTestRuns\\StabilityBusinessFinal\\20261016-135903-b114e584\\dlc-cultures\\20261016-140259-5a7d8301\\report.json",
+      "sha256": "7deb82d720e644483b75fdb73a6baaef315e1e2098b11f15a147094dcdc1cab6"
+    },
+    {
+      "path": "G:\\RimTestRuns\\StabilityDlcItemVerifiedRetry\\20261016-141231-e5c67aa1\\report.json",
+      "sha256": "682831a32a04952b01a186c66d1ffedd45a026a22b9e3cda6b8ea7f36ffc392e"
+    },
+    {
+      "path": "G:\\RimTestRuns\\StabilityDlcCatalogRetry\\part-1\\20261016-141231-7f735f36\\report.json",
+      "sha256": "fdff3af0cb72ba0c4ee625cbd1b9426a9c1f7bb7e0a36b5ad6c047592740c0c4"
+    },
+    {
+      "path": "G:\\RimTestRuns\\StabilityDlcCatalogReady\\part-1\\20261016-141911-1d55981c\\report.json",
+      "sha256": "6857ee76ba42a14b7c695a6baa274e1d82d084b16ef59f82ccb75faca137bd15"
+    },
+    {
+      "path": "G:\\RimTestRuns\\StabilityDlcCatalogReady\\part-2\\20261016-142031-065972d3\\report.json",
+      "sha256": "433d4bbb0b38b4048093ca40f1f68433eb15a22c42c1b70ab08238070c910fd2"
+    },
+    {
+      "path": "G:\\RimTestRuns\\StabilityDlcCatalogLease\\part-2\\20261016-142843-624b44a8\\report.json",
+      "sha256": "90912e520d67a71585a809859bc4973b4bdf982cb4e1aee0561bf0727b3fd0fc"
+    }
+  ],
+  "productFixCommits": [
+    "a3ca94c5",
+    "7b0c0300",
+    "bdeea508",
+    "6aa3726a",
+    "101a3667",
+    "cc0b2899",
+    "2fcc52be",
+    "095b36ab"
+  ],
+  "testSuiteCommit": "a115b86a"
+}
