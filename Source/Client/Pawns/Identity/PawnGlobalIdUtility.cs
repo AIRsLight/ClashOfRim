@@ -9,6 +9,14 @@ internal static class PawnGlobalIdUtility
 
     public static string Build(string? ownerUserId, Pawn pawn)
     {
+        // A transferred pawn (including a one-layer relationship placeholder) keeps
+        // its originating identity when another colony serializes it again.
+        const string globalTagPrefix = "ClashOfRim.PawnGlobalId:";
+        if (pawn?.questTags is not null)
+            foreach (string tag in pawn.questTags)
+                if (tag is not null && tag.StartsWith(globalTagPrefix, StringComparison.Ordinal)
+                    && !string.IsNullOrWhiteSpace(tag.Substring(globalTagPrefix.Length)))
+                    return tag.Substring(globalTagPrefix.Length).Trim();
         return Build(ownerUserId, pawn?.ThingID);
     }
 
