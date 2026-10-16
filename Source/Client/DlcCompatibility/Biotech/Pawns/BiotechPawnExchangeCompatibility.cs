@@ -150,31 +150,15 @@ internal static partial class BiotechCompatibility
         extension.Metadata[BiotechPawnExchangeExtensionXenotypeDef] = xenotypeDef;
     }
 
-    internal static void LocalizePawnGenes(Pawn pawn)
+    internal static void ResetRestoredPawnGeneCaches(Pawn pawn)
     {
         if (!HasBiotechPawnExchange || pawn?.genes is null || Find.UniqueIDsManager is null)
         {
             return;
         }
 
-        LocalizeGeneList(pawn.genes.Xenogenes);
-        LocalizeGeneList(pawn.genes.Endogenes);
         GeneCachedHasCustomXenotypeField?.SetValue(pawn.genes, null);
         GeneCachedCustomXenotypeField?.SetValue(pawn.genes, null);
-    }
-
-    private static void LocalizeGeneList(List<Gene>? genes)
-    {
-        if (genes is null)
-        {
-            return;
-        }
-
-        for (int i = 0; i < genes.Count; i++)
-        {
-            Gene gene = genes[i];
-            gene.loadID = Find.UniqueIDsManager.GetNextGeneID();
-        }
     }
 
     private static string SerializeCustomXenotypePackage(BiotechSavedXenotypePackageDto package)

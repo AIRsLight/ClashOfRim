@@ -31,10 +31,6 @@ internal static class BiotechCompatibilityPackage
             return;
         }
 
-        ClashOfRimCompatibilityApi.RegisterRemoteMapIntegerLoadIdRewriter(
-            "Gene_",
-            BiotechCompatibility.IsBiotechGeneLoadIdNode,
-            BiotechCompatibility.NextBiotechGeneLoadId);
         ClashOfRimCompatibilityApi.RegisterRemoteMapProjectionSanitizer(BiotechCompatibility.SanitizeBiotechRemoteMapProjection);
         ClashOfRimCompatibilityApi.RegisterRemoteMapLoadedHandler(BiotechCompatibility.SanitizeBiotechRemoteMapLoaded);
         ClashOfRimCompatibilityApi.RegisterRemoteMapAreaLoadIdProvider(BiotechCompatibility.BuildBiotechAreaLoadId);
@@ -53,7 +49,7 @@ internal static class BiotechCompatibilityPackage
         ClashOfRimCompatibilityApi.RegisterPawnExchangeExtensionAppender(BiotechCompatibility.AppendBiotechPawnExchangeExtension);
         ClashOfRimCompatibilityApi.RegisterPawnExchangePackageRegistrar(BiotechCompatibility.TryRegisterBiotechPawnExchangePayload);
         ClashOfRimCompatibilityApi.RegisterPawnExchangePackageNormalizer(BiotechCompatibility.NormalizeBiotechPawnExchangePackage);
-        ClashOfRimCompatibilityApi.RegisterPawnPostRestoreLocalizer(BiotechCompatibility.LocalizePawnGenes);
+        ClashOfRimCompatibilityApi.RegisterPawnPostRestoreLocalizer(BiotechCompatibility.ResetRestoredPawnGeneCaches);
         ClashOfRimCompatibilityApi.RegisterThingReferenceEditor(
             BiotechCompatibilityKeys.TradeMetadata + ".editor",
             BiotechCompatibility.DrawThingReferenceEditor,

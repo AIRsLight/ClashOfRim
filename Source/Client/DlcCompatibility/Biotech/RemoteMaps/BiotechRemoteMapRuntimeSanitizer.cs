@@ -124,24 +124,7 @@ internal static partial class BiotechCompatibility
 
     private static int LocalizeRemoteMapGeneLoadIds(List<Gene>? genes)
     {
-        if (genes is null)
-        {
-            return 0;
-        }
-
-        int localized = 0;
-        foreach (Gene gene in genes)
-        {
-            if (gene is null || gene.def is null)
-            {
-                continue;
-            }
-
-            gene.loadID = Find.UniqueIDsManager.GetNextGeneID();
-            localized++;
-        }
-
-        return localized;
+        return CoreCompatibility.CorePawnGeneIdentity.LocalizeGenes(genes);
     }
 
     private static void ResetGeneTrackerCaches(Pawn pawn)
