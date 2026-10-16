@@ -350,7 +350,7 @@ public sealed class ServerShopListingDialogWindow : Window
 
     private static bool IsPackableBuildingDef(ThingDef def)
     {
-        return def.category == ThingCategory.Building
+        return TradeThingReferenceUtility.IsTradeableItemDef(def)
             && def.Minifiable
             && def.minifiedDef is not null;
     }

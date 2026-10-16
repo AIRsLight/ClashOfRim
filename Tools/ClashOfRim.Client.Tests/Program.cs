@@ -21,6 +21,7 @@ var tests = new (string Name, Action Run)[]
 {
     ("repeated pawn transfer preserves global relationship identity", PawnTransferIdentityTests.Run),
     ("item durability uses final quality maximum", ThingMetadataOrderTests.Run),
+    ("shop distinguishes minifiable contents from empty wrappers", ShopDefinitionEligibilityTests.Run),
     ("server ideology catalog follows replaced faction primary instances", IdeologyCatalogBindingTests.Run),
     ("concurrent localized messages retain their own arguments", ConcurrentFormattingTests.Run),
     ("Scribe XML preserves fractional values across cultures", ScribeCultureTests.Run),

@@ -77,6 +77,7 @@ internal static class TradeThingReferenceUtility
         Type? thingClass = def.thingClass;
         if (thingClass is not null
             && (typeof(UnfinishedThing).IsAssignableFrom(thingClass)
+                || typeof(MinifiedThing).IsAssignableFrom(thingClass)
                 || typeof(UnnaturalCorpse).IsAssignableFrom(thingClass)))
         {
             return false;
@@ -208,6 +209,14 @@ internal static class TradeThingReferenceUtility
         if (def is null)
         {
             missingDefName = reference.DefName;
+            return false;
+        }
+
+        // A bare minified wrapper is not an item. Its required inner definition is
+        // handled above; legacy/malformed shop rows must fail before construction.
+        if (typeof(MinifiedThing).IsAssignableFrom(def.thingClass))
+        {
+            missingDefName = def.defName;
             return false;
         }
 
