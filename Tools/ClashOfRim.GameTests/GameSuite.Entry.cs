@@ -38,15 +38,15 @@ internal sealed partial class GameSuite
         foreach (var dialog in Items(await Call(client, "dialogs.messages")))
             await Call(client, "dialogs.choose", new { dialog = H(dialog), button = "A" });
     }
-    async Task Enter(string client, string url)
+    async Task Enter(string client, string url, bool register = true)
     {
         Console.WriteLine("ENTER " + client);
         // Capture immediately before this client's first action. The other client may
         // have finished asynchronous startup while we created the first colony.
         var hello = await Call(client, "runtime.hello");
-        startupErrors[client] = Items(await Call(client, "runtime.logs", new { limit = 200 })).Where(e => hello.Bool("headless") && e.String("level") == "error" &&
-            e.String("message") == "Resolution too small (0x0), resetting UI scale to 1.").Select(e => e.Int("sequence")).ToHashSet();
-        await Invoke(client, "StartMainMenuServerEntryFlow", new { serverBaseUrl = url, userId = "rimtest-" + client, password = "local-test-password", createAccountIfMissing = true });
+        startupErrors.TryAdd(client, Items(await Call(client, "runtime.logs", new { limit = 200 })).Where(e => hello.Bool("headless") && e.String("level") == "error" &&
+            e.String("message") == "Resolution too small (0x0), resetting UI scale to 1.").Select(e => e.Int("sequence")).ToHashSet());
+        await Invoke(client, "StartMainMenuServerEntryFlow", new { serverBaseUrl = url, userId = "rimtest-" + client, password = "local-test-password", createAccountIfMissing = register });
         var watch = Stopwatch.StartNew(); var visited = new HashSet<string>(); int nextProgress = 15, entryLogCursor = 0;
         while (watch.Elapsed < TimeSpan.FromMinutes(6))
         {

@@ -34,6 +34,7 @@ internal sealed partial class DomainCommands
         RegisterRelocation();
         RegisterGravship();
         RegisterDlcPersistence();
+        RegisterAccountLifecycle();
         var r = bridge.Router;
         r.Register("clash.compatibility", "Observe the original compatibility decision; only accepted language warnings offer continuation.", "observe", _ =>
         {

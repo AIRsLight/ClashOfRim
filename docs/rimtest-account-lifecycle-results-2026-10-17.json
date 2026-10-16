@@ -1,0 +1,967 @@
+{
+  "date": "2026-10-17",
+  "fullCoverage": false,
+  "basis": "Core and all-five-DLC account lifecycle runs. DLC uses DOTNET_PROCESSOR_COUNT=4 after pre-case CLR/MonoMod startup crashes; this does not establish unrestricted startup stability. All failed fixture and startup attempts are retained. Existing workspace/framework changes are recorded in inputs.json.",
+  "scenarioExecutions": 2,
+  "executed": 44,
+  "passedCases": 44,
+  "distinctCases": 22,
+  "profiles": [
+    {
+      "id": "account-core",
+      "passed": true,
+      "report": {
+        "path": "G:\\RimTestRuns\\account-core-r5\\20261016-162909-a7bae4b2\\report.json",
+        "sha256": "a4982c5daeaf862de12f850c07dcee974cdde4cb80b2db9f942b1e76bcd150d3"
+      },
+      "inputs": {
+        "path": "G:\\RimTestRuns\\account-core-r5\\20261016-162909-a7bae4b2\\inputs.json",
+        "sha256": "14e37e136775cf385af4ec47ef88772b9c7b0e4ca999b8657bcf46756828f6d2"
+      },
+      "profile": {
+        "path": "G:\\RimTestRuns\\account-core-r5\\20261016-162909-a7bae4b2\\profile.json",
+        "sha256": "7da1616d34929365c9a22a791311bfea3dca0c5bdacb64351e31d099b699e70f"
+      },
+      "repositoryCommitAtRun": "8099f798a01a4606e2ac81dd02e26e329cb6c8de",
+      "frameworkCommitAtRun": "143559423dc8cee5d46a694186743b311c15c0e5",
+      "hadUncommittedWorkspaceChanges": true,
+      "hadUncommittedFrameworkChanges": true,
+      "expansions": [],
+      "cases": [
+        {
+          "id": "launch-profile",
+          "status": "passed"
+        },
+        {
+          "id": "shared-world-entry",
+          "status": "passed"
+        },
+        {
+          "id": "world-parameters",
+          "status": "passed"
+        },
+        {
+          "id": "world-geometry",
+          "status": "passed"
+        },
+        {
+          "id": "world-tile-data",
+          "status": "passed"
+        },
+        {
+          "id": "world-feature-identities",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-difficulty",
+          "status": "passed"
+        },
+        {
+          "id": "culture-references",
+          "status": "passed"
+        },
+        {
+          "id": "world-persistence",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-permission",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-difficulty-sync",
+          "status": "passed"
+        },
+        {
+          "id": "account-password-change",
+          "status": "passed"
+        },
+        {
+          "id": "account-achievements-before-abandon",
+          "status": "passed"
+        },
+        {
+          "id": "account-liabilities-before-abandon",
+          "status": "passed"
+        },
+        {
+          "id": "account-abandon-owner",
+          "status": "passed"
+        },
+        {
+          "id": "account-rebuild-owner",
+          "status": "passed"
+        },
+        {
+          "id": "account-achievements-new-generation",
+          "status": "passed"
+        },
+        {
+          "id": "account-abandon-guest",
+          "status": "passed"
+        },
+        {
+          "id": "account-rebuild-guest",
+          "status": "passed"
+        },
+        {
+          "id": "snapshot-save-reload",
+          "status": "passed"
+        },
+        {
+          "id": "session-reconnect",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-errors",
+          "status": "passed"
+        }
+      ],
+      "notRun": [],
+      "failures": [],
+      "executionEnvironment": null
+    },
+    {
+      "id": "account-all-dlc",
+      "passed": true,
+      "report": {
+        "path": "G:\\RimTestRuns\\account-all-dlc-final\\20261016-162747-408b5e84\\report.json",
+        "sha256": "853fc2a9190ebf150013f444bc0daa4f4117e17b13845e2b2465f5191c76acc8"
+      },
+      "inputs": {
+        "path": "G:\\RimTestRuns\\account-all-dlc-final\\20261016-162747-408b5e84\\inputs.json",
+        "sha256": "4f13258c20030441022e82ba00586dcb57a282564c78f0c58ed4cc327b0bc6ad"
+      },
+      "profile": {
+        "path": "G:\\RimTestRuns\\account-all-dlc-final\\20261016-162747-408b5e84\\profile.json",
+        "sha256": "af79a3d29b30bf119db41fe2fb27b39e39268e871bf895e1baed055c16e49c50"
+      },
+      "repositoryCommitAtRun": "8099f798a01a4606e2ac81dd02e26e329cb6c8de",
+      "frameworkCommitAtRun": "143559423dc8cee5d46a694186743b311c15c0e5",
+      "hadUncommittedWorkspaceChanges": true,
+      "hadUncommittedFrameworkChanges": true,
+      "expansions": [
+        "Royalty",
+        "Ideology",
+        "Biotech",
+        "Anomaly",
+        "Odyssey"
+      ],
+      "cases": [
+        {
+          "id": "launch-profile",
+          "status": "passed"
+        },
+        {
+          "id": "shared-world-entry",
+          "status": "passed"
+        },
+        {
+          "id": "world-parameters",
+          "status": "passed"
+        },
+        {
+          "id": "world-geometry",
+          "status": "passed"
+        },
+        {
+          "id": "world-tile-data",
+          "status": "passed"
+        },
+        {
+          "id": "world-feature-identities",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-difficulty",
+          "status": "passed"
+        },
+        {
+          "id": "culture-references",
+          "status": "passed"
+        },
+        {
+          "id": "world-persistence",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-permission",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-difficulty-sync",
+          "status": "passed"
+        },
+        {
+          "id": "account-password-change",
+          "status": "passed"
+        },
+        {
+          "id": "account-achievements-before-abandon",
+          "status": "passed"
+        },
+        {
+          "id": "account-liabilities-before-abandon",
+          "status": "passed"
+        },
+        {
+          "id": "account-abandon-owner",
+          "status": "passed"
+        },
+        {
+          "id": "account-rebuild-owner",
+          "status": "passed"
+        },
+        {
+          "id": "account-achievements-new-generation",
+          "status": "passed"
+        },
+        {
+          "id": "account-abandon-guest",
+          "status": "passed"
+        },
+        {
+          "id": "account-rebuild-guest",
+          "status": "passed"
+        },
+        {
+          "id": "snapshot-save-reload",
+          "status": "passed"
+        },
+        {
+          "id": "session-reconnect",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-errors",
+          "status": "passed"
+        }
+      ],
+      "notRun": [],
+      "failures": [],
+      "executionEnvironment": {
+        "scope": "Inherited by launcher and child processes; no product default changed",
+        "reason": "Diagnostic retry after three pre-case CLR/MonoMod startup crashes",
+        "environment": {
+          "DOTNET_PROCESSOR_COUNT": "4"
+        }
+      }
+    }
+  ],
+  "diagnosticRuns": [
+    {
+      "id": "account-all-dlc",
+      "passed": false,
+      "report": {
+        "path": "G:\\RimTestRuns\\account-all-dlc\\20261016-161414-11b7dafd\\report.json",
+        "sha256": "87f047eb72a7cbfc5a0702ab2830b8e76fd6c6eb8f22fce5856cac808bbcce4e"
+      },
+      "inputs": {
+        "path": "G:\\RimTestRuns\\account-all-dlc\\20261016-161414-11b7dafd\\inputs.json",
+        "sha256": "66c573039ec909293d4dcd85c6433f86d9487271579255a7f3dfc0e2ea139aa6"
+      },
+      "profile": {
+        "path": "G:\\RimTestRuns\\account-all-dlc\\20261016-161414-11b7dafd\\profile.json",
+        "sha256": "af79a3d29b30bf119db41fe2fb27b39e39268e871bf895e1baed055c16e49c50"
+      },
+      "repositoryCommitAtRun": "d3a30e9b6c042ee3f1f58da518f7b2c4b05adc65",
+      "frameworkCommitAtRun": "143559423dc8cee5d46a694186743b311c15c0e5",
+      "hadUncommittedWorkspaceChanges": true,
+      "hadUncommittedFrameworkChanges": true,
+      "expansions": [
+        "Royalty",
+        "Ideology",
+        "Biotech",
+        "Anomaly",
+        "Odyssey"
+      ],
+      "cases": [],
+      "notRun": [
+        "launch-profile",
+        "shared-world-entry",
+        "world-parameters",
+        "world-geometry",
+        "world-tile-data",
+        "world-feature-identities",
+        "storyteller-difficulty",
+        "culture-references",
+        "world-persistence",
+        "storyteller-permission",
+        "runtime-difficulty-sync",
+        "snapshot-save-reload",
+        "session-reconnect",
+        "account-password-change",
+        "account-achievements-before-abandon",
+        "account-liabilities-before-abandon",
+        "account-abandon-owner",
+        "account-rebuild-owner",
+        "account-achievements-new-generation",
+        "account-abandon-guest",
+        "account-rebuild-guest",
+        "runtime-errors"
+      ],
+      "failures": [],
+      "executionEnvironment": null
+    },
+    {
+      "id": "account-all-dlc",
+      "passed": false,
+      "report": {
+        "path": "G:\\RimTestRuns\\account-all-dlc-four-workers\\20261016-162328-9290a231\\report.json",
+        "sha256": "6e9d4d3ddd2c2d72f9f6108c694e5faa956debd46e0dd5688dc084c9609050ca"
+      },
+      "inputs": {
+        "path": "G:\\RimTestRuns\\account-all-dlc-four-workers\\20261016-162328-9290a231\\inputs.json",
+        "sha256": "78ca397fc5f82caa35e28cc06322fbbfcb7d34fcb667d897ef8c6769e07191ac"
+      },
+      "profile": {
+        "path": "G:\\RimTestRuns\\account-all-dlc-four-workers\\20261016-162328-9290a231\\profile.json",
+        "sha256": "af79a3d29b30bf119db41fe2fb27b39e39268e871bf895e1baed055c16e49c50"
+      },
+      "repositoryCommitAtRun": "22151a0ffa360779710295ee7fd8f47deb7a7b30",
+      "frameworkCommitAtRun": "143559423dc8cee5d46a694186743b311c15c0e5",
+      "hadUncommittedWorkspaceChanges": true,
+      "hadUncommittedFrameworkChanges": true,
+      "expansions": [
+        "Royalty",
+        "Ideology",
+        "Biotech",
+        "Anomaly",
+        "Odyssey"
+      ],
+      "cases": [
+        {
+          "id": "launch-profile",
+          "status": "passed"
+        },
+        {
+          "id": "shared-world-entry",
+          "status": "passed"
+        },
+        {
+          "id": "world-parameters",
+          "status": "passed"
+        },
+        {
+          "id": "world-geometry",
+          "status": "passed"
+        },
+        {
+          "id": "world-tile-data",
+          "status": "passed"
+        },
+        {
+          "id": "world-feature-identities",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-difficulty",
+          "status": "passed"
+        },
+        {
+          "id": "culture-references",
+          "status": "passed"
+        },
+        {
+          "id": "world-persistence",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-permission",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-difficulty-sync",
+          "status": "passed"
+        },
+        {
+          "id": "account-password-change",
+          "status": "passed"
+        },
+        {
+          "id": "account-achievements-before-abandon",
+          "status": "passed"
+        },
+        {
+          "id": "account-liabilities-before-abandon",
+          "status": "passed"
+        },
+        {
+          "id": "account-abandon-owner",
+          "status": "failed"
+        }
+      ],
+      "notRun": [
+        "snapshot-save-reload",
+        "session-reconnect",
+        "account-rebuild-owner",
+        "account-achievements-new-generation",
+        "account-abandon-guest",
+        "account-rebuild-guest",
+        "runtime-errors"
+      ],
+      "failures": [
+        {
+          "id": "account-abandon-owner",
+          "failure": "Abandoned seller's acceptance memo remained executable."
+        }
+      ],
+      "executionEnvironment": {
+        "environment": {
+          "DOTNET_PROCESSOR_COUNT": "4"
+        },
+        "scope": "Inherited by the test launcher and its children; no product default changed",
+        "reason": "Diagnostic retry after three pre-test CLR/MonoMod startup crashes"
+      }
+    },
+    {
+      "id": "account-all-dlc",
+      "passed": false,
+      "report": {
+        "path": "G:\\RimTestRuns\\account-all-dlc-r3\\20261016-162224-3f5a1127\\report.json",
+        "sha256": "31f98666823d61879707deb70cff4f117a15330021acce32f90036a4ef08c449"
+      },
+      "inputs": {
+        "path": "G:\\RimTestRuns\\account-all-dlc-r3\\20261016-162224-3f5a1127\\inputs.json",
+        "sha256": "914a05527e9be631dddf89eed1c439384c65be9a4679c0964849323fb71d11b4"
+      },
+      "profile": {
+        "path": "G:\\RimTestRuns\\account-all-dlc-r3\\20261016-162224-3f5a1127\\profile.json",
+        "sha256": "af79a3d29b30bf119db41fe2fb27b39e39268e871bf895e1baed055c16e49c50"
+      },
+      "repositoryCommitAtRun": "22151a0ffa360779710295ee7fd8f47deb7a7b30",
+      "frameworkCommitAtRun": "143559423dc8cee5d46a694186743b311c15c0e5",
+      "hadUncommittedWorkspaceChanges": true,
+      "hadUncommittedFrameworkChanges": true,
+      "expansions": [
+        "Royalty",
+        "Ideology",
+        "Biotech",
+        "Anomaly",
+        "Odyssey"
+      ],
+      "cases": [],
+      "notRun": [
+        "launch-profile",
+        "shared-world-entry",
+        "world-parameters",
+        "world-geometry",
+        "world-tile-data",
+        "world-feature-identities",
+        "storyteller-difficulty",
+        "culture-references",
+        "world-persistence",
+        "storyteller-permission",
+        "runtime-difficulty-sync",
+        "snapshot-save-reload",
+        "session-reconnect",
+        "account-password-change",
+        "account-achievements-before-abandon",
+        "account-liabilities-before-abandon",
+        "account-abandon-owner",
+        "account-rebuild-owner",
+        "account-achievements-new-generation",
+        "account-abandon-guest",
+        "account-rebuild-guest",
+        "runtime-errors"
+      ],
+      "failures": [],
+      "executionEnvironment": null
+    },
+    {
+      "id": "account-all-dlc",
+      "passed": false,
+      "report": {
+        "path": "G:\\RimTestRuns\\account-all-dlc-retry\\20261016-161548-bcba1483\\report.json",
+        "sha256": "45636c7b07076f4139243fdf631f4635f0f5dae63da050d22179ca71c7e3ef42"
+      },
+      "inputs": {
+        "path": "G:\\RimTestRuns\\account-all-dlc-retry\\20261016-161548-bcba1483\\inputs.json",
+        "sha256": "b6c44495265263efacf6042c3f0375fb118bb4d107a59f5ea6437e0b82891925"
+      },
+      "profile": {
+        "path": "G:\\RimTestRuns\\account-all-dlc-retry\\20261016-161548-bcba1483\\profile.json",
+        "sha256": "af79a3d29b30bf119db41fe2fb27b39e39268e871bf895e1baed055c16e49c50"
+      },
+      "repositoryCommitAtRun": "d3a30e9b6c042ee3f1f58da518f7b2c4b05adc65",
+      "frameworkCommitAtRun": "143559423dc8cee5d46a694186743b311c15c0e5",
+      "hadUncommittedWorkspaceChanges": true,
+      "hadUncommittedFrameworkChanges": true,
+      "expansions": [
+        "Royalty",
+        "Ideology",
+        "Biotech",
+        "Anomaly",
+        "Odyssey"
+      ],
+      "cases": [],
+      "notRun": [
+        "launch-profile",
+        "shared-world-entry",
+        "world-parameters",
+        "world-geometry",
+        "world-tile-data",
+        "world-feature-identities",
+        "storyteller-difficulty",
+        "culture-references",
+        "world-persistence",
+        "storyteller-permission",
+        "runtime-difficulty-sync",
+        "snapshot-save-reload",
+        "session-reconnect",
+        "account-password-change",
+        "account-achievements-before-abandon",
+        "account-liabilities-before-abandon",
+        "account-abandon-owner",
+        "account-rebuild-owner",
+        "account-achievements-new-generation",
+        "account-abandon-guest",
+        "account-rebuild-guest",
+        "runtime-errors"
+      ],
+      "failures": [],
+      "executionEnvironment": null
+    },
+    {
+      "id": "account-core",
+      "passed": false,
+      "report": {
+        "path": "G:\\RimTestRuns\\account-core\\20261016-161124-9dabc385\\report.json",
+        "sha256": "b2330b4fccb77153a369a9f6ddbf8f6c0a045e211c4a4c69eff07e1485cf4ebc"
+      },
+      "inputs": {
+        "path": "G:\\RimTestRuns\\account-core\\20261016-161124-9dabc385\\inputs.json",
+        "sha256": "4dc36897a0d2507ea1d3acfa6b25b715417eceb804f883574175d3f69039bc0e"
+      },
+      "profile": {
+        "path": "G:\\RimTestRuns\\account-core\\20261016-161124-9dabc385\\profile.json",
+        "sha256": "7da1616d34929365c9a22a791311bfea3dca0c5bdacb64351e31d099b699e70f"
+      },
+      "repositoryCommitAtRun": "d3a30e9b6c042ee3f1f58da518f7b2c4b05adc65",
+      "frameworkCommitAtRun": "143559423dc8cee5d46a694186743b311c15c0e5",
+      "hadUncommittedWorkspaceChanges": true,
+      "hadUncommittedFrameworkChanges": true,
+      "expansions": [],
+      "cases": [
+        {
+          "id": "launch-profile",
+          "status": "passed"
+        },
+        {
+          "id": "shared-world-entry",
+          "status": "passed"
+        },
+        {
+          "id": "world-parameters",
+          "status": "passed"
+        },
+        {
+          "id": "world-geometry",
+          "status": "passed"
+        },
+        {
+          "id": "world-tile-data",
+          "status": "passed"
+        },
+        {
+          "id": "world-feature-identities",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-difficulty",
+          "status": "passed"
+        },
+        {
+          "id": "culture-references",
+          "status": "passed"
+        },
+        {
+          "id": "world-persistence",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-permission",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-difficulty-sync",
+          "status": "passed"
+        },
+        {
+          "id": "account-password-change",
+          "status": "passed"
+        },
+        {
+          "id": "account-achievements-before-abandon",
+          "status": "passed"
+        },
+        {
+          "id": "account-liabilities-before-abandon",
+          "status": "passed"
+        },
+        {
+          "id": "account-abandon-owner",
+          "status": "passed"
+        },
+        {
+          "id": "account-rebuild-owner",
+          "status": "passed"
+        },
+        {
+          "id": "account-achievements-new-generation",
+          "status": "failed"
+        }
+      ],
+      "notRun": [
+        "snapshot-save-reload",
+        "session-reconnect",
+        "account-abandon-guest",
+        "account-rebuild-guest",
+        "runtime-errors"
+      ],
+      "failures": [
+        {
+          "id": "account-achievements-new-generation",
+          "failure": "A stock mismatch for WoodLog: expected 305, actual 300"
+        }
+      ],
+      "executionEnvironment": null
+    },
+    {
+      "id": "account-core",
+      "passed": false,
+      "report": {
+        "path": "G:\\RimTestRuns\\account-core-final\\20261016-162602-f8abcbad\\report.json",
+        "sha256": "bedc36ada0065c11660d49661220ef55fab755afeaea1e422c550145d21adae4"
+      },
+      "inputs": {
+        "path": "G:\\RimTestRuns\\account-core-final\\20261016-162602-f8abcbad\\inputs.json",
+        "sha256": "752c873adabf668690683f7869ca12ee64e9a7cafb824552ef6f216725e2c85d"
+      },
+      "profile": {
+        "path": "G:\\RimTestRuns\\account-core-final\\20261016-162602-f8abcbad\\profile.json",
+        "sha256": "7da1616d34929365c9a22a791311bfea3dca0c5bdacb64351e31d099b699e70f"
+      },
+      "repositoryCommitAtRun": "8099f798a01a4606e2ac81dd02e26e329cb6c8de",
+      "frameworkCommitAtRun": "143559423dc8cee5d46a694186743b311c15c0e5",
+      "hadUncommittedWorkspaceChanges": true,
+      "hadUncommittedFrameworkChanges": true,
+      "expansions": [],
+      "cases": [
+        {
+          "id": "launch-profile",
+          "status": "passed"
+        },
+        {
+          "id": "shared-world-entry",
+          "status": "passed"
+        },
+        {
+          "id": "world-parameters",
+          "status": "passed"
+        },
+        {
+          "id": "world-geometry",
+          "status": "passed"
+        },
+        {
+          "id": "world-tile-data",
+          "status": "passed"
+        },
+        {
+          "id": "world-feature-identities",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-difficulty",
+          "status": "passed"
+        },
+        {
+          "id": "culture-references",
+          "status": "passed"
+        },
+        {
+          "id": "world-persistence",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-permission",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-difficulty-sync",
+          "status": "passed"
+        },
+        {
+          "id": "account-password-change",
+          "status": "passed"
+        },
+        {
+          "id": "account-achievements-before-abandon",
+          "status": "passed"
+        },
+        {
+          "id": "account-liabilities-before-abandon",
+          "status": "passed"
+        },
+        {
+          "id": "account-abandon-owner",
+          "status": "failed"
+        }
+      ],
+      "notRun": [
+        "snapshot-save-reload",
+        "session-reconnect",
+        "account-rebuild-owner",
+        "account-achievements-new-generation",
+        "account-abandon-guest",
+        "account-rebuild-guest",
+        "runtime-errors"
+      ],
+      "failures": [
+        {
+          "id": "account-abandon-owner",
+          "failure": "Abandoned seller's acceptance memo remained executable."
+        }
+      ],
+      "executionEnvironment": null
+    },
+    {
+      "id": "account-core",
+      "passed": false,
+      "report": {
+        "path": "G:\\RimTestRuns\\account-core-funded\\20261016-161505-9a35243c\\report.json",
+        "sha256": "91a66b0bc027c621117fde532d5fe73f69f4c16fc0f6ace67eb315735569a04c"
+      },
+      "inputs": {
+        "path": "G:\\RimTestRuns\\account-core-funded\\20261016-161505-9a35243c\\inputs.json",
+        "sha256": "7177ae2a962f6d15dcb7a0734582cbcd55108a32ff2928b3f382428cb57c1d84"
+      },
+      "profile": {
+        "path": "G:\\RimTestRuns\\account-core-funded\\20261016-161505-9a35243c\\profile.json",
+        "sha256": "7da1616d34929365c9a22a791311bfea3dca0c5bdacb64351e31d099b699e70f"
+      },
+      "repositoryCommitAtRun": "d3a30e9b6c042ee3f1f58da518f7b2c4b05adc65",
+      "frameworkCommitAtRun": "143559423dc8cee5d46a694186743b311c15c0e5",
+      "hadUncommittedWorkspaceChanges": true,
+      "hadUncommittedFrameworkChanges": true,
+      "expansions": [],
+      "cases": [
+        {
+          "id": "launch-profile",
+          "status": "passed"
+        },
+        {
+          "id": "shared-world-entry",
+          "status": "passed"
+        },
+        {
+          "id": "world-parameters",
+          "status": "passed"
+        },
+        {
+          "id": "world-geometry",
+          "status": "passed"
+        },
+        {
+          "id": "world-tile-data",
+          "status": "passed"
+        },
+        {
+          "id": "world-feature-identities",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-difficulty",
+          "status": "passed"
+        },
+        {
+          "id": "culture-references",
+          "status": "passed"
+        },
+        {
+          "id": "world-persistence",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-permission",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-difficulty-sync",
+          "status": "passed"
+        },
+        {
+          "id": "account-password-change",
+          "status": "passed"
+        },
+        {
+          "id": "account-achievements-before-abandon",
+          "status": "failed"
+        }
+      ],
+      "notRun": [
+        "snapshot-save-reload",
+        "session-reconnect",
+        "account-liabilities-before-abandon",
+        "account-abandon-owner",
+        "account-rebuild-owner",
+        "account-achievements-new-generation",
+        "account-abandon-guest",
+        "account-rebuild-guest",
+        "runtime-errors"
+      ],
+      "failures": [
+        {
+          "id": "account-achievements-before-abandon",
+          "failure": "A stock mismatch for WoodLog: expected 305, actual 300"
+        }
+      ],
+      "executionEnvironment": null
+    },
+    {
+      "id": "account-core",
+      "passed": false,
+      "report": {
+        "path": "G:\\RimTestRuns\\account-core-r3\\20261016-161708-5b8bde90\\report.json",
+        "sha256": "d414126dab7cfcb68956ebe0fb48299304c29cff1c99781b377cd5d7b2c2d736"
+      },
+      "inputs": {
+        "path": "G:\\RimTestRuns\\account-core-r3\\20261016-161708-5b8bde90\\inputs.json",
+        "sha256": "881a1fe3e96dc2cafd22681826101d682fa3f7e9ffb56182a4bb41beef9189dd"
+      },
+      "profile": {
+        "path": "G:\\RimTestRuns\\account-core-r3\\20261016-161708-5b8bde90\\profile.json",
+        "sha256": "7da1616d34929365c9a22a791311bfea3dca0c5bdacb64351e31d099b699e70f"
+      },
+      "repositoryCommitAtRun": "d3a30e9b6c042ee3f1f58da518f7b2c4b05adc65",
+      "frameworkCommitAtRun": "143559423dc8cee5d46a694186743b311c15c0e5",
+      "hadUncommittedWorkspaceChanges": true,
+      "hadUncommittedFrameworkChanges": true,
+      "expansions": [],
+      "cases": [
+        {
+          "id": "launch-profile",
+          "status": "passed"
+        },
+        {
+          "id": "shared-world-entry",
+          "status": "passed"
+        },
+        {
+          "id": "world-parameters",
+          "status": "passed"
+        },
+        {
+          "id": "world-geometry",
+          "status": "passed"
+        },
+        {
+          "id": "world-tile-data",
+          "status": "passed"
+        },
+        {
+          "id": "world-feature-identities",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-difficulty",
+          "status": "passed"
+        },
+        {
+          "id": "culture-references",
+          "status": "passed"
+        },
+        {
+          "id": "world-persistence",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-permission",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-difficulty-sync",
+          "status": "passed"
+        },
+        {
+          "id": "account-password-change",
+          "status": "passed"
+        },
+        {
+          "id": "account-achievements-before-abandon",
+          "status": "passed"
+        },
+        {
+          "id": "account-liabilities-before-abandon",
+          "status": "passed"
+        },
+        {
+          "id": "account-abandon-owner",
+          "status": "passed"
+        },
+        {
+          "id": "account-rebuild-owner",
+          "status": "passed"
+        },
+        {
+          "id": "account-achievements-new-generation",
+          "status": "failed"
+        }
+      ],
+      "notRun": [
+        "snapshot-save-reload",
+        "session-reconnect",
+        "account-abandon-guest",
+        "account-rebuild-guest",
+        "runtime-errors"
+      ],
+      "failures": [
+        {
+          "id": "account-achievements-new-generation",
+          "failure": "Achievement UI differs from authoritative aggregate."
+        }
+      ],
+      "executionEnvironment": null
+    }
+  ],
+  "additionalValidation": [
+    {
+      "path": "LocalOnly/account-save-tests-fixed.log",
+      "sha256": "3394996faf78a75c9cfddce704980b79f32a5e14f134693b8cc145d6188782d9"
+    },
+    {
+      "path": "LocalOnly/account-session-probe.log",
+      "sha256": "58ee4c7eb79a5736cb1e896d68de2a25a378dea470585a9549a2c1f0634f5eb0"
+    },
+    {
+      "path": "LocalOnly/account-session-probe-fixed.log",
+      "sha256": "fefdf8dcf4712b0a7a3042d3f042cd1f9c4b4d9938b0db40b9537bfacb6384bd"
+    },
+    {
+      "path": "LocalOnly/account-suite-build.log",
+      "sha256": "97196cb1e62a72561d05d95b7486b55ed38ea01d8cb2a2910cf7aa4ce76d74ef"
+    },
+    {
+      "path": "LocalOnly/account-bridge-build.log",
+      "sha256": "e0def7cf987bce2f88f5878755d2506ac4ade23b89c5a69a669be015d47ff58a"
+    },
+    {
+      "path": "LocalOnly/account-frozen-source.log",
+      "sha256": "5f69d35ac81006bd3f7c2029341f2d598a40e6397dafd5c8fd138b610a686781"
+    },
+    {
+      "path": "LocalOnly/account-frozen-package.log",
+      "sha256": "16f218caa3a8ec2e0a72aee88b1af18c1c3b09ce570e3750d94e325d38306924"
+    }
+  ],
+  "saveTests": {
+    "failed": 0,
+    "passed": 135
+  },
+  "frozen16": {
+    "packageFiles": 68,
+    "sourceFiles": 77,
+    "unchanged": true
+  }
+}

@@ -138,7 +138,8 @@ internal sealed partial class GameSuite
         var own = await Wait("A", "clash.records", new { kind = "achievements" }, p => Items(p).Any(v => v.GetProperty("data").String("achievementId") == "trades_10"));
         var achievement = Items(own).Single(v => v.GetProperty("data").String("achievementId") == "trades_10").GetProperty("data");
         Check(achievement.Int("value") >= 10, "Trade achievement has wrong progress.");
-        var records = ServerState.Achievements.ListAggregates().Where(a => a.UserId == "rimtest-A" && a.AchievementId == "trades_10").ToArray();
+        string colony = (await Call("A", "clash.state")).String("colonyId");
+        var records = ServerState.Achievements.ListAggregates().Where(a => a.UserId == "rimtest-A" && a.ColonyId == colony && a.AchievementId == "trades_10").ToArray();
         Check(records.Length == 1 && records[0].Value == achievement.Int("value"), "Achievement UI differs from authoritative aggregate.");
         await Invoke("B", "StartRefreshAchievements");
         await Wait("B", "clash.records", new { kind = "leaderboards" }, p => Items(p).Any(v => v.GetProperty("data").String("achievementId") == "trades_10" &&

@@ -8,6 +8,7 @@ internal sealed partial class GameSuite
     private JsonElement raidLoss;
     internal static string[] StabilityCases(string? kind) => kind switch
     {
+        "account" => ["account-password-change", "account-achievements-before-abandon", "account-liabilities-before-abandon", "account-abandon-owner", "account-rebuild-owner", "account-achievements-new-generation", "account-abandon-guest", "account-rebuild-guest"],
         "bank" => ["bank-input-rejection", "bank-overdue-repayment", "bank-mercenary-debt"],
         "relocation" => ["relocation-caravan", "relocation-quest-site"],
         "gravship" => ["gravship-new-map", "gravship-quest-site"],
@@ -23,6 +24,7 @@ internal sealed partial class GameSuite
     };
     async Task RunStability()
     {
+        if (profile.Stability == "account") await AccountLifecycle();
         if (profile.Stability == "gravship")
         {
             await Case("gravship-new-map", () => GravshipMove("A", false));

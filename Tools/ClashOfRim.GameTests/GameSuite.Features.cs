@@ -140,7 +140,8 @@ internal sealed partial class GameSuite
         Check(state.MercenaryContracts.Find(id)?.Status == MercenaryContractRegistry.StatusCompleted, "Recall did not close the authoritative contract.");
         await run.RecordAsync(new { serverObservation = "mercenary-recall", contractId = id, status = state.MercenaryContracts.Find(id)?.Status });
     }
-    async Task Shop()
+    Task Shop() => Shop(preserveListing: false);
+    async Task Shop(bool preserveListing)
     {
         await Idle("A");
         var template = await Call("A", "clash.shop.template", new { defName = "Steel", count = 5 });
@@ -158,6 +159,7 @@ internal sealed partial class GameSuite
         await Invoke("A", "StartRefreshServerShop");
         shop = await Wait("A", "clash.records", new { kind = "shop" }, s => Items(s).Any(v => v.GetProperty("data").String("listingId") == listing.GetProperty("data").String("listingId") && v.GetProperty("data").Int("stockCount") == 2));
         var refreshed = Items(shop).Single(v => v.GetProperty("data").String("listingId") == listing.GetProperty("data").String("listingId"));
+        if (preserveListing) return;
         await Invoke("A", "StartRemoveServerShopListing", new { listing = refreshed.GetProperty("reference") });
         await Wait("A", "clash.records", new { kind = "shop" }, s => !Items(s).Any(v => v.GetProperty("data").String("listingId") == listing.GetProperty("data").String("listingId")));
     }
