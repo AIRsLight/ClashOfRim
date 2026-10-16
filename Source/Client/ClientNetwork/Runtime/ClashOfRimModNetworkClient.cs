@@ -406,24 +406,16 @@ public sealed partial class ClashOfRimModNetworkClient
     public Task<ClashOfRimClientNetworkResult<ModSubmitWorldConfigurationResponseDto>> SubmitWorldConfigurationAsync(
         ModWorldConfigurationDto configuration,
         CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModSubmitWorldConfigurationResponseDto>();
-        }
-
-        var request = new ModSubmitWorldConfigurationRequestDto
-        {
-            UserId = context.UserId,
-            ColonyId = context.ColonyId,
-            Configuration = configuration
-        };
-
-        return PostAsync<ModSubmitWorldConfigurationRequestDto, ModSubmitWorldConfigurationResponseDto>(
-            SubmitWorldConfigurationRoute,
-            request,
-            cancellationToken);
-    }
+        => WithSetupAuthenticationAsync<ModSubmitWorldConfigurationResponseDto>("world-configuration-setup", (authenticated, token) =>
+            authenticated.PostAsync<ModSubmitWorldConfigurationRequestDto, ModSubmitWorldConfigurationResponseDto>(
+                SubmitWorldConfigurationRoute,
+                new ModSubmitWorldConfigurationRequestDto
+                {
+                    UserId = authenticated.context.UserId,
+                    ColonyId = authenticated.context.ColonyId,
+                    AuthToken = authenticated.context.AuthToken,
+                    Configuration = configuration
+                }, token), cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModSubmitWorldFeatureNamesResponseDto>> SubmitWorldFeatureNamesAsync(
         string language,

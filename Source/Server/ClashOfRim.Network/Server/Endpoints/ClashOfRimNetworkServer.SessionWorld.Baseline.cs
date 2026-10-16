@@ -24,7 +24,7 @@ public static partial class ClashOfRimNetworkServer
         if (string.IsNullOrWhiteSpace(request.UserId) || string.IsNullOrWhiteSpace(request.ColonyId))
             return Reject(ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("AdminBaseline.MissingIdentity")));
         using (var recovery = EnterRecoveredSnapshotMutation(state,
-            () => AuthorizeAdminBaseline(state, request.UserId, request.ColonyId, request.AuthToken)))
+            () => AuthorizeAdministratorRequest(state, request.UserId, request.ColonyId, request.AuthToken)))
         {
             if (recovery.Rejection is { } failure) return Reject(failure);
             WorldSessionState session = state.WorldConfiguration.GetSessionState(request.UserId);
@@ -84,10 +84,6 @@ public static partial class ClashOfRimNetworkServer
             StringComparer.OrdinalIgnoreCase);
     }
 
-    private static ProtocolResponse? AuthorizeAdminBaseline(ClashOfRimNetworkState state, string userId, string? colonyId, string? token)
-        => TryAuthorizeAdmin(state, userId, colonyId ?? string.Empty, token, DateTimeOffset.UtcNow, out string failure)
-            ? null : ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, failure);
-
     private static IResult SubmitAdminBaseline(SubmitAdminBaselineRequest request, ClashOfRimNetworkState state)
     {
         IResult Reject(ProtocolResponse failure) => Results.Ok(new SubmitAdminBaselineResponse(
@@ -96,7 +92,7 @@ public static partial class ClashOfRimNetworkServer
             return Reject(ProtocolResponse.Reject(ProtocolErrorCode.IncompatibleProtocolVersion, T("Protocol.IncompatibleVersion")));
         if (string.IsNullOrWhiteSpace(request.UserId) || string.IsNullOrWhiteSpace(request.ColonyId))
             return Reject(ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("AdminBaseline.MissingIdentity")));
-        ProtocolResponse? Authorize() => AuthorizeAdminBaseline(state, request.UserId, request.ColonyId, request.AuthToken);
+        ProtocolResponse? Authorize() => AuthorizeAdministratorRequest(state, request.UserId, request.ColonyId, request.AuthToken);
         if (Authorize() is { } initialFailure) return Reject(initialFailure);
         // Normalize potentially large price/definition collections without owning the mutation gate.
         AdminBaselineSnapshot normalized = AdminBaselineSnapshot.FromRequest(request);
@@ -156,8 +152,8 @@ public static partial class ClashOfRimNetworkServer
                 configuration.Extensions);
         return new WorldConfigurationDto(
             worldConfigurationId,
-            string.IsNullOrWhiteSpace(configuration.ConfiguredByUserId) ? userId : configuration.ConfiguredByUserId,
-            string.IsNullOrWhiteSpace(configuration.ConfiguredByColonyId) ? colonyId : configuration.ConfiguredByColonyId,
+            userId,
+            colonyId,
             configuration.ConfiguredAtUtc == default ? DateTimeOffset.UtcNow : configuration.ConfiguredAtUtc,
             configuration.SeedString,
             configuration.PlanetCoverage,

@@ -316,6 +316,7 @@
   "WorldConfiguration.MissingRequest": "世界配置缺少用户、殖民地或配置内容。",
   "WorldConfiguration.AdminOnly": "只有首个加入服务器的管理员可以提交初始世界配置。",
   "WorldConfiguration.InvalidBaseline": "世界配置有误：{REASON}",
+  "WorldConfiguration.CompatibilityChanged": "准备世界配置期间服务器兼容性基线发生变化，请刷新服务器信息后重试。",
   "WorldConfiguration.Registered": "世界配置已保存。",
   "WorldConfiguration.FeatureNamesMissingRequest": "地区名目录缺少用户、殖民地、语言、世界配置或地区名内容。",
   "WorldConfiguration.FeatureNamesRejected": "地区名目录被拒绝：{REASON}",

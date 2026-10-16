@@ -115,8 +115,10 @@ public sealed class SubmitWorldConfigurationRequest
         string protocolVersion,
         string userId,
         string colonyId,
-        WorldConfigurationDto configuration)
+        WorldConfigurationDto configuration,
+        string? authToken = null)
     {
+        AuthToken = authToken;
         ProtocolVersion = protocolVersion;
         UserId = userId;
         ColonyId = colonyId;
@@ -130,6 +132,8 @@ public sealed class SubmitWorldConfigurationRequest
     public string ColonyId { get; }
 
     public WorldConfigurationDto Configuration { get; }
+
+    public string? AuthToken { get; }
 }
 
 public sealed class GetWorldConfigurationRequest

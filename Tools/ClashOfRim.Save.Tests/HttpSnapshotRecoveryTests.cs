@@ -149,13 +149,13 @@ internal static class HttpSnapshotRecoveryTests
         public AuthoritativeEvent Source { get; }
         private readonly AuthoritativeEvent foreignGift;
         public string Token = "";
-        public Fixture(Func<string, SaveSnapshotPackage> factory, ServerPluginRegistry? plugins = null)
+        public Fixture(Func<string, SaveSnapshotPackage> factory, ServerPluginRegistry? plugins = null, WorldConfigurationRegistry? worldConfiguration = null)
         {
             Directory.CreateDirectory(root);
             string database = Database; ServerDatabaseMigrator.Migrate(database);
             Store = new(Path.Combine(root, "snapshots"));
             State = new(ledger: new SqliteAuthoritativeEventLedger(database), snapshotStore: Store,
-                playerRegistry: new PlayerRegistry(new SqlitePlayerRegistryStore(database), null), snapshotCommits: new SnapshotCommitService(Journal), plugins: plugins);
+                playerRegistry: new PlayerRegistry(new SqlitePlayerRegistryStore(database), null), snapshotCommits: new SnapshotCommitService(Journal), plugins: plugins, worldConfigurationRegistry: worldConfiguration);
             Store.Gate = State.RaidSettlementSnapshotMutationGate;
             var package = factory("foreign");
             Package = package with { Envelope = package.Envelope with { Identity = new("foreign", "foreign-colony", "foreign"),

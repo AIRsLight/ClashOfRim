@@ -317,6 +317,7 @@
   "WorldConfiguration.MissingRequest": "В конфигурации мира отсутствует пользователь, колония или содержимое конфигурации.",
   "WorldConfiguration.AdminOnly": "Начальную конфигурацию мира может отправить только первый администратор сервера.",
   "WorldConfiguration.InvalidBaseline": "Конфигурация мира не может быть принята: {REASON}",
+  "WorldConfiguration.CompatibilityChanged": "Во время подготовки настроек мира изменились данные совместимости сервера. Обновите информацию о сервере и повторите попытку.",
   "WorldConfiguration.Registered": "Конфигурация мира сохранена.",
   "WorldConfiguration.FeatureNamesMissingRequest": "В каталоге названий регионов отсутствует пользователь, колония, язык, конфигурация мира или названия регионов.",
   "WorldConfiguration.FeatureNamesRejected": "Каталог названий регионов отклонен: {REASON}",

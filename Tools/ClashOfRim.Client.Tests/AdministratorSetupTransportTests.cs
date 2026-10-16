@@ -9,24 +9,24 @@ using System.Threading.Tasks;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.Protocol;
 
-internal static class AdminBaselineTransportTests
+internal static class AdministratorSetupTransportTests
 {
     public static void Run()
     {
-        foreach (bool submit in new[] { false, true })
+        foreach (string operation in new[] { "requirements", "baseline", "world" })
         foreach (string? existing in new[] { null, "existing-token" })
         foreach (string outcome in new[] { "success", "rejected", "http-error", "exception", "cancel", "session-cancel" })
-            Check(submit, existing, outcome).GetAwaiter().GetResult();
-        foreach (bool submit in new[] { false, true })
+            Check(operation, existing, outcome).GetAwaiter().GetResult();
+        foreach (string operation in new[] { "requirements", "baseline", "world" })
         foreach (string outcome in new[] { "login-rejected", "login-no-token", "login-no-session" })
-            Check(submit, null, outcome).GetAwaiter().GetResult();
+            Check(operation, null, outcome).GetAwaiter().GetResult();
     }
 
-    private static async Task Check(bool submit, string? existing, string outcome)
+    private static async Task Check(string operation, string? existing, string outcome)
     {
         ClientSessionWork.Reset();
         using var cancel = new CancellationTokenSource();
-        using var handler = new Handler(submit, existing, outcome, cancel);
+        using var handler = new Handler(operation, existing, outcome, cancel);
         using var http = new HttpClient(handler);
         var context = new ClashOfRimClientNetworkContext("http://127.0.0.1:12345", "admin", "colony", null, null, "password", existing);
         var client = new ClashOfRimModNetworkClient(http, context);
@@ -35,7 +35,13 @@ internal static class AdminBaselineTransportTests
         {
             await ClientSessionWork.Run(async () =>
             {
-                if (submit)
+                if (operation == "world")
+                {
+                    var result = await client.SubmitWorldConfigurationAsync(new ModWorldConfigurationDto
+                        { WorldConfigurationId = "world", SeedString = "seed", ConfiguredAtUtc = DateTimeOffset.UtcNow.ToString("O") }, cancel.Token);
+                    success = result.Success && result.Response?.Result?.Accepted == true;
+                }
+                else if (operation == "baseline")
                 {
                     var result = await client.SubmitAdminBaselineAsync(new ModSubmitAdminBaselineRequestDto { GeneratedAtUtc = DateTimeOffset.UtcNow.ToString("O") }, cancel.Token);
                     success = result.Success && result.Response?.Result?.Accepted == true;
@@ -48,22 +54,22 @@ internal static class AdminBaselineTransportTests
             });
         }
         finally { ClientSessionWork.Reset(); }
-        Require(success == (outcome == "success"), "Unexpected baseline transport outcome: " + outcome);
+        Require(success == (outcome == "success"), "Unexpected setup transport outcome: " + outcome);
         string[] expected = existing is not null ? new[] { "business" } : outcome.StartsWith("login-") ? new[] { "login" } : new[] { "login", "business", "logout" };
-        Require(handler.Calls.SequenceEqual(expected), "Wrong baseline session sequence: " + string.Join(",", handler.Calls));
+        Require(handler.Calls.SequenceEqual(expected), "Wrong setup session sequence: " + string.Join(",", handler.Calls));
         Require(handler.LoggedOut == expected.Contains("logout"), "Temporary session cleanup was cancelled before completion.");
         Require(context.AuthToken == existing, "Private setup credentials leaked into caller context.");
     }
 
     private sealed class Handler : HttpMessageHandler
     {
-        private readonly bool submit;
+        private readonly bool submit, world;
         private readonly string token, outcome;
         private readonly CancellationTokenSource cancel;
         public readonly List<string> Calls = new();
         public bool LoggedOut;
-        public Handler(bool submit, string? existing, string outcome, CancellationTokenSource cancel)
-        { this.submit = submit; token = existing ?? "setup-token"; this.outcome = outcome; this.cancel = cancel; }
+        public Handler(string operation, string? existing, string outcome, CancellationTokenSource cancel)
+        { submit = operation == "baseline"; world = operation == "world"; token = existing ?? "setup-token"; this.outcome = outcome; this.cancel = cancel; }
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             string route = request.RequestUri!.AbsolutePath;
@@ -79,12 +85,17 @@ internal static class AdminBaselineTransportTests
                 });
             }
             string body = await request.Content!.ReadAsStringAsync(cancellationToken);
-            if (route == ProtocolContractManifest.Find(submit ? ProtocolMessageKind.SubmitAdminBaseline : ProtocolMessageKind.GetAdminBaselineRequirements).Route)
+            if (route == ProtocolContractManifest.Find(world ? ProtocolMessageKind.SubmitWorldConfiguration : submit ? ProtocolMessageKind.SubmitAdminBaseline : ProtocolMessageKind.GetAdminBaselineRequirements).Route)
             {
                 Calls.Add("business");
                 // Deserialize the Mod's real DataContract JSON with the server's actual request type.
                 var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
-                if (submit)
+                if (world)
+                {
+                    var dto = JsonSerializer.Deserialize<SubmitWorldConfigurationRequest>(body, options)!;
+                    Require(dto.UserId == "admin" && dto.ColonyId == "colony" && dto.AuthToken == token && dto.Configuration.SeedString == "seed", "World configuration identity/token/body contract differs.");
+                }
+                else if (submit)
                 {
                     var dto = JsonSerializer.Deserialize<SubmitAdminBaselineRequest>(body, options)!;
                     Require(dto.UserId == "admin" && dto.ColonyId == "colony" && dto.AuthToken == token, "Submission identity/token contract differs.");

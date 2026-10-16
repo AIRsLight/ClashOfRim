@@ -44,7 +44,7 @@ var tests = new (string Name, Action Run)[]
     ("defense duty returns to its radius without consuming wander cadence", DefenseDutyUsesIndependentReturnNode),
     ("session reconnect blocks unfinished atomic mutations", SessionReconnectBlocksAtomicMutations),
     ("session reconnect requires the same authoritative snapshot", SessionReconnectRequiresSameSnapshot),
-    ("admin baseline authenticates setup requests and releases only its temporary session", AdminBaselineTransportTests.Run),
+    ("administrator setup authenticates requests and releases only its temporary session", AdministratorSetupTransportTests.Run),
 };
 
 static void FailedTradeBuyerRefundPurpose()

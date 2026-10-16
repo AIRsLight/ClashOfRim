@@ -185,71 +185,46 @@ public static partial class ClashOfRimNetworkServer
         ClashOfRimNetworkState state,
         ILoggerFactory loggerFactory)
     {
+        IResult Reject(ProtocolResponse failure) => Results.Ok(new SubmitWorldConfigurationResponse(
+            failure, false, false, null, null));
         if (!string.Equals(request.ProtocolVersion, ProtocolApiVersion.Current, StringComparison.Ordinal))
-        {
-            return Results.Ok(new SubmitWorldConfigurationResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.IncompatibleProtocolVersion, T("Protocol.IncompatibleVersion")),
-                isAdministrator: false,
-                worldConfigured: false,
-                administratorUserId: null,
-                worldConfiguration: null));
-        }
+            return Reject(ProtocolResponse.Reject(ProtocolErrorCode.IncompatibleProtocolVersion, T("Protocol.IncompatibleVersion")));
+        if (string.IsNullOrWhiteSpace(request.UserId) || string.IsNullOrWhiteSpace(request.ColonyId) || request.Configuration is null)
+            return Reject(ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("WorldConfiguration.MissingRequest")));
+        ProtocolResponse? Authorize() => AuthorizeAdministratorRequest(state, request.UserId, request.ColonyId, request.AuthToken);
+        if (Authorize() is { } initialFailure) return Reject(initialFailure);
 
-        if (string.IsNullOrWhiteSpace(request.UserId)
-            || string.IsNullOrWhiteSpace(request.ColonyId)
-            || request.Configuration is null)
-        {
-            return Results.Ok(new SubmitWorldConfigurationResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("WorldConfiguration.MissingRequest")),
-                isAdministrator: false,
-                worldConfigured: false,
-                administratorUserId: null,
-                worldConfiguration: null));
-        }
-
-        WorldSessionState before = state.WorldConfiguration.Prepare(request.UserId);
-        if (!before.IsAdministrator)
-        {
-            return Results.Ok(new SubmitWorldConfigurationResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, T("WorldConfiguration.AdminOnly")),
-                isAdministrator: false,
-                before.WorldConfigured,
-                before.AdministratorUserId,
-                BuildWorldConfigurationForDelivery(before.WorldConfiguration, state)));
-        }
-
-        WorldConfigurationExtensionService activeWorldExtensions = ActiveWorldConfigurationExtensions(state);
+        // Extension normalization can be expensive. Keep it outside the mutation gate,
+        // and refuse to publish if its compatibility policy changed while preparing.
+        CompatibilityManifest? compatibility = state.CompatibilityBaseline.Current;
+        WorldConfigurationExtensionService activeWorldExtensions = state.Plugins.ActiveWorldConfigurationExtensions(compatibility);
         WorldConfigurationDto configuration = NormalizeWorldConfiguration(
-            request.Configuration,
-            request.UserId,
-            request.ColonyId,
-            activeWorldExtensions);
+            request.Configuration, request.UserId, request.ColonyId, activeWorldExtensions);
         if (!HasUsableWorldGenerationBaseline(configuration, out string baselineFailureReason))
+            return Reject(ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed,
+                T("WorldConfiguration.InvalidBaseline", ("REASON", baselineFailureReason))));
+        ProtocolResponse? AuthorizePrepared()
         {
-            return Results.Ok(new SubmitWorldConfigurationResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("WorldConfiguration.InvalidBaseline", ("REASON", baselineFailureReason))),
-                before.IsAdministrator,
-                before.WorldConfigured,
-                before.AdministratorUserId,
-                BuildWorldConfigurationForDelivery(before.WorldConfiguration, state)));
+            if (Authorize() is { } failure) return failure;
+            return ReferenceEquals(compatibility, state.CompatibilityBaseline.Current) ? null
+                : ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, T("WorldConfiguration.CompatibilityChanged"));
         }
-
-        WorldSessionState after = state.WorldConfiguration.Submit(request.UserId, configuration, activeWorldExtensions);
-        RecordPlayerSeen(state, request.UserId, request.ColonyId, currentSnapshotId: null, DateTimeOffset.UtcNow);
-        SignalWorldConfigurationChanged(state, request.UserId);
-        RuntimeLogger(loggerFactory).LogInformation(
-            "世界基线已提交：user={UserId} colony={ColonyId} administrator={AdministratorUserId} configured={WorldConfigured} playerSites={PlayerSiteCount}",
-            request.UserId,
-            request.ColonyId,
-            after.AdministratorUserId,
-            after.WorldConfigured,
-            after.WorldConfiguration?.PlayerColonySites.Count ?? 0);
-        return Results.Ok(new SubmitWorldConfigurationResponse(
-            ProtocolResponse.Ok(T("WorldConfiguration.Registered")),
-            after.IsAdministrator,
-            after.WorldConfigured,
-            after.AdministratorUserId,
-            BuildWorldConfigurationForDelivery(after.WorldConfiguration, state)));
+        using (var recovery = EnterRecoveredSnapshotMutation(state, AuthorizePrepared))
+        {
+            if (recovery.Rejection is { } failure) return Reject(failure);
+            WorldSessionState after = state.WorldConfiguration.Submit(request.UserId, configuration, activeWorldExtensions);
+            if (!after.IsAdministrator)
+                return Reject(ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, T("Admin.Unauthorized")));
+            RecordPlayerSeen(state, request.UserId, request.ColonyId, currentSnapshotId: null, DateTimeOffset.UtcNow);
+            SignalWorldConfigurationChanged(state, request.UserId);
+            RuntimeLogger(loggerFactory).LogInformation(
+                "世界基线已提交：user={UserId} colony={ColonyId} administrator={AdministratorUserId} configured={WorldConfigured} playerSites={PlayerSiteCount}",
+                request.UserId, request.ColonyId, after.AdministratorUserId, after.WorldConfigured,
+                after.WorldConfiguration?.PlayerColonySites.Count ?? 0);
+            return Results.Ok(new SubmitWorldConfigurationResponse(
+                ProtocolResponse.Ok(T("WorldConfiguration.Registered")), after.IsAdministrator, after.WorldConfigured,
+                after.AdministratorUserId, BuildWorldConfigurationForDelivery(after.WorldConfiguration, state)));
+        }
     }
 
     private static IResult SubmitWorldFeatureNames(

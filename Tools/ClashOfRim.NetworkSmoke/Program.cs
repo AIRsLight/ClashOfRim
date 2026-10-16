@@ -1324,6 +1324,7 @@ try
     Require(firstWorldSession.RequiresInitialWorldConfiguration, "首个管理员应进入初始世界配置分支");
     Require(!firstWorldSession.WorldConfigured, "初始提交前服务器不应已有世界配置");
 
+    var worldSetupLogin = await LoginSmokeSetup(client, "user-a", "colony-a", BuildSmokeCompatibilityManifestJson("smoke-main-manifest"));
     SubmitWorldConfigurationResponse submittedWorld = await client.SubmitWorldConfigurationAsync(
         new SubmitWorldConfigurationRequest(
             ProtocolApiVersion.Current,
@@ -1380,8 +1381,9 @@ try
                         hidden: false,
                         initialPlayerIdeo: true,
                         memeCount: 1,
-                        preceptCount: 1)))));
+                        preceptCount: 1))), authToken: worldSetupLogin.AuthToken));
     Require(submittedWorld.Result.Accepted, "管理员应能提交初始世界配置");
+    await LogoutSmokeSetup(httpClient, "user-a", "colony-a", worldSetupLogin.SessionId);
     Require(!submittedWorld.WorldConfigured, "世界底图上传前基线应保持未就绪");
     await UploadSmokeWorldSubstrate(httpClient, "user-a", "colony-a", "world:test", BuildSmokeCompatibilityManifestJson("smoke-main-manifest"));
     Equal("seed-a", state.WorldConfiguration.Current?.SeedString, "底图提交后服务器应保留世界种子");
@@ -3859,6 +3861,7 @@ static async Task VerifyColonyRelocationExplicitConfirmationAsync()
                 createAccountIfMissing: true));
         Require(prepared.Result.Accepted, $"搬迁测试管理员应能准备世界会话：{prepared.Result.ErrorCode} {prepared.Result.Message}");
 
+        var worldSetupLogin = await LoginSmokeSetup(client, "reloc-user", "reloc-colony", compatibilityManifestJson);
         SubmitWorldConfigurationResponse submitted = await client.SubmitWorldConfigurationAsync(
             new SubmitWorldConfigurationRequest(
                 ProtocolApiVersion.Current,
@@ -3888,8 +3891,9 @@ static async Task VerifyColonyRelocationExplicitConfirmationAsync()
                     },
                     "Cassandra",
                     "Medium",
-                    BuildSmokeWorldTileGeometry())));
+                    BuildSmokeWorldTileGeometry()), authToken: worldSetupLogin.AuthToken));
         Require(submitted.Result.Accepted, $"搬迁测试应能提交初始世界配置：{submitted.Result.ErrorCode} {submitted.Result.Message}");
+        await LogoutSmokeSetup(httpClient, "reloc-user", "reloc-colony", worldSetupLogin.SessionId);
 
         LoginResponse login = await client.LoginAsync(new LoginRequest(
             ProtocolApiVersion.Current,
@@ -4314,13 +4318,15 @@ static async Task VerifyDefaultPersistentServerStateAsync()
                     createAccountIfMissing: true));
             Require(prepared.IsAdministrator, "默认持久化服务端应记录首个管理员");
 
+            var worldSetupLogin = await LoginSmokeSetup(firstClient, "admin-user", "colony-a", compatibilityManifestJson);
             SubmitWorldConfigurationResponse submitted = await firstClient.SubmitWorldConfigurationAsync(
                 new SubmitWorldConfigurationRequest(
                     ProtocolApiVersion.Current,
                     "admin-user",
                     "colony-a",
-                    BuildMinimalWorldConfiguration()));
+                    BuildMinimalWorldConfiguration(), authToken: worldSetupLogin.AuthToken));
             Require(submitted.Result.Accepted, "默认持久化服务端应接受世界配置");
+            await LogoutSmokeSetup(firstHttp, "admin-user", "colony-a", worldSetupLogin.SessionId);
             await UploadSmokeWorldSubstrate(firstHttp, "admin-user", "colony-a", "world:persistent", compatibilityManifestJson);
             var siteOwner = await firstClient.PrepareWorldSessionAsync(new PrepareWorldSessionRequest(
                 ProtocolApiVersion.Current, "user-b", "colony-b", password: string.Empty,
@@ -4776,7 +4782,7 @@ static async Task<LoginResponse> LoginSmokeSetup(ClashOfRimNetworkClient client,
 {
     var login = await client.LoginAsync(new LoginRequest(ProtocolApiVersion.Current, user, colony, null, "baseline-setup",
         password: string.Empty, compatibilityManifestJson: manifest));
-    Require(login.Result.Accepted && !string.IsNullOrWhiteSpace(login.AuthToken), "基线操作前应取得有效会话");
+    Require(login.Result.Accepted && !string.IsNullOrWhiteSpace(login.AuthToken), "管理员设置前应取得有效会话");
     return login;
 }
 
@@ -4785,7 +4791,7 @@ static async Task LogoutSmokeSetup(HttpClient http, string user, string colony, 
     using var response = await http.PostAsJsonAsync(ProtocolContractManifest.Find(ProtocolMessageKind.Logout).Route,
         new LogoutRequest(user, colony, session));
     response.EnsureSuccessStatusCode();
-    Require((await response.Content.ReadFromJsonAsync<LogoutResponse>())!.Result.Accepted, "基线临时会话应成功退出");
+    Require((await response.Content.ReadFromJsonAsync<LogoutResponse>())!.Result.Accepted, "管理员设置临时会话应成功退出");
 }
 
 static async Task UploadSmokeWorldSubstrate(HttpClient http, string user, string colony, string world, string manifest)

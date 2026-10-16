@@ -279,6 +279,9 @@ public sealed class ModSubmitWorldConfigurationRequestDto
 
     [DataMember(Name = "configuration")]
     public ModWorldConfigurationDto? Configuration { get; set; }
+
+    [DataMember(Name = "authToken")]
+    public string? AuthToken { get; set; }
 }
 
 [DataContract]
