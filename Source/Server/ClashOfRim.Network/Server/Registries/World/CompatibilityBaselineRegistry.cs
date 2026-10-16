@@ -55,11 +55,7 @@ public sealed class CompatibilityBaselineRegistry
                 return new CompatibilityBaselineUpdateResult(false, baseline, updatedByUserId, updatedAtUtc);
             }
 
-            baseline = manifest;
-            updatedByUserId = userId;
-            updatedAtUtc = nowUtc;
-            SaveLocked();
-            return new CompatibilityBaselineUpdateResult(true, baseline, updatedByUserId, updatedAtUtc);
+            return PublishBaselineLocked(manifest, userId, nowUtc);
         }
     }
 
@@ -73,11 +69,7 @@ public sealed class CompatibilityBaselineRegistry
 
         lock (gate)
         {
-            baseline = manifest;
-            updatedByUserId = userId;
-            updatedAtUtc = nowUtc;
-            SaveLocked();
-            return new CompatibilityBaselineUpdateResult(true, baseline, updatedByUserId, updatedAtUtc);
+            return PublishBaselineLocked(manifest, userId, nowUtc);
         }
     }
 
@@ -116,17 +108,19 @@ public sealed class CompatibilityBaselineRegistry
         }
     }
 
-    private void SaveLocked()
+    private CompatibilityBaselineUpdateResult PublishBaselineLocked(CompatibilityManifest manifest, string userId, DateTimeOffset nowUtc)
     {
-        if (persistence is null)
+        if (persistence is not null)
         {
-            return;
+            string json = JsonSerializer.Serialize(
+                new CompatibilityBaselinePersistence(manifest, userId, nowUtc), JsonOptions);
+            persistence.Write(json);
         }
 
-        string json = JsonSerializer.Serialize(
-            new CompatibilityBaselinePersistence(baseline, updatedByUserId, updatedAtUtc),
-            JsonOptions);
-        persistence.Write(json);
+        baseline = manifest;
+        updatedByUserId = userId;
+        updatedAtUtc = nowUtc;
+        return new CompatibilityBaselineUpdateResult(true, baseline, updatedByUserId, updatedAtUtc);
     }
 
     private sealed record CompatibilityBaselinePersistence(
