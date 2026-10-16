@@ -717,7 +717,7 @@ public static partial class ClashOfRimNetworkServer
     {
         return state.OfflineAccounts.ResetPassword(targetUserId, newPassword, nowUtc, out string failure)
             ? ProtocolResponse.Ok(T("Admin.Action.PasswordReset"))
-            : ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, LocalizeOfflineAccountFailure(failure));
+            : ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, CredentialAuthentication.LocalizeOfflineFailure(failure));
     }
 
     private static int BroadcastAdminNotification(

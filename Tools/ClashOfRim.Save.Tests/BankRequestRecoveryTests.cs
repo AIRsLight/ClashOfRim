@@ -1,9 +1,8 @@
+using static RecoveryTestSupport;
 using System.Net;
 using System.Reflection;
-using System.Text;
 using System.Text.Json;
 using AIRsLight.ClashOfRim.Network;
-using AIRsLight.ClashOfRim.Network.Plugins;
 using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Save;
 using Microsoft.AspNetCore.Http;
@@ -179,7 +178,7 @@ internal static class BankRequestRecoveryTests
         public readonly HttpSnapshotRecoveryTests.Fixture F; public readonly string LoanId; private readonly SaveSnapshotPackage package; public Action? Publication;
         public Env(Func<string, SaveSnapshotPackage> factory, string invalid = "")
         {
-            var plugins = new ServerPluginRegistry().WithBuiltInPlugins([new("test.bank-read", "test", "1", "test", "", []) { SnapshotPostUploadProcessors = [new PublicationProbe(() => Publication?.Invoke())] }]);
+            var plugins = PublicationPlugins("test.bank-read", () => Publication?.Invoke());
             F = new(factory, plugins); package = factory("base"); F.Start();
             F.State.UpdateServerConfiguration(new(pvpEnabled: true, mercenariesEnabled: true, mercenaryGuardsEnabled: true, pendingConfirmationTimeout: TimeSpan.FromMinutes(1)));
             if (invalid != "no-snapshot") SetSnapshot(ticks: invalid == "no-time" ? 0 : 1000);
@@ -193,8 +192,7 @@ internal static class BankRequestRecoveryTests
         public void AssertReconciled(bool active = false) => Require(active ? F.State.BankLoans.FindByIdempotencyKey("pending")?.Status == BankLoanRegistry.StatusActive : F.State.BankLoans.FindByIdempotencyKey("pending") is null, "Authorized request did not reconcile the latest pending loan state.");
         public HttpResponseMessage Call(ProtocolMessageKind kind, string invalid = "")
         {
-            if (invalid is "malformed" or "empty" or "null") return F.Client.PostAsync(ProtocolContractManifest.Find(kind).Route,
-                new StringContent(invalid == "malformed" ? "{\"" : invalid == "null" ? "null" : "", Encoding.UTF8, "application/json")).GetAwaiter().GetResult();
+            if (invalid is "malformed" or "empty" or "null") return PostInvalidBody(F.Client, kind, invalid);
             return F.Post(kind, new { userId = invalid == "user" ? "intruder" : invalid == "missing-user" ? "" : "receiver",
                 colonyId = invalid == "colony" ? "intruder" : invalid == "missing-colony" ? "" : "away", currentSnapshotId = invalid == "stale" ? "old" : invalid == "missing-snapshot" ? "" : "base",
                 authToken = invalid == "missing-token" ? null : invalid == "token" ? "invalid" : F.Token, currentGameTicks = 0, colonyWealth = 10000,
@@ -203,14 +201,5 @@ internal static class BankRequestRecoveryTests
                 incidentKind = invalid == "incident" ? "unknown" : invalid is "Death" or "HostileBehavior" or "HarmfulSurgery" or "OvertimeService" or "ShuttleDestroyed" or "Completed" ? invalid : "HarmfulSurgery" });
         }
         public void Dispose() => F.Dispose();
-    }
-    private sealed class PublicationProbe(Action callback) : IInlineSnapshotPostUploadProcessor
-    {
-        public string Id => "test.bank-read"; public int Order => 350;
-        public SnapshotPostUploadStage Stage => SnapshotPostUploadStage.EventReconciliation;
-        public SnapshotPostUploadFailureMode FailureMode => SnapshotPostUploadFailureMode.AbortPipeline;
-        public SnapshotPostUploadExecutionMode ExecutionMode => SnapshotPostUploadExecutionMode.Inline;
-        public bool Supports(SnapshotPostUploadKind kind) => true;
-        public void Process(SnapshotPostUploadContext context) => callback();
     }
 }

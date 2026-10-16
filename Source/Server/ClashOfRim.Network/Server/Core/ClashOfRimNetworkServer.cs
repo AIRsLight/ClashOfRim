@@ -2843,26 +2843,6 @@ public static partial class ClashOfRimNetworkServer
         bool RequiresFullCompatibilityManifest,
         IReadOnlyList<string> RequestedCompatibilityPackageIds);
 
-    private sealed record AuthenticationValidationResult(
-        bool Accepted,
-        string? AuthenticatedUserId,
-        string? DisplayName,
-        string? Message,
-        ProtocolErrorCode ErrorCode)
-    {
-        public static AuthenticationValidationResult Accept(string authenticatedUserId, string? displayName = null)
-        {
-            return new AuthenticationValidationResult(true, authenticatedUserId, displayName, null, ProtocolErrorCode.None);
-        }
-
-        public static AuthenticationValidationResult Reject(
-            string message,
-            ProtocolErrorCode errorCode = ProtocolErrorCode.Unauthorized)
-        {
-            return new AuthenticationValidationResult(false, null, null, message, errorCode);
-        }
-    }
-
     private sealed record CompatibilitySummaryHandshake(
         bool Accepted,
         bool RequiresFullManifest,

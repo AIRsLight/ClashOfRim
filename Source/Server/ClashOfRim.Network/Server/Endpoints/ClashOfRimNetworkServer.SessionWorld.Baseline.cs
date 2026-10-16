@@ -469,39 +469,6 @@ public static partial class ClashOfRimNetworkServer
         return issues;
     }
 
-    private static AuthenticationValidationResult ValidateAuthentication(
-        ClashOfRimNetworkState state,
-        string userId,
-        string? steamAuthTicket,
-        string? password,
-        DateTimeOffset nowUtc,
-        bool createAccountIfMissing = false)
-    {
-        ClashOfRimServerConfiguration configuration = state.ServerConfiguration;
-        if (configuration.AuthenticationDebugMode)
-        {
-            SteamAuthTicketValidationResult debugAuth = state.SteamAuthTickets.Validate(userId, steamAuthTicket);
-            return debugAuth.Accepted && !string.IsNullOrWhiteSpace(debugAuth.SteamId)
-                ? AuthenticationValidationResult.Accept(debugAuth.SteamId!, debugAuth.DisplayName)
-                : AuthenticationValidationResult.Reject(debugAuth.Message ?? T("Steam.Failed"));
-        }
-
-        if (!string.IsNullOrWhiteSpace(configuration.SteamWebApiKey))
-        {
-            SteamAuthTicketValidationResult steamAuth = state.SteamAuthTickets.Validate(userId, steamAuthTicket);
-            return steamAuth.Accepted && !string.IsNullOrWhiteSpace(steamAuth.SteamId)
-                ? AuthenticationValidationResult.Accept(steamAuth.SteamId!, steamAuth.DisplayName)
-                : AuthenticationValidationResult.Reject(steamAuth.Message ?? T("Steam.Failed"));
-        }
-
-        OfflineAccountAuthenticationResult offlineAuth = state.OfflineAccounts.Authenticate(
-            userId,
-            password,
-            nowUtc,
-            createAccountIfMissing);
-        return ToAuthenticationValidation(offlineAuth);
-    }
-
     private static IResult ChangeOfflinePassword(ChangeOfflinePasswordRequest request, ClashOfRimNetworkState state)
     {
         DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
@@ -519,20 +486,7 @@ public static partial class ClashOfRimNetworkServer
             out string failure);
         return Results.Ok(new ChangeOfflinePasswordResponse(changed
             ? ProtocolResponse.Ok(T("OfflineAuth.PasswordChanged"))
-            : ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, LocalizeOfflineAccountFailure(failure))));
-    }
-
-    private static string LocalizeOfflineAccountFailure(string? failure)
-    {
-        return failure switch
-        {
-            OfflineAccountRegistry.MissingUserKey => T("OfflineAuth.MissingUser"),
-            OfflineAccountRegistry.InvalidPasswordKey => T("OfflineAuth.InvalidPassword"),
-            OfflineAccountRegistry.RateLimitedKey => T("OfflineAuth.RateLimited"),
-            string value when string.IsNullOrWhiteSpace(value) => T("OfflineAuth.Failed"),
-            null => T("OfflineAuth.Failed"),
-            _ => failure
-        };
+            : ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, CredentialAuthentication.LocalizeOfflineFailure(failure))));
     }
 
     private static IResult OverrideCompatibilityBaseline(

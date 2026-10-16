@@ -1,11 +1,11 @@
+using static EntryTestSupport;
+using static RecoveryTestSupport;
 using System.Net;
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using AIRsLight.ClashOfRim.Compatibility;
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Network;
-using AIRsLight.ClashOfRim.Network.Plugins;
 using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Save;
 
@@ -26,7 +26,19 @@ internal static class WorldSessionPreparationTests
         foreach (string mode in new[] { "summary", "summary-id-cache" }) Case(() => InvalidShape(factory, false, mode));
         foreach (string mode in new[] { "existing", "arrives", "closes", "administrator" }) Case(() => Defense(factory, mode));
         foreach (string mode in new[] { "uncommitted", "reset", "same-password", "compete", "lockout", "failure", "repeat" }) Case(() => CredentialProof(mode));
+        foreach (string mode in new[] { "bootstrap-maintenance", "active-session" }) Case(() => WorldEntryPolicy(factory, mode));
         Console.WriteLine($"World session preparation scenarios passed: {count}");
+    }
+    private static void WorldEntryPolicy(Func<string, SaveSnapshotPackage> factory, string mode)
+    {
+        using var e = new Env(factory, fresh: mode == "bootstrap-maintenance");
+        e.F.State.AuthTokens.TryGetPrincipal(e.F.Token, DateTimeOffset.UtcNow, out var principal);
+        if (mode == "bootstrap-maintenance") e.F.State.AdminControl.SetMaintenanceLoginLocked(true, "maintenance");
+        else Require(e.F.State.LoginSessions.TryBeginStream("receiver", "away", principal!.SessionId, DateTimeOffset.UtcNow), "Cannot establish existing stream.");
+        using var response = e.Call(); var body = Accepted(response);
+        Require(body.IsAdministrator == (mode == "bootstrap-maintenance")
+            && e.F.State.LoginSessions.IsValid("receiver", "away", principal!.SessionId, DateTimeOffset.UtcNow), "World preparation inherited login-only session policy or lost bootstrap exception.");
+        e.F.AssertRecovered();
     }
     private static void Invalid(Func<string, SaveSnapshotPackage> factory, string invalid)
     {
@@ -216,53 +228,30 @@ internal static class WorldSessionPreparationTests
         }
         e.F.AssertRecovered();
     }
-    private static void Change(Env e, string change)
-    {
-        var state = e.F.State;
-        if (change is "password" or "same-password") state.OfflineAccounts.ResetPassword("receiver", change == "password" ? "changed" : "pw", DateTimeOffset.UtcNow, out _);
-        if (change == "lockout") for (int i = 0; i < 5; i++) state.OfflineAccounts.Authenticate("receiver", "wrong", DateTimeOffset.UtcNow);
-        if (change == "auth-mode") state.UpdateServerConfiguration(new(authenticationDebugMode: true));
-        if (change == "steam-key") state.UpdateServerConfiguration(new(steamWebApiKey: "changed"));
-        if (change == "app-id") state.UpdateServerConfiguration(new(steamAppId: 1));
-        if (change == "ban") state.AdminControl.Ban("receiver");
-        if (change is "maintenance" or "role") state.AdminControl.SetMaintenanceLoginLocked(true, "maintenance");
-        if (change == "role") state.WorldConfiguration.RevokeAdministrator("receiver");
-        if (change is "mismatch" or "compatible") state.CompatibilityBaseline.ReplaceBaseline(Manifest("updated", change == "mismatch" ? "different" : "1.7"), "other", DateTimeOffset.UtcNow);
-    }
-    private static CompatibilityManifest Manifest(string id = "base", string version = "1.7") => new() { ManifestId = id, ProtocolVersion = ProtocolApiVersion.Current, RimWorldVersion = version };
+    private static void Change(Env e, string change) => ChangeEntryState(e.F.State, change);
     private static PrepareWorldSessionResponse Body(HttpResponseMessage response)
     { response.EnsureSuccessStatusCode(); return JsonSerializer.Deserialize<PrepareWorldSessionResponse>(response.Content.ReadAsStringAsync().GetAwaiter().GetResult(), new JsonSerializerOptions(JsonSerializerDefaults.Web))!; }
     private static PrepareWorldSessionResponse Accepted(HttpResponseMessage response) { var body = Body(response); Require(body.Result.Accepted, "Valid world preparation rejected: " + body.Result.Message); return body; }
     private static void Denied(HttpResponseMessage response)
     { var b = Body(response); Require(!b.Result.Accepted && !b.IsAdministrator && b.AssignedColonyId is null && b.LatestSnapshotId is null && b.WorldConfiguration is null, "Rejected preparation accepted or disclosed session state."); }
     private static void Require(bool value, string message) { if (!value) throw new Exception(message); }
-    private sealed class Slot : IJsonPersistenceSlot
-    { private string? value; public bool Fail; public int Writes; public string? Read() => value; public void Write(string json) { if (Fail) throw new IOException("Injected world preparation persistence failure."); value = json; Writes++; } }
     private sealed class Env : IDisposable
     {
         public readonly HttpSnapshotRecoveryTests.Fixture F; public readonly Slot Account = new(), Baseline = new(); public Action? Publication; private readonly bool fresh;
         public Env(Func<string, SaveSnapshotPackage> factory, bool fresh = false, SteamValidator? steam = null)
         {
             this.fresh = fresh;
-            var plugins = new ServerPluginRegistry().WithBuiltInPlugins([new("test.world-prepare", "test", "1", "test", "", []) { SnapshotPostUploadProcessors = [new PublicationProbe(() => Publication?.Invoke())] }]);
+            var plugins = PublicationPlugins("test.world-prepare", () => Publication?.Invoke());
             F = new(factory, plugins, accounts: new OfflineAccountRegistry(Account), compatibility: new CompatibilityBaselineRegistry(Baseline), steam: steam); F.Start();
             if (!fresh) { F.State.OfflineAccounts.Authenticate("receiver", "pw", DateTimeOffset.UtcNow, true); F.State.CompatibilityBaseline.EnsureBaseline(Manifest(), "admin", DateTimeOffset.UtcNow); F.State.WorldConfiguration.Prepare("admin"); }
             F.Seed();
         }
         public void Snapshot(string id) { var envelope = F.Package.Envelope with { Identity = new("receiver", "away", id) }; F.Store.StoreLatest(new(envelope.Identity, envelope, F.Package.Index, DateTimeOffset.UtcNow)); }
         public string Domain() => JsonSerializer.Serialize(new { account = Account.Read(), baseline = Baseline.Read(), session = F.State.WorldConfiguration.GetSessionState("receiver"), player = F.State.Players.FindByUserId("receiver"), deleted = F.State.Players.ListDeleted().Where(x => x.UserId == "receiver") });
-        public void Restore()
-        {
-            F.Store.FailPreparation = F.Store.FailPublication = false; F.State.UpdateServerConfiguration(new()); F.State.AdminControl.Unban("receiver"); F.State.AdminControl.SetMaintenanceLoginLocked(false, null);
-            F.State.OfflineAccounts.ResetPassword("receiver", "pw", DateTimeOffset.UtcNow, out _);
-            // A lockout is intentionally retained after password reset; use its actual expiry for the fixture only.
-            F.State.OfflineAccounts.Authenticate("receiver", "pw", DateTimeOffset.UtcNow.AddHours(1));
-            F.State.CompatibilityBaseline.ReplaceBaseline(Manifest(), "admin", DateTimeOffset.UtcNow);
-        }
+        public void Restore() => RestoreEntryState(F);
         public HttpResponseMessage Call(string mode = "")
         {
-            if (mode is "malformed" or "null" or "empty") return F.Client.PostAsync(ProtocolContractManifest.Find(ProtocolMessageKind.PrepareWorldSession).Route,
-                new StringContent(mode == "malformed" ? "{\"" : mode == "null" ? "null" : "", Encoding.UTF8, "application/json")).GetAwaiter().GetResult();
+            if (mode is "malformed" or "null" or "empty") return PostInvalidBody(F.Client, ProtocolMessageKind.PrepareWorldSession, mode);
             return F.Post(ProtocolMessageKind.PrepareWorldSession, new PrepareWorldSessionRequest(mode == "protocol" ? "wrong" : ProtocolApiVersion.Current,
                 mode == "user" ? "" : mode == "account" ? "unknown" : mode == "trimmed" ? " receiver " : "receiver", mode == "default" ? null : "away",
                 mode == "manifest" ? "{" : mode == "manifest-null" ? "null" : mode is "manifest-missing" or "id" or "summary" ? null : JsonSerializer.Serialize(Manifest()),
@@ -271,16 +260,5 @@ internal static class WorldSessionPreparationTests
                 createAccountIfMissing: fresh));
         }
         public void Dispose() => F.Dispose();
-    }
-    private sealed class SteamValidator : ISteamAuthTicketValidator
-    { public string Identity = "receiver"; public bool Deny; public int Calls; public Action? Before; public SteamAuthTicketValidationResult Validate(string userId, string? ticket) { Calls++; Before?.Invoke(); return Deny ? SteamAuthTicketValidationResult.Reject("denied") : SteamAuthTicketValidationResult.Accept(Identity); } }
-    private sealed class PublicationProbe(Action callback) : IInlineSnapshotPostUploadProcessor
-    {
-        public string Id => "test.world-prepare"; public int Order => 350;
-        public SnapshotPostUploadStage Stage => SnapshotPostUploadStage.EventReconciliation;
-        public SnapshotPostUploadFailureMode FailureMode => SnapshotPostUploadFailureMode.AbortPipeline;
-        public SnapshotPostUploadExecutionMode ExecutionMode => SnapshotPostUploadExecutionMode.Inline;
-        public bool Supports(SnapshotPostUploadKind kind) => true;
-        public void Process(SnapshotPostUploadContext context) => callback();
     }
 }

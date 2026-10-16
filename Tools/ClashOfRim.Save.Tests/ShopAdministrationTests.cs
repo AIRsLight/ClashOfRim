@@ -1,9 +1,8 @@
+using static RecoveryTestSupport;
 using System.Net;
 using System.Reflection;
-using System.Text;
 using System.Text.Json;
 using AIRsLight.ClashOfRim.Network;
-using AIRsLight.ClashOfRim.Network.Plugins;
 using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Save;
 using Microsoft.AspNetCore.Http;
@@ -156,7 +155,7 @@ internal static class ShopAdministrationTests
         public readonly HttpSnapshotRecoveryTests.Fixture F; public Action? Publication;
         public Env(Func<string, SaveSnapshotPackage> factory, string invalid = "")
         {
-            var plugins = new ServerPluginRegistry().WithBuiltInPlugins([new("test.shop-admin", "test", "1", "test", "", []) { SnapshotPostUploadProcessors = [new PublicationProbe(() => Publication?.Invoke())] }]);
+            var plugins = PublicationPlugins("test.shop-admin", () => Publication?.Invoke());
             F = new(factory, plugins); F.Start();
             if (invalid != "empty-world") F.State.WorldConfiguration.Prepare(invalid == "nonadmin" ? "other-admin" : "receiver");
             SeedListing(5); F.Seed();
@@ -171,8 +170,7 @@ internal static class ShopAdministrationTests
         public HttpResponseMessage Call(bool remove, string invalid = "")
         {
             var kind = remove ? ProtocolMessageKind.RemoveServerShopListing : ProtocolMessageKind.UpsertServerShopListing;
-            if (invalid is "malformed" or "empty" or "null") return F.Client.PostAsync(ProtocolContractManifest.Find(kind).Route,
-                new StringContent(invalid == "malformed" ? "{\"" : invalid == "null" ? "null" : "", Encoding.UTF8, "application/json")).GetAwaiter().GetResult();
+            if (invalid is "malformed" or "empty" or "null") return PostInvalidBody(F.Client, kind, invalid);
             return F.Post(kind, new { userId = invalid == "user" ? "intruder" : invalid == "missing-user" ? "" : "receiver",
                 colonyId = invalid == "colony" ? "intruder" : invalid == "missing-colony" ? "" : "away",
                 authToken = invalid == "missing-token" ? null : invalid == "token" ? "invalid" : F.Token,
@@ -181,14 +179,5 @@ internal static class ShopAdministrationTests
                 priceSilver = invalid == "price" ? 0 : 12, stockCount = invalid == "stock" ? -1 : 2, priceIncreaseRatio = 1.2 });
         }
         public void Dispose() => F.Dispose();
-    }
-    private sealed class PublicationProbe(Action callback) : IInlineSnapshotPostUploadProcessor
-    {
-        public string Id => "test.shop-admin"; public int Order => 350;
-        public SnapshotPostUploadStage Stage => SnapshotPostUploadStage.EventReconciliation;
-        public SnapshotPostUploadFailureMode FailureMode => SnapshotPostUploadFailureMode.AbortPipeline;
-        public SnapshotPostUploadExecutionMode ExecutionMode => SnapshotPostUploadExecutionMode.Inline;
-        public bool Supports(SnapshotPostUploadKind kind) => true;
-        public void Process(SnapshotPostUploadContext context) => callback();
     }
 }

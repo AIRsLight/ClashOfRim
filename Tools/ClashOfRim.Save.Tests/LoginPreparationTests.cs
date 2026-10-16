@@ -1,12 +1,12 @@
+using static EntryTestSupport;
+using static RecoveryTestSupport;
 using System.Collections;
 using System.Net;
 using System.Reflection;
-using System.Text;
 using System.Text.Json;
 using AIRsLight.ClashOfRim.Compatibility;
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Network;
-using AIRsLight.ClashOfRim.Network.Plugins;
 using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Save;
 
@@ -221,33 +221,21 @@ internal static class LoginPreparationTests
     }
     private static void Change(Env e, string mode)
     {
-        var s = e.F.State;
-        if (mode is "password" or "same-password") s.OfflineAccounts.ResetPassword("receiver", mode == "password" ? "changed" : "pw", DateTimeOffset.UtcNow, out _);
-        if (mode == "lockout") for (int i = 0; i < 5; i++) s.OfflineAccounts.Authenticate("receiver", "wrong", DateTimeOffset.UtcNow);
-        if (mode == "auth-mode") s.UpdateServerConfiguration(new(authenticationDebugMode: true));
-        if (mode == "steam-key") s.UpdateServerConfiguration(new(steamWebApiKey: "changed"));
-        if (mode == "app-id") s.UpdateServerConfiguration(new(steamAppId: 1));
-        if (mode == "ban") s.AdminControl.Ban("receiver");
-        if (mode is "maintenance" or "role") s.AdminControl.SetMaintenanceLoginLocked(true, "maintenance");
-        if (mode == "role") s.WorldConfiguration.RevokeAdministrator("receiver");
-        if (mode is "mismatch" or "compatible") s.CompatibilityBaseline.ReplaceBaseline(Manifest("updated", mode == "mismatch" ? "different" : "1.7"), "admin", DateTimeOffset.UtcNow);
-        if (mode == "active") Require(s.LoginSessions.TryBeginStream("receiver", "away", e.OldSession, DateTimeOffset.UtcNow), "Cannot start original stream.");
+        ChangeEntryState(e.F.State, mode);
+        if (mode == "active") Require(e.F.State.LoginSessions.TryBeginStream("receiver", "away", e.OldSession, DateTimeOffset.UtcNow), "Cannot start original stream.");
     }
     private static AuthoritativeEvent Raid() { var now = DateTimeOffset.UtcNow; return AuthoritativeEventFactory.Create(ServerEventType.Raid, new("attacker", "home"), new("receiver", "away"), "raid", false, new RaidEventPayload("defender", null, now, null, null, new RaidAttackForceRecord("departed", ["pawn"], [])), now); }
-    private static CompatibilityManifest Manifest(string id = "base", string version = "1.7") => new() { ManifestId = id, ProtocolVersion = ProtocolApiVersion.Current, RimWorldVersion = version };
     private static int TokenCount(ClashOfRimNetworkState state) => ((IDictionary)typeof(AuthTokenRegistry).GetField("tokens", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(state.AuthTokens)!).Count;
     private static LoginResponse Body(HttpResponseMessage response) { response.EnsureSuccessStatusCode(); return JsonSerializer.Deserialize<LoginResponse>(response.Content.ReadAsStringAsync().GetAwaiter().GetResult(), new JsonSerializerOptions(JsonSerializerDefaults.Web))!; }
     private static LoginResponse Denied(HttpResponseMessage response) { var b = Body(response); Require(!b.Result.Accepted && b.SessionId is null && b.AuthToken is null && b.EventQueue is null && b.WorldMapMarkers is null, "Denied login disclosed a session."); return b; }
     private static void Require(bool value, string message) { if (!value) throw new Exception(message); }
-    private sealed class Slot : IJsonPersistenceSlot
-    { private string? value; public bool Fail; public Action<string>? Before; public string? Read() => value; public void Write(string json) { Before?.Invoke(json); if (Fail) throw new IOException("Injected login persistence failure."); value = json; } }
     private sealed class Env : IDisposable
     {
         public readonly HttpSnapshotRecoveryTests.Fixture F; public readonly Slot Baseline = new(), Players = new(), Bank = new(); public Action? Publication;
         public string OldSession = "";
         public Env(Func<string, SaveSnapshotPackage> factory, bool fresh = false, SteamValidator? steam = null)
         {
-            var plugins = new ServerPluginRegistry().WithBuiltInPlugins([new("test.login", "test", "1", "test", "", []) { SnapshotPostUploadProcessors = [new PublicationProbe(() => Publication?.Invoke())] }]);
+            var plugins = PublicationPlugins("test.login", () => Publication?.Invoke());
             F = new(factory, plugins, compatibility: new CompatibilityBaselineRegistry(Baseline), steam: steam, players: new PlayerRegistry(Players), bank: new BankLoanRegistry(Bank)); F.Start();
             F.State.OfflineAccounts.Authenticate("receiver", "pw", DateTimeOffset.UtcNow, true);
             if (!fresh) { F.State.CompatibilityBaseline.EnsureBaseline(Manifest(), "admin", DateTimeOffset.UtcNow); F.State.WorldConfiguration.Prepare("admin"); }
@@ -262,28 +250,15 @@ internal static class LoginPreparationTests
             Require(b.AuthenticatedUserId == "receiver" && F.State.AuthTokens.TryGetPrincipal(b.AuthToken, DateTimeOffset.UtcNow, out var p) && p!.SessionId == b.SessionId && p.UserId == "receiver" && p.ColonyId == "away"
                 && F.State.LoginSessions.IsValid("receiver", "away", b.SessionId, DateTimeOffset.UtcNow) && !F.State.LoginSessions.IsValid("receiver", "away", OldSession, DateTimeOffset.UtcNow), "Login returned an unbound session/token or retained its predecessor."); return b;
         }
-        public void Restore()
-        {
-            F.Store.FailPreparation = F.Store.FailPublication = false; F.State.UpdateServerConfiguration(new()); F.State.AdminControl.Unban("receiver"); F.State.AdminControl.SetMaintenanceLoginLocked(false, null);
-            F.State.OfflineAccounts.ResetPassword("receiver", "pw", DateTimeOffset.UtcNow, out _); F.State.OfflineAccounts.Authenticate("receiver", "pw", DateTimeOffset.UtcNow.AddHours(1));
-            F.State.CompatibilityBaseline.ReplaceBaseline(Manifest(), "admin", DateTimeOffset.UtcNow); F.RenewToken(); CaptureOld();
-        }
+        public void Restore() { RestoreEntryState(F); F.RenewToken(); CaptureOld(); }
         public HttpResponseMessage Call(string mode = "")
         {
-            if (mode is "malformed" or "null" or "empty") return F.Client.PostAsync(ProtocolContractManifest.Find(ProtocolMessageKind.Login).Route, new StringContent(mode == "malformed" ? "{\"" : mode == "null" ? "null" : "", Encoding.UTF8, "application/json")).GetAwaiter().GetResult();
+            if (mode is "malformed" or "null" or "empty") return PostInvalidBody(F.Client, ProtocolMessageKind.Login, mode);
             return F.Post(ProtocolMessageKind.Login, new LoginRequest(mode == "protocol" ? "wrong" : ProtocolApiVersion.Current,
                 mode == "user" ? "" : mode == "account" ? "unknown" : mode == "trimmed" ? " receiver " : "receiver", mode == "colony" ? "" : "away", null, "",
                 password: mode == "password" ? "wrong" : "pw", compatibilityManifestJson: mode == "manifest" ? "{" : mode == "manifest-null" ? "null" : mode == "shape" ? "{\"Mods\":null}" : mode is "manifest-missing" or "id" or "summary" ? null : JsonSerializer.Serialize(Manifest()),
                 compatibilityManifestId: mode == "id" ? "base" : null, compatibilityManifestSummaryJson: mode == "summary" ? JsonSerializer.Serialize(new CompatibilityManifestSummary { ManifestId = "base", ProtocolVersion = ProtocolApiVersion.Current, RimWorldVersion = "1.7" }) : null));
         }
         public void Dispose() => F.Dispose();
-    }
-    private sealed class SteamValidator : ISteamAuthTicketValidator
-    { public string Identity = "receiver"; public bool Deny; public int Calls; public Action? Before; public SteamAuthTicketValidationResult Validate(string userId, string? ticket) { Calls++; Before?.Invoke(); return Deny ? SteamAuthTicketValidationResult.Reject("denied") : SteamAuthTicketValidationResult.Accept(Identity); } }
-    private sealed class PublicationProbe(Action callback) : IInlineSnapshotPostUploadProcessor
-    {
-        public string Id => "test.login"; public int Order => 350; public SnapshotPostUploadStage Stage => SnapshotPostUploadStage.EventReconciliation;
-        public SnapshotPostUploadFailureMode FailureMode => SnapshotPostUploadFailureMode.AbortPipeline; public SnapshotPostUploadExecutionMode ExecutionMode => SnapshotPostUploadExecutionMode.Inline;
-        public bool Supports(SnapshotPostUploadKind kind) => true; public void Process(SnapshotPostUploadContext context) => callback();
     }
 }

@@ -1,8 +1,7 @@
+using static RecoveryTestSupport;
 using System.Net;
-using System.Text;
 using System.Text.Json;
 using AIRsLight.ClashOfRim.Network;
-using AIRsLight.ClashOfRim.Network.Plugins;
 using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Save;
 
@@ -132,7 +131,7 @@ internal static class ShopListRecoveryTests
         public Env(Func<string, SaveSnapshotPackage> factory, string kind = "SellToPlayer")
         {
             this.kind = kind;
-            var plugins = new ServerPluginRegistry().WithBuiltInPlugins([new("test.shop-list", "test", "1", "test", "", []) { SnapshotPostUploadProcessors = [new PublicationProbe(() => Publication?.Invoke())] }]);
+            var plugins = PublicationPlugins("test.shop-list", () => Publication?.Invoke());
             F = new(factory, plugins); F.Start(); SeedListing(10, 20);
             Buy("receiver", "away", 1); Buy("receiver", "other", 2); Buy("another", "away", 3); F.Seed();
         }
@@ -150,21 +149,11 @@ internal static class ShopListRecoveryTests
             F.State.ServerShop.GetBuyerPurchaseCount("listing", new("another", "away", null)) } });
         public HttpResponseMessage Call(string invalid = "")
         {
-            if (invalid is "malformed" or "empty" or "null") return F.Client.PostAsync(ProtocolContractManifest.Find(ProtocolMessageKind.ListServerShop).Route,
-                new StringContent(invalid == "malformed" ? "{\"" : invalid == "null" ? "null" : "", Encoding.UTF8, "application/json")).GetAwaiter().GetResult();
+            if (invalid is "malformed" or "empty" or "null") return PostInvalidBody(F.Client, ProtocolMessageKind.ListServerShop, invalid);
             return F.Post(ProtocolMessageKind.ListServerShop, new { userId = invalid == "user" ? "another" : invalid == "missing-user" ? "" : "receiver",
                 colonyId = invalid == "colony" ? "other" : invalid == "missing-colony" ? "" : "away",
                 authToken = invalid == "missing-token" ? null : invalid == "token" ? "invalid" : F.Token });
         }
         public void Dispose() => F.Dispose();
-    }
-    private sealed class PublicationProbe(Action callback) : IInlineSnapshotPostUploadProcessor
-    {
-        public string Id => "test.shop-list"; public int Order => 350;
-        public SnapshotPostUploadStage Stage => SnapshotPostUploadStage.EventReconciliation;
-        public SnapshotPostUploadFailureMode FailureMode => SnapshotPostUploadFailureMode.AbortPipeline;
-        public SnapshotPostUploadExecutionMode ExecutionMode => SnapshotPostUploadExecutionMode.Inline;
-        public bool Supports(SnapshotPostUploadKind kind) => true;
-        public void Process(SnapshotPostUploadContext context) => callback();
     }
 }
