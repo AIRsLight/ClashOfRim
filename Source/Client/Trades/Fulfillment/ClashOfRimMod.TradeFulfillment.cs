@@ -70,36 +70,38 @@ public sealed partial class ClashOfRimMod
                         $"trade-accept:{settings.UserId}:{order.EventId}:{DateTime.UtcNow.Ticks}",
                         order.EventId,
                         postagePaidByAcceptor));
-                if (!result.Success || result.Response is null)
+                using (ClientSessionWork.EnterPublication())
                 {
-                    tradeStatus = ClashOfRimText.Key("ClashOfRim.Trade.StatusAcceptFailed", result.ErrorCode.Named("CODE"), result.Message.Named("MESSAGE"));
-                    return;
-                }
+                    if (!result.Success || result.Response is null)
+                    {
+                        tradeStatus = ClashOfRimText.Key("ClashOfRim.Trade.StatusAcceptFailed", result.ErrorCode.Named("CODE"), result.Message.Named("MESSAGE"));
+                        return;
+                    }
 
-                if (result.Response.Result is not null && !result.Response.Result.Accepted)
-                {
-                    tradeStatus = ClashOfRimText.Key("ClashOfRim.Trade.StatusAcceptRejected", result.Response.Result.ErrorCode.Named("CODE"), result.Response.Result.Message.Named("MESSAGE"));
-                    return;
-                }
+                    if (result.Response.Result is not null && !result.Response.Result.Accepted)
+                    {
+                        tradeStatus = ClashOfRimText.Key("ClashOfRim.Trade.StatusAcceptRejected", result.Response.Result.ErrorCode.Named("CODE"), result.Response.Result.Message.Named("MESSAGE"));
+                        return;
+                    }
 
-                tradeStatus = result.Response.MemoCreated
-                    ? ClashOfRimText.Key("ClashOfRim.Trade.StatusAcceptedOrder", result.Response.TradeEventId.Named("EVENTID"), result.Response.MemoEventId.Named("MEMOID"))
-                    : ClashOfRimText.Key("ClashOfRim.Trade.StatusAcceptMemoExists", result.Response.MemoEventId.Named("MEMOID"));
-                MarkTradeOrderAcceptedLocally(order.EventId, result.Response.MemoEventId);
+                    tradeStatus = result.Response.MemoCreated ? ClashOfRimText.Key("ClashOfRim.Trade.StatusAcceptedOrder", result.Response.TradeEventId.Named("EVENTID"), result.Response.MemoEventId.Named("MEMOID")) : ClashOfRimText.Key("ClashOfRim.Trade.StatusAcceptMemoExists", result.Response.MemoEventId.Named("MEMOID"));
+                    MarkTradeOrderAcceptedLocally(order.EventId, result.Response.MemoEventId);
+                }
                 await ClientSessionWork.Observe(RefreshEventsAfterTradeAccept(client));
             }
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 tradeStatus = ClashOfRimText.Key("ClashOfRim.Trade.StatusAcceptException", ex.GetType().Name.Named("TYPE"), ex.Message.Named("MESSAGE"));
                 Log.Warning("[ClashOfRim] Trade accept failed: " + ex);
             }
             finally
             {
-                if (ClientSessionWork.IsCurrent)
+                ClientSessionWork.TryApply(() =>
                 {
                     manualSyncInProgress = false;
-                }
+                });
             }
         });
     }
@@ -480,6 +482,7 @@ public sealed partial class ClashOfRimMod
                     confirmedSnapshot,
                     confirmedPayload));
 
+                using var publication = ClientSessionWork.EnterPublication();
                 if (!result.Success || result.Response is null)
                 {
                     giftProcessingStatus = ClashOfRimText.Key("ClashOfRim.GiftDelivery.StatusCreateFailed", result.ErrorCode.Named("CODE"), result.Message.Named("MESSAGE"));
@@ -522,6 +525,7 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 giftProcessingStatus = ClashOfRimText.Key("ClashOfRim.GiftDelivery.StatusCreateException", ex.GetType().Name.Named("TYPE"), ex.Message.Named("MESSAGE"));
                 ShowUnconfirmedSnapshotFailure(
                     operation,
@@ -531,10 +535,10 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                if (ClientSessionWork.IsCurrent)
+                ClientSessionWork.TryApply(() =>
                 {
                     EndSnapshotUploadTransaction();
-                }
+                });
             }
         });
     }
@@ -715,6 +719,7 @@ public sealed partial class ClashOfRimMod
                     httpClient,
                     ClashOfRimClientNetworkContext.FromSettings(settings));
                 await ClientSessionWork.Observe(HydratePawnPackagesForTradeAsync(client, order.OfferedThings));
+                using var publication = ClientSessionWork.EnterPublication();
                 ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
                 {
                     if (!TradeCaravanFulfillmentUtility.ApplyExchangeToCaravan(
@@ -757,16 +762,17 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 tradeStatus = ClashOfRimText.Key("ClashOfRim.Trade.StatusFulfillException", ex.GetType().Name.Named("TYPE"), ex.Message.Named("MESSAGE"));
                 ClearLocalAtomicMutation();
                 Log.Warning("[ClashOfRim] Trade self-delivery fulfillment failed: " + ex);
             }
             finally
             {
-                if (ClientSessionWork.IsCurrent)
+                ClientSessionWork.TryApply(() =>
                 {
                     manualSyncInProgress = false;
-                }
+                });
             }
         });
     }
@@ -947,6 +953,7 @@ public sealed partial class ClashOfRimMod
                         confirmedSnapshot,
                         confirmedPayload));
 
+                using var publication = ClientSessionWork.EnterPublication();
                 if (!result.Success || result.Response is null)
                 {
                     tradeStatus = ClashOfRimText.Key("ClashOfRim.Trade.StatusFulfillFailed", result.ErrorCode.Named("CODE"), result.Message.Named("MESSAGE"));
@@ -999,6 +1006,7 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 tradeStatus = ClashOfRimText.Key("ClashOfRim.Trade.StatusFulfillException", ex.GetType().Name.Named("TYPE"), ex.Message.Named("MESSAGE"));
                 ShowUnconfirmedSnapshotFailure(
                     operation,
@@ -1008,10 +1016,10 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                if (ClientSessionWork.IsCurrent)
+                ClientSessionWork.TryApply(() =>
                 {
                     EndSnapshotUploadTransaction();
-                }
+                });
             }
         });
     }
@@ -1150,6 +1158,7 @@ public sealed partial class ClashOfRimMod
     private async Task RefreshEventsAfterTradeAccept(ClashOfRimModNetworkClient client)
     {
         ClashOfRimClientNetworkResult<ModPullPendingEventsResponseDto> queue = await client.PullPendingEventsAsync();
+        using var publication = ClientSessionWork.EnterPublication();
         if (!queue.Success || queue.Response is null || queue.Response.Result?.Accepted == false)
         {
             return;

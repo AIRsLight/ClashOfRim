@@ -34,6 +34,7 @@ public sealed partial class ClashOfRimMod
                     ClashOfRimClientNetworkContext.FromSettings(settings));
                 ClashOfRimClientNetworkResult<ModListAchievementsResponseDto> result =
                     await ClientSessionWork.Observe(client.ListAchievementsAsync(requestedTargetUserId, requestedTargetColonyId));
+                using var publication = ClientSessionWork.EnterPublication();
                 if (!result.Success || result.Response is null)
                 {
                     achievementStatus = ClashOfRimText.Key(
@@ -68,6 +69,7 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 achievementStatus = ClashOfRimText.Key(
                     "ClashOfRim.Achievement.StatusException",
                     ex.GetType().Name.Named("TYPE"),

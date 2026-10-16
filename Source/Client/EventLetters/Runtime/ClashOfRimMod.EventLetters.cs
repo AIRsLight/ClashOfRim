@@ -201,6 +201,7 @@ public sealed partial class ClashOfRimMod
                 ClashOfRimClientNetworkResult<ModDiplomacyEventResponseDto> result =
                     await ClientSessionWork.Observe(client.RespondDiplomacyEventAsync(detail.EventId, accepted, reason));
 
+                using var publication = ClientSessionWork.EnterPublication();
                 if (!result.Success || result.Response is null)
                 {
                     giftProcessingStatus = ClashOfRimText.Key(
@@ -243,6 +244,7 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 giftProcessingStatus = ClashOfRimText.Key(
                     "ClashOfRim.EventLetter.DiplomacyResponseException",
                     ex.GetType().Name.Named("TYPE"),
@@ -251,10 +253,10 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                if (ClientSessionWork.IsCurrent)
+                ClientSessionWork.TryApply(() =>
                 {
                     manualSyncInProgress = false;
-                }
+                });
             }
         });
 

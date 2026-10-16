@@ -59,36 +59,40 @@ public sealed partial class ClashOfRimMod
 
                 ClashOfRimClientNetworkResult<ModPullPendingEventsResponseDto> queue =
                     await ClientSessionWork.Observe(client.PullPendingEventsAsync());
-                if (!queue.Success || queue.Response is null)
+                using (ClientSessionWork.EnterPublication())
                 {
-                    eventQueueStatus = ClashOfRimText.Key(
-                        "ClashOfRim.Events.StatusAutoQueueFailed",
-                        (queue.ErrorCode ?? string.Empty).Named("CODE"),
-                        (queue.Message ?? string.Empty).Named("MESSAGE"));
-                    return;
+                    if (!queue.Success || queue.Response is null)
+                    {
+                        eventQueueStatus = ClashOfRimText.Key("ClashOfRim.Events.StatusAutoQueueFailed", (queue.ErrorCode ?? string.Empty).Named("CODE"), (queue.Message ?? string.Empty).Named("MESSAGE"));
+                        return;
+                    }
                 }
 
                 ModProtocolResponseDto? queueResult = queue.Response.Result;
-                if (queueResult is not null && !queueResult.Accepted)
+                using (ClientSessionWork.EnterPublication())
                 {
-                    eventQueueStatus = ClashOfRimText.Key(
-                        "ClashOfRim.Events.StatusAutoQueueRejected",
-                        queueResult.ErrorCode.Named("CODE"),
-                        (queueResult.Message ?? string.Empty).Named("MESSAGE"));
-                    return;
-                }
+                    if (queueResult is not null && !queueResult.Accepted)
+                    {
+                        eventQueueStatus = ClashOfRimText.Key("ClashOfRim.Events.StatusAutoQueueRejected", queueResult.ErrorCode.Named("CODE"), (queueResult.Message ?? string.Empty).Named("MESSAGE"));
+                        return;
+                    }
 
-                eventQueueStatus = FormatEventQueue(queue.Response.EventQueue);
-                CaptureEventIds(queue.Response.EventQueue);
+                    eventQueueStatus = FormatEventQueue(queue.Response.EventQueue);
+                    CaptureEventIds(queue.Response.EventQueue);
+                }
                 IReadOnlyList<string> eventIds = CopyLastEventQueueIds();
-                if (eventIds.Count == 0)
+                using (ClientSessionWork.EnterPublication())
                 {
-                    eventDetailsStatus = ClashOfRimText.Key("ClashOfRim.Events.StatusAutoNoEvents");
-                    return;
+                    if (eventIds.Count == 0)
+                    {
+                        eventDetailsStatus = ClashOfRimText.Key("ClashOfRim.Events.StatusAutoNoEvents");
+                        return;
+                    }
                 }
 
                 ClashOfRimClientNetworkResult<ModPullEventDetailsResponseDto> details =
                     await ClientSessionWork.Observe(client.PullEventDetailsAsync(eventIds));
+                using var publication = ClientSessionWork.EnterPublication();
                 if (!details.Success || details.Response is null)
                 {
                     eventDetailsStatus = ClashOfRimText.Key(
@@ -154,6 +158,7 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 eventQueueStatus = ClashOfRimText.Key(
                     "ClashOfRim.Events.StatusAutoException",
                     ex.GetType().Name.Named("TYPE"),
@@ -162,7 +167,7 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                if (ClientSessionWork.IsCurrent)
+                ClientSessionWork.TryApply(() =>
                 {
                     bool runAgain;
                     lock (automaticEventRefreshLock)
@@ -176,7 +181,7 @@ public sealed partial class ClashOfRimMod
                     {
                         StartAutomaticEventRefresh(ClashOfRimText.Key("ClashOfRim.Events.ReasonMergedNotifications"));
                     }
-                }
+                });
             }
         });
     }
@@ -234,6 +239,7 @@ public sealed partial class ClashOfRimMod
                 ClashOfRimClientNetworkResult<ModPullPendingEventsResponseDto> result =
                     await ClientSessionWork.Observe(client.PullPendingEventsAsync());
 
+                using var publication = ClientSessionWork.EnterPublication();
                 if (!result.Success || result.Response is null)
                 {
                     eventQueueStatus = ClashOfRimText.Key(
@@ -259,6 +265,7 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 eventQueueStatus = ClashOfRimText.Key(
                     "ClashOfRim.Events.StatusQueueException",
                     ex.GetType().Name.Named("TYPE"),
@@ -267,10 +274,10 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                if (ClientSessionWork.IsCurrent)
+                ClientSessionWork.TryApply(() =>
                 {
                     manualSyncInProgress = false;
-                }
+                });
             }
         });
     }
@@ -298,6 +305,7 @@ public sealed partial class ClashOfRimMod
                 ClashOfRimClientNetworkResult<ModWaitForEventsResponseDto> result =
                     await ClientSessionWork.Observe(client.WaitForEventsAsync(lastNotificationVersion, timeoutSeconds: 15));
 
+                using var publication = ClientSessionWork.EnterPublication();
                 if (!result.Success || result.Response is null)
                 {
                     eventQueueStatus = ClashOfRimText.Key(
@@ -326,6 +334,7 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 eventQueueStatus = ClashOfRimText.Key(
                     "ClashOfRim.Events.StatusOnlineException",
                     ex.GetType().Name.Named("TYPE"),
@@ -334,10 +343,10 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                if (ClientSessionWork.IsCurrent)
+                ClientSessionWork.TryApply(() =>
                 {
                     manualSyncInProgress = false;
-                }
+                });
             }
         });
     }
@@ -372,6 +381,7 @@ public sealed partial class ClashOfRimMod
                 ClashOfRimClientNetworkResult<ModPullEventDetailsResponseDto> result =
                     await ClientSessionWork.Observe(client.PullEventDetailsAsync(eventIds));
 
+                using var publication = ClientSessionWork.EnterPublication();
                 if (!result.Success || result.Response is null)
                 {
                     eventDetailsStatus = ClashOfRimText.Key(
@@ -399,6 +409,7 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 eventDetailsStatus = ClashOfRimText.Key(
                     "ClashOfRim.Events.StatusDetailsException",
                     ex.GetType().Name.Named("TYPE"),
@@ -407,10 +418,10 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                if (ClientSessionWork.IsCurrent)
+                ClientSessionWork.TryApply(() =>
                 {
                     manualSyncInProgress = false;
-                }
+                });
             }
         });
     }
@@ -589,6 +600,7 @@ public sealed partial class ClashOfRimMod
                         sourceEventId,
                         currentSnapshotId,
                         reason));
+                using var publication = ClientSessionWork.EnterPublication();
                 if (!result.Success || result.Response is null)
                 {
                     Log.Warning("[ClashOfRim][EventFailure] report failed event=" + eventId + " error=" + result.ErrorCode + " " + result.Message);
@@ -607,6 +619,7 @@ public sealed partial class ClashOfRimMod
             }
             catch (Exception ex) when (ClientSessionWork.IsCurrent && (ex is InvalidOperationException or HttpRequestException or TaskCanceledException))
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 Log.Warning("[ClashOfRim][EventFailure] report exception event=" + eventId + ": " + ex);
             }
         });
@@ -1079,6 +1092,7 @@ public sealed partial class ClashOfRimMod
                         confirmedPayload,
                         request.ClientApplicationResult));
 
+                using var publication = ClientSessionWork.EnterPublication();
                 if (!result.Success || result.Response is null)
                 {
                     string status = request.BuildRequestFailedStatus?.Invoke(result)
@@ -1131,6 +1145,7 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 string status = request.BuildExceptionStatus?.Invoke(ex)
                     ?? ClashOfRimText.Key(
                         "ClashOfRim.Events.StatusSingleConfirmException",
@@ -1147,10 +1162,10 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                if (ClientSessionWork.IsCurrent)
+                ClientSessionWork.TryApply(() =>
                 {
                     EndSnapshotUploadTransaction();
-                }
+                });
             }
         });
     }
@@ -1245,6 +1260,7 @@ public sealed partial class ClashOfRimMod
                         confirmedPayload,
                         entries));
 
+                using var publication = ClientSessionWork.EnterPublication();
                 if (!result.Success || result.Response is null)
                 {
                     string status = request.BuildRequestFailedStatus?.Invoke(result)
@@ -1294,6 +1310,7 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 string status = request.BuildExceptionStatus?.Invoke(ex)
                     ?? ClashOfRimText.Key(
                         "ClashOfRim.Events.StatusBatchConfirmException",
@@ -1309,10 +1326,10 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                if (ClientSessionWork.IsCurrent)
+                ClientSessionWork.TryApply(() =>
                 {
                     EndSnapshotUploadTransaction();
-                }
+                });
             }
         });
     }
@@ -1469,6 +1486,7 @@ public sealed partial class ClashOfRimMod
                             confirmedPayload,
                             request.ClientApplicationResult));
 
+                using var publication = ClientSessionWork.EnterPublication();
                 if (!result.Success || result.Response is null)
                 {
                     string status = request.BuildRequestFailedStatus?.Invoke(result)
@@ -1545,6 +1563,7 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 string status = request.BuildExceptionStatus?.Invoke(ex)
                     ?? ClashOfRimText.Key(
                         "ClashOfRim.Events.StatusPreparedConfirmException",
@@ -1556,13 +1575,13 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                if (ClientSessionWork.IsCurrent)
+                ClientSessionWork.TryApply(() =>
                 {
                     if (uploadTransactionOwned)
                     {
                         EndSnapshotUploadTransaction();
                     }
-                }
+                });
             }
         });
     }
@@ -1638,6 +1657,7 @@ public sealed partial class ClashOfRimMod
                 ClashOfRimClientNetworkResult<ModRejectGiftResponseDto> result =
                     await ClientSessionWork.Observe(client.RejectGiftAsync(prepared.RejectionRequest.EventId, prepared.RejectionRequest.Reason));
 
+                using var publication = ClientSessionWork.EnterPublication();
                 if (!result.Success || result.Response is null)
                 {
                     giftProcessingStatus = ClashOfRimText.Key(
@@ -1667,6 +1687,7 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 giftProcessingStatus = ClashOfRimText.Key(
                     "ClashOfRim.GiftProcessing.RejectException",
                     ex.GetType().Name.Named("TYPE"),
@@ -1675,10 +1696,10 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                if (ClientSessionWork.IsCurrent)
+                ClientSessionWork.TryApply(() =>
                 {
                     manualSyncInProgress = false;
-                }
+                });
             }
         });
 
@@ -1706,6 +1727,7 @@ public sealed partial class ClashOfRimMod
                 ClashOfRimClientNetworkResult<ModRejectSupportPawnResponseDto> result =
                     await ClientSessionWork.Observe(client.RejectSupportPawnAsync(supportDetail.EventId, reason));
 
+                using var publication = ClientSessionWork.EnterPublication();
                 if (!result.Success || result.Response is null)
                 {
                     giftProcessingStatus = ClashOfRimText.Key(
@@ -1741,6 +1763,7 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 giftProcessingStatus = ClashOfRimText.Key(
                     "ClashOfRim.Support.RejectException",
                     ex.GetType().Name.Named("TYPE"),
@@ -1749,10 +1772,10 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                if (ClientSessionWork.IsCurrent)
+                ClientSessionWork.TryApply(() =>
                 {
                     manualSyncInProgress = false;
-                }
+                });
             }
         });
 
@@ -1865,6 +1888,7 @@ public sealed partial class ClashOfRimMod
                 ModSnapshotUploadResult result = await ClientSessionWork.Observe(service.UploadConfiguredSnapshotAsync(
                     request.RemoveRaidBattleSessions,
                     snapshotUploadKind: ModSnapshotUploadKinds.EventApplicationConfirmation));
+                using var publication = ClientSessionWork.EnterPublication();
                 if (!result.Success)
                 {
                     string status = request.BuildFailureStatus?.Invoke(result)
@@ -1915,6 +1939,7 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 string status = request.BuildExceptionStatus?.Invoke(ex)
                     ?? ClashOfRimText.Key(
                         "ClashOfRim.LocalMutation.ConfirmException",
@@ -1942,10 +1967,10 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                if (ClientSessionWork.IsCurrent)
+                ClientSessionWork.TryApply(() =>
                 {
                     EndSnapshotUploadTransaction();
-                }
+                });
             }
         });
     }
@@ -1990,6 +2015,7 @@ public sealed partial class ClashOfRimMod
                 var service = new ModSnapshotUploadService(settings);
                 ModSnapshotUploadResult result = await ClientSessionWork.Observe(service.UploadConfiguredSnapshotAsync(
                     snapshotUploadKind: ModSnapshotUploadKinds.ManualUpload));
+                using var publication = ClientSessionWork.EnterPublication();
                 if (result.Success)
                 {
                     snapshotUploadStatus = ClashOfRimText.Key("ClashOfRim.SnapshotUpload.Succeeded", (result.AcceptedSnapshotId ?? string.Empty).Named("SNAPSHOT"));
@@ -2011,6 +2037,7 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 snapshotUploadStatus = ClashOfRimText.Key(
                     "ClashOfRim.SnapshotUpload.Exception",
                     ex.GetType().Name.Named("TYPE"),
@@ -2020,10 +2047,10 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                if (ClientSessionWork.IsCurrent)
+                ClientSessionWork.TryApply(() =>
                 {
                     EndSnapshotUploadTransaction();
-                }
+                });
             }
         });
     }
@@ -2060,6 +2087,7 @@ public sealed partial class ClashOfRimMod
                 var service = new ModSnapshotUploadService(settings);
                 ModSnapshotUploadResult result = await ClientSessionWork.Observe(service.UploadConfiguredSnapshotAsync(
                     snapshotUploadKind: ModSnapshotUploadKinds.ManualUpload));
+                using var publication = ClientSessionWork.EnterPublication();
                 if (!result.Success)
                 {
                     snapshotUploadStatus = ClashOfRimText.Key(
@@ -2090,6 +2118,7 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 snapshotUploadStatus = ClashOfRimText.Key(
                     "ClashOfRim.Menu.UploadSnapshotException",
                     ex.GetType().Name.Named("TYPE"),
@@ -2100,10 +2129,10 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                if (ClientSessionWork.IsCurrent)
+                ClientSessionWork.TryApply(() =>
                 {
                     EndSnapshotUploadTransaction();
-                }
+                });
             }
         });
     }
@@ -2142,6 +2171,7 @@ public sealed partial class ClashOfRimMod
                 var service = new ModSnapshotUploadService(settings);
                 ModSnapshotUploadResult result = await ClientSessionWork.Observe(service.UploadConfiguredSnapshotAsync(
                     snapshotUploadKind: ModSnapshotUploadKinds.AutoSave));
+                using var publication = ClientSessionWork.EnterPublication();
                 if (!result.Success)
                 {
                     snapshotUploadStatus = ClashOfRimText.Key(
@@ -2166,6 +2196,7 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 snapshotUploadStatus = ClashOfRimText.Key(
                     "ClashOfRim.AutosaveSnapshot.Exception",
                     ex.GetType().Name.Named("TYPE"),
@@ -2175,10 +2206,10 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                if (ClientSessionWork.IsCurrent)
+                ClientSessionWork.TryApply(() =>
                 {
                     EndSnapshotUploadTransaction();
-                }
+                });
             }
         });
     }

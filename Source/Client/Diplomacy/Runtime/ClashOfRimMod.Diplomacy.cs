@@ -62,6 +62,7 @@ public sealed partial class ClashOfRimMod
                     httpClient,
                     ClashOfRimClientNetworkContext.FromSettings(settings));
                 ClashOfRimClientNetworkResult<ModListPlayersResponseDto> result = await ClientSessionWork.Observe(client.ListPlayersAsync());
+                using var publication = ClientSessionWork.EnterPublication();
                 if (!result.Success || result.Response is null)
                 {
                     playerListStatus = ClashOfRimText.Key(
@@ -110,6 +111,7 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 playerListStatus = ClashOfRimText.Key(
                     "ClashOfRim.Players.StatusException",
                     ex.GetType().Name.Named("TYPE"),
@@ -118,13 +120,13 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                if (ClientSessionWork.IsCurrent)
+                ClientSessionWork.TryApply(() =>
                 {
                     if (requireManualGate)
                     {
                         manualSyncInProgress = false;
                     }
-                }
+                });
             }
         });
     }
@@ -262,6 +264,7 @@ public sealed partial class ClashOfRimMod
                             ? null
                             : DateTimeOffset.UtcNow.AddDays(3)));
 
+                using var publication = ClientSessionWork.EnterPublication();
                 if (!result.Success || result.Response is null)
                 {
                     return;
@@ -305,14 +308,15 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 Log.Warning("[ClashOfRim] Diplomacy event creation failed: " + ex);
             }
             finally
             {
-                if (ClientSessionWork.IsCurrent)
+                ClientSessionWork.TryApply(() =>
                 {
                     manualSyncInProgress = false;
-                }
+                });
             }
         });
     }

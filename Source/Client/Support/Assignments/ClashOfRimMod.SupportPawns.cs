@@ -305,6 +305,7 @@ public sealed partial class ClashOfRimMod
                         confirmedSnapshot,
                         confirmedPayload));
 
+                using var publication = ClientSessionWork.EnterPublication();
                 if (!result.Success || result.Response is null)
                 {
                     tradeStatus = ClashOfRimText.Key("ClashOfRim.Support.StatusCreateFailed", result.ErrorCode.Named("CODE"), result.Message.Named("MESSAGE"));
@@ -377,6 +378,7 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 tradeStatus = ClashOfRimText.Key("ClashOfRim.Support.StatusException", ex.GetType().Name.Named("TYPE"), ex.Message.Named("MESSAGE"));
                 ShowUnconfirmedSnapshotFailure(
                     ClashOfRimText.Key("ClashOfRim.Support.OperationSend"),
@@ -398,10 +400,10 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                if (ClientSessionWork.IsCurrent)
+                ClientSessionWork.TryApply(() =>
                 {
                     EndSnapshotUploadTransaction();
-                }
+                });
             }
         });
     }
@@ -639,6 +641,7 @@ public sealed partial class ClashOfRimMod
                         pawnDead: package is null,
                         package));
 
+                using var publication = ClientSessionWork.EnterPublication();
                 if (!result.Success || result.Response is null)
                 {
                     tradeStatus = ClashOfRimText.Key(
@@ -673,6 +676,7 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 tradeStatus = ClashOfRimText.Key(
                     "ClashOfRim.Support.StatusFinishException",
                     ex.GetType().Name.Named("TYPE"),

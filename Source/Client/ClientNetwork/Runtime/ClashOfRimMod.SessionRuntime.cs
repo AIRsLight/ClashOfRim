@@ -48,37 +48,41 @@ public sealed partial class ClashOfRimMod
 
                 ClashOfRimClientNetworkResult<ModPullPendingEventsResponseDto> queue =
                     await ClientSessionWork.Observe(client.PullPendingEventsAsync());
-                if (!queue.Success || queue.Response is null)
+                using (ClientSessionWork.EnterPublication())
                 {
-                    eventQueueStatus = ClashOfRimText.Key(
-                        "ClashOfRim.Events.StatusQueueFailed",
-                        (queue.ErrorCode ?? string.Empty).Named("CODE"),
-                        (queue.Message ?? string.Empty).Named("MESSAGE"));
-                    return;
+                    if (!queue.Success || queue.Response is null)
+                    {
+                        eventQueueStatus = ClashOfRimText.Key("ClashOfRim.Events.StatusQueueFailed", (queue.ErrorCode ?? string.Empty).Named("CODE"), (queue.Message ?? string.Empty).Named("MESSAGE"));
+                        return;
+                    }
                 }
 
                 ModProtocolResponseDto? queueResult = queue.Response.Result;
-                if (queueResult is not null && !queueResult.Accepted)
+                using (ClientSessionWork.EnterPublication())
                 {
-                    eventQueueStatus = ClashOfRimText.Key(
-                        "ClashOfRim.Events.StatusQueueRejected",
-                        queueResult.ErrorCode.Named("CODE"),
-                        (queueResult.Message ?? string.Empty).Named("MESSAGE"));
-                    return;
-                }
+                    if (queueResult is not null && !queueResult.Accepted)
+                    {
+                        eventQueueStatus = ClashOfRimText.Key("ClashOfRim.Events.StatusQueueRejected", queueResult.ErrorCode.Named("CODE"), (queueResult.Message ?? string.Empty).Named("MESSAGE"));
+                        return;
+                    }
 
-                eventQueueStatus = FormatEventQueue(queue.Response.EventQueue);
-                CaptureEventIds(queue.Response.EventQueue);
+                    eventQueueStatus = FormatEventQueue(queue.Response.EventQueue);
+                    CaptureEventIds(queue.Response.EventQueue);
+                }
                 IReadOnlyList<string> eventIds = CopyLastEventQueueIds();
-                ClashLog.Message($"[ClashOfRim][Events] refreshed queue ids={eventIds.Count}.");
-                if (eventIds.Count == 0)
+                using (ClientSessionWork.EnterPublication())
                 {
-                    eventDetailsStatus = ClashOfRimText.Key("ClashOfRim.Events.StatusNoDetails");
-                    return;
+                    ClashLog.Message($"[ClashOfRim][Events] refreshed queue ids={eventIds.Count}.");
+                    if (eventIds.Count == 0)
+                    {
+                        eventDetailsStatus = ClashOfRimText.Key("ClashOfRim.Events.StatusNoDetails");
+                        return;
+                    }
                 }
 
                 ClashOfRimClientNetworkResult<ModPullEventDetailsResponseDto> details =
                     await ClientSessionWork.Observe(client.PullEventDetailsAsync(eventIds));
+                using var publication = ClientSessionWork.EnterPublication();
                 if (!details.Success || details.Response is null)
                 {
                     eventDetailsStatus = ClashOfRimText.Key(
@@ -107,6 +111,7 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 eventQueueStatus = ClashOfRimText.Key(
                     "ClashOfRim.Events.StatusException",
                     ex.GetType().Name.Named("TYPE"),
@@ -115,10 +120,10 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                if (ClientSessionWork.IsCurrent)
+                ClientSessionWork.TryApply(() =>
                 {
                     manualSyncInProgress = false;
-                }
+                });
             }
         });
     }
@@ -146,6 +151,7 @@ public sealed partial class ClashOfRimMod
                 ClashOfRimClientNetworkResult<ModLoginResponseDto> result =
                     await ClientSessionWork.Observe(client.LoginAsync("manual-sync"));
 
+                using var publication = ClientSessionWork.EnterPublication();
                 if (!result.Success || result.Response is null)
                 {
                     loginStatus = ClashOfRimText.Key(
@@ -195,6 +201,7 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 loginStatus = ClashOfRimText.Key(
                     "ClashOfRim.Login.StatusException",
                     ex.GetType().Name.Named("TYPE"),
@@ -203,10 +210,10 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                if (ClientSessionWork.IsCurrent)
+                ClientSessionWork.TryApply(() =>
                 {
                     manualSyncInProgress = false;
-                }
+                });
             }
         });
     }
@@ -254,9 +261,10 @@ public sealed partial class ClashOfRimMod
                         sessionId,
                         lastNotificationVersion,
                         lastWorldConfigurationVersion,
-                        streamEvent => { if (ClientSessionWork.IsCurrent) HandleSessionStreamEventSafely(streamEvent, sessionId); },
+                        streamEvent => ClientSessionWork.TryApply(() => HandleSessionStreamEventSafely(streamEvent, sessionId)),
                         cancellationToken));
 
+                using var publication = ClientSessionWork.EnterPublication();
                 if (cancellationToken.IsCancellationRequested)
                 {
                     presenceStatus = ClashOfRimText.Key("ClashOfRim.Presence.StatusDisconnectedManual");
@@ -284,6 +292,7 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 presenceStatus = ClashOfRimText.Key(
                     "ClashOfRim.Presence.StatusException",
                     ex.GetType().Name.Named("TYPE"),
@@ -296,7 +305,7 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                if (ClientSessionWork.IsCurrent)
+                ClientSessionWork.TryApply(() =>
                 {
                     if (ReferenceEquals(presenceCancellation, streamCancellation))
                     {
@@ -304,7 +313,7 @@ public sealed partial class ClashOfRimMod
                         presenceCancellation = null;
                     }
 
-                }
+                });
                 streamCancellation.Dispose();
             }
         });
@@ -470,6 +479,7 @@ public sealed partial class ClashOfRimMod
                     ClashOfRimClientNetworkContext.FromSettings(settings));
                 ClashOfRimClientNetworkResult<ModListChatMessagesResponseDto> result =
                     await ClientSessionWork.Observe(client.ListChatMessagesAsync(afterSequence, limit));
+                using var publication = ClientSessionWork.EnterPublication();
                 if (!result.Success || result.Response is null)
                 {
                     chatStatus = ClashOfRimText.Key("ClashOfRim.Chat.StatusRefreshFailed", result.ErrorCode.Named("CODE"), result.Message.Named("MESSAGE"));
@@ -491,15 +501,16 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 chatStatus = ClashOfRimText.Key("ClashOfRim.Chat.StatusException", ex.GetType().Name.Named("TYPE"), ex.Message.Named("MESSAGE"));
                 Log.Warning("[ClashOfRim] Chat refresh failed: " + ex);
             }
             finally
             {
-                if (ClientSessionWork.IsCurrent)
+                ClientSessionWork.TryApply(() =>
                 {
                     chatRefreshInProgress = false;
-                }
+                });
             }
         });
     }
@@ -536,6 +547,7 @@ public sealed partial class ClashOfRimMod
                     ClashOfRimClientNetworkContext.FromSettings(settings));
                 ClashOfRimClientNetworkResult<ModSendChatMessageResponseDto> result =
                     await ClientSessionWork.Observe(client.SendChatMessageAsync(targetUserId, text));
+                using var publication = ClientSessionWork.EnterPublication();
                 if (!result.Success || result.Response is null)
                 {
                     chatStatus = ClashOfRimText.Key("ClashOfRim.Chat.StatusSendFailed", result.ErrorCode.Named("CODE"), result.Message.Named("MESSAGE"));
@@ -561,15 +573,16 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 chatStatus = ClashOfRimText.Key("ClashOfRim.Chat.StatusException", ex.GetType().Name.Named("TYPE"), ex.Message.Named("MESSAGE"));
                 Log.Warning("[ClashOfRim] Chat send failed: " + ex);
             }
             finally
             {
-                if (ClientSessionWork.IsCurrent)
+                ClientSessionWork.TryApply(() =>
                 {
                     chatSendInProgress = false;
-                }
+                });
             }
         });
     }
@@ -732,6 +745,7 @@ public sealed partial class ClashOfRimMod
                     ClashOfRimClientNetworkContext.FromSettings(settings));
                 ClashOfRimClientNetworkResult<ModWorldMapMarkerDeliveryDto> result =
                     await ClientSessionWork.Observe(client.SyncWorldMapMarkersAsync());
+                using var publication = ClientSessionWork.EnterPublication();
                 if (!result.Success || result.Response is null)
                 {
                     worldMapStatus = ClashOfRimText.Key(
@@ -749,6 +763,7 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 worldMapStatus = ClashOfRimText.Key(
                     "ClashOfRim.WorldMap.StatusSyncException",
                     ex.GetType().Name.Named("TYPE"),
@@ -757,10 +772,10 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                if (ClientSessionWork.IsCurrent)
+                ClientSessionWork.TryApply(() =>
                 {
                     worldMapMarkerSyncInProgress = false;
-                }
+                });
             }
         });
     }
@@ -785,19 +800,20 @@ public sealed partial class ClashOfRimMod
 
                 ClashOfRimClientNetworkResult<ModWorldMapMarkerDeliveryDto> markers =
                     await ClientSessionWork.Observe(client.SyncWorldMapMarkersAsync());
-                if (!markers.Success || markers.Response is null)
+                using (ClientSessionWork.EnterPublication())
                 {
-                    worldMapStatus = ClashOfRimText.Key(
-                        "ClashOfRim.WorldMap.StatusCaravanTargetsFailed",
-                        (markers.ErrorCode ?? string.Empty).Named("CODE"),
-                        (markers.Message ?? string.Empty).Named("MESSAGE"));
-                    return;
-                }
+                    if (!markers.Success || markers.Response is null)
+                    {
+                        worldMapStatus = ClashOfRimText.Key("ClashOfRim.WorldMap.StatusCaravanTargetsFailed", (markers.ErrorCode ?? string.Empty).Named("CODE"), (markers.Message ?? string.Empty).Named("MESSAGE"));
+                        return;
+                    }
 
-                CaptureWorldMapMarkers(markers.Response, source: "caravan-target-refresh");
+                    CaptureWorldMapMarkers(markers.Response, source: "caravan-target-refresh");
+                }
 
                 ClashOfRimClientNetworkResult<ModListTradeOrdersResponseDto> trades =
                     await ClientSessionWork.Observe(client.ListTradeOrdersAsync("Open"));
+                using var publication = ClientSessionWork.EnterPublication();
                 if (!trades.Success || trades.Response is null)
                 {
                     tradeStatus = ClashOfRimText.Key(
@@ -836,6 +852,7 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 worldMapStatus = ClashOfRimText.Key(
                     "ClashOfRim.WorldMap.StatusCaravanTargetsException",
                     ex.GetType().Name.Named("TYPE"),
@@ -844,10 +861,10 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                if (ClientSessionWork.IsCurrent)
+                ClientSessionWork.TryApply(() =>
                 {
                     caravanArrivalTargetRefreshInProgress = false;
-                }
+                });
             }
         });
     }
@@ -871,6 +888,7 @@ public sealed partial class ClashOfRimMod
                     ClashOfRimClientNetworkContext.FromSettings(settings));
                 ClashOfRimClientNetworkResult<ModSyncRuntimeWorldObjectsResponseDto> result =
                     await ClientSessionWork.Observe(client.SyncRuntimeWorldObjectsAsync(objects));
+                using var publication = ClientSessionWork.EnterPublication();
                 if (!result.Success || result.Response is null)
                 {
                     Log.Warning("[ClashOfRim] Runtime world object sync failed: " + result.ErrorCode + " " + result.Message);
@@ -891,14 +909,15 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 Log.Warning("[ClashOfRim] Runtime world object sync exception: " + ex);
             }
             finally
             {
-                if (ClientSessionWork.IsCurrent)
+                ClientSessionWork.TryApply(() =>
                 {
                     runtimeWorldObjectSyncInProgress = false;
-                }
+                });
             }
         });
     }
@@ -966,6 +985,7 @@ public sealed partial class ClashOfRimMod
                         sites,
                         extensions: extensions,
                         suppressWorldConfigurationNotification: suppressWorldConfigurationNotification));
+                using var publication = ClientSessionWork.EnterPublication();
                 if (!result.Success || result.Response is null)
                 {
                     Log.Warning("[ClashOfRim] Player colony site registration failed: " + result.ErrorCode + " " + result.Message);
@@ -992,14 +1012,15 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 Log.Warning("[ClashOfRim] Player colony site registration exception: " + ex);
             }
             finally
             {
-                if (ClientSessionWork.IsCurrent)
+                ClientSessionWork.TryApply(() =>
                 {
                     playerColonySiteRegistrationInProgress = false;
-                }
+                });
             }
         });
     }
@@ -1048,6 +1069,7 @@ public sealed partial class ClashOfRimMod
                     await ClientSessionWork.Observe(client.RegisterPlayerColonySitesAsync(
                         Array.Empty<ModPlayerColonySiteDto>(),
                         extensions: extensions));
+                using var publication = ClientSessionWork.EnterPublication();
                 if (!result.Success || result.Response is null)
                 {
                     Log.Warning("[ClashOfRim][WorldExtensions] World configuration extension sync failed: " + result.ErrorCode + " " + result.Message);
@@ -1074,14 +1096,15 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 Log.Warning("[ClashOfRim] World configuration extension sync exception: " + ex);
             }
             finally
             {
-                if (ClientSessionWork.IsCurrent)
+                ClientSessionWork.TryApply(() =>
                 {
                     worldConfigurationExtensionSyncInProgress = false;
-                }
+                });
             }
         });
     }
@@ -1136,6 +1159,7 @@ public sealed partial class ClashOfRimMod
                     ClashOfRimClientNetworkContext.FromSettings(settings));
                 ClashOfRimClientNetworkResult<ModAbandonPlayerColonyResponseDto> result =
                     await ClientSessionWork.Observe(client.AbandonPlayerColonyAsync(idempotencyKey));
+                using var publication = ClientSessionWork.EnterPublication();
                 if (!result.Success || result.Response is null)
                 {
                     worldMapStatus = ClashOfRimText.Key(
@@ -1192,6 +1216,7 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 worldMapStatus = ClashOfRimText.Key(
                     "ClashOfRim.AbandonColony.StatusException",
                     ex.GetType().Name.Named("TYPE"),
@@ -1202,10 +1227,10 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                if (ClientSessionWork.IsCurrent)
+                ClientSessionWork.TryApply(() =>
                 {
                     abandonPlayerColonyInProgress = false;
-                }
+                });
             }
         });
     }
@@ -1354,33 +1379,30 @@ public sealed partial class ClashOfRimMod
                     ClashOfRimClientNetworkContext.FromSettings(settings));
                 ClashOfRimClientNetworkResult<ModPrepareWorldSessionResponseDto> result =
                     await ClientSessionWork.Observe(client.PrepareWorldSessionAsync());
-                if (!result.Success || result.Response is null)
+                using (ClientSessionWork.EnterPublication())
                 {
-                    worldMapStatus = ClashOfRimText.Key(
-                        "ClashOfRim.WorldCatalog.StatusFailed",
-                        (result.ErrorCode ?? string.Empty).Named("CODE"),
-                        (result.Message ?? string.Empty).Named("MESSAGE"));
-                    if (!IsNetworkCancellationFailure(result))
+                    if (!result.Success || result.Response is null)
                     {
-                        Log.Warning("[ClashOfRim] World configuration refresh failed: " + result.ErrorCode + " " + result.Message);
-                    }
+                        worldMapStatus = ClashOfRimText.Key("ClashOfRim.WorldCatalog.StatusFailed", (result.ErrorCode ?? string.Empty).Named("CODE"), (result.Message ?? string.Empty).Named("MESSAGE"));
+                        if (!IsNetworkCancellationFailure(result))
+                        {
+                            Log.Warning("[ClashOfRim] World configuration refresh failed: " + result.ErrorCode + " " + result.Message);
+                        }
 
-                    return;
+                        return;
+                    }
                 }
 
                 ModPrepareWorldSessionResponseDto response = result.Response;
-                CaptureServerCompatibilityManifest(response.ServerCompatibilityManifestJson);
-                if (response.Result?.Accepted != true)
+                using (ClientSessionWork.EnterPublication())
                 {
-                    worldMapStatus = ClashOfRimText.Key(
-                        "ClashOfRim.WorldCatalog.StatusRejected",
-                        (response.Result is null ? string.Empty : response.Result.ErrorCode.ToString()).Named("CODE"),
-                        (response.Result?.Message ?? string.Empty).Named("MESSAGE"));
-                    Log.Warning("[ClashOfRim] World configuration refresh rejected: "
-                        + response.Result?.ErrorCode
-                        + " "
-                        + response.Result?.Message);
-                    return;
+                    CaptureServerCompatibilityManifest(response.ServerCompatibilityManifestJson);
+                    if (response.Result?.Accepted != true)
+                    {
+                        worldMapStatus = ClashOfRimText.Key("ClashOfRim.WorldCatalog.StatusRejected", (response.Result is null ? string.Empty : response.Result.ErrorCode.ToString()).Named("CODE"), (response.Result?.Message ?? string.Empty).Named("MESSAGE"));
+                        Log.Warning("[ClashOfRim] World configuration refresh rejected: " + response.Result?.ErrorCode + " " + response.Result?.Message);
+                        return;
+                    }
                 }
 
                 ModWorldConfigurationDto? configuration = response.WorldConfiguration;
@@ -1393,6 +1415,7 @@ public sealed partial class ClashOfRimMod
                             includeGenerationBaseline: includeGenerationBaseline,
                             includePlayerColonySites: true,
                             includeWorldExtensions: true));
+                    using var branchPublication = ClientSessionWork.EnterPublication();
                     if (!configurationResult.Success || configurationResult.Response is null)
                     {
                         worldMapStatus = ClashOfRimText.Key(
@@ -1414,6 +1437,7 @@ public sealed partial class ClashOfRimMod
                     configuration = configurationResult.Response.WorldConfiguration;
                 }
 
+                using var publication = ClientSessionWork.EnterPublication();
                 bool wasAdministrator = isAdministrator;
                 ApplyAdministratorFlag(response.IsAdministrator);
                 if (!response.IsAdministrator)
@@ -1455,6 +1479,7 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 worldMapStatus = ClashOfRimText.Key(
                     "ClashOfRim.WorldCatalog.StatusException",
                     ex.GetType().Name.Named("TYPE"),
@@ -1620,77 +1645,51 @@ public sealed partial class ClashOfRimMod
                 var entryClient = new ClashOfRimModNetworkClient(httpClient, unauthenticatedContext);
                 ClashOfRimClientNetworkResult<ModPrepareWorldSessionResponseDto> prepared =
                     await ClientSessionWork.Observe(entryClient.PrepareWorldSessionAsync());
-                if (!prepared.Success || prepared.Response is null)
+                using (ClientSessionWork.EnterPublication())
                 {
-                    CompleteSessionReconnect(
-                        window,
-                        false,
-                        ClashOfRimText.Key(
-                            "ClashOfRim.SessionExpired.ReconnectNetworkFailed",
-                            (prepared.Message ?? prepared.ErrorCode ?? string.Empty).Named("MESSAGE")));
-                    return;
+                    if (!prepared.Success || prepared.Response is null)
+                    {
+                        CompleteSessionReconnect(window, false, ClashOfRimText.Key("ClashOfRim.SessionExpired.ReconnectNetworkFailed", (prepared.Message ?? prepared.ErrorCode ?? string.Empty).Named("MESSAGE")));
+                        return;
+                    }
                 }
 
                 ModPrepareWorldSessionResponseDto worldSession = prepared.Response;
-                if (worldSession.Result?.Accepted != true)
+                using (ClientSessionWork.EnterPublication())
                 {
-                    CompleteSessionReconnect(
-                        window,
-                        false,
-                        ClashOfRimText.Key(
-                            "ClashOfRim.SessionExpired.ReconnectRejected",
-                            (worldSession.Result?.Message ?? string.Empty).Named("MESSAGE")));
-                    return;
-                }
+                    if (worldSession.Result?.Accepted != true)
+                    {
+                        CompleteSessionReconnect(window, false, ClashOfRimText.Key("ClashOfRim.SessionExpired.ReconnectRejected", (worldSession.Result?.Message ?? string.Empty).Named("MESSAGE")));
+                        return;
+                    }
 
-                if (!SessionReconnectSafetyPolicy.MatchesAuthoritativeSnapshot(
-                        expectedColonyId,
-                        expectedSnapshotId,
-                        worldSession.HasExistingColony,
-                        worldSession.AssignedColonyId,
-                        worldSession.LatestSnapshotId))
-                {
-                    Log.Warning("[ClashOfRim][SessionReconnect] Authoritative snapshot changed before login: expectedColony="
-                        + expectedColonyId
-                        + ", assignedColony="
-                        + worldSession.AssignedColonyId
-                        + ", expectedSnapshot="
-                        + expectedSnapshotId
-                        + ", latestSnapshot="
-                        + worldSession.LatestSnapshotId
-                        + ".");
-                    CompleteSessionReconnect(
-                        window,
-                        false,
-                        ClashOfRimText.Key("ClashOfRim.SessionExpired.ReconnectSnapshotChanged"));
-                    return;
+                    if (!SessionReconnectSafetyPolicy.MatchesAuthoritativeSnapshot(expectedColonyId, expectedSnapshotId, worldSession.HasExistingColony, worldSession.AssignedColonyId, worldSession.LatestSnapshotId))
+                    {
+                        Log.Warning("[ClashOfRim][SessionReconnect] Authoritative snapshot changed before login: expectedColony=" + expectedColonyId + ", assignedColony=" + worldSession.AssignedColonyId + ", expectedSnapshot=" + expectedSnapshotId + ", latestSnapshot=" + worldSession.LatestSnapshotId + ".");
+                        CompleteSessionReconnect(window, false, ClashOfRimText.Key("ClashOfRim.SessionExpired.ReconnectSnapshotChanged"));
+                        return;
+                    }
                 }
 
                 ClashOfRimClientNetworkResult<ModLoginResponseDto> login =
                     await ClientSessionWork.Observe(entryClient.LoginAsync("session-reconnect"));
-                if (!login.Success || login.Response is null)
+                using (ClientSessionWork.EnterPublication())
                 {
-                    CompleteSessionReconnect(
-                        window,
-                        false,
-                        ClashOfRimText.Key(
-                            "ClashOfRim.SessionExpired.ReconnectNetworkFailed",
-                            (login.Message ?? login.ErrorCode ?? string.Empty).Named("MESSAGE")));
-                    return;
+                    if (!login.Success || login.Response is null)
+                    {
+                        CompleteSessionReconnect(window, false, ClashOfRimText.Key("ClashOfRim.SessionExpired.ReconnectNetworkFailed", (login.Message ?? login.ErrorCode ?? string.Empty).Named("MESSAGE")));
+                        return;
+                    }
                 }
 
                 ModLoginResponseDto loginResponse = login.Response;
-                if (loginResponse.Result?.Accepted != true
-                    || string.IsNullOrWhiteSpace(loginResponse.SessionId)
-                    || string.IsNullOrWhiteSpace(loginResponse.AuthToken))
+                using (ClientSessionWork.EnterPublication())
                 {
-                    CompleteSessionReconnect(
-                        window,
-                        false,
-                        ClashOfRimText.Key(
-                            "ClashOfRim.SessionExpired.ReconnectRejected",
-                            (loginResponse.Result?.Message ?? string.Empty).Named("MESSAGE")));
-                    return;
+                    if (loginResponse.Result?.Accepted != true || string.IsNullOrWhiteSpace(loginResponse.SessionId) || string.IsNullOrWhiteSpace(loginResponse.AuthToken))
+                    {
+                        CompleteSessionReconnect(window, false, ClashOfRimText.Key("ClashOfRim.SessionExpired.ReconnectRejected", (loginResponse.Result?.Message ?? string.Empty).Named("MESSAGE")));
+                        return;
+                    }
                 }
 
                 string authenticatedUserId = string.IsNullOrWhiteSpace(loginResponse.AuthenticatedUserId)
@@ -1699,6 +1698,7 @@ public sealed partial class ClashOfRimMod
                 if (!string.Equals(authenticatedUserId, expectedUserId, StringComparison.Ordinal))
                 {
                     await ClientSessionWork.Observe(entryClient.LogoutAsync(loginResponse.SessionId!));
+                    using var branchPublication = ClientSessionWork.EnterPublication();
                     CompleteSessionReconnect(
                         window,
                         false,
@@ -1721,14 +1721,12 @@ public sealed partial class ClashOfRimMod
                     || metadata.Response?.Result?.Accepted != true
                     || !string.Equals(metadata.Response.SnapshotId, expectedSnapshotId, StringComparison.Ordinal))
                 {
-                    Log.Warning("[ClashOfRim][SessionReconnect] Authoritative snapshot changed after login: expectedSnapshot="
-                        + expectedSnapshotId
-                        + ", latestSnapshot="
-                        + metadata.Response?.SnapshotId
-                        + ", error="
-                        + (metadata.Message ?? metadata.Response?.Result?.Message ?? metadata.ErrorCode ?? string.Empty)
-                        + ".");
+                    using (ClientSessionWork.EnterPublication())
+                    {
+                        Log.Warning("[ClashOfRim][SessionReconnect] Authoritative snapshot changed after login: expectedSnapshot=" + expectedSnapshotId + ", latestSnapshot=" + metadata.Response?.SnapshotId + ", error=" + (metadata.Message ?? metadata.Response?.Result?.Message ?? metadata.ErrorCode ?? string.Empty) + ".");
+                    }
                     await ClientSessionWork.Observe(authenticatedClient.LogoutAsync(loginResponse.SessionId!));
+                    using var branchPublication = ClientSessionWork.EnterPublication();
                     CompleteSessionReconnect(
                         window,
                         false,
@@ -1736,6 +1734,7 @@ public sealed partial class ClashOfRimMod
                     return;
                 }
 
+                using var publication = ClientSessionWork.EnterPublication();
                 ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
                 {
                     if (Current.ProgramState != ProgramState.Playing || Current.Game is null)
@@ -1784,6 +1783,7 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 Log.Warning("[ClashOfRim] Session reconnect failed: " + ex);
                 CompleteSessionReconnect(
                     window,
@@ -1794,14 +1794,14 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                if (ClientSessionWork.IsCurrent)
+                ClientSessionWork.TryApply(() =>
                 {
                     lock (syncStateGate)
                     {
                         sessionReconnectInProgress = false;
                         manualSyncInProgress = false;
                     }
-                }
+                });
             }
         });
     }
@@ -1891,50 +1891,51 @@ public sealed partial class ClashOfRimMod
                 var client = new ClashOfRimModNetworkClient(
                     httpClient,
                     ClashOfRimClientNetworkContext.FromSettings(settings));
-                loginStatus = ClashOfRimText.Key("ClashOfRim.Login.StatusLoggingIn");
+                ClientSessionWork.TryApply(() => loginStatus = ClashOfRimText.Key("ClashOfRim.Login.StatusLoggingIn"));
                 ClashOfRimClientNetworkResult<ModLoginResponseDto> login =
                     await ClientSessionWork.Observe(client.LoginAsync("map-session"));
 
-                if (!login.Success || login.Response is null)
+                using (ClientSessionWork.EnterPublication())
                 {
-                    loginStatus = ClashOfRimText.Key(
-                        "ClashOfRim.MapSession.StatusLoginFailed",
-                        (login.ErrorCode ?? string.Empty).Named("CODE"),
-                        (login.Message ?? string.Empty).Named("MESSAGE"));
-                    return;
+                    if (!login.Success || login.Response is null)
+                    {
+                        loginStatus = ClashOfRimText.Key("ClashOfRim.MapSession.StatusLoginFailed", (login.ErrorCode ?? string.Empty).Named("CODE"), (login.Message ?? string.Empty).Named("MESSAGE"));
+                        return;
+                    }
                 }
 
                 ModProtocolResponseDto? serverResult = login.Response.Result;
-                if (serverResult is not null && !serverResult.Accepted)
+                using (ClientSessionWork.EnterPublication())
                 {
-                    loginStatus = ClashOfRimText.Key(
-                        "ClashOfRim.MapSession.StatusLoginRejected",
-                        serverResult.ErrorCode.Named("CODE"),
-                        (serverResult.Message ?? string.Empty).Named("MESSAGE"));
-                    ShowCompatibilityMismatchWindow(login.Response);
-                    return;
-                }
+                    if (serverResult is not null && !serverResult.Accepted)
+                    {
+                        loginStatus = ClashOfRimText.Key("ClashOfRim.MapSession.StatusLoginRejected", serverResult.ErrorCode.Named("CODE"), (serverResult.Message ?? string.Empty).Named("MESSAGE"));
+                        ShowCompatibilityMismatchWindow(login.Response);
+                        return;
+                    }
 
-                CaptureServerCompatibilityManifest(login.Response.ServerCompatibilityManifestJson);
-                lastSessionId = login.Response.SessionId;
-                sessionExpiredHandling = false;
-                ApplyAdministratorFlag(login.Response.IsAdministrator);
-                if (!string.IsNullOrWhiteSpace(login.Response.AuthenticatedUserId))
-                {
-                    settings.UserId = login.Response.AuthenticatedUserId!.Trim();
-                }
+                    CaptureServerCompatibilityManifest(login.Response.ServerCompatibilityManifestJson);
+                    lastSessionId = login.Response.SessionId;
+                    sessionExpiredHandling = false;
+                    ApplyAdministratorFlag(login.Response.IsAdministrator);
+                    if (!string.IsNullOrWhiteSpace(login.Response.AuthenticatedUserId))
+                    {
+                        settings.UserId = login.Response.AuthenticatedUserId!.Trim();
+                    }
 
-                if (!string.IsNullOrWhiteSpace(login.Response.DisplayName))
-                {
-                    settings.DisplayName = login.Response.DisplayName!.Trim();
-                }
+                    if (!string.IsNullOrWhiteSpace(login.Response.DisplayName))
+                    {
+                        settings.DisplayName = login.Response.DisplayName!.Trim();
+                    }
 
-                settings.AuthToken = login.Response.AuthToken ?? string.Empty;
-                settings.Write();
+                    settings.AuthToken = login.Response.AuthToken ?? string.Empty;
+                    settings.Write();
+                }
 
                 var uploadService = new ModSnapshotUploadService(settings);
                 ModSnapshotUploadResult upload = await ClientSessionWork.Observe(uploadService.UploadConfiguredSnapshotAsync(
                     snapshotUploadKind: ModSnapshotUploadKinds.MapSessionSynchronization));
+                using var publication = ClientSessionWork.EnterPublication();
                 if (!upload.Success)
                 {
                     snapshotUploadStatus = ClashOfRimText.Key(
@@ -1975,6 +1976,7 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 loginStatus = ClashOfRimText.Key(
                     "ClashOfRim.MapSession.StatusException",
                     ex.GetType().Name.Named("TYPE"),
@@ -1983,10 +1985,10 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                if (ClientSessionWork.IsCurrent)
+                ClientSessionWork.TryApply(() =>
                 {
                     EndSnapshotUploadTransaction();
-                }
+                });
             }
         });
     }

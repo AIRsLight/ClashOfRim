@@ -142,6 +142,7 @@ public sealed partial class ClashOfRimMod
                     removeRaidBattleSessions: false,
                     confirmationOperation: EndgameAchievementRuntime.EndgameConfirmationOperation,
                     snapshotUploadKind: ModSnapshotUploadKinds.EndgameAchievement));
+                using var publication = ClientSessionWork.EnterPublication();
                 if (result.Success)
                 {
                     snapshotUploadStatus = ClashOfRimText.Key("ClashOfRim.Endgame.UploadSucceeded");
@@ -159,17 +160,18 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 snapshotUploadStatus = ClashOfRimText.Key("ClashOfRim.Endgame.UploadFailed", ex.Message.Named("REASON"));
                 NotifyPlayerMessage(snapshotUploadStatus, MessageTypeDefOf.RejectInput);
                 Log.Error("[ClashOfRim] Endgame achievement snapshot confirmation exception: " + ex);
             }
             finally
             {
-                if (ClientSessionWork.IsCurrent)
+                ClientSessionWork.TryApply(() =>
                 {
                     EndSnapshotUploadTransaction();
                     CompleteLocalAtomicMutation();
-                }
+                });
             }
         });
     }

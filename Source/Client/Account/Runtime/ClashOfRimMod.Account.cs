@@ -44,6 +44,7 @@ public sealed partial class ClashOfRimMod
                     ClashOfRimClientNetworkContext.FromSettings(settings));
                 ClashOfRimClientNetworkResult<ModChangeOfflinePasswordResponseDto> result =
                     await ClientSessionWork.Observe(client.ChangeOfflinePasswordAsync(currentPassword, newPassword));
+                using var publication = ClientSessionWork.EnterPublication();
                 if (!result.Success || result.Response?.Result is null)
                 {
                     accountPasswordStatus = ClashOfRimText.Key(
@@ -71,6 +72,7 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 accountPasswordStatus = ClashOfRimText.Key(
                     "ClashOfRim.Account.PasswordException",
                     ex.GetType().Name.Named("TYPE"),
@@ -79,10 +81,10 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                if (ClientSessionWork.IsCurrent)
+                ClientSessionWork.TryApply(() =>
                 {
                     accountPasswordInProgress = false;
-                }
+                });
             }
         });
     }

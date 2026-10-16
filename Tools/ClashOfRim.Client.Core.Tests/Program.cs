@@ -3,6 +3,9 @@ using AIRsLight.ClashOfRim.ClientNetwork;
 WireContractTests.Run();
 Console.WriteLine("PASS: client/server JSON wire contracts");
 
+await SessionPublicationTests.Run();
+Console.WriteLine("PASS: session publication, error and completion are atomic with reset (4 scenarios)");
+
 await Check("late response cannot apply or clear a new request flag", async () =>
 {
     ClientSessionWork.Reset();

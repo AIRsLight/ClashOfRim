@@ -42,7 +42,7 @@ public static class ClientSessionWork
             }
             catch (Exception) when (!IsCurrent)
             {
-                // The owner exited. Its catch/finally state updates must also check IsCurrent.
+                // The owner exited. Publication and completion use the same boundary as Reset.
             }
         });
     }
@@ -98,6 +98,36 @@ public static class ClientSessionWork
             if (!IsCurrent) return false;
             action();
             return true;
+        }
+    }
+
+    /// <summary>
+    /// Publishes a synchronous response under its session owner. Never await or wait for the
+    /// main thread while holding this scope. Lock order: session publication, then cache locks.
+    /// </summary>
+    public static IDisposable EnterPublication()
+    {
+        Monitor.Enter(Gate);
+        try
+        {
+            ThrowIfExpired();
+            return new Publication();
+        }
+        catch
+        {
+            Monitor.Exit(Gate);
+            throw;
+        }
+    }
+
+    private sealed class Publication : IDisposable
+    {
+        private bool disposed;
+        public void Dispose()
+        {
+            if (disposed) return;
+            disposed = true;
+            Monitor.Exit(Gate);
         }
     }
 

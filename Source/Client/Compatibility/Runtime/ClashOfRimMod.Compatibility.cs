@@ -143,40 +143,41 @@ public sealed partial class ClashOfRimMod
                     ClashOfRimClientNetworkContext.FromSettings(settings));
                 ClashOfRimClientNetworkResult<ModOverrideCompatibilityBaselineResponseDto> result =
                     await ClientSessionWork.Observe(client.OverrideCompatibilityBaselineAsync(manifestJson!));
-                accepted = result.Success && (result.Response?.Result?.Accepted ?? false);
-                message = accepted
-                    ? ClashOfRimText.Key("ClashOfRim.Compatibility.Override.Accepted")
-                    : result.Response?.Result?.Message
-                    ?? result.Message
-                    ?? ClashOfRimText.Key("ClashOfRim.Compatibility.Override.Failed");
+                using (ClientSessionWork.EnterPublication())
+                {
+                    accepted = result.Success && (result.Response?.Result?.Accepted ?? false);
+                    message = accepted ? ClashOfRimText.Key("ClashOfRim.Compatibility.Override.Accepted") : result.Response?.Result?.Message ?? result.Message ?? ClashOfRimText.Key("ClashOfRim.Compatibility.Override.Failed");
+                }
                 if (accepted)
                 {
-                    EnqueueClashOfRimMainThreadAction(() =>
-                        CaptureServerCompatibilityManifest(result.Response?.ServerCompatibilityManifestJson));
-                    EnqueueClashOfRimMainThreadAction(() =>
-                        progress?.Invoke(ClashOfRimText.Key("ClashOfRim.Compatibility.Override.StageAdminBaseline"), 0.56f));
+                    using (ClientSessionWork.EnterPublication())
+                    {
+                        EnqueueClashOfRimMainThreadAction(() => CaptureServerCompatibilityManifest(result.Response?.ServerCompatibilityManifestJson));
+                        EnqueueClashOfRimMainThreadAction(() => progress?.Invoke(ClashOfRimText.Key("ClashOfRim.Compatibility.Override.StageAdminBaseline"), 0.56f));
+                    }
                     ClashOfRimClientNetworkResult<ModGetAdminBaselineRequirementsResponseDto> requirementsResult =
                         await ClientSessionWork.Observe(client.GetAdminBaselineRequirementsAsync());
-                    if (!requirementsResult.Success || requirementsResult.Response?.Result?.Accepted != true)
+                    using (ClientSessionWork.EnterPublication())
                     {
-                        string requirementMessage = requirementsResult.Response?.Result?.Message
-                            ?? requirementsResult.Message
-                            ?? ClashOfRimText.Key("ClashOfRim.Compatibility.Override.AdminBaselineFailed");
-                        message += " " + ClashOfRimText.Key(
-                            "ClashOfRim.Compatibility.Override.AdminBaselineNotUpdated",
-                            requirementMessage.Named("MESSAGE"));
-                        Log.Warning("[ClashOfRim][Compatibility] Admin baseline requirement fetch after compatibility override failed: "
-                            + requirementMessage);
-                        EnqueueClashOfRimMainThreadAction(() => completion(message, accepted));
-                        return;
+                        if (!requirementsResult.Success || requirementsResult.Response?.Result?.Accepted != true)
+                        {
+                            string requirementMessage = requirementsResult.Response?.Result?.Message ?? requirementsResult.Message ?? ClashOfRimText.Key("ClashOfRim.Compatibility.Override.AdminBaselineFailed");
+                            message += " " + ClashOfRimText.Key("ClashOfRim.Compatibility.Override.AdminBaselineNotUpdated", requirementMessage.Named("MESSAGE"));
+                            Log.Warning("[ClashOfRim][Compatibility] Admin baseline requirement fetch after compatibility override failed: " + requirementMessage);
+                            EnqueueClashOfRimMainThreadAction(() => completion(message, accepted));
+                            return;
+                        }
                     }
 
                     ModSubmitAdminBaselineRequestDto adminBaseline = await ClientSessionWork.Observe(BuildAdminBaselineOnMainThreadAsync(
                         requirementsResult.Response.BaselineExtensions));
-                    EnqueueClashOfRimMainThreadAction(() =>
-                        progress?.Invoke(ClashOfRimText.Key("ClashOfRim.Compatibility.Override.StageSubmitAdminBaseline"), 0.72f));
+                    using (ClientSessionWork.EnterPublication())
+                    {
+                        EnqueueClashOfRimMainThreadAction(() => progress?.Invoke(ClashOfRimText.Key("ClashOfRim.Compatibility.Override.StageSubmitAdminBaseline"), 0.72f));
+                    }
                     ClashOfRimClientNetworkResult<ModSubmitAdminBaselineResponseDto> baselineResult =
                         await ClientSessionWork.Observe(client.SubmitAdminBaselineAsync(adminBaseline));
+                    using var branchPublication = ClientSessionWork.EnterPublication();
                     if (baselineResult.Success && baselineResult.Response?.Result?.Accepted == true)
                     {
                         ModSubmitAdminBaselineResponseDto baseline = baselineResult.Response;
@@ -199,6 +200,7 @@ public sealed partial class ClashOfRimMod
                     }
                 }
 
+                using var publication = ClientSessionWork.EnterPublication();
                 ClashLog.Message("[ClashOfRim][Compatibility] Override baseline request finished: success="
                     + result.Success
                     + ", accepted="
@@ -209,19 +211,19 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 message = ClashOfRimText.Key("ClashOfRim.Compatibility.Override.Exception", ex.GetType().Name.Named("TYPE"));
                 Log.Warning("[ClashOfRim][Compatibility] Failed to override server baseline: " + ex);
             }
 
-            EnqueueClashOfRimMainThreadAction(() =>
+            using (ClientSessionWork.EnterPublication())
             {
-                progress?.Invoke(
-                    accepted
-                        ? ClashOfRimText.Key("ClashOfRim.Compatibility.Override.StageComplete")
-                        : ClashOfRimText.Key("ClashOfRim.Compatibility.Override.StageFailed"),
-                    accepted ? 1f : 0.95f);
-                completion(message, accepted);
-            });
+                EnqueueClashOfRimMainThreadAction(() =>
+                {
+                    progress?.Invoke(accepted ? ClashOfRimText.Key("ClashOfRim.Compatibility.Override.StageComplete") : ClashOfRimText.Key("ClashOfRim.Compatibility.Override.StageFailed"), accepted ? 1f : 0.95f);
+                    completion(message, accepted);
+                });
+            }
         });
     }
 

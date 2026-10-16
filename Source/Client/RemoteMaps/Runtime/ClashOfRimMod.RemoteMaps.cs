@@ -271,35 +271,35 @@ public sealed partial class ClashOfRimMod
                         target.Tile,
                         isHostile: true));
 
-                if (!prepare.Success || prepare.Response is null)
+                using (ClientSessionWork.EnterPublication())
                 {
-                    ReportRemoteMapDownloadFailureFromWorker(ClashOfRimText.Key(
-                        "ClashOfRim.Raid.StatusCreateFailed",
-                        (prepare.ErrorCode ?? string.Empty).Named("CODE"),
-                        (prepare.Message ?? string.Empty).Named("MESSAGE")));
-                    return;
+                    if (!prepare.Success || prepare.Response is null)
+                    {
+                        ReportRemoteMapDownloadFailureFromWorker(ClashOfRimText.Key("ClashOfRim.Raid.StatusCreateFailed", (prepare.ErrorCode ?? string.Empty).Named("CODE"), (prepare.Message ?? string.Empty).Named("MESSAGE")));
+                        return;
+                    }
                 }
 
                 ModProtocolResponseDto? prepareResult = prepare.Response.Result;
-                if (prepareResult is not null && !prepareResult.Accepted)
+                using (ClientSessionWork.EnterPublication())
                 {
-                    ReportRemoteMapDownloadFailureFromWorker(ClashOfRimText.Key(
-                        "ClashOfRim.Raid.StatusCreateRejected",
-                        prepareResult.ErrorCode.Named("CODE"),
-                        (prepareResult.Message ?? string.Empty).Named("MESSAGE")));
-                    return;
+                    if (prepareResult is not null && !prepareResult.Accepted)
+                    {
+                        ReportRemoteMapDownloadFailureFromWorker(ClashOfRimText.Key("ClashOfRim.Raid.StatusCreateRejected", prepareResult.ErrorCode.Named("CODE"), (prepareResult.Message ?? string.Empty).Named("MESSAGE")));
+                        return;
+                    }
                 }
 
                 string raidEventId = string.IsNullOrWhiteSpace(prepare.Response.RaidEventId)
                     ? BuildLocalRaidEventId(idempotencyKey)
                     : prepare.Response.RaidEventId!;
-                if (string.IsNullOrWhiteSpace(prepare.Response.RaidPreparationId))
+                using (ClientSessionWork.EnterPublication())
                 {
-                    ReportRemoteMapDownloadFailureFromWorker(ClashOfRimText.Key(
-                        "ClashOfRim.Raid.StatusCreateRejected",
-                        "MissingPreparation".Named("CODE"),
-                        ClashOfRimText.Key("ClashOfRim.Raid.StatusMissingPreparation").Named("MESSAGE")));
-                    return;
+                    if (string.IsNullOrWhiteSpace(prepare.Response.RaidPreparationId))
+                    {
+                        ReportRemoteMapDownloadFailureFromWorker(ClashOfRimText.Key("ClashOfRim.Raid.StatusCreateRejected", "MissingPreparation".Named("CODE"), ClashOfRimText.Key("ClashOfRim.Raid.StatusMissingPreparation").Named("MESSAGE")));
+                        return;
+                    }
                 }
 
                 string raidPreparationId = prepare.Response.RaidPreparationId!;
@@ -318,6 +318,7 @@ public sealed partial class ClashOfRimMod
                         AuthorizationScope = RemoteSessionMapParent.RaidPreparationDownloadMode
                     }));
 
+                using var publication = ClientSessionWork.EnterPublication();
                 dispatchedToMain = true;
                 ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
                     FinishEnterRaidBattle(
@@ -341,6 +342,7 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 ReportRemoteMapDownloadFailureFromWorker(ClashOfRimText.Key(
                     "ClashOfRim.Raid.StatusCreateException",
                     ex.GetType().Name.Named("TYPE"),
@@ -349,13 +351,13 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                if (ClientSessionWork.IsCurrent)
+                ClientSessionWork.TryApply(() =>
                 {
                     if (!dispatchedToMain)
                     {
                         manualSyncInProgress = false;
                     }
-                }
+                });
             }
         });
     }
@@ -421,6 +423,7 @@ public sealed partial class ClashOfRimMod
                 if (string.IsNullOrWhiteSpace(settings.AuthToken))
                 {
                     ClashOfRimClientNetworkResult<ModLoginResponseDto> login = await ClientSessionWork.Observe(client.LoginAsync("observation"));
+                    using var branchPublication = ClientSessionWork.EnterPublication();
                     if (!login.Success || login.Response is null || login.Response.Result?.Accepted != true)
                     {
                         string message = login.Response?.Result?.Message ?? login.Message ?? ClashOfRimText.Key("ClashOfRim.ServerEntry.StatusLoginFallback");
@@ -452,12 +455,14 @@ public sealed partial class ClashOfRimMod
                         AuthorizationScope = scope
                     }));
 
+                using var publication = ClientSessionWork.EnterPublication();
                 ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
                     FinishDownloadObservationSnapshot(target, scope, snapshot.Metadata, snapshot.Payload));
             }
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
                 {
                     CloseServerEntryProgressWindowNow();
@@ -471,10 +476,10 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                if (ClientSessionWork.IsCurrent)
+                ClientSessionWork.TryApply(() =>
                 {
                     manualSyncInProgress = false;
-                }
+                });
             }
         });
     }
@@ -1412,6 +1417,7 @@ public sealed partial class ClashOfRimMod
                         confirmedPayload,
                         session.GuardDeploymentId));
 
+                using var publication = ClientSessionWork.EnterPublication();
                 ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
                 {
                     if (!result.Success || result.Response is null)
@@ -1491,6 +1497,7 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
                 {
                     worldMapStatus = ClashOfRimText.Key(
@@ -1515,13 +1522,13 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                if (ClientSessionWork.IsCurrent)
+                ClientSessionWork.TryApply(() =>
                 {
                     if (uploadTransactionOwned)
                     {
                         EndSnapshotUploadTransaction();
                     }
-                }
+                });
             }
         });
     }
@@ -1813,6 +1820,7 @@ public sealed partial class ClashOfRimMod
             ClientSessionWork.Run(async () =>
             {
                 await ClientSessionWork.Observe(Task.Delay(RaidAttackerSnapshotRetryDelayMs));
+                using var publication = ClientSessionWork.EnterPublication();
                 ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
                     StartConfirmRaidAttackerSnapshotWhenReady(context, attempts + 1));
             });
@@ -1935,6 +1943,7 @@ public sealed partial class ClashOfRimMod
                             pawnDead: true,
                             pawnPackage: null));
 
+                    using var branchPublication = ClientSessionWork.EnterPublication();
                     if (!result.Success || result.Response is null)
                     {
                         worldMapStatus = ClashOfRimText.Key(
@@ -1959,6 +1968,7 @@ public sealed partial class ClashOfRimMod
                     }
                 }
 
+                using var publication = ClientSessionWork.EnterPublication();
                 ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
                 {
                     foreach (PendingSupportPawnLoss loss in pending)
@@ -1984,6 +1994,7 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 worldMapStatus = ClashOfRimText.Key(
                     "ClashOfRim.Raid.StatusSettlementSupportLossException",
                     ex.GetType().Name.Named("TYPE"),

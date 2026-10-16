@@ -42,6 +42,7 @@ public sealed partial class ClashOfRimMod
                     ClashOfRimClientNetworkContext.FromSettings(settings));
                 ClashOfRimClientNetworkResult<ModBankStatusResponseDto> result =
                     await ClientSessionWork.Observe(client.GetBankStatusAsync(currentTicks, colonyWealth));
+                using var publication = ClientSessionWork.EnterPublication();
                 if (!result.Success || result.Response is null)
                 {
                     bankStatus = ClashOfRimText.Key("ClashOfRim.Bank.StatusRefreshFailed", result.ErrorCode.Named("CODE"), result.Message.Named("MESSAGE"));
@@ -63,15 +64,16 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 bankStatus = ClashOfRimText.Key("ClashOfRim.Bank.StatusException", ex.GetType().Name.Named("TYPE"), ex.Message.Named("MESSAGE"));
                 Log.Warning("[ClashOfRim] Bank status refresh failed: " + ex);
             }
             finally
             {
-                if (ClientSessionWork.IsCurrent)
+                ClientSessionWork.TryApply(() =>
                 {
                     bankInProgress = false;
-                }
+                });
             }
         });
     }
@@ -320,6 +322,7 @@ public sealed partial class ClashOfRimMod
                         loan.InterestSilver,
                         confirmedSnapshot,
                         confirmedPayload));
+                using var publication = ClientSessionWork.EnterPublication();
                 if (!result.Success || result.Response is null)
                 {
                     string status = ClashOfRimText.Key(
@@ -394,6 +397,7 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 string status = ClashOfRimText.Key(
                     "ClashOfRim.Bank.StatusException",
                     ex.GetType().Name.Named("TYPE"),
@@ -414,11 +418,11 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                if (ClientSessionWork.IsCurrent)
+                ClientSessionWork.TryApply(() =>
                 {
                     EndSnapshotUploadTransaction();
                     bankInProgress = false;
-                }
+                });
             }
         });
     }
@@ -696,6 +700,7 @@ public sealed partial class ClashOfRimMod
                         loan.TotalDueSilver,
                         confirmedSnapshot,
                         confirmedPayload));
+                using var publication = ClientSessionWork.EnterPublication();
                 if (!result.Success || result.Response is null)
                 {
                     string status = ClashOfRimText.Key(
@@ -761,6 +766,7 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 string status = ClashOfRimText.Key(
                     "ClashOfRim.Bank.StatusException",
                     ex.GetType().Name.Named("TYPE"),
@@ -780,11 +786,11 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                if (ClientSessionWork.IsCurrent)
+                ClientSessionWork.TryApply(() =>
                 {
                     EndSnapshotUploadTransaction();
                     bankInProgress = false;
-                }
+                });
             }
         });
     }
@@ -892,6 +898,7 @@ public sealed partial class ClashOfRimMod
                         debt.AmountSilver,
                         confirmedSnapshot,
                         confirmedPayload));
+                using var publication = ClientSessionWork.EnterPublication();
                 if (!result.Success || result.Response is null)
                 {
                     string status = ClashOfRimText.Key(
@@ -957,6 +964,7 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 string status = ClashOfRimText.Key(
                     "ClashOfRim.Bank.StatusException",
                     ex.GetType().Name.Named("TYPE"),
@@ -976,11 +984,11 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                if (ClientSessionWork.IsCurrent)
+                ClientSessionWork.TryApply(() =>
                 {
                     EndSnapshotUploadTransaction();
                     bankInProgress = false;
-                }
+                });
             }
         });
     }
@@ -1027,6 +1035,7 @@ public sealed partial class ClashOfRimMod
                     ClashOfRimClientNetworkContext.FromSettings(settings));
                 ClashOfRimClientNetworkResult<ModMercenaryQuoteResponseDto> result =
                     await ClientSessionWork.Observe(client.QuoteMercenaryAsync(currentTicks, skillDefName, skillLevel, durationDays));
+                using var publication = ClientSessionWork.EnterPublication();
                 if (!result.Success || result.Response is null)
                 {
                     mercenaryStatus = ClashOfRimText.Key("ClashOfRim.Mercenary.StatusHireFailed", result.ErrorCode.Named("CODE"), result.Message.Named("MESSAGE"));
@@ -1068,16 +1077,17 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 mercenaryStatus = ClashOfRimText.Key("ClashOfRim.Mercenary.StatusException", ex.GetType().Name.Named("TYPE"), ex.Message.Named("MESSAGE"));
                 Log.Warning("[ClashOfRim] Mercenary hire failed: " + ex);
             }
             finally
             {
-                if (ClientSessionWork.IsCurrent)
+                ClientSessionWork.TryApply(() =>
                 {
                     manualSyncInProgress = false;
                     mercenaryInProgress = false;
-                }
+                });
             }
         });
     }
@@ -1278,6 +1288,7 @@ public sealed partial class ClashOfRimMod
                         contract,
                         confirmedSnapshot,
                         confirmedPayload));
+                using var publication = ClientSessionWork.EnterPublication();
                 if (!result.Success || result.Response is null)
                 {
                     string status = ClashOfRimText.Key(
@@ -1343,6 +1354,7 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 string status = ClashOfRimText.Key(
                     "ClashOfRim.Mercenary.StatusException",
                     ex.GetType().Name.Named("TYPE"),
@@ -1361,11 +1373,11 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                if (ClientSessionWork.IsCurrent)
+                ClientSessionWork.TryApply(() =>
                 {
                     EndSnapshotUploadTransaction();
                     mercenaryInProgress = false;
-                }
+                });
             }
         });
     }
@@ -1395,6 +1407,7 @@ public sealed partial class ClashOfRimMod
                     ClashOfRimClientNetworkContext.FromSettings(settings));
                 ClashOfRimClientNetworkResult<ModMercenaryQuoteResponseDto> result =
                     await ClientSessionWork.Observe(client.QuoteMercenaryAsync(currentTicks, skillDefName, skillLevel, durationDays));
+                using var publication = ClientSessionWork.EnterPublication();
                 if (!result.Success || result.Response is null)
                 {
                     status = ClashOfRimText.Key(
@@ -1421,6 +1434,7 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 status = ClashOfRimText.Key(
                     "ClashOfRim.Mercenary.StatusQuoteException",
                     ex.GetType().Name.Named("TYPE"),
@@ -1428,7 +1442,10 @@ public sealed partial class ClashOfRimMod
                 Log.Warning("[ClashOfRim] Mercenary quote failed: " + ex);
             }
 
-            ClashOfRimGameComponent.EnqueueMainThreadAction(() => callback(requestKey, status, quote));
+            using (ClientSessionWork.EnterPublication())
+            {
+                ClashOfRimGameComponent.EnqueueMainThreadAction(() => callback(requestKey, status, quote));
+            }
         });
     }
 
@@ -1455,6 +1472,7 @@ public sealed partial class ClashOfRimMod
                     ClashOfRimClientNetworkContext.FromSettings(settings));
                 ClashOfRimClientNetworkResult<ModMercenaryGuardQuoteResponseDto> result =
                     await ClientSessionWork.Observe(client.QuoteMercenaryGuardAsync(currentTicks, tier));
+                using var publication = ClientSessionWork.EnterPublication();
                 if (!result.Success || result.Response is null)
                 {
                     status = ClashOfRimText.Key(
@@ -1483,6 +1501,7 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 status = ClashOfRimText.Key(
                     "ClashOfRim.Mercenary.StatusQuoteException",
                     ex.GetType().Name.Named("TYPE"),
@@ -1490,7 +1509,10 @@ public sealed partial class ClashOfRimMod
                 Log.Warning("[ClashOfRim] Mercenary guard quote failed: " + ex);
             }
 
-            ClashOfRimGameComponent.EnqueueMainThreadAction(() => callback(requestKey, status, quote));
+            using (ClientSessionWork.EnterPublication())
+            {
+                ClashOfRimGameComponent.EnqueueMainThreadAction(() => callback(requestKey, status, quote));
+            }
         });
     }
 
@@ -1536,6 +1558,7 @@ public sealed partial class ClashOfRimMod
                     ClashOfRimClientNetworkContext.FromSettings(settings));
                 ClashOfRimClientNetworkResult<ModMercenaryGuardQuoteResponseDto> result =
                     await ClientSessionWork.Observe(client.QuoteMercenaryGuardAsync(currentTicks, tier));
+                using var publication = ClientSessionWork.EnterPublication();
                 if (!result.Success || result.Response is null)
                 {
                     mercenaryStatus = ClashOfRimText.Key("ClashOfRim.Mercenary.StatusHireFailed", result.ErrorCode.Named("CODE"), result.Message.Named("MESSAGE"));
@@ -1572,16 +1595,17 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 mercenaryStatus = ClashOfRimText.Key("ClashOfRim.Mercenary.StatusException", ex.GetType().Name.Named("TYPE"), ex.Message.Named("MESSAGE"));
                 Log.Warning("[ClashOfRim] Mercenary guard hire failed: " + ex);
             }
             finally
             {
-                if (ClientSessionWork.IsCurrent)
+                ClientSessionWork.TryApply(() =>
                 {
                     manualSyncInProgress = false;
                     mercenaryInProgress = false;
-                }
+                });
             }
         });
     }
@@ -1720,6 +1744,7 @@ public sealed partial class ClashOfRimMod
                         contract,
                         confirmedSnapshot,
                         confirmedPayload));
+                using var publication = ClientSessionWork.EnterPublication();
                 if (!result.Success || result.Response is null)
                 {
                     string status = ClashOfRimText.Key(
@@ -1785,6 +1810,7 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 string status = ClashOfRimText.Key(
                     "ClashOfRim.Mercenary.StatusException",
                     ex.GetType().Name.Named("TYPE"),
@@ -1803,11 +1829,11 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                if (ClientSessionWork.IsCurrent)
+                ClientSessionWork.TryApply(() =>
                 {
                     EndSnapshotUploadTransaction();
                     mercenaryInProgress = false;
-                }
+                });
             }
         });
     }
@@ -1841,6 +1867,7 @@ public sealed partial class ClashOfRimMod
                     ClashOfRimClientNetworkContext.FromSettings(settings));
                 ClashOfRimClientNetworkResult<ModMercenaryIncidentResponseDto> result =
                     await ClientSessionWork.Observe(client.ReportMercenaryIncidentAsync(idempotencyKey, currentTicks, contractId, incidentKind));
+                using var publication = ClientSessionWork.EnterPublication();
                 if (!result.Success || result.Response is null)
                 {
                     mercenaryStatus = ClashOfRimText.Key("ClashOfRim.Mercenary.StatusIncidentFailed", result.ErrorCode.Named("CODE"), result.Message.Named("MESSAGE"));
@@ -1879,6 +1906,7 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 mercenaryStatus = ClashOfRimText.Key("ClashOfRim.Mercenary.StatusException", ex.GetType().Name.Named("TYPE"), ex.Message.Named("MESSAGE"));
                 Log.Warning("[ClashOfRim] Mercenary incident report failed: " + ex);
             }

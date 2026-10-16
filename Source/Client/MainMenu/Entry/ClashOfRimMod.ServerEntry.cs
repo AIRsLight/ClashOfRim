@@ -118,16 +118,19 @@ public sealed partial class ClashOfRimMod
                     canClose: false);
                 ClashOfRimClientNetworkResult<ModServerHelloResponseDto> hello =
                     await ClientSessionWork.Observe(client.ServerHelloAsync());
-                if (!TryValidateServerHello(hello, out string helloFailure))
+                using (ClientSessionWork.EnterPublication())
                 {
-                    ClashOfRimMainMenuPatches.EnqueueMainThreadAction(() =>
+                    if (!TryValidateServerHello(hello, out string helloFailure))
                     {
-                        loginStatus = helloFailure;
-                        Messages.Message(loginStatus, MessageTypeDefOf.RejectInput, historical: false);
-                        ShowServerEntryFailureWindowNow(loginStatus);
-                        manualSyncInProgress = false;
-                    });
-                    return;
+                        ClashOfRimMainMenuPatches.EnqueueMainThreadAction(() =>
+                        {
+                            loginStatus = helloFailure;
+                            Messages.Message(loginStatus, MessageTypeDefOf.RejectInput, historical: false);
+                            ShowServerEntryFailureWindowNow(loginStatus);
+                            manualSyncInProgress = false;
+                        });
+                        return;
+                    }
                 }
 
                 ClashOfRimClientNetworkResult<ModPrepareWorldSessionResponseDto> result =
@@ -137,11 +140,10 @@ public sealed partial class ClashOfRimMod
                     && result.Response.WorldConfigured
                     && result.Response.WorldConfiguration is null)
                 {
-                    ShowServerEntryProgressWindow(
-                        ClashOfRimText.Key("ClashOfRim.ServerEntry.Title"),
-                        ClashOfRimText.Key("ClashOfRim.ServerEntry.StageWorldConfiguration"),
-                        -1f,
-                        canClose: false);
+                    using (ClientSessionWork.EnterPublication())
+                    {
+                        ShowServerEntryProgressWindow(ClashOfRimText.Key("ClashOfRim.ServerEntry.Title"), ClashOfRimText.Key("ClashOfRim.ServerEntry.StageWorldConfiguration"), -1f, canClose: false);
+                    }
                     var configurationClient = new ClashOfRimModNetworkClient(
                         httpClient,
                         new ClashOfRimClientNetworkContext(
@@ -157,6 +159,7 @@ public sealed partial class ClashOfRimMod
                             includeGenerationBaseline: !result.Response.HasExistingColony,
                             includePlayerColonySites: true,
                             includeWorldExtensions: true));
+                    using var branchPublication = ClientSessionWork.EnterPublication();
                     if (!worldConfiguration.Success || worldConfiguration.Response is null)
                     {
                         if (!result.Response.HasExistingColony)
@@ -193,12 +196,14 @@ public sealed partial class ClashOfRimMod
                     }
                 }
 
+                using var publication = ClientSessionWork.EnterPublication();
                 ClashOfRimMainMenuPatches.EnqueueMainThreadAction(() =>
                     FinishMainMenuServerEntryFlow(result));
             }
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 ClashOfRimMainMenuPatches.EnqueueMainThreadAction(() =>
                 {
                     loginStatus = ClashOfRimText.Key(
@@ -544,6 +549,7 @@ public sealed partial class ClashOfRimMod
                 ClashOfRimClientNetworkResult<byte[]> result = await ClientSessionWork.Observe(client
                     .DownloadWorldSubstrateAsync(configuration.WorldConfigurationId)
                     .ConfigureAwait(false));
+                using var publication = ClientSessionWork.EnterPublication();
                 string? failure = null;
                 WorldSubstratePackage? substrate = null;
                 bool decoded = result.Success
@@ -576,6 +582,7 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 EnqueueClashOfRimMainThreadAction(() =>
                 {
                     pendingServerWorldConfiguration = null;
@@ -632,6 +639,7 @@ public sealed partial class ClashOfRimMod
                         canClose: false);
                     ClashOfRimClientNetworkResult<ModLoginResponseDto> login =
                         await ClientSessionWork.Observe(client.LoginAsync("restore-existing-snapshot"));
+                    using var branchPublication = ClientSessionWork.EnterPublication();
                     if (!login.Success || login.Response is null || login.Response.Result?.Accepted != true)
                     {
                         string message = login.Response?.Result?.Message
@@ -660,11 +668,10 @@ public sealed partial class ClashOfRimMod
                         ClashOfRimClientNetworkContext.FromSettings(settings));
                 }
 
-                ShowServerEntryProgressWindow(
-                    ClashOfRimText.Key("ClashOfRim.ServerEntry.Title"),
-                    ClashOfRimText.Key("ClashOfRim.ServerEntry.StageMetadata"),
-                    0.35f,
-                    canClose: false);
+                using (ClientSessionWork.EnterPublication())
+                {
+                    ShowServerEntryProgressWindow(ClashOfRimText.Key("ClashOfRim.ServerEntry.Title"), ClashOfRimText.Key("ClashOfRim.ServerEntry.StageMetadata"), 0.35f, canClose: false);
+                }
                 ClashOfRimClientNetworkResult<ModDownloadLatestSnapshotResponseDto> result =
                     await ClientSessionWork.Observe(client.DownloadLatestSnapshotAsync());
                 ClashOfRimClientNetworkResult<byte[]>? payloadResult = null;
@@ -673,17 +680,15 @@ public sealed partial class ClashOfRimMod
                     && !string.IsNullOrWhiteSpace(result.Response.SnapshotId ?? result.Response.Package?.SnapshotId))
                 {
                     string snapshotIdForProgress = result.Response.SnapshotId ?? result.Response.Package!.SnapshotId;
-                    ShowServerEntryProgressWindow(
-                        ClashOfRimText.Key("ClashOfRim.ServerEntry.Title"),
-                        ClashOfRimText.Key(
-                            "ClashOfRim.ServerEntry.StagePayload",
-                            snapshotIdForProgress.Named("SNAPSHOT")),
-                        0.58f,
-                        canClose: false);
+                    using (ClientSessionWork.EnterPublication())
+                    {
+                        ShowServerEntryProgressWindow(ClashOfRimText.Key("ClashOfRim.ServerEntry.Title"), ClashOfRimText.Key("ClashOfRim.ServerEntry.StagePayload", snapshotIdForProgress.Named("SNAPSHOT")), 0.58f, canClose: false);
+                    }
                     payloadResult = await ClientSessionWork.Observe(client.DownloadLatestSnapshotPayloadAsync(
                         snapshotIdForProgress));
                 }
 
+                using var publication = ClientSessionWork.EnterPublication();
                 ShowServerEntryProgressWindow(
                     ClashOfRimText.Key("ClashOfRim.ServerEntry.Title"),
                     ClashOfRimText.Key("ClashOfRim.ServerEntry.StageValidate"),
@@ -701,6 +706,7 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 EnqueueClashOfRimMainThreadAction(() =>
                 {
                     loginStatus = ClashOfRimText.Key(

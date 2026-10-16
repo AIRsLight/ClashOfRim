@@ -154,6 +154,7 @@ public sealed partial class ClashOfRimMod
                 var client = new ClashOfRimModNetworkClient(httpClient, ClashOfRimClientNetworkContext.FromSettings(settings));
                 ClashOfRimClientNetworkResult<ModColonyRelocationResponseDto> result =
                     await ClientSessionWork.Observe(client.PreflightColonyRelocationAsync(targetTile, idempotencyKey, targetTileLayerId));
+                using var publication = ClientSessionWork.EnterPublication();
                 if (!result.Success || result.Response?.Result?.Accepted != true)
                 {
                     string message = result.Response?.Result?.Message
@@ -172,6 +173,7 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 EnqueueClashOfRimMainThreadAction(() =>
                 {
                     ClearLocalAtomicMutation();
@@ -308,6 +310,7 @@ public sealed partial class ClashOfRimMod
                     removeRaidBattleSessions: false,
                     confirmationOperation: ColonyRelocationConfirmationOperation,
                     snapshotUploadKind: ModSnapshotUploadKinds.ColonyRelocation));
+                using var publication = ClientSessionWork.EnterPublication();
                 if (!upload.Success || string.IsNullOrWhiteSpace(upload.AcceptedSnapshotId))
                 {
                     Log.Warning(
@@ -345,6 +348,7 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 Log.Warning("[ClashOfRim] Colony relocation snapshot upload exception before confirm: " + ex);
                 ShowColonyRelocationFailure(
                     $"{ex.GetType().Name} {ex.Message}",
@@ -352,13 +356,13 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                if (ClientSessionWork.IsCurrent)
+                ClientSessionWork.TryApply(() =>
                 {
                     if (!confirmationStarted)
                     {
                         EndSnapshotUploadTransaction();
                     }
-                }
+                });
             }
         });
     }
@@ -402,6 +406,7 @@ public sealed partial class ClashOfRimMod
                         targetTile,
                         idempotencyKey,
                         targetTileLayerId));
+                using var publication = ClientSessionWork.EnterPublication();
                 if (!result.Success || result.Response?.Result?.Accepted != true)
                 {
                     string message = result.Response?.Result?.Message
@@ -440,6 +445,7 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 Log.Warning("[ClashOfRim] Colony relocation confirm exception: " + ex);
                 ShowColonyRelocationFailure(
                     $"{ex.GetType().Name} {ex.Message}",
@@ -447,13 +453,13 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                if (ClientSessionWork.IsCurrent)
+                ClientSessionWork.TryApply(() =>
                 {
                     if (endSnapshotUploadOnComplete)
                     {
                         EndSnapshotUploadTransaction();
                     }
-                }
+                });
             }
         });
     }
@@ -558,6 +564,7 @@ public sealed partial class ClashOfRimMod
                 var client = new ClashOfRimModNetworkClient(httpClient, ClashOfRimClientNetworkContext.FromSettings(settings));
                 ClashOfRimClientNetworkResult<ModColonyRelocationResponseDto> result =
                     await ClientSessionWork.Observe(client.PreflightColonyRelocationAsync(targetTile, idempotencyKey, targetTileLayerId));
+                using var publication = ClientSessionWork.EnterPublication();
                 if (!result.Success || result.Response?.Result?.Accepted != true)
                 {
                     string message = result.Response?.Result?.Message
@@ -580,6 +587,7 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 ShowColonyRelocationFailure(
                     $"{ex.GetType().Name} {ex.Message}",
                     () => StartImplicitColonyRelocationConfirmation(map, reason));

@@ -540,6 +540,7 @@ public sealed class TradeOrderDialogWindow : Window
             {
                 ClashOfRimClientNetworkResult<ModTradeOrderFeeQuoteResponseDto> quote =
                     await ClientSessionWork.Observe(mod.QuoteTradeOrderFeeAsync(offeredReferences, requestedReferences));
+                using var publication = ClientSessionWork.EnterPublication();
                 ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
                 {
                     if (version != quoteRequestVersion)
@@ -589,6 +590,7 @@ public sealed class TradeOrderDialogWindow : Window
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
                 {
                     if (version != quoteRequestVersion)

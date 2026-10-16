@@ -34,6 +34,7 @@ public sealed partial class ClashOfRimMod
                     httpClient,
                     ClashOfRimClientNetworkContext.FromSettings(settings));
                 ClashOfRimClientNetworkResult<ModAdminStatusResponseDto> result = await ClientSessionWork.Observe(client.AdminStatusAsync());
+                using var publication = ClientSessionWork.EnterPublication();
                 if (!result.Success || result.Response is null)
                 {
                     adminStatus = ClashOfRimText.Key(
@@ -60,6 +61,7 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 adminStatus = ClashOfRimText.Key(
                     "ClashOfRim.Admin.StatusException",
                     ex.GetType().Name.Named("TYPE"),
@@ -68,10 +70,10 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                if (ClientSessionWork.IsCurrent)
+                ClientSessionWork.TryApply(() =>
                 {
                     adminInProgress = false;
-                }
+                });
             }
         });
     }
@@ -96,6 +98,7 @@ public sealed partial class ClashOfRimMod
                     ClashOfRimClientNetworkContext.FromSettings(settings));
                 ClashOfRimClientNetworkResult<ModAdminUpdateConfigurationResponseDto> result =
                     await ClientSessionWork.Observe(client.AdminUpdateConfigurationAsync(configuration));
+                using var publication = ClientSessionWork.EnterPublication();
                 if (!result.Success || result.Response is null)
                 {
                     adminStatus = ClashOfRimText.Key(
@@ -127,6 +130,7 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 adminStatus = ClashOfRimText.Key(
                     "ClashOfRim.Admin.StatusException",
                     ex.GetType().Name.Named("TYPE"),
@@ -135,10 +139,10 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                if (ClientSessionWork.IsCurrent)
+                ClientSessionWork.TryApply(() =>
                 {
                     adminInProgress = false;
-                }
+                });
             }
         });
     }
@@ -175,6 +179,7 @@ public sealed partial class ClashOfRimMod
                         message,
                         notificationSeverity,
                         persistentNotification));
+                using var publication = ClientSessionWork.EnterPublication();
                 if (!result.Success || result.Response is null)
                 {
                     adminStatus = ClashOfRimText.Key(
@@ -202,6 +207,7 @@ public sealed partial class ClashOfRimMod
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
+                using var publication = ClientSessionWork.EnterPublication();
                 adminStatus = ClashOfRimText.Key(
                     "ClashOfRim.Admin.StatusException",
                     ex.GetType().Name.Named("TYPE"),
@@ -210,10 +216,10 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                if (ClientSessionWork.IsCurrent)
+                ClientSessionWork.TryApply(() =>
                 {
                     adminInProgress = false;
-                }
+                });
             }
         });
     }
