@@ -1116,22 +1116,16 @@ public static partial class ClashOfRimNetworkServer
 
         UploadSnapshotMetadataRequest request = multipart.Request;
         DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
-        ReconcileExpiredRaidEvents(state, nowUtc);
-        if (!IsAuthorizedForColony(
-                state,
-                request.AuthToken,
-                request.UserId,
-                request.ColonyId,
-                authorizationEventId: null,
-                authorizationScope: null,
-                nowUtc,
-                out string authFailure))
+        string? Authorize() => IsAuthorizedForColony(state, request.AuthToken, request.UserId, request.ColonyId,
+            null, null, DateTimeOffset.UtcNow, out string failure) ? null : failure;
+        using (var recovery = EnterColonySnapshotMutation(state, request.AuthToken, request.UserId, request.ColonyId))
         {
-            return Results.Ok(new UploadSnapshotResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, authFailure),
-                acceptedSnapshotId: null,
-                uploadResult: "AuthFailed"));
+            if (recovery.Rejection is { } failure)
+                return Results.Ok(new UploadSnapshotResponse(failure, acceptedSnapshotId: null, uploadResult: "AuthFailed"));
         }
+        // Timeout processing is server maintenance. Admit the caller before starting it,
+        // then revalidate the caller after preparing its own snapshot and recovering new work.
+        ReconcileExpiredRaidEvents(state, nowUtc);
 
         if (TryRejectExpiredPendingConfirmationSnapshot(
                 state,
@@ -1156,8 +1150,7 @@ public static partial class ClashOfRimNetworkServer
             nowUtc,
             confirmationOperation: request.ConfirmationOperation,
             postUploadData: new SnapshotPostUploadExtraData(request.Package.SnapshotUploadKind, request.ConfirmationOperation, request.AchievementCandidates),
-            validateCommit: () => IsAuthorizedForColony(state, request.AuthToken, request.UserId, request.ColonyId,
-                null, null, DateTimeOffset.UtcNow, out string failure) ? null : failure);
+            authorizeCommit: Authorize);
         if (!upload.Accepted)
         {
             state.RuntimeLogger.LogWarning(

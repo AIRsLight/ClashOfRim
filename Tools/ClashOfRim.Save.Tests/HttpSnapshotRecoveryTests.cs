@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Network;
+using AIRsLight.ClashOfRim.Network.Plugins;
 using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Save;
 using Microsoft.AspNetCore.Builder;
@@ -137,10 +138,11 @@ internal static class HttpSnapshotRecoveryTests
     }
     private static void Require(bool value, string message) { if (!value) throw new Exception(message); }
 
-    private sealed class Fixture : IDisposable
+    internal sealed class Fixture : IDisposable
     {
         private readonly string root = Path.Combine(Path.GetTempPath(), "cor-http-recovery-" + Guid.NewGuid().ToString("N"));
         private string Journal => Path.Combine(root, "intents");
+        public string Database => Path.Combine(root, "server.sqlite");
         private WebApplication? app;
         public HttpClient Client = null!;
         public TestStore Store { get; }
@@ -149,13 +151,13 @@ internal static class HttpSnapshotRecoveryTests
         public AuthoritativeEvent Source { get; }
         private readonly AuthoritativeEvent foreignGift;
         public string Token = "";
-        public Fixture(Func<string, SaveSnapshotPackage> factory)
+        public Fixture(Func<string, SaveSnapshotPackage> factory, ServerPluginRegistry? plugins = null)
         {
             Directory.CreateDirectory(root);
-            string database = Path.Combine(root, "server.sqlite"); ServerDatabaseMigrator.Migrate(database);
+            string database = Database; ServerDatabaseMigrator.Migrate(database);
             Store = new(Path.Combine(root, "snapshots"));
             State = new(ledger: new SqliteAuthoritativeEventLedger(database), snapshotStore: Store,
-                playerRegistry: new PlayerRegistry(new SqlitePlayerRegistryStore(database), null), snapshotCommits: new SnapshotCommitService(Journal));
+                playerRegistry: new PlayerRegistry(new SqlitePlayerRegistryStore(database), null), snapshotCommits: new SnapshotCommitService(Journal), plugins: plugins);
             Store.Gate = State.RaidSettlementSnapshotMutationGate;
             var package = factory("foreign");
             Package = package with { Envelope = package.Envelope with { Identity = new("foreign", "foreign-colony", "foreign"),

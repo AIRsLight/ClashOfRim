@@ -544,7 +544,8 @@ public static partial class ClashOfRimNetworkServer
         byte[] payload, DateTimeOffset acceptedAtUtc, bool storeAccepted = true, bool validateGameplayContinuity = true,
         string? confirmationOperation = null, string? snapshotUploadKind = null, string? requiredRaidEventId = null,
         bool allowRaidSettlementEvidenceSnapshotKind = false, SnapshotPostUploadExtraData? postUploadData = null,
-        Func<string?>? validateCommit = null, SnapshotConfirmationRequest? confirmation = null)
+        Func<string?>? validateCommit = null, SnapshotConfirmationRequest? confirmation = null,
+        Func<string?>? authorizeCommit = null)
     {
         var receiver = CreateSnapshotReceiver(state);
         string normalizedSnapshotUploadKind = NormalizeSnapshotUploadKind(
@@ -560,9 +561,13 @@ public static partial class ClashOfRimNetworkServer
         SaveSnapshotPackage savePackage = ProtocolDtoMapper.ToSaveSnapshotPackage(package, payload);
         SnapshotUploadResult prepared = SnapshotPreparationService.Prepare(receiver, context, savePackage, acceptedAtUtc);
         if (!prepared.Accepted) return prepared;
-        using (state.EnterSnapshotMutation())
+        // Authorization is safe to repeat before/after recovery; business validation must
+        // read recovered receipts and current state only after the recovery scope is acquired.
+        using (var mutation = EnterRecoveredSnapshotMutation(state, () => authorizeCommit?.Invoke() is { } failure
+            ? ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, failure) : null))
         {
-            RecoverSnapshotCommits(state);
+            if (mutation.Rejection is { } denied)
+                return SnapshotUploadResult.Reject(SnapshotUploadResultKind.IdentityMismatch, denied.Message);
             if (state.SnapshotCommits.IsApplying)
                 throw new InvalidOperationException("Cannot publish a nested snapshot while a commit is being applied.");
             if (validateCommit?.Invoke() is { } authFailure)

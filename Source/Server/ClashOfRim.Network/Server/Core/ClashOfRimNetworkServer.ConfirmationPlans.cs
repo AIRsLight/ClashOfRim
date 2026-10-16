@@ -17,12 +17,17 @@ public static partial class ClashOfRimNetworkServer
         ProtocolResponse? validationFailure = null;
         var upload = ReceiveSnapshotCore(state, userId, colonyId, metadata.SnapshotId, metadata, payload, acceptedAtUtc,
             postUploadData: new SnapshotPostUploadExtraData(metadata.SnapshotUploadKind, null, null), confirmation: request,
+            authorizeCommit: () =>
+            {
+                validationFailure = IsAuthorizedForColony(state, token, userId, colonyId,
+                    request.Single ? request.Applications[0].EventId : null, null, DateTimeOffset.UtcNow, out var authFailure)
+                    ? null : ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, authFailure);
+                return validationFailure?.Message;
+            },
             validateCommit: () =>
             {
-                if (!IsAuthorizedForColony(state, token, userId, colonyId, request.Single ? request.Applications[0].EventId : null,
-                    null, DateTimeOffset.UtcNow, out var authFailure))
-                    validationFailure = ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, authFailure);
-                else if (state.SnapshotCommits.FindConfirmationReceipt(new SnapshotIdentity(userId, colonyId, metadata.SnapshotId), metadata.OriginalSha256, metadata.PayloadSha256) is null)
+                // Recovery may have published this receipt; do not expire a committed confirmation.
+                if (state.SnapshotCommits.FindConfirmationReceipt(new SnapshotIdentity(userId, colonyId, metadata.SnapshotId), metadata.OriginalSha256, metadata.PayloadSha256) is null)
                     TryRejectExpiredPendingConfirmationSnapshot(state, userId, colonyId, DateTimeOffset.UtcNow, out validationFailure);
                 return validationFailure?.Message;
             });
