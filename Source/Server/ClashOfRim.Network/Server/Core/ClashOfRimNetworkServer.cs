@@ -149,8 +149,8 @@ public static partial class ClashOfRimNetworkServer
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.PreflightColonyRelocation).Route, PreflightColonyRelocation);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.ConfirmColonyRelocation).Route, ConfirmColonyRelocation);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.AbandonPlayerColony).Route, AbandonPlayerColony);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.GetAdminBaselineRequirements).Route, GetAdminBaselineRequirements);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.SubmitAdminBaseline).Route, SubmitAdminBaseline);
+        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.GetAdminBaselineRequirements).Route, GetAdminBaselineRequirements).WithMetadata(EndpointSnapshotRecovery.Instance);
+        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.SubmitAdminBaseline).Route, SubmitAdminBaseline).WithMetadata(EndpointSnapshotRecovery.Instance);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.GetBankStatus).Route, GetBankStatus);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.CreateBankLoanWithSnapshot).Route, CreateBankLoanWithSnapshot).WithMetadata(EndpointSnapshotRecovery.Instance);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.CreateBankLoan).Route, CreateBankLoan);
@@ -567,7 +567,7 @@ public static partial class ClashOfRimNetworkServer
             ? ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, failure) : null))
         {
             if (mutation.Rejection is { } denied)
-                return SnapshotUploadResult.Reject(SnapshotUploadResultKind.IdentityMismatch, denied.Message);
+                return SnapshotUploadResult.Reject(SnapshotUploadResultKind.IdentityMismatch, denied.Message ?? T("Auth.Failed"));
             if (state.SnapshotCommits.IsApplying)
                 throw new InvalidOperationException("Cannot publish a nested snapshot while a commit is being applied.");
             if (validateCommit?.Invoke() is { } authFailure)

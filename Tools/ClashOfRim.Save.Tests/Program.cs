@@ -41,6 +41,7 @@ var tests = new (string Name, Action Run)[]
     ("交易自动关闭复用唯一返还且通知与关闭共同提交", TradeAutomaticClosureTests.Run),
     ("管理员基线持久化失败保留当前基线和费用缓存", AdminBaselinePersistenceTests.Run),
     ("真实 HTTP 请求在端点授权后恢复快照日志", () => HttpSnapshotRecoveryTests.Run(BuildFixturePackage)),
+    ("管理员基线认证与恢复提交边界", () => AdminBaselineAuthorizationTests.Run(BuildFixturePackage)),
     ("普通上传和事件确认在恢复前后复验身份且锁外准备", () => UploadConfirmationRecoveryTests.Run(BuildFixturePackage)),
     ("文件日志随宿主释放且构建失败与迟到写入安全", () => FileLoggerLifetimeTests.Run(BuildFixturePackage)),
     ("交易失败校验唯一履约图并保留旧补偿和接单回执", () => TradeFailureGraphTests.Run(BuildFixturePackage)),

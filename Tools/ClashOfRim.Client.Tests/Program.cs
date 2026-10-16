@@ -43,7 +43,8 @@ var tests = new (string Name, Action Run)[]
     ("hidden trap proxies retain source snapshot identity", HiddenTrapProxiesRetainSourceSnapshotIdentity),
     ("defense duty returns to its radius without consuming wander cadence", DefenseDutyUsesIndependentReturnNode),
     ("session reconnect blocks unfinished atomic mutations", SessionReconnectBlocksAtomicMutations),
-    ("session reconnect requires the same authoritative snapshot", SessionReconnectRequiresSameSnapshot)
+    ("session reconnect requires the same authoritative snapshot", SessionReconnectRequiresSameSnapshot),
+    ("admin baseline authenticates setup requests and releases only its temporary session", AdminBaselineTransportTests.Run),
 };
 
 static void FailedTradeBuyerRefundPurpose()

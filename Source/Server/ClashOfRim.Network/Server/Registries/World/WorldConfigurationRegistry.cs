@@ -118,15 +118,23 @@ public sealed class WorldConfigurationRegistry
                 SaveLocked();
             }
 
-            bool isAdministrator = IsAdministratorLocked(userId);
-            bool worldConfigured = HasReadyWorldLocked();
-            return new WorldSessionState(
-                isAdministrator,
-                worldConfigured,
-                RequiresInitialWorldConfiguration: isAdministrator && !worldConfigured,
-                administratorUserId,
-                worldConfigured ? worldConfiguration : null);
+            return SessionStateLocked(userId);
         }
+    }
+
+    public WorldSessionState GetSessionState(string userId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(userId);
+        lock (gate) return SessionStateLocked(userId);
+    }
+
+    private WorldSessionState SessionStateLocked(string userId)
+    {
+        bool isAdministrator = IsAdministratorLocked(userId);
+        bool worldConfigured = HasReadyWorldLocked();
+        return new WorldSessionState(isAdministrator, worldConfigured,
+            RequiresInitialWorldConfiguration: isAdministrator && !worldConfigured,
+            administratorUserId, worldConfigured ? worldConfiguration : null);
     }
 
     public bool IsAdministrator(string userId)

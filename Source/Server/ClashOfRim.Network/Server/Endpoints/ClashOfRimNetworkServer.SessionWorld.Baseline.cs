@@ -17,57 +17,41 @@ public static partial class ClashOfRimNetworkServer
 {
     private static IResult GetAdminBaselineRequirements(GetAdminBaselineRequirementsRequest request, ClashOfRimNetworkState state)
     {
+        IResult Reject(ProtocolResponse failure) => Results.Ok(new GetAdminBaselineRequirementsResponse(
+            failure, false, state.AdminBaseline.Current is not null, null));
         if (!string.Equals(request.ProtocolVersion, ProtocolApiVersion.Current, StringComparison.Ordinal))
+            return Reject(ProtocolResponse.Reject(ProtocolErrorCode.IncompatibleProtocolVersion, T("Protocol.IncompatibleVersion")));
+        if (string.IsNullOrWhiteSpace(request.UserId) || string.IsNullOrWhiteSpace(request.ColonyId))
+            return Reject(ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("AdminBaseline.MissingIdentity")));
+        using (var recovery = EnterRecoveredSnapshotMutation(state,
+            () => AuthorizeAdminBaseline(state, request.UserId, request.ColonyId, request.AuthToken)))
         {
+            if (recovery.Rejection is { } failure) return Reject(failure);
+            WorldSessionState session = state.WorldConfiguration.GetSessionState(request.UserId);
+            IReadOnlySet<string> packageIds = BuildServerPackageIdSet(state.CompatibilityBaseline.Current);
+            var context = new AdminBaselineRequirementContext(packageIds);
+            List<AdminBaselineExtensionRequirementDto> requirements = state.Plugins.AdminBaselineRequirementProviders
+                .SelectMany(provider => SafeAdminBaselineRequirements(provider, context))
+                .Where(requirement => !string.IsNullOrWhiteSpace(requirement.ProviderId)
+                    && !string.IsNullOrWhiteSpace(requirement.Kind))
+                .GroupBy(requirement => requirement.ProviderId + "\u001f" + requirement.Kind, StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.Last())
+                .OrderBy(requirement => requirement.ProviderId, StringComparer.Ordinal)
+                .ThenBy(requirement => requirement.Kind, StringComparer.Ordinal)
+                .Select(requirement => new AdminBaselineExtensionRequirementDto(
+                    requirement.ProviderId,
+                    requirement.Kind,
+                    requirement.RequiredPackageId,
+                    requirement.DisplayName))
+                .ToList();
+
             return Results.Ok(new GetAdminBaselineRequirementsResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.IncompatibleProtocolVersion, T("Protocol.IncompatibleVersion")),
-                isAdministrator: false,
+                ProtocolResponse.Ok(T("AdminBaseline.RequirementsPrepared")),
+                isAdministrator: true,
                 baselineConfigured: state.AdminBaseline.Current is not null,
-                administratorUserId: null));
+                session.AdministratorUserId,
+                requirements));
         }
-
-        if (string.IsNullOrWhiteSpace(request.UserId))
-        {
-            return Results.Ok(new GetAdminBaselineRequirementsResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("AdminBaseline.MissingIdentity")),
-                isAdministrator: false,
-                baselineConfigured: state.AdminBaseline.Current is not null,
-                administratorUserId: null));
-        }
-
-        WorldSessionState session = state.WorldConfiguration.Prepare(request.UserId);
-        if (!session.IsAdministrator)
-        {
-            return Results.Ok(new GetAdminBaselineRequirementsResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, T("AdminBaseline.AdminOnly")),
-                isAdministrator: false,
-                baselineConfigured: state.AdminBaseline.Current is not null,
-                session.AdministratorUserId));
-        }
-
-        IReadOnlySet<string> packageIds = BuildServerPackageIdSet(state.CompatibilityBaseline.Current);
-        var context = new AdminBaselineRequirementContext(packageIds);
-        List<AdminBaselineExtensionRequirementDto> requirements = state.Plugins.AdminBaselineRequirementProviders
-            .SelectMany(provider => SafeAdminBaselineRequirements(provider, context))
-            .Where(requirement => !string.IsNullOrWhiteSpace(requirement.ProviderId)
-                && !string.IsNullOrWhiteSpace(requirement.Kind))
-            .GroupBy(requirement => requirement.ProviderId + "\u001f" + requirement.Kind, StringComparer.OrdinalIgnoreCase)
-            .Select(group => group.Last())
-            .OrderBy(requirement => requirement.ProviderId, StringComparer.Ordinal)
-            .ThenBy(requirement => requirement.Kind, StringComparer.Ordinal)
-            .Select(requirement => new AdminBaselineExtensionRequirementDto(
-                requirement.ProviderId,
-                requirement.Kind,
-                requirement.RequiredPackageId,
-                requirement.DisplayName))
-            .ToList();
-
-        return Results.Ok(new GetAdminBaselineRequirementsResponse(
-            ProtocolResponse.Ok(T("AdminBaseline.RequirementsPrepared")),
-            isAdministrator: true,
-            baselineConfigured: state.AdminBaseline.Current is not null,
-            session.AdministratorUserId,
-            requirements));
     }
 
     private static IEnumerable<AdminBaselineExtensionRequirement> SafeAdminBaselineRequirements(
@@ -100,80 +84,49 @@ public static partial class ClashOfRimNetworkServer
             StringComparer.OrdinalIgnoreCase);
     }
 
+    private static ProtocolResponse? AuthorizeAdminBaseline(ClashOfRimNetworkState state, string userId, string? colonyId, string? token)
+        => TryAuthorizeAdmin(state, userId, colonyId ?? string.Empty, token, DateTimeOffset.UtcNow, out string failure)
+            ? null : ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, failure);
+
     private static IResult SubmitAdminBaseline(SubmitAdminBaselineRequest request, ClashOfRimNetworkState state)
     {
+        IResult Reject(ProtocolResponse failure) => Results.Ok(new SubmitAdminBaselineResponse(
+            failure, false, state.AdminBaseline.Current is not null, null, 0, 0, 0, 0, 0, 0, 0));
         if (!string.Equals(request.ProtocolVersion, ProtocolApiVersion.Current, StringComparison.Ordinal))
+            return Reject(ProtocolResponse.Reject(ProtocolErrorCode.IncompatibleProtocolVersion, T("Protocol.IncompatibleVersion")));
+        if (string.IsNullOrWhiteSpace(request.UserId) || string.IsNullOrWhiteSpace(request.ColonyId))
+            return Reject(ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("AdminBaseline.MissingIdentity")));
+        ProtocolResponse? Authorize() => AuthorizeAdminBaseline(state, request.UserId, request.ColonyId, request.AuthToken);
+        if (Authorize() is { } initialFailure) return Reject(initialFailure);
+        // Normalize potentially large price/definition collections without owning the mutation gate.
+        AdminBaselineSnapshot normalized = AdminBaselineSnapshot.FromRequest(request);
+        using (var recovery = EnterRecoveredSnapshotMutation(state, Authorize))
         {
-            return Results.Ok(new SubmitAdminBaselineResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.IncompatibleProtocolVersion, T("Protocol.IncompatibleVersion")),
-                isAdministrator: false,
-                baselineConfigured: state.AdminBaseline.Current is not null,
-                administratorUserId: null,
-                standardMarketValueCount: 0,
-                trapAutoApprovedCount: 0,
-                trapCandidateCount: 0,
-                trapApprovedCount: 0,
-                packableBuildingCount: 0,
-                buildingCount: 0,
-                baselineExtensionCount: 0));
-        }
+            if (recovery.Rejection is { } failure) return Reject(failure);
+            WorldSessionState session = state.WorldConfiguration.GetSessionState(request.UserId);
+            DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
+            AdminBaselineSnapshot baseline = state.AdminBaseline.SubmitPrepared(normalized);
+            int cancelledTradeOrderCount = ApplyTradeOrderBaselineInvalidations(state, baseline, nowUtc);
+            if (!string.IsNullOrWhiteSpace(request.ColonyId))
+            {
+                RecordPlayerSeen(state, request.UserId, request.ColonyId!, currentSnapshotId: null, nowUtc);
+            }
 
-        if (string.IsNullOrWhiteSpace(request.UserId))
-        {
             return Results.Ok(new SubmitAdminBaselineResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("AdminBaseline.MissingIdentity")),
-                isAdministrator: false,
-                baselineConfigured: state.AdminBaseline.Current is not null,
-                administratorUserId: null,
-                standardMarketValueCount: 0,
-                trapAutoApprovedCount: 0,
-                trapCandidateCount: 0,
-                trapApprovedCount: 0,
-                packableBuildingCount: 0,
-                buildingCount: 0,
-                baselineExtensionCount: 0));
-        }
-
-        WorldSessionState session = state.WorldConfiguration.Prepare(request.UserId);
-        if (!session.IsAdministrator)
-        {
-            AdminBaselineSnapshot? current = state.AdminBaseline.Current;
-            return Results.Ok(new SubmitAdminBaselineResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, T("AdminBaseline.AdminOnly")),
-                isAdministrator: false,
-                baselineConfigured: current is not null,
+                ProtocolResponse.Ok(cancelledTradeOrderCount > 0
+                    ? T("AdminBaseline.RegisteredWithCancelledTrades", ("COUNT", cancelledTradeOrderCount.ToString(CultureInfo.InvariantCulture)))
+                    : T("AdminBaseline.Registered")),
+                isAdministrator: true,
+                baselineConfigured: true,
                 session.AdministratorUserId,
-                current?.StandardMarketValuePerThing.Count ?? 0,
-                current?.TrapAutoApprovedCount ?? 0,
-                current?.TrapCandidateCount ?? 0,
-                current?.TrapApprovedCount ?? 0,
-                current?.PackableBuildingCount ?? 0,
-                current?.BuildingCount ?? 0,
-                current?.BaselineExtensionCount ?? 0));
+                baseline.StandardMarketValuePerThing.Count,
+                baseline.TrapAutoApprovedCount,
+                baseline.TrapCandidateCount,
+                baseline.TrapApprovedCount,
+                baseline.PackableBuildingCount,
+                baseline.BuildingCount,
+                baseline.BaselineExtensionCount));
         }
-
-        DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
-        AdminBaselineSnapshot baseline = state.AdminBaseline.Submit(request);
-        int cancelledTradeOrderCount = ApplyTradeOrderBaselineInvalidations(state, baseline, nowUtc);
-        if (!string.IsNullOrWhiteSpace(request.ColonyId))
-        {
-            RecordPlayerSeen(state, request.UserId, request.ColonyId!, currentSnapshotId: null, nowUtc);
-        }
-
-        return Results.Ok(new SubmitAdminBaselineResponse(
-            ProtocolResponse.Ok(cancelledTradeOrderCount > 0
-                ? T("AdminBaseline.RegisteredWithCancelledTrades", ("COUNT", cancelledTradeOrderCount.ToString(CultureInfo.InvariantCulture)))
-                : T("AdminBaseline.Registered")),
-            isAdministrator: true,
-            baselineConfigured: true,
-            session.AdministratorUserId,
-            baseline.StandardMarketValuePerThing.Count,
-            baseline.TrapAutoApprovedCount,
-            baseline.TrapCandidateCount,
-            baseline.TrapApprovedCount,
-            baseline.PackableBuildingCount,
-            baseline.BuildingCount,
-            baseline.BaselineExtensionCount));
     }
 
     private static string BuildWorldSessionMessage(WorldSessionState session)

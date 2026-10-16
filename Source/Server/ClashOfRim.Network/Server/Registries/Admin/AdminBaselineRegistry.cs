@@ -45,7 +45,12 @@ public sealed class AdminBaselineRegistry
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        AdminBaselineSnapshot normalized = AdminBaselineSnapshot.FromRequest(request);
+        return SubmitPrepared(AdminBaselineSnapshot.FromRequest(request));
+    }
+
+    internal AdminBaselineSnapshot SubmitPrepared(AdminBaselineSnapshot normalized)
+    {
+        ArgumentNullException.ThrowIfNull(normalized);
         lock (gate)
         {
             SaveLocked(normalized);

@@ -15,6 +15,9 @@ public sealed class ModGetAdminBaselineRequirementsRequestDto
 
     [DataMember(Name = "colonyId")]
     public string? ColonyId { get; set; }
+
+    [DataMember(Name = "authToken")]
+    public string? AuthToken { get; set; }
 }
 
 [DataContract]
@@ -63,6 +66,9 @@ public sealed class ModSubmitAdminBaselineRequestDto
 
     [DataMember(Name = "colonyId")]
     public string? ColonyId { get; set; }
+
+    [DataMember(Name = "authToken")]
+    public string? AuthToken { get; set; }
 
     [DataMember(Name = "generatedAtUtc")]
     public string GeneratedAtUtc { get; set; } = string.Empty;

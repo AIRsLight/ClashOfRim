@@ -8,11 +8,13 @@ public sealed class GetAdminBaselineRequirementsRequest
     public GetAdminBaselineRequirementsRequest(
         string protocolVersion,
         string userId,
-        string? colonyId = null)
+        string? colonyId = null,
+        string? authToken = null)
     {
         ProtocolVersion = protocolVersion;
         UserId = userId;
         ColonyId = colonyId;
+        AuthToken = authToken;
     }
 
     public string ProtocolVersion { get; }
@@ -20,6 +22,8 @@ public sealed class GetAdminBaselineRequirementsRequest
     public string UserId { get; }
 
     public string? ColonyId { get; }
+
+    public string? AuthToken { get; }
 }
 
 public sealed class GetAdminBaselineRequirementsResponse
@@ -86,11 +90,13 @@ public sealed class SubmitAdminBaselineRequest
         IReadOnlyList<AdminBaselineExtensionDto>? baselineExtensions = null,
         IReadOnlyList<StuffHitPointModifierDto>? stuffHitPointModifiers = null,
         IReadOnlyList<StuffMarketValueDto>? stuffMarketValues = null,
-        IReadOnlyList<QualityMarketValueModifierDto>? qualityMarketValueModifiers = null)
+        IReadOnlyList<QualityMarketValueModifierDto>? qualityMarketValueModifiers = null,
+        string? authToken = null)
     {
         ProtocolVersion = protocolVersion;
         UserId = userId;
         ColonyId = colonyId;
+        AuthToken = authToken;
         GeneratedAtUtc = generatedAtUtc;
         StandardMarketValues = standardMarketValues ?? Array.Empty<StandardMarketValueDto>();
         TrapClassifications = trapClassifications ?? Array.Empty<TrapClassificationDto>();
@@ -107,6 +113,8 @@ public sealed class SubmitAdminBaselineRequest
     public string UserId { get; }
 
     public string? ColonyId { get; }
+
+    public string? AuthToken { get; }
 
     public DateTimeOffset GeneratedAtUtc { get; }
 

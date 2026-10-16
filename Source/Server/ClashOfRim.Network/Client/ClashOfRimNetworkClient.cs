@@ -443,6 +443,11 @@ public sealed class ClashOfRimNetworkClient
             cancellationToken);
     }
 
+    public Task<GetAdminBaselineRequirementsResponse> GetAdminBaselineRequirementsAsync(
+        GetAdminBaselineRequirementsRequest request, CancellationToken cancellationToken = default)
+        => PostAsync<GetAdminBaselineRequirementsRequest, GetAdminBaselineRequirementsResponse>(
+            ProtocolContractManifest.Find(ProtocolMessageKind.GetAdminBaselineRequirements).Route, request, cancellationToken);
+
     public Task<SubmitAdminBaselineResponse> SubmitAdminBaselineAsync(SubmitAdminBaselineRequest request, CancellationToken cancellationToken = default)
     {
         return PostAsync<SubmitAdminBaselineRequest, SubmitAdminBaselineResponse>(

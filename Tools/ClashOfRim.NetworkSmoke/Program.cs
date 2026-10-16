@@ -1386,6 +1386,10 @@ try
     await UploadSmokeWorldSubstrate(httpClient, "user-a", "colony-a", "world:test", BuildSmokeCompatibilityManifestJson("smoke-main-manifest"));
     Equal("seed-a", state.WorldConfiguration.Current?.SeedString, "底图提交后服务器应保留世界种子");
 
+    var baselineSetupLogin = await LoginSmokeSetup(client, "user-a", "colony-a", BuildSmokeCompatibilityManifestJson("smoke-main-manifest"));
+    var baselineRequirements = await client.GetAdminBaselineRequirementsAsync(new GetAdminBaselineRequirementsRequest(
+        ProtocolApiVersion.Current, "user-a", "colony-a", baselineSetupLogin.AuthToken));
+    Require(baselineRequirements.Result.Accepted && baselineRequirements.IsAdministrator, "管理员应使用有效会话读取基线要求");
     SubmitAdminBaselineResponse adminBaseline = await client.SubmitAdminBaselineAsync(
         new SubmitAdminBaselineRequest(
             ProtocolApiVersion.Current,
@@ -1422,8 +1426,9 @@ try
                     "candidate:name-or-class-marker",
                     inheritsBuildingTrap: false,
                     adminApproved: false)
-            }));
+            }, authToken: baselineSetupLogin.AuthToken));
     Require(adminBaseline.Result.Accepted, "管理员应能提交物品价格和陷阱清单基线");
+    await LogoutSmokeSetup(httpClient, "user-a", "colony-a", baselineSetupLogin.SessionId);
     Require(adminBaseline.BaselineConfigured, "提交后服务器应标记已有管理员基线");
     Equal(7, adminBaseline.StandardMarketValueCount, "服务器应登记管理员上传价格表");
     Equal(1, adminBaseline.TrapAutoApprovedCount, "继承原版陷阱的项应自动批准");
@@ -1701,6 +1706,7 @@ try
     Equal("玩家B文化已演进", refreshedUserBIdeo.Name, "文化摘要刷新应更新显示字段");
     Require(!string.IsNullOrWhiteSpace(refreshedUserBIdeo.SavedIdeoPackageXml), "文化摘要刷新不能覆盖已有完整文化包");
 
+    var nonAdminSetupLogin = await LoginSmokeSetup(client, "user-b", "colony-b", BuildSmokeCompatibilityManifestJson("smoke-main-manifest"));
     SubmitAdminBaselineResponse rejectedBaseline = await client.SubmitAdminBaselineAsync(
         new SubmitAdminBaselineRequest(
             ProtocolApiVersion.Current,
@@ -1708,9 +1714,10 @@ try
             "colony-b",
             DateTimeOffset.UtcNow,
             new[] { new StandardMarketValueDto("Gold", 6f) },
-            Array.Empty<TrapClassificationDto>()));
+            Array.Empty<TrapClassificationDto>(), authToken: nonAdminSetupLogin.AuthToken));
     Require(!rejectedBaseline.Result.Accepted, "非管理员不应能覆盖管理员基线");
     Equal(ProtocolErrorCode.ServerRejected, rejectedBaseline.Result.ErrorCode, "非管理员基线提交应被服务器拒绝");
+    await LogoutSmokeSetup(httpClient, "user-b", "colony-b", nonAdminSetupLogin.SessionId);
 
     LoginResponse login = await client.LoginAsync(new LoginRequest(
         ProtocolApiVersion.Current,
@@ -2754,7 +2761,7 @@ try
                 new StandardMarketValueDto("Cloth", 1f),
                 new StandardMarketValueDto("ComponentIndustrial", 12f)
             },
-            Array.Empty<TrapClassificationDto>()));
+            Array.Empty<TrapClassificationDto>(), authToken: userAAuthToken));
     Require(baselineWithoutMeal.Result.Accepted, "管理员更新物品基线应成功");
     Equal(ServerEventStatus.Cancelled, state.Ledger.Find(obsoleteTrade.EventId!)!.Status, "物品基线缺失的交易单应自动取消");
     Equal(ServerEventStatus.Cancelled, state.Ledger.Find(obsoleteAccepted.MemoEventId!)!.Status, "物品基线缺失应同步取消接单备忘录");
@@ -2784,7 +2791,7 @@ try
                 new StandardMarketValueDto("Cloth", 1f),
                 new StandardMarketValueDto("ComponentIndustrial", 12f)
             },
-            Array.Empty<TrapClassificationDto>()));
+            Array.Empty<TrapClassificationDto>(), authToken: userAAuthToken));
     Require(baselineRestored.Result.Accepted, "恢复管理员物品基线应成功");
 
     EventCreationResponse underpaidWasteTrade = await CreateSnapshotTrade(new CreateTradeOrderRequest(
@@ -4328,16 +4335,6 @@ static async Task VerifyDefaultPersistentServerStateAsync()
                     new[] { new PlayerColonySiteDto("user-b", "colony-b", "WorldObject_20", "Map_20", 20, "玩家B") }));
             Require(registered.Result.Accepted, "默认持久化服务端应接受玩家地块登记");
 
-            SubmitAdminBaselineResponse baseline = await firstClient.SubmitAdminBaselineAsync(
-                new SubmitAdminBaselineRequest(
-                    ProtocolApiVersion.Current,
-                    "admin-user",
-                    "colony-a",
-                    DateTimeOffset.UnixEpoch,
-                    new[] { new StandardMarketValueDto("Silver", 1f) },
-                    Array.Empty<TrapClassificationDto>()));
-            Require(baseline.Result.Accepted, "默认持久化服务端应接受管理员基线");
-
             LoginResponse adminLogin = await firstClient.LoginAsync(new LoginRequest(
                 ProtocolApiVersion.Current,
                 "admin-user",
@@ -4348,6 +4345,16 @@ static async Task VerifyDefaultPersistentServerStateAsync()
                 compatibilityManifestJson: compatibilityManifestJson));
             Require(adminLogin.Result.Accepted, $"默认持久化服务端应允许管理员登录：{adminLogin.Result.ErrorCode} {adminLogin.Result.Message}");
             Require(!string.IsNullOrWhiteSpace(adminLogin.AuthToken), "默认持久化服务端登录应返回鉴权令牌");
+
+            SubmitAdminBaselineResponse baseline = await firstClient.SubmitAdminBaselineAsync(
+                new SubmitAdminBaselineRequest(
+                    ProtocolApiVersion.Current,
+                    "admin-user",
+                    "colony-a",
+                    DateTimeOffset.UnixEpoch,
+                    new[] { new StandardMarketValueDto("Silver", 1f) },
+                    Array.Empty<TrapClassificationDto>(), authToken: adminLogin.AuthToken));
+            Require(baseline.Result.Accepted, "默认持久化服务端应接受管理员基线");
 
             SaveSnapshotPackage package = BuildFixturePackageFor("admin-user", "colony-a", "admin-existing-snapshot");
             expectedPersistentPayload = package.Payload;
@@ -4763,6 +4770,22 @@ static WorldTileGeometryDto BuildSmokeWorldTileGeometry()
                 new WorldTileCenterDto(900, 2f, 0f, 0f)
             })
     });
+}
+
+static async Task<LoginResponse> LoginSmokeSetup(ClashOfRimNetworkClient client, string user, string colony, string manifest)
+{
+    var login = await client.LoginAsync(new LoginRequest(ProtocolApiVersion.Current, user, colony, null, "baseline-setup",
+        password: string.Empty, compatibilityManifestJson: manifest));
+    Require(login.Result.Accepted && !string.IsNullOrWhiteSpace(login.AuthToken), "基线操作前应取得有效会话");
+    return login;
+}
+
+static async Task LogoutSmokeSetup(HttpClient http, string user, string colony, string? session)
+{
+    using var response = await http.PostAsJsonAsync(ProtocolContractManifest.Find(ProtocolMessageKind.Logout).Route,
+        new LogoutRequest(user, colony, session));
+    response.EnsureSuccessStatusCode();
+    Require((await response.Content.ReadFromJsonAsync<LogoutResponse>())!.Result.Accepted, "基线临时会话应成功退出");
 }
 
 static async Task UploadSmokeWorldSubstrate(HttpClient http, string user, string colony, string world, string manifest)

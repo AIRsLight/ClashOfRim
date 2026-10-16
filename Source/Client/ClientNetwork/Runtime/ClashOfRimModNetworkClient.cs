@@ -15,7 +15,7 @@ using Verse;
 
 namespace AIRsLight.ClashOfRim.ClientNetwork;
 
-public sealed class ClashOfRimModNetworkClient
+public sealed partial class ClashOfRimModNetworkClient
 {
     private static readonly DataContractJsonSerializerSettings JsonSerializerSettings = new()
     {
@@ -1123,38 +1123,28 @@ public sealed class ClashOfRimModNetworkClient
         ModSubmitAdminBaselineRequestDto request,
         CancellationToken cancellationToken = default)
     {
-        if (!context.HasServerIdentity)
+        return WithSetupAuthenticationAsync<ModSubmitAdminBaselineResponseDto>("admin-baseline-setup", (authenticated, token) =>
         {
-            return NotConfigured<ModSubmitAdminBaselineResponseDto>();
-        }
-
-        request.UserId = context.UserId;
-        request.ColonyId = null;
-
-        return PostAsync<ModSubmitAdminBaselineRequestDto, ModSubmitAdminBaselineResponseDto>(
-            SubmitAdminBaselineRoute,
-            request,
-            cancellationToken);
+            request.UserId = authenticated.context.UserId;
+            request.ColonyId = authenticated.context.ColonyId;
+            request.AuthToken = authenticated.context.AuthToken;
+            return authenticated.PostAsync<ModSubmitAdminBaselineRequestDto, ModSubmitAdminBaselineResponseDto>(
+                SubmitAdminBaselineRoute, request, token);
+        }, cancellationToken);
     }
 
     public Task<ClashOfRimClientNetworkResult<ModGetAdminBaselineRequirementsResponseDto>> GetAdminBaselineRequirementsAsync(
         CancellationToken cancellationToken = default)
     {
-        if (!context.HasServerIdentity)
-        {
-            return NotConfigured<ModGetAdminBaselineRequirementsResponseDto>();
-        }
-
-        var request = new ModGetAdminBaselineRequirementsRequestDto
-        {
-            UserId = context.UserId,
-            ColonyId = null
-        };
-
-        return PostAsync<ModGetAdminBaselineRequirementsRequestDto, ModGetAdminBaselineRequirementsResponseDto>(
-            GetAdminBaselineRequirementsRoute,
-            request,
-            cancellationToken);
+        return WithSetupAuthenticationAsync<ModGetAdminBaselineRequirementsResponseDto>("admin-baseline-requirements", (authenticated, token) =>
+            authenticated.PostAsync<ModGetAdminBaselineRequirementsRequestDto, ModGetAdminBaselineRequirementsResponseDto>(
+                GetAdminBaselineRequirementsRoute,
+                new ModGetAdminBaselineRequirementsRequestDto
+                {
+                    UserId = authenticated.context.UserId,
+                    ColonyId = authenticated.context.ColonyId,
+                    AuthToken = authenticated.context.AuthToken
+                }, token), cancellationToken);
     }
 
     public async Task<ClashOfRimClientNetworkResult<ModSessionStreamClosedDto>> StreamSessionAsync(
@@ -2668,7 +2658,7 @@ public sealed class ClashOfRimModNetworkClient
     private async Task<ClashOfRimClientNetworkResult<TResponse>> PostAsync<TRequest, TResponse>(
         string route,
         TRequest request,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, bool bindToSession = true)
     {
         try
         {
@@ -2679,8 +2669,9 @@ public sealed class ClashOfRimModNetworkClient
                 Content = content
             };
             AddClientLanguageHeader(message);
-            using var sessionCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, ClientSessionWork.Token);
-            cancellationToken = sessionCancellation.Token;
+            using var sessionCancellation = bindToSession
+                ? CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, ClientSessionWork.Token) : null;
+            cancellationToken = sessionCancellation?.Token ?? cancellationToken;
             using HttpResponseMessage response = await httpClient.SendAsync(message, cancellationToken).ConfigureAwait(false);
             string body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
