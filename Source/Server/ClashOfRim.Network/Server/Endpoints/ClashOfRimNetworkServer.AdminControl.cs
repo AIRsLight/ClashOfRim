@@ -623,16 +623,8 @@ public static partial class ClashOfRimNetworkServer
         string? targetColonyId,
         out int affected)
     {
-        affected = 0;
-        if (state.LoginSessions.EndUser(targetUserId))
-        {
-            affected++;
-        }
-
-        if (state.OnlinePresence.ForceDisconnect(targetUserId))
-        {
-            affected++;
-        }
+        using var mutation = state.EnterSnapshotMutation();
+        affected = DisconnectUserConnectionsLocked(state, targetUserId);
 
         if (!string.IsNullOrWhiteSpace(targetColonyId))
         {
@@ -695,19 +687,16 @@ public static partial class ClashOfRimNetworkServer
             return ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("Admin.Action.TargetColonyMissing"));
         }
 
-        if (state.LoginSessions.EndUser(targetUserId))
-        {
-            affected++;
-        }
-
-        if (state.OnlinePresence.ForceDisconnect(targetUserId))
-        {
-            affected++;
-        }
+        using (state.EnterSnapshotMutation())
+            affected = DisconnectUserConnectionsLocked(state, targetUserId);
 
         CleanupAbandonedColony(state, targetUserId, colonyId, nowUtc);
         return ProtocolResponse.Ok(T("Admin.Action.PlayerSaveDeleted"));
     }
+
+    // Administrator actions intentionally disconnect the user's current session, regardless of its ID.
+    private static int DisconnectUserConnectionsLocked(ClashOfRimNetworkState state, string userId)
+        => (state.LoginSessions.EndUser(userId) ? 1 : 0) + (state.OnlinePresence.ForceDisconnect(userId) ? 1 : 0);
 
     private static ProtocolResponse ResetOfflinePassword(
         ClashOfRimNetworkState state,

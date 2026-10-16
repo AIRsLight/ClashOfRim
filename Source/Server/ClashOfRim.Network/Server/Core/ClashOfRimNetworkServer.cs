@@ -34,7 +34,6 @@ public static partial class ClashOfRimNetworkServer
     };
     private static readonly IReadOnlyList<ClientLifecycleHook> ClientLifecycleHooks = new ClientLifecycleHook[]
     {
-        ReconcileRaidTimeoutsOnClientLifecycle,
         ActivateRaidProtectionOnClientLifecycle,
         ReconcilePendingConfirmationsOnClientLifecycle,
         ReconcileAbandonedColonyOnClientLifecycle
@@ -91,9 +90,9 @@ public static partial class ClashOfRimNetworkServer
         app.MapGet("/server/plugins", ListServerPlugins);
         app.MapGet(ProtocolContractManifest.Find(ProtocolMessageKind.ServerHello).Route, ServerHello);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.Login).Route, Login).WithMetadata(EndpointSnapshotRecovery.Instance);
-        app.MapGet(ProtocolContractManifest.Find(ProtocolMessageKind.StreamSession).Route, StreamSession);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.MaintainPresence).Route, MaintainPresence);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.Logout).Route, Logout);
+        app.MapGet(ProtocolContractManifest.Find(ProtocolMessageKind.StreamSession).Route, StreamSession).WithMetadata(EndpointSnapshotRecovery.Instance);
+        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.MaintainPresence).Route, MaintainPresence).WithMetadata(EndpointSnapshotRecovery.Instance);
+        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.Logout).Route, Logout).WithMetadata(EndpointSnapshotRecovery.Instance);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.ChangeOfflinePassword).Route, ChangeOfflinePassword);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.ListPlayers).Route, ListPlayers);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.ListAchievements).Route, ListAchievements);

@@ -55,6 +55,7 @@ var tests = new (string Name, Action Run)[]
     ("兼容性基线持久化先于缓存与审计元数据发布", CompatibilityBaselinePersistenceTests.Run),
     ("统一凭据验证的立即与延后调用契约", EntryAuthenticationTests.Run),
     ("普通登录授权恢复与会话延迟发布", () => LoginPreparationTests.Run(BuildFixturePackage)),
+    ("登出授权与连接清理会话归属", () => SessionConnectionTests.Run(BuildFixturePackage)),
     ("世界会话认证准备与恢复后兼容性复验", () => WorldSessionPreparationTests.Run(BuildFixturePackage)),
     ("真实 HTTP 请求在端点授权后恢复快照日志", () => HttpSnapshotRecoveryTests.Run(BuildFixturePackage)),
     ("管理员基线认证与恢复提交边界", () => AdminBaselineAuthorizationTests.Run(BuildFixturePackage)),

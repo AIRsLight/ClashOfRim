@@ -79,6 +79,9 @@ public sealed class LoginSessionRegistry
     }
 
     public bool IsValid(string userId, string colonyId, string? sessionId, DateTimeOffset nowUtc)
+        => IsValid(userId, colonyId, sessionId, nowUtc, requirePending: false);
+
+    internal bool IsValid(string userId, string colonyId, string? sessionId, DateTimeOffset nowUtc, bool requirePending)
     {
         if (string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(colonyId) || string.IsNullOrWhiteSpace(sessionId))
         {
@@ -90,6 +93,7 @@ public sealed class LoginSessionRegistry
             RemoveExpiredSessions(nowUtc);
             return sessionsByUser.TryGetValue(userId, out LoginSession? session)
                 && session.Matches(userId, colonyId, sessionId!)
+                && (!requirePending || !session.Streaming)
                 && !session.IsExpired(nowUtc);
         }
     }

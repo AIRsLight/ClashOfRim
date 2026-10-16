@@ -28,7 +28,8 @@ internal static class HttpSnapshotRecoveryTests
         ProtocolMessageKind.CreateSupportPawn, ProtocolMessageKind.CreateSupportPawnWithSnapshot,
         ProtocolMessageKind.RejectSupportPawn, ProtocolMessageKind.FinishSupportPawn,
         ProtocolMessageKind.GetBankStatus, ProtocolMessageKind.QuoteMercenary, ProtocolMessageKind.QuoteMercenaryGuard, ProtocolMessageKind.ReportMercenaryIncident,
-        ProtocolMessageKind.Login, ProtocolMessageKind.PrepareWorldSession, ProtocolMessageKind.ListServerShop, ProtocolMessageKind.UpsertServerShopListing, ProtocolMessageKind.RemoveServerShopListing,
+        ProtocolMessageKind.Login, ProtocolMessageKind.Logout, ProtocolMessageKind.MaintainPresence,
+        ProtocolMessageKind.PrepareWorldSession, ProtocolMessageKind.ListServerShop, ProtocolMessageKind.UpsertServerShopListing, ProtocolMessageKind.RemoveServerShopListing,
         ProtocolMessageKind.CreateBankLoan, ProtocolMessageKind.RepayBankLoan, ProtocolMessageKind.RepayBankDebt, ProtocolMessageKind.HireMercenary,
         ProtocolMessageKind.CreateBankLoanWithSnapshot, ProtocolMessageKind.RepayBankLoanWithSnapshot,
         ProtocolMessageKind.RepayBankDebtWithSnapshot, ProtocolMessageKind.HireMercenaryWithSnapshot,
@@ -213,6 +214,7 @@ internal static class HttpSnapshotRecoveryTests
         public void AssertRecovered() => Require(!State.SnapshotCommits.HasPending && Store.Writes == 1
             && Store.GetLatest("foreign", "foreign-colony")!.Envelope.NextLineageToken == "foreign-token"
             && JsonSerializer.Serialize(State.Ledger.Find(foreignGift.EventId)) == JsonSerializer.Serialize(foreignGift), "HTTP recovery lost or duplicated the original intent.");
+        public void Stop() => app?.StopAsync().GetAwaiter().GetResult();
         public void Dispose()
         {
             Client?.Dispose();

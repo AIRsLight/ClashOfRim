@@ -51,6 +51,9 @@ public sealed class OnlinePresenceRegistry
     }
 
     public bool TryConnectExclusive(string userId, out OnlinePresenceLease? lease)
+        => TryConnectExclusive(userId, null, out lease);
+
+    internal bool TryConnectExclusive(string userId, string? sessionId, out OnlinePresenceLease? lease)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(userId);
         DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
@@ -64,9 +67,18 @@ public sealed class OnlinePresenceRegistry
             }
 
             string leaseId = $"presence:{userId}:{Guid.NewGuid():N}";
-            activeConnections[userId] = new OnlinePresenceRecord(leaseId, nowUtc + presenceTtl);
+            activeConnections[userId] = new OnlinePresenceRecord(leaseId, sessionId, nowUtc + presenceTtl);
             lease = new OnlinePresenceLease(userId, leaseId, Touch, IsActive, Disconnect);
             return true;
+        }
+    }
+
+    internal bool DisconnectSession(string userId, string sessionId)
+    {
+        lock (gate)
+        {
+            return activeConnections.TryGetValue(userId, out var record)
+                && record.SessionId == sessionId && activeConnections.Remove(userId);
         }
     }
 
@@ -135,7 +147,7 @@ public sealed class OnlinePresenceRegistry
         }
     }
 
-    private sealed record OnlinePresenceRecord(string LeaseId, DateTimeOffset ExpiresAtUtc);
+    private sealed record OnlinePresenceRecord(string LeaseId, string? SessionId, DateTimeOffset ExpiresAtUtc);
 }
 
 public sealed class OnlinePresenceLease : IDisposable

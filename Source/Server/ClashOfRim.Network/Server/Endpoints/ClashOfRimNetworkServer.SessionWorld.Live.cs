@@ -59,31 +59,13 @@ public static partial class ClashOfRimNetworkServer
             return;
         }
 
-        if (!state.LoginSessions.TryBeginStream(userId, colonyId, sessionId, DateTimeOffset.UtcNow))
+        if (OpenSessionConnection(state, userId, colonyId, sessionId, currentSnapshotId, out var presence) is { } denied)
         {
             await RejectSessionStreamRequestAsync(
                 context,
                 StatusCodes.Status409Conflict,
-                ProtocolErrorCode.ServerRejected,
-                T("SessionStream.InvalidSession"),
-                cancellationToken);
-            return;
-        }
-
-        if (!state.OnlinePresence.TryConnectExclusive(userId, out OnlinePresenceLease? presence))
-        {
-            state.LoginSessions.End(userId, sessionId);
-            context.Response.StatusCode = StatusCodes.Status409Conflict;
-            RuntimeLogger(loggerFactory).LogWarning(
-                "玩家上线被拒绝：user={UserId} colony={ColonyId} session={SessionId} reason=AlreadyOnline",
-                userId,
-                colonyId,
-                sessionId);
-            await RejectSessionStreamRequestAsync(
-                context,
-                StatusCodes.Status409Conflict,
-                ProtocolErrorCode.ServerRejected,
-                T("SessionStream.AlreadyOnline"),
+                denied.ErrorCode,
+                denied.Message!,
                 cancellationToken);
             return;
         }
@@ -104,7 +86,6 @@ public static partial class ClashOfRimNetworkServer
                 sendGate,
                 streamCancellation,
                 cancellationToken);
-            RecordPlayerSeen(state, userId, colonyId, currentSnapshotId, DateTimeOffset.UtcNow);
             RuntimeLogger(loggerFactory).LogInformation(
                 "玩家上线：user={UserId} colony={ColonyId} snapshot={SnapshotId} session={SessionId} channel=ws",
                 userId,
@@ -126,11 +107,6 @@ public static partial class ClashOfRimNetworkServer
                 new SessionStreamEventDto(userId, online: true, knownVersion, T("SessionStream.Connected")),
                 sendGate,
                 cancellationToken);
-            state.PlayerOnlineNotifications.SignalPlayerOnline(
-                userId,
-                state.OnlinePresence.ListOnlineUsers(),
-                DateTimeOffset.UtcNow);
-
             while (!cancellationToken.IsCancellationRequested)
             {
                 if (webSocket.State is WebSocketState.Closed or WebSocketState.Aborted)
@@ -315,20 +291,12 @@ public static partial class ClashOfRimNetworkServer
             }
 
             webSocket?.Dispose();
-            state.LoginSessions.End(userId, sessionId);
-            presence?.Dispose();
+            CloseSessionConnection(state, userId, colonyId, sessionId, presence);
             RuntimeLogger(loggerFactory).LogInformation(
                 "玩家离线：user={UserId} colony={ColonyId} session={SessionId} channel=ws",
                 userId,
                 colonyId,
                 sessionId);
-            RunClientLifecycleHooks(
-                state,
-                ClientLifecycleEvent.Disconnected(
-                    userId,
-                    colonyId,
-                    sessionId,
-                    DateTimeOffset.UtcNow));
         }
     }
 
@@ -384,8 +352,7 @@ public static partial class ClashOfRimNetworkServer
                 break;
             }
 
-            state.LoginSessions.Refresh(userId, colonyId, sessionId, DateTimeOffset.UtcNow);
-            if (!state.LoginSessions.IsValid(userId, colonyId, sessionId, DateTimeOffset.UtcNow))
+            if (!state.LoginSessions.Refresh(userId, colonyId, sessionId, DateTimeOffset.UtcNow))
             {
                 await SendSessionWebSocketEventAsync(
                     webSocket,
@@ -499,26 +466,12 @@ public static partial class ClashOfRimNetworkServer
                 online: false));
         }
 
-        if (!state.LoginSessions.TryBeginStream(request.UserId, request.ColonyId, request.SessionId, DateTimeOffset.UtcNow))
+        if (OpenSessionConnection(state, request.UserId, request.ColonyId, request.SessionId, request.CurrentSnapshotId, out var presence) is { } denied)
         {
             return Results.Ok(new MaintainPresenceResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, T("Presence.InvalidSession")),
+                denied,
                 request.UserId,
                 online: false));
-        }
-
-        if (!state.OnlinePresence.TryConnectExclusive(request.UserId, out OnlinePresenceLease? presence))
-        {
-            state.LoginSessions.End(request.UserId, request.SessionId);
-            RuntimeLogger(loggerFactory).LogWarning(
-                "玩家上线被拒绝：user={UserId} colony={ColonyId} session={SessionId} reason=AlreadyOnline channel=presence",
-                request.UserId,
-                request.ColonyId,
-                request.SessionId);
-            return Results.Ok(new MaintainPresenceResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, T("Presence.AlreadyOnline")),
-                request.UserId,
-                online: true));
         }
 
         using CancellationTokenSource presenceCancellation = CancellationTokenSource.CreateLinkedTokenSource(
@@ -528,7 +481,6 @@ public static partial class ClashOfRimNetworkServer
 
         try
         {
-            RecordPlayerSeen(state, request.UserId, request.ColonyId, request.CurrentSnapshotId, DateTimeOffset.UtcNow);
             RuntimeLogger(loggerFactory).LogInformation(
                 "玩家上线：user={UserId} colony={ColonyId} snapshot={SnapshotId} session={SessionId} channel=presence",
                 request.UserId,
@@ -558,20 +510,12 @@ public static partial class ClashOfRimNetworkServer
         }
         finally
         {
-            state.LoginSessions.End(request.UserId, request.SessionId);
-            presence?.Dispose();
+            CloseSessionConnection(state, request.UserId, request.ColonyId, request.SessionId, presence);
             RuntimeLogger(loggerFactory).LogInformation(
                 "玩家离线：user={UserId} colony={ColonyId} session={SessionId} channel=presence",
                 request.UserId,
                 request.ColonyId,
                 request.SessionId);
-            RunClientLifecycleHooks(
-                state,
-                ClientLifecycleEvent.Disconnected(
-                    request.UserId,
-                    request.ColonyId,
-                    request.SessionId,
-                    DateTimeOffset.UtcNow));
         }
     }
 
@@ -590,26 +534,14 @@ public static partial class ClashOfRimNetworkServer
                 disconnected: false));
         }
 
-        state.LoginSessions.End(request.UserId, request.SessionId);
-        bool disconnected = state.OnlinePresence.ForceDisconnect(request.UserId);
+        var result = DisconnectSession(state, request.UserId, request.ColonyId, request.SessionId);
         RuntimeLogger(loggerFactory).LogInformation(
             "玩家请求登出：user={UserId} colony={ColonyId} session={SessionId} disconnected={Disconnected}",
             request.UserId,
             request.ColonyId,
             request.SessionId,
-            disconnected);
-        RunClientLifecycleHooks(
-            state,
-            ClientLifecycleEvent.Disconnected(
-                request.UserId,
-                request.ColonyId,
-                request.SessionId,
-                DateTimeOffset.UtcNow));
-
-        return Results.Ok(new LogoutResponse(
-            ProtocolResponse.Ok(T("Logout.Success")),
-            request.UserId,
-            disconnected));
+            result.Disconnected);
+        return Results.Ok(result);
     }
 
     private static IResult ListPlayers(ListPlayersRequest request, ClashOfRimNetworkState state)

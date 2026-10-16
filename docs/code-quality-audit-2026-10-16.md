@@ -139,4 +139,4 @@ Q2 已增加的借款测试全部保留并并入共同矩阵；配置/条款与�
 - `dotnet run --project LocalOnly/quality-audit-20261016/Audit.csproj`：正常借款、准备时关闭借款、准备时改利率、过期债务借款、过期债务商店，共五个诊断场景；输出见同目录 `result.log`。
 - `dotnet run --project LocalOnly/quality-audit-20261016/client/ClientAudit.csproj`：未受保护发布与 TryApply 发布两个会话交错对照；输出见 `client/result.log`。
 - 初次审计未重跑完整回归或 RimTest，七个诊断场景中的异常结果用于确认缺陷，不能表述成“功能全部通过”；后续修复验证见各项状态。未修改 1.6，也未推送。
-- 登出及连接清理的会话归属问题继续保留在原修复文档的未完成项中；本次未将它重复计入新增的质量发现。
+- 初次审计未将既有的登出及连接清理问题重复计入新增发现。后续已修复三个入口的授权/恢复边界、会话限定的租约/令牌释放与旧流清理隔离，见 `architecture-remediation.md` 的“续修：登出授权与旧连接清理的会话归属”；不代表其余控制面入口均已迁移。

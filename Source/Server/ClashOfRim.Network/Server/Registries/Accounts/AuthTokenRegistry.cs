@@ -61,29 +61,7 @@ public sealed class AuthTokenRegistry
             return;
         }
 
-        lock (gate)
-        {
-            List<string>? revoked = null;
-            foreach (KeyValuePair<string, AuthTokenRecord> pair in tokens)
-            {
-                if (string.Equals(pair.Value.UserId, userId, StringComparison.Ordinal)
-                    && string.Equals(pair.Value.ColonyId, colonyId, StringComparison.Ordinal))
-                {
-                    revoked ??= new List<string>();
-                    revoked.Add(pair.Key);
-                }
-            }
-
-            if (revoked is null)
-            {
-                return;
-            }
-
-            foreach (string token in revoked)
-            {
-                tokens.Remove(token);
-            }
-        }
+        RevokeMatching(record => record.UserId == userId && record.ColonyId == colonyId);
     }
 
     internal void Revoke(string token)
@@ -98,28 +76,17 @@ public sealed class AuthTokenRegistry
             return;
         }
 
+        RevokeMatching(record => record.UserId == userId);
+    }
+
+    internal void RevokeForSession(string userId, string sessionId)
+        => RevokeMatching(record => record.UserId == userId && record.SessionId == sessionId);
+
+    private void RevokeMatching(Func<AuthTokenRecord, bool> matches)
+    {
         lock (gate)
-        {
-            List<string>? revoked = null;
-            foreach (KeyValuePair<string, AuthTokenRecord> pair in tokens)
-            {
-                if (string.Equals(pair.Value.UserId, userId, StringComparison.Ordinal))
-                {
-                    revoked ??= new List<string>();
-                    revoked.Add(pair.Key);
-                }
-            }
-
-            if (revoked is null)
-            {
-                return;
-            }
-
-            foreach (string token in revoked)
-            {
+            foreach (string token in tokens.Where(pair => matches(pair.Value)).Select(pair => pair.Key).ToArray())
                 tokens.Remove(token);
-            }
-        }
     }
 
     private void RemoveExpired(DateTimeOffset nowUtc)

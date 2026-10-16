@@ -1139,18 +1139,6 @@ public static partial class ClashOfRimNetworkServer
         }
     }
 
-    private static void ReconcileRaidTimeoutsOnClientLifecycle(
-        ClashOfRimNetworkState state,
-        ClientLifecycleEvent lifecycleEvent)
-    {
-        if (lifecycleEvent.Kind != ClientLifecycleEventKind.Disconnected)
-        {
-            return;
-        }
-
-        ReconcileExpiredRaidEvents(state, lifecycleEvent.OccurredAtUtc);
-    }
-
     private static void ActivateRaidProtectionOnClientLifecycle(
         ClashOfRimNetworkState state,
         ClientLifecycleEvent lifecycleEvent)
@@ -1473,12 +1461,14 @@ public static partial class ClashOfRimNetworkServer
         RaidTimeoutProcessingResult result;
         using (EnterRecoveredSnapshotMutation(state))
         {
-            result = RaidTimeoutProcessor.ProcessExpiredRaids(state.Ledger,
-                state.Ledger.ListByType(ServerEventType.Raid), nowUtc,
-                BuildRaidDefenseLockPolicy(state.ServerConfiguration), party => state.OnlinePresence.IsUserOnline(party.UserId));
+            result = ProcessExpiredRaidEventsLocked(state, nowUtc);
         }
         return CompletePendingRaidTimeoutWork(state, result, nowUtc);
     }
+
+    private static RaidTimeoutProcessingResult ProcessExpiredRaidEventsLocked(ClashOfRimNetworkState state, DateTimeOffset nowUtc)
+        => RaidTimeoutProcessor.ProcessExpiredRaids(state.Ledger, state.Ledger.ListByType(ServerEventType.Raid), nowUtc,
+            BuildRaidDefenseLockPolicy(state.ServerConfiguration), party => state.OnlinePresence.IsUserOnline(party.UserId));
 
     internal static void RecoverPendingRaidTimeoutWork(ClashOfRimNetworkState state, DateTimeOffset nowUtc)
         => CompletePendingRaidTimeoutWork(state, new RaidTimeoutProcessingResult([], [], [], []), nowUtc);
@@ -1788,8 +1778,7 @@ public static partial class ClashOfRimNetworkServer
     {
         InitialWorldSessionPrepared,
         LoggedIn,
-        ColonyAbandoned,
-        Disconnected
+        ColonyAbandoned
     }
 
     private readonly record struct ClientLifecycleEvent(
@@ -1827,21 +1816,6 @@ public static partial class ClashOfRimNetworkServer
                 userId,
                 colonyId,
                 currentSnapshotId,
-                sessionId,
-                occurredAtUtc);
-        }
-
-        public static ClientLifecycleEvent Disconnected(
-            string userId,
-            string colonyId,
-            string? sessionId,
-            DateTimeOffset occurredAtUtc)
-        {
-            return new ClientLifecycleEvent(
-                ClientLifecycleEventKind.Disconnected,
-                userId,
-                colonyId,
-                CurrentSnapshotId: null,
                 sessionId,
                 occurredAtUtc);
         }

@@ -57,7 +57,7 @@ internal static class SnapshotJournalRecoveryPreparationTests
                     && f.State.BankLoans.FindByIdempotencyKey("commit-evidence") is not null, "Cleanup did not recover once: " + entry + "/" + mode);
                 Require(!Monitor.IsEntered(f.State.RaidSettlementSnapshotMutationGate), "Cleanup leaked its mutation gate.");
             });
-        foreach (string kind in new[] { "LoggedIn", "InitialWorldSessionPrepared", "Disconnected", "ColonyAbandoned" })
+        foreach (string kind in new[] { "LoggedIn", "InitialWorldSessionPrepared", "ColonyAbandoned" })
         foreach (string invalid in new[] { "none", "user", "colony" })
             WithFixture(factory, f =>
             {
