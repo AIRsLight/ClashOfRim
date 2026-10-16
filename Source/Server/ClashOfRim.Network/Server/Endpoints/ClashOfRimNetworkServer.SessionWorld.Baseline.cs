@@ -101,8 +101,10 @@ public static partial class ClashOfRimNetworkServer
             if (recovery.Rejection is { } failure) return Reject(failure);
             WorldSessionState session = state.WorldConfiguration.GetSessionState(request.UserId);
             DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
-            AdminBaselineSnapshot baseline = state.AdminBaseline.SubmitPrepared(normalized);
-            int cancelledTradeOrderCount = ApplyTradeOrderBaselineInvalidations(state, baseline, nowUtc);
+            var invalidations = PrepareTradeOrderBaselineInvalidations(state, normalized, nowUtc);
+            AdminBaselineSnapshot baseline = state.AdminBaseline.SubmitPrepared(normalized, invalidations);
+            RecoverAdminBaselineTradeInvalidations(state);
+            int cancelledTradeOrderCount = invalidations.Count;
             if (!string.IsNullOrWhiteSpace(request.ColonyId))
             {
                 RecordPlayerSeen(state, request.UserId, request.ColonyId!, currentSnapshotId: null, nowUtc);

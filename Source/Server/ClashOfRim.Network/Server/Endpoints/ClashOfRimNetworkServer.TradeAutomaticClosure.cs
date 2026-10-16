@@ -44,6 +44,23 @@ public static partial class ClashOfRimNetworkServer
     private static bool ApplyAutomaticTradeCancellation(ClashOfRimNetworkState state, AuthoritativeEvent order,
         TradeCancellationReason reason, IReadOnlyList<string> unavailableDefs, DateTimeOffset nowUtc)
     {
+        if (!TryPrepareAutomaticTradeCancellation(state, order, reason, unavailableDefs, nowUtc, out var batch, out var users)) return false;
+        try { state.Ledger.ApplyBatch(batch!); }
+        catch (InvalidOperationException)
+        {
+            state.RuntimeLogger.LogWarning("Automatic trade cancellation skipped conflicting evidence: order={OrderId} reason={Reason}", order.EventId, reason);
+            return false;
+        }
+        state.EventNotifications.SignalUsers(users);
+        return true;
+    }
+
+    private static bool TryPrepareAutomaticTradeCancellation(ClashOfRimNetworkState state, AuthoritativeEvent order,
+        TradeCancellationReason reason, IReadOnlyList<string> unavailableDefs, DateTimeOffset nowUtc,
+        out LedgerBatch? prepared, out string[] notifyUsers)
+    {
+        prepared = null;
+        notifyUsers = [];
         bool Conflict()
         {
             state.RuntimeLogger.LogWarning("Automatic trade cancellation skipped conflicting evidence: order={OrderId} reason={Reason}", order.EventId, reason);
@@ -71,11 +88,47 @@ public static partial class ClashOfRimNetworkServer
                     changes.Add(new(existing.EventId, existing.Status, existing.Status, ExpectedEvent: existing));
                 }
             }
-            state.Ledger.ApplyBatch(new(events, changes));
+            prepared = new(events, changes);
+            LedgerBatchValidation.Validate(prepared, state.Ledger.Find, state.Ledger.FindByIdempotencyKey);
         }
         catch (InvalidOperationException) { return Conflict(); }
-        state.EventNotifications.SignalUsers(targets.Select(target => target.UserId));
+        notifyUsers = targets.Select(target => target.UserId).Distinct(StringComparer.Ordinal).ToArray();
         return true;
+    }
+
+    private static IReadOnlyList<AdminBaselineTradeInvalidation> PrepareTradeOrderBaselineInvalidations(
+        ClashOfRimNetworkState state, AdminBaselineSnapshot baseline, DateTimeOffset nowUtc)
+    {
+        var validDefs = BuildValidTradeThingDefSet(baseline, state.ServerConfiguration);
+        var work = new List<AdminBaselineTradeInvalidation>();
+        if (validDefs.Count == 0) return work;
+        foreach (var order in state.Ledger.ListByType(ServerEventType.Trade).Where(IsOpenMarketTradeOrderForOwner).ToArray())
+        {
+            var payload = (TradeEventPayload)order.Payload;
+            var unavailable = FindUnavailableTradeThingDefs(payload.OfferedItems.Concat(payload.RequestedItems), baseline, validDefs);
+            if (unavailable.Count > 0 && TryPrepareAutomaticTradeCancellation(state, order, TradeCancellationReason.BaselineChanged,
+                    unavailable, nowUtc, out var batch, out var users))
+                work.Add(new(1, order.EventId, batch!, users));
+        }
+        return work;
+    }
+
+    internal static void RecoverAdminBaselineTradeInvalidations(ClashOfRimNetworkState state)
+    {
+        using (state.EnterSnapshotMutation())
+        {
+            foreach (var work in state.AdminBaseline.ListPendingTradeInvalidations())
+            {
+                work.Validate();
+                // With no new events, ApplyBatch has no insertion evidence for its normal replay check.
+                // Such a batch is complete only if every frozen source is exactly its expected final state.
+                bool completedWithoutInsertions = work.Batch.Events.Count == 0 && work.Batch.StatusChanges.All(change =>
+                    SameTradeEvidence(state.Ledger.Find(change.EventId), change.ExpectedEvent! with { Status = change.Status }));
+                if (!completedWithoutInsertions) state.Ledger.ApplyBatch(work.Batch);
+                state.EventNotifications.SignalUsers(work.NotifyUsers);
+                state.AdminBaseline.CompleteTradeInvalidation(work.OrderId);
+            }
+        }
     }
 
     private static bool MatchesAutomaticTradeNotification(AuthoritativeEvent existing, AuthoritativeEvent expected) =>

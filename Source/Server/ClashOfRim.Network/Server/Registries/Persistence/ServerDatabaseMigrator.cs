@@ -16,7 +16,7 @@ public static class ServerDatabaseSchema
 {
     // Version 1 is the known JSON-document persistence layout.
     public const int LegacyJsonDocumentVersion = 1;
-    public const int CurrentVersion = 28;
+    public const int CurrentVersion = 29;
 }
 
 public sealed record ServerDatabaseMigrationOptions(int? DeclaredSourceVersion = null);
@@ -141,7 +141,9 @@ public static class ServerDatabaseMigrator
         // Support creation owns snapshot journal v12 and request-bound event payloads.
         new(FromVersion: 26, ToVersion: 27, Apply: (_, _, _) => MigrationApplicationResult.None),
         // World metadata commits immutable substrate references; old readers must not guess the legacy blob.
-        new(FromVersion: 27, ToVersion: 28, Apply: (_, _, _) => MigrationApplicationResult.None)
+        new(FromVersion: 27, ToVersion: 28, Apply: (_, _, _) => MigrationApplicationResult.None),
+        // Baseline replacement includes fixed trade invalidations which must be recovered before mutations.
+        new(FromVersion: 28, ToVersion: 29, Apply: (_, _, _) => MigrationApplicationResult.None)
     ];
 
     public static ServerDatabaseMigrationAssessment Assess(

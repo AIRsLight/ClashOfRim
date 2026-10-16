@@ -15,6 +15,7 @@ public sealed class AdminBaselineRegistry
     private readonly object gate = new();
     private readonly IJsonPersistenceSlot? persistence;
     private AdminBaselineSnapshot? baseline;
+    private IReadOnlyList<AdminBaselineTradeInvalidation> pendingTradeInvalidations = [];
     private AdminBaselineSnapshot? cachedEffectiveTradeFeeBaseline;
     private TradeFeePolicy? cachedEffectiveTradeFeeConfiguredPolicy;
     private TradeFeePolicy? cachedEffectiveTradeFeePolicy;
@@ -48,15 +49,35 @@ public sealed class AdminBaselineRegistry
         return SubmitPrepared(AdminBaselineSnapshot.FromRequest(request));
     }
 
-    internal AdminBaselineSnapshot SubmitPrepared(AdminBaselineSnapshot normalized)
+    internal AdminBaselineSnapshot SubmitPrepared(AdminBaselineSnapshot normalized,
+        IReadOnlyList<AdminBaselineTradeInvalidation>? invalidations = null)
     {
         ArgumentNullException.ThrowIfNull(normalized);
         lock (gate)
         {
-            SaveLocked(normalized);
+            if (pendingTradeInvalidations.Count != 0)
+                throw new InvalidOperationException("Recover pending trade invalidations before replacing the administrator baseline.");
+            invalidations ??= [];
+            ValidateInvalidations(invalidations);
+            SaveLocked(normalized, invalidations);
             baseline = normalized;
+            pendingTradeInvalidations = invalidations.ToArray();
             ClearEffectiveTradeFeePolicyCacheLocked();
             return normalized;
+        }
+    }
+
+    internal IReadOnlyList<AdminBaselineTradeInvalidation> ListPendingTradeInvalidations()
+    { lock (gate) return pendingTradeInvalidations.ToArray(); }
+
+    internal void CompleteTradeInvalidation(string orderId)
+    {
+        lock (gate)
+        {
+            var remaining = pendingTradeInvalidations.Where(work => work.OrderId != orderId).ToArray();
+            if (remaining.Length == pendingTradeInvalidations.Count) return;
+            SaveLocked(baseline!, remaining);
+            pendingTradeInvalidations = remaining;
         }
     }
 
@@ -119,27 +140,41 @@ public sealed class AdminBaselineRegistry
                 return;
             }
 
-            baseline = JsonSerializer.Deserialize<AdminBaselineSnapshot>(json, JsonOptions);
+            using var document = JsonDocument.Parse(json);
+            if (document.RootElement.TryGetProperty("PendingTradeInvalidations", out var pending))
+            {
+                pendingTradeInvalidations = pending.Deserialize<AdminBaselineTradeInvalidation[]>(JsonOptions)
+                    ?? throw new InvalidOperationException("Missing pending administrator baseline trade invalidations.");
+                ValidateInvalidations(pendingTradeInvalidations);
+            }
+            baseline = JsonSerializer.Deserialize<AdminBaselineSnapshot>(json, JsonOptions)
+                ?? throw new InvalidOperationException("Missing persisted administrator baseline.");
         }
-        catch (JsonException)
-        {
-            baseline = null;
-        }
-        catch (IOException)
-        {
-            baseline = null;
-        }
+        catch (Exception ex) when (ex is JsonException or IOException)
+        { throw new InvalidOperationException("Cannot load persisted administrator baseline.", ex); }
     }
 
-    private void SaveLocked(AdminBaselineSnapshot candidate)
+    private static void ValidateInvalidations(IReadOnlyList<AdminBaselineTradeInvalidation> pending)
+    {
+        foreach (var work in pending)
+        {
+            if (work is null) throw new InvalidOperationException("Null administrator baseline trade invalidation.");
+            work.Validate();
+        }
+        if (pending.Select(work => work.OrderId).Distinct(StringComparer.Ordinal).Count() != pending.Count)
+            throw new InvalidOperationException("Duplicate administrator baseline trade invalidation.");
+    }
+
+    private void SaveLocked(AdminBaselineSnapshot candidate, IReadOnlyList<AdminBaselineTradeInvalidation> pending)
     {
         if (persistence is null)
         {
             return;
         }
 
-        string json = JsonSerializer.Serialize(candidate, JsonOptions);
-        persistence.Write(json);
+        var document = JsonSerializer.SerializeToNode(candidate, JsonOptions)!.AsObject();
+        document["PendingTradeInvalidations"] = JsonSerializer.SerializeToNode(pending, JsonOptions);
+        persistence.Write(document.ToJsonString(JsonOptions));
     }
 }
 

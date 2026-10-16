@@ -18,6 +18,12 @@ if (args.FirstOrDefault() == "--world-publication-crash")
     return 0;
 }
 
+if (args.FirstOrDefault() == "--baseline-invalidation-crash")
+{
+    AdminBaselineRecoveryTests.CrashChild(args);
+    return 0;
+}
+
 var tests = new (string Name, Action Run)[]
 {
     ("快照载荷压缩在业务锁外准备且保持格式与恢复兼容", () => PreparedSnapshotPayloadTests.Run(BuildFixturePackage)),
@@ -48,6 +54,7 @@ var tests = new (string Name, Action Run)[]
     ("管理员基线持久化失败保留当前基线和费用缓存", AdminBaselinePersistenceTests.Run),
     ("真实 HTTP 请求在端点授权后恢复快照日志", () => HttpSnapshotRecoveryTests.Run(BuildFixturePackage)),
     ("管理员基线认证与恢复提交边界", () => AdminBaselineAuthorizationTests.Run(BuildFixturePackage)),
+    ("管理员基线与固定订单失效批次共同恢复", AdminBaselineRecoveryTests.Run),
     ("世界配置提交认证与恢复边界", () => WorldConfigurationAuthorizationTests.Run(BuildFixturePackage)),
     ("世界配置与底图引用共同发布且失败保持原状态", WorldConfigurationPersistenceTests.Run),
     ("普通上传和事件确认在恢复前后复验身份且锁外准备", () => UploadConfirmationRecoveryTests.Run(BuildFixturePackage)),
