@@ -1,0 +1,1876 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-17",
+  "gameVersion": "1.7.4980 rev60",
+  "runtime": "10.0.10-waylithclr.dev",
+  "harmony": "3.0.0.0-rc.3+3c0e32cd3fd20e4ae27c47cb8c888844766f9f1a",
+  "rootCauseFixValidated": false,
+  "clashOfRimRequiredToReproduce": false,
+  "hostProcessorCount": 28,
+  "binaries": [
+    {
+      "path": "E:\\SteamLibrary\\steamapps\\common\\RimWorld\\RimWorld.exe",
+      "sha256": "bf9ef7172098d23589018a5a213303c45dc96ce349c66200fb98c0f5e82a5918",
+      "length": 198656,
+      "isolatedCopyMatches": true
+    },
+    {
+      "path": "E:\\SteamLibrary\\steamapps\\common\\RimWorld\\coreclr.dll",
+      "sha256": "fba903c19660c745388c2500cbe5e3d9e1ffd97eb253be8a407509543d9c31f0",
+      "length": 9473024,
+      "isolatedCopyMatches": true
+    },
+    {
+      "path": "E:\\SteamLibrary\\steamapps\\common\\RimWorld\\clrjit.dll",
+      "sha256": "bbe0141e7d94ffabcc32aafc37f31538bb314ffd136d7198972d0acddd8a3daa",
+      "length": 3356672,
+      "isolatedCopyMatches": true
+    },
+    {
+      "path": "E:\\SteamLibrary\\steamapps\\common\\RimWorld\\System.Private.CoreLib.dll",
+      "sha256": "2578f905fa0f745b34a5436f2c53fbc51ba7941266f1f3e7f9c2b2cefa9d1cfd",
+      "length": 16080896,
+      "isolatedCopyMatches": true
+    },
+    {
+      "path": "E:\\SteamLibrary\\steamapps\\common\\RimWorld\\Waylith.dll",
+      "sha256": "15633912da7c890e8798aac86121ddbcf28b4138786d926921dafa7ca908929f",
+      "length": 1537536,
+      "isolatedCopyMatches": true
+    },
+    {
+      "path": "E:\\SteamLibrary\\steamapps\\common\\RimWorld\\RimWorld.runtimeconfig.json",
+      "sha256": "b71a9beb4bb45066d915eed45dee6e1259a4eb73635abd342e9e00d8afc2db3f",
+      "length": 1519,
+      "isolatedCopyMatches": true
+    },
+    {
+      "path": "E:\\SteamLibrary\\steamapps\\workshop\\content\\294100\\2009463077\\1.7\\Assemblies\\0Harmony.dll",
+      "sha256": "c8ef7856b2be3cf24b345c9b5c2f197f68fcf92649635064fce7b3ccc8f77cb0",
+      "length": 2532864,
+      "isolatedCopyMatches": true
+    }
+  ],
+  "dumps": [
+    {
+      "processId": 70836,
+      "path": "C:\\Users\\WIN11\\AppData\\Local\\CrashDumps\\RimWorld.exe.70836.dmp",
+      "sha256": "cdd23c622d2beb84395db35ae68356b849b57564bff2f05cd96fa009277a1cd2",
+      "exceptionThreadId": 52892,
+      "exceptionCode": "ExceptionCode.EXCEPTION_ACCESS_VIOLATION",
+      "exceptionInformation": [
+        0,
+        89
+      ],
+      "coreclrOffset": "0x1dbae0",
+      "savedFaultContext": {
+        "fileOffset": "0xcd26c6",
+        "contextFlags": "0x810005f",
+        "rip": "0x7ffdadafbae0",
+        "rcx": "0x51",
+        "rdx": "0x6000003",
+        "rspWithinExceptionThreadStack": true
+      },
+      "relevantLoadedModules": [
+        "G:\\RimTestRuns\\account-all-dlc\\20261016-161414-11b7dafd\\Clients\\20261016-161416-65fb99df\\Game\\Mods\\Harmony\\1.7\\Assemblies\\0Harmony.dll",
+        "G:\\RimTestRuns\\account-all-dlc\\20261016-161414-11b7dafd\\Clients\\20261016-161416-65fb99df\\Game\\Mods\\Harmony\\1.7\\Assemblies\\HarmonyMod.dll",
+        "G:\\RimTestRuns\\account-all-dlc\\20261016-161414-11b7dafd\\Clients\\20261016-161416-65fb99df\\Game\\Mods\\RimTest\\Assemblies\\RimTest.Protocol.dll",
+        "G:\\RimTestRuns\\account-all-dlc\\20261016-161414-11b7dafd\\Clients\\20261016-161416-65fb99df\\Game\\Mods\\RimTest\\Assemblies\\RimTest.RimWorld.dll",
+        "G:\\RimTestRuns\\account-all-dlc\\20261016-161414-11b7dafd\\Clients\\20261016-161416-65fb99df\\Game\\Mods\\RimTest\\Assemblies\\RimTest.Runtime.dll",
+        "G:\\RimTestRuns\\account-all-dlc\\20261016-161414-11b7dafd\\Clients\\20261016-161416-65fb99df\\Game\\Mods\\Extra0\\Assemblies\\AIRsLight.ClashOfRim.dll",
+        "G:\\RimTestRuns\\account-all-dlc\\20261016-161414-11b7dafd\\Clients\\20261016-161416-65fb99df\\Game\\Mods\\Extra0\\Assemblies\\ClashOfRim.Protocol.dll",
+        "G:\\RimTestRuns\\account-all-dlc\\20261016-161414-11b7dafd\\Clients\\20261016-161416-65fb99df\\Game\\Mods\\Extra0\\Assemblies\\ClashOfRim.Compatibility.dll",
+        "G:\\RimTestRuns\\account-all-dlc\\20261016-161414-11b7dafd\\Clients\\20261016-161416-65fb99df\\Game\\Mods\\Extra1\\Assemblies\\ClashOfRim.RimTestBridge.dll"
+      ],
+      "limitation": "Resolver heap page absent; released-state field value is inferred from validated registers and caller machine instructions."
+    },
+    {
+      "processId": 93396,
+      "path": "C:\\Users\\WIN11\\AppData\\Local\\CrashDumps\\RimWorld.exe.93396.dmp",
+      "sha256": "34a7d45498c6243d6368601b79a270abf427a6264a763c69d1c9130f854f80b8",
+      "exceptionThreadId": 97036,
+      "exceptionCode": "ExceptionCode.EXCEPTION_ACCESS_VIOLATION",
+      "exceptionInformation": [
+        0,
+        89
+      ],
+      "coreclrOffset": "0x1dbae0",
+      "savedFaultContext": {
+        "fileOffset": "0xd1fe0c",
+        "contextFlags": "0x810005f",
+        "rip": "0x7ffd9139bae0",
+        "rcx": "0x51",
+        "rdx": "0x6000003",
+        "rspWithinExceptionThreadStack": true
+      },
+      "relevantLoadedModules": [
+        "G:\\RimTestRuns\\account-all-dlc-retry\\20261016-161548-bcba1483\\Clients\\20261016-161548-286b855c\\Game\\Mods\\Harmony\\1.7\\Assemblies\\0Harmony.dll",
+        "G:\\RimTestRuns\\account-all-dlc-retry\\20261016-161548-bcba1483\\Clients\\20261016-161548-286b855c\\Game\\Mods\\Harmony\\1.7\\Assemblies\\HarmonyMod.dll",
+        "G:\\RimTestRuns\\account-all-dlc-retry\\20261016-161548-bcba1483\\Clients\\20261016-161548-286b855c\\Game\\Mods\\RimTest\\Assemblies\\RimTest.Protocol.dll",
+        "G:\\RimTestRuns\\account-all-dlc-retry\\20261016-161548-bcba1483\\Clients\\20261016-161548-286b855c\\Game\\Mods\\RimTest\\Assemblies\\RimTest.RimWorld.dll",
+        "G:\\RimTestRuns\\account-all-dlc-retry\\20261016-161548-bcba1483\\Clients\\20261016-161548-286b855c\\Game\\Mods\\RimTest\\Assemblies\\RimTest.Runtime.dll",
+        "G:\\RimTestRuns\\account-all-dlc-retry\\20261016-161548-bcba1483\\Clients\\20261016-161548-286b855c\\Game\\Mods\\Extra0\\Assemblies\\AIRsLight.ClashOfRim.dll",
+        "G:\\RimTestRuns\\account-all-dlc-retry\\20261016-161548-bcba1483\\Clients\\20261016-161548-286b855c\\Game\\Mods\\Extra0\\Assemblies\\ClashOfRim.Protocol.dll",
+        "G:\\RimTestRuns\\account-all-dlc-retry\\20261016-161548-bcba1483\\Clients\\20261016-161548-286b855c\\Game\\Mods\\Extra0\\Assemblies\\ClashOfRim.Compatibility.dll",
+        "G:\\RimTestRuns\\account-all-dlc-retry\\20261016-161548-bcba1483\\Clients\\20261016-161548-286b855c\\Game\\Mods\\Extra1\\Assemblies\\ClashOfRim.RimTestBridge.dll"
+      ],
+      "limitation": "Resolver heap page absent; released-state field value is inferred from validated registers and caller machine instructions."
+    },
+    {
+      "processId": 91696,
+      "path": "C:\\Users\\WIN11\\AppData\\Local\\CrashDumps\\RimWorld.exe.91696.dmp",
+      "sha256": "036f8088536946c78a709bd4d7587d3c729e0f7d7db1fc8093c6f2d579ad7eb0",
+      "exceptionThreadId": 100860,
+      "exceptionCode": "ExceptionCode.EXCEPTION_ACCESS_VIOLATION",
+      "exceptionInformation": [
+        0,
+        89
+      ],
+      "coreclrOffset": "0x1dbae0",
+      "savedFaultContext": {
+        "fileOffset": "0x115e90c",
+        "contextFlags": "0x810005f",
+        "rip": "0x7ffdadafbae0",
+        "rcx": "0x51",
+        "rdx": "0x6000003",
+        "rspWithinExceptionThreadStack": true
+      },
+      "relevantLoadedModules": [
+        "G:\\RimTestRuns\\account-all-dlc-r3\\20261016-162224-3f5a1127\\Clients\\20261016-162225-7432cd7e\\Game\\Mods\\Harmony\\1.7\\Assemblies\\0Harmony.dll",
+        "G:\\RimTestRuns\\account-all-dlc-r3\\20261016-162224-3f5a1127\\Clients\\20261016-162225-7432cd7e\\Game\\Mods\\Harmony\\1.7\\Assemblies\\HarmonyMod.dll",
+        "G:\\RimTestRuns\\account-all-dlc-r3\\20261016-162224-3f5a1127\\Clients\\20261016-162225-7432cd7e\\Game\\Mods\\RimTest\\Assemblies\\RimTest.Protocol.dll",
+        "G:\\RimTestRuns\\account-all-dlc-r3\\20261016-162224-3f5a1127\\Clients\\20261016-162225-7432cd7e\\Game\\Mods\\RimTest\\Assemblies\\RimTest.RimWorld.dll",
+        "G:\\RimTestRuns\\account-all-dlc-r3\\20261016-162224-3f5a1127\\Clients\\20261016-162225-7432cd7e\\Game\\Mods\\RimTest\\Assemblies\\RimTest.Runtime.dll",
+        "G:\\RimTestRuns\\account-all-dlc-r3\\20261016-162224-3f5a1127\\Clients\\20261016-162225-7432cd7e\\Game\\Mods\\Extra0\\Assemblies\\AIRsLight.ClashOfRim.dll",
+        "G:\\RimTestRuns\\account-all-dlc-r3\\20261016-162224-3f5a1127\\Clients\\20261016-162225-7432cd7e\\Game\\Mods\\Extra0\\Assemblies\\ClashOfRim.Protocol.dll",
+        "G:\\RimTestRuns\\account-all-dlc-r3\\20261016-162224-3f5a1127\\Clients\\20261016-162225-7432cd7e\\Game\\Mods\\Extra0\\Assemblies\\ClashOfRim.Compatibility.dll",
+        "G:\\RimTestRuns\\account-all-dlc-r3\\20261016-162224-3f5a1127\\Clients\\20261016-162225-7432cd7e\\Game\\Mods\\Extra1\\Assemblies\\ClashOfRim.RimTestBridge.dll"
+      ],
+      "limitation": "Resolver heap page absent; released-state field value is inferred from validated registers and caller machine instructions."
+    },
+    {
+      "processId": 100040,
+      "path": "C:\\Users\\WIN11\\AppData\\Local\\CrashDumps\\RimWorld.exe.100040.dmp",
+      "sha256": "929e995a293c54ffaa4b6fcc6f50bc62b1269bc586134b8b4a1282660f69439a",
+      "exceptionThreadId": 48496,
+      "exceptionCode": "ExceptionCode.EXCEPTION_ACCESS_VIOLATION",
+      "exceptionInformation": [
+        0,
+        89
+      ],
+      "coreclrOffset": "0x1dbae0",
+      "savedFaultContext": {
+        "fileOffset": "0xaf417a",
+        "contextFlags": "0x810005f",
+        "rip": "0x7ffdee6dbae0",
+        "rcx": "0x51",
+        "rdx": "0x6000003",
+        "rspWithinExceptionThreadStack": true
+      },
+      "relevantLoadedModules": [
+        "G:\\RimTestRuns\\account-all-dlc-final\\20261016-162747-408b5e84\\Clients\\20261016-162748-3082f224\\Game\\Mods\\Harmony\\1.7\\Assemblies\\0Harmony.dll",
+        "G:\\RimTestRuns\\account-all-dlc-final\\20261016-162747-408b5e84\\Clients\\20261016-162748-3082f224\\Game\\Mods\\Harmony\\1.7\\Assemblies\\HarmonyMod.dll",
+        "G:\\RimTestRuns\\account-all-dlc-final\\20261016-162747-408b5e84\\Clients\\20261016-162748-3082f224\\Game\\Mods\\RimTest\\Assemblies\\RimTest.Protocol.dll",
+        "G:\\RimTestRuns\\account-all-dlc-final\\20261016-162747-408b5e84\\Clients\\20261016-162748-3082f224\\Game\\Mods\\RimTest\\Assemblies\\RimTest.RimWorld.dll",
+        "G:\\RimTestRuns\\account-all-dlc-final\\20261016-162747-408b5e84\\Clients\\20261016-162748-3082f224\\Game\\Mods\\RimTest\\Assemblies\\RimTest.Runtime.dll"
+      ],
+      "limitation": "Resolver heap page absent; released-state field value is inferred from validated registers and caller machine instructions."
+    }
+  ],
+  "runs": [
+    {
+      "variant": "vanilla",
+      "attempt": 1,
+      "client": "A",
+      "language": "English",
+      "culture": "en-US",
+      "mods": [
+        "ludeon.rimworld",
+        "ludeon.rimworld.royalty",
+        "ludeon.rimworld.ideology",
+        "ludeon.rimworld.biotech",
+        "ludeon.rimworld.anomaly",
+        "ludeon.rimworld.odyssey"
+      ],
+      "processorCountOverride": 0,
+      "hostProcessorCount": 28,
+      "startedAtUtc": "2026-10-16T16:46:28.0813093Z",
+      "observationSeconds": 60,
+      "processId": 30880,
+      "exitCode": null,
+      "survived": true,
+      "fatalClr": false,
+      "hello": null,
+      "path": "G:\\RimTestRuns\\startup-diagnosis\\20261016-164628-f9b0fa\\vanilla-1-A",
+      "files": [
+        {
+          "name": "run.json",
+          "sha256": "161056ff2efc90474f0d0528930966f910d6c77d6b4dab0dd39a67c57a1aad1e"
+        },
+        {
+          "name": "stdout.log",
+          "sha256": "f174eb6cf5601f573afbf17e95110188f800a67670615df40b3ab454047b1131"
+        },
+        {
+          "name": "stderr.log",
+          "sha256": "ae54afb534f6d1e075c3210c4ebba9e03e0b5554c1f74e55f76a58726144e2d8"
+        },
+        {
+          "name": "Profile/Config/ModsConfig.xml",
+          "sha256": "a3cfc26f4ce19863075f6fbc9e7dc1dbc6bf3d7226c75a7270ca5f826b901c65"
+        }
+      ]
+    },
+    {
+      "variant": "vanilla",
+      "attempt": 1,
+      "client": "B",
+      "language": "English",
+      "culture": "en-US",
+      "mods": [
+        "ludeon.rimworld",
+        "ludeon.rimworld.royalty",
+        "ludeon.rimworld.ideology",
+        "ludeon.rimworld.biotech",
+        "ludeon.rimworld.anomaly",
+        "ludeon.rimworld.odyssey"
+      ],
+      "processorCountOverride": 0,
+      "hostProcessorCount": 28,
+      "startedAtUtc": "2026-10-16T16:46:28.1084454Z",
+      "observationSeconds": 60,
+      "processId": 32608,
+      "exitCode": null,
+      "survived": true,
+      "fatalClr": false,
+      "hello": null,
+      "path": "G:\\RimTestRuns\\startup-diagnosis\\20261016-164628-f9b0fa\\vanilla-1-B",
+      "files": [
+        {
+          "name": "run.json",
+          "sha256": "d65b4f624878248a481111109eb895cdf68d328146ae23e632fd1696dcadec71"
+        },
+        {
+          "name": "stdout.log",
+          "sha256": "920be7459ed9576cfa69a41418926a18a7caae6d2fc764768ca06a701ce913b7"
+        },
+        {
+          "name": "stderr.log",
+          "sha256": "ae54afb534f6d1e075c3210c4ebba9e03e0b5554c1f74e55f76a58726144e2d8"
+        },
+        {
+          "name": "Profile/Config/ModsConfig.xml",
+          "sha256": "a3cfc26f4ce19863075f6fbc9e7dc1dbc6bf3d7226c75a7270ca5f826b901c65"
+        }
+      ]
+    },
+    {
+      "variant": "harmony",
+      "attempt": 1,
+      "client": "A",
+      "language": "English",
+      "culture": "en-US",
+      "mods": [
+        "brrainz.harmony",
+        "ludeon.rimworld",
+        "ludeon.rimworld.royalty",
+        "ludeon.rimworld.ideology",
+        "ludeon.rimworld.biotech",
+        "ludeon.rimworld.anomaly",
+        "ludeon.rimworld.odyssey"
+      ],
+      "processorCountOverride": 0,
+      "hostProcessorCount": 28,
+      "startedAtUtc": "2026-10-16T16:47:28.9918506Z",
+      "observationSeconds": 60,
+      "processId": 36648,
+      "exitCode": null,
+      "survived": true,
+      "fatalClr": false,
+      "hello": null,
+      "path": "G:\\RimTestRuns\\startup-diagnosis\\20261016-164628-f9b0fa\\harmony-1-A",
+      "files": [
+        {
+          "name": "run.json",
+          "sha256": "63b713053ff97403e38c5e75dd40f2e9a0f463cffb800791a5090627e9205b1b"
+        },
+        {
+          "name": "stdout.log",
+          "sha256": "3cbe0457bac92651b68cb8ef2466e044245135bd0bb859491ea834a246da85ff"
+        },
+        {
+          "name": "stderr.log",
+          "sha256": "ae54afb534f6d1e075c3210c4ebba9e03e0b5554c1f74e55f76a58726144e2d8"
+        },
+        {
+          "name": "Profile/Config/ModsConfig.xml",
+          "sha256": "0049de8fec0a1dcf98eb15f41c4e949e328322d1840c2fa7ac8760e62021f64a"
+        }
+      ]
+    },
+    {
+      "variant": "harmony",
+      "attempt": 1,
+      "client": "B",
+      "language": "English",
+      "culture": "en-US",
+      "mods": [
+        "brrainz.harmony",
+        "ludeon.rimworld",
+        "ludeon.rimworld.royalty",
+        "ludeon.rimworld.ideology",
+        "ludeon.rimworld.biotech",
+        "ludeon.rimworld.anomaly",
+        "ludeon.rimworld.odyssey"
+      ],
+      "processorCountOverride": 0,
+      "hostProcessorCount": 28,
+      "startedAtUtc": "2026-10-16T16:47:29.0013303Z",
+      "observationSeconds": 60,
+      "processId": 67428,
+      "exitCode": null,
+      "survived": true,
+      "fatalClr": false,
+      "hello": null,
+      "path": "G:\\RimTestRuns\\startup-diagnosis\\20261016-164628-f9b0fa\\harmony-1-B",
+      "files": [
+        {
+          "name": "run.json",
+          "sha256": "cd970eacfb3ca01d06aca47464e6d7678d86edf2a512fddcff90d527c07e9342"
+        },
+        {
+          "name": "stdout.log",
+          "sha256": "1edc6e0000eeb26da41ceba94f4c81bbb03d3b7e17d3617fbeb9b48766433d35"
+        },
+        {
+          "name": "stderr.log",
+          "sha256": "ae54afb534f6d1e075c3210c4ebba9e03e0b5554c1f74e55f76a58726144e2d8"
+        },
+        {
+          "name": "Profile/Config/ModsConfig.xml",
+          "sha256": "0049de8fec0a1dcf98eb15f41c4e949e328322d1840c2fa7ac8760e62021f64a"
+        }
+      ]
+    },
+    {
+      "variant": "rimtest",
+      "attempt": 1,
+      "client": "A",
+      "language": "English",
+      "culture": "en-US",
+      "mods": [
+        "brrainz.harmony",
+        "ludeon.rimworld",
+        "ludeon.rimworld.royalty",
+        "ludeon.rimworld.ideology",
+        "ludeon.rimworld.biotech",
+        "ludeon.rimworld.anomaly",
+        "ludeon.rimworld.odyssey",
+        "airslight.rimtest"
+      ],
+      "processorCountOverride": 0,
+      "hostProcessorCount": 28,
+      "startedAtUtc": "2026-10-16T16:48:29.618435Z",
+      "observationSeconds": 60,
+      "processId": 85696,
+      "exitCode": null,
+      "survived": true,
+      "fatalClr": false,
+      "hello": true,
+      "path": "G:\\RimTestRuns\\startup-diagnosis\\20261016-164628-f9b0fa\\rimtest-1-A",
+      "files": [
+        {
+          "name": "run.json",
+          "sha256": "22795071480177bbab8667954c553d9deaabad009eb368e017c8559f13e1644f"
+        },
+        {
+          "name": "stdout.log",
+          "sha256": "1f3234502e28be4938fccfa8ede83c939088df39bf0cfaa1684e8d4b4e3bc72b"
+        },
+        {
+          "name": "stderr.log",
+          "sha256": "ae54afb534f6d1e075c3210c4ebba9e03e0b5554c1f74e55f76a58726144e2d8"
+        },
+        {
+          "name": "Profile/Config/ModsConfig.xml",
+          "sha256": "58a18eb08a88d6c0daf5256ee4df68723ca3f1048b516e52a48a2dbb4e8f9853"
+        },
+        {
+          "name": "hello.json",
+          "sha256": "74821afe5a228f10a96ff9668cbdb85e602b88f76e7f51902e9119a2fe106bca"
+        }
+      ]
+    },
+    {
+      "variant": "rimtest",
+      "attempt": 1,
+      "client": "B",
+      "language": "English",
+      "culture": "en-US",
+      "mods": [
+        "brrainz.harmony",
+        "ludeon.rimworld",
+        "ludeon.rimworld.royalty",
+        "ludeon.rimworld.ideology",
+        "ludeon.rimworld.biotech",
+        "ludeon.rimworld.anomaly",
+        "ludeon.rimworld.odyssey",
+        "airslight.rimtest"
+      ],
+      "processorCountOverride": 0,
+      "hostProcessorCount": 28,
+      "startedAtUtc": "2026-10-16T16:48:29.6282414Z",
+      "observationSeconds": 60,
+      "processId": 51196,
+      "exitCode": null,
+      "survived": true,
+      "fatalClr": false,
+      "hello": true,
+      "path": "G:\\RimTestRuns\\startup-diagnosis\\20261016-164628-f9b0fa\\rimtest-1-B",
+      "files": [
+        {
+          "name": "run.json",
+          "sha256": "a23fa01ad4edde8fd0e4d0ffa41e2eddbbbdfc46587847e1a7601ca45bc9b2ee"
+        },
+        {
+          "name": "stdout.log",
+          "sha256": "e3d8bed7f400d06ea64ec379f21f0fbaca548f20d495b74636d30fb127393b02"
+        },
+        {
+          "name": "stderr.log",
+          "sha256": "ae54afb534f6d1e075c3210c4ebba9e03e0b5554c1f74e55f76a58726144e2d8"
+        },
+        {
+          "name": "Profile/Config/ModsConfig.xml",
+          "sha256": "58a18eb08a88d6c0daf5256ee4df68723ca3f1048b516e52a48a2dbb4e8f9853"
+        },
+        {
+          "name": "hello.json",
+          "sha256": "5f0e857238ee55384e0b1a6d1506900bf76a01f1536761ca560a62fadef85f18"
+        }
+      ]
+    },
+    {
+      "variant": "product",
+      "attempt": 1,
+      "client": "A",
+      "language": "English",
+      "culture": "en-US",
+      "mods": [
+        "brrainz.harmony",
+        "ludeon.rimworld",
+        "ludeon.rimworld.royalty",
+        "ludeon.rimworld.ideology",
+        "ludeon.rimworld.biotech",
+        "ludeon.rimworld.anomaly",
+        "ludeon.rimworld.odyssey",
+        "airslight.clashofrim"
+      ],
+      "processorCountOverride": 0,
+      "hostProcessorCount": 28,
+      "startedAtUtc": "2026-10-16T16:49:30.6061907Z",
+      "observationSeconds": 60,
+      "processId": 90124,
+      "exitCode": null,
+      "survived": true,
+      "fatalClr": false,
+      "hello": null,
+      "path": "G:\\RimTestRuns\\startup-diagnosis\\20261016-164628-f9b0fa\\product-1-A",
+      "files": [
+        {
+          "name": "run.json",
+          "sha256": "6794175aff74ca892f246a0db8db8625d680c7f5192f2a1c0f9ed450f6bfe536"
+        },
+        {
+          "name": "stdout.log",
+          "sha256": "9e3e2d1069c372e0b324244540e01f5aeb7a9c5af32bb45f4b17ac80e088a4f0"
+        },
+        {
+          "name": "stderr.log",
+          "sha256": "ae54afb534f6d1e075c3210c4ebba9e03e0b5554c1f74e55f76a58726144e2d8"
+        },
+        {
+          "name": "Profile/Config/ModsConfig.xml",
+          "sha256": "86169d9c959b8e7f9cdfa7bdae73444b8586cba6dc55e7eacee8d8a36c3aea12"
+        }
+      ]
+    },
+    {
+      "variant": "product",
+      "attempt": 1,
+      "client": "B",
+      "language": "English",
+      "culture": "en-US",
+      "mods": [
+        "brrainz.harmony",
+        "ludeon.rimworld",
+        "ludeon.rimworld.royalty",
+        "ludeon.rimworld.ideology",
+        "ludeon.rimworld.biotech",
+        "ludeon.rimworld.anomaly",
+        "ludeon.rimworld.odyssey",
+        "airslight.clashofrim"
+      ],
+      "processorCountOverride": 0,
+      "hostProcessorCount": 28,
+      "startedAtUtc": "2026-10-16T16:49:30.6158039Z",
+      "observationSeconds": 60,
+      "processId": 85688,
+      "exitCode": null,
+      "survived": true,
+      "fatalClr": false,
+      "hello": null,
+      "path": "G:\\RimTestRuns\\startup-diagnosis\\20261016-164628-f9b0fa\\product-1-B",
+      "files": [
+        {
+          "name": "run.json",
+          "sha256": "f34650749d3a3ae256c5ecfdabcd554dc07071de017de94491f6af0345e4ba36"
+        },
+        {
+          "name": "stdout.log",
+          "sha256": "1870fd5ada3f725e550cdddfd4bbd964043b1b509707b3d949c19c9d320b1105"
+        },
+        {
+          "name": "stderr.log",
+          "sha256": "ae54afb534f6d1e075c3210c4ebba9e03e0b5554c1f74e55f76a58726144e2d8"
+        },
+        {
+          "name": "Profile/Config/ModsConfig.xml",
+          "sha256": "86169d9c959b8e7f9cdfa7bdae73444b8586cba6dc55e7eacee8d8a36c3aea12"
+        }
+      ]
+    },
+    {
+      "variant": "full",
+      "attempt": 1,
+      "client": "A",
+      "language": "English",
+      "culture": "en-US",
+      "mods": [
+        "brrainz.harmony",
+        "ludeon.rimworld",
+        "ludeon.rimworld.royalty",
+        "ludeon.rimworld.ideology",
+        "ludeon.rimworld.biotech",
+        "ludeon.rimworld.anomaly",
+        "ludeon.rimworld.odyssey",
+        "airslight.rimtest",
+        "airslight.clashofrim",
+        "airslight.clashofrim.rimtestbridge"
+      ],
+      "processorCountOverride": 0,
+      "hostProcessorCount": 28,
+      "startedAtUtc": "2026-10-16T16:50:31.3828886Z",
+      "observationSeconds": 60,
+      "processId": 97364,
+      "exitCode": null,
+      "survived": true,
+      "fatalClr": false,
+      "hello": true,
+      "path": "G:\\RimTestRuns\\startup-diagnosis\\20261016-164628-f9b0fa\\full-1-A",
+      "files": [
+        {
+          "name": "run.json",
+          "sha256": "df84518ef5d82ddafc3e383167bd0a7080fa59c803b8b1a52c98d6fb2373b1ee"
+        },
+        {
+          "name": "stdout.log",
+          "sha256": "a69904512d9c97ba5f4f2dc382155c3df6d511fab50a418af9a982a5ce44bf00"
+        },
+        {
+          "name": "stderr.log",
+          "sha256": "ae54afb534f6d1e075c3210c4ebba9e03e0b5554c1f74e55f76a58726144e2d8"
+        },
+        {
+          "name": "Profile/Config/ModsConfig.xml",
+          "sha256": "d29a4658ef6489fd4266484b04f7334a0c1e26ec5f2ec890355ccd8be24963c0"
+        },
+        {
+          "name": "hello.json",
+          "sha256": "59022703759fc9ab8adc16d2832c25a4113c05eafc6ab01795ca3f4bc052e500"
+        }
+      ]
+    },
+    {
+      "variant": "full",
+      "attempt": 1,
+      "client": "B",
+      "language": "English",
+      "culture": "en-US",
+      "mods": [
+        "brrainz.harmony",
+        "ludeon.rimworld",
+        "ludeon.rimworld.royalty",
+        "ludeon.rimworld.ideology",
+        "ludeon.rimworld.biotech",
+        "ludeon.rimworld.anomaly",
+        "ludeon.rimworld.odyssey",
+        "airslight.rimtest",
+        "airslight.clashofrim",
+        "airslight.clashofrim.rimtestbridge"
+      ],
+      "processorCountOverride": 0,
+      "hostProcessorCount": 28,
+      "startedAtUtc": "2026-10-16T16:50:31.3925277Z",
+      "observationSeconds": 60,
+      "processId": 100276,
+      "exitCode": null,
+      "survived": true,
+      "fatalClr": false,
+      "hello": true,
+      "path": "G:\\RimTestRuns\\startup-diagnosis\\20261016-164628-f9b0fa\\full-1-B",
+      "files": [
+        {
+          "name": "run.json",
+          "sha256": "0a7513888e98a19f242351398ce85eed30c4c23e23d34b7d08b76aeb362621fb"
+        },
+        {
+          "name": "stdout.log",
+          "sha256": "a6f705fb2729325c425571aee008d4c438619dd3d627231d8ed2936e8a49fd48"
+        },
+        {
+          "name": "stderr.log",
+          "sha256": "ae54afb534f6d1e075c3210c4ebba9e03e0b5554c1f74e55f76a58726144e2d8"
+        },
+        {
+          "name": "Profile/Config/ModsConfig.xml",
+          "sha256": "d29a4658ef6489fd4266484b04f7334a0c1e26ec5f2ec890355ccd8be24963c0"
+        },
+        {
+          "name": "hello.json",
+          "sha256": "fb402aab75ae9dd6330f2abaee4fe4172f939c2eced0728e2688e3ca9c0d8715"
+        }
+      ]
+    },
+    {
+      "variant": "full",
+      "attempt": 1,
+      "client": "A",
+      "language": "English",
+      "culture": "en-US",
+      "mods": [
+        "brrainz.harmony",
+        "ludeon.rimworld",
+        "ludeon.rimworld.royalty",
+        "ludeon.rimworld.ideology",
+        "ludeon.rimworld.biotech",
+        "ludeon.rimworld.anomaly",
+        "ludeon.rimworld.odyssey",
+        "airslight.rimtest",
+        "airslight.clashofrim",
+        "airslight.clashofrim.rimtestbridge"
+      ],
+      "processorCountOverride": 0,
+      "hostProcessorCount": 28,
+      "startedAtUtc": "2026-10-16T16:52:31.9306688Z",
+      "observationSeconds": 35,
+      "processId": 104724,
+      "exitCode": null,
+      "survived": true,
+      "fatalClr": false,
+      "hello": true,
+      "path": "G:\\RimTestRuns\\startup-diagnosis\\20261016-165231-03c2ad\\full-1-A",
+      "files": [
+        {
+          "name": "run.json",
+          "sha256": "bf8e0ee5a97947af3b55fa0b1a70b5610fbd9541381d3f2ad26b7e93f01d2b7a"
+        },
+        {
+          "name": "stdout.log",
+          "sha256": "6c3a0d198eb14cc42de4753dda67dd7952a01bf0b910242d1d818d1682759deb"
+        },
+        {
+          "name": "stderr.log",
+          "sha256": "ae54afb534f6d1e075c3210c4ebba9e03e0b5554c1f74e55f76a58726144e2d8"
+        },
+        {
+          "name": "Profile/Config/ModsConfig.xml",
+          "sha256": "d29a4658ef6489fd4266484b04f7334a0c1e26ec5f2ec890355ccd8be24963c0"
+        },
+        {
+          "name": "hello.json",
+          "sha256": "1b410967ab775361ec847a42bcebf518b84ad84ba7055affbd21f47447d3d7fb"
+        }
+      ]
+    },
+    {
+      "variant": "full",
+      "attempt": 1,
+      "client": "B",
+      "language": "English",
+      "culture": "en-US",
+      "mods": [
+        "brrainz.harmony",
+        "ludeon.rimworld",
+        "ludeon.rimworld.royalty",
+        "ludeon.rimworld.ideology",
+        "ludeon.rimworld.biotech",
+        "ludeon.rimworld.anomaly",
+        "ludeon.rimworld.odyssey",
+        "airslight.rimtest",
+        "airslight.clashofrim",
+        "airslight.clashofrim.rimtestbridge"
+      ],
+      "processorCountOverride": 0,
+      "hostProcessorCount": 28,
+      "startedAtUtc": "2026-10-16T16:52:31.9562982Z",
+      "observationSeconds": 35,
+      "processId": 98344,
+      "exitCode": null,
+      "survived": true,
+      "fatalClr": false,
+      "hello": true,
+      "path": "G:\\RimTestRuns\\startup-diagnosis\\20261016-165231-03c2ad\\full-1-B",
+      "files": [
+        {
+          "name": "run.json",
+          "sha256": "950d8af9f3202b4d65c0cbe79aadd6f2789472af6da841a459dbd9f7096c3212"
+        },
+        {
+          "name": "stdout.log",
+          "sha256": "2f1db5584ce1faf1fb2b9558ed3080cb1f4b6ae6690a704aa04cf8c5483b8a47"
+        },
+        {
+          "name": "stderr.log",
+          "sha256": "ae54afb534f6d1e075c3210c4ebba9e03e0b5554c1f74e55f76a58726144e2d8"
+        },
+        {
+          "name": "Profile/Config/ModsConfig.xml",
+          "sha256": "d29a4658ef6489fd4266484b04f7334a0c1e26ec5f2ec890355ccd8be24963c0"
+        },
+        {
+          "name": "hello.json",
+          "sha256": "498162e2509cc238ede56b69f40744564d7e2eefc25fd1799d6d2a001a3fccae"
+        }
+      ]
+    },
+    {
+      "variant": "full",
+      "attempt": 2,
+      "client": "A",
+      "language": "English",
+      "culture": "en-US",
+      "mods": [
+        "brrainz.harmony",
+        "ludeon.rimworld",
+        "ludeon.rimworld.royalty",
+        "ludeon.rimworld.ideology",
+        "ludeon.rimworld.biotech",
+        "ludeon.rimworld.anomaly",
+        "ludeon.rimworld.odyssey",
+        "airslight.rimtest",
+        "airslight.clashofrim",
+        "airslight.clashofrim.rimtestbridge"
+      ],
+      "processorCountOverride": 0,
+      "hostProcessorCount": 28,
+      "startedAtUtc": "2026-10-16T16:53:07.8033101Z",
+      "observationSeconds": 35,
+      "processId": 63908,
+      "exitCode": null,
+      "survived": true,
+      "fatalClr": false,
+      "hello": true,
+      "path": "G:\\RimTestRuns\\startup-diagnosis\\20261016-165231-03c2ad\\full-2-A",
+      "files": [
+        {
+          "name": "run.json",
+          "sha256": "accc63b2eaa8d4d5a512e1cd8b1b0941e0ac77fad107bad88a8fbad0b73b8041"
+        },
+        {
+          "name": "stdout.log",
+          "sha256": "f3aa0ee6603a1b0e6d86ff2aa2b52a841045e27f26b069623268e7ccde4c4835"
+        },
+        {
+          "name": "stderr.log",
+          "sha256": "ae54afb534f6d1e075c3210c4ebba9e03e0b5554c1f74e55f76a58726144e2d8"
+        },
+        {
+          "name": "Profile/Config/ModsConfig.xml",
+          "sha256": "d29a4658ef6489fd4266484b04f7334a0c1e26ec5f2ec890355ccd8be24963c0"
+        },
+        {
+          "name": "hello.json",
+          "sha256": "bbe6b2955f29eae702a6be8ee2130a69029d942ca29ced044298ee34c6275d15"
+        }
+      ]
+    },
+    {
+      "variant": "full",
+      "attempt": 2,
+      "client": "B",
+      "language": "English",
+      "culture": "en-US",
+      "mods": [
+        "brrainz.harmony",
+        "ludeon.rimworld",
+        "ludeon.rimworld.royalty",
+        "ludeon.rimworld.ideology",
+        "ludeon.rimworld.biotech",
+        "ludeon.rimworld.anomaly",
+        "ludeon.rimworld.odyssey",
+        "airslight.rimtest",
+        "airslight.clashofrim",
+        "airslight.clashofrim.rimtestbridge"
+      ],
+      "processorCountOverride": 0,
+      "hostProcessorCount": 28,
+      "startedAtUtc": "2026-10-16T16:53:07.8128147Z",
+      "observationSeconds": 35,
+      "processId": 82048,
+      "exitCode": null,
+      "survived": true,
+      "fatalClr": false,
+      "hello": true,
+      "path": "G:\\RimTestRuns\\startup-diagnosis\\20261016-165231-03c2ad\\full-2-B",
+      "files": [
+        {
+          "name": "run.json",
+          "sha256": "99323838971e00add25f067ab16e9c6a0c4d25faede5291c5523df9fbbbf3488"
+        },
+        {
+          "name": "stdout.log",
+          "sha256": "37798249703390c38ac1a85297b3adbeb357345f6da9892c44ef72bb957cd6d8"
+        },
+        {
+          "name": "stderr.log",
+          "sha256": "ae54afb534f6d1e075c3210c4ebba9e03e0b5554c1f74e55f76a58726144e2d8"
+        },
+        {
+          "name": "Profile/Config/ModsConfig.xml",
+          "sha256": "d29a4658ef6489fd4266484b04f7334a0c1e26ec5f2ec890355ccd8be24963c0"
+        },
+        {
+          "name": "hello.json",
+          "sha256": "b82fd7c8d8180ff3c81630e665be582c3ba32ebddf5c84d00b151417ab4417e3"
+        }
+      ]
+    },
+    {
+      "variant": "full",
+      "attempt": 3,
+      "client": "A",
+      "language": "English",
+      "culture": "en-US",
+      "mods": [
+        "brrainz.harmony",
+        "ludeon.rimworld",
+        "ludeon.rimworld.royalty",
+        "ludeon.rimworld.ideology",
+        "ludeon.rimworld.biotech",
+        "ludeon.rimworld.anomaly",
+        "ludeon.rimworld.odyssey",
+        "airslight.rimtest",
+        "airslight.clashofrim",
+        "airslight.clashofrim.rimtestbridge"
+      ],
+      "processorCountOverride": 0,
+      "hostProcessorCount": 28,
+      "startedAtUtc": "2026-10-16T16:53:43.4578727Z",
+      "observationSeconds": 35,
+      "processId": 76656,
+      "exitCode": null,
+      "survived": true,
+      "fatalClr": false,
+      "hello": true,
+      "path": "G:\\RimTestRuns\\startup-diagnosis\\20261016-165231-03c2ad\\full-3-A",
+      "files": [
+        {
+          "name": "run.json",
+          "sha256": "ab7136f0b37b94bce57b2995765d95fbde9d6791dc7312d0918f4fc1a19bcaf4"
+        },
+        {
+          "name": "stdout.log",
+          "sha256": "d5ac58da72d551126541eec30d8becd8971486d6a46f44f9905057c47a951626"
+        },
+        {
+          "name": "stderr.log",
+          "sha256": "ae54afb534f6d1e075c3210c4ebba9e03e0b5554c1f74e55f76a58726144e2d8"
+        },
+        {
+          "name": "Profile/Config/ModsConfig.xml",
+          "sha256": "d29a4658ef6489fd4266484b04f7334a0c1e26ec5f2ec890355ccd8be24963c0"
+        },
+        {
+          "name": "hello.json",
+          "sha256": "f263f1f06c14cba9638c0ac784db7ccf5894ee038febc73c6e886396584a2af5"
+        }
+      ]
+    },
+    {
+      "variant": "full",
+      "attempt": 3,
+      "client": "B",
+      "language": "English",
+      "culture": "en-US",
+      "mods": [
+        "brrainz.harmony",
+        "ludeon.rimworld",
+        "ludeon.rimworld.royalty",
+        "ludeon.rimworld.ideology",
+        "ludeon.rimworld.biotech",
+        "ludeon.rimworld.anomaly",
+        "ludeon.rimworld.odyssey",
+        "airslight.rimtest",
+        "airslight.clashofrim",
+        "airslight.clashofrim.rimtestbridge"
+      ],
+      "processorCountOverride": 0,
+      "hostProcessorCount": 28,
+      "startedAtUtc": "2026-10-16T16:53:43.4671894Z",
+      "observationSeconds": 35,
+      "processId": 74568,
+      "exitCode": null,
+      "survived": true,
+      "fatalClr": false,
+      "hello": true,
+      "path": "G:\\RimTestRuns\\startup-diagnosis\\20261016-165231-03c2ad\\full-3-B",
+      "files": [
+        {
+          "name": "run.json",
+          "sha256": "16678eaf12954a6829a012e82f97ff1fc936bb0313d2be257e5f0de025db4204"
+        },
+        {
+          "name": "stdout.log",
+          "sha256": "60a76656560cb821bef68cf18a591c96816202951602d3812982c999f353cba0"
+        },
+        {
+          "name": "stderr.log",
+          "sha256": "ae54afb534f6d1e075c3210c4ebba9e03e0b5554c1f74e55f76a58726144e2d8"
+        },
+        {
+          "name": "Profile/Config/ModsConfig.xml",
+          "sha256": "d29a4658ef6489fd4266484b04f7334a0c1e26ec5f2ec890355ccd8be24963c0"
+        },
+        {
+          "name": "hello.json",
+          "sha256": "e79eb3d890f530605f1c72f4d24ab43ac43e314b1c085d06c14d96eaa64e417b"
+        }
+      ]
+    },
+    {
+      "variant": "full",
+      "attempt": 4,
+      "client": "A",
+      "language": "English",
+      "culture": "en-US",
+      "mods": [
+        "brrainz.harmony",
+        "ludeon.rimworld",
+        "ludeon.rimworld.royalty",
+        "ludeon.rimworld.ideology",
+        "ludeon.rimworld.biotech",
+        "ludeon.rimworld.anomaly",
+        "ludeon.rimworld.odyssey",
+        "airslight.rimtest",
+        "airslight.clashofrim",
+        "airslight.clashofrim.rimtestbridge"
+      ],
+      "processorCountOverride": 0,
+      "hostProcessorCount": 28,
+      "startedAtUtc": "2026-10-16T16:54:19.1341931Z",
+      "observationSeconds": 35,
+      "processId": 74560,
+      "exitCode": null,
+      "survived": true,
+      "fatalClr": false,
+      "hello": true,
+      "path": "G:\\RimTestRuns\\startup-diagnosis\\20261016-165231-03c2ad\\full-4-A",
+      "files": [
+        {
+          "name": "run.json",
+          "sha256": "c62c8f93289c77149f8317381ca53e5cbf040e1d3a968365a19b6790c484ca5d"
+        },
+        {
+          "name": "stdout.log",
+          "sha256": "62be35adffaae3b5adf2ed5b1d509ab2e000a6ab2742a8165da5fa93aee3b0f0"
+        },
+        {
+          "name": "stderr.log",
+          "sha256": "ae54afb534f6d1e075c3210c4ebba9e03e0b5554c1f74e55f76a58726144e2d8"
+        },
+        {
+          "name": "Profile/Config/ModsConfig.xml",
+          "sha256": "d29a4658ef6489fd4266484b04f7334a0c1e26ec5f2ec890355ccd8be24963c0"
+        },
+        {
+          "name": "hello.json",
+          "sha256": "a48b6ec719aac3e9032395b5371ff694a3f17429da83f937b8dd36e7974b4573"
+        }
+      ]
+    },
+    {
+      "variant": "full",
+      "attempt": 4,
+      "client": "B",
+      "language": "English",
+      "culture": "en-US",
+      "mods": [
+        "brrainz.harmony",
+        "ludeon.rimworld",
+        "ludeon.rimworld.royalty",
+        "ludeon.rimworld.ideology",
+        "ludeon.rimworld.biotech",
+        "ludeon.rimworld.anomaly",
+        "ludeon.rimworld.odyssey",
+        "airslight.rimtest",
+        "airslight.clashofrim",
+        "airslight.clashofrim.rimtestbridge"
+      ],
+      "processorCountOverride": 0,
+      "hostProcessorCount": 28,
+      "startedAtUtc": "2026-10-16T16:54:19.1495485Z",
+      "observationSeconds": 35,
+      "processId": 64168,
+      "exitCode": null,
+      "survived": true,
+      "fatalClr": false,
+      "hello": true,
+      "path": "G:\\RimTestRuns\\startup-diagnosis\\20261016-165231-03c2ad\\full-4-B",
+      "files": [
+        {
+          "name": "run.json",
+          "sha256": "871ee7f9921f79fd8d69068d0c9877afae5fc78e1907e2b7506360295486704c"
+        },
+        {
+          "name": "stdout.log",
+          "sha256": "f990c621a5ec98ca5638403aa9b432bd44a291a8f04f69ff238a20ffd1d6dd5c"
+        },
+        {
+          "name": "stderr.log",
+          "sha256": "ae54afb534f6d1e075c3210c4ebba9e03e0b5554c1f74e55f76a58726144e2d8"
+        },
+        {
+          "name": "Profile/Config/ModsConfig.xml",
+          "sha256": "d29a4658ef6489fd4266484b04f7334a0c1e26ec5f2ec890355ccd8be24963c0"
+        },
+        {
+          "name": "hello.json",
+          "sha256": "3ad423e8361da3dc1193fbaaa57f76c1c49e68db11a4596276862e9882922baa"
+        }
+      ]
+    },
+    {
+      "variant": "full",
+      "attempt": 1,
+      "client": "A",
+      "language": "ChineseSimplified (简体中文)",
+      "culture": "zh-CN",
+      "mods": [
+        "brrainz.harmony",
+        "ludeon.rimworld",
+        "ludeon.rimworld.royalty",
+        "ludeon.rimworld.ideology",
+        "ludeon.rimworld.biotech",
+        "ludeon.rimworld.anomaly",
+        "ludeon.rimworld.odyssey",
+        "airslight.rimtest",
+        "airslight.clashofrim",
+        "airslight.clashofrim.rimtestbridge"
+      ],
+      "processorCountOverride": 0,
+      "hostProcessorCount": 28,
+      "startedAtUtc": "2026-10-16T16:55:26.514282Z",
+      "observationSeconds": 35,
+      "processId": 56780,
+      "exitCode": null,
+      "survived": true,
+      "fatalClr": false,
+      "hello": true,
+      "path": "G:\\RimTestRuns\\startup-diagnosis\\20261016-165526-ba5c0d\\full-1-A",
+      "files": [
+        {
+          "name": "run.json",
+          "sha256": "e617e73fd1a97fd56d0accad0a573892f13522e7c01bc3e0f9ddac8601be3571"
+        },
+        {
+          "name": "stdout.log",
+          "sha256": "47cd66ae4a65a39e9d5bb0981d0397aeeb33e324f315de8f57b232d6e2a64f32"
+        },
+        {
+          "name": "stderr.log",
+          "sha256": "ae54afb534f6d1e075c3210c4ebba9e03e0b5554c1f74e55f76a58726144e2d8"
+        },
+        {
+          "name": "Profile/Config/ModsConfig.xml",
+          "sha256": "d29a4658ef6489fd4266484b04f7334a0c1e26ec5f2ec890355ccd8be24963c0"
+        },
+        {
+          "name": "hello.json",
+          "sha256": "c59fdfc4cfee996b93b96eade6a92613093bd43bfa0d1162028b9cccdcd47323"
+        }
+      ]
+    },
+    {
+      "variant": "full",
+      "attempt": 1,
+      "client": "B",
+      "language": "English",
+      "culture": "fr-FR",
+      "mods": [
+        "brrainz.harmony",
+        "ludeon.rimworld",
+        "ludeon.rimworld.royalty",
+        "ludeon.rimworld.ideology",
+        "ludeon.rimworld.biotech",
+        "ludeon.rimworld.anomaly",
+        "ludeon.rimworld.odyssey",
+        "airslight.rimtest",
+        "airslight.clashofrim",
+        "airslight.clashofrim.rimtestbridge"
+      ],
+      "processorCountOverride": 0,
+      "hostProcessorCount": 28,
+      "startedAtUtc": "2026-10-16T16:55:26.5413655Z",
+      "observationSeconds": 35,
+      "processId": 57852,
+      "exitCode": null,
+      "survived": true,
+      "fatalClr": false,
+      "hello": true,
+      "path": "G:\\RimTestRuns\\startup-diagnosis\\20261016-165526-ba5c0d\\full-1-B",
+      "files": [
+        {
+          "name": "run.json",
+          "sha256": "ed8715f14bf296fd64e1c0b936c3bf11b3d89827cc96226245738b878b86bb83"
+        },
+        {
+          "name": "stdout.log",
+          "sha256": "59ca6e20dea902799f02002e59e8a1073dd1f2aa7d0aed60247db19ef8d2f443"
+        },
+        {
+          "name": "stderr.log",
+          "sha256": "ae54afb534f6d1e075c3210c4ebba9e03e0b5554c1f74e55f76a58726144e2d8"
+        },
+        {
+          "name": "Profile/Config/ModsConfig.xml",
+          "sha256": "d29a4658ef6489fd4266484b04f7334a0c1e26ec5f2ec890355ccd8be24963c0"
+        },
+        {
+          "name": "hello.json",
+          "sha256": "5a544ad6e45c42455a94f1b17ff1b8f4ab8abb57cd68ad65a303aec2ce8d1088"
+        }
+      ]
+    },
+    {
+      "variant": "full",
+      "attempt": 2,
+      "client": "A",
+      "language": "ChineseSimplified (简体中文)",
+      "culture": "zh-CN",
+      "mods": [
+        "brrainz.harmony",
+        "ludeon.rimworld",
+        "ludeon.rimworld.royalty",
+        "ludeon.rimworld.ideology",
+        "ludeon.rimworld.biotech",
+        "ludeon.rimworld.anomaly",
+        "ludeon.rimworld.odyssey",
+        "airslight.rimtest",
+        "airslight.clashofrim",
+        "airslight.clashofrim.rimtestbridge"
+      ],
+      "processorCountOverride": 0,
+      "hostProcessorCount": 28,
+      "startedAtUtc": "2026-10-16T16:56:02.3438834Z",
+      "observationSeconds": 35,
+      "processId": 78904,
+      "exitCode": null,
+      "survived": true,
+      "fatalClr": false,
+      "hello": true,
+      "path": "G:\\RimTestRuns\\startup-diagnosis\\20261016-165526-ba5c0d\\full-2-A",
+      "files": [
+        {
+          "name": "run.json",
+          "sha256": "5d9a249f5c2f47a440ad52b2bfb2906c453c72e239f142842fd08404664b5fc9"
+        },
+        {
+          "name": "stdout.log",
+          "sha256": "6f173482cfdf22ede8a40c367f593af252296c74271768e7c886620b6876779a"
+        },
+        {
+          "name": "stderr.log",
+          "sha256": "ae54afb534f6d1e075c3210c4ebba9e03e0b5554c1f74e55f76a58726144e2d8"
+        },
+        {
+          "name": "Profile/Config/ModsConfig.xml",
+          "sha256": "d29a4658ef6489fd4266484b04f7334a0c1e26ec5f2ec890355ccd8be24963c0"
+        },
+        {
+          "name": "hello.json",
+          "sha256": "b8e81da945b32cb179733b4eadd8801960d7269c6c865af27237e3e95e7d93c0"
+        }
+      ]
+    },
+    {
+      "variant": "full",
+      "attempt": 2,
+      "client": "B",
+      "language": "English",
+      "culture": "fr-FR",
+      "mods": [
+        "brrainz.harmony",
+        "ludeon.rimworld",
+        "ludeon.rimworld.royalty",
+        "ludeon.rimworld.ideology",
+        "ludeon.rimworld.biotech",
+        "ludeon.rimworld.anomaly",
+        "ludeon.rimworld.odyssey",
+        "airslight.rimtest",
+        "airslight.clashofrim",
+        "airslight.clashofrim.rimtestbridge"
+      ],
+      "processorCountOverride": 0,
+      "hostProcessorCount": 28,
+      "startedAtUtc": "2026-10-16T16:56:02.3541389Z",
+      "observationSeconds": 35,
+      "processId": 77200,
+      "exitCode": null,
+      "survived": true,
+      "fatalClr": false,
+      "hello": true,
+      "path": "G:\\RimTestRuns\\startup-diagnosis\\20261016-165526-ba5c0d\\full-2-B",
+      "files": [
+        {
+          "name": "run.json",
+          "sha256": "37b79b9d117752ad64a391d18d87b5a7514a76c55f088501c5c4d2bb9125ab33"
+        },
+        {
+          "name": "stdout.log",
+          "sha256": "61b61dd9b5da4af52f290b5f7163f6f3d55a74fd7a995ebd07de6c12e63a39ef"
+        },
+        {
+          "name": "stderr.log",
+          "sha256": "ae54afb534f6d1e075c3210c4ebba9e03e0b5554c1f74e55f76a58726144e2d8"
+        },
+        {
+          "name": "Profile/Config/ModsConfig.xml",
+          "sha256": "d29a4658ef6489fd4266484b04f7334a0c1e26ec5f2ec890355ccd8be24963c0"
+        },
+        {
+          "name": "hello.json",
+          "sha256": "194f613d4867d8af95c098dd4e572b893b4e1a1b6c937b4ad8c1abd87e772c32"
+        }
+      ]
+    },
+    {
+      "variant": "rimtest",
+      "attempt": 1,
+      "client": "A",
+      "language": "ChineseSimplified (简体中文)",
+      "culture": "zh-CN",
+      "mods": [
+        "brrainz.harmony",
+        "ludeon.rimworld",
+        "ludeon.rimworld.royalty",
+        "ludeon.rimworld.ideology",
+        "ludeon.rimworld.biotech",
+        "ludeon.rimworld.anomaly",
+        "ludeon.rimworld.odyssey",
+        "airslight.rimtest"
+      ],
+      "processorCountOverride": 0,
+      "hostProcessorCount": 28,
+      "startedAtUtc": "2026-10-16T16:56:38.1292141Z",
+      "observationSeconds": 35,
+      "processId": 100040,
+      "exitCode": -1073741819,
+      "survived": false,
+      "fatalClr": true,
+      "hello": null,
+      "path": "G:\\RimTestRuns\\startup-diagnosis\\20261016-165526-ba5c0d\\rimtest-1-A",
+      "files": [
+        {
+          "name": "run.json",
+          "sha256": "0b85f8e1488f0bcf4dbefdf52f48e72837b2f7f9e3cab6ddd7b8fa9a79d8447b"
+        },
+        {
+          "name": "stdout.log",
+          "sha256": "3b6fe599f027e5ea2e247648615f6ef1ab989e41e6de840928a88d7ac486663d"
+        },
+        {
+          "name": "stderr.log",
+          "sha256": "a4c1dff59c83706d30dfc63f23aaab3c947d80208e5f3c77922f8d19d5fcaf8d"
+        },
+        {
+          "name": "Profile/Config/ModsConfig.xml",
+          "sha256": "58a18eb08a88d6c0daf5256ee4df68723ca3f1048b516e52a48a2dbb4e8f9853"
+        }
+      ]
+    },
+    {
+      "variant": "rimtest",
+      "attempt": 1,
+      "client": "B",
+      "language": "English",
+      "culture": "fr-FR",
+      "mods": [
+        "brrainz.harmony",
+        "ludeon.rimworld",
+        "ludeon.rimworld.royalty",
+        "ludeon.rimworld.ideology",
+        "ludeon.rimworld.biotech",
+        "ludeon.rimworld.anomaly",
+        "ludeon.rimworld.odyssey",
+        "airslight.rimtest"
+      ],
+      "processorCountOverride": 0,
+      "hostProcessorCount": 28,
+      "startedAtUtc": "2026-10-16T16:56:38.1384268Z",
+      "observationSeconds": 35,
+      "processId": 54648,
+      "exitCode": null,
+      "survived": true,
+      "fatalClr": false,
+      "hello": true,
+      "path": "G:\\RimTestRuns\\startup-diagnosis\\20261016-165526-ba5c0d\\rimtest-1-B",
+      "files": [
+        {
+          "name": "run.json",
+          "sha256": "5139d784bc9f171d31bf1ba75aa4803b601ccca7a0c0c7c4b78116d88c383b7a"
+        },
+        {
+          "name": "stdout.log",
+          "sha256": "c25bf6893f4bd68a5d5c30ee198e683b53a8d8887ef995d151eddc4e74e63f87"
+        },
+        {
+          "name": "stderr.log",
+          "sha256": "ae54afb534f6d1e075c3210c4ebba9e03e0b5554c1f74e55f76a58726144e2d8"
+        },
+        {
+          "name": "Profile/Config/ModsConfig.xml",
+          "sha256": "58a18eb08a88d6c0daf5256ee4df68723ca3f1048b516e52a48a2dbb4e8f9853"
+        },
+        {
+          "name": "hello.json",
+          "sha256": "b00acf993c94a8db0f1c65830832551d9ae41dee0df3b15c2c4440b4a4a4cc24"
+        }
+      ]
+    },
+    {
+      "variant": "rimtest",
+      "attempt": 2,
+      "client": "A",
+      "language": "ChineseSimplified (简体中文)",
+      "culture": "zh-CN",
+      "mods": [
+        "brrainz.harmony",
+        "ludeon.rimworld",
+        "ludeon.rimworld.royalty",
+        "ludeon.rimworld.ideology",
+        "ludeon.rimworld.biotech",
+        "ludeon.rimworld.anomaly",
+        "ludeon.rimworld.odyssey",
+        "airslight.rimtest"
+      ],
+      "processorCountOverride": 0,
+      "hostProcessorCount": 28,
+      "startedAtUtc": "2026-10-16T16:57:13.6392052Z",
+      "observationSeconds": 35,
+      "processId": 37988,
+      "exitCode": null,
+      "survived": true,
+      "fatalClr": false,
+      "hello": true,
+      "path": "G:\\RimTestRuns\\startup-diagnosis\\20261016-165526-ba5c0d\\rimtest-2-A",
+      "files": [
+        {
+          "name": "run.json",
+          "sha256": "709915cf0de267d6f03a87bbcdd4c2fc62000b08a51a0dff19412970505c56b8"
+        },
+        {
+          "name": "stdout.log",
+          "sha256": "029db2f149e31bea04d844467f16862ff53a3a3b259e2e014eefb353c3e61fa0"
+        },
+        {
+          "name": "stderr.log",
+          "sha256": "ae54afb534f6d1e075c3210c4ebba9e03e0b5554c1f74e55f76a58726144e2d8"
+        },
+        {
+          "name": "Profile/Config/ModsConfig.xml",
+          "sha256": "58a18eb08a88d6c0daf5256ee4df68723ca3f1048b516e52a48a2dbb4e8f9853"
+        },
+        {
+          "name": "hello.json",
+          "sha256": "0f2987854758c2ff7511b418c7a477d8ff013164f6f5019c979857cae7e6f72e"
+        }
+      ]
+    },
+    {
+      "variant": "rimtest",
+      "attempt": 2,
+      "client": "B",
+      "language": "English",
+      "culture": "fr-FR",
+      "mods": [
+        "brrainz.harmony",
+        "ludeon.rimworld",
+        "ludeon.rimworld.royalty",
+        "ludeon.rimworld.ideology",
+        "ludeon.rimworld.biotech",
+        "ludeon.rimworld.anomaly",
+        "ludeon.rimworld.odyssey",
+        "airslight.rimtest"
+      ],
+      "processorCountOverride": 0,
+      "hostProcessorCount": 28,
+      "startedAtUtc": "2026-10-16T16:57:13.6490367Z",
+      "observationSeconds": 35,
+      "processId": 79460,
+      "exitCode": null,
+      "survived": true,
+      "fatalClr": false,
+      "hello": true,
+      "path": "G:\\RimTestRuns\\startup-diagnosis\\20261016-165526-ba5c0d\\rimtest-2-B",
+      "files": [
+        {
+          "name": "run.json",
+          "sha256": "68ba68a3760493cbda3d8107996ad0a4294f502df95106c5ec876cec4a306206"
+        },
+        {
+          "name": "stdout.log",
+          "sha256": "78fe200f403718c88ed207b14e9c92facac3929e3c8ebfbb471ae533e98ef7e4"
+        },
+        {
+          "name": "stderr.log",
+          "sha256": "ae54afb534f6d1e075c3210c4ebba9e03e0b5554c1f74e55f76a58726144e2d8"
+        },
+        {
+          "name": "Profile/Config/ModsConfig.xml",
+          "sha256": "58a18eb08a88d6c0daf5256ee4df68723ca3f1048b516e52a48a2dbb4e8f9853"
+        },
+        {
+          "name": "hello.json",
+          "sha256": "4566f0eb3e6c3485d4bb867ee94bae78373760047174a2b01baf1ecf467711e2"
+        }
+      ]
+    },
+    {
+      "variant": "rimtest",
+      "attempt": 1,
+      "client": "A",
+      "language": "ChineseSimplified (简体中文)",
+      "culture": "zh-CN",
+      "mods": [
+        "brrainz.harmony",
+        "ludeon.rimworld",
+        "ludeon.rimworld.royalty",
+        "ludeon.rimworld.ideology",
+        "ludeon.rimworld.biotech",
+        "ludeon.rimworld.anomaly",
+        "ludeon.rimworld.odyssey",
+        "airslight.rimtest"
+      ],
+      "processorCountOverride": 4,
+      "hostProcessorCount": 28,
+      "startedAtUtc": "2026-10-16T16:58:14.6432888Z",
+      "observationSeconds": 35,
+      "processId": 78732,
+      "exitCode": null,
+      "survived": true,
+      "fatalClr": false,
+      "hello": true,
+      "path": "G:\\RimTestRuns\\startup-diagnosis\\20261016-165814-a83eda\\rimtest-1-A",
+      "files": [
+        {
+          "name": "run.json",
+          "sha256": "8202a2aa35dedba79cc386030afd9fb03994abc731a0bfcbdacd538e4d861cbd"
+        },
+        {
+          "name": "stdout.log",
+          "sha256": "d5c4aefee27f8fd87f3013483d8c7456c7d3647df2c51ecbdc654c2ef1b90ab0"
+        },
+        {
+          "name": "stderr.log",
+          "sha256": "ae54afb534f6d1e075c3210c4ebba9e03e0b5554c1f74e55f76a58726144e2d8"
+        },
+        {
+          "name": "Profile/Config/ModsConfig.xml",
+          "sha256": "58a18eb08a88d6c0daf5256ee4df68723ca3f1048b516e52a48a2dbb4e8f9853"
+        },
+        {
+          "name": "hello.json",
+          "sha256": "cc2fc5eca87587de08b7b941689815e6edd87cbc8707abf7d95a864154bf22e9"
+        }
+      ]
+    },
+    {
+      "variant": "rimtest",
+      "attempt": 1,
+      "client": "B",
+      "language": "English",
+      "culture": "fr-FR",
+      "mods": [
+        "brrainz.harmony",
+        "ludeon.rimworld",
+        "ludeon.rimworld.royalty",
+        "ludeon.rimworld.ideology",
+        "ludeon.rimworld.biotech",
+        "ludeon.rimworld.anomaly",
+        "ludeon.rimworld.odyssey",
+        "airslight.rimtest"
+      ],
+      "processorCountOverride": 4,
+      "hostProcessorCount": 28,
+      "startedAtUtc": "2026-10-16T16:58:14.6705079Z",
+      "observationSeconds": 35,
+      "processId": 91172,
+      "exitCode": null,
+      "survived": true,
+      "fatalClr": false,
+      "hello": true,
+      "path": "G:\\RimTestRuns\\startup-diagnosis\\20261016-165814-a83eda\\rimtest-1-B",
+      "files": [
+        {
+          "name": "run.json",
+          "sha256": "89c9e5fc7997bd0d8176548ef7f2c4a4d92f2b52335658e4e0c45aba964df172"
+        },
+        {
+          "name": "stdout.log",
+          "sha256": "44069356162800cb1c347aae64d70c654850625bf4647529dd6576918e5068b4"
+        },
+        {
+          "name": "stderr.log",
+          "sha256": "ae54afb534f6d1e075c3210c4ebba9e03e0b5554c1f74e55f76a58726144e2d8"
+        },
+        {
+          "name": "Profile/Config/ModsConfig.xml",
+          "sha256": "58a18eb08a88d6c0daf5256ee4df68723ca3f1048b516e52a48a2dbb4e8f9853"
+        },
+        {
+          "name": "hello.json",
+          "sha256": "edbfa937b2ca47d3098f8b41dbed30294f83483ffa03621b35e5c100e5dde1ce"
+        }
+      ]
+    },
+    {
+      "variant": "rimtest",
+      "attempt": 2,
+      "client": "A",
+      "language": "ChineseSimplified (简体中文)",
+      "culture": "zh-CN",
+      "mods": [
+        "brrainz.harmony",
+        "ludeon.rimworld",
+        "ludeon.rimworld.royalty",
+        "ludeon.rimworld.ideology",
+        "ludeon.rimworld.biotech",
+        "ludeon.rimworld.anomaly",
+        "ludeon.rimworld.odyssey",
+        "airslight.rimtest"
+      ],
+      "processorCountOverride": 4,
+      "hostProcessorCount": 28,
+      "startedAtUtc": "2026-10-16T16:58:50.36741Z",
+      "observationSeconds": 35,
+      "processId": 94140,
+      "exitCode": null,
+      "survived": true,
+      "fatalClr": false,
+      "hello": true,
+      "path": "G:\\RimTestRuns\\startup-diagnosis\\20261016-165814-a83eda\\rimtest-2-A",
+      "files": [
+        {
+          "name": "run.json",
+          "sha256": "4dcdc51a01cca10185831a4e9d2534f298f77bd315bf445c0b4001aefc6261f2"
+        },
+        {
+          "name": "stdout.log",
+          "sha256": "06cb195bca7dcd3fe2baae3c4cd60ef6c828e47568d4134588317eb293ba5332"
+        },
+        {
+          "name": "stderr.log",
+          "sha256": "ae54afb534f6d1e075c3210c4ebba9e03e0b5554c1f74e55f76a58726144e2d8"
+        },
+        {
+          "name": "Profile/Config/ModsConfig.xml",
+          "sha256": "58a18eb08a88d6c0daf5256ee4df68723ca3f1048b516e52a48a2dbb4e8f9853"
+        },
+        {
+          "name": "hello.json",
+          "sha256": "b6224dbd879c019576ffe38a7e573f2d8e8965083ad590e8a88ac98efefa02b3"
+        }
+      ]
+    },
+    {
+      "variant": "rimtest",
+      "attempt": 2,
+      "client": "B",
+      "language": "English",
+      "culture": "fr-FR",
+      "mods": [
+        "brrainz.harmony",
+        "ludeon.rimworld",
+        "ludeon.rimworld.royalty",
+        "ludeon.rimworld.ideology",
+        "ludeon.rimworld.biotech",
+        "ludeon.rimworld.anomaly",
+        "ludeon.rimworld.odyssey",
+        "airslight.rimtest"
+      ],
+      "processorCountOverride": 4,
+      "hostProcessorCount": 28,
+      "startedAtUtc": "2026-10-16T16:58:50.3782808Z",
+      "observationSeconds": 35,
+      "processId": 104876,
+      "exitCode": null,
+      "survived": true,
+      "fatalClr": false,
+      "hello": true,
+      "path": "G:\\RimTestRuns\\startup-diagnosis\\20261016-165814-a83eda\\rimtest-2-B",
+      "files": [
+        {
+          "name": "run.json",
+          "sha256": "223ba0e6542491a1c709f916148ab3db2dce2e4eccf801c7f8dd1dc75208abf5"
+        },
+        {
+          "name": "stdout.log",
+          "sha256": "2fb6b9082f2d916b147c1d0832cc85f4b08498f8bd98eed600642b4caff46487"
+        },
+        {
+          "name": "stderr.log",
+          "sha256": "ae54afb534f6d1e075c3210c4ebba9e03e0b5554c1f74e55f76a58726144e2d8"
+        },
+        {
+          "name": "Profile/Config/ModsConfig.xml",
+          "sha256": "58a18eb08a88d6c0daf5256ee4df68723ca3f1048b516e52a48a2dbb4e8f9853"
+        },
+        {
+          "name": "hello.json",
+          "sha256": "58df0cf0552adfedac89aef1227bb4344cf2e3be4de6272c59051eb5ea5f725c"
+        }
+      ]
+    },
+    {
+      "variant": "full",
+      "attempt": 1,
+      "client": "A",
+      "language": "ChineseSimplified (简体中文)",
+      "culture": "zh-CN",
+      "mods": [
+        "brrainz.harmony",
+        "ludeon.rimworld",
+        "ludeon.rimworld.royalty",
+        "ludeon.rimworld.ideology",
+        "ludeon.rimworld.biotech",
+        "ludeon.rimworld.anomaly",
+        "ludeon.rimworld.odyssey",
+        "airslight.rimtest",
+        "airslight.clashofrim",
+        "airslight.clashofrim.rimtestbridge"
+      ],
+      "processorCountOverride": 4,
+      "hostProcessorCount": 28,
+      "startedAtUtc": "2026-10-16T16:59:26.1698839Z",
+      "observationSeconds": 35,
+      "processId": 99704,
+      "exitCode": null,
+      "survived": true,
+      "fatalClr": false,
+      "hello": true,
+      "path": "G:\\RimTestRuns\\startup-diagnosis\\20261016-165814-a83eda\\full-1-A",
+      "files": [
+        {
+          "name": "run.json",
+          "sha256": "8843eb572cd053b2b78b74c1021de3fa09feb789b8e88a5aec17eb80b6c3665f"
+        },
+        {
+          "name": "stdout.log",
+          "sha256": "f0b23f568b73ec1e5254a9e4b5203ac59b7bc124ba960cc5a6575ba5edc87066"
+        },
+        {
+          "name": "stderr.log",
+          "sha256": "ae54afb534f6d1e075c3210c4ebba9e03e0b5554c1f74e55f76a58726144e2d8"
+        },
+        {
+          "name": "Profile/Config/ModsConfig.xml",
+          "sha256": "d29a4658ef6489fd4266484b04f7334a0c1e26ec5f2ec890355ccd8be24963c0"
+        },
+        {
+          "name": "hello.json",
+          "sha256": "bbf2a5124a8ed36f55582d776ead1731a3e9f7524b656b01c48e4ea2caf7a114"
+        }
+      ]
+    },
+    {
+      "variant": "full",
+      "attempt": 1,
+      "client": "B",
+      "language": "English",
+      "culture": "fr-FR",
+      "mods": [
+        "brrainz.harmony",
+        "ludeon.rimworld",
+        "ludeon.rimworld.royalty",
+        "ludeon.rimworld.ideology",
+        "ludeon.rimworld.biotech",
+        "ludeon.rimworld.anomaly",
+        "ludeon.rimworld.odyssey",
+        "airslight.rimtest",
+        "airslight.clashofrim",
+        "airslight.clashofrim.rimtestbridge"
+      ],
+      "processorCountOverride": 4,
+      "hostProcessorCount": 28,
+      "startedAtUtc": "2026-10-16T16:59:26.1785697Z",
+      "observationSeconds": 35,
+      "processId": 36212,
+      "exitCode": null,
+      "survived": true,
+      "fatalClr": false,
+      "hello": true,
+      "path": "G:\\RimTestRuns\\startup-diagnosis\\20261016-165814-a83eda\\full-1-B",
+      "files": [
+        {
+          "name": "run.json",
+          "sha256": "244d7798ca38f1fddd285459bbd853b23eb6e8931e05a2e59b89d249481b4872"
+        },
+        {
+          "name": "stdout.log",
+          "sha256": "ffd85887a42d00d8e188d2ab71e4165d00bb5f7425030ef3e545bfb1682f3dbd"
+        },
+        {
+          "name": "stderr.log",
+          "sha256": "ae54afb534f6d1e075c3210c4ebba9e03e0b5554c1f74e55f76a58726144e2d8"
+        },
+        {
+          "name": "Profile/Config/ModsConfig.xml",
+          "sha256": "d29a4658ef6489fd4266484b04f7334a0c1e26ec5f2ec890355ccd8be24963c0"
+        },
+        {
+          "name": "hello.json",
+          "sha256": "d8d15a948a365748f37439804be8b9ce8d3a9e462904f869c56f79862b0cc738"
+        }
+      ]
+    },
+    {
+      "variant": "full",
+      "attempt": 2,
+      "client": "A",
+      "language": "ChineseSimplified (简体中文)",
+      "culture": "zh-CN",
+      "mods": [
+        "brrainz.harmony",
+        "ludeon.rimworld",
+        "ludeon.rimworld.royalty",
+        "ludeon.rimworld.ideology",
+        "ludeon.rimworld.biotech",
+        "ludeon.rimworld.anomaly",
+        "ludeon.rimworld.odyssey",
+        "airslight.rimtest",
+        "airslight.clashofrim",
+        "airslight.clashofrim.rimtestbridge"
+      ],
+      "processorCountOverride": 4,
+      "hostProcessorCount": 28,
+      "startedAtUtc": "2026-10-16T17:00:01.7736829Z",
+      "observationSeconds": 35,
+      "processId": 48944,
+      "exitCode": null,
+      "survived": true,
+      "fatalClr": false,
+      "hello": true,
+      "path": "G:\\RimTestRuns\\startup-diagnosis\\20261016-165814-a83eda\\full-2-A",
+      "files": [
+        {
+          "name": "run.json",
+          "sha256": "376b6408a94afcbaf97b216a52d9ba79ed8399abe64be5a0afddf97a80bad6d7"
+        },
+        {
+          "name": "stdout.log",
+          "sha256": "3ae4f3dc24e029bed54f64cd699a98184766fe525e4ba5caebe54f4211364212"
+        },
+        {
+          "name": "stderr.log",
+          "sha256": "ae54afb534f6d1e075c3210c4ebba9e03e0b5554c1f74e55f76a58726144e2d8"
+        },
+        {
+          "name": "Profile/Config/ModsConfig.xml",
+          "sha256": "d29a4658ef6489fd4266484b04f7334a0c1e26ec5f2ec890355ccd8be24963c0"
+        },
+        {
+          "name": "hello.json",
+          "sha256": "36d479dbddda79a603e6d85eb4f461b105a2942847edd4afa36d0b406449dc25"
+        }
+      ]
+    },
+    {
+      "variant": "full",
+      "attempt": 2,
+      "client": "B",
+      "language": "English",
+      "culture": "fr-FR",
+      "mods": [
+        "brrainz.harmony",
+        "ludeon.rimworld",
+        "ludeon.rimworld.royalty",
+        "ludeon.rimworld.ideology",
+        "ludeon.rimworld.biotech",
+        "ludeon.rimworld.anomaly",
+        "ludeon.rimworld.odyssey",
+        "airslight.rimtest",
+        "airslight.clashofrim",
+        "airslight.clashofrim.rimtestbridge"
+      ],
+      "processorCountOverride": 4,
+      "hostProcessorCount": 28,
+      "startedAtUtc": "2026-10-16T17:00:01.7891145Z",
+      "observationSeconds": 35,
+      "processId": 100976,
+      "exitCode": null,
+      "survived": true,
+      "fatalClr": false,
+      "hello": true,
+      "path": "G:\\RimTestRuns\\startup-diagnosis\\20261016-165814-a83eda\\full-2-B",
+      "files": [
+        {
+          "name": "run.json",
+          "sha256": "0240c007910dddb64b94ea2c4d661ee2f7d4563a978e1a2405306a28074c643e"
+        },
+        {
+          "name": "stdout.log",
+          "sha256": "131e38c04e95f392adddb554c80e382af51c3864d0b93522bae44534d1174fe6"
+        },
+        {
+          "name": "stderr.log",
+          "sha256": "ae54afb534f6d1e075c3210c4ebba9e03e0b5554c1f74e55f76a58726144e2d8"
+        },
+        {
+          "name": "Profile/Config/ModsConfig.xml",
+          "sha256": "d29a4658ef6489fd4266484b04f7334a0c1e26ec5f2ec890355ccd8be24963c0"
+        },
+        {
+          "name": "hello.json",
+          "sha256": "040bc32aa26667bf0f2d6b8e2a3cfa675248fcd6884a814418061fe9f1fd9f4e"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "launches": 34,
+    "fatalClr": 1,
+    "helloSuccess": 27,
+    "observedAliveOnly": 6
+  },
+  "sources": [
+    "https://github.com/MonoMod/MonoMod/pull/322",
+    "https://github.com/MonoMod/MonoMod/commit/f16d7850f6706c77e077555c38e9dd1e39df2d33",
+    "https://github.com/dotnet/runtime/blob/v10.0.0/src/coreclr/vm/ilstubresolver.h",
+    "https://github.com/dotnet/runtime/blob/v10.0.0/src/coreclr/vm/ilstubresolver.cpp"
+  ],
+  "localAnalysisScripts": [
+    {
+      "path": "D:\\Projects\\ClashOfRim\\LocalOnly\\startup-crash\\write_evidence.py",
+      "sha256": "48fd93c827f8645a59b494ce6d4cebb5fc23d18c252f14e07e9b42ba173200ee"
+    },
+    {
+      "path": "D:\\Projects\\ClashOfRim\\LocalOnly\\startup-crash\\Run-StartupMatrix.ps1",
+      "sha256": "9c3a49c1d445138ba1438c05882a676f33e00739cde6a28538d175a83dd63cb0"
+    },
+    {
+      "path": "D:\\Projects\\ClashOfRim\\LocalOnly\\startup-crash\\inspect_dump.py",
+      "sha256": "acca6f31de549afcf832874171f88068645b8ea740a2bcef4e6afc735a3e35d3"
+    }
+  ]
+}
