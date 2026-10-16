@@ -19,6 +19,7 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("actual event letters share rendering, action and automatic application rules", EventLetterPolicyTests.Run),
     ("repeated pawn transfer preserves global relationship identity", PawnTransferIdentityTests.Run),
     ("item durability uses final quality maximum", ThingMetadataOrderTests.Run),
     ("shop distinguishes minifiable contents from empty wrappers", ShopDefinitionEligibilityTests.Run),

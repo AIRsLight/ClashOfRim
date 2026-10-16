@@ -1,12 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Runtime.Serialization;
-using System.Runtime.Serialization.Json;
-using System.Text;
 using System.Threading.Tasks;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.Diplomacy;
@@ -19,6 +16,7 @@ using AIRsLight.ClashOfRim.Trades;
 using RimWorld;
 using UnityEngine;
 using Verse;
+using static AIRsLight.ClashOfRim.EventLetters.ClientEventLetterPolicy;
 
 namespace AIRsLight.ClashOfRim;
 
@@ -365,59 +363,14 @@ public sealed partial class ClashOfRimMod
             BuildEventLetterText(detail, group),
             ResolveLetterDef(detail),
             lookTargets,
-            BuildEventLetterActions(detail, lookTargets, group));
-    }
-
-    private static IReadOnlyList<ClashOfRimEventLetterActionKind> BuildEventLetterActions(
-        ModEventDetailDto detail,
-        LookTargets? lookTargets,
-        string group)
-    {
-        var actions = new List<ClashOfRimEventLetterActionKind>();
-        if (CanRunEventLetterAction(detail, ClashOfRimEventLetterActionKind.Accept, group))
-        {
-            actions.Add(ClashOfRimEventLetterActionKind.Accept);
-        }
-
-        if (CanRunEventLetterAction(detail, ClashOfRimEventLetterActionKind.Reject, group))
-        {
-            actions.Add(ClashOfRimEventLetterActionKind.Reject);
-        }
-
-        if (lookTargets is not null && lookTargets.IsValid)
-        {
-            actions.Add(ClashOfRimEventLetterActionKind.JumpToTarget);
-        }
-
-        if (actions.Count > 0)
-        {
-            actions.Add(ClashOfRimEventLetterActionKind.Postpone);
-        }
-
-        return actions;
-    }
-
-    private static bool CanRunEventLetterAction(ModEventDetailDto detail, ClashOfRimEventLetterActionKind actionKind, string group)
-    {
-        if (!string.Equals(group, "WaitingForUserChoice", StringComparison.Ordinal)
-            && !string.Equals(group, "DirectlyProcessable", StringComparison.Ordinal))
-        {
-            return false;
-        }
-
-        return actionKind switch
-        {
-            ClashOfRimEventLetterActionKind.Accept => CanAcceptEventFromLetter(detail),
-            ClashOfRimEventLetterActionKind.Reject => CanRejectEventFromLetter(detail),
-            _ => false
-        };
+            BuildEventLetterActions(detail, lookTargets?.IsValid == true, group));
     }
 
     private string ResolveEventReferenceGroup(string eventId)
     {
         return lastEventReferenceGroups.TryGetValue(eventId, out string? knownGroup)
             ? knownGroup
-            : ClashOfRimText.Key("ClashOfRim.EventGroup.Unknown");
+            : "Unknown";
     }
 
     private void ApplyServerNotificationSideEffects(IReadOnlyCollection<ModEventDetailDto> details)
@@ -509,37 +462,8 @@ public sealed partial class ClashOfRimMod
 
     private bool ShouldPostEventLetter(ModEventDetailDto detail)
     {
-        if (string.IsNullOrWhiteSpace(detail.EventId))
-        {
-            return false;
-        }
-
-        if (!lastEventReferenceGroups.TryGetValue(detail.EventId, out string? group))
-        {
-            return IsRaidSettlementDetail(detail)
-                || IsRaidAttackerLossDetail(detail);
-        }
-
-        if (IsRaidAttackerLossDetail(detail))
-        {
-            return string.Equals(group, "DirectlyProcessable", StringComparison.Ordinal)
-                || string.Equals(group, "DeliveredUnconfirmed", StringComparison.Ordinal)
-                || string.Equals(group, "Conflicts", StringComparison.Ordinal)
-                || string.Equals(group, "Rejected", StringComparison.Ordinal);
-        }
-
-        if (IsDefenderRaidTimeoutNotification(detail))
-        {
-            return false;
-        }
-
-        return string.Equals(group, "WaitingForUserChoice", StringComparison.Ordinal)
-            || (string.Equals(group, "DirectlyProcessable", StringComparison.Ordinal)
-                && !CanAutoApplyDirectlyProcessableEvent(detail))
-            || (string.Equals(group, "DeliveredUnconfirmed", StringComparison.Ordinal)
-                && !CanAutoApplyDirectlyProcessableEvent(detail))
-            || string.Equals(group, "Conflicts", StringComparison.Ordinal)
-            || string.Equals(group, "Rejected", StringComparison.Ordinal);
+        lastEventReferenceGroups.TryGetValue(detail.EventId ?? string.Empty, out string? group);
+        return ClientEventLetterPolicy.ShouldPostEventLetter(detail, group);
     }
 
     private bool IsEventInGroup(string eventId, string expectedGroup)
@@ -556,46 +480,11 @@ public sealed partial class ClashOfRimMod
         }
     }
 
-    private static bool CanAutoApplyDirectlyProcessableEvent(ModEventDetailDto detail)
-    {
-        return detail.EventType == ServerEventType.ItemDelivery
-            && ItemDeliveryClientProcessor.IsGiftDetail(detail)
-            || SupportPawnApplicator.IsReturnToSenderDetail(detail)
-            || IsRaidAttackerLossDetail(detail);
-    }
-
-    private static bool IsRaidAttackerLossDetail(ModEventDetailDto detail)
-    {
-        return RaidAttackerLossPayloadReader.HasAttackerLoss(detail);
-    }
-
-    private static bool IsRaidSettlementDetail(ModEventDetailDto detail)
-    {
-        return RaidSettlementPayloadReader.HasSettlement(detail);
-    }
-
     private static bool HasOpenClashOfRimLetter(string eventId)
     {
         return Find.LetterStack?.LettersListForReading
             .OfType<ClashOfRimEventChoiceLetter>()
             .Any(letter => string.Equals(letter.EventId, eventId, StringComparison.Ordinal)) == true;
-    }
-
-    private static bool CanAcceptEventFromLetter(ModEventDetailDto detail)
-    {
-        return ItemDeliveryClientProcessor.IsGiftDetail(detail)
-            || SupportPawnApplicator.IsSupportPawnDetail(detail)
-            || IsRejectableDiplomacyEvent(detail);
-    }
-
-    private static bool CanRejectEventFromLetter(ModEventDetailDto detail)
-    {
-        return detail.EventType == ServerEventType.ItemDelivery
-            && ItemDeliveryClientProcessor.IsGiftDetail(detail)
-            && IsGiftPurposeDetail(detail)
-            && !IsForcedGiftDetail(detail)
-            || SupportPawnApplicator.IsRejectableSupportPawnDetail(detail)
-            || IsRejectableDiplomacyEvent(detail);
     }
 
     private ModEventDetailDto? FindEventDetail(string eventId)
@@ -605,36 +494,6 @@ public sealed partial class ClashOfRimMod
             return lastEventDetails.FirstOrDefault(detail =>
                 string.Equals(detail.EventId, eventId, StringComparison.Ordinal));
         }
-    }
-
-    private static LetterDef ResolveLetterDef(ModEventDetailDto detail)
-    {
-        if (detail.EventType == ServerEventType.ServerNotification)
-        {
-            ServerNotificationPayloadSummary? payload = ReadServerNotificationPayloadForDisplay(detail);
-            return payload?.Severity switch
-            {
-                2 => LetterDefOf.ThreatBig,
-                1 => LetterDefOf.NegativeEvent,
-                _ => LetterDefOf.NeutralEvent
-            };
-        }
-
-        return detail.EventType switch
-        {
-            ServerEventType.Raid => LetterDefOf.ThreatBig,
-            ServerEventType.WarDeclaration => LetterDefOf.ThreatBig,
-            ServerEventType.ItemDelivery when IsForcedGiftDetail(detail) => LetterDefOf.NegativeEvent,
-            ServerEventType.ItemDelivery when IsRejectedGiftReturnDetail(detail) => LetterDefOf.NeutralEvent,
-            ServerEventType.ItemDelivery => LetterDefOf.PositiveEvent,
-            ServerEventType.Trade => LetterDefOf.PositiveEvent,
-            ServerEventType.SupportPawn => LetterDefOf.PositiveEvent,
-            ServerEventType.AllianceRequest => LetterDefOf.NeutralEvent,
-            ServerEventType.AllianceCancellation => LetterDefOf.NeutralEvent,
-            ServerEventType.ServerNotification => LetterDefOf.NeutralEvent,
-            ServerEventType.PeaceRequest => LetterDefOf.NeutralEvent,
-            _ => LetterDefOf.NeutralEvent
-        };
     }
 
     private static string BuildEventLetterLabel(ModEventDetailDto detail)
@@ -1154,31 +1013,6 @@ public sealed partial class ClashOfRimMod
         }
     }
 
-    private static bool IsDefenderRaidTimeoutNotification(ModEventDetailDto detail, ServerNotificationPayloadSummary payload)
-    {
-        if (!payload.IsRaidTimeout)
-        {
-            return false;
-        }
-
-        return payload.RelatedEventType == ServerEventType.Raid
-            && !string.IsNullOrWhiteSpace(payload.RelatedUserId)
-            && string.Equals(detail.Target?.UserId, payload.RelatedUserId, StringComparison.Ordinal)
-            && (string.IsNullOrWhiteSpace(payload.RelatedColonyId)
-                || string.Equals(detail.Target?.ColonyId, payload.RelatedColonyId, StringComparison.Ordinal));
-    }
-
-    private static bool IsDefenderRaidTimeoutNotification(ModEventDetailDto detail)
-    {
-        if (detail.EventType != ServerEventType.ServerNotification)
-        {
-            return false;
-        }
-
-        ServerNotificationPayloadSummary? payload = ReadServerNotificationPayloadForDisplay(detail);
-        return payload is not null && IsDefenderRaidTimeoutNotification(detail, payload);
-    }
-
     private static string BuildServerNotificationEventLetterLabel(ModEventDetailDto detail)
     {
         ServerNotificationPayloadSummary? payload = ReadServerNotificationPayloadForDisplay(detail);
@@ -1224,52 +1058,12 @@ public sealed partial class ClashOfRimMod
         return status + "\n\n" + type + targetText + devText;
     }
 
-    private static ServerNotificationPayloadSummary? ReadServerNotificationPayloadForDisplay(ModEventDetailDto detail)
-    {
-        if (string.IsNullOrWhiteSpace(detail.PayloadSummary))
-        {
-            return null;
-        }
-
-        try
-        {
-            var serializer = new DataContractJsonSerializer(typeof(ServerNotificationPayloadSummary));
-            using var stream = new MemoryStream(Encoding.UTF8.GetBytes(detail.PayloadSummary));
-            return serializer.ReadObject(stream) as ServerNotificationPayloadSummary;
-        }
-        catch (Exception ex) when (ex is SerializationException or InvalidOperationException)
-        {
-            Log.Warning(
-                $"[ClashOfRim][EventLetter] server notification payload display parse failed event={detail.EventId} payloadLength={detail.PayloadSummary.Length} exception={ex}");
-            return null;
-        }
-    }
-
     private static string BuildGiftItemListText(ModEventDetailDto detail)
     {
         ItemDeliveryPayloadSummary? payload = ReadGiftPayloadForDisplay(detail);
         return payload is null
             ? "- " + ClashOfRimText.Key("ClashOfRim.EventLetter.GiftItemsUnavailable")
             : BuildGiftItemListText(payload);
-    }
-
-    private static ItemDeliveryPayloadSummary? ReadGiftPayloadForDisplay(ModEventDetailDto detail)
-    {
-        if (string.IsNullOrWhiteSpace(detail.PayloadSummary))
-        {
-            return null;
-        }
-
-        try
-        {
-            return ItemDeliveryPayloadReader.Read(detail.PayloadSummary);
-        }
-        catch (Exception ex) when (ex is SerializationException or InvalidOperationException)
-        {
-            Log.Warning(
-                $"[ClashOfRim][EventLetter] gift payload display parse failed event={detail.EventId} payloadLength={detail.PayloadSummary.Length} exception={ex}");
-            return null;
-        }
     }
 
     private static SupportPawnPayloadSummary? ReadSupportPawnPayloadForDisplay(ModEventDetailDto detail)
@@ -1289,36 +1083,6 @@ public sealed partial class ClashOfRimMod
                 $"[ClashOfRim][EventLetter] support pawn payload display parse failed event={detail.EventId} payloadLength={detail.PayloadSummary.Length} exception={ex}");
             return null;
         }
-    }
-
-    private static bool IsForcedGiftDetail(ModEventDetailDto detail)
-    {
-        return ItemDeliveryClientProcessor.IsGiftDetail(detail)
-            && ReadGiftPayloadForDisplay(detail)?.IsForcedDelivery == true;
-    }
-
-    private static bool IsGiftPurposeDetail(ModEventDetailDto detail)
-    {
-        return ItemDeliveryClientProcessor.IsGiftDetail(detail)
-            && ReadGiftPayloadForDisplay(detail)?.Purpose == ItemDeliveryPurpose.Gift;
-    }
-
-    private static bool IsRejectedGiftReturnDetail(ModEventDetailDto detail)
-    {
-        return ItemDeliveryClientProcessor.IsGiftDetail(detail)
-            && ReadGiftPayloadForDisplay(detail)?.Purpose == ItemDeliveryPurpose.RejectedGiftReturn;
-    }
-
-    private static bool IsTradeDeliveryDetail(ModEventDetailDto detail)
-    {
-        return ItemDeliveryClientProcessor.IsGiftDetail(detail)
-            && ReadGiftPayloadForDisplay(detail)?.IsTradeDelivery == true;
-    }
-
-    private static bool IsTradeReturnDetail(ModEventDetailDto detail)
-    {
-        return ItemDeliveryClientProcessor.IsGiftDetail(detail)
-            && ReadGiftPayloadForDisplay(detail)?.IsTradeReturn == true;
     }
 
     private static string BuildGiftItemListText(ItemDeliveryPayloadSummary payload)
@@ -1479,12 +1243,6 @@ public sealed partial class ClashOfRimMod
         return detail.EventType == ServerEventType.AllianceRequest
             || detail.EventType == ServerEventType.AllianceCancellation
             || detail.EventType == ServerEventType.WarDeclaration
-            || detail.EventType == ServerEventType.PeaceRequest;
-    }
-
-    private static bool IsRejectableDiplomacyEvent(ModEventDetailDto detail)
-    {
-        return detail.EventType == ServerEventType.AllianceRequest
             || detail.EventType == ServerEventType.PeaceRequest;
     }
 

@@ -294,6 +294,7 @@ public sealed partial class ClashOfRimMod
     {
         return group switch
         {
+            "Unknown" => ClashOfRimText.Key("ClashOfRim.EventGroup.Unknown"),
             "DirectlyProcessable" => ClashOfRimText.Key("ClashOfRim.EventGroup.DirectlyProcessable"),
             "WaitingForUserChoice" => ClashOfRimText.Key("ClashOfRim.EventGroup.WaitingForUserChoice"),
             "DeliveredUnconfirmed" => ClashOfRimText.Key("ClashOfRim.EventGroup.DeliveredUnconfirmed"),

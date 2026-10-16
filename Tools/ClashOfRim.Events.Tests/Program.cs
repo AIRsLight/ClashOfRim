@@ -40,7 +40,6 @@ var tests = new (string Name, Action Run)[]
     ("事件队列查询只读取目标队列状态", VerifyEventQueueLedgerQuery),
     ("玩家袭击源事件不进入防守方信件队列", VerifyPlayerRaidSourceEventsAreHiddenFromDefenderQueue),
     ("交易接单备忘录不进入信件队列", VerifyTradeAcceptanceMemoEventsAreHiddenFromLetterQueue),
-    ("事件队列可投影为原版信件模型", VerifyEventLetterProjection),
     ("可拒绝策略和目标地图上下文", VerifyRejectionPolicyAndTargetContext),
     ("拒绝礼物会生成不可拒绝退回事件", VerifyRejectedGiftCreatesReturnEvent),
     ("交易接单只是备忘录，实际交换才确认", VerifyTradeAcceptanceMemoUntilExchange),
@@ -1683,9 +1682,6 @@ static void VerifyDownloadedChoiceEventsRemainPending()
         var queue = EventQueueSummaryBuilder.BuildForTarget("user-b", new[] { undecided });
         Equal(undecided.EventId, queue.WaitingForConfirmation.Single().EventId, "下载不代替玩家选择");
         Require(queue.DirectlyProcessable.Count == 0 && queue.DeliveredUnconfirmed.Count == 0, "未决定事件不得进入自动恢复队列");
-        var letter = EventLetterProjectionBuilder.Build(queue, new[] { undecided }).Single();
-        Require(letter.Kind == EventLetterKind.Choice && letter.Actions.Any(a => a.Kind == EventLetterActionKind.Accept)
-            && letter.Actions.Any(a => a.Kind == EventLetterActionKind.Reject), "重新下载仍保留接受和拒绝动作");
         foreach (var automatic in new[] { undecided with { TargetDecision = TargetEventDecision.Accepted }, undecided with { RejectionPolicy = EventRejectionPolicy.NotRejectable } })
         {
             var recovery = EventQueueSummaryBuilder.BuildForTarget("user-b", new[] { automatic });
@@ -1792,14 +1788,6 @@ static void VerifySnapshotlessNotificationEventSemantics()
     Require(tradeExchangeItem.RequiresClientApplication, "交易实际交换会改变本地存档，仍应要求快照确认");
     Require(requestItem.RequiresClientApplication, "结盟请求需要玩家选择并修改外交状态，仍应要求处理");
 
-    IReadOnlyList<EventLetterProjection> letters = EventLetterProjectionBuilder.Build(summary, new[] { war, cancellation, allianceRequest, tradeExchange });
-    EventLetterProjection warLetter = letters.Single(letter => letter.EventId == war.EventId);
-    EventLetterProjection cancellationLetter = letters.Single(letter => letter.EventId == cancellation.EventId);
-    EventLetterProjection tradeLetter = letters.Single(letter => letter.EventId == tradeExchange.EventId);
-
-    Require(!warLetter.Actions.Any(action => action.Kind == EventLetterActionKind.ApplyToSnapshot || action.Kind == EventLetterActionKind.UploadSnapshotConfirmation), "宣战信件不应带快照处理动作");
-    Require(!cancellationLetter.Actions.Any(action => action.Kind == EventLetterActionKind.ApplyToSnapshot || action.Kind == EventLetterActionKind.UploadSnapshotConfirmation), "撕毁盟约信件不应带快照处理动作");
-    Require(tradeLetter.Actions.Any(action => action.Kind == EventLetterActionKind.ApplyToSnapshot), "交易交换信件仍应提供应用动作");
 }
 
 static void VerifyEventQueueLedgerQuery()
@@ -1866,62 +1854,6 @@ static void VerifyEventQueueLedgerQuery()
     Equal(delivered.EventId, summary.DeliveredUnconfirmed.Single().EventId, "已下发组");
     Equal(conflict.EventId, summary.Conflicts.Single().EventId, "冲突组");
     Equal(rejected.EventId, summary.Rejected.Single().EventId, "拒绝组");
-}
-
-static void VerifyEventLetterProjection()
-{
-    var ledger = new InMemoryAuthoritativeEventLedger();
-    AuthoritativeEvent gift = GiftEvent("letter-gift", targetOnline: false);
-    AuthoritativeEvent raid = RaidEvent("letter-raid", targetOnline: false);
-    AuthoritativeEvent notice = ServerNotificationEvent("letter-notice", targetOnline: false);
-    AuthoritativeEvent delivered = GiftEvent("letter-delivered", targetOnline: false);
-    AuthoritativeEvent conflict = RaidEvent("letter-conflict", targetOnline: false);
-
-    ledger.Append(gift);
-    ledger.Append(raid);
-    ledger.Append(notice);
-    ledger.Append(delivered);
-    ledger.Append(conflict);
-    ledger.MarkAccepted(delivered.EventId, DateTimeOffset.UnixEpoch, "Player accepted before recovery");
-    ledger.MarkDelivered(delivered.EventId, "delivered-snapshot", DateTimeOffset.UnixEpoch.AddMinutes(1));
-    ledger.ReportApplicationResult(conflict.EventId, EventApplicationResultKind.SnapshotBaseMismatch, "目标快照不匹配", DateTimeOffset.UnixEpoch.AddMinutes(2));
-
-    IReadOnlyList<AuthoritativeEvent> events = ledger.ListForUser("user-b");
-    EventQueueSummary summary = EventQueueSummaryBuilder.BuildForTarget("user-b", events);
-    IReadOnlyList<EventLetterProjection> letters = EventLetterProjectionBuilder.Build(summary, events);
-
-    Equal(summary.AllItems.Count, letters.Count, "每个队列项都应生成一个信件投影");
-
-    EventLetterProjection giftLetter = letters.Single(letter => letter.EventId == gift.EventId);
-    Equal(EventLetterKind.Choice, giftLetter.Kind, "可拒绝礼物应生成可选择信件");
-    Equal(EventLetterDefName.PositiveEvent, giftLetter.LetterDef, "礼物信件类型");
-    Require(giftLetter.Actions.Any(action => action.Kind == EventLetterActionKind.Accept && action.ChangesLedgerState && action.RequiresServerRoundtrip), "礼物应有接受动作");
-    Require(giftLetter.Actions.Any(action => action.Kind == EventLetterActionKind.Reject && action.ChangesLedgerState && action.RequiresServerRoundtrip), "礼物应有拒绝动作");
-    Require(giftLetter.Actions.Any(action => action.Kind == EventLetterActionKind.Postpone && !action.ChangesLedgerState), "礼物应能稍后处理");
-    Require(giftLetter.Actions.Any(action => action.Kind == EventLetterActionKind.JumpToTarget), "有目标地图的事件应可定位");
-    Require(!giftLetter.DismissalChangesLedgerState, "关闭礼物信件不应修改账本");
-
-    EventLetterProjection raidLetter = letters.Single(letter => letter.EventId == raid.EventId);
-    Equal(EventLetterKind.Standard, raidLetter.Kind, "不可拒绝袭击应生成普通信件");
-    Equal(EventLetterDefName.ThreatBig, raidLetter.LetterDef, "袭击应为重大威胁信件");
-    Require(raidLetter.Actions.Any(action => action.Kind == EventLetterActionKind.ApplyToSnapshot && action.ChangesLedgerState), "可直接处理事件应有应用动作");
-    Require(raidLetter.Actions.Any(action => action.Kind == EventLetterActionKind.Close && !action.ChangesLedgerState), "普通信件关闭不应修改账本");
-
-    EventLetterProjection noticeLetter = letters.Single(letter => letter.EventId == notice.EventId);
-    Equal("服务器维护", noticeLetter.Label, "服务器通知应使用载荷标题");
-    Equal("服务器将在本轮结束后维护。", noticeLetter.Text, "服务器通知应使用载荷正文");
-    Equal(EventLetterDefName.NegativeEvent, noticeLetter.LetterDef, "警告级服务器通知应为负面信件");
-    Require(!noticeLetter.Actions.Any(action => action.Kind == EventLetterActionKind.ApplyToSnapshot), "服务器通知不应要求应用快照");
-    Require(!noticeLetter.Actions.Any(action => action.Kind == EventLetterActionKind.UploadSnapshotConfirmation), "服务器通知不应要求上传确认快照");
-
-    EventLetterProjection deliveredLetter = letters.Single(letter => letter.EventId == delivered.EventId);
-    Require(deliveredLetter.Actions.Any(action => action.Kind == EventLetterActionKind.UploadSnapshotConfirmation && action.ChangesLedgerState), "已下发未确认事件应要求上传确认快照");
-    Require(!deliveredLetter.DismissalChangesLedgerState, "关闭已下发未确认信件不应消费事件");
-
-    EventLetterProjection conflictLetter = letters.Single(letter => letter.EventId == conflict.EventId);
-    Equal(EventLetterDefName.NegativeEvent, conflictLetter.LetterDef, "冲突事件应为负面信件");
-    Require(conflictLetter.Text.Contains("目标快照不匹配", StringComparison.Ordinal), "冲突信件应显示失败原因");
-    Require(conflictLetter.Actions.Any(action => action.Kind == EventLetterActionKind.OpenConflict && !action.ChangesLedgerState), "冲突信件应提供查看冲突动作");
 }
 
 static void VerifyTradeAcceptanceMemoEventsAreHiddenFromLetterQueue()
