@@ -4,17 +4,19 @@ using System.Text.Json;
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Network;
 using AIRsLight.ClashOfRim.Protocol;
+using AIRsLight.ClashOfRim.Save;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Data.Sqlite;
 
-internal static class EventFailureReportTests
+internal static partial class EventFailureReportTests
 {
     private static readonly DateTimeOffset Original = DateTimeOffset.UnixEpoch.AddDays(2);
     private static readonly string[] Kinds = ["gift", "support", "return", "loss", "trade", "self"];
 
-    public static void Run()
+    public static void Run(Func<string, SaveSnapshotPackage> factory)
     {
         SnapshotEndpointTestClient.LoadLocalization();
+        RecoveryPreparation(factory);
         foreach (string kind in Kinds)
         {
             Guards(kind);

@@ -31,7 +31,7 @@ var tests = new (string Name, Action Run)[]
     ("事件入档原子提交且重复确认恢复应用结果与交易成就", () => EventConfirmationStageTests.Run(BuildFixturePackage)),
     ("单条批量事件确认跨中断恢复且保留原始结果回执", () => ConfirmationJournalTests.Run(BuildFixturePackage)),
     ("支援结束与拒绝原子提交且按源事件去重", () => SupportClosureTests.Run(BuildFixturePackage)),
-    ("事件失败报告限定接收方和来源且重试恢复通知", EventFailureReportTests.Run),
+    ("事件失败报告限定接收方和来源且重试恢复通知", () => EventFailureReportTests.Run(BuildFixturePackage)),
     ("礼物拒收认证与关联校验及通知重放", () => GiftRejectionEndpointTests.Run(BuildFixturePackage)),
     ("交易接单和关闭认证及排队期间会话撤销", TradeCommandAuthTests.Run),
     ("交易接单幂等键与完整备忘关联且并发不重复", TradeAcceptanceTests.Run),

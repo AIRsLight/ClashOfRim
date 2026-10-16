@@ -449,41 +449,28 @@ public static partial class ClashOfRimNetworkServer
         ReportEventApplicationFailureRequest request,
         ClashOfRimNetworkState state)
     {
-        using (state.EnterSnapshotMutation())
+        if (string.IsNullOrWhiteSpace(request.IdempotencyKey)
+            || string.IsNullOrWhiteSpace(request.EventId)
+            || string.IsNullOrWhiteSpace(request.UserId)
+            || string.IsNullOrWhiteSpace(request.ColonyId)
+            || string.IsNullOrWhiteSpace(request.CurrentSnapshotId)
+            || string.IsNullOrWhiteSpace(request.Reason))
         {
-            RecoverSnapshotCommits(state);
-            if (string.IsNullOrWhiteSpace(request.IdempotencyKey)
-                || string.IsNullOrWhiteSpace(request.EventId)
-                || string.IsNullOrWhiteSpace(request.UserId)
-                || string.IsNullOrWhiteSpace(request.ColonyId)
-                || string.IsNullOrWhiteSpace(request.CurrentSnapshotId)
-                || string.IsNullOrWhiteSpace(request.Reason))
-            {
-                return Results.Ok(new ReportEventApplicationFailureResponse(
-                    ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("Events.ReportFailureMissingFields")),
-                    request.EventId ?? string.Empty,
-                    string.Empty,
-                    affectedEventCount: 0));
-            }
+            return Results.Ok(new ReportEventApplicationFailureResponse(
+                ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("Events.ReportFailureMissingFields")),
+                request.EventId ?? string.Empty,
+                string.Empty,
+                affectedEventCount: 0));
+        }
 
+        using (var mutation = EnterRecoveredSnapshotMutation(state, () =>
+            IsAuthorizedForColony(state, request.AuthToken, request.UserId, request.ColonyId, request.EventId,
+                authorizationScope: null, DateTimeOffset.UtcNow, out string failure)
+                ? null : ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, failure)))
+        {
+            if (mutation.Rejection is { } rejection)
+                return Results.Ok(new ReportEventApplicationFailureResponse(rejection, request.EventId, string.Empty, 0));
             DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
-            if (!IsAuthorizedForColony(
-                    state,
-                    request.AuthToken,
-                    request.UserId,
-                    request.ColonyId,
-                    request.EventId,
-                    authorizationScope: null,
-                    nowUtc,
-                    out string authFailure))
-            {
-                return Results.Ok(new ReportEventApplicationFailureResponse(
-                    ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, authFailure),
-                    request.EventId,
-                    string.Empty,
-                    affectedEventCount: 0));
-            }
-
             AuthoritativeEvent? ledgerEvent = state.Ledger.Find(request.EventId);
             if (ledgerEvent is null || !IsVisibleParty(FailureReportingParty(ledgerEvent), request.UserId, request.ColonyId))
             {
