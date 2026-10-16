@@ -196,7 +196,6 @@ public static partial class ClashOfRimNetworkServer
             if (!after.IsAdministrator)
                 return Reject(ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, T("Admin.Unauthorized")));
             RecordPlayerSeen(state, request.UserId, request.ColonyId, currentSnapshotId: null, DateTimeOffset.UtcNow);
-            SignalWorldConfigurationChanged(state, request.UserId);
             RuntimeLogger(loggerFactory).LogInformation(
                 "世界基线已提交：user={UserId} colony={ColonyId} administrator={AdministratorUserId} configured={WorldConfigured} playerSites={PlayerSiteCount}",
                 request.UserId, request.ColonyId, after.AdministratorUserId, after.WorldConfigured,
@@ -348,6 +347,9 @@ public static partial class ClashOfRimNetworkServer
                 delivered));
         }
 
+        // Submit clears the old substrate. Notify readers only once the replacement
+        // is ready, otherwise they observe WorldConfigured=false and miss this update.
+        SignalWorldConfigurationChanged(state, auth.AuthenticatedUserId);
         RuntimeLogger(loggerFactory).LogInformation(
             "世界底图已提交：user={UserId} colony={ColonyId} world={WorldConfigurationId} bytes={PayloadBytes} layers={LayerCount} tileCenters={TileCenterCount}",
             auth.AuthenticatedUserId,
