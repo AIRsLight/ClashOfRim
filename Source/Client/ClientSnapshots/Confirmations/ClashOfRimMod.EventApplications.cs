@@ -446,6 +446,15 @@ public sealed partial class ClashOfRimMod
 
     private bool ProcessGiftDetail(ModEventDetailDto giftDetail, GiftClientDecision decision)
     {
+        if (IsAnyManualOrSnapshotSyncInProgress()
+            || pendingGiftConfirmationEventIds.Contains(giftDetail.EventId, StringComparer.Ordinal)
+            || !CanRunEventLetterAction(giftDetail,
+                decision == GiftClientDecision.Accept ? ClashOfRimEventLetterActionKind.Accept : ClashOfRimEventLetterActionKind.Reject,
+                ResolveEventReferenceGroup(giftDetail.EventId)))
+        {
+            return false;
+        }
+
         ClashLog.Message(
             $"[ClashOfRim][GiftProcess] selected event={giftDetail.EventId} type={giftDetail.EventType} status={giftDetail.Status} payloadType={giftDetail.PayloadType} payloadLength={giftDetail.PayloadSummary?.Length ?? 0} targetMap={giftDetail.TargetContext?.MapUniqueId ?? "<null>"} landingMode={giftDetail.TargetContext?.LandingMode ?? "<null>"} decision={decision}.");
         ItemDeliveryClientProcessingResult result = ItemDeliveryClientProcessor.Process(
@@ -1137,6 +1146,11 @@ public sealed partial class ClashOfRimMod
                             result.Response.NextLineageToken);
                     }
 
+                    // Cached details and open letters may outlive the confirmed queue entry.
+                    lock (eventStateLock)
+                    {
+                        lastEventReferenceGroups.Remove(eventId);
+                    }
                     request.OnAcceptedOnMainThread(result.Response);
                     CompleteLocalAtomicMutation();
                     CloseUnconfirmedSnapshotFailureWindow();

@@ -34,6 +34,11 @@ public sealed partial class ClashOfRimMod
             return false;
         }
 
+        if (!CanRunEventLetterAction(detail, actionKind, ResolveEventReferenceGroup(eventId)))
+        {
+            return false;
+        }
+
         return actionKind switch
         {
             ClashOfRimEventLetterActionKind.Accept => HandleEventLetterAccept(detail),
@@ -369,14 +374,12 @@ public sealed partial class ClashOfRimMod
         string group)
     {
         var actions = new List<ClashOfRimEventLetterActionKind>();
-        bool canRunServerAction = string.Equals(group, "WaitingForUserChoice", StringComparison.Ordinal)
-            || string.Equals(group, "DirectlyProcessable", StringComparison.Ordinal);
-        if (canRunServerAction && CanAcceptEventFromLetter(detail))
+        if (CanRunEventLetterAction(detail, ClashOfRimEventLetterActionKind.Accept, group))
         {
             actions.Add(ClashOfRimEventLetterActionKind.Accept);
         }
 
-        if (canRunServerAction && CanRejectEventFromLetter(detail))
+        if (CanRunEventLetterAction(detail, ClashOfRimEventLetterActionKind.Reject, group))
         {
             actions.Add(ClashOfRimEventLetterActionKind.Reject);
         }
@@ -392,6 +395,22 @@ public sealed partial class ClashOfRimMod
         }
 
         return actions;
+    }
+
+    private static bool CanRunEventLetterAction(ModEventDetailDto detail, ClashOfRimEventLetterActionKind actionKind, string group)
+    {
+        if (!string.Equals(group, "WaitingForUserChoice", StringComparison.Ordinal)
+            && !string.Equals(group, "DirectlyProcessable", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        return actionKind switch
+        {
+            ClashOfRimEventLetterActionKind.Accept => CanAcceptEventFromLetter(detail),
+            ClashOfRimEventLetterActionKind.Reject => CanRejectEventFromLetter(detail),
+            _ => false
+        };
     }
 
     private string ResolveEventReferenceGroup(string eventId)
