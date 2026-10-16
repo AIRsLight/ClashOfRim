@@ -32,12 +32,38 @@ public sealed partial class ClashOfRimMod
 
     internal Command? TryBuildColonyRelocationCommand(Caravan caravan, Command original)
     {
-        if (!settings.IsConfigured || string.IsNullOrWhiteSpace(lastSessionId))
+        if (caravan.Faction != Faction.OfPlayer || !caravan.IsPlayerControlled)
         {
             return null;
         }
 
-        if (caravan.Faction != Faction.OfPlayer || !caravan.IsPlayerControlled)
+        return TryBuildColonyRelocationCommand(caravan, original, () => SettleInEmptyTileUtility.Settle(caravan));
+    }
+
+    internal Command? TryBuildColonyRelocationCommand(Map map, Command original, bool requiresNoEnemies)
+    {
+        if (map.IsPlayerHome || !Find.Maps.Contains(map))
+        {
+            return null;
+        }
+
+        // Vanilla stops validation at the base-count limit. Preserve the checks that
+        // follow it when replacing that limit with the one-colony relocation flow.
+        if (map.mapPawns.FreeColonistsCount == 0)
+        {
+            original.Disable("CommandSettleFailNoColonists".Translate());
+        }
+        else if (requiresNoEnemies && map.attackTargetsCache.TargetsHostileToColony.Any(t => GenHostility.IsActiveThreatToPlayer(t)))
+        {
+            original.Disable("CommandSettleFailEnemies".Translate());
+        }
+
+        return TryBuildColonyRelocationCommand(map.Parent, original, () => SettleInExistingMapUtility.Settle(map));
+    }
+
+    private Command? TryBuildColonyRelocationCommand(WorldObject target, Command original, Action settle)
+    {
+        if (!settings.IsConfigured || string.IsNullOrWhiteSpace(lastSessionId))
         {
             return null;
         }
@@ -54,7 +80,7 @@ public sealed partial class ClashOfRimMod
             defaultDesc = ClashOfRimText.Key("ClashOfRim.ColonyRelocation.CommandDesc"),
             icon = original.icon,
             Order = original.Order,
-            action = () => OpenColonyRelocationConfirmation(caravan, colonies[0])
+            action = () => OpenColonyRelocationConfirmation(target, colonies[0], settle)
         };
 
         if (colonies.Count != 1)
@@ -104,9 +130,9 @@ public sealed partial class ClashOfRimMod
             || string.Equals(reason, maxBase, StringComparison.Ordinal);
     }
 
-    private void OpenColonyRelocationConfirmation(Caravan caravan, MapParent oldColony)
+    private void OpenColonyRelocationConfirmation(WorldObject target, MapParent oldColony, Action settle)
     {
-        if (caravan.Destroyed || oldColony.Destroyed)
+        if (target.Destroyed || oldColony.Destroyed)
         {
             Messages.Message(ClashOfRimText.Key("ClashOfRim.ColonyRelocation.InvalidTarget"), MessageTypeDefOf.RejectInput, false);
             return;
@@ -114,11 +140,11 @@ public sealed partial class ClashOfRimMod
 
         Find.WindowStack.Add(new ColonyRelocationConfirmationWindow(
             oldColony.LabelCap,
-            caravan.Tile,
-            () => StartColonyRelocationPreflight(caravan, oldColony)));
+            target.Tile,
+            () => StartColonyRelocationPreflight(target, oldColony, settle)));
     }
 
-    private void StartColonyRelocationPreflight(Caravan caravan, MapParent oldColony)
+    private void StartColonyRelocationPreflight(WorldObject target, MapParent oldColony, Action settle)
     {
         if (!settings.IsConfigured)
         {
@@ -139,8 +165,8 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
-        int targetTile = caravan.Tile;
-        int targetTileLayerId = ReadFirstTileLayerId(caravan, "Tile", "tile");
+        int targetTile = target.Tile;
+        int targetTileLayerId = ReadFirstTileLayerId(target, "Tile", "tile");
         string idempotencyKey = $"colony-relocation:{settings.UserId}:{settings.ColonyId}:{previousSnapshotId}:{targetTile},{targetTileLayerId}:{DateTime.UtcNow.Ticks}";
         BeginLocalAtomicMutation(
             ClashOfRimText.Key(ColonyRelocationOperationKey),
@@ -168,7 +194,7 @@ public sealed partial class ClashOfRimMod
                     return;
                 }
 
-                EnqueueClashOfRimMainThreadAction(() => BeginLocalColonyRelocation(caravan, oldColony, previousSnapshotId, targetTileLayerId, idempotencyKey));
+                EnqueueClashOfRimMainThreadAction(() => BeginLocalColonyRelocation(target, oldColony, previousSnapshotId, targetTileLayerId, idempotencyKey, settle));
             }
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
@@ -190,13 +216,14 @@ public sealed partial class ClashOfRimMod
     }
 
     private void BeginLocalColonyRelocation(
-        Caravan caravan,
+        WorldObject target,
         MapParent oldColony,
         string previousSnapshotId,
         int targetTileLayerId,
-        string idempotencyKey)
+        string idempotencyKey,
+        Action settle)
     {
-        if (caravan.Destroyed || oldColony.Destroyed)
+        if (target.Destroyed || oldColony.Destroyed)
         {
             ClearLocalAtomicMutation();
             Messages.Message(ClashOfRimText.Key("ClashOfRim.ColonyRelocation.InvalidTarget"), MessageTypeDefOf.RejectInput, false);
@@ -205,15 +232,15 @@ public sealed partial class ClashOfRimMod
 
         localAtomicMutationStatus = ClashOfRimText.Key("ClashOfRim.ColonyRelocation.StatusSettling");
         playerColonySiteRegistrationSuppressed = true;
-        int targetTile = caravan.Tile;
+        int targetTile = target.Tile;
         try
         {
             SoundDefOf.Tick_High.PlayOneShotOnCamera(null);
-            SettleInEmptyTileUtility.Settle(caravan);
+            settle();
             LongEventHandler.QueueLongEvent(
                 () => FinishLocalColonyRelocation(oldColony, previousSnapshotId, targetTile, targetTileLayerId, idempotencyKey),
                 "ClashOfRim.ColonyRelocation.Generating".Translate(),
-                true,
+                false,
                 ex =>
                 {
                     playerColonySiteRegistrationSuppressed = false;
@@ -227,7 +254,7 @@ public sealed partial class ClashOfRimMod
             playerColonySiteRegistrationSuppressed = false;
             ShowColonyRelocationFailure(
                 $"{ex.GetType().Name} {ex.Message}",
-                () => BeginLocalColonyRelocation(caravan, oldColony, previousSnapshotId, targetTileLayerId, idempotencyKey));
+                () => BeginLocalColonyRelocation(target, oldColony, previousSnapshotId, targetTileLayerId, idempotencyKey, settle));
         }
     }
 

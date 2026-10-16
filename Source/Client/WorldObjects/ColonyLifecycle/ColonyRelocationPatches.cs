@@ -31,3 +31,17 @@ internal static class ColonyRelocationSettleCommandPatch
         }
     }
 }
+
+[HarmonyPatch(typeof(SettleInExistingMapUtility), nameof(SettleInExistingMapUtility.SettleCommand))]
+internal static class ColonyRelocationExistingMapSettleCommandPatch
+{
+    public static void Postfix(Map map, bool requiresNoEnemies, ref Command __result)
+    {
+        ClashOfRimMod mod = LoadedModManager.GetMod<ClashOfRimMod>();
+        Command? replacement = mod.TryBuildColonyRelocationCommand(map, __result, requiresNoEnemies);
+        if (replacement is not null)
+        {
+            __result = replacement;
+        }
+    }
+}
