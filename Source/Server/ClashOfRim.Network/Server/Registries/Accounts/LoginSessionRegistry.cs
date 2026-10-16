@@ -119,6 +119,13 @@ public sealed class LoginSessionRegistry
         }
     }
 
+    internal string? FindSessionIdForColony(string userId, string colonyId)
+    {
+        lock (gate)
+            return sessionsByUser.TryGetValue(userId, out var session)
+                && string.Equals(session.ColonyId, colonyId, StringComparison.Ordinal) ? session.SessionId : null;
+    }
+
     public void End(string userId, string? sessionId)
     {
         if (string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(sessionId))

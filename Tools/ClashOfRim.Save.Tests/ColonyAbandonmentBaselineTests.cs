@@ -17,6 +17,45 @@ internal static class ColonyAbandonmentBaselineTests
         foreach (bool reopen in new[] { false, true }) VerifyRecovery(fixture, reopen);
         foreach (bool revoke in new[] { false, true }) VerifyWaitingRequest(fixture, revoke);
         foreach (bool hasSnapshot in new[] { false, true }) VerifyOptionalBaseline(fixture, hasSnapshot);
+        VerifySessionRetirement(fixture);
+    }
+
+    private static void VerifySessionRetirement(Func<string, SaveSnapshotPackage> fixture)
+    {
+        WithDirectory(root =>
+        {
+            var snapshots = new FileColonySnapshotIndexStore(root);
+            var state = new ClashOfRimNetworkState(snapshotStore: snapshots);
+            var package = fixture("session-retirement"); snapshots.StoreLatest(package, package.Index, DateTimeOffset.UtcNow);
+            DateTimeOffset now = DateTimeOffset.UtcNow;
+            Require(state.LoginSessions.TryCreate("userA", "colonyA", now, out string oldSession)
+                && state.LoginSessions.TryBeginStream("userA", "colonyA", oldSession, now), "Cannot start old stream.");
+            Require(state.OnlinePresence.TryConnectExclusive("userA", oldSession, out var oldPresence), "Cannot acquire old presence.");
+            using var oldLease = oldPresence!;
+            string oldToken = state.AuthTokens.Issue("userA", "userA", "colonyA", oldSession, now);
+            Require(Invoke(state, package.Envelope.Identity.SnapshotId, oldToken).Result.Accepted, "Abandonment rejected.");
+            Require(!state.LoginSessions.IsValid("userA", "colonyA", oldSession, now)
+                && !state.LoginSessions.Refresh("userA", "colonyA", oldSession, now)
+                && !oldLease.Touch() && !state.AuthTokens.IsValid(oldToken, "userA", "colonyA", now),
+                "Abandoned connection retained session/heartbeat/presence authorization.");
+            Require(state.LoginSessions.TryCreate("userA", "rebuilt", now, out string newSession)
+                && state.LoginSessions.TryBeginStream("userA", "rebuilt", newSession, now), "Old connection blocks immediate rebuild login.");
+            Require(state.OnlinePresence.TryConnectExclusive("userA", newSession, out var newPresence), "Old presence blocks rebuild.");
+            using var newLease = newPresence!;
+            string newToken = state.AuthTokens.Issue("userA", "userA", "rebuilt", newSession, now);
+            state.Players.Record("userA", "rebuilt", null, now);
+            Require(!Invoke(state, package.Envelope.Identity.SnapshotId, oldToken).Result.Accepted, "Old token accepted repeated abandonment.");
+            // An interrupted deletion may be replayed after another generation exists.
+            // A transport's finally block can also arrive after the replacement login.
+            typeof(ClashOfRimNetworkServer).GetMethod("CleanupAbandonedColony", BindingFlags.Static | BindingFlags.NonPublic)!
+                .Invoke(null, new object[] { state, "userA", "colonyA", now });
+            typeof(ClashOfRimNetworkServer).GetMethod("CloseSessionConnection", BindingFlags.Static | BindingFlags.NonPublic)!
+                .Invoke(null, new object[] { state, "userA", "colonyA", oldSession, oldLease });
+            Require(state.LoginSessions.IsValid("userA", "rebuilt", newSession, now)
+                && state.LoginSessions.Refresh("userA", "rebuilt", newSession, now) && newLease.Touch()
+                && state.AuthTokens.IsValid(newToken, "userA", "rebuilt", now)
+                && !state.Players.IsDeleted("userA", "rebuilt"), "Old deletion/transport cleanup damaged rebuilt session.");
+        });
     }
 
     private static void VerifyRecovery(Func<string, SaveSnapshotPackage> fixture, bool reopen)

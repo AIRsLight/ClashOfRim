@@ -1298,6 +1298,9 @@ public static partial class ClashOfRimNetworkServer
         state.RaidProtectionActivations.RemoveForColony(userId, colonyId);
         state.MercenaryContracts.CloseForColony(userId, colonyId);
         state.Ledger.ApplyBatch(intent.Batch);
+        // Deletion and login publication share the mutation gate. Retire only this
+        // colony's connection; recovery must never disconnect its replacement.
+        EndSessionConnectionLocked(state, userId, state.LoginSessions.FindSessionIdForColony(userId, colonyId));
         state.AuthTokens.RevokeForColony(userId, colonyId);
         state.EventNotifications.SignalUsers(intent.NotifyUsers);
         state.WorldConfigurationNotifications.SignalUsers(intent.WorldNotifyUsers.Concat(state.Players.List().Select(player => player.UserId)));
