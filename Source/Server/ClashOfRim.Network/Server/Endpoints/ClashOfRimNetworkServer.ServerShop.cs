@@ -10,12 +10,16 @@ public static partial class ClashOfRimNetworkServer
 {
     private static IResult ListServerShop(ListServerShopRequest request, ClashOfRimNetworkState state)
     {
-        if (string.IsNullOrWhiteSpace(request.UserId))
+        if (string.IsNullOrWhiteSpace(request.UserId) || string.IsNullOrWhiteSpace(request.ColonyId))
         {
             return Results.Ok(new ListServerShopResponse(
                 ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("Shop.ListMissingUser")),
                 Array.Empty<ServerShopListingDto>()));
         }
+
+        using var mutation = EnterColonySnapshotMutation(state, request.AuthToken, request.UserId, request.ColonyId);
+        if (mutation.Rejection is { } denied)
+            return Results.Ok(new ListServerShopResponse(denied, Array.Empty<ServerShopListingDto>()));
 
         var viewer = new ProtocolIdentity(request.UserId, request.ColonyId, snapshotId: null);
         return Results.Ok(new ListServerShopResponse(

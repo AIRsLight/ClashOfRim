@@ -2025,6 +2025,7 @@ public sealed partial class ClashOfRimModNetworkClient
 
         var request = new ModListServerShopRequestDto
         {
+            AuthToken = context.AuthToken,
             UserId = context.UserId,
             ColonyId = context.ColonyId
         };

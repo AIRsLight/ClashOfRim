@@ -1451,17 +1451,19 @@ try
     Require(shopListing.Listing is not null, "服务器商店上架应返回商品记录");
     await LogoutSmokeSetup(httpClient, "user-a", "colony-a", baselineSetupLogin.SessionId);
 
-    ListServerShopResponse shopList = (await (await httpClient.PostAsJsonAsync(
-        ProtocolContractManifest.Find(ProtocolMessageKind.ListServerShop).Route,
-        new ListServerShopRequest("user-b", "colony-b"))).Content.ReadFromJsonAsync<ListServerShopResponse>())!;
-    Require(shopList.Result.Accepted, "玩家应能拉取服务器商店");
-    Require(shopList.Listings.Any(listing => listing.ListingId == shopListing.Listing!.ListingId && listing.StockCount == 7), "服务器商店列表应包含管理员上架商品和库存");
-
     PrepareWorldSessionResponse secondWorldSession = await client.PrepareWorldSessionAsync(
         SmokePrepareWorldSessionRequest("user-b", "colony-b"));
     Require(secondWorldSession.Result.Accepted, $"后续用户应能准备世界会话：{secondWorldSession.Result.ErrorCode} {secondWorldSession.Result.Message}");
     Require(!secondWorldSession.IsAdministrator, "后续用户不应成为默认管理员");
     Require(secondWorldSession.WorldConfigured, "后续用户应进入已有世界配置分支");
+    var shopViewerLogin = await LoginSmokeSetup(client, "user-b", "colony-b", BuildSmokeCompatibilityManifestJson("smoke-main-manifest"));
+    ListServerShopResponse shopList = (await (await httpClient.PostAsJsonAsync(
+        ProtocolContractManifest.Find(ProtocolMessageKind.ListServerShop).Route,
+        new ListServerShopRequest("user-b", "colony-b", shopViewerLogin.AuthToken))).Content.ReadFromJsonAsync<ListServerShopResponse>())!;
+    Require(shopList.Result.Accepted, "玩家应能拉取服务器商店");
+    Require(shopList.Listings.Any(listing => listing.ListingId == shopListing.Listing!.ListingId && listing.StockCount == 7), "服务器商店列表应包含管理员上架商品和库存");
+    await LogoutSmokeSetup(httpClient, "user-b", "colony-b", shopViewerLogin.SessionId);
+
     GetWorldConfigurationResponse secondWorldResponse = await client.GetWorldConfigurationAsync(
         SmokeGetWorldConfigurationRequest("user-b", "colony-b"));
     Require(secondWorldResponse.Result.Accepted, $"后续用户应能下载服务器世界配置：{secondWorldResponse.Result.ErrorCode} {secondWorldResponse.Result.Message}");

@@ -59,6 +59,7 @@ var tests = new (string Name, Action Run)[]
     ("退役银行与雇佣 JSON 入口拒绝且无副作用", () => RetiredEconomyEndpointTests.Run(BuildFixturePackage)),
     ("商店管理会话认证与恢复后的权限复验", () => ShopAdministrationTests.Run(BuildFixturePackage)),
     ("银行状态报价与事故报告的授权恢复和只读校验", () => BankRequestRecoveryTests.Run(BuildFixturePackage)),
+    ("商店列表会话绑定与恢复后的个性化价格", () => ShopListRecoveryTests.Run(BuildFixturePackage)),
     ("世界配置提交认证与恢复边界", () => WorldConfigurationAuthorizationTests.Run(BuildFixturePackage)),
     ("世界配置与底图引用共同发布且失败保持原状态", WorldConfigurationPersistenceTests.Run),
     ("普通上传和事件确认在恢复前后复验身份且锁外准备", () => UploadConfirmationRecoveryTests.Run(BuildFixturePackage)),

@@ -5,15 +5,18 @@ namespace AIRsLight.ClashOfRim.Protocol;
 
 public sealed class ListServerShopRequest
 {
-    public ListServerShopRequest(string userId, string colonyId)
+    public ListServerShopRequest(string userId, string colonyId, string? authToken = null)
     {
         UserId = userId;
         ColonyId = colonyId;
+        AuthToken = authToken;
     }
 
     public string UserId { get; }
 
     public string ColonyId { get; }
+
+    public string? AuthToken { get; }
 }
 
 public sealed class ServerShopListingDto

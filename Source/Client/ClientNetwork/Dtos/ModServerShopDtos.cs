@@ -6,6 +6,9 @@ namespace AIRsLight.ClashOfRim.ClientNetwork;
 [DataContract]
 public sealed class ModListServerShopRequestDto
 {
+    [DataMember(Name = "authToken")]
+    public string? AuthToken { get; set; }
+
     [DataMember(Name = "userId")]
     public string UserId { get; set; } = string.Empty;
 

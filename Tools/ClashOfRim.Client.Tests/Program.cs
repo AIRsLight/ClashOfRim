@@ -25,6 +25,7 @@ var tests = new (string Name, Action Run)[]
     ("support closure sends recipient authentication", SupportClosureTransportTests.Run),
     ("trade commands send colony authentication", TradeCommandTransportTests.Run),
     ("shop administration sends session authentication", ShopAdministrationTransportTests.Run),
+    ("shop list sends session authentication and preserves personalized prices", ShopListTransportTests.Run),
     ("transport pod gifts use retryable authenticated snapshots", TransportPodGiftTests.Run),
     ("registered rejection is shared by UI and authoritative preparation", RegisteredRejectionIsShared),
     ("registered capture and finalize handlers run", RegisteredCaptureAndFinalizeHandlersRun),
