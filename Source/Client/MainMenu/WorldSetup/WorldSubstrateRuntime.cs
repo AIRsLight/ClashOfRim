@@ -201,7 +201,7 @@ internal static class WorldSubstrateRuntime
 
         XElement root = XElement.Parse(featuresXml);
         List<XElement> elements = root.Descendants("li")
-            .Where(element => element.Element("def") is not null && element.Element("uniqueID") is not null)
+            .Where(element => element.Element("def") is not null)
             .ToList();
         Find.WorldFeatures.features.Clear();
         var byId = new Dictionary<int, WorldFeature>();
@@ -210,7 +210,8 @@ internal static class WorldSubstrateRuntime
         foreach (XElement element in elements)
         {
             FeatureDef? def = DefDatabase<FeatureDef>.GetNamedSilentFail(element.Element("def")?.Value);
-            if (def is null || !int.TryParse(element.Element("uniqueID")?.Value, out int uniqueId))
+            // Scribe omits default values: the first feature's ID is zero.
+            if (def is null || !int.TryParse(element.Element("uniqueID")?.Value ?? "0", NumberStyles.Integer, CultureInfo.InvariantCulture, out int uniqueId))
             {
                 continue;
             }

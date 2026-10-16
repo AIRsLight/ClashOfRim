@@ -89,3 +89,10 @@ HTTP 与 WebSocket 现在共用 `ServerLocalization.EncodeLanguageHeader`：规�
 - 原版 `Rule_String` 同样使用当前格式解析 Def 中的固定小数权重，法国/土耳其区域夹具会在世界生成前报错；纳入同一数值数据边界处理，没有关闭区域夹具。
 - 客户端回归覆盖 en-US/fr-FR/de-DE/tr-TR/zh-CN 的 0.3、0.25、1.37、语法权重及异常后的格式恢复。
 - `RepairWorld/20261016-111436-4e6bf8ab/hot-custom-comma/20261016-111724-71aa228f`：100% 世界、自定义难度 1.37/0.17/0.63、运行时修改、存读档、退出重连和错误日志门禁全部通过。
+
+### 多语言地名初始化与首个地名丢失
+
+- 1.7 的 Legacy TextMesh 初始化访问不存在的渲染器。世界地名统一使用游戏已有的 TMP/引擎字体后端，保留地名、位置、大小和游戏原有刷新流程。
+- 底图加载遵循 Scribe 默认值省略规则：缺失 `uniqueID` 对应 0，不再丢弃第一个地名（已复现 Island ID 0）。
+- `RepairWorld/20261016-111436-4e6bf8ab` 中 `coverage50-french/20261016-111444-3715b754` 与 `coverage100-chinese-host/20261016-111551-1b5876a0` 全场通过，包含所有地名 ID/位置/大小及错误门禁。
+- 当前程序集 SHA-256 `eff7d97949f919fb2b151ebfb906e9be749b63410b7dbda78eeebb7972b245c3` 的局部 IL 核对确认旧 TextMesh 分支及材料访问；REA 元数据预算受限，不计作完整反编译覆盖。无头回归证明状态与无异常，字体像素显示仍需带渲染验证。
