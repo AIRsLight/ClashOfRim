@@ -22,11 +22,11 @@ HTTP 与 WebSocket 现在共用 `ServerLocalization.EncodeLanguageHeader`：规�
 
 ## 待定位：fr-FR 夹具下存档重载改变世界网格
 
-同一五 DLC 运行的 `snapshot-save-reload` 失败。B 客户端使用英文显示、显式 fr-FR 区域格式，重载前表面层 119904、轨道层 488 个地块，重载后变成 590492 / 2432；几何摘要同时改变。这超过浮点量化误差，不能放宽断言。需区分 RimWorld 原生文化格式存档行为和模组重载补丁；尚未作归因结论。默认游戏区域格式的对照与后续矩阵结果需另看实际报告。
+同一五 DLC 运行的 `snapshot-save-reload` 失败。B 客户端使用英文显示、显式 fr-FR 区域格式，重载前表面层 119904、轨道层 488 个地块，重载后变成 590492 / 2432；覆盖率从 0.3 变成 300000000，污染从 0.25 变成 25，几何摘要同时改变。这超过浮点量化误差，不能放宽断言。需区分 RimWorld 原生文化格式存档行为和模组重载补丁；尚未作归因结论。最终目录将混合语言 DLC 业务场景的 B 区域格式设为 en-US，并保留独立 `dlc-culture-stress` 场景复现 fr-FR，以免把文化格式夹具和多语言问题混为一谈。
 
-## 已复现：重复借款入口进入强制恢复
+## 已修复：重复借款入口进入强制恢复
 
-`G:/RimTestRuns/ExpandedCore` 中 `rimtest-core-complete.log` 对应运行，在已有未还贷款时再次调用原借款入口：服务端正确拒绝，客户端 `localAtomicMutationPending=true` 并停在 `SnapshotConfirmationFailureWindow`。它不是重复请求成功。测试要求拒绝不改变库存/快照；客户端入口现增加对当前活动贷款状态的前置拒绝，复用原状态格式化逻辑，完整复验结果待矩阵记录。
+`G:/RimTestRuns/ExpandedCore` 中 `rimtest-core-complete.log` 对应运行，在已有未还贷款时再次调用原借款入口：服务端正确拒绝，客户端 `localAtomicMutationPending=true` 并停在 `SnapshotConfirmationFailureWindow`。它不是重复请求成功。测试要求拒绝不改变库存/快照；客户端入口现增加对当前活动贷款状态的前置拒绝，复用原状态格式化逻辑，`G:/RimTestRuns/ExpandedCore/20261016-094239-94c7f69e` 的非法输入、借款/重复借款/还款/重复还款用例通过；`LocalOnly/rimtest-bank-client-tests.log` 客户端回归通过。该运行在后续测试的交易刷新等待处失败，不计作整场通过。
 
 ## 测试适配器修正及判定标准
 

@@ -98,6 +98,12 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
+        if (lastBankStatus?.ActiveLoan is not null)
+        {
+            SetBankStatus(BankUiUtility.FormatStatus(lastBankStatus), MessageTypeDefOf.RejectInput);
+            return;
+        }
+
         Map? map = Find.Maps?.FirstOrDefault(candidate => candidate.IsPlayerHome) ?? Find.CurrentMap;
         if (map is null)
         {
