@@ -396,8 +396,9 @@ public sealed partial class ClashOfRimMod
         chatSendInProgress = false;
         sessionExpiredHandling = false;
         sessionReconnectInProgress = false;
-        blockAutomaticMapSessionForServerEntrySourceGame = false;
-        serverEntrySourceGame = null;
+        // GoToMainMenu unloads the scene asynchronously. Its old game can still
+        // update after logout, so retain the same admission barrier used by entry.
+        MarkServerEntrySourceGame();
         lastNotificationVersion = 0;
         lastWorldConfigurationVersion = 0;
         pendingInitialWorldConfigurationSubmit = false;
