@@ -48,9 +48,9 @@ public sealed class AdminBaselineRegistry
         AdminBaselineSnapshot normalized = AdminBaselineSnapshot.FromRequest(request);
         lock (gate)
         {
+            SaveLocked(normalized);
             baseline = normalized;
             ClearEffectiveTradeFeePolicyCacheLocked();
-            SaveLocked();
             return normalized;
         }
     }
@@ -126,14 +126,14 @@ public sealed class AdminBaselineRegistry
         }
     }
 
-    private void SaveLocked()
+    private void SaveLocked(AdminBaselineSnapshot candidate)
     {
-        if (persistence is null || baseline is null)
+        if (persistence is null)
         {
             return;
         }
 
-        string json = JsonSerializer.Serialize(baseline, JsonOptions);
+        string json = JsonSerializer.Serialize(candidate, JsonOptions);
         persistence.Write(json);
     }
 }
