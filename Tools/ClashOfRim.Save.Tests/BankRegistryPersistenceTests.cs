@@ -1,3 +1,4 @@
+using static RecoveryTestSupport;
 using AIRsLight.ClashOfRim.Network;
 using Microsoft.Data.Sqlite;
 using System.Text.Json;
@@ -41,7 +42,7 @@ internal static class BankRegistryPersistenceTests
         }
         foreach (string operation in Operations)
         {
-            var slot = new FailingSlot();
+            var slot = new Slot();
             var bank = new BankLoanRegistry(slot);
             Seed(bank, operation);
             string before = Inspect(bank);
@@ -131,15 +132,4 @@ internal static class BankRegistryPersistenceTests
         command.ExecuteNonQuery();
     }
     private static void Require(bool condition, string message) { if (!condition) throw new Exception(message); }
-    private sealed class FailingSlot : IJsonPersistenceSlot
-    {
-        private string? value;
-        public bool Fail;
-        public string? Read() => value;
-        public void Write(string json)
-        {
-            if (Fail) throw new IOException("Injected JSON failure.");
-            value = json;
-        }
-    }
 }

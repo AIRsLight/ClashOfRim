@@ -1,3 +1,4 @@
+using static RecoveryTestSupport;
 using AIRsLight.ClashOfRim.Network;
 using Microsoft.Data.Sqlite;
 using System.Text.Json;
@@ -41,8 +42,8 @@ internal static class MercenaryRegistryPersistenceTests
         }
         foreach (string operation in Operations)
         {
-            var contracts = new FailingSlot();
-            var guards = new FailingSlot();
+            var contracts = new Slot();
+            var guards = new Slot();
             Registries Open() => new(new MercenaryContractRegistry(contracts), new MercenaryGuardContractRegistry(guards));
             var state = Open();
             Seed(state, operation);
@@ -117,15 +118,4 @@ internal static class MercenaryRegistryPersistenceTests
         command.ExecuteNonQuery();
     }
     private static void Require(bool condition, string message) { if (!condition) throw new Exception(message); }
-    private sealed class FailingSlot : IJsonPersistenceSlot
-    {
-        private string? value;
-        public bool Fail;
-        public string? Read() => value;
-        public void Write(string json)
-        {
-            if (Fail) throw new IOException("Injected JSON write failure.");
-            value = json;
-        }
-    }
 }

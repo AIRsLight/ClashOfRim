@@ -7,30 +7,53 @@ using System.Text.Json;
 
 internal static class SnapshotEndpointRecoveryPreparationTests
 {
+    // Capabilities select scenarios; fixtures retain each business's requests and durable-result assertions.
+    private sealed record EndpointCases(string Kind, bool BodyToken, string[] Terms, string? ReplayChange = null);
+    private static readonly EndpointCases[] Banks =
+    [
+        new("borrow", true, ["none", "disabled", "rate", "minimum", "maximum", "wealth", "duration-min", "duration-max"], "disabled-rate"),
+        new("loan", true, []), new("debt", true, [])
+    ];
+    private static readonly EndpointCases[] Services =
+    [
+        new("shop-sell", false, ["none", "price", "capacity"], "price"),
+        new("shop-buy", false, ["none", "price", "capacity", "item"], "price"),
+        new("mercenary", true, ["none", "price", "capacity", "disabled", "duration-min", "duration-max"], "disabled"),
+        new("guard", true, ["none", "price", "capacity", "disabled", "guards-disabled", "pvp-disabled", "ratio"], "guards-disabled")
+    ];
+
     public static void Run(Func<string, SaveSnapshotPackage> factory)
     {
         RunPendingConfirmationPolicy(factory);
-        foreach (string change in new[] { "none", "disabled", "rate", "minimum", "maximum", "wealth", "duration-min", "duration-max" })
-            WithFixture(factory, "borrow", f => VerifyBorrowTerms(f, change));
-        WithFixture(factory, "borrow", VerifyBorrowReplayAfterPolicyChange);
-        foreach (string kind in new[] { "borrow", "loan", "debt" })
+        RunEndpoints(factory, Banks);
+    }
+
+    public static void RunServices(Func<string, SaveSnapshotPackage> factory) => RunEndpoints(factory, Services);
+
+    private static void RunEndpoints(Func<string, SaveSnapshotPackage> factory, IEnumerable<EndpointCases> endpoints)
+    {
+        foreach (var endpoint in endpoints)
         {
             foreach (bool final in new[] { false, true })
             foreach (string change in new[] { "none", "logout", "replace", "revoke", "newer", "compete", "failure", "revoke-failure" })
-                WithFixture(factory, kind, f => VerifyPreparing(f, final, change));
-            WithFixture(factory, kind, VerifyInvalidBody);
-            WithFixture(factory, kind, VerifyConcurrentRetries);
+                WithFixture(factory, endpoint.Kind, f => VerifyPreparing(f, final, change));
+            foreach (string change in endpoint.Terms)
+                WithFixture(factory, endpoint.Kind, f => VerifyFinalTerms(f, change));
+            if (endpoint.ReplayChange is { } replayChange)
+                WithFixture(factory, endpoint.Kind, f => VerifyReplayAfterTermsChange(f, replayChange));
+            if (endpoint.BodyToken) WithFixture(factory, endpoint.Kind, VerifyInvalidBody);
+            WithFixture(factory, endpoint.Kind, VerifyConcurrentRetries);
         }
     }
 
     public static void RunPendingConfirmationPolicy(Func<string, SaveSnapshotPackage> factory)
     {
-        foreach (string kind in new[] { "borrow", "loan", "debt", "shop-sell", "shop-buy", "mercenary", "guard" })
+        foreach (var endpoint in Banks.Concat(Services))
         {
             foreach (bool final in new[] { false, true })
             foreach (string pending in new[] { "debt-activation", "debt-repayment", "mercenary" })
-                WithFixture(factory, kind, f => VerifyExpiredConfirmation(f, final, pending));
-            WithFixture(factory, kind, VerifyReplayDoesNotCancelUnrelatedProgress);
+                WithFixture(factory, endpoint.Kind, f => VerifyExpiredConfirmation(f, final, pending));
+            WithFixture(factory, endpoint.Kind, VerifyReplayDoesNotCancelUnrelatedProgress);
         }
         foreach (bool final in new[] { false, true })
         {
@@ -107,71 +130,37 @@ internal static class SnapshotEndpointRecoveryPreparationTests
         return () => f.State.BankLoans.FindDebtByIdempotencyKey("expired-debt") is { Status: BankLoanRegistry.StatusActive, RepaymentIdempotencyKey: null };
     }
 
-    private static void VerifyBorrowTerms(Fixture f, string change)
-    {
-        if (change == "duration-max") f.BorrowDurationDays = 2;
-        f.Store.Reset();
-        Reply? reply = null;
-        string? before = null;
-        SnapshotPreparationGateProbe.Run(f.State.RaidSettlementSnapshotMutationGate, hook => f.Store.BeforePrepare = hook,
-            () => reply = f.Call(), () =>
-            {
-                f.State.UpdateServerConfiguration(new(bankLoansEnabled: change != "disabled",
-                    bankMinLoanSilver: change == "minimum" ? 101 : 1, bankMaxLoanSilver: change == "maximum" ? 50 : 10000,
-                    bankMaxLoanWealthRatio: change == "wealth" ? 0.005f : 0.5f,
-                    bankMinDurationDays: change == "duration-min" ? 2 : 1,
-                    bankMaxDurationDays: change == "duration-max" ? 1 : 30, bankBaseAnnualInterestRate: change == "rate" ? 60 : 0));
-                before = f.Evidence();
-            });
-        if (change == "none")
-            Require(reply is { Result.Accepted: true, Snapshot: "paid", Delta: 100 } && f.Store.Writes == 1,
-                "Unchanged borrowing terms were rejected.");
-        else
-            Require(reply is { Result.Accepted: false, Id: null, Snapshot: null, Token: null, Delta: 0 }
-                && f.Store.Writes == 0 && !f.State.SnapshotCommits.HasPending && before == f.Evidence(),
-                "Borrowing accepted changed policy: " + change);
-        AssertGatesReleased(f);
-    }
-
-    private static void VerifyBorrowReplayAfterPolicyChange(Fixture f)
+    private static void VerifyReplayAfterTermsChange(Fixture f, string change)
     {
         var first = f.Call();
-        Require(first.Result.Accepted, "Borrow replay fixture failed.");
-        f.State.UpdateServerConfiguration(new(bankLoansEnabled: false, bankBaseAnnualInterestRate: 60));
+        Require(first.Result.Accepted, "Policy replay fixture failed: " + f.Kind);
+        f.ChangeTerms(change);
         string before = f.Evidence();
         f.Store.Reset();
         var replay = f.Call();
         Require(replay.Result is { Accepted: true, ErrorCode: ProtocolErrorCode.DuplicateRequest }
             && replay.Id == first.Id && replay.Snapshot == first.Snapshot && replay.Token == first.Token && replay.Delta == first.Delta
-            && f.Store.Writes == 0 && before == f.Evidence(), "Current policy overrode a committed borrowing receipt.");
+            && f.Store.Writes == 0 && before == f.Evidence(), "Current policy overrode a committed receipt: " + f.Kind);
         AssertGatesReleased(f);
-    }
-
-    public static void RunServices(Func<string, SaveSnapshotPackage> factory)
-    {
-        foreach (string kind in new[] { "shop-sell", "shop-buy", "mercenary", "guard" })
-        {
-            foreach (bool final in new[] { false, true })
-            foreach (string change in new[] { "none", "logout", "replace", "revoke", "newer", "compete", "failure", "revoke-failure" })
-                WithFixture(factory, kind, f => VerifyPreparing(f, final, change));
-            foreach (string change in new[] { "price", "capacity" })
-                WithFixture(factory, kind, f => VerifyFinalTerms(f, change));
-            if (kind == "shop-buy") WithFixture(factory, kind, f => VerifyFinalTerms(f, "item"));
-            if (!kind.StartsWith("shop")) WithFixture(factory, kind, VerifyInvalidBody);
-            WithFixture(factory, kind, VerifyConcurrentRetries);
-        }
     }
 
     private static void VerifyFinalTerms(Fixture f, string change)
     {
+        if (f.Kind == "borrow" && change == "duration-max") f.BorrowDurationDays = 2;
         f.Store.Reset();
         Reply? reply = null;
         string? before = null;
         SnapshotPreparationGateProbe.Run(f.State.RaidSettlementSnapshotMutationGate, hook => f.Store.BeforePrepare = hook,
             () => reply = f.Call(), () => { f.ChangeTerms(change); before = f.Evidence(); });
-        Require(reply is { Result.Accepted: false, Snapshot: null, Token: null } && f.Store.Writes == 0
-            && !f.State.SnapshotCommits.HasPending && before == f.Evidence(),
-            "Final validation accepted changed business terms: " + f.Kind + "/" + change);
+        if (change == "none")
+            Require(reply is { Result.Accepted: true, Snapshot: "paid" } && reply.Id == f.ExpectedId && reply.Delta == f.ExpectedDelta
+                && !string.IsNullOrEmpty(reply.Token) && f.Store.Writes == 1 && f.BusinessCommitted,
+                "Unchanged business terms were rejected or misapplied: " + f.Kind);
+        else
+            Require(reply is { Result.Accepted: false, Snapshot: null, Token: null } && reply.Id == f.DeniedId
+                && (f.Kind.StartsWith("shop") || reply.Delta == 0) && f.Store.Writes == 0
+                && !f.State.SnapshotCommits.HasPending && before == f.Evidence(),
+                "Final validation accepted changed business terms: " + f.Kind + "/" + change);
         AssertGatesReleased(f);
     }
 
@@ -301,7 +290,11 @@ internal static class SnapshotEndpointRecoveryPreparationTests
             && State.ServerShop.GetBuyerPurchaseCount("listing", Actor) == 1 && State.ServerShop.FindReceipt("operation")?.SnapshotId == "paid"
             : Kind == "mercenary" ? State.MercenaryContracts.FindByIdempotencyKey("operation") is { ContractId: "contract", SnapshotId: "paid", Status: MercenaryContractRegistry.StatusActive }
                 && State.MercenaryContracts.CountOpenForColony("userA", "colonyA") == 1
-            : Kind != "guard" || State.MercenaryGuards.FindByIdempotencyKey("operation") is { ContractId: "contract", SnapshotId: "paid", Status: MercenaryGuardContractRegistry.StatusActive };
+            : Kind == "guard" ? State.MercenaryGuards.FindByIdempotencyKey("operation") is { ContractId: "contract", SnapshotId: "paid", Status: MercenaryGuardContractRegistry.StatusActive }
+            : Kind == "borrow" ? State.BankLoans.FindByIdempotencyKey("operation") is { LoanId: "loan-operation", SnapshotId: "paid",
+                Status: BankLoanRegistry.StatusActive, PrincipalSilver: 100, InterestSilver: 0 } loan && loan.DurationDays == BorrowDurationDays
+            : Kind == "loan" ? State.BankLoans.FindByIdempotencyKey("operation") is { LoanId: "loan", SnapshotId: "paid", Status: BankLoanRegistry.StatusRepaid, RepaymentIdempotencyKey: "operation" }
+            : State.BankLoans.FindDebtByIdempotencyKey("operation") is { SnapshotId: "paid", Status: BankLoanRegistry.StatusRepaid, AmountSilver: 110, RepaymentIdempotencyKey: "operation" };
         public string Journal => Path.Combine(root, "journal");
         public SaveSnapshotPackage Package { get; }
         public ClashOfRimNetworkState State = null!;
@@ -337,11 +330,22 @@ internal static class SnapshotEndpointRecoveryPreparationTests
         }
         public void ChangeTerms(string change)
         {
-            if (Shop) State.ServerShop.Upsert("listing", ShopKind, new("steel", change == "item" ? "WoodLog" : "Steel", 1),
+            if (change == "none") return;
+            if (Kind == "borrow") State.UpdateServerConfiguration(new(bankLoansEnabled: change is not ("disabled" or "disabled-rate"),
+                bankMinLoanSilver: change == "minimum" ? 101 : 1, bankMaxLoanSilver: change == "maximum" ? 50 : 10000,
+                bankMaxLoanWealthRatio: change == "wealth" ? 0.005f : 0.5f,
+                bankMinDurationDays: change == "duration-min" ? 2 : 1,
+                bankMaxDurationDays: change == "duration-max" ? 1 : 30, bankBaseAnnualInterestRate: change is "rate" or "disabled-rate" ? 60 : 0));
+            else if (Shop) State.ServerShop.Upsert("listing", ShopKind, new("steel", change == "item" ? "WoodLog" : "Steel", 1),
                 change == "price" ? 11 : 10, change == "capacity" ? 0 : 3, 1,
                 ServerShopQualityRequirementModes.AtLeast, ServerShopHitPointsRequirementModes.AtLeast, "admin", DateTimeOffset.UtcNow);
-            else if (change == "price") State.UpdateServerConfiguration(new(pvpEnabled: true,
-                mercenaryHarmfulSurgeryFineSilver: 1001, mercenaryGuardApprenticeSilver: 601));
+            else if (change != "capacity") State.UpdateServerConfiguration(new(pvpEnabled: change != "pvp-disabled",
+                mercenariesEnabled: change != "disabled", mercenaryGuardsEnabled: change != "guards-disabled",
+                mercenaryMinDurationDays: change == "duration-min" ? 8 : 1,
+                mercenaryMaxDurationDays: change == "duration-max" ? 6 : 30,
+                mercenaryHarmfulSurgeryFineSilver: change == "price" ? 1001 : 1000,
+                mercenaryGuardApprenticeSilver: change == "price" ? 601 : 600,
+                mercenaryGuardApprenticePointsRatio: change == "ratio" ? 0.5f : 0.35f));
             else if (Kind == "guard") State.MercenaryGuards.ActivateWithSnapshot("other", "userA", "colonyA", "other", "before",
                 "Apprentice", 600, 0.35f, 1000, DateTimeOffset.UtcNow);
             else State.MercenaryContracts.ActivateWithSnapshot("other", "userA", "colonyA", "other", "before",

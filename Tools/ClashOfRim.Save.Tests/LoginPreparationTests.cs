@@ -25,6 +25,7 @@ internal static class LoginPreparationTests
         foreach (string mode in new[] { "normal", "failure", "ban" }) Case(() => Lifecycle(factory, mode));
         foreach (string mode in new[] { "normal", "failure", "ban" }) Case(() => FirstBaseline(factory, mode));
         foreach (string mode in new[] { "empty", "pending", "active", "expired", "stream", "refresh", "replace", "logout", "competing", "ttl", "expired-cleanup", "republish" }) Case(() => Registry(mode));
+        foreach (string mode in new[] { "empty", "pending", "active", "expired", "expired-active" }) Case(() => RegistryCreation(mode));
         Case(() => Concurrent(factory));
         Console.WriteLine($"Login preparation scenarios passed: {count}");
     }
@@ -211,6 +212,29 @@ internal static class LoginPreparationTests
         if (succeeds) Require(sessions.IsValid("u", "c", candidate.SessionId, published.AddSeconds(119)) && !sessions.IsValid("u", "c", candidate.SessionId, published.AddMinutes(2)), "Pending TTL did not start at publication.");
         else if (mode is not ("logout" or "expired-cleanup")) Require(sessions.IsValid("u", "c", old, now), "Conflict destroyed the winner.");
     }
+    private static void RegistryCreation(string mode)
+    {
+        foreach (bool immediate in new[] { false, true })
+        {
+            var registry = new LoginSessionRegistry(); var now = DateTimeOffset.UtcNow; string old = "";
+            if (mode != "empty")
+            {
+                var createdAt = mode == "expired" ? now.AddMinutes(-3) : mode == "expired-active" ? now.AddMinutes(-11) : now;
+                var seed = registry.Prepare("u", "c", createdAt)!;
+                Require(seed.TryPublish(createdAt), "Could not seed session."); old = seed.SessionId;
+                if (mode is "active" or "expired-active") Require(registry.TryBeginStream("u", "c", old, createdAt), "Could not seed stream.");
+            }
+            string current;
+            bool accepted;
+            if (immediate) accepted = registry.TryCreate("u", "c", now, out current);
+            else { var prepared = registry.Prepare("u", "c", now); accepted = prepared?.TryPublish(now) == true; current = accepted ? prepared!.SessionId : ""; }
+            Require(accepted == (mode != "active"), "Creation rules differ: " + mode + "/" + immediate);
+            if (accepted) Require(current != old && registry.IsValid("u", "c", current, now.AddSeconds(119))
+                && !registry.IsValid("u", "c", old, now) && !registry.IsValid("u", "c", current, now.AddMinutes(2)), "New session lost identity or TTL.");
+            else Require(current == "" && registry.IsValid("u", "c", old, now), "Rejected creation replaced an active stream.");
+        }
+    }
+
     private static void Concurrent(Func<string, SaveSnapshotPackage> factory)
     {
         using var e = new Env(factory);

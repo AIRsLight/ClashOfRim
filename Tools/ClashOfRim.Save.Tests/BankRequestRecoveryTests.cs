@@ -114,7 +114,7 @@ internal static class BankRequestRecoveryTests
     }
     private static void CleanupFailure(Func<string, SaveSnapshotPackage> factory)
     {
-        using var e = new Env(factory); var slot = new FailureSlot(); var bank = new BankLoanRegistry(slot);
+        using var e = new Env(factory); var slot = new Slot(); var bank = new BankLoanRegistry(slot);
         bank.Create("old", "receiver", "away", "base", 100, 1, 7, 1000, DateTimeOffset.UtcNow.AddDays(-2));
         var state = new ClashOfRimNetworkState(snapshotStore: e.F.Store, bankLoans: bank);
         state.LoginSessions.TryCreate("receiver", "away", DateTimeOffset.UtcNow, out var session);
@@ -129,12 +129,6 @@ internal static class BankRequestRecoveryTests
         Require(released, "Cleanup failure leaked the mutation scope.");
         slot.Fail = false; var result = (BankStatusResponse)((IValueHttpResult)method.Invoke(null, [request, state])!).Value!;
         Require(result.Result.Accepted && result.ActiveLoan is null && bank.FindByIdempotencyKey("old") is null, "Cleanup retry retained a stale context.");
-    }
-    private sealed class FailureSlot : IJsonPersistenceSlot
-    {
-        private string? value; public bool Fail;
-        public string? Read() => value;
-        public void Write(string json) { if (Fail) throw new IOException("Injected bank cleanup failure."); value = json; }
     }
     private static void GuardDefault(Func<string, SaveSnapshotPackage> factory)
     {

@@ -45,23 +45,14 @@ public sealed class LoginSessionRegistry
 
     public bool TryCreate(string userId, string colonyId, DateTimeOffset nowUtc, out string sessionId)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(userId);
-        ArgumentException.ThrowIfNullOrWhiteSpace(colonyId);
-
         lock (gate)
         {
+            // Immediate callers use the same admission/publication rules, without an interleaving window.
+            var prepared = Prepare(userId, colonyId, nowUtc);
+            bool published = prepared?.TryPublish(nowUtc) == true;
             RemoveExpiredSessions(nowUtc);
-            if (sessionsByUser.TryGetValue(userId, out LoginSession? existing)
-                && existing.Streaming
-                && !existing.IsExpired(nowUtc))
-            {
-                sessionId = string.Empty;
-                return false;
-            }
-
-            sessionId = $"session:{userId}:{Guid.NewGuid():N}";
-            sessionsByUser[userId] = new LoginSession(userId, colonyId, sessionId, nowUtc, Streaming: false);
-            return true;
+            sessionId = published ? prepared!.SessionId : string.Empty;
+            return published;
         }
     }
 

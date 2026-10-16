@@ -1,3 +1,4 @@
+using static RecoveryTestSupport;
 using AIRsLight.ClashOfRim.Network;
 using AIRsLight.ClashOfRim.Protocol;
 using Microsoft.Data.Sqlite;
@@ -44,7 +45,7 @@ internal static class ShopRegistryPersistenceTests
 
         foreach (string operation in new[] { "upsert", "remove", "purchase" })
         {
-            var persistence = new FailingSlot();
+            var persistence = new Slot();
             var shop = new ServerShopRegistry(persistence);
             Seed(shop, 5);
             Purchase(shop, "first");
@@ -101,15 +102,4 @@ internal static class ShopRegistryPersistenceTests
         command.ExecuteNonQuery();
     }
     private static void Require(bool condition, string message) { if (!condition) throw new Exception(message); }
-    private sealed class FailingSlot : IJsonPersistenceSlot
-    {
-        private string? value;
-        public bool Fail;
-        public string? Read() => value;
-        public void Write(string json)
-        {
-            if (Fail) throw new IOException("Injected JSON write failure.");
-            value = json;
-        }
-    }
 }

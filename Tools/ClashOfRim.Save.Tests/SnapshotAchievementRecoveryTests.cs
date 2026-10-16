@@ -1,3 +1,4 @@
+using static RecoveryTestSupport;
 using System.Reflection;
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Network;
@@ -113,7 +114,7 @@ internal static class SnapshotAchievementRecoveryTests
 
     private static void VerifyLegacyCache()
     {
-        var slot = new FailingSlot();
+        var slot = new Slot();
         var registry = new AchievementRegistry(slot);
         slot.Fail = true;
         bool failed = false;
@@ -140,11 +141,4 @@ internal static class SnapshotAchievementRecoveryTests
         using var command = connection.CreateCommand(); command.CommandText = sql; command.ExecuteNonQuery();
     }
     private static void Require(bool condition, string message) { if (!condition) throw new Exception("Snapshot achievement: " + message); }
-    private sealed class FailingSlot : IJsonPersistenceSlot
-    {
-        private string? value;
-        public bool Fail;
-        public string? Read() => value;
-        public void Write(string json) { if (Fail) throw new IOException("injected failure"); value = json; }
-    }
 }
