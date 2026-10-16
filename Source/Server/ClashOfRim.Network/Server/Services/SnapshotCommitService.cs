@@ -106,17 +106,14 @@ public sealed partial class SnapshotCommitService
         Action<LatestSnapshotRecord, string?> postUpload, string? snapshotUploadKind = null, MercenaryContractRegistry? contracts = null, PreparedSnapshotPayload? preparedStoragePayload = null)
     {
         if (loan is null && debt is null) throw new ArgumentException("A bank mutation is required.");
-        if (pending.Count != 0) throw new InvalidOperationException("Recover pending snapshot commits before accepting new work.");
+        EnsureNoPendingCommit();
         SnapshotIdentity identity = snapshot.Identity;
         LatestSnapshotRecord? previous = snapshots.GetLatest(identity.OwnerId!, identity.ColonyId!);
         var intent = new SnapshotCommitIntent(1, Guid.NewGuid().ToString("N"),
             previous?.Identity.SnapshotId, previous?.Envelope.NextLineageToken,
             package with { Envelope = snapshot.Envelope, Index = snapshot.Index }, snapshot.AcceptedAtUtc, loan, debt, snapshotUploadKind);
         intent = AttachPendingOperations(intent, bank, contracts);
-        intent = intent with { PreparedStoragePayload = preparedStoragePayload };
-        Write(intent);
-        pending.Add(intent.Id, intent);
-        Apply(intent, snapshots, bank, postUpload, contracts: contracts);
+        Apply(PersistNewIntent(intent, preparedStoragePayload), snapshots, bank, postUpload, contracts: contracts);
     }
 
     public void Recover(IColonySnapshotIndexStore snapshots, BankLoanRegistry bank, Action<LatestSnapshotRecord, string?> postUpload)
@@ -160,7 +157,7 @@ public sealed partial class SnapshotCommitService
         IAuthoritativeEventLedger? ledger = null, Action<AuthoritativeEvent>? recordTrade = null,
         Func<SnapshotConfirmationMutation, LatestSnapshotRecord, SnapshotConfirmationPlan>? planConfirmation = null, PreparedSnapshotPayload? preparedStoragePayload = null)
     {
-        if (pending.Count != 0) throw new InvalidOperationException("Recover pending snapshot commits before accepting new work.");
+        EnsureNoPendingCommit();
         lock (bank.SnapshotCommitGate)
         lock (contracts.SnapshotCommitGate)
         {
@@ -174,11 +171,7 @@ public sealed partial class SnapshotCommitService
                 previous?.Envelope.NextLineageToken, package with { Envelope = snapshot.Envelope, Index = snapshot.Index },
                 snapshot.AcceptedAtUtc, null, null, kind, PendingOperations: operations, Upload: mutation);
             mutation.Validate(intent);
-            intent = intent with { PreparedStoragePayload = preparedStoragePayload };
-            Write(intent);
-            pending.Add(intent.Id, intent);
-            Interlocked.Increment(ref pendingUploads);
-            Apply(intent, snapshots, bank, (accepted, uploadKind) => postUpload(accepted, uploadKind, mutation), ledger: ledger,
+            Apply(PersistNewIntent(intent, preparedStoragePayload), snapshots, bank, (accepted, uploadKind) => postUpload(accepted, uploadKind, mutation), ledger: ledger,
                 recordTrade: recordTrade, contracts: contracts, planConfirmation: planConfirmation);
         }
     }
@@ -187,7 +180,7 @@ public sealed partial class SnapshotCommitService
         MercenaryContractRegistry contracts, SaveSnapshotPackage package, LatestSnapshotRecord snapshot,
         PendingSnapshotOperations operations, string? snapshotUploadKind = null, PreparedSnapshotPayload? preparedStoragePayload = null)
     {
-        if (pending.Count != 0) throw new InvalidOperationException("Recover pending snapshot commits before accepting new work.");
+        EnsureNoPendingCommit();
         operations.Validate(snapshot);
         bank.ValidatePendingOperations(operations, snapshot);
         contracts.ValidatePendingOperations(operations, snapshot);
@@ -196,10 +189,7 @@ public sealed partial class SnapshotCommitService
             previous?.Identity.SnapshotId, previous?.Envelope.NextLineageToken,
             package with { Envelope = snapshot.Envelope, Index = snapshot.Index }, snapshot.AcceptedAtUtc,
             null, null, snapshotUploadKind, PendingOperations: operations);
-        intent = intent with { PreparedStoragePayload = preparedStoragePayload };
-        Write(intent);
-        pending.Add(intent.Id, intent);
-        Apply(intent, snapshots, bank, (_, _) => { }, contracts: contracts);
+        Apply(PersistNewIntent(intent, preparedStoragePayload), snapshots, bank, (_, _) => { }, contracts: contracts);
     }
 
     private static SnapshotCommitIntent AttachPendingOperations(SnapshotCommitIntent intent, BankLoanRegistry bank,
@@ -228,7 +218,7 @@ public sealed partial class SnapshotCommitService
     {
         lock (guards.SnapshotCommitGate)
         {
-            if (pending.Count != 0) throw new InvalidOperationException("Recover pending snapshot commits before accepting new work.");
+            EnsureNoPendingCommit();
             mutation.Validate(snapshot.Identity);
             if (mutation.Preflight(ledger, guards)) throw new InvalidOperationException("Use the existing raid instead of committing it again.");
             var previous = snapshots.GetLatest(snapshot.Identity.OwnerId!, snapshot.Identity.ColonyId!);
@@ -236,42 +226,35 @@ public sealed partial class SnapshotCommitService
                 previous?.Envelope.NextLineageToken, package with { Envelope = snapshot.Envelope, Index = snapshot.Index },
                 snapshot.AcceptedAtUtc, null, null, snapshotUploadKind, Raid: mutation);
             intent = AttachPendingOperations(intent, bank, contracts);
-            intent = intent with { PreparedStoragePayload = preparedStoragePayload };
-            Write(intent);
-            pending.Add(intent.Id, intent);
-            Apply(intent, snapshots, bank, postUpload, ledger, signalUser, contracts: contracts, guards: guards);
+            Apply(PersistNewIntent(intent, preparedStoragePayload), snapshots, bank, postUpload, ledger, signalUser, contracts: contracts, guards: guards);
         }
     }
 
     public void CommitRaidSettlement(IColonySnapshotIndexStore snapshots, BankLoanRegistry bank, IAuthoritativeEventLedger ledger,
         PlayerRegistry players, SaveSnapshotPackage package, RaidSettlementSnapshotMutation mutation, Action<string> signalUser, PreparedSnapshotPayload? preparedStoragePayload = null)
     {
-        if (pending.Count != 0) throw new InvalidOperationException("Recover pending snapshot commits before accepting new work.");
+        EnsureNoPendingCommit();
         mutation.Validate(package.Envelope.Identity);
         mutation.Preflight(ledger);
         if (!SameVersion(snapshots.GetLatest(package.Envelope.Identity.OwnerId!, package.Envelope.Identity.ColonyId!)?.Envelope, mutation.Previous))
             throw new InvalidDataException("Raid defender snapshot changed before intent creation.");
         var intent = new SnapshotCommitIntent(8, Guid.NewGuid().ToString("N"), mutation.Previous.Identity.SnapshotId,
-            mutation.Previous.NextLineageToken, package, mutation.AppliedAtUtc, null, null, null, RaidSettlement: mutation) { PreparedStoragePayload = preparedStoragePayload };
-        Write(intent);
-        pending.Add(intent.Id, intent);
-        Apply(intent, snapshots, bank, (_, _) => { }, ledger, signalUser, players: players);
+            mutation.Previous.NextLineageToken, package, mutation.AppliedAtUtc, null, null, null, RaidSettlement: mutation);
+        Apply(PersistNewIntent(intent, preparedStoragePayload), snapshots, bank, (_, _) => { }, ledger, signalUser, players: players);
     }
 
     public void CommitRaidCleanup(IColonySnapshotIndexStore snapshots, BankLoanRegistry bank, IAuthoritativeEventLedger ledger,
         PlayerRegistry players, SaveSnapshotPackage package, RaidCleanupSnapshotMutation mutation,
         DateTimeOffset acceptedAtUtc, Action<string> signalUser, PreparedSnapshotPayload? preparedStoragePayload = null)
     {
-        if (pending.Count != 0) throw new InvalidOperationException("Recover pending snapshot commits before accepting new work.");
+        EnsureNoPendingCommit();
         mutation.Validate(package.Envelope.Identity);
         mutation.Preflight(ledger);
         if (!SameVersion(snapshots.GetLatest(package.Envelope.Identity.OwnerId!, package.Envelope.Identity.ColonyId!)?.Envelope, mutation.Previous))
             throw new InvalidDataException("Raid attacker snapshot changed before cleanup intent creation.");
         var intent = new SnapshotCommitIntent(9, Guid.NewGuid().ToString("N"), mutation.Previous.Identity.SnapshotId,
-            mutation.Previous.NextLineageToken, package, acceptedAtUtc, null, null, null, RaidCleanup: mutation) { PreparedStoragePayload = preparedStoragePayload };
-        Write(intent);
-        pending.Add(intent.Id, intent);
-        Apply(intent, snapshots, bank, (_, _) => { }, ledger, signalUser, players: players);
+            mutation.Previous.NextLineageToken, package, acceptedAtUtc, null, null, null, RaidCleanup: mutation);
+        Apply(PersistNewIntent(intent, preparedStoragePayload), snapshots, bank, (_, _) => { }, ledger, signalUser, players: players);
     }
 
     public void CommitMercenary(IColonySnapshotIndexStore snapshots, BankLoanRegistry bank,
@@ -281,7 +264,7 @@ public sealed partial class SnapshotCommitService
     {
         lock (mutation.Gate(contracts, guards))
         {
-            if (pending.Count != 0) throw new InvalidOperationException("Recover pending snapshot commits before accepting new work.");
+            EnsureNoPendingCommit();
             mutation.Validate(snapshot.Identity);
             mutation.Preflight(contracts, guards);
             if (mutation.Contract is { } contract && contracts.FindByIdempotencyKey(contract.IdempotencyKey) is not null
@@ -293,10 +276,7 @@ public sealed partial class SnapshotCommitService
                 package with { Envelope = snapshot.Envelope, Index = snapshot.Index }, snapshot.AcceptedAtUtc,
                 null, null, snapshotUploadKind, Mercenary: mutation);
             intent = AttachPendingOperations(intent, bank, contracts);
-            intent = intent with { PreparedStoragePayload = preparedStoragePayload };
-            Write(intent);
-            pending.Add(intent.Id, intent);
-            Apply(intent, snapshots, bank, postUpload, contracts: contracts, guards: guards);
+            Apply(PersistNewIntent(intent, preparedStoragePayload), snapshots, bank, postUpload, contracts: contracts, guards: guards);
         }
     }
 
@@ -306,7 +286,7 @@ public sealed partial class SnapshotCommitService
     {
         lock (shop.SnapshotCommitGate)
         {
-            if (pending.Count != 0) throw new InvalidOperationException("Recover pending snapshot commits before accepting new work.");
+            EnsureNoPendingCommit();
             mutation.Validate(snapshot.Identity);
             shop.ValidateSnapshotCommit(mutation);
             if (shop.FindReceipt(mutation.Receipt.IdempotencyKey) is not null)
@@ -317,10 +297,7 @@ public sealed partial class SnapshotCommitService
                 package with { Envelope = snapshot.Envelope, Index = snapshot.Index }, snapshot.AcceptedAtUtc,
                 null, null, snapshotUploadKind, Shop: mutation);
             intent = AttachPendingOperations(intent, bank, contracts);
-            intent = intent with { PreparedStoragePayload = preparedStoragePayload };
-            Write(intent);
-            pending.Add(intent.Id, intent);
-            Apply(intent, snapshots, bank, postUpload, shop: shop, contracts: contracts);
+            Apply(PersistNewIntent(intent, preparedStoragePayload), snapshots, bank, postUpload, shop: shop, contracts: contracts);
         }
     }
 
@@ -329,7 +306,7 @@ public sealed partial class SnapshotCommitService
         TradeSnapshotMutation trade, Action<LatestSnapshotRecord, string?> postUpload, Action<string> signalUser,
         Action<AuthoritativeEvent> recordTrade, string? snapshotUploadKind = null, MercenaryContractRegistry? contracts = null, PreparedSnapshotPayload? preparedStoragePayload = null)
     {
-        if (pending.Count != 0) throw new InvalidOperationException("Recover pending snapshot commits before accepting new work.");
+        EnsureNoPendingCommit();
         trade.Validate(snapshot.Identity);
         LedgerBatchValidation.Validate(trade.Batch, ledger.Find, ledger.FindByIdempotencyKey);
         LatestSnapshotRecord? previous = snapshots.GetLatest(snapshot.Identity.OwnerId!, snapshot.Identity.ColonyId!);
@@ -338,10 +315,7 @@ public sealed partial class SnapshotCommitService
             package with { Envelope = snapshot.Envelope, Index = snapshot.Index }, snapshot.AcceptedAtUtc,
             null, null, snapshotUploadKind, Trade: trade);
         intent = AttachPendingOperations(intent, bank, contracts);
-        intent = intent with { PreparedStoragePayload = preparedStoragePayload };
-        Write(intent);
-        pending.Add(intent.Id, intent);
-        Apply(intent, snapshots, bank, postUpload, ledger, signalUser, recordTrade, contracts: contracts);
+        Apply(PersistNewIntent(intent, preparedStoragePayload), snapshots, bank, postUpload, ledger, signalUser, recordTrade, contracts: contracts);
     }
 
     public void CommitGift(IColonySnapshotIndexStore snapshots, BankLoanRegistry bank,
@@ -349,7 +323,7 @@ public sealed partial class SnapshotCommitService
         AuthoritativeEvent gift, Action<LatestSnapshotRecord, string?> postUpload, Action<string> signalUser,
         string? snapshotUploadKind = null, MercenaryContractRegistry? contracts = null, PreparedSnapshotPayload? preparedStoragePayload = null)
     {
-        if (pending.Count != 0) throw new InvalidOperationException("Recover pending snapshot commits before accepting new work.");
+        EnsureNoPendingCommit();
         SnapshotIdentity identity = snapshot.Identity;
         if (!GiftSnapshotReplayPolicy.Matches(gift, identity.OwnerId!, identity.ColonyId, identity.SnapshotId))
             throw new ArgumentException("Gift must belong to the confirmed snapshot.");
@@ -361,10 +335,7 @@ public sealed partial class SnapshotCommitService
             package with { Envelope = snapshot.Envelope, Index = snapshot.Index }, snapshot.AcceptedAtUtc,
             null, null, snapshotUploadKind, gift);
         intent = AttachPendingOperations(intent, bank, contracts);
-        intent = intent with { PreparedStoragePayload = preparedStoragePayload };
-        Write(intent);
-        pending.Add(intent.Id, intent);
-        Apply(intent, snapshots, bank, postUpload, ledger, signalUser, contracts: contracts);
+        Apply(PersistNewIntent(intent, preparedStoragePayload), snapshots, bank, postUpload, ledger, signalUser, contracts: contracts);
     }
 
     public void CommitSupport(IColonySnapshotIndexStore snapshots, BankLoanRegistry bank,
@@ -372,7 +343,7 @@ public sealed partial class SnapshotCommitService
         SupportSnapshotMutation mutation, Action<LatestSnapshotRecord, string?> postUpload, Action<string> signalUser,
         string? snapshotUploadKind = null, MercenaryContractRegistry? contracts = null, PreparedSnapshotPayload? preparedStoragePayload = null)
     {
-        if (pending.Count != 0) throw new InvalidOperationException("Recover pending snapshot commits before accepting new work.");
+        EnsureNoPendingCommit();
         mutation.Validate(snapshot.Identity);
         if (mutation.Preflight(ledger)) throw new InvalidOperationException("Use the existing support instead of committing it again.");
         var previous = snapshots.GetLatest(snapshot.Identity.OwnerId!, snapshot.Identity.ColonyId!);
@@ -380,10 +351,23 @@ public sealed partial class SnapshotCommitService
             previous?.Envelope.NextLineageToken, package with { Envelope = snapshot.Envelope, Index = snapshot.Index },
             snapshot.AcceptedAtUtc, null, null, snapshotUploadKind, Support: mutation);
         intent = AttachPendingOperations(intent, bank, contracts);
-        intent = intent with { PreparedStoragePayload = preparedStoragePayload };
+        Apply(PersistNewIntent(intent, preparedStoragePayload), snapshots, bank, postUpload, ledger, signalUser, contracts: contracts);
+    }
+
+    private void EnsureNoPendingCommit()
+    {
+        if (pending.Count != 0) throw new InvalidOperationException("Recover pending snapshot commits before accepting new work.");
+    }
+
+    // The caller has completed business preflight under the mutation gate.
+    // Validate and persist before publishing the intent or upload count; Apply only receives registered work.
+    private SnapshotCommitIntent PersistNewIntent(SnapshotCommitIntent intent, PreparedSnapshotPayload? payload)
+    {
+        intent = intent with { PreparedStoragePayload = payload };
         Write(intent);
         pending.Add(intent.Id, intent);
-        Apply(intent, snapshots, bank, postUpload, ledger, signalUser, contracts: contracts);
+        if (intent.Upload is not null) Interlocked.Increment(ref pendingUploads);
+        return intent;
     }
 
     private void Apply(SnapshotCommitIntent intent, IColonySnapshotIndexStore snapshots, BankLoanRegistry bank,

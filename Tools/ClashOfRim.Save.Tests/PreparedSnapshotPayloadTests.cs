@@ -20,6 +20,8 @@ internal static class PreparedSnapshotPayloadTests
                 FileSnapshotConcurrencyTests.VerifyPausedWrite(root, fixture, encoding, false, mutation, preparePayload: true);
             foreach (string mode in new[] { "success", "revoke", "publish" }) VerifyGate(root, fixture, mode);
             VerifyRecovery(root, fixture);
+            foreach (bool upload in new[] { false, true })
+            foreach (bool badPayload in new[] { false, true }) VerifyIntentPublication(root, fixture, upload, badPayload);
         }
         finally { Directory.Delete(root, recursive: true); }
     }
@@ -123,6 +125,41 @@ internal static class PreparedSnapshotPayloadTests
         Check(store.FallbackStores == 1 && store.PreparedStores == 0 && bank.GetActive("userA", "colonyA")?.LoanId == "loan"
             && store.GetLatestPackage("userA", "colonyA")!.Payload.SequenceEqual(package.Payload)
             && !Directory.EnumerateFiles(journal, "*.json").Any(), "recovery depended on transient prepared bytes");
+    }
+
+    private static void VerifyIntentPublication(string root, Func<string, SaveSnapshotPackage> fixture, bool upload, bool badPayload)
+    {
+        string directory = Path.Combine(root, "intent-" + upload + "-" + badPayload), journal = Path.Combine(directory, "journal");
+        var store = new FileColonySnapshotIndexStore(Path.Combine(directory, "snapshots"));
+        var package = fixture("new-intent");
+        var snapshot = new SnapshotUploadReceiver(store).Receive(new SnapshotUploadContext("userA", "colonyA", "new-intent"),
+            package, DateTimeOffset.UtcNow, storeAccepted: false).AcceptedSnapshot!;
+        var bank = new BankLoanRegistry();
+        var contracts = new MercenaryContractRegistry();
+        var commits = new SnapshotCommitService(journal);
+        var loan = bank.PrepareActivatedLoan("borrow", "userA", "colonyA", "new-intent", 100, 0, 1, 1000, snapshot.AcceptedAtUtc, "loan");
+        int calls = 0;
+        var payload = store.PreparePayload(badPayload ? [1, 2, 3] : package.Payload);
+        void Commit()
+        {
+            if (upload) commits.CommitUpload(store, bank, contracts, package, snapshot,
+                PendingSnapshotOperations.Capture(bank, contracts, snapshot), null, null, null, (_, _, _) => calls++, preparedStoragePayload: payload);
+            else commits.Commit(store, bank, package, snapshot, loan, null, (_, _) => calls++, preparedStoragePayload: payload);
+        }
+        if (!badPayload) { Directory.Delete(journal); File.WriteAllText(journal, "block journal directory"); }
+        bool failed = false;
+        try { Commit(); } catch (Exception ex) when (badPayload ? ex is InvalidDataException : ex is IOException) { failed = true; }
+        Check(failed && !commits.HasPending && !commits.HasPendingUploads && store.ListLatest().Count == 0
+            && bank.GetActive("userA", "colonyA") is null && calls == 0,
+            "Failed intent validation/persistence published memory, count, snapshot or business state.");
+        if (!badPayload) { File.Delete(journal); Directory.CreateDirectory(journal); }
+        Check(!Directory.EnumerateFiles(journal, "*.json").Any(), "Rejected intent was journaled.");
+        payload = store.PreparePayload(package.Payload);
+        Commit();
+        Check(!commits.HasPending && !commits.HasPendingUploads && calls == 1
+            && store.GetLatest("userA", "colonyA")!.Identity.SnapshotId == "new-intent"
+            && (bank.GetActive("userA", "colonyA") is not null) == !upload,
+            "Failed registration poisoned a later commit or its upload count.");
     }
 
     private static byte[] Decode(byte[] bytes)
