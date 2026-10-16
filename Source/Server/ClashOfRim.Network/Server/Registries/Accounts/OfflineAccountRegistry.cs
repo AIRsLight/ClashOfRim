@@ -46,11 +46,15 @@ public sealed class OfflineAccountRegistry
         string? password,
         DateTimeOffset nowUtc,
         bool createIfMissing = false)
+        => PrepareAuthentication(userId, password, nowUtc, createIfMissing).Validate(nowUtc, commit: true);
+
+    // The proof retains a record identity, not a password. Revalidation performs no hashing or account writes.
+    internal PreparedAuthentication PrepareAuthentication(string userId, string? password, DateTimeOffset nowUtc, bool createIfMissing = false)
     {
         string normalizedUserId = NormalizeUserId(userId);
         if (string.IsNullOrWhiteSpace(normalizedUserId))
         {
-            return OfflineAccountAuthenticationResult.Reject(MissingUserKey);
+            return PreparedAuthentication.Reject(MissingUserKey);
         }
 
         string suppliedPassword = password ?? string.Empty;
@@ -58,38 +62,66 @@ public sealed class OfflineAccountRegistry
         {
             if (quarantinedUserIds.Contains(normalizedUserId))
             {
-                return OfflineAccountAuthenticationResult.Reject(InvalidPasswordKey);
+                return PreparedAuthentication.Reject(InvalidPasswordKey);
             }
 
             if (IsLockedOut(normalizedUserId, nowUtc))
             {
-                return OfflineAccountAuthenticationResult.Reject(RateLimitedKey);
+                return PreparedAuthentication.Reject(RateLimitedKey);
             }
 
-            if (!accounts.TryGetValue(normalizedUserId, out OfflineAccountRecord? account))
+            accounts.TryGetValue(normalizedUserId, out OfflineAccountRecord? expected);
+            OfflineAccountRecord account;
+            if (expected is null)
             {
                 if (!createIfMissing)
                 {
-                    return OfflineAccountAuthenticationResult.Reject(MissingUserKey);
+                    return PreparedAuthentication.Reject(MissingUserKey);
                 }
 
                 account = CreateRecord(
                     normalizedUserId,
                     suppliedPassword,
                     nowUtc);
-                PersistAccount(account);
-                accounts[normalizedUserId] = account;
             }
-
-            if (!VerifyPassword(suppliedPassword, account))
+            else
             {
-                RecordAuthenticationFailure(normalizedUserId, nowUtc);
-                return OfflineAccountAuthenticationResult.Reject(InvalidPasswordKey);
+                account = expected;
+                if (!VerifyPassword(suppliedPassword, account))
+                {
+                    RecordAuthenticationFailure(normalizedUserId, nowUtc);
+                    return PreparedAuthentication.Reject(InvalidPasswordKey);
+                }
             }
 
             authenticationFailures.Remove(normalizedUserId);
-            return OfflineAccountAuthenticationResult.Accept(normalizedUserId, account.DisplayName);
+            var accepted = OfflineAccountAuthenticationResult.Accept(normalizedUserId, account.DisplayName);
+            return new PreparedAuthentication(accepted, (at, commit) =>
+            {
+                lock (gate)
+                {
+                    if (quarantinedUserIds.Contains(normalizedUserId)) return OfflineAccountAuthenticationResult.Reject(InvalidPasswordKey);
+                    if (IsLockedOut(normalizedUserId, at)) return OfflineAccountAuthenticationResult.Reject(RateLimitedKey);
+                    accounts.TryGetValue(normalizedUserId, out var current);
+                    if (!ReferenceEquals(current, expected)) return OfflineAccountAuthenticationResult.Reject(InvalidPasswordKey);
+                    if (commit && expected is null)
+                    {
+                        PersistAccount(account);
+                        accounts[normalizedUserId] = account;
+                        expected = account;
+                    }
+                    return accepted;
+                }
+            });
         }
+    }
+
+    internal sealed class PreparedAuthentication(OfflineAccountAuthenticationResult result,
+        Func<DateTimeOffset, bool, OfflineAccountAuthenticationResult>? validate = null)
+    {
+        internal OfflineAccountAuthenticationResult Result { get; } = result;
+        internal OfflineAccountAuthenticationResult Validate(DateTimeOffset nowUtc, bool commit = false) => validate?.Invoke(nowUtc, commit) ?? Result;
+        internal static PreparedAuthentication Reject(string message) => new(OfflineAccountAuthenticationResult.Reject(message));
     }
 
     public bool ChangePassword(string userId, string? currentPassword, string? newPassword, DateTimeOffset nowUtc, out string failure)

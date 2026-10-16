@@ -46,67 +46,47 @@ public static partial class ClashOfRimNetworkServer
                 worldConfiguration: null));
         }
 
-        DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
-        CompatibilityHandshakeResult compatibility = ValidateCompatibilityHandshake(
-            state,
-            request.UserId,
-            request.SteamAuthTicket,
-            request.Password,
-            request.CompatibilityManifestJson,
-            request.CompatibilityManifestId,
-            request.CompatibilityManifestSummaryJson,
-            nowUtc,
-            request.CreateAccountIfMissing);
-        if (!compatibility.Result.Accepted)
-        {
-            return Results.Ok(new PrepareWorldSessionResponse(
-                compatibility.Result,
-                isAdministrator: false,
-                worldConfigured: false,
-                requiresInitialWorldConfiguration: false,
-                administratorUserId: null,
-                worldConfiguration: null,
-                serverCompatibilityManifestJson: compatibility.ServerCompatibilityManifestJson,
-                compatibilityIssues: compatibility.CompatibilityIssues,
-                canOverrideCompatibilityBaseline: false,
-                requiresFullCompatibilityManifest: compatibility.RequiresFullCompatibilityManifest,
-                requestedCompatibilityPackageIds: compatibility.RequestedCompatibilityPackageIds));
-        }
+        return PrepareAuthenticatedWorldSession(request, state);
+    }
 
+    private static IResult PrepareWorldSessionLocked(PrepareWorldSessionRequest request, ClashOfRimNetworkState state,
+        string userId, CompatibilityHandshakeResult compatibility, DateTimeOffset nowUtc)
+    {
+        if (!Monitor.IsEntered(state.RaidSettlementSnapshotMutationGate)) throw new InvalidOperationException("World session preparation requires the recovered mutation scope.");
         ReconcileExpiredRaidEvents(state, nowUtc);
         string requestedColonyId = string.IsNullOrWhiteSpace(request.ColonyId)
-            ? CreateDefaultColonyId(request.UserId)
+            ? CreateDefaultColonyId(userId)
             : request.ColonyId!.Trim();
-        string assignedColonyId = state.Players.ResolveActiveColonyId(request.UserId, requestedColonyId, nowUtc);
-        WorldSessionState session = state.WorldConfiguration.Prepare(request.UserId);
+        string assignedColonyId = state.Players.ResolveActiveColonyId(userId, requestedColonyId, nowUtc);
+        WorldSessionState session = state.WorldConfiguration.Prepare(userId);
         WorldConfigurationDto? deliveredConfiguration = BuildWorldConfigurationForDelivery(session.WorldConfiguration, state);
-        LatestSnapshotRecord? latestSnapshot = state.SnapshotStore.GetLatest(request.UserId, assignedColonyId);
-        bool hasRegisteredColonySite = HasRegisteredPlayerColonySite(deliveredConfiguration, request.UserId, assignedColonyId);
+        LatestSnapshotRecord? latestSnapshot = state.SnapshotStore.GetLatest(userId, assignedColonyId);
+        bool hasRegisteredColonySite = HasRegisteredPlayerColonySite(deliveredConfiguration, userId, assignedColonyId);
         if (latestSnapshot is null && !hasRegisteredColonySite)
         {
             string? snapshotBackedColonyId = FindExistingColonyIdForUser(
                 state,
                 deliveredConfiguration,
-                request.UserId,
+                userId,
                 requestedColonyId);
             if (!string.IsNullOrWhiteSpace(snapshotBackedColonyId)
                 && !string.Equals(snapshotBackedColonyId, assignedColonyId, StringComparison.Ordinal))
             {
                 assignedColonyId = snapshotBackedColonyId!;
-                latestSnapshot = state.SnapshotStore.GetLatest(request.UserId, assignedColonyId);
-                hasRegisteredColonySite = HasRegisteredPlayerColonySite(deliveredConfiguration, request.UserId, assignedColonyId);
+                latestSnapshot = state.SnapshotStore.GetLatest(userId, assignedColonyId);
+                hasRegisteredColonySite = HasRegisteredPlayerColonySite(deliveredConfiguration, userId, assignedColonyId);
             }
         }
 
         if (string.Equals(assignedColonyId, requestedColonyId, StringComparison.Ordinal)
             && latestSnapshot is null
             && !hasRegisteredColonySite
-            && HasHistoricalColonyLedgerReference(state, request.UserId, requestedColonyId))
+            && HasHistoricalColonyLedgerReference(state, userId, requestedColonyId))
         {
-            state.Players.MarkDeleted(request.UserId, requestedColonyId, currentSnapshotId: null, nowUtc);
-            assignedColonyId = state.Players.ResolveActiveColonyId(request.UserId, requestedColonyId, nowUtc);
-            latestSnapshot = state.SnapshotStore.GetLatest(request.UserId, assignedColonyId);
-            hasRegisteredColonySite = HasRegisteredPlayerColonySite(deliveredConfiguration, request.UserId, assignedColonyId);
+            state.Players.MarkDeleted(userId, requestedColonyId, currentSnapshotId: null, nowUtc);
+            assignedColonyId = state.Players.ResolveActiveColonyId(userId, requestedColonyId, nowUtc);
+            latestSnapshot = state.SnapshotStore.GetLatest(userId, assignedColonyId);
+            hasRegisteredColonySite = HasRegisteredPlayerColonySite(deliveredConfiguration, userId, assignedColonyId);
         }
 
         bool hasExistingColony = latestSnapshot is not null || hasRegisteredColonySite;
@@ -136,7 +116,7 @@ public static partial class ClashOfRimNetworkServer
         {
             AuthoritativeEvent? blockingRaid = FindDefenderLoginBlockingRaid(
                 state,
-                request.UserId,
+                userId,
                 assignedColonyId);
             if (blockingRaid is not null)
             {
@@ -155,11 +135,11 @@ public static partial class ClashOfRimNetworkServer
             }
         }
 
-        RecordPlayerSeen(state, request.UserId, assignedColonyId, currentSnapshotId: null, nowUtc);
+        RecordPlayerSeen(state, userId, assignedColonyId, currentSnapshotId: null, nowUtc);
         RunClientLifecycleHooks(
             state,
             ClientLifecycleEvent.InitialWorldSessionPrepared(
-                request.UserId,
+                userId,
                 assignedColonyId,
                 latestSnapshot?.Identity.SnapshotId,
                 nowUtc));

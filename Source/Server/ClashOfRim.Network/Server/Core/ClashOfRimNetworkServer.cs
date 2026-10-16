@@ -139,7 +139,7 @@ public static partial class ClashOfRimNetworkServer
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.FinishSupportPawn).Route, FinishSupportPawn).WithMetadata(EndpointSnapshotRecovery.Instance);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.SyncWorldMapMarkers).Route, SyncWorldMapMarkers);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.SyncRuntimeWorldObjects).Route, SyncRuntimeWorldObjects);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.PrepareWorldSession).Route, PrepareWorldSession);
+        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.PrepareWorldSession).Route, PrepareWorldSession).WithMetadata(EndpointSnapshotRecovery.Instance);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.GetWorldConfiguration).Route, GetWorldConfiguration);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.SubmitWorldConfiguration).Route, SubmitWorldConfiguration).WithMetadata(EndpointSnapshotRecovery.Instance);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.UploadWorldSubstrate).Route, UploadWorldSubstrate);
