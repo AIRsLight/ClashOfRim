@@ -1,4 +1,5 @@
 using AIRsLight.ClashOfRim.ClientNetwork;
+using AIRsLight.ClashOfRim.CoreCompatibility;
 using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.ThirdPartyCompatibility;
 using RimWorld;
@@ -40,6 +41,10 @@ internal static class ThingTransferPipeline
             ThingStatePackageUtility.TryAttachFallbackPackage(thing, reference);
         }
 
+        // Base component state does not imply that a compatibility provider owns
+        // every unknown comp; retain the existing fallback-package decision above.
+        CoreTransferStateMetadata.Append(thing, reference);
+
         ThingTransferPolicy.MarkAccepted(reference.Metadata);
 
         return true;
@@ -56,6 +61,8 @@ internal static class ThingTransferPipeline
         {
             return false;
         }
+
+        if (!CoreTransferStateMetadata.TryApply(reference, thing, out missingDefName)) return false;
 
         return ClashOfRimCompatibilityApi.FinalizeThingTransfer(
             reference,

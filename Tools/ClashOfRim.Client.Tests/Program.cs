@@ -23,6 +23,7 @@ var tests = new (string Name, Action Run)[]
     ("item durability uses final quality maximum", ThingMetadataOrderTests.Run),
     ("shop distinguishes minifiable contents from empty wrappers", ShopDefinitionEligibilityTests.Run),
     ("battle reload addiction guard is limited to missing needs during load", AddictionLoadStateTests.Run),
+    ("vanilla transfer state survives cultures and rejects partial invalid state", CoreTransferStateTests.Run),
     ("server ideology catalog follows replaced faction primary instances", IdeologyCatalogBindingTests.Run),
     ("concurrent localized messages retain their own arguments", ConcurrentFormattingTests.Run),
     ("Scribe XML preserves fractional values across cultures", ScribeCultureTests.Run),
