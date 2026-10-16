@@ -24,6 +24,10 @@
 
 ## Q2 · P2：经济端点手写两阶段流程，借款漏掉最终业务规则复验
 
+状态：已修复并验证（2026-10-16）。借款两个新提交边界共用 `ValidateBankLoanSnapshot`，每次使用单份当前配置重新计算开关、金额、期限与利息，并检查贷款 ID 和活动贷款；最终提交使用重新计算的利息。重放检查仍先于当前业务条件和准备错误。
+
+新增 9 个场景覆盖正常条件、关闭借款、利率、金额上下限、财富比例、期限上下限以及关闭业务/改价后的成功回执重放。银行原有恢复/并发/身份测试和完整 NetworkSmoke 通过。移除最终校验的反向变体被新增测试捕获，恢复后重跑通过。日志：`LocalOnly/q2-{targeted,negative,network-smoke}.log`。本步未单独重跑 RimTest，前一步已有正常双客户端基线，最终组合验证在 Q3 完成后执行。
+
 位置：`Source/Server/ClashOfRim.Network/Server/Endpoints/ClashOfRimNetworkServer.BankMercenaries.cs:72-132,157-195`；`Core/ClashOfRimNetworkServer.BankSnapshotReplay.cs:9-70`；对照 `Core/ClashOfRimNetworkServer.MercenarySnapshotCommits.cs:45`。
 
 借款首次检查开关、金额上限、期限、利率后释放锁准备快照。最终阶段只检查授权、重放、请求 ID 与现有贷款，然后使用先前计算的 `interestSilver`。`CheckCreateBankLoanWithSnapshotReplay` 没有重新检查当前业务配置。雇佣/护卫两阶段共用 Validate 方法，商店则重新读取价格和库存；这些近似流程已经发生漂移。

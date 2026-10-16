@@ -9,6 +9,9 @@ internal static class SnapshotEndpointRecoveryPreparationTests
 {
     public static void Run(Func<string, SaveSnapshotPackage> factory)
     {
+        foreach (string change in new[] { "none", "disabled", "rate", "minimum", "maximum", "wealth", "duration-min", "duration-max" })
+            WithFixture(factory, "borrow", f => VerifyBorrowTerms(f, change));
+        WithFixture(factory, "borrow", VerifyBorrowReplayAfterPolicyChange);
         foreach (string kind in new[] { "borrow", "loan", "debt" })
         {
             foreach (bool final in new[] { false, true })
@@ -17,6 +20,46 @@ internal static class SnapshotEndpointRecoveryPreparationTests
             WithFixture(factory, kind, VerifyInvalidBody);
             WithFixture(factory, kind, VerifyConcurrentRetries);
         }
+    }
+
+    private static void VerifyBorrowTerms(Fixture f, string change)
+    {
+        if (change == "duration-max") f.BorrowDurationDays = 2;
+        f.Store.Reset();
+        Reply? reply = null;
+        string? before = null;
+        SnapshotPreparationGateProbe.Run(f.State.RaidSettlementSnapshotMutationGate, hook => f.Store.BeforePrepare = hook,
+            () => reply = f.Call(), () =>
+            {
+                f.State.UpdateServerConfiguration(new(bankLoansEnabled: change != "disabled",
+                    bankMinLoanSilver: change == "minimum" ? 101 : 1, bankMaxLoanSilver: change == "maximum" ? 50 : 10000,
+                    bankMaxLoanWealthRatio: change == "wealth" ? 0.005f : 0.5f,
+                    bankMinDurationDays: change == "duration-min" ? 2 : 1,
+                    bankMaxDurationDays: change == "duration-max" ? 1 : 30, bankBaseAnnualInterestRate: change == "rate" ? 60 : 0));
+                before = f.Evidence();
+            });
+        if (change == "none")
+            Require(reply is { Result.Accepted: true, Snapshot: "paid", Delta: 100 } && f.Store.Writes == 1,
+                "Unchanged borrowing terms were rejected.");
+        else
+            Require(reply is { Result.Accepted: false, Id: null, Snapshot: null, Token: null, Delta: 0 }
+                && f.Store.Writes == 0 && !f.State.SnapshotCommits.HasPending && before == f.Evidence(),
+                "Borrowing accepted changed policy: " + change);
+        AssertGatesReleased(f);
+    }
+
+    private static void VerifyBorrowReplayAfterPolicyChange(Fixture f)
+    {
+        var first = f.Call();
+        Require(first.Result.Accepted, "Borrow replay fixture failed.");
+        f.State.UpdateServerConfiguration(new(bankLoansEnabled: false, bankBaseAnnualInterestRate: 60));
+        string before = f.Evidence();
+        f.Store.Reset();
+        var replay = f.Call();
+        Require(replay.Result is { Accepted: true, ErrorCode: ProtocolErrorCode.DuplicateRequest }
+            && replay.Id == first.Id && replay.Snapshot == first.Snapshot && replay.Token == first.Token && replay.Delta == first.Delta
+            && f.Store.Writes == 0 && before == f.Evidence(), "Current policy overrode a committed borrowing receipt.");
+        AssertGatesReleased(f);
     }
 
     public static void RunServices(Func<string, SaveSnapshotPackage> factory)
@@ -159,6 +202,7 @@ internal static class SnapshotEndpointRecoveryPreparationTests
         private readonly string root, database;
         private string token = "", debtId = "";
         public string Kind { get; }
+        public int BorrowDurationDays = 1;
         private bool Shop => Kind.StartsWith("shop");
         private bool Hire => Kind is "mercenary" or "guard";
         private string ShopKind => Kind == "shop-buy" ? ServerShopListingKinds.BuyFromPlayer : ServerShopListingKinds.SellToPlayer;
@@ -242,7 +286,7 @@ internal static class SnapshotEndpointRecoveryPreparationTests
                         1000, "contract", "Apprentice", 600, 0.35f, metadata), Package.Payload, Actor, token).GetAwaiter().GetResult();
                 return new(r.Result, r.Contract?.ContractId, r.AppliedSnapshotId, r.NextLineageToken, 0, r.BankStatus is not null);
             }
-            object request = Kind == "borrow" ? new CreateBankLoanWithSnapshotRequest("operation", "userA", "colonyA", "before", bodyToken ?? token, 1100, 10000, 100, 1, "loan-operation", 0, metadata)
+            object request = Kind == "borrow" ? new CreateBankLoanWithSnapshotRequest("operation", "userA", "colonyA", "before", bodyToken ?? token, 1100, 10000, 100, BorrowDurationDays, "loan-operation", 0, metadata)
                 : Kind == "loan" ? new RepayBankLoanWithSnapshotRequest("operation", "userA", "colonyA", "before", bodyToken ?? token, 1100, "loan", 110, metadata)
                 : new RepayBankDebtWithSnapshotRequest("operation", "userA", "colonyA", "before", bodyToken ?? token, 1100, debtId, 110, metadata);
             if (Kind == "debt")

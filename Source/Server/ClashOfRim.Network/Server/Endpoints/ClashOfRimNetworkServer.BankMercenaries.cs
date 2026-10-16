@@ -69,68 +69,10 @@ public static partial class ClashOfRimNetworkServer
             var replay = CheckCreateBankLoanWithSnapshotReplay(httpRequest, state, request, nowUtc, out var checkedContext);
             if (replay is not null) return replay;
             context = checkedContext!;
-            if (!state.ServerConfiguration.BankLoansEnabled)
-            {
-                return Results.Ok(new BankLoanResponse(
-                    ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, T("Bank.Disabled")),
-                    loan: null,
-                    silverDelta: 0,
+            var validation = ValidateBankLoanSnapshot(state, request, context, out interestSilver);
+            if (validation is not null)
+                return Results.Ok(new BankLoanResponse(validation, null, 0,
                     BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
-            }
-
-            if (state.BankLoans.GetActive(request.UserId, request.ColonyId) is not null)
-            {
-                return Results.Ok(new BankLoanResponse(
-                    ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Bank.ActiveLoanExists")),
-                    loan: null,
-                    silverDelta: 0,
-                    BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
-            }
-
-            int maxLoanSilver = CalculateBankMaxLoanSilver(context.ColonyWealth, state.ServerConfiguration);
-            if (request.PrincipalSilver < state.ServerConfiguration.BankMinLoanSilver
-                || request.PrincipalSilver > maxLoanSilver)
-            {
-                return Results.Ok(new BankLoanResponse(
-                    ProtocolResponse.Reject(
-                        ProtocolErrorCode.ValidationFailed,
-                        T(
-                            "Bank.InvalidPrincipal",
-                            ("MIN", state.ServerConfiguration.BankMinLoanSilver.ToString(CultureInfo.InvariantCulture)),
-                            ("MAX", maxLoanSilver.ToString(CultureInfo.InvariantCulture)))),
-                    loan: null,
-                    silverDelta: 0,
-                    BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
-            }
-
-            if (request.DurationDays < state.ServerConfiguration.BankMinDurationDays
-                || request.DurationDays > state.ServerConfiguration.BankMaxDurationDays)
-            {
-                return Results.Ok(new BankLoanResponse(
-                    ProtocolResponse.Reject(
-                        ProtocolErrorCode.ValidationFailed,
-                        T(
-                            "Bank.InvalidDuration",
-                            ("MIN", state.ServerConfiguration.BankMinDurationDays.ToString(CultureInfo.InvariantCulture)),
-                            ("MAX", state.ServerConfiguration.BankMaxDurationDays.ToString(CultureInfo.InvariantCulture)))),
-                    loan: null,
-                    silverDelta: 0,
-                    BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
-            }
-
-            interestSilver = CalculateBankInterestSilver(
-                request.PrincipalSilver,
-                request.DurationDays,
-                state.ServerConfiguration);
-            if (request.ExpectedInterestSilver != interestSilver)
-            {
-                return Results.Ok(new BankLoanResponse(
-                    ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("Bank.InterestMismatch")),
-                    loan: null,
-                    silverDelta: 0,
-                    BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
-            }
-
             if (TryRejectExpiredPendingConfirmationSnapshot(
                     state,
                     request.UserId,
@@ -170,9 +112,10 @@ public static partial class ClashOfRimNetworkServer
                         silverDelta: 0,
                         BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
                 }
-                if (state.BankLoans.ContainsLoanId(request.RequestedLoanId))
-                    return Results.Ok(new BankLoanResponse(ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Bank.RequestMissingIdentity")), null, 0, null));
-                if (state.BankLoans.GetActive(request.UserId, request.ColonyId) is not null) return Results.Ok(new BankLoanResponse(ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Bank.LoanCannotRepay")), null, 0, null));
+                var validation = ValidateBankLoanSnapshot(state, request, context, out interestSilver);
+                if (validation is not null)
+                    return Results.Ok(new BankLoanResponse(validation, null, 0,
+                        BuildBankStatusResponse(state, context, ProtocolResponse.Ok())));
                 upload = CreateSnapshotReceiver(state).CommitPrepared(
                     new SnapshotUploadContext(request.UserId, request.ColonyId, request.ConfirmedSnapshot.SnapshotId!,
                         null, NormalizeSnapshotUploadKind(request.ConfirmedSnapshot.SnapshotUploadKind)),

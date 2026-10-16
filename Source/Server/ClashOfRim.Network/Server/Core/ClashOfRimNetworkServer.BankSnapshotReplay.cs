@@ -1,10 +1,37 @@
 using AIRsLight.ClashOfRim.Protocol;
 using Microsoft.AspNetCore.Http;
+using System.Globalization;
 
 namespace AIRsLight.ClashOfRim.Network;
 
 public static partial class ClashOfRimNetworkServer
 {
+    // Evaluate one immutable configuration at both new-commit boundaries, after checking for a receipt.
+    private static ProtocolResponse? ValidateBankLoanSnapshot(ClashOfRimNetworkState state,
+        CreateBankLoanWithSnapshotRequest request, BankRequestContext context, out int interestSilver)
+    {
+        interestSilver = 0;
+        var configuration = state.ServerConfiguration;
+        if (!configuration.BankLoansEnabled)
+            return ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, T("Bank.Disabled"));
+        if (state.BankLoans.ContainsLoanId(request.RequestedLoanId))
+            return ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Bank.RequestMissingIdentity"));
+        if (state.BankLoans.GetActive(request.UserId, request.ColonyId) is not null)
+            return ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Bank.ActiveLoanExists"));
+        int maximum = CalculateBankMaxLoanSilver(context.ColonyWealth, configuration);
+        if (request.PrincipalSilver < configuration.BankMinLoanSilver || request.PrincipalSilver > maximum)
+            return ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("Bank.InvalidPrincipal",
+                ("MIN", configuration.BankMinLoanSilver.ToString(CultureInfo.InvariantCulture)),
+                ("MAX", maximum.ToString(CultureInfo.InvariantCulture))));
+        if (request.DurationDays < configuration.BankMinDurationDays || request.DurationDays > configuration.BankMaxDurationDays)
+            return ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("Bank.InvalidDuration",
+                ("MIN", configuration.BankMinDurationDays.ToString(CultureInfo.InvariantCulture)),
+                ("MAX", configuration.BankMaxDurationDays.ToString(CultureInfo.InvariantCulture))));
+        interestSilver = CalculateBankInterestSilver(request.PrincipalSilver, request.DurationDays, configuration);
+        return request.ExpectedInterestSilver == interestSilver ? null
+            : ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("Bank.InterestMismatch"));
+    }
+
     // Caller holds the snapshot mutation gate, then the bank gate, for both checks.
     private static IResult? CheckCreateBankLoanWithSnapshotReplay(HttpRequest httpRequest, ClashOfRimNetworkState state,
         CreateBankLoanWithSnapshotRequest request, DateTimeOffset nowUtc, out BankRequestContext? context)
