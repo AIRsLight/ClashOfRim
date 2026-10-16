@@ -11,6 +11,8 @@ namespace AIRsLight.ClashOfRim.DlcCompatibility;
 
 internal static partial class BiotechCompatibility
 {
+    private static readonly System.Reflection.FieldInfo GeneSetField = typeof(GeneSetHolderBase).GetField(
+        "geneSet", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
     private const string MetadataGeneDefNames = "rimworld.biotech.geneDefNames";
     private const string MetadataTargetGeneDefName = "rimworld.biotech.targetGeneDefName";
     private const string MetadataXenotypeName = "rimworld.biotech.xenotypeName";
@@ -215,7 +217,14 @@ internal static partial class BiotechCompatibility
                         : xenotypeName!,
                     icon);
             }
-
+            else
+            {
+                // Embryos and other base holders have no public Initialize API. Preserve
+                // the transmitted genes rather than regenerating them from parent stubs.
+                var geneSet = new GeneSet();
+                foreach (GeneDef gene in genes) geneSet.AddGene(gene);
+                GeneSetField.SetValue(thing, geneSet);
+            }
         }
 
         return TryApplyReproductiveSourceMetadata(reference, thing, out missingDefName);
