@@ -145,7 +145,15 @@ internal sealed partial class GameSuite
             var expected = JsonSerializer.SerializeToElement(persistedBaseline, Wire.Json);
             var actual = JsonSerializer.SerializeToElement(restored.Current, Wire.Json);
             foreach (var field in expected.EnumerateObject())
-                Equal(field.Value, actual.GetProperty(field.Name), "Persisted baseline field differs: " + field.Name);
+            {
+                try { Equal(field.Value, actual.GetProperty(field.Name), "Persisted baseline field differs: " + field.Name); }
+                catch
+                {
+                    await File.WriteAllTextAsync(Path.Combine(root, "world-persistence-expected.json"), expected.GetRawText());
+                    await File.WriteAllTextAsync(Path.Combine(root, "world-persistence-actual.json"), actual.GetRawText());
+                    throw;
+                }
+            }
             Check(restored.TryGetWorldSubstrate(baseline.WorldConfigurationId, out var blob) && state.WorldConfiguration.TryGetWorldSubstrate(baseline.WorldConfigurationId, out var original)
                 && blob!.AsSpan().SequenceEqual(original), "World substrate did not survive persistence.");
         });

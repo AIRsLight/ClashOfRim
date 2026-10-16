@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 
 namespace AIRsLight.ClashOfRim.Network.Plugins.DlcCompatibility;
 
@@ -53,9 +54,9 @@ public sealed class WorldIdeoSummaryDto
         SavedIdeoPackageXml = savedIdeoPackageXml;
         SavedIdeoPackageSha256 = savedIdeoPackageSha256;
         UpdatedAtGameTicks = updatedAtGameTicks;
-        MemeDefNames = memeDefNames ?? Array.Empty<string>();
-        PreceptDefNames = preceptDefNames ?? Array.Empty<string>();
-        StyleCategoryDefNames = styleCategoryDefNames ?? Array.Empty<string>();
+        MemeDefNames = NormalizeDefs(memeDefNames);
+        PreceptDefNames = NormalizeDefs(preceptDefNames);
+        StyleCategoryDefNames = NormalizeDefs(styleCategoryDefNames);
         Hidden = hidden;
         InitialPlayerIdeo = initialPlayerIdeo;
         MemeCount = memeCount;
@@ -63,6 +64,10 @@ public sealed class WorldIdeoSummaryDto
     }
 
     public string GlobalKey { get; }
+
+    // These are Def catalogs; instance multiplicity is represented by the counts.
+    private static IReadOnlyList<string> NormalizeDefs(IReadOnlyList<string>? definitions) =>
+        definitions?.Distinct(StringComparer.Ordinal).ToArray() ?? Array.Empty<string>();
 
     public string OwnerUserId { get; }
 

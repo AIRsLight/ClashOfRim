@@ -129,7 +129,7 @@ internal static class IdeologyServerCompatibility
             if (string.IsNullOrWhiteSpace(ideo.SavedIdeoPackageXml)
                 && TryFindEquivalentCanonicalIdeo(ideo, ideos, out WorldIdeoSummaryDto? equivalent))
             {
-                hydrated.Add(CopyEquivalentIdeoPackage(ideo, equivalent));
+                hydrated.Add(HydrateIdeoSummary(ideo, equivalent));
                 continue;
             }
 
@@ -195,11 +195,11 @@ internal static class IdeologyServerCompatibility
 
             if (byGlobalKey.TryGetValue(normalized.GlobalKey, out WorldIdeoSummaryDto? existing))
             {
-                normalized = PreserveExistingIdeoPackageWhenIncomingIsSummary(normalized, existing);
+                normalized = HydrateIdeoSummary(normalized, existing);
             }
             else if (TryFindEquivalentCanonicalIdeo(normalized, byGlobalKey.Values, out existing))
             {
-                normalized = CopyEquivalentIdeoPackage(normalized, existing);
+                normalized = HydrateIdeoSummary(normalized, existing);
             }
 
             byGlobalKey[normalized.GlobalKey] = normalized;
@@ -312,11 +312,11 @@ internal static class IdeologyServerCompatibility
 
                 if (byGlobalKey.TryGetValue(globalKey, out WorldIdeoSummaryDto? existing))
                 {
-                    return PreserveExistingIdeoPackageWhenIncomingIsSummary(summary, existing);
+                    return HydrateIdeoSummary(summary, existing);
                 }
 
                 return TryFindEquivalentCanonicalIdeo(summary, byGlobalKey.Values, out existing)
-                    ? CopyEquivalentIdeoPackage(summary, existing)
+                    ? HydrateIdeoSummary(summary, existing)
                     : summary;
             }))
         {
@@ -389,12 +389,11 @@ internal static class IdeologyServerCompatibility
             .SetEquals(right.Where(value => !string.IsNullOrWhiteSpace(value)));
     }
 
-    private static WorldIdeoSummaryDto CopyEquivalentIdeoPackage(
+    private static WorldIdeoSummaryDto HydrateIdeoSummary(
         WorldIdeoSummaryDto incoming,
         WorldIdeoSummaryDto equivalent)
     {
-        if (!string.IsNullOrWhiteSpace(incoming.SavedIdeoPackageXml)
-            || string.IsNullOrWhiteSpace(equivalent.SavedIdeoPackageXml))
+        if (!string.IsNullOrWhiteSpace(incoming.SavedIdeoPackageXml))
         {
             return incoming;
         }
@@ -407,60 +406,19 @@ internal static class IdeologyServerCompatibility
             incoming.LocalId,
             incoming.Name,
             incoming.Culture,
-            incoming.CultureLabel,
-            incoming.CultureIconPath,
+            incoming.CultureLabel ?? (incoming.Culture == equivalent.Culture ? equivalent.CultureLabel : null),
+            incoming.CultureIconPath ?? (incoming.Culture == equivalent.Culture ? equivalent.CultureIconPath : null),
             incoming.PrimaryFactionColor,
-            incoming.PrimaryFactionColorHex,
+            incoming.PrimaryFactionColorHex ?? (incoming.PrimaryFactionColor == equivalent.PrimaryFactionColor ? equivalent.PrimaryFactionColorHex : null),
             incoming.FoundationDefName,
-            incoming.FactionDefName,
+            incoming.FactionDefName ?? equivalent.FactionDefName,
             incoming.IconDefName,
-            incoming.IconPath,
+            incoming.IconPath ?? (incoming.IconDefName == equivalent.IconDefName ? equivalent.IconPath : null),
             incoming.ColorDefName,
-            incoming.ColorHex,
+            incoming.ColorHex ?? (incoming.ColorDefName == equivalent.ColorDefName ? equivalent.ColorHex : null),
             equivalent.SavedIdeoPackageXml,
             equivalent.SavedIdeoPackageSha256,
-            incoming.UpdatedAtGameTicks,
-            incoming.MemeDefNames,
-            incoming.PreceptDefNames,
-            incoming.StyleCategoryDefNames,
-            incoming.Hidden,
-            incoming.InitialPlayerIdeo,
-            incoming.MemeCount,
-            incoming.PreceptCount);
-    }
-
-    private static WorldIdeoSummaryDto PreserveExistingIdeoPackageWhenIncomingIsSummary(
-        WorldIdeoSummaryDto incoming,
-        WorldIdeoSummaryDto existing)
-    {
-        bool incomingHasPackage = !string.IsNullOrWhiteSpace(incoming.SavedIdeoPackageXml);
-        bool existingHasPackage = !string.IsNullOrWhiteSpace(existing.SavedIdeoPackageXml);
-        if (incomingHasPackage || !existingHasPackage)
-        {
-            return incoming;
-        }
-
-        return new WorldIdeoSummaryDto(
-            incoming.GlobalKey,
-            incoming.OwnerUserId,
-            incoming.OwnerColonyId,
-            incoming.SourceSnapshotId,
-            incoming.LocalId,
-            incoming.Name,
-            incoming.Culture,
-            incoming.CultureLabel,
-            incoming.CultureIconPath,
-            incoming.PrimaryFactionColor,
-            incoming.PrimaryFactionColorHex,
-            incoming.FoundationDefName,
-            incoming.FactionDefName,
-            incoming.IconDefName,
-            incoming.IconPath,
-            incoming.ColorDefName,
-            incoming.ColorHex,
-            existing.SavedIdeoPackageXml,
-            existing.SavedIdeoPackageSha256,
-            incoming.UpdatedAtGameTicks,
+            incoming.UpdatedAtGameTicks ?? equivalent.UpdatedAtGameTicks,
             incoming.MemeDefNames,
             incoming.PreceptDefNames,
             incoming.StyleCategoryDefNames,
