@@ -7,6 +7,42 @@ public sealed class LoginSessionRegistry
     private readonly object gate = new();
     private readonly Dictionary<string, LoginSession> sessionsByUser = new(StringComparer.Ordinal);
 
+    internal bool CanCreate(string userId, DateTimeOffset nowUtc)
+    {
+        lock (gate)
+            return !sessionsByUser.TryGetValue(userId, out var existing) || !existing.Streaming || existing.IsExpired(nowUtc);
+    }
+
+    internal PreparedSession? Prepare(string userId, string colonyId, DateTimeOffset nowUtc)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(userId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(colonyId);
+        lock (gate)
+        {
+            sessionsByUser.TryGetValue(userId, out var expected);
+            if (expected is { Streaming: true } && !expected.IsExpired(nowUtc)) return null;
+            string id = $"session:{userId}:{Guid.NewGuid():N}";
+            bool consumed = false;
+            bool Publish(DateTimeOffset publishedAt)
+            {
+                lock (gate)
+                {
+                    if (consumed) return false;
+                    consumed = true;
+                    sessionsByUser.TryGetValue(userId, out var current);
+                    // Streams and heartbeats can change a pending session outside the server gate.
+                    // Never undo their progress, a logout, or another successful login.
+                    if (!ReferenceEquals(current, expected)) return false;
+                    sessionsByUser[userId] = new LoginSession(userId, colonyId, id, publishedAt, Streaming: false);
+                    return true;
+                }
+            }
+            return new(id, Publish);
+        }
+    }
+
+    internal sealed record PreparedSession(string SessionId, Func<DateTimeOffset, bool> TryPublish);
+
     public bool TryCreate(string userId, string colonyId, DateTimeOffset nowUtc, out string sessionId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(userId);

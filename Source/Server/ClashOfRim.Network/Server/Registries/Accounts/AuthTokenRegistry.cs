@@ -86,6 +86,11 @@ public sealed class AuthTokenRegistry
         }
     }
 
+    internal void Revoke(string token)
+    {
+        lock (gate) tokens.Remove(token);
+    }
+
     public void RevokeForUser(string userId)
     {
         if (string.IsNullOrWhiteSpace(userId))

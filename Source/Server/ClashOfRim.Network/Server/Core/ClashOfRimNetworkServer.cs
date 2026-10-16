@@ -90,7 +90,7 @@ public static partial class ClashOfRimNetworkServer
     {
         app.MapGet("/server/plugins", ListServerPlugins);
         app.MapGet(ProtocolContractManifest.Find(ProtocolMessageKind.ServerHello).Route, ServerHello);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.Login).Route, Login);
+        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.Login).Route, Login).WithMetadata(EndpointSnapshotRecovery.Instance);
         app.MapGet(ProtocolContractManifest.Find(ProtocolMessageKind.StreamSession).Route, StreamSession);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.MaintainPresence).Route, MaintainPresence);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.Logout).Route, Logout);

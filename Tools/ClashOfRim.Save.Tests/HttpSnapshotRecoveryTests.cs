@@ -28,7 +28,7 @@ internal static class HttpSnapshotRecoveryTests
         ProtocolMessageKind.CreateSupportPawn, ProtocolMessageKind.CreateSupportPawnWithSnapshot,
         ProtocolMessageKind.RejectSupportPawn, ProtocolMessageKind.FinishSupportPawn,
         ProtocolMessageKind.GetBankStatus, ProtocolMessageKind.QuoteMercenary, ProtocolMessageKind.QuoteMercenaryGuard, ProtocolMessageKind.ReportMercenaryIncident,
-        ProtocolMessageKind.PrepareWorldSession, ProtocolMessageKind.ListServerShop, ProtocolMessageKind.UpsertServerShopListing, ProtocolMessageKind.RemoveServerShopListing,
+        ProtocolMessageKind.Login, ProtocolMessageKind.PrepareWorldSession, ProtocolMessageKind.ListServerShop, ProtocolMessageKind.UpsertServerShopListing, ProtocolMessageKind.RemoveServerShopListing,
         ProtocolMessageKind.CreateBankLoan, ProtocolMessageKind.RepayBankLoan, ProtocolMessageKind.RepayBankDebt, ProtocolMessageKind.HireMercenary,
         ProtocolMessageKind.CreateBankLoanWithSnapshot, ProtocolMessageKind.RepayBankLoanWithSnapshot,
         ProtocolMessageKind.RepayBankDebtWithSnapshot, ProtocolMessageKind.HireMercenaryWithSnapshot,
@@ -153,14 +153,15 @@ internal static class HttpSnapshotRecoveryTests
         private readonly AuthoritativeEvent foreignGift;
         public string Token = "";
         public Fixture(Func<string, SaveSnapshotPackage> factory, ServerPluginRegistry? plugins = null, WorldConfigurationRegistry? worldConfiguration = null,
-            OfflineAccountRegistry? accounts = null, CompatibilityBaselineRegistry? compatibility = null, ISteamAuthTicketValidator? steam = null)
+            OfflineAccountRegistry? accounts = null, CompatibilityBaselineRegistry? compatibility = null, ISteamAuthTicketValidator? steam = null,
+            PlayerRegistry? players = null, BankLoanRegistry? bank = null)
         {
             Directory.CreateDirectory(root);
             string database = Database; ServerDatabaseMigrator.Migrate(database);
             Store = new(Path.Combine(root, "snapshots"));
             State = new(ledger: new SqliteAuthoritativeEventLedger(database), snapshotStore: Store,
-                playerRegistry: new PlayerRegistry(new SqlitePlayerRegistryStore(database), null), snapshotCommits: new SnapshotCommitService(Journal), plugins: plugins, worldConfigurationRegistry: worldConfiguration,
-                offlineAccounts: accounts, compatibilityBaselineRegistry: compatibility, steamAuthTickets: steam);
+                playerRegistry: players ?? new PlayerRegistry(new SqlitePlayerRegistryStore(database), null), snapshotCommits: new SnapshotCommitService(Journal), plugins: plugins, worldConfigurationRegistry: worldConfiguration,
+                offlineAccounts: accounts, compatibilityBaselineRegistry: compatibility, steamAuthTickets: steam, bankLoans: bank);
             Store.Gate = State.RaidSettlementSnapshotMutationGate;
             var package = factory("foreign");
             Package = package with { Envelope = package.Envelope with { Identity = new("foreign", "foreign-colony", "foreign"),
