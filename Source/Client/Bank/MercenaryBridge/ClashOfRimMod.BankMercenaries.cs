@@ -539,6 +539,17 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
+        // A bank window can retain a record after refresh or successful repayment.
+        // Resolve both eligibility and amount from the current bank view before consuming silver.
+        debt = lastBankStatus?.OpenDebts.FirstOrDefault(current =>
+            string.Equals(current.DebtId, debt.DebtId, StringComparison.Ordinal)
+            && string.Equals(current.Status, "Active", StringComparison.Ordinal));
+        if (debt is null)
+        {
+            SetBankStatus(ClashOfRimText.Key("ClashOfRim.Bank.StatusMissingDebt"), MessageTypeDefOf.RejectInput);
+            return;
+        }
+
         if (bankInProgress || manualSyncInProgress || snapshotUploadInProgress)
         {
             SetBankStatus(ClashOfRimText.Key("ClashOfRim.Bank.StatusBusy"), MessageTypeDefOf.RejectInput);
