@@ -7,6 +7,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../Source/Client/ClientNetwork/Runtime/ClientSessionWork.cs" Link="ClientSessionWork.cs" />
+    <Compile Include="../../Source/Client/Raids/Settlement/RaidSettlementPayloadReader.cs" Link="RaidSettlementPayloadReader.cs" />
     <Compile Include="../../Source/Client/ClientNetwork/Dtos/*.cs" Link="Dtos/%(Filename)%(Extension)" />
     <ProjectReference Include="../../Source/Shared/ClashOfRim.Protocol/ClashOfRim.Protocol.csproj" />
   </ItemGroup>

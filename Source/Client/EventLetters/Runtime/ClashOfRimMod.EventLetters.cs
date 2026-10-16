@@ -571,8 +571,7 @@ public sealed partial class ClashOfRimMod
 
     private static bool IsRaidSettlementDetail(ModEventDetailDto detail)
     {
-        return detail.EventType == ServerEventType.Raid
-            && detail.PayloadSummary?.IndexOf("\"Settlement\"", StringComparison.OrdinalIgnoreCase) >= 0;
+        return RaidSettlementPayloadReader.HasSettlement(detail);
     }
 
     private static bool HasOpenClashOfRimLetter(string eventId)
@@ -1145,9 +1144,7 @@ public sealed partial class ClashOfRimMod
 
         try
         {
-            var serializer = new DataContractJsonSerializer(typeof(RaidSettlementPayloadSummary));
-            using var stream = new MemoryStream(Encoding.UTF8.GetBytes(detail.PayloadSummary));
-            return serializer.ReadObject(stream) as RaidSettlementPayloadSummary;
+            return RaidSettlementPayloadReader.Read(detail.PayloadSummary);
         }
         catch (Exception ex) when (ex is SerializationException or InvalidOperationException)
         {
@@ -1760,40 +1757,4 @@ internal sealed class ServerNotificationPayloadSummary
     public bool IsRaidTimeout =>
         !string.IsNullOrWhiteSpace(NotificationId)
         && NotificationId!.StartsWith("raid-timeout:", StringComparison.Ordinal);
-}
-
-[DataContract]
-internal sealed class RaidSettlementPayloadSummary
-{
-    [DataMember(Name = "Settlement")]
-    public RaidSettlementPayloadDetail? Settlement { get; set; }
-}
-
-[DataContract]
-internal sealed class RaidSettlementPayloadDetail
-{
-    [DataMember(Name = "Losses")]
-    public List<RaidSettlementLossPayloadSummary> Losses { get; set; } = new();
-}
-
-[DataContract]
-internal sealed class RaidSettlementLossPayloadSummary
-{
-    [DataMember(Name = "Def")]
-    public string? Def { get; set; }
-
-    [DataMember(Name = "Position")]
-    public string? Position { get; set; }
-
-    [DataMember(Name = "MapUniqueId")]
-    public string? MapUniqueId { get; set; }
-
-    [DataMember(Name = "WholeThingMissing")]
-    public bool WholeThingMissing { get; set; }
-
-    [DataMember(Name = "LossCount")]
-    public int LossCount { get; set; }
-
-    [DataMember(Name = "RemainingHitPointsAfterDamage")]
-    public int? RemainingHitPointsAfterDamage { get; set; }
 }

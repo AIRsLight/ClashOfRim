@@ -1,5 +1,7 @@
 using AIRsLight.ClashOfRim.ClientNetwork;
 
+RaidSettlementPayloadTests.Run();
+Console.WriteLine("PASS: actual client raid settlement reader distinguishes null, absent, malformed and populated payloads");
 WireContractTests.Run();
 Console.WriteLine("PASS: client/server JSON wire contracts");
 LanguageHeaderTests.Run();
