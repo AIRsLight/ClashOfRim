@@ -12,7 +12,11 @@ namespace ClashOfRim.RimTestBridge;
 
 public sealed class BridgeMod : Mod
 {
-    public BridgeMod(ModContentPack content) : base(content) => RimTestApi.RegisterExtension(b => new ClientActions(b));
+    public BridgeMod(ModContentPack content) : base(content)
+    {
+        AmbientDamageObservation.Install();
+        RimTestApi.RegisterExtension(b => new ClientActions(b));
+    }
 }
 
 /// <summary>Explicit UI-entry allowlist; no dependency on this adapter is introduced into the product.</summary>

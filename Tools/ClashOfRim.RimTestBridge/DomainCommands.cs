@@ -20,7 +20,7 @@ using Verse;
 namespace ClashOfRim.RimTestBridge;
 
 /// <summary>Dialog-level semantic controls and business observations for the external test mod.</summary>
-internal sealed class DomainCommands
+internal sealed partial class DomainCommands
 {
     private readonly GameBridge bridge;
     private static ClashOfRimMod Mod => LoadedModManager.GetMod<ClashOfRimMod>();
@@ -28,6 +28,8 @@ internal sealed class DomainCommands
     internal DomainCommands(GameBridge bridge)
     {
         this.bridge = bridge;
+        RegisterStability();
+        RegisterCatalog();
         var r = bridge.Router;
         r.Register("clash.compatibility", "Observe the original compatibility decision; only accepted language warnings offer continuation.", "observe", _ =>
         {

@@ -166,5 +166,167 @@
     "features": false,
     "difficulty": "Peaceful",
     "id": "gift-repeat-accept"
+  },
+  {
+    "features": false,
+    "coverage": 30,
+    "stability": "transfers",
+    "id": "stability-transfers-core",
+    "difficulty": "Peaceful"
+  },
+  {
+    "expansions": [
+      "Royalty",
+      "Ideology",
+      "Biotech",
+      "Anomaly",
+      "Odyssey"
+    ],
+    "coverage": 30,
+    "B": {
+      "language": "English",
+      "culture": "fr-FR"
+    },
+    "id": "stability-transfers-dlc",
+    "features": false,
+    "stability": "transfers",
+    "A": {
+      "language": "ChineseSimplified (简体中文)",
+      "culture": "zh-CN"
+    },
+    "difficulty": "Peaceful"
+  },
+  {
+    "difficulty": "Peaceful",
+    "id": "stability-shop-core",
+    "features": false,
+    "coverage": 30,
+    "stability": "catalog"
+  },
+  {
+    "coverage": 30,
+    "difficulty": "Peaceful",
+    "features": false,
+    "expansions": [
+      "Royalty",
+      "Ideology",
+      "Biotech",
+      "Anomaly",
+      "Odyssey"
+    ],
+    "id": "stability-shop-dlc",
+    "A": {
+      "culture": "zh-CN",
+      "language": "ChineseSimplified (简体中文)"
+    },
+    "stability": "catalog",
+    "B": {
+      "culture": "fr-FR",
+      "language": "English"
+    }
+  },
+  {
+    "id": "stability-shop-stress",
+    "stability": "stress",
+    "difficulty": "Peaceful",
+    "features": false,
+    "coverage": 30
+  },
+  {
+    "stability": "items",
+    "id": "stability-items-core",
+    "coverage": 30,
+    "features": false,
+    "difficulty": "Peaceful"
+  },
+  {
+    "A": {
+      "language": "English",
+      "culture": "en-US"
+    },
+    "expansions": [
+      "Royalty",
+      "Ideology",
+      "Biotech",
+      "Anomaly",
+      "Odyssey"
+    ],
+    "id": "stability-items-dlc",
+    "features": false,
+    "difficulty": "Peaceful",
+    "B": {
+      "language": "English",
+      "culture": "fr-FR"
+    },
+    "stability": "items",
+    "coverage": 30
+  },
+  {
+    "difficulty": "Peaceful",
+    "A": {
+      "language": "English",
+      "culture": "en-US"
+    },
+    "expansions": [
+      "Royalty",
+      "Ideology",
+      "Biotech",
+      "Anomaly",
+      "Odyssey"
+    ],
+    "id": "stability-support-permanent",
+    "features": false,
+    "B": {
+      "language": "English",
+      "culture": "fr-FR"
+    },
+    "stability": "permanent",
+    "coverage": 30
+  },
+  {
+    "id": "stability-support-death",
+    "features": false,
+    "stability": "death",
+    "coverage": 30,
+    "difficulty": "Peaceful",
+    "expansions": [
+      "Royalty",
+      "Ideology",
+      "Biotech",
+      "Anomaly",
+      "Odyssey"
+    ],
+    "A": {
+      "culture": "en-US",
+      "language": "English"
+    },
+    "B": {
+      "culture": "fr-FR",
+      "language": "English"
+    }
+  },
+  {
+    "id": "stability-shop-regression",
+    "features": false,
+    "stability": "catalog-sample",
+    "catalogDefinitions": [
+      "Apparel_SimpleHelmet",
+      "Plant_TreeBamboo",
+      "Plant_TreeOak",
+      "Silver",
+      "TextBook",
+      "ClashOfRim_TraitTrainer"
+    ],
+    "coverage": 30,
+    "difficulty": "Peaceful",
+    "expansions": [],
+    "A": {
+      "language": "English",
+      "culture": "en-US"
+    },
+    "B": {
+      "language": "English",
+      "culture": "fr-FR"
+    }
   }
 ]

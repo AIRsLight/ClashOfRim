@@ -38,7 +38,7 @@ internal sealed partial class GameSuite
     {
         this.root = root; this.pipeA = pipeA; this.pipeB = pipeB; this.profile = profile;
         Directory.CreateDirectory(root);
-        run = new TestRun(root, WorldCases.Concat(profile.Features ? FeatureCases : profile.GiftReplay ? GiftReplayCases : []).Append("runtime-errors").ToArray());
+        run = new TestRun(root, WorldCases.Concat(profile.Features ? FeatureCases : profile.GiftReplay ? GiftReplayCases : StabilityCases(profile.Stability)).Append("runtime-errors").ToArray());
         server = ClashOfRimNetworkServer.Build([
             "--contentRoot", Path.Combine(root, "Server"), "--urls", "http://127.0.0.1:0",
         "--Persistence:DataDirectory", Path.Combine(root, "Server", "Data"), "--Authentication:DebugMode", "false",
@@ -133,6 +133,7 @@ internal sealed partial class GameSuite
                 await Case("caravan-gift-accept", Gift);
                 await Case("gift-repeat-accept", GiftReplay);
             }
+            await RunStability();
             // Reload tests run last: a broken serialized world must not prevent observing
             // independent live business features, or be uploaded as if it were valid.
             await Case("snapshot-save-reload", SaveReload);
