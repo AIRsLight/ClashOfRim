@@ -166,7 +166,7 @@ internal sealed partial class GameSuite
         string map = H(Items(await Call(client, "game.maps"))[0]);
         var designators = Items(await Call(client, "designators.list", new { map, contains = "Designator_ZoneAddStockpile_Resources", limit = 200 }));
         var tool = designators.First(d => d.GetProperty("reference").String("type") == "RimWorld.Designator_ZoneAddStockpile_Resources");
-        foreach (string def in new[] { "Steel", "WoodLog", "Silver" })
+        foreach (string def in new[] { "Steel", "WoodLog", "Silver", "MealSurvivalPack" })
         {
             var things = Items(await Call(client, "map.things", new { map, defName = def, limit = 200 }));
             var cells = things.Select(t => (x: t.Int("x"), z: t.Int("z"))).Distinct().Select(p => new { p.x, p.z }).ToArray();
@@ -275,7 +275,9 @@ internal sealed partial class GameSuite
         await Call("A", "caravan.select", new { draft, group = H(person), count = 1 });
         foreach (var (def, count) in new[] { ("WoodLog", 10), ("MealSurvivalPack", 10) })
         {
-            var group = groups.First(g => g.String("defName") == def && g.Int("maximum") >= count);
+            var candidates = groups.Where(g => g.String("defName") == def && g.Int("maximum") >= count).ToArray();
+            Check(candidates.Length > 0, $"Caravan fixture cannot select {count} {def}; colony stock is {await Stock("A", def)}. Check home area, reachability and reservations.");
+            var group = candidates[0];
             await Call("A", "caravan.select", new { draft, group = H(group), count });
         }
         await Call("A", "caravan.submit", new { draft }); await Confirm("A");

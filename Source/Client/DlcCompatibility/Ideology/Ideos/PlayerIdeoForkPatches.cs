@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using AIRsLight.ClashOfRim.Diplomacy;
-using AIRsLight.ClashOfRim.ThirdPartyCompatibility;
 using HarmonyLib;
 using RimWorld;
 using Verse;
@@ -12,6 +11,11 @@ namespace AIRsLight.ClashOfRim.DlcCompatibility;
 
 internal static class PlayerIdeoForkPolicy
 {
+    internal static bool HasServerGlobalKey(Ideo ideo) =>
+        RemoteIdeoCatalog.GetGlobalKeys(ideo).Any(key =>
+            RemoteIdeoCatalog.TryGetDisplayMetadata(key, out RemoteIdeoDisplayMetadata? metadata)
+            && string.Equals(metadata?.OwnerUserId, "server", StringComparison.OrdinalIgnoreCase));
+
     internal static bool ShouldFork(
         bool hasServerGlobalKey,
         bool referencedByNpcFaction,
@@ -30,12 +34,20 @@ internal static class PlayerIdeoForkPatches
 
     public static void Prefix()
     {
-        if (!ClashOfRimCompatibilityApi.IsActiveMultiplayerSession)
+        if (!ClassicIdeoSetupPatch.IsSharedWorld)
         {
             return;
         }
 
         TryForkAdoptedNpcIdeo();
+    }
+
+    public static void Postfix()
+    {
+        // New player ideologies need the same load normalization as the shared
+        // NPC baseline before they can travel with support/traded pawns.
+        if (ClassicIdeoSetupPatch.IsSharedWorld)
+            RemoteIdeoMaterializer.NormalizeGeneratedIdeologies();
     }
 
     private static void TryForkAdoptedNpcIdeo()
@@ -50,9 +62,7 @@ internal static class PlayerIdeoForkPatches
             return;
         }
 
-        bool hasServerGlobalKey = RemoteIdeoCatalog.GetGlobalKeys(source)
-            .Any(key => RemoteIdeoCatalog.TryGetDisplayMetadata(key, out RemoteIdeoDisplayMetadata? metadata)
-                && string.Equals(metadata?.OwnerUserId, "server", StringComparison.OrdinalIgnoreCase));
+        bool hasServerGlobalKey = PlayerIdeoForkPolicy.HasServerGlobalKey(source);
         List<Faction> otherFactions = Find.FactionManager?.AllFactionsListForReading?
             .Where(faction => faction is not null && faction != Faction.OfPlayer)
             .Where(faction => faction.ideos?.AllIdeos?.Contains(source) == true)

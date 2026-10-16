@@ -1,5 +1,7 @@
 # RimTest 参数与跨语言回归发现（2026-10-16）
 
+以下原始复现记录保留；当前修复实现、提交与回归证据见后半部分“修复进度”。原记录中的“需定位”等描述表示当时状态。
+
 ## 已修复：非 ASCII 语言名称阻断 HTTP / WebSocket
 
 双客户端 `coverage50-french` 的法语客户端在版本检查阶段失败，消息为 `HttpRequestException: Request headers must contain only ASCII characters.`。`French (Français)` 等游戏语言目录名直接进入 `X-ClashOfRim-Language` 请求头；中文、日文等名称也有同样风险。
@@ -16,11 +18,11 @@ HTTP 与 WebSocket 现在共用 `ServerLocalization.EncodeLanguageHeader`：规�
 
 提交配置会清空旧底图，准备等待新底图上传；原实现此时就通知其他客户端，但底图成功上传后没有通知。现在通知在上传成功后发送，避免读者拿到 `WorldConfigured=false` 后错过更新。没有增加客户端重试轮询。`20261016-090944-4751d9ec` 下 Core 与五 DLC 混合语言场景的 `runtime-difficulty-sync` 均通过，包含自定义字段逐值比对和恢复原设置。`LocalOnly/rimtest-expanded-regression.log` 的完整回归（含客户端）通过。
 
-## 待修复/继续定位：文化目录重建缺少显示元数据
+## 已修复：文化目录重建缺少显示元数据
 
 五 DLC 场景 `G:/RimTestRuns/ClashMatrix/20261016-090944-4751d9ec/dlc-cultures/20261016-091241-c4be466b` 的 `world-persistence` 失败：从同一数据库构建新服务容器后，`rimworld.ideology.world-ideo-catalog` 的 `cultureLabel`、`cultureIconPath`、`factionDefName`、`iconPath`、`colorHex` 等由原值变为 null。canonical culture/意识形态字段存在，不应描述为整个文化丢失。需核对重建索引/投影时的元数据合并；当前测试保留失败，没有忽略这些字段。
 
-## 待定位：fr-FR 夹具下存档重载改变世界网格
+## 已修复：fr-FR 夹具下存档重载改变世界网格
 
 同一五 DLC 运行的 `snapshot-save-reload` 失败。B 客户端使用英文显示、显式 fr-FR 区域格式，重载前表面层 119904、轨道层 488 个地块，重载后变成 590492 / 2432；覆盖率从 0.3 变成 300000000，污染从 0.25 变成 25，几何摘要同时改变。这超过浮点量化误差，不能放宽断言。需区分 RimWorld 原生文化格式存档行为和模组重载补丁；尚未作归因结论。最终目录将混合语言 DLC 业务场景的 B 区域格式设为 en-US，并保留独立 `dlc-culture-stress` 场景复现 fr-FR，以免把文化格式夹具和多语言问题混为一谈。
 
@@ -38,7 +40,7 @@ HTTP 与 WebSocket 现在共用 `ServerLocalization.EncodeLanguageHeader`：规�
 
 本地旧反编译资料用于定位适配器名称，实机运行负责核验。REA 元数据调用 `ev_3c099faa24502ceb67ccdadf348326ad1802cba980cdd23743796de42974d550` 因 64 MiB 表示预算返回 unavailable，不能作为当前程序集完整成员覆盖的证据。没有提交游戏程序集或反编译源码。
 
-## 待修复：重复接受已确认礼物产生第二份物资
+## 已修复：重复接受已确认礼物产生第二份物资
 
 `LocalOnly/rimtest-core-complete6.log` 对应的 `G:/RimTestRuns/ExpandedCore` 运行中，B 接受 A 的 5 木材礼物后库存 250 → 255；待快照事务完成，再调用同一个 `HandleEventLetterAction(eventId, Accept)` 并刷新事件、推进 600 tick，库存变成 260。服务端已确认并不保证旧客户端操作入口不会再次应用本地载荷。当前入口只确认事件详情存在和业务类型，没有复用队列/处理状态限制。
 
@@ -46,7 +48,7 @@ HTTP 与 WebSocket 现在共用 `ServerLocalization.EncodeLanguageHeader`：规�
 
 独立场景再次复现：`G:/RimTestRuns/FinalFeatures/20261016-100813-60ed93cd/gift-repeat-accept/20261016-101249-993141d2`。首次交付后库存 305，重复接受后 310；联盟、原远行队装载和首次礼物接受均先通过。这一证据不依赖其他经济业务留下的库存。
 
-## 待定位：跨语言地区文字初始化与区域格式解析
+## 已修复：跨语言地区文字初始化与区域格式解析
 
 - `WorldMatrix/20261016-093608-6e0fa7f3` 的中文 100% 场景有地区数量断言失败，日志为 `WorldFeatureTextMesh_Legacy.Init` 空引用；后续 `FinalMatrix/20261016-094519-d7329d82/coverage50-french` 在 `RefreshWorldFeatureTexts` / `GenerateWorldFromServerConfiguration` 的完成回调复现相同异常，阻断选址页。最终报告应区分 Headless 与无窗口渲染对照，不能凭无渲染测试断言所有正常桌面也失败。
 - 显式 fr-FR / de-DE 数字格式的 `hot-custom-comma` 中，1.37 威胁系数被应用成 137，0.17 / 0.63 也被放大；需检查 XML 写读的文化格式契约。该测试环境会主动覆盖游戏默认 en-US，所以不能直接声称普通法语游戏必然如此。
@@ -61,7 +63,7 @@ HTTP 与 WebSocket 现在共用 `ServerLocalization.EncodeLanguageHeader`：规�
 
 套件还修正了三类前置条件错误：登录必须等待新的游戏 epoch；恢复的初始快照可能仍有开局运输舱，统一等待落地后才检查经济库存；退出必须走原版返回菜单流程，仅调用登出钩子会留下可自动重连的游戏组件。这些中间失败保留在原报告中，不记作已确认的模组缺陷。框架独立 smoke 已验证返回菜单以及随后三个生命周期接口，证据为 `G:/RimTestRuns/FrameworkMenu/20261016-102619-1f7f4f98/report.json`。
 
-## 待修复：真实返回菜单后残留登录/上传忙碌状态
+## 已修复：真实返回菜单后残留登录/上传忙碌状态
 
 `G:/RimTestRuns/VerifiedCore/20261016-102544-2beecfa7` 中，踢人重连和封禁/解封通过。随后上传并等待空闲，经原版 `GenScene.GoToMainMenu` 退出后，`game.state` 已是 `hasGame=false`、`playing=false`、菜单就绪；但客户端 `manualSyncInProgress=true`、`snapshotUploadInProgress=true`，状态停在 “Logging in to the server / Preparing and uploading the current save”。下一次登录入口前的空闲等待超时，因此错密码与维护登录的后续步骤被阻断。
 
@@ -126,3 +128,26 @@ HTTP 与 WebSocket 现在共用 `ServerLocalization.EncodeLanguageHeader`：规�
 - 没有完整 XML 的已有记录也保留其显示元数据。缺失 tick 不再覆盖已知 0；Def 名称目录统一去重，实例数另由 MemeCount/PreceptCount 保留，避免多个遗物令重建结果改变。
 - 元数据单测覆盖以上边界，完整 Save 回归通过第一轮；上述 DLC 压力场景的实际 SQLite/新服务容器重建逐字段完全一致。
 - 持久化断言失败现在额外保存 expected/actual JSON 文件，保留具体字段证据；未放宽断言。
+
+### 最终矩阵追查：经典开局覆盖 NPC 文化与旧缓存绑定
+
+- `RepairAcceptance/20261016-113341-76ac2e98` 完整矩阵执行 214 次，仅 `dlc-cultures/culture-references` 失败，其余 213 次通过。该轮仍为失败，保留原始报告。
+- 先复现了目录优先返回旧实例的问题：NPC 派系替换主文化后，旧文化仍在 IdeoManager 中，缓存命中绕过原生派系绑定。现在优先解析当前派系实例，复用既有完整定义同步。独立测试在 `9aaab418` 源码上稳定失败于旧缓存返回，在修复后通过；玩家拥有的文化仍按玩家目录解析。
+- 仅修正缓存后的 `RepairIdeologyCache/20261016-115222-17f8d3aa` 仍复现完整 DLC 场景失败。当前 1.7 程序集 `Page_ChooseIdeoPreset.DoClassic` 的 IL 确认：经典选项会清除所有派系的文化，再全部设为本地生成的玩家文化。这使同一 NPC 在中文和英文客户端具有不同戒律；不是单纯显示语言不同。
+- 联机经典开局只对玩家派系执行原版赋值循环，NPC 保留共享世界的权威文化。判定复用初始世界创建状态、当前派系的服务器文化目录和活动会话；文化采用后的分叉也复用这一判定，覆盖尚未完成首次地图登录的阶段。单机经典开局仍遍历全部派系。
+- 客户端回归新增真实目录重新绑定、玩家文化保护、登录前 NPC 保护和单机行为对照。去除其他未提交改动的源码快照也通过客户端测试。最终两项 DLC 实机复测证据见下方验收记录。
+- `RepairClassicIdeology/20261016-120249-9f056412` 继续暴露主机时序：选择落点时已经发布世界并清除待创建标记，经典页可能先于文化目录回传打开。进入落点页前记录当前共享世界的弱引用，保护范围按世界实例判断；新增测试验证发布后仍有效、换成另一个单机世界则失效。没有依赖超时、持久设置或重复请求。
+- `RepairSharedSetup/20261016-121023-193255a9` 的两个 DLC 场景分别 41/42、13/14；仅文化检查失败，完整业务链及口粮装载已通过。此时 NPC 的文化、信条、图标已一致，差异缩小到原版加载 `.ideo` 时自动补入的隐藏 `FuneralNoCorpse` 戒律。
+- 主机首次发布前通过既有完整文化包加载器执行同样的原版修复，再用 `Ideo.CopyTo` 保留原生实例；没有复制游戏的隐藏戒律生成规则。经典选项保留玩家自身的经典文化，但不再开启全世界的 Classic 模式，否则其他完整文化的加载规则会随某个玩家的选择变化。新增单测同时检查联机与单机的全局模式语义。
+- `RepairCanonicalIdeology/20261016-121639-7668782d` 的两个文化检查通过，但玩家文化在支援传送/存读档时同样被原版补入 `Conversion`。玩家完成文化选择后也执行同一规范化流程。该流程使用本地完整包加载，保留玩家所有权字段；不会经过远端影子文化的字段改写。两个失败阶段的原始定义差异与后续未执行项均保留。
+- 最终 `RepairIdeologyLifecycle/20261016-122159-06b2e4c4/dlc-culture-stress/20261016-122225-b218e071` 14/14；同构建的 `RepairDlcBusinessRepeat/20261016-122358-e4935b52/dlc-cultures/20261016-122358-9c1834d9` 42/42，包含支援文化保持、完整业务、存读档、重连及错误日志门禁。两场的二进制清单逐项一致。
+
+### 测试前置条件：远行队口粮可装载性
+
+- 上述经典开局复测的完整业务场景，32 项检查通过，文化检查仍失败，远行队又在选择 10 份口粮时失败。原记录库存仍有 57 份 `MealSurvivalPack`，但原版远行队可装载列表不包含口粮；测试只为钢材、木材和白银划定仓储。
+- 共用仓储夹具增加口粮，仍通过原版区域设计器划定已有物品所在格，不生成/增加库存，也不绕过原版可达性与装载。缺少可装载组时给出数量、库存与检查方向，替代无上下文的 `Sequence contains no matching element`。
+- 这一中间失败作为测试前置条件问题保留，与文化产品缺陷分开记录；后续业务仍须从头实测，不能沿用前一轮后半部分的通过状态。
+
+### 新记录：启动期 CLR 异常，原因待定位
+
+`RepairIdeologyLifecycle/20261016-122159-06b2e4c4/dlc-cultures/20261016-122204-ddc76ace` 的一端在 `runtime.hello` 前终止，42 项全部未执行。stderr 包含 `Internal CLR error (0x80131506)`，栈经过 MonoMod JIT hook 与 Waylith worker；驱动报 `Pipe is broken`。这不是功能用例失败，也不能归因于某项文化修复。没有隐藏该报告或将其当作通过；同一构建的业务场景单独重跑，结果另列。该启动异常尚未修复或确定根因。

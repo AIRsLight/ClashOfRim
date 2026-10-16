@@ -11,6 +11,23 @@ namespace AIRsLight.ClashOfRim.DlcCompatibility;
 
 public static partial class RemoteIdeoMaterializer
 {
+    internal static void NormalizeGeneratedIdeologies()
+    {
+        // Vanilla adds missing hidden ritual precepts when loading an .ideo.
+        // Publish the same normalized definition that joining clients will load.
+        // Reuse the package loader and CopyTo rather than reproducing its fixups.
+        foreach (ModWorldIdeoSummaryDto dto in IdeologyPawnReferenceCompatibility.ReadCurrentWorldIdeos(null, null, string.Empty))
+        {
+            Ideo native = Find.IdeoManager.IdeosListForReading.First(ideo =>
+                ideo.id.ToString(System.Globalization.CultureInfo.InvariantCulture) == dto.LocalId);
+            // Preserve player ownership fields; this is a local load roundtrip,
+            // not creation of a remote shadow with ApplyShadowFields.
+            Ideo canonical = TryLoadSavedIdeoPackage(dto)
+                ?? throw new InvalidOperationException("Could not normalize generated ideology: " + dto.GlobalKey);
+            if (!MatchesIdeologyDefinition(canonical, dto)) canonical.CopyTo(native);
+        }
+    }
+
     public static int ApplyServerCatalog(IEnumerable<ModWorldIdeoSummaryDto> serverIdeos, string? localUserId)
     {
         if (!IdeologyPawnReferenceCompatibility.HasPawnReference || Find.IdeoManager is null)
@@ -87,25 +104,8 @@ public static partial class RemoteIdeoMaterializer
             return false;
         }
 
-        if (RemoteIdeoCatalog.TryGetCatalogIdeo(dto.GlobalKey, out ideo))
-        {
-            if (RemoteIdeoCatalog.IsInCurrentIdeoManager(ideo))
-            {
-                if (CanApplyRemoteShadowFields(ideo!))
-                {
-                    ApplyShadowFields(ideo!, dto);
-                }
-
-                RemoteIdeoCatalog.Register(ideo!, dto.GlobalKey, BuildDisplayMetadata(dto));
-                RemoveDuplicateUnreferencedShadows(dto, ideo!);
-                return true;
-            }
-
-            ClashLog.Message("[ClashOfRim][Ideo] Recreating stale remote ideo catalog entry: " + dto.GlobalKey);
-            RemoteIdeoCatalog.Unregister(ideo!);
-            ideo = null;
-        }
-
+        // Ideology setup can replace a faction's primary instance after world generation.
+        // Resolve the live faction before a still-registered but superseded catalog entry.
         if (TryFindNativeServerFactionIdeo(dto, out ideo) && ideo is not null)
         {
             // Different languages consume different name-generation randomness.
@@ -126,6 +126,25 @@ public static partial class RemoteIdeoMaterializer
                 + ", ideo="
                 + ideo.name);
             return true;
+        }
+
+        if (RemoteIdeoCatalog.TryGetCatalogIdeo(dto.GlobalKey, out ideo))
+        {
+            if (RemoteIdeoCatalog.IsInCurrentIdeoManager(ideo))
+            {
+                if (CanApplyRemoteShadowFields(ideo!))
+                {
+                    ApplyShadowFields(ideo!, dto);
+                }
+
+                RemoteIdeoCatalog.Register(ideo!, dto.GlobalKey, BuildDisplayMetadata(dto));
+                RemoveDuplicateUnreferencedShadows(dto, ideo!);
+                return true;
+            }
+
+            ClashLog.Message("[ClashOfRim][Ideo] Recreating stale remote ideo catalog entry: " + dto.GlobalKey);
+            RemoteIdeoCatalog.Unregister(ideo!);
+            ideo = null;
         }
 
         if (RemoteIdeoCatalog.TryFindIdeoByPackageHash(dto.SavedIdeoPackageSha256, out ideo) && ideo is not null)
