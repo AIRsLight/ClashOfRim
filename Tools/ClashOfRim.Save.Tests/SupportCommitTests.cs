@@ -249,7 +249,7 @@ internal static class SupportCommitTests
         Sql(root, "update server_schema_metadata set metadata_value='26' where metadata_key='schema_version'");
         Check(ServerDatabaseMigrator.Assess(database).Status == ServerPersistenceMigrationStatus.SafeMigrationAvailable, "v26 not migratable");
         ServerDatabaseMigrator.Migrate(database);
-        Check(ServerDatabaseMigrator.ReadVersion(database) == 27 && before == JsonSerializer.Serialize(Open(root).Ledger.ListAll()), "migration rewrote historical support");
+        Check(ServerDatabaseMigrator.ReadVersion(database) == ServerDatabaseSchema.CurrentVersion && before == JsonSerializer.Serialize(Open(root).Ledger.ListAll()), "migration rewrote historical support");
     }
 
     private static CreateSupportPawnWithSnapshotRequest Change<T>(CreateSupportPawnWithSnapshotRequest request, string path, T value)

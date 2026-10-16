@@ -12,6 +12,12 @@ using System.Text;
 using System.Text.Json.Nodes;
 using System.Xml.Linq;
 
+if (args.FirstOrDefault() == "--world-publication-crash")
+{
+    WorldConfigurationPersistenceTests.CrashChild(args);
+    return 0;
+}
+
 var tests = new (string Name, Action Run)[]
 {
     ("快照载荷压缩在业务锁外准备且保持格式与恢复兼容", () => PreparedSnapshotPayloadTests.Run(BuildFixturePackage)),
@@ -43,6 +49,7 @@ var tests = new (string Name, Action Run)[]
     ("真实 HTTP 请求在端点授权后恢复快照日志", () => HttpSnapshotRecoveryTests.Run(BuildFixturePackage)),
     ("管理员基线认证与恢复提交边界", () => AdminBaselineAuthorizationTests.Run(BuildFixturePackage)),
     ("世界配置提交认证与恢复边界", () => WorldConfigurationAuthorizationTests.Run(BuildFixturePackage)),
+    ("世界配置与底图引用共同发布且失败保持原状态", WorldConfigurationPersistenceTests.Run),
     ("普通上传和事件确认在恢复前后复验身份且锁外准备", () => UploadConfirmationRecoveryTests.Run(BuildFixturePackage)),
     ("文件日志随宿主释放且构建失败与迟到写入安全", () => FileLoggerLifetimeTests.Run(BuildFixturePackage)),
     ("交易失败校验唯一履约图并保留旧补偿和接单回执", () => TradeFailureGraphTests.Run(BuildFixturePackage)),

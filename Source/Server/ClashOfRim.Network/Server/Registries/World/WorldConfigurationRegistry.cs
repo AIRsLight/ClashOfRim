@@ -26,6 +26,7 @@ public sealed class WorldConfigurationRegistry
     private HashSet<string> administratorUserIds = new(StringComparer.Ordinal);
     private WorldConfigurationDto? worldConfiguration;
     private byte[]? worldSubstratePayload;
+    private string? worldSubstrateKey = string.Empty;
     private IReadOnlyList<WorldLayerNotificationWork> pendingLayerNotifications = [];
 
     internal bool HasPendingLayerNotifications { get { lock (gate) return pendingLayerNotifications.Count > 0; } }
@@ -105,18 +106,8 @@ public sealed class WorldConfigurationRegistry
 
         lock (gate)
         {
-            bool assignedAdministrator = false;
             if (administratorUserId is null)
-            {
-                administratorUserId = userId;
-                administratorUserIds.Add(userId);
-                assignedAdministrator = true;
-            }
-
-            if (assignedAdministrator)
-            {
-                SaveLocked();
-            }
+                PersistAdministratorsLocked(userId, new HashSet<string>(administratorUserIds, StringComparer.Ordinal) { userId });
 
             return SessionStateLocked(userId);
         }
@@ -166,18 +157,9 @@ public sealed class WorldConfigurationRegistry
         lock (gate)
         {
             EnsurePrimaryAdministratorLocked();
-            bool added = administratorUserIds.Add(userId);
-            if (administratorUserId is null)
-            {
-                administratorUserId = userId;
-                added = true;
-            }
-
-            if (added)
-            {
-                SaveLocked();
-            }
-
+            var candidate = new HashSet<string>(administratorUserIds, StringComparer.Ordinal);
+            bool added = candidate.Add(userId) || administratorUserId is null;
+            if (added) PersistAdministratorsLocked(administratorUserId ?? userId, candidate);
             return added;
         }
     }
@@ -189,17 +171,11 @@ public sealed class WorldConfigurationRegistry
         lock (gate)
         {
             EnsurePrimaryAdministratorLocked();
-            if (administratorUserIds.Count <= 1 || !administratorUserIds.Remove(userId))
-            {
-                return false;
-            }
-
-            if (string.Equals(administratorUserId, userId, StringComparison.Ordinal))
-            {
-                administratorUserId = administratorUserIds.OrderBy(id => id, StringComparer.Ordinal).FirstOrDefault();
-            }
-
-            SaveLocked();
+            if (administratorUserIds.Count <= 1 || !administratorUserIds.Contains(userId)) return false;
+            var candidate = new HashSet<string>(administratorUserIds, StringComparer.Ordinal);
+            candidate.Remove(userId);
+            string? primary = administratorUserId == userId ? candidate.OrderBy(id => id, StringComparer.Ordinal).First() : administratorUserId;
+            PersistAdministratorsLocked(primary, candidate);
             return true;
         }
     }
@@ -214,29 +190,22 @@ public sealed class WorldConfigurationRegistry
 
         lock (gate)
         {
-            administratorUserId ??= userId;
-            administratorUserIds.Add(administratorUserId);
-            bool isAdministrator = IsAdministratorLocked(userId);
-            if (isAdministrator
-                && HasUsableWorldGenerationBaseline(configuration))
+            string primary = administratorUserId ?? userId;
+            var administrators = new HashSet<string>(administratorUserIds, StringComparer.Ordinal) { primary };
+            bool isAdministrator = administrators.Contains(userId);
+            if (isAdministrator && HasUsableWorldGenerationBaseline(configuration))
             {
-                worldConfiguration = MergeSubmittedWorldGenerationBaselineLocked(
-                    EnsureSubmittedLanguageFeatureNameCatalog(configuration),
-                    userId,
-                    activeWorldExtensions);
-                worldConfiguration = CopyWithTileGeometry(worldConfiguration, tileGeometry: null);
+                var candidate = CopyWithTileGeometry(MergeSubmittedWorldGenerationBaselineLocked(
+                    EnsureSubmittedLanguageFeatureNameCatalog(configuration), userId, activeWorldExtensions), tileGeometry: null);
+                string? reference = PersistLocked(candidate, null, primary, administrators, pendingLayerNotifications, writeSubstrate: true);
+                administratorUserId = primary;
+                administratorUserIds = administrators;
+                worldConfiguration = candidate;
                 worldSubstratePayload = null;
-                SaveLocked();
+                worldSubstrateKey = reference;
             }
-
-            return new WorldSessionState(
-                isAdministrator,
-                HasReadyWorldLocked(),
-                RequiresInitialWorldConfiguration: false,
-                administratorUserId,
-                HasReadyWorldLocked()
-                    ? worldConfiguration
-                    : null);
+            return new WorldSessionState(IsAdministratorLocked(userId), HasReadyWorldLocked(),
+                RequiresInitialWorldConfiguration: false, administratorUserId, HasReadyWorldLocked() ? worldConfiguration : null);
         }
     }
 
@@ -314,13 +283,14 @@ public sealed class WorldConfigurationRegistry
                 worldConfiguration.WorldConfigurationId,
                 worldConfiguration.Features,
                 features);
-            worldConfiguration = CopyWithFeatureNameCatalogs(
+            var candidate = CopyWithFeatureNameCatalogs(
                 worldConfiguration,
                 worldConfiguration.FeatureNameCatalogs
                     .Concat(new[] { catalog })
                     .OrderBy(item => item.Language, StringComparer.OrdinalIgnoreCase)
                     .ToList());
-            SaveLocked();
+            SaveLocked(candidate, writeSubstrate: false);
+            worldConfiguration = candidate;
             return new WorldFeatureNameCatalogSubmitResult(true, true, "Created", worldConfiguration);
         }
     }
@@ -353,7 +323,8 @@ public sealed class WorldConfigurationRegistry
                 return new WorldSubstrateStoreResult(false, "WorldConfigurationMismatch", 0, 0, worldConfiguration);
             }
 
-            if (!WorldSubstratePackageCodec.TryDecode(payload, out WorldSubstratePackage? package, out _)
+            byte[] candidatePayload = (byte[])payload.Clone();
+            if (!WorldSubstratePackageCodec.TryDecode(candidatePayload, out WorldSubstratePackage? package, out _)
                 || package is null)
             {
                 return new WorldSubstrateStoreResult(false, "InvalidWorldSubstrate", 0, 0, worldConfiguration);
@@ -365,9 +336,12 @@ public sealed class WorldConfigurationRegistry
                 return new WorldSubstrateStoreResult(false, "MissingWorldSubstrateGeometry", 0, 0, worldConfiguration);
             }
 
-            worldSubstratePayload = (byte[])payload.Clone();
-            worldConfiguration = CopyWithTileGeometry(worldConfiguration, geometry);
-            SaveLocked();
+            var candidate = CopyWithTileGeometry(worldConfiguration, geometry);
+            string? reference = PersistLocked(candidate, candidatePayload, administratorUserId, administratorUserIds,
+                pendingLayerNotifications, writeSubstrate: true);
+            worldSubstratePayload = candidatePayload;
+            worldConfiguration = candidate;
+            worldSubstrateKey = reference;
             return new WorldSubstrateStoreResult(
                 true,
                 "Registered",
@@ -925,6 +899,7 @@ public sealed class WorldConfigurationRegistry
             pendingLayerNotifications = rows.TryGetValue("pending-layer-notifications", out string? pendingJson)
                 ? ReadPendingLayerNotifications(pendingJson) : [];
 
+            worldSubstrateKey = WorldSubstratePersistence.ReadKey(rows.GetValueOrDefault("state"));
             WorldConfigurationStateRecord? state = TryDeserializeRow<WorldConfigurationStateRecord>(rows, "state");
             administratorUserId = string.IsNullOrWhiteSpace(state?.AdministratorUserId)
                 ? null
@@ -939,6 +914,7 @@ public sealed class WorldConfigurationRegistry
             WorldConfigurationCoreRecord? core = TryDeserializeRow<WorldConfigurationCoreRecord>(rows, "core");
             if (core is null)
             {
+                if (!string.IsNullOrEmpty(worldSubstrateKey)) throw new InvalidOperationException("World substrate reference has no configuration.");
                 worldConfiguration = null;
                 return;
             }
@@ -951,7 +927,7 @@ public sealed class WorldConfigurationRegistry
                 .OrderBy(catalog => catalog.Language, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
-            worldSubstratePayload = binaryPersistence?.ReadBinary("world-substrate");
+            worldSubstratePayload = WorldSubstratePersistence.Read(binaryPersistence, worldSubstrateKey);
             WorldSubstratePackageCodec.TryDecode(worldSubstratePayload ?? Array.Empty<byte>(), out WorldSubstratePackage? substrate, out _);
             worldConfiguration = core.ToDto(
                 TryDeserializeRow<WorldConfigurationListRecord<WorldFeatureDto>>(rows, "features")?.Values,
@@ -963,16 +939,8 @@ public sealed class WorldConfigurationRegistry
                 TryDeserializeRow<WorldConfigurationListRecord<WorldConfigurationExtensionDto>>(rows, "extensions")?.Values,
                 catalogs);
         }
-        catch (JsonException)
-        {
-            administratorUserId = null;
-            worldConfiguration = null;
-        }
-        catch (IOException)
-        {
-            administratorUserId = null;
-            worldConfiguration = null;
-        }
+        catch (Exception ex) when (ex is JsonException or IOException)
+        { throw new InvalidOperationException("Cannot load persisted world configuration.", ex); }
     }
 
     private bool LoadLegacyReadOnly()
@@ -990,12 +958,15 @@ public sealed class WorldConfigurationRegistry
                 return false;
             }
 
+            worldSubstrateKey = WorldSubstratePersistence.ReadKey(json);
             using (JsonDocument document = JsonDocument.Parse(json))
                 pendingLayerNotifications = document.RootElement.TryGetProperty("PendingLayerNotifications", out var pendingJson)
                     ? ReadPendingLayerNotifications(pendingJson.GetRawText()) : [];
 
             WorldConfigurationPersistence? persisted =
                 JsonSerializer.Deserialize<WorldConfigurationPersistence>(json, JsonOptions);
+            if (persisted?.WorldConfiguration is null && !string.IsNullOrEmpty(worldSubstrateKey))
+                throw new InvalidOperationException("World substrate reference has no configuration.");
             administratorUserId = string.IsNullOrWhiteSpace(persisted?.AdministratorUserId)
                 ? null
                 : persisted!.AdministratorUserId;
@@ -1005,22 +976,12 @@ public sealed class WorldConfigurationRegistry
                     .Where(userId => !string.IsNullOrWhiteSpace(userId))
                     .ToHashSet(StringComparer.Ordinal);
             EnsurePrimaryAdministratorLocked();
-            worldSubstratePayload = binaryPersistence?.ReadBinary("world-substrate");
+            worldSubstratePayload = WorldSubstratePersistence.Read(binaryPersistence, worldSubstrateKey);
             worldConfiguration = RestorePersistedWorldConfiguration(persisted);
             return true;
         }
-        catch (JsonException)
-        {
-            administratorUserId = null;
-            worldConfiguration = null;
-            return false;
-        }
-        catch (IOException)
-        {
-            administratorUserId = null;
-            worldConfiguration = null;
-            return false;
-        }
+        catch (Exception ex) when (ex is JsonException or IOException)
+        { throw new InvalidOperationException("Cannot load persisted world configuration.", ex); }
     }
 
     private void SaveLocked()
@@ -1029,37 +990,41 @@ public sealed class WorldConfigurationRegistry
     private void SaveLocked(WorldConfigurationDto? configuration, bool writeSubstrate,
         IReadOnlyList<WorldLayerNotificationWork>? pending = null)
     {
-        pending ??= pendingLayerNotifications;
-        if (structuredPersistence is not null)
-        {
-            structuredPersistence.ReplaceAll(BuildStructuredRows(configuration, pending));
-            if (writeSubstrate) binaryPersistence?.WriteBinary("world-substrate", worldSubstratePayload);
-            return;
-        }
-
-        if (legacyPersistence is null)
-        {
-            return;
-        }
-
-        string json = JsonSerializer.Serialize(
-            BuildPersistenceSnapshot(administratorUserId, administratorUserIds, configuration) with { PendingLayerNotifications = pending },
-            JsonOptions);
-        legacyPersistence.Write(json);
-        if (writeSubstrate) binaryPersistence?.WriteBinary("world-substrate", worldSubstratePayload);
+        worldSubstrateKey = PersistLocked(configuration, worldSubstratePayload, administratorUserId, administratorUserIds,
+            pending ?? pendingLayerNotifications, writeSubstrate);
     }
 
-    private IReadOnlyDictionary<string, string> BuildStructuredRows()
-        => BuildStructuredRows(worldConfiguration);
+    private void PersistAdministratorsLocked(string? primary, HashSet<string> administrators)
+    {
+        PersistLocked(worldConfiguration, worldSubstratePayload, primary, administrators, pendingLayerNotifications, writeSubstrate: false);
+        administratorUserId = primary;
+        administratorUserIds = administrators;
+    }
 
-    private IReadOnlyDictionary<string, string> BuildStructuredRows(WorldConfigurationDto? configuration,
-        IReadOnlyList<WorldLayerNotificationWork>? pending = null)
+    private string? PersistLocked(WorldConfigurationDto? configuration, byte[]? substrate,
+        string? primary, IReadOnlyCollection<string> administrators, IReadOnlyList<WorldLayerNotificationWork> pending, bool writeSubstrate)
+    {
+        bool persistent = structuredPersistence is not null || legacyPersistence is not null;
+        if (persistent && writeSubstrate && substrate is not null && binaryPersistence is null)
+            throw new InvalidOperationException("Persistent world configuration requires substrate storage.");
+        // A reset publishes an explicit empty reference, never deletes the previous blob.
+        string? reference = writeSubstrate ? WorldSubstratePersistence.Store(persistent ? binaryPersistence : null, substrate) : worldSubstrateKey;
+        if (structuredPersistence is not null)
+            structuredPersistence.ReplaceAll(BuildStructuredRows(configuration, pending, primary, administrators, reference));
+        else if (legacyPersistence is not null)
+            legacyPersistence.Write(JsonSerializer.Serialize(BuildPersistenceSnapshot(primary, administrators, configuration)
+                with { PendingLayerNotifications = pending, WorldSubstrateKey = reference }, JsonOptions));
+        return reference;
+    }
+
+    private static IReadOnlyDictionary<string, string> BuildStructuredRows(WorldConfigurationDto? configuration,
+        IReadOnlyList<WorldLayerNotificationWork> pending, string? primary, IReadOnlyCollection<string> administrators, string? reference)
     {
         Dictionary<string, string> rows = new(StringComparer.Ordinal)
         {
-            ["pending-layer-notifications"] = JsonSerializer.Serialize(pending ?? pendingLayerNotifications, JsonOptions),
+            ["pending-layer-notifications"] = JsonSerializer.Serialize(pending, JsonOptions),
             ["state"] = JsonSerializer.Serialize(
-                new WorldConfigurationStateRecord(administratorUserId, administratorUserIds.ToList()),
+                new WorldConfigurationStateRecord(primary, administrators.ToList(), reference),
                 JsonOptions)
         };
 
@@ -1209,7 +1174,8 @@ public sealed class WorldConfigurationRegistry
 
     private sealed record WorldConfigurationStateRecord(
         string? AdministratorUserId,
-        IReadOnlyList<string>? AdministratorUserIds);
+        IReadOnlyList<string>? AdministratorUserIds,
+        string? WorldSubstrateKey = null);
 
     private sealed record WorldConfigurationListRecord<T>(IReadOnlyList<T>? Values);
 
@@ -1312,7 +1278,8 @@ public sealed class WorldConfigurationRegistry
         string? AdministratorUserId,
         IReadOnlyList<string>? AdministratorUserIds,
         WorldConfigurationDto? WorldConfiguration,
-        IReadOnlyList<WorldLayerNotificationWork>? PendingLayerNotifications = null);
+        IReadOnlyList<WorldLayerNotificationWork>? PendingLayerNotifications = null,
+        string? WorldSubstrateKey = null);
 }
 
 public sealed record WorldSessionState(

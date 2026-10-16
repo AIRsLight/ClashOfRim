@@ -4213,7 +4213,11 @@ static void VerifyPersistentRegistries()
         Equal("persistent-seed", reopened.WorldConfiguration?.SeedString, "重启后的世界种子");
         Require(reopened.WorldConfiguration?.PlayerColonySites.Any(site => site.UserId == "user-b" && site.Tile == 20) == true, "重启后应保留玩家殖民地地块");
         Require(reopened.WorldConfiguration?.TileGeometry?.Layers.Count == 2, "重启后应从独立二进制槽恢复世界地块几何");
-        Require(File.Exists(Path.Combine(root, "world-configuration.binary", "world-substrate.bin")), "世界底图应保存为独立二进制文件");
+        using var persistedWorld = JsonDocument.Parse(File.ReadAllText(worldPath));
+        string? substrateKey = persistedWorld.RootElement.GetProperty("WorldSubstrateKey").GetString();
+        byte[] expectedSubstrate = BuildSmokeWorldSubstrate(configuration.TileGeometry);
+        Equal("world-substrate-sha256-" + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(expectedSubstrate)).ToLowerInvariant(), substrateKey, "世界配置应引用底图内容哈希");
+        Require(File.ReadAllBytes(Path.Combine(root, "world-configuration.binary", substrateKey + ".bin")).SequenceEqual(expectedSubstrate), "世界底图应保存为引用指向的独立二进制文件");
 
         var baselineRegistry = new AdminBaselineRegistry(baselinePath);
         baselineRegistry.Submit(new SubmitAdminBaselineRequest(
