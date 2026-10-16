@@ -12,7 +12,7 @@ public static partial class ClashOfRimNetworkServer
         context = null;
         if (!ReauthorizeSnapshotPrincipal(httpRequest, state, new ProtocolIdentity(request.UserId, request.ColonyId, request.CurrentSnapshotId)))
             return Results.Ok(new BankLoanResponse(ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed")), null, 0, null));
-        context = ValidateBankRequest(
+        context = ReconcileBankRequestContext(
             state,
             request.UserId,
             request.ColonyId,
@@ -72,7 +72,7 @@ public static partial class ClashOfRimNetworkServer
         context = null;
         if (!ReauthorizeSnapshotPrincipal(httpRequest, state, new ProtocolIdentity(request.UserId, request.ColonyId, request.CurrentSnapshotId)))
             return Results.Ok(new BankLoanResponse(ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed")), null, 0, null));
-        context = ValidateBankRequest(
+        context = ReconcileBankRequestContext(
             state,
             request.UserId,
             request.ColonyId,
@@ -129,7 +129,7 @@ public static partial class ClashOfRimNetworkServer
         context = null;
         if (!ReauthorizeSnapshotPrincipal(httpRequest, state, new ProtocolIdentity(request.UserId, request.ColonyId, request.CurrentSnapshotId)))
             return Results.Ok(new BankDebtResponse(ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed")), null, 0, null));
-        context = ValidateBankRequest(
+        context = ReconcileBankRequestContext(
             state,
             request.UserId,
             request.ColonyId,

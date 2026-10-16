@@ -12,17 +12,8 @@ public static partial class ClashOfRimNetworkServer
 
     private static IResult GetBankStatus(GetBankStatusRequest request, ClashOfRimNetworkState state)
     {
-        DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
-        BankRequestContext? context = ValidateBankRequest(
-            state,
-            request.UserId,
-            request.ColonyId,
-            request.CurrentSnapshotId,
-            request.AuthToken,
-            request.CurrentGameTicks,
-            request.ColonyWealth,
-            nowUtc,
-            out ProtocolResponse? rejection);
+        using var mutation = EnterBankRequestMutation(state, request.UserId, request.ColonyId, request.CurrentSnapshotId,
+            request.AuthToken, request.CurrentGameTicks, request.ColonyWealth, out BankRequestContext? context, out ProtocolResponse? rejection);
         if (context is null)
         {
             return Results.Ok(new BankStatusResponse(
@@ -527,7 +518,7 @@ public static partial class ClashOfRimNetworkServer
                 return Results.Ok(new MercenaryHireResponse(ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed")), null, null));
 
             var existing = state.MercenaryContracts.FindByIdempotencyKey(request.IdempotencyKey);
-            context = ValidateBankRequest(state, request.UserId, request.ColonyId, request.CurrentSnapshotId, request.AuthToken,
+            context = ReconcileBankRequestContext(state, request.UserId, request.ColonyId, request.CurrentSnapshotId, request.AuthToken,
                 request.CurrentGameTicks, 0, nowUtc, out var rejection,
                 committedSnapshotId: MatchesMercenarySnapshot(existing, request) ? existing!.SnapshotId : null);
             if (context is null) return Failure(rejection!);
@@ -551,7 +542,7 @@ public static partial class ClashOfRimNetworkServer
 
             nowUtc = DateTimeOffset.UtcNow;
             var existing = state.MercenaryContracts.FindByIdempotencyKey(request.IdempotencyKey);
-            context = ValidateBankRequest(state, request.UserId, request.ColonyId, request.CurrentSnapshotId, request.AuthToken,
+            context = ReconcileBankRequestContext(state, request.UserId, request.ColonyId, request.CurrentSnapshotId, request.AuthToken,
                 request.CurrentGameTicks, 0, nowUtc, out var rejection,
                 committedSnapshotId: MatchesMercenarySnapshot(existing, request) ? existing!.SnapshotId : null);
             if (context is null) return Failure(rejection!);
@@ -578,17 +569,8 @@ public static partial class ClashOfRimNetworkServer
 
     private static IResult QuoteMercenary(QuoteMercenaryRequest request, ClashOfRimNetworkState state)
     {
-        DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
-        BankRequestContext? context = ValidateBankRequest(
-            state,
-            request.UserId,
-            request.ColonyId,
-            request.CurrentSnapshotId,
-            request.AuthToken,
-            request.CurrentGameTicks,
-            colonyWealth: 0,
-            nowUtc,
-            out ProtocolResponse? rejection);
+        using var mutation = EnterBankRequestMutation(state, request.UserId, request.ColonyId, request.CurrentSnapshotId,
+            request.AuthToken, request.CurrentGameTicks, 0, out BankRequestContext? context, out ProtocolResponse? rejection, () => ValidateMercenaryRequestShape(request.SkillDefName, request.SkillLevel, request.DurationDays, state.ServerConfiguration));
         if (context is null)
         {
             return Results.Ok(new MercenaryQuoteResponse(
@@ -659,17 +641,8 @@ public static partial class ClashOfRimNetworkServer
 
     private static IResult QuoteMercenaryGuard(QuoteMercenaryGuardRequest request, ClashOfRimNetworkState state)
     {
-        DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
-        BankRequestContext? context = ValidateBankRequest(
-            state,
-            request.UserId,
-            request.ColonyId,
-            request.CurrentSnapshotId,
-            request.AuthToken,
-            request.CurrentGameTicks,
-            colonyWealth: 0,
-            nowUtc,
-            out ProtocolResponse? rejection);
+        using var mutation = EnterBankRequestMutation(state, request.UserId, request.ColonyId, request.CurrentSnapshotId,
+            request.AuthToken, request.CurrentGameTicks, 0, out BankRequestContext? context, out ProtocolResponse? rejection);
         string tier = NormalizeMercenaryGuardTier(request.Tier);
         if (context is null)
         {
@@ -756,7 +729,7 @@ public static partial class ClashOfRimNetworkServer
                 return Results.Ok(new MercenaryGuardHireResponse(ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed")), null, null));
 
             var existing = state.MercenaryGuards.FindByIdempotencyKey(request.IdempotencyKey);
-            context = ValidateBankRequest(state, request.UserId, request.ColonyId, request.CurrentSnapshotId, request.AuthToken,
+            context = ReconcileBankRequestContext(state, request.UserId, request.ColonyId, request.CurrentSnapshotId, request.AuthToken,
                 request.CurrentGameTicks, 0, nowUtc, out var rejection,
                 committedSnapshotId: MatchesGuardSnapshot(existing, request) ? existing!.SnapshotId : null);
             if (context is null) return Failure(rejection!);
@@ -780,7 +753,7 @@ public static partial class ClashOfRimNetworkServer
 
             nowUtc = DateTimeOffset.UtcNow;
             var existing = state.MercenaryGuards.FindByIdempotencyKey(request.IdempotencyKey);
-            context = ValidateBankRequest(state, request.UserId, request.ColonyId, request.CurrentSnapshotId, request.AuthToken,
+            context = ReconcileBankRequestContext(state, request.UserId, request.ColonyId, request.CurrentSnapshotId, request.AuthToken,
                 request.CurrentGameTicks, 0, nowUtc, out var rejection,
                 committedSnapshotId: MatchesGuardSnapshot(existing, request) ? existing!.SnapshotId : null);
             if (context is null) return Failure(rejection!);
@@ -805,26 +778,9 @@ public static partial class ClashOfRimNetworkServer
 
     private static IResult ReportMercenaryIncident(ReportMercenaryIncidentRequest request, ClashOfRimNetworkState state)
     {
-        using (state.EnterSnapshotMutation())
-        {
-            RecoverSnapshotCommits(state);
-            return ReportMercenaryIncidentLocked(request, state);
-        }
-    }
-
-    private static IResult ReportMercenaryIncidentLocked(ReportMercenaryIncidentRequest request, ClashOfRimNetworkState state)
-    {
+        using var mutation = EnterBankRequestMutation(state, request.UserId, request.ColonyId, request.CurrentSnapshotId,
+            request.AuthToken, request.CurrentGameTicks, 0, out BankRequestContext? context, out ProtocolResponse? rejection, () => ValidateMercenaryIncidentShape(request));
         DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
-        BankRequestContext? context = ValidateBankRequest(
-            state,
-            request.UserId,
-            request.ColonyId,
-            request.CurrentSnapshotId,
-            request.AuthToken,
-            request.CurrentGameTicks,
-            colonyWealth: 0,
-            nowUtc,
-            out ProtocolResponse? rejection);
         if (context is null)
         {
             return Results.Ok(new MercenaryIncidentResponse(rejection!, debt: null, bankStatus: null));
@@ -960,75 +916,6 @@ public static partial class ClashOfRimNetworkServer
                 RelatedUserId: debt.UserId,
                 RelatedColonyId: debt.ColonyId),
             debt.CreatedAtUtc);
-    }
-
-    private static BankRequestContext? ValidateBankRequest(
-        ClashOfRimNetworkState state,
-        string userId,
-        string colonyId,
-        string currentSnapshotId,
-        string? authToken,
-        long requestedCurrentGameTicks,
-        int colonyWealth,
-        DateTimeOffset nowUtc,
-        out ProtocolResponse? rejection,
-        string? committedSnapshotId = null)
-    {
-        rejection = null;
-        if (string.IsNullOrWhiteSpace(userId)
-            || string.IsNullOrWhiteSpace(colonyId)
-            || string.IsNullOrWhiteSpace(currentSnapshotId))
-        {
-            rejection = ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("Bank.RequestMissingIdentity"));
-            return null;
-        }
-
-        if (!IsAuthorizedForColony(
-                state,
-                authToken,
-                userId,
-                colonyId,
-                authorizationEventId: null,
-                authorizationScope: null,
-                nowUtc,
-                out string authFailure))
-        {
-            rejection = ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, authFailure);
-            return null;
-        }
-
-        LatestSnapshotRecord? latest = state.SnapshotStore.GetLatest(userId, colonyId);
-        if (latest is null)
-        {
-            rejection = ProtocolResponse.Reject(ProtocolErrorCode.SnapshotMismatch, T("Bank.MissingSnapshot"));
-            return null;
-        }
-
-        if (!string.Equals(latest.Identity.SnapshotId, currentSnapshotId, StringComparison.Ordinal)
-            && !string.Equals(latest.Identity.SnapshotId, committedSnapshotId, StringComparison.Ordinal))
-        {
-            rejection = ProtocolResponse.Reject(ProtocolErrorCode.SnapshotMismatch, T("Bank.SnapshotNotLatest"));
-            return null;
-        }
-
-        long currentGameTicks = requestedCurrentGameTicks > 0
-            ? requestedCurrentGameTicks
-            : latest.Envelope.GameTicks.GetValueOrDefault();
-        if (currentGameTicks <= 0)
-        {
-            rejection = ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("Bank.MissingGameTime"));
-            return null;
-        }
-
-        ReconcilePendingConfirmationsForColony(state, userId, colonyId, nowUtc, forceCancel: false);
-        BankLoanRecord? activeLoan = state.BankLoans.GetActive(userId, colonyId);
-        return new BankRequestContext(
-            userId,
-            colonyId,
-            currentSnapshotId,
-            currentGameTicks,
-            Math.Max(0, colonyWealth),
-            activeLoan);
     }
 
     private static BankStatusResponse BuildBankStatusResponse(
