@@ -36,6 +36,7 @@ var tests = new (string Name, Action Run)[]
     ("支援快照创建原子恢复且完整绑定重试", () => SupportCommitTests.Run(BuildFixturePackage)),
     ("交易快照与成交事件跨崩溃恢复且并发买家互斥", () => TradeCommitCrashTests.Run(BuildFixturePackage)),
     ("交易成就统计与通知在写入失败后可以恢复", AchievementRecoveryTests.Run),
+    ("成就阈值排行榜与废弃重建跨文化持久化隔离", () => AchievementLifecycleTests.Run(BuildFixturePackage)),
     ("快照成就通知在中断后重放且保持来源隔离", () => SnapshotAchievementRecoveryTests.Run(BuildFixturePackage)),
     ("快照支援死亡原子提交且中断后恢复通知", () => SnapshotSupportDeathTests.Run(BuildFixturePackage)),
     ("快照世界投影保存失败保留缓存且重试保留增量", SnapshotWorldProjectionTests.Run),
