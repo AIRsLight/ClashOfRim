@@ -156,7 +156,7 @@ public static class ProtocolDtoMapper
             ToProtocolIdentity(ledgerEvent.Target),
             ToDto(ledgerEvent.TargetContext),
             ToPayloadType(ledgerEvent.Payload),
-            PayloadSummary(ledgerEvent.Payload));
+            SerializeEventPayload(ledgerEvent.Payload));
     }
 
     private static EventReferenceDto ToDto(EventQueueItem item)
@@ -207,11 +207,13 @@ public static class ProtocolDtoMapper
             context.LandingMode.ToString());
     }
 
-    private static string PayloadSummary(LedgerEventPayload payload)
+    // PayloadSummary is a legacy wire name: clients deserialize this as the full business payload.
+    // Display previews may shorten text after decoding; transport must never truncate JSON.
+    private static string SerializeEventPayload(LedgerEventPayload payload)
     {
         if (payload is SupportPawnEventPayload support)
         {
-            string supportJson = JsonSerializer.Serialize(new
+            return JsonSerializer.Serialize(new
             {
                 pawnGlobalKey = support.PawnGlobalKey,
                 sourceSnapshotId = support.SourceSnapshotId,
@@ -231,8 +233,6 @@ public static class ProtocolDtoMapper
                 sourceEventId = support.SourceEventId,
                 returnReason = support.ReturnReason
             });
-            const int maxSupportLength = 2 * 1024 * 1024;
-            return supportJson.Length <= maxSupportLength ? supportJson : supportJson.Substring(0, maxSupportLength);
         }
 
         if (payload is RaidEventPayload { AttackerLoss: not null } raidLoss)
@@ -243,14 +243,7 @@ public static class ProtocolDtoMapper
             });
         }
 
-        string json = JsonSerializer.Serialize(payload, payload.GetType());
-        int maxLength = payload switch
-        {
-            ItemDeliveryEventPayload => 3 * 1024 * 1024,
-            RaidEventPayload { Settlement: not null } => 2 * 1024 * 1024,
-            _ => 4096
-        };
-        return json.Length <= maxLength ? json : json.Substring(0, maxLength);
+        return JsonSerializer.Serialize(payload, payload.GetType());
     }
 
     private static ProtocolDeliverySemantics ToDeliverySemantics(EventQueueItem item)

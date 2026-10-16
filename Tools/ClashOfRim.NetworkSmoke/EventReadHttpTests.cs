@@ -11,6 +11,7 @@ internal static class EventReadHttpTests
 {
     public static async Task RunAsync(Func<string, string, string, SaveSnapshotPackage> fixture)
     {
+        EventPayloadWireTests.Run();
         var state = new ClashOfRimNetworkState();
         void Snapshot(string user, string colony, string id)
         {
@@ -56,6 +57,13 @@ internal static class EventReadHttpTests
             Require(validQueue.Result.Accepted && validQueue.EventQueue.DirectlyProcessable.Count == 1, "queue leaked old colony events");
             var valid = await client.PullEventDetailsAsync(new("reader", "home", "current", [notice.EventId, gift.EventId], token));
             Require(valid.Result.Accepted && valid.Events.Count == 2 && state.Ledger.Find(gift.EventId)!.DeliveredToSnapshotId == "current", "valid delivery failed");
+            string longMessage = new('测', 800);
+            var longNotice = notice with { EventId = "long-notice", IdempotencyKey = "long-notice",
+                Payload = new ServerNotificationEventPayload("long-notice", "Title", longMessage, ServerNotificationSeverity.Info, false) };
+            state.Ledger.Append(longNotice);
+            var longResponse = await client.PullEventDetailsAsync(new("reader", "home", "current", [longNotice.EventId], token));
+            using var longJson = System.Text.Json.JsonDocument.Parse(longResponse.Events.Single().PayloadSummary);
+            Require(longJson.RootElement.GetProperty("Message").GetString() == longMessage, "HTTP notification lost text");
 
             foreach (bool replaceSession in new[] { true, false })
             {
