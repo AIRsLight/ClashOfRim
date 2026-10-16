@@ -12,20 +12,20 @@ internal sealed partial class GameSuite
         await Wait(client, "game.state", null, s => s.Bool("startupReady") && !s.Bool("hasGame") && !s.Bool("playing"));
         await Wait(client, "clash.state", null, s => !s.Bool("isInActiveMultiplayerSession"));
     }
-    async Task LoginExisting(bool accepted, string password = "local-test-password")
+    async Task LoginExisting(bool accepted, string password = "local-test-password", string client = "B")
     {
-        await Idle("B");
-        string previousEpoch = (await Call("B", "game.state")).String("epoch");
-        Check((await Invoke("B", "StartMainMenuServerEntryFlow", new { serverBaseUrl = url, userId = "rimtest-B", password, createAccountIfMissing = false })).Bool("returnValue"), "Login entry was not started.");
-        await Wait("B", "clash.state", null, s => !s.Bool("manualSyncInProgress") && s.Bool("isInActiveMultiplayerSession") == accepted, 120);
+        await Idle(client);
+        string previousEpoch = (await Call(client, "game.state")).String("epoch");
+        Check((await Invoke(client, "StartMainMenuServerEntryFlow", new { serverBaseUrl = url, userId = "rimtest-" + client, password, createAccountIfMissing = false })).Bool("returnValue"), "Login entry was not started.");
+        await Wait(client, "clash.state", null, s => !s.Bool("manualSyncInProgress") && s.Bool("isInActiveMultiplayerSession") == accepted, 120);
         if (accepted)
         {
             // Authentication completes before the downloaded snapshot replaces the
             // old game. Do not mistake the still-visible old map for a finished login.
-            await Wait("B", "game.state", null, s => s.String("epoch") != previousEpoch && s.Bool("playing") &&
+            await Wait(client, "game.state", null, s => s.String("epoch") != previousEpoch && s.Bool("playing") &&
                 !s.Bool("longEventPending") && s.Bool("playerHasControl") && s.Int("mapCount") > 0, 180);
-            await StabilizeColony("B");
-            await Idle("B");
+            await StabilizeColony(client);
+            await Idle(client);
         }
     }
     async Task AdminKick()

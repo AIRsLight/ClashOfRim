@@ -1,0 +1,728 @@
+{
+  "date": "2026-10-17",
+  "fullCoverage": false,
+  "basis": "Two final offline profiles plus related gift replay/transfer passes from the earlier choice-group fix. Not one immutable build. Existing dirty workspace/framework changes retained in inputs.json. DOTNET_PROCESSOR_COUNT=4 avoids the known startup CLR crash; does not prove default startup stability. Semantic tests, not visual/input validation.",
+  "scenarioExecutions": 4,
+  "executed": 78,
+  "passedCases": 78,
+  "distinctCases": 27,
+  "profiles": [
+    {
+      "id": "offline-delivery-core",
+      "phase": "final-deferred-delivery-fix",
+      "passed": true,
+      "report": {
+        "path": "G:\\RimTestRuns\\offline-delivery-r4\\20261016-172255-77f3bbc9\\offline-delivery-core\\20261016-172255-f6317ee9\\report.json",
+        "sha256": "128387e110115979fea76a53c91d816a13920c88e640f286a4e47d0229d9b133"
+      },
+      "inputs": {
+        "path": "G:\\RimTestRuns\\offline-delivery-r4\\20261016-172255-77f3bbc9\\offline-delivery-core\\20261016-172255-f6317ee9\\inputs.json",
+        "sha256": "6a45c26eafb7561410d226ea565e0aa357a66a1104b842fd344189bf6218c2ef"
+      },
+      "profile": {
+        "id": "offline-delivery-core",
+        "features": false,
+        "stability": "offline-delivery",
+        "A": {
+          "language": "English",
+          "culture": "en-US"
+        },
+        "B": {
+          "language": "English",
+          "culture": "fr-FR"
+        },
+        "expansions": []
+      },
+      "executionEnvironment": {
+        "dotnetProcessorCount": "4"
+      },
+      "repositoryCommitAtRun": "f46d171734a5dc92750b39c0d9175547d2344fa6",
+      "frameworkCommitAtRun": "143559423dc8cee5d46a694186743b311c15c0e5",
+      "hadUncommittedWorkspaceChanges": true,
+      "hadUncommittedFrameworkChanges": true,
+      "cases": [
+        {
+          "id": "launch-profile",
+          "status": "passed"
+        },
+        {
+          "id": "shared-world-entry",
+          "status": "passed"
+        },
+        {
+          "id": "world-parameters",
+          "status": "passed"
+        },
+        {
+          "id": "world-geometry",
+          "status": "passed"
+        },
+        {
+          "id": "world-tile-data",
+          "status": "passed"
+        },
+        {
+          "id": "world-feature-identities",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-difficulty",
+          "status": "passed"
+        },
+        {
+          "id": "culture-references",
+          "status": "passed"
+        },
+        {
+          "id": "world-persistence",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-permission",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-difficulty-sync",
+          "status": "passed"
+        },
+        {
+          "id": "alliance-request-accept",
+          "status": "passed"
+        },
+        {
+          "id": "caravan-load-travel",
+          "status": "passed"
+        },
+        {
+          "id": "gift-offline-deferred-accept",
+          "status": "passed"
+        },
+        {
+          "id": "gift-offline-reject-return",
+          "status": "passed"
+        },
+        {
+          "id": "notification-offline-policy",
+          "status": "passed"
+        },
+        {
+          "id": "snapshot-save-reload",
+          "status": "passed"
+        },
+        {
+          "id": "session-reconnect",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-errors",
+          "status": "passed"
+        }
+      ],
+      "binaries": [
+        {
+          "path": "G:\\RimTestRuns\\offline-delivery-r4\\20261016-172255-77f3bbc9\\offline-delivery-core\\20261016-172255-f6317ee9\\Runner\\ClashOfRim.Events.dll",
+          "sha256": "A088DF32B752CE24B39D0930AC88C017236C1F574F1265B6005D26A9F7F2FE74"
+        },
+        {
+          "path": "G:\\RimTestRuns\\offline-delivery-r4\\20261016-172255-77f3bbc9\\offline-delivery-core\\20261016-172255-f6317ee9\\Runner\\ClashOfRim.GameTests.dll",
+          "sha256": "79ECD242CD82C27AC42A7BE85CD8EAA50FAF9FA17E91B54F58B1E99C33B780FD"
+        },
+        {
+          "path": "G:\\RimTestRuns\\offline-delivery-r4\\20261016-172255-77f3bbc9\\offline-delivery-core\\20261016-172255-f6317ee9\\Runner\\ClashOfRim.Network.dll",
+          "sha256": "7C2AADE98041D15A597F8F203AF880464CA84AC8AFBEB2EB41E38B5A447F8036"
+        },
+        {
+          "path": "G:\\RimTestRuns\\offline-delivery-r4\\20261016-172255-77f3bbc9\\offline-delivery-core\\20261016-172255-f6317ee9\\Bridge\\Assemblies\\ClashOfRim.RimTestBridge.dll",
+          "sha256": "98642EA8037BA8A7C766B2AFBBA922EBD882E2EBBDBB3AA3DAD8B20FE912B9C0"
+        }
+      ]
+    },
+    {
+      "id": "offline-delivery-all-dlc",
+      "phase": "final-deferred-delivery-fix",
+      "passed": true,
+      "report": {
+        "path": "G:\\RimTestRuns\\offline-delivery-r4\\20261016-172255-77f3bbc9\\offline-delivery-all-dlc\\20261016-172451-993c60ab\\report.json",
+        "sha256": "37a77c44580f6430ea542f26d9faf1efcf3359e4e1010122dc7a1132a90e65cf"
+      },
+      "inputs": {
+        "path": "G:\\RimTestRuns\\offline-delivery-r4\\20261016-172255-77f3bbc9\\offline-delivery-all-dlc\\20261016-172451-993c60ab\\inputs.json",
+        "sha256": "c90ea9931678f44c32c1ac6fe7c75b474989ed17ab7e96b8299568d3423075ba"
+      },
+      "profile": {
+        "id": "offline-delivery-all-dlc",
+        "features": false,
+        "stability": "offline-delivery",
+        "A": {
+          "language": "ChineseSimplified (简体中文)",
+          "culture": "zh-CN"
+        },
+        "B": {
+          "language": "English",
+          "culture": "fr-FR"
+        },
+        "expansions": [
+          "Royalty",
+          "Ideology",
+          "Biotech",
+          "Anomaly",
+          "Odyssey"
+        ]
+      },
+      "executionEnvironment": {
+        "dotnetProcessorCount": "4"
+      },
+      "repositoryCommitAtRun": "f46d171734a5dc92750b39c0d9175547d2344fa6",
+      "frameworkCommitAtRun": "143559423dc8cee5d46a694186743b311c15c0e5",
+      "hadUncommittedWorkspaceChanges": true,
+      "hadUncommittedFrameworkChanges": true,
+      "cases": [
+        {
+          "id": "launch-profile",
+          "status": "passed"
+        },
+        {
+          "id": "shared-world-entry",
+          "status": "passed"
+        },
+        {
+          "id": "world-parameters",
+          "status": "passed"
+        },
+        {
+          "id": "world-geometry",
+          "status": "passed"
+        },
+        {
+          "id": "world-tile-data",
+          "status": "passed"
+        },
+        {
+          "id": "world-feature-identities",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-difficulty",
+          "status": "passed"
+        },
+        {
+          "id": "culture-references",
+          "status": "passed"
+        },
+        {
+          "id": "world-persistence",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-permission",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-difficulty-sync",
+          "status": "passed"
+        },
+        {
+          "id": "alliance-request-accept",
+          "status": "passed"
+        },
+        {
+          "id": "caravan-load-travel",
+          "status": "passed"
+        },
+        {
+          "id": "gift-offline-deferred-accept",
+          "status": "passed"
+        },
+        {
+          "id": "gift-offline-reject-return",
+          "status": "passed"
+        },
+        {
+          "id": "notification-offline-policy",
+          "status": "passed"
+        },
+        {
+          "id": "snapshot-save-reload",
+          "status": "passed"
+        },
+        {
+          "id": "session-reconnect",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-errors",
+          "status": "passed"
+        }
+      ],
+      "binaries": [
+        {
+          "path": "G:\\RimTestRuns\\offline-delivery-r4\\20261016-172255-77f3bbc9\\offline-delivery-all-dlc\\20261016-172451-993c60ab\\Runner\\ClashOfRim.Events.dll",
+          "sha256": "A088DF32B752CE24B39D0930AC88C017236C1F574F1265B6005D26A9F7F2FE74"
+        },
+        {
+          "path": "G:\\RimTestRuns\\offline-delivery-r4\\20261016-172255-77f3bbc9\\offline-delivery-all-dlc\\20261016-172451-993c60ab\\Runner\\ClashOfRim.GameTests.dll",
+          "sha256": "79ECD242CD82C27AC42A7BE85CD8EAA50FAF9FA17E91B54F58B1E99C33B780FD"
+        },
+        {
+          "path": "G:\\RimTestRuns\\offline-delivery-r4\\20261016-172255-77f3bbc9\\offline-delivery-all-dlc\\20261016-172451-993c60ab\\Runner\\ClashOfRim.Network.dll",
+          "sha256": "7C2AADE98041D15A597F8F203AF880464CA84AC8AFBEB2EB41E38B5A447F8036"
+        },
+        {
+          "path": "G:\\RimTestRuns\\offline-delivery-r4\\20261016-172255-77f3bbc9\\offline-delivery-all-dlc\\20261016-172451-993c60ab\\Bridge\\Assemblies\\ClashOfRim.RimTestBridge.dll",
+          "sha256": "98642EA8037BA8A7C766B2AFBBA922EBD882E2EBBDBB3AA3DAD8B20FE912B9C0"
+        }
+      ]
+    },
+    {
+      "id": "gift-repeat-accept",
+      "phase": "choice-group-fix-before-delivery-rebind",
+      "passed": true,
+      "report": {
+        "path": "G:\\RimTestRuns\\offline-delivery-r3\\20261016-171627-7d267a96\\gift-repeat-accept\\20261016-171635-11ba573d\\report.json",
+        "sha256": "4267daa153f9d64951b56a31dd06622af5dc907d8fd8675c27896d929520908b"
+      },
+      "inputs": {
+        "path": "G:\\RimTestRuns\\offline-delivery-r3\\20261016-171627-7d267a96\\gift-repeat-accept\\20261016-171635-11ba573d\\inputs.json",
+        "sha256": "30d1fd03eeeff9538e70ce85e294c4699c1563d72a55a067058851b79b0e4a9d"
+      },
+      "profile": {
+        "storyteller": "Cassandra",
+        "giftReplay": true,
+        "coverage": 30,
+        "features": false,
+        "difficulty": "Peaceful",
+        "id": "gift-repeat-accept"
+      },
+      "executionEnvironment": {
+        "dotnetProcessorCount": "4"
+      },
+      "repositoryCommitAtRun": "f46d171734a5dc92750b39c0d9175547d2344fa6",
+      "frameworkCommitAtRun": "143559423dc8cee5d46a694186743b311c15c0e5",
+      "hadUncommittedWorkspaceChanges": true,
+      "hadUncommittedFrameworkChanges": true,
+      "cases": [
+        {
+          "id": "launch-profile",
+          "status": "passed"
+        },
+        {
+          "id": "shared-world-entry",
+          "status": "passed"
+        },
+        {
+          "id": "world-parameters",
+          "status": "passed"
+        },
+        {
+          "id": "world-geometry",
+          "status": "passed"
+        },
+        {
+          "id": "world-tile-data",
+          "status": "passed"
+        },
+        {
+          "id": "world-feature-identities",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-difficulty",
+          "status": "passed"
+        },
+        {
+          "id": "culture-references",
+          "status": "passed"
+        },
+        {
+          "id": "world-persistence",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-permission",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-difficulty-sync",
+          "status": "passed"
+        },
+        {
+          "id": "alliance-request-accept",
+          "status": "passed"
+        },
+        {
+          "id": "caravan-load-travel",
+          "status": "passed"
+        },
+        {
+          "id": "caravan-gift-accept",
+          "status": "passed"
+        },
+        {
+          "id": "gift-repeat-accept",
+          "status": "passed"
+        },
+        {
+          "id": "snapshot-save-reload",
+          "status": "passed"
+        },
+        {
+          "id": "session-reconnect",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-errors",
+          "status": "passed"
+        }
+      ],
+      "binaries": [
+        {
+          "path": "G:\\RimTestRuns\\offline-delivery-r3\\20261016-171627-7d267a96\\gift-repeat-accept\\20261016-171635-11ba573d\\Runner\\ClashOfRim.Events.dll",
+          "sha256": "7FCFC133FF8DB66D478182704610E0AEE3B04E35B6DBB07CCD8BEB8FF0E0E40E"
+        },
+        {
+          "path": "G:\\RimTestRuns\\offline-delivery-r3\\20261016-171627-7d267a96\\gift-repeat-accept\\20261016-171635-11ba573d\\Runner\\ClashOfRim.GameTests.dll",
+          "sha256": "9D1E7FBE6807AD5025D08727A8A5E69B0806836BE54A85DADB1F35021A696866"
+        },
+        {
+          "path": "G:\\RimTestRuns\\offline-delivery-r3\\20261016-171627-7d267a96\\gift-repeat-accept\\20261016-171635-11ba573d\\Runner\\ClashOfRim.Network.dll",
+          "sha256": "E5298DCB44FD6B6044938463E95B322990E985892A6C50463FE367EAC2F74281"
+        },
+        {
+          "path": "G:\\RimTestRuns\\offline-delivery-r3\\20261016-171627-7d267a96\\gift-repeat-accept\\20261016-171635-11ba573d\\Bridge\\Assemblies\\ClashOfRim.RimTestBridge.dll",
+          "sha256": "98642EA8037BA8A7C766B2AFBBA922EBD882E2EBBDBB3AA3DAD8B20FE912B9C0"
+        }
+      ]
+    },
+    {
+      "id": "stability-transfers-core",
+      "phase": "choice-group-fix-before-delivery-rebind",
+      "passed": true,
+      "report": {
+        "path": "G:\\RimTestRuns\\offline-choice-transfer-regression\\20261016-171826-7c343e08\\stability-transfers-core\\20261016-171826-66996335\\report.json",
+        "sha256": "5602e87dc788a9466c39d2678d1d0bc81eab0a60d6b1fc357acd334cdc03faac"
+      },
+      "inputs": {
+        "path": "G:\\RimTestRuns\\offline-choice-transfer-regression\\20261016-171826-7c343e08\\stability-transfers-core\\20261016-171826-66996335\\inputs.json",
+        "sha256": "04f2ea05f3b13fe94d76e47bede2131ae8df332c4be8b10882cbff083a6c73e3"
+      },
+      "profile": {
+        "features": false,
+        "coverage": 30,
+        "stability": "transfers",
+        "id": "stability-transfers-core",
+        "difficulty": "Peaceful"
+      },
+      "executionEnvironment": {
+        "dotnetProcessorCount": "4"
+      },
+      "repositoryCommitAtRun": "f46d171734a5dc92750b39c0d9175547d2344fa6",
+      "frameworkCommitAtRun": "143559423dc8cee5d46a694186743b311c15c0e5",
+      "hadUncommittedWorkspaceChanges": true,
+      "hadUncommittedFrameworkChanges": true,
+      "cases": [
+        {
+          "id": "launch-profile",
+          "status": "passed"
+        },
+        {
+          "id": "shared-world-entry",
+          "status": "passed"
+        },
+        {
+          "id": "world-parameters",
+          "status": "passed"
+        },
+        {
+          "id": "world-geometry",
+          "status": "passed"
+        },
+        {
+          "id": "world-tile-data",
+          "status": "passed"
+        },
+        {
+          "id": "world-feature-identities",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-difficulty",
+          "status": "passed"
+        },
+        {
+          "id": "culture-references",
+          "status": "passed"
+        },
+        {
+          "id": "world-persistence",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-permission",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-difficulty-sync",
+          "status": "passed"
+        },
+        {
+          "id": "alliance-request-accept",
+          "status": "passed"
+        },
+        {
+          "id": "remote-map-isolation-repeat",
+          "status": "passed"
+        },
+        {
+          "id": "pawn-state-fixture",
+          "status": "passed"
+        },
+        {
+          "id": "caravan-load-travel",
+          "status": "passed"
+        },
+        {
+          "id": "support-state-early-return",
+          "status": "passed"
+        },
+        {
+          "id": "support-state-rejected-return",
+          "status": "passed"
+        },
+        {
+          "id": "support-state-expired-return",
+          "status": "passed"
+        },
+        {
+          "id": "raid-loss-reload-settlement",
+          "status": "passed"
+        },
+        {
+          "id": "snapshot-save-reload",
+          "status": "passed"
+        },
+        {
+          "id": "session-reconnect",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-errors",
+          "status": "passed"
+        }
+      ],
+      "binaries": [
+        {
+          "path": "G:\\RimTestRuns\\offline-choice-transfer-regression\\20261016-171826-7c343e08\\stability-transfers-core\\20261016-171826-66996335\\Runner\\ClashOfRim.Events.dll",
+          "sha256": "7FCFC133FF8DB66D478182704610E0AEE3B04E35B6DBB07CCD8BEB8FF0E0E40E"
+        },
+        {
+          "path": "G:\\RimTestRuns\\offline-choice-transfer-regression\\20261016-171826-7c343e08\\stability-transfers-core\\20261016-171826-66996335\\Runner\\ClashOfRim.GameTests.dll",
+          "sha256": "9D1E7FBE6807AD5025D08727A8A5E69B0806836BE54A85DADB1F35021A696866"
+        },
+        {
+          "path": "G:\\RimTestRuns\\offline-choice-transfer-regression\\20261016-171826-7c343e08\\stability-transfers-core\\20261016-171826-66996335\\Runner\\ClashOfRim.Network.dll",
+          "sha256": "E5298DCB44FD6B6044938463E95B322990E985892A6C50463FE367EAC2F74281"
+        },
+        {
+          "path": "G:\\RimTestRuns\\offline-choice-transfer-regression\\20261016-171826-7c343e08\\stability-transfers-core\\20261016-171826-66996335\\Bridge\\Assemblies\\ClashOfRim.RimTestBridge.dll",
+          "sha256": "98642EA8037BA8A7C766B2AFBBA922EBD882E2EBBDBB3AA3DAD8B20FE912B9C0"
+        }
+      ]
+    }
+  ],
+  "failedAttempts": [
+    {
+      "id": "offline-delivery-core",
+      "reason": "Fixture asserted server presence before asynchronous logout finished.",
+      "report": {
+        "path": "G:\\RimTestRuns\\offline-delivery-r1\\20261016-171045-b1110678\\offline-delivery-core\\20261016-171055-2bb312ee\\report.json",
+        "sha256": "45a127c2613b0a9c673e78839d7e5f5891392552dfe56ee0883be6daaac2d0e3"
+      },
+      "failedCases": [
+        {
+          "id": "gift-offline-deferred-accept",
+          "status": "failed",
+          "seconds": 2.0442052,
+          "failure": "Logout left server presence online."
+        }
+      ],
+      "notRun": [
+        "snapshot-save-reload",
+        "session-reconnect",
+        "gift-offline-reject-return",
+        "notification-offline-policy",
+        "runtime-errors"
+      ]
+    },
+    {
+      "id": "offline-delivery-all-dlc",
+      "reason": "Fixture asserted server presence before asynchronous logout finished.",
+      "report": {
+        "path": "G:\\RimTestRuns\\offline-delivery-r1\\20261016-171045-b1110678\\offline-delivery-all-dlc\\20261016-171144-af5d83b0\\report.json",
+        "sha256": "87785248c050b74a468806dd68162d49a13c5c459d3c2fa240ef55382277336d"
+      },
+      "failedCases": [
+        {
+          "id": "gift-offline-deferred-accept",
+          "status": "failed",
+          "seconds": 2.3670357,
+          "failure": "Logout left server presence online."
+        }
+      ],
+      "notRun": [
+        "snapshot-save-reload",
+        "session-reconnect",
+        "gift-offline-reject-return",
+        "notification-offline-policy",
+        "runtime-errors"
+      ]
+    },
+    {
+      "id": "offline-delivery-core",
+      "reason": "Undecided downloaded gift auto-applied after reconnect (300 to 303 WoodLog).",
+      "report": {
+        "path": "G:\\RimTestRuns\\offline-delivery-r2\\20261016-171259-8c2fe6f4\\offline-delivery-core\\20261016-171300-b0fca813\\report.json",
+        "sha256": "aaa47e566e00e2f34d01bba76ebd4c0319dd46869d3e415da6cf3c7db0b29dec"
+      },
+      "failedCases": [
+        {
+          "id": "gift-offline-deferred-accept",
+          "status": "failed",
+          "seconds": 16.7433079,
+          "failure": "Reconnecting accepted a deferred gift without a decision."
+        }
+      ],
+      "notRun": [
+        "snapshot-save-reload",
+        "session-reconnect",
+        "gift-offline-reject-return",
+        "notification-offline-policy",
+        "runtime-errors"
+      ]
+    },
+    {
+      "id": "offline-delivery-all-dlc",
+      "reason": "Undecided downloaded gift auto-applied after reconnect (300 to 303 WoodLog).",
+      "report": {
+        "path": "G:\\RimTestRuns\\offline-delivery-r2\\20261016-171259-8c2fe6f4\\offline-delivery-all-dlc\\20261016-171405-364bd8c8\\report.json",
+        "sha256": "72fe4d7ff3a91d3b88e130faaa52caf3cd63b25bcab0d9abc2fe50bc7ae50667"
+      },
+      "failedCases": [
+        {
+          "id": "gift-offline-deferred-accept",
+          "status": "failed",
+          "seconds": 19.2305887,
+          "failure": "Reconnecting accepted a deferred gift without a decision."
+        }
+      ],
+      "notRun": [
+        "snapshot-save-reload",
+        "session-reconnect",
+        "gift-offline-reject-return",
+        "notification-offline-policy",
+        "runtime-errors"
+      ]
+    },
+    {
+      "id": "offline-delivery-core",
+      "reason": "After choice-group fix, deferred gift confirmation still used the old delivery snapshot baseline.",
+      "report": {
+        "path": "G:\\RimTestRuns\\offline-delivery-r3\\20261016-171627-7d267a96\\offline-delivery-core\\20261016-171739-cbbb4763\\report.json",
+        "sha256": "937c64e233852e751f0c820a8b91b1f9a5cb9ce0d1e99f7fad369c323b8b7916"
+      },
+      "failedCases": [
+        {
+          "id": "gift-offline-deferred-accept",
+          "status": "failed",
+          "seconds": 109.676809,
+          "failure": "Observation deadline: B/clash.state; last={\"userId\":\"rimtest-B\",\"colonyId\":\"colony-rimtest-B\",\"currentSnapshotId\":\"colony-rimtest-B-20261016171841-6880036d29f9\",\"serverBaseUrl\":\"http://127.0.0.1:50166\",\"isNetworkConfigured\":true,\"isInActiveMultiplayerSession\":true,\"isServerWorldSetupFlow\":false,\"isAdministrator\":false,\"snapshotUploadInProgress\":false,\"manualSyncInProgress\":false,\"localAtomicMutationPending\":true,\"localAtomicMutationOperation\":\"Gift landing\",\"presenceInProgress\":true,\"chatInProgress\":false,\"bankInProgress\":false,\"mercenaryInProgress\":false,\"serverShopInProgress\":false,\"adminInProgress\":false,\"loginStatus\":\"Server save colony-rimtest-B-20261016171841-6880036d29f9 was restored. Loading save.\",\"snapshotUploadStatus\":\"Save synced\",\"eventQueueStatus\":\"Automatic 0, Waiting for player choice 1: Item delivery, Waiting, Offline queued, Confirming 0, Needs attention 0, Rejected 0\",\"eventDetailsStatus\":\"Pending messages 1: Item delivery, Waiting, tied to the current map\",\"bankStatus\":\"Bank status has not been loaded.\",\"chatStatus\":\"Chat refreshed, 0 new message(s).\",\"tradeStatus\":\"No trade order has been created yet.\",\"worldMapStatus\":\"World catalog refresh complete: None, colonies 2.\",\"mercenaryStatus\":\"No mercenary operation has run yet.\",\"serverShopStatus\":\"Shop is ready.\",\"adminStatus\":\"Admin status has not been loaded.\",\"giftProcessingStatus\":\"Gift delivery was not accepted: 4 Gift confirmation does not match the server delivery state.; check SnapshotBaseMismatch\",\"playerListStatus\":\"Players: Rimtest-A (Online), rimtest-B (Online)\",\"achievementStatus\":\"\",\"tradeOrdersPageLoadInProgress\":false,\"unreadPrivateChatCount\":0,\"accountPasswordInProgress\":false,\"accountPasswordStatus\":\"Password unchanged.\"}"
+        }
+      ],
+      "notRun": [
+        "snapshot-save-reload",
+        "session-reconnect",
+        "gift-offline-reject-return",
+        "notification-offline-policy",
+        "runtime-errors"
+      ]
+    },
+    {
+      "id": "offline-delivery-all-dlc",
+      "reason": "After choice-group fix, deferred gift confirmation still used the old delivery snapshot baseline.",
+      "report": {
+        "path": "G:\\RimTestRuns\\offline-delivery-r3\\20261016-171627-7d267a96\\offline-delivery-all-dlc\\20261016-172018-019c9709\\report.json",
+        "sha256": "9add6b4085a3a64c26f5b43035fb35c3acb11a9d5f7f40f87f5fbcbb5d454b28"
+      },
+      "failedCases": [
+        {
+          "id": "gift-offline-deferred-accept",
+          "status": "failed",
+          "seconds": 108.3094762,
+          "failure": "Observation deadline: B/clash.state; last={\"userId\":\"rimtest-B\",\"colonyId\":\"colony-rimtest-B\",\"currentSnapshotId\":\"colony-rimtest-B-20261016172140-c86b6d46822f\",\"serverBaseUrl\":\"http://127.0.0.1:62541\",\"isNetworkConfigured\":true,\"isInActiveMultiplayerSession\":true,\"isServerWorldSetupFlow\":false,\"isAdministrator\":false,\"snapshotUploadInProgress\":false,\"manualSyncInProgress\":false,\"localAtomicMutationPending\":true,\"localAtomicMutationOperation\":\"Gift landing\",\"presenceInProgress\":true,\"chatInProgress\":false,\"bankInProgress\":false,\"mercenaryInProgress\":false,\"serverShopInProgress\":false,\"adminInProgress\":false,\"loginStatus\":\"Server save colony-rimtest-B-20261016172140-c86b6d46822f was restored. Loading save.\",\"snapshotUploadStatus\":\"Save synced\",\"eventQueueStatus\":\"Automatic 0, Waiting for player choice 1: Item delivery, Waiting, Offline queued, Confirming 0, Needs attention 0, Rejected 0\",\"eventDetailsStatus\":\"Pending messages 1: Item delivery, Waiting, tied to the current map\",\"bankStatus\":\"Bank status has not been loaded.\",\"chatStatus\":\"Chat refreshed, 0 new message(s).\",\"tradeStatus\":\"No trade order has been created yet.\",\"worldMapStatus\":\"World catalog refresh complete: Ideos 14, Polluted tiles 417, colonies 2.\",\"mercenaryStatus\":\"No mercenary operation has run yet.\",\"serverShopStatus\":\"Shop is ready.\",\"adminStatus\":\"Admin status has not been loaded.\",\"giftProcessingStatus\":\"Gift delivery was not accepted: 4 Gift confirmation does not match the server delivery state.; check SnapshotBaseMismatch\",\"playerListStatus\":\"Players: Rimtest-A (Online), rimtest-B (Online)\",\"achievementStatus\":\"\",\"tradeOrdersPageLoadInProgress\":false,\"unreadPrivateChatCount\":0,\"accountPasswordInProgress\":false,\"accountPasswordStatus\":\"Password unchanged.\"}"
+        }
+      ],
+      "notRun": [
+        "snapshot-save-reload",
+        "session-reconnect",
+        "gift-offline-reject-return",
+        "notification-offline-policy",
+        "runtime-errors"
+      ]
+    }
+  ],
+  "regressions": [
+    {
+      "log": {
+        "path": "D:\\Projects\\ClashOfRim\\LocalOnly\\offline-events-current.log",
+        "sha256": "9571ba8782e74fc5b273ca0eb267912cee1a8beaeb502212e1a05e7e35cc7c13"
+      },
+      "exitCode": 0,
+      "passedTopLevelTests": 53
+    },
+    {
+      "log": {
+        "path": "D:\\Projects\\ClashOfRim\\LocalOnly\\offline-save-regression-r2.log",
+        "sha256": "40d9a04fe66cca673893210b0cf2711e772c4738a7addec3dda5e077541da1d2"
+      },
+      "exitCode": 0,
+      "passedTopLevelTests": 136
+    },
+    {
+      "log": {
+        "path": "D:\\Projects\\ClashOfRim\\LocalOnly\\offline-client-core-final.log",
+        "sha256": "84927390b20aa412144db6d532d8659ba81bc204f156744c2cd137a30cd08045"
+      },
+      "exitCode": 0,
+      "passedTopLevelTests": 7
+    },
+    {
+      "log": {
+        "path": "D:\\Projects\\ClashOfRim\\LocalOnly\\offline-client-final.log",
+        "sha256": "22a9401b6859cc3404c94b468adad9a88d0ef1e9362d5b4dc3114ef361a4e211"
+      },
+      "exitCode": 0,
+      "passedTopLevelTests": 41
+    },
+    {
+      "log": {
+        "path": "D:\\Projects\\ClashOfRim\\LocalOnly\\offline-network-regression-final.log",
+        "sha256": "3434d119fd09d062a67773e094f204fff770919c80a31dfab9a9e9bf270a4419"
+      },
+      "exitCode": 0,
+      "scope": "complete HTTP/WebSocket/persistence network smoke"
+    }
+  ],
+  "frozenLegacy": {
+    "sourceFilesVerified": 77,
+    "packageFilesVerified": 68
+  },
+  "driverFailures": [
+    {
+      "log": "LocalOnly/offline-full-regression.log",
+      "reason": "IncludeClient was invoked without RimWorldManagedDir; earlier components passed, client stage was not run."
+    },
+    {
+      "log": "LocalOnly/offline-full-regression-final.log",
+      "reason": "Concurrent rebuild of running Save.Tests hit Windows DLL file locks. Final components were rerun individually after rebuilding; no failing attempt counted as a pass."
+    }
+  ]
+}

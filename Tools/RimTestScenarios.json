@@ -530,5 +530,39 @@
       "Anomaly",
       "Odyssey"
     ]
+  },
+  {
+    "id": "offline-delivery-core",
+    "features": false,
+    "stability": "offline-delivery",
+    "A": {
+      "language": "English",
+      "culture": "en-US"
+    },
+    "B": {
+      "language": "English",
+      "culture": "fr-FR"
+    },
+    "expansions": []
+  },
+  {
+    "id": "offline-delivery-all-dlc",
+    "features": false,
+    "stability": "offline-delivery",
+    "A": {
+      "language": "ChineseSimplified (简体中文)",
+      "culture": "zh-CN"
+    },
+    "B": {
+      "language": "English",
+      "culture": "fr-FR"
+    },
+    "expansions": [
+      "Royalty",
+      "Ideology",
+      "Biotech",
+      "Anomaly",
+      "Odyssey"
+    ]
   }
 ]

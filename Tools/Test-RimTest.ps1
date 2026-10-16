@@ -47,6 +47,7 @@ $inputs = @((Join-Path $root 'Build/ClashOfRim/Assemblies'),
     ForEach-Object { Get-ChildItem -LiteralPath $_ -File -Filter '*.dll' } |
     ForEach-Object { [pscustomobject]@{ path = $_.FullName; sha256 = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash } }
 [pscustomobject]@{ repositoryCommit = (git -C $root rev-parse HEAD); frameworkCommit = (git -C (Join-Path $root 'RimTest') rev-parse HEAD);
+    executionEnvironment = @{ dotnetProcessorCount = $env:DOTNET_PROCESSOR_COUNT };
     workingTree = @(git -C $root status --porcelain); frameworkWorkingTree = @(git -C (Join-Path $root 'RimTest') status --porcelain);
     binaries = @($inputs); profileSha256 = (Get-FileHash -LiteralPath (Join-Path $runRoot 'profile.json')).Hash } |
     ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $runRoot 'inputs.json') -Encoding utf8NoBOM

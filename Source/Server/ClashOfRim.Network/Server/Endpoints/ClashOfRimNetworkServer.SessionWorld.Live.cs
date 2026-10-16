@@ -982,6 +982,7 @@ public static partial class ClashOfRimNetworkServer
         ReconcileExpiredDeliveredEvents(state, request.UserId, DateTimeOffset.UtcNow);
         ReconcileFailedSupportPawnEventsForDeletedActors(state, request.UserId);
         var details = new List<EventDetailDto>();
+        using var mutation = state.EnterSnapshotMutation(nameof(PullEventDetails));
         foreach (string eventId in request.EventIds.Distinct(StringComparer.Ordinal))
         {
             AuthoritativeEvent? ledgerEvent = state.Ledger.Find(eventId);
@@ -1006,7 +1007,14 @@ public static partial class ClashOfRimNetworkServer
                     T("Events.ServerNotificationDelivered"));
             }
             else if (visibleToTarget
-                && ledgerEvent.Status is ServerEventStatus.PendingOfflineDelivery or ServerEventStatus.ReadyForImmediateDelivery)
+                && (ledgerEvent.Status is ServerEventStatus.PendingOfflineDelivery or ServerEventStatus.ReadyForImmediateDelivery
+                    // A player may save while postponing a choice. Re-downloading it
+                    // binds to the current authoritative baseline, never an arbitrary
+                    // client snapshot or a delivery whose decision is already made.
+                    || ledgerEvent.Status == ServerEventStatus.DeliveredToClient
+                        && EventSemanticClassifier.RequiresTargetDecision(ledgerEvent)
+                        && ledgerEvent.DeliveredToSnapshotId != request.CurrentSnapshotId
+                        && state.SnapshotStore.GetLatest(request.UserId, request.ColonyId)?.Identity.SnapshotId == request.CurrentSnapshotId))
             {
                 DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
                 ledgerEvent = state.Ledger.MarkDelivered(

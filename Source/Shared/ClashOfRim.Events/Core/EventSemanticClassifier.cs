@@ -2,6 +2,10 @@ namespace AIRsLight.ClashOfRim.Events;
 
 public static class EventSemanticClassifier
 {
+    public static bool RequiresTargetDecision(AuthoritativeEvent ledgerEvent) =>
+        ledgerEvent.RejectionPolicy == EventRejectionPolicy.RejectableByTarget
+        && ledgerEvent.TargetDecision == TargetEventDecision.None;
+
     public static bool RequiresClientApplication(AuthoritativeEvent ledgerEvent)
     {
         ArgumentNullException.ThrowIfNull(ledgerEvent);

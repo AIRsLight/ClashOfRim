@@ -35,6 +35,7 @@ var tests = new (string Name, Action Run)[]
     ("外交和服务器通知事件进入统一账本", VerifyDiplomacyAndServerNotificationEvents),
     ("离线事件绑定快照确认后才消费", VerifySnapshotBoundOfflineConsumption),
     ("事件处理队列摘要按状态分组", VerifyEventQueueSummary),
+    ("下载事件不代替玩家选择且已接受事件保持恢复路径", VerifyDownloadedChoiceEventsRemainPending),
     ("只读通知事件不要求快照确认", VerifySnapshotlessNotificationEventSemantics),
     ("事件队列查询只读取目标队列状态", VerifyEventQueueLedgerQuery),
     ("玩家袭击源事件不进入防守方信件队列", VerifyPlayerRaidSourceEventsAreHiddenFromDefenderQueue),
@@ -1667,6 +1668,33 @@ static void VerifySnapshotBoundOfflineConsumption()
     Equal(0, ledger.ListDeliverableForTarget("user-b").Count, "确认应用后不应再次下发");
 }
 
+static void VerifyDownloadedChoiceEventsRemainPending()
+{
+    var sources = new[]
+    {
+        GiftEvent("downloaded-gift", false), AllianceRequestEvent("downloaded-alliance", false), PeaceRequestEvent("downloaded-peace", false),
+        AuthoritativeEventFactory.Create(ServerEventType.SupportPawn, Actor(), Target(), "downloaded-support", false,
+            new SupportPawnEventPayload("pawn", "source", "Support", true, null), DateTimeOffset.UnixEpoch, TargetContext())
+    };
+    foreach (var source in sources)
+    foreach (var status in new[] { ServerEventStatus.PendingOfflineDelivery, ServerEventStatus.ReadyForImmediateDelivery, ServerEventStatus.DeliveredToClient })
+    {
+        var undecided = source with { Status = status, TargetDecision = TargetEventDecision.None };
+        var queue = EventQueueSummaryBuilder.BuildForTarget("user-b", new[] { undecided });
+        Equal(undecided.EventId, queue.WaitingForConfirmation.Single().EventId, "下载不代替玩家选择");
+        Require(queue.DirectlyProcessable.Count == 0 && queue.DeliveredUnconfirmed.Count == 0, "未决定事件不得进入自动恢复队列");
+        var letter = EventLetterProjectionBuilder.Build(queue, new[] { undecided }).Single();
+        Require(letter.Kind == EventLetterKind.Choice && letter.Actions.Any(a => a.Kind == EventLetterActionKind.Accept)
+            && letter.Actions.Any(a => a.Kind == EventLetterActionKind.Reject), "重新下载仍保留接受和拒绝动作");
+        foreach (var automatic in new[] { undecided with { TargetDecision = TargetEventDecision.Accepted }, undecided with { RejectionPolicy = EventRejectionPolicy.NotRejectable } })
+        {
+            var recovery = EventQueueSummaryBuilder.BuildForTarget("user-b", new[] { automatic });
+            Require(recovery.WaitingForConfirmation.Count == 0, "已接受或不可拒收事件不得再次要求选择");
+            Equal(1, status == ServerEventStatus.DeliveredToClient ? recovery.DeliveredUnconfirmed.Count : recovery.DirectlyProcessable.Count, "自动事件保留正常恢复路径");
+        }
+    }
+}
+
 static void VerifyEventQueueSummary()
 {
     var ledger = new InMemoryAuthoritativeEventLedger();
@@ -1701,6 +1729,7 @@ static void VerifyEventQueueSummary()
     ledger.Append(conflict);
     ledger.Append(rejected);
     ledger.Append(applied);
+    ledger.MarkAccepted(delivered.EventId, DateTimeOffset.UnixEpoch, "Player accepted before recovery");
     ledger.MarkDelivered(delivered.EventId, "delivered-snapshot", DateTimeOffset.UnixEpoch.AddMinutes(7));
     ledger.ReportApplicationResult(conflict.EventId, EventApplicationResultKind.SnapshotBaseMismatch, "目标快照不匹配", DateTimeOffset.UnixEpoch.AddMinutes(8));
     ledger.MarkRejected(rejected.EventId, DateTimeOffset.UnixEpoch.AddMinutes(9), "目标拒绝");
@@ -1814,6 +1843,7 @@ static void VerifyEventQueueLedgerQuery()
     ledger.Append(rejected);
     ledger.Append(applied);
     ledger.Append(actorOnly);
+    ledger.MarkAccepted(delivered.EventId, DateTimeOffset.UnixEpoch, "Player accepted before recovery");
     ledger.MarkDelivered(delivered.EventId, "delivered-snapshot", DateTimeOffset.UnixEpoch.AddMinutes(8));
     ledger.ReportApplicationResult(conflict.EventId, EventApplicationResultKind.SnapshotBaseMismatch, "目标快照不匹配", DateTimeOffset.UnixEpoch.AddMinutes(9));
     ledger.MarkRejected(rejected.EventId, DateTimeOffset.UnixEpoch.AddMinutes(10), "目标拒绝");
@@ -1852,6 +1882,7 @@ static void VerifyEventLetterProjection()
     ledger.Append(notice);
     ledger.Append(delivered);
     ledger.Append(conflict);
+    ledger.MarkAccepted(delivered.EventId, DateTimeOffset.UnixEpoch, "Player accepted before recovery");
     ledger.MarkDelivered(delivered.EventId, "delivered-snapshot", DateTimeOffset.UnixEpoch.AddMinutes(1));
     ledger.ReportApplicationResult(conflict.EventId, EventApplicationResultKind.SnapshotBaseMismatch, "目标快照不匹配", DateTimeOffset.UnixEpoch.AddMinutes(2));
 

@@ -308,26 +308,12 @@ internal sealed partial class GameSuite
     }
     async Task Gift()
     {
-        Check(expedition is not null, "Missing expedition.");
-        await Call("A", "world.select", new { target = expedition });
-        var gizmos = Items(await Call("A", "world.gizmos", new { target = expedition }));
-        string giftLabel = (await Call("A", "clash.labels")).String("gift");
-        var gift = gizmos.Single(g => g.String("label") == giftLabel && !g.Bool("disabled"));
-        await Call("A", "world.invokeGizmo", new { target = expedition, type = gift.String("type"), label = gift.String("label") });
-        await ChooseOnlyMenu("A");
-        string window = H(Items(await Call("A", "ui.windows")).Single(w => w.GetProperty("reference").String("type").EndsWith(".GiftDeliveryDialogWindow")));
-        var wood = Items(await Call("A", "clash.gift.inventory", new { window })).First(t => t.String("defName") == "WoodLog");
         int before = await Stock("B", "WoodLog");
-        await Call("A", "clash.gift.select", new { window, thing = H(wood), count = 5 });
-        await Call("A", "clash.gift.submit", new { window, message = "RimTest gift" });
-        await Confirm("A"); await Idle("A");
-        var pending = await Wait("B", "clash.events", new { limit = 200 }, p => Items(p).Any(v => v.GetProperty("data").String("payloadSummary").Contains("RimTest gift")));
-        var item = Items(pending).Single(v => v.GetProperty("data").String("payloadSummary").Contains("RimTest gift"));
-        Check((await Invoke("B", "HandleEventLetterAction", new { eventId = item.GetProperty("data").String("eventId"), actionKind = "Accept" })).Bool("returnValue"), "Gift acceptance rejected.");
+        string id = await SendCaravanGift(5, "RimTest gift");
+        await ReceiveEvent("B", id);
+        Check((await Invoke("B", "HandleEventLetterAction", new { eventId = id, actionKind = "Accept" })).Bool("returnValue"), "Gift acceptance rejected.");
         await Idle("B"); await AwaitStock("B", "WoodLog", before + 5);
-        var caravan = await Call("A", "caravan.state", new { caravan = expedition });
-        Check(caravan.GetProperty("items").EnumerateArray().Where(t => t.String("defName") == "WoodLog").Sum(t => t.Int("count")) == 5, "Gift sender cargo did not decrease exactly once.");
-        acceptedGiftId = item.GetProperty("data").String("eventId");
+        acceptedGiftId = id;
     }
     async Task GiftReplay()
     {

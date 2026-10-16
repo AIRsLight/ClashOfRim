@@ -103,10 +103,13 @@ public static class EventQueueSummaryBuilder
 
     private static EventQueueGroupKind? ResolveGroup(AuthoritativeEvent ledgerEvent)
     {
+        // Pulling details marks transport delivery, not the player's decision.
+        // Keep undecided gifts/support/diplomacy interactive across reconnects;
+        // only accepted or non-rejectable deliveries may resume automatically.
         return ledgerEvent.Status switch
         {
-            ServerEventStatus.PendingOfflineDelivery or ServerEventStatus.ReadyForImmediateDelivery
-                when ledgerEvent.RejectionPolicy == EventRejectionPolicy.RejectableByTarget
+            ServerEventStatus.PendingOfflineDelivery or ServerEventStatus.ReadyForImmediateDelivery or ServerEventStatus.DeliveredToClient
+                when EventSemanticClassifier.RequiresTargetDecision(ledgerEvent)
                 => EventQueueGroupKind.WaitingForConfirmation,
             ServerEventStatus.PendingOfflineDelivery or ServerEventStatus.ReadyForImmediateDelivery
                 => EventQueueGroupKind.DirectlyProcessable,

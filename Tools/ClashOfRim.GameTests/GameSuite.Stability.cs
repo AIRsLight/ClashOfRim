@@ -8,6 +8,7 @@ internal sealed partial class GameSuite
     private JsonElement raidLoss;
     internal static string[] StabilityCases(string? kind) => kind switch
     {
+        "offline-delivery" => ["alliance-request-accept", "caravan-load-travel", "gift-offline-deferred-accept", "gift-offline-reject-return", "notification-offline-policy"],
         "account" => ["account-password-change", "account-achievements-before-abandon", "account-liabilities-before-abandon", "account-abandon-owner", "account-rebuild-owner", "account-achievements-new-generation", "account-abandon-guest", "account-rebuild-guest"],
         "bank" => ["bank-input-rejection", "bank-overdue-repayment", "bank-mercenary-debt"],
         "relocation" => ["relocation-caravan", "relocation-quest-site"],
@@ -24,6 +25,14 @@ internal sealed partial class GameSuite
     };
     async Task RunStability()
     {
+        if (profile.Stability == "offline-delivery")
+        {
+            await Case("alliance-request-accept", Alliance);
+            await Case("caravan-load-travel", Travel);
+            await Case("gift-offline-deferred-accept", OfflineGiftAccept);
+            await Case("gift-offline-reject-return", OfflineGiftReject);
+            await Case("notification-offline-policy", OfflineNotifications);
+        }
         if (profile.Stability == "account") await AccountLifecycle();
         if (profile.Stability == "gravship")
         {
