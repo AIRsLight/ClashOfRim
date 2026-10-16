@@ -18,6 +18,8 @@ using System.Text;
 using System.Net.Http.Json;
 using System.Text.Json;
 
+await EventReadHttpTests.RunAsync((user, colony, id) => BuildFixturePackageForWithLineage(user, colony, id, null, null, 1000));
+if (args.Contains("--event-protocol-only", StringComparer.Ordinal)) return;
 SnapshotMutationMetricsTests.Run();
 int contentionProbe = Array.IndexOf(args, "--snapshot-contention-probe");
 if (contentionProbe >= 0)
@@ -2036,8 +2038,8 @@ try
     PullEventDetailsResponse selfGiftDetails = await client.PullEventDetailsAsync(new PullEventDetailsRequest(
         "user-a",
         "colony-a",
-        "attacker-snapshot-after",
-        new[] { selfGift.EventId! }));
+        state.SnapshotStore.GetLatest("user-a", "colony-a")!.Identity.SnapshotId!,
+        new[] { selfGift.EventId! }, authToken: userAAuthToken));
     Require(selfGiftDetails.Result.Accepted, "拉取自测礼物详情应成功");
     EventDetailDto selfGiftDetail = selfGiftDetails.Events.Single(item => item.EventId == selfGift.EventId);
     Equal("Map_999", selfGiftDetail.TargetContext?.MapUniqueId, "自测礼物应使用客户端提交的当前地图");
@@ -2046,26 +2048,30 @@ try
     PullPendingEventsResponse pending = await client.PullPendingEventsAsync(new PullPendingEventsRequest(
         "user-a",
         "colony-a",
-        "attacker-snapshot-after"));
+        state.SnapshotStore.GetLatest("user-a", "colony-a")!.Identity.SnapshotId!, authToken: userAAuthToken));
     Require(pending.Result.Accepted, "拉取事件应成功");
     Require(pending.EventQueue.DeliveredUnconfirmed.Any(item => item.EventId == attackerLoss.EventId), "待确认队列应包含进攻方损失事件");
 
     PullEventDetailsResponse details = await client.PullEventDetailsAsync(new PullEventDetailsRequest(
         "user-a",
         "colony-a",
-        "attacker-snapshot-after",
-        new[] { attackerLoss.EventId }));
+        state.SnapshotStore.GetLatest("user-a", "colony-a")!.Identity.SnapshotId!,
+        new[] { attackerLoss.EventId }, authToken: userAAuthToken));
     Require(details.Result.Accepted, "拉取事件详情应成功");
     EventDetailDto attackerLossDetail = details.Events.Single(item => item.EventId == attackerLoss.EventId);
     Equal(ServerEventType.Raid, attackerLossDetail.EventType, "事件详情应返回事件类型");
     Equal(EventPayloadType.Raid, attackerLossDetail.PayloadType, "事件详情应返回载荷类型");
     Require(attackerLossDetail.PayloadSummary.Contains("AttackerLoss", StringComparison.Ordinal), "事件详情应返回载荷摘要");
 
+    var eventReaderCPackage = BuildFixturePackageForWithLineage("user-c", "colony-c", "third-party-snapshot", null, null, 1000);
+    state.SnapshotStore.StoreLatest(new LatestSnapshotRecord(eventReaderCPackage.Envelope.Identity, eventReaderCPackage.Envelope, eventReaderCPackage.Index, DateTimeOffset.UtcNow));
+    state.LoginSessions.TryCreate("user-c", "colony-c", DateTimeOffset.UtcNow, out string eventReaderCSession);
+    string eventReaderCToken = state.AuthTokens.Issue("user-c", "user-c", "colony-c", eventReaderCSession, DateTimeOffset.UtcNow);
     PullEventDetailsResponse hiddenDetails = await client.PullEventDetailsAsync(new PullEventDetailsRequest(
         "user-c",
         "colony-c",
-        "third-party-snapshot",
-        new[] { attackerLoss.EventId }));
+        state.SnapshotStore.GetLatest("user-c", "colony-c")!.Identity.SnapshotId!,
+        new[] { attackerLoss.EventId }, authToken: eventReaderCToken));
     Require(!hiddenDetails.Result.Accepted, "其他玩家不能拉取不可见事件详情");
     Equal(ProtocolErrorCode.EventNotFound, hiddenDetails.Result.ErrorCode, "不可见事件不应泄露存在性");
 
@@ -2154,9 +2160,9 @@ try
     Task<WaitForEventsResponse> waitForGift = client.WaitForEventsAsync(new WaitForEventsRequest(
         "user-b",
         "colony-b",
-        "defender-snapshot-before",
+        state.SnapshotStore.GetLatest("user-b", "colony-b")!.Identity.SnapshotId!,
         knownNotificationVersion: knownUserBNotificationVersion,
-        timeoutSeconds: 10));
+        timeoutSeconds: 10, authToken: userBAuthToken));
     await Task.Delay(100);
 
     EventCreationResponse gift = await CreateSnapshotGift(new CreateGiftRequest(
@@ -2187,8 +2193,8 @@ try
     PullEventDetailsResponse giftDetails = await client.PullEventDetailsAsync(new PullEventDetailsRequest(
         "user-b",
         "colony-b",
-        "defender-snapshot-before",
-        new[] { giftToConfirm.EventId! }));
+        state.SnapshotStore.GetLatest("user-b", "colony-b")!.Identity.SnapshotId!,
+        new[] { giftToConfirm.EventId! }, authToken: userBAuthToken));
     Require(giftDetails.Result.Accepted, "拉取待确认礼物详情应成功");
     Equal(ServerEventStatus.DeliveredToClient, state.Ledger.Find(giftToConfirm.EventId!)!.Status, "拉取详情应把礼物绑定到基线快照");
     Equal("defender-snapshot-before", state.Ledger.Find(giftToConfirm.EventId!)!.DeliveredToSnapshotId, "礼物下发快照应绑定当前快照");
@@ -2221,7 +2227,7 @@ try
     PullPendingEventsResponse giftQueueAfterConfirm = await client.PullPendingEventsAsync(new PullPendingEventsRequest(
         "user-b",
         "colony-b",
-        "defender-snapshot-after-gift"));
+        state.SnapshotStore.GetLatest("user-b", "colony-b")!.Identity.SnapshotId!, authToken: userBAuthToken));
     Require(!giftQueueAfterConfirm.EventQueue.WaitingForUserChoice.Any(item => item.EventId == giftToConfirm.EventId), "已确认礼物不应继续等待目标选择");
     Require(!giftQueueAfterConfirm.EventQueue.DeliveredUnconfirmed.Any(item => item.EventId == giftToConfirm.EventId), "已确认礼物不应继续等待快照确认");
 
@@ -2241,9 +2247,9 @@ try
     Task<WaitForEventsResponse> waitWithoutPresence = client.WaitForEventsAsync(new WaitForEventsRequest(
         "user-c",
         "colony-c",
-        "third-party-snapshot",
+        state.SnapshotStore.GetLatest("user-c", "colony-c")!.Identity.SnapshotId!,
         knownNotificationVersion: 0,
-        timeoutSeconds: 10));
+        timeoutSeconds: 10, authToken: eventReaderCToken));
     await Task.Delay(100);
     EventCreationResponse offlineGiftWhileWaiting = await CreateSnapshotGift(new CreateGiftRequest(
         "gift:user-a:user-c:offline-waiting",
@@ -2373,17 +2379,23 @@ try
         wsGift.EventId!,
         "ws-snapshot",
         DateTimeOffset.UtcNow.AddMinutes(-10));
+    // Reconnect with an authoritative snapshot and a live session before reading the expired delivery.
+    var eventReaderDPackage = BuildFixturePackageForWithLineage("user-d", "colony-d", "ws-next-snapshot", null, null, 1000);
+    state.SnapshotStore.StoreLatest(new LatestSnapshotRecord(eventReaderDPackage.Envelope.Identity, eventReaderDPackage.Envelope, eventReaderDPackage.Index, DateTimeOffset.UtcNow));
+    state.LoginSessions.EndUser("user-d");
+    state.LoginSessions.TryCreate("user-d", "colony-d", DateTimeOffset.UtcNow, out string eventReaderDSession);
+    userDAuthToken = state.AuthTokens.Issue("user-d", "user-d", "colony-d", eventReaderDSession, DateTimeOffset.UtcNow);
     PullPendingEventsResponse expiredDeliveredQueue = await client.PullPendingEventsAsync(new PullPendingEventsRequest(
         "user-d",
         "colony-d",
-        "ws-next-snapshot"));
+        state.SnapshotStore.GetLatest("user-d", "colony-d")!.Identity.SnapshotId!, authToken: userDAuthToken));
     Equal(ServerEventStatus.PendingOfflineDelivery, state.Ledger.Find(wsGift.EventId!)!.Status, "过期且未确认的在线礼物应回退为离线待处理");
     Require(expiredDeliveredQueue.EventQueue.WaitingForUserChoice.Any(item => item.EventId == wsGift.EventId), "回退后的礼物应重新出现在离线事件队列");
     PullEventDetailsResponse redeliveredWsGift = await client.PullEventDetailsAsync(new PullEventDetailsRequest(
         "user-d",
         "colony-d",
-        "ws-next-snapshot",
-        new[] { wsGift.EventId! }));
+        state.SnapshotStore.GetLatest("user-d", "colony-d")!.Identity.SnapshotId!,
+        new[] { wsGift.EventId! }, authToken: userDAuthToken));
     Require(redeliveredWsGift.Result.Accepted, "回退后的礼物应可重新下发详情");
     Equal("ws-next-snapshot", state.Ledger.Find(wsGift.EventId!)!.DeliveredToSnapshotId, "重新下发应绑定新的当前快照");
 
@@ -2409,7 +2421,7 @@ try
     PullPendingEventsResponse onlineOnlyQueue = await client.PullPendingEventsAsync(new PullPendingEventsRequest(
         "user-d",
         "colony-d",
-        "ws-next-snapshot"));
+        state.SnapshotStore.GetLatest("user-d", "colony-d")!.Identity.SnapshotId!, authToken: userDAuthToken));
     Equal(ServerEventStatus.Cancelled, state.Ledger.Find(onlineOnlyNotice.EventId)!.Status, "在线一次性服务器通知过期后应取消而不是转离线");
     Require(!onlineOnlyQueue.EventQueue.DirectlyProcessable
             .Concat(onlineOnlyQueue.EventQueue.WaitingForUserChoice)

@@ -96,12 +96,12 @@ public static partial class ClashOfRimNetworkServer
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.ChangeOfflinePassword).Route, ChangeOfflinePassword);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.ListPlayers).Route, ListPlayers);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.ListAchievements).Route, ListAchievements);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.WaitForEvents).Route, WaitForEvents);
+        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.WaitForEvents).Route, WaitForEvents).WithMetadata(EndpointSnapshotRecovery.Instance);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.UploadSnapshot).Route, UploadSnapshot).WithMetadata(EndpointSnapshotRecovery.Instance);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.DownloadLatestSnapshot).Route, DownloadLatestSnapshot).WithMetadata(EndpointSnapshotRecovery.Instance);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.DownloadLatestSnapshotPayload).Route, DownloadLatestSnapshotPayload).WithMetadata(EndpointSnapshotRecovery.Instance);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.PullPendingEvents).Route, PullPendingEvents);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.PullEventDetails).Route, PullEventDetails);
+        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.PullPendingEvents).Route, PullPendingEvents).WithMetadata(EndpointSnapshotRecovery.Instance);
+        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.PullEventDetails).Route, PullEventDetails).WithMetadata(EndpointSnapshotRecovery.Instance);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.ConfirmEventApplication).Route, ConfirmEventApplication).WithMetadata(EndpointSnapshotRecovery.Instance);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.ConfirmEventApplications).Route, ConfirmEventApplications).WithMetadata(EndpointSnapshotRecovery.Instance);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.ReportEventApplicationFailure).Route, ReportEventApplicationFailure).WithMetadata(EndpointSnapshotRecovery.Instance);

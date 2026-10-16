@@ -36,7 +36,7 @@ public static partial class ClashOfRimNetworkServer
         ReconcileExpiredDeliveredEvents(state, userId, nowUtc);
         RecordPlayerSeen(state, userId, request.ColonyId, request.CurrentSnapshotId, nowUtc, displayName);
         RunClientLifecycleHooks(state, ClientLifecycleEvent.LoggedIn(userId, request.ColonyId, session.SessionId, request.CurrentSnapshotId, nowUtc));
-        var queue = ProtocolDtoMapper.ToDto(EventQueueSummaryBuilder.BuildForTarget(userId, state.Ledger.ListQueueForTarget(userId)));
+        var queue = BuildColonyEventQueue(state, userId, request.ColonyId);
         var markers = ProtocolDtoMapper.ToDto(BuildWorldMapMarkerDelivery(userId, request.ColonyId, state, nowUtc));
         RuntimeLogger(loggerFactory).LogInformation(
             "准备发布玩家登录会话：user={UserId} colony={ColonyId} session={SessionId}", userId, request.ColonyId, session.SessionId);

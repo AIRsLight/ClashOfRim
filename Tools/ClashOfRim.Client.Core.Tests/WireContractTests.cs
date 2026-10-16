@@ -9,6 +9,12 @@ internal static class WireContractTests
     private static readonly JsonSerializerOptions ServerJson = new(JsonSerializerDefaults.Web);
     public static void Run()
     {
+        RoundTrip<ModPullPendingEventsRequestDto, PullPendingEventsRequest>(new()
+        { UserId = "reader", ColonyId = "home", CurrentSnapshotId = "base", AuthToken = "token" });
+        RoundTrip<ModPullEventDetailsRequestDto, PullEventDetailsRequest>(new()
+        { UserId = "reader", ColonyId = "home", CurrentSnapshotId = "base", AuthToken = "token", EventIds = ["event"] });
+        RoundTrip<ModWaitForEventsRequestDto, WaitForEventsRequest>(new()
+        { UserId = "reader", ColonyId = "home", CurrentSnapshotId = "base", AuthToken = "token", KnownNotificationVersion = 10, TimeoutSeconds = 5 });
         var snapshot = new ModSnapshotPackageMetadataDto
         {
             PackageVersion = "fixture", OwnerId = "玩家", ColonyId = "colony", SnapshotId = "after",

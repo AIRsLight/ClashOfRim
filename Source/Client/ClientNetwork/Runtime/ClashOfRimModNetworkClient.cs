@@ -1377,6 +1377,7 @@ public sealed partial class ClashOfRimModNetworkClient
 
         var request = new ModPullPendingEventsRequestDto
         {
+            AuthToken = context.AuthToken,
             UserId = context.UserId,
             ColonyId = context.ColonyId,
             CurrentSnapshotId = context.CurrentSnapshotId ?? string.Empty
@@ -1400,6 +1401,7 @@ public sealed partial class ClashOfRimModNetworkClient
 
         var request = new ModWaitForEventsRequestDto
         {
+            AuthToken = context.AuthToken,
             UserId = context.UserId,
             ColonyId = context.ColonyId,
             CurrentSnapshotId = context.CurrentSnapshotId ?? string.Empty,
@@ -1424,6 +1426,7 @@ public sealed partial class ClashOfRimModNetworkClient
 
         var request = new ModPullEventDetailsRequestDto
         {
+            AuthToken = context.AuthToken,
             UserId = context.UserId,
             ColonyId = context.ColonyId,
             CurrentSnapshotId = context.CurrentSnapshotId ?? string.Empty,

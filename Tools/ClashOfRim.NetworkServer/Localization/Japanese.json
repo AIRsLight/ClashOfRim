@@ -1,4 +1,5 @@
 {
+  "Events.SnapshotNotLatest": "イベントのスナップショットは最新ではありません。コロニーを更新して再試行してください。",
   "Events.ConfirmationAlreadyEnded": "このイベントはすでに終了しているため、適用を確認できません。",
   "Server.InternalError": "サーバー内部エラー。詳細はサーバーログに記録されました。",
   "Auth.Failed": "認証に失敗しました。サーバーへ再ログインしてください。",

@@ -19,9 +19,9 @@ internal static class DeferredEventDeliveryTests
             new ItemDeliveryEventPayload([new EventThingReference("wood", "WoodLog", 3)], "later"), now) with
         { Status = ServerEventStatus.DeliveredToClient, DeliveredToSnapshotId = "old", DeliveredAtUtc = now };
         state.Ledger.Append(gift);
-        Pull(state, gift.EventId, "stale");
+        Pull(state, gift.EventId, "stale", expectedAccepted: false);
         Require(state.Ledger.Find(gift.EventId) == gift, "Stale request rebound deferred delivery.");
-        Pull(state, gift.EventId, "current", "sender", "other");
+        Pull(state, gift.EventId, "current", "sender", "other", expectedAccepted: false);
         Require(state.Ledger.Find(gift.EventId) == gift, "Sender rebound receiver delivery.");
         Pull(state, gift.EventId, "current");
         var rebound = state.Ledger.Find(gift.EventId)!;
@@ -49,12 +49,15 @@ internal static class DeferredEventDeliveryTests
         }
     }
 
-    private static void Pull(ClashOfRimNetworkState state, string id, string snapshot, string user = "userA", string colony = "colonyA")
+    private static void Pull(ClashOfRimNetworkState state, string id, string snapshot, string user = "userA", string colony = "colonyA", bool expectedAccepted = true)
     {
+        state.LoginSessions.EndUser(user);
+        state.LoginSessions.TryCreate(user, colony, DateTimeOffset.UtcNow, out string session);
+        string token = state.AuthTokens.Issue(user, user, colony, session, DateTimeOffset.UtcNow);
         var endpoint = typeof(ClashOfRimNetworkServer).GetMethod("PullEventDetails", BindingFlags.Static | BindingFlags.NonPublic)!;
         var response = (PullEventDetailsResponse)((IValueHttpResult)endpoint.Invoke(null,
-            [new PullEventDetailsRequest(user, colony, snapshot, [id]), state])!).Value!;
-        Require(response.Result.Accepted, "Details request failed.");
+            [new PullEventDetailsRequest(user, colony, snapshot, [id], token), state])!).Value!;
+        Require(response.Result.Accepted == expectedAccepted, "Unexpected details result.");
     }
 
     private static void Require(bool condition, string message)

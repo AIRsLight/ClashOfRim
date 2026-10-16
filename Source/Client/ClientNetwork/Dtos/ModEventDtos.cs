@@ -45,6 +45,9 @@ public sealed class ModEventQueueSummaryDto
 [DataContract]
 public sealed class ModPullPendingEventsRequestDto
 {
+    [DataMember(Name = "authToken")]
+    public string? AuthToken { get; set; }
+
     [DataMember(Name = "userId")]
     public string UserId { get; set; } = string.Empty;
 
@@ -68,6 +71,9 @@ public sealed class ModPullPendingEventsResponseDto
 [DataContract]
 public sealed class ModWaitForEventsRequestDto
 {
+    [DataMember(Name = "authToken")]
+    public string? AuthToken { get; set; }
+
     [DataMember(Name = "userId")]
     public string UserId { get; set; } = string.Empty;
 
@@ -103,6 +109,9 @@ public sealed class ModWaitForEventsResponseDto
 [DataContract]
 public sealed class ModPullEventDetailsRequestDto
 {
+    [DataMember(Name = "authToken")]
+    public string? AuthToken { get; set; }
+
     [DataMember(Name = "userId")]
     public string UserId { get; set; } = string.Empty;
 

@@ -912,15 +912,15 @@ public static partial class ClashOfRimNetworkServer
 
     private static IResult PullPendingEvents(PullPendingEventsRequest request, ClashOfRimNetworkState state)
     {
+        using var mutation = EnterEventReadMutation(state, request.AuthToken, request.UserId, request.ColonyId, request.CurrentSnapshotId);
+        if (mutation.Rejection is { } denied)
+            return Results.Ok(new PullPendingEventsResponse(denied, EmptyEventQueue()));
         ReconcileExpiredDeliveredEvents(state, request.UserId, DateTimeOffset.UtcNow);
         ReconcileFailedSupportPawnEventsForDeletedActors(state, request.UserId);
-        EventQueueSummary queue = EventQueueSummaryBuilder.BuildForTarget(
-            request.UserId,
-            state.Ledger.ListQueueForTarget(request.UserId));
 
         return Results.Ok(new PullPendingEventsResponse(
             ProtocolResponse.Ok(T("Events.QueueReturned")),
-            ProtocolDtoMapper.ToDto(queue)));
+            BuildColonyEventQueue(state, request.UserId, request.ColonyId)));
     }
 
     private static async Task<IResult> WaitForEvents(
@@ -928,18 +928,13 @@ public static partial class ClashOfRimNetworkServer
         ClashOfRimNetworkState state,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(request.UserId)
-            || string.IsNullOrWhiteSpace(request.ColonyId)
-            || string.IsNullOrWhiteSpace(request.CurrentSnapshotId))
+        IResult Denied(ProtocolResponse failure) => Results.Ok(new WaitForEventsResponse(failure,
+            false, Math.Max(0, request.KnownNotificationVersion), EmptyEventQueue()));
+        // Never hold the mutation gate across the asynchronous wait.
+        using (state.EnterSnapshotMutation())
         {
-            EventQueueSummary emptyQueue = EventQueueSummaryBuilder.BuildForTarget(
-                request.UserId ?? string.Empty,
-                Array.Empty<AuthoritativeEvent>());
-            return Results.Ok(new WaitForEventsResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("Events.WaitMissingIdentity")),
-                changed: false,
-                notificationVersion: Math.Max(0, request.KnownNotificationVersion),
-                ProtocolDtoMapper.ToDto(emptyQueue)));
+            if (ValidateEventRead(state, request.AuthToken, request.UserId, request.ColonyId, request.CurrentSnapshotId) is { } denied)
+                return Denied(denied);
         }
 
         EventNotificationWaitResult wait = await state.EventNotifications.WaitAsync(
@@ -948,29 +943,23 @@ public static partial class ClashOfRimNetworkServer
             TimeSpan.FromSeconds(request.TimeoutSeconds),
             cancellationToken);
 
+        using var mutation = EnterEventReadMutation(state, request.AuthToken, request.UserId, request.ColonyId, request.CurrentSnapshotId);
+        if (mutation.Rejection is { } failure) return Denied(failure);
         ReconcileExpiredDeliveredEvents(state, request.UserId, DateTimeOffset.UtcNow);
         ReconcileFailedSupportPawnEventsForDeletedActors(state, request.UserId);
-        EventQueueSummary queue = EventQueueSummaryBuilder.BuildForTarget(
-            request.UserId,
-            state.Ledger.ListQueueForTarget(request.UserId));
 
         return Results.Ok(new WaitForEventsResponse(
             ProtocolResponse.Ok(wait.Changed ? T("Events.WaitChanged") : T("Events.WaitTimeout")),
             wait.Changed,
             wait.Version,
-            ProtocolDtoMapper.ToDto(queue)));
+            BuildColonyEventQueue(state, request.UserId, request.ColonyId)));
     }
 
     private static IResult PullEventDetails(PullEventDetailsRequest request, ClashOfRimNetworkState state)
     {
-        if (string.IsNullOrWhiteSpace(request.UserId)
-            || string.IsNullOrWhiteSpace(request.ColonyId)
-            || string.IsNullOrWhiteSpace(request.CurrentSnapshotId))
-        {
-            return Results.Ok(new PullEventDetailsResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("Events.DetailsMissingIdentity")),
-                Array.Empty<EventDetailDto>()));
-        }
+        using var mutation = EnterEventReadMutation(state, request.AuthToken, request.UserId, request.ColonyId, request.CurrentSnapshotId);
+        if (mutation.Rejection is { } denied)
+            return Results.Ok(new PullEventDetailsResponse(denied, Array.Empty<EventDetailDto>()));
 
         if (request.EventIds is null || request.EventIds.Count == 0)
         {
@@ -982,7 +971,6 @@ public static partial class ClashOfRimNetworkServer
         ReconcileExpiredDeliveredEvents(state, request.UserId, DateTimeOffset.UtcNow);
         ReconcileFailedSupportPawnEventsForDeletedActors(state, request.UserId);
         var details = new List<EventDetailDto>();
-        using var mutation = state.EnterSnapshotMutation(nameof(PullEventDetails));
         foreach (string eventId in request.EventIds.Distinct(StringComparer.Ordinal))
         {
             AuthoritativeEvent? ledgerEvent = state.Ledger.Find(eventId);

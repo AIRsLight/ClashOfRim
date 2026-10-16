@@ -5,11 +5,12 @@ namespace AIRsLight.ClashOfRim.Protocol;
 
 public sealed class PullPendingEventsRequest
 {
-    public PullPendingEventsRequest(string userId, string colonyId, string currentSnapshotId)
+    public PullPendingEventsRequest(string userId, string colonyId, string currentSnapshotId, string? authToken = null)
     {
         UserId = userId;
         ColonyId = colonyId;
         CurrentSnapshotId = currentSnapshotId;
+        AuthToken = authToken;
     }
 
     public string UserId { get; }
@@ -17,6 +18,8 @@ public sealed class PullPendingEventsRequest
     public string ColonyId { get; }
 
     public string CurrentSnapshotId { get; }
+
+    public string? AuthToken { get; }
 }
 
 public sealed class PullPendingEventsResponse
@@ -39,13 +42,15 @@ public sealed class WaitForEventsRequest
         string colonyId,
         string currentSnapshotId,
         long knownNotificationVersion,
-        int timeoutSeconds)
+        int timeoutSeconds,
+        string? authToken = null)
     {
         UserId = userId;
         ColonyId = colonyId;
         CurrentSnapshotId = currentSnapshotId;
         KnownNotificationVersion = knownNotificationVersion;
         TimeoutSeconds = timeoutSeconds;
+        AuthToken = authToken;
     }
 
     public string UserId { get; }
@@ -57,6 +62,8 @@ public sealed class WaitForEventsRequest
     public long KnownNotificationVersion { get; }
 
     public int TimeoutSeconds { get; }
+
+    public string? AuthToken { get; }
 }
 
 public sealed class WaitForEventsResponse
@@ -88,12 +95,14 @@ public sealed class PullEventDetailsRequest
         string userId,
         string colonyId,
         string currentSnapshotId,
-        IReadOnlyList<string> eventIds)
+        IReadOnlyList<string> eventIds,
+        string? authToken = null)
     {
         UserId = userId;
         ColonyId = colonyId;
         CurrentSnapshotId = currentSnapshotId;
         EventIds = eventIds;
+        AuthToken = authToken;
     }
 
     public string UserId { get; }
@@ -103,6 +112,8 @@ public sealed class PullEventDetailsRequest
     public string CurrentSnapshotId { get; }
 
     public IReadOnlyList<string> EventIds { get; }
+
+    public string? AuthToken { get; }
 }
 
 public sealed class PullEventDetailsResponse
