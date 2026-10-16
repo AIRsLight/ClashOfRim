@@ -328,5 +328,173 @@
       "language": "English",
       "culture": "fr-FR"
     }
+  },
+  {
+    "stability": "bank",
+    "expansions": [],
+    "B": {
+      "culture": "fr-FR",
+      "language": "English"
+    },
+    "features": false,
+    "id": "bank-core",
+    "A": {
+      "culture": "en-US",
+      "language": "English"
+    }
+  },
+  {
+    "stability": "bank",
+    "expansions": [
+      "Royalty",
+      "Ideology",
+      "Biotech",
+      "Anomaly",
+      "Odyssey"
+    ],
+    "B": {
+      "culture": "fr-FR",
+      "language": "English"
+    },
+    "features": false,
+    "id": "bank-all-dlc",
+    "A": {
+      "culture": "zh-CN",
+      "language": "ChineseSimplified (简体中文)"
+    }
+  },
+  {
+    "A": {
+      "culture": "en-US",
+      "language": "English"
+    },
+    "expansions": [],
+    "B": {
+      "culture": "fr-FR",
+      "language": "English"
+    },
+    "id": "relocation-core",
+    "stability": "relocation",
+    "features": false
+  },
+  {
+    "stability": "relocation",
+    "expansions": [
+      "Royalty",
+      "Ideology",
+      "Biotech",
+      "Anomaly",
+      "Odyssey"
+    ],
+    "B": {
+      "culture": "fr-FR",
+      "language": "English"
+    },
+    "features": false,
+    "id": "relocation-all-dlc",
+    "A": {
+      "culture": "zh-CN",
+      "language": "ChineseSimplified (简体中文)"
+    }
+  },
+  {
+    "features": false,
+    "id": "gravship-odyssey",
+    "A": {
+      "language": "English",
+      "culture": "en-US"
+    },
+    "expansions": [
+      "Odyssey"
+    ],
+    "stability": "gravship",
+    "B": {
+      "language": "English",
+      "culture": "fr-FR"
+    }
+  },
+  {
+    "stability": "gravship",
+    "expansions": [
+      "Royalty",
+      "Ideology",
+      "Biotech",
+      "Anomaly",
+      "Odyssey"
+    ],
+    "B": {
+      "culture": "fr-FR",
+      "language": "English"
+    },
+    "features": false,
+    "id": "gravship-all-dlc",
+    "A": {
+      "culture": "zh-CN",
+      "language": "ChineseSimplified (简体中文)"
+    }
+  },
+  {
+    "A": {
+      "culture": "en-US",
+      "language": "English"
+    },
+    "expansions": [
+      "Royalty"
+    ],
+    "B": {
+      "culture": "fr-FR",
+      "language": "English"
+    },
+    "id": "relocation-royalty",
+    "stability": "relocation",
+    "features": false
+  },
+  {
+    "A": {
+      "culture": "en-US",
+      "language": "English"
+    },
+    "expansions": [
+      "Ideology"
+    ],
+    "B": {
+      "culture": "fr-FR",
+      "language": "English"
+    },
+    "id": "relocation-ideology",
+    "stability": "relocation",
+    "features": false
+  },
+  {
+    "A": {
+      "culture": "en-US",
+      "language": "English"
+    },
+    "expansions": [
+      "Biotech"
+    ],
+    "B": {
+      "culture": "fr-FR",
+      "language": "English"
+    },
+    "id": "relocation-biotech",
+    "stability": "relocation",
+    "features": false
+  },
+  {
+    "A": {
+      "culture": "en-US",
+      "language": "English"
+    },
+    "expansions": [
+      "Anomaly"
+    ],
+    "B": {
+      "culture": "fr-FR",
+      "language": "English"
+    },
+    "id": "relocation-anomaly",
+    "stability": "relocation",
+    "features": false
   }
 ]

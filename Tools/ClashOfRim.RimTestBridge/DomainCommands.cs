@@ -30,6 +30,10 @@ internal sealed partial class DomainCommands
         this.bridge = bridge;
         RegisterStability();
         RegisterCatalog();
+        RegisterBank();
+        RegisterRelocation();
+        RegisterGravship();
+        RegisterDlcPersistence();
         var r = bridge.Router;
         r.Register("clash.compatibility", "Observe the original compatibility decision; only accepted language warnings offer continuation.", "observe", _ =>
         {

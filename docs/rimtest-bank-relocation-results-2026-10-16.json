@@ -1,0 +1,1983 @@
+{
+  "date": "2026-10-16",
+  "fullCoverage": false,
+  "basis": "Ten successful scenario runs, selected after the relevant fixes. Not one immutable build or a proof of all DLC content. Exact live binary hashes and pre-existing workspace/framework changes are retained in inputs.json. Failed fixture iterations and product reproductions are preserved separately.",
+  "scenarioExecutions": 10,
+  "executed": 162,
+  "passedCases": 162,
+  "distinctCases": 21,
+  "profiles": [
+    {
+      "id": "bank-core",
+      "passed": true,
+      "report": {
+        "sha256": "a2a23288141eac8eb3954c0d647568afdc8d4446df4c3e1b817f07af7b1c1eed",
+        "path": "G:\\RimTestRuns\\bank-core-fixed\\20261016-152007-346a9664\\report.json"
+      },
+      "inputs": {
+        "sha256": "a62c77d5f2b5119509348f009b8b43d79e94f3a7d744ac956fe160950138624f",
+        "path": "G:\\RimTestRuns\\bank-core-fixed\\20261016-152007-346a9664\\inputs.json"
+      },
+      "profile": {
+        "sha256": "43f35eb3c99ce62c13a59b1da9341b8b3f736c005748bbb805196e5bb8a805ee",
+        "path": "G:\\RimTestRuns\\bank-core-fixed\\20261016-152007-346a9664\\profile.json"
+      },
+      "repositoryCommitAtRun": "9eb1bfbee636896fbe85ffa3a1514bcaf9c3a35c",
+      "frameworkCommitAtRun": "143559423dc8cee5d46a694186743b311c15c0e5",
+      "hadUncommittedWorkspaceChanges": true,
+      "hadUncommittedFrameworkChanges": true,
+      "expansions": [],
+      "cases": [
+        {
+          "id": "launch-profile",
+          "status": "passed"
+        },
+        {
+          "id": "shared-world-entry",
+          "status": "passed"
+        },
+        {
+          "id": "world-parameters",
+          "status": "passed"
+        },
+        {
+          "id": "world-geometry",
+          "status": "passed"
+        },
+        {
+          "id": "world-tile-data",
+          "status": "passed"
+        },
+        {
+          "id": "world-feature-identities",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-difficulty",
+          "status": "passed"
+        },
+        {
+          "id": "culture-references",
+          "status": "passed"
+        },
+        {
+          "id": "world-persistence",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-permission",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-difficulty-sync",
+          "status": "passed"
+        },
+        {
+          "id": "bank-input-rejection",
+          "status": "passed"
+        },
+        {
+          "id": "bank-overdue-repayment",
+          "status": "passed"
+        },
+        {
+          "id": "bank-mercenary-debt",
+          "status": "passed"
+        },
+        {
+          "id": "snapshot-save-reload",
+          "status": "passed"
+        },
+        {
+          "id": "session-reconnect",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-errors",
+          "status": "passed"
+        }
+      ],
+      "notRun": [],
+      "failures": []
+    },
+    {
+      "id": "bank-all-dlc",
+      "passed": true,
+      "report": {
+        "sha256": "33c02d667d684feb4eedccba0493484863f3535cd9b6ebd06ab7c91d08e438d6",
+        "path": "G:\\RimTestRuns\\bank-all-dlc\\20261016-152559-2cc0d0d7\\report.json"
+      },
+      "inputs": {
+        "sha256": "00e1099f30c1693e717598013db9e955a54c22f3a47d820b1ae31b0057110da0",
+        "path": "G:\\RimTestRuns\\bank-all-dlc\\20261016-152559-2cc0d0d7\\inputs.json"
+      },
+      "profile": {
+        "sha256": "fd57ca496e93e34e09acba10e4b588068dcf6481dc4f4388b54190b2c5b1c880",
+        "path": "G:\\RimTestRuns\\bank-all-dlc\\20261016-152559-2cc0d0d7\\profile.json"
+      },
+      "repositoryCommitAtRun": "e25502951521e676414eb3249251efbfa7c6133b",
+      "frameworkCommitAtRun": "143559423dc8cee5d46a694186743b311c15c0e5",
+      "hadUncommittedWorkspaceChanges": true,
+      "hadUncommittedFrameworkChanges": true,
+      "expansions": [
+        "Royalty",
+        "Ideology",
+        "Biotech",
+        "Anomaly",
+        "Odyssey"
+      ],
+      "cases": [
+        {
+          "id": "launch-profile",
+          "status": "passed"
+        },
+        {
+          "id": "shared-world-entry",
+          "status": "passed"
+        },
+        {
+          "id": "world-parameters",
+          "status": "passed"
+        },
+        {
+          "id": "world-geometry",
+          "status": "passed"
+        },
+        {
+          "id": "world-tile-data",
+          "status": "passed"
+        },
+        {
+          "id": "world-feature-identities",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-difficulty",
+          "status": "passed"
+        },
+        {
+          "id": "culture-references",
+          "status": "passed"
+        },
+        {
+          "id": "world-persistence",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-permission",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-difficulty-sync",
+          "status": "passed"
+        },
+        {
+          "id": "bank-input-rejection",
+          "status": "passed"
+        },
+        {
+          "id": "bank-overdue-repayment",
+          "status": "passed"
+        },
+        {
+          "id": "bank-mercenary-debt",
+          "status": "passed"
+        },
+        {
+          "id": "snapshot-save-reload",
+          "status": "passed"
+        },
+        {
+          "id": "session-reconnect",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-errors",
+          "status": "passed"
+        }
+      ],
+      "notRun": [],
+      "failures": []
+    },
+    {
+      "id": "relocation-core",
+      "passed": true,
+      "report": {
+        "sha256": "a0eae840a731b627acef03384d9686dc46aaa9f5702aa5ef4723068443a97715",
+        "path": "G:\\RimTestRuns\\relocation-core-mainthread\\20261016-152750-aa1bf692\\report.json"
+      },
+      "inputs": {
+        "sha256": "ef564530e8e0495d6e64633f9528a4711c86b42cc7b04a119c2691ee31a48532",
+        "path": "G:\\RimTestRuns\\relocation-core-mainthread\\20261016-152750-aa1bf692\\inputs.json"
+      },
+      "profile": {
+        "sha256": "fd9f2b69b011b85283613146d15e00b265babe405bcebf32a77926d9f471bb39",
+        "path": "G:\\RimTestRuns\\relocation-core-mainthread\\20261016-152750-aa1bf692\\profile.json"
+      },
+      "repositoryCommitAtRun": "e25502951521e676414eb3249251efbfa7c6133b",
+      "frameworkCommitAtRun": "143559423dc8cee5d46a694186743b311c15c0e5",
+      "hadUncommittedWorkspaceChanges": true,
+      "hadUncommittedFrameworkChanges": true,
+      "expansions": [],
+      "cases": [
+        {
+          "id": "launch-profile",
+          "status": "passed"
+        },
+        {
+          "id": "shared-world-entry",
+          "status": "passed"
+        },
+        {
+          "id": "world-parameters",
+          "status": "passed"
+        },
+        {
+          "id": "world-geometry",
+          "status": "passed"
+        },
+        {
+          "id": "world-tile-data",
+          "status": "passed"
+        },
+        {
+          "id": "world-feature-identities",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-difficulty",
+          "status": "passed"
+        },
+        {
+          "id": "culture-references",
+          "status": "passed"
+        },
+        {
+          "id": "world-persistence",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-permission",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-difficulty-sync",
+          "status": "passed"
+        },
+        {
+          "id": "relocation-caravan",
+          "status": "passed"
+        },
+        {
+          "id": "relocation-quest-site",
+          "status": "passed"
+        },
+        {
+          "id": "snapshot-save-reload",
+          "status": "passed"
+        },
+        {
+          "id": "session-reconnect",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-errors",
+          "status": "passed"
+        }
+      ],
+      "notRun": [],
+      "failures": []
+    },
+    {
+      "id": "relocation-all-dlc",
+      "passed": true,
+      "report": {
+        "sha256": "1de8e378ad35982fc57701b02de4459418047e6ebe0dd8f0092046e5d0e3596a",
+        "path": "G:\\RimTestRuns\\relocation-all-dlc\\20261016-153227-42dff5d9\\report.json"
+      },
+      "inputs": {
+        "sha256": "96061f2f9456d28f358a2a1a04add276000947331d9ae8c8777040d330ffc52a",
+        "path": "G:\\RimTestRuns\\relocation-all-dlc\\20261016-153227-42dff5d9\\inputs.json"
+      },
+      "profile": {
+        "sha256": "703aaf66e76ee260ba9a928c637f9485f6045a7298b0868f44807609a1147991",
+        "path": "G:\\RimTestRuns\\relocation-all-dlc\\20261016-153227-42dff5d9\\profile.json"
+      },
+      "repositoryCommitAtRun": "4559ebf3ead1ae7e4aafec4d9887b041d7f08111",
+      "frameworkCommitAtRun": "143559423dc8cee5d46a694186743b311c15c0e5",
+      "hadUncommittedWorkspaceChanges": true,
+      "hadUncommittedFrameworkChanges": true,
+      "expansions": [
+        "Royalty",
+        "Ideology",
+        "Biotech",
+        "Anomaly",
+        "Odyssey"
+      ],
+      "cases": [
+        {
+          "id": "launch-profile",
+          "status": "passed"
+        },
+        {
+          "id": "shared-world-entry",
+          "status": "passed"
+        },
+        {
+          "id": "world-parameters",
+          "status": "passed"
+        },
+        {
+          "id": "world-geometry",
+          "status": "passed"
+        },
+        {
+          "id": "world-tile-data",
+          "status": "passed"
+        },
+        {
+          "id": "world-feature-identities",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-difficulty",
+          "status": "passed"
+        },
+        {
+          "id": "culture-references",
+          "status": "passed"
+        },
+        {
+          "id": "world-persistence",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-permission",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-difficulty-sync",
+          "status": "passed"
+        },
+        {
+          "id": "relocation-caravan",
+          "status": "passed"
+        },
+        {
+          "id": "relocation-quest-site",
+          "status": "passed"
+        },
+        {
+          "id": "snapshot-save-reload",
+          "status": "passed"
+        },
+        {
+          "id": "session-reconnect",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-errors",
+          "status": "passed"
+        }
+      ],
+      "notRun": [],
+      "failures": []
+    },
+    {
+      "id": "gravship-odyssey",
+      "passed": true,
+      "report": {
+        "sha256": "a27105dff8fe5b48097286ac9da15b36a4167e617ec5943e60b63666874eda78",
+        "path": "G:\\RimTestRuns\\gravship-odyssey-r8\\20261016-154646-a353e3e8\\report.json"
+      },
+      "inputs": {
+        "sha256": "3444e5457740e155994aab646e9c203f9077487a68b5a07c71b32e364bd76517",
+        "path": "G:\\RimTestRuns\\gravship-odyssey-r8\\20261016-154646-a353e3e8\\inputs.json"
+      },
+      "profile": {
+        "sha256": "ced83b0aa3962d1b1d2c744705946c1aad8d1ab0c130b3e2e91d59782f5997f4",
+        "path": "G:\\RimTestRuns\\gravship-odyssey-r8\\20261016-154646-a353e3e8\\profile.json"
+      },
+      "repositoryCommitAtRun": "4559ebf3ead1ae7e4aafec4d9887b041d7f08111",
+      "frameworkCommitAtRun": "143559423dc8cee5d46a694186743b311c15c0e5",
+      "hadUncommittedWorkspaceChanges": true,
+      "hadUncommittedFrameworkChanges": true,
+      "expansions": [
+        "Odyssey"
+      ],
+      "cases": [
+        {
+          "id": "launch-profile",
+          "status": "passed"
+        },
+        {
+          "id": "shared-world-entry",
+          "status": "passed"
+        },
+        {
+          "id": "world-parameters",
+          "status": "passed"
+        },
+        {
+          "id": "world-geometry",
+          "status": "passed"
+        },
+        {
+          "id": "world-tile-data",
+          "status": "passed"
+        },
+        {
+          "id": "world-feature-identities",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-difficulty",
+          "status": "passed"
+        },
+        {
+          "id": "culture-references",
+          "status": "passed"
+        },
+        {
+          "id": "world-persistence",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-permission",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-difficulty-sync",
+          "status": "passed"
+        },
+        {
+          "id": "gravship-new-map",
+          "status": "passed"
+        },
+        {
+          "id": "gravship-quest-site",
+          "status": "passed"
+        },
+        {
+          "id": "snapshot-save-reload",
+          "status": "passed"
+        },
+        {
+          "id": "session-reconnect",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-errors",
+          "status": "passed"
+        }
+      ],
+      "notRun": [],
+      "failures": []
+    },
+    {
+      "id": "gravship-all-dlc",
+      "passed": true,
+      "report": {
+        "sha256": "2b81fc64d8d78aa9ea390d4379732ee670a09a7110eed62c1403a8468f194f37",
+        "path": "G:\\RimTestRuns\\gravship-all-dlc\\20261016-154709-70d7689d\\report.json"
+      },
+      "inputs": {
+        "sha256": "d488ee16bf06dc7456d0c601f9aa28a2edf155bf68c39370ce8e11b31c0dd5c3",
+        "path": "G:\\RimTestRuns\\gravship-all-dlc\\20261016-154709-70d7689d\\inputs.json"
+      },
+      "profile": {
+        "sha256": "5c1bbd32dd0c84a068e8151112cb191efc482d23a29bd901b3c9ec7909df1468",
+        "path": "G:\\RimTestRuns\\gravship-all-dlc\\20261016-154709-70d7689d\\profile.json"
+      },
+      "repositoryCommitAtRun": "4559ebf3ead1ae7e4aafec4d9887b041d7f08111",
+      "frameworkCommitAtRun": "143559423dc8cee5d46a694186743b311c15c0e5",
+      "hadUncommittedWorkspaceChanges": true,
+      "hadUncommittedFrameworkChanges": true,
+      "expansions": [
+        "Royalty",
+        "Ideology",
+        "Biotech",
+        "Anomaly",
+        "Odyssey"
+      ],
+      "cases": [
+        {
+          "id": "launch-profile",
+          "status": "passed"
+        },
+        {
+          "id": "shared-world-entry",
+          "status": "passed"
+        },
+        {
+          "id": "world-parameters",
+          "status": "passed"
+        },
+        {
+          "id": "world-geometry",
+          "status": "passed"
+        },
+        {
+          "id": "world-tile-data",
+          "status": "passed"
+        },
+        {
+          "id": "world-feature-identities",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-difficulty",
+          "status": "passed"
+        },
+        {
+          "id": "culture-references",
+          "status": "passed"
+        },
+        {
+          "id": "world-persistence",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-permission",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-difficulty-sync",
+          "status": "passed"
+        },
+        {
+          "id": "gravship-new-map",
+          "status": "passed"
+        },
+        {
+          "id": "gravship-quest-site",
+          "status": "passed"
+        },
+        {
+          "id": "snapshot-save-reload",
+          "status": "passed"
+        },
+        {
+          "id": "session-reconnect",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-errors",
+          "status": "passed"
+        }
+      ],
+      "notRun": [],
+      "failures": []
+    },
+    {
+      "id": "relocation-royalty",
+      "passed": true,
+      "report": {
+        "sha256": "cdc3ca8d6ce44a521d866c0c38cd7224a60fdd30d1f679c29727587ff4e83af9",
+        "path": "G:\\RimTestRuns\\relocation-single-dlc\\20261016-153507-ea5431e4\\relocation-royalty\\20261016-153507-f12a415e\\report.json"
+      },
+      "inputs": {
+        "sha256": "354d1820b7de86b29a86115d02b68d8691c6febdcc3dc89f26d0a702931566c4",
+        "path": "G:\\RimTestRuns\\relocation-single-dlc\\20261016-153507-ea5431e4\\relocation-royalty\\20261016-153507-f12a415e\\inputs.json"
+      },
+      "profile": {
+        "sha256": "247566a949e012f492a50c06b2eadee0ee4da3313137f97f53cab0fcb26c7fa8",
+        "path": "G:\\RimTestRuns\\relocation-single-dlc\\20261016-153507-ea5431e4\\relocation-royalty\\20261016-153507-f12a415e\\profile.json"
+      },
+      "repositoryCommitAtRun": "4559ebf3ead1ae7e4aafec4d9887b041d7f08111",
+      "frameworkCommitAtRun": "143559423dc8cee5d46a694186743b311c15c0e5",
+      "hadUncommittedWorkspaceChanges": true,
+      "hadUncommittedFrameworkChanges": true,
+      "expansions": [
+        "Royalty"
+      ],
+      "cases": [
+        {
+          "id": "launch-profile",
+          "status": "passed"
+        },
+        {
+          "id": "shared-world-entry",
+          "status": "passed"
+        },
+        {
+          "id": "world-parameters",
+          "status": "passed"
+        },
+        {
+          "id": "world-geometry",
+          "status": "passed"
+        },
+        {
+          "id": "world-tile-data",
+          "status": "passed"
+        },
+        {
+          "id": "world-feature-identities",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-difficulty",
+          "status": "passed"
+        },
+        {
+          "id": "culture-references",
+          "status": "passed"
+        },
+        {
+          "id": "world-persistence",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-permission",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-difficulty-sync",
+          "status": "passed"
+        },
+        {
+          "id": "relocation-caravan",
+          "status": "passed"
+        },
+        {
+          "id": "relocation-quest-site",
+          "status": "passed"
+        },
+        {
+          "id": "snapshot-save-reload",
+          "status": "passed"
+        },
+        {
+          "id": "session-reconnect",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-errors",
+          "status": "passed"
+        }
+      ],
+      "notRun": [],
+      "failures": []
+    },
+    {
+      "id": "relocation-ideology",
+      "passed": true,
+      "report": {
+        "sha256": "394e74bd1dbbd87f3cbd1077bc434580dcfb9ec44d8a113a154962e0ca3029d2",
+        "path": "G:\\RimTestRuns\\relocation-single-dlc\\20261016-153507-ea5431e4\\relocation-ideology\\20261016-153616-209a63b7\\report.json"
+      },
+      "inputs": {
+        "sha256": "40aaaac204105b67f0331e8946ed3836355580c3b614985805fd92443ac962b1",
+        "path": "G:\\RimTestRuns\\relocation-single-dlc\\20261016-153507-ea5431e4\\relocation-ideology\\20261016-153616-209a63b7\\inputs.json"
+      },
+      "profile": {
+        "sha256": "9834796f3916cf51eb062ae1bece781cad7baa43963cfc006cfdf22820da8276",
+        "path": "G:\\RimTestRuns\\relocation-single-dlc\\20261016-153507-ea5431e4\\relocation-ideology\\20261016-153616-209a63b7\\profile.json"
+      },
+      "repositoryCommitAtRun": "4559ebf3ead1ae7e4aafec4d9887b041d7f08111",
+      "frameworkCommitAtRun": "143559423dc8cee5d46a694186743b311c15c0e5",
+      "hadUncommittedWorkspaceChanges": true,
+      "hadUncommittedFrameworkChanges": true,
+      "expansions": [
+        "Ideology"
+      ],
+      "cases": [
+        {
+          "id": "launch-profile",
+          "status": "passed"
+        },
+        {
+          "id": "shared-world-entry",
+          "status": "passed"
+        },
+        {
+          "id": "world-parameters",
+          "status": "passed"
+        },
+        {
+          "id": "world-geometry",
+          "status": "passed"
+        },
+        {
+          "id": "world-tile-data",
+          "status": "passed"
+        },
+        {
+          "id": "world-feature-identities",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-difficulty",
+          "status": "passed"
+        },
+        {
+          "id": "culture-references",
+          "status": "passed"
+        },
+        {
+          "id": "world-persistence",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-permission",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-difficulty-sync",
+          "status": "passed"
+        },
+        {
+          "id": "relocation-caravan",
+          "status": "passed"
+        },
+        {
+          "id": "relocation-quest-site",
+          "status": "passed"
+        },
+        {
+          "id": "snapshot-save-reload",
+          "status": "passed"
+        },
+        {
+          "id": "session-reconnect",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-errors",
+          "status": "passed"
+        }
+      ],
+      "notRun": [],
+      "failures": []
+    },
+    {
+      "id": "relocation-biotech",
+      "passed": true,
+      "report": {
+        "sha256": "d5d81aa020147d677bf507f2c46b9205134b21a1e7baf1104923529834927d61",
+        "path": "G:\\RimTestRuns\\relocation-single-dlc\\20261016-153507-ea5431e4\\relocation-biotech\\20261016-153736-997ec9fa\\report.json"
+      },
+      "inputs": {
+        "sha256": "08226a5a368a2141c65782df75ce2e954ba57917a401410a0ee377d3c90ef521",
+        "path": "G:\\RimTestRuns\\relocation-single-dlc\\20261016-153507-ea5431e4\\relocation-biotech\\20261016-153736-997ec9fa\\inputs.json"
+      },
+      "profile": {
+        "sha256": "ca3f6c1751c3b964768074446567314be45df4008ee8f85741d0d95ff2366d57",
+        "path": "G:\\RimTestRuns\\relocation-single-dlc\\20261016-153507-ea5431e4\\relocation-biotech\\20261016-153736-997ec9fa\\profile.json"
+      },
+      "repositoryCommitAtRun": "4559ebf3ead1ae7e4aafec4d9887b041d7f08111",
+      "frameworkCommitAtRun": "143559423dc8cee5d46a694186743b311c15c0e5",
+      "hadUncommittedWorkspaceChanges": true,
+      "hadUncommittedFrameworkChanges": true,
+      "expansions": [
+        "Biotech"
+      ],
+      "cases": [
+        {
+          "id": "launch-profile",
+          "status": "passed"
+        },
+        {
+          "id": "shared-world-entry",
+          "status": "passed"
+        },
+        {
+          "id": "world-parameters",
+          "status": "passed"
+        },
+        {
+          "id": "world-geometry",
+          "status": "passed"
+        },
+        {
+          "id": "world-tile-data",
+          "status": "passed"
+        },
+        {
+          "id": "world-feature-identities",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-difficulty",
+          "status": "passed"
+        },
+        {
+          "id": "culture-references",
+          "status": "passed"
+        },
+        {
+          "id": "world-persistence",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-permission",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-difficulty-sync",
+          "status": "passed"
+        },
+        {
+          "id": "relocation-caravan",
+          "status": "passed"
+        },
+        {
+          "id": "relocation-quest-site",
+          "status": "passed"
+        },
+        {
+          "id": "snapshot-save-reload",
+          "status": "passed"
+        },
+        {
+          "id": "session-reconnect",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-errors",
+          "status": "passed"
+        }
+      ],
+      "notRun": [],
+      "failures": []
+    },
+    {
+      "id": "relocation-anomaly",
+      "passed": true,
+      "report": {
+        "sha256": "ca300bb6eeff9d8734bf9b98fc27b4c29626770cf356dcf2583a2cb3db75f9c9",
+        "path": "G:\\RimTestRuns\\relocation-single-dlc\\20261016-153507-ea5431e4\\relocation-anomaly\\20261016-153853-9035aae4\\report.json"
+      },
+      "inputs": {
+        "sha256": "ce835dcc07f6270b4852d90fda9b20c4f8fe987bcad6129dd43537d6af817e14",
+        "path": "G:\\RimTestRuns\\relocation-single-dlc\\20261016-153507-ea5431e4\\relocation-anomaly\\20261016-153853-9035aae4\\inputs.json"
+      },
+      "profile": {
+        "sha256": "b205a5d636e7036cc65010b325b09347f2178bb62c593be5f3c23725a8a505ce",
+        "path": "G:\\RimTestRuns\\relocation-single-dlc\\20261016-153507-ea5431e4\\relocation-anomaly\\20261016-153853-9035aae4\\profile.json"
+      },
+      "repositoryCommitAtRun": "4559ebf3ead1ae7e4aafec4d9887b041d7f08111",
+      "frameworkCommitAtRun": "143559423dc8cee5d46a694186743b311c15c0e5",
+      "hadUncommittedWorkspaceChanges": true,
+      "hadUncommittedFrameworkChanges": true,
+      "expansions": [
+        "Anomaly"
+      ],
+      "cases": [
+        {
+          "id": "launch-profile",
+          "status": "passed"
+        },
+        {
+          "id": "shared-world-entry",
+          "status": "passed"
+        },
+        {
+          "id": "world-parameters",
+          "status": "passed"
+        },
+        {
+          "id": "world-geometry",
+          "status": "passed"
+        },
+        {
+          "id": "world-tile-data",
+          "status": "passed"
+        },
+        {
+          "id": "world-feature-identities",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-difficulty",
+          "status": "passed"
+        },
+        {
+          "id": "culture-references",
+          "status": "passed"
+        },
+        {
+          "id": "world-persistence",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-permission",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-difficulty-sync",
+          "status": "passed"
+        },
+        {
+          "id": "relocation-caravan",
+          "status": "passed"
+        },
+        {
+          "id": "relocation-quest-site",
+          "status": "passed"
+        },
+        {
+          "id": "snapshot-save-reload",
+          "status": "passed"
+        },
+        {
+          "id": "session-reconnect",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-errors",
+          "status": "passed"
+        }
+      ],
+      "notRun": [],
+      "failures": []
+    }
+  ],
+  "diagnosticRuns": [
+    {
+      "id": "bank-core",
+      "passed": false,
+      "report": {
+        "sha256": "aa6ef673f0499b70d6b2dd7bacb61aef16334567ea06735fc31e525b78c8b670",
+        "path": "G:\\RimTestRuns\\bank-core\\20261016-151427-2a9b0b32\\report.json"
+      },
+      "inputs": {
+        "sha256": "9de9654a943ddc7c2631a039ef7f603d74462054efcc2da446dfb6d157a033d2",
+        "path": "G:\\RimTestRuns\\bank-core\\20261016-151427-2a9b0b32\\inputs.json"
+      },
+      "profile": {
+        "sha256": "43f35eb3c99ce62c13a59b1da9341b8b3f736c005748bbb805196e5bb8a805ee",
+        "path": "G:\\RimTestRuns\\bank-core\\20261016-151427-2a9b0b32\\profile.json"
+      },
+      "repositoryCommitAtRun": "9eb1bfbee636896fbe85ffa3a1514bcaf9c3a35c",
+      "frameworkCommitAtRun": "143559423dc8cee5d46a694186743b311c15c0e5",
+      "hadUncommittedWorkspaceChanges": true,
+      "hadUncommittedFrameworkChanges": true,
+      "expansions": [],
+      "cases": [
+        {
+          "id": "launch-profile",
+          "status": "passed"
+        },
+        {
+          "id": "shared-world-entry",
+          "status": "passed"
+        },
+        {
+          "id": "world-parameters",
+          "status": "passed"
+        },
+        {
+          "id": "world-geometry",
+          "status": "passed"
+        },
+        {
+          "id": "world-tile-data",
+          "status": "passed"
+        },
+        {
+          "id": "world-feature-identities",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-difficulty",
+          "status": "passed"
+        },
+        {
+          "id": "culture-references",
+          "status": "passed"
+        },
+        {
+          "id": "world-persistence",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-permission",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-difficulty-sync",
+          "status": "passed"
+        },
+        {
+          "id": "bank-input-rejection",
+          "status": "passed"
+        },
+        {
+          "id": "bank-overdue-repayment",
+          "status": "failed"
+        }
+      ],
+      "notRun": [
+        "snapshot-save-reload",
+        "session-reconnect",
+        "bank-mercenary-debt",
+        "runtime-errors"
+      ],
+      "failures": [
+        {
+          "id": "bank-overdue-repayment",
+          "failure": "already_exists: Choose a new save name."
+        }
+      ]
+    },
+    {
+      "id": "bank-core",
+      "passed": false,
+      "report": {
+        "sha256": "d026facd07dc5642b8bfae9e6a65fc375bbcc6332f8976df15046e4448a3b180",
+        "path": "G:\\RimTestRuns\\bank-core-r2\\20261016-151716-a9d2224f\\report.json"
+      },
+      "inputs": {
+        "sha256": "d978c738912d344a95a290255c978408e04206520a38ecba83effa76d4f68b28",
+        "path": "G:\\RimTestRuns\\bank-core-r2\\20261016-151716-a9d2224f\\inputs.json"
+      },
+      "profile": {
+        "sha256": "43f35eb3c99ce62c13a59b1da9341b8b3f736c005748bbb805196e5bb8a805ee",
+        "path": "G:\\RimTestRuns\\bank-core-r2\\20261016-151716-a9d2224f\\profile.json"
+      },
+      "repositoryCommitAtRun": "9eb1bfbee636896fbe85ffa3a1514bcaf9c3a35c",
+      "frameworkCommitAtRun": "143559423dc8cee5d46a694186743b311c15c0e5",
+      "hadUncommittedWorkspaceChanges": true,
+      "hadUncommittedFrameworkChanges": true,
+      "expansions": [],
+      "cases": [
+        {
+          "id": "launch-profile",
+          "status": "passed"
+        },
+        {
+          "id": "shared-world-entry",
+          "status": "passed"
+        },
+        {
+          "id": "world-parameters",
+          "status": "passed"
+        },
+        {
+          "id": "world-geometry",
+          "status": "passed"
+        },
+        {
+          "id": "world-tile-data",
+          "status": "passed"
+        },
+        {
+          "id": "world-feature-identities",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-difficulty",
+          "status": "passed"
+        },
+        {
+          "id": "culture-references",
+          "status": "passed"
+        },
+        {
+          "id": "world-persistence",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-permission",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-difficulty-sync",
+          "status": "passed"
+        },
+        {
+          "id": "bank-input-rejection",
+          "status": "passed"
+        },
+        {
+          "id": "bank-overdue-repayment",
+          "status": "passed"
+        },
+        {
+          "id": "bank-mercenary-debt",
+          "status": "failed"
+        }
+      ],
+      "notRun": [
+        "snapshot-save-reload",
+        "session-reconnect",
+        "runtime-errors"
+      ],
+      "failures": [
+        {
+          "id": "bank-mercenary-debt",
+          "failure": "Observation deadline: B/clash.state; last={\"userId\":\"rimtest-B\",\"colonyId\":\"colony-rimtest-B\",\"currentSnapshotId\":\"colony-rimtest-B-20261016151834-9fe540fc819a\",\"serverBaseUrl\":\"http://127.0.0.1:56905\",\"isNetworkConfigured\":true,\"isInActiveMultiplayerSession\":true,\"isServerWorldSetupFlow\":false,\"isAdministrator\":false,\"snapshotUploadInProgress\":false,\"manualSyncInProgress\":false,\"localAtomicMutationPending\":true,\"localAtomicMutationOperation\":\"Bank operation\",\"presenceInProgress\":true,\"chatInProgress\":false,\"bankInProgress\":false,\"mercenaryInProgress\":false,\"serverShopInProgress\":false,\"adminInProgress\":false,\"loginStatus\":\"Server save colony-rimtest-B-20261016151827-fe812805d773 was restored. Loading save.\",\"snapshotUploadStatus\":\"Save synced\",\"eventQueueStatus\":\"Automatic 0, Waiting for player choice 0, Confirming 0, Needs attention 0, Rejected 0\",\"eventDetailsStatus\":\"Automatic sync complete: there are no new server messages.\",\"bankStatus\":\"Debt repayment rejected by server: 9 This debt cannot currently be repaid.\",\"chatStatus\":\"Chat refreshed, 0 new message(s).\",\"tradeStatus\":\"No trade order has been created yet.\",\"worldMapStatus\":\"World catalog refresh complete: None, colonies 2.\",\"mercenaryStatus\":\"Mercenary state saved.\",\"serverShopStatus\":\"Shop is ready.\",\"adminStatus\":\"Admin status has not been loaded.\",\"giftProcessingStatus\":\"No gift has been processed yet.\",\"playerListStatus\":\"Players: Rimtest-A (Online), rimtest-B (Online)\",\"achievementStatus\":\"\",\"tradeOrdersPageLoadInProgress\":false,\"unreadPrivateChatCount\":0,\"accountPasswordInProgress\":false,\"accountPasswordStatus\":\"Password unchanged.\"}"
+        }
+      ]
+    },
+    {
+      "id": "relocation-core",
+      "passed": false,
+      "report": {
+        "sha256": "fe1014511354939175a8317c3615415d7fb59744145ac65ef712dc9df5309191",
+        "path": "G:\\RimTestRuns\\relocation-core\\20261016-151755-308c782d\\report.json"
+      },
+      "inputs": {
+        "sha256": "6fb518d26cbe5d107bc1c20e2a93c78a1aad4eb3156bcd329f855f4aaf946c1e",
+        "path": "G:\\RimTestRuns\\relocation-core\\20261016-151755-308c782d\\inputs.json"
+      },
+      "profile": {
+        "sha256": "fd9f2b69b011b85283613146d15e00b265babe405bcebf32a77926d9f471bb39",
+        "path": "G:\\RimTestRuns\\relocation-core\\20261016-151755-308c782d\\profile.json"
+      },
+      "repositoryCommitAtRun": "9eb1bfbee636896fbe85ffa3a1514bcaf9c3a35c",
+      "frameworkCommitAtRun": "143559423dc8cee5d46a694186743b311c15c0e5",
+      "hadUncommittedWorkspaceChanges": true,
+      "hadUncommittedFrameworkChanges": true,
+      "expansions": [],
+      "cases": [
+        {
+          "id": "launch-profile",
+          "status": "passed"
+        },
+        {
+          "id": "shared-world-entry",
+          "status": "passed"
+        },
+        {
+          "id": "world-parameters",
+          "status": "passed"
+        },
+        {
+          "id": "world-geometry",
+          "status": "passed"
+        },
+        {
+          "id": "world-tile-data",
+          "status": "passed"
+        },
+        {
+          "id": "world-feature-identities",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-difficulty",
+          "status": "passed"
+        },
+        {
+          "id": "culture-references",
+          "status": "passed"
+        },
+        {
+          "id": "world-persistence",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-permission",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-difficulty-sync",
+          "status": "passed"
+        },
+        {
+          "id": "relocation-caravan",
+          "status": "failed"
+        }
+      ],
+      "notRun": [
+        "snapshot-save-reload",
+        "session-reconnect",
+        "relocation-quest-site",
+        "runtime-errors"
+      ],
+      "failures": [
+        {
+          "id": "relocation-caravan",
+          "failure": "Caravan relocation disabled: {\"type\":\"Verse.Command_Action\",\"label\":\"Relocate\",\"disabled\":true,\"reason\":\"Settlements cannot be directly adjacent to each other.\"}"
+        }
+      ]
+    },
+    {
+      "id": "relocation-core",
+      "passed": false,
+      "report": {
+        "sha256": "61d0dac9469014e9ab88edab85ed06d5abedadcae472ba84f55581f2707ded22",
+        "path": "G:\\RimTestRuns\\relocation-core-r2\\20261016-152016-74752353\\report.json"
+      },
+      "inputs": {
+        "sha256": "6d0c4e831da9e74393c70a890cd7ae7de5c3350eb4e06571fce37501b30dc8f3",
+        "path": "G:\\RimTestRuns\\relocation-core-r2\\20261016-152016-74752353\\inputs.json"
+      },
+      "profile": {
+        "sha256": "fd9f2b69b011b85283613146d15e00b265babe405bcebf32a77926d9f471bb39",
+        "path": "G:\\RimTestRuns\\relocation-core-r2\\20261016-152016-74752353\\profile.json"
+      },
+      "repositoryCommitAtRun": "9eb1bfbee636896fbe85ffa3a1514bcaf9c3a35c",
+      "frameworkCommitAtRun": "143559423dc8cee5d46a694186743b311c15c0e5",
+      "hadUncommittedWorkspaceChanges": true,
+      "hadUncommittedFrameworkChanges": true,
+      "expansions": [],
+      "cases": [
+        {
+          "id": "launch-profile",
+          "status": "passed"
+        },
+        {
+          "id": "shared-world-entry",
+          "status": "passed"
+        },
+        {
+          "id": "world-parameters",
+          "status": "passed"
+        },
+        {
+          "id": "world-geometry",
+          "status": "passed"
+        },
+        {
+          "id": "world-tile-data",
+          "status": "passed"
+        },
+        {
+          "id": "world-feature-identities",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-difficulty",
+          "status": "passed"
+        },
+        {
+          "id": "culture-references",
+          "status": "passed"
+        },
+        {
+          "id": "world-persistence",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-permission",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-difficulty-sync",
+          "status": "passed"
+        },
+        {
+          "id": "relocation-caravan",
+          "status": "passed"
+        },
+        {
+          "id": "relocation-quest-site",
+          "status": "failed"
+        }
+      ],
+      "notRun": [
+        "snapshot-save-reload",
+        "session-reconnect",
+        "runtime-errors"
+      ],
+      "failures": [
+        {
+          "id": "relocation-quest-site",
+          "failure": "Existing quest-map relocation is disabled: {\"label\":\"Settle\",\"disabled\":true,\"reason\":\"Your faction can only have one base.\"}"
+        }
+      ]
+    },
+    {
+      "id": "relocation-core",
+      "passed": false,
+      "report": {
+        "sha256": "737d458b5e5e1b2e068e8f0666b53ffe6d3faa33f058f5a8d1a063c836f33a0c",
+        "path": "G:\\RimTestRuns\\relocation-core-fixed\\20261016-152336-1aef2bc6\\report.json"
+      },
+      "inputs": {
+        "sha256": "a931cb89395381421e4058f1cb29d853f067b06bddb352ed364bfed1c7ab7d0b",
+        "path": "G:\\RimTestRuns\\relocation-core-fixed\\20261016-152336-1aef2bc6\\inputs.json"
+      },
+      "profile": {
+        "sha256": "fd9f2b69b011b85283613146d15e00b265babe405bcebf32a77926d9f471bb39",
+        "path": "G:\\RimTestRuns\\relocation-core-fixed\\20261016-152336-1aef2bc6\\profile.json"
+      },
+      "repositoryCommitAtRun": "e25502951521e676414eb3249251efbfa7c6133b",
+      "frameworkCommitAtRun": "143559423dc8cee5d46a694186743b311c15c0e5",
+      "hadUncommittedWorkspaceChanges": true,
+      "hadUncommittedFrameworkChanges": true,
+      "expansions": [],
+      "cases": [
+        {
+          "id": "launch-profile",
+          "status": "passed"
+        },
+        {
+          "id": "shared-world-entry",
+          "status": "passed"
+        },
+        {
+          "id": "world-parameters",
+          "status": "passed"
+        },
+        {
+          "id": "world-geometry",
+          "status": "passed"
+        },
+        {
+          "id": "world-tile-data",
+          "status": "passed"
+        },
+        {
+          "id": "world-feature-identities",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-difficulty",
+          "status": "passed"
+        },
+        {
+          "id": "culture-references",
+          "status": "passed"
+        },
+        {
+          "id": "world-persistence",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-permission",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-difficulty-sync",
+          "status": "passed"
+        },
+        {
+          "id": "relocation-caravan",
+          "status": "passed"
+        },
+        {
+          "id": "relocation-quest-site",
+          "status": "passed"
+        },
+        {
+          "id": "snapshot-save-reload",
+          "status": "passed"
+        },
+        {
+          "id": "session-reconnect",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-errors",
+          "status": "failed"
+        }
+      ],
+      "notRun": [],
+      "failures": [
+        {
+          "id": "runtime-errors",
+          "failure": "Unexpected game errors: [{\"sequence\":3,\"at\":\"2026-10-16T15:24:22.2844926\\u002B00:00\",\"level\":\"error\",\"message\":\"Tried to get a material from a different thread.\"}]"
+        }
+      ]
+    },
+    {
+      "id": "gravship-odyssey",
+      "passed": false,
+      "report": {
+        "sha256": "1a0c4456731001c6ecb1a3d1af1fe9bbb06d09578a834157e081fe420c94dc05",
+        "path": "G:\\RimTestRuns\\gravship-odyssey\\20261016-152629-4422df65\\report.json"
+      },
+      "inputs": {
+        "sha256": "4be37debe214344f8be3a44b46279defd96052aa5c53a1a6990991faac3f6d64",
+        "path": "G:\\RimTestRuns\\gravship-odyssey\\20261016-152629-4422df65\\inputs.json"
+      },
+      "profile": {
+        "sha256": "ced83b0aa3962d1b1d2c744705946c1aad8d1ab0c130b3e2e91d59782f5997f4",
+        "path": "G:\\RimTestRuns\\gravship-odyssey\\20261016-152629-4422df65\\profile.json"
+      },
+      "repositoryCommitAtRun": "e25502951521e676414eb3249251efbfa7c6133b",
+      "frameworkCommitAtRun": "143559423dc8cee5d46a694186743b311c15c0e5",
+      "hadUncommittedWorkspaceChanges": true,
+      "hadUncommittedFrameworkChanges": true,
+      "expansions": [
+        "Odyssey"
+      ],
+      "cases": [
+        {
+          "id": "launch-profile",
+          "status": "passed"
+        },
+        {
+          "id": "shared-world-entry",
+          "status": "passed"
+        },
+        {
+          "id": "world-parameters",
+          "status": "passed"
+        },
+        {
+          "id": "world-geometry",
+          "status": "passed"
+        },
+        {
+          "id": "world-tile-data",
+          "status": "passed"
+        },
+        {
+          "id": "world-feature-identities",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-difficulty",
+          "status": "passed"
+        },
+        {
+          "id": "culture-references",
+          "status": "passed"
+        },
+        {
+          "id": "world-persistence",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-permission",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-difficulty-sync",
+          "status": "passed"
+        },
+        {
+          "id": "gravship-new-map",
+          "status": "failed"
+        }
+      ],
+      "notRun": [
+        "snapshot-save-reload",
+        "session-reconnect",
+        "gravship-quest-site",
+        "runtime-errors"
+      ],
+      "failures": [
+        {
+          "id": "gravship-new-map",
+          "failure": "disabled: Cannot navigate: No unblocked functioning thrusters"
+        }
+      ]
+    },
+    {
+      "id": "gravship-odyssey",
+      "passed": false,
+      "report": {
+        "sha256": "5cdebd53d515b65769ba5fb544c14b71888cc4736faee7b1e2e679c40f94e1eb",
+        "path": "G:\\RimTestRuns\\gravship-odyssey-r2\\20261016-152831-9ab79820\\report.json"
+      },
+      "inputs": {
+        "sha256": "166dae1c71e30f4ef8991ecea8efb3feeb5b04f3c46191acf2b984523a2d28fb",
+        "path": "G:\\RimTestRuns\\gravship-odyssey-r2\\20261016-152831-9ab79820\\inputs.json"
+      },
+      "profile": {
+        "sha256": "ced83b0aa3962d1b1d2c744705946c1aad8d1ab0c130b3e2e91d59782f5997f4",
+        "path": "G:\\RimTestRuns\\gravship-odyssey-r2\\20261016-152831-9ab79820\\profile.json"
+      },
+      "repositoryCommitAtRun": "e25502951521e676414eb3249251efbfa7c6133b",
+      "frameworkCommitAtRun": "143559423dc8cee5d46a694186743b311c15c0e5",
+      "hadUncommittedWorkspaceChanges": true,
+      "hadUncommittedFrameworkChanges": true,
+      "expansions": [
+        "Odyssey"
+      ],
+      "cases": [
+        {
+          "id": "launch-profile",
+          "status": "passed"
+        },
+        {
+          "id": "shared-world-entry",
+          "status": "passed"
+        },
+        {
+          "id": "world-parameters",
+          "status": "passed"
+        },
+        {
+          "id": "world-geometry",
+          "status": "passed"
+        },
+        {
+          "id": "world-tile-data",
+          "status": "passed"
+        },
+        {
+          "id": "world-feature-identities",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-difficulty",
+          "status": "passed"
+        },
+        {
+          "id": "culture-references",
+          "status": "passed"
+        },
+        {
+          "id": "world-persistence",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-permission",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-difficulty-sync",
+          "status": "passed"
+        },
+        {
+          "id": "gravship-new-map",
+          "status": "failed"
+        }
+      ],
+      "notRun": [
+        "snapshot-save-reload",
+        "session-reconnect",
+        "gravship-quest-site",
+        "runtime-errors"
+      ],
+      "failures": [
+        {
+          "id": "gravship-new-map",
+          "failure": "disabled: Cannot navigate: No unblocked functioning thrusters"
+        }
+      ]
+    },
+    {
+      "id": "gravship-odyssey",
+      "passed": false,
+      "report": {
+        "sha256": "a2652f856b23047a0e571537a239424da9044a92c4eac72157c63a3b1285f5bf",
+        "path": "G:\\RimTestRuns\\gravship-odyssey-r3\\20261016-153050-7fdafafa\\report.json"
+      },
+      "inputs": {
+        "sha256": "4da009c7feeea3b256452ffa4ef4f15dce119839b7d70496bc19f92a9a46bcf1",
+        "path": "G:\\RimTestRuns\\gravship-odyssey-r3\\20261016-153050-7fdafafa\\inputs.json"
+      },
+      "profile": {
+        "sha256": "ced83b0aa3962d1b1d2c744705946c1aad8d1ab0c130b3e2e91d59782f5997f4",
+        "path": "G:\\RimTestRuns\\gravship-odyssey-r3\\20261016-153050-7fdafafa\\profile.json"
+      },
+      "repositoryCommitAtRun": "4559ebf3ead1ae7e4aafec4d9887b041d7f08111",
+      "frameworkCommitAtRun": "143559423dc8cee5d46a694186743b311c15c0e5",
+      "hadUncommittedWorkspaceChanges": true,
+      "hadUncommittedFrameworkChanges": true,
+      "expansions": [
+        "Odyssey"
+      ],
+      "cases": [
+        {
+          "id": "launch-profile",
+          "status": "passed"
+        },
+        {
+          "id": "shared-world-entry",
+          "status": "passed"
+        },
+        {
+          "id": "world-parameters",
+          "status": "passed"
+        },
+        {
+          "id": "world-geometry",
+          "status": "passed"
+        },
+        {
+          "id": "world-tile-data",
+          "status": "passed"
+        },
+        {
+          "id": "world-feature-identities",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-difficulty",
+          "status": "passed"
+        },
+        {
+          "id": "culture-references",
+          "status": "passed"
+        },
+        {
+          "id": "world-persistence",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-permission",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-difficulty-sync",
+          "status": "passed"
+        },
+        {
+          "id": "gravship-new-map",
+          "status": "failed"
+        }
+      ],
+      "notRun": [
+        "snapshot-save-reload",
+        "session-reconnect",
+        "gravship-quest-site",
+        "runtime-errors"
+      ],
+      "failures": [
+        {
+          "id": "gravship-new-map",
+          "failure": "Observation deadline: A/clash.gravship; last={\"active\":true,\"travelling\":false,\"cutscene\":false,\"choosingTile\":false,\"ritualDialog\":false,\"landing\":false,\"markers\":[],\"engines\":[{\"reference\":{\"handle\":\"70d3740005004f94af202983e44ccfd7:38\",\"type\":\"RimWorld.Building_GravEngine\"},\"id\":\"GravEngine39067\",\"tile\":0,\"fuel\":100,\"substructure\":225,\"cooldownCompleteTick\":-1}]}"
+        }
+      ]
+    },
+    {
+      "id": "gravship-odyssey",
+      "passed": false,
+      "report": {
+        "sha256": "78b890b3216035337e0c4bc557e246eb560ea561dedc14a2cdf42d2c8e51a8d6",
+        "path": "G:\\RimTestRuns\\gravship-odyssey-r4\\20261016-153418-c0fce284\\report.json"
+      },
+      "inputs": {
+        "sha256": "7efbb020e55ad3bfcab79f9bdef490aea34c3a4124387bfc04c8f0f49fb67631",
+        "path": "G:\\RimTestRuns\\gravship-odyssey-r4\\20261016-153418-c0fce284\\inputs.json"
+      },
+      "profile": {
+        "sha256": "ced83b0aa3962d1b1d2c744705946c1aad8d1ab0c130b3e2e91d59782f5997f4",
+        "path": "G:\\RimTestRuns\\gravship-odyssey-r4\\20261016-153418-c0fce284\\profile.json"
+      },
+      "repositoryCommitAtRun": "4559ebf3ead1ae7e4aafec4d9887b041d7f08111",
+      "frameworkCommitAtRun": "143559423dc8cee5d46a694186743b311c15c0e5",
+      "hadUncommittedWorkspaceChanges": true,
+      "hadUncommittedFrameworkChanges": true,
+      "expansions": [
+        "Odyssey"
+      ],
+      "cases": [
+        {
+          "id": "launch-profile",
+          "status": "passed"
+        },
+        {
+          "id": "shared-world-entry",
+          "status": "passed"
+        },
+        {
+          "id": "world-parameters",
+          "status": "passed"
+        },
+        {
+          "id": "world-geometry",
+          "status": "passed"
+        },
+        {
+          "id": "world-tile-data",
+          "status": "passed"
+        },
+        {
+          "id": "world-feature-identities",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-difficulty",
+          "status": "passed"
+        },
+        {
+          "id": "culture-references",
+          "status": "passed"
+        },
+        {
+          "id": "world-persistence",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-permission",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-difficulty-sync",
+          "status": "passed"
+        },
+        {
+          "id": "gravship-new-map",
+          "status": "failed"
+        }
+      ],
+      "notRun": [
+        "snapshot-save-reload",
+        "session-reconnect",
+        "gravship-quest-site",
+        "runtime-errors"
+      ],
+      "failures": [
+        {
+          "id": "gravship-new-map",
+          "failure": "disabled: "
+        }
+      ]
+    },
+    {
+      "id": "gravship-odyssey",
+      "passed": false,
+      "report": {
+        "sha256": "7f03564ae0f05b182f9a952dcc89035adba0f4fd349aea91a9aa9d600f08ba3d",
+        "path": "G:\\RimTestRuns\\gravship-odyssey-r5\\20261016-153616-db260eb8\\report.json"
+      },
+      "inputs": {
+        "sha256": "faf899224a1e4811a4fb909622607cd11efbfd26b4427e00fdaf542db49126dc",
+        "path": "G:\\RimTestRuns\\gravship-odyssey-r5\\20261016-153616-db260eb8\\inputs.json"
+      },
+      "profile": {
+        "sha256": "ced83b0aa3962d1b1d2c744705946c1aad8d1ab0c130b3e2e91d59782f5997f4",
+        "path": "G:\\RimTestRuns\\gravship-odyssey-r5\\20261016-153616-db260eb8\\profile.json"
+      },
+      "repositoryCommitAtRun": "4559ebf3ead1ae7e4aafec4d9887b041d7f08111",
+      "frameworkCommitAtRun": "143559423dc8cee5d46a694186743b311c15c0e5",
+      "hadUncommittedWorkspaceChanges": true,
+      "hadUncommittedFrameworkChanges": true,
+      "expansions": [
+        "Odyssey"
+      ],
+      "cases": [
+        {
+          "id": "launch-profile",
+          "status": "passed"
+        },
+        {
+          "id": "shared-world-entry",
+          "status": "passed"
+        },
+        {
+          "id": "world-parameters",
+          "status": "passed"
+        },
+        {
+          "id": "world-geometry",
+          "status": "passed"
+        },
+        {
+          "id": "world-tile-data",
+          "status": "passed"
+        },
+        {
+          "id": "world-feature-identities",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-difficulty",
+          "status": "passed"
+        },
+        {
+          "id": "culture-references",
+          "status": "passed"
+        },
+        {
+          "id": "world-persistence",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-permission",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-difficulty-sync",
+          "status": "passed"
+        },
+        {
+          "id": "gravship-new-map",
+          "status": "failed"
+        }
+      ],
+      "notRun": [
+        "snapshot-save-reload",
+        "session-reconnect",
+        "gravship-quest-site",
+        "runtime-errors"
+      ],
+      "failures": [
+        {
+          "id": "gravship-new-map",
+          "failure": "Observation deadline: A/clash.gravship; last={\"active\":true,\"travelling\":true,\"cutscene\":false,\"choosingTile\":false,\"ritualDialog\":false,\"landing\":false,\"markers\":[],\"engines\":[]}"
+        }
+      ]
+    },
+    {
+      "id": "gravship-odyssey",
+      "passed": false,
+      "report": {
+        "sha256": "b1be1c124cdcb5a1f036a64b1d4e5c20481802e3df5947b735b6db612a59056a",
+        "path": "G:\\RimTestRuns\\gravship-odyssey-r6\\20261016-154023-ee6014bc\\report.json"
+      },
+      "inputs": {
+        "sha256": "3fd62c02d3fc946de604b621c1abbc1ad7a05af7b2959ab94341c8686da9e9a4",
+        "path": "G:\\RimTestRuns\\gravship-odyssey-r6\\20261016-154023-ee6014bc\\inputs.json"
+      },
+      "profile": {
+        "sha256": "ced83b0aa3962d1b1d2c744705946c1aad8d1ab0c130b3e2e91d59782f5997f4",
+        "path": "G:\\RimTestRuns\\gravship-odyssey-r6\\20261016-154023-ee6014bc\\profile.json"
+      },
+      "repositoryCommitAtRun": "4559ebf3ead1ae7e4aafec4d9887b041d7f08111",
+      "frameworkCommitAtRun": "143559423dc8cee5d46a694186743b311c15c0e5",
+      "hadUncommittedWorkspaceChanges": true,
+      "hadUncommittedFrameworkChanges": true,
+      "expansions": [
+        "Odyssey"
+      ],
+      "cases": [
+        {
+          "id": "launch-profile",
+          "status": "passed"
+        },
+        {
+          "id": "shared-world-entry",
+          "status": "passed"
+        },
+        {
+          "id": "world-parameters",
+          "status": "passed"
+        },
+        {
+          "id": "world-geometry",
+          "status": "passed"
+        },
+        {
+          "id": "world-tile-data",
+          "status": "passed"
+        },
+        {
+          "id": "world-feature-identities",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-difficulty",
+          "status": "passed"
+        },
+        {
+          "id": "culture-references",
+          "status": "passed"
+        },
+        {
+          "id": "world-persistence",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-permission",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-difficulty-sync",
+          "status": "passed"
+        },
+        {
+          "id": "gravship-new-map",
+          "status": "failed"
+        }
+      ],
+      "notRun": [
+        "snapshot-save-reload",
+        "session-reconnect",
+        "gravship-quest-site",
+        "runtime-errors"
+      ],
+      "failures": [
+        {
+          "id": "gravship-new-map",
+          "failure": "disabled: Confirm gravship landing zone to continue."
+        }
+      ]
+    },
+    {
+      "id": "gravship-odyssey",
+      "passed": false,
+      "report": {
+        "sha256": "717ba64ce8e73c020b348f94d1c533e51daf420eb622c7e7c95effe87135fd26",
+        "path": "G:\\RimTestRuns\\gravship-odyssey-r7\\20261016-154426-c80e374d\\report.json"
+      },
+      "inputs": {
+        "sha256": "c1969be17e05568471c9e60e90c72807f480f92c13e156f4ac5fe6148a0f7b44",
+        "path": "G:\\RimTestRuns\\gravship-odyssey-r7\\20261016-154426-c80e374d\\inputs.json"
+      },
+      "profile": {
+        "sha256": "ced83b0aa3962d1b1d2c744705946c1aad8d1ab0c130b3e2e91d59782f5997f4",
+        "path": "G:\\RimTestRuns\\gravship-odyssey-r7\\20261016-154426-c80e374d\\profile.json"
+      },
+      "repositoryCommitAtRun": "4559ebf3ead1ae7e4aafec4d9887b041d7f08111",
+      "frameworkCommitAtRun": "143559423dc8cee5d46a694186743b311c15c0e5",
+      "hadUncommittedWorkspaceChanges": true,
+      "hadUncommittedFrameworkChanges": true,
+      "expansions": [
+        "Odyssey"
+      ],
+      "cases": [
+        {
+          "id": "launch-profile",
+          "status": "passed"
+        },
+        {
+          "id": "shared-world-entry",
+          "status": "passed"
+        },
+        {
+          "id": "world-parameters",
+          "status": "passed"
+        },
+        {
+          "id": "world-geometry",
+          "status": "passed"
+        },
+        {
+          "id": "world-tile-data",
+          "status": "passed"
+        },
+        {
+          "id": "world-feature-identities",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-difficulty",
+          "status": "passed"
+        },
+        {
+          "id": "culture-references",
+          "status": "passed"
+        },
+        {
+          "id": "world-persistence",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-permission",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-difficulty-sync",
+          "status": "passed"
+        },
+        {
+          "id": "gravship-new-map",
+          "status": "failed"
+        }
+      ],
+      "notRun": [
+        "snapshot-save-reload",
+        "session-reconnect",
+        "gravship-quest-site",
+        "runtime-errors"
+      ],
+      "failures": [
+        {
+          "id": "gravship-new-map",
+          "failure": "handler_failed: System.InvalidOperationException: Sequence contains more than one matching element\r\n[Ref B97A7167]\n   at System.Linq.ThrowHelper.ThrowMoreThanOneMatchException()\r\n   at System.Linq.Enumerable.TryGetSingle[TSource](IEnumerable`1 source, Func`2 predicate, Boolean& found)\r\n   at System.Linq.Enumerable.Single[TSource](IEnumerable`1 source, Func`2 predicate)\r\n   at ClashOfRim.RimTestBridge.DomainCommands.<RegisterGravship>b__23_5(JsonElement _)\r\n   at RimTest.Runtime.CommandRouter.Work.Run()"
+        }
+      ]
+    }
+  ],
+  "additionalValidation": [
+    "LocalOnly/bank-relocation-client-tests.log",
+    "LocalOnly/bank-relocation-suite-final-build.log"
+  ],
+  "frozen16": {
+    "unchanged": true,
+    "packageFiles": 68,
+    "sourceFiles": 77
+  }
+}

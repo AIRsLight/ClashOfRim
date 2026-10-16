@@ -6,8 +6,11 @@ namespace ClashOfRim.GameTests;
 internal sealed partial class GameSuite
 {
     private JsonElement raidLoss;
-    private static string[] StabilityCases(string? kind) => kind switch
+    internal static string[] StabilityCases(string? kind) => kind switch
     {
+        "bank" => ["bank-input-rejection", "bank-overdue-repayment", "bank-mercenary-debt"],
+        "relocation" => ["relocation-caravan", "relocation-quest-site"],
+        "gravship" => ["gravship-new-map", "gravship-quest-site"],
         "transfers" => ["alliance-request-accept", "remote-map-isolation-repeat", "pawn-state-fixture", "caravan-load-travel",
             "support-state-early-return", "support-state-rejected-return", "support-state-expired-return", "raid-loss-reload-settlement"],
         "catalog" => ["shop-complete-catalog"],
@@ -20,6 +23,22 @@ internal sealed partial class GameSuite
     };
     async Task RunStability()
     {
+        if (profile.Stability == "gravship")
+        {
+            await Case("gravship-new-map", () => GravshipMove("A", false));
+            await Case("gravship-quest-site", () => GravshipMove("B", true));
+        }
+        if (profile.Stability == "relocation")
+        {
+            await Case("relocation-caravan", () => Relocate("A", "caravan"));
+            await Case("relocation-quest-site", () => Relocate("B", "site"));
+        }
+        if (profile.Stability == "bank")
+        {
+            await Case("bank-input-rejection", BankBounds);
+            await Case("bank-overdue-repayment", BankOverdue);
+            await Case("bank-mercenary-debt", BankDebt);
+        }
         if (profile.Stability == "catalog") await Case("shop-complete-catalog", ShopCatalog);
         if (profile.Stability == "catalog-sample") await Case("shop-selected-catalog", ShopCatalog);
         if (profile.Stability == "stress") await Case("shop-large-data", ShopStress);

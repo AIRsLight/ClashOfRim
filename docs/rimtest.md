@@ -54,6 +54,10 @@ pwsh ./Tools/Test-RimTest.ps1 -RimWorldPath 'E:/SteamLibrary/steamapps/common/Ri
 
 观察：`clash.state`、`clash.world`、`clash.inventory`、`clash.records`、`clash.events`、`clash.bank`、`clash.admin`、`clash.remote`、`clash.support.assignments`、`clash.mercenaries`。
 
+银行与搬家专项另提供 `clash.bank.quests/debts`、`clash.relocation`、`clash.gravship`、`clash.dlc.pawns`。银行截止日期/余额、死亡、搬家起点和飞船构造均为带 `acknowledgeFixture` 与 debug 能力门禁的显式夹具；扣款、处罚、迁居和飞行完成由真实业务路径产生。见 [专项报告与范围](rimtest-bank-relocation-2026-10-16.md)。
+
+可通过 `Test-RimTestMatrix.ps1 -Scenario bank-core,bank-all-dlc,relocation-core,relocation-all-dlc,gravship-odyssey,gravship-all-dlc` 选择专项；PowerShell 调用时 `-Scenario` 接受字符串数组。另有 `relocation-royalty/ideology/biotech/anomaly` 单 DLC 配置。飞船依赖原生渲染过场，运行脚本会对 `stability=gravship` 自动使用 `NoWindow`（即使矩阵传入 `-Headless`）；其余场景沿用指定模式。
+
 编辑与操作：`clash.trade.*`、`clash.gift.*`、`clash.shop.template`、`clash.support.confirmDuration`、`clash.support.return`、`clash.mercenary.recall`、`clash.remote.close`。这些入口保留原业务校验，测试代码必须处理拒绝和异步完成。
 
 通用的新游戏页面、节点对话框、地图/世界对象选择、gizmo、浮动菜单、远行队路径和 tick 推进位于 RimTest。新增其他模组测试时，可以复用这些接口并注册自己的扩展，而不修改 RimTest 核心。

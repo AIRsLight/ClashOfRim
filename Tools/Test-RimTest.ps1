@@ -51,8 +51,10 @@ $inputs = @((Join-Path $root 'Build/ClashOfRim/Assemblies'),
     binaries = @($inputs); profileSha256 = (Get-FileHash -LiteralPath (Join-Path $runRoot 'profile.json')).Hash } |
     ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $runRoot 'inputs.json') -Encoding utf8NoBOM
 Write-Host "Scenario: $($scenario.id); Evidence: $runRoot"
+# Gravship cutscenes use the game's renderer/capture pipeline even without OS input.
+$useHeadless = $Headless -and $scenario.stability -ne 'gravship'
 & (Join-Path $root 'RimTest/tools/Invoke-GameGroup.ps1') -RimWorldPath $RimWorldPath -HarmonyPath $HarmonyPath `
-    -RunsDirectory (Join-Path $runRoot 'Clients') -Names @('A','B') -Profiles $profiles -AdditionalMod @((Join-Path $root 'Build/ClashOfRim'),$extension) -Headless:$Headless -AllowDebug -Run {
+    -RunsDirectory (Join-Path $runRoot 'Clients') -Names @('A','B') -Profiles $profiles -AdditionalMod @((Join-Path $root 'Build/ClashOfRim'),$extension) -Headless:$useHeadless -AllowDebug -Run {
     param($group)
     @($group.Values | ForEach-Object { $_.manifest }) | ConvertTo-Json -AsArray | Set-Content (Join-Path $runRoot 'clients.json') -Encoding utf8NoBOM
     & dotnet (Join-Path $runner 'ClashOfRim.GameTests.dll') $runRoot $group['A'].pipe $group['B'].pipe (Join-Path $runRoot 'profile.json')

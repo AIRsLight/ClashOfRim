@@ -21,6 +21,9 @@ internal sealed partial class GameSuite
     WaitOptions Waiting(string client, string method, int seconds = 90) => new(TimeSpan.FromSeconds(seconds), AfterUnmet: async (value, token) =>
     {
         if (method == "clash.state") await AcceptLanguageWarning(client);
+        // The flight ceremony opens the original abandon-map warning after ticking.
+        // Resolve it explicitly and retain the dialog/button evidence in the trace.
+        if (method == "clash.gravship") await Confirm(client);
         // This suite explicitly resumes ordinary event pauses, while forced modal pauses remain effective.
         // RimTest itself never makes this gameplay-policy decision.
         var ticking = method == "time.status" ? value : await run.CallAsync(client, "time.status", token: token);
