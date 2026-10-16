@@ -128,7 +128,7 @@ public static class ServerLocalization
             return new ServerLocalizationScope(defaultLanguage);
         }
 
-        string requestedLanguage = NormalizeLanguage(language);
+        string requestedLanguage = NormalizeLanguage(Uri.UnescapeDataString(language!));
         return new ServerLocalizationScope(HasLanguage(requestedLanguage) ? requestedLanguage : defaultLanguage);
     }
 
@@ -205,6 +205,9 @@ public static class ServerLocalization
 
         return normalized;
     }
+
+    /// <summary>HTTP and WebSocket headers require ASCII; language directory names may contain native labels.</summary>
+    public static string EncodeLanguageHeader(string language) => Uri.EscapeDataString(NormalizeLanguage(language));
 
     public static string DetectOperatingSystemLanguage()
     {

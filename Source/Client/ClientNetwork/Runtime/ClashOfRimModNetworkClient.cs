@@ -1160,7 +1160,7 @@ public sealed partial class ClashOfRimModNetworkClient
             string? language = ResolveCurrentRimWorldLanguage();
             if (!string.IsNullOrWhiteSpace(language))
             {
-                webSocket.Options.SetRequestHeader(LanguageHeader, language);
+                webSocket.Options.SetRequestHeader(LanguageHeader, ServerLocalization.EncodeLanguageHeader(language));
             }
 
             await webSocket.ConnectAsync(uri, cancellationToken).ConfigureAwait(false);
@@ -2905,7 +2905,7 @@ public sealed partial class ClashOfRimModNetworkClient
         }
 
         message.Headers.Remove(LanguageHeader);
-        message.Headers.Add(LanguageHeader, language);
+        message.Headers.Add(LanguageHeader, ServerLocalization.EncodeLanguageHeader(language));
     }
 
     private static string? ResolveCurrentRimWorldLanguage()

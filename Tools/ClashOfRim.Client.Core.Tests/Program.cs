@@ -2,6 +2,8 @@ using AIRsLight.ClashOfRim.ClientNetwork;
 
 WireContractTests.Run();
 Console.WriteLine("PASS: client/server JSON wire contracts");
+LanguageHeaderTests.Run();
+Console.WriteLine("PASS: ASCII language headers round-trip native labels, aliases and unsupported languages");
 
 await SessionPublicationTests.Run();
 Console.WriteLine("PASS: session publication, error and completion are atomic with reset (4 scenarios)");
