@@ -646,15 +646,17 @@ internal static class TradeThingReferenceUtility
         int? hitPoints,
         bool? wornByCorpse)
     {
-        if (hitPoints.HasValue && thing.def.useHitPoints)
-        {
-            thing.HitPoints = Math.Max(1, Math.Min(thing.MaxHitPoints, hitPoints.Value));
-        }
-
         if (!string.IsNullOrWhiteSpace(qualityValue)
             && Enum.TryParse(qualityValue, ignoreCase: true, out QualityCategory quality))
         {
             thing.TryGetComp<CompQuality>()?.SetQuality(quality, ArtGenerationContext.Outsider);
+        }
+
+        // Quality can change MaxHitPoints. Clamp against the final quality/stuff,
+        // otherwise high-quality goods lose durability while being reconstructed.
+        if (hitPoints.HasValue && thing.def.useHitPoints)
+        {
+            thing.HitPoints = Math.Max(1, Math.Min(thing.MaxHitPoints, hitPoints.Value));
         }
 
         if (thing is Apparel apparel && wornByCorpse.HasValue)
