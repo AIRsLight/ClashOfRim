@@ -19,6 +19,7 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("concurrent localized messages retain their own arguments", ConcurrentFormattingTests.Run),
     ("Scribe XML preserves fractional values across cultures", ScribeCultureTests.Run),
     ("entry continuations survive the game transition without crossing ownership", MainThreadDispatchTests.Run),
     ("failed trade buyer refunds retain their wire purpose", FailedTradeBuyerRefundPurpose),
