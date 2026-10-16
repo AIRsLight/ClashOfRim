@@ -101,8 +101,10 @@ public sealed class UpsertServerShopListingRequest
         int stockCount,
         double priceIncreaseRatio = 1d,
         string? qualityRequirementMode = null,
-        string? hitPointsRequirementMode = null)
+        string? hitPointsRequirementMode = null,
+        string? authToken = null)
     {
+        AuthToken = authToken;
         UserId = userId;
         ColonyId = colonyId;
         ListingId = listingId;
@@ -114,6 +116,8 @@ public sealed class UpsertServerShopListingRequest
         QualityRequirementMode = ServerShopQualityRequirementModes.Normalize(qualityRequirementMode);
         HitPointsRequirementMode = ServerShopHitPointsRequirementModes.Normalize(hitPointsRequirementMode);
     }
+
+    public string? AuthToken { get; }
 
     public string UserId { get; }
 
@@ -151,12 +155,15 @@ public sealed class UpsertServerShopListingResponse
 
 public sealed class RemoveServerShopListingRequest
 {
-    public RemoveServerShopListingRequest(string userId, string colonyId, string listingId)
+    public RemoveServerShopListingRequest(string userId, string colonyId, string listingId, string? authToken = null)
     {
+        AuthToken = authToken;
         UserId = userId;
         ColonyId = colonyId;
         ListingId = listingId;
     }
+
+    public string? AuthToken { get; }
 
     public string UserId { get; }
 

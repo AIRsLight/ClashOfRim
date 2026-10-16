@@ -38,35 +38,21 @@ public static partial class ClashOfRimNetworkServer
 
     private static IResult UpsertServerShopListingCore(UpsertServerShopListingRequest request, ClashOfRimNetworkState state)
     {
-        using (state.EnterSnapshotMutation())
+        ProtocolResponse? validation = ValidateServerShopListing(request.Item, request.ListingKind, request.PriceSilver, request.StockCount);
+        if (validation is not null)
+            return Results.Ok(new UpsertServerShopListingResponse(validation, listing: null));
+
+        using (var mutation = EnterRecoveredSnapshotMutation(state,
+            () => AuthorizeAdministratorRequest(state, request.UserId, request.ColonyId, request.AuthToken)))
         {
-            RecoverSnapshotCommits(state);
+            if (mutation.Rejection is { } rejection)
+                return Results.Ok(new UpsertServerShopListingResponse(rejection, listing: null));
             return UpsertServerShopListingLocked(request, state);
         }
     }
 
     private static IResult UpsertServerShopListingLocked(UpsertServerShopListingRequest request, ClashOfRimNetworkState state)
     {
-        ProtocolResponse? adminValidation = ValidateShopAdminRequest(request.UserId, state);
-        if (adminValidation is not null)
-        {
-            return Results.Ok(new UpsertServerShopListingResponse(adminValidation, listing: null));
-        }
-
-        ProtocolResponse? validation = ValidateServerShopListing(request.Item, request.ListingKind, request.PriceSilver, request.StockCount);
-        if (validation is not null)
-        {
-            return Results.Ok(new UpsertServerShopListingResponse(validation, listing: null));
-        }
-
-        if (request.Item.PawnPackage is not null
-            && !TryValidateInlinePawnPackages(new[] { request.Item }, out ProtocolResponse? pawnPackageFailure))
-        {
-            return Results.Ok(new UpsertServerShopListingResponse(
-                pawnPackageFailure ?? ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("PawnPackage.ParseFailed")),
-                listing: null));
-        }
-
         AdminBaselineSnapshot? baseline = state.AdminBaseline.Current;
         if (baseline is not null)
         {
@@ -104,21 +90,6 @@ public static partial class ClashOfRimNetworkServer
 
     private static IResult RemoveServerShopListing(RemoveServerShopListingRequest request, ClashOfRimNetworkState state)
     {
-        using (state.EnterSnapshotMutation())
-        {
-            RecoverSnapshotCommits(state);
-            return RemoveServerShopListingLocked(request, state);
-        }
-    }
-
-    private static IResult RemoveServerShopListingLocked(RemoveServerShopListingRequest request, ClashOfRimNetworkState state)
-    {
-        ProtocolResponse? adminValidation = ValidateShopAdminRequest(request.UserId, state);
-        if (adminValidation is not null)
-        {
-            return Results.Ok(new RemoveServerShopListingResponse(adminValidation, request.ListingId, removed: false));
-        }
-
         if (string.IsNullOrWhiteSpace(request.ListingId))
         {
             return Results.Ok(new RemoveServerShopListingResponse(
@@ -126,6 +97,11 @@ public static partial class ClashOfRimNetworkServer
                 string.Empty,
                 removed: false));
         }
+
+        using var mutation = EnterRecoveredSnapshotMutation(state,
+            () => AuthorizeAdministratorRequest(state, request.UserId, request.ColonyId, request.AuthToken));
+        if (mutation.Rejection is { } rejection)
+            return Results.Ok(new RemoveServerShopListingResponse(rejection, request.ListingId, removed: false));
 
         bool removed = state.ServerShop.Remove(request.ListingId);
         return Results.Ok(new RemoveServerShopListingResponse(
@@ -383,21 +359,6 @@ public static partial class ClashOfRimNetworkServer
             purchase.ExpectedTotalPriceSilver,
             purchase.RemainingStockCount,
             purchase.FailureKey ?? "none");
-    }
-
-    private static ProtocolResponse? ValidateShopAdminRequest(string userId, ClashOfRimNetworkState state)
-    {
-        if (string.IsNullOrWhiteSpace(userId))
-        {
-            return ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("Shop.AdminMissingUser"));
-        }
-
-        if (!state.WorldConfiguration.IsAdministrator(userId))
-        {
-            return ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, T("Shop.AdminOnly"));
-        }
-
-        return null;
     }
 
     private static ProtocolResponse? ValidateServerShopListing(ThingReferenceDto? item, string listingKind, int priceSilver, int stockCount)

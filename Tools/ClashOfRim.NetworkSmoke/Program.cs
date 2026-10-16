@@ -1430,7 +1430,6 @@ try
                     adminApproved: false)
             }, authToken: baselineSetupLogin.AuthToken));
     Require(adminBaseline.Result.Accepted, "管理员应能提交物品价格和陷阱清单基线");
-    await LogoutSmokeSetup(httpClient, "user-a", "colony-a", baselineSetupLogin.SessionId);
     Require(adminBaseline.BaselineConfigured, "提交后服务器应标记已有管理员基线");
     Equal(7, adminBaseline.StandardMarketValueCount, "服务器应登记管理员上传价格表");
     Equal(1, adminBaseline.TrapAutoApprovedCount, "继承原版陷阱的项应自动批准");
@@ -1447,9 +1446,10 @@ try
             ServerShopListingKinds.SellToPlayer,
             new ThingReferenceDto("smoke-shop:silver", "Silver", 1, displayLabel: "白银"),
             priceSilver: 12,
-            stockCount: 7))).Content.ReadFromJsonAsync<UpsertServerShopListingResponse>())!;
+            stockCount: 7, authToken: baselineSetupLogin.AuthToken))).Content.ReadFromJsonAsync<UpsertServerShopListingResponse>())!;
     Require(shopListing.Result.Accepted, "管理员应能上架服务器商店商品");
     Require(shopListing.Listing is not null, "服务器商店上架应返回商品记录");
+    await LogoutSmokeSetup(httpClient, "user-a", "colony-a", baselineSetupLogin.SessionId);
 
     ListServerShopResponse shopList = (await (await httpClient.PostAsJsonAsync(
         ProtocolContractManifest.Find(ProtocolMessageKind.ListServerShop).Route,

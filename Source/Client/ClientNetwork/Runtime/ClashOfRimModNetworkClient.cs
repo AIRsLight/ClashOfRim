@@ -2052,6 +2052,7 @@ public sealed partial class ClashOfRimModNetworkClient
 
         var request = new ModUpsertServerShopListingRequestDto
         {
+            AuthToken = context.AuthToken,
             UserId = context.UserId,
             ColonyId = context.ColonyId,
             ListingId = listingId,
@@ -2080,6 +2081,7 @@ public sealed partial class ClashOfRimModNetworkClient
 
         var request = new ModRemoveServerShopListingRequestDto
         {
+            AuthToken = context.AuthToken,
             UserId = context.UserId,
             ColonyId = context.ColonyId,
             ListingId = listingId

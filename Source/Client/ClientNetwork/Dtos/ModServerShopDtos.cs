@@ -69,6 +69,9 @@ public sealed class ModListServerShopResponseDto
 [DataContract]
 public sealed class ModUpsertServerShopListingRequestDto
 {
+    [DataMember(Name = "authToken")]
+    public string? AuthToken { get; set; }
+
     [DataMember(Name = "userId")]
     public string UserId { get; set; } = string.Empty;
 
@@ -113,6 +116,9 @@ public sealed class ModUpsertServerShopListingResponseDto
 [DataContract]
 public sealed class ModRemoveServerShopListingRequestDto
 {
+    [DataMember(Name = "authToken")]
+    public string? AuthToken { get; set; }
+
     [DataMember(Name = "userId")]
     public string UserId { get; set; } = string.Empty;
 
