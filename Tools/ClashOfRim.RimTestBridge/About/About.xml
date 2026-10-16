@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModMetaData>
+  <name>ClashOfRim RimTest bridge (tests only)</name>
+  <author>AIRsLight</author>
+  <packageId>airslight.clashofrim.rimtestbridge</packageId>
+  <supportedVersions><li>1.7</li></supportedVersions>
+  <modDependencies>
+    <li><packageId>airslight.clashofrim</packageId><displayName>ClashOfRim</displayName><downloadUrl>https://github.com/AIRsLight/ClashOfRim</downloadUrl></li>
+    <li><packageId>airslight.rimtest</packageId><displayName>RimTest</displayName><downloadUrl>https://github.com/AIRsLight/RimTest</downloadUrl></li>
+  </modDependencies>
+  <loadAfter><li>airslight.clashofrim</li><li>airslight.rimtest</li></loadAfter>
+  <description>Opt-in test adapter. Uses existing client actions on an isolated loopback test server. Not part of release packages.</description>
+</ModMetaData>

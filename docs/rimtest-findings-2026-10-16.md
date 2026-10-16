@@ -37,3 +37,34 @@ HTTP 与 WebSocket 现在共用 `ServerLocalization.EncodeLanguageHeader`：规�
 - 混合语言场景只选择产品原本允许的“仅语言警告继续”按钮；协议、模组内容或配置不兼容仍失败。该测试不移除产品的语言风险提示。
 
 本地旧反编译资料用于定位适配器名称，实机运行负责核验。REA 元数据调用 `ev_3c099faa24502ceb67ccdadf348326ad1802cba980cdd23743796de42974d550` 因 64 MiB 表示预算返回 unavailable，不能作为当前程序集完整成员覆盖的证据。没有提交游戏程序集或反编译源码。
+
+## 待修复：重复接受已确认礼物产生第二份物资
+
+`LocalOnly/rimtest-core-complete6.log` 对应的 `G:/RimTestRuns/ExpandedCore` 运行中，B 接受 A 的 5 木材礼物后库存 250 → 255；待快照事务完成，再调用同一个 `HandleEventLetterAction(eventId, Accept)` 并刷新事件、推进 600 tick，库存变成 260。服务端已确认并不保证旧客户端操作入口不会再次应用本地载荷。当前入口只确认事件详情存在和业务类型，没有复用队列/处理状态限制。
+
+回归已保留在默认矩阵独立 `gift-repeat-accept` 场景中，依然要求第二次库存不变。单独运行是为了不让已污染的库存干扰后续其他功能验收，不是忽略失败。后续应统一事件动作可用性与本地已确认状态，避免只给礼物加一个孤立缓存。
+
+独立场景再次复现：`G:/RimTestRuns/FinalFeatures/20261016-100813-60ed93cd/gift-repeat-accept/20261016-101249-993141d2`。首次交付后库存 305，重复接受后 310；联盟、原远行队装载和首次礼物接受均先通过。这一证据不依赖其他经济业务留下的库存。
+
+## 待定位：跨语言地区文字初始化与区域格式解析
+
+- `WorldMatrix/20261016-093608-6e0fa7f3` 的中文 100% 场景有地区数量断言失败，日志为 `WorldFeatureTextMesh_Legacy.Init` 空引用；后续 `FinalMatrix/20261016-094519-d7329d82/coverage50-french` 在 `RefreshWorldFeatureTexts` / `GenerateWorldFromServerConfiguration` 的完成回调复现相同异常，阻断选址页。最终报告应区分 Headless 与无窗口渲染对照，不能凭无渲染测试断言所有正常桌面也失败。
+- 显式 fr-FR / de-DE 数字格式的 `hot-custom-comma` 中，1.37 威胁系数被应用成 137，0.17 / 0.63 也被放大；需检查 XML 写读的文化格式契约。该测试环境会主动覆盖游戏默认 en-US，所以不能直接声称普通法语游戏必然如此。
+- 非 Headless 的 fr-FR 对照 `RenderControl/20261016-095211-bf945fd3` 被原生 `Verse.Grammar.Rule_String` 解析 `0.15` 的 `FormatException` 阻断。它说明强制区域格式也影响基础游戏规则解析，尚不能用这次运行排除或确认渲染模式与地区文字空引用的关系。
+- 最低温度 / Extreme 的一次运行在错误门禁发现 `{GROUP}` / `{COUNT}` 未替换；保留原始错误，不把随机出现的本地化错误加入白名单。
+
+非 Headless、法文显示但保留 en-US 数字格式的对照 `G:/RimTestRuns/RenderControl/20261016-095845-b438bc1b` 已通过建档、运行中难度修改及存档重载，仍发现地区数量不一致。因此地区数据断言失败不能全部归于 Headless。该对照同时暴露了观察器错误地比较玩家代理派系、Core 隐藏意识形态的问题，现已按上面的比较契约修正；旧报告保留。
+
+## 测试框架生命周期修正
+
+管理员踢人/重连用例暴露 `game.state` 在半初始化游戏上读取 `TickManager.Paused` 的空引用。该属性会间接读取尚不存在的世界 UI / tilePicker；仅检查 Playing 不足以覆盖加载中间态。框架现在统一从已存在世界 UI 的 Playing 游戏获取当前时钟；菜单/装载期间返回空暂停状态，旧 tick 操作的统计仍保留，但不再借用新游戏的暂停组件。`time.status`、`time.context` 复用同一判定，不捕获并吞掉异常。
+
+套件还修正了三类前置条件错误：登录必须等待新的游戏 epoch；恢复的初始快照可能仍有开局运输舱，统一等待落地后才检查经济库存；退出必须走原版返回菜单流程，仅调用登出钩子会留下可自动重连的游戏组件。这些中间失败保留在原报告中，不记作已确认的模组缺陷。框架独立 smoke 已验证返回菜单以及随后三个生命周期接口，证据为 `G:/RimTestRuns/FrameworkMenu/20261016-102619-1f7f4f98/report.json`。
+
+## 待修复：真实返回菜单后残留登录/上传忙碌状态
+
+`G:/RimTestRuns/VerifiedCore/20261016-102544-2beecfa7` 中，踢人重连和封禁/解封通过。随后上传并等待空闲，经原版 `GenScene.GoToMainMenu` 退出后，`game.state` 已是 `hasGame=false`、`playing=false`、菜单就绪；但客户端 `manualSyncInProgress=true`、`snapshotUploadInProgress=true`，状态停在 “Logging in to the server / Preparing and uploading the current save”。下一次登录入口前的空闲等待超时，因此错密码与维护登录的后续步骤被阻断。
+
+这是走真实退出流程后的失败，不是前述“只调用退出钩子却仍保留游戏”的夹具问题。需要检查退场期间已排队的登录/上传回调、会话代际取消和忙碌标志的清理。现有证据尚不足以锁定具体回调；不应简单添加超时清标志来使测试通过。此前只在仍加载的游戏内调用退出钩子的通过记录，不能证明真实退出到菜单的重连正常。
+
+独立的 100% 覆盖率/外部叙事者场景也复现同样忙碌状态：`G:/RimTestRuns/FinalMenuWorld/20261016-102625-c3e63048/mod-storyteller100/20261016-102625-0bcaceed`。它已通过前面的 12 项世界/难度/存档检查，在真实退出后的 `session-reconnect` 失败，因此不依赖管理员封禁、经济或袭击业务。

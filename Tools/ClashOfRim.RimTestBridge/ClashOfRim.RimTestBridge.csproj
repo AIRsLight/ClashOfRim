@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>12</LangVersion>
+    <GenerateDependencyFile>false</GenerateDependencyFile>
+  </PropertyGroup>
+  <Import Project="../RimWorld.Client.props" />
+  <ItemGroup>
+    <ProjectReference Include="../../Source/Client/ClashOfRim.csproj" Private="false" />
+    <ProjectReference Include="../../RimTest/src/RimTest.RimWorld/RimTest.RimWorld.csproj" Private="false" />
+  </ItemGroup>
+</Project>

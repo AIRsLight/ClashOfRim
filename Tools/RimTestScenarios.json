@@ -1,0 +1,170 @@
+[
+  {
+    "id": "core-features",
+    "features": true,
+    "coverage": 30,
+    "storyteller": "Cassandra",
+    "difficulty": "Peaceful"
+  },
+  {
+    "id": "coverage50-french",
+    "features": false,
+    "coverage": 50,
+    "seed": "Frontière 50,5 世界",
+    "storyteller": "Phoebe",
+    "difficulty": "Easy",
+    "A": {
+      "language": "English",
+      "culture": "en-US"
+    },
+    "B": {
+      "language": "French (Français)",
+      "culture": "fr-FR"
+    }
+  },
+  {
+    "id": "coverage100-chinese-host",
+    "features": false,
+    "coverage": 100,
+    "seed": "全世界 100% İzmir",
+    "storyteller": "Randy",
+    "difficulty": "Medium",
+    "A": {
+      "language": "ChineseSimplified (简体中文)",
+      "culture": "zh-CN"
+    },
+    "B": {
+      "language": "English",
+      "culture": "en-US"
+    }
+  },
+  {
+    "id": "dry-sparse-german",
+    "features": false,
+    "coverage": 30,
+    "rainfall": "min",
+    "population": "min",
+    "storyteller": "Randy",
+    "difficulty": "Rough",
+    "B": {
+      "language": "German (Deutsch)",
+      "culture": "de-DE"
+    }
+  },
+  {
+    "id": "wet-crowded-turkish",
+    "features": false,
+    "coverage": 50,
+    "rainfall": "max",
+    "population": "max",
+    "storyteller": "Cassandra",
+    "difficulty": "Hard",
+    "A": {
+      "language": "English",
+      "culture": "tr-TR"
+    },
+    "B": {
+      "language": "ChineseSimplified (简体中文)",
+      "culture": "en-US"
+    }
+  },
+  {
+    "id": "cold-extreme",
+    "features": false,
+    "coverage": 30,
+    "temperature": "min",
+    "storyteller": "Phoebe",
+    "difficulty": "Extreme"
+  },
+  {
+    "id": "hot-custom-comma",
+    "features": false,
+    "coverage": 100,
+    "temperature": "max",
+    "storyteller": "Cassandra",
+    "difficulty": "Custom",
+    "baseDifficulty": "Hard",
+    "customValues": {
+      "threatScale": 1.37,
+      "allowInstantKillChance": 0.17,
+      "adaptationEffectFactor": 0.63
+    },
+    "A": {
+      "language": "French (Français)",
+      "culture": "fr-FR"
+    },
+    "B": {
+      "language": "English",
+      "culture": "de-DE"
+    }
+  },
+  {
+    "id": "dlc-cultures",
+    "features": true,
+    "coverage": 30,
+    "storyteller": "Cassandra",
+    "difficulty": "Peaceful",
+    "pollution": 0.25,
+    "landmarks": "max",
+    "expansions": [
+      "Royalty",
+      "Ideology",
+      "Biotech",
+      "Anomaly",
+      "Odyssey"
+    ],
+    "A": {
+      "language": "ChineseSimplified (简体中文)",
+      "culture": "zh-CN"
+    },
+    "B": {
+      "language": "English",
+      "culture": "en-US"
+    }
+  },
+  {
+    "coverage": 100,
+    "storyteller": "RimTest_ExternalStoryteller",
+    "baseDifficulty": "Medium",
+    "difficulty": "Custom",
+    "features": false,
+    "id": "mod-storyteller100",
+    "customValues": {
+      "threatScale": 1.23,
+      "allowInstantKillChance": 0.31,
+      "adaptationEffectFactor": 0.47
+    }
+  },
+  {
+    "id": "dlc-culture-stress",
+    "features": false,
+    "coverage": 30,
+    "storyteller": "Cassandra",
+    "difficulty": "Peaceful",
+    "pollution": 0.25,
+    "landmarks": "max",
+    "expansions": [
+      "Royalty",
+      "Ideology",
+      "Biotech",
+      "Anomaly",
+      "Odyssey"
+    ],
+    "A": {
+      "language": "ChineseSimplified (简体中文)",
+      "culture": "zh-CN"
+    },
+    "B": {
+      "language": "English",
+      "culture": "fr-FR"
+    }
+  },
+  {
+    "storyteller": "Cassandra",
+    "giftReplay": true,
+    "coverage": 30,
+    "features": false,
+    "difficulty": "Peaceful",
+    "id": "gift-repeat-accept"
+  }
+]

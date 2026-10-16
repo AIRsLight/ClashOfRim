@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Defs>
+  <!-- Test-only definition; verifies that synchronization accepts loaded mod storytellers. -->
+  <StorytellerDef ParentName="BaseStoryteller">
+    <defName>RimTest_ExternalStoryteller</defName>
+    <label>RimTest external storyteller</label>
+    <description>A test definition for world baseline and runtime storyteller synchronization.</description>
+    <portraitLarge>UI/HeroArt/Storytellers/CassandraClassic</portraitLarge>
+    <portraitTiny>UI/HeroArt/Storytellers/CassandraClassicTiny</portraitTiny>
+    <listOrder>999</listOrder>
+  </StorytellerDef>
+</Defs>

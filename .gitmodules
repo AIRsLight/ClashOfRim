@@ -2,3 +2,7 @@
 	url = ../ClashOfRim.ThirdPartyCompat.git
 	branch = dev
 	path = ThirdPartyCompat
+[submodule "RimTest"]
+	path = RimTest
+	url = ../RimTest.git
+	branch = main

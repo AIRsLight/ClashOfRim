@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><LangVersion>12</LangVersion></PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <ProjectReference Include="../../RimTest/src/RimTest.Client/RimTest.Client.csproj" />
+    <ProjectReference Include="../../RimTest/src/RimTest.Testing/RimTest.Testing.csproj" />
+    <ProjectReference Include="../../Source/Server/ClashOfRim.Network/ClashOfRim.Network.csproj" />
+  </ItemGroup>
+</Project>

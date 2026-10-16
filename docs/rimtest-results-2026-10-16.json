@@ -1,0 +1,829 @@
+{
+  "date": "2026-10-16",
+  "gameVersion": "1.7.4980 rev60",
+  "fullCoverage": false,
+  "evidenceKind": "Selected iterative runs, not one immutable all-green matrix. Each original inputs.json includes working-tree status and binary hashes.",
+  "plannedCaseExecutions": 214,
+  "distinctCases": 43,
+  "scenarios": [
+    {
+      "id": "core-features",
+      "passed": false,
+      "evidence": "G:\\RimTestRuns\\VerifiedCore\\20261016-102544-2beecfa7\\report.json",
+      "executed": 23,
+      "passedCases": 22,
+      "failedCases": 1,
+      "notRun": [
+        "snapshot-save-reload",
+        "session-reconnect",
+        "bank-loan-repayment",
+        "shop-purchase-stock",
+        "trade-cancel-refund",
+        "trade-drop-pod-fulfillment",
+        "alliance-request-accept",
+        "ally-observation-close",
+        "caravan-load-travel",
+        "caravan-gift-accept",
+        "support-send-early-return",
+        "mercenary-hire",
+        "mercenary-recall",
+        "raid-open-settle",
+        "bank-input-rejection",
+        "shop-buyback-stock-rejection",
+        "trade-memo-cancel",
+        "achievement-unlock-leaderboard",
+        "runtime-errors"
+      ],
+      "failures": [
+        {
+          "id": "maintenance-password-rejection",
+          "reason": "Observation deadline: B/clash.state; last={\"userId\":\"rimtest-B\",\"colonyId\":\"colony-rimtest-B\",\"currentSnapshotId\":\"\",\"serverBaseUrl\":\"http://127.0.0.1:54619\",\"isNetworkConfigured\":true,\"isInActiveMultiplayerSession\":false,\"isServerWorldSetupFlow\":false,\"isAdministrator\":false,\"snapshotUploadInProgress\":true,\"manualSyncInProgress\":true,\"localAtomicMutationPending\":false,\"localAtomicMutationOperation\":\"\",\"presenceInProgress\":false,\"chatInProgress\":false,\"bankInProgress\":false,\"mercenaryInProgress\":false,\"serverShopInProgress\":false,\"adminInProgress\":false,\"loginStatus\":\"Logging in to the server.\",\"snapshotUploadStatus\":\"Preparing and uploading the current save.\",\"eventQueueStatus\":\"Automatic 0, Waiting for player choice 0, Confirming 0, Needs attention 0, Rejected 0\",\"eventDetailsStatus\":\"Automatic sync complete: there are no new server messages.\",\"bankStatus\":\"Bank status has not been loaded.\",\"chatStatus\":\"Chat refreshed, 3 new message(s).\",\"tradeStatus\":\"No trade order has been created yet.\",\"worldMapStatus\":\"Refreshing world catalog: World catalog update.\",\"mercenaryStatus\":\"No mercenary operation has run yet.\",\"serverShopStatus\":\"Shop is ready.\",\"adminStatus\":\"Admin status has not been loaded.\",\"giftProcessingStatus\":\"No gift has been processed yet.\",\"playerListStatus\":\"Players: Rimtest-A (Online), rimtest-B (Online)\",\"achievementStatus\":\"\",\"tradeOrdersPageLoadInProgress\":false,\"unreadPrivateChatCount\":0,\"accountPasswordInProgress\":false,\"accountPasswordStatus\":\"Password changed.\"}"
+        }
+      ],
+      "repositoryCommit": "cf5def6e4512750edb83a667a7a0d46fae888ec5",
+      "frameworkCommit": "7c2ce21eae4cca56f2ef354bf957fdd7a4e3b7b8",
+      "binaries": [
+        {
+          "path": "D:\\Projects\\ClashOfRim\\RimTest\\artifacts\\packages\\RimTest-6224843e\\Assemblies\\RimTest.RimWorld.dll",
+          "sha256": "AB6E80889AF06BC130B88AE092BADF64031CAE53B8C287B86BB3A3DF57BB2B31"
+        },
+        {
+          "path": "G:\\RimTestRuns\\VerifiedCore\\20261016-102544-2beecfa7\\Runner\\ClashOfRim.GameTests.dll",
+          "sha256": "C07C57A25594A6CCA83968C015B834FBDE9278013486150E4AB986315D2A3C44"
+        },
+        {
+          "path": "G:\\RimTestRuns\\VerifiedCore\\20261016-102544-2beecfa7\\Bridge\\Assemblies\\ClashOfRim.RimTestBridge.dll",
+          "sha256": "3637D0263DB2E7DF53CC7807FC711561070EC16FD5B9577CDDB294A71347EAD3"
+        }
+      ],
+      "cases": [
+        {
+          "id": "launch-profile",
+          "status": "passed"
+        },
+        {
+          "id": "shared-world-entry",
+          "status": "passed"
+        },
+        {
+          "id": "world-parameters",
+          "status": "passed"
+        },
+        {
+          "id": "world-geometry",
+          "status": "passed"
+        },
+        {
+          "id": "world-tile-data",
+          "status": "passed"
+        },
+        {
+          "id": "world-feature-identities",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-difficulty",
+          "status": "passed"
+        },
+        {
+          "id": "culture-references",
+          "status": "passed"
+        },
+        {
+          "id": "world-persistence",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-permission",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-difficulty-sync",
+          "status": "passed"
+        },
+        {
+          "id": "account-password-change",
+          "status": "passed"
+        },
+        {
+          "id": "colony-appearance-sync",
+          "status": "passed"
+        },
+        {
+          "id": "public-chat",
+          "status": "passed"
+        },
+        {
+          "id": "private-chat-read",
+          "status": "passed"
+        },
+        {
+          "id": "unicode-chat-blank-rejection",
+          "status": "passed"
+        },
+        {
+          "id": "admin-configuration-permissions",
+          "status": "passed"
+        },
+        {
+          "id": "admin-action-permissions",
+          "status": "passed"
+        },
+        {
+          "id": "admin-role-grant-revoke",
+          "status": "passed"
+        },
+        {
+          "id": "admin-broadcast",
+          "status": "passed"
+        },
+        {
+          "id": "admin-kick-reconnect",
+          "status": "passed"
+        },
+        {
+          "id": "admin-ban-unban",
+          "status": "passed"
+        },
+        {
+          "id": "maintenance-password-rejection",
+          "status": "failed"
+        }
+      ]
+    },
+    {
+      "id": "coverage50-french",
+      "passed": false,
+      "evidence": "G:\\RimTestRuns\\VerifiedWorlds\\20261016-100921-818af2ed\\coverage50-french\\20261016-100921-3f0bbe2f\\report.json",
+      "executed": 2,
+      "passedCases": 1,
+      "failedCases": 1,
+      "notRun": [
+        "world-parameters",
+        "world-geometry",
+        "world-tile-data",
+        "world-feature-identities",
+        "storyteller-difficulty",
+        "culture-references",
+        "world-persistence",
+        "storyteller-permission",
+        "runtime-difficulty-sync",
+        "snapshot-save-reload",
+        "session-reconnect",
+        "runtime-errors"
+      ],
+      "failures": [
+        {
+          "id": "shared-world-entry",
+          "reason": "Game error during entry: Exception parsing grammar rule from PersonalCharacteristic_Plural(p=0.15)->organes génitaux: System.FormatException: The input string '0.15' was not in a correct format."
+        }
+      ],
+      "repositoryCommit": "cf5def6e4512750edb83a667a7a0d46fae888ec5",
+      "frameworkCommit": "ba6935c8b79ac4442f25994bb394467a513706ec",
+      "binaries": [
+        {
+          "path": "D:\\Projects\\ClashOfRim\\RimTest\\artifacts\\packages\\RimTest-fe10f9cd\\Assemblies\\RimTest.RimWorld.dll",
+          "sha256": "4CC7BC7A898163A064A581E48FC73FD39891DD8DB5767C68FEB5FF9DE9D1B3F4"
+        },
+        {
+          "path": "G:\\RimTestRuns\\VerifiedWorlds\\20261016-100921-818af2ed\\coverage50-french\\20261016-100921-3f0bbe2f\\Runner\\ClashOfRim.GameTests.dll",
+          "sha256": "5BE482FE2C027239E362CE82E6B032B08AE382D63A5BF7DC9B57D730DC3EE34C"
+        },
+        {
+          "path": "G:\\RimTestRuns\\VerifiedWorlds\\20261016-100921-818af2ed\\coverage50-french\\20261016-100921-3f0bbe2f\\Bridge\\Assemblies\\ClashOfRim.RimTestBridge.dll",
+          "sha256": "A6DAFAFA4510F4D6021183255DE0EE748F7BDD31F7FE09372ED38701D1B69FDD"
+        }
+      ],
+      "cases": [
+        {
+          "id": "launch-profile",
+          "status": "passed"
+        },
+        {
+          "id": "shared-world-entry",
+          "status": "failed"
+        }
+      ]
+    },
+    {
+      "id": "coverage100-chinese-host",
+      "passed": false,
+      "evidence": "G:\\RimTestRuns\\VerifiedWorlds\\20261016-100921-818af2ed\\coverage100-chinese-host\\20261016-101006-17cb7725\\report.json",
+      "executed": 2,
+      "passedCases": 1,
+      "failedCases": 1,
+      "notRun": [
+        "world-parameters",
+        "world-geometry",
+        "world-tile-data",
+        "world-feature-identities",
+        "storyteller-difficulty",
+        "culture-references",
+        "world-persistence",
+        "storyteller-permission",
+        "runtime-difficulty-sync",
+        "snapshot-save-reload",
+        "session-reconnect",
+        "runtime-errors"
+      ],
+      "failures": [
+        {
+          "id": "shared-world-entry",
+          "reason": "Game error during entry: Root level exception in Update(): System.NullReferenceException: Object reference not set to an instance of an object."
+        }
+      ],
+      "repositoryCommit": "cf5def6e4512750edb83a667a7a0d46fae888ec5",
+      "frameworkCommit": "ba6935c8b79ac4442f25994bb394467a513706ec",
+      "binaries": [
+        {
+          "path": "D:\\Projects\\ClashOfRim\\RimTest\\artifacts\\packages\\RimTest-fe10f9cd\\Assemblies\\RimTest.RimWorld.dll",
+          "sha256": "4CC7BC7A898163A064A581E48FC73FD39891DD8DB5767C68FEB5FF9DE9D1B3F4"
+        },
+        {
+          "path": "G:\\RimTestRuns\\VerifiedWorlds\\20261016-100921-818af2ed\\coverage100-chinese-host\\20261016-101006-17cb7725\\Runner\\ClashOfRim.GameTests.dll",
+          "sha256": "5BE482FE2C027239E362CE82E6B032B08AE382D63A5BF7DC9B57D730DC3EE34C"
+        },
+        {
+          "path": "G:\\RimTestRuns\\VerifiedWorlds\\20261016-100921-818af2ed\\coverage100-chinese-host\\20261016-101006-17cb7725\\Bridge\\Assemblies\\ClashOfRim.RimTestBridge.dll",
+          "sha256": "A6DAFAFA4510F4D6021183255DE0EE748F7BDD31F7FE09372ED38701D1B69FDD"
+        }
+      ],
+      "cases": [
+        {
+          "id": "launch-profile",
+          "status": "passed"
+        },
+        {
+          "id": "shared-world-entry",
+          "status": "failed"
+        }
+      ]
+    },
+    {
+      "id": "dry-sparse-german",
+      "passed": false,
+      "evidence": "G:\\RimTestRuns\\VerifiedWorlds\\20261016-100921-818af2ed\\dry-sparse-german\\20261016-101047-a7df853f\\report.json",
+      "executed": 2,
+      "passedCases": 1,
+      "failedCases": 1,
+      "notRun": [
+        "world-parameters",
+        "world-geometry",
+        "world-tile-data",
+        "world-feature-identities",
+        "storyteller-difficulty",
+        "culture-references",
+        "world-persistence",
+        "storyteller-permission",
+        "runtime-difficulty-sync",
+        "snapshot-save-reload",
+        "session-reconnect",
+        "runtime-errors"
+      ],
+      "failures": [
+        {
+          "id": "shared-world-entry",
+          "reason": "Game error during entry: Could not execute post-long-event action. Exception: System.NullReferenceException: Object reference not set to an instance of an object."
+        }
+      ],
+      "repositoryCommit": "cf5def6e4512750edb83a667a7a0d46fae888ec5",
+      "frameworkCommit": "ba6935c8b79ac4442f25994bb394467a513706ec",
+      "binaries": [
+        {
+          "path": "D:\\Projects\\ClashOfRim\\RimTest\\artifacts\\packages\\RimTest-fe10f9cd\\Assemblies\\RimTest.RimWorld.dll",
+          "sha256": "4CC7BC7A898163A064A581E48FC73FD39891DD8DB5767C68FEB5FF9DE9D1B3F4"
+        },
+        {
+          "path": "G:\\RimTestRuns\\VerifiedWorlds\\20261016-100921-818af2ed\\dry-sparse-german\\20261016-101047-a7df853f\\Runner\\ClashOfRim.GameTests.dll",
+          "sha256": "5BE482FE2C027239E362CE82E6B032B08AE382D63A5BF7DC9B57D730DC3EE34C"
+        },
+        {
+          "path": "G:\\RimTestRuns\\VerifiedWorlds\\20261016-100921-818af2ed\\dry-sparse-german\\20261016-101047-a7df853f\\Bridge\\Assemblies\\ClashOfRim.RimTestBridge.dll",
+          "sha256": "A6DAFAFA4510F4D6021183255DE0EE748F7BDD31F7FE09372ED38701D1B69FDD"
+        }
+      ],
+      "cases": [
+        {
+          "id": "launch-profile",
+          "status": "passed"
+        },
+        {
+          "id": "shared-world-entry",
+          "status": "failed"
+        }
+      ]
+    },
+    {
+      "id": "wet-crowded-turkish",
+      "passed": false,
+      "evidence": "G:\\RimTestRuns\\VerifiedWorlds\\20261016-100921-818af2ed\\wet-crowded-turkish\\20261016-101118-4d925262\\report.json",
+      "executed": 2,
+      "passedCases": 1,
+      "failedCases": 1,
+      "notRun": [
+        "world-parameters",
+        "world-geometry",
+        "world-tile-data",
+        "world-feature-identities",
+        "storyteller-difficulty",
+        "culture-references",
+        "world-persistence",
+        "storyteller-permission",
+        "runtime-difficulty-sync",
+        "snapshot-save-reload",
+        "session-reconnect",
+        "runtime-errors"
+      ],
+      "failures": [
+        {
+          "id": "shared-world-entry",
+          "reason": "Game error during entry: Could not execute post-long-event action. Exception: System.NullReferenceException: Object reference not set to an instance of an object."
+        }
+      ],
+      "repositoryCommit": "cf5def6e4512750edb83a667a7a0d46fae888ec5",
+      "frameworkCommit": "ba6935c8b79ac4442f25994bb394467a513706ec",
+      "binaries": [
+        {
+          "path": "D:\\Projects\\ClashOfRim\\RimTest\\artifacts\\packages\\RimTest-fe10f9cd\\Assemblies\\RimTest.RimWorld.dll",
+          "sha256": "4CC7BC7A898163A064A581E48FC73FD39891DD8DB5767C68FEB5FF9DE9D1B3F4"
+        },
+        {
+          "path": "G:\\RimTestRuns\\VerifiedWorlds\\20261016-100921-818af2ed\\wet-crowded-turkish\\20261016-101118-4d925262\\Runner\\ClashOfRim.GameTests.dll",
+          "sha256": "5BE482FE2C027239E362CE82E6B032B08AE382D63A5BF7DC9B57D730DC3EE34C"
+        },
+        {
+          "path": "G:\\RimTestRuns\\VerifiedWorlds\\20261016-100921-818af2ed\\wet-crowded-turkish\\20261016-101118-4d925262\\Bridge\\Assemblies\\ClashOfRim.RimTestBridge.dll",
+          "sha256": "A6DAFAFA4510F4D6021183255DE0EE748F7BDD31F7FE09372ED38701D1B69FDD"
+        }
+      ],
+      "cases": [
+        {
+          "id": "launch-profile",
+          "status": "passed"
+        },
+        {
+          "id": "shared-world-entry",
+          "status": "failed"
+        }
+      ]
+    },
+    {
+      "id": "cold-extreme",
+      "passed": true,
+      "evidence": "G:\\RimTestRuns\\FinalWorldRoundtrip\\20261016-101805-9d47ea0a\\cold-extreme\\20261016-101805-d197ebd2\\report.json",
+      "executed": 14,
+      "passedCases": 14,
+      "failedCases": 0,
+      "notRun": [],
+      "failures": [],
+      "repositoryCommit": "cf5def6e4512750edb83a667a7a0d46fae888ec5",
+      "frameworkCommit": "7c2ce21eae4cca56f2ef354bf957fdd7a4e3b7b8",
+      "binaries": [
+        {
+          "path": "D:\\Projects\\ClashOfRim\\RimTest\\artifacts\\packages\\RimTest-67d32c1e\\Assemblies\\RimTest.RimWorld.dll",
+          "sha256": "8C1B0AF2C544FDAF9D062A2215AED6456C5437FCD40B8F96960843058229AF62"
+        },
+        {
+          "path": "G:\\RimTestRuns\\FinalWorldRoundtrip\\20261016-101805-9d47ea0a\\cold-extreme\\20261016-101805-d197ebd2\\Runner\\ClashOfRim.GameTests.dll",
+          "sha256": "C170F232620BC878562F522F8C8FBDAA7D95487603F6FC8666C953AFB353785A"
+        },
+        {
+          "path": "G:\\RimTestRuns\\FinalWorldRoundtrip\\20261016-101805-9d47ea0a\\cold-extreme\\20261016-101805-d197ebd2\\Bridge\\Assemblies\\ClashOfRim.RimTestBridge.dll",
+          "sha256": "A6DAFAFA4510F4D6021183255DE0EE748F7BDD31F7FE09372ED38701D1B69FDD"
+        }
+      ],
+      "cases": [
+        {
+          "id": "launch-profile",
+          "status": "passed"
+        },
+        {
+          "id": "shared-world-entry",
+          "status": "passed"
+        },
+        {
+          "id": "world-parameters",
+          "status": "passed"
+        },
+        {
+          "id": "world-geometry",
+          "status": "passed"
+        },
+        {
+          "id": "world-tile-data",
+          "status": "passed"
+        },
+        {
+          "id": "world-feature-identities",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-difficulty",
+          "status": "passed"
+        },
+        {
+          "id": "culture-references",
+          "status": "passed"
+        },
+        {
+          "id": "world-persistence",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-permission",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-difficulty-sync",
+          "status": "passed"
+        },
+        {
+          "id": "snapshot-save-reload",
+          "status": "passed"
+        },
+        {
+          "id": "session-reconnect",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-errors",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "id": "hot-custom-comma",
+      "passed": false,
+      "evidence": "G:\\RimTestRuns\\VerifiedWorlds\\20261016-100921-818af2ed\\hot-custom-comma\\20261016-101250-3a7f5b87\\report.json",
+      "executed": 2,
+      "passedCases": 1,
+      "failedCases": 1,
+      "notRun": [
+        "world-parameters",
+        "world-geometry",
+        "world-tile-data",
+        "world-feature-identities",
+        "storyteller-difficulty",
+        "culture-references",
+        "world-persistence",
+        "storyteller-permission",
+        "runtime-difficulty-sync",
+        "snapshot-save-reload",
+        "session-reconnect",
+        "runtime-errors"
+      ],
+      "failures": [
+        {
+          "id": "shared-world-entry",
+          "reason": "Game error during entry: Exception parsing grammar rule from PersonalCharacteristic_Plural(p=0.15)->organes génitaux: System.FormatException: The input string '0.15' was not in a correct format."
+        }
+      ],
+      "repositoryCommit": "cf5def6e4512750edb83a667a7a0d46fae888ec5",
+      "frameworkCommit": "ba6935c8b79ac4442f25994bb394467a513706ec",
+      "binaries": [
+        {
+          "path": "D:\\Projects\\ClashOfRim\\RimTest\\artifacts\\packages\\RimTest-54d0e0fd\\Assemblies\\RimTest.RimWorld.dll",
+          "sha256": "B37CC6B0B1A6597D4B275D791709850CBF99C41A678EBA5FD378D469FFCBB54F"
+        },
+        {
+          "path": "G:\\RimTestRuns\\VerifiedWorlds\\20261016-100921-818af2ed\\hot-custom-comma\\20261016-101250-3a7f5b87\\Runner\\ClashOfRim.GameTests.dll",
+          "sha256": "5BE482FE2C027239E362CE82E6B032B08AE382D63A5BF7DC9B57D730DC3EE34C"
+        },
+        {
+          "path": "G:\\RimTestRuns\\VerifiedWorlds\\20261016-100921-818af2ed\\hot-custom-comma\\20261016-101250-3a7f5b87\\Bridge\\Assemblies\\ClashOfRim.RimTestBridge.dll",
+          "sha256": "A6DAFAFA4510F4D6021183255DE0EE748F7BDD31F7FE09372ED38701D1B69FDD"
+        }
+      ],
+      "cases": [
+        {
+          "id": "launch-profile",
+          "status": "passed"
+        },
+        {
+          "id": "shared-world-entry",
+          "status": "failed"
+        }
+      ]
+    },
+    {
+      "id": "dlc-cultures",
+      "passed": false,
+      "evidence": "G:\\RimTestRuns\\FinalFeatures\\20261016-100813-60ed93cd\\dlc-cultures\\20261016-101214-7a2eaf8e\\report.json",
+      "executed": 2,
+      "passedCases": 1,
+      "failedCases": 1,
+      "notRun": [
+        "world-parameters",
+        "world-geometry",
+        "world-tile-data",
+        "world-feature-identities",
+        "storyteller-difficulty",
+        "culture-references",
+        "world-persistence",
+        "storyteller-permission",
+        "runtime-difficulty-sync",
+        "snapshot-save-reload",
+        "session-reconnect",
+        "account-password-change",
+        "colony-appearance-sync",
+        "public-chat",
+        "private-chat-read",
+        "admin-configuration-permissions",
+        "bank-loan-repayment",
+        "shop-purchase-stock",
+        "trade-cancel-refund",
+        "trade-drop-pod-fulfillment",
+        "alliance-request-accept",
+        "ally-observation-close",
+        "caravan-load-travel",
+        "caravan-gift-accept",
+        "support-send-early-return",
+        "mercenary-hire",
+        "mercenary-recall",
+        "raid-open-settle",
+        "unicode-chat-blank-rejection",
+        "admin-action-permissions",
+        "admin-role-grant-revoke",
+        "admin-broadcast",
+        "bank-input-rejection",
+        "shop-buyback-stock-rejection",
+        "trade-memo-cancel",
+        "achievement-unlock-leaderboard",
+        "admin-kick-reconnect",
+        "admin-ban-unban",
+        "maintenance-password-rejection",
+        "runtime-errors"
+      ],
+      "failures": [
+        {
+          "id": "shared-world-entry",
+          "reason": "Game error during entry: Root level exception in Update(): System.NullReferenceException: Object reference not set to an instance of an object."
+        }
+      ],
+      "repositoryCommit": "cf5def6e4512750edb83a667a7a0d46fae888ec5",
+      "frameworkCommit": "ba6935c8b79ac4442f25994bb394467a513706ec",
+      "binaries": [
+        {
+          "path": "D:\\Projects\\ClashOfRim\\RimTest\\artifacts\\packages\\RimTest-54d0e0fd\\Assemblies\\RimTest.RimWorld.dll",
+          "sha256": "B37CC6B0B1A6597D4B275D791709850CBF99C41A678EBA5FD378D469FFCBB54F"
+        },
+        {
+          "path": "G:\\RimTestRuns\\FinalFeatures\\20261016-100813-60ed93cd\\dlc-cultures\\20261016-101214-7a2eaf8e\\Runner\\ClashOfRim.GameTests.dll",
+          "sha256": "5BE482FE2C027239E362CE82E6B032B08AE382D63A5BF7DC9B57D730DC3EE34C"
+        },
+        {
+          "path": "G:\\RimTestRuns\\FinalFeatures\\20261016-100813-60ed93cd\\dlc-cultures\\20261016-101214-7a2eaf8e\\Bridge\\Assemblies\\ClashOfRim.RimTestBridge.dll",
+          "sha256": "A6DAFAFA4510F4D6021183255DE0EE748F7BDD31F7FE09372ED38701D1B69FDD"
+        }
+      ],
+      "cases": [
+        {
+          "id": "launch-profile",
+          "status": "passed"
+        },
+        {
+          "id": "shared-world-entry",
+          "status": "failed"
+        }
+      ]
+    },
+    {
+      "id": "mod-storyteller100",
+      "passed": false,
+      "evidence": "G:\\RimTestRuns\\FinalMenuWorld\\20261016-102625-c3e63048\\mod-storyteller100\\20261016-102625-0bcaceed\\report.json",
+      "executed": 13,
+      "passedCases": 12,
+      "failedCases": 1,
+      "notRun": [
+        "runtime-errors"
+      ],
+      "failures": [
+        {
+          "id": "session-reconnect",
+          "reason": "Observation deadline: B/clash.state; last={\"userId\":\"rimtest-B\",\"colonyId\":\"colony-rimtest-B\",\"currentSnapshotId\":\"\",\"serverBaseUrl\":\"http://127.0.0.1:51332\",\"isNetworkConfigured\":true,\"isInActiveMultiplayerSession\":false,\"isServerWorldSetupFlow\":false,\"isAdministrator\":false,\"snapshotUploadInProgress\":true,\"manualSyncInProgress\":true,\"localAtomicMutationPending\":false,\"localAtomicMutationOperation\":\"\",\"presenceInProgress\":false,\"chatInProgress\":false,\"bankInProgress\":false,\"mercenaryInProgress\":false,\"serverShopInProgress\":false,\"adminInProgress\":false,\"loginStatus\":\"Logging in to the server.\",\"snapshotUploadStatus\":\"Preparing and uploading the current save.\",\"eventQueueStatus\":\"Automatic 0, Waiting for player choice 0, Confirming 0, Needs attention 0, Rejected 0\",\"eventDetailsStatus\":\"Automatic sync complete: there are no new server messages.\",\"bankStatus\":\"Bank status has not been loaded.\",\"chatStatus\":\"Chat refreshed, 0 new message(s).\",\"tradeStatus\":\"No trade order has been created yet.\",\"worldMapStatus\":\"Refreshing world catalog: World catalog update.\",\"mercenaryStatus\":\"No mercenary operation has run yet.\",\"serverShopStatus\":\"Shop is ready.\",\"adminStatus\":\"Admin status has not been loaded.\",\"giftProcessingStatus\":\"No gift has been processed yet.\",\"playerListStatus\":\"Players: Rimtest-A (Online), rimtest-B (Online)\",\"achievementStatus\":\"\",\"tradeOrdersPageLoadInProgress\":false,\"unreadPrivateChatCount\":0,\"accountPasswordInProgress\":false,\"accountPasswordStatus\":\"Password unchanged.\"}"
+        }
+      ],
+      "repositoryCommit": "cf5def6e4512750edb83a667a7a0d46fae888ec5",
+      "frameworkCommit": "7c2ce21eae4cca56f2ef354bf957fdd7a4e3b7b8",
+      "binaries": [
+        {
+          "path": "D:\\Projects\\ClashOfRim\\RimTest\\artifacts\\packages\\RimTest-3eb8b4ff\\Assemblies\\RimTest.RimWorld.dll",
+          "sha256": "AB6E80889AF06BC130B88AE092BADF64031CAE53B8C287B86BB3A3DF57BB2B31"
+        },
+        {
+          "path": "G:\\RimTestRuns\\FinalMenuWorld\\20261016-102625-c3e63048\\mod-storyteller100\\20261016-102625-0bcaceed\\Runner\\ClashOfRim.GameTests.dll",
+          "sha256": "C07C57A25594A6CCA83968C015B834FBDE9278013486150E4AB986315D2A3C44"
+        },
+        {
+          "path": "G:\\RimTestRuns\\FinalMenuWorld\\20261016-102625-c3e63048\\mod-storyteller100\\20261016-102625-0bcaceed\\Bridge\\Assemblies\\ClashOfRim.RimTestBridge.dll",
+          "sha256": "3637D0263DB2E7DF53CC7807FC711561070EC16FD5B9577CDDB294A71347EAD3"
+        }
+      ],
+      "cases": [
+        {
+          "id": "launch-profile",
+          "status": "passed"
+        },
+        {
+          "id": "shared-world-entry",
+          "status": "passed"
+        },
+        {
+          "id": "world-parameters",
+          "status": "passed"
+        },
+        {
+          "id": "world-geometry",
+          "status": "passed"
+        },
+        {
+          "id": "world-tile-data",
+          "status": "passed"
+        },
+        {
+          "id": "world-feature-identities",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-difficulty",
+          "status": "passed"
+        },
+        {
+          "id": "culture-references",
+          "status": "passed"
+        },
+        {
+          "id": "world-persistence",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-permission",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-difficulty-sync",
+          "status": "passed"
+        },
+        {
+          "id": "snapshot-save-reload",
+          "status": "passed"
+        },
+        {
+          "id": "session-reconnect",
+          "status": "failed"
+        }
+      ]
+    },
+    {
+      "id": "dlc-culture-stress",
+      "passed": false,
+      "evidence": "G:\\RimTestRuns\\VerifiedWorlds\\20261016-100921-818af2ed\\dlc-culture-stress\\20261016-101459-0a97b753\\report.json",
+      "executed": 2,
+      "passedCases": 1,
+      "failedCases": 1,
+      "notRun": [
+        "world-parameters",
+        "world-geometry",
+        "world-tile-data",
+        "world-feature-identities",
+        "storyteller-difficulty",
+        "culture-references",
+        "world-persistence",
+        "storyteller-permission",
+        "runtime-difficulty-sync",
+        "snapshot-save-reload",
+        "session-reconnect",
+        "runtime-errors"
+      ],
+      "failures": [
+        {
+          "id": "shared-world-entry",
+          "reason": "Game error during entry: Root level exception in Update(): System.NullReferenceException: Object reference not set to an instance of an object."
+        }
+      ],
+      "repositoryCommit": "cf5def6e4512750edb83a667a7a0d46fae888ec5",
+      "frameworkCommit": "ba6935c8b79ac4442f25994bb394467a513706ec",
+      "binaries": [
+        {
+          "path": "D:\\Projects\\ClashOfRim\\RimTest\\artifacts\\packages\\RimTest-2a52de03\\Assemblies\\RimTest.RimWorld.dll",
+          "sha256": "8C1B0AF2C544FDAF9D062A2215AED6456C5437FCD40B8F96960843058229AF62"
+        },
+        {
+          "path": "G:\\RimTestRuns\\VerifiedWorlds\\20261016-100921-818af2ed\\dlc-culture-stress\\20261016-101459-0a97b753\\Runner\\ClashOfRim.GameTests.dll",
+          "sha256": "716FE66F6D82EE0BE257EB743D54B65D624022141F9CC63498F65A1F7E3B5861"
+        },
+        {
+          "path": "G:\\RimTestRuns\\VerifiedWorlds\\20261016-100921-818af2ed\\dlc-culture-stress\\20261016-101459-0a97b753\\Bridge\\Assemblies\\ClashOfRim.RimTestBridge.dll",
+          "sha256": "A6DAFAFA4510F4D6021183255DE0EE748F7BDD31F7FE09372ED38701D1B69FDD"
+        }
+      ],
+      "cases": [
+        {
+          "id": "launch-profile",
+          "status": "passed"
+        },
+        {
+          "id": "shared-world-entry",
+          "status": "failed"
+        }
+      ]
+    },
+    {
+      "id": "gift-repeat-accept",
+      "passed": false,
+      "evidence": "G:\\RimTestRuns\\FinalFeatures\\20261016-100813-60ed93cd\\gift-repeat-accept\\20261016-101249-993141d2\\report.json",
+      "executed": 15,
+      "passedCases": 14,
+      "failedCases": 1,
+      "notRun": [
+        "snapshot-save-reload",
+        "session-reconnect",
+        "runtime-errors"
+      ],
+      "failures": [
+        {
+          "id": "gift-repeat-accept",
+          "reason": "Repeated accept changed gift stock from 305 to 310."
+        }
+      ],
+      "repositoryCommit": "cf5def6e4512750edb83a667a7a0d46fae888ec5",
+      "frameworkCommit": "ba6935c8b79ac4442f25994bb394467a513706ec",
+      "binaries": [
+        {
+          "path": "D:\\Projects\\ClashOfRim\\RimTest\\artifacts\\packages\\RimTest-54d0e0fd\\Assemblies\\RimTest.RimWorld.dll",
+          "sha256": "B37CC6B0B1A6597D4B275D791709850CBF99C41A678EBA5FD378D469FFCBB54F"
+        },
+        {
+          "path": "G:\\RimTestRuns\\FinalFeatures\\20261016-100813-60ed93cd\\gift-repeat-accept\\20261016-101249-993141d2\\Runner\\ClashOfRim.GameTests.dll",
+          "sha256": "5BE482FE2C027239E362CE82E6B032B08AE382D63A5BF7DC9B57D730DC3EE34C"
+        },
+        {
+          "path": "G:\\RimTestRuns\\FinalFeatures\\20261016-100813-60ed93cd\\gift-repeat-accept\\20261016-101249-993141d2\\Bridge\\Assemblies\\ClashOfRim.RimTestBridge.dll",
+          "sha256": "A6DAFAFA4510F4D6021183255DE0EE748F7BDD31F7FE09372ED38701D1B69FDD"
+        }
+      ],
+      "cases": [
+        {
+          "id": "launch-profile",
+          "status": "passed"
+        },
+        {
+          "id": "shared-world-entry",
+          "status": "passed"
+        },
+        {
+          "id": "world-parameters",
+          "status": "passed"
+        },
+        {
+          "id": "world-geometry",
+          "status": "passed"
+        },
+        {
+          "id": "world-tile-data",
+          "status": "passed"
+        },
+        {
+          "id": "world-feature-identities",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-difficulty",
+          "status": "passed"
+        },
+        {
+          "id": "culture-references",
+          "status": "passed"
+        },
+        {
+          "id": "world-persistence",
+          "status": "passed"
+        },
+        {
+          "id": "storyteller-permission",
+          "status": "passed"
+        },
+        {
+          "id": "runtime-difficulty-sync",
+          "status": "passed"
+        },
+        {
+          "id": "alliance-request-accept",
+          "status": "passed"
+        },
+        {
+          "id": "caravan-load-travel",
+          "status": "passed"
+        },
+        {
+          "id": "caravan-gift-accept",
+          "status": "passed"
+        },
+        {
+          "id": "gift-repeat-accept",
+          "status": "failed"
+        }
+      ]
+    }
+  ]
+}
