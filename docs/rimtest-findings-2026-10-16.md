@@ -113,3 +113,9 @@ HTTP 与 WebSocket 现在共用 `ServerLocalization.EncodeLanguageHeader`：规�
 
 - 原版 WorldInfo 没有序列化 `overallPopulation`、`landmarkDensity`；读档后变成 Normal。增加两个模组命名的存档字段，旧存档缺字段时保留原版默认值。
 - `RepairDlcFinal/20261016-112848-2c9c9ad3/dry-sparse-german/20261016-112858-da356cdc` 全场通过，覆盖干旱/稀疏世界；同批 DLC 压力场景的 Crowded 地标与 0.25 污染存读档断言通过。
+
+### 跨语言 NPC 文化使用同一份权威定义
+
+- 原来按 FactionDef 绑定到客户端自行生成的文化，未核对戒律、图标等定义；不同语言的命名随机数消耗可导致这些内容不同。
+- 绑定时复用既有定义比较及完整文化包加载，再调用游戏 `Ideo.CopyTo` 更新原生文化实例，保留派系/角色引用和本地 ID；不重建另一套戒律应用算法。
+- 完整 `.ideo` 包保存也使用固定数字格式。`RepairDlcFinal/20261016-112848-2c9c9ad3/dlc-culture-stress/20261016-112952-a32ee620` 14/14，包括共享 NPC 文化、戒律、存读档、重连及日志门禁。

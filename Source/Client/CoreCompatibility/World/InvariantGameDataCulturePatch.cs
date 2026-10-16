@@ -16,6 +16,7 @@ internal static class InvariantGameDataCulturePatch
     {
         yield return AccessTools.Method(typeof(Game), nameof(Game.ExposeData));
         yield return AccessTools.Method(typeof(ScribeSaver), nameof(ScribeSaver.DebugOutputFor));
+        yield return AccessTools.Method(typeof(GameDataSaveLoader), nameof(GameDataSaveLoader.SaveIdeo));
         yield return AccessTools.Constructor(typeof(Verse.Grammar.Rule_String), new[] { typeof(string) });
     }
 

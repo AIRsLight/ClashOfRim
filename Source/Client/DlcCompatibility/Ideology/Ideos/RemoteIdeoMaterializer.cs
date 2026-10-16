@@ -108,6 +108,15 @@ public static partial class RemoteIdeoMaterializer
 
         if (TryFindNativeServerFactionIdeo(dto, out ideo) && ideo is not null)
         {
+            // Different languages consume different name-generation randomness.
+            // Matching faction Defs alone does not establish canonical precepts.
+            // Copy into the native instance to retain faction/pawn references and ID.
+            if (!MatchesIdeologyDefinition(ideo, dto) && !IsPrimaryIdeoOfPlayer(ideo))
+            {
+                Ideo? canonical = TryCreateIdeo(dto);
+                if (canonical is null) return false;
+                canonical.CopyTo(ideo);
+            }
             RemoteIdeoCatalog.Register(ideo, dto.GlobalKey, BuildDisplayMetadata(dto));
             RemoveDuplicateUnreferencedShadows(dto, ideo);
             ClashLog.Message("[ClashOfRim][Ideo] Bound server ideo to localized faction ideo: "
