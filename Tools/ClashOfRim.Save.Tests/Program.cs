@@ -40,6 +40,7 @@ var tests = new (string Name, Action Run)[]
     ("卖家撤单校验返还关联并重放已取消参与者通知", TradeCancellationTests.Run),
     ("交易自动关闭复用唯一返还且通知与关闭共同提交", TradeAutomaticClosureTests.Run),
     ("管理员基线持久化失败保留当前基线和费用缓存", AdminBaselinePersistenceTests.Run),
+    ("真实 HTTP 请求在端点授权后恢复快照日志", () => HttpSnapshotRecoveryTests.Run(BuildFixturePackage)),
     ("交易失败校验唯一履约图并保留旧补偿和接单回执", () => TradeFailureGraphTests.Run(BuildFixturePackage)),
     ("交易关闭退货原子提交且不重复补偿已入档物品", TradeClosureTests.Run),
     ("商店持久化失败保留库存缓存且允许重试", ShopRegistryPersistenceTests.Run),

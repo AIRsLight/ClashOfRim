@@ -140,7 +140,10 @@ public static partial class ClashOfRimNetworkServer
         UseRequestDiagnostics(app);
         app.Use(async (context, next) =>
         {
-            RecoverSnapshotCommits(networkState);
+            // Let endpoints with explicit ownership control validation and recovery order.
+            // Keep the fallback for routes that have not yet acquired explicit recovery ownership.
+            if (context.GetEndpoint()?.Metadata.GetMetadata<EndpointSnapshotRecovery>() is null)
+                RecoverSnapshotCommits(networkState);
             await next(context);
         });
         MapEndpoints(app);
