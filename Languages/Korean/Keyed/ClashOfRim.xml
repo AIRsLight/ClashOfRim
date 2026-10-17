@@ -1898,4 +1898,5 @@
   <ClashOfRim.Bank.StatusLoansDisabled>이 서버에서는 은행 대출이 비활성화되어 있습니다.</ClashOfRim.Bank.StatusLoansDisabled>
   <ClashOfRim.Bank.StatusCreateMinimumLoan>최소 대출 금액은 은 {MIN}개입니다.</ClashOfRim.Bank.StatusCreateMinimumLoan>
   <ClashOfRim.Bank.StatusBaseSnapshotChanged>현재 스냅샷이 변경되었습니다. 은행 거래를 계속하기 전에 서버의 기준 저장 파일을 다시 불러오세요.</ClashOfRim.Bank.StatusBaseSnapshotChanged>
+  <ClashOfRim.SnapshotConfirmation.BaseSnapshotChanged>현재 기준 스냅샷이 변경되었습니다. 이 작업을 계속하려면 서버의 권위 있는 저장 파일을 다시 불러오세요.</ClashOfRim.SnapshotConfirmation.BaseSnapshotChanged>
 </LanguageData>

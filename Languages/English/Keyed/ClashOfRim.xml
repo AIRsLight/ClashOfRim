@@ -1910,4 +1910,5 @@
   <ClashOfRim.Bank.StatusLoansDisabled>Bank loans are disabled on this server.</ClashOfRim.Bank.StatusLoansDisabled>
   <ClashOfRim.Bank.StatusCreateMinimumLoan>The minimum loan is {MIN} silver.</ClashOfRim.Bank.StatusCreateMinimumLoan>
   <ClashOfRim.Bank.StatusBaseSnapshotChanged>The active snapshot changed. Reload the authoritative save before continuing this bank transaction.</ClashOfRim.Bank.StatusBaseSnapshotChanged>
+  <ClashOfRim.SnapshotConfirmation.BaseSnapshotChanged>The active snapshot changed. Reload the authoritative save before continuing this transaction.</ClashOfRim.SnapshotConfirmation.BaseSnapshotChanged>
 </LanguageData>

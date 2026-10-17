@@ -1,3 +1,6 @@
+using System.Globalization;
+using AIRsLight.ClashOfRim.Modules.Gifts;
+using AIRsLight.ClashOfRim.Modules.Transport;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -20,23 +23,39 @@ public static class TransportPodGiftTests
 {
     public static void Run()
     {
-        VerifyTransport(false).GetAwaiter().GetResult();
-        VerifyTransport(true).GetAwaiter().GetResult();
+        var original = CultureInfo.CurrentCulture;
+        try
+        {
+            foreach (string culture in new[] { "en-US", "zh-CN", "tr-TR", "fr-FR" })
+            foreach (bool module in new[] { false, true })
+            foreach (bool forced in new[] { false, true })
+            {
+                CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(culture);
+                VerifyTransport(forced, module).GetAwaiter().GetResult();
+            }
+        }
+        finally { CultureInfo.CurrentCulture = original; }
     }
 
-    private static async Task VerifyTransport(bool forced)
+    private static async Task VerifyTransport(bool forced, bool module)
     {
         ClientSessionWork.Reset();
         using var handler = new Handler(forced);
         using var http = new HttpClient(handler);
-        var client = new ClashOfRimModNetworkClient(http,
-            new ClashOfRimClientNetworkContext("http://127.0.0.1:12345", "sender", "colony", "base", null, null, "token"));
+        var context = new ClashOfRimClientNetworkContext("http://127.0.0.1:12345", "sender", "colony", "base", null, null, "token");
+        var client = new ClashOfRimModNetworkClient(http, context);
+        var protocol = new ClientGiftProtocol(new ClientProtocolTransport(http,
+            new("http://wrong-server", "wrong", "wrong-colony", "wrong-base", null, null, "wrong-token"),
+            new ClientProtocolEnvironment(static (_, _) => { })), () => "not configured");
         var snapshot = new ModSnapshotPackageMetadataDto { OwnerId = "sender", ColonyId = "colony", SnapshotId = "removed", PreviousSnapshotId = "base", LineageToken = "lineage" };
         var things = new[] { new ModThingReferenceDto { DefName = "WoodLog", StackCount = 5 } };
         var destination = new ModEventTargetContextDto { MapUniqueId = "map", WorldObjectId = "world", LandingMode = "DropPod" };
         for (int attempt = 0; attempt < 2; attempt++)
         {
-            var result = await client.CreateGiftWithSnapshotAsync("gift-transport-pods:sender:base:pod", "receiver", "destination", null,
+            var result = module ? await protocol.CreateGiftWithSnapshotAsync(context,
+                "gift-transport-pods:sender:base:pod", "receiver", "destination", null,
+                things, null, destination, forced ? "Forced" : null, snapshot, new byte[] { 1, 2, 3 })
+                : await client.CreateGiftWithSnapshotAsync("gift-transport-pods:sender:base:pod", "receiver", "destination", null,
                 things, null, destination, forced ? "Forced" : null, snapshot, new byte[] { 1, 2, 3 });
             if (attempt == 0 ? result.Success : !result.Success || result.Response?.Result?.Accepted != true || result.Response.AppliedSnapshotId != "removed")
                 throw new Exception("Gift failed-response/retry outcome mismatch.");
@@ -52,7 +71,7 @@ public static class TransportPodGiftTests
         public Handler(bool forced) => this.forced = forced;
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken token)
         {
-            if (request.Method != HttpMethod.Post || request.RequestUri!.AbsolutePath != ProtocolContractManifest.Find(ProtocolMessageKind.CreateGiftWithSnapshot).Route
+            if (request.Method != HttpMethod.Post || request.RequestUri!.Host != "127.0.0.1" || request.RequestUri.AbsolutePath != ProtocolContractManifest.Find(ProtocolMessageKind.CreateGiftWithSnapshot).Route
                 || request.Headers.GetValues(MultipartSnapshotTransport.AuthenticationHeaderName).Single() != "token")
                 throw new Exception("Gift must use the authenticated snapshot route.");
             var parts = ((MultipartFormDataContent)request.Content!).ToDictionary(p => p.Headers.ContentDisposition!.Name!.Trim('"'));

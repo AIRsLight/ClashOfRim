@@ -13,7 +13,7 @@ namespace AIRsLight.ClashOfRim.Modules.Bank;
 // command, identity, base snapshot and game; it never reapplies silver or quest mutations.
 internal sealed class ClientBankOperations
 {
-    private readonly ClientSessionLifecycle session;
+    private readonly ClientSnapshotMutationAdmission admission;
     private readonly ClientSynchronizationCoordinator synchronization;
     private readonly ClientLocalMutationCoordinator mutations;
     private readonly ClientSnapshotTransaction transactions;
@@ -23,11 +23,11 @@ internal sealed class ClientBankOperations
     private readonly IClientBankRuntime runtime;
     private readonly IClientBankPresentation presentation;
 
-    internal ClientBankOperations(ClientSessionLifecycle session, ClientSynchronizationCoordinator synchronization,
+    internal ClientBankOperations(ClientSnapshotMutationAdmission admission, ClientSynchronizationCoordinator synchronization,
     ClientLocalMutationCoordinator mutations, ClientSnapshotTransaction transactions, ClientSnapshotFailureRecovery recovery,
     ClientBankState state, IClientBankTransport transport, IClientBankRuntime runtime, IClientBankPresentation presentation)
     {
-        this.session = session;
+        this.admission = admission;
         this.synchronization = synchronization;
         this.mutations = mutations;
         this.transactions = transactions;
@@ -161,16 +161,16 @@ internal sealed class ClientBankOperations
         ModSnapshotPackageMetadataDto? package, byte[]? payload)
     {
         using var publication = ClientSessionWork.EnterPublication();
-        if (!original.Game.IsCurrent || !session.Owns(original.Owner, original.Context, false)) return Task.CompletedTask;
-        if (!session.Owns(original.Owner, original.Context, true))
+        var admitted = admission.Retry(original, LocalMutationKind.Bank);
+        if (admitted.Failure == ClientSnapshotAdmissionFailure.Obsolete) return Task.CompletedTask;
+        if (admitted.Failure == ClientSnapshotAdmissionFailure.BaseSnapshotChanged)
         {
             state.Message = Text("StatusBaseSnapshotChanged");
             recovery.Show(LocalMutationKind.Bank, state.Message, static () => { }, canRetry: false);
             return Task.CompletedTask;
         }
-        var admitted = Begin(LocalMutationKind.Bank);
-        if (admitted is null) return Task.CompletedTask;
-        var attempt = original with { Admission = admitted.Admission };
+        var attempt = AcceptAdmission(admitted);
+        if (attempt is null) return Task.CompletedTask;
         try { return PrepareAndSubmit(attempt, command, pending, package, payload); }
         catch (Exception ex)
         {
@@ -251,18 +251,17 @@ internal sealed class ClientBankOperations
 
     private ClientSnapshotTransaction.Attempt? Begin(LocalMutationKind? continuation = null)
     {
-        var context = session.ReadContext();
-        var admission = mutations.CheckAdmission(context.IsConfigured, !string.IsNullOrWhiteSpace(context.CurrentSnapshotId), continuation);
-        if (admission != LocalMutationAdmission.Allowed)
-        { RejectMessage(presentation.Admission(admission, mutations.Current)); return null; }
-        if (state.Busy || !synchronization.TryBeginManual(out var lease)) { Reject("StatusBusy"); return null; }
-        try
-        {
-            var attempt = transactions.Capture(lease);
-            state.Begin(attempt);
-            return attempt;
-        }
-        catch { lease.Dispose(); throw; }
+        _ = state.Busy; // Normalize a replaced session/Game before requesting new admission.
+        return AcceptAdmission(admission.Begin(continuation));
+    }
+
+    private ClientSnapshotTransaction.Attempt? AcceptAdmission(ClientSnapshotAdmissionResult result)
+    {
+        if (result.Failure == ClientSnapshotAdmissionFailure.Admission)
+        { RejectMessage(presentation.Admission(result.Admission, mutations.Current)); return null; }
+        if (result.Attempt is not { } attempt) { Reject("StatusBusy"); return null; }
+        state.Begin(attempt);
+        return attempt;
     }
 
     private string FailureText<T>(ClientSnapshotTransactionFailure<T> failure, string failed, string rejected) =>

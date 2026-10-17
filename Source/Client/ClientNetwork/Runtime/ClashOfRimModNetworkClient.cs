@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Gifts;
 using AIRsLight.ClashOfRim.Modules.Bank;
 using AIRsLight.ClashOfRim.Modules.Events;
 using AIRsLight.ClashOfRim.Modules.Packages;
@@ -20,7 +21,6 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader
     private static readonly string ChangeOfflinePasswordRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ChangeOfflinePassword).Route;
     private static readonly string ListPlayersRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ListPlayers).Route;
     private static readonly string ListAchievementsRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ListAchievements).Route;
-    private static readonly string CreateGiftWithSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.CreateGiftWithSnapshot).Route;
     private static readonly string StorePawnPackageRoute = ProtocolContractManifest.Find(ProtocolMessageKind.StorePawnPackage).Route;
     private static readonly string StorePawnPackagePreviewRoute = ProtocolContractManifest.Find(ProtocolMessageKind.StorePawnPackagePreview).Route;
     private static readonly string GetPawnPackagePreviewRoute = ProtocolContractManifest.Find(ProtocolMessageKind.GetPawnPackagePreview).Route;
@@ -90,6 +90,7 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader
     public static Action? ServerEntryDiagnosticsLogger;
 
     private readonly ClientBankProtocol bankProtocol;
+    private readonly ClientGiftProtocol gifts;
 
     public ClashOfRimModNetworkClient(
         HttpClient httpClient,
@@ -100,6 +101,7 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader
         var protocolEnvironment = new ClientProtocolEnvironment((message, token) => SessionExpired?.Invoke(message, token));
         transport = new ClientProtocolTransport(httpClient, context, protocolEnvironment);
         bankProtocol = new ClientBankProtocol(context, transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
+        gifts = new ClientGiftProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         events = new ClientEventProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         eventConfirmations = new ClientEventConfirmationProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         eventDecisions = new ClientEventDecisionProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
@@ -1117,46 +1119,8 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader
         ModSnapshotPackageMetadataDto confirmedSnapshot,
         byte[] confirmedPayload,
         CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModEventCreationResponseDto>();
-        }
-
-        var gift = new ModCreateGiftRequestDto
-        {
-            IdempotencyKey = idempotencyKey,
-            Actor = new ModProtocolIdentityDto
-            {
-                UserId = context.UserId,
-                ColonyId = context.ColonyId,
-                SnapshotId = context.CurrentSnapshotId
-            },
-            Target = new ModProtocolIdentityDto
-            {
-                UserId = targetUserId,
-                ColonyId = targetColonyId,
-                SnapshotId = targetSnapshotId
-            },
-            Things = things.ToList(),
-            Message = message,
-            TargetContext = targetContext,
-            DeliveryKind = deliveryKind
-        };
-        var request = new ModCreateGiftWithSnapshotRequestDto
-        {
-            Gift = gift,
-            ConfirmedSnapshot = MarkSnapshotUploadKind(
-                confirmedSnapshot,
-                ModSnapshotUploadKinds.GiftCreationConfirmation)
-        };
-
-        return transport.PostSnapshotMultipartAsync<ModCreateGiftWithSnapshotRequestDto, ModEventCreationResponseDto>(
-            CreateGiftWithSnapshotRoute,
-            request,
-            confirmedPayload,
-            cancellationToken);
-    }
+        => gifts.CreateGiftWithSnapshotAsync(context, idempotencyKey, targetUserId, targetColonyId,
+            targetSnapshotId, things, message, targetContext, deliveryKind, confirmedSnapshot, confirmedPayload, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModTradeOrderFeeQuoteResponseDto>> QuoteTradeOrderFeeAsync(
         IReadOnlyList<ModThingReferenceDto> offeredThings,

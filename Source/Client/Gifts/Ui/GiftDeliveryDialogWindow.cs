@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Gifts;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -15,9 +16,10 @@ public sealed class GiftDeliveryDialogWindow : Window
 {
     private const int InventoryCacheTicks = 60;
 
-    private readonly ClashOfRimMod mod;
+    private readonly ClientGiftActions actions;
+    private readonly ClientGiftActions.UiScope scope;
     private readonly Caravan caravan;
-    private readonly ModWorldMapMarkerDto target;
+    private readonly ClientGiftTarget target;
     private readonly bool normalAvailable;
     private readonly bool forcedAvailable;
     private readonly List<TradeOfferSelection> selectedThings = new();
@@ -29,15 +31,17 @@ public sealed class GiftDeliveryDialogWindow : Window
     private int nextInventoryRefreshTick;
     private IReadOnlyList<Thing> cachedInventoryThings = new List<Thing>();
 
-    public GiftDeliveryDialogWindow(
-        ClashOfRimMod mod,
-        Caravan caravan,
-        ModWorldMapMarkerDto target,
-        bool normalAvailable,
-        bool forcedAvailable,
-        bool startForcedDelivery)
+    // Public compatibility constructor; M11 removes host-based UI entry points.
+    public GiftDeliveryDialogWindow(ClashOfRimMod mod, Caravan caravan, ModWorldMapMarkerDto target,
+        bool normalAvailable, bool forcedAvailable, bool startForcedDelivery)
+        : this(mod.GiftActions, caravan, ClientGiftActions.Target(target), normalAvailable, forcedAvailable,
+            startForcedDelivery, mod.GiftActions.Capture()) { }
+
+    internal GiftDeliveryDialogWindow(ClientGiftActions actions, Caravan caravan, ClientGiftTarget target,
+        bool normalAvailable, bool forcedAvailable, bool startForcedDelivery, ClientGiftActions.UiScope scope)
     {
-        this.mod = mod;
+        this.actions = actions;
+        this.scope = scope;
         this.caravan = caravan;
         this.target = target;
         this.normalAvailable = normalAvailable;
@@ -60,7 +64,7 @@ public sealed class GiftDeliveryDialogWindow : Window
 
         Widgets.Label(new Rect(inRect.x, inRect.y + 36f, inRect.width, 24f), ClashOfRimText.Key(
             "ClashOfRim.GiftDelivery.TargetLine",
-            mod.FormatWorldMapTargetLabel(target).Named("TARGET")));
+            target.Label.Named("TARGET")));
 
         Rect modeRect = new(inRect.x, inRect.y + 66f, inRect.width, 30f);
         DrawModeButtons(modeRect);
@@ -130,12 +134,12 @@ public sealed class GiftDeliveryDialogWindow : Window
 
         string summary = ClashOfRimText.Key(
             forcedDelivery ? "ClashOfRim.GiftDelivery.ConfirmForced" : "ClashOfRim.GiftDelivery.ConfirmNormal",
-            mod.FormatWorldMapTargetLabel(target).Named("TARGET"),
+            target.Label.Named("TARGET"),
             formattedThings.Named("THINGS"));
         Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation(summary, () =>
         {
             Close();
-            mod.StartCreateGiftFromCaravan(caravan, target, selections, forcedDelivery, message);
+            if (actions.Owns(scope)) actions.SendCaravan(caravan, target, selections, forcedDelivery, message);
         }));
     }
 
@@ -312,13 +316,15 @@ public sealed class GiftDeliveryDialogWindow : Window
 
     private string FormatSelectedThings()
     {
+        if (!actions.Owns(scope)) return string.Empty;
+        var context = actions.Context;
         IReadOnlyList<ModThingReferenceDto> references = selectedThings
             .Select(selection => TradeCaravanFulfillmentUtility.BuildThingReference(
                 selection.Thing,
                 caravan,
-                mod.UserId,
-                mod.ColonyId,
-                mod.CurrentSnapshotId,
+                context.UserId,
+                context.ColonyId,
+                context.CurrentSnapshotId,
                 selection.Count,
                 forcedDelivery ? ThingReferenceSurfaces.ForcedDelivery : ThingReferenceSurfaces.Gift))
             .ToList();

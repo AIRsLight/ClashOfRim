@@ -460,7 +460,7 @@ internal static class RemoteWorldObjectUiUtility
         return RemoteSessionMapUtility.FindActiveSessionMap() is not null;
     }
 
-    private static int ReadTileLayerId(PlanetTile tile)
+    internal static int ReadTileLayerId(PlanetTile tile)
     {
         try
         {

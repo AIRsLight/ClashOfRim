@@ -19,6 +19,7 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("gift sends own capture, removal, retries and deferred arrival", ClientGiftModuleTests.Run),
     ("bank workflow owns preparation, retry, session state and game publication", ClientBankModuleTests.Run),
     ("bank protocol shares all seven routes and captured credentials with the facade", ClientBankProtocolTests.Run),
     ("client modules cannot depend on the Mod, full settings or broad protocol client", ClientModuleBoundaryTests.Run),
@@ -93,6 +94,16 @@ static void FailedTradeBuyerRefundPurpose()
     if (payload.Purpose != ItemDeliveryPurpose.TradeApplicationFailedAcceptorReturn || !payload.IsTradeReturn
         || payload.IsTradeDelivery || (int)ItemDeliveryPurpose.TradeApplicationFailedOwnerReturn != 7)
         throw new Exception("Buyer refund wire purpose must remain distinct from a gift or completed trade delivery.");
+}
+
+if (args.Length > 0)
+{
+    if (args[0] != "--filter" || args.Length < 2 || args.Skip(1).Any(string.IsNullOrWhiteSpace))
+        throw new ArgumentException("Usage: --filter <name substring> [name substring ...]");
+    int total = tests.Length;
+    tests = tests.Where(test => args.Skip(1).Any(filter => test.Name.Contains(filter, StringComparison.OrdinalIgnoreCase))).ToArray();
+    if (tests.Length == 0) throw new ArgumentException("No tests matched the requested filters.");
+    Console.WriteLine($"Running {tests.Length}/{total} test groups.");
 }
 
 foreach ((string name, Action run) in tests)

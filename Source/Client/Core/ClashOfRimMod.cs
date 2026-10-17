@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Gifts;
 using AIRsLight.ClashOfRim.Modules.Bank;
 using AIRsLight.ClashOfRim.Modules.Events;
 using AIRsLight.ClashOfRim.Modules.Synchronization;
@@ -60,6 +61,8 @@ public sealed partial class ClashOfRimMod : Mod
     private readonly ClientEventState eventState;
     private readonly ClientBankState bankState;
     private readonly ClientBankOperations bankOperations;
+    private readonly ClientGiftActions giftActions;
+    internal ClientGiftActions GiftActions => giftActions;
     private readonly ClientEventConfirmationWorkflow eventConfirmations;
     private readonly ClientEventApplications eventApplications;
     private readonly ClientSnapshotFailureRecovery snapshotFailureRecovery;
@@ -165,10 +168,19 @@ public sealed partial class ClashOfRimMod : Mod
         snapshotFailureRecovery.ReturningToMenu += () => playerColonySiteRegistrationSuppressed = false;
         var bankPresentation = new ClientBankPresentation();
         bankState = new ClientBankState(sessionLifecycle, new ClientSnapshotGame(), bankPresentation);
-        bankOperations = new ClientBankOperations(sessionLifecycle, synchronization, localMutations,
-            new ClientSnapshotTransaction(sessionLifecycle, new ClientSnapshotGame(), snapshotPublication), snapshotFailureRecovery,
+        var snapshotTransactions = new ClientSnapshotTransaction(sessionLifecycle, new ClientSnapshotGame(), snapshotPublication);
+        var mutationAdmission = new ClientSnapshotMutationAdmission(sessionLifecycle, synchronization, localMutations, snapshotTransactions);
+        bankOperations = new ClientBankOperations(mutationAdmission, synchronization, localMutations,
+            snapshotTransactions, snapshotFailureRecovery,
             bankState, new ClientBankTransport(), new ClientBankRuntime(), bankPresentation);
         bankOperations.Completed += StartQueuedAutomaticEventRefreshAfterLocalAtomicMutation;
+        Func<ClientGiftCapabilities> giftCapabilities = () => new(giftsEnabled, pvpEnabled);
+        var giftPresentation = new ClientGiftPresentation(message => eventState.ActionStatus = message);
+        var gifts = new ClientGiftOperations(mutationAdmission, synchronization, localMutations, snapshotTransactions,
+            snapshotFailureRecovery, new ClientGiftTransport(), giftPresentation, giftCapabilities);
+        gifts.Completed += StartQueuedAutomaticEventRefreshAfterLocalAtomicMutation;
+        giftActions = new ClientGiftActions(gifts, sessionLifecycle, new ClientSnapshotGame(), giftPresentation,
+            giftCapabilities, () => WorldMapMarkersSnapshot);
         eventConfirmations = new ClientEventConfirmationWorkflow(sessionLifecycle, eventConfirmationPreparation, eventConfirmation,
             localMutations, snapshotFailureRecovery, eventInbox, new ClientEventConfirmationPresentation((purpose, message) =>
             {

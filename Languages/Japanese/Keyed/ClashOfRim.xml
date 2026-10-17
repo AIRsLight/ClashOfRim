@@ -1898,4 +1898,5 @@
   <ClashOfRim.Bank.StatusLoansDisabled>このサーバーでは銀行融資が無効になっています。</ClashOfRim.Bank.StatusLoansDisabled>
   <ClashOfRim.Bank.StatusCreateMinimumLoan>最低借入額はシルバー {MIN} です。</ClashOfRim.Bank.StatusCreateMinimumLoan>
   <ClashOfRim.Bank.StatusBaseSnapshotChanged>現在のスナップショットが変更されました。銀行取引を続ける前に、サーバーの正規セーブを読み込んでください。</ClashOfRim.Bank.StatusBaseSnapshotChanged>
+  <ClashOfRim.SnapshotConfirmation.BaseSnapshotChanged>現在の基準スナップショットが変更されました。この処理を続ける前に、サーバーの正式なセーブを読み込んでください。</ClashOfRim.SnapshotConfirmation.BaseSnapshotChanged>
 </LanguageData>

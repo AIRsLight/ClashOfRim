@@ -1910,4 +1910,5 @@
   <ClashOfRim.Bank.StatusLoansDisabled>服务器已禁用银行借款。</ClashOfRim.Bank.StatusLoansDisabled>
   <ClashOfRim.Bank.StatusCreateMinimumLoan>最低借款金额为 {MIN} 银币。</ClashOfRim.Bank.StatusCreateMinimumLoan>
   <ClashOfRim.Bank.StatusBaseSnapshotChanged>当前快照已改变。请重新载入服务器权威存档后再进行银行操作。</ClashOfRim.Bank.StatusBaseSnapshotChanged>
+  <ClashOfRim.SnapshotConfirmation.BaseSnapshotChanged>当前基础快照已改变。请重新载入服务器权威存档后再继续此事务。</ClashOfRim.SnapshotConfirmation.BaseSnapshotChanged>
 </LanguageData>

@@ -49,6 +49,7 @@ internal static class EventCommandPresentationTests
                 ApplicationPresentation();
                 ReadPresentation();
                 BankPresentation();
+                GiftPresentation();
                 foreach (var purpose in Enum.GetValues<ClientEventConfirmationPurpose>())
                 {
                     var notice = new ClientEventConfirmationNotice(purpose, ClientEventConfirmationStage.Uploading,
@@ -194,6 +195,20 @@ internal static class EventCommandPresentationTests
                 ("CODE", "Conflict"), ("MESSAGE", "message"), ("TYPE", "IOException"), ("PRINCIPAL", 100), ("TOTAL", 120)));
         RequireResolved(bank.Summary(new() { ColonyWealth = 10000, MinLoanSilver = 100, MaxLoanSilver = 500, BaseAnnualInterestRate = .1f }));
         RequireResolved(bank.Summary(new() { ActiveLoan = new() { LoanId = "é", TotalDueSilver = 120, Status = "Active" } }));
+    }
+
+    private static void GiftPresentation()
+    {
+        var gift = new ClientGiftPresentation(static _ => { });
+        foreach (string key in new[] { "Disabled", "StatusTargetIncomplete", "StatusTargetTileMismatch", "StatusNoSelectedItems",
+            "StatusPackagingSnapshot", "StatusReserving", "StatusLocalRemoveFailed", "ReasonTransportPodGift", "StatusSnapshotBuildFailed",
+            "StatusSubmittingTransaction", "StatusSubmittingForced", "StatusSubmittingNormal", "StatusCreateFailed", "StatusCreateRejected",
+            "StatusCreateException", "StatusForcedCreated", "StatusNormalCreated", "StatusNoTargets", "TargetOption" })
+            RequireResolved(gift.Text("ClashOfRim.GiftDelivery." + key, ("MESSAGE", "message"), ("REASON", "reason"),
+                ("TARGET", "target"), ("CODE", "Conflict"), ("TYPE", "IOException"), ("EVENTID", "gift")));
+        RequireResolved(gift.Text("ClashOfRim.SnapshotConfirmation.BaseSnapshotChanged"));
+        RequireResolved(gift.Text("ClashOfRim.Raid.PvpDisabled"));
+        RequireResolved(gift.Text("ClashOfRim.SnapshotUpload.Busy"));
     }
 
     private static bool ApplyRelation(string? userId, FactionRelationKind relationKind, ref bool __result)

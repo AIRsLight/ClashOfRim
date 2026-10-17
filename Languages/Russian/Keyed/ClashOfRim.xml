@@ -1898,4 +1898,5 @@
   <ClashOfRim.Bank.StatusLoansDisabled>Банковские займы на этом сервере отключены.</ClashOfRim.Bank.StatusLoansDisabled>
   <ClashOfRim.Bank.StatusCreateMinimumLoan>Минимальная сумма займа — {MIN} серебра.</ClashOfRim.Bank.StatusCreateMinimumLoan>
   <ClashOfRim.Bank.StatusBaseSnapshotChanged>Текущий снимок изменился. Перед продолжением банковской операции загрузите актуальное сохранение с сервера.</ClashOfRim.Bank.StatusBaseSnapshotChanged>
+  <ClashOfRim.SnapshotConfirmation.BaseSnapshotChanged>Текущий базовый снимок изменился. Перед продолжением операции загрузите актуальное сохранение с сервера.</ClashOfRim.SnapshotConfirmation.BaseSnapshotChanged>
 </LanguageData>
