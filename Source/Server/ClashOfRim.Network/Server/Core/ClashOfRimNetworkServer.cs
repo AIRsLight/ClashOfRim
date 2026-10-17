@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Network.Modules.Events;
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Compatibility;
 using AIRsLight.ClashOfRim.Network.Plugins;
@@ -23,7 +24,6 @@ public static partial class ClashOfRimNetworkServer
     private const string PawnMetadataGender = "clashofrim.pawn.gender";
     private const string PawnMetadataBiologicalAgeTicks = "clashofrim.pawn.biologicalAgeTicks";
 
-    private static readonly TimeSpan DeliveredEventLease = TimeSpan.FromMinutes(2);
     private static readonly JsonSerializerOptions MultipartJsonOptions = new(JsonSerializerDefaults.Web);
     private static readonly JsonSerializerOptions CompatibilityJsonOptions = new()
     {
@@ -87,6 +87,7 @@ public static partial class ClashOfRimNetworkServer
 
     public static void MapEndpoints(WebApplication app)
     {
+        EventReadEndpoints.Map(app, app.Services.GetRequiredService<ClashOfRimNetworkState>().EventDelivery);
         app.MapGet("/server/plugins", ListServerPlugins);
         app.MapGet(ProtocolContractManifest.Find(ProtocolMessageKind.ServerHello).Route, ServerHello);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.Login).Route, Login).WithMetadata(EndpointSnapshotRecovery.Instance);
@@ -96,12 +97,9 @@ public static partial class ClashOfRimNetworkServer
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.ChangeOfflinePassword).Route, ChangeOfflinePassword);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.ListPlayers).Route, ListPlayers);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.ListAchievements).Route, ListAchievements);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.WaitForEvents).Route, WaitForEvents).WithMetadata(EndpointSnapshotRecovery.Instance);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.UploadSnapshot).Route, UploadSnapshot).WithMetadata(EndpointSnapshotRecovery.Instance);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.DownloadLatestSnapshot).Route, DownloadLatestSnapshot).WithMetadata(EndpointSnapshotRecovery.Instance);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.DownloadLatestSnapshotPayload).Route, DownloadLatestSnapshotPayload).WithMetadata(EndpointSnapshotRecovery.Instance);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.PullPendingEvents).Route, PullPendingEvents).WithMetadata(EndpointSnapshotRecovery.Instance);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.PullEventDetails).Route, PullEventDetails).WithMetadata(EndpointSnapshotRecovery.Instance);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.ConfirmEventApplication).Route, ConfirmEventApplication).WithMetadata(EndpointSnapshotRecovery.Instance);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.ConfirmEventApplications).Route, ConfirmEventApplications).WithMetadata(EndpointSnapshotRecovery.Instance);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.ReportEventApplicationFailure).Route, ReportEventApplicationFailure).WithMetadata(EndpointSnapshotRecovery.Instance);
@@ -233,60 +231,6 @@ public static partial class ClashOfRimNetworkServer
             evt.RejectionPolicy,
             evt.LastApplicationResult,
             evt.Payload.GetType().Name);
-    }
-
-    private static void ReconcileExpiredDeliveredEvents(
-        ClashOfRimNetworkState state,
-        string userId,
-        DateTimeOffset nowUtc)
-    {
-        if (string.IsNullOrWhiteSpace(userId))
-        {
-            return;
-        }
-
-        DateTimeOffset leaseDeadline = nowUtc - DeliveredEventLease;
-        bool userOnline = state.OnlinePresence.IsUserOnline(userId);
-        bool changed = false;
-        foreach (AuthoritativeEvent ledgerEvent in state.Ledger.ListForUser(userId)
-            .Where(evt => evt.Target.UserId == userId)
-            .Where(evt => evt.Status == ServerEventStatus.DeliveredToClient)
-            .Where(evt => evt.DeliveredAtUtc is not null && evt.DeliveredAtUtc <= leaseDeadline)
-            .ToList())
-        {
-            if (EventSemanticClassifier.IsOnlineOnlyServerNotification(ledgerEvent))
-            {
-                state.Ledger.ChangeStatus(ledgerEvent.EventId, ServerEventStatus.Cancelled);
-                changed = true;
-                continue;
-            }
-
-            if (EventSemanticClassifier.IsSnapshotlessNotification(ledgerEvent))
-            {
-                state.Ledger.MarkAccepted(
-                    ledgerEvent.EventId,
-                    DateTimeOffset.UtcNow,
-                    T("Events.ServerNotificationDelivered"));
-                changed = true;
-                continue;
-            }
-
-            ServerEventStatus nextStatus = userOnline
-                ? ServerEventStatus.ReadyForImmediateDelivery
-                : ServerEventStatus.PendingOfflineDelivery;
-            state.Ledger.ChangeStatus(ledgerEvent.EventId, nextStatus);
-            changed = true;
-        }
-
-        if (changed && userOnline)
-        {
-            state.EventNotifications.SignalUser(userId);
-        }
-    }
-
-    private static bool IsSnapshotlessServerNotification(AuthoritativeEvent ledgerEvent)
-    {
-        return EventSemanticClassifier.IsSnapshotlessNotification(ledgerEvent);
     }
 
     private static void TryRegisterPlayerColonySiteFromAcceptedSnapshot(
@@ -2490,10 +2434,7 @@ public static partial class ClashOfRimNetworkServer
     }
 
     private static bool IsVisibleTo(AuthoritativeEvent ledgerEvent, string userId, string colonyId)
-    {
-        return IsVisibleParty(ledgerEvent.Actor, userId, colonyId)
-            || IsVisibleParty(ledgerEvent.Target, userId, colonyId);
-    }
+        => EventVisibility.IsVisibleTo(ledgerEvent, userId, colonyId);
 
     private static bool IsAuthorizedForColony(ClashOfRimNetworkState state, string? authToken,
         string userId, string colonyId, string? authorizationEventId, string? authorizationScope,

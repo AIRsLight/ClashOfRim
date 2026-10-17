@@ -1,9 +1,7 @@
-using System.Reflection;
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Network;
 using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Save;
-using Microsoft.AspNetCore.Http;
 
 internal static class DeferredEventDeliveryTests
 {
@@ -54,9 +52,7 @@ internal static class DeferredEventDeliveryTests
         state.LoginSessions.EndUser(user);
         state.LoginSessions.TryCreate(user, colony, DateTimeOffset.UtcNow, out string session);
         string token = state.AuthTokens.Issue(user, user, colony, session, DateTimeOffset.UtcNow);
-        var endpoint = typeof(ClashOfRimNetworkServer).GetMethod("PullEventDetails", BindingFlags.Static | BindingFlags.NonPublic)!;
-        var response = (PullEventDetailsResponse)((IValueHttpResult)endpoint.Invoke(null,
-            [new PullEventDetailsRequest(user, colony, snapshot, [id], token), state])!).Value!;
+        var response = state.EventDelivery.PullEventDetails(new PullEventDetailsRequest(user, colony, snapshot, [id], token));
         Require(response.Result.Accepted == expectedAccepted, "Unexpected details result.");
     }
 

@@ -21,6 +21,7 @@ using System.Text.Json;
 await ModuleBoundaryTests.RunAsync();
 ColonyAuthorizationTests.Run();
 SnapshotMutationCoordinatorTests.Run();
+await EventDeliveryServiceTests.RunAsync((user, colony, id) => BuildFixturePackageForWithLineage(user, colony, id, null, null, 1000));
 if (args.Contains("--module-boundaries-only", StringComparer.Ordinal)) return;
 await EventReadHttpTests.RunAsync((user, colony, id) => BuildFixturePackageForWithLineage(user, colony, id, null, null, 1000));
 if (args.Contains("--event-protocol-only", StringComparer.Ordinal)) return;

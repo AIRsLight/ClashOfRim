@@ -2,6 +2,7 @@ using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Network.Plugins;
 using AIRsLight.ClashOfRim.Network.Modules.Authorization;
 using AIRsLight.ClashOfRim.Network.Modules.Snapshots;
+using AIRsLight.ClashOfRim.Network.Modules.Events;
 using AIRsLight.ClashOfRim.Save;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -93,11 +94,14 @@ public sealed class ClashOfRimNetworkState
         ColonyAuthorization = new ColonyAccessAuthorization(AuthTokens, LoginSessions, DiplomacyRelations,
             RaidPreparations, Ledger, () => ServerConfiguration.PvpEnabled);
         SnapshotMutations = new SnapshotMutationCoordinator(RaidSettlementSnapshotMutationGate, new LegacySnapshotRecoveryAdapter(this));
+        EventDelivery = new EventDeliveryService(ColonyAuthorization, SnapshotMutations, SnapshotStore, Ledger,
+            EventNotifications, OnlinePresence, Players);
     }
 
     public IAuthoritativeEventLedger Ledger { get; }
 
     internal ColonyAccessAuthorization ColonyAuthorization { get; }
+    internal EventDeliveryService EventDelivery { get; }
 
     public IColonySnapshotIndexStore SnapshotStore { get; }
 

@@ -1354,40 +1354,6 @@ public static partial class ClashOfRimNetworkServer
         return new LedgerBatch(Array.Empty<AuthoritativeEvent>(), changes.Values.ToArray());
     }
 
-    private static int ReconcileFailedSupportPawnEventsForDeletedActors(
-        ClashOfRimNetworkState state,
-        string? visibleUserId)
-    {
-        if (string.IsNullOrWhiteSpace(visibleUserId))
-        {
-            return 0;
-        }
-
-        int updated = 0;
-        foreach (AuthoritativeEvent ledgerEvent in state.Ledger.ListForUser(visibleUserId!))
-        {
-            if (ledgerEvent.Type != ServerEventType.SupportPawn
-                || ledgerEvent.Status != ServerEventStatus.Failed
-                || !string.IsNullOrWhiteSpace(ledgerEvent.AppliedSnapshotId)
-                || string.IsNullOrWhiteSpace(ledgerEvent.Actor.UserId)
-                || string.IsNullOrWhiteSpace(ledgerEvent.Actor.ColonyId)
-                || !state.Players.IsDeleted(ledgerEvent.Actor.UserId, ledgerEvent.Actor.ColonyId))
-            {
-                continue;
-            }
-
-            state.Ledger.ChangeStatus(ledgerEvent.EventId, ServerEventStatus.Cancelled);
-            updated++;
-        }
-
-        if (updated > 0)
-        {
-            state.EventNotifications.SignalUser(visibleUserId!);
-        }
-
-        return updated;
-    }
-
     private static bool IsTerminalForAbandonedColonyCleanup(ServerEventStatus status)
     {
         return status is ServerEventStatus.AppliedToSnapshot
