@@ -1,0 +1,1519 @@
+{
+  "date": "2026-10-17",
+  "head": "ee55d0b0",
+  "includes_existing_worktree_changes": true,
+  "scope": [
+    "Source",
+    "Tools",
+    "ThirdPartyCompat/Source"
+  ],
+  "excluded": [
+    "**/bin/**",
+    "**/obj/**",
+    "RimTest",
+    "1.6",
+    "ThirdPartyCompat/1.6"
+  ],
+  "source_files_scanned": 946,
+  "method": "Roslyn syntax declarations grouped by namespace and containing type. Lines span each type declaration including whitespace and nested types; do not sum nested fixture lines with parent types. Direct methods and fields only. Cross-part references count resolved symbols, not a complete MSBuild or runtime dependency graph.",
+  "types": [
+    {
+      "Type": "AIRsLight.ClashOfRim.ClashOfRimMod",
+      "Parts": 23,
+      "Files": 23,
+      "Lines": 21159,
+      "Methods": 564,
+      "Fields": 122,
+      "ConstFields": 10,
+      "ReadOnlyFields": 29,
+      "CrossPartFields": 101,
+      "CrossFileCalls": 258,
+      "PartsInfo": [
+        {
+          "File": "Source/Client/Achievements/ClashOfRimMod.Achievements.cs",
+          "Line": 10,
+          "Lines": 72,
+          "Methods": 1,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Client/Achievements/EndgameAchievementPatches.cs",
+          "Line": 105,
+          "Lines": 74,
+          "Methods": 1,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Client/Core/ClashOfRimMod.cs",
+          "Line": 42,
+          "Lines": 853,
+          "Methods": 15,
+          "Fields": 105
+        },
+        {
+          "File": "Source/Client/Core/ClashOfRimMod.Formatting.cs",
+          "Line": 14,
+          "Lines": 475,
+          "Methods": 26,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Client/Account/Runtime/ClashOfRimMod.Account.cs",
+          "Line": 10,
+          "Lines": 82,
+          "Methods": 1,
+          "Fields": 2
+        },
+        {
+          "File": "Source/Client/Admin/ControlPanel/ClashOfRimMod.AdminControl.cs",
+          "Line": 10,
+          "Lines": 235,
+          "Methods": 5,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Client/Bank/Accounting/ClashOfRimMod.BankAccounting.cs",
+          "Line": 13,
+          "Lines": 309,
+          "Methods": 13,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Client/Bank/MercenaryBridge/ClashOfRimMod.BankMercenaries.cs",
+          "Line": 16,
+          "Lines": 1937,
+          "Methods": 23,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Client/ClientNetwork/Runtime/ClashOfRimMod.SessionRuntime.cs",
+          "Line": 23,
+          "Lines": 1974,
+          "Methods": 40,
+          "Fields": 1
+        },
+        {
+          "File": "Source/Client/ClientSnapshots/Confirmations/ClashOfRimMod.EventApplications.cs",
+          "Line": 22,
+          "Lines": 2211,
+          "Methods": 39,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Client/ClientSnapshots/Confirmations/ClashOfRimMod.SnapshotConfirmationFailures.cs",
+          "Line": 8,
+          "Lines": 84,
+          "Methods": 5,
+          "Fields": 3
+        },
+        {
+          "File": "Source/Client/Compatibility/Runtime/ClashOfRimMod.Compatibility.cs",
+          "Line": 20,
+          "Lines": 301,
+          "Methods": 11,
+          "Fields": 1
+        },
+        {
+          "File": "Source/Client/Diplomacy/Runtime/ClashOfRimMod.Diplomacy.cs",
+          "Line": 14,
+          "Lines": 345,
+          "Methods": 11,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Client/EventLetters/Runtime/ClashOfRimMod.EventLetters.cs",
+          "Line": 23,
+          "Lines": 1462,
+          "Methods": 62,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Client/MainMenu/Entry/ClashOfRimMod.ServerEntry.cs",
+          "Line": 21,
+          "Lines": 1095,
+          "Methods": 21,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Client/MainMenu/WorldSetup/ClashOfRimMod.WorldBaseline.cs",
+          "Line": 29,
+          "Lines": 2794,
+          "Methods": 115,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Client/RemoteMaps/Runtime/ClashOfRimMod.RemoteMaps.cs",
+          "Line": 24,
+          "Lines": 2106,
+          "Methods": 35,
+          "Fields": 4
+        },
+        {
+          "File": "Source/Client/ServerShop/Runtime/ClashOfRimMod.ServerShop.cs",
+          "Line": 17,
+          "Lines": 937,
+          "Methods": 21,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Client/Support/Assignments/ClashOfRimMod.SupportPawns.cs",
+          "Line": 25,
+          "Lines": 1105,
+          "Methods": 35,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Client/Trades/Fulfillment/ClashOfRimMod.TradeFulfillment.cs",
+          "Line": 19,
+          "Lines": 1153,
+          "Methods": 30,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Client/Trades/Market/ClashOfRimMod.TradeMarket.cs",
+          "Line": 17,
+          "Lines": 769,
+          "Methods": 26,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Client/WorldObjects/ColonyLifecycle/ClashOfRimMod.ColonyAppearance.cs",
+          "Line": 90,
+          "Lines": 159,
+          "Methods": 11,
+          "Fields": 2
+        },
+        {
+          "File": "Source/Client/WorldObjects/ColonyLifecycle/ClashOfRimMod.ColonyRelocation.cs",
+          "Line": 17,
+          "Lines": 627,
+          "Methods": 17,
+          "Fields": 4
+        }
+      ]
+    },
+    {
+      "Type": "AIRsLight.ClashOfRim.Network.ClashOfRimNetworkServer",
+      "Parts": 43,
+      "Files": 43,
+      "Lines": 17352,
+      "Methods": 589,
+      "Fields": 12,
+      "ConstFields": 6,
+      "ReadOnlyFields": 6,
+      "CrossPartFields": 4,
+      "CrossFileCalls": 343,
+      "PartsInfo": [
+        {
+          "File": "Source/Server/ClashOfRim.Network/Server/Core/ClashOfRimNetworkServer.BankRequestContext.cs",
+          "Line": 6,
+          "Lines": 123,
+          "Methods": 5,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Server/ClashOfRim.Network/Server/Core/ClashOfRimNetworkServer.BankSnapshotReplay.cs",
+          "Line": 7,
+          "Lines": 208,
+          "Methods": 4,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Server/ClashOfRim.Network/Server/Core/ClashOfRimNetworkServer.Bootstrap.cs",
+          "Line": 15,
+          "Lines": 361,
+          "Methods": 12,
+          "Fields": 1
+        },
+        {
+          "File": "Source/Server/ClashOfRim.Network/Server/Core/ClashOfRimNetworkServer.CompatibilityHandshake.cs",
+          "Line": 6,
+          "Lines": 245,
+          "Methods": 5,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Server/ClashOfRim.Network/Server/Core/ClashOfRimNetworkServer.ConfirmationPlans.cs",
+          "Line": 8,
+          "Lines": 55,
+          "Methods": 2,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Server/ClashOfRim.Network/Server/Core/ClashOfRimNetworkServer.cs",
+          "Line": 19,
+          "Lines": 2895,
+          "Methods": 113,
+          "Fields": 8
+        },
+        {
+          "File": "Source/Server/ClashOfRim.Network/Server/Core/ClashOfRimNetworkServer.EntryAuthentication.cs",
+          "Line": 5,
+          "Lines": 49,
+          "Methods": 2,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Server/ClashOfRim.Network/Server/Core/ClashOfRimNetworkServer.EventAchievements.cs",
+          "Line": 7,
+          "Lines": 191,
+          "Methods": 7,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Server/ClashOfRim.Network/Server/Core/ClashOfRimNetworkServer.EventReadContext.cs",
+          "Line": 6,
+          "Lines": 26,
+          "Methods": 4,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Server/ClashOfRim.Network/Server/Core/ClashOfRimNetworkServer.FailureReports.cs",
+          "Line": 6,
+          "Lines": 80,
+          "Methods": 5,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Server/ClashOfRim.Network/Server/Core/ClashOfRimNetworkServer.MercenarySnapshotCommits.cs",
+          "Line": 7,
+          "Lines": 82,
+          "Methods": 7,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Server/ClashOfRim.Network/Server/Core/ClashOfRimNetworkServer.OfflineRaidEvidence.cs",
+          "Line": 9,
+          "Lines": 101,
+          "Methods": 1,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Server/ClashOfRim.Network/Server/Core/ClashOfRimNetworkServer.Plugins.cs",
+          "Line": 5,
+          "Lines": 18,
+          "Methods": 1,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Server/ClashOfRim.Network/Server/Core/ClashOfRimNetworkServer.RaidEvidenceCommits.cs",
+          "Line": 10,
+          "Lines": 144,
+          "Methods": 6,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Server/ClashOfRim.Network/Server/Core/ClashOfRimNetworkServer.RaidSnapshotCommits.cs",
+          "Line": 9,
+          "Lines": 127,
+          "Methods": 6,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Server/ClashOfRim.Network/Server/Core/ClashOfRimNetworkServer.SessionConnections.cs",
+          "Line": 6,
+          "Lines": 79,
+          "Methods": 5,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Server/ClashOfRim.Network/Server/Core/ClashOfRimNetworkServer.SnapshotCommits.cs",
+          "Line": 8,
+          "Lines": 117,
+          "Methods": 8,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Server/ClashOfRim.Network/Server/Core/ClashOfRimNetworkServer.SnapshotPostUpload.cs",
+          "Line": 9,
+          "Lines": 420,
+          "Methods": 13,
+          "Fields": 1
+        },
+        {
+          "File": "Source/Server/ClashOfRim.Network/Server/Core/ClashOfRimNetworkServer.SupportClosures.cs",
+          "Line": 6,
+          "Lines": 64,
+          "Methods": 3,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Server/ClashOfRim.Network/Server/Core/ClashOfRimNetworkServer.SupportSnapshotCommits.cs",
+          "Line": 8,
+          "Lines": 99,
+          "Methods": 5,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Server/ClashOfRim.Network/Server/Core/ClashOfRimNetworkServer.TradeClosure.cs",
+          "Line": 5,
+          "Lines": 8,
+          "Methods": 1,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Server/ClashOfRim.Network/Server/Core/ClashOfRimNetworkServer.TradeFailureGraph.cs",
+          "Line": 6,
+          "Lines": 138,
+          "Methods": 4,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Server/ClashOfRim.Network/Server/Core/ClashOfRimNetworkServer.TradeSnapshotCommits.cs",
+          "Line": 8,
+          "Lines": 55,
+          "Methods": 5,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Server/ClashOfRim.Network/Server/Core/ClashOfRimNetworkServer.TransactionSnapshotPreparation.cs",
+          "Line": 7,
+          "Lines": 36,
+          "Methods": 4,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Server/ClashOfRim.Network/Server/Core/ClashOfRimNetworkServer.WorldExtensionRecovery.cs",
+          "Line": 7,
+          "Lines": 116,
+          "Methods": 4,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Server/ClashOfRim.Network/Server/Core/ClashOfRimNetworkServer.WorldSessionPreparation.cs",
+          "Line": 6,
+          "Lines": 23,
+          "Methods": 2,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Server/ClashOfRim.Network/Server/Endpoints/ClashOfRimNetworkServer.AdminControl.cs",
+          "Line": 10,
+          "Lines": 753,
+          "Methods": 32,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Server/ClashOfRim.Network/Server/Endpoints/ClashOfRimNetworkServer.BankMercenaries.cs",
+          "Line": 9,
+          "Lines": 1142,
+          "Methods": 34,
+          "Fields": 1
+        },
+        {
+          "File": "Source/Server/ClashOfRim.Network/Server/Endpoints/ClashOfRimNetworkServer.GiftRejection.cs",
+          "Line": 7,
+          "Lines": 44,
+          "Methods": 1,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Server/ClashOfRim.Network/Server/Endpoints/ClashOfRimNetworkServer.GiftsTrades.cs",
+          "Line": 9,
+          "Lines": 1655,
+          "Methods": 36,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Server/ClashOfRim.Network/Server/Endpoints/ClashOfRimNetworkServer.Login.cs",
+          "Line": 8,
+          "Lines": 71,
+          "Methods": 2,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Server/ClashOfRim.Network/Server/Endpoints/ClashOfRimNetworkServer.RaidsDiplomacySupport.cs",
+          "Line": 12,
+          "Lines": 1827,
+          "Methods": 69,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Server/ClashOfRim.Network/Server/Endpoints/ClashOfRimNetworkServer.ServerShop.cs",
+          "Line": 9,
+          "Lines": 469,
+          "Methods": 14,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Server/ClashOfRim.Network/Server/Endpoints/ClashOfRimNetworkServer.SessionWorld.Baseline.cs",
+          "Line": 16,
+          "Lines": 833,
+          "Methods": 31,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Server/ClashOfRim.Network/Server/Endpoints/ClashOfRimNetworkServer.SessionWorld.Confirmations.cs",
+          "Line": 16,
+          "Lines": 733,
+          "Methods": 22,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Server/ClashOfRim.Network/Server/Endpoints/ClashOfRimNetworkServer.SessionWorld.cs",
+          "Line": 16,
+          "Lines": 1305,
+          "Methods": 22,
+          "Fields": 1
+        },
+        {
+          "File": "Source/Server/ClashOfRim.Network/Server/Endpoints/ClashOfRimNetworkServer.SessionWorld.Live.cs",
+          "Line": 17,
+          "Lines": 1228,
+          "Methods": 30,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Server/ClashOfRim.Network/Server/Endpoints/ClashOfRimNetworkServer.SessionWorld.Markers.cs",
+          "Line": 16,
+          "Lines": 871,
+          "Methods": 39,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Server/ClashOfRim.Network/Server/Endpoints/ClashOfRimNetworkServer.TradeAcceptance.cs",
+          "Line": 8,
+          "Lines": 139,
+          "Methods": 3,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Server/ClashOfRim.Network/Server/Endpoints/ClashOfRimNetworkServer.TradeAutomaticClosure.cs",
+          "Line": 7,
+          "Lines": 195,
+          "Methods": 10,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Server/ClashOfRim.Network/Server/Endpoints/ClashOfRimNetworkServer.TradeCancellation.cs",
+          "Line": 6,
+          "Lines": 76,
+          "Methods": 3,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Server/ClashOfRim.Network/Server/Endpoints/ClashOfRimNetworkServer.TradeCompletion.cs",
+          "Line": 8,
+          "Lines": 89,
+          "Methods": 4,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Server/ClashOfRim.Network/Server/Endpoints/ClashOfRimNetworkServer.TradeMemoCancellation.cs",
+          "Line": 8,
+          "Lines": 62,
+          "Methods": 3,
+          "Fields": 0
+        }
+      ]
+    },
+    {
+      "Type": "AIRsLight.ClashOfRim.Multiplayer.ClashOfRimMultiplayerWindow",
+      "Parts": 2,
+      "Files": 2,
+      "Lines": 3994,
+      "Methods": 169,
+      "Fields": 132,
+      "ConstFields": 4,
+      "ReadOnlyFields": 5,
+      "CrossPartFields": 68,
+      "CrossFileCalls": 1,
+      "PartsInfo": [
+        {
+          "File": "Source/Client/Multiplayer/Windows/ClashOfRimMultiplayerWindow.Admin.cs",
+          "Line": 15,
+          "Lines": 1497,
+          "Methods": 59,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Client/Multiplayer/Windows/ClashOfRimMultiplayerWindow.cs",
+          "Line": 19,
+          "Lines": 2497,
+          "Methods": 110,
+          "Fields": 132
+        }
+      ]
+    },
+    {
+      "Type": "AIRsLight.ClashOfRim.ClientNetwork.ClashOfRimModNetworkClient",
+      "Parts": 2,
+      "Files": 2,
+      "Lines": 3043,
+      "Methods": 105,
+      "Fields": 86,
+      "ConstFields": 1,
+      "ReadOnlyFields": 79,
+      "CrossPartFields": 3,
+      "CrossFileCalls": 4,
+      "PartsInfo": [
+        {
+          "File": "Source/Client/ClientNetwork/Runtime/ClashOfRimModNetworkClient.cs",
+          "Line": 18,
+          "Lines": 3010,
+          "Methods": 104,
+          "Fields": 86
+        },
+        {
+          "File": "Source/Client/ClientNetwork/Runtime/ClashOfRimModNetworkClient.SetupAuthentication.cs",
+          "Line": 7,
+          "Lines": 33,
+          "Methods": 1,
+          "Fields": 0
+        }
+      ]
+    },
+    {
+      "Type": "AIRsLight.ClashOfRim.ThirdPartyCompatibility.ClashOfRimCompatibilityApi",
+      "Parts": 6,
+      "Files": 6,
+      "Lines": 2474,
+      "Methods": 128,
+      "Fields": 52,
+      "ConstFields": 0,
+      "ReadOnlyFields": 45,
+      "CrossPartFields": 44,
+      "CrossFileCalls": 32,
+      "PartsInfo": [
+        {
+          "File": "Source/Client/ThirdPartyCompatibility/Api/ClashOfRimCompatibilityApi.cs",
+          "Line": 16,
+          "Lines": 558,
+          "Methods": 31,
+          "Fields": 52
+        },
+        {
+          "File": "Source/Client/ThirdPartyCompatibility/Api/ClashOfRimCompatibilityApi.Pawns.cs",
+          "Line": 10,
+          "Lines": 413,
+          "Methods": 29,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Client/ThirdPartyCompatibility/Api/ClashOfRimCompatibilityApi.RemoteMapRuntime.cs",
+          "Line": 14,
+          "Lines": 187,
+          "Methods": 8,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Client/ThirdPartyCompatibility/Api/ClashOfRimCompatibilityApi.RemoteMaps.cs",
+          "Line": 14,
+          "Lines": 146,
+          "Methods": 13,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Client/ThirdPartyCompatibility/Api/ClashOfRimCompatibilityApi.ThingReferences.cs",
+          "Line": 11,
+          "Lines": 695,
+          "Methods": 35,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Client/ThirdPartyCompatibility/Api/ClashOfRimCompatibilityApi.WorldConfiguration.cs",
+          "Line": 8,
+          "Lines": 475,
+          "Methods": 12,
+          "Fields": 0
+        }
+      ]
+    },
+    {
+      "Type": "ClashOfRim.GameTests.GameSuite",
+      "Parts": 15,
+      "Files": 15,
+      "Lines": 2066,
+      "Methods": 96,
+      "Fields": 24,
+      "ConstFields": 0,
+      "ReadOnlyFields": 12,
+      "CrossPartFields": 15,
+      "CrossFileCalls": 133,
+      "PartsInfo": [
+        {
+          "File": "Tools/ClashOfRim.GameTests/GameSuite.AccountLifecycle.cs",
+          "Line": 7,
+          "Lines": 154,
+          "Methods": 4,
+          "Fields": 4
+        },
+        {
+          "File": "Tools/ClashOfRim.GameTests/GameSuite.Administration.cs",
+          "Line": 5,
+          "Lines": 63,
+          "Methods": 5,
+          "Fields": 0
+        },
+        {
+          "File": "Tools/ClashOfRim.GameTests/GameSuite.Bank.cs",
+          "Line": 6,
+          "Lines": 82,
+          "Methods": 6,
+          "Fields": 0
+        },
+        {
+          "File": "Tools/ClashOfRim.GameTests/GameSuite.Boundaries.cs",
+          "Line": 8,
+          "Lines": 141,
+          "Methods": 9,
+          "Fields": 0
+        },
+        {
+          "File": "Tools/ClashOfRim.GameTests/GameSuite.Catalog.cs",
+          "Line": 7,
+          "Lines": 89,
+          "Methods": 1,
+          "Fields": 0
+        },
+        {
+          "File": "Tools/ClashOfRim.GameTests/GameSuite.ComplexItems.cs",
+          "Line": 7,
+          "Lines": 72,
+          "Methods": 3,
+          "Fields": 0
+        },
+        {
+          "File": "Tools/ClashOfRim.GameTests/GameSuite.cs",
+          "Line": 15,
+          "Lines": 156,
+          "Methods": 1,
+          "Fields": 19
+        },
+        {
+          "File": "Tools/ClashOfRim.GameTests/GameSuite.Entry.cs",
+          "Line": 15,
+          "Lines": 166,
+          "Methods": 16,
+          "Fields": 0
+        },
+        {
+          "File": "Tools/ClashOfRim.GameTests/GameSuite.Features.cs",
+          "Line": 15,
+          "Lines": 483,
+          "Methods": 24,
+          "Fields": 0
+        },
+        {
+          "File": "Tools/ClashOfRim.GameTests/GameSuite.Gravship.cs",
+          "Line": 6,
+          "Lines": 46,
+          "Methods": 1,
+          "Fields": 0
+        },
+        {
+          "File": "Tools/ClashOfRim.GameTests/GameSuite.OfflineDelivery.cs",
+          "Line": 8,
+          "Lines": 130,
+          "Methods": 8,
+          "Fields": 0
+        },
+        {
+          "File": "Tools/ClashOfRim.GameTests/GameSuite.Relocation.cs",
+          "Line": 6,
+          "Lines": 52,
+          "Methods": 1,
+          "Fields": 0
+        },
+        {
+          "File": "Tools/ClashOfRim.GameTests/GameSuite.ShopStress.cs",
+          "Line": 10,
+          "Lines": 77,
+          "Methods": 1,
+          "Fields": 0
+        },
+        {
+          "File": "Tools/ClashOfRim.GameTests/GameSuite.Stability.cs",
+          "Line": 6,
+          "Lines": 103,
+          "Methods": 4,
+          "Fields": 1
+        },
+        {
+          "File": "Tools/ClashOfRim.GameTests/GameSuite.World.cs",
+          "Line": 14,
+          "Lines": 252,
+          "Methods": 12,
+          "Fields": 0
+        }
+      ]
+    },
+    {
+      "Type": "AIRsLight.ClashOfRim.DlcCompatibility.BiotechCompatibility",
+      "Parts": 10,
+      "Files": 10,
+      "Lines": 1808,
+      "Methods": 94,
+      "Fields": 38,
+      "ConstFields": 28,
+      "ReadOnlyFields": 10,
+      "CrossPartFields": 17,
+      "CrossFileCalls": 22,
+      "PartsInfo": [
+        {
+          "File": "Source/Client/DlcCompatibility/Biotech/Core/BiotechCompatibility.cs",
+          "Line": 5,
+          "Lines": 8,
+          "Methods": 0,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Client/DlcCompatibility/Biotech/DefensePoints/BiotechDefensePointCompatibility.cs",
+          "Line": 5,
+          "Lines": 12,
+          "Methods": 1,
+          "Fields": 1
+        },
+        {
+          "File": "Source/Client/DlcCompatibility/Biotech/Pawns/BiotechPawnExchangeCompatibility.cs",
+          "Line": 12,
+          "Lines": 160,
+          "Methods": 7,
+          "Fields": 5
+        },
+        {
+          "File": "Source/Client/DlcCompatibility/Biotech/RemoteMaps/BiotechRemoteMapProjectionLoadIdCompatibility.cs",
+          "Line": 5,
+          "Lines": 16,
+          "Methods": 1,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Client/DlcCompatibility/Biotech/RemoteMaps/BiotechRemoteMapProjectionSanitizer.cs",
+          "Line": 9,
+          "Lines": 162,
+          "Methods": 7,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Client/DlcCompatibility/Biotech/RemoteMaps/BiotechRemoteMapRuntimeSanitizer.cs",
+          "Line": 11,
+          "Lines": 137,
+          "Methods": 5,
+          "Fields": 7
+        },
+        {
+          "File": "Source/Client/DlcCompatibility/Biotech/Trading/BiotechReproductiveSourceThingReferenceCompatibility.cs",
+          "Line": 14,
+          "Lines": 783,
+          "Methods": 35,
+          "Fields": 5
+        },
+        {
+          "File": "Source/Client/DlcCompatibility/Biotech/Trading/BiotechThingReferenceCompatibility.cs",
+          "Line": 12,
+          "Lines": 353,
+          "Methods": 27,
+          "Fields": 20
+        },
+        {
+          "File": "Source/Client/DlcCompatibility/Biotech/Trading/BiotechThingReferenceDisplayCompatibility.cs",
+          "Line": 10,
+          "Lines": 123,
+          "Methods": 10,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Client/DlcCompatibility/Biotech/Trading/BiotechThingReferenceEditorCompatibility.cs",
+          "Line": 12,
+          "Lines": 54,
+          "Methods": 1,
+          "Fields": 0
+        }
+      ]
+    },
+    {
+      "Type": "AIRsLight.ClashOfRim.Network.BankLoanRegistry",
+      "Parts": 2,
+      "Files": 2,
+      "Lines": 983,
+      "Methods": 40,
+      "Fields": 15,
+      "ConstFields": 5,
+      "ReadOnlyFields": 10,
+      "CrossPartFields": 5,
+      "CrossFileCalls": 1,
+      "PartsInfo": [
+        {
+          "File": "Source/Server/ClashOfRim.Network/Server/Registries/Economy/BankLoanRegistry.cs",
+          "Line": 5,
+          "Lines": 940,
+          "Methods": 37,
+          "Fields": 15
+        },
+        {
+          "File": "Source/Server/ClashOfRim.Network/Server/Registries/Economy/BankLoanRegistry.PendingOperations.cs",
+          "Line": 5,
+          "Lines": 43,
+          "Methods": 3,
+          "Fields": 0
+        }
+      ]
+    },
+    {
+      "Type": "RaidEvidenceAuthorizationTests",
+      "Parts": 4,
+      "Files": 4,
+      "Lines": 825,
+      "Methods": 25,
+      "Fields": 0,
+      "ConstFields": 0,
+      "ReadOnlyFields": 0,
+      "CrossPartFields": 0,
+      "CrossFileCalls": 6,
+      "PartsInfo": [
+        {
+          "File": "Tools/ClashOfRim.Save.Tests/RaidEvidenceAuthorizationTests.cs",
+          "Line": 8,
+          "Lines": 181,
+          "Methods": 5,
+          "Fields": 0
+        },
+        {
+          "File": "Tools/ClashOfRim.Save.Tests/RaidEvidenceJournalRecoveryTests.cs",
+          "Line": 7,
+          "Lines": 197,
+          "Methods": 5,
+          "Fields": 0
+        },
+        {
+          "File": "Tools/ClashOfRim.Save.Tests/RaidEvidenceOnlineTests.cs",
+          "Line": 7,
+          "Lines": 269,
+          "Methods": 7,
+          "Fields": 0
+        },
+        {
+          "File": "Tools/ClashOfRim.Save.Tests/RaidEvidenceRequestBindingTests.cs",
+          "Line": 7,
+          "Lines": 178,
+          "Methods": 8,
+          "Fields": 0
+        }
+      ]
+    },
+    {
+      "Type": "ClashOfRim.RimTestBridge.DomainCommands",
+      "Parts": 8,
+      "Files": 8,
+      "Lines": 822,
+      "Methods": 28,
+      "Fields": 5,
+      "ConstFields": 0,
+      "ReadOnlyFields": 5,
+      "CrossPartFields": 2,
+      "CrossFileCalls": 17,
+      "PartsInfo": [
+        {
+          "File": "Tools/ClashOfRim.RimTestBridge/AccountLifecycleCommands.cs",
+          "Line": 8,
+          "Lines": 30,
+          "Methods": 2,
+          "Fields": 0
+        },
+        {
+          "File": "Tools/ClashOfRim.RimTestBridge/BankCommands.cs",
+          "Line": 11,
+          "Lines": 49,
+          "Methods": 2,
+          "Fields": 0
+        },
+        {
+          "File": "Tools/ClashOfRim.RimTestBridge/CatalogCommands.cs",
+          "Line": 15,
+          "Lines": 106,
+          "Methods": 2,
+          "Fields": 1
+        },
+        {
+          "File": "Tools/ClashOfRim.RimTestBridge/DlcPersistenceCommands.cs",
+          "Line": 7,
+          "Lines": 36,
+          "Methods": 2,
+          "Fields": 0
+        },
+        {
+          "File": "Tools/ClashOfRim.RimTestBridge/DomainCommands.cs",
+          "Line": 23,
+          "Lines": 265,
+          "Methods": 10,
+          "Fields": 2
+        },
+        {
+          "File": "Tools/ClashOfRim.RimTestBridge/GravshipCommands.cs",
+          "Line": 9,
+          "Lines": 108,
+          "Methods": 1,
+          "Fields": 1
+        },
+        {
+          "File": "Tools/ClashOfRim.RimTestBridge/RelocationCommands.cs",
+          "Line": 10,
+          "Lines": 87,
+          "Methods": 3,
+          "Fields": 0
+        },
+        {
+          "File": "Tools/ClashOfRim.RimTestBridge/StabilityCommands.cs",
+          "Line": 17,
+          "Lines": 141,
+          "Methods": 6,
+          "Fields": 1
+        }
+      ]
+    },
+    {
+      "Type": "AIRsLight.ClashOfRim.Network.ServerShopRegistry",
+      "Parts": 2,
+      "Files": 2,
+      "Lines": 717,
+      "Methods": 33,
+      "Fields": 9,
+      "ConstFields": 0,
+      "ReadOnlyFields": 8,
+      "CrossPartFields": 5,
+      "CrossFileCalls": 5,
+      "PartsInfo": [
+        {
+          "File": "Source/Server/ClashOfRim.Network/Server/Registries/Economy/ServerShopRegistry.cs",
+          "Line": 7,
+          "Lines": 650,
+          "Methods": 29,
+          "Fields": 8
+        },
+        {
+          "File": "Source/Server/ClashOfRim.Network/Server/Registries/Economy/ServerShopRegistry.SnapshotCommits.cs",
+          "Line": 7,
+          "Lines": 67,
+          "Methods": 4,
+          "Fields": 1
+        }
+      ]
+    },
+    {
+      "Type": "AIRsLight.ClashOfRim.Network.SnapshotCommitService",
+      "Parts": 3,
+      "Files": 3,
+      "Lines": 683,
+      "Methods": 30,
+      "Fields": 5,
+      "ConstFields": 0,
+      "ReadOnlyFields": 3,
+      "CrossPartFields": 4,
+      "CrossFileCalls": 3,
+      "PartsInfo": [
+        {
+          "File": "Source/Server/ClashOfRim.Network/Server/Services/SnapshotCommitService.cs",
+          "Line": 9,
+          "Lines": 571,
+          "Methods": 23,
+          "Fields": 4
+        },
+        {
+          "File": "Source/Server/ClashOfRim.Network/Server/Services/SnapshotCommitService.Receipts.cs",
+          "Line": 9,
+          "Lines": 49,
+          "Methods": 6,
+          "Fields": 1
+        },
+        {
+          "File": "Source/Server/ClashOfRim.Network/Server/Services/SnapshotCommitService.RecoveryPreparation.cs",
+          "Line": 5,
+          "Lines": 63,
+          "Methods": 1,
+          "Fields": 0
+        }
+      ]
+    },
+    {
+      "Type": "SupportClosureTests",
+      "Parts": 2,
+      "Files": 2,
+      "Lines": 644,
+      "Methods": 34,
+      "Fields": 4,
+      "ConstFields": 1,
+      "ReadOnlyFields": 3,
+      "CrossPartFields": 2,
+      "CrossFileCalls": 8,
+      "PartsInfo": [
+        {
+          "File": "Tools/ClashOfRim.Save.Tests/SupportClosureRecoveryPreparationTests.cs",
+          "Line": 9,
+          "Lines": 213,
+          "Methods": 6,
+          "Fields": 0
+        },
+        {
+          "File": "Tools/ClashOfRim.Save.Tests/SupportClosureTests.cs",
+          "Line": 11,
+          "Lines": 431,
+          "Methods": 28,
+          "Fields": 4
+        }
+      ]
+    },
+    {
+      "Type": "AIRsLight.ClashOfRim.Network.MercenaryContractRegistry",
+      "Parts": 2,
+      "Files": 2,
+      "Lines": 579,
+      "Methods": 29,
+      "Fields": 10,
+      "ConstFields": 3,
+      "ReadOnlyFields": 7,
+      "CrossPartFields": 4,
+      "CrossFileCalls": 0,
+      "PartsInfo": [
+        {
+          "File": "Source/Server/ClashOfRim.Network/Server/Registries/Economy/MercenaryContractRegistry.cs",
+          "Line": 5,
+          "Lines": 546,
+          "Methods": 26,
+          "Fields": 10
+        },
+        {
+          "File": "Source/Server/ClashOfRim.Network/Server/Registries/Economy/MercenaryContractRegistry.PendingOperations.cs",
+          "Line": 5,
+          "Lines": 33,
+          "Methods": 3,
+          "Fields": 0
+        }
+      ]
+    },
+    {
+      "Type": "AIRsLight.ClashOfRim.DlcCompatibility.RemoteIdeoMaterializer",
+      "Parts": 2,
+      "Files": 2,
+      "Lines": 574,
+      "Methods": 24,
+      "Fields": 0,
+      "ConstFields": 0,
+      "ReadOnlyFields": 0,
+      "CrossPartFields": 0,
+      "CrossFileCalls": 3,
+      "PartsInfo": [
+        {
+          "File": "Source/Client/DlcCompatibility/Ideology/Ideos/RemoteIdeoMaterializer.cs",
+          "Line": 12,
+          "Lines": 485,
+          "Methods": 20,
+          "Fields": 0
+        },
+        {
+          "File": "Source/Client/DlcCompatibility/Ideology/Ideos/RemoteIdeoMaterializer.PackageLoading.cs",
+          "Line": 12,
+          "Lines": 89,
+          "Methods": 4,
+          "Fields": 0
+        }
+      ]
+    },
+    {
+      "Type": "RaidTimeoutRecoveryTests",
+      "Parts": 2,
+      "Files": 2,
+      "Lines": 572,
+      "Methods": 14,
+      "Fields": 0,
+      "ConstFields": 0,
+      "ReadOnlyFields": 0,
+      "CrossPartFields": 0,
+      "CrossFileCalls": 2,
+      "PartsInfo": [
+        {
+          "File": "Tools/ClashOfRim.Save.Tests/RaidTimeoutJournalPreparationTests.cs",
+          "Line": 9,
+          "Lines": 144,
+          "Methods": 2,
+          "Fields": 0
+        },
+        {
+          "File": "Tools/ClashOfRim.Save.Tests/RaidTimeoutRecoveryTests.cs",
+          "Line": 10,
+          "Lines": 428,
+          "Methods": 12,
+          "Fields": 0
+        }
+      ]
+    },
+    {
+      "Type": "RaidCleanupCommitTests",
+      "Parts": 3,
+      "Files": 3,
+      "Lines": 561,
+      "Methods": 15,
+      "Fields": 0,
+      "ConstFields": 0,
+      "ReadOnlyFields": 0,
+      "CrossPartFields": 0,
+      "CrossFileCalls": 5,
+      "PartsInfo": [
+        {
+          "File": "Tools/ClashOfRim.Save.Tests/DownloadCleanupJournalRecoveryTests.cs",
+          "Line": 7,
+          "Lines": 128,
+          "Methods": 2,
+          "Fields": 0
+        },
+        {
+          "File": "Tools/ClashOfRim.Save.Tests/RaidCleanupCommitTests.cs",
+          "Line": 10,
+          "Lines": 289,
+          "Methods": 9,
+          "Fields": 0
+        },
+        {
+          "File": "Tools/ClashOfRim.Save.Tests/SnapshotDownloadAuthorizationTests.cs",
+          "Line": 7,
+          "Lines": 144,
+          "Methods": 4,
+          "Fields": 0
+        }
+      ]
+    },
+    {
+      "Type": "EventFailureReportTests",
+      "Parts": 2,
+      "Files": 2,
+      "Lines": 545,
+      "Methods": 26,
+      "Fields": 2,
+      "ConstFields": 0,
+      "ReadOnlyFields": 2,
+      "CrossPartFields": 2,
+      "CrossFileCalls": 7,
+      "PartsInfo": [
+        {
+          "File": "Tools/ClashOfRim.Save.Tests/EventFailureRecoveryPreparationTests.cs",
+          "Line": 10,
+          "Lines": 232,
+          "Methods": 5,
+          "Fields": 0
+        },
+        {
+          "File": "Tools/ClashOfRim.Save.Tests/EventFailureReportTests.cs",
+          "Line": 11,
+          "Lines": 313,
+          "Methods": 21,
+          "Fields": 2
+        }
+      ]
+    },
+    {
+      "Type": "EconomicEndpointRecoveryPreparationTests",
+      "Parts": 2,
+      "Files": 2,
+      "Lines": 486,
+      "Methods": 20,
+      "Fields": 0,
+      "ConstFields": 0,
+      "ReadOnlyFields": 0,
+      "CrossPartFields": 0,
+      "CrossFileCalls": 2,
+      "PartsInfo": [
+        {
+          "File": "Tools/ClashOfRim.Save.Tests/EconomicEndpointRecoveryPreparationTests.cs",
+          "Line": 9,
+          "Lines": 273,
+          "Methods": 8,
+          "Fields": 0
+        },
+        {
+          "File": "Tools/ClashOfRim.Save.Tests/EconomicEndpointRecoveryPreparationTests.RequestBinding.cs",
+          "Line": 8,
+          "Lines": 213,
+          "Methods": 12,
+          "Fields": 0
+        }
+      ]
+    },
+    {
+      "Type": "RaidCommitCrashTests",
+      "Parts": 2,
+      "Files": 2,
+      "Lines": 465,
+      "Methods": 20,
+      "Fields": 2,
+      "ConstFields": 0,
+      "ReadOnlyFields": 2,
+      "CrossPartFields": 0,
+      "CrossFileCalls": 6,
+      "PartsInfo": [
+        {
+          "File": "Tools/ClashOfRim.Save.Tests/RaidCommitCrashTests.cs",
+          "Line": 10,
+          "Lines": 286,
+          "Methods": 11,
+          "Fields": 2
+        },
+        {
+          "File": "Tools/ClashOfRim.Save.Tests/RaidCreationRequestBindingTests.cs",
+          "Line": 8,
+          "Lines": 179,
+          "Methods": 9,
+          "Fields": 0
+        }
+      ]
+    },
+    {
+      "Type": "GiftRejectionEndpointTests",
+      "Parts": 2,
+      "Files": 2,
+      "Lines": 407,
+      "Methods": 21,
+      "Fields": 1,
+      "ConstFields": 0,
+      "ReadOnlyFields": 1,
+      "CrossPartFields": 1,
+      "CrossFileCalls": 7,
+      "PartsInfo": [
+        {
+          "File": "Tools/ClashOfRim.Save.Tests/GiftRejectionEndpointTests.cs",
+          "Line": 11,
+          "Lines": 191,
+          "Methods": 16,
+          "Fields": 1
+        },
+        {
+          "File": "Tools/ClashOfRim.Save.Tests/GiftRejectionRecoveryPreparationTests.cs",
+          "Line": 10,
+          "Lines": 216,
+          "Methods": 5,
+          "Fields": 0
+        }
+      ]
+    },
+    {
+      "Type": "EconomicEndpointRecoveryPreparationTests.Fixture",
+      "Parts": 2,
+      "Files": 2,
+      "Lines": 152,
+      "Methods": 12,
+      "Fields": 9,
+      "ConstFields": 0,
+      "ReadOnlyFields": 3,
+      "CrossPartFields": 1,
+      "CrossFileCalls": 0,
+      "PartsInfo": [
+        {
+          "File": "Tools/ClashOfRim.Save.Tests/EconomicEndpointRecoveryPreparationTests.cs",
+          "Line": 144,
+          "Lines": 137,
+          "Methods": 10,
+          "Fields": 9
+        },
+        {
+          "File": "Tools/ClashOfRim.Save.Tests/EconomicEndpointRecoveryPreparationTests.RequestBinding.cs",
+          "Line": 205,
+          "Lines": 15,
+          "Methods": 2,
+          "Fields": 0
+        }
+      ]
+    },
+    {
+      "Type": "RaidEvidenceAuthorizationTests.Fixture",
+      "Parts": 3,
+      "Files": 3,
+      "Lines": 145,
+      "Methods": 14,
+      "Fields": 7,
+      "ConstFields": 0,
+      "ReadOnlyFields": 3,
+      "CrossPartFields": 2,
+      "CrossFileCalls": 2,
+      "PartsInfo": [
+        {
+          "File": "Tools/ClashOfRim.Save.Tests/RaidEvidenceAuthorizationTests.cs",
+          "Line": 83,
+          "Lines": 75,
+          "Methods": 5,
+          "Fields": 7
+        },
+        {
+          "File": "Tools/ClashOfRim.Save.Tests/RaidEvidenceJournalRecoveryTests.cs",
+          "Line": 170,
+          "Lines": 33,
+          "Methods": 4,
+          "Fields": 0
+        },
+        {
+          "File": "Tools/ClashOfRim.Save.Tests/RaidEvidenceRequestBindingTests.cs",
+          "Line": 147,
+          "Lines": 37,
+          "Methods": 5,
+          "Fields": 0
+        }
+      ]
+    },
+    {
+      "Type": "RaidCleanupCommitTests.Fixture",
+      "Parts": 3,
+      "Files": 3,
+      "Lines": 114,
+      "Methods": 9,
+      "Fields": 13,
+      "ConstFields": 0,
+      "ReadOnlyFields": 2,
+      "CrossPartFields": 5,
+      "CrossFileCalls": 0,
+      "PartsInfo": [
+        {
+          "File": "Tools/ClashOfRim.Save.Tests/DownloadCleanupJournalRecoveryTests.cs",
+          "Line": 106,
+          "Lines": 28,
+          "Methods": 3,
+          "Fields": 0
+        },
+        {
+          "File": "Tools/ClashOfRim.Save.Tests/RaidCleanupCommitTests.cs",
+          "Line": 198,
+          "Lines": 58,
+          "Methods": 3,
+          "Fields": 10
+        },
+        {
+          "File": "Tools/ClashOfRim.Save.Tests/SnapshotDownloadAuthorizationTests.cs",
+          "Line": 122,
+          "Lines": 28,
+          "Methods": 3,
+          "Fields": 3
+        }
+      ]
+    },
+    {
+      "Type": "AIRsLight.ClashOfRim.Gifts.ItemDeliveryItemSummary",
+      "Parts": 1,
+      "Files": 1,
+      "Lines": 81,
+      "Methods": 0,
+      "Fields": 0,
+      "ConstFields": 0,
+      "ReadOnlyFields": 0,
+      "CrossPartFields": 0,
+      "CrossFileCalls": 0,
+      "PartsInfo": [
+        {
+          "File": "Source/Client/Gifts/Processing/ItemDeliveryPayloadReader.cs",
+          "Line": 59,
+          "Lines": 81,
+          "Methods": 0,
+          "Fields": 0
+        }
+      ]
+    },
+    {
+      "Type": "RaidTimeoutRecoveryTests.Fixture",
+      "Parts": 2,
+      "Files": 2,
+      "Lines": 80,
+      "Methods": 7,
+      "Fields": 5,
+      "ConstFields": 0,
+      "ReadOnlyFields": 0,
+      "CrossPartFields": 3,
+      "CrossFileCalls": 0,
+      "PartsInfo": [
+        {
+          "File": "Tools/ClashOfRim.Save.Tests/RaidTimeoutJournalPreparationTests.cs",
+          "Line": 123,
+          "Lines": 29,
+          "Methods": 4,
+          "Fields": 0
+        },
+        {
+          "File": "Tools/ClashOfRim.Save.Tests/RaidTimeoutRecoveryTests.cs",
+          "Line": 328,
+          "Lines": 51,
+          "Methods": 3,
+          "Fields": 5
+        }
+      ]
+    },
+    {
+      "Type": "AIRsLight.ClashOfRim.ClientNetwork.ModThingReferenceDto",
+      "Parts": 1,
+      "Files": 1,
+      "Lines": 78,
+      "Methods": 0,
+      "Fields": 0,
+      "ConstFields": 0,
+      "ReadOnlyFields": 0,
+      "CrossPartFields": 0,
+      "CrossFileCalls": 0,
+      "PartsInfo": [
+        {
+          "File": "Source/Client/ClientNetwork/Dtos/ModTradeDtos.cs",
+          "Line": 6,
+          "Lines": 78,
+          "Methods": 0,
+          "Fields": 0
+        }
+      ]
+    },
+    {
+      "Type": "AIRsLight.ClashOfRim.ClientNetwork.ModPawnExchangeAppearanceDto",
+      "Parts": 1,
+      "Files": 1,
+      "Lines": 25,
+      "Methods": 0,
+      "Fields": 0,
+      "ConstFields": 0,
+      "ReadOnlyFields": 0,
+      "CrossPartFields": 0,
+      "CrossFileCalls": 0,
+      "PartsInfo": [
+        {
+          "File": "Source/Client/ClientNetwork/Dtos/ModPawnExchangeDtos.cs",
+          "Line": 110,
+          "Lines": 25,
+          "Methods": 0,
+          "Fields": 0
+        }
+      ]
+    },
+    {
+      "Type": "AIRsLight.ClashOfRim.ClientNetwork.ModCrossMapPawnReferenceDto",
+      "Parts": 1,
+      "Files": 1,
+      "Lines": 21,
+      "Methods": 0,
+      "Fields": 0,
+      "ConstFields": 0,
+      "ReadOnlyFields": 0,
+      "CrossPartFields": 0,
+      "CrossFileCalls": 0,
+      "PartsInfo": [
+        {
+          "File": "Source/Client/ClientNetwork/Dtos/ModPawnExchangeDtos.cs",
+          "Line": 19,
+          "Lines": 21,
+          "Methods": 0,
+          "Fields": 0
+        }
+      ]
+    },
+    {
+      "Type": "AIRsLight.ClashOfRim.ClientNetwork.ModPawnExchangeIdentityDto",
+      "Parts": 1,
+      "Files": 1,
+      "Lines": 15,
+      "Methods": 0,
+      "Fields": 0,
+      "ConstFields": 0,
+      "ReadOnlyFields": 0,
+      "CrossPartFields": 0,
+      "CrossFileCalls": 0,
+      "PartsInfo": [
+        {
+          "File": "Source/Client/ClientNetwork/Dtos/ModPawnExchangeDtos.cs",
+          "Line": 94,
+          "Lines": 15,
+          "Methods": 0,
+          "Fields": 0
+        }
+      ]
+    }
+  ]
+}
