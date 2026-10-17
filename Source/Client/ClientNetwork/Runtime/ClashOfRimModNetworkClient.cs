@@ -16,16 +16,13 @@ using Verse;
 
 namespace AIRsLight.ClashOfRim.ClientNetwork;
 
-public sealed class ClashOfRimModNetworkClient : IClientPackageReader
+public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPackageWriter
 {
     private static readonly string MaintainPresenceRoute = ProtocolContractManifest.Find(ProtocolMessageKind.MaintainPresence).Route;
     private static readonly string ChangeOfflinePasswordRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ChangeOfflinePassword).Route;
     private static readonly string ListPlayersRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ListPlayers).Route;
     private static readonly string ListAchievementsRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ListAchievements).Route;
-    private static readonly string StorePawnPackageRoute = ProtocolContractManifest.Find(ProtocolMessageKind.StorePawnPackage).Route;
-    private static readonly string StorePawnPackagePreviewRoute = ProtocolContractManifest.Find(ProtocolMessageKind.StorePawnPackagePreview).Route;
     private static readonly string GetPawnPackagePreviewRoute = ProtocolContractManifest.Find(ProtocolMessageKind.GetPawnPackagePreview).Route;
-    private static readonly string StoreThingPackageRoute = ProtocolContractManifest.Find(ProtocolMessageKind.StoreThingPackage).Route;
     private static readonly string ListServerShopRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ListServerShop).Route;
     private static readonly string UpsertServerShopListingRoute = ProtocolContractManifest.Find(ProtocolMessageKind.UpsertServerShopListing).Route;
     private static readonly string RemoveServerShopListingRoute = ProtocolContractManifest.Find(ProtocolMessageKind.RemoveServerShopListing).Route;
@@ -76,6 +73,7 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader
     private readonly ClientSessionWebSocketTransport sessionStream;
     private readonly ClashOfRimClientNetworkContext context;
     private readonly ClientPackageReader packages;
+    private readonly ClientPackageWriter packageWriter;
 
     public static Action<string, string?>? SessionExpired;
     public static Func<string?>? CompatibilityManifestJsonProvider;
@@ -96,6 +94,7 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader
         this.context = context ?? throw new ArgumentNullException(nameof(context));
         var protocolEnvironment = new ClientProtocolEnvironment((message, token) => SessionExpired?.Invoke(message, token));
         transport = new ClientProtocolTransport(httpClient, context, protocolEnvironment);
+        packageWriter = new ClientPackageWriter(transport, context, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         bankProtocol = new ClientBankProtocol(context, transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         trades = new ClientTradeProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         gifts = new ClientGiftProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
@@ -1141,29 +1140,7 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader
         string idempotencyKey,
         ModPawnExchangePackageDto pawnPackage,
         CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModStorePawnPackageResponseDto>();
-        }
-
-        var request = new ModStorePawnPackageRequestDto
-        {
-            IdempotencyKey = idempotencyKey,
-            Owner = new ModProtocolIdentityDto
-            {
-                UserId = context.UserId,
-                ColonyId = context.ColonyId,
-                SnapshotId = context.CurrentSnapshotId
-            },
-            PawnPackage = pawnPackage
-        };
-
-        return transport.PostAsync<ModStorePawnPackageRequestDto, ModStorePawnPackageResponseDto>(
-            StorePawnPackageRoute,
-            request,
-            cancellationToken);
-    }
+        => packageWriter.StorePawnPackageAsync(idempotencyKey, pawnPackage, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModGetPawnPackageResponseDto>> GetPawnPackageAsync(
         string pawnPackageId,
@@ -1174,29 +1151,7 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader
         string pawnPackageId,
         byte[] previewPng,
         CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModStorePawnPackagePreviewResponseDto>();
-        }
-
-        var request = new ModStorePawnPackagePreviewRequestDto
-        {
-            Owner = new ModProtocolIdentityDto
-            {
-                UserId = context.UserId,
-                ColonyId = context.ColonyId,
-                SnapshotId = context.CurrentSnapshotId
-            },
-            PawnPackageId = pawnPackageId
-        };
-
-        return transport.PostSnapshotMultipartAsync<ModStorePawnPackagePreviewRequestDto, ModStorePawnPackagePreviewResponseDto>(
-            StorePawnPackagePreviewRoute,
-            request,
-            previewPng,
-            cancellationToken);
-    }
+        => packageWriter.StorePawnPackagePreviewAsync(pawnPackageId, previewPng, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<byte[]>> GetPawnPackagePreviewAsync(
         string pawnPackageId,
@@ -1228,29 +1183,7 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader
         string idempotencyKey,
         ModThingStatePackageDto thingPackage,
         CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModStoreThingPackageResponseDto>();
-        }
-
-        var request = new ModStoreThingPackageRequestDto
-        {
-            IdempotencyKey = idempotencyKey,
-            Owner = new ModProtocolIdentityDto
-            {
-                UserId = context.UserId,
-                ColonyId = context.ColonyId,
-                SnapshotId = context.CurrentSnapshotId
-            },
-            ThingPackage = thingPackage
-        };
-
-        return transport.PostAsync<ModStoreThingPackageRequestDto, ModStoreThingPackageResponseDto>(
-            StoreThingPackageRoute,
-            request,
-            cancellationToken);
-    }
+        => packageWriter.StoreThingPackageAsync(idempotencyKey, thingPackage, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModGetThingPackageResponseDto>> GetThingPackageAsync(
         string thingPackageId,

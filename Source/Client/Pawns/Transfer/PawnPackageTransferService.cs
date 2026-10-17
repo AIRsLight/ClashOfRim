@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using AIRsLight.ClashOfRim.ClientNetwork;
-using AIRsLight.ClashOfRim.Gifts;
+using AIRsLight.ClashOfRim.Modules.Packages;
+using AIRsLight.ClashOfRim.Modules.Transport;
 using Verse;
 
 namespace AIRsLight.ClashOfRim.Pawns;
@@ -10,9 +12,10 @@ namespace AIRsLight.ClashOfRim.Pawns;
 internal static class PawnPackageTransferService
 {
     public static async Task StoreThingPawnPackagesAsync(
-        ClashOfRimModNetworkClient client,
+        IClientPackageWriter client,
         IReadOnlyList<ModThingReferenceDto> things,
-        string idempotencyPrefix)
+        string idempotencyPrefix,
+        CancellationToken cancellationToken = default)
     {
         if (client is null || things is null)
         {
@@ -30,13 +33,13 @@ internal static class PawnPackageTransferService
             ClashOfRimClientNetworkResult<ModStorePawnPackageResponseDto> result =
                 await client.StorePawnPackageAsync(
                     $"{idempotencyPrefix}:pawn-package:{index}:{thing.GlobalKey}",
-                    thing.PawnPackage).ConfigureAwait(false);
+                    thing.PawnPackage, cancellationToken).ConfigureAwait(false);
             if (!result.Success || result.Response is null)
             {
-                throw new InvalidOperationException(ClashOfRimText.Key(
+                throw new ClientProtocolRequestException(ClashOfRimText.Key(
                     "ClashOfRim.PawnPackage.UploadFailed",
                     (result.ErrorCode?.ToString() ?? string.Empty).Named("CODE"),
-                    (result.Message ?? string.Empty).Named("MESSAGE")));
+                    (result.Message ?? string.Empty).Named("MESSAGE")), result.ErrorCode, result.Message);
             }
 
             ModProtocolResponseDto? response = result.Response.Result;
@@ -59,7 +62,7 @@ internal static class PawnPackageTransferService
                 await TryStorePawnPackagePreviewAsync(
                     client,
                     result.Response.PawnPackageId!,
-                    previewPng).ConfigureAwait(false);
+                    previewPng, cancellationToken).ConfigureAwait(false);
             }
 
             thing.PawnPackageId = result.Response.PawnPackageId;
@@ -68,14 +71,15 @@ internal static class PawnPackageTransferService
     }
 
     private static async Task TryStorePawnPackagePreviewAsync(
-        ClashOfRimModNetworkClient client,
+        IClientPackageWriter client,
         string pawnPackageId,
-        byte[] previewPng)
+        byte[] previewPng,
+        CancellationToken cancellationToken)
     {
         ClashOfRimClientNetworkResult<ModStorePawnPackagePreviewResponseDto> result =
             await client.StorePawnPackagePreviewAsync(
                 pawnPackageId,
-                previewPng).ConfigureAwait(false);
+                previewPng, cancellationToken).ConfigureAwait(false);
         if (!result.Success || result.Response is null)
         {
             Log.Warning("[ClashOfRim] Pawn preview upload failed for package "
@@ -99,9 +103,10 @@ internal static class PawnPackageTransferService
     }
 
     public static async Task StoreThingStatePackagesAsync(
-        ClashOfRimModNetworkClient client,
+        IClientPackageWriter client,
         IReadOnlyList<ModThingReferenceDto> things,
-        string idempotencyPrefix)
+        string idempotencyPrefix,
+        CancellationToken cancellationToken = default)
     {
         if (client is null || things is null)
         {
@@ -119,13 +124,13 @@ internal static class PawnPackageTransferService
             ClashOfRimClientNetworkResult<ModStoreThingPackageResponseDto> result =
                 await client.StoreThingPackageAsync(
                     $"{idempotencyPrefix}:thing-package:{index}:{thing.GlobalKey}",
-                    thing.ThingPackage).ConfigureAwait(false);
+                    thing.ThingPackage, cancellationToken).ConfigureAwait(false);
             if (!result.Success || result.Response is null)
             {
-                throw new InvalidOperationException(ClashOfRimText.Key(
+                throw new ClientProtocolRequestException(ClashOfRimText.Key(
                     "ClashOfRim.PawnPackage.UploadFailed",
                     (result.ErrorCode?.ToString() ?? string.Empty).Named("CODE"),
-                    (result.Message ?? string.Empty).Named("MESSAGE")));
+                    (result.Message ?? string.Empty).Named("MESSAGE")), result.ErrorCode, result.Message);
             }
 
             ModProtocolResponseDto? response = result.Response.Result;

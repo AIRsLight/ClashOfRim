@@ -39,6 +39,10 @@ internal static class ClientModuleBoundaryTests
             || t == typeof(ClientBankRuntime) || t == typeof(ClientBankPresentation) || t == typeof(BankUiUtility)
             || t == typeof(AIRsLight.ClashOfRim.Trades.ClientTradeMarketPresentation)
             || t == typeof(ClientTradeMarketTransport)
+            || t == typeof(ClientTradeOperationsTransport) || t == typeof(PawnPackageTransferService)
+            || t == typeof(AIRsLight.ClashOfRim.Trades.ClientTradeActions) || t == typeof(AIRsLight.ClashOfRim.Trades.ClientTradeOperationsPresentation)
+            || t == typeof(AIRsLight.ClashOfRim.Trades.ClientTradeDraftSource) || t == typeof(AIRsLight.ClashOfRim.Trades.ClientTradeCaravanSource)
+            || t == typeof(AIRsLight.ClashOfRim.Trades.ClientTradeDropPodSource)
             || t.Namespace?.Split('.')[0] is "Verse" or "RimWorld" or "UnityEngine");
         if (modules.Length == 0 || violations.Count != 0)
             throw new InvalidOperationException("Client module boundaries: " + string.Join(Environment.NewLine, violations));
@@ -49,7 +53,9 @@ internal static class ClientModuleBoundaryTests
                 || t.Namespace?.StartsWith("AIRsLight.ClashOfRim.Modules.Events", StringComparison.Ordinal) == true);
         if (sessionViolations.Count != 0)
             throw new InvalidOperationException("Session foundation depends on an event/snapshot domain: " + string.Join(Environment.NewLine, sessionViolations));
-        Type[] eventAdapters = { typeof(AIRsLight.ClashOfRim.Trades.ClientTradeMarketPresentation), typeof(ClientBankRuntime), typeof(ClientBankPresentation), typeof(ClientGiftActions), typeof(ClientGiftPresentation), typeof(ClientCaravanGiftSource), typeof(ClientTransportPodGiftSource), typeof(ClientEventLetterPolicy), typeof(ClientEventLetterRenderer), typeof(ClientEventLetterRuntime),
+        Type[] eventAdapters = { typeof(AIRsLight.ClashOfRim.Trades.ClientTradeActions), typeof(AIRsLight.ClashOfRim.Trades.ClientTradeOperationsPresentation),
+            typeof(AIRsLight.ClashOfRim.Trades.ClientTradeDraftSource), typeof(AIRsLight.ClashOfRim.Trades.ClientTradeCaravanSource), typeof(AIRsLight.ClashOfRim.Trades.ClientTradeDropPodSource),
+            typeof(PawnPackageTransferService), typeof(AIRsLight.ClashOfRim.Trades.ClientTradeMarketPresentation), typeof(ClientBankRuntime), typeof(ClientBankPresentation), typeof(ClientGiftActions), typeof(ClientGiftPresentation), typeof(ClientCaravanGiftSource), typeof(ClientTransportPodGiftSource), typeof(ClientEventLetterPolicy), typeof(ClientEventLetterRenderer), typeof(ClientEventLetterRuntime),
             typeof(ClientDiplomacyPresentation), typeof(ClientEventTextFormatting), typeof(ClientEventReadPresentation),
             typeof(ClientEventDecisionPresentation), typeof(ClientEventDecisionRuntime),
             typeof(ClientGiftPackageHydration), typeof(PawnPackageHydration),

@@ -1911,4 +1911,6 @@
   <ClashOfRim.Bank.StatusCreateMinimumLoan>The minimum loan is {MIN} silver.</ClashOfRim.Bank.StatusCreateMinimumLoan>
   <ClashOfRim.Bank.StatusBaseSnapshotChanged>The active snapshot changed. Reload the authoritative save before continuing this bank transaction.</ClashOfRim.Bank.StatusBaseSnapshotChanged>
   <ClashOfRim.SnapshotConfirmation.BaseSnapshotChanged>The active snapshot changed. Reload the authoritative save before continuing this transaction.</ClashOfRim.SnapshotConfirmation.BaseSnapshotChanged>
+  <ClashOfRim.Trade.StatusOrderUnavailable>The trade order is no longer available or does not support the selected delivery method. Refresh the market.</ClashOfRim.Trade.StatusOrderUnavailable>
+  <ClashOfRim.Trade.StatusConfirmationIncomplete>The server did not return a complete trade and snapshot confirmation. Local changes remain unconfirmed. Return to the main menu and reload the server save.</ClashOfRim.Trade.StatusConfirmationIncomplete>
 </LanguageData>

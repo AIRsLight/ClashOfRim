@@ -144,7 +144,8 @@ internal static class TradeCaravanFulfillmentUtility
         string colonyId,
         string snapshotId,
         out IReadOnlyList<ModThingReferenceDto> deliveredThings,
-        out string message)
+        out string message,
+        Action? mutationStarting = null)
     {
         deliveredThings = Array.Empty<ModThingReferenceDto>();
         try
@@ -160,6 +161,7 @@ internal static class TradeCaravanFulfillmentUtility
                 .Select(plan => ToThingReference(plan.Thing, caravan, userId, colonyId, snapshotId, plan.Count))
                 .ToList();
 
+            mutationStarting?.Invoke();
             foreach (ThingRemovalPlan plan in removalPlans)
             {
                 RemoveThingCount(plan.Thing, plan.Count, caravan);

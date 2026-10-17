@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Trades;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -25,7 +26,8 @@ public sealed class TradeOrderDialogWindow : Window
             ["Wastepack"] = 100
         };
 
-    private readonly ClashOfRimMod mod;
+    private readonly ClientTradeActions actions;
+    private readonly ClientTradeState.Scope owner;
     private readonly Map map;
     private readonly List<TradeOfferSelection> offeredThings = new();
     private readonly Dictionary<Thing, TradeOfferSelection> offeredThingIndex = new(new ThingReferenceComparer());
@@ -51,9 +53,12 @@ public sealed class TradeOrderDialogWindow : Window
     private string? quoteStatus;
     private int quoteRequestVersion;
 
-    public TradeOrderDialogWindow(ClashOfRimMod mod, Map map)
+    public TradeOrderDialogWindow(ClashOfRimMod mod, Map map) : this(mod.TradeActions, map) { }
+
+    internal TradeOrderDialogWindow(ClientTradeActions actions, Map map)
     {
-        this.mod = mod;
+        this.actions = actions;
+        owner = actions.Capture();
         this.map = map;
         doCloseX = true;
         closeOnAccept = false;
@@ -67,6 +72,7 @@ public sealed class TradeOrderDialogWindow : Window
 
     public override void DoWindowContents(Rect inRect)
     {
+        if (!actions.Owns(owner)) { Close(); return; }
         Text.Font = GameFont.Medium;
         Widgets.Label(new Rect(inRect.x, inRect.y, inRect.width, 32f), ClashOfRimText.Key("ClashOfRim.Trade.CreateOrderTitle"));
         Text.Font = GameFont.Small;
@@ -539,9 +545,9 @@ public sealed class TradeOrderDialogWindow : Window
             try
             {
                 ClashOfRimClientNetworkResult<ModTradeOrderFeeQuoteResponseDto> quote =
-                    await ClientSessionWork.Observe(mod.QuoteTradeOrderFeeAsync(offeredReferences, requestedReferences));
+                    await ClientSessionWork.Observe(actions.QuoteAsync(owner, offeredReferences, requestedReferences));
                 using var publication = ClientSessionWork.EnterPublication();
-                ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
+                actions.Enqueue(owner, () =>
                 {
                     if (version != quoteRequestVersion)
                     {
@@ -591,7 +597,7 @@ public sealed class TradeOrderDialogWindow : Window
             when (ClientSessionWork.IsCurrent)
             {
                 using var publication = ClientSessionWork.EnterPublication();
-                ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
+                actions.Enqueue(owner, () =>
                 {
                     if (version != quoteRequestVersion)
                     {
@@ -620,13 +626,13 @@ public sealed class TradeOrderDialogWindow : Window
             + BuildEstimatedValuesLine()
             + "\n"
             + ClashOfRimText.Key("ClashOfRim.Trade.ConfirmCreateFee", draft.FeeSilver.Named("FEE"));
-        Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation(summary, () =>
+        Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation(summary, actions.Bind(owner, () =>
         {
-            Action create = () =>
+            Action create = actions.Bind(owner, () =>
             {
                 Close();
-                mod.StartCreateManualTradeOrder(draft);
-            };
+                actions.Create(owner, map, draft);
+            });
             if (draft.RequestedThings.Count == 0)
             {
                 Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation(
@@ -636,7 +642,7 @@ public sealed class TradeOrderDialogWindow : Window
             }
 
             create();
-        }));
+        })));
     }
 
     private bool CanSubmit()
@@ -898,13 +904,13 @@ public sealed class TradeOrderDialogWindow : Window
         Thing thing = selection.Thing;
         if (thing is Pawn pawn)
         {
-            string globalKey = PawnGlobalIdUtility.Build(mod.UserId, pawn);
+            string globalKey = PawnGlobalIdUtility.Build(actions.Context.UserId, pawn);
             return TradePawnUtility.BuildPawnReference(
                 pawn,
                 globalKey,
-                mod.UserId,
-                mod.ColonyId,
-                mod.CurrentSnapshotId,
+                actions.Context.UserId,
+                actions.Context.ColonyId,
+                actions.Context.CurrentSnapshotId ?? "",
                 "trade-order:" + map.uniqueID,
                 includePreview: true);
         }
@@ -912,7 +918,7 @@ public sealed class TradeOrderDialogWindow : Window
         CompBiocodable? biocodable = thing.TryGetComp<CompBiocodable>();
         return TradeThingReferenceUtility.BuildThingReference(
             thing,
-            $"owner:{mod.UserId}/colony:{mod.ColonyId}/snapshot:{mod.CurrentSnapshotId}/map:Map_{map.uniqueID}/thing:{thing.ThingID}",
+            $"owner:{actions.Context.UserId}/colony:{actions.Context.ColonyId}/snapshot:{actions.Context.CurrentSnapshotId}/map:Map_{map.uniqueID}/thing:{thing.ThingID}",
             selection.Count,
             BuildBiocodedPawnGlobalId(biocodable?.CodedPawn),
             ThingReferenceSurfaces.TradeOffer);
@@ -986,7 +992,7 @@ public sealed class TradeOrderDialogWindow : Window
 
     private float ResolveListingFeeRate()
     {
-        float? configured = mod.AdminStatusSnapshot?.Configuration?.TradeBaseFeeRate;
+        float? configured = actions.FeeRate;
         return configured.HasValue && configured.Value >= 0f
             ? configured.Value
             : DefaultListingFeeRate;
@@ -994,7 +1000,7 @@ public sealed class TradeOrderDialogWindow : Window
 
     private IReadOnlyDictionary<string, int> ResolveFixedFeePerThing()
     {
-        List<ModAdminFixedTradeFeeDto>? configured = mod.AdminStatusSnapshot?.Configuration?.FixedTradeFees;
+        IReadOnlyList<ModAdminFixedTradeFeeDto>? configured = actions.FixedFees;
         if (configured is null || configured.Count == 0)
         {
             return DefaultFixedFeePerThing;
@@ -1076,7 +1082,7 @@ public sealed class TradeOrderDialogWindow : Window
             return null;
         }
 
-        return PawnGlobalIdUtility.Build(mod.UserId, pawn);
+        return PawnGlobalIdUtility.Build(actions.Context.UserId, pawn);
     }
 
     private sealed class ThingReferenceComparer : IEqualityComparer<Thing>

@@ -19,6 +19,8 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("trade operations own reservation, fulfillment and snapshot retries", ClientTradeOperationsTests.Run),
+    ("package writes preserve contracts, previews and partial upload retries", PackageWriteModuleTests.Run),
     ("trade market owns paging, decisions and session state", ClientTradeMarketTests.Run),
     ("gift sends own capture, removal, retries and deferred arrival", ClientGiftModuleTests.Run),
     ("bank workflow owns preparation, retry, session state and game publication", ClientBankModuleTests.Run),

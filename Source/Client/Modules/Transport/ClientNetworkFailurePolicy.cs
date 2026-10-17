@@ -8,7 +8,8 @@ namespace AIRsLight.ClashOfRim.Modules.Transport;
 internal static class ClientNetworkFailurePolicy
 {
     internal static bool CanRetry(Exception exception) =>
-        exception is HttpRequestException or TaskCanceledException or IOException or ObjectDisposedException;
+        exception is ClientProtocolRequestException request ? CanRetry(request.Code, request.ServerMessage)
+            : exception is HttpRequestException or TaskCanceledException or IOException or ObjectDisposedException;
 
     internal static bool CanRetry(string? code, string? message) =>
         (code == "HttpError" && IsTransientHttp(message))

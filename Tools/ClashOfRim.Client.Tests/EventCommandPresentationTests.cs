@@ -196,6 +196,15 @@ internal static class EventCommandPresentationTests
             "StatusCancelAcceptedMemoSucceeded", "StatusCancelAcceptedMemoFailed", "StatusCancelAcceptedMemoRejected", "StatusCancelAcceptedMemoException" })
             RequireResolved(view.Text(key, ("LOADED", 3), ("TOTAL", 5), ("CODE", "rejected"), ("MESSAGE", "server-message"),
                 ("TYPE", "Exception"), ("EVENTID", "order"), ("MEMOID", "memo"), ("COUNT", 2)));
+        var operations = new AIRsLight.ClashOfRim.Trades.ClientTradeOperationsPresentation();
+        foreach (string key in new[] { "StatusDraftMissingThings", "StatusOrderUnavailable", "StatusConfirmationIncomplete", "StatusMissingAcceptMemo",
+            "StatusCaravanFulfillPreparing", "StatusSubmittingCaravanFulfill", "StatusOrderReserving", "StatusDropPodReserving",
+            "StatusOrderCreatedReservationFailed", "StatusFulfillLocalApplyFailed", "StatusOrderPackagingSnapshot", "StatusFulfillPackagingSnapshot",
+            "StatusOrderSnapshotBuildFailed", "StatusFulfillSnapshotBuildFailed", "StatusOrderSubmittingTransaction", "StatusFulfillSubmittingTransaction",
+            "StatusSubmittingOrder", "StatusSubmittingDropPodFulfill", "StatusOrderCreatedReserved", "StatusDropPodFulfillCreated",
+            "StatusOrderSubmitException", "StatusCreateRejected", "MissingSuffix", "StatusFulfillFailed", "StatusFulfillRejected", "StatusFulfillException" })
+            RequireResolved(operations.Text("ClashOfRim.Trade." + key, ("EVENTID", "order"), ("MESSAGE", "message"), ("REASON", "reason"),
+                ("FEE", 12), ("ACCEPTOR", "acceptor"), ("OWNER", "owner"), ("TYPE", "Exception"), ("CODE", "rejected"), ("MISSING", "Steel")));
     }
 
     private static void BankPresentation()

@@ -18,7 +18,8 @@ internal static class TradeMapFulfillmentUtility
         string colonyId,
         string snapshotId,
         out IReadOnlyList<ModThingReferenceDto> deliveredThings,
-        out string message)
+        out string message,
+        Action? mutationStarting = null)
     {
         deliveredThings = Array.Empty<ModThingReferenceDto>();
         var inventory = new List<ThingCountState>();
@@ -79,6 +80,7 @@ internal static class TradeMapFulfillmentUtility
 
         deliveredThings = delivered;
 
+        mutationStarting?.Invoke();
         foreach (ThingRemovalPlan plan in removalPlans)
         {
             RemoveThingCount(plan.Thing, plan.Count);
@@ -230,7 +232,7 @@ internal static class TradeMapFulfillmentUtility
         return PawnGlobalIdUtility.Build(userId, pawn);
     }
 
-    private static void RemoveThingCount(Thing thing, int count)
+    internal static void RemoveThingCount(Thing thing, int count)
     {
         if (thing is Pawn pawn)
         {

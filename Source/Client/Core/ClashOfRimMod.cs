@@ -64,6 +64,8 @@ public sealed partial class ClashOfRimMod : Mod
     private readonly ClientBankOperations bankOperations;
     private readonly ClientTradeState tradeState;
     private readonly ClientTradeMarket tradeMarket;
+    private readonly ClientTradeActions tradeActions;
+    internal ClientTradeActions TradeActions => tradeActions;
     private readonly ClientGiftActions giftActions;
     internal ClientGiftActions GiftActions => giftActions;
     private readonly ClientEventConfirmationWorkflow eventConfirmations;
@@ -169,6 +171,11 @@ public sealed partial class ClashOfRimMod : Mod
         tradeState = new ClientTradeState(sessionLifecycle, new ClientSnapshotGame(), tradePresentation);
         tradeMarket = new ClientTradeMarket(sessionLifecycle, tradeState, localMutations, mutationAdmission,
             snapshotTransactions, new ClientTradeMarketTransport(), tradePresentation);
+        var tradeTransport = new ClientTradeOperationsTransport();
+        var tradeOperations = new ClientTradeOperations(mutationAdmission, synchronization, localMutations, snapshotTransactions,
+            snapshotFailureRecovery, tradeState, tradeTransport, new ClientTradeOperationsPresentation());
+        tradeActions = new ClientTradeActions(tradeOperations, tradeState, sessionLifecycle, tradeTransport, () => WorldMapMarkersSnapshot,
+            () => AdminStatusSnapshot?.Configuration?.TradeBaseFeeRate, () => AdminStatusSnapshot?.Configuration?.FixedTradeFees);
         bankOperations = new ClientBankOperations(mutationAdmission, synchronization, localMutations,
             snapshotTransactions, snapshotFailureRecovery,
             bankState, new ClientBankTransport(), new ClientBankRuntime(), bankPresentation);
@@ -212,6 +219,11 @@ public sealed partial class ClashOfRimMod : Mod
         {
             var read = eventRefresh.CaptureQueueRead();
             _ = ClientSessionWork.Run(() => eventRefresh.ReadQueueAsync(read));
+        };
+        tradeOperations.Completed += operation =>
+        {
+            if (operation == ClientTradeOperation.Create) StartQueuedAutomaticEventRefreshAfterLocalAtomicMutation();
+            else StartAutomaticEventRefresh(ClashOfRimText.Key("ClashOfRim.Trade.ReasonFulfillment"));
         };
         eventApplications.RefreshRequested += StartAutomaticEventRefresh;
         eventApplications.Deferred += eventRefresh.Defer;
