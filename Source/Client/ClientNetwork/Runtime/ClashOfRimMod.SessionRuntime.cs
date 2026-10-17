@@ -29,7 +29,7 @@ public sealed partial class ClashOfRimMod
         UseSimpleDictionaryFormat = true
     };
 
-    internal void StartRefreshEventsForTest() => StartManualEventRead(ClientEventReadKind.Refresh);
+    internal void StartRefreshEventsForTest() => _ = eventRefresh.StartManual(ClientEventReadKind.Refresh);
 
     internal void StartManualLogin()
     {
@@ -84,8 +84,7 @@ public sealed partial class ClashOfRimMod
                     result.Response.ServerProtocolVersion.Named("PROTOCOL"),
                     result.Response.SessionId.Named("SESSION"));
                 sessionLifecycle.PublishLogin(result.Response);
-                eventQueueStatus = FormatEventQueue(result.Response.EventQueue);
-                eventInbox.ReplaceQueue(result.Response.EventQueue);
+                eventRefresh.AdoptQueue(result.Response.EventQueue);
                 CaptureWorldMapMarkers(result.Response.WorldMapMarkers, source: "manual-login");
                 StartAutomaticEventRefresh(ClashOfRimText.Key("ClashOfRim.Login.ReasonManual"));
                 StartRefreshPlayers(ClashOfRimText.Key("ClashOfRim.Login.ReasonManual"), requireManualGate: false);
@@ -108,7 +107,7 @@ public sealed partial class ClashOfRimMod
     }
 
     internal void StartManualPresence() => sessionConnection.Start(
-        ClashOfRimClientNetworkContext.FromSettings(settings), lastSessionId, lastNotificationVersion, lastWorldConfigurationVersion);
+        ClashOfRimClientNetworkContext.FromSettings(settings), lastSessionId, eventState.NotificationVersion, lastWorldConfigurationVersion);
 
     internal void StopManualPresence() => sessionConnection.Stop();
 
@@ -162,7 +161,6 @@ public sealed partial class ClashOfRimMod
         // GoToMainMenu unloads the scene asynchronously. Its old game can still
         // update after logout, so retain the same admission barrier used by entry.
         MarkServerEntrySourceGame();
-        lastNotificationVersion = 0;
         lastWorldConfigurationVersion = 0;
         pendingInitialWorldConfigurationSubmit = false;
         pendingServerWorldConfiguration = null;
@@ -988,7 +986,7 @@ public sealed partial class ClashOfRimMod
         long? notificationVersion = ExtractNotificationVersion(serverEvent.Data);
         if (notificationVersion.HasValue)
         {
-            lastNotificationVersion = Math.Max(lastNotificationVersion, notificationVersion.Value);
+            eventState.ObserveNotificationVersion(notificationVersion.Value);
         }
 
         long? worldConfigurationVersion = ExtractWorldConfigurationVersion(serverEvent.Data);
@@ -999,15 +997,15 @@ public sealed partial class ClashOfRimMod
 
         if (string.Equals(serverEvent.EventName, "presence", StringComparison.Ordinal))
         {
-            presenceStatus = ClashOfRimText.Key("ClashOfRim.Presence.StatusConnected", lastNotificationVersion.Named("VERSION"));
+            presenceStatus = ClashOfRimText.Key("ClashOfRim.Presence.StatusConnected", eventState.NotificationVersion.Named("VERSION"));
             StartRefreshChatMessages(initialLoad: true);
             return;
         }
 
         if (string.Equals(serverEvent.EventName, "ledgerChanged", StringComparison.Ordinal))
         {
-            presenceStatus = ClashOfRimText.Key("ClashOfRim.Presence.StatusLedgerChanged", lastNotificationVersion.Named("VERSION"));
-            eventQueueStatus = ClashOfRimText.Key("ClashOfRim.Presence.StatusLedgerChangedSyncing");
+            presenceStatus = ClashOfRimText.Key("ClashOfRim.Presence.StatusLedgerChanged", eventState.NotificationVersion.Named("VERSION"));
+            eventState.SetQueueStatus(ClashOfRimText.Key("ClashOfRim.Presence.StatusLedgerChangedSyncing"));
             StartAutomaticEventRefresh(ClashOfRimText.Key("ClashOfRim.Presence.ReasonLedgerChanged"));
             return;
         }
@@ -1396,8 +1394,7 @@ public sealed partial class ClashOfRimMod
             + ", activeRaidRecovery=" + (result.Snapshot!.ActiveRaidRecovery?.EventId ?? "<none>") + ".");
         loginStatus = ClashOfRimText.Key("ClashOfRim.SessionExpired.ReconnectSucceeded");
         presenceStatus = loginStatus;
-        eventQueueStatus = FormatEventQueue(login.EventQueue);
-        eventInbox.ReplaceQueue(login.EventQueue);
+        eventRefresh.AdoptQueue(login.EventQueue);
         CaptureWorldMapMarkers(login.WorldMapMarkers, source: "session-reconnect");
         window.CompleteReconnect(true, loginStatus);
         StartAutomaticEventRefresh(ClashOfRimText.Key("ClashOfRim.SessionExpired.ReconnectReason"));
@@ -1523,8 +1520,7 @@ public sealed partial class ClashOfRimMod
                             login.Response.SessionId.Named("SESSION")),
                         MessageTypeDefOf.PositiveEvent,
                         historical: false));
-                eventQueueStatus = FormatEventQueue(login.Response.EventQueue);
-                eventInbox.ReplaceQueue(login.Response.EventQueue);
+                eventRefresh.AdoptQueue(login.Response.EventQueue);
                 CaptureWorldMapMarkers(login.Response.WorldMapMarkers, source: "map-session-login");
                 StartAutomaticEventRefresh(ClashOfRimText.Key("ClashOfRim.MapSession.ReasonLogin"));
                 StartRefreshPlayers(ClashOfRimText.Key("ClashOfRim.MapSession.ReasonLogin"), requireManualGate: false);

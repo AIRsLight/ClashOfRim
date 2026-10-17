@@ -1,5 +1,4 @@
 using AIRsLight.ClashOfRim.ClientNetwork;
-using AIRsLight.ClashOfRim.Modules.Sessions;
 
 namespace AIRsLight.ClashOfRim.Modules.Events;
 
@@ -7,12 +6,12 @@ namespace AIRsLight.ClashOfRim.Modules.Events;
 // attempt and identity; it cannot release or restart a replacement session's work.
 internal sealed class ClientEventRefreshQueue
 {
-    private readonly ClientSessionLifecycle session;
-    private ClientSessionLifecycle.Ownership? owner;
+    private readonly ClientEventReader reader;
+    private ClientEventReader.ReadScope? owner;
     private Attempt? active;
     private bool queued;
 
-    internal ClientEventRefreshQueue(ClientSessionLifecycle session) => this.session = session;
+    internal ClientEventRefreshQueue(ClientEventReader reader) => this.reader = reader;
 
     internal Attempt? Begin()
     {
@@ -44,7 +43,7 @@ internal sealed class ClientEventRefreshQueue
         bool repeat = false;
         ClientSessionWork.TryApply(() =>
         {
-            if (!ReferenceEquals(active, attempt) || !session.Owns(attempt.Owner)) return;
+            if (!ReferenceEquals(active, attempt) || !reader.Owns(attempt.Owner)) return;
             active = null;
             repeat = queued;
             queued = false;
@@ -54,15 +53,15 @@ internal sealed class ClientEventRefreshQueue
 
     private void Normalize()
     {
-        if (owner is not null && session.Owns(owner)) return;
-        owner = session.CaptureOwnership();
+        if (owner is not null && reader.Owns(owner)) return;
+        owner = reader.CaptureScope();
         active = null;
         queued = false;
     }
 
     internal sealed class Attempt
     {
-        internal Attempt(ClientSessionLifecycle.Ownership owner) => Owner = owner;
-        internal ClientSessionLifecycle.Ownership Owner { get; }
+        internal Attempt(ClientEventReader.ReadScope owner) => Owner = owner;
+        internal ClientEventReader.ReadScope Owner { get; }
     }
 }

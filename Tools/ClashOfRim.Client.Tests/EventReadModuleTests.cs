@@ -24,6 +24,7 @@ internal static class EventReadModuleTests
         {
             await ProtocolContracts();
             await ModesAndFailures();
+            await SnapshotReplacement();
             await SerializedReads();
             await IdentityReplacement();
             await GenerationExit();
@@ -40,7 +41,7 @@ internal static class EventReadModuleTests
             foreach (string culture in new[] { "en-US", "fr-FR", "ar-SA" })
             {
                 CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(culture);
-                var context = new ClashOfRimClientNetworkContext("http://localhost/base", "用户-é", "colony", null, null, null, "auth");
+                var context = new ClashOfRimClientNetworkContext("http://localhost/base", "鐢ㄦ埛-茅", "colony", null, null, null, "auth");
                 int calls = 0;
                 using var handler = new Handler(async request =>
                 {
@@ -48,12 +49,12 @@ internal static class EventReadModuleTests
                     Require(request.Method == HttpMethod.Post && request.RequestUri!.AbsolutePath == "/base/" + ProtocolContractManifest.Find(kind).Route.TrimStart('/'), "Event route changed.");
                     using var body = JsonDocument.Parse(await request.Content!.ReadAsStringAsync());
                     var json = body.RootElement;
-                    Require(json.GetProperty("authToken").GetString() == "auth" && json.GetProperty("userId").GetString() == "用户-é"
+                    Require(json.GetProperty("authToken").GetString() == "auth" && json.GetProperty("userId").GetString() == "鐢ㄦ埛-茅"
                         && json.GetProperty("colonyId").GetString() == "colony" && json.GetProperty("currentSnapshotId").GetString() == "", "Event identity or null snapshot mapping changed.");
                     if (kind == ProtocolMessageKind.WaitForEvents)
                         Require(json.GetProperty("knownNotificationVersion").GetInt64() == 9007199254740991 && json.GetProperty("timeoutSeconds").GetInt32() == 15, "Wait cursor/timeout lost precision.");
                     if (kind == ProtocolMessageKind.PullEventDetails)
-                        Require(json.GetProperty("eventIds").EnumerateArray().Select(x => x.GetString()).SequenceEqual(new[] { "A", "a", "事件" }), "Event IDs reordered or culture-folded.");
+                        Require(json.GetProperty("eventIds").EnumerateArray().Select(x => x.GetString()).SequenceEqual(new[] { "A", "a", "浜嬩欢" }), "Event IDs reordered or culture-folded.");
                     return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("{}", Encoding.UTF8, "application/json") };
                 });
                 using var http = new HttpClient(handler);
@@ -61,7 +62,7 @@ internal static class EventReadModuleTests
                 var protocol = new ClientEventProtocol(new ClientProtocolTransport(http, context, new Environment()), () => { diagnosticReads++; return "not-configured"; });
                 Require((await protocol.PullAsync(context, default)).Success, "Queue protocol failed.");
                 Require((await protocol.WaitAsync(context, 9007199254740991, 15, default)).Success, "Wait protocol failed.");
-                Require((await protocol.DetailsAsync(context, new[] { "A", "a", "事件" }, default)).Success, "Details protocol failed.");
+                Require((await protocol.DetailsAsync(context, new[] { "A", "a", "浜嬩欢" }, default)).Success, "Details protocol failed.");
                 Require(diagnosticReads == 0, "Successful requests evaluated missing-configuration presentation.");
                 var missing = new ClashOfRimClientNetworkContext("http://localhost", "user", "", null, null, null, null);
                 Require((await protocol.PullAsync(missing, default)).ErrorCode == "NotConfigured"
@@ -150,9 +151,28 @@ internal static class EventReadModuleTests
         f.Ports.Snapshot = "advanced-while-queued";
         held.SetResult(Ok(new ModPullPendingEventsResponseDto { EventQueue = Queue("first") }));
         await Task.WhenAll(first, second).WaitAsync(TimeSpan.FromSeconds(5));
-        Require(f.Protocol.Calls.SequenceEqual(new[] { "queue", "details:first", "queue", "details:second" })
+        Require(f.Protocol.Calls.SequenceEqual(new[] { "queue", "queue", "details:second" })
             && f.Inbox.CopyDetails().Single().EventId == "second", "A response used IDs belonging to another refresh.");
         Require(snapshots.SequenceEqual(new[] { "snapshot", "advanced-while-queued" }), "Queued refresh sent the snapshot captured before it acquired admission.");
+    }
+
+    private static async Task SnapshotReplacement()
+    {
+        foreach (bool throws in new[] { false, true })
+        {
+            var f = new Fixture();
+            var held = NewSignal<ClashOfRimClientNetworkResult<ModPullPendingEventsResponseDto>>();
+            f.Protocol.Queue = _ => held.Task;
+            var request = f.Reader.Capture(ClientEventReadKind.Automatic);
+            Task work = f.Reader.ReadAsync(request);
+            f.Ports.Snapshot = "replacement";
+            f.Inbox.ReplaceQueue(Queue("replacement"));
+            if (throws) held.SetException(new InvalidOperationException("old request"));
+            else held.SetResult(Ok(new ModPullPendingEventsResponseDto { EventQueue = Queue("old") }));
+            await work;
+            Require(f.Updates.Count == 0 && f.Inbox.CopyQueuedIds().Single() == "replacement",
+                "Read response borrowed a later snapshot: " + (throws ? "exception" : "success"));
+        }
     }
 
     private static async Task IdentityReplacement()
@@ -206,7 +226,7 @@ internal static class EventReadModuleTests
     private static void RefreshCoalescing()
     {
         var f = new Fixture();
-        var refresh = new ClientEventRefreshQueue(f.Session);
+        var refresh = new ClientEventRefreshQueue(f.Reader);
         var first = refresh.Begin()!;
         Parallel.For(0, 32, _ => Require(refresh.Begin() is null, "Concurrent notification started another refresh."));
         Require(!refresh.TakeDeferred() && refresh.Complete(first) && !refresh.Complete(first), "Merged notifications did not produce exactly one follow-up.");
@@ -232,60 +252,17 @@ internal static class EventReadModuleTests
     private sealed class Fixture
     {
         internal readonly ClientEventInbox Inbox = new();
-        internal readonly Protocol Protocol = new();
-        internal readonly SessionPorts Ports = new();
+        internal readonly EventReadTestProtocol Protocol = new();
+        internal readonly EventModuleTestPorts Ports = new() { Snapshot = "snapshot" };
         internal readonly ClientSessionLifecycle Session;
         internal readonly ClientEventReader Reader;
         internal readonly List<ClientEventReadUpdate> Updates = new();
         internal Fixture()
         {
             Session = new(Ports, Ports, new ClientSessionConnection(Ports));
-            Reader = new(Session, Inbox, Protocol);
+            Reader = new(Session, Inbox, Protocol, Ports);
             Reader.Updated += Updates.Add;
         }
-    }
-
-    private sealed class SessionPorts : IClientSessionIdentityStore, IClientSessionLogoutTransport, IClientSessionStreamTransport
-    {
-        private string user = "user", auth = "auth";
-        internal string Snapshot = "snapshot";
-        public ClashOfRimClientNetworkContext ReadContext() => new("http://localhost", user, "colony", Snapshot, null, null, auth);
-        public void Write(string? userId, string? displayName, string authToken) { user = userId ?? user; auth = authToken; }
-        public Task<ClashOfRimClientNetworkResult<ModLogoutResponseDto>> LogoutAsync(ClashOfRimClientNetworkContext context, string id) => throw new NotSupportedException();
-        public Task<ClashOfRimClientNetworkResult<ModSessionStreamClosedDto>> StreamAsync(ClashOfRimClientNetworkContext context, string sessionId, long notificationVersion, long worldVersion, Action<ModSessionStreamEvent> onEvent, CancellationToken token) => throw new NotSupportedException();
-    }
-
-    private sealed class Protocol : IClientEventReadProtocol
-    {
-        internal readonly List<string> Calls = new();
-        internal readonly TaskCompletionSource Started = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        internal string? FailStage, Failure;
-        internal bool WaitChanged = true;
-        internal Func<ClashOfRimClientNetworkContext, Task<ClashOfRimClientNetworkResult<ModPullPendingEventsResponseDto>>> Queue = _ => Task.FromResult(Ok(new ModPullPendingEventsResponseDto { EventQueue = EventReadModuleTests.Queue("event") }));
-        internal Func<IReadOnlyList<string>, Task<ClashOfRimClientNetworkResult<ModPullEventDetailsResponseDto>>> Detail = ids => Task.FromResult(Ok(new ModPullEventDetailsResponseDto { Events = ids.Select(id => new ModEventDetailDto { EventId = id }).ToList() }));
-        public Task<ClashOfRimClientNetworkResult<ModPullPendingEventsResponseDto>> PullAsync(ClashOfRimClientNetworkContext context, CancellationToken token)
-        {
-            Calls.Add("queue"); Started.TrySetResult();
-            return FailStage == "queue" ? Fail(new ModPullPendingEventsResponseDto { Result = new() { Accepted = false, ErrorCode = 9 } }) : Queue(context);
-        }
-        public Task<ClashOfRimClientNetworkResult<ModWaitForEventsResponseDto>> WaitAsync(ClashOfRimClientNetworkContext context, long version, int seconds, CancellationToken token)
-        {
-            Calls.Add($"wait:{version}:{seconds}");
-            return FailStage == "wait" ? Fail(new ModWaitForEventsResponseDto { Result = new() { Accepted = false } })
-                : Task.FromResult(Ok(new ModWaitForEventsResponseDto { Changed = WaitChanged, NotificationVersion = version + 1, EventQueue = EventReadModuleTests.Queue("wait") }));
-        }
-        public Task<ClashOfRimClientNetworkResult<ModPullEventDetailsResponseDto>> DetailsAsync(ClashOfRimClientNetworkContext context, IReadOnlyList<string> ids, CancellationToken token)
-        {
-            Calls.Add("details:" + string.Join(",", ids));
-            return FailStage == "details" ? Fail(new ModPullEventDetailsResponseDto { Result = new() { Accepted = false, ErrorCode = 9 } }) : Detail(ids);
-        }
-        private Task<ClashOfRimClientNetworkResult<T>> Fail<T>(T rejected) => Failure switch
-        {
-            "http" => Task.FromResult(ClashOfRimClientNetworkResult<T>.Failed("http", "failure")),
-            "null" => Task.FromResult(Ok<T>(default!)),
-            "reject" => Task.FromResult(Ok(rejected)),
-            _ => throw new InvalidOperationException("read failed")
-        };
     }
 
     private sealed class Handler : HttpMessageHandler

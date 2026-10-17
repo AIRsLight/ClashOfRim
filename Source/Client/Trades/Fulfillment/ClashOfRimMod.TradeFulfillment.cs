@@ -63,7 +63,7 @@ public sealed partial class ClashOfRimMod
             return;
         }
         tradeStatus = ClashOfRimText.Key("ClashOfRim.Trade.StatusAcceptingOrder", order.EventId.Named("EVENTID"));
-        var eventRead = eventReader.Capture(ClientEventReadKind.Queue);
+        var eventRead = eventRefresh.CaptureQueueRead();
         ClientSessionWork.Run(async () =>
         {
             try
@@ -94,7 +94,7 @@ public sealed partial class ClashOfRimMod
                     tradeStatus = result.Response.MemoCreated ? ClashOfRimText.Key("ClashOfRim.Trade.StatusAcceptedOrder", result.Response.TradeEventId.Named("EVENTID"), result.Response.MemoEventId.Named("MEMOID")) : ClashOfRimText.Key("ClashOfRim.Trade.StatusAcceptMemoExists", result.Response.MemoEventId.Named("MEMOID"));
                     MarkTradeOrderAcceptedLocally(order.EventId, result.Response.MemoEventId);
                 }
-                await ClientSessionWork.Observe(eventReader.ReadAsync(eventRead));
+                await ClientSessionWork.Observe(eventRefresh.ReadQueueAsync(eventRead));
             }
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
@@ -274,7 +274,7 @@ public sealed partial class ClashOfRimMod
     {
         if (targets.Count == 0)
         {
-            giftProcessingStatus = ClashOfRimText.Key("ClashOfRim.GiftDelivery.StatusNoTargets");
+            eventState.ActionStatus = ClashOfRimText.Key("ClashOfRim.GiftDelivery.StatusNoTargets");
             return;
         }
 
@@ -305,34 +305,34 @@ public sealed partial class ClashOfRimMod
     {
         if (!giftsEnabled)
         {
-            giftProcessingStatus = ClashOfRimText.Key("ClashOfRim.GiftDelivery.Disabled");
-            Messages.Message(giftProcessingStatus, MessageTypeDefOf.RejectInput, historical: false);
+            eventState.ActionStatus = ClashOfRimText.Key("ClashOfRim.GiftDelivery.Disabled");
+            Messages.Message(eventState.ActionStatus, MessageTypeDefOf.RejectInput, historical: false);
             return;
         }
 
         if (forcedDelivery && !pvpEnabled)
         {
-            giftProcessingStatus = ClashOfRimText.Key("ClashOfRim.Raid.PvpDisabled");
-            Messages.Message(giftProcessingStatus, MessageTypeDefOf.RejectInput, historical: false);
+            eventState.ActionStatus = ClashOfRimText.Key("ClashOfRim.Raid.PvpDisabled");
+            Messages.Message(eventState.ActionStatus, MessageTypeDefOf.RejectInput, historical: false);
             return;
         }
 
         if (TryRejectBlockedByLocalAtomicMutation(out string atomicMessage))
         {
-            giftProcessingStatus = atomicMessage;
+            eventState.ActionStatus = atomicMessage;
             Messages.Message(atomicMessage, MessageTypeDefOf.RejectInput, historical: false);
             return;
         }
 
         if (!CanRunManualSync(out string failureReason))
         {
-            giftProcessingStatus = failureReason;
+            eventState.ActionStatus = failureReason;
             return;
         }
 
         if (target.Tile != caravan.Tile)
         {
-            giftProcessingStatus = ClashOfRimText.Key("ClashOfRim.GiftDelivery.StatusTargetTileMismatch");
+            eventState.ActionStatus = ClashOfRimText.Key("ClashOfRim.GiftDelivery.StatusTargetTileMismatch");
             return;
         }
 
@@ -340,13 +340,13 @@ public sealed partial class ClashOfRimMod
             || string.IsNullOrWhiteSpace(target.OwnerColonyId)
             || string.IsNullOrWhiteSpace(target.MapId))
         {
-            giftProcessingStatus = ClashOfRimText.Key("ClashOfRim.GiftDelivery.StatusTargetIncomplete");
+            eventState.ActionStatus = ClashOfRimText.Key("ClashOfRim.GiftDelivery.StatusTargetIncomplete");
             return;
         }
 
         if (selections.Count == 0)
         {
-            giftProcessingStatus = ClashOfRimText.Key("ClashOfRim.GiftDelivery.StatusNoSelectedItems");
+            eventState.ActionStatus = ClashOfRimText.Key("ClashOfRim.GiftDelivery.StatusNoSelectedItems");
             return;
         }
 
@@ -367,8 +367,8 @@ public sealed partial class ClashOfRimMod
         }
         catch (ThingTransferRejectedException ex)
         {
-            giftProcessingStatus = ThingTransferPipeline.RejectionMessage(ex.RejectionCode);
-            Messages.Message(giftProcessingStatus, MessageTypeDefOf.RejectInput, historical: false);
+            eventState.ActionStatus = ThingTransferPipeline.RejectionMessage(ex.RejectionCode);
+            Messages.Message(eventState.ActionStatus, MessageTypeDefOf.RejectInput, historical: false);
             return;
         }
         BeginLocalAtomicMutation(
@@ -377,7 +377,7 @@ public sealed partial class ClashOfRimMod
         if (!TradeCaravanFulfillmentUtility.RemoveSelectedThings(caravan, selections, out string removeMessage))
         {
             ClearLocalAtomicMutation();
-            giftProcessingStatus = ClashOfRimText.Key("ClashOfRim.GiftDelivery.StatusLocalRemoveFailed", removeMessage.Named("MESSAGE"));
+            eventState.ActionStatus = ClashOfRimText.Key("ClashOfRim.GiftDelivery.StatusLocalRemoveFailed", removeMessage.Named("MESSAGE"));
             return;
         }
 
@@ -404,7 +404,7 @@ public sealed partial class ClashOfRimMod
         LocalMutationKind operation = LocalMutationKind.GiftSend;
         if (TryRejectBlockedByLocalAtomicMutation(out string blockedMessage, operation))
         {
-            giftProcessingStatus = blockedMessage;
+            eventState.ActionStatus = blockedMessage;
             Messages.Message(blockedMessage, MessageTypeDefOf.RejectInput, historical: false);
             return;
         }
@@ -416,10 +416,10 @@ public sealed partial class ClashOfRimMod
                 out ModSnapshotPackageBuildResult build,
                 out string buildFailureReason))
         {
-            giftProcessingStatus = ClashOfRimText.Key("ClashOfRim.GiftDelivery.StatusSnapshotBuildFailed", buildFailureReason.Named("REASON"));
+            eventState.ActionStatus = ClashOfRimText.Key("ClashOfRim.GiftDelivery.StatusSnapshotBuildFailed", buildFailureReason.Named("REASON"));
             ShowUnconfirmedSnapshotFailure(
                 operation,
-                giftProcessingStatus,
+                eventState.ActionStatus,
                 () => StartSubmitRemovedGift(target, things, targetContext, forcedDelivery, message, idempotencyKey, removeMessage));
             return;
         }
@@ -450,20 +450,20 @@ public sealed partial class ClashOfRimMod
         LocalMutationKind operation = LocalMutationKind.GiftSend;
         if (TryRejectBlockedByLocalAtomicMutation(out string blockedMessage, operation))
         {
-            giftProcessingStatus = blockedMessage;
+            eventState.ActionStatus = blockedMessage;
             Messages.Message(blockedMessage, MessageTypeDefOf.RejectInput, historical: false);
             return;
         }
 
         if (!TryBeginSnapshotUploadTransaction(out var uploadTransaction))
         {
-            giftProcessingStatus = ClashOfRimText.Key("ClashOfRim.SnapshotUpload.Busy");
-            Messages.Message(giftProcessingStatus, MessageTypeDefOf.RejectInput, historical: false);
+            eventState.ActionStatus = ClashOfRimText.Key("ClashOfRim.SnapshotUpload.Busy");
+            Messages.Message(eventState.ActionStatus, MessageTypeDefOf.RejectInput, historical: false);
             return;
         }
 
         BeginLocalAtomicMutation(operation, ClashOfRimText.Key("ClashOfRim.GiftDelivery.StatusSubmittingTransaction"));
-        giftProcessingStatus = ClashOfRimText.Key(
+        eventState.ActionStatus = ClashOfRimText.Key(
             forcedDelivery ? "ClashOfRim.GiftDelivery.StatusSubmittingForced" : "ClashOfRim.GiftDelivery.StatusSubmittingNormal",
             FormatWorldMapTargetLabel(target).Named("TARGET"));
         ClientSessionWork.Run(async () =>
@@ -489,10 +489,10 @@ public sealed partial class ClashOfRimMod
                 using var publication = ClientSessionWork.EnterPublication();
                 if (!result.Success || result.Response is null)
                 {
-                    giftProcessingStatus = ClashOfRimText.Key("ClashOfRim.GiftDelivery.StatusCreateFailed", result.ErrorCode.Named("CODE"), result.Message.Named("MESSAGE"));
+                    eventState.ActionStatus = ClashOfRimText.Key("ClashOfRim.GiftDelivery.StatusCreateFailed", result.ErrorCode.Named("CODE"), result.Message.Named("MESSAGE"));
                     ShowUnconfirmedSnapshotFailure(
                         operation,
-                        giftProcessingStatus,
+                        eventState.ActionStatus,
                         () => StartSubmitRemovedGiftWithSnapshot(target, things, targetContext, forcedDelivery, message, idempotencyKey, removeMessage, confirmedSnapshot, confirmedPayload));
                     return;
                 }
@@ -500,10 +500,10 @@ public sealed partial class ClashOfRimMod
                 ModProtocolResponseDto? response = result.Response.Result;
                 if (response is not null && !response.Accepted)
                 {
-                    giftProcessingStatus = ClashOfRimText.Key("ClashOfRim.GiftDelivery.StatusCreateRejected", response.ErrorCode.Named("CODE"), response.Message.Named("MESSAGE"));
+                    eventState.ActionStatus = ClashOfRimText.Key("ClashOfRim.GiftDelivery.StatusCreateRejected", response.ErrorCode.Named("CODE"), response.Message.Named("MESSAGE"));
                     ShowUnconfirmedSnapshotFailure(
                         operation,
-                        giftProcessingStatus,
+                        eventState.ActionStatus,
                         () => StartSubmitRemovedGiftWithSnapshot(target, things, targetContext, forcedDelivery, message, idempotencyKey, removeMessage, confirmedSnapshot, confirmedPayload));
                     return;
                 }
@@ -517,11 +517,11 @@ public sealed partial class ClashOfRimMod
                             result.Response.NextLineageToken);
                     }
 
-                    giftProcessingStatus = ClashOfRimText.Key(
+                    eventState.ActionStatus = ClashOfRimText.Key(
                         forcedDelivery ? "ClashOfRim.GiftDelivery.StatusForcedCreated" : "ClashOfRim.GiftDelivery.StatusNormalCreated",
                         result.Response.EventId.Named("EVENTID"),
                         removeMessage.Named("MESSAGE"));
-                    Messages.Message(giftProcessingStatus, forcedDelivery ? MessageTypeDefOf.NegativeEvent : MessageTypeDefOf.PositiveEvent, historical: false);
+                    Messages.Message(eventState.ActionStatus, forcedDelivery ? MessageTypeDefOf.NegativeEvent : MessageTypeDefOf.PositiveEvent, historical: false);
                     CompleteLocalAtomicMutation();
                     CloseUnconfirmedSnapshotFailureWindow();
                 });
@@ -530,10 +530,10 @@ public sealed partial class ClashOfRimMod
             when (ClientSessionWork.IsCurrent)
             {
                 using var publication = ClientSessionWork.EnterPublication();
-                giftProcessingStatus = ClashOfRimText.Key("ClashOfRim.GiftDelivery.StatusCreateException", ex.GetType().Name.Named("TYPE"), ex.Message.Named("MESSAGE"));
+                eventState.ActionStatus = ClashOfRimText.Key("ClashOfRim.GiftDelivery.StatusCreateException", ex.GetType().Name.Named("TYPE"), ex.Message.Named("MESSAGE"));
                 ShowUnconfirmedSnapshotFailure(
                     operation,
-                    giftProcessingStatus,
+                    eventState.ActionStatus,
                     () => StartSubmitRemovedGiftWithSnapshot(target, things, targetContext, forcedDelivery, message, idempotencyKey, removeMessage, confirmedSnapshot, confirmedPayload));
                 Log.Warning("[ClashOfRim] Gift delivery failed: " + ex);
             }
@@ -558,21 +558,21 @@ public sealed partial class ClashOfRimMod
     {
         if (!giftsEnabled)
         {
-            giftProcessingStatus = ClashOfRimText.Key("ClashOfRim.GiftDelivery.Disabled");
-            Messages.Message(giftProcessingStatus, MessageTypeDefOf.RejectInput, historical: false);
+            eventState.ActionStatus = ClashOfRimText.Key("ClashOfRim.GiftDelivery.Disabled");
+            Messages.Message(eventState.ActionStatus, MessageTypeDefOf.RejectInput, historical: false);
             return;
         }
 
         if (forcedDelivery && !pvpEnabled)
         {
-            giftProcessingStatus = ClashOfRimText.Key("ClashOfRim.Raid.PvpDisabled");
-            Messages.Message(giftProcessingStatus, MessageTypeDefOf.RejectInput, historical: false);
+            eventState.ActionStatus = ClashOfRimText.Key("ClashOfRim.Raid.PvpDisabled");
+            Messages.Message(eventState.ActionStatus, MessageTypeDefOf.RejectInput, historical: false);
             return;
         }
 
         if (!CanRunManualSync(out string failureReason))
         {
-            giftProcessingStatus = failureReason;
+            eventState.ActionStatus = failureReason;
             return;
         }
 
@@ -580,13 +580,13 @@ public sealed partial class ClashOfRimMod
             || string.IsNullOrWhiteSpace(targetColonyId)
             || string.IsNullOrWhiteSpace(targetMapId))
         {
-            giftProcessingStatus = ClashOfRimText.Key("ClashOfRim.GiftDelivery.StatusTargetIncomplete");
+            eventState.ActionStatus = ClashOfRimText.Key("ClashOfRim.GiftDelivery.StatusTargetIncomplete");
             return;
         }
 
         if (transporters.Count == 0)
         {
-            giftProcessingStatus = ClashOfRimText.Key("ClashOfRim.GiftDelivery.StatusNoSelectedItems");
+            eventState.ActionStatus = ClashOfRimText.Key("ClashOfRim.GiftDelivery.StatusNoSelectedItems");
             return;
         }
 
@@ -619,8 +619,8 @@ public sealed partial class ClashOfRimMod
             }
             catch (Exception ex)
             {
-                giftProcessingStatus = ClashOfRimText.Key("ClashOfRim.GiftDelivery.StatusCreateException", ex.GetType().Name.Named("TYPE"), ex.Message.Named("MESSAGE"));
-                ShowUnconfirmedSnapshotFailure(operation, giftProcessingStatus, PrepareAfterArrival);
+                eventState.ActionStatus = ClashOfRimText.Key("ClashOfRim.GiftDelivery.StatusCreateException", ex.GetType().Name.Named("TYPE"), ex.Message.Named("MESSAGE"));
+                ShowUnconfirmedSnapshotFailure(operation, eventState.ActionStatus, PrepareAfterArrival);
                 Log.Warning("[ClashOfRim] Transport-pod gift preparation failed: " + ex);
             }
         }

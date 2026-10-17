@@ -4,7 +4,6 @@ using AIRsLight.ClashOfRim.Modules.Synchronization;
 using System;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.ClientSnapshots;
-using AIRsLight.ClashOfRim.EventLetters;
 using AIRsLight.ClashOfRim.Gifts;
 using RimWorld;
 using Verse;
@@ -13,124 +12,11 @@ namespace AIRsLight.ClashOfRim;
 
 public sealed partial class ClashOfRimMod
 {
-    private void StartAutomaticEventRefresh(string reason)
-    {
-        using var publication = ClientSessionWork.EnterPublication();
-        if (TryRejectBlockedByLocalAtomicMutation(out string atomicMessage))
-        {
-            QueueAutomaticEventRefreshAfterLocalAtomicMutation(reason, atomicMessage);
-            return;
-        }
-        if (!CanRunManualSync(out string failureReason))
-        {
-            eventQueueStatus = failureReason;
-            return;
-        }
-        var attempt = automaticEventRefresh.Begin();
-        if (attempt is null)
-        {
-            eventQueueStatus = ClashOfRimText.Key("ClashOfRim.Events.StatusAutoMerged", reason.Named("REASON"));
-            return;
-        }
-        eventQueueStatus = ClashOfRimText.Key("ClashOfRim.Events.StatusAutoRefreshing", reason.Named("REASON"));
-        var request = eventReader.Capture(ClientEventReadKind.Automatic, reason);
-        ClientSessionWork.Run(async () =>
-        {
-            try { await eventReader.ReadAsync(request); }
-            finally
-            {
-                // Completion and the optional restart share the same identity publication boundary.
-                eventReader.TryApply(request, () =>
-                {
-                    if (automaticEventRefresh.Complete(attempt))
-                        StartAutomaticEventRefresh(ClashOfRimText.Key("ClashOfRim.Events.ReasonMergedNotifications"));
-                });
-            }
-        });
-    }
-
-    private void QueueAutomaticEventRefreshAfterLocalAtomicMutation(string reason, string status)
-    {
-        automaticEventRefresh.Defer();
-        eventQueueStatus = status;
-        ClashLog.Message($"[ClashOfRim][AutoEventRefresh] queued after local atomic mutation reason={reason ?? "<null>"}.");
-    }
-
-    private void StartQueuedAutomaticEventRefreshAfterLocalAtomicMutation()
-    {
-        using var publication = ClientSessionWork.EnterPublication();
-        if (automaticEventRefresh.TakeDeferred())
-            StartAutomaticEventRefresh(ClashOfRimText.Key("ClashOfRim.Events.ReasonMergedNotifications"));
-    }
-
-    internal void StartManualPullPendingEvents() => StartManualEventRead(ClientEventReadKind.Queue);
-    internal void StartManualWaitForEvents() => StartManualEventRead(ClientEventReadKind.Wait);
-    internal void StartManualPullEventDetails() => StartManualEventRead(ClientEventReadKind.Details);
-
-    private void StartManualEventRead(ClientEventReadKind kind)
-    {
-        using var publication = ClientSessionWork.EnterPublication();
-        if (!CanRunManualSync(out string failureReason)
-            || !TryBeginManualSynchronization(out var operation, out failureReason))
-        {
-            SetEventReadStatus(kind == ClientEventReadKind.Details, failureReason);
-            return;
-        }
-        SetEventReadStatus(kind == ClientEventReadKind.Details, ClientEventReadPresentation.Started(kind));
-        string reason = kind == ClientEventReadKind.Details
-            ? ClashOfRimText.Key("ClashOfRim.Events.ReasonManualDetails") : "manual-refresh";
-        var request = eventReader.Capture(kind, reason, lastNotificationVersion);
-        ClientSessionWork.Run(async () =>
-        {
-            try { await eventReader.ReadAsync(request); }
-            finally { operation.Dispose(); }
-        });
-    }
-
-    private void SetEventReadStatus(bool details, string status)
-    {
-        if (details) eventDetailsStatus = status;
-        else eventQueueStatus = status;
-    }
-
-    // Read status and refresh scheduling remain host adapters. Application ownership
-    // is captured here while the reader still owns this publication.
-    private void PresentEventRead(ClientEventReadUpdate update)
-    {
-        var request = update.Request;
-        if (update.Failure is { } failure)
-        {
-            bool detailsStatus = failure.Kind == ClientEventReadFailureKind.Exception
-                ? request.Kind == ClientEventReadKind.Details : update.Stage == ClientEventReadStage.Details;
-            SetEventReadStatus(detailsStatus, ClientEventReadPresentation.Failed(update));
-            if (failure.Exception is not null) Log.Warning("[ClashOfRim] Event read failed: " + failure.Exception);
-            return;
-        }
-        if (update.Stage == ClientEventReadStage.Queue)
-        {
-            string queue = FormatEventQueue(update.Queue);
-            if (request.Kind == ClientEventReadKind.Wait)
-            {
-                lastNotificationVersion = Math.Max(lastNotificationVersion, update.NotificationVersion);
-                eventQueueStatus = ClashOfRimText.Key(update.Changed ? "ClashOfRim.Events.StatusOnlineArrived"
-                    : "ClashOfRim.Events.StatusOnlineTimedOut", queue.Named("QUEUE"));
-            }
-            else eventQueueStatus = queue;
-            return;
-        }
-        if (update.Empty)
-        {
-            eventDetailsStatus = ClientEventReadPresentation.Empty(request.Kind);
-            return;
-        }
-        var events = update.Details!;
-        eventDetailsStatus = FormatEventDetails(events);
-        ClientEventReadPresentation.LogGiftDetails(request.Kind == ClientEventReadKind.Automatic ? "AutoEventDetails" : "RefreshDetails", events);
-        if (request.Kind == ClientEventReadKind.Automatic)
-            eventApplications.QueueAutomatic(events, request.Reason);
-        else ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
-            eventReader.TryApply(request, () => PostEventLetters(events, request.Reason)));
-    }
+    private void StartAutomaticEventRefresh(string reason) => _ = eventRefresh.StartAutomatic(reason);
+    private void StartQueuedAutomaticEventRefreshAfterLocalAtomicMutation() => _ = eventRefresh.ResumeDeferred();
+    internal void StartManualPullPendingEvents() => _ = eventRefresh.StartManual(ClientEventReadKind.Queue);
+    internal void StartManualWaitForEvents() => _ = eventRefresh.StartManual(ClientEventReadKind.Wait);
+    internal void StartManualPullEventDetails() => _ = eventRefresh.StartManual(ClientEventReadKind.Details);
 
     internal void ProcessFirstGift(GiftClientDecision decision) => eventApplications.ProcessFirstGift(decision);
     internal void StartManualRejectFirstGift() => eventApplications.RejectFirstGift();

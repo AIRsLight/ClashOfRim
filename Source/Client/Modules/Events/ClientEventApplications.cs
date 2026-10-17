@@ -12,7 +12,7 @@ namespace AIRsLight.ClashOfRim.Modules.Events;
 
 // Owns application intent, admission and effect/confirmation ordering. Network
 // hydration never runs inside a publication scope; only owned game effects do.
-internal sealed class ClientEventApplications
+internal sealed class ClientEventApplications : IClientAutomaticEventApplications
 {
     private readonly ClientSessionLifecycle session;
     private readonly ClientSynchronizationCoordinator synchronization;
@@ -43,7 +43,7 @@ internal sealed class ClientEventApplications
     internal event Action? CompletedWithoutConfirmation;
 
     // Called during the read request's owned publication, not after queue dispatch.
-    internal void QueueAutomatic(IReadOnlyCollection<ModEventDetailDto> details, string reason)
+    public void QueueAutomatic(IReadOnlyCollection<ModEventDetailDto> details, string reason)
     {
         using var publication = ClientSessionWork.EnterPublication();
         var scope = Capture();

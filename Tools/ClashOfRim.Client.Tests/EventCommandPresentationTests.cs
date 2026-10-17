@@ -11,6 +11,8 @@ using AIRsLight.ClashOfRim.Gifts;
 using AIRsLight.ClashOfRim.Protocol;
 using RimWorld;
 using AIRsLight.ClashOfRim.Modules.Events;
+using AIRsLight.ClashOfRim.ClientNetwork;
+using AIRsLight.ClashOfRim.Modules.Sessions;
 using AIRsLight.ClashOfRim.Modules.Snapshots;
 using AIRsLight.ClashOfRim.Modules.Synchronization;
 using HarmonyLib;
@@ -44,6 +46,7 @@ internal static class EventCommandPresentationTests
                 translations = XDocument.Load(file).Root!.Elements().ToDictionary(e => e.Name.LocalName, e => e.Value);
                 DecisionPresentation();
                 ApplicationPresentation();
+                ReadPresentation();
                 foreach (var purpose in Enum.GetValues<ClientEventConfirmationPurpose>())
                 {
                     var notice = new ClientEventConfirmationNotice(purpose, ClientEventConfirmationStage.Uploading,
@@ -140,6 +143,40 @@ internal static class EventCommandPresentationTests
             Prepared: ItemDeliveryClientProcessingResult.Accepted(new("event", null, "map", null, "DropPod", Array.Empty<GiftItemReference>(), true)))));
         RequireResolved(presentation.Format(new(ClientEventApplicationStage.Prepared,
             Prepared: ItemDeliveryClientProcessingResult.Rejected(new("event", "user", "colony", "snapshot", "reason")))));
+    }
+
+    private static void ReadPresentation()
+    {
+        var presentation = new ClientEventReadPresentation();
+        var ports = new EventModuleTestPorts();
+        var session = new ClientSessionLifecycle(ports, ports, new ClientSessionConnection(ports));
+        var reader = new ClientEventReader(session, new ClientEventInbox(), new EventReadTestProtocol(), ports);
+        RequireResolved(presentation.MergedReason); RequireResolved(presentation.ManualDetailsReason);
+        foreach (var kind in Enum.GetValues<ClientEventReadKind>())
+        {
+            foreach (var stage in Enum.GetValues<ClientEventRefreshStage>().Where(s => s != ClientEventRefreshStage.Updated))
+                RequireResolved(presentation.Format(new(stage, kind, "reason", "deferred", LocalMutationAdmission.PendingMutation,
+                    new(LocalMutationKind.Bank, "pending", default), Queue: EventReadTestProtocol.QueueOf("é"))));
+            var request = reader.Capture(kind);
+            foreach (var stage in Enum.GetValues<ClientEventReadStage>())
+            {
+                var update = new ClientEventReadUpdate(request, stage, Queue: new()
+                {
+                    WaitingForUserChoice = new() { new() { EventId = "é", EventType = ServerEventType.AllianceRequest,
+                        Status = "ReadyForImmediateDelivery", DeliverySemantics = 2, RequiresSnapshotConfirmation = true } }
+                }, Details: new[] { new ModEventDetailDto { EventId = "é", EventType = ServerEventType.ItemDelivery, Status = "DeliveredToClient" } });
+                var notice = new ClientEventRefreshNotice(ClientEventRefreshStage.Updated, kind, Update: update);
+                RequireResolved(presentation.Format(notice));
+                RequireResolved(presentation.Format(notice with { Update = update with { Empty = true, Changed = true } }));
+                foreach (var failure in Enum.GetValues<ClientEventReadFailureKind>())
+                {
+                    var failed = update with { Failure = new(failure, "code", "read-reason", new InvalidOperationException("read-reason")) };
+                    string text = presentation.Format(notice with { Update = failed });
+                    RequireResolved(text);
+                    if (!text.Contains("code") || !text.Contains("read-reason")) throw new Exception("Read failure lost diagnostic fields.");
+                }
+            }
+        }
     }
 
     private static bool ApplyRelation(string? userId, FactionRelationKind relationKind, ref bool __result)

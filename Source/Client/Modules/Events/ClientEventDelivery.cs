@@ -19,7 +19,7 @@ internal sealed record ClientEventRelationChange(string EventId, string UserId, 
 
 // Owns ordering and successful-effect bookkeeping. The runtime port only adapts
 // existing eligibility/rendering rules and game effects, never the full Mod object.
-internal sealed class ClientEventDelivery
+internal sealed class ClientEventDelivery : IClientEventLetterDelivery
 {
     private readonly ClientEventInbox inbox;
     private readonly IClientEventLetterRuntime runtime;
@@ -27,7 +27,7 @@ internal sealed class ClientEventDelivery
     internal ClientEventDelivery(ClientEventInbox inbox, IClientEventLetterRuntime runtime)
     { this.inbox = inbox; this.runtime = runtime; }
 
-    internal void Post(IReadOnlyCollection<ModEventDetailDto> details, string source)
+    public void Post(IReadOnlyCollection<ModEventDetailDto> details, string source)
     {
         using var publication = ClientSessionWork.EnterPublication();
         // Keep the original batch order: immediate relations, response relations, letters.

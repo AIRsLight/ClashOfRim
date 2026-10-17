@@ -55,13 +55,11 @@ public sealed partial class ClashOfRimMod : Mod
 
     private readonly ClashOfRimSettings settings;
     private readonly ClientEventInbox eventInbox = new();
-    private readonly ClientEventDelivery eventDelivery;
-    private readonly ClientEventReader eventReader;
+    private readonly ClientEventRefresh eventRefresh;
+    private readonly ClientEventState eventState;
     private readonly ClientEventConfirmationWorkflow eventConfirmations;
-    private readonly ClientEventDecisions eventDecisions;
     private readonly ClientEventApplications eventApplications;
     private readonly ClientSnapshotFailureRecovery snapshotFailureRecovery;
-    private readonly ClientEventRefreshQueue automaticEventRefresh;
     internal IReadOnlyList<ModEventDetailDto>? ReadEventDetails(int? knownVersion, out int version) =>
         eventInbox.CopyDetails(knownVersion, out version);
     private readonly ClientSnapshotPreparationAdapter snapshotPreparation = ClientSnapshotComposition.CreatePreparation();
@@ -85,9 +83,6 @@ public sealed partial class ClashOfRimMod : Mod
     private string? lastSyncedWorldConfigurationExtensionSignature;
     private bool statusDefaultsInitialized;
     private string loginStatus = string.Empty;
-    private string eventQueueStatus = string.Empty;
-    private string eventDetailsStatus = string.Empty;
-    private string giftProcessingStatus = string.Empty;
     private string snapshotUploadStatus = string.Empty;
     private string presenceStatus = string.Empty;
     private string playerListStatus = string.Empty;
@@ -116,7 +111,6 @@ public sealed partial class ClashOfRimMod : Mod
     private WorldSubstratePackage? pendingServerWorldSubstrate;
     // Read-only bridge for domains that have not yet moved out of the Mod.
     private string? lastSessionId => sessionLifecycle.SessionId;
-    private long lastNotificationVersion;
     private long lastWorldConfigurationVersion;
     private bool chatRefreshInProgress;
     private bool chatSendInProgress;
@@ -160,7 +154,9 @@ public sealed partial class ClashOfRimMod : Mod
         snapshotPublication = ClientSnapshotComposition.CreatePublication(settings);
         sessionLifecycle = new ClientSessionLifecycle(new ClientSessionIdentityStore(settings), new ClientSessionLogoutTransport(), sessionConnection);
         sessionReconnect = new ClientSessionReconnect(new ClientSessionReconnectTransport(), sessionLifecycle, synchronization);
-        eventReader = new ClientEventReader(sessionLifecycle, eventInbox, new ClientEventReadTransport());
+        var eventReader = new ClientEventReader(sessionLifecycle, eventInbox, new ClientEventReadTransport(), new ClientSnapshotGame());
+        var eventReadPresentation = new ClientEventReadPresentation();
+        eventState = new ClientEventState(eventReader, eventReadPresentation);
         var eventConfirmation = new ClientEventConfirmation(sessionLifecycle, new ClientSnapshotGame(),
             snapshotPublication, eventInbox, new ClientEventConfirmationTransport());
         var eventConfirmationPreparation = new ClientEventConfirmationPreparation(sessionLifecycle, synchronization, localMutations, eventConfirmation);
@@ -173,29 +169,30 @@ public sealed partial class ClashOfRimMod : Mod
                 switch (purpose)
                 {
                     case ClientEventConfirmationPurpose.Trade: tradeStatus = message; break;
-                    case ClientEventConfirmationPurpose.AutomaticEvents: eventDetailsStatus = message; break;
+                    case ClientEventConfirmationPurpose.AutomaticEvents: eventState.SetDetailsStatus(message); break;
                     case ClientEventConfirmationPurpose.RaidSettlement: worldMapStatus = message; break;
-                    default: giftProcessingStatus = message; break;
+                    default: eventState.ActionStatus = message; break;
                 }
             }), new ClientEventConfirmationEffects());
         eventConfirmations.Completed += StartQueuedAutomaticEventRefreshAfterLocalAtomicMutation;
-        eventDecisions = new ClientEventDecisions(sessionLifecycle, synchronization, localMutations, new ClientSnapshotGame(),
-            new ClientEventDecisionTransport(), new ClientEventDecisionPresentation(message => giftProcessingStatus = message),
+        var eventDecisions = new ClientEventDecisions(sessionLifecycle, synchronization, localMutations, new ClientSnapshotGame(),
+            new ClientEventDecisionTransport(), new ClientEventDecisionPresentation(message => eventState.ActionStatus = message),
             new ClientEventDecisionRuntime(RequestWorldMapMarkerRefresh));
         eventDecisions.FailureReported += () => StartAutomaticEventRefresh(ClashOfRimText.Key("ClashOfRim.Events.ReasonFailureReport"));
         var giftPackageHydration = new ClientGiftPackageHydration(new ClientProtocolEnvironment(
             (message, token) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, token)));
-        automaticEventRefresh = new ClientEventRefreshQueue(sessionLifecycle);
-        eventDelivery = new ClientEventDelivery(eventInbox, new ClientEventLetterRuntime(RequestWorldMapMarkerRefresh));
+        var eventDelivery = new ClientEventDelivery(eventInbox, new ClientEventLetterRuntime(RequestWorldMapMarkerRefresh));
         eventApplications = new ClientEventApplications(sessionLifecycle, synchronization, localMutations, eventInbox,
             new ClientSnapshotGame(), new ClientEventApplicationRuntime(), giftPackageHydration, eventConfirmations, eventDecisions,
             new ClientEventApplicationPresentation((automatic, message) =>
             {
-                if (automatic) eventDetailsStatus = message;
-                else giftProcessingStatus = message;
+                if (automatic) eventState.SetDetailsStatus(message);
+                else eventState.ActionStatus = message;
             }), snapshotFailureRecovery, eventDelivery);
+        eventRefresh = new ClientEventRefresh(sessionLifecycle, eventReader, eventInbox, synchronization, localMutations,
+            eventApplications, eventDelivery, eventReadPresentation, eventState);
         eventApplications.RefreshRequested += StartAutomaticEventRefresh;
-        eventApplications.Deferred += QueueAutomaticEventRefreshAfterLocalAtomicMutation;
+        eventApplications.Deferred += eventRefresh.Defer;
         eventApplications.CompletedWithoutConfirmation += StartQueuedAutomaticEventRefreshAfterLocalAtomicMutation;
         if (!string.Equals(content.PackageId, PackageId, StringComparison.OrdinalIgnoreCase))
         {
@@ -212,7 +209,7 @@ public sealed partial class ClashOfRimMod : Mod
         sessionLifecycle.Ended += synchronization.Reset;
         sessionLifecycle.Ended += localMutations.Reset;
         sessionLifecycle.Ended += eventInbox.Reset;
-        eventReader.Updated += PresentEventRead;
+        sessionLifecycle.Ended += eventState.Reset;
         sessionLifecycle.Ended += ClearTransientMultiplayerSessionStateForExit;
         synchronization.SnapshotChanged += PresentSnapshotTransaction;
         sessionLifecycle.LogoutFailed += message => Log.Warning("[ClashOfRim] " + message);
@@ -244,9 +241,6 @@ public sealed partial class ClashOfRimMod : Mod
 
         statusDefaultsInitialized = true;
         loginStatus = ClashOfRimText.Key("ClashOfRim.Status.NotLoggedIn");
-        eventQueueStatus = ClashOfRimText.Key("ClashOfRim.Status.EventQueueNotPulled");
-        eventDetailsStatus = ClashOfRimText.Key("ClashOfRim.Status.EventDetailsNotPulled");
-        giftProcessingStatus = ClashOfRimText.Key("ClashOfRim.Status.GiftNotProcessed");
         snapshotUploadStatus = ClashOfRimText.Key("ClashOfRim.Status.SnapshotUploadNotStarted");
         presenceStatus = ClashOfRimText.Key("ClashOfRim.Status.PresenceNotStarted");
         playerListStatus = ClashOfRimText.Key("ClashOfRim.Status.PlayerListNotPulled");
@@ -432,7 +426,7 @@ public sealed partial class ClashOfRimMod : Mod
         get
         {
             EnsureStatusDefaultsInitialized();
-            return eventQueueStatus;
+            return eventState.QueueStatus;
         }
     }
 
@@ -441,7 +435,7 @@ public sealed partial class ClashOfRimMod : Mod
         get
         {
             EnsureStatusDefaultsInitialized();
-            return eventDetailsStatus;
+            return eventState.DetailsStatus;
         }
     }
 
@@ -450,7 +444,7 @@ public sealed partial class ClashOfRimMod : Mod
         get
         {
             EnsureStatusDefaultsInitialized();
-            return giftProcessingStatus;
+            return eventState.ActionStatus;
         }
     }
 

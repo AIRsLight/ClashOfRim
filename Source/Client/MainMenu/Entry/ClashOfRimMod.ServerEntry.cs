@@ -282,7 +282,6 @@ public sealed partial class ClashOfRimMod
         blockAutomaticMapSessionForServerEntrySourceGame = false;
         serverEntrySourceGame = null;
         RemoteColonyWorldIconCache.Clear();
-        lastNotificationVersion = 0;
         lastWorldConfigurationVersion = 0;
         languageMismatchAcceptedForCurrentServerEntry = false;
         lastRegisteredPlayerColonySiteSignature = null;
@@ -300,8 +299,6 @@ public sealed partial class ClashOfRimMod
         settings.TargetSnapshotId = string.Empty;
         settings.CurrentWorldConfigurationId = string.Empty;
         bankStatus = ClashOfRimText.Key("ClashOfRim.Bank.NoStatus");
-        eventQueueStatus = ClashOfRimText.Key("ClashOfRim.Status.EventQueueNotPulled");
-        eventDetailsStatus = ClashOfRimText.Key("ClashOfRim.Status.EventDetailsNotPulled");
         playerListStatus = ClashOfRimText.Key("ClashOfRim.Status.PlayerListNotPulled");
         tradeStatus = ClashOfRimText.Key("ClashOfRim.Status.TradeOrderNotCreated");
         chatStatus = ClashOfRimText.Key("ClashOfRim.Chat.StatusIdle");
