@@ -635,7 +635,7 @@ public sealed partial class ClashOfRimMod
                     StartRefreshChatMessages(initialLoad: true);
                     StartRegisterPlayerColonySites();
                     StartSyncWorldConfigurationExtensions();
-                    if (!presenceInProgress)
+                    if (!sessionConnection.IsRunning)
                     {
                         StartManualPresence();
                     }

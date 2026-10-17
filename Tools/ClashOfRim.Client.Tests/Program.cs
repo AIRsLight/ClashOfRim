@@ -19,6 +19,8 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("client modules cannot depend on the Mod, full settings or broad protocol client", ClientModuleBoundaryTests.Run),
+    ("session connection module owns replacement, cancellation and stale completions", SessionConnectionModuleTests.Run),
     ("actual event letters share rendering, action and automatic application rules", EventLetterPolicyTests.Run),
     ("repeated pawn transfer preserves global relationship identity", PawnTransferIdentityTests.Run),
     ("item durability uses final quality maximum", ThingMetadataOrderTests.Run),

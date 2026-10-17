@@ -8,6 +8,7 @@
   <Import Project="../RimWorld.Client.props" />
   <ItemGroup>
     <ProjectReference Include="../../Source/Client/ClashOfRim.csproj" />
+    <Compile Include="../TestSupport/ModuleDependencyGuard.cs" Link="ModuleDependencyGuard.cs" />
   </ItemGroup>
   <Target Name="RequireRuntimeGameAssemblies" BeforeTargets="Build">
     <Error Condition="'$(RimWorldManagedDir)' == ''" Text="Client tests execute game code. Set RimWorldManagedDir to the installed RimWorld 1.7 directory; NuGet reference assemblies cannot execute." />

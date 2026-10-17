@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Sessions;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -104,7 +105,6 @@ public sealed partial class ClashOfRimMod : Mod
     private string? lastSessionId;
     private long lastNotificationVersion;
     private long lastWorldConfigurationVersion;
-    private bool presenceInProgress;
     private bool automaticEventRefreshInProgress;
     private bool automaticEventRefreshQueued;
     private bool chatRefreshInProgress;
@@ -113,7 +113,7 @@ public sealed partial class ClashOfRimMod : Mod
     private bool sessionReconnectInProgress;
     private bool languageMismatchAcceptedForCurrentServerEntry;
     private bool blockAutomaticMapSessionForServerEntrySourceGame;
-    private CancellationTokenSource? presenceCancellation;
+    private readonly ClientSessionConnection sessionConnection = new(new ClientSessionStreamTransport());
     private Game? serverEntrySourceGame;
     private readonly List<string> lastEventQueueEventIds = new();
     private readonly List<ModEventDetailDto> lastEventDetails = new();
@@ -162,6 +162,9 @@ public sealed partial class ClashOfRimMod : Mod
         }
 
         Instance = this;
+        sessionConnection.StatusChanged += PresentConnectionStatus;
+        sessionConnection.EventReceived += HandleSessionStreamEventSafely;
+        sessionConnection.ConnectionLost += HandleSessionDisconnected;
         var harmony = new Harmony(PackageId);
         ClashOfRimCompatibilityApi.BeginRegistrationCycle(PackageId);
         BuiltInClientCompatibility.Apply(harmony);
@@ -235,7 +238,7 @@ public sealed partial class ClashOfRimMod : Mod
 
     internal bool ServerShopInProgress => serverShopInProgress;
 
-    internal bool PresenceInProgress => presenceInProgress;
+    internal bool PresenceInProgress => sessionConnection.IsRunning;
 
     internal bool ChatInProgress => chatRefreshInProgress || chatSendInProgress;
 

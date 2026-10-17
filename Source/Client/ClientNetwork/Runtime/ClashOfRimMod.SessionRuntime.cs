@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Sessions;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -218,113 +219,34 @@ public sealed partial class ClashOfRimMod
         });
     }
 
-    internal void StartManualPresence()
-    {
-        if (!settings.IsConfigured)
-        {
-            presenceStatus = ClashOfRimText.Key("ClashOfRim.Presence.StatusNotConfigured");
-            return;
-        }
+    internal void StartManualPresence() => sessionConnection.Start(
+        ClashOfRimClientNetworkContext.FromSettings(settings), lastSessionId, lastNotificationVersion, lastWorldConfigurationVersion);
 
-        if (string.IsNullOrWhiteSpace(lastSessionId))
+    internal void StopManualPresence() => sessionConnection.Stop();
+
+    private void PresentConnectionStatus(SessionConnectionStatus status)
+    {
+        presenceStatus = status.Phase switch
         {
-            presenceStatus = ClashOfRimText.Key("ClashOfRim.Presence.StatusSessionMissing");
+            SessionConnectionPhase.NotConfigured => ClashOfRimText.Key("ClashOfRim.Presence.StatusNotConfigured"),
+            SessionConnectionPhase.SessionMissing => ClashOfRimText.Key("ClashOfRim.Presence.StatusSessionMissing"),
+            SessionConnectionPhase.Connecting => ClashOfRimText.Key("ClashOfRim.Presence.StatusConnecting"),
+            SessionConnectionPhase.Disconnecting => ClashOfRimText.Key("ClashOfRim.Presence.StatusDisconnecting"),
+            SessionConnectionPhase.Cancelled => ClashOfRimText.Key("ClashOfRim.Presence.StatusDisconnectedManual"),
+            SessionConnectionPhase.Closed => ClashOfRimText.Key("ClashOfRim.Presence.StatusClosed"),
+            SessionConnectionPhase.Failed => ClashOfRimText.Key("ClashOfRim.Presence.StatusFailed",
+                (status.ErrorCode ?? string.Empty).Named("CODE"), (status.Message ?? string.Empty).Named("MESSAGE")),
+            SessionConnectionPhase.Exception => ClashOfRimText.Key("ClashOfRim.Presence.StatusException",
+                status.Error!.GetType().Name.Named("TYPE"), status.Error.Message.Named("MESSAGE")),
+            _ => presenceStatus
+        };
+        if (status.Phase == SessionConnectionPhase.SessionMissing)
             Log.Warning("[ClashOfRim] Cannot start session stream without session id.");
-            return;
-        }
-
-        presenceCancellation?.Cancel();
-        var streamCancellation = new CancellationTokenSource();
-        presenceCancellation = streamCancellation;
-        CancellationToken cancellationToken = streamCancellation.Token;
-        presenceInProgress = true;
-        string sessionId = lastSessionId!;
-        presenceStatus = ClashOfRimText.Key("ClashOfRim.Presence.StatusConnecting");
-        ClashLog.Message("[ClashOfRim] Starting WebSocket session stream: user="
-            + settings.UserId
-            + ", colony="
-            + settings.ColonyId
-            + ", session="
-            + sessionId);
-
-        ClientSessionWork.Run(async () =>
-        {
-            try
-            {
-                using var httpClient = new HttpClient();
-                var client = new ClashOfRimModNetworkClient(
-                    httpClient,
-                    ClashOfRimClientNetworkContext.FromSettings(settings));
-
-                ClashOfRimClientNetworkResult<ModSessionStreamClosedDto> result =
-                    await ClientSessionWork.Observe(client.StreamSessionAsync(
-                        sessionId,
-                        lastNotificationVersion,
-                        lastWorldConfigurationVersion,
-                        streamEvent => ClientSessionWork.TryApply(() => HandleSessionStreamEventSafely(streamEvent, sessionId)),
-                        cancellationToken));
-
-                using var publication = ClientSessionWork.EnterPublication();
-                if (cancellationToken.IsCancellationRequested)
-                {
-                    presenceStatus = ClashOfRimText.Key("ClashOfRim.Presence.StatusDisconnectedManual");
-                    return;
-                }
-
-                if (!result.Success || result.Response is null)
-                {
-                    presenceStatus = ClashOfRimText.Key(
-                        "ClashOfRim.Presence.StatusFailed",
-                        (result.ErrorCode ?? string.Empty).Named("CODE"),
-                        (result.Message ?? string.Empty).Named("MESSAGE"));
-                    HandleSessionDisconnected(sessionId);
-                    return;
-                }
-
-                presenceStatus = result.Response.Cancelled
-                    ? ClashOfRimText.Key("ClashOfRim.Presence.StatusDisconnectedManual")
-                    : ClashOfRimText.Key("ClashOfRim.Presence.StatusClosed");
-                if (!result.Response.Cancelled)
-                {
-                    HandleSessionDisconnected(sessionId);
-                }
-            }
-            catch (Exception ex)
-            when (ClientSessionWork.IsCurrent)
-            {
-                using var publication = ClientSessionWork.EnterPublication();
-                presenceStatus = ClashOfRimText.Key(
-                    "ClashOfRim.Presence.StatusException",
-                    ex.GetType().Name.Named("TYPE"),
-                    ex.Message.Named("MESSAGE"));
-                Log.Warning("[ClashOfRim] Session stream failed: " + ex);
-                if (!cancellationToken.IsCancellationRequested)
-                {
-                    HandleSessionDisconnected(sessionId);
-                }
-            }
-            finally
-            {
-                ClientSessionWork.TryApply(() =>
-                {
-                    if (ReferenceEquals(presenceCancellation, streamCancellation))
-                    {
-                        presenceInProgress = false;
-                        presenceCancellation = null;
-                    }
-
-                });
-                streamCancellation.Dispose();
-            }
-        });
-    }
-
-    internal void StopManualPresence()
-    {
-        presenceCancellation?.Cancel();
-        presenceCancellation = null;
-        presenceInProgress = false;
-        presenceStatus = ClashOfRimText.Key("ClashOfRim.Presence.StatusDisconnecting");
+        else if (status.Phase == SessionConnectionPhase.Connecting)
+            ClashLog.Message("[ClashOfRim] Starting WebSocket session stream: user=" + settings.UserId
+                + ", colony=" + settings.ColonyId + ", session=" + status.SessionId);
+        else if (status.Phase == SessionConnectionPhase.Exception)
+            Log.Warning("[ClashOfRim] Session stream failed: " + status.Error);
     }
 
     internal void DisconnectMultiplayerSessionForExit()
@@ -354,9 +276,7 @@ public sealed partial class ClashOfRimMod
             });
         }
 
-        presenceCancellation?.Cancel();
-        presenceCancellation = null;
-        presenceInProgress = false;
+        sessionConnection.Stop(reportStatus: false);
         lastSessionId = null;
         ClearTransientMultiplayerSessionStateForExit();
         CaptureServerCompatibilityManifest(null);
@@ -1185,7 +1105,7 @@ public sealed partial class ClashOfRimMod
 
                 ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
                 {
-                    presenceCancellation?.Cancel();
+                    sessionConnection.Stop(reportStatus: false);
                     lastSessionId = null;
                     CaptureServerCompatibilityManifest(null);
                     settings.CurrentSnapshotId = string.Empty;
@@ -1568,9 +1488,7 @@ public sealed partial class ClashOfRimMod
         }
 
         sessionExpiredHandling = true;
-        presenceCancellation?.Cancel();
-        presenceCancellation = null;
-        presenceInProgress = false;
+        sessionConnection.Stop(reportStatus: false);
         ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
         {
             lastSessionId = null;
@@ -1969,7 +1887,7 @@ public sealed partial class ClashOfRimMod
                 ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
                     RequestPlayerColonySiteRegistration(ClashOfRimText.Key("ClashOfRim.MapSession.ReasonLoginSucceeded")));
 
-                if (!presenceInProgress)
+                if (!sessionConnection.IsRunning)
                 {
                     StartManualPresence();
                 }

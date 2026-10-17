@@ -277,9 +277,7 @@ public sealed partial class ClashOfRimMod
     {
         ClientSessionWork.Reset();
         ClearTransientMultiplayerSessionStateForExit();
-        presenceCancellation?.Cancel();
-        presenceCancellation = null;
-        presenceInProgress = false;
+        sessionConnection.Stop(reportStatus: false);
         lastSessionId = null;
         blockAutomaticMapSessionForServerEntrySourceGame = false;
         serverEntrySourceGame = null;
@@ -849,7 +847,7 @@ public sealed partial class ClashOfRimMod
                 StartRefreshChatMessages(initialLoad: true);
                 ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
                     RequestPlayerColonySiteRegistration(ClashOfRimText.Key("ClashOfRim.ServerEntry.ReasonServerSnapshotLoaded")));
-                if (!presenceInProgress)
+                if (!sessionConnection.IsRunning)
                 {
                     StartManualPresence();
                 }
