@@ -244,13 +244,17 @@ public sealed partial class ClashOfRimMod
             settings.ColonyId,
             settings.CurrentSnapshotId);
         string idempotencyKey = $"raid-start:{settings.UserId}:{settings.CurrentSnapshotId}:{attackSource.UniqueLoadId}:{target.OwnerUserId}:{target.OwnerColonyId}:{DateTime.UtcNow.Ticks}";
-        manualSyncInProgress = true;
+        if (!TryBeginManualSynchronization(out var manualOperation, out failureReason))
+        {
+            worldMapStatus = failureReason;
+            Messages.Message(worldMapStatus, MessageTypeDefOf.RejectInput, historical: false);
+            return;
+        }
         worldMapStatus = ClashOfRimText.Key(
             "ClashOfRim.Raid.StatusBattleDownloading",
             FormatSupportTargetLabel(target).Named("TARGET"));
         ShowRemoteMapLoadingProgress(worldMapStatus);
-        bool dispatchedToMain = false;
-        ClientSessionWork.Run(async () =>
+        manualOperation.RunContinuation(async operation =>
         {
             try
             {
@@ -320,8 +324,7 @@ public sealed partial class ClashOfRimMod
                     }));
 
                 using var publication = ClientSessionWork.EnterPublication();
-                dispatchedToMain = true;
-                ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
+                operation.QueueContinuation(EnqueueClashOfRimMainThreadAction, next =>
                     FinishEnterRaidBattle(
                         idempotencyKey,
                         raidEventId,
@@ -338,7 +341,8 @@ public sealed partial class ClashOfRimMod
                         carriedThings,
                         battleDuration,
                         settlementGraceDuration,
-                        prepare.Response.GuardDeployment));
+                        prepare.Response.GuardDeployment,
+                        next));
             }
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
@@ -349,16 +353,6 @@ public sealed partial class ClashOfRimMod
                     ex.GetType().Name.Named("TYPE"),
                     ex.Message.Named("MESSAGE")));
                 Log.Warning("[ClashOfRim] Raid creation failed: " + ex);
-            }
-            finally
-            {
-                ClientSessionWork.TryApply(() =>
-                {
-                    if (!dispatchedToMain)
-                    {
-                        manualSyncInProgress = false;
-                    }
-                });
             }
         });
     }
@@ -373,13 +367,6 @@ public sealed partial class ClashOfRimMod
         if (!settings.IsConfigured)
         {
             worldMapStatus = ClashOfRimText.Key("ClashOfRim.Observation.StatusNotConfigured");
-            Messages.Message(worldMapStatus, MessageTypeDefOf.RejectInput, historical: false);
-            return;
-        }
-
-        if (manualSyncInProgress)
-        {
-            worldMapStatus = ClashOfRimText.Key("ClashOfRim.Observation.StatusBusy");
             Messages.Message(worldMapStatus, MessageTypeDefOf.RejectInput, historical: false);
             return;
         }
@@ -404,13 +391,18 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
-        manualSyncInProgress = true;
+        if (!TryBeginManualSynchronization(out var manualOperation, out string failureReason))
+        {
+            worldMapStatus = failureReason;
+            Messages.Message(worldMapStatus, MessageTypeDefOf.RejectInput, historical: false);
+            return;
+        }
         worldMapStatus = ClashOfRimText.Key(
             RemoteMapSessionPolicy.ObservationDownloadingStatusKey(scope),
             FormatSupportTargetLabel(target).Named("TARGET"));
         ShowRemoteMapLoadingProgress(worldMapStatus);
 
-        ClientSessionWork.Run(async () =>
+        manualOperation.RunContinuation(async operation =>
         {
             try
             {
@@ -454,8 +446,8 @@ public sealed partial class ClashOfRimMod
                     }));
 
                 using var publication = ClientSessionWork.EnterPublication();
-                ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
-                    FinishDownloadObservationSnapshot(target, scope, snapshot.Metadata, snapshot.Payload));
+                operation.QueueContinuation(EnqueueClashOfRimMainThreadAction, next =>
+                    FinishDownloadObservationSnapshot(target, scope, snapshot.Metadata, snapshot.Payload, next));
             }
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
@@ -472,13 +464,6 @@ public sealed partial class ClashOfRimMod
                 });
                 Log.Warning("[ClashOfRim] Observation snapshot download failed: " + ex);
             }
-            finally
-            {
-                ClientSessionWork.TryApply(() =>
-                {
-                    manualSyncInProgress = false;
-                });
-            }
         });
     }
 
@@ -486,7 +471,8 @@ public sealed partial class ClashOfRimMod
         ModWorldMapMarkerDto target,
         string scope,
         ClashOfRimClientNetworkResult<ModDownloadLatestSnapshotResponseDto> metadata,
-        ClashOfRimClientNetworkResult<byte[]>? payload)
+        ClashOfRimClientNetworkResult<byte[]>? payload,
+        ClientSynchronizationCoordinator.Lease operation)
     {
         if (!RemoteSnapshotDownloadValidator.TryGetOpenPayload(
                 metadata,
@@ -532,8 +518,9 @@ public sealed partial class ClashOfRimMod
             worldMapStatus,
             -1f,
             canClose: false);
-        QueueRemoteMapLongEvent("ClashOfRim.RemoteSessionMap.StatusGeneratingLong", () =>
-            OpenDownloadedObservationSnapshot(openRequest, target, scope));
+        operation.QueueContinuation(
+            (run, _) => QueueRemoteMapLongEvent("ClashOfRim.RemoteSessionMap.StatusGeneratingLong", run),
+            _ => OpenDownloadedObservationSnapshot(openRequest, target, scope));
     }
 
     private void OpenDownloadedObservationSnapshot(
@@ -588,73 +575,64 @@ public sealed partial class ClashOfRimMod
         IReadOnlyList<ModThingReferenceDto> carriedThings,
         TimeSpan battleDuration,
         TimeSpan settlementGraceDuration,
-        ModRaidGuardDeploymentDto? guardDeployment)
+        ModRaidGuardDeploymentDto? guardDeployment,
+        ClientSynchronizationCoordinator.Lease operation)
     {
-        bool submitted = false;
-        try
+        if (!RemoteSnapshotDownloadValidator.TryGetOpenPayload(
+                metadata,
+                payload,
+                RaidBattleDownloadFailureKeys,
+                out RemoteSnapshotOpenPayload? openPayload,
+                out string downloadFailureReason)
+            || openPayload is null)
         {
-            if (!RemoteSnapshotDownloadValidator.TryGetOpenPayload(
-                    metadata,
-                    payload,
-                    RaidBattleDownloadFailureKeys,
-                    out RemoteSnapshotOpenPayload? openPayload,
-                    out string downloadFailureReason)
-                || openPayload is null)
-            {
-                worldMapStatus = downloadFailureReason;
-                CloseServerEntryProgressWindowNow();
-                Messages.Message(worldMapStatus, MessageTypeDefOf.RejectInput, historical: false);
-                return;
-            }
+            worldMapStatus = downloadFailureReason;
+            CloseServerEntryProgressWindowNow();
+            Messages.Message(worldMapStatus, MessageTypeDefOf.RejectInput, historical: false);
+            return;
+        }
 
-            string sessionId = $"raidbattle:{attackerUserId}:{raidEventId}:{DateTime.UtcNow.Ticks}";
-            var openRequest = new RemoteSessionMapOpenRequest
-            {
-                Target = target,
-                Mode = RemoteSessionMapParent.RaidBattleMode,
-                SessionId = sessionId,
-                SnapshotId = openPayload.SnapshotId,
-                RelatedEventId = raidEventId,
-                Package = openPayload.Package,
-                Payload = openPayload.Payload,
-                CloseExistingObservationSessions = true,
-                FailureCleanupReason = "raid battle map generation failure"
-            };
-            submitted = true;
-            worldMapStatus = ClashOfRimText.Key(
-                "ClashOfRim.RemoteSessionMap.StatusGenerating",
-                FormatSupportTargetLabel(target).Named("TARGET"));
-            ShowServerEntryProgressWindowNow(
-                ClashOfRimText.Key("ClashOfRim.RemoteSessionMap.LoadingTitle"),
-                worldMapStatus,
-                -1f,
-                canClose: false);
-            QueueRemoteMapLongEvent("ClashOfRim.RemoteSessionMap.StatusGeneratingLong", () =>
-                OpenPreparedRaidBattle(
-                    raidIdempotencyKey,
-                    raidEventId,
-                    raidPreparationId,
-                    target,
-                    attackerUserId,
-                    attackerColonyId,
-                    attackerSnapshotId,
-                    openRequest,
-                    openPayload.Package.NextLineageToken ?? string.Empty,
-                    attackSource,
-                    attackPawns,
-                    pawnGlobalKeys,
-                    carriedThings,
-                    battleDuration,
-                    settlementGraceDuration,
-                    guardDeployment));
-        }
-        finally
+        string sessionId = $"raidbattle:{attackerUserId}:{raidEventId}:{DateTime.UtcNow.Ticks}";
+        var openRequest = new RemoteSessionMapOpenRequest
         {
-            if (!submitted)
-            {
-                manualSyncInProgress = false;
-            }
-        }
+            Target = target,
+            Mode = RemoteSessionMapParent.RaidBattleMode,
+            SessionId = sessionId,
+            SnapshotId = openPayload.SnapshotId,
+            RelatedEventId = raidEventId,
+            Package = openPayload.Package,
+            Payload = openPayload.Payload,
+            CloseExistingObservationSessions = true,
+            FailureCleanupReason = "raid battle map generation failure"
+        };
+        worldMapStatus = ClashOfRimText.Key(
+            "ClashOfRim.RemoteSessionMap.StatusGenerating",
+            FormatSupportTargetLabel(target).Named("TARGET"));
+        ShowServerEntryProgressWindowNow(
+            ClashOfRimText.Key("ClashOfRim.RemoteSessionMap.LoadingTitle"),
+            worldMapStatus,
+            -1f,
+            canClose: false);
+        operation.QueueContinuation(
+            (run, _) => QueueRemoteMapLongEvent("ClashOfRim.RemoteSessionMap.StatusGeneratingLong", run),
+            next => OpenPreparedRaidBattle(
+                raidIdempotencyKey,
+                raidEventId,
+                raidPreparationId,
+                target,
+                attackerUserId,
+                attackerColonyId,
+                attackerSnapshotId,
+                openRequest,
+                openPayload.Package.NextLineageToken ?? string.Empty,
+                attackSource,
+                attackPawns,
+                pawnGlobalKeys,
+                carriedThings,
+                battleDuration,
+                settlementGraceDuration,
+                guardDeployment,
+                next));
     }
 
     private void OpenPreparedRaidBattle(
@@ -673,7 +651,8 @@ public sealed partial class ClashOfRimMod
         IReadOnlyList<ModThingReferenceDto> carriedThings,
         TimeSpan battleDuration,
         TimeSpan settlementGraceDuration,
-        ModRaidGuardDeploymentDto? guardDeployment)
+        ModRaidGuardDeploymentDto? guardDeployment,
+        ClientSynchronizationCoordinator.Lease continuation)
     {
         string operation = ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationRaid");
         bool atomicStarted = false;
@@ -753,7 +732,8 @@ public sealed partial class ClashOfRimMod
                 session,
                 target,
                 pawnGlobalKeys,
-                carriedThings);
+                carriedThings,
+                continuation);
         }
         catch (Exception ex)
         {
@@ -769,7 +749,6 @@ public sealed partial class ClashOfRimMod
         {
             if (!submitted)
             {
-                manualSyncInProgress = false;
                 if (atomicStarted)
                 {
                     ClearLocalAtomicMutation();
@@ -1200,7 +1179,8 @@ public sealed partial class ClashOfRimMod
         ActiveRaidBattleSession session,
         ModWorldMapMarkerDto target,
         IReadOnlyList<string> pawnGlobalKeys,
-        IReadOnlyList<ModThingReferenceDto> carriedThings)
+        IReadOnlyList<ModThingReferenceDto> carriedThings,
+        ClientSynchronizationCoordinator.Lease? continuation = null)
     {
         string operation = ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationRaid");
         if (TryRejectBlockedByDifferentLocalAtomicMutation(operation, out string blockedMessage))
@@ -1250,7 +1230,7 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
-        if (!TryBeginSnapshotUploadTransaction(out var uploadTransaction, allowExistingManualSync: true))
+        if (!synchronization.TryAcquireSnapshot(out var uploadTransaction, continuation))
         {
             worldMapStatus = ClashOfRimText.Key("ClashOfRim.SnapshotUpload.Busy");
             Log.Warning("[ClashOfRim][Raid] Prepared raid start snapshot submission could not acquire upload transaction after local battle map mutation: event="
@@ -1479,7 +1459,6 @@ public sealed partial class ClashOfRimMod
                         + (result.Response.NextLineageToken ?? string.Empty)
                         + ".");
 
-                    manualSyncInProgress = false;
                     worldMapStatus = ClashOfRimText.Key(
                         "ClashOfRim.Raid.StatusCreated",
                         result.Response.EventId.Named("EVENTID"));
@@ -1617,7 +1596,7 @@ public sealed partial class ClashOfRimMod
     private void ContinueFinishActiveRaidBattleAfterSupportResolution(RaidBattleSettlementContext context)
     {
         ActiveRaidBattleSession session = context.Session;
-        if (!TryBeginSnapshotUploadTransaction(out var uploadTransaction, allowExistingManualSync: true))
+        if (!TryBeginSnapshotUploadTransaction(out var uploadTransaction))
         {
             worldMapStatus = ClashOfRimText.Key("ClashOfRim.SnapshotUpload.Busy");
             Messages.Message(worldMapStatus, MessageTypeDefOf.RejectInput, historical: false);
@@ -2027,7 +2006,6 @@ public sealed partial class ClashOfRimMod
                 component.MarkSupportAssignmentInProgress(loss.Assignment.EventId, inProgress: false);
             }
 
-            manualSyncInProgress = false;
             RemoteMapSessionController.ResetRaidBattleFinish(session);
             ShowUnconfirmedSnapshotFailure(
                 ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationRaid"),
@@ -2050,7 +2028,6 @@ public sealed partial class ClashOfRimMod
                 return;
             }
 
-            manualSyncInProgress = false;
             RemoteMapSessionController.ResetRaidBattleFinish(session);
             ShowUnconfirmedSnapshotFailure(
                 ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationRaid"),
@@ -2085,7 +2062,6 @@ public sealed partial class ClashOfRimMod
         }
 
         CloseUnconfirmedSnapshotFailureWindow();
-        manualSyncInProgress = false;
         worldMapStatus = ClashOfRimText.Key("ClashOfRim.Raid.StatusSettlementFinalDeadlineExpired");
         Messages.Message(worldMapStatus, MessageTypeDefOf.NegativeEvent, historical: false);
         StartConfirmSettledRaidCleanupSnapshot(session.EventId);

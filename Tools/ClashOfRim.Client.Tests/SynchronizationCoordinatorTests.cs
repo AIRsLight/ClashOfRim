@@ -22,6 +22,7 @@ internal static class SynchronizationCoordinatorTests
             QueuedManualFailures();
             await AsyncManualHandoffs();
             await AsyncManualFailures();
+            await RemoteMapStagesRetainAdmission();
             DeferredDecisionOwnership();
             await ExpiredCallbacks();
             await CompetingAdmissions();
@@ -35,29 +36,19 @@ internal static class SynchronizationCoordinatorTests
         Require(!sync.IsBusy && !sync.ManualInProgress && !sync.SnapshotInProgress, "New coordinator is busy.");
         Require(sync.TryBeginManual(out var manual), "Manual admission failed.");
         Require(sync.ManualInProgress && !sync.SnapshotInProgress && !sync.TryBeginManual(out _)
-            && !sync.TryAcquireSnapshot(out _) && !sync.TryAcquireSnapshot(out _, allowExistingManualSync: true),
-            "Manual admission was stolen by another operation or the legacy promotion port.");
-        sync.SetLegacyManualInProgress(false);
-        Require(sync.IsBusy, "Legacy finalizer cleared an owned manual operation.");
+            && !sync.TryAcquireSnapshot(out _), "Manual admission was stolen by another operation.");
         Require(sync.TryAcquireSnapshot(out var promoted, manual), "Explicit manual promotion failed.");
         manual!.Dispose();
-        sync.SetLegacyManualInProgress(false);
         Require(sync.ManualInProgress && sync.SnapshotInProgress && !sync.TryBeginManual(out _),
             "Promoted snapshot lost its admission when the old manual operation completed.");
         promoted!.Dispose();
         Require(!sync.IsBusy, "Promoted snapshot did not release both admissions.");
 
-        sync.SetLegacyManualInProgress(true);
-        Require(!sync.TryAcquireSnapshot(out _), "Snapshot implicitly consumed legacy manual work.");
-        Require(sync.TryAcquireSnapshot(out var legacyPromotion, allowExistingManualSync: true), "Legacy promotion broke existing flows.");
-        sync.SetLegacyManualInProgress(true);
-        sync.SetLegacyManualInProgress(false);
-        Require(sync.SnapshotInProgress && sync.ManualInProgress, "Legacy writes replaced a snapshot lease.");
-        legacyPromotion!.Dispose();
-        Require(!sync.IsBusy, "Legacy promotion retained stale manual state.");
-        sync.SetLegacyManualInProgress(true);
-        sync.SetLegacyManualInProgress(false);
-        Require(!sync.IsBusy, "Unpromoted legacy flow cannot complete.");
+        Require(sync.TryBeginManual(out var next), "Next manual operation was blocked.");
+        Require(!sync.TryAcquireSnapshot(out _, manual), "Old manual lease consumed new admission.");
+        next!.Dispose();
+        Require(sync.TryAcquireSnapshot(out var independent), "Completed manual operation blocked an independent snapshot.");
+        independent!.Dispose();
     }
 
     private static void ContinuationAndDiagnostics()
@@ -339,6 +330,60 @@ internal static class SynchronizationCoordinatorTests
     {
         await Task.Yield();
         throw new ApplicationException("after await");
+    }
+
+    private static async Task RemoteMapStagesRetainAdmission()
+    {
+        foreach (string outcome in new[] { "opened", "snapshot", "download-failure", "engine-failure", "queue-failure", "discard", "reset", "new-session" })
+        {
+            ClientSessionWork.Reset();
+            var sync = new ClientSynchronizationCoordinator();
+            Require(sync.TryBeginManual(out var download), "Download admission rejected.");
+            Action main = null!, engine = null!, discard = null!;
+            int opened = 0;
+            ClientSynchronizationCoordinator.Lease? snapshot = null, replacement = null;
+            await download!.RunContinuation(async operation =>
+            {
+                await Task.Yield();
+                if (outcome == "download-failure") return;
+                operation.QueueContinuation((run, _) => main = run, next =>
+                    next.QueueContinuation((run, cancel) =>
+                    {
+                        engine = run; discard = cancel;
+                        if (outcome == "queue-failure") throw new ApplicationException("engine queue rejected");
+                    }, final =>
+                    {
+                        opened++;
+                        if (outcome == "engine-failure") throw new ApplicationException("map open failed");
+                        if (outcome == "snapshot") Require(sync.TryAcquireSnapshot(out snapshot, final), "Map stage could not promote its admission.");
+                    }));
+            }).WaitAsync(TimeSpan.FromSeconds(5));
+            download.Dispose();
+            if (outcome == "download-failure")
+            {
+                Require(!sync.IsBusy && main is null, "Failed download queued a map or retained admission.");
+                continue;
+            }
+            Require(sync.IsBusy && !sync.TryBeginManual(out _) && !sync.TryAcquireSnapshot(out _), "Download finalizer opened an admission gap.");
+            try { main(); }
+            catch (ApplicationException) when (outcome == "queue-failure") { }
+            main();
+            Require(sync.IsBusy == (outcome != "queue-failure") && opened == 0, "Main-thread stage did not retain engine-queue ownership.");
+            bool replaced = outcome is "reset" or "new-session";
+            if (replaced)
+            {
+                if (outcome == "new-session") ClientSessionWork.Reset();
+                sync.Reset();
+                Require(sync.TryBeginManual(out replacement), "Replacement could not enter.");
+            }
+            try { if (outcome == "discard") discard(); else engine(); }
+            catch (ApplicationException) when (outcome == "engine-failure") { }
+            engine(); discard();
+            Require(opened == (outcome is "opened" or "snapshot" or "engine-failure" ? 1 : 0)
+                && sync.IsBusy == (replaced || outcome == "snapshot"), "Engine completion lost ownership: " + outcome);
+            snapshot?.Dispose(); replacement?.Dispose();
+            Require(!sync.IsBusy, "Final owner did not release admission: " + outcome);
+        }
     }
 
     private static void DeferredDecisionOwnership()

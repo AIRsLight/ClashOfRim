@@ -53,12 +53,7 @@ public sealed partial class ClashOfRimMod : Mod
     private readonly ClashOfRimSettings settings;
     private readonly ClientSynchronizationCoordinator synchronization = new();
     private bool snapshotUploadInProgress => synchronization.SnapshotInProgress;
-    // Transitional forwarding port for manual flows migrated in the next M3 step.
-    private bool manualSyncInProgress
-    {
-        get => synchronization.ManualInProgress;
-        set => synchronization.SetLegacyManualInProgress(value);
-    }
+    private bool manualSyncInProgress => synchronization.ManualInProgress;
     private bool worldMapMarkerSyncInProgress;
     private bool runtimeWorldObjectSyncInProgress;
     private bool playerColonySiteRegistrationInProgress;
@@ -254,11 +249,10 @@ public sealed partial class ClashOfRimMod : Mod
 
     internal bool TryBeginSnapshotUploadTransaction(
         [NotNullWhen(true)] out ClientSynchronizationCoordinator.Lease? transaction,
-        bool allowExistingManualSync = false,
         [CallerMemberName] string callerMember = "",
         [CallerFilePath] string callerFile = "",
         [CallerLineNumber] int callerLine = 0)
-        => synchronization.TryAcquireSnapshot(out transaction, allowExistingManualSync: allowExistingManualSync,
+        => synchronization.TryAcquireSnapshot(out transaction,
             callerMember: callerMember, callerFile: callerFile, callerLine: callerLine);
 
     private void PresentSnapshotTransaction(SnapshotTransactionNotice notice)
@@ -269,13 +263,12 @@ public sealed partial class ClashOfRimMod : Mod
         if (notice.Phase == SnapshotTransactionPhase.Rejected)
         {
             Log.Warning("[ClashOfRim][SnapshotTxn] begin rejected: requested=" + notice.RequestedOwner
-                + ", allowExistingManualSync=" + notice.AllowExistingManualSync + ", snapshotUploadInProgress=" + notice.SnapshotInProgress
+                + ", snapshotUploadInProgress=" + notice.SnapshotInProgress
                 + ", manualSyncInProgress=" + notice.ManualInProgress + ", owner=" + owner + ", seq=" + notice.Sequence + ", age=" + age);
         }
         else if (notice.Phase == SnapshotTransactionPhase.Started)
         {
-            ClashLog.Message("[ClashOfRim][SnapshotTxn] begin: owner=" + owner + ", seq=" + notice.Sequence
-                + ", allowExistingManualSync=" + notice.AllowExistingManualSync + ".");
+            ClashLog.Message("[ClashOfRim][SnapshotTxn] begin: owner=" + owner + ", seq=" + notice.Sequence + ".");
             NotifyPlayerMessage(ClashOfRimText.Key("ClashOfRim.SnapshotUpload.Uploading"), MessageTypeDefOf.NeutralEvent);
         }
         else

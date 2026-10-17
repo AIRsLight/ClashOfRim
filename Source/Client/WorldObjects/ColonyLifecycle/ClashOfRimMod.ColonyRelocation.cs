@@ -319,7 +319,7 @@ public sealed partial class ClashOfRimMod
         string idempotencyKey,
         bool releaseSiteRegistrationSuppressionOnComplete)
     {
-        if (!TryBeginSnapshotUploadTransaction(out var uploadTransaction, allowExistingManualSync: true))
+        if (!TryBeginSnapshotUploadTransaction(out var uploadTransaction))
         {
             ShowColonyRelocationFailure(
                 ClashOfRimText.Key("ClashOfRim.SnapshotUpload.Busy"),

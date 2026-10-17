@@ -52,7 +52,7 @@ internal static class SessionReconnectModuleTests
         var attempt = f.Begin();
         await attempt.PrepareAsync();
         Require(f.Service.IsRunning && f.Service.TryBegin(Ready, out _) == SessionReconnectBlockReason.SynchronizationBusy
-            && f.Synchronization.ManualInProgress && !f.Synchronization.TryAcquireSnapshot(out _, allowExistingManualSync: true)
+            && f.Synchronization.ManualInProgress && !f.Synchronization.TryAcquireSnapshot(out _)
             && f.Store.Token == "" && f.Lifecycle.SessionId is null, "Prepared login was published or released before the game accepted it.");
         var result = attempt.Complete(true, true, false);
         Require(result.Outcome == SessionReconnectOutcome.Succeeded && result.Snapshot?.ActiveRaidRecovery?.EventId == "active-raid"

@@ -45,7 +45,7 @@ internal sealed class ClientSynchronizationCoordinator
     }
 
     internal bool TryAcquireSnapshot([NotNullWhen(true)] out Lease? lease, Lease? continuation = null,
-        bool allowExistingManualSync = false, [CallerMemberName] string callerMember = "",
+        [CallerMemberName] string callerMember = "",
         [CallerFilePath] string callerFile = "", [CallerLineNumber] int callerLine = 0)
     {
         using var publication = ClientSessionWork.EnterPublication();
@@ -62,29 +62,17 @@ internal sealed class ClientSynchronizationCoordinator
             bool promotingManual = continuation is not null && ReferenceEquals(manual, continuation)
                 && !continuation.IsSnapshot && continuation.Generation == ClientSessionWork.Token;
             if ((continuation is not null && !promotingManual) || snapshot is not null
-                || (manual is not null && !promotingManual && (!allowExistingManualSync || !manual.IsLegacyManual)))
-                notice = Describe(SnapshotTransactionPhase.Rejected, caller, allowExistingManualSync);
+                || (manual is not null && !promotingManual))
+                notice = Describe(SnapshotTransactionPhase.Rejected, caller);
             else
             {
                 snapshot = manual = lease = new Lease(this, true, caller, utcNow(), ClientSessionWork.Token);
                 sequence++;
-                notice = Describe(SnapshotTransactionPhase.Started, caller, allowExistingManualSync);
+                notice = Describe(SnapshotTransactionPhase.Started, caller);
             }
         }
         SnapshotChanged?.Invoke(notice);
         return lease is not null;
-    }
-
-    // Transitional write port for pre-existing manual flows. M3's next step replaces these
-    // callers with explicit leases. It cannot clear an owned snapshot or replace its lease.
-    internal void SetLegacyManualInProgress(bool value)
-    {
-        using var publication = ClientSessionWork.EnterPublication();
-        lock (gate)
-        {
-            if (value) manual ??= snapshot ?? new Lease(this, false, string.Empty, utcNow(), ClientSessionWork.Token, legacyManual: true);
-            else if (snapshot is null && manual?.IsLegacyManual == true) manual = null;
-        }
     }
 
     // Explicit session exit / authoritative reload, never a normal request finalizer.
@@ -123,7 +111,7 @@ internal sealed class ClientSynchronizationCoordinator
                 {
                     if (ReferenceEquals(snapshot, lease))
                     {
-                        notice = Describe(SnapshotTransactionPhase.Ended, lease.Caller, false);
+                        notice = Describe(SnapshotTransactionPhase.Ended, lease.Caller);
                         snapshot = null;
                     }
                     if (ReferenceEquals(manual, lease)) manual = null;
@@ -133,8 +121,8 @@ internal sealed class ClientSynchronizationCoordinator
         });
     }
 
-    private SnapshotTransactionNotice Describe(SnapshotTransactionPhase phase, string caller, bool allowManual) =>
-        new(phase, caller, allowManual, snapshot?.Caller ?? string.Empty, sequence, snapshot is not null, manual is not null,
+    private SnapshotTransactionNotice Describe(SnapshotTransactionPhase phase, string caller) =>
+        new(phase, caller, snapshot?.Caller ?? string.Empty, sequence, snapshot is not null, manual is not null,
             snapshot is null ? null : utcNow() - snapshot.StartedAtUtc);
 
     private static string FormatCaller(string member, string file, int line)
@@ -146,10 +134,9 @@ internal sealed class ClientSynchronizationCoordinator
     internal sealed class Lease : IDisposable
     {
         private readonly ClientSynchronizationCoordinator owner;
-        internal Lease(ClientSynchronizationCoordinator owner, bool snapshot, string caller, DateTime startedAtUtc, CancellationToken generation, bool legacyManual = false)
-        { this.owner = owner; IsSnapshot = snapshot; IsLegacyManual = legacyManual; Caller = caller; StartedAtUtc = startedAtUtc; Generation = generation; }
+        internal Lease(ClientSynchronizationCoordinator owner, bool snapshot, string caller, DateTime startedAtUtc, CancellationToken generation)
+        { this.owner = owner; IsSnapshot = snapshot; Caller = caller; StartedAtUtc = startedAtUtc; Generation = generation; }
         internal bool IsSnapshot { get; }
-        internal bool IsLegacyManual { get; }
         internal string Caller { get; }
         internal DateTime StartedAtUtc { get; }
         internal CancellationToken Generation { get; }
@@ -206,5 +193,5 @@ internal sealed class ClientSynchronizationCoordinator
 }
 
 internal enum SnapshotTransactionPhase { Started, Rejected, Ended }
-internal sealed record SnapshotTransactionNotice(SnapshotTransactionPhase Phase, string RequestedOwner, bool AllowExistingManualSync,
+internal sealed record SnapshotTransactionNotice(SnapshotTransactionPhase Phase, string RequestedOwner,
     string Owner, long Sequence, bool SnapshotInProgress, bool ManualInProgress, TimeSpan? Age);
