@@ -5,15 +5,19 @@ using Verse;
 
 namespace AIRsLight.ClashOfRim.ClientNetwork;
 
-internal sealed class ClientProtocolEnvironment : IClientProtocolEnvironment
+internal sealed class ClientProtocolEnvironment : ClientProtocolMetadata, IClientProtocolEnvironment
 {
     private readonly Action<string, string?> sessionExpired;
     internal ClientProtocolEnvironment(Action<string, string?> sessionExpired) => this.sessionExpired = sessionExpired;
-    public string DeserializationFailure(string responseType) =>
-        ClashOfRimText.Key("ClashOfRim.Network.StatusDeserializeFailed", responseType.Named("TYPE"));
     public void SessionExpired(string message, string? authToken) => sessionExpired(message, authToken);
     public void MultipartDisposalFailed(string message) =>
         Log.Warning("[ClashOfRim] Ignored HTTP multipart dispose NullReferenceException: " + message);
+}
+
+internal class ClientProtocolMetadata : IClientProtocolMetadata
+{
+    public string DeserializationFailure(string responseType) =>
+        ClashOfRimText.Key("ClashOfRim.Network.StatusDeserializeFailed", responseType.Named("TYPE"));
 
     public string? CurrentLanguage
     {

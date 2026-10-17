@@ -28,6 +28,7 @@ var tests = new (string Name, Action Run)[]
     ("bank and event continuations reach snapshot rebuilding and retain failed mutations", LocalMutationContinuationTests.Run),
     ("snapshot uploader owns capture, upload admission and game publication", SnapshotUploaderModuleTests.Run),
     ("protocol transport owns request encoding, responses and cancellation", ProtocolTransportModuleTests.Run),
+    ("session WebSocket transport owns duplex failure, framing and closure", SessionWebSocketTransportTests.Run),
     ("actual event letters share rendering, action and automatic application rules", EventLetterPolicyTests.Run),
     ("repeated pawn transfer preserves global relationship identity", PawnTransferIdentityTests.Run),
     ("item durability uses final quality maximum", ThingMetadataOrderTests.Run),

@@ -1,12 +1,8 @@
 using AIRsLight.ClashOfRim.Modules.Transport;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Net.Http;
-using System.Net.WebSockets;
-using System.Runtime.Serialization;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using AIRsLight.ClashOfRim.Protocol;
@@ -16,10 +12,7 @@ namespace AIRsLight.ClashOfRim.ClientNetwork;
 
 public sealed partial class ClashOfRimModNetworkClient
 {
-    private static readonly TimeSpan SessionWebSocketPingInterval = TimeSpan.FromSeconds(10);
-
     private static readonly string LoginRoute = ProtocolContractManifest.Find(ProtocolMessageKind.Login).Route;
-    private static readonly string StreamSessionRoute = ProtocolContractManifest.Find(ProtocolMessageKind.StreamSession).Route;
     private static readonly string MaintainPresenceRoute = ProtocolContractManifest.Find(ProtocolMessageKind.MaintainPresence).Route;
     private static readonly string LogoutRoute = ProtocolContractManifest.Find(ProtocolMessageKind.Logout).Route;
     private static readonly string ChangeOfflinePasswordRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ChangeOfflinePassword).Route;
@@ -95,8 +88,8 @@ public sealed partial class ClashOfRimModNetworkClient
     private static readonly string ServerHelloRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ServerHello).Route;
 
     private readonly HttpClient httpClient;
-    private readonly ClientProtocolEnvironment protocolEnvironment;
     private readonly ClientProtocolTransport transport;
+    private readonly ClientSessionWebSocketTransport sessionStream;
     private readonly ClashOfRimClientNetworkContext context;
 
     public static Action<string, string?>? SessionExpired;
@@ -112,8 +105,9 @@ public sealed partial class ClashOfRimModNetworkClient
     {
         this.httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         this.context = context ?? throw new ArgumentNullException(nameof(context));
-        protocolEnvironment = new ClientProtocolEnvironment((message, token) => SessionExpired?.Invoke(message, token));
+        var protocolEnvironment = new ClientProtocolEnvironment((message, token) => SessionExpired?.Invoke(message, token));
         transport = new ClientProtocolTransport(httpClient, context, protocolEnvironment);
+        sessionStream = new ClientSessionWebSocketTransport(new ClientWebSocketFactory(), protocolEnvironment);
     }
 
     public Task<ClashOfRimClientNetworkResult<ModServerHelloResponseDto>> ServerHelloAsync(
@@ -1137,141 +1131,15 @@ public sealed partial class ClashOfRimModNetworkClient
                 }, token), cancellationToken);
     }
 
-    public async Task<ClashOfRimClientNetworkResult<ModSessionStreamClosedDto>> StreamSessionAsync(
+    public Task<ClashOfRimClientNetworkResult<ModSessionStreamClosedDto>> StreamSessionAsync(
         string? sessionId,
         long knownNotificationVersion,
         long knownWorldConfigurationVersion,
         Action<ModSessionStreamEvent> onEvent,
         CancellationToken cancellationToken = default)
     {
-        using var sessionCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, ClientSessionWork.Token);
-        cancellationToken = sessionCancellation.Token;
-        if (!context.IsConfigured)
-        {
-            return await NotConfigured<ModSessionStreamClosedDto>();
-        }
-
-        try
-        {
-            Uri uri = BuildWebSocketSessionUri(sessionId, knownNotificationVersion, knownWorldConfigurationVersion);
-            using var webSocket = new ClientWebSocket();
-            string? language = protocolEnvironment.CurrentLanguage;
-            if (!string.IsNullOrWhiteSpace(language))
-            {
-                webSocket.Options.SetRequestHeader(ClientProtocolTransport.LanguageHeader, ServerLocalization.EncodeLanguageHeader(language));
-            }
-
-            await webSocket.ConnectAsync(uri, cancellationToken).ConfigureAwait(false);
-            using var pingCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            Task pingTask = SendWebSocketPingLoopAsync(webSocket, pingCancellation.Token);
-            try
-            {
-                while (!cancellationToken.IsCancellationRequested
-                    && webSocket.State is WebSocketState.Open or WebSocketState.CloseSent or WebSocketState.CloseReceived)
-                {
-                    string? message = await ReceiveWebSocketTextAsync(webSocket, cancellationToken).ConfigureAwait(false);
-                    if (message is null)
-                    {
-                        break;
-                    }
-
-                    ModSessionWebSocketEnvelopeDto envelope = ClientProtocolJson.Deserialize<ModSessionWebSocketEnvelopeDto>(message, protocolEnvironment.DeserializationFailure);
-                    if (string.Equals(envelope.EventName, "pong", StringComparison.Ordinal)
-                        || string.Equals(envelope.EventName, "keepalive", StringComparison.Ordinal))
-                    {
-                        continue;
-                    }
-
-                    onEvent(new ModSessionStreamEvent(envelope.EventName, envelope.Data));
-                }
-            }
-            finally
-            {
-                pingCancellation.Cancel();
-                try
-                {
-                    await pingTask.ConfigureAwait(false);
-                }
-                catch (Exception ex) when (ex is OperationCanceledException or WebSocketException or IOException or ObjectDisposedException)
-                {
-                }
-
-                if (webSocket.State is WebSocketState.Open or WebSocketState.CloseReceived)
-                {
-                    try
-                    {
-                        await webSocket.CloseAsync(
-                            WebSocketCloseStatus.NormalClosure,
-                            "Client closed.",
-                            CancellationToken.None).ConfigureAwait(false);
-                    }
-                    catch (WebSocketException)
-                    {
-                    }
-                }
-            }
-
-            return ClashOfRimClientNetworkResult<ModSessionStreamClosedDto>.Ok(
-                new ModSessionStreamClosedDto(cancellationToken.IsCancellationRequested));
-        }
-        catch (Exception ex) when (ex is HttpRequestException or WebSocketException or TaskCanceledException or IOException or ObjectDisposedException or InvalidOperationException or SerializationException)
-        {
-            if (cancellationToken.IsCancellationRequested)
-            {
-                return ClashOfRimClientNetworkResult<ModSessionStreamClosedDto>.Ok(new ModSessionStreamClosedDto(true));
-            }
-
-            return ClashOfRimClientNetworkResult<ModSessionStreamClosedDto>.Failed(ex.GetType().Name, ex.Message);
-        }
-    }
-
-    private static async Task SendWebSocketPingLoopAsync(ClientWebSocket webSocket, CancellationToken cancellationToken)
-    {
-        while (!cancellationToken.IsCancellationRequested)
-        {
-            if (webSocket.State != WebSocketState.Open)
-            {
-                return;
-            }
-
-            await SendWebSocketTextAsync(webSocket, "{\"eventName\":\"ping\",\"data\":\"{}\"}", cancellationToken).ConfigureAwait(false);
-            await Task.Delay(SessionWebSocketPingInterval, cancellationToken).ConfigureAwait(false);
-        }
-    }
-
-    private static async Task SendWebSocketTextAsync(ClientWebSocket webSocket, string text, CancellationToken cancellationToken)
-    {
-        byte[] bytes = Encoding.UTF8.GetBytes(text);
-        await webSocket.SendAsync(
-            new ArraySegment<byte>(bytes),
-            WebSocketMessageType.Text,
-            endOfMessage: true,
-            cancellationToken).ConfigureAwait(false);
-    }
-
-    private static async Task<string?> ReceiveWebSocketTextAsync(ClientWebSocket webSocket, CancellationToken cancellationToken)
-    {
-        var buffer = new byte[4096];
-        using var stream = new MemoryStream();
-        WebSocketReceiveResult result;
-        do
-        {
-            result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), cancellationToken).ConfigureAwait(false);
-            if (result.MessageType == WebSocketMessageType.Close)
-            {
-                return null;
-            }
-
-            if (result.MessageType != WebSocketMessageType.Text)
-            {
-                continue;
-            }
-
-            stream.Write(buffer, 0, result.Count);
-        }
-        while (!result.EndOfMessage);
-
-        return Encoding.UTF8.GetString(stream.ToArray());
+        if (!context.IsConfigured) return NotConfigured<ModSessionStreamClosedDto>();
+        return sessionStream.StreamAsync(context, sessionId, knownNotificationVersion, knownWorldConfigurationVersion, onEvent, cancellationToken);
     }
 
     public Task<ClashOfRimClientNetworkResult<ModMaintainPresenceResponseDto>> MaintainPresenceAsync(
@@ -2616,48 +2484,6 @@ public sealed partial class ClashOfRimModNetworkClient
             ReportEventApplicationFailureRoute,
             request,
             cancellationToken);
-    }
-
-    private string BuildStreamSessionRoute(
-        string? sessionId,
-        long knownNotificationVersion,
-        long knownWorldConfigurationVersion)
-    {
-        var query = new List<string>
-        {
-            "userId=" + Uri.EscapeDataString(context.UserId),
-            "colonyId=" + Uri.EscapeDataString(context.ColonyId),
-            "knownNotificationVersion=" + knownNotificationVersion.ToString(),
-            "knownWorldConfigurationVersion=" + knownWorldConfigurationVersion.ToString()
-        };
-
-        if (!string.IsNullOrWhiteSpace(context.CurrentSnapshotId))
-        {
-            query.Add("currentSnapshotId=" + Uri.EscapeDataString(context.CurrentSnapshotId));
-        }
-
-        if (!string.IsNullOrWhiteSpace(sessionId))
-        {
-            query.Add("sessionId=" + Uri.EscapeDataString(sessionId));
-        }
-
-        return StreamSessionRoute.TrimStart('/') + "?" + string.Join("&", query);
-    }
-
-    private Uri BuildWebSocketSessionUri(
-        string? sessionId,
-        long knownNotificationVersion,
-        long knownWorldConfigurationVersion)
-    {
-        Uri baseUri = ClashOfRimServerUrlUtility.BuildHttpBaseUri(context.ServerBaseUrl);
-        Uri httpUri = new(baseUri, BuildStreamSessionRoute(sessionId, knownNotificationVersion, knownWorldConfigurationVersion));
-        var builder = new UriBuilder(httpUri)
-        {
-            Scheme = string.Equals(httpUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)
-                ? "wss"
-                : "ws"
-        };
-        return builder.Uri;
     }
 
     private static Task<ClashOfRimClientNetworkResult<T>> NotConfigured<T>()

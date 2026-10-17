@@ -2,6 +2,7 @@ using AIRsLight.ClashOfRim.Modules.Synchronization;
 using AIRsLight.ClashOfRim.Modules.Snapshots;
 using System.Diagnostics.CodeAnalysis;
 using AIRsLight.ClashOfRim.Modules.Sessions;
+using AIRsLight.ClashOfRim.Modules.Transport;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -114,7 +115,7 @@ public sealed partial class ClashOfRimMod : Mod
     private readonly ClientSessionReconnect sessionReconnect;
     private bool languageMismatchAcceptedForCurrentServerEntry;
     private bool blockAutomaticMapSessionForServerEntrySourceGame;
-    private readonly ClientSessionConnection sessionConnection = new(new ClientSessionStreamTransport());
+    private readonly ClientSessionConnection sessionConnection = new(new ClientSessionWebSocketTransport(new ClientWebSocketFactory(), new ClientProtocolMetadata()));
     private Game? serverEntrySourceGame;
     private readonly List<string> lastEventQueueEventIds = new();
     private readonly List<ModEventDetailDto> lastEventDetails = new();
