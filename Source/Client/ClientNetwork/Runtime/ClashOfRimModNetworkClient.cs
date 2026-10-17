@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Shop;
 using AIRsLight.ClashOfRim.Modules.Trades;
 using AIRsLight.ClashOfRim.Modules.Gifts;
 using AIRsLight.ClashOfRim.Modules.Bank;
@@ -23,10 +24,6 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
     private static readonly string ListPlayersRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ListPlayers).Route;
     private static readonly string ListAchievementsRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ListAchievements).Route;
     private static readonly string GetPawnPackagePreviewRoute = ProtocolContractManifest.Find(ProtocolMessageKind.GetPawnPackagePreview).Route;
-    private static readonly string ListServerShopRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ListServerShop).Route;
-    private static readonly string UpsertServerShopListingRoute = ProtocolContractManifest.Find(ProtocolMessageKind.UpsertServerShopListing).Route;
-    private static readonly string RemoveServerShopListingRoute = ProtocolContractManifest.Find(ProtocolMessageKind.RemoveServerShopListing).Route;
-    private static readonly string PurchaseServerShopListingWithSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.PurchaseServerShopListingWithSnapshot).Route;
     private static readonly string PrepareRaidRoute = ProtocolContractManifest.Find(ProtocolMessageKind.PrepareRaid).Route;
     private static readonly string CreateRaidWithSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.CreateRaidWithSnapshot).Route;
     private static readonly string CreateDiplomacyEventRoute = ProtocolContractManifest.Find(ProtocolMessageKind.CreateDiplomacyEvent).Route;
@@ -74,6 +71,7 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
     private readonly ClashOfRimClientNetworkContext context;
     private readonly ClientPackageReader packages;
     private readonly ClientPackageWriter packageWriter;
+    private readonly ClientShopProtocol shopProtocol;
 
     public static Action<string, string?>? SessionExpired;
     public static Func<string?>? CompatibilityManifestJsonProvider;
@@ -95,6 +93,7 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
         var protocolEnvironment = new ClientProtocolEnvironment((message, token) => SessionExpired?.Invoke(message, token));
         transport = new ClientProtocolTransport(httpClient, context, protocolEnvironment);
         packageWriter = new ClientPackageWriter(transport, context, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
+        shopProtocol = new ClientShopProtocol(transport, context, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         bankProtocol = new ClientBankProtocol(context, transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         trades = new ClientTradeProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         gifts = new ClientGiftProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
@@ -1224,23 +1223,7 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
 
     public Task<ClashOfRimClientNetworkResult<ModListServerShopResponseDto>> ListServerShopAsync(
         CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModListServerShopResponseDto>();
-        }
-
-        var request = new ModListServerShopRequestDto
-        {
-            AuthToken = context.AuthToken,
-            UserId = context.UserId,
-            ColonyId = context.ColonyId
-        };
-        return transport.PostAsync<ModListServerShopRequestDto, ModListServerShopResponseDto>(
-            ListServerShopRoute,
-            request,
-            cancellationToken);
-    }
+        => shopProtocol.ListServerShopAsync(cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModUpsertServerShopListingResponseDto>> UpsertServerShopListingAsync(
         string? listingId,
@@ -1252,53 +1235,12 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
         string qualityRequirementMode,
         string hitPointsRequirementMode,
         CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModUpsertServerShopListingResponseDto>();
-        }
-
-        var request = new ModUpsertServerShopListingRequestDto
-        {
-            AuthToken = context.AuthToken,
-            UserId = context.UserId,
-            ColonyId = context.ColonyId,
-            ListingId = listingId,
-            ListingKind = listingKind,
-            Item = item,
-            PriceSilver = priceSilver,
-            StockCount = stockCount,
-            PriceIncreaseRatio = priceIncreaseRatio,
-            QualityRequirementMode = NormalizeShopRequirementMode(qualityRequirementMode),
-            HitPointsRequirementMode = NormalizeShopRequirementMode(hitPointsRequirementMode)
-        };
-        return transport.PostAsync<ModUpsertServerShopListingRequestDto, ModUpsertServerShopListingResponseDto>(
-            UpsertServerShopListingRoute,
-            request,
-            cancellationToken);
-    }
+        => shopProtocol.UpsertServerShopListingAsync(listingId, listingKind, item, priceSilver, stockCount, priceIncreaseRatio, qualityRequirementMode, hitPointsRequirementMode, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModRemoveServerShopListingResponseDto>> RemoveServerShopListingAsync(
         string listingId,
         CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModRemoveServerShopListingResponseDto>();
-        }
-
-        var request = new ModRemoveServerShopListingRequestDto
-        {
-            AuthToken = context.AuthToken,
-            UserId = context.UserId,
-            ColonyId = context.ColonyId,
-            ListingId = listingId
-        };
-        return transport.PostAsync<ModRemoveServerShopListingRequestDto, ModRemoveServerShopListingResponseDto>(
-            RemoveServerShopListingRoute,
-            request,
-            cancellationToken);
-    }
+        => shopProtocol.RemoveServerShopListingAsync(listingId, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModPurchaseServerShopListingResponseDto>> PurchaseServerShopListingWithSnapshotAsync(
         string idempotencyKey,
@@ -1311,48 +1253,7 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
         ModSnapshotPackageMetadataDto confirmedSnapshot,
         byte[] confirmedPayload,
         CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModPurchaseServerShopListingResponseDto>();
-        }
-
-        var purchase = new ModPurchaseServerShopListingRequestDto
-        {
-            IdempotencyKey = idempotencyKey,
-            Buyer = new ModProtocolIdentityDto
-            {
-                UserId = context.UserId,
-                ColonyId = context.ColonyId,
-                SnapshotId = context.CurrentSnapshotId
-            },
-            ListingId = listingId,
-            UnitPriceSilver = unitPriceSilver,
-            TotalPriceSilver = totalPriceSilver,
-            PurchaseCount = purchaseCount,
-            ListingKind = listingKind,
-            DeliveredThings = deliveredThings?.ToList() ?? new List<ModThingReferenceDto>()
-        };
-        var request = new ModPurchaseServerShopListingWithSnapshotRequestDto
-        {
-            Purchase = purchase,
-            ConfirmedSnapshot = MarkSnapshotUploadKind(
-                confirmedSnapshot,
-                ModSnapshotUploadKinds.ServerShopPurchaseConfirmation)
-        };
-        return transport.PostSnapshotMultipartAsync<ModPurchaseServerShopListingWithSnapshotRequestDto, ModPurchaseServerShopListingResponseDto>(
-            PurchaseServerShopListingWithSnapshotRoute,
-            request,
-            confirmedPayload,
-            cancellationToken);
-    }
-
-    private static string NormalizeShopRequirementMode(string? mode)
-    {
-        return string.Equals(mode, "AtMost", StringComparison.Ordinal)
-            ? "AtMost"
-            : "AtLeast";
-    }
+        => shopProtocol.PurchaseServerShopListingWithSnapshotAsync(idempotencyKey, listingId, listingKind, unitPriceSilver, totalPriceSilver, purchaseCount, deliveredThings, confirmedSnapshot, confirmedPayload, cancellationToken);
 
     private static ModSnapshotPackageMetadataDto MarkSnapshotUploadKind(
         ModSnapshotPackageMetadataDto package,

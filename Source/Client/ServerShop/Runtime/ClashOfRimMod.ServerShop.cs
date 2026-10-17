@@ -1,3 +1,5 @@
+using AIRsLight.ClashOfRim.Modules.Shop;
+using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Bank;
 using AIRsLight.ClashOfRim.Modules.Synchronization;
 using System;
@@ -751,79 +753,12 @@ public sealed partial class ClashOfRimMod
         };
     }
 
-    internal static int CalculateServerShopTotalPrice(ModServerShopListingDto listing, int purchaseCount)
-    {
-        int safePurchaseCount = Math.Max(1, purchaseCount);
-        long total = 0;
-        int basePrice = Math.Max(1, listing.BasePriceSilver > 0 ? listing.BasePriceSilver : listing.PriceSilver);
-        double multiplier = NormalizeServerShopPriceIncreaseRatio(listing.PriceIncreaseRatio);
-        int buyerPurchaseCount = Math.Max(0, listing.BuyerPurchaseCount);
-        for (int offset = 0; offset < safePurchaseCount; offset++)
-        {
-            total += CalculateServerShopUnitPrice(basePrice, multiplier, buyerPurchaseCount + offset);
-            if (total >= int.MaxValue)
-            {
-                return int.MaxValue;
-            }
-        }
-
-        return (int)total;
-    }
-
-    internal static int CalculateServerShopUnitPrice(int basePriceSilver, double priceIncreaseRatio, int buyerPurchaseCount)
-    {
-        int basePrice = Math.Max(1, basePriceSilver);
-        if (buyerPurchaseCount <= 0)
-        {
-            return basePrice;
-        }
-
-        double multiplier = NormalizeServerShopPriceIncreaseRatio(priceIncreaseRatio);
-        if (Math.Abs(multiplier - 1d) < double.Epsilon)
-        {
-            return basePrice;
-        }
-
-        double calculated = basePrice * Math.Pow(multiplier, buyerPurchaseCount);
-        if (double.IsNaN(calculated) || double.IsInfinity(calculated) || calculated >= int.MaxValue)
-        {
-            return int.MaxValue;
-        }
-
-        int rounded = (int)Math.Ceiling(calculated);
-        return multiplier > 1d
-            ? Math.Max(basePrice, rounded)
-            : Math.Max(1, Math.Min(basePrice, rounded));
-    }
-
-    internal static double NormalizeServerShopPriceIncreaseRatio(double value)
-    {
-        if (double.IsNaN(value) || double.IsInfinity(value) || value <= 0d)
-        {
-            return 1d;
-        }
-
-        return Math.Max(0.01d, Math.Min(value, 100d));
-    }
-
-    private static bool IsServerShopBuyOrder(ModServerShopListingDto listing)
-    {
-        return string.Equals(NormalizeServerShopListingKind(listing.ListingKind), "BuyFromPlayer", StringComparison.Ordinal);
-    }
-
-    private static string NormalizeServerShopListingKind(string? listingKind)
-    {
-        return string.Equals(listingKind, "BuyFromPlayer", StringComparison.Ordinal)
-            ? "BuyFromPlayer"
-            : "SellToPlayer";
-    }
-
-    private static string NormalizeServerShopRequirementMode(string? mode)
-    {
-        return string.Equals(mode, "AtMost", StringComparison.Ordinal)
-            ? "AtMost"
-            : "AtLeast";
-    }
+    internal static int CalculateServerShopTotalPrice(ModServerShopListingDto listing, int purchaseCount) => ClientShopRules.TotalPrice(listing, purchaseCount);
+    internal static int CalculateServerShopUnitPrice(int basePriceSilver, double priceIncreaseRatio, int buyerPurchaseCount) => ServerShopPricing.UnitPrice(basePriceSilver, priceIncreaseRatio, buyerPurchaseCount);
+    internal static double NormalizeServerShopPriceIncreaseRatio(double value) => ServerShopPricing.NormalizeRatio(value);
+    private static bool IsServerShopBuyOrder(ModServerShopListingDto listing) => ClientShopRules.IsBuyOrder(listing);
+    private static string NormalizeServerShopListingKind(string? listingKind) => ClientShopRules.NormalizeListingKind(listingKind);
+    private static string NormalizeServerShopRequirementMode(string? mode) => ServerShopQualityRequirementModes.Normalize(mode);
 
     private static async Task HydrateServerShopListingPawnPackagesAsync(
         ClashOfRimModNetworkClient client,

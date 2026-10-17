@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <Compile Include="..\TestSupport\ModuleDependencyGuard.cs" Link="TestSupport\ModuleDependencyGuard.cs" />
+    <Compile Include="..\TestSupport\ServerShopPricingTests.cs" Link="TestSupport\ServerShopPricingTests.cs" />
     <Compile Include="..\ClashOfRim.NetworkSmoke\ModuleBoundaryTests.cs" Link="ModuleBoundaryTests.cs" />
     <None Include="..\ClashOfRim.NetworkSmoke\Fixtures\ModuleEndpointContract.json" Link="Fixtures\ModuleEndpointContract.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\ClashOfRim.NetworkServer\Localization\English.json" Link="TestLocalization\English.json" CopyToOutputDirectory="PreserveNewest" />

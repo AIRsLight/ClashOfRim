@@ -470,16 +470,10 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
     }
 
     private static bool IsServerShopBuyOrder(ModServerShopListingDto listing)
-    {
-        return string.Equals(NormalizeServerShopListingKind(listing.ListingKind), "BuyFromPlayer", StringComparison.Ordinal);
-    }
+        => AIRsLight.ClashOfRim.Modules.Shop.ClientShopRules.IsBuyOrder(listing);
 
     private static string NormalizeServerShopListingKind(string? listingKind)
-    {
-        return string.Equals(listingKind, "BuyFromPlayer", StringComparison.Ordinal)
-            ? "BuyFromPlayer"
-            : "SellToPlayer";
-    }
+        => AIRsLight.ClashOfRim.Modules.Shop.ClientShopRules.NormalizeListingKind(listingKind);
 
     private static string FormatServerShopStock(int stockCount)
     {

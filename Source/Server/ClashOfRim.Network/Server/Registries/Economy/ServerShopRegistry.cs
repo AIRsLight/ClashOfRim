@@ -560,62 +560,11 @@ public sealed class ServerShopRegistry
         }
     }
 
-    public static int CalculateCurrentUnitPrice(ServerShopListingRecord listing, int buyerPurchaseCount)
-    {
-        return CalculateSteppedPrice(listing.PriceSilver, listing.PriceIncreaseRatio, buyerPurchaseCount);
-    }
-
-    public static int CalculatePurchaseTotalPrice(ServerShopListingRecord listing, int buyerPurchaseCount, int purchaseCount)
-    {
-        int safePurchaseCount = Math.Max(1, purchaseCount);
-        long total = 0;
-        for (int offset = 0; offset < safePurchaseCount; offset++)
-        {
-            total += CalculateSteppedPrice(listing.PriceSilver, listing.PriceIncreaseRatio, buyerPurchaseCount + offset);
-            if (total >= int.MaxValue)
-            {
-                return int.MaxValue;
-            }
-        }
-
-        return (int)total;
-    }
-
-    private static int CalculateSteppedPrice(int basePriceSilver, double priceIncreaseRatio, int buyerPurchaseCount)
-    {
-        int basePrice = Math.Max(1, basePriceSilver);
-        if (buyerPurchaseCount <= 0)
-        {
-            return basePrice;
-        }
-
-        double multiplier = NormalizePriceIncreaseRatio(priceIncreaseRatio);
-        if (Math.Abs(multiplier - 1d) < double.Epsilon)
-        {
-            return basePrice;
-        }
-
-        double calculated = basePrice * Math.Pow(multiplier, buyerPurchaseCount);
-        if (double.IsNaN(calculated) || double.IsInfinity(calculated) || calculated >= int.MaxValue)
-        {
-            return int.MaxValue;
-        }
-
-        int rounded = (int)Math.Ceiling(calculated);
-        return multiplier > 1d
-            ? Math.Max(basePrice, rounded)
-            : Math.Max(1, Math.Min(basePrice, rounded));
-    }
-
-    private static double NormalizePriceIncreaseRatio(double value)
-    {
-        if (double.IsNaN(value) || double.IsInfinity(value) || value <= 0d)
-        {
-            return 1d;
-        }
-
-        return Math.Clamp(value, 0.01d, 100d);
-    }
+    public static int CalculateCurrentUnitPrice(ServerShopListingRecord listing, int buyerPurchaseCount) =>
+        ServerShopPricing.UnitPrice(listing.PriceSilver, listing.PriceIncreaseRatio, buyerPurchaseCount);
+    public static int CalculatePurchaseTotalPrice(ServerShopListingRecord listing, int buyerPurchaseCount, int purchaseCount) =>
+        ServerShopPricing.TotalPrice(listing.PriceSilver, listing.PriceIncreaseRatio, buyerPurchaseCount, purchaseCount);
+    private static double NormalizePriceIncreaseRatio(double value) => ServerShopPricing.NormalizeRatio(value);
 
     private int GetBuyerPurchaseCountLocked(string listingId, ProtocolIdentity? buyer)
     {
