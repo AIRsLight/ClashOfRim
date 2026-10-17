@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Threading;
+using System.Threading.Tasks;
 using AIRsLight.ClashOfRim.ClientNetwork;
 
 namespace AIRsLight.ClashOfRim.Modules.Synchronization;
@@ -154,6 +155,30 @@ internal sealed class ClientSynchronizationCoordinator
         internal CancellationToken Generation { get; }
         public void Dispose() => owner.Release(this);
         internal void Complete(Action completed) => owner.Release(this, completed);
+
+        // Async stages own a new lease before the caller returns. Their finally cannot
+        // release a later UI/async stage or a promoted snapshot.
+        internal Task RunContinuation(Func<Lease, Task> action)
+        {
+            Lease next = owner.TransferManual(this);
+            try
+            {
+                return ClientSessionWork.Run(async () =>
+                {
+                    try
+                    {
+                        Task? work = null;
+                        ClientSessionWork.TryApply(() =>
+                        {
+                            if (owner.Owns(next)) work = action(next);
+                        });
+                        if (work is not null) await work;
+                    }
+                    finally { next.Dispose(); }
+                });
+            }
+            catch { next.Dispose(); throw; }
+        }
 
         // Transfer before enqueueing: the producer's finally can no longer release the
         // queued operation. A promoted snapshot owns its own completion independently.

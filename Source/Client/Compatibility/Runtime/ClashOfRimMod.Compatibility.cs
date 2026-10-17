@@ -235,6 +235,7 @@ public sealed partial class ClashOfRimMod
     {
         if (!ShouldShowCompatibilityMismatchWindow(response))
         {
+            cancelContinuation?.Invoke();
             return;
         }
 
@@ -266,7 +267,8 @@ public sealed partial class ClashOfRimMod
                     continueAnyway,
                     cancelContinuation));
             }
-        });
+            else cancelContinuation?.Invoke();
+        }, onDiscard: cancelContinuation);
     }
 
     private void ShowCompatibilityMismatchWindow(
@@ -276,6 +278,7 @@ public sealed partial class ClashOfRimMod
     {
         if (response is null)
         {
+            cancelContinuation?.Invoke();
             return;
         }
 

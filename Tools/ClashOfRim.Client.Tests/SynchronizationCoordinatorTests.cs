@@ -20,6 +20,9 @@ internal static class SynchronizationCoordinatorTests
             LateCompletionAndReset();
             QueuedManualOwnership();
             QueuedManualFailures();
+            await AsyncManualHandoffs();
+            await AsyncManualFailures();
+            DeferredDecisionOwnership();
             await ExpiredCallbacks();
             await CompetingAdmissions();
         }
@@ -249,6 +252,105 @@ internal static class SynchronizationCoordinatorTests
         try { lease.QueueContinuation((_, _) => queued = true, _ => { }); }
         catch (InvalidOperationException) { }
         Require(!queued, "Disposed manual operation queued work.");
+    }
+
+    private static async Task AsyncManualHandoffs()
+    {
+        var sync = new ClientSynchronizationCoordinator();
+        Require(sync.TryBeginManual(out var first), "Async producer rejected.");
+        var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var response = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        Action apply = null!, discard = null!;
+        int applied = 0;
+        Task download = first!.RunContinuation(async operation =>
+        {
+            entered.SetResult(true);
+            await response.Task;
+            operation.QueueContinuation((action, cancel) => { apply = action; discard = cancel; }, next =>
+            {
+                applied++;
+                Require(sync.TryBeginManual(out var continued, next) && ReferenceEquals(continued, next),
+                    "UI stage lost async ownership.");
+            });
+        });
+        first.Dispose();
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Require(sync.IsBusy && !sync.TryBeginManual(out _), "Caller released a pending download.");
+        response.SetResult(true);
+        await download.WaitAsync(TimeSpan.FromSeconds(5));
+        Require(sync.IsBusy && applied == 0, "Async finalizer released the pending UI stage.");
+        apply(); discard(); apply();
+        Require(!sync.IsBusy && applied == 1, "UI continuation did not complete once.");
+
+        Require(sync.TryBeginManual(out first), "Second producer rejected.");
+        Task nested = null!;
+        var secondResponse = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        await first!.RunContinuation(operation =>
+        {
+            nested = operation.RunContinuation(async _ => await secondResponse.Task);
+            return Task.CompletedTask;
+        }).WaitAsync(TimeSpan.FromSeconds(5));
+        first.Dispose();
+        Require(sync.IsBusy, "First async stage released its successor.");
+        secondResponse.SetResult(true);
+        await nested.WaitAsync(TimeSpan.FromSeconds(5));
+        Require(!sync.IsBusy, "Second async stage retained admission.");
+    }
+
+    private static async Task AsyncManualFailures()
+    {
+        foreach (bool synchronous in new[] { true, false })
+        {
+            var sync = new ClientSynchronizationCoordinator();
+            Require(sync.TryBeginManual(out var first), "Async producer rejected.");
+            Task failed = first!.RunContinuation(_ => synchronous
+                ? throw new ApplicationException("before await")
+                : FailAfterYield());
+            try { await failed.WaitAsync(TimeSpan.FromSeconds(5)); throw new Exception("Failure disappeared."); }
+            catch (ApplicationException) { }
+            Require(!sync.IsBusy, "Failed async stage retained admission.");
+        }
+
+        var owner = new ClientSynchronizationCoordinator();
+        Require(owner.TryBeginManual(out var old), "Old producer rejected.");
+        var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var response = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        bool applied = false;
+        Task stale = old!.RunContinuation(async _ =>
+        {
+            entered.SetResult(true);
+            await ClientSessionWork.Observe(response.Task);
+            applied = true;
+        });
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        ClientSessionWork.Reset(); owner.Reset();
+        Require(owner.TryBeginManual(out var current), "New producer rejected.");
+        response.SetResult(true);
+        await stale.WaitAsync(TimeSpan.FromSeconds(5));
+        Require(!applied && owner.IsBusy, "Late async completion affected a new session.");
+        current!.Dispose();
+    }
+
+    private static async Task FailAfterYield()
+    {
+        await Task.Yield();
+        throw new ApplicationException("after await");
+    }
+
+    private static void DeferredDecisionOwnership()
+    {
+        var sync = new ClientSynchronizationCoordinator();
+        Require(sync.TryBeginManual(out var producer), "Decision producer rejected.");
+        Action resume = null!, cancel = null!;
+        int resumed = 0;
+        producer!.QueueContinuation((accept, reject) => { resume = accept; cancel = reject; }, _ => resumed++);
+        producer.Dispose();
+        Require(sync.IsBusy, "Showing a decision released its admission.");
+        cancel();
+        Require(sync.TryBeginManual(out var next), "Cancelled decision retained admission.");
+        resume(); cancel();
+        Require(resumed == 0 && sync.IsBusy, "Old decision affected a replacement operation.");
+        next!.Dispose();
     }
 
     private static void Require(bool condition, string message)

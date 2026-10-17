@@ -246,6 +246,13 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
+        // Keep automatic map login from racing the temporary authenticated setup session.
+        if (!TryBeginManualSynchronization(out var manualOperation, out string admissionFailure))
+        {
+            pendingInitialWorldConfigurationSubmit = true;
+            loginStatus = admissionFailure;
+            return;
+        }
         loginStatus = ClashOfRimText.Key("ClashOfRim.WorldBaseline.StatusSubmitting");
         ClashLog.Message("[ClashOfRim] Submitting initial world configuration: " + DescribeWorldConfiguration(configuration));
         ClientSessionWork.Run(async () =>
@@ -319,6 +326,10 @@ public sealed partial class ClashOfRimMod
                 using var publication = ClientSessionWork.EnterPublication();
                 loginStatus = ClashOfRimText.Key("ClashOfRim.WorldBaseline.StatusSubmitException", ex.Message.Named("MESSAGE"));
                 Log.Warning("[ClashOfRim] Initial world configuration submit exception: " + ex);
+            }
+            finally
+            {
+                manualOperation.Dispose();
             }
         });
     }
