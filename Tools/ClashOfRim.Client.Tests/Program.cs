@@ -29,6 +29,7 @@ var tests = new (string Name, Action Run)[]
     ("snapshot uploader owns capture, upload admission and game publication", SnapshotUploaderModuleTests.Run),
     ("protocol transport owns request encoding, responses and cancellation", ProtocolTransportModuleTests.Run),
     ("session WebSocket transport owns duplex failure, framing and closure", SessionWebSocketTransportTests.Run),
+    ("setup authentication owns temporary credentials, cancellation and bounded cleanup", SetupAuthenticationModuleTests.Run),
     ("actual event letters share rendering, action and automatic application rules", EventLetterPolicyTests.Run),
     ("repeated pawn transfer preserves global relationship identity", PawnTransferIdentityTests.Run),
     ("item durability uses final quality maximum", ThingMetadataOrderTests.Run),

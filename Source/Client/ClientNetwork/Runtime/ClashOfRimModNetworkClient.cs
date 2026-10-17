@@ -1,4 +1,5 @@
 using AIRsLight.ClashOfRim.Modules.Transport;
+using AIRsLight.ClashOfRim.Modules.Sessions;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,11 +11,9 @@ using Verse;
 
 namespace AIRsLight.ClashOfRim.ClientNetwork;
 
-public sealed partial class ClashOfRimModNetworkClient
+public sealed class ClashOfRimModNetworkClient
 {
-    private static readonly string LoginRoute = ProtocolContractManifest.Find(ProtocolMessageKind.Login).Route;
     private static readonly string MaintainPresenceRoute = ProtocolContractManifest.Find(ProtocolMessageKind.MaintainPresence).Route;
-    private static readonly string LogoutRoute = ProtocolContractManifest.Find(ProtocolMessageKind.Logout).Route;
     private static readonly string ChangeOfflinePasswordRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ChangeOfflinePassword).Route;
     private static readonly string ListPlayersRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ListPlayers).Route;
     private static readonly string ListAchievementsRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ListAchievements).Route;
@@ -87,8 +86,10 @@ public sealed partial class ClashOfRimModNetworkClient
     private static readonly string AdminActionRoute = ProtocolContractManifest.Find(ProtocolMessageKind.AdminAction).Route;
     private static readonly string ServerHelloRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ServerHello).Route;
 
-    private readonly HttpClient httpClient;
     private readonly ClientProtocolTransport transport;
+    private readonly ClientAuthenticationEnvironment authenticationEnvironment = new();
+    private readonly ClientSessionProtocol authentication;
+    private readonly ClientSetupAuthenticationLease setupAuthentication;
     private readonly ClientSessionWebSocketTransport sessionStream;
     private readonly ClashOfRimClientNetworkContext context;
 
@@ -103,10 +104,12 @@ public sealed partial class ClashOfRimModNetworkClient
         HttpClient httpClient,
         ClashOfRimClientNetworkContext context)
     {
-        this.httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+        _ = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         this.context = context ?? throw new ArgumentNullException(nameof(context));
         var protocolEnvironment = new ClientProtocolEnvironment((message, token) => SessionExpired?.Invoke(message, token));
         transport = new ClientProtocolTransport(httpClient, context, protocolEnvironment);
+        authentication = new ClientSessionProtocol(transport, authenticationEnvironment, authenticationEnvironment);
+        setupAuthentication = new ClientSetupAuthenticationLease(authentication, transport, authenticationEnvironment);
         sessionStream = new ClientSessionWebSocketTransport(new ClientWebSocketFactory(), protocolEnvironment);
     }
 
@@ -121,50 +124,11 @@ public sealed partial class ClashOfRimModNetworkClient
         return transport.GetAsync<ModServerHelloResponseDto>(ServerHelloRoute, cancellationToken);
     }
 
-    public async Task<ClashOfRimClientNetworkResult<ModLoginResponseDto>> LoginAsync(
+    public Task<ClashOfRimClientNetworkResult<ModLoginResponseDto>> LoginAsync(
         string compatibilityDigest,
         string? compatibilityManifestJson = null,
         CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return await NotConfigured<ModLoginResponseDto>();
-        }
-
-        var request = new ModLoginRequestDto
-        {
-            UserId = context.UserId,
-            ColonyId = context.ColonyId,
-            CurrentSnapshotId = context.CurrentSnapshotId,
-            CompatibilityDigest = compatibilityDigest,
-            CompatibilityManifestJson = compatibilityManifestJson,
-            CompatibilityManifestId = CompatibilityManifestIdProvider?.Invoke(),
-            CompatibilityManifestSummaryJson = compatibilityManifestJson is null
-                ? CompatibilityManifestSummaryJsonProvider?.Invoke()
-                : null,
-            SteamAuthTicket = string.IsNullOrWhiteSpace(context.SteamAuthTicket)
-                ? context.UserId
-                : context.SteamAuthTicket,
-            Password = context.OfflinePassword
-        };
-
-        ClashOfRimClientNetworkResult<ModLoginResponseDto> result =
-            await transport.PostAsync<ModLoginRequestDto, ModLoginResponseDto>(LoginRoute, request, cancellationToken);
-        if (!ShouldRetryWithFullCompatibilityManifest(result, compatibilityManifestJson))
-        {
-            return result;
-        }
-
-        request.CompatibilityManifestJson = BuildCompatibilityManifestJsonForRetry(
-            result.Response?.RequestedCompatibilityPackageIds);
-        if (string.IsNullOrWhiteSpace(request.CompatibilityManifestJson))
-        {
-            return CompatibilityManifestBuildFailed<ModLoginResponseDto>();
-        }
-
-        request.CompatibilityManifestSummaryJson = null;
-        return await transport.PostAsync<ModLoginRequestDto, ModLoginResponseDto>(LoginRoute, request, cancellationToken);
-    }
+        => authentication.LoginAsync(context, compatibilityDigest, compatibilityManifestJson, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModOverrideCompatibilityBaselineResponseDto>> OverrideCompatibilityBaselineAsync(
         string compatibilityManifestJson,
@@ -381,7 +345,7 @@ public sealed partial class ClashOfRimModNetworkClient
             return result;
         }
 
-        request.CompatibilityManifestJson = BuildCompatibilityManifestJsonForRetry(
+        request.CompatibilityManifestJson = authenticationEnvironment.BuildJson(
             result.Response?.RequestedCompatibilityPackageIds);
         if (string.IsNullOrWhiteSpace(request.CompatibilityManifestJson))
         {
@@ -398,14 +362,14 @@ public sealed partial class ClashOfRimModNetworkClient
     public Task<ClashOfRimClientNetworkResult<ModSubmitWorldConfigurationResponseDto>> SubmitWorldConfigurationAsync(
         ModWorldConfigurationDto configuration,
         CancellationToken cancellationToken = default)
-        => WithSetupAuthenticationAsync<ModSubmitWorldConfigurationResponseDto>("world-configuration-setup", (authenticated, token) =>
-            authenticated.transport.PostAsync<ModSubmitWorldConfigurationRequestDto, ModSubmitWorldConfigurationResponseDto>(
+        => setupAuthentication.RunAsync<ModSubmitWorldConfigurationResponseDto>(context, "world-configuration-setup", (authenticated, requestTransport, token) =>
+            requestTransport.PostAsync<ModSubmitWorldConfigurationRequestDto, ModSubmitWorldConfigurationResponseDto>(
                 SubmitWorldConfigurationRoute,
                 new ModSubmitWorldConfigurationRequestDto
                 {
-                    UserId = authenticated.context.UserId,
-                    ColonyId = authenticated.context.ColonyId,
-                    AuthToken = authenticated.context.AuthToken,
+                    UserId = authenticated.UserId,
+                    ColonyId = authenticated.ColonyId,
+                    AuthToken = authenticated.AuthToken,
                     Configuration = configuration
                 }, token), cancellationToken);
 
@@ -443,29 +407,17 @@ public sealed partial class ClashOfRimModNetworkClient
         string worldConfigurationId,
         byte[] payload,
         CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModUploadWorldSubstrateResponseDto>();
-        }
-
-        var request = new ModUploadWorldSubstrateRequestDto
-        {
-            UserId = context.UserId,
-            ColonyId = context.ColonyId,
-            WorldConfigurationId = worldConfigurationId ?? string.Empty,
-            SteamAuthTicket = string.IsNullOrWhiteSpace(context.SteamAuthTicket)
-                ? context.UserId
-                : context.SteamAuthTicket,
-            Password = context.OfflinePassword
-        };
-
-        return transport.PostSnapshotMultipartAsync<ModUploadWorldSubstrateRequestDto, ModUploadWorldSubstrateResponseDto>(
-            UploadWorldSubstrateRoute,
-            request,
-            payload,
-            cancellationToken);
-    }
+        => setupAuthentication.RunAsync<ModUploadWorldSubstrateResponseDto>(context, "world-substrate-setup", (authenticated, requestTransport, token) =>
+            requestTransport.PostSnapshotMultipartAsync<ModUploadWorldSubstrateRequestDto, ModUploadWorldSubstrateResponseDto>(
+                UploadWorldSubstrateRoute,
+                new ModUploadWorldSubstrateRequestDto
+                {
+                    UserId = authenticated.UserId,
+                    ColonyId = authenticated.ColonyId,
+                    WorldConfigurationId = worldConfigurationId ?? string.Empty,
+                    SteamAuthTicket = string.IsNullOrWhiteSpace(authenticated.SteamAuthTicket) ? authenticated.UserId : authenticated.SteamAuthTicket,
+                    Password = authenticated.OfflinePassword
+                }, payload, token), cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<byte[]>> DownloadWorldSubstrateAsync(
         string worldConfigurationId,
@@ -1107,27 +1059,24 @@ public sealed partial class ClashOfRimModNetworkClient
         ModSubmitAdminBaselineRequestDto request,
         CancellationToken cancellationToken = default)
     {
-        return WithSetupAuthenticationAsync<ModSubmitAdminBaselineResponseDto>("admin-baseline-setup", (authenticated, token) =>
+        return setupAuthentication.RunAsync<ModSubmitAdminBaselineResponseDto>(context, "admin-baseline-setup", (authenticated, requestTransport, token) =>
         {
-            request.UserId = authenticated.context.UserId;
-            request.ColonyId = authenticated.context.ColonyId;
-            request.AuthToken = authenticated.context.AuthToken;
-            return authenticated.transport.PostAsync<ModSubmitAdminBaselineRequestDto, ModSubmitAdminBaselineResponseDto>(
-                SubmitAdminBaselineRoute, request, token);
+            return requestTransport.PostAsync<ModSubmitAdminBaselineRequestDto, ModSubmitAdminBaselineResponseDto>(
+                SubmitAdminBaselineRoute, request.WithAuthentication(authenticated.UserId, authenticated.ColonyId, authenticated.AuthToken), token);
         }, cancellationToken);
     }
 
     public Task<ClashOfRimClientNetworkResult<ModGetAdminBaselineRequirementsResponseDto>> GetAdminBaselineRequirementsAsync(
         CancellationToken cancellationToken = default)
     {
-        return WithSetupAuthenticationAsync<ModGetAdminBaselineRequirementsResponseDto>("admin-baseline-requirements", (authenticated, token) =>
-            authenticated.transport.PostAsync<ModGetAdminBaselineRequirementsRequestDto, ModGetAdminBaselineRequirementsResponseDto>(
+        return setupAuthentication.RunAsync<ModGetAdminBaselineRequirementsResponseDto>(context, "admin-baseline-requirements", (authenticated, requestTransport, token) =>
+            requestTransport.PostAsync<ModGetAdminBaselineRequirementsRequestDto, ModGetAdminBaselineRequirementsResponseDto>(
                 GetAdminBaselineRequirementsRoute,
                 new ModGetAdminBaselineRequirementsRequestDto
                 {
-                    UserId = authenticated.context.UserId,
-                    ColonyId = authenticated.context.ColonyId,
-                    AuthToken = authenticated.context.AuthToken
+                    UserId = authenticated.UserId,
+                    ColonyId = authenticated.ColonyId,
+                    AuthToken = authenticated.AuthToken
                 }, token), cancellationToken);
     }
 
@@ -1168,32 +1117,11 @@ public sealed partial class ClashOfRimModNetworkClient
     public Task<ClashOfRimClientNetworkResult<ModLogoutResponseDto>> LogoutAsync(
         string? sessionId,
         CancellationToken cancellationToken = default)
-        => LogoutCoreAsync(sessionId, cancellationToken, bindToSession: true);
+        => authentication.LogoutAsync(context, sessionId, cancellationToken);
 
     internal Task<ClashOfRimClientNetworkResult<ModLogoutResponseDto>> LogoutDetachedAsync(
         string? sessionId, CancellationToken cancellationToken)
-        => LogoutCoreAsync(sessionId, cancellationToken, bindToSession: false);
-
-    private Task<ClashOfRimClientNetworkResult<ModLogoutResponseDto>> LogoutCoreAsync(
-        string? sessionId, CancellationToken cancellationToken, bool bindToSession)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModLogoutResponseDto>();
-        }
-
-        var request = new ModLogoutRequestDto
-        {
-            UserId = context.UserId,
-            ColonyId = context.ColonyId,
-            SessionId = sessionId
-        };
-
-        return transport.PostAsync<ModLogoutRequestDto, ModLogoutResponseDto>(
-            LogoutRoute,
-            request,
-            cancellationToken, bindToSession);
-    }
+        => authentication.LogoutAsync(context, sessionId, cancellationToken, bindToSession: false);
 
     public Task<ClashOfRimClientNetworkResult<ModListPlayersResponseDto>> ListPlayersAsync(
         CancellationToken cancellationToken = default)
@@ -2491,28 +2419,6 @@ public sealed partial class ClashOfRimModNetworkClient
         return Task.FromResult(ClashOfRimClientNetworkResult<T>.Failed(
             "NotConfigured",
             ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured")));
-    }
-
-    private static bool ShouldRetryWithFullCompatibilityManifest(
-        ClashOfRimClientNetworkResult<ModLoginResponseDto> result,
-        string? explicitManifestJson)
-    {
-        return string.IsNullOrWhiteSpace(explicitManifestJson)
-            && result.Response?.RequiresFullCompatibilityManifest == true;
-    }
-
-    private static string? BuildCompatibilityManifestJsonForRetry(IReadOnlyCollection<string>? packageIds)
-    {
-        string? requested = CompatibilityManifestJsonForPackagesProvider?.Invoke(packageIds);
-        string? manifestJson = string.IsNullOrWhiteSpace(requested)
-            ? CompatibilityManifestJsonProvider?.Invoke()
-            : requested;
-        if (string.IsNullOrWhiteSpace(manifestJson))
-        {
-            Log.Warning("[ClashOfRim][Compatibility] Full manifest retry was requested, but the local manifest provider returned no payload.");
-        }
-
-        return manifestJson;
     }
 
     private static ClashOfRimClientNetworkResult<T> CompatibilityManifestBuildFailed<T>()

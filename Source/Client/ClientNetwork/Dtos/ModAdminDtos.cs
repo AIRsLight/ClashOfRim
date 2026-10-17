@@ -58,6 +58,16 @@ public sealed class ModAdminBaselineExtensionRequirementDto
 [DataContract]
 public sealed class ModSubmitAdminBaselineRequestDto
 {
+    internal ModSubmitAdminBaselineRequestDto WithAuthentication(string userId, string? colonyId, string? authToken)
+    {
+        // Only the request's identity is changed. Baseline collections are serialized read-only.
+        var request = (ModSubmitAdminBaselineRequestDto)MemberwiseClone();
+        request.UserId = userId;
+        request.ColonyId = colonyId;
+        request.AuthToken = authToken;
+        return request;
+    }
+
     [DataMember(Name = "protocolVersion")]
     public string ProtocolVersion { get; set; } = ClashOfRimVersion.ProtocolVersion;
 

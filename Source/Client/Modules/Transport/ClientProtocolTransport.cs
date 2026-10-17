@@ -23,6 +23,12 @@ internal sealed class ClientProtocolTransport
     internal ClientProtocolTransport(HttpClient http, ClashOfRimClientNetworkContext context, IClientProtocolEnvironment environment)
     { this.http = http; this.context = context; this.environment = environment; }
 
+    internal ClientProtocolTransport ForContext(ClashOfRimClientNetworkContext owner) => new(http, owner, environment);
+
+    internal Task<ClashOfRimClientNetworkResult<ModLoginResponseDto>> PostLoginAsync(string route, ModLoginRequestDto request,
+        CancellationToken token, Action<ModLoginResponseDto>? captureReceipt) =>
+        SendAsync(route, HttpMethod.Post, () => JsonContent(request), ReadJson<ModLoginResponseDto>, Exchange.Json, token, captureReceipt: captureReceipt);
+
     internal Task<ClashOfRimClientNetworkResult<TResponse>> PostAsync<TRequest, TResponse>(string route, TRequest request,
         CancellationToken cancellationToken, bool bindToSession = true) =>
         SendAsync(route, HttpMethod.Post, () => JsonContent(request), ReadJson<TResponse>, Exchange.Json, cancellationToken, bindToSession);
@@ -39,7 +45,7 @@ internal sealed class ClientProtocolTransport
 
     private async Task<ClashOfRimClientNetworkResult<TResponse>> SendAsync<TResponse>(string route, HttpMethod method,
         Func<HttpContent>? createContent, Func<HttpContent, CancellationToken, Task<TResponse>> read,
-        Exchange exchange, CancellationToken cancellationToken, bool bindToSession = true)
+        Exchange exchange, CancellationToken cancellationToken, bool bindToSession = true, Action<TResponse>? captureReceipt = null)
     {
         using var sessionCancellation = bindToSession
             ? CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, ClientSessionWork.Token) : null;
@@ -60,7 +66,7 @@ internal sealed class ClientProtocolTransport
             using HttpResponseMessage response = await http.SendAsync(message,
                 exchange == Exchange.Download ? HttpCompletionOption.ResponseHeadersRead : HttpCompletionOption.ResponseContentRead,
                 token).ConfigureAwait(false);
-            token.ThrowIfCancellationRequested();
+            if (captureReceipt is null || !response.IsSuccessStatusCode) token.ThrowIfCancellationRequested();
             if (!response.IsSuccessStatusCode)
             {
                 string body = await response.Content.ReadAsStringAsync(token).ConfigureAwait(false);
@@ -68,8 +74,17 @@ internal sealed class ClientProtocolTransport
                 DetectSessionExpired(body);
                 return ClashOfRimClientNetworkResult<TResponse>.Failed("HttpError", $"{(int)response.StatusCode} {response.ReasonPhrase}: {body}");
             }
-            TResponse parsed = await read(response.Content, token).ConfigureAwait(false);
+            // Login uses ResponseContentRead: a returned response is already fully buffered.
+            // Capture a decoded credential for cleanup before rejecting a canceled completion.
+            // This never detaches the HTTP request itself from its caller/session cancellation.
+            TResponse parsed = await read(response.Content, captureReceipt is null ? token : CancellationToken.None).ConfigureAwait(false);
+            captureReceipt?.Invoke(parsed);
             token.ThrowIfCancellationRequested();
+            if (exchange != Exchange.Download)
+            {
+                object? result = typeof(TResponse).GetProperty("Result", BindingFlags.Public | BindingFlags.Instance)?.GetValue(parsed, null);
+                if (result is ModProtocolResponseDto { Accepted: false } protocol) DetectSessionExpired(protocol.Message);
+            }
             return ClashOfRimClientNetworkResult<TResponse>.Ok(parsed);
         }
         catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException or InvalidOperationException or SerializationException or IOException)
@@ -85,10 +100,7 @@ internal sealed class ClientProtocolTransport
     {
         string body = await content.ReadAsStringAsync(token).ConfigureAwait(false);
         token.ThrowIfCancellationRequested();
-        T response = ClientProtocolJson.Deserialize<T>(body, environment.DeserializationFailure);
-        object? result = typeof(T).GetProperty("Result", BindingFlags.Public | BindingFlags.Instance)?.GetValue(response, null);
-        if (result is ModProtocolResponseDto { Accepted: false } protocol) DetectSessionExpired(protocol.Message);
-        return response;
+        return ClientProtocolJson.Deserialize<T>(body, environment.DeserializationFailure);
     }
 
     private void DetectSessionExpired(string? message)

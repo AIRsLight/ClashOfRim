@@ -3,6 +3,7 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using AIRsLight.ClashOfRim.Modules.Sessions;
+using AIRsLight.ClashOfRim.Modules.Transport;
 
 namespace AIRsLight.ClashOfRim.ClientNetwork;
 
@@ -13,6 +14,9 @@ internal sealed class ClientSessionLogoutTransport : IClientSessionLogoutTranspo
         using var http = new HttpClient();
         // Cleanup must survive the session generation that it releases, but remain bounded.
         using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-        return await new ClashOfRimModNetworkClient(http, context).LogoutDetachedAsync(sessionId, cleanup.Token);
+        var environment = new ClientAuthenticationEnvironment();
+        var transport = new ClientProtocolTransport(http, context,
+            new ClientProtocolEnvironment((message, token) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, token)));
+        return await new ClientSessionProtocol(transport, environment, environment).LogoutAsync(context, sessionId, cleanup.Token, bindToSession: false);
     }
 }
