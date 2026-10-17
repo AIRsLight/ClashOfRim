@@ -1,4 +1,5 @@
 using AIRsLight.ClashOfRim.Network.Modules.Trades;
+using AIRsLight.ClashOfRim.Network.Modules.Shop;
 using Microsoft.Extensions.Logging.Abstractions;
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Network;
@@ -35,6 +36,8 @@ internal sealed class EconomicModuleTestContext
     internal readonly BankService Bank;
     internal readonly GiftService Gifts;
     internal readonly TradeService Trades;
+    internal readonly ServerShopRegistry ShopRegistry = new();
+    internal readonly ShopService Shop;
     internal readonly TradeMarket Market;
     internal readonly TradeLifecycle TradeLifecycle;
     internal readonly TradeDelivery TradeDelivery;
@@ -73,6 +76,9 @@ internal sealed class EconomicModuleTestContext
             tradeCommits, TradeLifecycle, TradeDelivery, Baseline, plugins, compatibility, Presence,
             Notifications, NullLogger.Instance, () => Configuration);
         Market = new TradeMarket(Ledger, requests, TradeLifecycle, TradeDelivery, () => Configuration);
+        Shop = new ShopService(ShopRegistry, requests, new AdministratorAuthorization(Tokens, Sessions, World), mutations, transactions, pending,
+            new ShopSnapshotCommitter(commits, Snapshots, Loans, ShopRegistry, mercenaries, Recovery), Baseline, plugins, compatibility,
+            NullLogger.Instance, () => Configuration);
         Package = MercenaryCommitCrashTests.PrepareEndpoint(Snapshots, factory, new("userA", "colonyA", "before"), "paid");
         Token = Issue("userA", "colonyA");
     }

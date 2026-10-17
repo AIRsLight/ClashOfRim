@@ -206,45 +206,11 @@ public static partial class ClashOfRimNetworkServer
     }
 
     private static ProtocolResponse? AuthorizeAdministratorRequest(ClashOfRimNetworkState state, string userId, string? colonyId, string? token)
-        => TryAuthorizeAdmin(state, userId, colonyId ?? string.Empty, token, DateTimeOffset.UtcNow, out string failure)
-            ? null : ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, failure);
+        => state.AdminAuthorization.Authorize(userId, colonyId, token);
 
-    private static bool TryAuthorizeAdmin(
-        ClashOfRimNetworkState state,
-        string userId,
-        string colonyId,
-        string? authToken,
-        DateTimeOffset nowUtc,
-        out string failure)
-    {
-        failure = T("Admin.Unauthorized");
-        if (string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(colonyId))
-        {
-            failure = T("Admin.IdentityMissing");
-            return false;
-        }
-
-        if (!state.AuthTokens.TryGetPrincipal(authToken, nowUtc, out AuthTokenPrincipal? principal)
-            || principal is null
-            || !string.Equals(principal.UserId, userId, StringComparison.Ordinal)
-            || !string.Equals(principal.ColonyId, colonyId, StringComparison.Ordinal))
-        {
-            return false;
-        }
-
-        if (!state.LoginSessions.Refresh(principal.UserId, principal.ColonyId, principal.SessionId, nowUtc))
-        {
-            failure = T("Auth.SessionExpired");
-            return false;
-        }
-
-        if (!state.WorldConfiguration.IsAdministrator(principal.UserId))
-        {
-            return false;
-        }
-
-        return true;
-    }
+    private static bool TryAuthorizeAdmin(ClashOfRimNetworkState state, string userId, string colonyId,
+        string? authToken, DateTimeOffset nowUtc, out string failure)
+        => state.AdminAuthorization.TryAuthorize(userId, colonyId, authToken, nowUtc, out failure);
 
     private static AdminConfigurationDto ToAdminConfigurationDto(ClashOfRimNetworkState state)
     {

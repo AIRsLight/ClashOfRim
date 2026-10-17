@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Network.Modules.Shop;
 using AIRsLight.ClashOfRim.Network.Modules.Trades;
 using AIRsLight.ClashOfRim.Network.Modules.Gifts;
 using static AIRsLight.ClashOfRim.Network.Modules.Transfers.ItemTransferMapper;
@@ -25,7 +26,6 @@ namespace AIRsLight.ClashOfRim.Network;
 public static partial class ClashOfRimNetworkServer
 {
 
-    private static readonly JsonSerializerOptions MultipartJsonOptions = new(JsonSerializerDefaults.Web);
     private static readonly JsonSerializerOptions CompatibilityJsonOptions = new()
     {
         WriteIndented = false,
@@ -114,10 +114,7 @@ public static partial class ClashOfRimNetworkServer
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.GetPawnPackagePreview).Route, GetPawnPackagePreview);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.StoreThingPackage).Route, StoreThingPackage);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.GetThingPackage).Route, GetThingPackage);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.ListServerShop).Route, ListServerShop).WithMetadata(EndpointSnapshotRecovery.Instance);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.UpsertServerShopListing).Route, UpsertServerShopListing).WithMetadata(EndpointSnapshotRecovery.Instance);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.RemoveServerShopListing).Route, RemoveServerShopListing).WithMetadata(EndpointSnapshotRecovery.Instance);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.PurchaseServerShopListingWithSnapshot).Route, PurchaseServerShopListingWithSnapshot).WithMetadata(EndpointSnapshotRecovery.Instance);
+        ShopEndpoints.Map(app, app.Services.GetRequiredService<ClashOfRimNetworkState>().Shop);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.PrepareRaid).Route, PrepareRaid);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.CreateRaid).Route, CreateRaid).WithMetadata(EndpointSnapshotRecovery.Instance);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.CreateRaidWithSnapshot).Route, CreateRaidWithSnapshot).WithMetadata(EndpointSnapshotRecovery.Instance);
@@ -812,23 +809,6 @@ public static partial class ClashOfRimNetworkServer
 
     private static Task<MultipartSnapshotRequest<TRequest>?> ReadMultipartSnapshotRequest<TRequest>(HttpRequest httpRequest)
         => MultipartSnapshotReader.Read<TRequest>(httpRequest);
-
-    private static async Task<TRequest?> ReadJsonRequest<TRequest>(HttpRequest httpRequest)
-    {
-        try
-        {
-            return await JsonSerializer.DeserializeAsync<TRequest>(httpRequest.Body, MultipartJsonOptions);
-        }
-        catch (JsonException)
-        {
-            return default;
-        }
-        catch (NotSupportedException)
-        {
-            return default;
-        }
-    }
-
 
     private static void ProcessSupportPawnDeathsFromSnapshot(
         ClashOfRimNetworkState state,

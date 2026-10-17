@@ -1,6 +1,5 @@
 using static RecoveryTestSupport;
 using System.Net;
-using System.Reflection;
 using System.Text.Json;
 using AIRsLight.ClashOfRim.Network;
 using AIRsLight.ClashOfRim.Protocol;
@@ -104,15 +103,19 @@ internal static class ShopAdministrationTests
         string token = state.AuthTokens.Issue("admin", "admin", "colony", session, now);
         object request = remove ? new RemoveServerShopListingRequest("admin", "colony", "listing", token)
             : new UpsertServerShopListingRequest("admin", "colony", "listing", "SellToPlayer", new("steel", "Steel", 1), 12, 2, authToken: token);
-        var handler = typeof(ClashOfRimNetworkServer).GetMethod(remove ? "RemoveServerShopListing" : "UpsertServerShopListingCore", BindingFlags.Static | BindingFlags.NonPublic)!;
+        void Mutate()
+        {
+            if (remove) state.Shop.Remove((RemoveServerShopListingRequest)request);
+            else state.Shop.Upsert((UpsertServerShopListingRequest)request);
+        }
         string before = JsonSerializer.Serialize(shop.List()); slot.Fail = fail; bool failed = false;
-        try { handler.Invoke(null, [request, state]); }
-        catch (TargetInvocationException ex) when (ex.InnerException is IOException) { failed = true; }
+        try { Mutate(); }
+        catch (IOException) { failed = true; }
         Require(failed == fail, "Unexpected shop persistence outcome.");
         if (fail)
         {
             Require(JsonSerializer.Serialize(shop.List()) == before && JsonSerializer.Serialize(new ServerShopRegistry(slot).List()) == before, "Failed shop write changed cache or persistence.");
-            slot.Fail = false; handler.Invoke(null, [request, state]);
+            slot.Fail = false; Mutate();
         }
         Require(remove ? shop.Find("listing") is null : shop.Find("listing") is { StockCount: 2, UpdatedByUserId: "admin" }, "Persisted shop mutation was lost.");
         Require(JsonSerializer.Serialize(shop.List()) == JsonSerializer.Serialize(new ServerShopRegistry(slot).List()), "Shop persisted and cached results differ.");

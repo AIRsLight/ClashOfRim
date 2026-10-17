@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Network.Modules.Shop;
 using AIRsLight.ClashOfRim.Network.Modules.Trades;
 using AIRsLight.ClashOfRim.Network.Modules.Gifts;
 using AIRsLight.ClashOfRim.Network.Modules.Transfers;
@@ -102,6 +103,7 @@ public sealed class ClashOfRimNetworkState
         var recovery = new LegacySnapshotRecoveryAdapter(this);
         SnapshotMutations = new SnapshotMutationCoordinator(RaidSettlementSnapshotMutationGate, recovery);
         SnapshotPrincipals = new SnapshotPrincipalAuthorization(AuthTokens, LoginSessions);
+        AdminAuthorization = new AdministratorAuthorization(AuthTokens, LoginSessions, WorldConfiguration);
         SnapshotRequests = new SnapshotRequestAuthorization(SnapshotPrincipals, ColonyAuthorization, SnapshotMutations);
         SnapshotTransactions = new SnapshotTransactions(SnapshotStore, SnapshotUploadPolicy, Plugins, CompatibilityBaseline);
         PendingConfirmations = new PendingConfirmationReconciler(BankLoans, MercenaryContracts,
@@ -125,6 +127,9 @@ public sealed class ClashOfRimNetworkState
             PendingConfirmations, TransferPackages, tradeCommits, TradeLifecycle, TradeDelivery, AdminBaseline,
             Plugins, CompatibilityBaseline, OnlinePresence, EventNotifications, RuntimeLogger, () => ServerConfiguration);
         TradeMarket = new TradeMarket(Ledger, SnapshotRequests, TradeLifecycle, TradeDelivery, () => ServerConfiguration);
+        var shopCommits = new ShopSnapshotCommitter(SnapshotCommits, SnapshotStore, BankLoans, ServerShop, MercenaryContracts, recovery);
+        Shop = new ShopService(ServerShop, SnapshotRequests, AdminAuthorization, SnapshotMutations, SnapshotTransactions,
+            PendingConfirmations, shopCommits, AdminBaseline, Plugins, CompatibilityBaseline, RuntimeLogger, () => ServerConfiguration);
         EventDelivery = new EventDeliveryService(SnapshotAuthorization, SnapshotMutations, Ledger,
             EventNotifications, OnlinePresence, Players);
     }
@@ -136,6 +141,8 @@ public sealed class ClashOfRimNetworkState
     internal EventDeliveryService EventDelivery { get; }
     internal SnapshotPrincipalAuthorization SnapshotPrincipals { get; }
     internal SnapshotRequestAuthorization SnapshotRequests { get; }
+    internal AdministratorAuthorization AdminAuthorization { get; }
+    internal ShopService Shop { get; }
     internal SnapshotTransactions SnapshotTransactions { get; }
     internal PendingConfirmationReconciler PendingConfirmations { get; }
     internal BankRequestAccess BankRequests { get; }

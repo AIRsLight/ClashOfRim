@@ -27,9 +27,9 @@ internal static class ModuleBoundaryTests
         Require(violations.Count == 0, string.Join(Environment.NewLine, violations));
         var business = modules.Where(t =>
             t.Namespace is "AIRsLight.ClashOfRim.Network.Modules.Bank" or "AIRsLight.ClashOfRim.Network.Modules.Gifts"
-                or "AIRsLight.ClashOfRim.Network.Modules.Transfers" or "AIRsLight.ClashOfRim.Network.Modules.Trades"
-            && t.Name is not ("BankEndpoints" or "GiftEndpoints" or "TradeEndpoints")
-            && t.DeclaringType?.Name is not ("BankEndpoints" or "GiftEndpoints" or "TradeEndpoints")).ToArray();
+                or "AIRsLight.ClashOfRim.Network.Modules.Transfers" or "AIRsLight.ClashOfRim.Network.Modules.Trades" or "AIRsLight.ClashOfRim.Network.Modules.Shop"
+            && t.Name is not ("BankEndpoints" or "GiftEndpoints" or "TradeEndpoints" or "ShopEndpoints")
+            && t.DeclaringType?.Name is not ("BankEndpoints" or "GiftEndpoints" or "TradeEndpoints" or "ShopEndpoints")).ToArray();
         var transportLeaks = ModuleDependencyGuard.FindViolations(business,
             t => t.Namespace?.StartsWith("Microsoft.AspNetCore.Http", StringComparison.Ordinal) == true);
         Require(transportLeaks.Count == 0, string.Join(Environment.NewLine, transportLeaks));
