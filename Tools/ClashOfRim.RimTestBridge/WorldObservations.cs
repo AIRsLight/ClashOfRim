@@ -17,8 +17,11 @@ internal static class WorldObservations
 {
     public static void Register(GameBridge bridge)
     {
-        bridge.Router.Register("clash.labels", "Localized labels used by the original transport and caravan gizmos.", "observe", _ => new
+        bridge.Router.Register("clash.labels", "Localized original labels used by this suite's gizmos and explicit dialog choices.", "observe", _ => new
         {
+            steamClientMissing = "SteamClientMissing".Translate().ToString(),
+            ignore = "Ignore".Translate().ToString(),
+            quit = "Quit".Translate().ToString(),
             gift = "ClashOfRim.GiftDelivery.CaravanGizmo".Translate().ToString(),
             support = "ClashOfRim.Support.CaravanGizmo".Translate().ToString(),
             raid = "ClashOfRim.Raid.CaravanGizmo".Translate().ToString(),

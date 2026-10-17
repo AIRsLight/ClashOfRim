@@ -20,6 +20,8 @@ pwsh ./Tools/Test-RimTest.ps1 -RimWorldPath 'E:/SteamLibrary/steamapps/common/Ri
 
 ## 断言原则
 
+2026-10-17 的模块迁移验证发现，隔离启动可能出现原版 Steam API 不可用提示，其按钮顺序是 Quit/Ignore。测试不能把第一个按钮一律当作确认。当前场景助手通过 `clash.labels` 获取游戏当前语言的原始提示与按钮文本，对这一明确允许离线继续的提示选择 Ignore；其他意外 Quit 选择会终止场景并保留诊断。仍由通用 `dialogs.choose` 调用原按钮，不直接关闭窗口或伪造 Steam 状态。失败证据保留在 `G:/RimTestRuns/ClashOfRim-module-migration/20261017-015942-ea5887f2`，退出发生在连接功能验证之前。
+
 - `clash.invoke` 返回 `invoked` 只代表调用了原方法；必须等待业务结果并检查库存、合同、事件、快照或地图状态。
 - 对投放物资推进真实 tick，等待运输舱落地后统计库存；不能用请求成功代替到账。
 - 快照、物品、pawn 和事件用稳定标识关联。运行时对象句柄随游戏切换失效，不应存入长期场景文件。

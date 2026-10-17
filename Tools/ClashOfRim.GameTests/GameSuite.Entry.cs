@@ -35,8 +35,20 @@ internal sealed partial class GameSuite
     Task<JsonElement> Invoke(string client, string action, object? input = null) => Call(client, "clash.invoke", new { action, arguments = input ?? new { } });
     async Task Confirm(string client)
     {
-        foreach (var dialog in Items(await Call(client, "dialogs.messages")))
-            await Call(client, "dialogs.choose", new { dialog = H(dialog), button = "A" });
+        var dialogs = Items(await Call(client, "dialogs.messages"));
+        if (dialogs.Length == 0) return;
+        var labels = await Call(client, "clash.labels");
+        foreach (var dialog in dialogs)
+        {
+            var buttons = dialog.GetProperty("buttons").EnumerateArray().ToArray();
+            // Isolated offline profiles may lack Steam; the game explicitly offers continuing.
+            // Match the current game's translated text and original label, never a fixed position/language.
+            var choice = dialog.String("text") == labels.String("steamClientMissing")
+                ? buttons.Single(b => b.String("label") == labels.String("ignore"))
+                : buttons.Single(b => b.String("id") == "A");
+            Check(choice.String("label") != labels.String("quit"), "Unexpected quit dialog: " + dialog.GetRawText());
+            await Call(client, "dialogs.choose", new { dialog = H(dialog), button = choice.String("id") });
+        }
     }
     async Task Enter(string client, string url, bool register = true)
     {
