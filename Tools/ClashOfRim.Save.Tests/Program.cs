@@ -26,6 +26,8 @@ if (args.FirstOrDefault() == "--baseline-invalidation-crash")
 
 var tests = new (string Name, Action Run)[]
 {
+    ("服务端模块依赖、路由与恢复归属", () => ModuleBoundaryTests.RunAsync().GetAwaiter().GetResult()),
+    ("银行模块独立装配、凭据、借还款与回执", () => BankModuleTests.Run(BuildFixturePackage)),
     ("外交命令授权、快照、恢复复验与并发幂等", () => DiplomacyAuthorizationTests.Run(BuildFixturePackage)),
     ("意识形态摘要重建保留显示元数据", IdeologyMetadataTests.Run),
     ("快照载荷压缩在业务锁外准备且保持格式与恢复兼容", () => PreparedSnapshotPayloadTests.Run(BuildFixturePackage)),
@@ -372,7 +374,17 @@ static void VerifyServerDatabaseMigrationCreatesDomainRegistryTables()
     }
 }
 
-foreach ((string name, Action run) in tests)
+var selected = tests.AsEnumerable();
+if (args.Length > 0)
+{
+    if (args[0] != "--filter" || args.Length < 2 || args.Skip(1).Any(string.IsNullOrWhiteSpace))
+        throw new ArgumentException("Usage: --filter <name substring> [name substring ...]");
+    selected = selected.Where(test => args.Skip(1).Any(filter => test.Name.Contains(filter, StringComparison.OrdinalIgnoreCase)));
+}
+var selectedTests = selected.ToArray();
+if (selectedTests.Length == 0) throw new ArgumentException("No test groups matched the supplied filter.");
+Console.WriteLine($"Running {selectedTests.Length}/{tests.Length} test groups.");
+foreach ((string name, Action run) in selectedTests)
 {
     run();
     Console.WriteLine($"通过：{name}");

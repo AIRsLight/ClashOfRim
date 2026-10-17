@@ -57,7 +57,7 @@ public static partial class ClashOfRimNetworkServer
         }
     }
 
-    private static void RunCommittedSnapshotPostUpload(ClashOfRimNetworkState state, LatestSnapshotRecord snapshot, string? kind)
+    internal static void RunCommittedSnapshotPostUpload(ClashOfRimNetworkState state, LatestSnapshotRecord snapshot, string? kind)
     {
         RunSnapshotPostUploadProcessors(state, snapshot.Identity.OwnerId!, snapshot.Identity.ColonyId!, null,
             SnapshotUploadResult.Accept(snapshot, kind), snapshot.AcceptedAtUtc);

@@ -3,6 +3,8 @@ using AIRsLight.ClashOfRim.Network.Plugins;
 using AIRsLight.ClashOfRim.Network.Modules.Authorization;
 using AIRsLight.ClashOfRim.Network.Modules.Snapshots;
 using AIRsLight.ClashOfRim.Network.Modules.Events;
+using AIRsLight.ClashOfRim.Network.Modules.Bank;
+using AIRsLight.ClashOfRim.Network.Modules.Economy;
 using AIRsLight.ClashOfRim.Save;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -94,7 +96,16 @@ public sealed class ClashOfRimNetworkState
         ColonyAuthorization = new ColonyAccessAuthorization(AuthTokens, LoginSessions, DiplomacyRelations,
             RaidPreparations, Ledger, () => ServerConfiguration.PvpEnabled);
         SnapshotAuthorization = new ColonySnapshotAuthorization(ColonyAuthorization, SnapshotStore);
-        SnapshotMutations = new SnapshotMutationCoordinator(RaidSettlementSnapshotMutationGate, new LegacySnapshotRecoveryAdapter(this));
+        var recovery = new LegacySnapshotRecoveryAdapter(this);
+        SnapshotMutations = new SnapshotMutationCoordinator(RaidSettlementSnapshotMutationGate, recovery);
+        SnapshotPrincipals = new SnapshotPrincipalAuthorization(AuthTokens, LoginSessions);
+        SnapshotRequests = new SnapshotRequestAuthorization(SnapshotPrincipals, ColonyAuthorization, SnapshotMutations);
+        SnapshotTransactions = new SnapshotTransactions(SnapshotStore, SnapshotUploadPolicy, Plugins, CompatibilityBaseline);
+        PendingConfirmations = new PendingConfirmationReconciler(BankLoans, MercenaryContracts,
+            () => ServerConfiguration, RaidSettlementSnapshotMutationGate);
+        BankRequests = new BankRequestAccess(ColonyAuthorization, SnapshotMutations, SnapshotStore, BankLoans, PendingConfirmations);
+        Bank = new BankService(BankLoans, MercenaryContracts, SnapshotStore, SnapshotCommits,
+            BankRequests, SnapshotRequests, SnapshotTransactions, recovery, () => ServerConfiguration);
         EventDelivery = new EventDeliveryService(SnapshotAuthorization, SnapshotMutations, Ledger,
             EventNotifications, OnlinePresence, Players);
     }
@@ -104,6 +115,12 @@ public sealed class ClashOfRimNetworkState
     internal ColonyAccessAuthorization ColonyAuthorization { get; }
     internal ColonySnapshotAuthorization SnapshotAuthorization { get; }
     internal EventDeliveryService EventDelivery { get; }
+    internal SnapshotPrincipalAuthorization SnapshotPrincipals { get; }
+    internal SnapshotRequestAuthorization SnapshotRequests { get; }
+    internal SnapshotTransactions SnapshotTransactions { get; }
+    internal PendingConfirmationReconciler PendingConfirmations { get; }
+    internal BankRequestAccess BankRequests { get; }
+    internal BankService Bank { get; }
 
     public IColonySnapshotIndexStore SnapshotStore { get; }
 

@@ -262,7 +262,7 @@ public static partial class ClashOfRimNetworkServer
             if (purchase.Duplicate)
                 return ShopPurchaseReplayResponse(state, request, multipart.Request.ConfirmedSnapshot.SnapshotId!);
             // Reconcile once at the final authorized boundary, after resolving committed receipts.
-            var pendingRejection = ReconcileSnapshotConfirmationsLocked(state, request.Buyer.UserId,
+            var pendingRejection = state.PendingConfirmations.ReconcileSnapshot(request.Buyer.UserId,
                 request.Buyer.ColonyId!, DateTimeOffset.UtcNow);
             if (pendingRejection is not null)
                 return Results.Ok(new PurchaseServerShopListingResponse(pendingRejection,

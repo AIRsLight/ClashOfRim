@@ -20,7 +20,7 @@ public static partial class ClashOfRimNetworkServer
             if (mutation.Rejection is { } denied) return RaidEvidenceRejected(request, denied, "AuthOrSourceFailed");
             var failure = ValidateRaidEvidenceAuthority(http, state, request, out source!);
             if (failure is not null) return RaidEvidenceRejected(request, failure, "AuthOrSourceFailed");
-            if (ReconcileSnapshotConfirmationsLocked(state, request.UserId, request.ColonyId, DateTimeOffset.UtcNow) is { } pending)
+            if (state.PendingConfirmations.ReconcileSnapshot(request.UserId, request.ColonyId, DateTimeOffset.UtcNow) is { } pending)
                 return RaidEvidenceRejected(request, pending, "PendingConfirmationExpired");
             if (source.Status == ServerEventStatus.AppliedToSnapshot) return CompletedRaidEvidenceReply(state, request, binding);
             var existing = state.SnapshotPostUploadJobs.Find("raid-settlement:" + request.EventId);
@@ -102,7 +102,7 @@ public static partial class ClashOfRimNetworkServer
         if (current is null || !RaidSettlementSnapshotMutation.SameSource(current, source)
             || current.Status != source.Status && current.Status != ServerEventStatus.AppliedToSnapshot)
             return RaidEvidenceRejected(request, ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Raid.SettlementQueueFailed")), "SourceChanged");
-        if (ReconcileSnapshotConfirmationsLocked(state, request.UserId, request.ColonyId, DateTimeOffset.UtcNow) is { } pending)
+        if (state.PendingConfirmations.ReconcileSnapshot(request.UserId, request.ColonyId, DateTimeOffset.UtcNow) is { } pending)
             return RaidEvidenceRejected(request, pending, "PendingConfirmationExpired");
         return current.Status == ServerEventStatus.AppliedToSnapshot ? CompletedRaidEvidenceReply(state, request, binding) : null;
     }

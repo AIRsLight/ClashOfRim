@@ -1,4 +1,5 @@
 using AIRsLight.ClashOfRim.Protocol;
+using AIRsLight.ClashOfRim.Network.Modules.Authorization;
 using Microsoft.AspNetCore.Http;
 
 namespace AIRsLight.ClashOfRim.Network;
@@ -42,17 +43,7 @@ public static class MultipartSnapshotAuthentication
         DateTimeOffset nowUtc)
     {
         string? token = request.Headers[HeaderName].FirstOrDefault();
-        if (!state.AuthTokens.TryGetPrincipal(token, nowUtc, out AuthTokenPrincipal? principal)
-            || principal is null)
-        {
-            return false;
-        }
-
-        if (!state.LoginSessions.Refresh(
-            principal.UserId,
-            principal.ColonyId,
-            principal.SessionId,
-            nowUtc))
+        if (!state.SnapshotPrincipals.TryAuthorize(token, nowUtc, out AuthTokenPrincipal? principal))
         {
             return false;
         }
@@ -65,7 +56,6 @@ public static class MultipartSnapshotAuthentication
     {
         return request.HttpContext.Items.TryGetValue(PrincipalItemKey, out object? value)
             && value is AuthTokenPrincipal principal
-            && string.Equals(principal.UserId, userId, StringComparison.Ordinal)
-            && string.Equals(principal.ColonyId, colonyId, StringComparison.Ordinal);
+            && SnapshotPrincipalAuthorization.Matches(principal, userId, colonyId);
     }
 }

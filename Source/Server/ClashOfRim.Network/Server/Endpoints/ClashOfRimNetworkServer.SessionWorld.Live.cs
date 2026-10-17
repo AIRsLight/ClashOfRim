@@ -793,17 +793,7 @@ public static partial class ClashOfRimNetworkServer
         string userId,
         string colonyId,
         string? snapshotId)
-    {
-        if (string.IsNullOrWhiteSpace(snapshotId))
-        {
-            return null;
-        }
-
-        LatestSnapshotRecord? latest = state.SnapshotStore.GetLatest(userId, colonyId);
-        return string.Equals(latest?.Identity.SnapshotId, snapshotId, StringComparison.Ordinal)
-            ? latest?.Envelope.NextLineageToken
-            : null;
-    }
+        => state.SnapshotTransactions.FindSnapshotNextLineageToken(userId, colonyId, snapshotId);
 
     private static IResult SendChatMessage(SendChatMessageRequest request, ClashOfRimNetworkState state)
     {

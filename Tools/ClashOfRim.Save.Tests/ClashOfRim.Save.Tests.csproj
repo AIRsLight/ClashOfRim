@@ -8,6 +8,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="..\TestSupport\ModuleDependencyGuard.cs" Link="TestSupport\ModuleDependencyGuard.cs" />
+    <Compile Include="..\ClashOfRim.NetworkSmoke\ModuleBoundaryTests.cs" Link="ModuleBoundaryTests.cs" />
+    <None Include="..\ClashOfRim.NetworkSmoke\Fixtures\ModuleEndpointContract.json" Link="Fixtures\ModuleEndpointContract.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\ClashOfRim.NetworkServer\Localization\English.json" Link="TestLocalization\English.json" CopyToOutputDirectory="PreserveNewest" />
     <ProjectReference Include="..\..\Source\Shared\ClashOfRim.Save\ClashOfRim.Save.csproj" />
     <ProjectReference Include="..\..\Source\Server\ClashOfRim.Network\ClashOfRim.Network.csproj" />

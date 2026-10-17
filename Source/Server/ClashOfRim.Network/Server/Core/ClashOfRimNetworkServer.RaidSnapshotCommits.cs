@@ -96,7 +96,7 @@ public static partial class ClashOfRimNetworkServer
         var checkedEligibility = RaidEligibilityChecker.Check(eligibility, BuildRaidEligibilityPolicy(state.ServerConfiguration));
         if (!checkedEligibility.Eligible) return ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected,
             T("Raid.PrepareRejected", ("REASONS", string.Join(", ", checkedEligibility.FailureReasons))));
-        if (ReconcileSnapshotConfirmationsLocked(state, request.Attacker.UserId, request.Attacker.ColonyId!, now) is { } expired) return expired;
+        if (state.PendingConfirmations.ReconcileSnapshot(request.Attacker.UserId, request.Attacker.ColonyId!, now) is { } expired) return expired;
         // A missing deployment ID is also a quote: a guard bought after preparation requires a new preparation.
         guard = state.MercenaryGuards.FindActiveForColony(request.Defender.UserId, request.Defender.ColonyId!);
         if (guard?.ContractId != NormalizeGuardDeployment(request.GuardDeploymentId))

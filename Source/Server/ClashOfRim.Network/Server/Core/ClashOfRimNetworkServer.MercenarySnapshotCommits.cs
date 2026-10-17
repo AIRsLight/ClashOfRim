@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Network.Modules.Bank;
 using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Save;
 using Microsoft.AspNetCore.Http;
@@ -28,7 +29,7 @@ public static partial class ClashOfRimNetworkServer
             ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Mercenary.ContractLedgerFailed")), null, null));
         return Results.Ok(new MercenaryHireResponse(
             new ProtocolResponse(true, ProtocolErrorCode.DuplicateRequest, T("Mercenary.DuplicateTransaction")),
-            ToMercenaryContractDto(contract), BuildBankStatusResponse(state, context, ProtocolResponse.Ok()), contract.SnapshotId,
+            ToMercenaryContractDto(contract), state.Bank.BuildBankStatusResponse(context, ProtocolResponse.Ok()), contract.SnapshotId,
             FindSnapshotNextLineageToken(state, request.UserId, request.ColonyId, contract.SnapshotId)));
     }
 
@@ -39,7 +40,7 @@ public static partial class ClashOfRimNetworkServer
             ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Mercenary.GuardContractLedgerFailed")), null, null));
         return Results.Ok(new MercenaryGuardHireResponse(
             new ProtocolResponse(true, ProtocolErrorCode.DuplicateRequest, T("Mercenary.GuardDuplicateTransaction")),
-            ToMercenaryGuardContractDto(contract), BuildBankStatusResponse(state, context, ProtocolResponse.Ok()), contract.SnapshotId,
+            ToMercenaryGuardContractDto(contract), state.Bank.BuildBankStatusResponse(context, ProtocolResponse.Ok()), contract.SnapshotId,
             FindSnapshotNextLineageToken(state, request.UserId, request.ColonyId, contract.SnapshotId)));
     }
 

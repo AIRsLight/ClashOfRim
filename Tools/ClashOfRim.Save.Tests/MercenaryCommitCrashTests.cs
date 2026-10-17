@@ -234,10 +234,14 @@ internal static class MercenaryCommitCrashTests
 
     internal static SaveSnapshotPackage PrepareEndpoint(ClashOfRimNetworkState state, Func<string, SaveSnapshotPackage> fixture,
         ProtocolIdentity owner, string snapshotId)
+        => PrepareEndpoint(state.SnapshotStore, fixture, owner, snapshotId);
+
+    internal static SaveSnapshotPackage PrepareEndpoint(IColonySnapshotIndexStore snapshots, Func<string, SaveSnapshotPackage> fixture,
+        ProtocolIdentity owner, string snapshotId)
     {
         var baseline = fixture("before");
         baseline = baseline with { Envelope = baseline.Envelope with { Identity = new SnapshotIdentity(owner.UserId, owner.ColonyId!, "before") } };
-        var accepted = new SnapshotUploadReceiver(state.SnapshotStore).Receive(new SnapshotUploadContext(owner.UserId, owner.ColonyId!, "before"),
+        var accepted = new SnapshotUploadReceiver(snapshots).Receive(new SnapshotUploadContext(owner.UserId, owner.ColonyId!, "before"),
             baseline, DateTimeOffset.UtcNow).AcceptedSnapshot!;
         using var compressed = new MemoryStream(baseline.Payload);
         using var gzip = new GZipStream(compressed, CompressionMode.Decompress);

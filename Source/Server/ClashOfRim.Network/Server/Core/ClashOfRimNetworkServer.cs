@@ -1,3 +1,5 @@
+using AIRsLight.ClashOfRim.Network.Modules.Snapshots;
+using AIRsLight.ClashOfRim.Network.Modules.Bank;
 using AIRsLight.ClashOfRim.Network.Modules.Events;
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Compatibility;
@@ -90,6 +92,7 @@ public static partial class ClashOfRimNetworkServer
         EventReadEndpoints.Map(app, app.Services.GetRequiredService<ClashOfRimNetworkState>().EventDelivery);
         app.MapGet("/server/plugins", ListServerPlugins);
         app.MapGet(ProtocolContractManifest.Find(ProtocolMessageKind.ServerHello).Route, ServerHello);
+        BankEndpoints.Map(app, app.Services.GetRequiredService<ClashOfRimNetworkState>().Bank);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.Login).Route, Login).WithMetadata(EndpointSnapshotRecovery.Instance);
         app.MapGet(ProtocolContractManifest.Find(ProtocolMessageKind.StreamSession).Route, StreamSession).WithMetadata(EndpointSnapshotRecovery.Instance);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.MaintainPresence).Route, MaintainPresence).WithMetadata(EndpointSnapshotRecovery.Instance);
@@ -148,13 +151,6 @@ public static partial class ClashOfRimNetworkServer
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.AbandonPlayerColony).Route, AbandonPlayerColony);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.GetAdminBaselineRequirements).Route, GetAdminBaselineRequirements).WithMetadata(EndpointSnapshotRecovery.Instance);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.SubmitAdminBaseline).Route, SubmitAdminBaseline).WithMetadata(EndpointSnapshotRecovery.Instance);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.GetBankStatus).Route, GetBankStatus).WithMetadata(EndpointSnapshotRecovery.Instance);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.CreateBankLoanWithSnapshot).Route, CreateBankLoanWithSnapshot).WithMetadata(EndpointSnapshotRecovery.Instance);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.CreateBankLoan).Route, CreateBankLoan).WithMetadata(EndpointSnapshotRecovery.Instance);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.RepayBankLoanWithSnapshot).Route, RepayBankLoanWithSnapshot).WithMetadata(EndpointSnapshotRecovery.Instance);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.RepayBankLoan).Route, RepayBankLoan).WithMetadata(EndpointSnapshotRecovery.Instance);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.RepayBankDebtWithSnapshot).Route, RepayBankDebtWithSnapshot).WithMetadata(EndpointSnapshotRecovery.Instance);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.RepayBankDebt).Route, RepayBankDebt).WithMetadata(EndpointSnapshotRecovery.Instance);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.QuoteMercenary).Route, QuoteMercenary).WithMetadata(EndpointSnapshotRecovery.Instance);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.HireMercenaryWithSnapshot).Route, HireMercenaryWithSnapshot).WithMetadata(EndpointSnapshotRecovery.Instance);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.HireMercenary).Route, HireMercenary).WithMetadata(EndpointSnapshotRecovery.Instance);
@@ -560,16 +556,7 @@ public static partial class ClashOfRimNetworkServer
     }
 
     private static SnapshotUploadReceiver CreateSnapshotReceiver(ClashOfRimNetworkState state)
-    {
-        return new SnapshotUploadReceiver(
-            state.SnapshotStore,
-            state.SnapshotUploadPolicy,
-            state.Plugins.ActiveSaveIndexExtensions(state.CompatibilityBaseline.Current),
-            state.Plugins
-                .ActiveWorldObjectClassifiers(state.CompatibilityBaseline.Current)
-                .Select(classifier => (Func<WorldObjectSummary, bool>)classifier.IsPlayerColonyAnchor)
-                .ToList());
-    }
+        => state.SnapshotTransactions.CreateSnapshotReceiver();
 
     private static void RecordAcceptedSnapshotReference(
         ClashOfRimNetworkState state,
@@ -601,24 +588,7 @@ public static partial class ClashOfRimNetworkServer
     }
 
     private static string NormalizeSnapshotUploadKind(string? snapshotUploadKind, string? confirmationOperation = null)
-    {
-        if (!string.IsNullOrWhiteSpace(snapshotUploadKind))
-        {
-            return snapshotUploadKind!;
-        }
-
-        if (string.Equals(confirmationOperation, SnapshotConfirmationOperations.ColonyRelocation, StringComparison.Ordinal))
-        {
-            return SnapshotUploadKinds.ColonyRelocation;
-        }
-
-        if (string.Equals(confirmationOperation, SnapshotConfirmationOperations.EndgameAchievement, StringComparison.Ordinal))
-        {
-            return SnapshotUploadKinds.EndgameAchievement;
-        }
-
-        return SnapshotUploadKinds.ManualUpload;
-    }
+        => SnapshotTransactions.NormalizeSnapshotUploadKind(snapshotUploadKind, confirmationOperation);
 
     private static int? CalculateSnapshotWealth(LatestSnapshotRecord snapshot)
     {
@@ -880,43 +850,8 @@ public static partial class ClashOfRimNetworkServer
         throw new InvalidDataException("Unsupported snapshot payload encoding: " + payloadEncoding);
     }
 
-    private static async Task<MultipartSnapshotRequest<TRequest>?> ReadMultipartSnapshotRequest<TRequest>(HttpRequest httpRequest)
-    {
-        if (!httpRequest.HasFormContentType)
-        {
-            return null;
-        }
-
-        IFormCollection form = await httpRequest.ReadFormAsync();
-        string? requestJson = form["request"].FirstOrDefault();
-        IFormFile? payloadFile = form.Files.GetFile("payload");
-        if (string.IsNullOrWhiteSpace(requestJson) || payloadFile is null)
-        {
-            return null;
-        }
-
-        TRequest? request = JsonSerializer.Deserialize<TRequest>(requestJson, MultipartJsonOptions);
-        if (payloadFile.Length < 0 || payloadFile.Length > int.MaxValue)
-        {
-            return null;
-        }
-
-        await using Stream stream = payloadFile.OpenReadStream();
-        byte[] payload = new byte[(int)payloadFile.Length];
-        int offset = 0;
-        while (offset < payload.Length)
-        {
-            int read = await stream.ReadAsync(payload.AsMemory(offset, payload.Length - offset));
-            if (read == 0)
-            {
-                return null;
-            }
-
-            offset += read;
-        }
-
-        return new MultipartSnapshotRequest<TRequest>(request, payload);
-    }
+    private static Task<MultipartSnapshotRequest<TRequest>?> ReadMultipartSnapshotRequest<TRequest>(HttpRequest httpRequest)
+        => MultipartSnapshotReader.Read<TRequest>(httpRequest);
 
     private static async Task<TRequest?> ReadJsonRequest<TRequest>(HttpRequest httpRequest)
     {
@@ -934,7 +869,6 @@ public static partial class ClashOfRimNetworkServer
         }
     }
 
-    private sealed record MultipartSnapshotRequest<TRequest>(TRequest? Request, byte[] Payload);
 
     private static void ProcessSupportPawnDeathsFromSnapshot(
         ClashOfRimNetworkState state,
@@ -1029,11 +963,7 @@ public static partial class ClashOfRimNetworkServer
     }
 
     private static ProtocolResponse ToProtocolResponse(SnapshotUploadResult upload)
-    {
-        return upload.Accepted
-            ? ProtocolResponse.Ok(upload.Message)
-            : ProtocolResponse.Reject(ToProtocolError(upload.Kind), upload.Message);
-    }
+        => SnapshotTransactions.ToProtocolResponse(upload);
 
     private static ProtocolResponse ToProtocolResponse(RaidAttackerLossConfirmationResult result)
     {
@@ -1074,20 +1004,7 @@ public static partial class ClashOfRimNetworkServer
     }
 
     private static ProtocolErrorCode ToProtocolError(SnapshotUploadResultKind kind)
-    {
-        return kind switch
-        {
-            SnapshotUploadResultKind.Accepted => ProtocolErrorCode.None,
-            SnapshotUploadResultKind.IdentityMismatch => ProtocolErrorCode.IdentityMismatch,
-            SnapshotUploadResultKind.MissingIdentity => ProtocolErrorCode.IdentityMismatch,
-            SnapshotUploadResultKind.IncompatibleRimWorldVersion => ProtocolErrorCode.ServerRejected,
-            SnapshotUploadResultKind.SnapshotReplayDetected => ProtocolErrorCode.ServerRejected,
-            SnapshotUploadResultKind.SnapshotLineageMismatch => ProtocolErrorCode.ServerRejected,
-            SnapshotUploadResultKind.SnapshotTimeRegression => ProtocolErrorCode.ServerRejected,
-            SnapshotUploadResultKind.SnapshotContinuityMismatch => ProtocolErrorCode.ServerRejected,
-            _ => ProtocolErrorCode.ValidationFailed
-        };
-    }
+        => SnapshotTransactions.ToProtocolError(kind);
 
     private static EventCreationResponse ToEventCreationResponse(
         LedgerAppendResult append,

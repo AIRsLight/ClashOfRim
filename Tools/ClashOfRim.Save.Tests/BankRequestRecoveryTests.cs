@@ -1,11 +1,9 @@
 using static RecoveryTestSupport;
 using System.Net;
-using System.Reflection;
 using System.Text.Json;
 using AIRsLight.ClashOfRim.Network;
 using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Save;
-using Microsoft.AspNetCore.Http;
 
 internal static class BankRequestRecoveryTests
 {
@@ -80,12 +78,13 @@ internal static class BankRequestRecoveryTests
     private static void ReadOnlyContext(Func<string, SaveSnapshotPackage> factory)
     {
         using var e = new Env(factory); string bank = e.Bank(), before = e.F.Evidence();
-        var read = typeof(ClashOfRimNetworkServer).GetMethod("ReadBankRequestContext", BindingFlags.Static | BindingFlags.NonPublic)!;
-        var args = new object?[] { e.F.State, "receiver", "away", "base", e.F.Token, 0L, 10000, DateTimeOffset.UtcNow, null, null };
-        Require(read.Invoke(null, args) is not null && args[8] is null, "Valid read-only bank context rejected.");
+        var context = e.F.State.BankRequests.ReadBankRequestContext("receiver", "away", "base", e.F.Token,
+            0L, 10000, DateTimeOffset.UtcNow, out var rejection);
+        Require(context is not null && rejection is null, "Valid read-only bank context rejected.");
         e.F.AssertPending(before, "read-only context"); Require(e.Bank() == bank, "Read-only context reconciled bank state.");
-        var reconcile = typeof(ClashOfRimNetworkServer).GetMethod("ReconcileSnapshotConfirmationsLocked", BindingFlags.Static | BindingFlags.NonPublic)!;
-        bool denied = false; try { reconcile.Invoke(null, [e.F.State, "receiver", "away", DateTimeOffset.UtcNow]); } catch (TargetInvocationException ex) when (ex.InnerException is InvalidOperationException) { denied = true; }
+        bool denied = false;
+        try { e.F.State.PendingConfirmations.ReconcileSnapshot("receiver", "away", DateTimeOffset.UtcNow); }
+        catch (InvalidOperationException) { denied = true; }
         Require(denied && bank == e.Bank(), "Bank reconciliation ran outside the mutation scope.");
     }
     private static void Policy(Func<string, SaveSnapshotPackage> factory, string change)
@@ -120,14 +119,13 @@ internal static class BankRequestRecoveryTests
         state.LoginSessions.TryCreate("receiver", "away", DateTimeOffset.UtcNow, out var session);
         string token = state.AuthTokens.Issue("receiver", "receiver", "away", session, DateTimeOffset.UtcNow);
         var request = new GetBankStatusRequest("receiver", "away", "base", token, 1000, 10000);
-        var method = typeof(ClashOfRimNetworkServer).GetMethod("GetBankStatus", BindingFlags.Static | BindingFlags.NonPublic)!;
         slot.Fail = true; bool failed = false;
-        try { method.Invoke(null, [request, state]); } catch (TargetInvocationException ex) when (ex.InnerException is IOException) { failed = true; }
+        try { state.Bank.GetBankStatus(request); } catch (IOException) { failed = true; }
         Require(failed && bank.FindByIdempotencyKey("old") is not null, "Cleanup failure lost pending record.");
         bool released = Task.Run(() => { if (!Monitor.TryEnter(state.RaidSettlementSnapshotMutationGate, TimeSpan.FromSeconds(2))) return false;
             Monitor.Exit(state.RaidSettlementSnapshotMutationGate); return true; }).GetAwaiter().GetResult();
         Require(released, "Cleanup failure leaked the mutation scope.");
-        slot.Fail = false; var result = (BankStatusResponse)((IValueHttpResult)method.Invoke(null, [request, state])!).Value!;
+        slot.Fail = false; var result = state.Bank.GetBankStatus(request);
         Require(result.Result.Accepted && result.ActiveLoan is null && bank.FindByIdempotencyKey("old") is null, "Cleanup retry retained a stale context.");
     }
     private static void GuardDefault(Func<string, SaveSnapshotPackage> factory)

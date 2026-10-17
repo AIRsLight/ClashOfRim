@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Network.Modules.Economy;
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Network.Plugins;
 using AIRsLight.ClashOfRim.Network.Plugins.CoreCompatibility;
@@ -1276,22 +1277,7 @@ public static partial class ClashOfRimNetworkServer
 
     private static PendingConfirmationReconciliationResult ReconcilePendingConfirmationsLocked(
         ClashOfRimNetworkState state, string userId, string colonyId, DateTimeOffset nowUtc, bool forceCancel)
-    {
-        TimeSpan timeout = state.ServerConfiguration.PendingConfirmationTimeout;
-        BankPendingConfirmationReconciliationResult bankResult = state.BankLoans.ReconcilePendingConfirmations(
-            userId,
-            colonyId,
-            nowUtc,
-            timeout,
-            forceCancel);
-        MercenaryPendingConfirmationReconciliationResult mercenaryResult = state.MercenaryContracts.ReconcilePendingConfirmations(
-            userId,
-            colonyId,
-            nowUtc,
-            timeout,
-            forceCancel);
-        return new PendingConfirmationReconciliationResult(bankResult, mercenaryResult);
-    }
+        => state.PendingConfirmations.Reconcile(userId, colonyId, nowUtc, forceCancel);
 
     private static bool TryRejectExpiredPendingConfirmationSnapshot(
         ClashOfRimNetworkState state,
@@ -1310,8 +1296,8 @@ public static partial class ClashOfRimNetworkServer
         return rejection is not null;
     }
 
-    private static ProtocolResponse? PendingConfirmationRejection(PendingConfirmationReconciliationResult result) =>
-        !result.Changed ? null : ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("PendingConfirmation.ExpiredCancelled"));
+    private static ProtocolResponse? PendingConfirmationRejection(PendingConfirmationReconciliationResult result)
+        => PendingConfirmationReconciler.Rejection(result);
 
     private static void ReconcileAbandonedColonyOnClientLifecycle(
         ClashOfRimNetworkState state,
@@ -1743,12 +1729,6 @@ public static partial class ClashOfRimNetworkServer
         ClashOfRimNetworkState state,
         ClientLifecycleEvent lifecycleEvent);
 
-    private sealed record PendingConfirmationReconciliationResult(
-        BankPendingConfirmationReconciliationResult Bank,
-        MercenaryPendingConfirmationReconciliationResult Mercenary)
-    {
-        public bool Changed => Bank.Changed || Mercenary.Changed;
-    }
 
     private sealed record RaidCleanupCompletion(AuthoritativeEvent Raid, SaveSnapshotEnvelope Snapshot);
 

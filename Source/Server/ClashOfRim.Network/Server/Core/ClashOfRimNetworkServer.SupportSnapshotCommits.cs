@@ -73,7 +73,7 @@ public static partial class ClashOfRimNetworkServer
         context = request.TargetContext is null ? ResolveSupportPawnTargetContext(target) : ToEventTargetContext(request.TargetContext);
         if (string.IsNullOrWhiteSpace(context?.MapUniqueId))
             return ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("Support.TargetMapMissing"));
-        return ReconcileSnapshotConfirmationsLocked(state, request.Actor.UserId, request.Actor.ColonyId!, DateTimeOffset.UtcNow);
+        return state.PendingConfirmations.ReconcileSnapshot(request.Actor.UserId, request.Actor.ColonyId!, DateTimeOffset.UtcNow);
     }
 
     private static AuthoritativeEvent CreateSupportSnapshotEvent(CreateSupportPawnRequest request, string snapshotId,

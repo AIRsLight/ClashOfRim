@@ -1,4 +1,5 @@
 using AIRsLight.ClashOfRim.Network;
+using AIRsLight.ClashOfRim.Network.Modules.Bank;
 using AIRsLight.ClashOfRim.Protocol;
 using Microsoft.AspNetCore.Http;
 using System.Reflection;
@@ -35,8 +36,18 @@ internal static class SnapshotEndpointTestClient
         context.Request.Headers[MultipartSnapshotAuthentication.HeaderName] = token;
         if (!MultipartSnapshotAuthentication.TryAuthorize(context.Request, state, now))
             throw new Exception("Fixture authentication failed.");
-        MethodInfo endpoint = typeof(ClashOfRimNetworkServer).GetMethod(name, BindingFlags.NonPublic | BindingFlags.Static)!;
-        IResult result = await (Task<IResult>)endpoint.Invoke(null, new object[] { context.Request, state })!;
+        IResult result;
+        if (name == nameof(BankEndpoints.CreateBankLoanWithSnapshot))
+            result = await BankEndpoints.CreateBankLoanWithSnapshot(context.Request, state.Bank);
+        else if (name == nameof(BankEndpoints.RepayBankLoanWithSnapshot))
+            result = await BankEndpoints.RepayBankLoanWithSnapshot(context.Request, state.Bank);
+        else if (name == nameof(BankEndpoints.RepayBankDebtWithSnapshot))
+            result = await BankEndpoints.RepayBankDebtWithSnapshot(context.Request, state.Bank);
+        else
+        {
+            MethodInfo endpoint = typeof(ClashOfRimNetworkServer).GetMethod(name, BindingFlags.NonPublic | BindingFlags.Static)!;
+            result = await (Task<IResult>)endpoint.Invoke(null, new object[] { context.Request, state })!;
+        }
         return (T)((IValueHttpResult)result).Value!;
     }
 }

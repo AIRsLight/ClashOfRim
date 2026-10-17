@@ -3,8 +3,10 @@ using System.Text.Json;
 using AIRsLight.ClashOfRim.Network;
 using AIRsLight.ClashOfRim.Protocol;
 using ClashOfRim.TestSupport;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.DependencyInjection;
 
 internal static class ModuleBoundaryTests
 {
@@ -23,8 +25,16 @@ internal static class ModuleBoundaryTests
             t == typeof(ClashOfRimNetworkServer) || t == typeof(ClashOfRimNetworkState)
             || t == typeof(LegacySnapshotRecoveryAdapter) || t == typeof(IServiceProvider));
         Require(violations.Count == 0, string.Join(Environment.NewLine, violations));
+        var bankBusiness = modules.Where(t => t.Namespace == "AIRsLight.ClashOfRim.Network.Modules.Bank"
+            && t.Name != "BankEndpoints" && t.DeclaringType?.Name != "BankEndpoints").ToArray();
+        var transportLeaks = ModuleDependencyGuard.FindViolations(bankBusiness,
+            t => t.Namespace?.StartsWith("Microsoft.AspNetCore.Http", StringComparison.Ordinal) == true);
+        Require(transportLeaks.Count == 0, string.Join(Environment.NewLine, transportLeaks));
 
-        await using var app = ClashOfRimNetworkServer.Build([], new ClashOfRimNetworkState());
+        var builder = WebApplication.CreateBuilder();
+        builder.Services.AddSingleton(new ClashOfRimNetworkState());
+        await using var app = builder.Build();
+        ClashOfRimNetworkServer.MapEndpoints(app);
         var expected = JsonSerializer.Deserialize<EndpointContract[]>(File.ReadAllText(
             Path.Combine(AppContext.BaseDirectory, "Fixtures", "ModuleEndpointContract.json")))!;
         var endpoints = ((IEndpointRouteBuilder)app).DataSources.SelectMany(s => s.Endpoints).OfType<RouteEndpoint>().ToArray();
