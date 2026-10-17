@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Trades;
 using AIRsLight.ClashOfRim.Modules.Events;
 using AIRsLight.ClashOfRim.Modules.Synchronization;
 using System;
@@ -22,15 +23,16 @@ public sealed partial class ClashOfRimMod
 {
     internal void ConfirmTradeAcceptorWillReceiveGoods(ModTradeOrderSummaryDto order, Action confirmedAction)
     {
+        Action guarded = tradeMarket.Bind(confirmedAction);
         if (TradeAcceptorReceivesNoGoods(order))
         {
             Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation(
                 ClashOfRimText.Key("ClashOfRim.Trade.ConfirmNoOfferedThings"),
-                confirmedAction));
+                guarded));
             return;
         }
 
-        confirmedAction();
+        guarded();
     }
 
     private static bool TradeAcceptorReceivesNoGoods(ModTradeOrderSummaryDto order)
@@ -43,96 +45,7 @@ public sealed partial class ClashOfRimMod
         return order.OfferedThings.All(thing => thing.StackCount <= 0);
     }
 
-    internal void StartAcceptTradeOrder(ModTradeOrderSummaryDto order, bool postagePaidByAcceptor)
-    {
-        if (!CanRunManualSync(out string failureReason))
-        {
-            tradeStatus = failureReason;
-            return;
-        }
-
-        if (string.IsNullOrWhiteSpace(order.EventId))
-        {
-            tradeStatus = ClashOfRimText.Key("ClashOfRim.Trade.StatusMissingOrderEventId");
-            return;
-        }
-
-        if (!TryBeginManualSynchronization(out var manualOperation, out failureReason))
-        {
-            tradeStatus = failureReason;
-            return;
-        }
-        tradeStatus = ClashOfRimText.Key("ClashOfRim.Trade.StatusAcceptingOrder", order.EventId.Named("EVENTID"));
-        var eventRead = eventRefresh.CaptureQueueRead();
-        ClientSessionWork.Run(async () =>
-        {
-            try
-            {
-                using var httpClient = new HttpClient();
-                var client = new ClashOfRimModNetworkClient(
-                    httpClient,
-                    ClashOfRimClientNetworkContext.FromSettings(settings));
-                ClashOfRimClientNetworkResult<ModAcceptTradeOrderResponseDto> result =
-                    await ClientSessionWork.Observe(client.AcceptTradeOrderAsync(
-                        $"trade-accept:{settings.UserId}:{order.EventId}:{DateTime.UtcNow.Ticks}",
-                        order.EventId,
-                        postagePaidByAcceptor));
-                using (ClientSessionWork.EnterPublication())
-                {
-                    if (!result.Success || result.Response is null)
-                    {
-                        tradeStatus = ClashOfRimText.Key("ClashOfRim.Trade.StatusAcceptFailed", result.ErrorCode.Named("CODE"), result.Message.Named("MESSAGE"));
-                        return;
-                    }
-
-                    if (result.Response.Result is not null && !result.Response.Result.Accepted)
-                    {
-                        tradeStatus = ClashOfRimText.Key("ClashOfRim.Trade.StatusAcceptRejected", result.Response.Result.ErrorCode.Named("CODE"), result.Response.Result.Message.Named("MESSAGE"));
-                        return;
-                    }
-
-                    tradeStatus = result.Response.MemoCreated ? ClashOfRimText.Key("ClashOfRim.Trade.StatusAcceptedOrder", result.Response.TradeEventId.Named("EVENTID"), result.Response.MemoEventId.Named("MEMOID")) : ClashOfRimText.Key("ClashOfRim.Trade.StatusAcceptMemoExists", result.Response.MemoEventId.Named("MEMOID"));
-                    MarkTradeOrderAcceptedLocally(order.EventId, result.Response.MemoEventId);
-                }
-                await ClientSessionWork.Observe(eventRefresh.ReadQueueAsync(eventRead));
-            }
-            catch (Exception ex)
-            when (ClientSessionWork.IsCurrent)
-            {
-                using var publication = ClientSessionWork.EnterPublication();
-                tradeStatus = ClashOfRimText.Key("ClashOfRim.Trade.StatusAcceptException", ex.GetType().Name.Named("TYPE"), ex.Message.Named("MESSAGE"));
-                Log.Warning("[ClashOfRim] Trade accept failed: " + ex);
-            }
-            finally
-            {
-                manualOperation.Dispose();
-            }
-        });
-    }
-
-    private void MarkTradeOrderAcceptedLocally(string tradeEventId, string? memoEventId)
-    {
-        if (string.IsNullOrWhiteSpace(tradeEventId))
-        {
-            return;
-        }
-
-        lock (eventStateLock)
-        {
-            ModTradeOrderSummaryDto? cached = lastTradeOrders.FirstOrDefault(order =>
-                string.Equals(order.EventId, tradeEventId, StringComparison.Ordinal));
-            if (cached is null)
-            {
-                return;
-            }
-
-            cached.ViewerHasAccepted = true;
-            if (!string.IsNullOrWhiteSpace(memoEventId))
-            {
-                cached.ViewerAcceptedMemoEventId = memoEventId;
-            }
-        }
-    }
+    internal void StartAcceptTradeOrder(ModTradeOrderSummaryDto order, bool postagePaidByAcceptor) => _ = tradeMarket.AcceptAsync(order, postagePaidByAcceptor);
 
     internal IReadOnlyList<ModTradeOrderSummaryDto> FindFulfillableTradeOrdersForCaravan(Caravan caravan)
     {
@@ -142,12 +55,7 @@ public sealed partial class ClashOfRimMod
         }
 
         int tile = caravan.Tile;
-        lock (eventStateLock)
-        {
-            return lastTradeOrders
-                .Where(order => CanFulfillTradeOrderAtTile(order, tile))
-                .ToList();
-        }
+        return tradeState.CopyOrders().Where(order => CanFulfillTradeOrderAtTile(order, tile)).ToList();
     }
 
     internal IReadOnlyList<ModWorldMapMarkerDto> FindReinforceableTargetsForCaravan(Caravan caravan)
@@ -622,18 +530,7 @@ public sealed partial class ClashOfRimMod
         _ = eventConfirmations.TradeAsync(exchangeEventId, tradeEventId, baseSnapshotId);
     }
 
-    private void MarkFulfilledTradeOrderLocally(string tradeEventId)
-    {
-        lock (eventStateLock)
-        {
-            ModTradeOrderSummaryDto? cached = lastTradeOrders.FirstOrDefault(order =>
-                string.Equals(order.EventId, tradeEventId, StringComparison.Ordinal));
-            if (cached is not null)
-            {
-                cached.Status = "AppliedToSnapshot";
-            }
-        }
-    }
+    private void MarkFulfilledTradeOrderLocally(string tradeEventId) => tradeState.Fulfilled(tradeEventId);
 
     private bool CanFulfillTradeOrderAtTile(ModTradeOrderSummaryDto order, int caravanTile)
     {
@@ -669,13 +566,7 @@ public sealed partial class ClashOfRimMod
         }
     }
 
-    private static bool IsOpenTradeStatus(string? status)
-    {
-        return string.IsNullOrWhiteSpace(status)
-            || string.Equals(status, "PendingOfflineDelivery", StringComparison.Ordinal)
-            || string.Equals(status, "ReadyForImmediateDelivery", StringComparison.Ordinal)
-            || string.Equals(status, "Recorded", StringComparison.Ordinal);
-    }
+    private static bool IsOpenTradeStatus(string? status) => string.IsNullOrWhiteSpace(status) || ClientTradeRules.IsOpen(status);
 
     private static string BuildTradeFulfillmentOptionLabel(ModTradeOrderSummaryDto order)
     {

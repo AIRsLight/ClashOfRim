@@ -50,6 +50,7 @@ internal static class EventCommandPresentationTests
                 ReadPresentation();
                 BankPresentation();
                 GiftPresentation();
+                TradePresentation();
                 foreach (var purpose in Enum.GetValues<ClientEventConfirmationPurpose>())
                 {
                     var notice = new ClientEventConfirmationNotice(purpose, ClientEventConfirmationStage.Uploading,
@@ -180,6 +181,21 @@ internal static class EventCommandPresentationTests
                 }
             }
         }
+    }
+
+    private static void TradePresentation()
+    {
+        var view = new AIRsLight.ClashOfRim.Trades.ClientTradeMarketPresentation();
+        RequireResolved(view.InitialStatus); RequireResolved(view.Busy);
+        foreach (var admission in new[] { LocalMutationAdmission.NotConfigured, LocalMutationAdmission.SnapshotMissing, LocalMutationAdmission.PendingMutation })
+            RequireResolved(view.Admission(admission, new(LocalMutationKind.Trade, "pending", default)));
+        foreach (string key in new[] { "Disabled", "NoAcceptableOrders", "PageStatus", "StatusRefreshingMarket", "StatusLoadingMoreMarket",
+            "StatusMarketRefreshFailed", "StatusMarketRejected", "StatusMarketException", "StatusAcceptingOrder", "StatusAcceptedOrder", "StatusAcceptMemoExists",
+            "StatusAcceptFailed", "StatusAcceptRejected", "StatusAcceptException", "StatusMissingOrderEventId", "StatusCancelNotAllowed", "StatusCancelAcceptedMemoNotAllowed",
+            "StatusCancellingAcceptedMemo", "StatusCancellingOrder", "StatusCancelSucceeded", "StatusCancelFailed", "StatusCancelRejected", "StatusCancelException",
+            "StatusCancelAcceptedMemoSucceeded", "StatusCancelAcceptedMemoFailed", "StatusCancelAcceptedMemoRejected", "StatusCancelAcceptedMemoException" })
+            RequireResolved(view.Text(key, ("LOADED", 3), ("TOTAL", 5), ("CODE", "rejected"), ("MESSAGE", "server-message"),
+                ("TYPE", "Exception"), ("EVENTID", "order"), ("MEMOID", "memo"), ("COUNT", 2)));
     }
 
     private static void BankPresentation()

@@ -1326,7 +1326,7 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
             {
                 Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation(
                     ClashOfRimText.Key("ClashOfRim.Trade.ConfirmCancelAcceptedMemo"),
-                    () => mod.StartCancelAcceptedTradeMemo(order)));
+                    mod.BindTradeAction(() => mod.StartCancelAcceptedTradeMemo(order))));
             }
         }
         else if (canCancel)
@@ -1335,7 +1335,7 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
             {
                 Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation(
                     ClashOfRimText.Key("ClashOfRim.Trade.ConfirmCancelOrder"),
-                    () => mod.StartCancelTradeOrder(order)));
+                    mod.BindTradeAction(() => mod.StartCancelTradeOrder(order))));
             }
         }
         else if (!canAccept)

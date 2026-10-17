@@ -37,6 +37,8 @@ internal static class ClientModuleBoundaryTests
             || t == typeof(ClientGiftActions) || t == typeof(ClientGiftPresentation) || t == typeof(ClientCaravanGiftSource) || t == typeof(ClientTransportPodGiftSource)
             || t == typeof(AIRsLight.ClashOfRim.WorldObjects.ClientWorldTargetPresentation)
             || t == typeof(ClientBankRuntime) || t == typeof(ClientBankPresentation) || t == typeof(BankUiUtility)
+            || t == typeof(AIRsLight.ClashOfRim.Trades.ClientTradeMarketPresentation)
+            || t == typeof(ClientTradeMarketTransport)
             || t.Namespace?.Split('.')[0] is "Verse" or "RimWorld" or "UnityEngine");
         if (modules.Length == 0 || violations.Count != 0)
             throw new InvalidOperationException("Client module boundaries: " + string.Join(Environment.NewLine, violations));
@@ -47,7 +49,7 @@ internal static class ClientModuleBoundaryTests
                 || t.Namespace?.StartsWith("AIRsLight.ClashOfRim.Modules.Events", StringComparison.Ordinal) == true);
         if (sessionViolations.Count != 0)
             throw new InvalidOperationException("Session foundation depends on an event/snapshot domain: " + string.Join(Environment.NewLine, sessionViolations));
-        Type[] eventAdapters = { typeof(ClientBankRuntime), typeof(ClientBankPresentation), typeof(ClientGiftActions), typeof(ClientGiftPresentation), typeof(ClientCaravanGiftSource), typeof(ClientTransportPodGiftSource), typeof(ClientEventLetterPolicy), typeof(ClientEventLetterRenderer), typeof(ClientEventLetterRuntime),
+        Type[] eventAdapters = { typeof(AIRsLight.ClashOfRim.Trades.ClientTradeMarketPresentation), typeof(ClientBankRuntime), typeof(ClientBankPresentation), typeof(ClientGiftActions), typeof(ClientGiftPresentation), typeof(ClientCaravanGiftSource), typeof(ClientTransportPodGiftSource), typeof(ClientEventLetterPolicy), typeof(ClientEventLetterRenderer), typeof(ClientEventLetterRuntime),
             typeof(ClientDiplomacyPresentation), typeof(ClientEventTextFormatting), typeof(ClientEventReadPresentation),
             typeof(ClientEventDecisionPresentation), typeof(ClientEventDecisionRuntime),
             typeof(ClientGiftPackageHydration), typeof(PawnPackageHydration),

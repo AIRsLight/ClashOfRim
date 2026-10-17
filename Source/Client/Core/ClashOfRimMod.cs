@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Trades;
 using AIRsLight.ClashOfRim.Modules.Gifts;
 using AIRsLight.ClashOfRim.Modules.Bank;
 using AIRsLight.ClashOfRim.Modules.Events;
@@ -61,6 +62,8 @@ public sealed partial class ClashOfRimMod : Mod
     private readonly ClientEventState eventState;
     private readonly ClientBankState bankState;
     private readonly ClientBankOperations bankOperations;
+    private readonly ClientTradeState tradeState;
+    private readonly ClientTradeMarket tradeMarket;
     private readonly ClientGiftActions giftActions;
     internal ClientGiftActions GiftActions => giftActions;
     private readonly ClientEventConfirmationWorkflow eventConfirmations;
@@ -91,22 +94,16 @@ public sealed partial class ClashOfRimMod : Mod
     private string snapshotUploadStatus = string.Empty;
     private string presenceStatus = string.Empty;
     private string playerListStatus = string.Empty;
-    private string tradeStatus = string.Empty;
+    // Transitional status bridge for local fulfillment and support, pending their module stages.
+    private string tradeStatus { get => tradeState.Message; set => tradeState.Message = value; }
     private string worldMapStatus = string.Empty;
     private string mercenaryStatus = string.Empty;
     private string serverShopStatus = string.Empty;
     private string chatStatus = string.Empty;
     private string adminStatus = string.Empty;
     private string serverCompatibilityManifestJson = string.Empty;
-    private bool tradeMarketplaceEnabled = true;
     private bool giftsEnabled = true;
     private bool pvpEnabled = true;
-    private const int TradeOrdersPageSize = 10;
-    private const int TradeOrdersHistoryPageSize = 5;
-    private bool tradeOrdersHasMore;
-    private bool tradeOrdersPageLoadInProgress;
-    private int tradeOrdersTotalCount;
-    private string tradeOrdersScope = "Open";
     private ModAdminStatusResponseDto? lastAdminStatus;
     private readonly ClientLocalMutationCoordinator localMutations = new();
     private bool pendingInitialWorldConfigurationSubmit;
@@ -131,8 +128,6 @@ public sealed partial class ClashOfRimMod : Mod
     private string achievementTargetUserId = string.Empty;
     private string achievementTargetColonyId = string.Empty;
     private string achievementStatus = string.Empty;
-    private readonly List<ModTradeOrderSummaryDto> lastTradeOrders = new();
-    private int tradeOrdersSnapshotVersion;
     private readonly List<ModServerShopListingDto> lastServerShopListings = new();
     private int serverShopListingsSnapshotVersion;
     private readonly List<ModChatMessageDto> lastChatMessages = new();
@@ -170,6 +165,10 @@ public sealed partial class ClashOfRimMod : Mod
         bankState = new ClientBankState(sessionLifecycle, new ClientSnapshotGame(), bankPresentation);
         var snapshotTransactions = new ClientSnapshotTransaction(sessionLifecycle, new ClientSnapshotGame(), snapshotPublication);
         var mutationAdmission = new ClientSnapshotMutationAdmission(sessionLifecycle, synchronization, localMutations, snapshotTransactions);
+        var tradePresentation = new ClientTradeMarketPresentation();
+        tradeState = new ClientTradeState(sessionLifecycle, new ClientSnapshotGame(), tradePresentation);
+        tradeMarket = new ClientTradeMarket(sessionLifecycle, tradeState, localMutations, mutationAdmission,
+            snapshotTransactions, new ClientTradeMarketTransport(), tradePresentation);
         bankOperations = new ClientBankOperations(mutationAdmission, synchronization, localMutations,
             snapshotTransactions, snapshotFailureRecovery,
             bankState, new ClientBankTransport(), new ClientBankRuntime(), bankPresentation);
@@ -209,6 +208,11 @@ public sealed partial class ClashOfRimMod : Mod
             }), snapshotFailureRecovery, eventDelivery);
         eventRefresh = new ClientEventRefresh(sessionLifecycle, eventReader, eventInbox, synchronization, localMutations,
             eventApplications, eventDelivery, eventReadPresentation, eventState);
+        tradeMarket.Accepted += () =>
+        {
+            var read = eventRefresh.CaptureQueueRead();
+            _ = ClientSessionWork.Run(() => eventRefresh.ReadQueueAsync(read));
+        };
         eventApplications.RefreshRequested += StartAutomaticEventRefresh;
         eventApplications.Deferred += eventRefresh.Defer;
         eventApplications.CompletedWithoutConfirmation += StartQueuedAutomaticEventRefreshAfterLocalAtomicMutation;
@@ -610,50 +614,23 @@ public sealed partial class ClashOfRimMod : Mod
         return ClashOfRimClientNetworkContext.FromSettings(settings);
     }
 
-    internal bool TradeMarketplaceEnabled => tradeMarketplaceEnabled;
+    internal bool TradeMarketplaceEnabled => tradeState.Enabled;
 
-    internal bool TradeOrdersHasMore => tradeOrdersHasMore;
+    internal bool TradeOrdersHasMore => tradeState.HasMore;
 
-    internal bool TradeOrdersPageLoadInProgress => tradeOrdersPageLoadInProgress;
+    internal bool TradeOrdersPageLoadInProgress => tradeState.Loading;
 
-    internal int TradeOrdersTotalCount => tradeOrdersTotalCount;
+    internal int TradeOrdersTotalCount => tradeState.Total;
 
-    internal int TradeOrdersLoadedCount
-    {
-        get
-        {
-            lock (eventStateLock)
-            {
-                return lastTradeOrders.Count;
-            }
-        }
-    }
+    internal int TradeOrdersLoadedCount => tradeState.Count;
 
     internal string TargetUserId => settings.TargetUserId;
 
     internal string TargetColonyId => settings.TargetColonyId;
 
-    internal List<ModTradeOrderSummaryDto> TradeOrdersSnapshot
-    {
-        get
-        {
-            lock (eventStateLock)
-            {
-                return lastTradeOrders.ToList();
-            }
-        }
-    }
+    internal List<ModTradeOrderSummaryDto> TradeOrdersSnapshot => tradeState.CopyOrders();
 
-    internal int TradeOrdersSnapshotVersion
-    {
-        get
-        {
-            lock (eventStateLock)
-            {
-                return tradeOrdersSnapshotVersion;
-            }
-        }
-    }
+    internal int TradeOrdersSnapshotVersion => tradeState.Version;
 
     internal List<ModServerShopListingDto> ServerShopListingsSnapshot
     {

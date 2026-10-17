@@ -155,7 +155,7 @@ public sealed partial class ClashOfRimMod
         mercenaryInProgress = false;
         serverShopInProgress = false;
         adminInProgress = false;
-        tradeOrdersPageLoadInProgress = false;
+        tradeState.Reset();
         chatRefreshInProgress = false;
         chatSendInProgress = false;
         // GoToMainMenu unloads the scene asynchronously. Its old game can still
@@ -178,13 +178,8 @@ public sealed partial class ClashOfRimMod
             lastPlayers.Clear();
             lastWorldMapMarkers.Clear();
             playersSnapshotVersion++;
-            lastTradeOrders.Clear();
-            tradeOrdersSnapshotVersion++;
             lastServerShopListings.Clear();
             serverShopListingsSnapshotVersion++;
-            tradeOrdersHasMore = false;
-            tradeOrdersTotalCount = 0;
-            tradeOrdersScope = "Open";
         }
 
         lock (chatStateLock)
@@ -543,6 +538,7 @@ public sealed partial class ClashOfRimMod
 
         caravanArrivalTargetRefreshInProgress = true;
         worldMapStatus = ClashOfRimText.Key("ClashOfRim.WorldMap.StatusCaravanTargetsRefreshing");
+        var refreshTrades = tradeMarket.CaptureRefresh();
         ClientSessionWork.Run(async () =>
         {
             try
@@ -565,43 +561,7 @@ public sealed partial class ClashOfRimMod
                     CaptureWorldMapMarkers(markers.Response, source: "caravan-target-refresh");
                 }
 
-                ClashOfRimClientNetworkResult<ModListTradeOrdersResponseDto> trades =
-                    await ClientSessionWork.Observe(client.ListTradeOrdersAsync("Open"));
-                using var publication = ClientSessionWork.EnterPublication();
-                if (!trades.Success || trades.Response is null)
-                {
-                    tradeStatus = ClashOfRimText.Key(
-                        "ClashOfRim.Trade.StatusMarketRefreshFailed",
-                        trades.ErrorCode.Named("CODE"),
-                        trades.Message.Named("MESSAGE"));
-                    return;
-                }
-
-                if (trades.Response.Result is not null && !trades.Response.Result.Accepted)
-                {
-                    tradeStatus = ClashOfRimText.Key(
-                        "ClashOfRim.Trade.StatusMarketRejected",
-                        trades.Response.Result.ErrorCode.Named("CODE"),
-                        trades.Response.Result.Message.Named("MESSAGE"));
-                    return;
-                }
-
-                IReadOnlyList<ModTradeOrderSummaryDto> tradeOrders =
-                    trades.Response.Orders ?? new List<ModTradeOrderSummaryDto>();
-                ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
-                    TradeUiUtility.PreparePawnPreviewsForTradeOrders(tradeOrders));
-                lock (eventStateLock)
-                {
-                    tradeMarketplaceEnabled = trades.Response.TradeMarketplaceEnabled;
-                    tradeOrdersScope = "Open";
-                    tradeOrdersHasMore = trades.Response.HasMore;
-                    tradeOrdersTotalCount = Math.Max(0, trades.Response.TotalCount);
-                    lastTradeOrders.Clear();
-                    lastTradeOrders.AddRange(tradeOrders);
-                    tradeOrdersSnapshotVersion++;
-                }
-
-                tradeStatus = FormatPagedTradeOrdersStatus();
+                await ClientSessionWork.Observe(refreshTrades());
             }
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
@@ -943,14 +903,7 @@ public sealed partial class ClashOfRimMod
                     sessionLifecycle.ClearIdentity();
                     lastRegisteredPlayerColonySiteSignature = null;
                     eventInbox.Reset();
-                    lock (eventStateLock)
-                    {
-                        lastTradeOrders.Clear();
-                        tradeOrdersSnapshotVersion++;
-                        tradeOrdersHasMore = false;
-                        tradeOrdersTotalCount = 0;
-                        tradeOrdersScope = "Open";
-                    }
+                    tradeState.Reset();
 
                     UpdateOccupiedPlayerColonySites(result.Response.WorldConfiguration);
                     CaptureWorldMapMarkers(result.Response.WorldMapMarkers, source: "abandon-colony");

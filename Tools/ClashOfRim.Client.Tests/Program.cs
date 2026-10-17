@@ -19,6 +19,7 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("trade market owns paging, decisions and session state", ClientTradeMarketTests.Run),
     ("gift sends own capture, removal, retries and deferred arrival", ClientGiftModuleTests.Run),
     ("bank workflow owns preparation, retry, session state and game publication", ClientBankModuleTests.Run),
     ("bank protocol shares all seven routes and captured credentials with the facade", ClientBankProtocolTests.Run),

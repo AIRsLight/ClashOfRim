@@ -300,20 +300,15 @@ public sealed partial class ClashOfRimMod
         settings.CurrentWorldConfigurationId = string.Empty;
         bankState.Message = ClashOfRimText.Key("ClashOfRim.Bank.NoStatus");
         playerListStatus = ClashOfRimText.Key("ClashOfRim.Status.PlayerListNotPulled");
-        tradeStatus = ClashOfRimText.Key("ClashOfRim.Status.TradeOrderNotCreated");
+        tradeState.Reset();
         chatStatus = ClashOfRimText.Key("ClashOfRim.Chat.StatusIdle");
         adminStatus = ClashOfRimText.Key("ClashOfRim.Admin.StatusIdle");
         lock (eventStateLock)
         {
             lastPlayers.Clear();
             playersSnapshotVersion++;
-            lastTradeOrders.Clear();
-            tradeOrdersSnapshotVersion++;
             lastServerShopListings.Clear();
             serverShopListingsSnapshotVersion++;
-            tradeOrdersHasMore = false;
-            tradeOrdersTotalCount = 0;
-            tradeOrdersScope = "Open";
             lastWorldMapMarkers.Clear();
         }
 
