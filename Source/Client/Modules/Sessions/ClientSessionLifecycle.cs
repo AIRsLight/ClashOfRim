@@ -31,6 +31,14 @@ internal sealed class ClientSessionLifecycle
     internal Ownership CaptureOwnership() => new(identityOwner, ClientSessionWork.Token);
     internal bool Owns(Ownership owner) => ClientSessionWork.IsCurrent && owner.Token == ClientSessionWork.Token
         && ReferenceEquals(owner.Identity, identityOwner);
+    internal bool Owns(Ownership owner, ClashOfRimClientNetworkContext expected, bool requireSnapshot)
+    {
+        if (!Owns(owner)) return false;
+        var current = ReadContext();
+        return current.ServerBaseUrl == expected.ServerBaseUrl && current.UserId == expected.UserId
+            && current.ColonyId == expected.ColonyId && current.AuthToken == expected.AuthToken
+            && (!requireSnapshot || current.CurrentSnapshotId == expected.CurrentSnapshotId);
+    }
     internal event Action<ModLoginResponseDto?>? IdentityChanged;
     // Domain state must be cleared before the credential write persists the exit.
     internal event Action? Ended;

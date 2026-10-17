@@ -58,6 +58,8 @@ public sealed partial class ClashOfRimMod : Mod
     private readonly ClientEventDelivery eventDelivery;
     private readonly ClientEventReader eventReader;
     private readonly ClientEventConfirmation eventConfirmation;
+    private readonly ClientEventConfirmationPreparation eventConfirmationPreparation;
+    private readonly ClientSnapshotFailureRecovery snapshotFailureRecovery;
     private readonly ClientEventRefreshQueue automaticEventRefresh;
     internal IReadOnlyList<ModEventDetailDto>? ReadEventDetails(int? knownVersion, out int version) =>
         eventInbox.CopyDetails(knownVersion, out version);
@@ -160,6 +162,10 @@ public sealed partial class ClashOfRimMod : Mod
         eventReader = new ClientEventReader(sessionLifecycle, eventInbox, new ClientEventReadTransport());
         eventConfirmation = new ClientEventConfirmation(sessionLifecycle, new ClientSnapshotGame(),
             snapshotPublication, eventInbox, new ClientEventConfirmationTransport());
+        eventConfirmationPreparation = new ClientEventConfirmationPreparation(sessionLifecycle, synchronization, localMutations, eventConfirmation);
+        snapshotFailureRecovery = new ClientSnapshotFailureRecovery(sessionLifecycle, localMutations, synchronization,
+            new ClientSnapshotGame(), new ClientSnapshotFailureView());
+        snapshotFailureRecovery.ReturningToMenu += () => playerColonySiteRegistrationSuppressed = false;
         automaticEventRefresh = new ClientEventRefreshQueue(sessionLifecycle);
         eventDelivery = new ClientEventDelivery(eventInbox, new ClientEventLetterRuntime(RequestWorldMapMarkerRefresh));
         if (!string.Equals(content.PackageId, PackageId, StringComparison.OrdinalIgnoreCase))

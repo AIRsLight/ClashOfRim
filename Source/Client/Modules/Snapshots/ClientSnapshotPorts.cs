@@ -24,6 +24,7 @@ internal interface IClientSnapshotGameSession
 {
     void Enqueue(Action action, Action onDiscard);
     bool HasGame { get; }
+    bool IsCurrent { get; }
     string RuntimeSnapshotId { get; }
     SnapshotSaveCapture Capture(bool removeRaidBattleSessions);
     void Publish(string snapshotId, string? lineageToken, IReadOnlyList<ModSnapshotAchievementCandidateDto> achievements);

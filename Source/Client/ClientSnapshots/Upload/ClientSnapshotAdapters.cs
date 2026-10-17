@@ -44,8 +44,9 @@ internal sealed class ClientSnapshotGame : IClientSnapshotGame
         private readonly Game? owner;
         internal Session(Game? owner) => this.owner = owner;
         public void Enqueue(Action action, Action onDiscard) => ClashOfRimGameComponent.EnqueueMainThreadAction(
-            () => { if (ReferenceEquals(owner, Current.Game)) action(); else onDiscard(); }, onDiscard);
+            () => { if (IsCurrent) action(); else onDiscard(); }, onDiscard);
         public bool HasGame => owner is not null;
+        public bool IsCurrent => ReferenceEquals(owner, Current.Game);
         public string RuntimeSnapshotId => ClashOfRimGameComponent.CopySnapshotLineage().SnapshotId;
         public SnapshotSaveCapture Capture(bool removeRaidBattleSessions)
         {

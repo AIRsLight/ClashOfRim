@@ -414,6 +414,7 @@ internal static class SnapshotUploaderModuleTests
             private readonly object? owner;
             internal Session(GameAdapter game, object? owner) { this.game = game; this.owner = owner; }
             public bool HasGame => owner is not null;
+            public bool IsCurrent => ReferenceEquals(owner, game.Owner);
             public string RuntimeSnapshotId => game.Snapshot;
             public void Enqueue(Action action, Action onDiscard)
             {

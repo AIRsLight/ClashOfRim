@@ -80,6 +80,7 @@ internal static class SnapshotPackagePresentationTests
         internal SnapshotUploadFailure? CaptureFailure;
         public IClientSnapshotGameSession BindCurrentGame() => this;
         public bool HasGame => true;
+        public bool IsCurrent => true;
         public string RuntimeSnapshotId => "base";
         public SnapshotSaveCapture Capture(bool removeRaidBattleSessions) => new(data, null, Array.Empty<ModSnapshotAchievementCandidateDto>(), CaptureFailure);
         public void Enqueue(Action action, Action onDiscard) => throw new Exception("Unexpected dispatch during synchronous preparation.");

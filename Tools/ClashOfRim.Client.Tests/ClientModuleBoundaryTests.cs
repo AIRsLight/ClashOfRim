@@ -16,9 +16,12 @@ internal static class ClientModuleBoundaryTests
         var violations = ModuleDependencyGuard.FindViolations(modules, t => t == typeof(ClashOfRimMod)
             || t == typeof(ClashOfRimSettings) || t == typeof(ClashOfRimModNetworkClient) || t == typeof(IServiceProvider)
             || t == typeof(ClashOfRimGameComponent) || t == typeof(ClashOfRimText)
+            || t == typeof(ClientMainThreadDispatcher)
             || t == typeof(ModSnapshotPackageBuilder) || t == typeof(SnapshotSaveSanitizer)
             || t == typeof(ModSnapshotUploadService) || t == typeof(ClientSnapshotPreparationAdapter)
             || t == typeof(ClientSnapshotPackagePresentation) || t == typeof(ClientSnapshotUploadPresentation)
+            || t == typeof(ClientSnapshotPreparationPresentation) || t == typeof(ClientSnapshotFailureView)
+            || t == typeof(ClientEventPreparationPresentation) || t == typeof(SnapshotConfirmationFailureWindow)
             || t == typeof(ClientEventLetterPolicy) || t == typeof(ClientEventLetterRenderer)
             || t == typeof(ClientEventLetterRuntime) || t == typeof(ClientDiplomacyPresentation)
             || t == typeof(ClientEventReadPresentation) || t == typeof(ClashOfRimEventLetterProjection)
@@ -27,7 +30,9 @@ internal static class ClientModuleBoundaryTests
             throw new InvalidOperationException("Client module boundaries: " + string.Join(Environment.NewLine, violations));
         Console.WriteLine($"Client module dependency guard checked {modules.Length} product and generated types.");
         Type[] eventAdapters = { typeof(ClientEventLetterPolicy), typeof(ClientEventLetterRenderer), typeof(ClientEventLetterRuntime),
-            typeof(ClientDiplomacyPresentation), typeof(ClientEventTextFormatting), typeof(ClientEventReadPresentation) };
+            typeof(ClientDiplomacyPresentation), typeof(ClientEventTextFormatting), typeof(ClientEventReadPresentation),
+            typeof(ClientEventPreparationPresentation), typeof(ClientSnapshotPreparationPresentation),
+            typeof(ClientSnapshotFailureView), typeof(SnapshotConfirmationFailureWindow) };
         var adapterTypes = typeof(ClashOfRimMod).Assembly.GetTypes().Where(t => eventAdapters.Contains(t)
             || (t.DeclaringType is not null && eventAdapters.Contains(t.DeclaringType))).ToArray();
         var adapterViolations = ModuleDependencyGuard.FindViolations(adapterTypes, t => t == typeof(ClashOfRimMod)

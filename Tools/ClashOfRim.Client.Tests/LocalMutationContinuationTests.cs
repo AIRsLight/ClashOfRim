@@ -5,6 +5,10 @@ using AIRsLight.ClashOfRim;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.ClientSnapshots;
 using AIRsLight.ClashOfRim.Modules.Synchronization;
+using AIRsLight.ClashOfRim.Modules.Events;
+using AIRsLight.ClashOfRim.Modules.Sessions;
+using AIRsLight.ClashOfRim.Modules.Snapshots;
+using AIRsLight.ClashOfRim.Modules.Transport;
 using HarmonyLib;
 using Verse;
 
@@ -15,6 +19,7 @@ internal static class LocalMutationContinuationTests
 {
     private const BindingFlags Instance = BindingFlags.NonPublic | BindingFlags.Instance;
     private static int saves;
+    private static int presentedFailures;
 
     public static void Run()
     {
@@ -24,6 +29,12 @@ internal static class LocalMutationContinuationTests
         harmony.Patch(AccessTools.Method(typeof(ClashOfRimGameComponent), "TrySaveCurrentGameToBytes",
             new[] { typeof(bool), typeof(byte[]).MakeByRefType(), typeof(string).MakeByRefType() }),
             prefix: new HarmonyMethod(typeof(LocalMutationContinuationTests), nameof(FailSave)));
+        harmony.Patch(AccessTools.Method(typeof(ClientSnapshotFailureView), nameof(ClientSnapshotFailureView.Show)),
+            prefix: new HarmonyMethod(typeof(LocalMutationContinuationTests), nameof(ObserveFailureView)));
+        var originalGame = Current.Game;
+        var originalState = Current.ProgramState;
+        Current.Game = null;
+        Current.ProgramState = ProgramState.Entry;
         ClientSessionWork.Reset();
         try
         {
@@ -50,6 +61,8 @@ internal static class LocalMutationContinuationTests
             typeof(ClashOfRimMod).Assembly.GetType("AIRsLight.ClashOfRim.MainMenu.ClashOfRimMainMenuPatches", true)!
                 .GetMethod("RunQueuedMainThreadActions", BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, null);
             harmony.UnpatchAll(harmony.Id);
+            Current.Game = originalGame;
+            Current.ProgramState = originalState;
         }
     }
 
@@ -61,9 +74,20 @@ internal static class LocalMutationContinuationTests
         typeof(ClashOfRimMod).GetField("localMutations", Instance)!.SetValue(mod, mutations);
         typeof(ClashOfRimMod).GetField("synchronization", Instance)!.SetValue(mod, synchronization);
         typeof(ClashOfRimMod).GetField("snapshotPreparation", Instance)!.SetValue(mod, ClientSnapshotComposition.CreatePreparation());
-        typeof(ClashOfRimMod).GetField("settings", Instance)!.SetValue(mod, new ClashOfRimSettings
-        { ServerBaseUrl = "http://localhost", UserId = "alice", ColonyId = "colony", CurrentSnapshotId = "snapshot" });
+        var settings = new ClashOfRimSettings
+        { ServerBaseUrl = "http://localhost", UserId = "alice", ColonyId = "colony", CurrentSnapshotId = "snapshot" };
+        typeof(ClashOfRimMod).GetField("settings", Instance)!.SetValue(mod, settings);
+        var lifecycle = new ClientSessionLifecycle(new ClientSessionIdentityStore(settings), new ClientSessionLogoutTransport(),
+            new ClientSessionConnection(new ClientSessionWebSocketTransport(new ClientWebSocketFactory(), new ClientProtocolMetadata())));
+        var game = new ClientSnapshotGame();
+        var confirmation = new ClientEventConfirmation(lifecycle, game, ClientSnapshotComposition.CreatePublication(settings),
+            new ClientEventInbox(), new ClientEventConfirmationTransport());
+        typeof(ClashOfRimMod).GetField("eventConfirmationPreparation", Instance)!.SetValue(mod,
+            new ClientEventConfirmationPreparation(lifecycle, synchronization, mutations, confirmation));
+        typeof(ClashOfRimMod).GetField("snapshotFailureRecovery", Instance)!.SetValue(mod,
+            new ClientSnapshotFailureRecovery(lifecycle, mutations, synchronization, game, new ClientSnapshotFailureView()));
         saves = 0;
+        presentedFailures = 0;
         var failure = mutations.RecordFailure(kind, "previous failure", () =>
         {
             try { typeof(ClashOfRimMod).GetMethod(method, Instance)!.Invoke(mod, args); }
@@ -73,8 +97,12 @@ internal static class LocalMutationContinuationTests
             || !mutations.IsPending || mutations.Current!.Kind != kind || mutations.Current.Status == "previous failure"
             || mutations.IsCurrent(failure))
             throw new Exception(method + " blocked its own confirmation, lost pending state, or leaked synchronization admission.");
+        typeof(ClashOfRimMod).Assembly.GetType("AIRsLight.ClashOfRim.MainMenu.ClashOfRimMainMenuPatches", true)!
+            .GetMethod("RunQueuedMainThreadActions", BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, null);
+        if (presentedFailures != 1) throw new Exception(method + " failure did not reach the main-menu view.");
     }
 
+    private static bool ObserveFailureView() { presentedFailures++; return false; }
     private static bool Translate(string key, ref string __result) { __result = key; return false; }
     private static bool FailSave(ref byte[] saveBytes, ref string failureReason, ref bool __result)
     {

@@ -19,6 +19,165 @@ using AIRsLight.ClashOfRim.Protocol;
 
 internal static class EventConfirmationModuleTests
 {
+    internal static void RunPreparationAndRecovery() => PreparationAndRecovery().GetAwaiter().GetResult();
+    private static async Task PreparationAndRecovery()
+    {
+        try
+        {
+            PreparationAdmission();
+            PreparationFailures();
+            await RecoveryDecisions();
+            await RecoveryReplacement();
+        }
+        finally { ClientSessionWork.Reset(); }
+    }
+
+    private static void PreparationAdmission()
+    {
+        foreach (string missing in new[] { "identity", "snapshot" })
+        {
+            var f = new Fixture();
+            if (missing == "identity") f.Ports.Colony = ""; else f.Ports.Snapshot = "";
+            var result = f.Preparation.Current(LocalMutationKind.Gift, "uploading");
+            Require(result.Failure?.Admission == (missing == "identity" ? LocalMutationAdmission.NotConfigured : LocalMutationAdmission.SnapshotMissing)
+                && f.Ports.Captures == 0 && !f.Sync.IsBusy && !f.Mutations.IsPending, "Missing configuration reached snapshot capture.");
+        }
+        var blocked = new Fixture(); blocked.Mutations.Begin(LocalMutationKind.Bank, "bank waiting");
+        var denied = blocked.Preparation.Current(LocalMutationKind.Gift, "gift");
+        Require(denied.Failure?.Kind == ClientEventPreparationFailureKind.Blocked && denied.Failure.Blocked?.Status == "bank waiting"
+            && blocked.Mutations.Current?.Kind == LocalMutationKind.Bank && blocked.Ports.Captures == 0, "Preparation replaced an unrelated mutation.");
+        foreach (bool snapshot in new[] { false, true })
+        {
+            var busy = new Fixture();
+            ClientSynchronizationCoordinator.Lease? held;
+            Require(snapshot ? busy.Sync.TryAcquireSnapshot(out held) : busy.Sync.TryBeginManual(out held), "Fixture lease missing.");
+            var deniedBusy = busy.Preparation.Current(LocalMutationKind.Gift, "gift");
+            Require(deniedBusy.Failure?.Kind == ClientEventPreparationFailureKind.Busy && held!.IsCurrent
+                && !busy.Mutations.IsPending && busy.Ports.Captures == 0, "Busy preparation changed an existing operation.");
+            held!.Dispose();
+        }
+        var successful = new Fixture(); successful.Mutations.Begin(LocalMutationKind.Gift, "waiting");
+        var ready = successful.Preparation.Current(LocalMutationKind.Gift, "uploading");
+        Require(ready.Failure is null && ready.Attempt!.Admission.IsCurrent && ready.Build?.Success == true
+            && ready.Build.Package!.OwnerId == "alice" && ready.Build.Package.ColonyId == "colony"
+            && successful.Ports.Captures == 1 && successful.Mutations.Current?.Status == "uploading", "Current preparation lost its captured identity or lease.");
+        ready.Attempt!.Admission.Dispose();
+
+        foreach (bool snapshot in new[] { false, true })
+        {
+            var f = new Fixture(); f.Ports.Snapshot = "";
+            ClientSynchronizationCoordinator.Lease? continuation;
+            Require(snapshot ? f.Sync.TryAcquireSnapshot(out continuation) : f.Sync.TryBeginManual(out continuation), "Prepared fixture lease missing.");
+            var result = f.Preparation.Prepared(LocalMutationKind.None, "prepared", Package(), new byte[] { 1 }, continuation);
+            Require(result.Failure is null && result.Attempt!.Admission.IsSnapshot && result.Attempt.Admission.IsCurrent
+                && result.Operation == LocalMutationKind.PreparedEvent && f.Ports.Captures == 0 && result.Build is null,
+                "Prepared submission rebuilt a package or rejected its continuation.");
+            result.Attempt!.Admission.Dispose();
+        }
+        var invalid = new Fixture(); var old = invalid.Capture();
+        var empty = invalid.Preparation.Prepared(LocalMutationKind.Raid, "prepared", null, Array.Empty<byte>(), old.Admission);
+        Require(empty.Failure?.Kind == ClientEventPreparationFailureKind.InvalidPreparedData && !invalid.Sync.IsBusy && !invalid.Mutations.IsPending,
+            "Invalid prepared input retained its lease.");
+        var stale = new Fixture(); var staleLease = stale.Capture().Admission;
+        staleLease.Dispose(); var current = stale.Capture().Admission;
+        var staleResult = stale.Preparation.Prepared(LocalMutationKind.Raid, "prepared", Package(), new byte[] { 1 }, staleLease);
+        Require(staleResult.Failure?.Kind == ClientEventPreparationFailureKind.Busy && current.IsCurrent, "Stale continuation affected a replacement lease.");
+        current.Dispose();
+        var blockedPrepared = new Fixture(); var blockedLease = blockedPrepared.Capture().Admission;
+        blockedPrepared.Mutations.Begin(LocalMutationKind.Bank, "bank");
+        var blockedPackage = blockedPrepared.Preparation.Prepared(LocalMutationKind.Raid, "raid", Package(), new byte[] { 1 }, blockedLease);
+        Require(blockedPackage.Failure?.Kind == ClientEventPreparationFailureKind.Blocked && !blockedPrepared.Sync.IsBusy
+            && blockedPrepared.Mutations.Current?.Kind == LocalMutationKind.Bank, "Blocked prepared submission retained its lease or erased unrelated work.");
+    }
+
+    private static void PreparationFailures()
+    {
+        foreach (string kind in new[] { "capture", "xml", "exception", "cancel" })
+        {
+            var f = new Fixture();
+            if (kind == "capture") f.Ports.CaptureFailure = new("capture-failed", "capture failure", SnapshotUploadMessage.SaveFailed);
+            if (kind == "xml") f.Ports.SaveBytes = Encoding.UTF8.GetBytes("<broken");
+            if (kind == "exception") f.Ports.OnCapture = () => throw new InvalidOperationException("capture exception");
+            if (kind == "cancel") f.Ports.OnCapture = () => throw new OperationCanceledException("capture cancellation");
+            var result = f.Preparation.Current(LocalMutationKind.Gift, "uploading");
+            Require(result.Failure?.Kind == ClientEventPreparationFailureKind.Build && result.Failure.SnapshotFailure is not null
+                && !f.Sync.IsBusy && f.Mutations.IsPending, "Build failure leaked admission or discarded unconfirmed local work: " + kind);
+            f.Ports.CaptureFailure = null; f.Ports.OnCapture = null; f.Ports.SaveBytes = SnapshotPackageModuleTests.Save();
+            var retry = f.Preparation.Current(LocalMutationKind.Gift, "retry");
+            Require(retry.Failure is null, "Failed preparation blocked its own retry."); retry.Attempt!.Admission.Dispose();
+        }
+        foreach (string replacement in new[] { "login", "generation", "game", "snapshot" })
+        {
+            var f = new Fixture();
+            f.Ports.OnCapture = () => { if (replacement == "game") f.Ports.GameOwner = new(); else Replace(f, replacement); };
+            var result = f.Preparation.Current(LocalMutationKind.Gift, "uploading");
+            Require(result.Failure?.Kind == ClientEventPreparationFailureKind.Obsolete && !f.Sync.IsBusy,
+                "Preparation published after owner replacement: " + replacement);
+        }
+    }
+
+    private static async Task RecoveryDecisions()
+    {
+        var f = new Fixture(); int retries = 0, exits = 0;
+        f.Recovery.ReturningToMenu += () => exits++;
+        f.Recovery.Show(LocalMutationKind.Gift, "failed", () => retries++, true);
+        Require(f.View.Shown == 0 && f.Mutations.IsPending, "Recovery showed a window before the game thread.");
+        (await f.Ports.Next())();
+        Require(f.View.Message == "failed" && f.View.CurrentSession!() && f.View.Retry is not null, "Failure view lost its state.");
+        Action retry = f.View.Retry!;
+        await Task.WhenAll(Enumerable.Range(0, 32).Select(_ => Task.Run(retry)));
+        Require(retries == 1 && f.Mutations.IsPending && f.View.CurrentSession(), "Retry was consumed twice or cleared unconfirmed work.");
+        f.View.Exit!(); Require(exits == 0, "Consumed retry still allowed exit.");
+        f.Recovery.Show(LocalMutationKind.Gift, "terminal", () => retries++, false); (await f.Ports.Next())();
+        Require(f.View.Retry is null, "Terminal failure offered retry.");
+        Action exit = f.View.Exit!;
+        Require(f.Sync.TryAcquireSnapshot(out var held), "Exit fixture admission missing.");
+        exit(); exit();
+        Require(exits == 1 && f.View.Menus == 1 && !f.Mutations.IsPending && !held.IsCurrent && f.View.Visible is null,
+            "Exit did not clear the matching failure and synchronization exactly once.");
+
+        var nested = new Fixture();
+        nested.Recovery.Show(LocalMutationKind.Trade, "first", () => nested.Recovery.Show(LocalMutationKind.Trade, "second", static () => { }, true), true);
+        (await nested.Ports.Next())(); Action oldExit = nested.View.Exit!; nested.View.Retry!();
+        (await nested.Ports.Next())(); oldExit();
+        Require(nested.View.Message == "second" && nested.View.Menus == 0 && nested.Mutations.Current?.Status == "second",
+            "Old decision erased a new failure reported by retry.");
+    }
+
+    private static async Task RecoveryReplacement()
+    {
+        foreach (string change in new[] { "login", "clear", "colony", "server", "generation", "game" })
+        foreach (bool shown in new[] { false, true })
+        {
+            var f = new Fixture(); int retries = 0;
+            f.Recovery.Show(LocalMutationKind.Gift, "old", () => retries++, true);
+            var show = await f.Ports.Next();
+            if (shown) show();
+            if (change == "game") f.Ports.GameOwner = new(); else Replace(f, change);
+            if (shown)
+            {
+                Require(!f.View.CurrentSession!(), "Old failure window still belongs to replacement: " + change);
+                f.View.Retry!(); f.View.Exit!();
+            }
+            else show();
+            Require(retries == 0 && f.View.Menus == 0 && (shown || f.View.Shown == 0), "Old failure reached the replacement session.");
+        }
+        var lineage = new Fixture(); int continued = 0;
+        lineage.Recovery.Show(LocalMutationKind.Gift, "retry", () => continued++, true); (await lineage.Ports.Next())();
+        lineage.Ports.Snapshot = "next"; lineage.View.Retry!();
+        Require(continued == 1, "Snapshot progression alone invalidated failure recovery identity.");
+
+        var ordered = new Fixture();
+        ordered.Recovery.Show(LocalMutationKind.Gift, "first", static () => { }, true); (await ordered.Ports.Next())();
+        ordered.Recovery.Close(); Action closeOld = await ordered.Ports.Next();
+        ordered.Recovery.Show(LocalMutationKind.Trade, "new", static () => { }, false); (await ordered.Ports.Next())();
+        closeOld(); Require(ordered.View.Message == "new" && ordered.View.Visible is not null, "Queued old close hid the new failure.");
+        ordered.Recovery.Close(); (await ordered.Ports.Next())(); Require(ordered.View.Visible is null, "Current failure did not close.");
+        var lateShow = new Fixture(); lateShow.Recovery.Show(LocalMutationKind.Gift, "closed", static () => { }, true);
+        var queuedShow = await lateShow.Ports.Next(); lateShow.Recovery.Close(); queuedShow();
+        Require(lateShow.View.Shown == 0, "Closed failure appeared from an older queued show.");
+    }
+
     internal static void Run() => RunAsync().GetAwaiter().GetResult();
     private static async Task RunAsync()
     {
@@ -121,7 +280,7 @@ internal static class EventConfirmationModuleTests
 
     private static async Task ReplacedOwners()
     {
-        foreach (string change in new[] { "login", "clear", "colony", "server", "snapshot", "generation", "lease" })
+        foreach (string change in new[] { "login", "clear", "colony", "server", "snapshot", "generation", "lease", "game" })
         foreach (bool queued in new[] { false, true })
         {
             var f = new Fixture(); var attempt = f.Capture();
@@ -141,7 +300,7 @@ internal static class EventConfirmationModuleTests
     private static async Task LateCompletions()
     {
         foreach (string mode in new[] { "single", "batch", "prepared-other" })
-        foreach (string change in new[] { "login", "clear", "colony", "generation", "lease" })
+        foreach (string change in new[] { "login", "clear", "colony", "generation", "lease", "game" })
         foreach (bool throws in new[] { false, true })
         {
             var f = new Fixture(); f.Protocol.Hold = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -186,6 +345,7 @@ internal static class EventConfirmationModuleTests
             case "colony": f.Ports.Colony = "new-colony"; break;
             case "server": f.Ports.Server = "http://other"; break;
             case "snapshot": f.Ports.Snapshot = "new-snapshot"; break;
+            case "game": f.Ports.GameOwner = new(); break;
             case "generation": ClientSessionWork.Reset(); f.Sync.Reset(); break;
             case "lease": f.Sync.Reset(); break;
         }
@@ -197,16 +357,23 @@ internal static class EventConfirmationModuleTests
         internal readonly Protocol Protocol = new();
         internal readonly ClientSynchronizationCoordinator Sync = new();
         internal readonly ClientEventInbox Inbox = new();
+        internal readonly ClientLocalMutationCoordinator Mutations = new();
+        internal readonly FailureView View;
         internal readonly ClientSessionLifecycle Session;
         internal readonly ClientEventConfirmation Confirmation;
+        internal readonly ClientEventConfirmationPreparation Preparation;
+        internal readonly ClientSnapshotFailureRecovery Recovery;
         internal readonly List<ClientEventConfirmationFailureKind> Failures = new();
         internal int Accepted;
         internal bool StartNextOnAccepted;
         internal ClientSynchronizationCoordinator.Lease? Next;
         internal Fixture()
         {
+            View = new(Ports);
             Session = new(Ports, Ports, new ClientSessionConnection(Ports));
             Confirmation = new(Session, Ports, new(Ports, Ports), Inbox, Protocol);
+            Preparation = new(Session, Sync, Mutations, Confirmation);
+            Recovery = new(Session, Mutations, Sync, Ports, View);
             Inbox.ReplaceQueue(new() { DirectlyProcessable = new() { new() { EventId = "event" } } });
         }
         internal ClientEventConfirmation.Attempt Capture()
@@ -241,7 +408,10 @@ internal static class EventConfirmationModuleTests
     {
         internal string User = "alice", Auth = "auth", Colony = "colony", Snapshot = "base", Server = "http://localhost";
         internal object GameOwner = new();
-        internal int Published, GamePublished, Queued;
+        internal int Published, GamePublished, Queued, Captures;
+        internal byte[] SaveBytes = SnapshotPackageModuleTests.Save();
+        internal SnapshotUploadFailure? CaptureFailure;
+        internal Action? OnCapture;
         internal readonly List<string> Trace = new();
         private readonly ConcurrentQueue<Action> pending = new();
         private readonly SemaphoreSlim available = new(0);
@@ -250,6 +420,7 @@ internal static class EventConfirmationModuleTests
         public void Publish(string snapshot, string? token) { Snapshot = snapshot; Published++; Trace.Add("store"); }
         public void Persist() => Trace.Add("persist");
         public IClientSnapshotGameSession BindCurrentGame() => new GameSession(this, GameOwner);
+        internal void Enqueue(Action action) { Queued++; pending.Enqueue(action); available.Release(); }
         internal async Task<Action> Next()
         {
             Require(await available.WaitAsync(TimeSpan.FromSeconds(5)), "Confirmation did not queue game work.");
@@ -258,15 +429,40 @@ internal static class EventConfirmationModuleTests
         private sealed record GameSession(Ports Ports, object Owner) : IClientSnapshotGameSession
         {
             public bool HasGame => true;
+            public bool IsCurrent => ReferenceEquals(Owner, Ports.GameOwner);
             public string RuntimeSnapshotId => Ports.Snapshot;
-            public SnapshotSaveCapture Capture(bool removeRaidBattleSessions) => throw new NotSupportedException();
+            public SnapshotSaveCapture Capture(bool removeRaidBattleSessions)
+            {
+                Require(!removeRaidBattleSessions, "Event confirmation changed snapshot capture mode.");
+                Ports.Captures++; Ports.OnCapture?.Invoke();
+                return new(Ports.SaveBytes, 42f, Array.Empty<ModSnapshotAchievementCandidateDto>(), Ports.CaptureFailure);
+            }
             public void Publish(string snapshot, string? token, IReadOnlyList<ModSnapshotAchievementCandidateDto> candidates)
             { Require(candidates.Count == 0, "Confirmation consumed unrelated achievements."); Ports.GamePublished++; Ports.Trace.Add("game"); }
             public void Enqueue(Action action, Action discard)
-            { Ports.Queued++; Ports.pending.Enqueue(() => { if (ReferenceEquals(Owner, Ports.GameOwner)) action(); else discard(); }); Ports.available.Release(); }
+            { Ports.Enqueue(() => { if (IsCurrent) action(); else discard(); }); }
         }
         public Task<ClashOfRimClientNetworkResult<ModLogoutResponseDto>> LogoutAsync(ClashOfRimClientNetworkContext context, string id) => throw new NotSupportedException();
         public Task<ClashOfRimClientNetworkResult<ModSessionStreamClosedDto>> StreamAsync(ClashOfRimClientNetworkContext context, string id, long version, long world, Action<ModSessionStreamEvent> onEvent, CancellationToken token) => throw new NotSupportedException();
+    }
+
+    private sealed class FailureView : IClientSnapshotFailureView
+    {
+        private readonly Ports ports;
+        internal FailureView(Ports ports) => this.ports = ports;
+        public void Enqueue(Action action) => ports.Enqueue(action);
+        internal ClientLocalMutationCoordinator.Failure? Visible;
+        internal Action? Retry, Exit, Closed;
+        internal Func<bool>? CurrentSession;
+        internal int Shown, Menus;
+        internal string? Message => Visible?.State.Status;
+        public void Show(ClientLocalMutationCoordinator.Failure failure, Action? retry, Action exit, Func<bool> belongsToCurrentSession, Action closed)
+        {
+            if (Visible is not null) Close(Visible);
+            Visible = failure; Retry = retry; Exit = exit; CurrentSession = belongsToCurrentSession; Closed = closed; Shown++;
+        }
+        public void Close(ClientLocalMutationCoordinator.Failure failure) { if (ReferenceEquals(Visible, failure)) { Visible = null; Closed?.Invoke(); } }
+        public void ReturnToMenu() => Menus++;
     }
 
     private sealed class Protocol : IClientEventConfirmationProtocol

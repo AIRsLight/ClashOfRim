@@ -11,9 +11,7 @@ internal sealed class ClientSnapshotPreparationAdapter
     internal bool TryBuild(string ownerId, string colonyId, out ModSnapshotPackageBuildResult build, out string failureReason)
     {
         bool success = preparation.TryBuild(ownerId, colonyId, out build, out var failure);
-        failureReason = success ? string.Empty : failure!.Fallback == SnapshotUploadMessage.BuildFailed
-            ? $"{failure.Code} {ClientSnapshotPackagePresentation.Message(failure.PackageError, failure.Message)}"
-            : failure.Message ?? $"{failure.Code} {failure.Code}";
+        failureReason = success ? string.Empty : ClientSnapshotPreparationPresentation.FailureReason(failure!);
         return success;
     }
 }

@@ -723,55 +723,17 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
-        if (TryRejectBlockedByLocalAtomicMutation(out string blockedMessage, request.Operation))
-        {
-            SetEventApplicationSnapshotConfirmationStatus(request, blockedMessage);
-            Messages.Message(blockedMessage, MessageTypeDefOf.RejectInput, historical: false);
-            return;
-        }
-
-        if (!CanRunManualSync(out string failureReason, request.Operation))
-        {
-            SetEventApplicationSnapshotConfirmationStatus(request, failureReason);
-            ShowUnconfirmedSnapshotFailure(
-                request.Operation,
-                failureReason,
-                request.RetryAction);
-            return;
-        }
-
-        if (!TryBeginSnapshotUploadTransaction(out var uploadTransaction))
-        {
-            string status = ClashOfRimText.Key("ClashOfRim.SnapshotUpload.Busy");
-            SetEventApplicationSnapshotConfirmationStatus(request, status);
-            Messages.Message(status, MessageTypeDefOf.RejectInput, historical: false);
-            return;
-        }
-
-        BeginLocalAtomicMutation(request.Operation, request.UploadingStatus);
-        if (!snapshotPreparation.TryBuild(
-                settings.UserId,
-                settings.ColonyId,
-                out ModSnapshotPackageBuildResult build,
-                out string buildFailureReason))
-        {
-            string status = request.BuildSnapshotBuildFailedStatus?.Invoke(buildFailureReason)
-                ?? $"{request.BuildFailurePrefix}：{buildFailureReason}";
-            SetEventApplicationSnapshotConfirmationStatus(request, status);
-            ShowUnconfirmedSnapshotFailure(
-                request.Operation,
-                status,
-                request.RetryAction);
-            uploadTransaction.Dispose();
-            return;
-        }
-
+        var prepared = eventConfirmationPreparation.Current(request.Operation, request.UploadingStatus);
+        if (ClientEventPreparationPresentation.ReportFailure(prepared,
+            message => SetEventApplicationSnapshotConfirmationStatus(request, message),
+            reason => request.BuildSnapshotBuildFailedStatus?.Invoke(reason) ?? $"{request.BuildFailurePrefix}：{reason}", request.RetryAction, snapshotFailureRecovery)) return;
+        var attempt = prepared.Attempt!;
+        ModSnapshotPackageBuildResult build = prepared.Build!;
         string eventId = request.EventId;
         ModSnapshotPackageMetadataDto confirmedSnapshot = build.Package!;
         byte[] confirmedPayload = build.Payload!;
         SetEventApplicationSnapshotConfirmationStatus(request, request.UploadingStatus);
 
-        var attempt = eventConfirmation.Capture(uploadTransaction);
         var command = eventConfirmation.Single(attempt, request.IdempotencyPrefix, eventId, request.SourceEventId,
             request.BaseSnapshotId, confirmedSnapshot, confirmedPayload, request.ClientApplicationResult);
         ClientSessionWork.Run(() => eventConfirmation.ConfirmAsync(attempt, command,
@@ -848,57 +810,16 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
-        if (TryRejectBlockedByLocalAtomicMutation(out string blockedMessage, request.Operation))
-        {
-            SetEventApplicationsSnapshotConfirmationStatus(request, blockedMessage);
-            Messages.Message(blockedMessage, MessageTypeDefOf.RejectInput, historical: false);
-            return;
-        }
-
-        if (!CanRunManualSync(out string failureReason, request.Operation))
-        {
-            SetEventApplicationsSnapshotConfirmationStatus(request, failureReason);
-            ShowUnconfirmedSnapshotFailure(
-                request.Operation,
-                failureReason,
-                request.RetryAction);
-            return;
-        }
-
-        if (!TryBeginSnapshotUploadTransaction(out var uploadTransaction))
-        {
-            string status = ClashOfRimText.Key("ClashOfRim.SnapshotUpload.Busy");
-            SetEventApplicationsSnapshotConfirmationStatus(request, status);
-            Messages.Message(status, MessageTypeDefOf.RejectInput, historical: false);
-            return;
-        }
-
-        BeginLocalAtomicMutation(request.Operation, request.UploadingStatus);
-        if (!snapshotPreparation.TryBuild(
-                settings.UserId,
-                settings.ColonyId,
-                out ModSnapshotPackageBuildResult build,
-                out string buildFailureReason))
-        {
-            string status = request.BuildSnapshotBuildFailedStatus?.Invoke(buildFailureReason)
-                        ?? ClashOfRimText.Key(
-                            "ClashOfRim.Events.StatusBatchConfirmBuildFailed",
-                            buildFailureReason.Named("REASON"));
-            SetEventApplicationsSnapshotConfirmationStatus(request, status);
-            Log.Warning($"[ClashOfRim][EventBatchConfirm] build memory snapshot failed applications={request.Applications.Count} reason={buildFailureReason}");
-            ShowUnconfirmedSnapshotFailure(
-                request.Operation,
-                status,
-                request.RetryAction);
-            uploadTransaction.Dispose();
-            return;
-        }
-
+        var prepared = eventConfirmationPreparation.Current(request.Operation, request.UploadingStatus);
+        if (ClientEventPreparationPresentation.ReportFailure(prepared,
+            message => SetEventApplicationsSnapshotConfirmationStatus(request, message),
+            reason => request.BuildSnapshotBuildFailedStatus?.Invoke(reason) ?? ClashOfRimText.Key("ClashOfRim.Events.StatusBatchConfirmBuildFailed", reason.Named("REASON")), request.RetryAction, snapshotFailureRecovery)) return;
+        var attempt = prepared.Attempt!;
+        ModSnapshotPackageBuildResult build = prepared.Build!;
         ModSnapshotPackageMetadataDto confirmedSnapshot = build.Package!;
         byte[] confirmedPayload = build.Payload!;
         SetEventApplicationsSnapshotConfirmationStatus(request, request.UploadingStatus);
 
-        var attempt = eventConfirmation.Capture(uploadTransaction);
         var command = eventConfirmation.Batch(attempt, request.IdempotencyPrefix, confirmedSnapshot, confirmedPayload, request.Applications);
         ClientSessionWork.Run(() => eventConfirmation.ConfirmBatchAsync(attempt, command,
             failure =>
@@ -968,33 +889,15 @@ public sealed partial class ClashOfRimMod
     private void StartConfirmPreparedIdentityEventApplicationSnapshot(
         PreparedIdentityEventApplicationSnapshotConfirmationRequest request)
     {
-        if (request.ConfirmedSnapshot is null || request.ConfirmedPayload.Length == 0)
-        {
-            request.UploadTransaction?.Dispose();
-            return;
-        }
-
+        var prepared = eventConfirmationPreparation.Prepared(request.Operation, request.UploadingStatus,
+            request.ConfirmedSnapshot, request.ConfirmedPayload, request.UploadTransaction);
+        if (ClientEventPreparationPresentation.ReportFailure(prepared,
+            message => SetPreparedIdentityEventApplicationSnapshotConfirmationStatus(request, message),
+            null, request.RetryAction, snapshotFailureRecovery)) return;
+        var attempt = prepared.Attempt!;
+        LocalMutationKind operation = prepared.Operation;
         ModSnapshotPackageMetadataDto confirmedSnapshot = request.ConfirmedSnapshot;
         byte[] confirmedPayload = request.ConfirmedPayload;
-        LocalMutationKind operation = request.Operation == LocalMutationKind.None
-            ? LocalMutationKind.PreparedEvent : request.Operation;
-        if (TryRejectBlockedByLocalAtomicMutation(out string blockedMessage, operation))
-        {
-            SetPreparedIdentityEventApplicationSnapshotConfirmationStatus(request, blockedMessage);
-            Messages.Message(blockedMessage, MessageTypeDefOf.RejectInput, historical: false);
-            request.UploadTransaction?.Dispose();
-            return;
-        }
-
-        if (!synchronization.TryAcquireSnapshot(out var uploadTransaction, request.UploadTransaction))
-        {
-            string status = ClashOfRimText.Key("ClashOfRim.SnapshotUpload.Busy");
-            SetPreparedIdentityEventApplicationSnapshotConfirmationStatus(request, status);
-            Messages.Message(status, MessageTypeDefOf.RejectInput, historical: false);
-            return;
-        }
-
-        BeginLocalAtomicMutation(operation, request.UploadingStatus);
         SetPreparedIdentityEventApplicationSnapshotConfirmationStatus(request, request.UploadingStatus);
         ClashLog.Message("[ClashOfRim] Prepared identity event confirmation upload started: operation="
             + operation
@@ -1010,7 +913,6 @@ public sealed partial class ClashOfRimMod
             + (confirmedSnapshot.SnapshotId ?? string.Empty)
             + ".");
 
-        var attempt = eventConfirmation.Capture(uploadTransaction);
         var command = new ClientEventConfirmationCommand(request.IdempotencyKey, request.EventId, request.SourceEventId,
             request.UserId, request.ColonyId, request.BaseSnapshotId, confirmedSnapshot, confirmedPayload,
             request.ClientApplicationResult, request.HttpTimeout);

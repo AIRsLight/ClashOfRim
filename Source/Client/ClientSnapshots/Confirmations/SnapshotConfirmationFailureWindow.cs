@@ -10,18 +10,22 @@ internal sealed class SnapshotConfirmationFailureWindow : Window
     private readonly string message;
     private readonly Action? retryUpload;
     private readonly Action returnToMainMenu;
+    private readonly Func<bool> belongsToCurrentSession;
     private bool operationInProgress;
+    internal event Action? Closed;
 
     public SnapshotConfirmationFailureWindow(
         string operation,
         string message,
         Action? retryUpload,
-        Action returnToMainMenu)
+        Action returnToMainMenu,
+        Func<bool> belongsToCurrentSession)
     {
         this.operation = operation ?? string.Empty;
         this.message = message ?? string.Empty;
         this.retryUpload = retryUpload;
         this.returnToMainMenu = returnToMainMenu ?? throw new ArgumentNullException(nameof(returnToMainMenu));
+        this.belongsToCurrentSession = belongsToCurrentSession ?? throw new ArgumentNullException(nameof(belongsToCurrentSession));
         doCloseX = false;
         absorbInputAroundWindow = true;
         forcePause = true;
@@ -31,8 +35,15 @@ internal sealed class SnapshotConfirmationFailureWindow : Window
 
     public override Vector2 InitialSize => new(640f, 300f);
 
+    public override void PostClose()
+    {
+        base.PostClose();
+        Closed?.Invoke();
+    }
+
     public override void DoWindowContents(Rect inRect)
     {
+        if (!belongsToCurrentSession()) { Close(); return; }
         Text.Font = GameFont.Medium;
         Widgets.Label(new Rect(inRect.x, inRect.y, inRect.width, 34f), ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.Title"));
         Text.Font = GameFont.Small;

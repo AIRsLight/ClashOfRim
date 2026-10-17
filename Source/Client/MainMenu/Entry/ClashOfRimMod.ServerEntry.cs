@@ -1015,21 +1015,7 @@ public sealed partial class ClashOfRimMod
     }
 
     private static void EnqueueClashOfRimMainThreadAction(Action action, Action? onDiscard = null)
-    {
-        if (action is null)
-        {
-            return;
-        }
-
-        if (Current.ProgramState == ProgramState.Playing)
-        {
-            ClashOfRimGameComponent.EnqueueMainThreadAction(action, onDiscard);
-        }
-        else
-        {
-            ClashOfRimMainMenuPatches.EnqueueMainThreadAction(action, onDiscard);
-        }
-    }
+        => ClientMainThreadDispatcher.Enqueue(action, onDiscard);
 
     private static void ShowServerEntryProgressWindow(string title, string message, float progress, bool canClose)
     {

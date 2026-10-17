@@ -13,8 +13,12 @@ internal sealed class ClientSnapshotPreparation
     internal ClientSnapshotPreparation(IClientSnapshotGame game) => this.game = game;
 
     internal bool TryBuild(string ownerId, string colonyId, out ModSnapshotPackageBuildResult build, out SnapshotUploadFailure? failure)
+        => TryBuild(game.BindCurrentGame(), ownerId, colonyId, out build, out failure);
+
+    internal static bool TryBuild(IClientSnapshotGameSession session, string ownerId, string colonyId,
+        out ModSnapshotPackageBuildResult build, out SnapshotUploadFailure? failure)
     {
-        SnapshotSaveCapture capture = Capture(game.BindCurrentGame(), false);
+        SnapshotSaveCapture capture = Capture(session, false);
         build = Build(capture, ownerId, colonyId);
         bool success = build.Success && build.Package is not null && build.Payload is not null;
         failure = success ? null : capture.Failure ?? SnapshotUploadFailure.FromPackageBuild(build);

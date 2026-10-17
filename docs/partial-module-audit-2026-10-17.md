@@ -549,3 +549,29 @@ Release 全回归通过客户端 60 项、Client.Core 10 组、Events、Save 和
 最终实机批次 `G:/RimTestRuns/ClashOfRim-module-migration/20261017-085630-2e472b03` 通过 core-features 43/43、gift-repeat-accept 18/18、stability-transfers-dlc 22/22、account-core 22/22，共 105 项，无未执行项。覆盖礼物重复接收、支援提前/拒绝/到期归还、复杂物品与全 DLC、远程地图、袭击损失后重载结算、两个账户废弃后重建、成就跨代隔离、快照重载及重连。四场输入与最终 DLL SHA256 均为 `84DB6A31BD9ACF1A06429FEDA337770A47DB235F314C3B4CCCAF2BC0523850CA`；执行与核对记录为 `m4c2a-rimtest.log`、`m4c2a-verification.json`。全 DLC 和账户场景各记录一次 `/world/configuration/current` HTTP 400，核心与重复赠礼场景没有该记录；既有世界请求和此前银行袭击生成失败仍未关闭。
 
 M4c2a 完成。下一步继续迁移确认的准入/准备和结果显示接入，再迁移依赖它们的信件按钮及应用编排；宿主中的请求 DTO、失败窗口和领域动作仍需按各自职责拆分。M4c2、M4 整体及 M5–M12 仍未完成。
+
+### M4c2b 确认准入、准备与失败恢复
+
+`ClientEventConfirmationPreparation` 接管单事件、批量事件和预备身份确认的同步准入与本地变更登记。普通确认复用 `ClientLocalMutationCoordinator.CheckAdmission` 和同一同步协调器，绑定原身份与游戏后调用既有 `ClientSnapshotPreparation`；预备确认继续复用已有包及可选 Lease，不重新捕获快照，不改变原有对当前快照配置的不同要求。原 partial 删除三份准入与准备分支，成功后直接把模块持有的 Attempt 交给确认执行模块，不在准备之后重新绑定身份。
+
+快照捕获、打包失败或抛错都会释放此次 Lease，同时保留尚未确认的本地变更；同一操作仍可重新进入准备。捕获期间替换登录身份、游戏或基础快照时返回失效结果，不发送旧包。`ClientSnapshotPreparation` 增加接受已绑定游戏的重载，两种调用方式复用同一捕获、打包和结构化错误算法。`ClientSnapshotPreparationPresentation` 统一原有错误文本映射，旧适配器和新的 `ClientEventPreparationPresentation` 共同使用；后者负责准入拒绝消息及准备失败的显示/恢复接入，不持有完整宿主。
+
+`ClientSnapshotFailureRecovery` 接管失败窗口的延迟显示、关闭和决策，继续使用既有本地变更协调器记录失败、消费一次重试或退出，不建立第二套失败状态机。窗口绑定调用时的身份、服务器、殖民地和游戏；重登、清除身份、换服务器/殖民地/游戏、跨代退出都会阻止旧窗口执行重试或退出。身份发生变化时释放活动窗口引用，旧窗口在下一次绘制时也会检查所属会话并关闭。单纯推进快照编号不使同一身份的恢复决策失效。已记录的本地未确认变更仍由既有退出/重连流程处理，本步没有新增在身份变化时直接丢弃这些变更的数据策略。
+
+关闭动作按确切失败对象匹配，旧的延迟关闭不能隐藏后来显示的新失败；窗口关闭后也释放视图和恢复模块保存的引用，避免继续持有旧游戏。重试期间窗口仍保留既有等待显示；重试和退出能否执行继续由本地变更协调器判断。`ClientSnapshotFailureView` 负责真实窗口和主菜单跳转，主类仅在返回菜单事件中解除世界注册抑制，作为 M8 迁移前的窄接入。原 `SnapshotConfirmationFailures` partial 只剩两个转发入口，供 M5–M8 尚未迁移的领域调用，不再维护窗口或恢复算法。
+
+游戏端口新增 `IsCurrent`，复用实际 `Current.Game` 引用比较：排队动作、确认请求/回执及已显示的恢复窗口都能使用同一所属游戏判断。会话模块统一认证上下文的归属比较，确认执行与失败恢复不再各自维护该比较。它们对快照编号的要求保持明确区别：提交要求原基础快照，恢复窗口只要求身份及游戏归属。旧领域若在同代登录变化后才错误地调用共享失败入口，其上游响应仍需要在 M5–M8 迁移时绑定原身份；入口在被调用时捕获身份不能替代上游请求所有权。
+
+新测试复用上一阶段的确认 fixture 和已有真实存档样本，直接覆盖缺少身份/快照、不同种类的待确认变更、手工/快照忙碌、普通准备、预备 Lease 复用和提升、失效 continuation、无效预备数据、序列化失败/无效 XML/异常/取消、捕获时替换身份或游戏；并检查 32 次并发重试只执行一次、退出一次性消费、重试过程中再次失败、已显示和排队中的旧窗口、迟到关闭、快照推进及各类身份变化。原银行/事件 continuation 集成测试更新真实模块装配，仍实际执行产品入口及失败状态，仅替换游戏序列化和语言环境，不向产品添加未初始化字段的兜底。模块和显示适配器依赖检查同步扩展。
+
+迁移首版误把失败窗口派发放入仅由游戏组件推进的队列，遗漏了原入口在主菜单时选择主菜单队列的语义。首轮普通实机矩阵通过并不能覆盖该失败分支；随后增强的银行/事件 continuation 集成测试在真实产品入口注入保存失败、只推进实际主菜单队列，复现 `StartBuildAndSubmitPreparedBankLoanTransaction failure did not reach the main-menu view`，记录为 `m4c2b-menu-before.log`。修正后将原派发算法归入 `ClientMainThreadDispatcher`，旧宿主入口与失败视图共同转发，保留原游戏/主菜单选择、代次保护及进入游戏后的队列交接，没有复制新的场景分支。失败视图与只负责已绑定游戏的快照端口分别派发，各自复用已有调度器。五个银行/事件入口的主菜单失败投递断言及全部客户端测试现已通过。
+
+初轮完整 Release 回归通过客户端 61 项、Client.Core 10 组、Events、Save 和 NetworkSmoke，日志为 `m4c2b-regression.log`；主菜单派发修正后最终客户端 61 项再次通过，日志为 `m4c2b-client-final.log`，它包含新增的主菜单断言。依赖检查覆盖 161 个模块产品及生成类型、14 个事件/快照显示适配器类型。最终第三方兼容包构建与冻结 1.6 的主包 77/兼容包 8 个文件检查通过，日志为 `m4c2b-third-party-final.log`。首轮 `m4c2b-client-dev.log`、`m4c2b-third-party.log` 不替代这些最终检查。
+
+派发修正前的实机批次 `G:/RimTestRuns/ClashOfRim-module-migration/20261017-092726-8e61824e` 为 123/123，通过核心 43、重复赠礼 18、全 DLC 流转 22、银行 18、账户 22 项，无未执行项；DLL SHA256 为 `9DDE65D886C96869BB31C69B6A5C5F18B54780B5D48DE7E7820E8F877754A3E9`。记录为 `m4c2b-rimtest-initial.log`、`m4c2b-verification-initial.json`。核心、重复赠礼和银行场景各有一次世界配置 HTTP 400，全 DLC 和账户场景没有；这些告警继续保留。该矩阵未强制打开失败窗口，不能据此否定随后复现的主菜单派发问题，也不作为最终产物的实机证明。
+
+最终实机批次 `G:/RimTestRuns/ClashOfRim-module-migration/20261017-094244-fe8a0c99` 通过 core-features 43/43、gift-repeat-accept 18/18、stability-transfers-dlc 22/22、bank-core 18/18、account-core 22/22，共 123 项，无未执行项。覆盖原有事件和经济流程、重复赠礼、复杂物品、全 DLC 支援与袭击重载结算、银行逾期和雇佣债务、两个账户的废弃/重建、成就跨代隔离、重载及重连。五场输入与最终 DLL SHA256 均为 `6F5E1630CED1125831524F2588A61384AA8D8135B4878E76449773E13190A01A`，执行和产物核对记录为 `m4c2b-rimtest.log`、`m4c2b-verification.json`。核心场景记录两次 `/world/configuration/current` HTTP 400，全 DLC 场景一次，其余三场没有；世界请求告警及此前银行袭击生成失败仍保持开放追踪。
+
+实机矩阵验证正常领域流程；失败提示的主菜单派发由真实入口、真实队列的故障注入集成测试验证，最后的窗口显示被测试观察器替换。窗口决策并发与身份替换由实际恢复模块测试验证，不能将这些证据称为全部失败窗口的实机视觉检查。
+
+M4c2b 完成。下一步统一确认请求中的状态文案模板和领域结果接入，删除剩余宿主确认编排，再继续信件按钮与应用动作。M4c2、M4 整体及 M5–M12 尚未完成。

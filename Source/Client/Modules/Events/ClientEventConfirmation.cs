@@ -121,17 +121,12 @@ internal sealed class ClientEventConfirmation
         finally { attempt.Admission.Dispose(); }
     }
 
-    private bool TryApply(Attempt attempt, Action action, bool requireBaseSnapshot = true)
+    internal bool TryApply(Attempt attempt, Action action, bool requireBaseSnapshot = true)
     {
         bool applied = false;
         ClientSessionWork.TryApply(() =>
         {
-            if (!session.Owns(attempt.Owner) || !attempt.Admission.IsCurrent) return;
-            var current = session.ReadContext();
-            var expected = attempt.Context;
-            if (current.ServerBaseUrl != expected.ServerBaseUrl || current.UserId != expected.UserId
-                || current.ColonyId != expected.ColonyId || current.AuthToken != expected.AuthToken
-                || (requireBaseSnapshot && current.CurrentSnapshotId != expected.CurrentSnapshotId)) return;
+            if (!attempt.Admission.IsCurrent || !attempt.Game.IsCurrent || !session.Owns(attempt.Owner, attempt.Context, requireBaseSnapshot)) return;
             action();
             applied = true;
         });
