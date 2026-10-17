@@ -1,5 +1,6 @@
 using System;
 using System.Threading;
+using System.Threading.Tasks;
 using AIRsLight.ClashOfRim.ClientNetwork;
 
 namespace AIRsLight.ClashOfRim.Modules.Synchronization;
@@ -11,6 +12,23 @@ internal sealed class ClientLocalMutationCoordinator
     private readonly object gate = new();
     private LocalMutationState? current;
     private Failure? failure;
+    private TaskCompletionSource changed = NewChangeSignal();
+
+    private static TaskCompletionSource NewChangeSignal() => new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private void SignalChanged()
+    { var previous = changed; changed = NewChangeSignal(); previous.TrySetResult(); }
+
+    // Queued business work must wait for an unresolved local mutation without
+    // holding snapshot admission or polling the failure window.
+    internal async Task WaitUntilClearAsync(CancellationToken token)
+    {
+        while (true)
+        {
+            Task wait;
+            lock (gate) { token.ThrowIfCancellationRequested(); if (current is null) return; wait = changed.Task; }
+            await wait.WaitAsync(token).ConfigureAwait(false);
+        }
+    }
 
     internal LocalMutationState? Current { get { lock (gate) return current; } }
     internal bool IsPending { get { lock (gate) return current is not null; } }
@@ -22,6 +40,7 @@ internal sealed class ClientLocalMutationCoordinator
         {
             failure = null;
             current = new LocalMutationState(kind, status, ClientSessionWork.Token);
+            SignalChanged();
         }
     }
 
@@ -34,7 +53,7 @@ internal sealed class ClientLocalMutationCoordinator
     internal void Reset()
     {
         using var publication = ClientSessionWork.EnterPublication();
-        lock (gate) { current = null; failure = null; }
+        lock (gate) { current = null; failure = null; SignalChanged(); }
     }
 
     internal LocalMutationState? BlockingMutation(LocalMutationKind? continuation = null)
@@ -78,7 +97,7 @@ internal sealed class ClientLocalMutationCoordinator
             {
                 if (!IsCurrent(candidate) || (retry && !candidate.CanRetry)) return;
                 failure = null;
-                if (!retry) current = null;
+                if (!retry) { current = null; SignalChanged(); }
                 accepted = true;
             }
             // Consume the decision before invoking it: old windows cannot retry twice

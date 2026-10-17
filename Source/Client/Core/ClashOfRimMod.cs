@@ -67,6 +67,7 @@ public sealed partial class ClashOfRimMod : Mod
     private readonly ClientBankOperations bankOperations;
     private readonly ClientLocalSnapshotConfirmation localSnapshotConfirmation;
     private readonly ClientMercenaryConfirmation mercenaryConfirmation;
+    private readonly ClientMercenaryIncidents mercenaryIncidents;
     private readonly ClientMercenaryQuotes mercenaryQuotes;
     private readonly ClientMercenaryState mercenaryState;
     private readonly ClientMercenaryHiring mercenaryHiring;
@@ -208,7 +209,12 @@ public sealed partial class ClashOfRimMod : Mod
             snapshotTransactions, snapshotFailureRecovery, new ClientMercenaryRuntime(), mercenaryTransport, mercenaryPresentation);
         mercenaryHiring.Completed += StartQueuedAutomaticEventRefreshAfterLocalAtomicMutation;
         mercenaryConfirmation = new ClientMercenaryConfirmation(localSnapshotConfirmation, mercenaryState, mercenaryPresentation);
-        mercenaryConfirmation.ContractCompleted += (id, key) => StartReportMercenaryIncident(id, "Completed", key);
+        mercenaryIncidents = new ClientMercenaryIncidents(sessionLifecycle, mercenaryState, bankState, synchronization, localMutations,
+            mutationAdmission, snapshotTransactions, snapshotFailureRecovery, mercenaryConfirmation, mercenaryTransport,
+            new ClientMercenaryIncidentRuntime(), mercenaryPresentation);
+        mercenaryIncidents.BankRefreshRequested += StartRefreshBankStatus;
+        mercenaryIncidents.Completed += StartQueuedAutomaticEventRefreshAfterLocalAtomicMutation;
+        mercenaryConfirmation.ContractCompleted += (id, key) => _ = mercenaryIncidents.ReportAsync(id, "Completed", key);
         mercenaryConfirmation.BankRefreshRequested += StartRefreshBankStatus;
         Func<ClientGiftCapabilities> giftCapabilities = () => new(giftsEnabled, pvpEnabled);
         var giftPresentation = new ClientGiftPresentation(message => eventState.ActionStatus = message);

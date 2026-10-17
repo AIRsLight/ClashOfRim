@@ -1521,6 +1521,7 @@
   <ClashOfRim.Mercenary.StatusHired>{PAWN}이 셔틀로 도착했습니다. 가격 {PRICE} 은. 현재 상태를 저장 중입니다.</ClashOfRim.Mercenary.StatusHired>
   <ClashOfRim.Mercenary.StatusHiredConfirmed>용병이 도착했습니다. 가격 {PRICE} 은.</ClashOfRim.Mercenary.StatusHiredConfirmed>
   <ClashOfRim.Mercenary.StatusHiring>용병 고용 중.</ClashOfRim.Mercenary.StatusHiring>
+  <ClashOfRim.Mercenary.StatusIncidentIncomplete>서버가 반환한 용병 사고 채무 정보가 불완전합니다.</ClashOfRim.Mercenary.StatusIncidentIncomplete>
   <ClashOfRim.Mercenary.StatusIncidentFailed>용병 사고 보고 실패: {CODE} {MESSAGE}</ClashOfRim.Mercenary.StatusIncidentFailed>
   <ClashOfRim.Mercenary.StatusIncidentRejected>용병 사고가 서버에 거부되었습니다: {CODE} {MESSAGE}</ClashOfRim.Mercenary.StatusIncidentRejected>
   <ClashOfRim.Mercenary.StatusIncidentReported>용병 사고를 보고했습니다.</ClashOfRim.Mercenary.StatusIncidentReported>

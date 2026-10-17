@@ -243,8 +243,9 @@ internal static class EventCommandPresentationTests
         foreach (string key in new[] { "PriceLine", "StatusQuoteFailed", "StatusQuoteRejected", "StatusQuoteException",
             "StatusHiring", "GuardStatusHiring", "StatusHireFailed", "StatusHireRejected", "StatusMissingContract", "StatusNoMap",
             "StatusInsufficientSilver", "StatusArrivalPawnMissing", "StatusConfirmationFailed", "StatusBusy", "StatusUploadingConfirmation",
-            "StatusConfirmationIncomplete", "StatusConfirmationSucceeded", "StatusHiredConfirmed", "GuardStatusConfirmed", "StatusException" })
-            RequireResolved(view.Text(key, ("PRICE", 350), ("CODE", "Conflict"), ("MESSAGE", "server-message"), ("TYPE", "IOException"), ("NEEDED", 350), ("AVAILABLE", 10), ("SNAPSHOT", "snapshot")));
+            "StatusConfirmationIncomplete", "StatusConfirmationSucceeded", "StatusHiredConfirmed", "GuardStatusConfirmed", "StatusException",
+            "StatusNotConfigured", "StatusReportingIncident", "StatusIncidentFailed", "StatusIncidentRejected", "StatusIncidentIncomplete", "StatusIncidentReportedNoDebt", "StatusIncidentReported" })
+            RequireResolved(view.Text(key, ("PRICE", 350), ("CODE", "Conflict"), ("MESSAGE", "server-message"), ("TYPE", "IOException"), ("NEEDED", 350), ("AVAILABLE", 10), ("SNAPSHOT", "snapshot"), ("FINE", 50)));
         if (view.Text("PriceLine", ("PRICE", 350)) != AIRsLight.ClashOfRim.Mercenaries.MercenaryUiUtility.FormatPriceLine(350))
             throw new Exception("Mercenary quote presentation changed its price text.");
     }

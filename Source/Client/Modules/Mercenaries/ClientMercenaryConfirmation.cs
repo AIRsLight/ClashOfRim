@@ -14,7 +14,12 @@ internal sealed class ClientMercenaryConfirmation
     { this.confirmation = confirmation; this.state = state; this.presentation = presentation; }
     internal event Action<string, string>? ContractCompleted;
     internal event Action? BankRefreshRequested;
-    internal Task ConfirmAsync(string? completedContractId = null, string? completionIdempotencyKey = null) => confirmation.StartAsync(new()
+    internal Task ConfirmAsync(string? completedContractId = null, string? completionIdempotencyKey = null) =>
+        confirmation.StartAsync(Request(completedContractId, completionIdempotencyKey));
+    internal Task ConfirmIncidentAsync(ClientSnapshotTransaction.Attempt attempt, Action confirmed) =>
+        confirmation.ContinueAsync(Request(null, null) with { OnSuccessOnMainThread = _ =>
+        { confirmed(); BankRefreshRequested?.Invoke(); } }, attempt);
+    private ClientLocalSnapshotRequest Request(string? completedContractId, string? completionIdempotencyKey) => new()
     {
         Operation = LocalMutationKind.Mercenary,
         UploadingStatus = presentation.Text("StatusUploadingConfirmation"),
@@ -29,5 +34,5 @@ internal sealed class ClientMercenaryConfirmation
                     ? "mercenary-completed:" + completedContractId : completionIdempotencyKey!);
             else BankRefreshRequested?.Invoke();
         }
-    });
+    };
 }

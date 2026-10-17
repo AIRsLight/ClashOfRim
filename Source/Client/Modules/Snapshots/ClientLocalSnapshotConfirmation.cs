@@ -58,6 +58,13 @@ internal sealed class ClientLocalSnapshotConfirmation
     }
     internal event Action? Completed;
     internal Task StartAsync(ClientLocalSnapshotRequest intent) => Start(intent, null, null);
+    internal Task ContinueAsync(ClientLocalSnapshotRequest intent, ClientSnapshotTransaction.Attempt attempt)
+    {
+        using var p = ClientSessionWork.EnterPublication();
+        Task work = Task.CompletedTask;
+        transactions.TryApply(attempt, () => work = StartAdmitted(intent, attempt));
+        return work;
+    }
 
     private Task Start(ClientLocalSnapshotRequest intent, ClientSnapshotTransaction.Attempt? original, ClientGameRequestTracker.Scope? scope)
     {
@@ -80,6 +87,11 @@ internal sealed class ClientLocalSnapshotConfirmation
             else presentation.Message(message, false, intent.BestEffort);
             return Task.CompletedTask;
         }
+        return StartAdmitted(intent, attempt);
+    }
+    private Task StartAdmitted(ClientLocalSnapshotRequest intent, ClientSnapshotTransaction.Attempt attempt)
+    {
+        requests.Capture();
         if (!synchronization.TryAcquireSnapshot(out var upload, attempt.Admission))
         { attempt.Admission.Dispose(); Status(intent, presentation.Busy); return Task.CompletedTask; }
         attempt = attempt with { Admission = upload };

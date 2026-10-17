@@ -1520,6 +1520,7 @@
   <ClashOfRim.Mercenary.StatusHired>{PAWN} arrived by shuttle. Price {PRICE} silver. Saving current state.</ClashOfRim.Mercenary.StatusHired>
   <ClashOfRim.Mercenary.StatusHiredConfirmed>Mercenary arrived. Price {PRICE} silver.</ClashOfRim.Mercenary.StatusHiredConfirmed>
   <ClashOfRim.Mercenary.StatusHiring>Hiring a mercenary.</ClashOfRim.Mercenary.StatusHiring>
+  <ClashOfRim.Mercenary.StatusIncidentIncomplete>The server returned an incomplete mercenary incident debt.</ClashOfRim.Mercenary.StatusIncidentIncomplete>
   <ClashOfRim.Mercenary.StatusIncidentFailed>Mercenary incident report failed: {CODE} {MESSAGE}</ClashOfRim.Mercenary.StatusIncidentFailed>
   <ClashOfRim.Mercenary.StatusIncidentRejected>Mercenary incident rejected by server: {CODE} {MESSAGE}</ClashOfRim.Mercenary.StatusIncidentRejected>
   <ClashOfRim.Mercenary.StatusIncidentReported>Mercenary incident reported.</ClashOfRim.Mercenary.StatusIncidentReported>

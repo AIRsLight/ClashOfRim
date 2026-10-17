@@ -1520,6 +1520,7 @@
   <ClashOfRim.Mercenary.StatusHired>{PAWN} 已乘坐穿梭机抵达，费用 {PRICE} 白银。正在保存当前状态。</ClashOfRim.Mercenary.StatusHired>
   <ClashOfRim.Mercenary.StatusHiredConfirmed>佣兵已抵达，费用 {PRICE} 白银。</ClashOfRim.Mercenary.StatusHiredConfirmed>
   <ClashOfRim.Mercenary.StatusHiring>正在雇佣佣兵。</ClashOfRim.Mercenary.StatusHiring>
+  <ClashOfRim.Mercenary.StatusIncidentIncomplete>服务器返回的佣兵事故欠款信息不完整。</ClashOfRim.Mercenary.StatusIncidentIncomplete>
   <ClashOfRim.Mercenary.StatusIncidentFailed>佣兵事故上报失败：{CODE} {MESSAGE}</ClashOfRim.Mercenary.StatusIncidentFailed>
   <ClashOfRim.Mercenary.StatusIncidentRejected>佣兵事故被服务器拒绝：{CODE} {MESSAGE}</ClashOfRim.Mercenary.StatusIncidentRejected>
   <ClashOfRim.Mercenary.StatusIncidentReported>佣兵事故已上报。</ClashOfRim.Mercenary.StatusIncidentReported>

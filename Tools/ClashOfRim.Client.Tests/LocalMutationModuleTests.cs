@@ -20,6 +20,7 @@ internal static class LocalMutationModuleTests
             CallbackFailures();
             await ConcurrentDecisions();
             await ExpiredWork();
+            await WaitingForClear();
         }
         finally { ClientSessionWork.Reset(); }
     }
@@ -58,6 +59,27 @@ internal static class LocalMutationModuleTests
             Require(!mutations.IsPending && mutations.CheckAdmission(true, true) == LocalMutationAdmission.Allowed,
                 "Reset left local work blocked.");
         }
+    }
+
+    private static async Task WaitingForClear()
+    {
+        var mutations = new ClientLocalMutationCoordinator();
+        await mutations.WaitUntilClearAsync(CancellationToken.None);
+        mutations.Begin(LocalMutationKind.Bank, "bank");
+        Task first = mutations.WaitUntilClearAsync(CancellationToken.None), second = mutations.WaitUntilClearAsync(CancellationToken.None);
+        mutations.UpdateStatus("pending"); mutations.Begin(LocalMutationKind.Trade, "trade");
+        var failure = mutations.RecordFailure(LocalMutationKind.Trade, "retry", () => { }, true);
+        Require(mutations.TryRetry(failure) && !first.IsCompleted && !second.IsCompleted, "Waiting work crossed a replacement mutation or retry decision.");
+        mutations.Reset(); await Task.WhenAll(first, second).WaitAsync(TimeSpan.FromSeconds(5));
+        mutations.Begin(LocalMutationKind.Bank, "bank");
+        using var cancellation = new CancellationTokenSource();
+        var canceled = mutations.WaitUntilClearAsync(cancellation.Token); cancellation.Cancel();
+        try { await canceled; throw new Exception("Canceled local-mutation waiter completed normally."); }
+        catch (OperationCanceledException) { }
+        Require(mutations.IsPending, "Canceling a waiter cleared somebody else's local mutation.");
+        failure = mutations.RecordFailure(LocalMutationKind.Bank, "exit", () => { }, false);
+        var exiting = mutations.WaitUntilClearAsync(CancellationToken.None);
+        mutations.TryExit(failure, () => { }); await exiting.WaitAsync(TimeSpan.FromSeconds(5));
     }
 
     private static void FailureDecisions()

@@ -7,8 +7,14 @@ using AIRsLight.ClashOfRim.Modules.Transport;
 
 namespace AIRsLight.ClashOfRim.ClientNetwork;
 
-internal sealed class ClientMercenaryTransport : IClientMercenaryQuoteTransport, IClientMercenaryHiringTransport
+internal sealed class ClientMercenaryTransport : IClientMercenaryQuoteTransport, IClientMercenaryHiringTransport, IClientMercenaryIncidentTransport
 {
+    public async Task<ClashOfRimClientNetworkResult<ModMercenaryIncidentResponseDto>> ReportAsync(ClashOfRimClientNetworkContext context,
+        ClientMercenaryIncidentCommand command, CancellationToken token)
+    {
+        using var http = new HttpClient();
+        return await Create(http, context).ReportMercenaryIncidentAsync(command.Key, command.GameTicks, command.ContractId, command.Kind, token);
+    }
     public async Task<ClashOfRimClientNetworkResult<ModMercenaryQuoteResponseDto>> QuoteAsync(ClashOfRimClientNetworkContext context,
         long ticks, string skill, int level, int days, CancellationToken token)
     { using var http = new HttpClient(); return await Create(http, context).QuoteMercenaryAsync(ticks, skill, level, days, token); }

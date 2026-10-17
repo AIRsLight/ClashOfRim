@@ -1521,6 +1521,7 @@
   <ClashOfRim.Mercenary.StatusHired>{PAWN} がシャトルで到着しました。価格 {PRICE} シルバー。現在の状態を保存中。</ClashOfRim.Mercenary.StatusHired>
   <ClashOfRim.Mercenary.StatusHiredConfirmed>傭兵が到着しました。価格 {PRICE} シルバー。</ClashOfRim.Mercenary.StatusHiredConfirmed>
   <ClashOfRim.Mercenary.StatusHiring>傭兵を雇用中。</ClashOfRim.Mercenary.StatusHiring>
+  <ClashOfRim.Mercenary.StatusIncidentIncomplete>サーバーが返した傭兵の事故による債務情報が不完全です。</ClashOfRim.Mercenary.StatusIncidentIncomplete>
   <ClashOfRim.Mercenary.StatusIncidentFailed>傭兵事故報告に失敗: {CODE} {MESSAGE}</ClashOfRim.Mercenary.StatusIncidentFailed>
   <ClashOfRim.Mercenary.StatusIncidentRejected>傭兵事故はサーバーに拒否されました: {CODE} {MESSAGE}</ClashOfRim.Mercenary.StatusIncidentRejected>
   <ClashOfRim.Mercenary.StatusIncidentReported>傭兵事故を報告しました。</ClashOfRim.Mercenary.StatusIncidentReported>

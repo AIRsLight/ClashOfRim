@@ -1521,6 +1521,7 @@
   <ClashOfRim.Mercenary.StatusHired>{PAWN} прибыл на шаттле. Цена {PRICE} серебра. Сохранение текущего состояния.</ClashOfRim.Mercenary.StatusHired>
   <ClashOfRim.Mercenary.StatusHiredConfirmed>Наемник прибыл. Цена {PRICE} серебра.</ClashOfRim.Mercenary.StatusHiredConfirmed>
   <ClashOfRim.Mercenary.StatusHiring>Найм наемника.</ClashOfRim.Mercenary.StatusHiring>
+  <ClashOfRim.Mercenary.StatusIncidentIncomplete>Сервер вернул неполные сведения о долге за инцидент с наёмником.</ClashOfRim.Mercenary.StatusIncidentIncomplete>
   <ClashOfRim.Mercenary.StatusIncidentFailed>Не удалось сообщить об инциденте с наемником: {CODE} {MESSAGE}</ClashOfRim.Mercenary.StatusIncidentFailed>
   <ClashOfRim.Mercenary.StatusIncidentRejected>Инцидент с наемником отклонен сервером: {CODE} {MESSAGE}</ClashOfRim.Mercenary.StatusIncidentRejected>
   <ClashOfRim.Mercenary.StatusIncidentReported>Инцидент с наемником сообщен.</ClashOfRim.Mercenary.StatusIncidentReported>
