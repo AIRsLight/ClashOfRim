@@ -332,7 +332,7 @@ public sealed partial class ClashOfRimMod
             bool confirmationStarted = false;
             try
             {
-                var uploadService = new ModSnapshotUploadService(settings);
+                var uploadService = new ModSnapshotUploadService(settings, uploadTransaction);
                 ModSnapshotUploadResult upload = await ClientSessionWork.Observe(uploadService.UploadConfiguredSnapshotAsync(
                     removeRaidBattleSessions: false,
                     confirmationOperation: ColonyRelocationConfirmationOperation,

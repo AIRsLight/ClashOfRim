@@ -619,7 +619,7 @@ public sealed partial class ClashOfRimMod
         {
             try
             {
-                var service = new ModSnapshotUploadService(settings);
+                var service = new ModSnapshotUploadService(settings, uploadTransaction);
                 ModSnapshotUploadResult result = await ClientSessionWork.Observe(service.UploadConfiguredSnapshotAsync(
                     snapshotUploadKind: ModSnapshotUploadKinds.InitialColonySnapshot));
                 using var publication = ClientSessionWork.EnterPublication();

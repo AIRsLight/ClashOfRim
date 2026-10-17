@@ -18,6 +18,7 @@ internal sealed class ClientSynchronizationCoordinator
     private Lease? manual;
     private Lease? snapshot;
     private long sequence;
+    private TaskCompletionSource changed = NewChangeSignal();
 
     internal ClientSynchronizationCoordinator(Func<DateTime>? utcNow = null) => this.utcNow = utcNow ?? (() => DateTime.UtcNow);
     internal bool ManualInProgress { get { lock (gate) return manual is not null; } }
@@ -75,11 +76,40 @@ internal sealed class ClientSynchronizationCoordinator
         return lease is not null;
     }
 
+    // Public upload callers can wait on the same admission used by the game's commands.
+    // Capture the signal before checking admission so a completion cannot strand a waiter.
+    internal async Task<Lease> AcquireSnapshotAsync(CancellationToken cancellationToken)
+    {
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, ClientSessionWork.Token);
+        while (true)
+        {
+            Task wait;
+            using (ClientSessionWork.EnterPublication())
+            {
+                cancellation.Token.ThrowIfCancellationRequested();
+                lock (gate) wait = changed.Task;
+                // Waiting is not a rejected command. Publication keeps admission stable
+                // between the availability check and acquisition.
+                if (!IsBusy && TryAcquireSnapshot(out var lease)) return lease;
+            }
+            await wait.WaitAsync(cancellation.Token);
+        }
+    }
+
+    private static TaskCompletionSource NewChangeSignal() => new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    private void SignalAdmissionChanged()
+    {
+        TaskCompletionSource previous = changed;
+        changed = NewChangeSignal();
+        previous.TrySetResult();
+    }
+
     // Explicit session exit / authoritative reload, never a normal request finalizer.
     internal void Reset()
     {
         using var publication = ClientSessionWork.EnterPublication();
-        lock (gate) { manual = null; snapshot = null; }
+        lock (gate) { manual = null; snapshot = null; SignalAdmissionChanged(); }
     }
 
     private bool Owns(Lease lease)
@@ -115,6 +145,7 @@ internal sealed class ClientSynchronizationCoordinator
                         snapshot = null;
                     }
                     if (ReferenceEquals(manual, lease)) manual = null;
+                    SignalAdmissionChanged();
                 }
                 if (notice is not null) SnapshotChanged?.Invoke(notice);
             }
@@ -140,6 +171,31 @@ internal sealed class ClientSynchronizationCoordinator
         internal string Caller { get; }
         internal DateTime StartedAtUtc { get; }
         internal CancellationToken Generation { get; }
+        internal bool IsCurrent => ClientSessionWork.IsCurrent && owner.Owns(this);
+        private bool uploadExecuting;
+
+        internal IDisposable BeginUpload()
+        {
+            using var publication = ClientSessionWork.EnterPublication();
+            lock (owner.gate)
+            {
+                if (!IsSnapshot || !IsCurrent || uploadExecuting)
+                    throw new InvalidOperationException("Snapshot upload requires an idle, current snapshot lease.");
+                uploadExecuting = true;
+                return new UploadExecution(this);
+            }
+        }
+
+        private sealed class UploadExecution : IDisposable
+        {
+            private Lease? lease;
+            internal UploadExecution(Lease lease) => this.lease = lease;
+            public void Dispose()
+            {
+                Lease? completed = Interlocked.Exchange(ref lease, null);
+                if (completed is not null) lock (completed.owner.gate) completed.uploadExecuting = false;
+            }
+        }
         public void Dispose() => owner.Release(this);
         internal void Complete(Action completed) => owner.Release(this, completed);
 

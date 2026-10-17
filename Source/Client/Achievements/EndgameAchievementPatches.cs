@@ -138,7 +138,7 @@ public sealed partial class ClashOfRimMod
         {
             try
             {
-                var service = new ModSnapshotUploadService(settings);
+                var service = new ModSnapshotUploadService(settings, uploadTransaction);
                 ModSnapshotUploadResult result = await ClientSessionWork.Observe(service.UploadConfiguredSnapshotAsync(
                     removeRaidBattleSessions: false,
                     confirmationOperation: EndgameAchievementRuntime.EndgameConfirmationOperation,

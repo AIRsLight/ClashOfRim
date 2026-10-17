@@ -26,8 +26,38 @@ internal static class SynchronizationCoordinatorTests
             DeferredDecisionOwnership();
             await ExpiredCallbacks();
             await CompetingAdmissions();
+            await WaitingSnapshotAdmissions();
         }
         finally { ClientSessionWork.Reset(); }
+    }
+
+    private static async Task WaitingSnapshotAdmissions()
+    {
+        var sync = new ClientSynchronizationCoordinator();
+        using var timeout = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(10));
+        int executing = 0, completed = 0, rejected = 0;
+        sync.SnapshotChanged += notice =>
+        {
+            if (notice.Phase == SnapshotTransactionPhase.Rejected) System.Threading.Interlocked.Increment(ref rejected);
+        };
+        await Task.WhenAll(Enumerable.Range(0, 64).Select(_ => Task.Run(async () =>
+        {
+            using var lease = await sync.AcquireSnapshotAsync(timeout.Token);
+            using var upload = lease.BeginUpload();
+            Require(System.Threading.Interlocked.Increment(ref executing) == 1, "Waiting uploads overlapped execution.");
+            await Task.Yield();
+            System.Threading.Interlocked.Decrement(ref executing);
+            System.Threading.Interlocked.Increment(ref completed);
+        })));
+        Require(completed == 64 && !sync.IsBusy && rejected == 0,
+            "Waiting uploads lost a wakeup, leaked admission, or reported ordinary waiting as rejection.");
+
+        Require(sync.TryBeginManual(out var old), "Manual fixture admission failed.");
+        var waiting = sync.AcquireSnapshotAsync(timeout.Token);
+        sync.Reset();
+        using var next = await waiting;
+        old!.Dispose();
+        Require(next.IsCurrent && sync.SnapshotInProgress, "Late cleanup after reset released an awakened upload.");
     }
 
     private static void AdmissionAndPromotion()

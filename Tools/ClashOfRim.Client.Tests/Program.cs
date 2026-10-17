@@ -26,6 +26,7 @@ var tests = new (string Name, Action Run)[]
     ("synchronization admission and completion retain exact transaction ownership", SynchronizationCoordinatorTests.Run),
     ("local mutation admission permits its recovery without admitting unrelated work", LocalMutationModuleTests.Run),
     ("bank and event continuations reach snapshot rebuilding and retain failed mutations", LocalMutationContinuationTests.Run),
+    ("snapshot uploader owns capture, upload admission and game publication", SnapshotUploaderModuleTests.Run),
     ("actual event letters share rendering, action and automatic application rules", EventLetterPolicyTests.Run),
     ("repeated pawn transfer preserves global relationship identity", PawnTransferIdentityTests.Run),
     ("item durability uses final quality maximum", ThingMetadataOrderTests.Run),

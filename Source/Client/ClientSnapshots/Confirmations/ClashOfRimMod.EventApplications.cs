@@ -1868,7 +1868,7 @@ public sealed partial class ClashOfRimMod
         {
             try
             {
-                var service = new ModSnapshotUploadService(settings);
+                var service = new ModSnapshotUploadService(settings, uploadTransaction);
                 ModSnapshotUploadResult result = await ClientSessionWork.Observe(service.UploadConfiguredSnapshotAsync(
                     request.RemoveRaidBattleSessions,
                     snapshotUploadKind: ModSnapshotUploadKinds.EventApplicationConfirmation));
@@ -1980,7 +1980,7 @@ public sealed partial class ClashOfRimMod
         {
             try
             {
-                var service = new ModSnapshotUploadService(settings);
+                var service = new ModSnapshotUploadService(settings, uploadTransaction);
                 ModSnapshotUploadResult result = await ClientSessionWork.Observe(service.UploadConfiguredSnapshotAsync(
                     snapshotUploadKind: ModSnapshotUploadKinds.ManualUpload));
                 using var publication = ClientSessionWork.EnterPublication();
@@ -2049,7 +2049,7 @@ public sealed partial class ClashOfRimMod
         {
             try
             {
-                var service = new ModSnapshotUploadService(settings);
+                var service = new ModSnapshotUploadService(settings, uploadTransaction);
                 ModSnapshotUploadResult result = await ClientSessionWork.Observe(service.UploadConfiguredSnapshotAsync(
                     snapshotUploadKind: ModSnapshotUploadKinds.ManualUpload));
                 using var publication = ClientSessionWork.EnterPublication();
@@ -2130,7 +2130,7 @@ public sealed partial class ClashOfRimMod
         {
             try
             {
-                var service = new ModSnapshotUploadService(settings);
+                var service = new ModSnapshotUploadService(settings, uploadTransaction);
                 ModSnapshotUploadResult result = await ClientSessionWork.Observe(service.UploadConfiguredSnapshotAsync(
                     snapshotUploadKind: ModSnapshotUploadKinds.AutoSave));
                 using var publication = ClientSessionWork.EnterPublication();

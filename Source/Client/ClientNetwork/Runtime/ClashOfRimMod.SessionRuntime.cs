@@ -1614,7 +1614,7 @@ public sealed partial class ClashOfRimMod
                     sessionLifecycle.PublishLogin(login.Response);
                 }
 
-                var uploadService = new ModSnapshotUploadService(settings);
+                var uploadService = new ModSnapshotUploadService(settings, uploadTransaction);
                 ModSnapshotUploadResult upload = await ClientSessionWork.Observe(uploadService.UploadConfiguredSnapshotAsync(
                     snapshotUploadKind: ModSnapshotUploadKinds.MapSessionSynchronization));
                 using var publication = ClientSessionWork.EnterPublication();
