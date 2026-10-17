@@ -1,4 +1,5 @@
 using AIRsLight.ClashOfRim.Modules.Synchronization;
+using AIRsLight.ClashOfRim.Modules.Snapshots;
 using System.Diagnostics.CodeAnalysis;
 using AIRsLight.ClashOfRim.Modules.Sessions;
 using System;
@@ -51,6 +52,8 @@ public sealed partial class ClashOfRimMod : Mod
     private static readonly TimeSpan RaidSettlementGraceDuration = TimeSpan.FromMinutes(2);
 
     private readonly ClashOfRimSettings settings;
+    private readonly ClientSnapshotPreparation snapshotPreparation = ClientSnapshotComposition.CreatePreparation();
+    private readonly ClientSnapshotPublication snapshotPublication;
     private readonly ClientSynchronizationCoordinator synchronization = ClientSnapshotComposition.Synchronization;
     private bool snapshotUploadInProgress => synchronization.SnapshotInProgress;
     private bool manualSyncInProgress => synchronization.ManualInProgress;
@@ -153,6 +156,7 @@ public sealed partial class ClashOfRimMod : Mod
         : base(content)
     {
         settings = GetSettings<ClashOfRimSettings>();
+        snapshotPublication = ClientSnapshotComposition.CreatePublication(settings);
         sessionLifecycle = new ClientSessionLifecycle(new ClientSessionIdentityStore(settings), new ClientSessionLogoutTransport(), sessionConnection);
         sessionReconnect = new ClientSessionReconnect(new ClientSessionReconnectTransport(), sessionLifecycle, synchronization);
         if (!string.Equals(content.PackageId, PackageId, StringComparison.OrdinalIgnoreCase))

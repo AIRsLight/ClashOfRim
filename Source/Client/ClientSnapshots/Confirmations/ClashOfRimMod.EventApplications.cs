@@ -856,53 +856,6 @@ public sealed partial class ClashOfRimMod
         });
     }
 
-    private static bool TryBuildCurrentGameSnapshotPackage(
-        string ownerId,
-        string colonyId,
-        out ModSnapshotPackageBuildResult build,
-        out string failureReason)
-    {
-        build = ModSnapshotPackageBuildResult.Failed("NotStarted", ClashOfRimText.Key("ClashOfRim.SnapshotPackage.BuildNotStarted"));
-        if (!ClashOfRimGameComponent.TrySaveCurrentGameToBytes(out byte[] saveBytes, out failureReason))
-        {
-            return false;
-        }
-
-        build = ModSnapshotPackageBuilder.FromSaveBytes(
-            saveBytes,
-            "memory",
-            ownerId,
-            colonyId,
-            DateTime.UtcNow);
-        if (!build.Success || build.Package is null || build.Payload is null)
-        {
-            failureReason = $"{build.ErrorCode} {build.Message}";
-            return false;
-        }
-
-        build.Package.DefenderThreatPoints = SnapshotDefenderThreatPointsCapture.TryCapture();
-
-        failureReason = string.Empty;
-        return true;
-    }
-
-    private void PersistAcceptedSnapshotLineage(string snapshotId, string? nextLineageToken)
-    {
-        if (string.IsNullOrWhiteSpace(snapshotId))
-        {
-            return;
-        }
-
-        settings.CurrentSnapshotId = snapshotId;
-        if (!string.IsNullOrWhiteSpace(nextLineageToken))
-        {
-            settings.CurrentLineageToken = nextLineageToken!;
-            ClashOfRimGameComponent.SetSnapshotLineage(snapshotId, nextLineageToken);
-        }
-
-        settings.Write();
-    }
-
     private sealed class EventApplicationSnapshotConfirmationRequest
     {
         public string EventId { get; set; } = string.Empty;
@@ -1061,7 +1014,7 @@ public sealed partial class ClashOfRimMod
         }
 
         BeginLocalAtomicMutation(request.Operation, request.UploadingStatus);
-        if (!TryBuildCurrentGameSnapshotPackage(
+        if (!snapshotPreparation.TryBuild(
                 settings.UserId,
                 settings.ColonyId,
                 out ModSnapshotPackageBuildResult build,
@@ -1146,7 +1099,7 @@ public sealed partial class ClashOfRimMod
                 {
                     if (!string.IsNullOrWhiteSpace(result.Response.AppliedSnapshotId))
                     {
-                        PersistAcceptedSnapshotLineage(
+                        snapshotPublication.PublishCurrentGame(
                             result.Response.AppliedSnapshotId!,
                             result.Response.NextLineageToken);
                     }
@@ -1224,7 +1177,7 @@ public sealed partial class ClashOfRimMod
         }
 
         BeginLocalAtomicMutation(request.Operation, request.UploadingStatus);
-        if (!TryBuildCurrentGameSnapshotPackage(
+        if (!snapshotPreparation.TryBuild(
                 settings.UserId,
                 settings.ColonyId,
                 out ModSnapshotPackageBuildResult build,
@@ -1315,7 +1268,7 @@ public sealed partial class ClashOfRimMod
                 {
                     if (!string.IsNullOrWhiteSpace(appliedSnapshotId))
                     {
-                        PersistAcceptedSnapshotLineage(appliedSnapshotId!, result.Response.NextLineageToken);
+                        snapshotPublication.PublishCurrentGame(appliedSnapshotId!, result.Response.NextLineageToken);
                     }
 
                     request.OnAcceptedOnMainThread(result.Response, appliedSnapshotId);
@@ -1529,7 +1482,7 @@ public sealed partial class ClashOfRimMod
                     if (confirmationTargetsCurrentColony
                         && !string.IsNullOrWhiteSpace(result.Response.AppliedSnapshotId))
                     {
-                        PersistAcceptedSnapshotLineage(
+                        snapshotPublication.PublishCurrentGame(
                             result.Response.AppliedSnapshotId!,
                             result.Response.NextLineageToken);
                     }

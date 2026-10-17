@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,6 +14,8 @@ using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.ClientSnapshots;
 using AIRsLight.ClashOfRim.Modules.Snapshots;
 using AIRsLight.ClashOfRim.Modules.Synchronization;
+using HarmonyLib;
+using Verse;
 
 internal static class SnapshotUploaderModuleTests
 {
@@ -21,6 +25,7 @@ internal static class SnapshotUploaderModuleTests
         ClientSessionWork.Reset();
         try
         {
+            SharedPreparationAndPublication();
             await SuccessAndAchievements();
             await FailureResults();
             await SharedAdmission();
@@ -28,8 +33,56 @@ internal static class SnapshotUploaderModuleTests
             await ReplacedOwners();
             await CancellationAndDispatchFailures();
             await PublicFacadeSharesAdmission();
+            await PublicFacadeWithoutGame();
         }
         finally { ClientSessionWork.Reset(); ClientSnapshotComposition.Synchronization.Reset(); }
+    }
+
+    private static void SharedPreparationAndPublication()
+    {
+        var f = new Fixture();
+        f.Game.Achievements.Add(new() { AchievementId = "pending", EventKey = "event" });
+        var preparation = new ClientSnapshotPreparation(f.Game);
+        Require(preparation.TryBuild("domain-owner", "domain-colony", out var build, out string reason)
+            && reason == "" && f.Game.Captures == 1 && !f.Game.RemovedRaidSessions
+            && build.Package!.OwnerId == "domain-owner" && build.Package.ColonyId == "domain-colony"
+            && build.Package.PreviousSnapshotId == "base" && build.Package.DefenderThreatPoints == 42f
+            && build.Package.SnapshotUploadKind is null && build.SourcePath == "memory"
+            && Encoding.UTF8.GetString(build.OriginalPayload!).Contains("clashOfRimPendingAchievementCandidates")
+            && f.Trace.Count == 0 && f.Game.Achievements.Count == 1,
+            "Domain preparation lost capture metadata, removed unsubmitted achievements or published state.");
+        using (var zipped = new GZipStream(new MemoryStream(build.Payload!), CompressionMode.Decompress))
+        using (var reader = new StreamReader(zipped))
+            Require(reader.ReadToEnd() == Encoding.UTF8.GetString(build.OriginalPayload!), "Prepared payload differs from captured save.");
+
+        f.Game.CaptureFailure = new("SaveToMemoryFailed", "save failure", SnapshotUploadMessage.SaveFailed);
+        Require(!preparation.TryBuild("alice", "colony", out build, out reason)
+            && build.ErrorCode == "SaveToMemoryFailed" && reason == "save failure", "Capture failure was replaced by a build failure.");
+        f.Game.CaptureFailure = null; f.Game.ThrowOnCapture = true;
+        Require(!preparation.TryBuild("alice", "colony", out build, out reason)
+            && build.ErrorCode == "SaveToMemoryException" && reason.Contains("fixture capture"), "Capture exception was lost.");
+        f.Game.ThrowOnCapture = false; f.Game.CancelOnCapture = true;
+        try { preparation.TryBuild("alice", "colony", out _, out _); throw new Exception("Canceled capture became a normal failure."); }
+        catch (OperationCanceledException) { }
+        f.Game.CancelOnCapture = false; f.Game.Malformed = true;
+        Require(!preparation.TryBuild("alice", "colony", out build, out reason)
+            && build.ErrorCode == "XmlException" && reason.StartsWith("XmlException "), "Invalid XML failure lost its code.");
+
+        foreach (string? token in new string?[] { null, "", "  ", "accepted-token" })
+        {
+            f = new Fixture();
+            f.Game.Achievements.Add(new() { AchievementId = "pending", EventKey = "event" });
+            var publication = new ClientSnapshotPublication(f.Store, f.Game);
+            publication.PublishCurrentGame(" ", "ignored");
+            Require(f.Trace.Count == 0, "Empty accepted snapshot published state.");
+            publication.PublishCurrentGame("domain-accepted", token);
+            bool hasToken = !string.IsNullOrWhiteSpace(token);
+            Require(f.Store.Snapshot == "domain-accepted" && f.Store.Token == (hasToken ? token : "old-lineage")
+                && f.Game.Snapshot == (hasToken ? "domain-accepted" : "base") && f.Store.Writes == 1
+                && f.Game.Published!.Count == 0 && f.Game.Achievements.Count == 1
+                && f.Trace.SequenceEqual(new[] { "store", "game", "persist" }),
+                "Domain publication lost lineage, consumed pending achievements or changed persistence ordering.");
+        }
     }
 
     private static async Task SuccessAndAchievements()
@@ -105,12 +158,16 @@ internal static class SnapshotUploaderModuleTests
         }
         var initial = new Fixture(); initial.Store.Snapshot = "";
         Require((await initial.Upload()).Failure is null, "Initial snapshot without a prior lineage was rejected.");
-        var fallback = new Fixture();
-        fallback.Transport.Failure = ClashOfRimClientNetworkResult<ModUploadSnapshotResponseDto>.Ok(new());
-        var accepted = await fallback.Upload();
-        Require(accepted.AcceptedSnapshotId == fallback.Transport.Requests.Single().Package.SnapshotId
-            && fallback.Store.Token == "old-lineage" && fallback.Game.Snapshot == "base",
-            "Legacy response fallbacks for snapshot ID and absent lineage token changed.");
+        foreach (string? missing in new string?[] { null, "", "  " })
+        {
+            var fallback = new Fixture();
+            fallback.Transport.Failure = ClashOfRimClientNetworkResult<ModUploadSnapshotResponseDto>.Ok(new()
+                { AcceptedSnapshotId = missing, NextLineageToken = missing });
+            var accepted = await fallback.Upload();
+            Require(accepted.AcceptedSnapshotId == fallback.Transport.Requests.Single().Package.SnapshotId
+                && fallback.Store.Token == "old-lineage" && fallback.Game.Snapshot == "base" && fallback.Store.Writes == 1,
+                "Response fallbacks for snapshot ID and absent lineage token changed.");
+        }
     }
 
     private static async Task SharedAdmission()
@@ -231,20 +288,74 @@ internal static class SnapshotUploaderModuleTests
 
     private static async Task PublicFacadeSharesAdmission()
     {
-        var sync = ClientSnapshotComposition.Synchronization;
-        sync.Reset(); Require(sync.TryBeginManual(out var held), "Shared manual admission failed.");
-        var settings = new ClashOfRimSettings { ServerBaseUrl = "http://localhost", UserId = "alice", ColonyId = "colony" };
-        using var cancel = new CancellationTokenSource();
-        var service = new ModSnapshotUploadService(settings);
-        var first = service.UploadConfiguredSnapshotAsync(cancel.Token);
-        var second = service.UploadConfiguredSnapshotAsync(removeRaidBattleSessions: true, cancellationToken: cancel.Token);
-        Require(!first.IsCompleted && !second.IsCompleted && sync.ManualInProgress,
-            "Public facade bypassed the shared synchronization coordinator.");
-        cancel.Cancel();
-        await Throws<OperationCanceledException>(() => first); await Throws<OperationCanceledException>(() => second);
-        Require(sync.ManualInProgress, "Public cancellation released caller-owned manual work.");
-        held!.Dispose();
+        var originalGame = Current.Game;
+        Current.Game = (Game)RuntimeHelpers.GetUninitializedObject(typeof(Game));
+        try
+        {
+            var sync = ClientSnapshotComposition.Synchronization;
+            sync.Reset(); Require(sync.TryBeginManual(out var held), "Shared manual admission failed.");
+            var settings = new ClashOfRimSettings { ServerBaseUrl = "http://localhost", UserId = "alice", ColonyId = "colony" };
+            using var cancel = new CancellationTokenSource();
+            var service = new ModSnapshotUploadService(settings);
+            var first = service.UploadConfiguredSnapshotAsync(cancel.Token);
+            var second = service.UploadConfiguredSnapshotAsync(removeRaidBattleSessions: true, cancellationToken: cancel.Token);
+            Require(!first.IsCompleted && !second.IsCompleted && sync.ManualInProgress,
+                "Public facade bypassed the shared synchronization coordinator.");
+            cancel.Cancel();
+            await Throws<OperationCanceledException>(() => first); await Throws<OperationCanceledException>(() => second);
+            Require(sync.ManualInProgress, "Public cancellation released caller-owned manual work.");
+            held!.Dispose();
+        }
+        finally { Current.Game = originalGame; }
     }
+
+    private static async Task PublicFacadeWithoutGame()
+    {
+        var originalGame = Current.Game;
+        var originalState = Current.ProgramState;
+        var harmony = new Harmony("ClashOfRim.Tests.SnapshotWithoutGame");
+        harmony.Patch(AccessTools.Method(typeof(ClashOfRimText), "Key", new[] { typeof(string), typeof(NamedArgument[]) }),
+            prefix: new HarmonyMethod(typeof(SnapshotUploaderModuleTests), nameof(Translate)));
+        try
+        {
+            Current.Game = null;
+            Current.ProgramState = ProgramState.Entry;
+            foreach (string snapshot in new[] { "", "previous-snapshot" })
+            foreach (bool explicitOptions in new[] { false, true })
+            {
+                var settings = new ClashOfRimSettings { ServerBaseUrl = "http://localhost", UserId = "alice", ColonyId = "colony",
+                    CurrentSnapshotId = snapshot, CurrentLineageToken = "preserved" };
+                var service = new ModSnapshotUploadService(settings);
+                using var cancel = new CancellationTokenSource();
+                var task = explicitOptions
+                    ? service.UploadConfiguredSnapshotAsync(removeRaidBattleSessions: true, cancellationToken: cancel.Token)
+                    : service.UploadConfiguredSnapshotAsync(cancel.Token);
+                try
+                {
+                    // Only the entry pump exists without a Game. It must not need a future game to finish this request.
+                    typeof(ClashOfRimMod).Assembly.GetType("AIRsLight.ClashOfRim.MainMenu.ClashOfRimMainMenuPatches", true)!
+                        .GetMethod("RunQueuedMainThreadActions", BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, null);
+                    Require(task.IsCompleted, "Public snapshot upload without a Game is stranded in the inactive game queue.");
+                    var result = await task;
+                    Require(!result.Success && result.ErrorCode == "UntrackedSaveFile"
+                        && result.Message == "ClashOfRim.SnapshotUpload.NoRunningGame"
+                        && !ClientSnapshotComposition.Synchronization.IsBusy
+                        && settings.CurrentSnapshotId == snapshot && settings.CurrentLineageToken == "preserved",
+                        "No-Game upload changed state or returned the wrong failure.");
+                }
+                finally
+                {
+                    cancel.Cancel();
+                    try { await task; } catch (OperationCanceledException) { }
+                    typeof(ClashOfRimGameComponent).GetMethod("RunMainThreadActions", BindingFlags.Static | BindingFlags.NonPublic)!
+                        .Invoke(null, null);
+                }
+            }
+        }
+        finally { Current.Game = originalGame; Current.ProgramState = originalState; harmony.UnpatchAll(harmony.Id); }
+    }
+
+    private static bool Translate(string key, ref string __result) { __result = key; return false; }
 
     private sealed class Fixture
     {
@@ -284,7 +395,7 @@ internal static class SnapshotUploaderModuleTests
         private readonly SemaphoreSlim queued = new(0);
         internal object? Owner = new();
         internal string Snapshot = "base";
-        internal bool Defer, ThrowOnEnqueue, ThrowOnCapture, Malformed, RemovedRaidSessions;
+        internal bool Defer, ThrowOnEnqueue, ThrowOnCapture, CancelOnCapture, Malformed, RemovedRaidSessions;
         internal int Captures;
         internal SnapshotUploadFailure? CaptureFailure;
         internal readonly List<ModSnapshotAchievementCandidateDto> Achievements = new();
@@ -313,6 +424,7 @@ internal static class SnapshotUploaderModuleTests
             public SnapshotSaveCapture Capture(bool removeRaidBattleSessions)
             {
                 game.Captures++; game.RemovedRaidSessions = removeRaidBattleSessions;
+                if (game.CancelOnCapture) throw new OperationCanceledException("fixture canceled capture");
                 if (game.ThrowOnCapture) throw new InvalidOperationException("fixture capture");
                 string xml = game.Malformed ? "<broken" : $"<savegame><meta><gameVersion>1.7.4977</gameVersion></meta><game><components><li Class=\"AIRsLight.ClashOfRim.ClashOfRimGameComponent\"><clashOfRimLineageSnapshotId>{game.Snapshot}</clashOfRimLineageSnapshotId><clashOfRimLineageToken>old-lineage</clashOfRimLineageToken><clashOfRimPendingAchievementCandidates><li>candidate</li></clashOfRimPendingAchievementCandidates></li></components></game></savegame>";
                 return new(Encoding.UTF8.GetBytes(xml), 42f, game.Achievements.ToArray(), game.CaptureFailure);

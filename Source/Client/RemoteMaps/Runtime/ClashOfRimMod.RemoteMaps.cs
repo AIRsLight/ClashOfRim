@@ -1265,7 +1265,7 @@ public sealed partial class ClashOfRimMod
             + ", attackerPawns="
             + session.AttackPawnThingIds.Count
             + ".");
-        if (!TryBuildCurrentGameSnapshotPackage(
+        if (!snapshotPreparation.TryBuild(
                 settings.UserId,
                 settings.ColonyId,
                 out ModSnapshotPackageBuildResult build,
@@ -1445,7 +1445,7 @@ public sealed partial class ClashOfRimMod
                     if (!string.IsNullOrWhiteSpace(result.Response.AppliedSnapshotId))
                     {
                         session.AttackerSnapshotId = result.Response.AppliedSnapshotId!;
-                        PersistAcceptedSnapshotLineage(
+                        snapshotPublication.PublishCurrentGame(
                             result.Response.AppliedSnapshotId!,
                             result.Response.NextLineageToken);
                     }
@@ -1605,7 +1605,7 @@ public sealed partial class ClashOfRimMod
         }
 
         SetRemoteMapLongEventText("ClashOfRim.Raid.StatusSettlementSavingLong");
-        if (!TryBuildCurrentGameSnapshotPackage(
+        if (!snapshotPreparation.TryBuild(
                 settings.UserId,
                 settings.ColonyId,
                 out ModSnapshotPackageBuildResult build,

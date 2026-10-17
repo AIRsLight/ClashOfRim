@@ -3,6 +3,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using AIRsLight.ClashOfRim;
 using AIRsLight.ClashOfRim.ClientNetwork;
+using AIRsLight.ClashOfRim.ClientSnapshots;
 using AIRsLight.ClashOfRim.Modules.Synchronization;
 using HarmonyLib;
 using Verse;
@@ -21,7 +22,7 @@ internal static class LocalMutationContinuationTests
         harmony.Patch(typeof(ClashOfRimText).GetMethod("Key", BindingFlags.Static | BindingFlags.NonPublic, null,
             new[] { typeof(string), typeof(NamedArgument[]) }, null), prefix: new HarmonyMethod(typeof(LocalMutationContinuationTests), nameof(Translate)));
         harmony.Patch(AccessTools.Method(typeof(ClashOfRimGameComponent), "TrySaveCurrentGameToBytes",
-            new[] { typeof(byte[]).MakeByRefType(), typeof(string).MakeByRefType() }),
+            new[] { typeof(bool), typeof(byte[]).MakeByRefType(), typeof(string).MakeByRefType() }),
             prefix: new HarmonyMethod(typeof(LocalMutationContinuationTests), nameof(FailSave)));
         ClientSessionWork.Reset();
         try
@@ -59,6 +60,7 @@ internal static class LocalMutationContinuationTests
         var synchronization = new ClientSynchronizationCoordinator();
         typeof(ClashOfRimMod).GetField("localMutations", Instance)!.SetValue(mod, mutations);
         typeof(ClashOfRimMod).GetField("synchronization", Instance)!.SetValue(mod, synchronization);
+        typeof(ClashOfRimMod).GetField("snapshotPreparation", Instance)!.SetValue(mod, ClientSnapshotComposition.CreatePreparation());
         typeof(ClashOfRimMod).GetField("settings", Instance)!.SetValue(mod, new ClashOfRimSettings
         { ServerBaseUrl = "http://localhost", UserId = "alice", ColonyId = "colony", CurrentSnapshotId = "snapshot" });
         saves = 0;

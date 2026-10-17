@@ -69,7 +69,7 @@ public sealed partial class ClashOfRimMod
         }
 
         BeginLocalAtomicMutation(operation, ClashOfRimText.Key("ClashOfRim.Trade.StatusOrderPackagingSnapshot"));
-        if (!TryBuildCurrentGameSnapshotPackage(
+        if (!snapshotPreparation.TryBuild(
                 settings.UserId,
                 settings.ColonyId,
                 out ModSnapshotPackageBuildResult build,
@@ -150,7 +150,7 @@ public sealed partial class ClashOfRimMod
                     {
                         if (!string.IsNullOrWhiteSpace(response.AppliedSnapshotId))
                         {
-                            PersistAcceptedSnapshotLineage(
+                            snapshotPublication.PublishCurrentGame(
                                 response.AppliedSnapshotId!,
                                 response.NextLineageToken);
                         }

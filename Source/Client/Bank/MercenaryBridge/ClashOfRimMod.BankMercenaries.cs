@@ -186,7 +186,7 @@ public sealed partial class ClashOfRimMod
             ClashBankLoanQuestUtility.CreateOrUpdateLoanQuest(loan, pendingStatus);
             lastBankStatus = pendingStatus;
             LocalMutationKind operation = LocalMutationKind.Bank;
-            if (!TryBuildCurrentGameSnapshotPackage(
+            if (!snapshotPreparation.TryBuild(
                     settings.UserId,
                     settings.ColonyId,
                     out ModSnapshotPackageBuildResult build,
@@ -259,7 +259,7 @@ public sealed partial class ClashOfRimMod
             BeginLocalAtomicMutation(operation, ClashOfRimText.Key("ClashOfRim.Bank.StatusUploadingConfirmation"));
             bankInProgress = true;
             bankStatus = ClashOfRimText.Key("ClashOfRim.Bank.StatusUploadingConfirmation");
-            if (!TryBuildCurrentGameSnapshotPackage(
+            if (!snapshotPreparation.TryBuild(
                     settings.UserId,
                     settings.ColonyId,
                     out ModSnapshotPackageBuildResult build,
@@ -391,7 +391,7 @@ public sealed partial class ClashOfRimMod
                 {
                     if (!string.IsNullOrWhiteSpace(result.Response.AppliedSnapshotId))
                     {
-                        PersistAcceptedSnapshotLineage(
+                        snapshotPublication.PublishCurrentGame(
                             result.Response.AppliedSnapshotId!,
                             result.Response.NextLineageToken);
                     }
@@ -501,7 +501,7 @@ public sealed partial class ClashOfRimMod
             ClashBankLoanQuestUtility.MarkLoanRepaid(activeLoan.LoanId);
             ModBankStatusResponseDto pendingStatus = CloneBankStatusWithoutActiveLoan(lastBankStatus);
             lastBankStatus = pendingStatus;
-            if (!TryBuildCurrentGameSnapshotPackage(
+            if (!snapshotPreparation.TryBuild(
                     settings.UserId,
                     settings.ColonyId,
                     out ModSnapshotPackageBuildResult build,
@@ -602,7 +602,7 @@ public sealed partial class ClashOfRimMod
             ClashBankLoanQuestUtility.MarkDebtRepaid(debt.DebtId);
             ModBankStatusResponseDto pendingStatus = CloneBankStatusWithoutDebt(lastBankStatus, debt.DebtId);
             lastBankStatus = pendingStatus;
-            if (!TryBuildCurrentGameSnapshotPackage(
+            if (!snapshotPreparation.TryBuild(
                     settings.UserId,
                     settings.ColonyId,
                     out ModSnapshotPackageBuildResult build,
@@ -671,7 +671,7 @@ public sealed partial class ClashOfRimMod
             BeginLocalAtomicMutation(operation, ClashOfRimText.Key("ClashOfRim.Bank.StatusUploadingConfirmation"));
             bankInProgress = true;
             bankStatus = ClashOfRimText.Key("ClashOfRim.Bank.StatusUploadingConfirmation");
-            if (!TryBuildCurrentGameSnapshotPackage(
+            if (!snapshotPreparation.TryBuild(
                     settings.UserId,
                     settings.ColonyId,
                     out ModSnapshotPackageBuildResult build,
@@ -795,7 +795,7 @@ public sealed partial class ClashOfRimMod
                 {
                     if (!string.IsNullOrWhiteSpace(result.Response.AppliedSnapshotId))
                     {
-                        PersistAcceptedSnapshotLineage(
+                        snapshotPublication.PublishCurrentGame(
                             result.Response.AppliedSnapshotId!,
                             result.Response.NextLineageToken);
                     }
@@ -874,7 +874,7 @@ public sealed partial class ClashOfRimMod
             BeginLocalAtomicMutation(operation, ClashOfRimText.Key("ClashOfRim.Bank.StatusUploadingConfirmation"));
             bankInProgress = true;
             bankStatus = ClashOfRimText.Key("ClashOfRim.Bank.StatusUploadingConfirmation");
-            if (!TryBuildCurrentGameSnapshotPackage(
+            if (!snapshotPreparation.TryBuild(
                     settings.UserId,
                     settings.ColonyId,
                     out ModSnapshotPackageBuildResult build,
@@ -998,7 +998,7 @@ public sealed partial class ClashOfRimMod
                 {
                     if (!string.IsNullOrWhiteSpace(result.Response.AppliedSnapshotId))
                     {
-                        PersistAcceptedSnapshotLineage(
+                        snapshotPublication.PublishCurrentGame(
                             result.Response.AppliedSnapshotId!,
                             result.Response.NextLineageToken);
                     }
@@ -1287,7 +1287,7 @@ public sealed partial class ClashOfRimMod
             BeginLocalAtomicMutation(operation, ClashOfRimText.Key("ClashOfRim.Mercenary.StatusUploadingConfirmation"));
             mercenaryInProgress = true;
             mercenaryStatus = ClashOfRimText.Key("ClashOfRim.Mercenary.StatusUploadingConfirmation");
-            if (!TryBuildCurrentGameSnapshotPackage(
+            if (!snapshotPreparation.TryBuild(
                     settings.UserId,
                     settings.ColonyId,
                     out ModSnapshotPackageBuildResult build,
@@ -1405,7 +1405,7 @@ public sealed partial class ClashOfRimMod
                 {
                     if (!string.IsNullOrWhiteSpace(result.Response.AppliedSnapshotId))
                     {
-                        PersistAcceptedSnapshotLineage(
+                        snapshotPublication.PublishCurrentGame(
                             result.Response.AppliedSnapshotId!,
                             result.Response.NextLineageToken);
                     }
@@ -1752,7 +1752,7 @@ public sealed partial class ClashOfRimMod
             BeginLocalAtomicMutation(operation, ClashOfRimText.Key("ClashOfRim.Mercenary.StatusUploadingConfirmation"));
             mercenaryInProgress = true;
             mercenaryStatus = ClashOfRimText.Key("ClashOfRim.Mercenary.StatusUploadingConfirmation");
-            if (!TryBuildCurrentGameSnapshotPackage(
+            if (!snapshotPreparation.TryBuild(
                     settings.UserId,
                     settings.ColonyId,
                     out ModSnapshotPackageBuildResult build,
@@ -1870,7 +1870,7 @@ public sealed partial class ClashOfRimMod
                 {
                     if (!string.IsNullOrWhiteSpace(result.Response.AppliedSnapshotId))
                     {
-                        PersistAcceptedSnapshotLineage(
+                        snapshotPublication.PublishCurrentGame(
                             result.Response.AppliedSnapshotId!,
                             result.Response.NextLineageToken);
                     }

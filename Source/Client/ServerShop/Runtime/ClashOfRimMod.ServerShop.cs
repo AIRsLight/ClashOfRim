@@ -425,7 +425,7 @@ public sealed partial class ClashOfRimMod
         LocalMutationKind operation,
         IReadOnlyList<ModThingReferenceDto> deliveredThings)
     {
-        if (!TryBuildCurrentGameSnapshotPackage(
+        if (!snapshotPreparation.TryBuild(
                 settings.UserId,
                 settings.ColonyId,
                 out ModSnapshotPackageBuildResult build,
@@ -501,7 +501,7 @@ public sealed partial class ClashOfRimMod
                 {
                     if (!string.IsNullOrWhiteSpace(result.Response.AppliedSnapshotId))
                     {
-                        PersistAcceptedSnapshotLineage(
+                        snapshotPublication.PublishCurrentGame(
                             result.Response.AppliedSnapshotId!,
                             result.Response.NextLineageToken);
                     }

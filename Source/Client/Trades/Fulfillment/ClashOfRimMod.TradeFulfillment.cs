@@ -408,7 +408,7 @@ public sealed partial class ClashOfRimMod
         }
 
         BeginLocalAtomicMutation(operation, ClashOfRimText.Key("ClashOfRim.GiftDelivery.StatusPackagingSnapshot"));
-        if (!TryBuildCurrentGameSnapshotPackage(
+        if (!snapshotPreparation.TryBuild(
                 settings.UserId,
                 settings.ColonyId,
                 out ModSnapshotPackageBuildResult build,
@@ -510,7 +510,7 @@ public sealed partial class ClashOfRimMod
                 {
                     if (!string.IsNullOrWhiteSpace(result.Response.AppliedSnapshotId))
                     {
-                        PersistAcceptedSnapshotLineage(
+                        snapshotPublication.PublishCurrentGame(
                             result.Response.AppliedSnapshotId!,
                             result.Response.NextLineageToken);
                     }
@@ -869,7 +869,7 @@ public sealed partial class ClashOfRimMod
         }
 
         BeginLocalAtomicMutation(operation, ClashOfRimText.Key("ClashOfRim.Trade.StatusFulfillPackagingSnapshot"));
-        if (!TryBuildCurrentGameSnapshotPackage(
+        if (!snapshotPreparation.TryBuild(
                 settings.UserId,
                 settings.ColonyId,
                 out ModSnapshotPackageBuildResult build,
@@ -991,7 +991,7 @@ public sealed partial class ClashOfRimMod
                 {
                     if (!string.IsNullOrWhiteSpace(response.AppliedSnapshotId))
                     {
-                        PersistAcceptedSnapshotLineage(
+                        snapshotPublication.PublishCurrentGame(
                             response.AppliedSnapshotId!,
                             response.NextLineageToken);
                     }

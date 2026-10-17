@@ -14,10 +14,14 @@ internal sealed class ClientSnapshotUploader
     private readonly IClientSnapshotGame game;
     private readonly IClientSnapshotTransport transport;
     private readonly ClientSynchronizationCoordinator synchronization;
+    private readonly ClientSnapshotPublication publication;
 
     internal ClientSnapshotUploader(IClientSnapshotStore store, IClientSnapshotGame game,
         IClientSnapshotTransport transport, ClientSynchronizationCoordinator synchronization)
-    { this.store = store; this.game = game; this.transport = transport; this.synchronization = synchronization; }
+    {
+        this.store = store; this.game = game; this.transport = transport; this.synchronization = synchronization;
+        publication = new(store, game);
+    }
 
     internal async Task<ClientSnapshotUploadResult> UploadAsync(bool removeRaidBattleSessions,
         string? confirmationOperation, string? snapshotUploadKind, IReadOnlyList<ModSnapshotAchievementCandidateDto>? directAchievements,
@@ -36,6 +40,8 @@ internal sealed class ClientSnapshotUploader
         }
         if (!initial.IsConfigured)
             return ClientSnapshotUploadResult.Failed("NotConfigured", null, SnapshotUploadMessage.NotConfigured);
+        if (!gameSession.HasGame)
+            return ClientSnapshotUploadResult.Failed("UntrackedSaveFile", null, SnapshotUploadMessage.NoRunningGame);
         var direct = CopyCandidates(directAchievements);
         ClientSynchronizationCoordinator.Lease admission;
         if (continuation is null) admission = await synchronization.AcquireSnapshotAsync(token);
@@ -61,24 +67,15 @@ internal sealed class ClientSnapshotUploader
             {
                 SnapshotUploadFailure? invalid = ValidateGame(context, gameSession);
                 if (invalid is not null) return new SnapshotSaveCapture(null, null, Array.Empty<ModSnapshotAchievementCandidateDto>(), invalid);
-                try { return gameSession.Capture(removeRaidBattleSessions); }
-                catch (Exception ex)
-                {
-                    return new SnapshotSaveCapture(null, null, Array.Empty<ModSnapshotAchievementCandidateDto>(),
-                        new("SaveToMemoryException", $"{ex.GetType().Name} {ex.Message}", SnapshotUploadMessage.SaveFailed));
-                }
+                return ClientSnapshotPreparation.Capture(gameSession, removeRaidBattleSessions);
             });
             VerifyContext();
             if (capture.Failure is not null) return new(null, null, capture.Failure);
             var achievements = MergeCandidates(capture.Achievements, direct);
-            byte[] saveBytes = capture.SaveBytes ?? Array.Empty<byte>();
-            if (achievements.Count > 0) saveBytes = SnapshotSaveSanitizer.RemovePendingAchievementQueue(saveBytes);
-            ModSnapshotPackageBuildResult build = ModSnapshotPackageBuilder.FromSaveBytes(
-                saveBytes, "memory", context.UserId, context.ColonyId, DateTime.UtcNow);
+            ModSnapshotPackageBuildResult build = ClientSnapshotPreparation.Build(
+                capture, context.UserId, context.ColonyId, snapshotUploadKind, achievements);
             if (!build.Success || build.Package is null || build.Payload is null)
                 return ClientSnapshotUploadResult.Failed(build.ErrorCode ?? "SnapshotBuildFailed", build.Message, SnapshotUploadMessage.BuildFailed);
-            build.Package.SnapshotUploadKind = snapshotUploadKind;
-            build.Package.DefenderThreatPoints = capture.DefenderThreatPoints;
             VerifyContext();
             var upload = await transport.UploadAsync(context,
                 $"snapshot-upload:{context.UserId}:{context.ColonyId}:{build.Package.SnapshotId}",
@@ -89,12 +86,11 @@ internal sealed class ClientSnapshotUploader
             ModProtocolResponseDto? response = upload.Response.Result;
             if (response is not null && !response.Accepted)
                 return ClientSnapshotUploadResult.Failed(response.ErrorCode.ToString(), response.Message, SnapshotUploadMessage.ServerRejected);
-            string acceptedId = upload.Response.AcceptedSnapshotId ?? build.Package.SnapshotId;
+            string acceptedId = string.IsNullOrWhiteSpace(upload.Response.AcceptedSnapshotId)
+                ? build.Package.SnapshotId : upload.Response.AcceptedSnapshotId!;
             await OnGameThread(() =>
             {
-                store.Publish(acceptedId, upload.Response.NextLineageToken);
-                gameSession.Publish(acceptedId, upload.Response.NextLineageToken, achievements);
-                store.Persist();
+                publication.Publish(gameSession, acceptedId, upload.Response.NextLineageToken, achievements);
                 return true;
             });
             CheckOwner();
@@ -144,7 +140,7 @@ internal sealed class ClientSnapshotUploader
     private static SnapshotUploadFailure? ValidateGame(ClashOfRimClientNetworkContext context, IClientSnapshotGameSession game)
     {
         if (string.IsNullOrWhiteSpace(context.CurrentSnapshotId))
-            return game.HasGame ? null : new("UntrackedSaveFile", null, SnapshotUploadMessage.NoRunningGame);
+            return null;
         string runtime = game.RuntimeSnapshotId;
         if (string.IsNullOrWhiteSpace(runtime)) return new("UntrackedSaveFile", null, SnapshotUploadMessage.LineageMissing);
         return context.CurrentSnapshotId == runtime ? null
