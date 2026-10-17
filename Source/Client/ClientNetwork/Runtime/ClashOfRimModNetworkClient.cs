@@ -1,12 +1,11 @@
+using AIRsLight.ClashOfRim.Modules.Transport;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Net.WebSockets;
-using System.Reflection;
 using System.Runtime.Serialization;
-using System.Runtime.Serialization.Json;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -17,10 +16,6 @@ namespace AIRsLight.ClashOfRim.ClientNetwork;
 
 public sealed partial class ClashOfRimModNetworkClient
 {
-    private static readonly DataContractJsonSerializerSettings JsonSerializerSettings = new()
-    {
-        UseSimpleDictionaryFormat = true
-    };
     private static readonly TimeSpan SessionWebSocketPingInterval = TimeSpan.FromSeconds(10);
 
     private static readonly string LoginRoute = ProtocolContractManifest.Find(ProtocolMessageKind.Login).Route;
@@ -98,9 +93,10 @@ public sealed partial class ClashOfRimModNetworkClient
     private static readonly string AdminUpdateConfigurationRoute = ProtocolContractManifest.Find(ProtocolMessageKind.AdminUpdateConfiguration).Route;
     private static readonly string AdminActionRoute = ProtocolContractManifest.Find(ProtocolMessageKind.AdminAction).Route;
     private static readonly string ServerHelloRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ServerHello).Route;
-    private const string LanguageHeader = "X-ClashOfRim-Language";
 
     private readonly HttpClient httpClient;
+    private readonly ClientProtocolEnvironment protocolEnvironment;
+    private readonly ClientProtocolTransport transport;
     private readonly ClashOfRimClientNetworkContext context;
 
     public static Action<string, string?>? SessionExpired;
@@ -116,6 +112,8 @@ public sealed partial class ClashOfRimModNetworkClient
     {
         this.httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         this.context = context ?? throw new ArgumentNullException(nameof(context));
+        protocolEnvironment = new ClientProtocolEnvironment((message, token) => SessionExpired?.Invoke(message, token));
+        transport = new ClientProtocolTransport(httpClient, context, protocolEnvironment);
     }
 
     public Task<ClashOfRimClientNetworkResult<ModServerHelloResponseDto>> ServerHelloAsync(
@@ -126,7 +124,7 @@ public sealed partial class ClashOfRimModNetworkClient
             return NotConfigured<ModServerHelloResponseDto>();
         }
 
-        return GetAsync<ModServerHelloResponseDto>(ServerHelloRoute, cancellationToken);
+        return transport.GetAsync<ModServerHelloResponseDto>(ServerHelloRoute, cancellationToken);
     }
 
     public async Task<ClashOfRimClientNetworkResult<ModLoginResponseDto>> LoginAsync(
@@ -157,7 +155,7 @@ public sealed partial class ClashOfRimModNetworkClient
         };
 
         ClashOfRimClientNetworkResult<ModLoginResponseDto> result =
-            await PostAsync<ModLoginRequestDto, ModLoginResponseDto>(LoginRoute, request, cancellationToken);
+            await transport.PostAsync<ModLoginRequestDto, ModLoginResponseDto>(LoginRoute, request, cancellationToken);
         if (!ShouldRetryWithFullCompatibilityManifest(result, compatibilityManifestJson))
         {
             return result;
@@ -171,7 +169,7 @@ public sealed partial class ClashOfRimModNetworkClient
         }
 
         request.CompatibilityManifestSummaryJson = null;
-        return await PostAsync<ModLoginRequestDto, ModLoginResponseDto>(LoginRoute, request, cancellationToken);
+        return await transport.PostAsync<ModLoginRequestDto, ModLoginResponseDto>(LoginRoute, request, cancellationToken);
     }
 
     public Task<ClashOfRimClientNetworkResult<ModOverrideCompatibilityBaselineResponseDto>> OverrideCompatibilityBaselineAsync(
@@ -194,7 +192,7 @@ public sealed partial class ClashOfRimModNetworkClient
             Password = context.OfflinePassword
         };
 
-        return PostAsync<ModOverrideCompatibilityBaselineRequestDto, ModOverrideCompatibilityBaselineResponseDto>(
+        return transport.PostAsync<ModOverrideCompatibilityBaselineRequestDto, ModOverrideCompatibilityBaselineResponseDto>(
             OverrideCompatibilityBaselineRoute,
             request,
             cancellationToken);
@@ -215,7 +213,7 @@ public sealed partial class ClashOfRimModNetworkClient
             AuthToken = context.AuthToken
         };
 
-        return PostAsync<ModAdminStatusRequestDto, ModAdminStatusResponseDto>(
+        return transport.PostAsync<ModAdminStatusRequestDto, ModAdminStatusResponseDto>(
             AdminStatusRoute,
             request,
             cancellationToken);
@@ -240,7 +238,7 @@ public sealed partial class ClashOfRimModNetworkClient
             NewPassword = newPassword
         };
 
-        return PostAsync<ModChangeOfflinePasswordRequestDto, ModChangeOfflinePasswordResponseDto>(
+        return transport.PostAsync<ModChangeOfflinePasswordRequestDto, ModChangeOfflinePasswordResponseDto>(
             ChangeOfflinePasswordRoute,
             request,
             cancellationToken);
@@ -263,7 +261,7 @@ public sealed partial class ClashOfRimModNetworkClient
             Configuration = configuration
         };
 
-        return PostAsync<ModAdminUpdateConfigurationRequestDto, ModAdminUpdateConfigurationResponseDto>(
+        return transport.PostAsync<ModAdminUpdateConfigurationRequestDto, ModAdminUpdateConfigurationResponseDto>(
             AdminUpdateConfigurationRoute,
             request,
             cancellationToken);
@@ -296,7 +294,7 @@ public sealed partial class ClashOfRimModNetworkClient
             PersistentNotification = persistentNotification
         };
 
-        return PostAsync<ModAdminActionRequestDto, ModAdminActionResponseDto>(
+        return transport.PostAsync<ModAdminActionRequestDto, ModAdminActionResponseDto>(
             AdminActionRoute,
             request,
             cancellationToken);
@@ -317,7 +315,7 @@ public sealed partial class ClashOfRimModNetworkClient
             KnownAtUtc = DateTimeOffset.UtcNow.ToString("O")
         };
 
-        return PostAsync<ModSyncWorldMapMarkersRequestDto, ModWorldMapMarkerDeliveryDto>(
+        return transport.PostAsync<ModSyncWorldMapMarkersRequestDto, ModWorldMapMarkerDeliveryDto>(
             SyncWorldMapMarkersRoute,
             request,
             cancellationToken);
@@ -342,7 +340,7 @@ public sealed partial class ClashOfRimModNetworkClient
             AuthToken = context.AuthToken
         };
 
-        return PostAsync<ModSyncRuntimeWorldObjectsRequestDto, ModSyncRuntimeWorldObjectsResponseDto>(
+        return transport.PostAsync<ModSyncRuntimeWorldObjectsRequestDto, ModSyncRuntimeWorldObjectsResponseDto>(
             SyncRuntimeWorldObjectsRoute,
             request,
             cancellationToken);
@@ -380,7 +378,7 @@ public sealed partial class ClashOfRimModNetworkClient
         };
 
         ClashOfRimClientNetworkResult<ModPrepareWorldSessionResponseDto> result =
-            await PostAsync<ModPrepareWorldSessionRequestDto, ModPrepareWorldSessionResponseDto>(
+            await transport.PostAsync<ModPrepareWorldSessionRequestDto, ModPrepareWorldSessionResponseDto>(
             PrepareWorldSessionRoute,
             request,
             cancellationToken);
@@ -397,7 +395,7 @@ public sealed partial class ClashOfRimModNetworkClient
         }
 
         request.CompatibilityManifestSummaryJson = null;
-        return await PostAsync<ModPrepareWorldSessionRequestDto, ModPrepareWorldSessionResponseDto>(
+        return await transport.PostAsync<ModPrepareWorldSessionRequestDto, ModPrepareWorldSessionResponseDto>(
             PrepareWorldSessionRoute,
             request,
             cancellationToken);
@@ -407,7 +405,7 @@ public sealed partial class ClashOfRimModNetworkClient
         ModWorldConfigurationDto configuration,
         CancellationToken cancellationToken = default)
         => WithSetupAuthenticationAsync<ModSubmitWorldConfigurationResponseDto>("world-configuration-setup", (authenticated, token) =>
-            authenticated.PostAsync<ModSubmitWorldConfigurationRequestDto, ModSubmitWorldConfigurationResponseDto>(
+            authenticated.transport.PostAsync<ModSubmitWorldConfigurationRequestDto, ModSubmitWorldConfigurationResponseDto>(
                 SubmitWorldConfigurationRoute,
                 new ModSubmitWorldConfigurationRequestDto
                 {
@@ -441,7 +439,7 @@ public sealed partial class ClashOfRimModNetworkClient
             Password = context.OfflinePassword
         };
 
-        return PostAsync<ModSubmitWorldFeatureNamesRequestDto, ModSubmitWorldFeatureNamesResponseDto>(
+        return transport.PostAsync<ModSubmitWorldFeatureNamesRequestDto, ModSubmitWorldFeatureNamesResponseDto>(
             SubmitWorldFeatureNamesRoute,
             request,
             cancellationToken);
@@ -468,7 +466,7 @@ public sealed partial class ClashOfRimModNetworkClient
             Password = context.OfflinePassword
         };
 
-        return PostSnapshotMultipartAsync<ModUploadWorldSubstrateRequestDto, ModUploadWorldSubstrateResponseDto>(
+        return transport.PostSnapshotMultipartAsync<ModUploadWorldSubstrateRequestDto, ModUploadWorldSubstrateResponseDto>(
             UploadWorldSubstrateRoute,
             request,
             payload,
@@ -494,7 +492,7 @@ public sealed partial class ClashOfRimModNetworkClient
                 : context.SteamAuthTicket,
             Password = context.OfflinePassword
         };
-        return PostForBytesAsync(DownloadWorldSubstrateRoute, request, cancellationToken);
+        return transport.PostForBytesAsync(DownloadWorldSubstrateRoute, request, cancellationToken);
     }
 
     public Task<ClashOfRimClientNetworkResult<ModGetWorldConfigurationResponseDto>> GetWorldConfigurationAsync(
@@ -521,7 +519,7 @@ public sealed partial class ClashOfRimModNetworkClient
             IncludeWorldExtensions = includeWorldExtensions
         };
 
-        return PostAsync<ModGetWorldConfigurationRequestDto, ModGetWorldConfigurationResponseDto>(
+        return transport.PostAsync<ModGetWorldConfigurationRequestDto, ModGetWorldConfigurationResponseDto>(
             GetWorldConfigurationRoute,
             request,
             cancellationToken);
@@ -547,7 +545,7 @@ public sealed partial class ClashOfRimModNetworkClient
             SuppressWorldConfigurationNotification = suppressWorldConfigurationNotification
         };
 
-        return PostAsync<ModRegisterPlayerColonySitesRequestDto, ModRegisterPlayerColonySitesResponseDto>(
+        return transport.PostAsync<ModRegisterPlayerColonySitesRequestDto, ModRegisterPlayerColonySitesResponseDto>(
             RegisterPlayerColonySitesRoute,
             request,
             cancellationToken);
@@ -575,7 +573,7 @@ public sealed partial class ClashOfRimModNetworkClient
             AuthToken = context.AuthToken
         };
 
-        return PostAsync<ModPreflightColonyRelocationRequestDto, ModColonyRelocationResponseDto>(
+        return transport.PostAsync<ModPreflightColonyRelocationRequestDto, ModColonyRelocationResponseDto>(
             PreflightColonyRelocationRoute,
             request,
             cancellationToken);
@@ -606,7 +604,7 @@ public sealed partial class ClashOfRimModNetworkClient
             AuthToken = context.AuthToken
         };
 
-        return PostAsync<ModConfirmColonyRelocationRequestDto, ModColonyRelocationResponseDto>(
+        return transport.PostAsync<ModConfirmColonyRelocationRequestDto, ModColonyRelocationResponseDto>(
             ConfirmColonyRelocationRoute,
             request,
             cancellationToken);
@@ -630,7 +628,7 @@ public sealed partial class ClashOfRimModNetworkClient
             AuthToken = context.AuthToken
         };
 
-        return PostAsync<ModAbandonPlayerColonyRequestDto, ModAbandonPlayerColonyResponseDto>(
+        return transport.PostAsync<ModAbandonPlayerColonyRequestDto, ModAbandonPlayerColonyResponseDto>(
             AbandonPlayerColonyRoute,
             request,
             cancellationToken);
@@ -656,7 +654,7 @@ public sealed partial class ClashOfRimModNetworkClient
             ColonyWealth = colonyWealth
         };
 
-        return PostAsync<ModGetBankStatusRequestDto, ModBankStatusResponseDto>(
+        return transport.PostAsync<ModGetBankStatusRequestDto, ModBankStatusResponseDto>(
             GetBankStatusRoute,
             request,
             cancellationToken);
@@ -688,7 +686,7 @@ public sealed partial class ClashOfRimModNetworkClient
             DurationDays = durationDays
         };
 
-        return PostAsync<ModCreateBankLoanRequestDto, ModBankLoanResponseDto>(
+        return transport.PostAsync<ModCreateBankLoanRequestDto, ModBankLoanResponseDto>(
             CreateBankLoanRoute,
             request,
             cancellationToken);
@@ -729,7 +727,7 @@ public sealed partial class ClashOfRimModNetworkClient
                 ModSnapshotUploadKinds.BankLoanCreationConfirmation)
         };
 
-        return PostSnapshotMultipartAsync<ModCreateBankLoanWithSnapshotRequestDto, ModBankLoanResponseDto>(
+        return transport.PostSnapshotMultipartAsync<ModCreateBankLoanWithSnapshotRequestDto, ModBankLoanResponseDto>(
             CreateBankLoanWithSnapshotRoute,
             request,
             confirmedPayload,
@@ -758,7 +756,7 @@ public sealed partial class ClashOfRimModNetworkClient
             SilverPaid = silverPaid
         };
 
-        return PostAsync<ModRepayBankLoanRequestDto, ModBankLoanResponseDto>(
+        return transport.PostAsync<ModRepayBankLoanRequestDto, ModBankLoanResponseDto>(
             RepayBankLoanRoute,
             request,
             cancellationToken);
@@ -793,7 +791,7 @@ public sealed partial class ClashOfRimModNetworkClient
                 ModSnapshotUploadKinds.BankLoanRepaymentConfirmation)
         };
 
-        return PostSnapshotMultipartAsync<ModRepayBankLoanWithSnapshotRequestDto, ModBankLoanResponseDto>(
+        return transport.PostSnapshotMultipartAsync<ModRepayBankLoanWithSnapshotRequestDto, ModBankLoanResponseDto>(
             RepayBankLoanWithSnapshotRoute,
             request,
             confirmedPayload,
@@ -824,7 +822,7 @@ public sealed partial class ClashOfRimModNetworkClient
             SilverPaid = silverPaid
         };
 
-        return PostAsync<ModRepayBankDebtRequestDto, ModBankDebtResponseDto>(
+        return transport.PostAsync<ModRepayBankDebtRequestDto, ModBankDebtResponseDto>(
             RepayBankDebtRoute,
             request,
             cancellationToken);
@@ -859,7 +857,7 @@ public sealed partial class ClashOfRimModNetworkClient
                 ModSnapshotUploadKinds.BankDebtRepaymentConfirmation)
         };
 
-        return PostSnapshotMultipartAsync<ModRepayBankDebtWithSnapshotRequestDto, ModBankDebtResponseDto>(
+        return transport.PostSnapshotMultipartAsync<ModRepayBankDebtWithSnapshotRequestDto, ModBankDebtResponseDto>(
             RepayBankDebtWithSnapshotRoute,
             request,
             confirmedPayload,
@@ -892,7 +890,7 @@ public sealed partial class ClashOfRimModNetworkClient
             DurationDays = durationDays
         };
 
-        return PostAsync<ModHireMercenaryRequestDto, ModMercenaryHireResponseDto>(
+        return transport.PostAsync<ModHireMercenaryRequestDto, ModMercenaryHireResponseDto>(
             HireMercenaryRoute,
             request,
             cancellationToken);
@@ -931,7 +929,7 @@ public sealed partial class ClashOfRimModNetworkClient
                 ModSnapshotUploadKinds.MercenaryHireConfirmation)
         };
 
-        return PostSnapshotMultipartAsync<ModHireMercenaryWithSnapshotRequestDto, ModMercenaryHireResponseDto>(
+        return transport.PostSnapshotMultipartAsync<ModHireMercenaryWithSnapshotRequestDto, ModMercenaryHireResponseDto>(
             HireMercenaryWithSnapshotRoute,
             request,
             confirmedPayload,
@@ -962,7 +960,7 @@ public sealed partial class ClashOfRimModNetworkClient
             DurationDays = durationDays
         };
 
-        return PostAsync<ModQuoteMercenaryRequestDto, ModMercenaryQuoteResponseDto>(
+        return transport.PostAsync<ModQuoteMercenaryRequestDto, ModMercenaryQuoteResponseDto>(
             QuoteMercenaryRoute,
             request,
             cancellationToken);
@@ -988,7 +986,7 @@ public sealed partial class ClashOfRimModNetworkClient
             Tier = tier
         };
 
-        return PostAsync<ModQuoteMercenaryGuardRequestDto, ModMercenaryGuardQuoteResponseDto>(
+        return transport.PostAsync<ModQuoteMercenaryGuardRequestDto, ModMercenaryGuardQuoteResponseDto>(
             QuoteMercenaryGuardRoute,
             request,
             cancellationToken);
@@ -1024,7 +1022,7 @@ public sealed partial class ClashOfRimModNetworkClient
                 ModSnapshotUploadKinds.MercenaryGuardHireConfirmation)
         };
 
-        return PostSnapshotMultipartAsync<ModHireMercenaryGuardWithSnapshotRequestDto, ModMercenaryGuardHireResponseDto>(
+        return transport.PostSnapshotMultipartAsync<ModHireMercenaryGuardWithSnapshotRequestDto, ModMercenaryGuardHireResponseDto>(
             HireMercenaryGuardWithSnapshotRoute,
             request,
             confirmedPayload,
@@ -1055,7 +1053,7 @@ public sealed partial class ClashOfRimModNetworkClient
             IncidentKind = incidentKind
         };
 
-        return PostAsync<ModReportMercenaryIncidentRequestDto, ModMercenaryIncidentResponseDto>(
+        return transport.PostAsync<ModReportMercenaryIncidentRequestDto, ModMercenaryIncidentResponseDto>(
             ReportMercenaryIncidentRoute,
             request,
             cancellationToken);
@@ -1080,7 +1078,7 @@ public sealed partial class ClashOfRimModNetworkClient
             Text = text
         };
 
-        return PostAsync<ModSendChatMessageRequestDto, ModSendChatMessageResponseDto>(
+        return transport.PostAsync<ModSendChatMessageRequestDto, ModSendChatMessageResponseDto>(
             SendChatMessageRoute,
             request,
             cancellationToken);
@@ -1105,7 +1103,7 @@ public sealed partial class ClashOfRimModNetworkClient
             Limit = limit
         };
 
-        return PostAsync<ModListChatMessagesRequestDto, ModListChatMessagesResponseDto>(
+        return transport.PostAsync<ModListChatMessagesRequestDto, ModListChatMessagesResponseDto>(
             ListChatMessagesRoute,
             request,
             cancellationToken);
@@ -1120,7 +1118,7 @@ public sealed partial class ClashOfRimModNetworkClient
             request.UserId = authenticated.context.UserId;
             request.ColonyId = authenticated.context.ColonyId;
             request.AuthToken = authenticated.context.AuthToken;
-            return authenticated.PostAsync<ModSubmitAdminBaselineRequestDto, ModSubmitAdminBaselineResponseDto>(
+            return authenticated.transport.PostAsync<ModSubmitAdminBaselineRequestDto, ModSubmitAdminBaselineResponseDto>(
                 SubmitAdminBaselineRoute, request, token);
         }, cancellationToken);
     }
@@ -1129,7 +1127,7 @@ public sealed partial class ClashOfRimModNetworkClient
         CancellationToken cancellationToken = default)
     {
         return WithSetupAuthenticationAsync<ModGetAdminBaselineRequirementsResponseDto>("admin-baseline-requirements", (authenticated, token) =>
-            authenticated.PostAsync<ModGetAdminBaselineRequirementsRequestDto, ModGetAdminBaselineRequirementsResponseDto>(
+            authenticated.transport.PostAsync<ModGetAdminBaselineRequirementsRequestDto, ModGetAdminBaselineRequirementsResponseDto>(
                 GetAdminBaselineRequirementsRoute,
                 new ModGetAdminBaselineRequirementsRequestDto
                 {
@@ -1157,10 +1155,10 @@ public sealed partial class ClashOfRimModNetworkClient
         {
             Uri uri = BuildWebSocketSessionUri(sessionId, knownNotificationVersion, knownWorldConfigurationVersion);
             using var webSocket = new ClientWebSocket();
-            string? language = ResolveCurrentRimWorldLanguage();
+            string? language = protocolEnvironment.CurrentLanguage;
             if (!string.IsNullOrWhiteSpace(language))
             {
-                webSocket.Options.SetRequestHeader(LanguageHeader, ServerLocalization.EncodeLanguageHeader(language));
+                webSocket.Options.SetRequestHeader(ClientProtocolTransport.LanguageHeader, ServerLocalization.EncodeLanguageHeader(language));
             }
 
             await webSocket.ConnectAsync(uri, cancellationToken).ConfigureAwait(false);
@@ -1177,7 +1175,7 @@ public sealed partial class ClashOfRimModNetworkClient
                         break;
                     }
 
-                    ModSessionWebSocketEnvelopeDto envelope = Deserialize<ModSessionWebSocketEnvelopeDto>(message);
+                    ModSessionWebSocketEnvelopeDto envelope = ClientProtocolJson.Deserialize<ModSessionWebSocketEnvelopeDto>(message, protocolEnvironment.DeserializationFailure);
                     if (string.Equals(envelope.EventName, "pong", StringComparison.Ordinal)
                         || string.Equals(envelope.EventName, "keepalive", StringComparison.Ordinal))
                     {
@@ -1293,7 +1291,7 @@ public sealed partial class ClashOfRimModNetworkClient
             SessionId = sessionId
         };
 
-        return PostAsync<ModMaintainPresenceRequestDto, ModMaintainPresenceResponseDto>(
+        return transport.PostAsync<ModMaintainPresenceRequestDto, ModMaintainPresenceResponseDto>(
             MaintainPresenceRoute,
             request,
             cancellationToken);
@@ -1323,7 +1321,7 @@ public sealed partial class ClashOfRimModNetworkClient
             SessionId = sessionId
         };
 
-        return PostAsync<ModLogoutRequestDto, ModLogoutResponseDto>(
+        return transport.PostAsync<ModLogoutRequestDto, ModLogoutResponseDto>(
             LogoutRoute,
             request,
             cancellationToken, bindToSession);
@@ -1344,7 +1342,7 @@ public sealed partial class ClashOfRimModNetworkClient
             CurrentSnapshotId = context.CurrentSnapshotId
         };
 
-        return PostAsync<ModListPlayersRequestDto, ModListPlayersResponseDto>(
+        return transport.PostAsync<ModListPlayersRequestDto, ModListPlayersResponseDto>(
             ListPlayersRoute,
             request,
             cancellationToken);
@@ -1369,7 +1367,7 @@ public sealed partial class ClashOfRimModNetworkClient
             TargetColonyId = string.IsNullOrWhiteSpace(targetColonyId) ? context.ColonyId : targetColonyId
         };
 
-        return PostAsync<ModListAchievementsRequestDto, ModListAchievementsResponseDto>(
+        return transport.PostAsync<ModListAchievementsRequestDto, ModListAchievementsResponseDto>(
             ListAchievementsRoute,
             request,
             cancellationToken);
@@ -1391,7 +1389,7 @@ public sealed partial class ClashOfRimModNetworkClient
             CurrentSnapshotId = context.CurrentSnapshotId ?? string.Empty
         };
 
-        return PostAsync<ModPullPendingEventsRequestDto, ModPullPendingEventsResponseDto>(
+        return transport.PostAsync<ModPullPendingEventsRequestDto, ModPullPendingEventsResponseDto>(
             PullPendingEventsRoute,
             request,
             cancellationToken);
@@ -1417,7 +1415,7 @@ public sealed partial class ClashOfRimModNetworkClient
             TimeoutSeconds = timeoutSeconds
         };
 
-        return PostAsync<ModWaitForEventsRequestDto, ModWaitForEventsResponseDto>(
+        return transport.PostAsync<ModWaitForEventsRequestDto, ModWaitForEventsResponseDto>(
             WaitForEventsRoute,
             request,
             cancellationToken);
@@ -1441,7 +1439,7 @@ public sealed partial class ClashOfRimModNetworkClient
             EventIds = eventIds.ToList()
         };
 
-        return PostAsync<ModPullEventDetailsRequestDto, ModPullEventDetailsResponseDto>(
+        return transport.PostAsync<ModPullEventDetailsRequestDto, ModPullEventDetailsResponseDto>(
             PullEventDetailsRoute,
             request,
             cancellationToken);
@@ -1467,7 +1465,7 @@ public sealed partial class ClashOfRimModNetworkClient
             AuthToken = context.AuthToken
         };
 
-        return PostAsync<ModRejectGiftRequestDto, ModRejectGiftResponseDto>(
+        return transport.PostAsync<ModRejectGiftRequestDto, ModRejectGiftResponseDto>(
             RejectGiftRoute,
             request,
             cancellationToken);
@@ -1493,7 +1491,7 @@ public sealed partial class ClashOfRimModNetworkClient
             Reason = reason
         };
 
-        return PostAsync<ModRejectSupportPawnRequestDto, ModRejectSupportPawnResponseDto>(
+        return transport.PostAsync<ModRejectSupportPawnRequestDto, ModRejectSupportPawnResponseDto>(
             RejectSupportPawnRoute,
             request,
             cancellationToken);
@@ -1529,7 +1527,7 @@ public sealed partial class ClashOfRimModNetworkClient
             PawnPackage = pawnPackage
         };
 
-        return PostAsync<ModFinishSupportPawnRequestDto, ModFinishSupportPawnResponseDto>(
+        return transport.PostAsync<ModFinishSupportPawnRequestDto, ModFinishSupportPawnResponseDto>(
             FinishSupportPawnRoute,
             request,
             cancellationToken);
@@ -1570,7 +1568,7 @@ public sealed partial class ClashOfRimModNetworkClient
             ExpiresAtUtc = expiresAtUtc?.ToString("O")
         };
 
-        return PostAsync<ModCreateDiplomacyEventRequestDto, ModDiplomacyEventResponseDto>(
+        return transport.PostAsync<ModCreateDiplomacyEventRequestDto, ModDiplomacyEventResponseDto>(
             CreateDiplomacyEventRoute,
             request,
             cancellationToken);
@@ -1597,7 +1595,7 @@ public sealed partial class ClashOfRimModNetworkClient
             Reason = reason
         };
 
-        return PostAsync<ModRespondDiplomacyEventRequestDto, ModDiplomacyEventResponseDto>(
+        return transport.PostAsync<ModRespondDiplomacyEventRequestDto, ModDiplomacyEventResponseDto>(
             RespondDiplomacyEventRoute,
             request,
             cancellationToken);
@@ -1649,7 +1647,7 @@ public sealed partial class ClashOfRimModNetworkClient
                 ModSnapshotUploadKinds.GiftCreationConfirmation)
         };
 
-        return PostSnapshotMultipartAsync<ModCreateGiftWithSnapshotRequestDto, ModEventCreationResponseDto>(
+        return transport.PostSnapshotMultipartAsync<ModCreateGiftWithSnapshotRequestDto, ModEventCreationResponseDto>(
             CreateGiftWithSnapshotRoute,
             request,
             confirmedPayload,
@@ -1678,7 +1676,7 @@ public sealed partial class ClashOfRimModNetworkClient
             RequestedThings = requestedThings.ToList()
         };
 
-        return PostAsync<ModQuoteTradeOrderFeeRequestDto, ModTradeOrderFeeQuoteResponseDto>(
+        return transport.PostAsync<ModQuoteTradeOrderFeeRequestDto, ModTradeOrderFeeQuoteResponseDto>(
             QuoteTradeOrderFeeRoute,
             request,
             cancellationToken);
@@ -1723,7 +1721,7 @@ public sealed partial class ClashOfRimModNetworkClient
                 ModSnapshotUploadKinds.TradeOrderCreationConfirmation)
         };
 
-        return PostSnapshotMultipartAsync<ModCreateTradeOrderWithSnapshotRequestDto, ModEventCreationResponseDto>(
+        return transport.PostSnapshotMultipartAsync<ModCreateTradeOrderWithSnapshotRequestDto, ModEventCreationResponseDto>(
             CreateTradeOrderWithSnapshotRoute,
             request,
             confirmedPayload,
@@ -1752,7 +1750,7 @@ public sealed partial class ClashOfRimModNetworkClient
             PawnPackage = pawnPackage
         };
 
-        return PostAsync<ModStorePawnPackageRequestDto, ModStorePawnPackageResponseDto>(
+        return transport.PostAsync<ModStorePawnPackageRequestDto, ModStorePawnPackageResponseDto>(
             StorePawnPackageRoute,
             request,
             cancellationToken);
@@ -1778,7 +1776,7 @@ public sealed partial class ClashOfRimModNetworkClient
             PawnPackageId = pawnPackageId
         };
 
-        return PostAsync<ModGetPawnPackageRequestDto, ModGetPawnPackageResponseDto>(
+        return transport.PostAsync<ModGetPawnPackageRequestDto, ModGetPawnPackageResponseDto>(
             GetPawnPackageRoute,
             request,
             cancellationToken);
@@ -1805,7 +1803,7 @@ public sealed partial class ClashOfRimModNetworkClient
             PawnPackageId = pawnPackageId
         };
 
-        return PostSnapshotMultipartAsync<ModStorePawnPackagePreviewRequestDto, ModStorePawnPackagePreviewResponseDto>(
+        return transport.PostSnapshotMultipartAsync<ModStorePawnPackagePreviewRequestDto, ModStorePawnPackagePreviewResponseDto>(
             StorePawnPackagePreviewRoute,
             request,
             previewPng,
@@ -1832,7 +1830,7 @@ public sealed partial class ClashOfRimModNetworkClient
             PawnPackageId = pawnPackageId
         };
 
-        return PostForBytesAsync(
+        return transport.PostForBytesAsync(
             GetPawnPackagePreviewRoute,
             request,
             cancellationToken);
@@ -1860,7 +1858,7 @@ public sealed partial class ClashOfRimModNetworkClient
             ThingPackage = thingPackage
         };
 
-        return PostAsync<ModStoreThingPackageRequestDto, ModStoreThingPackageResponseDto>(
+        return transport.PostAsync<ModStoreThingPackageRequestDto, ModStoreThingPackageResponseDto>(
             StoreThingPackageRoute,
             request,
             cancellationToken);
@@ -1886,7 +1884,7 @@ public sealed partial class ClashOfRimModNetworkClient
             ThingPackageId = thingPackageId
         };
 
-        return PostAsync<ModGetThingPackageRequestDto, ModGetThingPackageResponseDto>(
+        return transport.PostAsync<ModGetThingPackageRequestDto, ModGetThingPackageResponseDto>(
             GetThingPackageRoute,
             request,
             cancellationToken);
@@ -1914,7 +1912,7 @@ public sealed partial class ClashOfRimModNetworkClient
             Limit = limit <= 0 ? 10 : limit
         };
 
-        return PostAsync<ModListTradeOrdersRequestDto, ModListTradeOrdersResponseDto>(
+        return transport.PostAsync<ModListTradeOrdersRequestDto, ModListTradeOrdersResponseDto>(
             ListTradeOrdersRoute,
             request,
             cancellationToken);
@@ -1945,7 +1943,7 @@ public sealed partial class ClashOfRimModNetworkClient
             PostagePaidByAcceptor = postagePaidByAcceptor
         };
 
-        return PostAsync<ModAcceptTradeOrderRequestDto, ModAcceptTradeOrderResponseDto>(
+        return transport.PostAsync<ModAcceptTradeOrderRequestDto, ModAcceptTradeOrderResponseDto>(
             AcceptTradeOrderRoute,
             request,
             cancellationToken);
@@ -1988,7 +1986,7 @@ public sealed partial class ClashOfRimModNetworkClient
                 ModSnapshotUploadKinds.TradeFulfillmentConfirmation)
         };
 
-        return PostSnapshotMultipartAsync<ModFulfillTradeOrderWithSnapshotRequestDto, ModFulfillTradeOrderResponseDto>(
+        return transport.PostSnapshotMultipartAsync<ModFulfillTradeOrderWithSnapshotRequestDto, ModFulfillTradeOrderResponseDto>(
             FulfillTradeOrderWithSnapshotRoute,
             request,
             confirmedPayload,
@@ -2020,7 +2018,7 @@ public sealed partial class ClashOfRimModNetworkClient
             Reason = reason
         };
 
-        return PostAsync<ModCloseTradeOrderRequestDto, ModCloseTradeOrderResponseDto>(
+        return transport.PostAsync<ModCloseTradeOrderRequestDto, ModCloseTradeOrderResponseDto>(
             CancelTradeOrderRoute,
             request,
             cancellationToken);
@@ -2040,7 +2038,7 @@ public sealed partial class ClashOfRimModNetworkClient
             UserId = context.UserId,
             ColonyId = context.ColonyId
         };
-        return PostAsync<ModListServerShopRequestDto, ModListServerShopResponseDto>(
+        return transport.PostAsync<ModListServerShopRequestDto, ModListServerShopResponseDto>(
             ListServerShopRoute,
             request,
             cancellationToken);
@@ -2076,7 +2074,7 @@ public sealed partial class ClashOfRimModNetworkClient
             QualityRequirementMode = NormalizeShopRequirementMode(qualityRequirementMode),
             HitPointsRequirementMode = NormalizeShopRequirementMode(hitPointsRequirementMode)
         };
-        return PostAsync<ModUpsertServerShopListingRequestDto, ModUpsertServerShopListingResponseDto>(
+        return transport.PostAsync<ModUpsertServerShopListingRequestDto, ModUpsertServerShopListingResponseDto>(
             UpsertServerShopListingRoute,
             request,
             cancellationToken);
@@ -2098,7 +2096,7 @@ public sealed partial class ClashOfRimModNetworkClient
             ColonyId = context.ColonyId,
             ListingId = listingId
         };
-        return PostAsync<ModRemoveServerShopListingRequestDto, ModRemoveServerShopListingResponseDto>(
+        return transport.PostAsync<ModRemoveServerShopListingRequestDto, ModRemoveServerShopListingResponseDto>(
             RemoveServerShopListingRoute,
             request,
             cancellationToken);
@@ -2144,7 +2142,7 @@ public sealed partial class ClashOfRimModNetworkClient
                 confirmedSnapshot,
                 ModSnapshotUploadKinds.ServerShopPurchaseConfirmation)
         };
-        return PostSnapshotMultipartAsync<ModPurchaseServerShopListingWithSnapshotRequestDto, ModPurchaseServerShopListingResponseDto>(
+        return transport.PostSnapshotMultipartAsync<ModPurchaseServerShopListingWithSnapshotRequestDto, ModPurchaseServerShopListingResponseDto>(
             PurchaseServerShopListingWithSnapshotRoute,
             request,
             confirmedPayload,
@@ -2249,7 +2247,7 @@ public sealed partial class ClashOfRimModNetworkClient
                 ModSnapshotUploadKinds.RaidCreationConfirmation)
         };
 
-        return PostSnapshotMultipartAsync<ModCreateRaidWithSnapshotRequestDto, ModEventCreationResponseDto>(
+        return transport.PostSnapshotMultipartAsync<ModCreateRaidWithSnapshotRequestDto, ModEventCreationResponseDto>(
             CreateRaidWithSnapshotRoute,
             request,
             confirmedPayload,
@@ -2294,7 +2292,7 @@ public sealed partial class ClashOfRimModNetworkClient
             OpponentKind = opponentKind
         };
 
-        return PostAsync<ModPrepareRaidRequestDto, ModPrepareRaidResponseDto>(
+        return transport.PostAsync<ModPrepareRaidRequestDto, ModPrepareRaidResponseDto>(
             PrepareRaidRoute,
             request,
             cancellationToken);
@@ -2363,7 +2361,7 @@ public sealed partial class ClashOfRimModNetworkClient
                 ModSnapshotUploadKinds.SupportPawnCreationConfirmation)
         };
 
-        return PostSnapshotMultipartAsync<ModCreateSupportPawnWithSnapshotRequestDto, ModEventCreationResponseDto>(
+        return transport.PostSnapshotMultipartAsync<ModCreateSupportPawnWithSnapshotRequestDto, ModEventCreationResponseDto>(
             CreateSupportPawnWithSnapshotRoute,
             request,
             confirmedPayload,
@@ -2397,7 +2395,7 @@ public sealed partial class ClashOfRimModNetworkClient
             AchievementCandidates = achievementCandidates?.ToList() ?? new List<ModSnapshotAchievementCandidateDto>()
         };
 
-        return PostSnapshotMultipartAsync<ModUploadSnapshotRequestDto, ModUploadSnapshotResponseDto>(
+        return transport.PostSnapshotMultipartAsync<ModUploadSnapshotRequestDto, ModUploadSnapshotResponseDto>(
             UploadSnapshotRoute,
             request,
             payload,
@@ -2436,7 +2434,7 @@ public sealed partial class ClashOfRimModNetworkClient
             AuthorizationScope = authorizationScope
         };
 
-        return PostAsync<ModDownloadLatestSnapshotRequestDto, ModDownloadLatestSnapshotResponseDto>(
+        return transport.PostAsync<ModDownloadLatestSnapshotRequestDto, ModDownloadLatestSnapshotResponseDto>(
             DownloadLatestSnapshotRoute,
             request,
             cancellationToken);
@@ -2477,7 +2475,7 @@ public sealed partial class ClashOfRimModNetworkClient
             AuthorizationScope = authorizationScope
         };
 
-        return PostForBytesAsync(DownloadLatestSnapshotPayloadRoute, request, cancellationToken);
+        return transport.PostForBytesAsync(DownloadLatestSnapshotPayloadRoute, request, cancellationToken);
     }
 
     public Task<ClashOfRimClientNetworkResult<ModConfirmEventApplicationResponseDto>> ConfirmEventApplicationAsync(
@@ -2510,7 +2508,7 @@ public sealed partial class ClashOfRimModNetworkClient
             AuthToken = context.AuthToken
         };
 
-        return PostSnapshotMultipartAsync<ModConfirmEventApplicationRequestDto, ModConfirmEventApplicationResponseDto>(
+        return transport.PostSnapshotMultipartAsync<ModConfirmEventApplicationRequestDto, ModConfirmEventApplicationResponseDto>(
             ConfirmEventApplicationRoute,
             request,
             payload,
@@ -2549,7 +2547,7 @@ public sealed partial class ClashOfRimModNetworkClient
             AuthToken = context.AuthToken
         };
 
-        return PostSnapshotMultipartAsync<ModConfirmEventApplicationRequestDto, ModConfirmEventApplicationResponseDto>(
+        return transport.PostSnapshotMultipartAsync<ModConfirmEventApplicationRequestDto, ModConfirmEventApplicationResponseDto>(
             ConfirmEventApplicationRoute,
             request,
             payload,
@@ -2582,7 +2580,7 @@ public sealed partial class ClashOfRimModNetworkClient
             AuthToken = context.AuthToken
         };
 
-        return PostSnapshotMultipartAsync<ModConfirmEventApplicationsRequestDto, ModConfirmEventApplicationsResponseDto>(
+        return transport.PostSnapshotMultipartAsync<ModConfirmEventApplicationsRequestDto, ModConfirmEventApplicationsResponseDto>(
             ConfirmEventApplicationsRoute,
             request,
             payload,
@@ -2614,7 +2612,7 @@ public sealed partial class ClashOfRimModNetworkClient
             AuthToken = context.AuthToken
         };
 
-        return PostAsync<ModReportEventApplicationFailureRequestDto, ModReportEventApplicationFailureResponseDto>(
+        return transport.PostAsync<ModReportEventApplicationFailureRequestDto, ModReportEventApplicationFailureResponseDto>(
             ReportEventApplicationFailureRoute,
             request,
             cancellationToken);
@@ -2660,194 +2658,6 @@ public sealed partial class ClashOfRimModNetworkClient
                 : "ws"
         };
         return builder.Uri;
-    }
-
-    private async Task<ClashOfRimClientNetworkResult<TResponse>> PostAsync<TRequest, TResponse>(
-        string route,
-        TRequest request,
-        CancellationToken cancellationToken, bool bindToSession = true)
-    {
-        try
-        {
-            string json = Serialize(request);
-            using var content = new StringContent(json, Encoding.UTF8, "application/json");
-            using var message = new HttpRequestMessage(HttpMethod.Post, BuildRequestUri(route))
-            {
-                Content = content
-            };
-            AddClientLanguageHeader(message);
-            using var sessionCancellation = bindToSession
-                ? CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, ClientSessionWork.Token) : null;
-            cancellationToken = sessionCancellation?.Token ?? cancellationToken;
-            using HttpResponseMessage response = await httpClient.SendAsync(message, cancellationToken).ConfigureAwait(false);
-            string body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-            if (!response.IsSuccessStatusCode)
-            {
-                DetectSessionExpiredMessage(body, context.AuthToken);
-                return ClashOfRimClientNetworkResult<TResponse>.Failed(
-                    "HttpError",
-                    $"{(int)response.StatusCode} {response.ReasonPhrase}: {body}");
-            }
-
-            TResponse parsed = Deserialize<TResponse>(body);
-            DetectSessionExpired(parsed, context.AuthToken);
-            return ClashOfRimClientNetworkResult<TResponse>.Ok(parsed);
-        }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException or SerializationException)
-        {
-            return ClashOfRimClientNetworkResult<TResponse>.Failed(ex.GetType().Name, ex.Message);
-        }
-    }
-
-    private async Task<ClashOfRimClientNetworkResult<TResponse>> GetAsync<TResponse>(
-        string route,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            using var message = new HttpRequestMessage(HttpMethod.Get, BuildRequestUri(route));
-            AddClientLanguageHeader(message);
-            using var sessionCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, ClientSessionWork.Token);
-            cancellationToken = sessionCancellation.Token;
-            using HttpResponseMessage response = await httpClient.SendAsync(message, cancellationToken).ConfigureAwait(false);
-            string body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-            if (!response.IsSuccessStatusCode)
-            {
-                DetectSessionExpiredMessage(body, context.AuthToken);
-                return ClashOfRimClientNetworkResult<TResponse>.Failed(
-                    "HttpError",
-                    $"{(int)response.StatusCode} {response.ReasonPhrase}: {body}");
-            }
-
-            TResponse parsed = Deserialize<TResponse>(body);
-            DetectSessionExpired(parsed, context.AuthToken);
-            return ClashOfRimClientNetworkResult<TResponse>.Ok(parsed);
-        }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException or SerializationException)
-        {
-            return ClashOfRimClientNetworkResult<TResponse>.Failed(ex.GetType().Name, ex.Message);
-        }
-    }
-
-    private async Task<ClashOfRimClientNetworkResult<byte[]>> PostForBytesAsync<TRequest>(
-        string route,
-        TRequest request,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            string json = Serialize(request);
-            using var content = new StringContent(json, Encoding.UTF8, "application/json");
-            using var message = new HttpRequestMessage(HttpMethod.Post, BuildRequestUri(route))
-            {
-                Content = content
-            };
-            AddClientLanguageHeader(message);
-            if (!string.IsNullOrWhiteSpace(context.AuthToken))
-            {
-                message.Headers.TryAddWithoutValidation(
-                    MultipartSnapshotTransport.AuthenticationHeaderName,
-                    context.AuthToken);
-            }
-
-            using var sessionCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, ClientSessionWork.Token);
-            cancellationToken = sessionCancellation.Token;
-            using HttpResponseMessage response = await httpClient.SendAsync(
-                message,
-                HttpCompletionOption.ResponseHeadersRead,
-                cancellationToken).ConfigureAwait(false);
-            if (!response.IsSuccessStatusCode)
-            {
-                string body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-                DetectSessionExpiredMessage(body, context.AuthToken);
-                return ClashOfRimClientNetworkResult<byte[]>.Failed(
-                    "HttpError",
-                    $"{(int)response.StatusCode} {response.ReasonPhrase}: {body}");
-            }
-
-            byte[] bytes = await response.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
-            return ClashOfRimClientNetworkResult<byte[]>.Ok(bytes);
-        }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException or SerializationException or IOException)
-        {
-            return ClashOfRimClientNetworkResult<byte[]>.Failed(ex.GetType().Name, ex.Message);
-        }
-    }
-
-    private async Task<ClashOfRimClientNetworkResult<TResponse>> PostSnapshotMultipartAsync<TRequest, TResponse>(
-        string route,
-        TRequest request,
-        byte[] payload,
-        CancellationToken cancellationToken)
-    {
-        MultipartFormDataContent? content = null;
-        HttpRequestMessage? message = null;
-        try
-        {
-            string json = Serialize(request);
-            content = new MultipartFormDataContent();
-            content.Add(new StringContent(json, Encoding.UTF8, "application/json"), "request");
-            content.Add(new ByteArrayContent(payload ?? Array.Empty<byte>()), "payload", "snapshot.payload");
-            message = new HttpRequestMessage(HttpMethod.Post, BuildRequestUri(route))
-            {
-                Content = content
-            };
-            content = null;
-            if (!string.IsNullOrWhiteSpace(context.AuthToken))
-            {
-                message.Headers.TryAddWithoutValidation(
-                    MultipartSnapshotTransport.AuthenticationHeaderName,
-                    context.AuthToken);
-            }
-            AddClientLanguageHeader(message);
-            using var sessionCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, ClientSessionWork.Token);
-            cancellationToken = sessionCancellation.Token;
-            using HttpResponseMessage response = await httpClient.SendAsync(message, cancellationToken).ConfigureAwait(false);
-            string body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-            if (!response.IsSuccessStatusCode)
-            {
-                DetectSessionExpiredMessage(body, context.AuthToken);
-                return ClashOfRimClientNetworkResult<TResponse>.Failed(
-                    "HttpError",
-                    $"{(int)response.StatusCode} {response.ReasonPhrase}: {body}");
-            }
-
-            TResponse parsed = Deserialize<TResponse>(body);
-            DetectSessionExpired(parsed, context.AuthToken);
-            return ClashOfRimClientNetworkResult<TResponse>.Ok(parsed);
-        }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException or SerializationException or IOException)
-        {
-            return ClashOfRimClientNetworkResult<TResponse>.Failed(ex.GetType().Name, ex.Message);
-        }
-        finally
-        {
-            SafeDispose(message);
-            SafeDispose(content);
-        }
-    }
-
-    private static void SafeDispose(IDisposable? disposable)
-    {
-        if (disposable is null)
-        {
-            return;
-        }
-
-        try
-        {
-            disposable.Dispose();
-        }
-        catch (NullReferenceException ex)
-        {
-            Log.Warning("[ClashOfRim] Ignored HTTP multipart dispose NullReferenceException: " + ex.Message);
-        }
-    }
-
-    private Uri BuildRequestUri(string route)
-    {
-        Uri baseUri = ClashOfRimServerUrlUtility.BuildHttpBaseUri(context.ServerBaseUrl);
-        return new Uri(baseUri, route.TrimStart('/'));
     }
 
     private static Task<ClashOfRimClientNetworkResult<T>> NotConfigured<T>()
@@ -2907,104 +2717,4 @@ public sealed partial class ClashOfRimModNetworkClient
                 || message.IndexOf("complete mod list", StringComparison.OrdinalIgnoreCase) >= 0);
     }
 
-    private static void AddClientLanguageHeader(HttpRequestMessage message)
-    {
-        string? language = ResolveCurrentRimWorldLanguage();
-        if (string.IsNullOrWhiteSpace(language))
-        {
-            return;
-        }
-
-        message.Headers.Remove(LanguageHeader);
-        message.Headers.Add(LanguageHeader, ServerLocalization.EncodeLanguageHeader(language));
-    }
-
-    private static string? ResolveCurrentRimWorldLanguage()
-    {
-        try
-        {
-            Type? languageDatabase = Type.GetType("Verse.LanguageDatabase, Assembly-CSharp");
-            object? activeLanguage = languageDatabase
-                ?.GetField("activeLanguage", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
-                ?.GetValue(null)
-                ?? languageDatabase
-                    ?.GetProperty("activeLanguage", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
-                    ?.GetValue(null, null);
-            if (activeLanguage is null)
-            {
-                return null;
-            }
-
-            Type languageType = activeLanguage.GetType();
-            return languageType.GetField("folderName", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
-                    ?.GetValue(activeLanguage) as string
-                ?? languageType.GetProperty("folderName", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
-                    ?.GetValue(activeLanguage, null) as string
-                ?? languageType.GetProperty("FolderName", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
-                    ?.GetValue(activeLanguage, null) as string;
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
-    private static void DetectSessionExpired<TResponse>(TResponse response, string? authToken)
-    {
-        if (response is null)
-        {
-            return;
-        }
-
-        object? result = typeof(TResponse)
-            .GetProperty("Result", BindingFlags.Public | BindingFlags.Instance)
-            ?.GetValue(response, null);
-        if (result is not ModProtocolResponseDto protocolResponse
-            || protocolResponse.Accepted
-            || string.IsNullOrWhiteSpace(protocolResponse.Message)
-            || !IsSessionExpiredMessage(protocolResponse.Message))
-        {
-            return;
-        }
-
-        SessionExpired?.Invoke(protocolResponse.Message!, authToken);
-    }
-
-    private static void DetectSessionExpiredMessage(string? message, string? authToken)
-    {
-        if (IsSessionExpiredMessage(message))
-        {
-            SessionExpired?.Invoke(message!, authToken);
-        }
-    }
-
-    private static bool IsSessionExpiredMessage(string? message)
-    {
-        return !string.IsNullOrWhiteSpace(message)
-            && (message!.IndexOf("\u4f1a\u8bdd\u5df2\u8fc7\u671f", StringComparison.Ordinal) >= 0
-                || message.IndexOf("session has expired", StringComparison.OrdinalIgnoreCase) >= 0);
-    }
-
-    private static string Serialize<T>(T value)
-    {
-        var serializer = new DataContractJsonSerializer(typeof(T), JsonSerializerSettings);
-        using var stream = new MemoryStream();
-        serializer.WriteObject(stream, value);
-        return Encoding.UTF8.GetString(stream.ToArray());
-    }
-
-    private static T Deserialize<T>(string json)
-    {
-        var serializer = new DataContractJsonSerializer(typeof(T), JsonSerializerSettings);
-        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
-        object? value = serializer.ReadObject(stream);
-        if (value is not T typed)
-        {
-            throw new InvalidOperationException(ClashOfRimText.Key(
-                "ClashOfRim.Network.StatusDeserializeFailed",
-                typeof(T).Name.Named("TYPE")));
-        }
-
-        return typed;
-    }
 }
