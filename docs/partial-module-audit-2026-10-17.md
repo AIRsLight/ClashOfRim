@@ -433,3 +433,31 @@ M3c2 完成，M3 整体未完成。下一步移出临时认证租约，统一世
 实机批次 `G:/RimTestRuns/ClashOfRim-module-migration/20261017-062417-f7fa39d4` 通过 core-features 43/43、coverage50-french 14/14、account-core 22/22，共 79 项，未执行项为 0。覆盖四个准备入口所参与的入服流程、核心经济与流转、管理员踢出重连、法语世界/难度/文化同步，以及两名玩家的密码变更、废弃殖民地、重新建档、跨代成就检查、存档重载与重连。各场输入与最终包 DLL SHA256 均为 `1AF2433FA2DAE47FED23D95561D033822D41630B3199DF489E786C9231A95A56`；日志 `LocalOnly/module-migration/m3d-rimtest.log`。本批三个服务端日志均无 HTTP 400，仍不关闭此前世界配置拒绝原因的追踪；银行袭击生成的首次失败也仍开放。
 
 M3d 完成。下一项分离快照打包错误数据与本地化显示：现有打包器的 MissingIdentity、MissingSavePayload、MissingRimWorldVersion 三条分支仍直接调用引擎本地化，模块的直接依赖检查不足以证明这一层纯净。M3 整体及 M4–M12 仍未完成。
+
+### M3e 快照打包数据与显示边界
+
+`ClientSnapshotPackageBuilder` 接管原打包器的实际 XML 读取、压缩、摘要和元数据构造；已知失败返回结构化分类，异常保留原诊断。公开 `ModSnapshotPackageBuilder` 保留原签名、常量和失败码，仅转发并将错误交给 `ClientSnapshotPackagePresentation` 本地化。普通上传与领域准备共享同一打包实现、错误转换和显示映射，没有另建上传事务或会话代次。
+
+沿调用链检查还发现成就队列清理在 XML 失败时直接使用游戏日志。该数据操作移入 `ClientSnapshotSaveData`，失败返回原字节和诊断，公开清理门面继续保留原日志行为。打包准备在清理失败后交由同一个打包器报告解析失败。组件定位由打包、队列清理和既有谱系写入共同复用，继续接受原有组件类名及程序集后缀；其余远程地图/兼容清理仍留待 M7。领域准备暂时通过具名 `ClientSnapshotPreparationAdapter` 将结构化失败转换为旧调用方的文本，只有显示转换，没有捕获或打包算法；在 M4–M8 各域迁移时逐步退役。
+
+跨文化测试先复现了快照 ID 时间部分受当前日历影响：同一 UTC 时间在 ar-SA 下产生 `14480506010203`，而不是 `20261017010203`，日志为 `LocalOnly/module-migration/m3e-culture-before.log`。现对新 ID 的日期和存档 tick 解析显式使用 invariant culture；已有快照 ID 和父谱系仍按原值传递，不重命名旧记录。此证据证明格式不一致，不等同于已经复现存档损坏。
+
+边界测试在提取前明确拒绝准备模块调用公开打包门面，失败证据为 `m3e-before.log`。现在进一步禁止模块依赖公开打包/上传门面、混合清理器及显示适配器。纯打包和 XML 队列操作也在没有游戏程序集引用的 Client.Core 工程中直接编译运行；同一组测试复用于真实客户端测试，避免两套断言。覆盖五种文化、实际解压字节、摘要/长度、谱系、缺失身份/版本/载荷、非法 XML/DTD、成就队列清理和无关组件保留；显示测试覆盖公开入口、上传及领域准备的旧错误码/本地化格式，并验证纯模块不触发翻译。
+
+最终 Release 全回归通过 Events、Save、Client.Core 9 组、完整 NetworkSmoke 和客户端 55 项，模块依赖检查覆盖 99 个产品及生成类型；第三方兼容包构建及冻结 1.6 的 77 个文件通过。日志为 `LocalOnly/module-migration/m3e-regression.log`、`m3e-third-party.log` 和 `m3e-frozen.log`。
+
+实机批次 `G:/RimTestRuns/ClashOfRim-module-migration/20261017-065318-91e35cc4` 通过 core-features 43/43、coverage50-french 14/14、stability-transfers-dlc 22/22，共 79 项，未执行项为 0。覆盖真实快照保存/重载、成就提交、法语与世界/难度/文化同步、全 DLC 复杂物品、支援拒绝/提前/到期归还、远程观察和袭击损失结算。三个场景输入与最终产品 DLL SHA256 均为 `FFAA89AF68C24066C8AC59F85440D21C7DD67181932A91A8967750C00DCDE05F`；执行日志为 `m3e-rimtest.log`，报告及产物核对为 `m3e-verification.json`。本批服务端日志未记录 HTTP 400；此前世界配置拒绝原因和银行袭击生成失败仍开放，不因本批通过而关闭。
+
+M3 基础边界核对如下。此表说明已迁移职责的唯一实现，不表示剩余主类业务已迁出。
+
+| 职责 | 当前所有者 | 尚存接入及后续边界 |
+| --- | --- | --- |
+| 会话身份、过期、连接及原地重连 | `ClientSessionLifecycle`、`ClientSessionConnection`、`ClientSessionReconnect` | 共用 `ClientSessionWork`；宿主仍装配领域刷新与清理，随 M4–M8 迁移 |
+| 同步占用与未确认本地变更 | `ClientSynchronizationCoordinator`、`ClientLocalMutationCoordinator` | Mod 的忙碌属性仅转发；业务操作保留具体 Lease，不再写共用布尔值 |
+| 快照捕获、打包、发布与上传 | `ClientSnapshotPreparation`、`ClientSnapshotPackageBuilder`、`ClientSnapshotPublication`、`ClientSnapshotUploader` | Game/设置通过窄端口接入；领域的文本准备适配器随 M4–M8 退役 |
+| HTTP 与 WebSocket 传输 | `ClientProtocolTransport`、`ClientProtocolJson`、`ClientSessionWebSocketTransport` | 业务 DTO 构造随各域迁移；不另建传输层 |
+| 临时认证与登录/登出协议 | `ClientSetupAuthenticationLease`、`ClientSessionProtocol` | `ClientAuthenticationEnvironment` 保留公开 provider 钩子桥接；重连适配器的世界准备/快照读取请求在 M8 迁移 |
+
+M4 仍按事件收取、事件状态、信件执行逐步实施。当前 `SessionRuntime` 还构造事件读取流程，`Formatting` 维护队列/详情/分组，`EventLetters` 使用这些字段并执行信件副作用；它们共同访问 `eventStateLock`，不能直接拆成三个互相回调 Mod 的服务。先让事件模块拥有队列、详情与去重状态，再迁入刷新编排和信件执行，复用已有信件策略、载荷读取器、主线程所有权及快照确认机制。银行/交易等领域动作经明确端口接入，不能在事件模块再次实现业务确认。
+
+M3 基础模块迁移完成；M4–M12 尚未完成。后续仍需移走业务状态、协议请求构造和 UI 页面，不能把当前基础设施隔离称作整个 Mod/服务器已完成模块化。

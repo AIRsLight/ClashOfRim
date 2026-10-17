@@ -12,12 +12,12 @@ internal sealed class ClientSnapshotPreparation
     private readonly IClientSnapshotGame game;
     internal ClientSnapshotPreparation(IClientSnapshotGame game) => this.game = game;
 
-    internal bool TryBuild(string ownerId, string colonyId, out ModSnapshotPackageBuildResult build, out string failureReason)
+    internal bool TryBuild(string ownerId, string colonyId, out ModSnapshotPackageBuildResult build, out SnapshotUploadFailure? failure)
     {
         SnapshotSaveCapture capture = Capture(game.BindCurrentGame(), false);
         build = Build(capture, ownerId, colonyId);
         bool success = build.Success && build.Package is not null && build.Payload is not null;
-        failureReason = success ? string.Empty : capture.Failure?.Message ?? $"{build.ErrorCode} {build.Message}";
+        failure = success ? null : capture.Failure ?? SnapshotUploadFailure.FromPackageBuild(build);
         return success;
     }
 
@@ -38,8 +38,9 @@ internal sealed class ClientSnapshotPreparation
         if (capture.Failure is { } failure)
             return ModSnapshotPackageBuildResult.Failed(failure.Code, failure.Message ?? failure.Code);
         byte[] saveBytes = capture.SaveBytes ?? Array.Empty<byte>();
-        if (submittedAchievements is { Count: > 0 }) saveBytes = SnapshotSaveSanitizer.RemovePendingAchievementQueue(saveBytes);
-        var build = ModSnapshotPackageBuilder.FromSaveBytes(saveBytes, "memory", ownerId, colonyId, DateTime.UtcNow);
+        // An invalid XML payload remains intact; the builder returns the structured parse failure.
+        if (submittedAchievements is { Count: > 0 }) saveBytes = ClientSnapshotSaveData.RemovePendingAchievementQueue(saveBytes, out _);
+        var build = ClientSnapshotPackageBuilder.FromSaveBytes(saveBytes, "memory", ownerId, colonyId, DateTime.UtcNow);
         if (build.Success && build.Package is not null)
         {
             build.Package.SnapshotUploadKind = uploadKind;

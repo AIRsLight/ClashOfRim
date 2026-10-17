@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using AIRsLight.ClashOfRim.ClientNetwork;
+using AIRsLight.ClashOfRim.ClientSnapshots;
 
 namespace AIRsLight.ClashOfRim.Modules.Snapshots;
 
@@ -39,7 +40,11 @@ internal interface IClientSnapshotTransport
 internal sealed record SnapshotSaveCapture(byte[]? SaveBytes, float? DefenderThreatPoints,
     IReadOnlyList<ModSnapshotAchievementCandidateDto> Achievements, SnapshotUploadFailure? Failure = null);
 internal sealed record SnapshotUploadFailure(string Code, string? Message, SnapshotUploadMessage Fallback,
-    string? ExpectedSnapshot = null, string? RuntimeSnapshot = null);
+    string? ExpectedSnapshot = null, string? RuntimeSnapshot = null, SnapshotPackageError? PackageError = null)
+{
+    internal static SnapshotUploadFailure FromPackageBuild(ModSnapshotPackageBuildResult build) =>
+        new(build.ErrorCode ?? "SnapshotBuildFailed", build.Message, SnapshotUploadMessage.BuildFailed, PackageError: build.ErrorKind);
+}
 internal enum SnapshotUploadMessage
 {
     NotConfigured, SaveFailed, BuildFailed, UploadFailed, ServerRejected, NoRunningGame, LineageMissing, LineageMismatch

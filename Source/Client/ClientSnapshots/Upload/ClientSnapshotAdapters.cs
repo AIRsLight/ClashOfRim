@@ -15,7 +15,7 @@ namespace AIRsLight.ClashOfRim.ClientSnapshots;
 internal static class ClientSnapshotComposition
 {
     internal static readonly ClientSynchronizationCoordinator Synchronization = new();
-    internal static ClientSnapshotPreparation CreatePreparation() => new(new ClientSnapshotGame());
+    internal static ClientSnapshotPreparationAdapter CreatePreparation() => new(new ClientSnapshotGame());
     internal static ClientSnapshotPublication CreatePublication(ClashOfRimSettings settings) =>
         new(new ClientSnapshotStore(settings), new ClientSnapshotGame());
     internal static ClientSnapshotUploader Create(ClashOfRimSettings settings) =>

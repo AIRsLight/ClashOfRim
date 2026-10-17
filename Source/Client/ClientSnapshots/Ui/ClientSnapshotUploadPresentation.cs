@@ -8,7 +8,7 @@ internal static class ClientSnapshotUploadPresentation
     internal static ModSnapshotUploadResult ToPublicResult(ClientSnapshotUploadResult result)
     {
         if (result.Failure is not { } failure) return ModSnapshotUploadResult.Ok(result.AcceptedSnapshotId!, result.SourcePath!);
-        string message = failure.Message ?? (failure.Fallback == SnapshotUploadMessage.LineageMismatch
+        string message = ClientSnapshotPackagePresentation.Message(failure.PackageError, failure.Message) ?? (failure.Fallback == SnapshotUploadMessage.LineageMismatch
             ? ClashOfRimText.Key("ClashOfRim.SnapshotUpload.LineageMismatch",
                 failure.ExpectedSnapshot!.Named("SERVER"), failure.RuntimeSnapshot!.Named("LOCAL"))
             : ClashOfRimText.Key(failure.Fallback switch

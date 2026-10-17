@@ -43,8 +43,8 @@ internal static class SnapshotUploaderModuleTests
         var f = new Fixture();
         f.Game.Achievements.Add(new() { AchievementId = "pending", EventKey = "event" });
         var preparation = new ClientSnapshotPreparation(f.Game);
-        Require(preparation.TryBuild("domain-owner", "domain-colony", out var build, out string reason)
-            && reason == "" && f.Game.Captures == 1 && !f.Game.RemovedRaidSessions
+        Require(preparation.TryBuild("domain-owner", "domain-colony", out var build, out var reason)
+            && reason is null && f.Game.Captures == 1 && !f.Game.RemovedRaidSessions
             && build.Package!.OwnerId == "domain-owner" && build.Package.ColonyId == "domain-colony"
             && build.Package.PreviousSnapshotId == "base" && build.Package.DefenderThreatPoints == 42f
             && build.Package.SnapshotUploadKind is null && build.SourcePath == "memory"
@@ -57,16 +57,16 @@ internal static class SnapshotUploaderModuleTests
 
         f.Game.CaptureFailure = new("SaveToMemoryFailed", "save failure", SnapshotUploadMessage.SaveFailed);
         Require(!preparation.TryBuild("alice", "colony", out build, out reason)
-            && build.ErrorCode == "SaveToMemoryFailed" && reason == "save failure", "Capture failure was replaced by a build failure.");
+            && build.ErrorCode == "SaveToMemoryFailed" && reason?.Message == "save failure", "Capture failure was replaced by a build failure.");
         f.Game.CaptureFailure = null; f.Game.ThrowOnCapture = true;
         Require(!preparation.TryBuild("alice", "colony", out build, out reason)
-            && build.ErrorCode == "SaveToMemoryException" && reason.Contains("fixture capture"), "Capture exception was lost.");
+            && build.ErrorCode == "SaveToMemoryException" && reason?.Message?.Contains("fixture capture") == true, "Capture exception was lost.");
         f.Game.ThrowOnCapture = false; f.Game.CancelOnCapture = true;
         try { preparation.TryBuild("alice", "colony", out _, out _); throw new Exception("Canceled capture became a normal failure."); }
         catch (OperationCanceledException) { }
         f.Game.CancelOnCapture = false; f.Game.Malformed = true;
         Require(!preparation.TryBuild("alice", "colony", out build, out reason)
-            && build.ErrorCode == "XmlException" && reason.StartsWith("XmlException "), "Invalid XML failure lost its code.");
+            && build.ErrorCode == "XmlException" && reason?.Code == "XmlException" && !string.IsNullOrWhiteSpace(reason.Message), "Invalid XML failure lost its code.");
 
         foreach (string? token in new string?[] { null, "", "  ", "accepted-token" })
         {

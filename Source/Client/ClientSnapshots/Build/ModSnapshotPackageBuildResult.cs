@@ -1,4 +1,5 @@
 using AIRsLight.ClashOfRim.ClientNetwork;
+using AIRsLight.ClashOfRim.Modules.Snapshots;
 
 namespace AIRsLight.ClashOfRim.ClientSnapshots;
 
@@ -11,7 +12,8 @@ public sealed class ModSnapshotPackageBuildResult
         byte[]? originalPayload,
         string? sourcePath,
         string? errorCode,
-        string? message)
+        string? message,
+        SnapshotPackageError? errorKind = null)
     {
         Success = success;
         Package = package;
@@ -20,6 +22,7 @@ public sealed class ModSnapshotPackageBuildResult
         SourcePath = sourcePath;
         ErrorCode = errorCode;
         Message = message;
+        ErrorKind = errorKind;
     }
 
     public bool Success { get; }
@@ -35,6 +38,11 @@ public sealed class ModSnapshotPackageBuildResult
     public string? ErrorCode { get; }
 
     public string? Message { get; }
+
+    internal SnapshotPackageError? ErrorKind { get; }
+
+    internal static ModSnapshotPackageBuildResult Rejected(SnapshotPackageError error) =>
+        new(false, null, null, null, null, error.ToString(), null, error);
 
     public static ModSnapshotPackageBuildResult Ok(ModSnapshotPackageMetadataDto package, byte[] payload, byte[] originalPayload, string sourcePath)
     {

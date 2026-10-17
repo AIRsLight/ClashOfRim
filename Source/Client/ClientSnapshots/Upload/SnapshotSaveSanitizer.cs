@@ -6,6 +6,7 @@ using System.Text;
 using System.Xml;
 using System.Xml.Linq;
 using AIRsLight.ClashOfRim.ThirdPartyCompatibility;
+using AIRsLight.ClashOfRim.Modules.Snapshots;
 using Verse;
 
 namespace AIRsLight.ClashOfRim.ClientSnapshots;
@@ -126,9 +127,7 @@ public static class SnapshotSaveSanitizer
 
         XElement game = GetOrAdd(root, "game");
         XElement components = GetOrAdd(game, "components");
-        XElement? component = components
-            .Elements("li")
-            .FirstOrDefault(item => IsClashOfRimGameComponentClass(item.Attribute("Class")?.Value));
+        XElement? component = ClientSnapshotSaveData.FindComponent(document);
         if (component is null)
         {
             component = new XElement("li", new XAttribute("Class", "AIRsLight.ClashOfRim.ClashOfRimGameComponent"));
@@ -155,53 +154,10 @@ public static class SnapshotSaveSanitizer
 
     public static byte[] RemovePendingAchievementQueue(byte[] saveBytes)
     {
-        if (saveBytes.Length == 0)
-        {
-            return saveBytes;
-        }
-
-        XDocument document;
-        try
-        {
-            using var source = new MemoryStream(saveBytes);
-            using XmlReader reader = XmlReader.Create(source, new XmlReaderSettings
-            {
-                DtdProcessing = DtdProcessing.Prohibit
-            });
-            document = XDocument.Load(reader, LoadOptions.PreserveWhitespace);
-        }
-        catch (Exception ex) when (ex is XmlException or IOException)
-        {
-            Log.Warning("[ClashOfRim][SnapshotSanitizer] Cannot parse save for pending achievement cleanup: " + ex.Message);
-            return saveBytes;
-        }
-
-        XElement? component = document.Root?
-            .Element("game")?
-            .Element("components")?
-            .Elements("li")
-            .FirstOrDefault(item => IsClashOfRimGameComponentClass(item.Attribute("Class")?.Value));
-        XElement? pending = component?.Element("clashOfRimPendingAchievementCandidates");
-        if (pending is null)
-        {
-            return saveBytes;
-        }
-
-        pending.Remove();
-
-        using var target = new MemoryStream();
-        using (var writer = XmlWriter.Create(target, new XmlWriterSettings
-        {
-            Indent = true,
-            IndentChars = "\t",
-            Encoding = Encoding.UTF8,
-            CloseOutput = false
-        }))
-        {
-            document.Save(writer);
-        }
-
-        return target.ToArray();
+        byte[] cleaned = ClientSnapshotSaveData.RemovePendingAchievementQueue(saveBytes, out string? diagnostic);
+        if (diagnostic is not null)
+            Log.Warning("[ClashOfRim][SnapshotSanitizer] Cannot parse save for pending achievement cleanup: " + diagnostic);
+        return cleaned;
     }
 
     private static HashSet<string> RemoveRemoteSessionWorldObjects(XDocument document)
@@ -347,12 +303,6 @@ public static class SnapshotSaveSanitizer
         }
 
         return cleared;
-    }
-
-    private static bool IsClashOfRimGameComponentClass(string? className)
-    {
-        return !string.IsNullOrWhiteSpace(className)
-            && className!.IndexOf("AIRsLight.ClashOfRim.ClashOfRimGameComponent", StringComparison.Ordinal) >= 0;
     }
 
     private static XElement GetOrAdd(XElement parent, string name)

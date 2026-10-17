@@ -53,7 +53,7 @@ public sealed partial class ClashOfRimMod : Mod
     private static readonly TimeSpan RaidSettlementGraceDuration = TimeSpan.FromMinutes(2);
 
     private readonly ClashOfRimSettings settings;
-    private readonly ClientSnapshotPreparation snapshotPreparation = ClientSnapshotComposition.CreatePreparation();
+    private readonly ClientSnapshotPreparationAdapter snapshotPreparation = ClientSnapshotComposition.CreatePreparation();
     private readonly ClientSnapshotPublication snapshotPublication;
     private readonly ClientSynchronizationCoordinator synchronization = ClientSnapshotComposition.Synchronization;
     private bool snapshotUploadInProgress => synchronization.SnapshotInProgress;

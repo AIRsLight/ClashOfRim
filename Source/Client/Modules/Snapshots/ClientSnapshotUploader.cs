@@ -75,7 +75,7 @@ internal sealed class ClientSnapshotUploader
             ModSnapshotPackageBuildResult build = ClientSnapshotPreparation.Build(
                 capture, context.UserId, context.ColonyId, snapshotUploadKind, achievements);
             if (!build.Success || build.Package is null || build.Payload is null)
-                return ClientSnapshotUploadResult.Failed(build.ErrorCode ?? "SnapshotBuildFailed", build.Message, SnapshotUploadMessage.BuildFailed);
+                return new(null, null, SnapshotUploadFailure.FromPackageBuild(build));
             VerifyContext();
             var upload = await transport.UploadAsync(context,
                 $"snapshot-upload:{context.UserId}:{context.ColonyId}:{build.Package.SnapshotId}",

@@ -27,6 +27,8 @@ var tests = new (string Name, Action Run)[]
     ("local mutation admission permits its recovery without admitting unrelated work", LocalMutationModuleTests.Run),
     ("bank and event continuations reach snapshot rebuilding and retain failed mutations", LocalMutationContinuationTests.Run),
     ("snapshot uploader owns capture, upload admission and game publication", SnapshotUploaderModuleTests.Run),
+    ("snapshot packaging preserves culture-independent metadata without the engine", SnapshotPackageModuleTests.Run),
+    ("package error presentation preserves public and domain contracts", SnapshotPackagePresentationTests.Run),
     ("protocol transport owns request encoding, responses and cancellation", ProtocolTransportModuleTests.Run),
     ("session WebSocket transport owns duplex failure, framing and closure", SessionWebSocketTransportTests.Run),
     ("setup authentication owns temporary credentials, cancellation and bounded cleanup", SetupAuthenticationModuleTests.Run),

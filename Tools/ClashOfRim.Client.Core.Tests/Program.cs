@@ -1,5 +1,8 @@
 using AIRsLight.ClashOfRim.ClientNetwork;
 
+SnapshotPackageModuleTests.Run();
+Console.WriteLine("PASS: snapshot packaging runs without the game and retains culture-independent wire metadata");
+
 RaidSettlementPayloadTests.Run();
 Console.WriteLine("PASS: actual client raid settlement reader distinguishes null, absent, malformed and populated payloads");
 WireContractTests.Run();
