@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Network.Modules.Support;
 using System.Reflection;
 using System.Runtime.ExceptionServices;
 using System.Text.Json;
@@ -164,9 +165,8 @@ internal static class SnapshotSupportDeathTests
         new SupportPawnEventPayload("owner:owner/colony:owner-colony/pawn:" + pawn, "support-snapshot", "Original name", true, null),
         Accepted.AddHours(-1)) with { EventId = id };
 
-    private static AuthoritativeEvent Loss(AuthoritativeEvent source) => (AuthoritativeEvent)typeof(ClashOfRimNetworkServer)
-        .GetMethod("CreateSupportPawnLossReturnEvent", BindingFlags.NonPublic | BindingFlags.Static)!
-        .Invoke(null, new object[] { source, source.Payload, "Earlier name", "SnapshotDeath", false, Accepted })!;
+    private static AuthoritativeEvent Loss(AuthoritativeEvent source) => SupportReturns.CreateSupportPawnLossReturnEvent(
+        source, (SupportPawnEventPayload)source.Payload, "Earlier name", "SnapshotDeath", false, Accepted);
 
     private static SnapshotUploadResult Snapshot(Func<string, SaveSnapshotPackage> fixture)
     {
@@ -194,12 +194,7 @@ internal static class SnapshotSupportDeathTests
             "owners were not each notified once");
     }
 
-    private static void Process(ClashOfRimNetworkState state, SnapshotUploadResult upload)
-    {
-        try { typeof(ClashOfRimNetworkServer).GetMethod("ProcessSupportPawnDeathsFromSnapshot", BindingFlags.NonPublic | BindingFlags.Static)!
-            .Invoke(null, new object[] { state, upload }); }
-        catch (TargetInvocationException ex) when (ex.InnerException is not null) { ExceptionDispatchInfo.Capture(ex.InnerException).Throw(); }
-    }
+    private static void Process(ClashOfRimNetworkState state, SnapshotUploadResult upload) => state.SupportDeaths.Process(upload);
     private static bool Same(AuthoritativeEvent left, AuthoritativeEvent right) =>
         JsonSerializer.Serialize(left) == JsonSerializer.Serialize(right)
         && JsonSerializer.Serialize(left.Payload, left.Payload.GetType()) == JsonSerializer.Serialize(right.Payload, right.Payload.GetType());

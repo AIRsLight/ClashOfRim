@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Network.Modules.Support;
 using AIRsLight.ClashOfRim.Network.Modules.Trades;
 using AIRsLight.ClashOfRim.Network.Modules.Mercenaries;
 using AIRsLight.ClashOfRim.Network.Modules.Shop;
@@ -41,6 +42,9 @@ internal sealed class EconomicModuleTestContext
     internal readonly MercenaryHiring MercenaryHiring;
     internal readonly MercenaryIncidentRecovery MercenaryIncidents;
     internal readonly GiftService Gifts;
+    internal readonly SupportSending SupportSending;
+    internal readonly SupportService Support;
+    internal readonly SupportSnapshotDeaths SupportDeaths;
     internal readonly TradeService Trades;
     internal readonly ServerShopRegistry ShopRegistry = new();
     internal readonly ShopService Shop;
@@ -71,6 +75,11 @@ internal sealed class EconomicModuleTestContext
         MercenaryHiring = new MercenaryHiring(mercenaries, MercenaryGuards, Access, Bank, requests, transactions,
             new MercenarySnapshotCommitter(commits, Snapshots, Loans, mercenaries, MercenaryGuards, Recovery), () => Configuration);
         MercenaryIncidents = new MercenaryIncidentRecovery(Loans, mercenaries, Ledger, Presence, Notifications);
+        var supportClosures = new SupportClosures(Ledger, Notifications);
+        Support = new SupportService(Ledger, requests, Presence, supportClosures);
+        SupportDeaths = new SupportSnapshotDeaths(Ledger, Presence, Notifications, supportClosures, mutations, commits);
+        SupportSending = new SupportSending(Ledger, Snapshots, requests, transactions, pending, Presence, Notifications,
+            new SupportSnapshotCommitter(commits, Snapshots, Loans, Ledger, mercenaries, Notifications, Recovery));
         Raids = new RaidProtectionProbe(Gate);
         Packages = new ItemTransferPackages(Pawns, Things);
         Gifts = new GiftService(Ledger, Snapshots, Loans, mercenaries, commits, requests, transactions, pending,

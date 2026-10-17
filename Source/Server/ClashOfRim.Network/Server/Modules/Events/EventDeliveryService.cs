@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Network.Modules.Support;
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Network.Modules.Authorization;
 using AIRsLight.ClashOfRim.Network.Modules.Snapshots;
@@ -11,7 +12,7 @@ internal sealed class EventDeliveryService(
     IAuthoritativeEventLedger ledger,
     EventNotificationHub notifications,
     OnlinePresenceRegistry presence,
-    PlayerRegistry players)
+    SupportDeliveryReconciliation support)
 {
     private static readonly TimeSpan DeliveredEventLease = TimeSpan.FromMinutes(2);
 
@@ -21,7 +22,7 @@ internal sealed class EventDeliveryService(
         if (mutation.Rejection is { } denied)
             return new PullPendingEventsResponse(denied, EmptyEventQueue());
         ReconcileDeliveryLeases(request.UserId, DateTimeOffset.UtcNow);
-        ReconcileDeletedSupportActors(request.UserId);
+        support.ReconcileDeletedActors(request.UserId);
 
         return new PullPendingEventsResponse(
             ProtocolResponse.Ok(ServerLocalization.Text("Events.QueueReturned")),
@@ -50,7 +51,7 @@ internal sealed class EventDeliveryService(
         using var mutation = EnterRead(request.AuthToken, request.UserId, request.ColonyId, request.CurrentSnapshotId);
         if (mutation.Rejection is { } failure) return Denied(failure);
         ReconcileDeliveryLeases(request.UserId, DateTimeOffset.UtcNow);
-        ReconcileDeletedSupportActors(request.UserId);
+        support.ReconcileDeletedActors(request.UserId);
 
         return new WaitForEventsResponse(
             ProtocolResponse.Ok(wait.Changed ? ServerLocalization.Text("Events.WaitChanged") : ServerLocalization.Text("Events.WaitTimeout")),
@@ -86,7 +87,7 @@ internal sealed class EventDeliveryService(
         }
 
         ReconcileDeliveryLeases(request.UserId, DateTimeOffset.UtcNow);
-        ReconcileDeletedSupportActors(request.UserId);
+        support.ReconcileDeletedActors(request.UserId);
         var details = new List<EventDetailDto>();
         var deliveries = new List<LedgerDeliveryChange>();
         var acceptances = new List<LedgerAcceptanceChange>();
@@ -207,39 +208,6 @@ internal sealed class EventDeliveryService(
         {
             notifications.SignalUser(userId);
         }
-    }
-
-    private int ReconcileDeletedSupportActors(
-        string? visibleUserId)
-    {
-        if (string.IsNullOrWhiteSpace(visibleUserId))
-        {
-            return 0;
-        }
-
-        int updated = 0;
-        foreach (AuthoritativeEvent ledgerEvent in ledger.ListForUser(visibleUserId!))
-        {
-            if (ledgerEvent.Type != ServerEventType.SupportPawn
-                || ledgerEvent.Status != ServerEventStatus.Failed
-                || !string.IsNullOrWhiteSpace(ledgerEvent.AppliedSnapshotId)
-                || string.IsNullOrWhiteSpace(ledgerEvent.Actor.UserId)
-                || string.IsNullOrWhiteSpace(ledgerEvent.Actor.ColonyId)
-                || !players.IsDeleted(ledgerEvent.Actor.UserId, ledgerEvent.Actor.ColonyId))
-            {
-                continue;
-            }
-
-            ledger.ChangeStatus(ledgerEvent.EventId, ServerEventStatus.Cancelled);
-            updated++;
-        }
-
-        if (updated > 0)
-        {
-            notifications.SignalUser(visibleUserId!);
-        }
-
-        return updated;
     }
 
 }

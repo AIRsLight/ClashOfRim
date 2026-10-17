@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Network.Modules.Support;
 using AIRsLight.ClashOfRim.Network.Modules.Mercenaries;
 using AIRsLight.ClashOfRim.Network.Modules.Shop;
 using AIRsLight.ClashOfRim.Network.Modules.Trades;
@@ -95,6 +96,7 @@ public static partial class ClashOfRimNetworkServer
         BankEndpoints.Map(app, app.Services.GetRequiredService<ClashOfRimNetworkState>().Bank);
         var tradeState = app.Services.GetRequiredService<ClashOfRimNetworkState>();
         TradeEndpoints.Map(app, tradeState.Trades, tradeState.TradeMarket);
+        SupportEndpoints.Map(app, tradeState.SupportSending, tradeState.Support);
         GiftEndpoints.Map(app, app.Services.GetRequiredService<ClashOfRimNetworkState>().Gifts);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.Login).Route, Login).WithMetadata(EndpointSnapshotRecovery.Instance);
         app.MapGet(ProtocolContractManifest.Find(ProtocolMessageKind.StreamSession).Route, StreamSession).WithMetadata(EndpointSnapshotRecovery.Instance);
@@ -121,10 +123,6 @@ public static partial class ClashOfRimNetworkServer
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.CreateRaidWithSnapshot).Route, CreateRaidWithSnapshot).WithMetadata(EndpointSnapshotRecovery.Instance);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.CreateDiplomacyEvent).Route, CreateDiplomacyEvent).WithMetadata(EndpointSnapshotRecovery.Instance);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.RespondDiplomacyEvent).Route, RespondDiplomacyEvent).WithMetadata(EndpointSnapshotRecovery.Instance);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.CreateSupportPawn).Route, CreateSupportPawn).WithMetadata(EndpointSnapshotRecovery.Instance);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.CreateSupportPawnWithSnapshot).Route, CreateSupportPawnWithSnapshot).WithMetadata(EndpointSnapshotRecovery.Instance);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.RejectSupportPawn).Route, RejectSupportPawn).WithMetadata(EndpointSnapshotRecovery.Instance);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.FinishSupportPawn).Route, FinishSupportPawn).WithMetadata(EndpointSnapshotRecovery.Instance);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.SyncWorldMapMarkers).Route, SyncWorldMapMarkers);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.SyncRuntimeWorldObjects).Route, SyncRuntimeWorldObjects);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.PrepareWorldSession).Route, PrepareWorldSession).WithMetadata(EndpointSnapshotRecovery.Instance);
@@ -807,98 +805,6 @@ public static partial class ClashOfRimNetworkServer
     private static Task<MultipartSnapshotRequest<TRequest>?> ReadMultipartSnapshotRequest<TRequest>(HttpRequest httpRequest)
         => MultipartSnapshotReader.Read<TRequest>(httpRequest);
 
-    private static void ProcessSupportPawnDeathsFromSnapshot(
-        ClashOfRimNetworkState state,
-        SnapshotUploadResult upload)
-    {
-        using (state.EnterSnapshotMutation())
-        {
-            if (!state.SnapshotCommits.IsApplying) RecoverSnapshotCommits(state);
-            ProcessSupportPawnDeathsFromSnapshotLocked(state, upload);
-        }
-    }
-
-    private static void ProcessSupportPawnDeathsFromSnapshotLocked(ClashOfRimNetworkState state, SnapshotUploadResult upload)
-    {
-        if (!upload.Accepted || upload.AcceptedSnapshot is null)
-        {
-            return;
-        }
-
-        SnapshotIdentity identity = upload.AcceptedSnapshot.Identity;
-        if (string.IsNullOrWhiteSpace(identity.OwnerId) || string.IsNullOrWhiteSpace(identity.ColonyId))
-        {
-            return;
-        }
-
-        var losses = new List<AuthoritativeEvent>();
-        var statuses = new List<LedgerStatusChange>();
-        var notifyUsers = new HashSet<string>(StringComparer.Ordinal);
-        IReadOnlyList<AuthoritativeEvent> allEvents = state.Ledger.ListAll();
-        foreach (AuthoritativeEvent supportEvent in state.Ledger.ListForUser(identity.OwnerId!)
-            .Where(evt => evt.Type == ServerEventType.SupportPawn)
-            .Where(evt => evt.Status is ServerEventStatus.PendingOfflineDelivery
-                or ServerEventStatus.ReadyForImmediateDelivery
-                or ServerEventStatus.DeliveredToClient
-                or ServerEventStatus.Failed)
-            .Where(evt => IsVisibleParty(evt.Target, identity.OwnerId!, identity.ColonyId!)))
-        {
-            if (supportEvent.Payload is not SupportPawnEventPayload payload
-                || payload.ReturnToSender
-                || !payload.TemporaryControl)
-            {
-                continue;
-            }
-
-            string? localId = ExtractPawnLocalId(payload.PawnGlobalKey);
-            if (string.IsNullOrWhiteSpace(localId))
-            {
-                continue;
-            }
-
-            PawnSummary? pawn = upload.AcceptedSnapshot.Index.Pawns.FirstOrDefault(candidate =>
-                string.Equals(candidate.LocalId, localId, StringComparison.Ordinal)
-                || candidate.GlobalKey.EndsWith("/pawn:" + localId, StringComparison.Ordinal));
-            if (pawn?.Dead != true)
-            {
-                continue;
-            }
-
-            SupportClosure? closure = FindSupportClosure(state.Ledger, supportEvent);
-            if (closure is not null && (closure.Kind != SupportClosureKind.Loss
-                || ((SupportPawnEventPayload)closure.Event.Payload).ReturnReason != "SnapshotDeath")) continue;
-            AuthoritativeEvent? existing = closure?.Event;
-            if (existing is null && HasSupportFinishEvent(supportEvent, allEvents)) continue;
-            // A failed source alone is not evidence of snapshot death. Only replay
-            // an existing loss; otherwise leave unrelated terminal events alone.
-            if (supportEvent.Status == ServerEventStatus.Failed && existing is null)
-            {
-                continue;
-            }
-
-            AuthoritativeEvent lossEvent = CreateSupportPawnLossReturnEvent(
-                supportEvent,
-                payload,
-                existing?.Payload is SupportPawnEventPayload savedLoss ? savedLoss.PawnName : pawn.Name ?? payload.PawnName,
-                "SnapshotDeath",
-                state.OnlinePresence.IsUserOnline(supportEvent.Actor.UserId),
-                existing?.CreatedAtUtc ?? upload.AcceptedSnapshot.AcceptedAtUtc);
-            // A pre-upgrade loss may already be consumed. Reuse its persisted identity on recovery.
-            if (existing is not null) lossEvent = lossEvent with { EventId = existing.EventId, IdempotencyKey = existing.IdempotencyKey };
-            losses.Add(lossEvent);
-            statuses.Add(new LedgerStatusChange(supportEvent.EventId, supportEvent.Status, ServerEventStatus.Failed, payload, payload));
-            notifyUsers.Add(supportEvent.Actor.UserId);
-        }
-
-        if (losses.Count > 0)
-        {
-            // Validate existing loss ownership/payload and commit the whole death
-            // batch before waking owners. Replay preserves consumed loss events.
-            state.Ledger.ApplyBatch(new LedgerBatch(losses, statuses));
-            state.EventNotifications.SignalUsers(notifyUsers);
-        }
-    }
-
     private static ProtocolResponse ToProtocolResponse(SnapshotUploadResult upload)
         => SnapshotTransactions.ToProtocolResponse(upload);
 
@@ -953,22 +859,6 @@ public static partial class ClashOfRimNetworkServer
         ProtocolIdentity target, ClashOfRimNetworkState state, EventLandingMode landingMode)
         => state.DeliveryTargets.ResolveLatest(target, landingMode);
 
-    private static EventTargetContext? ResolveSupportPawnTargetContext(LatestSnapshotRecord targetSnapshot)
-    {
-        MapSummary? map = targetSnapshot.Index.Maps
-            .FirstOrDefault(item => !string.IsNullOrWhiteSpace(item.UniqueId));
-        if (map is null)
-        {
-            return null;
-        }
-
-        return new EventTargetContext(
-            map.ParentWorldObjectId,
-            map.UniqueId,
-            Tile: null,
-            EventLandingMode.MapEdge);
-    }
-
     private static bool IsVisibleTo(AuthoritativeEvent ledgerEvent, string userId, string colonyId)
         => EventVisibility.IsVisibleTo(ledgerEvent, userId, colonyId);
 
@@ -993,147 +883,6 @@ public static partial class ClashOfRimNetworkServer
 
     private static bool IsVisibleParty(EventParty party, string userId, string colonyId)
         => EventVisibility.MatchesParty(party, userId, colonyId);
-
-    private static AuthoritativeEvent CreateSupportPawnFinishReturnEvent(
-        AuthoritativeEvent supportEvent,
-        SupportPawnEventPayload payload,
-        FinishSupportPawnRequest request,
-        PawnExchangePackage? pawnPackage,
-        bool originalActorOnline,
-        DateTimeOffset createdAtUtc)
-    {
-        var returnPayload = new SupportPawnEventPayload(
-            request.PawnGlobalKey,
-            payload.SourceSnapshotId,
-            request.PawnName ?? payload.PawnName,
-            TemporaryControl: false,
-            ExpectedReturnAtUtc: null,
-            payload.PawnReference,
-            pawnPackage ?? payload.PawnPackage,
-            payload.SourceTile,
-            payload.SourceCaravanLoadId,
-            ReturnToSender: true,
-            RejectionReason: null,
-            payload.PermanentSupport,
-            payload.SupportDurationDays,
-            payload.ExpiresAtGameTicks,
-            payload.AutoReturnOnSettlement,
-            supportEvent.EventId,
-            request.FinishReason);
-        EventTargetContext? returnContext = payload.SourceTile is null
-            ? null
-            : new EventTargetContext(null, null, payload.SourceTile, EventLandingMode.MapEdge);
-
-        return AuthoritativeEventFactory.Create(
-            ServerEventType.SupportPawn,
-            supportEvent.Target,
-            supportEvent.Actor,
-            SupportClosureKeys.Finish(supportEvent.EventId, request.FinishReason),
-            originalActorOnline,
-            returnPayload,
-            createdAtUtc,
-            returnContext);
-    }
-
-    private static AuthoritativeEvent CreateSupportPawnLossReturnEvent(
-        AuthoritativeEvent supportEvent,
-        SupportPawnEventPayload payload,
-        string? pawnName,
-        string finishReason,
-        bool originalActorOnline,
-        DateTimeOffset createdAtUtc)
-    {
-        var returnPayload = new SupportPawnEventPayload(
-            payload.PawnGlobalKey,
-            payload.SourceSnapshotId,
-            pawnName ?? payload.PawnName,
-            TemporaryControl: false,
-            ExpectedReturnAtUtc: null,
-            (payload.PawnReference ?? new CrossMapPawnReference(payload.PawnGlobalKey, payload.SourceSnapshotId, pawnName ?? payload.PawnName, null, null)) with { Dead = true },
-            PawnPackage: null,
-            payload.SourceTile,
-            payload.SourceCaravanLoadId,
-            ReturnToSender: true,
-            RejectionReason: null,
-            payload.PermanentSupport,
-            payload.SupportDurationDays,
-            payload.ExpiresAtGameTicks,
-            payload.AutoReturnOnSettlement,
-            supportEvent.EventId,
-            finishReason);
-        EventTargetContext? returnContext = payload.SourceTile is null
-            ? null
-            : new EventTargetContext(null, null, payload.SourceTile, EventLandingMode.MapEdge);
-
-        return AuthoritativeEventFactory.Create(
-            ServerEventType.SupportPawn,
-            supportEvent.Target,
-            supportEvent.Actor,
-            SupportClosureKeys.Loss(supportEvent.EventId, finishReason),
-            originalActorOnline,
-            returnPayload,
-            createdAtUtc,
-            returnContext);
-    }
-
-    private static AuthoritativeEvent CreateRejectedSupportPawnReturnEvent(
-        AuthoritativeEvent rejectedSupportEvent,
-        SupportPawnEventPayload payload,
-        string? rejectionReason,
-        bool originalActorOnline,
-        DateTimeOffset createdAtUtc)
-    {
-        string returnIdempotencyKey = $"{rejectedSupportEvent.IdempotencyKey}:rejected-return";
-        var returnPayload = new SupportPawnEventPayload(
-            payload.PawnGlobalKey,
-            payload.SourceSnapshotId,
-            payload.PawnName,
-            TemporaryControl: false,
-            ExpectedReturnAtUtc: null,
-            payload.PawnReference,
-            payload.PawnPackage,
-            payload.SourceTile,
-            payload.SourceCaravanLoadId,
-            ReturnToSender: true,
-            RejectionReason: rejectionReason,
-            payload.PermanentSupport,
-            payload.SupportDurationDays,
-            payload.ExpiresAtGameTicks,
-            payload.AutoReturnOnSettlement,
-            rejectedSupportEvent.EventId,
-            "Rejected");
-        EventTargetContext? returnContext = payload.SourceTile is null
-            ? null
-            : new EventTargetContext(
-                WorldObjectId: null,
-                MapUniqueId: null,
-                Tile: payload.SourceTile,
-                LandingMode: EventLandingMode.MapEdge);
-
-        return AuthoritativeEventFactory.Create(
-            ServerEventType.SupportPawn,
-            rejectedSupportEvent.Target,
-            rejectedSupportEvent.Actor,
-            returnIdempotencyKey,
-            originalActorOnline,
-            returnPayload,
-            createdAtUtc,
-            returnContext);
-    }
-
-    private static string? ExtractPawnLocalId(string globalKey)
-    {
-        const string marker = "/pawn:";
-        int index = globalKey.LastIndexOf(marker, StringComparison.Ordinal);
-        if (index < 0)
-        {
-            return null;
-        }
-
-        string value = globalKey.Substring(index + marker.Length);
-        int slash = value.IndexOf('/');
-        return slash >= 0 ? value.Substring(0, slash) : value;
-    }
 
     private sealed record CompatibilityHandshakeResult(
         ProtocolResponse Result,

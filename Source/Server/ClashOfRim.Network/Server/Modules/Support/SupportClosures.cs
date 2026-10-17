@@ -1,12 +1,12 @@
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Protocol;
 
-namespace AIRsLight.ClashOfRim.Network;
+namespace AIRsLight.ClashOfRim.Network.Modules.Support;
 
-public static partial class ClashOfRimNetworkServer
+internal sealed class SupportClosures(IAuthoritativeEventLedger ledger, EventNotificationHub notifications)
 {
-    private enum SupportClosureKind { Return, Loss, Rejection }
-    private sealed record SupportClosure(AuthoritativeEvent Event, SupportClosureKind Kind);
+    internal enum SupportClosureKind { Return, Loss, Rejection }
+    internal sealed record SupportClosure(AuthoritativeEvent Event, SupportClosureKind Kind);
 
     private static bool IsSupportClosureCandidate(AuthoritativeEvent source, AuthoritativeEvent item) =>
         item.IdempotencyKey == source.IdempotencyKey + ":rejected-return"
@@ -15,7 +15,7 @@ public static partial class ClashOfRimNetworkServer
                 || SupportClosureKeys.IsFinish(item.IdempotencyKey, source.EventId, payload.ReturnReason)
                 || SupportClosureKeys.IsLoss(item.IdempotencyKey, source.EventId, payload.ReturnReason));
 
-    private static SupportClosure? FindSupportClosure(IAuthoritativeEventLedger ledger, AuthoritativeEvent source)
+    internal SupportClosure? Find(AuthoritativeEvent source)
     {
         // IDs and reasons may both contain colons. A source prefix is not a relation:
         // compare the complete key using the stored reason as well as the explicit source ID.
@@ -41,9 +41,9 @@ public static partial class ClashOfRimNetworkServer
         throw new InvalidOperationException("Unrecognized support completion identity.");
     }
 
-    private static bool CommitSupportClosure(ClashOfRimNetworkState state, AuthoritativeEvent source, SupportClosure closure)
+    internal bool Commit(AuthoritativeEvent source, SupportClosure closure)
     {
-        bool created = state.Ledger.Find(closure.Event.EventId) is null;
+        bool created = ledger.Find(closure.Event.EventId) is null;
         ServerEventStatus status = closure.Kind switch
         {
             SupportClosureKind.Loss => ServerEventStatus.Failed,
@@ -61,9 +61,20 @@ public static partial class ClashOfRimNetworkServer
             ? new([closure.Event], [], RejectionChanges: [new(source, closure.Event.CreatedAtUtc,
                 ((SupportPawnEventPayload)closure.Event.Payload).RejectionReason)])
             : new([closure.Event], [new(source.EventId, source.Status, status, ExpectedEvent: source)]);
-        state.Ledger.ApplyBatch(batch);
+        ledger.ApplyBatch(batch);
         // The event itself is durable. Retry the transient wake-up even after a previous batch committed.
-        state.EventNotifications.SignalUser(source.Actor.UserId);
+        notifications.SignalUser(source.Actor.UserId);
         return created;
     }
+    internal static bool HasSupportFinishEvent(
+        AuthoritativeEvent supportEvent,
+        IReadOnlyList<AuthoritativeEvent> allEvents)
+    {
+        string deathId = $"support-death:{supportEvent.EventId}:RaidSettlementLost";
+        return allEvents.Any(evt =>
+            IsSupportClosureCandidate(supportEvent, evt)
+            || (evt.Payload is ServerNotificationEventPayload notification
+                && string.Equals(notification.NotificationId, deathId, StringComparison.Ordinal)));
+    }
+
 }

@@ -75,7 +75,7 @@ public static partial class ClashOfRimNetworkServer
                     SnapshotPostUploadKind.AuthoritativeColonySnapshot,
                     SnapshotPostUploadKind.RaidSettlementEvidence
                 },
-                context => ProcessSupportPawnDeathsFromSnapshot(context.State, AcceptedUpload(context))),
+                context => context.State.SupportDeaths.Process(AcceptedUpload(context))),
             InlineSnapshotPostUploadProcessor.Create(
                 "core.pending-operation-confirmation",
                 SnapshotPostUploadStage.EventReconciliation,

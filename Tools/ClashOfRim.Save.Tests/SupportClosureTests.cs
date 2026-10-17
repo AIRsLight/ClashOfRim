@@ -1,11 +1,11 @@
+using AIRsLight.ClashOfRim.Network.Modules.Support;
+using AIRsLight.ClashOfRim.Network.Modules.Transfers;
 using System.Reflection;
-using System.Runtime.ExceptionServices;
 using System.Text.Json;
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Network;
 using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Save;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Data.Sqlite;
 
 internal static partial class SupportClosureTests
@@ -265,10 +265,10 @@ internal static partial class SupportClosureTests
                 null, null, "Human", null, "Ally", true, null, null)] };
             var upload = SnapshotUploadResult.Accept(new LatestSnapshotRecord(package.Envelope.Identity,
                 package.Envelope, index, OriginalTime.AddDays(1)));
-            Invoke<object?>("ProcessSupportPawnDeathsFromSnapshot", state, upload);
+            state.SupportDeaths.Process(upload);
             Require(state.Ledger.ListAll().Count == 2 && Same(source, state.Ledger.Find("source")!),
                 "snapshot death manufactured another closure after a legacy half-commit");
-            Require(Invoke<bool>("HasSupportFinishEvent", source, state.Ledger.ListAll()),
+            Require(SupportClosures.HasSupportFinishEvent(source, state.Ledger.ListAll()),
                 "raid cleanup failed to recognize an existing closure");
         }
     }
@@ -291,9 +291,9 @@ internal static partial class SupportClosureTests
         var payload = (SupportPawnEventPayload)source.Payload;
         return kind switch
         {
-            "reject" => Invoke<AuthoritativeEvent>("CreateRejectedSupportPawnReturnEvent", source, payload, reason, false, OriginalTime),
-            "loss" => Invoke<AuthoritativeEvent>("CreateSupportPawnLossReturnEvent", source, payload, "Ally", reason, false, OriginalTime),
-            _ => Invoke<AuthoritativeEvent>("CreateSupportPawnFinishReturnEvent", source, payload, Request("return", reason), Package(), false, OriginalTime)
+            "reject" => SupportReturns.CreateRejectedSupportPawnReturnEvent(source, payload, reason, false, OriginalTime),
+            "loss" => SupportReturns.CreateSupportPawnLossReturnEvent(source, payload, "Ally", reason, false, OriginalTime),
+            _ => SupportReturns.CreateSupportPawnFinishReturnEvent(source, payload, Request("return", reason), Package(), false, OriginalTime)
         };
     }
 
@@ -334,7 +334,7 @@ internal static partial class SupportClosureTests
         state.Ledger.Append(first); state.Ledger.Append(second);
         var legacy = AsLegacy(Closure(first, "loss", "child:RaidSettlementLost"));
         state.Ledger.Append(legacy);
-        Require(!Invoke<bool>("HasSupportFinishEvent", second, state.Ledger.ListAll()), "another source's legacy key suppressed raid cleanup");
+        Require(!SupportClosures.HasSupportFinishEvent(second, state.Ledger.ListAll()), "another source's legacy key suppressed raid cleanup");
         Require(Call(state, "loss", reason: "RaidSettlementLost", eventId: second.EventId).Created,
             "another source's legacy key suppressed a new loss");
         Require(Same(legacy, state.Ledger.Find(legacy.EventId)!), "new loss rewrote another source's legacy return");
@@ -343,7 +343,7 @@ internal static partial class SupportClosureTests
     private static FinishSupportPawnRequest Request(string kind, string reason = "original", string user = "userA",
         string pawnKey = PawnKey, string packageKey = PawnKey, string eventId = "source", string? token = null) =>
         new("request-" + reason, eventId, user, "colonyA", "current", reason, pawnKey, "Ally", kind == "loss",
-            kind == "loss" ? null : Invoke<PawnExchangePackageDto>("ToPawnExchangePackageDto", Package(packageKey)), token);
+            kind == "loss" ? null : ItemTransferMapper.ToPawnExchangePackageDto(Package(packageKey)), token);
 
     private static (bool Accepted, bool Created, string? ReturnId) Call(ClashOfRimNetworkState state, string kind,
         string reason = "original", string user = "userA", string pawnKey = PawnKey, string packageKey = PawnKey, string eventId = "source",
@@ -352,12 +352,10 @@ internal static partial class SupportClosureTests
         if (authenticate) token = Token(state, user);
         if (kind == "reject")
         {
-            var response = (RejectSupportPawnResponse)Invoke<IValueHttpResult>("RejectSupportPawn",
-                new RejectSupportPawnRequest(eventId, user, "colonyA", "current", reason, token), state).Value!;
+            var response = state.Support.RejectSupportPawn(new RejectSupportPawnRequest(eventId, user, "colonyA", "current", reason, token));
             return (response.Result.Accepted, response.ReturnEventCreated, response.ReturnEventId);
         }
-        var finish = (FinishSupportPawnResponse)Invoke<IValueHttpResult>("FinishSupportPawn",
-            Request(kind, reason, user, pawnKey, packageKey, eventId, token), state).Value!;
+        var finish = state.Support.FinishSupportPawn(Request(kind, reason, user, pawnKey, packageKey, eventId, token));
         if (kind == "loss" && finish.Result.Accepted && finish.Created)
             Require(((SupportPawnEventPayload)state.Ledger.Find(finish.ReturnEventId!)!.Payload).PawnReference?.Dead == true,
                 "Loss return did not explicitly identify the dead pawn independently of its reason.");
@@ -420,11 +418,6 @@ internal static partial class SupportClosureTests
             && source.DecisionReason == payload.RejectionReason, "rejection metadata not committed with return");
     }
 
-    private static T Invoke<T>(string name, params object?[] args)
-    {
-        try { return (T)typeof(ClashOfRimNetworkServer).GetMethod(name, BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, args)!; }
-        catch (TargetInvocationException ex) when (ex.InnerException is not null) { ExceptionDispatchInfo.Capture(ex.InnerException).Throw(); throw; }
-    }
     private static bool Same(AuthoritativeEvent left, AuthoritativeEvent right) => JsonSerializer.Serialize(left) == JsonSerializer.Serialize(right)
         && JsonSerializer.Serialize(left.Payload, left.Payload.GetType()) == JsonSerializer.Serialize(right.Payload, right.Payload.GetType());
     private static void Require(bool value, string message) { if (!value) throw new Exception(message); }

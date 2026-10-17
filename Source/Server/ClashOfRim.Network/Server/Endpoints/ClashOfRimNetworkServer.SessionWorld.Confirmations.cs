@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Network.Modules.Support;
 using static AIRsLight.ClashOfRim.Network.Modules.Trades.TradeFailureEvidence;
 using AIRsLight.ClashOfRim.Compatibility;
 using AIRsLight.ClashOfRim.Events;
@@ -202,7 +203,7 @@ public static partial class ClashOfRimNetworkServer
             && ledgerEvent.Type == ServerEventType.SupportPawn
             && ledgerEvent.Payload is SupportPawnEventPayload supportPayload)
         {
-            return ConfirmSupportPawnAfterSnapshot(
+            return SupportApplicationConfirmation.Confirm(
                 application,
                 userId,
                 colonyId,
@@ -211,7 +212,7 @@ public static partial class ClashOfRimNetworkServer
                 ledgerEvent,
                 supportPayload,
                 ledger,
-                nowUtc, recordTrade);
+                nowUtc);
         }
 
         if (string.IsNullOrWhiteSpace(application.SourceEventId))
@@ -239,106 +240,6 @@ public static partial class ClashOfRimNetworkServer
             ToProtocolResponse(result),
             result.AppliedSnapshotId,
             result.Kind.ToString());
-    }
-
-    private static ConfirmEventApplicationResultDto ConfirmSupportPawnAfterSnapshot(
-        ConfirmEventApplicationEntry application,
-        string userId,
-        string colonyId,
-        string baseSnapshotId,
-        LatestSnapshotRecord acceptedSnapshot,
-        AuthoritativeEvent supportEvent,
-        SupportPawnEventPayload supportPayload,
-        IAuthoritativeEventLedger ledger,
-        DateTimeOffset nowUtc, Action<AuthoritativeEvent>? recordTrade = null)
-    {
-        if (!IsVisibleParty(supportEvent.Target, userId, colonyId))
-        {
-            return new ConfirmEventApplicationResultDto(
-                application.EventId,
-                ProtocolResponse.Reject(ProtocolErrorCode.EventNotFound, T("Support.EventNotFoundOrInvisible")),
-                appliedSnapshotId: null,
-                "TargetIdentityMismatch");
-        }
-
-        if (supportEvent.Status == ServerEventStatus.AppliedToSnapshot)
-        {
-            AuthoritativeEvent repaired = SnapshotApplicationCommit.Apply(ledger, supportEvent,
-                baseSnapshotId, acceptedSnapshot.Identity.SnapshotId!, nowUtc);
-            return new ConfirmEventApplicationResultDto(
-                application.EventId,
-                new ProtocolResponse(true, ProtocolErrorCode.DuplicateRequest, T("Support.ArrivalAlreadyConfirmed")),
-                repaired.AppliedSnapshotId,
-                "AlreadyApplied");
-        }
-
-        if (supportEvent.Status is ServerEventStatus.RejectedByTarget
-            or ServerEventStatus.Cancelled
-            or ServerEventStatus.Failed)
-        {
-            ledger.ReportApplicationResult(
-                supportEvent.EventId,
-                EventApplicationResultKind.NeedsManualReview,
-                T("Support.ArrivalAlreadyEnded"),
-                nextRetryAtUtc: null);
-            return new ConfirmEventApplicationResultDto(
-                application.EventId,
-                ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Support.ArrivalAlreadyEnded")),
-                appliedSnapshotId: null,
-                supportEvent.Status.ToString());
-        }
-
-        SnapshotIdentity identity = acceptedSnapshot.Identity;
-        if (!string.Equals(identity.OwnerId, userId, StringComparison.Ordinal)
-            || !string.Equals(identity.ColonyId, colonyId, StringComparison.Ordinal)
-            || string.IsNullOrWhiteSpace(identity.SnapshotId))
-        {
-            ledger.ReportApplicationResult(
-                supportEvent.EventId,
-                EventApplicationResultKind.SnapshotBaseMismatch,
-                T("Support.ArrivalSnapshotIdentityMismatch"),
-                nextRetryAtUtc: null);
-            return new ConfirmEventApplicationResultDto(
-                application.EventId,
-                ProtocolResponse.Reject(ProtocolErrorCode.IdentityMismatch, T("Support.ArrivalSnapshotIdentityMismatch")),
-                appliedSnapshotId: null,
-                "SnapshotIdentityMismatch");
-        }
-
-        if (!IsSupportPawnAppliedClientResult(application.ClientApplicationResult, supportPayload))
-        {
-            ledger.ReportApplicationResult(
-                supportEvent.EventId,
-                EventApplicationResultKind.NeedsManualReview,
-                T("Support.ArrivalClientResultMissing"),
-                nextRetryAtUtc: null);
-            return new ConfirmEventApplicationResultDto(
-                application.EventId,
-                ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Support.ArrivalClientResultMissing")),
-                appliedSnapshotId: null,
-                "NotArrived");
-        }
-
-        AuthoritativeEvent applied = SnapshotApplicationCommit.Apply(ledger, supportEvent,
-            baseSnapshotId, identity.SnapshotId!, nowUtc);
-
-        return new ConfirmEventApplicationResultDto(
-            application.EventId,
-            ProtocolResponse.Ok(supportPayload.ReturnToSender ? T("Support.ReturnSnapshotConfirmed") : T("Support.ArrivalSnapshotConfirmed")),
-            applied.AppliedSnapshotId,
-            supportPayload.ReturnToSender ? "ReturnToSenderApplied" : "Arrived");
-    }
-
-    private static bool IsSupportPawnAppliedClientResult(
-        string clientApplicationResult,
-        SupportPawnEventPayload supportPayload)
-    {
-        if (supportPayload.ReturnToSender)
-        {
-            return string.Equals(clientApplicationResult, "SupportPawnReturnCaravanCreated", StringComparison.Ordinal);
-        }
-
-        return string.Equals(clientApplicationResult, "SupportPawnArrived", StringComparison.Ordinal);
     }
 
     private static ConfirmEventApplicationResultDto ConfirmTradeExchangeAfterSnapshot(

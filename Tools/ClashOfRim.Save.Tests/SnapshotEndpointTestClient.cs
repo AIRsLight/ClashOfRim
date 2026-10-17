@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Network.Modules.Support;
 using AIRsLight.ClashOfRim.Network.Modules.Mercenaries;
 using AIRsLight.ClashOfRim.Network.Modules.Trades;
 using AIRsLight.ClashOfRim.Network.Modules.Shop;
@@ -59,6 +60,8 @@ internal static class SnapshotEndpointTestClient
             result = await MercenaryEndpoints.HireMercenaryWithSnapshot(context.Request, state.MercenaryHiring);
         else if (name == nameof(MercenaryEndpoints.HireMercenaryGuardWithSnapshot))
             result = await MercenaryEndpoints.HireMercenaryGuardWithSnapshot(context.Request, state.MercenaryHiring);
+        else if (name == nameof(SupportEndpoints.CreateSupportPawnWithSnapshot))
+            result = await SupportEndpoints.CreateSupportPawnWithSnapshot(context.Request, state.SupportSending);
         else
         {
             MethodInfo endpoint = typeof(ClashOfRimNetworkServer).GetMethod(name, BindingFlags.NonPublic | BindingFlags.Static)!;

@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Network.Modules.Support;
 using AIRsLight.ClashOfRim.Network.Modules.Mercenaries;
 using AIRsLight.ClashOfRim.Network.Modules.Shop;
 using AIRsLight.ClashOfRim.Network.Modules.Trades;
@@ -117,6 +118,12 @@ public sealed class ClashOfRimNetworkState
             SnapshotTransactions, new MercenarySnapshotCommitter(SnapshotCommits, SnapshotStore, BankLoans, MercenaryContracts, MercenaryGuards, recovery),
             () => ServerConfiguration);
         MercenaryIncidents = new MercenaryIncidentRecovery(BankLoans, MercenaryContracts, Ledger, OnlinePresence, EventNotifications);
+        var supportClosures = new SupportClosures(Ledger, EventNotifications);
+        Support = new SupportService(Ledger, SnapshotRequests, OnlinePresence, supportClosures);
+        SupportDeaths = new SupportSnapshotDeaths(Ledger, OnlinePresence, EventNotifications, supportClosures, SnapshotMutations, SnapshotCommits);
+        SupportSending = new SupportSending(Ledger, SnapshotStore, SnapshotRequests, SnapshotTransactions, PendingConfirmations,
+            OnlinePresence, EventNotifications, new SupportSnapshotCommitter(SnapshotCommits, SnapshotStore, BankLoans, Ledger,
+                MercenaryContracts, EventNotifications, recovery));
         TransferPackages = new ItemTransferPackages(PawnPackages, ThingPackages);
         DeliveryTargets = new DeliveryTargetResolver(SnapshotStore);
         Gifts = new GiftService(Ledger, SnapshotStore, BankLoans, MercenaryContracts, SnapshotCommits,
@@ -137,7 +144,7 @@ public sealed class ClashOfRimNetworkState
         Shop = new ShopService(ServerShop, SnapshotRequests, AdminAuthorization, SnapshotMutations, SnapshotTransactions,
             PendingConfirmations, shopCommits, AdminBaseline, Plugins, CompatibilityBaseline, RuntimeLogger, () => ServerConfiguration);
         EventDelivery = new EventDeliveryService(SnapshotAuthorization, SnapshotMutations, Ledger,
-            EventNotifications, OnlinePresence, Players);
+            EventNotifications, OnlinePresence, new SupportDeliveryReconciliation(Ledger, Players, EventNotifications));
     }
 
     public IAuthoritativeEventLedger Ledger { get; }
@@ -159,6 +166,9 @@ public sealed class ClashOfRimNetworkState
     internal ItemTransferPackages TransferPackages { get; }
     internal DeliveryTargetResolver DeliveryTargets { get; }
     internal GiftService Gifts { get; }
+    internal SupportService Support { get; }
+    internal SupportSending SupportSending { get; }
+    internal SupportSnapshotDeaths SupportDeaths { get; }
     internal TradeService Trades { get; }
     internal TradeMarket TradeMarket { get; }
     internal TradeLifecycle TradeLifecycle { get; }
