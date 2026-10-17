@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Synchronization;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -351,7 +352,7 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
-        string operation = ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationShop");
+        LocalMutationKind operation = LocalMutationKind.Shop;
         BeginLocalAtomicMutation(operation, buyFromPlayer
             ? ClashOfRimText.Key("ClashOfRim.Shop.StatusApplyingSale")
             : ClashOfRimText.Key("ClashOfRim.Shop.StatusApplyingPurchase"));
@@ -421,7 +422,7 @@ public sealed partial class ClashOfRimMod
         int purchaseCount,
         int totalPrice,
         string idempotencyKey,
-        string operation,
+        LocalMutationKind operation,
         IReadOnlyList<ModThingReferenceDto> deliveredThings)
     {
         if (!TryBuildCurrentGameSnapshotPackage(

@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Synchronization;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -134,7 +135,7 @@ public sealed partial class ClashOfRimMod
         };
         string idempotencyKey = $"support-pawn:{settings.UserId}:{settings.CurrentSnapshotId}:{pawn.ThingID}:{target.OwnerUserId}:{target.OwnerColonyId}:{DateTime.UtcNow.Ticks}";
         BeginLocalAtomicMutation(
-            ClashOfRimText.Key("ClashOfRim.Support.OperationSend"),
+            LocalMutationKind.SupportSend,
             ClashOfRimText.Key("ClashOfRim.Support.StatusReserving"));
         caravan.RemovePawn(pawn);
         DestroyEmptySourceCaravan(caravan);
@@ -189,8 +190,8 @@ public sealed partial class ClashOfRimMod
         bool autoReturnOnSettlement,
         string idempotencyKey)
     {
-        string operation = ClashOfRimText.Key("ClashOfRim.Support.OperationSend");
-        if (TryRejectBlockedByDifferentLocalAtomicMutation(operation, out string blockedMessage))
+        LocalMutationKind operation = LocalMutationKind.SupportSend;
+        if (TryRejectBlockedByLocalAtomicMutation(out string blockedMessage, operation))
         {
             tradeStatus = blockedMessage;
             Messages.Message(blockedMessage, MessageTypeDefOf.RejectInput, historical: false);
@@ -257,8 +258,8 @@ public sealed partial class ClashOfRimMod
         ModSnapshotPackageMetadataDto confirmedSnapshot,
         byte[] confirmedPayload)
     {
-        string operation = ClashOfRimText.Key("ClashOfRim.Support.OperationSend");
-        if (TryRejectBlockedByDifferentLocalAtomicMutation(operation, out string blockedMessage))
+        LocalMutationKind operation = LocalMutationKind.SupportSend;
+        if (TryRejectBlockedByLocalAtomicMutation(out string blockedMessage, operation))
         {
             tradeStatus = blockedMessage;
             Messages.Message(blockedMessage, MessageTypeDefOf.RejectInput, historical: false);
@@ -310,7 +311,7 @@ public sealed partial class ClashOfRimMod
                 {
                     tradeStatus = ClashOfRimText.Key("ClashOfRim.Support.StatusCreateFailed", result.ErrorCode.Named("CODE"), result.Message.Named("MESSAGE"));
                     ShowUnconfirmedSnapshotFailure(
-                        ClashOfRimText.Key("ClashOfRim.Support.OperationSend"),
+                        LocalMutationKind.SupportSend,
                         tradeStatus,
                         () => StartSubmitRemovedSupportPawn(
                             pawn,
@@ -336,7 +337,7 @@ public sealed partial class ClashOfRimMod
                         response.ErrorCode.Named("CODE"),
                         response.Message.Named("MESSAGE"));
                     ShowUnconfirmedSnapshotFailure(
-                        ClashOfRimText.Key("ClashOfRim.Support.OperationSend"),
+                        LocalMutationKind.SupportSend,
                         tradeStatus,
                         () => StartSubmitRemovedSupportPawn(
                             pawn,
@@ -381,7 +382,7 @@ public sealed partial class ClashOfRimMod
                 using var publication = ClientSessionWork.EnterPublication();
                 tradeStatus = ClashOfRimText.Key("ClashOfRim.Support.StatusException", ex.GetType().Name.Named("TYPE"), ex.Message.Named("MESSAGE"));
                 ShowUnconfirmedSnapshotFailure(
-                    ClashOfRimText.Key("ClashOfRim.Support.OperationSend"),
+                    LocalMutationKind.SupportSend,
                     tradeStatus,
                     () => StartSubmitRemovedSupportPawn(
                         pawn,
@@ -583,7 +584,7 @@ public sealed partial class ClashOfRimMod
 
         StartConfirmLocalMutationSnapshot(new LocalMutationSnapshotConfirmationRequest
         {
-            Operation = ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationSupport"),
+            Operation = LocalMutationKind.Support,
             UploadingStatus = ClashOfRimText.Key("ClashOfRim.Support.StatusReturnSnapshotUploading", pawnLabel.Named("PAWN")),
             RetryAction = () => StartConfirmFinishedSupportPawnSnapshot(assignment, pawnLabel, finishReason, package),
             SetStatus = message => tradeStatus = message,
@@ -603,7 +604,7 @@ public sealed partial class ClashOfRimMod
     {
         StartConfirmLocalMutationSnapshot(new LocalMutationSnapshotConfirmationRequest
         {
-            Operation = ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationSupport"),
+            Operation = LocalMutationKind.Support,
             UploadingStatus = ClashOfRimText.Key("ClashOfRim.Support.StatusReturnSnapshotUploading", pawnLabel.Named("PAWN")),
             RetryAction = () => StartConfirmFinishedSupportPawnSnapshot(assignment, pawnLabel, finishReason, package),
             SetStatus = message => tradeStatus = message,

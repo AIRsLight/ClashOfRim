@@ -654,12 +654,12 @@ public sealed partial class ClashOfRimMod
         ModRaidGuardDeploymentDto? guardDeployment,
         ClientSynchronizationCoordinator.Lease continuation)
     {
-        string operation = ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationRaid");
+        LocalMutationKind operation = LocalMutationKind.Raid;
         bool atomicStarted = false;
         bool submitted = false;
         try
         {
-            if (TryRejectBlockedByDifferentLocalAtomicMutation(operation, out string blockedMessage))
+            if (TryRejectBlockedByLocalAtomicMutation(out string blockedMessage, operation))
             {
                 CloseServerEntryProgressWindowNow();
                 worldMapStatus = blockedMessage;
@@ -1182,8 +1182,8 @@ public sealed partial class ClashOfRimMod
         IReadOnlyList<ModThingReferenceDto> carriedThings,
         ClientSynchronizationCoordinator.Lease? continuation = null)
     {
-        string operation = ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationRaid");
-        if (TryRejectBlockedByDifferentLocalAtomicMutation(operation, out string blockedMessage))
+        LocalMutationKind operation = LocalMutationKind.Raid;
+        if (TryRejectBlockedByLocalAtomicMutation(out string blockedMessage, operation))
         {
             worldMapStatus = blockedMessage;
             Log.Warning("[ClashOfRim][Raid] Prepared raid start snapshot submission blocked after local battle map mutation: event="
@@ -1312,8 +1312,8 @@ public sealed partial class ClashOfRimMod
         byte[] confirmedPayload,
         ClientSynchronizationCoordinator.Lease? continuation = null)
     {
-        string operation = ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationRaid");
-        if (TryRejectBlockedByDifferentLocalAtomicMutation(operation, out string blockedMessage))
+        LocalMutationKind operation = LocalMutationKind.Raid;
+        if (TryRejectBlockedByLocalAtomicMutation(out string blockedMessage, operation))
         {
             continuation?.Dispose();
             worldMapStatus = blockedMessage;
@@ -1550,7 +1550,7 @@ public sealed partial class ClashOfRimMod
     {
         StartConfirmLocalMutationSnapshot(new LocalMutationSnapshotConfirmationRequest
         {
-            Operation = ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationRaid"),
+            Operation = LocalMutationKind.Raid,
             UploadingStatus = ClashOfRimText.Key("ClashOfRim.Raid.StatusAttackerSnapshotUploading"),
             RetryAction = () => StartConfirmRaidStartSnapshot(session),
             SetStatus = value => worldMapStatus = value,
@@ -1626,7 +1626,7 @@ public sealed partial class ClashOfRimMod
             RemoteMapSessionController.ResetRaidBattleFinish(session);
             uploadTransaction.Dispose();
             ShowUnconfirmedSnapshotFailure(
-                ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationRaid"),
+                LocalMutationKind.Raid,
                 worldMapStatus,
                 () => StartFinishActiveRaidBattle(session, context.FinishReason));
             return;
@@ -1650,7 +1650,7 @@ public sealed partial class ClashOfRimMod
             RemoteMapSessionController.ResetRaidBattleFinish(session);
             uploadTransaction.Dispose();
             ShowUnconfirmedSnapshotFailure(
-                ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationRaid"),
+                LocalMutationKind.Raid,
                 worldMapStatus,
                 () => StartFinishActiveRaidBattle(session, context.FinishReason));
             return;
@@ -1722,7 +1722,7 @@ public sealed partial class ClashOfRimMod
 
         StartConfirmPreparedIdentityEventApplicationSnapshot(new PreparedIdentityEventApplicationSnapshotConfirmationRequest
         {
-            Operation = ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationRaid"),
+            Operation = LocalMutationKind.Raid,
             EventId = session.EventId,
             UserId = settings.UserId,
             ColonyId = settings.ColonyId,
@@ -1812,7 +1812,7 @@ public sealed partial class ClashOfRimMod
 
         StartConfirmLocalMutationSnapshot(new LocalMutationSnapshotConfirmationRequest
         {
-            Operation = ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationRaidAttacker"),
+            Operation = LocalMutationKind.RaidAttacker,
             UploadingStatus = ClashOfRimText.Key("ClashOfRim.Raid.StatusAttackerSnapshotUploading"),
             RemoveRaidBattleSessions = true,
             BestEffort = true,
@@ -2008,7 +2008,7 @@ public sealed partial class ClashOfRimMod
 
             RemoteMapSessionController.ResetRaidBattleFinish(session);
             ShowUnconfirmedSnapshotFailure(
-                ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationRaid"),
+                LocalMutationKind.Raid,
                 worldMapStatus,
                 () => StartFinishActiveRaidBattle(session, context.FinishReason));
         });
@@ -2030,7 +2030,7 @@ public sealed partial class ClashOfRimMod
 
             RemoteMapSessionController.ResetRaidBattleFinish(session);
             ShowUnconfirmedSnapshotFailure(
-                ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationRaid"),
+                LocalMutationKind.Raid,
                 worldMapStatus,
                 retryAction ?? (() => StartFinishActiveRaidBattle(session, context.FinishReason)),
                 allowRetry);

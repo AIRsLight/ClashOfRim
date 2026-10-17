@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Synchronization;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -135,7 +136,7 @@ public sealed partial class ClashOfRimMod
         {
             EventId = eventId,
             ClientApplicationResult = "SupportPawnArrived",
-            Operation = ClashOfRimText.Key("ClashOfRim.EventLetter.SupportConfirmOperation"),
+            Operation = LocalMutationKind.SupportArrival,
             IdempotencyPrefix = "support-confirm",
             UploadingStatus = ClashOfRimText.Key("ClashOfRim.EventLetter.SupportConfirmUploading", eventId.Named("EVENTID")),
             BuildFailurePrefix = ClashOfRimText.Key("ClashOfRim.EventLetter.SupportConfirmBuildFailed"),

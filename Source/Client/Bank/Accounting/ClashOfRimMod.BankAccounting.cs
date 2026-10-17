@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Synchronization;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -16,7 +17,7 @@ public sealed partial class ClashOfRimMod
     {
         StartConfirmLocalMutationSnapshot(new LocalMutationSnapshotConfirmationRequest
         {
-            Operation = ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationBank"),
+            Operation = LocalMutationKind.Bank,
             UploadingStatus = ClashOfRimText.Key("ClashOfRim.Bank.StatusUploadingConfirmation"),
             RetryAction = StartBankSnapshotConfirmation,
             SetStatus = value => bankStatus = value,
@@ -44,7 +45,7 @@ public sealed partial class ClashOfRimMod
         {
             mercenaryStatus = ClashOfRimText.Key("ClashOfRim.Mercenary.StatusArrivalPawnMissing");
             ShowUnconfirmedSnapshotFailure(
-                ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationMercenary"),
+                LocalMutationKind.Mercenary,
                 mercenaryStatus,
                 () => RetryMercenaryArrivalAndConfirmation(pawn));
             return;
@@ -54,7 +55,7 @@ public sealed partial class ClashOfRimMod
         {
             mercenaryStatus = shuttleMessage;
             ShowUnconfirmedSnapshotFailure(
-                ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationMercenary"),
+                LocalMutationKind.Mercenary,
                 shuttleMessage,
                 () => RetryMercenaryArrivalAndConfirmation(pawn));
             return;
@@ -74,7 +75,7 @@ public sealed partial class ClashOfRimMod
     {
         StartConfirmLocalMutationSnapshot(new LocalMutationSnapshotConfirmationRequest
         {
-            Operation = ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationMercenary"),
+            Operation = LocalMutationKind.Mercenary,
             UploadingStatus = ClashOfRimText.Key("ClashOfRim.Mercenary.StatusUploadingConfirmation"),
             RetryAction = () => StartMercenarySnapshotConfirmation(completedContractId, completionIdempotencyKey),
             SetStatus = value => mercenaryStatus = value,

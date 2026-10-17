@@ -18,7 +18,6 @@ namespace AIRsLight.ClashOfRim;
 public sealed partial class ClashOfRimMod
 {
     private const string ColonyRelocationConfirmationOperation = "ColonyRelocation";
-    private const string ColonyRelocationOperationKey = "ClashOfRim.SnapshotConfirmationFailure.OperationColonyRelocation";
     private bool implicitColonyRelocationFlightPending;
     private string implicitColonyRelocationPreviousSnapshotId = string.Empty;
 
@@ -26,7 +25,7 @@ public sealed partial class ClashOfRimMod
     {
         EnqueueClashOfRimMainThreadAction(() =>
             ShowUnconfirmedSnapshotFailure(
-                ClashOfRimText.Key(ColonyRelocationOperationKey),
+                LocalMutationKind.ColonyRelocation,
                 message,
                 retry));
     }
@@ -96,7 +95,7 @@ public sealed partial class ClashOfRimMod
             return command;
         }
 
-        if (localAtomicMutationPending)
+        if (localMutations.IsPending)
         {
             command.Disable(ClashOfRimText.Key("ClashOfRim.ColonyRelocation.DisabledAtomic"));
             return command;
@@ -170,7 +169,7 @@ public sealed partial class ClashOfRimMod
         int targetTileLayerId = ReadFirstTileLayerId(target, "Tile", "tile");
         string idempotencyKey = $"colony-relocation:{settings.UserId}:{settings.ColonyId}:{previousSnapshotId}:{targetTile},{targetTileLayerId}:{DateTime.UtcNow.Ticks}";
         BeginLocalAtomicMutation(
-            ClashOfRimText.Key(ColonyRelocationOperationKey),
+            LocalMutationKind.ColonyRelocation,
             ClashOfRimText.Key("ClashOfRim.ColonyRelocation.StatusPreflight"));
 
         ClientSessionWork.Run(async () =>
@@ -231,7 +230,7 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
-        localAtomicMutationStatus = ClashOfRimText.Key("ClashOfRim.ColonyRelocation.StatusSettling");
+        localMutations.UpdateStatus(ClashOfRimText.Key("ClashOfRim.ColonyRelocation.StatusSettling"));
         playerColonySiteRegistrationSuppressed = true;
         int targetTile = target.Tile;
         try
@@ -268,7 +267,7 @@ public sealed partial class ClashOfRimMod
     {
         try
         {
-            localAtomicMutationStatus = ClashOfRimText.Key("ClashOfRim.ColonyRelocation.StatusAbandoningOldColony");
+            localMutations.UpdateStatus(ClashOfRimText.Key("ClashOfRim.ColonyRelocation.StatusAbandoningOldColony"));
             if (!oldColony.Destroyed)
             {
                 oldColony.Abandon(false);
@@ -327,7 +326,7 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
-        localAtomicMutationStatus = ClashOfRimText.Key("ClashOfRim.ColonyRelocation.StatusUploadingSnapshot");
+        localMutations.UpdateStatus(ClashOfRimText.Key("ClashOfRim.ColonyRelocation.StatusUploadingSnapshot"));
         ClientSessionWork.Run(async () =>
         {
             bool confirmationStarted = false;
@@ -420,7 +419,7 @@ public sealed partial class ClashOfRimMod
         bool releaseSiteRegistrationSuppressionOnComplete,
         ClientSynchronizationCoordinator.Lease? uploadTransaction = null)
     {
-        localAtomicMutationStatus = ClashOfRimText.Key("ClashOfRim.ColonyRelocation.StatusConfirming");
+        localMutations.UpdateStatus(ClashOfRimText.Key("ClashOfRim.ColonyRelocation.StatusConfirming"));
         ClientSessionWork.Run(async () =>
         {
             try
@@ -499,8 +498,8 @@ public sealed partial class ClashOfRimMod
             return false;
         }
 
-        string operation = ClashOfRimText.Key(ColonyRelocationOperationKey);
-        if (TryRejectBlockedByDifferentLocalAtomicMutation(operation, out string atomicMessage))
+        LocalMutationKind operation = LocalMutationKind.ColonyRelocation;
+        if (TryRejectBlockedByLocalAtomicMutation(out string atomicMessage, operation))
         {
             Messages.Message(atomicMessage, MessageTypeDefOf.RejectInput, false);
             return false;
@@ -513,7 +512,7 @@ public sealed partial class ClashOfRimMod
             return false;
         }
 
-        if (!localAtomicMutationPending)
+        if (!localMutations.IsPending)
         {
             BeginLocalAtomicMutation(
                 operation,
@@ -521,7 +520,7 @@ public sealed partial class ClashOfRimMod
         }
         else
         {
-            localAtomicMutationStatus = ClashOfRimText.Key("ClashOfRim.ColonyRelocation.StatusFlight");
+            localMutations.UpdateStatus(ClashOfRimText.Key("ClashOfRim.ColonyRelocation.StatusFlight"));
         }
 
         implicitColonyRelocationFlightPending = true;
@@ -544,8 +543,8 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
-        string operation = ClashOfRimText.Key(ColonyRelocationOperationKey);
-        if (TryRejectBlockedByDifferentLocalAtomicMutation(operation, out string atomicMessage))
+        LocalMutationKind operation = LocalMutationKind.ColonyRelocation;
+        if (TryRejectBlockedByLocalAtomicMutation(out string atomicMessage, operation))
         {
             Messages.Message(atomicMessage, MessageTypeDefOf.RejectInput, false);
             return;
@@ -564,7 +563,7 @@ public sealed partial class ClashOfRimMod
         int targetTile = map.Tile;
         int targetTileLayerId = ReadFirstTileLayerId(map, "Tile", "tile");
         string idempotencyKey = $"implicit-colony-relocation:{settings.UserId}:{settings.ColonyId}:{previousSnapshotId}:{targetTile},{targetTileLayerId}:{DateTime.UtcNow.Ticks}";
-        if (!localAtomicMutationPending)
+        if (!localMutations.IsPending)
         {
             BeginLocalAtomicMutation(
                 operation,
@@ -572,7 +571,7 @@ public sealed partial class ClashOfRimMod
         }
         else
         {
-            localAtomicMutationStatus = ClashOfRimText.Key("ClashOfRim.ColonyRelocation.StatusPreflight");
+            localMutations.UpdateStatus(ClashOfRimText.Key("ClashOfRim.ColonyRelocation.StatusPreflight"));
         }
         playerColonySiteRegistrationSuppressed = true;
         lastRegisteredPlayerColonySiteSignature = null;

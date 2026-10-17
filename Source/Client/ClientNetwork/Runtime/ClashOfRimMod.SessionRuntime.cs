@@ -244,8 +244,6 @@ public sealed partial class ClashOfRimMod
 
     private void ClearTransientMultiplayerSessionStateForExit()
     {
-        ClearLocalAtomicMutation();
-        ClearPendingUnconfirmedSnapshotFailure();
         TradePawnPreviewService.Reset();
         lock (automaticEventRefreshLock)
         {
@@ -1443,7 +1441,7 @@ public sealed partial class ClashOfRimMod
     {
         using var publication = ClientSessionWork.EnterPublication();
         SessionReconnectBlockReason blocked = sessionReconnect.TryBegin(new SessionReconnectLocalState(
-            Current.ProgramState == ProgramState.Playing, Current.Game is not null, localAtomicMutationPending), out var attempt);
+            Current.ProgramState == ProgramState.Playing, Current.Game is not null, localMutations.IsPending), out var attempt);
         if (attempt is null)
         {
             window.CompleteReconnect(false, FormatSessionReconnectBlockReason(blocked));
@@ -1471,7 +1469,7 @@ public sealed partial class ClashOfRimMod
                     {
                         using var publication = ClientSessionWork.EnterPublication();
                         var result = attempt.Complete(Current.ProgramState == ProgramState.Playing,
-                            originalGame is not null && ReferenceEquals(Current.Game, originalGame), localAtomicMutationPending);
+                            originalGame is not null && ReferenceEquals(Current.Game, originalGame), localMutations.IsPending);
                         PresentSessionReconnect(window, attempt.Expected, result);
                         completion.TrySetResult(true);
                     }

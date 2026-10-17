@@ -24,6 +24,8 @@ var tests = new (string Name, Action Run)[]
     ("session lifecycle owns identities, deferred expiry and authenticated exit", SessionLifecycleModuleTests.Run),
     ("session reconnect owns snapshot checks, pending adoption and detached cleanup", SessionReconnectModuleTests.Run),
     ("synchronization admission and completion retain exact transaction ownership", SynchronizationCoordinatorTests.Run),
+    ("local mutation admission permits its recovery without admitting unrelated work", LocalMutationModuleTests.Run),
+    ("bank and event continuations reach snapshot rebuilding and retain failed mutations", LocalMutationContinuationTests.Run),
     ("actual event letters share rendering, action and automatic application rules", EventLetterPolicyTests.Run),
     ("repeated pawn transfer preserves global relationship identity", PawnTransferIdentityTests.Run),
     ("item durability uses final quality maximum", ThingMetadataOrderTests.Run),

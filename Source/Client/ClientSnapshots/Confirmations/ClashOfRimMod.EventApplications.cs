@@ -126,7 +126,7 @@ public sealed partial class ClashOfRimMod
                         return;
                     }
 
-                    string operation = ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationAutomaticEvents");
+                    LocalMutationKind operation = LocalMutationKind.AutomaticEvents;
                     BeginLocalAtomicMutation(operation, ClashOfRimText.Key("ClashOfRim.Events.StatusAutoApplying"));
                     IReadOnlyList<ModConfirmEventApplicationEntryDto> automaticApplications;
                     try
@@ -806,7 +806,7 @@ public sealed partial class ClashOfRimMod
         StartConfirmEventApplicationsSnapshot(new EventApplicationsSnapshotConfirmationRequest
         {
             Applications = entries,
-            Operation = ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationAutomaticEvents"),
+            Operation = LocalMutationKind.AutomaticEvents,
             IdempotencyPrefix = "auto-event-confirm",
             UploadingStatus = ClashOfRimText.Key("ClashOfRim.Events.StatusAutoConfirmUploading", entries.Count.Named("COUNT")),
             RetryAction = () => StartConfirmAutomaticEventApplications(entries),
@@ -913,7 +913,7 @@ public sealed partial class ClashOfRimMod
 
         public string ClientApplicationResult { get; set; } = string.Empty;
 
-        public string Operation { get; set; } = string.Empty;
+        public LocalMutationKind Operation { get; set; }
 
         public string IdempotencyPrefix { get; set; } = string.Empty;
 
@@ -948,7 +948,7 @@ public sealed partial class ClashOfRimMod
     {
         public IReadOnlyList<ModConfirmEventApplicationEntryDto> Applications { get; set; } = Array.Empty<ModConfirmEventApplicationEntryDto>();
 
-        public string Operation { get; set; } = string.Empty;
+        public LocalMutationKind Operation { get; set; }
 
         public string IdempotencyPrefix { get; set; } = string.Empty;
 
@@ -973,7 +973,7 @@ public sealed partial class ClashOfRimMod
 
     private sealed class PreparedIdentityEventApplicationSnapshotConfirmationRequest
     {
-        public string Operation { get; set; } = string.Empty;
+        public LocalMutationKind Operation { get; set; }
 
         public string EventId { get; set; } = string.Empty;
 
@@ -1035,14 +1035,14 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
-        if (TryRejectBlockedByDifferentLocalAtomicMutation(request.Operation, out string blockedMessage))
+        if (TryRejectBlockedByLocalAtomicMutation(out string blockedMessage, request.Operation))
         {
             SetEventApplicationSnapshotConfirmationStatus(request, blockedMessage);
             Messages.Message(blockedMessage, MessageTypeDefOf.RejectInput, historical: false);
             return;
         }
 
-        if (!CanRunManualSync(out string failureReason))
+        if (!CanRunManualSync(out string failureReason, request.Operation))
         {
             SetEventApplicationSnapshotConfirmationStatus(request, failureReason);
             ShowUnconfirmedSnapshotFailure(
@@ -1198,14 +1198,14 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
-        if (TryRejectBlockedByDifferentLocalAtomicMutation(request.Operation, out string blockedMessage))
+        if (TryRejectBlockedByLocalAtomicMutation(out string blockedMessage, request.Operation))
         {
             SetEventApplicationsSnapshotConfirmationStatus(request, blockedMessage);
             Messages.Message(blockedMessage, MessageTypeDefOf.RejectInput, historical: false);
             return;
         }
 
-        if (!CanRunEventApplicationSnapshotConfirmation(request.Operation, out string failureReason))
+        if (!CanRunManualSync(out string failureReason, request.Operation))
         {
             SetEventApplicationsSnapshotConfirmationStatus(request, failureReason);
             ShowUnconfirmedSnapshotFailure(
@@ -1347,30 +1347,6 @@ public sealed partial class ClashOfRimMod
         });
     }
 
-    private bool CanRunEventApplicationSnapshotConfirmation(string operation, out string failureReason)
-    {
-        if (!settings.IsConfigured)
-        {
-            failureReason = ClashOfRimText.Key("ClashOfRim.Sync.StatusNotConfigured");
-            return false;
-        }
-
-        if (TryRejectBlockedByDifferentLocalAtomicMutation(operation, out string atomicMessage))
-        {
-            failureReason = atomicMessage;
-            return false;
-        }
-
-        if (string.IsNullOrWhiteSpace(settings.CurrentSnapshotId))
-        {
-            failureReason = ClashOfRimText.Key("ClashOfRim.Sync.StatusSnapshotMissing");
-            return false;
-        }
-
-        failureReason = string.Empty;
-        return true;
-    }
-
     private static bool IsRetryableNetworkFailure<T>(ClashOfRimClientNetworkResult<T> result)
     {
         string code = result.ErrorCode ?? string.Empty;
@@ -1429,10 +1405,9 @@ public sealed partial class ClashOfRimMod
 
         ModSnapshotPackageMetadataDto confirmedSnapshot = request.ConfirmedSnapshot;
         byte[] confirmedPayload = request.ConfirmedPayload;
-        string operation = string.IsNullOrWhiteSpace(request.Operation)
-            ? ClashOfRimText.Key("ClashOfRim.Events.StatusPreparedConfirmOperation")
-            : request.Operation;
-        if (TryRejectBlockedByDifferentLocalAtomicMutation(operation, out string blockedMessage))
+        LocalMutationKind operation = request.Operation == LocalMutationKind.None
+            ? LocalMutationKind.PreparedEvent : request.Operation;
+        if (TryRejectBlockedByLocalAtomicMutation(out string blockedMessage, operation))
         {
             SetPreparedIdentityEventApplicationSnapshotConfirmationStatus(request, blockedMessage);
             Messages.Message(blockedMessage, MessageTypeDefOf.RejectInput, historical: false);
@@ -1813,7 +1788,7 @@ public sealed partial class ClashOfRimMod
         {
             EventId = eventId,
             ClientApplicationResult = clientApplicationResult,
-            Operation = ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationGift"),
+            Operation = LocalMutationKind.Gift,
             IdempotencyPrefix = "gift-confirm",
             UploadingStatus = ClashOfRimText.Key("ClashOfRim.GiftProcessing.ConfirmUploading", eventId.Named("EVENTID")),
             BuildFailurePrefix = ClashOfRimText.Key("ClashOfRim.GiftProcessing.ConfirmBuildFailed"),
@@ -1838,7 +1813,7 @@ public sealed partial class ClashOfRimMod
 
     private sealed class LocalMutationSnapshotConfirmationRequest
     {
-        public string Operation { get; set; } = string.Empty;
+        public LocalMutationKind Operation { get; set; }
 
         public string UploadingStatus { get; set; } = string.Empty;
 
@@ -1872,7 +1847,7 @@ public sealed partial class ClashOfRimMod
 
     private void StartConfirmLocalMutationSnapshot(LocalMutationSnapshotConfirmationRequest request)
     {
-        if (TryRejectBlockedByDifferentLocalAtomicMutation(request.Operation, out string blockedMessage))
+        if (TryRejectBlockedByLocalAtomicMutation(out string blockedMessage, request.Operation))
         {
             SetLocalMutationSnapshotConfirmationStatus(request, blockedMessage);
             Messages.Message(blockedMessage, MessageTypeDefOf.RejectInput, historical: false);
@@ -1981,20 +1956,7 @@ public sealed partial class ClashOfRimMod
         });
     }
 
-    private void StartConfirmLocalMutationSnapshot(string operation, string uploadingMessage, string successMessage)
-    {
-        StartConfirmLocalMutationSnapshot(new LocalMutationSnapshotConfirmationRequest
-        {
-            Operation = operation,
-            UploadingStatus = uploadingMessage,
-            RetryAction = () => StartConfirmLocalMutationSnapshot(operation, uploadingMessage, successMessage),
-            BuildSuccessStatus = result => ClashOfRimText.Key(
-                "ClashOfRim.LocalMutation.ConfirmSucceededWithMessage",
-                successMessage.Named("MESSAGE"),
-                (result.AcceptedSnapshotId ?? settings.CurrentSnapshotId).Named("SNAPSHOT")),
-            OnSuccessOnMainThread = _ => StartRegisterPlayerColonySites()
-        });
-    }
+
 
     internal void StartManualSnapshotUpload()
     {

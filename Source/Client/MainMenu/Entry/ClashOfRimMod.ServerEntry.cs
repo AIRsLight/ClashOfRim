@@ -285,8 +285,6 @@ public sealed partial class ClashOfRimMod
         lastNotificationVersion = 0;
         lastWorldConfigurationVersion = 0;
         languageMismatchAcceptedForCurrentServerEntry = false;
-        ClearLocalAtomicMutation();
-        ClearPendingUnconfirmedSnapshotFailure();
         lastRegisteredPlayerColonySiteSignature = null;
         pendingInitialWorldConfigurationSubmit = false;
         pendingServerWorldConfiguration = null;
@@ -876,7 +874,7 @@ public sealed partial class ClashOfRimMod
                 + " but the restored snapshot has no matching local battle map/session. Keeping local state untouched and requiring a server snapshot reload.");
             worldMapStatus = message;
             ShowUnconfirmedSnapshotFailure(
-                ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationRaidRestore"),
+                LocalMutationKind.RaidRestore,
                 message,
                 () => StartRestoreExistingColonySnapshot(settings.CurrentSnapshotId));
             return;
@@ -895,7 +893,7 @@ public sealed partial class ClashOfRimMod
                 + ".");
             worldMapStatus = message;
             ShowUnconfirmedSnapshotFailure(
-                ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationRaidRestore"),
+                LocalMutationKind.RaidRestore,
                 message,
                 () => StartRestoreExistingColonySnapshot(settings.CurrentSnapshotId));
             return;
@@ -1008,7 +1006,7 @@ public sealed partial class ClashOfRimMod
             {
                 worldMapStatus = message;
                 ShowUnconfirmedSnapshotFailure(
-                    ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationRaidRestore"),
+                    LocalMutationKind.RaidRestore,
                     message,
                     () => StartConfirmSettledRaidCleanupSnapshot(eventId));
             },

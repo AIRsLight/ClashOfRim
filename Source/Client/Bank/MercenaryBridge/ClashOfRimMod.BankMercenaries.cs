@@ -173,7 +173,7 @@ public sealed partial class ClashOfRimMod
             };
             var pendingStatus = CloneBankStatusWithActiveLoan(bankStatusSnapshot, loan);
             BeginLocalAtomicMutation(
-                ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationBank"),
+                LocalMutationKind.Bank,
                 ClashOfRimText.Key("ClashOfRim.Bank.StatusUploadingConfirmation"));
             if (!TryDropBankLoanSilverOnPlayerMap(loan, idempotencyKey, map, out string placeMessage))
             {
@@ -185,7 +185,7 @@ public sealed partial class ClashOfRimMod
 
             ClashBankLoanQuestUtility.CreateOrUpdateLoanQuest(loan, pendingStatus);
             lastBankStatus = pendingStatus;
-            string operation = ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationBank");
+            LocalMutationKind operation = LocalMutationKind.Bank;
             if (!TryBuildCurrentGameSnapshotPackage(
                     settings.UserId,
                     settings.ColonyId,
@@ -225,15 +225,15 @@ public sealed partial class ClashOfRimMod
         ModBankLoanSummaryDto loan,
         ModBankStatusResponseDto pendingStatus)
     {
-        string operation = ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationBank");
-        if (TryRejectBlockedByDifferentLocalAtomicMutation(operation, out string blockedMessage))
+        LocalMutationKind operation = LocalMutationKind.Bank;
+        if (TryRejectBlockedByLocalAtomicMutation(out string blockedMessage, operation))
         {
             bankStatus = blockedMessage;
             Messages.Message(blockedMessage, MessageTypeDefOf.RejectInput, historical: false);
             return;
         }
 
-        if (!CanRunManualSync(out string failureReason))
+        if (!CanRunManualSync(out string failureReason, operation))
         {
             bankStatus = failureReason;
             ShowUnconfirmedSnapshotFailure(
@@ -301,8 +301,8 @@ public sealed partial class ClashOfRimMod
         byte[] confirmedPayload,
         ClientSynchronizationCoordinator.Lease? continuation = null)
     {
-        string operation = ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationBank");
-        if (TryRejectBlockedByDifferentLocalAtomicMutation(operation, out string blockedMessage))
+        LocalMutationKind operation = LocalMutationKind.Bank;
+        if (TryRejectBlockedByLocalAtomicMutation(out string blockedMessage, operation))
         {
             bankStatus = blockedMessage;
             Messages.Message(blockedMessage, MessageTypeDefOf.RejectInput, historical: false);
@@ -488,7 +488,7 @@ public sealed partial class ClashOfRimMod
             bankStatus = ClashOfRimText.Key("ClashOfRim.Bank.StatusRepaying");
             long currentTicks = Find.TickManager?.TicksGame ?? 0;
             string idempotencyKey = $"bank-repay:{settings.UserId}:{settings.ColonyId}:{activeLoan.LoanId}:{DateTime.UtcNow.Ticks}";
-            string operation = ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationBank");
+            LocalMutationKind operation = LocalMutationKind.Bank;
             BeginLocalAtomicMutation(operation, ClashOfRimText.Key("ClashOfRim.Bank.StatusUploadingConfirmation"));
             if (!TryConsumePlayerHomeSilver(activeLoan.TotalDueSilver, out string consumeMessage))
             {
@@ -589,7 +589,7 @@ public sealed partial class ClashOfRimMod
             bankStatus = ClashOfRimText.Key("ClashOfRim.Bank.StatusRepayingDebt");
             long currentTicks = Find.TickManager?.TicksGame ?? 0;
             string idempotencyKey = $"bank-debt-repay:{settings.UserId}:{settings.ColonyId}:{debt.DebtId}:{DateTime.UtcNow.Ticks}";
-            string operation = ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationBank");
+            LocalMutationKind operation = LocalMutationKind.Bank;
             BeginLocalAtomicMutation(operation, ClashOfRimText.Key("ClashOfRim.Bank.StatusUploadingConfirmation"));
             if (!TryConsumePlayerHomeSilver(debt.AmountSilver, out string consumeMessage))
             {
@@ -638,15 +638,15 @@ public sealed partial class ClashOfRimMod
         ModBankLoanSummaryDto loan,
         ModBankStatusResponseDto pendingStatus)
     {
-        string operation = ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationBank");
-        if (TryRejectBlockedByDifferentLocalAtomicMutation(operation, out string blockedMessage))
+        LocalMutationKind operation = LocalMutationKind.Bank;
+        if (TryRejectBlockedByLocalAtomicMutation(out string blockedMessage, operation))
         {
             bankStatus = blockedMessage;
             Messages.Message(blockedMessage, MessageTypeDefOf.RejectInput, historical: false);
             return;
         }
 
-        if (!CanRunManualSync(out string failureReason))
+        if (!CanRunManualSync(out string failureReason, operation))
         {
             bankStatus = failureReason;
             ShowUnconfirmedSnapshotFailure(
@@ -710,8 +710,8 @@ public sealed partial class ClashOfRimMod
         byte[] confirmedPayload,
         ClientSynchronizationCoordinator.Lease? continuation = null)
     {
-        string operation = ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationBank");
-        if (TryRejectBlockedByDifferentLocalAtomicMutation(operation, out string blockedMessage))
+        LocalMutationKind operation = LocalMutationKind.Bank;
+        if (TryRejectBlockedByLocalAtomicMutation(out string blockedMessage, operation))
         {
             bankStatus = blockedMessage;
             Messages.Message(blockedMessage, MessageTypeDefOf.RejectInput, historical: false);
@@ -841,15 +841,15 @@ public sealed partial class ClashOfRimMod
         ModBankDebtSummaryDto debt,
         ModBankStatusResponseDto pendingStatus)
     {
-        string operation = ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationBank");
-        if (TryRejectBlockedByDifferentLocalAtomicMutation(operation, out string blockedMessage))
+        LocalMutationKind operation = LocalMutationKind.Bank;
+        if (TryRejectBlockedByLocalAtomicMutation(out string blockedMessage, operation))
         {
             bankStatus = blockedMessage;
             Messages.Message(blockedMessage, MessageTypeDefOf.RejectInput, historical: false);
             return;
         }
 
-        if (!CanRunManualSync(out string failureReason))
+        if (!CanRunManualSync(out string failureReason, operation))
         {
             bankStatus = failureReason;
             ShowUnconfirmedSnapshotFailure(
@@ -913,8 +913,8 @@ public sealed partial class ClashOfRimMod
         byte[] confirmedPayload,
         ClientSynchronizationCoordinator.Lease? continuation = null)
     {
-        string operation = ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationBank");
-        if (TryRejectBlockedByDifferentLocalAtomicMutation(operation, out string blockedMessage))
+        LocalMutationKind operation = LocalMutationKind.Bank;
+        if (TryRejectBlockedByLocalAtomicMutation(out string blockedMessage, operation))
         {
             bankStatus = blockedMessage;
             Messages.Message(blockedMessage, MessageTypeDefOf.RejectInput, historical: false);
@@ -1144,7 +1144,7 @@ public sealed partial class ClashOfRimMod
         ModMercenaryContractDto contract,
         ClientSynchronizationCoordinator.Lease continuation)
     {
-        string operation = ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationMercenary");
+        LocalMutationKind operation = LocalMutationKind.Mercenary;
         BeginLocalAtomicMutation(operation, ClashOfRimText.Key("ClashOfRim.Mercenary.StatusHiring"));
         int availableSilver = CountPlayerHomeSilver();
         if (availableSilver < contract.PriceSilver)
@@ -1214,7 +1214,7 @@ public sealed partial class ClashOfRimMod
             {
                 mercenaryStatus = ClashOfRimText.Key("ClashOfRim.Mercenary.StatusArrivalPawnMissing");
                 ShowUnconfirmedSnapshotFailure(
-                    ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationMercenary"),
+                    LocalMutationKind.Mercenary,
                     mercenaryStatus,
                     () => RetryPreparedMercenaryArrivalAndBuildTransaction(
                         idempotencyKey,
@@ -1228,7 +1228,7 @@ public sealed partial class ClashOfRimMod
             {
                 mercenaryStatus = shuttleMessage;
                 ShowUnconfirmedSnapshotFailure(
-                    ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationMercenary"),
+                    LocalMutationKind.Mercenary,
                     shuttleMessage,
                     () => RetryPreparedMercenaryArrivalAndBuildTransaction(
                         idempotencyKey,
@@ -1255,15 +1255,15 @@ public sealed partial class ClashOfRimMod
         ModMercenaryContractDto contract,
         ClientSynchronizationCoordinator.Lease? continuation = null)
     {
-        string operation = ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationMercenary");
-        if (TryRejectBlockedByDifferentLocalAtomicMutation(operation, out string blockedMessage))
+        LocalMutationKind operation = LocalMutationKind.Mercenary;
+        if (TryRejectBlockedByLocalAtomicMutation(out string blockedMessage, operation))
         {
             mercenaryStatus = blockedMessage;
             Messages.Message(blockedMessage, MessageTypeDefOf.RejectInput, historical: false);
             return;
         }
 
-        if (!CanContinueManualSyncForLocalAtomicMutation(operation, out string failureReason))
+        if (!CanRunManualSync(out string failureReason, operation))
         {
             mercenaryStatus = failureReason;
             ShowUnconfirmedSnapshotFailure(
@@ -1323,8 +1323,8 @@ public sealed partial class ClashOfRimMod
         byte[] confirmedPayload,
         ClientSynchronizationCoordinator.Lease? continuation = null)
     {
-        string operation = ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationMercenary");
-        if (TryRejectBlockedByDifferentLocalAtomicMutation(operation, out string blockedMessage))
+        LocalMutationKind operation = LocalMutationKind.Mercenary;
+        if (TryRejectBlockedByLocalAtomicMutation(out string blockedMessage, operation))
         {
             mercenaryStatus = blockedMessage;
             Messages.Message(blockedMessage, MessageTypeDefOf.RejectInput, historical: false);
@@ -1681,7 +1681,7 @@ public sealed partial class ClashOfRimMod
         ModMercenaryGuardContractDto contract,
         ClientSynchronizationCoordinator.Lease continuation)
     {
-        string operation = ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationMercenary");
+        LocalMutationKind operation = LocalMutationKind.Mercenary;
         BeginLocalAtomicMutation(operation, ClashOfRimText.Key("ClashOfRim.Mercenary.GuardStatusHiring"));
         int availableSilver = CountPlayerHomeSilver();
         if (availableSilver < contract.PriceSilver)
@@ -1720,15 +1720,15 @@ public sealed partial class ClashOfRimMod
         ModMercenaryGuardContractDto contract,
         ClientSynchronizationCoordinator.Lease? continuation = null)
     {
-        string operation = ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationMercenary");
-        if (TryRejectBlockedByDifferentLocalAtomicMutation(operation, out string blockedMessage))
+        LocalMutationKind operation = LocalMutationKind.Mercenary;
+        if (TryRejectBlockedByLocalAtomicMutation(out string blockedMessage, operation))
         {
             mercenaryStatus = blockedMessage;
             Messages.Message(blockedMessage, MessageTypeDefOf.RejectInput, historical: false);
             return;
         }
 
-        if (!CanContinueManualSyncForLocalAtomicMutation(operation, out string failureReason))
+        if (!CanRunManualSync(out string failureReason, operation))
         {
             mercenaryStatus = failureReason;
             ShowUnconfirmedSnapshotFailure(
@@ -1788,8 +1788,8 @@ public sealed partial class ClashOfRimMod
         byte[] confirmedPayload,
         ClientSynchronizationCoordinator.Lease? continuation = null)
     {
-        string operation = ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationMercenary");
-        if (TryRejectBlockedByDifferentLocalAtomicMutation(operation, out string blockedMessage))
+        LocalMutationKind operation = LocalMutationKind.Mercenary;
+        if (TryRejectBlockedByLocalAtomicMutation(out string blockedMessage, operation))
         {
             mercenaryStatus = blockedMessage;
             Messages.Message(blockedMessage, MessageTypeDefOf.RejectInput, historical: false);

@@ -370,7 +370,7 @@ public sealed partial class ClashOfRimMod
             return;
         }
         BeginLocalAtomicMutation(
-            ClashOfRimText.Key("ClashOfRim.GiftDelivery.OperationSend"),
+            LocalMutationKind.GiftSend,
             ClashOfRimText.Key("ClashOfRim.GiftDelivery.StatusReserving"));
         if (!TradeCaravanFulfillmentUtility.RemoveSelectedThings(caravan, selections, out string removeMessage))
         {
@@ -399,8 +399,8 @@ public sealed partial class ClashOfRimMod
         string idempotencyKey,
         string removeMessage)
     {
-        string operation = ClashOfRimText.Key("ClashOfRim.GiftDelivery.OperationSend");
-        if (TryRejectBlockedByDifferentLocalAtomicMutation(operation, out string blockedMessage))
+        LocalMutationKind operation = LocalMutationKind.GiftSend;
+        if (TryRejectBlockedByLocalAtomicMutation(out string blockedMessage, operation))
         {
             giftProcessingStatus = blockedMessage;
             Messages.Message(blockedMessage, MessageTypeDefOf.RejectInput, historical: false);
@@ -445,8 +445,8 @@ public sealed partial class ClashOfRimMod
         ModSnapshotPackageMetadataDto confirmedSnapshot,
         byte[] confirmedPayload)
     {
-        string operation = ClashOfRimText.Key("ClashOfRim.GiftDelivery.OperationSend");
-        if (TryRejectBlockedByDifferentLocalAtomicMutation(operation, out string blockedMessage))
+        LocalMutationKind operation = LocalMutationKind.GiftSend;
+        if (TryRejectBlockedByLocalAtomicMutation(out string blockedMessage, operation))
         {
             giftProcessingStatus = blockedMessage;
             Messages.Message(blockedMessage, MessageTypeDefOf.RejectInput, historical: false);
@@ -605,7 +605,7 @@ public sealed partial class ClashOfRimMod
         // but only serialize the game after the travelling world object has been removed.
         var cargo = transporters.ToArray();
         string sourceUser = settings.UserId, sourceColony = settings.ColonyId, sourceSnapshot = settings.CurrentSnapshotId;
-        string operation = ClashOfRimText.Key("ClashOfRim.GiftDelivery.OperationSend");
+        LocalMutationKind operation = LocalMutationKind.GiftSend;
         BeginLocalAtomicMutation(operation, ClashOfRimText.Key("ClashOfRim.GiftDelivery.StatusPackagingSnapshot"));
         void PrepareAfterArrival()
         {
@@ -705,7 +705,7 @@ public sealed partial class ClashOfRimMod
 
         string baseSnapshotId = settings.CurrentSnapshotId;
         string idempotencyKey = $"trade-fulfill:{settings.UserId}:{order.EventId}:{order.ViewerAcceptedMemoEventId}:{caravan.GetUniqueLoadID()}:{DateTime.UtcNow.Ticks}";
-        string operation = ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationTrade");
+        LocalMutationKind operation = LocalMutationKind.Trade;
         if (!TryBeginManualSynchronization(out var manualOperation, out failureReason))
         {
             tradeStatus = failureReason;
@@ -819,7 +819,7 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
-        string operation = ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationTrade");
+        LocalMutationKind operation = LocalMutationKind.Trade;
         BeginLocalAtomicMutation(operation, ClashOfRimText.Key("ClashOfRim.Trade.StatusDropPodReserving"));
         if (!TradeMapFulfillmentUtility.TryReserveDropPodDelivery(
                 map,
@@ -860,8 +860,8 @@ public sealed partial class ClashOfRimMod
         string reservationMessage,
         ClientSynchronizationCoordinator.Lease? continuation = null)
     {
-        string operation = ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationTrade");
-        if (TryRejectBlockedByDifferentLocalAtomicMutation(operation, out string blockedMessage))
+        LocalMutationKind operation = LocalMutationKind.Trade;
+        if (TryRejectBlockedByLocalAtomicMutation(out string blockedMessage, operation))
         {
             tradeStatus = blockedMessage;
             Messages.Message(blockedMessage, MessageTypeDefOf.RejectInput, historical: false);
@@ -915,8 +915,8 @@ public sealed partial class ClashOfRimMod
         byte[] confirmedPayload,
         ClientSynchronizationCoordinator.Lease? continuation = null)
     {
-        string operation = ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationTrade");
-        if (TryRejectBlockedByDifferentLocalAtomicMutation(operation, out string blockedMessage))
+        LocalMutationKind operation = LocalMutationKind.Trade;
+        if (TryRejectBlockedByLocalAtomicMutation(out string blockedMessage, operation))
         {
             tradeStatus = blockedMessage;
             Messages.Message(blockedMessage, MessageTypeDefOf.RejectInput, historical: false);
@@ -1033,7 +1033,7 @@ public sealed partial class ClashOfRimMod
             SourceEventId = tradeEventId,
             BaseSnapshotId = baseSnapshotId,
             ClientApplicationResult = "SelfDeliveryExchangeApplied",
-            Operation = ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationTrade"),
+            Operation = LocalMutationKind.Trade,
             IdempotencyPrefix = "trade-confirm",
             UploadingStatus = ClashOfRimText.Key(
                 "ClashOfRim.Trade.StatusConfirmUploading",

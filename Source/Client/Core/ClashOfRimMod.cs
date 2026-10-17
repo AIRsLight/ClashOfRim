@@ -95,9 +95,7 @@ public sealed partial class ClashOfRimMod : Mod
     private string tradeOrdersScope = "Open";
     private ModBankStatusResponseDto? lastBankStatus;
     private ModAdminStatusResponseDto? lastAdminStatus;
-    private bool localAtomicMutationPending;
-    private string localAtomicMutationOperation = string.Empty;
-    private string localAtomicMutationStatus = string.Empty;
+    private readonly ClientLocalMutationCoordinator localMutations = new();
     private bool pendingInitialWorldConfigurationSubmit;
     private ModWorldConfigurationDto? pendingServerWorldConfiguration;
     private WorldSubstratePackage? pendingServerWorldSubstrate;
@@ -170,6 +168,7 @@ public sealed partial class ClashOfRimMod : Mod
             ApplyAdministratorFlag(response?.IsAdministrator == true);
         };
         sessionLifecycle.Ended += synchronization.Reset;
+        sessionLifecycle.Ended += localMutations.Reset;
         sessionLifecycle.Ended += ClearTransientMultiplayerSessionStateForExit;
         synchronization.SnapshotChanged += PresentSnapshotTransaction;
         sessionLifecycle.LogoutFailed += message => Log.Warning("[ClashOfRim] " + message);
@@ -222,9 +221,10 @@ public sealed partial class ClashOfRimMod : Mod
     internal bool IsServerWorldSetupFlow => pendingInitialWorldConfigurationSubmit
         || pendingServerWorldConfiguration is not null;
 
-    internal bool LocalAtomicMutationPending => localAtomicMutationPending;
+    internal bool LocalAtomicMutationPending => localMutations.IsPending;
 
-    internal string LocalAtomicMutationOperation => localAtomicMutationOperation;
+    internal string LocalAtomicMutationOperation => localMutations.Current is { } mutation
+        ? ClientLocalMutationPresentation.OperationName(mutation.Kind) : string.Empty;
 
     internal bool MercenaryInProgress => mercenaryInProgress;
 
@@ -343,7 +343,7 @@ public sealed partial class ClashOfRimMod : Mod
         settings.IsConfigured
         && !playerColonySiteRegistrationInProgress
         && !playerColonySiteRegistrationSuppressed
-        && !localAtomicMutationPending
+        && !localMutations.IsPending
         && !ClashOfRimGameComponent.HasActiveRaidBattleSession
         && !ClashOfRimGameComponent.HasActiveObservationSession
         && !string.IsNullOrWhiteSpace(lastSessionId)
@@ -715,87 +715,31 @@ public sealed partial class ClashOfRimMod : Mod
         }
     }
 
-    private void BeginLocalAtomicMutation(string operation, string? status = null)
-    {
-        localAtomicMutationPending = true;
-        localAtomicMutationOperation = operation ?? string.Empty;
-        localAtomicMutationStatus = status ?? string.Empty;
-    }
+    private void BeginLocalAtomicMutation(LocalMutationKind operation, string? status = null)
+        => localMutations.Begin(operation, status ?? string.Empty);
 
     private void CompleteLocalAtomicMutation()
     {
-        ClearLocalAtomicMutation();
-        ClearPendingUnconfirmedSnapshotFailure();
+        localMutations.Reset();
         StartQueuedAutomaticEventRefreshAfterLocalAtomicMutation();
     }
 
-    private void ClearLocalAtomicMutation()
+    private void ClearLocalAtomicMutation() => localMutations.Reset();
+
+    private bool TryRejectBlockedByLocalAtomicMutation(out string message, LocalMutationKind? continuation = null)
     {
-        localAtomicMutationPending = false;
-        localAtomicMutationOperation = string.Empty;
-        localAtomicMutationStatus = string.Empty;
+        LocalMutationState? blocked = localMutations.BlockingMutation(continuation);
+        message = blocked is null ? string.Empty : ClientLocalMutationPresentation.Blocked(blocked);
+        return blocked is not null;
     }
 
-    private bool TryRejectBlockedByLocalAtomicMutation(out string message)
+    private bool CanRunManualSync(out string failureReason, LocalMutationKind? continuation = null)
     {
-        if (!localAtomicMutationPending)
-        {
-            message = string.Empty;
-            return false;
-        }
-
-        string operation = string.IsNullOrWhiteSpace(localAtomicMutationOperation)
-            ? ClashOfRimText.Key("ClashOfRim.LocalAtomicMutation.DefaultOperation")
-            : localAtomicMutationOperation;
-        message = string.IsNullOrWhiteSpace(localAtomicMutationStatus)
-            ? ClashOfRimText.Key("ClashOfRim.LocalAtomicMutation.Waiting", operation.Named("OPERATION"))
-            : ClashOfRimText.Key(
-                "ClashOfRim.LocalAtomicMutation.WaitingWithStatus",
-                operation.Named("OPERATION"),
-                localAtomicMutationStatus.Named("STATUS"));
-        return true;
-    }
-
-    private bool TryRejectBlockedByDifferentLocalAtomicMutation(string operation, out string message)
-    {
-        if (!localAtomicMutationPending)
-        {
-            message = string.Empty;
-            return false;
-        }
-
-        string requestedOperation = operation ?? string.Empty;
-        if (string.Equals(localAtomicMutationOperation, requestedOperation, StringComparison.Ordinal))
-        {
-            message = string.Empty;
-            return false;
-        }
-
-        return TryRejectBlockedByLocalAtomicMutation(out message);
-    }
-
-    private bool CanRunManualSync(out string failureReason)
-    {
-        if (!settings.IsConfigured)
-        {
-            failureReason = ClashOfRimText.Key("ClashOfRim.Sync.StatusNotConfigured");
-            return false;
-        }
-
-        if (TryRejectBlockedByLocalAtomicMutation(out string atomicMessage))
-        {
-            failureReason = atomicMessage;
-            return false;
-        }
-
-        if (string.IsNullOrWhiteSpace(settings.CurrentSnapshotId))
-        {
-            failureReason = ClashOfRimText.Key("ClashOfRim.Sync.StatusSnapshotMissing");
-            return false;
-        }
-
-        failureReason = string.Empty;
-        return true;
+        using var publication = ClientSessionWork.EnterPublication();
+        LocalMutationAdmission admission = localMutations.CheckAdmission(
+            settings.IsConfigured, !string.IsNullOrWhiteSpace(settings.CurrentSnapshotId), continuation);
+        failureReason = ClientLocalMutationPresentation.AdmissionFailure(admission, localMutations.Current);
+        return admission == LocalMutationAdmission.Allowed;
     }
 
     private bool TryBeginManualSynchronization(
@@ -807,29 +751,4 @@ public sealed partial class ClashOfRimMod : Mod
         failureReason = accepted ? string.Empty : ClashOfRimText.Key("ClashOfRim.Sync.StatusBusy");
         return accepted;
     }
-
-    private bool CanContinueManualSyncForLocalAtomicMutation(string operation, out string failureReason)
-    {
-        if (!settings.IsConfigured)
-        {
-            failureReason = ClashOfRimText.Key("ClashOfRim.Sync.StatusNotConfigured");
-            return false;
-        }
-
-        if (TryRejectBlockedByDifferentLocalAtomicMutation(operation, out string atomicMessage))
-        {
-            failureReason = atomicMessage;
-            return false;
-        }
-
-        if (string.IsNullOrWhiteSpace(settings.CurrentSnapshotId))
-        {
-            failureReason = ClashOfRimText.Key("ClashOfRim.Sync.StatusSnapshotMissing");
-            return false;
-        }
-
-        failureReason = string.Empty;
-        return true;
-    }
-
 }

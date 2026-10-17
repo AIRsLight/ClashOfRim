@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Synchronization;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -43,7 +44,7 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
-        string operation = ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationTrade");
+        LocalMutationKind operation = LocalMutationKind.Trade;
         BeginLocalAtomicMutation(operation, ClashOfRimText.Key("ClashOfRim.Trade.StatusOrderReserving"));
         if (!ApplyTradeDraftLocalReservation(draft, out string reservationMessage))
         {
@@ -59,8 +60,8 @@ public sealed partial class ClashOfRimMod
 
     private void StartSubmitReservedManualTradeOrder(TradeOrderDraft draft, string idempotencyKey, string reservationMessage)
     {
-        string operation = ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationTrade");
-        if (TryRejectBlockedByDifferentLocalAtomicMutation(operation, out string blockedMessage))
+        LocalMutationKind operation = LocalMutationKind.Trade;
+        if (TryRejectBlockedByLocalAtomicMutation(out string blockedMessage, operation))
         {
             tradeStatus = blockedMessage;
             Messages.Message(blockedMessage, MessageTypeDefOf.RejectInput, historical: false);
@@ -97,8 +98,8 @@ public sealed partial class ClashOfRimMod
         ModSnapshotPackageMetadataDto confirmedSnapshot,
         byte[] confirmedPayload)
     {
-        string operation = ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationTrade");
-        if (TryRejectBlockedByDifferentLocalAtomicMutation(operation, out string blockedMessage))
+        LocalMutationKind operation = LocalMutationKind.Trade;
+        if (TryRejectBlockedByLocalAtomicMutation(out string blockedMessage, operation))
         {
             tradeStatus = blockedMessage;
             Messages.Message(blockedMessage, MessageTypeDefOf.RejectInput, historical: false);

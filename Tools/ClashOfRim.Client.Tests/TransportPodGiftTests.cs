@@ -112,14 +112,14 @@ public static class TransportPodGiftTests
         using (snapshot) AssertBusyArrival("snapshot");
         if (!synchronization.TryBeginManual(out var manual)) throw new Exception("Fixture requires an idle client.");
         using (manual) AssertBusyArrival("manual");
-        var atomic = type.GetField("localAtomicMutationPending", BindingFlags.Instance | BindingFlags.NonPublic)!;
-        if ((bool)atomic.GetValue(mod)!) throw new Exception("Fixture requires no pending atomic mutation.");
-        try { atomic.SetValue(mod, true); AssertBusyArrival("atomic mutation"); }
-        finally { atomic.SetValue(mod, false); }
+        var atomic = (ClientLocalMutationCoordinator)type.GetField("localMutations", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(mod)!;
+        if (atomic.IsPending) throw new Exception("Fixture requires no pending atomic mutation.");
+        try { atomic.Begin(LocalMutationKind.GiftSend, "fixture"); AssertBusyArrival("atomic mutation"); }
+        finally { atomic.Reset(); }
         string beforeSnapshot = mod.CurrentSnapshotId;
         string worldObjectId = voyage.GetUniqueLoadID(), thingId = wood.ThingID;
         arrived.Invoke(voyage, null);
-        if (!(bool)type.GetField("localAtomicMutationPending", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(mod)!
+        if (!atomic.IsPending
             || Find.WorldObjects.AllWorldObjects.Contains(voyage) || ((System.Collections.IList)transporters.GetValue(voyage)!).Count != 0)
             throw new Exception("Arrival did not guard the mutation before engine cleanup.");
         return new { key = $"gift-transport-pods:{mod.UserId}:{beforeSnapshot}:{transporterKey}", beforeSnapshot, worldObjectId, thingId, userId = mod.UserId, colonyId = mod.ColonyId };
