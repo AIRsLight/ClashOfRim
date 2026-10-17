@@ -1257,7 +1257,8 @@ public sealed class ClashOfRimModNetworkClient
             },
             Kind = kind,
             Message = message,
-            ExpiresAtUtc = expiresAtUtc?.ToString("O")
+            ExpiresAtUtc = expiresAtUtc?.ToString("O"),
+            AuthToken = context.AuthToken
         };
 
         return transport.PostAsync<ModCreateDiplomacyEventRequestDto, ModDiplomacyEventResponseDto>(

@@ -2,14 +2,12 @@ using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Network.Modules.Authorization;
 using AIRsLight.ClashOfRim.Network.Modules.Snapshots;
 using AIRsLight.ClashOfRim.Protocol;
-using AIRsLight.ClashOfRim.Save;
 
 namespace AIRsLight.ClashOfRim.Network.Modules.Events;
 
 internal sealed class EventDeliveryService(
-    ColonyAccessAuthorization authorization,
+    ColonySnapshotAuthorization authorization,
     SnapshotMutationCoordinator mutations,
-    IColonySnapshotIndexStore snapshots,
     IAuthoritativeEventLedger ledger,
     EventNotificationHub notifications,
     OnlinePresenceRegistry presence,
@@ -154,14 +152,7 @@ internal sealed class EventDeliveryService(
     // Called under the snapshot gate, including again after recovery or a long poll.
     private ProtocolResponse? ValidateRead(
         string? token, string userId, string colonyId, string snapshotId)
-    {
-        if (!authorization.TryAuthorize(token, userId, colonyId, null, null, DateTimeOffset.UtcNow, out string failure))
-            return ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, failure);
-        if (string.IsNullOrWhiteSpace(snapshotId)
-            || snapshots.GetLatest(userId, colonyId)?.Identity.SnapshotId != snapshotId)
-            return ProtocolResponse.Reject(ProtocolErrorCode.SnapshotMismatch, ServerLocalization.Text("Events.SnapshotNotLatest"));
-        return null;
-    }
+        => authorization.Validate(token, userId, colonyId, snapshotId);
 
     private static EventQueueSummaryDto EmptyEventQueue() => new([], [], [], [], []);
 

@@ -123,7 +123,7 @@ internal static class EventDeliveryServiceTests
             var tokens = new AuthTokenRegistry();
             var authorization = new ColonyAccessAuthorization(tokens, Sessions, new DiplomacyRelationRegistry(), new RaidPreparationRegistry(), Ledger, () => true);
             Mutations = new(Gate, Recovery);
-            Delivery = new(authorization, Mutations, snapshots, Ledger, Notifications, new OnlinePresenceRegistry(), new PlayerRegistry());
+            Delivery = new(new ColonySnapshotAuthorization(authorization, snapshots), Mutations, Ledger, Notifications, new OnlinePresenceRegistry(), new PlayerRegistry());
             PublishSnapshot("current");
             Sessions.TryCreate("reader", "home", DateTimeOffset.UtcNow, out string session);
             Token = tokens.Issue("reader", "reader", "home", session, DateTimeOffset.UtcNow);

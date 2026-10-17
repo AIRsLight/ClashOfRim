@@ -50,8 +50,13 @@ internal static class EventDecisionModuleTests
                     Require(json.GetProperty("userId").GetString() == "用户-é" && json.GetProperty("colonyId").GetString() == "colony"
                         && json.GetProperty("eventId").GetString() == "event-é" && json.GetProperty("reason").GetString() == "reason-原因", "Decision identity or reason changed.");
                     if (kind == ProtocolMessageKind.RespondDiplomacyEvent)
+                    {
                         Require(json.GetProperty("accepted").GetBoolean(), "Diplomacy decision lost acceptance.");
-                    else Require(json.GetProperty("authToken").GetString() == "auth", "Authenticated decision lost its credential.");
+                        var serverRequest = JsonSerializer.Deserialize<RespondDiplomacyEventRequest>(json.GetRawText(), new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
+                        Require(serverRequest.AuthToken == "auth" && serverRequest.UserId == context.UserId && serverRequest.Accepted,
+                            "Server diplomacy DTO did not receive the client credential/decision.");
+                    }
+                    Require(json.GetProperty("authToken").GetString() == "auth", "Authenticated decision lost its credential.");
                     Require(json.GetProperty("currentSnapshotId").GetString() == (kind == ProtocolMessageKind.ReportEventApplicationFailure ? "report-base" : ""), "Decision snapshot changed.");
                     if (kind == ProtocolMessageKind.ReportEventApplicationFailure)
                         Require(json.GetProperty("idempotencyKey").GetString() == "report-key" && json.GetProperty("sourceEventId").GetString() == "source", "Report lost source or key.");
@@ -68,6 +73,23 @@ internal static class EventDecisionModuleTests
                     && !(await protocol.RejectSupportAsync(missing, "event", null, default)).Success
                     && !(await protocol.RespondDiplomacyAsync(missing, "event", false, null, default)).Success
                     && !(await protocol.ReportFailureAsync(missing, report, default)).Success && calls == 4 && diagnosticReads == 4, "Missing identity sent a command.");
+
+                int creations = 0;
+                using var createHttp = new HttpClient(new Handler(async request =>
+                {
+                    creations++;
+                    Require(request.RequestUri!.AbsolutePath == "/base/" + ProtocolContractManifest.Find(ProtocolMessageKind.CreateDiplomacyEvent).Route.TrimStart('/'), "Diplomacy creation route changed.");
+                    var body = await request.Content!.ReadAsStringAsync();
+                    var serverRequest = JsonSerializer.Deserialize<CreateDiplomacyEventRequest>(body, new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
+                    Require(serverRequest.AuthToken == "auth" && serverRequest.Actor.UserId == context.UserId
+                        && serverRequest.Actor.ColonyId == context.ColonyId && serverRequest.Target.UserId == "target-é"
+                        && serverRequest.IdempotencyKey == "create-key" && serverRequest.Kind == "AllianceRequest"
+                        && serverRequest.Message == "message-原因", "Diplomacy creation lost its authenticated intent.");
+                    return new(HttpStatusCode.OK) { Content = new StringContent("{}", Encoding.UTF8, "application/json") };
+                }));
+                var facade = new ClashOfRimModNetworkClient(createHttp, context);
+                Require((await facade.CreateDiplomacyEventAsync("create-key", "target-é", "target-colony", null, "AllianceRequest", "message-原因")).Success
+                    && creations == 1, "Diplomacy creation did not use the authenticated protocol.");
             }
         }
         finally { CultureInfo.CurrentCulture = previous; }

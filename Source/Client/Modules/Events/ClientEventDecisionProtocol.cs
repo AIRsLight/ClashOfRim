@@ -37,7 +37,7 @@ internal sealed class ClientEventDecisionProtocol : IClientEventDecisionProtocol
     public Task<ClashOfRimClientNetworkResult<ModDiplomacyEventResponseDto>> RespondDiplomacyAsync(ClashOfRimClientNetworkContext context, string eventId, bool accepted, string? reason, CancellationToken token) =>
         Send<ModRespondDiplomacyEventRequestDto, ModDiplomacyEventResponseDto>(context, ProtocolMessageKind.RespondDiplomacyEvent, new()
         { EventId = eventId, UserId = context.UserId, ColonyId = context.ColonyId, CurrentSnapshotId = context.CurrentSnapshotId ?? string.Empty,
-            Accepted = accepted, Reason = reason }, token);
+            Accepted = accepted, Reason = reason, AuthToken = context.AuthToken }, token);
 
     public Task<ClashOfRimClientNetworkResult<ModReportEventApplicationFailureResponseDto>> ReportFailureAsync(ClashOfRimClientNetworkContext context, ClientEventFailureReport report, CancellationToken token) =>
         Send<ModReportEventApplicationFailureRequestDto, ModReportEventApplicationFailureResponseDto>(context, ProtocolMessageKind.ReportEventApplicationFailure, new()

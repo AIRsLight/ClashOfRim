@@ -93,14 +93,16 @@ public sealed class ClashOfRimNetworkState
         ColonyDeletions = colonyDeletions ?? new ColonyDeletionService();
         ColonyAuthorization = new ColonyAccessAuthorization(AuthTokens, LoginSessions, DiplomacyRelations,
             RaidPreparations, Ledger, () => ServerConfiguration.PvpEnabled);
+        SnapshotAuthorization = new ColonySnapshotAuthorization(ColonyAuthorization, SnapshotStore);
         SnapshotMutations = new SnapshotMutationCoordinator(RaidSettlementSnapshotMutationGate, new LegacySnapshotRecoveryAdapter(this));
-        EventDelivery = new EventDeliveryService(ColonyAuthorization, SnapshotMutations, SnapshotStore, Ledger,
+        EventDelivery = new EventDeliveryService(SnapshotAuthorization, SnapshotMutations, Ledger,
             EventNotifications, OnlinePresence, Players);
     }
 
     public IAuthoritativeEventLedger Ledger { get; }
 
     internal ColonyAccessAuthorization ColonyAuthorization { get; }
+    internal ColonySnapshotAuthorization SnapshotAuthorization { get; }
     internal EventDeliveryService EventDelivery { get; }
 
     public IColonySnapshotIndexStore SnapshotStore { get; }

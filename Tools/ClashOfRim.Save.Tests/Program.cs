@@ -26,6 +26,7 @@ if (args.FirstOrDefault() == "--baseline-invalidation-crash")
 
 var tests = new (string Name, Action Run)[]
 {
+    ("外交命令授权、快照、恢复复验与并发幂等", () => DiplomacyAuthorizationTests.Run(BuildFixturePackage)),
     ("意识形态摘要重建保留显示元数据", IdeologyMetadataTests.Run),
     ("快照载荷压缩在业务锁外准备且保持格式与恢复兼容", () => PreparedSnapshotPayloadTests.Run(BuildFixturePackage)),
     ("银行并发快照重试与会话失效", () => BankSnapshotReplayRaceTests.Run(BuildFixturePackage)),

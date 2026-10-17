@@ -255,13 +255,13 @@
     "Kind": "CreateDiplomacyEvent",
     "Route": "/events/diplomacy",
     "Method": "POST",
-    "OwnsRecovery": false
+    "OwnsRecovery": true
   },
   {
     "Kind": "RespondDiplomacyEvent",
     "Route": "/events/diplomacy/respond",
     "Method": "POST",
-    "OwnsRecovery": false
+    "OwnsRecovery": true
   },
   {
     "Kind": "CreateSupportPawn",

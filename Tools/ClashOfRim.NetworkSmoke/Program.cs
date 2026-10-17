@@ -1883,19 +1883,22 @@ try
         new ProtocolIdentity("user-b", "colony-b", snapshotId: null),
         "AllianceRequest",
         "请求结盟。",
-        DateTimeOffset.UtcNow.AddDays(3)));
+        DateTimeOffset.UtcNow.AddDays(3), authToken: userAAuthToken));
     Require(allianceRequest.Result.Accepted, "目标快照为空时创建结盟请求仍应成功");
     AuthoritativeEvent allianceEvent = state.Ledger.Find(allianceRequest.EventId!)!;
     Require(allianceEvent.Payload is AllianceRequestEventPayload, "结盟请求应写入外交载荷");
     Equal(EventRejectionPolicy.RejectableByTarget, allianceEvent.RejectionPolicy, "结盟请求应可由目标拒绝");
 
+    var diplomacyTargetLogin = await client.LoginAsync(new LoginRequest(ProtocolApiVersion.Current, "user-b", "colony-b",
+        "defender-snapshot-before", "smoke-main-manifest", password: string.Empty, compatibilityManifestId: "smoke-main-manifest"));
+    Require(diplomacyTargetLogin.Result.Accepted, "外交回应前目标玩家应登录");
     DiplomacyEventResponse acceptedAlliance = await client.RespondDiplomacyEventAsync(new RespondDiplomacyEventRequest(
         allianceRequest.EventId!,
         "user-b",
         "colony-b",
         "defender-snapshot-before",
         accepted: true,
-        "同意结盟"));
+        "同意结盟", authToken: diplomacyTargetLogin.AuthToken));
     Require(acceptedAlliance.Result.Accepted, "接受结盟请求应成功");
     Equal("Ally", acceptedAlliance.RelationKind, "接受结盟后关系应为盟友");
     AuthoritativeEvent acceptedAllianceEvent = state.Ledger.Find(allianceRequest.EventId!)!;
@@ -1922,7 +1925,7 @@ try
         new ProtocolIdentity("user-b", "colony-b", "defender-snapshot-before"),
         "SupportRequest",
         "请求派遣两名射击较强的殖民者支援边境。",
-        null));
+        null, authToken: userAAuthToken));
     Require(supportRequest.Result.Accepted, "盟友之间应能发送增援请求通知");
     Equal("Ally", supportRequest.RelationKind, "增援请求不应改变盟友关系");
     AuthoritativeEvent supportRequestEvent = state.Ledger.Find(supportRequest.EventId!)!;
@@ -1938,7 +1941,7 @@ try
         new ProtocolIdentity("user-b", "colony-b", "defender-snapshot-before"),
         "SupportRequest",
         "重复请求应被冷却阻止。",
-        null));
+        null, authToken: userAAuthToken));
     Require(!blockedRepeatSupportRequest.Result.Accepted, "同一发送方对同一盟友的增援请求应有 15 分钟冷却");
     Equal(ProtocolErrorCode.ServerRejected, blockedRepeatSupportRequest.Result.ErrorCode, "增援请求冷却应由服务器拒绝");
 
@@ -1948,8 +1951,9 @@ try
         new ProtocolIdentity("user-a", "colony-a", "attacker-snapshot-after"),
         "SupportRequest",
         "反向请求不应受 user-a 到 user-b 的冷却影响。",
-        null));
+        null, authToken: diplomacyTargetLogin.AuthToken));
     Require(reverseSupportRequest.Result.Accepted, "接收方反向向发送方请求增援不应受发送方冷却影响");
+    await LogoutSmokeSetup(httpClient, "user-b", "colony-b", diplomacyTargetLogin.SessionId);
 
     DiplomacyEventResponse blockedWarAgainstAlly = await client.CreateDiplomacyEventAsync(new CreateDiplomacyEventRequest(
         "diplomacy:user-a:user-b:blocked-war-from-ally",
@@ -1957,7 +1961,7 @@ try
         new ProtocolIdentity("user-b", "colony-b", "defender-snapshot-before"),
         "WarDeclaration",
         "盟友不能直接宣战。",
-        null));
+        null, authToken: userAAuthToken));
     Require(!blockedWarAgainstAlly.Result.Accepted, "盟友不能直接宣战");
     Equal(ProtocolErrorCode.ServerRejected, blockedWarAgainstAlly.Result.ErrorCode, "盟友直接宣战应由服务器拒绝");
     Equal("Ally", blockedWarAgainstAlly.RelationKind, "盟友直接宣战被拒绝时应返回当前盟友关系");
@@ -1968,7 +1972,7 @@ try
         new ProtocolIdentity("user-b", "colony-b", "defender-snapshot-before"),
         "AllianceCancellation",
         "撕毁盟约。",
-        null));
+        null, authToken: userAAuthToken));
     Require(allianceCancellation.Result.Accepted, "盟友应能先撕毁盟约");
     Equal("Neutral", allianceCancellation.RelationKind, "撕毁盟约后关系应变为中立");
 
@@ -1978,7 +1982,7 @@ try
         new ProtocolIdentity("user-b", "colony-b", "defender-snapshot-before"),
         "WarDeclaration",
         "盟约已撕毁，现在宣战。",
-        null));
+        null, authToken: userAAuthToken));
     Require(warAfterCancellation.Result.Accepted, "撕毁盟约变为中立后应允许宣战");
     Equal("Hostile", warAfterCancellation.RelationKind, "宣战后关系应变为敌对");
 
@@ -4415,7 +4419,7 @@ static async Task VerifyDefaultPersistentServerStateAsync()
                 new ProtocolIdentity("user-b", "colony-b", "user-b-existing-snapshot"),
                 "WarDeclaration",
                 "持久化宣战测试。",
-                null));
+                null, authToken: adminLogin.AuthToken));
             Require(persistentWar.Result.Accepted, "默认持久化服务端应接受宣战事件");
             Equal("Hostile", persistentWar.RelationKind, "宣战创建后应立即形成敌对关系");
         }
@@ -4549,6 +4553,10 @@ static async Task VerifyDiplomacyRelationCooldownAsync()
     var state = new ClashOfRimNetworkState(
         serverConfiguration: new ClashOfRimServerConfiguration(
             diplomacyRelationChangeCooldown: TimeSpan.FromDays(1)));
+    var current = BuildFixturePackageFor("user-a", "colony-a", "snapshot-a");
+    state.SnapshotStore.StoreLatest(new(current.Envelope.Identity, current.Envelope, current.Index, DateTimeOffset.UtcNow));
+    state.LoginSessions.TryCreate("user-a", "colony-a", DateTimeOffset.UtcNow, out var session);
+    string cooldownToken = state.AuthTokens.Issue("user-a", "user-a", "colony-a", session, DateTimeOffset.UtcNow);
     WebApplication app = ClashOfRimNetworkServer.Build(Array.Empty<string>(), state);
     app.Urls.Add("http://127.0.0.1:0");
     await app.StartAsync();
@@ -4561,7 +4569,7 @@ static async Task VerifyDiplomacyRelationCooldownAsync()
             new ProtocolIdentity("user-b", "colony-b", "snapshot-b"),
             "WarDeclaration",
             "冷却测试宣战。",
-            null));
+            null, authToken: cooldownToken));
         Require(war.Result.Accepted, "冷却测试应允许首次宣战");
         Equal("Hostile", war.RelationKind, "首次宣战后关系应为敌对");
 
@@ -4571,7 +4579,7 @@ static async Task VerifyDiplomacyRelationCooldownAsync()
             new ProtocolIdentity("user-b", "colony-b", "snapshot-b"),
             "WarDeclaration",
             "冷却测试宣战重试。",
-            null));
+            null, authToken: cooldownToken));
         Require(duplicateWar.Result.Accepted, "冷却期内幂等重试应返回既有事件而不是被冷却拒绝");
         Equal(ProtocolErrorCode.DuplicateRequest, duplicateWar.Result.ErrorCode, "冷却期内幂等重试应保留重复请求语义");
 
@@ -4581,7 +4589,7 @@ static async Task VerifyDiplomacyRelationCooldownAsync()
             new ProtocolIdentity("user-b", "colony-b", "snapshot-b"),
             "PeaceRequest",
             "冷却期内请求求和。",
-            DateTimeOffset.UtcNow.AddDays(3)));
+            DateTimeOffset.UtcNow.AddDays(3), authToken: cooldownToken));
         Require(!blockedPeace.Result.Accepted, "同一对玩家冷却期内不应允许再次改变外交关系");
         Equal(ProtocolErrorCode.ServerRejected, blockedPeace.Result.ErrorCode, "同一对玩家冷却期内外交变化应由服务器拒绝");
         Equal("Hostile", blockedPeace.RelationKind, "冷却拒绝应返回当前这对玩家的敌对关系");
@@ -4592,7 +4600,7 @@ static async Task VerifyDiplomacyRelationCooldownAsync()
             new ProtocolIdentity("user-c", "colony-c", "snapshot-c"),
             "AllianceRequest",
             "另一对玩家不受 A-B 冷却影响。",
-            DateTimeOffset.UtcNow.AddDays(3)));
+            DateTimeOffset.UtcNow.AddDays(3), authToken: cooldownToken));
         Require(otherPairAlliance.Result.Accepted, "A-B 外交冷却不应影响 A-C 的外交提交");
     }
     finally

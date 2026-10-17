@@ -23,6 +23,9 @@ public sealed class ModCreateDiplomacyEventRequestDto
 
     [DataMember(Name = "expiresAtUtc")]
     public string? ExpiresAtUtc { get; set; }
+
+    [DataMember(Name = "authToken")]
+    public string? AuthToken { get; set; }
 }
 
 [DataContract]
@@ -45,6 +48,9 @@ public sealed class ModRespondDiplomacyEventRequestDto
 
     [DataMember(Name = "reason")]
     public string? Reason { get; set; }
+
+    [DataMember(Name = "authToken")]
+    public string? AuthToken { get; set; }
 }
 
 [DataContract]

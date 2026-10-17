@@ -1472,7 +1472,8 @@ public sealed class CreateDiplomacyEventRequest
         ProtocolIdentity target,
         string kind,
         string? message,
-        DateTimeOffset? expiresAtUtc)
+        DateTimeOffset? expiresAtUtc,
+        string? authToken = null)
     {
         IdempotencyKey = idempotencyKey;
         Actor = actor;
@@ -1480,6 +1481,7 @@ public sealed class CreateDiplomacyEventRequest
         Kind = kind;
         Message = message;
         ExpiresAtUtc = expiresAtUtc;
+        AuthToken = authToken;
     }
 
     public string IdempotencyKey { get; }
@@ -1493,6 +1495,8 @@ public sealed class CreateDiplomacyEventRequest
     public string? Message { get; }
 
     public DateTimeOffset? ExpiresAtUtc { get; }
+
+    public string? AuthToken { get; }
 }
 
 public sealed class RespondDiplomacyEventRequest
@@ -1503,7 +1507,8 @@ public sealed class RespondDiplomacyEventRequest
         string colonyId,
         string currentSnapshotId,
         bool accepted,
-        string? reason)
+        string? reason,
+        string? authToken = null)
     {
         EventId = eventId;
         UserId = userId;
@@ -1511,6 +1516,7 @@ public sealed class RespondDiplomacyEventRequest
         CurrentSnapshotId = currentSnapshotId;
         Accepted = accepted;
         Reason = reason;
+        AuthToken = authToken;
     }
 
     public string EventId { get; }
@@ -1524,6 +1530,8 @@ public sealed class RespondDiplomacyEventRequest
     public bool Accepted { get; }
 
     public string? Reason { get; }
+
+    public string? AuthToken { get; }
 }
 
 public sealed class DiplomacyEventResponse

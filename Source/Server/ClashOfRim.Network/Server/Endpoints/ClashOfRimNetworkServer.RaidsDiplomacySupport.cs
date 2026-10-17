@@ -293,6 +293,24 @@ public static partial class ClashOfRimNetworkServer
             return Results.Ok(new DiplomacyEventResponse(validation, null, null, null));
         }
 
+        ProtocolResponse? Authorize()
+        {
+            if (state.SnapshotAuthorization.Authorize(request.AuthToken, request.Actor.UserId, request.Actor.ColonyId!) is { } failure)
+                return failure;
+            if (FindEventByIdempotencyKey(state.Ledger, request.IdempotencyKey) is not { } existing)
+                return state.SnapshotAuthorization.RequireCurrent(request.Actor.UserId, request.Actor.ColonyId!, request.Actor.SnapshotId);
+            // A key is global to the ledger; authenticate and bind a replay before recovery.
+            return MatchesEndpoint(existing.Actor, request.Actor.UserId, request.Actor.ColonyId)
+                && MatchesEndpoint(existing.Target, request.Target.UserId, request.Target.ColonyId)
+                && existing.Type == ResolveDiplomacyEventType(request.Kind)
+                && (!IsSupportRequestKind(request.Kind) || existing.Payload is ServerNotificationEventPayload notice
+                    && notice.NotificationId == "support-request:" + request.IdempotencyKey)
+                ? null : ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Diplomacy.NotFoundOrInvisible"));
+        }
+        using var mutation = EnterRecoveredSnapshotMutation(state, Authorize);
+        if (mutation.Rejection is { } denied)
+            return Results.Ok(new DiplomacyEventResponse(denied, null, null, null));
+
         ServerEventType type = ResolveDiplomacyEventType(request.Kind);
         DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
         DiplomacyRelationRecord? currentRelation = state.DiplomacyRelations.GetRelation(
@@ -365,17 +383,22 @@ public static partial class ClashOfRimNetworkServer
                 null));
         }
 
-        AuthoritativeEvent? diplomacyEvent = state.Ledger.Find(request.EventId);
-        if (diplomacyEvent is null
-            || !IsDiplomacyEventType(diplomacyEvent.Type)
-            || !IsVisibleParty(diplomacyEvent.Target, request.UserId, request.ColonyId))
+        ProtocolResponse? Authorize()
         {
-            return Results.Ok(new DiplomacyEventResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.EventNotFound, T("Diplomacy.NotFoundOrInvisible")),
-                request.EventId,
-                null,
-                null));
+            if (state.SnapshotAuthorization.Authorize(request.AuthToken, request.UserId, request.ColonyId) is { } failure)
+                return failure;
+            var existing = state.Ledger.Find(request.EventId);
+            if (existing is null || !IsDiplomacyEventType(existing.Type)
+                || !IsVisibleParty(existing.Target, request.UserId, request.ColonyId))
+                return ProtocolResponse.Reject(ProtocolErrorCode.EventNotFound, T("Diplomacy.NotFoundOrInvisible"));
+            return existing.Status is ServerEventStatus.AppliedToSnapshot or ServerEventStatus.RejectedByTarget ? null
+                : state.SnapshotAuthorization.RequireCurrent(request.UserId, request.ColonyId, request.CurrentSnapshotId);
         }
+        using var mutation = EnterRecoveredSnapshotMutation(state, Authorize);
+        if (mutation.Rejection is { } denied)
+            return Results.Ok(new DiplomacyEventResponse(denied, request.EventId, null, null));
+
+        AuthoritativeEvent diplomacyEvent = state.Ledger.Find(request.EventId)!;
 
         if (diplomacyEvent.Status is ServerEventStatus.AppliedToSnapshot or ServerEventStatus.RejectedByTarget)
         {
