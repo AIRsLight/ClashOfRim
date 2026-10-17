@@ -1,4 +1,5 @@
 using AIRsLight.ClashOfRim.Network.Modules.Trades;
+using AIRsLight.ClashOfRim.Network.Modules.Mercenaries;
 using AIRsLight.ClashOfRim.Network.Modules.Shop;
 using Microsoft.Extensions.Logging.Abstractions;
 using AIRsLight.ClashOfRim.Events;
@@ -34,6 +35,11 @@ internal sealed class EconomicModuleTestContext
         bankMinDurationDays: 1, bankBaseAnnualInterestRate: 0);
     internal readonly BankRequestAccess Access;
     internal readonly BankService Bank;
+    internal readonly MercenaryContractRegistry MercenaryContracts = new();
+    internal readonly MercenaryGuardContractRegistry MercenaryGuards = new();
+    internal readonly MercenaryService Mercenaries;
+    internal readonly MercenaryHiring MercenaryHiring;
+    internal readonly MercenaryIncidentRecovery MercenaryIncidents;
     internal readonly GiftService Gifts;
     internal readonly TradeService Trades;
     internal readonly ServerShopRegistry ShopRegistry = new();
@@ -49,7 +55,7 @@ internal sealed class EconomicModuleTestContext
 
     internal EconomicModuleTestContext(Func<string, SaveSnapshotPackage> factory)
     {
-        var mercenaries = new MercenaryContractRegistry();
+        var mercenaries = MercenaryContracts;
         var mutations = new SnapshotMutationCoordinator(Gate, Recovery);
         var colonies = new ColonyAccessAuthorization(Tokens, Sessions, Relations,
             new RaidPreparationRegistry(), Ledger, () => Configuration.PvpEnabled);
@@ -61,6 +67,10 @@ internal sealed class EconomicModuleTestContext
             new ServerPluginRegistry(), new CompatibilityBaselineRegistry());
         var commits = new SnapshotCommitService();
         Bank = new BankService(Loans, mercenaries, Snapshots, commits, Access, requests, transactions, Recovery, () => Configuration);
+        Mercenaries = new MercenaryService(mercenaries, MercenaryGuards, Loans, Access, Bank, () => Configuration);
+        MercenaryHiring = new MercenaryHiring(mercenaries, MercenaryGuards, Access, Bank, requests, transactions,
+            new MercenarySnapshotCommitter(commits, Snapshots, Loans, mercenaries, MercenaryGuards, Recovery), () => Configuration);
+        MercenaryIncidents = new MercenaryIncidentRecovery(Loans, mercenaries, Ledger, Presence, Notifications);
         Raids = new RaidProtectionProbe(Gate);
         Packages = new ItemTransferPackages(Pawns, Things);
         Gifts = new GiftService(Ledger, Snapshots, Loans, mercenaries, commits, requests, transactions, pending,

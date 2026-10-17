@@ -26,6 +26,7 @@ if (args.FirstOrDefault() == "--baseline-invalidation-crash")
 
 var tests = new (string Name, Action Run)[]
 {
+    ("雇佣模块独立装配、报价与付款复验、事故生命周期", () => MercenaryModuleTests.Run(BuildFixturePackage)),
     ("商店共享计价的逐件舍入、边界与累计购买数", ServerShopPricingTests.Run),
     ("商店模块独立装配、双向交易、配置复验与复杂物品", () => ShopModuleTests.Run(BuildFixturePackage)),
     ("交易模块独立装配、命令重放、市场与跨层邮费", () => TradeModuleTests.Run(BuildFixturePackage)),

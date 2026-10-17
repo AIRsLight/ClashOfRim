@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Network.Modules.Mercenaries;
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Network;
 using AIRsLight.ClashOfRim.Network.Plugins;
@@ -175,8 +176,7 @@ internal static class MercenaryIncidentRecoveryTests
     }
     private static MercenaryIncidentResponse Report(ClashOfRimNetworkState state, string key, string kind, string token,
         string user = "user", string colony = "colony", string snapshot = "before", string contractId = "contract") =>
-        (MercenaryIncidentResponse)((IValueHttpResult)Invoke("ReportMercenaryIncident",
-            new ReportMercenaryIncidentRequest(key, user, colony, snapshot, token, 1000, contractId, kind), state)!).Value!;
+        state.Mercenaries.ReportMercenaryIncident(new ReportMercenaryIncidentRequest(key, user, colony, snapshot, token, 1000, contractId, kind));
     private static object? Invoke(string method, params object[] arguments) => typeof(ClashOfRimNetworkServer)
         .GetMethod(method, BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, arguments);
     private static void Execute(string database, string sql)

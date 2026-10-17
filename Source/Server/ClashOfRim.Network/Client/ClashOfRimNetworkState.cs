@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Network.Modules.Mercenaries;
 using AIRsLight.ClashOfRim.Network.Modules.Shop;
 using AIRsLight.ClashOfRim.Network.Modules.Trades;
 using AIRsLight.ClashOfRim.Network.Modules.Gifts;
@@ -111,6 +112,11 @@ public sealed class ClashOfRimNetworkState
         BankRequests = new BankRequestAccess(ColonyAuthorization, SnapshotMutations, SnapshotStore, BankLoans, PendingConfirmations);
         Bank = new BankService(BankLoans, MercenaryContracts, SnapshotStore, SnapshotCommits,
             BankRequests, SnapshotRequests, SnapshotTransactions, recovery, () => ServerConfiguration);
+        Mercenaries = new MercenaryService(MercenaryContracts, MercenaryGuards, BankLoans, BankRequests, Bank, () => ServerConfiguration);
+        MercenaryHiring = new MercenaryHiring(MercenaryContracts, MercenaryGuards, BankRequests, Bank, SnapshotRequests,
+            SnapshotTransactions, new MercenarySnapshotCommitter(SnapshotCommits, SnapshotStore, BankLoans, MercenaryContracts, MercenaryGuards, recovery),
+            () => ServerConfiguration);
+        MercenaryIncidents = new MercenaryIncidentRecovery(BankLoans, MercenaryContracts, Ledger, OnlinePresence, EventNotifications);
         TransferPackages = new ItemTransferPackages(PawnPackages, ThingPackages);
         DeliveryTargets = new DeliveryTargetResolver(SnapshotStore);
         Gifts = new GiftService(Ledger, SnapshotStore, BankLoans, MercenaryContracts, SnapshotCommits,
@@ -147,6 +153,9 @@ public sealed class ClashOfRimNetworkState
     internal PendingConfirmationReconciler PendingConfirmations { get; }
     internal BankRequestAccess BankRequests { get; }
     internal BankService Bank { get; }
+    internal MercenaryService Mercenaries { get; }
+    internal MercenaryHiring MercenaryHiring { get; }
+    internal MercenaryIncidentRecovery MercenaryIncidents { get; }
     internal ItemTransferPackages TransferPackages { get; }
     internal DeliveryTargetResolver DeliveryTargets { get; }
     internal GiftService Gifts { get; }

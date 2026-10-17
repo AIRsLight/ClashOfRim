@@ -1102,4 +1102,17 @@ public static partial class ClashOfRimNetworkServer
             prepared.Result.RemovedMapCount, prepared.Result.LostAttackPawns.Count, prepared.Result.LostSupportPawns.Count);
         return prepared.Package;
     }
+
+    private static ChatMessageDto ToChatMessageDto(ChatMessageRecord message)
+    {
+        return new ChatMessageDto(
+            message.Sequence,
+            message.MessageId,
+            message.Channel,
+            message.FromUserId,
+            message.FromColonyId,
+            message.TargetUserId,
+            message.Text,
+            message.SentAtUtc);
+    }
 }

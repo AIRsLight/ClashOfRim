@@ -36,12 +36,8 @@ public static partial class ClashOfRimNetworkServer
             state.MercenaryContracts, state.MercenaryGuards, state.Players,
             (snapshot, kind, mutation) => RunCommittedOrdinaryUpload(state, snapshot, kind, mutation),
             (mutation, snapshot) => PlanSnapshotConfirmations(state, mutation, snapshot));
-        RecoverMercenaryIncidents(state);
+        state.MercenaryIncidents.Recover();
     }
-
-    private static void RecoverMercenaryIncidents(ClashOfRimNetworkState state) =>
-        MercenaryIncidentRecovery.Recover(state.BankLoans, state.MercenaryContracts, state.Ledger,
-            debt => CreateBankFineNotification(state, debt), user => state.EventNotifications.SignalUser(user));
 
     internal static void RecoverWorldLayerNotifications(ClashOfRimNetworkState state)
     {

@@ -1,10 +1,13 @@
+using System.Globalization;
+using static AIRsLight.ClashOfRim.Network.ServerText;
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Protocol;
 
-namespace AIRsLight.ClashOfRim.Network;
+namespace AIRsLight.ClashOfRim.Network.Modules.Mercenaries;
 
 /// <summary>Confirmed fine records are durable work items. Run under the snapshot mutation gate.</summary>
-internal static class MercenaryIncidentRecovery
+internal sealed class MercenaryIncidentRecovery(BankLoanRegistry bank, MercenaryContractRegistry contracts,
+    IAuthoritativeEventLedger ledger, OnlinePresenceRegistry presence, EventNotificationHub notifications)
 {
     internal static bool ClosesContract(string reason) => reason is "Mercenary:Death" or "Mercenary:ShuttleDestroyed";
 
@@ -37,5 +40,30 @@ internal static class MercenaryIncidentRecovery
             || notification.Target.UserId != debt.UserId || notification.Target.ColonyId != debt.ColonyId
             || notification.Payload is not ServerNotificationEventPayload payload || payload.NotificationId != key)
             throw new InvalidDataException("Mercenary fine notification key belongs to another event: " + key);
+    }
+
+    internal void Recover() => Recover(bank, contracts, ledger, CreateBankFineNotification, user => notifications.SignalUser(user));
+
+    private AuthoritativeEvent CreateBankFineNotification(
+        BankDebtRecord debt)
+    {
+        string notificationId = "bank-fine-created:" + debt.DebtId;
+        return AuthoritativeEventFactory.CreateForLedger(ledger,
+            ServerEventType.ServerNotification,
+            new EventParty("server"),
+            new EventParty(debt.UserId, debt.ColonyId),
+            notificationId,
+            presence.IsUserOnline(debt.UserId),
+            new ServerNotificationEventPayload(
+                notificationId,
+                Format("Bank.FineCreatedTitle"),
+                Format(
+                    "Bank.FineCreatedMessage",
+                    ("AMOUNT", debt.AmountSilver.ToString(CultureInfo.InvariantCulture))),
+                ServerNotificationSeverity.Warning,
+                FromAdministrator: false,
+                RelatedUserId: debt.UserId,
+                RelatedColonyId: debt.ColonyId),
+            debt.CreatedAtUtc);
     }
 }

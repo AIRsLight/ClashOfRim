@@ -180,7 +180,7 @@ public static partial class ClashOfRimNetworkServer
 
         // Confirmation is captured and committed with snapshot publication. Never rescan here:
         // a later request may have created new pending work after this snapshot was accepted.
-        RecoverMercenaryIncidents(context.State);
+        context.State.MercenaryIncidents.Recover();
     }
 
     private static void RecordSnapshotMetricsAndAchievements(
