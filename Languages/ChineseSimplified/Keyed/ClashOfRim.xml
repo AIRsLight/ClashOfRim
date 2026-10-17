@@ -1488,7 +1488,6 @@
   <ClashOfRim.Mercenary.GuardScaleLarge>大型</ClashOfRim.Mercenary.GuardScaleLarge>
   <ClashOfRim.Mercenary.GuardHire>雇佣护卫</ClashOfRim.Mercenary.GuardHire>
   <ClashOfRim.Mercenary.GuardHint>雇佣后，下一次有玩家袭击你的殖民地时，护卫队会自动抵达并协助防守。</ClashOfRim.Mercenary.GuardHint>
-  <ClashOfRim.Mercenary.GuardPriceLine>价格：&lt;color=#d7dadb&gt;{PRICE} 白银&lt;/color&gt;。</ClashOfRim.Mercenary.GuardPriceLine>
   <ClashOfRim.Mercenary.GuardConfirmHire>确定花费 &lt;color=#d7dadb&gt;{PRICE} 白银&lt;/color&gt;雇佣{TIER}护卫队吗？</ClashOfRim.Mercenary.GuardConfirmHire>
   <ClashOfRim.Mercenary.GuardStatusHiring>正在雇佣护卫队。</ClashOfRim.Mercenary.GuardStatusHiring>
   <ClashOfRim.Mercenary.GuardStatusPurchased>护卫队合同已准备，费用 {PRICE} 白银。正在保存当前状态。</ClashOfRim.Mercenary.GuardStatusPurchased>

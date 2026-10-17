@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Mercenaries;
 using AIRsLight.ClashOfRim.Modules.Shop;
 using AIRsLight.ClashOfRim.Modules.Trades;
 using AIRsLight.ClashOfRim.Modules.Gifts;
@@ -46,12 +47,6 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
     private static readonly string AbandonPlayerColonyRoute = ProtocolContractManifest.Find(ProtocolMessageKind.AbandonPlayerColony).Route;
     private static readonly string GetAdminBaselineRequirementsRoute = ProtocolContractManifest.Find(ProtocolMessageKind.GetAdminBaselineRequirements).Route;
     private static readonly string SubmitAdminBaselineRoute = ProtocolContractManifest.Find(ProtocolMessageKind.SubmitAdminBaseline).Route;
-    private static readonly string QuoteMercenaryRoute = ProtocolContractManifest.Find(ProtocolMessageKind.QuoteMercenary).Route;
-    private static readonly string HireMercenaryWithSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.HireMercenaryWithSnapshot).Route;
-    private static readonly string HireMercenaryRoute = ProtocolContractManifest.Find(ProtocolMessageKind.HireMercenary).Route;
-    private static readonly string QuoteMercenaryGuardRoute = ProtocolContractManifest.Find(ProtocolMessageKind.QuoteMercenaryGuard).Route;
-    private static readonly string HireMercenaryGuardWithSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.HireMercenaryGuardWithSnapshot).Route;
-    private static readonly string ReportMercenaryIncidentRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ReportMercenaryIncident).Route;
     private static readonly string SendChatMessageRoute = ProtocolContractManifest.Find(ProtocolMessageKind.SendChatMessage).Route;
     private static readonly string ListChatMessagesRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ListChatMessages).Route;
     private static readonly string OverrideCompatibilityBaselineRoute = ProtocolContractManifest.Find(ProtocolMessageKind.OverrideCompatibilityBaseline).Route;
@@ -81,6 +76,7 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
     public static Action? ServerEntryDiagnosticsLogger;
 
     private readonly ClientBankProtocol bankProtocol;
+    private readonly ClientMercenaryProtocol mercenaries;
     private readonly ClientGiftProtocol gifts;
     private readonly ClientTradeProtocol trades;
 
@@ -94,6 +90,7 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
         transport = new ClientProtocolTransport(httpClient, context, protocolEnvironment);
         packageWriter = new ClientPackageWriter(transport, context, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         shopProtocol = new ClientShopProtocol(transport, context, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
+        mercenaries = new ClientMercenaryProtocol(transport, context, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         bankProtocol = new ClientBankProtocol(context, transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         trades = new ClientTradeProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         gifts = new ClientGiftProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
@@ -643,30 +640,7 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
         int skillLevel,
         int durationDays,
         CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModMercenaryHireResponseDto>();
-        }
-
-        var request = new ModHireMercenaryRequestDto
-        {
-            IdempotencyKey = idempotencyKey,
-            UserId = context.UserId,
-            ColonyId = context.ColonyId,
-            CurrentSnapshotId = context.CurrentSnapshotId ?? string.Empty,
-            AuthToken = context.AuthToken,
-            CurrentGameTicks = currentGameTicks,
-            SkillDefName = skillDefName,
-            SkillLevel = skillLevel,
-            DurationDays = durationDays
-        };
-
-        return transport.PostAsync<ModHireMercenaryRequestDto, ModMercenaryHireResponseDto>(
-            HireMercenaryRoute,
-            request,
-            cancellationToken);
-    }
+        => mercenaries.HireMercenaryAsync(idempotencyKey, currentGameTicks, skillDefName, skillLevel, durationDays, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModMercenaryHireResponseDto>> HireMercenaryWithSnapshotAsync(
         string idempotencyKey,
@@ -675,38 +649,7 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
         ModSnapshotPackageMetadataDto confirmedSnapshot,
         byte[] confirmedPayload,
         CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModMercenaryHireResponseDto>();
-        }
-
-        var request = new ModHireMercenaryWithSnapshotRequestDto
-        {
-            IdempotencyKey = idempotencyKey,
-            UserId = context.UserId,
-            ColonyId = context.ColonyId,
-            CurrentSnapshotId = context.CurrentSnapshotId ?? string.Empty,
-            AuthToken = context.AuthToken,
-            CurrentGameTicks = currentGameTicks,
-            SkillDefName = contract.SkillDefName,
-            SkillLevel = contract.SkillLevel,
-            DurationDays = contract.DurationDays,
-            RequestedContractId = contract.ContractId,
-            ExpectedPriceSilver = contract.PriceSilver,
-            ExpectedHarmfulSurgeryFineSilver = contract.HarmfulSurgeryFineSilver,
-            ExpectedDeathFineSilver = contract.DeathFineSilver,
-            ConfirmedSnapshot = MarkSnapshotUploadKind(
-                confirmedSnapshot,
-                ModSnapshotUploadKinds.MercenaryHireConfirmation)
-        };
-
-        return transport.PostSnapshotMultipartAsync<ModHireMercenaryWithSnapshotRequestDto, ModMercenaryHireResponseDto>(
-            HireMercenaryWithSnapshotRoute,
-            request,
-            confirmedPayload,
-            cancellationToken);
-    }
+        => mercenaries.HireMercenaryWithSnapshotAsync(idempotencyKey, currentGameTicks, contract, confirmedSnapshot, confirmedPayload, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModMercenaryQuoteResponseDto>> QuoteMercenaryAsync(
         long currentGameTicks,
@@ -714,55 +657,13 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
         int skillLevel,
         int durationDays,
         CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModMercenaryQuoteResponseDto>();
-        }
-
-        var request = new ModQuoteMercenaryRequestDto
-        {
-            UserId = context.UserId,
-            ColonyId = context.ColonyId,
-            CurrentSnapshotId = context.CurrentSnapshotId ?? string.Empty,
-            AuthToken = context.AuthToken,
-            CurrentGameTicks = currentGameTicks,
-            SkillDefName = skillDefName,
-            SkillLevel = skillLevel,
-            DurationDays = durationDays
-        };
-
-        return transport.PostAsync<ModQuoteMercenaryRequestDto, ModMercenaryQuoteResponseDto>(
-            QuoteMercenaryRoute,
-            request,
-            cancellationToken);
-    }
+        => mercenaries.QuoteMercenaryAsync(currentGameTicks, skillDefName, skillLevel, durationDays, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModMercenaryGuardQuoteResponseDto>> QuoteMercenaryGuardAsync(
         long currentGameTicks,
         string tier,
         CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModMercenaryGuardQuoteResponseDto>();
-        }
-
-        var request = new ModQuoteMercenaryGuardRequestDto
-        {
-            UserId = context.UserId,
-            ColonyId = context.ColonyId,
-            CurrentSnapshotId = context.CurrentSnapshotId ?? string.Empty,
-            AuthToken = context.AuthToken,
-            CurrentGameTicks = currentGameTicks,
-            Tier = tier
-        };
-
-        return transport.PostAsync<ModQuoteMercenaryGuardRequestDto, ModMercenaryGuardQuoteResponseDto>(
-            QuoteMercenaryGuardRoute,
-            request,
-            cancellationToken);
-    }
+        => mercenaries.QuoteMercenaryGuardAsync(currentGameTicks, tier, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModMercenaryGuardHireResponseDto>> HireMercenaryGuardWithSnapshotAsync(
         string idempotencyKey,
@@ -771,35 +672,7 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
         ModSnapshotPackageMetadataDto confirmedSnapshot,
         byte[] confirmedPayload,
         CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModMercenaryGuardHireResponseDto>();
-        }
-
-        var request = new ModHireMercenaryGuardWithSnapshotRequestDto
-        {
-            IdempotencyKey = idempotencyKey,
-            UserId = context.UserId,
-            ColonyId = context.ColonyId,
-            CurrentSnapshotId = context.CurrentSnapshotId ?? string.Empty,
-            AuthToken = context.AuthToken,
-            CurrentGameTicks = currentGameTicks,
-            RequestedContractId = contract.ContractId,
-            Tier = contract.Tier,
-            ExpectedPriceSilver = contract.PriceSilver,
-            ExpectedPointRatio = contract.PointRatio,
-            ConfirmedSnapshot = MarkSnapshotUploadKind(
-                confirmedSnapshot,
-                ModSnapshotUploadKinds.MercenaryGuardHireConfirmation)
-        };
-
-        return transport.PostSnapshotMultipartAsync<ModHireMercenaryGuardWithSnapshotRequestDto, ModMercenaryGuardHireResponseDto>(
-            HireMercenaryGuardWithSnapshotRoute,
-            request,
-            confirmedPayload,
-            cancellationToken);
-    }
+        => mercenaries.HireMercenaryGuardWithSnapshotAsync(idempotencyKey, currentGameTicks, contract, confirmedSnapshot, confirmedPayload, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModMercenaryIncidentResponseDto>> ReportMercenaryIncidentAsync(
         string idempotencyKey,
@@ -807,29 +680,7 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
         string contractId,
         string incidentKind,
         CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModMercenaryIncidentResponseDto>();
-        }
-
-        var request = new ModReportMercenaryIncidentRequestDto
-        {
-            IdempotencyKey = idempotencyKey,
-            UserId = context.UserId,
-            ColonyId = context.ColonyId,
-            CurrentSnapshotId = context.CurrentSnapshotId ?? string.Empty,
-            AuthToken = context.AuthToken,
-            CurrentGameTicks = currentGameTicks,
-            ContractId = contractId,
-            IncidentKind = incidentKind
-        };
-
-        return transport.PostAsync<ModReportMercenaryIncidentRequestDto, ModMercenaryIncidentResponseDto>(
-            ReportMercenaryIncidentRoute,
-            request,
-            cancellationToken);
-    }
+        => mercenaries.ReportMercenaryIncidentAsync(idempotencyKey, currentGameTicks, contractId, incidentKind, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModSendChatMessageResponseDto>> SendChatMessageAsync(
         string? targetUserId,

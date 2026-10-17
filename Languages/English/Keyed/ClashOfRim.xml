@@ -1488,7 +1488,6 @@
   <ClashOfRim.Mercenary.GuardScaleLarge>Large</ClashOfRim.Mercenary.GuardScaleLarge>
   <ClashOfRim.Mercenary.GuardHire>Hire guard</ClashOfRim.Mercenary.GuardHire>
   <ClashOfRim.Mercenary.GuardHint>After hiring, the guard team will arrive automatically to help defend your colony during the next player raid.</ClashOfRim.Mercenary.GuardHint>
-  <ClashOfRim.Mercenary.GuardPriceLine>Price: &lt;color=#d7dadb&gt;{PRICE} silver&lt;/color&gt;.</ClashOfRim.Mercenary.GuardPriceLine>
   <ClashOfRim.Mercenary.GuardConfirmHire>Spend &lt;color=#d7dadb&gt;{PRICE} silver&lt;/color&gt; to hire a {TIER} guard team?</ClashOfRim.Mercenary.GuardConfirmHire>
   <ClashOfRim.Mercenary.GuardStatusHiring>Hiring a guard team.</ClashOfRim.Mercenary.GuardStatusHiring>
   <ClashOfRim.Mercenary.GuardStatusPurchased>Guard contract prepared. Price {PRICE} silver. Saving current state.</ClashOfRim.Mercenary.GuardStatusPurchased>

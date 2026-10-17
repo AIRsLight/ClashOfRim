@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Mercenaries;
 using AIRsLight.ClashOfRim.Modules.Shop;
 using AIRsLight.ClashOfRim.ServerShop;
 using AIRsLight.ClashOfRim.Modules.Trades;
@@ -64,6 +65,7 @@ public sealed partial class ClashOfRimMod : Mod
     private readonly ClientEventState eventState;
     private readonly ClientBankState bankState;
     private readonly ClientBankOperations bankOperations;
+    private readonly ClientMercenaryQuotes mercenaryQuotes;
     private readonly ClientTradeState tradeState;
     private readonly ClientTradeMarket tradeMarket;
     private readonly ClientTradeActions tradeActions;
@@ -190,6 +192,8 @@ public sealed partial class ClashOfRimMod : Mod
             snapshotTransactions, snapshotFailureRecovery,
             bankState, new ClientBankTransport(), new ClientBankRuntime(), bankPresentation);
         bankOperations.Completed += StartQueuedAutomaticEventRefreshAfterLocalAtomicMutation;
+        mercenaryQuotes = new ClientMercenaryQuotes(sessionLifecycle, new ClientSnapshotGame(), bankState,
+            new ClientMercenaryTransport(), new ClientMercenaryPresentation(), () => Find.TickManager?.TicksGame ?? 0);
         Func<ClientGiftCapabilities> giftCapabilities = () => new(giftsEnabled, pvpEnabled);
         var giftPresentation = new ClientGiftPresentation(message => eventState.ActionStatus = message);
         var gifts = new ClientGiftOperations(mutationAdmission, synchronization, localMutations, snapshotTransactions,

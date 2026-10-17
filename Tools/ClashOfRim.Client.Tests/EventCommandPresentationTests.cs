@@ -49,6 +49,7 @@ internal static class EventCommandPresentationTests
                 ApplicationPresentation();
                 ReadPresentation();
                 BankPresentation();
+                MercenaryPresentation();
                 GiftPresentation();
                 TradePresentation();
                 ShopPresentation();
@@ -229,6 +230,15 @@ internal static class EventCommandPresentationTests
             "StatusOrderSubmitException", "StatusCreateRejected", "MissingSuffix", "StatusFulfillFailed", "StatusFulfillRejected", "StatusFulfillException" })
             RequireResolved(operations.Text("ClashOfRim.Trade." + key, ("EVENTID", "order"), ("MESSAGE", "message"), ("REASON", "reason"),
                 ("FEE", 12), ("ACCEPTOR", "acceptor"), ("OWNER", "owner"), ("TYPE", "Exception"), ("CODE", "rejected"), ("MISSING", "Steel")));
+    }
+
+    private static void MercenaryPresentation()
+    {
+        var view = new AIRsLight.ClashOfRim.Mercenaries.ClientMercenaryPresentation();
+        foreach (string key in new[] { "PriceLine", "StatusQuoteFailed", "StatusQuoteRejected", "StatusQuoteException" })
+            RequireResolved(view.Text(key, ("PRICE", 350), ("CODE", "Conflict"), ("MESSAGE", "server-message"), ("TYPE", "IOException")));
+        if (view.Text("PriceLine", ("PRICE", 350)) != AIRsLight.ClashOfRim.Mercenaries.MercenaryUiUtility.FormatPriceLine(350))
+            throw new Exception("Mercenary quote presentation changed its price text.");
     }
 
     private static void BankPresentation()
