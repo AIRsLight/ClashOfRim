@@ -9,6 +9,8 @@
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <None Update="Fixtures/NetworkSnapshot.rws" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="Fixtures/ModuleEndpointContract.json" CopyToOutputDirectory="PreserveNewest" />
+    <Compile Include="../TestSupport/ModuleDependencyGuard.cs" Link="ModuleDependencyGuard.cs" />
   </ItemGroup>
 
   <ItemGroup>

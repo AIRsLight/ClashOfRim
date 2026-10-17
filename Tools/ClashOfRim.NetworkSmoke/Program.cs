@@ -18,6 +18,8 @@ using System.Text;
 using System.Net.Http.Json;
 using System.Text.Json;
 
+await ModuleBoundaryTests.RunAsync();
+if (args.Contains("--module-boundaries-only", StringComparer.Ordinal)) return;
 await EventReadHttpTests.RunAsync((user, colony, id) => BuildFixturePackageForWithLineage(user, colony, id, null, null, 1000));
 if (args.Contains("--event-protocol-only", StringComparer.Ordinal)) return;
 SnapshotMutationMetricsTests.Run();

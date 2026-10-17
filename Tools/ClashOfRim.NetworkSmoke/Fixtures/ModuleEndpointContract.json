@@ -1,0 +1,488 @@
+[
+  {
+    "Kind": "ServerHello",
+    "Route": "/server/hello",
+    "Method": "GET",
+    "OwnsRecovery": false
+  },
+  {
+    "Kind": "Login",
+    "Route": "/session/login",
+    "Method": "POST",
+    "OwnsRecovery": true
+  },
+  {
+    "Kind": "StreamSession",
+    "Route": "/session/stream",
+    "Method": "GET",
+    "OwnsRecovery": true
+  },
+  {
+    "Kind": "MaintainPresence",
+    "Route": "/session/presence",
+    "Method": "POST",
+    "OwnsRecovery": true
+  },
+  {
+    "Kind": "Logout",
+    "Route": "/session/logout",
+    "Method": "POST",
+    "OwnsRecovery": true
+  },
+  {
+    "Kind": "ChangeOfflinePassword",
+    "Route": "/session/password",
+    "Method": "POST",
+    "OwnsRecovery": false
+  },
+  {
+    "Kind": "ListPlayers",
+    "Route": "/players/list",
+    "Method": "POST",
+    "OwnsRecovery": false
+  },
+  {
+    "Kind": "ListAchievements",
+    "Route": "/achievements/list",
+    "Method": "POST",
+    "OwnsRecovery": false
+  },
+  {
+    "Kind": "WaitForEvents",
+    "Route": "/events/wait",
+    "Method": "POST",
+    "OwnsRecovery": true
+  },
+  {
+    "Kind": "UploadSnapshot",
+    "Route": "/snapshots/upload",
+    "Method": "POST",
+    "OwnsRecovery": true
+  },
+  {
+    "Kind": "DownloadLatestSnapshot",
+    "Route": "/snapshots/latest",
+    "Method": "POST",
+    "OwnsRecovery": true
+  },
+  {
+    "Kind": "DownloadLatestSnapshotPayload",
+    "Route": "/snapshots/latest/payload",
+    "Method": "POST",
+    "OwnsRecovery": true
+  },
+  {
+    "Kind": "PullPendingEvents",
+    "Route": "/events/pending",
+    "Method": "POST",
+    "OwnsRecovery": true
+  },
+  {
+    "Kind": "PullEventDetails",
+    "Route": "/events/details",
+    "Method": "POST",
+    "OwnsRecovery": true
+  },
+  {
+    "Kind": "ConfirmEventApplication",
+    "Route": "/events/confirm-application",
+    "Method": "POST",
+    "OwnsRecovery": true
+  },
+  {
+    "Kind": "ConfirmEventApplications",
+    "Route": "/events/confirm-applications",
+    "Method": "POST",
+    "OwnsRecovery": true
+  },
+  {
+    "Kind": "ReportEventApplicationFailure",
+    "Route": "/events/application-failure",
+    "Method": "POST",
+    "OwnsRecovery": true
+  },
+  {
+    "Kind": "CreateGift",
+    "Route": "/events/gifts",
+    "Method": "POST",
+    "OwnsRecovery": true
+  },
+  {
+    "Kind": "CreateGiftWithSnapshot",
+    "Route": "/events/gifts/create-with-snapshot",
+    "Method": "POST",
+    "OwnsRecovery": true
+  },
+  {
+    "Kind": "RejectGift",
+    "Route": "/events/gifts/reject",
+    "Method": "POST",
+    "OwnsRecovery": true
+  },
+  {
+    "Kind": "StorePawnPackage",
+    "Route": "/pawns/packages/store",
+    "Method": "POST",
+    "OwnsRecovery": false
+  },
+  {
+    "Kind": "GetPawnPackage",
+    "Route": "/pawns/packages/get",
+    "Method": "POST",
+    "OwnsRecovery": false
+  },
+  {
+    "Kind": "StorePawnPackagePreview",
+    "Route": "/pawns/packages/preview/store",
+    "Method": "POST",
+    "OwnsRecovery": false
+  },
+  {
+    "Kind": "GetPawnPackagePreview",
+    "Route": "/pawns/packages/preview/get",
+    "Method": "POST",
+    "OwnsRecovery": false
+  },
+  {
+    "Kind": "StoreThingPackage",
+    "Route": "/things/packages/store",
+    "Method": "POST",
+    "OwnsRecovery": false
+  },
+  {
+    "Kind": "GetThingPackage",
+    "Route": "/things/packages/get",
+    "Method": "POST",
+    "OwnsRecovery": false
+  },
+  {
+    "Kind": "QuoteTradeOrderFee",
+    "Route": "/events/trades/quote-fee",
+    "Method": "POST",
+    "OwnsRecovery": false
+  },
+  {
+    "Kind": "CreateTradeOrder",
+    "Route": "/events/trades",
+    "Method": "POST",
+    "OwnsRecovery": true
+  },
+  {
+    "Kind": "CreateTradeOrderWithSnapshot",
+    "Route": "/events/trades/create-with-snapshot",
+    "Method": "POST",
+    "OwnsRecovery": true
+  },
+  {
+    "Kind": "ListTradeOrders",
+    "Route": "/events/trades/market",
+    "Method": "POST",
+    "OwnsRecovery": true
+  },
+  {
+    "Kind": "AcceptTradeOrder",
+    "Route": "/events/trades/accept",
+    "Method": "POST",
+    "OwnsRecovery": true
+  },
+  {
+    "Kind": "FulfillTradeOrder",
+    "Route": "/events/trades/fulfill",
+    "Method": "POST",
+    "OwnsRecovery": true
+  },
+  {
+    "Kind": "FulfillTradeOrderWithSnapshot",
+    "Route": "/events/trades/fulfill-with-snapshot",
+    "Method": "POST",
+    "OwnsRecovery": true
+  },
+  {
+    "Kind": "CancelTradeOrder",
+    "Route": "/events/trades/cancel",
+    "Method": "POST",
+    "OwnsRecovery": true
+  },
+  {
+    "Kind": "CompleteTradeOrder",
+    "Route": "/events/trades/complete",
+    "Method": "POST",
+    "OwnsRecovery": true
+  },
+  {
+    "Kind": "ListServerShop",
+    "Route": "/shop/list",
+    "Method": "POST",
+    "OwnsRecovery": true
+  },
+  {
+    "Kind": "UpsertServerShopListing",
+    "Route": "/shop/admin/upsert",
+    "Method": "POST",
+    "OwnsRecovery": true
+  },
+  {
+    "Kind": "RemoveServerShopListing",
+    "Route": "/shop/admin/remove",
+    "Method": "POST",
+    "OwnsRecovery": true
+  },
+  {
+    "Kind": "PurchaseServerShopListingWithSnapshot",
+    "Route": "/shop/purchase-with-snapshot",
+    "Method": "POST",
+    "OwnsRecovery": true
+  },
+  {
+    "Kind": "PrepareRaid",
+    "Route": "/events/raids/prepare",
+    "Method": "POST",
+    "OwnsRecovery": false
+  },
+  {
+    "Kind": "CreateRaid",
+    "Route": "/events/raids",
+    "Method": "POST",
+    "OwnsRecovery": true
+  },
+  {
+    "Kind": "CreateRaidWithSnapshot",
+    "Route": "/events/raids/create-with-snapshot",
+    "Method": "POST",
+    "OwnsRecovery": true
+  },
+  {
+    "Kind": "CreateDiplomacyEvent",
+    "Route": "/events/diplomacy",
+    "Method": "POST",
+    "OwnsRecovery": false
+  },
+  {
+    "Kind": "RespondDiplomacyEvent",
+    "Route": "/events/diplomacy/respond",
+    "Method": "POST",
+    "OwnsRecovery": false
+  },
+  {
+    "Kind": "CreateSupportPawn",
+    "Route": "/events/support-pawns",
+    "Method": "POST",
+    "OwnsRecovery": true
+  },
+  {
+    "Kind": "CreateSupportPawnWithSnapshot",
+    "Route": "/events/support-pawns/create-with-snapshot",
+    "Method": "POST",
+    "OwnsRecovery": true
+  },
+  {
+    "Kind": "RejectSupportPawn",
+    "Route": "/events/support-pawns/reject",
+    "Method": "POST",
+    "OwnsRecovery": true
+  },
+  {
+    "Kind": "FinishSupportPawn",
+    "Route": "/events/support-pawns/finish",
+    "Method": "POST",
+    "OwnsRecovery": true
+  },
+  {
+    "Kind": "SyncWorldMapMarkers",
+    "Route": "/world/markers",
+    "Method": "POST",
+    "OwnsRecovery": false
+  },
+  {
+    "Kind": "SyncRuntimeWorldObjects",
+    "Route": "/world/runtime-objects",
+    "Method": "POST",
+    "OwnsRecovery": false
+  },
+  {
+    "Kind": "PrepareWorldSession",
+    "Route": "/world/session",
+    "Method": "POST",
+    "OwnsRecovery": true
+  },
+  {
+    "Kind": "GetWorldConfiguration",
+    "Route": "/world/configuration/current",
+    "Method": "POST",
+    "OwnsRecovery": false
+  },
+  {
+    "Kind": "SubmitWorldConfiguration",
+    "Route": "/world/configuration",
+    "Method": "POST",
+    "OwnsRecovery": true
+  },
+  {
+    "Kind": "UploadWorldSubstrate",
+    "Route": "/world/configuration/substrate",
+    "Method": "POST",
+    "OwnsRecovery": false
+  },
+  {
+    "Kind": "DownloadWorldSubstrate",
+    "Route": "/world/configuration/substrate/download",
+    "Method": "POST",
+    "OwnsRecovery": false
+  },
+  {
+    "Kind": "SubmitWorldFeatureNames",
+    "Route": "/world/configuration/feature-names",
+    "Method": "POST",
+    "OwnsRecovery": false
+  },
+  {
+    "Kind": "RegisterPlayerColonySites",
+    "Route": "/world/colony-sites",
+    "Method": "POST",
+    "OwnsRecovery": false
+  },
+  {
+    "Kind": "PreflightColonyRelocation",
+    "Route": "/world/colony-sites/relocation/preflight",
+    "Method": "POST",
+    "OwnsRecovery": false
+  },
+  {
+    "Kind": "ConfirmColonyRelocation",
+    "Route": "/world/colony-sites/relocation/confirm",
+    "Method": "POST",
+    "OwnsRecovery": false
+  },
+  {
+    "Kind": "AbandonPlayerColony",
+    "Route": "/world/colony-sites/abandon",
+    "Method": "POST",
+    "OwnsRecovery": false
+  },
+  {
+    "Kind": "GetAdminBaselineRequirements",
+    "Route": "/admin/baseline/requirements",
+    "Method": "POST",
+    "OwnsRecovery": true
+  },
+  {
+    "Kind": "SubmitAdminBaseline",
+    "Route": "/admin/baseline",
+    "Method": "POST",
+    "OwnsRecovery": true
+  },
+  {
+    "Kind": "GetBankStatus",
+    "Route": "/bank/status",
+    "Method": "POST",
+    "OwnsRecovery": true
+  },
+  {
+    "Kind": "CreateBankLoanWithSnapshot",
+    "Route": "/bank/loans/create-with-snapshot",
+    "Method": "POST",
+    "OwnsRecovery": true
+  },
+  {
+    "Kind": "CreateBankLoan",
+    "Route": "/bank/loans",
+    "Method": "POST",
+    "OwnsRecovery": true
+  },
+  {
+    "Kind": "RepayBankLoanWithSnapshot",
+    "Route": "/bank/loans/repay-with-snapshot",
+    "Method": "POST",
+    "OwnsRecovery": true
+  },
+  {
+    "Kind": "RepayBankLoan",
+    "Route": "/bank/loans/repay",
+    "Method": "POST",
+    "OwnsRecovery": true
+  },
+  {
+    "Kind": "RepayBankDebtWithSnapshot",
+    "Route": "/bank/debts/repay-with-snapshot",
+    "Method": "POST",
+    "OwnsRecovery": true
+  },
+  {
+    "Kind": "RepayBankDebt",
+    "Route": "/bank/debts/repay",
+    "Method": "POST",
+    "OwnsRecovery": true
+  },
+  {
+    "Kind": "QuoteMercenary",
+    "Route": "/mercenaries/quote",
+    "Method": "POST",
+    "OwnsRecovery": true
+  },
+  {
+    "Kind": "HireMercenaryWithSnapshot",
+    "Route": "/mercenaries/hire-with-snapshot",
+    "Method": "POST",
+    "OwnsRecovery": true
+  },
+  {
+    "Kind": "HireMercenary",
+    "Route": "/mercenaries/hire",
+    "Method": "POST",
+    "OwnsRecovery": true
+  },
+  {
+    "Kind": "QuoteMercenaryGuard",
+    "Route": "/mercenaries/guards/quote",
+    "Method": "POST",
+    "OwnsRecovery": true
+  },
+  {
+    "Kind": "HireMercenaryGuardWithSnapshot",
+    "Route": "/mercenaries/guards/hire-with-snapshot",
+    "Method": "POST",
+    "OwnsRecovery": true
+  },
+  {
+    "Kind": "ReportMercenaryIncident",
+    "Route": "/mercenaries/incidents",
+    "Method": "POST",
+    "OwnsRecovery": true
+  },
+  {
+    "Kind": "SendChatMessage",
+    "Route": "/chat/send",
+    "Method": "POST",
+    "OwnsRecovery": false
+  },
+  {
+    "Kind": "ListChatMessages",
+    "Route": "/chat/list",
+    "Method": "POST",
+    "OwnsRecovery": false
+  },
+  {
+    "Kind": "OverrideCompatibilityBaseline",
+    "Route": "/compatibility/baseline/override",
+    "Method": "POST",
+    "OwnsRecovery": false
+  },
+  {
+    "Kind": "AdminStatus",
+    "Route": "/admin/status",
+    "Method": "POST",
+    "OwnsRecovery": false
+  },
+  {
+    "Kind": "AdminUpdateConfiguration",
+    "Route": "/admin/configuration",
+    "Method": "POST",
+    "OwnsRecovery": false
+  },
+  {
+    "Kind": "AdminAction",
+    "Route": "/admin/action",
+    "Method": "POST",
+    "OwnsRecovery": false
+  }
+]
