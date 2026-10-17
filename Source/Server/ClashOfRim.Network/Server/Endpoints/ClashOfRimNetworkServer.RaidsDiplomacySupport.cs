@@ -1,3 +1,4 @@
+using static AIRsLight.ClashOfRim.Network.Modules.Trades.TradeRules;
 using static AIRsLight.ClashOfRim.Network.Modules.Events.EventProtocolMapper;
 using static AIRsLight.ClashOfRim.Network.Modules.Transfers.ItemTransferMapper;
 using AIRsLight.ClashOfRim.Network.Modules.Economy;
@@ -1806,4 +1807,19 @@ public static partial class ClashOfRimNetworkServer
                 occurredAtUtc);
         }
     }
+    private static DateTimeOffset? CurrentRaidCooldownUntil(
+        ClashOfRimNetworkState state,
+        string defenderUserId,
+        string? defenderColonyId,
+        DateTimeOffset nowUtc)
+    {
+        return string.IsNullOrWhiteSpace(defenderColonyId)
+            ? null
+            : RaidCooldownRuntimeService.CurrentUntil(
+                state,
+                defenderUserId,
+                defenderColonyId,
+                nowUtc);
+    }
+
 }

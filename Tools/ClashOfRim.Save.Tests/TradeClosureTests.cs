@@ -27,7 +27,7 @@ internal static class TradeClosureTests
                 Execute(database, $"create trigger fail_close before {phase} on events begin select raise(abort, 'injected closure failure'); end;");
                 bool failed = false;
                 try { Close(state, scenario, order, delivery); }
-                catch (TargetInvocationException ex) when (ex.InnerException is SqliteException) { failed = true; }
+                catch (Exception ex) when (ex is SqliteException || ex is TargetInvocationException { InnerException: SqliteException }) { failed = true; }
                 Require(failed, "Closure failure was not injected.");
                 state = Open();
                 Require(state.Ledger.ListAll().Count == before.Count && before.All(pair => state.Ledger.Find(pair.Key)!.Status == pair.Value),
@@ -139,10 +139,10 @@ internal static class TradeClosureTests
             .GetMethod(name, BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, args);
         switch (scenario)
         {
-            case "cancel": Invoke("CancelTradeOrder", new CloseTradeOrderRequest("cancel", order.EventId,
-                new ProtocolIdentity("seller", "seller-colony", "seller-snapshot"), null, TradeCommandAuthTests.Token(state, "seller")), state); break;
-            case "expire": Invoke("ApplyTradeOrderExpirations", state, DateTimeOffset.UtcNow); break;
-            case "baseline": Invoke("ApplyTradeOrderBaselineInvalidations", state,
+            case "cancel": state.Trades.CancelTradeOrder(new CloseTradeOrderRequest("cancel", order.EventId,
+                new ProtocolIdentity("seller", "seller-colony", "seller-snapshot"), null, TradeCommandAuthTests.Token(state, "seller"))); break;
+            case "expire": state.TradeLifecycle.ApplyTradeOrderExpirations( DateTimeOffset.UtcNow); break;
+            case "baseline": state.TradeLifecycle.ApplyTradeOrderBaselineInvalidations(
                 new AdminBaselineSnapshot("admin", "admin-colony", DateTimeOffset.UtcNow, new Dictionary<string, float> { ["Silver"] = 1 },
                     Array.Empty<TrapClassificationDto>()), DateTimeOffset.UtcNow); break;
             case "failure":

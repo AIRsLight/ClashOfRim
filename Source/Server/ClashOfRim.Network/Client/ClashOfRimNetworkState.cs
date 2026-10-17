@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Network.Modules.Trades;
 using AIRsLight.ClashOfRim.Network.Modules.Gifts;
 using AIRsLight.ClashOfRim.Network.Modules.Transfers;
 using AIRsLight.ClashOfRim.Events;
@@ -114,6 +115,16 @@ public sealed class ClashOfRimNetworkState
             SnapshotRequests, SnapshotTransactions, PendingConfirmations, TransferPackages, DeliveryTargets,
             OnlinePresence, EventNotifications, DiplomacyRelations, new LegacyRaidDeliveryProtection(this),
             recovery, () => ServerConfiguration);
+        TradeDelivery = new TradeDelivery(SnapshotStore, OnlinePresence, Ledger, Plugins, CompatibilityBaseline,
+            WorldConfiguration, WorldTileDistanceCalculator, () => ServerConfiguration);
+        TradeLifecycle = new TradeLifecycle(Ledger, SnapshotStore, SnapshotMutations, RaidSettlementSnapshotMutationGate,
+            TradeDelivery, AdminBaseline, OnlinePresence, EventNotifications, RuntimeLogger, () => ServerConfiguration);
+        var tradeCommits = new TradeSnapshotCommitter(SnapshotCommits, SnapshotStore, BankLoans, Ledger, MercenaryContracts,
+            EventNotifications, recovery, new LegacyEventAchievementRecorder(this));
+        Trades = new TradeService(Ledger, SnapshotRequests, ColonyAuthorization, SnapshotMutations, SnapshotTransactions,
+            PendingConfirmations, TransferPackages, tradeCommits, TradeLifecycle, TradeDelivery, AdminBaseline,
+            Plugins, CompatibilityBaseline, OnlinePresence, EventNotifications, RuntimeLogger, () => ServerConfiguration);
+        TradeMarket = new TradeMarket(Ledger, SnapshotRequests, TradeLifecycle, TradeDelivery, () => ServerConfiguration);
         EventDelivery = new EventDeliveryService(SnapshotAuthorization, SnapshotMutations, Ledger,
             EventNotifications, OnlinePresence, Players);
     }
@@ -132,6 +143,10 @@ public sealed class ClashOfRimNetworkState
     internal ItemTransferPackages TransferPackages { get; }
     internal DeliveryTargetResolver DeliveryTargets { get; }
     internal GiftService Gifts { get; }
+    internal TradeService Trades { get; }
+    internal TradeMarket TradeMarket { get; }
+    internal TradeLifecycle TradeLifecycle { get; }
+    internal TradeDelivery TradeDelivery { get; }
 
     public IColonySnapshotIndexStore SnapshotStore { get; }
 

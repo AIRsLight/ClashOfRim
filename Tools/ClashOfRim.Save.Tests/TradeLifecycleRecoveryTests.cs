@@ -243,12 +243,11 @@ internal static class TradeLifecycleRecoveryTests
             ProtocolIdentity identity = bad == "null" ? null! : new(user, user + "-colony", "base");
             string credential = bad is "forged" or "fields-forged" ? "forged" : token;
             key = bad is "fields" or "fields-forged" ? "" : key ?? (kind == "accept" ? "accept" : "close");
-            string method = kind == "accept" ? "AcceptTradeOrder" : kind == "complete" ? "CompleteTradeOrder" : "CancelTradeOrder";
-            object request = kind == "accept" ? new AcceptTradeOrderRequest(key, Order.EventId, identity, false, credential)
-                : new CloseTradeOrderRequest(key, Order.EventId, identity, "close", credential);
-            object result;
-            try { result = ((IValueHttpResult)typeof(ClashOfRimNetworkServer).GetMethod(method, BindingFlags.NonPublic | BindingFlags.Static)!.Invoke(null, [request, State])!).Value!; }
-            catch (TargetInvocationException ex) when (ex.InnerException is not null) { ExceptionDispatchInfo.Capture(ex.InnerException).Throw(); throw; }
+            object result = kind == "accept"
+                ? State.Trades.AcceptTradeOrder(new AcceptTradeOrderRequest(key, Order.EventId, identity, false, credential))
+                : kind == "complete"
+                    ? State.Trades.CompleteTradeOrder(new CloseTradeOrderRequest(key, Order.EventId, identity, "close", credential))
+                    : State.Trades.CancelTradeOrder(new CloseTradeOrderRequest(key, Order.EventId, identity, "close", credential));
             return result switch
             {
                 AcceptTradeOrderResponse a => new(a.Result, a.MemoEventId, a.MemoCreated),

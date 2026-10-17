@@ -1,3 +1,5 @@
+using AIRsLight.ClashOfRim.Network.Modules.Trades;
+using Microsoft.Extensions.Logging.Abstractions;
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Network;
 using AIRsLight.ClashOfRim.Network.Modules.Authorization;
@@ -32,6 +34,12 @@ internal sealed class EconomicModuleTestContext
     internal readonly BankRequestAccess Access;
     internal readonly BankService Bank;
     internal readonly GiftService Gifts;
+    internal readonly TradeService Trades;
+    internal readonly TradeMarket Market;
+    internal readonly TradeLifecycle TradeLifecycle;
+    internal readonly TradeDelivery TradeDelivery;
+    internal readonly AdminBaselineRegistry Baseline = new();
+    internal readonly WorldConfigurationRegistry World = new(WorldConfigurationExtensionService.Empty);
     internal readonly ItemTransferPackages Packages;
     internal readonly SaveSnapshotPackage Package;
     internal readonly string Token;
@@ -54,6 +62,17 @@ internal sealed class EconomicModuleTestContext
         Packages = new ItemTransferPackages(Pawns, Things);
         Gifts = new GiftService(Ledger, Snapshots, Loans, mercenaries, commits, requests, transactions, pending,
             Packages, new DeliveryTargetResolver(Snapshots), Presence, Notifications, Relations, Raids, Recovery, () => Configuration);
+        var plugins = new ServerPluginRegistry();
+        var compatibility = new CompatibilityBaselineRegistry();
+        TradeDelivery = new TradeDelivery(Snapshots, Presence, Ledger, plugins, compatibility, World,
+            new StraightLineWorldTileDistanceCalculator(), () => Configuration);
+        TradeLifecycle = new TradeLifecycle(Ledger, Snapshots, mutations, Gate, TradeDelivery, Baseline,
+            Presence, Notifications, NullLogger.Instance, () => Configuration);
+        var tradeCommits = new TradeSnapshotCommitter(commits, Snapshots, Loans, Ledger, mercenaries, Notifications, Recovery, Recovery);
+        Trades = new TradeService(Ledger, requests, colonies, mutations, transactions, pending, Packages,
+            tradeCommits, TradeLifecycle, TradeDelivery, Baseline, plugins, compatibility, Presence,
+            Notifications, NullLogger.Instance, () => Configuration);
+        Market = new TradeMarket(Ledger, requests, TradeLifecycle, TradeDelivery, () => Configuration);
         Package = MercenaryCommitCrashTests.PrepareEndpoint(Snapshots, factory, new("userA", "colonyA", "before"), "paid");
         Token = Issue("userA", "colonyA");
     }
@@ -65,9 +84,11 @@ internal sealed class EconomicModuleTestContext
         return Tokens.Issue(userId, userId, colonyId, session, now);
     }
 
-    internal sealed class RecoveryProbe : ISnapshotRecovery, ISnapshotRecoveryPreparation, ISnapshotCommitEffects
+    internal sealed class RecoveryProbe : ISnapshotRecovery, ISnapshotRecoveryPreparation, ISnapshotCommitEffects, IEventAchievementRecorder
     {
         internal int Replays, Commits;
+        internal readonly List<string> AchievementEvents = new();
+        public void Record(AuthoritativeEvent item, DateTimeOffset nowUtc) => AchievementEvents.Add(item.EventId);
         internal Action? OnReplay;
         public void RecoverPrerequisites() { }
         public ISnapshotRecoveryPreparation CapturePreparation() => this;

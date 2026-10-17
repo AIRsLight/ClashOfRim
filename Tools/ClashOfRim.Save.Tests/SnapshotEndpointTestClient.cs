@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Network.Modules.Trades;
 using AIRsLight.ClashOfRim.Network.Modules.Gifts;
 using AIRsLight.ClashOfRim.Network;
 using AIRsLight.ClashOfRim.Network.Modules.Bank;
@@ -46,6 +47,10 @@ internal static class SnapshotEndpointTestClient
             result = await BankEndpoints.RepayBankDebtWithSnapshot(context.Request, state.Bank);
         else if (name == nameof(GiftEndpoints.CreateGiftWithSnapshot))
             result = await GiftEndpoints.CreateGiftWithSnapshot(context.Request, state.Gifts);
+        else if (name == nameof(TradeEndpoints.CreateTradeOrderWithSnapshot))
+            result = await TradeEndpoints.CreateTradeOrderWithSnapshot(context.Request, state.Trades);
+        else if (name == nameof(TradeEndpoints.FulfillTradeOrderWithSnapshot))
+            result = await TradeEndpoints.FulfillTradeOrderWithSnapshot(context.Request, state.Trades);
         else
         {
             MethodInfo endpoint = typeof(ClashOfRimNetworkServer).GetMethod(name, BindingFlags.NonPublic | BindingFlags.Static)!;

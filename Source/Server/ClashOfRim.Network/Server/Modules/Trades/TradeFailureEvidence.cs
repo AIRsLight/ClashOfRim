@@ -1,11 +1,13 @@
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Protocol;
+using AIRsLight.ClashOfRim.Network.Modules.Events;
+using static AIRsLight.ClashOfRim.Network.Modules.Trades.TradeRules;
 
-namespace AIRsLight.ClashOfRim.Network;
+namespace AIRsLight.ClashOfRim.Network.Modules.Trades;
 
-public static partial class ClashOfRimNetworkServer
+internal static class TradeFailureEvidence
 {
-    private sealed record TradeFailureGraph(AuthoritativeEvent Order, AuthoritativeEvent Exchange,
+    internal sealed record TradeFailureGraph(AuthoritativeEvent Order, AuthoritativeEvent Exchange,
         AuthoritativeEvent[] Memos, AuthoritativeEvent[] Deliveries, bool AppliedDelivery,
         AuthoritativeEvent? OwnerReturn, AuthoritativeEvent? BuyerReturn)
     {
@@ -13,11 +15,11 @@ public static partial class ClashOfRimNetworkServer
         public bool RefundBuyer => !AppliedDelivery && Exchange.Status == ServerEventStatus.AppliedToSnapshot;
     }
 
-    private static bool TryReadTradeFailureGraph(ClashOfRimNetworkState state, AuthoritativeEvent root,
+    internal static bool TryReadTradeFailureGraph(IAuthoritativeEventLedger ledger, AuthoritativeEvent root,
         string orderId, out TradeFailureGraph? graph)
     {
         graph = null;
-        var ledger = state.Ledger; var order = ledger.Find(orderId);
+        var order = ledger.Find(orderId);
         if (order?.Type != ServerEventType.Trade || order.Payload is not TradeEventPayload { Stage: TradeStage.MarketOrder } original) return false;
         var all = ledger.ListAll();
         var related = all.Where(item => item.Payload is TradeEventPayload p && p.TradeId == orderId).ToArray();
@@ -49,6 +51,7 @@ public static partial class ClashOfRimNetworkServer
                 || !MatchesTradeAcceptance(memo with { Status = ServerEventStatus.Recorded }, order,
                     new(memo.IdempotencyKey, orderId, new(memo.Actor.UserId, memo.Actor.ColonyId, "failure"), p.PostagePaidByAcceptor))) return false;
         }
+
         if (payload.AcceptedMemoEventId is { } memoId && !memos.Any(memo => memo.EventId == memoId && memo.Actor == exchange.Actor)) return false;
         string suffix = payload.AcceptedMemoEventId ?? exchange.Actor.UserId + ":" + exchange.Actor.ColonyId;
         string ownerKey = $"trade-completed-owner-delivery:{orderId}:{suffix}";
@@ -88,7 +91,7 @@ public static partial class ClashOfRimNetworkServer
 
         graph = new(order, exchange, memos, deliveries, applied, ownerReturn, buyerReturn);
         // A terminal root only replays a complete, previously persisted failure decision.
-        if (root.Status == ServerEventStatus.Failed || root.Status == ServerEventStatus.Conflict && FindFailureNotifications(state, root).Count > 0)
+        if (root.Status == ServerEventStatus.Failed || root.Status == ServerEventStatus.Conflict && EventFailureNotifications.FindFailureNotifications(ledger, root).Count > 0)
         {
             var terminal = applied ? ServerEventStatus.Conflict : ServerEventStatus.Failed;
             if (order.Status != (applied ? ServerEventStatus.Conflict : ServerEventStatus.Cancelled)
@@ -96,48 +99,120 @@ public static partial class ClashOfRimNetworkServer
                 || deliveries.Append(exchange).Any(item => item.Status != ServerEventStatus.AppliedToSnapshot && item.Status != terminal)
                 || !applied && (ownerReturn is null || graph.RefundBuyer && buyerReturn is null)) return false;
         }
+
         return true;
     }
 
-    private static bool MatchesFailureTradeDelivery(AuthoritativeEvent? item, EventParty actor, EventParty target,
+    internal static bool MatchesFailureTradeDelivery(AuthoritativeEvent? item, EventParty actor, EventParty target,
         IReadOnlyList<EventThingReference> items, ItemDeliveryPurpose purpose) => item?.Type == ServerEventType.ItemDelivery
         && item.Actor == actor && item.Target == target && item.Status is not (ServerEventStatus.Cancelled or ServerEventStatus.RejectedByTarget)
         && item.TargetDecision != TargetEventDecision.Rejected && item.Payload is ItemDeliveryEventPayload { Message: null, DeliveryKind: null } payload
         && payload.Purpose == purpose && SameTradeEvidence(payload.Items, items);
 
-    private static bool MatchesFailureTradeReturn(AuthoritativeEvent item, EventParty target, IReadOnlyList<EventThingReference> items,
+    internal static bool MatchesFailureTradeReturn(AuthoritativeEvent item, EventParty target, IReadOnlyList<EventThingReference> items,
         ItemDeliveryPurpose purpose) => MatchesTradeCompletionDelivery(item, new("server"), target, items, purpose)
         && AuthoritativeEventFactory.IsKnownEventId(item.Type, item.IdempotencyKey, item.EventId);
 
-    private static void CancelTradeApplicationAfterLandingFailure(ClashOfRimNetworkState state, string orderId,
-        AuthoritativeEvent root, string reason, DateTimeOffset nowUtc, IDictionary<string, AuthoritativeEvent> affected)
+    internal static bool TryResolveTradeOrderIdFromDelivery(
+        IAuthoritativeEventLedger ledger,
+        AuthoritativeEvent ledgerEvent,
+        out string? tradeOrderId)
     {
-        if (!TryReadTradeFailureGraph(state, root, orderId, out var prepared))
-            throw new InvalidOperationException("Trade failure conflicts with its fulfillment or escrow returns.");
-        var graph = prepared!;
-        foreach (var item in graph.Events)
+        tradeOrderId = null;
+        if (ledgerEvent.Type != ServerEventType.ItemDelivery
+            || ledgerEvent.Payload is not ItemDeliveryEventPayload { IsTradeDelivery: true }
+            || IsTradeApplicationFailedOwnerReturnEvent(ledgerEvent))
         {
-            var status = item.EventId == orderId ? (graph.AppliedDelivery ? ServerEventStatus.Conflict : ServerEventStatus.Cancelled)
-                : graph.Memos.Any(memo => memo.EventId == item.EventId) ? ServerEventStatus.Cancelled
-                : item.Status == ServerEventStatus.AppliedToSnapshot ? item.Status
-                : graph.AppliedDelivery ? ServerEventStatus.Conflict : ServerEventStatus.Failed;
-            affected[item.EventId] = item with { Status = status };
+            return false;
         }
-        if (graph.AppliedDelivery) return;
-        var returned = graph.OwnerReturn ?? CreateTradeItemDeliveryEvent(state, "trade-application-failed-owner-return:" + orderId,
-            new("server"), graph.Order.Actor, ((TradeEventPayload)graph.Order.Payload).OfferedItems,
-            ItemDeliveryPurpose.TradeApplicationFailedOwnerReturn, graph.Order.TargetContext, nowUtc);
-        affected[returned.EventId] = returned;
-        if (!graph.RefundBuyer) return;
-        var exchange = graph.Exchange;
-        var paymentReturn = graph.BuyerReturn;
-        if (paymentReturn is null)
+
+        if (!TryParseTradeOrderIdFromCompletedDeliveryIdempotencyKey(ledgerEvent.IdempotencyKey, out string? parsedTradeOrderId))
         {
-            string snapshot = state.SnapshotStore.GetLatest(exchange.Actor.UserId, exchange.Actor.ColonyId!)?.Identity.SnapshotId ?? exchange.AppliedSnapshotId!;
-            paymentReturn = CreateTradeItemDeliveryEvent(state, $"trade-application-failed-acceptor-return:{orderId}:{exchange.EventId}",
-                new("server"), exchange.Actor, ((TradeEventPayload)exchange.Payload).RequestedItems, ItemDeliveryPurpose.TradeApplicationFailedAcceptorReturn,
-                ResolveTradeTargetContext(state, exchange.Actor.UserId, exchange.Actor.ColonyId!, snapshot, EventLandingMode.DropPod), nowUtc);
+            return false;
         }
-        affected[paymentReturn.EventId] = paymentReturn;
+
+        AuthoritativeEvent? tradeOrder = ledger.Find(parsedTradeOrderId!);
+        if (tradeOrder is null
+            || tradeOrder.Type != ServerEventType.Trade
+            || tradeOrder.Payload is not TradeEventPayload { Stage: TradeStage.MarketOrder })
+        {
+            return false;
+        }
+
+        tradeOrderId = tradeOrder.EventId;
+        return true;
     }
+
+    internal static bool IsTradeApplicationFailedOwnerReturnEvent(AuthoritativeEvent ledgerEvent)
+    {
+        return ledgerEvent.Type == ServerEventType.ItemDelivery
+            && (ledgerEvent.IdempotencyKey.StartsWith("trade-application-failed-owner-return:", StringComparison.Ordinal)
+                || ledgerEvent.IdempotencyKey.StartsWith("trade-application-failed-acceptor-return:", StringComparison.Ordinal)
+                || ledgerEvent.Payload is ItemDeliveryEventPayload
+                {
+                    Purpose: ItemDeliveryPurpose.TradeApplicationFailedOwnerReturn
+                    or ItemDeliveryPurpose.TradeApplicationFailedAcceptorReturn
+                });
+    }
+
+    internal static bool IsTradeCompletedDeliveryIdempotencyKey(string idempotencyKey, string tradeOrderId)
+    {
+        return IsTradeCompletedDeliveryIdempotencyKey(idempotencyKey, tradeOrderId, "trade-completed-owner-delivery:")
+            || IsTradeCompletedDeliveryIdempotencyKey(idempotencyKey, tradeOrderId, "trade-completed-acceptor-delivery:");
+    }
+
+    internal static bool TryParseTradeOrderIdFromCompletedDeliveryIdempotencyKey(
+        string idempotencyKey,
+        out string? tradeOrderId)
+    {
+        tradeOrderId = null;
+        return TryParseTradeOrderIdFromCompletedDeliveryIdempotencyKey(idempotencyKey, "trade-completed-owner-delivery:", out tradeOrderId)
+            || TryParseTradeOrderIdFromCompletedDeliveryIdempotencyKey(idempotencyKey, "trade-completed-acceptor-delivery:", out tradeOrderId);
+    }
+
+    internal static bool TryParseTradeOrderIdFromCompletedDeliveryIdempotencyKey(
+        string idempotencyKey,
+        string prefix,
+        out string? tradeOrderId)
+    {
+        tradeOrderId = null;
+        if (string.IsNullOrWhiteSpace(idempotencyKey)
+            || !idempotencyKey.StartsWith(prefix, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        string rest = idempotencyKey[prefix.Length..];
+        int typeSeparator = rest.IndexOf(':');
+        if (typeSeparator <= 0)
+        {
+            return false;
+        }
+
+        int idEnd = rest.IndexOf(':', typeSeparator + 1);
+        if (idEnd <= typeSeparator + 1)
+        {
+            return false;
+        }
+
+        tradeOrderId = rest[..idEnd];
+        return true;
+    }
+
+    internal static bool IsTradeCompletedDeliveryIdempotencyKey(
+        string idempotencyKey,
+        string tradeOrderId,
+        string prefix)
+    {
+        if (string.IsNullOrWhiteSpace(idempotencyKey)
+            || string.IsNullOrWhiteSpace(tradeOrderId)
+            || !idempotencyKey.StartsWith(prefix, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        string rest = idempotencyKey[prefix.Length..];
+        return rest.StartsWith(tradeOrderId + ":", StringComparison.Ordinal);
+    }
+
 }

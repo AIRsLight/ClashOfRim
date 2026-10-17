@@ -87,12 +87,12 @@ internal static class TradeCommandAuthTests
     private static ProtocolResponse Call(ClashOfRimNetworkState state, AuthoritativeEvent order, string kind, string user, string? token, bool nullIdentity = false)
     {
         ProtocolIdentity identity = nullIdentity ? null! : new(user, user + "-colony", user + "-base");
-        string method = kind == "accept" ? "AcceptTradeOrder" : kind == "complete" ? "CompleteTradeOrder" : "CancelTradeOrder";
-        object request = kind == "accept" ? new AcceptTradeOrderRequest("accept-key", order.EventId, identity, false, token)
-            : new CloseTradeOrderRequest("close-key", order.EventId, identity, "结束", token);
-        var response = (IValueHttpResult)typeof(ClashOfRimNetworkServer).GetMethod(method, BindingFlags.NonPublic | BindingFlags.Static)!
-            .Invoke(null, [request, state])!;
-        return response.Value switch
+        object response = kind == "accept"
+            ? state.Trades.AcceptTradeOrder(new AcceptTradeOrderRequest("accept-key", order.EventId, identity, false, token))
+            : kind == "complete"
+                ? state.Trades.CompleteTradeOrder(new CloseTradeOrderRequest("close-key", order.EventId, identity, "结束", token))
+                : state.Trades.CancelTradeOrder(new CloseTradeOrderRequest("close-key", order.EventId, identity, "结束", token));
+        return response switch
         {
             AcceptTradeOrderResponse accepted => accepted.Result,
             CloseTradeOrderResponse closed => closed.Result,

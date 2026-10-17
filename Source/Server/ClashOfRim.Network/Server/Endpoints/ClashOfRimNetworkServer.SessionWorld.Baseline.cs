@@ -1,3 +1,4 @@
+using static AIRsLight.ClashOfRim.Network.Modules.World.WorldTileGeometry;
 using AIRsLight.ClashOfRim.Compatibility;
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Network.Plugins;
@@ -101,9 +102,9 @@ public static partial class ClashOfRimNetworkServer
             if (recovery.Rejection is { } failure) return Reject(failure);
             WorldSessionState session = state.WorldConfiguration.GetSessionState(request.UserId);
             DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
-            var invalidations = PrepareTradeOrderBaselineInvalidations(state, normalized, nowUtc);
+            var invalidations = state.TradeLifecycle.PrepareTradeOrderBaselineInvalidations(normalized, nowUtc);
             AdminBaselineSnapshot baseline = state.AdminBaseline.SubmitPrepared(normalized, invalidations);
-            RecoverAdminBaselineTradeInvalidations(state);
+            state.TradeLifecycle.RecoverAdminBaselineTradeInvalidations();
             int cancelledTradeOrderCount = invalidations.Count;
             if (!string.IsNullOrWhiteSpace(request.ColonyId))
             {
@@ -271,34 +272,6 @@ public static partial class ClashOfRimNetworkServer
             .ThenBy(site => site.UserId, StringComparer.Ordinal)
             .ThenBy(site => site.ColonyId, StringComparer.Ordinal)
             .ToList();
-    }
-
-    private static bool TryParsePlanetTile(string? tileText, out WorldTileRef tileRef)
-    {
-        tileRef = default;
-        if (string.IsNullOrWhiteSpace(tileText))
-        {
-            return false;
-        }
-
-        string text = tileText!.Trim();
-        string[] parts = text.Split(',', 2);
-        if (!int.TryParse(parts[0].Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int tile)
-            || tile < 0)
-        {
-            return false;
-        }
-
-        int layerId = 0;
-        if (parts.Length == 2
-            && (!int.TryParse(parts[1].Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out layerId)
-                || layerId < 0))
-        {
-            return false;
-        }
-
-        tileRef = new WorldTileRef(tile, layerId);
-        return true;
     }
 
     private static IReadOnlyList<PlayerColonySiteDto> NormalizePlayerColonySites(

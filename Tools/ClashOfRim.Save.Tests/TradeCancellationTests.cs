@@ -181,9 +181,7 @@ internal static class TradeCancellationTests
         { "expire" => ItemDeliveryPurpose.TradeExpiredOwnerReturn, "baseline" => ItemDeliveryPurpose.TradeBaselineChangedOwnerReturn, _ => ItemDeliveryPurpose.TradeCancelledOwnerReturn }), DateTimeOffset.UtcNow, order.TargetContext);
     private static CloseTradeOrderResponse Cancel(ClashOfRimNetworkState state, AuthoritativeEvent order, string token)
     {
-        try { return (CloseTradeOrderResponse)((IValueHttpResult)typeof(ClashOfRimNetworkServer).GetMethod("CancelTradeOrder", BindingFlags.Static | BindingFlags.NonPublic)!
-            .Invoke(null, [new CloseTradeOrderRequest("cancel", order.EventId, new("seller", "seller-colony", "snapshot"), null, token), state])!).Value!; }
-        catch (TargetInvocationException ex) when (ex.InnerException is not null) { ExceptionDispatchInfo.Capture(ex.InnerException).Throw(); throw; }
+        return state.Trades.CancelTradeOrder(new CloseTradeOrderRequest("cancel", order.EventId, new("seller", "seller-colony", "snapshot"), null, token));
     }
     private static ClashOfRimNetworkState State(IAuthoritativeEventLedger ledger) => new(ledger: ledger, serverConfiguration: new ClashOfRimServerConfiguration(tradeOrderExpiration: TimeSpan.Zero));
     private static IAuthoritativeEventLedger Open(string storage, string root) => storage switch

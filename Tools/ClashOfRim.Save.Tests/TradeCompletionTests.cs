@@ -181,9 +181,7 @@ internal static class TradeCompletionTests
         AuthoritativeEventFactory.Create(ServerEventType.ItemDelivery, actor, target, key, false, new ItemDeliveryEventPayload(items, null, Purpose: purpose), At);
     private static CloseTradeOrderResponse Complete(ClashOfRimNetworkState state, string orderId, string token, string key = "complete", string user = "seller")
     {
-        try { return (CloseTradeOrderResponse)((IValueHttpResult)typeof(ClashOfRimNetworkServer).GetMethod("CompleteTradeOrder", BindingFlags.NonPublic | BindingFlags.Static)!
-            .Invoke(null, [new CloseTradeOrderRequest(key, orderId, new(user, user + "-colony", "latest-snapshot"), null, token), state])!).Value!; }
-        catch (TargetInvocationException ex) when (ex.InnerException is not null) { ExceptionDispatchInfo.Capture(ex.InnerException).Throw(); throw; }
+        return state.Trades.CompleteTradeOrder(new CloseTradeOrderRequest(key, orderId, new(user, user + "-colony", "latest-snapshot"), null, token));
     }
     private static ClashOfRimNetworkState State(IAuthoritativeEventLedger ledger) => new(ledger: ledger, serverConfiguration: new ClashOfRimServerConfiguration(tradeOrderExpiration: TimeSpan.Zero));
     private static IAuthoritativeEventLedger Open(string storage, string root) => storage switch

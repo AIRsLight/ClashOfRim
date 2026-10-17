@@ -1,3 +1,4 @@
+using static AIRsLight.ClashOfRim.Network.Modules.Trades.TradeRules;
 using static AIRsLight.ClashOfRim.Network.Modules.Transfers.ItemTransferMapper;
 using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Save;

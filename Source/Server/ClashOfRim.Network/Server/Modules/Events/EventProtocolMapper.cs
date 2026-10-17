@@ -37,4 +37,15 @@ internal static class EventProtocolMapper
             landingMode);
     }
 
+    internal static EventTargetContextDto? ToEventTargetContextDto(EventTargetContext? context)
+    {
+        return context is null
+            ? null
+            : new EventTargetContextDto(
+                context.WorldObjectId,
+                context.MapUniqueId,
+                context.Tile,
+                context.LandingMode.ToString());
+    }
+
 }

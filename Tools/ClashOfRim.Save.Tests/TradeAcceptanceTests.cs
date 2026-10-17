@@ -149,9 +149,7 @@ internal static class TradeAcceptanceTests
     private static AcceptTradeOrderResponse Accept(ClashOfRimNetworkState state, AuthoritativeEvent order, string key, string token,
         string user = "buyer", bool postage = false, string snapshot = "base")
     {
-        try { return (AcceptTradeOrderResponse)((IValueHttpResult)typeof(ClashOfRimNetworkServer).GetMethod("AcceptTradeOrder", BindingFlags.NonPublic | BindingFlags.Static)!
-            .Invoke(null, [new AcceptTradeOrderRequest(key, order.EventId, new(user, user + "-colony", snapshot), postage, token), state])!).Value!; }
-        catch (TargetInvocationException ex) when (ex.InnerException is not null) { ExceptionDispatchInfo.Capture(ex.InnerException).Throw(); throw; }
+        return state.Trades.AcceptTradeOrder(new AcceptTradeOrderRequest(key, order.EventId, new(user, user + "-colony", snapshot), postage, token));
     }
     private static ClashOfRimNetworkState State(IAuthoritativeEventLedger ledger) => new(ledger: ledger,
         serverConfiguration: new ClashOfRimServerConfiguration(tradeOrderExpiration: TimeSpan.Zero));

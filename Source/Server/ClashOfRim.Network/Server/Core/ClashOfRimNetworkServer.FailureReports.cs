@@ -1,3 +1,4 @@
+using static AIRsLight.ClashOfRim.Network.Modules.Trades.TradeFailureEvidence;
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Protocol;
 
@@ -21,7 +22,7 @@ public static partial class ClashOfRimNetworkServer
         if (!supported) return ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("Events.FailureReportUnsupported"));
 
         string? tradeId = root.Payload is TradeEventPayload exchange ? exchange.TradeId
-            : TryResolveTradeOrderIdFromDelivery(state, root, out string? resolved) ? resolved : null;
+            : TryResolveTradeOrderIdFromDelivery(state.Ledger, root, out string? resolved) ? resolved : null;
         bool sourceMatches = string.IsNullOrWhiteSpace(sourceId);
         if (!sourceMatches && tradeId is not null)
         {
@@ -41,12 +42,12 @@ public static partial class ClashOfRimNetworkServer
             return ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Events.FailureReportAlreadyEnded"));
 
         if (root.Payload is ItemDeliveryEventPayload { IsTradeDelivery: true } && tradeId is null
-            || tradeId is not null && !TryReadTradeFailureGraph(state, root, tradeId, out _))
+            || tradeId is not null && !Modules.Trades.TradeFailureEvidence.TryReadTradeFailureGraph(state.Ledger, root, tradeId, out _))
             return ProtocolResponse.Reject(ProtocolErrorCode.Conflict, "Trade failure conflicts with its fulfillment or escrow returns.");
 
         // Failed roots can be replayed after their order was closed by the original atomic batch.
         if (tradeId is not null && root.Status != ServerEventStatus.Failed
-            && !(root.Status == ServerEventStatus.Conflict && FindFailureNotifications(state, root).Count > 0))
+            && !(root.Status == ServerEventStatus.Conflict && Modules.Events.EventFailureNotifications.FindFailureNotifications(state.Ledger, root).Count > 0))
         {
             var order = state.Ledger.Find(tradeId);
             if (order?.Payload is not TradeEventPayload { Stage: TradeStage.MarketOrder }
@@ -54,27 +55,6 @@ public static partial class ClashOfRimNetworkServer
                 return ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Events.FailureReportAlreadyEnded"));
         }
         return null;
-    }
-
-    private static IReadOnlyList<AuthoritativeEvent> FindFailureNotifications(ClashOfRimNetworkState state, AuthoritativeEvent root)
-    {
-        var found = state.Ledger.ListAll().Where(item =>
-            item.IdempotencyKey == $"event-application-failed:{root.EventId}:{item.Target.UserId}:{item.Target.ColonyId}"
-            || item.Payload is ServerNotificationEventPayload { RelatedEventId: { } related } && related == root.EventId
-                && item.IdempotencyKey.StartsWith("event-application-failed:", StringComparison.Ordinal)).ToArray();
-        foreach (var item in found) ValidateFailureNotification(root, item);
-        return found;
-    }
-
-    private static void ValidateFailureNotification(AuthoritativeEvent root, AuthoritativeEvent item)
-    {
-        string key = $"event-application-failed:{root.EventId}:{item.Target.UserId}:{item.Target.ColonyId}";
-        if (item.Type != ServerEventType.ServerNotification || item.Actor != new EventParty("server")
-            || item.IdempotencyKey != key || item.Payload is not ServerNotificationEventPayload payload
-            || payload.NotificationId != key || payload.FromAdministrator
-            || payload.RelatedEventId is not null && payload.RelatedEventId != root.EventId
-            || payload.RelatedEventType is not null && payload.RelatedEventType != root.Type)
-            throw new InvalidOperationException("Failure notification conflicts with its source.");
     }
 
     private static void SignalFailureReport(ClashOfRimNetworkState state, AuthoritativeEvent root,

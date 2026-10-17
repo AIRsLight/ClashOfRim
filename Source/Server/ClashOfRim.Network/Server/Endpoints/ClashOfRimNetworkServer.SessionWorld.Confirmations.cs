@@ -1,3 +1,4 @@
+using static AIRsLight.ClashOfRim.Network.Modules.Trades.TradeFailureEvidence;
 using AIRsLight.ClashOfRim.Compatibility;
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Network.Plugins;
@@ -486,7 +487,7 @@ public static partial class ClashOfRimNetworkServer
                 return Results.Ok(new ReportEventApplicationFailureResponse(reportValidation, ledgerEvent.EventId,
                     ledgerEvent.Status.ToString(), 0));
 
-            IReadOnlyList<AuthoritativeEvent> notifications = FindFailureNotifications(state, ledgerEvent);
+            IReadOnlyList<AuthoritativeEvent> notifications = Modules.Events.EventFailureNotifications.FindFailureNotifications(state.Ledger, ledgerEvent);
             if (ledgerEvent.Status == ServerEventStatus.Failed
                 || ledgerEvent.Status == ServerEventStatus.Conflict && notifications.Count > 0)
             {
@@ -544,15 +545,15 @@ public static partial class ClashOfRimNetworkServer
             affected[failed.EventId] = failed;
         }
 
-        if (TryResolveTradeOrderIdFromDelivery(state, rootEvent, out string? tradeOrderId))
+        if (TryResolveTradeOrderIdFromDelivery(state.Ledger, rootEvent, out string? tradeOrderId))
         {
-            CancelTradeApplicationAfterLandingFailure(state, tradeOrderId!, rootEvent, reason, nowUtc, affected);
+            state.TradeLifecycle.CancelTradeApplicationAfterLandingFailure(tradeOrderId!, rootEvent, nowUtc, affected);
         }
         else if (rootEvent.Type == ServerEventType.Trade
             && rootEvent.Payload is TradeEventPayload tradePayload
             && tradePayload.Stage is TradeStage.SelfDeliveryExchange or TradeStage.ServerDropPodExchange)
         {
-            CancelTradeApplicationAfterLandingFailure(state, tradePayload.TradeId, rootEvent, reason, nowUtc, affected);
+            state.TradeLifecycle.CancelTradeApplicationAfterLandingFailure(tradePayload.TradeId, rootEvent, nowUtc, affected);
         }
         else
         {
@@ -568,108 +569,6 @@ public static partial class ClashOfRimNetworkServer
                 ExpectedEvent: before[item.EventId])).ToArray();
         state.Ledger.ApplyBatch(new LedgerBatch(events, changes));
         return affected.Values.ToList();
-    }
-
-    private static bool TryResolveTradeOrderIdFromDelivery(
-        ClashOfRimNetworkState state,
-        AuthoritativeEvent ledgerEvent,
-        out string? tradeOrderId)
-    {
-        tradeOrderId = null;
-        if (ledgerEvent.Type != ServerEventType.ItemDelivery
-            || ledgerEvent.Payload is not ItemDeliveryEventPayload { IsTradeDelivery: true }
-            || IsTradeApplicationFailedOwnerReturnEvent(ledgerEvent))
-        {
-            return false;
-        }
-
-        if (!TryParseTradeOrderIdFromCompletedDeliveryIdempotencyKey(ledgerEvent.IdempotencyKey, out string? parsedTradeOrderId))
-        {
-            return false;
-        }
-
-        AuthoritativeEvent? tradeOrder = state.Ledger.Find(parsedTradeOrderId!);
-        if (tradeOrder is null
-            || tradeOrder.Type != ServerEventType.Trade
-            || tradeOrder.Payload is not TradeEventPayload { Stage: TradeStage.MarketOrder })
-        {
-            return false;
-        }
-
-        tradeOrderId = tradeOrder.EventId;
-        return true;
-    }
-
-    private static bool IsTradeApplicationFailedOwnerReturnEvent(AuthoritativeEvent ledgerEvent)
-    {
-        return ledgerEvent.Type == ServerEventType.ItemDelivery
-            && (ledgerEvent.IdempotencyKey.StartsWith("trade-application-failed-owner-return:", StringComparison.Ordinal)
-                || ledgerEvent.IdempotencyKey.StartsWith("trade-application-failed-acceptor-return:", StringComparison.Ordinal)
-                || ledgerEvent.Payload is ItemDeliveryEventPayload
-                {
-                    Purpose: ItemDeliveryPurpose.TradeApplicationFailedOwnerReturn
-                    or ItemDeliveryPurpose.TradeApplicationFailedAcceptorReturn
-                });
-    }
-
-    private static bool IsTradeCompletedDeliveryIdempotencyKey(string idempotencyKey, string tradeOrderId)
-    {
-        return IsTradeCompletedDeliveryIdempotencyKey(idempotencyKey, tradeOrderId, "trade-completed-owner-delivery:")
-            || IsTradeCompletedDeliveryIdempotencyKey(idempotencyKey, tradeOrderId, "trade-completed-acceptor-delivery:");
-    }
-
-    private static bool TryParseTradeOrderIdFromCompletedDeliveryIdempotencyKey(
-        string idempotencyKey,
-        out string? tradeOrderId)
-    {
-        tradeOrderId = null;
-        return TryParseTradeOrderIdFromCompletedDeliveryIdempotencyKey(idempotencyKey, "trade-completed-owner-delivery:", out tradeOrderId)
-            || TryParseTradeOrderIdFromCompletedDeliveryIdempotencyKey(idempotencyKey, "trade-completed-acceptor-delivery:", out tradeOrderId);
-    }
-
-    private static bool TryParseTradeOrderIdFromCompletedDeliveryIdempotencyKey(
-        string idempotencyKey,
-        string prefix,
-        out string? tradeOrderId)
-    {
-        tradeOrderId = null;
-        if (string.IsNullOrWhiteSpace(idempotencyKey)
-            || !idempotencyKey.StartsWith(prefix, StringComparison.Ordinal))
-        {
-            return false;
-        }
-
-        string rest = idempotencyKey[prefix.Length..];
-        int typeSeparator = rest.IndexOf(':');
-        if (typeSeparator <= 0)
-        {
-            return false;
-        }
-
-        int idEnd = rest.IndexOf(':', typeSeparator + 1);
-        if (idEnd <= typeSeparator + 1)
-        {
-            return false;
-        }
-
-        tradeOrderId = rest[..idEnd];
-        return true;
-    }
-
-    private static bool IsTradeCompletedDeliveryIdempotencyKey(
-        string idempotencyKey,
-        string tradeOrderId,
-        string prefix)
-    {
-        if (string.IsNullOrWhiteSpace(idempotencyKey)
-            || string.IsNullOrWhiteSpace(tradeOrderId)
-            || !idempotencyKey.StartsWith(prefix, StringComparison.Ordinal))
-        {
-            return false;
-        }
-
-        string rest = idempotencyKey[prefix.Length..];
-        return rest.StartsWith(tradeOrderId + ":", StringComparison.Ordinal);
     }
 
     private static IEnumerable<AuthoritativeEvent> CreateEventApplicationFailureNotifications(
@@ -692,7 +591,7 @@ public static partial class ClashOfRimNetworkServer
             string notificationId = $"event-application-failed:{rootEvent.EventId}:{target.UserId}:{target.ColonyId}";
             if (state.Ledger.FindByIdempotencyKey(notificationId) is { } existing)
             {
-                ValidateFailureNotification(rootEvent, existing);
+                Modules.Events.EventFailureNotifications.ValidateFailureNotification(rootEvent, existing);
                 yield return existing;
                 continue;
             }

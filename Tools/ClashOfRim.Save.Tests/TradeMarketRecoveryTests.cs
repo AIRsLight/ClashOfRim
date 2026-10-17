@@ -123,7 +123,7 @@ internal static class TradeMarketRecoveryTests
     private static void RecoveredGuard(Func<string, SaveSnapshotPackage> factory)
     {
         using var e = new Env(factory); string before = e.F.Evidence(); bool rejected = false;
-        try { Invoke("ApplyRecoveredTradeOrderExpirations", e.F.State, DateTimeOffset.UtcNow); } catch (InvalidOperationException) { rejected = true; }
+        try { e.F.State.TradeLifecycle.ApplyRecoveredTradeOrderExpirations(DateTimeOffset.UtcNow); } catch (InvalidOperationException) { rejected = true; }
         Require(rejected && before == e.F.Evidence(), "Recovered expiration helper accepted an unowned mutation scope.");
     }
     private static void Concurrent(Func<string, SaveSnapshotPackage> factory)
@@ -135,14 +135,9 @@ internal static class TradeMarketRecoveryTests
     }
     private static void Maintain(Env e, string kind)
     {
-        if (kind == "expiration") Invoke("ApplyTradeOrderExpirations", e.F.State, DateTimeOffset.UtcNow);
-        else Invoke("ApplyTradeOrderBaselineInvalidations", e.F.State,
+        if (kind == "expiration") e.F.State.TradeLifecycle.ApplyTradeOrderExpirations( DateTimeOffset.UtcNow);
+        else e.F.State.TradeLifecycle.ApplyTradeOrderBaselineInvalidations(
             new AdminBaselineSnapshot("admin", "colony", DateTimeOffset.UnixEpoch, new Dictionary<string, float> { ["Silver"] = 1 }, []), DateTimeOffset.UtcNow);
-    }
-    private static void Invoke(string name, params object[] args)
-    {
-        try { typeof(ClashOfRimNetworkServer).GetMethod(name, BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, args); }
-        catch (TargetInvocationException ex) when (ex.InnerException is not null) { ExceptionDispatchInfo.Capture(ex.InnerException).Throw(); throw; }
     }
     private static void Change(Env e, string change)
     {

@@ -26,6 +26,7 @@ if (args.FirstOrDefault() == "--baseline-invalidation-crash")
 
 var tests = new (string Name, Action Run)[]
 {
+    ("交易模块独立装配、命令重放、市场与跨层邮费", () => TradeModuleTests.Run(BuildFixturePackage)),
     ("礼物模块独立装配、回执、拒收及强制投送保护", () => GiftModuleTests.Run(BuildFixturePackage)),
     ("物品流转模块保留复杂包、文化与存储幂等", ItemTransferModuleTests.Run),
     ("服务端模块依赖、路由与恢复归属", () => ModuleBoundaryTests.RunAsync().GetAwaiter().GetResult()),

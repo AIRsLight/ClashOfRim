@@ -26,7 +26,7 @@ public static partial class ClashOfRimNetworkServer
             nowUtc);
     }
 
-    private static void RecordAuthoritativeEventAchievements(
+    internal static void RecordAuthoritativeEventAchievements(
         ClashOfRimNetworkState state,
         AuthoritativeEvent ledgerEvent,
         DateTimeOffset nowUtc)

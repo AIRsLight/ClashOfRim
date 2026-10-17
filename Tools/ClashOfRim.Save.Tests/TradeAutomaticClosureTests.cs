@@ -152,7 +152,7 @@ internal static class TradeAutomaticClosureTests
         ledger.Append(Order("old")); before = Snapshot(ledger);
         state = new(ledger: ledger, serverConfiguration: new ClashOfRimServerConfiguration(tradeOrderExpiration: TimeSpan.Zero));
         Require(Close(state, "expire") == 0 && before == Snapshot(ledger), "disabled expiration changed ledger");
-        Invoke("ApplyTradeOrderBaselineInvalidations", state, new AdminBaselineSnapshot("admin", "admin-colony", Now,
+        state.TradeLifecycle.ApplyTradeOrderBaselineInvalidations( new AdminBaselineSnapshot("admin", "admin-colony", Now,
             new Dictionary<string, float> { ["Steel"] = 1, ["Silver"] = 1 }, []), Now);
         Require(before == Snapshot(ledger), "valid definitions invalidated order");
     }
@@ -160,15 +160,10 @@ internal static class TradeAutomaticClosureTests
     private static int Close(ClashOfRimNetworkState state, string cause)
     {
         int before = state.Ledger.ListByType(ServerEventType.Trade).Count(item => item.Payload is TradeEventPayload { Stage: TradeStage.MarketOrder } && item.Status == ServerEventStatus.Cancelled);
-        if (cause == "expire") Invoke("ApplyTradeOrderExpirations", state, Now);
-        else return (int)Invoke("ApplyTradeOrderBaselineInvalidations", state,
+        if (cause == "expire") state.TradeLifecycle.ApplyTradeOrderExpirations( Now);
+        else return state.TradeLifecycle.ApplyTradeOrderBaselineInvalidations(
             new AdminBaselineSnapshot("admin", "admin-colony", Now, new Dictionary<string, float> { ["Silver"] = 1 }, []), Now)!;
         return state.Ledger.ListByType(ServerEventType.Trade).Count(item => item.Payload is TradeEventPayload { Stage: TradeStage.MarketOrder } && item.Status == ServerEventStatus.Cancelled) - before;
-    }
-    private static object? Invoke(string name, params object?[] args)
-    {
-        try { return typeof(ClashOfRimNetworkServer).GetMethod(name, BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, args); }
-        catch (TargetInvocationException ex) when (ex.InnerException is not null) { ExceptionDispatchInfo.Capture(ex.InnerException).Throw(); throw; }
     }
     private static AuthoritativeEvent Order(string key) => AuthoritativeEventFactory.Create(ServerEventType.Trade, new("seller", "seller-colony"), new("server"), key, false,
         new TradeEventPayload(key, TradeStage.MarketOrder, [new("steel", "Steel", 10)], [new("silver", "Silver", 20)], 0), Now.AddHours(-2));
