@@ -176,25 +176,25 @@ internal sealed partial class GameSuite
             if (cells.Length > 0) await Call(client, "designator.cells", new { map, designator = H(tool), cells });
         }
     }
-    async Task<JsonElement> CreateTrade(IReadOnlyList<string>? offerReferences = null)
+    async Task<JsonElement> CreateTrade(IReadOnlyList<string>? offerReferences = null, string client = "A")
     {
-        await Idle("A");
-        await Invoke("A", "OpenTradeOrderDialog");
-        var windows = Items(await Call("A", "ui.windows"));
+        await Idle(client);
+        await Invoke(client, "OpenTradeOrderDialog");
+        var windows = Items(await Call(client, "ui.windows"));
         string window = H(windows.Single(w => w.GetProperty("reference").String("type").EndsWith(".TradeOrderDialogWindow")));
-        await Call("A", "clash.trade.beacon", new { window, required = false });
+        await Call(client, "clash.trade.beacon", new { window, required = false });
         if (offerReferences is null)
         {
-            var steel = Items(await Call("A", "clash.trade.candidates", new { window, limit = 200 })).First(t => t.String("defName") == "Steel" && t.Int("count") >= 5);
-            await Call("A", "clash.trade.offer", new { window, thing = H(steel), count = 5 });
+            var steel = Items(await Call(client, "clash.trade.candidates", new { window, limit = 200 })).First(t => t.String("defName") == "Steel" && t.Int("count") >= 5);
+            await Call(client, "clash.trade.offer", new { window, thing = H(steel), count = 5 });
         }
-        else foreach (string thing in offerReferences) await Call("A", "clash.trade.offer", new { window, thing, count = 1 });
-        await Call("A", "clash.trade.request", new { window, defName = "WoodLog", count = 5, minimumHitPointsPercent = 50 });
-        await Call("A", "clash.trade.submit", new { window });
-        await Wait("A", "dialogs.messages", null, p => Items(p).Length == 1);
-        await Confirm("A"); await Idle("A");
-        await Invoke("A", "StartRefreshTradeOrders", new { scope = "Mine" });
-        var orders = await Wait("A", "clash.records", new { kind = "trades" }, p => Items(p).Length > 0);
+        else foreach (string thing in offerReferences) await Call(client, "clash.trade.offer", new { window, thing, count = 1 });
+        await Call(client, "clash.trade.request", new { window, defName = "WoodLog", count = 5, minimumHitPointsPercent = 50 });
+        await Call(client, "clash.trade.submit", new { window });
+        await Wait(client, "dialogs.messages", null, p => Items(p).Length == 1);
+        await Confirm(client); await Idle(client);
+        await Invoke(client, "StartRefreshTradeOrders", new { scope = "Mine" });
+        var orders = await Wait(client, "clash.records", new { kind = "trades" }, p => Items(p).Length > 0);
         return Items(orders).Single();
     }
     async Task AwaitStock(string client, string def, int expected)
@@ -229,9 +229,31 @@ internal sealed partial class GameSuite
         Check(await Stock("A", "Steel") == steelA - 5 && await Stock("B", "WoodLog") == woodB - 5, "Trade did not conserve offered/requested items.");
         await Idle("A"); await Idle("B");
     }
+    async Task TradeCaravanFulfill()
+    {
+        await Idle("A"); await Idle("B"); await StoreStartingResources("B");
+        int steel = await CaravanStock("Steel"), wood = await CaravanStock("WoodLog");
+        int sellerSteel = await Stock("B", "Steel"), sellerWood = await Stock("B", "WoodLog");
+        string previous = (await Call("A", "clash.state")).String("currentSnapshotId");
+        var order = await CreateTrade(client: "B"); string id = order.GetProperty("data").String("eventId");
+        await Invoke("A", "StartRefreshTradeOrders"); await Idle("A");
+        var listed = await Wait("A", "clash.records", new { kind = "trades" }, p => Items(p).Any(v => v.GetProperty("data").String("eventId") == id));
+        var buyer = Items(listed).Single(v => v.GetProperty("data").String("eventId") == id);
+        await Invoke("A", "StartAcceptTradeOrder", new { order = buyer.GetProperty("reference"), postagePaidByAcceptor = false }); await Idle("A");
+        listed = await Wait("A", "clash.records", new { kind = "trades" }, p => Items(p).Any(v => v.GetProperty("data").String("eventId") == id && v.GetProperty("data").Bool("viewerHasAccepted")));
+        buyer = Items(listed).Single(v => v.GetProperty("data").String("eventId") == id);
+        Check(await CaravanStock("WoodLog") == wood && await CaravanStock("Steel") == steel, "Accepting a memo changed caravan cargo.");
+        await Invoke("A", "OpenCaravanTradeFulfillmentMenu", new { caravan = new { handle = expedition }, orders = new[] { buyer.GetProperty("reference") } });
+        await ChooseOnlyMenu("A"); await Confirm("A"); await Idle("A");
+        Check(await CaravanStock("WoodLog") == wood - 5 && await CaravanStock("Steel") == steel + 5,
+            "Caravan fulfillment lost or duplicated exchanged cargo.");
+        Check((await Call("A", "clash.state")).String("currentSnapshotId") != previous, "Caravan exchange did not commit a snapshot.");
+        await AwaitStock("B", "WoodLog", sellerWood + 5); await Idle("B");
+        Check(await Stock("B", "Steel") == sellerSteel - 5, "Caravan seller escrow was not conserved.");
+    }
     async Task Alliance()
     {
-        await Idle("A"); await Invoke("A", "StartRefreshPlayers");
+        await Idle("A"); await Invoke("A", "StartRefreshPlayers"); await Idle("A");
         var players = await Wait("A", "clash.records", new { kind = "players" }, p => Items(p).Any(v => v.GetProperty("data").String("userId") == "rimtest-B"));
         var target = Items(players).Single(v => v.GetProperty("data").String("userId") == "rimtest-B");
         await Invoke("A", "StartCreateDiplomacyEvent", new { kind = "AllianceRequest", target = target.GetProperty("reference"), customMessage = "RimTest alliance" });

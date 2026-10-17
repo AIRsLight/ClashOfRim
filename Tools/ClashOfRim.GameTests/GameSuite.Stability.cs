@@ -10,7 +10,7 @@ internal sealed partial class GameSuite
     {
         "offline-delivery" => ["alliance-request-accept", "caravan-load-travel", "gift-offline-deferred-accept", "gift-offline-reject-return", "notification-offline-policy"],
         "account" => ["account-password-change", "account-achievements-before-abandon", "account-liabilities-before-abandon", "account-abandon-owner", "account-rebuild-owner", "account-achievements-new-generation", "account-abandon-guest", "account-rebuild-guest"],
-        "bank" => ["bank-input-rejection", "bank-overdue-repayment", "bank-mercenary-debt"],
+        "bank" => ["bank-input-rejection", "bank-overdue-repayment", "bank-mercenary-debt", "mercenary-guard-purchase"],
         "relocation" => ["relocation-caravan", "relocation-quest-site"],
         "gravship" => ["gravship-new-map", "gravship-quest-site"],
         "transfers" => ["alliance-request-accept", "remote-map-isolation-repeat", "pawn-state-fixture", "caravan-load-travel",
@@ -49,6 +49,7 @@ internal sealed partial class GameSuite
             await Case("bank-input-rejection", BankBounds);
             await Case("bank-overdue-repayment", BankOverdue);
             await Case("bank-mercenary-debt", BankDebt);
+            await Case("mercenary-guard-purchase", MercenaryGuardPurchase);
         }
         if (profile.Stability == "catalog") await Case("shop-complete-catalog", ShopCatalog);
         if (profile.Stability == "catalog-sample") await Case("shop-selected-catalog", ShopCatalog);

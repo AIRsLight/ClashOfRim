@@ -805,6 +805,16 @@ public sealed partial class ClashOfRimMod : Mod
         return true;
     }
 
+    private bool TryBeginManualSynchronization(
+        [NotNullWhen(true)] out ClientSynchronizationCoordinator.Lease? operation,
+        out string failureReason,
+        ClientSynchronizationCoordinator.Lease? continuation = null)
+    {
+        bool accepted = synchronization.TryBeginManual(out operation, continuation);
+        failureReason = accepted ? string.Empty : ClashOfRimText.Key("ClashOfRim.Sync.StatusBusy");
+        return accepted;
+    }
+
     private bool CanContinueManualSyncForLocalAtomicMutation(string operation, out string failureReason)
     {
         if (!settings.IsConfigured)

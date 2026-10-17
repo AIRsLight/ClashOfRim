@@ -24,12 +24,19 @@ internal sealed class ClientSynchronizationCoordinator
     internal bool IsBusy { get { lock (gate) return manual is not null || snapshot is not null; } }
     internal event Action<SnapshotTransactionNotice>? SnapshotChanged;
 
-    internal bool TryBeginManual([NotNullWhen(true)] out Lease? lease)
+    internal bool TryBeginManual([NotNullWhen(true)] out Lease? lease, Lease? continuation = null)
     {
         using var publication = ClientSessionWork.EnterPublication();
         lock (gate)
         {
             lease = null;
+            if (continuation is not null)
+            {
+                if (!ReferenceEquals(manual, continuation) || continuation.IsSnapshot
+                    || continuation.Generation != ClientSessionWork.Token) return false;
+                lease = continuation;
+                return true;
+            }
             if (manual is not null || snapshot is not null) return false;
             manual = lease = new Lease(this, false, string.Empty, utcNow(), ClientSessionWork.Token);
             return true;
@@ -86,22 +93,42 @@ internal sealed class ClientSynchronizationCoordinator
         lock (gate) { manual = null; snapshot = null; }
     }
 
-    private void Release(Lease lease)
+    private bool Owns(Lease lease)
+    {
+        lock (gate) return lease.Generation == ClientSessionWork.Token && ReferenceEquals(manual, lease);
+    }
+
+    private Lease TransferManual(Lease lease)
+    {
+        using var publication = ClientSessionWork.EnterPublication();
+        if (!Owns(lease) || lease.IsSnapshot)
+            throw new InvalidOperationException("Only the current manual operation can transfer its admission.");
+        lock (gate)
+        {
+            return manual = new Lease(this, false, lease.Caller, lease.StartedAtUtc, lease.Generation);
+        }
+    }
+
+    private void Release(Lease lease, Action? completed = null)
     {
         ClientSessionWork.TryApply(() =>
         {
-            if (lease.Generation != ClientSessionWork.Token) return;
+            if (!Owns(lease)) return;
             SnapshotTransactionNotice? notice = null;
-            lock (gate)
+            try { completed?.Invoke(); }
+            finally
             {
-                if (ReferenceEquals(snapshot, lease))
+                lock (gate)
                 {
-                    notice = Describe(SnapshotTransactionPhase.Ended, lease.Caller, false);
-                    snapshot = null;
+                    if (ReferenceEquals(snapshot, lease))
+                    {
+                        notice = Describe(SnapshotTransactionPhase.Ended, lease.Caller, false);
+                        snapshot = null;
+                    }
+                    if (ReferenceEquals(manual, lease)) manual = null;
                 }
-                if (ReferenceEquals(manual, lease)) manual = null;
+                if (notice is not null) SnapshotChanged?.Invoke(notice);
             }
-            if (notice is not null) SnapshotChanged?.Invoke(notice);
         });
     }
 
@@ -126,6 +153,30 @@ internal sealed class ClientSynchronizationCoordinator
         internal DateTime StartedAtUtc { get; }
         internal CancellationToken Generation { get; }
         public void Dispose() => owner.Release(this);
+        internal void Complete(Action completed) => owner.Release(this, completed);
+
+        // Transfer before enqueueing: the producer's finally can no longer release the
+        // queued operation. A promoted snapshot owns its own completion independently.
+        internal void QueueContinuation(Action<Action, Action> enqueue, Action<Lease> action, Action? completed = null)
+        {
+            Lease next = owner.TransferManual(this);
+            void Finish() => owner.Release(next, completed);
+            try
+            {
+                enqueue(() =>
+                {
+                    try
+                    {
+                        ClientSessionWork.TryApply(() =>
+                        {
+                            if (owner.Owns(next)) action(next);
+                        });
+                    }
+                    finally { Finish(); }
+                }, Finish);
+            }
+            catch { Finish(); throw; }
+        }
     }
 }
 

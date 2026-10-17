@@ -36,7 +36,11 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
-        manualSyncInProgress = true;
+        if (!TryBeginManualSynchronization(out var manualOperation, out failureReason))
+        {
+            eventQueueStatus = failureReason;
+            return;
+        }
         eventQueueStatus = ClashOfRimText.Key("ClashOfRim.Events.StatusRefreshing");
         ClientSessionWork.Run(async () =>
         {
@@ -121,10 +125,7 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                ClientSessionWork.TryApply(() =>
-                {
-                    manualSyncInProgress = false;
-                });
+                manualOperation.Dispose();
             }
         });
     }
@@ -137,7 +138,11 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
-        manualSyncInProgress = true;
+        if (!TryBeginManualSynchronization(out var manualOperation, out failureReason))
+        {
+            loginStatus = failureReason;
+            return;
+        }
         loginStatus = ClashOfRimText.Key("ClashOfRim.Login.StatusLoggingIn");
 
         ClientSessionWork.Run(async () =>
@@ -196,10 +201,7 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                ClientSessionWork.TryApply(() =>
-                {
-                    manualSyncInProgress = false;
-                });
+                manualOperation.Dispose();
             }
         });
     }

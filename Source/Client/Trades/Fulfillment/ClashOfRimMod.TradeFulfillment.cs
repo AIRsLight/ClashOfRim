@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Synchronization;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -55,7 +56,11 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
-        manualSyncInProgress = true;
+        if (!TryBeginManualSynchronization(out var manualOperation, out failureReason))
+        {
+            tradeStatus = failureReason;
+            return;
+        }
         tradeStatus = ClashOfRimText.Key("ClashOfRim.Trade.StatusAcceptingOrder", order.EventId.Named("EVENTID"));
         ClientSessionWork.Run(async () =>
         {
@@ -98,10 +103,7 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                ClientSessionWork.TryApply(() =>
-                {
-                    manualSyncInProgress = false;
-                });
+                manualOperation.Dispose();
             }
         });
     }
@@ -704,8 +706,12 @@ public sealed partial class ClashOfRimMod
         string baseSnapshotId = settings.CurrentSnapshotId;
         string idempotencyKey = $"trade-fulfill:{settings.UserId}:{order.EventId}:{order.ViewerAcceptedMemoEventId}:{caravan.GetUniqueLoadID()}:{DateTime.UtcNow.Ticks}";
         string operation = ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationTrade");
+        if (!TryBeginManualSynchronization(out var manualOperation, out failureReason))
+        {
+            tradeStatus = failureReason;
+            return;
+        }
         BeginLocalAtomicMutation(operation, ClashOfRimText.Key("ClashOfRim.Trade.StatusCaravanFulfillPreparing"));
-        manualSyncInProgress = true;
         tradeStatus = ClashOfRimText.Key("ClashOfRim.Trade.StatusSubmittingCaravanFulfill", order.EventId.Named("EVENTID"));
         ClientSessionWork.Run(async () =>
         {
@@ -717,7 +723,7 @@ public sealed partial class ClashOfRimMod
                     ClashOfRimClientNetworkContext.FromSettings(settings));
                 await ClientSessionWork.Observe(HydratePawnPackagesForTradeAsync(client, order.OfferedThings));
                 using var publication = ClientSessionWork.EnterPublication();
-                ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
+                manualOperation.QueueContinuation(EnqueueClashOfRimMainThreadAction, continuation =>
                 {
                     if (!TradeCaravanFulfillmentUtility.ApplyExchangeToCaravan(
                             caravan,
@@ -753,7 +759,8 @@ public sealed partial class ClashOfRimMod
                         idempotencyKey,
                         fulfillmentMode: "SelfDelivery",
                         baseSnapshotId,
-                        reservationMessage: applyMessage);
+                        reservationMessage: applyMessage,
+                        continuation);
                 });
             }
             catch (Exception ex)
@@ -766,10 +773,7 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                ClientSessionWork.TryApply(() =>
-                {
-                    manualSyncInProgress = false;
-                });
+                manualOperation.Dispose();
             }
         });
     }
@@ -853,7 +857,8 @@ public sealed partial class ClashOfRimMod
         string idempotencyKey,
         string fulfillmentMode,
         string baseSnapshotId,
-        string reservationMessage)
+        string reservationMessage,
+        ClientSynchronizationCoordinator.Lease? continuation = null)
     {
         string operation = ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationTrade");
         if (TryRejectBlockedByDifferentLocalAtomicMutation(operation, out string blockedMessage))
@@ -894,7 +899,8 @@ public sealed partial class ClashOfRimMod
             baseSnapshotId,
             reservationMessage,
             build.Package!,
-            build.Payload!);
+            build.Payload!,
+            continuation);
     }
 
     private void StartSubmitAppliedTradeFulfillmentWithSnapshot(
@@ -906,7 +912,8 @@ public sealed partial class ClashOfRimMod
         string baseSnapshotId,
         string reservationMessage,
         ModSnapshotPackageMetadataDto confirmedSnapshot,
-        byte[] confirmedPayload)
+        byte[] confirmedPayload,
+        ClientSynchronizationCoordinator.Lease? continuation = null)
     {
         string operation = ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationTrade");
         if (TryRejectBlockedByDifferentLocalAtomicMutation(operation, out string blockedMessage))
@@ -916,7 +923,7 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
-        if (!TryBeginSnapshotUploadTransaction(out var uploadTransaction))
+        if (!synchronization.TryAcquireSnapshot(out var uploadTransaction, continuation))
         {
             tradeStatus = ClashOfRimText.Key("ClashOfRim.SnapshotUpload.Busy");
             Messages.Message(tradeStatus, MessageTypeDefOf.RejectInput, historical: false);

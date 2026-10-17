@@ -424,6 +424,7 @@
   <ClashOfRim.Players.StatusCannotSelectSelf>Текущего игрока нельзя выбрать целью дипломатии.</ClashOfRim.Players.StatusCannotSelectSelf>
   <ClashOfRim.Sync.StatusNotConfigured>Адрес сервера, учетная запись или колония не настроены, синхронизация невозможна.</ClashOfRim.Sync.StatusNotConfigured>
   <ClashOfRim.Sync.StatusSnapshotMissing>Текущего серверного сохранения нет, удаленные сообщения нельзя синхронизировать.</ClashOfRim.Sync.StatusSnapshotMissing>
+  <ClashOfRim.Sync.StatusBusy>Операция синхронизации мультиплеера уже выполняется.</ClashOfRim.Sync.StatusBusy>
   <ClashOfRim.Events.StatusRefreshing>Обновление серверных сообщений.</ClashOfRim.Events.StatusRefreshing>
   <ClashOfRim.Events.StatusQueueFailed>Не удалось обновить серверные сообщения: {CODE} {MESSAGE}</ClashOfRim.Events.StatusQueueFailed>
   <ClashOfRim.Events.StatusQueueRejected>Обновление серверных сообщений отклонено: {CODE} {MESSAGE}</ClashOfRim.Events.StatusQueueRejected>

@@ -226,7 +226,11 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
-        manualSyncInProgress = true;
+        if (!TryBeginManualSynchronization(out var manualOperation, out failureReason))
+        {
+            eventQueueStatus = failureReason;
+            return;
+        }
         eventQueueStatus = ClashOfRimText.Key("ClashOfRim.Events.StatusPullingPending");
 
         ClientSessionWork.Run(async () =>
@@ -276,10 +280,7 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                ClientSessionWork.TryApply(() =>
-                {
-                    manualSyncInProgress = false;
-                });
+                manualOperation.Dispose();
             }
         });
     }
@@ -292,7 +293,11 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
-        manualSyncInProgress = true;
+        if (!TryBeginManualSynchronization(out var manualOperation, out failureReason))
+        {
+            eventQueueStatus = failureReason;
+            return;
+        }
         eventQueueStatus = ClashOfRimText.Key("ClashOfRim.Events.StatusWaitingOnline");
 
         ClientSessionWork.Run(async () =>
@@ -345,10 +350,7 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                ClientSessionWork.TryApply(() =>
-                {
-                    manualSyncInProgress = false;
-                });
+                manualOperation.Dispose();
             }
         });
     }
@@ -368,7 +370,11 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
-        manualSyncInProgress = true;
+        if (!TryBeginManualSynchronization(out var manualOperation, out failureReason))
+        {
+            eventDetailsStatus = failureReason;
+            return;
+        }
         eventDetailsStatus = ClashOfRimText.Key("ClashOfRim.Events.StatusPullingDetails");
 
         ClientSessionWork.Run(async () =>
@@ -420,10 +426,7 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                ClientSessionWork.TryApply(() =>
-                {
-                    manualSyncInProgress = false;
-                });
+                manualOperation.Dispose();
             }
         });
     }
@@ -1648,7 +1651,11 @@ public sealed partial class ClashOfRimMod
             return false;
         }
 
-        manualSyncInProgress = true;
+        if (!TryBeginManualSynchronization(out var manualOperation, out failureReason))
+        {
+            giftProcessingStatus = failureReason;
+            return false;
+        }
         giftProcessingStatus = ClashOfRimText.Key("ClashOfRim.GiftProcessing.RejectSubmitting");
         ClientSessionWork.Run(async () =>
         {
@@ -1700,10 +1707,7 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                ClientSessionWork.TryApply(() =>
-                {
-                    manualSyncInProgress = false;
-                });
+                manualOperation.Dispose();
             }
         });
 
@@ -1718,7 +1722,11 @@ public sealed partial class ClashOfRimMod
             return false;
         }
 
-        manualSyncInProgress = true;
+        if (!TryBeginManualSynchronization(out var manualOperation, out failureReason))
+        {
+            giftProcessingStatus = failureReason;
+            return false;
+        }
         giftProcessingStatus = ClashOfRimText.Key("ClashOfRim.Support.RejectSubmitting", supportDetail.EventId.Named("EVENTID"));
         ClientSessionWork.Run(async () =>
         {
@@ -1776,10 +1784,7 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                ClientSessionWork.TryApply(() =>
-                {
-                    manualSyncInProgress = false;
-                });
+                manualOperation.Dispose();
             }
         });
 

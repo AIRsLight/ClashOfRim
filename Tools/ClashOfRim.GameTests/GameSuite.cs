@@ -30,7 +30,7 @@ internal sealed partial class GameSuite
     "bank-loan-repayment", "shop-purchase-stock", "trade-cancel-refund", "trade-drop-pod-fulfillment", "alliance-request-accept",
     "ally-observation-close", "caravan-load-travel", "caravan-gift-accept", "support-send-early-return", "mercenary-hire", "mercenary-recall", "raid-open-settle",
     "unicode-chat-blank-rejection", "admin-action-permissions", "admin-role-grant-revoke", "admin-broadcast", "bank-input-rejection", "shop-buyback-stock-rejection", "trade-memo-cancel", "achievement-unlock-leaderboard",
-    "admin-kick-reconnect", "admin-ban-unban", "maintenance-password-rejection"];
+    "admin-kick-reconnect", "admin-ban-unban", "maintenance-password-rejection", "trade-caravan-fulfillment"];
     private static readonly string[] WorldCases = ["launch-profile", "shared-world-entry", "world-parameters", "world-geometry", "world-tile-data", "world-feature-identities",
     "storyteller-difficulty", "culture-references", "world-persistence", "storyteller-permission", "runtime-difficulty-sync", "snapshot-save-reload", "session-reconnect"];
     private static readonly string[] GiftReplayCases = ["alliance-request-accept", "caravan-load-travel", "caravan-gift-accept", "gift-repeat-accept"];
@@ -112,6 +112,7 @@ internal sealed partial class GameSuite
                 await Case("alliance-request-accept", Alliance);
                 await Case("ally-observation-close", ObserveAlly);
                 await Case("caravan-load-travel", Travel);
+                await Case("trade-caravan-fulfillment", TradeCaravanFulfill);
                 await Case("caravan-gift-accept", Gift);
                 await Case("support-send-early-return", Support);
                 await Case("mercenary-hire", Mercenary);

@@ -189,7 +189,11 @@ public sealed partial class ClashOfRimMod
             return false;
         }
 
-        manualSyncInProgress = true;
+        if (!TryBeginManualSynchronization(out var manualOperation, out failureReason))
+        {
+            giftProcessingStatus = failureReason;
+            return false;
+        }
         giftProcessingStatus = accepted
             ? ClashOfRimText.Key("ClashOfRim.EventLetter.DiplomacyRespondingAccept", detail.EventId.Named("EVENTID"))
             : ClashOfRimText.Key("ClashOfRim.EventLetter.DiplomacyRespondingReject", detail.EventId.Named("EVENTID"));
@@ -256,10 +260,7 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                ClientSessionWork.TryApply(() =>
-                {
-                    manualSyncInProgress = false;
-                });
+                manualOperation.Dispose();
             }
         });
 

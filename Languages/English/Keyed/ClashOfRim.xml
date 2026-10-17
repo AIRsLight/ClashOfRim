@@ -423,6 +423,7 @@
   <ClashOfRim.Players.StatusCannotSelectSelf>The current player cannot be selected as a diplomacy target.</ClashOfRim.Players.StatusCannotSelectSelf>
   <ClashOfRim.Sync.StatusNotConfigured>Server address, account, or colony is not configured, so sync cannot run.</ClashOfRim.Sync.StatusNotConfigured>
   <ClashOfRim.Sync.StatusSnapshotMissing>No current server save exists, so distant messages cannot sync.</ClashOfRim.Sync.StatusSnapshotMissing>
+  <ClashOfRim.Sync.StatusBusy>A multiplayer sync operation is already running.</ClashOfRim.Sync.StatusBusy>
   <ClashOfRim.Events.StatusRefreshing>Refreshing server messages.</ClashOfRim.Events.StatusRefreshing>
   <ClashOfRim.Events.StatusQueueFailed>Server message refresh failed: {CODE} {MESSAGE}</ClashOfRim.Events.StatusQueueFailed>
   <ClashOfRim.Events.StatusQueueRejected>Server message refresh rejected: {CODE} {MESSAGE}</ClashOfRim.Events.StatusQueueRejected>

@@ -424,6 +424,7 @@
   <ClashOfRim.Players.StatusCannotSelectSelf>현재 플레이어는 외교 대상으로 선택할 수 없습니다.</ClashOfRim.Players.StatusCannotSelectSelf>
   <ClashOfRim.Sync.StatusNotConfigured>서버 주소, 계정 또는 정착지가 설정되지 않아 동기화를 실행할 수 없습니다.</ClashOfRim.Sync.StatusNotConfigured>
   <ClashOfRim.Sync.StatusSnapshotMissing>현재 서버 저장이 없어 원격 메시지를 동기화할 수 없습니다.</ClashOfRim.Sync.StatusSnapshotMissing>
+  <ClashOfRim.Sync.StatusBusy>멀티플레이 동기화 작업이 이미 실행 중입니다.</ClashOfRim.Sync.StatusBusy>
   <ClashOfRim.Events.StatusRefreshing>서버 메시지를 새로고침 중입니다.</ClashOfRim.Events.StatusRefreshing>
   <ClashOfRim.Events.StatusQueueFailed>서버 메시지 새로고침 실패: {CODE} {MESSAGE}</ClashOfRim.Events.StatusQueueFailed>
   <ClashOfRim.Events.StatusQueueRejected>서버 메시지 새로고침이 거부되었습니다: {CODE} {MESSAGE}</ClashOfRim.Events.StatusQueueRejected>

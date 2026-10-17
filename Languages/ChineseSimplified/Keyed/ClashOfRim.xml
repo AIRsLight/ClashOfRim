@@ -423,6 +423,7 @@
   <ClashOfRim.Players.StatusCannotSelectSelf>不能选择当前玩家作为外交目标。</ClashOfRim.Players.StatusCannotSelectSelf>
   <ClashOfRim.Sync.StatusNotConfigured>服务器地址、账户或殖民地未配置，不能同步。</ClashOfRim.Sync.StatusNotConfigured>
   <ClashOfRim.Sync.StatusSnapshotMissing>当前没有服务器存档，不能同步远方消息。</ClashOfRim.Sync.StatusSnapshotMissing>
+  <ClashOfRim.Sync.StatusBusy>当前已有多人同步操作正在进行。</ClashOfRim.Sync.StatusBusy>
   <ClashOfRim.Events.StatusRefreshing>正在刷新服务器消息。</ClashOfRim.Events.StatusRefreshing>
   <ClashOfRim.Events.StatusQueueFailed>服务器消息刷新失败：{CODE} {MESSAGE}</ClashOfRim.Events.StatusQueueFailed>
   <ClashOfRim.Events.StatusQueueRejected>服务器消息刷新被拒绝：{CODE} {MESSAGE}</ClashOfRim.Events.StatusQueueRejected>

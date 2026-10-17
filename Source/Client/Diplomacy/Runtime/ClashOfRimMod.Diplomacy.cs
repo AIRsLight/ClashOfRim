@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Synchronization;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -47,9 +48,11 @@ public sealed partial class ClashOfRimMod
             }
         }
 
-        if (requireManualGate)
+        ClientSynchronizationCoordinator.Lease? manualOperation = null;
+        if (requireManualGate && !TryBeginManualSynchronization(out manualOperation, out failureReason))
         {
-            manualSyncInProgress = true;
+            playerListStatus = failureReason;
+            return;
         }
 
         playerListStatus = ClashOfRimText.Key("ClashOfRim.Players.StatusRefreshing");
@@ -120,13 +123,7 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                ClientSessionWork.TryApply(() =>
-                {
-                    if (requireManualGate)
-                    {
-                        manualSyncInProgress = false;
-                    }
-                });
+                manualOperation?.Dispose();
             }
         });
     }
@@ -240,7 +237,11 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
-        manualSyncInProgress = true;
+        if (!TryBeginManualSynchronization(out var manualOperation, out failureReason))
+        {
+            playerListStatus = failureReason;
+            return;
+        }
         ClientSessionWork.Run(async () =>
         {
             try
@@ -313,10 +314,7 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                ClientSessionWork.TryApply(() =>
-                {
-                    manualSyncInProgress = false;
-                });
+                manualOperation.Dispose();
             }
         });
     }

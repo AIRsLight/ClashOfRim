@@ -18,6 +18,8 @@ internal static class SynchronizationCoordinatorTests
             AdmissionAndPromotion();
             ContinuationAndDiagnostics();
             LateCompletionAndReset();
+            QueuedManualOwnership();
+            QueuedManualFailures();
             await ExpiredCallbacks();
             await CompetingAdmissions();
         }
@@ -154,6 +156,99 @@ internal static class SynchronizationCoordinatorTests
             accepted.Single().Dispose();
             Require(!sync.IsBusy, "Concurrent admission could not be released.");
         }
+    }
+
+    private static void QueuedManualOwnership()
+    {
+        var sync = new ClientSynchronizationCoordinator();
+        Require(sync.TryBeginManual(out var producer), "Producer was not admitted.");
+        Action run = null!, discard = null!;
+        int applied = 0, completed = 0;
+        ClientSynchronizationCoordinator.Lease? snapshot = null;
+        producer!.QueueContinuation((action, drop) => { run = action; discard = drop; }, continuation =>
+        {
+            applied++;
+            Require(sync.TryBeginManual(out var same, continuation) && ReferenceEquals(same, continuation),
+                "A synchronous preparation stage lost its manual ownership.");
+            Require(sync.TryAcquireSnapshot(out snapshot, continuation), "Queued preparation could not promote its own admission.");
+        }, () => completed++);
+        producer.Complete(() => completed++);
+        Require(sync.ManualInProgress && !sync.TryBeginManual(out _) && !sync.TryBeginManual(out _, producer)
+            && !sync.TryAcquireSnapshot(out _, producer), "The producer released or reused transferred admission.");
+        run();
+        run();
+        discard();
+        Require(applied == 1 && completed == 0 && sync.SnapshotInProgress,
+            "Queued work repeated or its finalizer cleared a promoted snapshot.");
+        snapshot!.Complete(() => completed++);
+        snapshot.Complete(() => completed++);
+        Require(!sync.IsBusy && completed == 1, "Snapshot completion did not run exactly once.");
+
+        Require(sync.TryBeginManual(out var first), "Producer rejected.");
+        Action second = null!;
+        first!.QueueContinuation((action, _) => run = action, next =>
+            next.QueueContinuation((action, _) => second = action, _ => applied++, () => completed++), () => completed++);
+        first.Dispose();
+        run();
+        Require(sync.ManualInProgress && applied == 1 && completed == 1, "Second handoff was released by the first queued stage.");
+        second();
+        Require(!sync.IsBusy && applied == 2 && completed == 2, "Chained continuation did not complete once.");
+    }
+
+    private static void QueuedManualFailures()
+    {
+        foreach (string outcome in new[] { "success", "discard", "enqueue-throw", "action-throw", "completion-throw", "reset", "new-session" })
+        {
+            ClientSessionWork.Reset();
+            var sync = new ClientSynchronizationCoordinator();
+            Require(sync.TryBeginManual(out var producer), "Producer rejected.");
+            Action run = null!, discard = null!;
+            int actions = 0, completions = 0;
+            try
+            {
+                producer!.QueueContinuation((action, drop) =>
+                {
+                    run = action; discard = drop;
+                    if (outcome == "enqueue-throw") throw new ApplicationException("queue failed");
+                }, _ =>
+                {
+                    actions++;
+                    if (outcome == "action-throw") throw new ApplicationException("apply failed");
+                }, () =>
+                {
+                    completions++;
+                    if (outcome == "completion-throw") throw new ApplicationException("completion failed");
+                });
+            }
+            catch (ApplicationException) when (outcome == "enqueue-throw") { }
+            producer!.Dispose();
+            bool replaced = outcome is "reset" or "new-session";
+            ClientSynchronizationCoordinator.Lease? newer = null;
+            if (replaced)
+            {
+                if (outcome == "new-session") ClientSessionWork.Reset();
+                sync.Reset();
+                Require(sync.TryBeginManual(out newer), "Reset failed to admit new work.");
+            }
+            try { if (outcome == "discard") discard(); else run(); }
+            catch (ApplicationException) when (outcome is "action-throw" or "completion-throw") { }
+            run(); // Duplicate/late queue invocation must be inert after completion or reset.
+            discard();
+            Require(actions == (outcome is "success" or "action-throw" or "completion-throw" ? 1 : 0)
+                && completions == (replaced ? 0 : 1) && sync.IsBusy == replaced,
+                "Incorrect queued ownership cleanup: " + outcome);
+            newer?.Dispose();
+        }
+
+        var foreign = new ClientSynchronizationCoordinator();
+        var owner = new ClientSynchronizationCoordinator();
+        Require(owner.TryBeginManual(out var lease), "Producer rejected.");
+        Require(!foreign.TryBeginManual(out _, lease), "Foreign coordinator accepted a manual continuation.");
+        lease!.Dispose();
+        bool queued = false;
+        try { lease.QueueContinuation((_, _) => queued = true, _ => { }); }
+        catch (InvalidOperationException) { }
+        Require(!queued, "Disposed manual operation queued work.");
     }
 
     private static void Require(bool condition, string message)

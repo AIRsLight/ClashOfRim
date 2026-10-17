@@ -84,4 +84,22 @@ internal sealed partial class GameSuite
         Check(BankPart(await Call("B", "clash.bank.quests"), "debts", id).Bool("completed"), "Repaid fine quest remained active.");
         await NoEconomicMutation("B", async () => { await Invoke("B", "StartRepayBankDebt", new { debt = record.GetProperty("reference") }); });
     }
+
+    async Task MercenaryGuardPurchase()
+    {
+        await Idle("B");
+        var before = await Call("B", "clash.state");
+        int price = ServerState.ServerConfiguration.MercenaryGuardApprenticeSilver;
+        await Call("B", "clash.fixture.bankCash", new { amount = price * 2, acknowledgeFixture = true });
+        await Invoke("B", "StartHireMercenaryGuard", new { tier = "Apprentice" }); await Idle("B");
+        var contract = ServerState.MercenaryGuards.FindActiveForColony(before.String("userId"), before.String("colonyId"));
+        Check(contract is not null && contract.PriceSilver == price && contract.Tier == "Apprentice"
+            && contract.PointRatio == ServerState.ServerConfiguration.MercenaryGuardApprenticePointsRatio,
+            "Guard purchase did not persist the quoted contract.");
+        Check(await Stock("B", "Silver") == price, "Guard purchase did not charge exactly once.");
+        Check((await Call("B", "clash.state")).String("currentSnapshotId") != before.String("currentSnapshotId"), "Guard purchase did not commit a snapshot.");
+        await NoEconomicMutation("B", async () => { await Invoke("B", "StartHireMercenaryGuard", new { tier = "Apprentice" }); });
+        Check(ServerState.MercenaryGuards.FindActiveForColony(before.String("userId"), before.String("colonyId"))?.ContractId == contract!.ContractId,
+            "Repeated purchase replaced an active guard.");
+    }
 }

@@ -424,6 +424,7 @@
   <ClashOfRim.Players.StatusCannotSelectSelf>現在のプレイヤーは外交対象に選択できません。</ClashOfRim.Players.StatusCannotSelectSelf>
   <ClashOfRim.Sync.StatusNotConfigured>サーバーアドレス、アカウント、またはコロニーが未設定のため、同期できません。</ClashOfRim.Sync.StatusNotConfigured>
   <ClashOfRim.Sync.StatusSnapshotMissing>現在のサーバーセーブがないため、遠隔メッセージを同期できません。</ClashOfRim.Sync.StatusSnapshotMissing>
+  <ClashOfRim.Sync.StatusBusy>マルチプレイ同期操作が既に実行中です。</ClashOfRim.Sync.StatusBusy>
   <ClashOfRim.Events.StatusRefreshing>サーバーメッセージを更新しています。</ClashOfRim.Events.StatusRefreshing>
   <ClashOfRim.Events.StatusQueueFailed>サーバーメッセージ更新に失敗しました: {CODE} {MESSAGE}</ClashOfRim.Events.StatusQueueFailed>
   <ClashOfRim.Events.StatusQueueRejected>サーバーメッセージ更新が拒否されました: {CODE} {MESSAGE}</ClashOfRim.Events.StatusQueueRejected>

@@ -2,7 +2,7 @@
 
 场景源为 `Tools/RimTestScenarios.json`，执行器为 `Tools/ClashOfRim.GameTests`，模组专用观察与原操作入口为 `Tools/ClashOfRim.RimTestBridge`。这是可执行验收目录，不是所有组合已通过的声明。结果必须看本次 `matrix.json`、各场景的 `report.json` / `junit.xml`，失败和未执行项均不算通过。
 
-当前目录包含 73 个独立用例 ID、35 个参数场景，完整执行计划为 630 次用例调用：原 11 场 214 次、10 场流转/商店专项 172 次、10 场银行/迁居/DLC 专项 162 次、2 场账户生命周期专项 44 次、2 场离线投递专项 38 次。这是目录计划，不代表同一构建已完整执行。夹具边界和压力实测见 [稳定性报告](rimtest-stability-2026-10-16.md)，账户专项见 [生命周期报告](rimtest-account-lifecycle-2026-10-17.md)。完整商品目录包含数百次逐项上架及购买，耗时明显高于普通业务场景。依赖失败时实际执行数会减少，报告保留 `notRun`。
+当前目录包含 75 个独立用例 ID、35 个参数场景，完整执行计划为 634 次用例调用：原 11 场现计划 216 次、10 场流转/商店专项 172 次、10 场银行/迁居/DLC 专项现计划 164 次、2 场账户生命周期专项 44 次、2 场离线投递专项 38 次。这是目录计划，不代表同一构建已完整执行。夹具边界和压力实测见 [稳定性报告](rimtest-stability-2026-10-16.md)，账户专项见 [生命周期报告](rimtest-account-lifecycle-2026-10-17.md)。完整商品目录包含数百次逐项上架及购买，耗时明显高于普通业务场景。依赖失败时实际执行数会减少，报告保留 `notRun`。
 
 ## 执行与证据
 
@@ -68,7 +68,7 @@ pwsh ./Tools/Test-RimTestMatrix.ps1 `
 
 共享派系比较排除 `ClashOfRim_PlayerProxy`：它是随玩家会话变化的投影，不能当作生成时的 NPC 派系。未启用 Ideology 时不比较隐藏的 NPC 意识形态；启用 DLC 的场景仍逐项检查文化、信条和引用。存档重载和重连同时比较 WorldInfo、NPC 派系及完整世界摘要，避免仅凭世界 ID 相同放过损坏。
 
-## 两个完整业务场景额外断言（28 项）
+## 两个完整业务场景额外断言（29 项）
 
 | 功能 | 用例 ID 与断言 |
 | --- | --- |
@@ -78,7 +78,7 @@ pwsh ./Tools/Test-RimTestMatrix.ps1 `
 | 会话管理 | `admin-kick-reconnect`；`admin-ban-unban` 封禁阻止登录、解除后可登录；`maintenance-password-rejection` 错密码及维护封锁、解除后恢复 |
 | 银行 | `bank-input-rejection` 零、负数、极大额及非法期限不改库存/快照；`bank-loan-repayment` 放款到账、重复借款拒绝、还款扣款、重复还款不重复扣款 |
 | 商店 | `shop-purchase-stock` 上架、购买、扣款/到账、库存、下架；`shop-buyback-stock-rejection` 回收、超库存拒绝、耗尽后重复购买无副作用 |
-| 交易 | `trade-cancel-refund`；`trade-memo-cancel` 接单备忘不提前交货、撤销备忘不动卖家托管；`trade-drop-pod-fulfillment` 真实运输舱到账和双方守恒 |
+| 交易 | `trade-cancel-refund`；`trade-memo-cancel` 接单备忘不提前交货、撤销备忘不动卖家托管；`trade-drop-pod-fulfillment` 真实运输舱到账和双方守恒；`trade-caravan-fulfillment` 使用实际行进后的远行队、原履约菜单和确认，检查商队货物/卖家库存守恒及快照提交 |
 | 成就 | `achievement-unlock-leaderboard` 十次真实成交触发 trades_10、单份权威聚合、他人榜单可见 |
 | 外交/地图 | `alliance-request-accept`；`ally-observation-close` 原观察地图/关闭；`caravan-load-travel` 实际装载、原路径行进 |
 | 赠送 | `caravan-gift-accept` 原远行队入口、物品守恒；`gift-repeat-accept` 在独立场景中检查重复接受和刷新不重复交付 |
@@ -91,6 +91,8 @@ pwsh ./Tools/Test-RimTestMatrix.ps1 `
 重复礼物已经复现了额外物资，因此将它移到独立场景，防止污染主功能链路后续的支援、雇佣、袭击检查。它仍在默认矩阵中运行、仍要求库存不变，失败照常使矩阵失败；没有删除断言或标记为预期通过。
 
 登录等待同时要求入口实际启动、认证结束和新的游戏 epoch。认证成功早于存档替换，不能只观察“已在线 + 有地图”。初次进入和恢复快照共用同一夹具：推进 600 tick 让运输舱落地，再征召殖民者固定经济断言的库存；初始权威快照可能还包含未打开的开局运输舱。该推进是真实游戏模拟，不直接写库存。
+
+联盟请求先等待玩家列表刷新结束，再读取目标玩家并发送请求。列表缓存中的旧记录不代表这次刷新已完成；否则后续请求可能被正在进行的同步拒绝。等待条件修正不改变联盟投递与接受断言。
 
 退出通过 RimTest 的 `game.returnToMenu` 调用原版 `GenScene.GoToMainMenu`，因此正常触发模组登出钩子并卸载游戏。上传完成后才允许丢弃当前本地场景，并等待菜单就绪。仅调用模组退出钩子而继续保留游戏组件运行会触发自动重连，不能用来模拟“守方离线”。
 
@@ -149,6 +151,8 @@ pwsh ./Tools/Test-RimTestMatrix.ps1 `
 新增 10 个配置，当前场景目录合计 31 个配置。此次专项选取 10 次完整通过运行，共 162 次用例调用、21 个不同用例；不是一次固定构建全绿，也不替代前面历史测试。覆盖贷款/逾期/佣兵死亡欠款、远行队和任务地点迁居、飞船新地图与已有地图落地，以及单 DLC/全 DLC 状态保存。
 
 实测修复了旧债务记录重复扣款、任务地图缺少迁居接管、旧地图清理跨线程三项问题。详情与未覆盖范围见 [专项报告](rimtest-bank-relocation-2026-10-16.md)，报告/构建哈希及失败记录见 [验收 JSON](rimtest-bank-relocation-results-2026-10-16.json)。
+
+2026-10-17 的同步模块迁移新增 `mercenary-guard-purchase`，在 `bank-core` / `bank-all-dlc` 执行目录中各增加一项。它复用现有银行现金夹具，通过原守卫购买入口验证合同等级、服务器配置价格与点数比例、精确扣款和快照更新，再次购买必须保留同一合同且无经济变更。本轮实际执行范围和结果见 [M3b2a 记录](partial-module-audit-2026-10-17.md#m3b2a-手工请求银行准备与主线程交接)。
 
 ## 账户生命周期与成就专项（2026-10-17）
 
