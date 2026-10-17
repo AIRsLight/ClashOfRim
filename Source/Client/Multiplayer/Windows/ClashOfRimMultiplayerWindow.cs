@@ -139,6 +139,7 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
     private readonly Dictionary<string, PlayerLocationCacheEntry> playerLocationCache = new(StringComparer.Ordinal);
     private int playerLocationCachePlayersVersion = -1;
     private int cachedServerShopVersion = -1;
+    private IReadOnlyList<ModServerShopListingDto> cachedServerShopListings = Array.Empty<ModServerShopListingDto>();
     private int cachedServerShopSellToPlayerCount;
     private int cachedServerShopBuyFromPlayerCount;
     private IReadOnlyList<ModServerShopListingDto> cachedServerShopSellToPlayerListings = new List<ModServerShopListingDto>();
@@ -382,6 +383,7 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
         }
 
         List<ModServerShopListingDto> listings = mod.ServerShopListingsSnapshot;
+        cachedServerShopListings = listings;
         cachedServerShopSellToPlayerListings = listings
             .Where(listing => !IsServerShopBuyOrder(listing))
             .ToList();

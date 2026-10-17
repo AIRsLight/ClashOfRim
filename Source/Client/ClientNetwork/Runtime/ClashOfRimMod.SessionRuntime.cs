@@ -153,7 +153,7 @@ public sealed partial class ClashOfRimMod
         caravanArrivalTargetRefreshInProgress = false;
         bankState.Reset();
         mercenaryInProgress = false;
-        serverShopInProgress = false;
+        shopState.Reset();
         adminInProgress = false;
         tradeState.Reset();
         chatRefreshInProgress = false;
@@ -178,8 +178,6 @@ public sealed partial class ClashOfRimMod
             lastPlayers.Clear();
             lastWorldMapMarkers.Clear();
             playersSnapshotVersion++;
-            lastServerShopListings.Clear();
-            serverShopListingsSnapshotVersion++;
         }
 
         lock (chatStateLock)

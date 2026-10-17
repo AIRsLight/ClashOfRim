@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Linq;
 using AIRsLight.ClashOfRim;
 using AIRsLight.ClashOfRim.ClientNetwork;
+using AIRsLight.ClashOfRim.Modules.Shop;
 using AIRsLight.ClashOfRim.ThirdPartyCompatibility;
 using AIRsLight.ClashOfRim.Trades;
 using RimWorld;
@@ -16,7 +17,7 @@ public sealed class ServerShopListingDialogWindow : Window
 {
     private static List<ThingDef>? cachedSearchableThingDefs;
 
-    private readonly ClashOfRimMod mod;
+    private readonly Action<ClientShopListingEdit> save;
     private readonly ModServerShopListingDto? listing;
     private Vector2 searchScrollPosition;
     private string searchText = string.Empty;
@@ -36,8 +37,11 @@ public sealed class ServerShopListingDialogWindow : Window
     private string? lastSuggestedPriceKey;
 
     public ServerShopListingDialogWindow(ClashOfRimMod mod, ModServerShopListingDto? listing)
+        : this(mod.ShopCatalog, listing) { }
+
+    internal ServerShopListingDialogWindow(ClientShopCatalog catalog, ModServerShopListingDto? listing)
     {
-        this.mod = mod;
+        save = catalog.BindUpsert();
         this.listing = listing;
         selectedItem = CloneThingReference(listing?.Item);
         stockText = listing?.StockCount.ToString() ?? "1";
@@ -96,15 +100,8 @@ public sealed class ServerShopListingDialogWindow : Window
         if (Widgets.ButtonText(saveRect, ClashOfRimText.Key("ClashOfRim.Admin.Save"), active: canSave))
         {
             selectedItem!.StackCount = Math.Max(1, itemCount);
-            mod.StartUpsertServerShopListing(
-                listing?.ListingId,
-                listingKind,
-                selectedItem!,
-                price,
-                stock,
-                priceIncreaseRatio,
-                qualityRequirementMode,
-                hitPointsRequirementMode);
+            save(new(listing?.ListingId, listingKind, selectedItem!, price, stock, priceIncreaseRatio,
+                qualityRequirementMode, hitPointsRequirementMode));
             Close();
         }
     }

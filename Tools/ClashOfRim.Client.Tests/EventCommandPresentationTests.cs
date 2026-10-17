@@ -51,6 +51,7 @@ internal static class EventCommandPresentationTests
                 BankPresentation();
                 GiftPresentation();
                 TradePresentation();
+                ShopPresentation();
                 foreach (var purpose in Enum.GetValues<ClientEventConfirmationPurpose>())
                 {
                     var notice = new ClientEventConfirmationNotice(purpose, ClientEventConfirmationStage.Uploading,
@@ -180,6 +181,25 @@ internal static class EventCommandPresentationTests
                     if (!text.Contains("code") || !text.Contains("read-reason")) throw new Exception("Read failure lost diagnostic fields.");
                 }
             }
+        }
+    }
+
+    private static void ShopPresentation()
+    {
+        var view = new AIRsLight.ClashOfRim.ServerShop.ClientShopPresentation();
+        RequireResolved(view.NotAdministrator);
+        foreach (var admission in new[] { LocalMutationAdmission.NotConfigured, LocalMutationAdmission.SnapshotMissing, LocalMutationAdmission.PendingMutation })
+            RequireResolved(view.Admission(admission, new(LocalMutationKind.Shop, "pending", default)));
+        foreach (string key in new[] { "StatusIdle", "StatusRefreshing", "StatusSavingListing", "StatusRemovingListing", "StatusMissingListing", "StatusListingSaved", "StatusListingRemoved" })
+            RequireResolved(view.Text(key));
+        RequireResolved(view.Text("StatusRefreshed", ("COUNT", 17)));
+        RequireResolved(view.Text("StatusException", ("TYPE", "InvalidOperationException"), ("MESSAGE", "exception")));
+        foreach (string prefix in new[] { "StatusRefresh", "StatusSave", "StatusRemove" })
+        foreach (string suffix in new[] { "Failed", "Rejected" })
+        {
+            string text = view.Text(prefix + suffix, ("CODE", "error-code"), ("MESSAGE", "server-message"));
+            RequireResolved(text);
+            if (!text.Contains("error-code") || !text.Contains("server-message")) throw new Exception("Shop status lost server diagnostic fields.");
         }
     }
 

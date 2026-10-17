@@ -66,6 +66,7 @@ var tests = new (string Name, Action Run)[]
     ("gift rejection sends recipient authentication", GiftRejectionTransportTests.Run),
     ("support closure sends recipient authentication", SupportClosureTransportTests.Run),
     ("trade commands send colony authentication", TradeCommandTransportTests.Run),
+    ("shop catalog owns cache, administration and exact request lifecycle", ClientShopCatalogTests.Run),
     ("shop protocol owns four contracts, captured authentication and snapshots", ClientShopProtocolTests.Run),
     ("shared shop pricing preserves rounding, bounds and lifetime counts", ServerShopPricingTests.Run),
     ("transport pod gifts use retryable authenticated snapshots", TransportPodGiftTests.Run),

@@ -1,3 +1,5 @@
+using AIRsLight.ClashOfRim.Modules.Shop;
+using AIRsLight.ClashOfRim.ServerShop;
 using AIRsLight.ClashOfRim.Modules.Trades;
 using AIRsLight.ClashOfRim.Modules.Gifts;
 using AIRsLight.ClashOfRim.Modules.Bank;
@@ -65,6 +67,9 @@ public sealed partial class ClashOfRimMod : Mod
     private readonly ClientTradeState tradeState;
     private readonly ClientTradeMarket tradeMarket;
     private readonly ClientTradeActions tradeActions;
+    private readonly ClientShopState shopState;
+    private readonly ClientShopCatalog shopCatalog;
+    internal ClientShopCatalog ShopCatalog => shopCatalog;
     internal ClientTradeActions TradeActions => tradeActions;
     private readonly ClientGiftActions giftActions;
     internal ClientGiftActions GiftActions => giftActions;
@@ -86,7 +91,6 @@ public sealed partial class ClashOfRimMod : Mod
     private bool playerColonySiteRegistrationSuppressed;
     private bool caravanArrivalTargetRefreshInProgress;
     private bool mercenaryInProgress;
-    private bool serverShopInProgress;
     private bool adminInProgress;
     private bool isAdministrator;
     private string? lastRegisteredPlayerColonySiteSignature;
@@ -100,7 +104,8 @@ public sealed partial class ClashOfRimMod : Mod
     private string tradeStatus { get => tradeState.Message; set => tradeState.Message = value; }
     private string worldMapStatus = string.Empty;
     private string mercenaryStatus = string.Empty;
-    private string serverShopStatus = string.Empty;
+    // Transitional status bridge for local shop settlement, pending M6f3.
+    private string serverShopStatus { get => shopState.Message; set => shopState.Message = value; }
     private string chatStatus = string.Empty;
     private string adminStatus = string.Empty;
     private string serverCompatibilityManifestJson = string.Empty;
@@ -130,8 +135,6 @@ public sealed partial class ClashOfRimMod : Mod
     private string achievementTargetUserId = string.Empty;
     private string achievementTargetColonyId = string.Empty;
     private string achievementStatus = string.Empty;
-    private readonly List<ModServerShopListingDto> lastServerShopListings = new();
-    private int serverShopListingsSnapshotVersion;
     private readonly List<ModChatMessageDto> lastChatMessages = new();
     private readonly List<ModWorldMapMarkerDto> lastWorldMapMarkers = new();
     private readonly Dictionary<string, ModPlayerColonySiteDto> occupiedPlayerColonySites = new(StringComparer.Ordinal);
@@ -167,6 +170,9 @@ public sealed partial class ClashOfRimMod : Mod
         bankState = new ClientBankState(sessionLifecycle, new ClientSnapshotGame(), bankPresentation);
         var snapshotTransactions = new ClientSnapshotTransaction(sessionLifecycle, new ClientSnapshotGame(), snapshotPublication);
         var mutationAdmission = new ClientSnapshotMutationAdmission(sessionLifecycle, synchronization, localMutations, snapshotTransactions);
+        var shopPresentation = new ClientShopPresentation();
+        shopState = new ClientShopState(sessionLifecycle, new ClientSnapshotGame(), shopPresentation);
+        shopCatalog = new ClientShopCatalog(shopState, localMutations, new ClientShopCatalogTransport(), shopPresentation, () => isAdministrator);
         var tradePresentation = new ClientTradeMarketPresentation();
         tradeState = new ClientTradeState(sessionLifecycle, new ClientSnapshotGame(), tradePresentation);
         tradeMarket = new ClientTradeMarket(sessionLifecycle, tradeState, localMutations, mutationAdmission,
@@ -300,7 +306,7 @@ public sealed partial class ClashOfRimMod : Mod
 
     internal bool MercenaryInProgress => mercenaryInProgress;
 
-    internal bool ServerShopInProgress => serverShopInProgress;
+    internal bool ServerShopInProgress => shopState.Busy;
 
     internal bool PresenceInProgress => sessionConnection.IsRunning;
 
@@ -644,27 +650,9 @@ public sealed partial class ClashOfRimMod : Mod
 
     internal int TradeOrdersSnapshotVersion => tradeState.Version;
 
-    internal List<ModServerShopListingDto> ServerShopListingsSnapshot
-    {
-        get
-        {
-            lock (eventStateLock)
-            {
-                return lastServerShopListings.ToList();
-            }
-        }
-    }
+    internal List<ModServerShopListingDto> ServerShopListingsSnapshot => shopState.CopyListings();
 
-    internal int ServerShopListingsSnapshotVersion
-    {
-        get
-        {
-            lock (eventStateLock)
-            {
-                return serverShopListingsSnapshotVersion;
-            }
-        }
-    }
+    internal int ServerShopListingsSnapshotVersion => shopState.Version;
 
     internal List<ModPlayerSummaryDto> PlayersSnapshot
     {

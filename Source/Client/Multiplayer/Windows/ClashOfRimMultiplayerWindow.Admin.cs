@@ -146,7 +146,8 @@ public sealed partial class ClashOfRimMultiplayerWindow
 
     private void DrawAdminShopPanel(Rect rect, ClashOfRimMod mod)
     {
-        IReadOnlyList<ModServerShopListingDto> listings = mod.ServerShopListingsSnapshot;
+        RefreshServerShopListingCache(mod);
+        IReadOnlyList<ModServerShopListingDto> listings = cachedServerShopListings;
         Rect view = BeginAdminScroll(rect, Math.Max(rect.height, 80f + listings.Count * 54f));
         float y = 0f;
         DrawAdminSectionTitle(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.SectionShop"));
@@ -242,7 +243,7 @@ public sealed partial class ClashOfRimMultiplayerWindow
         {
             Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation(
                 ClashOfRimText.Key("ClashOfRim.Shop.ConfirmRemove", label.Named("THING")),
-                () => mod.StartRemoveServerShopListing(listing)));
+                mod.ShopCatalog.BindRemove(listing.ListingId)));
         }
     }
 
