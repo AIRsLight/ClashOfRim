@@ -99,24 +99,13 @@ internal sealed class ClientEventConfirmation
                 TryApply(attempt, () => failed(new(ClientEventConfirmationFailureKind.Rejected, result, response)));
                 return;
             }
-            var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            using var cancellation = attempt.Owner.Token.Register(() => completion.TrySetCanceled(attempt.Owner.Token));
-            if (!TryApply(attempt, () => attempt.Game.Enqueue(() =>
+            await ClientGamePublication.EnqueueAsync(attempt.Game.Enqueue, attempt.Owner.Token,
+                action => TryApply(attempt, action), () =>
                 {
-                    try
-                    {
-                        TryApply(attempt, () =>
-                        {
-                            // Publication retains admission; the domain callback can start
-                            // the next queued refresh only after publication releases it.
-                            publicationStarted = true;
-                            accepted(result.Response);
-                        });
-                        completion.TrySetResult();
-                    }
-                    catch (Exception ex) { completion.TrySetException(ex); throw; }
-                }, () => completion.TrySetResult()))) return;
-            await completion.Task.ConfigureAwait(false);
+                    // Retain admission until publication starts on the owning game.
+                    publicationStarted = true;
+                    accepted(result.Response);
+                }).ConfigureAwait(false);
         }
         catch (Exception ex)
         {

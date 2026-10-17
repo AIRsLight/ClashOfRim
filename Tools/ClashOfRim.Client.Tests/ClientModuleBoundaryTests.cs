@@ -24,13 +24,21 @@ internal static class ClientModuleBoundaryTests
             || t == typeof(ClientEventConfirmationEffects) || t == typeof(ClientEventConfirmationPresentation) || t == typeof(SnapshotConfirmationFailureWindow)
             || t == typeof(ClientEventLetterPolicy) || t == typeof(ClientEventLetterRenderer)
             || t == typeof(ClientEventLetterRuntime) || t == typeof(ClientDiplomacyPresentation)
+            || t == typeof(ClientEventDecisionPresentation) || t == typeof(ClientEventDecisionRuntime)
             || t == typeof(ClientEventReadPresentation) || t == typeof(ClashOfRimEventLetterProjection)
             || t.Namespace?.Split('.')[0] is "Verse" or "RimWorld" or "UnityEngine");
         if (modules.Length == 0 || violations.Count != 0)
             throw new InvalidOperationException("Client module boundaries: " + string.Join(Environment.NewLine, violations));
         Console.WriteLine($"Client module dependency guard checked {modules.Length} product and generated types.");
+        var sessionModules = modules.Where(t => t.Namespace == "AIRsLight.ClashOfRim.Modules.Sessions").ToArray();
+        var sessionViolations = ModuleDependencyGuard.FindViolations(sessionModules,
+            t => t.Namespace?.StartsWith("AIRsLight.ClashOfRim.Modules.Snapshots", StringComparison.Ordinal) == true
+                || t.Namespace?.StartsWith("AIRsLight.ClashOfRim.Modules.Events", StringComparison.Ordinal) == true);
+        if (sessionViolations.Count != 0)
+            throw new InvalidOperationException("Session foundation depends on an event/snapshot domain: " + string.Join(Environment.NewLine, sessionViolations));
         Type[] eventAdapters = { typeof(ClientEventLetterPolicy), typeof(ClientEventLetterRenderer), typeof(ClientEventLetterRuntime),
             typeof(ClientDiplomacyPresentation), typeof(ClientEventTextFormatting), typeof(ClientEventReadPresentation),
+            typeof(ClientEventDecisionPresentation), typeof(ClientEventDecisionRuntime),
             typeof(ClientEventConfirmationPresentation), typeof(ClientEventConfirmationEffects), typeof(ClientSnapshotPreparationPresentation),
             typeof(ClientSnapshotFailureView), typeof(SnapshotConfirmationFailureWindow) };
         var adapterTypes = typeof(ClashOfRimMod).Assembly.GetTypes().Where(t => eventAdapters.Contains(t)

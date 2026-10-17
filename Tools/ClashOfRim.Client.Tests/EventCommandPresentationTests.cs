@@ -6,22 +6,29 @@ using System.Linq;
 using System.Xml.Linq;
 using AIRsLight.ClashOfRim;
 using AIRsLight.ClashOfRim.EventLetters;
+using AIRsLight.ClashOfRim.Diplomacy;
+using AIRsLight.ClashOfRim.Protocol;
+using RimWorld;
 using AIRsLight.ClashOfRim.Modules.Events;
 using AIRsLight.ClashOfRim.Modules.Snapshots;
 using AIRsLight.ClashOfRim.Modules.Synchronization;
 using HarmonyLib;
 using Verse;
 
-internal static class EventConfirmationPresentationTests
+internal static class EventCommandPresentationTests
 {
     private static Dictionary<string, string> translations = new();
+    private static readonly List<(string? User, FactionRelationKind Relation)> relations = new();
+    private static bool relationAvailable;
     internal static void Run()
     {
         var harmony = new Harmony("ClashOfRim.Tests.EventConfirmationPresentation");
         harmony.Patch(AccessTools.Method(typeof(ClashOfRimText), "Key", new[] { typeof(string) }),
-            prefix: new HarmonyMethod(typeof(EventConfirmationPresentationTests), nameof(Translate)));
+            prefix: new HarmonyMethod(typeof(EventCommandPresentationTests), nameof(Translate)));
         harmony.Patch(AccessTools.Method(typeof(ClashOfRimText), "Key", new[] { typeof(string), typeof(NamedArgument[]) }),
-            prefix: new HarmonyMethod(typeof(EventConfirmationPresentationTests), nameof(TranslateArguments)));
+            prefix: new HarmonyMethod(typeof(EventCommandPresentationTests), nameof(TranslateArguments)));
+        harmony.Patch(AccessTools.Method(typeof(PlayerFactionProxyUtility), nameof(PlayerFactionProxyUtility.SetPlayerRelation)),
+            prefix: new HarmonyMethod(typeof(EventCommandPresentationTests), nameof(ApplyRelation)));
         var originalCulture = CultureInfo.CurrentCulture;
         try
         {
@@ -34,6 +41,7 @@ internal static class EventConfirmationPresentationTests
             {
                 CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(culture);
                 translations = XDocument.Load(file).Root!.Elements().ToDictionary(e => e.Name.LocalName, e => e.Value);
+                DecisionPresentation();
                 foreach (var purpose in Enum.GetValues<ClientEventConfirmationPurpose>())
                 {
                     var notice = new ClientEventConfirmationNotice(purpose, ClientEventConfirmationStage.Uploading,
@@ -74,6 +82,39 @@ internal static class EventConfirmationPresentationTests
         }
         finally { CultureInfo.CurrentCulture = originalCulture; harmony.UnpatchAll(harmony.Id); translations.Clear(); }
     }
+
+    private static void DecisionPresentation()
+    {
+        foreach (var kind in new[] { ClientEventDecisionKind.RejectGift, ClientEventDecisionKind.RejectSupport,
+            ClientEventDecisionKind.AcceptDiplomacy, ClientEventDecisionKind.RejectDiplomacy })
+        foreach (var stage in Enum.GetValues<ClientEventDecisionStage>())
+        {
+            var notice = new ClientEventDecisionNotice(kind, stage, "event-é", "code", "server-message", new InvalidOperationException("exception"),
+                LocalMutationAdmission.SnapshotMissing, Receipt: new(new() { Accepted = true }, "return-event", true));
+            RequireResolved(ClientEventDecisionPresentation.Format(notice));
+            if (stage == ClientEventDecisionStage.Accepted && kind is ClientEventDecisionKind.AcceptDiplomacy or ClientEventDecisionKind.RejectDiplomacy)
+            {
+                string duplicate = ClientEventDecisionPresentation.Format(notice with
+                { Receipt = new(new() { Accepted = true, ErrorCode = (int)ProtocolErrorCode.DuplicateRequest, Message = "already processed" }) });
+                if (duplicate != "already processed") throw new Exception("Duplicate diplomacy response was presented as a newly accepted/rejected request.");
+            }
+        }
+        int refreshed = 0;
+        var runtime = new ClientEventDecisionRuntime(_ => refreshed++);
+        relations.Clear(); relationAvailable = true;
+        runtime.ApplyDiplomacyRelation("actor", "hOsTiLe", ServerEventType.AllianceRequest);
+        runtime.ApplyDiplomacyRelation("actor", "Neutral", ServerEventType.AllianceRequest);
+        relationAvailable = false;
+        runtime.ApplyDiplomacyRelation("actor", "Ally", ServerEventType.AllianceRequest);
+        runtime.ApplyDiplomacyRelation("actor", "unknown", ServerEventType.AllianceRequest);
+        runtime.ApplyDiplomacyRelation("actor", null, ServerEventType.AllianceRequest);
+        if (!relations.Select(r => r.Relation).SequenceEqual(new[] { FactionRelationKind.Hostile, FactionRelationKind.Neutral, FactionRelationKind.Ally })
+            || relations.Any(r => r.User != "actor") || refreshed != 5)
+            throw new Exception("Diplomacy adapter guessed an unknown relation or failed to request projection refresh.");
+    }
+
+    private static bool ApplyRelation(string? userId, FactionRelationKind relationKind, ref bool __result)
+    { relations.Add((userId, relationKind)); __result = relationAvailable; return false; }
 
     private static bool Translate(string key, ref string __result)
     {

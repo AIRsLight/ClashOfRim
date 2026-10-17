@@ -37,16 +37,12 @@ public sealed class ClashOfRimModNetworkClient
     private static readonly string PurchaseServerShopListingWithSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.PurchaseServerShopListingWithSnapshot).Route;
     private static readonly string PrepareRaidRoute = ProtocolContractManifest.Find(ProtocolMessageKind.PrepareRaid).Route;
     private static readonly string CreateRaidWithSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.CreateRaidWithSnapshot).Route;
-    private static readonly string RejectGiftRoute = ProtocolContractManifest.Find(ProtocolMessageKind.RejectGift).Route;
     private static readonly string CreateDiplomacyEventRoute = ProtocolContractManifest.Find(ProtocolMessageKind.CreateDiplomacyEvent).Route;
-    private static readonly string RespondDiplomacyEventRoute = ProtocolContractManifest.Find(ProtocolMessageKind.RespondDiplomacyEvent).Route;
     private static readonly string CreateSupportPawnWithSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.CreateSupportPawnWithSnapshot).Route;
-    private static readonly string RejectSupportPawnRoute = ProtocolContractManifest.Find(ProtocolMessageKind.RejectSupportPawn).Route;
     private static readonly string FinishSupportPawnRoute = ProtocolContractManifest.Find(ProtocolMessageKind.FinishSupportPawn).Route;
     private static readonly string UploadSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.UploadSnapshot).Route;
     private static readonly string DownloadLatestSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.DownloadLatestSnapshot).Route;
     private static readonly string DownloadLatestSnapshotPayloadRoute = ProtocolContractManifest.Find(ProtocolMessageKind.DownloadLatestSnapshotPayload).Route;
-    private static readonly string ReportEventApplicationFailureRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ReportEventApplicationFailure).Route;
     private static readonly string SyncWorldMapMarkersRoute = ProtocolContractManifest.Find(ProtocolMessageKind.SyncWorldMapMarkers).Route;
     private static readonly string SyncRuntimeWorldObjectsRoute = ProtocolContractManifest.Find(ProtocolMessageKind.SyncRuntimeWorldObjects).Route;
     private static readonly string PrepareWorldSessionRoute = ProtocolContractManifest.Find(ProtocolMessageKind.PrepareWorldSession).Route;
@@ -85,6 +81,7 @@ public sealed class ClashOfRimModNetworkClient
     private readonly ClientProtocolTransport transport;
     private readonly ClientEventProtocol events;
     private readonly ClientEventConfirmationProtocol eventConfirmations;
+    private readonly ClientEventDecisionProtocol eventDecisions;
     private readonly ClientAuthenticationEnvironment authenticationEnvironment = new();
     private readonly ClientSessionProtocol authentication;
     private readonly ClientSetupAuthenticationLease setupAuthentication;
@@ -108,6 +105,7 @@ public sealed class ClashOfRimModNetworkClient
         transport = new ClientProtocolTransport(httpClient, context, protocolEnvironment);
         events = new ClientEventProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         eventConfirmations = new ClientEventConfirmationProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
+        eventDecisions = new ClientEventDecisionProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         authentication = new ClientSessionProtocol(transport, authenticationEnvironment, authenticationEnvironment);
         setupAuthentication = new ClientSetupAuthenticationLease(authentication, transport, authenticationEnvironment);
         sessionStream = new ClientSessionWebSocketTransport(new ClientWebSocketFactory(), protocolEnvironment);
@@ -1183,53 +1181,13 @@ public sealed class ClashOfRimModNetworkClient
         string eventId,
         string? reason,
         CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModRejectGiftResponseDto>();
-        }
-
-        var request = new ModRejectGiftRequestDto
-        {
-            EventId = eventId,
-            UserId = context.UserId,
-            ColonyId = context.ColonyId,
-            CurrentSnapshotId = context.CurrentSnapshotId ?? string.Empty,
-            Reason = reason,
-            AuthToken = context.AuthToken
-        };
-
-        return transport.PostAsync<ModRejectGiftRequestDto, ModRejectGiftResponseDto>(
-            RejectGiftRoute,
-            request,
-            cancellationToken);
-    }
+        => eventDecisions.RejectGiftAsync(context, eventId, reason, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModRejectSupportPawnResponseDto>> RejectSupportPawnAsync(
         string eventId,
         string? reason,
         CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModRejectSupportPawnResponseDto>();
-        }
-
-        var request = new ModRejectSupportPawnRequestDto
-        {
-            EventId = eventId,
-            AuthToken = context.AuthToken,
-            UserId = context.UserId,
-            ColonyId = context.ColonyId,
-            CurrentSnapshotId = context.CurrentSnapshotId ?? string.Empty,
-            Reason = reason
-        };
-
-        return transport.PostAsync<ModRejectSupportPawnRequestDto, ModRejectSupportPawnResponseDto>(
-            RejectSupportPawnRoute,
-            request,
-            cancellationToken);
-    }
+        => eventDecisions.RejectSupportAsync(context, eventId, reason, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModFinishSupportPawnResponseDto>> FinishSupportPawnAsync(
         string idempotencyKey,
@@ -1313,27 +1271,7 @@ public sealed class ClashOfRimModNetworkClient
         bool accepted,
         string? reason,
         CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModDiplomacyEventResponseDto>();
-        }
-
-        var request = new ModRespondDiplomacyEventRequestDto
-        {
-            EventId = eventId,
-            UserId = context.UserId,
-            ColonyId = context.ColonyId,
-            CurrentSnapshotId = context.CurrentSnapshotId ?? string.Empty,
-            Accepted = accepted,
-            Reason = reason
-        };
-
-        return transport.PostAsync<ModRespondDiplomacyEventRequestDto, ModDiplomacyEventResponseDto>(
-            RespondDiplomacyEventRoute,
-            request,
-            cancellationToken);
-    }
+        => eventDecisions.RespondDiplomacyAsync(context, eventId, accepted, reason, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModEventCreationResponseDto>> CreateGiftWithSnapshotAsync(
         string idempotencyKey,
@@ -2254,29 +2192,7 @@ public sealed class ClashOfRimModNetworkClient
         string currentSnapshotId,
         string reason,
         CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModReportEventApplicationFailureResponseDto>();
-        }
-
-        var request = new ModReportEventApplicationFailureRequestDto
-        {
-            IdempotencyKey = idempotencyKey,
-            EventId = eventId ?? string.Empty,
-            SourceEventId = sourceEventId,
-            UserId = context.UserId,
-            ColonyId = context.ColonyId,
-            CurrentSnapshotId = currentSnapshotId ?? string.Empty,
-            Reason = reason ?? string.Empty,
-            AuthToken = context.AuthToken
-        };
-
-        return transport.PostAsync<ModReportEventApplicationFailureRequestDto, ModReportEventApplicationFailureResponseDto>(
-            ReportEventApplicationFailureRoute,
-            request,
-            cancellationToken);
-    }
+        => eventDecisions.ReportFailureAsync(context, new(idempotencyKey, eventId, sourceEventId, currentSnapshotId, reason), cancellationToken);
 
     private static Task<ClashOfRimClientNetworkResult<T>> NotConfigured<T>()
     {

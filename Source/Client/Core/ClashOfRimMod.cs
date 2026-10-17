@@ -58,6 +58,7 @@ public sealed partial class ClashOfRimMod : Mod
     private readonly ClientEventDelivery eventDelivery;
     private readonly ClientEventReader eventReader;
     private readonly ClientEventConfirmationWorkflow eventConfirmations;
+    private readonly ClientEventDecisions eventDecisions;
     private readonly ClientSnapshotFailureRecovery snapshotFailureRecovery;
     private readonly ClientEventRefreshQueue automaticEventRefresh;
     internal IReadOnlyList<ModEventDetailDto>? ReadEventDetails(int? knownVersion, out int version) =>
@@ -177,6 +178,10 @@ public sealed partial class ClashOfRimMod : Mod
                 }
             }), new ClientEventConfirmationEffects());
         eventConfirmations.Completed += StartQueuedAutomaticEventRefreshAfterLocalAtomicMutation;
+        eventDecisions = new ClientEventDecisions(sessionLifecycle, synchronization, localMutations, new ClientSnapshotGame(),
+            new ClientEventDecisionTransport(), new ClientEventDecisionPresentation(message => giftProcessingStatus = message),
+            new ClientEventDecisionRuntime(RequestWorldMapMarkerRefresh));
+        eventDecisions.FailureReported += () => StartAutomaticEventRefresh(ClashOfRimText.Key("ClashOfRim.Events.ReasonFailureReport"));
         automaticEventRefresh = new ClientEventRefreshQueue(sessionLifecycle);
         eventDelivery = new ClientEventDelivery(eventInbox, new ClientEventLetterRuntime(RequestWorldMapMarkerRefresh));
         if (!string.Equals(content.PackageId, PackageId, StringComparison.OrdinalIgnoreCase))
