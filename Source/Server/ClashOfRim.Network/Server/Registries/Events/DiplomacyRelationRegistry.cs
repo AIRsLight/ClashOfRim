@@ -37,6 +37,9 @@ public sealed class DiplomacyRelationRegistry
         Load();
     }
 
+    public bool AreAllied(string userA, string? colonyA, string userB, string? colonyB)
+        => string.Equals(GetRelationKind(userA, colonyA, userB, colonyB), RelationAlly, StringComparison.OrdinalIgnoreCase);
+
     public string GetRelationKind(
         string userA,
         string? colonyA,

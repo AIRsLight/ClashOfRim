@@ -2495,180 +2495,14 @@ public static partial class ClashOfRimNetworkServer
             || IsVisibleParty(ledgerEvent.Target, userId, colonyId);
     }
 
-    private static bool IsAuthorizedForColony(
-        ClashOfRimNetworkState state,
-        string? authToken,
-        string userId,
-        string colonyId,
-        string? authorizationEventId,
-        string? authorizationScope,
-        DateTimeOffset nowUtc,
-        out string failureMessage)
-    {
-        failureMessage = ServerLocalization.Text("Auth.Failed");
-        if (!state.AuthTokens.TryGetPrincipal(authToken, nowUtc, out AuthTokenPrincipal? principal) || principal is null)
-        {
-            return false;
-        }
+    private static bool IsAuthorizedForColony(ClashOfRimNetworkState state, string? authToken,
+        string userId, string colonyId, string? authorizationEventId, string? authorizationScope,
+        DateTimeOffset nowUtc, out string failureMessage)
+        => state.ColonyAuthorization.TryAuthorize(authToken, userId, colonyId,
+            authorizationEventId, authorizationScope, nowUtc, out failureMessage);
 
-        if (!state.LoginSessions.Refresh(principal.UserId, principal.ColonyId, principal.SessionId, nowUtc))
-        {
-            failureMessage = ServerLocalization.Text("Auth.SessionExpired");
-            return false;
-        }
-
-        if (string.Equals(principal.UserId, userId, StringComparison.Ordinal)
-            && string.Equals(principal.ColonyId, colonyId, StringComparison.Ordinal))
-        {
-            return true;
-        }
-
-        string scope = authorizationScope ?? string.Empty;
-        if (string.Equals(scope, "Scout", StringComparison.OrdinalIgnoreCase)
-            && IsAuthorizedScoutTarget(state, principal, userId, colonyId))
-        {
-            return true;
-        }
-
-        if (string.Equals(scope, "FriendlyObservation", StringComparison.OrdinalIgnoreCase)
-            && IsAuthorizedFriendlyObservationTarget(state, principal, userId, colonyId))
-        {
-            return true;
-        }
-
-        if (string.Equals(scope, "RaidTarget", StringComparison.OrdinalIgnoreCase)
-            && IsAuthorizedRaidTargetDownload(state, principal, userId, colonyId))
-        {
-            return true;
-        }
-
-        if (string.Equals(scope, "RaidPreparation", StringComparison.OrdinalIgnoreCase)
-            && state.RaidPreparations.TryAuthorizeDownload(
-                authorizationEventId,
-                principal.UserId,
-                principal.ColonyId,
-                userId,
-                colonyId,
-                nowUtc))
-        {
-            return true;
-        }
-
-        if (!string.IsNullOrWhiteSpace(authorizationEventId)
-            && IsAuthorizedByRaidEvent(
-                state,
-                principal,
-                userId,
-                colonyId,
-                authorizationEventId!,
-                scope))
-        {
-            return true;
-        }
-
-        failureMessage = ServerLocalization.Text("Auth.IdentityDenied");
-        return false;
-    }
-
-    private static bool IsAuthorizedByRaidEvent(
-        ClashOfRimNetworkState state,
-        AuthTokenPrincipal principal,
-        string targetUserId,
-        string targetColonyId,
-        string authorizationEventId,
-        string authorizationScope)
-    {
-        AuthoritativeEvent? ledgerEvent = state.Ledger.Find(authorizationEventId);
-        if (ledgerEvent is null
-            || ledgerEvent.Type != ServerEventType.Raid
-            || ledgerEvent.Payload is not RaidEventPayload { OpponentKind: RaidOpponentKind.Player }
-            || (!IsVisibleParty(ledgerEvent.Target, targetUserId, targetColonyId)
-                && !IsVisibleParty(ledgerEvent.Actor, targetUserId, targetColonyId)))
-        {
-            return false;
-        }
-
-        if (IsVisibleParty(ledgerEvent.Actor, principal.UserId, principal.ColonyId))
-        {
-            return true;
-        }
-
-        if (!string.Equals(authorizationScope, "RaidObservation", StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        return AreAllied(state, principal.UserId, principal.ColonyId, ledgerEvent.Actor.UserId, ledgerEvent.Actor.ColonyId)
-            || AreAllied(state, principal.UserId, principal.ColonyId, ledgerEvent.Target.UserId, ledgerEvent.Target.ColonyId);
-    }
-
-    private static bool IsAuthorizedScoutTarget(
-        ClashOfRimNetworkState state,
-        AuthTokenPrincipal principal,
-        string targetUserId,
-        string targetColonyId)
-    {
-        if (string.Equals(principal.UserId, targetUserId, StringComparison.Ordinal)
-            && string.Equals(principal.ColonyId, targetColonyId, StringComparison.Ordinal))
-        {
-            return false;
-        }
-
-        return !AreAllied(state, principal.UserId, principal.ColonyId, targetUserId, targetColonyId);
-    }
-
-    private static bool IsAuthorizedFriendlyObservationTarget(
-        ClashOfRimNetworkState state,
-        AuthTokenPrincipal principal,
-        string targetUserId,
-        string targetColonyId)
-    {
-        if (string.Equals(principal.UserId, targetUserId, StringComparison.Ordinal)
-            && string.Equals(principal.ColonyId, targetColonyId, StringComparison.Ordinal))
-        {
-            return false;
-        }
-
-        return AreAllied(state, principal.UserId, principal.ColonyId, targetUserId, targetColonyId);
-    }
-
-    private static bool IsAuthorizedRaidTargetDownload(
-        ClashOfRimNetworkState state,
-        AuthTokenPrincipal principal,
-        string targetUserId,
-        string targetColonyId)
-    {
-        if (!state.ServerConfiguration.PvpEnabled)
-        {
-            return false;
-        }
-
-        if (string.Equals(principal.UserId, targetUserId, StringComparison.Ordinal)
-            && string.Equals(principal.ColonyId, targetColonyId, StringComparison.Ordinal))
-        {
-            return false;
-        }
-
-        if (AreAllied(state, principal.UserId, principal.ColonyId, targetUserId, targetColonyId))
-        {
-            return false;
-        }
-
-        return FindUnsettledAttackerRaid(state, principal.UserId, principal.ColonyId, excludedIdempotencyKey: null) is null;
-    }
-
-    private static bool AreAllied(
-        ClashOfRimNetworkState state,
-        string userA,
-        string? colonyA,
-        string userB,
-        string? colonyB)
-    {
-        return string.Equals(
-            ResolveDiplomacyRelationKind(state, userA, colonyA, userB, colonyB),
-            "Ally",
-            StringComparison.OrdinalIgnoreCase);
-    }
+    private static bool AreAllied(ClashOfRimNetworkState state, string userA, string? colonyA, string userB, string? colonyB)
+        => state.DiplomacyRelations.AreAllied(userA, colonyA, userB, colonyB);
 
     private static string ResolveDiplomacyRelationKind(
         ClashOfRimNetworkState state,
@@ -2681,15 +2515,7 @@ public static partial class ClashOfRimNetworkServer
     }
 
     private static bool IsVisibleParty(EventParty party, string userId, string colonyId)
-    {
-        if (!string.Equals(party.UserId, userId, StringComparison.Ordinal))
-        {
-            return false;
-        }
-
-        return string.IsNullOrWhiteSpace(party.ColonyId)
-            || string.Equals(party.ColonyId, colonyId, StringComparison.Ordinal);
-    }
+        => EventVisibility.MatchesParty(party, userId, colonyId);
 
     private static AuthoritativeEvent CreateSupportPawnFinishReturnEvent(
         AuthoritativeEvent supportEvent,
