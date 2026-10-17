@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Snapshots;
 using System;
 using AIRsLight.ClashOfRim.ClientSnapshots;
 using AIRsLight.ClashOfRim.Modules.Events;
@@ -36,8 +37,8 @@ internal sealed class ClientEventConfirmationPresentation : IClientEventConfirma
                 var problem = notice.Problem!;
                 string suffix = problem.Kind switch
                 {
-                    ClientEventConfirmationFailureKind.Transport => "Failed",
-                    ClientEventConfirmationFailureKind.Rejected => "Rejected",
+                    ClientSnapshotTransactionFailureKind.Transport => "Failed",
+                    ClientSnapshotTransactionFailureKind.Rejected => "Rejected",
                     _ => "Exception"
                 };
                 string key = IsItemArrival(notice.Purpose) ? "ClashOfRim.Events.StatusSingleConfirm" + suffix : prefix + suffix;

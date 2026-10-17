@@ -8,7 +8,7 @@ using AIRsLight.ClashOfRim.Modules.Sessions;
 using AIRsLight.ClashOfRim.Modules.Snapshots;
 using AIRsLight.ClashOfRim.Modules.Synchronization;
 
-// Shared controlled engine/identity boundary for event module tests. The tested
+// Shared controlled engine/identity boundary for client domain tests. The tested
 // workflows, ownership checks and synchronization remain production code.
 internal sealed class EventModuleTestPorts : IClientSessionIdentityStore, IClientSessionLogoutTransport, IClientSessionStreamTransport, IClientSnapshotStore, IClientSnapshotGame
 {

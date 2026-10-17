@@ -7,6 +7,7 @@ using AIRsLight.ClashOfRim.EventLetters;
 using AIRsLight.ClashOfRim.Diplomacy;
 using AIRsLight.ClashOfRim.Gifts;
 using AIRsLight.ClashOfRim.Pawns;
+using AIRsLight.ClashOfRim.Bank;
 using ClashOfRim.TestSupport;
 
 internal static class ClientModuleBoundaryTests
@@ -33,6 +34,7 @@ internal static class ClientModuleBoundaryTests
             || t == typeof(AIRsLight.ClashOfRim.Support.SupportPawnApplicator) || t == typeof(AIRsLight.ClashOfRim.Raids.RaidAttackerLossApplicator)
             || t == typeof(AIRsLight.ClashOfRim.Pawns.PawnFlowFailurePolicy)
             || t == typeof(ClientGiftPackageHydration) || t == typeof(PawnPackageHydration)
+            || t == typeof(ClientBankRuntime) || t == typeof(ClientBankPresentation) || t == typeof(BankUiUtility)
             || t.Namespace?.Split('.')[0] is "Verse" or "RimWorld" or "UnityEngine");
         if (modules.Length == 0 || violations.Count != 0)
             throw new InvalidOperationException("Client module boundaries: " + string.Join(Environment.NewLine, violations));
@@ -43,7 +45,7 @@ internal static class ClientModuleBoundaryTests
                 || t.Namespace?.StartsWith("AIRsLight.ClashOfRim.Modules.Events", StringComparison.Ordinal) == true);
         if (sessionViolations.Count != 0)
             throw new InvalidOperationException("Session foundation depends on an event/snapshot domain: " + string.Join(Environment.NewLine, sessionViolations));
-        Type[] eventAdapters = { typeof(ClientEventLetterPolicy), typeof(ClientEventLetterRenderer), typeof(ClientEventLetterRuntime),
+        Type[] eventAdapters = { typeof(ClientBankRuntime), typeof(ClientBankPresentation), typeof(ClientEventLetterPolicy), typeof(ClientEventLetterRenderer), typeof(ClientEventLetterRuntime),
             typeof(ClientDiplomacyPresentation), typeof(ClientEventTextFormatting), typeof(ClientEventReadPresentation),
             typeof(ClientEventDecisionPresentation), typeof(ClientEventDecisionRuntime),
             typeof(ClientGiftPackageHydration), typeof(PawnPackageHydration),

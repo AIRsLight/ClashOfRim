@@ -151,7 +151,7 @@ public sealed partial class ClashOfRimMod
         worldConfigurationExtensionSyncInProgress = false;
         abandonPlayerColonyInProgress = false;
         caravanArrivalTargetRefreshInProgress = false;
-        bankInProgress = false;
+        bankState.Reset();
         mercenaryInProgress = false;
         serverShopInProgress = false;
         adminInProgress = false;

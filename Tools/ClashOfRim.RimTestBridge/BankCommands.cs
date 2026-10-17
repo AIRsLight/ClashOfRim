@@ -15,7 +15,7 @@ internal sealed partial class DomainCommands
         BankRaidObservation.Install();
         bridge.Router.Register("clash.bank.quests", "Observe persisted bank quest accounting and penalty clocks independently of network DTOs.", "observe", _ => BankQuests());
         bridge.Router.Register("clash.bank.debts", "References to debt records currently displayed by the bank, for its original repay action.", "observe", a =>
-            RimTest.Runtime.ObjectInspector.Paginate(Field<ModBankStatusResponseDto>(Mod, "lastBankStatus").OpenDebts.Select(Record).ToArray(), a));
+            RimTest.Runtime.ObjectInspector.Paginate((Mod.BankStatusSnapshot?.OpenDebts ?? new()).Select(Record).ToArray(), a));
         bridge.Router.Register("clash.fixture.bankDeadline", "FIXTURE: shorten one existing unpaid quest's local deadline/next penalty to 10 ticks; leaves fees, stages, interval, ledger and punishment execution unchanged.", "fixture", a =>
         {
             Fixture(a); string id = a.String("id"); long next = Find.TickManager.TicksGame + 10;

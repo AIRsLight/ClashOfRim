@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Bank;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,8 +10,6 @@ namespace AIRsLight.ClashOfRim.Bank;
 
 internal static class BankUiUtility
 {
-    private static IReadOnlyList<ModBankInterestDurationMultiplierPointDto>? cachedInterestCurveSource;
-    private static List<ModBankInterestDurationMultiplierPointDto> cachedInterestCurvePoints = new();
 
     public static string FormatStatus(ModBankStatusResponseDto? status)
     {
@@ -119,76 +118,11 @@ internal static class BankUiUtility
         return (annualRate * 100f).ToString("0.#");
     }
 
-    public static int CalculateInterestSilver(
-        int principalSilver,
-        int durationDays,
-        ModBankStatusResponseDto status)
-    {
-        double interest = Math.Max(0, principalSilver)
-            * Math.Max(0f, status.BaseAnnualInterestRate)
-            * Math.Max(0, durationDays)
-            / 60d
-            * InterpolateInterestDurationMultiplier(durationDays, status.InterestDurationMultiplierCurve);
-        return (int)Math.Ceiling(interest);
-    }
 
-    private static double InterpolateInterestDurationMultiplier(
-        int durationDays,
-        IReadOnlyList<ModBankInterestDurationMultiplierPointDto>? curve)
-    {
-        if (curve is null || curve.Count == 0)
-        {
-            return 1d;
-        }
 
-        List<ModBankInterestDurationMultiplierPointDto> points = NormalizedInterestCurvePoints(curve);
-        if (points.Count == 0)
-        {
-            return 1d;
-        }
 
-        if (durationDays <= points[0].DurationDays)
-        {
-            return points[0].Multiplier;
-        }
 
-        for (int i = 1; i < points.Count; i++)
-        {
-            ModBankInterestDurationMultiplierPointDto previous = points[i - 1];
-            ModBankInterestDurationMultiplierPointDto current = points[i];
-            if (durationDays > current.DurationDays)
-            {
-                continue;
-            }
 
-            int span = current.DurationDays - previous.DurationDays;
-            if (span <= 0)
-            {
-                return current.Multiplier;
-            }
-
-            double t = (double)(durationDays - previous.DurationDays) / span;
-            return previous.Multiplier + (current.Multiplier - previous.Multiplier) * t;
-        }
-
-        return points[points.Count - 1].Multiplier;
-    }
-
-    private static List<ModBankInterestDurationMultiplierPointDto> NormalizedInterestCurvePoints(
-        IReadOnlyList<ModBankInterestDurationMultiplierPointDto> curve)
-    {
-        if (ReferenceEquals(curve, cachedInterestCurveSource))
-        {
-            return cachedInterestCurvePoints;
-        }
-
-        cachedInterestCurveSource = curve;
-        cachedInterestCurvePoints = curve
-            .Where(point => point.DurationDays >= 0 && point.Multiplier >= 0f && !float.IsNaN(point.Multiplier))
-            .OrderBy(point => point.DurationDays)
-            .ToList();
-        return cachedInterestCurvePoints;
-    }
 
     private static string FormatDueAtGameTicks(long dueAt)
     {
@@ -203,4 +137,6 @@ internal static class BankUiUtility
             "ClashOfRim.Bank.DebtDueIn",
             ClashManagedQuestTimingUtility.FormatRemainingPeriod(remainingTicks).Named("TIME"));
     }
+    public static int CalculateInterestSilver(int principalSilver, int durationDays, ModBankStatusResponseDto status) =>
+        ClientBankTerms.CalculateInterestSilver(principalSilver, durationDays, status);
 }

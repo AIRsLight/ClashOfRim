@@ -16,1027 +16,10 @@ namespace AIRsLight.ClashOfRim;
 
 public sealed partial class ClashOfRimMod
 {
-    internal void StartRefreshBankStatus()
-    {
-        if (!CanRunManualSync(out string failureReason))
-        {
-            bankStatus = failureReason;
-            return;
-        }
-
-        if (bankInProgress)
-        {
-            return;
-        }
-
-        bankInProgress = true;
-        bankStatus = ClashOfRimText.Key("ClashOfRim.Bank.StatusRefreshing");
-        long currentTicks = Find.TickManager?.TicksGame ?? 0;
-        int colonyWealth = CalculateCurrentColonyWealth();
-        ClientSessionWork.Run(async () =>
-        {
-            try
-            {
-                using var httpClient = new HttpClient();
-                var client = new ClashOfRimModNetworkClient(
-                    httpClient,
-                    ClashOfRimClientNetworkContext.FromSettings(settings));
-                ClashOfRimClientNetworkResult<ModBankStatusResponseDto> result =
-                    await ClientSessionWork.Observe(client.GetBankStatusAsync(currentTicks, colonyWealth));
-                using var publication = ClientSessionWork.EnterPublication();
-                if (!result.Success || result.Response is null)
-                {
-                    bankStatus = ClashOfRimText.Key("ClashOfRim.Bank.StatusRefreshFailed", result.ErrorCode.Named("CODE"), result.Message.Named("MESSAGE"));
-                    return;
-                }
-
-                if (result.Response.Result is not null && !result.Response.Result.Accepted)
-                {
-                    bankStatus = ClashOfRimText.Key("ClashOfRim.Bank.StatusRefreshRejected", result.Response.Result.ErrorCode.Named("CODE"), result.Response.Result.Message.Named("MESSAGE"));
-                    return;
-                }
-
-                lastBankStatus = result.Response;
-                bankStatus = BankUiUtility.FormatStatus(result.Response);
-                ModBankStatusResponseDto statusSnapshot = result.Response;
-                ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
-                    ClashBankLoanQuestUtility.CreateOrUpdateDebtQuests(statusSnapshot));
-            }
-            catch (Exception ex)
-            when (ClientSessionWork.IsCurrent)
-            {
-                using var publication = ClientSessionWork.EnterPublication();
-                bankStatus = ClashOfRimText.Key("ClashOfRim.Bank.StatusException", ex.GetType().Name.Named("TYPE"), ex.Message.Named("MESSAGE"));
-                Log.Warning("[ClashOfRim] Bank status refresh failed: " + ex);
-            }
-            finally
-            {
-                ClientSessionWork.TryApply(() =>
-                {
-                    bankInProgress = false;
-                });
-            }
-        });
-    }
-
-    internal void StartCreateBankLoan(int principalSilver, int durationDays)
-    {
-        if (TryRejectBlockedByLocalAtomicMutation(out string atomicMessage))
-        {
-            bankStatus = atomicMessage;
-            return;
-        }
-
-        if (!CanRunManualSync(out string failureReason))
-        {
-            bankStatus = failureReason;
-            return;
-        }
-
-        if (bankInProgress)
-        {
-            bankStatus = ClashOfRimText.Key("ClashOfRim.Bank.StatusBusy");
-            return;
-        }
-
-        if (lastBankStatus?.ActiveLoan is not null)
-        {
-            SetBankStatus(BankUiUtility.FormatStatus(lastBankStatus), MessageTypeDefOf.RejectInput);
-            return;
-        }
-
-        Map? map = Find.Maps?.FirstOrDefault(candidate => candidate.IsPlayerHome) ?? Find.CurrentMap;
-        if (map is null)
-        {
-            bankStatus = ClashOfRimText.Key("ClashOfRim.Bank.StatusNoMap");
-            return;
-        }
-
-        if (!TryBeginManualSynchronization(out var manualOperation, out failureReason))
-        {
-            bankStatus = failureReason;
-            return;
-        }
-
-        try
-        {
-            bankInProgress = true;
-            bankStatus = ClashOfRimText.Key("ClashOfRim.Bank.StatusCreating");
-            long currentTicks = Find.TickManager?.TicksGame ?? 0;
-            int colonyWealth = CalculateCurrentColonyWealth();
-            string idempotencyKey = $"bank-loan:{settings.UserId}:{settings.ColonyId}:{settings.CurrentSnapshotId}:{DateTime.UtcNow.Ticks}";
-            ModBankStatusResponseDto? bankStatusSnapshot = lastBankStatus;
-            if (bankStatusSnapshot is null)
-            {
-                bankStatus = ClashOfRimText.Key("ClashOfRim.Bank.StatusNotPulled");
-                return;
-            }
-
-            int maxLoanSilver = Math.Max(0, (int)Math.Floor(Math.Max(0, colonyWealth) * bankStatusSnapshot.MaxLoanWealthRatio));
-            if (principalSilver <= 0 || principalSilver > maxLoanSilver)
-            {
-                bankStatus = ClashOfRimText.Key(
-                    "ClashOfRim.Bank.StatusCreateRejected",
-                    "ValidationFailed".Named("CODE"),
-                    ClashOfRimText.Key("ClashOfRim.Bank.StatusCreateMaxLoanExceeded", maxLoanSilver.Named("MAX")).Named("MESSAGE"));
-                return;
-            }
-
-            if (durationDays < bankStatusSnapshot.MinDurationDays || durationDays > bankStatusSnapshot.MaxDurationDays)
-            {
-                bankStatus = ClashOfRimText.Key(
-                    "ClashOfRim.Bank.StatusCreateRejected",
-                    "ValidationFailed".Named("CODE"),
-                    ClashOfRimText.Key(
-                        "ClashOfRim.Bank.StatusCreateDurationInvalid",
-                        bankStatusSnapshot.MinDurationDays.Named("MIN"),
-                        bankStatusSnapshot.MaxDurationDays.Named("MAX")).Named("MESSAGE"));
-                return;
-            }
-
-            string loanId = "bankloan-" + Guid.NewGuid().ToString("N");
-            int interestSilver = BankUiUtility.CalculateInterestSilver(principalSilver, durationDays, bankStatusSnapshot);
-            int totalDueSilver = principalSilver + interestSilver;
-            long dueAtGameTicks = currentTicks + durationDays * (long)ClashManagedQuestTimingUtility.TicksPerDay;
-            var loan = new ModBankLoanSummaryDto
-            {
-                LoanId = loanId,
-                PrincipalSilver = principalSilver,
-                InterestSilver = interestSilver,
-                TotalDueSilver = totalDueSilver,
-                DurationDays = durationDays,
-                CreatedAtGameTicks = currentTicks,
-                DueAtGameTicks = dueAtGameTicks,
-                PenaltyRaidPoints = Math.Max(1, (int)Math.Ceiling(Math.Max(0, totalDueSilver) * bankStatusSnapshot.PenaltyRaidPointsPerSilver)),
-                Status = "Active",
-                SourceKind = "Loan"
-            };
-            var pendingStatus = CloneBankStatusWithActiveLoan(bankStatusSnapshot, loan);
-            BeginLocalAtomicMutation(
-                LocalMutationKind.Bank,
-                ClashOfRimText.Key("ClashOfRim.Bank.StatusUploadingConfirmation"));
-            if (!TryDropBankLoanSilverOnPlayerMap(loan, idempotencyKey, map, out string placeMessage))
-            {
-                ClearLocalAtomicMutation();
-                bankStatus = placeMessage;
-                Messages.Message(bankStatus, MessageTypeDefOf.RejectInput, historical: false);
-                return;
-            }
-
-            ClashBankLoanQuestUtility.CreateOrUpdateLoanQuest(loan, pendingStatus);
-            lastBankStatus = pendingStatus;
-            LocalMutationKind operation = LocalMutationKind.Bank;
-            if (!snapshotPreparation.TryBuild(
-                    settings.UserId,
-                    settings.ColonyId,
-                    out ModSnapshotPackageBuildResult build,
-                    out string buildFailureReason))
-            {
-                bankStatus = ClashOfRimText.Key("ClashOfRim.Bank.StatusConfirmationFailed", "BuildSnapshotFailed".Named("CODE"), buildFailureReason.Named("MESSAGE"));
-                ShowUnconfirmedSnapshotFailure(
-                    operation,
-                    bankStatus,
-                    () => StartBuildAndSubmitPreparedBankLoanTransaction(
-                        idempotencyKey,
-                        currentTicks,
-                        colonyWealth,
-                        loan,
-                        pendingStatus));
-                return;
-            }
-
-            StartSubmitPreparedBankLoanTransaction(
-                idempotencyKey,
-                currentTicks,
-                colonyWealth,
-                loan,
-                pendingStatus,
-                build.Package!,
-                build.Payload!,
-                manualOperation);
-        }
-        finally { manualOperation.Complete(() => bankInProgress = false); }
-    }
-
-    private void StartBuildAndSubmitPreparedBankLoanTransaction(
-        string idempotencyKey,
-        long currentGameTicks,
-        int colonyWealth,
-        ModBankLoanSummaryDto loan,
-        ModBankStatusResponseDto pendingStatus)
-    {
-        LocalMutationKind operation = LocalMutationKind.Bank;
-        if (TryRejectBlockedByLocalAtomicMutation(out string blockedMessage, operation))
-        {
-            bankStatus = blockedMessage;
-            Messages.Message(blockedMessage, MessageTypeDefOf.RejectInput, historical: false);
-            return;
-        }
-
-        if (!CanRunManualSync(out string failureReason, operation))
-        {
-            bankStatus = failureReason;
-            ShowUnconfirmedSnapshotFailure(
-                operation,
-                failureReason,
-                () => StartBuildAndSubmitPreparedBankLoanTransaction(
-                    idempotencyKey,
-                    currentGameTicks,
-                    colonyWealth,
-                    loan,
-                    pendingStatus));
-            return;
-        }
-
-        if (!TryBeginManualSynchronization(out var manualOperation, out failureReason))
-        {
-            bankStatus = failureReason;
-            return;
-        }
-
-        try
-        {
-            BeginLocalAtomicMutation(operation, ClashOfRimText.Key("ClashOfRim.Bank.StatusUploadingConfirmation"));
-            bankInProgress = true;
-            bankStatus = ClashOfRimText.Key("ClashOfRim.Bank.StatusUploadingConfirmation");
-            if (!snapshotPreparation.TryBuild(
-                    settings.UserId,
-                    settings.ColonyId,
-                    out ModSnapshotPackageBuildResult build,
-                    out string buildFailureReason))
-            {
-                bankStatus = ClashOfRimText.Key("ClashOfRim.Bank.StatusConfirmationFailed", "BuildSnapshotFailed".Named("CODE"), buildFailureReason.Named("MESSAGE"));
-                ShowUnconfirmedSnapshotFailure(
-                    operation,
-                    bankStatus,
-                    () => StartBuildAndSubmitPreparedBankLoanTransaction(
-                        idempotencyKey,
-                        currentGameTicks,
-                        colonyWealth,
-                        loan,
-                        pendingStatus));
-                return;
-            }
-
-            StartSubmitPreparedBankLoanTransaction(
-                idempotencyKey,
-                currentGameTicks,
-                colonyWealth,
-                loan,
-                pendingStatus,
-                build.Package!,
-                build.Payload!,
-                manualOperation);
-        }
-        finally { manualOperation.Complete(() => bankInProgress = false); }
-    }
-
-    private void StartSubmitPreparedBankLoanTransaction(
-        string idempotencyKey,
-        long currentGameTicks,
-        int colonyWealth,
-        ModBankLoanSummaryDto loan,
-        ModBankStatusResponseDto pendingStatus,
-        ModSnapshotPackageMetadataDto confirmedSnapshot,
-        byte[] confirmedPayload,
-        ClientSynchronizationCoordinator.Lease? continuation = null)
-    {
-        LocalMutationKind operation = LocalMutationKind.Bank;
-        if (TryRejectBlockedByLocalAtomicMutation(out string blockedMessage, operation))
-        {
-            bankStatus = blockedMessage;
-            Messages.Message(blockedMessage, MessageTypeDefOf.RejectInput, historical: false);
-            return;
-        }
-
-        if (!synchronization.TryAcquireSnapshot(out var uploadTransaction, continuation))
-        {
-            bankStatus = ClashOfRimText.Key("ClashOfRim.Bank.StatusBusy");
-            Messages.Message(bankStatus, MessageTypeDefOf.RejectInput, historical: false);
-            return;
-        }
-
-        BeginLocalAtomicMutation(operation, ClashOfRimText.Key("ClashOfRim.Bank.StatusUploadingConfirmation"));
-        bankInProgress = true;
-        bankStatus = ClashOfRimText.Key("ClashOfRim.Bank.StatusUploadingConfirmation");
-        ClientSessionWork.Run(async () =>
-        {
-            try
-            {
-                using var httpClient = new HttpClient();
-                var client = new ClashOfRimModNetworkClient(
-                    httpClient,
-                    ClashOfRimClientNetworkContext.FromSettings(settings));
-                ClashOfRimClientNetworkResult<ModBankLoanResponseDto> result =
-                    await ClientSessionWork.Observe(client.CreateBankLoanWithSnapshotAsync(
-                        idempotencyKey,
-                        currentGameTicks,
-                        colonyWealth,
-                        loan.PrincipalSilver,
-                        loan.DurationDays,
-                        loan.LoanId,
-                        loan.InterestSilver,
-                        confirmedSnapshot,
-                        confirmedPayload));
-                using var publication = ClientSessionWork.EnterPublication();
-                if (!result.Success || result.Response is null)
-                {
-                    string status = ClashOfRimText.Key(
-                        "ClashOfRim.Bank.StatusConfirmationFailed",
-                        result.ErrorCode.Named("CODE"),
-                        result.Message.Named("MESSAGE"));
-                    bankStatus = status;
-                    ShowUnconfirmedSnapshotFailure(
-                        operation,
-                        status,
-                        () => StartSubmitPreparedBankLoanTransaction(
-                            idempotencyKey,
-                            currentGameTicks,
-                            colonyWealth,
-                            loan,
-                            pendingStatus,
-                            confirmedSnapshot,
-                            confirmedPayload));
-                    return;
-                }
-
-                ModProtocolResponseDto? response = result.Response.Result;
-                if (response is not null && !response.Accepted)
-                {
-                    string status = ClashOfRimText.Key(
-                        "ClashOfRim.Bank.StatusCreateRejected",
-                        response.ErrorCode.Named("CODE"),
-                        (response.Message ?? string.Empty).Named("MESSAGE"));
-                    bankStatus = status;
-                    if (result.Response.Status is not null)
-                    {
-                        lastBankStatus = result.Response.Status;
-                    }
-
-                    ShowUnconfirmedSnapshotFailure(
-                        operation,
-                        status,
-                        () => StartSubmitPreparedBankLoanTransaction(
-                            idempotencyKey,
-                            currentGameTicks,
-                            colonyWealth,
-                            loan,
-                            pendingStatus,
-                            confirmedSnapshot,
-                            confirmedPayload));
-                    return;
-                }
-
-                ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
-                {
-                    if (!string.IsNullOrWhiteSpace(result.Response.AppliedSnapshotId))
-                    {
-                        snapshotPublication.PublishCurrentGame(
-                            result.Response.AppliedSnapshotId!,
-                            result.Response.NextLineageToken);
-                    }
-
-                    ModBankLoanSummaryDto confirmedLoan = result.Response.Loan ?? loan;
-                    ModBankStatusResponseDto confirmedStatus = result.Response.Status
-                        ?? CloneBankStatusWithActiveLoan(pendingStatus, confirmedLoan);
-                    lastBankStatus = confirmedStatus;
-                    ClashBankLoanQuestUtility.CreateOrUpdateLoanQuest(confirmedLoan, confirmedStatus);
-                    bankStatus = ClashOfRimText.Key(
-                        "ClashOfRim.Bank.StatusCreated",
-                        confirmedLoan.PrincipalSilver.Named("PRINCIPAL"),
-                        confirmedLoan.TotalDueSilver.Named("TOTAL"));
-                    Messages.Message(bankStatus, MessageTypeDefOf.PositiveEvent, historical: false);
-                    CompleteLocalAtomicMutation();
-                    CloseUnconfirmedSnapshotFailureWindow();
-                });
-            }
-            catch (Exception ex)
-            when (ClientSessionWork.IsCurrent)
-            {
-                using var publication = ClientSessionWork.EnterPublication();
-                string status = ClashOfRimText.Key(
-                    "ClashOfRim.Bank.StatusException",
-                    ex.GetType().Name.Named("TYPE"),
-                    ex.Message.Named("MESSAGE"));
-                bankStatus = status;
-                ShowUnconfirmedSnapshotFailure(
-                    operation,
-                    status,
-                    () => StartSubmitPreparedBankLoanTransaction(
-                        idempotencyKey,
-                        currentGameTicks,
-                        colonyWealth,
-                        loan,
-                        pendingStatus,
-                        confirmedSnapshot,
-                        confirmedPayload));
-                Log.Warning("[ClashOfRim] Bank loan transaction failed: " + ex);
-            }
-            finally
-            {
-                uploadTransaction.Complete(() => bankInProgress = false);
-            }
-        });
-    }
-
-    internal void StartRepayBankLoan()
-    {
-        if (TryRejectBlockedByLocalAtomicMutation(out string atomicMessage))
-        {
-            SetBankStatus(atomicMessage, MessageTypeDefOf.RejectInput);
-            return;
-        }
-
-        if (!CanRunManualSync(out string failureReason))
-        {
-            SetBankStatus(failureReason, MessageTypeDefOf.RejectInput);
-            return;
-        }
-
-        ModBankLoanSummaryDto? activeLoan = lastBankStatus?.ActiveLoan;
-        if (activeLoan is null)
-        {
-            SetBankStatus(ClashOfRimText.Key("ClashOfRim.Bank.StatusNoActiveLoan"), MessageTypeDefOf.RejectInput);
-            return;
-        }
-        activeLoan = CloneLoanWithLocalTotalDue(activeLoan);
-
-        if (bankInProgress)
-        {
-            SetBankStatus(ClashOfRimText.Key("ClashOfRim.Bank.StatusBusy"), MessageTypeDefOf.RejectInput);
-            return;
-        }
-
-        int availableSilver = CountPlayerHomeSilver();
-        if (availableSilver < activeLoan.TotalDueSilver)
-        {
-            SetBankStatus(
-                ClashOfRimText.Key("ClashOfRim.Bank.StatusInsufficientSilver", activeLoan.TotalDueSilver.Named("NEEDED"), availableSilver.Named("AVAILABLE")),
-                MessageTypeDefOf.RejectInput);
-            return;
-        }
-
-        if (!TryBeginManualSynchronization(out var manualOperation, out failureReason))
-        {
-            bankStatus = failureReason;
-            return;
-        }
-
-        try
-        {
-            bankInProgress = true;
-            bankStatus = ClashOfRimText.Key("ClashOfRim.Bank.StatusRepaying");
-            long currentTicks = Find.TickManager?.TicksGame ?? 0;
-            string idempotencyKey = $"bank-repay:{settings.UserId}:{settings.ColonyId}:{activeLoan.LoanId}:{DateTime.UtcNow.Ticks}";
-            LocalMutationKind operation = LocalMutationKind.Bank;
-            BeginLocalAtomicMutation(operation, ClashOfRimText.Key("ClashOfRim.Bank.StatusUploadingConfirmation"));
-            if (!TryConsumePlayerHomeSilver(activeLoan.TotalDueSilver, out string consumeMessage))
-            {
-                ClearLocalAtomicMutation();
-                bankStatus = consumeMessage;
-                Messages.Message(bankStatus, MessageTypeDefOf.RejectInput, historical: false);
-                return;
-            }
-
-            ClashBankLoanQuestUtility.MarkLoanRepaid(activeLoan.LoanId);
-            ModBankStatusResponseDto pendingStatus = CloneBankStatusWithoutActiveLoan(lastBankStatus);
-            lastBankStatus = pendingStatus;
-            if (!snapshotPreparation.TryBuild(
-                    settings.UserId,
-                    settings.ColonyId,
-                    out ModSnapshotPackageBuildResult build,
-                    out string buildFailureReason))
-            {
-                bankStatus = ClashOfRimText.Key("ClashOfRim.Bank.StatusConfirmationFailed", "BuildSnapshotFailed".Named("CODE"), buildFailureReason.Named("MESSAGE"));
-                ShowUnconfirmedSnapshotFailure(
-                    operation,
-                    bankStatus,
-                    () => StartBuildAndSubmitPreparedBankLoanRepayment(
-                        idempotencyKey,
-                        currentTicks,
-                        activeLoan,
-                        pendingStatus));
-                return;
-            }
-
-            StartSubmitPreparedBankLoanRepayment(
-                idempotencyKey,
-                currentTicks,
-                activeLoan,
-                pendingStatus,
-                build.Package!,
-                build.Payload!,
-                manualOperation);
-        }
-        finally { manualOperation.Complete(() => bankInProgress = false); }
-    }
-
-    internal void StartRepayBankDebt(ModBankDebtSummaryDto debt)
-    {
-        if (TryRejectBlockedByLocalAtomicMutation(out string atomicMessage))
-        {
-            SetBankStatus(atomicMessage, MessageTypeDefOf.RejectInput);
-            return;
-        }
-
-        if (!CanRunManualSync(out string failureReason))
-        {
-            SetBankStatus(failureReason, MessageTypeDefOf.RejectInput);
-            return;
-        }
-
-        if (debt is null || string.IsNullOrWhiteSpace(debt.DebtId))
-        {
-            SetBankStatus(ClashOfRimText.Key("ClashOfRim.Bank.StatusMissingDebt"), MessageTypeDefOf.RejectInput);
-            return;
-        }
-
-        // A bank window can retain a record after refresh or successful repayment.
-        // Resolve both eligibility and amount from the current bank view before consuming silver.
-        debt = lastBankStatus?.OpenDebts.FirstOrDefault(current =>
-            string.Equals(current.DebtId, debt.DebtId, StringComparison.Ordinal)
-            && string.Equals(current.Status, "Active", StringComparison.Ordinal));
-        if (debt is null)
-        {
-            SetBankStatus(ClashOfRimText.Key("ClashOfRim.Bank.StatusMissingDebt"), MessageTypeDefOf.RejectInput);
-            return;
-        }
-
-        if (bankInProgress)
-        {
-            SetBankStatus(ClashOfRimText.Key("ClashOfRim.Bank.StatusBusy"), MessageTypeDefOf.RejectInput);
-            return;
-        }
-
-        int availableSilver = CountPlayerHomeSilver();
-        if (availableSilver < debt.AmountSilver)
-        {
-            SetBankStatus(
-                ClashOfRimText.Key("ClashOfRim.Bank.StatusInsufficientSilver", debt.AmountSilver.Named("NEEDED"), availableSilver.Named("AVAILABLE")),
-                MessageTypeDefOf.RejectInput);
-            return;
-        }
-
-        if (!TryBeginManualSynchronization(out var manualOperation, out failureReason))
-        {
-            bankStatus = failureReason;
-            return;
-        }
-
-        try
-        {
-            bankInProgress = true;
-            bankStatus = ClashOfRimText.Key("ClashOfRim.Bank.StatusRepayingDebt");
-            long currentTicks = Find.TickManager?.TicksGame ?? 0;
-            string idempotencyKey = $"bank-debt-repay:{settings.UserId}:{settings.ColonyId}:{debt.DebtId}:{DateTime.UtcNow.Ticks}";
-            LocalMutationKind operation = LocalMutationKind.Bank;
-            BeginLocalAtomicMutation(operation, ClashOfRimText.Key("ClashOfRim.Bank.StatusUploadingConfirmation"));
-            if (!TryConsumePlayerHomeSilver(debt.AmountSilver, out string consumeMessage))
-            {
-                ClearLocalAtomicMutation();
-                bankStatus = consumeMessage;
-                Messages.Message(bankStatus, MessageTypeDefOf.RejectInput, historical: false);
-                return;
-            }
-
-            ClashBankLoanQuestUtility.MarkDebtRepaid(debt.DebtId);
-            ModBankStatusResponseDto pendingStatus = CloneBankStatusWithoutDebt(lastBankStatus, debt.DebtId);
-            lastBankStatus = pendingStatus;
-            if (!snapshotPreparation.TryBuild(
-                    settings.UserId,
-                    settings.ColonyId,
-                    out ModSnapshotPackageBuildResult build,
-                    out string buildFailureReason))
-            {
-                bankStatus = ClashOfRimText.Key("ClashOfRim.Bank.StatusConfirmationFailed", "BuildSnapshotFailed".Named("CODE"), buildFailureReason.Named("MESSAGE"));
-                ShowUnconfirmedSnapshotFailure(
-                    operation,
-                    bankStatus,
-                    () => StartBuildAndSubmitPreparedBankDebtRepayment(
-                        idempotencyKey,
-                        currentTicks,
-                        debt,
-                        pendingStatus));
-                return;
-            }
-
-            StartSubmitPreparedBankDebtRepayment(
-                idempotencyKey,
-                currentTicks,
-                debt,
-                pendingStatus,
-                build.Package!,
-                build.Payload!,
-                manualOperation);
-        }
-        finally { manualOperation.Complete(() => bankInProgress = false); }
-    }
-
-    private void StartBuildAndSubmitPreparedBankLoanRepayment(
-        string idempotencyKey,
-        long currentGameTicks,
-        ModBankLoanSummaryDto loan,
-        ModBankStatusResponseDto pendingStatus)
-    {
-        LocalMutationKind operation = LocalMutationKind.Bank;
-        if (TryRejectBlockedByLocalAtomicMutation(out string blockedMessage, operation))
-        {
-            bankStatus = blockedMessage;
-            Messages.Message(blockedMessage, MessageTypeDefOf.RejectInput, historical: false);
-            return;
-        }
-
-        if (!CanRunManualSync(out string failureReason, operation))
-        {
-            bankStatus = failureReason;
-            ShowUnconfirmedSnapshotFailure(
-                operation,
-                failureReason,
-                () => StartBuildAndSubmitPreparedBankLoanRepayment(
-                    idempotencyKey,
-                    currentGameTicks,
-                    loan,
-                    pendingStatus));
-            return;
-        }
-
-        if (!TryBeginManualSynchronization(out var manualOperation, out failureReason))
-        {
-            bankStatus = failureReason;
-            return;
-        }
-
-        try
-        {
-            BeginLocalAtomicMutation(operation, ClashOfRimText.Key("ClashOfRim.Bank.StatusUploadingConfirmation"));
-            bankInProgress = true;
-            bankStatus = ClashOfRimText.Key("ClashOfRim.Bank.StatusUploadingConfirmation");
-            if (!snapshotPreparation.TryBuild(
-                    settings.UserId,
-                    settings.ColonyId,
-                    out ModSnapshotPackageBuildResult build,
-                    out string buildFailureReason))
-            {
-                bankStatus = ClashOfRimText.Key("ClashOfRim.Bank.StatusConfirmationFailed", "BuildSnapshotFailed".Named("CODE"), buildFailureReason.Named("MESSAGE"));
-                ShowUnconfirmedSnapshotFailure(
-                    operation,
-                    bankStatus,
-                    () => StartBuildAndSubmitPreparedBankLoanRepayment(
-                        idempotencyKey,
-                        currentGameTicks,
-                        loan,
-                        pendingStatus));
-                return;
-            }
-
-            StartSubmitPreparedBankLoanRepayment(
-                idempotencyKey,
-                currentGameTicks,
-                loan,
-                pendingStatus,
-                build.Package!,
-                build.Payload!,
-                manualOperation);
-        }
-        finally { manualOperation.Complete(() => bankInProgress = false); }
-    }
-
-    private void StartSubmitPreparedBankLoanRepayment(
-        string idempotencyKey,
-        long currentGameTicks,
-        ModBankLoanSummaryDto loan,
-        ModBankStatusResponseDto pendingStatus,
-        ModSnapshotPackageMetadataDto confirmedSnapshot,
-        byte[] confirmedPayload,
-        ClientSynchronizationCoordinator.Lease? continuation = null)
-    {
-        LocalMutationKind operation = LocalMutationKind.Bank;
-        if (TryRejectBlockedByLocalAtomicMutation(out string blockedMessage, operation))
-        {
-            bankStatus = blockedMessage;
-            Messages.Message(blockedMessage, MessageTypeDefOf.RejectInput, historical: false);
-            return;
-        }
-
-        if (!synchronization.TryAcquireSnapshot(out var uploadTransaction, continuation))
-        {
-            bankStatus = ClashOfRimText.Key("ClashOfRim.Bank.StatusBusy");
-            Messages.Message(bankStatus, MessageTypeDefOf.RejectInput, historical: false);
-            return;
-        }
-
-        BeginLocalAtomicMutation(operation, ClashOfRimText.Key("ClashOfRim.Bank.StatusUploadingConfirmation"));
-        bankInProgress = true;
-        bankStatus = ClashOfRimText.Key("ClashOfRim.Bank.StatusUploadingConfirmation");
-        ClientSessionWork.Run(async () =>
-        {
-            try
-            {
-                using var httpClient = new HttpClient();
-                var client = new ClashOfRimModNetworkClient(
-                    httpClient,
-                    ClashOfRimClientNetworkContext.FromSettings(settings));
-                ClashOfRimClientNetworkResult<ModBankLoanResponseDto> result =
-                    await ClientSessionWork.Observe(client.RepayBankLoanWithSnapshotAsync(
-                        idempotencyKey,
-                        currentGameTicks,
-                        loan.LoanId,
-                        loan.TotalDueSilver,
-                        confirmedSnapshot,
-                        confirmedPayload));
-                using var publication = ClientSessionWork.EnterPublication();
-                if (!result.Success || result.Response is null)
-                {
-                    string status = ClashOfRimText.Key(
-                        "ClashOfRim.Bank.StatusRepayFailed",
-                        result.ErrorCode.Named("CODE"),
-                        result.Message.Named("MESSAGE"));
-                    bankStatus = status;
-                    ShowUnconfirmedSnapshotFailure(
-                        operation,
-                        status,
-                        () => StartSubmitPreparedBankLoanRepayment(
-                            idempotencyKey,
-                            currentGameTicks,
-                            loan,
-                            pendingStatus,
-                            confirmedSnapshot,
-                            confirmedPayload));
-                    return;
-                }
-
-                ModProtocolResponseDto? response = result.Response.Result;
-                if (response is not null && !response.Accepted)
-                {
-                    string status = ClashOfRimText.Key(
-                        "ClashOfRim.Bank.StatusRepayRejected",
-                        response.ErrorCode.Named("CODE"),
-                        (response.Message ?? string.Empty).Named("MESSAGE"));
-                    bankStatus = status;
-                    if (result.Response.Status is not null)
-                    {
-                        lastBankStatus = result.Response.Status;
-                    }
-
-                    ShowUnconfirmedSnapshotFailure(
-                        operation,
-                        status,
-                        () => StartSubmitPreparedBankLoanRepayment(
-                            idempotencyKey,
-                            currentGameTicks,
-                            loan,
-                            pendingStatus,
-                            confirmedSnapshot,
-                            confirmedPayload));
-                    return;
-                }
-
-                ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
-                {
-                    if (!string.IsNullOrWhiteSpace(result.Response.AppliedSnapshotId))
-                    {
-                        snapshotPublication.PublishCurrentGame(
-                            result.Response.AppliedSnapshotId!,
-                            result.Response.NextLineageToken);
-                    }
-
-                    lastBankStatus = result.Response.Status ?? pendingStatus;
-                    bankStatus = ClashOfRimText.Key("ClashOfRim.Bank.StatusRepaid", loan.TotalDueSilver.Named("TOTAL"));
-                    Messages.Message(bankStatus, MessageTypeDefOf.PositiveEvent, historical: false);
-                    CompleteLocalAtomicMutation();
-                    CloseUnconfirmedSnapshotFailureWindow();
-                });
-            }
-            catch (Exception ex)
-            when (ClientSessionWork.IsCurrent)
-            {
-                using var publication = ClientSessionWork.EnterPublication();
-                string status = ClashOfRimText.Key(
-                    "ClashOfRim.Bank.StatusException",
-                    ex.GetType().Name.Named("TYPE"),
-                    ex.Message.Named("MESSAGE"));
-                bankStatus = status;
-                ShowUnconfirmedSnapshotFailure(
-                    operation,
-                    status,
-                    () => StartSubmitPreparedBankLoanRepayment(
-                        idempotencyKey,
-                        currentGameTicks,
-                        loan,
-                        pendingStatus,
-                        confirmedSnapshot,
-                        confirmedPayload));
-                Log.Warning("[ClashOfRim] Bank loan repayment transaction failed: " + ex);
-            }
-            finally
-            {
-                uploadTransaction.Complete(() => bankInProgress = false);
-            }
-        });
-    }
-
-    private void StartBuildAndSubmitPreparedBankDebtRepayment(
-        string idempotencyKey,
-        long currentGameTicks,
-        ModBankDebtSummaryDto debt,
-        ModBankStatusResponseDto pendingStatus)
-    {
-        LocalMutationKind operation = LocalMutationKind.Bank;
-        if (TryRejectBlockedByLocalAtomicMutation(out string blockedMessage, operation))
-        {
-            bankStatus = blockedMessage;
-            Messages.Message(blockedMessage, MessageTypeDefOf.RejectInput, historical: false);
-            return;
-        }
-
-        if (!CanRunManualSync(out string failureReason, operation))
-        {
-            bankStatus = failureReason;
-            ShowUnconfirmedSnapshotFailure(
-                operation,
-                failureReason,
-                () => StartBuildAndSubmitPreparedBankDebtRepayment(
-                    idempotencyKey,
-                    currentGameTicks,
-                    debt,
-                    pendingStatus));
-            return;
-        }
-
-        if (!TryBeginManualSynchronization(out var manualOperation, out failureReason))
-        {
-            bankStatus = failureReason;
-            return;
-        }
-
-        try
-        {
-            BeginLocalAtomicMutation(operation, ClashOfRimText.Key("ClashOfRim.Bank.StatusUploadingConfirmation"));
-            bankInProgress = true;
-            bankStatus = ClashOfRimText.Key("ClashOfRim.Bank.StatusUploadingConfirmation");
-            if (!snapshotPreparation.TryBuild(
-                    settings.UserId,
-                    settings.ColonyId,
-                    out ModSnapshotPackageBuildResult build,
-                    out string buildFailureReason))
-            {
-                bankStatus = ClashOfRimText.Key("ClashOfRim.Bank.StatusConfirmationFailed", "BuildSnapshotFailed".Named("CODE"), buildFailureReason.Named("MESSAGE"));
-                ShowUnconfirmedSnapshotFailure(
-                    operation,
-                    bankStatus,
-                    () => StartBuildAndSubmitPreparedBankDebtRepayment(
-                        idempotencyKey,
-                        currentGameTicks,
-                        debt,
-                        pendingStatus));
-                return;
-            }
-
-            StartSubmitPreparedBankDebtRepayment(
-                idempotencyKey,
-                currentGameTicks,
-                debt,
-                pendingStatus,
-                build.Package!,
-                build.Payload!,
-                manualOperation);
-        }
-        finally { manualOperation.Complete(() => bankInProgress = false); }
-    }
-
-    private void StartSubmitPreparedBankDebtRepayment(
-        string idempotencyKey,
-        long currentGameTicks,
-        ModBankDebtSummaryDto debt,
-        ModBankStatusResponseDto pendingStatus,
-        ModSnapshotPackageMetadataDto confirmedSnapshot,
-        byte[] confirmedPayload,
-        ClientSynchronizationCoordinator.Lease? continuation = null)
-    {
-        LocalMutationKind operation = LocalMutationKind.Bank;
-        if (TryRejectBlockedByLocalAtomicMutation(out string blockedMessage, operation))
-        {
-            bankStatus = blockedMessage;
-            Messages.Message(blockedMessage, MessageTypeDefOf.RejectInput, historical: false);
-            return;
-        }
-
-        if (!synchronization.TryAcquireSnapshot(out var uploadTransaction, continuation))
-        {
-            bankStatus = ClashOfRimText.Key("ClashOfRim.Bank.StatusBusy");
-            Messages.Message(bankStatus, MessageTypeDefOf.RejectInput, historical: false);
-            return;
-        }
-
-        BeginLocalAtomicMutation(operation, ClashOfRimText.Key("ClashOfRim.Bank.StatusUploadingConfirmation"));
-        bankInProgress = true;
-        bankStatus = ClashOfRimText.Key("ClashOfRim.Bank.StatusUploadingConfirmation");
-        ClientSessionWork.Run(async () =>
-        {
-            try
-            {
-                using var httpClient = new HttpClient();
-                var client = new ClashOfRimModNetworkClient(
-                    httpClient,
-                    ClashOfRimClientNetworkContext.FromSettings(settings));
-                ClashOfRimClientNetworkResult<ModBankDebtResponseDto> result =
-                    await ClientSessionWork.Observe(client.RepayBankDebtWithSnapshotAsync(
-                        idempotencyKey,
-                        currentGameTicks,
-                        debt.DebtId,
-                        debt.AmountSilver,
-                        confirmedSnapshot,
-                        confirmedPayload));
-                using var publication = ClientSessionWork.EnterPublication();
-                if (!result.Success || result.Response is null)
-                {
-                    string status = ClashOfRimText.Key(
-                        "ClashOfRim.Bank.StatusDebtRepayFailed",
-                        result.ErrorCode.Named("CODE"),
-                        result.Message.Named("MESSAGE"));
-                    bankStatus = status;
-                    ShowUnconfirmedSnapshotFailure(
-                        operation,
-                        status,
-                        () => StartSubmitPreparedBankDebtRepayment(
-                            idempotencyKey,
-                            currentGameTicks,
-                            debt,
-                            pendingStatus,
-                            confirmedSnapshot,
-                            confirmedPayload));
-                    return;
-                }
-
-                ModProtocolResponseDto? response = result.Response.Result;
-                if (response is not null && !response.Accepted)
-                {
-                    string status = ClashOfRimText.Key(
-                        "ClashOfRim.Bank.StatusDebtRepayRejected",
-                        response.ErrorCode.Named("CODE"),
-                        (response.Message ?? string.Empty).Named("MESSAGE"));
-                    bankStatus = status;
-                    if (result.Response.Status is not null)
-                    {
-                        lastBankStatus = result.Response.Status;
-                    }
-
-                    ShowUnconfirmedSnapshotFailure(
-                        operation,
-                        status,
-                        () => StartSubmitPreparedBankDebtRepayment(
-                            idempotencyKey,
-                            currentGameTicks,
-                            debt,
-                            pendingStatus,
-                            confirmedSnapshot,
-                            confirmedPayload));
-                    return;
-                }
-
-                ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
-                {
-                    if (!string.IsNullOrWhiteSpace(result.Response.AppliedSnapshotId))
-                    {
-                        snapshotPublication.PublishCurrentGame(
-                            result.Response.AppliedSnapshotId!,
-                            result.Response.NextLineageToken);
-                    }
-
-                    lastBankStatus = result.Response.Status ?? pendingStatus;
-                    bankStatus = ClashOfRimText.Key("ClashOfRim.Bank.StatusDebtRepaid", debt.AmountSilver.Named("TOTAL"));
-                    Messages.Message(bankStatus, MessageTypeDefOf.PositiveEvent, historical: false);
-                    CompleteLocalAtomicMutation();
-                    CloseUnconfirmedSnapshotFailureWindow();
-                });
-            }
-            catch (Exception ex)
-            when (ClientSessionWork.IsCurrent)
-            {
-                using var publication = ClientSessionWork.EnterPublication();
-                string status = ClashOfRimText.Key(
-                    "ClashOfRim.Bank.StatusException",
-                    ex.GetType().Name.Named("TYPE"),
-                    ex.Message.Named("MESSAGE"));
-                bankStatus = status;
-                ShowUnconfirmedSnapshotFailure(
-                    operation,
-                    status,
-                    () => StartSubmitPreparedBankDebtRepayment(
-                        idempotencyKey,
-                        currentGameTicks,
-                        debt,
-                        pendingStatus,
-                        confirmedSnapshot,
-                        confirmedPayload));
-                Log.Warning("[ClashOfRim] Bank debt repayment transaction failed: " + ex);
-            }
-            finally
-            {
-                uploadTransaction.Complete(() => bankInProgress = false);
-            }
-        });
-    }
+    internal void StartRefreshBankStatus() => _ = bankOperations.RefreshAsync();
+    internal void StartCreateBankLoan(int principalSilver, int durationDays) => _ = bankOperations.BorrowAsync(principalSilver, durationDays);
+    internal void StartRepayBankLoan() => _ = bankOperations.RepayLoanAsync();
+    internal void StartRepayBankDebt(ModBankDebtSummaryDto debt) => _ = bankOperations.RepayDebtAsync(debt?.DebtId);
 
     internal void StartHireMercenary(string skillDefName, int skillLevel, int durationDays)
     {
@@ -1095,7 +78,7 @@ public sealed partial class ClashOfRimMod
                 if (response is not null && !response.Accepted)
                 {
                     mercenaryStatus = ClashOfRimText.Key("ClashOfRim.Mercenary.StatusHireRejected", response.ErrorCode.Named("CODE"), response.Message.Named("MESSAGE"));
-                    lastBankStatus = result.Response.BankStatus;
+                    bankState.View = result.Response.BankStatus;
                     return;
                 }
 
@@ -1119,7 +102,7 @@ public sealed partial class ClashOfRimMod
                     CreatedAtGameTicks = currentTicks,
                     ExpiresAtGameTicks = currentTicks + durationDays * (long)ClashManagedQuestTimingUtility.TicksPerDay
                 };
-                lastBankStatus = quote.BankStatus ?? lastBankStatus;
+                bankState.View = quote.BankStatus ?? bankState.View;
                 manualOperation.QueueContinuation(EnqueueClashOfRimMainThreadAction,
                     continuation => ApplyPreparedMercenaryHireAndBuildTransaction(idempotencyKey, currentTicks, contract, continuation),
                     () => mercenaryInProgress = false);
@@ -1146,7 +129,7 @@ public sealed partial class ClashOfRimMod
     {
         LocalMutationKind operation = LocalMutationKind.Mercenary;
         BeginLocalAtomicMutation(operation, ClashOfRimText.Key("ClashOfRim.Mercenary.StatusHiring"));
-        int availableSilver = CountPlayerHomeSilver();
+        int availableSilver = ClientBankRuntime.CountPlayerHomeSilver();
         if (availableSilver < contract.PriceSilver)
         {
             ClearLocalAtomicMutation();
@@ -1158,7 +141,7 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
-        if (!TryConsumePlayerHomeSilver(contract.PriceSilver, out string consumeMessage))
+        if (!ClientBankRuntime.TryConsumePlayerHomeSilver(contract.PriceSilver, out string consumeMessage))
         {
             ClearLocalAtomicMutation();
             mercenaryStatus = consumeMessage;
@@ -1386,7 +369,7 @@ public sealed partial class ClashOfRimMod
                     mercenaryStatus = status;
                     if (result.Response.BankStatus is not null)
                     {
-                        lastBankStatus = result.Response.BankStatus;
+                        bankState.View = result.Response.BankStatus;
                     }
 
                     ShowUnconfirmedSnapshotFailure(
@@ -1410,7 +393,7 @@ public sealed partial class ClashOfRimMod
                             result.Response.NextLineageToken);
                     }
 
-                    lastBankStatus = result.Response.BankStatus ?? lastBankStatus;
+                    bankState.View = result.Response.BankStatus ?? bankState.View;
                     mercenaryStatus = ClashOfRimText.Key(
                         "ClashOfRim.Mercenary.StatusHiredConfirmed",
                         contract.PriceSilver.Named("PRICE"));
@@ -1482,7 +465,7 @@ public sealed partial class ClashOfRimMod
                 else if (result.Response.Result is not null && !result.Response.Result.Accepted)
                 {
                     quote = result.Response;
-                    lastBankStatus = result.Response.BankStatus;
+                    bankState.View = result.Response.BankStatus;
                     status = ClashOfRimText.Key(
                         "ClashOfRim.Mercenary.StatusQuoteRejected",
                         result.Response.Result.ErrorCode.Named("CODE"),
@@ -1491,7 +474,7 @@ public sealed partial class ClashOfRimMod
                 else
                 {
                     quote = result.Response;
-                    lastBankStatus = result.Response.BankStatus;
+                    bankState.View = result.Response.BankStatus;
                     status = MercenaryUiUtility.FormatPriceLine(result.Response.PriceSilver);
                 }
             }
@@ -1547,7 +530,7 @@ public sealed partial class ClashOfRimMod
                 else if (result.Response.Result is not null && !result.Response.Result.Accepted)
                 {
                     quote = result.Response;
-                    lastBankStatus = result.Response.BankStatus;
+                    bankState.View = result.Response.BankStatus;
                     status = ClashOfRimText.Key(
                         "ClashOfRim.Mercenary.StatusQuoteRejected",
                         result.Response.Result.ErrorCode.Named("CODE"),
@@ -1556,7 +539,7 @@ public sealed partial class ClashOfRimMod
                 else
                 {
                     quote = result.Response;
-                    lastBankStatus = result.Response.BankStatus;
+                    bankState.View = result.Response.BankStatus;
                     status = ClashOfRimText.Key(
                         "ClashOfRim.Mercenary.GuardPriceLine",
                         result.Response.PriceSilver.Named("PRICE"));
@@ -1637,7 +620,7 @@ public sealed partial class ClashOfRimMod
                 if (response is not null && !response.Accepted)
                 {
                     mercenaryStatus = ClashOfRimText.Key("ClashOfRim.Mercenary.StatusHireRejected", response.ErrorCode.Named("CODE"), response.Message.Named("MESSAGE"));
-                    lastBankStatus = result.Response.BankStatus;
+                    bankState.View = result.Response.BankStatus;
                     return;
                 }
 
@@ -1656,7 +639,7 @@ public sealed partial class ClashOfRimMod
                     PointRatio = quote.PointRatio,
                     CreatedAtGameTicks = currentTicks
                 };
-                lastBankStatus = quote.BankStatus ?? lastBankStatus;
+                bankState.View = quote.BankStatus ?? bankState.View;
                 manualOperation.QueueContinuation(EnqueueClashOfRimMainThreadAction,
                     continuation => ApplyPreparedMercenaryGuardHireAndBuildTransaction(idempotencyKey, currentTicks, contract, continuation),
                     () => mercenaryInProgress = false);
@@ -1683,7 +666,7 @@ public sealed partial class ClashOfRimMod
     {
         LocalMutationKind operation = LocalMutationKind.Mercenary;
         BeginLocalAtomicMutation(operation, ClashOfRimText.Key("ClashOfRim.Mercenary.GuardStatusHiring"));
-        int availableSilver = CountPlayerHomeSilver();
+        int availableSilver = ClientBankRuntime.CountPlayerHomeSilver();
         if (availableSilver < contract.PriceSilver)
         {
             ClearLocalAtomicMutation();
@@ -1695,7 +678,7 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
-        if (!TryConsumePlayerHomeSilver(contract.PriceSilver, out string consumeMessage))
+        if (!ClientBankRuntime.TryConsumePlayerHomeSilver(contract.PriceSilver, out string consumeMessage))
         {
             ClearLocalAtomicMutation();
             mercenaryStatus = consumeMessage;
@@ -1851,7 +834,7 @@ public sealed partial class ClashOfRimMod
                     mercenaryStatus = status;
                     if (result.Response.BankStatus is not null)
                     {
-                        lastBankStatus = result.Response.BankStatus;
+                        bankState.View = result.Response.BankStatus;
                     }
 
                     ShowUnconfirmedSnapshotFailure(
@@ -1875,7 +858,7 @@ public sealed partial class ClashOfRimMod
                             result.Response.NextLineageToken);
                     }
 
-                    lastBankStatus = result.Response.BankStatus ?? lastBankStatus;
+                    bankState.View = result.Response.BankStatus ?? bankState.View;
                     mercenaryStatus = ClashOfRimText.Key(
                         "ClashOfRim.Mercenary.GuardStatusConfirmed",
                         contract.PriceSilver.Named("PRICE"));
@@ -1951,11 +934,11 @@ public sealed partial class ClashOfRimMod
                 if (response is not null && !response.Accepted)
                 {
                     mercenaryStatus = ClashOfRimText.Key("ClashOfRim.Mercenary.StatusIncidentRejected", response.ErrorCode.Named("CODE"), response.Message.Named("MESSAGE"));
-                    lastBankStatus = result.Response.BankStatus;
+                    bankState.View = result.Response.BankStatus;
                     return;
                 }
 
-                lastBankStatus = result.Response.BankStatus;
+                bankState.View = result.Response.BankStatus;
                 mercenaryStatus = result.Response.Debt is null
                     ? ClashOfRimText.Key("ClashOfRim.Mercenary.StatusIncidentReportedNoDebt")
                     : ClashOfRimText.Key("ClashOfRim.Mercenary.StatusIncidentReported", result.Response.Debt.AmountSilver.Named("FINE"));
@@ -1986,23 +969,5 @@ public sealed partial class ClashOfRimMod
         });
     }
 
-    private static ModBankLoanSummaryDto CloneLoanWithLocalTotalDue(ModBankLoanSummaryDto loan)
-    {
-        int totalDue = Math.Max(
-            loan.TotalDueSilver,
-            ClashBankLoanQuestUtility.FindLoanTotalDueSilver(loan.LoanId) ?? loan.TotalDueSilver);
-        return new ModBankLoanSummaryDto
-        {
-            LoanId = loan.LoanId,
-            PrincipalSilver = loan.PrincipalSilver,
-            InterestSilver = loan.InterestSilver,
-            TotalDueSilver = totalDue,
-            DurationDays = loan.DurationDays,
-            CreatedAtGameTicks = loan.CreatedAtGameTicks,
-            DueAtGameTicks = loan.DueAtGameTicks,
-            PenaltyRaidPoints = loan.PenaltyRaidPoints,
-            Status = loan.Status,
-            SourceKind = loan.SourceKind
-        };
-    }
+
 }

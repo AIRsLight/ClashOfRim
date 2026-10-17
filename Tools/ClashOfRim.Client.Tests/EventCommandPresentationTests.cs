@@ -8,6 +8,7 @@ using AIRsLight.ClashOfRim;
 using AIRsLight.ClashOfRim.EventLetters;
 using AIRsLight.ClashOfRim.Diplomacy;
 using AIRsLight.ClashOfRim.Gifts;
+using AIRsLight.ClashOfRim.Bank;
 using AIRsLight.ClashOfRim.Protocol;
 using RimWorld;
 using AIRsLight.ClashOfRim.Modules.Events;
@@ -47,6 +48,7 @@ internal static class EventCommandPresentationTests
                 DecisionPresentation();
                 ApplicationPresentation();
                 ReadPresentation();
+                BankPresentation();
                 foreach (var purpose in Enum.GetValues<ClientEventConfirmationPurpose>())
                 {
                     var notice = new ClientEventConfirmationNotice(purpose, ClientEventConfirmationStage.Uploading,
@@ -60,14 +62,14 @@ internal static class EventCommandPresentationTests
                         new ClientEventPreparationFailure(ClientEventPreparationFailureKind.Blocked,
                             Blocked: new(LocalMutationKind.Bank, "bank-pending", default))
                     }) RequireResolved(presentation.Format(notice with { Stage = ClientEventConfirmationStage.PreparationFailed, PreparationFailure = failure }));
-                    foreach (var kind in Enum.GetValues<ClientEventConfirmationFailureKind>())
+                    foreach (var kind in Enum.GetValues<ClientSnapshotTransactionFailureKind>())
                     {
                         string text = presentation.Format(notice with { Stage = ClientEventConfirmationStage.Failed,
                             Problem = new(kind, "error-code", "error-message", "validation-detail", new InvalidOperationException("exception"), false) });
                         RequireResolved(text);
-                        if (!text.Contains("error-message") || !text.Contains(kind == ClientEventConfirmationFailureKind.Exception ? "InvalidOperationException" : "error-code"))
+                        if (!text.Contains("error-message") || !text.Contains(kind == ClientSnapshotTransactionFailureKind.Exception ? "InvalidOperationException" : "error-code"))
                             throw new Exception("Confirmation failure lost semantic parameters: " + purpose);
-                        if (kind == ClientEventConfirmationFailureKind.Rejected && purpose != ClientEventConfirmationPurpose.AutomaticEvents
+                        if (kind == ClientSnapshotTransactionFailureKind.Rejected && purpose != ClientEventConfirmationPurpose.AutomaticEvents
                             && !text.Contains("validation-detail")) throw new Exception("Single rejection lost server validation.");
                     }
                     // Raid acceptance is guarded and presented by the raid domain. It never builds a new package here.
@@ -177,6 +179,21 @@ internal static class EventCommandPresentationTests
                 }
             }
         }
+    }
+
+    private static void BankPresentation()
+    {
+        var bank = new ClientBankPresentation();
+        foreach (string key in new[] { "StatusNotPulled", "StatusRefreshing", "StatusBusy", "StatusNoMap", "StatusNoActiveLoan",
+            "StatusMissingDebt", "StatusLoansDisabled", "StatusBaseSnapshotChanged", "StatusUploadingConfirmation",
+            "StatusCreateMinimumLoan", "StatusCreateMaxLoanExceeded", "StatusCreateDurationInvalid", "StatusCreateRejected",
+            "StatusInsufficientSilver", "StatusConfirmationFailed", "StatusCreated", "StatusRepaid", "StatusDebtRepaid",
+            "StatusRefreshFailed", "StatusRefreshRejected", "StatusRepayFailed", "StatusRepayRejected", "StatusDebtRepayFailed",
+            "StatusDebtRepayRejected", "StatusException" })
+            RequireResolved(bank.Text(key, ("MIN", 100), ("MAX", 500), ("NEEDED", 100), ("AVAILABLE", 90),
+                ("CODE", "Conflict"), ("MESSAGE", "message"), ("TYPE", "IOException"), ("PRINCIPAL", 100), ("TOTAL", 120)));
+        RequireResolved(bank.Summary(new() { ColonyWealth = 10000, MinLoanSilver = 100, MaxLoanSilver = 500, BaseAnnualInterestRate = .1f }));
+        RequireResolved(bank.Summary(new() { ActiveLoan = new() { LoanId = "é", TotalDueSilver = 120, Status = "Active" } }));
     }
 
     private static bool ApplyRelation(string? userId, FactionRelationKind relationKind, ref bool __result)

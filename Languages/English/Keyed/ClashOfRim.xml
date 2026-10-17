@@ -1907,4 +1907,7 @@
   <ClashOfRim.ThingTransfer.RejectRelic>Ideology relics cannot be traded or gifted.</ClashOfRim.ThingTransfer.RejectRelic>
   <ClashOfRim.ThingTransfer.RejectUnnaturalCorpse>This unnatural corpse is bound to a local anomaly event and cannot be transferred.</ClashOfRim.ThingTransfer.RejectUnnaturalCorpse>
   <ClashOfRim.ThingTransfer.RejectUnsupported>This item contains state that cannot be transferred safely.</ClashOfRim.ThingTransfer.RejectUnsupported>
+  <ClashOfRim.Bank.StatusLoansDisabled>Bank loans are disabled on this server.</ClashOfRim.Bank.StatusLoansDisabled>
+  <ClashOfRim.Bank.StatusCreateMinimumLoan>The minimum loan is {MIN} silver.</ClashOfRim.Bank.StatusCreateMinimumLoan>
+  <ClashOfRim.Bank.StatusBaseSnapshotChanged>The active snapshot changed. Reload the authoritative save before continuing this bank transaction.</ClashOfRim.Bank.StatusBaseSnapshotChanged>
 </LanguageData>

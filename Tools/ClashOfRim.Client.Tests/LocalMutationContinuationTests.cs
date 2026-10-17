@@ -1,6 +1,5 @@
 using System;
 using System.Reflection;
-using System.Runtime.CompilerServices;
 using AIRsLight.ClashOfRim;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.ClientSnapshots;
@@ -12,12 +11,11 @@ using AIRsLight.ClashOfRim.Modules.Transport;
 using HarmonyLib;
 using Verse;
 
-// Temporary integration coverage for callers that remain in the Mod until M4/M5.
+// Integration coverage for module confirmations using the actual engine adapters.
 // Only game serialization and localization are replaced; admission, failure state,
 // retry dispatch and synchronization ownership use the production implementation.
 internal static class LocalMutationContinuationTests
 {
-    private const BindingFlags Instance = BindingFlags.NonPublic | BindingFlags.Instance;
     private static int saves;
     private static int presentedFailures;
 
@@ -38,12 +36,7 @@ internal static class LocalMutationContinuationTests
         ClientSessionWork.Reset();
         try
         {
-            Verify("StartBuildAndSubmitPreparedBankLoanTransaction", LocalMutationKind.Bank,
-                "loan-key", 10L, 100, new ModBankLoanSummaryDto(), new ModBankStatusResponseDto());
-            Verify("StartBuildAndSubmitPreparedBankLoanRepayment", LocalMutationKind.Bank,
-                "repay-key", 10L, new ModBankLoanSummaryDto(), new ModBankStatusResponseDto());
-            Verify("StartBuildAndSubmitPreparedBankDebtRepayment", LocalMutationKind.Bank,
-                "debt-key", 10L, new ModBankDebtSummaryDto(), new ModBankStatusResponseDto());
+            // Bank rebuild/retry paths now execute directly in ClientBankModuleTests.
             Verify("GiftAsync", LocalMutationKind.Gift, "event", "ItemDeliveryAnchored");
             Verify("AutomaticAsync", LocalMutationKind.AutomaticEvents,
                 (object)new[] { new ModConfirmEventApplicationEntryDto { EventId = "event" } });
@@ -61,15 +54,10 @@ internal static class LocalMutationContinuationTests
 
     private static void Verify(string method, LocalMutationKind kind, params object[] args)
     {
-        var mod = (ClashOfRimMod)RuntimeHelpers.GetUninitializedObject(typeof(ClashOfRimMod));
         var mutations = new ClientLocalMutationCoordinator();
         var synchronization = new ClientSynchronizationCoordinator();
-        typeof(ClashOfRimMod).GetField("localMutations", Instance)!.SetValue(mod, mutations);
-        typeof(ClashOfRimMod).GetField("synchronization", Instance)!.SetValue(mod, synchronization);
-        typeof(ClashOfRimMod).GetField("snapshotPreparation", Instance)!.SetValue(mod, ClientSnapshotComposition.CreatePreparation());
         var settings = new ClashOfRimSettings
         { ServerBaseUrl = "http://localhost", UserId = "alice", ColonyId = "colony", CurrentSnapshotId = "snapshot" };
-        typeof(ClashOfRimMod).GetField("settings", Instance)!.SetValue(mod, settings);
         var lifecycle = new ClientSessionLifecycle(new ClientSessionIdentityStore(settings), new ClientSessionLogoutTransport(),
             new ClientSessionConnection(new ClientSessionWebSocketTransport(new ClientWebSocketFactory(), new ClientProtocolMetadata())));
         var game = new ClientSnapshotGame();
@@ -78,7 +66,6 @@ internal static class LocalMutationContinuationTests
             inbox, new ClientEventConfirmationTransport());
         var preparation = new ClientEventConfirmationPreparation(lifecycle, synchronization, mutations, confirmation);
         var recovery = new ClientSnapshotFailureRecovery(lifecycle, mutations, synchronization, game, new ClientSnapshotFailureView());
-        typeof(ClashOfRimMod).GetField("snapshotFailureRecovery", Instance)!.SetValue(mod, recovery);
         var workflow = new ClientEventConfirmationWorkflow(lifecycle, preparation, confirmation, mutations, recovery, inbox,
                 new AIRsLight.ClashOfRim.EventLetters.ClientEventConfirmationPresentation(static (_, _) => { }),
                 new AIRsLight.ClashOfRim.EventLetters.ClientEventConfirmationEffects());
@@ -86,13 +73,8 @@ internal static class LocalMutationContinuationTests
         presentedFailures = 0;
         var failure = mutations.RecordFailure(kind, "previous failure", () =>
         {
-            try
-            {
-                if (kind == LocalMutationKind.Gift) _ = workflow.GiftAsync((string)args[0], (string)args[1]);
-                else if (kind == LocalMutationKind.AutomaticEvents) _ = workflow.AutomaticAsync((ModConfirmEventApplicationEntryDto[])args[0]);
-                else typeof(ClashOfRimMod).GetMethod(method, Instance)!.Invoke(mod, args);
-            }
-            catch (TargetInvocationException ex) { throw new Exception(method + ": " + ex.InnerException); }
+            if (kind == LocalMutationKind.Gift) _ = workflow.GiftAsync((string)args[0], (string)args[1]);
+            else _ = workflow.AutomaticAsync((ModConfirmEventApplicationEntryDto[])args[0]);
         }, true);
         if (!mutations.TryRetry(failure) || saves != 1 || synchronization.IsBusy
             || !mutations.IsPending || mutations.Current!.Kind != kind || mutations.Current.Status == "previous failure"

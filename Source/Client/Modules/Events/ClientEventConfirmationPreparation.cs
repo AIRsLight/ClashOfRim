@@ -89,5 +89,5 @@ internal enum ClientEventPreparationFailureKind { Blocked, Admission, Busy, Buil
 internal sealed record ClientEventPreparationFailure(ClientEventPreparationFailureKind Kind,
     LocalMutationState? Blocked = null, LocalMutationAdmission Admission = LocalMutationAdmission.Allowed,
     SnapshotUploadFailure? SnapshotFailure = null);
-internal sealed record ClientEventPreparationResult(LocalMutationKind Operation, ClientEventConfirmation.Attempt? Attempt = null,
+internal sealed record ClientEventPreparationResult(LocalMutationKind Operation, ClientSnapshotTransaction.Attempt? Attempt = null,
     ModSnapshotPackageBuildResult? Build = null, ClientEventPreparationFailure? Failure = null);

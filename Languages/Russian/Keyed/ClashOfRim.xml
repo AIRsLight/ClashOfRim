@@ -1895,4 +1895,7 @@
   <ClashOfRim.ColonyAppearance.RegistrationReason>обновление значка колонии</ClashOfRim.ColonyAppearance.RegistrationReason>
   <ClashOfRim.Mercenary.GuardArrivalLetterLabel>Прибыла охрана</ClashOfRim.Mercenary.GuardArrivalLetterLabel>
   <ClashOfRim.Mercenary.GuardArrivalLetterText>Нанятый защитниками отряд охраны прибыл на поле боя в транспортных капсулах. Он поможет оборонять поселение.</ClashOfRim.Mercenary.GuardArrivalLetterText>
+  <ClashOfRim.Bank.StatusLoansDisabled>Банковские займы на этом сервере отключены.</ClashOfRim.Bank.StatusLoansDisabled>
+  <ClashOfRim.Bank.StatusCreateMinimumLoan>Минимальная сумма займа — {MIN} серебра.</ClashOfRim.Bank.StatusCreateMinimumLoan>
+  <ClashOfRim.Bank.StatusBaseSnapshotChanged>Текущий снимок изменился. Перед продолжением банковской операции загрузите актуальное сохранение с сервера.</ClashOfRim.Bank.StatusBaseSnapshotChanged>
 </LanguageData>

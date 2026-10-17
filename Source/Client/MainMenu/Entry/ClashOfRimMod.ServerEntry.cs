@@ -288,7 +288,7 @@ public sealed partial class ClashOfRimMod
         pendingInitialWorldConfigurationSubmit = false;
         pendingServerWorldConfiguration = null;
         pendingServerWorldSubstrate = null;
-        lastBankStatus = null;
+        bankState.View = null;
         lastAdminStatus = null;
         giftsEnabled = true;
         pvpEnabled = true;
@@ -298,7 +298,7 @@ public sealed partial class ClashOfRimMod
         settings.TargetColonyId = string.Empty;
         settings.TargetSnapshotId = string.Empty;
         settings.CurrentWorldConfigurationId = string.Empty;
-        bankStatus = ClashOfRimText.Key("ClashOfRim.Bank.NoStatus");
+        bankState.Message = ClashOfRimText.Key("ClashOfRim.Bank.NoStatus");
         playerListStatus = ClashOfRimText.Key("ClashOfRim.Status.PlayerListNotPulled");
         tradeStatus = ClashOfRimText.Key("ClashOfRim.Status.TradeOrderNotCreated");
         chatStatus = ClashOfRimText.Key("ClashOfRim.Chat.StatusIdle");

@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Bank;
 using AIRsLight.ClashOfRim.Modules.Events;
 using AIRsLight.ClashOfRim.Modules.Packages;
 using AIRsLight.ClashOfRim.Modules.Transport;
@@ -56,13 +57,6 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader
     private static readonly string AbandonPlayerColonyRoute = ProtocolContractManifest.Find(ProtocolMessageKind.AbandonPlayerColony).Route;
     private static readonly string GetAdminBaselineRequirementsRoute = ProtocolContractManifest.Find(ProtocolMessageKind.GetAdminBaselineRequirements).Route;
     private static readonly string SubmitAdminBaselineRoute = ProtocolContractManifest.Find(ProtocolMessageKind.SubmitAdminBaseline).Route;
-    private static readonly string GetBankStatusRoute = ProtocolContractManifest.Find(ProtocolMessageKind.GetBankStatus).Route;
-    private static readonly string CreateBankLoanWithSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.CreateBankLoanWithSnapshot).Route;
-    private static readonly string CreateBankLoanRoute = ProtocolContractManifest.Find(ProtocolMessageKind.CreateBankLoan).Route;
-    private static readonly string RepayBankLoanWithSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.RepayBankLoanWithSnapshot).Route;
-    private static readonly string RepayBankLoanRoute = ProtocolContractManifest.Find(ProtocolMessageKind.RepayBankLoan).Route;
-    private static readonly string RepayBankDebtWithSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.RepayBankDebtWithSnapshot).Route;
-    private static readonly string RepayBankDebtRoute = ProtocolContractManifest.Find(ProtocolMessageKind.RepayBankDebt).Route;
     private static readonly string QuoteMercenaryRoute = ProtocolContractManifest.Find(ProtocolMessageKind.QuoteMercenary).Route;
     private static readonly string HireMercenaryWithSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.HireMercenaryWithSnapshot).Route;
     private static readonly string HireMercenaryRoute = ProtocolContractManifest.Find(ProtocolMessageKind.HireMercenary).Route;
@@ -95,6 +89,8 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader
     public static Func<IReadOnlyCollection<string>?, string?>? CompatibilityManifestJsonForPackagesProvider;
     public static Action? ServerEntryDiagnosticsLogger;
 
+    private readonly ClientBankProtocol bankProtocol;
+
     public ClashOfRimModNetworkClient(
         HttpClient httpClient,
         ClashOfRimClientNetworkContext context)
@@ -103,6 +99,7 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader
         this.context = context ?? throw new ArgumentNullException(nameof(context));
         var protocolEnvironment = new ClientProtocolEnvironment((message, token) => SessionExpired?.Invoke(message, token));
         transport = new ClientProtocolTransport(httpClient, context, protocolEnvironment);
+        bankProtocol = new ClientBankProtocol(context, transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         events = new ClientEventProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         eventConfirmations = new ClientEventConfirmationProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         eventDecisions = new ClientEventDecisionProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
@@ -583,27 +580,7 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader
         long currentGameTicks,
         int colonyWealth,
         CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModBankStatusResponseDto>();
-        }
-
-        var request = new ModGetBankStatusRequestDto
-        {
-            UserId = context.UserId,
-            ColonyId = context.ColonyId,
-            CurrentSnapshotId = context.CurrentSnapshotId ?? string.Empty,
-            AuthToken = context.AuthToken,
-            CurrentGameTicks = currentGameTicks,
-            ColonyWealth = colonyWealth
-        };
-
-        return transport.PostAsync<ModGetBankStatusRequestDto, ModBankStatusResponseDto>(
-            GetBankStatusRoute,
-            request,
-            cancellationToken);
-    }
+        => bankProtocol.GetBankStatusAsync(currentGameTicks, colonyWealth, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModBankLoanResponseDto>> CreateBankLoanAsync(
         string idempotencyKey,
@@ -612,30 +589,7 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader
         int principalSilver,
         int durationDays,
         CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModBankLoanResponseDto>();
-        }
-
-        var request = new ModCreateBankLoanRequestDto
-        {
-            IdempotencyKey = idempotencyKey,
-            UserId = context.UserId,
-            ColonyId = context.ColonyId,
-            CurrentSnapshotId = context.CurrentSnapshotId ?? string.Empty,
-            AuthToken = context.AuthToken,
-            CurrentGameTicks = currentGameTicks,
-            ColonyWealth = colonyWealth,
-            PrincipalSilver = principalSilver,
-            DurationDays = durationDays
-        };
-
-        return transport.PostAsync<ModCreateBankLoanRequestDto, ModBankLoanResponseDto>(
-            CreateBankLoanRoute,
-            request,
-            cancellationToken);
-    }
+        => bankProtocol.CreateBankLoanAsync(idempotencyKey, currentGameTicks, colonyWealth, principalSilver, durationDays, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModBankLoanResponseDto>> CreateBankLoanWithSnapshotAsync(
         string idempotencyKey,
@@ -648,64 +602,14 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader
         ModSnapshotPackageMetadataDto confirmedSnapshot,
         byte[] confirmedPayload,
         CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModBankLoanResponseDto>();
-        }
-
-        var request = new ModCreateBankLoanWithSnapshotRequestDto
-        {
-            IdempotencyKey = idempotencyKey,
-            UserId = context.UserId,
-            ColonyId = context.ColonyId,
-            CurrentSnapshotId = context.CurrentSnapshotId ?? string.Empty,
-            AuthToken = context.AuthToken,
-            CurrentGameTicks = currentGameTicks,
-            ColonyWealth = colonyWealth,
-            PrincipalSilver = principalSilver,
-            DurationDays = durationDays,
-            RequestedLoanId = requestedLoanId ?? string.Empty,
-            ExpectedInterestSilver = expectedInterestSilver,
-            ConfirmedSnapshot = MarkSnapshotUploadKind(
-                confirmedSnapshot,
-                ModSnapshotUploadKinds.BankLoanCreationConfirmation)
-        };
-
-        return transport.PostSnapshotMultipartAsync<ModCreateBankLoanWithSnapshotRequestDto, ModBankLoanResponseDto>(
-            CreateBankLoanWithSnapshotRoute,
-            request,
-            confirmedPayload,
-            cancellationToken);
-    }
+        => bankProtocol.CreateBankLoanWithSnapshotAsync(idempotencyKey, currentGameTicks, colonyWealth, principalSilver, durationDays, requestedLoanId, expectedInterestSilver, confirmedSnapshot, confirmedPayload, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModBankLoanResponseDto>> RepayBankLoanAsync(
         string idempotencyKey,
         long currentGameTicks,
         int silverPaid,
         CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModBankLoanResponseDto>();
-        }
-
-        var request = new ModRepayBankLoanRequestDto
-        {
-            IdempotencyKey = idempotencyKey,
-            UserId = context.UserId,
-            ColonyId = context.ColonyId,
-            CurrentSnapshotId = context.CurrentSnapshotId ?? string.Empty,
-            AuthToken = context.AuthToken,
-            CurrentGameTicks = currentGameTicks,
-            SilverPaid = silverPaid
-        };
-
-        return transport.PostAsync<ModRepayBankLoanRequestDto, ModBankLoanResponseDto>(
-            RepayBankLoanRoute,
-            request,
-            cancellationToken);
-    }
+        => bankProtocol.RepayBankLoanAsync(idempotencyKey, currentGameTicks, silverPaid, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModBankLoanResponseDto>> RepayBankLoanWithSnapshotAsync(
         string idempotencyKey,
@@ -715,33 +619,7 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader
         ModSnapshotPackageMetadataDto confirmedSnapshot,
         byte[] confirmedPayload,
         CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModBankLoanResponseDto>();
-        }
-
-        var request = new ModRepayBankLoanWithSnapshotRequestDto
-        {
-            IdempotencyKey = idempotencyKey,
-            UserId = context.UserId,
-            ColonyId = context.ColonyId,
-            CurrentSnapshotId = context.CurrentSnapshotId ?? string.Empty,
-            AuthToken = context.AuthToken,
-            CurrentGameTicks = currentGameTicks,
-            LoanId = loanId ?? string.Empty,
-            SilverPaid = silverPaid,
-            ConfirmedSnapshot = MarkSnapshotUploadKind(
-                confirmedSnapshot,
-                ModSnapshotUploadKinds.BankLoanRepaymentConfirmation)
-        };
-
-        return transport.PostSnapshotMultipartAsync<ModRepayBankLoanWithSnapshotRequestDto, ModBankLoanResponseDto>(
-            RepayBankLoanWithSnapshotRoute,
-            request,
-            confirmedPayload,
-            cancellationToken);
-    }
+        => bankProtocol.RepayBankLoanWithSnapshotAsync(idempotencyKey, currentGameTicks, loanId, silverPaid, confirmedSnapshot, confirmedPayload, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModBankDebtResponseDto>> RepayBankDebtAsync(
         string idempotencyKey,
@@ -749,29 +627,7 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader
         string debtId,
         int silverPaid,
         CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModBankDebtResponseDto>();
-        }
-
-        var request = new ModRepayBankDebtRequestDto
-        {
-            IdempotencyKey = idempotencyKey,
-            UserId = context.UserId,
-            ColonyId = context.ColonyId,
-            CurrentSnapshotId = context.CurrentSnapshotId ?? string.Empty,
-            AuthToken = context.AuthToken,
-            CurrentGameTicks = currentGameTicks,
-            DebtId = debtId,
-            SilverPaid = silverPaid
-        };
-
-        return transport.PostAsync<ModRepayBankDebtRequestDto, ModBankDebtResponseDto>(
-            RepayBankDebtRoute,
-            request,
-            cancellationToken);
-    }
+        => bankProtocol.RepayBankDebtAsync(idempotencyKey, currentGameTicks, debtId, silverPaid, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModBankDebtResponseDto>> RepayBankDebtWithSnapshotAsync(
         string idempotencyKey,
@@ -781,33 +637,7 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader
         ModSnapshotPackageMetadataDto confirmedSnapshot,
         byte[] confirmedPayload,
         CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModBankDebtResponseDto>();
-        }
-
-        var request = new ModRepayBankDebtWithSnapshotRequestDto
-        {
-            IdempotencyKey = idempotencyKey,
-            UserId = context.UserId,
-            ColonyId = context.ColonyId,
-            CurrentSnapshotId = context.CurrentSnapshotId ?? string.Empty,
-            AuthToken = context.AuthToken,
-            CurrentGameTicks = currentGameTicks,
-            DebtId = debtId ?? string.Empty,
-            SilverPaid = silverPaid,
-            ConfirmedSnapshot = MarkSnapshotUploadKind(
-                confirmedSnapshot,
-                ModSnapshotUploadKinds.BankDebtRepaymentConfirmation)
-        };
-
-        return transport.PostSnapshotMultipartAsync<ModRepayBankDebtWithSnapshotRequestDto, ModBankDebtResponseDto>(
-            RepayBankDebtWithSnapshotRoute,
-            request,
-            confirmedPayload,
-            cancellationToken);
-    }
+        => bankProtocol.RepayBankDebtWithSnapshotAsync(idempotencyKey, currentGameTicks, debtId, silverPaid, confirmedSnapshot, confirmedPayload, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModMercenaryHireResponseDto>> HireMercenaryAsync(
         string idempotencyKey,

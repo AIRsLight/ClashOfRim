@@ -6,36 +6,27 @@ using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.Modules.Sessions;
 using AIRsLight.ClashOfRim.Modules.Snapshots;
 using AIRsLight.ClashOfRim.Modules.Synchronization;
-using AIRsLight.ClashOfRim.Modules.Transport;
 
 namespace AIRsLight.ClashOfRim.Modules.Events;
 
-// Owns confirmation execution and publication. Domain preparation and accepted effects
-// remain with their callers; none of those effects may escape this captured owner.
+// Owns event commands and receipt effects. The shared snapshot transaction owns
+// transport completion, publication admission and captured session/Game checks.
 internal sealed class ClientEventConfirmation
 {
-    private readonly ClientSessionLifecycle session;
-    private readonly IClientSnapshotGame game;
-    private readonly ClientSnapshotPublication publication;
+    private readonly ClientSnapshotTransaction transactions;
     private readonly ClientEventInbox inbox;
     private readonly IClientEventConfirmationProtocol protocol;
     internal ClientEventConfirmation(ClientSessionLifecycle session, IClientSnapshotGame game,
         ClientSnapshotPublication publication, ClientEventInbox inbox, IClientEventConfirmationProtocol protocol)
-    { this.session = session; this.game = game; this.publication = publication; this.inbox = inbox; this.protocol = protocol; }
+    { transactions = new ClientSnapshotTransaction(session, game, publication); this.inbox = inbox; this.protocol = protocol; }
 
-    internal Attempt Capture(ClientSynchronizationCoordinator.Lease admission)
-    {
-        using var guard = ClientSessionWork.EnterPublication();
-        return new(session.CaptureOwnership(), session.ReadContext(), game.BindCurrentGame(), admission);
-    }
-
-    internal ClientEventConfirmationCommand Single(Attempt attempt, string prefix, string eventId, string? sourceEventId,
+    internal ClientEventConfirmationCommand Single(ClientSnapshotTransaction.Attempt attempt, string prefix, string eventId, string? sourceEventId,
         string? baseSnapshotId, ModSnapshotPackageMetadataDto snapshot, byte[] payload, string applicationResult) => new(
             $"{prefix}:{attempt.Context.UserId}:{attempt.Context.ColonyId}:{eventId}:{snapshot.SnapshotId}",
             eventId, sourceEventId, attempt.Context.UserId, attempt.Context.ColonyId,
             string.IsNullOrWhiteSpace(baseSnapshotId) ? attempt.Context.CurrentSnapshotId ?? string.Empty : baseSnapshotId!, snapshot, payload, applicationResult);
 
-    internal ClientEventBatchConfirmationCommand Batch(Attempt attempt, string prefix, ModSnapshotPackageMetadataDto snapshot,
+    internal ClientEventBatchConfirmationCommand Batch(ClientSnapshotTransaction.Attempt attempt, string prefix, ModSnapshotPackageMetadataDto snapshot,
         byte[] payload, IReadOnlyList<ModConfirmEventApplicationEntryDto> applications)
     {
         var entries = CopyEntries(applications);
@@ -48,98 +39,33 @@ internal sealed class ClientEventConfirmation
         applications.Select(e => new ModConfirmEventApplicationEntryDto
         { EventId = e.EventId, SourceEventId = e.SourceEventId, ClientApplicationResult = e.ClientApplicationResult }).ToArray();
 
-    internal Task ConfirmAsync(Attempt attempt, ClientEventConfirmationCommand command,
-        Action<ClientEventConfirmationFailure<ModConfirmEventApplicationResponseDto>> failed,
-        Action<ModConfirmEventApplicationResponseDto> accepted) => ExecuteAsync(attempt,
+    internal Task ConfirmAsync(ClientSnapshotTransaction.Attempt attempt, ClientEventConfirmationCommand command,
+        Action<ClientSnapshotTransactionFailure<ModConfirmEventApplicationResponseDto>> failed,
+        Action<ModConfirmEventApplicationResponseDto> accepted) => transactions.ExecuteAsync(attempt,
             () => protocol.ConfirmAsync(attempt.Context, command, attempt.Owner.Token), r => r.Result,
             failed, response =>
             {
                 if (command.UserId == attempt.Context.UserId && command.ColonyId == attempt.Context.ColonyId)
-                    Publish(attempt, response.AppliedSnapshotId, response.NextLineageToken);
+                    transactions.Publish(attempt, response.AppliedSnapshotId, response.NextLineageToken);
                 inbox.ForgetGroup(command.EventId);
                 attempt.Admission.Dispose();
                 accepted(response);
             });
 
-    internal Task ConfirmBatchAsync(Attempt attempt, ClientEventBatchConfirmationCommand command,
-        Action<ClientEventConfirmationFailure<ModConfirmEventApplicationsResponseDto>> failed,
+    internal Task ConfirmBatchAsync(ClientSnapshotTransaction.Attempt attempt, ClientEventBatchConfirmationCommand command,
+        Action<ClientSnapshotTransactionFailure<ModConfirmEventApplicationsResponseDto>> failed,
         Func<ModConfirmEventApplicationsResponseDto, string?>? selectSnapshot,
-        Action<ModConfirmEventApplicationsResponseDto, string?> accepted) => ExecuteAsync(attempt,
+        Action<ModConfirmEventApplicationsResponseDto, string?> accepted) => transactions.ExecuteAsync(attempt,
             () => protocol.ConfirmBatchAsync(attempt.Context, command, attempt.Owner.Token), r => r.Result,
             failed, response =>
             {
                 string? snapshotId = selectSnapshot?.Invoke(response) ?? response.AppliedSnapshotId;
-                Publish(attempt, snapshotId, response.NextLineageToken);
+                transactions.Publish(attempt, snapshotId, response.NextLineageToken);
                 attempt.Admission.Dispose();
                 accepted(response, snapshotId);
             });
 
-    private void Publish(Attempt attempt, string? snapshotId, string? lineageToken)
-    {
-        if (!string.IsNullOrWhiteSpace(snapshotId))
-            publication.Publish(attempt.Game, snapshotId!, lineageToken, Array.Empty<ModSnapshotAchievementCandidateDto>());
-    }
-
-    private async Task ExecuteAsync<T>(Attempt attempt, Func<Task<ClashOfRimClientNetworkResult<T>>> send,
-        Func<T, ModProtocolResponseDto?> serverResult, Action<ClientEventConfirmationFailure<T>> failed, Action<T> accepted)
-    {
-        bool publicationStarted = false;
-        try
-        {
-            if (!TryApply(attempt, static () => { })) return;
-            ClashOfRimClientNetworkResult<T> result = await send().ConfigureAwait(false);
-            if (!result.Success || result.Response is null)
-            {
-                TryApply(attempt, () => failed(new(ClientEventConfirmationFailureKind.Transport, result)));
-                return;
-            }
-            ModProtocolResponseDto? response = serverResult(result.Response);
-            if (response is { Accepted: false })
-            {
-                TryApply(attempt, () => failed(new(ClientEventConfirmationFailureKind.Rejected, result, response)));
-                return;
-            }
-            await ClientGamePublication.EnqueueAsync(attempt.Game.Enqueue, attempt.Owner.Token,
-                action => TryApply(attempt, action), () =>
-                {
-                    // Retain admission until publication starts on the owning game.
-                    publicationStarted = true;
-                    accepted(result.Response);
-                }).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            // Only our own partial publication may advance the base snapshot before
-            // throwing. A late HTTP exception must still match the original base.
-            TryApply(attempt, () => failed(new(ClientEventConfirmationFailureKind.Exception, Exception: ex)), requireBaseSnapshot: !publicationStarted);
-        }
-        finally { attempt.Admission.Dispose(); }
-    }
-
-    internal bool TryApply(Attempt attempt, Action action, bool requireBaseSnapshot = true)
-    {
-        bool applied = false;
-        ClientSessionWork.TryApply(() =>
-        {
-            if (!attempt.Admission.IsCurrent || !attempt.Game.IsCurrent || !session.Owns(attempt.Owner, attempt.Context, requireBaseSnapshot)) return;
-            action();
-            applied = true;
-        });
-        return applied;
-    }
-
-    internal sealed record Attempt(ClientSessionLifecycle.Ownership Owner, ClashOfRimClientNetworkContext Context,
-        IClientSnapshotGameSession Game, ClientSynchronizationCoordinator.Lease Admission);
-}
-
-internal enum ClientEventConfirmationFailureKind { Transport, Rejected, Exception }
-internal sealed record ClientEventConfirmationFailure<T>(ClientEventConfirmationFailureKind Kind,
-    ClashOfRimClientNetworkResult<T>? Network = null, ModProtocolResponseDto? Rejection = null, Exception? Exception = null)
-{
-    internal bool CanRetry => Kind switch
-    {
-        ClientEventConfirmationFailureKind.Transport => ClientNetworkFailurePolicy.CanRetry(Network?.ErrorCode, Network?.Message),
-        ClientEventConfirmationFailureKind.Exception => Exception is not null && ClientNetworkFailurePolicy.CanRetry(Exception),
-        _ => false
-    };
+    internal ClientSnapshotTransaction.Attempt Capture(ClientSynchronizationCoordinator.Lease admission) => transactions.Capture(admission);
+    internal bool TryApply(ClientSnapshotTransaction.Attempt attempt, Action action, bool requireBaseSnapshot = true) =>
+        transactions.TryApply(attempt, action, requireBaseSnapshot);
 }

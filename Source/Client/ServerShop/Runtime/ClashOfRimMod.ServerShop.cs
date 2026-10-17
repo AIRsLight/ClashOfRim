@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Bank;
 using AIRsLight.ClashOfRim.Modules.Synchronization;
 using System;
 using System.Collections.Generic;
@@ -341,7 +342,7 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
-        int availableSilver = buyFromPlayer ? totalPrice : CountPlayerHomeSilver();
+        int availableSilver = buyFromPlayer ? totalPrice : ClientBankRuntime.CountPlayerHomeSilver();
         if (!buyFromPlayer && availableSilver < totalPrice)
         {
             serverShopStatus = ClashOfRimText.Key(
@@ -403,7 +404,7 @@ public sealed partial class ClashOfRimMod
                 return;
             }
 
-            if (!TryConsumePlayerHomeSilver(totalPrice, out string consumeMessage))
+            if (!ClientBankRuntime.TryConsumePlayerHomeSilver(totalPrice, out string consumeMessage))
             {
                 serverShopStatus = consumeMessage;
                 ShowUnconfirmedSnapshotFailure(

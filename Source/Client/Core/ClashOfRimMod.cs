@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Bank;
 using AIRsLight.ClashOfRim.Modules.Events;
 using AIRsLight.ClashOfRim.Modules.Synchronization;
 using AIRsLight.ClashOfRim.Modules.Snapshots;
@@ -57,6 +58,8 @@ public sealed partial class ClashOfRimMod : Mod
     private readonly ClientEventInbox eventInbox = new();
     private readonly ClientEventRefresh eventRefresh;
     private readonly ClientEventState eventState;
+    private readonly ClientBankState bankState;
+    private readonly ClientBankOperations bankOperations;
     private readonly ClientEventConfirmationWorkflow eventConfirmations;
     private readonly ClientEventApplications eventApplications;
     private readonly ClientSnapshotFailureRecovery snapshotFailureRecovery;
@@ -74,7 +77,6 @@ public sealed partial class ClashOfRimMod : Mod
     private bool abandonPlayerColonyInProgress;
     private bool playerColonySiteRegistrationSuppressed;
     private bool caravanArrivalTargetRefreshInProgress;
-    private bool bankInProgress;
     private bool mercenaryInProgress;
     private bool serverShopInProgress;
     private bool adminInProgress;
@@ -88,7 +90,6 @@ public sealed partial class ClashOfRimMod : Mod
     private string playerListStatus = string.Empty;
     private string tradeStatus = string.Empty;
     private string worldMapStatus = string.Empty;
-    private string bankStatus = string.Empty;
     private string mercenaryStatus = string.Empty;
     private string serverShopStatus = string.Empty;
     private string chatStatus = string.Empty;
@@ -103,7 +104,6 @@ public sealed partial class ClashOfRimMod : Mod
     private bool tradeOrdersPageLoadInProgress;
     private int tradeOrdersTotalCount;
     private string tradeOrdersScope = "Open";
-    private ModBankStatusResponseDto? lastBankStatus;
     private ModAdminStatusResponseDto? lastAdminStatus;
     private readonly ClientLocalMutationCoordinator localMutations = new();
     private bool pendingInitialWorldConfigurationSubmit;
@@ -163,6 +163,12 @@ public sealed partial class ClashOfRimMod : Mod
         snapshotFailureRecovery = new ClientSnapshotFailureRecovery(sessionLifecycle, localMutations, synchronization,
             new ClientSnapshotGame(), new ClientSnapshotFailureView());
         snapshotFailureRecovery.ReturningToMenu += () => playerColonySiteRegistrationSuppressed = false;
+        var bankPresentation = new ClientBankPresentation();
+        bankState = new ClientBankState(sessionLifecycle, new ClientSnapshotGame(), bankPresentation);
+        bankOperations = new ClientBankOperations(sessionLifecycle, synchronization, localMutations,
+            new ClientSnapshotTransaction(sessionLifecycle, new ClientSnapshotGame(), snapshotPublication), snapshotFailureRecovery,
+            bankState, new ClientBankTransport(), new ClientBankRuntime(), bankPresentation);
+        bankOperations.Completed += StartQueuedAutomaticEventRefreshAfterLocalAtomicMutation;
         eventConfirmations = new ClientEventConfirmationWorkflow(sessionLifecycle, eventConfirmationPreparation, eventConfirmation,
             localMutations, snapshotFailureRecovery, eventInbox, new ClientEventConfirmationPresentation((purpose, message) =>
             {
@@ -246,7 +252,7 @@ public sealed partial class ClashOfRimMod : Mod
         playerListStatus = ClashOfRimText.Key("ClashOfRim.Status.PlayerListNotPulled");
         tradeStatus = ClashOfRimText.Key("ClashOfRim.Status.TradeOrderNotCreated");
         worldMapStatus = ClashOfRimText.Key("ClashOfRim.Status.WorldMapNotSynced");
-        bankStatus = ClashOfRimText.Key("ClashOfRim.Status.BankNotPulled");
+        bankState.Message = ClashOfRimText.Key("ClashOfRim.Status.BankNotPulled");
         mercenaryStatus = ClashOfRimText.Key("ClashOfRim.Status.MercenaryIdle");
         serverShopStatus = ClashOfRimText.Key("ClashOfRim.Shop.StatusIdle");
         chatStatus = ClashOfRimText.Key("ClashOfRim.Chat.StatusIdle");
@@ -540,13 +546,13 @@ public sealed partial class ClashOfRimMod : Mod
         get
         {
             EnsureStatusDefaultsInitialized();
-            return bankStatus;
+            return bankState.Message;
         }
     }
 
-    internal bool BankInProgress => bankInProgress;
+    internal bool BankInProgress => bankState.Busy;
 
-    internal ModBankStatusResponseDto? BankStatusSnapshot => lastBankStatus;
+    internal ModBankStatusResponseDto? BankStatusSnapshot => bankState.View;
 
     internal string AdminStatus
     {

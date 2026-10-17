@@ -440,8 +440,8 @@ internal static class EventConfirmationModuleTests
         {
             var f = new Fixture(); f.Protocol.Failure = error;
             await f.Run(f.Capture(), mode);
-            Require(f.Failures.Single() == (error == "rejected" ? ClientEventConfirmationFailureKind.Rejected
-                : error == "exception" ? ClientEventConfirmationFailureKind.Exception : ClientEventConfirmationFailureKind.Transport), "Wrong failure kind: " + error);
+            Require(f.Failures.Single() == (error == "rejected" ? ClientSnapshotTransactionFailureKind.Rejected
+                : error == "exception" ? ClientSnapshotTransactionFailureKind.Exception : ClientSnapshotTransactionFailureKind.Transport), "Wrong failure kind: " + error);
             Require(!f.Sync.IsBusy && f.Accepted == 0 && f.Ports.Published == 0 && f.Ports.Queued == 0, "Failure leaked admission or published a snapshot.");
             Require(f.Sync.TryAcquireSnapshot(out var next), "Failure blocked retry admission."); next.Dispose();
         }
@@ -501,7 +501,7 @@ internal static class EventConfirmationModuleTests
         Require(!ClientNetworkFailurePolicy.CanRetry("ValidationFailed", "503")
             && !ClientNetworkFailurePolicy.CanRetry(new InvalidOperationException())
             && ClientNetworkFailurePolicy.CanRetry(new HttpRequestException()), "Retry policy changed its error source semantics.");
-        Require(!new ClientEventConfirmationFailure<ModConfirmEventApplicationResponseDto>(ClientEventConfirmationFailureKind.Rejected,
+        Require(!new ClientSnapshotTransactionFailure<ModConfirmEventApplicationResponseDto>(ClientSnapshotTransactionFailureKind.Rejected,
             Rejection: new() { ErrorCode = 503 }).CanRetry, "Business rejection became retryable.");
     }
 
@@ -535,7 +535,7 @@ internal static class EventConfirmationModuleTests
         internal readonly WorkflowPresentation Presentation = new();
         internal readonly WorkflowEffects Effects = new();
         internal readonly ClientEventConfirmationWorkflow Workflow;
-        internal readonly List<ClientEventConfirmationFailureKind> Failures = new();
+        internal readonly List<ClientSnapshotTransactionFailureKind> Failures = new();
         internal int Accepted;
         internal bool StartNextOnAccepted;
         internal ClientSynchronizationCoordinator.Lease? Next;
@@ -549,12 +549,12 @@ internal static class EventConfirmationModuleTests
             Workflow = new(Session, Preparation, Confirmation, Mutations, Recovery, Inbox, Presentation, Effects);
             Inbox.ReplaceQueue(new() { DirectlyProcessable = new() { new() { EventId = "event" } } });
         }
-        internal ClientEventConfirmation.Attempt Capture()
+        internal ClientSnapshotTransaction.Attempt Capture()
         {
             Require(Sync.TryAcquireSnapshot(out var lease), "Fixture admission failed.");
             return Confirmation.Capture(lease!);
         }
-        internal Task Run(ClientEventConfirmation.Attempt attempt, string mode)
+        internal Task Run(ClientSnapshotTransaction.Attempt attempt, string mode)
         {
             if (mode == "batch")
             {

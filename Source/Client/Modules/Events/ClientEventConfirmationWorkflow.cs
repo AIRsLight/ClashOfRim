@@ -14,7 +14,7 @@ internal enum ClientEventConfirmationStage { Empty, Uploading, PreparationFailed
 internal sealed record ClientEventConfirmationNotice(ClientEventConfirmationPurpose Purpose, ClientEventConfirmationStage Stage,
     string EventId = "", int Count = 0, string? SnapshotId = null, int Rejected = 0, int Pending = 0,
     ClientEventPreparationFailure? PreparationFailure = null, ClientEventConfirmationProblem? Problem = null);
-internal sealed record ClientEventConfirmationProblem(ClientEventConfirmationFailureKind Kind, string Code, string Message,
+internal sealed record ClientEventConfirmationProblem(ClientSnapshotTransactionFailureKind Kind, string Code, string Message,
     string Validation, Exception? Exception, bool CanRetry);
 
 internal interface IClientEventConfirmationPresentation
@@ -157,7 +157,7 @@ internal sealed class ClientEventConfirmationWorkflow : IClientEventApplicationC
         recovery.Show(operation, status, retry, problem.CanRetry);
     }
 
-    private static ClientEventConfirmationProblem Problem<T>(ClientEventConfirmationFailure<T> failure, string? validation = null) => new(
+    private static ClientEventConfirmationProblem Problem<T>(ClientSnapshotTransactionFailure<T> failure, string? validation = null) => new(
         failure.Kind, failure.Rejection?.ErrorCode.ToString() ?? failure.Network?.ErrorCode ?? string.Empty,
         failure.Exception?.Message ?? failure.Rejection?.Message ?? failure.Network?.Message ?? string.Empty,
         validation ?? string.Empty, failure.Exception, failure.CanRetry);
