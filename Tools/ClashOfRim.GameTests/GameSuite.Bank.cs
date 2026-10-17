@@ -30,7 +30,7 @@ internal sealed partial class GameSuite
         Check(overdue.Int("triggeredPenaltyCount") == part.Int("triggeredPenaltyCount") + 1, "Penalty must execute exactly once at deadline.");
         Check(overdue.Bool("dueWarningSent"), "Missing due warning.");
         Check(overdue.GetProperty("nextPenaltyGameTicks").GetInt64() > after.Int("ticks"), "Penalty failed to schedule its next interval.");
-        Check(after.Int("mechanoids") > before.Int("mechanoids"), "Overdue penalty did not spawn a real mech raid.");
+        Check(after.Int("mechanoids") > before.Int("mechanoids"), "Overdue penalty did not spawn a real mech raid. " + after.GetProperty("raids").GetRawText());
         if (kind == "loans")
         {
             int fee = Math.Max(1, (int)Math.Ceiling(part.Int("totalDueSilver") * part.GetProperty("annualInterestRate").GetSingle() * 2d * Math.Max(1, part.Int("penaltyIntervalTicks") / 60000f) / 60d));

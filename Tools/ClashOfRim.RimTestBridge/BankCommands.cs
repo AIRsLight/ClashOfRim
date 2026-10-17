@@ -12,6 +12,7 @@ internal sealed partial class DomainCommands
 {
     private void RegisterBank()
     {
+        BankRaidObservation.Install();
         bridge.Router.Register("clash.bank.quests", "Observe persisted bank quest accounting and penalty clocks independently of network DTOs.", "observe", _ => BankQuests());
         bridge.Router.Register("clash.bank.debts", "References to debt records currently displayed by the bank, for its original repay action.", "observe", a =>
             RimTest.Runtime.ObjectInspector.Paginate(Field<ModBankStatusResponseDto>(Mod, "lastBankStatus").OpenDebts.Select(Record).ToArray(), a));
@@ -54,6 +55,7 @@ internal sealed partial class DomainCommands
         { p.DebtId, p.AmountSilver, p.SourceKind, p.Reason, p.DueAtGameTicks, p.PenaltyIntervalTicks, p.TriggeredPenaltyCount, p.NextPenaltyGameTicks, p.Completed, p.DueWarningSent,
             stages = p.OverduePenaltyStages.Select(s => new { s.TriggerPenaltyCount, s.Kind, s.Severity }).ToArray() }).ToArray(),
         mechanoids = Find.Maps.Sum(m => m.mapPawns.AllPawnsSpawned.Count(p => p.Faction == Faction.OfMechanoids)),
+        raids = BankRaidObservation.Copy(),
         ticks = Find.TickManager.TicksGame
     };
 }
