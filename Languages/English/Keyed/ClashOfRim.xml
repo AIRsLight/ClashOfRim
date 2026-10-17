@@ -439,6 +439,7 @@
   <ClashOfRim.Events.StatusAutoDetailsFailed>Automatic message detail sync failed: {CODE} {MESSAGE}</ClashOfRim.Events.StatusAutoDetailsFailed>
   <ClashOfRim.Events.StatusAutoDetailsRejected>Automatic message detail sync rejected: {CODE} {MESSAGE}</ClashOfRim.Events.StatusAutoDetailsRejected>
   <ClashOfRim.Events.StatusAutoApplying>Handling server messages.</ClashOfRim.Events.StatusAutoApplying>
+  <ClashOfRim.Events.StatusApplyException>Event application failed: {TYPE} {MESSAGE}</ClashOfRim.Events.StatusApplyException>
   <ClashOfRim.Events.StatusAutoApplyException>Automatic message handling exception: {TYPE} {MESSAGE}</ClashOfRim.Events.StatusAutoApplyException>
   <ClashOfRim.Events.StatusAutoException>Automatic server message sync exception: {TYPE} {MESSAGE}</ClashOfRim.Events.StatusAutoException>
   <ClashOfRim.Events.StatusPullingPending>Getting pending messages.</ClashOfRim.Events.StatusPullingPending>

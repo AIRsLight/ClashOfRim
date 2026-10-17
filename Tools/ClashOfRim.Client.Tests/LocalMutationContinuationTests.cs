@@ -44,8 +44,8 @@ internal static class LocalMutationContinuationTests
                 "repay-key", 10L, new ModBankLoanSummaryDto(), new ModBankStatusResponseDto());
             Verify("StartBuildAndSubmitPreparedBankDebtRepayment", LocalMutationKind.Bank,
                 "debt-key", 10L, new ModBankDebtSummaryDto(), new ModBankStatusResponseDto());
-            Verify("StartConfirmGiftApplication", LocalMutationKind.Gift, "event", "ItemDeliveryAnchored");
-            Verify("StartConfirmAutomaticEventApplications", LocalMutationKind.AutomaticEvents,
+            Verify("GiftAsync", LocalMutationKind.Gift, "event", "ItemDeliveryAnchored");
+            Verify("AutomaticAsync", LocalMutationKind.AutomaticEvents,
                 (object)new[] { new ModConfirmEventApplicationEntryDto { EventId = "event" } });
         }
         finally
@@ -79,15 +79,19 @@ internal static class LocalMutationContinuationTests
         var preparation = new ClientEventConfirmationPreparation(lifecycle, synchronization, mutations, confirmation);
         var recovery = new ClientSnapshotFailureRecovery(lifecycle, mutations, synchronization, game, new ClientSnapshotFailureView());
         typeof(ClashOfRimMod).GetField("snapshotFailureRecovery", Instance)!.SetValue(mod, recovery);
-        typeof(ClashOfRimMod).GetField("eventConfirmations", Instance)!.SetValue(mod,
-            new ClientEventConfirmationWorkflow(lifecycle, preparation, confirmation, mutations, recovery, inbox,
+        var workflow = new ClientEventConfirmationWorkflow(lifecycle, preparation, confirmation, mutations, recovery, inbox,
                 new AIRsLight.ClashOfRim.EventLetters.ClientEventConfirmationPresentation(static (_, _) => { }),
-                new AIRsLight.ClashOfRim.EventLetters.ClientEventConfirmationEffects()));
+                new AIRsLight.ClashOfRim.EventLetters.ClientEventConfirmationEffects());
         saves = 0;
         presentedFailures = 0;
         var failure = mutations.RecordFailure(kind, "previous failure", () =>
         {
-            try { typeof(ClashOfRimMod).GetMethod(method, Instance)!.Invoke(mod, args); }
+            try
+            {
+                if (kind == LocalMutationKind.Gift) _ = workflow.GiftAsync((string)args[0], (string)args[1]);
+                else if (kind == LocalMutationKind.AutomaticEvents) _ = workflow.AutomaticAsync((ModConfirmEventApplicationEntryDto[])args[0]);
+                else typeof(ClashOfRimMod).GetMethod(method, Instance)!.Invoke(mod, args);
+            }
             catch (TargetInvocationException ex) { throw new Exception(method + ": " + ex.InnerException); }
         }, true);
         if (!mutations.TryRetry(failure) || saves != 1 || synchronization.IsBusy

@@ -59,7 +59,7 @@ public sealed partial class ClashOfRimMod : Mod
     private readonly ClientEventReader eventReader;
     private readonly ClientEventConfirmationWorkflow eventConfirmations;
     private readonly ClientEventDecisions eventDecisions;
-    private readonly ClientGiftPackageHydration giftPackageHydration;
+    private readonly ClientEventApplications eventApplications;
     private readonly ClientSnapshotFailureRecovery snapshotFailureRecovery;
     private readonly ClientEventRefreshQueue automaticEventRefresh;
     internal IReadOnlyList<ModEventDetailDto>? ReadEventDetails(int? knownVersion, out int version) =>
@@ -183,10 +183,20 @@ public sealed partial class ClashOfRimMod : Mod
             new ClientEventDecisionTransport(), new ClientEventDecisionPresentation(message => giftProcessingStatus = message),
             new ClientEventDecisionRuntime(RequestWorldMapMarkerRefresh));
         eventDecisions.FailureReported += () => StartAutomaticEventRefresh(ClashOfRimText.Key("ClashOfRim.Events.ReasonFailureReport"));
-        giftPackageHydration = new ClientGiftPackageHydration(new ClientProtocolEnvironment(
+        var giftPackageHydration = new ClientGiftPackageHydration(new ClientProtocolEnvironment(
             (message, token) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, token)));
         automaticEventRefresh = new ClientEventRefreshQueue(sessionLifecycle);
         eventDelivery = new ClientEventDelivery(eventInbox, new ClientEventLetterRuntime(RequestWorldMapMarkerRefresh));
+        eventApplications = new ClientEventApplications(sessionLifecycle, synchronization, localMutations, eventInbox,
+            new ClientSnapshotGame(), new ClientEventApplicationRuntime(), giftPackageHydration, eventConfirmations, eventDecisions,
+            new ClientEventApplicationPresentation((automatic, message) =>
+            {
+                if (automatic) eventDetailsStatus = message;
+                else giftProcessingStatus = message;
+            }), snapshotFailureRecovery, eventDelivery);
+        eventApplications.RefreshRequested += StartAutomaticEventRefresh;
+        eventApplications.Deferred += QueueAutomaticEventRefreshAfterLocalAtomicMutation;
+        eventApplications.CompletedWithoutConfirmation += StartQueuedAutomaticEventRefreshAfterLocalAtomicMutation;
         if (!string.Equals(content.PackageId, PackageId, StringComparison.OrdinalIgnoreCase))
         {
             Log.Warning("[ClashOfRim] Ignored ClashOfRim mod class loaded from unexpected package: " + (content.PackageId ?? "<null>") + ".");

@@ -7,6 +7,7 @@ using System.Xml.Linq;
 using AIRsLight.ClashOfRim;
 using AIRsLight.ClashOfRim.EventLetters;
 using AIRsLight.ClashOfRim.Diplomacy;
+using AIRsLight.ClashOfRim.Gifts;
 using AIRsLight.ClashOfRim.Protocol;
 using RimWorld;
 using AIRsLight.ClashOfRim.Modules.Events;
@@ -42,6 +43,7 @@ internal static class EventCommandPresentationTests
                 CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(culture);
                 translations = XDocument.Load(file).Root!.Elements().ToDictionary(e => e.Name.LocalName, e => e.Value);
                 DecisionPresentation();
+                ApplicationPresentation();
                 foreach (var purpose in Enum.GetValues<ClientEventConfirmationPurpose>())
                 {
                     var notice = new ClientEventConfirmationNotice(purpose, ClientEventConfirmationStage.Uploading,
@@ -111,6 +113,33 @@ internal static class EventCommandPresentationTests
         if (!relations.Select(r => r.Relation).SequenceEqual(new[] { FactionRelationKind.Hostile, FactionRelationKind.Neutral, FactionRelationKind.Ally })
             || relations.Any(r => r.User != "actor") || refreshed != 5)
             throw new Exception("Diplomacy adapter guessed an unknown relation or failed to request projection refresh.");
+    }
+
+    private static void ApplicationPresentation()
+    {
+        var presentation = new ClientEventApplicationPresentation(static (_, _) => { });
+        foreach (var reason in Enum.GetValues<ClientEventApplicationReason>()) RequireResolved(presentation.Reason(reason));
+        foreach (bool automatic in new[] { false, true })
+        foreach (var kind in Enum.GetValues<ClientEventApplicationKind>())
+        foreach (var stage in Enum.GetValues<ClientEventApplicationStage>())
+        {
+            var prepared = ItemDeliveryClientProcessingResult.Failed(ItemDeliveryClientProcessingResultKind.PayloadParseFailed, "prepare-reason");
+            var notice = new ClientEventApplicationNotice(stage, automatic, "event-é", kind, "application-reason",
+                new InvalidOperationException("application-reason"), Count: 7, Pending: 2,
+                Admission: LocalMutationAdmission.PendingMutation, Mutation: new(LocalMutationKind.Bank, "bank", default), Prepared: prepared);
+            RequireResolved(presentation.Format(notice));
+            if (stage == ClientEventApplicationStage.Exception && !presentation.Format(notice).Contains("InvalidOperationException"))
+                throw new Exception("Application exception lost its type.");
+        }
+        foreach (string mode in new[] { "DropPod", "MapEdge", "CenterNear", "", "custom" })
+        {
+            var applied = GiftLandingApplicationResult.Applied("event", 3, 4, mode, true);
+            RequireResolved(presentation.Format(new(ClientEventApplicationStage.Applied, Gift: applied, Pending: 2)));
+        }
+        RequireResolved(presentation.Format(new(ClientEventApplicationStage.Prepared,
+            Prepared: ItemDeliveryClientProcessingResult.Accepted(new("event", null, "map", null, "DropPod", Array.Empty<GiftItemReference>(), true)))));
+        RequireResolved(presentation.Format(new(ClientEventApplicationStage.Prepared,
+            Prepared: ItemDeliveryClientProcessingResult.Rejected(new("event", "user", "colony", "snapshot", "reason")))));
     }
 
     private static bool ApplyRelation(string? userId, FactionRelationKind relationKind, ref bool __result)

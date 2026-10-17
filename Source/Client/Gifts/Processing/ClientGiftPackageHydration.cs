@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.Modules.Packages;
+using AIRsLight.ClashOfRim.Modules.Events;
 using AIRsLight.ClashOfRim.Modules.Transport;
 using AIRsLight.ClashOfRim.Pawns;
 using Verse;
@@ -13,7 +14,7 @@ namespace AIRsLight.ClashOfRim.Gifts;
 
 // Engine-facing presentation around the shared package hydration algorithm.
 // The caller supplies the captured identity; this adapter never reads settings.
-internal sealed class ClientGiftPackageHydration
+internal sealed class ClientGiftPackageHydration : IClientGiftPackageHydration
 {
     private readonly IClientProtocolEnvironment environment;
     private readonly Func<HttpClient> createHttpClient;
@@ -24,7 +25,7 @@ internal sealed class ClientGiftPackageHydration
         this.createHttpClient = createHttpClient ?? (static () => new HttpClient());
     }
 
-    internal async Task<PawnPackageTransferResult> HydrateAsync(GiftLandingPlan plan,
+    public async Task<PawnPackageTransferResult> HydrateAsync(GiftLandingPlan plan,
         ClashOfRimClientNetworkContext context, CancellationToken cancellationToken = default)
     {
         var items = plan.Items.Where(item =>

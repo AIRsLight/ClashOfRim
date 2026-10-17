@@ -20,6 +20,7 @@ using Verse;
 var tests = new (string Name, Action Run)[]
 {
     ("client modules cannot depend on the Mod, full settings or broad protocol client", ClientModuleBoundaryTests.Run),
+    ("event applications own game effects, hydration and confirmation handoff", EventApplicationModuleTests.Run),
     ("session connection module owns replacement, cancellation and stale completions", SessionConnectionModuleTests.Run),
     ("session lifecycle owns identities, deferred expiry and authenticated exit", SessionLifecycleModuleTests.Run),
     ("session reconnect owns snapshot checks, pending adoption and detached cleanup", SessionReconnectModuleTests.Run),

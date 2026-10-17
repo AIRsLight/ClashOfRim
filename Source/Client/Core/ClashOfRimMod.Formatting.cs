@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using AIRsLight.ClashOfRim.Bank;
 using AIRsLight.ClashOfRim.ClientNetwork;
-using AIRsLight.ClashOfRim.Gifts;
 using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Trades;
 using AIRsLight.ClashOfRim.WorldObjects;
@@ -267,49 +266,6 @@ public sealed partial class ClashOfRimMod
             FormatEventTypeForSummary(detail.EventType).Named("TYPE"),
             FormatEventStatus(detail.Status).Named("STATUS"),
             map.Named("MAP"));
-    }
-
-    private static string FormatGiftProcessingResult(ItemDeliveryClientProcessingResult result)
-    {
-        if (result.LandingPlan is not null)
-        {
-            return ClashOfRimText.Key(
-                "ClashOfRim.GiftProcessing.AcceptPlan",
-                result.LandingPlan.Items.Count.Named("COUNT"));
-        }
-
-        if (result.RejectionRequest is not null)
-        {
-            return ClashOfRimText.Key("ClashOfRim.GiftProcessing.RejectPlan");
-        }
-
-        return ClashOfRimText.Key("ClashOfRim.GiftProcessing.Failed", result.Kind.Named("KIND"), result.Message.Named("MESSAGE"));
-    }
-
-    private string FormatGiftLandingApplicationResult(GiftLandingApplicationResult result)
-    {
-        if (result.Success)
-        {
-            return ClashOfRimText.Key(
-                "ClashOfRim.GiftLanding.StatusSucceeded",
-                FormatGiftLandingMode(result.LandingMode).Named("MODE"),
-                result.PlacedThingCount.Named("THINGCOUNT"),
-                result.PlacedStackCount.Named("STACKCOUNT"),
-                eventInbox.PendingConfirmationCount.Named("PENDING"));
-        }
-
-        return ClashOfRimText.Key("ClashOfRim.GiftLanding.StatusFailed", result.Kind.Named("KIND"), result.Message.Named("MESSAGE"));
-    }
-
-    private static string FormatGiftLandingMode(string landingMode)
-    {
-        return landingMode switch
-        {
-            "DropPod" => ClashOfRimText.Key("ClashOfRim.GiftLanding.Mode.DropPod"),
-            "MapEdge" => ClashOfRimText.Key("ClashOfRim.GiftLanding.Mode.MapEdge"),
-            "CenterNear" => ClashOfRimText.Key("ClashOfRim.GiftLanding.Mode.CenterNear"),
-            _ => string.IsNullOrWhiteSpace(landingMode) ? ClashOfRimText.Key("ClashOfRim.NotSpecified") : landingMode
-        };
     }
 
     private static long? ExtractNotificationVersion(string data)

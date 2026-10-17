@@ -440,6 +440,7 @@
   <ClashOfRim.Events.StatusAutoDetailsFailed>自動メッセージ詳細同期に失敗しました: {CODE} {MESSAGE}</ClashOfRim.Events.StatusAutoDetailsFailed>
   <ClashOfRim.Events.StatusAutoDetailsRejected>自動メッセージ詳細同期が拒否されました: {CODE} {MESSAGE}</ClashOfRim.Events.StatusAutoDetailsRejected>
   <ClashOfRim.Events.StatusAutoApplying>サーバーメッセージを処理しています。</ClashOfRim.Events.StatusAutoApplying>
+  <ClashOfRim.Events.StatusApplyException>イベント適用エラー：{TYPE} {MESSAGE}</ClashOfRim.Events.StatusApplyException>
   <ClashOfRim.Events.StatusAutoApplyException>自動メッセージ処理例外: {TYPE} {MESSAGE}</ClashOfRim.Events.StatusAutoApplyException>
   <ClashOfRim.Events.StatusAutoException>サーバーメッセージ自動同期例外: {TYPE} {MESSAGE}</ClashOfRim.Events.StatusAutoException>
   <ClashOfRim.Events.StatusPullingPending>保留中のメッセージを取得しています。</ClashOfRim.Events.StatusPullingPending>

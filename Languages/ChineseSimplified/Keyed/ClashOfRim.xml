@@ -439,6 +439,7 @@
   <ClashOfRim.Events.StatusAutoDetailsFailed>消息详情自动同步失败：{CODE} {MESSAGE}</ClashOfRim.Events.StatusAutoDetailsFailed>
   <ClashOfRim.Events.StatusAutoDetailsRejected>消息详情自动同步被拒绝：{CODE} {MESSAGE}</ClashOfRim.Events.StatusAutoDetailsRejected>
   <ClashOfRim.Events.StatusAutoApplying>正在处理服务器消息。</ClashOfRim.Events.StatusAutoApplying>
+  <ClashOfRim.Events.StatusApplyException>处理消息异常：{TYPE} {MESSAGE}</ClashOfRim.Events.StatusApplyException>
   <ClashOfRim.Events.StatusAutoApplyException>自动处理消息异常：{TYPE} {MESSAGE}</ClashOfRim.Events.StatusAutoApplyException>
   <ClashOfRim.Events.StatusAutoException>服务器消息自动同步异常：{TYPE} {MESSAGE}</ClashOfRim.Events.StatusAutoException>
   <ClashOfRim.Events.StatusPullingPending>正在获取待处理消息。</ClashOfRim.Events.StatusPullingPending>

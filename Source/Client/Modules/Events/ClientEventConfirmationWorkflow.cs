@@ -26,7 +26,7 @@ internal interface IClientEventConfirmationEffects { void MarkHandled(string eve
 
 // Owns the confirmation lifecycle. Callers supply business intent; protocol,
 // admission, retry ownership and completion are shared by all event domains.
-internal sealed class ClientEventConfirmationWorkflow
+internal sealed class ClientEventConfirmationWorkflow : IClientEventApplicationConfirmations
 {
     private readonly ClientSessionLifecycle session;
     private readonly ClientEventConfirmationPreparation preparation;
@@ -47,9 +47,9 @@ internal sealed class ClientEventConfirmationWorkflow
 
     internal event Action? Completed;
 
-    internal Task GiftAsync(string eventId, string applicationResult) => SingleAsync(ClientEventConfirmationPurpose.Gift,
+    public Task GiftAsync(string eventId, string applicationResult) => SingleAsync(ClientEventConfirmationPurpose.Gift,
         LocalMutationKind.Gift, "gift-confirm", eventId, applicationResult);
-    internal Task SupportArrivalAsync(string eventId) => SingleAsync(ClientEventConfirmationPurpose.SupportArrival,
+    public Task SupportArrivalAsync(string eventId) => SingleAsync(ClientEventConfirmationPurpose.SupportArrival,
         LocalMutationKind.SupportArrival, "support-confirm", eventId, "SupportPawnArrived");
     internal Task TradeAsync(string eventId, string sourceEventId, string baseSnapshotId) => SingleAsync(ClientEventConfirmationPurpose.Trade,
         LocalMutationKind.Trade, "trade-confirm", eventId, "SelfDeliveryExchangeApplied", sourceEventId, baseSnapshotId);
@@ -76,7 +76,7 @@ internal sealed class ClientEventConfirmationWorkflow
             }));
     }
 
-    internal Task AutomaticAsync(IReadOnlyList<ModConfirmEventApplicationEntryDto> applications) =>
+    public Task AutomaticAsync(IReadOnlyList<ModConfirmEventApplicationEntryDto> applications) =>
         AutomaticOwnedAsync(ClientEventConfirmation.CopyEntries(applications));
 
     private Task AutomaticOwnedAsync(IReadOnlyList<ModConfirmEventApplicationEntryDto> applications)
@@ -98,7 +98,11 @@ internal sealed class ClientEventConfirmationWorkflow
             {
                 var accepted = response.Applications.Where(a => a.Result?.Accepted == true).ToArray();
                 foreach (var entry in accepted)
-                    if (!string.IsNullOrWhiteSpace(entry.EventId)) effects.MarkHandled(entry.EventId!);
+                    if (!string.IsNullOrWhiteSpace(entry.EventId))
+                    {
+                        inbox.ForgetPendingConfirmation(entry.EventId!);
+                        effects.MarkHandled(entry.EventId!);
+                    }
                 Report(notice with { Stage = ClientEventConfirmationStage.Accepted, Count = accepted.Length,
                     Rejected = response.Applications.Count - accepted.Length, SnapshotId = snapshotId });
                 Complete();

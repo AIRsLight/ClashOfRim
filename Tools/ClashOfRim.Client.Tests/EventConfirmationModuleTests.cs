@@ -121,6 +121,7 @@ internal static class EventConfirmationModuleTests
     private static async Task WorkflowBatchRetry()
     {
         var f = new Fixture(); f.Protocol.Failure = "transport";
+        foreach (string id in new[] { "é", "A", "a", "rejected" }) f.Inbox.TryTrackPendingConfirmation(id);
         var entries = new[] { Entry("é"), Entry("A"), Entry("a") };
         var work = f.Workflow.AutomaticAsync(entries);
         entries[0].EventId = "caller-mutated";
@@ -147,6 +148,8 @@ internal static class EventConfirmationModuleTests
             && f.Ports.Snapshot == "last" && f.Effects.Handled.SequenceEqual(new[] { "é", "A" }), "Retry changed intent or batch result selection.");
         var accepted = f.Presentation.Notices.Last();
         Require(accepted.Count == 3 && accepted.Rejected == 2, "Batch accepted/rejected counts changed.");
+        Require(!f.Inbox.HasPendingConfirmation("é") && !f.Inbox.HasPendingConfirmation("A")
+            && f.Inbox.HasPendingConfirmation("a") && f.Inbox.HasPendingConfirmation("rejected"), "Batch cleared unconfirmed gift intent.");
         (await f.Ports.Next())();
         Require(f.View.Visible is null, "Successful retry retained the old failure window.");
     }

@@ -440,6 +440,7 @@
   <ClashOfRim.Events.StatusAutoDetailsFailed>Автосинхронизация деталей сообщения не удалась: {CODE} {MESSAGE}</ClashOfRim.Events.StatusAutoDetailsFailed>
   <ClashOfRim.Events.StatusAutoDetailsRejected>Автосинхронизация деталей сообщения отклонена: {CODE} {MESSAGE}</ClashOfRim.Events.StatusAutoDetailsRejected>
   <ClashOfRim.Events.StatusAutoApplying>Обработка серверных сообщений.</ClashOfRim.Events.StatusAutoApplying>
+  <ClashOfRim.Events.StatusApplyException>Ошибка применения события: {TYPE} {MESSAGE}</ClashOfRim.Events.StatusApplyException>
   <ClashOfRim.Events.StatusAutoApplyException>Исключение автоматической обработки сообщения: {TYPE} {MESSAGE}</ClashOfRim.Events.StatusAutoApplyException>
   <ClashOfRim.Events.StatusAutoException>Исключение автосинхронизации серверных сообщений: {TYPE} {MESSAGE}</ClashOfRim.Events.StatusAutoException>
   <ClashOfRim.Events.StatusPullingPending>Получение ожидающих сообщений.</ClashOfRim.Events.StatusPullingPending>

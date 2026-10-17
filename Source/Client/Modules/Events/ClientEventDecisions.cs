@@ -27,7 +27,7 @@ internal interface IClientEventDecisionRuntime
 
 // These commands change server event decisions, not local snapshots. All commands
 // capture one identity before dispatch; a response never borrows a later login.
-internal sealed class ClientEventDecisions
+internal sealed class ClientEventDecisions : IClientEventApplicationDecisions
 {
     private readonly ClientSessionLifecycle session;
     private readonly ClientSynchronizationCoordinator synchronization;
@@ -47,15 +47,15 @@ internal sealed class ClientEventDecisions
 
     internal event Action? FailureReported;
 
-    internal bool RejectGift(string eventId, string? reason, out Task work) => Start(ClientEventDecisionKind.RejectGift, eventId,
+    public bool RejectGift(string eventId, string? reason, out Task work) => Start(ClientEventDecisionKind.RejectGift, eventId,
         a => protocol.RejectGiftAsync(a.Context, eventId, reason, a.Owner.Token),
         r => new(r.Result, r.ReturnEventId, r.ReturnEventCreated), null, out work);
 
-    internal bool RejectSupport(string eventId, string? reason, out Task work) => Start(ClientEventDecisionKind.RejectSupport, eventId,
+    public bool RejectSupport(string eventId, string? reason, out Task work) => Start(ClientEventDecisionKind.RejectSupport, eventId,
         a => protocol.RejectSupportAsync(a.Context, eventId, reason, a.Owner.Token),
         r => new(r.Result, r.ReturnEventId, r.ReturnEventCreated), null, out work);
 
-    internal bool RespondDiplomacy(string eventId, string actorUserId, ServerEventType eventType, bool accepted, string? reason, out Task work) =>
+    public bool RespondDiplomacy(string eventId, string actorUserId, ServerEventType eventType, bool accepted, string? reason, out Task work) =>
         Start(accepted ? ClientEventDecisionKind.AcceptDiplomacy : ClientEventDecisionKind.RejectDiplomacy, eventId,
             a => protocol.RespondDiplomacyAsync(a.Context, eventId, accepted, reason, a.Owner.Token),
             r => new(r.Result, RelationKind: r.RelationKind),
@@ -66,7 +66,7 @@ internal sealed class ClientEventDecisions
                 if (accepted || r.RelationKind is not null) runtime.ApplyDiplomacyRelation(actorUserId, r.RelationKind, eventType);
             }, out work);
 
-    internal Task ReportFailureAsync(string eventId, string? sourceEventId, string reason)
+    public Task ReportFailureAsync(string eventId, string? sourceEventId, string reason)
     {
         using var publication = ClientSessionWork.EnterPublication();
         var context = session.ReadContext();
