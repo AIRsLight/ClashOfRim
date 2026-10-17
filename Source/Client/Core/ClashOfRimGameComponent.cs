@@ -1,3 +1,4 @@
+using static AIRsLight.ClashOfRim.Modules.Maps.ClientMapIdentity;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -1268,19 +1269,6 @@ public sealed class ClashOfRimGameComponent : GameComponent
 
         nextRemoteWorldObjectOrphanCleanupTick = ticks + RemoteWorldObjectOrphanCleanupTicks;
         RemoteRuntimeWorldObjectRegistry.CleanupOrphans();
-    }
-
-    private static bool MapIdsMatch(string currentMapId, string? targetMapId)
-    {
-        if (string.IsNullOrWhiteSpace(targetMapId))
-        {
-            return false;
-        }
-
-        string normalizedTarget = targetMapId!.StartsWith("Map_", StringComparison.Ordinal)
-            ? targetMapId
-            : "Map_" + targetMapId;
-        return string.Equals(currentMapId, normalizedTarget, StringComparison.Ordinal);
     }
 
     private static string FormatRemaining(TimeSpan remaining)

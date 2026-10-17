@@ -21,8 +21,12 @@ internal static class ItemDeliveryPayloadReader
         var serializer = new DataContractJsonSerializer(typeof(ItemDeliveryPayloadSummary), JsonSerializerSettings);
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
         object? value = serializer.ReadObject(stream);
-        return value as ItemDeliveryPayloadSummary
+        var payload = value as ItemDeliveryPayloadSummary
             ?? throw new InvalidOperationException("Gift payload type mismatch.");
+        // DataContract deserialization bypasses property initializers. Restore the
+        // declared empty-list default once for both execution and presentation callers.
+        payload.Items ??= new List<ItemDeliveryItemSummary>();
+        return payload;
     }
 }
 

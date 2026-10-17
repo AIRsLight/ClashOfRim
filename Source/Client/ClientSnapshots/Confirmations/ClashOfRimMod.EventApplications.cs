@@ -135,7 +135,7 @@ public sealed partial class ClashOfRimMod
         }
         var events = update.Details!;
         eventDetailsStatus = FormatEventDetails(events);
-        LogGiftDetails(request.Kind == ClientEventReadKind.Automatic ? "AutoEventDetails" : "RefreshDetails", events);
+        ClientEventReadPresentation.LogGiftDetails(request.Kind == ClientEventReadKind.Automatic ? "AutoEventDetails" : "RefreshDetails", events);
         ClashOfRimGameComponent.EnqueueMainThreadAction(() => eventReader.TryApply(request, () =>
         {
             if (request.Kind == ClientEventReadKind.Automatic) ApplyAutomaticEventRead(events, request.Reason);

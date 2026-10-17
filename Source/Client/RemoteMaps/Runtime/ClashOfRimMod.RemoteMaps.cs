@@ -1,3 +1,4 @@
+using static AIRsLight.ClashOfRim.Modules.Maps.ClientMapIdentity;
 using AIRsLight.ClashOfRim.Modules.Synchronization;
 using System;
 using System.Collections.Generic;

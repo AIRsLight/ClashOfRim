@@ -1,3 +1,4 @@
+using static AIRsLight.ClashOfRim.Diplomacy.ClientDiplomacyPresentation;
 using AIRsLight.ClashOfRim.Modules.Synchronization;
 using System;
 using System.Collections.Generic;
@@ -14,18 +15,6 @@ namespace AIRsLight.ClashOfRim;
 
 public sealed partial class ClashOfRimMod
 {
-    private static string DiplomacyRelationReason(string eventKind)
-    {
-        return eventKind switch
-        {
-            "WarDeclaration" => ClashOfRimText.Key("ClashOfRim.Diplomacy.RelationReasonWarDeclaration"),
-            "AllianceCancellation" => ClashOfRimText.Key("ClashOfRim.Diplomacy.RelationReasonAllianceCancellation"),
-            "AllianceRequest" => ClashOfRimText.Key("ClashOfRim.Diplomacy.RelationReasonAllianceRequest"),
-            "PeaceRequest" => ClashOfRimText.Key("ClashOfRim.Diplomacy.RelationReasonPeaceRequest"),
-            _ => "ClashOfRim"
-        };
-    }
-
     internal void StartRefreshPlayers()
     {
         StartRefreshPlayers("manual-refresh", requireManualGate: true);

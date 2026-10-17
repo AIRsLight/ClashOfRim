@@ -192,11 +192,8 @@ internal static class ClientEventLetterPolicy
             && ReadGiftPayloadForDisplay(detail)?.IsTradeReturn == true;
     }
 
-    internal static bool IsRejectableDiplomacyEvent(ModEventDetailDto detail)
-    {
-        return detail.EventType == ServerEventType.AllianceRequest
-            || detail.EventType == ServerEventType.PeaceRequest;
-    }
+    internal static bool IsRejectableDiplomacyEvent(ModEventDetailDto detail) =>
+        AIRsLight.ClashOfRim.Modules.Events.ClientEventDiplomacyPolicy.CanRespond(detail.EventType);
 
     internal static bool ShouldPostEventLetter(ModEventDetailDto detail, string? group)
     {

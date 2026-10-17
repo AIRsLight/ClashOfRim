@@ -55,6 +55,7 @@ public sealed partial class ClashOfRimMod : Mod
 
     private readonly ClashOfRimSettings settings;
     private readonly ClientEventInbox eventInbox = new();
+    private readonly ClientEventDelivery eventDelivery;
     private readonly ClientEventReader eventReader;
     private readonly ClientEventRefreshQueue automaticEventRefresh;
     internal IReadOnlyList<ModEventDetailDto>? ReadEventDetails(int? knownVersion, out int version) =>
@@ -157,6 +158,7 @@ public sealed partial class ClashOfRimMod : Mod
         sessionReconnect = new ClientSessionReconnect(new ClientSessionReconnectTransport(), sessionLifecycle, synchronization);
         eventReader = new ClientEventReader(sessionLifecycle, eventInbox, new ClientEventReadTransport());
         automaticEventRefresh = new ClientEventRefreshQueue(sessionLifecycle);
+        eventDelivery = new ClientEventDelivery(eventInbox, new ClientEventLetterRuntime(RequestWorldMapMarkerRefresh));
         if (!string.Equals(content.PackageId, PackageId, StringComparison.OrdinalIgnoreCase))
         {
             Log.Warning("[ClashOfRim] Ignored ClashOfRim mod class loaded from unexpected package: " + (content.PackageId ?? "<null>") + ".");

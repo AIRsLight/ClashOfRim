@@ -507,3 +507,25 @@ Release 全回归通过客户端 58 项、Client.Core 10 组、Events、Save 和
 实机批次 `G:/RimTestRuns/ClashOfRim-module-migration/20261017-080346-8edbf6bc` 通过 core-features 43/43、gift-repeat-accept 18/18、account-core 22/22、stability-transfers-dlc 22/22，共 105 项，无未执行项。覆盖重复礼物不增殖、商店与三种交易履约、银行还款、复杂物品、全 DLC 支援三种归还、远程地图、袭击损失后重载结算、两个玩家分别废弃/重建及成就跨代检查、快照重载与重连。四场输入与最终包 DLL SHA256 均为 `AB1AB0A63D59534EC19A44D40EB695CB3CF4461E9D0AF8F80B88B5A2D9B01D28`；执行及核对记录为 `m4b-rimtest.log`、`m4b-verification.json`。核心场景记录一次 `/world/colony-sites` 和一次 `/world/configuration/current` HTTP 400，全 DLC 场景记录两次世界配置 HTTP 400；礼物重复及账户场景没有这两类记录。此前世界请求和银行袭击生成失败仍保留追踪，不因本轮通过而关闭。
 
 M4b 完成。下一项 M4c 迁移信件执行、游戏效果及其显示接入，复用现有信件策略、载荷读取器、状态去重和快照确认模块，继续移除主类对领域状态的直接编排；不在事件模块重写银行、支援、袭击等业务算法。M4 整体和 M5–M12 尚未完成。
+
+### M4c1 信件投递、效果登记与显示边界
+
+`ClientEventDelivery` 接管批次执行顺序、重复投递抑制、待人工事件登记及成功效果登记，复用 `ClientEventInbox`。保留原批次顺序：立即外交关系、外交回执关系、信件投递。实际按钮资格仍调用原 `ClientEventLetterPolicy`；没有再实现礼物、支援、袭击的资格和载荷规则。模块只依赖窄的 `IClientEventLetterRuntime`，不接收 Mod、完整设置、完整网络客户端或游戏对象。
+
+`ClientEventLetterRuntime` 负责派系代理、游戏信件栈和存档内待人工事件的接入；`ClientEventLetterRenderer` 负责真实信件投影、内容及定位目标。世界标记刷新仍由组合入口提供 `Action<string>` 窄委托，暂时接入宿主的世界刷新方法，随 M8 迁移；没有将完整宿主传入适配器。原 partial 删除约 1,200 行投递、外交效果与格式化实现，`PostEventLetters` 只转发；显示代码没有作为另一个 partial 或持有 Mod 的包装器搬家。领域交互动作、支援到达确认和外交响应提交仍在原入口，下一步 M4c2 继续迁移，不能将本步称为 M4 全部完成。
+
+跨 partial 的隐藏依赖也被显式拆开：远程地图原本调用信件文件中的 `MapIdsMatch`，现由纯数据模块 `ClientMapIdentity` 统一保留数字目标 ID 与 `Map_` 前缀兼容、ordinal 匹配规则；GameComponent 与远程会话控制器的同语义副本也删除并接入同一模块。赠礼落点另有用于生成地图 ID 的归一化，空输入比较语义不同，留在 M6 按落点契约迁移。外交界面借用信件文件中的关系映射、默认文案等函数，现集中到 `ClientDiplomacyPresentation`；事件分组名称、预览文本和读取日志分别归入事件显示适配器。删除没有调用者的礼物文本重载。通知 DTO 单独存放，保留 CLR 命名空间、序列化字段和存档信件类型/字段。
+
+外交效果原先在解析、派系代理调用之前就标记完成，且忽略 `SetPlayerRelation` 返回的失败。现在只在实际成功后登记；代理暂不可用或执行抛错时，后续再次收到该事件可以重试，成功后重复刷新不重复执行。已打开的信件继续抑制新投递，只有成功提交信件栈才登记投递效果。测试使用实际模块及可控制的游戏端口验证失败、重试、并发和旧会话失效，没有替代游戏业务算法。
+
+旧通知处理对任意非空 `RelatedEventType` 调用默认中立关系映射，会让非外交通知触及外交状态。现按共享外交分类只接受四类外交关联；与服务端 `RespondDiplomacyEvent` 和 `CreateDiplomacyResponseNotification` 核对后，保留联盟、和平以及宣战、解除联盟的接受回执，不能只按客户端可拒绝按钮的两类请求来过滤。未接受、缺少关联玩家、其他事件类型和未知枚举值不执行关系副作用。此问题由旧源码路径与定向测试确认，未声称实机曾收到这类错误通知。
+
+直接执行真实渲染器的测试复现礼物载荷缺少 `Items` 时的空引用：DataContract 反序列化绕过属性初始化，导致显示中的 `payload.Items.Count` 失败；修复前日志为 `LocalOnly/module-migration/m4c1-renderer-before.log`。共享 `ItemDeliveryPayloadReader` 现统一恢复已声明的空列表默认值，显示和礼物处理都复用它，没有添加两套空值补丁。缺省、显式 null 和空列表按同一既有空列表行为处理，已填充条目保持原值。
+
+新测试覆盖四种文化、真实策略和投影、分组及来源传递、已开信件、只读按钮、通知严重度与原文、脱离队列的袭击结算显示、32 次并发重复投递、两类外交效果的失败/异常后重试、缺失身份、各关联事件类型与接受状态、会话过期及重置、地图 ID 兼容和礼物集合默认值。控制台投影测试只替换未初始化的游戏语言环境，真实文本渲染仍需实机验证。依赖检查增加事件适配器不得直接依赖完整 Mod/设置/网络客户端类型的约束，也禁止纯模块直接引用混合游戏显示类型。
+
+Release 全回归通过客户端 59 项、Client.Core 10 组、Events、Save 和完整 NetworkSmoke，日志为 `LocalOnly/module-migration/m4c1-regression.log`。随后统一 GameComponent/远程会话的地图比较后，最终 Release 客户端 59 项再次通过，纯模块依赖检查覆盖 130 个产品及生成类型，事件适配器边界检查覆盖 9 个类型，日志为 `m4c1-client-final.log`。第三方兼容包构建和主包/兼容包冻结 1.6 的 77/8 个文件通过，日志为 `m4c1-third-party.log`。
+
+最终实机批次 `G:/RimTestRuns/ClashOfRim-module-migration/20261017-083155-d2d29fc8` 通过 core-features 43/43、coverage50-french 14/14、gift-repeat-accept 18/18、stability-transfers-dlc 22/22，共 97 项，未执行项为 0。覆盖真实信件及联盟接收、复杂物品、重复赠礼不增殖、三类支援归还、远程观察隔离、袭击损失重载结算、普通存档重载与重连，以及法语 50% 世界、难度和文化引用；不将法语世界场景等同于所有语言下的信件文案验证。四场输入与最终包 DLL SHA256 均为 `F8BB4F9147B6D944DF2B9FF9AFCFB4525199082B1AE496C46B09EA747847A2A6`，执行与产物核对记录为 `m4c1-rimtest.log`、`m4c1-verification.json`。核心场景记录两次 `/world/configuration/current` HTTP 400，其余三场没有这类记录；既有世界请求和银行袭击生成失败仍保持开放追踪。
+
+M4c1 完成。下一项 M4c2 继续迁移信件按钮动作、事件应用及确认编排，复用现有策略、载荷读取、同步 Lease 和快照模块；保留领域边界，避免在通用事件模块内重写礼物、支援或袭击算法。M4 整体以及 M5–M12 尚未完成。

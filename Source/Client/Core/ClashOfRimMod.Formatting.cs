@@ -222,31 +222,6 @@ public sealed partial class ClashOfRimMod
             summary.Named("SUMMARY"));
     }
 
-    private static string FormatEventGroupName(string group)
-    {
-        return group switch
-        {
-            "Unknown" => ClashOfRimText.Key("ClashOfRim.EventGroup.Unknown"),
-            "DirectlyProcessable" => ClashOfRimText.Key("ClashOfRim.EventGroup.DirectlyProcessable"),
-            "WaitingForUserChoice" => ClashOfRimText.Key("ClashOfRim.EventGroup.WaitingForUserChoice"),
-            "DeliveredUnconfirmed" => ClashOfRimText.Key("ClashOfRim.EventGroup.DeliveredUnconfirmed"),
-            "Conflicts" => ClashOfRimText.Key("ClashOfRim.EventGroup.Conflicts"),
-            "Rejected" => ClashOfRimText.Key("ClashOfRim.EventGroup.Rejected"),
-            _ => group
-        };
-    }
-
-    private static string Preview(string? value, int maxLength)
-    {
-        if (string.IsNullOrEmpty(value))
-        {
-            return "<empty>";
-        }
-
-        string compact = value!.Replace("\r", string.Empty).Replace("\n", string.Empty);
-        return compact.Length <= maxLength ? compact : compact.Substring(0, maxLength) + "...";
-    }
-
     private static string FormatEventGroup(string label, IReadOnlyCollection<ModEventReferenceDto>? events)
     {
         if (events is null || events.Count == 0)

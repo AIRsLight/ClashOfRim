@@ -3,6 +3,8 @@ using System.Linq;
 using AIRsLight.ClashOfRim;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.ClientSnapshots;
+using AIRsLight.ClashOfRim.EventLetters;
+using AIRsLight.ClashOfRim.Diplomacy;
 using ClashOfRim.TestSupport;
 
 internal static class ClientModuleBoundaryTests
@@ -17,9 +19,21 @@ internal static class ClientModuleBoundaryTests
             || t == typeof(ModSnapshotPackageBuilder) || t == typeof(SnapshotSaveSanitizer)
             || t == typeof(ModSnapshotUploadService) || t == typeof(ClientSnapshotPreparationAdapter)
             || t == typeof(ClientSnapshotPackagePresentation) || t == typeof(ClientSnapshotUploadPresentation)
+            || t == typeof(ClientEventLetterPolicy) || t == typeof(ClientEventLetterRenderer)
+            || t == typeof(ClientEventLetterRuntime) || t == typeof(ClientDiplomacyPresentation)
+            || t == typeof(ClientEventReadPresentation) || t == typeof(ClashOfRimEventLetterProjection)
             || t.Namespace?.Split('.')[0] is "Verse" or "RimWorld" or "UnityEngine");
         if (modules.Length == 0 || violations.Count != 0)
             throw new InvalidOperationException("Client module boundaries: " + string.Join(Environment.NewLine, violations));
         Console.WriteLine($"Client module dependency guard checked {modules.Length} product and generated types.");
+        Type[] eventAdapters = { typeof(ClientEventLetterPolicy), typeof(ClientEventLetterRenderer), typeof(ClientEventLetterRuntime),
+            typeof(ClientDiplomacyPresentation), typeof(ClientEventTextFormatting), typeof(ClientEventReadPresentation) };
+        var adapterTypes = typeof(ClashOfRimMod).Assembly.GetTypes().Where(t => eventAdapters.Contains(t)
+            || (t.DeclaringType is not null && eventAdapters.Contains(t.DeclaringType))).ToArray();
+        var adapterViolations = ModuleDependencyGuard.FindViolations(adapterTypes, t => t == typeof(ClashOfRimMod)
+            || t == typeof(ClashOfRimSettings) || t == typeof(ClashOfRimModNetworkClient) || t == typeof(IServiceProvider));
+        if (adapterViolations.Count != 0)
+            throw new InvalidOperationException("Event adapters depend on the legacy host: " + string.Join(Environment.NewLine, adapterViolations));
+        Console.WriteLine($"Event adapter dependency guard checked {adapterTypes.Length} product and generated types.");
     }
 }

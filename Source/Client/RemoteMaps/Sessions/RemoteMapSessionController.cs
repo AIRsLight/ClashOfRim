@@ -1,3 +1,4 @@
+using static AIRsLight.ClashOfRim.Modules.Maps.ClientMapIdentity;
 using System;
 using System.Linq;
 using AIRsLight.ClashOfRim.ClientNetwork;
@@ -118,19 +119,6 @@ public static class RemoteMapSessionController
         return Find.Maps.FirstOrDefault(map =>
             map is not null
             && MapIdsMatch("Map_" + map.uniqueID, runtimeMapId));
-    }
-
-    private static bool MapIdsMatch(string currentMapId, string targetMapId)
-    {
-        if (string.IsNullOrWhiteSpace(currentMapId) || string.IsNullOrWhiteSpace(targetMapId))
-        {
-            return false;
-        }
-
-        string normalizedTarget = targetMapId.StartsWith("Map_", StringComparison.Ordinal)
-            ? targetMapId
-            : "Map_" + targetMapId;
-        return string.Equals(currentMapId, normalizedTarget, StringComparison.Ordinal);
     }
 
     public static bool TryBeginRaidBattleFinish(ActiveRaidBattleSession? session)

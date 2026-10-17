@@ -1,3 +1,8 @@
+using System.Collections.Generic;
+using System.Linq;
+using AIRsLight.ClashOfRim.ClientNetwork;
+using AIRsLight.ClashOfRim.Gifts;
+using static AIRsLight.ClashOfRim.EventLetters.ClientEventTextFormatting;
 using AIRsLight.ClashOfRim.Modules.Events;
 using Verse;
 
@@ -41,5 +46,20 @@ internal static class ClientEventReadPresentation
             : update.Request.Kind == ClientEventReadKind.Wait ? "StatusOnlineWait" : automatic ? "StatusAutoQueue" : "StatusQueue";
         return ClashOfRimText.Key("ClashOfRim.Events." + prefix + (failure.Kind == ClientEventReadFailureKind.Rejected ? "Rejected" : "Failed"),
             (failure.Code ?? string.Empty).Named("CODE"), (failure.Message ?? string.Empty).Named("MESSAGE"));
+    }
+    internal static void LogGiftDetails(string source, IReadOnlyCollection<ModEventDetailDto>? details)
+    {
+        if (details is null)
+        {
+            ClashLog.Message($"[ClashOfRim][{source}] details=null.");
+            return;
+        }
+
+        ClashLog.Message($"[ClashOfRim][{source}] detailCount={details.Count}.");
+        foreach (ModEventDetailDto detail in details.Where(ItemDeliveryClientProcessor.IsGiftDetail).Take(5))
+        {
+            ClashLog.Message(
+                $"[ClashOfRim][{source}] gift event={detail.EventId} status={detail.Status} targetMap={detail.TargetContext?.MapUniqueId ?? "<null>"} landingMode={detail.TargetContext?.LandingMode ?? "<null>"} payloadLength={detail.PayloadSummary?.Length ?? 0} payloadPreview={Preview(detail.PayloadSummary, 512)}");
+        }
     }
 }
