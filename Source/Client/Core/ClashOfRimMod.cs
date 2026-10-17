@@ -102,14 +102,15 @@ public sealed partial class ClashOfRimMod : Mod
     private bool pendingInitialWorldConfigurationSubmit;
     private ModWorldConfigurationDto? pendingServerWorldConfiguration;
     private WorldSubstratePackage? pendingServerWorldSubstrate;
-    private string? lastSessionId;
+    // Read-only bridge for domains that have not yet moved out of the Mod.
+    private string? lastSessionId => sessionLifecycle.SessionId;
     private long lastNotificationVersion;
     private long lastWorldConfigurationVersion;
     private bool automaticEventRefreshInProgress;
     private bool automaticEventRefreshQueued;
     private bool chatRefreshInProgress;
     private bool chatSendInProgress;
-    private bool sessionExpiredHandling;
+    private readonly ClientSessionLifecycle sessionLifecycle;
     private bool sessionReconnectInProgress;
     private bool languageMismatchAcceptedForCurrentServerEntry;
     private bool blockAutomaticMapSessionForServerEntrySourceGame;
@@ -155,6 +156,7 @@ public sealed partial class ClashOfRimMod : Mod
         : base(content)
     {
         settings = GetSettings<ClashOfRimSettings>();
+        sessionLifecycle = new ClientSessionLifecycle(new ClientSessionIdentityStore(settings), new ClientSessionLogoutTransport(), sessionConnection);
         if (!string.Equals(content.PackageId, PackageId, StringComparison.OrdinalIgnoreCase))
         {
             Log.Warning("[ClashOfRim] Ignored ClashOfRim mod class loaded from unexpected package: " + (content.PackageId ?? "<null>") + ".");
@@ -162,6 +164,13 @@ public sealed partial class ClashOfRimMod : Mod
         }
 
         Instance = this;
+        sessionLifecycle.IdentityChanged += response =>
+        {
+            CaptureServerCompatibilityManifest(response?.ServerCompatibilityManifestJson);
+            ApplyAdministratorFlag(response?.IsAdministrator == true);
+        };
+        sessionLifecycle.Ended += ClearTransientMultiplayerSessionStateForExit;
+        sessionLifecycle.LogoutFailed += message => Log.Warning("[ClashOfRim] " + message);
         sessionConnection.StatusChanged += PresentConnectionStatus;
         sessionConnection.EventReceived += HandleSessionStreamEventSafely;
         sessionConnection.ConnectionLost += HandleSessionDisconnected;
@@ -397,7 +406,7 @@ public sealed partial class ClashOfRimMod : Mod
         && Find.CurrentMap is not null
         && !manualSyncInProgress
         && !snapshotUploadInProgress
-        && !sessionExpiredHandling
+        && !sessionLifecycle.IsUnavailable
         && !IsBlockedServerEntrySourceGame()
         && !ClashOfRimGameComponent.HasActiveRaidBattleSession
         && !ClashOfRimGameComponent.HasActiveObservationSession

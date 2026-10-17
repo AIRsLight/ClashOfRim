@@ -177,22 +177,7 @@ public sealed partial class ClashOfRimMod
                     "ClashOfRim.Login.StatusSucceeded",
                     result.Response.ServerProtocolVersion.Named("PROTOCOL"),
                     result.Response.SessionId.Named("SESSION"));
-                CaptureServerCompatibilityManifest(result.Response.ServerCompatibilityManifestJson);
-                lastSessionId = result.Response.SessionId;
-                sessionExpiredHandling = false;
-                ApplyAdministratorFlag(result.Response.IsAdministrator);
-                if (!string.IsNullOrWhiteSpace(result.Response.AuthenticatedUserId))
-                {
-                    settings.UserId = result.Response.AuthenticatedUserId!.Trim();
-                }
-
-                if (!string.IsNullOrWhiteSpace(result.Response.DisplayName))
-                {
-                    settings.DisplayName = result.Response.DisplayName!.Trim();
-                }
-
-                settings.AuthToken = result.Response.AuthToken ?? string.Empty;
-                settings.Write();
+                sessionLifecycle.PublishLogin(result.Response);
                 eventQueueStatus = FormatEventQueue(result.Response.EventQueue);
                 CaptureEventIds(result.Response.EventQueue);
                 CaptureWorldMapMarkers(result.Response.WorldMapMarkers, source: "manual-login");
@@ -251,38 +236,7 @@ public sealed partial class ClashOfRimMod
 
     internal void DisconnectMultiplayerSessionForExit()
     {
-        ClientSessionWork.Reset();
-        string? sessionId = lastSessionId;
-        if (!string.IsNullOrWhiteSpace(sessionId) && settings.IsConfigured)
-        {
-            var context = ClashOfRimClientNetworkContext.FromSettings(settings);
-            Task.Run(async () =>
-            {
-                try
-                {
-                    using var httpClient = new HttpClient();
-                    var client = new ClashOfRimModNetworkClient(httpClient, context);
-                    ClashOfRimClientNetworkResult<ModLogoutResponseDto> result = await client.LogoutAsync(sessionId);
-                    if (!result.Success || result.Response?.Result?.Accepted != true)
-                    {
-                        Log.Warning("[ClashOfRim] Explicit logout failed: "
-                            + (result.Message ?? result.Response?.Result?.Message ?? result.ErrorCode ?? "unknown"));
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Log.Warning("[ClashOfRim] Explicit logout exception: " + ex);
-                }
-            });
-        }
-
-        sessionConnection.Stop(reportStatus: false);
-        lastSessionId = null;
-        ClearTransientMultiplayerSessionStateForExit();
-        CaptureServerCompatibilityManifest(null);
-        ApplyAdministratorFlag(false);
-        settings.AuthToken = string.Empty;
-        settings.Write();
+        _ = sessionLifecycle.End(sendLogout: true);
         presenceStatus = ClashOfRimText.Key("ClashOfRim.Presence.StatusSessionDisconnected");
     }
 
@@ -314,7 +268,6 @@ public sealed partial class ClashOfRimMod
         tradeOrdersPageLoadInProgress = false;
         chatRefreshInProgress = false;
         chatSendInProgress = false;
-        sessionExpiredHandling = false;
         sessionReconnectInProgress = false;
         // GoToMainMenu unloads the scene asynchronously. Its old game can still
         // update after logout, so retain the same admission barrier used by entry.
@@ -1105,12 +1058,9 @@ public sealed partial class ClashOfRimMod
 
                 ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
                 {
-                    sessionConnection.Stop(reportStatus: false);
-                    lastSessionId = null;
-                    CaptureServerCompatibilityManifest(null);
                     settings.CurrentSnapshotId = string.Empty;
                     settings.CurrentLineageToken = string.Empty;
-                    settings.AuthToken = string.Empty;
+                    sessionLifecycle.ClearIdentity();
                     lastRegisteredPlayerColonySiteSignature = null;
                     pendingGiftConfirmationEventIds.Clear();
                     postedEventLetterIds.Clear();
@@ -1472,29 +1422,12 @@ public sealed partial class ClashOfRimMod
         string? observedAuthToken,
         string? observedSessionId)
     {
-        if (!IsCurrentSessionExpiredSignal(observedAuthToken, observedSessionId))
-        {
-            ClashLog.Message(
-                "[ClashOfRim] Ignored stale session-expired signal: tokenMatches="
-                + (string.IsNullOrWhiteSpace(observedAuthToken) || string.Equals(observedAuthToken, settings.AuthToken, StringComparison.Ordinal))
-                + ", sessionMatches="
-                + (string.IsNullOrWhiteSpace(observedSessionId) || string.Equals(observedSessionId, lastSessionId, StringComparison.Ordinal)));
-            return;
-        }
-
-        if (sessionExpiredHandling)
-        {
-            return;
-        }
-
-        sessionExpiredHandling = true;
-        sessionConnection.Stop(reportStatus: false);
+        var invalidation = sessionLifecycle.BeginUnavailable(observedAuthToken, observedSessionId);
+        if (invalidation is null) return;
         ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
         {
-            lastSessionId = null;
-            CaptureServerCompatibilityManifest(null);
-            settings.AuthToken = string.Empty;
-            settings.Write();
+            using var publication = ClientSessionWork.EnterPublication();
+            if (!sessionLifecycle.CompleteUnavailable(invalidation)) return;
             loginStatus = status;
             presenceStatus = loginStatus;
             Find.MainTabsRoot?.SetCurrentTab(null);
@@ -1664,17 +1597,7 @@ public sealed partial class ClashOfRimMod
                         return;
                     }
 
-                    CaptureServerCompatibilityManifest(loginResponse.ServerCompatibilityManifestJson);
-                    lastSessionId = loginResponse.SessionId;
-                    sessionExpiredHandling = false;
-                    ApplyAdministratorFlag(loginResponse.IsAdministrator);
-                    if (!string.IsNullOrWhiteSpace(loginResponse.DisplayName))
-                    {
-                        settings.DisplayName = loginResponse.DisplayName!.Trim();
-                    }
-
-                    settings.AuthToken = loginResponse.AuthToken!;
-                    settings.Write();
+                    sessionLifecycle.PublishLogin(loginResponse);
                     ClashLog.Message("[ClashOfRim][SessionReconnect] In-place reconnect accepted: user="
                         + authenticatedUserId
                         + ", colony="
@@ -1744,23 +1667,6 @@ public sealed partial class ClashOfRimMod
                 ClashOfRimText.Key("ClashOfRim.SessionExpired.ReconnectAtomicPending"),
             _ => string.Empty
         };
-    }
-
-    private bool IsCurrentSessionExpiredSignal(string? observedAuthToken, string? observedSessionId)
-    {
-        if (!string.IsNullOrWhiteSpace(observedAuthToken)
-            && !string.Equals(observedAuthToken, settings.AuthToken, StringComparison.Ordinal))
-        {
-            return false;
-        }
-
-        if (!string.IsNullOrWhiteSpace(observedSessionId)
-            && !string.Equals(observedSessionId, lastSessionId, StringComparison.Ordinal))
-        {
-            return false;
-        }
-
-        return true;
     }
 
     private static bool IsSessionExpiredMessage(string? message)
@@ -1833,22 +1739,7 @@ public sealed partial class ClashOfRimMod
                         return;
                     }
 
-                    CaptureServerCompatibilityManifest(login.Response.ServerCompatibilityManifestJson);
-                    lastSessionId = login.Response.SessionId;
-                    sessionExpiredHandling = false;
-                    ApplyAdministratorFlag(login.Response.IsAdministrator);
-                    if (!string.IsNullOrWhiteSpace(login.Response.AuthenticatedUserId))
-                    {
-                        settings.UserId = login.Response.AuthenticatedUserId!.Trim();
-                    }
-
-                    if (!string.IsNullOrWhiteSpace(login.Response.DisplayName))
-                    {
-                        settings.DisplayName = login.Response.DisplayName!.Trim();
-                    }
-
-                    settings.AuthToken = login.Response.AuthToken ?? string.Empty;
-                    settings.Write();
+                    sessionLifecycle.PublishLogin(login.Response);
                 }
 
                 var uploadService = new ModSnapshotUploadService(settings);

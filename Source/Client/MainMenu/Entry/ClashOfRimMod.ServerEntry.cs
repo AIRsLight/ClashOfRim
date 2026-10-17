@@ -74,7 +74,6 @@ public sealed partial class ClashOfRimMod
         settings.OfflinePassword = password ?? string.Empty;
         settings.CurrentSnapshotId = string.Empty;
         settings.CurrentLineageToken = string.Empty;
-        settings.AuthToken = string.Empty;
         settings.Write();
 
         if (string.IsNullOrWhiteSpace(settings.ServerBaseUrl)
@@ -275,18 +274,12 @@ public sealed partial class ClashOfRimMod
 
     private void ResetRuntimeSessionStateForMainMenuLogin()
     {
-        ClientSessionWork.Reset();
-        ClearTransientMultiplayerSessionStateForExit();
-        sessionConnection.Stop(reportStatus: false);
-        lastSessionId = null;
+        _ = sessionLifecycle.End(sendLogout: false);
         blockAutomaticMapSessionForServerEntrySourceGame = false;
         serverEntrySourceGame = null;
-        CaptureServerCompatibilityManifest(null);
         RemoteColonyWorldIconCache.Clear();
-        ApplyAdministratorFlag(false);
         lastNotificationVersion = 0;
         lastWorldConfigurationVersion = 0;
-        sessionExpiredHandling = false;
         languageMismatchAcceptedForCurrentServerEntry = false;
         ClearLocalAtomicMutation();
         ClearPendingUnconfirmedSnapshotFailure();
@@ -300,7 +293,6 @@ public sealed partial class ClashOfRimMod
         pvpEnabled = true;
         settings.CurrentSnapshotId = string.Empty;
         settings.CurrentLineageToken = string.Empty;
-        settings.AuthToken = string.Empty;
         settings.TargetUserId = string.Empty;
         settings.TargetColonyId = string.Empty;
         settings.TargetSnapshotId = string.Empty;
@@ -655,12 +647,7 @@ public sealed partial class ClashOfRimMod
                         return;
                     }
 
-                    settings.AuthToken = login.Response.AuthToken ?? string.Empty;
-                    settings.Write();
-                    CaptureServerCompatibilityManifest(login.Response.ServerCompatibilityManifestJson);
-                    lastSessionId = login.Response.SessionId;
-                    sessionExpiredHandling = false;
-                    ApplyAdministratorFlag(login.Response.IsAdministrator);
+                    sessionLifecycle.PublishLogin(login.Response);
                     client = new ClashOfRimModNetworkClient(
                         httpClient,
                         ClashOfRimClientNetworkContext.FromSettings(settings));

@@ -437,10 +437,7 @@ public sealed partial class ClashOfRimMod
                         return;
                     }
 
-                    settings.AuthToken = login.Response.AuthToken ?? string.Empty;
-                    settings.Write();
-                    lastSessionId = login.Response.SessionId;
-                    sessionExpiredHandling = false;
+                    sessionLifecycle.PublishLogin(login.Response);
                     client = new ClashOfRimModNetworkClient(
                         httpClient,
                         ClashOfRimClientNetworkContext.FromSettings(settings));
