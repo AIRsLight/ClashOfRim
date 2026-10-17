@@ -10,7 +10,7 @@ using AIRsLight.ClashOfRim.Pawns;
 
 namespace AIRsLight.ClashOfRim.ClientNetwork;
 
-internal sealed class ClientShopCatalogTransport : IClientShopCatalogTransport
+internal sealed class ClientShopTransport : IClientShopCatalogTransport, IClientShopPurchaseTransport
 {
     public async Task<ClashOfRimClientNetworkResult<ModListServerShopResponseDto>> ListAsync(ClashOfRimClientNetworkContext context, CancellationToken token)
     { using var http = new HttpClient(); return await Create(http, context).ListServerShopAsync(token); }
@@ -29,6 +29,14 @@ internal sealed class ClientShopCatalogTransport : IClientShopCatalogTransport
         var items = listings.Where(l => l.Item is not null).Select(l => l.Item!).ToArray();
         await PawnPackageHydration.HydrateThingPawnPackagesAsync(reader, items, token).ConfigureAwait(false);
         await PawnPackageHydration.HydrateThingStatePackagesAsync(reader, items, token).ConfigureAwait(false);
+    }
+    public async Task<ClashOfRimClientNetworkResult<ModPurchaseServerShopListingResponseDto>> PurchaseAsync(ClashOfRimClientNetworkContext context,
+        ClientShopCommand command, ModSnapshotPackageMetadataDto package, byte[] payload, CancellationToken token)
+    {
+        using var http = new HttpClient();
+        return await Create(http, context).PurchaseServerShopListingWithSnapshotAsync(command.Key, command.Listing.ListingId,
+            ClientShopRules.NormalizeListingKind(command.Listing.ListingKind), command.Listing.PriceSilver, command.TotalPrice,
+            command.PurchaseCount, command.Delivered, package, payload, token);
     }
     private static string NotConfigured() => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured");
     private static ClientShopProtocol Create(HttpClient http, ClashOfRimClientNetworkContext context) => new(Transport(http, context), context, NotConfigured);

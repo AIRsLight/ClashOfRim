@@ -1857,6 +1857,8 @@
   <ClashOfRim.Shop.StatusPurchased>&lt;color=#7ecf6b&gt;購入しました&lt;/color&gt; {COUNT} 個、価格 &lt;color=#d7dadb&gt;{PRICE} シルバー&lt;/color&gt;。</ClashOfRim.Shop.StatusPurchased>
   <ClashOfRim.Shop.StatusSoldToServer>&lt;color=#7ecf6b&gt;売却しました&lt;/color&gt; {COUNT} 個、受取 &lt;color=#d7dadb&gt;{PRICE} シルバー&lt;/color&gt;。</ClashOfRim.Shop.StatusSoldToServer>
   <ClashOfRim.Shop.StatusException>ショップ操作エラー: {TYPE} {MESSAGE}</ClashOfRim.Shop.StatusException>
+  <ClashOfRim.Shop.StatusItemCountOverflow>アイテムの合計数量が大きすぎます。取引するセット数を減らしてください。</ClashOfRim.Shop.StatusItemCountOverflow>
+  <ClashOfRim.Shop.StatusConfirmationIncomplete>サーバーから一致するショップ取引とスナップショットの確認が返されませんでした。ローカルの変更は未確認です。メインメニューに戻り、サーバーのセーブを再読み込みしてください。</ClashOfRim.Shop.StatusConfirmationIncomplete>
   <ClashOfRim.Shop.StatusPriceOverflow>購入価格が大きすぎます。</ClashOfRim.Shop.StatusPriceOverflow>
   <ClashOfRim.Shop.PurchaseArrivalLetterLabel>商品が到着</ClashOfRim.Shop.PurchaseArrivalLetterLabel>
   <ClashOfRim.Shop.PurchaseArrivalLetterText>購入した {COUNT} x {THING} が輸送ポッドで到着しました。</ClashOfRim.Shop.PurchaseArrivalLetterText>

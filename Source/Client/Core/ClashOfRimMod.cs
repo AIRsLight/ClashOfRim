@@ -69,7 +69,9 @@ public sealed partial class ClashOfRimMod : Mod
     private readonly ClientTradeActions tradeActions;
     private readonly ClientShopState shopState;
     private readonly ClientShopCatalog shopCatalog;
+    private readonly ClientShopOperations shopOperations;
     internal ClientShopCatalog ShopCatalog => shopCatalog;
+    internal ClientShopOperations ShopOperations => shopOperations;
     internal ClientTradeActions TradeActions => tradeActions;
     private readonly ClientGiftActions giftActions;
     internal ClientGiftActions GiftActions => giftActions;
@@ -104,8 +106,6 @@ public sealed partial class ClashOfRimMod : Mod
     private string tradeStatus { get => tradeState.Message; set => tradeState.Message = value; }
     private string worldMapStatus = string.Empty;
     private string mercenaryStatus = string.Empty;
-    // Transitional status bridge for local shop settlement, pending M6f3.
-    private string serverShopStatus { get => shopState.Message; set => shopState.Message = value; }
     private string chatStatus = string.Empty;
     private string adminStatus = string.Empty;
     private string serverCompatibilityManifestJson = string.Empty;
@@ -171,8 +171,12 @@ public sealed partial class ClashOfRimMod : Mod
         var snapshotTransactions = new ClientSnapshotTransaction(sessionLifecycle, new ClientSnapshotGame(), snapshotPublication);
         var mutationAdmission = new ClientSnapshotMutationAdmission(sessionLifecycle, synchronization, localMutations, snapshotTransactions);
         var shopPresentation = new ClientShopPresentation();
+        var shopTransport = new ClientShopTransport();
         shopState = new ClientShopState(sessionLifecycle, new ClientSnapshotGame(), shopPresentation);
-        shopCatalog = new ClientShopCatalog(shopState, localMutations, new ClientShopCatalogTransport(), shopPresentation, () => isAdministrator);
+        shopCatalog = new ClientShopCatalog(shopState, localMutations, shopTransport, shopPresentation, () => isAdministrator);
+        shopOperations = new ClientShopOperations(shopState, mutationAdmission, synchronization, localMutations, snapshotTransactions,
+            snapshotFailureRecovery, new ClientShopRuntime(), shopTransport, shopPresentation, shopPresentation);
+        shopOperations.Completed += () => { StartQueuedAutomaticEventRefreshAfterLocalAtomicMutation(); StartRefreshServerShop(); };
         var tradePresentation = new ClientTradeMarketPresentation();
         tradeState = new ClientTradeState(sessionLifecycle, new ClientSnapshotGame(), tradePresentation);
         tradeMarket = new ClientTradeMarket(sessionLifecycle, tradeState, localMutations, mutationAdmission,
@@ -288,7 +292,7 @@ public sealed partial class ClashOfRimMod : Mod
         worldMapStatus = ClashOfRimText.Key("ClashOfRim.Status.WorldMapNotSynced");
         bankState.Message = ClashOfRimText.Key("ClashOfRim.Status.BankNotPulled");
         mercenaryStatus = ClashOfRimText.Key("ClashOfRim.Status.MercenaryIdle");
-        serverShopStatus = ClashOfRimText.Key("ClashOfRim.Shop.StatusIdle");
+        shopState.Message = ClashOfRimText.Key("ClashOfRim.Shop.StatusIdle");
         chatStatus = ClashOfRimText.Key("ClashOfRim.Chat.StatusIdle");
         adminStatus = ClashOfRimText.Key("ClashOfRim.Admin.StatusIdle");
     }
@@ -613,7 +617,7 @@ public sealed partial class ClashOfRimMod : Mod
         get
         {
             EnsureStatusDefaultsInitialized();
-            return serverShopStatus;
+            return shopState.Message;
         }
     }
 

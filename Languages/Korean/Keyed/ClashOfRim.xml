@@ -1857,6 +1857,8 @@
   <ClashOfRim.Shop.StatusPurchased>&lt;color=#7ecf6b&gt;구매 완료&lt;/color&gt; {COUNT}개, 가격 &lt;color=#d7dadb&gt;{PRICE} 은&lt;/color&gt;.</ClashOfRim.Shop.StatusPurchased>
   <ClashOfRim.Shop.StatusSoldToServer>&lt;color=#7ecf6b&gt;판매 완료&lt;/color&gt; {COUNT}개, 수령 &lt;color=#d7dadb&gt;{PRICE} 은&lt;/color&gt;.</ClashOfRim.Shop.StatusSoldToServer>
   <ClashOfRim.Shop.StatusException>상점 작업 오류: {TYPE} {MESSAGE}</ClashOfRim.Shop.StatusException>
+  <ClashOfRim.Shop.StatusItemCountOverflow>아이템 총수량이 너무 많습니다. 거래 묶음 수를 줄이세요.</ClashOfRim.Shop.StatusItemCountOverflow>
+  <ClashOfRim.Shop.StatusConfirmationIncomplete>서버에서 일치하는 상점 거래 및 스냅샷 확인을 반환하지 않았습니다. 로컬 변경 사항은 아직 확인되지 않았습니다. 주 메뉴로 돌아가 서버 저장 파일을 다시 불러오세요.</ClashOfRim.Shop.StatusConfirmationIncomplete>
   <ClashOfRim.Shop.StatusPriceOverflow>구매 가격이 너무 큽니다.</ClashOfRim.Shop.StatusPriceOverflow>
   <ClashOfRim.Shop.PurchaseArrivalLetterLabel>상품 도착</ClashOfRim.Shop.PurchaseArrivalLetterLabel>
   <ClashOfRim.Shop.PurchaseArrivalLetterText>구매한 {COUNT} x {THING}이(가) 수송 포드로 도착했습니다.</ClashOfRim.Shop.PurchaseArrivalLetterText>

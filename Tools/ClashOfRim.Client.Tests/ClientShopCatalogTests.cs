@@ -28,11 +28,8 @@ internal static class ClientShopCatalogTests
             {
                 foreach (string kind in new[] { "list", "upsert", "remove" }) await LateCompletion(change, kind);
                 await BoundActions(change);
-                await HydrationContinuation(change);
             }
             await LatePreviews();
-            await HydrationContinuation("base");
-            await HydrationContinuation("none");
             await HydrationFailureAndSupersession();
         }
         finally { CultureInfo.CurrentCulture = culture; ClientSessionWork.Reset(); }
@@ -168,35 +165,9 @@ internal static class ClientShopCatalogTests
         f.Change("login"); oldPreview(); Require(f.Previews == 1 && f.State.CopyListings().Count == 0, "Old identity installed pawn previews.");
     }
 
-    private static async Task HydrationContinuation(string change)
-    {
-        using var f = new Fixture();
-        var original = Listing("pawn"); int purchases = 0;
-        ClientShopState.Request? next = null;
-        Task hydrate = f.Catalog.HydrateForPurchaseAsync(original, copy =>
-        {
-            Require(!ReferenceEquals(copy, original) && !f.State.Busy, "Hydrated purchase was not handed its own copy/admission.");
-            purchases++; next = f.State.Begin();
-        });
-        var queued = await f.Ports.Next();
-        Require(f.State.Busy && purchases == 0 && f.HydratedContext?.AuthToken == "auth", "Hydration released before the game-thread continuation or borrowed credentials.");
-        f.Change(change); queued(); await hydrate;
-        if (change == "none")
-        {
-            Require(purchases == 1 && f.State.Busy && next is not null, "Hydration finally cleared the purchase started by its continuation.");
-            f.State.End(next!);
-        }
-        else Require(purchases == 0 && !f.State.Busy && f.Previews == 0, "Hydration crossed " + change + " boundary.");
-    }
-
     private static async Task HydrationFailureAndSupersession()
     {
         using var f = new Fixture();
-        f.HydrationFailure = new InvalidOperationException("missing package");
-        int purchases = 0;
-        await f.Catalog.HydrateForPurchaseAsync(Listing("pawn"), _ => purchases++);
-        Require(!f.State.Busy && purchases == 0 && f.State.Message.Contains("missing package"), "Failed hydration invoked purchase or retained busy state.");
-        f.HydrationFailure = null;
         f.HydrationGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
         Task old = f.Catalog.RefreshAsync(); var call = await f.Next(); call.Complete(Response("list", true, "old"));
         await f.HydrationStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
@@ -244,7 +215,6 @@ internal static class ClientShopCatalogTests
         internal Exception? HydrationFailure;
         internal TaskCompletionSource? HydrationGate;
         internal readonly TaskCompletionSource HydrationStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        internal ClashOfRimClientNetworkContext? HydratedContext;
         internal Fixture()
         {
             ClientSessionWork.Reset();
@@ -275,7 +245,7 @@ internal static class ClientShopCatalogTests
         public Task<ClashOfRimClientNetworkResult<ModRemoveServerShopListingResponseDto>> RemoveAsync(ClashOfRimClientNetworkContext c, string id, CancellationToken t) => Send<ModRemoveServerShopListingResponseDto>(new("remove", c, t, Id: id));
         public async Task HydrateAsync(ClashOfRimClientNetworkContext c, IReadOnlyList<ModServerShopListingDto> listings, CancellationToken token)
         {
-            Hydrations++; HydratedContext = c;
+            Hydrations++;
             if (HydrationFailure is not null) throw HydrationFailure;
             if (HydrationGate is { } gate) { HydrationStarted.TrySetResult(); await gate.Task; }
         }

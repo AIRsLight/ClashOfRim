@@ -1857,6 +1857,8 @@
   <ClashOfRim.Shop.StatusPurchased>&lt;color=#7ecf6b&gt;Куплено&lt;/color&gt;: {COUNT} предметов за &lt;color=#d7dadb&gt;{PRICE} серебра&lt;/color&gt;.</ClashOfRim.Shop.StatusPurchased>
   <ClashOfRim.Shop.StatusSoldToServer>&lt;color=#7ecf6b&gt;Продано&lt;/color&gt;: {COUNT} предметов за &lt;color=#d7dadb&gt;{PRICE} серебра&lt;/color&gt;.</ClashOfRim.Shop.StatusSoldToServer>
   <ClashOfRim.Shop.StatusException>Ошибка операции магазина: {TYPE} {MESSAGE}</ClashOfRim.Shop.StatusException>
+  <ClashOfRim.Shop.StatusItemCountOverflow>Слишком большое общее количество предметов. Уменьшите число партий.</ClashOfRim.Shop.StatusItemCountOverflow>
+  <ClashOfRim.Shop.StatusConfirmationIncomplete>Сервер не вернул подтверждение соответствующей покупки в магазине и снимка. Локальные изменения остаются неподтверждёнными. Вернитесь в главное меню и загрузите сохранение с сервера заново.</ClashOfRim.Shop.StatusConfirmationIncomplete>
   <ClashOfRim.Shop.StatusPriceOverflow>Цена покупки слишком велика.</ClashOfRim.Shop.StatusPriceOverflow>
   <ClashOfRim.Shop.PurchaseArrivalLetterLabel>Товары доставлены</ClashOfRim.Shop.PurchaseArrivalLetterLabel>
   <ClashOfRim.Shop.PurchaseArrivalLetterText>Ваша покупка {COUNT} x {THING} прибыла в транспортных капсулах.</ClashOfRim.Shop.PurchaseArrivalLetterText>

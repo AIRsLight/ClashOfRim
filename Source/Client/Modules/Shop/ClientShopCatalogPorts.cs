@@ -11,12 +11,11 @@ internal sealed record ClientShopListingEdit(string? ListingId, string ListingKi
     int PriceSilver, int StockCount, double PriceIncreaseRatio = 1d,
     string QualityRequirementMode = "AtLeast", string HitPointsRequirementMode = "AtLeast");
 
-internal interface IClientShopCatalogTransport
+internal interface IClientShopCatalogTransport : IClientShopPackageHydration
 {
     Task<ClashOfRimClientNetworkResult<ModListServerShopResponseDto>> ListAsync(ClashOfRimClientNetworkContext context, CancellationToken token);
     Task<ClashOfRimClientNetworkResult<ModUpsertServerShopListingResponseDto>> UpsertAsync(ClashOfRimClientNetworkContext context, ClientShopListingEdit edit, CancellationToken token);
     Task<ClashOfRimClientNetworkResult<ModRemoveServerShopListingResponseDto>> RemoveAsync(ClashOfRimClientNetworkContext context, string listingId, CancellationToken token);
-    Task HydrateAsync(ClashOfRimClientNetworkContext context, IReadOnlyList<ModServerShopListingDto> listings, CancellationToken token);
 }
 
 internal interface IClientShopPresentation

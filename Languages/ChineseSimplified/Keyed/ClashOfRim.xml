@@ -1866,6 +1866,8 @@
   <ClashOfRim.Shop.StatusPurchased>&lt;color=#7ecf6b&gt;已购买&lt;/color&gt; {COUNT} 份商品，花费 &lt;color=#d7dadb&gt;{PRICE} 白银&lt;/color&gt;。</ClashOfRim.Shop.StatusPurchased>
   <ClashOfRim.Shop.StatusSoldToServer>&lt;color=#7ecf6b&gt;已出售&lt;/color&gt; {COUNT} 份物品，获得 &lt;color=#d7dadb&gt;{PRICE} 白银&lt;/color&gt;。</ClashOfRim.Shop.StatusSoldToServer>
   <ClashOfRim.Shop.StatusException>商店操作异常：{TYPE} {MESSAGE}</ClashOfRim.Shop.StatusException>
+  <ClashOfRim.Shop.StatusItemCountOverflow>物品总数量过大，请减少交易批次数量。</ClashOfRim.Shop.StatusItemCountOverflow>
+  <ClashOfRim.Shop.StatusConfirmationIncomplete>服务器未返回匹配的商店交易与快照确认。本地变更仍未确认，请返回主菜单并重新加载服务器存档。</ClashOfRim.Shop.StatusConfirmationIncomplete>
   <ClashOfRim.Shop.StatusPriceOverflow>购买金额过大。</ClashOfRim.Shop.StatusPriceOverflow>
   <ClashOfRim.Shop.PurchaseArrivalLetterLabel>货物送达</ClashOfRim.Shop.PurchaseArrivalLetterLabel>
   <ClashOfRim.Shop.PurchaseArrivalLetterText>你购买的 {COUNT} 份 {THING} 已通过运输舱送达。</ClashOfRim.Shop.PurchaseArrivalLetterText>

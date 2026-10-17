@@ -188,13 +188,17 @@ internal static class EventCommandPresentationTests
     {
         var view = new AIRsLight.ClashOfRim.ServerShop.ClientShopPresentation();
         RequireResolved(view.NotAdministrator);
+        RequireResolved(view.Busy); RequireResolved(view.BaseSnapshotChanged); RequireResolved(view.SnapshotBuildFailed("capture-reason"));
         foreach (var admission in new[] { LocalMutationAdmission.NotConfigured, LocalMutationAdmission.SnapshotMissing, LocalMutationAdmission.PendingMutation })
             RequireResolved(view.Admission(admission, new(LocalMutationKind.Shop, "pending", default)));
         foreach (string key in new[] { "StatusIdle", "StatusRefreshing", "StatusSavingListing", "StatusRemovingListing", "StatusMissingListing", "StatusListingSaved", "StatusListingRemoved" })
             RequireResolved(view.Text(key));
         RequireResolved(view.Text("StatusRefreshed", ("COUNT", 17)));
+        foreach (string key in new[] { "StatusItemCountOverflow", "StatusConfirmationIncomplete", "StatusApplyingSale", "StatusApplyingPurchase", "StatusUploadingPurchase", "StatusMissingListing", "StatusStockNotEnough", "StatusPriceOverflow" })
+            RequireResolved(view.Text(key));
+        foreach (string key in new[] { "StatusPurchased", "StatusSoldToServer" }) RequireResolved(view.Text(key, ("COUNT", 3), ("PRICE", 40)));
         RequireResolved(view.Text("StatusException", ("TYPE", "InvalidOperationException"), ("MESSAGE", "exception")));
-        foreach (string prefix in new[] { "StatusRefresh", "StatusSave", "StatusRemove" })
+        foreach (string prefix in new[] { "StatusRefresh", "StatusSave", "StatusRemove", "StatusPurchase" })
         foreach (string suffix in new[] { "Failed", "Rejected" })
         {
             string text = view.Text(prefix + suffix, ("CODE", "error-code"), ("MESSAGE", "server-message"));

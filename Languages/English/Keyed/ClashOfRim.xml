@@ -1866,6 +1866,8 @@
   <ClashOfRim.Shop.StatusPurchased>&lt;color=#7ecf6b&gt;Purchased&lt;/color&gt; {COUNT} items for &lt;color=#d7dadb&gt;{PRICE} silver&lt;/color&gt;.</ClashOfRim.Shop.StatusPurchased>
   <ClashOfRim.Shop.StatusSoldToServer>&lt;color=#7ecf6b&gt;Sold&lt;/color&gt; {COUNT} items for &lt;color=#d7dadb&gt;{PRICE} silver&lt;/color&gt;.</ClashOfRim.Shop.StatusSoldToServer>
   <ClashOfRim.Shop.StatusException>Shop operation error: {TYPE} {MESSAGE}</ClashOfRim.Shop.StatusException>
+  <ClashOfRim.Shop.StatusItemCountOverflow>The total item quantity is too large. Reduce the number of batches.</ClashOfRim.Shop.StatusItemCountOverflow>
+  <ClashOfRim.Shop.StatusConfirmationIncomplete>The server did not return a matching shop purchase and snapshot confirmation. Local changes remain unconfirmed. Return to the main menu and reload the server save.</ClashOfRim.Shop.StatusConfirmationIncomplete>
   <ClashOfRim.Shop.StatusPriceOverflow>Purchase price is too large.</ClashOfRim.Shop.StatusPriceOverflow>
   <ClashOfRim.Shop.PurchaseArrivalLetterLabel>Goods delivered</ClashOfRim.Shop.PurchaseArrivalLetterLabel>
   <ClashOfRim.Shop.PurchaseArrivalLetterText>Your purchase of {COUNT} x {THING} has arrived via transport pods.</ClashOfRim.Shop.PurchaseArrivalLetterText>

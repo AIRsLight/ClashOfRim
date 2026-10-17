@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.Modules.Packages;
-using AIRsLight.ClashOfRim.Modules.Sessions;
 using AIRsLight.ClashOfRim.Modules.Synchronization;
 
 namespace AIRsLight.ClashOfRim.Modules.Shop;
@@ -106,33 +105,6 @@ internal sealed class ClientShopCatalog
         int version = state.Version;
         owner.Game.Enqueue(() => state.TryApply(owner, () =>
         { if (state.Version == version) presentation.PreparePreviews(listings); }), static () => { });
-    }
-
-    // Transitional purchase preparation uses the same owned request as the catalogue.
-    // The continuation keeps its original save base; catalogue reads do not need one.
-    internal Task HydrateForPurchaseAsync(ModServerShopListingDto listing, Action<ModServerShopListingDto> purchase)
-    {
-        using var p = ClientSessionWork.EnterPublication();
-        var copy = ClientShopState.Copy(new[] { listing });
-        var request = Begin(false, "StatusRefreshing");
-        if (request is null) return Task.CompletedTask;
-        return ClientSessionWork.Run(async () =>
-        {
-            try
-            {
-                if (!state.TryApply(request, static () => { }, requireBaseSnapshot: true)) return;
-                await transport.HydrateAsync(request.Context, copy, request.Scope.Owner.Token).ConfigureAwait(false);
-                await ClientGamePublication.EnqueueAsync(request.Scope.Game.Enqueue, request.Scope.Owner.Token,
-                    action => state.TryApply(request, action, requireBaseSnapshot: true), () =>
-                    {
-                        presentation.PreparePreviews(copy);
-                        state.End(request);
-                        purchase(copy[0]);
-                    }).ConfigureAwait(false);
-            }
-            catch (Exception ex) { state.TryApply(request, () => Report(ex), requireBaseSnapshot: true); }
-            finally { state.End(request); }
-        });
     }
 
     private void Report(Exception ex)

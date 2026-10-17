@@ -467,7 +467,7 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
                     purchaseCount.Named("COUNT"),
                     label.Named("THING"),
                     totalPrice.Named("PRICE")),
-                () => mod.StartPurchaseServerShopListing(listing, purchaseCount)));
+                mod.ShopOperations.BindPurchase(listing, purchaseCount)));
         }
     }
 
