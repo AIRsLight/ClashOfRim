@@ -152,7 +152,7 @@ public sealed partial class ClashOfRimMod
         abandonPlayerColonyInProgress = false;
         caravanArrivalTargetRefreshInProgress = false;
         bankState.Reset();
-        mercenaryInProgress = false;
+        mercenaryState.Reset();
         shopState.Reset();
         adminInProgress = false;
         tradeState.Reset();

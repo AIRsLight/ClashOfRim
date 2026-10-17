@@ -1525,6 +1525,7 @@
   <ClashOfRim.Mercenary.StatusIncidentReported>佣兵事故已上报。</ClashOfRim.Mercenary.StatusIncidentReported>
   <ClashOfRim.Mercenary.StatusIncidentReportedNoDebt>佣兵事故已上报。</ClashOfRim.Mercenary.StatusIncidentReportedNoDebt>
   <ClashOfRim.Mercenary.StatusInsufficientSilver>&lt;color=#ff6b6b&gt;白银不足&lt;/color&gt;：需要 &lt;color=#d7dadb&gt;{NEEDED}&lt;/color&gt;，当前 &lt;color=#d7dadb&gt;{AVAILABLE}&lt;/color&gt;。</ClashOfRim.Mercenary.StatusInsufficientSilver>
+  <ClashOfRim.Mercenary.StatusConfirmationIncomplete>服务器未返回匹配的雇佣合同和确认快照。</ClashOfRim.Mercenary.StatusConfirmationIncomplete>
   <ClashOfRim.Mercenary.StatusMissingContract>没有找到可用的佣兵任务。</ClashOfRim.Mercenary.StatusMissingContract>
   <ClashOfRim.Mercenary.StatusNoMap>当前没有可用殖民地地图，不能雇佣佣兵。</ClashOfRim.Mercenary.StatusNoMap>
   <ClashOfRim.Mercenary.StatusNotConfigured>服务器地址、用户或殖民地未配置，不能上报佣兵事故。</ClashOfRim.Mercenary.StatusNotConfigured>

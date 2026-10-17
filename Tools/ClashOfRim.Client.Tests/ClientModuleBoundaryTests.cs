@@ -40,6 +40,7 @@ internal static class ClientModuleBoundaryTests
             || t == typeof(AIRsLight.ClashOfRim.Trades.ClientTradeMarketPresentation)
             || t == typeof(ClientTradeMarketTransport)
             || t == typeof(ClientShopTransport) || t == typeof(AIRsLight.ClashOfRim.ServerShop.ClientShopPresentation)
+            || t == typeof(AIRsLight.ClashOfRim.Mercenaries.ClientMercenaryRuntime) || t == typeof(AIRsLight.ClashOfRim.Mercenaries.ClientMercenarySource)
             || t == typeof(ClientMercenaryTransport) || t == typeof(AIRsLight.ClashOfRim.Mercenaries.ClientMercenaryPresentation)
             || t == typeof(AIRsLight.ClashOfRim.ServerShop.ClientShopRuntime) || t == typeof(AIRsLight.ClashOfRim.ServerShop.ClientShopSource)
             || t == typeof(ClientTradeOperationsTransport) || t == typeof(PawnPackageTransferService)
@@ -57,7 +58,7 @@ internal static class ClientModuleBoundaryTests
         if (sessionViolations.Count != 0)
             throw new InvalidOperationException("Session foundation depends on an event/snapshot domain: " + string.Join(Environment.NewLine, sessionViolations));
         Type[] eventAdapters = { typeof(AIRsLight.ClashOfRim.ServerShop.ClientShopRuntime), typeof(AIRsLight.ClashOfRim.ServerShop.ClientShopSource),
-            typeof(AIRsLight.ClashOfRim.Mercenaries.ClientMercenaryPresentation),
+            typeof(AIRsLight.ClashOfRim.Mercenaries.ClientMercenaryPresentation), typeof(AIRsLight.ClashOfRim.Mercenaries.ClientMercenaryRuntime), typeof(AIRsLight.ClashOfRim.Mercenaries.ClientMercenarySource),
             typeof(AIRsLight.ClashOfRim.ServerShop.ClientShopPresentation), typeof(AIRsLight.ClashOfRim.Trades.ClientTradeActions), typeof(AIRsLight.ClashOfRim.Trades.ClientTradeOperationsPresentation),
             typeof(AIRsLight.ClashOfRim.Trades.ClientTradeDraftSource), typeof(AIRsLight.ClashOfRim.Trades.ClientTradeCaravanSource), typeof(AIRsLight.ClashOfRim.Trades.ClientTradeDropPodSource),
             typeof(PawnPackageTransferService), typeof(AIRsLight.ClashOfRim.Trades.ClientTradeMarketPresentation), typeof(ClientBankRuntime), typeof(ClientBankPresentation), typeof(ClientGiftActions), typeof(ClientGiftPresentation), typeof(ClientCaravanGiftSource), typeof(ClientTransportPodGiftSource), typeof(ClientEventLetterPolicy), typeof(ClientEventLetterRenderer), typeof(ClientEventLetterRuntime),

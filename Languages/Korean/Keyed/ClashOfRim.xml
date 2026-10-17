@@ -1526,6 +1526,9 @@
   <ClashOfRim.Mercenary.StatusIncidentReported>용병 사고를 보고했습니다.</ClashOfRim.Mercenary.StatusIncidentReported>
   <ClashOfRim.Mercenary.StatusIncidentReportedNoDebt>용병 사고를 보고했습니다.</ClashOfRim.Mercenary.StatusIncidentReportedNoDebt>
   <ClashOfRim.Mercenary.StatusInsufficientSilver>&lt;color=#ff6b6b&gt;은 부족&lt;/color&gt;: 필요 &lt;color=#d7dadb&gt;{NEEDED}&lt;/color&gt;, 보유 &lt;color=#d7dadb&gt;{AVAILABLE}&lt;/color&gt;.</ClashOfRim.Mercenary.StatusInsufficientSilver>
+  <ClashOfRim.Mercenary.StatusConfirmationIncomplete>서버가 일치하는 고용 계약과 확인 스냅샷을 반환하지 않았습니다.</ClashOfRim.Mercenary.StatusConfirmationIncomplete>
+  <ClashOfRim.Mercenary.GuardStatusHiring>호위대를 고용하는 중입니다.</ClashOfRim.Mercenary.GuardStatusHiring>
+  <ClashOfRim.Mercenary.GuardStatusConfirmed>호위대 계약이 발효되었습니다. 비용은 은 {PRICE}개입니다.</ClashOfRim.Mercenary.GuardStatusConfirmed>
   <ClashOfRim.Mercenary.StatusMissingContract>사용 가능한 용병 임무를 찾을 수 없습니다.</ClashOfRim.Mercenary.StatusMissingContract>
   <ClashOfRim.Mercenary.StatusNoMap>용병 고용에 사용할 수 있는 식민지 지도가 없습니다.</ClashOfRim.Mercenary.StatusNoMap>
   <ClashOfRim.Mercenary.StatusNotConfigured>서버 주소, 사용자 또는 식민지가 설정되지 않아 용병 사고를 보고할 수 없습니다.</ClashOfRim.Mercenary.StatusNotConfigured>

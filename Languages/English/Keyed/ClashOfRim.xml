@@ -1525,6 +1525,7 @@
   <ClashOfRim.Mercenary.StatusIncidentReported>Mercenary incident reported.</ClashOfRim.Mercenary.StatusIncidentReported>
   <ClashOfRim.Mercenary.StatusIncidentReportedNoDebt>Mercenary incident reported.</ClashOfRim.Mercenary.StatusIncidentReportedNoDebt>
   <ClashOfRim.Mercenary.StatusInsufficientSilver>&lt;color=#ff6b6b&gt;Insufficient silver&lt;/color&gt;: need &lt;color=#d7dadb&gt;{NEEDED}&lt;/color&gt;, available &lt;color=#d7dadb&gt;{AVAILABLE}&lt;/color&gt;.</ClashOfRim.Mercenary.StatusInsufficientSilver>
+  <ClashOfRim.Mercenary.StatusConfirmationIncomplete>The server did not return the matching hire contract and confirmation snapshot.</ClashOfRim.Mercenary.StatusConfirmationIncomplete>
   <ClashOfRim.Mercenary.StatusMissingContract>No usable mercenary assignment was found.</ClashOfRim.Mercenary.StatusMissingContract>
   <ClashOfRim.Mercenary.StatusNoMap>No usable colony map is available for hiring a mercenary.</ClashOfRim.Mercenary.StatusNoMap>
   <ClashOfRim.Mercenary.StatusNotConfigured>Server address, user, or colony is not configured; cannot report mercenary incidents.</ClashOfRim.Mercenary.StatusNotConfigured>

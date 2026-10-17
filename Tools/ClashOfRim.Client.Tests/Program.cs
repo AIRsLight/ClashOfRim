@@ -19,6 +19,8 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("mercenary hiring owns preparation, payment and arrival continuation", ClientMercenaryHiringTests.Run),
+    ("mercenary runtime retains pawn, debit and original arrival map", ClientMercenaryRuntimeTests.Run),
     ("mercenary protocol owns six contracts and captured snapshot credentials", ClientMercenaryProtocolTests.Run),
     ("mercenary quotes share execution and preserve session and game ownership", ClientMercenaryQuotesTests.Run),
     ("trade operations own reservation, fulfillment and snapshot retries", ClientTradeOperationsTests.Run),

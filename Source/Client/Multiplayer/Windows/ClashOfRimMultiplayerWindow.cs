@@ -780,7 +780,7 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
             int price = mercenaryQuote?.PriceSilver ?? 0;
             Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation(
                 MercenaryUiUtility.FormatConfirmHire(selected!, selectedMercenarySkillDefName, selectedMercenarySkillLevel, days, price),
-                () => mod.StartHireMercenary(selectedMercenarySkillDefName, selectedMercenarySkillLevel, days)));
+                mod.MercenaryHiring.BindHire(selectedMercenarySkillDefName, selectedMercenarySkillLevel, days)));
         });
         y += 88f;
 
@@ -836,7 +836,7 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
                     "ClashOfRim.Mercenary.GuardConfirmHire",
                     MercenaryGuardTierLabel(selectedMercenaryGuardTier).Named("TIER"),
                     price.Named("PRICE")),
-                () => mod.StartHireMercenaryGuard(selectedMercenaryGuardTier)));
+                mod.MercenaryHiring.BindGuard(selectedMercenaryGuardTier)));
         });
         y += 78f;
 

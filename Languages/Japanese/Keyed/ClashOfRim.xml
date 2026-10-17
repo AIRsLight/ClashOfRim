@@ -1526,6 +1526,9 @@
   <ClashOfRim.Mercenary.StatusIncidentReported>傭兵事故を報告しました。</ClashOfRim.Mercenary.StatusIncidentReported>
   <ClashOfRim.Mercenary.StatusIncidentReportedNoDebt>傭兵事故を報告しました。</ClashOfRim.Mercenary.StatusIncidentReportedNoDebt>
   <ClashOfRim.Mercenary.StatusInsufficientSilver>&lt;color=#ff6b6b&gt;シルバー不足&lt;/color&gt;: 必要 &lt;color=#d7dadb&gt;{NEEDED}&lt;/color&gt;、利用可能 &lt;color=#d7dadb&gt;{AVAILABLE}&lt;/color&gt;。</ClashOfRim.Mercenary.StatusInsufficientSilver>
+  <ClashOfRim.Mercenary.StatusConfirmationIncomplete>サーバーから一致する雇用契約と確認用スナップショットが返されませんでした。</ClashOfRim.Mercenary.StatusConfirmationIncomplete>
+  <ClashOfRim.Mercenary.GuardStatusHiring>護衛隊を雇用しています。</ClashOfRim.Mercenary.GuardStatusHiring>
+  <ClashOfRim.Mercenary.GuardStatusConfirmed>護衛隊の契約が有効になりました。費用は {PRICE} シルバーです。</ClashOfRim.Mercenary.GuardStatusConfirmed>
   <ClashOfRim.Mercenary.StatusMissingContract>使用可能な傭兵任務が見つかりません。</ClashOfRim.Mercenary.StatusMissingContract>
   <ClashOfRim.Mercenary.StatusNoMap>傭兵の雇用に使用できるコロニーマップがありません。</ClashOfRim.Mercenary.StatusNoMap>
   <ClashOfRim.Mercenary.StatusNotConfigured>サーバーアドレス、ユーザー、またはコロニーが設定されていないため、傭兵事故を報告できません。</ClashOfRim.Mercenary.StatusNotConfigured>

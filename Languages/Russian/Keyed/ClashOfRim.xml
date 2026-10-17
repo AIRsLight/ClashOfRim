@@ -1526,6 +1526,9 @@
   <ClashOfRim.Mercenary.StatusIncidentReported>Инцидент с наемником сообщен.</ClashOfRim.Mercenary.StatusIncidentReported>
   <ClashOfRim.Mercenary.StatusIncidentReportedNoDebt>Инцидент с наемником сообщен.</ClashOfRim.Mercenary.StatusIncidentReportedNoDebt>
   <ClashOfRim.Mercenary.StatusInsufficientSilver>&lt;color=#ff6b6b&gt;Недостаточно серебра&lt;/color&gt;: нужно &lt;color=#d7dadb&gt;{NEEDED}&lt;/color&gt;, доступно &lt;color=#d7dadb&gt;{AVAILABLE}&lt;/color&gt;.</ClashOfRim.Mercenary.StatusInsufficientSilver>
+  <ClashOfRim.Mercenary.StatusConfirmationIncomplete>Сервер не вернул соответствующий договор найма и снимок подтверждения.</ClashOfRim.Mercenary.StatusConfirmationIncomplete>
+  <ClashOfRim.Mercenary.GuardStatusHiring>Нанимаем отряд охраны.</ClashOfRim.Mercenary.GuardStatusHiring>
+  <ClashOfRim.Mercenary.GuardStatusConfirmed>Договор с охраной вступил в силу. Цена — {PRICE} серебра.</ClashOfRim.Mercenary.GuardStatusConfirmed>
   <ClashOfRim.Mercenary.StatusMissingContract>Подходящее наемное задание не найдено.</ClashOfRim.Mercenary.StatusMissingContract>
   <ClashOfRim.Mercenary.StatusNoMap>Нет подходящей карты колонии для найма наемника.</ClashOfRim.Mercenary.StatusNoMap>
   <ClashOfRim.Mercenary.StatusNotConfigured>Адрес сервера, пользователь или колония не настроены; нельзя сообщить об инцидентах с наемниками.</ClashOfRim.Mercenary.StatusNotConfigured>

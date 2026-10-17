@@ -67,7 +67,7 @@ internal sealed class ClientShopOperations
         finally { if (!handedOff) state.End(request); }
     }
 
-    private async Task ApplyAndSubmitAsync(ClientSnapshotTransaction.Attempt attempt, ClientShopState.Request request, Job job)
+    private async Task ApplyAndSubmitAsync(ClientSnapshotTransaction.Attempt attempt, ClientGameRequestTracker.Request request, Job job)
     {
         Task submitted = Task.CompletedTask;
         try
@@ -90,7 +90,7 @@ internal sealed class ClientShopOperations
         finally { attempt.Admission.Dispose(); state.End(request); }
     }
 
-    private Task Apply(ClientSnapshotTransaction.Attempt attempt, ClientShopState.Request request, Job job, bool revalidate)
+    private Task Apply(ClientSnapshotTransaction.Attempt attempt, ClientGameRequestTracker.Request request, Job job, bool revalidate)
     {
         if (!TryApply(attempt, request, static () => { })) return Task.CompletedTask;
         // Map and silver may have changed while packages were downloading.
@@ -106,7 +106,7 @@ internal sealed class ClientShopOperations
         return PrepareAndSubmit(attempt, request, job);
     }
 
-    private Task PrepareAndSubmit(ClientSnapshotTransaction.Attempt attempt, ClientShopState.Request request, Job job)
+    private Task PrepareAndSubmit(ClientSnapshotTransaction.Attempt attempt, ClientGameRequestTracker.Request request, Job job)
     {
         if (job.Package is null || job.Payload is null)
         {
@@ -148,7 +148,7 @@ internal sealed class ClientShopOperations
             })));
     }
 
-    private Task Retry(ClientSnapshotTransaction.Attempt original, ClientShopState.Scope scope, Job job)
+    private Task Retry(ClientSnapshotTransaction.Attempt original, ClientGameRequestTracker.Scope scope, Job job)
     {
         using var p = ClientSessionWork.EnterPublication();
         if (!state.TryApply(scope, static () => { })) return Task.CompletedTask;
@@ -162,22 +162,22 @@ internal sealed class ClientShopOperations
         var request = state.Begin(attempt.Admission)!;
         return RetryAndFinishAsync(attempt, request, job);
     }
-    private async Task RetryAndFinishAsync(ClientSnapshotTransaction.Attempt attempt, ClientShopState.Request request, Job job)
+    private async Task RetryAndFinishAsync(ClientSnapshotTransaction.Attempt attempt, ClientGameRequestTracker.Request request, Job job)
     {
         try { await PrepareAndSubmit(attempt, request, job); }
         catch (Exception ex) { TryApply(attempt, request, () => FailedLocal(attempt, request, job, ExceptionText(ex), ex)); }
         finally { attempt.Admission.Dispose(); state.End(request); }
     }
-    private void FailedLocal(ClientSnapshotTransaction.Attempt attempt, ClientShopState.Request request, Job job, string message, Exception? exception = null)
+    private void FailedLocal(ClientSnapshotTransaction.Attempt attempt, ClientGameRequestTracker.Request request, Job job, string message, Exception? exception = null)
     {
         if (exception is not null) presentation.Diagnose(exception);
         Reject(message);
         if (job.MutationStarted) Fail(attempt, request.Scope, job, message, job.Prepared);
         else if (job.Registered) mutations.Reset();
     }
-    private void Fail(ClientSnapshotTransaction.Attempt attempt, ClientShopState.Scope scope, Job job, string message, bool retry)
+    private void Fail(ClientSnapshotTransaction.Attempt attempt, ClientGameRequestTracker.Scope scope, Job job, string message, bool retry)
     { state.Message = message; recovery.Show(LocalMutationKind.Shop, message, () => _ = Retry(attempt, scope, job), canRetry: retry); }
-    private bool TryApply(ClientSnapshotTransaction.Attempt attempt, ClientShopState.Request request, Action action, bool requireBaseSnapshot = true)
+    private bool TryApply(ClientSnapshotTransaction.Attempt attempt, ClientGameRequestTracker.Request request, Action action, bool requireBaseSnapshot = true)
     {
         bool applied = false;
         transactions.TryApply(attempt, () => applied = state.TryApply(request, action), requireBaseSnapshot);

@@ -12,64 +12,25 @@ namespace AIRsLight.ClashOfRim.Modules.Shop;
 
 internal sealed class ClientShopState
 {
-    private readonly ClientSessionLifecycle session;
-    private readonly IClientSnapshotGame game;
-    private readonly IClientShopPresentation presentation;
-    private Scope? owner;
-    private Request? work;
+    private readonly ClientGameRequestTracker requests;
     private List<ModServerShopListingDto> listings = new();
     private string message = "";
     private int version;
-
     internal ClientShopState(ClientSessionLifecycle session, IClientSnapshotGame game, IClientShopPresentation presentation)
-    { this.session = session; this.game = game; this.presentation = presentation; }
-
-    internal bool Busy => Read(() => work is not null);
-    internal string Message { get => Read(() => message); set => Read(() => message = value); }
-    internal int Version => Read(() => version);
-    internal List<ModServerShopListingDto> CopyListings() => Read(() => Copy(listings));
-    internal Scope Capture() => Read(() => owner!);
-    internal void Reset() { using var p = ClientSessionWork.EnterPublication(); owner = null; Normalize(); }
-
-    private T Read<T>(Func<T> read)
-    { using var p = ClientSessionWork.EnterPublication(); Normalize(); return read(); }
-
-    private void Normalize()
     {
-        if (owner is not null && Owns(owner)) return;
-        work?.Admission?.Dispose();
-        owner = new(session.CaptureOwnership(), session.ReadContext(), game.BindCurrentGame());
-        work = null; listings.Clear(); message = presentation.Text("StatusIdle"); version++;
+        requests = new(session, game, () => { listings.Clear(); message = presentation.Text("StatusIdle"); version++; });
     }
-    private bool Owns(Scope candidate) => candidate.Game.IsCurrent && session.Owns(candidate.Owner, candidate.Context, false);
-    internal bool TryApply(Scope candidate, Action action)
-    {
-        bool applied = false;
-        ClientSessionWork.TryApply(() =>
-        {
-            Normalize();
-            if (!ReferenceEquals(owner, candidate) || !Owns(candidate)) return;
-            action(); applied = true;
-        });
-        return applied;
-    }
-
-    // A request owns its busy marker. Reads/admin commands do not reserve the global
-    // snapshot lease; their catalogue is independent of the current save's revision.
-    internal Request? Begin(ClientSynchronizationCoordinator.Lease? admission = null) =>
-        Read(() => work is null ? work = new(owner!, session.ReadContext()) { Admission = admission } : null);
-    internal void Track(Request request, ClientSynchronizationCoordinator.Lease admission) => TryApply(request, () => request.Admission = admission);
-    internal bool TryApply(Request request, Action action)
-    {
-        bool applied = false;
-        TryApply(request.Scope, () =>
-        {
-            if (!ReferenceEquals(work, request)) return;
-            action(); applied = true;
-        });
-        return applied;
-    }
-    internal void End(Request request) => TryApply(request, () => { request.Admission?.Dispose(); work = null; });
+    internal bool Busy => requests.Busy;
+    internal string Message { get => requests.Read(() => message); set => requests.Read(() => message = value); }
+    internal int Version => requests.Read(() => version);
+    internal List<ModServerShopListingDto> CopyListings() => requests.Read(() => Copy(listings));
+    internal ClientGameRequestTracker.Scope Capture() => requests.Capture();
+    internal void Reset() => requests.Reset();
+    internal ClientGameRequestTracker.Request? Begin(ClientSynchronizationCoordinator.Lease? admission = null) => requests.Begin(admission);
+    internal void Track(ClientGameRequestTracker.Request request, ClientSynchronizationCoordinator.Lease admission) => requests.Track(request, admission);
+    internal bool TryApply(ClientGameRequestTracker.Scope scope, Action action) => requests.TryApply(scope, action);
+    internal bool TryApply(ClientGameRequestTracker.Request request, Action action) => requests.TryApply(request, action);
+    internal void End(ClientGameRequestTracker.Request request) => requests.End(request);
 
     // Mutations run inside the owning request publication. Cache and caller never
     // share mutable package DTOs, including non-wire preview bytes.
@@ -90,8 +51,4 @@ internal sealed class ClientShopState
                 ClientPackageCopies.CopyPreviewSidecars(new[] { item }, new[] { copied });
         return copy;
     }
-
-    internal sealed record Scope(ClientSessionLifecycle.Ownership Owner, ClashOfRimClientNetworkContext Context, IClientSnapshotGameSession Game);
-    internal sealed record Request(Scope Scope, ClashOfRimClientNetworkContext Context)
-    { internal ClientSynchronizationCoordinator.Lease? Admission { get; set; } }
 }

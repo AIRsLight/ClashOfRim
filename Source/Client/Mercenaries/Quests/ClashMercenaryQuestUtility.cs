@@ -67,8 +67,10 @@ internal static class ClashMercenaryQuestUtility
     }
 
     public static bool TrySendArrivalShuttle(Pawn pawn, out string message)
+        => TrySendArrivalShuttleToMap(pawn, Find.Maps?.FirstOrDefault(candidate => candidate.IsPlayerHome) ?? Find.CurrentMap, out message);
+
+    public static bool TrySendArrivalShuttleToMap(Pawn pawn, Map? map, out string message)
     {
-        Map? map = Find.Maps?.FirstOrDefault(candidate => candidate.IsPlayerHome) ?? Find.CurrentMap;
         if (map is null)
         {
             message = ClashOfRimText.Key("ClashOfRim.Mercenary.StatusNoMap");

@@ -66,6 +66,9 @@ public sealed partial class ClashOfRimMod : Mod
     private readonly ClientBankState bankState;
     private readonly ClientBankOperations bankOperations;
     private readonly ClientMercenaryQuotes mercenaryQuotes;
+    private readonly ClientMercenaryState mercenaryState;
+    private readonly ClientMercenaryHiring mercenaryHiring;
+    internal ClientMercenaryHiring MercenaryHiring => mercenaryHiring;
     private readonly ClientTradeState tradeState;
     private readonly ClientTradeMarket tradeMarket;
     private readonly ClientTradeActions tradeActions;
@@ -94,7 +97,6 @@ public sealed partial class ClashOfRimMod : Mod
     private bool abandonPlayerColonyInProgress;
     private bool playerColonySiteRegistrationSuppressed;
     private bool caravanArrivalTargetRefreshInProgress;
-    private bool mercenaryInProgress;
     private bool adminInProgress;
     private bool isAdministrator;
     private string? lastRegisteredPlayerColonySiteSignature;
@@ -107,7 +109,6 @@ public sealed partial class ClashOfRimMod : Mod
     // Transitional status bridge for local fulfillment and support, pending their module stages.
     private string tradeStatus { get => tradeState.Message; set => tradeState.Message = value; }
     private string worldMapStatus = string.Empty;
-    private string mercenaryStatus = string.Empty;
     private string chatStatus = string.Empty;
     private string adminStatus = string.Empty;
     private string serverCompatibilityManifestJson = string.Empty;
@@ -192,8 +193,14 @@ public sealed partial class ClashOfRimMod : Mod
             snapshotTransactions, snapshotFailureRecovery,
             bankState, new ClientBankTransport(), new ClientBankRuntime(), bankPresentation);
         bankOperations.Completed += StartQueuedAutomaticEventRefreshAfterLocalAtomicMutation;
+        var mercenaryPresentation = new ClientMercenaryPresentation();
+        var mercenaryTransport = new ClientMercenaryTransport();
+        mercenaryState = new ClientMercenaryState(sessionLifecycle, new ClientSnapshotGame(), mercenaryPresentation);
         mercenaryQuotes = new ClientMercenaryQuotes(sessionLifecycle, new ClientSnapshotGame(), bankState,
-            new ClientMercenaryTransport(), new ClientMercenaryPresentation(), () => Find.TickManager?.TicksGame ?? 0);
+            mercenaryTransport, mercenaryPresentation, () => Find.TickManager?.TicksGame ?? 0);
+        mercenaryHiring = new ClientMercenaryHiring(mercenaryState, bankState, mutationAdmission, synchronization, localMutations,
+            snapshotTransactions, snapshotFailureRecovery, new ClientMercenaryRuntime(), mercenaryTransport, mercenaryPresentation);
+        mercenaryHiring.Completed += StartQueuedAutomaticEventRefreshAfterLocalAtomicMutation;
         Func<ClientGiftCapabilities> giftCapabilities = () => new(giftsEnabled, pvpEnabled);
         var giftPresentation = new ClientGiftPresentation(message => eventState.ActionStatus = message);
         var gifts = new ClientGiftOperations(mutationAdmission, synchronization, localMutations, snapshotTransactions,
@@ -295,7 +302,6 @@ public sealed partial class ClashOfRimMod : Mod
         tradeStatus = ClashOfRimText.Key("ClashOfRim.Status.TradeOrderNotCreated");
         worldMapStatus = ClashOfRimText.Key("ClashOfRim.Status.WorldMapNotSynced");
         bankState.Message = ClashOfRimText.Key("ClashOfRim.Status.BankNotPulled");
-        mercenaryStatus = ClashOfRimText.Key("ClashOfRim.Status.MercenaryIdle");
         shopState.Message = ClashOfRimText.Key("ClashOfRim.Shop.StatusIdle");
         chatStatus = ClashOfRimText.Key("ClashOfRim.Chat.StatusIdle");
         adminStatus = ClashOfRimText.Key("ClashOfRim.Admin.StatusIdle");
@@ -312,7 +318,7 @@ public sealed partial class ClashOfRimMod : Mod
     internal string LocalAtomicMutationOperation => localMutations.Current is { } mutation
         ? ClientLocalMutationPresentation.OperationName(mutation.Kind) : string.Empty;
 
-    internal bool MercenaryInProgress => mercenaryInProgress;
+    internal bool MercenaryInProgress => mercenaryState.Busy;
 
     internal bool ServerShopInProgress => shopState.Busy;
 
@@ -612,7 +618,7 @@ public sealed partial class ClashOfRimMod : Mod
         get
         {
             EnsureStatusDefaultsInitialized();
-            return mercenaryStatus;
+            return mercenaryState.Message;
         }
     }
 

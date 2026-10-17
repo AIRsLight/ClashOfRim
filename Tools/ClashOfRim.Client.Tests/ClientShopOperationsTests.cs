@@ -204,7 +204,7 @@ internal static class ClientShopOperationsTests
     private static async Task CompletionStartsRefresh()
     {
         using var f = new Fixture(false);
-        ClientShopState.Request? refresh = null;
+        ClientGameRequestTracker.Request? refresh = null;
         f.Operations.Completed += () => refresh = f.State.Begin();
         Task work = f.Start(); (await f.Ports.Next())(); await work;
         Require(refresh is not null && f.State.Busy, "Purchase finalizer cleared the catalogue refresh started by completion.");

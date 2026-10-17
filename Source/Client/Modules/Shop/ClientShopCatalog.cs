@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Snapshots;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -50,7 +51,7 @@ internal sealed class ClientShopCatalog
             _ => { state.Remove(listingId); state.Message = presentation.Text("StatusListingRemoved"); });
     }
 
-    private ClientShopState.Request? Begin(bool administrator, string status)
+    private ClientGameRequestTracker.Request? Begin(bool administrator, string status)
     {
         if (administrator && !isAdministrator()) { state.Message = presentation.NotAdministrator; return null; }
         var request = state.Begin();
@@ -64,7 +65,7 @@ internal sealed class ClientShopCatalog
 
     // List/upsert/remove share validation, hydration, owned publication and cleanup.
     private Task ExecuteAsync<T>(bool administrator, string status, string failurePrefix,
-        Func<ClientShopState.Request, Task<ClashOfRimClientNetworkResult<T>>> send, Func<T, ModProtocolResponseDto?> resultOf,
+        Func<ClientGameRequestTracker.Request, Task<ClashOfRimClientNetworkResult<T>>> send, Func<T, ModProtocolResponseDto?> resultOf,
         Func<T, IReadOnlyList<ModServerShopListingDto>> listingsOf, Action<IReadOnlyList<ModServerShopListingDto>> accepted)
     {
         using var p = ClientSessionWork.EnterPublication();
@@ -99,7 +100,7 @@ internal sealed class ClientShopCatalog
         });
     }
 
-    private void QueuePreviews(ClientShopState.Scope owner, IReadOnlyList<ModServerShopListingDto> listings)
+    private void QueuePreviews(ClientGameRequestTracker.Scope owner, IReadOnlyList<ModServerShopListingDto> listings)
     {
         if (!owner.Game.HasGame || listings.Count == 0) return;
         int version = state.Version;
