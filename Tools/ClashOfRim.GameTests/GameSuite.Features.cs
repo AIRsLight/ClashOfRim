@@ -297,12 +297,14 @@ internal sealed partial class GameSuite
         Check(options.Length == 1, "Expected one target choice in controlled scenario.");
         await Call(client, "menus.choose", new { menu = H(menu), option = H(options[0]) });
     }
-    async Task Travel()
+    Task Travel() => Travel(null);
+    async Task Travel(string? selectedPawn)
     {
         await StoreStartingResources("A");
         await Idle("A"); string map = H(Items(await Call("A", "game.maps"))[0]);
         var pawns = Items(await Call("A", "pawns.list", new { map })).Where(p => p.Bool("playerControlled")).ToArray();
-        string pawn = H(pawns[0]);
+        string pawn = selectedPawn ?? H(pawns[0]);
+        Check(pawns.Any(p => H(p) == pawn), "Selected transfer pawn is not a controlled home pawn.");
         // Economic assertions have finished; allow the home colonists to eat while the expedition travels.
         foreach (var resident in pawns) await Call("A", "pawn.draft", new { pawn = H(resident), drafted = false });
         var neighbor = (await Call("A", "world.neighbors", new { map })).GetProperty("neighbors").EnumerateArray().First(n => n.Bool("passable"));

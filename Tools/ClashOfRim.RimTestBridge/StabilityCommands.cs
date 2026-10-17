@@ -8,6 +8,7 @@ using HarmonyLib;
 using RimTest.Protocol;
 using RimTest.Runtime;
 using RimWorld;
+using RimWorld.Planet;
 using Verse;
 
 namespace ClashOfRim.RimTestBridge;
@@ -38,12 +39,18 @@ internal sealed partial class DomainCommands
         bridge.Router.Register("clash.stability.support", "Support quest lifecycle facts, including finished quests and deadlines.", "observe", a =>
             ObjectInspector.Paginate(Find.QuestManager.QuestsListForReading.SelectMany(q => q.PartsListForReading.OfType<QuestPart_ClashSupportPawn>())
                 .Select(p => new { p.EventId, p.PermanentSupport, p.ExpiresAtGameTicks, p.Completed, p.FinishRequested, p.FinishReason }).ToArray(), a));
-        bridge.Router.Register("clash.fixture.pawnState", "FIXTURE: set one existing player pawn's gear quality/durability, permanent scar, skill and sibling relation; requires explicit acknowledgement and debug capability.", "fixture", a =>
+        bridge.Router.Register("clash.fixture.pawnState", "FIXTURE: set one existing player pawn's gear quality/durability, permanent scar, skill, sibling and deceased relationship references; requires explicit acknowledgement and debug capability.", "fixture", a =>
         {
             Fixture(a); var p = FindPawn(a);
             if (!p.Spawned || p.Faction != Faction.OfPlayer || !p.RaceProps.Humanlike) throw new CommandException("invalid_context", "Requires spawned player human.");
             var other = p.Map.mapPawns.FreeColonistsSpawned.First(q => q != p);
             if (!p.relations.DirectRelationExists(PawnRelationDefOf.Sibling, other)) p.relations.AddDirectRelation(PawnRelationDefOf.Sibling, other);
+            var deceased = PawnGenerator.GeneratePawn(new PawnGenerationRequest(PawnKindDefOf.Colonist, Faction.OfPlayer,
+                forceGenerateNewPawn: true, canGeneratePawnRelations: false));
+            deceased.Name = new NameSingle("RimTest deceased relative");
+            deceased.health.SetDead();
+            Find.WorldPawns.PassToWorld(deceased, PawnDiscardDecideMode.KeepForever);
+            p.relations.AddDirectRelation(PawnRelationDefOf.ExSpouse, deceased);
             p.skills.GetSkill(SkillDefOf.Shooting).Level = 12; p.skills.GetSkill(SkillDefOf.Shooting).passion = Passion.Major;
             if (p.equipment.Primary is null)
             {

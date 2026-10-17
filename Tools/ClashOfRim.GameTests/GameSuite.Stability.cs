@@ -63,14 +63,16 @@ internal sealed partial class GameSuite
         }
         if (profile.Stability == "transfers")
         {
+            string? fixturePawn = null;
             await Case("alliance-request-accept", Alliance);
             await Case("remote-map-isolation-repeat", async () => { for (int i = 0; i < 3; i++) await ObserveAlly(); });
             await Case("pawn-state-fixture", async () =>
             {
                 var home = (await Call("A", "clash.inventory")).GetProperty("maps")[0];
-                await Call("A", "clash.fixture.pawnState", new { pawn = H(home.GetProperty("colonists")[0]), acknowledgeFixture = true });
+                fixturePawn = H(home.GetProperty("colonists")[0]);
+                await Call("A", "clash.fixture.pawnState", new { pawn = fixturePawn, acknowledgeFixture = true });
             });
-            await Case("caravan-load-travel", Travel);
+            await Case("caravan-load-travel", () => Travel(fixturePawn));
             await Case("support-state-early-return", () => Support("early", true));
             await Case("support-state-rejected-return", () => Support("reject", true));
             await Case("support-state-expired-return", () => Support("expiry", true));

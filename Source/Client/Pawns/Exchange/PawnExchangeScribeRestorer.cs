@@ -602,6 +602,7 @@ internal static class PawnExchangeScribeRestorer
         if (existing is not null)
         {
             createdPlaceholder = false;
+            RestoreRelationshipDeath(existing, relationship.OtherPawnDead, Find.WorldPawns);
             return existing;
         }
 
@@ -615,12 +616,24 @@ internal static class PawnExchangeScribeRestorer
 
         QuestUtility.AddQuestTag(ref placeholder.questTags, tag);
         MarkPawnGlobalId(placeholder, relationship.OtherPawnGlobalId);
+        RestoreRelationshipDeath(placeholder, relationship.OtherPawnDead, Find.WorldPawns);
         if (Find.WorldPawns is not null && !Find.WorldPawns.Contains(placeholder))
         {
             Find.WorldPawns.PassToWorld(placeholder, PawnDiscardDecideMode.KeepForever);
         }
 
         return placeholder;
+    }
+
+    internal static void RestoreRelationshipDeath(Pawn pawn, bool isDead, WorldPawns? worldPawns)
+    {
+        // A relationship stub describes an absent pawn, not a new local death event.
+        // Never kill a real local pawn or resurrect a placeholder from an older payload.
+        if (isDead && IsRelationshipPlaceholder(pawn) && !pawn.Dead)
+        {
+            pawn.health.SetDead();
+            worldPawns?.Notify_PawnDestroyed(pawn);
+        }
     }
 
     private static Pawn? FindExistingPawnByGlobalId(string globalId)
