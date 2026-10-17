@@ -23,6 +23,7 @@ internal static class ClientModuleBoundaryTests
             || t == typeof(ModSnapshotPackageBuilder) || t == typeof(SnapshotSaveSanitizer)
             || t == typeof(ModSnapshotUploadService) || t == typeof(ClientSnapshotPreparationAdapter)
             || t == typeof(ClientSnapshotPackagePresentation) || t == typeof(ClientSnapshotUploadPresentation)
+            || t == typeof(ClientLocalSnapshotPresentation)
             || t == typeof(ClientSnapshotPreparationPresentation) || t == typeof(ClientSnapshotFailureView)
             || t == typeof(ClientEventConfirmationEffects) || t == typeof(ClientEventConfirmationPresentation) || t == typeof(SnapshotConfirmationFailureWindow)
             || t == typeof(ClientEventLetterPolicy) || t == typeof(ClientEventLetterRenderer)
@@ -67,7 +68,7 @@ internal static class ClientModuleBoundaryTests
             typeof(ClientGiftPackageHydration), typeof(PawnPackageHydration),
             typeof(ClientEventApplicationRuntime), typeof(ClientEventApplicationPresentation),
             typeof(ClientEventConfirmationPresentation), typeof(ClientEventConfirmationEffects), typeof(ClientSnapshotPreparationPresentation),
-            typeof(ClientSnapshotFailureView), typeof(SnapshotConfirmationFailureWindow) };
+            typeof(ClientLocalSnapshotPresentation), typeof(ClientSnapshotFailureView), typeof(SnapshotConfirmationFailureWindow) };
         var adapterTypes = typeof(ClashOfRimMod).Assembly.GetTypes().Where(t => eventAdapters.Contains(t)
             || (t.DeclaringType is not null && eventAdapters.Contains(t.DeclaringType))).ToArray();
         var adapterViolations = ModuleDependencyGuard.FindViolations(adapterTypes, t => t == typeof(ClashOfRimMod)

@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Snapshots;
 using AIRsLight.ClashOfRim.Modules.Events;
 using static AIRsLight.ClashOfRim.Modules.Maps.ClientMapIdentity;
 using AIRsLight.ClashOfRim.Modules.Synchronization;
@@ -1550,11 +1551,10 @@ public sealed partial class ClashOfRimMod
 
     private void StartConfirmRaidStartSnapshot(ActiveRaidBattleSession session)
     {
-        StartConfirmLocalMutationSnapshot(new LocalMutationSnapshotConfirmationRequest
+        StartConfirmLocalMutationSnapshot(new ClientLocalSnapshotRequest
         {
             Operation = LocalMutationKind.Raid,
             UploadingStatus = ClashOfRimText.Key("ClashOfRim.Raid.StatusAttackerSnapshotUploading"),
-            RetryAction = () => StartConfirmRaidStartSnapshot(session),
             SetStatus = value => worldMapStatus = value,
             BuildFailureStatus = upload => ClashOfRimText.Key(
                 "ClashOfRim.Raid.StatusAttackerSnapshotFailed",
@@ -1786,13 +1786,12 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
-        StartConfirmLocalMutationSnapshot(new LocalMutationSnapshotConfirmationRequest
+        StartConfirmLocalMutationSnapshot(new ClientLocalSnapshotRequest
         {
             Operation = LocalMutationKind.RaidAttacker,
             UploadingStatus = ClashOfRimText.Key("ClashOfRim.Raid.StatusAttackerSnapshotUploading"),
             RemoveRaidBattleSessions = true,
             BestEffort = true,
-            RetryAction = () => StartConfirmRaidAttackerSnapshot(context),
             SetStatus = value => worldMapStatus = value,
             BuildFailureStatus = upload => ClashOfRimText.Key(
                 "ClashOfRim.Raid.StatusAttackerSnapshotFailed",

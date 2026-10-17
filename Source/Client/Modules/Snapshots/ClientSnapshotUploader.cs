@@ -25,7 +25,7 @@ internal sealed class ClientSnapshotUploader
 
     internal async Task<ClientSnapshotUploadResult> UploadAsync(bool removeRaidBattleSessions,
         string? confirmationOperation, string? snapshotUploadKind, IReadOnlyList<ModSnapshotAchievementCandidateDto>? directAchievements,
-        ClientSynchronizationCoordinator.Lease? continuation, CancellationToken cancellationToken)
+        ClientSynchronizationCoordinator.Lease? continuation, CancellationToken cancellationToken, ClientSnapshotUploadScope? scope = null)
     {
         CancellationToken generation = ClientSessionWork.Token;
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, generation);
@@ -90,6 +90,7 @@ internal sealed class ClientSnapshotUploader
                 ? build.Package.SnapshotId : upload.Response.AcceptedSnapshotId!;
             await OnGameThread(() =>
             {
+                scope?.Publishing(acceptedId);
                 publication.Publish(gameSession, acceptedId, upload.Response.NextLineageToken, achievements);
                 return true;
             });
@@ -99,7 +100,7 @@ internal sealed class ClientSnapshotUploader
             void CheckOwner()
             {
                 token.ThrowIfCancellationRequested();
-                if (generation != ClientSessionWork.Token || !admission.IsCurrent)
+                if (generation != ClientSessionWork.Token || !admission.IsCurrent || scope?.IsCurrent() == false)
                     throw new OperationCanceledException("Snapshot upload owner changed.", token);
             }
 
@@ -175,3 +176,7 @@ internal sealed class ClientSnapshotUploader
         return copy;
     }
 }
+
+// Domain confirmations retain ownership through capture, HTTP and publication,
+// including a new login with otherwise identical credentials.
+internal sealed record ClientSnapshotUploadScope(Func<bool> IsCurrent, Action<string> Publishing);

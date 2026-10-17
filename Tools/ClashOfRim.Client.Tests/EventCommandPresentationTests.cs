@@ -13,6 +13,7 @@ using AIRsLight.ClashOfRim.Protocol;
 using RimWorld;
 using AIRsLight.ClashOfRim.Modules.Events;
 using AIRsLight.ClashOfRim.ClientNetwork;
+using AIRsLight.ClashOfRim.ClientSnapshots;
 using AIRsLight.ClashOfRim.Modules.Sessions;
 using AIRsLight.ClashOfRim.Modules.Snapshots;
 using AIRsLight.ClashOfRim.Modules.Synchronization;
@@ -50,6 +51,7 @@ internal static class EventCommandPresentationTests
                 ReadPresentation();
                 BankPresentation();
                 MercenaryPresentation();
+                LocalSnapshotPresentation();
                 GiftPresentation();
                 TradePresentation();
                 ShopPresentation();
@@ -241,10 +243,20 @@ internal static class EventCommandPresentationTests
         foreach (string key in new[] { "PriceLine", "StatusQuoteFailed", "StatusQuoteRejected", "StatusQuoteException",
             "StatusHiring", "GuardStatusHiring", "StatusHireFailed", "StatusHireRejected", "StatusMissingContract", "StatusNoMap",
             "StatusInsufficientSilver", "StatusArrivalPawnMissing", "StatusConfirmationFailed", "StatusBusy", "StatusUploadingConfirmation",
-            "StatusConfirmationIncomplete", "StatusHiredConfirmed", "GuardStatusConfirmed", "StatusException" })
-            RequireResolved(view.Text(key, ("PRICE", 350), ("CODE", "Conflict"), ("MESSAGE", "server-message"), ("TYPE", "IOException"), ("NEEDED", 350), ("AVAILABLE", 10)));
+            "StatusConfirmationIncomplete", "StatusConfirmationSucceeded", "StatusHiredConfirmed", "GuardStatusConfirmed", "StatusException" })
+            RequireResolved(view.Text(key, ("PRICE", 350), ("CODE", "Conflict"), ("MESSAGE", "server-message"), ("TYPE", "IOException"), ("NEEDED", 350), ("AVAILABLE", 10), ("SNAPSHOT", "snapshot")));
         if (view.Text("PriceLine", ("PRICE", 350)) != AIRsLight.ClashOfRim.Mercenaries.MercenaryUiUtility.FormatPriceLine(350))
             throw new Exception("Mercenary quote presentation changed its price text.");
+    }
+
+    private static void LocalSnapshotPresentation()
+    {
+        var view = new ClientLocalSnapshotPresentation(_ => { });
+        RequireResolved(view.Busy); RequireResolved(view.BaseSnapshotChanged);
+        RequireResolved(view.Admission(LocalMutationAdmission.PendingMutation, new(LocalMutationKind.Support, "pending", default)));
+        RequireResolved(view.Failed("status", "code", "reason")); RequireResolved(view.Succeeded("snapshot"));
+        RequireResolved(view.Exception("status", new InvalidOperationException("reason")));
+        RequireResolved(view.Result(new(null, null, new("code", null, SnapshotUploadMessage.NoRunningGame))).Message!);
     }
 
     private static void BankPresentation()

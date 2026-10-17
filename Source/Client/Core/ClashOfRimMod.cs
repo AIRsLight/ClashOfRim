@@ -65,6 +65,8 @@ public sealed partial class ClashOfRimMod : Mod
     private readonly ClientEventState eventState;
     private readonly ClientBankState bankState;
     private readonly ClientBankOperations bankOperations;
+    private readonly ClientLocalSnapshotConfirmation localSnapshotConfirmation;
+    private readonly ClientMercenaryConfirmation mercenaryConfirmation;
     private readonly ClientMercenaryQuotes mercenaryQuotes;
     private readonly ClientMercenaryState mercenaryState;
     private readonly ClientMercenaryHiring mercenaryHiring;
@@ -173,6 +175,10 @@ public sealed partial class ClashOfRimMod : Mod
         bankState = new ClientBankState(sessionLifecycle, new ClientSnapshotGame(), bankPresentation);
         var snapshotTransactions = new ClientSnapshotTransaction(sessionLifecycle, new ClientSnapshotGame(), snapshotPublication);
         var mutationAdmission = new ClientSnapshotMutationAdmission(sessionLifecycle, synchronization, localMutations, snapshotTransactions);
+        localSnapshotConfirmation = new ClientLocalSnapshotConfirmation(sessionLifecycle, new ClientSnapshotGame(), mutationAdmission,
+            synchronization, localMutations, snapshotTransactions, snapshotFailureRecovery, ClientSnapshotComposition.Create(settings),
+            new ClientLocalSnapshotPresentation(message => snapshotUploadStatus = message));
+        localSnapshotConfirmation.Completed += StartQueuedAutomaticEventRefreshAfterLocalAtomicMutation;
         var shopPresentation = new ClientShopPresentation();
         var shopTransport = new ClientShopTransport();
         shopState = new ClientShopState(sessionLifecycle, new ClientSnapshotGame(), shopPresentation);
@@ -201,6 +207,9 @@ public sealed partial class ClashOfRimMod : Mod
         mercenaryHiring = new ClientMercenaryHiring(mercenaryState, bankState, mutationAdmission, synchronization, localMutations,
             snapshotTransactions, snapshotFailureRecovery, new ClientMercenaryRuntime(), mercenaryTransport, mercenaryPresentation);
         mercenaryHiring.Completed += StartQueuedAutomaticEventRefreshAfterLocalAtomicMutation;
+        mercenaryConfirmation = new ClientMercenaryConfirmation(localSnapshotConfirmation, mercenaryState, mercenaryPresentation);
+        mercenaryConfirmation.ContractCompleted += (id, key) => StartReportMercenaryIncident(id, "Completed", key);
+        mercenaryConfirmation.BankRefreshRequested += StartRefreshBankStatus;
         Func<ClientGiftCapabilities> giftCapabilities = () => new(giftsEnabled, pvpEnabled);
         var giftPresentation = new ClientGiftPresentation(message => eventState.ActionStatus = message);
         var gifts = new ClientGiftOperations(mutationAdmission, synchronization, localMutations, snapshotTransactions,

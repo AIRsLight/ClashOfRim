@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Snapshots;
 using AIRsLight.ClashOfRim.Modules.Synchronization;
 using System;
 using System.Collections.Generic;
@@ -582,31 +583,10 @@ public sealed partial class ClashOfRimMod
         component.MarkSupportAssignmentFinished(assignment.EventId);
         ClashSupportPawnQuestUtility.CompleteSupportQuest(assignment.EventId);
 
-        StartConfirmLocalMutationSnapshot(new LocalMutationSnapshotConfirmationRequest
+        StartConfirmLocalMutationSnapshot(new ClientLocalSnapshotRequest
         {
             Operation = LocalMutationKind.Support,
             UploadingStatus = ClashOfRimText.Key("ClashOfRim.Support.StatusReturnSnapshotUploading", pawnLabel.Named("PAWN")),
-            RetryAction = () => StartConfirmFinishedSupportPawnSnapshot(assignment, pawnLabel, finishReason, package),
-            SetStatus = message => tradeStatus = message,
-            BuildSuccessStatus = result => ClashOfRimText.Key(
-                "ClashOfRim.Support.StatusReturnSnapshotConfirmed",
-                pawnLabel.Named("PAWN"),
-                (result.AcceptedSnapshotId ?? settings.CurrentSnapshotId).Named("SNAPSHOT")),
-            OnSuccessOnMainThread = _ => StartSubmitFinishedSupportPawn(assignment, pawnLabel, finishReason, package)
-        });
-    }
-
-    private void StartConfirmFinishedSupportPawnSnapshot(
-        ActiveSupportPawnAssignment assignment,
-        string pawnLabel,
-        string finishReason,
-        ModPawnExchangePackageDto? package)
-    {
-        StartConfirmLocalMutationSnapshot(new LocalMutationSnapshotConfirmationRequest
-        {
-            Operation = LocalMutationKind.Support,
-            UploadingStatus = ClashOfRimText.Key("ClashOfRim.Support.StatusReturnSnapshotUploading", pawnLabel.Named("PAWN")),
-            RetryAction = () => StartConfirmFinishedSupportPawnSnapshot(assignment, pawnLabel, finishReason, package),
             SetStatus = message => tradeStatus = message,
             BuildSuccessStatus = result => ClashOfRimText.Key(
                 "ClashOfRim.Support.StatusReturnSnapshotConfirmed",
