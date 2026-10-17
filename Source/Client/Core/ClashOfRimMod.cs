@@ -57,8 +57,7 @@ public sealed partial class ClashOfRimMod : Mod
     private readonly ClientEventInbox eventInbox = new();
     private readonly ClientEventDelivery eventDelivery;
     private readonly ClientEventReader eventReader;
-    private readonly ClientEventConfirmation eventConfirmation;
-    private readonly ClientEventConfirmationPreparation eventConfirmationPreparation;
+    private readonly ClientEventConfirmationWorkflow eventConfirmations;
     private readonly ClientSnapshotFailureRecovery snapshotFailureRecovery;
     private readonly ClientEventRefreshQueue automaticEventRefresh;
     internal IReadOnlyList<ModEventDetailDto>? ReadEventDetails(int? knownVersion, out int version) =>
@@ -160,12 +159,24 @@ public sealed partial class ClashOfRimMod : Mod
         sessionLifecycle = new ClientSessionLifecycle(new ClientSessionIdentityStore(settings), new ClientSessionLogoutTransport(), sessionConnection);
         sessionReconnect = new ClientSessionReconnect(new ClientSessionReconnectTransport(), sessionLifecycle, synchronization);
         eventReader = new ClientEventReader(sessionLifecycle, eventInbox, new ClientEventReadTransport());
-        eventConfirmation = new ClientEventConfirmation(sessionLifecycle, new ClientSnapshotGame(),
+        var eventConfirmation = new ClientEventConfirmation(sessionLifecycle, new ClientSnapshotGame(),
             snapshotPublication, eventInbox, new ClientEventConfirmationTransport());
-        eventConfirmationPreparation = new ClientEventConfirmationPreparation(sessionLifecycle, synchronization, localMutations, eventConfirmation);
+        var eventConfirmationPreparation = new ClientEventConfirmationPreparation(sessionLifecycle, synchronization, localMutations, eventConfirmation);
         snapshotFailureRecovery = new ClientSnapshotFailureRecovery(sessionLifecycle, localMutations, synchronization,
             new ClientSnapshotGame(), new ClientSnapshotFailureView());
         snapshotFailureRecovery.ReturningToMenu += () => playerColonySiteRegistrationSuppressed = false;
+        eventConfirmations = new ClientEventConfirmationWorkflow(sessionLifecycle, eventConfirmationPreparation, eventConfirmation,
+            localMutations, snapshotFailureRecovery, eventInbox, new ClientEventConfirmationPresentation((purpose, message) =>
+            {
+                switch (purpose)
+                {
+                    case ClientEventConfirmationPurpose.Trade: tradeStatus = message; break;
+                    case ClientEventConfirmationPurpose.AutomaticEvents: eventDetailsStatus = message; break;
+                    case ClientEventConfirmationPurpose.RaidSettlement: worldMapStatus = message; break;
+                    default: giftProcessingStatus = message; break;
+                }
+            }), new ClientEventConfirmationEffects());
+        eventConfirmations.Completed += StartQueuedAutomaticEventRefreshAfterLocalAtomicMutation;
         automaticEventRefresh = new ClientEventRefreshQueue(sessionLifecycle);
         eventDelivery = new ClientEventDelivery(eventInbox, new ClientEventLetterRuntime(RequestWorldMapMarkerRefresh));
         if (!string.Equals(content.PackageId, PackageId, StringComparison.OrdinalIgnoreCase))

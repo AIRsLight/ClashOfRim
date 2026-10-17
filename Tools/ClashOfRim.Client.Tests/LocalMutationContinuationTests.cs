@@ -44,16 +44,9 @@ internal static class LocalMutationContinuationTests
                 "repay-key", 10L, new ModBankLoanSummaryDto(), new ModBankStatusResponseDto());
             Verify("StartBuildAndSubmitPreparedBankDebtRepayment", LocalMutationKind.Bank,
                 "debt-key", 10L, new ModBankDebtSummaryDto(), new ModBankStatusResponseDto());
-            var singleType = typeof(ClashOfRimMod).GetNestedType("EventApplicationSnapshotConfirmationRequest", BindingFlags.NonPublic)!;
-            var single = Activator.CreateInstance(singleType, nonPublic: true)!;
-            singleType.GetProperty("EventId")!.SetValue(single, "event");
-            singleType.GetProperty("Operation")!.SetValue(single, LocalMutationKind.Gift);
-            Verify("StartConfirmEventApplicationSnapshot", LocalMutationKind.Gift, single);
-            var batchType = typeof(ClashOfRimMod).GetNestedType("EventApplicationsSnapshotConfirmationRequest", BindingFlags.NonPublic)!;
-            var batch = Activator.CreateInstance(batchType, nonPublic: true)!;
-            batchType.GetProperty("Applications")!.SetValue(batch, new[] { new ModConfirmEventApplicationEntryDto { EventId = "event" } });
-            batchType.GetProperty("Operation")!.SetValue(batch, LocalMutationKind.AutomaticEvents);
-            Verify("StartConfirmEventApplicationsSnapshot", LocalMutationKind.AutomaticEvents, batch);
+            Verify("StartConfirmGiftApplication", LocalMutationKind.Gift, "event", "ItemDeliveryAnchored");
+            Verify("StartConfirmAutomaticEventApplications", LocalMutationKind.AutomaticEvents,
+                (object)new[] { new ModConfirmEventApplicationEntryDto { EventId = "event" } });
         }
         finally
         {
@@ -80,12 +73,16 @@ internal static class LocalMutationContinuationTests
         var lifecycle = new ClientSessionLifecycle(new ClientSessionIdentityStore(settings), new ClientSessionLogoutTransport(),
             new ClientSessionConnection(new ClientSessionWebSocketTransport(new ClientWebSocketFactory(), new ClientProtocolMetadata())));
         var game = new ClientSnapshotGame();
+        var inbox = new ClientEventInbox();
         var confirmation = new ClientEventConfirmation(lifecycle, game, ClientSnapshotComposition.CreatePublication(settings),
-            new ClientEventInbox(), new ClientEventConfirmationTransport());
-        typeof(ClashOfRimMod).GetField("eventConfirmationPreparation", Instance)!.SetValue(mod,
-            new ClientEventConfirmationPreparation(lifecycle, synchronization, mutations, confirmation));
-        typeof(ClashOfRimMod).GetField("snapshotFailureRecovery", Instance)!.SetValue(mod,
-            new ClientSnapshotFailureRecovery(lifecycle, mutations, synchronization, game, new ClientSnapshotFailureView()));
+            inbox, new ClientEventConfirmationTransport());
+        var preparation = new ClientEventConfirmationPreparation(lifecycle, synchronization, mutations, confirmation);
+        var recovery = new ClientSnapshotFailureRecovery(lifecycle, mutations, synchronization, game, new ClientSnapshotFailureView());
+        typeof(ClashOfRimMod).GetField("snapshotFailureRecovery", Instance)!.SetValue(mod, recovery);
+        typeof(ClashOfRimMod).GetField("eventConfirmations", Instance)!.SetValue(mod,
+            new ClientEventConfirmationWorkflow(lifecycle, preparation, confirmation, mutations, recovery, inbox,
+                new AIRsLight.ClashOfRim.EventLetters.ClientEventConfirmationPresentation(static (_, _) => { }),
+                new AIRsLight.ClashOfRim.EventLetters.ClientEventConfirmationEffects()));
         saves = 0;
         presentedFailures = 0;
         var failure = mutations.RecordFailure(kind, "previous failure", () =>

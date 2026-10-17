@@ -1029,48 +1029,7 @@ public sealed partial class ClashOfRimMod
 
     private void StartTradeExchangeConfirmationAsync(string exchangeEventId, string? tradeEventId, string baseSnapshotId)
     {
-        StartConfirmEventApplicationSnapshot(new EventApplicationSnapshotConfirmationRequest
-        {
-            EventId = exchangeEventId,
-            SourceEventId = tradeEventId,
-            BaseSnapshotId = baseSnapshotId,
-            ClientApplicationResult = "SelfDeliveryExchangeApplied",
-            Operation = LocalMutationKind.Trade,
-            IdempotencyPrefix = "trade-confirm",
-            UploadingStatus = ClashOfRimText.Key(
-                "ClashOfRim.Trade.StatusConfirmUploading",
-                exchangeEventId.Named("EVENTID")),
-            EmptyEventMessage = ClashOfRimText.Key(
-                "ClashOfRim.Trade.StatusConfirmFailed",
-                "MissingEventId".Named("CODE"),
-                string.Empty.Named("MESSAGE")),
-            RetryAction = () => StartTradeExchangeConfirmationAsync(exchangeEventId, tradeEventId, baseSnapshotId),
-            SetStatus = value => tradeStatus = value,
-            BuildSnapshotBuildFailedStatus = buildFailureReason => ClashOfRimText.Key(
-                "ClashOfRim.Trade.StatusConfirmBuildFailed",
-                "SaveToMemoryFailed".Named("CODE"),
-                buildFailureReason.Named("MESSAGE")),
-            BuildRequestFailedStatus = result => ClashOfRimText.Key(
-                "ClashOfRim.Trade.StatusConfirmFailed",
-                result.ErrorCode.Named("CODE"),
-                result.Message.Named("MESSAGE")),
-            BuildRejectedStatus = (serverResult, response) => ClashOfRimText.Key(
-                "ClashOfRim.Trade.StatusConfirmRejected",
-                serverResult.ErrorCode.Named("CODE"),
-                serverResult.Message.Named("MESSAGE"),
-                response.ServerValidationResult.Named("VALIDATION")),
-            BuildExceptionStatus = ex => ClashOfRimText.Key(
-                "ClashOfRim.Trade.StatusConfirmException",
-                ex.GetType().Name.Named("TYPE"),
-                ex.Message.Named("MESSAGE")),
-            OnAcceptedOnMainThread = response =>
-            {
-                tradeStatus = ClashOfRimText.Key(
-                    "ClashOfRim.Trade.StatusConfirmSucceeded",
-                    exchangeEventId.Named("EVENTID"),
-                    response.AppliedSnapshotId.Named("SNAPSHOT"));
-            }
-        });
+        _ = eventConfirmations.TradeAsync(exchangeEventId, tradeEventId, baseSnapshotId);
     }
 
     private void MarkFulfilledTradeOrderLocally(string tradeEventId)

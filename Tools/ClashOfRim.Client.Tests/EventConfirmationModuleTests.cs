@@ -19,6 +19,170 @@ using AIRsLight.ClashOfRim.Protocol;
 
 internal static class EventConfirmationModuleTests
 {
+    internal static void RunWorkflow() => WorkflowAsync().GetAwaiter().GetResult();
+    private static async Task WorkflowAsync()
+    {
+        try
+        {
+            foreach (string kind in new[] { "gift", "support", "trade", "batch" })
+            {
+                var f = new Fixture(); int completed = 0;
+                int captureThread = System.Environment.CurrentManagedThreadId;
+                f.Ports.OnCapture = () => Require(System.Environment.CurrentManagedThreadId == captureThread, "Save capture left the caller thread.");
+                f.Workflow.Completed += () => { Require(!f.Mutations.IsPending && !f.Sync.IsBusy, "Completion ran before reset/publication."); completed++; };
+                f.Inbox.TryTrackPendingConfirmation("event");
+                Task work = StartWorkflow(f, kind);
+                Require(f.Ports.Captures == 1 && f.Mutations.IsPending && f.Sync.IsBusy, "Workflow did not prepare synchronously.");
+                (await f.Ports.Next())(); await work;
+                Require(completed == 1 && f.Ports.Snapshot == "accepted" && !f.Mutations.IsPending && !f.Sync.IsBusy,
+                    "Workflow completion lost authoritative publication: " + kind);
+                Require(f.Effects.Handled.SequenceEqual(kind is "gift" or "support" ? new[] { "event" } : Array.Empty<string>()), "Wrong handled effects: " + kind);
+                Require(f.Inbox.HasPendingConfirmation("event") == (kind != "gift"), "Workflow cleared unrelated pending confirmations.");
+                var last = f.Presentation.Notices.Last();
+                Require(last.Stage == ClientEventConfirmationStage.Accepted && last.SnapshotId == "accepted", "Missing typed success notice.");
+                if (kind == "batch") Require(f.Protocol.Batch!.IdempotencyKey.StartsWith("auto-event-confirm:alice:colony:event:"), "Batch prefix changed.");
+                else Require(f.Protocol.Single!.IdempotencyKey.StartsWith((kind == "support" ? "support" : kind) + "-confirm:alice:colony:event:")
+                    && f.Protocol.Single.ApplicationResult == (kind == "support" ? "SupportPawnArrived" : kind == "trade" ? "SelfDeliveryExchangeApplied" : "delivered")
+                    && f.Protocol.Single.SourceEventId == (kind == "trade" ? "trade-source" : null)
+                    && f.Protocol.Single.BaseSnapshotId == (kind == "trade" ? "trade-base" : "base"), "Intent changed in shared workflow.");
+            }
+            foreach (string kind in new[] { "gift", "support", "trade", "batch" })
+            foreach (string error in new[] { "transport", "null", "rejected", "exception" })
+            {
+                var f = new Fixture(); f.Protocol.Failure = error;
+                await StartWorkflow(f, kind); (await f.Ports.Next())();
+                var failure = f.Presentation.Notices.Last();
+                Require(failure.Stage == ClientEventConfirmationStage.Failed && f.View.Visible is not null
+                    && f.Mutations.IsPending && !f.Sync.IsBusy && f.Effects.Handled.Count == 0,
+                    "Failure lost pending mutation, admission or recovery: " + kind + "/" + error);
+                Require(f.View.Visible!.CanRetry == (error is "transport" or "exception"), "Retry classification changed.");
+            }
+            foreach (string admission in new[] { "identity", "snapshot", "busy", "blocked", "capture", "obsolete" })
+            {
+                var f = new Fixture(); ClientSynchronizationCoordinator.Lease? held = null;
+                if (admission == "identity") f.Ports.Colony = "";
+                if (admission == "snapshot") f.Ports.Snapshot = "";
+                if (admission == "busy") f.Sync.TryBeginManual(out held);
+                if (admission == "blocked") f.Mutations.Begin(LocalMutationKind.Bank, "bank");
+                if (admission == "capture") f.Ports.CaptureFailure = new("capture", "save failed", SnapshotUploadMessage.SaveFailed);
+                if (admission == "obsolete") f.Ports.OnCapture = () => f.Session.ClearIdentity();
+                await f.Workflow.GiftAsync("event", "delivered");
+                Require(f.Protocol.Calls == 0 && f.Effects.Handled.Count == 0, "Failed preparation reached protocol.");
+                if (admission == "obsolete") Require(f.Presentation.Notices.Count == 0, "Obsolete preparation reported into a replacement session.");
+                else Require(f.Presentation.Notices.Single().Stage == ClientEventConfirmationStage.PreparationFailed, "Missing preparation notice.");
+                if (admission is "identity" or "snapshot" or "capture") { (await f.Ports.Next())(); Require(f.View.Visible is not null, "Preparation failure lost recovery."); }
+                else Require(f.Ports.Queued == 0, "Busy/blocked/obsolete preparation queued recovery.");
+                held?.Dispose();
+            }
+            var empty = new Fixture();
+            await empty.Workflow.GiftAsync("", "delivered"); await empty.Workflow.SupportArrivalAsync(""); await empty.Workflow.TradeAsync("", "", "");
+            await empty.Workflow.AutomaticAsync(Array.Empty<ModConfirmEventApplicationEntryDto>());
+            Require(empty.Ports.Captures == 0 && empty.Protocol.Calls == 0 && empty.Presentation.Notices.Count == 3, "Empty intents entered confirmation.");
+            foreach (string kind in new[] { "gift", "batch" })
+            foreach (string replacement in new[] { "login", "generation", "game", "snapshot" })
+            foreach (bool throws in new[] { false, true })
+            {
+                var f = new Fixture(); f.Protocol.Hold = new(TaskCreationOptions.RunContinuationsAsynchronously);
+                var work = StartWorkflow(f, kind);
+                await f.Protocol.Sent.Task.WaitAsync(TimeSpan.FromSeconds(5));
+                Replace(f, replacement);
+                f.Mutations.Begin(LocalMutationKind.Bank, "new owner");
+                if (throws) f.Protocol.Hold.SetException(new HttpRequestException("late")); else f.Protocol.Hold.SetResult();
+                await work;
+                Require(f.Presentation.Notices.All(n => n.Stage == ClientEventConfirmationStage.Uploading)
+                    && f.Mutations.Current?.Kind == LocalMutationKind.Bank && f.Effects.Handled.Count == 0 && f.Ports.Queued == 0,
+                    "Late workflow result changed replacement state: " + kind + "/" + replacement);
+            }
+            var interruptedPublication = new Fixture();
+            interruptedPublication.Ports.OnPublish = () => throw new System.IO.IOException("publication interrupted");
+            var publication = interruptedPublication.Workflow.GiftAsync("event", "delivered");
+            try { (await interruptedPublication.Ports.Next())(); throw new Exception("Publication fault was not injected."); }
+            catch (System.IO.IOException) { }
+            await publication; (await interruptedPublication.Ports.Next())();
+            Require(interruptedPublication.Ports.Snapshot == "accepted" && interruptedPublication.View.Visible is not null
+                && interruptedPublication.Mutations.IsPending && !interruptedPublication.Sync.IsBusy,
+                "Our own interrupted publication lost recovery after advancing snapshot metadata.");
+            await WorkflowBatchRetry();
+            await WorkflowPreparedRaid();
+        }
+        finally { ClientSessionWork.Reset(); }
+    }
+
+    private static Task StartWorkflow(Fixture f, string kind) => kind switch
+    {
+        "gift" => f.Workflow.GiftAsync("event", "delivered"),
+        "support" => f.Workflow.SupportArrivalAsync("event"),
+        "trade" => f.Workflow.TradeAsync("event", "trade-source", "trade-base"),
+        _ => f.Workflow.AutomaticAsync(new[] { Entry("event") })
+    };
+
+    private static async Task WorkflowBatchRetry()
+    {
+        var f = new Fixture(); f.Protocol.Failure = "transport";
+        var entries = new[] { Entry("é"), Entry("A"), Entry("a") };
+        var work = f.Workflow.AutomaticAsync(entries);
+        entries[0].EventId = "caller-mutated";
+        await work; (await f.Ports.Next())();
+        // The protocol receives its own copy too; mutation there must not change retry intent.
+        f.Protocol.Batch!.Applications.First().EventId = "transport-mutated";
+        f.Protocol.Failure = null;
+        f.Protocol.Applications = new()
+        {
+            new() { EventId = "é", Result = new() { Accepted = true }, AppliedSnapshotId = "first" },
+            new() { EventId = "rejected", Result = new() { Accepted = false }, AppliedSnapshotId = "wrong" },
+            new() { EventId = "A", Result = new() { Accepted = true }, AppliedSnapshotId = "last" },
+            new() { EventId = "", Result = new() { Accepted = true }, AppliedSnapshotId = "" },
+            new() { EventId = "unknown", Result = null }
+        };
+        int completed = 0; f.Workflow.Completed += () => completed++;
+        int captureThread = System.Environment.CurrentManagedThreadId;
+        f.Ports.OnCapture = () => Require(System.Environment.CurrentManagedThreadId == captureThread, "Retry save left the game thread.");
+        // Retry is a game-thread action. Replaying the same button cannot submit twice.
+        var retry = f.View.Retry!; retry(); retry();
+        (await f.Ports.Next())();
+        Require(f.Protocol.Calls == 2 && f.Ports.Captures == 2 && completed == 1
+            && f.Protocol.Batch!.Applications.Select(e => e.EventId).SequenceEqual(new[] { "é", "A", "a" })
+            && f.Ports.Snapshot == "last" && f.Effects.Handled.SequenceEqual(new[] { "é", "A" }), "Retry changed intent or batch result selection.");
+        var accepted = f.Presentation.Notices.Last();
+        Require(accepted.Count == 3 && accepted.Rejected == 2, "Batch accepted/rejected counts changed.");
+        (await f.Ports.Next())();
+        Require(f.View.Visible is null, "Successful retry retained the old failure window.");
+    }
+
+    private static async Task WorkflowPreparedRaid()
+    {
+        var f = new Fixture(); var continuation = f.Capture().Admission;
+        int completed = 0; f.Workflow.Completed += () => completed++;
+        var command = f.Confirmation.Single(f.Confirmation.Capture(continuation), "raid", "event", null, "raid-base", Package(), new byte[] { 1 }, "settled")
+            with { IdempotencyKey = "prepared-raid-key", UserId = "defender", ColonyId = "defender-colony", HttpTimeout = TimeSpan.FromMinutes(3) };
+        Task work = f.Workflow.PreparedRaidAsync(command, continuation, static () => { }, (_, _) => throw new Exception("Unexpected raid failure"), _ =>
+        {
+            Require(completed == 1 && !f.Mutations.IsPending && !f.Sync.IsBusy, "Raid completion did not precede domain continuation.");
+            f.Mutations.Begin(LocalMutationKind.RaidAttacker, "next");
+            Require(f.Sync.TryAcquireSnapshot(out f.Next), "Raid callback could not continue synchronization.");
+            f.Recovery.Show(LocalMutationKind.RaidAttacker, "next failed", static () => { });
+        });
+        (await f.Ports.Next())(); await work;
+        (await f.Ports.Next())();
+        Require(f.Ports.Captures == 0 && ReferenceEquals(f.Protocol.Single, command) && f.Ports.Snapshot == "base"
+            && f.Next!.IsCurrent && f.View.Message == "next failed", "Prepared workflow rebuilt data, published another identity or closed next failure.");
+        f.Next!.Dispose();
+        foreach (string replacement in new[] { "none", "identity", "game", "mutation", "generation" })
+        {
+            var stale = new Fixture(); stale.Protocol.Failure = "transport"; int failed = 0;
+            var task = stale.Workflow.PreparedRaidAsync(command, null, static () => { }, (_, canRetry) =>
+            { Require(canRetry && !stale.Sync.IsBusy, "Prepared failure retained lease or lost retry."); failed++; }, _ => throw new Exception("Unexpected success"));
+            await task;
+            var pending = await stale.Ports.Next();
+            if (replacement == "identity") stale.Session.ClearIdentity();
+            if (replacement == "game") stale.Ports.GameOwner = new();
+            if (replacement == "mutation") stale.Mutations.Begin(LocalMutationKind.Raid, "new attempt");
+            if (replacement == "generation") ClientSessionWork.Reset();
+            pending();
+            Require(failed == (replacement == "none" ? 1 : 0), "Queued raid failure escaped ownership: " + replacement);
+        }
+    }
+
     internal static void RunPreparationAndRecovery() => PreparationAndRecovery().GetAwaiter().GetResult();
     private static async Task PreparationAndRecovery()
     {
@@ -363,6 +527,9 @@ internal static class EventConfirmationModuleTests
         internal readonly ClientEventConfirmation Confirmation;
         internal readonly ClientEventConfirmationPreparation Preparation;
         internal readonly ClientSnapshotFailureRecovery Recovery;
+        internal readonly WorkflowPresentation Presentation = new();
+        internal readonly WorkflowEffects Effects = new();
+        internal readonly ClientEventConfirmationWorkflow Workflow;
         internal readonly List<ClientEventConfirmationFailureKind> Failures = new();
         internal int Accepted;
         internal bool StartNextOnAccepted;
@@ -374,6 +541,7 @@ internal static class EventConfirmationModuleTests
             Confirmation = new(Session, Ports, new(Ports, Ports), Inbox, Protocol);
             Preparation = new(Session, Sync, Mutations, Confirmation);
             Recovery = new(Session, Mutations, Sync, Ports, View);
+            Workflow = new(Session, Preparation, Confirmation, Mutations, Recovery, Inbox, Presentation, Effects);
             Inbox.ReplaceQueue(new() { DirectlyProcessable = new() { new() { EventId = "event" } } });
         }
         internal ClientEventConfirmation.Attempt Capture()
@@ -412,12 +580,13 @@ internal static class EventConfirmationModuleTests
         internal byte[] SaveBytes = SnapshotPackageModuleTests.Save();
         internal SnapshotUploadFailure? CaptureFailure;
         internal Action? OnCapture;
+        internal Action? OnPublish;
         internal readonly List<string> Trace = new();
         private readonly ConcurrentQueue<Action> pending = new();
         private readonly SemaphoreSlim available = new(0);
         public ClashOfRimClientNetworkContext ReadContext() => new(Server, User, Colony, Snapshot, null, null, Auth);
         public void Write(string? user, string? displayName, string auth) { User = user ?? ""; Auth = auth; }
-        public void Publish(string snapshot, string? token) { Snapshot = snapshot; Published++; Trace.Add("store"); }
+        public void Publish(string snapshot, string? token) { Snapshot = snapshot; Published++; Trace.Add("store"); OnPublish?.Invoke(); }
         public void Persist() => Trace.Add("persist");
         public IClientSnapshotGameSession BindCurrentGame() => new GameSession(this, GameOwner);
         internal void Enqueue(Action action) { Queued++; pending.Enqueue(action); available.Release(); }
@@ -474,14 +643,16 @@ internal static class EventConfirmationModuleTests
         internal ClientEventConfirmationCommand? Single;
         internal ClientEventBatchConfirmationCommand? Batch;
         internal TaskCompletionSource? Hold;
+        internal readonly TaskCompletionSource Sent = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal List<ModConfirmEventApplicationResultDto> Applications = new();
         public async Task<ClashOfRimClientNetworkResult<ModConfirmEventApplicationResponseDto>> ConfirmAsync(
             ClashOfRimClientNetworkContext context, ClientEventConfirmationCommand command, CancellationToken token)
-        { Calls++; Context = context; Single = command; if (Hold is not null) await Hold.Task;
+        { Calls++; Context = context; Single = command; Sent.TrySetResult(); if (Hold is not null) await Hold.Task;
           return Result(new ModConfirmEventApplicationResponseDto { AppliedSnapshotId = Snapshot, NextLineageToken = "next", Result = new() { Accepted = Failure != "rejected" } }); }
         public async Task<ClashOfRimClientNetworkResult<ModConfirmEventApplicationsResponseDto>> ConfirmBatchAsync(
             ClashOfRimClientNetworkContext context, ClientEventBatchConfirmationCommand command, CancellationToken token)
-        { Calls++; Context = context; Batch = command; if (Hold is not null) await Hold.Task;
-          return Result(new ModConfirmEventApplicationsResponseDto { AppliedSnapshotId = Snapshot, NextLineageToken = "next", Result = new() { Accepted = Failure != "rejected" } }); }
+        { Calls++; Context = context; Batch = command; Sent.TrySetResult(); if (Hold is not null) await Hold.Task;
+          return Result(new ModConfirmEventApplicationsResponseDto { Applications = Applications, AppliedSnapshotId = Snapshot, NextLineageToken = "next", Result = new() { Accepted = Failure != "rejected" } }); }
         private ClashOfRimClientNetworkResult<T> Result<T>(T response) => Failure switch
         {
             "transport" => ClashOfRimClientNetworkResult<T>.Failed("HttpError", "503 failure"),
@@ -490,6 +661,18 @@ internal static class EventConfirmationModuleTests
             _ => ClashOfRimClientNetworkResult<T>.Ok(response)
         };
     }
+    private sealed class WorkflowPresentation : IClientEventConfirmationPresentation
+    {
+        internal readonly List<ClientEventConfirmationNotice> Notices = new();
+        public string Format(ClientEventConfirmationNotice notice) => $"{notice.Purpose}:{notice.Stage}";
+        public void Report(ClientEventConfirmationNotice notice, string message) => Notices.Add(notice);
+    }
+    private sealed class WorkflowEffects : IClientEventConfirmationEffects
+    {
+        internal readonly List<string> Handled = new();
+        public void MarkHandled(string eventId) => Handled.Add(eventId);
+    }
+
     private sealed class Handler : HttpMessageHandler
     {
         private readonly Func<HttpRequestMessage, Task<HttpResponseMessage>> send;

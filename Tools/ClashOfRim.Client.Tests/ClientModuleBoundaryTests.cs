@@ -21,7 +21,7 @@ internal static class ClientModuleBoundaryTests
             || t == typeof(ModSnapshotUploadService) || t == typeof(ClientSnapshotPreparationAdapter)
             || t == typeof(ClientSnapshotPackagePresentation) || t == typeof(ClientSnapshotUploadPresentation)
             || t == typeof(ClientSnapshotPreparationPresentation) || t == typeof(ClientSnapshotFailureView)
-            || t == typeof(ClientEventPreparationPresentation) || t == typeof(SnapshotConfirmationFailureWindow)
+            || t == typeof(ClientEventConfirmationEffects) || t == typeof(ClientEventConfirmationPresentation) || t == typeof(SnapshotConfirmationFailureWindow)
             || t == typeof(ClientEventLetterPolicy) || t == typeof(ClientEventLetterRenderer)
             || t == typeof(ClientEventLetterRuntime) || t == typeof(ClientDiplomacyPresentation)
             || t == typeof(ClientEventReadPresentation) || t == typeof(ClashOfRimEventLetterProjection)
@@ -31,7 +31,7 @@ internal static class ClientModuleBoundaryTests
         Console.WriteLine($"Client module dependency guard checked {modules.Length} product and generated types.");
         Type[] eventAdapters = { typeof(ClientEventLetterPolicy), typeof(ClientEventLetterRenderer), typeof(ClientEventLetterRuntime),
             typeof(ClientDiplomacyPresentation), typeof(ClientEventTextFormatting), typeof(ClientEventReadPresentation),
-            typeof(ClientEventPreparationPresentation), typeof(ClientSnapshotPreparationPresentation),
+            typeof(ClientEventConfirmationPresentation), typeof(ClientEventConfirmationEffects), typeof(ClientSnapshotPreparationPresentation),
             typeof(ClientSnapshotFailureView), typeof(SnapshotConfirmationFailureWindow) };
         var adapterTypes = typeof(ClashOfRimMod).Assembly.GetTypes().Where(t => eventAdapters.Contains(t)
             || (t.DeclaringType is not null && eventAdapters.Contains(t.DeclaringType))).ToArray();

@@ -99,39 +99,7 @@ public sealed partial class ClashOfRimMod
     }
 
     private void StartConfirmSupportPawnApplication(ModEventDetailDto detail)
-    {
-        if (IsAnyManualOrSnapshotSyncInProgress())
-        {
-            giftProcessingStatus = ClashOfRimText.Key("ClashOfRim.EventLetter.SupportConfirmBusy");
-            Messages.Message(giftProcessingStatus, MessageTypeDefOf.RejectInput, historical: false);
-            return;
-        }
-
-        string eventId = detail.EventId;
-        StartConfirmEventApplicationSnapshot(new EventApplicationSnapshotConfirmationRequest
-        {
-            EventId = eventId,
-            ClientApplicationResult = "SupportPawnArrived",
-            Operation = LocalMutationKind.SupportArrival,
-            IdempotencyPrefix = "support-confirm",
-            UploadingStatus = ClashOfRimText.Key("ClashOfRim.EventLetter.SupportConfirmUploading", eventId.Named("EVENTID")),
-            BuildFailurePrefix = ClashOfRimText.Key("ClashOfRim.EventLetter.SupportConfirmBuildFailed"),
-            FailurePrefix = ClashOfRimText.Key("ClashOfRim.EventLetter.SupportConfirmFailed"),
-            RejectedPrefix = ClashOfRimText.Key("ClashOfRim.EventLetter.SupportConfirmRejected"),
-            ExceptionPrefix = ClashOfRimText.Key("ClashOfRim.EventLetter.SupportConfirmException"),
-            EmptyEventMessage = ClashOfRimText.Key("ClashOfRim.EventLetter.SupportConfirmEmpty"),
-            RetryAction = () => StartConfirmSupportPawnApplication(detail),
-            OnAcceptedOnMainThread = response =>
-            {
-                ClashOfRimGameComponent.MarkManualEventHandled(eventId);
-                giftProcessingStatus = ClashOfRimText.Key(
-                    "ClashOfRim.EventLetter.SupportConfirmSucceeded",
-                    eventId.Named("EVENTID"),
-                    response.AppliedSnapshotId.Named("SNAPSHOT"));
-                Messages.Message(giftProcessingStatus, MessageTypeDefOf.PositiveEvent, historical: false);
-            }
-        });
-    }
+        => _ = eventConfirmations.SupportArrivalAsync(detail.EventId);
 
     private bool HandleEventLetterReject(ModEventDetailDto detail)
     {

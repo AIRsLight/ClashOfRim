@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Events;
 using static AIRsLight.ClashOfRim.Modules.Maps.ClientMapIdentity;
 using AIRsLight.ClashOfRim.Modules.Synchronization;
 using System;
@@ -1721,38 +1722,13 @@ public sealed partial class ClashOfRimMod
 
         RemoteMapSessionController.KeepRaidBattleFinishInProgress(session);
 
-        StartConfirmPreparedIdentityEventApplicationSnapshot(new PreparedIdentityEventApplicationSnapshotConfirmationRequest
-        {
-            Operation = LocalMutationKind.Raid,
-            EventId = session.EventId,
-            UserId = settings.UserId,
-            ColonyId = settings.ColonyId,
-            BaseSnapshotId = settings.CurrentSnapshotId,
-            ConfirmedSnapshot = confirmedSnapshot,
-            ConfirmedPayload = confirmedPayload,
-            ClientApplicationResult = context.DefenderClientApplicationResult,
-            IdempotencyKey = context.DefenderIdempotencyKey,
-            HttpTimeout = RaidSettlementHttpTimeout(session),
-            UploadingStatus = ClashOfRimText.Key("ClashOfRim.Raid.StatusSettlementUploading"),
-            SetStatus = value => worldMapStatus = value,
-            RetryAction = () => StartUploadPreparedRaidSettlement(context),
-            UploadTransaction = continuation,
-            CompleteMutationBeforeAcceptedCallback = true,
-            ShowFailure = (retry, allowRetry) => ShowRaidSettlementFailure(context, retry, allowRetry),
-            BuildRequestFailedStatus = result => ClashOfRimText.Key(
-                "ClashOfRim.Raid.StatusSettlementFailed",
-                result.ErrorCode.Named("CODE"),
-                result.Message.Named("MESSAGE")),
-            BuildRejectedStatus = (serverResult, response) => ClashOfRimText.Key(
-                "ClashOfRim.Raid.StatusSettlementRejected",
-                serverResult.ErrorCode.Named("CODE"),
-                serverResult.Message.Named("MESSAGE"),
-                response.ServerValidationResult.Named("VALIDATION")),
-            BuildExceptionStatus = ex => ClashOfRimText.Key(
-                "ClashOfRim.Raid.StatusSettlementException",
-                ex.GetType().Name.Named("TYPE"),
-                ex.Message.Named("MESSAGE")),
-            OnAcceptedOnMainThread = response =>
+        var command = new ClientEventConfirmationCommand(context.DefenderIdempotencyKey, session.EventId, null,
+            settings.UserId, settings.ColonyId, settings.CurrentSnapshotId, confirmedSnapshot, confirmedPayload,
+            context.DefenderClientApplicationResult, RaidSettlementHttpTimeout(session));
+        _ = eventConfirmations.PreparedRaidAsync(command, continuation,
+            () => StartUploadPreparedRaidSettlement(context),
+            (retry, allowRetry) => ShowRaidSettlementFailureNow(context, retry, allowRetry),
+            response =>
             {
                 if (!string.Equals(
                         ClashOfRimGameComponent.ActiveRaidBattleSession?.EventId,
@@ -1772,8 +1748,7 @@ public sealed partial class ClashOfRimMod
                 RemoteMapSessionController.CloseRaidBattleAfterSettlementAccepted(session, context.FinishReason);
                 ClashOfRimGameComponent.ClearActiveRaidBattleSession(session.EventId);
                 StartConfirmRaidAttackerSnapshotWhenReady(context);
-            }
-        });
+            });
     }
 
     private void StartConfirmRaidAttackerSnapshotWhenReady(RaidBattleSettlementContext context, int attempts = 0)
@@ -2015,27 +1990,21 @@ public sealed partial class ClashOfRimMod
         });
     }
 
-    private void ShowRaidSettlementFailure(
-        RaidBattleSettlementContext context,
-        Action? retryAction = null,
-        bool allowRetry = false)
+    private void ShowRaidSettlementFailure(RaidBattleSettlementContext context, Action? retryAction = null, bool allowRetry = false)
+        => ClashOfRimGameComponent.EnqueueMainThreadAction(() => ShowRaidSettlementFailureNow(context, retryAction, allowRetry));
+
+    private void ShowRaidSettlementFailureNow(RaidBattleSettlementContext context, Action? retryAction, bool allowRetry)
     {
         ActiveRaidBattleSession session = context.Session;
-        ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
+        if (session.IsFinalDeadlineExpired)
         {
-            if (session.IsFinalDeadlineExpired)
-            {
-                HandleRaidBattleFinalDeadlineExpired(session);
-                return;
-            }
+            HandleRaidBattleFinalDeadlineExpired(session);
+            return;
+        }
 
-            RemoteMapSessionController.ResetRaidBattleFinish(session);
-            ShowUnconfirmedSnapshotFailure(
-                LocalMutationKind.Raid,
-                worldMapStatus,
-                retryAction ?? (() => StartFinishActiveRaidBattle(session, context.FinishReason)),
-                allowRetry);
-        });
+        RemoteMapSessionController.ResetRaidBattleFinish(session);
+        ShowUnconfirmedSnapshotFailure(LocalMutationKind.Raid, worldMapStatus,
+            retryAction ?? (() => StartFinishActiveRaidBattle(session, context.FinishReason)), allowRetry);
     }
 
     internal void HandleRaidBattleFinalDeadlineExpired(ActiveRaidBattleSession session, bool closeLocalBattleMap = true)

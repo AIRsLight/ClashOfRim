@@ -38,12 +38,15 @@ internal sealed class ClientEventConfirmation
     internal ClientEventBatchConfirmationCommand Batch(Attempt attempt, string prefix, ModSnapshotPackageMetadataDto snapshot,
         byte[] payload, IReadOnlyList<ModConfirmEventApplicationEntryDto> applications)
     {
-        var entries = applications.Select(e => new ModConfirmEventApplicationEntryDto
-        { EventId = e.EventId, SourceEventId = e.SourceEventId, ClientApplicationResult = e.ClientApplicationResult }).ToArray();
+        var entries = CopyEntries(applications);
         string digest = string.Join(",", entries.Select(e => e.EventId).OrderBy(id => id, StringComparer.Ordinal));
         return new($"{prefix}:{attempt.Context.UserId}:{attempt.Context.ColonyId}:{digest}:{snapshot.SnapshotId}",
             attempt.Context.CurrentSnapshotId ?? string.Empty, snapshot, payload, entries);
     }
+
+    internal static ModConfirmEventApplicationEntryDto[] CopyEntries(IReadOnlyList<ModConfirmEventApplicationEntryDto> applications) =>
+        applications.Select(e => new ModConfirmEventApplicationEntryDto
+        { EventId = e.EventId, SourceEventId = e.SourceEventId, ClientApplicationResult = e.ClientApplicationResult }).ToArray();
 
     internal Task ConfirmAsync(Attempt attempt, ClientEventConfirmationCommand command,
         Action<ClientEventConfirmationFailure<ModConfirmEventApplicationResponseDto>> failed,
@@ -80,6 +83,7 @@ internal sealed class ClientEventConfirmation
     private async Task ExecuteAsync<T>(Attempt attempt, Func<Task<ClashOfRimClientNetworkResult<T>>> send,
         Func<T, ModProtocolResponseDto?> serverResult, Action<ClientEventConfirmationFailure<T>> failed, Action<T> accepted)
     {
+        bool publicationStarted = false;
         try
         {
             if (!TryApply(attempt, static () => { })) return;
@@ -105,6 +109,7 @@ internal sealed class ClientEventConfirmation
                         {
                             // Publication retains admission; the domain callback can start
                             // the next queued refresh only after publication releases it.
+                            publicationStarted = true;
                             accepted(result.Response);
                         });
                         completion.TrySetResult();
@@ -115,8 +120,9 @@ internal sealed class ClientEventConfirmation
         }
         catch (Exception ex)
         {
-            // A discarded identity/generation is silent, including cancellation exceptions.
-            TryApply(attempt, () => failed(new(ClientEventConfirmationFailureKind.Exception, Exception: ex)), requireBaseSnapshot: false);
+            // Only our own partial publication may advance the base snapshot before
+            // throwing. A late HTTP exception must still match the original base.
+            TryApply(attempt, () => failed(new(ClientEventConfirmationFailureKind.Exception, Exception: ex)), requireBaseSnapshot: !publicationStarted);
         }
         finally { attempt.Admission.Dispose(); }
     }
