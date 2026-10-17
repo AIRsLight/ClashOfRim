@@ -23,11 +23,14 @@ internal static class ModuleBoundaryTests
             .Where(t => t.Namespace?.StartsWith("AIRsLight.ClashOfRim.Network.Modules.", StringComparison.Ordinal) == true).ToArray();
         var violations = ModuleDependencyGuard.FindViolations(modules, t =>
             t == typeof(ClashOfRimNetworkServer) || t == typeof(ClashOfRimNetworkState)
-            || t == typeof(LegacySnapshotRecoveryAdapter) || t == typeof(IServiceProvider));
+            || t == typeof(LegacySnapshotRecoveryAdapter) || t == typeof(LegacyRaidDeliveryProtection) || t == typeof(IServiceProvider));
         Require(violations.Count == 0, string.Join(Environment.NewLine, violations));
-        var bankBusiness = modules.Where(t => t.Namespace == "AIRsLight.ClashOfRim.Network.Modules.Bank"
-            && t.Name != "BankEndpoints" && t.DeclaringType?.Name != "BankEndpoints").ToArray();
-        var transportLeaks = ModuleDependencyGuard.FindViolations(bankBusiness,
+        var business = modules.Where(t =>
+            t.Namespace is "AIRsLight.ClashOfRim.Network.Modules.Bank" or "AIRsLight.ClashOfRim.Network.Modules.Gifts"
+                or "AIRsLight.ClashOfRim.Network.Modules.Transfers"
+            && t.Name is not ("BankEndpoints" or "GiftEndpoints")
+            && t.DeclaringType?.Name is not ("BankEndpoints" or "GiftEndpoints")).ToArray();
+        var transportLeaks = ModuleDependencyGuard.FindViolations(business,
             t => t.Namespace?.StartsWith("Microsoft.AspNetCore.Http", StringComparison.Ordinal) == true);
         Require(transportLeaks.Count == 0, string.Join(Environment.NewLine, transportLeaks));
 

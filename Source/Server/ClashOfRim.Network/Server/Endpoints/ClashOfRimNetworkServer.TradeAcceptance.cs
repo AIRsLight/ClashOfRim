@@ -1,3 +1,4 @@
+using static AIRsLight.ClashOfRim.Network.Modules.Events.EventProtocolMapper;
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Protocol;
 using Microsoft.AspNetCore.Http;

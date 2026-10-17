@@ -9,14 +9,12 @@ public static partial class ClashOfRimNetworkServer
 {
     private static RecoveredSnapshotMutation EnterColonySnapshotMutation(ClashOfRimNetworkState state,
         string? token, string userId, string colonyId, [System.Runtime.CompilerServices.CallerMemberName] string operation = "")
-        => EnterRecoveredSnapshotMutation(state, () => IsAuthorizedForColony(state, token, userId, colonyId,
-            null, null, DateTimeOffset.UtcNow, out string failure)
-                ? null : ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, failure), operation);
+        => state.SnapshotRequests.EnterColony(token, userId, colonyId, operation);
 
     private static RecoveredSnapshotMutation EnterPrincipalSnapshotMutation(HttpRequest http, ClashOfRimNetworkState state,
         ProtocolIdentity principal, [System.Runtime.CompilerServices.CallerMemberName] string operation = "")
-        => EnterRecoveredSnapshotMutation(state, () => ReauthorizeSnapshotPrincipal(http, state, principal)
-            ? null : ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed")), operation);
+        => state.SnapshotRequests.EnterPrincipal(
+            http.Headers[MultipartSnapshotAuthentication.HeaderName].FirstOrDefault(), principal, operation);
 
     private static RecoveredSnapshotMutation EnterColonySnapshotMutation(HttpRequest http, ClashOfRimNetworkState state,
         string userId, string colonyId, string snapshotId, string? token,

@@ -168,10 +168,8 @@ internal static partial class GiftRejectionEndpointTests
         return state.AuthTokens.Issue(user, user, colony, session, now);
     }
     private static RejectGiftResponse Reject(ClashOfRimNetworkState state, RejectGiftRequest request)
-    {
-        try { return (RejectGiftResponse)((IValueHttpResult)typeof(ClashOfRimNetworkServer).GetMethod("RejectGift", BindingFlags.NonPublic | BindingFlags.Static)!.Invoke(null, [request, state])!).Value!; }
-        catch (TargetInvocationException ex) when (ex.InnerException is not null) { ExceptionDispatchInfo.Capture(ex.InnerException).Throw(); throw; }
-    }
+        => state.Gifts.Reject(request);
+
     private static IAuthoritativeEventLedger Open(string storage, string root) => storage switch
     {
         "file" => new FileAuthoritativeEventLedger(Path.Combine(root, "events.json")),

@@ -1,0 +1,97 @@
+using AIRsLight.ClashOfRim.Events;
+using AIRsLight.ClashOfRim.Network;
+using AIRsLight.ClashOfRim.Network.Modules.Authorization;
+using AIRsLight.ClashOfRim.Network.Modules.Bank;
+using AIRsLight.ClashOfRim.Network.Modules.Economy;
+using AIRsLight.ClashOfRim.Network.Modules.Events;
+using AIRsLight.ClashOfRim.Network.Modules.Gifts;
+using AIRsLight.ClashOfRim.Network.Modules.Raids;
+using AIRsLight.ClashOfRim.Network.Modules.Snapshots;
+using AIRsLight.ClashOfRim.Network.Modules.Transfers;
+using AIRsLight.ClashOfRim.Network.Plugins;
+using AIRsLight.ClashOfRim.Save;
+
+// Composes actual domain modules without a network host or its aggregate state.
+internal sealed class EconomicModuleTestContext
+{
+    internal readonly InMemoryColonySnapshotIndexStore Snapshots = new();
+    internal readonly InMemoryAuthoritativeEventLedger Ledger = new();
+    internal readonly BankLoanRegistry Loans = new();
+    internal readonly LoginSessionRegistry Sessions = new();
+    internal readonly AuthTokenRegistry Tokens = new();
+    internal readonly RecoveryProbe Recovery = new();
+    internal readonly DiplomacyRelationRegistry Relations = new();
+    internal readonly OnlinePresenceRegistry Presence = new();
+    internal readonly EventNotificationHub Notifications = new();
+    internal readonly PawnPackageRegistry Pawns = new();
+    internal readonly ThingPackageRegistry Things = new();
+    internal readonly object Gate = new();
+    internal readonly RaidProtectionProbe Raids;
+    internal ClashOfRimServerConfiguration Configuration = new(bankLoansEnabled: true, bankMinLoanSilver: 1,
+        bankMinDurationDays: 1, bankBaseAnnualInterestRate: 0);
+    internal readonly BankRequestAccess Access;
+    internal readonly BankService Bank;
+    internal readonly GiftService Gifts;
+    internal readonly ItemTransferPackages Packages;
+    internal readonly SaveSnapshotPackage Package;
+    internal readonly string Token;
+
+    internal EconomicModuleTestContext(Func<string, SaveSnapshotPackage> factory)
+    {
+        var mercenaries = new MercenaryContractRegistry();
+        var mutations = new SnapshotMutationCoordinator(Gate, Recovery);
+        var colonies = new ColonyAccessAuthorization(Tokens, Sessions, Relations,
+            new RaidPreparationRegistry(), Ledger, () => Configuration.PvpEnabled);
+        var pending = new PendingConfirmationReconciler(Loans, mercenaries, () => Configuration, Gate);
+        Access = new BankRequestAccess(colonies, mutations, Snapshots, Loans, pending);
+        var principals = new SnapshotPrincipalAuthorization(Tokens, Sessions);
+        var requests = new SnapshotRequestAuthorization(principals, colonies, mutations);
+        var transactions = new SnapshotTransactions(Snapshots, SnapshotUploadPolicy.AllowAnyVersion,
+            new ServerPluginRegistry(), new CompatibilityBaselineRegistry());
+        var commits = new SnapshotCommitService();
+        Bank = new BankService(Loans, mercenaries, Snapshots, commits, Access, requests, transactions, Recovery, () => Configuration);
+        Raids = new RaidProtectionProbe(Gate);
+        Packages = new ItemTransferPackages(Pawns, Things);
+        Gifts = new GiftService(Ledger, Snapshots, Loans, mercenaries, commits, requests, transactions, pending,
+            Packages, new DeliveryTargetResolver(Snapshots), Presence, Notifications, Relations, Raids, Recovery, () => Configuration);
+        Package = MercenaryCommitCrashTests.PrepareEndpoint(Snapshots, factory, new("userA", "colonyA", "before"), "paid");
+        Token = Issue("userA", "colonyA");
+    }
+
+    internal string Issue(string userId, string colonyId)
+    {
+        var now = DateTimeOffset.UtcNow;
+        Sessions.TryCreate(userId, colonyId, now, out string session);
+        return Tokens.Issue(userId, userId, colonyId, session, now);
+    }
+
+    internal sealed class RecoveryProbe : ISnapshotRecovery, ISnapshotRecoveryPreparation, ISnapshotCommitEffects
+    {
+        internal int Replays, Commits;
+        internal Action? OnReplay;
+        public void RecoverPrerequisites() { }
+        public ISnapshotRecoveryPreparation CapturePreparation() => this;
+        public void Replay() { Replays++; OnReplay?.Invoke(); }
+        public bool NeedsPreparation => false;
+        public bool IsCurrent => true;
+        public void Prepare() { }
+        public bool TryInstall() => true;
+        public void AfterCommit(LatestSnapshotRecord snapshot, string? uploadKind) => Commits++;
+    }
+
+    internal sealed class RaidProtectionProbe(object gate) : IRaidDeliveryProtection
+    {
+        internal int Reconciliations;
+        internal Action? OnReconcile;
+        internal AuthoritativeEvent? BlockingRaid;
+        internal DateTimeOffset? CooldownUntil;
+        public void Reconcile(DateTimeOffset nowUtc)
+        {
+            if (Monitor.IsEntered(gate)) throw new Exception("Raid recovery ran inside gift mutation gate.");
+            Reconciliations++;
+            OnReconcile?.Invoke();
+        }
+        public AuthoritativeEvent? FindBlockingRaid(string userId, string? colonyId) => BlockingRaid;
+        public DateTimeOffset? CurrentCooldownUntil(string userId, string? colonyId, DateTimeOffset nowUtc) => CooldownUntil;
+    }
+}

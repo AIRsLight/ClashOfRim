@@ -1,10 +1,9 @@
+using AIRsLight.ClashOfRim.Network.Modules.Gifts;
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Network;
 using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Save;
 using Microsoft.Data.Sqlite;
-using Microsoft.AspNetCore.Http;
-using System.Reflection;
 using System.Text.Json;
 
 internal static class GiftCommitCrashTests
@@ -138,26 +137,10 @@ internal static class GiftCommitCrashTests
             throw new Exception("Invalid gift payload published business state.");
     }
 
-    private static async Task<EventCreationResponse> Invoke(ClashOfRimNetworkState state,
+    private static Task<EventCreationResponse> Invoke(ClashOfRimNetworkState state,
         CreateGiftWithSnapshotRequest request, byte[] payload, ProtocolIdentity principal)
-    {
-        DateTimeOffset now = DateTimeOffset.UtcNow;
-        state.LoginSessions.TryCreate(principal.UserId, principal.ColonyId!, now, out string sessionId);
-        string token = state.AuthTokens.Issue(principal.UserId, principal.UserId, principal.ColonyId!, sessionId, now);
-        using var multipart = new MultipartFormDataContent();
-        multipart.Add(new StringContent(JsonSerializer.Serialize(request)), "request");
-        multipart.Add(new ByteArrayContent(payload), "payload", "snapshot.gz");
-        await using var body = new MemoryStream(await multipart.ReadAsByteArrayAsync());
-        var context = new DefaultHttpContext();
-        context.Request.Body = body;
-        context.Request.ContentType = multipart.Headers.ContentType!.ToString();
-        context.Request.Headers[MultipartSnapshotAuthentication.HeaderName] = token;
-        if (!MultipartSnapshotAuthentication.TryAuthorize(context.Request, state, now))
-            throw new Exception("Fixture authentication failed.");
-        MethodInfo endpoint = typeof(ClashOfRimNetworkServer).GetMethod("CreateGiftWithSnapshot", BindingFlags.NonPublic | BindingFlags.Static)!;
-        IResult result = await (Task<IResult>)endpoint.Invoke(null, new object[] { context.Request, state })!;
-        return (EventCreationResponse)((IValueHttpResult)result).Value!;
-    }
+        => SnapshotEndpointTestClient.Invoke<EventCreationResponse>(nameof(GiftEndpoints.CreateGiftWithSnapshot),
+            state, request, payload, principal);
 
     private static void Execute(string database, string sql)
     {

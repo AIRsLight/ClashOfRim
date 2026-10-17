@@ -1,11 +1,6 @@
 using System.Globalization;
-using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Network;
-using AIRsLight.ClashOfRim.Network.Modules.Authorization;
 using AIRsLight.ClashOfRim.Network.Modules.Bank;
-using AIRsLight.ClashOfRim.Network.Modules.Economy;
-using AIRsLight.ClashOfRim.Network.Modules.Snapshots;
-using AIRsLight.ClashOfRim.Network.Plugins;
 using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Save;
 using Microsoft.AspNetCore.Http;
@@ -38,7 +33,7 @@ internal static class BankModuleTests
 
     private static void ReadAndBorrow(Func<string, SaveSnapshotPackage> factory)
     {
-        var f = new Fixture(factory);
+        var f = new EconomicModuleTestContext(factory);
         var statusRequest = new GetBankStatusRequest("userA", "colonyA", "before", f.Token, 1100, 10000);
         var rejected = f.Bank.GetBankStatus(new("userA", "colonyA", "before", "invalid", 1100, 10000));
         Require(!rejected.Result.Accepted && f.Recovery.Replays == 0, "Invalid status request started recovery.");
@@ -69,7 +64,7 @@ internal static class BankModuleTests
 
     private static void Repay(Func<string, SaveSnapshotPackage> factory, bool debt)
     {
-        var f = new Fixture(factory);
+        var f = new EconomicModuleTestContext(factory);
         var now = DateTimeOffset.UtcNow;
         var metadata = ProtocolDtoMapper.ToMetadataDto(f.Package);
         if (debt)
@@ -98,61 +93,11 @@ internal static class BankModuleTests
 
     private static void RecoveryInvalidatesAuthorization(Func<string, SaveSnapshotPackage> factory)
     {
-        var f = new Fixture(factory);
+        var f = new EconomicModuleTestContext(factory);
         f.Recovery.OnReplay = () => f.Sessions.EndUser("userA");
         var response = f.Bank.GetBankStatus(new("userA", "colonyA", "before", f.Token, 1100, 10000));
         Require(!response.Result.Accepted && response.ActiveLoan is null && f.Recovery.Commits == 0,
             "Status borrowed authorization revoked by recovery.");
-    }
-
-    // This fixture deliberately composes the module without a network host or its aggregate state.
-    private sealed class Fixture
-    {
-        internal readonly InMemoryColonySnapshotIndexStore Snapshots = new();
-        internal readonly BankLoanRegistry Loans = new();
-        internal readonly LoginSessionRegistry Sessions = new();
-        internal readonly RecoveryProbe Recovery = new();
-        internal ClashOfRimServerConfiguration Configuration = new(bankLoansEnabled: true, bankMinLoanSilver: 1,
-            bankMinDurationDays: 1, bankBaseAnnualInterestRate: 0);
-        internal readonly BankRequestAccess Access;
-        internal readonly BankService Bank;
-        internal readonly SaveSnapshotPackage Package;
-        internal readonly string Token;
-
-        internal Fixture(Func<string, SaveSnapshotPackage> factory)
-        {
-            var tokens = new AuthTokenRegistry();
-            var mercenaries = new MercenaryContractRegistry();
-            var gate = new object();
-            var mutations = new SnapshotMutationCoordinator(gate, Recovery);
-            var colonies = new ColonyAccessAuthorization(tokens, Sessions, new DiplomacyRelationRegistry(),
-                new RaidPreparationRegistry(), new InMemoryAuthoritativeEventLedger(), () => false);
-            var pending = new PendingConfirmationReconciler(Loans, mercenaries, () => Configuration, gate);
-            Access = new BankRequestAccess(colonies, mutations, Snapshots, Loans, pending);
-            var principals = new SnapshotPrincipalAuthorization(tokens, Sessions);
-            Bank = new BankService(Loans, mercenaries, Snapshots, new SnapshotCommitService(), Access,
-                new SnapshotRequestAuthorization(principals, colonies, mutations),
-                new SnapshotTransactions(Snapshots, SnapshotUploadPolicy.AllowAnyVersion, new ServerPluginRegistry(), new CompatibilityBaselineRegistry()),
-                Recovery, () => Configuration);
-            Package = MercenaryCommitCrashTests.PrepareEndpoint(Snapshots, factory, new("userA", "colonyA", "before"), "paid");
-            var now = DateTimeOffset.UtcNow;
-            Sessions.TryCreate("userA", "colonyA", now, out string session);
-            Token = tokens.Issue("userA", "userA", "colonyA", session, now);
-        }
-    }
-
-    private sealed class RecoveryProbe : ISnapshotRecovery, ISnapshotRecoveryPreparation, ISnapshotCommitEffects
-    {
-        internal int Replays, Commits;
-        internal Action? OnReplay;
-        public void RecoverPrerequisites() { }
-        public ISnapshotRecoveryPreparation CapturePreparation() => this;
-        public void Replay() { Replays++; OnReplay?.Invoke(); }
-        public bool NeedsPreparation => false;
-        public bool IsCurrent => true;
-        public void Prepare() { }
-        public bool TryInstall() => true;
-        public void AfterCommit(LatestSnapshotRecord snapshot, string? uploadKind) => Commits++;
     }
 
     private static void Require(bool condition, string message)

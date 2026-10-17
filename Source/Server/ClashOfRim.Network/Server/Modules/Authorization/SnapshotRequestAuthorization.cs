@@ -11,6 +11,16 @@ internal sealed class SnapshotRequestAuthorization(
         principals.TryAuthorize(token, DateTimeOffset.UtcNow, out var principal)
         && SnapshotPrincipalAuthorization.Matches(principal!, identity.UserId, identity.ColonyId);
 
+    internal RecoveredSnapshotMutation EnterPrincipal(string? token, ProtocolIdentity identity,
+        [CallerMemberName] string operation = "") =>
+        mutations.Enter(() => ReauthorizePrincipal(token, identity)
+            ? null : ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, ServerLocalization.Text("Auth.Failed")), operation);
+
+    internal RecoveredSnapshotMutation EnterColony(string? token, string userId, string colonyId,
+        [CallerMemberName] string operation = "") =>
+        mutations.Enter(() => colonies.TryAuthorize(token, userId, colonyId, null, null, DateTimeOffset.UtcNow, out string failure)
+            ? null : ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, failure), operation);
+
     internal RecoveredSnapshotMutation EnterColony(string userId, string colonyId, string snapshotId,
         string? token, string? principalToken, [CallerMemberName] string operation = "") =>
         mutations.Enter(() =>

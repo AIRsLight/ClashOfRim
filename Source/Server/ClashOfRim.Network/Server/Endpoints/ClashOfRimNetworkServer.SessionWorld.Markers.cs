@@ -862,12 +862,7 @@ public static partial class ClashOfRimNetworkServer
     }
 
     private static RaidEligibilityPolicy BuildRaidEligibilityPolicy(ClashOfRimServerConfiguration configuration)
-    {
-        return new RaidEligibilityPolicy(
-            configuration.RaidMinimumDefenderWealth,
-            RequireHostileRelation: true,
-            RequireDefenderOffline: true);
-    }
+        => Modules.Raids.RaidPolicies.BuildEligibility(configuration);
 
     private static RaidCooldownPolicy BuildRaidCooldownPolicy(ClashOfRimServerConfiguration configuration)
     {

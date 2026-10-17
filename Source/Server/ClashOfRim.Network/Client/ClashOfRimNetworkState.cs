@@ -1,3 +1,5 @@
+using AIRsLight.ClashOfRim.Network.Modules.Gifts;
+using AIRsLight.ClashOfRim.Network.Modules.Transfers;
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Network.Plugins;
 using AIRsLight.ClashOfRim.Network.Modules.Authorization;
@@ -106,6 +108,12 @@ public sealed class ClashOfRimNetworkState
         BankRequests = new BankRequestAccess(ColonyAuthorization, SnapshotMutations, SnapshotStore, BankLoans, PendingConfirmations);
         Bank = new BankService(BankLoans, MercenaryContracts, SnapshotStore, SnapshotCommits,
             BankRequests, SnapshotRequests, SnapshotTransactions, recovery, () => ServerConfiguration);
+        TransferPackages = new ItemTransferPackages(PawnPackages, ThingPackages);
+        DeliveryTargets = new DeliveryTargetResolver(SnapshotStore);
+        Gifts = new GiftService(Ledger, SnapshotStore, BankLoans, MercenaryContracts, SnapshotCommits,
+            SnapshotRequests, SnapshotTransactions, PendingConfirmations, TransferPackages, DeliveryTargets,
+            OnlinePresence, EventNotifications, DiplomacyRelations, new LegacyRaidDeliveryProtection(this),
+            recovery, () => ServerConfiguration);
         EventDelivery = new EventDeliveryService(SnapshotAuthorization, SnapshotMutations, Ledger,
             EventNotifications, OnlinePresence, Players);
     }
@@ -121,6 +129,9 @@ public sealed class ClashOfRimNetworkState
     internal PendingConfirmationReconciler PendingConfirmations { get; }
     internal BankRequestAccess BankRequests { get; }
     internal BankService Bank { get; }
+    internal ItemTransferPackages TransferPackages { get; }
+    internal DeliveryTargetResolver DeliveryTargets { get; }
+    internal GiftService Gifts { get; }
 
     public IColonySnapshotIndexStore SnapshotStore { get; }
 

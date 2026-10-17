@@ -1,3 +1,5 @@
+using static AIRsLight.ClashOfRim.Network.Modules.Events.EventProtocolMapper;
+using static AIRsLight.ClashOfRim.Network.Modules.Transfers.ItemTransferMapper;
 using AIRsLight.ClashOfRim.Network.Modules.Economy;
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Network.Plugins;
@@ -1136,7 +1138,7 @@ public static partial class ClashOfRimNetworkServer
             .FirstOrDefault();
     }
 
-    private static AuthoritativeEvent? FindDefenderLoginBlockingRaid(
+    internal static AuthoritativeEvent? FindDefenderLoginBlockingRaid(
         ClashOfRimNetworkState state,
         string? defenderUserId,
         string? defenderColonyId)
@@ -1429,7 +1431,7 @@ public static partial class ClashOfRimNetworkServer
             payload.DefenderSnapshotId);
     }
 
-    private static RaidTimeoutProcessingResult ReconcileExpiredRaidEvents(
+    internal static RaidTimeoutProcessingResult ReconcileExpiredRaidEvents(
         ClashOfRimNetworkState state,
         DateTimeOffset nowUtc)
     {

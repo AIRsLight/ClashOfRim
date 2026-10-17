@@ -1,3 +1,5 @@
+using static AIRsLight.ClashOfRim.Network.Modules.Events.EventProtocolMapper;
+using static AIRsLight.ClashOfRim.Network.Modules.Transfers.ItemTransferMapper;
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Save;
