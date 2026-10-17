@@ -111,7 +111,7 @@ public sealed partial class ClashOfRimMod : Mod
     private bool chatRefreshInProgress;
     private bool chatSendInProgress;
     private readonly ClientSessionLifecycle sessionLifecycle;
-    private bool sessionReconnectInProgress;
+    private readonly ClientSessionReconnect sessionReconnect;
     private bool languageMismatchAcceptedForCurrentServerEntry;
     private bool blockAutomaticMapSessionForServerEntrySourceGame;
     private readonly ClientSessionConnection sessionConnection = new(new ClientSessionStreamTransport());
@@ -157,6 +157,7 @@ public sealed partial class ClashOfRimMod : Mod
     {
         settings = GetSettings<ClashOfRimSettings>();
         sessionLifecycle = new ClientSessionLifecycle(new ClientSessionIdentityStore(settings), new ClientSessionLogoutTransport(), sessionConnection);
+        sessionReconnect = new ClientSessionReconnect(new ClientSessionReconnectTransport(), sessionLifecycle);
         if (!string.Equals(content.PackageId, PackageId, StringComparison.OrdinalIgnoreCase))
         {
             Log.Warning("[ClashOfRim] Ignored ClashOfRim mod class loaded from unexpected package: " + (content.PackageId ?? "<null>") + ".");

@@ -31,9 +31,7 @@ public sealed partial class ClashOfRimModNetworkClient
         {
             // Release only the session created here, even if the owning client work was cancelled.
             using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-            await authenticated.PostAsync<ModLogoutRequestDto, ModLogoutResponseDto>(LogoutRoute,
-                new ModLogoutRequestDto { UserId = context.UserId, ColonyId = context.ColonyId, SessionId = login.Response.SessionId },
-                cleanup.Token, bindToSession: false).ConfigureAwait(false);
+            await authenticated.LogoutDetachedAsync(login.Response.SessionId, cleanup.Token).ConfigureAwait(false);
         }
     }
 }

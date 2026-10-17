@@ -268,7 +268,6 @@ public sealed partial class ClashOfRimMod
         tradeOrdersPageLoadInProgress = false;
         chatRefreshInProgress = false;
         chatSendInProgress = false;
-        sessionReconnectInProgress = false;
         // GoToMainMenu unloads the scene asynchronously. Its old game can still
         // update after logout, so retain the same admission barrier used by entry.
         MarkServerEntrySourceGame();
@@ -1444,213 +1443,109 @@ public sealed partial class ClashOfRimMod
 
     private void StartSessionReconnect(SessionExpiredWindow window)
     {
-        SessionReconnectBlockReason blockReason = SessionReconnectSafetyPolicy.EvaluateLocalState(
-            Current.ProgramState == ProgramState.Playing,
-            Current.Game is not null,
-            settings.IsConfigured,
-            settings.UserId,
-            settings.ColonyId,
-            settings.CurrentSnapshotId,
-            IsAnyManualOrSnapshotSyncInProgress(),
-            localAtomicMutationPending);
-        if (blockReason != SessionReconnectBlockReason.None)
+        using var publication = ClientSessionWork.EnterPublication();
+        ClientSessionReconnect.Attempt? attempt;
+        SessionReconnectBlockReason blocked;
+        lock (syncStateGate)
         {
-            window.CompleteReconnect(false, FormatSessionReconnectBlockReason(blockReason));
+            blocked = sessionReconnect.TryBegin(new SessionReconnectLocalState(
+                Current.ProgramState == ProgramState.Playing, Current.Game is not null,
+                manualSyncInProgress || snapshotUploadInProgress, localAtomicMutationPending), out attempt);
+            if (blocked == SessionReconnectBlockReason.None) manualSyncInProgress = true;
+        }
+        if (attempt is null)
+        {
+            window.CompleteReconnect(false, FormatSessionReconnectBlockReason(blocked));
+            return;
+        }
+        ClashLog.Message("[ClashOfRim][SessionReconnect] Starting in-place reconnect: user=" + attempt.Expected.UserId
+            + ", colony=" + attempt.Expected.ColonyId + ", snapshot=" + attempt.Expected.CurrentSnapshotId
+            + ", activeRaid=" + ClashOfRimGameComponent.HasActiveRaidBattleSession
+            + ", observation=" + ClashOfRimGameComponent.HasActiveObservationSession + ".");
+        _ = RunSessionReconnect(attempt, window, Current.Game);
+    }
+
+    private async Task RunSessionReconnect(ClientSessionReconnect.Attempt attempt, SessionExpiredWindow window, Game? originalGame)
+    {
+        int synchronizationReleased = 0;
+        void ReleaseSynchronization()
+        {
+            if (Interlocked.Exchange(ref synchronizationReleased, 1) != 0) return;
+            ClientSessionWork.TryApply(() =>
+            {
+                if (attempt.Owner.Token != ClientSessionWork.Token) return;
+                lock (syncStateGate) manualSyncInProgress = false;
+            });
+        }
+        try
+        {
+            await ClientSessionWork.Run(async () =>
+            {
+                await attempt.PrepareAsync();
+                var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                using var cancellation = attempt.Owner.Token.Register(() => completion.TrySetCanceled(attempt.Owner.Token));
+                ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
+                {
+                    try
+                    {
+                        using var publication = ClientSessionWork.EnterPublication();
+                        var result = attempt.Complete(Current.ProgramState == ProgramState.Playing,
+                            originalGame is not null && ReferenceEquals(Current.Game, originalGame), localAtomicMutationPending);
+                        ReleaseSynchronization();
+                        PresentSessionReconnect(window, attempt.Expected, result);
+                        completion.TrySetResult(true);
+                    }
+                    catch (Exception ex) { completion.TrySetException(ex); }
+                }, () => completion.TrySetResult(false));
+                await completion.Task;
+            });
+        }
+        catch (Exception ex) when (attempt.Owner.Token == ClientSessionWork.Token && ClientSessionWork.IsCurrent)
+        {
+            Log.Warning("[ClashOfRim] Session reconnect completion failed: " + ex);
+            ClashOfRimGameComponent.EnqueueMainThreadAction(() => window.CompleteReconnect(false,
+                ClashOfRimText.Key("ClashOfRim.SessionExpired.ReconnectNetworkFailed", ex.Message.Named("MESSAGE"))));
+        }
+        finally
+        {
+            ReleaseSynchronization();
+            await attempt.DisposeAsync();
+        }
+    }
+
+    private void PresentSessionReconnect(SessionExpiredWindow window, ClashOfRimClientNetworkContext expected, SessionReconnectResult result)
+    {
+        if (result.Outcome == SessionReconnectOutcome.Obsolete) return;
+        if (result.Outcome != SessionReconnectOutcome.Succeeded)
+        {
+            string status = result.Outcome switch
+            {
+                SessionReconnectOutcome.LocalStateBlocked => FormatSessionReconnectBlockReason(result.BlockReason),
+                SessionReconnectOutcome.IdentityChanged => ClashOfRimText.Key("ClashOfRim.SessionExpired.ReconnectIdentityChanged"),
+                SessionReconnectOutcome.SnapshotChanged => ClashOfRimText.Key("ClashOfRim.SessionExpired.ReconnectSnapshotChanged"),
+                SessionReconnectOutcome.Rejected => ClashOfRimText.Key("ClashOfRim.SessionExpired.ReconnectRejected", (result.Message ?? string.Empty).Named("MESSAGE")),
+                _ => ClashOfRimText.Key("ClashOfRim.SessionExpired.ReconnectNetworkFailed", (result.Message ?? string.Empty).Named("MESSAGE"))
+            };
+            Log.Warning("[ClashOfRim][SessionReconnect] Reconnect refused: " + result.Outcome + ": " + result.Message);
+            window.CompleteReconnect(false, status);
             return;
         }
 
-        lock (syncStateGate)
-        {
-            if (sessionReconnectInProgress || manualSyncInProgress || snapshotUploadInProgress)
-            {
-                window.CompleteReconnect(
-                    false,
-                    ClashOfRimText.Key("ClashOfRim.SessionExpired.ReconnectBusy"));
-                return;
-            }
-
-            sessionReconnectInProgress = true;
-            manualSyncInProgress = true;
-        }
-
-        string expectedUserId = settings.UserId;
-        string expectedColonyId = settings.ColonyId;
-        string expectedSnapshotId = settings.CurrentSnapshotId;
-        var unauthenticatedContext = ClashOfRimClientNetworkContext.FromSettings(settings);
-        ClashLog.Message("[ClashOfRim][SessionReconnect] Starting in-place reconnect: user="
-            + expectedUserId
-            + ", colony="
-            + expectedColonyId
-            + ", snapshot="
-            + expectedSnapshotId
-            + ", activeRaid="
-            + ClashOfRimGameComponent.HasActiveRaidBattleSession
-            + ", observation="
-            + ClashOfRimGameComponent.HasActiveObservationSession
-            + ".");
-
-        ClientSessionWork.Run(async () =>
-        {
-            try
-            {
-                using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-                var entryClient = new ClashOfRimModNetworkClient(httpClient, unauthenticatedContext);
-                ClashOfRimClientNetworkResult<ModPrepareWorldSessionResponseDto> prepared =
-                    await ClientSessionWork.Observe(entryClient.PrepareWorldSessionAsync());
-                using (ClientSessionWork.EnterPublication())
-                {
-                    if (!prepared.Success || prepared.Response is null)
-                    {
-                        CompleteSessionReconnect(window, false, ClashOfRimText.Key("ClashOfRim.SessionExpired.ReconnectNetworkFailed", (prepared.Message ?? prepared.ErrorCode ?? string.Empty).Named("MESSAGE")));
-                        return;
-                    }
-                }
-
-                ModPrepareWorldSessionResponseDto worldSession = prepared.Response;
-                using (ClientSessionWork.EnterPublication())
-                {
-                    if (worldSession.Result?.Accepted != true)
-                    {
-                        CompleteSessionReconnect(window, false, ClashOfRimText.Key("ClashOfRim.SessionExpired.ReconnectRejected", (worldSession.Result?.Message ?? string.Empty).Named("MESSAGE")));
-                        return;
-                    }
-
-                    if (!SessionReconnectSafetyPolicy.MatchesAuthoritativeSnapshot(expectedColonyId, expectedSnapshotId, worldSession.HasExistingColony, worldSession.AssignedColonyId, worldSession.LatestSnapshotId))
-                    {
-                        Log.Warning("[ClashOfRim][SessionReconnect] Authoritative snapshot changed before login: expectedColony=" + expectedColonyId + ", assignedColony=" + worldSession.AssignedColonyId + ", expectedSnapshot=" + expectedSnapshotId + ", latestSnapshot=" + worldSession.LatestSnapshotId + ".");
-                        CompleteSessionReconnect(window, false, ClashOfRimText.Key("ClashOfRim.SessionExpired.ReconnectSnapshotChanged"));
-                        return;
-                    }
-                }
-
-                ClashOfRimClientNetworkResult<ModLoginResponseDto> login =
-                    await ClientSessionWork.Observe(entryClient.LoginAsync("session-reconnect"));
-                using (ClientSessionWork.EnterPublication())
-                {
-                    if (!login.Success || login.Response is null)
-                    {
-                        CompleteSessionReconnect(window, false, ClashOfRimText.Key("ClashOfRim.SessionExpired.ReconnectNetworkFailed", (login.Message ?? login.ErrorCode ?? string.Empty).Named("MESSAGE")));
-                        return;
-                    }
-                }
-
-                ModLoginResponseDto loginResponse = login.Response;
-                using (ClientSessionWork.EnterPublication())
-                {
-                    if (loginResponse.Result?.Accepted != true || string.IsNullOrWhiteSpace(loginResponse.SessionId) || string.IsNullOrWhiteSpace(loginResponse.AuthToken))
-                    {
-                        CompleteSessionReconnect(window, false, ClashOfRimText.Key("ClashOfRim.SessionExpired.ReconnectRejected", (loginResponse.Result?.Message ?? string.Empty).Named("MESSAGE")));
-                        return;
-                    }
-                }
-
-                string authenticatedUserId = string.IsNullOrWhiteSpace(loginResponse.AuthenticatedUserId)
-                    ? expectedUserId
-                    : loginResponse.AuthenticatedUserId!.Trim();
-                if (!string.Equals(authenticatedUserId, expectedUserId, StringComparison.Ordinal))
-                {
-                    await ClientSessionWork.Observe(entryClient.LogoutAsync(loginResponse.SessionId!));
-                    using var branchPublication = ClientSessionWork.EnterPublication();
-                    CompleteSessionReconnect(
-                        window,
-                        false,
-                        ClashOfRimText.Key("ClashOfRim.SessionExpired.ReconnectIdentityChanged"));
-                    return;
-                }
-
-                var authenticatedContext = new ClashOfRimClientNetworkContext(
-                    settings.ServerBaseUrl,
-                    authenticatedUserId,
-                    expectedColonyId,
-                    expectedSnapshotId,
-                    settings.SteamAuthTicket,
-                    settings.OfflinePassword,
-                    loginResponse.AuthToken);
-                var authenticatedClient = new ClashOfRimModNetworkClient(httpClient, authenticatedContext);
-                ClashOfRimClientNetworkResult<ModDownloadLatestSnapshotResponseDto> metadata =
-                    await ClientSessionWork.Observe(authenticatedClient.DownloadLatestSnapshotAsync());
-                if (!metadata.Success
-                    || metadata.Response?.Result?.Accepted != true
-                    || !string.Equals(metadata.Response.SnapshotId, expectedSnapshotId, StringComparison.Ordinal))
-                {
-                    using (ClientSessionWork.EnterPublication())
-                    {
-                        Log.Warning("[ClashOfRim][SessionReconnect] Authoritative snapshot changed after login: expectedSnapshot=" + expectedSnapshotId + ", latestSnapshot=" + metadata.Response?.SnapshotId + ", error=" + (metadata.Message ?? metadata.Response?.Result?.Message ?? metadata.ErrorCode ?? string.Empty) + ".");
-                    }
-                    await ClientSessionWork.Observe(authenticatedClient.LogoutAsync(loginResponse.SessionId!));
-                    using var branchPublication = ClientSessionWork.EnterPublication();
-                    CompleteSessionReconnect(
-                        window,
-                        false,
-                        ClashOfRimText.Key("ClashOfRim.SessionExpired.ReconnectSnapshotChanged"));
-                    return;
-                }
-
-                using var publication = ClientSessionWork.EnterPublication();
-                ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
-                {
-                    if (Current.ProgramState != ProgramState.Playing || Current.Game is null)
-                    {
-                        window.CompleteReconnect(
-                            false,
-                            ClashOfRimText.Key("ClashOfRim.SessionExpired.ReconnectNotPlaying"));
-                        return;
-                    }
-
-                    sessionLifecycle.PublishLogin(loginResponse);
-                    ClashLog.Message("[ClashOfRim][SessionReconnect] In-place reconnect accepted: user="
-                        + authenticatedUserId
-                        + ", colony="
-                        + expectedColonyId
-                        + ", snapshot="
-                        + expectedSnapshotId
-                        + ", session="
-                        + loginResponse.SessionId
-                        + ", activeRaidRecovery="
-                        + (metadata.Response.ActiveRaidRecovery?.EventId ?? "<none>")
-                        + ".");
-                    loginStatus = ClashOfRimText.Key("ClashOfRim.SessionExpired.ReconnectSucceeded");
-                    presenceStatus = loginStatus;
-                    eventQueueStatus = FormatEventQueue(loginResponse.EventQueue);
-                    CaptureEventIds(loginResponse.EventQueue);
-                    CaptureWorldMapMarkers(loginResponse.WorldMapMarkers, source: "session-reconnect");
-                    window.CompleteReconnect(true, loginStatus);
-                    StartAutomaticEventRefresh(ClashOfRimText.Key("ClashOfRim.SessionExpired.ReconnectReason"));
-                    StartRefreshPlayers(ClashOfRimText.Key("ClashOfRim.SessionExpired.ReconnectReason"), requireManualGate: false);
-                    StartRefreshChatMessages();
-                    StartManualPresence();
-                    ReconcileRestoredRaidBattleSession(metadata.Response.ActiveRaidRecovery);
-                });
-            }
-            catch (Exception ex)
-            when (ClientSessionWork.IsCurrent)
-            {
-                using var publication = ClientSessionWork.EnterPublication();
-                Log.Warning("[ClashOfRim] Session reconnect failed: " + ex);
-                CompleteSessionReconnect(
-                    window,
-                    false,
-                    ClashOfRimText.Key(
-                        "ClashOfRim.SessionExpired.ReconnectNetworkFailed",
-                        ex.Message.Named("MESSAGE")));
-            }
-            finally
-            {
-                ClientSessionWork.TryApply(() =>
-                {
-                    lock (syncStateGate)
-                    {
-                        sessionReconnectInProgress = false;
-                        manualSyncInProgress = false;
-                    }
-                });
-            }
-        });
-    }
-
-    private static void CompleteSessionReconnect(SessionExpiredWindow window, bool succeeded, string status)
-    {
-        ClashOfRimGameComponent.EnqueueMainThreadAction(() => window.CompleteReconnect(succeeded, status));
+        ModLoginResponseDto login = result.Login!;
+        ClashLog.Message("[ClashOfRim][SessionReconnect] In-place reconnect accepted: user=" + expected.UserId
+            + ", colony=" + expected.ColonyId + ", snapshot=" + expected.CurrentSnapshotId + ", session=" + login.SessionId
+            + ", activeRaidRecovery=" + (result.Snapshot!.ActiveRaidRecovery?.EventId ?? "<none>") + ".");
+        loginStatus = ClashOfRimText.Key("ClashOfRim.SessionExpired.ReconnectSucceeded");
+        presenceStatus = loginStatus;
+        eventQueueStatus = FormatEventQueue(login.EventQueue);
+        CaptureEventIds(login.EventQueue);
+        CaptureWorldMapMarkers(login.WorldMapMarkers, source: "session-reconnect");
+        window.CompleteReconnect(true, loginStatus);
+        StartAutomaticEventRefresh(ClashOfRimText.Key("ClashOfRim.SessionExpired.ReconnectReason"));
+        StartRefreshPlayers(ClashOfRimText.Key("ClashOfRim.SessionExpired.ReconnectReason"), requireManualGate: false);
+        StartRefreshChatMessages();
+        StartManualPresence();
+        ReconcileRestoredRaidBattleSession(result.Snapshot.ActiveRaidRecovery);
     }
 
     private static string FormatSessionReconnectBlockReason(SessionReconnectBlockReason reason)

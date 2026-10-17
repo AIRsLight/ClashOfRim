@@ -1302,6 +1302,14 @@ public sealed partial class ClashOfRimModNetworkClient
     public Task<ClashOfRimClientNetworkResult<ModLogoutResponseDto>> LogoutAsync(
         string? sessionId,
         CancellationToken cancellationToken = default)
+        => LogoutCoreAsync(sessionId, cancellationToken, bindToSession: true);
+
+    internal Task<ClashOfRimClientNetworkResult<ModLogoutResponseDto>> LogoutDetachedAsync(
+        string? sessionId, CancellationToken cancellationToken)
+        => LogoutCoreAsync(sessionId, cancellationToken, bindToSession: false);
+
+    private Task<ClashOfRimClientNetworkResult<ModLogoutResponseDto>> LogoutCoreAsync(
+        string? sessionId, CancellationToken cancellationToken, bool bindToSession)
     {
         if (!context.IsConfigured)
         {
@@ -1318,7 +1326,7 @@ public sealed partial class ClashOfRimModNetworkClient
         return PostAsync<ModLogoutRequestDto, ModLogoutResponseDto>(
             LogoutRoute,
             request,
-            cancellationToken);
+            cancellationToken, bindToSession);
     }
 
     public Task<ClashOfRimClientNetworkResult<ModListPlayersResponseDto>> ListPlayersAsync(
