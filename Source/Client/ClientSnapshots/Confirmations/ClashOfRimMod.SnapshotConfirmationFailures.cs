@@ -66,14 +66,7 @@ public sealed partial class ClashOfRimMod
             ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.ReturningToMainMenu"),
             MessageTypeDefOf.NeutralEvent,
             historical: false);
-        if (snapshotUploadInProgress)
-        {
-            EndSnapshotUploadTransaction();
-        }
-        else
-        {
-            manualSyncInProgress = false;
-        }
+        synchronization.Reset();
 
         ClearLocalAtomicMutation();
         playerColonySiteRegistrationSuppressed = false;

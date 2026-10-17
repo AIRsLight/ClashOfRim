@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using AIRsLight.ClashOfRim.ClientNetwork;
+using AIRsLight.ClashOfRim.Modules.Synchronization;
 
 namespace AIRsLight.ClashOfRim.Modules.Sessions;
 
@@ -9,10 +10,11 @@ internal sealed class ClientSessionReconnect
 {
     private readonly IClientSessionReconnectTransport transport;
     private readonly ClientSessionLifecycle lifecycle;
+    private readonly ClientSynchronizationCoordinator synchronization;
     private Attempt? current;
 
-    internal ClientSessionReconnect(IClientSessionReconnectTransport transport, ClientSessionLifecycle lifecycle)
-    { this.transport = transport; this.lifecycle = lifecycle; }
+    internal ClientSessionReconnect(IClientSessionReconnectTransport transport, ClientSessionLifecycle lifecycle, ClientSynchronizationCoordinator synchronization)
+    { this.transport = transport; this.lifecycle = lifecycle; this.synchronization = synchronization; }
 
     internal bool IsRunning => Volatile.Read(ref current) is Attempt attempt && lifecycle.Owns(attempt.Owner);
 
@@ -22,9 +24,10 @@ internal sealed class ClientSessionReconnect
         attempt = null;
         var context = lifecycle.ReadContext();
         var blocked = SessionReconnectSafetyPolicy.EvaluateLocalState(local.IsPlaying, local.HasGame, context.IsConfigured,
-            context.UserId, context.ColonyId, context.CurrentSnapshotId, local.SynchronizationBusy || IsRunning, local.AtomicMutationPending);
+            context.UserId, context.ColonyId, context.CurrentSnapshotId, IsRunning, local.AtomicMutationPending);
         if (blocked != SessionReconnectBlockReason.None) return blocked;
-        attempt = new Attempt(this, context, lifecycle.CaptureOwnership());
+        if (!synchronization.TryBeginManual(out var admission)) return SessionReconnectBlockReason.SynchronizationBusy;
+        attempt = new Attempt(this, context, lifecycle.CaptureOwnership(), admission);
         Volatile.Write(ref current, attempt);
         return SessionReconnectBlockReason.None;
     }
@@ -35,13 +38,15 @@ internal sealed class ClientSessionReconnect
     {
         private readonly ClientSessionReconnect service;
         private readonly object completionGate = new();
+        private readonly ClientSynchronizationCoordinator.Lease admission;
         private ModLoginResponseDto? login;
         private ClashOfRimClientNetworkContext? authenticated;
         private SessionReconnectResult? prepared;
         private bool adopted, disposed;
 
-        internal Attempt(ClientSessionReconnect service, ClashOfRimClientNetworkContext expected, ClientSessionLifecycle.Ownership owner)
-        { this.service = service; Expected = expected; Owner = owner; }
+        internal Attempt(ClientSessionReconnect service, ClashOfRimClientNetworkContext expected, ClientSessionLifecycle.Ownership owner,
+            ClientSynchronizationCoordinator.Lease admission)
+        { this.service = service; Expected = expected; Owner = owner; this.admission = admission; }
         internal ClashOfRimClientNetworkContext Expected { get; }
         internal ClientSessionLifecycle.Ownership Owner { get; }
         private bool IsCurrent => ReferenceEquals(Volatile.Read(ref service.current), this) && service.lifecycle.Owns(Owner);
@@ -95,6 +100,12 @@ internal sealed class ClientSessionReconnect
 
         internal SessionReconnectResult Complete(bool isPlaying, bool hasOriginalGame, bool atomicMutationPending)
         {
+            try { return CompleteCore(isPlaying, hasOriginalGame, atomicMutationPending); }
+            finally { admission.Dispose(); }
+        }
+
+        private SessionReconnectResult CompleteCore(bool isPlaying, bool hasOriginalGame, bool atomicMutationPending)
+        {
             using var publication = ClientSessionWork.EnterPublication();
             lock (completionGate)
             {
@@ -130,6 +141,7 @@ internal sealed class ClientSessionReconnect
             }
             try
             {
+                admission.Dispose();
                 if (release is not null) await service.lifecycle.ReleaseSessionAsync(release, releaseSession!);
             }
             finally { Interlocked.CompareExchange(ref service.current, null, this); }
@@ -137,7 +149,7 @@ internal sealed class ClientSessionReconnect
     }
 }
 
-internal sealed record SessionReconnectLocalState(bool IsPlaying, bool HasGame, bool SynchronizationBusy, bool AtomicMutationPending);
+internal sealed record SessionReconnectLocalState(bool IsPlaying, bool HasGame, bool AtomicMutationPending);
 internal enum SessionReconnectOutcome { Succeeded, NetworkFailed, Rejected, SnapshotChanged, IdentityChanged, LocalStateBlocked, Obsolete }
 internal sealed record SessionReconnectResult(SessionReconnectOutcome Outcome, string? Message = null,
     SessionReconnectBlockReason BlockReason = SessionReconnectBlockReason.None, ModLoginResponseDto? Login = null, ModDownloadLatestSnapshotResponseDto? Snapshot = null);

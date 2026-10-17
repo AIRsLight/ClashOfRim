@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Synchronization;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,7 +13,7 @@ using AIRsLight.ClashOfRim.Protocol;
 
 internal static class SessionReconnectModuleTests
 {
-    private static readonly SessionReconnectLocalState Ready = new(true, true, false, false);
+    private static readonly SessionReconnectLocalState Ready = new(true, true, false);
     internal static void Run() => RunAsync().GetAwaiter().GetResult();
     private static async Task RunAsync()
     {
@@ -37,21 +38,28 @@ internal static class SessionReconnectModuleTests
         {
             (Ready with { IsPlaying = false }, SessionReconnectBlockReason.NotInPlayableSession),
             (Ready with { HasGame = false }, SessionReconnectBlockReason.NotInPlayableSession),
-            (Ready with { SynchronizationBusy = true }, SessionReconnectBlockReason.SynchronizationBusy),
             (Ready with { AtomicMutationPending = true }, SessionReconnectBlockReason.AtomicMutationPending)
         }) Require(f.Service.TryBegin(test.Item1, out var denied) == test.Item2 && denied is null, "Invalid local admission.");
+        Require(f.Synchronization.TryBeginManual(out var manual), "Manual admission failed.");
+        Require(f.Service.TryBegin(Ready, out _) == SessionReconnectBlockReason.SynchronizationBusy, "Reconnect ignored manual admission.");
+        manual!.Dispose();
+        Require(f.Synchronization.TryAcquireSnapshot(out var snapshot), "Snapshot admission failed.");
+        Require(f.Service.TryBegin(Ready, out _) == SessionReconnectBlockReason.SynchronizationBusy, "Reconnect ignored snapshot admission.");
+        snapshot!.Dispose();
         f.Store.Colony = "";
         Require(f.Service.TryBegin(Ready, out _) == SessionReconnectBlockReason.MissingIdentity, "Missing colony admitted.");
         f.Store.Colony = "colony";
         var attempt = f.Begin();
         await attempt.PrepareAsync();
         Require(f.Service.IsRunning && f.Service.TryBegin(Ready, out _) == SessionReconnectBlockReason.SynchronizationBusy
+            && f.Synchronization.ManualInProgress && !f.Synchronization.TryAcquireSnapshot(out _, allowExistingManualSync: true)
             && f.Store.Token == "" && f.Lifecycle.SessionId is null, "Prepared login was published or released before the game accepted it.");
         var result = attempt.Complete(true, true, false);
         Require(result.Outcome == SessionReconnectOutcome.Succeeded && result.Snapshot?.ActiveRaidRecovery?.EventId == "active-raid"
             && f.Store.Token == "candidate-token" && f.Lifecycle.SessionId == "candidate-session"
             && f.Transport.MetadataContext?.AuthToken == "candidate-token" && f.Store.Writes == 1,
             "Reconnect did not adopt the authenticated login and exact recovery metadata.");
+        Require(!f.Synchronization.IsBusy, "Completed reconnect retained manual admission.");
         Require(attempt.Complete(true, true, false).Outcome == SessionReconnectOutcome.Obsolete, "Reconnect published twice.");
         await attempt.DisposeAsync();
         await attempt.DisposeAsync();
@@ -89,7 +97,7 @@ internal static class SessionReconnectModuleTests
                 "Wrong reconnect failure result: " + test.Item1);
             await attempt.DisposeAsync();
             await attempt.DisposeAsync();
-            Require(f.Logout.Calls.Count == test.Item3 && !f.Service.IsRunning, "Wrong cleanup count: " + test.Item1);
+            Require(f.Logout.Calls.Count == test.Item3 && !f.Service.IsRunning && !f.Synchronization.IsBusy, "Wrong cleanup count: " + test.Item1);
             if (test.Item3 == 1)
             {
                 var released = f.Logout.Calls.Single();
@@ -149,7 +157,7 @@ internal static class SessionReconnectModuleTests
         Require(old.Owner.Token.IsCancellationRequested && old.Complete(true, true, false).Outcome == SessionReconnectOutcome.Obsolete,
             "Expired request became adoptable.");
         await old.DisposeAsync();
-        Require(f.Service.IsRunning && f.Logout.Calls.Count == (stage == "prepare" ? 0 : 1)
+        Require(f.Service.IsRunning && f.Synchronization.ManualInProgress && f.Logout.Calls.Count == (stage == "prepare" ? 0 : 1)
             && f.Store.Token == "", "Old finalizer cleared the new attempt or leaked its late login.");
         await newer.DisposeAsync();
         Require(!f.Service.IsRunning, "New attempt could not release admission.");
@@ -235,6 +243,7 @@ internal static class SessionReconnectModuleTests
     private sealed class Fixture
     {
         internal readonly Store Store = new();
+        internal readonly ClientSynchronizationCoordinator Synchronization = new();
         internal readonly Logout Logout = new();
         internal readonly Transport Transport;
         internal readonly ClientSessionLifecycle Lifecycle;
@@ -243,7 +252,8 @@ internal static class SessionReconnectModuleTests
         {
             Transport = new(scenario);
             Lifecycle = new(Store, Logout, new ClientSessionConnection(new Stream()));
-            Service = new(Transport, Lifecycle);
+            Lifecycle.Ended += Synchronization.Reset;
+            Service = new(Transport, Lifecycle, Synchronization);
         }
         internal ClientSessionReconnect.Attempt Begin()
         {

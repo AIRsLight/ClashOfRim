@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Synchronization;
 using static AIRsLight.ClashOfRim.EventLetters.ClientEventLetterPolicy;
 using System;
 using System.Collections.Generic;
@@ -993,7 +994,7 @@ public sealed partial class ClashOfRimMod
 
         public string UploadingStatus { get; set; } = string.Empty;
 
-        public bool UploadTransactionAlreadyStarted { get; set; }
+        public ClientSynchronizationCoordinator.Lease? UploadTransaction { get; set; }
 
         public bool CompleteMutationBeforeAcceptedCallback { get; set; }
 
@@ -1048,7 +1049,7 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
-        if (!TryBeginSnapshotUploadTransaction())
+        if (!TryBeginSnapshotUploadTransaction(out var uploadTransaction))
         {
             string status = ClashOfRimText.Key("ClashOfRim.SnapshotUpload.Busy");
             SetEventApplicationSnapshotConfirmationStatus(request, status);
@@ -1070,7 +1071,7 @@ public sealed partial class ClashOfRimMod
                 request.Operation,
                 status,
                 request.RetryAction);
-            EndSnapshotUploadTransaction();
+            uploadTransaction.Dispose();
             return;
         }
 
@@ -1177,10 +1178,7 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                ClientSessionWork.TryApply(() =>
-                {
-                    EndSnapshotUploadTransaction();
-                });
+                uploadTransaction.Dispose();
             }
         });
     }
@@ -1214,7 +1212,7 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
-        if (!TryBeginSnapshotUploadTransaction())
+        if (!TryBeginSnapshotUploadTransaction(out var uploadTransaction))
         {
             string status = ClashOfRimText.Key("ClashOfRim.SnapshotUpload.Busy");
             SetEventApplicationsSnapshotConfirmationStatus(request, status);
@@ -1239,7 +1237,7 @@ public sealed partial class ClashOfRimMod
                 request.Operation,
                 status,
                 request.RetryAction);
-            EndSnapshotUploadTransaction();
+            uploadTransaction.Dispose();
             return;
         }
 
@@ -1341,10 +1339,7 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                ClientSessionWork.TryApply(() =>
-                {
-                    EndSnapshotUploadTransaction();
-                });
+                uploadTransaction.Dispose();
             }
         });
     }
@@ -1425,6 +1420,7 @@ public sealed partial class ClashOfRimMod
     {
         if (request.ConfirmedSnapshot is null || request.ConfirmedPayload.Length == 0)
         {
+            request.UploadTransaction?.Dispose();
             return;
         }
 
@@ -1437,18 +1433,17 @@ public sealed partial class ClashOfRimMod
         {
             SetPreparedIdentityEventApplicationSnapshotConfirmationStatus(request, blockedMessage);
             Messages.Message(blockedMessage, MessageTypeDefOf.RejectInput, historical: false);
+            request.UploadTransaction?.Dispose();
             return;
         }
 
-        bool uploadTransactionOwned = request.UploadTransactionAlreadyStarted;
-        if (!uploadTransactionOwned && !TryBeginSnapshotUploadTransaction())
+        if (!synchronization.TryAcquireSnapshot(out var uploadTransaction, request.UploadTransaction))
         {
             string status = ClashOfRimText.Key("ClashOfRim.SnapshotUpload.Busy");
             SetPreparedIdentityEventApplicationSnapshotConfirmationStatus(request, status);
             Messages.Message(status, MessageTypeDefOf.RejectInput, historical: false);
             return;
         }
-        uploadTransactionOwned = true;
 
         BeginLocalAtomicMutation(operation, request.UploadingStatus);
         SetPreparedIdentityEventApplicationSnapshotConfirmationStatus(request, request.UploadingStatus);
@@ -1590,13 +1585,7 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                ClientSessionWork.TryApply(() =>
-                {
-                    if (uploadTransactionOwned)
-                    {
-                        EndSnapshotUploadTransaction();
-                    }
-                });
+                uploadTransaction.Dispose();
             }
         });
     }
@@ -1885,7 +1874,7 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
-        if (!TryBeginSnapshotUploadTransaction())
+        if (!TryBeginSnapshotUploadTransaction(out var uploadTransaction))
         {
             string status = ClashOfRimText.Key("ClashOfRim.SnapshotUpload.Busy");
             SetLocalMutationSnapshotConfirmationStatus(request, status);
@@ -1982,10 +1971,7 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                ClientSessionWork.TryApply(() =>
-                {
-                    EndSnapshotUploadTransaction();
-                });
+                uploadTransaction.Dispose();
             }
         });
     }
@@ -2014,7 +2000,7 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
-        if (!TryBeginSnapshotUploadTransaction())
+        if (!TryBeginSnapshotUploadTransaction(out var uploadTransaction))
         {
             snapshotUploadStatus = ClashOfRimText.Key("ClashOfRim.SnapshotUpload.Busy");
             Messages.Message(snapshotUploadStatus, MessageTypeDefOf.RejectInput, historical: false);
@@ -2062,10 +2048,7 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                ClientSessionWork.TryApply(() =>
-                {
-                    EndSnapshotUploadTransaction();
-                });
+                uploadTransaction.Dispose();
             }
         });
     }
@@ -2086,7 +2069,7 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
-        if (!TryBeginSnapshotUploadTransaction())
+        if (!TryBeginSnapshotUploadTransaction(out var uploadTransaction))
         {
             snapshotUploadStatus = ClashOfRimText.Key("ClashOfRim.Menu.UploadSnapshotBusy");
             Messages.Message(snapshotUploadStatus, MessageTypeDefOf.RejectInput, historical: false);
@@ -2144,10 +2127,7 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                ClientSessionWork.TryApply(() =>
-                {
-                    EndSnapshotUploadTransaction();
-                });
+                uploadTransaction.Dispose();
             }
         });
     }
@@ -2170,7 +2150,7 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
-        if (!TryBeginSnapshotUploadTransaction())
+        if (!TryBeginSnapshotUploadTransaction(out var uploadTransaction))
         {
             snapshotUploadStatus = ClashOfRimText.Key("ClashOfRim.AutosaveSnapshot.SkippedBusy");
             ClashLog.Message("[ClashOfRim] Autosave snapshot upload skipped: sync already running.");
@@ -2221,10 +2201,7 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                ClientSessionWork.TryApply(() =>
-                {
-                    EndSnapshotUploadTransaction();
-                });
+                uploadTransaction.Dispose();
             }
         });
     }

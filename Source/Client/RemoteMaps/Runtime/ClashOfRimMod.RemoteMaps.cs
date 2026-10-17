@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Synchronization;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -1249,7 +1250,7 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
-        if (!TryBeginSnapshotUploadTransaction(allowExistingManualSync: true))
+        if (!TryBeginSnapshotUploadTransaction(out var uploadTransaction, allowExistingManualSync: true))
         {
             worldMapStatus = ClashOfRimText.Key("ClashOfRim.SnapshotUpload.Busy");
             Log.Warning("[ClashOfRim][Raid] Prepared raid start snapshot submission could not acquire upload transaction after local battle map mutation: event="
@@ -1294,7 +1295,7 @@ public sealed partial class ClashOfRimMod
                 "ClashOfRim.Raid.StatusAttackerSnapshotException",
                 "SaveToMemoryFailed".Named("TYPE"),
                 buildFailureReason.Named("MESSAGE"));
-            EndSnapshotUploadTransaction();
+            uploadTransaction.Dispose();
             ShowUnconfirmedSnapshotFailure(
                 operation,
                 worldMapStatus,
@@ -1317,7 +1318,7 @@ public sealed partial class ClashOfRimMod
             carriedThings,
             build.Package!,
             build.Payload!,
-            uploadTransactionAlreadyStarted: true);
+            continuation: uploadTransaction);
     }
 
     private void StartSubmitPreparedRaidWithSnapshot(
@@ -1329,11 +1330,12 @@ public sealed partial class ClashOfRimMod
         IReadOnlyList<ModThingReferenceDto> carriedThings,
         ModSnapshotPackageMetadataDto confirmedSnapshot,
         byte[] confirmedPayload,
-        bool uploadTransactionAlreadyStarted = false)
+        ClientSynchronizationCoordinator.Lease? continuation = null)
     {
         string operation = ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationRaid");
         if (TryRejectBlockedByDifferentLocalAtomicMutation(operation, out string blockedMessage))
         {
+            continuation?.Dispose();
             worldMapStatus = blockedMessage;
             Log.Warning("[ClashOfRim][Raid] Prepared raid start snapshot multipart submission blocked by another local atomic mutation: event="
                 + session.EventId
@@ -1353,12 +1355,11 @@ public sealed partial class ClashOfRimMod
                     carriedThings,
                     confirmedSnapshot,
                     confirmedPayload,
-                    uploadTransactionAlreadyStarted: false));
+                    continuation: null));
             return;
         }
 
-        bool uploadTransactionOwned = uploadTransactionAlreadyStarted;
-        if (!uploadTransactionOwned && !TryBeginSnapshotUploadTransaction())
+        if (!synchronization.TryAcquireSnapshot(out var uploadTransaction, continuation))
         {
             worldMapStatus = ClashOfRimText.Key("ClashOfRim.SnapshotUpload.Busy");
             Log.Warning("[ClashOfRim][Raid] Prepared raid start snapshot multipart submission could not acquire upload transaction: event="
@@ -1377,10 +1378,9 @@ public sealed partial class ClashOfRimMod
                     carriedThings,
                     confirmedSnapshot,
                     confirmedPayload,
-                    uploadTransactionAlreadyStarted: false));
+                    continuation: null));
             return;
         }
-        uploadTransactionOwned = true;
 
         BeginLocalAtomicMutation(operation, ClashOfRimText.Key("ClashOfRim.Raid.StatusSubmitting", FormatSupportTargetLabel(target).Named("TARGET")));
         worldMapStatus = ClashOfRimText.Key(
@@ -1519,13 +1519,7 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                ClientSessionWork.TryApply(() =>
-                {
-                    if (uploadTransactionOwned)
-                    {
-                        EndSnapshotUploadTransaction();
-                    }
-                });
+                uploadTransaction.Dispose();
             }
         });
     }
@@ -1623,7 +1617,7 @@ public sealed partial class ClashOfRimMod
     private void ContinueFinishActiveRaidBattleAfterSupportResolution(RaidBattleSettlementContext context)
     {
         ActiveRaidBattleSession session = context.Session;
-        if (!TryBeginSnapshotUploadTransaction(allowExistingManualSync: true))
+        if (!TryBeginSnapshotUploadTransaction(out var uploadTransaction, allowExistingManualSync: true))
         {
             worldMapStatus = ClashOfRimText.Key("ClashOfRim.SnapshotUpload.Busy");
             Messages.Message(worldMapStatus, MessageTypeDefOf.RejectInput, historical: false);
@@ -1651,7 +1645,7 @@ public sealed partial class ClashOfRimMod
                 "ClashOfRim.Raid.StatusSettlementSaveFailed",
                 buildFailureReason.Named("REASON"));
             RemoteMapSessionController.ResetRaidBattleFinish(session);
-            EndSnapshotUploadTransaction();
+            uploadTransaction.Dispose();
             ShowUnconfirmedSnapshotFailure(
                 ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationRaid"),
                 worldMapStatus,
@@ -1675,7 +1669,7 @@ public sealed partial class ClashOfRimMod
                 "ClashOfRim.Raid.StatusSettlementSaveFailed",
                 prepareFailureReason.Named("REASON"));
             RemoteMapSessionController.ResetRaidBattleFinish(session);
-            EndSnapshotUploadTransaction();
+            uploadTransaction.Dispose();
             ShowUnconfirmedSnapshotFailure(
                 ClashOfRimText.Key("ClashOfRim.SnapshotConfirmationFailure.OperationRaid"),
                 worldMapStatus,
@@ -1685,7 +1679,7 @@ public sealed partial class ClashOfRimMod
 
         StartUploadPreparedRaidSettlement(
             context.WithPreparedSnapshot(confirmedSnapshot!, confirmedPayload!),
-            uploadTransactionAlreadyStarted: true);
+            continuation: uploadTransaction);
     }
 
     private static bool TryPrepareRaidSettlementSnapshotPackage(
@@ -1728,11 +1722,12 @@ public sealed partial class ClashOfRimMod
 
     private void StartUploadPreparedRaidSettlement(
         RaidBattleSettlementContext context,
-        bool uploadTransactionAlreadyStarted = false)
+        ClientSynchronizationCoordinator.Lease? continuation = null)
     {
         ActiveRaidBattleSession session = context.Session;
         if (session is null || string.IsNullOrWhiteSpace(session.EventId))
         {
+            continuation?.Dispose();
             return;
         }
 
@@ -1740,6 +1735,7 @@ public sealed partial class ClashOfRimMod
         byte[]? confirmedPayload = context.ConfirmedPayload;
         if (confirmedSnapshot is null || confirmedPayload is null)
         {
+            continuation?.Dispose();
             return;
         }
 
@@ -1760,7 +1756,7 @@ public sealed partial class ClashOfRimMod
             UploadingStatus = ClashOfRimText.Key("ClashOfRim.Raid.StatusSettlementUploading"),
             SetStatus = value => worldMapStatus = value,
             RetryAction = () => StartUploadPreparedRaidSettlement(context),
-            UploadTransactionAlreadyStarted = uploadTransactionAlreadyStarted,
+            UploadTransaction = continuation,
             CompleteMutationBeforeAcceptedCallback = true,
             ShowFailure = (retry, allowRetry) => ShowRaidSettlementFailure(context, retry, allowRetry),
             BuildRequestFailedStatus = result => ClashOfRimText.Key(

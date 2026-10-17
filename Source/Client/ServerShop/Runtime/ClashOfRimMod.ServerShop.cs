@@ -438,7 +438,7 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
-        if (!TryBeginSnapshotUploadTransaction())
+        if (!TryBeginSnapshotUploadTransaction(out var uploadTransaction))
         {
             serverShopStatus = ClashOfRimText.Key("ClashOfRim.SnapshotUpload.Busy");
             ShowUnconfirmedSnapshotFailure(
@@ -535,7 +535,7 @@ public sealed partial class ClashOfRimMod
             {
                 ClientSessionWork.TryApply(() =>
                 {
-                    EndSnapshotUploadTransaction();
+                    uploadTransaction.Dispose();
                     serverShopInProgress = false;
                 });
             }

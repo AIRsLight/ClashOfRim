@@ -126,7 +126,7 @@ public sealed partial class ClashOfRimMod
         }
 
         BeginLocalAtomicMutation(operation, operation);
-        if (!TryBeginSnapshotUploadTransaction())
+        if (!TryBeginSnapshotUploadTransaction(out var uploadTransaction))
         {
             ClearLocalAtomicMutation();
             NotifyPlayerMessage(ClashOfRimText.Key("ClashOfRim.SnapshotUpload.Busy"), MessageTypeDefOf.RejectInput);
@@ -169,7 +169,7 @@ public sealed partial class ClashOfRimMod
             {
                 ClientSessionWork.TryApply(() =>
                 {
-                    EndSnapshotUploadTransaction();
+                    uploadTransaction.Dispose();
                     CompleteLocalAtomicMutation();
                 });
             }

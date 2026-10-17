@@ -1009,7 +1009,7 @@ public sealed partial class ClashOfRimMod
     private void StartConfirmSettledRaidCleanupSnapshot(string eventId)
     {
         CloseUnconfirmedSnapshotFailureWindow();
-        EndSnapshotUploadTransaction();
+        synchronization.Reset();
         CompleteLocalAtomicMutation();
         worldMapStatus = ClashOfRimText.Key("ClashOfRim.Raid.StatusCleanupSnapshotSucceeded", settings.CurrentSnapshotId.Named("SNAPSHOT"));
         Messages.Message(worldMapStatus, MessageTypeDefOf.NeutralEvent, historical: false);

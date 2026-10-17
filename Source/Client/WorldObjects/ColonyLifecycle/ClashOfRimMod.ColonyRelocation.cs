@@ -5,6 +5,7 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.ClientSnapshots;
+using AIRsLight.ClashOfRim.Modules.Synchronization;
 using AIRsLight.ClashOfRim.WorldObjects;
 using RimWorld;
 using RimWorld.Planet;
@@ -318,7 +319,7 @@ public sealed partial class ClashOfRimMod
         string idempotencyKey,
         bool releaseSiteRegistrationSuppressionOnComplete)
     {
-        if (!TryBeginSnapshotUploadTransaction(allowExistingManualSync: true))
+        if (!TryBeginSnapshotUploadTransaction(out var uploadTransaction, allowExistingManualSync: true))
         {
             ShowColonyRelocationFailure(
                 ClashOfRimText.Key("ClashOfRim.SnapshotUpload.Busy"),
@@ -351,7 +352,6 @@ public sealed partial class ClashOfRimMod
                     return;
                 }
 
-                confirmationStarted = true;
                 string acceptedSnapshotId = upload.AcceptedSnapshotId!;
                 ClashLog.Message(
                     "[ClashOfRim] Colony relocation snapshot uploaded; starting confirm: previous="
@@ -370,7 +370,8 @@ public sealed partial class ClashOfRimMod
                         targetTileLayerId,
                         idempotencyKey,
                         releaseSiteRegistrationSuppressionOnComplete,
-                        endSnapshotUploadOnComplete: true));
+                        uploadTransaction), onDiscard: uploadTransaction.Dispose);
+                confirmationStarted = true;
             }
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
@@ -387,7 +388,7 @@ public sealed partial class ClashOfRimMod
                 {
                     if (!confirmationStarted)
                     {
-                        EndSnapshotUploadTransaction();
+                        uploadTransaction.Dispose();
                     }
                 });
             }
@@ -417,7 +418,7 @@ public sealed partial class ClashOfRimMod
         int targetTileLayerId,
         string idempotencyKey,
         bool releaseSiteRegistrationSuppressionOnComplete,
-        bool endSnapshotUploadOnComplete = false)
+        ClientSynchronizationCoordinator.Lease? uploadTransaction = null)
     {
         localAtomicMutationStatus = ClashOfRimText.Key("ClashOfRim.ColonyRelocation.StatusConfirming");
         ClientSessionWork.Run(async () =>
@@ -480,13 +481,7 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                ClientSessionWork.TryApply(() =>
-                {
-                    if (endSnapshotUploadOnComplete)
-                    {
-                        EndSnapshotUploadTransaction();
-                    }
-                });
+                uploadTransaction?.Dispose();
             }
         });
     }

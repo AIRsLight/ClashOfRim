@@ -23,6 +23,7 @@ var tests = new (string Name, Action Run)[]
     ("session connection module owns replacement, cancellation and stale completions", SessionConnectionModuleTests.Run),
     ("session lifecycle owns identities, deferred expiry and authenticated exit", SessionLifecycleModuleTests.Run),
     ("session reconnect owns snapshot checks, pending adoption and detached cleanup", SessionReconnectModuleTests.Run),
+    ("synchronization admission and completion retain exact transaction ownership", SynchronizationCoordinatorTests.Run),
     ("actual event letters share rendering, action and automatic application rules", EventLetterPolicyTests.Run),
     ("repeated pawn transfer preserves global relationship identity", PawnTransferIdentityTests.Run),
     ("item durability uses final quality maximum", ThingMetadataOrderTests.Run),

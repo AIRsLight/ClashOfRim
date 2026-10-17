@@ -251,10 +251,6 @@ public sealed partial class ClashOfRimMod
             automaticEventRefreshQueued = false;
         }
 
-        manualSyncInProgress = false;
-        snapshotUploadInProgress = false;
-        snapshotUploadTransactionOwner = string.Empty;
-        snapshotUploadTransactionStartedAtUtc = default;
         worldMapMarkerSyncInProgress = false;
         runtimeWorldObjectSyncInProgress = false;
         playerColonySiteRegistrationInProgress = false;
@@ -1444,15 +1440,8 @@ public sealed partial class ClashOfRimMod
     private void StartSessionReconnect(SessionExpiredWindow window)
     {
         using var publication = ClientSessionWork.EnterPublication();
-        ClientSessionReconnect.Attempt? attempt;
-        SessionReconnectBlockReason blocked;
-        lock (syncStateGate)
-        {
-            blocked = sessionReconnect.TryBegin(new SessionReconnectLocalState(
-                Current.ProgramState == ProgramState.Playing, Current.Game is not null,
-                manualSyncInProgress || snapshotUploadInProgress, localAtomicMutationPending), out attempt);
-            if (blocked == SessionReconnectBlockReason.None) manualSyncInProgress = true;
-        }
+        SessionReconnectBlockReason blocked = sessionReconnect.TryBegin(new SessionReconnectLocalState(
+            Current.ProgramState == ProgramState.Playing, Current.Game is not null, localAtomicMutationPending), out var attempt);
         if (attempt is null)
         {
             window.CompleteReconnect(false, FormatSessionReconnectBlockReason(blocked));
@@ -1467,16 +1456,6 @@ public sealed partial class ClashOfRimMod
 
     private async Task RunSessionReconnect(ClientSessionReconnect.Attempt attempt, SessionExpiredWindow window, Game? originalGame)
     {
-        int synchronizationReleased = 0;
-        void ReleaseSynchronization()
-        {
-            if (Interlocked.Exchange(ref synchronizationReleased, 1) != 0) return;
-            ClientSessionWork.TryApply(() =>
-            {
-                if (attempt.Owner.Token != ClientSessionWork.Token) return;
-                lock (syncStateGate) manualSyncInProgress = false;
-            });
-        }
         try
         {
             await ClientSessionWork.Run(async () =>
@@ -1491,7 +1470,6 @@ public sealed partial class ClashOfRimMod
                         using var publication = ClientSessionWork.EnterPublication();
                         var result = attempt.Complete(Current.ProgramState == ProgramState.Playing,
                             originalGame is not null && ReferenceEquals(Current.Game, originalGame), localAtomicMutationPending);
-                        ReleaseSynchronization();
                         PresentSessionReconnect(window, attempt.Expected, result);
                         completion.TrySetResult(true);
                     }
@@ -1508,7 +1486,6 @@ public sealed partial class ClashOfRimMod
         }
         finally
         {
-            ReleaseSynchronization();
             await attempt.DisposeAsync();
         }
     }
@@ -1593,7 +1570,7 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
-        if (!TryBeginSnapshotUploadTransaction())
+        if (!TryBeginSnapshotUploadTransaction(out var uploadTransaction))
         {
             loginStatus = ClashOfRimText.Key("ClashOfRim.SnapshotUpload.Busy");
             snapshotUploadStatus = loginStatus;
@@ -1690,10 +1667,7 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                ClientSessionWork.TryApply(() =>
-                {
-                    EndSnapshotUploadTransaction();
-                });
+                uploadTransaction.Dispose();
             }
         });
     }

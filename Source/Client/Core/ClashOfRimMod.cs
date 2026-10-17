@@ -1,3 +1,5 @@
+using AIRsLight.ClashOfRim.Modules.Synchronization;
+using System.Diagnostics.CodeAnalysis;
 using AIRsLight.ClashOfRim.Modules.Sessions;
 using System;
 using System.Collections.Generic;
@@ -49,12 +51,14 @@ public sealed partial class ClashOfRimMod : Mod
     private static readonly TimeSpan RaidSettlementGraceDuration = TimeSpan.FromMinutes(2);
 
     private readonly ClashOfRimSettings settings;
-    private readonly object syncStateGate = new();
-    private bool snapshotUploadInProgress;
-    private bool manualSyncInProgress;
-    private string snapshotUploadTransactionOwner = string.Empty;
-    private long snapshotUploadTransactionSequence;
-    private DateTime snapshotUploadTransactionStartedAtUtc;
+    private readonly ClientSynchronizationCoordinator synchronization = new();
+    private bool snapshotUploadInProgress => synchronization.SnapshotInProgress;
+    // Transitional forwarding port for manual flows migrated in the next M3 step.
+    private bool manualSyncInProgress
+    {
+        get => synchronization.ManualInProgress;
+        set => synchronization.SetLegacyManualInProgress(value);
+    }
     private bool worldMapMarkerSyncInProgress;
     private bool runtimeWorldObjectSyncInProgress;
     private bool playerColonySiteRegistrationInProgress;
@@ -157,7 +161,7 @@ public sealed partial class ClashOfRimMod : Mod
     {
         settings = GetSettings<ClashOfRimSettings>();
         sessionLifecycle = new ClientSessionLifecycle(new ClientSessionIdentityStore(settings), new ClientSessionLogoutTransport(), sessionConnection);
-        sessionReconnect = new ClientSessionReconnect(new ClientSessionReconnectTransport(), sessionLifecycle);
+        sessionReconnect = new ClientSessionReconnect(new ClientSessionReconnectTransport(), sessionLifecycle, synchronization);
         if (!string.Equals(content.PackageId, PackageId, StringComparison.OrdinalIgnoreCase))
         {
             Log.Warning("[ClashOfRim] Ignored ClashOfRim mod class loaded from unexpected package: " + (content.PackageId ?? "<null>") + ".");
@@ -170,7 +174,9 @@ public sealed partial class ClashOfRimMod : Mod
             CaptureServerCompatibilityManifest(response?.ServerCompatibilityManifestJson);
             ApplyAdministratorFlag(response?.IsAdministrator == true);
         };
+        sessionLifecycle.Ended += synchronization.Reset;
         sessionLifecycle.Ended += ClearTransientMultiplayerSessionStateForExit;
+        synchronization.SnapshotChanged += PresentSnapshotTransaction;
         sessionLifecycle.LogoutFailed += message => Log.Warning("[ClashOfRim] " + message);
         sessionConnection.StatusChanged += PresentConnectionStatus;
         sessionConnection.EventReceived += HandleSessionStreamEventSafely;
@@ -215,27 +221,8 @@ public sealed partial class ClashOfRimMod : Mod
         adminStatus = ClashOfRimText.Key("ClashOfRim.Admin.StatusIdle");
     }
 
-    internal bool SnapshotUploadInProgress
-    {
-        get
-        {
-            lock (syncStateGate)
-            {
-                return snapshotUploadInProgress;
-            }
-        }
-    }
-
-    internal bool ManualSyncInProgress
-    {
-        get
-        {
-            lock (syncStateGate)
-            {
-                return manualSyncInProgress;
-            }
-        }
-    }
+    internal bool SnapshotUploadInProgress => synchronization.SnapshotInProgress;
+    internal bool ManualSyncInProgress => synchronization.ManualInProgress;
 
     internal bool IsServerWorldSetupFlow => pendingInitialWorldConfigurationSubmit
         || pendingServerWorldConfiguration is not null;
@@ -266,92 +253,36 @@ public sealed partial class ClashOfRimMod : Mod
     internal bool AdminInProgress => adminInProgress;
 
     internal bool TryBeginSnapshotUploadTransaction(
+        [NotNullWhen(true)] out ClientSynchronizationCoordinator.Lease? transaction,
         bool allowExistingManualSync = false,
         [CallerMemberName] string callerMember = "",
         [CallerFilePath] string callerFile = "",
         [CallerLineNumber] int callerLine = 0)
+        => synchronization.TryAcquireSnapshot(out transaction, allowExistingManualSync: allowExistingManualSync,
+            callerMember: callerMember, callerFile: callerFile, callerLine: callerLine);
+
+    private void PresentSnapshotTransaction(SnapshotTransactionNotice notice)
     {
-        lock (syncStateGate)
+        string owner = string.IsNullOrWhiteSpace(notice.Owner) ? "<none>" : notice.Owner;
+        string age = notice.Age?.TotalSeconds.ToString("0.000", CultureInfo.InvariantCulture) + "s";
+        if (notice.Age is null) age = "n/a";
+        if (notice.Phase == SnapshotTransactionPhase.Rejected)
         {
-            if (snapshotUploadInProgress || (manualSyncInProgress && !allowExistingManualSync))
-            {
-                Log.Warning("[ClashOfRim][SnapshotTxn] begin rejected: requested="
-                    + FormatSnapshotUploadTransactionCaller(callerMember, callerFile, callerLine)
-                    + ", allowExistingManualSync="
-                    + allowExistingManualSync
-                    + ", snapshotUploadInProgress="
-                    + snapshotUploadInProgress
-                    + ", manualSyncInProgress="
-                    + manualSyncInProgress
-                    + ", owner="
-                    + (string.IsNullOrWhiteSpace(snapshotUploadTransactionOwner) ? "<none>" : snapshotUploadTransactionOwner)
-                    + ", seq="
-                    + snapshotUploadTransactionSequence
-                    + ", age="
-                    + FormatSnapshotUploadTransactionAge());
-                return false;
-            }
-
-            manualSyncInProgress = true;
-            snapshotUploadInProgress = true;
-            snapshotUploadTransactionSequence++;
-            snapshotUploadTransactionOwner = FormatSnapshotUploadTransactionCaller(callerMember, callerFile, callerLine);
-            snapshotUploadTransactionStartedAtUtc = DateTime.UtcNow;
-            ClashLog.Message("[ClashOfRim][SnapshotTxn] begin: owner="
-                + snapshotUploadTransactionOwner
-                + ", seq="
-                + snapshotUploadTransactionSequence
-                + ", allowExistingManualSync="
-                + allowExistingManualSync
-                + ".");
-            NotifyPlayerMessage(
-                ClashOfRimText.Key("ClashOfRim.SnapshotUpload.Uploading"),
-                MessageTypeDefOf.NeutralEvent);
-            return true;
+            Log.Warning("[ClashOfRim][SnapshotTxn] begin rejected: requested=" + notice.RequestedOwner
+                + ", allowExistingManualSync=" + notice.AllowExistingManualSync + ", snapshotUploadInProgress=" + notice.SnapshotInProgress
+                + ", manualSyncInProgress=" + notice.ManualInProgress + ", owner=" + owner + ", seq=" + notice.Sequence + ", age=" + age);
         }
-    }
-
-    internal void EndSnapshotUploadTransaction()
-    {
-        lock (syncStateGate)
+        else if (notice.Phase == SnapshotTransactionPhase.Started)
         {
-            ClashLog.Message("[ClashOfRim][SnapshotTxn] end: owner="
-                + (string.IsNullOrWhiteSpace(snapshotUploadTransactionOwner) ? "<none>" : snapshotUploadTransactionOwner)
-                + ", seq="
-                + snapshotUploadTransactionSequence
-                + ", snapshotUploadInProgress="
-                + snapshotUploadInProgress
-                + ", manualSyncInProgress="
-                + manualSyncInProgress
-                + ", age="
-                + FormatSnapshotUploadTransactionAge()
-                + ".");
-            snapshotUploadInProgress = false;
-            manualSyncInProgress = false;
-            snapshotUploadTransactionOwner = string.Empty;
-            snapshotUploadTransactionStartedAtUtc = default;
+            ClashLog.Message("[ClashOfRim][SnapshotTxn] begin: owner=" + owner + ", seq=" + notice.Sequence
+                + ", allowExistingManualSync=" + notice.AllowExistingManualSync + ".");
+            NotifyPlayerMessage(ClashOfRimText.Key("ClashOfRim.SnapshotUpload.Uploading"), MessageTypeDefOf.NeutralEvent);
         }
-    }
-
-    private static string FormatSnapshotUploadTransactionCaller(string callerMember, string callerFile, int callerLine)
-    {
-        string fileName = string.IsNullOrWhiteSpace(callerFile)
-            ? "<unknown>"
-            : Path.GetFileName(callerFile);
-        return string.IsNullOrWhiteSpace(callerMember)
-            ? fileName + ":" + callerLine.ToString(CultureInfo.InvariantCulture)
-            : callerMember + "@" + fileName + ":" + callerLine.ToString(CultureInfo.InvariantCulture);
-    }
-
-    private string FormatSnapshotUploadTransactionAge()
-    {
-        if (snapshotUploadTransactionStartedAtUtc == default)
+        else
         {
-            return "n/a";
+            ClashLog.Message("[ClashOfRim][SnapshotTxn] end: owner=" + owner + ", seq=" + notice.Sequence
+                + ", snapshotUploadInProgress=" + notice.SnapshotInProgress + ", manualSyncInProgress=" + notice.ManualInProgress + ", age=" + age + ".");
         }
-
-        TimeSpan age = DateTime.UtcNow - snapshotUploadTransactionStartedAtUtc;
-        return age.TotalSeconds.ToString("0.000", CultureInfo.InvariantCulture) + "s";
     }
 
     private static void NotifyPlayerMessage(string message, MessageTypeDef messageType, bool historical = false)
@@ -372,13 +303,7 @@ public sealed partial class ClashOfRimMod : Mod
         });
     }
 
-    internal bool IsAnyManualOrSnapshotSyncInProgress()
-    {
-        lock (syncStateGate)
-        {
-            return manualSyncInProgress || snapshotUploadInProgress;
-        }
-    }
+    internal bool IsAnyManualOrSnapshotSyncInProgress() => synchronization.IsBusy;
 
     internal string CurrentUserId => settings.UserId;
 

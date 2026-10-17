@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using AIRsLight.ClashOfRim;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.Gifts;
+using AIRsLight.ClashOfRim.Modules.Synchronization;
 using AIRsLight.ClashOfRim.Protocol;
 using RimWorld;
 using RimWorld.Planet;
@@ -99,19 +100,22 @@ public static class TransportPodGiftTests
         var arrived = typeof(TravellingTransporters).GetMethod("Arrived", BindingFlags.Instance | BindingFlags.NonPublic)!;
         var arrivedFlag = typeof(TravellingTransporters).GetField("arrived", BindingFlags.Instance | BindingFlags.NonPublic)!;
         var transporters = typeof(TravellingTransporters).GetField("transporters", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public)!;
-        foreach (string name in new[] { "snapshotUploadInProgress", "manualSyncInProgress", "localAtomicMutationPending" })
+        void AssertBusyArrival(string name)
         {
-            var field = type.GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!;
-            object? previous = field.GetValue(mod);
-            if ((bool)previous!) throw new Exception("Fixture requires an idle client.");
-            try
-            {
-                field.SetValue(mod, true); arrived.Invoke(voyage, null);
-                if ((bool)arrivedFlag.GetValue(voyage)! || !Find.WorldObjects.AllWorldObjects.Contains(voyage) || !cargo.innerContainer.Contains(wood))
-                    throw new Exception("Busy arrival lost cargo or consumed engine arrival flag: " + name);
-            }
-            finally { field.SetValue(mod, previous); }
+            arrived.Invoke(voyage, null);
+            if ((bool)arrivedFlag.GetValue(voyage)! || !Find.WorldObjects.AllWorldObjects.Contains(voyage) || !cargo.innerContainer.Contains(wood))
+                throw new Exception("Busy arrival lost cargo or consumed engine arrival flag: " + name);
         }
+        // Locate the composed module; exercise its real admission instead of mutating flags.
+        var synchronization = (ClientSynchronizationCoordinator)type.GetField("synchronization", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(mod)!;
+        if (!synchronization.TryAcquireSnapshot(out var snapshot)) throw new Exception("Fixture requires an idle client.");
+        using (snapshot) AssertBusyArrival("snapshot");
+        if (!synchronization.TryBeginManual(out var manual)) throw new Exception("Fixture requires an idle client.");
+        using (manual) AssertBusyArrival("manual");
+        var atomic = type.GetField("localAtomicMutationPending", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        if ((bool)atomic.GetValue(mod)!) throw new Exception("Fixture requires no pending atomic mutation.");
+        try { atomic.SetValue(mod, true); AssertBusyArrival("atomic mutation"); }
+        finally { atomic.SetValue(mod, false); }
         string beforeSnapshot = mod.CurrentSnapshotId;
         string worldObjectId = voyage.GetUniqueLoadID(), thingId = wood.ThingID;
         arrived.Invoke(voyage, null);
