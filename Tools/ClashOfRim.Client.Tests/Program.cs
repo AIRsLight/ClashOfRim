@@ -37,6 +37,7 @@ var tests = new (string Name, Action Run)[]
     ("event confirmation workflows own intent, retry, domain effects and completion order", EventConfirmationModuleTests.RunWorkflow),
     ("event command presentation resolves shipped translations, semantic parameters and authoritative relations", EventCommandPresentationTests.Run),
     ("event decisions own protocol, captured identity, game effects and failure reporting", EventDecisionModuleTests.Run),
+    ("package reads and hydration use captured context, shared state restoration and cancellation", PackageReadModuleTests.Run),
     ("package error presentation preserves public and domain contracts", SnapshotPackagePresentationTests.Run),
     ("protocol transport owns request encoding, responses and cancellation", ProtocolTransportModuleTests.Run),
     ("session WebSocket transport owns duplex failure, framing and closure", SessionWebSocketTransportTests.Run),

@@ -848,10 +848,10 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
-        await PawnPackageTransferService.HydrateThingPawnPackagesAsync(
+        await PawnPackageHydration.HydrateThingPawnPackagesAsync(
             client,
             new[] { listing.Item });
-        await PawnPackageTransferService.HydrateThingStatePackagesAsync(
+        await PawnPackageHydration.HydrateThingStatePackagesAsync(
             client,
             new[] { listing.Item });
     }

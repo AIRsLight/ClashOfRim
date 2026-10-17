@@ -216,8 +216,11 @@ public sealed partial class ClashOfRimMod
 
         ClashLog.Message(
             $"[ClashOfRim][GiftProcess] landing plan event={result.LandingPlan.EventId} map={result.LandingPlan.TargetMapUniqueId} mode={result.LandingPlan.LandingMode ?? "<null>"} items={result.LandingPlan.Items.Count}.");
-        if (!TryHydrateGiftLandingPlanPawnPackages(result.LandingPlan, out string hydrateMessage))
+        var hydration = giftPackageHydration.HydrateAsync(result.LandingPlan, sessionLifecycle.ReadContext(), ClientSessionWork.Token)
+            .GetAwaiter().GetResult();
+        if (!hydration.Success)
         {
+            string hydrateMessage = hydration.Message;
             giftProcessingStatus = hydrateMessage;
             PawnFlowFailurePolicy.LogFailure(
                 "manual-gift-hydrate",
@@ -245,59 +248,6 @@ public sealed partial class ClashOfRimMod
             $"[ClashOfRim][GiftProcess] landing result event={application.EventId} success={application.Success} kind={application.Kind} mode={application.LandingMode} placedEntries={application.PlacedThingCount} placedStacks={application.PlacedStackCount} pendingConfirm={eventInbox.PendingConfirmationCount} message={application.Message}");
         giftProcessingStatus = FormatGiftLandingApplicationResult(application);
         return application.Success;
-    }
-
-    private bool TryHydrateGiftLandingPlanPawnPackages(GiftLandingPlan plan, out string message)
-    {
-        List<GiftItemReference> items = plan.Items
-            .Where(item =>
-                (item.PawnPackage is null && !string.IsNullOrWhiteSpace(item.PawnPackageId))
-                || (item.ThingPackage is null && !string.IsNullOrWhiteSpace(item.ThingPackageId)))
-            .ToList();
-        if (items.Count == 0)
-        {
-            message = string.Empty;
-            return true;
-        }
-
-        try
-        {
-            using var httpClient = new HttpClient();
-            var client = new ClashOfRimModNetworkClient(
-                httpClient,
-                ClashOfRimClientNetworkContext.FromSettings(settings));
-            PawnPackageTransferResult result = PawnPackageTransferService
-                .HydrateGiftItemsAsync(client, items)
-                .GetAwaiter()
-                .GetResult();
-            if (!result.Success)
-            {
-                message = result.Message;
-                return false;
-            }
-
-            PawnPackageTransferResult thingResult = PawnPackageTransferService
-                .HydrateGiftThingStatePackagesAsync(client, items)
-                .GetAwaiter()
-                .GetResult();
-            if (!thingResult.Success)
-            {
-                message = thingResult.Message;
-                return false;
-            }
-
-            message = string.Empty;
-            return true;
-        }
-        catch (Exception ex) when (ex is InvalidOperationException or HttpRequestException or TaskCanceledException)
-        {
-            message = ClashOfRimText.Key(
-                "ClashOfRim.PawnPackage.DownloadException",
-                ex.GetType().Name.Named("TYPE"),
-                ex.Message.Named("MESSAGE"));
-            Log.Warning("[ClashOfRim][GiftProcess] pawn package hydrate failed: " + ex);
-            return false;
-        }
     }
 
     private void HandlePawnFlowApplicationFailure(
@@ -427,8 +377,11 @@ public sealed partial class ClashOfRimMod
                 continue;
             }
 
-            if (!TryHydrateGiftLandingPlanPawnPackages(prepared.LandingPlan, out string hydrateMessage))
+            var hydration = giftPackageHydration.HydrateAsync(prepared.LandingPlan, sessionLifecycle.ReadContext(), ClientSessionWork.Token)
+                .GetAwaiter().GetResult();
+            if (!hydration.Success)
             {
+                string hydrateMessage = hydration.Message;
                 eventDetailsStatus = hydrateMessage;
                 PawnFlowFailurePolicy.LogFailure(
                     "auto-gift-hydrate",

@@ -358,8 +358,8 @@ public sealed partial class ClashOfRimMod
         ClashOfRimModNetworkClient client,
         IReadOnlyList<ModThingReferenceDto> things)
     {
-        await PawnPackageTransferService.HydrateThingPawnPackagesAsync(client, things);
-        await PawnPackageTransferService.HydrateThingStatePackagesAsync(client, things);
+        await PawnPackageHydration.HydrateThingPawnPackagesAsync(client, things);
+        await PawnPackageHydration.HydrateThingStatePackagesAsync(client, things);
     }
 
     internal void StartRefreshTradeOrders(string scope = "Open")

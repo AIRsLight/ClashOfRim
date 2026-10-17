@@ -5,6 +5,8 @@ using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.ClientSnapshots;
 using AIRsLight.ClashOfRim.EventLetters;
 using AIRsLight.ClashOfRim.Diplomacy;
+using AIRsLight.ClashOfRim.Gifts;
+using AIRsLight.ClashOfRim.Pawns;
 using ClashOfRim.TestSupport;
 
 internal static class ClientModuleBoundaryTests
@@ -26,6 +28,7 @@ internal static class ClientModuleBoundaryTests
             || t == typeof(ClientEventLetterRuntime) || t == typeof(ClientDiplomacyPresentation)
             || t == typeof(ClientEventDecisionPresentation) || t == typeof(ClientEventDecisionRuntime)
             || t == typeof(ClientEventReadPresentation) || t == typeof(ClashOfRimEventLetterProjection)
+            || t == typeof(ClientGiftPackageHydration) || t == typeof(PawnPackageHydration)
             || t.Namespace?.Split('.')[0] is "Verse" or "RimWorld" or "UnityEngine");
         if (modules.Length == 0 || violations.Count != 0)
             throw new InvalidOperationException("Client module boundaries: " + string.Join(Environment.NewLine, violations));
@@ -39,6 +42,7 @@ internal static class ClientModuleBoundaryTests
         Type[] eventAdapters = { typeof(ClientEventLetterPolicy), typeof(ClientEventLetterRenderer), typeof(ClientEventLetterRuntime),
             typeof(ClientDiplomacyPresentation), typeof(ClientEventTextFormatting), typeof(ClientEventReadPresentation),
             typeof(ClientEventDecisionPresentation), typeof(ClientEventDecisionRuntime),
+            typeof(ClientGiftPackageHydration), typeof(PawnPackageHydration),
             typeof(ClientEventConfirmationPresentation), typeof(ClientEventConfirmationEffects), typeof(ClientSnapshotPreparationPresentation),
             typeof(ClientSnapshotFailureView), typeof(SnapshotConfirmationFailureWindow) };
         var adapterTypes = typeof(ClashOfRimMod).Assembly.GetTypes().Where(t => eventAdapters.Contains(t)

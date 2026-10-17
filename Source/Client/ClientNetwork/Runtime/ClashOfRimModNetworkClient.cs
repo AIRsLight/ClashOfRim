@@ -1,4 +1,5 @@
 using AIRsLight.ClashOfRim.Modules.Events;
+using AIRsLight.ClashOfRim.Modules.Packages;
 using AIRsLight.ClashOfRim.Modules.Transport;
 using AIRsLight.ClashOfRim.Modules.Sessions;
 using System;
@@ -12,7 +13,7 @@ using Verse;
 
 namespace AIRsLight.ClashOfRim.ClientNetwork;
 
-public sealed class ClashOfRimModNetworkClient
+public sealed class ClashOfRimModNetworkClient : IClientPackageReader
 {
     private static readonly string MaintainPresenceRoute = ProtocolContractManifest.Find(ProtocolMessageKind.MaintainPresence).Route;
     private static readonly string ChangeOfflinePasswordRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ChangeOfflinePassword).Route;
@@ -20,11 +21,9 @@ public sealed class ClashOfRimModNetworkClient
     private static readonly string ListAchievementsRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ListAchievements).Route;
     private static readonly string CreateGiftWithSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.CreateGiftWithSnapshot).Route;
     private static readonly string StorePawnPackageRoute = ProtocolContractManifest.Find(ProtocolMessageKind.StorePawnPackage).Route;
-    private static readonly string GetPawnPackageRoute = ProtocolContractManifest.Find(ProtocolMessageKind.GetPawnPackage).Route;
     private static readonly string StorePawnPackagePreviewRoute = ProtocolContractManifest.Find(ProtocolMessageKind.StorePawnPackagePreview).Route;
     private static readonly string GetPawnPackagePreviewRoute = ProtocolContractManifest.Find(ProtocolMessageKind.GetPawnPackagePreview).Route;
     private static readonly string StoreThingPackageRoute = ProtocolContractManifest.Find(ProtocolMessageKind.StoreThingPackage).Route;
-    private static readonly string GetThingPackageRoute = ProtocolContractManifest.Find(ProtocolMessageKind.GetThingPackage).Route;
     private static readonly string QuoteTradeOrderFeeRoute = ProtocolContractManifest.Find(ProtocolMessageKind.QuoteTradeOrderFee).Route;
     private static readonly string CreateTradeOrderWithSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.CreateTradeOrderWithSnapshot).Route;
     private static readonly string ListTradeOrdersRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ListTradeOrders).Route;
@@ -87,6 +86,7 @@ public sealed class ClashOfRimModNetworkClient
     private readonly ClientSetupAuthenticationLease setupAuthentication;
     private readonly ClientSessionWebSocketTransport sessionStream;
     private readonly ClashOfRimClientNetworkContext context;
+    private readonly ClientPackageReader packages;
 
     public static Action<string, string?>? SessionExpired;
     public static Func<string?>? CompatibilityManifestJsonProvider;
@@ -106,6 +106,7 @@ public sealed class ClashOfRimModNetworkClient
         events = new ClientEventProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         eventConfirmations = new ClientEventConfirmationProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         eventDecisions = new ClientEventDecisionProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
+        packages = new ClientPackageReader(transport, context, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         authentication = new ClientSessionProtocol(transport, authenticationEnvironment, authenticationEnvironment);
         setupAuthentication = new ClientSetupAuthenticationLease(authentication, transport, authenticationEnvironment);
         sessionStream = new ClientSessionWebSocketTransport(new ClientWebSocketFactory(), protocolEnvironment);
@@ -1432,28 +1433,7 @@ public sealed class ClashOfRimModNetworkClient
     public Task<ClashOfRimClientNetworkResult<ModGetPawnPackageResponseDto>> GetPawnPackageAsync(
         string pawnPackageId,
         CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModGetPawnPackageResponseDto>();
-        }
-
-        var request = new ModGetPawnPackageRequestDto
-        {
-            Requester = new ModProtocolIdentityDto
-            {
-                UserId = context.UserId,
-                ColonyId = context.ColonyId,
-                SnapshotId = context.CurrentSnapshotId
-            },
-            PawnPackageId = pawnPackageId
-        };
-
-        return transport.PostAsync<ModGetPawnPackageRequestDto, ModGetPawnPackageResponseDto>(
-            GetPawnPackageRoute,
-            request,
-            cancellationToken);
-    }
+        => packages.GetPawnPackageAsync(pawnPackageId, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModStorePawnPackagePreviewResponseDto>> StorePawnPackagePreviewAsync(
         string pawnPackageId,
@@ -1540,28 +1520,7 @@ public sealed class ClashOfRimModNetworkClient
     public Task<ClashOfRimClientNetworkResult<ModGetThingPackageResponseDto>> GetThingPackageAsync(
         string thingPackageId,
         CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModGetThingPackageResponseDto>();
-        }
-
-        var request = new ModGetThingPackageRequestDto
-        {
-            Requester = new ModProtocolIdentityDto
-            {
-                UserId = context.UserId,
-                ColonyId = context.ColonyId,
-                SnapshotId = context.CurrentSnapshotId
-            },
-            ThingPackageId = thingPackageId
-        };
-
-        return transport.PostAsync<ModGetThingPackageRequestDto, ModGetThingPackageResponseDto>(
-            GetThingPackageRoute,
-            request,
-            cancellationToken);
-    }
+        => packages.GetThingPackageAsync(thingPackageId, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModListTradeOrdersResponseDto>> ListTradeOrdersAsync(
         string scope = "Open",
