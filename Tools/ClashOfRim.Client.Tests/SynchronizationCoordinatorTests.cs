@@ -279,8 +279,12 @@ internal static class SynchronizationCoordinatorTests
         response.SetResult(true);
         await download.WaitAsync(TimeSpan.FromSeconds(5));
         Require(sync.IsBusy && applied == 0, "Async finalizer released the pending UI stage.");
-        apply(); discard(); apply();
+        apply();
         Require(!sync.IsBusy && applied == 1, "UI continuation did not complete once.");
+        Require(sync.TryAcquireSnapshot(out var automaticUpload), "Completed entry stage blocked the first automatic snapshot.");
+        discard(); apply(); first.Dispose();
+        Require(sync.SnapshotInProgress && applied == 1, "Late entry cleanup released the automatic snapshot or reopened the UI.");
+        automaticUpload!.Dispose();
 
         Require(sync.TryBeginManual(out first), "Second producer rejected.");
         Task nested = null!;
