@@ -306,14 +306,8 @@ public sealed partial class ClashOfRimMod
         tradeStatus = ClashOfRimText.Key("ClashOfRim.Status.TradeOrderNotCreated");
         chatStatus = ClashOfRimText.Key("ClashOfRim.Chat.StatusIdle");
         adminStatus = ClashOfRimText.Key("ClashOfRim.Admin.StatusIdle");
-        pendingGiftConfirmationEventIds.Clear();
-        postedEventLetterIds.Clear();
-        appliedServerNotificationSideEffectIds.Clear();
-        appliedDiplomacyEventSideEffectIds.Clear();
         lock (eventStateLock)
         {
-            lastEventQueueEventIds.Clear();
-            lastEventDetails.Clear();
             lastPlayers.Clear();
             playersSnapshotVersion++;
             lastTradeOrders.Clear();
@@ -323,8 +317,6 @@ public sealed partial class ClashOfRimMod
             tradeOrdersHasMore = false;
             tradeOrdersTotalCount = 0;
             tradeOrdersScope = "Open";
-            lastEventReferences.Clear();
-            lastEventReferenceGroups.Clear();
             lastWorldMapMarkers.Clear();
         }
 

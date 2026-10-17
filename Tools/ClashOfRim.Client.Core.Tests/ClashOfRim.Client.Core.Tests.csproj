@@ -6,6 +6,8 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../../Source/Client/Modules/Events/ClientEventInbox.cs" Link="ClientEventInbox.cs" />
+    <Compile Include="../TestSupport/EventInboxModuleTests.cs" Link="EventInboxModuleTests.cs" />
     <Compile Include="../../Source/Client/Modules/Snapshots/ClientSnapshotPackageBuilder.cs" Link="ClientSnapshotPackageBuilder.cs" />
     <Compile Include="../../Source/Client/Modules/Snapshots/ClientSnapshotSaveData.cs" Link="ClientSnapshotSaveData.cs" />
     <Compile Include="../../Source/Client/ClientSnapshots/Build/ModSnapshotPackageBuildResult.cs" Link="ModSnapshotPackageBuildResult.cs" />

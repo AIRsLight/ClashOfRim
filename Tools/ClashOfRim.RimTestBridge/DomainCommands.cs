@@ -23,6 +23,8 @@ namespace ClashOfRim.RimTestBridge;
 internal sealed partial class DomainCommands
 {
     private readonly GameBridge bridge;
+    private readonly EventDetailsObservation eventDetails = new(
+        (int? knownVersion, out int version) => Mod.ReadEventDetails(knownVersion, out version));
     private static ClashOfRimMod Mod => LoadedModManager.GetMod<ClashOfRimMod>();
     private static readonly Type Component = typeof(ClashOfRimMod).Assembly.GetType("AIRsLight.ClashOfRim.ClashOfRimGameComponent", true)!;
     internal DomainCommands(GameBridge bridge)
@@ -128,10 +130,9 @@ internal sealed partial class DomainCommands
             var action = Field<Action<int?, bool>>(w, "confirmAction"); w.Close(); action(permanent ? null : days, permanent);
             return new { state = "invoked" };
         });
-        r.Register("clash.events", "Read copied event details under the client's event lock.", "observe", a =>
+        r.Register("clash.events", "Read an isolated snapshot of the client event inbox.", "observe", a =>
         {
-            lock (Field<object>(Mod, "eventStateLock"))
-                return ObjectInspector.Paginate(Field<IEnumerable>(Mod, "lastEventDetails").Cast<object>().Select(Record).ToArray(), a);
+            return ObjectInspector.Paginate(eventDetails.Read().Select(Record).ToArray(), a);
         });
         r.Register("clash.inventory", "Count spawned home-map stock and colonists; excludes in-flight delivery containers.", "observe", _ => new
         {

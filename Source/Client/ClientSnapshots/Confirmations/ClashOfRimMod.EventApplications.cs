@@ -80,9 +80,9 @@ public sealed partial class ClashOfRimMod
                     }
 
                     eventQueueStatus = FormatEventQueue(queue.Response.EventQueue);
-                    CaptureEventIds(queue.Response.EventQueue);
+                    eventInbox.ReplaceQueue(queue.Response.EventQueue);
                 }
-                IReadOnlyList<string> eventIds = CopyLastEventQueueIds();
+                IReadOnlyList<string> eventIds = eventInbox.CopyQueuedIds();
                 using (ClientSessionWork.EnterPublication())
                 {
                     if (eventIds.Count == 0)
@@ -116,7 +116,7 @@ public sealed partial class ClashOfRimMod
 
                 eventDetailsStatus = FormatEventDetails(details.Response.Events);
                 LogGiftDetails("AutoEventDetails", details.Response.Events);
-                CaptureEventDetails(details.Response.Events);
+                eventInbox.ReplaceDetails(details.Response.Events);
                 IReadOnlyCollection<ModEventDetailDto> events = details.Response.Events.ToList();
                 ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
                 {
@@ -266,7 +266,7 @@ public sealed partial class ClashOfRimMod
                 }
 
                 eventQueueStatus = FormatEventQueue(result.Response.EventQueue);
-                CaptureEventIds(result.Response.EventQueue);
+                eventInbox.ReplaceQueue(result.Response.EventQueue);
             }
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
@@ -336,7 +336,7 @@ public sealed partial class ClashOfRimMod
                 eventQueueStatus = result.Response.Changed
                     ? ClashOfRimText.Key("ClashOfRim.Events.StatusOnlineArrived", FormatEventQueue(result.Response.EventQueue).Named("QUEUE"))
                     : ClashOfRimText.Key("ClashOfRim.Events.StatusOnlineTimedOut", FormatEventQueue(result.Response.EventQueue).Named("QUEUE"));
-                CaptureEventIds(result.Response.EventQueue);
+                eventInbox.ReplaceQueue(result.Response.EventQueue);
             }
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
@@ -363,7 +363,7 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
-        IReadOnlyList<string> eventIds = CopyLastEventQueueIds();
+        IReadOnlyList<string> eventIds = eventInbox.CopyQueuedIds();
         if (eventIds.Count == 0)
         {
             eventDetailsStatus = ClashOfRimText.Key("ClashOfRim.Events.StatusNoViewableDetails");
@@ -410,7 +410,7 @@ public sealed partial class ClashOfRimMod
                 }
 
                 eventDetailsStatus = FormatEventDetails(result.Response.Events);
-                CaptureEventDetails(result.Response.Events);
+                eventInbox.ReplaceDetails(result.Response.Events);
                 IReadOnlyCollection<ModEventDetailDto> events = result.Response.Events.ToList();
                 ClashOfRimGameComponent.EnqueueMainThreadAction(() => PostEventLetters(events, ClashOfRimText.Key("ClashOfRim.Events.ReasonManualDetails")));
             }
@@ -433,16 +433,13 @@ public sealed partial class ClashOfRimMod
 
     internal void ProcessFirstGift(GiftClientDecision decision)
     {
-        ModEventDetailDto? giftDetail;
-        lock (eventStateLock)
-        {
-            giftDetail = lastEventDetails.FirstOrDefault(ItemDeliveryClientProcessor.IsGiftDetail);
-        }
+        IReadOnlyList<ModEventDetailDto> details = eventInbox.CopyDetails();
+        ModEventDetailDto? giftDetail = details.FirstOrDefault(ItemDeliveryClientProcessor.IsGiftDetail);
 
         if (giftDetail is null)
         {
             giftProcessingStatus = ClashOfRimText.Key("ClashOfRim.GiftProcessing.NoGiftDetail");
-            Log.Warning($"[ClashOfRim][GiftProcess] no gift detail in last details count={lastEventDetails.Count}.");
+            Log.Warning($"[ClashOfRim][GiftProcess] no gift detail in last details count={details.Count}.");
             return;
         }
 
@@ -452,7 +449,7 @@ public sealed partial class ClashOfRimMod
     private bool ProcessGiftDetail(ModEventDetailDto giftDetail, GiftClientDecision decision)
     {
         if (IsAnyManualOrSnapshotSyncInProgress()
-            || pendingGiftConfirmationEventIds.Contains(giftDetail.EventId, StringComparer.Ordinal)
+            || eventInbox.HasPendingConfirmation(giftDetail.EventId)
             || !CanRunEventLetterAction(giftDetail,
                 decision == GiftClientDecision.Accept ? ClashOfRimEventLetterActionKind.Accept : ClashOfRimEventLetterActionKind.Reject,
                 ResolveEventReferenceGroup(giftDetail.EventId)))
@@ -494,9 +491,8 @@ public sealed partial class ClashOfRimMod
         }
 
         GiftLandingApplicationResult application = GiftLandingApplicator.ApplyToCurrentMap(result.LandingPlan);
-        if (application.Success && !pendingGiftConfirmationEventIds.Contains(application.EventId, StringComparer.Ordinal))
+        if (application.Success && eventInbox.TryTrackPendingConfirmation(application.EventId))
         {
-            pendingGiftConfirmationEventIds.Add(application.EventId);
             StartConfirmGiftApplication(
                 application.EventId,
                 ItemDeliveryAnchoredClientApplicationResult());
@@ -507,7 +503,7 @@ public sealed partial class ClashOfRimMod
         }
 
         ClashLog.Message(
-            $"[ClashOfRim][GiftProcess] landing result event={application.EventId} success={application.Success} kind={application.Kind} mode={application.LandingMode} placedEntries={application.PlacedThingCount} placedStacks={application.PlacedStackCount} pendingConfirm={pendingGiftConfirmationEventIds.Count} message={application.Message}");
+            $"[ClashOfRim][GiftProcess] landing result event={application.EventId} success={application.Success} kind={application.Kind} mode={application.LandingMode} placedEntries={application.PlacedThingCount} placedStacks={application.PlacedStackCount} pendingConfirm={eventInbox.PendingConfirmationCount} message={application.Message}");
         giftProcessingStatus = FormatGiftLandingApplicationResult(application);
         return application.Success;
     }
@@ -645,8 +641,8 @@ public sealed partial class ClashOfRimMod
         var applications = new List<ModConfirmEventApplicationEntryDto>();
         foreach (ModEventDetailDto detail in details)
         {
-            if (!IsEventInGroup(detail.EventId, "DirectlyProcessable")
-                && !IsEventInGroup(detail.EventId, "DeliveredUnconfirmed")
+            if (!eventInbox.IsInGroup(detail.EventId, "DirectlyProcessable")
+                && !eventInbox.IsInGroup(detail.EventId, "DeliveredUnconfirmed")
                 || !CanAutoApplyDirectlyProcessableEvent(detail))
             {
                 continue;
@@ -769,7 +765,7 @@ public sealed partial class ClashOfRimMod
                 ClientApplicationResult = ItemDeliveryAnchoredClientApplicationResult()
             });
 
-            pendingGiftConfirmationEventIds.RemoveAll(id => string.Equals(id, applied.EventId, StringComparison.Ordinal));
+            eventInbox.ForgetPendingConfirmation(applied.EventId);
             ClashOfRimGameComponent.MarkManualEventHandled(applied.EventId);
             ClashLog.Message($"[ClashOfRim][AutoEventApply] applied event={applied.EventId} type={detail.EventType} mode={applied.LandingMode}.");
         }
@@ -1105,10 +1101,7 @@ public sealed partial class ClashOfRimMod
                     }
 
                     // Cached details and open letters may outlive the confirmed queue entry.
-                    lock (eventStateLock)
-                    {
-                        lastEventReferenceGroups.Remove(eventId);
-                    }
+                    eventInbox.ForgetGroup(eventId);
                     request.OnAcceptedOnMainThread(result.Response);
                     CompleteLocalAtomicMutation();
                     CloseUnconfirmedSnapshotFailureWindow();
@@ -1542,11 +1535,8 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
-        ModEventDetailDto? giftDetail;
-        lock (eventStateLock)
-        {
-            giftDetail = lastEventDetails.FirstOrDefault(ItemDeliveryClientProcessor.IsGiftDetail);
-        }
+        IReadOnlyList<ModEventDetailDto> details = eventInbox.CopyDetails();
+        ModEventDetailDto? giftDetail = details.FirstOrDefault(ItemDeliveryClientProcessor.IsGiftDetail);
 
         if (giftDetail is null)
         {
@@ -1721,13 +1711,14 @@ public sealed partial class ClashOfRimMod
 
     internal void StartManualConfirmFirstGift()
     {
-        if (pendingGiftConfirmationEventIds.Count == 0)
+        string? eventId = eventInbox.FirstPendingConfirmation;
+        if (eventId is null)
         {
             giftProcessingStatus = ClashOfRimText.Key("ClashOfRim.GiftProcessing.NoPendingConfirmation");
             return;
         }
 
-        StartConfirmGiftApplication(pendingGiftConfirmationEventIds[0], "ItemDeliveryAnchored");
+        StartConfirmGiftApplication(eventId, "ItemDeliveryAnchored");
     }
 
     private static string ItemDeliveryAnchoredClientApplicationResult()
@@ -1752,13 +1743,13 @@ public sealed partial class ClashOfRimMod
             RetryAction = () => StartConfirmGiftApplication(eventId, clientApplicationResult),
             OnAcceptedOnMainThread = response =>
             {
-                pendingGiftConfirmationEventIds.Remove(eventId);
+                eventInbox.ForgetPendingConfirmation(eventId);
                 ClashOfRimGameComponent.MarkManualEventHandled(eventId);
                 giftProcessingStatus = ClashOfRimText.Key(
                     "ClashOfRim.GiftProcessing.ConfirmSucceeded",
                     eventId.Named("EVENTID"),
                     response.AppliedSnapshotId.Named("SNAPSHOT"),
-                    pendingGiftConfirmationEventIds.Count.Named("PENDING"));
+                    eventInbox.PendingConfirmationCount.Named("PENDING"));
                 Messages.Message(giftProcessingStatus, MessageTypeDefOf.PositiveEvent, historical: false);
             }
         });

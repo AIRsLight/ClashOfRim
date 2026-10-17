@@ -1,5 +1,7 @@
 using AIRsLight.ClashOfRim.ClientNetwork;
 
+EventInboxModuleTests.Run();
+Console.WriteLine("PASS: event inbox owns isolated data and rejects expired publication without the game");
 SnapshotPackageModuleTests.Run();
 Console.WriteLine("PASS: snapshot packaging runs without the game and retains culture-independent wire metadata");
 

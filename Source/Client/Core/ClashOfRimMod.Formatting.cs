@@ -103,26 +103,6 @@ public sealed partial class ClashOfRimMod
             label.Named("LABEL"));
     }
 
-    private void CaptureEventIds(ModEventQueueSummaryDto? queue)
-    {
-        lock (eventStateLock)
-        {
-            lastEventQueueEventIds.Clear();
-            lastEventReferences.Clear();
-            lastEventReferenceGroups.Clear();
-            if (queue is null)
-            {
-                return;
-            }
-
-            CaptureEventReferenceGroup(queue.DirectlyProcessable, "DirectlyProcessable");
-            CaptureEventReferenceGroup(queue.WaitingForUserChoice, "WaitingForUserChoice");
-            CaptureEventReferenceGroup(queue.DeliveredUnconfirmed, "DeliveredUnconfirmed");
-            CaptureEventReferenceGroup(queue.Conflicts, "Conflicts");
-            CaptureEventReferenceGroup(queue.Rejected, "Rejected");
-        }
-    }
-
     private void CaptureWorldMapMarkers(
         ModWorldMapMarkerDeliveryDto? delivery,
         bool applyImmediately = false,
@@ -242,54 +222,6 @@ public sealed partial class ClashOfRimMod
             summary.Named("SUMMARY"));
     }
 
-    private void CaptureEventReferenceGroup(
-        IReadOnlyCollection<ModEventReferenceDto>? events,
-        string groupName)
-    {
-        if (events is null)
-        {
-            return;
-        }
-
-        foreach (ModEventReferenceDto eventReference in events)
-        {
-            if (string.IsNullOrWhiteSpace(eventReference.EventId))
-            {
-                continue;
-            }
-
-            if (!lastEventReferences.ContainsKey(eventReference.EventId))
-            {
-                lastEventReferences.Add(eventReference.EventId, eventReference);
-                lastEventQueueEventIds.Add(eventReference.EventId);
-            }
-
-            lastEventReferenceGroups[eventReference.EventId] = groupName;
-        }
-    }
-
-    private IReadOnlyList<string> CopyLastEventQueueIds()
-    {
-        lock (eventStateLock)
-        {
-            return lastEventQueueEventIds.ToList();
-        }
-    }
-
-    private void CaptureEventDetails(IReadOnlyCollection<ModEventDetailDto>? details)
-    {
-        lock (eventStateLock)
-        {
-            lastEventDetails.Clear();
-            if (details is null)
-            {
-                return;
-            }
-
-            lastEventDetails.AddRange(details);
-        }
-    }
-
     private static string FormatEventGroupName(string group)
     {
         return group switch
@@ -388,7 +320,7 @@ public sealed partial class ClashOfRimMod
                 FormatGiftLandingMode(result.LandingMode).Named("MODE"),
                 result.PlacedThingCount.Named("THINGCOUNT"),
                 result.PlacedStackCount.Named("STACKCOUNT"),
-                pendingGiftConfirmationEventIds.Count.Named("PENDING"));
+                eventInbox.PendingConfirmationCount.Named("PENDING"));
         }
 
         return ClashOfRimText.Key("ClashOfRim.GiftLanding.StatusFailed", result.Kind.Named("KIND"), result.Message.Named("MESSAGE"));

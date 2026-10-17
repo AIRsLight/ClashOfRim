@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Events;
 using AIRsLight.ClashOfRim.Modules.Synchronization;
 using AIRsLight.ClashOfRim.Modules.Snapshots;
 using System.Diagnostics.CodeAnalysis;
@@ -53,6 +54,9 @@ public sealed partial class ClashOfRimMod : Mod
     private static readonly TimeSpan RaidSettlementGraceDuration = TimeSpan.FromMinutes(2);
 
     private readonly ClashOfRimSettings settings;
+    private readonly ClientEventInbox eventInbox = new();
+    internal IReadOnlyList<ModEventDetailDto>? ReadEventDetails(int? knownVersion, out int version) =>
+        eventInbox.CopyDetails(knownVersion, out version);
     private readonly ClientSnapshotPreparationAdapter snapshotPreparation = ClientSnapshotComposition.CreatePreparation();
     private readonly ClientSnapshotPublication snapshotPublication;
     private readonly ClientSynchronizationCoordinator synchronization = ClientSnapshotComposition.Synchronization;
@@ -117,8 +121,6 @@ public sealed partial class ClashOfRimMod : Mod
     private bool blockAutomaticMapSessionForServerEntrySourceGame;
     private readonly ClientSessionConnection sessionConnection = new(new ClientSessionWebSocketTransport(new ClientWebSocketFactory(), new ClientProtocolMetadata()));
     private Game? serverEntrySourceGame;
-    private readonly List<string> lastEventQueueEventIds = new();
-    private readonly List<ModEventDetailDto> lastEventDetails = new();
     private readonly List<ModPlayerSummaryDto> lastPlayers = new();
     private int playersSnapshotVersion;
     private readonly List<ModAchievementLeaderboardDto> lastAchievementLeaderboards = new();
@@ -134,12 +136,6 @@ public sealed partial class ClashOfRimMod : Mod
     private readonly List<ModChatMessageDto> lastChatMessages = new();
     private readonly List<ModWorldMapMarkerDto> lastWorldMapMarkers = new();
     private readonly Dictionary<string, ModPlayerColonySiteDto> occupiedPlayerColonySites = new(StringComparer.Ordinal);
-    private readonly List<string> pendingGiftConfirmationEventIds = new();
-    private readonly Dictionary<string, ModEventReferenceDto> lastEventReferences = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, string> lastEventReferenceGroups = new(StringComparer.Ordinal);
-    private readonly HashSet<string> postedEventLetterIds = new(StringComparer.Ordinal);
-    private readonly HashSet<string> appliedServerNotificationSideEffectIds = new(StringComparer.Ordinal);
-    private readonly HashSet<string> appliedDiplomacyEventSideEffectIds = new(StringComparer.Ordinal);
     private readonly HashSet<string> finalDeadlineRaidCleanupEventIds = new(StringComparer.Ordinal);
     private readonly HashSet<string> submittedWorldFeatureNameCatalogKeys = new(StringComparer.Ordinal);
     private readonly object automaticEventRefreshLock = new();
@@ -174,6 +170,7 @@ public sealed partial class ClashOfRimMod : Mod
         };
         sessionLifecycle.Ended += synchronization.Reset;
         sessionLifecycle.Ended += localMutations.Reset;
+        sessionLifecycle.Ended += eventInbox.Reset;
         sessionLifecycle.Ended += ClearTransientMultiplayerSessionStateForExit;
         synchronization.SnapshotChanged += PresentSnapshotTransaction;
         sessionLifecycle.LogoutFailed += message => Log.Warning("[ClashOfRim] " + message);

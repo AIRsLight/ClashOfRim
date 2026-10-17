@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Events;
 using AIRsLight.ClashOfRim.Modules.Synchronization;
 using System;
 using System.Collections.Generic;
@@ -25,7 +26,7 @@ public sealed partial class ClashOfRimMod
 {
     internal bool HandleEventLetterAction(string eventId, ClashOfRimEventLetterActionKind actionKind)
     {
-        ModEventDetailDto? detail = FindEventDetail(eventId);
+        ModEventDetailDto? detail = eventInbox.FindDetail(eventId);
         if (detail is null)
         {
             giftProcessingStatus = ClashOfRimText.Key("ClashOfRim.EventLetter.ActionMissingDetail", eventId.Named("EVENTID"));
@@ -291,65 +292,63 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
+        using var publication = ClientSessionWork.EnterPublication();
         ApplyDiplomacyEventSideEffects(details);
         ApplyServerNotificationSideEffects(details);
 
-        lock (eventStateLock)
+        foreach (ModEventDetailDto detail in details)
         {
-            foreach (ModEventDetailDto detail in details)
+            if (!ShouldPostEventLetter(detail))
             {
-                if (!ShouldPostEventLetter(detail))
-                {
-                    continue;
-                }
-
-                string eventId = detail.EventId;
-                if (postedEventLetterIds.Contains(eventId) || HasOpenClashOfRimLetter(eventId))
-                {
-                    continue;
-                }
-
-                if (IsEventInGroup(eventId, "WaitingForUserChoice"))
-                {
-                    ClashOfRimGameComponent.RegisterPendingManualEvent(eventId);
-                }
-
-                string group = ResolveEventReferenceGroup(detail.EventId);
-                ClashOfRimEventLetterProjection projection = BuildEventLetterProjection(detail, group);
-                if (projection.HasServerAction)
-                {
-                    ClashOfRimEventChoiceLetter letter = new()
-                    {
-                        def = projection.LetterDef,
-                        ID = Find.UniqueIDsManager.GetNextLetterID(),
-                        EventId = projection.EventId,
-                        Actions = projection.Actions.ToList(),
-                        CanAccept = projection.Actions.Contains(ClashOfRimEventLetterActionKind.Accept),
-                        CanReject = projection.Actions.Contains(ClashOfRimEventLetterActionKind.Reject),
-                        lookTargets = projection.LookTargets
-                    };
-                    letter.Label = projection.Label;
-                    letter.title = projection.Label;
-                    letter.Text = projection.Text;
-                    Find.LetterStack.ReceiveLetter(letter, $"ClashOfRim event {eventId} from {source}", playSound: true);
-                }
-                else
-                {
-                    Find.LetterStack.ReceiveLetter(
-                        projection.Label,
-                        projection.Text,
-                        projection.LetterDef,
-                        projection.LookTargets,
-                        null,
-                        null,
-                        null,
-                        $"ClashOfRim event {eventId} from {source}",
-                        playSound: true);
-                }
-
-                postedEventLetterIds.Add(eventId);
-                ClashLog.Message($"[ClashOfRim][EventLetter] posted event={eventId} type={detail.EventType} source={source}.");
+                continue;
             }
+
+            string eventId = detail.EventId;
+            if (eventInbox.HasEffect(eventId, ClientEventEffect.Letter) || HasOpenClashOfRimLetter(eventId))
+            {
+                continue;
+            }
+
+            if (eventInbox.IsInGroup(eventId, "WaitingForUserChoice"))
+            {
+                ClashOfRimGameComponent.RegisterPendingManualEvent(eventId);
+            }
+
+            string group = ResolveEventReferenceGroup(detail.EventId);
+            ClashOfRimEventLetterProjection projection = BuildEventLetterProjection(detail, group);
+            if (projection.HasServerAction)
+            {
+                ClashOfRimEventChoiceLetter letter = new()
+                {
+                    def = projection.LetterDef,
+                    ID = Find.UniqueIDsManager.GetNextLetterID(),
+                    EventId = projection.EventId,
+                    Actions = projection.Actions.ToList(),
+                    CanAccept = projection.Actions.Contains(ClashOfRimEventLetterActionKind.Accept),
+                    CanReject = projection.Actions.Contains(ClashOfRimEventLetterActionKind.Reject),
+                    lookTargets = projection.LookTargets
+                };
+                letter.Label = projection.Label;
+                letter.title = projection.Label;
+                letter.Text = projection.Text;
+                Find.LetterStack.ReceiveLetter(letter, $"ClashOfRim event {eventId} from {source}", playSound: true);
+            }
+            else
+            {
+                Find.LetterStack.ReceiveLetter(
+                    projection.Label,
+                    projection.Text,
+                    projection.LetterDef,
+                    projection.LookTargets,
+                    null,
+                    null,
+                    null,
+                    $"ClashOfRim event {eventId} from {source}",
+                    playSound: true);
+            }
+
+            eventInbox.TryMarkEffect(eventId, ClientEventEffect.Letter);
+            ClashLog.Message($"[ClashOfRim][EventLetter] posted event={eventId} type={detail.EventType} source={source}.");
         }
     }
 
@@ -370,9 +369,7 @@ public sealed partial class ClashOfRimMod
 
     private string ResolveEventReferenceGroup(string eventId)
     {
-        return lastEventReferenceGroups.TryGetValue(eventId, out string? knownGroup)
-            ? knownGroup
-            : "Unknown";
+        return eventInbox.GroupOf(eventId) ?? "Unknown";
     }
 
     private void ApplyServerNotificationSideEffects(IReadOnlyCollection<ModEventDetailDto> details)
@@ -384,12 +381,9 @@ public sealed partial class ClashOfRimMod
                 continue;
             }
 
-            lock (eventStateLock)
+            if (!eventInbox.TryMarkEffect(detail.EventId, ClientEventEffect.ServerNotification))
             {
-                if (!appliedServerNotificationSideEffectIds.Add(detail.EventId))
-                {
-                    continue;
-                }
+                continue;
             }
 
             ServerNotificationPayloadSummary? payload = ReadServerNotificationPayloadForDisplay(detail);
@@ -435,12 +429,9 @@ public sealed partial class ClashOfRimMod
                 continue;
             }
 
-            lock (eventStateLock)
+            if (!eventInbox.TryMarkEffect(detail.EventId, ClientEventEffect.Diplomacy))
             {
-                if (!appliedDiplomacyEventSideEffectIds.Add(detail.EventId))
-                {
-                    continue;
-                }
+                continue;
             }
 
             FactionRelationKind relationKind = ResolveDiplomacyRelationKind(detail.EventType);
@@ -464,22 +455,8 @@ public sealed partial class ClashOfRimMod
 
     private bool ShouldPostEventLetter(ModEventDetailDto detail)
     {
-        lastEventReferenceGroups.TryGetValue(detail.EventId ?? string.Empty, out string? group);
+        string? group = eventInbox.GroupOf(detail.EventId ?? string.Empty);
         return ClientEventLetterPolicy.ShouldPostEventLetter(detail, group);
-    }
-
-    private bool IsEventInGroup(string eventId, string expectedGroup)
-    {
-        if (string.IsNullOrWhiteSpace(eventId))
-        {
-            return false;
-        }
-
-        lock (eventStateLock)
-        {
-            return lastEventReferenceGroups.TryGetValue(eventId, out string? group)
-                && string.Equals(group, expectedGroup, StringComparison.Ordinal);
-        }
     }
 
     private static bool HasOpenClashOfRimLetter(string eventId)
@@ -487,15 +464,6 @@ public sealed partial class ClashOfRimMod
         return Find.LetterStack?.LettersListForReading
             .OfType<ClashOfRimEventChoiceLetter>()
             .Any(letter => string.Equals(letter.EventId, eventId, StringComparison.Ordinal)) == true;
-    }
-
-    private ModEventDetailDto? FindEventDetail(string eventId)
-    {
-        lock (eventStateLock)
-        {
-            return lastEventDetails.FirstOrDefault(detail =>
-                string.Equals(detail.EventId, eventId, StringComparison.Ordinal));
-        }
     }
 
     private static string BuildEventLetterLabel(ModEventDetailDto detail)

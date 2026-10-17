@@ -1166,7 +1166,7 @@ public sealed partial class ClashOfRimMod
         }
 
         eventQueueStatus = FormatEventQueue(queue.Response.EventQueue);
-        CaptureEventIds(queue.Response.EventQueue);
+        eventInbox.ReplaceQueue(queue.Response.EventQueue);
     }
 
 }

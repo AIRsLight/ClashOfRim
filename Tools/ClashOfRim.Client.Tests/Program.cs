@@ -28,6 +28,8 @@ var tests = new (string Name, Action Run)[]
     ("bank and event continuations reach snapshot rebuilding and retain failed mutations", LocalMutationContinuationTests.Run),
     ("snapshot uploader owns capture, upload admission and game publication", SnapshotUploaderModuleTests.Run),
     ("snapshot packaging preserves culture-independent metadata without the engine", SnapshotPackageModuleTests.Run),
+    ("event inbox owns isolated data, effects, confirmation order and session reset", EventInboxModuleTests.Run),
+    ("event observations reuse stable handles without exposing mutable product state", EventDetailsObservationTests.Run),
     ("package error presentation preserves public and domain contracts", SnapshotPackagePresentationTests.Run),
     ("protocol transport owns request encoding, responses and cancellation", ProtocolTransportModuleTests.Run),
     ("session WebSocket transport owns duplex failure, framing and closure", SessionWebSocketTransportTests.Run),

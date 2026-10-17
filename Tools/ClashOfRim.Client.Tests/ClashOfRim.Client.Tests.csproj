@@ -10,6 +10,8 @@
     <ProjectReference Include="../../Source/Client/ClashOfRim.csproj" />
     <Compile Include="../TestSupport/ModuleDependencyGuard.cs" Link="ModuleDependencyGuard.cs" />
     <Compile Include="../TestSupport/SnapshotPackageModuleTests.cs" Link="SnapshotPackageModuleTests.cs" />
+    <Compile Include="../TestSupport/EventInboxModuleTests.cs" Link="EventInboxModuleTests.cs" />
+    <Compile Include="../ClashOfRim.RimTestBridge/EventDetailsObservation.cs" Link="EventDetailsObservation.cs" />
   </ItemGroup>
   <Target Name="RequireRuntimeGameAssemblies" BeforeTargets="Build">
     <Error Condition="'$(RimWorldManagedDir)' == ''" Text="Client tests execute game code. Set RimWorldManagedDir to the installed RimWorld 1.7 directory; NuGet reference assemblies cannot execute." />

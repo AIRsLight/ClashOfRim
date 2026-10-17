@@ -298,6 +298,8 @@ public sealed class ModEventCreationResponseDto
 [DataContract]
 public sealed class ModEventTargetContextDto
 {
+    internal ModEventTargetContextDto Copy() => (ModEventTargetContextDto)MemberwiseClone();
+
     [DataMember(Name = "worldObjectId")]
     public string? WorldObjectId { get; set; }
 
@@ -314,6 +316,22 @@ public sealed class ModEventTargetContextDto
 [DataContract]
 public sealed class ModEventDetailDto
 {
+    internal ModEventDetailDto Copy()
+    {
+        var copy = (ModEventDetailDto)MemberwiseClone();
+        copy.Actor = CopyIdentity(Actor);
+        copy.Target = CopyIdentity(Target);
+        copy.TargetContext = TargetContext?.Copy();
+        return copy;
+    }
+
+    private static ModProtocolIdentityDto? CopyIdentity(ModProtocolIdentityDto? identity) => identity is null ? null : new()
+    {
+        UserId = identity.UserId,
+        ColonyId = identity.ColonyId,
+        SnapshotId = identity.SnapshotId
+    };
+
     [DataMember(Name = "eventId")]
     public string EventId { get; set; } = string.Empty;
 

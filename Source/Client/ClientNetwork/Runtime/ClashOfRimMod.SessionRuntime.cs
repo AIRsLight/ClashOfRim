@@ -72,9 +72,9 @@ public sealed partial class ClashOfRimMod
                     }
 
                     eventQueueStatus = FormatEventQueue(queue.Response.EventQueue);
-                    CaptureEventIds(queue.Response.EventQueue);
+                    eventInbox.ReplaceQueue(queue.Response.EventQueue);
                 }
-                IReadOnlyList<string> eventIds = CopyLastEventQueueIds();
+                IReadOnlyList<string> eventIds = eventInbox.CopyQueuedIds();
                 using (ClientSessionWork.EnterPublication())
                 {
                     ClashLog.Message($"[ClashOfRim][Events] refreshed queue ids={eventIds.Count}.");
@@ -109,7 +109,7 @@ public sealed partial class ClashOfRimMod
 
                 eventDetailsStatus = FormatEventDetails(details.Response.Events);
                 LogGiftDetails("RefreshDetails", details.Response.Events);
-                CaptureEventDetails(details.Response.Events);
+                eventInbox.ReplaceDetails(details.Response.Events);
                 IReadOnlyCollection<ModEventDetailDto> events = details.Response.Events.ToList();
                 ClashOfRimGameComponent.EnqueueMainThreadAction(() => PostEventLetters(events, "manual-refresh"));
             }
@@ -184,7 +184,7 @@ public sealed partial class ClashOfRimMod
                     result.Response.SessionId.Named("SESSION"));
                 sessionLifecycle.PublishLogin(result.Response);
                 eventQueueStatus = FormatEventQueue(result.Response.EventQueue);
-                CaptureEventIds(result.Response.EventQueue);
+                eventInbox.ReplaceQueue(result.Response.EventQueue);
                 CaptureWorldMapMarkers(result.Response.WorldMapMarkers, source: "manual-login");
                 StartAutomaticEventRefresh(ClashOfRimText.Key("ClashOfRim.Login.ReasonManual"));
                 StartRefreshPlayers(ClashOfRimText.Key("ClashOfRim.Login.ReasonManual"), requireManualGate: false);
@@ -272,10 +272,6 @@ public sealed partial class ClashOfRimMod
         pendingInitialWorldConfigurationSubmit = false;
         pendingServerWorldConfiguration = null;
         pendingServerWorldSubstrate = null;
-        pendingGiftConfirmationEventIds.Clear();
-        postedEventLetterIds.Clear();
-        appliedServerNotificationSideEffectIds.Clear();
-        appliedDiplomacyEventSideEffectIds.Clear();
         playerColonySiteRegistrationSuppressed = false;
         lastRegisteredPlayerColonySiteSignature = null;
         settings.CurrentSnapshotId = string.Empty;
@@ -286,10 +282,6 @@ public sealed partial class ClashOfRimMod
 
         lock (eventStateLock)
         {
-            lastEventQueueEventIds.Clear();
-            lastEventDetails.Clear();
-            lastEventReferences.Clear();
-            lastEventReferenceGroups.Clear();
             lastPlayers.Clear();
             lastWorldMapMarkers.Clear();
             playersSnapshotVersion++;
@@ -1057,14 +1049,9 @@ public sealed partial class ClashOfRimMod
                     settings.CurrentLineageToken = string.Empty;
                     sessionLifecycle.ClearIdentity();
                     lastRegisteredPlayerColonySiteSignature = null;
-                    pendingGiftConfirmationEventIds.Clear();
-                    postedEventLetterIds.Clear();
-                    appliedServerNotificationSideEffectIds.Clear();
-                    appliedDiplomacyEventSideEffectIds.Clear();
+                    eventInbox.Reset();
                     lock (eventStateLock)
                     {
-                        lastEventQueueEventIds.Clear();
-                        lastEventDetails.Clear();
                         lastTradeOrders.Clear();
                         tradeOrdersSnapshotVersion++;
                         tradeOrdersHasMore = false;
@@ -1515,7 +1502,7 @@ public sealed partial class ClashOfRimMod
         loginStatus = ClashOfRimText.Key("ClashOfRim.SessionExpired.ReconnectSucceeded");
         presenceStatus = loginStatus;
         eventQueueStatus = FormatEventQueue(login.EventQueue);
-        CaptureEventIds(login.EventQueue);
+        eventInbox.ReplaceQueue(login.EventQueue);
         CaptureWorldMapMarkers(login.WorldMapMarkers, source: "session-reconnect");
         window.CompleteReconnect(true, loginStatus);
         StartAutomaticEventRefresh(ClashOfRimText.Key("ClashOfRim.SessionExpired.ReconnectReason"));
@@ -1642,7 +1629,7 @@ public sealed partial class ClashOfRimMod
                         MessageTypeDefOf.PositiveEvent,
                         historical: false));
                 eventQueueStatus = FormatEventQueue(login.Response.EventQueue);
-                CaptureEventIds(login.Response.EventQueue);
+                eventInbox.ReplaceQueue(login.Response.EventQueue);
                 CaptureWorldMapMarkers(login.Response.WorldMapMarkers, source: "map-session-login");
                 StartAutomaticEventRefresh(ClashOfRimText.Key("ClashOfRim.MapSession.ReasonLogin"));
                 StartRefreshPlayers(ClashOfRimText.Key("ClashOfRim.MapSession.ReasonLogin"), requireManualGate: false);
