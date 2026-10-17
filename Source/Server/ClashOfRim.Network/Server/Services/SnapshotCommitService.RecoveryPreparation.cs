@@ -1,4 +1,5 @@
 using AIRsLight.ClashOfRim.Save;
+using AIRsLight.ClashOfRim.Network.Modules.Snapshots;
 
 namespace AIRsLight.ClashOfRim.Network;
 
@@ -8,7 +9,7 @@ public sealed partial class SnapshotCommitService
     internal RecoveryPreparation CaptureRecoveryPreparation(IColonySnapshotIndexStore snapshots)
         => new(this, snapshots);
 
-    internal sealed class RecoveryPreparation
+    internal sealed class RecoveryPreparation : ISnapshotRecoveryPreparation
     {
         private readonly SnapshotCommitService owner;
         private readonly IColonySnapshotIndexStore snapshots;

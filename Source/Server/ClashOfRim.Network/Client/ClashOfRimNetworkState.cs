@@ -1,6 +1,7 @@
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Network.Plugins;
 using AIRsLight.ClashOfRim.Network.Modules.Authorization;
+using AIRsLight.ClashOfRim.Network.Modules.Snapshots;
 using AIRsLight.ClashOfRim.Save;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -91,6 +92,7 @@ public sealed class ClashOfRimNetworkState
         ColonyDeletions = colonyDeletions ?? new ColonyDeletionService();
         ColonyAuthorization = new ColonyAccessAuthorization(AuthTokens, LoginSessions, DiplomacyRelations,
             RaidPreparations, Ledger, () => ServerConfiguration.PvpEnabled);
+        SnapshotMutations = new SnapshotMutationCoordinator(RaidSettlementSnapshotMutationGate, new LegacySnapshotRecoveryAdapter(this));
     }
 
     public IAuthoritativeEventLedger Ledger { get; }
@@ -100,8 +102,9 @@ public sealed class ClashOfRimNetworkState
     public IColonySnapshotIndexStore SnapshotStore { get; }
 
     public object RaidSettlementSnapshotMutationGate { get; } = new();
+    internal SnapshotMutationCoordinator SnapshotMutations { get; }
     internal SnapshotMutationScope EnterSnapshotMutation([System.Runtime.CompilerServices.CallerMemberName] string operation = "")
-        => new(RaidSettlementSnapshotMutationGate, operation);
+        => SnapshotMutations.EnterUnrecovered(operation);
     public SnapshotCommitService SnapshotCommits { get; }
     public ColonyDeletionService ColonyDeletions { get; }
 

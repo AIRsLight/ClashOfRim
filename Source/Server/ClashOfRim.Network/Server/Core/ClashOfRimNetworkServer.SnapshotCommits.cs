@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Network.Modules.Snapshots;
 using AIRsLight.ClashOfRim.Save;
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Protocol;
@@ -12,63 +13,12 @@ public static partial class ClashOfRimNetworkServer
         using var mutation = EnterRecoveredSnapshotMutation(state);
     }
 
-    // Returns ownership of the mutation gate on this thread. Callers must dispose before awaiting.
+    // Transitional facade for unmigrated domains; the coordinator owns the recovery boundary.
     private static RecoveredSnapshotMutation EnterRecoveredSnapshotMutation(ClashOfRimNetworkState state,
         Func<ProtocolResponse?>? authorize = null, [System.Runtime.CompilerServices.CallerMemberName] string operation = "")
-    {
-        bool nested = Monitor.IsEntered(state.RaidSettlementSnapshotMutationGate);
-        while (true)
-        {
-            SnapshotCommitService.RecoveryPreparation? preparation;
-            var scope = state.EnterSnapshotMutation(operation);
-            try
-            {
-                var rejection = authorize?.Invoke();
-                if (rejection is not null) return new(scope, rejection);
-                RecoverBeforeSnapshotCommits(state);
-                preparation = nested ? null : state.SnapshotCommits.CaptureRecoveryPreparation(state.SnapshotStore);
-                // A nested caller may own other domain gates, so its existing boundary cannot be released here.
-                if (preparation is null || !preparation.NeedsPreparation)
-                {
-                    RecoverSnapshotCommitRecords(state);
-                    // Recovery itself can revoke a session or change event-based authorization.
-                    return new(scope, authorize?.Invoke());
-                }
-            }
-            catch { scope.Dispose(); throw; }
-            scope.Dispose();
-            Exception? failure = null;
-            try { SnapshotPreparationService.Run(() => { preparation.Prepare(); return true; }); }
-            catch (Exception ex) { failure = ex; }
-            scope = state.EnterSnapshotMutation(operation);
-            try
-            {
-                var rejection = authorize?.Invoke();
-                if (rejection is not null) return new(scope, rejection);
-                RecoverBeforeSnapshotCommits(state);
-                // A competing recovery may already have completed or replaced the captured intent.
-                if (preparation.IsCurrent)
-                {
-                    if (failure is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
-                    if (preparation.TryInstall())
-                    {
-                        RecoverSnapshotCommitRecords(state);
-                        return new(scope, authorize?.Invoke());
-                    }
-                }
-            }
-            catch { scope.Dispose(); throw; }
-            scope.Dispose();
-        }
-    }
+        => state.SnapshotMutations.Enter(authorize, operation);
 
-    private sealed class RecoveredSnapshotMutation(SnapshotMutationScope scope, ProtocolResponse? rejection) : IDisposable
-    {
-        public ProtocolResponse? Rejection { get; } = rejection;
-        public void Dispose() => scope.Dispose();
-    }
-
-    private static void RecoverBeforeSnapshotCommits(ClashOfRimNetworkState state)
+    internal static void RecoverBeforeSnapshotCommits(ClashOfRimNetworkState state)
     {
         if (state.ColonyDeletions.IsApplying)
             throw new InvalidOperationException("Cannot begin nested mutations while a colony deletion is being applied.");
@@ -77,7 +27,7 @@ public static partial class ClashOfRimNetworkServer
         state.ColonyDeletions.Recover(intent => ApplyColonyDeletion(state, intent));
     }
 
-    private static void RecoverSnapshotCommitRecords(ClashOfRimNetworkState state)
+    internal static void RecoverSnapshotCommitRecords(ClashOfRimNetworkState state)
     {
         state.SnapshotCommits.Recover(state.SnapshotStore, state.BankLoans,
             (snapshot, kind) => RunCommittedSnapshotPostUpload(state, snapshot, kind), state.Ledger,

@@ -20,7 +20,8 @@ internal static class ModuleBoundaryTests
         Type[] modules = typeof(ClashOfRimNetworkState).Assembly.GetTypes()
             .Where(t => t.Namespace?.StartsWith("AIRsLight.ClashOfRim.Network.Modules.", StringComparison.Ordinal) == true).ToArray();
         var violations = ModuleDependencyGuard.FindViolations(modules, t =>
-            t == typeof(ClashOfRimNetworkServer) || t == typeof(ClashOfRimNetworkState) || t == typeof(IServiceProvider));
+            t == typeof(ClashOfRimNetworkServer) || t == typeof(ClashOfRimNetworkState)
+            || t == typeof(LegacySnapshotRecoveryAdapter) || t == typeof(IServiceProvider));
         Require(violations.Count == 0, string.Join(Environment.NewLine, violations));
 
         await using var app = ClashOfRimNetworkServer.Build([], new ClashOfRimNetworkState());
