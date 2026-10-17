@@ -32,6 +32,7 @@ var tests = new (string Name, Action Run)[]
     ("event observations reuse stable handles without exposing mutable product state", EventDetailsObservationTests.Run),
     ("event reads share protocol, identity ownership, ordered publication and notification coalescing", EventReadModuleTests.Run),
     ("event delivery owns successful effects, retries, presentation and shared map identities", EventDeliveryModuleTests.Run),
+    ("event confirmations own protocol, captured identity, admission and game publication", EventConfirmationModuleTests.Run),
     ("package error presentation preserves public and domain contracts", SnapshotPackagePresentationTests.Run),
     ("protocol transport owns request encoding, responses and cancellation", ProtocolTransportModuleTests.Run),
     ("session WebSocket transport owns duplex failure, framing and closure", SessionWebSocketTransportTests.Run),

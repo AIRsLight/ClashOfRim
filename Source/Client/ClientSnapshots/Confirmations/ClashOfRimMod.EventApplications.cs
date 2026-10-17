@@ -1,4 +1,5 @@
 using AIRsLight.ClashOfRim.Modules.Events;
+using AIRsLight.ClashOfRim.Modules.Transport;
 using AIRsLight.ClashOfRim.Modules.Synchronization;
 using static AIRsLight.ClashOfRim.EventLetters.ClientEventLetterPolicy;
 using System;
@@ -766,36 +767,19 @@ public sealed partial class ClashOfRimMod
         }
 
         string eventId = request.EventId;
-        string baseSnapshotId = string.IsNullOrWhiteSpace(request.BaseSnapshotId)
-            ? settings.CurrentSnapshotId
-            : request.BaseSnapshotId!;
         ModSnapshotPackageMetadataDto confirmedSnapshot = build.Package!;
-        confirmedSnapshot.SnapshotUploadKind = ModSnapshotUploadKinds.EventApplicationConfirmation;
         byte[] confirmedPayload = build.Payload!;
         SetEventApplicationSnapshotConfirmationStatus(request, request.UploadingStatus);
 
-        ClientSessionWork.Run(async () =>
-        {
-            try
+        var attempt = eventConfirmation.Capture(uploadTransaction);
+        var command = eventConfirmation.Single(attempt, request.IdempotencyPrefix, eventId, request.SourceEventId,
+            request.BaseSnapshotId, confirmedSnapshot, confirmedPayload, request.ClientApplicationResult);
+        ClientSessionWork.Run(() => eventConfirmation.ConfirmAsync(attempt, command,
+            failure =>
             {
-                using var httpClient = new HttpClient();
-                var client = new ClashOfRimModNetworkClient(
-                    httpClient,
-                    ClashOfRimClientNetworkContext.FromSettings(settings));
-                string idempotencyKey = $"{request.IdempotencyPrefix}:{settings.UserId}:{settings.ColonyId}:{eventId}:{confirmedSnapshot.SnapshotId}";
-                ClashOfRimClientNetworkResult<ModConfirmEventApplicationResponseDto> result =
-                    await ClientSessionWork.Observe(client.ConfirmEventApplicationAsync(
-                        idempotencyKey,
-                        eventId,
-                        request.SourceEventId,
-                        baseSnapshotId,
-                        confirmedSnapshot,
-                        confirmedPayload,
-                        request.ClientApplicationResult));
-
-                using var publication = ClientSessionWork.EnterPublication();
-                if (!result.Success || result.Response is null)
+                if (failure.Kind == ClientEventConfirmationFailureKind.Transport)
                 {
+                    var result = failure.Network!;
                     string status = request.BuildRequestFailedStatus?.Invoke(result)
                         ?? ClashOfRimText.Key(
                             "ClashOfRim.Events.StatusSingleConfirmFailed",
@@ -807,20 +791,21 @@ public sealed partial class ClashOfRimMod
                         request.Operation,
                         status,
                         request.RetryAction,
-                        allowRetry: IsRetryableNetworkFailure(result));
+                        allowRetry: failure.CanRetry);
                     return;
                 }
 
-                ModProtocolResponseDto? serverResult = result.Response.Result;
-                if (serverResult is not null && !serverResult.Accepted)
+                if (failure.Kind == ClientEventConfirmationFailureKind.Rejected)
                 {
-                    string status = request.BuildRejectedStatus?.Invoke(serverResult, result.Response)
+                    var result = failure.Network!;
+                    var serverResult = failure.Rejection!;
+                    string status = request.BuildRejectedStatus?.Invoke(serverResult, result.Response!)
                         ?? ClashOfRimText.Key(
                             "ClashOfRim.Events.StatusSingleConfirmRejected",
                             request.RejectedPrefix.Named("PREFIX"),
                             serverResult.ErrorCode.Named("CODE"),
                             (serverResult.Message ?? string.Empty).Named("MESSAGE"),
-                            (result.Response.ServerValidationResult ?? string.Empty).Named("VALIDATION"));
+                            (result.Response!.ServerValidationResult ?? string.Empty).Named("VALIDATION"));
                     SetEventApplicationSnapshotConfirmationStatus(request, status);
                     ShowUnconfirmedSnapshotFailure(
                         request.Operation,
@@ -829,45 +814,26 @@ public sealed partial class ClashOfRimMod
                     return;
                 }
 
-                ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
-                {
-                    if (!string.IsNullOrWhiteSpace(result.Response.AppliedSnapshotId))
-                    {
-                        snapshotPublication.PublishCurrentGame(
-                            result.Response.AppliedSnapshotId!,
-                            result.Response.NextLineageToken);
-                    }
-
-                    // Cached details and open letters may outlive the confirmed queue entry.
-                    eventInbox.ForgetGroup(eventId);
-                    request.OnAcceptedOnMainThread(result.Response);
-                    CompleteLocalAtomicMutation();
-                    CloseUnconfirmedSnapshotFailureWindow();
-                });
-            }
-            catch (Exception ex)
-            when (ClientSessionWork.IsCurrent)
-            {
-                using var publication = ClientSessionWork.EnterPublication();
-                string status = request.BuildExceptionStatus?.Invoke(ex)
+                Exception ex = failure.Exception!;
+                string exceptionStatus = request.BuildExceptionStatus?.Invoke(ex)
                     ?? ClashOfRimText.Key(
                         "ClashOfRim.Events.StatusSingleConfirmException",
                         request.ExceptionPrefix.Named("PREFIX"),
                         ex.GetType().Name.Named("TYPE"),
                         ex.Message.Named("MESSAGE"));
-                SetEventApplicationSnapshotConfirmationStatus(request, status);
+                SetEventApplicationSnapshotConfirmationStatus(request, exceptionStatus);
                 ShowUnconfirmedSnapshotFailure(
                     request.Operation,
-                    status,
+                    exceptionStatus,
                     request.RetryAction,
-                    allowRetry: IsRetryableNetworkException(ex));
+                    allowRetry: failure.CanRetry);
                 Log.Warning($"[ClashOfRim] {request.Operation} failed: " + ex);
-            }
-            finally
+            }, response =>
             {
-                uploadTransaction.Dispose();
-            }
-        });
+                request.OnAcceptedOnMainThread(response);
+                CompleteLocalAtomicMutation();
+                CloseUnconfirmedSnapshotFailureWindow();
+            }));
     }
 
     private static void SetEventApplicationsSnapshotConfirmationStatus(EventApplicationsSnapshotConfirmationRequest request, string message)
@@ -928,41 +894,18 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
-        string baseSnapshotId = settings.CurrentSnapshotId;
-        IReadOnlyList<ModConfirmEventApplicationEntryDto> entries = request.Applications
-            .Select(entry => new ModConfirmEventApplicationEntryDto
-            {
-                EventId = entry.EventId,
-                SourceEventId = entry.SourceEventId,
-                ClientApplicationResult = entry.ClientApplicationResult
-            })
-            .ToList();
         ModSnapshotPackageMetadataDto confirmedSnapshot = build.Package!;
-        confirmedSnapshot.SnapshotUploadKind = ModSnapshotUploadKinds.BatchEventApplicationConfirmation;
         byte[] confirmedPayload = build.Payload!;
         SetEventApplicationsSnapshotConfirmationStatus(request, request.UploadingStatus);
 
-        ClientSessionWork.Run(async () =>
-        {
-            try
+        var attempt = eventConfirmation.Capture(uploadTransaction);
+        var command = eventConfirmation.Batch(attempt, request.IdempotencyPrefix, confirmedSnapshot, confirmedPayload, request.Applications);
+        ClientSessionWork.Run(() => eventConfirmation.ConfirmBatchAsync(attempt, command,
+            failure =>
             {
-                using var httpClient = new HttpClient();
-                var client = new ClashOfRimModNetworkClient(
-                    httpClient,
-                    ClashOfRimClientNetworkContext.FromSettings(settings));
-                string eventDigest = string.Join(",", entries.Select(entry => entry.EventId).OrderBy(id => id, StringComparer.Ordinal));
-                string idempotencyKey = $"{request.IdempotencyPrefix}:{settings.UserId}:{settings.ColonyId}:{eventDigest}:{confirmedSnapshot.SnapshotId}";
-                ClashOfRimClientNetworkResult<ModConfirmEventApplicationsResponseDto> result =
-                    await ClientSessionWork.Observe(client.ConfirmEventApplicationsAsync(
-                        idempotencyKey,
-                        baseSnapshotId,
-                        confirmedSnapshot,
-                        confirmedPayload,
-                        entries));
-
-                using var publication = ClientSessionWork.EnterPublication();
-                if (!result.Success || result.Response is null)
+                if (failure.Kind == ClientEventConfirmationFailureKind.Transport)
                 {
+                    var result = failure.Network!;
                     string status = request.BuildRequestFailedStatus?.Invoke(result)
                         ?? ClashOfRimText.Key(
                             "ClashOfRim.Events.StatusBatchConfirmFailed",
@@ -973,14 +916,15 @@ public sealed partial class ClashOfRimMod
                         request.Operation,
                         status,
                         request.RetryAction,
-                        allowRetry: IsRetryableNetworkFailure(result));
+                        allowRetry: failure.CanRetry);
                     return;
                 }
 
-                ModProtocolResponseDto? serverResult = result.Response.Result;
-                if (serverResult is not null && !serverResult.Accepted)
+                if (failure.Kind == ClientEventConfirmationFailureKind.Rejected)
                 {
-                    string status = request.BuildRejectedStatus?.Invoke(serverResult, result.Response)
+                    var result = failure.Network!;
+                    var serverResult = failure.Rejection!;
+                    string status = request.BuildRejectedStatus?.Invoke(serverResult, result.Response!)
                         ?? ClashOfRimText.Key(
                             "ClashOfRim.Events.StatusBatchConfirmRejected",
                             serverResult.ErrorCode.Named("CODE"),
@@ -993,82 +937,25 @@ public sealed partial class ClashOfRimMod
                     return;
                 }
 
-                string? appliedSnapshotId = request.SelectAppliedSnapshotId?.Invoke(result.Response)
-                    ?? result.Response.AppliedSnapshotId;
-                ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
-                {
-                    if (!string.IsNullOrWhiteSpace(appliedSnapshotId))
-                    {
-                        snapshotPublication.PublishCurrentGame(appliedSnapshotId!, result.Response.NextLineageToken);
-                    }
-
-                    request.OnAcceptedOnMainThread(result.Response, appliedSnapshotId);
-                    CompleteLocalAtomicMutation();
-                    CloseUnconfirmedSnapshotFailureWindow();
-                });
-            }
-            catch (Exception ex)
-            when (ClientSessionWork.IsCurrent)
-            {
-                using var publication = ClientSessionWork.EnterPublication();
-                string status = request.BuildExceptionStatus?.Invoke(ex)
+                Exception ex = failure.Exception!;
+                string exceptionStatus = request.BuildExceptionStatus?.Invoke(ex)
                     ?? ClashOfRimText.Key(
                         "ClashOfRim.Events.StatusBatchConfirmException",
                         ex.GetType().Name.Named("TYPE"),
                         ex.Message.Named("MESSAGE"));
-                SetEventApplicationsSnapshotConfirmationStatus(request, status);
+                SetEventApplicationsSnapshotConfirmationStatus(request, exceptionStatus);
                 ShowUnconfirmedSnapshotFailure(
                     request.Operation,
-                    status,
+                    exceptionStatus,
                     request.RetryAction,
-                    allowRetry: IsRetryableNetworkException(ex));
+                    allowRetry: failure.CanRetry);
                 Log.Warning($"[ClashOfRim] {request.Operation} batch event confirmation failed: " + ex);
-            }
-            finally
+            }, request.SelectAppliedSnapshotId, (response, appliedSnapshotId) =>
             {
-                uploadTransaction.Dispose();
-            }
-        });
-    }
-
-    private static bool IsRetryableNetworkFailure<T>(ClashOfRimClientNetworkResult<T> result)
-    {
-        string code = result.ErrorCode ?? string.Empty;
-        return (string.Equals(code, "HttpError", StringComparison.Ordinal)
-                && IsRetryableHttpError(result.Message))
-            || string.Equals(code, nameof(HttpRequestException), StringComparison.Ordinal)
-            || string.Equals(code, nameof(TaskCanceledException), StringComparison.Ordinal)
-            || string.Equals(code, nameof(IOException), StringComparison.Ordinal)
-            || string.Equals(code, nameof(ObjectDisposedException), StringComparison.Ordinal);
-    }
-
-    private static bool IsRetryableNetworkException(Exception ex)
-    {
-        return ex is HttpRequestException or TaskCanceledException or IOException or ObjectDisposedException;
-    }
-
-    private static bool IsRetryableHttpError(string? message)
-    {
-        if (string.IsNullOrWhiteSpace(message))
-        {
-            return false;
-        }
-
-        string trimmed = message!.TrimStart();
-        return trimmed.StartsWith("408 ", StringComparison.Ordinal)
-            || trimmed.StartsWith("429 ", StringComparison.Ordinal)
-            || trimmed.StartsWith("5", StringComparison.Ordinal);
-    }
-
-    private static bool IsRetryableSnapshotUploadFailure(ModSnapshotUploadResult result)
-    {
-        string code = result.ErrorCode ?? string.Empty;
-        return (string.Equals(code, "HttpError", StringComparison.Ordinal)
-                && IsRetryableHttpError(result.Message))
-            || string.Equals(code, nameof(HttpRequestException), StringComparison.Ordinal)
-            || string.Equals(code, nameof(TaskCanceledException), StringComparison.Ordinal)
-            || string.Equals(code, nameof(IOException), StringComparison.Ordinal)
-            || string.Equals(code, nameof(ObjectDisposedException), StringComparison.Ordinal);
+                request.OnAcceptedOnMainThread(response, appliedSnapshotId);
+                CompleteLocalAtomicMutation();
+                CloseUnconfirmedSnapshotFailureWindow();
+            }));
     }
 
     private static void SetPreparedIdentityEventApplicationSnapshotConfirmationStatus(
@@ -1123,51 +1010,23 @@ public sealed partial class ClashOfRimMod
             + (confirmedSnapshot.SnapshotId ?? string.Empty)
             + ".");
 
-        ClientSessionWork.Run(async () =>
-        {
-            try
+        var attempt = eventConfirmation.Capture(uploadTransaction);
+        var command = new ClientEventConfirmationCommand(request.IdempotencyKey, request.EventId, request.SourceEventId,
+            request.UserId, request.ColonyId, request.BaseSnapshotId, confirmedSnapshot, confirmedPayload,
+            request.ClientApplicationResult, request.HttpTimeout);
+        ClientSessionWork.Run(() => eventConfirmation.ConfirmAsync(attempt, command,
+            failure =>
             {
-                using var httpClient = new HttpClient();
-                if (request.HttpTimeout.HasValue)
+                if (failure.Kind == ClientEventConfirmationFailureKind.Transport)
                 {
-                    httpClient.Timeout = request.HttpTimeout.Value;
-                }
-
-                var client = new ClashOfRimModNetworkClient(
-                    httpClient,
-                    ClashOfRimClientNetworkContext.FromSettings(settings));
-                ClashOfRimClientNetworkResult<ModConfirmEventApplicationResponseDto> result =
-                    string.Equals(request.UserId, settings.UserId, StringComparison.Ordinal)
-                    && string.Equals(request.ColonyId, settings.ColonyId, StringComparison.Ordinal)
-                        ? await ClientSessionWork.Observe(client.ConfirmEventApplicationAsync(
-                            request.IdempotencyKey,
-                            request.EventId,
-                            request.SourceEventId,
-                            request.BaseSnapshotId,
-                            confirmedSnapshot,
-                            confirmedPayload,
-                            request.ClientApplicationResult))
-                        : await ClientSessionWork.Observe(client.ConfirmEventApplicationForIdentityAsync(
-                            request.IdempotencyKey,
-                            request.EventId,
-                            request.SourceEventId,
-                            request.UserId,
-                            request.ColonyId,
-                            request.BaseSnapshotId,
-                            confirmedSnapshot,
-                            confirmedPayload,
-                            request.ClientApplicationResult));
-
-                using var publication = ClientSessionWork.EnterPublication();
-                if (!result.Success || result.Response is null)
-                {
+                    var result = failure.Network!;
                     string status = request.BuildRequestFailedStatus?.Invoke(result)
                         ?? ClashOfRimText.Key(
                             "ClashOfRim.Events.StatusPreparedConfirmFailed",
                             (result.ErrorCode ?? string.Empty).Named("CODE"),
                             (result.Message ?? string.Empty).Named("MESSAGE"));
                     SetPreparedIdentityEventApplicationSnapshotConfirmationStatus(request, status);
-                    request.ShowFailure(request.RetryAction, IsRetryableNetworkFailure(result));
+                    request.ShowFailure(request.RetryAction, failure.CanRetry);
                     Log.Warning("[ClashOfRim] Prepared identity event confirmation request failed: operation="
                         + operation
                         + ", event="
@@ -1180,10 +1039,11 @@ public sealed partial class ClashOfRimMod
                     return;
                 }
 
-                ModProtocolResponseDto? serverResult = result.Response.Result;
-                if (serverResult is not null && !serverResult.Accepted)
+                if (failure.Kind == ClientEventConfirmationFailureKind.Rejected)
                 {
-                    string status = request.BuildRejectedStatus?.Invoke(serverResult, result.Response)
+                    var result = failure.Network!;
+                    var serverResult = failure.Rejection!;
+                    string status = request.BuildRejectedStatus?.Invoke(serverResult, result.Response!)
                         ?? ClashOfRimText.Key(
                             "ClashOfRim.Events.StatusPreparedConfirmRejected",
                             serverResult.ErrorCode.Named("CODE"),
@@ -1199,57 +1059,35 @@ public sealed partial class ClashOfRimMod
                         + ", message="
                         + (serverResult.Message ?? string.Empty)
                         + ", validation="
-                        + (result.Response.ServerValidationResult ?? string.Empty)
+                        + (result.Response!.ServerValidationResult ?? string.Empty)
                         + ".");
                     return;
                 }
 
-                bool confirmationTargetsCurrentColony =
-                    string.Equals(request.UserId, settings.UserId, StringComparison.Ordinal)
-                    && string.Equals(request.ColonyId, settings.ColonyId, StringComparison.Ordinal);
-
-                ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
-                {
-                    if (confirmationTargetsCurrentColony
-                        && !string.IsNullOrWhiteSpace(result.Response.AppliedSnapshotId))
-                    {
-                        snapshotPublication.PublishCurrentGame(
-                            result.Response.AppliedSnapshotId!,
-                            result.Response.NextLineageToken);
-                    }
-
-                    if (request.CompleteMutationBeforeAcceptedCallback)
-                    {
-                        CompleteLocalAtomicMutation();
-                    }
-
-                    request.OnAcceptedOnMainThread(result.Response);
-                    if (!request.CompleteMutationBeforeAcceptedCallback)
-                    {
-                        CompleteLocalAtomicMutation();
-                    }
-
-                    CloseUnconfirmedSnapshotFailureWindow();
-                });
-            }
-            catch (Exception ex)
-            when (ClientSessionWork.IsCurrent)
-            {
-                using var publication = ClientSessionWork.EnterPublication();
-                string status = request.BuildExceptionStatus?.Invoke(ex)
+                Exception ex = failure.Exception!;
+                string exceptionStatus = request.BuildExceptionStatus?.Invoke(ex)
                     ?? ClashOfRimText.Key(
                         "ClashOfRim.Events.StatusPreparedConfirmException",
                         ex.GetType().Name.Named("TYPE"),
                         ex.Message.Named("MESSAGE"));
-                SetPreparedIdentityEventApplicationSnapshotConfirmationStatus(request, status);
-                request.ShowFailure(request.RetryAction, IsRetryableNetworkException(ex));
+                SetPreparedIdentityEventApplicationSnapshotConfirmationStatus(request, exceptionStatus);
+                request.ShowFailure(request.RetryAction, failure.CanRetry);
                 Log.Warning("[ClashOfRim] Prepared identity event confirmation failed: " + ex);
-            }
-            finally
+            }, response =>
             {
-                uploadTransaction.Dispose();
-            }
-        });
+                if (request.CompleteMutationBeforeAcceptedCallback)
+                {
+                    CompleteLocalAtomicMutation();
+                }
+
+                request.OnAcceptedOnMainThread(response);
+                if (!request.CompleteMutationBeforeAcceptedCallback)
+                {
+                    CompleteLocalAtomicMutation();
+                }
+
+                CloseUnconfirmedSnapshotFailureWindow();
+            }));
     }
 
     private sealed class RaidAttackPawnLoad
@@ -1585,7 +1423,7 @@ public sealed partial class ClashOfRimMod
                         request.Operation,
                         status,
                         request.RetryAction,
-                        allowRetry: IsRetryableSnapshotUploadFailure(result));
+                        allowRetry: ClientNetworkFailurePolicy.CanRetry(result.ErrorCode, result.Message));
                     return;
                 }
 
@@ -1628,7 +1466,7 @@ public sealed partial class ClashOfRimMod
                     request.Operation,
                     status,
                     request.RetryAction,
-                    allowRetry: IsRetryableNetworkException(ex));
+                    allowRetry: ClientNetworkFailurePolicy.CanRetry(ex));
                 Log.Warning($"[ClashOfRim] {request.Operation} local mutation snapshot confirmation failed: " + ex);
             }
             finally

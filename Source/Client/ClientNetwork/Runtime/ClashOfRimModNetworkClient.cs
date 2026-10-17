@@ -46,8 +46,6 @@ public sealed class ClashOfRimModNetworkClient
     private static readonly string UploadSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.UploadSnapshot).Route;
     private static readonly string DownloadLatestSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.DownloadLatestSnapshot).Route;
     private static readonly string DownloadLatestSnapshotPayloadRoute = ProtocolContractManifest.Find(ProtocolMessageKind.DownloadLatestSnapshotPayload).Route;
-    private static readonly string ConfirmEventApplicationRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ConfirmEventApplication).Route;
-    private static readonly string ConfirmEventApplicationsRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ConfirmEventApplications).Route;
     private static readonly string ReportEventApplicationFailureRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ReportEventApplicationFailure).Route;
     private static readonly string SyncWorldMapMarkersRoute = ProtocolContractManifest.Find(ProtocolMessageKind.SyncWorldMapMarkers).Route;
     private static readonly string SyncRuntimeWorldObjectsRoute = ProtocolContractManifest.Find(ProtocolMessageKind.SyncRuntimeWorldObjects).Route;
@@ -86,6 +84,7 @@ public sealed class ClashOfRimModNetworkClient
 
     private readonly ClientProtocolTransport transport;
     private readonly ClientEventProtocol events;
+    private readonly ClientEventConfirmationProtocol eventConfirmations;
     private readonly ClientAuthenticationEnvironment authenticationEnvironment = new();
     private readonly ClientSessionProtocol authentication;
     private readonly ClientSetupAuthenticationLease setupAuthentication;
@@ -108,6 +107,7 @@ public sealed class ClashOfRimModNetworkClient
         var protocolEnvironment = new ClientProtocolEnvironment((message, token) => SessionExpired?.Invoke(message, token));
         transport = new ClientProtocolTransport(httpClient, context, protocolEnvironment);
         events = new ClientEventProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
+        eventConfirmations = new ClientEventConfirmationProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         authentication = new ClientSessionProtocol(transport, authenticationEnvironment, authenticationEnvironment);
         setupAuthentication = new ClientSetupAuthenticationLease(authentication, transport, authenticationEnvironment);
         sessionStream = new ClientSessionWebSocketTransport(new ClientWebSocketFactory(), protocolEnvironment);
@@ -2221,33 +2221,8 @@ public sealed class ClashOfRimModNetworkClient
         byte[] payload,
         string clientApplicationResult,
         CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModConfirmEventApplicationResponseDto>();
-        }
-
-        var request = new ModConfirmEventApplicationRequestDto
-        {
-            IdempotencyKey = idempotencyKey,
-            EventId = eventId,
-            SourceEventId = sourceEventId,
-            UserId = context.UserId,
-            ColonyId = context.ColonyId,
-            BaseSnapshotId = baseSnapshotId,
-            ConfirmedSnapshot = MarkSnapshotUploadKind(
-                confirmedSnapshot,
-                ModSnapshotUploadKinds.EventApplicationConfirmation),
-            ClientApplicationResult = clientApplicationResult,
-            AuthToken = context.AuthToken
-        };
-
-        return transport.PostSnapshotMultipartAsync<ModConfirmEventApplicationRequestDto, ModConfirmEventApplicationResponseDto>(
-            ConfirmEventApplicationRoute,
-            request,
-            payload,
-            cancellationToken);
-    }
+        => eventConfirmations.ConfirmAsync(context, new(idempotencyKey, eventId, sourceEventId, context.UserId, context.ColonyId,
+            baseSnapshotId, confirmedSnapshot, payload, clientApplicationResult), cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModConfirmEventApplicationResponseDto>> ConfirmEventApplicationForIdentityAsync(
         string idempotencyKey,
@@ -2260,33 +2235,8 @@ public sealed class ClashOfRimModNetworkClient
         byte[] payload,
         string clientApplicationResult,
         CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModConfirmEventApplicationResponseDto>();
-        }
-
-        var request = new ModConfirmEventApplicationRequestDto
-        {
-            IdempotencyKey = idempotencyKey,
-            EventId = eventId,
-            SourceEventId = sourceEventId,
-            UserId = userId ?? string.Empty,
-            ColonyId = colonyId ?? string.Empty,
-            BaseSnapshotId = baseSnapshotId,
-            ConfirmedSnapshot = MarkSnapshotUploadKind(
-                confirmedSnapshot,
-                ModSnapshotUploadKinds.EventApplicationConfirmation),
-            ClientApplicationResult = clientApplicationResult,
-            AuthToken = context.AuthToken
-        };
-
-        return transport.PostSnapshotMultipartAsync<ModConfirmEventApplicationRequestDto, ModConfirmEventApplicationResponseDto>(
-            ConfirmEventApplicationRoute,
-            request,
-            payload,
-            cancellationToken);
-    }
+        => eventConfirmations.ConfirmAsync(context, new(idempotencyKey, eventId, sourceEventId, userId, colonyId,
+            baseSnapshotId, confirmedSnapshot, payload, clientApplicationResult), cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModConfirmEventApplicationsResponseDto>> ConfirmEventApplicationsAsync(
         string idempotencyKey,
@@ -2295,31 +2245,7 @@ public sealed class ClashOfRimModNetworkClient
         byte[] payload,
         IReadOnlyCollection<ModConfirmEventApplicationEntryDto> applications,
         CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModConfirmEventApplicationsResponseDto>();
-        }
-
-        var request = new ModConfirmEventApplicationsRequestDto
-        {
-            IdempotencyKey = idempotencyKey,
-            UserId = context.UserId,
-            ColonyId = context.ColonyId,
-            BaseSnapshotId = baseSnapshotId,
-            ConfirmedSnapshot = MarkSnapshotUploadKind(
-                confirmedSnapshot,
-                ModSnapshotUploadKinds.BatchEventApplicationConfirmation),
-            Applications = applications?.ToList() ?? new List<ModConfirmEventApplicationEntryDto>(),
-            AuthToken = context.AuthToken
-        };
-
-        return transport.PostSnapshotMultipartAsync<ModConfirmEventApplicationsRequestDto, ModConfirmEventApplicationsResponseDto>(
-            ConfirmEventApplicationsRoute,
-            request,
-            payload,
-            cancellationToken);
-    }
+        => eventConfirmations.ConfirmBatchAsync(context, new(idempotencyKey, baseSnapshotId, confirmedSnapshot, payload, applications), cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModReportEventApplicationFailureResponseDto>> ReportEventApplicationFailureAsync(
         string idempotencyKey,
