@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Events;
 using AIRsLight.ClashOfRim.Modules.Synchronization;
 using static AIRsLight.ClashOfRim.EventLetters.ClientEventLetterPolicy;
 using System;
@@ -24,165 +25,35 @@ public sealed partial class ClashOfRimMod
 {
     private void StartAutomaticEventRefresh(string reason)
     {
+        using var publication = ClientSessionWork.EnterPublication();
         if (TryRejectBlockedByLocalAtomicMutation(out string atomicMessage))
         {
             QueueAutomaticEventRefreshAfterLocalAtomicMutation(reason, atomicMessage);
-            eventQueueStatus = atomicMessage;
             return;
         }
-
         if (!CanRunManualSync(out string failureReason))
         {
             eventQueueStatus = failureReason;
             return;
         }
-
-        lock (automaticEventRefreshLock)
+        var attempt = automaticEventRefresh.Begin();
+        if (attempt is null)
         {
-            if (automaticEventRefreshInProgress)
-            {
-                automaticEventRefreshQueued = true;
-                eventQueueStatus = ClashOfRimText.Key("ClashOfRim.Events.StatusAutoMerged", reason.Named("REASON"));
-                return;
-            }
-
-            automaticEventRefreshInProgress = true;
+            eventQueueStatus = ClashOfRimText.Key("ClashOfRim.Events.StatusAutoMerged", reason.Named("REASON"));
+            return;
         }
-
         eventQueueStatus = ClashOfRimText.Key("ClashOfRim.Events.StatusAutoRefreshing", reason.Named("REASON"));
+        var request = eventReader.Capture(ClientEventReadKind.Automatic, reason);
         ClientSessionWork.Run(async () =>
         {
-            try
-            {
-                using var httpClient = new HttpClient();
-                var client = new ClashOfRimModNetworkClient(
-                    httpClient,
-                    ClashOfRimClientNetworkContext.FromSettings(settings));
-
-                ClashOfRimClientNetworkResult<ModPullPendingEventsResponseDto> queue =
-                    await ClientSessionWork.Observe(client.PullPendingEventsAsync());
-                using (ClientSessionWork.EnterPublication())
-                {
-                    if (!queue.Success || queue.Response is null)
-                    {
-                        eventQueueStatus = ClashOfRimText.Key("ClashOfRim.Events.StatusAutoQueueFailed", (queue.ErrorCode ?? string.Empty).Named("CODE"), (queue.Message ?? string.Empty).Named("MESSAGE"));
-                        return;
-                    }
-                }
-
-                ModProtocolResponseDto? queueResult = queue.Response.Result;
-                using (ClientSessionWork.EnterPublication())
-                {
-                    if (queueResult is not null && !queueResult.Accepted)
-                    {
-                        eventQueueStatus = ClashOfRimText.Key("ClashOfRim.Events.StatusAutoQueueRejected", queueResult.ErrorCode.Named("CODE"), (queueResult.Message ?? string.Empty).Named("MESSAGE"));
-                        return;
-                    }
-
-                    eventQueueStatus = FormatEventQueue(queue.Response.EventQueue);
-                    eventInbox.ReplaceQueue(queue.Response.EventQueue);
-                }
-                IReadOnlyList<string> eventIds = eventInbox.CopyQueuedIds();
-                using (ClientSessionWork.EnterPublication())
-                {
-                    if (eventIds.Count == 0)
-                    {
-                        eventDetailsStatus = ClashOfRimText.Key("ClashOfRim.Events.StatusAutoNoEvents");
-                        return;
-                    }
-                }
-
-                ClashOfRimClientNetworkResult<ModPullEventDetailsResponseDto> details =
-                    await ClientSessionWork.Observe(client.PullEventDetailsAsync(eventIds));
-                using var publication = ClientSessionWork.EnterPublication();
-                if (!details.Success || details.Response is null)
-                {
-                    eventDetailsStatus = ClashOfRimText.Key(
-                        "ClashOfRim.Events.StatusAutoDetailsFailed",
-                        (details.ErrorCode ?? string.Empty).Named("CODE"),
-                        (details.Message ?? string.Empty).Named("MESSAGE"));
-                    return;
-                }
-
-                ModProtocolResponseDto? detailsResult = details.Response.Result;
-                if (detailsResult is not null && !detailsResult.Accepted)
-                {
-                    eventDetailsStatus = ClashOfRimText.Key(
-                        "ClashOfRim.Events.StatusAutoDetailsRejected",
-                        detailsResult.ErrorCode.Named("CODE"),
-                        (detailsResult.Message ?? string.Empty).Named("MESSAGE"));
-                    return;
-                }
-
-                eventDetailsStatus = FormatEventDetails(details.Response.Events);
-                LogGiftDetails("AutoEventDetails", details.Response.Events);
-                eventInbox.ReplaceDetails(details.Response.Events);
-                IReadOnlyCollection<ModEventDetailDto> events = details.Response.Events.ToList();
-                ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
-                {
-                    if (TryRejectBlockedByLocalAtomicMutation(out string applyBlockedMessage))
-                    {
-                        eventDetailsStatus = applyBlockedMessage;
-                        return;
-                    }
-
-                    LocalMutationKind operation = LocalMutationKind.AutomaticEvents;
-                    BeginLocalAtomicMutation(operation, ClashOfRimText.Key("ClashOfRim.Events.StatusAutoApplying"));
-                    IReadOnlyList<ModConfirmEventApplicationEntryDto> automaticApplications;
-                    try
-                    {
-                        automaticApplications = ApplyDirectlyProcessableEvents(events);
-                    }
-                    catch (Exception ex)
-                    when (ClientSessionWork.IsCurrent)
-                    {
-                        eventDetailsStatus = ClashOfRimText.Key(
-                            "ClashOfRim.Events.StatusAutoApplyException",
-                            ex.GetType().Name.Named("TYPE"),
-                            ex.Message.Named("MESSAGE"));
-                        ClearLocalAtomicMutation();
-                        Log.Warning("[ClashOfRim][AutoEventApply] automatic application failed: " + ex);
-                        return;
-                    }
-
-                    if (automaticApplications.Count > 0)
-                    {
-                        StartConfirmAutomaticEventApplications(automaticApplications);
-                    }
-                    else
-                    {
-                        CompleteLocalAtomicMutation();
-                    }
-
-                    PostEventLetters(events, reason);
-                });
-            }
-            catch (Exception ex)
-            when (ClientSessionWork.IsCurrent)
-            {
-                using var publication = ClientSessionWork.EnterPublication();
-                eventQueueStatus = ClashOfRimText.Key(
-                    "ClashOfRim.Events.StatusAutoException",
-                    ex.GetType().Name.Named("TYPE"),
-                    ex.Message.Named("MESSAGE"));
-                Log.Warning("[ClashOfRim] Automatic event refresh failed: " + ex);
-            }
+            try { await eventReader.ReadAsync(request); }
             finally
             {
-                ClientSessionWork.TryApply(() =>
+                // Completion and the optional restart share the same identity publication boundary.
+                eventReader.TryApply(request, () =>
                 {
-                    bool runAgain;
-                    lock (automaticEventRefreshLock)
-                    {
-                        runAgain = automaticEventRefreshQueued;
-                        automaticEventRefreshQueued = false;
-                        automaticEventRefreshInProgress = false;
-                    }
-
-                    if (runAgain)
-                    {
+                    if (automaticEventRefresh.Complete(attempt))
                         StartAutomaticEventRefresh(ClashOfRimText.Key("ClashOfRim.Events.ReasonMergedNotifications"));
-                    }
                 });
             }
         });
@@ -190,245 +61,112 @@ public sealed partial class ClashOfRimMod
 
     private void QueueAutomaticEventRefreshAfterLocalAtomicMutation(string reason, string status)
     {
-        lock (automaticEventRefreshLock)
-        {
-            automaticEventRefreshQueued = true;
-        }
-
+        automaticEventRefresh.Defer();
         eventQueueStatus = status;
-        ClashLog.Message(
-            $"[ClashOfRim][AutoEventRefresh] queued after local atomic mutation reason={reason ?? "<null>"}.");
+        ClashLog.Message($"[ClashOfRim][AutoEventRefresh] queued after local atomic mutation reason={reason ?? "<null>"}.");
     }
 
     private void StartQueuedAutomaticEventRefreshAfterLocalAtomicMutation()
     {
-        bool runQueued;
-        lock (automaticEventRefreshLock)
-        {
-            runQueued = automaticEventRefreshQueued && !automaticEventRefreshInProgress;
-            if (runQueued)
-            {
-                automaticEventRefreshQueued = false;
-            }
-        }
-
-        if (runQueued)
-        {
+        using var publication = ClientSessionWork.EnterPublication();
+        if (automaticEventRefresh.TakeDeferred())
             StartAutomaticEventRefresh(ClashOfRimText.Key("ClashOfRim.Events.ReasonMergedNotifications"));
-        }
     }
 
-    internal void StartManualPullPendingEvents()
+    internal void StartManualPullPendingEvents() => StartManualEventRead(ClientEventReadKind.Queue);
+    internal void StartManualWaitForEvents() => StartManualEventRead(ClientEventReadKind.Wait);
+    internal void StartManualPullEventDetails() => StartManualEventRead(ClientEventReadKind.Details);
+
+    private void StartManualEventRead(ClientEventReadKind kind)
     {
-        if (!CanRunManualSync(out string failureReason))
+        using var publication = ClientSessionWork.EnterPublication();
+        if (!CanRunManualSync(out string failureReason)
+            || !TryBeginManualSynchronization(out var operation, out failureReason))
         {
-            eventQueueStatus = failureReason;
+            SetEventReadStatus(kind == ClientEventReadKind.Details, failureReason);
             return;
         }
-
-        if (!TryBeginManualSynchronization(out var manualOperation, out failureReason))
-        {
-            eventQueueStatus = failureReason;
-            return;
-        }
-        eventQueueStatus = ClashOfRimText.Key("ClashOfRim.Events.StatusPullingPending");
-
+        SetEventReadStatus(kind == ClientEventReadKind.Details, ClientEventReadPresentation.Started(kind));
+        string reason = kind == ClientEventReadKind.Details
+            ? ClashOfRimText.Key("ClashOfRim.Events.ReasonManualDetails") : "manual-refresh";
+        var request = eventReader.Capture(kind, reason, lastNotificationVersion);
         ClientSessionWork.Run(async () =>
         {
-            try
-            {
-                using var httpClient = new HttpClient();
-                var client = new ClashOfRimModNetworkClient(
-                    httpClient,
-                    ClashOfRimClientNetworkContext.FromSettings(settings));
-
-                ClashOfRimClientNetworkResult<ModPullPendingEventsResponseDto> result =
-                    await ClientSessionWork.Observe(client.PullPendingEventsAsync());
-
-                using var publication = ClientSessionWork.EnterPublication();
-                if (!result.Success || result.Response is null)
-                {
-                    eventQueueStatus = ClashOfRimText.Key(
-                        "ClashOfRim.Events.StatusQueueFailed",
-                        (result.ErrorCode ?? string.Empty).Named("CODE"),
-                        (result.Message ?? string.Empty).Named("MESSAGE"));
-                    return;
-                }
-
-                ModProtocolResponseDto? serverResult = result.Response.Result;
-                if (serverResult is not null && !serverResult.Accepted)
-                {
-                    eventQueueStatus = ClashOfRimText.Key(
-                        "ClashOfRim.Events.StatusQueueRejected",
-                        serverResult.ErrorCode.Named("CODE"),
-                        (serverResult.Message ?? string.Empty).Named("MESSAGE"));
-                    return;
-                }
-
-                eventQueueStatus = FormatEventQueue(result.Response.EventQueue);
-                eventInbox.ReplaceQueue(result.Response.EventQueue);
-            }
-            catch (Exception ex)
-            when (ClientSessionWork.IsCurrent)
-            {
-                using var publication = ClientSessionWork.EnterPublication();
-                eventQueueStatus = ClashOfRimText.Key(
-                    "ClashOfRim.Events.StatusQueueException",
-                    ex.GetType().Name.Named("TYPE"),
-                    ex.Message.Named("MESSAGE"));
-                Log.Warning("[ClashOfRim] Manual event pull failed: " + ex);
-            }
-            finally
-            {
-                manualOperation.Dispose();
-            }
+            try { await eventReader.ReadAsync(request); }
+            finally { operation.Dispose(); }
         });
     }
 
-    internal void StartManualWaitForEvents()
+    private void SetEventReadStatus(bool details, string status)
     {
-        if (!CanRunManualSync(out string failureReason))
-        {
-            eventQueueStatus = failureReason;
-            return;
-        }
-
-        if (!TryBeginManualSynchronization(out var manualOperation, out failureReason))
-        {
-            eventQueueStatus = failureReason;
-            return;
-        }
-        eventQueueStatus = ClashOfRimText.Key("ClashOfRim.Events.StatusWaitingOnline");
-
-        ClientSessionWork.Run(async () =>
-        {
-            try
-            {
-                using var httpClient = new HttpClient();
-                var client = new ClashOfRimModNetworkClient(
-                    httpClient,
-                    ClashOfRimClientNetworkContext.FromSettings(settings));
-
-                ClashOfRimClientNetworkResult<ModWaitForEventsResponseDto> result =
-                    await ClientSessionWork.Observe(client.WaitForEventsAsync(lastNotificationVersion, timeoutSeconds: 15));
-
-                using var publication = ClientSessionWork.EnterPublication();
-                if (!result.Success || result.Response is null)
-                {
-                    eventQueueStatus = ClashOfRimText.Key(
-                        "ClashOfRim.Events.StatusOnlineWaitFailed",
-                        (result.ErrorCode ?? string.Empty).Named("CODE"),
-                        (result.Message ?? string.Empty).Named("MESSAGE"));
-                    return;
-                }
-
-                ModProtocolResponseDto? serverResult = result.Response.Result;
-                if (serverResult is not null && !serverResult.Accepted)
-                {
-                    eventQueueStatus = ClashOfRimText.Key(
-                        "ClashOfRim.Events.StatusOnlineWaitRejected",
-                        serverResult.ErrorCode.Named("CODE"),
-                        (serverResult.Message ?? string.Empty).Named("MESSAGE"));
-                    return;
-                }
-
-                lastNotificationVersion = result.Response.NotificationVersion;
-                eventQueueStatus = result.Response.Changed
-                    ? ClashOfRimText.Key("ClashOfRim.Events.StatusOnlineArrived", FormatEventQueue(result.Response.EventQueue).Named("QUEUE"))
-                    : ClashOfRimText.Key("ClashOfRim.Events.StatusOnlineTimedOut", FormatEventQueue(result.Response.EventQueue).Named("QUEUE"));
-                eventInbox.ReplaceQueue(result.Response.EventQueue);
-            }
-            catch (Exception ex)
-            when (ClientSessionWork.IsCurrent)
-            {
-                using var publication = ClientSessionWork.EnterPublication();
-                eventQueueStatus = ClashOfRimText.Key(
-                    "ClashOfRim.Events.StatusOnlineException",
-                    ex.GetType().Name.Named("TYPE"),
-                    ex.Message.Named("MESSAGE"));
-                Log.Warning("[ClashOfRim] Online event wait failed: " + ex);
-            }
-            finally
-            {
-                manualOperation.Dispose();
-            }
-        });
+        if (details) eventDetailsStatus = status;
+        else eventQueueStatus = status;
     }
 
-    internal void StartManualPullEventDetails()
+    // Presentation and engine effects remain host adapters until M4c. The module has
+    // already checked identity ownership and published inbox state before this notice.
+    private void PresentEventRead(ClientEventReadUpdate update)
     {
-        if (!CanRunManualSync(out string failureReason))
+        var request = update.Request;
+        if (update.Failure is { } failure)
         {
-            eventDetailsStatus = failureReason;
+            bool detailsStatus = failure.Kind == ClientEventReadFailureKind.Exception
+                ? request.Kind == ClientEventReadKind.Details : update.Stage == ClientEventReadStage.Details;
+            SetEventReadStatus(detailsStatus, ClientEventReadPresentation.Failed(update));
+            if (failure.Exception is not null) Log.Warning("[ClashOfRim] Event read failed: " + failure.Exception);
             return;
         }
-
-        IReadOnlyList<string> eventIds = eventInbox.CopyQueuedIds();
-        if (eventIds.Count == 0)
+        if (update.Stage == ClientEventReadStage.Queue)
         {
-            eventDetailsStatus = ClashOfRimText.Key("ClashOfRim.Events.StatusNoViewableDetails");
+            string queue = FormatEventQueue(update.Queue);
+            if (request.Kind == ClientEventReadKind.Wait)
+            {
+                lastNotificationVersion = Math.Max(lastNotificationVersion, update.NotificationVersion);
+                eventQueueStatus = ClashOfRimText.Key(update.Changed ? "ClashOfRim.Events.StatusOnlineArrived"
+                    : "ClashOfRim.Events.StatusOnlineTimedOut", queue.Named("QUEUE"));
+            }
+            else eventQueueStatus = queue;
             return;
         }
-
-        if (!TryBeginManualSynchronization(out var manualOperation, out failureReason))
+        if (update.Empty)
         {
-            eventDetailsStatus = failureReason;
+            eventDetailsStatus = ClientEventReadPresentation.Empty(request.Kind);
             return;
         }
-        eventDetailsStatus = ClashOfRimText.Key("ClashOfRim.Events.StatusPullingDetails");
-
-        ClientSessionWork.Run(async () =>
+        var events = update.Details!;
+        eventDetailsStatus = FormatEventDetails(events);
+        LogGiftDetails(request.Kind == ClientEventReadKind.Automatic ? "AutoEventDetails" : "RefreshDetails", events);
+        ClashOfRimGameComponent.EnqueueMainThreadAction(() => eventReader.TryApply(request, () =>
         {
-            try
-            {
-                using var httpClient = new HttpClient();
-                var client = new ClashOfRimModNetworkClient(
-                    httpClient,
-                    ClashOfRimClientNetworkContext.FromSettings(settings));
+            if (request.Kind == ClientEventReadKind.Automatic) ApplyAutomaticEventRead(events, request.Reason);
+            else PostEventLetters(events, request.Reason);
+        }));
+    }
 
-                ClashOfRimClientNetworkResult<ModPullEventDetailsResponseDto> result =
-                    await ClientSessionWork.Observe(client.PullEventDetailsAsync(eventIds));
-
-                using var publication = ClientSessionWork.EnterPublication();
-                if (!result.Success || result.Response is null)
-                {
-                    eventDetailsStatus = ClashOfRimText.Key(
-                        "ClashOfRim.Events.StatusDetailsFailed",
-                        (result.ErrorCode ?? string.Empty).Named("CODE"),
-                        (result.Message ?? string.Empty).Named("MESSAGE"));
-                    return;
-                }
-
-                ModProtocolResponseDto? serverResult = result.Response.Result;
-                if (serverResult is not null && !serverResult.Accepted)
-                {
-                    eventDetailsStatus = ClashOfRimText.Key(
-                        "ClashOfRim.Events.StatusDetailsRejected",
-                        serverResult.ErrorCode.Named("CODE"),
-                        (serverResult.Message ?? string.Empty).Named("MESSAGE"));
-                    return;
-                }
-
-                eventDetailsStatus = FormatEventDetails(result.Response.Events);
-                eventInbox.ReplaceDetails(result.Response.Events);
-                IReadOnlyCollection<ModEventDetailDto> events = result.Response.Events.ToList();
-                ClashOfRimGameComponent.EnqueueMainThreadAction(() => PostEventLetters(events, ClashOfRimText.Key("ClashOfRim.Events.ReasonManualDetails")));
-            }
-            catch (Exception ex)
-            when (ClientSessionWork.IsCurrent)
-            {
-                using var publication = ClientSessionWork.EnterPublication();
-                eventDetailsStatus = ClashOfRimText.Key(
-                    "ClashOfRim.Events.StatusDetailsException",
-                    ex.GetType().Name.Named("TYPE"),
-                    ex.Message.Named("MESSAGE"));
-                Log.Warning("[ClashOfRim] Manual event detail pull failed: " + ex);
-            }
-            finally
-            {
-                manualOperation.Dispose();
-            }
-        });
+    private void ApplyAutomaticEventRead(IReadOnlyCollection<ModEventDetailDto> events, string reason)
+    {
+        if (TryRejectBlockedByLocalAtomicMutation(out string applyBlockedMessage))
+        {
+            // A mutation can begin after the HTTP read. Retain a deferred refresh so
+            // this notification does not depend on another server event to be applied.
+            QueueAutomaticEventRefreshAfterLocalAtomicMutation(reason, applyBlockedMessage);
+            eventDetailsStatus = applyBlockedMessage;
+            return;
+        }
+        BeginLocalAtomicMutation(LocalMutationKind.AutomaticEvents, ClashOfRimText.Key("ClashOfRim.Events.StatusAutoApplying"));
+        IReadOnlyList<ModConfirmEventApplicationEntryDto> automaticApplications;
+        try { automaticApplications = ApplyDirectlyProcessableEvents(events); }
+        catch (Exception ex) when (ClientSessionWork.IsCurrent)
+        {
+            eventDetailsStatus = ClashOfRimText.Key("ClashOfRim.Events.StatusAutoApplyException",
+                ex.GetType().Name.Named("TYPE"), ex.Message.Named("MESSAGE"));
+            ClearLocalAtomicMutation();
+            Log.Warning("[ClashOfRim][AutoEventApply] automatic application failed: " + ex);
+            return;
+        }
+        if (automaticApplications.Count > 0) StartConfirmAutomaticEventApplications(automaticApplications);
+        else CompleteLocalAtomicMutation();
+        PostEventLetters(events, reason);
     }
 
     internal void ProcessFirstGift(GiftClientDecision decision)

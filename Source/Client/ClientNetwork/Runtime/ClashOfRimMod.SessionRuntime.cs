@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Events;
 using AIRsLight.ClashOfRim.Modules.Sessions;
 using System;
 using System.Collections.Generic;
@@ -28,107 +29,7 @@ public sealed partial class ClashOfRimMod
         UseSimpleDictionaryFormat = true
     };
 
-    internal void StartRefreshEventsForTest()
-    {
-        if (!CanRunManualSync(out string failureReason))
-        {
-            eventQueueStatus = failureReason;
-            return;
-        }
-
-        if (!TryBeginManualSynchronization(out var manualOperation, out failureReason))
-        {
-            eventQueueStatus = failureReason;
-            return;
-        }
-        eventQueueStatus = ClashOfRimText.Key("ClashOfRim.Events.StatusRefreshing");
-        ClientSessionWork.Run(async () =>
-        {
-            try
-            {
-                using var httpClient = new HttpClient();
-                var client = new ClashOfRimModNetworkClient(
-                    httpClient,
-                    ClashOfRimClientNetworkContext.FromSettings(settings));
-
-                ClashOfRimClientNetworkResult<ModPullPendingEventsResponseDto> queue =
-                    await ClientSessionWork.Observe(client.PullPendingEventsAsync());
-                using (ClientSessionWork.EnterPublication())
-                {
-                    if (!queue.Success || queue.Response is null)
-                    {
-                        eventQueueStatus = ClashOfRimText.Key("ClashOfRim.Events.StatusQueueFailed", (queue.ErrorCode ?? string.Empty).Named("CODE"), (queue.Message ?? string.Empty).Named("MESSAGE"));
-                        return;
-                    }
-                }
-
-                ModProtocolResponseDto? queueResult = queue.Response.Result;
-                using (ClientSessionWork.EnterPublication())
-                {
-                    if (queueResult is not null && !queueResult.Accepted)
-                    {
-                        eventQueueStatus = ClashOfRimText.Key("ClashOfRim.Events.StatusQueueRejected", queueResult.ErrorCode.Named("CODE"), (queueResult.Message ?? string.Empty).Named("MESSAGE"));
-                        return;
-                    }
-
-                    eventQueueStatus = FormatEventQueue(queue.Response.EventQueue);
-                    eventInbox.ReplaceQueue(queue.Response.EventQueue);
-                }
-                IReadOnlyList<string> eventIds = eventInbox.CopyQueuedIds();
-                using (ClientSessionWork.EnterPublication())
-                {
-                    ClashLog.Message($"[ClashOfRim][Events] refreshed queue ids={eventIds.Count}.");
-                    if (eventIds.Count == 0)
-                    {
-                        eventDetailsStatus = ClashOfRimText.Key("ClashOfRim.Events.StatusNoDetails");
-                        return;
-                    }
-                }
-
-                ClashOfRimClientNetworkResult<ModPullEventDetailsResponseDto> details =
-                    await ClientSessionWork.Observe(client.PullEventDetailsAsync(eventIds));
-                using var publication = ClientSessionWork.EnterPublication();
-                if (!details.Success || details.Response is null)
-                {
-                    eventDetailsStatus = ClashOfRimText.Key(
-                        "ClashOfRim.Events.StatusDetailsFailed",
-                        (details.ErrorCode ?? string.Empty).Named("CODE"),
-                        (details.Message ?? string.Empty).Named("MESSAGE"));
-                    return;
-                }
-
-                ModProtocolResponseDto? detailsResult = details.Response.Result;
-                if (detailsResult is not null && !detailsResult.Accepted)
-                {
-                    eventDetailsStatus = ClashOfRimText.Key(
-                        "ClashOfRim.Events.StatusDetailsRejected",
-                        detailsResult.ErrorCode.Named("CODE"),
-                        (detailsResult.Message ?? string.Empty).Named("MESSAGE"));
-                    return;
-                }
-
-                eventDetailsStatus = FormatEventDetails(details.Response.Events);
-                LogGiftDetails("RefreshDetails", details.Response.Events);
-                eventInbox.ReplaceDetails(details.Response.Events);
-                IReadOnlyCollection<ModEventDetailDto> events = details.Response.Events.ToList();
-                ClashOfRimGameComponent.EnqueueMainThreadAction(() => PostEventLetters(events, "manual-refresh"));
-            }
-            catch (Exception ex)
-            when (ClientSessionWork.IsCurrent)
-            {
-                using var publication = ClientSessionWork.EnterPublication();
-                eventQueueStatus = ClashOfRimText.Key(
-                    "ClashOfRim.Events.StatusException",
-                    ex.GetType().Name.Named("TYPE"),
-                    ex.Message.Named("MESSAGE"));
-                Log.Warning("[ClashOfRim] Event refresh failed: " + ex);
-            }
-            finally
-            {
-                manualOperation.Dispose();
-            }
-        });
-    }
+    internal void StartRefreshEventsForTest() => StartManualEventRead(ClientEventReadKind.Refresh);
 
     internal void StartManualLogin()
     {
@@ -245,12 +146,6 @@ public sealed partial class ClashOfRimMod
     private void ClearTransientMultiplayerSessionStateForExit()
     {
         TradePawnPreviewService.Reset();
-        lock (automaticEventRefreshLock)
-        {
-            automaticEventRefreshInProgress = false;
-            automaticEventRefreshQueued = false;
-        }
-
         worldMapMarkerSyncInProgress = false;
         runtimeWorldObjectSyncInProgress = false;
         playerColonySiteRegistrationInProgress = false;

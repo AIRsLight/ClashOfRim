@@ -30,6 +30,7 @@ var tests = new (string Name, Action Run)[]
     ("snapshot packaging preserves culture-independent metadata without the engine", SnapshotPackageModuleTests.Run),
     ("event inbox owns isolated data, effects, confirmation order and session reset", EventInboxModuleTests.Run),
     ("event observations reuse stable handles without exposing mutable product state", EventDetailsObservationTests.Run),
+    ("event reads share protocol, identity ownership, ordered publication and notification coalescing", EventReadModuleTests.Run),
     ("package error presentation preserves public and domain contracts", SnapshotPackagePresentationTests.Run),
     ("protocol transport owns request encoding, responses and cancellation", ProtocolTransportModuleTests.Run),
     ("session WebSocket transport owns duplex failure, framing and closure", SessionWebSocketTransportTests.Run),

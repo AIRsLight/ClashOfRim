@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Events;
 using AIRsLight.ClashOfRim.Modules.Transport;
 using AIRsLight.ClashOfRim.Modules.Sessions;
 using System;
@@ -17,9 +18,6 @@ public sealed class ClashOfRimModNetworkClient
     private static readonly string ChangeOfflinePasswordRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ChangeOfflinePassword).Route;
     private static readonly string ListPlayersRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ListPlayers).Route;
     private static readonly string ListAchievementsRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ListAchievements).Route;
-    private static readonly string WaitForEventsRoute = ProtocolContractManifest.Find(ProtocolMessageKind.WaitForEvents).Route;
-    private static readonly string PullPendingEventsRoute = ProtocolContractManifest.Find(ProtocolMessageKind.PullPendingEvents).Route;
-    private static readonly string PullEventDetailsRoute = ProtocolContractManifest.Find(ProtocolMessageKind.PullEventDetails).Route;
     private static readonly string CreateGiftWithSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.CreateGiftWithSnapshot).Route;
     private static readonly string StorePawnPackageRoute = ProtocolContractManifest.Find(ProtocolMessageKind.StorePawnPackage).Route;
     private static readonly string GetPawnPackageRoute = ProtocolContractManifest.Find(ProtocolMessageKind.GetPawnPackage).Route;
@@ -87,6 +85,7 @@ public sealed class ClashOfRimModNetworkClient
     private static readonly string ServerHelloRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ServerHello).Route;
 
     private readonly ClientProtocolTransport transport;
+    private readonly ClientEventProtocol events;
     private readonly ClientAuthenticationEnvironment authenticationEnvironment = new();
     private readonly ClientSessionProtocol authentication;
     private readonly ClientSetupAuthenticationLease setupAuthentication;
@@ -108,6 +107,7 @@ public sealed class ClashOfRimModNetworkClient
         this.context = context ?? throw new ArgumentNullException(nameof(context));
         var protocolEnvironment = new ClientProtocolEnvironment((message, token) => SessionExpired?.Invoke(message, token));
         transport = new ClientProtocolTransport(httpClient, context, protocolEnvironment);
+        events = new ClientEventProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         authentication = new ClientSessionProtocol(transport, authenticationEnvironment, authenticationEnvironment);
         setupAuthentication = new ClientSetupAuthenticationLease(authentication, transport, authenticationEnvironment);
         sessionStream = new ClientSessionWebSocketTransport(new ClientWebSocketFactory(), protocolEnvironment);
@@ -1170,76 +1170,14 @@ public sealed class ClashOfRimModNetworkClient
     }
 
     public Task<ClashOfRimClientNetworkResult<ModPullPendingEventsResponseDto>> PullPendingEventsAsync(
-        CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModPullPendingEventsResponseDto>();
-        }
-
-        var request = new ModPullPendingEventsRequestDto
-        {
-            AuthToken = context.AuthToken,
-            UserId = context.UserId,
-            ColonyId = context.ColonyId,
-            CurrentSnapshotId = context.CurrentSnapshotId ?? string.Empty
-        };
-
-        return transport.PostAsync<ModPullPendingEventsRequestDto, ModPullPendingEventsResponseDto>(
-            PullPendingEventsRoute,
-            request,
-            cancellationToken);
-    }
+        CancellationToken cancellationToken = default) => events.PullAsync(context, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModWaitForEventsResponseDto>> WaitForEventsAsync(
-        long knownNotificationVersion,
-        int timeoutSeconds,
-        CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModWaitForEventsResponseDto>();
-        }
-
-        var request = new ModWaitForEventsRequestDto
-        {
-            AuthToken = context.AuthToken,
-            UserId = context.UserId,
-            ColonyId = context.ColonyId,
-            CurrentSnapshotId = context.CurrentSnapshotId ?? string.Empty,
-            KnownNotificationVersion = knownNotificationVersion,
-            TimeoutSeconds = timeoutSeconds
-        };
-
-        return transport.PostAsync<ModWaitForEventsRequestDto, ModWaitForEventsResponseDto>(
-            WaitForEventsRoute,
-            request,
-            cancellationToken);
-    }
+        long knownNotificationVersion, int timeoutSeconds, CancellationToken cancellationToken = default) =>
+        events.WaitAsync(context, knownNotificationVersion, timeoutSeconds, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModPullEventDetailsResponseDto>> PullEventDetailsAsync(
-        IReadOnlyList<string> eventIds,
-        CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModPullEventDetailsResponseDto>();
-        }
-
-        var request = new ModPullEventDetailsRequestDto
-        {
-            AuthToken = context.AuthToken,
-            UserId = context.UserId,
-            ColonyId = context.ColonyId,
-            CurrentSnapshotId = context.CurrentSnapshotId ?? string.Empty,
-            EventIds = eventIds.ToList()
-        };
-
-        return transport.PostAsync<ModPullEventDetailsRequestDto, ModPullEventDetailsResponseDto>(
-            PullEventDetailsRoute,
-            request,
-            cancellationToken);
-    }
+        IReadOnlyList<string> eventIds, CancellationToken cancellationToken = default) => events.DetailsAsync(context, eventIds, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModRejectGiftResponseDto>> RejectGiftAsync(
         string eventId,

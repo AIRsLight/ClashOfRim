@@ -55,6 +55,8 @@ public sealed partial class ClashOfRimMod : Mod
 
     private readonly ClashOfRimSettings settings;
     private readonly ClientEventInbox eventInbox = new();
+    private readonly ClientEventReader eventReader;
+    private readonly ClientEventRefreshQueue automaticEventRefresh;
     internal IReadOnlyList<ModEventDetailDto>? ReadEventDetails(int? knownVersion, out int version) =>
         eventInbox.CopyDetails(knownVersion, out version);
     private readonly ClientSnapshotPreparationAdapter snapshotPreparation = ClientSnapshotComposition.CreatePreparation();
@@ -111,8 +113,6 @@ public sealed partial class ClashOfRimMod : Mod
     private string? lastSessionId => sessionLifecycle.SessionId;
     private long lastNotificationVersion;
     private long lastWorldConfigurationVersion;
-    private bool automaticEventRefreshInProgress;
-    private bool automaticEventRefreshQueued;
     private bool chatRefreshInProgress;
     private bool chatSendInProgress;
     private readonly ClientSessionLifecycle sessionLifecycle;
@@ -138,7 +138,6 @@ public sealed partial class ClashOfRimMod : Mod
     private readonly Dictionary<string, ModPlayerColonySiteDto> occupiedPlayerColonySites = new(StringComparer.Ordinal);
     private readonly HashSet<string> finalDeadlineRaidCleanupEventIds = new(StringComparer.Ordinal);
     private readonly HashSet<string> submittedWorldFeatureNameCatalogKeys = new(StringComparer.Ordinal);
-    private readonly object automaticEventRefreshLock = new();
     private readonly object eventStateLock = new();
     private readonly object chatStateLock = new();
     private readonly object colonySiteStateLock = new();
@@ -156,6 +155,8 @@ public sealed partial class ClashOfRimMod : Mod
         snapshotPublication = ClientSnapshotComposition.CreatePublication(settings);
         sessionLifecycle = new ClientSessionLifecycle(new ClientSessionIdentityStore(settings), new ClientSessionLogoutTransport(), sessionConnection);
         sessionReconnect = new ClientSessionReconnect(new ClientSessionReconnectTransport(), sessionLifecycle, synchronization);
+        eventReader = new ClientEventReader(sessionLifecycle, eventInbox, new ClientEventReadTransport());
+        automaticEventRefresh = new ClientEventRefreshQueue(sessionLifecycle);
         if (!string.Equals(content.PackageId, PackageId, StringComparison.OrdinalIgnoreCase))
         {
             Log.Warning("[ClashOfRim] Ignored ClashOfRim mod class loaded from unexpected package: " + (content.PackageId ?? "<null>") + ".");
@@ -171,6 +172,7 @@ public sealed partial class ClashOfRimMod : Mod
         sessionLifecycle.Ended += synchronization.Reset;
         sessionLifecycle.Ended += localMutations.Reset;
         sessionLifecycle.Ended += eventInbox.Reset;
+        eventReader.Updated += PresentEventRead;
         sessionLifecycle.Ended += ClearTransientMultiplayerSessionStateForExit;
         synchronization.SnapshotChanged += PresentSnapshotTransaction;
         sessionLifecycle.LogoutFailed += message => Log.Warning("[ClashOfRim] " + message);

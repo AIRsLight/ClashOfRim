@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Events;
 using AIRsLight.ClashOfRim.Modules.Synchronization;
 using System;
 using System.Collections.Generic;
@@ -62,6 +63,7 @@ public sealed partial class ClashOfRimMod
             return;
         }
         tradeStatus = ClashOfRimText.Key("ClashOfRim.Trade.StatusAcceptingOrder", order.EventId.Named("EVENTID"));
+        var eventRead = eventReader.Capture(ClientEventReadKind.Queue);
         ClientSessionWork.Run(async () =>
         {
             try
@@ -92,7 +94,7 @@ public sealed partial class ClashOfRimMod
                     tradeStatus = result.Response.MemoCreated ? ClashOfRimText.Key("ClashOfRim.Trade.StatusAcceptedOrder", result.Response.TradeEventId.Named("EVENTID"), result.Response.MemoEventId.Named("MEMOID")) : ClashOfRimText.Key("ClashOfRim.Trade.StatusAcceptMemoExists", result.Response.MemoEventId.Named("MEMOID"));
                     MarkTradeOrderAcceptedLocally(order.EventId, result.Response.MemoEventId);
                 }
-                await ClientSessionWork.Observe(RefreshEventsAfterTradeAccept(client));
+                await ClientSessionWork.Observe(eventReader.ReadAsync(eventRead));
             }
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
@@ -1154,19 +1156,6 @@ public sealed partial class ClashOfRimMod
     internal string FormatWorldMapTargetLabel(ModWorldMapMarkerDto marker)
     {
         return FormatSupportTargetLabel(marker);
-    }
-
-    private async Task RefreshEventsAfterTradeAccept(ClashOfRimModNetworkClient client)
-    {
-        ClashOfRimClientNetworkResult<ModPullPendingEventsResponseDto> queue = await client.PullPendingEventsAsync();
-        using var publication = ClientSessionWork.EnterPublication();
-        if (!queue.Success || queue.Response is null || queue.Response.Result?.Accepted == false)
-        {
-            return;
-        }
-
-        eventQueueStatus = FormatEventQueue(queue.Response.EventQueue);
-        eventInbox.ReplaceQueue(queue.Response.EventQueue);
     }
 
 }
