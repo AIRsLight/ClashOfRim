@@ -709,11 +709,7 @@ public sealed class WorldConfigurationRegistry
         {
             WorldFeatureDto expected = baseline[index];
             WorldFeatureDto actual = catalog[index];
-            if (!string.Equals(expected.DefName, actual.DefName, StringComparison.Ordinal)
-                || !NearlyEqual(expected.MaxDrawSizeInTiles, actual.MaxDrawSizeInTiles)
-                || !NearlyEqual(expected.DrawCenterX, actual.DrawCenterX)
-                || !NearlyEqual(expected.DrawCenterY, actual.DrawCenterY)
-                || !NearlyEqual(expected.DrawCenterZ, actual.DrawCenterZ))
+            if (!WorldFeatureGeometry.From(expected).Matches(WorldFeatureGeometry.From(actual)))
             {
                 failureReason = "FeatureFingerprintMismatch";
                 return false;
@@ -722,11 +718,6 @@ public sealed class WorldConfigurationRegistry
 
         failureReason = null;
         return true;
-    }
-
-    private static bool NearlyEqual(float left, float right)
-    {
-        return Math.Abs(left - right) <= 0.0001f;
     }
 
     private static WorldFeatureNameCatalogDto NormalizeFeatureNameCatalog(

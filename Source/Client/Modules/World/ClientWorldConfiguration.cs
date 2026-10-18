@@ -11,7 +11,6 @@ internal interface IClientWorldConfigurationSession
 {
     bool IsCurrent { get; }
     ClientWorldFeatureNames? ApplyFeatures(ModWorldConfigurationDto configuration);
-    ClientWorldFeatureNames? CaptureLocalizedFeatures(ModWorldConfigurationDto configuration);
     void ApplyFactions(ModWorldConfigurationDto configuration);
     void ApplyRoads(ModWorldConfigurationDto configuration);
     void ApplyExtensions(ModWorldConfigurationDto configuration, string userId, bool worldState);
@@ -34,19 +33,18 @@ internal sealed class ClientWorldConfiguration
         if (string.IsNullOrWhiteSpace(configuration?.WorldConfigurationId)) return;
         var scope = requests.Capture(); requests.TryApply(scope, () => store.Remember(configuration!.WorldConfigurationId.Trim()));
     }
-    internal bool Apply(ModWorldConfigurationDto configuration, bool worldState = false, bool features = true)
-        => Project(configuration, true, worldState, features, true);
+    internal bool Apply(ModWorldConfigurationDto configuration, bool worldState = false, bool features = true, ClientWorldFeatureNames? generatedNames = null)
+        => Project(configuration, true, worldState, features, true, generatedNames);
     internal bool ApplyCatalog(ModWorldConfigurationDto? configuration, bool applyStoryteller = false)
-        => configuration is not null && Project(configuration, false, false, false, applyStoryteller);
-    private bool Project(ModWorldConfigurationDto source, bool full, bool worldState, bool features, bool applyStoryteller)
+        => configuration is not null && Project(configuration, false, false, false, applyStoryteller, null);
+    private bool Project(ModWorldConfigurationDto source, bool full, bool worldState, bool features, bool applyStoryteller, ClientWorldFeatureNames? names)
     {
         var scope = requests.Capture(); var configuration = ClientProtocolJson.Copy(source); var runtime = scope.Boundary;
         bool Step(Action action) => requests.TryApply(scope, action) && requests.TryApply(scope, static () => { });
         if (!Step(() => Remember(configuration))) return false;
-        ClientWorldFeatureNames? names = null;
         if (full)
         {
-            if (!Step(() => names = features ? runtime.ApplyFeatures(configuration) : runtime.CaptureLocalizedFeatures(configuration))) return false;
+            if (features && !Step(() => names = runtime.ApplyFeatures(configuration))) return false;
             if (!Step(() => runtime.ApplyFactions(configuration)) || !Step(() => runtime.ApplyRoads(configuration))) return false;
         }
         if (!Step(() => runtime.ApplyExtensions(configuration, scope.Context.UserId, worldState))) return false;

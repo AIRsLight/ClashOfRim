@@ -20,12 +20,14 @@ internal static class ClientWorldGenerationRuntimeTests
     private static object[]? arguments;
     private static int pushed, popped, resets, writes;
     private static bool failWrite;
+    private static float pollution = .25f;
     internal static void Run()
     {
         var game = Current.Game; var creating = Current.CreatingWorld; var culture = CultureInfo.CurrentCulture;
         var defs = DefDatabase<FactionDef>.AllDefsListForReading.ToArray();
         var harmony = new Harmony("ClashOfRim.Tests.WorldGenerationRuntime");
         void Patch(System.Reflection.MethodBase method, string prefix) => harmony.Patch(method, prefix: new HarmonyMethod(typeof(ClientWorldGenerationRuntimeTests), prefix));
+        Patch(AccessTools.Method(typeof(AIRsLight.ClashOfRim.ThirdPartyCompatibility.ClashOfRimCompatibilityApi), "ResolveWorldGenerationFloatSetting"), nameof(Pollution));
         Patch(AccessTools.Method(typeof(WorldGenerator), nameof(WorldGenerator.GenerateWorld)), nameof(Generate));
         Patch(AccessTools.Method(typeof(GameInitData), nameof(GameInitData.ResetWorldRelatedMapInitData)), nameof(Reset));
         Patch(AccessTools.Method(typeof(Rand), nameof(Rand.EnsureStateStackEmpty)), nameof(Empty));
@@ -45,10 +47,11 @@ internal static class ClientWorldGenerationRuntimeTests
             foreach (string name in new[] { "en-US", "fr-FR", "tr-TR", "zh-CN" })
             {
                 CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(name);
-                foreach (string coverage in new[] { "0.05", "0.3", "0.5", "1" })
+                foreach (string coverage in new[] { "0.05", "0.3", "0.5", "1", "1.01", "30", "1e-1" })
                 {
                     Current.Game = New<Game>(); Current.Game.InitData = new GameInitData(); Current.Game.World = New<World>();
                     var previous = Current.Game.World; product = New<World>(); arguments = null; pushed = popped = resets = 0;
+                    pollution = coverage == "30" ? 42f : .25f;
                     var c = new ModWorldConfigurationDto { SeedString = "种子-I", PlanetCoverage = coverage, OverallRainfall = "999", OverallTemperature = "normal", OverallPopulation = "Normal", LandmarkDensity = "-1" };
                     c.FactionDefNames.Add(faction.defName);
                     var bound = new ClientWorldGenerationRuntime().Bind();
@@ -56,7 +59,7 @@ internal static class ClientWorldGenerationRuntimeTests
                     {
                         Check(arguments is not null && (float)arguments[0] == float.Parse(coverage, CultureInfo.InvariantCulture) && (string)arguments[1] == "种子-I", "Adapter changed coverage or seed.");
                         Check((OverallRainfall)arguments![2] == OverallRainfall.Normal && (OverallTemperature)arguments[3] == OverallTemperature.Normal
-                            && (LandmarkDensity)arguments[5] == LandmarkDensity.Normal && ((List<FactionDef>)arguments[6]).Single() == faction, "Undefined enum or faction resolution changed.");
+                            && (LandmarkDensity)arguments[5] == LandmarkDensity.Normal && ((List<FactionDef>)arguments[6]).Single() == faction && (float)arguments[7] == pollution, "Undefined enum or faction resolution changed.");
                         result.Publish(); Check(ReferenceEquals(Current.Game.World, product) && bound.IsCurrent, "World publication lost boundary.");
                     }
                     Check(ReferenceEquals(Current.Game.World, previous) && Current.CreatingWorld is null && pushed == 1 && popped == 1 && resets == 1, "Uncommitted world/Rand state not restored.");
@@ -114,6 +117,7 @@ internal static class ClientWorldGenerationRuntimeTests
     private static T New<T>() => (T)RuntimeHelpers.GetUninitializedObject(typeof(T));
     private static void Check(bool ok, string message) { if (!ok) throw new InvalidOperationException(message); }
     private static bool Generate(object[] __args, ref World __result) { arguments = __args; Current.CreatingWorld = product; generating?.Invoke(); __result = product; return false; }
+    private static bool Pollution(ref float __result) { __result = pollution; return false; }
     private static bool Reset() { resets++; return false; }
     private static bool Empty() => false;
     private static bool Push() { pushed++; return false; }

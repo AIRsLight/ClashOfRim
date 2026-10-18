@@ -30,7 +30,7 @@ internal sealed class ClientWorldGenerationRuntime : IClientWorldGenerationRunti
             var factions = c.FactionDefNames.Select(DefDatabase<FactionDef>.GetNamedSilentFail).Where(def => def is not null).ToList();
             if (factions.Count == 0) factions = DefDatabase<FactionDef>.AllDefsListForReading.ToList();
             float pollution = ClashOfRimCompatibilityApi.ResolveWorldGenerationFloatSetting(c, "pollution", 0f);
-            if (float.IsNaN(pollution) || float.IsInfinity(pollution) || pollution < 0f || pollution > 1f)
+            if (float.IsNaN(pollution) || float.IsInfinity(pollution) || pollution < 0f)
                 throw new ArgumentException("Invalid server generation pollution: " + pollution.ToString(CultureInfo.InvariantCulture));
             if (!current()) throw new OperationCanceledException("World setup was replaced.");
             var previousCreatingWorld = Current.CreatingWorld;
@@ -64,10 +64,11 @@ internal sealed class ClientWorldGenerationRuntime : IClientWorldGenerationRunti
                 if (!owner.IsCurrent) return;
                 owner.game!.World = value; owner.world = value; published = true;
             }
-            public void ApplySubstrate(WorldSubstratePackage substrate, ModWorldConfigurationDto configuration)
+            public ClientWorldFeatureNames? ApplySubstrate(WorldSubstratePackage substrate, ModWorldConfigurationDto configuration)
             {
-                if (!WorldSubstrateRuntime.TryApply(substrate, configuration, out var failure))
+                if (!WorldSubstrateRuntime.TryApply(substrate, configuration, out var names, out var failure))
                     throw new InvalidOperationException("Server world substrate could not be applied: " + failure);
+                return names;
             }
             public void Complete(Func<bool> current)
             {

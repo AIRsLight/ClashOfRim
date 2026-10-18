@@ -19,6 +19,8 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("world feature names share culture, catalog and geometry policy", ClientWorldFeatureLabelsTests.Run),
+    ("world feature runtime preserves IDs, layers and tile links", ClientWorldFeaturesRuntimeTests.Run),
     ("world generation runtime binds engine inputs, worlds and setup pages", ClientWorldGenerationRuntimeTests.Run),
     ("world generation owns deferred work, application and catalog receipts", ClientWorldGenerationTests.Run),
     ("storyteller configuration shares setup and runtime ownership", ClientStorytellerConfigurationTests.Run),

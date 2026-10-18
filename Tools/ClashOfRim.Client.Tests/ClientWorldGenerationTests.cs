@@ -21,16 +21,17 @@ internal static class ClientWorldGenerationTests
                 CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(name);
                 Success(); count++;
                 foreach (string change in new[] { "user", "server", "colony", "auth", "login", "game", "generation", "snapshot", "plan" })
-                    foreach (string stage in new[] { "close", "generate", "publish", "substrate", "names", "factions", "roads", "extensions", "objects", "completion", "status", "next" })
+                    foreach (string stage in new[] { "close", "generate", "publish", "substrate", "labels", "factions", "roads", "extensions", "objects", "completion", "status", "next" })
                     { Ownership(change, stage); count++; }
-                foreach (string stage in new[] { "close", "queue", "generate", "publish", "substrate", "names", "factions", "roads", "extensions", "objects", "completion" })
+                foreach (string stage in new[] { "close", "queue", "generate", "publish", "substrate", "labels", "factions", "roads", "extensions", "objects", "completion" })
                 { Failure(stage); count++; }
-                foreach (string value in new[] { "", "bad", "NaN", "Infinity", "-Infinity", "0", "-0.3", "1.01", "0,3" }) { Coverage(value); count++; }
+                foreach (string value in new[] { "", "bad", "NaN", "Infinity", "-Infinity", "0", "-0.3", "1e100", "0,3" }) { Coverage(value); count++; }
                 foreach (string change in new[] { "user", "server", "colony", "auth", "login", "game", "generation", "snapshot", "plan" })
                     foreach (bool generated in new[] { false, true }) { Deferred(change, generated); count++; }
                 Projection(); count++;
             }
             Catalogs().GetAwaiter().GetResult(); count++;
+            GeneratedReceipt(); count++;
         }
         finally { CultureInfo.CurrentCulture = culture; ClientSessionWork.Reset(); }
         Console.WriteLine($"PASS: world generation/application ({count} scenarios)");
@@ -46,7 +47,7 @@ internal static class ClientWorldGenerationTests
         Check(f.Completed.Count == 1 && f.Page.Advanced == 0, "Generation did not await UI completion/ran twice.");
         var finish = f.Completed.Dequeue(); finish(); finish();
         Check(f.Page.Advanced == 1 && f.Successes == 1 && f.Failures == 0 && f.Created.Single().Committed, "Completion not exact.");
-        Check(string.Join(",", f.Trace) == "close,queue,generate,publish,substrate,remember,names,factions,roads,extensions,objects,completion,status,next", "Generation order changed: " + string.Join(",", f.Trace));
+        Check(string.Join(",", f.Trace) == "close,queue,generate,publish,substrate,labels,remember,factions,roads,extensions,objects,completion,status,next", "Generation order changed: " + string.Join(",", f.Trace));
     }
     private static void Ownership(string change, string stage)
     {
@@ -91,6 +92,17 @@ internal static class ClientWorldGenerationTests
         Check(string.Join(",", f.Trace) == "remember,extensions", "Catalog refreshed world structures.");
         f.Trace.Clear(); f.Hook = stage => { if (stage == "extensions") f.Change("user"); };
         Check(!f.Configuration.Apply(c) && !f.Trace.Contains("objects"), "Projection borrowed a new identity after extension code.");
+    }
+    private static void GeneratedReceipt()
+    {
+        foreach (bool named in new[] { false, true })
+        {
+            var f = new Fixture(); f.Prepare();
+            f.FeatureNames = named ? new("French", new[] { new ModWorldFeatureDto { DefName = "Mountain", Label = "Montagne" } }) : null;
+            f.Generation.TryStart(f.Page); f.Pump();
+            Check(f.Sent.Count == (named ? 1 : 0), "Generation ignored its naming receipt or submitted an absent/failed catalog.");
+            if (named) Check(f.Sent[0].Features[0].Label == "Montagne" && f.Sent[0].World == "world", "Generated catalog was recaptured/replaced.");
+        }
     }
     private static async Task Catalogs()
     {
@@ -154,6 +166,7 @@ internal static class ClientWorldGenerationTests
         internal readonly object InitialWorld = new(); internal object World;
         internal Action<string>? Hook;
         internal int Successes, Failures;
+        internal ClientWorldFeatureNames? FeatureNames;
         internal readonly List<(string Server, string World, IReadOnlyList<ModWorldFeatureDto> Features)> Sent = new();
         internal Func<ClashOfRimClientNetworkContext, string, string, IReadOnlyList<ModWorldFeatureDto>, Task<ClashOfRimClientNetworkResult<ModSubmitWorldFeatureNamesResponseDto>>>? Send;
         internal Fixture()
@@ -198,7 +211,6 @@ internal static class ClientWorldGenerationTests
         {
             public bool IsCurrent => ReferenceEquals(Game, F.Ports.GameOwner) && ReferenceEquals(World, F.World);
             public ClientWorldFeatureNames? ApplyFeatures(ModWorldConfigurationDto configuration) { F.Step("features"); return null; }
-            public ClientWorldFeatureNames? CaptureLocalizedFeatures(ModWorldConfigurationDto configuration) { F.Step("names"); return null; }
             public void ApplyFactions(ModWorldConfigurationDto configuration) => F.Step("factions");
             public void ApplyRoads(ModWorldConfigurationDto configuration) => F.Step("roads");
             public void ApplyExtensions(ModWorldConfigurationDto configuration, string userId, bool worldState) => F.Step("extensions");
@@ -220,7 +232,7 @@ internal static class ClientWorldGenerationTests
             private bool published, disposed; internal bool Committed;
             internal BuiltWorld(GenerationSession owner) { this.owner = owner; previous = owner.World; }
             public void Publish() { owner.F.World = owner.World = value; published = true; owner.F.Step("publish"); }
-            public void ApplySubstrate(WorldSubstratePackage substrate, ModWorldConfigurationDto configuration) => owner.F.Step("substrate");
+            public ClientWorldFeatureNames? ApplySubstrate(WorldSubstratePackage substrate, ModWorldConfigurationDto configuration) { owner.F.Step("substrate"); owner.F.Step("labels"); return owner.F.FeatureNames; }
             public void Complete(Func<bool> current) { owner.F.Step("completion"); Committed = current(); }
             public void Dispose() { if (disposed) return; disposed = true; if (!Committed && published && owner.IsCurrent) owner.F.World = owner.World = previous; }
         }

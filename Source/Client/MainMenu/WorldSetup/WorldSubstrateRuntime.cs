@@ -7,10 +7,10 @@ using System.Reflection;
 using System.Xml.Linq;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.Protocol;
+using AIRsLight.ClashOfRim.Modules.World;
 using HarmonyLib;
 using RimWorld;
 using RimWorld.Planet;
-using UnityEngine;
 using Verse;
 
 namespace AIRsLight.ClashOfRim;
@@ -63,65 +63,41 @@ internal static class WorldSubstrateRuntime
     public static bool TryApply(
         WorldSubstratePackage package,
         ModWorldConfigurationDto configuration,
+        out ClientWorldFeatureNames? names,
         out string? failure)
     {
-        failure = null;
-        if (package is null || Find.World?.grid is null)
-        {
-            failure = "World substrate or generated world is unavailable.";
-            return false;
-        }
-
-        if (Scribe.mode != LoadSaveMode.Inactive)
-        {
-            failure = "Scribe is active.";
-            return false;
-        }
-
+        names = null; failure = null;
+        var world = Find.World; var game = Current.Game;
+        bool IsCurrent() => ReferenceEquals(world, Find.World) && ReferenceEquals(game, Current.Game);
+        void RequireOwner() { if (!IsCurrent()) throw new OperationCanceledException("World substrate target was replaced."); }
+        if (package is null || world?.grid is null) { failure = "World substrate or generated world is unavailable."; return false; }
+        if (Scribe.mode != LoadSaveMode.Inactive) { failure = "Scribe is active."; return false; }
         string? temporaryPath = null;
         try
         {
             WorldGrid donor = LoadDonorGrid(package.GridXml, out temporaryPath);
-            CopyGridRawData(donor, Find.World.grid);
-            ApplyFeatures(package.FeaturesXml, configuration);
-            ApplyLandmarks(package.LandmarksXml, configuration);
-            if (Find.World.info is not null)
-            {
-                Find.World.info.persistentRandomValue = package.PersistentRandomValue;
-            }
-
-            Find.World.grid.StandardizeTileData();
-            foreach (PlanetLayer layer in Find.World.grid.PlanetLayers.Values)
+            RequireOwner();
+            CopyGridRawData(donor, world.grid);
+            names = ClientWorldFeaturesRuntime.Restore(world, package.FeaturesXml, configuration, IsCurrent);
+            RequireOwner();
+            ApplyLandmarks(world, package.LandmarksXml, configuration, IsCurrent);
+            RequireOwner();
+            if (world.info is not null) world.info.persistentRandomValue = package.PersistentRandomValue;
+            world.grid.StandardizeTileData();
+            RequireOwner();
+            foreach (PlanetLayer layer in world.grid.PlanetLayers.Values)
             {
                 layer.FastTileFinder.RegenerateCache();
                 layer.SetAllLayersDirty();
             }
-
-            Find.WorldFeatures.textsCreated = false;
+            world.features.textsCreated = false;
             return true;
         }
-        catch (Exception ex)
-        {
-            failure = ex.GetType().Name + ": " + ex.Message;
-            return false;
-        }
+        catch (Exception ex) { names = null; failure = ex.GetType().Name + ": " + ex.Message; return false; }
         finally
         {
-            if (Scribe.mode != LoadSaveMode.Inactive)
-            {
-                Scribe.ForceStop();
-            }
-
             if (!string.IsNullOrWhiteSpace(temporaryPath))
-            {
-                try
-                {
-                    File.Delete(temporaryPath);
-                }
-                catch (IOException)
-                {
-                }
-            }
+                try { File.Delete(temporaryPath); } catch (IOException) { }
         }
     }
 
@@ -138,9 +114,9 @@ internal static class WorldSubstrateRuntime
         temporaryPath = Path.Combine(Path.GetTempPath(), "ClashOfRimWorldSubstrate-" + Guid.NewGuid().ToString("N") + ".xml");
         File.WriteAllText(temporaryPath, "<savegame>" + gridXml + "</savegame>");
         var grid = new WorldGrid();
-        Scribe.loader.InitLoading(temporaryPath);
         try
         {
+            Scribe.loader.InitLoading(temporaryPath);
             Scribe_Deep.Look(ref grid, "grid");
             Scribe.loader.FinalizeLoading();
             return grid;
@@ -192,74 +168,9 @@ internal static class WorldSubstrateRuntime
         }
     }
 
-    private static void ApplyFeatures(string featuresXml, ModWorldConfigurationDto configuration)
+    private static void ApplyLandmarks(World world, string landmarksXml, ModWorldConfigurationDto configuration, Func<bool> current)
     {
-        if (Find.WorldFeatures?.features is null)
-        {
-            return;
-        }
-
-        XElement root = XElement.Parse(featuresXml);
-        List<XElement> elements = root.Descendants("li")
-            .Where(element => element.Element("def") is not null)
-            .ToList();
-        Find.WorldFeatures.features.Clear();
-        var byId = new Dictionary<int, WorldFeature>();
-        var usedNames = new HashSet<string>(StringComparer.Ordinal);
-        bool localize = !string.Equals(configuration.GameLanguage, ReadLanguage(), StringComparison.OrdinalIgnoreCase);
-        foreach (XElement element in elements)
-        {
-            FeatureDef? def = DefDatabase<FeatureDef>.GetNamedSilentFail(element.Element("def")?.Value);
-            // Scribe omits default values: the first feature's ID is zero.
-            if (def is null || !int.TryParse(element.Element("uniqueID")?.Value ?? "0", NumberStyles.Integer, CultureInfo.InvariantCulture, out int uniqueId))
-            {
-                continue;
-            }
-
-            PlanetLayer? layer = ResolveLayer(element.Element("layer")?.Value);
-            if (layer is null)
-            {
-                continue;
-            }
-
-            string sourceName = element.Element("name")?.Value ?? def.label ?? def.defName;
-            string name = localize ? GenerateFeatureName(def, uniqueId, usedNames) : sourceName;
-            var feature = new WorldFeature
-            {
-                def = def,
-                uniqueID = uniqueId,
-                name = name,
-                drawCenter = ParseVector(element.Element("drawCenter")?.Value),
-                drawAngle = ParseFloat(element.Element("drawAngle")?.Value),
-                maxDrawSizeInTiles = ParseFloat(element.Element("maxDrawSizeInTiles")?.Value),
-                layer = layer
-            };
-            Find.WorldFeatures.features.Add(feature);
-            byId[uniqueId] = feature;
-            usedNames.Add(name);
-        }
-
-        foreach (PlanetLayer layer in Find.World.grid.PlanetLayers.Values)
-        {
-            byte[]? rawFeatureIds = AccessTools.Field(layer.GetType(), "tileFeature")?.GetValue(layer) as byte[];
-            if (rawFeatureIds is null || rawFeatureIds.Length == 0)
-            {
-                continue;
-            }
-
-            ushort[] featureIds = DataSerializeUtility.DeserializeUshort(rawFeatureIds);
-            for (int tile = 0; tile < Math.Min(layer.Tiles.Count, featureIds.Length); tile++)
-            {
-                layer.Tiles[tile].feature = featureIds[tile] == ushort.MaxValue
-                    ? null
-                    : byId.TryGetValue(featureIds[tile], out WorldFeature? feature) ? feature : null;
-            }
-        }
-    }
-
-    private static void ApplyLandmarks(string landmarksXml, ModWorldConfigurationDto configuration)
-    {
-        if (!ModsConfig.OdysseyActive || Find.World?.landmarks is null)
+        if (!ModsConfig.OdysseyActive || world.landmarks is null)
         {
             return;
         }
@@ -272,11 +183,12 @@ internal static class WorldSubstrateRuntime
             throw new InvalidDataException("World substrate landmark keys and values do not match.");
         }
 
-        Find.World.landmarks.landmarks.Clear();
-        bool localize = !string.Equals(configuration.GameLanguage, ReadLanguage(), StringComparison.OrdinalIgnoreCase);
+        var landmarks = new Dictionary<PlanetTile, Landmark>();
+        string? language = ClientWorldNameRuntime.ReadCurrentGameLanguage();
+        bool localize = ClientWorldFeatureLabels.ShouldLocalize(configuration.GameLanguage, language);
         for (int index = 0; index < keys.Count; index++)
         {
-            if (!TryParsePlanetTile(keys[index].Value, out PlanetTile tile))
+            if (!TryParsePlanetTile(world, keys[index].Value, out PlanetTile tile))
             {
                 continue;
             }
@@ -289,39 +201,26 @@ internal static class WorldSubstrateRuntime
 
             Landmark landmark = (Landmark)Activator.CreateInstance(def.workerClass, new object[] { def });
             landmark.name = localize
-                ? GenerateLandmarkName(def, tile)
+                ? GenerateLandmarkName(def, tile, language) ?? values[index].Element("name")?.Value ?? def.LabelCap
                 : values[index].Element("name")?.Value ?? def.LabelCap;
             landmark.isComboLandmark = bool.TryParse(values[index].Element("isComboLandmark")?.Value, out bool combo) && combo;
-            Find.World.landmarks.landmarks[tile] = landmark;
+            landmarks[tile] = landmark;
         }
+        if (!current()) return;
+        if (!ClientWorldFeatureLabels.SameLanguage(language, ClientWorldNameRuntime.ReadCurrentGameLanguage()))
+            throw new OperationCanceledException("World name language changed during landmark restoration.");
+        world.landmarks.landmarks.Clear();
+        foreach (var pair in landmarks) world.landmarks.landmarks.Add(pair.Key, pair.Value);
     }
 
-    private static PlanetLayer? ResolveLayer(string? savedLoadId)
-    {
-        const string prefix = "PlanetLayer_";
-        if (string.IsNullOrWhiteSpace(savedLoadId))
-        {
-            return null;
-        }
-
-        string loadId = savedLoadId!;
-        if (!loadId.StartsWith(prefix, StringComparison.Ordinal)
-            || !int.TryParse(loadId.Substring(prefix.Length), NumberStyles.Integer, CultureInfo.InvariantCulture, out int id))
-        {
-            return null;
-        }
-
-        return Find.World.grid.PlanetLayers.TryGetValue(id, out PlanetLayer? layer) ? layer : null;
-    }
-
-    private static bool TryParsePlanetTile(string value, out PlanetTile tile)
+    private static bool TryParsePlanetTile(World world, string value, out PlanetTile tile)
     {
         tile = PlanetTile.Invalid;
         string[] parts = value.Split(',');
         if (parts.Length != 2
             || !int.TryParse(parts[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out int tileId)
             || !int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out int layerId)
-            || !Find.World.grid.PlanetLayers.TryGetValue(layerId, out PlanetLayer? layer)
+            || !world.grid.PlanetLayers.TryGetValue(layerId, out PlanetLayer? layer)
             || tileId < 0
             || tileId >= layer.TilesCount)
         {
@@ -332,57 +231,8 @@ internal static class WorldSubstrateRuntime
         return true;
     }
 
-    private static Vector3 ParseVector(string? text)
-    {
-        string[] values = (text ?? string.Empty).Trim('(', ')').Split(',');
-        return values.Length == 3
-            ? new Vector3(ParseFloat(values[0]), ParseFloat(values[1]), ParseFloat(values[2]))
-            : Vector3.zero;
-    }
-
-    private static float ParseFloat(string? text)
-    {
-        return float.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out float value) ? value : 0f;
-    }
-
-    private static string GenerateFeatureName(FeatureDef def, int uniqueId, HashSet<string> usedNames)
-    {
-        if (def.nameMaker is null)
-        {
-            return def.label ?? def.defName;
-        }
-
-        Rand.PushState(GenText.StableStringHash(def.defName + "\u001f" + uniqueId.ToString(CultureInfo.InvariantCulture) + "\u001f" + ReadLanguage()));
-        try
-        {
-            return NameGenerator.GenerateName(def.nameMaker, usedNames, false, "r_name");
-        }
-        finally
-        {
-            Rand.PopState();
-        }
-    }
-
-    private static string GenerateLandmarkName(LandmarkDef def, PlanetTile tile)
-    {
-        if (def.nameMaker is null)
-        {
-            return def.LabelCap;
-        }
-
-        Rand.PushState(GenText.StableStringHash(def.defName + "\u001f" + tile.Layer.LayerID.ToString(CultureInfo.InvariantCulture) + "\u001f" + tile.tileId.ToString(CultureInfo.InvariantCulture) + "\u001f" + ReadLanguage()));
-        try
-        {
-            return NameGenerator.GenerateName(def.nameMaker, null, false, "r_name", null, null);
-        }
-        finally
-        {
-            Rand.PopState();
-        }
-    }
-
-    private static string ReadLanguage()
-    {
-        return LanguageDatabase.activeLanguage?.folderName ?? Prefs.LangFolderName ?? string.Empty;
-    }
+    private static string? GenerateLandmarkName(LandmarkDef def, PlanetTile tile, string? language)
+        => ClientWorldNameRuntime.Generate(def.nameMaker, string.Join("\u001f", def.defName,
+            tile.Layer.LayerID.ToString(CultureInfo.InvariantCulture), tile.tileId.ToString(CultureInfo.InvariantCulture),
+            language?.ToUpperInvariant()));
 }

@@ -25,6 +25,8 @@ using Verse;
 using Verse.Profile;
 using static AIRsLight.ClashOfRim.ClientWorldRuntimeValues;
 using static AIRsLight.ClashOfRim.ClientWorldConfigurationRuntime;
+using static AIRsLight.ClashOfRim.ClientWorldFeaturesRuntime;
+using static AIRsLight.ClashOfRim.ClientWorldNameRuntime;
 using AIRsLight.ClashOfRim.Modules.World;
 
 namespace AIRsLight.ClashOfRim;

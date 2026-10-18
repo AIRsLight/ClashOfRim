@@ -1925,3 +1925,21 @@ M8h3a 完成。下一步 **M8h3b 实际世界生成及长事件完成的所有�
 **8 个相关单元组通过**：两个新组、叙事者、世界准备、入服结果、入服发起、世界协议及模块守卫。守卫检查 **868** 个模块及生成类型、**194** 个适配器及生成类型；五种语言 XML 均解析通过且新键唯一。Release 构建 **0 错误、41 个既有警告**。日志：`LocalOnly/module-migration/client-world-generation-{compile,before,runtime,related,build}.log`。未运行 RimTest、全量回归或推送。
 
 M8h3b 完成。下一步 **M8h3c 世界特征与语言文化的共同策略**：WorldSubstrateRuntime 与新世界投影仍各自维护地名选择/本地化，目录可用性还需核对世界编号和几何语义；这次只是迁出已有引擎投影，未宣称相关算法已统一。随后继续运行时世界同步、占用站点与殖民地生命周期。宿主仍有世界/管理基线捕获和跨领域协调，M8h、M8 与 M9–M12 保持开放。
+
+### M8h3c 世界特征名称、语言目录与几何匹配的共同策略（2026-10-18）
+
+`ClientWorldFeatureLabels` 接管底图恢复与配置刷新共同的语言比较、目录选择、几何匹配、命名种子、回退和提交结果。ClientWorldConfigurationRuntime 删除约 248 行原地名实现；WorldSubstrateRuntime 删除自己的特征解析/命名分支，调用 ClientWorldFeaturesRuntime 完成引擎对象与 tile 连接操作。客户端模块不依赖引擎或宿主。特征与地标共用 ClientWorldNameRuntime 的语言读取及 Rand/NameGenerator 范围，不再维护两份随机栈与异常回退。
+
+审计确认旧底图路径完全忽略 FeatureNameCatalogs，并以 Def/uniqueID/语言作种子；刷新路径却使用列表下标/几何/语言作种子，而且重建 WorldFeature、把 uniqueID 设为下标、layer 设为 PlanetLayer.Selected。现在配置投影只更新与目录几何唯一对应的现存对象名称，保留 ID、图层、角度、对象身份和 tile 引用；不利用界面当前选中图层推断数据归属。底图恢复保留 XML 中的 ID/图层/角度，Scribe 省略的 ID 仍按默认 0 读取，tile 编号以 (layerId, featureId) 查找，空编号数组或缺失尾部清除旧生成世界的残留引用。重复的同层 ID、非法 ID、无效/非有限几何在发布前拒绝；仅解析特征列表的直接 li，避免把其它嵌套记录当作特征。
+
+语言目录必须匹配非空的当前世界编号、规范化后的语言、完整特征数量和顺序对应的几何。目录第一项失效时继续查找后续有效项；实时对象允许列表重排，但必须能按几何建立一一对应。协议仍不携带特征 ID/图层，因此几何在多个图层或对象间存在歧义时保留原名称、不猜测匹配、不提交部分目录；本步没有扩展或更换线协议。客户端原 0.001 容差与服务端 0.0001 不一致，现均使用协议层 WorldFeatureGeometry，同样拒绝 NaN/Infinity。
+
+命名种子统一使用真实 ID、图层、几何和规范化语言，不受当前数值文化或本地列表顺序影响。已有有效目录直接使用，不重复生成/提交。缺少语言信息或两端语言相同不触发本地化；缺少 nameMaker、生成异常、空白或重复结果保留服务器提供的名称。只有本次所有名称成功生成才返回可提交目录；底图生成直接把这个结果交给配置应用链，删除原先再次读取现有全部标签并当作成功目录提交的逻辑。命名途中切换 Game/World 时不发布；途中改变语言时也不发布混合结果，底图恢复作为失败交给已有生成恢复流程重试。地标同样先准备再发布，并复用语言一致性检查。Scribe 清理收敛到本次 donor 加载的成功/异常范围，底图结束不再无条件 ForceStop 后续回调启动的其它 Scribe 操作。
+
+**更正 M8h3b 的数值上限**：复核 M8b2 的既有约定发现，上一步客户端新增 coverage <= 1 和污染 <= 1 限制，没有服务端共享契约支持，会拒绝仍被服务端接受的正数格式。本步撤销这两个新增上限；WorldGenerationValues.TryCoverage 由客户端生成/上传前检查和服务端 WorldGenerationBaseline 共同使用，保留按 InvariantCulture 读取有限正数及原值/单位传递。污染继续拒绝非有限/负数，但不新增百分比换算或上限。适配器测试加入 1.01、30、科学计数及大于 1 的扩展污染，验证传入引擎的值保持不变；这不证明这些数值均能在游戏内成功建图。M8h3b 中关于 (0,1]/[0,1] 的现行规则描述由本更正取代。
+
+新增 ClientWorldFeatureLabelsTests **180 个场景**，五种文化下覆盖世界编号/语言、无效首目录与有效后目录、严格几何容差、非有限值、数量缺失、重排、跨层歧义、命名失败/重复、输入不被改写、确定性种子与输出目录顺序。ClientWorldFeaturesRuntimeTests 在四种文化下使用真实 WorldFeature、SurfaceLayer、tile、XML 和 ushort 编解码，验证原位改名、真实 ID 与角度、同 ID 不同层、空/短连接数组、嵌套记录、无效数据、生成器失败及 Game/语言变化。测试替换语言来源、随机栈和 NameGenerator，并把读取 PlanetLayer.Selected 设为立即失败；没有运行 Unity 建图或实际语言包语法生成。现有生成组新增名称结果传递断言，现为 **594** 场景；服务端世界写入组新增近/远几何、NaN/Infinity，现为 **164** 场景。
+
+累计 **9 个相关单元组通过**：8 个客户端组（两个新组、生成模块及适配器、世界准备、世界协议、模块守卫、Scribe 文化），以及服务端世界写入组。后续数值契约更正只重跑受影响的生成/服务端组；最后解析范围和名称结果传递调整只重跑对应三个组。守卫检查 **873** 个模块及生成类型、**196** 个适配器及生成类型。Release 构建 **0 错误、41 个既有警告**。日志：`LocalOnly/module-migration/client-world-labels-{compile,before,fixture,runtime,related,final,contract,values,server,server-final,server-values,build,build-final}.log`。未运行 RimTest、全量回归或推送；未改冻结 1.6。
+
+M8h3c 完成。下一步 **M8h4 世界基线捕获与运行时同步入口**，随后迁移占用站点缓存及殖民地生命周期。世界投影中的派系/道路引擎适配仍保持其原有领域语义，不能把本次名称策略统一当成全部世界参数或全部 DLC 的实机验证。M8h、M8 与 M9–M12 保持开放。

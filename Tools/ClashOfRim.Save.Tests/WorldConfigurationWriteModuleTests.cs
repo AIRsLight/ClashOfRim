@@ -23,7 +23,7 @@ internal static class WorldConfigurationWriteModuleTests
                 CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(name);
                 foreach (string coverage in new[] { "NaN", "Infinity", "-Infinity", "1e100", "0", "-0.3", "0,3", "0.3", "30", "1e-1" }) Case(() => Coverage(coverage));
                 foreach (string mode in new[] { "normal", "normalize-token", "normalize-policy", "recovery-token", "recovery-failure", "persistence-failure" }) Case(() => Submission(mode));
-                foreach (string mode in new[] { "success", "protocol", "password", "world", "empty", "fingerprint", "persistence-failure" }) Case(() => Names(mode));
+                foreach (string mode in new[] { "success", "protocol", "password", "world", "empty", "fingerprint", "near", "far", "nan", "infinity", "persistence-failure" }) Case(() => Names(mode));
                 foreach (string mode in new[] { "success", "protocol", "missing", "wrong-user", "wrong-colony", "password", "token", "revoked", "replaced", "nonadmin", "world", "payload", "persistence-failure" }) Case(() => Substrate(mode));
                 Case(Transport);
             }
@@ -91,14 +91,17 @@ internal static class WorldConfigurationWriteModuleTests
         f.S.Players.Record("user", "colony", null, DateTimeOffset.UtcNow);
         f.S.Players.Record("watcher", "watch", null, DateTimeOffset.UtcNow);
         string before = f.Evidence(); f.Slot.Fail = mode == "persistence-failure";
+        var feature = Feature(mode == "fingerprint" ? "Other" : "Mountain", "montagna");
+        float x = mode switch { "near" => 1.50005f, "far" => 1.5005f, "nan" => float.NaN, "infinity" => float.PositiveInfinity, _ => feature.DrawCenterX };
+        feature = new(feature.DefName, feature.Label, feature.MaxDrawSizeInTiles, x, feature.DrawCenterY, feature.DrawCenterZ);
         var request = new SubmitWorldFeatureNamesRequest(mode == "protocol" ? "bad" : ProtocolApiVersion.Current,
             "user", "colony", " Italian ", mode == "world" ? "other" : "world",
-            mode == "empty" ? [] : [Feature(mode == "fingerprint" ? "Other" : "Mountain", "montagna")], password: mode == "password" ? "bad" : "pw");
+            mode == "empty" ? [] : [feature], password: mode == "password" ? "bad" : "pw");
         SubmitWorldFeatureNamesResponse? response = null; bool threw = false;
         try { response = f.Names.Submit(request); } catch (IOException) { threw = true; }
         Check(threw == (mode == "persistence-failure"), "Name catalog failure changed.");
-        if (!threw) Check(response!.Result.Accepted == (mode == "success") && response.Created == (mode == "success"), "Wrong catalog acceptance: " + mode);
-        if (mode != "success") Check(f.Evidence() == before, "Rejected catalog changed state/notification: " + mode);
+        if (!threw) Check(response!.Result.Accepted == (mode is "success" or "near") && response.Created == (mode is "success" or "near"), "Wrong catalog acceptance: " + mode);
+        if (mode is not ("success" or "near")) Check(f.Evidence() == before, "Rejected catalog changed state/notification: " + mode);
         f.Slot.Fail = false;
         var valid = new SubmitWorldFeatureNamesRequest(ProtocolApiVersion.Current, "user", "colony", "italian", "world", [Feature("Mountain", "montagna")], password: "pw");
         Check(f.Names.Submit(valid).Result.Accepted, "Name catalog retry failed.");

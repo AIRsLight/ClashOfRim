@@ -1,5 +1,4 @@
 using System;
-using System.Globalization;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.Modules.Sessions;
 using AIRsLight.ClashOfRim.Protocol;
@@ -9,7 +8,7 @@ namespace AIRsLight.ClashOfRim.Modules.World;
 internal sealed record ClientWorldGenerationInput(string Seed, float Coverage, ModWorldConfigurationDto Configuration)
 {
     internal static bool TryCoverage(string? text, out float coverage)
-        => float.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out coverage) && !float.IsNaN(coverage) && !float.IsInfinity(coverage) && coverage > 0f && coverage <= 1f;
+        => WorldGenerationValues.TryCoverage(text, out coverage);
     internal static ClientWorldGenerationInput Read(ModWorldConfigurationDto configuration)
     {
         if (!TryCoverage(configuration.PlanetCoverage, out float coverage)) throw new ArgumentException("Invalid server planet coverage: " + configuration.PlanetCoverage);
@@ -27,7 +26,7 @@ internal interface IClientWorldGenerationSession
 internal interface IClientGeneratedWorld : IDisposable
 {
     void Publish();
-    void ApplySubstrate(WorldSubstratePackage substrate, ModWorldConfigurationDto configuration);
+    ClientWorldFeatureNames? ApplySubstrate(WorldSubstratePackage substrate, ModWorldConfigurationDto configuration);
     void Complete(Func<bool> current);
 }
 internal interface IClientWorldGenerationPage
@@ -90,9 +89,10 @@ internal sealed class ClientWorldGeneration
                 {
                     generated = runtime.Generate(input, Current);
                     if (!Step(generated.Publish)) { Discard(); return; }
-                    if (!Step(() => generated.ApplySubstrate(plan.Substrate, plan.Configuration))) { Discard(); return; }
+                    ClientWorldFeatureNames? names = null;
+                    if (!Step(() => names = generated.ApplySubstrate(plan.Substrate, plan.Configuration))) { Discard(); return; }
                     bool applied = false;
-                    if (!Step(() => applied = configuration.Apply(plan.Configuration, worldState: true, features: false))) { Discard(); return; }
+                    if (!Step(() => applied = configuration.Apply(plan.Configuration, worldState: true, features: false, generatedNames: names))) { Discard(); return; }
                     if (!applied) throw new InvalidOperationException("World configuration ownership changed during application.");
                     runtime.WhenFinished(() =>
                     {
