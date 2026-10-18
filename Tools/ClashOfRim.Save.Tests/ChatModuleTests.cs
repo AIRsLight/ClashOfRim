@@ -75,7 +75,9 @@ internal static class ChatModuleTests
             var response = f.Chat.List(new(user, colony, token, 17, 200)); result = response.Result;
             Require(response.Messages.Count == 0 && response.LatestSequence == 17, "Rejected history exposed data or changed caller cursor.");
         }
-        Require(!result.Accepted && result.ErrorCode == (mode.StartsWith("missing-", StringComparison.Ordinal) ? ProtocolErrorCode.ValidationFailed : ProtocolErrorCode.Unauthorized),
+        Require(!result.Accepted && result.ErrorCode == (mode.StartsWith("missing-", StringComparison.Ordinal) ? ProtocolErrorCode.ValidationFailed
+            : mode is "bad-token" or "expired-token" or "expired-session" or "replaced" or "revoked"
+                ? ProtocolErrorCode.SessionUnavailable : ProtocolErrorCode.Unauthorized),
             "Wrong chat rejection: " + mode);
         Require(f.Messages.ListVisible("other", 0, 200).Count == 1 && f.Hub.GetVersion("user") == 0 && f.Hub.GetVersion("target") == 0,
             "Rejected request stored or signalled a message.");
@@ -132,7 +134,7 @@ internal static class ChatModuleTests
         string token = f.S.Tokens.Issue("user", "user", "rebuilt", session, DateTimeOffset.UtcNow);
         var result = f.Chat.List(new("user", "rebuilt", token, 0, 100));
         Require(result.Result.Accepted && result.Messages.Single().FromColonyId == "colony", "Rebuilt account lost its historical private conversation/source colony.");
-        Require(f.List().Result.ErrorCode == ProtocolErrorCode.Unauthorized && f.Send("old session").Result.ErrorCode == ProtocolErrorCode.Unauthorized,
+        Require(f.List().Result.ErrorCode == ProtocolErrorCode.SessionUnavailable && f.Send("old session").Result.ErrorCode == ProtocolErrorCode.SessionUnavailable,
             "Old colony credentials survived account rebuild.");
         Require(f.Chat.Send(new("user", "rebuilt", token, "target", "new colony")).Message?.FromColonyId == "rebuilt", "New colony send used old source identity.");
     }
@@ -172,7 +174,7 @@ internal static class ChatModuleTests
             Require(started.Wait(TimeSpan.FromSeconds(2)), "Queued request did not start.");
             f.S.Sessions.EndUser("user"); f.S.Issue();
         }
-        Require(pending.WaitAsync(TimeSpan.FromSeconds(3)).GetAwaiter().GetResult().ErrorCode == ProtocolErrorCode.Unauthorized
+        Require(pending.WaitAsync(TimeSpan.FromSeconds(3)).GetAwaiter().GetResult().ErrorCode == ProtocolErrorCode.SessionUnavailable
             && f.Messages.ListVisible("user", 0, 100).Count == 0 && f.Hub.GetVersion("user") == 0, "Queued old request escaped session retirement.");
     }
 
@@ -272,7 +274,7 @@ internal static class ChatModuleTests
             Messages = messages ?? new();
             foreach (string user in new[] { "user", "target", "other" }) S.Players.Record(user, user == "user" ? "colony" : user + "-colony", null, DateTimeOffset.UnixEpoch);
             (Session, Token) = S.Issue();
-            var authorization = new ColonyAccessAuthorization(S.Tokens, S.Sessions, new(), new(), S.Ledger, () => true);
+            var authorization = new ColonyAccessAuthorization(new SessionPrincipalAuthorization(S.Tokens, S.Sessions), new(), new(), S.Ledger, () => true);
             Chat = new(authorization, S.Mutations, Messages, S.Players, Hub);
             S.Recovery.OnPrerequisites = S.Recovery.OnCapture = S.Recovery.OnPrepare = S.Recovery.OnReplay = () => throw new Exception("Chat started unrelated snapshot recovery.");
         }

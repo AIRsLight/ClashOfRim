@@ -129,16 +129,13 @@ public static partial class ClashOfRimNetworkServer
             app.Use(async (context, next) =>
             {
                 if (MultipartSnapshotAuthentication.IsProtectedRoute(context.Request.Path)
-                    && !MultipartSnapshotAuthentication.TryAuthorize(
+                    && MultipartSnapshotAuthentication.Authorize(
                         context.Request,
                         networkState,
-                        DateTimeOffset.UtcNow))
+                        DateTimeOffset.UtcNow) is { } rejection)
                 {
                     context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                    await context.Response.WriteAsJsonAsync(
-                        ProtocolResponse.Reject(
-                            ProtocolErrorCode.Unauthorized,
-                            T("Auth.Failed")));
+                    await context.Response.WriteAsJsonAsync(rejection);
                     return;
                 }
 

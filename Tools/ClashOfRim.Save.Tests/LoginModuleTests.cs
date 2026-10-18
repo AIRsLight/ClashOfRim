@@ -131,7 +131,7 @@ internal static class LoginModuleTests
             var world = new WorldConfigurationRegistry(); var relations = new DiplomacyRelationRegistry();
             var credentials = new AccountService(Accounts, S.Tokens, new RecoveryTestSupport.SteamValidator(), () => S.Configuration);
             var handshakes = new EntryHandshakePolicy(Admin, world, S.Sessions, new(Baseline, world, () => new()));
-            var authorization = new ColonySnapshotAuthorization(new ColonyAccessAuthorization(S.Tokens, S.Sessions, relations, new(), S.Ledger, () => true), S.Snapshots);
+            var authorization = new ColonySnapshotAuthorization(new ColonyAccessAuthorization(new SessionPrincipalAuthorization(S.Tokens, S.Sessions), relations, new(), S.Ledger, () => true), S.Snapshots);
             var delivery = new EventDeliveryService(authorization, S.Mutations, S.Ledger, S.Events, S.Presence, new SupportDeliveryReconciliation(S.Ledger, S.Players, S.Events));
             var protection = new RaidProtection(S.Ledger, new(), new(), () => S.Configuration, NullLogger.Instance);
             var markers = new WorldMarkerDelivery(S.Players, S.Presence, relations, S.Snapshots, world, new(new ServerPluginRegistry(), Baseline),

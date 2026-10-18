@@ -193,7 +193,7 @@ internal static class WorldConfigurationWriteModuleTests
             var credentials = new AccountService(accounts, S.Tokens, new RecoveryTestSupport.SteamValidator(), () => S.Configuration);
             var plugins = new ServerPluginRegistry().WithBuiltInPlugins([new("test.world-auth", "test", "1", "test", "", [], WorldConfigurationExtensionProviders: [Provider])]);
             var delivery = new WorldConfigurationDelivery(plugins, Baseline); var changes = new WorldConfigurationChanges(S.Players, Notifications);
-            Submission = new(new(S.Tokens, S.Sessions, World), Baseline, plugins, S.Mutations, World, S.Activity, delivery, () => NullLogger.Instance);
+            Submission = new(new(new(S.Tokens, S.Sessions), World), Baseline, plugins, S.Mutations, World, S.Activity, delivery, () => NullLogger.Instance);
             Names = new(credentials, World, delivery, changes, () => NullLogger.Instance);
             Substrate = new(credentials, new(S.Tokens, S.Sessions), World, delivery, changes, () => NullLogger.Instance);
         }

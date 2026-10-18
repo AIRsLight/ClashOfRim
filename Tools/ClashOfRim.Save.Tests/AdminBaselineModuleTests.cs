@@ -219,7 +219,7 @@ internal static class AdminBaselineModuleTests
             var trades = new TradeLifecycle(Context.Ledger, Context.Snapshots, Context.Mutations, Context.Gate, delivery, Baseline,
                 Context.Presence, Context.Events, NullLogger.Instance, () => Context.Configuration);
             Context.Recovery.OnPrerequisites = trades.RecoverAdminBaselineTradeInvalidations;
-            Module = new(new AdministratorAuthorization(Context.Tokens, Context.Sessions, World), World, Compatibility, plugins,
+            Module = new(new AdministratorAuthorization(new SessionPrincipalAuthorization(Context.Tokens, Context.Sessions), World), World, Compatibility, plugins,
                 Baseline, trades, Context.Mutations, Context.Activity);
         }
         internal GetAdminBaselineRequirementsRequest Query() => new(ProtocolApiVersion.Current, "user", "colony", Token);

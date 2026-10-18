@@ -41,21 +41,25 @@ public static class MultipartSnapshotAuthentication
         HttpRequest request,
         ClashOfRimNetworkState state,
         DateTimeOffset nowUtc)
+        => Authorize(request, state, nowUtc) is null;
+
+    public static ProtocolResponse? Authorize(HttpRequest request, ClashOfRimNetworkState state, DateTimeOffset nowUtc)
     {
         string? token = request.Headers[HeaderName].FirstOrDefault();
-        if (!state.SnapshotPrincipals.TryAuthorize(token, nowUtc, out AuthTokenPrincipal? principal))
+        if (state.SessionPrincipals.Authorize(token, nowUtc, out AuthTokenPrincipal? principal) is { } rejection)
         {
-            return false;
+            request.HttpContext.Items.Remove(PrincipalItemKey);
+            return rejection;
         }
 
         request.HttpContext.Items[PrincipalItemKey] = principal;
-        return true;
+        return null;
     }
 
     public static bool MatchesPrincipal(HttpRequest request, string? userId, string? colonyId)
     {
         return request.HttpContext.Items.TryGetValue(PrincipalItemKey, out object? value)
             && value is AuthTokenPrincipal principal
-            && SnapshotPrincipalAuthorization.Matches(principal, userId, colonyId);
+            && SessionPrincipalAuthorization.Matches(principal, userId, colonyId);
     }
 }

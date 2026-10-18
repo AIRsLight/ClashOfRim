@@ -9,6 +9,7 @@ internal static class ColonyAuthorizationTests
 
     internal static void Run()
     {
+        ClashOfRim.TestSupport.ServerTestLocalization.LoadEnglish();
         SessionOwnership();
         DiplomaticScopes();
         RaidEventGrants();
@@ -108,7 +109,7 @@ internal static class ColonyAuthorizationTests
         internal bool PvpEnabled = true;
         private readonly ColonyAccessAuthorization authorization;
 
-        internal Fixture() => authorization = new(Tokens, Sessions, Diplomacy, Preparations, Ledger, () => PvpEnabled);
+        internal Fixture() => authorization = new(new(Tokens, Sessions), Diplomacy, Preparations, Ledger, () => PvpEnabled);
 
         internal string Login(string user, string colony)
         {
@@ -117,7 +118,7 @@ internal static class ColonyAuthorizationTests
         }
 
         internal bool Allows(string? token, string user, string colony, string? scope = null, string? eventId = null, DateTimeOffset? now = null)
-            => authorization.TryAuthorize(token, user, colony, eventId, scope, now ?? Now, out _);
+            => authorization.Authorize(token, user, colony, eventId, scope, now ?? Now) is null;
 
         internal void Ally(string userA, string colonyA, string userB, string colonyB)
             => Diplomacy.SetRelationKind(userA, colonyA, userB, colonyB, DiplomacyRelationRegistry.RelationAlly, null, Now);

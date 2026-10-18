@@ -5,57 +5,46 @@ namespace AIRsLight.ClashOfRim.Network.Modules.Authorization;
 
 // Session ownership is refreshed for every decision, including revalidation after recovery.
 internal sealed class ColonyAccessAuthorization(
-    AuthTokenRegistry tokens,
-    LoginSessionRegistry sessions,
+    SessionPrincipalAuthorization principals,
     DiplomacyRelationRegistry diplomacy,
     RaidPreparationRegistry raidPreparations,
     IAuthoritativeEventLedger ledger,
     Func<bool> pvpEnabled)
 {
-    internal bool TryAuthorize(
+    internal ProtocolResponse? Authorize(
         string? authToken,
         string userId,
         string colonyId,
         string? authorizationEventId,
         string? authorizationScope,
         DateTimeOffset nowUtc,
-        out string failureMessage)
+        ProtocolErrorCode denialCode = ProtocolErrorCode.ServerRejected)
     {
-        failureMessage = ServerLocalization.Text("Auth.Failed");
-        if (!tokens.TryGetPrincipal(authToken, nowUtc, out AuthTokenPrincipal? principal) || principal is null)
-        {
-            return false;
-        }
+        if (principals.Authorize(authToken, nowUtc, out var resolved, denialCode) is { } failure) return failure;
+        var principal = resolved!;
 
-        if (!sessions.Refresh(principal.UserId, principal.ColonyId, principal.SessionId, nowUtc))
+        if (SessionPrincipalAuthorization.Matches(principal, userId, colonyId))
         {
-            failureMessage = ServerLocalization.Text("Auth.SessionExpired");
-            return false;
-        }
-
-        if (string.Equals(principal.UserId, userId, StringComparison.Ordinal)
-            && string.Equals(principal.ColonyId, colonyId, StringComparison.Ordinal))
-        {
-            return true;
+            return null;
         }
 
         string scope = authorizationScope ?? string.Empty;
         if (string.Equals(scope, "Scout", StringComparison.OrdinalIgnoreCase)
             && IsAuthorizedScoutTarget(principal, userId, colonyId))
         {
-            return true;
+            return null;
         }
 
         if (string.Equals(scope, "FriendlyObservation", StringComparison.OrdinalIgnoreCase)
             && IsAuthorizedFriendlyObservationTarget(principal, userId, colonyId))
         {
-            return true;
+            return null;
         }
 
         if (string.Equals(scope, "RaidTarget", StringComparison.OrdinalIgnoreCase)
             && IsAuthorizedRaidTargetDownload(principal, userId, colonyId))
         {
-            return true;
+            return null;
         }
 
         if (string.Equals(scope, "RaidPreparation", StringComparison.OrdinalIgnoreCase)
@@ -67,7 +56,7 @@ internal sealed class ColonyAccessAuthorization(
                 colonyId,
                 nowUtc))
         {
-            return true;
+            return null;
         }
 
         if (!string.IsNullOrWhiteSpace(authorizationEventId)
@@ -78,11 +67,10 @@ internal sealed class ColonyAccessAuthorization(
                 authorizationEventId!,
                 scope))
         {
-            return true;
+            return null;
         }
 
-        failureMessage = ServerLocalization.Text("Auth.IdentityDenied");
-        return false;
+        return ProtocolResponse.Reject(denialCode, ServerLocalization.Text("Auth.IdentityDenied"));
     }
 
     private bool IsAuthorizedByRaidEvent(

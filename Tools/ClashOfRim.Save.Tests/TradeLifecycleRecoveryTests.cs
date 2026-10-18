@@ -125,7 +125,7 @@ internal static class TradeLifecycleRecoveryTests
         f.Seed(); string before = f.Evidence();
         f.Store.BeforePrepare = () => throw new Exception("Invalid trade identity prepared recovery.");
         var reply = f.Call(bad: bad);
-        Require(!reply.Result.Accepted && reply.Result.ErrorCode == ProtocolErrorCode.ServerRejected && reply.MemoId is null
+        Require(!reply.Result.Accepted && reply.Result.ErrorCode == (bad == "forged" ? ProtocolErrorCode.SessionUnavailable : ProtocolErrorCode.ServerRejected) && reply.MemoId is null
             && f.Evidence() == before && f.Store.Writes == 0, "Invalid trade identity recovered pending business."); f.AssertReleased();
     }
 
@@ -141,7 +141,7 @@ internal static class TradeLifecycleRecoveryTests
             reply = f.Call(bad: validToken ? "fields" : "fields-forged");
             Require(before == f.Evidence() && f.State.SnapshotCommits.HasPending, "Request validation moved after recovery.");
         }
-        Require(!reply!.Result.Accepted && reply.Result.ErrorCode == (validToken ? ProtocolErrorCode.ValidationFailed : ProtocolErrorCode.ServerRejected)
+        Require(!reply!.Result.Accepted && reply.Result.ErrorCode == (validToken ? ProtocolErrorCode.ValidationFailed : ProtocolErrorCode.SessionUnavailable)
             && reply.MemoId is null && f.Business() == f.InitialBusiness, "Trade validation order or response changed.");
         if (validToken && f.Kind != "complete") f.AssertRecovered(); f.AssertReleased();
     }

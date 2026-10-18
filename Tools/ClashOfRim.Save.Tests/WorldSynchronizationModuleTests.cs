@@ -203,7 +203,7 @@ internal static class WorldSynchronizationModuleTests
             var protection = new AIRsLight.ClashOfRim.Network.Modules.Raids.RaidProtection(S.Ledger, new(), new(), () => S.Configuration, NullLogger.Instance);
             var markers = new WorldMarkerDelivery(S.Players, S.Presence, relations, S.Snapshots, world, new(new ServerPluginRegistry(), new()), Runtime,
                 new(S.Ledger, S.Snapshots), protection, new(S.Players, S.Snapshots), () => S.Configuration);
-            Sync = new(new(S.Tokens, S.Sessions, relations, new(), S.Ledger, () => S.Configuration.PvpEnabled), S.Mutations, S.Timeouts, Runtime, markers);
+            Sync = new(new(new(S.Tokens, S.Sessions), relations, new(), S.Ledger, () => S.Configuration.PvpEnabled), S.Mutations, S.Timeouts, Runtime, markers);
         }
         internal void Seed() { Runtime.ReplaceForOwner("user", "colony", "old", [Marker("old")], Now); Runtime.ReplaceForOwner("other", "colony", "other", [Marker("other")], Now); }
         internal string Evidence() => JsonSerializer.Serialize(Runtime.ListVisibleMarkers("viewer", Now));

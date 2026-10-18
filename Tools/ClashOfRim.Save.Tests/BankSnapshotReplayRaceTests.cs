@@ -72,7 +72,7 @@ internal static class BankSnapshotReplayRaceTests
         });
         if (mode is "revoke" or "replace")
         {
-            Check(replies.All(r => r.Result.ErrorCode == ProtocolErrorCode.Unauthorized && r.Id is null && r.SnapshotId is null && r.Lineage is null && r.Delta == 0)
+            Check(replies.All(r => r.Result.ErrorCode == ProtocolErrorCode.SessionUnavailable && r.Id is null && r.SnapshotId is null && r.Lineage is null && r.Delta == 0)
                 && Evidence() == before && state.EventNotifications.GetVersion(Actor.UserId) == notifications,
                 "Invalidated bank session mutated or disclosed state: " + kind + "/" + mode);
             return;
@@ -100,7 +100,8 @@ internal static class BankSnapshotReplayRaceTests
         var foreign = new ProtocolIdentity("other-user", "other-colony", "before");
         var wrongHeader = Call(winningAttempt, header: Issue(foreign), principal: foreign).GetAwaiter().GetResult();
         Check(wrongHeader.Result.ErrorCode == ProtocolErrorCode.Unauthorized && wrongHeader.Id is null && wrongHeader.SnapshotId is null && Evidence() == before,
-            "Bank replay trusted body token over multipart principal");
+            "Bank replay trusted body token over multipart principal: " + kind + "/" + mode + " " + JsonSerializer.Serialize(wrongHeader)
+                + ", unchanged=" + (Evidence() == before));
         if (kind == "loan")
         {
             var wrongCreation = new CreateBankLoanWithSnapshotRequest("seed", Actor.UserId, Actor.ColonyId!, "before", token,

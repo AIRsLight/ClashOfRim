@@ -31,14 +31,12 @@ internal sealed class RaidStarting(IAuthoritativeEventLedger ledger, IColonySnap
         var now = DateTimeOffset.UtcNow;
         using (var recovery = requests.EnterPrincipal(principalToken, request.Attacker))
         {
-            if (recovery.Rejection is not null)
-                return RaidStartRejected(ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, ServerText.Format("Auth.Failed")));
+            if (recovery.Rejection is { } denied) return RaidStartRejected(denied);
         }
         reconciliation.Reconcile(now);
         using (var recovery = requests.EnterPrincipal(principalToken, request.Attacker))
         {
-            if (recovery.Rejection is not null)
-                return RaidStartRejected(ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, ServerText.Format("Auth.Failed")));
+            if (recovery.Rejection is { } denied) return RaidStartRejected(denied);
             if (ledger.FindByIdempotencyKey(request.IdempotencyKey) is { } existing)
                 return Replay(transaction, existing, binding);
             var rejection = ValidateStart(request, now, out _, out _, out var blockingRaidId);
@@ -48,8 +46,7 @@ internal sealed class RaidStarting(IAuthoritativeEventLedger ledger, IColonySnap
             transaction.ConfirmedSnapshot.SnapshotId!, transaction.ConfirmedSnapshot, bytes, now);
         using (var recovery = requests.EnterPrincipal(principalToken, request.Attacker))
         {
-            if (recovery.Rejection is not null)
-                return RaidStartRejected(ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, ServerText.Format("Auth.Failed")));
+            if (recovery.Rejection is { } denied) return RaidStartRejected(denied);
             if (ledger.FindByIdempotencyKey(request.IdempotencyKey) is { } existing)
                 return Replay(transaction, existing, binding);
             if (!upload.Accepted || upload.AcceptedSnapshot is null) return RaidStartRejected(ToProtocolResponse(upload));

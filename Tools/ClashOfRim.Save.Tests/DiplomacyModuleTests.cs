@@ -179,7 +179,7 @@ internal static class DiplomacyModuleTests
             Check(response.Result.ErrorCode == ProtocolErrorCode.ValidationFailed && f.Recovery.Replays == 0 && f.Ledger.ListAll().Count == 0, "Invalid kind entered recovery.");
         }
         var invalid = Fixture(factory);
-        Check(invalid.Diplomacy.Create(Request(invalid, "AllianceRequest", token: "invalid")).Result.ErrorCode == ProtocolErrorCode.Unauthorized
+        Check(invalid.Diplomacy.Create(Request(invalid, "AllianceRequest", token: "invalid")).Result.ErrorCode == ProtocolErrorCode.SessionUnavailable
             && invalid.Recovery.Replays == 0, "Invalid token started recovery.");
     }
     private static void ConcurrentDecisions(Func<string, SaveSnapshotPackage> factory)

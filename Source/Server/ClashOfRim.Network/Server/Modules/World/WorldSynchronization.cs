@@ -24,8 +24,8 @@ internal sealed class WorldSynchronization(ColonyAccessAuthorization authorizati
         SyncRuntimeWorldObjectsResponse Reject(ProtocolResponse failure) => new(failure, request.UserId, now, 0, null);
         if (string.IsNullOrWhiteSpace(request.UserId) || string.IsNullOrWhiteSpace(request.ColonyId))
             return Reject(ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, ServerLocalization.Text("RuntimeObjects.MissingIdentity")));
-        ProtocolResponse? Authorize() => authorization.TryAuthorize(request.AuthToken, request.UserId, request.ColonyId,
-            null, null, DateTimeOffset.UtcNow, out var failure) ? null : ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, failure);
+        ProtocolResponse? Authorize() => authorization.Authorize(request.AuthToken, request.UserId, request.ColonyId,
+            null, null, DateTimeOffset.UtcNow);
         if (Authorize() is { } invalid) return Reject(invalid);
         var prepared = runtime.Prepare(request.UserId, request.ColonyId, request.SnapshotId, request.Objects);
         using var mutation = mutations.Enter(Authorize);

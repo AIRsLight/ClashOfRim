@@ -66,7 +66,7 @@ internal static class ServiceSnapshotReplayRaceTests
         });
         if (mode is "revoke" or "replace")
         {
-            Check(replies.All(r => r.Result.ErrorCode == ProtocolErrorCode.Unauthorized && r.SnapshotId is null && r.Lineage is null)
+            Check(replies.All(r => r.Result.ErrorCode == ProtocolErrorCode.SessionUnavailable && r.SnapshotId is null && r.Lineage is null)
                 && before == Evidence() && notifications.All(p => state.EventNotifications.GetVersion(p.Key) == p.Value),
                 "Expired service session mutated or disclosed state: " + kind + "/" + mode);
             return;

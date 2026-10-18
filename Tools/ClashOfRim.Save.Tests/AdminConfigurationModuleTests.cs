@@ -343,7 +343,7 @@ internal static class AdminConfigurationModuleTests
             Changes = new(Runtime, Settings, Compatibility, Control, Context.Mutations);
             Context.Recovery.OnPrerequisites = Changes.Recover;
             World.Prepare("user"); Token = Context.Issue().Token; Accounts.Authenticate("user", "pw", DateTimeOffset.UtcNow, true);
-            Admin = new(new AdministratorAuthorization(Context.Tokens, Context.Sessions, World), Context.Mutations, Changes,
+            Admin = new(new AdministratorAuthorization(new SessionPrincipalAuthorization(Context.Tokens, Context.Sessions), World), Context.Mutations, Changes,
                 World, Context.Players, Context.Presence, Control, () => NullLogger.Instance);
             var accounts = new AccountService(Accounts, Context.Tokens, Steam, () => Runtime.Current);
             Override = new(accounts, World, Compatibility, new CompatibilityHandshakeService(Compatibility, World, () => Runtime.Current.CompatibilityOptions), Context.Mutations, () => NullLogger.Instance);

@@ -2377,3 +2377,19 @@ M8h4m2 分为连接状态与失效/重连 UI 两个提交步骤。本步由 `Cli
 最终 **13 个相关单元组通过**：恢复 UI 流程、连接状态、通知、连接、生命周期、重连及两组策略、会话启动、世界登录发布、袭击恢复、HTTP 传输和模块守卫。守卫检查 **1,277** 个模块及生成类型、**303** 个适配器及生成类型。客户端 Release **0 错误、40 个既有警告**；RimTest 桥接 **0 错误、1 个既有警告**。日志：`LocalOnly/module-migration/client-session-recovery-{compile,tests,related,credentials,final,build,bridge}.log`。未运行实机 RimTest、全量回归或推送；单元测试不等同于引擎窗口实测，冻结 1.6 及原有未提交工作保持独立。
 
 M8h4m2 的状态和恢复 UI 编排迁移完成。**下一步 M8h4m3：HTTP 会话失效的结构化语义与请求归属**，消除 ClientProtocolTransport 的中英文文本判断，端到端区分失效与普通权限/业务拒绝。SessionRuntime 仍有退出时领域清理等宿主职责，其他 partial 尚未全部迁移；M8h4、M8h、M8 与 M9–M12 继续开放。相关单元测试为默认，必要时补单次功能 RimTest，全量由用户安排。
+
+### M8h4m3a 服务端会话授权与结构化拒绝传播（2026-10-19）
+
+HTTP 失效迁移分为服务端协议和客户端请求归属两个提交步骤。本步追加 `ProtocolErrorCode.SessionUnavailable`（数值 12，既有值不变），表示提交的凭据已无法认证，包括未知、撤销、过期 token 及其登录会话已经结束或被替换。缺少凭据、有效凭据请求错误身份、管理员权限不足和普通业务拒绝继续使用各入口原有拒绝码，不能据此判断当前客户端会话失效。SessionId 入口检查原用户／殖民地／会话组合；已在开流的有效会话重复开流仍返回普通拒绝，不标记为不可用。
+
+原 SnapshotPrincipalAuthorization 扩展为 `SessionPrincipalAuthorization`，统一 token 解析、会话刷新和精确身份匹配。殖民地授权、管理员授权、快照请求和 multipart 入口共用该模块，领域模块继续持有各自权限策略。授权返回可直接传递的 ProtocolResponse，不再先降为 bool／提示字符串再拼装通用拒绝。认证失败不返回 principal，并清除当前 HTTP 上下文可能缓存的旧 principal。
+
+银行、雇佣、商店、支援、袭击、交易、聊天和世界入口保留这一结果，包括读取幂等回执前和恢复后的重新授权。修正支援／袭击包装丢弃原拒绝结果，以及普通上传和确认快照在锁外准备后只保留 IdentityMismatch 与文本的问题。`SnapshotReception` 在网络层携带上传结果及协议结果，Save 层不增加协议依赖；确认复验直接返回其结构化结果，删除外围捕获 validationFailure 再补回的路径。HTTP 401 中间件、普通 JSON 回执和二进制下载错误封装均保留原错误码。
+
+新增会话授权测试组，在 en-US、zh-CN、tr-TR、ja-JP 文化下验证缺失／空白／未知／撤销／过期凭据、登录会话替换、持续刷新、权限拒绝、缓存身份清除、重复开流及旧连接清理；另通过真实本地 HTTP 验证三类响应形状及未授权请求不会启动业务恢复。现有上传／单条确认／批量确认矩阵补充精确错误码断言，覆盖载荷准备、恢复准备及恢复发布期间撤销身份；下载矩阵同时检查 JSON 元数据与二进制错误中的错误码，并保留盟友权限撤销为普通拒绝。并发经济业务和其他原有测试区分会话不可用与错误身份，没有放宽数据泄漏、幂等或存储不变断言。
+
+单独运行网络模块测试时发现其授权测试未初始化本地化资源；将 Save 测试已有的英文资源加载抽为共享 `ServerTestLocalization`，网络模块测试复用同一实现和真实资源文件，没有新增另一套故障设施或复制翻译文本。
+
+累计 **33 个相关单元／模块组通过**，另通过 NetworkSmoke 的 `--module-boundaries-only` 四组（仅模块依赖、殖民地授权、恢复协调和事件读取单元测试）。守卫检查 **387** 个模块及生成类型和 **81** 条路由。服务端 Release **0 错误、0 警告**；网络测试构建有 2 个既有 SnapshotContentionProbe 可空参数警告。日志：`LocalOnly/module-migration/server-session-authorization-{related,revalidation,policies,final,harness,boundaries-final,build}.log`。测试只覆盖本次共享授权变更影响范围，未运行实机 RimTest、全量回归或推送；冻结 1.6 及原有未提交改动保持独立。
+
+**下一步 M8h4m3b：客户端结构化失效识别和原请求观察凭据。** 当前 ClientProtocolTransport 的中英文文本匹配尚未删除，不能把本步视为端到端迁移完成。客户端需要按明确的拒绝码处理上述三种响应，同时绑定发送前的生命周期／登录归属及实际发送凭据，区分 multipart header 与 body、临时登录和脱离当前会话的注销；旧请求、普通拒绝或损坏 JSON 不得关闭后继会话。M8h4m3、M8h4、M8h、M8 与 M9–M12 继续开放。默认相关单元测试，必要时补单次功能 RimTest，全量仍由用户安排。

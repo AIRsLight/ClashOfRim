@@ -9,7 +9,6 @@ internal sealed class ColonyLifecycleAccess(ColonyAccessAuthorization authorizat
     {
         if (players.IsDeleted(userId, colonyId))
             return ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, ServerText.Format("Auth.IdentityDenied"));
-        return authorization.TryAuthorize(token, userId, colonyId, null, null, DateTimeOffset.UtcNow, out var failure)
-            ? null : ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, failure);
+        return authorization.Authorize(token, userId, colonyId, null, null, DateTimeOffset.UtcNow);
     }
 }

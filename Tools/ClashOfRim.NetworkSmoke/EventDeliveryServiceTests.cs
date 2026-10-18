@@ -11,6 +11,7 @@ internal static class EventDeliveryServiceTests
 {
     internal static async Task RunAsync(Func<string, string, string, SaveSnapshotPackage> package)
     {
+        ClashOfRim.TestSupport.ServerTestLocalization.LoadEnglish();
         ReadAndDeliver(package);
         RecoveryRevalidation(package);
         foreach (string change in new[] { "session", "snapshot", "cancel", "signal" }) await WaitRevalidation(package, change);
@@ -122,7 +123,7 @@ internal static class EventDeliveryServiceTests
         {
             this.package = package;
             var tokens = new AuthTokenRegistry();
-            var authorization = new ColonyAccessAuthorization(tokens, Sessions, new DiplomacyRelationRegistry(), new RaidPreparationRegistry(), Ledger, () => true);
+            var authorization = new ColonyAccessAuthorization(new SessionPrincipalAuthorization(tokens, Sessions), new DiplomacyRelationRegistry(), new RaidPreparationRegistry(), Ledger, () => true);
             Mutations = new(Gate, Recovery);
             Delivery = new(new ColonySnapshotAuthorization(authorization, snapshots), Mutations, Ledger, Notifications, new OnlinePresenceRegistry(), new SupportDeliveryReconciliation(Ledger, new PlayerRegistry(), Notifications));
             PublishSnapshot("current");

@@ -59,7 +59,7 @@ internal static class TradeCommandAuthTests
         if (invalid == "replaced") Token(state, user);
         string before = Snapshot(state);
         var result = Call(state, order, kind, user, token);
-        Require(!result.Accepted && result.ErrorCode == ProtocolErrorCode.ServerRejected,
+        Require(!result.Accepted && result.ErrorCode == (invalid is "forged" or "ended" or "replaced" ? ProtocolErrorCode.SessionUnavailable : ProtocolErrorCode.ServerRejected),
             $"unauthorized trade command accepted: {kind}/{invalid}/replay={replay}");
         Require(before == Snapshot(state), "unauthorized trade command mutated events or notifications");
     }

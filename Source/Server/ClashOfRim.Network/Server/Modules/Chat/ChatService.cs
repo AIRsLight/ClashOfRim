@@ -42,8 +42,7 @@ internal sealed class ChatService(ColonyAccessAuthorization authorization, Snaps
     }
 
     private ProtocolResponse? Authorize(string? token, string userId, string colonyId)
-        => authorization.TryAuthorize(token, userId, colonyId, null, null, DateTimeOffset.UtcNow, out var failure)
-            ? null : ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, failure);
+        => authorization.Authorize(token, userId, colonyId, null, null, DateTimeOffset.UtcNow, ProtocolErrorCode.Unauthorized);
 
     private static ChatMessageDto ToDto(ChatMessageRecord message)
         => new(message.Sequence, message.MessageId, message.Channel, message.FromUserId, message.FromColonyId,

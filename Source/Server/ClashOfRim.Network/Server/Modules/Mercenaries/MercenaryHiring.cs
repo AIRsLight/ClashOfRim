@@ -27,8 +27,8 @@ internal sealed class MercenaryHiring(MercenaryContractRegistry contracts, Merce
         // Both phases run under the mutation scope and this registry's commit gate.
         MercenaryHireResponse? CheckReplay()
         {
-            if (!requests.ReauthorizePrincipal(principalToken, new ProtocolIdentity(request.UserId, request.ColonyId, request.CurrentSnapshotId)))
-                return new MercenaryHireResponse(ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, Format("Auth.Failed")), null, null);
+            if (requests.AuthorizePrincipal(principalToken, new ProtocolIdentity(request.UserId, request.ColonyId, request.CurrentSnapshotId)) is { } principalFailure)
+                return new MercenaryHireResponse(principalFailure, null, null);
 
             var existing = contracts.FindByIdempotencyKey(request.IdempotencyKey);
             context = access.ReadBankRequestContext(request.UserId, request.ColonyId, request.CurrentSnapshotId, request.AuthToken,
@@ -93,8 +93,8 @@ internal sealed class MercenaryHiring(MercenaryContractRegistry contracts, Merce
         // Both phases run under the mutation scope and this registry's commit gate.
         MercenaryGuardHireResponse? CheckReplay()
         {
-            if (!requests.ReauthorizePrincipal(principalToken, new ProtocolIdentity(request.UserId, request.ColonyId, request.CurrentSnapshotId)))
-                return new MercenaryGuardHireResponse(ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, Format("Auth.Failed")), null, null);
+            if (requests.AuthorizePrincipal(principalToken, new ProtocolIdentity(request.UserId, request.ColonyId, request.CurrentSnapshotId)) is { } principalFailure)
+                return new MercenaryGuardHireResponse(principalFailure, null, null);
 
             var existing = guards.FindByIdempotencyKey(request.IdempotencyKey);
             context = access.ReadBankRequestContext(request.UserId, request.ColonyId, request.CurrentSnapshotId, request.AuthToken,

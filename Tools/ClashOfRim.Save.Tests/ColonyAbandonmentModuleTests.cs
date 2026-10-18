@@ -168,7 +168,7 @@ internal static class ColonyAbandonmentModuleTests
                 new RaidProtection(S.Ledger, Protection, new(), () => S.Configuration, NullLogger.Instance), new(S.Players, S.Snapshots), () => S.Configuration);
             Deletion = new(S.Snapshots, S.Ledger, Journal, new(), S.Mutations, World, plugins, baseline, Runtime,
                 Relations, S.Loans, S.Players, new(), Protection, Mercenaries, S.Connections, S.Events, new(S.Players, WorldNotifications));
-            Module = new(new(new(S.Tokens, S.Sessions, Relations, new(), S.Ledger, () => S.Configuration.PvpEnabled), S.Players), S.Mutations,
+            Module = new(new(new(new(S.Tokens, S.Sessions), Relations, new(), S.Ledger, () => S.Configuration.PvpEnabled), S.Players), S.Mutations,
                 S.Snapshots, Deletion, World, delivery, markers, () => NullLogger.Instance);
             var now = DateTimeOffset.UtcNow;
             foreach (string colony in new[] { "colony", "other" })

@@ -98,10 +98,10 @@ internal sealed class RaidEvidenceConfirmation(IAuthoritativeEventLedger ledger,
         string? principalToken, out AuthoritativeEvent? source)
     {
         source = null;
-        if (!requests.ReauthorizePrincipal(principalToken, new ProtocolIdentity(request.UserId, request.ColonyId, null))
-            || !colonies.TryAuthorize(request.AuthToken, request.UserId, request.ColonyId, request.EventId,
-                null, DateTimeOffset.UtcNow, out _))
-            return ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, ServerText.Format("Auth.Failed"));
+        var denied = requests.AuthorizePrincipal(principalToken, new ProtocolIdentity(request.UserId, request.ColonyId, null))
+            ?? colonies.Authorize(request.AuthToken, request.UserId, request.ColonyId, request.EventId,
+                null, DateTimeOffset.UtcNow, ProtocolErrorCode.Unauthorized);
+        if (denied is not null) return denied;
         source = ledger.Find(request.EventId);
         if (source?.Type != ServerEventType.Raid
             || source.Payload is not RaidEventPayload { OpponentKind: RaidOpponentKind.Player, AttackerLoss: null }

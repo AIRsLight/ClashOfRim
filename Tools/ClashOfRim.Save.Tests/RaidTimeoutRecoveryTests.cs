@@ -182,7 +182,7 @@ internal static partial class RaidTimeoutRecoveryTests
             () => reply = RaidCommitCrashTests.Invoke(f.State, original, false).GetAwaiter().GetResult(),
             () => { if (revoke) f.State.LoginSessions.EndUser("userA"); });
         Require(f.Store.PreparedWrites == 1 && RaidTimeoutProcessor.PendingWork(f.State.Ledger).Count == 0
-            && reply is { Result.Accepted: false } && (!revoke || reply.Result.ErrorCode == ProtocolErrorCode.Unauthorized)
+            && reply is { Result.Accepted: false } && (!revoke || reply.Result.ErrorCode == ProtocolErrorCode.SessionUnavailable)
             && f.State.Ledger.ListAll().Count == 4, "Raid entry held an outer lock or failed to reauthorize after timeout cleanup.");
     }
 

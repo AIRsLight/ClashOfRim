@@ -117,7 +117,8 @@ public sealed class ClashOfRimNetworkState
         RaidQueries = new Modules.Raids.RaidQueries(Ledger, () => ServerConfiguration);
         RaidProtection = new Modules.Raids.RaidProtection(Ledger, RaidProtectionActivations, RaidCooldownOverrides, () => ServerConfiguration, RuntimeLogger);
         ColonyDeletions = colonyDeletions ?? new ColonyDeletionService();
-        ColonyAuthorization = new ColonyAccessAuthorization(AuthTokens, LoginSessions, DiplomacyRelations,
+        SessionPrincipals = new SessionPrincipalAuthorization(AuthTokens, LoginSessions);
+        ColonyAuthorization = new ColonyAccessAuthorization(SessionPrincipals, DiplomacyRelations,
             RaidPreparations, Ledger, () => ServerConfiguration.PvpEnabled);
         SnapshotAuthorization = new ColonySnapshotAuthorization(ColonyAuthorization, SnapshotStore);
         var recovery = new LegacySnapshotRecoveryAdapter(this);
@@ -125,9 +126,8 @@ public sealed class ClashOfRimNetworkState
         DiplomacyPublications = new DiplomacyPublications(Ledger, DiplomacyRelations, OnlinePresence, user => EventNotifications.SignalUser(user));
         Diplomacy = new DiplomacyService(Ledger, SnapshotAuthorization, SnapshotMutations, DiplomacyRelations,
             OnlinePresence, DiplomacyPublications, () => ServerConfiguration, () => RuntimeLogger);
-        SnapshotPrincipals = new SnapshotPrincipalAuthorization(AuthTokens, LoginSessions);
-        AdminAuthorization = new AdministratorAuthorization(AuthTokens, LoginSessions, WorldConfiguration);
-        SnapshotRequests = new SnapshotRequestAuthorization(SnapshotPrincipals, ColonyAuthorization, SnapshotMutations);
+        AdminAuthorization = new AdministratorAuthorization(SessionPrincipals, WorldConfiguration);
+        SnapshotRequests = new SnapshotRequestAuthorization(SessionPrincipals, ColonyAuthorization, SnapshotMutations);
         SnapshotTransactions = new SnapshotTransactions(SnapshotStore, SnapshotUploadPolicy, Plugins, CompatibilityBaseline);
         PendingConfirmations = new PendingConfirmationReconciler(BankLoans, MercenaryContracts,
             () => ServerConfiguration, SnapshotMutations);
@@ -241,7 +241,7 @@ public sealed class ClashOfRimNetworkState
         AdministratorBaseline = new AdministratorBaseline(AdminAuthorization, WorldConfiguration, CompatibilityBaseline, Plugins,
             AdminBaseline, TradeLifecycle, SnapshotMutations, PlayerActivity);
         WorldFeatureNames = new WorldFeatureNames(Accounts, WorldConfiguration, WorldDelivery, WorldChanges, () => RuntimeLogger);
-        WorldSubstrate = new WorldSubstrateTransfer(Accounts, SnapshotPrincipals, WorldConfiguration, WorldDelivery, WorldChanges, () => RuntimeLogger);
+        WorldSubstrate = new WorldSubstrateTransfer(Accounts, SessionPrincipals, WorldConfiguration, WorldDelivery, WorldChanges, () => RuntimeLogger);
         ConfigurationChanges.Recover();
     }
 
@@ -261,7 +261,7 @@ public sealed class ClashOfRimNetworkState
     internal ColonyAccessAuthorization ColonyAuthorization { get; }
     internal ColonySnapshotAuthorization SnapshotAuthorization { get; }
     internal EventDeliveryService EventDelivery { get; }
-    internal SnapshotPrincipalAuthorization SnapshotPrincipals { get; }
+    internal SessionPrincipalAuthorization SessionPrincipals { get; }
     internal SnapshotRequestAuthorization SnapshotRequests { get; }
     internal AdministratorAuthorization AdminAuthorization { get; }
     internal AdministratorBaseline AdministratorBaseline { get; }

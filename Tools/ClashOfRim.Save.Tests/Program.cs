@@ -26,6 +26,7 @@ if (args.FirstOrDefault() == "--baseline-invalidation-crash")
 
 var tests = new (string Name, Action Run)[]
 {
+    ("会话授权结构化失效与普通拒绝、HTTP 传播", () => SessionAuthorizationTests.Run(BuildFixturePackage)),
     ("玩家目录与成就查询模块、身份投影和排行榜", () => PlayerAchievementQueryModuleTests.Run(BuildFixturePackage)),
     ("玩家注册表统一发布与持久化失败隔离", PlayerRegistryPublicationTests.Run),
     ("聊天模块授权、持久化与流通知协作", () => ChatModuleTests.Run(BuildFixturePackage)),

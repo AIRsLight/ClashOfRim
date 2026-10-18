@@ -5,29 +5,24 @@ using AIRsLight.ClashOfRim.Protocol;
 namespace AIRsLight.ClashOfRim.Network.Modules.Authorization;
 
 internal sealed class SnapshotRequestAuthorization(
-    SnapshotPrincipalAuthorization principals, ColonyAccessAuthorization colonies, SnapshotMutationCoordinator mutations)
+    SessionPrincipalAuthorization principals, ColonyAccessAuthorization colonies, SnapshotMutationCoordinator mutations)
 {
-    internal bool ReauthorizePrincipal(string? token, ProtocolIdentity identity) =>
-        principals.TryAuthorize(token, DateTimeOffset.UtcNow, out var principal)
-        && SnapshotPrincipalAuthorization.Matches(principal!, identity.UserId, identity.ColonyId);
+    internal ProtocolResponse? AuthorizePrincipal(string? token, ProtocolIdentity identity) =>
+        principals.AuthorizeOwner(token, identity.UserId, identity.ColonyId, DateTimeOffset.UtcNow);
 
     internal RecoveredSnapshotMutation EnterPrincipal(string? token, ProtocolIdentity identity,
         [CallerMemberName] string operation = "") =>
-        mutations.Enter(() => ReauthorizePrincipal(token, identity)
-            ? null : ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, ServerLocalization.Text("Auth.Failed")), operation);
+        mutations.Enter(() => AuthorizePrincipal(token, identity), operation);
 
     internal RecoveredSnapshotMutation EnterColony(string? token, string userId, string colonyId,
         [CallerMemberName] string operation = "") =>
-        mutations.Enter(() => colonies.TryAuthorize(token, userId, colonyId, null, null, DateTimeOffset.UtcNow, out string failure)
-            ? null : ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, failure), operation);
+        mutations.Enter(() => colonies.Authorize(token, userId, colonyId, null, null, DateTimeOffset.UtcNow), operation);
 
     internal RecoveredSnapshotMutation EnterColony(string userId, string colonyId, string snapshotId,
         string? token, string? principalToken, [CallerMemberName] string operation = "") =>
         mutations.Enter(() =>
         {
-            if (!ReauthorizePrincipal(principalToken, new ProtocolIdentity(userId, colonyId, snapshotId)))
-                return ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, ServerLocalization.Text("Auth.Failed"));
-            return colonies.TryAuthorize(token, userId, colonyId, null, null, DateTimeOffset.UtcNow, out string failure)
-                ? null : ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, failure);
+            return AuthorizePrincipal(principalToken, new ProtocolIdentity(userId, colonyId, snapshotId))
+                ?? colonies.Authorize(token, userId, colonyId, null, null, DateTimeOffset.UtcNow);
         }, operation);
 }

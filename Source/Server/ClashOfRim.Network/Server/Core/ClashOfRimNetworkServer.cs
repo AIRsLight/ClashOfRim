@@ -164,15 +164,15 @@ public static partial class ClashOfRimNetworkServer
         string? requiredRaidEventId = null,
         bool allowRaidSettlementEvidenceSnapshotKind = false)
         => ReceiveSnapshotCore(state, userId, colonyId, snapshotId, package, payload, acceptedAtUtc, storeAccepted,
-            validateGameplayContinuity, confirmationOperation, snapshotUploadKind, requiredRaidEventId, allowRaidSettlementEvidenceSnapshotKind);
+            validateGameplayContinuity, confirmationOperation, snapshotUploadKind, requiredRaidEventId, allowRaidSettlementEvidenceSnapshotKind).Upload;
 
-    private static SnapshotUploadResult ReceiveSnapshotCore(
+    private static SnapshotReception ReceiveSnapshotCore(
         ClashOfRimNetworkState state, string userId, string colonyId, string snapshotId, SnapshotPackageMetadataDto package,
         byte[] payload, DateTimeOffset acceptedAtUtc, bool storeAccepted = true, bool validateGameplayContinuity = true,
         string? confirmationOperation = null, string? snapshotUploadKind = null, string? requiredRaidEventId = null,
         bool allowRaidSettlementEvidenceSnapshotKind = false, SnapshotPostUploadExtraData? postUploadData = null,
-        Func<string?>? validateCommit = null, SnapshotConfirmationRequest? confirmation = null,
-        Func<string?>? authorizeCommit = null)
+        Func<ProtocolResponse?>? validateCommit = null, SnapshotConfirmationRequest? confirmation = null,
+        Func<ProtocolResponse?>? authorizeCommit = null)
     {
         var receiver = CreateSnapshotReceiver(state);
         string normalizedSnapshotUploadKind = NormalizeSnapshotUploadKind(
@@ -180,46 +180,45 @@ public static partial class ClashOfRimNetworkServer
         if (!allowRaidSettlementEvidenceSnapshotKind
             && string.Equals(normalizedSnapshotUploadKind, SnapshotUploadKinds.RaidSettlementEvidence, StringComparison.Ordinal))
         {
-            return SnapshotUploadResult.Reject(SnapshotUploadResultKind.InvalidPayload,
-                "Raid settlement evidence snapshots are only accepted by the raid settlement confirmation endpoint.");
+            return new(SnapshotUploadResult.Reject(SnapshotUploadResultKind.InvalidPayload,
+                "Raid settlement evidence snapshots are only accepted by the raid settlement confirmation endpoint."));
         }
         var context = new SnapshotUploadContext(userId, colonyId, snapshotId, confirmationOperation,
             normalizedSnapshotUploadKind, requiredRaidEventId);
         SaveSnapshotPackage savePackage = ProtocolDtoMapper.ToSaveSnapshotPackage(package, payload);
         SnapshotUploadResult prepared = SnapshotPreparationService.Prepare(receiver, context, savePackage, acceptedAtUtc);
-        if (!prepared.Accepted) return prepared;
+        if (!prepared.Accepted) return new(prepared);
         // Authorization is safe to repeat before/after recovery; business validation must
         // read recovered receipts and current state only after the recovery scope is acquired.
-        using (var mutation = EnterRecoveredSnapshotMutation(state, () => authorizeCommit?.Invoke() is { } failure
-            ? ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, failure) : null))
+        using (var mutation = EnterRecoveredSnapshotMutation(state, () => authorizeCommit?.Invoke()))
         {
             if (mutation.Rejection is { } denied)
-                return SnapshotUploadResult.Reject(SnapshotUploadResultKind.IdentityMismatch, denied.Message ?? T("Auth.Failed"));
+                return SnapshotReception.Denied(denied);
             if (state.SnapshotCommits.IsApplying)
                 throw new InvalidOperationException("Cannot publish a nested snapshot while a commit is being applied.");
             if (validateCommit?.Invoke() is { } authFailure)
-                return SnapshotUploadResult.Reject(SnapshotUploadResultKind.IdentityMismatch, authFailure);
+                return SnapshotReception.Denied(authFailure);
             if (postUploadData is not null)
             {
                 if (confirmation is not null && state.SnapshotCommits.FindConfirmationReceipt(prepared.AcceptedSnapshot!.Envelope) is { } receipt)
                 {
-                    return confirmation.Matches(receipt.Request)
+                    return new(confirmation.Matches(receipt.Request)
                         && prepared.AcceptedSnapshot.Envelope.OriginalSha256 == receipt.Envelope.OriginalSha256
                         && prepared.AcceptedSnapshot.Envelope.PayloadSha256 == receipt.Envelope.PayloadSha256
                         ? SnapshotUploadResult.Accept(new LatestSnapshotRecord(receipt.Envelope.Identity, receipt.Envelope,
                             prepared.AcceptedSnapshot.Index, receipt.AcceptedAtUtc), normalizedSnapshotUploadKind)
-                        : SnapshotUploadResult.Reject(SnapshotUploadResultKind.SnapshotReplayDetected, "Snapshot confirmation differs from its original request.");
+                        : SnapshotUploadResult.Reject(SnapshotUploadResultKind.SnapshotReplayDetected, "Snapshot confirmation differs from its original request."));
                 }
                 // A lost response must not create a new lineage token or run supplied
                 // candidates again. Recovery above already used the original context.
                 var latest = state.SnapshotStore.GetLatest(userId, colonyId);
                 if (latest?.Identity.SnapshotId == snapshotId && confirmation is null)
                 {
-                    return latest.Envelope.OriginalSha256 == prepared.AcceptedSnapshot!.Envelope.OriginalSha256
+                    return new(latest.Envelope.OriginalSha256 == prepared.AcceptedSnapshot!.Envelope.OriginalSha256
                         && latest.Envelope.PayloadSha256 == prepared.AcceptedSnapshot.Envelope.PayloadSha256
                         ? SnapshotUploadResult.Accept(latest, normalizedSnapshotUploadKind)
                         : SnapshotUploadResult.Reject(SnapshotUploadResultKind.SnapshotReplayDetected,
-                            "Snapshot identity was already accepted with different content.");
+                            "Snapshot identity was already accepted with different content."));
                 }
             }
             var operations = PendingSnapshotOperations.Capture(state.BankLoans, state.MercenaryContracts, prepared.AcceptedSnapshot!);
@@ -233,13 +232,13 @@ public static partial class ClashOfRimNetworkServer
                     (snapshot, kind, mutation) => RunCommittedOrdinaryUpload(state, snapshot, kind, mutation), confirmation, state.Ledger,
                     item => state.EventAchievements.Record(item, item.AppliedAtUtc ?? item.CreatedAtUtc),
                     (mutation, snapshot) => PlanSnapshotConfirmations(state, mutation, snapshot), preparedStoragePayload: upload.PreparedStoragePayload);
-                return upload;
+                return new(upload);
             }
-            if (!storeAccepted || !upload.Accepted || upload.AcceptedSnapshot is null || operations.IsEmpty) return upload;
+            if (!storeAccepted || !upload.Accepted || upload.AcceptedSnapshot is null || operations.IsEmpty) return new(upload);
             state.SnapshotCommits.CommitPendingOperations(state.SnapshotStore, state.BankLoans, state.MercenaryContracts,
                 savePackage, upload.AcceptedSnapshot, operations, upload.SnapshotUploadKind, preparedStoragePayload: upload.PreparedStoragePayload);
             state.MercenaryIncidents.Recover();
-            return upload;
+            return new(upload);
         }
     }
 
@@ -338,11 +337,11 @@ public static partial class ClashOfRimNetworkServer
     private static bool IsVisibleTo(AuthoritativeEvent ledgerEvent, string userId, string colonyId)
         => EventVisibility.IsVisibleTo(ledgerEvent, userId, colonyId);
 
-    private static bool IsAuthorizedForColony(ClashOfRimNetworkState state, string? authToken,
+    private static ProtocolResponse? AuthorizeColony(ClashOfRimNetworkState state, string? authToken,
         string userId, string colonyId, string? authorizationEventId, string? authorizationScope,
-        DateTimeOffset nowUtc, out string failureMessage)
-        => state.ColonyAuthorization.TryAuthorize(authToken, userId, colonyId,
-            authorizationEventId, authorizationScope, nowUtc, out failureMessage);
+        DateTimeOffset nowUtc)
+        => state.ColonyAuthorization.Authorize(authToken, userId, colonyId,
+            authorizationEventId, authorizationScope, nowUtc);
 
     private static bool AreAllied(ClashOfRimNetworkState state, string userA, string? colonyA, string userB, string? colonyB)
         => state.DiplomacyRelations.AreAllied(userA, colonyA, userB, colonyB);

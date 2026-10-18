@@ -32,7 +32,8 @@ internal static class DiplomacyAuthorizationTests
             string before = f.Evidence();
             var result = f.Call(create, token, user, colony, snapshot);
             var expected = change == "empty" ? ProtocolErrorCode.ValidationFailed
-                : change is "stale" or "missing-snapshot" ? ProtocolErrorCode.SnapshotMismatch : ProtocolErrorCode.Unauthorized;
+                : change is "stale" or "missing-snapshot" ? ProtocolErrorCode.SnapshotMismatch
+                : change is "invalid-token" or "expired" or "logout" or "replace" or "revoke" ? ProtocolErrorCode.SessionUnavailable : ProtocolErrorCode.Unauthorized;
             if (result.Result.Accepted || result.Result.ErrorCode != expected || before != f.Evidence() || !f.Http.State.SnapshotCommits.HasPending)
                 failures.Add($"{(create ? "create" : "respond")}/{change}: {result.Result.ErrorCode}, accepted={result.Result.Accepted}, unchanged={before == f.Evidence()}, pending={f.Http.State.SnapshotCommits.HasPending}");
         }
@@ -85,7 +86,7 @@ internal static class DiplomacyAuthorizationTests
             {
                 Require(!result!.Result.Accepted && before == f.Evidence() && f.Http.State.SnapshotCommits.HasPending,
                     "Diplomacy used revoked identity/baseline or failed preparation: " + change);
-                if (change != "failure") Require(result.Result.ErrorCode == (change == "snapshot" ? ProtocolErrorCode.SnapshotMismatch : ProtocolErrorCode.Unauthorized), "Wrong recovery revalidation result.");
+                if (change != "failure") Require(result.Result.ErrorCode == (change == "snapshot" ? ProtocolErrorCode.SnapshotMismatch : ProtocolErrorCode.SessionUnavailable), "Wrong recovery revalidation result.");
                 f.Http.Store.FailPreparation = false; f.Http.RenewToken(); f.Snapshot("base");
                 Require(f.Call(create, f.Http.Token).Result.Accepted, "Valid retry could not recover pending diplomacy."); f.Http.AssertRecovered();
             }
@@ -105,7 +106,7 @@ internal static class DiplomacyAuthorizationTests
             foreach (var token in new string?[] { null, "invalid", f.Token("foreign", "foreign-colony") })
             {
                 var denied = f.Call(create, token);
-                Require(!denied.Result.Accepted && denied.Result.ErrorCode == ProtocolErrorCode.Unauthorized && f.Evidence() == before, "Cached diplomacy receipt bypassed authentication.");
+                Require(!denied.Result.Accepted && denied.Result.ErrorCode == (token == "invalid" ? ProtocolErrorCode.SessionUnavailable : ProtocolErrorCode.Unauthorized) && f.Evidence() == before, "Cached diplomacy receipt bypassed authentication.");
             }
             if (create)
             {

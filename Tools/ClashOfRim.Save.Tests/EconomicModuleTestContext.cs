@@ -71,7 +71,8 @@ internal sealed class EconomicModuleTestContext
         Ledger = ledger ?? new InMemoryAuthoritativeEventLedger(); Relations = relations ?? new DiplomacyRelationRegistry();
         var mercenaries = MercenaryContracts;
         var mutations = new SnapshotMutationCoordinator(Gate, Recovery);
-        var colonies = new ColonyAccessAuthorization(Tokens, Sessions, Relations,
+        var principals = new SessionPrincipalAuthorization(Tokens, Sessions);
+        var colonies = new ColonyAccessAuthorization(principals, Relations,
             RaidPreparations, Ledger, () => Configuration.PvpEnabled);
         DiplomacyPublications = new DiplomacyPublications(Ledger, Relations, Presence,
             user => { if (diplomacySignal is null) Notifications.SignalUser(user); else diplomacySignal(user, Notifications); });
@@ -80,7 +81,6 @@ internal sealed class EconomicModuleTestContext
             Presence, DiplomacyPublications, () => Configuration, () => NullLogger.Instance);
         var pending = new PendingConfirmationReconciler(Loans, mercenaries, () => Configuration, mutations);
         Access = new BankRequestAccess(colonies, mutations, Snapshots, Loans, pending);
-        var principals = new SnapshotPrincipalAuthorization(Tokens, Sessions);
         var requests = new SnapshotRequestAuthorization(principals, colonies, mutations);
         var transactions = new SnapshotTransactions(Snapshots, SnapshotUploadPolicy.AllowAnyVersion,
             new ServerPluginRegistry(), new CompatibilityBaselineRegistry());
@@ -119,7 +119,7 @@ internal sealed class EconomicModuleTestContext
             tradeCommits, TradeLifecycle, TradeDelivery, Baseline, plugins, compatibility, Presence,
             Notifications, NullLogger.Instance, () => Configuration);
         Market = new TradeMarket(Ledger, requests, TradeLifecycle, TradeDelivery, () => Configuration);
-        Shop = new ShopService(ShopRegistry, requests, new AdministratorAuthorization(Tokens, Sessions, World), mutations, transactions, pending,
+        Shop = new ShopService(ShopRegistry, requests, new AdministratorAuthorization(principals, World), mutations, transactions, pending,
             new ShopSnapshotCommitter(commits, Snapshots, Loans, ShopRegistry, mercenaries, Recovery), Baseline, plugins, compatibility,
             NullLogger.Instance, () => Configuration);
         Package = MercenaryCommitCrashTests.PrepareEndpoint(Snapshots, factory, new("userA", "colonyA", "before"), "paid");

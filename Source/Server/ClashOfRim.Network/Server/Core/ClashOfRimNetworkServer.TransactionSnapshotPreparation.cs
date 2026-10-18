@@ -25,8 +25,5 @@ public static partial class ClashOfRimNetworkServer
     private static SnapshotUploadResult PrepareTransactionSnapshot(ClashOfRimNetworkState state, string userId, string colonyId,
         string snapshotId, SnapshotPackageMetadataDto metadata, byte[] payload, DateTimeOffset at)
         => state.SnapshotTransactions.PrepareTransactionSnapshot(userId, colonyId, snapshotId, metadata, payload, at);
-    private static bool ReauthorizeSnapshotPrincipal(HttpRequest http, ClashOfRimNetworkState state, ProtocolIdentity identity) =>
-        MultipartSnapshotAuthentication.TryAuthorize(http, state, DateTimeOffset.UtcNow)
-        && MultipartSnapshotAuthentication.MatchesPrincipal(http, identity.UserId, identity.ColonyId);
 
 }

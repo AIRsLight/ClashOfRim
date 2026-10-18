@@ -9,7 +9,7 @@ namespace AIRsLight.ClashOfRim.Network.Modules.World;
 internal enum WorldSubstrateDownloadStatus { Available, InvalidRequest, Unauthorized, NotFound }
 internal sealed record WorldSubstrateDownload(WorldSubstrateDownloadStatus Status, byte[]? Payload = null);
 
-internal sealed class WorldSubstrateTransfer(AccountService accounts, SnapshotPrincipalAuthorization principals,
+internal sealed class WorldSubstrateTransfer(AccountService accounts, SessionPrincipalAuthorization principals,
     WorldConfigurationRegistry world, WorldConfigurationDelivery delivery, WorldConfigurationChanges changes, Func<ILogger> logger)
 {
     internal UploadWorldSubstrateResponse Upload(UploadWorldSubstrateRequest? request, byte[]? payload, string? principalToken)
@@ -18,9 +18,8 @@ internal sealed class WorldSubstrateTransfer(AccountService accounts, SnapshotPr
         if (request is null || payload is null || request.ProtocolVersion != ProtocolApiVersion.Current
             || string.IsNullOrWhiteSpace(request.UserId) || string.IsNullOrWhiteSpace(request.ColonyId) || string.IsNullOrWhiteSpace(request.WorldConfigurationId))
             return Reject(ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, Format("WorldConfiguration.TileGeometryMissingRequest")));
-        if (!principals.TryAuthorize(principalToken, DateTimeOffset.UtcNow, out var principal)
-            || !SnapshotPrincipalAuthorization.Matches(principal!, request.UserId, request.ColonyId))
-            return Reject(ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, Format("Auth.Failed")));
+        if (principals.AuthorizeOwner(principalToken, request.UserId, request.ColonyId, DateTimeOffset.UtcNow) is { } principalFailure)
+            return Reject(principalFailure);
         var auth = accounts.Authenticate(request.UserId, request.SteamAuthTicket, request.Password, DateTimeOffset.UtcNow);
         if (!auth.Accepted || string.IsNullOrWhiteSpace(auth.AuthenticatedUserId))
             return Reject(ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, auth.Message ?? Format("Steam.Failed")));

@@ -37,8 +37,8 @@ public static partial class ClashOfRimNetworkServer
 
         UploadSnapshotMetadataRequest request = multipart.Request;
         DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
-        string? Authorize() => IsAuthorizedForColony(state, request.AuthToken, request.UserId, request.ColonyId,
-            null, null, DateTimeOffset.UtcNow, out string failure) ? null : failure;
+        ProtocolResponse? Authorize() => AuthorizeColony(state, request.AuthToken, request.UserId, request.ColonyId,
+            null, null, DateTimeOffset.UtcNow);
         using (var recovery = EnterColonySnapshotMutation(state, request.AuthToken, request.UserId, request.ColonyId))
         {
             if (recovery.Rejection is { } failure)
@@ -57,7 +57,7 @@ public static partial class ClashOfRimNetworkServer
                 uploadResult: "PendingConfirmationExpired"));
         }
 
-        SnapshotUploadResult upload = ReceiveSnapshotCore(
+        var received = ReceiveSnapshotCore(
             state,
             request.UserId,
             request.ColonyId,
@@ -68,6 +68,7 @@ public static partial class ClashOfRimNetworkServer
             confirmationOperation: request.ConfirmationOperation,
             postUploadData: new SnapshotPostUploadExtraData(request.Package.SnapshotUploadKind, request.ConfirmationOperation, request.AchievementCandidates),
             authorizeCommit: Authorize);
+        var upload = received.Upload;
         if (!upload.Accepted)
         {
             state.RuntimeLogger.LogWarning(
@@ -81,7 +82,7 @@ public static partial class ClashOfRimNetworkServer
                 request.ConfirmationOperation);
         }
         return Results.Ok(new UploadSnapshotResponse(
-            ToProtocolResponse(upload),
+            received.Result,
             upload.AcceptedSnapshot?.Identity.SnapshotId,
             upload.Kind.ToString(),
             upload.AcceptedSnapshot?.Envelope.NextLineageToken));
@@ -119,9 +120,8 @@ public static partial class ClashOfRimNetworkServer
     private static SnapshotDownloadResult CaptureSnapshotDownload(ClashOfRimNetworkState state, string userId, string colonyId,
         string? authToken, string? authorizationEventId, string? authorizationScope, string? requestedSnapshotId)
     {
-        ProtocolResponse? Authorize() => IsAuthorizedForColony(state, authToken, userId, colonyId,
-            authorizationEventId, authorizationScope, DateTimeOffset.UtcNow, out string failure)
-                ? null : ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, failure);
+        ProtocolResponse? Authorize() => AuthorizeColony(state, authToken, userId, colonyId,
+            authorizationEventId, authorizationScope, DateTimeOffset.UtcNow);
         SnapshotDownloadResult Denied(ProtocolResponse failure) => new(failure, null, HttpStatusCode: StatusCodes.Status401Unauthorized);
 
         using (var recovery = EnterRecoveredSnapshotMutation(state, Authorize))

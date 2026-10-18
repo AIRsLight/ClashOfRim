@@ -800,10 +800,9 @@ internal sealed class TradeService(
     {
         ProtocolResponse? AuthorizeAndValidate()
         {
-            string failure = Format("Auth.IdentityDenied");
-            if (request.Owner is null || !colonies.TryAuthorize(request.AuthToken, request.Owner.UserId,
-                    request.Owner.ColonyId ?? string.Empty, null, null, DateTimeOffset.UtcNow, out failure))
-                return ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, failure);
+            if (request.Owner is null) return ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, Format("Auth.IdentityDenied"));
+            if (colonies.Authorize(request.AuthToken, request.Owner.UserId, request.Owner.ColonyId ?? string.Empty,
+                null, null, DateTimeOffset.UtcNow) is { } failure) return failure;
             // Invalid legacy completion requests must not trigger journal recovery.
             return ValidateTradeCloseRequest(request);
         }

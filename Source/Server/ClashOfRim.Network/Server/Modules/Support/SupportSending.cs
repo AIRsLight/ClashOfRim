@@ -37,7 +37,7 @@ internal sealed class SupportSending(IAuthoritativeEventLedger ledger, IColonySn
         string binding = SupportSnapshotMutation.RequestHash(transaction, bytes);
         using (var recovery = requests.EnterPrincipal(principalToken, request.Actor))
         {
-            if (recovery.Rejection is not null) return SupportStartRejected(ProtocolErrorCode.Unauthorized, "Auth.Failed");
+            if (recovery.Rejection is { } denied) return new(denied, null, ProtocolDeliverySemantics.OnlineImmediate);
             if (ledger.FindByIdempotencyKey(request.IdempotencyKey) is { } existing)
                 return Replay(transaction, pawn, binding, existing);
             var rejection = ValidateStart(request, out _);
@@ -48,7 +48,7 @@ internal sealed class SupportSending(IAuthoritativeEventLedger ledger, IColonySn
         // Even a preparation rejection can race a successful identical commit; check its receipt under the gate first.
         using (var recovery = requests.EnterPrincipal(principalToken, request.Actor))
         {
-            if (recovery.Rejection is not null) return SupportStartRejected(ProtocolErrorCode.Unauthorized, "Auth.Failed");
+            if (recovery.Rejection is { } denied) return new(denied, null, ProtocolDeliverySemantics.OnlineImmediate);
             if (ledger.FindByIdempotencyKey(request.IdempotencyKey) is { } existing)
                 return Replay(transaction, pawn, binding, existing);
             if (!upload.Accepted || upload.AcceptedSnapshot is null)

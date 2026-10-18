@@ -25,7 +25,7 @@ internal sealed class SessionConnections(LoginSessionRegistry sessions, AuthToke
             return ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, ServerLocalization.Text("SessionStream.LeaseExpired"));
         bool valid = refresh ? sessions.Refresh(userId, colonyId, sessionId, DateTimeOffset.UtcNow)
             : sessions.IsValid(userId, colonyId, sessionId, DateTimeOffset.UtcNow);
-        if (!valid) return ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, ServerLocalization.Text("Auth.SessionExpired"));
+        if (!valid) return ProtocolResponse.Reject(ProtocolErrorCode.SessionUnavailable, ServerLocalization.Text("Auth.SessionExpired"));
         if (refresh && !presence.Touch())
             return ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, ServerLocalization.Text("SessionStream.LeaseExpired"));
         return null;
@@ -42,8 +42,13 @@ internal sealed class SessionConnections(LoginSessionRegistry sessions, AuthToke
 
     private ProtocolResponse? Authorize(string userId,
         string colonyId, string? sessionId, bool requirePending = false)
-        => sessions.IsValid(userId, colonyId, sessionId, DateTimeOffset.UtcNow, requirePending)
-            ? null : ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, ServerLocalization.Text("Auth.SessionExpired"));
+    {
+        var nowUtc = DateTimeOffset.UtcNow;
+        if (!sessions.IsValid(userId, colonyId, sessionId, nowUtc))
+            return ProtocolResponse.Reject(ProtocolErrorCode.SessionUnavailable, ServerLocalization.Text("Auth.SessionExpired"));
+        return !requirePending || sessions.IsValid(userId, colonyId, sessionId, nowUtc, requirePending: true)
+            ? null : ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, ServerLocalization.Text("SessionStream.InvalidSession"));
+    }
 
     internal ProtocolResponse? Open(string userId,
         string colonyId, string? sessionId, string? snapshotId, out OnlinePresenceLease? presence)
@@ -52,7 +57,8 @@ internal sealed class SessionConnections(LoginSessionRegistry sessions, AuthToke
         using var mutation = mutations.Enter(() => Authorize(userId, colonyId, sessionId, requirePending: true));
         if (mutation.Rejection is { } denied) return denied;
         if (!sessions.TryBeginStream(userId, colonyId, sessionId, DateTimeOffset.UtcNow))
-            return ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, ServerLocalization.Text("SessionStream.InvalidSession"));
+            return Authorize(userId, colonyId, sessionId, requirePending: true)
+                ?? ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, ServerLocalization.Text("SessionStream.InvalidSession"));
         // Connection registration and login publication share the mutation boundary. No await may split them.
         bool opened = false;
         try

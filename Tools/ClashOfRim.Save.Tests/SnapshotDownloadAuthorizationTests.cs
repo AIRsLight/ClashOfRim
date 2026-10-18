@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using System.Reflection;
 using System.Runtime.ExceptionServices;
+using System.Text.Json;
 
 internal static partial class RaidCleanupCommitTests
 {
@@ -79,7 +80,7 @@ internal static partial class RaidCleanupCommitTests
                 && f.State.SnapshotCommits.HasPending == recovering,
                 "Rejected download disclosed data or changed business: " + payload + "/" + phase + "/" + change);
             if (payload) Require(reply!.HttpStatus == (denied ? 401 : 404), "Payload rejection did not preserve its HTTP contract.");
-            else Require(reply!.ErrorCode == (denied ? ProtocolErrorCode.ServerRejected : ProtocolErrorCode.SnapshotMismatch),
+            if (denied || !payload) Require(reply!.ErrorCode == (change == "ally-loss" ? ProtocolErrorCode.ServerRejected : denied ? ProtocolErrorCode.SessionUnavailable : ProtocolErrorCode.SnapshotMismatch),
                 "Metadata rejection did not identify stale authorization or version.");
         }
         else
@@ -107,6 +108,7 @@ internal static partial class RaidCleanupCommitTests
         f.Store.AfterRead = () => throw new Exception("Unauthorized download read snapshot bytes.");
         var reply = f.Download(payload);
         Require(!reply.Accepted && reply.SnapshotId is null && reply.Lineage is null && reply.Bytes is null && reply.Recovery is null
+            && reply.ErrorCode == (wrongScope ? ProtocolErrorCode.ServerRejected : ProtocolErrorCode.SessionUnavailable)
             && before == f.DownloadRecoveryEvidence() && f.State.SnapshotCommits.HasPending && f.Store.WritesByOwner.Count == 0,
             "Unauthorized download triggered recovery or disclosed snapshot data.");
         AssertDownloadGateReleased(f);
@@ -153,7 +155,9 @@ internal static partial class RaidCleanupCommitTests
             if (result is FileContentHttpResult file) return new(true, 200, null, Bytes: file.FileContents.ToArray());
             if (result is IValueHttpResult { Value: DownloadLatestSnapshotResponse metadata })
                 return new(metadata.Result.Accepted, 200, metadata.Result.ErrorCode, metadata.SnapshotId, metadata.Package?.NextLineageToken, Recovery: metadata.ActiveRaidRecovery);
-            return new(false, ((IStatusCodeHttpResult)result!).StatusCode!.Value, null);
+            var body = JsonSerializer.SerializeToElement(((IValueHttpResult)result!).Value, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+            return new(false, ((IStatusCodeHttpResult)result!).StatusCode!.Value,
+                (ProtocolErrorCode)body.GetProperty("result").GetProperty("errorCode").GetInt32());
         }
     }
 }

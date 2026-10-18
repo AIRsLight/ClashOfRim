@@ -7,8 +7,7 @@ namespace AIRsLight.ClashOfRim.Network.Modules.Authorization;
 internal sealed class ColonySnapshotAuthorization(ColonyAccessAuthorization authorization, IColonySnapshotIndexStore snapshots)
 {
     internal ProtocolResponse? Authorize(string? token, string userId, string colonyId) =>
-        authorization.TryAuthorize(token, userId, colonyId, null, null, DateTimeOffset.UtcNow, out string failure)
-            ? null : ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, failure);
+        authorization.Authorize(token, userId, colonyId, null, null, DateTimeOffset.UtcNow, ProtocolErrorCode.Unauthorized);
 
     internal ProtocolResponse? RequireCurrent(string userId, string colonyId, string? snapshotId) =>
         string.IsNullOrWhiteSpace(snapshotId) || snapshots.GetLatest(userId, colonyId)?.Identity.SnapshotId != snapshotId

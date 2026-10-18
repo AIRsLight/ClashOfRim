@@ -32,18 +32,17 @@ public static partial class ClashOfRimNetworkServer
 
         ConfirmEventApplicationMetadataRequest request = multipart.Request;
         DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
-        if (!IsAuthorizedForColony(
+        if (AuthorizeColony(
                 state,
                 request.AuthToken,
                 request.UserId,
                 request.ColonyId,
                 request.EventId,
                 authorizationScope: null,
-                nowUtc,
-                out string authFailure))
+                nowUtc) is { } authFailure)
         {
             return Results.Ok(new ConfirmEventApplicationResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, authFailure),
+                authFailure,
                 request.EventId,
                 appliedSnapshotId: null,
                 serverValidationResult: "AuthFailed"));
@@ -77,18 +76,17 @@ public static partial class ClashOfRimNetworkServer
 
         ConfirmEventApplicationsMetadataRequest request = multipart.Request;
         DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
-        if (!IsAuthorizedForColony(
+        if (AuthorizeColony(
                 state,
                 request.AuthToken,
                 request.UserId,
                 request.ColonyId,
                 authorizationEventId: null,
                 authorizationScope: null,
-                nowUtc,
-                out string authFailure))
+                nowUtc) is { } authFailure)
         {
             return Results.Ok(new ConfirmEventApplicationsResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, authFailure),
+                authFailure,
                 appliedSnapshotId: null,
                 applications: Array.Empty<ConfirmEventApplicationResultDto>()));
         }
@@ -328,9 +326,8 @@ public static partial class ClashOfRimNetworkServer
         }
 
         using (var mutation = EnterRecoveredSnapshotMutation(state, () =>
-            IsAuthorizedForColony(state, request.AuthToken, request.UserId, request.ColonyId, request.EventId,
-                authorizationScope: null, DateTimeOffset.UtcNow, out string failure)
-                ? null : ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, failure)))
+            AuthorizeColony(state, request.AuthToken, request.UserId, request.ColonyId, request.EventId,
+                authorizationScope: null, DateTimeOffset.UtcNow)))
         {
             if (mutation.Rejection is { } rejection)
                 return Results.Ok(new ReportEventApplicationFailureResponse(rejection, request.EventId, string.Empty, 0));

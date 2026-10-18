@@ -304,7 +304,7 @@ internal static class AdministratorActionModuleTests
             Deletion = new(S.Snapshots, S.Ledger, new(), new(), S.Mutations, World, new ServerPluginRegistry(), new(), new(), new(), S.Loans,
                 S.Players, new(), new(), new(), S.Connections, S.Events, changes);
             S.Recovery.OnPrerequisites = Deletion.Recover;
-            Module = new(new AdministratorAuthorization(S.Tokens, S.Sessions, World), S.Mutations, Control,
+            Module = new(new AdministratorAuthorization(new SessionPrincipalAuthorization(S.Tokens, S.Sessions), World), S.Mutations, Control,
                 new AdministratorPlayers(Control, S.Connections, S.Events, S.Players, S.Snapshots, Deletion, Accounts),
                 new AdministratorBroadcasts(S.Ledger, S.Players, S.Presence, S.Events), World, changes, () => NullLogger.Instance);
         }

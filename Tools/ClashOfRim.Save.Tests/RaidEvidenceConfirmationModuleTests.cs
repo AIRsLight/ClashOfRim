@@ -120,7 +120,7 @@ internal static class RaidEvidenceConfirmationModuleTests
         internal Fixture(bool prepared)
         {
             Context = new(prepared);
-            var colonies = new ColonyAccessAuthorization(tokens, Sessions, new DiplomacyRelationRegistry(),
+            var colonies = new ColonyAccessAuthorization(new SessionPrincipalAuthorization(tokens, Sessions), new DiplomacyRelationRegistry(),
                 new RaidPreparationRegistry(), Context.Ledger, () => true);
             var requests = new SnapshotRequestAuthorization(new(tokens, Sessions), colonies, Context.Mutations);
             Pipeline = new(Context);

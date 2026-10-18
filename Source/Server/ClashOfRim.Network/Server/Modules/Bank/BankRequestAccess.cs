@@ -63,16 +63,15 @@ internal sealed class BankRequestAccess(
             return null;
         }
 
-        if (!authorization.TryAuthorize(
+        if (authorization.Authorize(
                 authToken,
                 userId,
                 colonyId,
                 authorizationEventId: null,
                 authorizationScope: null,
-                nowUtc,
-                out string authFailure))
+                nowUtc) is { } authFailure)
         {
-            rejection = ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, authFailure);
+            rejection = authFailure;
             return null;
         }
 

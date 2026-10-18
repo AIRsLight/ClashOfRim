@@ -14,26 +14,21 @@ public static partial class ClashOfRimNetworkServer
         try { request.Validate(); }
         catch (InvalidDataException ex)
         { return new(ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, ex.Message), null, []); }
-        ProtocolResponse? validationFailure = null;
-        var upload = ReceiveSnapshotCore(state, userId, colonyId, metadata.SnapshotId, metadata, payload, acceptedAtUtc,
+        var received = ReceiveSnapshotCore(state, userId, colonyId, metadata.SnapshotId, metadata, payload, acceptedAtUtc,
             postUploadData: new SnapshotPostUploadExtraData(metadata.SnapshotUploadKind, null, null), confirmation: request,
-            authorizeCommit: () =>
-            {
-                validationFailure = IsAuthorizedForColony(state, token, userId, colonyId,
-                    request.Single ? request.Applications[0].EventId : null, null, DateTimeOffset.UtcNow, out var authFailure)
-                    ? null : ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, authFailure);
-                return validationFailure?.Message;
-            },
+            authorizeCommit: () => AuthorizeColony(state, token, userId, colonyId,
+                request.Single ? request.Applications[0].EventId : null, null, DateTimeOffset.UtcNow),
             validateCommit: () =>
             {
                 // Recovery may have published this receipt; do not expire a committed confirmation.
                 if (state.SnapshotCommits.FindConfirmationReceipt(new SnapshotIdentity(userId, colonyId, metadata.SnapshotId), metadata.OriginalSha256, metadata.PayloadSha256) is null)
-                    validationFailure = state.PendingConfirmations.ReconcileSnapshot(userId, colonyId, DateTimeOffset.UtcNow);
-                return validationFailure?.Message;
+                    return state.PendingConfirmations.ReconcileSnapshot(userId, colonyId, DateTimeOffset.UtcNow);
+                return null;
             });
+        var upload = received.Upload;
         if (!upload.Accepted || upload.AcceptedSnapshot is null)
         {
-            var failure = validationFailure ?? ToProtocolResponse(upload);
+            var failure = received.Result;
             return new(failure, null, request.Applications.Select(item => new ConfirmEventApplicationResultDto(item.EventId,
                 failure, null, upload.Kind.ToString())).ToArray());
         }

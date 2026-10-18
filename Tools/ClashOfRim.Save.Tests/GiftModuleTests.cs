@@ -82,7 +82,7 @@ internal static class GiftModuleTests
         var f = new EconomicModuleTestContext(factory);
         f.Recovery.OnReplay = () => { if (f.Recovery.Replays == (final ? 2 : 1)) f.Sessions.EndUser("userA"); };
         var result = f.Gifts.CreateWithSnapshot(Request(f), f.Package.Payload, f.Token);
-        Require(result.Result.ErrorCode == ProtocolErrorCode.Unauthorized && f.Recovery.Commits == 0
+        Require(result.Result.ErrorCode == ProtocolErrorCode.SessionUnavailable && f.Recovery.Commits == 0
             && f.Ledger.ListAll().Count == 0 && f.Snapshots.GetLatest("userA", "colonyA")!.Identity.SnapshotId == "before",
             "Gift committed after recovery revoked its credentials.");
     }

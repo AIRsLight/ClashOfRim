@@ -252,7 +252,7 @@ internal static class ColonyRelocationModuleTests
             var markers = new WorldMarkerDelivery(S.Players, S.Presence, relations, S.Snapshots, World, delivery, new(), raids,
                 new RaidProtection(S.Ledger, new(), new(), () => S.Configuration, NullLogger.Instance), new(S.Players, S.Snapshots), () => S.Configuration);
             Awards = new(new(AwardSlot), Plugins, Baseline, S.Ledger, S.Presence, S.Events, () => NullLogger.Instance);
-            Module = new(new(new(S.Tokens, S.Sessions, relations, new(), S.Ledger, () => S.Configuration.PvpEnabled), S.Players), S.Mutations,
+            Module = new(new(new(new(S.Tokens, S.Sessions), relations, new(), S.Ledger, () => S.Configuration.PvpEnabled), S.Players), S.Mutations,
                 S.Snapshots, World, new(Plugins, Baseline), Distances, raids, S.Ledger, Plugins, Baseline, Awards, delivery, markers,
                 new(S.Players, Notifications), () => NullLogger.Instance);
         }

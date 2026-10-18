@@ -128,7 +128,7 @@ internal static class RaidLaunchModuleTests
         var f = fixture(false); int calls = 0;
         f.Recovery.OnReplay = () => { if (++calls == phase) f.Tokens.RevokeForUser("userA"); };
         var response = f.RaidStarting.CreateWithSnapshot(Transaction(f), f.Package.Payload, f.Token);
-        Check(response.Result.ErrorCode == ProtocolErrorCode.Unauthorized && calls == phase
+        Check(response.Result.ErrorCode == ProtocolErrorCode.SessionUnavailable && calls == phase
             && f.Recovery.Commits == 0 && f.Ledger.ListAll().Count == 0
             && f.Snapshots.GetLatest("userA", "colonyA")!.Identity.SnapshotId == "before", "Recovery ignored revoked credentials: " + phase);
     }
@@ -137,7 +137,7 @@ internal static class RaidLaunchModuleTests
     {
         var f = fixture(false);
         f.Raids.OnReconcile = () => f.Tokens.RevokeForUser("userA");
-        Check(f.RaidStarting.CreateWithSnapshot(Transaction(f), f.Package.Payload, f.Token).Result.ErrorCode == ProtocolErrorCode.Unauthorized
+        Check(f.RaidStarting.CreateWithSnapshot(Transaction(f), f.Package.Payload, f.Token).Result.ErrorCode == ProtocolErrorCode.SessionUnavailable
             && f.Recovery.Commits == 0 && f.Ledger.ListAll().Count == 0, "Timeout reconciliation bypassed reauthorization.");
     }
 

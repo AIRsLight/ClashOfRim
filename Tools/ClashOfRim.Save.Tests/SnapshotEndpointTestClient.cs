@@ -13,9 +13,7 @@ using System.Text.Json;
 
 internal static class SnapshotEndpointTestClient
 {
-    public static void LoadLocalization() => ServerLocalization.MergeExternal(ServerLocalization.English,
-        JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(
-            Path.Combine(AppContext.BaseDirectory, "TestLocalization", "English.json")))!);
+    public static void LoadLocalization() => ClashOfRim.TestSupport.ServerTestLocalization.LoadEnglish();
 
     public static Task<T> Invoke<T>(string name, ClashOfRimNetworkState state, object request, byte[] payload, ProtocolIdentity principal)
         => Invoke<T>(name, state, _ => request, payload, principal);

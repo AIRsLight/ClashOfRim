@@ -11,6 +11,8 @@
     <None Update="Fixtures/NetworkSnapshot.rws" CopyToOutputDirectory="PreserveNewest" />
     <None Update="Fixtures/ModuleEndpointContract.json" CopyToOutputDirectory="PreserveNewest" />
     <Compile Include="../TestSupport/ModuleDependencyGuard.cs" Link="ModuleDependencyGuard.cs" />
+    <Compile Include="../TestSupport/ServerTestLocalization.cs" Link="ServerTestLocalization.cs" />
+    <None Include="../ClashOfRim.NetworkServer/Localization/English.json" Link="TestLocalization/English.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

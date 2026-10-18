@@ -71,7 +71,7 @@ internal sealed class ShopService(ServerShopRegistry shop, SnapshotRequestAuthor
         lock (shop.SnapshotCommitGate)
         {
             if (access.Rejection is { } denied) return new(denied, request.ListingId, 0);
-            if (!requests.ReauthorizePrincipal(principalToken, request.Buyer)) return Unauthorized(request);
+            if (requests.AuthorizePrincipal(principalToken, request.Buyer) is { } principalFailure) return new(principalFailure, request.ListingId, 0);
             purchase = ValidatePurchase(request);
             if (!purchase.Accepted) return Rejected(request, purchase, "prevalidation");
             if (purchase.Duplicate) return Replay(request, metadata.SnapshotId!);
@@ -87,7 +87,7 @@ internal sealed class ShopService(ServerShopRegistry shop, SnapshotRequestAuthor
         lock (shop.SnapshotCommitGate)
         {
             if (access.Rejection is { } denied) return new(denied, request.ListingId, 0);
-            if (!requests.ReauthorizePrincipal(principalToken, request.Buyer)) return Unauthorized(request);
+            if (requests.AuthorizePrincipal(principalToken, request.Buyer) is { } principalFailure) return new(principalFailure, request.ListingId, 0);
             purchase = ValidatePurchase(request);
             if (!purchase.Accepted) return Rejected(request, purchase, "final-validation");
             if (purchase.Duplicate) return Replay(request, metadata.SnapshotId!);
@@ -129,8 +129,6 @@ internal sealed class ShopService(ServerShopRegistry shop, SnapshotRequestAuthor
         return new(new ProtocolResponse(true, ProtocolErrorCode.DuplicateRequest, Format("Shop.PurchaseDuplicate")), request.ListingId,
             receipt.RemainingStockCount, receipt.SnapshotId, transactions.FindSnapshotNextLineageToken(receipt.UserId, receipt.ColonyId, receipt.SnapshotId));
     }
-    private static PurchaseServerShopListingResponse Unauthorized(PurchaseServerShopListingRequest request) =>
-        new(ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, Format("Auth.Failed")), request.ListingId, 0);
     private PurchaseServerShopListingResponse Rejected(PurchaseServerShopListingRequest request, ServerShopPurchaseResult purchase, string phase)
     {
         logger.LogWarning("Server shop purchase rejected: phase={Phase} listing={ListingId} user={UserId} colony={ColonyId} count={Count} unitPrice={UnitPrice} totalPrice={TotalPrice} expectedUnitPrice={ExpectedUnitPrice} expectedTotalPrice={ExpectedTotalPrice} stock={Stock} failure={FailureKey}",

@@ -63,6 +63,7 @@ internal static class UploadConfirmationRecoveryTests
             bool failed = change is "failure" or "newer";
             if (failed) Require(response!.StatusCode == HttpStatusCode.InternalServerError, "Recovery failure did not reach HTTP: " + kind + "/" + stage);
             else Require(Accepted(response!) == !denied, "Wrong upload authorization outcome: " + kind + "/" + stage + "/" + change);
+            if (denied) AssertError(response!, ProtocolErrorCode.SessionUnavailable);
             if (denied || failed)
             {
                 f.AssertPending(before!, kind + "/" + stage + "/" + change);
@@ -97,6 +98,7 @@ internal static class UploadConfirmationRecoveryTests
         revoke = () => f.State.AuthTokens.RevokeForUser("receiver");
         using var response = Call(f, kind, Incoming(factory));
         Require(!Accepted(response) && f.Store.GetLatest("receiver", "away") is null, "Recovery publication revocation allowed a submitted snapshot.");
+        AssertError(response, ProtocolErrorCode.SessionUnavailable);
         f.AssertRecovered(); revoke = null; f.RenewToken();
         using var retry = Call(f, kind, Incoming(factory));
         Require(Accepted(retry), "New session did not resume after recovery revoked the old one."); AssertCompleted(f, retry);
@@ -140,6 +142,7 @@ internal static class UploadConfirmationRecoveryTests
             }
             else
             {
+                AssertError(response!, change == "logout" ? ProtocolErrorCode.SessionUnavailable : ProtocolErrorCode.ServerRejected);
                 if (change == "published-actor") f.AssertRecovered();
                 else f.AssertPending(before!, "Delegated confirmation " + change);
                 Require(f.Store.GetLatest("receiver", "away") is null && f.State.Ledger.Find(loss.EventId)!.Status != ServerEventStatus.AppliedToSnapshot,
@@ -185,6 +188,13 @@ internal static class UploadConfirmationRecoveryTests
         response.EnsureSuccessStatusCode();
         using var json = JsonDocument.Parse(response.Content.ReadAsStringAsync().GetAwaiter().GetResult());
         return json.RootElement.GetProperty("result").GetProperty("accepted").GetBoolean();
+    }
+    private static void AssertError(HttpResponseMessage response, ProtocolErrorCode expected)
+    {
+        using var json = JsonDocument.Parse(response.Content.ReadAsStringAsync().GetAwaiter().GetResult());
+        var result = json.RootElement.GetProperty("result");
+        Require(!result.GetProperty("accepted").GetBoolean() && result.GetProperty("errorCode").GetInt32() == (int)expected,
+            "Snapshot admission lost its structured rejection: " + result);
     }
     private static void AssertCompleted(Fixture f, HttpResponseMessage response)
     {

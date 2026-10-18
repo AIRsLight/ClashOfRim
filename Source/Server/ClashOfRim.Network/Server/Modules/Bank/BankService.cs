@@ -400,8 +400,8 @@ internal sealed class BankService(
     private BankLoanResponse? CheckCreateBankLoanWithSnapshotReplay(string? principalToken, CreateBankLoanWithSnapshotRequest request, DateTimeOffset nowUtc, out BankRequestContext? context)
     {
         context = null;
-        if (!requests.ReauthorizePrincipal(principalToken, new ProtocolIdentity(request.UserId, request.ColonyId, request.CurrentSnapshotId)))
-            return new BankLoanResponse(ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, ServerLocalization.Text("Auth.Failed")), null, 0, null);
+        if (requests.AuthorizePrincipal(principalToken, new ProtocolIdentity(request.UserId, request.ColonyId, request.CurrentSnapshotId)) is { } principalFailure)
+            return new BankLoanResponse(principalFailure, null, 0, null);
         context = access.ReadBankRequestContext(
             request.UserId,
             request.ColonyId,
@@ -458,8 +458,8 @@ internal sealed class BankService(
     private BankLoanResponse? CheckRepayBankLoanWithSnapshotReplay(string? principalToken, RepayBankLoanWithSnapshotRequest request, DateTimeOffset nowUtc, out BankRequestContext? context)
     {
         context = null;
-        if (!requests.ReauthorizePrincipal(principalToken, new ProtocolIdentity(request.UserId, request.ColonyId, request.CurrentSnapshotId)))
-            return new BankLoanResponse(ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, ServerLocalization.Text("Auth.Failed")), null, 0, null);
+        if (requests.AuthorizePrincipal(principalToken, new ProtocolIdentity(request.UserId, request.ColonyId, request.CurrentSnapshotId)) is { } principalFailure)
+            return new BankLoanResponse(principalFailure, null, 0, null);
         context = access.ReadBankRequestContext(
             request.UserId,
             request.ColonyId,
@@ -513,8 +513,8 @@ internal sealed class BankService(
     private BankDebtResponse? CheckRepayBankDebtWithSnapshotReplay(string? principalToken, RepayBankDebtWithSnapshotRequest request, DateTimeOffset nowUtc, out BankRequestContext? context)
     {
         context = null;
-        if (!requests.ReauthorizePrincipal(principalToken, new ProtocolIdentity(request.UserId, request.ColonyId, request.CurrentSnapshotId)))
-            return new BankDebtResponse(ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, ServerLocalization.Text("Auth.Failed")), null, 0, null);
+        if (requests.AuthorizePrincipal(principalToken, new ProtocolIdentity(request.UserId, request.ColonyId, request.CurrentSnapshotId)) is { } principalFailure)
+            return new BankDebtResponse(principalFailure, null, 0, null);
         context = access.ReadBankRequestContext(
             request.UserId,
             request.ColonyId,

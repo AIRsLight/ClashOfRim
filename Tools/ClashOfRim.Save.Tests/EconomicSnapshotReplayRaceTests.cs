@@ -108,7 +108,7 @@ internal static class EconomicSnapshotReplayRaceTests
         if (errors.FirstOrDefault(e => e is not null) is { } error) throw new Exception("snapshot request failed", error);
         if (revokeSession)
         {
-            Check(results.All(r => r!.Result.ErrorCode == ProtocolErrorCode.Unauthorized && r.EventId is null && r.SnapshotId is null)
+            Check(results.All(r => r!.Result.ErrorCode == ProtocolErrorCode.SessionUnavailable && r.EventId is null && r.SnapshotId is null)
                 && state.SnapshotStore.ListLatest().Count == 0 && ledger.ListAll().Count == (kind == "self-delivery" ? 2 : kind == "drop-pod" ? 1 : 0)
                 && state.EventNotifications.GetVersion("userA") == 0 && state.EventNotifications.GetVersion("userB") == 0,
                 "revoked session committed or replayed a prepared operation: " + kind);
