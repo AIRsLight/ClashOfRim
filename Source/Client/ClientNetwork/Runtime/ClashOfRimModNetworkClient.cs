@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Achievements;
 using AIRsLight.ClashOfRim.Modules.Accounts;
 using AIRsLight.ClashOfRim.Modules.Diplomacy;
 using AIRsLight.ClashOfRim.Modules.Raids;
@@ -26,7 +27,6 @@ namespace AIRsLight.ClashOfRim.ClientNetwork;
 public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPackageWriter
 {
     private static readonly string MaintainPresenceRoute = ProtocolContractManifest.Find(ProtocolMessageKind.MaintainPresence).Route;
-    private static readonly string ListAchievementsRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ListAchievements).Route;
     private static readonly string GetPawnPackagePreviewRoute = ProtocolContractManifest.Find(ProtocolMessageKind.GetPawnPackagePreview).Route;
     private static readonly string UploadSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.UploadSnapshot).Route;
     private static readonly string SyncWorldMapMarkersRoute = ProtocolContractManifest.Find(ProtocolMessageKind.SyncWorldMapMarkers).Route;
@@ -55,6 +55,7 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
     private readonly ClientEventProtocol events;
     private readonly ClientEventConfirmationProtocol eventConfirmations;
     private readonly ClientEventDecisionProtocol eventDecisions;
+    private readonly ClientAchievementProtocol achievements;
     private readonly ClientDiplomacyProtocol diplomacy;
     private readonly ClientAccountProtocol accounts;
     private readonly ClientAuthenticationEnvironment authenticationEnvironment = new();
@@ -101,6 +102,7 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
         events = new ClientEventProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         eventConfirmations = new ClientEventConfirmationProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         eventDecisions = new ClientEventDecisionProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
+        achievements = new ClientAchievementProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         diplomacy = new ClientDiplomacyProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         accounts = new ClientAccountProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         packages = new ClientPackageReader(transport, context, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
@@ -790,29 +792,8 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
         CancellationToken cancellationToken = default) => diplomacy.ListAsync(context, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModListAchievementsResponseDto>> ListAchievementsAsync(
-        string? targetUserId = null,
-        string? targetColonyId = null,
-        CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModListAchievementsResponseDto>();
-        }
-
-        var request = new ModListAchievementsRequestDto
-        {
-            UserId = context.UserId,
-            ColonyId = context.ColonyId,
-            CurrentSnapshotId = context.CurrentSnapshotId,
-            TargetUserId = string.IsNullOrWhiteSpace(targetUserId) ? context.UserId : targetUserId,
-            TargetColonyId = string.IsNullOrWhiteSpace(targetColonyId) ? context.ColonyId : targetColonyId
-        };
-
-        return transport.PostAsync<ModListAchievementsRequestDto, ModListAchievementsResponseDto>(
-            ListAchievementsRoute,
-            request,
-            cancellationToken);
-    }
+        string? targetUserId = null, string? targetColonyId = null, CancellationToken cancellationToken = default)
+        => achievements.ListAsync(context, ClientAchievementTarget.Resolve(context, targetUserId, targetColonyId), cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModPullPendingEventsResponseDto>> PullPendingEventsAsync(
         CancellationToken cancellationToken = default) => events.PullAsync(context, cancellationToken);

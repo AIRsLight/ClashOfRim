@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Achievements;
 using AIRsLight.ClashOfRim.Account;
 using System;
 using System.Linq;
@@ -55,6 +56,7 @@ internal static class ClientModuleBoundaryTests
             || t == typeof(ClientEventDecisionPresentation) || t == typeof(ClientEventDecisionRuntime)
             || t == typeof(ClientDiplomacyCreationPresentation) || t == typeof(ClientDiplomacyRelationEffects) || t == typeof(ClientDiplomacyTransport)
             || t == typeof(ClientPasswordStore) || t == typeof(ClientPasswordTransport) || t == typeof(ClientPasswordPresentation)
+            || t == typeof(ClientAchievementTransport) || t == typeof(ClientAchievementPresentation)
             || t == typeof(ClientPlayerDirectoryPresentation) || t == typeof(ClientPlayerDirectoryRuntime) || t == typeof(ClientPlayerSelectionStore)
             || t == typeof(ClientEventReadPresentation) || t == typeof(ClashOfRimEventLetterProjection)
             || t == typeof(ClientEventApplicationRuntime) || t == typeof(ClientEventApplicationPresentation)
@@ -110,6 +112,7 @@ internal static class ClientModuleBoundaryTests
             typeof(ClientDiplomacyPresentation), typeof(ClientEventTextFormatting), typeof(ClientEventReadPresentation),
             typeof(ClientEventDecisionPresentation), typeof(ClientEventDecisionRuntime),
             typeof(ClientDiplomacyCreationPresentation), typeof(ClientDiplomacyRelationEffects), typeof(ClientDiplomacyTransport),
+            typeof(ClientAchievementPresentation), typeof(ClientAchievementTransport),
             typeof(ClientPlayerDirectoryPresentation), typeof(ClientPlayerDirectoryRuntime),
             typeof(ClientGiftPackageHydration), typeof(PawnPackageHydration),
             typeof(ClientEventApplicationRuntime), typeof(ClientEventApplicationPresentation),

@@ -1,3 +1,5 @@
+using AIRsLight.ClashOfRim.Modules.Achievements;
+using AIRsLight.ClashOfRim.Achievements;
 using AIRsLight.ClashOfRim.Account;
 using AIRsLight.ClashOfRim.Modules.Accounts;
 using AIRsLight.ClashOfRim.Modules.Diplomacy;
@@ -146,12 +148,7 @@ public sealed partial class ClashOfRimMod : Mod
     private bool blockAutomaticMapSessionForServerEntrySourceGame;
     private readonly ClientSessionConnection sessionConnection = new(new ClientSessionWebSocketTransport(new ClientWebSocketFactory(), new ClientProtocolMetadata()));
     private Game? serverEntrySourceGame;
-    private readonly List<ModAchievementLeaderboardDto> lastAchievementLeaderboards = new();
-    private readonly List<ModAchievementSummaryDto> lastOwnAchievements = new();
-    private int achievementLeaderboardsSnapshotVersion;
-    private string achievementTargetUserId = string.Empty;
-    private string achievementTargetColonyId = string.Empty;
-    private string achievementStatus = string.Empty;
+    private readonly ClientAchievementQueries achievementQueries;
     private readonly List<ModChatMessageDto> lastChatMessages = new();
     private readonly List<ModWorldMapMarkerDto> lastWorldMapMarkers = new();
     private readonly Dictionary<string, ModPlayerColonySiteDto> occupiedPlayerColonySites = new(StringComparer.Ordinal);
@@ -192,6 +189,9 @@ public sealed partial class ClashOfRimMod : Mod
         var diplomacyTransport = new ClientDiplomacyTransport(new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner)));
         playerDirectory = new ClientPlayerDirectory(sessionLifecycle, new ClientSnapshotGame(), synchronization, localMutations,
             diplomacyTransport, new ClientPlayerSelectionStore(settings), new ClientPlayerDirectoryPresentation(), new ClientPlayerDirectoryRuntime());
+        achievementQueries = new ClientAchievementQueries(sessionLifecycle, new ClientSnapshotGame(),
+            new ClientAchievementTransport(new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner))),
+            new ClientAchievementPresentation());
         var diplomacyCreation = new ClientDiplomacyCreation(mutationAdmission, snapshotTransactions, localMutations, diplomacyTransport,
             new ClientDiplomacyCreationPresentation(message => playerDirectory.Message = message));
         diplomacyActions = new ClientDiplomacyActions(playerDirectory, diplomacyCreation);
@@ -732,62 +732,14 @@ public sealed partial class ClashOfRimMod : Mod
 
     internal int PlayersSnapshotVersion => playerDirectory.Version;
 
-    internal List<ModAchievementLeaderboardDto> AchievementLeaderboardsSnapshot
-    {
-        get
-        {
-            lock (eventStateLock)
-            {
-                return lastAchievementLeaderboards.ToList();
-            }
-        }
-    }
-
-    internal List<ModAchievementSummaryDto> OwnAchievementsSnapshot
-    {
-        get
-        {
-            lock (eventStateLock)
-            {
-                return lastOwnAchievements.ToList();
-            }
-        }
-    }
-
-    internal int AchievementLeaderboardsSnapshotVersion
-    {
-        get
-        {
-            lock (eventStateLock)
-            {
-                return achievementLeaderboardsSnapshotVersion;
-            }
-        }
-    }
-
-    internal string AchievementTargetUserId
-    {
-        get
-        {
-            lock (eventStateLock)
-            {
-                return achievementTargetUserId;
-            }
-        }
-    }
-
-    internal string AchievementTargetColonyId
-    {
-        get
-        {
-            lock (eventStateLock)
-            {
-                return achievementTargetColonyId;
-            }
-        }
-    }
-
-    internal string AchievementStatus => achievementStatus;
+    internal List<ModAchievementLeaderboardDto> AchievementLeaderboardsSnapshot => achievementQueries.CopyLeaderboards();
+    internal List<ModAchievementSummaryDto> OwnAchievementsSnapshot => achievementQueries.CopyAchievements();
+    internal int AchievementLeaderboardsSnapshotVersion => achievementQueries.Version;
+    internal string AchievementTargetUserId => achievementQueries.Target.UserId;
+    internal string AchievementTargetColonyId => achievementQueries.Target.ColonyId;
+    internal string AchievementStatus => achievementQueries.Message;
+    internal void StartRefreshAchievements(string? targetUserId = null, string? targetColonyId = null)
+        => _ = achievementQueries.RefreshAsync(targetUserId, targetColonyId);
 
     internal bool GiftsEnabled => giftsEnabled;
 
