@@ -59,15 +59,15 @@ public sealed partial class ClashOfRimMod
     }
 
     internal void SubmitInitialWorldConfigurationIfPending()
-        => _ = initialWorldSetup.StartAsync(BuildCurrentColonyAppearanceDto(settings));
+        => _ = initialWorldSetup.StartAsync(colonyAppearance.Capture());
 
     internal void StartUpdateServerWorldBaseline()
-        => _ = worldWrites.StartAsync(ClientWorldWriteKind.Baseline, BuildCurrentColonyAppearanceDto(settings));
+        => _ = worldWrites.StartAsync(ClientWorldWriteKind.Baseline, colonyAppearance.Capture());
 
     internal string BuildCurrentStorytellerDifficultySignature() => storytellerConfiguration.Capture().Signature;
 
     internal void SubmitRuntimeStorytellerSettingsIfChanged(string? initialSignature)
-        => _ = worldWrites.StartAsync(ClientWorldWriteKind.Storyteller, BuildCurrentColonyAppearanceDto(settings), initialSignature);
+        => _ = worldWrites.StartAsync(ClientWorldWriteKind.Storyteller, colonyAppearance.Capture(), initialSignature);
 
     private void ApplyServerWorldConfigurationExtensionCatalog(ModWorldConfigurationDto? configuration)
         => worldConfiguration.ApplyCatalog(configuration);
@@ -299,28 +299,6 @@ public sealed partial class ClashOfRimMod
     private static bool ContainsToken(string value, string token)
     {
         return value.IndexOf(token, StringComparison.OrdinalIgnoreCase) >= 0;
-    }
-
-    private static ModColonyAppearanceDto? BuildCurrentColonyAppearanceDto(ClashOfRimSettings settings)
-    {
-        ColonyAppearanceSelection appearance = ReadCurrentColonyAppearanceSelection(settings);
-        if (!appearance.HasAny)
-        {
-            return null;
-        }
-
-        return new ModColonyAppearanceDto
-        {
-            Mode = NullIfWhiteSpace(appearance.Mode),
-            IconDefName = NullIfWhiteSpace(appearance.IconDefName),
-            ColorDefName = NullIfWhiteSpace(appearance.ColorDefName),
-            ColorHex = NullIfWhiteSpace(appearance.ColorHex)
-        };
-    }
-
-    private static string? NullIfWhiteSpace(string? value)
-    {
-        return string.IsNullOrWhiteSpace(value) ? null : value;
     }
 
 }

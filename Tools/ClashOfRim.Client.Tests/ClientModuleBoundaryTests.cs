@@ -60,6 +60,9 @@ internal static class ClientModuleBoundaryTests
             || t == typeof(AIRsLight.ClashOfRim.Admin.ClientAdminBaselineRuntime)
             || t == typeof(AIRsLight.ClashOfRim.Admin.ClientAdminTransport) || t == typeof(AIRsLight.ClashOfRim.Admin.ClientAdminPresentation)
             || t == typeof(ClientWorldWritePresentation) || t == typeof(ClientWorldCatalogRuntime) || t == typeof(ClientWorldCatalogPresentation)
+            || t == typeof(AIRsLight.ClashOfRim.WorldObjects.ClientColonyAppearanceStore)
+            || t == typeof(AIRsLight.ClashOfRim.WorldObjects.ClientColonyAppearanceTarget) || t == typeof(AIRsLight.ClashOfRim.WorldObjects.ClientColonyAppearancePresentation)
+            || t == typeof(ColonyAppearanceDialogWindow)
             || t == typeof(AIRsLight.ClashOfRim.WorldObjects.ClientColonyAbandonTarget) || t == typeof(AIRsLight.ClashOfRim.WorldObjects.ClientColonyAbandonPresentation)
             || t == typeof(AIRsLight.ClashOfRim.WorldObjects.ClientColonyRelocationCommands) || t == typeof(AIRsLight.ClashOfRim.WorldObjects.ClientColonyRelocationTarget)
             || t == typeof(AIRsLight.ClashOfRim.WorldObjects.ClientColonyRelocationPresentation) || t == typeof(AIRsLight.ClashOfRim.WorldObjects.ColonyRelocationConfirmationWindow)
@@ -130,6 +133,7 @@ internal static class ClientModuleBoundaryTests
             typeof(AIRsLight.ClashOfRim.Admin.ClientAdminBaselineRuntime),
             typeof(AIRsLight.ClashOfRim.Admin.ClientAdminTransport), typeof(AIRsLight.ClashOfRim.Admin.ClientAdminPresentation),
             typeof(ClientWorldWritePresentation), typeof(ClientWorldCatalogRuntime), typeof(ClientWorldCatalogPresentation),
+            typeof(AIRsLight.ClashOfRim.WorldObjects.ClientColonyAppearanceTarget), typeof(AIRsLight.ClashOfRim.WorldObjects.ClientColonyAppearancePresentation), typeof(ColonyAppearanceDialogWindow),
             typeof(AIRsLight.ClashOfRim.WorldObjects.ClientColonyAbandonTarget), typeof(AIRsLight.ClashOfRim.WorldObjects.ClientColonyAbandonPresentation), typeof(AIRsLight.ClashOfRim.WorldObjects.AbandonPlayerColonyConfirmationWindow),
             typeof(AIRsLight.ClashOfRim.WorldObjects.ClientColonyRelocationCommands), typeof(AIRsLight.ClashOfRim.WorldObjects.ClientColonyRelocationTarget),
             typeof(AIRsLight.ClashOfRim.WorldObjects.ClientColonyRelocationPresentation), typeof(AIRsLight.ClashOfRim.WorldObjects.ColonyRelocationConfirmationWindow),

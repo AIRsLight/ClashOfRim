@@ -111,6 +111,7 @@ public sealed partial class ClashOfRimMod : Mod
     private bool worldMapMarkerSyncInProgress;
     private bool runtimeWorldObjectSyncInProgress;
     private readonly ClientColonyRegistration colonyRegistration;
+    private readonly ClientColonyAppearance colonyAppearance;
     private readonly ClientColonyAbandonment colonyAbandonment;
     private readonly ClientColonyRelocation colonyRelocation;
     private readonly ClientColonyRelocationCommands colonyRelocationCommands;
@@ -299,7 +300,8 @@ public sealed partial class ClashOfRimMod : Mod
         featureCatalogs.Diagnostic += message => Log.Warning(message);
         worldConfiguration = new ClientWorldConfiguration(sessionLifecycle, new ClientWorldConfigurationRuntime(), entryStore, storytellerConfiguration, featureCatalogs);
         occupiedColonySites = new ClientOccupiedColonySites(sessionLifecycle, entryStore, new ClientOccupiedColonySitesRuntime(), worldConfiguration);
-        occupiedColonySites.OwnAppearanceObserved += CacheServerColonyAppearance;
+        colonyAppearance = new ClientColonyAppearance(sessionLifecycle, new ClientColonyAppearanceStore(settings), new ClientColonyAppearancePresentation());
+        occupiedColonySites.OwnAppearanceObserved += colonyAppearance.ObserveServer;
         var colonyTransport = new ClientColonyTransport(new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner)));
         colonyRegistration = new ClientColonyRegistration(sessionLifecycle, entryStore, localMutations, new ClientColonyRegistrationRuntime(), colonyTransport, worldConfiguration, occupiedColonySites);
         colonyAbandonment = new ClientColonyAbandonment(sessionLifecycle, entryStore, new ClientWorldCatalogRuntime(), colonyTransport,
@@ -311,6 +313,8 @@ public sealed partial class ClashOfRimMod : Mod
         colonyRelocation.Completed += StartQueuedAutomaticEventRefreshAfterLocalAtomicMutation;
         colonyRelocation.MarkersAccepted += markers => CaptureWorldMapMarkers(markers, source: "colony-relocation");
         snapshotFailureRecovery.ReturningToMenu += () => colonyRegistration.Suppressed = false;
+        colonyAppearance.RegistrationRequested += (appearance, reason) => _ = colonyRegistration.RequestAsync(
+            ClientColonyRegistrationKind.Sites, reason, appearance, suppressNotification: true);
         colonyRegistration.MarkersAccepted += (markers, source) => CaptureWorldMapMarkers(markers, source: source);
         colonyRegistration.Diagnostic += (message, warning) => { if (warning) Log.Warning(message); else ClashLog.Message(message); };
         worldCatalog = new ClientWorldCatalog(sessionLifecycle, new ClientWorldCatalogRuntime(), worldTransport,

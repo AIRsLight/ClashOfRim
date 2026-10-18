@@ -628,10 +628,10 @@ public sealed partial class ClashOfRimMod
     }
 
     internal void StartRegisterPlayerColonySites()
-        => _ = colonyRegistration.StartAsync(ClientColonyRegistrationKind.Sites, BuildCurrentColonyAppearanceDto(settings));
+        => _ = colonyRegistration.StartAsync(ClientColonyRegistrationKind.Sites, colonyAppearance.Capture());
 
     internal void RequestPlayerColonySiteRegistration(string reason, bool suppressWorldConfigurationNotification = false)
-        => _ = colonyRegistration.RequestAsync(ClientColonyRegistrationKind.Sites, reason, BuildCurrentColonyAppearanceDto(settings), suppressWorldConfigurationNotification);
+        => _ = colonyRegistration.RequestAsync(ClientColonyRegistrationKind.Sites, reason, colonyAppearance.Capture(), suppressWorldConfigurationNotification);
 
     internal void StartSyncWorldConfigurationExtensions()
         => _ = colonyRegistration.StartAsync(ClientColonyRegistrationKind.Extensions);
