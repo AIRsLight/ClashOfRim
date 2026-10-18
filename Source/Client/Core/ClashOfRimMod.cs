@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Presence;
 using AIRsLight.ClashOfRim.Modules.Chat;
 using AIRsLight.ClashOfRim.Modules.Administration;
 using AIRsLight.ClashOfRim.Modules.World;
@@ -132,7 +133,7 @@ public sealed partial class ClashOfRimMod : Mod
     private readonly ClientLocalMutationCoordinator localMutations = new();
     // Read-only bridge for domains that have not yet moved out of the Mod.
     private string? lastSessionId => sessionLifecycle.SessionId;
-    private long lastWorldConfigurationVersion;
+    private readonly ClientSessionNotifications sessionNotifications;
     private readonly ClientSessionLifecycle sessionLifecycle;
     private readonly ClientChat chat;
     private readonly ClientPasswordChange passwordChange;
@@ -385,6 +386,9 @@ public sealed partial class ClashOfRimMod : Mod
         eventRefresh = new ClientEventRefresh(sessionLifecycle, eventReader, eventInbox, synchronization, localMutations,
             eventApplications, eventDelivery, eventReadPresentation, eventState);
         chat = new ClientChat(sessionLifecycle, new ClientChatTransport(new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner))), new ClientChatPresentation());
+        sessionNotifications = new ClientSessionNotifications(sessionLifecycle, sessionConnection, eventState,
+            new ClientSessionNotificationEffects(chat, eventRefresh, worldCatalog, (auth, id) => HandleSessionExpired(null, auth, id)),
+            new ClientSessionNotificationPresentation(message => presenceStatus = message));
         sessionStartup = new ClientSessionStartup(sessionLifecycle, synchronization, localMutations, worldLoginPublication,
             new ClientSessionLogin(sessionLifecycle, new ClientSessionLoginTransport(new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner)))),
             ClientSnapshotComposition.Create(settings), new ClientSessionStartupRuntime(sessionConnection),
@@ -435,7 +439,6 @@ public sealed partial class ClashOfRimMod : Mod
         synchronization.SnapshotChanged += PresentSnapshotTransaction;
         sessionLifecycle.LogoutFailed += message => Log.Warning("[ClashOfRim] " + message);
         sessionConnection.StatusChanged += PresentConnectionStatus;
-        sessionConnection.EventReceived += HandleSessionStreamEventSafely;
         sessionConnection.ConnectionLost += HandleSessionDisconnected;
         var harmony = new Harmony(PackageId);
         ClashOfRimCompatibilityApi.BeginRegistrationCycle(PackageId);

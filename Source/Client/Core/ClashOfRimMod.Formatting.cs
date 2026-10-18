@@ -55,39 +55,4 @@ public sealed partial class ClashOfRimMod
 
     internal void ApplyCachedWorldMapMarkersToWorldObjects() => worldMarkers.ApplyCached();
 
-    private static long? ExtractNotificationVersion(string data)
-    {
-        return ExtractJsonLong(data, "\"NotificationVersion\":");
-    }
-
-    private static long? ExtractWorldConfigurationVersion(string data)
-    {
-        return ExtractJsonLong(data, "\"WorldConfigurationVersion\":");
-    }
-
-    private static long? ExtractJsonLong(string data, string marker)
-    {
-        int start = data.IndexOf(marker, StringComparison.Ordinal);
-        if (start < 0)
-        {
-            return null;
-        }
-
-        start += marker.Length;
-        while (start < data.Length && char.IsWhiteSpace(data[start]))
-        {
-            start++;
-        }
-
-        int end = start;
-        while (end < data.Length && char.IsDigit(data[end]))
-        {
-            end++;
-        }
-
-        return end > start && long.TryParse(data.Substring(start, end - start), out long value)
-            ? value
-            : null;
-    }
-
 }

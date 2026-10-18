@@ -21,6 +21,8 @@ internal static class SessionConnectionModuleTests
             foreach (string ending in new[] { "close", "cancel", "failure", "exception", "stop", "reset" }) await EndConnection(ending);
             await RepeatedStopCompletionRace();
             await ResetDuringScheduling();
+            foreach (bool replace in new[] { false, true }) await ReentrantStart(replace);
+            foreach (string ending in new[] { "close", "failure", "exception" }) await ReentrantCompletion(ending);
         }
         finally { ClientSessionWork.Reset(); }
     }
@@ -28,7 +30,7 @@ internal static class SessionConnectionModuleTests
     private static async Task InvalidStart()
     {
         ClientSessionWork.Reset();
-        var transport = new FakeTransport();
+        var transport = new SessionConnectionTestTransport();
         var connection = new ClientSessionConnection(transport);
         var phases = new List<SessionConnectionPhase>();
         connection.StatusChanged += value => phases.Add(value.Phase);
@@ -41,12 +43,12 @@ internal static class SessionConnectionModuleTests
     private static async Task ReplaceConnection(bool reset)
     {
         ClientSessionWork.Reset();
-        var transport = new FakeTransport();
+        var transport = new SessionConnectionTestTransport();
         var connection = new ClientSessionConnection(transport);
         var received = new ConcurrentQueue<string>();
         var lost = new ConcurrentQueue<string>();
         var phases = new ConcurrentQueue<SessionConnectionPhase>();
-        connection.EventReceived += (_, session) => received.Enqueue(session);
+        connection.EventReceived += (_, source) => received.Enqueue(source.SessionId);
         connection.ConnectionLost += lost.Enqueue;
         connection.StatusChanged += value => phases.Enqueue(value.Phase);
         Task oldWork = connection.Start(Context, "old", 12, 34);
@@ -73,7 +75,7 @@ internal static class SessionConnectionModuleTests
     private static async Task EndConnection(string ending)
     {
         ClientSessionWork.Reset();
-        var transport = new FakeTransport();
+        var transport = new SessionConnectionTestTransport();
         var connection = new ClientSessionConnection(transport);
         int received = 0, lost = 0;
         connection.EventReceived += (_, _) => received++;
@@ -93,7 +95,7 @@ internal static class SessionConnectionModuleTests
     private static async Task RepeatedStopCompletionRace()
     {
         ClientSessionWork.Reset();
-        var transport = new FakeTransport();
+        var transport = new SessionConnectionTestTransport();
         var connection = new ClientSessionConnection(transport);
         for (int i = 0; i < 40; i++)
         {
@@ -103,28 +105,6 @@ internal static class SessionConnectionModuleTests
                 ClashOfRimClientNetworkResult<ModSessionStreamClosedDto>.Ok(new(true)))));
             await work.WaitAsync(TimeSpan.FromSeconds(5));
             Require(!connection.IsRunning, "Stop/completion race retained the connection.");
-        }
-    }
-
-    private sealed class FakeTransport : IClientSessionStreamTransport
-    {
-        internal readonly ConcurrentQueue<Pending> Calls = new();
-        internal Action? BeforeStart;
-        private readonly SemaphoreSlim available = new(0);
-        public Task<ClashOfRimClientNetworkResult<ModSessionStreamClosedDto>> StreamAsync(
-            ClashOfRimClientNetworkContext context, string sessionId, long notificationVersion, long worldVersion,
-            Action<ModSessionStreamEvent> onEvent, CancellationToken cancellationToken)
-        {
-            BeforeStart?.Invoke();
-            var pending = new Pending(onEvent, cancellationToken, notificationVersion, worldVersion);
-            Calls.Enqueue(pending); available.Release();
-            return pending.Result.Task;
-        }
-        internal async Task<Pending> Next()
-        {
-            Require(await available.WaitAsync(TimeSpan.FromSeconds(5)), "Stream did not start.");
-            Require(Calls.TryDequeue(out var value), "Missing stream invocation.");
-            return value!;
         }
     }
 
@@ -149,10 +129,43 @@ internal static class SessionConnectionModuleTests
             => Task.FromResult(ClashOfRimClientNetworkResult<ModSessionStreamClosedDto>.Ok(new(true)));
     }
 
-    private sealed record Pending(Action<ModSessionStreamEvent> Callback, CancellationToken Token, long NotificationVersion, long WorldVersion)
+    private static async Task ReentrantStart(bool replace)
     {
-        internal readonly TaskCompletionSource<ClashOfRimClientNetworkResult<ModSessionStreamClosedDto>> Result = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        internal void Emit() => Callback(new ModSessionStreamEvent("probe", "{}"));
+        ClientSessionWork.Reset(); var transport = new SessionConnectionTestTransport(); var connection = new ClientSessionConnection(transport);
+        bool reentered = false; Task? next = null;
+        connection.StatusChanged += status =>
+        {
+            if (status.Phase != SessionConnectionPhase.Connecting || reentered) return;
+            reentered = true;
+            if (replace) next = connection.Start(Context, "next", 0, 0); else connection.Stop();
+        };
+        await connection.Start(Context, "old", 0, 0).WaitAsync(TimeSpan.FromSeconds(5));
+        if (replace)
+        {
+            var pending = await transport.Next(); Require(pending.SessionId == "next" && transport.Calls.IsEmpty, "Replaced Connecting callback still opened old transport.");
+            connection.Stop(); pending.Result.SetResult(ClashOfRimClientNetworkResult<ModSessionStreamClosedDto>.Ok(new(true))); await next!;
+        }
+        else Require(transport.Calls.IsEmpty && !connection.IsRunning, "Stopped Connecting callback still opened a stream.");
     }
+
+    private static async Task ReentrantCompletion(string ending)
+    {
+        ClientSessionWork.Reset(); var transport = new SessionConnectionTestTransport(); var connection = new ClientSessionConnection(transport);
+        Task? replacement = null; int lost = 0;
+        connection.StatusChanged += status =>
+        {
+            if (status.Phase is SessionConnectionPhase.Closed or SessionConnectionPhase.Failed or SessionConnectionPhase.Exception)
+                replacement = connection.Start(Context, "same", 0, 0);
+        };
+        connection.ConnectionLost += _ => lost++;
+        Task work = connection.Start(Context, "same", 0, 0); var source = await transport.Next();
+        if (ending == "exception") source.Result.SetException(new InvalidOperationException("expected"));
+        else source.Result.SetResult(ending == "close" ? ClashOfRimClientNetworkResult<ModSessionStreamClosedDto>.Ok(new(false))
+            : ClashOfRimClientNetworkResult<ModSessionStreamClosedDto>.Failed("network", "expected"));
+        await work.WaitAsync(TimeSpan.FromSeconds(5)); var next = await transport.Next();
+        Require(lost == 0 && connection.IsRunning, "Old terminal status caused recovery/cleanup against its replacement.");
+        connection.Stop(); next.Result.SetResult(ClashOfRimClientNetworkResult<ModSessionStreamClosedDto>.Ok(new(true))); await replacement!;
+    }
+
     private static void Require(bool ok, string message) { if (!ok) throw new InvalidOperationException(message); }
 }

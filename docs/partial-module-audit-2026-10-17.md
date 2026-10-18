@@ -2318,3 +2318,24 @@ M8h4k 的两条启动工作流迁移完成。**下一步 M8h4l：聊天状态与
 **9 个相关单元组通过**：聊天工作流/协议、会话启动、初次建服、会话连接、生命周期、重连、协议传输及模块守卫；最后冻结拒绝回执后重跑聊天两组和守卫。守卫检查 **1,228** 个模块及生成类型、**291** 个适配器及生成类型。客户端 Release **0 错误、40 个既有警告**；RimTest 桥接 **0 错误、1 个既有警告**。日志：`LocalOnly/module-migration/client-chat-{compile,tests,protocol,concurrency,related,receipt-repro,final,build,bridge}.log`。未执行实机 RimTest、全量回归或推送；冻结 1.6 和原有未提交工作保持独立。
 
 M8h4l 的聊天状态和收发迁移完成。**下一步 M8h4m1：会话流事件分派**，迁移通知/世界版本观察、载荷解码和后续业务刷新决策，继续复用现有连接与领域模块；随后处理不可用提示和重连展示的编排。当前 SessionRuntime 的这些职责及其他宿主遗留尚未完成，M8h4、M8h、M8 与 M9–M12 继续开放。相关单元测试为默认，必要时补单次功能 RimTest，全量由用户安排。
+
+
+### M8h4m1 会话流载荷、版本观察和领域通知（2026-10-19）
+
+`ClientSessionNotifications` 接管 presence、ledgerChanged、chatChanged、worldConfigurationChanged、playerOnline 和 error 六类流事件的解码、归属检查、版本观察与后续动作。世界通知游标迁入模块；事件账本游标继续复用 ClientEventState，没有第二份通知版本状态。模块启动连接时传入当前上下文及现有游标，同一身份重开连接保持单调版本，重新登录/换账户则由 ClientRequestTracker 归属重置；Game 和普通快照推进不单独清空世界通知游标。游标表示已观察通知，并非世界目录或事件业务已经成功应用的事务回执。
+
+后续动作适配器直接调用已有 ClientChat、ClientEventRefresh 和 ClientWorldCatalog，不再回调宿主的聊天/事件/世界刷新包装。presence 使用初次聊天刷新，账本更新设置现有事件状态并请求自动读取，世界变更继续包含 generation baseline。会话失效暂时转交现有 UI 入口，但显式携带原认证和 SessionId；该 UI 编排在下一步迁移。宿主删除流分派、玩家在线解析、三个字符串版本截取助手及 world version 字段，在线消息和诊断由窄展示端口负责。
+
+`ClientSessionNotification` 使用 JSON 解析及按事件类型限定的顶层字段，保持当前服务端 PascalCase 载荷契约；合法空白、转义文本和 Int64 不再依赖文本扫描。未知事件忽略，不从其附加字段更新已知游标；损坏/缺失字段、负数、浮点或溢出版本不消费版本，也不阻断后续合法帧。载荷 UserId 必须属于原连接用户，其他事件内的 NotificationVersion/WorldConfigurationVersion 或字符串内容不会串写游标。这里未添加另一套宽松大小写或文本兼容解析。
+
+流会话失效依据服务端已有的 `error + Online=false`，删除对“会话已过期”和“session has expired”两句文本的分支。测试中的法语、土耳其语和日语错误文本均能使原会话不可用；反过来，Online=true 的错误文本即使包含两句旧关键词也不会覆盖结构化状态。HTTP 传输层仍有独立的旧文本过期识别，本步没有将流协议修复误称为覆盖 HTTP；该入口随下一步失效编排继续核对。
+
+ClientSessionConnection 向流订阅者交付包含原上下文、SessionId、代次及连接修订的 Observation。排队通知使用这份凭据，不在执行时重新捕获当前连接；停止或替换连接即使沿用相同 SessionId 也会撤销旧通知。自然结束本身保留已经接收帧的排队资格，身份退出、失效或后继连接仍能撤销它。即时分派和延后发布共用 Observation 的归属检查，现场分派额外要求连接仍为 current，没有复制另一套代次判定。
+
+补齐连接回调重入边界：同一帧在每个订阅者之前重新检查来源；Connecting 回调已停止/替换连接时旧 worker 不再打开传输；终止状态回调已经重连时，旧连接不再通知 ConnectionLost 或清理新连接。在线消息队列只消费一次，重复或丢弃回调不会重复弹出通知。没有将 StatusChanged 的全部展示逻辑或失效窗口状态迁到本模块，这部分仍是 m2 的明确遗留。
+
+新增通知组 **580 个场景**，四种文化下直接序列化服务端共享 DTO，验证六类消息、原身份/连接/代次变化、主线程排队、同 SessionId 重连、重入与异常、原地失效、单调版本/重置、JSON 空白/无关字段/损坏数值、自身上线和未知事件。复用真实 ClientSessionConnection、ClientSessionLifecycle、ClientEventReader/State 和现有引擎端口；将原连接测试的延迟传输抽为 SessionConnectionTestTransport，两组共用。连接组另补五个 Connecting/终止状态重入用例，保留原替换、取消、停止/完成竞争及调度代次矩阵。
+
+**9 个相关单元组通过**：通知、连接、WebSocket 传输、生命周期、启动、事件刷新、聊天、世界目录及模块守卫；最终合并连接凭据检查后重跑通知、连接、WebSocket 和守卫四组。守卫检查 **1,246** 个模块及生成类型、**294** 个适配器及生成类型。客户端 Release **0 错误、40 个既有警告**；RimTest 桥接 **0 错误、1 个既有警告**。日志：`LocalOnly/module-migration/client-session-notifications-{compile,tests,related,final,build,bridge}.log`。未运行实机 RimTest、全量回归或推送；冻结 1.6 和原有未提交改动保持独立。
+
+M8h4m1 的流通知编排迁移完成。**下一步 M8h4m2：连接状态展示、不可用提示与原地重连 UI 编排**，继续复用已有生命周期、重连和世界观察凭据，不把业务决定作为新的 Mod 回调传回。SessionRuntime 及其他 partial 尚未全部迁移；M8h4、M8h、M8 与 M9–M12 继续开放。相关单元测试为默认，必要时安排单次功能 RimTest，全量由用户安排。

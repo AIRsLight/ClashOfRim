@@ -11,11 +11,14 @@ internal sealed class ClientSessionConnection
     private readonly IClientSessionStreamTransport transport;
     private readonly object connectionGate = new();
     private Connection? current;
+    // Completed frames may still have UI work queued. Natural completion keeps
+    // their revision; Stop or replacement revokes it even for the same SessionId.
+    private object revision = new();
 
     internal ClientSessionConnection(IClientSessionStreamTransport transport) => this.transport = transport;
     internal bool IsRunning { get { lock (connectionGate) return current is not null; } }
     internal event Action<SessionConnectionStatus>? StatusChanged;
-    internal event Action<ModSessionStreamEvent, string>? EventReceived;
+    internal event Action<ModSessionStreamEvent, Observation>? EventReceived;
     internal event Action<string>? ConnectionLost;
 
     internal Task Start(ClashOfRimClientNetworkContext context, string? sessionId, long notificationVersion, long worldVersion)
@@ -35,8 +38,8 @@ internal sealed class ClientSessionConnection
                 return Task.CompletedTask;
             }
 
-            var connection = new Connection(sessionId!);
-            lock (connectionGate) { previous = current; current = connection; }
+            var connection = new Connection(this, context, sessionId!);
+            lock (connectionGate) { previous = current; revision = current = connection; }
             // Preserve cancellation-before-open ordering; the server admits only one active stream.
             previous?.Cancel();
             Report(new(SessionConnectionPhase.Connecting, sessionId));
@@ -51,7 +54,7 @@ internal sealed class ClientSessionConnection
         Connection? previous;
         using (ClientSessionWork.EnterPublication())
         {
-            lock (connectionGate) { previous = current; current = null; }
+            lock (connectionGate) { previous = current; current = null; revision = new(); }
             if (reportStatus) Report(new(SessionConnectionPhase.Disconnecting, previous?.SessionId));
         }
         previous?.Cancel();
@@ -61,8 +64,13 @@ internal sealed class ClientSessionConnection
     {
         try
         {
+            if (!Publish(connection, static () => { })) return;
             var result = await ClientSessionWork.Observe(transport.StreamAsync(context, connection.SessionId, notificationVersion, worldVersion,
-                item => Publish(connection, () => EventReceived?.Invoke(item, connection.SessionId)), connection.Token));
+                item =>
+                {
+                    foreach (Action<ModSessionStreamEvent, Observation> handler in EventReceived?.GetInvocationList() ?? Array.Empty<Delegate>())
+                        if (!Publish(connection, () => handler(item, connection.Receipt))) break;
+                }, connection.Token));
             Publish(connection, () =>
             {
                 if (connection.Token.IsCancellationRequested)
@@ -73,11 +81,11 @@ internal sealed class ClientSessionConnection
                 if (!result.Success || result.Response is null)
                 {
                     Report(new(SessionConnectionPhase.Failed, connection.SessionId, result.ErrorCode, result.Message));
-                    ConnectionLost?.Invoke(connection.SessionId);
+                    Publish(connection, () => ConnectionLost?.Invoke(connection.SessionId));
                     return;
                 }
                 Report(new(result.Response.Cancelled ? SessionConnectionPhase.Cancelled : SessionConnectionPhase.Closed, connection.SessionId));
-                if (!result.Response.Cancelled) ConnectionLost?.Invoke(connection.SessionId);
+                if (!result.Response.Cancelled) Publish(connection, () => ConnectionLost?.Invoke(connection.SessionId));
             });
         }
         catch (Exception ex) when (ClientSessionWork.IsCurrent)
@@ -85,7 +93,7 @@ internal sealed class ClientSessionConnection
             Publish(connection, () =>
             {
                 Report(new(SessionConnectionPhase.Exception, connection.SessionId, Error: ex));
-                if (!connection.Token.IsCancellationRequested) ConnectionLost?.Invoke(connection.SessionId);
+                if (!connection.Token.IsCancellationRequested) Publish(connection, () => ConnectionLost?.Invoke(connection.SessionId));
             });
         }
     }
@@ -101,15 +109,37 @@ internal sealed class ClientSessionConnection
         }
     }
 
-    private void Publish(Connection connection, Action action)
+    private bool Publish(Connection connection, Action action)
     {
-        ClientSessionWork.TryApply(() =>
+        bool applied = false;
+        connection.Receipt.TryApply(() =>
         {
-            if (connection.OwnerToken != ClientSessionWork.Token || connection.OwnerToken.IsCancellationRequested) return;
             lock (connectionGate) { if (!ReferenceEquals(current, connection)) return; }
-            // Start/Stop also require session publication, so ownership cannot change during this callback.
-            action();
+            action(); applied = true;
         });
+        return applied;
+    }
+
+    internal sealed class Observation
+    {
+        private readonly ClientSessionConnection owner;
+        private readonly object revision;
+        private readonly CancellationToken generation;
+        internal ClashOfRimClientNetworkContext Context { get; }
+        internal string SessionId { get; }
+        internal Observation(ClientSessionConnection owner, object revision, ClashOfRimClientNetworkContext context, string id, CancellationToken generation)
+        { this.owner = owner; this.revision = revision; Context = context; SessionId = id; this.generation = generation; }
+        internal bool TryApply(Action action)
+        {
+            bool applied = false;
+            ClientSessionWork.TryApply(() =>
+            {
+                if (generation != ClientSessionWork.Token || generation.IsCancellationRequested) return;
+                lock (owner.connectionGate) if (!ReferenceEquals(revision, owner.revision)) return;
+                action(); applied = true;
+            });
+            return applied;
+        }
     }
 
     private void Report(SessionConnectionStatus status) => StatusChanged?.Invoke(status);
@@ -119,10 +149,11 @@ internal sealed class ClientSessionConnection
         private readonly object lifetimeGate = new();
         private readonly CancellationTokenSource cancellation = new();
         private bool disposed;
-        internal Connection(string sessionId) { SessionId = sessionId; Token = cancellation.Token; OwnerToken = ClientSessionWork.Token; }
+        internal Connection(ClientSessionConnection owner, ClashOfRimClientNetworkContext context, string sessionId)
+        { SessionId = sessionId; Token = cancellation.Token; Receipt = new(owner, this, context, sessionId, ClientSessionWork.Token); }
+        internal Observation Receipt { get; }
         internal string SessionId { get; }
         internal CancellationToken Token { get; }
-        internal CancellationToken OwnerToken { get; }
         // Stop and an I/O completion can race after leaving the publication scope.
         internal void Cancel() { lock (lifetimeGate) { if (!disposed) cancellation.Cancel(); } }
         public void Dispose() { lock (lifetimeGate) { if (!disposed) { disposed = true; cancellation.Dispose(); } } }

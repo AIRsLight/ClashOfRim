@@ -4,11 +4,8 @@ using AIRsLight.ClashOfRim.Modules.Events;
 using AIRsLight.ClashOfRim.Modules.Sessions;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Net.Http;
-using System.Runtime.Serialization.Json;
-using System.Text;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
@@ -27,17 +24,11 @@ namespace AIRsLight.ClashOfRim;
 
 public sealed partial class ClashOfRimMod
 {
-    private static readonly DataContractJsonSerializerSettings StreamJsonSerializerSettings = new()
-    {
-        UseSimpleDictionaryFormat = true
-    };
-
     internal void StartRefreshEventsForTest() => _ = eventRefresh.StartManual(ClientEventReadKind.Refresh);
 
     internal void StartManualLogin() => _ = sessionStartup.StartAsync(ClientSessionStartKind.Manual);
 
-    internal void StartManualPresence() => sessionConnection.Start(
-        ClashOfRimClientNetworkContext.FromSettings(settings), lastSessionId, eventState.NotificationVersion, lastWorldConfigurationVersion);
+    internal void StartManualPresence() => _ = sessionNotifications.Start();
 
     internal void StopManualPresence() => sessionConnection.Stop();
 
@@ -87,7 +78,7 @@ public sealed partial class ClashOfRimMod
         worldSynchronization.Reset();
         settings.CurrentWorldConfigurationId = string.Empty;
         administration.Reset();
-        lastWorldConfigurationVersion = 0;
+        sessionNotifications.Reset();
         worldSetup.Reset();
         settings.CurrentSnapshotId = string.Empty;
         settings.CurrentLineageToken = string.Empty;
@@ -124,123 +115,6 @@ public sealed partial class ClashOfRimMod
 
     internal void OpenAbandonPlayerColonyConfirmation(MapParent colony)
         => colonyAbandonment.Open(new ClientColonyAbandonTarget(colony));
-
-    private void HandleSessionStreamEvent(ModSessionStreamEvent serverEvent, string? streamSessionId)
-    {
-        long? notificationVersion = ExtractNotificationVersion(serverEvent.Data);
-        if (notificationVersion.HasValue)
-        {
-            eventState.ObserveNotificationVersion(notificationVersion.Value);
-        }
-
-        long? worldConfigurationVersion = ExtractWorldConfigurationVersion(serverEvent.Data);
-        if (worldConfigurationVersion.HasValue)
-        {
-            lastWorldConfigurationVersion = Math.Max(lastWorldConfigurationVersion, worldConfigurationVersion.Value);
-        }
-
-        if (string.Equals(serverEvent.EventName, "presence", StringComparison.Ordinal))
-        {
-            presenceStatus = ClashOfRimText.Key("ClashOfRim.Presence.StatusConnected", eventState.NotificationVersion.Named("VERSION"));
-            StartRefreshChatMessages(initialLoad: true);
-            return;
-        }
-
-        if (string.Equals(serverEvent.EventName, "ledgerChanged", StringComparison.Ordinal))
-        {
-            presenceStatus = ClashOfRimText.Key("ClashOfRim.Presence.StatusLedgerChanged", eventState.NotificationVersion.Named("VERSION"));
-            eventState.SetQueueStatus(ClashOfRimText.Key("ClashOfRim.Presence.StatusLedgerChangedSyncing"));
-            StartAutomaticEventRefresh(ClashOfRimText.Key("ClashOfRim.Presence.ReasonLedgerChanged"));
-            return;
-        }
-
-        if (string.Equals(serverEvent.EventName, "chatChanged", StringComparison.Ordinal))
-        {
-            presenceStatus = ClashOfRimText.Key("ClashOfRim.Presence.StatusChatChanged");
-            StartRefreshChatMessages();
-            return;
-        }
-
-        if (string.Equals(serverEvent.EventName, "worldConfigurationChanged", StringComparison.Ordinal))
-        {
-            presenceStatus = ClashOfRimText.Key("ClashOfRim.Presence.StatusWorldConfigurationChanged", lastWorldConfigurationVersion.Named("VERSION"));
-            StartRefreshWorldConfigurationCatalog(
-                ClashOfRimText.Key("ClashOfRim.Presence.ReasonWorldConfigurationChanged"),
-                includeGenerationBaseline: true);
-            return;
-        }
-
-        if (string.Equals(serverEvent.EventName, "playerOnline", StringComparison.Ordinal))
-        {
-            HandlePlayerOnlineStreamEvent(serverEvent.Data);
-            return;
-        }
-
-        if (string.Equals(serverEvent.EventName, "error", StringComparison.Ordinal))
-        {
-            presenceStatus = ClashOfRimText.Key(
-                "ClashOfRim.Presence.StatusStreamError",
-                ClashOfRimText.SafeArgument(serverEvent.Data).Named("MESSAGE"));
-            if (IsSessionExpiredMessage(serverEvent.Data))
-            {
-                HandleSessionExpired(
-                    ClashOfRimText.Key("ClashOfRim.SessionExpired.Message"),
-                    observedAuthToken: null,
-                    observedSessionId: streamSessionId);
-            }
-        }
-    }
-
-    private void HandleSessionStreamEventSafely(ModSessionStreamEvent serverEvent, string? streamSessionId)
-    {
-        try
-        {
-            HandleSessionStreamEvent(serverEvent, streamSessionId);
-        }
-        catch (Exception ex)
-        {
-            presenceStatus = "Online event handling failed: " + ex.Message;
-            Log.Warning("[ClashOfRim] Session stream event failed: event="
-                + (serverEvent.EventName ?? "<null>")
-                + ", session="
-                + (streamSessionId ?? "<null>")
-                + ", error="
-                + ex);
-        }
-    }
-
-    private void HandlePlayerOnlineStreamEvent(string data)
-    {
-        ModPlayerOnlineStreamEventDto? payload = TryDeserializeStreamPayload<ModPlayerOnlineStreamEventDto>(data);
-        string? onlineUserId = payload?.OnlineUserId;
-        if (string.IsNullOrWhiteSpace(onlineUserId)
-            || string.Equals(onlineUserId, settings.UserId, StringComparison.Ordinal))
-        {
-            return;
-        }
-
-        string message = ClashOfRimText.Key(
-            "ClashOfRim.Presence.PlayerOnline",
-            ClashOfRimText.SafeArgument(onlineUserId).Named("PLAYER"));
-        ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
-            Messages.Message(message, MessageTypeDefOf.NeutralEvent, historical: false));
-    }
-
-    private static T? TryDeserializeStreamPayload<T>(string data)
-        where T : class
-    {
-        try
-        {
-            var serializer = new DataContractJsonSerializer(typeof(T), StreamJsonSerializerSettings);
-            using var stream = new MemoryStream(Encoding.UTF8.GetBytes(data ?? string.Empty));
-            return serializer.ReadObject(stream) as T;
-        }
-        catch (Exception ex)
-        {
-            Log.Warning("[ClashOfRim] Failed to parse session stream payload " + typeof(T).Name + ": " + ex.Message);
-            return null;
-        }
-    }
 
     internal void RequestServerWorldBaselineRefresh(string reason)
     {
@@ -413,14 +287,6 @@ public sealed partial class ClashOfRimMod
             _ => string.Empty
         };
     }
-
-    private static bool IsSessionExpiredMessage(string? message)
-    {
-        return !string.IsNullOrWhiteSpace(message)
-            && (message!.IndexOf("\u4f1a\u8bdd\u5df2\u8fc7\u671f", StringComparison.Ordinal) >= 0
-                || message.IndexOf("session has expired", StringComparison.OrdinalIgnoreCase) >= 0);
-    }
-
 
     internal void StartMapServerSession() => _ = sessionStartup.StartAsync(ClientSessionStartKind.Map);
 }
