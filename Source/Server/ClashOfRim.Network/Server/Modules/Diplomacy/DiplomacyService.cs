@@ -4,6 +4,7 @@ using AIRsLight.ClashOfRim.Network.Modules.Authorization;
 using AIRsLight.ClashOfRim.Network.Modules.Snapshots;
 using AIRsLight.ClashOfRim.Network.Modules.Events;
 using Microsoft.Extensions.Logging;
+using static AIRsLight.ClashOfRim.Events.EventSemanticClassifier;
 using static AIRsLight.ClashOfRim.Network.Modules.Diplomacy.DiplomacyPolicy;
 using static AIRsLight.ClashOfRim.Network.Modules.Events.EventProtocolMapper;
 
@@ -150,6 +151,11 @@ internal sealed class DiplomacyService(IAuthoritativeEventLedger ledger, ColonyS
                 null);
         }
 
+        if (!LedgerDiplomacyDecisionChange.CanDecide(diplomacyEvent))
+            return new DiplomacyEventResponse(
+                ProtocolResponse.Reject(ProtocolErrorCode.Conflict, ServerLocalization.Text("Diplomacy.EventProcessed")),
+                diplomacyEvent.EventId, null, null);
+
         DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
         if (request.Accepted && diplomacyEvent.Type is ServerEventType.AllianceRequest or ServerEventType.PeaceRequest)
         {
@@ -175,16 +181,17 @@ internal sealed class DiplomacyService(IAuthoritativeEventLedger ledger, ColonyS
             }
         }
 
-        AuthoritativeEvent changed = request.Accepted
-            ? ledger.MarkAccepted(diplomacyEvent.EventId, nowUtc, request.Reason)
-            : ledger.MarkRejected(diplomacyEvent.EventId, nowUtc, request.Reason);
+        var decision = new LedgerDiplomacyDecisionChange(diplomacyEvent, request.Accepted, nowUtc, request.Reason);
+        AuthoritativeEvent changed = decision.Updated;
         AuthoritativeEvent notification = CreateDiplomacyResponseNotification(
             changed,
             request.Accepted,
             presence.IsUserOnline(changed.Actor.UserId),
             nowUtc);
         notification = AuthoritativeEventFactory.ResolvePersistedIdentity(ledger, notification);
-        LedgerAppendResult notificationAppend = ledger.Append(notification);
+        bool notificationCreated = ledger.Find(notification.EventId) is null;
+        ledger.ApplyBatch(new LedgerBatch([notification], [], DiplomacyDecisionChanges: [decision]));
+        var notificationAppend = new LedgerAppendResult(ledger.Find(notification.EventId)!, notificationCreated);
         string? relationKind = request.Accepted && changed.Type is ServerEventType.AllianceRequest or ServerEventType.PeaceRequest
             ? PersistDiplomacyRelation(changed, accepted: true, nowUtc)
             : null;

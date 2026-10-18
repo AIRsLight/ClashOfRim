@@ -1367,3 +1367,17 @@ M7 收尾检查发现尚不能整体关闭本阶段：
 **收尾审查发现并单独实测了尚未修复的持久化缺口，不能据上述成功路径宣称外交恢复完成。** 以共享 `RecoveryTestSupport.Slot` 在关系注册表写入时抛 IOException：宣战账本先写入，第一次调用失败；解除故障后同键重试命中重复请求分支，没有补写关系或通知。最小探针实际输出：`InitialWriteFailed=True; LedgerCount=1; Replay=True/DuplicateRequest; Relation=Neutral; NotificationVersion=0`，而成功恢复应为 Hostile 并唤醒接收方。证据 `LocalOnly/module-migration/diplomacy-publication-gap.log`，探针源码保存在同目录 `DiplomacyPublicationGapProbe.cs`；探针已从正式单元入口移除，它的诊断结果不是“恢复测试通过”。探针首次缺少本地化初始化，在进入业务前失败；补齐初始化后才得到以上有效证据。
 
 旧响应路径也以“决定、通知、关系”分步写入；重复已决定事件直接返回，因此需一并验证。下一步 **M7e1b 外交决定与关系发布的持久化恢复**：先把该探针变成正式失败回归，覆盖决定/通知/关系各阶段失败、相反决定重试、重启、后来的关系变更及废弃殖民地，复用现有账本批次和持久化能力，避免以简单重写旧关系覆盖较新状态。此项完成后再继续 M7e2 客户端外交；M7 整体及 M8–M12 保持开放。本提交只完成真实模块归属和正常契约迁移，不把新的恢复缺口隐含算作已解决，工作区原有修改继续独立保留。
+
+### M7e1b1 外交决定与响应通知的账本事务（2026-10-18）
+
+将 M7e1b 分为可独立验证的两个步骤：先消除决定/通知之间的半写入，再恢复账本之外的关系与唤醒。新增正式 `DiplomacyDecisionAtomicityTests`，在 SQLite 插入通知前抛错；修改前测试实际失败，错误为 `Decision/notification failure leaked a partial decision: insert`，证明决定已经持久化但通知缺失。该证据与 M7e1a 的关系写入失败探针是两个不同阶段的缺口，不能互相替代。
+
+`DiplomacyService.Respond` 现在先构造完整决定和响应通知、解析历史事件身份，然后通过已有 `ApplyBatch` 一次提交。`LedgerDiplomacyDecisionChange` 明确表示玩家对外交事件的回应，复用已有接受/拒绝状态变换；校验和更新计划仍集中在 `LedgerBatchValidation`/`LedgerBatchPlan`，三个账本后端没有增加各自的业务分支或新的存储。普通读取所用 `AcceptanceChanges` 保持原限制，不能接受结盟/求和，也不能把物品、交易或袭击等业务直接标成已应用。外交事件分类移到共享语义分类器，删除服务端原有重复分类。
+
+批次提交前验证完整旧事件、唯一变更目标及通知身份/载荷；冲突不留下部分决定。相同已提交批次重放保留原决定和已经读过的通知；相反决定竞争只有一个成功。服务入口也使用相同的可决定状态规则，已取消/失败的邀请返回冲突，避免迟到响应重新开启已关闭事件。自动读过的宣战/解盟通知仍只是原通知的读取确认，不被解释成新玩家响应。
+
+测试覆盖内存、文件、SQLite；SQLite 插入/更新失败、Windows 文件临时写入/目标替换失败，四种外交事件的合法响应与原实例/重开账本重试；响应通知的发起方、接收方、载荷和键冲突；事务提交后丢失响应、重启及更换文化后的相反决定重试；全部事件状态、非外交事件越权使用决定批次、与其他变更槽重复操作同一事件、陈旧源、通知已经读过后的重放、两个独立 SQLite 实例的竞争。复用已有 `SnapshotSupportDeathTests.InterruptedLedger`，外交夹具/请求构造提取为 `DiplomacyTestSupport` 供成功矩阵和故障矩阵共用，没有另建恢复故障槽。这里的“重开”验证账本事务持久性；**提交后丢失响应的用例仅断言账本两条记录，尚不宣称关系/唤醒恢复完成**。测试编写时修正了不可访问的序列化选项、非 record DTO 的构造方式及 Windows 文件替换异常类型预期，没有改变产品校验来迁就测试。
+
+累计 **5/154 个相关服务端单元组通过**：新事务故障组、原外交模块成功矩阵、外交 HTTP 授权/恢复/并发、延后事件读取及模块/路由边界。新矩阵先单独通过，随后只运行受影响的其余 **4/154** 组；守卫检查 **225** 个模块/生成类型、**81** 条路由。服务端控制台 Release 编译 **0 警告、0 错误**。日志：`LocalOnly/module-migration/diplomacy-decision-before.log`、`diplomacy-decision-atomic-unit.log`、`diplomacy-decision-matrix-unit.log`、`diplomacy-decision-integration-unit.log`、`diplomacy-decision-console-build.log`。未运行 RimTest、NetworkSmoke 套件或全量回归，未推送；工作区既有修改保持独立。
+
+下一步 **M7e1b2 关系投影与通知唤醒的恢复**：把 M7e1a 已复现的关系写入失败纳入正式回归，处理已提交决定/已追加创建事件之后的失败、旧版半写入、重启、较新关系不能被旧重试覆盖，以及已废弃殖民地不能复活。宣战/解盟会在普通读取中被自动接受，不能仅凭 Accepted 状态推断曾有显式响应；后续恢复必须保留这一区别。本步不关闭 M7e1b、M7 或 M8–M12，完成 M7e1b2 后再继续 M7e2 客户端外交。

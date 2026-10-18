@@ -158,14 +158,6 @@ internal static class DiplomacyPolicy
             OnlineOnly: false);
     }
 
-    internal static bool IsDiplomacyEventType(ServerEventType type)
-    {
-        return type is ServerEventType.AllianceRequest
-            or ServerEventType.AllianceCancellation
-            or ServerEventType.WarDeclaration
-            or ServerEventType.PeaceRequest;
-    }
-
     internal static string? ResolveDiplomacyRelationKind(ServerEventType type, bool accepted)
     {
         if (!accepted)

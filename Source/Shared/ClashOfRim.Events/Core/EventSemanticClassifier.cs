@@ -2,6 +2,9 @@ namespace AIRsLight.ClashOfRim.Events;
 
 public static class EventSemanticClassifier
 {
+    public static bool IsDiplomacyEventType(ServerEventType type) => type is ServerEventType.AllianceRequest
+        or ServerEventType.AllianceCancellation or ServerEventType.WarDeclaration or ServerEventType.PeaceRequest;
+
     public static bool RequiresTargetDecision(AuthoritativeEvent ledgerEvent) =>
         ledgerEvent.RejectionPolicy == EventRejectionPolicy.RejectableByTarget
         && ledgerEvent.TargetDecision == TargetEventDecision.None;

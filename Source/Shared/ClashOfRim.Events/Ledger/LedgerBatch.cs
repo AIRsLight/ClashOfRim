@@ -37,7 +37,8 @@ public sealed record LedgerBatch(IReadOnlyList<AuthoritativeEvent> Events, IRead
     IReadOnlyList<LedgerConfirmationChange>? ConfirmationChanges = null,
     IReadOnlyList<LedgerRejectionChange>? RejectionChanges = null,
     IReadOnlyList<LedgerDeliveryChange>? DeliveryChanges = null,
-    IReadOnlyList<LedgerAcceptanceChange>? AcceptanceChanges = null);
+    IReadOnlyList<LedgerAcceptanceChange>? AcceptanceChanges = null,
+    IReadOnlyList<LedgerDiplomacyDecisionChange>? DiplomacyDecisionChanges = null);
 
 public static class LedgerBatchValidation
 {
@@ -85,7 +86,8 @@ public static class LedgerBatchValidation
                 throw new InvalidOperationException("Batch application targets must be distinct existing events with snapshot identities.");
             var current = find(change.Expected.EventId);
             bool applicationOnlyReplay = batch.Events.Count == 0 && batch.StatusChanges.Count == 0
-                && (batch.ConfirmationChanges?.Count ?? 0) == 0 && (batch.RejectionChanges?.Count ?? 0) == 0;
+                && (batch.ConfirmationChanges?.Count ?? 0) == 0 && (batch.RejectionChanges?.Count ?? 0) == 0
+                && (batch.DiplomacyDecisionChanges?.Count ?? 0) == 0;
             if (!Same(current, change.Expected) && !((alreadyCommitted || applicationOnlyReplay) && Same(current, change.Updated)))
                 throw new InvalidOperationException("Batch application target changed since preparation.");
         }
@@ -118,6 +120,16 @@ public static class LedgerBatchValidation
             var current = find(change.Expected.EventId);
             if (!Same(current, change.Expected) && !(alreadyCommitted && Same(current, change.Updated)))
                 throw new InvalidOperationException("Batch rejection source changed since preparation.");
+        }
+        foreach (var change in batch.DiplomacyDecisionChanges ?? [])
+        {
+            if (!changedIds.Add(change.Expected.EventId) || ids.Contains(change.Expected.EventId)
+                || !LedgerDiplomacyDecisionChange.CanDecide(change.Expected)
+                || !change.Accepted && change.Expected.RejectionPolicy != EventRejectionPolicy.RejectableByTarget)
+                throw new InvalidOperationException("Invalid explicit diplomacy decision target.");
+            var current = find(change.Expected.EventId);
+            if (!Same(current, change.Expected) && !(alreadyCommitted && Same(current, change.Updated)))
+                throw new InvalidOperationException("Diplomacy decision source changed since preparation.");
         }
         foreach (var change in batch.DeliveryChanges ?? [])
         {
