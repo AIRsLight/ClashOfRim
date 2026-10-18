@@ -26,9 +26,7 @@ internal sealed class ClientMercenaryIncidents
     private readonly IClientMercenaryIncidentTransport transport;
     private readonly IClientMercenaryIncidentRuntime runtime;
     private readonly IClientMercenaryIncidentPresentation presentation;
-    private ClientGameRequestTracker.Scope? queueScope;
-    private CancellationTokenSource? queueLifetime;
-    private Task tail = Task.CompletedTask;
+    private readonly ClientGameWorkQueue queue;
     internal ClientMercenaryIncidents(ClientSessionLifecycle session, ClientMercenaryState state, ClientBankState bank,
         ClientSynchronizationCoordinator synchronization, ClientLocalMutationCoordinator mutations, ClientSnapshotMutationAdmission admission,
         ClientSnapshotTransaction transactions, ClientSnapshotFailureRecovery recovery, ClientMercenaryConfirmation confirmation,
@@ -37,17 +35,13 @@ internal sealed class ClientMercenaryIncidents
         this.session = session; this.state = state; this.bank = bank; this.synchronization = synchronization; this.mutations = mutations;
         this.admission = admission; this.transactions = transactions; this.recovery = recovery; this.confirmation = confirmation;
         this.transport = transport; this.runtime = runtime; this.presentation = presentation;
+        queue = new(state.Requests);
         session.IdentityChanged += _ => Reset();
         recovery.ReturningToMenu += Reset;
     }
     internal event Action? BankRefreshRequested;
     internal event Action? Completed;
-    internal void Reset()
-    {
-        using var p = ClientSessionWork.EnterPublication();
-        queueLifetime?.Cancel(); queueLifetime?.Dispose(); queueLifetime = null;
-        queueScope = null; tail = Task.CompletedTask;
-    }
+    internal void Reset() => queue.Reset();
     internal Task ReportAsync(string contractId, string kind, string? explicitKey = null)
     {
         using var p = ClientSessionWork.EnterPublication();
@@ -56,27 +50,17 @@ internal sealed class ClientMercenaryIncidents
         if (!context.IsConfigured || string.IsNullOrWhiteSpace(context.CurrentSnapshotId))
         { state.Message = Text("StatusNotConfigured"); return Task.CompletedTask; }
         var scope = state.Requests.Capture();
-        if (!ReferenceEquals(scope, queueScope))
-        { Reset(); queueScope = scope; queueLifetime = CancellationTokenSource.CreateLinkedTokenSource(scope.Owner.Token); }
         string key = string.IsNullOrWhiteSpace(explicitKey)
             ? $"mercenary-incident:{context.UserId}:{context.ColonyId}:{contractId}:{kind}:{Guid.NewGuid():N}" : explicitKey!;
-        var job = new Job(scope, new(key, contractId, kind, runtime.GameTicks), queueLifetime!.Token);
-        Task previous = tail;
-        tail = ClientSessionWork.Run(async () =>
+        var job = new Job(scope, new(key, contractId, kind, runtime.GameTicks));
+        _ = queue.Enqueue(scope, async token =>
         {
-            try
-            {
-                await previous.WaitAsync(job.Token).ConfigureAwait(false);
-                job.Token.ThrowIfCancellationRequested();
-                await AttemptAsync(job, retry: false).ConfigureAwait(false);
-                job.FirstAttempt.TrySetResult();
-                // A failed report or confirmation stays at the head until recovery
-                // succeeds or this queue's owner exits. Later reports cannot replace it.
-                await job.Settled.Task.WaitAsync(job.Token).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException) when (job.Token.IsCancellationRequested) { }
-            finally { job.FirstAttempt.TrySetResult(); }
-        });
+            job.Token = token;
+            await AttemptAsync(job, retry: false).ConfigureAwait(false);
+            job.FirstAttempt.TrySetResult();
+            // Recovery owns completion; later reports must not replace a failed head.
+            await job.Settled.Task.WaitAsync(token).ConfigureAwait(false);
+        }, () => job.FirstAttempt.TrySetResult());
         return job.FirstAttempt.Task;
     }
 
@@ -187,11 +171,11 @@ internal sealed class ClientMercenaryIncidents
     private string Text(string key, params (string Name, object? Value)[] args) => presentation.Text(key, args);
     private sealed class Job
     {
-        internal Job(ClientGameRequestTracker.Scope scope, ClientMercenaryIncidentCommand command, CancellationToken token)
-        { Scope = scope; Command = command; Token = token; }
+        internal Job(ClientGameRequestTracker.Scope scope, ClientMercenaryIncidentCommand command)
+        { Scope = scope; Command = command; }
         internal readonly ClientGameRequestTracker.Scope Scope;
         internal readonly ClientMercenaryIncidentCommand Command;
-        internal readonly CancellationToken Token;
+        internal CancellationToken Token;
         internal readonly TaskCompletionSource FirstAttempt = new(TaskCreationOptions.RunContinuationsAsynchronously), Settled = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal ClientSnapshotTransaction.Attempt? Original;
         internal bool Applying;
