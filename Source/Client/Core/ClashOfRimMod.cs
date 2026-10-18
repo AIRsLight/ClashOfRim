@@ -168,7 +168,8 @@ public sealed partial class ClashOfRimMod : Mod
     {
         settings = GetSettings<ClashOfRimSettings>();
         snapshotPublication = ClientSnapshotComposition.CreatePublication(settings);
-        sessionLifecycle = new ClientSessionLifecycle(new ClientSessionIdentityStore(settings), new ClientSessionLogoutTransport(), sessionConnection);
+        var sessionIdentity = new ClientSessionIdentityStore(settings);
+        sessionLifecycle = new ClientSessionLifecycle(sessionIdentity, new ClientSessionLogoutTransport(), sessionConnection);
         adminAccess = new ClientAdminAccess(sessionLifecycle);
         adminBaselineCapture = new ClientAdminBaselineCapture(sessionLifecycle, new AIRsLight.ClashOfRim.Admin.ClientAdminBaselineRuntime(), ClientMainThreadDispatcher.EnqueueSession);
         var localManifest = new ClientLocalCompatibilityManifest();
@@ -433,12 +434,10 @@ public sealed partial class ClashOfRimMod : Mod
             CaptureServerCompatibilityManifest(response?.ServerCompatibilityManifestJson);
             ApplyAdministratorFlag(response?.IsAdministrator == true);
         };
-        sessionLifecycle.Ended += synchronization.Reset;
-        sessionLifecycle.Ended += localMutations.Reset;
-        sessionLifecycle.Ended += eventInbox.Reset;
-        sessionLifecycle.Ended += eventState.Reset;
-        sessionLifecycle.Ended += sourceGame.BlockCurrent;
-        sessionLifecycle.Ended += ClearTransientMultiplayerSessionStateForExit;
+        ClientSessionCleanup.Attach(sessionLifecycle, synchronization, localMutations, eventInbox, eventState, sourceGame,
+            new ClientSessionExitResources(), colonyRegistration, bankState, mercenaryState, mercenaryIncidents, shopState,
+            tradeState, chat, worldMarkers, worldSynchronization, sessionIdentity, administration, sessionNotifications,
+            worldSetup, playerDirectory, occupiedColonySites);
         synchronization.SnapshotChanged += PresentSnapshotTransaction;
         sessionLifecycle.LogoutFailed += message => Log.Warning("[ClashOfRim] " + message);
         _ = new ClientConnectionStatus(sessionLifecycle, sessionConnection, new ClientConnectionStatusPresentation(message => presenceStatus = message));

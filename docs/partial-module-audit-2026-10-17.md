@@ -2421,3 +2421,17 @@ ExitCompleted 只在显式退出完成领域清理和凭据持久化后触发。
 **7 个相关单元组通过**：连接状态、生命周期、恢复 UI、会话启动、殖民地废弃、重连和模块守卫。测试项目编译通过；守卫检查 **1,281** 个模块及生成类型、**303** 个适配器及生成类型。日志：`LocalOnly/module-migration/client-exit-completion-{tests,related}.log`。按用户要求，本步只运行相关单元测试，没有另跑全量回归、实机 RimTest 或独立发布构建；没有推送，冻结 1.6 和原有未提交工作保持独立。
 
 **下一步 M8h4m4b：领域清理所有权。** ClearTransientMultiplayerSessionStateForExit 仍在 Mod 中，并将多个领域 Reset 放在一个 Ended 回调里；中途的展示／引擎回调若重新登录，后续领域清理还没有逐项复用生命周期的来源检查。这一缺口没有在本步宣称修复。迁移应由模块直接依赖各领域及窄资源端口，保留清理先于身份持久化的顺序，避免把原清理列表包成另一个 Mod 回调。M8h4m4、M8h4、M8h、M8 与 M9–M12 继续开放。
+
+### M8h4m4b 领域退出清理及无展示副作用的状态重置（2026-10-19）
+
+删除 Mod 的 ClearTransientMultiplayerSessionStateForExit。世界工作流层的 ClientSessionCleanup 直接依赖各领域，负责登记显式退出时的清理顺序：同步准入、本地未确认变更、事件状态、源场景阻断、领域缓存和瞬态设置。每项清理单独接入既有 Ended 分派，复用 ClientSessionLifecycle 对原身份／代次的逐订阅者检查；重入登录后不会继续清理后继领域。Mod 只装配模块，没有传入原业务清理回调，也没有新增一套会话状态机。该协调位于 World 工作流层，会话基础设施没有反向依赖事件／快照领域。
+
+两个引擎缓存释放动作由 ClientSessionExitResources 窄适配器接入。ClientSessionIdentityStore 另提供只清空世界 ID、快照 ID 和 lineage 的退出端口，不提前保存设置；目标玩家选择仍由玩家目录清除，最终随认证清空一次持久化。原有源 Game 阻断顺序保留。认证失效和单独 ClearIdentity 不执行整套清理，继续保留原地重连所需现场。
+
+新测试先复现了银行 Reset 的内部重入问题：默认文字翻译期间发布新登录并填入新状态，返回后旧 Reset 覆盖新状态（`client-session-cleanup-repro.log`）。银行、商店、交易、雇佣、玩家目录和事件状态的 Reset／Normalize 现只清数据；默认状态使用 null 表示尚未设置，在 getter 中解析文字，不将翻译结果写回状态。这样移除了清理中的展示回调，不需要为这些默认文字添加新的归属检查。显式设置空字符串仍保持为空，不退化为默认提示。这里没有宣称所有业务执行期间的展示回调都已改造。
+
+新增 **208 个场景**：四种文化下使用真实生命周期与领域模块验证普通／带回执退出、失效／单独清认证、清理先于认证持久化、缓存及设置端口重入登录／同凭据重新登录／切换代次、后继领域与准入保留、默认文字读取重入、Reset 不调用翻译、显式空文字以及嵌套场景退出／下次登录再次退出。共享 EventModuleTestPorts 和 ClientWorldPublicationTestPorts，未建立替代清理算法。文化用例检验窄翻译端口，不等同于引擎语言切换实测。
+
+**15 个相关单元组通过**：清理、银行、雇佣事故／雇佣、交易市场、商店目录、玩家目录、事件刷新、模块守卫，以及生命周期、连接状态、恢复 UI、会话启动、废弃殖民地和重连。测试项目编译通过；守卫检查 **1,281** 个模块及生成类型、**304** 个适配器及生成类型。复现及最终验证日志：`LocalOnly/module-migration/client-session-cleanup-{repro,domains,related}.log`。没有运行全量回归、实机 RimTest 或独立发布构建，没有推送；冻结 1.6 及原有未提交工作保持独立。
+
+M8h4m4 的断开与退出清理迁移完成；SessionRuntime 当前保留引擎／旧调用方的薄入口。**下一步 M8h4n：迁移宿主中会话及初次建服成功后的领域分派。** 核对发现 Core 仍通过 sessionStartup.EffectRequested 和 initialWorldSetup.EffectRequested 的 switch 决定事件、玩家、聊天、站点、世界及 presence 后续动作，IdentityChanged 也仍在宿主接续兼容清单与管理员权限。应由工作流模块直接连接已有领域并复用原回执归属，避免只把 switch 移入适配器或再传回 Mod。其他 partial 及 M8h4、M8h、M8、M9–M12 继续开放；全量验证仍由用户安排。

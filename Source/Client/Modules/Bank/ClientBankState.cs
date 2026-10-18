@@ -23,12 +23,12 @@ internal sealed class ClientBankState
     private IClientSnapshotGameSession? owningGame;
     private ClientSynchronizationCoordinator.Lease? work;
     private ModBankStatusResponseDto? view;
-    private string message = string.Empty;
+    private string? message;
 
     internal bool Busy { get { using var p = ClientSessionWork.EnterPublication(); Normalize(); return work?.IsCurrent == true; } }
     internal string Message
     {
-        get { using var p = ClientSessionWork.EnterPublication(); Normalize(); return message; }
+        get { using var p = ClientSessionWork.EnterPublication(); Normalize(); return message ?? presentation.Text("StatusNotPulled"); }
         set { using var p = ClientSessionWork.EnterPublication(); Normalize(); message = value; }
     }
     internal ModBankStatusResponseDto? View
@@ -54,7 +54,7 @@ internal sealed class ClientBankState
         work?.Dispose();
         work = null;
         view = null;
-        message = presentation.Text("StatusNotPulled");
+        message = null;
         owner = session.CaptureOwnership();
         context = session.ReadContext();
         owningGame = game.BindCurrentGame();

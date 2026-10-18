@@ -60,6 +60,7 @@ internal static class ClientModuleBoundaryTests
             || t == typeof(ClientChatTransport) || t == typeof(ClientChatPresentation)
             || t == typeof(ClientSessionRecoveryRuntime) || t == typeof(ClientSessionRecoveryPresentation) || t == typeof(ClientSessionRecoveryEffects) || t == typeof(SessionExpiredWindow)
             || t == typeof(ClientSessionNotificationEffects) || t == typeof(ClientSessionNotificationPresentation) || t == typeof(ClientConnectionStatusPresentation)
+            || t == typeof(ClientSessionExitResources) || t == typeof(ClientSessionIdentityStore)
             || t == typeof(AIRsLight.ClashOfRim.CompatibilityClient.ClientCompatibilityOverrideTransport)
             || t == typeof(AIRsLight.ClashOfRim.CompatibilityClient.ClientCompatibilityOverridePresentation)
             || t == typeof(AIRsLight.ClashOfRim.CompatibilityClient.ClientCompatibilityBaselineRuntime)
@@ -143,6 +144,7 @@ internal static class ClientModuleBoundaryTests
             typeof(ClientChatTransport), typeof(ClientChatPresentation),
             typeof(ClientSessionRecoveryRuntime), typeof(ClientSessionRecoveryPresentation), typeof(ClientSessionRecoveryEffects), typeof(SessionExpiredWindow),
             typeof(ClientSessionNotificationEffects), typeof(ClientSessionNotificationPresentation), typeof(ClientConnectionStatusPresentation),
+            typeof(ClientSessionExitResources),
             typeof(AIRsLight.ClashOfRim.CompatibilityClient.ClientCompatibilityOverrideTransport),
             typeof(AIRsLight.ClashOfRim.CompatibilityClient.ClientCompatibilityOverridePresentation),
             typeof(AIRsLight.ClashOfRim.CompatibilityClient.ClientCompatibilityBaselineRuntime),

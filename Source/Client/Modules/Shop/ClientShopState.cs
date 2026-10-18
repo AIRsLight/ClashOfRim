@@ -13,15 +13,17 @@ namespace AIRsLight.ClashOfRim.Modules.Shop;
 internal sealed class ClientShopState
 {
     private readonly ClientGameRequestTracker requests;
+    private readonly IClientShopPresentation presentation;
     private List<ModServerShopListingDto> listings = new();
-    private string message = "";
+    private string? message;
     private int version;
     internal ClientShopState(ClientSessionLifecycle session, IClientSnapshotGame game, IClientShopPresentation presentation)
     {
-        requests = new(session, game, () => { listings.Clear(); message = presentation.Text("StatusIdle"); version++; });
+        this.presentation = presentation;
+        requests = new(session, game, () => { listings.Clear(); message = null; version++; });
     }
     internal bool Busy => requests.Busy;
-    internal string Message { get => requests.Read(() => message); set => requests.Read(() => message = value); }
+    internal string Message { get => requests.Read(() => message ?? presentation.Text("StatusIdle")); set => requests.Read(() => message = value); }
     internal int Version => requests.Read(() => version);
     internal List<ModServerShopListingDto> CopyListings() => requests.Read(() => Copy(listings));
     internal ClientGameRequestTracker.Scope Capture() => requests.Capture();

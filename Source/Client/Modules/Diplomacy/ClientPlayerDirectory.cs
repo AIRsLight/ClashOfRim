@@ -22,7 +22,7 @@ internal sealed class ClientPlayerDirectory
     private readonly IClientPlayerDirectoryRuntime runtime;
     private List<ModPlayerSummaryDto> players = new();
     private int version;
-    private string message = "";
+    private string? message;
 
     internal ClientPlayerDirectory(ClientSessionLifecycle session, IClientSnapshotGame game, ClientSynchronizationCoordinator synchronization,
         ClientLocalMutationCoordinator mutations, IClientPlayerDirectoryTransport transport, IClientPlayerSelectionStore selection,
@@ -30,11 +30,11 @@ internal sealed class ClientPlayerDirectory
     {
         this.session = session; this.synchronization = synchronization; this.mutations = mutations;
         this.transport = transport; this.selection = selection; this.presentation = presentation; this.runtime = runtime;
-        requests = new(session, game, () => { players = new(); version++; message = presentation.Text("ClashOfRim.Status.PlayerListNotPulled"); });
+        requests = new(session, game, () => { players = new(); version++; message = null; });
     }
     internal int Version => requests.Read(() => version);
     internal bool Busy => requests.Busy;
-    internal string Message { get => requests.Read(() => message); set => requests.Read(() => message = value); }
+    internal string Message { get => requests.Read(() => message ?? presentation.Text("ClashOfRim.Status.PlayerListNotPulled")); set => requests.Read(() => message = value); }
     internal List<ModPlayerSummaryDto> CopyPlayers() => requests.Read(() => Copy(players));
     internal ClientPlayerSelection Selected => requests.Read(selection.Read);
     internal void Reset() => requests.Reset();

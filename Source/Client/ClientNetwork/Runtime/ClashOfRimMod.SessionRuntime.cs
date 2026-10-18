@@ -1,7 +1,5 @@
 using AIRsLight.ClashOfRim.Modules.World;
 using AIRsLight.ClashOfRim.Modules.Events;
-using AIRsLight.ClashOfRim.RemoteMaps;
-using AIRsLight.ClashOfRim.Trades;
 using AIRsLight.ClashOfRim.WorldObjects;
 using RimWorld.Planet;
 
@@ -18,31 +16,6 @@ public sealed partial class ClashOfRimMod
     internal void StopManualPresence() => sessionConnection.Stop();
 
     internal void DisconnectMultiplayerSessionForExit() => _ = sessionLifecycle.End(sendLogout: true);
-
-    private void ClearTransientMultiplayerSessionStateForExit()
-    {
-        TradePawnPreviewService.Reset();
-        colonyRegistration.Reset();
-        bankState.Reset();
-        mercenaryState.Reset();
-        mercenaryIncidents.Reset();
-        shopState.Reset();
-        tradeState.Reset();
-        chat.Reset();
-        RemoteColonyWorldIconCache.Clear();
-        worldMarkers.Reset();
-        worldSynchronization.Reset();
-        settings.CurrentWorldConfigurationId = string.Empty;
-        administration.Reset();
-        sessionNotifications.Reset();
-        worldSetup.Reset();
-        settings.CurrentSnapshotId = string.Empty;
-        settings.CurrentLineageToken = string.Empty;
-        playerDirectory.ClearSelection();
-        playerDirectory.Reset();
-
-        occupiedColonySites.Reset();
-    }
 
     internal void StartRefreshChatMessages(bool initialLoad = false) => _ = chat.RefreshAsync(initialLoad);
     internal void StartSendChatMessage(string rawText) => _ = chat.SendAsync(rawText);

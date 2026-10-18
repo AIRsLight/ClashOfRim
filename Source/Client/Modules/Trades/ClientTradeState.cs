@@ -20,14 +20,15 @@ internal sealed class ClientTradeState
     private Page? page;
     private ClientSynchronizationCoordinator.Lease? work;
     private readonly List<ModTradeOrderSummaryDto> orders = new();
-    private string message = "", scope = "Open";
+    private string? message;
+    private string scope = "Open";
     private bool enabled = true, hasMore;
     private int version, total, nextOffset;
 
     internal ClientTradeState(ClientSessionLifecycle session, IClientSnapshotGame game, IClientTradeMarketPresentation presentation)
     { this.session = session; this.game = game; this.presentation = presentation; }
 
-    internal string Message { get => Read(() => message); set => Read(() => message = value); }
+    internal string Message { get => Read(() => message ?? presentation.InitialStatus); set => Read(() => message = value); }
     internal string SelectedScope => Read(() => scope);
     internal bool Enabled => Read(() => enabled);
     internal bool HasMore => Read(() => hasMore);
@@ -49,7 +50,7 @@ internal sealed class ClientTradeState
         work?.Dispose(); work = null;
         owner = new(session.CaptureOwnership(), session.ReadContext(), game.BindCurrentGame());
         page = null; orders.Clear(); scope = "Open"; enabled = true; hasMore = false; total = nextOffset = 0;
-        message = presentation.InitialStatus; version++;
+        message = null; version++;
     }
 
     private bool Owns(Scope candidate) => candidate.Game.IsCurrent && session.Owns(candidate.Owner, candidate.Context, false);

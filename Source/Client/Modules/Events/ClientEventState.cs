@@ -11,18 +11,18 @@ internal sealed class ClientEventState
     private readonly ClientEventReader reader;
     private readonly IClientEventReadPresentation presentation;
     private ClientEventReader.ReadScope? stateOwner;
-    private string queueStatus = string.Empty, detailsStatus = string.Empty, actionStatus = string.Empty;
+    private string? queueStatus, detailsStatus, actionStatus;
     private long notificationVersion;
 
     internal ClientEventState(ClientEventReader reader, IClientEventReadPresentation presentation)
     { this.reader = reader; this.presentation = presentation; }
 
-    internal string QueueStatus { get { using var p = ClientSessionWork.EnterPublication(); Normalize(); return queueStatus; } }
-    internal string DetailsStatus { get { using var p = ClientSessionWork.EnterPublication(); Normalize(); return detailsStatus; } }
+    internal string QueueStatus { get { using var p = ClientSessionWork.EnterPublication(); Normalize(); return queueStatus ?? presentation.Format(new(ClientEventRefreshStage.InitialQueue)); } }
+    internal string DetailsStatus { get { using var p = ClientSessionWork.EnterPublication(); Normalize(); return detailsStatus ?? presentation.Format(new(ClientEventRefreshStage.InitialDetails)); } }
     internal long NotificationVersion { get { using var p = ClientSessionWork.EnterPublication(); Normalize(); return notificationVersion; } }
     internal string ActionStatus
     {
-        get { using var p = ClientSessionWork.EnterPublication(); Normalize(); return actionStatus; }
+        get { using var p = ClientSessionWork.EnterPublication(); Normalize(); return actionStatus ?? presentation.Format(new(ClientEventRefreshStage.InitialAction)); }
         set { using var p = ClientSessionWork.EnterPublication(); Normalize(); actionStatus = value; }
     }
     internal void SetQueueStatus(string message) { using var p = ClientSessionWork.EnterPublication(); Normalize(); queueStatus = message; }
@@ -42,9 +42,7 @@ internal sealed class ClientEventState
         if (stateOwner is not null && reader.Owns(stateOwner)) return;
         stateOwner = reader.CaptureScope();
         notificationVersion = 0;
-        queueStatus = presentation.Format(new(ClientEventRefreshStage.InitialQueue));
-        detailsStatus = presentation.Format(new(ClientEventRefreshStage.InitialDetails));
-        actionStatus = presentation.Format(new(ClientEventRefreshStage.InitialAction));
+        queueStatus = detailsStatus = actionStatus = null;
     }
 
     internal void Publish(ClientEventRefreshNotice notice)
