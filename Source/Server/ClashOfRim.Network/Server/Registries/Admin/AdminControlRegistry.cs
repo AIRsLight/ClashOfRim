@@ -132,35 +132,25 @@ public sealed class AdminControlRegistry
         ArgumentException.ThrowIfNullOrWhiteSpace(actionKind);
         ArgumentException.ThrowIfNullOrWhiteSpace(actorUserId);
 
+        return AppendAudit(new AdminAuditRecord(actionKind, actorUserId,
+            string.IsNullOrWhiteSpace(targetUserId) ? null : targetUserId.Trim(),
+            string.IsNullOrWhiteSpace(message) ? null : message.Trim(), nowUtc), once: false);
+    }
+
+    internal AdminAuditRecord EnsureAudit(AdminAuditRecord record) => AppendAudit(record, once: true);
+
+    private AdminAuditRecord AppendAudit(AdminAuditRecord record, bool once)
+    {
         lock (gate)
         {
-            var record = new AdminAuditRecord(
-                actionKind,
-                actorUserId,
-                string.IsNullOrWhiteSpace(targetUserId) ? null : targetUserId.Trim(),
-                string.IsNullOrWhiteSpace(message) ? null : message.Trim(),
-                nowUtc);
-            int rowIndex = auditRecords.Count;
-            auditRecords.Add(record);
-            bool trimmed = auditRecords.Count > MaxAuditRecords;
-            if (trimmed)
-            {
-                auditRecords.RemoveRange(0, auditRecords.Count - MaxAuditRecords);
-            }
-
-            if (trimmed)
-            {
-                SaveLocked();
-            }
-            else
-            {
-                PersistChanges(
-                    new Dictionary<string, string>(StringComparer.Ordinal)
-                    {
-                        [AuditRowKey(record, rowIndex)] = JsonSerializer.Serialize(record, JsonOptions)
-                    },
-                    Array.Empty<string>());
-            }
+            if (once && auditRecords.Contains(record)) return record;
+            var candidate = auditRecords.Append(record).TakeLast(MaxAuditRecords).ToList();
+            if (structuredPersistence is not null && auditRecords.Count < MaxAuditRecords)
+                structuredPersistence.ApplyBatch(new Dictionary<string, string>(StringComparer.Ordinal)
+                { [AuditRowKey(record, auditRecords.Count)] = JsonSerializer.Serialize(record, JsonOptions) }, []);
+            else SaveLocked(candidate);
+            auditRecords.Clear();
+            auditRecords.AddRange(candidate);
             return record;
         }
     }
@@ -295,11 +285,11 @@ public sealed class AdminControlRegistry
         return imported;
     }
 
-    private void SaveLocked()
+    private void SaveLocked(IReadOnlyList<AdminAuditRecord>? candidateAudits = null)
     {
         if (structuredPersistence is not null)
         {
-            structuredPersistence.ReplaceAll(BuildStructuredRows());
+            structuredPersistence.ReplaceAll(BuildStructuredRows(candidateAudits));
             return;
         }
 
@@ -313,12 +303,12 @@ public sealed class AdminControlRegistry
                 maintenanceLoginLocked,
                 maintenanceReason,
                 bannedUsers.OrderBy(userId => userId, StringComparer.Ordinal).ToList(),
-                auditRecords.ToList()),
+                candidateAudits ?? auditRecords.ToList()),
             JsonOptions);
         legacyPersistence.Write(json);
     }
 
-    private Dictionary<string, string> BuildStructuredRows()
+    private Dictionary<string, string> BuildStructuredRows(IReadOnlyList<AdminAuditRecord>? candidateAudits = null)
     {
         Dictionary<string, string> rows = new(StringComparer.Ordinal)
         {
@@ -331,9 +321,10 @@ public sealed class AdminControlRegistry
             rows[BanRowKey(userId)] = JsonSerializer.Serialize(userId, JsonOptions);
         }
 
-        for (int index = 0; index < auditRecords.Count; index++)
+        var records = candidateAudits ?? auditRecords;
+        for (int index = 0; index < records.Count; index++)
         {
-            AdminAuditRecord record = auditRecords[index];
+            AdminAuditRecord record = records[index];
             rows[AuditRowKey(record, index)] = JsonSerializer.Serialize(record, JsonOptions);
         }
 

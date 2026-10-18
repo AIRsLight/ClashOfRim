@@ -22,6 +22,7 @@ public static partial class ClashOfRimNetworkServer
     {
         if (state.ColonyDeletions.IsApplying)
             throw new InvalidOperationException("Cannot begin nested mutations while a colony deletion is being applied.");
+        state.ConfigurationChanges.Recover();
         state.WorldLayerNotifications.Recover();
         state.TradeLifecycle.RecoverAdminBaselineTradeInvalidations();
         state.ColonyDeletion.Recover();

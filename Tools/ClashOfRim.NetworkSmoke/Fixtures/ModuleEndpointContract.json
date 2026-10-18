@@ -465,19 +465,19 @@
     "Kind": "OverrideCompatibilityBaseline",
     "Route": "/compatibility/baseline/override",
     "Method": "POST",
-    "OwnsRecovery": false
+    "OwnsRecovery": true
   },
   {
     "Kind": "AdminStatus",
     "Route": "/admin/status",
     "Method": "POST",
-    "OwnsRecovery": false
+    "OwnsRecovery": true
   },
   {
     "Kind": "AdminUpdateConfiguration",
     "Route": "/admin/configuration",
     "Method": "POST",
-    "OwnsRecovery": false
+    "OwnsRecovery": true
   },
   {
     "Kind": "AdminAction",

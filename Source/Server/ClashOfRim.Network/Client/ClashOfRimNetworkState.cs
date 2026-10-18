@@ -79,7 +79,6 @@ public sealed class ClashOfRimNetworkState
         OnlinePresence = onlinePresence ?? new OnlinePresenceRegistry();
         LoginSessions = loginSessions ?? new LoginSessionRegistry();
         Players = playerRegistry ?? new PlayerRegistry();
-        this.serverConfiguration = serverConfiguration ?? new ClashOfRimServerConfiguration();
         WorldTileDistanceCalculator = worldTileDistanceCalculator ?? new StraightLineWorldTileDistanceCalculator();
         WorldConfiguration = worldConfigurationRegistry ?? new WorldConfigurationRegistry(WorldConfigurationExtensionService.Empty);
         CompatibilityBaseline = compatibilityBaselineRegistry ?? new CompatibilityBaselineRegistry();
@@ -89,6 +88,9 @@ public sealed class ClashOfRimNetworkState
         AuthTokens = authTokens ?? new AuthTokenRegistry();
         AdminControl = adminControl ?? new AdminControlRegistry();
         ServerConfigurationOverrides = serverConfigurationOverrides ?? new ServerConfigurationRegistry();
+        ConfigurationState = new ServerConfigurationState(ServerConfigurationOverrides.Current is { } savedConfiguration
+            ? AdminConfigurationMapping.Apply(savedConfiguration, serverConfiguration ?? new ClashOfRimServerConfiguration())
+            : serverConfiguration ?? new ClashOfRimServerConfiguration());
         SteamAuthTickets = steamAuthTickets ?? new DevelopmentSteamAuthTicketValidator();
         OfflineAccounts = offlineAccounts ?? new OfflineAccountRegistry();
         Accounts = new AccountService(OfflineAccounts, AuthTokens, SteamAuthTickets, () => ServerConfiguration);
@@ -221,10 +223,16 @@ public sealed class ClashOfRimNetworkState
         WorldSync = new WorldSynchronization(ColonyAuthorization, SnapshotMutations, RaidTimeouts, RuntimeWorldObjectMarkers, WorldMarkers);
         WorldSubmission = new WorldConfigurationSubmission(AdminAuthorization, CompatibilityBaseline, Plugins, SnapshotMutations,
             WorldConfiguration, PlayerActivity, WorldDelivery, () => RuntimeLogger);
+        ConfigurationChanges = new AdminConfigurationChanges(ConfigurationState, ServerConfigurationOverrides, CompatibilityBaseline, AdminControl, SnapshotMutations);
+        AdministratorConfiguration = new AdministratorConfiguration(AdminAuthorization, SnapshotMutations, ConfigurationChanges,
+            WorldConfiguration, Players, OnlinePresence, AdminControl, () => RuntimeLogger);
+        CompatibilityOverride = new CompatibilityBaselineOverride(Accounts, WorldConfiguration, CompatibilityBaseline,
+            CompatibilityHandshake, SnapshotMutations, () => RuntimeLogger);
         AdministratorBaseline = new AdministratorBaseline(AdminAuthorization, WorldConfiguration, CompatibilityBaseline, Plugins,
             AdminBaseline, TradeLifecycle, SnapshotMutations, PlayerActivity);
         WorldFeatureNames = new WorldFeatureNames(Accounts, WorldConfiguration, WorldDelivery, WorldChanges, () => RuntimeLogger);
         WorldSubstrate = new WorldSubstrateTransfer(Accounts, SnapshotPrincipals, WorldConfiguration, WorldDelivery, WorldChanges, () => RuntimeLogger);
+        ConfigurationChanges.Recover();
     }
 
     public IAuthoritativeEventLedger Ledger { get; }
@@ -318,30 +326,13 @@ public sealed class ClashOfRimNetworkState
     internal PlayerSessionActivity PlayerActivity { get; }
     internal SessionConnections SessionConnections { get; }
 
-    private readonly object configurationGate = new();
-    private ClashOfRimServerConfiguration serverConfiguration;
-
-    public ClashOfRimServerConfiguration ServerConfiguration
-    {
-        get
-        {
-            lock (configurationGate)
-            {
-                return serverConfiguration;
-            }
-        }
-    }
-
+    internal ServerConfigurationState ConfigurationState { get; }
+    internal AdminConfigurationChanges ConfigurationChanges { get; }
+    internal AdministratorConfiguration AdministratorConfiguration { get; }
+    internal CompatibilityBaselineOverride CompatibilityOverride { get; }
+    public ClashOfRimServerConfiguration ServerConfiguration => ConfigurationState.Current;
     public ClashOfRimServerConfiguration UpdateServerConfiguration(ClashOfRimServerConfiguration configuration)
-    {
-        ArgumentNullException.ThrowIfNull(configuration);
-
-        lock (configurationGate)
-        {
-            serverConfiguration = configuration;
-            return serverConfiguration;
-        }
-    }
+        => ConfigurationState.Replace(configuration);
 
     public IWorldTileDistanceCalculator WorldTileDistanceCalculator { get; }
 

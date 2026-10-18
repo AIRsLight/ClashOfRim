@@ -7,18 +7,19 @@ using AIRsLight.ClashOfRim.Protocol;
 // Shared test mechanics only. Each suite owns its business setup and assertions.
 internal static class RecoveryTestSupport
 {
-    internal sealed class Slot : IJsonPersistenceSlot
+    internal sealed class Slot(IJsonPersistenceSlot? inner = null) : IJsonPersistenceSlot
     {
         private string? value;
         public bool Fail;
         public int Writes;
         public Action<string>? Before;
-        public string? Read() => value;
+        public string? Read() => inner is null ? value : inner.Read();
         public void Write(string json)
         {
             Before?.Invoke(json);
             if (Fail) throw new IOException("Injected persistence failure.");
-            value = json; Writes++;
+            if (inner is null) value = json; else inner.Write(json);
+            Writes++;
         }
     }
 

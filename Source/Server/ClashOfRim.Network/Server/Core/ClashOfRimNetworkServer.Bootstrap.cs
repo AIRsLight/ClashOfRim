@@ -205,11 +205,6 @@ public static partial class ClashOfRimNetworkServer
         ServerConfigurationRegistry serverConfigurationOverrides =
             new(new SqliteJsonPersistenceSlot(databasePath, "server-configuration"));
         ClashOfRimServerConfiguration serverConfiguration = LoadServerConfiguration(configuration);
-        if (serverConfigurationOverrides.Current is { } adminConfiguration)
-        {
-            serverConfiguration = FromAdminConfigurationDto(adminConfiguration, serverConfiguration);
-        }
-
         return (new ClashOfRimNetworkState(
             // Keep the original directory name so pending version 1 bank intents survive upgrades.
             snapshotCommits: new SnapshotCommitService(Path.Combine(dataDirectory, "bank-snapshot-commits")),
