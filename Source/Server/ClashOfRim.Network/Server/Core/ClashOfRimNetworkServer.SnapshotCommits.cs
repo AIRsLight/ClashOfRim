@@ -22,7 +22,7 @@ public static partial class ClashOfRimNetworkServer
     {
         if (state.ColonyDeletions.IsApplying)
             throw new InvalidOperationException("Cannot begin nested mutations while a colony deletion is being applied.");
-        RecoverWorldLayerNotifications(state);
+        state.WorldLayerNotifications.Recover();
         state.TradeLifecycle.RecoverAdminBaselineTradeInvalidations();
         state.ColonyDeletion.Recover();
         state.DiplomacyPublications.Recover();
@@ -38,20 +38,6 @@ public static partial class ClashOfRimNetworkServer
             (snapshot, kind, mutation) => RunCommittedOrdinaryUpload(state, snapshot, kind, mutation),
             (mutation, snapshot) => PlanSnapshotConfirmations(state, mutation, snapshot));
         state.MercenaryIncidents.Recover();
-    }
-
-    internal static void RecoverWorldLayerNotifications(ClashOfRimNetworkState state)
-    {
-        using (state.EnterSnapshotMutation())
-        {
-            foreach (var work in state.WorldConfiguration.ListPendingLayerNotifications())
-            {
-                state.Ledger.ApplyBatch(new LedgerBatch(work.Notifications, []));
-                state.EventNotifications.SignalUsers(work.Notifications.Select(item => item.Target.UserId));
-                state.WorldConfigurationNotifications.SignalUsers(work.WorldNotifyUsers.Concat(state.Players.List().Select(player => player.UserId)));
-                state.WorldConfiguration.CompleteLayerNotifications(work.Id);
-            }
-        }
     }
 
     internal static void RunCommittedSnapshotPostUpload(ClashOfRimNetworkState state, LatestSnapshotRecord snapshot, string? kind)

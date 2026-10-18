@@ -23,9 +23,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System.Globalization;
-using System.IO.Compression;
 using System.Text.Json;
-using System.Xml;
 
 namespace AIRsLight.ClashOfRim.Network;
 
@@ -282,96 +280,6 @@ public static partial class ClashOfRimNetworkServer
 
     private static string NormalizeSnapshotUploadKind(string? snapshotUploadKind, string? confirmationOperation = null)
         => SnapshotTransactions.NormalizeSnapshotUploadKind(snapshotUploadKind, confirmationOperation);
-
-    private static void ProcessWorldTileFloatLayersFromAcceptedSnapshot(
-        ClashOfRimNetworkState state,
-        string userId,
-        string colonyId,
-        SnapshotUploadResult upload,
-        DateTimeOffset acceptedAtUtc)
-    {
-        using var mutation = state.EnterSnapshotMutation();
-        RecoverWorldLayerNotifications(state);
-        if (upload.AcceptedSnapshot is null || state.WorldConfiguration.Current is null)
-        {
-            return;
-        }
-
-        if (state.SnapshotStore is not IColonySnapshotPackageStore packageStore)
-        {
-            return;
-        }
-
-        SnapshotIdentity identity = upload.AcceptedSnapshot.Identity;
-        string ownerId = string.IsNullOrWhiteSpace(identity.OwnerId) ? userId : identity.OwnerId!;
-        string acceptedColonyId = string.IsNullOrWhiteSpace(identity.ColonyId) ? colonyId : identity.ColonyId!;
-        SaveSnapshotPackage? package = packageStore.GetLatestPackage(ownerId, acceptedColonyId);
-        if (package is null
-            || !string.Equals(
-                package.Envelope.Identity.SnapshotId,
-                upload.AcceptedSnapshot.Identity.SnapshotId,
-                StringComparison.Ordinal)
-            || package.Payload.Length == 0)
-        {
-            return;
-        }
-
-        try
-        {
-            byte[] saveBytes = DecodeSnapshotPayload(package.Payload, package.Envelope.PayloadEncoding.ToString());
-            WorldConfigurationExtensionService activeWorldExtensions = ActiveWorldConfigurationExtensions(state);
-            IReadOnlyList<WorldTileFloatLayerProjection> projections =
-                activeWorldExtensions.ProjectConfirmOnAcceptedSnapshotLayersFromSave(saveBytes);
-            if (projections.Count == 0)
-            {
-                return;
-            }
-
-            foreach (WorldTileFloatLayerProjection projection in projections)
-            {
-                state.WorldConfiguration.ConfirmWorldTileFloatLayerWithNotifications(
-                        projection.LayerId,
-                        projection.Values,
-                        activeWorldExtensions,
-                        increases => new WorldLayerNotificationWork(1, Guid.NewGuid().ToString("N"),
-                            state.WorldConfiguration.Current!.WorldConfigurationId,
-                            new EventParty(userId, colonyId, upload.AcceptedSnapshot.Identity.SnapshotId), projection.LayerId,
-                            increases, BuildWorldTileFloatLayerIncreaseNotifications(state, userId, colonyId,
-                                upload.AcceptedSnapshot.Identity.SnapshotId!, increases, acceptedAtUtc),
-                            state.Players.List().Select(player => player.UserId).Append(userId).Distinct(StringComparer.Ordinal).ToArray()));
-            }
-            RecoverWorldLayerNotifications(state);
-        }
-        catch (Exception ex) when (ex is InvalidDataException or XmlException or FormatException)
-        {
-            // World-layer extensions are optional compatibility details. Snapshot acceptance must not fail because one cannot be projected.
-            Console.Error.WriteLine("[ClashOfRim] Failed to project world layers from accepted snapshot "
-                + upload.AcceptedSnapshot.Identity.SnapshotId
-                + ": "
-                + ex.GetType().Name
-                + " "
-                + ex.Message);
-        }
-    }
-
-    private static byte[] DecodeSnapshotPayload(byte[] payload, string payloadEncoding)
-    {
-        if (string.Equals(payloadEncoding, SnapshotPayloadEncoding.GzipRws.ToString(), StringComparison.OrdinalIgnoreCase))
-        {
-            using var source = new MemoryStream(payload);
-            using var gzip = new GZipStream(source, CompressionMode.Decompress);
-            using var target = new MemoryStream();
-            gzip.CopyTo(target);
-            return target.ToArray();
-        }
-
-        if (string.Equals(payloadEncoding, SnapshotPayloadEncoding.RawRws.ToString(), StringComparison.OrdinalIgnoreCase))
-        {
-            return payload;
-        }
-
-        throw new InvalidDataException("Unsupported snapshot payload encoding: " + payloadEncoding);
-    }
 
     private static Task<MultipartSnapshotRequest<TRequest>?> ReadMultipartSnapshotRequest<TRequest>(HttpRequest httpRequest)
         => MultipartSnapshotReader.Read<TRequest>(httpRequest);

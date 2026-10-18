@@ -136,6 +136,7 @@ internal static class WorldConfigurationAuthorizationTests
     internal sealed class Provider : IWorldConfigurationExtensionProvider
     {
         public Action? BeforeNormalize; public int Normalizations;
+        internal Func<WorldConfigurationExtensionSnapshotContext, IReadOnlyList<WorldConfigurationExtensionDto>>? FromSnapshot;
         internal IReadOnlyList<WorldConfigurationExtensionKey> Keys = [];
         public IReadOnlyList<WorldConfigurationExtensionKey> HandledKeys => Keys;
         public IReadOnlyList<WorldConfigurationExtensionDto> NormalizeSubmittedExtensions(WorldConfigurationExtensionContext context, IReadOnlyList<WorldConfigurationExtensionDto> incoming)
@@ -143,7 +144,7 @@ internal static class WorldConfigurationAuthorizationTests
         public IReadOnlyList<WorldConfigurationExtensionDto> MergeExtensions(WorldConfigurationExtensionContext context, IReadOnlyList<WorldConfigurationExtensionDto> current, IReadOnlyList<WorldConfigurationExtensionDto> incoming) => incoming;
         public IReadOnlyList<WorldConfigurationExtensionDto> RemoveColonyExtensions(string userId, string colonyId, IReadOnlyList<WorldConfigurationExtensionDto> current) => current;
         public IReadOnlyList<WorldConfigurationExtensionDto> BuildDeliveryExtensions(IReadOnlyList<WorldConfigurationExtensionDto> current) => current;
-        public IReadOnlyList<WorldConfigurationExtensionDto> BuildExtensionsFromAcceptedSnapshot(WorldConfigurationExtensionSnapshotContext context) => [];
+        public IReadOnlyList<WorldConfigurationExtensionDto> BuildExtensionsFromAcceptedSnapshot(WorldConfigurationExtensionSnapshotContext context) => FromSnapshot?.Invoke(context) ?? [];
     }
     private sealed class Publication(Action callback) : IInlineSnapshotPostUploadProcessor
     {

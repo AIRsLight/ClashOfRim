@@ -83,7 +83,7 @@ public static partial class ClashOfRimNetworkServer
             }
 
             app.Logger.LogInformation(T("Server.LogFilePath", ("PATH", logFilePath)));
-            int recoveredWorldExtensionSnapshots = RecoverWorldConfigurationExtensionsFromLatestSnapshots(networkState);
+            int recoveredWorldExtensionSnapshots = networkState.ColonyProjection.RecoverExtensions(networkState.SnapshotStore.ListLatest());
             if (recoveredWorldExtensionSnapshots > 0)
             {
                 app.Logger.LogInformation(

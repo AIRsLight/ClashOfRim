@@ -62,6 +62,7 @@ var tests = new (string Name, Action Run)[]
     ("快照支援死亡原子提交且中断后恢复通知", () => SnapshotSupportDeathTests.Run(BuildFixturePackage)),
     ("快照世界投影保存失败保留缓存且重试保留增量", SnapshotWorldProjectionTests.Run),
     ("世界图层与通知待办共同持久化并在中断后恢复", () => WorldLayerNotificationRecoveryTests.Run(BuildFixturePackage)),
+    ("世界图层模块、投影编码、通知范围与启动重建", () => WorldLayerModuleTests.Run(BuildFixturePackage)),
     ("普通上传保留原始后处理上下文并跨中断恢复", () => OrdinaryUploadRecoveryTests.Run(BuildFixturePackage)),
     ("事件入档原子提交且重复确认恢复应用结果与交易成就", () => EventConfirmationStageTests.Run(BuildFixturePackage)),
     ("单条批量事件确认跨中断恢复且保留原始结果回执", () => ConfirmationJournalTests.Run(BuildFixturePackage)),

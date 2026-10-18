@@ -20,23 +20,7 @@ internal sealed class SnapshotColonyProjection(WorldConfigurationRegistry world,
         }
 
         WorldConfigurationExtensionService activeWorldExtensions = plugins.ActiveWorldConfigurationExtensions(baseline.Current);
-        IReadOnlyList<WorldConfigurationExtensionDto> extensions =
-            activeWorldExtensions.BuildExtensionsFromAcceptedSnapshot(
-                new WorldConfigurationExtensionSnapshotContext(
-                    upload.AcceptedSnapshot,
-                    userId,
-                    colonyId,
-                    currentConfiguration.Extensions));
-        IReadOnlyList<WorldConfigurationExtensionDto> mergedExtensions = activeWorldExtensions.MergeExtensions(
-            new WorldConfigurationExtensionContext(
-                userId,
-                colonyId,
-                currentConfiguration.WorldConfigurationId),
-            currentConfiguration.Extensions,
-            extensions);
-        bool extensionsChanged = !WorldExtensionValues.Equal(
-            currentConfiguration.Extensions,
-            mergedExtensions);
+        var (extensions, extensionsChanged) = PrepareExtensions(upload.AcceptedSnapshot, userId, colonyId, currentConfiguration, activeWorldExtensions);
 
         IReadOnlyList<SnapshotColonyAnchor> colonyAnchors = anchors.Extract(upload.AcceptedSnapshot.Index);
         IReadOnlyList<PlayerColonySiteDto> normalizedSites = Array.Empty<PlayerColonySiteDto>();
@@ -83,4 +67,30 @@ internal sealed class SnapshotColonyProjection(WorldConfigurationRegistry world,
         changes.Signal(userId);
     }
 
+    // Startup rebuilds extensions in a deterministic order without registering locations or sending live notifications.
+    internal int RecoverExtensions(IEnumerable<LatestSnapshotRecord> snapshots)
+    {
+        var extensions = plugins.ActiveWorldConfigurationExtensions(baseline.Current);
+        int recovered = 0;
+        foreach (var snapshot in snapshots.OrderBy(item => item.AcceptedAtUtc)
+                     .ThenBy(item => item.Identity.OwnerId, StringComparer.Ordinal).ThenBy(item => item.Identity.ColonyId, StringComparer.Ordinal))
+        {
+            var current = world.Current;
+            string? userId = snapshot.Identity.OwnerId, colonyId = snapshot.Identity.ColonyId;
+            if (current is null || string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(colonyId)) continue;
+            var (incoming, changed) = PrepareExtensions(snapshot, userId, colonyId, current, extensions);
+            if (!changed) continue;
+            world.RegisterPlayerColonySites(userId, colonyId, [], incoming, extensions);
+            recovered++;
+        }
+        return recovered;
+    }
+
+    private static (IReadOnlyList<WorldConfigurationExtensionDto> Incoming, bool Changed) PrepareExtensions(LatestSnapshotRecord snapshot,
+        string userId, string colonyId, WorldConfigurationDto configuration, WorldConfigurationExtensionService extensions)
+    {
+        var incoming = extensions.BuildExtensionsFromAcceptedSnapshot(new(snapshot, userId, colonyId, configuration.Extensions));
+        var merged = extensions.MergeExtensions(new(userId, colonyId, configuration.WorldConfigurationId), configuration.Extensions, incoming);
+        return (incoming, !WorldExtensionValues.Equal(configuration.Extensions, merged));
+    }
 }

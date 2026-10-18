@@ -200,6 +200,10 @@ public sealed class ClashOfRimNetworkState
             WorldConfiguration, new WorldColonySelection(Players, SnapshotStore, Ledger), PlayerActivity, EntryLifecycle);
         WorldRead = new WorldConfigurationRead(Accounts, WorldConfiguration, WorldDelivery);
         WorldChanges = new WorldConfigurationChanges(Players, WorldConfigurationNotifications);
+        WorldLayerNotifications = new WorldLayerNotifications(WorldConfiguration, Ledger, Players, OnlinePresence, WorldTileDistanceCalculator,
+            SnapshotMutations, EventNotifications, WorldChanges);
+        WorldLayers = new SnapshotWorldLayers(SnapshotStore, WorldConfiguration, Plugins, CompatibilityBaseline, Players,
+            SnapshotMutations, WorldLayerNotifications, () => RuntimeLogger);
         ColonyLocations = new SnapshotColonyLocations(Plugins, CompatibilityBaseline);
         ColonyProjection = new SnapshotColonyProjection(WorldConfiguration, Plugins, CompatibilityBaseline, ColonyLocations, WorldChanges);
         var colonyAccess = new ColonyLifecycleAccess(ColonyAuthorization, Players);
@@ -292,6 +296,8 @@ public sealed class ClashOfRimNetworkState
     internal WorldSessionPreparation WorldPreparation { get; }
     internal WorldConfigurationRead WorldRead { get; }
     internal WorldConfigurationChanges WorldChanges { get; }
+    internal WorldLayerNotifications WorldLayerNotifications { get; }
+    internal SnapshotWorldLayers WorldLayers { get; }
     internal SnapshotColonyLocations ColonyLocations { get; }
     internal SnapshotColonyProjection ColonyProjection { get; }
     internal ColonySiteRegistration ColonyRegistration { get; }

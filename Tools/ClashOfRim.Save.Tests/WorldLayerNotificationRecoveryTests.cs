@@ -1,6 +1,5 @@
 using System.IO.Compression;
 using System.Reflection;
-using System.Runtime.ExceptionServices;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Xml.Linq;
@@ -23,7 +22,7 @@ internal static class WorldLayerNotificationRecoveryTests
         SnapshotEndpointTestClient.LoadLocalization();
         foreach (bool legacy in new[] { false, true })
         foreach (bool reopen in new[] { false, true })
-        foreach (string failure in new[] { "configuration", "events-first", "events-second", "after-batch", "ack" })
+        foreach (string failure in new[] { "invalid-batch", "configuration", "events-first", "events-second", "after-batch", "ack" })
             WithFixture(fixture, legacy, f => VerifyRecovery(f, reopen, failure));
         WithFixture(fixture, false, VerifyBackground);
         WithFixture(fixture, true, VerifyEmptyRecipients);
@@ -197,14 +196,10 @@ internal static class WorldLayerNotificationRecoveryTests
                     [BiotechServerCompatibility.Descriptor with { RequiredPackageIds = [] }]));
             State.Players.RecordLatestSnapshotReference("observer", "observer-colony", "observer-snapshot", Accepted);
         }
-        public void Project()
-        {
-            try { typeof(ClashOfRimNetworkServer).GetMethod("ProcessWorldTileFloatLayersFromAcceptedSnapshot", BindingFlags.NonPublic | BindingFlags.Static)!
-                .Invoke(null, new object[] { State, "userA", "colonyA", SnapshotUploadResult.Accept(files.GetLatest("userA", "colonyA")!), Accepted }); }
-            catch (TargetInvocationException ex) when (ex.InnerException is not null) { ExceptionDispatchInfo.Capture(ex.InnerException).Throw(); }
-        }
+        public void Project() => State.WorldLayers.Project("userA", "colonyA", files.GetLatest("userA", "colonyA"), Accepted);
         public void Fail(string failure)
         {
+            if (failure == "invalid-batch") { interruption!.BeforeBatch = () => throw new InvalidDataException("injected invalid notification batch"); return; }
             if (failure == "after-batch") { interruption!.AfterBatch = () => throw new IOException("injected after notification commit"); return; }
             if (failure is "configuration" or "ack")
             {
@@ -216,7 +211,7 @@ internal static class WorldLayerNotificationRecoveryTests
                 + (failure == "events-second" ? "when (select count(*) from events) = 1 " : "")
                 + "begin select raise(abort, 'injected world-layer failure'); end;");
         }
-        public void ClearFailure() { Json.Failure = null; interruption!.AfterBatch = null; Sql(Database, "drop trigger if exists fail_layer;"); }
+        public void ClearFailure() { Json.Failure = null; interruption!.BeforeBatch = interruption.AfterBatch = null; Sql(Database, "drop trigger if exists fail_layer;"); }
     }
 
     private sealed class JsonSlot : IJsonPersistenceSlot
@@ -241,7 +236,7 @@ internal static class WorldLayerNotificationRecoveryTests
     private static bool SamePayload(AuthoritativeEvent left, AuthoritativeEvent right) => JsonSerializer.Serialize(left.Payload) == JsonSerializer.Serialize(right.Payload);
     private static void ExpectFailure(Action action)
     {
-        try { action(); } catch (Exception ex) when (ex is IOException or SqliteException or InvalidOperationException) { return; }
+        try { action(); } catch (Exception ex) when (ex is IOException or SqliteException or InvalidOperationException or InvalidDataException) { return; }
         throw new Exception("World notification: injected failure was not reached");
     }
     private static void Require(bool condition, string message) { if (!condition) throw new Exception("World notification: " + message); }

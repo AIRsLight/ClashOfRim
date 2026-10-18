@@ -30,12 +30,8 @@ public static partial class ClashOfRimNetworkServer
                 order: 200,
                 SnapshotPostUploadFailureMode.AbortPipeline,
                 SnapshotPostUploadKind.AuthoritativeColonySnapshot,
-                context => ProcessWorldTileFloatLayersFromAcceptedSnapshot(
-                    context.State,
-                    context.UserId,
-                    context.ColonyId,
-                    AcceptedUpload(context),
-                    context.OccurredAtUtc)),
+                context => context.State.WorldLayers.Project(context.UserId, context.ColonyId,
+                    AcceptedUpload(context).AcceptedSnapshot, context.OccurredAtUtc)),
             InlineSnapshotPostUploadProcessor.Create(
                 "core.colony-site-and-world-extensions",
                 SnapshotPostUploadStage.AuthoritativeProjection,
