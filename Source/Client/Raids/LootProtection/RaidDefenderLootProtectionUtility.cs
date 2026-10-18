@@ -13,6 +13,26 @@ internal static class RaidDefenderLootProtectionUtility
     public static HediffDef? ProtectionHediff =>
         protectionHediff ??= DefDatabase<HediffDef>.GetNamedSilentFail(ProtectionHediffDefName);
 
+    public static void ApplyProxyPawnProtection(Pawn pawn, Faction defenderFaction)
+    {
+        if (pawn is null || defenderFaction is null || pawn.Destroyed || pawn.Dead)
+        {
+            return;
+        }
+
+        if (pawn.Faction != defenderFaction)
+        {
+            pawn.SetFaction(defenderFaction);
+        }
+
+        if (pawn.guest is not null)
+        {
+            pawn.guest.Recruitable = false;
+        }
+
+        TryAddProtectionHediff(pawn);
+    }
+
     public static void Apply(Map map, Faction defenderFaction)
     {
         if (map?.mapPawns?.AllPawnsSpawned is null || defenderFaction is null)

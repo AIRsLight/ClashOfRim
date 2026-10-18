@@ -120,7 +120,8 @@ internal static class ClientModuleBoundaryTests
         Console.WriteLine($"Client module dependency guard checked {modules.Length} product and generated types.");
         var compatibilityCapabilities = typeof(ClashOfRimMod).Assembly.GetTypes()
             .Where(t => t.Namespace is "AIRsLight.ClashOfRim.ThirdPartyCompatibility.Things"
-                or "AIRsLight.ClashOfRim.ThirdPartyCompatibility.Pawns").ToArray();
+                or "AIRsLight.ClashOfRim.ThirdPartyCompatibility.Pawns"
+                or "AIRsLight.ClashOfRim.ThirdPartyCompatibility.RemoteMaps").ToArray();
         var compatibilityViolations = ModuleDependencyGuard.FindViolations(compatibilityCapabilities,
             t => t == typeof(AIRsLight.ClashOfRim.ThirdPartyCompatibility.ClashOfRimCompatibilityApi)
                 || t == typeof(ClashOfRimMod) || t == typeof(ClashOfRimSettings)

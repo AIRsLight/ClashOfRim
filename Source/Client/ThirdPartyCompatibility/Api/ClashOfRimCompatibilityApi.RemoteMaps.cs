@@ -5,7 +5,6 @@ using RimWorld;
 using RimWorld.Planet;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Xml.Linq;
 using Verse;
 
@@ -13,132 +12,45 @@ namespace AIRsLight.ClashOfRim.ThirdPartyCompatibility;
 
 public static partial class ClashOfRimCompatibilityApi
 {
-    public static void RegisterRaidCaravanMapEntryHandler(RaidCaravanMapEntryHandler handler)
-    {
-        Registrations.RegisterUnique(RaidCaravanMapEntryHandlers, handler);
-    }
+    public static void RegisterRaidCaravanMapEntryHandler(RaidCaravanMapEntryHandler handler) =>
+        RemoteMapLifecycle.RegisterRaidCaravanMapEntryHandler(handler);
 
-    public static void RegisterRemoteDefenderMapPreparedHandler(RemoteDefenderMapPreparedHandler handler)
-    {
-        Registrations.RegisterUnique(RemoteDefenderMapPreparedHandlers, handler);
-    }
+    public static void RegisterRemoteDefenderMapPreparedHandler(RemoteDefenderMapPreparedHandler handler) =>
+        RemoteMapLifecycle.RegisterRemoteDefenderMapPreparedHandler(handler);
 
-    public static void RegisterRemoteMapLoadedHandler(RemoteMapLoadedHandler handler)
-    {
-        Registrations.RegisterUnique(RemoteMapLoadedHandlers, handler);
-    }
+    public static void RegisterRemoteMapLoadedHandler(RemoteMapLoadedHandler handler) =>
+        RemoteMapLifecycle.RegisterRemoteMapLoadedHandler(handler);
 
-    public static void RegisterRemoteMapProjectionReferenceRewriter(RemoteMapProjectionReferenceRewriter rewriter)
-    {
-        Registrations.RegisterUnique(RemoteMapProjectionReferenceRewriters, rewriter);
-    }
+    public static void RegisterRemoteMapProjectionReferenceRewriter(RemoteMapProjectionReferenceRewriter rewriter) =>
+        RemoteMapProjection.RegisterRemoteMapProjectionReferenceRewriter(rewriter);
 
-    public static void RegisterRemoteMapProjectionSanitizer(RemoteMapProjectionSanitizer sanitizer)
-    {
-        Registrations.RegisterUnique(RemoteMapProjectionSanitizers, sanitizer);
-    }
+    public static void RegisterRemoteMapProjectionSanitizer(RemoteMapProjectionSanitizer sanitizer) =>
+        RemoteMapProjection.RegisterRemoteMapProjectionSanitizer(sanitizer);
 
-    public static void RegisterRemoteSessionPawnCleanupHandler(RemoteSessionPawnCleanupHandler handler)
-    {
-        Registrations.RegisterUnique(RemoteSessionPawnCleanupHandlers, handler);
-    }
+    public static void RegisterRemoteSessionPawnCleanupHandler(RemoteSessionPawnCleanupHandler handler) =>
+        RemoteMapLifecycle.RegisterRemoteSessionPawnCleanupHandler(handler);
 
     public static void RegisterRemoteMapIntegerLoadIdRewriter(
         string loadIdPrefix,
         Func<XElement, bool> predicate,
-        Func<int> nextId)
-    {
-        if (string.IsNullOrWhiteSpace(loadIdPrefix) || predicate is null || nextId is null)
-        {
-            return;
-        }
+        Func<int> nextId) =>
+        RemoteMapProjection.RegisterRemoteMapIntegerLoadIdRewriter(loadIdPrefix, predicate, nextId);
 
-        string normalizedPrefix = loadIdPrefix.Trim();
-        if (RemoteMapIntegerLoadIdRewriters.Any(registration =>
-            string.Equals(registration.LoadIdPrefix, normalizedPrefix, StringComparison.Ordinal)
-            && Equals(registration.Predicate, predicate)
-            && Equals(registration.NextId, nextId)))
-        {
-            return;
-        }
+    public static IReadOnlyList<RemoteMapIntegerLoadIdRewriterRegistration> GetRemoteMapIntegerLoadIdRewriters() =>
+        RemoteMapProjection.GetRemoteMapIntegerLoadIdRewriters();
 
-        if (RemoteMapIntegerLoadIdRewriters.Any(registration =>
-            string.Equals(registration.LoadIdPrefix, normalizedPrefix, StringComparison.Ordinal)))
-        {
-            Registrations.AddRegistrationDiagnostic(
-                "Warning",
-                "RemoteMapLoadIdPrefixShared",
-                nameof(RemoteMapIntegerLoadIdRewriterRegistration),
-                normalizedPrefix,
-                "Remote map load id prefix '" + normalizedPrefix + "' is registered by multiple compatibility handlers.");
-        }
+    public static void RegisterRemoteMapAreaLoadIdProvider(RemoteMapAreaLoadIdProvider provider) =>
+        RemoteMapProjection.RegisterRemoteMapAreaLoadIdProvider(provider);
 
-        var registration = new RemoteMapIntegerLoadIdRewriterRegistration(normalizedPrefix, predicate, nextId);
-        Registrations.Register(RemoteMapIntegerLoadIdRewriters, registration, nameof(RemoteMapIntegerLoadIdRewriterRegistration), normalizedPrefix, Registrations.ActiveRegistrationPriority());
-    }
+    public static string? BuildRemoteMapAreaLoadId(XElement area, int id) =>
+        RemoteMapProjection.BuildRemoteMapAreaLoadId(area, id);
 
-    public static IReadOnlyList<RemoteMapIntegerLoadIdRewriterRegistration> GetRemoteMapIntegerLoadIdRewriters()
-    {
-        return RemoteMapIntegerLoadIdRewriters.ToList();
-    }
+    public static void RegisterSnapshotSaveSanitizer(CompatibilitySnapshotSaveSanitizer sanitizer) =>
+        SnapshotSanitization.RegisterSnapshotSaveSanitizer(sanitizer);
 
-    public static void RegisterRemoteMapAreaLoadIdProvider(RemoteMapAreaLoadIdProvider provider)
-    {
-        Registrations.RegisterUnique(RemoteMapAreaLoadIdProviders, provider);
-    }
+    public static void RegisterPlayerColonySiteRegistrationSuppressor(PlayerColonySiteRegistrationSuppressor suppressor) =>
+        ColonySite.RegisterPlayerColonySiteRegistrationSuppressor(suppressor);
 
-    public static string? BuildRemoteMapAreaLoadId(XElement area, int id)
-    {
-        foreach (RemoteMapAreaLoadIdProvider provider in RemoteMapAreaLoadIdProviders.ToList())
-        {
-            if (!Registrations.TryInvokeCompatibilityCallback(
-                    nameof(BuildRemoteMapAreaLoadId),
-                    provider,
-                    () => provider(area, id),
-                    out string? value))
-            {
-                continue;
-            }
-
-            if (!string.IsNullOrWhiteSpace(value))
-            {
-                return value;
-            }
-        }
-
-        return null;
-    }
-
-    public static void RegisterSnapshotSaveSanitizer(CompatibilitySnapshotSaveSanitizer sanitizer)
-    {
-        Registrations.RegisterUnique(SnapshotSaveSanitizers, sanitizer);
-    }
-
-    public static void RegisterPlayerColonySiteRegistrationSuppressor(PlayerColonySiteRegistrationSuppressor suppressor)
-    {
-        Registrations.RegisterUnique(PlayerColonySiteRegistrationSuppressors, suppressor);
-    }
-
-    public static bool IsPlayerColonySiteRegistrationSuppressedByCompatibility()
-    {
-        foreach (PlayerColonySiteRegistrationSuppressor suppressor in PlayerColonySiteRegistrationSuppressors.ToList())
-        {
-            if (!Registrations.TryInvokeCompatibilityCallback(
-                    nameof(IsPlayerColonySiteRegistrationSuppressedByCompatibility),
-                    suppressor,
-                    () => suppressor(),
-                    out bool suppressed))
-            {
-                continue;
-            }
-
-            if (suppressed)
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
+    public static bool IsPlayerColonySiteRegistrationSuppressedByCompatibility() =>
+        ColonySite.IsPlayerColonySiteRegistrationSuppressedByCompatibility();
 }

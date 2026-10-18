@@ -2749,3 +2749,17 @@ FactionPreparationCompatibility、PawnReferenceCompatibility、PawnExchangeCompa
 **4 个相关单元组通过**：新 pawn 兼容组、共享注册 scope、支援／礼物 pawn 捕获、客户端模块边界。守卫覆盖 1,351 个纯模块类型、78 个兼容能力类型和 312 个事件适配类型。日志：`LocalOnly/module-migration/client-pawn-compatibility-tests.log`。生产代码随测试编译，既有编译警告保留；未运行全量回归、实机 RimTest、独立发布构建或推送，未修改冻结 1.6。
 
 **下一步 M10d：远程地图兼容能力。** 迁出地图加载／清理、投影引用重写／净化、整数 ID／区域 ID 和快照净化的集合及执行；保留当前回调顺序、失败处理和公开签名。世界能力、Biotech、文化包加载、M11–M12 和最终完成审计继续开放。
+
+### M10d 远程地图生命周期、投影与快照兼容能力（2026-10-19）
+
+RemoteMapLifecycleCompatibility 持有袭击入图、守方地图准备、地图加载和远程 pawn 清理四类注册及执行。RemoteMapProjectionCompatibility 持有投影引用重写／净化、整数加载 ID 重写和区域 ID 提供四类注册及执行。二者位于游戏引擎兼容边界；另外两个不依赖游戏对象的能力 SnapshotSanitizationCompatibility 和 ColonySiteCompatibility 放入纯 Modules，分别持有快照净化器与殖民地站点注册抑制器。共 10 类集合从 API 主类移除，仍共用唯一注册 scope。
+
+两个旧地图分片的 21 个公开方法全部只转发，HasSnapshotSaveSanitizers 属性直接查询快照能力实例。保留袭击入图第一次明确成功或失败即终止、地图通知异常后继续、pawn 清理任一处理成功即终止、投影引用按优先级顺序收集后以 Ordinal ID 保留第一条、同前缀但不同整数重写器并存并诊断、区域提供器首个非空白结果原样返回、净化变更数逐项非负累计，以及抑制器任一匹配的语义。返回整数注册列表仍为独立快照，外部修改列表不改变内部集合。
+
+ApplyRaidDefenderProxyPawnProtection 原本在公开 API 内重复实现 TryAddProtectionHediff 已有的定义查找、重复检查、躯干选择和 hediff 添加。将代理 pawn 的派系／招募保护流程交回 RaidDefenderLootProtectionUtility.ApplyProxyPawnProtection，并直接复用该工具已有的私有添加方法；公开入口只转发。保持 null、死亡和已销毁 pawn 的拒绝，以及无 guest、无 health、缺少定义或躯干时的原有处理，不增加另一套保护算法。
+
+新增四种文化下的入图处理顺序、通知快照、失败回退、投影引用去重、整数 ID 等价委托去重／共享前缀诊断／优先级、返回列表隔离、区域 ID、净化计数、注册抑制、独立实例与公开 API 全部 10 类能力的撤销和新周期清理测试。另加定向保护单元组：隔离引擎状态与写入操作，执行真实代理保护及共享 hediff 检查，验证错误输入不产生效果、改派系与禁招募、重复调用幂等，以及定义／躯干／guest／health 缺失分支。没有在测试里复制共享保护判定。
+
+**累计 5 个相关单元组通过**：新远程地图兼容组、新代理保护组、共享注册 scope、袭击部队准备／战场交接、客户端边界。日志：`LocalOnly/module-migration/client-remote-map-compatibility-tests.log`（四组）及 `LocalOnly/module-migration/client-proxy-protection-diagnostic.log`（保护组最终通过）。守卫覆盖 1,356 个纯模块类型、96 个兼容能力类型和 312 个事件适配类型。生产代码随测试编译，既有警告保留；未运行全量回归、实机 RimTest、独立发布构建、推送或冻结 1.6 修改。
+
+**下一步 M10e：世界配置与兼容包能力。** API 主类目前还持有五个世界／兼容包注册集合，需迁出其登记语义、收集／应用／汇总和参数解析；继续检查 DLC 状态与公开门面的剩余责任。Biotech、文化包加载、M11–M12 及最终完成审计仍开放。

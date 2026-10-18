@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.ThirdPartyCompatibility.RemoteMaps;
 using AIRsLight.ClashOfRim.ThirdPartyCompatibility.Pawns;
 using AIRsLight.ClashOfRim.ThirdPartyCompatibility.Things;
 using AIRsLight.ClashOfRim.Modules.Compatibility;
@@ -18,22 +19,16 @@ namespace AIRsLight.ClashOfRim.ThirdPartyCompatibility;
 
 public static partial class ClashOfRimCompatibilityApi
 {
-    private static readonly List<RaidCaravanMapEntryHandler> RaidCaravanMapEntryHandlers = new();
-    private static readonly List<RemoteDefenderMapPreparedHandler> RemoteDefenderMapPreparedHandlers = new();
-    private static readonly List<RemoteMapLoadedHandler> RemoteMapLoadedHandlers = new();
-    private static readonly List<RemoteMapProjectionReferenceRewriter> RemoteMapProjectionReferenceRewriters = new();
-    private static readonly List<RemoteMapProjectionSanitizer> RemoteMapProjectionSanitizers = new();
-    private static readonly List<RemoteSessionPawnCleanupHandler> RemoteSessionPawnCleanupHandlers = new();
-    private static readonly List<RemoteMapIntegerLoadIdRewriterRegistration> RemoteMapIntegerLoadIdRewriters = new();
-    private static readonly List<RemoteMapAreaLoadIdProvider> RemoteMapAreaLoadIdProviders = new();
-    private static readonly List<CompatibilitySnapshotSaveSanitizer> SnapshotSaveSanitizers = new();
-    private static readonly List<PlayerColonySiteRegistrationSuppressor> PlayerColonySiteRegistrationSuppressors = new();
     private static readonly List<AdminBaselineExtensionProviderRegistration> AdminBaselineExtensionProviders = new();
     private static readonly List<CompatibilityPackageRegistration> CompatibilityPackages = new();
     private static readonly List<WorldConfigurationExtensionHandlerRegistration> WorldConfigurationExtensionHandlers = new();
     private static readonly List<WorldConfigurationExtensionSummaryProvider> WorldConfigurationExtensionSummaryProviders = new();
     private static readonly List<WorldGenerationFloatSettingProviderRegistration> WorldGenerationFloatSettingProviders = new();
     private static readonly CompatibilityRegistrationScope Registrations = new(message => Log.Warning(message));
+    private static readonly RemoteMapLifecycleCompatibility RemoteMapLifecycle = new(Registrations);
+    private static readonly RemoteMapProjectionCompatibility RemoteMapProjection = new(Registrations);
+    private static readonly SnapshotSanitizationCompatibility SnapshotSanitization = new(Registrations);
+    private static readonly ColonySiteCompatibility ColonySite = new(Registrations);
     private static readonly FactionPreparationCompatibility FactionPreparation = new(Registrations);
     private static readonly PawnReferenceCompatibility PawnReferences = new(Registrations);
     private static readonly PawnExchangeCompatibility PawnExchange = new(Registrations, message => ClashLog.Message(message));
@@ -44,7 +39,7 @@ public static partial class ClashOfRimCompatibilityApi
 
     public static bool IsRemoteMapProjectionLoading => RemoteMapProjectionLoadScope.Active;
 
-    public static bool HasSnapshotSaveSanitizers => SnapshotSaveSanitizers.Count > 0;
+    public static bool HasSnapshotSaveSanitizers => SnapshotSanitization.HasSnapshotSaveSanitizers;
 
     public static CompatibilityRegistrationToken BeginRegistrationCycle(string owner) => Registrations.BeginRegistrationCycle(owner);
     public static CompatibilityRegistrationToken BeginRegistrationCycle(string owner, int priority) => Registrations.BeginRegistrationCycle(owner, priority);
