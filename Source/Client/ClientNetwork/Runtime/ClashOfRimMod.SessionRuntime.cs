@@ -22,6 +22,7 @@ public sealed partial class ClashOfRimMod
     internal void MarkPrivateChatRead() => chat.MarkPrivateRead();
 
     internal void StartSyncWorldMapMarkers() => RequestWorldMapMarkerRefresh("manual-refresh-world-map");
+    internal void ApplyCachedWorldMapMarkersToWorldObjects() => worldMarkers.ApplyCached();
     internal void RequestWorldMapMarkerRefresh(string reason)
         => _ = worldSynchronization.RequestAsync(ClientWorldSynchronizationKind.Markers, reason);
     internal void StartRefreshCaravanArrivalTargets(string caravanTileSignature)

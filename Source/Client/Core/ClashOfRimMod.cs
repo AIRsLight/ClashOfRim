@@ -115,15 +115,12 @@ public sealed partial class ClashOfRimMod : Mod
     private readonly ClientAdminAccess adminAccess;
     private readonly ClientAdministration administration;
     private readonly ClientWorldWrites worldWrites;
-    private bool statusDefaultsInitialized;
-    private string loginStatus = string.Empty;
-    private string snapshotUploadStatus = string.Empty;
-    private string presenceStatus = string.Empty;
+    private string? loginStatus;
+    private string? snapshotUploadStatus;
+    private string? presenceStatus;
     private readonly ClientDiplomacyActions diplomacyActions;
     private readonly ClientPlayerDirectory playerDirectory;
-    // Transitional status bridge for local fulfillment and support, pending their module stages.
-    private string tradeStatus { get => tradeState.Message; set => tradeState.Message = value; }
-    private string worldMapStatus = string.Empty;
+    private string? worldMapStatus;
     private readonly ClientCompatibilityBaseline compatibilityBaseline;
     private readonly ClientCompatibilityOverride compatibilityOverride;
     private readonly ClientLocalMutationCoordinator localMutations = new();
@@ -180,7 +177,7 @@ public sealed partial class ClashOfRimMod : Mod
         storytellerConfiguration = new ClientStorytellerConfiguration(sessionLifecycle, worldSetup, new ClientStorytellerRuntime());
         compatibilityPresentation = new ClientCompatibilityPresentation((response, language, accept, cancel) =>
             new AIRsLight.ClashOfRim.CompatibilityClient.CompatibilityMismatchWindow(this, response, language, accept, cancel));
-        var entryPresentation = new ClientWorldEntryPresentation(message => { EnsureStatusDefaultsInitialized(); loginStatus = message; },
+        var entryPresentation = new ClientWorldEntryPresentation(message => loginStatus = message,
             (server, account) => Find.WindowStack.Add(new AIRsLight.ClashOfRim.MainMenu.ClashOfRimAccountRegistrationDialog(this, server, account)), compatibilityPresentation);
         var worldTransport = new ClientWorldPreparationTransport(new ClientProtocolEnvironment());
         worldPreparation = new ClientWorldPreparation(sessionLifecycle, new ClientSnapshotGame(), worldTransport, entryPresentation);
@@ -260,7 +257,7 @@ public sealed partial class ClashOfRimMod : Mod
         gifts.Completed += StartQueuedAutomaticEventRefreshAfterLocalAtomicMutation;
         giftActions = new ClientGiftActions(gifts, sessionLifecycle, new ClientSnapshotGame(), giftPresentation,
             giftCapabilities, () => WorldMapMarkersSnapshot);
-        var supportPresentation = new ClientSupportPresentation(message => tradeStatus = message);
+        var supportPresentation = new ClientSupportPresentation(message => tradeState.Message = message);
         var supportSending = new ClientSupportSending(sessionLifecycle, new ClientSnapshotGame(), mutationAdmission, synchronization,
             localMutations, snapshotTransactions, snapshotFailureRecovery, new ClientSupportTransport(), supportPresentation);
         supportSending.Completed += StartQueuedAutomaticEventRefreshAfterLocalAtomicMutation;
@@ -337,7 +334,7 @@ public sealed partial class ClashOfRimMod : Mod
             {
                 switch (purpose)
                 {
-                    case ClientEventConfirmationPurpose.Trade: tradeStatus = message; break;
+                    case ClientEventConfirmationPurpose.Trade: tradeState.Message = message; break;
                     case ClientEventConfirmationPurpose.AutomaticEvents: eventState.SetDetailsStatus(message); break;
                     default: eventState.ActionStatus = message; break;
                 }
@@ -421,23 +418,6 @@ public sealed partial class ClashOfRimMod : Mod
             + "; patched methods=" + harmony.GetPatchedMethods().Count() + ".");
     }
 
-    private void EnsureStatusDefaultsInitialized()
-    {
-        if (statusDefaultsInitialized)
-        {
-            return;
-        }
-
-        statusDefaultsInitialized = true;
-        loginStatus = ClashOfRimText.Key("ClashOfRim.Status.NotLoggedIn");
-        snapshotUploadStatus = ClashOfRimText.Key("ClashOfRim.Status.SnapshotUploadNotStarted");
-        presenceStatus = ClashOfRimText.Key("ClashOfRim.Status.PresenceNotStarted");
-        tradeStatus = ClashOfRimText.Key("ClashOfRim.Status.TradeOrderNotCreated");
-        worldMapStatus = ClashOfRimText.Key("ClashOfRim.Status.WorldMapNotSynced");
-        bankState.Message = ClashOfRimText.Key("ClashOfRim.Status.BankNotPulled");
-        shopState.Message = ClashOfRimText.Key("ClashOfRim.Shop.StatusIdle");
-    }
-
     internal bool SnapshotUploadInProgress => synchronization.SnapshotInProgress;
     internal bool ManualSyncInProgress => synchronization.ManualInProgress;
 
@@ -491,93 +471,30 @@ public sealed partial class ClashOfRimMod : Mod
 
     internal bool CanRefreshCaravanArrivalTargets => worldSynchronization.CanStart(ClientWorldSynchronizationKind.CaravanTargets);
 
-    internal string LoginStatus
-    {
-        get
-        {
-            EnsureStatusDefaultsInitialized();
-            return loginStatus;
-        }
-    }
+    internal string LoginStatus => loginStatus ?? ClashOfRimText.Key("ClashOfRim.Status.NotLoggedIn");
 
-    internal string EventQueueStatus
-    {
-        get
-        {
-            EnsureStatusDefaultsInitialized();
-            return eventState.QueueStatus;
-        }
-    }
+    internal string EventQueueStatus => eventState.QueueStatus;
 
-    internal string EventDetailsStatus
-    {
-        get
-        {
-            EnsureStatusDefaultsInitialized();
-            return eventState.DetailsStatus;
-        }
-    }
+    internal string EventDetailsStatus => eventState.DetailsStatus;
 
-    internal string GiftProcessingStatus
-    {
-        get
-        {
-            EnsureStatusDefaultsInitialized();
-            return eventState.ActionStatus;
-        }
-    }
+    internal string GiftProcessingStatus => eventState.ActionStatus;
 
-    internal string SnapshotUploadStatus
-    {
-        get
-        {
-            EnsureStatusDefaultsInitialized();
-            return snapshotUploadStatus;
-        }
-    }
+    internal string SnapshotUploadStatus => snapshotUploadStatus ?? ClashOfRimText.Key("ClashOfRim.Status.SnapshotUploadNotStarted");
 
-    internal string PresenceStatus
-    {
-        get
-        {
-            EnsureStatusDefaultsInitialized();
-            return presenceStatus;
-        }
-    }
+    internal string PresenceStatus => presenceStatus ?? ClashOfRimText.Key("ClashOfRim.Status.PresenceNotStarted");
 
     internal string PlayerListStatus => playerDirectory.Message;
 
-    internal string TradeStatus
-    {
-        get
-        {
-            EnsureStatusDefaultsInitialized();
-            return tradeStatus;
-        }
-    }
+    internal string TradeStatus => tradeState.Message;
 
-    internal string WorldMapStatus
-    {
-        get
-        {
-            EnsureStatusDefaultsInitialized();
-            return worldMapStatus;
-        }
-    }
+    internal string WorldMapStatus => worldMapStatus ?? ClashOfRimText.Key("ClashOfRim.Status.WorldMapNotSynced");
 
     internal string ChatStatus => chat.Status;
     internal IReadOnlyList<ModChatMessageDto> ChatMessagesSnapshot => chat.CopyMessages();
     internal int UnreadPrivateChatCount => chat.UnreadPrivate;
     internal int ChatMessagesSnapshotVersion => chat.Version;
 
-    internal string BankStatus
-    {
-        get
-        {
-            EnsureStatusDefaultsInitialized();
-            return bankState.Message;
-        }
-    }
+    internal string BankStatus => bankState.Message;
 
     internal bool BankInProgress => bankState.Busy;
 
@@ -586,23 +503,9 @@ public sealed partial class ClashOfRimMod : Mod
     internal string AdminStatus => administration.Message;
     internal ModAdminStatusResponseDto? AdminStatusSnapshot => administration.Snapshot;
 
-    internal string MercenaryStatus
-    {
-        get
-        {
-            EnsureStatusDefaultsInitialized();
-            return mercenaryState.Message;
-        }
-    }
+    internal string MercenaryStatus => mercenaryState.Message;
 
-    internal string ServerShopStatus
-    {
-        get
-        {
-            EnsureStatusDefaultsInitialized();
-            return shopState.Message;
-        }
-    }
+    internal string ServerShopStatus => shopState.Message;
 
     internal string UserId => settings.UserId;
 

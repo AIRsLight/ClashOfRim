@@ -2557,3 +2557,24 @@ ClientRaidCommands 接管远征队菜单、载具着陆入口和运输舱目标�
 **5 个相关单元组通过**：新袭击命令、原袭击发起、真实部队／来源适配器、多语言命令展示和模块守卫。适配器测试新增确切 Game／世界替换、缺失／销毁远征队及原部队来源传递；展示组在四种文化和全部交付语言中同时加载主模组及载具兼容包文案。生产代码随测试项目编译，守卫检查 **1,347** 个模块及生成类型、**312** 个适配器及生成类型。日志：`LocalOnly/module-migration/client-raid-commands-{foundation,tests,adapters,presentation}.log`；adapters 日志最初发现测试未加载兼容包文案，补充后 presentation 组通过。没有运行全量回归、实机 RimTest 或独立发布构建，没有推送；冻结 1.6 及继承的未提交工作未纳入本步。
 
 **下一步 M8h4u：宿主剩余死入口和责任复核。** 需核对 Formatting partial 的 HasTarget、FormatCreationResult 是否仍有调用，清理已迁出领域留下的桥接与过时默认状态；对其余 partial 按真实责任复核，不能仅凭文件变短宣称完成。随后明确 M8 尚余责任及 M9–M12 的边界，再推进提交日志内部拆分。M8h4、M8h、M8、M9–M12 继续开放。
+
+
+### M8h4u 退役宿主全局默认状态及死入口（2026-10-19）
+
+引用检查确认 HasTarget、FormatCreationResult 已无调用方，删除两个旧实现；Formatting partial 唯一仍被调用的 ApplyCachedWorldMapMarkersToWorldObjects 薄转发归入现有会话／世界入口文件，删除空余 partial 文件。删除 tradeStatus 私有桥接及其“等待领域迁移”的过时注释，原展示接线直接写入已迁出的 ClientTradeState。
+
+新增测试在实际 Mod 状态属性和真实领域状态对象上先复现：首次读取 LoginStatus 会触发 EnsureStatusDefaultsInitialized，把已发布的登录、快照、presence、世界、银行、交易和商店进度覆盖为初始文案。复现日志为 `LocalOnly/module-migration/client-host-status-repro.log`。删除这个全局初始化方法及标记；各领域属性直接读取所属模块，默认值和重置继续由原模块负责。尚待 M11 迁出的四个 UI 文本槽改为 nullable，仅在读取空槽时返回各自本地化默认文案，不写入其他槽，也不覆盖显式空字符串或已发布消息。
+
+既有会话清理组补充 **52 个场景**：四种文化下分别从 11 个 UI 状态入口开始读取，验证已发布状态不被覆盖；验证各自默认值、领域重置后的默认归属及显式清空文案。测试复用该组的真实银行／交易／商店／事件／佣兵状态，仅用未运行构造函数的 Mod 外壳隔离无关游戏注册。**3 个相关单元组通过**：会话清理（260 场景）、多语言命令展示、模块依赖守卫。生产代码随测试项目编译；守卫仍为 1,347／312 个类型。最终日志：`LocalOnly/module-migration/client-host-status-tests.log`。没有全量回归、实机 RimTest、独立发布构建或推送，未触及冻结 1.6 和继承的工作区修改。
+
+对剩余客户端 Mod partial 的责任复核结果：
+
+| 仍存在的内容 | 当前归属与后续处理 |
+| --- | --- |
+| 账户、管理、银行／雇佣、事件、世界入口、聊天／presence、殖民地外观与搬迁等命令 | 已转发具体领域模块；DTO／游戏对象适配继续留在引擎入口。同步和退出清理由既有模块持有，不再由这些 partial 实现 |
+| RemoteMaps 的恢复 tick 转发与状态合并 | 调用既有 snapshotReload／raidRecovery，各域保有恢复状态和准入；不是另一套恢复算法 |
+| OpenTradeMarketWindow、FormatBlockedColonySite、UI 文本槽、开发工具／设置可见性、事件目的到状态文本槽的接线 | 属于 M11 的 UI 页面和展示门面。TradeMarketWindow 仍接收 Mod，不能据此宣称 UI 已解耦；其窗口准入与展示流程须随 M11 一并收回 |
+| 兼容窗口与公开入口、旧网络／Mod 调用门面 | 兼容能力内部归 M10，页面与门面清理归 M11；保留现有公开签名 |
+| 服务端 SnapshotCommits、SnapshotPostUpload 和 LegacySnapshotRecoveryAdapter | 仍承载通用提交恢复／后处理装配，属于 M9 的明确剩余工作。原提交服务仍同时持有日志读写、回执和 Apply 业务顺序，尚未完成真正拆分 |
+
+客户端宿主这一轮不再以继续移动 UI 代码来代替后续阶段。**下一步 M9a：提交日志存储与验证边界。** 先迁出 SnapshotCommitService 的物理日志读写及版本 1–12 验证，保持 pending／applying 在提交协调器内唯一持有；随后迁出回执职责与业务 Apply 顺序，并以真实恢复／持久化单元场景验证。M9 结束前必须删除 LegacySnapshotRecoveryAdapter 及旧提交恢复入口。此表只界定本次检查的实际责任，不宣称 M8 全部验证或整体目标已完成；M9–M12 及最终完成审计继续开放。

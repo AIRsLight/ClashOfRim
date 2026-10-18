@@ -30,7 +30,7 @@ public sealed partial class ClashOfRimMod
     {
         if (!settings.IsConfigured || string.IsNullOrWhiteSpace(settings.CurrentSnapshotId))
         {
-            tradeStatus = ClashOfRimText.Key("ClashOfRim.Trade.StatusConfigMissingMarket");
+            tradeState.Message = ClashOfRimText.Key("ClashOfRim.Trade.StatusConfigMissingMarket");
             return;
         }
 
