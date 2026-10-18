@@ -437,6 +437,9 @@ public sealed partial class ClashOfRimMod : Mod
         new(new ClientAchievementPanel(sessionLifecycle, new ClientSnapshotGame(), achievementQueries,
             players, synchronization, new ClientAchievementTrophyPlacement()));
 
+    internal MultiplayerTradePage CreateTradePage() =>
+        new(new ClientTradePanel(sessionLifecycle, new ClientSnapshotGame(), tradeState, tradeMarket, synchronization, tradeActions));
+
     internal bool ManualSyncInProgress => synchronization.ManualInProgress;
 
     internal bool IsServerWorldSetupFlow => worldSetup.Pending;

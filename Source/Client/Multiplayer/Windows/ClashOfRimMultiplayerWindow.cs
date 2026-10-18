@@ -22,12 +22,10 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
     private ClientPlayerPanel? playersPanel;
     private MultiplayerDiplomacyPage? diplomacyPage;
     private MultiplayerAchievementsPage? achievementsPage;
+    private MultiplayerTradePage? tradePage;
 
     private const float PanelRefreshIntervalSeconds = PanelRefreshSchedule.IntervalSeconds;
-    private const float TradeOrderRowHeight = 96f;
 
-    private Vector2 tradeOrderScrollPosition;
-    private Vector2 tradeDetailScrollPosition;
     private Vector2 serverShopScrollPosition;
     private Vector2 bankScrollPosition;
     private Vector2 mercenaryScrollPosition;
@@ -35,9 +33,7 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
     private Vector2 adminManifestScrollPosition;
     private MultiplayerTab selectedTab = MultiplayerTab.Trade;
     private AdminPanelTab selectedAdminPanelTab = AdminPanelTab.Trade;
-    private string selectedTradeScope = "Open";
     private string selectedShopListingKind = "SellToPlayer";
-    private string? selectedTradeEventId;
     private string bankPrincipalText = "1000";
     private string bankDurationText = "30";
     private string selectedMercenarySkillDefName = "Shooting";
@@ -54,7 +50,6 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
     private string mercenaryGuardQuoteStatus = string.Empty;
     private ModMercenaryGuardQuoteResponseDto? mercenaryGuardQuote;
     private bool mercenaryGuardQuoteInProgress;
-    private float nextTradeRefreshAt;
     private float nextShopRefreshAt;
     private float nextBankRefreshAt;
     private float nextAdminRefreshAt;
@@ -127,8 +122,6 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
     private int cachedServerShopBuyFromPlayerCount;
     private IReadOnlyList<ModServerShopListingDto> cachedServerShopSellToPlayerListings = new List<ModServerShopListingDto>();
     private IReadOnlyList<ModServerShopListingDto> cachedServerShopBuyFromPlayerListings = new List<ModServerShopListingDto>();
-    private int cachedTradeOrdersVersion = -1;
-    private IReadOnlyList<ModTradeOrderSummaryDto> cachedTradeOrders = new List<ModTradeOrderSummaryDto>();
     private MultiplayerTab cachedMainTabsSelectedTab;
     private bool cachedMainTabsDevMode;
     private bool cachedMainTabsAdministrator;
@@ -158,6 +151,7 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
 
         if (playersPanel is null) (playersPanel, diplomacyPage) = mod.CreatePlayerPages();
         achievementsPage ??= mod.CreateAchievementsPage(playersPanel);
+        tradePage ??= mod.CreateTradePage();
         TryRefreshSelectedTab(mod);
         Rect tabRect = new(inRect.x, inRect.y + 34f, inRect.width, inRect.height - 34f);
         if (!mod.IsAdministrator && selectedTab == MultiplayerTab.Admin)
@@ -194,7 +188,7 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
                 DrawAdminTab(contentRect, mod);
                 break;
             default:
-                DrawTradeTab(contentRect, mod);
+                tradePage!.Draw(contentRect);
                 break;
         }
     }
@@ -204,6 +198,7 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
         playersPanel?.Close();
         diplomacyPage?.Reset();
         achievementsPage?.Close();
+        tradePage?.Close();
         base.PostClose();
     }
 
@@ -286,7 +281,7 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
                 nextBankRefreshAt = 0f;
                 break;
             case MultiplayerTab.Trade:
-                nextTradeRefreshAt = 0f;
+                tradePage?.RequestRefresh();
                 break;
             case MultiplayerTab.Shop:
                 nextShopRefreshAt = 0f;
@@ -1027,29 +1022,6 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
         };
     }
 
-    private void DrawTradeTab(Rect rect, ClashOfRimMod mod)
-    {
-        Widgets.DrawMenuSection(rect);
-        Rect inner = rect.ContractedBy(10f);
-        Text.Font = GameFont.Medium;
-        Widgets.Label(new Rect(inner.x, inner.y, inner.width - 150f, 30f), ClashOfRimText.Key("ClashOfRim.Trade.MarketTitle"));
-        Text.Font = GameFont.Small;
-        if (Widgets.ButtonText(new Rect(inner.xMax - 140f, inner.y, 140f, 30f), ClashOfRimText.Key("ClashOfRim.Trade.CreateOrderTitle"), active: mod.TradeMarketplaceEnabled))
-        {
-            mod.OpenTradeOrderDialog();
-        }
-
-        DrawTradeScopeTabs(new Rect(inner.x, inner.y + 38f, inner.width, 30f), mod);
-
-        Rect listRect = new(inner.x, inner.y + 78f, Mathf.Min(430f, inner.width * 0.46f), inner.height - 78f);
-        Rect detailRect = new(listRect.xMax + 10f, listRect.y, inner.xMax - listRect.xMax - 10f, listRect.height);
-        IReadOnlyList<ModTradeOrderSummaryDto> orders = TradeOrders(mod);
-        DrawTradeOrderList(listRect, orders, mod);
-        ModTradeOrderSummaryDto? selected = FindSelectedTradeOrder(orders, selectedTradeEventId)
-            ?? (orders.Count > 0 ? orders[0] : null);
-        DrawTradeOrderDetail(detailRect, selected, mod);
-    }
-
     private static MercenaryProfession? FindMercenaryProfession(
         IReadOnlyList<MercenaryProfession> professions,
         string? professionKey)
@@ -1069,270 +1041,6 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
         }
 
         return null;
-    }
-
-    private static ModTradeOrderSummaryDto? FindSelectedTradeOrder(
-        IReadOnlyList<ModTradeOrderSummaryDto> orders,
-        string? eventId)
-    {
-        if (string.IsNullOrWhiteSpace(eventId))
-        {
-            return null;
-        }
-
-        for (int index = 0; index < orders.Count; index++)
-        {
-            ModTradeOrderSummaryDto order = orders[index];
-            if (string.Equals(order.EventId, eventId, StringComparison.Ordinal))
-            {
-                return order;
-            }
-        }
-
-        return null;
-    }
-
-    private IReadOnlyList<ModTradeOrderSummaryDto> TradeOrders(ClashOfRimMod mod)
-    {
-        int version = mod.TradeOrdersSnapshotVersion;
-        if (version != cachedTradeOrdersVersion)
-        {
-            cachedTradeOrders = mod.TradeOrdersSnapshot;
-            cachedTradeOrdersVersion = version;
-        }
-
-        return cachedTradeOrders;
-    }
-
-    private void DrawTradeScopeTabs(Rect rect, ClashOfRimMod mod)
-    {
-        const float width = 86f;
-        DrawTradeScopeButton(new Rect(rect.x, rect.y, width, rect.height), "Open", ClashOfRimText.Key("ClashOfRim.Trade.ScopeOpen"), mod);
-        DrawTradeScopeButton(new Rect(rect.x + 92f, rect.y, width, rect.height), "AcceptedByMe", ClashOfRimText.Key("ClashOfRim.Trade.ScopeAcceptedByMe"), mod);
-        DrawTradeScopeButton(new Rect(rect.x + 184f, rect.y, width, rect.height), "Mine", ClashOfRimText.Key("ClashOfRim.Trade.ScopeMine"), mod);
-        DrawTradeScopeButton(new Rect(rect.x + 276f, rect.y, width, rect.height), "History", ClashOfRimText.Key("ClashOfRim.Trade.ScopeHistory"), mod);
-    }
-
-    private void DrawTradeScopeButton(Rect rect, string scope, string label, ClashOfRimMod mod)
-    {
-        if (string.Equals(selectedTradeScope, scope, StringComparison.Ordinal))
-        {
-            Widgets.DrawHighlightSelected(rect);
-        }
-
-        if (Widgets.ButtonText(rect, label))
-        {
-            selectedTradeScope = scope;
-            selectedTradeEventId = null;
-            mod.StartRefreshTradeOrders(selectedTradeScope);
-            nextTradeRefreshAt = Time.realtimeSinceStartup + PanelRefreshIntervalSeconds;
-        }
-    }
-
-    private void DrawTradeOrderList(Rect rect, IReadOnlyList<ModTradeOrderSummaryDto> orders, ClashOfRimMod mod)
-    {
-        Widgets.DrawMenuSection(rect);
-        Rect inner = rect.ContractedBy(8f);
-        Widgets.Label(new Rect(inner.x, inner.y, inner.width, 24f), TradeScopeTitle());
-        Text.Font = GameFont.Tiny;
-        Widgets.Label(new Rect(inner.x, inner.y + 24f, inner.width, 20f), mod.TradeStatus);
-        Text.Font = GameFont.Small;
-
-        Rect outRect = new(inner.x, inner.y + 50f, inner.width, inner.height - 50f);
-        float contentHeight = orders.Count * TradeOrderRowHeight + (mod.TradeOrdersHasMore || mod.TradeOrdersPageLoadInProgress ? 40f : 0f);
-        Rect viewRect = new(0f, 0f, outRect.width - 16f, Math.Max(outRect.height, contentHeight));
-        Widgets.BeginScrollView(outRect, ref tradeOrderScrollPosition, viewRect);
-        if (orders.Count == 0)
-        {
-            Widgets.Label(new Rect(0f, 0f, viewRect.width, 40f), ClashOfRimText.Key("ClashOfRim.Trade.NoOrdersInScope"));
-        }
-        else
-        {
-            for (int index = 0; index < orders.Count; index++)
-            {
-                DrawTradeOrderSummaryRow(new Rect(0f, index * TradeOrderRowHeight, viewRect.width, TradeOrderRowHeight - 4f), orders[index]);
-            }
-        }
-
-        DrawTradePagingControls(new Rect(0f, orders.Count * TradeOrderRowHeight + 4f, viewRect.width, 32f), mod);
-        Widgets.EndScrollView();
-
-        if (ShouldAutoLoadMoreTradeOrders(outRect, viewRect, tradeOrderScrollPosition, mod))
-        {
-            mod.StartLoadMoreTradeOrders(selectedTradeScope);
-        }
-    }
-
-    private static bool ShouldAutoLoadMoreTradeOrders(Rect outRect, Rect viewRect, Vector2 scrollPosition, ClashOfRimMod mod)
-    {
-        return mod.TradeOrdersHasMore
-            && !mod.TradeOrdersPageLoadInProgress
-            && viewRect.height > outRect.height
-            && scrollPosition.y >= viewRect.height - outRect.height - 80f;
-    }
-
-    private void DrawTradePagingControls(Rect rect, ClashOfRimMod mod)
-    {
-        if (mod.TradeOrdersPageLoadInProgress)
-        {
-            Text.Anchor = TextAnchor.MiddleCenter;
-            Widgets.Label(rect, ClashOfRimText.Key("ClashOfRim.Trade.LoadingMore"));
-            Text.Anchor = TextAnchor.UpperLeft;
-            return;
-        }
-
-        if (!mod.TradeOrdersHasMore)
-        {
-            return;
-        }
-
-        if (Widgets.ButtonText(rect, ClashOfRimText.Key("ClashOfRim.Trade.LoadMore")))
-        {
-            mod.StartLoadMoreTradeOrders(selectedTradeScope);
-        }
-    }
-
-    private void DrawTradeOrderSummaryRow(Rect row, ModTradeOrderSummaryDto order)
-    {
-        bool selected = string.Equals(order.EventId, selectedTradeEventId, StringComparison.Ordinal);
-        if (selected)
-        {
-            Widgets.DrawHighlightSelected(row);
-        }
-        else
-        {
-            Widgets.DrawHighlightIfMouseover(row);
-        }
-
-        bool openedInfo = DrawThingStrip(new Rect(row.x + 6f, row.y + 5f, 112f, 30f), order.OfferedThings, asRequirement: false);
-        Text.Anchor = TextAnchor.MiddleCenter;
-        Widgets.Label(new Rect(row.x + 122f, row.y + 5f, 24f, 30f), ClashOfRimText.Key("ClashOfRim.Trade.ExchangeVerb"));
-        Text.Anchor = TextAnchor.UpperLeft;
-        openedInfo |= DrawThingStrip(new Rect(row.x + 150f, row.y + 5f, 112f, 30f), order.RequestedThings, asRequirement: true);
-
-        string memo = order.AcceptedMemoCount > 0
-            ? ClashOfRimText.Key("ClashOfRim.Trade.AcceptedMemoSuffix", order.AcceptedMemoCount.Named("COUNT"))
-            : string.Empty;
-        string accepted = order.ViewerHasAccepted ? ClashOfRimText.Key("ClashOfRim.Trade.ViewerAcceptedSuffix") : string.Empty;
-        Widgets.Label(new Rect(row.x + 6f, row.y + 40f, row.width - 12f, 22f), TradePartiesLine(order, includeColony: false) + memo + accepted);
-        Text.Font = GameFont.Tiny;
-        Widgets.Label(new Rect(row.x + 6f, row.y + 63f, row.width - 12f, 18f), ClashOfRimText.Key(
-            "ClashOfRim.Trade.StatusLine",
-            TradeUiUtility.FormatOrderStatus(order.Status).Named("STATUS")));
-        Text.Font = GameFont.Small;
-
-        if (!openedInfo && Widgets.ButtonInvisible(row))
-        {
-            selectedTradeEventId = order.EventId;
-        }
-    }
-
-    private void DrawTradeOrderDetail(Rect rect, ModTradeOrderSummaryDto? order, ClashOfRimMod mod)
-    {
-        Widgets.DrawMenuSection(rect);
-        Rect inner = rect.ContractedBy(8f);
-        if (order is null)
-        {
-            Widgets.Label(inner, ClashOfRimText.Key("ClashOfRim.Trade.SelectOrderForDetails"));
-            return;
-        }
-
-        if (string.IsNullOrWhiteSpace(selectedTradeEventId))
-        {
-            selectedTradeEventId = order.EventId;
-        }
-
-        float headerY = inner.y;
-        Widgets.Label(new Rect(inner.x, headerY, inner.width, 24f), ClashOfRimText.Key("ClashOfRim.Trade.OwnerLine", FormatTradeParty(order.Owner, includeColony: true).Named("OWNER")));
-        headerY += 24f;
-        if (HasTradeCounterparty(order))
-        {
-            Widgets.Label(new Rect(inner.x, headerY, inner.width, 24f), ClashOfRimText.Key("ClashOfRim.Trade.CounterpartyLine", FormatTradeParty(order.Counterparty, includeColony: true).Named("COUNTERPARTY")));
-            headerY += 24f;
-        }
-
-        Widgets.Label(new Rect(inner.x, headerY, inner.width, 24f), ClashOfRimText.Key("ClashOfRim.Trade.StatusLine", TradeUiUtility.FormatOrderStatus(order.Status).Named("STATUS")));
-        headerY += 24f;
-        Widgets.Label(new Rect(inner.x, headerY, inner.width, 24f), ClashOfRimText.Key(
-            "ClashOfRim.Trade.FeeAndMemoLine",
-            order.FeeSilver.Named("FEE"),
-            order.AcceptedMemoCount.Named("COUNT")));
-        headerY += 24f;
-        Widgets.Label(new Rect(inner.x, headerY, inner.width, 24f), ClashOfRimText.Key("ClashOfRim.Trade.DropPodPostageLine", TradeUiUtility.FormatPostage(order.ServerDropPodPostage).Named("POSTAGE")));
-        headerY += 30f;
-
-        Rect contentRect = new(inner.x, headerY, inner.width, inner.yMax - headerY - 54f);
-        Rect viewRect = new(0f, 0f, contentRect.width - 16f, Math.Max(contentRect.height, TradeDetailHeight(order)));
-        Widgets.BeginScrollView(contentRect, ref tradeDetailScrollPosition, viewRect);
-        float y = 0f;
-        y = DrawThingSection(new Rect(0f, y, viewRect.width, 24f), ClashOfRimText.Key("ClashOfRim.Trade.OtherOffers"), order.OfferedThings, asRequirement: false);
-        DrawThingSection(new Rect(0f, y + 8f, viewRect.width, 24f), ClashOfRimText.Key("ClashOfRim.Trade.OtherRequests"), order.RequestedThings, asRequirement: true);
-        Widgets.EndScrollView();
-
-        Rect acceptRect = new(inner.xMax - 132f, inner.yMax - 42f, 132f, 34f);
-        Rect dropPodRect = new(acceptRect.x - 142f, acceptRect.y, 132f, 34f);
-        bool canCancel = string.Equals(selectedTradeScope, "Mine", StringComparison.Ordinal)
-            && mod.IsOwnOpenTradeOrder(order);
-        bool canAct = mod.CanActOnOpenTradeOrder(order);
-        bool canAccept = canAct && !order.ViewerHasAccepted && string.Equals(selectedTradeScope, "Open", StringComparison.Ordinal);
-        bool canCancelAcceptedMemo = mod.CanCancelAcceptedTradeMemo(order);
-        if (canAct && order.AllowServerDropPod)
-        {
-            bool canDropPod = order.ServerDropPodPostage?.Reachable == true
-                && order.ServerDropPodPostage.PostageSilver.HasValue;
-            if (canDropPod && Widgets.ButtonText(dropPodRect, ClashOfRimText.Key("ClashOfRim.Trade.SendByDropPod")))
-            {
-                string summary = ClashOfRimText.Key("ClashOfRim.Trade.ConfirmDropPodFulfillTitle")
-                    + "\n\n"
-                    + ClashOfRimText.Key("ClashOfRim.Trade.DeliverLine", TradeUiUtility.FormatThingList(order.RequestedThings, asRequirement: true).Named("THINGS"))
-                    + "\n"
-                    + ClashOfRimText.Key("ClashOfRim.Trade.ReceiveLine", TradeUiUtility.FormatThingList(order.OfferedThings, asRequirement: false).Named("THINGS"))
-                    + "\n"
-                    + ClashOfRimText.Key("ClashOfRim.Trade.DropPodPostageLine", TradeUiUtility.FormatPostage(order.ServerDropPodPostage).Named("POSTAGE"));
-                Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation(
-                    summary,
-                    () => mod.ConfirmTradeAcceptorWillReceiveGoods(
-                        order,
-                        () => mod.StartFulfillTradeOrderByDropPod(order))));
-            }
-            else if (!canDropPod)
-            {
-                Text.Anchor = TextAnchor.MiddleCenter;
-                Widgets.Label(dropPodRect, ClashOfRimText.Key("ClashOfRim.Trade.DropPodUnreachableShort"));
-                Text.Anchor = TextAnchor.UpperLeft;
-            }
-        }
-
-        if (canAccept && Widgets.ButtonText(acceptRect, ClashOfRimText.Key("ClashOfRim.Trade.AddToAcceptedList")))
-        {
-            mod.ConfirmTradeAcceptorWillReceiveGoods(
-                order,
-                () => mod.StartAcceptTradeOrder(order, postagePaidByAcceptor: false));
-        }
-        else if (canCancelAcceptedMemo)
-        {
-            if (Widgets.ButtonText(acceptRect, ClashOfRimText.Key("ClashOfRim.Trade.CancelAcceptedMemo")))
-            {
-                Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation(
-                    ClashOfRimText.Key("ClashOfRim.Trade.ConfirmCancelAcceptedMemo"),
-                    mod.BindTradeAction(() => mod.StartCancelAcceptedTradeMemo(order))));
-            }
-        }
-        else if (canCancel)
-        {
-            if (Widgets.ButtonText(acceptRect, ClashOfRimText.Key("ClashOfRim.Trade.CancelOrder")))
-            {
-                Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation(
-                    ClashOfRimText.Key("ClashOfRim.Trade.ConfirmCancelOrder"),
-                    mod.BindTradeAction(() => mod.StartCancelTradeOrder(order))));
-            }
-        }
-        else if (!canAccept)
-        {
-            Text.Anchor = TextAnchor.MiddleRight;
-            Widgets.Label(new Rect(inner.x, inner.yMax - 40f, inner.width, 30f), order.ViewerHasAccepted ? ClashOfRimText.Key("ClashOfRim.Trade.Accepted") : ClashOfRimText.Key("ClashOfRim.Trade.ViewOnly"));
-            Text.Anchor = TextAnchor.UpperLeft;
-        }
     }
 
     private static void DrawDiagnosticsTab(Rect rect, ClashOfRimMod mod)
@@ -1406,7 +1114,7 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
                 TryRefreshBank(mod);
                 break;
             case MultiplayerTab.Trade:
-                TryRefreshTradeOrders(mod);
+                tradePage!.Tick(Time.realtimeSinceStartup);
                 break;
             case MultiplayerTab.Shop:
                 TryRefreshServerShop(mod);
@@ -1415,17 +1123,6 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
                 TryRefreshAdmin(mod);
                 break;
         }
-    }
-
-    private void TryRefreshTradeOrders(ClashOfRimMod mod)
-    {
-        if (mod.ManualSyncInProgress || Time.realtimeSinceStartup < nextTradeRefreshAt)
-        {
-            return;
-        }
-
-        nextTradeRefreshAt = Time.realtimeSinceStartup + PanelRefreshIntervalSeconds;
-        mod.StartRefreshTradeOrders(selectedTradeScope);
     }
 
     private void TryRefreshServerShop(ClashOfRimMod mod)
@@ -1495,112 +1192,6 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
     private static float ClampFloat(float value, int min, int max)
     {
         return value < min ? min : value > max ? max : value;
-    }
-
-    private string TradeScopeTitle()
-    {
-        return selectedTradeScope switch
-        {
-            "AcceptedByMe" => ClashOfRimText.Key("ClashOfRim.Trade.ScopeTitleAcceptedByMe"),
-            "Mine" => ClashOfRimText.Key("ClashOfRim.Trade.ScopeTitleMine"),
-            "History" => ClashOfRimText.Key("ClashOfRim.Trade.ScopeTitleHistory"),
-            _ => ClashOfRimText.Key("ClashOfRim.Trade.ScopeTitleOpen")
-        };
-    }
-
-    private static float TradeDetailHeight(ModTradeOrderSummaryDto order)
-    {
-        int offeredRows = TradeUiUtility.BuildDisplayGroups(order.OfferedThings).Count;
-        int requestedRows = TradeUiUtility.BuildDisplayGroups(order.RequestedThings).Count;
-        return 56f
-            + Math.Max(1, offeredRows) * TradeUiUtility.RowHeight
-            + Math.Max(1, requestedRows) * TradeUiUtility.RowHeight;
-    }
-
-    private static string TradePartiesLine(ModTradeOrderSummaryDto order, bool includeColony)
-    {
-        string owner = FormatTradeParty(order.Owner, includeColony);
-        return HasTradeCounterparty(order)
-            ? ClashOfRimText.Key(
-                "ClashOfRim.Trade.PartiesLine",
-                owner.Named("OWNER"),
-                FormatTradeParty(order.Counterparty, includeColony).Named("COUNTERPARTY"))
-            : owner;
-    }
-
-    private static bool HasTradeCounterparty(ModTradeOrderSummaryDto order)
-    {
-        return !string.IsNullOrWhiteSpace(order.Counterparty?.UserId);
-    }
-
-    private static string FormatTradeParty(ModProtocolIdentityDto? identity, bool includeColony)
-    {
-        string? userId = identity?.UserId;
-        if (string.IsNullOrWhiteSpace(userId))
-        {
-            return ClashOfRimText.Key("ClashOfRim.UnknownPlayer");
-        }
-
-        string? colonyId = identity?.ColonyId;
-        return includeColony && !string.IsNullOrWhiteSpace(colonyId)
-            ? userId! + "/" + colonyId
-            : userId!;
-    }
-
-    private static float DrawThingSection(
-        Rect headerRect,
-        string title,
-        IReadOnlyList<ModThingReferenceDto> things,
-        bool asRequirement)
-    {
-        Widgets.Label(headerRect, title);
-        float y = headerRect.yMax + 4f;
-        if (things.Count == 0)
-        {
-            Widgets.Label(new Rect(headerRect.x, y, headerRect.width, 28f), ClashOfRimText.Key("ClashOfRim.None"));
-            return y + 32f;
-        }
-
-        foreach (TradeUiUtility.TradeThingDisplayGroup group in TradeUiUtility.BuildDisplayGroups(things))
-        {
-            Rect row = new(headerRect.x, y, headerRect.width, TradeUiUtility.RowHeight);
-            DrawThingReferenceRow(row, group, asRequirement);
-            y += TradeUiUtility.RowHeight;
-        }
-
-        return y;
-    }
-
-    private static void DrawThingReferenceRow(Rect row, TradeUiUtility.TradeThingDisplayGroup group, bool asRequirement)
-    {
-        Widgets.DrawHighlightIfMouseover(row);
-        Rect iconRect = new(row.x + 3f, row.y + 3f, TradeUiUtility.IconSize, TradeUiUtility.IconSize);
-        TradeUiUtility.DrawThingDisplayGroupIconWithInfo(iconRect, group);
-        Rect labelRect = new(iconRect.xMax + 8f, row.y, row.width - iconRect.width - 12f, row.height);
-        TradeUiUtility.DrawTruncatedLabel(labelRect, TradeUiUtility.ThingDisplayGroupLabel(group, asRequirement));
-    }
-
-    private static bool DrawThingStrip(Rect rect, IReadOnlyList<ModThingReferenceDto> things, bool asRequirement)
-    {
-        bool openedInfo = false;
-        IReadOnlyList<TradeUiUtility.TradeThingDisplayGroup> groups = TradeUiUtility.BuildDisplayGroups(things);
-        int max = Math.Min(3, groups.Count);
-        for (int index = 0; index < max; index++)
-        {
-            Rect iconRect = new(rect.x + index * 34f, rect.y, 30f, 30f);
-            TradeUiUtility.TradeThingDisplayGroup group = groups[index];
-            openedInfo |= TradeUiUtility.DrawThingDisplayGroupIconWithInfo(iconRect, group);
-            TooltipHandler.TipRegion(iconRect, TradeUiUtility.ThingDisplayGroupLabel(group, asRequirement));
-        }
-
-        if (groups.Count > max)
-        {
-            Text.Anchor = TextAnchor.MiddleCenter;
-            Widgets.Label(new Rect(rect.x + max * 34f, rect.y, 30f, 30f), "+" + (groups.Count - max));
-            Text.Anchor = TextAnchor.UpperLeft;
-        }
-
-        return openedInfo;
     }
 
     private enum MultiplayerTab

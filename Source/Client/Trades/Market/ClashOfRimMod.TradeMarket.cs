@@ -34,7 +34,6 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
-        Find.WindowStack.Add(new TradeMarketWindow(this));
-        StartRefreshTradeOrders();
+        Find.WindowStack.Add(new TradeMarketWindow(CreateTradePage()));
     }
 }

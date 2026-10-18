@@ -12,7 +12,7 @@ using Verse;
 
 namespace AIRsLight.ClashOfRim.Trades;
 
-internal sealed class ClientTradeActions
+internal sealed class ClientTradeActions : IClientTradeInteraction
 {
     private readonly ClientTradeOperations operations;
     private readonly ClientTradeState state;
@@ -46,8 +46,8 @@ internal sealed class ClientTradeActions
             OfferedThings = draft.OfferedThings.ToList(), RequestedThings = draft.RequestedThings.ToList(), FeeSilver = draft.FeeSilver,
             AllowSelfPickup = draft.AllowSelfPickup, AllowServerDropPod = draft.AllowServerDropPod
         }));
-    internal void FulfillByDropPod(ModTradeOrderSummaryDto order) => _ = operations.StartAsync(new ClientTradeDropPodSource(Find.CurrentMap), order);
-    internal void OpenCreate()
+    public void FulfillByDropPod(ModTradeOrderSummaryDto order) => _ = operations.StartAsync(new ClientTradeDropPodSource(Find.CurrentMap), order);
+    public void OpenCreate()
     {
         if (!state.Enabled) { Messages.Message(ClashOfRimText.Key("ClashOfRim.Trade.Disabled"), MessageTypeDefOf.RejectInput, false); return; }
         if (Find.CurrentMap is not { } map) { state.Message = ClashOfRimText.Key("ClashOfRim.Trade.StatusNoMapCreate"); return; }
@@ -55,7 +55,7 @@ internal sealed class ClientTradeActions
         { state.Message = ClashOfRimText.Key("ClashOfRim.Trade.StatusConfigMissingCreate"); return; }
         Find.WindowStack.Add(new TradeOrderDialogWindow(this, map));
     }
-    internal void ConfirmGoods(ModTradeOrderSummaryDto order, Action confirmed)
+    public void ConfirmGoods(ModTradeOrderSummaryDto order, Action confirmed)
     {
         var action = Bind(Capture(), confirmed);
         if (order.OfferedThings is null || order.OfferedThings.All(t => t.StackCount <= 0))

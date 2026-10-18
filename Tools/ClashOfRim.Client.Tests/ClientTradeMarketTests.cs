@@ -227,14 +227,14 @@ internal static class ClientTradeMarketTests
         OfferedThings = new() { new() { DefName = "Steel", StackCount = 3, Metadata = new() { ["label"] = "中文 à" } } } };
     private static ModListTradeOrdersResponseDto Page(params ModTradeOrderSummaryDto[] orders) => new() { Result = Accepted(), Orders = orders.ToList(), TotalCount = 20, HasMore = true };
 
-    private sealed record Call(string Kind, ClashOfRimClientNetworkContext Context, CancellationToken Token, string? Scope = null, int Offset = 0, int Limit = 0,
+    internal sealed record Call(string Kind, ClashOfRimClientNetworkContext Context, CancellationToken Token, string? Scope = null, int Offset = 0, int Limit = 0,
         string? Key = null, string? EventId = null, bool Postage = false, string? Reason = null)
     {
         internal readonly TaskCompletionSource<object> Completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal void Complete(object result) => Completion.SetResult(result);
         internal void Fail(Exception ex) => Completion.SetException(ex);
     }
-    private sealed class Fixture : IDisposable, IClientTradeMarketTransport, IClientTradeMarketPresentation
+    internal sealed class Fixture : IDisposable, IClientTradeMarketTransport, IClientTradeMarketPresentation
     {
         internal readonly EventModuleTestPorts Ports = new();
         internal readonly ClientSynchronizationCoordinator Sync = new(() => DateTime.UtcNow);
