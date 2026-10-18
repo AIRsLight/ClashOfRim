@@ -10,6 +10,27 @@ internal sealed class SessionConnections(LoginSessionRegistry sessions, AuthToke
     OnlinePresenceRegistry online, PlayerOnlineNotificationHub notifications, PlayerSessionActivity players,
     SnapshotMutationCoordinator mutations, PendingConfirmationReconciler pending, RaidTimeouts raids)
 {
+    internal static readonly TimeSpan HeartbeatInterval = TimeSpan.FromSeconds(5);
+
+    internal ProtocolResponse? Check(string userId, string colonyId, string? sessionId, OnlinePresenceLease presence)
+        => ValidateConnection(userId, colonyId, sessionId, presence, refresh: false);
+
+    internal ProtocolResponse? Heartbeat(string userId, string colonyId, string? sessionId, OnlinePresenceLease presence)
+        => ValidateConnection(userId, colonyId, sessionId, presence, refresh: true);
+
+    private ProtocolResponse? ValidateConnection(string userId, string colonyId, string? sessionId, OnlinePresenceLease presence, bool refresh)
+    {
+        using var mutation = mutations.EnterUnrecovered();
+        if (!presence.IsActive())
+            return ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, ServerLocalization.Text("SessionStream.LeaseExpired"));
+        bool valid = refresh ? sessions.Refresh(userId, colonyId, sessionId, DateTimeOffset.UtcNow)
+            : sessions.IsValid(userId, colonyId, sessionId, DateTimeOffset.UtcNow);
+        if (!valid) return ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, ServerLocalization.Text("Auth.SessionExpired"));
+        if (refresh && !presence.Touch())
+            return ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, ServerLocalization.Text("SessionStream.LeaseExpired"));
+        return null;
+    }
+
     internal LogoutResponse Logout(LogoutRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.UserId) || string.IsNullOrWhiteSpace(request.ColonyId)

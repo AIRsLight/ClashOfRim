@@ -87,9 +87,7 @@ public static partial class ClashOfRimNetworkServer
         TradeEndpoints.Map(app, tradeState.Trades, tradeState.TradeMarket);
         SupportEndpoints.Map(app, tradeState.SupportSending, tradeState.Support);
         GiftEndpoints.Map(app, app.Services.GetRequiredService<ClashOfRimNetworkState>().Gifts);
-        SessionEndpoints.Map(app, tradeState.Login, tradeState.SessionConnections, () => tradeState.RuntimeLogger);
-        app.MapGet(ProtocolContractManifest.Find(ProtocolMessageKind.StreamSession).Route, StreamSession).WithMetadata(EndpointSnapshotRecovery.Instance);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.MaintainPresence).Route, MaintainPresence).WithMetadata(EndpointSnapshotRecovery.Instance);
+        SessionEndpoints.Map(app, tradeState.Login, tradeState.SessionConnections, tradeState.SessionPresence, tradeState.SessionNotifications, () => tradeState.RuntimeLogger);
         AccountEndpoints.Map(app, app.Services.GetRequiredService<ClashOfRimNetworkState>().Accounts);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.ListPlayers).Route, ListPlayers);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.ListAchievements).Route, ListAchievements);

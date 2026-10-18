@@ -20,8 +20,6 @@ namespace AIRsLight.ClashOfRim.Network;
 
 public static partial class ClashOfRimNetworkServer
 {
-    private static readonly TimeSpan SessionStreamWaitTimeout = TimeSpan.FromSeconds(5);
-
     private static WorldConfigurationExtensionService ActiveWorldConfigurationExtensions(ClashOfRimNetworkState state)
     {
         return state.Plugins.ActiveWorldConfigurationExtensions(state.CompatibilityBaseline.Current);

@@ -189,6 +189,8 @@ public sealed class ClashOfRimNetworkState
             PendingConfirmations, shopCommits, AdminBaseline, Plugins, CompatibilityBaseline, RuntimeLogger, () => ServerConfiguration);
         EventDelivery = new EventDeliveryService(SnapshotAuthorization, SnapshotMutations, Ledger,
             EventNotifications, OnlinePresence, new SupportDeliveryReconciliation(Ledger, Players, EventNotifications));
+        SessionPresence = new SessionPresence(SessionConnections, () => RuntimeLogger);
+        SessionNotifications = new SessionNotifications(EventNotifications, ChatNotifications, WorldConfigurationNotifications, PlayerOnlineNotifications);
         Login = new LoginService(Accounts, EntryHandshakes, SnapshotMutations, RaidTimeouts, RaidQueries, LoginSessions,
             AuthTokens, WorldConfiguration, EventDelivery, PlayerActivity, EntryLifecycle, WorldMarkers, () => RuntimeLogger);
     }
@@ -262,6 +264,8 @@ public sealed class ClashOfRimNetworkState
     internal RaidMarkerProjection RaidMarkers { get; }
     internal WorldMarkerDelivery WorldMarkers { get; }
     internal LoginService Login { get; }
+    internal SessionPresence SessionPresence { get; }
+    internal SessionNotifications SessionNotifications { get; }
     internal ClientEntryLifecycle EntryLifecycle { get; }
     internal PlayerSessionActivity PlayerActivity { get; }
     internal SessionConnections SessionConnections { get; }
