@@ -93,9 +93,39 @@ internal static class RemoteSnapshotDownloadModuleTests
                 Open(await f.Download());
             }
             await CheckGenericFacade();
+            await CheckProgress();
             CheckMissingResponses();
         }
         finally { CultureInfo.CurrentCulture = culture; ClientSessionWork.Reset(); }
+    }
+
+    private static async Task CheckProgress()
+    {
+        foreach (string scenario in new[] { "success", "metadata-failure", "rejected", "missing-id", "payload-failure", "cancel", "throw" })
+        {
+            using var f = new Fixture(false, "token", null);
+            using var cancel = new CancellationTokenSource();
+            f.FailMetadata = scenario == "metadata-failure"; f.FailPayload = scenario == "payload-failure";
+            if (scenario == "rejected") f.Metadata.Result!.Accepted = false;
+            if (scenario == "missing-id") f.Metadata.SnapshotId = "";
+            int calls = 0;
+            try
+            {
+                var result = await f.DownloadProgress(id =>
+                {
+                    calls++;
+                    Check(f.Calls == 1 && id == "server-é", "Progress was not between matching metadata and payload requests.");
+                    if (scenario == "cancel") cancel.Cancel();
+                    if (scenario == "throw") throw new InvalidOperationException("progress fault");
+                }, cancel.Token);
+                Check(scenario != "throw", "Progress exception was hidden.");
+                if (scenario == "cancel") Failure(result, ClientRemoteSnapshotFailureKind.Payload);
+            }
+            catch (InvalidOperationException ex) when (scenario == "throw" && ex.Message == "progress fault") { }
+            bool startsPayload = scenario is "success" or "payload-failure" or "cancel" or "throw";
+            Check(calls == (startsPayload ? 1 : 0) && f.Calls == (scenario is "success" or "payload-failure" ? 2 : 1),
+                "Download progress repeated, reported rejected metadata or initiated a cancelled request.");
+        }
     }
 
     private static async Task CheckInterrupted(bool facade, bool payload, bool resetSession)
@@ -177,6 +207,9 @@ internal static class RemoteSnapshotDownloadModuleTests
         internal Task<RemoteSnapshotDownloadResult> Download(CancellationToken token = default) => facade
             ? new RemoteSnapshotDownloadService(Facade).DownloadAsync(Request, token)
             : module.DownloadAsync(new(Request.UserId, Request.ColonyId, Request.AuthorizationEventId, Request.AuthorizationScope), token);
+
+        internal Task<RemoteSnapshotDownloadResult> DownloadProgress(Action<string> progress, CancellationToken token) =>
+            module.DownloadAsync(new(Request.UserId, Request.ColonyId, Request.AuthorizationEventId, Request.AuthorizationScope), token, progress);
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken token)
         {

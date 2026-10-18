@@ -1,7 +1,7 @@
 using System;
 using AIRsLight.ClashOfRim.Modules.Synchronization;
 using System.Collections.Generic;
-using System.Globalization;
+using AIRsLight.ClashOfRim.Modules.Snapshots;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
@@ -626,45 +626,29 @@ public sealed partial class ClashOfRimMod
                     }
 
                     sessionLifecycle.PublishLogin(login.Response);
-                    client = new ClashOfRimModNetworkClient(
-                        httpClient,
-                        ClashOfRimClientNetworkContext.FromSettings(settings));
                 }
 
-                using (ClientSessionWork.EnterPublication())
-                {
-                    ShowServerEntryProgressWindow(ClashOfRimText.Key("ClashOfRim.ServerEntry.Title"), ClashOfRimText.Key("ClashOfRim.ServerEntry.StageMetadata"), 0.35f, canClose: false);
-                }
-                ClashOfRimClientNetworkResult<ModDownloadLatestSnapshotResponseDto> result =
-                    await ClientSessionWork.Observe(client.DownloadLatestSnapshotAsync());
-                ClashOfRimClientNetworkResult<byte[]>? payloadResult = null;
-                if (result.Success
-                    && result.Response?.Result?.Accepted == true
-                    && !string.IsNullOrWhiteSpace(result.Response.SnapshotId ?? result.Response.Package?.SnapshotId))
-                {
-                    string snapshotIdForProgress = result.Response.SnapshotId ?? result.Response.Package!.SnapshotId;
-                    using (ClientSessionWork.EnterPublication())
+                // Freeze the download identity after any login. The loaded result must
+                // still belong to this identity, base snapshot and source game.
+                var downloadOwner = sessionLifecycle.CaptureOwnership();
+                var downloadContext = sessionLifecycle.ReadContext();
+                var sourceGame = new ClientSnapshotGame().BindCurrentGame();
+                bool OwnsDownload() => sourceGame.IsCurrent && sessionLifecycle.Owns(downloadOwner, downloadContext, requireSnapshot: true);
+                void Progress(string message, float progress)
+                    => EnqueueClashOfRimMainThreadAction(() => ClientSessionWork.TryApply(() =>
                     {
-                        ShowServerEntryProgressWindow(ClashOfRimText.Key("ClashOfRim.ServerEntry.Title"), ClashOfRimText.Key("ClashOfRim.ServerEntry.StagePayload", snapshotIdForProgress.Named("SNAPSHOT")), 0.58f, canClose: false);
-                    }
-                    payloadResult = await ClientSessionWork.Observe(client.DownloadLatestSnapshotPayloadAsync(
-                        snapshotIdForProgress));
-                }
-
+                        if (OwnsDownload()) ShowServerEntryProgressWindowNow(ClashOfRimText.Key("ClashOfRim.ServerEntry.Title"), message, progress, canClose: false);
+                    }));
+                Progress(ClashOfRimText.Key("ClashOfRim.ServerEntry.StageMetadata"), 0.35f);
+                var result = await ClientSessionWork.Observe(colonySnapshotDownload.DownloadAsync(downloadContext,
+                    downloadOwner.Token, snapshot => Progress(ClashOfRimText.Key("ClashOfRim.ServerEntry.StagePayload", snapshot.Named("SNAPSHOT")), 0.58f)));
                 using var publication = ClientSessionWork.EnterPublication();
-                ShowServerEntryProgressWindow(
-                    ClashOfRimText.Key("ClashOfRim.ServerEntry.Title"),
-                    ClashOfRimText.Key("ClashOfRim.ServerEntry.StageValidate"),
-                    0.82f,
-                    canClose: false);
+                if (!OwnsDownload()) return;
                 operation.QueueContinuation(EnqueueClashOfRimMainThreadAction, next =>
-                    FinishRestoreExistingColonySnapshot(
-                        expected,
-                        result,
-                        payloadResult,
-                        restoreFailureCallback,
-                        allowDifferentSnapshotId,
-                        worldConfiguration));
+                {
+                    if (!OwnsDownload()) return;
+                    FinishRestoreExistingColonySnapshot(expected, result, restoreFailureCallback, allowDifferentSnapshotId, worldConfiguration);
+                });
             }
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
@@ -685,52 +669,18 @@ public sealed partial class ClashOfRimMod
 
     private void FinishRestoreExistingColonySnapshot(
         string expectedSnapshotId,
-        ClashOfRimClientNetworkResult<ModDownloadLatestSnapshotResponseDto> result,
-        ClashOfRimClientNetworkResult<byte[]>? payloadResult,
+        ClientColonySnapshotDownloadResult result,
         Action<string>? restoreFailureCallback,
         bool allowDifferentSnapshotId,
         ModWorldConfigurationDto? worldConfiguration)
     {
-        if (!result.Success || result.Response is null)
+        if (result.Snapshot is not { } snapshot)
         {
-            loginStatus = ClashOfRimText.Key(
-                "ClashOfRim.DownloadExistingSnapshotFailed",
-                result.ErrorCode.Named("CODE"),
-                result.Message.Named("MESSAGE"));
+            loginStatus = ClientSnapshotRestorePresentation.Format(result.Failure!);
             ReportRestoreExistingColonySnapshotFailure(loginStatus, restoreFailureCallback);
             return;
         }
-
-        ModDownloadLatestSnapshotResponseDto response = result.Response;
-        if (response.Result?.Accepted != true)
-        {
-            loginStatus = ClashOfRimText.Key(
-                "ClashOfRim.DownloadExistingSnapshotRejected",
-                (response.Result?.Message ?? ClashOfRimText.Key("ClashOfRim.UnknownReason")).Named("REASON"));
-            ReportRestoreExistingColonySnapshotFailure(loginStatus, restoreFailureCallback);
-            return;
-        }
-
-        ModSnapshotPackageMetadataDto? package = response.Package;
-        string? snapshotId = response.SnapshotId ?? package?.SnapshotId;
-        if (package is null || string.IsNullOrWhiteSpace(snapshotId))
-        {
-            loginStatus = ClashOfRimText.Key("ClashOfRim.DownloadExistingSnapshotMissingPackage");
-            ReportRestoreExistingColonySnapshotFailure(loginStatus, restoreFailureCallback);
-            return;
-        }
-
-        if (!string.Equals(package.OwnerId, settings.UserId, StringComparison.Ordinal)
-            || !string.Equals(package.ColonyId, settings.ColonyId, StringComparison.Ordinal))
-        {
-            loginStatus = ClashOfRimText.Key(
-                "ClashOfRim.DownloadExistingSnapshotMismatch",
-                $"{settings.UserId}/{settings.ColonyId}".Named("EXPECTED"),
-                $"{package.OwnerId}/{package.ColonyId}".Named("ACTUAL"));
-            ReportRestoreExistingColonySnapshotFailure(loginStatus, restoreFailureCallback);
-            return;
-        }
-
+        string snapshotId = snapshot.SnapshotId;
         if (!allowDifferentSnapshotId && !string.Equals(snapshotId, expectedSnapshotId, StringComparison.Ordinal))
         {
             ClashLog.Message(
@@ -745,39 +695,15 @@ public sealed partial class ClashOfRimMod
                 + ". Accepting server-authoritative latest snapshot.");
         }
 
-        if (payloadResult is null || !payloadResult.Success || payloadResult.Response is null)
-        {
-            loginStatus = ClashOfRimText.Key(
-                "ClashOfRim.DownloadExistingSnapshotPayloadFailed",
-                (payloadResult?.ErrorCode ?? "MissingPayload").Named("CODE"),
-                (payloadResult?.Message ?? ClashOfRimText.Key("ClashOfRim.UnknownReason")).Named("MESSAGE"));
-            ReportRestoreExistingColonySnapshotFailure(loginStatus, restoreFailureCallback);
-            return;
-        }
-
-        if (!ServerSnapshotRestoreService.TryBuildServerSessionSaveBytes(
-                package,
-                payloadResult.Response,
-                settings.UserId,
-                settings.ColonyId,
-                out string saveName,
-                out byte[] saveBytes,
-                out string failureReason))
-        {
-            loginStatus = failureReason;
-            ReportRestoreExistingColonySnapshotFailure(loginStatus, restoreFailureCallback);
-            return;
-        }
-
         settings.CurrentSnapshotId = snapshotId!;
-        settings.CurrentLineageToken = package.NextLineageToken ?? string.Empty;
+        settings.CurrentLineageToken = snapshot.LineageToken;
         settings.Write();
         ClashLog.Message(
             "[ClashOfRim] Restored server snapshot to memory: snapshot="
             + snapshotId
             + ", saveName="
-            + saveName);
-        ModActiveRaidRecoveryDto? activeRaidRecovery = response.ActiveRaidRecovery;
+            + snapshot.SaveName);
+        ModActiveRaidRecoveryDto? activeRaidRecovery = snapshot.ActiveRaidRecovery;
         loginStatus = ClashOfRimText.Key(
             "ClashOfRim.ExistingSnapshotRestored",
             snapshotId.Named("SNAPSHOT"));
@@ -788,7 +714,7 @@ public sealed partial class ClashOfRimMod
             canClose: false);
         CloseUnconfirmedSnapshotFailureWindow();
         CloseServerEntryProgressWindowNow();
-        ServerSessionGameDataLoader.LoadGame(saveBytes, saveName, () =>
+        ServerSessionGameDataLoader.LoadGame(snapshot.SaveBytes, snapshot.SaveName, () =>
         {
             ClearServerEntrySourceGameBlock("server-snapshot-loaded");
             if (worldConfiguration is not null)

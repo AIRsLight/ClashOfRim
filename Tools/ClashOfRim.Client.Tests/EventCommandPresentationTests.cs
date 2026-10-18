@@ -22,6 +22,20 @@ using Verse;
 
 internal static class EventCommandPresentationTests
 {
+    private static void SnapshotRestorePresentation()
+    {
+        foreach (var kind in Enum.GetValues<ClientSnapshotRestoreFailureKind>())
+            RequireResolved(ClientSnapshotRestorePresentation.Format(new ClientSnapshotRestoreFailure(kind, "detail-é")));
+        foreach (var kind in Enum.GetValues<ClientColonySnapshotFailureKind>())
+            RequireResolved(ClientSnapshotRestorePresentation.Format(new ClientColonySnapshotFailure(kind,
+                "code-é", "message-é", "expected-é", "actual-é", new(ClientSnapshotRestoreFailureKind.OriginalHashMismatch))));
+        var mismatch = ClientSnapshotRestorePresentation.Format(new ClientColonySnapshotFailure(ClientColonySnapshotFailureKind.SnapshotId,
+            Expected: "expected-é", Actual: "actual-é"));
+        if (!mismatch.Contains("expected-é") || !mismatch.Contains("actual-é")) throw new Exception("Restore lost conflicting snapshot IDs.");
+        if (ServerSnapshotRestoreService.TryBuildServerSessionSaveBytes(null!, Array.Empty<byte>(), "u", "c", out _, out _, out string error))
+            throw new Exception("Public restore facade accepted a missing package.");
+        RequireResolved(error);
+    }
     private static Dictionary<string, string> translations = new();
     private static readonly List<(string? User, FactionRelationKind Relation)> relations = new();
     private static bool relationAvailable;
@@ -57,6 +71,7 @@ internal static class EventCommandPresentationTests
                 TradePresentation();
                 ShopPresentation();
                 RaidSettlementPresentation();
+                SnapshotRestorePresentation();
                 foreach (var purpose in Enum.GetValues<ClientEventConfirmationPurpose>())
                 {
                     var notice = new ClientEventConfirmationNotice(purpose, ClientEventConfirmationStage.Uploading,

@@ -20,8 +20,8 @@ internal sealed class ClientObservationTransport : IClientObservationTransport
             .LoginAsync(context, "observation", null, token, captureReceipt).ConfigureAwait(false);
     }
     public Task<RemoteSnapshotDownloadResult> DownloadAsync(ClashOfRimClientNetworkContext context,
-        ClientSnapshotDownloadTarget target, CancellationToken token)
-        => new ClientRemoteSnapshotTransport().DownloadAsync(context, target, token);
+        ClientSnapshotDownloadTarget target, CancellationToken token, Action<string>? payloadStarting = null)
+        => new ClientRemoteSnapshotTransport().DownloadAsync(context, target, token, payloadStarting);
     private static HttpClient CreateHttp() => new() { Timeout = TimeSpan.FromSeconds(60) };
     private static ClientProtocolTransport Protocol(HttpClient http, ClashOfRimClientNetworkContext context) =>
         new(http, context, new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner)));

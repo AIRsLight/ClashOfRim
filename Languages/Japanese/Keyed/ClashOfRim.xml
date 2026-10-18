@@ -313,6 +313,7 @@
   <ClashOfRim.AutosaveSnapshot.SkippedAtomic>自動セーブのアップロードをスキップしました: {REASON}</ClashOfRim.AutosaveSnapshot.SkippedAtomic>
   <ClashOfRim.AutosaveSnapshot.SkippedBusy>自動セーブのアップロードをスキップしました: 同期が既に実行中です。</ClashOfRim.AutosaveSnapshot.SkippedBusy>
   <ClashOfRim.AutosaveSnapshot.SkippedNoSession>自動セーブのアップロードをスキップしました: 追跡中のマルチプレイセーブがありません。</ClashOfRim.AutosaveSnapshot.SkippedNoSession>
+  <ClashOfRim.SnapshotRestore.SnapshotIdMismatch>ダウンロードしたスナップショット ID がパッケージと一致しません。期待値：{EXPECTED}、実際：{ACTUAL}。</ClashOfRim.SnapshotRestore.SnapshotIdMismatch>
   <ClashOfRim.SnapshotRestore.PackageMissing>サーバーがセーブ内容を返しませんでした。</ClashOfRim.SnapshotRestore.PackageMissing>
   <ClashOfRim.SnapshotRestore.PayloadSizeMismatch>サーバーセーブのサイズが一致しません。</ClashOfRim.SnapshotRestore.PayloadSizeMismatch>
   <ClashOfRim.SnapshotRestore.PayloadHashMismatch>サーバーセーブの検査に失敗しました。</ClashOfRim.SnapshotRestore.PayloadHashMismatch>

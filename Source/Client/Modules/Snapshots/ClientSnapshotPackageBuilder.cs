@@ -1,8 +1,6 @@
 using System;
 using System.Globalization;
 using System.IO;
-using System.IO.Compression;
-using System.Security.Cryptography;
 using System.Xml;
 using System.Xml.Linq;
 using AIRsLight.ClashOfRim.ClientNetwork;
@@ -34,9 +32,9 @@ internal static class ClientSnapshotPackageBuilder
 
         try
         {
-            string originalSha256 = Sha256Hex(originalPayload);
-            byte[] encodedPayload = Gzip(originalPayload);
-            string payloadSha256 = Sha256Hex(encodedPayload);
+            string originalSha256 = ClientSnapshotPayloadCodec.Hash(originalPayload);
+            byte[] encodedPayload = ClientSnapshotPayloadCodec.Encode(originalPayload);
+            string payloadSha256 = ClientSnapshotPayloadCodec.Hash(encodedPayload);
             string snapshotId = BuildSnapshotId(colonyId, utcNow, originalSha256);
             string? gameVersion = ReadGameVersion(originalPayload);
             long? gameTicks = ReadGameTicks(originalPayload);
@@ -70,24 +68,6 @@ internal static class ClientSnapshotPackageBuilder
         {
             return ModSnapshotPackageBuildResult.Failed(ex.GetType().Name, ex.Message);
         }
-    }
-
-    private static byte[] Gzip(byte[] payload)
-    {
-        using var target = new MemoryStream();
-        using (var gzip = new GZipStream(target, CompressionMode.Compress, leaveOpen: true))
-        {
-            gzip.Write(payload, 0, payload.Length);
-        }
-
-        return target.ToArray();
-    }
-
-    private static string Sha256Hex(byte[] payload)
-    {
-        using SHA256 sha256 = SHA256.Create();
-        byte[] hash = sha256.ComputeHash(payload);
-        return BitConverter.ToString(hash).Replace("-", string.Empty).ToLowerInvariant();
     }
 
     private static string BuildSnapshotId(string colonyId, DateTime utcNow, string originalSha256)

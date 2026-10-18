@@ -313,6 +313,7 @@
   <ClashOfRim.AutosaveSnapshot.SkippedAtomic>Загрузка автосохранения пропущена: {REASON}</ClashOfRim.AutosaveSnapshot.SkippedAtomic>
   <ClashOfRim.AutosaveSnapshot.SkippedBusy>Загрузка автосохранения пропущена: синхронизация уже выполняется.</ClashOfRim.AutosaveSnapshot.SkippedBusy>
   <ClashOfRim.AutosaveSnapshot.SkippedNoSession>Загрузка автосохранения пропущена: нет отслеживаемого мультиплеерного сохранения.</ClashOfRim.AutosaveSnapshot.SkippedNoSession>
+  <ClashOfRim.SnapshotRestore.SnapshotIdMismatch>ID загруженного снимка не совпадает с пакетом: ожидалось {EXPECTED}, получено {ACTUAL}.</ClashOfRim.SnapshotRestore.SnapshotIdMismatch>
   <ClashOfRim.SnapshotRestore.PackageMissing>Сервер не вернул содержимое сохранения.</ClashOfRim.SnapshotRestore.PackageMissing>
   <ClashOfRim.SnapshotRestore.PayloadSizeMismatch>Размер серверного сохранения не совпадает.</ClashOfRim.SnapshotRestore.PayloadSizeMismatch>
   <ClashOfRim.SnapshotRestore.PayloadHashMismatch>Проверка серверного сохранения не прошла.</ClashOfRim.SnapshotRestore.PayloadHashMismatch>

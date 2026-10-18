@@ -89,6 +89,7 @@ public sealed partial class ClashOfRimMod : Mod
     private readonly ClientRaidLaunching raidLaunching;
     private readonly ClientRaidSettlements raidSettlements;
     private readonly ClientRaidRecovery raidRecovery;
+    private readonly ClientColonySnapshotDownload colonySnapshotDownload;
     internal ClientGiftActions GiftActions => giftActions;
     private readonly ClientEventConfirmationWorkflow eventConfirmations;
     private readonly ClientEventApplications eventApplications;
@@ -251,6 +252,7 @@ public sealed partial class ClashOfRimMod : Mod
         raidRecovery = new ClientRaidRecovery(sessionLifecycle, new ClientSnapshotGame(), snapshotFailureRecovery, raidSettlements,
             new ClientRaidRecoveryPresentation(message => worldMapStatus = message));
         raidRecovery.ReloadRequested += StartConfirmSettledRaidCleanupSnapshot;
+        colonySnapshotDownload = new ClientColonySnapshotDownload(new ClientRemoteSnapshotTransport());
         observationMaps = new ClientObservationMaps(sessionLifecycle, synchronization, new ClientSnapshotGame(),
             new ClientObservationTransport(), new ClientObservationRuntime(),
             new ClientObservationPresentation(message => worldMapStatus = message, response => ShowCompatibilityMismatchWindow(response)));

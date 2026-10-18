@@ -19,6 +19,7 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("colony snapshot restore owns downloads, identity validation and loadable bytes", ClientColonySnapshotDownloadTests.Run),
     ("raid recovery owns loaded-game readiness and authoritative deadline decisions", ClientRaidRecoveryTests.Run),
     ("raid settlements own evidence, stable retries and cleanup handoff", ClientRaidSettlementTests.Run),
     ("raid support loss sources retain exact battle pawn and assignment ownership", ClientRaidSupportLossSourceTests.Run),

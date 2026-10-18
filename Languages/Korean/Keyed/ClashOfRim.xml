@@ -313,6 +313,7 @@
   <ClashOfRim.AutosaveSnapshot.SkippedAtomic>자동 저장 업로드를 건너뜀: {REASON}</ClashOfRim.AutosaveSnapshot.SkippedAtomic>
   <ClashOfRim.AutosaveSnapshot.SkippedBusy>자동 저장 업로드를 건너뜀: 동기화가 이미 실행 중입니다.</ClashOfRim.AutosaveSnapshot.SkippedBusy>
   <ClashOfRim.AutosaveSnapshot.SkippedNoSession>자동 저장 업로드를 건너뜀: 추적 중인 멀티플레이 저장이 없습니다.</ClashOfRim.AutosaveSnapshot.SkippedNoSession>
+  <ClashOfRim.SnapshotRestore.SnapshotIdMismatch>다운로드한 스냅샷 ID가 패키지와 일치하지 않습니다. 예상: {EXPECTED}, 실제: {ACTUAL}.</ClashOfRim.SnapshotRestore.SnapshotIdMismatch>
   <ClashOfRim.SnapshotRestore.PackageMissing>서버가 저장 내용을 반환하지 않았습니다.</ClashOfRim.SnapshotRestore.PackageMissing>
   <ClashOfRim.SnapshotRestore.PayloadSizeMismatch>서버 저장 크기가 일치하지 않습니다.</ClashOfRim.SnapshotRestore.PayloadSizeMismatch>
   <ClashOfRim.SnapshotRestore.PayloadHashMismatch>서버 저장 검사에 실패했습니다.</ClashOfRim.SnapshotRestore.PayloadHashMismatch>

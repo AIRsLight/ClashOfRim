@@ -196,7 +196,7 @@ internal static class ClientObservationMapsTests
                 : ClashOfRimClientNetworkResult<ModLoginResponseDto>.Ok(Receipt);
         }
         public async Task<RemoteSnapshotDownloadResult> DownloadAsync(ClashOfRimClientNetworkContext context,
-            ClientSnapshotDownloadTarget target, CancellationToken token)
+            ClientSnapshotDownloadTarget target, CancellationToken token, Action<string>? payloadStarting = null)
         {
             DownloadCalls++; DownloadContext = context; DownloadTarget = target; DownloadEntered.TrySetResult();
             if (HoldDownload is not null) await HoldDownload.Task.WaitAsync(TimeSpan.FromSeconds(5));

@@ -83,7 +83,7 @@ internal static class ClientRaidPreparationTests
             return Task.FromResult(Failure == "transport" ? ClashOfRimClientNetworkResult<ModPrepareRaidResponseDto>.Failed("offline", "network-é")
                 : ClashOfRimClientNetworkResult<ModPrepareRaidResponseDto>.Ok(Failure == "response" ? null! : Response));
         }
-        public Task<RemoteSnapshotDownloadResult> DownloadAsync(ClashOfRimClientNetworkContext owner, ClientSnapshotDownloadTarget target, CancellationToken token)
+        public Task<RemoteSnapshotDownloadResult> DownloadAsync(ClashOfRimClientNetworkContext owner, ClientSnapshotDownloadTarget target, CancellationToken token, Action<string>? payloadStarting = null)
         {
             Check(ReferenceEquals(owner, context) && target == new ClientSnapshotDownloadTarget("target", "target-colony", "prepare-é", "RaidPreparation"),
                 "Target download did not use the accepted preparation as its authorization.");

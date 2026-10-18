@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using AIRsLight.ClashOfRim.ClientNetwork;
@@ -12,13 +13,16 @@ internal sealed class ClientRemoteSnapshotDownload
     internal ClientRemoteSnapshotDownload(ClientSnapshotDownloadProtocol protocol) => this.protocol = protocol;
 
     internal async Task<RemoteSnapshotDownloadResult> DownloadAsync(ClientSnapshotDownloadTarget target,
-        CancellationToken token = default)
+        CancellationToken token = default, Action<string>? payloadStarting = null)
     {
         var metadata = await protocol.MetadataAsync(target, token).ConfigureAwait(false);
         ClashOfRimClientNetworkResult<byte[]>? payload = null;
         string? snapshotId = SnapshotId(metadata.Response);
         if (metadata.Success && metadata.Response?.Result?.Accepted == true && !string.IsNullOrWhiteSpace(snapshotId))
+        {
+            payloadStarting?.Invoke(snapshotId!);
             payload = await protocol.PayloadAsync(target, snapshotId!, token).ConfigureAwait(false);
+        }
         return new RemoteSnapshotDownloadResult(metadata, payload);
     }
 

@@ -312,6 +312,7 @@
   <ClashOfRim.AutosaveSnapshot.SkippedAtomic>Auto save upload skipped: {REASON}</ClashOfRim.AutosaveSnapshot.SkippedAtomic>
   <ClashOfRim.AutosaveSnapshot.SkippedBusy>Auto save upload skipped: sync is already running.</ClashOfRim.AutosaveSnapshot.SkippedBusy>
   <ClashOfRim.AutosaveSnapshot.SkippedNoSession>Auto save upload skipped: no tracked multiplayer save is active.</ClashOfRim.AutosaveSnapshot.SkippedNoSession>
+  <ClashOfRim.SnapshotRestore.SnapshotIdMismatch>The downloaded snapshot ID does not match its package: expected {EXPECTED}, actual {ACTUAL}.</ClashOfRim.SnapshotRestore.SnapshotIdMismatch>
   <ClashOfRim.SnapshotRestore.PackageMissing>The server did not return save contents.</ClashOfRim.SnapshotRestore.PackageMissing>
   <ClashOfRim.SnapshotRestore.PayloadSizeMismatch>The server save size does not match.</ClashOfRim.SnapshotRestore.PayloadSizeMismatch>
   <ClashOfRim.SnapshotRestore.PayloadHashMismatch>The server save failed check.</ClashOfRim.SnapshotRestore.PayloadHashMismatch>

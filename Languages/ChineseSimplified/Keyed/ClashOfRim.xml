@@ -312,6 +312,7 @@
   <ClashOfRim.AutosaveSnapshot.SkippedAtomic>自动保存已跳过：{REASON}</ClashOfRim.AutosaveSnapshot.SkippedAtomic>
   <ClashOfRim.AutosaveSnapshot.SkippedBusy>自动保存已跳过：当前已有保存正在进行。</ClashOfRim.AutosaveSnapshot.SkippedBusy>
   <ClashOfRim.AutosaveSnapshot.SkippedNoSession>自动保存已跳过：当前多人会话没有服务器存档记录。</ClashOfRim.AutosaveSnapshot.SkippedNoSession>
+  <ClashOfRim.SnapshotRestore.SnapshotIdMismatch>下载的快照 ID 与存档包不一致。期望：{EXPECTED}，实际：{ACTUAL}。</ClashOfRim.SnapshotRestore.SnapshotIdMismatch>
   <ClashOfRim.SnapshotRestore.PackageMissing>服务器没有返回存档内容。</ClashOfRim.SnapshotRestore.PackageMissing>
   <ClashOfRim.SnapshotRestore.PayloadSizeMismatch>服务器存档大小不一致。</ClashOfRim.SnapshotRestore.PayloadSizeMismatch>
   <ClashOfRim.SnapshotRestore.PayloadHashMismatch>服务器存档检查失败。</ClashOfRim.SnapshotRestore.PayloadHashMismatch>

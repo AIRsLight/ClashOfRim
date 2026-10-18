@@ -214,7 +214,7 @@ internal static class ClientRaidLaunchingTests
         { Prepared++; Preparing.TrySetResult(); return PrepareHold?.Task ?? Task.FromResult(PrepareReply()); }
         internal ClashOfRimClientNetworkResult<ModPrepareRaidResponseDto> PrepareReply() => ClashOfRimClientNetworkResult<ModPrepareRaidResponseDto>.Ok(new()
         { Result = new() { Accepted = Fault != "prepare" }, RaidEventId = "raid", RaidPreparationId = "preparation", GuardDeployment = new() { ContractId = "guard" } });
-        public Task<RemoteSnapshotDownloadResult> DownloadAsync(ClashOfRimClientNetworkContext context, ClientSnapshotDownloadTarget target, CancellationToken token)
+        public Task<RemoteSnapshotDownloadResult> DownloadAsync(ClashOfRimClientNetworkContext context, ClientSnapshotDownloadTarget target, CancellationToken token, Action<string>? payloadStarting = null)
         {
             Downloaded++; Check(target == new ClientSnapshotDownloadTarget("defender", "there", "preparation", ClientRemoteMapModes.RaidPreparation), "Download authorization changed.");
             return Task.FromResult(new RemoteSnapshotDownloadResult(ClashOfRimClientNetworkResult<ModDownloadLatestSnapshotResponseDto>.Ok(new()
