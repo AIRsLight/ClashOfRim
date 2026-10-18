@@ -438,7 +438,7 @@ public sealed partial class ClashOfRimMod : Mod
         sessionLifecycle.Ended += ClearTransientMultiplayerSessionStateForExit;
         synchronization.SnapshotChanged += PresentSnapshotTransaction;
         sessionLifecycle.LogoutFailed += message => Log.Warning("[ClashOfRim] " + message);
-        sessionConnection.StatusChanged += PresentConnectionStatus;
+        _ = new ClientConnectionStatus(sessionLifecycle, sessionConnection, new ClientConnectionStatusPresentation(message => presenceStatus = message));
         sessionConnection.ConnectionLost += HandleSessionDisconnected;
         var harmony = new Harmony(PackageId);
         ClashOfRimCompatibilityApi.BeginRegistrationCycle(PackageId);

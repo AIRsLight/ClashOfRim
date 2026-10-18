@@ -208,8 +208,8 @@ internal static class SessionWebSocketTransportTests
         var connection = new ClientSessionConnection(new ClientSessionWebSocketTransport(new Factory(socket), new Metadata()));
         var statuses = new List<SessionConnectionStatus>();
         string? lost = null;
-        connection.StatusChanged += statuses.Add;
-        connection.ConnectionLost += session => lost = session;
+        connection.StatusChanged += (status, _) => statuses.Add(status);
+        connection.ConnectionLost += source => lost = source.SessionId;
         await connection.Start(Context, "owned-session", 0, 0).WaitAsync(TimeSpan.FromSeconds(2));
         Require(!connection.IsRunning && lost == "owned-session"
             && statuses.Last().Phase == SessionConnectionPhase.Failed && statuses.Last().ErrorCode == nameof(WebSocketException),

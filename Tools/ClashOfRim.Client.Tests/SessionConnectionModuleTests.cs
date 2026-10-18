@@ -16,6 +16,15 @@ internal static class SessionConnectionModuleTests
     {
         try
         {
+            await ObserverFailureCleanup();
+            foreach (var phase in new[] { SessionConnectionPhase.Connecting, SessionConnectionPhase.Disconnecting, SessionConnectionPhase.Closed,
+                SessionConnectionPhase.Failed, SessionConnectionPhase.Exception, SessionConnectionPhase.SessionMissing, SessionConnectionPhase.NotConfigured })
+                foreach (string change in new[] { "replace", "stop", "reset", "diagnostic" }) await ReentrantStatusSubscribers(phase, change);
+            await ReentrantLossSubscribers();
+            foreach (bool cancelCallback in new[] { false, true }) await ReentrantStopCancellation(cancelCallback);
+            foreach (bool replace in new[] { false, true }) await ThrowAfterReplacement(replace);
+            foreach (string ending in new[] { "close", "failure", "exception" })
+                foreach (bool throwLoss in new[] { false, true }) await TerminalObserverFailure(ending, throwLoss);
             await InvalidStart();
             foreach (bool reset in new[] { false, true }) await ReplaceConnection(reset);
             foreach (string ending in new[] { "close", "cancel", "failure", "exception", "stop", "reset" }) await EndConnection(ending);
@@ -27,13 +36,153 @@ internal static class SessionConnectionModuleTests
         finally { ClientSessionWork.Reset(); }
     }
 
+    private static async Task ReentrantStatusSubscribers(SessionConnectionPhase phase, string change)
+    {
+        ClientSessionWork.Reset(); var transport = new SessionConnectionTestTransport(); var connection = new ClientSessionConnection(transport);
+        Task? original = null, replacement = null; SessionConnectionTestTransport.Pending? pending = null;
+        if (phase is SessionConnectionPhase.Disconnecting or SessionConnectionPhase.Closed or SessionConnectionPhase.Failed or SessionConnectionPhase.Exception)
+        { original = connection.Start(Context, "same", 0, 0); pending = await transport.Next(); }
+        SessionConnectionStatus? trigger = null; ClientSessionConnection.Publication? receipt = null; int stale = 0;
+        connection.StatusChanged += (status, source) =>
+        {
+            if (trigger is not null || status.Phase != phase) return;
+            trigger = status; receipt = source;
+            switch (change)
+            {
+                case "replace": replacement = connection.Start(Context, "same", 0, 0); break;
+                case "stop": connection.Stop(); break;
+                case "reset": ClientSessionWork.Reset(); break;
+                case "diagnostic": _ = connection.Start(Context, null, 0, 0); break;
+            }
+        };
+        connection.StatusChanged += (status, _) => { if (ReferenceEquals(status, trigger)) stale++; };
+        if (phase == SessionConnectionPhase.Connecting) original = connection.Start(Context, "same", 0, 0);
+        else if (phase == SessionConnectionPhase.SessionMissing) await connection.Start(Context, null, 0, 0);
+        else if (phase == SessionConnectionPhase.NotConfigured) await connection.Start(new("", "", "", null, null, null, null), "same", 0, 0);
+        else if (phase == SessionConnectionPhase.Disconnecting) connection.Stop();
+        if (pending is not null)
+        {
+            if (phase == SessionConnectionPhase.Exception) pending.Result.SetException(new InvalidOperationException("transport"));
+            else pending.Result.SetResult(phase == SessionConnectionPhase.Failed ? ClashOfRimClientNetworkResult<ModSessionStreamClosedDto>.Failed("network", "failure")
+                : ClashOfRimClientNetworkResult<ModSessionStreamClosedDto>.Ok(new(phase == SessionConnectionPhase.Disconnecting)));
+            await original!;
+        }
+        // An invalid start changes only the displayed status; it must not stop the live stream.
+        if (phase == SessionConnectionPhase.Connecting && change == "diagnostic")
+        {
+            var active = await transport.Next(); connection.Stop(false);
+            active.Result.SetResult(ClashOfRimClientNetworkResult<ModSessionStreamClosedDto>.Ok(new(true))); await original!;
+        }
+        else if (phase == SessionConnectionPhase.Connecting) await original!;
+        bool replayed = false; receipt?.TryApply(() => replayed = true);
+        Require(trigger is not null && stale == 0 && !replayed, "Superseded status reached another subscriber or replay: " + phase + "/" + change);
+        if (replacement is not null)
+        {
+            var active = await transport.Next(); Require(connection.IsRunning, "Stale completion removed replacement.");
+            connection.Stop(false); active.Result.SetResult(ClashOfRimClientNetworkResult<ModSessionStreamClosedDto>.Ok(new(true))); await replacement;
+        }
+        connection.Stop(false);
+    }
+
+    private static async Task ReentrantLossSubscribers()
+    {
+        ClientSessionWork.Reset(); var transport = new SessionConnectionTestTransport(); var connection = new ClientSessionConnection(transport);
+        Task? replacement = null; int stale = 0; ClientSessionConnection.Observation? receipt = null;
+        connection.ConnectionLost += source => { receipt = source; replacement = connection.Start(Context, "same", 0, 0); };
+        connection.ConnectionLost += _ => stale++;
+        var work = connection.Start(Context, "same", 0, 0); var pending = await transport.Next();
+        pending.Result.SetResult(ClashOfRimClientNetworkResult<ModSessionStreamClosedDto>.Ok(new(false))); await work;
+        bool replayed = false; receipt!.TryApply(() => replayed = true);
+        var active = await transport.Next();
+        Require(stale == 0 && !replayed && connection.IsRunning && receipt.Context.AuthToken == Context.AuthToken, "Old loss callback escaped source ownership.");
+        connection.Stop(false); active.Result.SetResult(ClashOfRimClientNetworkResult<ModSessionStreamClosedDto>.Ok(new(true))); await replacement!;
+    }
+
+    private static async Task ReentrantStopCancellation(bool cancelCallback)
+    {
+        ClientSessionWork.Reset(); var transport = new SessionConnectionTestTransport(); var connection = new ClientSessionConnection(transport);
+        var work = connection.Start(Context, "same", 0, 0); var pending = await transport.Next();
+        Task? replacement = null; int stopping = 0;
+        void Replace() { Require(pending.Token.IsCancellationRequested, "Stop observer reopened before source cancellation."); replacement = connection.Start(Context, "same", 0, 0); }
+        using var registration = cancelCallback ? pending.Token.Register(Replace) : default;
+        connection.StatusChanged += (status, _) => { if (status.Phase == SessionConnectionPhase.Disconnecting) { stopping++; if (!cancelCallback) Replace(); } };
+        connection.Stop(); var active = await transport.Next();
+        pending.Result.SetResult(ClashOfRimClientNetworkResult<ModSessionStreamClosedDto>.Ok(new(true))); await work;
+        Require(stopping == (cancelCallback ? 0 : 1) && connection.IsRunning, "Stop callback overrode its replacement.");
+        connection.Stop(false); active.Result.SetResult(ClashOfRimClientNetworkResult<ModSessionStreamClosedDto>.Ok(new(true))); await replacement!;
+    }
+
+    private static async Task ThrowAfterReplacement(bool stop)
+    {
+        ClientSessionWork.Reset(); var transport = new SessionConnectionTestTransport(); var connection = new ClientSessionConnection(transport);
+        Task? original = null, replacement = null; SessionConnectionTestTransport.Pending? pending = null;
+        if (stop) { original = connection.Start(Context, "same", 0, 0); pending = await transport.Next(); }
+        bool reentered = false;
+        connection.StatusChanged += (status, _) =>
+        {
+            if (reentered || status.Phase != (stop ? SessionConnectionPhase.Disconnecting : SessionConnectionPhase.Connecting)) return;
+            reentered = true; replacement = connection.Start(Context, "same", 0, 0); throw new InvalidOperationException("observer");
+        };
+        bool threw = false;
+        try { if (stop) connection.Stop(); else await connection.Start(Context, "same", 0, 0); }
+        catch (InvalidOperationException ex) when (ex.Message == "observer") { threw = true; }
+        if (pending is not null)
+        {
+            Require(pending.Token.IsCancellationRequested, "Throwing stop observer retained source I/O.");
+            pending.Result.SetResult(ClashOfRimClientNetworkResult<ModSessionStreamClosedDto>.Ok(new(true))); await original!;
+        }
+        var active = await transport.Next(); Require(threw && connection.IsRunning && transport.Calls.IsEmpty, "Throwing callback removed/opened the wrong connection.");
+        connection.Stop(false); active.Result.SetResult(ClashOfRimClientNetworkResult<ModSessionStreamClosedDto>.Ok(new(true))); await replacement!;
+    }
+
+    private static async Task TerminalObserverFailure(string ending, bool throwLoss)
+    {
+        ClientSessionWork.Reset(); var transport = new SessionConnectionTestTransport(); var connection = new ClientSessionConnection(transport);
+        int terminal = 0, lost = 0;
+        connection.StatusChanged += (status, _) =>
+        {
+            if (status.Phase == SessionConnectionPhase.Connecting) return;
+            terminal++; if (!throwLoss) throw new InvalidOperationException("observer");
+        };
+        connection.ConnectionLost += _ => { lost++; if (throwLoss) throw new InvalidOperationException("observer"); };
+        var work = connection.Start(Context, "same", 0, 0); var pending = await transport.Next();
+        if (ending == "exception") pending.Result.SetException(new InvalidOperationException("transport"));
+        else pending.Result.SetResult(ending == "failure" ? ClashOfRimClientNetworkResult<ModSessionStreamClosedDto>.Failed("network", "failure")
+            : ClashOfRimClientNetworkResult<ModSessionStreamClosedDto>.Ok(new(false)));
+        bool threw = false; try { await work; } catch (InvalidOperationException ex) when (ex.Message == "observer") { threw = true; }
+        Require(threw && terminal == 1 && lost == 1 && !connection.IsRunning, "Observer failure replayed loss/status or stranded cleanup: " + ending);
+    }
+
+    private static async Task ObserverFailureCleanup()
+    {
+        foreach (var phase in new[] { SessionConnectionPhase.Connecting, SessionConnectionPhase.Disconnecting })
+        {
+            ClientSessionWork.Reset();
+            var transport = new SessionConnectionTestTransport(); var connection = new ClientSessionConnection(transport);
+            Task? work = null; SessionConnectionTestTransport.Pending? pending = null;
+            if (phase == SessionConnectionPhase.Disconnecting)
+            { work = connection.Start(Context, "source", 0, 0); pending = await transport.Next(); }
+            connection.StatusChanged += (status, _) => { if (status.Phase == phase) throw new InvalidOperationException("observer"); };
+            bool threw = false;
+            try
+            {
+                if (phase == SessionConnectionPhase.Connecting) await connection.Start(Context, "source", 0, 0);
+                else connection.Stop();
+            }
+            catch (InvalidOperationException ex) when (ex.Message == "observer") { threw = true; }
+            bool cleaned = !connection.IsRunning && (pending is null ? transport.Calls.IsEmpty : pending.Token.IsCancellationRequested);
+            if (pending is not null) { pending.Result.SetResult(ClashOfRimClientNetworkResult<ModSessionStreamClosedDto>.Ok(new(true))); await work!; }
+            Require(threw && cleaned, "Status observer exception stranded connection cleanup: " + phase);
+        }
+    }
+
     private static async Task InvalidStart()
     {
         ClientSessionWork.Reset();
         var transport = new SessionConnectionTestTransport();
         var connection = new ClientSessionConnection(transport);
         var phases = new List<SessionConnectionPhase>();
-        connection.StatusChanged += value => phases.Add(value.Phase);
+        connection.StatusChanged += (value, _) => phases.Add(value.Phase);
         await connection.Start(new("", "", "", null, null, null, null), "session", 0, 0);
         await connection.Start(Context, null, 0, 0);
         Require(!connection.IsRunning && transport.Calls.IsEmpty && phases.SequenceEqual(new[] { SessionConnectionPhase.NotConfigured, SessionConnectionPhase.SessionMissing }),
@@ -49,8 +198,8 @@ internal static class SessionConnectionModuleTests
         var lost = new ConcurrentQueue<string>();
         var phases = new ConcurrentQueue<SessionConnectionPhase>();
         connection.EventReceived += (_, source) => received.Enqueue(source.SessionId);
-        connection.ConnectionLost += lost.Enqueue;
-        connection.StatusChanged += value => phases.Enqueue(value.Phase);
+        connection.ConnectionLost += source => lost.Enqueue(source.SessionId);
+        connection.StatusChanged += (value, _) => phases.Enqueue(value.Phase);
         Task oldWork = connection.Start(Context, "old", 12, 34);
         var old = await transport.Next();
         Require(old.NotificationVersion == 12 && old.WorldVersion == 34, "Stream lost resume versions.");
@@ -133,7 +282,7 @@ internal static class SessionConnectionModuleTests
     {
         ClientSessionWork.Reset(); var transport = new SessionConnectionTestTransport(); var connection = new ClientSessionConnection(transport);
         bool reentered = false; Task? next = null;
-        connection.StatusChanged += status =>
+        connection.StatusChanged += (status, _) =>
         {
             if (status.Phase != SessionConnectionPhase.Connecting || reentered) return;
             reentered = true;
@@ -152,7 +301,7 @@ internal static class SessionConnectionModuleTests
     {
         ClientSessionWork.Reset(); var transport = new SessionConnectionTestTransport(); var connection = new ClientSessionConnection(transport);
         Task? replacement = null; int lost = 0;
-        connection.StatusChanged += status =>
+        connection.StatusChanged += (status, _) =>
         {
             if (status.Phase is SessionConnectionPhase.Closed or SessionConnectionPhase.Failed or SessionConnectionPhase.Exception)
                 replacement = connection.Start(Context, "same", 0, 0);

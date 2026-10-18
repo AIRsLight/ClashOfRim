@@ -19,6 +19,7 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("connection status owns source identity, localization and reentrant publication", ClientConnectionStatusTests.Run),
     ("session notifications own payload semantics, cursors and bound effects", ClientSessionNotificationTests.Run),
     ("chat owns conversation cache, cursors, unread state and request lifetimes", ClientChatTests.Run),
     ("chat protocol shares send and list contracts with the public facade", ClientChatProtocolTests.Run),

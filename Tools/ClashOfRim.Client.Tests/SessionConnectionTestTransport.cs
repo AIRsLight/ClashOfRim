@@ -11,13 +11,14 @@ internal sealed class SessionConnectionTestTransport : IClientSessionStreamTrans
 {
     internal readonly ConcurrentQueue<Pending> Calls = new();
     internal Action? BeforeStart;
+    internal Action<Pending>? Started;
     private readonly SemaphoreSlim available = new(0);
     public Task<ClashOfRimClientNetworkResult<ModSessionStreamClosedDto>> StreamAsync(ClashOfRimClientNetworkContext context, string sessionId,
         long notificationVersion, long worldVersion, Action<ModSessionStreamEvent> onEvent, CancellationToken cancellationToken)
     {
         BeforeStart?.Invoke();
         var pending = new Pending(context, sessionId, onEvent, cancellationToken, notificationVersion, worldVersion);
-        Calls.Enqueue(pending); available.Release(); return pending.Result.Task;
+        Calls.Enqueue(pending); available.Release(); Started?.Invoke(pending); return pending.Result.Task;
     }
     internal async Task<Pending> Next()
     {

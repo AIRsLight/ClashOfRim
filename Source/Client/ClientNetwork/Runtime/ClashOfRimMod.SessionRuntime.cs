@@ -32,31 +32,6 @@ public sealed partial class ClashOfRimMod
 
     internal void StopManualPresence() => sessionConnection.Stop();
 
-    private void PresentConnectionStatus(SessionConnectionStatus status)
-    {
-        presenceStatus = status.Phase switch
-        {
-            SessionConnectionPhase.NotConfigured => ClashOfRimText.Key("ClashOfRim.Presence.StatusNotConfigured"),
-            SessionConnectionPhase.SessionMissing => ClashOfRimText.Key("ClashOfRim.Presence.StatusSessionMissing"),
-            SessionConnectionPhase.Connecting => ClashOfRimText.Key("ClashOfRim.Presence.StatusConnecting"),
-            SessionConnectionPhase.Disconnecting => ClashOfRimText.Key("ClashOfRim.Presence.StatusDisconnecting"),
-            SessionConnectionPhase.Cancelled => ClashOfRimText.Key("ClashOfRim.Presence.StatusDisconnectedManual"),
-            SessionConnectionPhase.Closed => ClashOfRimText.Key("ClashOfRim.Presence.StatusClosed"),
-            SessionConnectionPhase.Failed => ClashOfRimText.Key("ClashOfRim.Presence.StatusFailed",
-                (status.ErrorCode ?? string.Empty).Named("CODE"), (status.Message ?? string.Empty).Named("MESSAGE")),
-            SessionConnectionPhase.Exception => ClashOfRimText.Key("ClashOfRim.Presence.StatusException",
-                status.Error!.GetType().Name.Named("TYPE"), status.Error.Message.Named("MESSAGE")),
-            _ => presenceStatus
-        };
-        if (status.Phase == SessionConnectionPhase.SessionMissing)
-            Log.Warning("[ClashOfRim] Cannot start session stream without session id.");
-        else if (status.Phase == SessionConnectionPhase.Connecting)
-            ClashLog.Message("[ClashOfRim] Starting WebSocket session stream: user=" + settings.UserId
-                + ", colony=" + settings.ColonyId + ", session=" + status.SessionId);
-        else if (status.Phase == SessionConnectionPhase.Exception)
-            Log.Warning("[ClashOfRim] Session stream failed: " + status.Error);
-    }
-
     internal void DisconnectMultiplayerSessionForExit()
     {
         _ = sessionLifecycle.End(sendLogout: true);
@@ -139,7 +114,7 @@ public sealed partial class ClashOfRimMod
             observedSessionId);
     }
 
-    private void HandleSessionDisconnected(string observedSessionId)
+    private void HandleSessionDisconnected(ClientSessionConnection.Observation source)
     {
         if (Current.ProgramState != ProgramState.Playing
             || Current.Game is null
@@ -148,12 +123,11 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
-        HandleSessionUnavailable(
-            ClashOfRimText.Key("ClashOfRim.SessionExpired.ConnectionLostTitle"),
-            ClashOfRimText.Key("ClashOfRim.SessionExpired.ConnectionLostMessage"),
-            ClashOfRimText.Key("ClashOfRim.SessionExpired.ConnectionLostStatus"),
-            observedAuthToken: null,
-            observedSessionId);
+        string title = ClashOfRimText.Key("ClashOfRim.SessionExpired.ConnectionLostTitle");
+        string message = ClashOfRimText.Key("ClashOfRim.SessionExpired.ConnectionLostMessage");
+        string status = ClashOfRimText.Key("ClashOfRim.SessionExpired.ConnectionLostStatus");
+        source.TryApply(() => HandleSessionUnavailable(title, message, status,
+            observedAuthToken: source.Context.AuthToken, observedSessionId: source.SessionId));
     }
 
     private void HandleSessionUnavailable(

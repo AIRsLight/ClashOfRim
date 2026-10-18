@@ -2339,3 +2339,23 @@ ClientSessionConnection 向流订阅者交付包含原上下文、SessionId、�
 **9 个相关单元组通过**：通知、连接、WebSocket 传输、生命周期、启动、事件刷新、聊天、世界目录及模块守卫；最终合并连接凭据检查后重跑通知、连接、WebSocket 和守卫四组。守卫检查 **1,246** 个模块及生成类型、**294** 个适配器及生成类型。客户端 Release **0 错误、40 个既有警告**；RimTest 桥接 **0 错误、1 个既有警告**。日志：`LocalOnly/module-migration/client-session-notifications-{compile,tests,related,final,build,bridge}.log`。未运行实机 RimTest、全量回归或推送；冻结 1.6 和原有未提交改动保持独立。
 
 M8h4m1 的流通知编排迁移完成。**下一步 M8h4m2：连接状态展示、不可用提示与原地重连 UI 编排**，继续复用已有生命周期、重连和世界观察凭据，不把业务决定作为新的 Mod 回调传回。SessionRuntime 及其他 partial 尚未全部迁移；M8h4、M8h、M8 与 M9–M12 继续开放。相关单元测试为默认，必要时安排单次功能 RimTest，全量由用户安排。
+
+### M8h4m2a 连接状态展示和回调归属（2026-10-19）
+
+M8h4m2 分为连接状态与失效/重连 UI 两个提交步骤。本步由 `ClientConnectionStatus` 接管八种连接状态的文本选择、错误参数和诊断决策；运行时适配器只做翻译、状态赋值及日志输出。删除 Mod 的 PresentConnectionStatus，宿主仅组合模块。诊断使用原连接的用户、殖民地和 SessionId，不从执行时的设置重新拼接身份。这里未把剩余失效窗口、原地重连或 HTTP 过期识别宣称为已迁移。
+
+连接事件与状态/断线回执复用 `ClientSessionConnection.Publication` 的代次及连接修订检查。StatusChanged 和 ConnectionLost 均逐个检查订阅者；前一个回调停止、替换连接或退出后，后续订阅者不能再消费旧回执。同 SessionId 重开也会撤销旧回执。ConnectionLost 携带原上下文和连接观察凭据，当前宿主入口在创建失效状态前再次验证该凭据，并传递原认证。
+
+状态另有一个展示修订：同一流上的新诊断覆盖旧状态，且不撤销流本身。例如 Connecting 回调期间出现缺少 SessionId 的启动请求，新提示保留，旧 Connecting 后续不再覆盖它；原合法流仍可运行。该修订只约束状态发布，不重复维护连接、身份或通知版本。状态模块在翻译、赋值及诊断之间继续使用同一来源检查；换用户、认证、服务器、殖民地或重新登录撤销旧展示，普通快照推进、密码/Steam 票据变化和 Game 对象变化不单独抑制账户连接状态。
+
+定向测试先复现旧 Connecting 订阅者抛异常后 IsRunning 仍为 true，证据保存在 `client-connection-status-repro.log`。修正启动调度之前的资源归属：异常路径只取消/释放本次连接，不清理回调中已创建的后继连接。Stop 在调用订阅者之前取消原流，既避免订阅者异常跳过取消，也保证订阅者重连时旧流已取消；取消回调已经重连时，旧 Disconnecting 提示同样撤销。
+
+终止状态和断线订阅者的异常不再被当作传输异常重新报告，避免重复终止提示或重复恢复。传输结束的断线通知仍在 finally 中按原连接归属执行，最终资源释放由原 Finish 路径负责。未引入吞掉订阅者异常的兜底层。
+
+新增状态组 **396 个场景**，在 en-US、zh-CN、fr-FR、tr-TR 四种文化下覆盖八种状态、原始错误参数、账户变化、回调重入/异常和无关状态变化；翻译通过窄端口测试，未将其算作引擎 UI 实测。连接组增加 **41 个场景**，覆盖状态/断线多订阅者、同 SessionId 替换、新诊断不关闭流、启动/停止异常、取消回调重连、后继连接保留及终止通知只执行一次。继续复用 SessionConnectionTestTransport 和 EventModuleTestPorts，扩充共享流设施的启动观察点，测试清理不依赖固定延时。
+
+**10 个相关单元组通过**：状态、通知、连接、WebSocket、生命周期、重连工作流、重连本地变更/快照策略、会话启动及模块守卫。守卫检查 **1,254** 个模块及生成类型、**296** 个适配器及生成类型。客户端 Release **0 错误、40 个既有警告**；RimTest 桥接 **0 错误、1 个既有警告**。日志：`LocalOnly/module-migration/client-connection-status-{repro,core,tests,related,build,bridge}.log`。未运行实机 RimTest、全量回归或推送；冻结 1.6 及既有未提交改动保持独立。
+
+核对 HTTP 遗留：ClientProtocolTransport 仍对中英文过期文本做匹配；ProtocolErrorCode 没有独立 SessionExpired，SessionConnections 的过期响应使用通用 ServerRejected，殖民地/管理员授权还通过文本传递失效原因。不能简单把所有 ServerRejected 或 Unauthorized 当作会话过期。后续需要端到端明确结构化失效语义及原请求身份归属，并覆盖多语言和普通权限拒绝，不能只替换客户端关键词。
+
+**下一步 M8h4m2b：不可用提示与原地重连 UI 编排**，复用现有生命周期延后失效、重连 Attempt、世界登录发布和相关领域模块；随后处理 HTTP 失效语义。M8h4m2、M8h4、M8h、M8 与 M9–M12 继续开放。默认跑相关单元测试，必要时补单次功能 RimTest，全量仍由用户安排。
