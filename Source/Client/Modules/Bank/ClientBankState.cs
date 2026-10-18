@@ -1,3 +1,4 @@
+using System;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.Modules.Sessions;
 using AIRsLight.ClashOfRim.Modules.Snapshots;
@@ -7,56 +8,39 @@ namespace AIRsLight.ClashOfRim.Modules.Bank;
 
 internal sealed class ClientBankState
 {
-    private readonly ClientSessionLifecycle session;
-    private readonly IClientSnapshotGame game;
+    private readonly ClientGameRequestTracker lifetime;
     private readonly IClientBankPresentation presentation;
-
-    internal ClientBankState(ClientSessionLifecycle session, IClientSnapshotGame game, IClientBankPresentation presentation)
-    {
-        this.session = session;
-        this.game = game;
-        this.presentation = presentation;
-    }
-
-    private ClientSessionLifecycle.Ownership? owner;
-    private ClashOfRimClientNetworkContext? context;
-    private IClientSnapshotGameSession? owningGame;
     private ClientSynchronizationCoordinator.Lease? work;
     private ModBankStatusResponseDto? view;
     private string? message;
+    private int version;
 
-    internal bool Busy { get { using var p = ClientSessionWork.EnterPublication(); Normalize(); return work?.IsCurrent == true; } }
+    internal ClientBankState(ClientSessionLifecycle session, IClientSnapshotGame game, IClientBankPresentation presentation)
+    {
+        this.presentation = presentation;
+        lifetime = new(session, game, () =>
+        { work?.Dispose(); work = null; view = null; message = null; version++; });
+    }
+
+    // Bank operations release the exact transaction lease. Keep busy tied to
+    // that lease, rather than adding a second request completion mechanism.
+    internal bool Busy => lifetime.Read(() => work?.IsCurrent == true);
+    internal int Version => lifetime.Read(() => version);
     internal string Message
     {
-        get { using var p = ClientSessionWork.EnterPublication(); Normalize(); return message ?? presentation.Text("StatusNotPulled"); }
-        set { using var p = ClientSessionWork.EnterPublication(); Normalize(); message = value; }
+        get => lifetime.Read(() => message ?? presentation.Text("StatusNotPulled"));
+        set => lifetime.Read(() => message = value);
     }
     internal ModBankStatusResponseDto? View
     {
-        get { using var p = ClientSessionWork.EnterPublication(); Normalize(); return view is null ? null : ClientBankView.Copy(view); }
-        set { using var p = ClientSessionWork.EnterPublication(); Normalize(); view = value is null ? null : ClientBankView.Copy(value); }
+        get => lifetime.Read(() => view is null ? null : ClientBankView.Copy(view));
+        set => lifetime.Read(() => { view = value is null ? null : ClientBankView.Copy(value); return ++version; });
     }
-    internal void Begin(ClientSnapshotTransaction.Attempt attempt)
+    internal void Begin(ClientSnapshotTransaction.Attempt attempt) => lifetime.Read(() => work = attempt.Admission);
+    internal void Reset() => lifetime.Reset();
+    internal Action Bind(Action action)
     {
-        using var p = ClientSessionWork.EnterPublication();
-        Normalize();
-        work = attempt.Admission;
-    }
-    internal void Reset()
-    {
-        using var p = ClientSessionWork.EnterPublication();
-        owner = null;
-        Normalize();
-    }
-    private void Normalize()
-    {
-        if (owner is not null && context is not null && owningGame?.IsCurrent == true && session.Owns(owner, context, false)) return;
-        work?.Dispose();
-        work = null;
-        view = null;
-        message = null;
-        owner = session.CaptureOwnership();
-        context = session.ReadContext();
-        owningGame = game.BindCurrentGame();
+        var owner = lifetime.Capture();
+        return () => lifetime.TryApply(owner, action);
     }
 }

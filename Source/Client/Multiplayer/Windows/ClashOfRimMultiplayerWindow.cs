@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using AIRsLight.ClashOfRim.Bank;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.Mercenaries;
 using AIRsLight.ClashOfRim.Trades;
@@ -25,17 +24,16 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
     private MultiplayerTradePage? tradePage;
     private ClientShopPanel? shopPanel;
     private MultiplayerShopPage? shopPage;
+    private ClientBankPanel? bankPanel;
+    private MultiplayerBankPage? bankPage;
 
     private const float PanelRefreshIntervalSeconds = PanelRefreshSchedule.IntervalSeconds;
 
-    private Vector2 bankScrollPosition;
     private Vector2 mercenaryScrollPosition;
     private Vector2 adminScrollPosition;
     private Vector2 adminManifestScrollPosition;
     private MultiplayerTab selectedTab = MultiplayerTab.Trade;
     private AdminPanelTab selectedAdminPanelTab = AdminPanelTab.Trade;
-    private string bankPrincipalText = "1000";
-    private string bankDurationText = "30";
     private string selectedMercenarySkillDefName = "Shooting";
     private int selectedMercenarySkillLevel = 7;
     private float selectedMercenaryDurationDays = 7f;
@@ -50,7 +48,6 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
     private string mercenaryGuardQuoteStatus = string.Empty;
     private ModMercenaryGuardQuoteResponseDto? mercenaryGuardQuote;
     private bool mercenaryGuardQuoteInProgress;
-    private float nextBankRefreshAt;
     private float nextAdminRefreshAt;
     private string adminConfigSignature = string.Empty;
     private bool adminTradeMarketplaceEnabled = true;
@@ -146,6 +143,7 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
         achievementsPage ??= mod.CreateAchievementsPage(playersPanel);
         tradePage ??= mod.CreateTradePage();
         if (shopPanel is null) (shopPanel, shopPage) = mod.CreateShopPage();
+        if (bankPanel is null) (bankPanel, bankPage) = mod.CreateBankPage();
         TryRefreshSelectedTab(mod);
         Rect tabRect = new(inRect.x, inRect.y + 34f, inRect.width, inRect.height - 34f);
         if (!mod.IsAdministrator && selectedTab == MultiplayerTab.Admin)
@@ -164,7 +162,7 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
                 if (achievementsPage!.Draw(contentRect)) Close(doCloseSound: false);
                 break;
             case MultiplayerTab.Bank:
-                DrawBankTab(contentRect, mod);
+                bankPage!.Draw(contentRect);
                 break;
             case MultiplayerTab.Shop:
                 shopPage!.Draw(contentRect);
@@ -194,6 +192,7 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
         achievementsPage?.Close();
         tradePage?.Close();
         shopPage?.Close();
+        bankPage?.Close();
         base.PostClose();
     }
 
@@ -270,10 +269,8 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
                 achievementsPage?.RequestRefresh();
                 break;
             case MultiplayerTab.Bank:
-                nextBankRefreshAt = 0f;
-                break;
             case MultiplayerTab.Mercenary:
-                nextBankRefreshAt = 0f;
+                bankPanel?.RequestRefresh();
                 break;
             case MultiplayerTab.Trade:
                 tradePage?.RequestRefresh();
@@ -285,204 +282,6 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
                 nextAdminRefreshAt = 0f;
                 break;
         }
-    }
-
-    private void DrawBankTab(Rect rect, ClashOfRimMod mod)
-    {
-        Widgets.DrawMenuSection(rect);
-        Rect inner = rect.ContractedBy(10f);
-        Text.Font = GameFont.Medium;
-        Widgets.Label(new Rect(inner.x, inner.y, inner.width - 132f, 30f), ClashOfRimText.Key("ClashOfRim.Multiplayer.TabBank"));
-        Text.Font = GameFont.Small;
-        if (Widgets.ButtonText(new Rect(inner.xMax - 120f, inner.y, 120f, 30f), ClashOfRimText.Key("ClashOfRim.Refresh")))
-        {
-            mod.StartRefreshBankStatus();
-            nextBankRefreshAt = Time.realtimeSinceStartup + PanelRefreshIntervalSeconds;
-        }
-
-        ModBankStatusResponseDto? status = mod.BankStatusSnapshot;
-        Rect outRect = new(inner.x, inner.y + 40f, inner.width, inner.height - 40f);
-        float contentHeight = status is null ? 360f : 560f + status.OpenDebts.Count * 90f;
-        Rect viewRect = new(0f, 0f, outRect.width - 16f, Math.Max(outRect.height, contentHeight));
-        Widgets.BeginScrollView(outRect, ref bankScrollPosition, viewRect);
-        float y = 0f;
-        Text.Font = GameFont.Tiny;
-        Widgets.Label(new Rect(0f, y, viewRect.width, 22f), mod.BankStatus);
-        Text.Font = GameFont.Small;
-        y += 32f;
-
-        if (status is null)
-        {
-            Widgets.Label(new Rect(0f, y, viewRect.width, 30f), ClashOfRimText.Key("ClashOfRim.Bank.NoStatus"));
-            Widgets.EndScrollView();
-            return;
-        }
-
-        Widgets.Label(new Rect(0f, y, viewRect.width, 24f), ClashOfRimText.Key(
-            "ClashOfRim.Bank.WealthLine",
-            status.ColonyWealth.Named("WEALTH"),
-            status.MinLoanSilver.Named("MIN"),
-            status.MaxLoanSilver.Named("MAX")));
-        y += 26f;
-        Widgets.Label(new Rect(0f, y, viewRect.width, 24f), ClashOfRimText.Key(
-            "ClashOfRim.Bank.ConfigLine",
-            (status.BaseAnnualInterestRate * 100f).ToString("0.#").Named("RATE"),
-            status.MinDurationDays.Named("MIN"),
-            status.MaxDurationDays.Named("MAX")));
-        y += 26f;
-        if (status.TotalOpenDebtSilver > 0)
-        {
-            Widgets.Label(new Rect(0f, y, viewRect.width, 24f), ClashOfRimText.Key(
-                "ClashOfRim.Bank.DebtLine",
-                status.TotalOpenDebtSilver.Named("TOTAL"),
-                status.OpenDebts.Count.Named("COUNT")));
-            y += 30f;
-        }
-        else
-        {
-            y += 10f;
-        }
-
-        if (status.ActiveLoan is not null)
-        {
-            ModBankLoanSummaryDto loan = status.ActiveLoan;
-            int loanTotalDue = Math.Max(
-                loan.TotalDueSilver,
-                ClashBankLoanQuestUtility.FindLoanTotalDueSilver(loan.LoanId) ?? loan.TotalDueSilver);
-            Widgets.DrawMenuSection(new Rect(0f, y, viewRect.width, 122f));
-            Rect box = new(8f, y + 8f, viewRect.width - 16f, 106f);
-            Widgets.Label(new Rect(box.x, box.y, box.width, 24f), ClashOfRimText.Key(
-                "ClashOfRim.Bank.ActiveLoanTitleWithSource",
-                BankUiUtility.FormatDebtSource(loan.SourceKind).Named("SOURCE")));
-            Widgets.Label(new Rect(box.x, box.y + 26f, box.width, 24f), ClashOfRimText.Key("ClashOfRim.Bank.ActiveLoanLine", loan.PrincipalSilver.Named("PRINCIPAL"), loan.InterestSilver.Named("INTEREST"), loanTotalDue.Named("TOTAL")));
-            Widgets.Label(new Rect(box.x, box.y + 52f, box.width, 24f), ClashOfRimText.Key("ClashOfRim.Bank.ActiveLoanStatus", BankUiUtility.FormatLoanStatus(loan.Status).Named("STATUS")));
-            Text.Font = GameFont.Tiny;
-            Widgets.Label(new Rect(box.x, box.y + 78f, box.width - 130f, 20f), ClashOfRimText.Key("ClashOfRim.Bank.LoanDueLine", BankUiUtility.FormatLoanDue(loan).Named("DUE")));
-            Text.Font = GameFont.Small;
-            bool canRepayLoan = string.Equals(loan.Status, "Active", StringComparison.Ordinal)
-                && !mod.BankInProgress
-                && !mod.ManualSyncInProgress;
-            if (Widgets.ButtonText(new Rect(box.xMax - 120f, box.yMax - 32f, 120f, 30f), ClashOfRimText.Key("ClashOfRim.Bank.Repay"), active: canRepayLoan))
-            {
-                Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation(
-                    ClashOfRimText.Key("ClashOfRim.Bank.ConfirmRepay", loanTotalDue.Named("TOTAL")),
-                    mod.StartRepayBankLoan));
-            }
-
-            y += 132f;
-        }
-
-        if (status.OpenDebts.Count > 0)
-        {
-            Widgets.Label(new Rect(0f, y, viewRect.width, 24f), ClashOfRimText.Key("ClashOfRim.Bank.DebtListTitle"));
-            y += 28f;
-            foreach (ModBankDebtSummaryDto debt in status.OpenDebts)
-            {
-                Widgets.DrawMenuSection(new Rect(0f, y, viewRect.width, 82f));
-                Rect box = new(8f, y + 8f, viewRect.width - 16f, 66f);
-                Widgets.Label(new Rect(box.x, box.y, box.width - 130f, 24f), ClashOfRimText.Key(
-                    "ClashOfRim.Bank.DebtItemLine",
-                    debt.AmountSilver.Named("TOTAL"),
-                    BankUiUtility.FormatDebtSource(debt.SourceKind).Named("SOURCE"),
-                    BankUiUtility.FormatDebtStatus(debt.Status).Named("STATUS")));
-                Text.Font = GameFont.Tiny;
-                Widgets.Label(new Rect(box.x, box.y + 28f, box.width - 130f, 24f), ClashOfRimText.Key(
-                    "ClashOfRim.Bank.DebtDetailLine",
-                    BankUiUtility.FormatDebtReason(debt.Reason).Named("REASON"),
-                    BankUiUtility.FormatDebtDue(debt).Named("DUE")));
-                Text.Font = GameFont.Small;
-                bool canRepayDebt = string.Equals(debt.Status, "Active", StringComparison.Ordinal)
-                    && !mod.BankInProgress
-                    && !mod.ManualSyncInProgress;
-                if (Widgets.ButtonText(new Rect(box.xMax - 120f, box.yMax - 32f, 120f, 30f), ClashOfRimText.Key("ClashOfRim.Bank.Repay"), active: canRepayDebt))
-                {
-                    Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation(
-                        ClashOfRimText.Key("ClashOfRim.Bank.ConfirmRepayDebt", debt.AmountSilver.Named("TOTAL"), BankUiUtility.FormatDebtReason(debt.Reason).Named("REASON")),
-                        () => mod.StartRepayBankDebt(debt)));
-                }
-
-                y += 92f;
-            }
-        }
-
-        if (status.ActiveLoan is not null)
-        {
-            Widgets.EndScrollView();
-            return;
-        }
-
-        Widgets.DrawMenuSection(new Rect(0f, y, viewRect.width, 132f));
-        Rect form = new(8f, y + 8f, viewRect.width - 16f, 116f);
-        (int minPrincipal, int maxPrincipal) = NormalizeRange(status.MinLoanSilver, status.MaxLoanSilver, 1, 1);
-        (int minDuration, int maxDuration) = NormalizeRange(status.MinDurationDays, status.MaxDurationDays, 1, 1);
-        int principalValue = ClampInt(ParseIntOrDefault(bankPrincipalText, minPrincipal), minPrincipal, maxPrincipal);
-        int durationValue = ClampInt(ParseIntOrDefault(bankDurationText, minDuration), minDuration, maxDuration);
-        Widgets.Label(new Rect(form.x, form.y, 140f, 24f), ClashOfRimText.Key("ClashOfRim.Bank.Principal"));
-        bankPrincipalText = Widgets.TextField(new Rect(form.x + 150f, form.y, 92f, 24f), bankPrincipalText);
-        int sliderPrincipal = maxPrincipal > minPrincipal
-            ? Mathf.RoundToInt(Widgets.HorizontalSlider(
-                new Rect(form.x + 252f, form.y + 2f, Math.Max(80f, form.width - 380f), 24f),
-                principalValue,
-                minPrincipal,
-                maxPrincipal,
-                roundTo: 1f))
-            : minPrincipal;
-        if (sliderPrincipal != principalValue)
-        {
-            bankPrincipalText = sliderPrincipal.ToString();
-            principalValue = sliderPrincipal;
-        }
-
-        Widgets.Label(new Rect(form.x, form.y + 34f, 140f, 24f), ClashOfRimText.Key("ClashOfRim.Bank.Duration"));
-        bankDurationText = Widgets.TextField(new Rect(form.x + 150f, form.y + 34f, 92f, 24f), bankDurationText);
-        int sliderDuration = maxDuration > minDuration
-            ? Mathf.RoundToInt(Widgets.HorizontalSlider(
-                new Rect(form.x + 252f, form.y + 36f, Math.Max(80f, form.width - 380f), 24f),
-                durationValue,
-                minDuration,
-                maxDuration,
-                roundTo: 1f))
-            : minDuration;
-        if (sliderDuration != durationValue)
-        {
-            bankDurationText = sliderDuration.ToString();
-            durationValue = sliderDuration;
-        }
-
-        bool validPrincipal = int.TryParse(bankPrincipalText, out int principal)
-            && principal >= status.MinLoanSilver
-            && principal <= status.MaxLoanSilver;
-        bool validDuration = int.TryParse(bankDurationText, out int duration) && duration >= status.MinDurationDays && duration <= status.MaxDurationDays;
-        bool canCreate = status.BankLoansEnabled && validPrincipal && validDuration && !mod.BankInProgress && !mod.ManualSyncInProgress;
-        if (validPrincipal && validDuration)
-        {
-            int interest = BankUiUtility.CalculateInterestSilver(principal, duration, status);
-            int totalDue = principal + interest;
-            Text.Font = GameFont.Tiny;
-            Widgets.Label(new Rect(form.x, form.y + 68f, form.width - 132f, 22f), ClashOfRimText.Key(
-                "ClashOfRim.Bank.LoanPreview",
-                principal.Named("PRINCIPAL"),
-                interest.Named("INTEREST"),
-                totalDue.Named("TOTAL")));
-            Text.Font = GameFont.Small;
-        }
-        else if (!canCreate)
-        {
-            Text.Font = GameFont.Tiny;
-            Widgets.Label(new Rect(form.x, form.y + 68f, form.width - 132f, 22f), status.BankLoansEnabled
-                ? ClashOfRimText.Key("ClashOfRim.Bank.CreateHint")
-                : ClashOfRimText.Key("ClashOfRim.Bank.Disabled"));
-            Text.Font = GameFont.Small;
-        }
-
-        if (Widgets.ButtonText(new Rect(form.xMax - 120f, form.yMax - 32f, 120f, 30f), ClashOfRimText.Key("ClashOfRim.Bank.CreateLoan"), active: canCreate))
-        {
-            Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation(
-                ClashOfRimText.Key("ClashOfRim.Bank.ConfirmCreate", principal.Named("PRINCIPAL"), duration.Named("DAYS")),
-                () => mod.StartCreateBankLoan(principal, duration)));
-        }
-
-        Widgets.EndScrollView();
     }
 
     private void DrawMercenaryTab(Rect rect, ClashOfRimMod mod)
@@ -531,8 +330,8 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
         DrawMercenaryTierDropdown(new Rect(tierX + 78f, y, selectorColumnWidth - 78f, 28f));
 
         y += 42f;
-        bool hasMercenaryConfig = HasMercenaryDurationRange(mod);
-        (int minMercenaryDays, int maxMercenaryDays) = GetMercenaryDurationRange(mod);
+        bool hasMercenaryConfig = HasMercenaryDurationRange();
+        (int minMercenaryDays, int maxMercenaryDays) = GetMercenaryDurationRange();
         selectedMercenaryDurationDays = ClampFloat(selectedMercenaryDurationDays, minMercenaryDays, maxMercenaryDays);
         int days = Mathf.RoundToInt(selectedMercenaryDurationDays);
         Widgets.Label(new Rect(0f, y, 180f, 24f), MercenaryUiUtility.FormatDurationLine(days));
@@ -915,10 +714,8 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
                 achievementsPage!.Tick(Time.realtimeSinceStartup);
                 break;
             case MultiplayerTab.Bank:
-                TryRefreshBank(mod);
-                break;
             case MultiplayerTab.Mercenary:
-                TryRefreshBank(mod);
+                bankPage!.Tick(Time.realtimeSinceStartup);
                 break;
             case MultiplayerTab.Trade:
                 tradePage!.Tick(Time.realtimeSinceStartup);
@@ -932,17 +729,6 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
         }
     }
 
-    private void TryRefreshBank(ClashOfRimMod mod)
-    {
-        if (mod.ManualSyncInProgress || mod.BankInProgress || Time.realtimeSinceStartup < nextBankRefreshAt)
-        {
-            return;
-        }
-
-        nextBankRefreshAt = Time.realtimeSinceStartup + PanelRefreshIntervalSeconds;
-        mod.StartRefreshBankStatus();
-    }
-
     private void TryRefreshAdmin(ClashOfRimMod mod)
     {
         if (!mod.IsAdministrator || mod.AdminInProgress || Time.realtimeSinceStartup < nextAdminRefreshAt)
@@ -954,35 +740,18 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
         mod.StartRefreshAdminStatus();
     }
 
-    private (int Min, int Max) GetMercenaryDurationRange(ClashOfRimMod mod)
+    private (int Min, int Max) GetMercenaryDurationRange()
     {
-        ModBankStatusResponseDto? status = mercenaryQuote?.BankStatus ?? mod.BankStatusSnapshot;
-        return status is null
-            ? (1, 180)
-            : NormalizeRange(status.MercenaryMinDurationDays, status.MercenaryMaxDurationDays, 1, 180);
+        ModBankStatusResponseDto? status = mercenaryQuote?.BankStatus ?? bankPanel!.Read();
+        var range = status is null ? new PanelIntegerRange(1, 180)
+            : PanelIntegerRange.Normalize(status.MercenaryMinDurationDays, status.MercenaryMaxDurationDays, 1, 180);
+        return (range.Min, range.Max);
     }
 
-    private bool HasMercenaryDurationRange(ClashOfRimMod mod)
+    private bool HasMercenaryDurationRange()
     {
-        ModBankStatusResponseDto? status = mercenaryQuote?.BankStatus ?? mod.BankStatusSnapshot;
+        ModBankStatusResponseDto? status = mercenaryQuote?.BankStatus ?? bankPanel!.Read();
         return status is not null && status.MercenaryMaxDurationDays > 0;
-    }
-
-    private static (int Min, int Max) NormalizeRange(int min, int max, int fallbackMin, int fallbackMax)
-    {
-        int normalizedMin = min > 0 ? min : Math.Max(1, fallbackMin);
-        int normalizedMax = max >= normalizedMin ? max : Math.Max(normalizedMin, fallbackMax);
-        return (normalizedMin, normalizedMax);
-    }
-
-    private static int ParseIntOrDefault(string text, int fallback)
-    {
-        return int.TryParse(text, out int value) ? value : fallback;
-    }
-
-    private static int ClampInt(int value, int min, int max)
-    {
-        return value < min ? min : value > max ? max : value;
     }
 
     private static float ClampFloat(float value, int min, int max)

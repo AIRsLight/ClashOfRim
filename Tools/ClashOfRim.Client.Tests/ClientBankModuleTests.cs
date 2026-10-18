@@ -151,7 +151,7 @@ internal static class ClientBankModuleTests
         }
     }
 
-    private sealed class Fixture : IClientBankRuntime, IClientBankTransport, IClientBankPresentation
+    internal sealed class Fixture : IClientBankRuntime, IClientBankTransport, IClientBankPresentation
     {
         internal readonly EventModuleTestPorts Ports = new();
         internal readonly EventModuleFailureView Failure;
@@ -162,7 +162,8 @@ internal static class ClientBankModuleTests
         internal readonly ClientBankOperations Bank;
         internal readonly ClientBankOperation Kind;
         internal ClientBankFacts Facts = new(1000, 10000, 1000, true);
-        internal int Applied, Amount, Confirmed, DebtRefreshes, Submissions;
+        internal int Applied, Amount, Confirmed, DebtRefreshes, Submissions, Reads;
+        internal int LocalLoanBalance = 120;
         internal bool ApplyFailure, ApplyException, TransportFailure, ConfirmException;
         internal ClientBankCommand? Sent;
         internal ClashOfRimClientNetworkContext? Context;
@@ -170,6 +171,8 @@ internal static class ClientBankModuleTests
         internal byte[]? Payload;
         internal TaskCompletionSource<ClashOfRimClientNetworkResult<ClientBankReply>>? Hold;
         internal readonly TaskCompletionSource Submitted = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource<ClashOfRimClientNetworkResult<ModBankStatusResponseDto>>? ReadHold;
+        internal readonly TaskCompletionSource ReadStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         internal Fixture(ClientBankOperation kind)
         {
@@ -191,7 +194,7 @@ internal static class ClientBankModuleTests
         internal Task Start() => Kind switch { ClientBankOperation.Borrow => Bank.BorrowAsync(100, 2),
             ClientBankOperation.RepayLoan => Bank.RepayLoanAsync(), _ => Bank.RepayDebtAsync("debt") };
         public ClientBankFacts ReadFacts() => Facts;
-        public int LoanTotalDue(string id, int amount) => 120;
+        public int LoanTotalDue(string id, int amount) => Math.Max(amount, LocalLoanBalance);
         public ClientBankApplication Apply(ClientBankCommand command, ModBankStatusResponseDto pending)
         {
             Applied++; Amount = command.Silver;
@@ -201,8 +204,11 @@ internal static class ClientBankModuleTests
         public void ConfirmLoan(ModBankLoanSummaryDto loan, ModBankStatusResponseDto status)
         { Confirmed++; if (ConfirmException) throw new InvalidOperationException("injected quest update failure"); }
         public void RefreshDebts(ModBankStatusResponseDto status) => DebtRefreshes++;
-        public Task<ClashOfRimClientNetworkResult<ModBankStatusResponseDto>> ReadAsync(ClashOfRimClientNetworkContext context, long ticks, int wealth, CancellationToken token) =>
-            Task.FromResult(ClashOfRimClientNetworkResult<ModBankStatusResponseDto>.Ok(State.View!));
+        public Task<ClashOfRimClientNetworkResult<ModBankStatusResponseDto>> ReadAsync(ClashOfRimClientNetworkContext context, long ticks, int wealth, CancellationToken token)
+        {
+            Reads++; ReadStarted.TrySetResult();
+            return ReadHold?.Task ?? Task.FromResult(ClashOfRimClientNetworkResult<ModBankStatusResponseDto>.Ok(State.View!));
+        }
         public Task<ClashOfRimClientNetworkResult<ClientBankReply>> SubmitAsync(ClashOfRimClientNetworkContext context, ClientBankCommand command,
             ModSnapshotPackageMetadataDto snapshot, byte[] payload, CancellationToken token)
         {

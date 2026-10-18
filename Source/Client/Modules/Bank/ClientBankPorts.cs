@@ -26,10 +26,15 @@ internal interface IClientBankTransport
         ClientBankCommand command, ModSnapshotPackageMetadataDto snapshot, byte[] payload, CancellationToken token);
 }
 
-internal interface IClientBankRuntime
+internal interface IClientBankLoanBalance
+{
+    // Includes local overdue charges and never falls below the server balance.
+    int LoanTotalDue(string loanId, int serverTotal);
+}
+
+internal interface IClientBankRuntime : IClientBankLoanBalance
 {
     ClientBankFacts ReadFacts();
-    int LoanTotalDue(string loanId, int serverTotal);
     ClientBankApplication Apply(ClientBankCommand command, ModBankStatusResponseDto pendingStatus);
     void ConfirmLoan(ModBankLoanSummaryDto loan, ModBankStatusResponseDto status);
     void RefreshDebts(ModBankStatusResponseDto status);

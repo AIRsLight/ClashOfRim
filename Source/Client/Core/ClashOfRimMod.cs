@@ -446,6 +446,12 @@ public sealed partial class ClashOfRimMod : Mod
         return (model, new(model));
     }
 
+    internal (ClientBankPanel Model, MultiplayerBankPage Page) CreateBankPage()
+    {
+        var model = new ClientBankPanel(sessionLifecycle, new ClientSnapshotGame(), bankState, bankOperations, synchronization, new ClientBankRuntime());
+        return (model, new(model));
+    }
+
     internal bool ManualSyncInProgress => synchronization.ManualInProgress;
 
     internal bool IsServerWorldSetupFlow => worldSetup.Pending;
