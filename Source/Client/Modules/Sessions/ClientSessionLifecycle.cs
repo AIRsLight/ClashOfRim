@@ -15,6 +15,8 @@ internal sealed class ClientSessionLifecycle
     private volatile string? sessionId;
     private volatile bool unavailable;
     private Invalidation? pendingInvalidation;
+    private InvalidationHold? invalidationHold;
+    private Exit? continuingExit;
     private volatile object identityOwner = new();
 
     internal ClientSessionLifecycle(IClientSessionIdentityStore identities, IClientSessionLogoutTransport logout,
@@ -50,6 +52,7 @@ internal sealed class ClientSessionLifecycle
         connection.Stop(reportStatus: false);
         identityOwner = new object();
         pendingInvalidation = null;
+        invalidationHold = null;
         unavailable = false;
         sessionId = response.SessionId;
         identities.Write(NormalizeName(response.AuthenticatedUserId), NormalizeName(response.DisplayName), response.AuthToken ?? string.Empty);
@@ -77,9 +80,8 @@ internal sealed class ClientSessionLifecycle
         bool completed = false;
         ClientSessionWork.TryApply(() =>
         {
-            if (!ReferenceEquals(pendingInvalidation, invalidation) || invalidation.Owner != ClientSessionWork.Token) return;
-            ClearIdentityCore();
-            completed = true;
+            if (!ReferenceEquals(pendingInvalidation, invalidation) || invalidation.Owner != ClientSessionWork.Token || HoldingInvalidation) return;
+            completed = ClearIdentityCore() is not null;
         });
         return completed;
     }
@@ -93,38 +95,118 @@ internal sealed class ClientSessionLifecycle
 
     internal Task End(bool sendLogout)
     {
-        ClientSessionWork.Reset();
-        ClashOfRimClientNetworkContext context;
-        string? previousSessionId;
+        Ownership owner; ClashOfRimClientNetworkContext context;
         using (ClientSessionWork.EnterPublication())
         {
-            context = identities.ReadContext();
-            previousSessionId = sessionId;
-            DetachIdentity();
-            unavailable = false;
-            Ended?.Invoke();
-            identities.Write(null, null, string.Empty);
-            IdentityChanged?.Invoke(null);
+            // GenScene's disconnect hook can run inside an already completed,
+            // owned menu transition. Do not replay its cleanup in that call.
+            if (continuingExit is { } exit && Owns(exit.Owner, exit.Context, true)) return Task.CompletedTask;
+            owner = CaptureOwnership(); context = ReadContext();
+        }
+        return EndCore(owner, context, false, sendLogout).Logout;
+    }
+
+    internal Exit? EndOwned(Ownership owner, ClashOfRimClientNetworkContext context, bool requireSnapshot = false)
+        => EndCore(owner, context, requireSnapshot, sendLogout: false).Receipt;
+
+    private (Exit? Receipt, Task Logout) EndCore(Ownership owner, ClashOfRimClientNetworkContext context, bool requireSnapshot, bool sendLogout)
+    {
+        string? previousSessionId = null;
+        if (!ClientSessionWork.TryReset(() =>
+        {
+            if (!Owns(owner, context, requireSnapshot)) return false;
+            previousSessionId = sessionId; return true;
+        }, out var generation)) return (null, Task.CompletedTask);
+        var ending = new Ownership(owner.Identity, generation);
+        Exit? receipt = null;
+        using (ClientSessionWork.EnterPublication())
+        {
+            // Cancellation and connection callbacks can synchronously log in again.
+            // Only the identity that won the generation transition may be cleared.
+            if (Owns(ending, context, requireSnapshot))
+            {
+                ending = DetachIdentity();
+                bool Current() => Owns(ending, context, false);
+                if (Current())
+                {
+                    unavailable = false;
+                    foreach (Action ended in Ended?.GetInvocationList() ?? Array.Empty<Delegate>())
+                    { if (!Current()) break; ended(); }
+                    if (Current())
+                        receipt = ClearAuthentication(ending, context);
+                }
+            }
         }
 
         // Logout deliberately outlives the exited generation, using its captured credentials.
-        return sendLogout && context.IsConfigured && !string.IsNullOrWhiteSpace(previousSessionId)
-            ? Task.Run(() => ReleaseSessionAsync(context, previousSessionId!)) : Task.CompletedTask;
+        return (receipt, sendLogout && context.IsConfigured && !string.IsNullOrWhiteSpace(previousSessionId)
+            ? Task.Run(() => ReleaseSessionAsync(context, previousSessionId!)) : Task.CompletedTask);
     }
 
-    private void ClearIdentityCore()
+    internal bool ContinueExit(Exit exit, Action action)
     {
-        DetachIdentity();
+        using var publication = ClientSessionWork.EnterPublication();
+        if (!Owns(exit.Owner, exit.Context, true)) return false;
+        var previous = continuingExit; continuingExit = exit;
+        try { action(); return Owns(exit.Owner, exit.Context, true); }
+        finally { continuingExit = previous; }
+    }
+
+    // A server-side terminal operation may close its stream before its HTTP receipt.
+    // Keep that exact identity until the receipt is handled, then resume any expiry.
+    internal InvalidationHold? HoldInvalidation(Ownership owner, ClashOfRimClientNetworkContext context, Func<bool>? current = null)
+    {
+        using var publication = ClientSessionWork.EnterPublication();
+        if (unavailable || !Owns(owner, context, false) || HoldingInvalidation) return null;
+        if (current?.Invoke() == false) return null;
+        return invalidationHold = new(this, owner, context, current);
+    }
+    private bool HoldingInvalidation => invalidationHold is { } hold && Owns(hold.Owner, hold.Context, false) && hold.Current?.Invoke() != false;
+    internal void WhenUnavailableReady(Invalidation invalidation, Action dispatch)
+    {
+        using var publication = ClientSessionWork.EnterPublication();
+        if (!ReferenceEquals(pendingInvalidation, invalidation) || invalidation.Owner != ClientSessionWork.Token) return;
+        if (HoldingInvalidation) invalidation.Dispatch = dispatch;
+        else dispatch();
+    }
+    private void ReleaseInvalidation(InvalidationHold hold)
+    {
+        ClientSessionWork.TryApply(() =>
+        {
+            if (!ReferenceEquals(invalidationHold, hold)) return;
+            invalidationHold = null;
+            if (!Owns(hold.Owner, hold.Context, false) || pendingInvalidation is not { } invalidation) return;
+            var dispatch = invalidation.Dispatch; invalidation.Dispatch = null; dispatch?.Invoke();
+        });
+    }
+
+    private Exit? ClearIdentityCore()
+    {
+        var context = ReadContext();
+        return ClearAuthentication(DetachIdentity(), context);
+    }
+    private Exit? ClearAuthentication(Ownership owner, ClashOfRimClientNetworkContext context)
+    {
+        if (!Owns(owner, context, false)) return null;
         identities.Write(null, null, string.Empty);
-        IdentityChanged?.Invoke(null);
+        var cleared = new ClashOfRimClientNetworkContext(context.ServerBaseUrl, context.UserId, context.ColonyId,
+            context.CurrentSnapshotId, context.SteamAuthTicket, context.OfflinePassword, string.Empty);
+        if (!Owns(owner, cleared, false)) return null;
+        var exitContext = ReadContext();
+        foreach (Action<ModLoginResponseDto?> changed in IdentityChanged?.GetInvocationList() ?? Array.Empty<Delegate>())
+        { if (!Owns(owner, exitContext, true)) return null; changed(null); }
+        return Owns(owner, exitContext, true) ? new(owner, exitContext) : null;
     }
 
-    private void DetachIdentity()
+    private Ownership DetachIdentity()
     {
-        connection.Stop(reportStatus: false);
         sessionId = null;
         identityOwner = new object();
         pendingInvalidation = null;
+        invalidationHold = null;
+        var detached = CaptureOwnership();
+        connection.Stop(reportStatus: false);
+        return detached;
     }
 
     internal async Task ReleaseSessionAsync(ClashOfRimClientNetworkContext context, string previousSessionId)
@@ -145,6 +227,19 @@ internal sealed class ClientSessionLifecycle
     {
         internal Invalidation(CancellationToken owner) => Owner = owner;
         internal CancellationToken Owner { get; }
+        internal Action? Dispatch { get; set; }
+    }
+
+    internal sealed record Exit(Ownership Owner, ClashOfRimClientNetworkContext Context);
+    internal sealed class InvalidationHold : IDisposable
+    {
+        private readonly ClientSessionLifecycle session;
+        internal readonly Ownership Owner;
+        internal readonly ClashOfRimClientNetworkContext Context;
+        internal readonly Func<bool>? Current;
+        internal InvalidationHold(ClientSessionLifecycle session, Ownership owner, ClashOfRimClientNetworkContext context, Func<bool>? current)
+        { this.session = session; Owner = owner; Context = context; Current = current; }
+        public void Dispose() => session.ReleaseInvalidation(this);
     }
 
     internal sealed class Ownership

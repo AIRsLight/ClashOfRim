@@ -15,18 +15,24 @@ public static class ClientSessionWork
     public static CancellationToken Token => Ambient.Value ?? current.Token;
     public static bool IsCurrent => Token == current.Token && !Token.IsCancellationRequested;
 
-    public static void Reset()
+    public static void Reset() => TryReset(static () => true, out _);
+
+    internal static bool TryReset(Func<bool> owns, out CancellationToken replacement)
     {
         CancellationTokenSource previous;
         lock (Gate)
         {
+            replacement = default;
+            if (!owns()) return false;
             previous = current;
             current = new CancellationTokenSource();
+            replacement = current.Token;
             Ambient.Value = null;
         }
         // Cancel outside the gate: callbacks may wait for network completions.
         previous.Cancel();
         // Tokens can still be registered by finishing work, so do not dispose the old source here.
+        return true;
     }
 
     public static Task Run(Func<Task> action)

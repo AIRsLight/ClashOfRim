@@ -150,7 +150,6 @@ public sealed partial class ClashOfRimMod
         worldMapMarkerSyncInProgress = false;
         runtimeWorldObjectSyncInProgress = false;
         colonyRegistration.Reset();
-        abandonPlayerColonyInProgress = false;
         caravanArrivalTargetRefreshInProgress = false;
         bankState.Reset();
         mercenaryState.Reset();
@@ -641,108 +640,7 @@ public sealed partial class ClashOfRimMod
         => _ = colonyRegistration.RequestAsync(ClientColonyRegistrationKind.Extensions, reason);
 
     internal void OpenAbandonPlayerColonyConfirmation(MapParent colony)
-    {
-        if (!settings.IsConfigured)
-        {
-            Messages.Message(ClashOfRimText.Key("ClashOfRim.AbandonColony.StatusNotConfigured"), MessageTypeDefOf.RejectInput, false);
-            return;
-        }
-
-        if (abandonPlayerColonyInProgress)
-        {
-            Messages.Message(ClashOfRimText.Key("ClashOfRim.AbandonColony.StatusSubmitting"), MessageTypeDefOf.RejectInput, false);
-            return;
-        }
-
-        Find.WindowStack.Add(new AbandonPlayerColonyConfirmationWindow(this, colony));
-    }
-
-    internal void StartAbandonPlayerColony(MapParent colony)
-    {
-        if (!settings.IsConfigured)
-        {
-            Messages.Message(ClashOfRimText.Key("ClashOfRim.AbandonColony.StatusNotConfigured"), MessageTypeDefOf.RejectInput, false);
-            return;
-        }
-
-        if (abandonPlayerColonyInProgress)
-        {
-            return;
-        }
-
-        string idempotencyKey = $"abandon-colony:{settings.UserId}:{settings.ColonyId}:{settings.CurrentSnapshotId}:{DateTime.UtcNow.Ticks}";
-        abandonPlayerColonyInProgress = true;
-        worldMapStatus = ClashOfRimText.Key("ClashOfRim.AbandonColony.StatusSubmitting");
-        ClientSessionWork.Run(async () =>
-        {
-            try
-            {
-                using var httpClient = new HttpClient();
-                var client = new ClashOfRimModNetworkClient(
-                    httpClient,
-                    ClashOfRimClientNetworkContext.FromSettings(settings));
-                ClashOfRimClientNetworkResult<ModAbandonPlayerColonyResponseDto> result =
-                    await ClientSessionWork.Observe(client.AbandonPlayerColonyAsync(idempotencyKey));
-                using var publication = ClientSessionWork.EnterPublication();
-                if (!result.Success || result.Response is null)
-                {
-                    worldMapStatus = ClashOfRimText.Key(
-                        "ClashOfRim.AbandonColony.StatusFailed",
-                        (result.ErrorCode ?? string.Empty).Named("CODE"),
-                        (result.Message ?? string.Empty).Named("MESSAGE"));
-                    ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
-                        Messages.Message(worldMapStatus, MessageTypeDefOf.RejectInput, false));
-                    return;
-                }
-
-                if (result.Response.Result?.Accepted != true)
-                {
-                    worldMapStatus = ClashOfRimText.Key(
-                        "ClashOfRim.AbandonColony.StatusRejected",
-                        (result.Response.Result?.ErrorCode.ToString() ?? string.Empty).Named("CODE"),
-                        (result.Response.Result?.Message ?? string.Empty).Named("MESSAGE"));
-                    ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
-                        Messages.Message(worldMapStatus, MessageTypeDefOf.RejectInput, false));
-                    return;
-                }
-
-                ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
-                {
-                    settings.CurrentSnapshotId = string.Empty;
-                    settings.CurrentLineageToken = string.Empty;
-                    sessionLifecycle.ClearIdentity();
-                    colonyRegistration.Invalidate(ClientColonyRegistrationKind.Sites);
-                    eventInbox.Reset();
-                    tradeState.Reset();
-
-                    occupiedColonySites.Replace(result.Response.WorldConfiguration);
-                    CaptureWorldMapMarkers(result.Response.WorldMapMarkers, source: "abandon-colony");
-                    settings.Write();
-                    Messages.Message(ClashOfRimText.Key("ClashOfRim.AbandonColony.StatusSucceeded"), MessageTypeDefOf.NeutralEvent, false);
-                    GenScene.GoToMainMenu();
-                });
-            }
-            catch (Exception ex)
-            when (ClientSessionWork.IsCurrent)
-            {
-                using var publication = ClientSessionWork.EnterPublication();
-                worldMapStatus = ClashOfRimText.Key(
-                    "ClashOfRim.AbandonColony.StatusException",
-                    ex.GetType().Name.Named("TYPE"),
-                    ex.Message.Named("MESSAGE"));
-                Log.Warning("[ClashOfRim] Player colony abandon exception: " + ex);
-                ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
-                    Messages.Message(worldMapStatus, MessageTypeDefOf.RejectInput, false));
-            }
-            finally
-            {
-                ClientSessionWork.TryApply(() =>
-                {
-                    abandonPlayerColonyInProgress = false;
-                });
-            }
-        });
-    }
+        => colonyAbandonment.Open(new ClientColonyAbandonTarget(colony));
 
     private void HandleSessionStreamEvent(ModSessionStreamEvent serverEvent, string? streamSessionId)
     {
@@ -910,7 +808,7 @@ public sealed partial class ClashOfRimMod
     {
         var invalidation = sessionLifecycle.BeginUnavailable(observedAuthToken, observedSessionId);
         if (invalidation is null) return;
-        ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
+        sessionLifecycle.WhenUnavailableReady(invalidation, () => ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
         {
             using var publication = ClientSessionWork.EnterPublication();
             if (!sessionLifecycle.CompleteUnavailable(invalidation)) return;
@@ -925,7 +823,7 @@ public sealed partial class ClashOfRimMod
                     StartSessionReconnect,
                     GenScene.GoToMainMenu));
             }
-        });
+        }));
     }
 
     private void StartSessionReconnect(SessionExpiredWindow window)

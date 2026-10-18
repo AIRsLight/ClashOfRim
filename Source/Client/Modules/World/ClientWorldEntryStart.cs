@@ -46,8 +46,9 @@ internal sealed class ClientWorldEntryStart
 
             // End owns the only session generation reset and all registered domain
             // cleanup. Entry must not replay that cleanup after it has completed.
-            _ = session.End(sendLogout: false);
-            owner = session.CaptureOwnership();
+            var exit = session.EndOwned(session.CaptureOwnership(), session.ReadContext());
+            if (exit is null) return false;
+            owner = exit.Owner;
             if (!source.IsCurrent) return false;
             if (!synchronization.TryBeginManual(out operation))
             { view.Reject(view.Text("ClashOfRim.Sync.StatusBusy")); return false; }

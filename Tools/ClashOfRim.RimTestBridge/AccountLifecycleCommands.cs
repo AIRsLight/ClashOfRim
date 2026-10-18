@@ -26,8 +26,8 @@ internal sealed partial class DomainCommands
             bool confirm = a.Bool("confirm");
             if (confirm && Time.realtimeSinceStartup - Field<float>(window, "openedAtRealtime") < 10f)
                 throw new CommandException("disabled", "Abandonment countdown has not elapsed.");
-            var colony = Field<RimWorld.Planet.MapParent>(window, "colony");
-            window.Close(); if (confirm) Invoke(Mod, "StartAbandonPlayerColony", colony);
+            var action = Field<Func<Task>>(window, "confirm");
+            window.Close(); if (confirm) _ = action();
             return new { invoked = true, confirm };
         });
         bridge.Router.Register("clash.achievement.version", "Observe achievement publication version for deterministic refresh completion.", "observe", _ =>

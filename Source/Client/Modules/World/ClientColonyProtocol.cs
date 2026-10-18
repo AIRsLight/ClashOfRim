@@ -16,7 +16,7 @@ internal interface IClientColonyRegistrationTransport
         bool suppressNotification, CancellationToken token);
 }
 
-internal sealed class ClientColonyProtocol : IClientColonyRegistrationTransport
+internal sealed class ClientColonyProtocol : IClientColonyRegistrationTransport, IClientColonyAbandonTransport
 {
     private readonly ClientProtocolTransport transport;
     private readonly Func<string> notConfigured;
@@ -44,7 +44,7 @@ internal sealed class ClientColonyProtocol : IClientColonyRegistrationTransport
             UserId = context.UserId, ColonyId = context.ColonyId, AuthToken = context.AuthToken, PreviousSnapshotId = previous ?? "", RelocatedSnapshotId = relocated ?? "",
             TargetTile = tile, TargetTileLayerId = Math.Max(0, layer), IdempotencyKey = key
         }, token);
-    internal Task<ClashOfRimClientNetworkResult<ModAbandonPlayerColonyResponseDto>> AbandonAsync(ClashOfRimClientNetworkContext context, string key, CancellationToken token)
+    public Task<ClashOfRimClientNetworkResult<ModAbandonPlayerColonyResponseDto>> AbandonAsync(ClashOfRimClientNetworkContext context, string key, CancellationToken token)
         => Send<ModAbandonPlayerColonyRequestDto, ModAbandonPlayerColonyResponseDto>(context, ProtocolMessageKind.AbandonPlayerColony, new()
         {
             UserId = context.UserId, ColonyId = context.ColonyId, AuthToken = context.AuthToken, CurrentSnapshotId = context.CurrentSnapshotId, IdempotencyKey = key

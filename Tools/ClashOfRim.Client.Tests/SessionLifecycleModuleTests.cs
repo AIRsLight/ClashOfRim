@@ -19,6 +19,9 @@ internal static class SessionLifecycleModuleTests
             await ConnectionAndExit();
             await StaleLogin();
             await LogoutFailures();
+            await OwnedExitReceipts();
+            await ReentrantStreamCancellation();
+            DeferredTerminalExpiry();
         }
         finally { ClientSessionWork.Reset(); }
     }
@@ -174,6 +177,72 @@ internal static class SessionLifecycleModuleTests
             await exit.WaitAsync(TimeSpan.FromSeconds(5));
             Require(diagnostic?.Contains(throws ? "network failure" : "denied") == true
                 && f.Store.AuthToken == "" && f.Session.SessionId is null, "Logout failure lost diagnostics or restored exited identity.");
+        }
+    }
+
+    private static async Task OwnedExitReceipts()
+    {
+        foreach (string stage in new[] { "before", "cancellation", "ended", "identity" })
+        {
+            ClientSessionWork.Reset(); var f = new Fixture(); f.Session.PublishLogin(Login("old", "old-token"));
+            var owner = f.Session.CaptureOwnership(); var context = f.Store.ReadContext(); int cleanup = 0, later = 0;
+            void Replace() => f.Session.PublishLogin(Login("new", "new-token"));
+            using var callback = stage == "cancellation" ? owner.Token.Register(Replace) : default;
+            if (stage == "before") Replace();
+            f.Session.Ended += () => { cleanup++; if (stage == "ended") Replace(); };
+            f.Session.Ended += () => later++;
+            f.Session.IdentityChanged += response => { if (response is null && stage == "identity") Replace(); };
+            bool oldIdentityObserved = false;
+            f.Session.IdentityChanged += response => { if (response is null) oldIdentityObserved = true; };
+            var receipt = f.Session.EndOwned(owner, context, true);
+            Require(receipt is null && f.Session.SessionId == "new" && f.Store.AuthToken == "new-token", "Exit adopted reentrant identity: " + stage);
+            Require(cleanup == (stage is "ended" or "identity" ? 1 : 0) && later == (stage == "identity" ? 1 : 0)
+                && !oldIdentityObserved, "Exit continued stale cleanup/notification: " + stage);
+        }
+        ClientSessionWork.Reset(); var completed = new Fixture(); completed.Session.PublishLogin(Login("old", "token")); int ends = 0;
+        completed.Session.Ended += () => ends++;
+        var exit = completed.Session.EndOwned(completed.Session.CaptureOwnership(), completed.Store.ReadContext(), true)!;
+        Require(exit is not null && ends == 1, "Owned exit did not return its completion receipt.");
+        var generation = ClientSessionWork.Token;
+        Require(completed.Session.ContinueExit(exit!, () => _ = completed.Session.End(sendLogout: true))
+            && ends == 1 && generation == ClientSessionWork.Token, "Menu hook repeated owned exit cleanup.");
+        await completed.Session.End(sendLogout: false); Require(ends == 2, "A later independent exit was incorrectly suppressed.");
+        Require(!completed.Session.ContinueExit(exit!, () => throw new Exception("stale receipt ran")), "Old exit receipt was reused.");
+    }
+    private static void DeferredTerminalExpiry()
+    {
+        foreach (string outcome in new[] { "failure", "accepted", "login", "generation" })
+        {
+            ClientSessionWork.Reset(); var f = new Fixture(); f.Session.PublishLogin(Login("old", "token"));
+            var owner = f.Session.CaptureOwnership(); var context = f.Store.ReadContext();
+            var hold = f.Session.HoldInvalidation(owner, context)!;
+            Require(hold is not null && f.Session.HoldInvalidation(owner, context) is null, "Invalidation acquired duplicate holds.");
+            var invalidation = f.Session.BeginUnavailable("token", "old")!; int dispatches = 0;
+            f.Session.WhenUnavailableReady(invalidation, () => { dispatches++; f.Session.CompleteUnavailable(invalidation); });
+            Require(dispatches == 0 && !f.Session.CompleteUnavailable(invalidation) && f.Store.AuthToken == "token", "Terminal request lost identity before its receipt.");
+            if (outcome == "accepted") Require(f.Session.EndOwned(owner, context) is not null, "Accepted terminal receipt could not exit an unavailable session.");
+            if (outcome == "login") f.Session.PublishLogin(Login("new", "new-token"));
+            if (outcome == "generation") ClientSessionWork.Reset();
+            hold!.Dispose(); hold.Dispose();
+            Require(dispatches == (outcome == "failure" ? 1 : 0), "Wrong deferred expiry dispatch: " + outcome);
+            if (outcome == "login") Require(f.Store.AuthToken == "new-token", "Old hold cleared a replacement login.");
+        }
+    }
+
+    private static async Task ReentrantStreamCancellation()
+    {
+        foreach (string operation in new[] { "end", "clear", "expiry" })
+        {
+            ClientSessionWork.Reset(); var f = new Fixture(); f.Session.PublishLogin(Login("old", "old-token"));
+            Task stream = f.Connection.Start(f.Store.ReadContext(), f.Session.SessionId, 0, 0);
+            var token = await f.Stream.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            using var cancellation = token.Register(() => f.Session.PublishLogin(Login("new", "new-token")));
+            if (operation == "end") Require(f.Session.EndOwned(f.Session.CaptureOwnership(), f.Store.ReadContext()) is null, "Stream callback acquired an obsolete exit receipt.");
+            else if (operation == "clear") f.Session.ClearIdentity();
+            else Require(f.Session.BeginUnavailable("old-token", "old") is null, "Stream callback retained old pending expiry.");
+            Require(f.Session.SessionId == "new" && f.Store.AuthToken == "new-token", "Stream cancellation cleanup cleared new login: " + operation);
+            f.Stream.Completion.SetResult(ClashOfRimClientNetworkResult<ModSessionStreamClosedDto>.Ok(new(true)));
+            await stream.WaitAsync(TimeSpan.FromSeconds(5));
         }
     }
 

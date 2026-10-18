@@ -2115,3 +2115,22 @@ M8h4g 的缓存及同步调用边界完成。下一步 **M8h4h：殖民地生命
 日志：`LocalOnly/module-migration/client-colony-registration-{compile,tests,related,thread-repro,final,state,receipts,build-final}.log`、`client-colony-protocol-{tests,final}.log`。未运行 RimTest 或全量回归，未推送，冻结 1.6 与原有未提交工作独立保留。本步验证编排、协议和共享采集边界，没有宣称已完成实机搬迁、弃置或标记渲染验证。
 
 M8h4h1 完成。下一步 **M8h4h2：弃置殖民地的确认、账户状态清理与返回菜单编排**，随后迁移搬迁预检、本地操作、上传确认及飞船隐式搬迁状态。四个报文已经共用协议，但弃置/搬迁旧宿主编排及其异步来源约束仍未迁移；外观存储、标记刷新/渲染、兼容覆盖、StartMapServerSession、聊天等也继续开放。M8h4h、M8h4、M8h、M8 与 M9–M12 保持进行中，后续相关单元测试为主，需要引擎证据时补单项 RimTest，全量由用户安排。
+
+
+### M8h4h2 弃置确认、终止回执与会话退出编排（2026-10-18）
+
+`ClientColonyAbandonment` 接管确认准入、单次确认消费、忙碌状态、捕获上下文与幂等键、HTTP 结果判定、主线程完成和返回菜单。复用 ClientRequestTracker、ClientGamePublication、ClientSessionWork 和既有会话退出清理；SessionRuntime 的入口只构造目标并转发，删除 StartAbandonPlayerColony 和宿主忙碌字段。确认窗口只持有冻结名称与回调，保留十秒倒计时。RimTest 的 clash.abandon.choose 同步执行该窗口回调，继续检查倒计时，不能再跳过已捕获的账户/世界归属调用旧 Mod 入口。
+
+目标适配器捕获 Game、World 与具体 MapParent；主线程检查对象未销毁、仍属于玩家且仍在该世界对象集合中，后台只检查引用归属。确认期允许快照更新，实际提交捕获最新快照；提交后以账户、认证、服务端、殖民地、快照、世界 ID 和 Game/World 限定回执。旧窗口、重复点击和旧请求的 finally 不能影响新请求。ClientColonyRegistrationTransport 改为 ClientColonyTransport，注册与弃置共用 HttpClient/协议装配；四个报文继续使用 h1 的 ClientColonyProtocol，没有复制协议或 DTO。
+
+服务端 ColonyDeletion 在返回 HTTP 前结束该殖民地的连接，提前断线是正常成功路径可能出现的顺序。ClientSessionLifecycle 增加绑定原身份与请求归属的失效暂缓：断线仍立即停止连接并标记不可用，但凭据清理和失效窗口等待终止请求完成；接受回执走统一退出，失败则恢复已有失效提示，新登录使旧暂缓失效。测试复现了最初仅绑定身份的暂缓会阻挡同会话中新 Game 的请求，改为同时检查请求归属，旧 hold 的释放也不能清除替代 hold。
+
+共享退出路径增加 EndOwned 完成凭据及 ContinueExit。只在原拥有者赢得代次切换后清理；取消回调、连接停止、逐个 Ended/IdentityChanged 回调发生新登录时停止余下步骤。普通身份清理复用同一归属检查。返回菜单期间 GenScene 的断线钩子不再重复退出清理；抑制范围仅限有效完成凭据内的同步继续操作，之后的独立退出仍正常执行。世界进入入口也使用 EndOwned 的结果，避免清理重入后误将新登录作为自己的进入拥有者。
+
+弃置接受后直接使用已登记的统一退出清理，不再更新即将被清空的站点和标记，不再重复写 settings。成功状态、消息和菜单动作分别验证完成凭据，展示回调登录新账户时不再继续返回菜单。测试还复现了退出取消后台任务后会吞掉展示异常，现将退出后的展示/场景异常放在主线程以完成凭据记录诊断。清理或持久化在获得凭据前异常仍交由现有游戏队列错误处理，不展示成功或返回菜单；本步不承诺回滚已完成的服务端删除、先前清理副作用或自动修复持久化失败。
+
+新增编排单元组 **348 个场景**：四种文化，覆盖准入、重复/并发确认、确认时快照推进、十一类归属变化在多个阶段的隔离、失败/缺失/拒绝/异常/取消及再次尝试、队列重复/丢弃、旧 HTTP 与新请求交错、提前断线与回执顺序、退出回调重入、失败文本冻结、持久化及退出展示异常。扩展会话生命周期测试覆盖取消/停止连接回调中的新登录、完成凭据作用域和暂缓释放。测试复用 EventModuleTestPorts 和真实请求/会话模块；同时修正测试身份仓库把 null 用户名误当清空的行为，与生产的保留名称契约一致。
+
+新增运行时单元组使用真实目标适配器与引擎对象，验证阵营、移除、同名替换、销毁、Game/World/CreatingWorld 切换和菜单派发；菜单方法以 Harmony 替身接收，不执行真实场景切换。合计 **11 个相关单元组通过**：两个新组、殖民地协议（224）、注册（764）、世界进入起始（328）及编排（320）、会话生命周期、重连模块、两个旧重连组和模块守卫。守卫检查 **1,057** 个模块及生成类型、**244** 个适配器及生成类型。客户端 Release 构建 **0 错误、41 个既有警告**；RimTest 桥接编译 **0 错误、1 个既有警告**（WorldObservations.cs）。日志位于 `LocalOnly/module-migration/client-colony-abandon-{related,runtime,guard,bridge,build}.log`，复现与修复过程另保留 hold-repro、hold-fixed 和 exit-final 日志。未运行实机 RimTest、全量回归或推送；冻结 1.6 与工作区原有修改保持独立。
+
+M8h4h2 完成。下一步 **M8h4h3：搬迁预检、本地操作、上传确认及飞船隐式搬迁状态**。外观存储、标记刷新/渲染、兼容覆盖、StartMapServerSession、聊天等继续开放；M8h4h、M8h4、M8h、M8 与 M9–M12 仍进行中。相关单元测试为默认验证，需要引擎证据时补单项 RimTest，全量由用户安排。

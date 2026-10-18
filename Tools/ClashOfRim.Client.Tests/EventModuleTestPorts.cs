@@ -27,7 +27,7 @@ internal sealed class EventModuleTestPorts : IClientSessionIdentityStore, IClien
     private readonly ConcurrentQueue<Action> pending = new();
     private readonly SemaphoreSlim available = new(0);
     public ClashOfRimClientNetworkContext ReadContext() => new(Server, User, Colony, Snapshot, null, null, Auth);
-    public void Write(string? user, string? displayName, string auth) { User = user ?? ""; Auth = auth; }
+    public void Write(string? user, string? displayName, string auth) { if (user is not null) User = user; Auth = auth; }
     public void Publish(string snapshot, string? token) { Snapshot = snapshot; Published++; Trace.Add("store"); OnPublish?.Invoke(); }
     public void Persist() => Trace.Add("persist");
     public IClientSnapshotGameSession BindCurrentGame() => new GameSession(this, GameOwner);

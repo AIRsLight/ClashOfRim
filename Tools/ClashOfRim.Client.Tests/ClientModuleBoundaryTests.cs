@@ -60,7 +60,9 @@ internal static class ClientModuleBoundaryTests
             || t == typeof(AIRsLight.ClashOfRim.Admin.ClientAdminBaselineRuntime)
             || t == typeof(AIRsLight.ClashOfRim.Admin.ClientAdminTransport) || t == typeof(AIRsLight.ClashOfRim.Admin.ClientAdminPresentation)
             || t == typeof(ClientWorldWritePresentation) || t == typeof(ClientWorldCatalogRuntime) || t == typeof(ClientWorldCatalogPresentation)
-            || t == typeof(ClientColonyRegistrationTransport) || t == typeof(AIRsLight.ClashOfRim.WorldObjects.ClientColonyRegistrationRuntime)
+            || t == typeof(AIRsLight.ClashOfRim.WorldObjects.ClientColonyAbandonTarget) || t == typeof(AIRsLight.ClashOfRim.WorldObjects.ClientColonyAbandonPresentation)
+            || t == typeof(AIRsLight.ClashOfRim.WorldObjects.AbandonPlayerColonyConfirmationWindow)
+            || t == typeof(ClientColonyTransport) || t == typeof(AIRsLight.ClashOfRim.WorldObjects.ClientColonyRegistrationRuntime)
             || t == typeof(ClientOccupiedColonySitesRuntime) || t == typeof(ClientWorldColonySitesRuntime) || t == typeof(ClientWorldBaselineRuntime) || t == typeof(ClientWorldFeaturesRuntime) || t == typeof(ClientWorldNameRuntime)
             || t == typeof(ClientWorldConfigurationRuntime) || t == typeof(ClientWorldGenerationRuntime) || t == typeof(ClientWorldGenerationPage) || t == typeof(ClientWorldGenerationPresentation)
             || t == typeof(ClientStorytellerRuntime) || t == typeof(ClientStorytellerPage) || t == typeof(ClientWorldRuntimeValues)
@@ -126,7 +128,8 @@ internal static class ClientModuleBoundaryTests
             typeof(AIRsLight.ClashOfRim.Admin.ClientAdminBaselineRuntime),
             typeof(AIRsLight.ClashOfRim.Admin.ClientAdminTransport), typeof(AIRsLight.ClashOfRim.Admin.ClientAdminPresentation),
             typeof(ClientWorldWritePresentation), typeof(ClientWorldCatalogRuntime), typeof(ClientWorldCatalogPresentation),
-            typeof(ClientColonyRegistrationTransport), typeof(AIRsLight.ClashOfRim.WorldObjects.ClientColonyRegistrationRuntime),
+            typeof(AIRsLight.ClashOfRim.WorldObjects.ClientColonyAbandonTarget), typeof(AIRsLight.ClashOfRim.WorldObjects.ClientColonyAbandonPresentation), typeof(AIRsLight.ClashOfRim.WorldObjects.AbandonPlayerColonyConfirmationWindow),
+            typeof(ClientColonyTransport), typeof(AIRsLight.ClashOfRim.WorldObjects.ClientColonyRegistrationRuntime),
             typeof(ClientOccupiedColonySitesRuntime), typeof(ClientWorldColonySitesRuntime), typeof(ClientWorldBaselineRuntime), typeof(ClientWorldFeaturesRuntime), typeof(ClientWorldNameRuntime),
             typeof(ClientWorldConfigurationRuntime), typeof(ClientWorldGenerationRuntime), typeof(ClientWorldGenerationPage), typeof(ClientWorldGenerationPresentation),
             typeof(ClientStorytellerRuntime), typeof(ClientStorytellerPage), typeof(ClientWorldRuntimeValues),

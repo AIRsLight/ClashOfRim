@@ -1,4 +1,5 @@
-using RimWorld.Planet;
+using System;
+using System.Threading.Tasks;
 using UnityEngine;
 using Verse;
 
@@ -7,14 +8,14 @@ namespace AIRsLight.ClashOfRim.WorldObjects;
 internal sealed class AbandonPlayerColonyConfirmationWindow : Window
 {
     private const float CountdownSeconds = 10f;
-    private readonly ClashOfRimMod mod;
-    private readonly MapParent colony;
+    private readonly string colony;
+    private readonly Func<Task> confirm;
     private readonly float openedAtRealtime;
 
-    public AbandonPlayerColonyConfirmationWindow(ClashOfRimMod mod, MapParent colony)
+    public AbandonPlayerColonyConfirmationWindow(string colony, Func<Task> confirm)
     {
-        this.mod = mod;
         this.colony = colony;
+        this.confirm = confirm;
         openedAtRealtime = Time.realtimeSinceStartup;
         doCloseX = true;
         absorbInputAroundWindow = true;
@@ -26,7 +27,6 @@ internal sealed class AbandonPlayerColonyConfirmationWindow : Window
 
     public override void DoWindowContents(Rect inRect)
     {
-        string colonyName = colony?.LabelCap ?? "Colony".Translate().ToString();
         float remaining = Mathf.Max(0f, CountdownSeconds - (Time.realtimeSinceStartup - openedAtRealtime));
         bool canConfirm = remaining <= 0.01f;
 
@@ -39,7 +39,7 @@ internal sealed class AbandonPlayerColonyConfirmationWindow : Window
             messageRect,
             ClashOfRimText.Key(
                 "ClashOfRim.AbandonColony.Warning",
-                colonyName.Named("COLONY")));
+                colony.Named("COLONY")));
 
         Rect countdownRect = new(inRect.x, inRect.y + 160f, inRect.width, 28f);
         string countdownText = canConfirm
@@ -61,10 +61,7 @@ internal sealed class AbandonPlayerColonyConfirmationWindow : Window
         if (Widgets.ButtonText(confirmRect, ClashOfRimText.Key("ClashOfRim.AbandonColony.Confirm")))
         {
             Close();
-            if (colony is not null)
-            {
-                mod.StartAbandonPlayerColony(colony);
-            }
+            _ = confirm();
         }
 
         GUI.enabled = oldEnabled;

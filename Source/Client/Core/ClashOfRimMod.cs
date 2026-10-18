@@ -111,7 +111,7 @@ public sealed partial class ClashOfRimMod : Mod
     private bool worldMapMarkerSyncInProgress;
     private bool runtimeWorldObjectSyncInProgress;
     private readonly ClientColonyRegistration colonyRegistration;
-    private bool abandonPlayerColonyInProgress;
+    private readonly ClientColonyAbandonment colonyAbandonment;
     private bool caravanArrivalTargetRefreshInProgress;
     private readonly ClientAdminAccess adminAccess;
     private readonly ClientAdministration administration;
@@ -298,8 +298,10 @@ public sealed partial class ClashOfRimMod : Mod
         worldConfiguration = new ClientWorldConfiguration(sessionLifecycle, new ClientWorldConfigurationRuntime(), entryStore, storytellerConfiguration, featureCatalogs);
         occupiedColonySites = new ClientOccupiedColonySites(sessionLifecycle, entryStore, new ClientOccupiedColonySitesRuntime(), worldConfiguration);
         occupiedColonySites.OwnAppearanceObserved += CacheServerColonyAppearance;
-        colonyRegistration = new ClientColonyRegistration(sessionLifecycle, entryStore, localMutations, new ClientColonyRegistrationRuntime(),
-            new ClientColonyRegistrationTransport(new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner))), worldConfiguration, occupiedColonySites);
+        var colonyTransport = new ClientColonyTransport(new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner)));
+        colonyRegistration = new ClientColonyRegistration(sessionLifecycle, entryStore, localMutations, new ClientColonyRegistrationRuntime(), colonyTransport, worldConfiguration, occupiedColonySites);
+        colonyAbandonment = new ClientColonyAbandonment(sessionLifecycle, entryStore, new ClientWorldCatalogRuntime(), colonyTransport,
+            new ClientColonyAbandonPresentation(message => worldMapStatus = message));
         snapshotFailureRecovery.ReturningToMenu += () => colonyRegistration.Suppressed = false;
         colonyRegistration.MarkersAccepted += (markers, source) => CaptureWorldMapMarkers(markers, source: source);
         colonyRegistration.Diagnostic += (message, warning) => { if (warning) Log.Warning(message); else ClashLog.Message(message); };
