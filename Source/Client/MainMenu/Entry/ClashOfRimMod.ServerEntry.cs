@@ -294,20 +294,16 @@ public sealed partial class ClashOfRimMod
         pvpEnabled = true;
         settings.CurrentSnapshotId = string.Empty;
         settings.CurrentLineageToken = string.Empty;
-        settings.TargetUserId = string.Empty;
-        settings.TargetColonyId = string.Empty;
-        settings.TargetSnapshotId = string.Empty;
+        playerDirectory.ClearSelection();
+        playerDirectory.Reset();
         settings.CurrentWorldConfigurationId = string.Empty;
         bankState.Message = ClashOfRimText.Key("ClashOfRim.Bank.NoStatus");
-        playerListStatus = ClashOfRimText.Key("ClashOfRim.Status.PlayerListNotPulled");
         tradeState.Reset();
         shopState.Reset();
         chatStatus = ClashOfRimText.Key("ClashOfRim.Chat.StatusIdle");
         adminStatus = ClashOfRimText.Key("ClashOfRim.Admin.StatusIdle");
         lock (eventStateLock)
         {
-            lastPlayers.Clear();
-            playersSnapshotVersion++;
             lastWorldMapMarkers.Clear();
         }
 
@@ -576,7 +572,7 @@ public sealed partial class ClashOfRimMod
         if (completed.Request.WorldConfiguration is { } configuration) ApplyRuntimeWorldConfigurationUpdate(configuration);
         string reason = ClashOfRimText.Key("ClashOfRim.ServerEntry.ReasonServerSnapshotLoaded");
         StartAutomaticEventRefresh(reason);
-        StartRefreshPlayers(reason, requireManualGate: false);
+        _ = playerDirectory.RefreshAsync(manual: false);
         StartRefreshChatMessages(initialLoad: true);
         ClashOfRimGameComponent.EnqueueMainThreadAction(() => RequestPlayerColonySiteRegistration(reason));
         if (!sessionConnection.IsRunning) StartManualPresence();

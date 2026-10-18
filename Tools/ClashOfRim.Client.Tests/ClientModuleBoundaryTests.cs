@@ -53,6 +53,7 @@ internal static class ClientModuleBoundaryTests
             || t == typeof(ClientEventLetterRuntime) || t == typeof(ClientDiplomacyPresentation)
             || t == typeof(ClientEventDecisionPresentation) || t == typeof(ClientEventDecisionRuntime)
             || t == typeof(ClientDiplomacyCreationPresentation) || t == typeof(ClientDiplomacyRelationEffects) || t == typeof(ClientDiplomacyTransport)
+            || t == typeof(ClientPlayerDirectoryPresentation) || t == typeof(ClientPlayerDirectoryRuntime) || t == typeof(ClientPlayerSelectionStore)
             || t == typeof(ClientEventReadPresentation) || t == typeof(ClashOfRimEventLetterProjection)
             || t == typeof(ClientEventApplicationRuntime) || t == typeof(ClientEventApplicationPresentation)
             || t == typeof(ItemDeliveryClientProcessor) || t == typeof(GiftLandingApplicator)
@@ -107,6 +108,7 @@ internal static class ClientModuleBoundaryTests
             typeof(ClientDiplomacyPresentation), typeof(ClientEventTextFormatting), typeof(ClientEventReadPresentation),
             typeof(ClientEventDecisionPresentation), typeof(ClientEventDecisionRuntime),
             typeof(ClientDiplomacyCreationPresentation), typeof(ClientDiplomacyRelationEffects), typeof(ClientDiplomacyTransport),
+            typeof(ClientPlayerDirectoryPresentation), typeof(ClientPlayerDirectoryRuntime),
             typeof(ClientGiftPackageHydration), typeof(PawnPackageHydration),
             typeof(ClientEventApplicationRuntime), typeof(ClientEventApplicationPresentation),
             typeof(ClientEventConfirmationPresentation), typeof(ClientEventConfirmationEffects), typeof(ClientSnapshotPreparationPresentation),

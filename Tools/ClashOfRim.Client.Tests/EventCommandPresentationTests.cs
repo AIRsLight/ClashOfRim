@@ -67,6 +67,7 @@ internal static class EventCommandPresentationTests
                 translations = XDocument.Load(file).Root!.Elements().ToDictionary(e => e.Name.LocalName, e => e.Value);
                 DecisionPresentation();
                 DiplomacyCreationPresentation();
+                PlayerDirectoryPresentation();
                 ApplicationPresentation();
                 ReadPresentation();
                 BankPresentation();
@@ -130,6 +131,33 @@ internal static class EventCommandPresentationTests
             "StatusSettlementMissingSourceMap", "StatusSettlementXmlFailed", "StatusSettlementMissingParent", "StatusSettlementMissingMap", "StatusSettlementMissingLocalMapId" })
             RequireResolved(presentation.Text("ClashOfRim.Raid." + key, ("CODE", "code"), ("MESSAGE", "message"), ("REASON", "reason"),
                 ("TYPE", "exception"), ("VALIDATION", "validation"), ("SNAPSHOT", "snapshot"), ("COUNT", 3)));
+    }
+
+    private static void PlayerDirectoryPresentation()
+    {
+        var presentation = new ClientPlayerDirectoryPresentation();
+        foreach (string key in new[] { "StatusRefreshing", "StatusRefreshFailed", "StatusRefreshRejected", "StatusIncomplete", "StatusRefreshed",
+            "StatusException", "StatusCannotSelectSelf", "StatusSelectedTarget", "StatusNoSelectableTargets" })
+            RequireResolved(presentation.Text("ClashOfRim.Players." + key, ("CODE", "code-é"), ("MESSAGE", "message-é"), ("TYPE", "IOException"),
+                ("PLAYERS", "players-é"), ("USER", "user-é"), ("COLONY", "colony-é")));
+        RequireResolved(presentation.Text("ClashOfRim.Status.PlayerListNotPulled"));
+        RequireResolved(presentation.Admission(LocalMutationAdmission.SnapshotMissing, null));
+        RequireResolved(presentation.Summary(Array.Empty<ModPlayerSummaryDto>()));
+        var players = Enumerable.Range(0, 10).Select(i => new ModPlayerSummaryDto
+        { UserId = "user-" + i, ColonyId = "colony", Online = i % 2 == 0, DisplayName = "玩家-" + i }).Reverse().ToArray();
+        string summary = presentation.Summary(players);
+        RequireResolved(summary);
+        int previous = -1;
+        foreach (int i in new[] { 0, 2, 4, 6, 8, 1, 3, 5 })
+        {
+            int position = summary.IndexOf("玩家-" + i, StringComparison.Ordinal);
+            if (position <= previous) throw new Exception("Directory summary lost stable online/ID ordering.");
+            previous = position;
+        }
+        if (summary.Contains("玩家-7") || summary.Contains("玩家-9")) throw new Exception("Directory summary exceeded its original display limit.");
+        relations.Clear(); relationAvailable = true;
+        new ClientPlayerDirectoryRuntime().ApplyRelation("target-é", "Ally");
+        if (!relations.SequenceEqual(new[] { ((string?)"target-é", FactionRelationKind.Ally) })) throw new Exception("Directory runtime did not share authoritative relation effects.");
     }
 
     private static void DiplomacyCreationPresentation()

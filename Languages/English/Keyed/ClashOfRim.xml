@@ -1932,4 +1932,5 @@
   <ClashOfRim.Diplomacy.CreationRejected>The server rejected the diplomacy message: {CODE} {MESSAGE}</ClashOfRim.Diplomacy.CreationRejected>
   <ClashOfRim.Diplomacy.CreationIncomplete>The diplomacy receipt is incomplete. Refreshing player relations.</ClashOfRim.Diplomacy.CreationIncomplete>
   <ClashOfRim.Diplomacy.CreationException>Diplomacy message failed ({TYPE}): {MESSAGE}</ClashOfRim.Diplomacy.CreationException>
+  <ClashOfRim.Players.StatusIncomplete>The player list response is incomplete. The previous list has been retained.</ClashOfRim.Players.StatusIncomplete>
 </LanguageData>

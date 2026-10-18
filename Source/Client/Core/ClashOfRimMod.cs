@@ -117,8 +117,8 @@ public sealed partial class ClashOfRimMod : Mod
     private string loginStatus = string.Empty;
     private string snapshotUploadStatus = string.Empty;
     private string presenceStatus = string.Empty;
-    private readonly ClientDiplomacyCreation diplomacyCreation;
-    private string playerListStatus = string.Empty;
+    private readonly ClientDiplomacyActions diplomacyActions;
+    private readonly ClientPlayerDirectory playerDirectory;
     // Transitional status bridge for local fulfillment and support, pending their module stages.
     private string tradeStatus { get => tradeState.Message; set => tradeState.Message = value; }
     private string worldMapStatus = string.Empty;
@@ -143,8 +143,6 @@ public sealed partial class ClashOfRimMod : Mod
     private bool blockAutomaticMapSessionForServerEntrySourceGame;
     private readonly ClientSessionConnection sessionConnection = new(new ClientSessionWebSocketTransport(new ClientWebSocketFactory(), new ClientProtocolMetadata()));
     private Game? serverEntrySourceGame;
-    private readonly List<ModPlayerSummaryDto> lastPlayers = new();
-    private int playersSnapshotVersion;
     private readonly List<ModAchievementLeaderboardDto> lastAchievementLeaderboards = new();
     private readonly List<ModAchievementSummaryDto> lastOwnAchievements = new();
     private int achievementLeaderboardsSnapshotVersion;
@@ -185,9 +183,12 @@ public sealed partial class ClashOfRimMod : Mod
         bankState = new ClientBankState(sessionLifecycle, new ClientSnapshotGame(), bankPresentation);
         var snapshotTransactions = new ClientSnapshotTransaction(sessionLifecycle, new ClientSnapshotGame(), snapshotPublication);
         var mutationAdmission = new ClientSnapshotMutationAdmission(sessionLifecycle, synchronization, localMutations, snapshotTransactions);
-        diplomacyCreation = new ClientDiplomacyCreation(mutationAdmission, snapshotTransactions, localMutations,
-            new ClientDiplomacyTransport(new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner))),
-            new ClientDiplomacyCreationPresentation(message => playerListStatus = message));
+        var diplomacyTransport = new ClientDiplomacyTransport(new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner)));
+        playerDirectory = new ClientPlayerDirectory(sessionLifecycle, new ClientSnapshotGame(), synchronization, localMutations,
+            diplomacyTransport, new ClientPlayerSelectionStore(settings), new ClientPlayerDirectoryPresentation(), new ClientPlayerDirectoryRuntime());
+        var diplomacyCreation = new ClientDiplomacyCreation(mutationAdmission, snapshotTransactions, localMutations, diplomacyTransport,
+            new ClientDiplomacyCreationPresentation(message => playerDirectory.Message = message));
+        diplomacyActions = new ClientDiplomacyActions(playerDirectory, diplomacyCreation);
         diplomacyCreation.RefreshRequired += () => RequestDiplomacyStateRefresh(ClashOfRimText.Key("ClashOfRim.Diplomacy.RefreshReasonRelationChanged"));
         localSnapshotConfirmation = new ClientLocalSnapshotConfirmation(sessionLifecycle, new ClientSnapshotGame(), mutationAdmission,
             synchronization, localMutations, snapshotTransactions, snapshotFailureRecovery, ClientSnapshotComposition.Create(settings),
@@ -253,7 +254,7 @@ public sealed partial class ClashOfRimMod : Mod
         raidSettlements = new ClientRaidSettlements(sessionLifecycle, mutationAdmission, synchronization, localMutations, snapshotTransactions,
             snapshotFailureRecovery, new ClientRaidSupportLosses(snapshotTransactions, new ClientSupportTransport()),
             new ClientEventConfirmationTransport(), eventInbox, localSnapshotConfirmation, new ClientRaidSettlementPresentation(message => worldMapStatus = message));
-        raidSettlements.Completed += () => StartRefreshPlayers(ClashOfRimText.Key("ClashOfRim.Raid.AttackerSnapshotSucceededMessage"), requireManualGate: false);
+        raidSettlements.Completed += () => _ = playerDirectory.RefreshAsync(manual: false);
         raidSettlements.Expired += StartRestoreAfterRaid;
         raidRecovery = new ClientRaidRecovery(sessionLifecycle, new ClientSnapshotGame(), snapshotFailureRecovery, raidSettlements,
             new ClientRaidRecoveryPresentation(message => worldMapStatus = message));
@@ -356,7 +357,6 @@ public sealed partial class ClashOfRimMod : Mod
         loginStatus = ClashOfRimText.Key("ClashOfRim.Status.NotLoggedIn");
         snapshotUploadStatus = ClashOfRimText.Key("ClashOfRim.Status.SnapshotUploadNotStarted");
         presenceStatus = ClashOfRimText.Key("ClashOfRim.Status.PresenceNotStarted");
-        playerListStatus = ClashOfRimText.Key("ClashOfRim.Status.PlayerListNotPulled");
         tradeStatus = ClashOfRimText.Key("ClashOfRim.Status.TradeOrderNotCreated");
         worldMapStatus = ClashOfRimText.Key("ClashOfRim.Status.WorldMapNotSynced");
         bankState.Message = ClashOfRimText.Key("ClashOfRim.Status.BankNotPulled");
@@ -581,14 +581,7 @@ public sealed partial class ClashOfRimMod : Mod
         }
     }
 
-    internal string PlayerListStatus
-    {
-        get
-        {
-            EnsureStatusDefaultsInitialized();
-            return playerListStatus;
-        }
-    }
+    internal string PlayerListStatus => playerDirectory.Message;
 
     internal string TradeStatus
     {
@@ -717,9 +710,9 @@ public sealed partial class ClashOfRimMod : Mod
 
     internal int TradeOrdersLoadedCount => tradeState.Count;
 
-    internal string TargetUserId => settings.TargetUserId;
+    internal string TargetUserId => playerDirectory.Selected.UserId;
 
-    internal string TargetColonyId => settings.TargetColonyId;
+    internal string TargetColonyId => playerDirectory.Selected.ColonyId;
 
     internal List<ModTradeOrderSummaryDto> TradeOrdersSnapshot => tradeState.CopyOrders();
 
@@ -729,27 +722,9 @@ public sealed partial class ClashOfRimMod : Mod
 
     internal int ServerShopListingsSnapshotVersion => shopState.Version;
 
-    internal List<ModPlayerSummaryDto> PlayersSnapshot
-    {
-        get
-        {
-            lock (eventStateLock)
-            {
-                return lastPlayers.ToList();
-            }
-        }
-    }
+    internal List<ModPlayerSummaryDto> PlayersSnapshot => playerDirectory.CopyPlayers();
 
-    internal int PlayersSnapshotVersion
-    {
-        get
-        {
-            lock (eventStateLock)
-            {
-                return playersSnapshotVersion;
-            }
-        }
-    }
+    internal int PlayersSnapshotVersion => playerDirectory.Version;
 
     internal List<ModAchievementLeaderboardDto> AchievementLeaderboardsSnapshot
     {

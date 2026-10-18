@@ -72,6 +72,7 @@ var tests = new (string Name, Action Run)[]
     ("event command presentation resolves shipped translations, semantic parameters and authoritative relations", EventCommandPresentationTests.Run),
     ("event decisions own protocol, captured identity, game effects and failure reporting", EventDecisionModuleTests.Run),
     ("diplomacy creation owns frozen targets, authoritative receipts and publication", DiplomacyCreationModuleTests.Run),
+    ("player directory owns refresh replacement, projections and target selection", PlayerDirectoryModuleTests.Run),
     ("package reads and hydration use captured context, shared state restoration and cancellation", PackageReadModuleTests.Run),
     ("package error presentation preserves public and domain contracts", SnapshotPackagePresentationTests.Run),
     ("protocol transport owns request encoding, responses and cancellation", ProtocolTransportModuleTests.Run),

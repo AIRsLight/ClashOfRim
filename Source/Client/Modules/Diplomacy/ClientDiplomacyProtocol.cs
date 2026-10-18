@@ -8,12 +8,17 @@ using AIRsLight.ClashOfRim.Protocol;
 
 namespace AIRsLight.ClashOfRim.Modules.Diplomacy;
 
-internal sealed class ClientDiplomacyProtocol : IClientDiplomacyCreationTransport
+internal sealed class ClientDiplomacyProtocol : IClientDiplomacyCreationTransport, IClientPlayerDirectoryTransport
 {
     private readonly ClientProtocolTransport transport;
     private readonly Func<string> notConfiguredMessage;
     internal ClientDiplomacyProtocol(ClientProtocolTransport transport, Func<string> notConfiguredMessage)
     { this.transport = transport; this.notConfiguredMessage = notConfiguredMessage; }
+    public Task<ClashOfRimClientNetworkResult<ModListPlayersResponseDto>> ListAsync(ClashOfRimClientNetworkContext context, CancellationToken token) => context.IsConfigured
+        ? transport.ForContext(context).PostAsync<ModListPlayersRequestDto, ModListPlayersResponseDto>(
+            ProtocolContractManifest.Find(ProtocolMessageKind.ListPlayers).Route,
+            new() { UserId = context.UserId, ColonyId = context.ColonyId, CurrentSnapshotId = context.CurrentSnapshotId }, token)
+        : Task.FromResult(ClashOfRimClientNetworkResult<ModListPlayersResponseDto>.Failed("NotConfigured", notConfiguredMessage()));
     public Task<ClashOfRimClientNetworkResult<ModDiplomacyEventResponseDto>> CreateAsync(
         ClashOfRimClientNetworkContext context, ClientDiplomacyCommand command, CancellationToken token) => context.IsConfigured
         ? transport.ForContext(context).PostAsync<ModCreateDiplomacyEventRequestDto, ModDiplomacyEventResponseDto>(

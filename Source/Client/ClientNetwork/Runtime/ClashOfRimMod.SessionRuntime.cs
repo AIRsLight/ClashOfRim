@@ -88,7 +88,7 @@ public sealed partial class ClashOfRimMod
                 eventRefresh.AdoptQueue(result.Response.EventQueue);
                 CaptureWorldMapMarkers(result.Response.WorldMapMarkers, source: "manual-login");
                 StartAutomaticEventRefresh(ClashOfRimText.Key("ClashOfRim.Login.ReasonManual"));
-                StartRefreshPlayers(ClashOfRimText.Key("ClashOfRim.Login.ReasonManual"), requireManualGate: false);
+                _ = playerDirectory.RefreshAsync(manual: false);
             }
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
@@ -171,15 +171,12 @@ public sealed partial class ClashOfRimMod
         lastRegisteredPlayerColonySiteSignature = null;
         settings.CurrentSnapshotId = string.Empty;
         settings.CurrentLineageToken = string.Empty;
-        settings.TargetUserId = string.Empty;
-        settings.TargetColonyId = string.Empty;
-        settings.TargetSnapshotId = string.Empty;
+        playerDirectory.ClearSelection();
+        playerDirectory.Reset();
 
         lock (eventStateLock)
         {
-            lastPlayers.Clear();
             lastWorldMapMarkers.Clear();
-            playersSnapshotVersion++;
         }
 
         lock (chatStateLock)
@@ -1351,7 +1348,7 @@ public sealed partial class ClashOfRimMod
         CaptureWorldMapMarkers(login.WorldMapMarkers, source: "session-reconnect");
         window.CompleteReconnect(true, loginStatus);
         StartAutomaticEventRefresh(ClashOfRimText.Key("ClashOfRim.SessionExpired.ReconnectReason"));
-        StartRefreshPlayers(ClashOfRimText.Key("ClashOfRim.SessionExpired.ReconnectReason"), requireManualGate: false);
+        _ = playerDirectory.RefreshAsync(manual: false);
         StartRefreshChatMessages();
         StartManualPresence();
         ReconcileRestoredRaidBattleSession(result.Snapshot.ActiveRaidRecovery);
@@ -1476,7 +1473,7 @@ public sealed partial class ClashOfRimMod
                 eventRefresh.AdoptQueue(login.Response.EventQueue);
                 CaptureWorldMapMarkers(login.Response.WorldMapMarkers, source: "map-session-login");
                 StartAutomaticEventRefresh(ClashOfRimText.Key("ClashOfRim.MapSession.ReasonLogin"));
-                StartRefreshPlayers(ClashOfRimText.Key("ClashOfRim.MapSession.ReasonLogin"), requireManualGate: false);
+                _ = playerDirectory.RefreshAsync(manual: false);
                 StartRefreshChatMessages(initialLoad: true);
                 ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
                     RequestPlayerColonySiteRegistration(ClashOfRimText.Key("ClashOfRim.MapSession.ReasonLoginSucceeded")));

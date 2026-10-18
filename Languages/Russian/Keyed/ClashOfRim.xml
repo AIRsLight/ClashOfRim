@@ -1923,4 +1923,5 @@
   <ClashOfRim.Diplomacy.CreationRejected>Сервер отклонил дипломатическое сообщение: {CODE} {MESSAGE}</ClashOfRim.Diplomacy.CreationRejected>
   <ClashOfRim.Diplomacy.CreationIncomplete>Дипломатический ответ неполон. Обновление отношений с игроками.</ClashOfRim.Diplomacy.CreationIncomplete>
   <ClashOfRim.Diplomacy.CreationException>Ошибка дипломатического сообщения ({TYPE}): {MESSAGE}</ClashOfRim.Diplomacy.CreationException>
+  <ClashOfRim.Players.StatusIncomplete>Ответ со списком игроков неполон. Предыдущий список сохранён.</ClashOfRim.Players.StatusIncomplete>
 </LanguageData>

@@ -12,32 +12,6 @@ namespace AIRsLight.ClashOfRim;
 
 public sealed partial class ClashOfRimMod
 {
-    private static string FormatPlayers(IReadOnlyCollection<ModPlayerSummaryDto>? players)
-    {
-        if (players is null || players.Count == 0)
-        {
-            return ClashOfRimText.Key("ClashOfRim.Players.NoneRegistered");
-        }
-
-        return ClashOfRimText.Key("ClashOfRim.Players.SummaryPrefix") + string.Join(ClashOfRimText.Key("ClashOfRim.ListSeparator"), players
-            .OrderByDescending(player => player.Online)
-            .ThenBy(player => player.UserId, StringComparer.Ordinal)
-            .Take(8)
-            .Select(player =>
-            {
-                string online = player.Online
-                    ? ClashOfRimText.Key("ClashOfRim.Multiplayer.Online")
-                    : ClashOfRimText.Key("ClashOfRim.Multiplayer.Offline");
-                string playerName = string.IsNullOrWhiteSpace(player.DisplayName)
-                    ? player.UserId
-                    : player.DisplayName!;
-                return ClashOfRimText.Key(
-                    "ClashOfRim.Players.SummaryItem",
-                    ClashOfRimText.SafeArgument(playerName).Named("PLAYER"),
-                    online.Named("STATUS"));
-            }));
-    }
-
     private bool HasTarget(out string failureReason)
     {
         if (string.IsNullOrWhiteSpace(settings.TargetUserId)

@@ -26,7 +26,6 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
 {
     private static readonly string MaintainPresenceRoute = ProtocolContractManifest.Find(ProtocolMessageKind.MaintainPresence).Route;
     private static readonly string ChangeOfflinePasswordRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ChangeOfflinePassword).Route;
-    private static readonly string ListPlayersRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ListPlayers).Route;
     private static readonly string ListAchievementsRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ListAchievements).Route;
     private static readonly string GetPawnPackagePreviewRoute = ProtocolContractManifest.Find(ProtocolMessageKind.GetPawnPackagePreview).Route;
     private static readonly string UploadSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.UploadSnapshot).Route;
@@ -806,25 +805,7 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
         => authentication.LogoutAsync(context, sessionId, cancellationToken, bindToSession: false);
 
     public Task<ClashOfRimClientNetworkResult<ModListPlayersResponseDto>> ListPlayersAsync(
-        CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModListPlayersResponseDto>();
-        }
-
-        var request = new ModListPlayersRequestDto
-        {
-            UserId = context.UserId,
-            ColonyId = context.ColonyId,
-            CurrentSnapshotId = context.CurrentSnapshotId
-        };
-
-        return transport.PostAsync<ModListPlayersRequestDto, ModListPlayersResponseDto>(
-            ListPlayersRoute,
-            request,
-            cancellationToken);
-    }
+        CancellationToken cancellationToken = default) => diplomacy.ListAsync(context, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModListAchievementsResponseDto>> ListAchievementsAsync(
         string? targetUserId = null,

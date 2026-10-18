@@ -1932,4 +1932,5 @@
   <ClashOfRim.Diplomacy.CreationRejected>服务器拒绝了外交消息：{CODE} {MESSAGE}</ClashOfRim.Diplomacy.CreationRejected>
   <ClashOfRim.Diplomacy.CreationIncomplete>外交回执不完整，正在刷新玩家关系。</ClashOfRim.Diplomacy.CreationIncomplete>
   <ClashOfRim.Diplomacy.CreationException>外交消息发生异常（{TYPE}）：{MESSAGE}</ClashOfRim.Diplomacy.CreationException>
+  <ClashOfRim.Players.StatusIncomplete>玩家列表回执不完整，已保留之前的列表。</ClashOfRim.Players.StatusIncomplete>
 </LanguageData>

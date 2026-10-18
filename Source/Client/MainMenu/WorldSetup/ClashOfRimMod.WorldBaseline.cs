@@ -642,7 +642,7 @@ public sealed partial class ClashOfRimMod
                 {
                     Messages.Message(snapshotUploadStatus, MessageTypeDefOf.PositiveEvent, historical: false);
                     StartAutomaticEventRefresh(ClashOfRimText.Key("ClashOfRim.WorldBaseline.ReasonInitialSnapshotUploaded"));
-                    StartRefreshPlayers(ClashOfRimText.Key("ClashOfRim.WorldBaseline.ReasonInitialSnapshotUploaded"), requireManualGate: false);
+                    _ = playerDirectory.RefreshAsync(manual: false);
                     StartRefreshChatMessages(initialLoad: true);
                     StartRegisterPlayerColonySites();
                     StartSyncWorldConfigurationExtensions();

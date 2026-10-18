@@ -42,8 +42,14 @@ internal sealed class ClientGameRequestTracker
         return applied;
     }
 
-    internal Request? Begin(ClientSynchronizationCoordinator.Lease? admission = null) =>
-        Read(() => work is null ? work = new(owner!, session.ReadContext()) { Admission = admission } : null);
+    internal Request? Begin(ClientSynchronizationCoordinator.Lease? admission = null, bool replace = false) => Read(() =>
+    {
+        if (work is not null && !replace) return null;
+        // Read-only refreshes may supersede an older request in this same scope.
+        // Its completion cannot release the replacement's admission or publish data.
+        work?.Admission?.Dispose();
+        return work = new(owner!, session.ReadContext()) { Admission = admission };
+    });
     internal void Track(Request request, ClientSynchronizationCoordinator.Lease admission) => TryApply(request, () => request.Admission = admission);
     internal bool TryApply(Request request, Action action)
     {
