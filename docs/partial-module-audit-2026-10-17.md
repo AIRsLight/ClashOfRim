@@ -2615,3 +2615,14 @@ SnapshotCommitApplication 接管一次已登记意图的业务预检、父版本
 **14 个相关单元组通过**：快照准备／恢复、各经济业务与支援提交、固定确认批次、普通上传、单条／批量事件确认、袭击出征／守方结算／战场清理及模块边界。守卫为 396 个类型、81 条路由。日志：`LocalOnly/module-migration/server-commit-application-tests.log`。测试编译生产代码；未运行全量、实机、独立发布构建或推送，继承修改未纳入提交。
 
 **下一步 M9d：恢复准备与待办所有权边界。** RecoveryPreparation partial 仍直接访问协调器私有集合；需让准备模块持有捕获批次和压缩结果，协调器通过窄端口判定批次归属并安装准备结果，保留锁外准备、过期批次拒绝和回滚再捕获语义，删除该 partial。之后继续迁出宿主恢复／后处理并删除 LegacySnapshotRecoveryAdapter；现有后处理和确认计划回调仍是未完成的 M9 边界，不能据本步宣称 M9 完成。
+
+
+### M9d 恢复准备模块与批次归属（2026-10-19）
+
+SnapshotCommitRecoveryPreparation 独立持有捕获的意图引用、是否需要准备的判断和临时压缩结果，实现既有 ISnapshotRecoveryPreparation。协调器只通过 ISnapshotCommitPreparationOwner 判定捕获批次是否仍属于当前 pending，并安装准备结果；判断保留 applying、批次数量、按 ID 查找及 ReferenceEquals 的原条件。捕获和安装仍在同一变更锁内，只有 Prepare 在锁外执行。捕获数组是一次准备的只读输入，并不是第二份可变待办索引。
+
+保留原准备算法：预先准备／已发布／旧式存储无需再次压缩；竞争恢复或替换后拒绝过期批次；其他意图准备期间若已发布目的快照回滚，则拒绝安装并重新捕获整个批次，避免回到锁内压缩。实际 pending 的所有写入仍在协调器。删除 SnapshotCommitService.RecoveryPreparation.cs，SnapshotCommitService 不再声明 partial；新模块及生成类型加入禁止反向引用协调器的架构守卫。
+
+**3 个相关单元组通过**：快照载荷／真实日志恢复准备矩阵、入口生命周期恢复边界、模块守卫（401 个类型、81 条路由）。复用原故障和暂停夹具，覆盖准备前后中断、内存／重启、竞争完成、批次替换、旧准备失败、目的版本变化／回滚与嵌套锁边界，没有新建重复的恢复模拟实现。日志：`LocalOnly/module-migration/server-commit-preparation-tests.log`。未运行全量回归、实机或独立发布构建，未推送。
+
+**下一步 M9e：确认计划和事件应用判定。** 当前 PlanSnapshotConfirmations 仍调用宿主 EvaluateEventApplication，后者还持有交易入档等业务分支。需让独立模块复用已有确认 consumer、支援确认和账本算法，拥有计划生成及逐条应用判定，再将上传后处理与恢复装配接到这些具体模块。LegacySnapshotRecoveryAdapter、宿主 SnapshotCommits／SnapshotPostUpload 及其旧入口仍未退役；M9、后续 M10–M12 和最终完成审计保持开放。

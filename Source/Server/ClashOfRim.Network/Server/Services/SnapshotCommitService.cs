@@ -6,7 +6,7 @@ using AIRsLight.ClashOfRim.Protocol;
 namespace AIRsLight.ClashOfRim.Network;
 
 /// <summary>A write-ahead intent bridges snapshot files and business records. Call under the snapshot mutation gate.</summary>
-public sealed partial class SnapshotCommitService : ISnapshotCommitCheckpoint
+public sealed class SnapshotCommitService : ISnapshotCommitCheckpoint, ISnapshotCommitPreparationOwner
 {
     private readonly SnapshotConfirmationReceipts receipts;
     private readonly SnapshotCommitJournal journal;
@@ -360,6 +360,16 @@ public sealed partial class SnapshotCommitService : ISnapshotCommitCheckpoint
         }
         finally { applying = false; }
     }
+
+    internal ISnapshotRecoveryPreparation CaptureRecoveryPreparation(IColonySnapshotIndexStore snapshots) =>
+        new SnapshotCommitRecoveryPreparation(this, snapshots, pending.Values.ToArray());
+
+    bool ISnapshotCommitPreparationOwner.IsCurrent(IReadOnlyList<SnapshotCommitIntent> captured) =>
+        !applying && pending.Count == captured.Count
+        && captured.All(intent => pending.TryGetValue(intent.Id, out var current) && ReferenceEquals(current, intent));
+
+    void ISnapshotCommitPreparationOwner.InstallPreparedPayload(SnapshotCommitIntent intent, PreparedSnapshotPayload payload) =>
+        pending[intent.Id] = intent with { PreparedStoragePayload = payload };
 
     void ISnapshotCommitCheckpoint.Persist(SnapshotCommitIntent intent) => PersistCheckpoint(intent);
 

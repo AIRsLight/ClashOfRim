@@ -31,7 +31,7 @@ internal static class ModuleBoundaryTests
             || t == typeof(AIRsLight.ClashOfRim.Network.Plugins.SnapshotPostUploadDeferredContext)
             || t == typeof(LegacySnapshotRecoveryAdapter) || t == typeof(IServiceProvider));
         Require(violations.Count == 0, string.Join(Environment.NewLine, violations));
-        Type[] commitModules = [typeof(SnapshotCommitApplication), typeof(SnapshotCommitJournal), typeof(SnapshotConfirmationReceipts)];
+        Type[] commitModules = [typeof(SnapshotCommitApplication), typeof(SnapshotCommitJournal), typeof(SnapshotConfirmationReceipts), typeof(SnapshotCommitRecoveryPreparation)];
         var commitBackReferences = ModuleDependencyGuard.FindViolations(
             modules.Where(t => commitModules.Any(root => t == root || t.FullName!.StartsWith(root.FullName + "+", StringComparison.Ordinal))),
             t => t == typeof(SnapshotCommitService));
