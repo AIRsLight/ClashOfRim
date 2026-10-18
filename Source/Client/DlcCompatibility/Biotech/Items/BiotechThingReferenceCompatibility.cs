@@ -1,24 +1,33 @@
+using AIRsLight.ClashOfRim.DlcCompatibility.Biotech.Genes;
 using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Modules.Compatibility.Biotech;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.ThirdPartyCompatibility;
-using AIRsLight.ClashOfRim.Trades;
 using RimWorld;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using Verse;
 
-namespace AIRsLight.ClashOfRim.DlcCompatibility;
+namespace AIRsLight.ClashOfRim.DlcCompatibility.Biotech.Items;
 
-internal static partial class BiotechCompatibility
+internal sealed class BiotechThingReferenceCompatibility
 {
+    private readonly Func<bool> enabled;
+    private readonly BiotechReproductiveSources sources;
+
+    internal BiotechThingReferenceCompatibility(Func<bool> enabled, BiotechReproductiveSources sources)
+    {
+        this.enabled = enabled;
+        this.sources = sources;
+    }
+
     private static readonly System.Reflection.FieldInfo GeneSetField = typeof(GeneSetHolderBase).GetField(
         "geneSet", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
 
-    internal static void ClearThingReferenceMetadata(string surface, ThingDef? def, ModThingReferenceDto item)
+    internal void ClearThingReferenceMetadata(string surface, ThingDef? def, ModThingReferenceDto item)
     {
-        if (!HasBiotechTradeMetadata || IsGeneSetHolderDef(def) || IsReproductiveSourceCarrierDef(def))
+        if (!enabled() || BiotechItemDefinitions.IsGeneSetHolder(def) || BiotechItemDefinitions.HasPawnSources(def))
         {
             return;
         }
@@ -26,9 +35,9 @@ internal static partial class BiotechCompatibility
         BiotechThingMetadata.Clear(item);
     }
 
-    internal static bool IsThingReferenceComplete(string surface, ThingDef? def, ModThingReferenceDto item)
+    internal bool IsThingReferenceComplete(string surface, ThingDef? def, ModThingReferenceDto item)
     {
-        if (!HasBiotechTradeMetadata || !IsGeneSetHolderDef(def))
+        if (!enabled() || !BiotechItemDefinitions.IsGeneSetHolder(def))
         {
             return true;
         }
@@ -42,14 +51,14 @@ internal static partial class BiotechCompatibility
             || BiotechThingMetadata.GeneDefNames(item).Count > 0;
     }
 
-    internal static bool IsUniqueThingReferenceRequest(ThingDef? def)
+    internal bool IsUniqueThingReferenceRequest(ThingDef? def)
     {
-        return HasBiotechTradeMetadata && IsGeneSetHolderDef(def);
+        return enabled() && BiotechItemDefinitions.IsGeneSetHolder(def);
     }
 
-    internal static void AppendThingReferenceMetadata(Thing metadataThing, ModThingReferenceDto reference)
+    internal void AppendThingReferenceMetadata(Thing metadataThing, ModThingReferenceDto reference)
     {
-        if (!HasBiotechTradeMetadata || metadataThing is null || reference is null)
+        if (!enabled() || metadataThing is null || reference is null)
         {
             return;
         }
@@ -57,10 +66,7 @@ internal static partial class BiotechCompatibility
         if (metadataThing is GeneSetHolderBase { GeneSet: not null } geneHolder)
         {
             BiotechThingMetadata.SetGeneDefNames(reference, geneHolder.GeneSet.GenesListForReading
-                .Select(gene => gene.defName)
-                .Where(defName => !string.IsNullOrWhiteSpace(defName))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList());
+                .Select(gene => gene.defName));
         }
 
         if (metadataThing is Xenogerm xenogerm)
@@ -69,40 +75,41 @@ internal static partial class BiotechCompatibility
             BiotechThingMetadata.SetXenotypeIconDefName(reference, xenogerm.iconDef?.defName);
         }
 
-        AppendReproductiveSourceMetadata(metadataThing, reference);
+        sources.Append(metadataThing, reference);
     }
 
-    internal static bool ThingReferenceMatches(ModThingReferenceDto requirement, Thing metadataThing)
+    internal bool ThingReferenceMatches(ModThingReferenceDto requirement, Thing metadataThing)
     {
         BiotechThingMetadata.Normalize(requirement);
-        return !HasBiotechTradeMetadata
+        return !enabled()
             || (BiotechThingMetadata.GeneRequirementMatches(requirement, CandidateGeneDefNames(metadataThing))
-                && BiotechThingMetadata.ReproductiveSourceRequirementMatches(requirement, CandidateReproductiveSources(metadataThing)));
+                && BiotechThingMetadata.ReproductiveSourceRequirementMatches(requirement, sources.Capture(metadataThing)));
     }
 
-    internal static bool ThingReferenceDtoMatches(ModThingReferenceDto requirement, ModThingReferenceDto candidate)
+    internal bool ThingReferenceDtoMatches(ModThingReferenceDto requirement, ModThingReferenceDto candidate)
     {
         BiotechThingMetadata.Normalize(requirement);
         BiotechThingMetadata.Normalize(candidate);
-        return !HasBiotechTradeMetadata
+        return !enabled()
             || BiotechTradeConstraints.Matches(requirement.Metadata, candidate.Metadata);
     }
 
-    internal static bool TryApplyThingReferenceMetadata(ModThingReferenceDto reference, Thing thing, out string? missingDefName)
+    internal bool TryApplyThingReferenceMetadata(ModThingReferenceDto reference, Thing thing, out string? missingDefName)
     {
         missingDefName = null;
         BiotechThingMetadata.Normalize(reference);
-        if (!HasBiotechTradeMetadata)
+        if (!enabled())
         {
             return true;
         }
 
-        if (BiotechThingMetadata.GeneDefNames(reference).Count > 0 && thing is GeneSetHolderBase)
+        IReadOnlyList<string> geneDefNames = BiotechThingMetadata.GeneDefNames(reference);
+        if (geneDefNames.Count > 0 && thing is GeneSetHolderBase)
         {
             List<GeneDef> genes = new();
-            foreach (string geneDefName in BiotechThingMetadata.GeneDefNames(reference))
+            foreach (string geneDefName in geneDefNames)
             {
-                GeneDef? gene = ResolveGeneDef(geneDefName);
+                GeneDef? gene = BiotechGeneRuntime.ResolveDef(geneDefName);
                 if (gene is null)
                 {
                     missingDefName = geneDefName;
@@ -115,10 +122,8 @@ internal static partial class BiotechCompatibility
             if (thing is Genepack genepack)
             {
                 genepack.Initialize(genes);
-                return TryApplyReproductiveSourceMetadata(reference, thing, out missingDefName);
             }
-
-            if (thing is Xenogerm xenogerm)
+            else if (thing is Xenogerm xenogerm)
             {
                 Genepack sourcePack = (Genepack)ThingMaker.MakeThing(ThingDefOf.Genepack);
                 sourcePack.Initialize(genes);
@@ -144,20 +149,13 @@ internal static partial class BiotechCompatibility
             }
         }
 
-        return TryApplyReproductiveSourceMetadata(reference, thing, out missingDefName);
+        return sources.TryApply(reference, thing, out missingDefName);
     }
 
-    internal static int ThingReferenceStrictness(ModThingReferenceDto requirement)
+    internal int ThingReferenceStrictness(ModThingReferenceDto requirement)
     {
         BiotechThingMetadata.Normalize(requirement);
-        return HasBiotechTradeMetadata ? BiotechTradeConstraints.RequirementStrictness(requirement.Metadata) : 0;
-    }
-
-    private static GeneDef? ResolveGeneDef(string? defName)
-    {
-        return string.IsNullOrWhiteSpace(defName)
-            ? null
-            : DefDatabase<GeneDef>.GetNamedSilentFail(defName);
+        return enabled() ? BiotechTradeConstraints.RequirementStrictness(requirement.Metadata) : 0;
     }
 
     private static IReadOnlyCollection<string> CandidateGeneDefNames(Thing metadataThing)
@@ -169,5 +167,4 @@ internal static partial class BiotechCompatibility
                 .ToList()
             : Array.Empty<string>();
     }
-
 }

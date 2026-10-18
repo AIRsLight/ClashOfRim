@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.DlcCompatibility.Biotech.Items;
 using AIRsLight.ClashOfRim.Modules.Compatibility.Biotech;
 using AIRsLight.ClashOfRim.RemoteMaps;
 using AIRsLight.ClashOfRim.ThirdPartyCompatibility;
@@ -9,6 +10,13 @@ namespace AIRsLight.ClashOfRim.DlcCompatibility;
 
 internal static class BiotechCompatibilityPackage
 {
+    private static readonly BiotechThingReferenceCompatibility ThingReferences = new(TradeMetadataEnabled, new BiotechReproductiveSources(CurrentUserId));
+    private static readonly BiotechThingReferenceDisplay ThingDisplay = new(TradeMetadataEnabled);
+    private static readonly BiotechThingReferenceEditor ThingEditor = new(TradeMetadataEnabled);
+
+    private static bool TradeMetadataEnabled() => ClashOfRimCompatibilityApi.HasCompatibilityCapability(BiotechCompatibilityKeys.TradeMetadata);
+    private static string? CurrentUserId() => (ClashOfRimMod.Instance ?? LoadedModManager.GetMod<ClashOfRimMod>())?.UserId;
+
     public static BuiltInDlcCompatibilityPackageDescriptor Descriptor { get; } =
         new(BiotechCompatibilityKeys.PackageId, Apply, order: 300);
 
@@ -51,30 +59,35 @@ internal static class BiotechCompatibilityPackage
         ClashOfRimCompatibilityApi.RegisterPawnExchangePackageRegistrar(BiotechCompatibility.TryRegisterBiotechPawnExchangePayload);
         ClashOfRimCompatibilityApi.RegisterPawnExchangePackageNormalizer(BiotechCompatibility.NormalizeBiotechPawnExchangePackage);
         ClashOfRimCompatibilityApi.RegisterPawnPostRestoreLocalizer(BiotechCompatibility.ResetRestoredPawnGeneCaches);
-        ClashOfRimCompatibilityApi.RegisterThingReferenceEditor(
-            BiotechCompatibilityKeys.TradeMetadata + ".editor",
-            BiotechCompatibility.DrawThingReferenceEditor,
-            BiotechCompatibility.ClearThingReferenceMetadata,
-            BiotechCompatibility.IsThingReferenceComplete);
-        ClashOfRimCompatibilityApi.RegisterThingReferenceUniqueRequestPredicate(BiotechCompatibility.IsUniqueThingReferenceRequest);
-        ClashOfRimCompatibilityApi.RegisterThingReferenceMetadata(
-            BiotechCompatibilityKeys.TradeMetadata,
-            BiotechCompatibility.AppendThingReferenceMetadata,
-            BiotechCompatibility.ThingReferenceMatches,
-            BiotechCompatibility.ThingReferenceDtoMatches,
-            BiotechCompatibility.TryApplyThingReferenceMetadata,
-            BiotechCompatibility.ThingReferenceStrictness);
-        ClashOfRimCompatibilityApi.RegisterThingReferenceDisplay(
-            BiotechCompatibilityKeys.TradeMetadata + ".display",
-            BiotechCompatibility.AppendThingReferenceDisplayParts,
-            BiotechCompatibility.SuppressesStandardThingStats);
-        ClashOfRimCompatibilityApi.RegisterThingReferenceCacheKeyPartsProvider(BiotechCompatibility.ThingReferenceCacheKeyParts);
-        ClashOfRimCompatibilityApi.RegisterThingReferenceMetadataNormalizer(BiotechThingMetadata.Normalize);
+        RegisterItemCapabilities();
         BiotechThingTransferCompatibility.Apply();
         ClashOfRimCompatibilityApi.RegisterDefensePointDefNameProvider(BiotechCompatibility.BiotechDefensePointDefNames);
         RemoteSessionGlobalStateGuard.RegisterRemoteMapRemovalGlobalEffectsSuppressedHandler(
             RemoteSessionBiotechDissolutionEffectState.ClearPendingRemoteEffectsAfterSuppression);
 
         BiotechRemoteSessionMechanitorNotificationPatch.Apply(harmony);
+    }
+
+    internal static void RegisterItemCapabilities()
+    {
+        ClashOfRimCompatibilityApi.RegisterThingReferenceEditor(
+            BiotechCompatibilityKeys.TradeMetadata + ".editor",
+            ThingEditor.DrawThingReferenceEditor,
+            ThingReferences.ClearThingReferenceMetadata,
+            ThingReferences.IsThingReferenceComplete);
+        ClashOfRimCompatibilityApi.RegisterThingReferenceUniqueRequestPredicate(ThingReferences.IsUniqueThingReferenceRequest);
+        ClashOfRimCompatibilityApi.RegisterThingReferenceMetadata(
+            BiotechCompatibilityKeys.TradeMetadata,
+            ThingReferences.AppendThingReferenceMetadata,
+            ThingReferences.ThingReferenceMatches,
+            ThingReferences.ThingReferenceDtoMatches,
+            ThingReferences.TryApplyThingReferenceMetadata,
+            ThingReferences.ThingReferenceStrictness);
+        ClashOfRimCompatibilityApi.RegisterThingReferenceDisplay(
+            BiotechCompatibilityKeys.TradeMetadata + ".display",
+            ThingDisplay.AppendThingReferenceDisplayParts,
+            ThingDisplay.SuppressesStandardThingStats);
+        ClashOfRimCompatibilityApi.RegisterThingReferenceCacheKeyPartsProvider(ThingDisplay.ThingReferenceCacheKeyParts);
+        ClashOfRimCompatibilityApi.RegisterThingReferenceMetadataNormalizer(BiotechThingMetadata.Normalize);
     }
 }

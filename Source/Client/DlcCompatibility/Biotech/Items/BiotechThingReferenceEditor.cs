@@ -8,11 +8,15 @@ using System.Collections.Generic;
 using UnityEngine;
 using Verse;
 
-namespace AIRsLight.ClashOfRim.DlcCompatibility;
+namespace AIRsLight.ClashOfRim.DlcCompatibility.Biotech.Items;
 
-internal static partial class BiotechCompatibility
+internal sealed class BiotechThingReferenceEditor
 {
-    internal static bool DrawThingReferenceEditor(
+    private readonly Func<bool> enabled;
+
+    internal BiotechThingReferenceEditor(Func<bool> enabled) => this.enabled = enabled;
+
+    internal bool DrawThingReferenceEditor(
         string surface,
         ThingDef? def,
         ModThingReferenceDto item,
@@ -20,8 +24,8 @@ internal static partial class BiotechCompatibility
         out float consumedHeight)
     {
         consumedHeight = 0f;
-        if (!HasBiotechTradeMetadata
-            || !IsGeneSetHolderDef(def))
+        if (!enabled()
+            || !BiotechItemDefinitions.IsGeneSetHolder(def))
         {
             return false;
         }
@@ -31,7 +35,7 @@ internal static partial class BiotechCompatibility
             IReadOnlyList<string> targetGeneDefNames = BiotechThingMetadata.TargetGeneDefNames(item);
             string requestLabel = targetGeneDefNames.Count == 0
                 ? ClashOfRimText.Key("ClashOfRim.Trade.SelectGene")
-                : FormatGeneList(targetGeneDefNames);
+                : BiotechThingReferenceDisplay.FormatGeneList(targetGeneDefNames);
             if (ClashOfRimUiUtility.SelectionButton(
                     new Rect(rect.x, rect.y, 150f, rect.height),
                     requestLabel))
@@ -51,7 +55,7 @@ internal static partial class BiotechCompatibility
         IReadOnlyList<string> geneDefNames = BiotechThingMetadata.GeneDefNames(item);
         string listingLabel = geneDefNames.Count == 0
             ? ClashOfRimText.Key("ClashOfRim.Shop.SelectGenes")
-            : FormatGeneList(geneDefNames);
+            : BiotechThingReferenceDisplay.FormatGeneList(geneDefNames);
         if (ClashOfRimUiUtility.SelectionButton(
                 new Rect(rect.x + 130f, rect.y, rect.width - 130f, 28f),
                 listingLabel))

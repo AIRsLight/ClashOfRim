@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.DlcCompatibility.Biotech.Genes;
 using AIRsLight.ClashOfRim.Modules.Compatibility.Biotech;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using RimWorld;
@@ -6,13 +7,17 @@ using System.Collections.Generic;
 using System.Linq;
 using Verse;
 
-namespace AIRsLight.ClashOfRim.DlcCompatibility;
+namespace AIRsLight.ClashOfRim.DlcCompatibility.Biotech.Items;
 
-internal static partial class BiotechCompatibility
+internal sealed class BiotechThingReferenceDisplay
 {
-    internal static void AppendThingReferenceDisplayParts(ModThingReferenceDto thing, bool asRequirement, List<string> parts)
+    private readonly Func<bool> enabled;
+
+    internal BiotechThingReferenceDisplay(Func<bool> enabled) => this.enabled = enabled;
+
+    internal void AppendThingReferenceDisplayParts(ModThingReferenceDto thing, bool asRequirement, List<string> parts)
     {
-        if (!HasBiotechTradeMetadata || thing is null || parts is null)
+        if (!enabled() || thing is null || parts is null)
         {
             return;
         }
@@ -40,9 +45,9 @@ internal static partial class BiotechCompatibility
         }
     }
 
-    internal static IEnumerable<string> ThingReferenceCacheKeyParts(ModThingReferenceDto thing)
+    internal IEnumerable<string> ThingReferenceCacheKeyParts(ModThingReferenceDto thing)
     {
-        if (!HasBiotechTradeMetadata)
+        if (!enabled())
         {
             yield break;
         }
@@ -58,21 +63,14 @@ internal static partial class BiotechCompatibility
         }
     }
 
-    internal static bool SuppressesStandardThingStats(ThingDef? def)
+    internal bool SuppressesStandardThingStats(ThingDef? def)
     {
-        return IsGeneSetHolderDef(def);
-    }
-
-    public static bool IsGeneSetHolderDef(ThingDef? def)
-    {
-        return HasBiotechTradeMetadata
-            && def?.thingClass is not null
-            && typeof(GeneSetHolderBase).IsAssignableFrom(def.thingClass);
+        return enabled() && BiotechItemDefinitions.IsGeneSetHolder(def);
     }
 
     public static string GeneLabel(string? defName)
     {
-        GeneDef? gene = ResolveGeneDef(defName);
+        GeneDef? gene = BiotechGeneRuntime.ResolveDef(defName);
         return gene?.label?.CapitalizeFirst() ?? defName ?? ClashOfRimText.Key("ClashOfRim.Any");
     }
 

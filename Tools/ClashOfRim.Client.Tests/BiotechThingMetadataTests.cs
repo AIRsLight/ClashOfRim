@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.DlcCompatibility.Biotech.Items;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -118,11 +119,12 @@ internal static class BiotechThingMetadataTests
         BiotechThingMetadata.SetXenotypeName(dto, "测试"); BiotechThingMetadata.SetXenotypeIconDefName(dto, "Icon");
         dto.Metadata[BiotechThingMetadataKeys.ReproductiveSourceCount] = "1";
         BiotechThingMetadata.WriteReproductiveSourceMetadata(dto, 0, Source("Mother", "Human", new[] { "A" }));
-        string[] parts = BiotechCompatibility.ThingReferenceCacheKeyParts(dto).ToArray();
+        var display = new BiotechThingReferenceDisplay(() => ClashOfRimCompatibilityApi.HasCompatibilityCapability(BiotechCompatibilityKeys.TradeMetadata));
+        string[] parts = display.ThingReferenceCacheKeyParts(dto).ToArray();
         Check(parts.Take(4).SequenceEqual(new[] { "B,a", "a", "测试", "Icon" }) && parts.Length == 13 && parts[4] == "Mother" && parts[7] == "Human"
             && parts[11] == "A", "Display cache did not consume the same metadata codec as editing/matching.");
         ClashOfRimCompatibilityApi.ApplyServerDlcBaseline(Array.Empty<string>());
-        Check(!BiotechCompatibility.ThingReferenceCacheKeyParts(dto).Any(), "Codec extraction bypassed the presentation DLC gate.");
+        Check(!display.ThingReferenceCacheKeyParts(dto).Any(), "Codec extraction bypassed the presentation DLC gate.");
     }
 
     private static ReproductiveSourceRecord Source(string? role, string? race, IReadOnlyList<string>? genes = null) =>

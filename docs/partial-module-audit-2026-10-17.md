@@ -2810,3 +2810,18 @@ AdminBaselineCompatibility、WorldConfigurationCompatibility、WorldGenerationSe
 **累计 6 个相关单元组通过**：两端交易约束组、客户端元数据、基因物品恢复、两端模块边界。客户端守卫检查 1,382 个纯模块类型、96 个兼容能力类型和 312 个事件适配类型；服务端检查 428 个模块类型和 81 条路由。日志为 `LocalOnly/module-migration/client-biotech-constraints-tests.log`、`server-biotech-constraints-tests.log` 及新增边界后的两份 `*-biotech-constraints-followup-tests.log`。生产代码随测试编译，客户端既有警告保留；本步只运行相关单元测试，全量回归仍由用户安排，未独立发布构建或推送，冻结 1.6 未改动。
 
 本步先完成有已复现行为差异的纯规则边界，物品引擎应用和繁殖来源 pawn 恢复仍在旧 partial 中，不能据共享规则完成宣称 Biotech 模块已拆完。**下一步 M10f3：物品引擎能力与繁殖来源恢复组件。** 从现有物品应用、来源捕获／查找／占位 pawn 恢复中迁出实际实现及依赖，再整理展示／编辑；复用本步唯一协议解析和交易判定。Biotech pawn 包、地图清理、反射缓存、防御点、文化包加载及 M11–M12／最终审计继续开放。
+
+
+### M10f3 物品引擎能力、来源 pawn 与基因运行时（2026-10-19）
+
+删除物品应用、繁殖来源、展示和编辑四个 BiotechCompatibility partial 分片。BiotechThingReferenceCompatibility 接管物品捕获／匹配／应用及基因容器的私有字段适配，BiotechThingReferenceDisplay 和 BiotechThingReferenceEditor 分别拥有展示／缓存键及编辑流程，BiotechItemDefinitions 提供唯一的物品形状分类。三个入口组件接收动态 DLC 能力查询，包装配器直接注册其实例方法；原聚合类没有留下同名转发入口。两个选择窗口继续使用共享元数据模块，物品窗口改用展示组件的格式化能力。
+
+BiotechReproductiveSources 拥有来源捕获和物品链接应用，BiotechSourcePawnIdentity 拥有身份标签与归属判定，BiotechSourcePawnRestorer 拥有已有 pawn 查找、占位生成、种族／派系选择及状态恢复。捕获和运行时匹配现在复用同一次来源枚举规则，不再分别维护去空／去重／四项上限。当前用户 ID 的查询只由包装配器绑定，来源组件在需要时取一次并显式传给整个操作；恢复实现不再读取 Mod 或 LoadedModManager。无来源物品及 DLC 禁用路径不会查询会话身份。
+
+BiotechGeneRuntime 集中原先分散在 pawn 包和远程地图 partial 中的九个基因缓存反射字段，物品、来源恢复和展示共用其定义查找。来源恢复／地图清理调用完整缓存清理，pawn 恢复仍只清理自定义异种缓存，并保留原有能力和 UniqueIDsManager 门禁。没有将地图或 pawn 业务封成回调传回旧类。物品基因写入复用唯一 CSV 规范化，移除写入前重复过滤／去重；应用时只读一次基因列表，并将各类容器后的来源应用合并为一个出口。
+
+新增四种文化下的引擎组件单元组：隔离世界中的来源重复／空引用／四项上限、父母角色与顺序、跨当前用户的原始身份和归属保留、重复标签幂等、已有世界 pawn 复用、重复应用不新增 pawn 或链接、缺失种族明确拒绝、空来源清理旧元数据、两种缓存清理范围、实际包注册及重复登记、完整性／匹配／严格度／缓存键／清理与动态 DLC 基线。测试仅绑定 WorldPawns、世界对象容器及玩家派系三个引擎全局入口，捕获、身份、匹配、恢复和链接算法均执行生产实现；不构造 Mod。胚胎／基因包原有测试移除对聚合类私有方法的反射及能力 getter 的 Harmony 修改，直接构造能力组件验证真实基因恢复。
+
+**5 个相关单元组通过**：新物品能力、交易约束、元数据、胚胎／基因包恢复和客户端模块边界。守卫新增覆盖 Biotech.Items／Biotech.Genes，禁止依赖旧 Biotech 聚合类、兼容 API、Mod、全量设置／客户端、LoadedModManager 或服务定位器；检查 1,382 个纯模块类型、115 个引擎能力类型和 312 个事件适配类型。最终日志 `LocalOnly/module-migration/client-biotech-items-final-tests.log`。生产代码随测试编译，只有既有警告。未运行完整回归、专项 RimTest、独立发布构建或推送；冻结 1.6 未修改。占位 pawn 的完整游戏生成、GUI 绘制和完整远程地图加载不由本轮单元测试证明，仍保留在用户安排的后续验证范围。
+
+迁移审查还发现现有失败路径风险，尚未在本轮复现或修正：来源应用在逐项恢复前移除旧链接；来源基因恢复在解析所有 GeneDef 前已设置异种、清空原基因，后续缺失定义可能留下部分修改。这些顺序与迁移前一致，本轮不能据成功路径测试宣称恢复具备失败原子性。**下一步 M10f4：先补这些失败路径的定向复现并收拢准备／应用顺序，再继续 pawn 包、地图清理和防御点组件拆分。** 文化包加载及 M11–M12／最终完成审计继续开放，Biotech 聚合类仍有六个 partial 分片。

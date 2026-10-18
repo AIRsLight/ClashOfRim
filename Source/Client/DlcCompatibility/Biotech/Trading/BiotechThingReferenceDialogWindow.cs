@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.DlcCompatibility.Biotech.Items;
 using AIRsLight.ClashOfRim.Modules.Compatibility.Biotech;
 using System;
 using System.Collections.Generic;
@@ -50,7 +51,7 @@ internal sealed class BiotechThingReferenceDialogWindow : Window
 
         Widgets.Label(
             new Rect(footerRect.x + 120f, footerRect.y + 6f, footerRect.width - 280f, 24f),
-            BiotechCompatibility.FormatGeneList(BiotechThingMetadata.GeneDefNames(target)));
+            BiotechThingReferenceDisplay.FormatGeneList(BiotechThingMetadata.GeneDefNames(target)));
         if (Widgets.ButtonText(new Rect(footerRect.xMax - 120f, footerRect.y, 120f, 32f), ClashOfRimText.Key("ClashOfRim.Done")))
         {
             Close();

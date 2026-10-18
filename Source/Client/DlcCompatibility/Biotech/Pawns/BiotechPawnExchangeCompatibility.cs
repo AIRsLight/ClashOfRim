@@ -1,8 +1,8 @@
+using AIRsLight.ClashOfRim.DlcCompatibility.Biotech.Genes;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using RimWorld;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using System.Runtime.Serialization.Json;
 using System.Text;
 using Verse;
@@ -14,12 +14,6 @@ internal static partial class BiotechCompatibility
     internal const string BiotechPawnExchangeExtensionXenotypeDef = "xenotypeDef";
     private const string BiotechPawnExchangeExtensionCustomXenotypeName = "customXenotypeName";
     private const string BiotechPawnExchangeExtensionCustomXenotypeSha256 = "customXenotypeSha256";
-
-    private static readonly FieldInfo? GeneCachedHasCustomXenotypeField =
-        typeof(Pawn_GeneTracker).GetField("cachedHasCustomXenotype", BindingFlags.Instance | BindingFlags.NonPublic);
-
-    private static readonly FieldInfo? GeneCachedCustomXenotypeField =
-        typeof(Pawn_GeneTracker).GetField("cachedCustomXenotype", BindingFlags.Instance | BindingFlags.NonPublic);
 
     internal static void AppendBiotechPawnExchangeExtension(Pawn pawn, ModPawnExchangePackageDto package)
     {
@@ -157,8 +151,7 @@ internal static partial class BiotechCompatibility
             return;
         }
 
-        GeneCachedHasCustomXenotypeField?.SetValue(pawn.genes, null);
-        GeneCachedCustomXenotypeField?.SetValue(pawn.genes, null);
+        BiotechGeneRuntime.ResetCustomXenotypeCaches(pawn);
     }
 
     private static string SerializeCustomXenotypePackage(BiotechSavedXenotypePackageDto package)
