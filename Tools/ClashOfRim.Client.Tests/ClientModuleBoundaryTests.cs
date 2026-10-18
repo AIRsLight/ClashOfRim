@@ -31,6 +31,8 @@ internal static class ClientModuleBoundaryTests
             || t == typeof(AIRsLight.ClashOfRim.Raids.ClientRaidSupportLossSource) || t == typeof(AIRsLight.ClashOfRim.Raids.ClientRaidSupportLossPresentation)
             || t == typeof(AIRsLight.ClashOfRim.Raids.ClientRaidSettlementRuntime) || t == typeof(AIRsLight.ClashOfRim.Raids.ClientRaidSettlementPresentation)
             || t == typeof(AIRsLight.ClashOfRim.Raids.RaidBattleSnapshotPreparer)
+            || t == typeof(AIRsLight.ClashOfRim.Raids.ClientRaidRecoveryRuntime) || t == typeof(AIRsLight.ClashOfRim.Raids.ClientRaidRecoveryPresentation)
+            || t == typeof(AIRsLight.ClashOfRim.Raids.ClientRaidBattleDeadlines)
             || t == typeof(AIRsLight.ClashOfRim.RemoteMaps.ClientRemoteMapLongEvent)
             || t == typeof(AIRsLight.ClashOfRim.Raids.ClientRaidAttackForce) || t == typeof(AIRsLight.ClashOfRim.Raids.ClientRaidBattlefield)
             || t == typeof(AIRsLight.ClashOfRim.Raids.IRaidAttackForceSource) || t == typeof(AIRsLight.ClashOfRim.Raids.RaidAttackPawnLoad)
@@ -82,6 +84,8 @@ internal static class ClientModuleBoundaryTests
             typeof(AIRsLight.ClashOfRim.Raids.ClientRaidLaunchRuntime), typeof(AIRsLight.ClashOfRim.Raids.ClientRaidLaunchPresentation),
             typeof(AIRsLight.ClashOfRim.Raids.ClientRaidSupportLossSource), typeof(AIRsLight.ClashOfRim.Raids.ClientRaidSupportLossPresentation),
             typeof(AIRsLight.ClashOfRim.Raids.ClientRaidSettlementRuntime), typeof(AIRsLight.ClashOfRim.Raids.ClientRaidSettlementPresentation),
+            typeof(AIRsLight.ClashOfRim.Raids.ClientRaidRecoveryRuntime), typeof(AIRsLight.ClashOfRim.Raids.ClientRaidRecoveryPresentation),
+            typeof(AIRsLight.ClashOfRim.Raids.ClientRaidBattleDeadlines),
             typeof(AIRsLight.ClashOfRim.RemoteMaps.ClientRemoteMapLongEvent),
             typeof(AIRsLight.ClashOfRim.Raids.ClientRaidAttackForce), typeof(AIRsLight.ClashOfRim.Raids.ClientRaidBattlefield),
             typeof(AIRsLight.ClashOfRim.Raids.CaravanRaidAttackForceSource), typeof(AIRsLight.ClashOfRim.Raids.TransporterRaidAttackForceSource),

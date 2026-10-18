@@ -8,7 +8,7 @@ using AIRsLight.ClashOfRim.Modules.Synchronization;
 
 namespace AIRsLight.ClashOfRim.Modules.Raids;
 
-internal sealed class ClientRaidSettlements
+internal sealed class ClientRaidSettlements : IClientRaidSettlementActions
 {
     private readonly ClientSessionLifecycle session;
     private readonly ClientSnapshotMutationAdmission admission;
@@ -34,7 +34,7 @@ internal sealed class ClientRaidSettlements
     // Authoritative reload after expiry remains the remote recovery use case (M7d5).
     internal event Action<string>? Expired;
 
-    internal Task StartAsync(IClientRaidSettlementRuntime runtime, string reason)
+    public Task StartAsync(IClientRaidSettlementRuntime runtime, string reason)
     {
         using var p = ClientSessionWork.EnterPublication();
         if (string.IsNullOrWhiteSpace(runtime.Identity.EventId) || !OwnsBattle(runtime) || !runtime.TryBegin()) return Task.CompletedTask;
@@ -45,7 +45,7 @@ internal sealed class ClientRaidSettlements
         mutations.Begin(LocalMutationKind.Raid, Text("StatusSettlementUploading"));
         return RunOwnedAsync(new(attempt), new(runtime, reason ?? ""));
     }
-    internal void Expire(IClientRaidSettlementRuntime runtime, bool closeLocalMap = true)
+    public void Expire(IClientRaidSettlementRuntime runtime, bool closeLocalMap = true)
     {
         using var p = ClientSessionWork.EnterPublication();
         if (!OwnsBattle(runtime) || string.IsNullOrWhiteSpace(runtime.Identity.EventId)) return;

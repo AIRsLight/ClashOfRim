@@ -73,6 +73,7 @@ public sealed class ClashOfRimGameComponent : GameComponent
     {
         RunMainThreadActions();
         ClashOfRimMod? mod = LoadedModManager.GetMod<ClashOfRimMod>();
+        mod?.AdvanceRaidRecovery();
         TryFinishExpiredRaidBattle(mod);
         TryHandleRaidBattleFinalDeadline(mod);
         TryRefreshWorldMapMarkers(mod);
@@ -83,6 +84,7 @@ public sealed class ClashOfRimGameComponent : GameComponent
     public override void GameComponentUpdate()
     {
         ClashOfRimMod? mod = LoadedModManager.GetMod<ClashOfRimMod>();
+        mod?.AdvanceRaidRecovery();
         TryFinishExpiredRaidBattle(mod);
         TryHandleRaidBattleFinalDeadline(mod);
     }
@@ -92,6 +94,7 @@ public sealed class ClashOfRimGameComponent : GameComponent
         RunMainThreadActions();
         int ticks = Find.TickManager?.TicksGame ?? 0;
         ClashOfRimMod? mod = LoadedModManager.GetMod<ClashOfRimMod>();
+        mod?.AdvanceRaidRecovery();
         TryStartAutomaticRuntimeSession(mod);
         TryRegisterPlayerColonySites(mod, ticks);
         TrySyncRuntimeWorldObjects(mod, ticks);
@@ -1240,6 +1243,7 @@ public sealed class ClashOfRimGameComponent : GameComponent
             || activeRaidBattleSession.FinishInProgress
             || !activeRaidBattleSession.IsExpired
             || mod is null
+            || mod.RaidRecoveryBlocksBattleLifecycle
             || mod.SnapshotUploadInProgress)
         {
             return;
@@ -1252,7 +1256,8 @@ public sealed class ClashOfRimGameComponent : GameComponent
     {
         if (activeRaidBattleSession is null
             || !activeRaidBattleSession.IsFinalDeadlineExpired
-            || mod is null)
+            || mod is null
+            || mod.RaidRecoveryBlocksBattleLifecycle)
         {
             return;
         }

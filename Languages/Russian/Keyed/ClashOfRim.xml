@@ -980,6 +980,7 @@
   <ClashOfRim.Raid.StatusSubmitting>Отправка рейда на сервер: {TARGET}.</ClashOfRim.Raid.StatusSubmitting>
   <ClashOfRim.Raid.StatusTargetIncomplete>Информация целевого рейда неполна и не может создать событие.</ClashOfRim.Raid.StatusTargetIncomplete>
   <ClashOfRim.Raid.StatusTargetTileMismatch>Караван больше не находится на целевом тайле рейда.</ClashOfRim.Raid.StatusTargetTileMismatch>
+  <ClashOfRim.Raid.RestoreException>Ошибка восстановления рейда: {TYPE}: {MESSAGE}</ClashOfRim.Raid.RestoreException>
   <ClashOfRim.Raid.RestoreInvalidServerTime>Рейд {EVENTID} имеет недействительное серверное время и не может быть восстановлен.</ClashOfRim.Raid.RestoreInvalidServerTime>
   <ClashOfRim.Raid.RestoreMissingLocalBattle>На сервере есть незавершенный рейд {EVENTID}, но в этом сохранении нет восстанавливаемой карты боя.</ClashOfRim.Raid.RestoreMissingLocalBattle>
   <ClashOfRim.Raid.RestoreServerAlreadySettled>Сервер завершил этот рейд. Обновление событий.</ClashOfRim.Raid.RestoreServerAlreadySettled>

@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 using AIRsLight.ClashOfRim.Modules.Synchronization;
 
 namespace AIRsLight.ClashOfRim.Modules.Raids;
@@ -8,6 +9,11 @@ internal static class ClientRaidSettlementIntent
 {
     internal static string Key(string userId, string eventId, string reason) => $"raid-settlement:{userId}:{eventId}:{reason}";
     internal static string Result(string reason) => "RaidBattleReturned:" + reason;
+}
+internal interface IClientRaidSettlementActions
+{
+    Task StartAsync(IClientRaidSettlementRuntime runtime, string reason);
+    void Expire(IClientRaidSettlementRuntime runtime, bool closeLocalMap = true);
 }
 internal interface IClientRaidSettlementRuntime
 {

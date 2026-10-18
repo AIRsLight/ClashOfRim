@@ -88,6 +88,7 @@ public sealed partial class ClashOfRimMod : Mod
     private readonly ClientObservationMaps observationMaps;
     private readonly ClientRaidLaunching raidLaunching;
     private readonly ClientRaidSettlements raidSettlements;
+    private readonly ClientRaidRecovery raidRecovery;
     internal ClientGiftActions GiftActions => giftActions;
     private readonly ClientEventConfirmationWorkflow eventConfirmations;
     private readonly ClientEventApplications eventApplications;
@@ -247,6 +248,9 @@ public sealed partial class ClashOfRimMod : Mod
             new ClientEventConfirmationTransport(), eventInbox, localSnapshotConfirmation, new ClientRaidSettlementPresentation(message => worldMapStatus = message));
         raidSettlements.Completed += () => StartRefreshPlayers(ClashOfRimText.Key("ClashOfRim.Raid.AttackerSnapshotSucceededMessage"), requireManualGate: false);
         raidSettlements.Expired += StartConfirmSettledRaidCleanupSnapshot;
+        raidRecovery = new ClientRaidRecovery(sessionLifecycle, new ClientSnapshotGame(), snapshotFailureRecovery, raidSettlements,
+            new ClientRaidRecoveryPresentation(message => worldMapStatus = message));
+        raidRecovery.ReloadRequested += StartConfirmSettledRaidCleanupSnapshot;
         observationMaps = new ClientObservationMaps(sessionLifecycle, synchronization, new ClientSnapshotGame(),
             new ClientObservationTransport(), new ClientObservationRuntime(),
             new ClientObservationPresentation(message => worldMapStatus = message, response => ShowCompatibilityMismatchWindow(response)));

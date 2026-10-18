@@ -5,7 +5,7 @@ using Verse;
 
 namespace AIRsLight.ClashOfRim.Raids;
 
-internal sealed class ClientRaidSettlementRuntime : IClientRaidSettlementRuntime
+internal sealed class ClientRaidSettlementRuntime : IClientRaidRecoveredBattle
 {
     private readonly Game? game;
     private readonly ActiveRaidBattleSession? battle;
@@ -17,6 +17,14 @@ internal sealed class ClientRaidSettlementRuntime : IClientRaidSettlementRuntime
     public ClientRaidSettlementIdentity Identity { get; }
     public bool IsCurrent => game is not null && battle is not null && ReferenceEquals(Current.Game, game) && ReferenceEquals(ClashOfRimGameComponent.ActiveRaidBattleSession, battle);
     public TimeSpan FinalRemaining => battle?.FinalRemaining ?? TimeSpan.Zero;
+    public bool HasMap => IsCurrent && RemoteSessionMapUtility.FindActiveSessionMap(ActiveRemoteMapSession.FromRaidBattle(battle!))?.Map is not null;
+    public void RestoreDeadlines(ClientRaidServerDeadlines deadlines)
+    {
+        if (!IsCurrent) return;
+        ClientRaidBattleDeadlines.Apply(battle!, deadlines);
+        battle!.FinishInProgress = false;
+        ClashOfRimGameComponent.SetActiveRaidBattleSession(battle);
+    }
     public bool TryBegin() => IsCurrent && RemoteMapSessionController.TryBeginRaidBattleFinish(battle);
     public void KeepFinish() { if (IsCurrent) RemoteMapSessionController.KeepRaidBattleFinishInProgress(battle); }
     public void ResetFinish() { if (IsCurrent) RemoteMapSessionController.ResetRaidBattleFinish(battle); }

@@ -39,8 +39,6 @@ internal sealed class ClientRaidLaunchRuntime : IClientRaidLaunchRuntime
     {
         battle!.AttackerSnapshotId = snapshotId;
         if (deadlines is null) return;
-        battle.StartedAtUtcTicks = deadlines.StartedAtUtcTicks;
-        battle.DeadlineUtcTicks = deadlines.DeadlineUtcTicks;
-        battle.FinalDeadlineUtcTicks = deadlines.FinalDeadlineUtcTicks;
+        ClientRaidBattleDeadlines.Apply(battle, deadlines);
     }
 }

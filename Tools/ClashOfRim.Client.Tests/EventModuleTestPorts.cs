@@ -21,6 +21,7 @@ internal sealed class EventModuleTestPorts : IClientSessionIdentityStore, IClien
     internal Action? OnPublish;
     internal Action? BeforeGameAction;
     internal bool AllowRaidRemoval;
+    internal bool HasGame = true;
     internal readonly List<bool> CaptureModes = new();
     internal readonly List<string> Trace = new();
     private readonly ConcurrentQueue<Action> pending = new();
@@ -58,7 +59,7 @@ internal sealed class EventModuleTestPorts : IClientSessionIdentityStore, IClien
     }
     private sealed record GameSession(EventModuleTestPorts Ports, object Owner) : IClientSnapshotGameSession
     {
-        public bool HasGame => true;
+        public bool HasGame => Ports.HasGame;
         public bool IsCurrent => ReferenceEquals(Owner, Ports.GameOwner);
         public string RuntimeSnapshotId => Ports.Snapshot;
         public SnapshotSaveCapture Capture(bool removeRaidBattleSessions)

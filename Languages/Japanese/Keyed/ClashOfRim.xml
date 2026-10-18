@@ -980,6 +980,7 @@
   <ClashOfRim.Raid.StatusSubmitting>サーバーへ襲撃を送信しています: {TARGET}。</ClashOfRim.Raid.StatusSubmitting>
   <ClashOfRim.Raid.StatusTargetIncomplete>対象襲撃情報が不完全で、イベントを作成できません。</ClashOfRim.Raid.StatusTargetIncomplete>
   <ClashOfRim.Raid.StatusTargetTileMismatch>キャラバンはもう対象襲撃タイル上にいません。</ClashOfRim.Raid.StatusTargetTileMismatch>
+  <ClashOfRim.Raid.RestoreException>襲撃の復元中にエラーが発生しました：{TYPE}：{MESSAGE}</ClashOfRim.Raid.RestoreException>
   <ClashOfRim.Raid.RestoreInvalidServerTime>襲撃 {EVENTID} はサーバー時刻が無効で復元できません。</ClashOfRim.Raid.RestoreInvalidServerTime>
   <ClashOfRim.Raid.RestoreMissingLocalBattle>サーバーに未完了の襲撃 {EVENTID} がありますが、このセーブには復元可能な戦闘マップがありません。</ClashOfRim.Raid.RestoreMissingLocalBattle>
   <ClashOfRim.Raid.RestoreServerAlreadySettled>サーバーはこの襲撃を終了済みです。イベントを更新しています。</ClashOfRim.Raid.RestoreServerAlreadySettled>

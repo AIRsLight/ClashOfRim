@@ -979,6 +979,7 @@
   <ClashOfRim.Raid.StatusSubmitting>Submitting raid to the server: {TARGET}.</ClashOfRim.Raid.StatusSubmitting>
   <ClashOfRim.Raid.StatusTargetIncomplete>The target raid information is incomplete and cannot create an event.</ClashOfRim.Raid.StatusTargetIncomplete>
   <ClashOfRim.Raid.StatusTargetTileMismatch>The caravan is no longer on the target raid tile.</ClashOfRim.Raid.StatusTargetTileMismatch>
+  <ClashOfRim.Raid.RestoreException>Raid recovery failed: {TYPE}: {MESSAGE}</ClashOfRim.Raid.RestoreException>
   <ClashOfRim.Raid.RestoreInvalidServerTime>Raid {EVENTID} has invalid server time and cannot be restored.</ClashOfRim.Raid.RestoreInvalidServerTime>
   <ClashOfRim.Raid.RestoreMissingLocalBattle>The server has unfinished raid {EVENTID}, but this save has no recoverable battle map.</ClashOfRim.Raid.RestoreMissingLocalBattle>
   <ClashOfRim.Raid.RestoreServerAlreadySettled>The server has ended this raid. Refreshing events.</ClashOfRim.Raid.RestoreServerAlreadySettled>

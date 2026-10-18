@@ -818,107 +818,7 @@ public sealed partial class ClashOfRimMod
     }
 
     private void ReconcileRestoredRaidBattleSession(ModActiveRaidRecoveryDto? recovery)
-    {
-        if (Current.Game?.World?.worldObjects is null || Current.Game.Maps is null)
-        {
-            Log.Warning("[ClashOfRim][Raid] Server snapshot load callback fired before world/maps were ready; delaying raid recovery reconciliation.");
-            ClashOfRimGameComponent.EnqueueMainThreadAction(() => ReconcileRestoredRaidBattleSession(recovery));
-            return;
-        }
-
-        ActiveRaidBattleSession? session = ClashOfRimGameComponent.ActiveRaidBattleSession;
-        if (recovery is null)
-        {
-            if (session is null)
-            {
-                return;
-            }
-
-            ClashLog.Message("[ClashOfRim][Raid] Restored snapshot still had raid battle session "
-                + session.EventId
-                + ", but the server has no active source raid for this colony. Refreshing events and reloading the server snapshot.");
-            Messages.Message(
-                ClashOfRimText.Key("ClashOfRim.Raid.RestoreServerAlreadySettled"),
-                MessageTypeDefOf.NeutralEvent,
-                historical: false);
-            StartConfirmSettledRaidCleanupSnapshot(session.EventId);
-            return;
-        }
-
-        if (session is null
-            || !string.Equals(session.EventId, recovery.EventId, StringComparison.Ordinal)
-            || RemoteSessionMapUtility.FindActiveSessionMap(ActiveRemoteMapSession.FromRaidBattle(session)) is null)
-        {
-            string message = ClashOfRimText.Key(
-                "ClashOfRim.Raid.RestoreMissingLocalBattle",
-                recovery.EventId.Named("EVENTID"));
-            Log.Warning("[ClashOfRim][Raid] Server reports active raid "
-                + recovery.EventId
-                + " but the restored snapshot has no matching local battle map/session. Keeping local state untouched and requiring a server snapshot reload.");
-            worldMapStatus = message;
-            ShowUnconfirmedSnapshotFailure(
-                LocalMutationKind.RaidRestore,
-                message,
-                () => StartRestoreExistingColonySnapshot(settings.CurrentSnapshotId));
-            return;
-        }
-
-        if (!TryParseServerUtc(recovery.ServerNowUtc, out DateTimeOffset serverNowUtc)
-            || !TryParseServerUtc(recovery.StartedAtUtc, out DateTimeOffset startedAtUtc)
-            || !TryParseServerUtc(recovery.DeadlineUtc, out DateTimeOffset deadlineUtc)
-            || !TryParseServerUtc(recovery.FinalDeadlineUtc, out DateTimeOffset finalDeadlineUtc))
-        {
-            string message = ClashOfRimText.Key(
-                "ClashOfRim.Raid.RestoreInvalidServerTime",
-                recovery.EventId.Named("EVENTID"));
-            Log.Warning("[ClashOfRim][Raid] Active raid recovery had invalid server times for event "
-                + recovery.EventId
-                + ".");
-            worldMapStatus = message;
-            ShowUnconfirmedSnapshotFailure(
-                LocalMutationKind.RaidRestore,
-                message,
-                () => StartRestoreExistingColonySnapshot(settings.CurrentSnapshotId));
-            return;
-        }
-
-        session.StartedAtUtcTicks = startedAtUtc.UtcDateTime.Ticks;
-        session.DeadlineUtcTicks = deadlineUtc.UtcDateTime.Ticks;
-        session.FinalDeadlineUtcTicks = finalDeadlineUtc.UtcDateTime.Ticks;
-        session.FinishInProgress = false;
-        ClashOfRimGameComponent.SetActiveRaidBattleSession(session);
-
-        if (serverNowUtc >= finalDeadlineUtc)
-        {
-            ClashLog.Message("[ClashOfRim][Raid] Restored active raid "
-                + recovery.EventId
-                + " after final deadline; closing the restored battle map and confirming timeout cleanup.");
-            HandleRaidBattleFinalDeadlineExpired(session);
-            return;
-        }
-
-        if (serverNowUtc >= deadlineUtc)
-        {
-            ClashLog.Message("[ClashOfRim][Raid] Restored active raid "
-                + recovery.EventId
-                + " after battle deadline; starting settlement upload.");
-            StartFinishActiveRaidBattle(session, "RecoveredExpired");
-            return;
-        }
-
-        TimeSpan remaining = deadlineUtc - serverNowUtc;
-        ClashLog.Message("[ClashOfRim][Raid] Restored active raid "
-            + recovery.EventId
-            + " with remaining seconds="
-            + Math.Max(0, (int)remaining.TotalSeconds)
-            + ".");
-        Messages.Message(
-            ClashOfRimText.Key(
-                "ClashOfRim.Raid.RestoreSucceeded",
-                Math.Max(0, (int)Math.Ceiling(remaining.TotalSeconds)).Named("SECONDS")),
-            MessageTypeDefOf.NeutralEvent,
-            historical: false);
-    }
+        => raidRecovery.Reconcile(new ClientRaidRecoveryRuntime(), recovery);
 
     private void MarkServerEntrySourceGame()
     {
@@ -995,9 +895,6 @@ public sealed partial class ClashOfRimMod
             },
             allowDifferentSnapshotId: true);
     }
-
-    private static bool TryParseServerUtc(string? value, out DateTimeOffset parsed)
-        => AIRsLight.ClashOfRim.Modules.Transport.ClientServerTime.TryParseUtc(value, out parsed);
 
     private static void EnqueueClashOfRimMainThreadAction(Action action, Action? onDiscard = null)
         => ClientMainThreadDispatcher.Enqueue(action, onDiscard);

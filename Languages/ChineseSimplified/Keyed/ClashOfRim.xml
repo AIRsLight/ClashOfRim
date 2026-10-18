@@ -979,6 +979,7 @@
   <ClashOfRim.Raid.StatusSubmitting>正在向服务器提交袭击：{TARGET}。</ClashOfRim.Raid.StatusSubmitting>
   <ClashOfRim.Raid.StatusTargetIncomplete>目标袭击信息不完整，无法创建事件。</ClashOfRim.Raid.StatusTargetIncomplete>
   <ClashOfRim.Raid.StatusTargetTileMismatch>远行队已不在目标袭击地块。</ClashOfRim.Raid.StatusTargetTileMismatch>
+  <ClashOfRim.Raid.RestoreException>袭击恢复发生异常：{TYPE}：{MESSAGE}</ClashOfRim.Raid.RestoreException>
   <ClashOfRim.Raid.RestoreInvalidServerTime>袭击记录的服务器时间有误，不能恢复。</ClashOfRim.Raid.RestoreInvalidServerTime>
   <ClashOfRim.Raid.RestoreMissingLocalBattle>服务器存在未完成袭击，但当前存档没有可恢复的战斗地图。</ClashOfRim.Raid.RestoreMissingLocalBattle>
   <ClashOfRim.Raid.RestoreServerAlreadySettled>服务器已结束该袭击，正在刷新事件。</ClashOfRim.Raid.RestoreServerAlreadySettled>

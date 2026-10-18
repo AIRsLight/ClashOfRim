@@ -980,6 +980,7 @@
   <ClashOfRim.Raid.StatusSubmitting>서버에 습격 제출 중: {TARGET}.</ClashOfRim.Raid.StatusSubmitting>
   <ClashOfRim.Raid.StatusTargetIncomplete>대상 습격 정보가 불완전하여 이벤트를 만들 수 없습니다.</ClashOfRim.Raid.StatusTargetIncomplete>
   <ClashOfRim.Raid.StatusTargetTileMismatch>카라반이 더 이상 대상 습격 타일에 있지 않습니다.</ClashOfRim.Raid.StatusTargetTileMismatch>
+  <ClashOfRim.Raid.RestoreException>습격 복원 중 오류가 발생했습니다: {TYPE}: {MESSAGE}</ClashOfRim.Raid.RestoreException>
   <ClashOfRim.Raid.RestoreInvalidServerTime>습격 {EVENTID}의 서버 시간이 유효하지 않아 복원할 수 없습니다.</ClashOfRim.Raid.RestoreInvalidServerTime>
   <ClashOfRim.Raid.RestoreMissingLocalBattle>서버에 미완료 습격 {EVENTID}가 있지만 이 저장에는 복구 가능한 전투 지도가 없습니다.</ClashOfRim.Raid.RestoreMissingLocalBattle>
   <ClashOfRim.Raid.RestoreServerAlreadySettled>서버가 이 습격을 이미 종료했습니다. 이벤트를 새로고침합니다.</ClashOfRim.Raid.RestoreServerAlreadySettled>

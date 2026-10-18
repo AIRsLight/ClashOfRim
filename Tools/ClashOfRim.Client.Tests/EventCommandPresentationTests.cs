@@ -98,6 +98,9 @@ internal static class EventCommandPresentationTests
 
     private static void RaidSettlementPresentation()
     {
+        var recovery = new AIRsLight.ClashOfRim.Raids.ClientRaidRecoveryPresentation(static _ => { });
+        foreach (var state in Enum.GetValues<AIRsLight.ClashOfRim.Modules.Raids.ClientRaidRecoveryState>())
+            RequireResolved(recovery.Format(new(state, "raid", 60, new InvalidOperationException("recovery error"))));
         var presentation = new AIRsLight.ClashOfRim.Raids.ClientRaidSettlementPresentation(static _ => { });
         foreach (string key in new[] { "StatusSettlementUploading", "StatusSettlementSaveFailed", "StatusSettlementFailed", "StatusSettlementRejected",
             "StatusSettlementException", "StatusSettlementSucceeded", "StatusSettlementFinalDeadlineExpired", "StatusSettlementReportingSupportLoss",

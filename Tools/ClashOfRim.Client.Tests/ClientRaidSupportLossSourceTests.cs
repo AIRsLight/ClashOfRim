@@ -8,7 +8,9 @@ using AIRsLight.ClashOfRim.Pawns;
 using AIRsLight.ClashOfRim.Raids;
 using AIRsLight.ClashOfRim.RemoteMaps;
 using AIRsLight.ClashOfRim.Support;
+using AIRsLight.ClashOfRim.Modules.Raids;
 using HarmonyLib;
+using RimWorld.Planet;
 using Verse;
 
 // Exercise the real source and game component, substituting engine/service effects only.
@@ -25,6 +27,10 @@ internal static class ClientRaidSupportLossSourceTests
     private static bool removeSucceeds;
     private static string label = "支援-é";
     private static readonly List<(string? Event, string Reason, bool Clear)> closed = new();
+    private static World? recoveryWorld;
+    private static List<Map>? recoveryMaps;
+    private static RemoteSessionMapParent? recoveryParent;
+    private static Map? recoveryMap;
 
     internal static void Run()
     {
@@ -85,6 +91,7 @@ internal static class ClientRaidSupportLossSourceTests
             try { source.Capture(); } catch (InvalidOperationException) { rejected = true; }
             Check(rejected, "Obsolete battle silently became an empty successful batch.");
             SettlementRuntime(harmony);
+            RecoveryRuntime(harmony);
         }
         catch (Exception ex) { Console.WriteLine(ex.StackTrace); throw; }
         finally { harmony.UnpatchAll(harmony.Id); Clear(); }
@@ -121,6 +128,31 @@ internal static class ClientRaidSupportLossSourceTests
         }
         Check(!new ClientRaidSettlementRuntime(null).TryBegin(), "Missing battle became active.");
     }
+    private static void RecoveryRuntime(Harmony harmony)
+    {
+        Patch(harmony, AccessTools.PropertyGetter(typeof(Game), nameof(Game.World)), nameof(WorldPrefix));
+        Patch(harmony, AccessTools.PropertyGetter(typeof(Game), nameof(Game.Maps)), nameof(MapsPrefix));
+        Patch(harmony, AccessTools.PropertyGetter(typeof(MapParent), nameof(MapParent.Map)), nameof(RecoveryMapPrefix));
+        Patch(harmony, AccessTools.Method(typeof(RemoteSessionMapUtility), nameof(RemoteSessionMapUtility.FindActiveSessionMap)), nameof(FindRecoveryMap));
+        Reset(); var runtime = new ClientRaidRecoveryRuntime();
+        Check(!runtime.Ready && runtime.ReadBattle() is null, "Missing world became ready.");
+        recoveryWorld = Uninitialized<World>(); recoveryMaps = new();
+        Check(!runtime.Ready, "Missing world objects became ready.");
+        recoveryWorld.worldObjects = Uninitialized<WorldObjectsHolder>(); recoveryMaps = null;
+        Check(!runtime.Ready, "Missing maps became ready.");
+        recoveryMaps = new(); var restored = runtime.ReadBattle();
+        Check(runtime.Ready && restored is not null && !restored.HasMap, "Ready game lost captured battle or invented map.");
+        recoveryParent = Uninitialized<RemoteSessionMapParent>();
+        Check(!restored!.HasMap, "Orphan parent without loaded map counted as recovered battle.");
+        recoveryMap = Uninitialized<Map>(); Check(restored.HasMap, "Loaded battle map not found.");
+        battle.FinishInProgress = true; restored.RestoreDeadlines(new(10, 20, 30));
+        Check(!battle.FinishInProgress && battle.StartedAtUtcTicks == 10 && battle.DeadlineUtcTicks == 20 && battle.FinalDeadlineUtcTicks == 30
+            && ReferenceEquals(ClashOfRimGameComponent.ActiveRaidBattleSession, battle), "Recovery lost server clocks, finish reset or battle identity.");
+        var replacement = new ActiveRaidBattleSession { EventId = "raid", DeadlineUtcTicks = 42, FinishInProgress = true };
+        ClashOfRimGameComponent.SetActiveRaidBattleSession(replacement); restored.RestoreDeadlines(new(1, 2, 3));
+        Check(!restored.HasMap && replacement.DeadlineUtcTicks == 42 && replacement.FinishInProgress, "Recovery changed replacement battle.");
+        game = Uninitialized<Game>(); Check(!runtime.Ready && runtime.ReadBattle() is null, "Recovery runtime rebound to another game.");
+    }
     private static void Reset()
     {
         Clear(); removeSucceeds = true; label = "支援-é";
@@ -136,7 +168,11 @@ internal static class ClientRaidSupportLossSourceTests
             assignments.Add(new() { EventId = id, PawnThingId = id, PawnGlobalKey = "global-" + id, PawnLabel = "fallback-" + id, AutoReturnOnSettlement = true });
         }
     }
-    private static void Clear() { assignments.Clear(); live.Clear(); maps.Clear(); destroyed.Clear(); dead.Clear(); removed.Clear(); closed.Clear(); }
+    private static void Clear()
+    {
+        assignments.Clear(); live.Clear(); maps.Clear(); destroyed.Clear(); dead.Clear(); removed.Clear(); closed.Clear();
+        recoveryWorld = null; recoveryMaps = null; recoveryParent = null; recoveryMap = null;
+    }
     private static T Uninitialized<T>() => (T)RuntimeHelpers.GetUninitializedObject(typeof(T));
     private static void Patch(Harmony harmony, MethodInfo method, string prefix) => harmony.Patch(method, prefix: new HarmonyMethod(typeof(ClientRaidSupportLossSourceTests), prefix));
     private static bool GamePrefix(ref Game __result) { __result = game; return false; }
@@ -147,6 +183,11 @@ internal static class ClientRaidSupportLossSourceTests
     private static bool FindPrefix(string __0, ref Pawn? __result) { __result = live.GetValueOrDefault(__0); return false; }
     private static bool RemovePrefix(Pawn __0, ref bool __result) { removed.Add(__0); __result = removeSucceeds; return false; }
     private static bool SkipEffect() => false;
+    private static bool WorldPrefix(ref World? __result) { __result = recoveryWorld; return false; }
+    private static bool MapsPrefix(ref List<Map>? __result) { __result = recoveryMaps; return false; }
+    private static bool RecoveryMapPrefix(ref Map? __result) { __result = recoveryMap; return false; }
+    private static bool FindRecoveryMap(ActiveRemoteMapSession? __0, ref RemoteSessionMapParent? __result)
+    { Check(__0?.RelatedEventId == "raid", "Recovery looked up another event."); __result = recoveryParent; return false; }
     private static bool ClosePrefix(string? __0, string __1, bool __2, ref bool __result)
     { closed.Add((__0, __1, __2)); __result = true; return false; }
     private static void Check(bool condition, string message) { if (!condition) throw new Exception(message); }
