@@ -19,6 +19,8 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("world generation runtime binds engine inputs, worlds and setup pages", ClientWorldGenerationRuntimeTests.Run),
+    ("world generation owns deferred work, application and catalog receipts", ClientWorldGenerationTests.Run),
     ("storyteller configuration shares setup and runtime ownership", ClientStorytellerConfigurationTests.Run),
     ("world entry start owns input, admission and source game barriers", ClientWorldEntryStartTests.Run),
     ("world entry owns decisions, publication and substrate handoff", ClientWorldEntryTests.Run),

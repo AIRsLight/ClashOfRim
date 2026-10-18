@@ -253,6 +253,7 @@
   <ClashOfRim.WorldBaseline.StatusSubmitException>Ошибка отправки начальной конфигурации мира: {MESSAGE}</ClashOfRim.WorldBaseline.StatusSubmitException>
   <ClashOfRim.WorldBaseline.ReasonSubmitted>начальная конфигурация мира отправлена</ClashOfRim.WorldBaseline.ReasonSubmitted>
   <ClashOfRim.WorldBaseline.ReasonInitialSnapshotUploaded>начальное сохранение колонии синхронизировано</ClashOfRim.WorldBaseline.ReasonInitialSnapshotUploaded>
+  <ClashOfRim.WorldBaseline.StatusGenerationFailed>Не удалось создать мир по настройкам сервера. Подробности см. в журнале. Повторите попытку на экране настройки мира.</ClashOfRim.WorldBaseline.StatusGenerationFailed>
   <ClashOfRim.WorldBaseline.StatusGenerated>Мир создан по конфигурации сервера: {SEED}.</ClashOfRim.WorldBaseline.StatusGenerated>
   <ClashOfRim.WorldBaseline.FailureMissingSeed>Нет seed мира.</ClashOfRim.WorldBaseline.FailureMissingSeed>
   <ClashOfRim.WorldBaseline.FailureMissingCoverage>Нет корректного покрытия планеты.</ClashOfRim.WorldBaseline.FailureMissingCoverage>

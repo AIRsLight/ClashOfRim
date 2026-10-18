@@ -152,10 +152,11 @@ public sealed partial class ClashOfRimMod : Mod
     private readonly ClientCompatibilityPresentation compatibilityPresentation;
     private readonly ClientWorldSetupState worldSetup;
     private readonly ClientStorytellerConfiguration storytellerConfiguration;
+    private readonly ClientWorldConfiguration worldConfiguration;
+    private readonly ClientWorldGeneration worldGeneration;
     private readonly List<ModChatMessageDto> lastChatMessages = new();
     private readonly List<ModWorldMapMarkerDto> lastWorldMapMarkers = new();
     private readonly Dictionary<string, ModPlayerColonySiteDto> occupiedPlayerColonySites = new(StringComparer.Ordinal);
-    private readonly HashSet<string> submittedWorldFeatureNameCatalogKeys = new(StringComparer.Ordinal);
     private readonly object eventStateLock = new();
     private readonly object chatStateLock = new();
     private readonly object colonySiteStateLock = new();
@@ -286,6 +287,10 @@ public sealed partial class ClashOfRimMod : Mod
                 response => ShowCompatibilityMismatchWindow(response)));
         snapshotReload.Completed += OnServerSnapshotLoaded;
         var entryStore = new ClientWorldEntryStore(settings);
+        var featureCatalogs = new ClientWorldFeatureCatalogs(sessionLifecycle, worldTransport);
+        featureCatalogs.Diagnostic += message => Log.Warning(message);
+        worldConfiguration = new ClientWorldConfiguration(sessionLifecycle, new ClientWorldConfigurationRuntime(), entryStore, storytellerConfiguration, featureCatalogs);
+        worldGeneration = new ClientWorldGeneration(sessionLifecycle, worldSetup, worldConfiguration, new ClientWorldGenerationRuntime(), new ClientWorldGenerationPresentation(message => loginStatus = message));
         worldEntry = new ClientWorldEntry(sessionLifecycle, new ClientSnapshotGame(), worldSetup,
             entryStore, worldTransport, entryPresentation, snapshotReload);
         worldEntryStart = new ClientWorldEntryStart(sessionLifecycle, synchronization, new ClientSnapshotGame(),

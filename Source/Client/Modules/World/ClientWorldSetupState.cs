@@ -60,13 +60,24 @@ internal sealed class ClientWorldSetupState
     internal Generation? TakeGeneration() => requests.Read(() =>
     {
         if (configuration is null || substrate is null) return null;
-        var result = new Generation(configuration, substrate);
+        var capturedConfiguration = configuration; var capturedSubstrate = substrate;
         configuration = null; substrate = null;
         // Retire pending download tickets as ownership moves into generation.
         bool keepInitial = initial, keepLanguage = languageAccepted;
         requests.Reset(); initial = keepInitial; languageAccepted = keepLanguage;
-        return result;
+        return new Generation(requests.Capture(), capturedConfiguration, capturedSubstrate);
     });
+    internal bool IsCurrent(Generation generation) => requests.TryApply(generation.Scope, static () => { });
+    internal bool RestoreGeneration(Generation generation)
+    {
+        bool restored = false;
+        requests.TryApply(generation.Scope, () =>
+        {
+            if (configuration is not null || substrate is not null) return;
+            configuration = generation.Configuration; substrate = generation.Substrate; restored = true;
+        });
+        return restored;
+    }
     internal ClientRequestTracker.Scope? TakeInitial() => requests.Read(() =>
     {
         if (!initial) return null;
@@ -77,5 +88,5 @@ internal sealed class ClientWorldSetupState
         source.FeaturesXml, source.LandmarksXml, source.TileGeometryPayload);
     internal sealed record Ticket(ClientRequestTracker.Scope Scope, ModWorldConfigurationDto Configuration)
     { internal ClashOfRimClientNetworkContext Context => Scope.Context; }
-    internal sealed record Generation(ModWorldConfigurationDto Configuration, WorldSubstratePackage Substrate);
+    internal sealed record Generation(ClientRequestTracker.Scope Scope, ModWorldConfigurationDto Configuration, WorldSubstratePackage Substrate);
 }

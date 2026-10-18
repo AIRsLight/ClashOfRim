@@ -2,7 +2,7 @@ using AIRsLight.ClashOfRim.Modules.World;
 
 namespace AIRsLight.ClashOfRim;
 
-internal sealed class ClientWorldEntryStore : IClientWorldEntryStore
+internal sealed class ClientWorldEntryStore : IClientWorldEntryStore, IClientWorldConfigurationStore
 {
     private readonly ClashOfRimSettings settings;
     internal ClientWorldEntryStore(ClashOfRimSettings settings) => this.settings = settings;
@@ -21,6 +21,13 @@ internal sealed class ClientWorldEntryStore : IClientWorldEntryStore
         string colony = settings.ColonyId, snapshot = settings.CurrentSnapshotId;
         settings.ColonyId = colonyId; settings.CurrentSnapshotId = snapshotId;
         Save(() => { settings.ColonyId = colony; settings.CurrentSnapshotId = snapshot; });
+    }
+    public void Remember(string worldId)
+    {
+        if (settings.CurrentWorldConfigurationId == worldId) return;
+        string previous = settings.CurrentWorldConfigurationId;
+        settings.CurrentWorldConfigurationId = worldId;
+        Save(() => settings.CurrentWorldConfigurationId = previous);
     }
     private void Save(System.Action rollback)
     {

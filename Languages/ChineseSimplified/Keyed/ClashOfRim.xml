@@ -252,6 +252,7 @@
   <ClashOfRim.WorldBaseline.StatusSubmitException>初始世界配置提交异常：{MESSAGE}</ClashOfRim.WorldBaseline.StatusSubmitException>
   <ClashOfRim.WorldBaseline.ReasonSubmitted>初始世界配置提交完成</ClashOfRim.WorldBaseline.ReasonSubmitted>
   <ClashOfRim.WorldBaseline.ReasonInitialSnapshotUploaded>初始殖民地存档已同步</ClashOfRim.WorldBaseline.ReasonInitialSnapshotUploaded>
+  <ClashOfRim.WorldBaseline.StatusGenerationFailed>服务器世界生成失败。请查看日志了解详情，可在世界设置页面重试。</ClashOfRim.WorldBaseline.StatusGenerationFailed>
   <ClashOfRim.WorldBaseline.StatusGenerated>已按服务器世界配置生成世界：{SEED}。</ClashOfRim.WorldBaseline.StatusGenerated>
   <ClashOfRim.WorldBaseline.FailureMissingSeed>缺少世界种子。</ClashOfRim.WorldBaseline.FailureMissingSeed>
   <ClashOfRim.WorldBaseline.FailureMissingCoverage>缺少有效星球覆盖率。</ClashOfRim.WorldBaseline.FailureMissingCoverage>

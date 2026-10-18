@@ -252,6 +252,7 @@
   <ClashOfRim.WorldBaseline.StatusSubmitException>Initial world configuration submit exception: {MESSAGE}</ClashOfRim.WorldBaseline.StatusSubmitException>
   <ClashOfRim.WorldBaseline.ReasonSubmitted>initial world configuration submitted</ClashOfRim.WorldBaseline.ReasonSubmitted>
   <ClashOfRim.WorldBaseline.ReasonInitialSnapshotUploaded>initial colony save uploaded</ClashOfRim.WorldBaseline.ReasonInitialSnapshotUploaded>
+  <ClashOfRim.WorldBaseline.StatusGenerationFailed>Server world generation failed. See the log for details; you can retry from the world setup page.</ClashOfRim.WorldBaseline.StatusGenerationFailed>
   <ClashOfRim.WorldBaseline.StatusGenerated>Generated world from server configuration: {SEED}.</ClashOfRim.WorldBaseline.StatusGenerated>
   <ClashOfRim.WorldBaseline.FailureMissingSeed>Missing world seed.</ClashOfRim.WorldBaseline.FailureMissingSeed>
   <ClashOfRim.WorldBaseline.FailureMissingCoverage>Missing valid planet coverage.</ClashOfRim.WorldBaseline.FailureMissingCoverage>

@@ -253,6 +253,7 @@
   <ClashOfRim.WorldBaseline.StatusSubmitException>初期ワールド設定送信例外: {MESSAGE}</ClashOfRim.WorldBaseline.StatusSubmitException>
   <ClashOfRim.WorldBaseline.ReasonSubmitted>初期ワールド設定送信完了</ClashOfRim.WorldBaseline.ReasonSubmitted>
   <ClashOfRim.WorldBaseline.ReasonInitialSnapshotUploaded>初期コロニーセーブを同期しました</ClashOfRim.WorldBaseline.ReasonInitialSnapshotUploaded>
+  <ClashOfRim.WorldBaseline.StatusGenerationFailed>サーバー設定に基づくワールド生成に失敗しました。詳細はログを確認してください。ワールド設定画面から再試行できます。</ClashOfRim.WorldBaseline.StatusGenerationFailed>
   <ClashOfRim.WorldBaseline.StatusGenerated>サーバーワールド設定からワールドを生成しました: {SEED}。</ClashOfRim.WorldBaseline.StatusGenerated>
   <ClashOfRim.WorldBaseline.FailureMissingSeed>ワールドシードがありません。</ClashOfRim.WorldBaseline.FailureMissingSeed>
   <ClashOfRim.WorldBaseline.FailureMissingCoverage>有効な惑星カバー率がありません。</ClashOfRim.WorldBaseline.FailureMissingCoverage>
