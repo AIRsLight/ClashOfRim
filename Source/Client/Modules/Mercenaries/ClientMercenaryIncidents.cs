@@ -90,19 +90,13 @@ internal sealed class ClientMercenaryIncidents
             }
             else
             {
-                while (attempt is null)
-                {
-                    await mutations.WaitUntilClearAsync(job.Token).ConfigureAwait(false);
-                    var lease = await synchronization.AcquireSnapshotAsync(job.Token).ConfigureAwait(false);
-                    using var p = ClientSessionWork.EnterPublication();
-                    if (!state.Requests.TryApply(job.Scope, static () => { })) { lease.Dispose(); job.Settled.TrySetResult(); return; }
-                    if (mutations.IsPending) { lease.Dispose(); continue; }
-                    var context = session.ReadContext();
-                    var check = mutations.CheckAdmission(context.IsConfigured, !string.IsNullOrWhiteSpace(context.CurrentSnapshotId));
-                    if (check != LocalMutationAdmission.Allowed)
-                    { lease.Dispose(); state.Message = presentation.Admission(check, mutations.Current); job.Settled.TrySetResult(); return; }
-                    attempt = job.Original = transactions.Capture(lease);
-                }
+                var admitted = await admission.WaitAsync(job.Token).ConfigureAwait(false);
+                using var p = ClientSessionWork.EnterPublication();
+                if (!state.Requests.TryApply(job.Scope, static () => { }))
+                { admitted.Attempt?.Admission.Dispose(); job.Settled.TrySetResult(); return; }
+                if (admitted.Attempt is null)
+                { state.Message = presentation.Admission(admitted.Admission, mutations.Current); job.Settled.TrySetResult(); return; }
+                attempt = job.Original = admitted.Attempt;
             }
             using (ClientSessionWork.EnterPublication())
             {

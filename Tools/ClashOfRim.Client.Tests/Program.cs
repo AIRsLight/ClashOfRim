@@ -19,6 +19,8 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("support returns own ordered confirmation and durable notification recovery", ClientSupportReturnsTests.Run),
+    ("support return runtime retains and reloads prepared pawn outbox", ClientSupportReturnRuntimeTests.Run),
     ("support sending owns removal, immutable confirmation and recovery", ClientSupportSendingTests.Run),
     ("support source captures caravan identity before departure and revalidates ownership", ClientSupportSourceTests.Run),
     ("pawn exchange capture shares support and gift identity, gear and references", PawnExchangeCaptureTests.Run),

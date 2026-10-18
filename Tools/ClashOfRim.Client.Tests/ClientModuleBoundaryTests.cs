@@ -47,6 +47,7 @@ internal static class ClientModuleBoundaryTests
             || t == typeof(AIRsLight.ClashOfRim.ServerShop.ClientShopRuntime) || t == typeof(AIRsLight.ClashOfRim.ServerShop.ClientShopSource)
             || t == typeof(ClientTradeOperationsTransport) || t == typeof(PawnPackageTransferService) || t == typeof(PawnExchangeCapture)
             || t == typeof(ClientSupportTransport) || t == typeof(AIRsLight.ClashOfRim.Support.ClientSupportSource)
+            || t == typeof(AIRsLight.ClashOfRim.Support.ClientSupportReturnRuntime) || t == typeof(AIRsLight.ClashOfRim.Support.SupportPawnLookup)
             || t == typeof(AIRsLight.ClashOfRim.Support.ClientSupportActions) || t == typeof(AIRsLight.ClashOfRim.Support.ClientSupportPresentation)
             || t == typeof(AIRsLight.ClashOfRim.Trades.ClientTradeActions) || t == typeof(AIRsLight.ClashOfRim.Trades.ClientTradeOperationsPresentation)
             || t == typeof(AIRsLight.ClashOfRim.Trades.ClientTradeDraftSource) || t == typeof(AIRsLight.ClashOfRim.Trades.ClientTradeCaravanSource)
@@ -62,6 +63,7 @@ internal static class ClientModuleBoundaryTests
         if (sessionViolations.Count != 0)
             throw new InvalidOperationException("Session foundation depends on an event/snapshot domain: " + string.Join(Environment.NewLine, sessionViolations));
         Type[] eventAdapters = { typeof(AIRsLight.ClashOfRim.Support.ClientSupportSource), typeof(AIRsLight.ClashOfRim.Support.ClientSupportActions), typeof(AIRsLight.ClashOfRim.Support.ClientSupportPresentation),
+            typeof(AIRsLight.ClashOfRim.Support.ClientSupportReturnRuntime), typeof(AIRsLight.ClashOfRim.Support.SupportPawnLookup),
             typeof(AIRsLight.ClashOfRim.ServerShop.ClientShopRuntime), typeof(AIRsLight.ClashOfRim.ServerShop.ClientShopSource),
             typeof(AIRsLight.ClashOfRim.Mercenaries.ClientMercenaryPresentation), typeof(AIRsLight.ClashOfRim.Mercenaries.ClientMercenaryIncidentRuntime), typeof(AIRsLight.ClashOfRim.Mercenaries.ClientMercenaryRuntime), typeof(AIRsLight.ClashOfRim.Mercenaries.ClientMercenarySource),
             typeof(AIRsLight.ClashOfRim.ServerShop.ClientShopPresentation), typeof(AIRsLight.ClashOfRim.Trades.ClientTradeActions), typeof(AIRsLight.ClashOfRim.Trades.ClientTradeOperationsPresentation),

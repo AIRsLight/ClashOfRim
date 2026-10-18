@@ -84,6 +84,7 @@ public sealed partial class ClashOfRimMod : Mod
     internal ClientTradeActions TradeActions => tradeActions;
     private readonly ClientGiftActions giftActions;
     private readonly ClientSupportActions supportActions;
+    private readonly ClientSupportReturns supportReturns;
     internal ClientGiftActions GiftActions => giftActions;
     private readonly ClientEventConfirmationWorkflow eventConfirmations;
     private readonly ClientEventApplications eventApplications;
@@ -230,6 +231,10 @@ public sealed partial class ClashOfRimMod : Mod
             localMutations, snapshotTransactions, snapshotFailureRecovery, new ClientSupportTransport(), supportPresentation);
         supportSending.Completed += StartQueuedAutomaticEventRefreshAfterLocalAtomicMutation;
         supportActions = new ClientSupportActions(supportSending, supportPresentation);
+        supportReturns = new ClientSupportReturns(sessionLifecycle, new ClientSnapshotGame(), mutationAdmission, localMutations,
+            snapshotTransactions, snapshotFailureRecovery, localSnapshotConfirmation, new ClientSupportReturnRuntime(supportPresentation),
+            new ClientSupportTransport(), supportPresentation);
+        supportReturns.Completed += StartQueuedAutomaticEventRefreshAfterLocalAtomicMutation;
         eventConfirmations = new ClientEventConfirmationWorkflow(sessionLifecycle, eventConfirmationPreparation, eventConfirmation,
             localMutations, snapshotFailureRecovery, eventInbox, new ClientEventConfirmationPresentation((purpose, message) =>
             {

@@ -243,8 +243,10 @@ internal static class EventCommandPresentationTests
             RequireResolved(view.Admission(admission, new(LocalMutationKind.SupportSend, "pending", default)));
         foreach (string key in new[] { "StatusNoTargets", "StatusNoPawns", "StatusPawnNotInCaravan", "StatusTargetTileMismatch", "StatusReserving", "StatusPackagingSnapshot",
             "StatusSnapshotBuildFailed", "StatusSubmitting", "StatusSubmittingTransaction", "StatusCreateFailed", "StatusCreateRejected", "StatusConfirmationIncomplete",
-            "StatusCreated", "CreatedMessage", "StatusException", "CaravanPawnOption", "ConfirmSend" })
-            RequireResolved(view.Text(key, ("PAWN", "pawn"), ("TARGET", "target"), ("REASON", "reason"), ("CODE", "code"), ("MESSAGE", "message"), ("EVENTID", "event"), ("TYPE", "Exception")));
+            "StatusCreated", "CreatedMessage", "StatusException", "CaravanPawnOption", "ConfirmSend",
+            "StatusReturnLocalRemoveFailed", "StatusReturnConfirmationIncomplete", "StatusReturnDeparting", "StatusReturnSnapshotUploading",
+            "StatusReturnSnapshotConfirmed", "StatusFinishFailed", "StatusFinishRejected", "StatusFinished", "FinishedMessage", "StatusFinishException" })
+            RequireResolved(view.Text(key, ("PAWN", "pawn"), ("TARGET", "target"), ("REASON", "reason"), ("CODE", "code"), ("MESSAGE", "message"), ("EVENTID", "event"), ("TYPE", "Exception"), ("SNAPSHOT", "snapshot")));
     }
 
     private static void MercenaryPresentation()

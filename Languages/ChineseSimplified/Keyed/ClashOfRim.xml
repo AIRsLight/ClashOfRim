@@ -1917,4 +1917,6 @@
   <ClashOfRim.Trade.StatusOrderUnavailable>交易单已不可用，或不支持所选交货方式。请刷新市场。</ClashOfRim.Trade.StatusOrderUnavailable>
   <ClashOfRim.Trade.StatusConfirmationIncomplete>服务器未返回完整的交易与快照确认。本地变更尚未确认，请返回主菜单后重新加载服务器存档。</ClashOfRim.Trade.StatusConfirmationIncomplete>
   <ClashOfRim.Support.StatusConfirmationIncomplete>服务器未返回匹配的支援事件和确认快照。本地变更仍未确认，请重新加载服务器存档。</ClashOfRim.Support.StatusConfirmationIncomplete>
+  <ClashOfRim.Support.StatusReturnLocalRemoveFailed>未能完成支援角色 {PAWN} 的本地移除，归还仍待处理。</ClashOfRim.Support.StatusReturnLocalRemoveFailed>
+  <ClashOfRim.Support.StatusReturnConfirmationIncomplete>服务器未提供完整的支援归还回执，归还仍待处理。</ClashOfRim.Support.StatusReturnConfirmationIncomplete>
 </LanguageData>

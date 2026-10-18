@@ -62,6 +62,8 @@ pwsh ./Tools/Test-RimTest.ps1 -RimWorldPath 'E:/SteamLibrary/steamapps/common/Ri
 
 可通过 `Test-RimTestMatrix.ps1 -Scenario bank-core,bank-all-dlc,relocation-core,relocation-all-dlc,gravship-odyssey,gravship-all-dlc` 选择专项；PowerShell 调用时 `-Scenario` 接受字符串数组。另有 `relocation-royalty/ideology/biotech/anomaly` 单 DLC 配置。飞船依赖原生渲染过场，运行脚本会对 `stability=gravship` 自动使用 `NoWindow`（即使矩阵传入 `-Headless`）；其余场景沿用指定模式。
 
+支援归还修改可单独选择 `-Scenario stability-support-returns`：复用已有提前归还、拒收、到期、死亡结算及复杂 pawn 状态断言，双客户端使用中文/英语和中文/法语区域格式，启用全 DLC。它保留公共建档、世界核对、存读档及重连前置/收尾，不执行其他经济、袭击或远程地图专项。每步先跑相关单元测试，需要实机证据时只选受影响的专项；全量矩阵由用户安排。
+
 编辑与操作：`clash.trade.*`、`clash.gift.*`、`clash.shop.template`、`clash.support.confirmDuration`、`clash.support.return`、`clash.mercenary.recall`、`clash.remote.close`。这些入口保留原业务校验，测试代码必须处理拒绝和异步完成。
 
 通用的新游戏页面、节点对话框、地图/世界对象选择、gizmo、浮动菜单、远行队路径和 tick 推进位于 RimTest。新增其他模组测试时，可以复用这些接口并注册自己的扩展，而不修改 RimTest 核心。

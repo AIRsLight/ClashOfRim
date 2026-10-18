@@ -1908,4 +1908,6 @@
   <ClashOfRim.Trade.StatusOrderUnavailable>この取引注文は利用できないか、選択した配送方法に対応していません。市場を更新してください。</ClashOfRim.Trade.StatusOrderUnavailable>
   <ClashOfRim.Trade.StatusConfirmationIncomplete>サーバーから取引とスナップショットの完全な確認が返されませんでした。ローカルの変更は未確認です。メインメニューに戻り、サーバーのセーブデータを再読み込みしてください。</ClashOfRim.Trade.StatusConfirmationIncomplete>
   <ClashOfRim.Support.StatusConfirmationIncomplete>サーバーから一致する支援イベントと確認用スナップショットが返されませんでした。ローカルの変更は未確認です。サーバーのセーブを再読み込みしてください。</ClashOfRim.Support.StatusConfirmationIncomplete>
+  <ClashOfRim.Support.StatusReturnLocalRemoveFailed>支援ポーン {PAWN} のローカルでの削除を完了できませんでした。帰還処理は保留中です。</ClashOfRim.Support.StatusReturnLocalRemoveFailed>
+  <ClashOfRim.Support.StatusReturnConfirmationIncomplete>サーバーから完全な支援帰還の受領情報が返されませんでした。帰還処理は保留中です。</ClashOfRim.Support.StatusReturnConfirmationIncomplete>
 </LanguageData>

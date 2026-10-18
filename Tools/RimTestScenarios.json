@@ -1,5 +1,15 @@
 [
   {
+    "id": "stability-support-returns",
+    "features": false,
+    "stability": "support-returns",
+    "coverage": 30,
+    "difficulty": "Peaceful",
+    "A": { "language": "ChineseSimplified (简体中文)", "culture": "zh-CN" },
+    "B": { "language": "English", "culture": "fr-FR" },
+    "expansions": ["Royalty", "Ideology", "Biotech", "Anomaly", "Odyssey"]
+  },
+  {
     "id": "core-features",
     "features": true,
     "coverage": 30,

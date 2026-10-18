@@ -1,6 +1,8 @@
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.Modules.Sessions;
 using AIRsLight.ClashOfRim.Modules.Synchronization;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace AIRsLight.ClashOfRim.Modules.Snapshots;
 
@@ -44,6 +46,24 @@ internal sealed class ClientSnapshotMutationAdmission
             return new(null, ClientSnapshotAdmissionFailure.BaseSnapshotChanged);
         var admitted = Begin(operation);
         return admitted.Attempt is { } attempt ? new(original with { Admission = attempt.Admission }) : admitted;
+    }
+
+    // Queued domain work waits without owning a lease. Recheck pending changes
+    // after acquiring snapshot admission, since another mutation may have won.
+    internal async Task<ClientSnapshotAdmissionResult> WaitAsync(CancellationToken token)
+    {
+        while (true)
+        {
+            await mutations.WaitUntilClearAsync(token).ConfigureAwait(false);
+            var lease = await synchronization.AcquireSnapshotAsync(token).ConfigureAwait(false);
+            using var p = ClientSessionWork.EnterPublication();
+            if (mutations.IsPending) { lease.Dispose(); continue; }
+            var check = Check(null);
+            if (check != LocalMutationAdmission.Allowed)
+            { lease.Dispose(); return new(null, ClientSnapshotAdmissionFailure.Admission, check); }
+            try { return new(transactions.Capture(lease)); }
+            catch { lease.Dispose(); throw; }
+        }
     }
 
     private LocalMutationAdmission Check(LocalMutationKind? continuation)

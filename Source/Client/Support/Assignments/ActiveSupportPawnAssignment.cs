@@ -25,6 +25,12 @@ public sealed class ActiveSupportPawnAssignment : IExposable
     public long? ExpiresAtGameTicks;
     public bool AutoReturnOnSettlement;
     public bool FinishInProgress;
+    // Durable return outbox: keep the captured pawn until the server accepts its
+    // return. Reloading a confirmation snapshot must not lose the final report.
+    public bool ReturnPrepared;
+    public bool ReturnPawnDead;
+    public string ReturnFinishReason = string.Empty;
+    public string? ReturnPackageJson;
 
     public void ExposeData()
     {
@@ -52,6 +58,10 @@ public sealed class ActiveSupportPawnAssignment : IExposable
         Scribe_Values.Look(ref ExpiresAtGameTicks, "expiresAtGameTicks");
         Scribe_Values.Look(ref AutoReturnOnSettlement, "autoReturnOnSettlement");
         Scribe_Values.Look(ref FinishInProgress, "finishInProgress");
+        Scribe_Values.Look(ref ReturnPrepared, "returnPrepared");
+        Scribe_Values.Look(ref ReturnPawnDead, "returnPawnDead");
+        Scribe_Values.Look(ref ReturnFinishReason, "returnFinishReason", string.Empty);
+        Scribe_Values.Look(ref ReturnPackageJson, "returnPackageJson");
     }
 
     private List<string>? pawnReferenceMetadataKeys;

@@ -1837,7 +1837,7 @@ public sealed partial class ClashOfRimMod
                 continue;
             }
 
-            Pawn? pawn = FindActiveSupportPawn(assignment);
+            Pawn? pawn = SupportPawnLookup.FindActive(assignment.PawnThingId);
             if (pawn is null || pawn.Dead)
             {
                 continue;
@@ -1920,8 +1920,8 @@ public sealed partial class ClashOfRimMod
                 {
                     foreach (PendingSupportPawnLoss loss in pending)
                     {
-                        Pawn? currentPawn = FindActiveSupportPawn(loss.Assignment) ?? loss.Pawn;
-                        if (!RemoveSupportPawnFromLocalMap(currentPawn))
+                        Pawn? currentPawn = SupportPawnLookup.FindActive(loss.Assignment.PawnThingId) ?? loss.Pawn;
+                        if (currentPawn is not null && !currentPawn.Destroyed && !PawnExchangeLifecycleService.RemoveFromLocalWorld(currentPawn))
                         {
                             worldMapStatus = ClashOfRimText.Key(
                                 "ClashOfRim.Raid.StatusSettlementSupportLossLocalRemoveFailed",

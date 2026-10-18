@@ -15,6 +15,8 @@ internal sealed partial class GameSuite
         "gravship" => ["gravship-new-map", "gravship-quest-site"],
         "transfers" => ["alliance-request-accept", "remote-map-isolation-repeat", "pawn-state-fixture", "caravan-load-travel",
             "support-state-early-return", "support-state-rejected-return", "support-state-expired-return", "raid-loss-reload-settlement"],
+        "support-returns" => ["alliance-request-accept", "pawn-state-fixture", "caravan-load-travel",
+            "support-state-early-return", "support-state-rejected-return", "support-state-expired-return", "support-death-expiry"],
         "catalog" => ["shop-complete-catalog"],
         "catalog-sample" => ["shop-selected-catalog"],
         "stress" => ["shop-large-data"],
@@ -61,11 +63,12 @@ internal sealed partial class GameSuite
             await Case("caravan-load-travel", Travel);
             await Case(profile.Stability == "death" ? "support-death-expiry" : "support-permanent-state", () => Support(profile.Stability, true));
         }
-        if (profile.Stability == "transfers")
+        if (profile.Stability is "transfers" or "support-returns")
         {
             string? fixturePawn = null;
             await Case("alliance-request-accept", Alliance);
-            await Case("remote-map-isolation-repeat", async () => { for (int i = 0; i < 3; i++) await ObserveAlly(); });
+            if (profile.Stability == "transfers")
+                await Case("remote-map-isolation-repeat", async () => { for (int i = 0; i < 3; i++) await ObserveAlly(); });
             await Case("pawn-state-fixture", async () =>
             {
                 var home = (await Call("A", "clash.inventory")).GetProperty("maps")[0];
@@ -76,7 +79,9 @@ internal sealed partial class GameSuite
             await Case("support-state-early-return", () => Support("early", true));
             await Case("support-state-rejected-return", () => Support("reject", true));
             await Case("support-state-expired-return", () => Support("expiry", true));
-            await Case("raid-loss-reload-settlement", async () =>
+            if (profile.Stability == "support-returns")
+                await Case("support-death-expiry", () => Support("death", true));
+            else await Case("raid-loss-reload-settlement", async () =>
             {
                 int before = await Stock("B", "Steel");
                 await Raid(); await LoginExisting(true);
