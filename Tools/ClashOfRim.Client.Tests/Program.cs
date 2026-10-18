@@ -19,6 +19,7 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("observation maps own login adoption, game opening and stale session cleanup", ClientObservationMapsTests.Run),
     ("remote snapshot downloads share authorization, immutable targets and validation", RemoteSnapshotDownloadModuleTests.Run),
     ("support returns own ordered confirmation and durable notification recovery", ClientSupportReturnsTests.Run),
     ("support return runtime retains and reloads prepared pawn outbox", ClientSupportReturnRuntimeTests.Run),

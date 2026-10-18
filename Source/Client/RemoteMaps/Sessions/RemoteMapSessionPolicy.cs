@@ -1,4 +1,4 @@
-using System;
+using AIRsLight.ClashOfRim.Modules.Maps;
 
 namespace AIRsLight.ClashOfRim.RemoteMaps;
 
@@ -76,48 +76,8 @@ public readonly struct RemoteMapSessionPolicy
         };
     }
 
-    public static RemoteMapSessionPolicy ForMode(string? mode)
-    {
-        return For(ActiveRemoteMapSession.KindFromMode(mode));
-    }
-
-    public static string NormalizeMode(string? mode)
-    {
-        if (string.Equals(mode, RemoteSessionMapParent.RaidBattleMode, StringComparison.OrdinalIgnoreCase))
-        {
-            return RemoteSessionMapParent.RaidBattleMode;
-        }
-
-        if (string.Equals(mode, RemoteSessionMapParent.RaidObservationMode, StringComparison.OrdinalIgnoreCase))
-        {
-            return RemoteSessionMapParent.RaidObservationMode;
-        }
-
-        if (string.Equals(mode, RemoteSessionMapParent.FriendlyObservationMode, StringComparison.OrdinalIgnoreCase))
-        {
-            return RemoteSessionMapParent.FriendlyObservationMode;
-        }
-
-        return RemoteSessionMapParent.ScoutMode;
-    }
-
-    public static string ObservationDownloadingStatusKey(string mode)
-    {
-        return ActiveRemoteMapSession.KindFromMode(mode) switch
-        {
-            RemoteMapSessionKind.ObserveRaid => "ClashOfRim.Observation.StatusDownloadingRaid",
-            RemoteMapSessionKind.ObserveAlly => "ClashOfRim.Observation.StatusDownloadingFriendly",
-            _ => "ClashOfRim.Observation.StatusDownloadingScout"
-        };
-    }
-
-    public static string ObservationLoadedMessageKey(string mode)
-    {
-        return ActiveRemoteMapSession.KindFromMode(mode) switch
-        {
-            RemoteMapSessionKind.ObserveRaid => "ClashOfRim.Observation.RaidLoadedMessage",
-            RemoteMapSessionKind.ObserveAlly => "ClashOfRim.Observation.FriendlyLoadedMessage",
-            _ => "ClashOfRim.Observation.ScoutLoadedMessage"
-        };
-    }
+    public static RemoteMapSessionPolicy ForMode(string? mode) => For(ClientRemoteMapModes.Kind(mode));
+    public static string NormalizeMode(string? mode) => ClientRemoteMapModes.Normalize(mode);
+    public static string ObservationDownloadingStatusKey(string mode) => ClientRemoteMapModes.DownloadingKey(mode);
+    public static string ObservationLoadedMessageKey(string mode) => ClientRemoteMapModes.LoadedKey(mode);
 }

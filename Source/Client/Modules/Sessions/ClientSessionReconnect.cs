@@ -74,13 +74,10 @@ internal sealed class ClientSessionReconnect
             // Capture a returned credential BEFORE checking ownership; even a late accepted
             // login must be released with its own authenticated identity.
             var response = await service.transport.LoginAsync(Expected, Owner.Token);
-            if (response.Success && response.Response?.Result?.Accepted == true
-                && !string.IsNullOrWhiteSpace(response.Response.SessionId) && !string.IsNullOrWhiteSpace(response.Response.AuthToken))
+            if (response.Success && response.Response is { } receipt && ClientSessionCredential.Capture(Expected, receipt) is { } credential)
             {
-                login = response.Response;
-                authenticated = new ClashOfRimClientNetworkContext(Expected.ServerBaseUrl,
-                    string.IsNullOrWhiteSpace(login.AuthenticatedUserId) ? Expected.UserId : login.AuthenticatedUserId!.Trim(),
-                    Expected.ColonyId, Expected.CurrentSnapshotId, Expected.SteamAuthTicket, Expected.OfflinePassword, login.AuthToken);
+                login = credential.Receipt;
+                authenticated = credential.Context;
             }
             if (!IsCurrent) return new(SessionReconnectOutcome.Obsolete);
             if (!response.Success || response.Response is null)

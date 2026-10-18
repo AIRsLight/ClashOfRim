@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Maps;
 using AIRsLight.ClashOfRim.Modules.Mercenaries;
 using AIRsLight.ClashOfRim.Modules.Support;
 using AIRsLight.ClashOfRim.Modules.Shop;
@@ -85,6 +86,7 @@ public sealed partial class ClashOfRimMod : Mod
     private readonly ClientGiftActions giftActions;
     private readonly ClientSupportActions supportActions;
     private readonly ClientSupportReturns supportReturns;
+    private readonly ClientObservationMaps observationMaps;
     internal ClientGiftActions GiftActions => giftActions;
     private readonly ClientEventConfirmationWorkflow eventConfirmations;
     private readonly ClientEventApplications eventApplications;
@@ -235,6 +237,9 @@ public sealed partial class ClashOfRimMod : Mod
             snapshotTransactions, snapshotFailureRecovery, localSnapshotConfirmation, new ClientSupportReturnRuntime(supportPresentation),
             new ClientSupportTransport(), supportPresentation);
         supportReturns.Completed += StartQueuedAutomaticEventRefreshAfterLocalAtomicMutation;
+        observationMaps = new ClientObservationMaps(sessionLifecycle, synchronization, new ClientSnapshotGame(),
+            new ClientObservationTransport(), new ClientObservationRuntime(),
+            new ClientObservationPresentation(message => worldMapStatus = message, response => ShowCompatibilityMismatchWindow(response)));
         eventConfirmations = new ClientEventConfirmationWorkflow(sessionLifecycle, eventConfirmationPreparation, eventConfirmation,
             localMutations, snapshotFailureRecovery, eventInbox, new ClientEventConfirmationPresentation((purpose, message) =>
             {

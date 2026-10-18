@@ -1014,22 +1014,9 @@ public sealed partial class ClashOfRimMod
     }
 
     private static void ShowServerEntryProgressWindowNow(string title, string message, float progress, bool canClose)
-    {
-        ServerEntryProgressWindow? existing = Find.WindowStack.WindowOfType<ServerEntryProgressWindow>();
-        if (existing is not null)
-        {
-            existing.UpdateStatus(title, message, progress, canClose);
-            return;
-        }
+        => ServerEntryProgressWindow.Show(title, message, progress, canClose);
 
-        Find.WindowStack.Add(new ServerEntryProgressWindow(title, message, progress, canClose));
-    }
-
-    private static void CloseServerEntryProgressWindowNow()
-    {
-        ServerEntryProgressWindow? existing = Find.WindowStack.WindowOfType<ServerEntryProgressWindow>();
-        existing?.Close();
-    }
+    private static void CloseServerEntryProgressWindowNow() => ServerEntryProgressWindow.CloseCurrent();
 
     private static void ShowServerEntryFailureWindowNow(string message)
     {

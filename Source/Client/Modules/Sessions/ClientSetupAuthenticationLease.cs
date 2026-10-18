@@ -39,10 +39,9 @@ internal sealed class ClientSetupAuthenticationLease
             {
                 var login = await authentication.LoginAsync(context, purpose, null, token, receipt =>
                 {
-                    if (receipt.Result?.Accepted != true || string.IsNullOrWhiteSpace(receipt.AuthToken) || string.IsNullOrWhiteSpace(receipt.SessionId)) return;
-                    owned = new ClashOfRimClientNetworkContext(context.ServerBaseUrl,
-                        string.IsNullOrWhiteSpace(receipt.AuthenticatedUserId) ? context.UserId : receipt.AuthenticatedUserId!.Trim(),
-                        context.ColonyId, context.CurrentSnapshotId, context.SteamAuthTicket, context.OfflinePassword, receipt.AuthToken);
+                    var credential = ClientSessionCredential.Capture(context, receipt);
+                    if (credential is null) return;
+                    owned = credential.Context;
                     sessionId = receipt.SessionId;
                 }).ConfigureAwait(false);
                 if (!login.Success || owned is null)

@@ -5,6 +5,15 @@ namespace AIRsLight.ClashOfRim.ClientSnapshots;
 
 internal sealed class ServerEntryProgressWindow : Window
 {
+    internal static void Show(string title, string message, float progress, bool canClose)
+    {
+        var existing = Find.WindowStack.WindowOfType<ServerEntryProgressWindow>();
+        if (existing is not null) existing.UpdateStatus(title, message, progress, canClose);
+        else Find.WindowStack.Add(new ServerEntryProgressWindow(title, message, progress, canClose));
+    }
+
+    internal static void CloseCurrent() => Find.WindowStack.WindowOfType<ServerEntryProgressWindow>()?.Close();
+
     private string title;
     private string message;
     private float progress;

@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Maps;
 using System;
 using AIRsLight.ClashOfRim.Raids;
 using Verse;
@@ -119,25 +120,5 @@ public sealed class ActiveRemoteMapSession : IExposable
         };
     }
 
-    public static RemoteMapSessionKind KindFromMode(string? mode)
-    {
-        if (string.Equals(mode, RemoteSessionMapParent.RaidBattleMode, StringComparison.OrdinalIgnoreCase))
-        {
-            return RemoteMapSessionKind.RaidBattle;
-        }
-
-        if (string.Equals(mode, RemoteSessionMapParent.RaidObservationMode, StringComparison.OrdinalIgnoreCase))
-        {
-            return RemoteMapSessionKind.ObserveRaid;
-        }
-
-        if (string.Equals(mode, RemoteSessionMapParent.FriendlyObservationMode, StringComparison.OrdinalIgnoreCase))
-        {
-            return RemoteMapSessionKind.ObserveAlly;
-        }
-
-        return string.Equals(mode, RemoteSessionMapParent.ScoutMode, StringComparison.OrdinalIgnoreCase)
-            ? RemoteMapSessionKind.ScoutEnemy
-            : RemoteMapSessionKind.None;
-    }
+    public static RemoteMapSessionKind KindFromMode(string? mode) => ClientRemoteMapModes.Kind(mode);
 }

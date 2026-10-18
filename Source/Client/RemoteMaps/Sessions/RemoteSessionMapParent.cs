@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Maps;
 using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
@@ -8,12 +9,12 @@ namespace AIRsLight.ClashOfRim.RemoteMaps;
 
 public sealed class RemoteSessionMapParent : MapParent
 {
-    public const string ScoutMode = "Scout";
-    public const string FriendlyObservationMode = "FriendlyObservation";
-    public const string RaidObservationMode = "RaidObservation";
-    public const string RaidBattleMode = "RaidBattle";
-    public const string RaidTargetDownloadMode = "RaidTarget";
-    public const string RaidPreparationDownloadMode = "RaidPreparation";
+    public const string ScoutMode = ClientRemoteMapModes.Scout;
+    public const string FriendlyObservationMode = ClientRemoteMapModes.FriendlyObservation;
+    public const string RaidObservationMode = ClientRemoteMapModes.RaidObservation;
+    public const string RaidBattleMode = ClientRemoteMapModes.RaidBattle;
+    public const string RaidTargetDownloadMode = ClientRemoteMapModes.RaidTarget;
+    public const string RaidPreparationDownloadMode = ClientRemoteMapModes.RaidPreparation;
 
     public string SessionId = string.Empty;
     public string Mode = string.Empty;

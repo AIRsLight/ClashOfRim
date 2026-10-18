@@ -18,7 +18,12 @@ public static class RemoteSnapshotDownloadValidator
             failureReason = string.Empty;
             return true;
         }
-        failureReason = failure!.Kind switch
+        failureReason = FormatFailure(failure!, failureKeys);
+        return false;
+    }
+
+    internal static string FormatFailure(ClientRemoteSnapshotFailure failure, RemoteSnapshotDownloadFailureKeys failureKeys) =>
+        failure.Kind switch
         {
             ClientRemoteSnapshotFailureKind.Metadata => ClashOfRimText.Key(failureKeys.MetadataFailed,
                 failure.Code.Named("CODE"), failure.Message.Named("MESSAGE")),
@@ -26,6 +31,4 @@ public static class RemoteSnapshotDownloadValidator
             _ => ClashOfRimText.Key(failureKeys.PayloadFailed, failure.Code.Named("CODE"),
                 (failure.Message ?? ClashOfRimText.Key("ClashOfRim.UnknownReason")).Named("MESSAGE"))
         };
-        return false;
-    }
 }
