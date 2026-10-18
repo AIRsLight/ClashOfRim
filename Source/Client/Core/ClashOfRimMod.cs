@@ -151,6 +151,7 @@ public sealed partial class ClashOfRimMod : Mod
     private readonly ClientWorldSourceGame sourceGame = new(new ClientWorldSourceGameRuntime());
     private readonly ClientCompatibilityPresentation compatibilityPresentation;
     private readonly ClientWorldSetupState worldSetup;
+    private readonly ClientStorytellerConfiguration storytellerConfiguration;
     private readonly List<ModChatMessageDto> lastChatMessages = new();
     private readonly List<ModWorldMapMarkerDto> lastWorldMapMarkers = new();
     private readonly Dictionary<string, ModPlayerColonySiteDto> occupiedPlayerColonySites = new(StringComparer.Ordinal);
@@ -172,6 +173,7 @@ public sealed partial class ClashOfRimMod : Mod
         snapshotPublication = ClientSnapshotComposition.CreatePublication(settings);
         sessionLifecycle = new ClientSessionLifecycle(new ClientSessionIdentityStore(settings), new ClientSessionLogoutTransport(), sessionConnection);
         worldSetup = new ClientWorldSetupState(sessionLifecycle);
+        storytellerConfiguration = new ClientStorytellerConfiguration(sessionLifecycle, worldSetup, new ClientStorytellerRuntime());
         compatibilityPresentation = new ClientCompatibilityPresentation((response, language, accept, cancel) =>
             new AIRsLight.ClashOfRim.CompatibilityClient.CompatibilityMismatchWindow(this, response, language, accept, cancel));
         var entryPresentation = new ClientWorldEntryPresentation(message => { EnsureStatusDefaultsInitialized(); loginStatus = message; },

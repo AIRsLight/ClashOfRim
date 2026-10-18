@@ -19,6 +19,7 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("storyteller configuration shares setup and runtime ownership", ClientStorytellerConfigurationTests.Run),
     ("world entry start owns input, admission and source game barriers", ClientWorldEntryStartTests.Run),
     ("world entry owns decisions, publication and substrate handoff", ClientWorldEntryTests.Run),
     ("world preparation owns handshake results and pending setup state", ClientWorldPreparationTests.Run),

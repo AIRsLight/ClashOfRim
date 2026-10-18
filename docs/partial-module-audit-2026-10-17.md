@@ -1891,3 +1891,19 @@ M8h2b 完成。下一步 **M8h2c 入服发起、身份输入及源 Game 生命�
 **7 个相关单元组通过**：新入服发起、入服结果、世界准备、会话生命周期、同步准入、主线程续调及模块依赖守卫。最后地址格式和初始化通知调整后仅重跑新组。守卫检查 **826** 个模块及生成类型、**179** 个适配器及生成类型。Release 构建通过，**0 错误、41 个既有警告**。日志：`LocalOnly/module-migration/client-world-start-{compile,after,matrix,related,final,build}.log`。未运行 RimTest、全量回归或推送。
 
 M8h2c 及本轮入服流程的准备、决定、发起迁移完成。下一步 **M8h3 世界生成与配置应用**；ServerEntry 中仍保留地图摘要格式化、加载完成后的跨领域协调及兼容门面，接收方的世界同步、聊天、管理等业务后续继续迁移。M8h、M8 与 M9–M12 均保持开放。
+
+### M8h3a 叙事者与难度配置的共同模块（2026-10-18）
+
+世界配置 partial 同时维护建图、地名文化、派系、道路和运行时刷新。先迁移建图页面与运行时刷新共用的难度依赖：`ClientStorytellerConfiguration` 拥有配置捕获、定义完整性校验、应用准入、待建图票据校验及页面推进；宿主保留三个薄转发，世界配置捕获和两个应用调用点直接使用该模块。`ClientStorytellerRuntime` 只负责绑定 Game、引擎 Def/Scribe 读写和提交已准备的 Storyteller，`ClientStorytellerPage` 适配真实窗口。模块与适配器都不引用 Mod、完整 settings 或宽网络客户端。
+
+捕获后的三个字符串合为不可变基线，继续沿用原签名格式。原反射读取算法移到共享 ClientWorldRuntimeValues，世界参数捕获和难度读取共用，不在新适配器里复制第二套成员查找。真实难度 XML 仍交给游戏 Scribe 及既有文化补丁处理，没有新增 XML 数值转换器。准备阶段完成 Def 解析、难度读取和 Storyteller 构造，再复用 ClientRequestTracker 校验账户、服务器、殖民地、认证、登录代次和源 Game，最后发布；普通快照推进不使配置操作失效。
+
+原代码在难度 XML 无法加载或 Scribe 正忙时，均将 null 合并为 `new Difficulty(def)`，导致有自定义 XML 的更新也可能静默重置为预设。现在仅缺省 XML 使用预设；已提供但无法加载的 XML、缺少/空 saveable、Scribe 忙碌和无法解析的 Def 都不替换当前叙事者，也不推进建图页面。忙碌 Scribe 不被 ForceStop；本次加载自己失败时才清理其 Scribe 状态。迁移保留工作区此前已有的 GameInitData 空值修复，地图建成后的运行时刷新无需初始化数据仍可应用。
+
+新测试先复现了初稿在同一会话的待建图配置被替换后仍应用旧基线。ClientWorldSetupState 现在让配置捕获与底图捕获共用现有 Ticket，并暴露确切票据校验；页面在准备和推进之间检查该票据，不另设状态代次。待办被重置/替换、页面关闭或会话/Game 变化时，旧操作不发布、不推进。宿主 WorldBaseline 本步净移出约 220 行；其世界生成和其它领域应用尚未迁移。
+
+新增 ClientStorytellerConfigurationTests：四种文化下的 **112 个模块场景**，覆盖定义缺失、设置/运行时准入、可变 DTO 隔离、八种所有权变化在捕获/准备/应用阶段的影响、失败后重试、关闭页面不重复应用及待办替换。另一个引擎适配器场景在 en-US/fr-FR/de-DE/tr-TR/zh-CN 下实际调用游戏 Storyteller 和 Scribe，验证自定义 threatScale=1.37 往返、损坏/无 saveable XML、Scribe 忙碌、缺省 XML、缺失 Def、无 GameInitData 与旧 Game 的隔离。夹具只替换未初始化的 Prefs.LogVerbose 读取，并装配既有文化补丁；不等同于完整游戏建图或真实窗口流程。测试初稿误用了旧版 Difficulty 字段名，已按当前程序集修正，未修改产品 API 迁就夹具。
+
+**5 个相关单元组通过**：新叙事者模块、世界准备、入服结果、Scribe 文化测试及模块依赖守卫。守卫检查 **836** 个模块及生成类型、**183** 个适配器及生成类型。Release 构建 **0 错误、41 个既有警告**。日志：`LocalOnly/module-migration/client-storyteller-{compile,before,after,related,build}.log`。未运行 RimTest、全量回归或推送；后续可按单次修改安排定向 RimTest，全量仍由用户安排。
+
+M8h3a 完成。下一步 **M8h3b 实际世界生成及长事件完成的所有权**，随后世界特征/语言文化、派系/道路和运行时配置投影。当前 LongEvent 建图与完成回调仍读取 Current.Game，地名目录提交和底图/基线的重复本地化逻辑仍待迁移；本步不宣称这些问题已解决。M8h、M8 和 M9–M12 保持开放。

@@ -23,6 +23,7 @@ using RimWorld.Planet;
 using UnityEngine;
 using Verse;
 using Verse.Profile;
+using static AIRsLight.ClashOfRim.ClientWorldRuntimeValues;
 
 namespace AIRsLight.ClashOfRim;
 
@@ -443,14 +444,7 @@ public sealed partial class ClashOfRimMod
         });
     }
 
-    internal string BuildCurrentStorytellerDifficultySignature()
-    {
-        return string.Join(
-            "\u001f",
-            ReadCurrentStorytellerDefName() ?? string.Empty,
-            ReadCurrentDifficultyDefName() ?? string.Empty,
-            ReadCurrentDifficultyValuesXml() ?? string.Empty);
-    }
+    internal string BuildCurrentStorytellerDifficultySignature() => storytellerConfiguration.Capture().Signature;
 
     internal void SubmitRuntimeStorytellerSettingsIfChanged(string? initialSignature)
     {
@@ -966,6 +960,7 @@ public sealed partial class ClashOfRimMod
     {
         object? world = Find.World;
         object? worldInfo = ReadMember(world, "info") ?? ReadMember(world, "Info");
+        var baseline = storytellerConfiguration.Capture();
         ModWorldConfigurationDto configuration = new()
         {
             WorldConfigurationId = "world:" + Guid.NewGuid().ToString("N"),
@@ -979,9 +974,9 @@ public sealed partial class ClashOfRimMod
             OverallPopulation = ReadFirstString(worldInfo, "overallPopulation", "OverallPopulation"),
             LandmarkDensity = ReadFirstString(worldInfo, "landmarkDensity", "LandmarkDensity"),
             TileCount = ReadFirstString(Find.WorldGrid, "TilesCount", "tilesCount"),
-            StorytellerDefName = ReadCurrentStorytellerDefName(),
-            DifficultyDefName = ReadCurrentDifficultyDefName(),
-            DifficultyValuesXml = ReadCurrentDifficultyValuesXml(),
+            StorytellerDefName = baseline.Storyteller,
+            DifficultyDefName = baseline.Difficulty,
+            DifficultyValuesXml = baseline.ValuesXml,
             GameLanguage = ReadCurrentGameLanguage()
         };
         configuration.FactionDefNames.AddRange(ReadCurrentWorldFactionDefNames());
@@ -1316,7 +1311,7 @@ public sealed partial class ClashOfRimMod
         ApplyWorldRoads(configuration.Roads);
         ApplyServerWorldConfigurationExtensions(configuration, applyPollution);
         ApplyWorldObjectLabels(configuration.WorldObjects);
-        ApplyStorytellerBaselineIfPlaying(configuration);
+        storytellerConfiguration.ApplyRuntime(configuration);
     }
 
     private void StartSubmitWorldFeatureNameCatalog(
@@ -1394,23 +1389,7 @@ public sealed partial class ClashOfRimMod
     private void ApplyRuntimeWorldConfigurationUpdate(ModWorldConfigurationDto configuration)
     {
         ApplyServerWorldConfigurationExtensionCatalog(configuration);
-        ApplyStorytellerBaselineIfPlaying(configuration);
-    }
-
-    private void ApplyStorytellerBaselineIfPlaying(ModWorldConfigurationDto configuration)
-    {
-        if (Current.ProgramState != ProgramState.Playing || Current.Game is null)
-        {
-            return;
-        }
-
-        if (string.IsNullOrWhiteSpace(configuration.StorytellerDefName)
-            || string.IsNullOrWhiteSpace(configuration.DifficultyDefName))
-        {
-            return;
-        }
-
-        ApplyStorytellerBaselineToCurrentGame(configuration);
+        storytellerConfiguration.ApplyRuntime(configuration);
     }
 
     private void ApplyServerWorldConfigurationExtensions(ModWorldConfigurationDto? configuration, bool applyWorldState)
@@ -1445,53 +1424,9 @@ public sealed partial class ClashOfRimMod
     }
 
     internal bool TryApplyServerStorytellerBaselineAndContinue(Window storytellerPage)
-    {
-        DebugLogFlow(
-            "TryApplyServerStorytellerBaselineAndContinue.Enter",
-            $"pending={worldSetup.HasConfiguration}, page={DescribeWindow(storytellerPage)}, stack={DescribeWindowStack()}");
-        var configuration = worldSetup.Configuration;
-        if (configuration is null)
-        {
-            DebugLogFlow("TryApplyServerStorytellerBaselineAndContinue.Skip", "no pending server world configuration");
-            return false;
-        }
+        => storytellerConfiguration.ContinueSetup(new ClientStorytellerPage(storytellerPage));
 
-        if (string.IsNullOrWhiteSpace(configuration.StorytellerDefName)
-            || string.IsNullOrWhiteSpace(configuration.DifficultyDefName))
-        {
-            DebugLogFlow(
-                "TryApplyServerStorytellerBaselineAndContinue.Skip",
-                $"missing baseline storyteller={configuration.StorytellerDefName}, difficulty={configuration.DifficultyDefName}");
-            return false;
-        }
-
-        if (!ApplyStorytellerBaselineToCurrentGame(configuration))
-        {
-            DebugLogFlow("TryApplyServerStorytellerBaselineAndContinue.Skip", "failed to apply storyteller baseline");
-            return false;
-        }
-
-        Page? nextPage = storytellerPage is Page page ? page.next : null;
-        DebugLogFlow(
-            "TryApplyServerStorytellerBaselineAndContinue.Continue",
-            $"nextPage={DescribeWindow(nextPage)}, beforeCloseStack={DescribeWindowStack()}");
-        storytellerPage.Close();
-        DebugLogFlow("TryApplyServerStorytellerBaselineAndContinue.Closed", DescribeWindowStack());
-        Find.WindowStack.Add(nextPage ?? new Page_CreateWorldParams());
-        DebugLogFlow("TryApplyServerStorytellerBaselineAndContinue.AddedNext", DescribeWindowStack());
-        return true;
-    }
-
-    internal void LockMultiplayerCommitmentModeIfNeeded()
-    {
-        if (!IsServerWorldSetupFlow || Find.GameInitData is null)
-        {
-            return;
-        }
-
-        Find.GameInitData.permadeathChosen = true;
-        Find.GameInitData.permadeath = false;
-    }
+    internal void LockMultiplayerCommitmentModeIfNeeded() => storytellerConfiguration.LockCommitment();
 
     internal static void DebugLogFlow(string stage, string? detail = null)
     {
@@ -1635,152 +1570,6 @@ public sealed partial class ClashOfRimMod
         return action is null
             ? "<null>"
             : action.Method.DeclaringType?.Name + "." + action.Method.Name;
-    }
-
-    private static string? ReadFirstString(object? target, params string[] names)
-    {
-        foreach (string name in names)
-        {
-            object? value = ReadMember(target, name);
-            if (value is not null)
-            {
-                return Convert.ToString(value, CultureInfo.InvariantCulture);
-            }
-        }
-
-        return null;
-    }
-
-    private static object? ReadMember(object? target, string name)
-    {
-        if (target is null)
-        {
-            return null;
-        }
-
-        Type type = target.GetType();
-        try
-        {
-            return AccessTools.Property(type, name)?.GetValue(target, null)
-                ?? AccessTools.Field(type, name)?.GetValue(target);
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
-    private static string? ReadDefName(object? def)
-    {
-        return ReadFirstString(def, "defName", "DefName");
-    }
-
-    private static string? ReadCurrentStorytellerDefName()
-    {
-        object? storyteller = ReadMember(Current.Game, "storyteller")
-            ?? ReadMember(Find.GameInitData, "storyteller");
-        return ReadDefName(ReadMember(storyteller, "def")) ?? ReadDefName(storyteller);
-    }
-
-    private static string? ReadCurrentDifficultyDefName()
-    {
-        object? storyteller = ReadMember(Current.Game, "storyteller");
-        object? difficulty = ReadMember(storyteller, "difficultyDef")
-            ?? ReadMember(storyteller, "difficulty")
-            ?? ReadMember(Find.GameInitData, "difficulty")
-            ?? ReadMember(Find.GameInitData, "difficultyDef");
-        return ReadDefName(difficulty) ?? ReadFirstString(difficulty, "defName", "DefName");
-    }
-
-    private static bool ApplyStorytellerBaselineToCurrentGame(ModWorldConfigurationDto configuration)
-    {
-        StorytellerDef? storytellerDef = DefDatabase<StorytellerDef>.GetNamedSilentFail(configuration.StorytellerDefName);
-        DifficultyDef? difficultyDef = DefDatabase<DifficultyDef>.GetNamedSilentFail(configuration.DifficultyDefName);
-        if (storytellerDef is null || difficultyDef is null)
-        {
-            Log.Warning($"[ClashOfRim] Server storyteller/difficulty baseline could not be resolved: storyteller={configuration.StorytellerDefName ?? "<null>"} difficulty={configuration.DifficultyDefName ?? "<null>"}");
-            return false;
-        }
-
-        if (Current.Game is null)
-        {
-            Log.Warning("[ClashOfRim] Server storyteller/difficulty baseline could not be applied: Current.Game is null.");
-            return false;
-        }
-
-        Difficulty difficulty = TryReadDifficultyValuesXml(configuration.DifficultyValuesXml, difficultyDef)
-            ?? new Difficulty(difficultyDef);
-        Current.Game.storyteller = new Storyteller(storytellerDef, difficultyDef, difficulty);
-        Find.GameInitData.permadeathChosen = true;
-        Find.GameInitData.permadeath = false;
-        return true;
-    }
-
-    private static string? ReadCurrentDifficultyValuesXml()
-    {
-        Difficulty? difficulty = Current.Game?.storyteller?.difficulty;
-        if (difficulty is null)
-        {
-            return null;
-        }
-
-        if (Scribe.mode != LoadSaveMode.Inactive)
-        {
-            Log.Warning("[ClashOfRim] Cannot capture difficulty baseline while Scribe is active.");
-            return null;
-        }
-
-        try
-        {
-            return Scribe.saver.DebugOutputFor(difficulty);
-        }
-        catch (Exception ex)
-        {
-            Log.Warning("[ClashOfRim] Failed to capture difficulty baseline: " + ex.GetType().Name + " " + ex.Message);
-            return null;
-        }
-    }
-
-    private static Difficulty? TryReadDifficultyValuesXml(string? xml, DifficultyDef difficultyDef)
-    {
-        if (string.IsNullOrWhiteSpace(xml))
-        {
-            return null;
-        }
-
-        if (Scribe.mode != LoadSaveMode.Inactive)
-        {
-            Log.Warning("[ClashOfRim] Cannot apply difficulty baseline while Scribe is active.");
-            return null;
-        }
-
-        string path = Path.Combine(Path.GetTempPath(), "ClashOfRimDifficulty-" + Guid.NewGuid().ToString("N") + ".xml");
-        try
-        {
-            File.WriteAllText(path, "<root>\n" + xml + "\n</root>", Encoding.UTF8);
-            Scribe.loader.InitLoading(path);
-            Difficulty? difficulty = null;
-            Scribe_Deep.Look(ref difficulty, "saveable", difficultyDef);
-            Scribe.loader.FinalizeLoading();
-            return difficulty;
-        }
-        catch (Exception ex)
-        {
-            Scribe.ForceStop();
-            Log.Warning("[ClashOfRim] Failed to apply difficulty baseline: " + ex.GetType().Name + " " + ex.Message);
-            return null;
-        }
-        finally
-        {
-            try
-            {
-                File.Delete(path);
-            }
-            catch
-            {
-                // Best effort cleanup for temporary Scribe input.
-            }
-        }
     }
 
     private static int? ReadFirstInt(object? target, params string[] names)

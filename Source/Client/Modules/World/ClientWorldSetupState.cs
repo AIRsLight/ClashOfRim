@@ -33,7 +33,9 @@ internal sealed class ClientWorldSetupState
             return true;
         });
     }
-    internal Ticket? CaptureGeneration() => requests.Read(() => configuration is null || substrate is not null ? null : new Ticket(requests.Capture(), ClientProtocolJson.Copy(configuration)));
+    internal Ticket? CaptureConfiguration() => requests.Read(() => configuration is null ? null : new Ticket(requests.Capture(), ClientProtocolJson.Copy(configuration)));
+    internal bool IsCurrent(Ticket ticket) => requests.TryApply(ticket.Scope, static () => { });
+    internal Ticket? CaptureGeneration() => requests.Read(() => substrate is null ? CaptureConfiguration() : null);
     internal bool AttachSubstrate(Ticket ticket, WorldSubstratePackage value)
     {
         bool attached = false;
