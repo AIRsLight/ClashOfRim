@@ -19,6 +19,7 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("world compatibility owns extensions, settings, package catalog and DLC policy", WorldCompatibilityTests.Run),
     ("raid defender proxy protection reuses idempotent health protection", RaidDefenderProxyProtectionTests.Run),
     ("remote map compatibility owns lifecycle, projection and save capabilities", RemoteMapCompatibilityTests.Run),
     ("pawn compatibility owns faction, reference, exchange and trade capabilities", PawnCompatibilityTests.Run),

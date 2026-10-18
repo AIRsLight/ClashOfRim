@@ -19,12 +19,11 @@ namespace AIRsLight.ClashOfRim.ThirdPartyCompatibility;
 
 public static partial class ClashOfRimCompatibilityApi
 {
-    private static readonly List<AdminBaselineExtensionProviderRegistration> AdminBaselineExtensionProviders = new();
-    private static readonly List<CompatibilityPackageRegistration> CompatibilityPackages = new();
-    private static readonly List<WorldConfigurationExtensionHandlerRegistration> WorldConfigurationExtensionHandlers = new();
-    private static readonly List<WorldConfigurationExtensionSummaryProvider> WorldConfigurationExtensionSummaryProviders = new();
-    private static readonly List<WorldGenerationFloatSettingProviderRegistration> WorldGenerationFloatSettingProviders = new();
     private static readonly CompatibilityRegistrationScope Registrations = new(message => Log.Warning(message));
+    private static readonly AdminBaselineCompatibility AdminBaseline = new(Registrations);
+    private static readonly WorldConfigurationCompatibility WorldConfiguration = new(Registrations);
+    private static readonly WorldGenerationSettingCompatibility WorldGenerationSettings = new(Registrations);
+    private static readonly CompatibilityPackageCatalog CompatibilityPackages = new(Registrations);
     private static readonly RemoteMapLifecycleCompatibility RemoteMapLifecycle = new(Registrations);
     private static readonly RemoteMapProjectionCompatibility RemoteMapProjection = new(Registrations);
     private static readonly SnapshotSanitizationCompatibility SnapshotSanitization = new(Registrations);
@@ -35,7 +34,6 @@ public static partial class ClashOfRimCompatibilityApi
     private static readonly PawnTradeCompatibility PawnTrade = new(Registrations);
     private static readonly ThingReferenceCompatibility ThingReferences = new(Registrations);
     private static readonly ThingTransferCompatibility ThingTransfers = new(Registrations);
-    private static HashSet<string>? serverDlcIds;
 
     public static bool IsRemoteMapProjectionLoading => RemoteMapProjectionLoadScope.Active;
 
@@ -109,9 +107,5 @@ public static partial class ClashOfRimCompatibilityApi
         return RequestServerWorldBaselineRefresh(ClashOfRimText.Key(translationKey));
     }
 
-    private static bool ServerAllowsDlc(string packageId)
-    {
-        return serverDlcIds is null || serverDlcIds.Contains(packageId);
-    }
 
 }

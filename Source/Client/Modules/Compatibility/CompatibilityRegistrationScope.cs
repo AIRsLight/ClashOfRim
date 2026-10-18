@@ -11,7 +11,7 @@ internal sealed class CompatibilityRegistrationScope
 {
     private readonly Action<string> warning;
     private readonly Dictionary<IList, Action?> collections = new(new ReferenceEqualityComparer());
-    private readonly List<CompatibilityRegistrationRecord> RegistrationRecords = new();
+    private readonly List<(object Registration, CompatibilityRegistrationRecord Record)> RegistrationRecords = new();
     private readonly List<CompatibilityRegistrationDiagnostic> RegistrationDiagnostics = new();
     private readonly Dictionary<object, int> RegistrationPriorities = new(new ReferenceEqualityComparer());
     private readonly Dictionary<object, int> RegistrationOrders = new(new ReferenceEqualityComparer());
@@ -24,7 +24,7 @@ internal sealed class CompatibilityRegistrationScope
 
     internal CompatibilityRegistrationScope(Action<string> warning) => this.warning = warning;
     internal int CurrentRegistrationGeneration => registrationGeneration;
-    internal IReadOnlyList<CompatibilityRegistrationRecord> Records => RegistrationRecords.ToArray();
+    internal IReadOnlyList<CompatibilityRegistrationRecord> Records => RegistrationRecords.Select(entry => entry.Record).ToArray();
     internal IReadOnlyList<CompatibilityRegistrationDiagnostic> Diagnostics => RegistrationDiagnostics.ToArray();
 
     internal CompatibilityRegistrationToken BeginRegistrationCycle(string owner, int priority = 0)
@@ -60,13 +60,13 @@ internal sealed class CompatibilityRegistrationScope
         RegistrationOrders[registration] = unchecked(++registrationOrderSequence);
         SortRegistrationsByPriority(registrations);
         changed?.Invoke();
-        CompatibilityRegistrationRecord record = AddRegistrationRecord(category, key, priority);
+        CompatibilityRegistrationRecord record = AddRegistrationRecord(registration, category, key, priority);
         TrackRegistration(() =>
         {
             registrations.Remove(registration);
             RegistrationPriorities.Remove(registration);
             RegistrationOrders.Remove(registration);
-            RegistrationRecords.Remove(record);
+            RegistrationRecords.RemoveAll(entry => ReferenceEquals(entry.Record, record));
             changed?.Invoke();
         });
     }
@@ -89,32 +89,26 @@ internal sealed class CompatibilityRegistrationScope
         string normalizedKey = key.Trim();
         T? existing = registrations.FirstOrDefault(item =>
             string.Equals(item.MetadataKey, normalizedKey, StringComparison.Ordinal));
-        if (existing is not null)
-        {
-            int existingPriority = RegistrationPriority(existing);
-            if (priority <= existingPriority)
-            {
-                AddRegistrationDiagnostic(
-                    "Warning",
-                    duplicateRejectedCode,
-                    category,
-                    normalizedKey,
-                    category + " '" + normalizedKey + "' was rejected because an existing registration has priority " + existingPriority + ".");
-                return;
-            }
-
-            AddRegistrationDiagnostic(
-                "Warning",
-                duplicateReplacedCode,
-                category,
-                normalizedKey,
-                category + " '" + normalizedKey + "' replaced an existing registration with priority " + existingPriority + ".");
-            registrations.Remove(existing);
-            RemoveRegistrationTracking(existing, category, normalizedKey);
-            changed?.Invoke();
-        }
+        if (!TryReplaceDuplicate(registrations, existing, category, normalizedKey, priority,
+                duplicateRejectedCode, duplicateReplacedCode, category + " '" + normalizedKey + "'", changed)) return;
 
         Register(registrations, registration, category, normalizedKey, priority, changed);
+    }
+
+    internal bool TryReplaceDuplicate<T>(List<T> registrations, T? existing, string category, string key, int priority,
+        string duplicateRejectedCode, string duplicateReplacedCode, string description, Action? changed = null) where T : class
+    {
+        if (existing is null) return true;
+        int existingPriority = RegistrationPriority(existing);
+        bool rejected = priority <= existingPriority;
+        AddRegistrationDiagnostic("Warning", rejected ? duplicateRejectedCode : duplicateReplacedCode, category, key,
+            description + (rejected ? " was rejected because an existing registration has priority " : " replaced an existing registration with priority ")
+                + existingPriority + ".");
+        if (rejected) return false;
+        registrations.Remove(existing);
+        RemoveRegistrationTracking(existing);
+        changed?.Invoke();
+        return true;
     }
 
     internal CompatibilityRegistrationToken CreateRegistrationToken(string owner)
@@ -260,7 +254,7 @@ internal sealed class CompatibilityRegistrationScope
         });
     }
 
-    internal int RegistrationPriority(object registration)
+    private int RegistrationPriority(object registration)
     {
         return RegistrationPriorities.TryGetValue(registration, out int priority) ? priority : 0;
     }
@@ -270,16 +264,14 @@ internal sealed class CompatibilityRegistrationScope
         return RegistrationOrders.TryGetValue(registration, out int order) ? order : 0;
     }
 
-    internal void RemoveRegistrationTracking(object registration, string category, string key)
+    private void RemoveRegistrationTracking(object registration)
     {
         RegistrationPriorities.Remove(registration);
         RegistrationOrders.Remove(registration);
-        RegistrationRecords.RemoveAll(record =>
-            string.Equals(record.Category, category, StringComparison.Ordinal)
-            && string.Equals(record.Key, key, StringComparison.Ordinal));
+        RegistrationRecords.RemoveAll(entry => ReferenceEquals(entry.Registration, registration));
     }
 
-    private CompatibilityRegistrationRecord AddRegistrationRecord(string category, string key, int priority)
+    private CompatibilityRegistrationRecord AddRegistrationRecord(object registration, string category, string key, int priority)
     {
         CompatibilityRegistrationToken? token = activeRegistrationToken;
         var record = new CompatibilityRegistrationRecord(
@@ -288,7 +280,7 @@ internal sealed class CompatibilityRegistrationScope
             IsCurrentRegistrationToken(token) ? token!.Owner : "<untracked>",
             IsCurrentRegistrationToken(token) ? token!.Generation : registrationGeneration,
             priority);
-        RegistrationRecords.Add(record);
+        RegistrationRecords.Add((registration, record));
         return record;
     }
 

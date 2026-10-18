@@ -2763,3 +2763,19 @@ ApplyRaidDefenderProxyPawnProtection 原本在公开 API 内重复实现 TryAddP
 **累计 5 个相关单元组通过**：新远程地图兼容组、新代理保护组、共享注册 scope、袭击部队准备／战场交接、客户端边界。日志：`LocalOnly/module-migration/client-remote-map-compatibility-tests.log`（四组）及 `LocalOnly/module-migration/client-proxy-protection-diagnostic.log`（保护组最终通过）。守卫覆盖 1,356 个纯模块类型、96 个兼容能力类型和 312 个事件适配类型。生产代码随测试编译，既有警告保留；未运行全量回归、实机 RimTest、独立发布构建、推送或冻结 1.6 修改。
 
 **下一步 M10e：世界配置与兼容包能力。** API 主类目前还持有五个世界／兼容包注册集合，需迁出其登记语义、收集／应用／汇总和参数解析；继续检查 DLC 状态与公开门面的剩余责任。Biotech、文化包加载、M11–M12 及最终完成审计仍开放。
+
+### M10e 世界配置、管理员基线与兼容包目录（2026-10-19）
+
+AdminBaselineCompatibility、WorldConfigurationCompatibility、WorldGenerationSettingCompatibility 和 CompatibilityPackageCatalog 接管剩余五个注册集合及执行逻辑，均为不依赖引擎的独立模块。12 个公开方法和 HasWorldConfigurationExtensionCollector 属性保持签名，转发具体模块。包目录同时持有服务端 DLC 基线：null 表示不限制，空集合表示不允许任何包能力，输入复制后按 OrdinalIgnoreCase 查询；注册周期重置不会清除独立的服务端策略。主 API 不再持有任何能力集合、能力缓存或 DLC 状态。
+
+四处专用优先级替换原本重复执行拒绝／替换诊断、旧集合删除和登记记录清理。本步统一为 scope 的 TryReplaceDuplicate，原 metadata key 注册也复用它；各能力只提供已有冲突匹配结果、键和诊断文案。保留管理员 provider／kind 原字符串匹配、世界 handler 规范化组合键、浮点设置规范化注册键、包 ID 原字符串比较等区别，没有为了共用代码改变键语义，也没有引入新的领域业务回调。
+
+实测复现旧记录清理缺陷：高优先级 `id` 替换 `ID` 后，账本同时留下 `low/ID` 与 `high/id`，原因是忽略大小写的冲突检测后用新键进行 Ordinal 记录删除。另一个同源边界是两个合法注册拥有相同规范化诊断键，按键删除会误删另一条记录。scope 现在将注册对象与记录共同保存，替换按注册对象身份删除、令牌撤销按捕获的记录身份删除；priority／order 清理归同一流程。四种专用注册均验证大小写替换、等优先级拒绝、撤销旧 owner 以及共享诊断键时的独立记录存活。
+
+新增四种文化下的扩展收集身份过滤／最后一项胜出、应用精确匹配及非负计数、汇总 Ordinal 分组、浮点设置默认值／异常／原始值、按需求选择管理员基线提供者、包能力复制和动态启停、DLC 基线复制／空值差异／跨注册周期持久、共享能力诊断，以及真实公开门面全部五类能力的撤销／周期清理测试。保留世界扩展精确校验载荷身份、管理员基线只检查返回身份非空白的既有差异。
+
+**累计 7 个相关单元组通过**：新世界能力、共享注册 scope、物品兼容、pawn 兼容、远程地图兼容、兼容基线发布及模块边界。共享替换算法影响此前能力，因此本步定向复核这些能力组；未重跑无关业务。复现日志 `LocalOnly/module-migration/client-world-compatibility-reproduction.log`，通过日志 `LocalOnly/module-migration/client-world-compatibility-tests.log`；将撤销记录也明确按引用身份删除后，复核 scope 和世界两组，日志 `LocalOnly/module-migration/client-registration-record-cleanup-tests.log`。守卫检查 1,379 个纯模块类型、96 个引擎兼容能力类型、312 个事件适配类型。生产代码随测试编译，既有警告保留；未运行全量回归、实机 RimTest、独立发布构建、推送或冻结 1.6 修改。
+
+注册与能力状态收尾核对：原 39 个能力集合全部归具体组件，唯一 scope 负责代次／令牌／优先级／顺序／记录／诊断；原 API 各能力分片已是转发入口。主 API 仍有多人会话／管理员查询和请求世界基线刷新等宿主接入，这些继续随 M11 清理，不将注册迁移完成等同于整个 M10 或宿主解耦完成。
+
+**下一步 M10f：Biotech 按能力拆分。** 先明确基因物品编解码、繁殖来源、pawn 交换、地图清理和防御点组件的边界与共享元数据契约，再迁出 partial 中的实现；复用现有独立世界配置／物品流转组件。文化包加载、M11–M12 及最终完成审计继续开放。
