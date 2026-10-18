@@ -10,8 +10,10 @@ internal static class WorldEndpoints
 {
     internal static void Map(IEndpointRouteBuilder endpoints, WorldSessionPreparation preparation, WorldConfigurationRead read,
         WorldConfigurationSubmission submission, WorldFeatureNames featureNames, WorldSubstrateTransfer substrate, WorldSynchronization synchronization,
-        ColonySiteRegistration registration, ColonyRelocation relocation)
+        ColonySiteRegistration registration, ColonyRelocation relocation, ColonyAbandonment abandonment)
     {
+        endpoints.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.AbandonPlayerColony).Route,
+            (AbandonPlayerColonyRequest request) => Results.Ok(abandonment.Abandon(request))).WithMetadata(EndpointSnapshotRecovery.Instance);
         endpoints.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.PreflightColonyRelocation).Route,
             (PreflightColonyRelocationRequest request) => Results.Ok(relocation.Preflight(request))).WithMetadata(EndpointSnapshotRecovery.Instance);
         endpoints.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.ConfirmColonyRelocation).Route,

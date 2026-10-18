@@ -203,6 +203,11 @@ public sealed class ClashOfRimNetworkState
         ColonyLocations = new SnapshotColonyLocations(Plugins, CompatibilityBaseline);
         ColonyProjection = new SnapshotColonyProjection(WorldConfiguration, Plugins, CompatibilityBaseline, ColonyLocations, WorldChanges);
         var colonyAccess = new ColonyLifecycleAccess(ColonyAuthorization, Players);
+        ColonyDeletion = new ColonyDeletion(SnapshotStore, Ledger, ColonyDeletions, SnapshotCommits, SnapshotMutations,
+            WorldConfiguration, Plugins, CompatibilityBaseline, RuntimeWorldObjectMarkers, DiplomacyRelations, BankLoans,
+            Players, RaidPreparations, RaidProtectionActivations, MercenaryContracts, SessionConnections, EventNotifications, WorldChanges);
+        ColonyAbandonment = new ColonyAbandonment(colonyAccess, SnapshotMutations, SnapshotStore, ColonyDeletion,
+            WorldConfiguration, WorldDelivery, WorldMarkers, () => RuntimeLogger);
         ColonyRegistration = new ColonySiteRegistration(colonyAccess, SnapshotMutations, WorldConfiguration,
             CompatibilityBaseline, Plugins, WorldTileDistanceCalculator, PlayerActivity, WorldDelivery, WorldMarkers, WorldChanges, () => RuntimeLogger);
         ColonyRelocation = new ColonyRelocation(colonyAccess, SnapshotMutations, SnapshotStore, WorldConfiguration, ColonyLocations,
@@ -291,6 +296,8 @@ public sealed class ClashOfRimNetworkState
     internal SnapshotColonyProjection ColonyProjection { get; }
     internal ColonySiteRegistration ColonyRegistration { get; }
     internal ColonyRelocation ColonyRelocation { get; }
+    internal ColonyDeletion ColonyDeletion { get; }
+    internal ColonyAbandonment ColonyAbandonment { get; }
     internal WorldSynchronization WorldSync { get; }
     internal WorldConfigurationSubmission WorldSubmission { get; }
     internal WorldFeatureNames WorldFeatureNames { get; }

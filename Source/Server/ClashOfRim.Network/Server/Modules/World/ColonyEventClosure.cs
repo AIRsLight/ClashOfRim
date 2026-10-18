@@ -1,47 +1,15 @@
-using AIRsLight.ClashOfRim.Network.Modules.Sessions;
-using static AIRsLight.ClashOfRim.Network.Modules.Trades.TradeRules;
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Protocol;
+using AIRsLight.ClashOfRim.Network.Modules.Sessions;
+using static AIRsLight.ClashOfRim.Network.Modules.Trades.TradeRules;
 
-namespace AIRsLight.ClashOfRim.Network;
+namespace AIRsLight.ClashOfRim.Network.Modules.World;
 
-public static partial class ClashOfRimNetworkServer
+internal static class ColonyEventClosure
 {
-    private static void ReconcileAbandonedColonyOnClientLifecycle(
-        ClashOfRimNetworkState state,
-        ClientLifecycleEvent lifecycleEvent)
-    {
-        if (lifecycleEvent.Kind != ClientLifecycleEventKind.ColonyAbandoned
-            || string.IsNullOrWhiteSpace(lifecycleEvent.UserId)
-            || string.IsNullOrWhiteSpace(lifecycleEvent.ColonyId))
-        {
-            return;
-        }
-
-        using var mutation = EnterRecoveredSnapshotMutation(state);
-        state.PendingConfirmations.Reconcile(lifecycleEvent.UserId, lifecycleEvent.ColonyId,
-            lifecycleEvent.OccurredAtUtc, forceCancel: false);
-        ReconcileAbandonedColonyLocked(state, lifecycleEvent);
-    }
-
-    private static void ReconcileAbandonedColonyLocked(
-        ClashOfRimNetworkState state, ClientLifecycleEvent lifecycleEvent)
-    {
-        string userId = lifecycleEvent.UserId;
-        string colonyId = lifecycleEvent.ColonyId;
-
-        state.RaidPreparations.RemoveForColony(userId, colonyId);
-        state.RaidProtectionActivations.RemoveForColony(userId, colonyId);
-        state.MercenaryContracts.CloseForColony(userId, colonyId);
-
-        LedgerBatch batch = BuildAbandonedColonyEventClosure(state.Ledger, userId, colonyId, out HashSet<string> usersToSignal);
-        if (batch.StatusChanges.Count > 0) state.Ledger.ApplyBatch(batch);
-        if (usersToSignal.Count > 0) state.EventNotifications.SignalUsers(usersToSignal);
-    }
-
     // Build the complete graph before changing any status. An order and its
     // acceptance memos must not be split by a persistence failure.
-    private static LedgerBatch BuildAbandonedColonyEventClosure(
+    internal static LedgerBatch Build(
         IAuthoritativeEventLedger ledger, string userId, string colonyId, out HashSet<string> usersToSignal)
     {
         var users = new HashSet<string>(StringComparer.Ordinal);
@@ -56,8 +24,8 @@ public static partial class ClashOfRimNetworkServer
         foreach (AuthoritativeEvent item in ledger.ListAll())
         {
             if (IsTerminalForAbandonedColonyCleanup(item.Status) || ColonyTombstones.IsFor(item, userId, colonyId)) continue;
-            bool actorMatches = IsVisibleParty(item.Actor, userId, colonyId);
-            if (!actorMatches && !IsVisibleParty(item.Target, userId, colonyId)) continue;
+            bool actorMatches = EventVisibility.MatchesParty(item.Actor, userId, colonyId);
+            if (!actorMatches && !EventVisibility.MatchesParty(item.Target, userId, colonyId)) continue;
 
             if (item.Type == ServerEventType.Trade && actorMatches
                 && item.Payload is TradeEventPayload { Stage: TradeStage.MarketOrder })
@@ -87,5 +55,4 @@ public static partial class ClashOfRimNetworkServer
             users.Add(userId!);
         }
     }
-
 }

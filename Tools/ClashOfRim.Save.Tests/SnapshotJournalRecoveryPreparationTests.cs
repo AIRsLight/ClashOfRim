@@ -5,7 +5,6 @@ using AIRsLight.ClashOfRim.Network.Plugins;
 using AIRsLight.ClashOfRim.Save;
 using Microsoft.Data.Sqlite;
 using System.Text.Json;
-using System.Reflection;
 
 internal static class SnapshotJournalRecoveryPreparationTests
 {
@@ -58,46 +57,36 @@ internal static class SnapshotJournalRecoveryPreparationTests
                 Require(!Monitor.IsEntered(f.State.RaidSettlementSnapshotMutationGate), "Cleanup leaked its mutation gate.");
             });
         foreach (string kind in new[] { "LoggedIn", "InitialWorldSessionPrepared", "ColonyAbandoned" })
-        foreach (string invalid in new[] { "none", "user", "colony" })
+        foreach (string invalid in kind == "ColonyAbandoned" ? new[] { "none", "user", "colony" } : new[] { "user", "colony" })
             WithFixture(factory, f =>
             {
                 f.Seed("evidence"); f.Store.Reset();
                 string before = f.PersistentState();
-                // The other lifecycle handler owns this event; empty identity belongs to neither.
-                bool entryHandler = kind == "ColonyAbandoned";
-                CallLifecycle(entryHandler, f.State, Lifecycle(kind, invalid == "user" ? "" : "userA", invalid == "colony" ? "" : "colonyA"));
-                if (invalid != "none")
-                    CallLifecycle(!entryHandler,
-                        f.State, Lifecycle(kind, invalid == "user" ? "" : "userA", invalid == "colony" ? "" : "colonyA"));
+                f.State.EntryLifecycle.Apply(Lifecycle(kind, invalid == "user" ? "" : "userA", invalid == "colony" ? "" : "colonyA"));
                 Require(f.State.SnapshotCommits.HasPending && f.Store.Preparations == 0 && f.Store.Writes == 0
                     && f.PostCalls == 0 && before == f.PersistentState(), "Unrelated lifecycle hook started recovery.");
             });
-    }
-
-    private static void CallLifecycle(bool entryHandler, ClashOfRimNetworkState state, ClientLifecycleEvent lifecycle)
-    {
-        if (entryHandler) state.EntryLifecycle.Apply(lifecycle);
-        else Invoke("ReconcileAbandonedColonyOnClientLifecycle", state, lifecycle);
     }
 
     private static void CallEntry(Fixture f, string entry)
     {
         if (entry == "pending") f.State.PendingConfirmations.ReconcileAfterRecovery("userA", "colonyA", DateTimeOffset.UtcNow, true);
         else if (entry == "login") f.State.EntryLifecycle.Apply(Lifecycle("LoggedIn", "userA", "colonyA"));
-        else Invoke("ReconcileAbandonedColonyOnClientLifecycle", f.State, Lifecycle("ColonyAbandoned", "userA", "colonyA"));
+        else
+        {
+            // Delete a different colony through the real player entry; the pending user's recovered loan must survive.
+            var now = DateTimeOffset.UtcNow;
+            f.State.LoginSessions.TryCreate("abandon-user", "abandon-colony", now, out var session);
+            string token = f.State.AuthTokens.Issue("abandon-user", "abandon-user", "abandon-colony", session, now);
+            Require(f.State.ColonyAbandonment.Abandon(new(AIRsLight.ClashOfRim.Protocol.ProtocolApiVersion.Current,
+                "abandon-user", "abandon-colony", null, "abandon", token)).Result.Accepted, "Actual abandonment rejected.");
+        }
     }
 
     private static ClientLifecycleEvent Lifecycle(string kind, string user, string colony)
     {
         return new AIRsLight.ClashOfRim.Network.Modules.Sessions.ClientLifecycleEvent(
             Enum.Parse<AIRsLight.ClashOfRim.Network.Modules.Sessions.ClientLifecycleEventKind>(kind), user, colony, "evidence", "session", DateTimeOffset.UtcNow);
-    }
-
-    private static void Invoke(string name, params object[] args)
-    {
-        try { typeof(ClashOfRimNetworkServer).GetMethod(name, BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, args); }
-        catch (TargetInvocationException ex) when (ex.InnerException is not null)
-        { System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(ex.InnerException).Throw(); }
     }
 
     private static void VerifyPaused(Fixture f, bool reopen, bool after, string change)

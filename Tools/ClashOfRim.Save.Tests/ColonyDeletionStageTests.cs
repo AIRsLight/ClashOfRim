@@ -1,4 +1,4 @@
-using System.Reflection;
+using AIRsLight.ClashOfRim.Network.Modules.World;
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Network;
 using AIRsLight.ClashOfRim.Protocol;
@@ -79,25 +79,25 @@ internal static class ColonyDeletionStageTests
         {
             string database = Path.Combine(root, "events.sqlite");
             ServerDatabaseMigrator.Migrate(database);
-            var state = new ClashOfRimNetworkState(ledger: new SqliteAuthoritativeEventLedger(database));
-            SeedEvents(state.Ledger);
-            var before = state.Ledger.ListAll().ToDictionary(item => item.EventId, item => item.Status);
+            IAuthoritativeEventLedger ledger = new SqliteAuthoritativeEventLedger(database);
+            SeedEvents(ledger);
+            var before = ledger.ListAll().ToDictionary(item => item.EventId, item => item.Status);
             Execute(database, $"create trigger fail_close before update on events when old.event_id = '{target}' "
                 + "begin select raise(abort, 'injected lifecycle closure failure'); end;");
             bool failed = false;
-            try { CloseEvents(state); }
-            catch (TargetInvocationException ex) when (ex.InnerException is SqliteException) { failed = true; }
+            try { CloseEvents(ledger); }
+            catch (SqliteException) { failed = true; }
             Require(failed, "event closure fault was not reached");
-            foreach (var ledger in new[] { state.Ledger, new SqliteAuthoritativeEventLedger(database) })
-                Require(before.All(pair => ledger.Find(pair.Key)!.Status == pair.Value) && ledger.ListAll().Count == before.Count,
+            foreach (var stored in new[] { ledger, new SqliteAuthoritativeEventLedger(database) })
+                Require(before.All(pair => stored.Find(pair.Key)!.Status == pair.Value) && stored.ListAll().Count == before.Count,
                     "abandonment committed only part of its event closure graph");
             Execute(database, "drop trigger fail_close;");
-            if (reopen) state = new ClashOfRimNetworkState(ledger: new SqliteAuthoritativeEventLedger(database));
-            CloseEvents(state);
-            VerifyClosed(state.Ledger);
+            if (reopen) ledger = new SqliteAuthoritativeEventLedger(database);
+            CloseEvents(ledger);
+            VerifyClosed(ledger);
             VerifyClosed(new SqliteAuthoritativeEventLedger(database));
-            CloseEvents(state);
-            VerifyClosed(state.Ledger);
+            CloseEvents(ledger);
+            VerifyClosed(ledger);
         });
     }
 
@@ -112,12 +112,12 @@ internal static class ColonyDeletionStageTests
                 "sqlite" => new SqliteAuthoritativeEventLedger(path),
                 _ => new InMemoryAuthoritativeEventLedger()
             };
-            var state = new ClashOfRimNetworkState(ledger: Open());
-            SeedEvents(state.Ledger);
-            CloseEvents(state);
-            VerifyClosed(state.Ledger);
-            CloseEvents(state);
-            VerifyClosed(kind == "memory" ? state.Ledger : Open());
+            var ledger = Open();
+            SeedEvents(ledger);
+            CloseEvents(ledger);
+            VerifyClosed(ledger);
+            CloseEvents(ledger);
+            VerifyClosed(kind == "memory" ? ledger : Open());
         });
     }
 
@@ -162,12 +162,11 @@ internal static class ColonyDeletionStageTests
         }
     }
 
-    private static void CloseEvents(ClashOfRimNetworkState state)
+    private static void CloseEvents(IAuthoritativeEventLedger ledger)
     {
-        object abandoned = AIRsLight.ClashOfRim.Network.Modules.Sessions.ClientLifecycleEvent.ColonyAbandoned(
-            "owner", "abandoned", "snapshot", DateTimeOffset.UnixEpoch);
-        typeof(ClashOfRimNetworkServer).GetMethod("ReconcileAbandonedColonyOnClientLifecycle", BindingFlags.NonPublic | BindingFlags.Static)!
-            .Invoke(null, new[] { state, abandoned });
+        var batch = ColonyEventClosure.Build(ledger, "owner", "abandoned", out var recipients);
+        ledger.ApplyBatch(batch);
+        Require(recipients.SetEquals(batch.StatusChanges.Count == 0 ? [] : new[] { "owner", "other" }), "Closure lost recipients or included server.");
     }
 
     private static void Execute(string database, string sql)

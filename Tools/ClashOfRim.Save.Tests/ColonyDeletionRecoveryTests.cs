@@ -5,9 +5,7 @@ using AIRsLight.ClashOfRim.Network;
 using AIRsLight.ClashOfRim.Network.Plugins;
 using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Save;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Data.Sqlite;
-using Microsoft.Extensions.Logging.Abstractions;
 
 internal static class ColonyDeletionRecoveryTests
 {
@@ -287,9 +285,8 @@ internal static class ColonyDeletionRecoveryTests
             }
             else
             {
-                var result = (IValueHttpResult)Invoke("AbandonPlayerColony",
-                    new AbandonPlayerColonyRequest(ProtocolApiVersion.Current, "userA", "colonyA", Package.Envelope.Identity.SnapshotId, "delete", token), State, NullLoggerFactory.Instance)!;
-                Require(((AbandonPlayerColonyResponse)result.Value!).Result.Accepted, "player abandonment rejected");
+                var result = State.ColonyAbandonment.Abandon(new(ProtocolApiVersion.Current, "userA", "colonyA", Package.Envelope.Identity.SnapshotId, "delete", token));
+                Require(result.Result.Accepted, "player abandonment rejected");
             }
         }
         public void Recover() => Invoke("RecoverSnapshotCommits", State);
@@ -327,7 +324,7 @@ internal static class ColonyDeletionRecoveryTests
     private static void Fails(Action action)
     {
         try { action(); }
-        catch (TargetInvocationException ex)
+        catch (Exception ex)
         {
             Exception failure = ex;
             while (failure is TargetInvocationException { InnerException: { } inner }) failure = inner;

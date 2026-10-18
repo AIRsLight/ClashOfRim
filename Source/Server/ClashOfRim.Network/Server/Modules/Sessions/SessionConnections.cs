@@ -109,6 +109,13 @@ internal sealed class SessionConnections(LoginSessionRegistry sessions, AuthToke
         }
     }
 
+    internal void EndColonyUnderMutation(string userId, string colonyId)
+    {
+        // A replay for an abandoned colony must leave its replacement's connection intact.
+        EndUnderMutation(userId, sessions.FindSessionIdForColony(userId, colonyId));
+        tokens.RevokeForColony(userId, colonyId);
+    }
+
     internal bool EndUnderMutation(string userId, string? sessionId)
     {
         if (string.IsNullOrWhiteSpace(sessionId)) return false;

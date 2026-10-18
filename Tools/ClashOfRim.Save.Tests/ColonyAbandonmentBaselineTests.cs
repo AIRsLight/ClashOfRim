@@ -1,16 +1,10 @@
-using System.Reflection;
 using AIRsLight.ClashOfRim.Network;
 using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Save;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Data.Sqlite;
-using Microsoft.Extensions.Logging.Abstractions;
 
 internal static class ColonyAbandonmentBaselineTests
 {
-    private static readonly MethodInfo Endpoint = typeof(ClashOfRimNetworkServer).GetMethod(
-        "AbandonPlayerColony", BindingFlags.Static | BindingFlags.NonPublic)!;
-
     public static void Run(Func<string, SaveSnapshotPackage> fixture)
     {
         SnapshotEndpointTestClient.LoadLocalization();
@@ -47,8 +41,7 @@ internal static class ColonyAbandonmentBaselineTests
             Require(!Invoke(state, package.Envelope.Identity.SnapshotId, oldToken).Result.Accepted, "Old token accepted repeated abandonment.");
             // An interrupted deletion may be replayed after another generation exists.
             // A transport's finally block can also arrive after the replacement login.
-            typeof(ClashOfRimNetworkServer).GetMethod("CleanupAbandonedColony", BindingFlags.Static | BindingFlags.NonPublic)!
-                .Invoke(null, new object[] { state, "userA", "colonyA", now });
+            state.ColonyDeletion.Delete("userA", "colonyA", now);
             state.SessionConnections.Close("userA", "colonyA", oldSession, oldLease);
             Require(state.LoginSessions.IsValid("userA", "rebuilt", newSession, now)
                 && state.LoginSessions.Refresh("userA", "rebuilt", newSession, now) && newLease.Touch()
@@ -193,8 +186,7 @@ internal static class ColonyAbandonmentBaselineTests
     private static AbandonPlayerColonyResponse Invoke(ClashOfRimNetworkState state, string? snapshot, string token)
     {
         var request = new AbandonPlayerColonyRequest(ProtocolApiVersion.Current, "userA", "colonyA", snapshot, "abandon-test", token);
-        var result = (IValueHttpResult)Endpoint.Invoke(null, new object[] { request, state, NullLoggerFactory.Instance })!;
-        return (AbandonPlayerColonyResponse)result.Value!;
+        return state.ColonyAbandonment.Abandon(request);
     }
 
     private static void WithDirectory(Action<string> action)

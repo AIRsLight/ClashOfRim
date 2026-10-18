@@ -657,7 +657,7 @@ public static partial class ClashOfRimNetworkServer
         using (state.EnterSnapshotMutation())
             affected = DisconnectUserConnectionsLocked(state, targetUserId);
 
-        CleanupAbandonedColony(state, targetUserId, colonyId, nowUtc);
+        state.ColonyDeletion.Delete(targetUserId, colonyId, nowUtc);
         return ProtocolResponse.Ok(T("Admin.Action.PlayerSaveDeleted"));
     }
 

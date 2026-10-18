@@ -357,7 +357,7 @@
     "Kind": "AbandonPlayerColony",
     "Route": "/world/colony-sites/abandon",
     "Method": "POST",
-    "OwnsRecovery": false
+    "OwnsRecovery": true
   },
   {
     "Kind": "GetAdminBaselineRequirements",
