@@ -19,6 +19,7 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("ideology package loading owns validation and Scribe cleanup without catalog ownership", IdeoPackageLoaderTests.Run),
     ("biotech pawn packages and map capabilities own persistence and sanitation", BiotechPawnAndMapCapabilityTests.Run),
     ("biotech item capabilities own sources, identity, restoration and gene caches", BiotechItemCapabilityTests.Run),
     ("biotech trade constraints agree across client and server cultures", BiotechTradeConstraintTests.Run),

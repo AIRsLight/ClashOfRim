@@ -3,14 +3,17 @@ using System.Collections.Generic;
 using System.Linq;
 using AIRsLight.ClashOfRim;
 using AIRsLight.ClashOfRim.ClientNetwork;
+using AIRsLight.ClashOfRim.DlcCompatibility.Ideology.Ideos;
 using RimWorld;
 using UnityEngine;
 using Verse;
 
 namespace AIRsLight.ClashOfRim.DlcCompatibility;
 
-public static partial class RemoteIdeoMaterializer
+public static class RemoteIdeoMaterializer
 {
+    private static readonly IdeoPackageLoader PackageLoader = new(message => Log.Warning(message));
+
     internal static void NormalizeGeneratedIdeologies()
     {
         // Vanilla adds missing hidden ritual precepts when loading an .ideo.
@@ -22,7 +25,7 @@ public static partial class RemoteIdeoMaterializer
                 ideo.id.ToString(System.Globalization.CultureInfo.InvariantCulture) == dto.LocalId);
             // Preserve player ownership fields; this is a local load roundtrip,
             // not creation of a remote shadow with ApplyShadowFields.
-            Ideo canonical = TryLoadSavedIdeoPackage(dto)
+            Ideo canonical = PackageLoader.TryLoad(dto.SavedIdeoPackageXml, null, dto.GlobalKey)
                 ?? throw new InvalidOperationException("Could not normalize generated ideology: " + dto.GlobalKey);
             if (!MatchesIdeologyDefinition(canonical, dto)) canonical.CopyTo(native);
         }
@@ -401,6 +404,18 @@ public static partial class RemoteIdeoMaterializer
 
         return PawnsFinder.AllMapsWorldAndTemporary_AliveOrDead
             .Any(pawn => pawn?.ideo?.Ideo == ideo);
+    }
+
+    private static Ideo? TryCreateIdeo(ModWorldIdeoSummaryDto dto)
+    {
+        Ideo? loaded = PackageLoader.TryLoad(dto.SavedIdeoPackageXml, dto.SavedIdeoPackageSha256, dto.GlobalKey);
+        if (loaded is null) return null;
+
+        Ideo ideo = IdeoGenerator.InitLoadedIdeo(loaded);
+        ApplyShadowFields(ideo, dto);
+        ideo.SortStyleCategories();
+        ideo.RecachePrecepts();
+        return ideo;
     }
 
     private static void ApplyShadowFields(Ideo ideo, ModWorldIdeoSummaryDto dto)

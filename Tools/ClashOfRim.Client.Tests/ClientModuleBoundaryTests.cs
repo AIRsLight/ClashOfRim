@@ -126,10 +126,13 @@ internal static class ClientModuleBoundaryTests
                 or "AIRsLight.ClashOfRim.DlcCompatibility.Biotech.Items"
                 or "AIRsLight.ClashOfRim.DlcCompatibility.Biotech.Genes"
                 or "AIRsLight.ClashOfRim.DlcCompatibility.Biotech.Pawns"
-                or "AIRsLight.ClashOfRim.DlcCompatibility.Biotech.RemoteMaps").ToArray();
+                or "AIRsLight.ClashOfRim.DlcCompatibility.Biotech.RemoteMaps"
+                or "AIRsLight.ClashOfRim.DlcCompatibility.Ideology.Ideos").ToArray();
         var compatibilityViolations = ModuleDependencyGuard.FindViolations(compatibilityCapabilities,
             t => t == typeof(AIRsLight.ClashOfRim.ThirdPartyCompatibility.ClashOfRimCompatibilityApi)
                 || t.FullName == "AIRsLight.ClashOfRim.DlcCompatibility.BiotechCompatibility"
+                || t == typeof(AIRsLight.ClashOfRim.DlcCompatibility.RemoteIdeoMaterializer)
+                || t == typeof(AIRsLight.ClashOfRim.DlcCompatibility.RemoteIdeoCatalog)
                 || t == typeof(ClashOfRimMod) || t == typeof(ClashOfRimSettings)
                 || t == typeof(ClashOfRimModNetworkClient) || t == typeof(ClashOfRimGameComponent)
                 || t == typeof(IServiceProvider) || t == typeof(Verse.LoadedModManager) || t == typeof(ClashLog));

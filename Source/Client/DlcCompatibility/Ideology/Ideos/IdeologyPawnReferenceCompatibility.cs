@@ -1,5 +1,6 @@
 using AIRsLight.ClashOfRim.ThirdPartyCompatibility;
 using AIRsLight.ClashOfRim.ClientNetwork;
+using AIRsLight.ClashOfRim.Modules.Compatibility.Ideology;
 using RimWorld;
 using System;
 using System.Collections.Generic;
@@ -7,7 +8,6 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Security.Cryptography;
 using System.Text;
 using System.Xml.Linq;
 using UnityEngine;
@@ -328,7 +328,7 @@ internal static class IdeologyPawnReferenceCompatibility
                 SavedIdeoPackageXml = savedIdeoPackageXml,
                 SavedIdeoPackageSha256 = string.IsNullOrWhiteSpace(savedIdeoPackageXml)
                     ? null
-                    : ComputeSha256Hex(savedIdeoPackageXml!),
+                    : IdeoPackageHash.Compute(savedIdeoPackageXml!),
                 UpdatedAtGameTicks = Find.TickManager?.TicksGame,
                 MemeDefNames = ideo.memes?
                     .Where(meme => meme != null)
@@ -416,7 +416,7 @@ internal static class IdeologyPawnReferenceCompatibility
             return false;
         }
 
-        sha256 = ComputeSha256Hex(savedIdeoPackageXml!);
+        sha256 = IdeoPackageHash.Compute(savedIdeoPackageXml!);
         return true;
     }
 
@@ -678,23 +678,6 @@ internal static class IdeologyPawnReferenceCompatibility
     private static string Segment(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? "unknown" : value!.Trim();
-    }
-
-    private static string ComputeSha256Hex(string text)
-    {
-        using SHA256 sha256 = SHA256.Create();
-        return ToHexLower(sha256.ComputeHash(Encoding.UTF8.GetBytes(text)));
-    }
-
-    private static string ToHexLower(byte[] bytes)
-    {
-        var builder = new StringBuilder(bytes.Length * 2);
-        foreach (byte value in bytes)
-        {
-            builder.Append(value.ToString("x2", CultureInfo.InvariantCulture));
-        }
-
-        return builder.ToString();
     }
 
 }
