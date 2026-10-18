@@ -2449,3 +2449,19 @@ M8h4m4 的断开与退出清理迁移完成；SessionRuntime 当前保留引擎�
 **12 个相关单元组通过**：新分派组、会话启动、初次建服、模块守卫、事件刷新、玩家目录、聊天、世界同步、在线通知、外观模块／适配器和站点注册。测试项目编译通过；守卫检查 **1,284** 个模块及生成类型、**305** 个适配器及生成类型。日志：`LocalOnly/module-migration/client-session-followups-{foundation,tests,related,registration}.log`。没有运行全量回归、实机 RimTest 或独立发布构建，没有推送；冻结 1.6 和原有未提交工作保持独立。
 
 **下一步 M8h4n2：身份发布后的兼容清单与管理员权限接续。** Core 的 IdentityChanged 和 worldEntry.Accepted 仍各自调用 CaptureServerCompatibilityManifest／ApplyAdministratorFlag，worldCatalog 仍分别订阅兼容清单和权限观察。需要核对共同发布语义和回调重入归属，再直接连接已有兼容／权限模块。其他 partial 及 M8h4n、M8h4、M8h、M8、M9–M12 继续开放；全量验证由用户安排。
+
+### M8h4n2 兼容清单与权限观察的共同发布（2026-10-19）
+
+ClientServerMetadata 接管登录身份通知、入服准备接受和世界目录刷新中的共同发布顺序，直接调用 ClientCompatibilityBaseline 与 ClientAdministration。删除 Mod 中的三段业务接续，以及 CaptureServerCompatibilityManifest／ApplyAdministratorFlag 两个无调用方的过渡入口；WorldEntry.Accepted、WorldCatalog.CompatibilityAccepted／AdministratorObserved 不再作为业务回传事件保留。宿主只向生命周期接入 ObserveIdentity，并为入服／目录模块装配共同发布依赖。
+
+登录的观察凭据只约束原账户身份和会话代次，普通 Game／世界／快照变动不单独撤销账户元数据；入服与目录使用原请求及世界观察凭据。兼容清单的解析、DLC 应用和缓存失效沿用既有基线模块的 Current／revision，不复制版本算法。权限观察新增可选来源检查：授予／撤销、执行权限 UI 和启动管理刷新之间继续验证原来源，防止同账户下已失效的世界请求继续启动刷新。已启动的管理请求仍由管理员模块自己的账户凭据管理。
+
+保留三个来源的业务区别：登录及入服只观察权限；目录仅在 false→true 时刷新管理状态，重复 true 不重复请求。认证清空仍清除兼容基线和权限，不触发管理刷新。兼容错误处理及默认 DLC 行为保持现有策略，未引入错误文本推断。
+
+边界测试复现了原目录路径的缺口：世界配置 ID 已替换，兼容／权限事件仍先发布，直到随后的世界投影才拒绝旧观察。将已有 publication.Owns(observation) 提前纳入目录和入服元数据的来源检查，复现日志为 `client-server-metadata-world-repro.log`。这些检查只用于准备发布，世界模块接受响应后主动切换 WorldConfigurationId 的已有接续机制保持不变。
+
+新增元数据组 **888 个场景**，四种文化下组合真实生命周期、兼容基线、管理员准入及管理模块，检验有效／空／损坏清单、登录／入服／目录策略、DLC 标识保留、清单与权限顺序、重复授予／撤销／清认证、解析／DLC／缓存／权限／UI 回调重入、同凭据重新登录、代次及世界来源失效和异常后重试。目录与入服另补 **12 个世界观察场景**，分别在元数据发布前和发布中替换配置；目录组现 **876**、入服组 **364** 个场景。工作流组使用明确的元数据边界测试端口，新组直接检验生产发布模块的真实状态与刷新结果。
+
+累计 **17 个相关单元组通过**；最终重点重跑元数据、目录、入服／发起、管理控制和模块守卫六组，并验证兼容基线／覆盖、生命周期、恢复 UI 和启动。测试项目编译通过；守卫检查 **1,288** 个模块及生成类型、**305** 个适配器及生成类型。日志：`LocalOnly/module-migration/client-server-metadata-{foundation,tests,world-repro,final,related}.log`。没有运行全量回归、实机 RimTest 或独立发布构建，没有推送；冻结 1.6 及原有未提交工作保持独立。
+
+M8h4n 的启动／初次建服分派和身份元数据接续迁移完成。**下一步 M8h4o：快照加载完成后的世界接续。** 当前 OnServerSnapshotLoaded 仍在 ServerEntry partial 内执行源场景解锁、袭击恢复提示、运行时世界配置应用、事件／玩家／聊天刷新、站点排队、presence 和袭击状态恢复，注释也明确将其留在 M8；应复用新领域分派及已有快照完成回执。手动／菜单快照上传等其他 partial 遗留同样尚未收回模块，不能把 M8h4、M8h、M8 或 M9–M12 标记完成。全量验证仍由用户安排。

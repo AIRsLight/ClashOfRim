@@ -37,12 +37,20 @@ internal static class ClientWorldEntryTests
                 }
                 foreach (string mode in new[] { "network", "null", "malformed", "exception", "discard" }) { await DownloadFailure(mode); count++; }
                 await Replacement(); await PublicationFailure(); await PresentationReentry(); WarningPolicy(); StoreAdapter(); count += 5;
+                await MetadataWorldBoundary(); count++;
                 foreach (string edit in new[] { "none", "local", "reset", "newer-source", "new-world-local" })
                     foreach (bool language in new[] { false, true }) { await AppearanceReceipt(edit, language); count++; }
             }
         }
         finally { CultureInfo.CurrentCulture = culture; ClientSessionWork.Reset(); }
         Console.WriteLine($"PASS: client world entry ({count} scenarios)");
+    }
+    private static async Task MetadataWorldBoundary()
+    {
+        var f = new Fixture(); f.On = point => { if (point == "accepted") f.Publication.LocalWorldId = "replacement"; };
+        await f.Ports.PumpUntil(f.Run(Ok(Reply())));
+        Check(f.Accepted == 1 && !f.MetadataStillCurrent && f.Downloads == 0 && f.Scenarios == 0,
+            "Entry metadata retained a replaced world observation.");
     }
     private static async Task Failure(string mode)
     {
@@ -256,7 +264,7 @@ internal static class ClientWorldEntryTests
     private static ClashOfRimClientNetworkResult<ModPrepareWorldSessionResponseDto> Ok(ModPrepareWorldSessionResponseDto response) => ClashOfRimClientNetworkResult<ModPrepareWorldSessionResponseDto>.Ok(response);
     private static ClashOfRimClientNetworkResult<byte[]> Payload() => ClashOfRimClientNetworkResult<byte[]>.Ok(WorldSubstratePackageCodec.Encode(new(42, "<grid/>", "<features/>", "<landmarks/>", new byte[] { 1, 2, 3 })));
     private static void Check(bool value, string message) { if (!value) throw new InvalidOperationException(message); }
-    private sealed class Fixture : IClientWorldEntryStore, IClientWorldSubstrateTransport, IClientWorldEntryPresentation, IClientSnapshotReload
+    private sealed class Fixture : IClientWorldEntryStore, IClientWorldSubstrateTransport, IClientWorldEntryPresentation, IClientSnapshotReload, IClientServerMetadata
     {
         internal readonly EventModuleTestPorts Ports = new();
         internal readonly ClientSessionLifecycle Session;
@@ -267,7 +275,7 @@ internal static class ClientWorldEntryTests
         internal readonly List<string> Trace = new();
         internal readonly TaskCompletionSource Sent = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal int Writes, Accepted, Failures, Downloads, Loads, Scenarios, Registered;
-        internal bool ThrowStore, Discard;
+        internal bool ThrowStore, Discard, MetadataStillCurrent;
         internal Action? Confirm, Cancel;
         internal Action<string>? On;
         internal ModLoginResponseDto? Warning;
@@ -279,8 +287,14 @@ internal static class ClientWorldEntryTests
         {
             ClientSessionWork.Reset(); Session = new(Ports, Ports, new ClientSessionConnection(Ports)); State = new(Session);
             Publication = new(Session, Ports);
-            Module = new(Session, Ports, State, this, this, this, this, Publication.Flow);
-            Module.Accepted += _ => { Accepted++; Trace.Add("accepted"); On?.Invoke("accepted"); };
+            Module = new(Session, Ports, State, this, this, this, this, Publication.Flow, this);
+        }
+        public Task Apply(string? manifest, bool administrator, bool refreshAdministrator, Func<bool> current)
+        {
+            Check(!refreshAdministrator, "Entry unexpectedly refreshed administrator status.");
+            if (current()) { Accepted++; Trace.Add("accepted"); On?.Invoke("accepted"); }
+            MetadataStillCurrent = current();
+            return Task.CompletedTask;
         }
         internal async Task Run(ClashOfRimClientNetworkResult<ModPrepareWorldSessionResponseDto> result, string? failure = null)
         {

@@ -181,6 +181,7 @@ public sealed partial class ClashOfRimMod : Mod
         administration = new ClientAdministration(adminAccess,
             new AIRsLight.ClashOfRim.Admin.ClientAdminTransport(new ClientProtocolEnvironment()),
             new AIRsLight.ClashOfRim.Admin.ClientAdminPresentation());
+        var serverMetadata = new ClientServerMetadata(sessionLifecycle, compatibilityBaseline, administration);
         worldSetup = new ClientWorldSetupState(sessionLifecycle);
         storytellerConfiguration = new ClientStorytellerConfiguration(sessionLifecycle, worldSetup, new ClientStorytellerRuntime());
         compatibilityPresentation = new ClientCompatibilityPresentation((response, language, accept, cancel) =>
@@ -322,23 +323,16 @@ public sealed partial class ClashOfRimMod : Mod
             ClientColonyRegistrationKind.Sites, reason, appearance, suppressNotification: true);
         colonyRegistration.Diagnostic += (message, warning) => { if (warning) Log.Warning(message); else ClashLog.Message(message); };
         worldCatalog = new ClientWorldCatalog(sessionLifecycle, new ClientWorldCatalogRuntime(), worldTransport,
-            new ClientWorldCatalogPresentation(message => worldMapStatus = message), worldPublication);
-        worldCatalog.CompatibilityAccepted += CaptureServerCompatibilityManifest;
-        worldCatalog.AdministratorObserved += value => administration.ObservePermission(value, refresh: true);
+            new ClientWorldCatalogPresentation(message => worldMapStatus = message), worldPublication, serverMetadata);
         var worldWritePresentation = new ClientWorldWritePresentation(message => administration.Message = message);
         worldWrites = new ClientWorldWrites(sessionLifecycle, adminAccess, worldBaselineCapture, worldBaselineSubmission,
             storytellerConfiguration, worldPublication, worldWritePresentation, worldWritePresentation);
         worldWrites.BaselineUpdated += () => RequestWorldMapMarkerRefresh(ClashOfRimText.Key("ClashOfRim.Admin.WorldBaselineRefreshReason"));
         worldGeneration = new ClientWorldGeneration(sessionLifecycle, worldSetup, worldConfiguration, new ClientWorldGenerationRuntime(), new ClientWorldGenerationPresentation(message => loginStatus = message));
         worldEntry = new ClientWorldEntry(sessionLifecycle, new ClientSnapshotGame(), worldSetup,
-            entryStore, worldTransport, entryPresentation, snapshotReload, worldPublication);
+            entryStore, worldTransport, entryPresentation, snapshotReload, worldPublication, serverMetadata);
         worldEntryStart = new ClientWorldEntryStart(sessionLifecycle, synchronization, new ClientSnapshotGame(),
             entryStore, entryPresentation, worldPreparation, worldEntry);
-        worldEntry.Accepted += response =>
-        {
-            CaptureServerCompatibilityManifest(response.ServerCompatibilityManifestJson);
-            ApplyAdministratorFlag(response.IsAdministrator);
-        };
         observationMaps = new ClientObservationMaps(sessionLifecycle, synchronization, new ClientSnapshotGame(),
             new ClientObservationTransport(), new ClientObservationRuntime(),
             new ClientObservationPresentation(message => worldMapStatus = message, response => ShowCompatibilityMismatchWindow(response)));
@@ -406,11 +400,7 @@ public sealed partial class ClashOfRimMod : Mod
         }
 
         Instance = this;
-        sessionLifecycle.IdentityChanged += response =>
-        {
-            CaptureServerCompatibilityManifest(response?.ServerCompatibilityManifestJson);
-            ApplyAdministratorFlag(response?.IsAdministrator == true);
-        };
+        sessionLifecycle.IdentityChanged += serverMetadata.ObserveIdentity;
         ClientSessionCleanup.Attach(sessionLifecycle, synchronization, localMutations, eventInbox, eventState, sourceGame,
             new ClientSessionExitResources(), colonyRegistration, bankState, mercenaryState, mercenaryIncidents, shopState,
             tradeState, chat, worldMarkers, worldSynchronization, sessionIdentity, administration, sessionNotifications,

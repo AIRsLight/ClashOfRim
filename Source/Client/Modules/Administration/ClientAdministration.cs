@@ -45,13 +45,21 @@ internal sealed class ClientAdministration
     internal ModAdminStatusResponseDto? Snapshot => access.Read(() => snapshot);
     internal void Reset() => access.Read(() => { Clear(); return true; });
     private void Clear() { snapshot = null; message = ""; }
-    internal Task ObservePermission(bool value, bool refresh = false)
+    internal Task ObservePermission(bool value, bool refresh = false, Func<bool>? current = null)
     {
+        using var publication = ClientSessionWork.EnterPublication();
+        if (current?.Invoke() == false) return Task.CompletedTask;
         var scope = access.Capture(); bool previous = access.IsAdministrator;
         Task work = Task.CompletedTask;
-        if (!access.TryApply(scope, () => access.SetAdministrator(value))) return work;
-        if (!access.TryApply(scope, presentation.EnforcePermission)) return work;
-        access.TryApply(scope, () => { if (refresh && value && !previous && access.IsAdministrator) work = RefreshAsync(); });
+        bool Apply(Action action)
+        {
+            bool applied = false;
+            access.TryApply(scope, () => { if (current?.Invoke() == false) return; action(); applied = true; });
+            return applied;
+        }
+        if (!Apply(() => access.SetAdministrator(value))) return work;
+        if (!Apply(presentation.EnforcePermission)) return work;
+        Apply(() => { if (refresh && value && !previous && access.IsAdministrator) work = RefreshAsync(); });
         return work;
     }
     internal Task RefreshAsync() => StartAsync("ClashOfRim.Admin.StatusRefreshing", static () => true,

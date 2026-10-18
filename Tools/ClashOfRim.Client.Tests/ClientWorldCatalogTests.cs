@@ -47,11 +47,20 @@ internal static class ClientWorldCatalogTests
                 await NoConfiguration(); count++;
                 await QueueReplacement(); count++;
                 await Discard(); count++;
+                foreach (bool during in new[] { false, true }) { await MetadataWorldBoundary(during); count++; }
                 Runtime(); count++;
             }
         }
         finally { CultureInfo.CurrentCulture = culture; ClientSessionWork.Reset(); }
         Console.WriteLine($"PASS: world catalog refresh ({count} scenarios)");
+    }
+    private static async Task MetadataWorldBoundary(bool during)
+    {
+        var f = new Fixture();
+        f.Hook = point => { if (point == (during ? "compatibility" : "refreshing")) { f.Hook = null; f.WorldId = "replacement"; } };
+        await f.Ports.PumpUntil(f.Module.RefreshAsync("world boundary", true));
+        Check(f.Manifests.Count == (during ? 1 : 0) && f.Administrators.Count == 0 && f.Projected.Count == 0,
+            "Metadata escaped the original world configuration before world projection.");
     }
     private static async Task DelayedPublication()
     {
@@ -240,7 +249,7 @@ internal static class ClientWorldCatalogTests
         Extensions = new() { new() { ProviderId = "pollution", PayloadJson = "{\"pollution\":0.25}" } }
     };
     private sealed class Fixture : IClientWorldCatalogRuntime, IClientWorldCatalogPresentation, IClientWorldPreparationTransport,
-        IClientWorldConfigurationRuntime, IClientWorldConfigurationStore, IClientStorytellerRuntime, IClientWorldFeatureCatalogTransport
+        IClientWorldConfigurationRuntime, IClientWorldConfigurationStore, IClientStorytellerRuntime, IClientWorldFeatureCatalogTransport, IClientServerMetadata
     {
         internal readonly EventModuleTestPorts Ports = new();
         internal readonly ClientSessionLifecycle Session;
@@ -260,12 +269,17 @@ internal static class ClientWorldCatalogTests
             var storyteller = new ClientStorytellerConfiguration(Session, new(Session), this);
             var configuration = new ClientWorldConfiguration(Session, this, this, storyteller, new(Session, this));
             Publication = new(Session, Ports, () => WorldId, () => World, configuration);
-            Module = new(Session, this, this, this, Publication.Flow);
-            Module.CompatibilityAccepted += manifest => { Manifests.Add(manifest); Step("compatibility"); };
-            Module.AdministratorObserved += admin => { Administrators.Add(admin); Step("admin"); };
+            Module = new(Session, this, this, this, Publication.Flow, this);
             Publication.Hook = point => { if (point == "proxy") Step(point); };
         }
         internal void Step(string point) { Trace.Enqueue(point); Hook?.Invoke(point); }
+        public Task Apply(string? manifest, bool administrator, bool refreshAdministrator, Func<bool> current)
+        {
+            Check(refreshAdministrator, "Catalog disabled administrator refresh.");
+            if (current()) { Manifests.Add(manifest); Step("compatibility"); }
+            if (current()) { Administrators.Add(administrator); Step("admin"); }
+            return Task.CompletedTask;
+        }
         internal void Change(string change)
         {
             switch (change)

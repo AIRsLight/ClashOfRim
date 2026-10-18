@@ -26,14 +26,14 @@ internal sealed class ClientWorldCatalog
     private readonly IClientWorldPreparationTransport transport;
     private readonly IClientWorldCatalogPresentation presentation;
     private readonly ClientWorldPublication publication;
-    internal event Action<string?>? CompatibilityAccepted;
-    internal event Action<bool>? AdministratorObserved;
+    private readonly IClientServerMetadata metadata;
     internal bool Busy => requests.Busy;
     internal ClientWorldCatalog(ClientSessionLifecycle session, IClientWorldCatalogRuntime runtime,
-        IClientWorldPreparationTransport transport, IClientWorldCatalogPresentation presentation, ClientWorldPublication publication)
+        IClientWorldPreparationTransport transport, IClientWorldCatalogPresentation presentation, ClientWorldPublication publication, IClientServerMetadata metadata)
     {
         requests = new(session, runtime.Bind, bound => bound.IsCurrent, static () => { });
         this.transport = transport; this.presentation = presentation; this.publication = publication;
+        this.metadata = metadata;
     }
     internal Task RefreshAsync(string reason, bool generation = false)
         => RefreshAsync(requests.Begin(replace: true)!, reason, generation);
@@ -74,8 +74,8 @@ internal sealed class ClientWorldCatalog
                         if (published) return;
                         published = true;
                         bool Step(Action action) => requests.TryApply(request, action) && Current();
-                        if (!Step(() => CompatibilityAccepted?.Invoke(prepared.ServerCompatibilityManifestJson))) return;
-                        if (!Step(() => AdministratorObserved?.Invoke(prepared.IsAdministrator))) return;
+                        if (!Step(() => _ = metadata.Apply(prepared.ServerCompatibilityManifestJson, prepared.IsAdministrator, true,
+                            () => Current() && publication.Owns(observation)))) return;
                         if (!publication.Publish(observation, world, generation ? ClientWorldProjection.Full : ClientWorldProjection.Storyteller, Current)) return;
                         if (world is null) Report(request, () => presentation.Text("ClashOfRim.WorldCatalog.StatusNoConfiguration"));
                         else

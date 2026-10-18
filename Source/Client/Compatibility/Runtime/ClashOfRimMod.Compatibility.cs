@@ -7,8 +7,6 @@ namespace AIRsLight.ClashOfRim;
 
 public sealed partial class ClashOfRimMod
 {
-    internal void CaptureServerCompatibilityManifest(string? manifestJson) => compatibilityBaseline.Apply(manifestJson);
-
     internal Task StartOverrideCompatibilityBaselineFromCurrentClient(Action<string, float>? progress, Action<string, bool> completion)
     {
         CloseServerEntryProgressWindowNow();

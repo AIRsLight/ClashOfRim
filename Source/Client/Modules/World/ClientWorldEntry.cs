@@ -23,13 +23,15 @@ internal sealed class ClientWorldEntry
     private readonly IClientWorldEntryPresentation view;
     private readonly IClientSnapshotReload reload;
     private readonly ClientWorldPublication publication;
+    private readonly IClientServerMetadata metadata;
     internal ClientWorldEntry(ClientSessionLifecycle session, IClientSnapshotGame game, ClientWorldSetupState setup,
-        IClientWorldEntryStore store, IClientWorldSubstrateTransport transport, IClientWorldEntryPresentation view, IClientSnapshotReload reload, ClientWorldPublication publication)
+        IClientWorldEntryStore store, IClientWorldSubstrateTransport transport, IClientWorldEntryPresentation view, IClientSnapshotReload reload,
+        ClientWorldPublication publication, IClientServerMetadata metadata)
     {
         this.session = session; this.setup = setup; this.store = store; this.transport = transport; this.view = view; this.reload = reload; this.publication = publication;
+        this.metadata = metadata;
         requests = new(session, game, static () => { });
     }
-    internal event Action<ModPrepareWorldSessionResponseDto>? Accepted;
     internal ClientWorldPublication.Observation Capture() => publication.Capture();
     internal Task Handle(ClashOfRimClientNetworkResult<ModPrepareWorldSessionResponseDto>? result, string? failure,
         ClientSynchronizationCoordinator.Lease operation, ClientWorldPublication.Observation observation)
@@ -114,7 +116,8 @@ internal sealed class ClientWorldEntry
         if (rebound is null) return Task.CompletedTask;
         observation = rebound;
         requests.Reset(); request = requests.Begin()!;
-        Accepted?.Invoke(ClientProtocolJson.Copy(response));
+        _ = metadata.Apply(response.ServerCompatibilityManifestJson, response.IsAdministrator, false,
+            () => Current(request) && operation.IsCurrent && publication.Owns(observation));
         if (!Current(request) || !operation.IsCurrent) return Task.CompletedTask;
         if (!publication.Publish(observation, response.WorldConfiguration, ClientWorldProjection.Sites, () => Current(request) && operation.IsCurrent)) return Task.CompletedTask;
         ShowCompatibility(request.Scope, warning, response.WorldConfiguration?.GameLanguage, languageAccepted);

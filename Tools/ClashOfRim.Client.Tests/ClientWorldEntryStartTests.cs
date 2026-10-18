@@ -149,7 +149,7 @@ internal static class ClientWorldEntryStartTests
     }
     private static void Check(bool value, string message) { if (!value) throw new InvalidOperationException(message); }
     private sealed class Fixture : IClientWorldEntryStore, IClientWorldPreparationTransport, IClientWorldPreparationPresentation,
-        IClientWorldEntryPresentation, IClientWorldSubstrateTransport, IClientSnapshotReload, IClientWorldSourceGame, IClientSessionIdentityStore
+        IClientWorldEntryPresentation, IClientWorldSubstrateTransport, IClientSnapshotReload, IClientWorldSourceGame, IClientSessionIdentityStore, IClientServerMetadata
     {
         internal readonly EventModuleTestPorts Ports = new();
         internal readonly ClientSessionLifecycle Session;
@@ -171,10 +171,15 @@ internal static class ClientWorldEntryStartTests
             Session.Ended += () => { Ends++; Sync.Reset(); Barrier.BlockCurrent(); State.Reset(); Ports.Snapshot = ""; };
             var preparation = new ClientWorldPreparation(Session, Ports, this, this);
             Publication = new(Session, Ports);
-            var entry = new ClientWorldEntry(Session, Ports, State, this, this, this, this, Publication.Flow);
+            var entry = new ClientWorldEntry(Session, Ports, State, this, this, this, this, Publication.Flow, this);
             Start = new(Session, Sync, Ports, this, this, preparation, entry);
         }
         public object? Current => Ports.HasGame ? Ports.GameOwner : null;
+        public Task Apply(string? manifest, bool administrator, bool refreshAdministrator, Func<bool> current)
+        {
+            Check(!refreshAdministrator, "Entry start unexpectedly refreshed administrator status.");
+            return Task.CompletedTask;
+        }
         public ClashOfRimClientNetworkContext ReadContext() => Ports.ReadContext();
         public void Write(string? user, string? displayName, string auth)
         { Visit("identity"); if (user is not null) Ports.User = user; Ports.Auth = auth; }

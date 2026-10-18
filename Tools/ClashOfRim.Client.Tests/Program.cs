@@ -19,6 +19,7 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("server metadata shares compatibility and permission publication under original ownership", ClientServerMetadataTests.Run),
     ("session followups dispatch real domains under the source workflow receipt", ClientSessionFollowupTests.Run),
     ("session cleanup owns domain teardown and persistence ordering", ClientSessionCleanupTests.Run),
     ("HTTP session failures preserve structured semantics and original login ownership", ClientHttpSessionTests.Run),
