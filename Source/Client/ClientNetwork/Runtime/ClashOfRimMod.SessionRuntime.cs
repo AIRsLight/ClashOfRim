@@ -17,11 +17,7 @@ public sealed partial class ClashOfRimMod
 
     internal void StopManualPresence() => sessionConnection.Stop();
 
-    internal void DisconnectMultiplayerSessionForExit()
-    {
-        _ = sessionLifecycle.End(sendLogout: true);
-        presenceStatus = ClashOfRimText.Key("ClashOfRim.Presence.StatusSessionDisconnected");
-    }
+    internal void DisconnectMultiplayerSessionForExit() => _ = sessionLifecycle.End(sendLogout: true);
 
     private void ClearTransientMultiplayerSessionStateForExit()
     {

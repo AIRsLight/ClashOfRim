@@ -22,6 +22,7 @@ internal static class SessionLifecycleModuleTests
             await OwnedExitReceipts();
             await ReentrantStreamCancellation();
             DeferredTerminalExpiry();
+            await ExitCompletion();
         }
         finally { ClientSessionWork.Reset(); }
     }
@@ -244,6 +245,43 @@ internal static class SessionLifecycleModuleTests
             f.Stream.Completion.SetResult(ClashOfRimClientNetworkResult<ModSessionStreamClosedDto>.Ok(new(true)));
             await stream.WaitAsync(TimeSpan.FromSeconds(5));
         }
+    }
+
+    private static async Task ExitCompletion()
+    {
+        foreach (string change in new[] { "none", "login", "generation", "snapshot", "nested" })
+        {
+            ClientSessionWork.Reset(); var f = new Fixture(); f.Session.PublishLogin(Login("old", "old-token"));
+            int cleanups = 0, completed = 0, later = 0;
+            f.Session.Ended += () => cleanups++;
+            f.Session.ExitCompleted += exit =>
+            {
+                completed++;
+                Require(cleanups == 1 && f.Store.AuthToken == "" && f.Session.SessionId is null
+                    && f.Session.Owns(exit.Owner, exit.Context, true), "Completion ran before cleanup/credential publication.");
+                if (change == "login") f.Session.PublishLogin(Login("old", "old-token"));
+                if (change == "generation") ClientSessionWork.Reset();
+                if (change == "snapshot") f.Store.Snapshot = "next";
+                if (change == "nested") _ = f.Session.End(true);
+            };
+            f.Session.ExitCompleted += _ => later++;
+            await f.Session.End(false);
+            Require(completed == 1 && cleanups == 1 && later == (change is "none" or "nested" ? 1 : 0)
+                && !f.Logout.Started.Task.IsCompleted, "Completion replayed cleanup or reached a replacement exit: " + change);
+        }
+
+        ClientSessionWork.Reset(); var failed = new Fixture(); failed.Session.PublishLogin(Login("old", "old-token"));
+        failed.Session.ExitCompleted += _ => throw new InvalidOperationException("completion");
+        bool threw = false;
+        try { _ = failed.Session.End(true); }
+        catch (InvalidOperationException ex) when (ex.Message == "completion") { threw = true; }
+        var released = await failed.Logout.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Require(threw && released.SessionId == "old" && released.Context.AuthToken == "old-token" && failed.Store.AuthToken == "",
+            "Completion failure skipped detached logout or restored old credentials.");
+        var diagnosed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        failed.Session.LogoutFailed += _ => diagnosed.TrySetResult(true);
+        failed.Logout.Completion.SetResult(ClashOfRimClientNetworkResult<ModLogoutResponseDto>.Failed("failed", "old logout"));
+        await diagnosed.Task.WaitAsync(TimeSpan.FromSeconds(5));
     }
 
     private sealed class Fixture

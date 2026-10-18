@@ -2409,3 +2409,15 @@ HTTP 失效迁移分为服务端协议和客户端请求归属两个提交步骤
 **14 个相关单元组通过**：HTTP 失效、协议传输、恢复 UI、会话启动、生命周期、重连及两项策略、临时认证、聊天协议、世界协议、远程快照、银行协议与模块守卫。最后精简归属判断后重跑 HTTP、传输与守卫三组；补齐请求头专用协议后单独重跑 HTTP 组。守卫检查 **1,279** 个模块及生成类型、**303** 个适配器及生成类型；客户端 Release **0 错误、40 个既有警告**，RimTest 桥接 **0 错误、1 个既有警告**。日志：`LocalOnly/module-migration/client-http-session-{compile,foundation,tests,related,final,header-only,build,bridge}.log`。本步没有运行实机 RimTest、全量回归或推送；冻结 1.6 和原有未提交工作保持独立。
 
 M8h4m3 的服务端语义及客户端归属迁移完成。**下一步 M8h4m4：退出时的会话领域清理与断开入口**，处理 SessionRuntime 中 ClearTransientMultiplayerSessionStateForExit 和 DisconnectMultiplayerSessionForExit 的宿主编排，继续复用已有生命周期及各领域 Reset，而非复制其清理逻辑。其他 partial 及 M8h4、M8h、M8 与 M9–M12 继续开放。默认相关单元测试，必要时补单次功能 RimTest，全量仍由用户安排。
+
+### M8h4m4a 断开入口和退出完成展示（2026-10-19）
+
+将 M8h4m4 分成退出完成展示与领域清理两个提交步骤。本步删除 DisconnectMultiplayerSessionForExit 中无条件写 presenceStatus 的业务逻辑，宿主入口只调用 ClientSessionLifecycle.End。ClientConnectionStatus 通过生命周期的 ExitCompleted 接管退出文字，复用现有 ContinueExit 回执检查；没有新建身份版本、退出状态机或回调容器。
+
+ExitCompleted 只在显式退出完成领域清理和凭据持久化后触发。普通退出及 EndOwned（包括废弃殖民地、返回菜单）共用该通知；认证失效和 ClearIdentity 不触发它，保留原地重连展示。每个完成订阅者、翻译和文字赋值分别受同一退出回执约束；清理、凭据通知或翻译期间重入登录后，旧退出不能覆盖新会话。完成回调内部的场景断开继续复用 ContinueExit，避免重复清理与注销。远端注销在完成展示之前独立调度，展示抛异常仍会释放原会话，并且保留原错误传播行为。
+
+连接状态组新增 **216 个场景**（组内合计 **612**），四种文化下验证普通／带回执退出、单独清认证、认证失效，以及取消、领域清理、身份通知、翻译、文字赋值期间的账户／代次／快照及无关参数变化，包含同凭据重新登录。生命周期组新增 **6 个场景**，验证完成时序、多个订阅者的原回执归属、重复场景退出和展示异常后原凭据注销。
+
+**7 个相关单元组通过**：连接状态、生命周期、恢复 UI、会话启动、殖民地废弃、重连和模块守卫。测试项目编译通过；守卫检查 **1,281** 个模块及生成类型、**303** 个适配器及生成类型。日志：`LocalOnly/module-migration/client-exit-completion-{tests,related}.log`。按用户要求，本步只运行相关单元测试，没有另跑全量回归、实机 RimTest 或独立发布构建；没有推送，冻结 1.6 和原有未提交工作保持独立。
+
+**下一步 M8h4m4b：领域清理所有权。** ClearTransientMultiplayerSessionStateForExit 仍在 Mod 中，并将多个领域 Reset 放在一个 Ended 回调里；中途的展示／引擎回调若重新登录，后续领域清理还没有逐项复用生命周期的来源检查。这一缺口没有在本步宣称修复。迁移应由模块直接依赖各领域及窄资源端口，保留清理先于身份持久化的顺序，避免把原清理列表包成另一个 Mod 回调。M8h4m4、M8h4、M8h、M8 与 M9–M12 继续开放。

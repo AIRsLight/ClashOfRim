@@ -28,6 +28,11 @@ internal static class ClientConnectionStatusTests
                 foreach (string callback in new[] { "text", "status", "diagnose" })
                 foreach (var phase in new[] { SessionConnectionPhase.Connecting, SessionConnectionPhase.Disconnecting, SessionConnectionPhase.Exception })
                 { await Failure(phase, callback); count++; }
+                foreach (string operation in new[] { "end", "owned", "clear", "expiry" })
+                { await ExitDisplay(operation); count++; }
+                foreach (string stage in new[] { "cancellation", "cleanup", "identity", "text", "status" })
+                foreach (string change in new[] { "user", "colony", "server", "auth", "login", "generation", "snapshot", "password", "steam", "game" })
+                { await ExitReentry(stage, change); count++; }
             }
             Console.WriteLine($"PASS: connection status ({count} scenarios)");
         }
@@ -95,6 +100,40 @@ internal static class ClientConnectionStatusTests
         Require(f.View.Keys.Count == (IsUnrelated(change) ? 1 : 0) && f.View.Statuses.Count == (IsUnrelated(change) ? 1 : 0), "Terminal status used another identity: " + change);
     }
     private static bool IsUnrelated(string change) => change is "snapshot" or "password" or "steam" or "game";
+    private static async Task ExitDisplay(string operation)
+    {
+        await using var f = new Fixture();
+        if (operation == "end") await f.Session.End(false);
+        else if (operation == "owned") Require(f.Session.EndOwned(f.Session.CaptureOwnership(), f.Ports.ReadContext()) is not null, "Owned exit did not complete.");
+        else if (operation == "clear") f.Session.ClearIdentity();
+        else Require(f.Session.CompleteUnavailable(f.Session.BeginUnavailable("secret-auth", "same")!), "Expiry did not complete.");
+        bool explicitExit = operation is "end" or "owned";
+        Require(f.View.Statuses.Count == (explicitExit ? 1 : 0) && f.View.Diagnostics.Count == 0,
+            "Exit status was missing or replaced the reconnect status: " + operation);
+        if (explicitExit) Require(f.View.Statuses[0] == CultureInfo.CurrentCulture.Name + ":ClashOfRim.Presence.StatusSessionDisconnected",
+            "Explicit exit used the wrong localized status.");
+    }
+    private static async Task ExitReentry(string stage, string change)
+    {
+        await using var f = new Fixture();
+        void Change()
+        {
+            f.View.OnText = f.View.OnStatus = null;
+            f.Change(change);
+        }
+        using var cancellation = stage == "cancellation" ? ClientSessionWork.Token.Register(Change) : default;
+        if (stage == "cleanup") f.Session.Ended += Change;
+        if (stage == "identity") f.Session.IdentityChanged += response => { if (response is null) Change(); };
+        if (stage == "text") f.View.OnText = Change;
+        if (stage == "status") f.View.OnStatus = Change;
+        await f.Session.End(false);
+        bool survives = change is "password" or "steam" or "game"
+            || (change == "snapshot" && stage is "cancellation" or "cleanup");
+        Require(f.View.Statuses.Count == (survives || stage == "status" ? 1 : 0),
+            "Explicit exit status escaped its original receipt: " + stage + "/" + change);
+        if (change == "login") Require(f.Session.SessionId == "same" && f.Ports.Auth == "secret-auth",
+            "Exit presentation cleared a replacement login using identical credentials.");
+    }
     private static async Task Failure(SessionConnectionPhase phase, string callback)
     {
         await using var f = new Fixture(); await f.Before(phase);

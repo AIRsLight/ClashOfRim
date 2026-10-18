@@ -53,6 +53,8 @@ internal sealed class ClientSessionLifecycle
     internal event Action<ModLoginResponseDto?>? IdentityChanged;
     // Domain state must be cleared before the credential write persists the exit.
     internal event Action? Ended;
+    // Only a completed explicit exit emits this; expiry preserves the live world for reconnect.
+    internal event Action<Exit>? ExitCompleted;
     internal event Action<string>? LogoutFailed;
 
     internal Login? PublishLogin(ModLoginResponseDto response)
@@ -171,8 +173,12 @@ internal sealed class ClientSessionLifecycle
         }
 
         // Logout deliberately outlives the exited generation, using its captured credentials.
-        return (receipt, sendLogout && context.IsConfigured && !string.IsNullOrWhiteSpace(previousSessionId)
-            ? Task.Run(() => ReleaseSessionAsync(context, previousSessionId!)) : Task.CompletedTask);
+        var release = sendLogout && context.IsConfigured && !string.IsNullOrWhiteSpace(previousSessionId)
+            ? Task.Run(() => ReleaseSessionAsync(context, previousSessionId!)) : Task.CompletedTask;
+        if (receipt is not null)
+            foreach (Action<Exit> completed in ExitCompleted?.GetInvocationList() ?? Array.Empty<Delegate>())
+                if (!ContinueExit(receipt, () => completed(receipt))) break;
+        return (receipt, release);
     }
 
     internal bool ContinueExit(Exit exit, Action action)

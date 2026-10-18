@@ -21,6 +21,13 @@ internal sealed class ClientConnectionStatus
     {
         this.session = session; this.view = view;
         connection.StatusChanged += Present;
+        session.ExitCompleted += PresentExit;
+    }
+    private void PresentExit(ClientSessionLifecycle.Exit exit)
+    {
+        string text = "";
+        if (session.ContinueExit(exit, () => text = view.Text("ClashOfRim.Presence.StatusSessionDisconnected")))
+            session.ContinueExit(exit, () => view.Status(text));
     }
     private void Present(SessionConnectionStatus status, ClientSessionConnection.Publication source)
     {
