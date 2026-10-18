@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Support;
 using AIRsLight.ClashOfRim.Modules.Mercenaries;
 using AIRsLight.ClashOfRim.Modules.Shop;
 using AIRsLight.ClashOfRim.Modules.Trades;
@@ -28,8 +29,6 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
     private static readonly string PrepareRaidRoute = ProtocolContractManifest.Find(ProtocolMessageKind.PrepareRaid).Route;
     private static readonly string CreateRaidWithSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.CreateRaidWithSnapshot).Route;
     private static readonly string CreateDiplomacyEventRoute = ProtocolContractManifest.Find(ProtocolMessageKind.CreateDiplomacyEvent).Route;
-    private static readonly string CreateSupportPawnWithSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.CreateSupportPawnWithSnapshot).Route;
-    private static readonly string FinishSupportPawnRoute = ProtocolContractManifest.Find(ProtocolMessageKind.FinishSupportPawn).Route;
     private static readonly string UploadSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.UploadSnapshot).Route;
     private static readonly string DownloadLatestSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.DownloadLatestSnapshot).Route;
     private static readonly string DownloadLatestSnapshotPayloadRoute = ProtocolContractManifest.Find(ProtocolMessageKind.DownloadLatestSnapshotPayload).Route;
@@ -77,6 +76,7 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
 
     private readonly ClientBankProtocol bankProtocol;
     private readonly ClientMercenaryProtocol mercenaries;
+    private readonly ClientSupportProtocol support;
     private readonly ClientGiftProtocol gifts;
     private readonly ClientTradeProtocol trades;
 
@@ -90,6 +90,7 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
         transport = new ClientProtocolTransport(httpClient, context, protocolEnvironment);
         packageWriter = new ClientPackageWriter(transport, context, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         shopProtocol = new ClientShopProtocol(transport, context, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
+        support = new ClientSupportProtocol(transport, context, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         mercenaries = new ClientMercenaryProtocol(transport, context, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         bankProtocol = new ClientBankProtocol(context, transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         trades = new ClientTradeProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
@@ -877,32 +878,7 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
         bool pawnDead,
         ModPawnExchangePackageDto? pawnPackage,
         CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModFinishSupportPawnResponseDto>();
-        }
-
-        var request = new ModFinishSupportPawnRequestDto
-        {
-            IdempotencyKey = idempotencyKey,
-            EventId = eventId,
-            AuthToken = context.AuthToken,
-            UserId = context.UserId,
-            ColonyId = context.ColonyId,
-            CurrentSnapshotId = context.CurrentSnapshotId ?? string.Empty,
-            FinishReason = finishReason,
-            PawnGlobalKey = pawnGlobalKey,
-            PawnName = pawnName,
-            PawnDead = pawnDead,
-            PawnPackage = pawnPackage
-        };
-
-        return transport.PostAsync<ModFinishSupportPawnRequestDto, ModFinishSupportPawnResponseDto>(
-            FinishSupportPawnRoute,
-            request,
-            cancellationToken);
-    }
+        => support.FinishSupportPawnAsync(idempotencyKey, eventId, finishReason, pawnGlobalKey, pawnName, pawnDead, pawnPackage, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModDiplomacyEventResponseDto>> CreateDiplomacyEventAsync(
         string idempotencyKey,
@@ -1267,56 +1243,7 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
         ModSnapshotPackageMetadataDto confirmedSnapshot,
         byte[] confirmedPayload,
         CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModEventCreationResponseDto>();
-        }
-
-        var supportPawn = new ModCreateSupportPawnRequestDto
-        {
-            IdempotencyKey = idempotencyKey,
-            Actor = new ModProtocolIdentityDto
-            {
-                UserId = context.UserId,
-                ColonyId = context.ColonyId,
-                SnapshotId = context.CurrentSnapshotId
-            },
-            Target = new ModProtocolIdentityDto
-            {
-                UserId = targetUserId,
-                ColonyId = targetColonyId,
-                SnapshotId = targetSnapshotId
-            },
-            PawnGlobalKey = pawnGlobalKey,
-            SourceSnapshotId = context.CurrentSnapshotId ?? string.Empty,
-            PawnName = pawnName,
-            TemporaryControl = true,
-            ExpectedReturnAtUtc = null,
-            PawnReference = pawnReference,
-            PawnPackage = pawnPackage,
-            TargetContext = targetContext,
-            SourceTile = sourceTile,
-            SourceCaravanLoadId = sourceCaravanLoadId,
-            PermanentSupport = permanentSupport,
-            SupportDurationDays = supportDurationDays,
-            ExpiresAtGameTicks = expiresAtGameTicks,
-            AutoReturnOnSettlement = autoReturnOnSettlement
-        };
-        var request = new ModCreateSupportPawnWithSnapshotRequestDto
-        {
-            SupportPawn = supportPawn,
-            ConfirmedSnapshot = MarkSnapshotUploadKind(
-                confirmedSnapshot,
-                ModSnapshotUploadKinds.SupportPawnCreationConfirmation)
-        };
-
-        return transport.PostSnapshotMultipartAsync<ModCreateSupportPawnWithSnapshotRequestDto, ModEventCreationResponseDto>(
-            CreateSupportPawnWithSnapshotRoute,
-            request,
-            confirmedPayload,
-            cancellationToken);
-    }
+        => support.CreateSupportPawnWithSnapshotAsync(idempotencyKey, targetUserId, targetColonyId, targetSnapshotId, pawnGlobalKey, pawnName, pawnReference, pawnPackage, targetContext, sourceTile, sourceCaravanLoadId, permanentSupport, supportDurationDays, expiresAtGameTicks, autoReturnOnSettlement, confirmedSnapshot, confirmedPayload, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModUploadSnapshotResponseDto>> UploadSnapshotAsync(
         string idempotencyKey,
