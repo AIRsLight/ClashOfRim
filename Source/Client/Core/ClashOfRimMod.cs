@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.World;
 using AIRsLight.ClashOfRim.Modules.Achievements;
 using AIRsLight.ClashOfRim.Achievements;
 using AIRsLight.ClashOfRim.Account;
@@ -133,9 +134,6 @@ public sealed partial class ClashOfRimMod : Mod
     private bool pvpEnabled = true;
     private ModAdminStatusResponseDto? lastAdminStatus;
     private readonly ClientLocalMutationCoordinator localMutations = new();
-    private bool pendingInitialWorldConfigurationSubmit;
-    private ModWorldConfigurationDto? pendingServerWorldConfiguration;
-    private WorldSubstratePackage? pendingServerWorldSubstrate;
     // Read-only bridge for domains that have not yet moved out of the Mod.
     private string? lastSessionId => sessionLifecycle.SessionId;
     private long lastWorldConfigurationVersion;
@@ -144,12 +142,13 @@ public sealed partial class ClashOfRimMod : Mod
     private readonly ClientSessionLifecycle sessionLifecycle;
     private readonly ClientPasswordChange passwordChange;
     private readonly ClientSessionReconnect sessionReconnect;
-    private bool languageMismatchAcceptedForCurrentServerEntry;
     private bool blockAutomaticMapSessionForServerEntrySourceGame;
     private readonly ClientSessionConnection sessionConnection = new(new ClientSessionWebSocketTransport(new ClientWebSocketFactory(), new ClientProtocolMetadata()));
     private Game? serverEntrySourceGame;
     private readonly ClientAchievementQueries achievementQueries;
     private readonly ClientEndgameAchievements endgameAchievements;
+    private readonly ClientWorldPreparation worldPreparation;
+    private readonly ClientWorldSetupState worldSetup;
     private readonly List<ModChatMessageDto> lastChatMessages = new();
     private readonly List<ModWorldMapMarkerDto> lastWorldMapMarkers = new();
     private readonly Dictionary<string, ModPlayerColonySiteDto> occupiedPlayerColonySites = new(StringComparer.Ordinal);
@@ -170,6 +169,10 @@ public sealed partial class ClashOfRimMod : Mod
         settings = GetSettings<ClashOfRimSettings>();
         snapshotPublication = ClientSnapshotComposition.CreatePublication(settings);
         sessionLifecycle = new ClientSessionLifecycle(new ClientSessionIdentityStore(settings), new ClientSessionLogoutTransport(), sessionConnection);
+        worldSetup = new ClientWorldSetupState(sessionLifecycle);
+        worldPreparation = new ClientWorldPreparation(sessionLifecycle, new ClientSnapshotGame(),
+            new ClientWorldPreparationTransport(new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner))),
+            new ClientWorldPreparationPresentation());
         sessionReconnect = new ClientSessionReconnect(new ClientSessionReconnectTransport(new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner))), sessionLifecycle, synchronization);
         passwordChange = new ClientPasswordChange(sessionLifecycle,
             new ClientPasswordTransport(new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner))),
@@ -378,8 +381,7 @@ public sealed partial class ClashOfRimMod : Mod
     internal bool SnapshotUploadInProgress => synchronization.SnapshotInProgress;
     internal bool ManualSyncInProgress => synchronization.ManualInProgress;
 
-    internal bool IsServerWorldSetupFlow => pendingInitialWorldConfigurationSubmit
-        || pendingServerWorldConfiguration is not null;
+    internal bool IsServerWorldSetupFlow => worldSetup.Pending;
 
     internal bool LocalAtomicMutationPending => localMutations.IsPending;
 

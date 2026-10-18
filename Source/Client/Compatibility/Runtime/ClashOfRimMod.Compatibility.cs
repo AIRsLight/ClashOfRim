@@ -298,7 +298,7 @@ public sealed partial class ClashOfRimMod
             return false;
         }
 
-        if (languageMismatchAcceptedForCurrentServerEntry
+        if (worldSetup.LanguageAccepted
             && CompatibilityLanguageMismatchPolicy.CanContinue(response))
         {
             return false;

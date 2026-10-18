@@ -164,9 +164,7 @@ public sealed partial class ClashOfRimMod
         // update after logout, so retain the same admission barrier used by entry.
         MarkServerEntrySourceGame();
         lastWorldConfigurationVersion = 0;
-        pendingInitialWorldConfigurationSubmit = false;
-        pendingServerWorldConfiguration = null;
-        pendingServerWorldSubstrate = null;
+        worldSetup.Reset();
         playerColonySiteRegistrationSuppressed = false;
         lastRegisteredPlayerColonySiteSignature = null;
         settings.CurrentSnapshotId = string.Empty;

@@ -32,17 +32,17 @@ public sealed partial class ClashOfRimMod
     {
         DebugLogFlow(
             "TryGenerateWorldFromServerConfiguration.Enter",
-            $"pending={pendingServerWorldConfiguration is not null}, page={DescribeWindow(createWorldPage)}, stack={DescribeWindowStack()}");
-        if (pendingServerWorldConfiguration is null)
+            $"pending={worldSetup.HasConfiguration}, page={DescribeWindow(createWorldPage)}, stack={DescribeWindowStack()}");
+        var prepared = worldSetup.TakeGeneration();
+        if (prepared is null)
         {
-            DebugLogFlow("TryGenerateWorldFromServerConfiguration.Skip", "no pending server world configuration");
-            return false;
+            DebugLogFlow("TryGenerateWorldFromServerConfiguration.Skip", "no ready server world configuration");
+            // A still-open page must not start vanilla generation while substrate is downloading.
+            return worldSetup.HasConfiguration;
         }
 
-        ModWorldConfigurationDto configuration = pendingServerWorldConfiguration;
-        WorldSubstratePackage? substrate = pendingServerWorldSubstrate;
-        pendingServerWorldConfiguration = null;
-        pendingServerWorldSubstrate = null;
+        ModWorldConfigurationDto configuration = prepared.Configuration;
+        WorldSubstratePackage? substrate = prepared.Substrate;
         Page? nextPage = createWorldPage is Page page ? page.next : null;
         Action? nextAct = createWorldPage is Page pageWithNextAct ? pageWithNextAct.nextAct : null;
         if (nextPage is not null)
@@ -217,12 +217,12 @@ public sealed partial class ClashOfRimMod
 
     internal void SubmitInitialWorldConfigurationIfPending()
     {
-        if (!pendingInitialWorldConfigurationSubmit)
+        var initial = worldSetup.TakeInitial();
+        if (initial is null)
         {
             return;
         }
 
-        pendingInitialWorldConfigurationSubmit = false;
         if (!settings.IsConfigured)
         {
             loginStatus = ClashOfRimText.Key("ClashOfRim.WorldBaseline.StatusConfigMissing");
@@ -249,7 +249,7 @@ public sealed partial class ClashOfRimMod
         // Keep automatic map login from racing the temporary authenticated setup session.
         if (!TryBeginManualSynchronization(out var manualOperation, out string admissionFailure))
         {
-            pendingInitialWorldConfigurationSubmit = true;
+            worldSetup.RestoreInitial(initial);
             loginStatus = admissionFailure;
             return;
         }
@@ -1448,14 +1448,14 @@ public sealed partial class ClashOfRimMod
     {
         DebugLogFlow(
             "TryApplyServerStorytellerBaselineAndContinue.Enter",
-            $"pending={pendingServerWorldConfiguration is not null}, page={DescribeWindow(storytellerPage)}, stack={DescribeWindowStack()}");
-        if (pendingServerWorldConfiguration is null)
+            $"pending={worldSetup.HasConfiguration}, page={DescribeWindow(storytellerPage)}, stack={DescribeWindowStack()}");
+        var configuration = worldSetup.Configuration;
+        if (configuration is null)
         {
             DebugLogFlow("TryApplyServerStorytellerBaselineAndContinue.Skip", "no pending server world configuration");
             return false;
         }
 
-        ModWorldConfigurationDto configuration = pendingServerWorldConfiguration;
         if (string.IsNullOrWhiteSpace(configuration.StorytellerDefName)
             || string.IsNullOrWhiteSpace(configuration.DifficultyDefName))
         {
