@@ -1,422 +1,97 @@
 using AIRsLight.ClashOfRim.ClientNetwork;
 using RimWorld;
-using System;
 using System.Collections.Generic;
-using System.Linq;
 using Verse;
 
 namespace AIRsLight.ClashOfRim.ThirdPartyCompatibility;
 
 public static partial class ClashOfRimCompatibilityApi
 {
-    public static void RegisterFactionPreparedHandler(FactionPreparedHandler handler)
-    {
-        Registrations.RegisterUnique(FactionPreparedHandlers, handler);
-    }
+    public static void RegisterFactionPreparedHandler(FactionPreparedHandler handler) =>
+        FactionPreparation.RegisterFactionPreparedHandler(handler);
 
-    public static void NotifyFactionPrepared(Faction faction, string purpose, string? ownerUserId = null)
-    {
-        if (faction is null)
-        {
-            return;
-        }
+    public static void NotifyFactionPrepared(Faction faction, string purpose, string? ownerUserId = null) =>
+        FactionPreparation.NotifyFactionPrepared(faction, purpose, ownerUserId);
 
-        string normalizedPurpose = string.IsNullOrWhiteSpace(purpose) ? "Unknown" : purpose.Trim();
-        foreach (FactionPreparedHandler handler in FactionPreparedHandlers.ToList())
-        {
-            Registrations.TryInvokeCompatibilityCallback(
-                nameof(NotifyFactionPrepared),
-                handler,
-                () => handler(faction, normalizedPurpose, ownerUserId));
-        }
-    }
+    public static void RegisterPlayerProxyFactionPreparedHandler(PlayerProxyFactionPreparedHandler handler) =>
+        FactionPreparation.RegisterPlayerProxyFactionPreparedHandler(handler);
 
-    public static void RegisterPlayerProxyFactionPreparedHandler(PlayerProxyFactionPreparedHandler handler)
-    {
-        Registrations.RegisterUnique(PlayerProxyFactionPreparedHandlers, handler);
-    }
+    public static void NotifyPlayerProxyFactionPrepared(Faction faction, string ownerUserId) =>
+        FactionPreparation.NotifyPlayerProxyFactionPrepared(faction, ownerUserId);
 
-    public static void NotifyPlayerProxyFactionPrepared(Faction faction, string ownerUserId)
-    {
-        if (faction is null || string.IsNullOrWhiteSpace(ownerUserId))
-        {
-            return;
-        }
+    public static void RegisterPawnReferenceMetadataResolver(string metadataKey, PawnReferenceMetadataResolver resolver) =>
+        PawnReferences.RegisterPawnReferenceMetadataResolver(metadataKey, resolver);
 
-        NotifyFactionPrepared(faction, "PlayerProxy", ownerUserId);
-        foreach (PlayerProxyFactionPreparedHandler handler in PlayerProxyFactionPreparedHandlers.ToList())
-        {
-            Registrations.TryInvokeCompatibilityCallback(
-                nameof(NotifyPlayerProxyFactionPrepared),
-                handler,
-                () => handler(faction, ownerUserId));
-        }
-    }
-
-    public static void RegisterPawnReferenceMetadataResolver(string metadataKey, PawnReferenceMetadataResolver resolver)
-    {
-        if (resolver is null)
-        {
-            return;
-        }
-
-        RegisterPawnReferenceMetadataResolverRegistration(
-            new PawnReferenceMetadataResolverRegistration(metadataKey, resolver));
-    }
-
-    private static void RegisterPawnReferenceMetadataResolverRegistration(
-        PawnReferenceMetadataResolverRegistration registration)
-    {
-        Registrations.RegisterMetadataKeyedRegistration(
-            PawnReferenceMetadataResolvers,
-            registration,
-            nameof(PawnReferenceMetadataResolverRegistration),
-            registration.MetadataKey,
-            "PawnReferenceMetadataResolverDuplicateRejected",
-            "PawnReferenceMetadataResolverDuplicateReplaced");
-    }
-
-    public static void RegisterPawnReferenceMetadataCollector(PawnReferenceMetadataCollector collector)
-    {
-        Registrations.RegisterUnique(PawnReferenceMetadataCollectors, collector);
-    }
+    public static void RegisterPawnReferenceMetadataCollector(PawnReferenceMetadataCollector collector) =>
+        PawnReferences.RegisterPawnReferenceMetadataCollector(collector);
 
     public static void CollectPawnReferenceMetadata(
         Pawn pawn,
         Dictionary<string, string?> metadata,
         string? userId,
-        string? colonyId)
-    {
-        if (pawn is null || metadata is null)
-        {
-            return;
-        }
+        string? colonyId) =>
+        PawnReferences.CollectPawnReferenceMetadata(pawn, metadata, userId, colonyId);
 
-        foreach (PawnReferenceMetadataCollector collector in PawnReferenceMetadataCollectors.ToList())
-        {
-            Registrations.TryInvokeCompatibilityCallback(
-                nameof(CollectPawnReferenceMetadata),
-                collector,
-                () => collector(pawn, metadata, userId, colonyId));
-        }
-    }
+    public static string? ResolvePawnReferenceMetadata(Pawn pawn, string metadataKey, string? userId, string? colonyId) =>
+        PawnReferences.ResolvePawnReferenceMetadata(pawn, metadataKey, userId, colonyId);
 
-    public static string? ResolvePawnReferenceMetadata(Pawn pawn, string metadataKey, string? userId, string? colonyId)
-    {
-        if (string.IsNullOrWhiteSpace(metadataKey))
-        {
-            return null;
-        }
+    public static void RegisterPawnReferenceMetadataRestorer(string metadataKey, PawnReferenceMetadataRestorer restorer) =>
+        PawnReferences.RegisterPawnReferenceMetadataRestorer(metadataKey, restorer);
 
-        foreach (PawnReferenceMetadataResolverRegistration registration in PawnReferenceMetadataResolvers.ToList())
-        {
-            if (!string.Equals(registration.MetadataKey, metadataKey, StringComparison.Ordinal))
-            {
-                continue;
-            }
-
-            if (!Registrations.TryInvokeCompatibilityCallback(
-                    nameof(ResolvePawnReferenceMetadata),
-                    registration,
-                    () => registration.Resolver(pawn, metadataKey, userId, colonyId),
-                    out string? result))
-            {
-                continue;
-            }
-
-            if (!string.IsNullOrWhiteSpace(result))
-            {
-                return result;
-            }
-        }
-
-        return null;
-    }
-
-    public static void RegisterPawnReferenceMetadataRestorer(string metadataKey, PawnReferenceMetadataRestorer restorer)
-    {
-        if (restorer is null)
-        {
-            return;
-        }
-
-        RegisterPawnReferenceMetadataRestorerRegistration(
-            new PawnReferenceMetadataRestorerRegistration(metadataKey, restorer));
-    }
-
-    private static void RegisterPawnReferenceMetadataRestorerRegistration(
-        PawnReferenceMetadataRestorerRegistration registration)
-    {
-        Registrations.RegisterMetadataKeyedRegistration(
-            PawnReferenceMetadataRestorers,
-            registration,
-            nameof(PawnReferenceMetadataRestorerRegistration),
-            registration.MetadataKey,
-            "PawnReferenceMetadataRestorerDuplicateRejected",
-            "PawnReferenceMetadataRestorerDuplicateReplaced");
-    }
-
-    public static string RestorePawnReferenceMetadata(Pawn pawn, string metadataKey, string? metadataValue, string label)
-    {
-        if (string.IsNullOrWhiteSpace(metadataKey))
-        {
-            return string.Empty;
-        }
-
-        foreach (PawnReferenceMetadataRestorerRegistration registration in PawnReferenceMetadataRestorers.ToList())
-        {
-            if (!string.Equals(registration.MetadataKey, metadataKey, StringComparison.Ordinal))
-            {
-                continue;
-            }
-
-            if (!Registrations.TryInvokeCompatibilityCallback(
-                    nameof(RestorePawnReferenceMetadata),
-                    registration,
-                    () => registration.Restorer(pawn, metadataKey, metadataValue, label),
-                    out string result))
-            {
-                continue;
-            }
-
-            if (!string.IsNullOrWhiteSpace(result))
-            {
-                return result;
-            }
-        }
-
-        return string.Empty;
-    }
+    public static string RestorePawnReferenceMetadata(Pawn pawn, string metadataKey, string? metadataValue, string label) =>
+        PawnReferences.RestorePawnReferenceMetadata(pawn, metadataKey, metadataValue, label);
 
     public static string RestorePawnReferenceMetadata(
         Pawn pawn,
         IReadOnlyDictionary<string, string?>? metadata,
-        string label)
-    {
-        if (pawn is null || metadata is null || metadata.Count == 0)
-        {
-            return string.Empty;
-        }
+        string label) =>
+        PawnReferences.RestorePawnReferenceMetadata(pawn, metadata, label);
 
-        List<string> messages = new();
-        foreach (KeyValuePair<string, string?> entry in metadata)
-        {
-            string message = RestorePawnReferenceMetadata(pawn, entry.Key, entry.Value, label);
-            if (!string.IsNullOrWhiteSpace(message))
-            {
-                messages.Add(message);
-            }
-        }
+    public static void RegisterPawnExchangeExtensionAppender(PawnExchangeExtensionAppender appender) =>
+        PawnExchange.RegisterPawnExchangeExtensionAppender(appender);
 
-        return string.Concat(messages);
-    }
+    public static void AppendPawnExchangeExtensions(Pawn pawn, ModPawnExchangePackageDto package) =>
+        PawnExchange.AppendPawnExchangeExtensions(pawn, package);
 
-    public static void RegisterPawnExchangeExtensionAppender(PawnExchangeExtensionAppender appender)
-    {
-        Registrations.RegisterUnique(PawnExchangeExtensionAppenders, appender);
-    }
+    public static void RegisterPawnExchangePackageRegistrar(PawnExchangePackageRegistrar registrar) =>
+        PawnExchange.RegisterPawnExchangePackageRegistrar(registrar);
 
-    public static void AppendPawnExchangeExtensions(Pawn pawn, ModPawnExchangePackageDto package)
-    {
-        if (pawn is null || package is null)
-        {
-            return;
-        }
+    public static void RegisterPawnExchangePackageNormalizer(PawnExchangePackageNormalizer normalizer) =>
+        PawnExchange.RegisterPawnExchangePackageNormalizer(normalizer);
 
-        foreach (PawnExchangeExtensionAppender appender in PawnExchangeExtensionAppenders.ToList())
-        {
-            Registrations.TryInvokeCompatibilityCallback(
-                nameof(AppendPawnExchangeExtensions),
-                appender,
-                () => appender(pawn, package));
-        }
-    }
+    public static void RegisterPawnExchangeLocalSaveOnlyLoadIdPredicate(PawnExchangeLocalSaveOnlyLoadIdPredicate predicate) =>
+        PawnExchange.RegisterPawnExchangeLocalSaveOnlyLoadIdPredicate(predicate);
 
-    public static void RegisterPawnExchangePackageRegistrar(PawnExchangePackageRegistrar registrar)
-    {
-        Registrations.RegisterUnique(PawnExchangePackageRegistrars, registrar);
-    }
+    public static void NormalizePawnExchangePackage(ModPawnExchangePackageDto package) =>
+        PawnExchange.NormalizePawnExchangePackage(package);
 
-    public static void RegisterPawnExchangePackageNormalizer(PawnExchangePackageNormalizer normalizer)
-    {
-        Registrations.RegisterUnique(PawnExchangePackageNormalizers, normalizer);
-    }
+    public static bool TryRegisterPawnExchangePackageExtensions(ModPawnExchangePackageDto package, out string message) =>
+        PawnExchange.TryRegisterPawnExchangePackageExtensions(package, out message);
 
-    public static void RegisterPawnExchangeLocalSaveOnlyLoadIdPredicate(PawnExchangeLocalSaveOnlyLoadIdPredicate predicate)
-    {
-        Registrations.RegisterUnique(PawnExchangeLocalSaveOnlyLoadIdPredicates, predicate);
-    }
+    public static bool IsPawnExchangeLocalSaveOnlyLoadId(string? loadId) =>
+        PawnExchange.IsPawnExchangeLocalSaveOnlyLoadId(loadId);
 
-    public static void NormalizePawnExchangePackage(ModPawnExchangePackageDto package)
-    {
-        if (package is null)
-        {
-            return;
-        }
+    public static void RegisterPawnPostRestoreLocalizer(PawnPostRestoreLocalizer localizer) =>
+        PawnExchange.RegisterPawnPostRestoreLocalizer(localizer);
 
-        foreach (PawnExchangePackageNormalizer normalizer in PawnExchangePackageNormalizers.ToList())
-        {
-            string key = AIRsLight.ClashOfRim.Modules.Compatibility.CompatibilityRegistrationScope.RegistrationKey(normalizer);
-            ClashLog.Message("[ClashOfRim][Compatibility] pawn package normalizer begin: " + key + ".");
-            Registrations.TryInvokeCompatibilityCallback(
-                nameof(NormalizePawnExchangePackage),
-                normalizer,
-                () => normalizer(package));
-            ClashLog.Message("[ClashOfRim][Compatibility] pawn package normalizer end: " + key + ".");
-        }
-    }
+    public static void LocalizeRestoredPawnWithCompatibility(Pawn pawn) =>
+        PawnExchange.LocalizeRestoredPawnWithCompatibility(pawn);
 
-    public static bool TryRegisterPawnExchangePackageExtensions(ModPawnExchangePackageDto package, out string message)
-    {
-        message = string.Empty;
-        if (package is null)
-        {
-            return true;
-        }
+    public static void RegisterPawnSoldEffectHandler(PawnSoldEffectHandler handler) =>
+        PawnTrade.RegisterPawnSoldEffectHandler(handler);
 
-        foreach (PawnExchangePackageRegistrar registrar in PawnExchangePackageRegistrars.ToList())
-        {
-            string registrarMessage = string.Empty;
-            if (!Registrations.TryInvokeCompatibilityCallback(
-                    nameof(TryRegisterPawnExchangePackageExtensions),
-                    registrar,
-                    () => registrar(package, out registrarMessage),
-                    out bool accepted))
-            {
-                message = "Compatibility package failed.";
-                return false;
-            }
+    public static void ApplyPawnSoldEffects(Pawn pawn, Pawn? negotiator) =>
+        PawnTrade.ApplyPawnSoldEffects(pawn, negotiator);
 
-            message = registrarMessage;
-            if (!accepted)
-            {
-                return false;
-            }
-        }
+    public static void RegisterTradeablePawnPredicate(TradeablePawnPredicate predicate) =>
+        PawnTrade.RegisterTradeablePawnPredicate(predicate);
 
-        return true;
-    }
+    public static bool IsTradeablePawnByCompatibility(Pawn pawn) =>
+        PawnTrade.IsTradeablePawnByCompatibility(pawn);
 
-    public static bool IsPawnExchangeLocalSaveOnlyLoadId(string? loadId)
-    {
-        if (string.IsNullOrWhiteSpace(loadId))
-        {
-            return false;
-        }
+    public static void RegisterTradePawnRestoreValidator(TradePawnRestoreValidator validator) =>
+        PawnTrade.RegisterTradePawnRestoreValidator(validator);
 
-        foreach (PawnExchangeLocalSaveOnlyLoadIdPredicate predicate in PawnExchangeLocalSaveOnlyLoadIdPredicates.ToList())
-        {
-            if (!Registrations.TryInvokeCompatibilityCallback(
-                    nameof(IsPawnExchangeLocalSaveOnlyLoadId),
-                    predicate,
-                    () => predicate(loadId!),
-                    out bool matched))
-            {
-                continue;
-            }
-
-            if (matched)
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    public static void RegisterPawnPostRestoreLocalizer(PawnPostRestoreLocalizer localizer)
-    {
-        Registrations.RegisterUnique(PawnPostRestoreLocalizers, localizer);
-    }
-
-    public static void LocalizeRestoredPawnWithCompatibility(Pawn pawn)
-    {
-        foreach (PawnPostRestoreLocalizer localizer in PawnPostRestoreLocalizers.ToList())
-        {
-            Registrations.TryInvokeCompatibilityCallback(
-                nameof(LocalizeRestoredPawnWithCompatibility),
-                localizer,
-                () => localizer(pawn));
-        }
-    }
-
-    public static void RegisterPawnSoldEffectHandler(PawnSoldEffectHandler handler)
-    {
-        Registrations.RegisterUnique(PawnSoldEffectHandlers, handler);
-    }
-
-    public static void ApplyPawnSoldEffects(Pawn pawn, Pawn? negotiator)
-    {
-        foreach (PawnSoldEffectHandler handler in PawnSoldEffectHandlers.ToList())
-        {
-            Registrations.TryInvokeCompatibilityCallback(
-                nameof(ApplyPawnSoldEffects),
-                handler,
-                () => handler(pawn, negotiator));
-        }
-    }
-
-    public static void RegisterTradeablePawnPredicate(TradeablePawnPredicate predicate)
-    {
-        Registrations.RegisterUnique(TradeablePawnPredicates, predicate);
-    }
-
-    public static bool IsTradeablePawnByCompatibility(Pawn pawn)
-    {
-        if (pawn is null)
-        {
-            return false;
-        }
-
-        foreach (TradeablePawnPredicate predicate in TradeablePawnPredicates.ToList())
-        {
-            if (!Registrations.TryInvokeCompatibilityCallback(
-                    nameof(IsTradeablePawnByCompatibility),
-                    predicate,
-                    () => predicate(pawn),
-                    out bool matched))
-            {
-                continue;
-            }
-
-            if (matched)
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    public static void RegisterTradePawnRestoreValidator(TradePawnRestoreValidator validator)
-    {
-        Registrations.RegisterUnique(TradePawnRestoreValidators, validator);
-    }
-
-    public static bool IsTradePawnRestoreAllowedByCompatibility(Pawn pawn)
-    {
-        if (pawn is null)
-        {
-            return false;
-        }
-
-        foreach (TradePawnRestoreValidator validator in TradePawnRestoreValidators.ToList())
-        {
-            if (!Registrations.TryInvokeCompatibilityCallback(
-                    nameof(IsTradePawnRestoreAllowedByCompatibility),
-                    validator,
-                    () => validator(pawn),
-                    out bool matched))
-            {
-                continue;
-            }
-
-            if (matched)
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
+    public static bool IsTradePawnRestoreAllowedByCompatibility(Pawn pawn) =>
+        PawnTrade.IsTradePawnRestoreAllowedByCompatibility(pawn);
 }
