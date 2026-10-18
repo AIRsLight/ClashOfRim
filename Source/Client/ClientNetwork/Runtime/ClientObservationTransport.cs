@@ -19,14 +19,9 @@ internal sealed class ClientObservationTransport : IClientObservationTransport
         return await new ClientSessionProtocol(Protocol(http, context), environment, environment)
             .LoginAsync(context, "observation", null, token, captureReceipt).ConfigureAwait(false);
     }
-    public async Task<RemoteSnapshotDownloadResult> DownloadAsync(ClashOfRimClientNetworkContext context,
+    public Task<RemoteSnapshotDownloadResult> DownloadAsync(ClashOfRimClientNetworkContext context,
         ClientSnapshotDownloadTarget target, CancellationToken token)
-    {
-        using var http = CreateHttp();
-        var protocol = new ClientSnapshotDownloadProtocol(Protocol(http, context), context,
-            () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
-        return await new ClientRemoteSnapshotDownload(protocol).DownloadAsync(target, token).ConfigureAwait(false);
-    }
+        => new ClientRemoteSnapshotTransport().DownloadAsync(context, target, token);
     private static HttpClient CreateHttp() => new() { Timeout = TimeSpan.FromSeconds(60) };
     private static ClientProtocolTransport Protocol(HttpClient http, ClashOfRimClientNetworkContext context) =>
         new(http, context, new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner)));

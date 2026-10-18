@@ -2,17 +2,14 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using AIRsLight.ClashOfRim.ClientNetwork;
-using AIRsLight.ClashOfRim.Modules.Snapshots;
 using AIRsLight.ClashOfRim.RemoteMaps;
 
 namespace AIRsLight.ClashOfRim.Modules.Maps;
 
-internal interface IClientObservationTransport
+internal interface IClientObservationTransport : IClientRemoteSnapshotTransport
 {
     Task<ClashOfRimClientNetworkResult<ModLoginResponseDto>> LoginAsync(ClashOfRimClientNetworkContext context,
         CancellationToken token, Action<ModLoginResponseDto> captureReceipt);
-    Task<RemoteSnapshotDownloadResult> DownloadAsync(ClashOfRimClientNetworkContext context,
-        ClientSnapshotDownloadTarget target, CancellationToken token);
 }
 internal interface IClientObservationRuntime
 {

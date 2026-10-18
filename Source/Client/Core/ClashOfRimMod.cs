@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Raids;
 using AIRsLight.ClashOfRim.Modules.Maps;
 using AIRsLight.ClashOfRim.Modules.Mercenaries;
 using AIRsLight.ClashOfRim.Modules.Support;
@@ -58,8 +59,6 @@ public sealed partial class ClashOfRimMod : Mod
     public const string PackageId = "AIRsLight.ClashOfRim";
     // Mirrors ClashOfRim.Protocol.ProtocolErrorCode.EventNotFound; the mod assembly does not compile protocol sources.
     private const int ProtocolErrorEventNotFound = 5;
-    private static readonly TimeSpan RaidBattleDuration = TimeSpan.FromMinutes(15);
-    private static readonly TimeSpan RaidSettlementGraceDuration = TimeSpan.FromMinutes(2);
 
     private readonly ClashOfRimSettings settings;
     private readonly ClientEventInbox eventInbox = new();
@@ -87,6 +86,7 @@ public sealed partial class ClashOfRimMod : Mod
     private readonly ClientSupportActions supportActions;
     private readonly ClientSupportReturns supportReturns;
     private readonly ClientObservationMaps observationMaps;
+    private readonly ClientRaidPreparation raidPreparation = new(new ClientRaidTransport(), new ClientRemoteSnapshotTransport());
     internal ClientGiftActions GiftActions => giftActions;
     private readonly ClientEventConfirmationWorkflow eventConfirmations;
     private readonly ClientEventApplications eventApplications;

@@ -1,3 +1,5 @@
+using AIRsLight.ClashOfRim.Modules.Raids;
+using AIRsLight.ClashOfRim.Modules.Transport;
 using AIRsLight.ClashOfRim.Modules.Snapshots;
 using AIRsLight.ClashOfRim.Modules.Events;
 using static AIRsLight.ClashOfRim.Modules.Maps.ClientMapIdentity;
@@ -27,11 +29,6 @@ namespace AIRsLight.ClashOfRim;
 
 public sealed partial class ClashOfRimMod
 {
-    private static readonly RemoteSnapshotDownloadFailureKeys RaidBattleDownloadFailureKeys = new(
-        "ClashOfRim.Raid.StatusBattleDownloadFailed",
-        "ClashOfRim.Raid.StatusBattleMissingSnapshot",
-        "ClashOfRim.Raid.StatusBattlePayloadFailed");
-
     private const int RaidAttackerSnapshotRetryDelayMs = 250;
     private const int RaidAttackerSnapshotWaitLogInterval = 20;
 
@@ -60,9 +57,9 @@ public sealed partial class ClashOfRimMod
             canClose: false);
     }
 
-    private void ReportRemoteMapDownloadFailureFromWorker(string message)
+    private void ReportRemoteMapDownloadFailureFromWorker(ClientSynchronizationCoordinator.Lease operation, string message)
     {
-        ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
+        operation.QueueContinuation(EnqueueClashOfRimMainThreadAction, _ =>
         {
             worldMapStatus = message;
             CloseServerEntryProgressWindowNow();
@@ -222,6 +219,8 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
+        var context = sessionLifecycle.ReadContext();
+        target = ClientProtocolJson.Deserialize<ModWorldMapMarkerDto>(ClientProtocolJson.Serialize(target), type => type);
         IReadOnlyList<Pawn> pawns = attackSource.AttackPawns;
         if (pawns.Count == 0)
         {
@@ -232,16 +231,16 @@ public sealed partial class ClashOfRimMod
         IReadOnlyList<RaidAttackPawnLoad> attackPawns = pawns
             .Select(pawn =>
             {
-                string globalKey = PawnGlobalIdUtility.Build(settings.UserId, pawn);
+                string globalKey = PawnGlobalIdUtility.Build(context.UserId, pawn);
                 return new RaidAttackPawnLoad(globalKey, pawn);
             })
             .ToList();
         IReadOnlyList<string> pawnGlobalKeys = attackPawns.Select(pawn => pawn.GlobalKey).ToList();
         IReadOnlyList<ModThingReferenceDto> carriedThings = attackSource.BuildCarriedThings(
-            settings.UserId,
-            settings.ColonyId,
-            settings.CurrentSnapshotId);
-        string idempotencyKey = $"raid-start:{settings.UserId}:{settings.CurrentSnapshotId}:{attackSource.UniqueLoadId}:{target.OwnerUserId}:{target.OwnerColonyId}:{DateTime.UtcNow.Ticks}";
+            context.UserId,
+            context.ColonyId,
+            context.CurrentSnapshotId ?? string.Empty);
+        string idempotencyKey = $"raid-start:{context.UserId}:{context.CurrentSnapshotId ?? string.Empty}:{attackSource.UniqueLoadId}:{target.OwnerUserId}:{target.OwnerColonyId}:{DateTime.UtcNow.Ticks}";
         if (!TryBeginManualSynchronization(out var manualOperation, out failureReason))
         {
             worldMapStatus = failureReason;
@@ -256,97 +255,27 @@ public sealed partial class ClashOfRimMod
         {
             try
             {
-                using var httpClient = new HttpClient
-                {
-                    Timeout = TimeSpan.FromSeconds(60)
-                };
-                var client = new ClashOfRimModNetworkClient(
-                    httpClient,
-                    ClashOfRimClientNetworkContext.FromSettings(settings));
-
-                ClashOfRimClientNetworkResult<ModPrepareRaidResponseDto> prepare =
-                    await ClientSessionWork.Observe(client.PrepareRaidAsync(
-                        idempotencyKey,
-                        target.OwnerUserId ?? string.Empty,
-                        target.OwnerColonyId ?? string.Empty,
-                        target.WorldObjectId ?? string.Empty,
-                        target.MapId ?? string.Empty,
-                        target.Tile,
-                        isHostile: true));
-
-                using (ClientSessionWork.EnterPublication())
-                {
-                    if (!prepare.Success || prepare.Response is null)
-                    {
-                        ReportRemoteMapDownloadFailureFromWorker(ClashOfRimText.Key("ClashOfRim.Raid.StatusCreateFailed", (prepare.ErrorCode ?? string.Empty).Named("CODE"), (prepare.Message ?? string.Empty).Named("MESSAGE")));
-                        return;
-                    }
-                }
-
-                ModProtocolResponseDto? prepareResult = prepare.Response.Result;
-                using (ClientSessionWork.EnterPublication())
-                {
-                    if (prepareResult is not null && !prepareResult.Accepted)
-                    {
-                        ReportRemoteMapDownloadFailureFromWorker(ClashOfRimText.Key("ClashOfRim.Raid.StatusCreateRejected", prepareResult.ErrorCode.Named("CODE"), (prepareResult.Message ?? string.Empty).Named("MESSAGE")));
-                        return;
-                    }
-                }
-
-                string raidEventId = string.IsNullOrWhiteSpace(prepare.Response.RaidEventId)
-                    ? BuildLocalRaidEventId(idempotencyKey)
-                    : prepare.Response.RaidEventId!;
-                using (ClientSessionWork.EnterPublication())
-                {
-                    if (string.IsNullOrWhiteSpace(prepare.Response.RaidPreparationId))
-                    {
-                        ReportRemoteMapDownloadFailureFromWorker(ClashOfRimText.Key("ClashOfRim.Raid.StatusCreateRejected", "MissingPreparation".Named("CODE"), ClashOfRimText.Key("ClashOfRim.Raid.StatusMissingPreparation").Named("MESSAGE")));
-                        return;
-                    }
-                }
-
-                string raidPreparationId = prepare.Response.RaidPreparationId!;
-                TimeSpan battleDuration = RaidDurationFromServerMinutes(
-                    prepare.Response.RaidMaxDurationMinutes,
-                    RaidBattleDuration);
-                TimeSpan settlementGraceDuration = RaidDurationFromServerMinutes(
-                    prepare.Response.RaidTimeoutGraceMinutes,
-                    RaidSettlementGraceDuration);
-                RemoteSnapshotDownloadResult snapshot =
-                    await ClientSessionWork.Observe(new RemoteSnapshotDownloadService(client).DownloadAsync(new RemoteSnapshotDownloadRequest
-                    {
-                        UserId = target.OwnerUserId ?? string.Empty,
-                        ColonyId = target.OwnerColonyId ?? string.Empty,
-                        AuthorizationEventId = raidPreparationId,
-                        AuthorizationScope = RemoteSessionMapParent.RaidPreparationDownloadMode
-                    }));
-
+                var command = new ClientRaidPreparationCommand(idempotencyKey, new ClientRaidTarget(
+                    target.OwnerUserId, target.OwnerColonyId ?? string.Empty, target.WorldObjectId, target.MapId ?? string.Empty, target.Tile));
+                ClientRaidPreparationResult result = await ClientSessionWork.Observe(
+                    raidPreparation.PrepareAsync(context, command, ClientSessionWork.Token));
                 using var publication = ClientSessionWork.EnterPublication();
+                if (result.Prepared is not { } prepared)
+                {
+                    ReportRemoteMapDownloadFailureFromWorker(operation, ClientRaidPreparationPresentation.Failure(result.Failure!));
+                    return;
+                }
                 operation.QueueContinuation(EnqueueClashOfRimMainThreadAction, next =>
-                    FinishEnterRaidBattle(
-                        idempotencyKey,
-                        raidEventId,
-                        raidPreparationId,
-                        target,
-                        settings.UserId,
-                        settings.ColonyId,
-                        settings.CurrentSnapshotId,
-                        snapshot.Metadata,
-                        snapshot.Payload,
-                        attackSource,
-                        attackPawns,
-                        pawnGlobalKeys,
-                        carriedThings,
-                        battleDuration,
-                        settlementGraceDuration,
-                        prepare.Response.GuardDeployment,
-                        next));
+                    FinishEnterRaidBattle(idempotencyKey, prepared.EventId, prepared.PreparationId, target,
+                        context.UserId, context.ColonyId, context.CurrentSnapshotId ?? string.Empty,
+                        prepared.Snapshot, attackSource, attackPawns, pawnGlobalKeys, carriedThings,
+                        prepared.BattleDuration, prepared.SettlementGraceDuration, prepared.Guards, next));
             }
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
                 using var publication = ClientSessionWork.EnterPublication();
-                ReportRemoteMapDownloadFailureFromWorker(ClashOfRimText.Key(
+                ReportRemoteMapDownloadFailureFromWorker(operation, ClashOfRimText.Key(
                     "ClashOfRim.Raid.StatusCreateException",
                     ex.GetType().Name.Named("TYPE"),
                     ex.Message.Named("MESSAGE")));
@@ -366,8 +295,7 @@ public sealed partial class ClashOfRimMod
         string attackerUserId,
         string attackerColonyId,
         string attackerSnapshotId,
-        ClashOfRimClientNetworkResult<ModDownloadLatestSnapshotResponseDto> metadata,
-        ClashOfRimClientNetworkResult<byte[]>? payload,
+        RemoteSnapshotOpenPayload openPayload,
         IRaidAttackForceSource attackSource,
         IReadOnlyList<RaidAttackPawnLoad> attackPawns,
         IReadOnlyList<string> pawnGlobalKeys,
@@ -377,20 +305,6 @@ public sealed partial class ClashOfRimMod
         ModRaidGuardDeploymentDto? guardDeployment,
         ClientSynchronizationCoordinator.Lease operation)
     {
-        if (!RemoteSnapshotDownloadValidator.TryGetOpenPayload(
-                metadata,
-                payload,
-                RaidBattleDownloadFailureKeys,
-                out RemoteSnapshotOpenPayload? openPayload,
-                out string downloadFailureReason)
-            || openPayload is null)
-        {
-            worldMapStatus = downloadFailureReason;
-            CloseServerEntryProgressWindowNow();
-            Messages.Message(worldMapStatus, MessageTypeDefOf.RejectInput, historical: false);
-            return;
-        }
-
         string sessionId = $"raidbattle:{attackerUserId}:{raidEventId}:{DateTime.UtcNow.Ticks}";
         var openRequest = new RemoteSessionMapOpenRequest
         {
@@ -1300,23 +1214,6 @@ public sealed partial class ClashOfRimMod
                 uploadTransaction.Dispose();
             }
         });
-    }
-
-    private static string BuildLocalRaidEventId(string idempotencyKey)
-    {
-        string normalizedKey = string.Concat((idempotencyKey ?? string.Empty)
-            .Select(ch => char.IsLetterOrDigit(ch) ? ch : '-'));
-        return "raid:" + normalizedKey;
-    }
-
-    private static TimeSpan RaidDurationFromServerMinutes(double? minutes, TimeSpan fallback)
-    {
-        if (minutes is null || double.IsNaN(minutes.Value) || double.IsInfinity(minutes.Value) || minutes.Value <= 0d)
-        {
-            return fallback;
-        }
-
-        return TimeSpan.FromMinutes(minutes.Value);
     }
 
     private static void ApplyRaidBattleServerDeadlines(

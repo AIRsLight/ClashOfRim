@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Raids;
 using AIRsLight.ClashOfRim.Modules.Snapshots;
 using AIRsLight.ClashOfRim.Modules.Support;
 using AIRsLight.ClashOfRim.Modules.Mercenaries;
@@ -27,8 +28,6 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
     private static readonly string ListPlayersRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ListPlayers).Route;
     private static readonly string ListAchievementsRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ListAchievements).Route;
     private static readonly string GetPawnPackagePreviewRoute = ProtocolContractManifest.Find(ProtocolMessageKind.GetPawnPackagePreview).Route;
-    private static readonly string PrepareRaidRoute = ProtocolContractManifest.Find(ProtocolMessageKind.PrepareRaid).Route;
-    private static readonly string CreateRaidWithSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.CreateRaidWithSnapshot).Route;
     private static readonly string CreateDiplomacyEventRoute = ProtocolContractManifest.Find(ProtocolMessageKind.CreateDiplomacyEvent).Route;
     private static readonly string UploadSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.UploadSnapshot).Route;
     private static readonly string SyncWorldMapMarkersRoute = ProtocolContractManifest.Find(ProtocolMessageKind.SyncWorldMapMarkers).Route;
@@ -77,6 +76,7 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
     private readonly ClientBankProtocol bankProtocol;
     private readonly ClientMercenaryProtocol mercenaries;
     private readonly ClientSupportProtocol support;
+    private readonly ClientRaidProtocol raids;
     private readonly ClientGiftProtocol gifts;
     private readonly ClientTradeProtocol trades;
 
@@ -91,6 +91,7 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
         SnapshotDownloads = new ClientSnapshotDownloadProtocol(transport, context, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         packageWriter = new ClientPackageWriter(transport, context, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         shopProtocol = new ClientShopProtocol(transport, context, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
+        raids = new ClientRaidProtocol(transport, context, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         support = new ClientSupportProtocol(transport, context, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         mercenaries = new ClientMercenaryProtocol(transport, context, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         bankProtocol = new ClientBankProtocol(context, transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
@@ -1131,55 +1132,9 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
         string? guardDeploymentId = null,
         string opponentKind = "Player",
         CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModEventCreationResponseDto>();
-        }
-
-        var raid = new ModCreateRaidRequestDto
-        {
-            IdempotencyKey = idempotencyKey,
-            Attacker = new ModProtocolIdentityDto
-            {
-                UserId = context.UserId,
-                ColonyId = context.ColonyId,
-                SnapshotId = context.CurrentSnapshotId
-            },
-            Defender = new ModProtocolIdentityDto
-            {
-                UserId = targetUserId,
-                ColonyId = targetColonyId,
-                SnapshotId = targetSnapshotId
-            },
-            IsHostile = isHostile,
-            DefenderOnline = defenderOnline,
-            DefenderWealth = defenderWealth,
-            DefenderRaidCooldownUntilUtc = defenderRaidCooldownUntilUtc,
-            RaidPreparationId = raidPreparationId,
-            TargetWorldObjectId = targetWorldObjectId,
-            TargetMapId = targetMapId,
-            TargetTile = targetTile,
-            DefenderSnapshotId = targetSnapshotId ?? string.Empty,
-            OpponentKind = opponentKind,
-            PawnGlobalKeys = pawnGlobalKeys.ToList(),
-            CarriedThings = carriedThings.ToList(),
-            GuardDeploymentId = guardDeploymentId
-        };
-        var request = new ModCreateRaidWithSnapshotRequestDto
-        {
-            Raid = raid,
-            ConfirmedSnapshot = MarkSnapshotUploadKind(
-                confirmedSnapshot,
-                ModSnapshotUploadKinds.RaidCreationConfirmation)
-        };
-
-        return transport.PostSnapshotMultipartAsync<ModCreateRaidWithSnapshotRequestDto, ModEventCreationResponseDto>(
-            CreateRaidWithSnapshotRoute,
-            request,
-            confirmedPayload,
-            cancellationToken);
-    }
+        => raids.CreateRaidWithSnapshotAsync(idempotencyKey, raidPreparationId, targetUserId, targetColonyId, targetSnapshotId,
+            targetWorldObjectId, targetMapId, targetTile, isHostile, defenderOnline, defenderWealth, defenderRaidCooldownUntilUtc,
+            pawnGlobalKeys, carriedThings, confirmedSnapshot, confirmedPayload, guardDeploymentId, opponentKind, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModPrepareRaidResponseDto>> PrepareRaidAsync(
         string idempotencyKey,
@@ -1191,39 +1146,8 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
         bool isHostile,
         string opponentKind = "Player",
         CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModPrepareRaidResponseDto>();
-        }
-
-        var request = new ModPrepareRaidRequestDto
-        {
-            IdempotencyKey = idempotencyKey,
-            Attacker = new ModProtocolIdentityDto
-            {
-                UserId = context.UserId,
-                ColonyId = context.ColonyId,
-                SnapshotId = context.CurrentSnapshotId
-            },
-            Defender = new ModProtocolIdentityDto
-            {
-                UserId = targetUserId,
-                ColonyId = targetColonyId,
-                SnapshotId = null
-            },
-            IsHostile = isHostile,
-            TargetWorldObjectId = targetWorldObjectId,
-            TargetMapId = targetMapId,
-            TargetTile = targetTile,
-            OpponentKind = opponentKind
-        };
-
-        return transport.PostAsync<ModPrepareRaidRequestDto, ModPrepareRaidResponseDto>(
-            PrepareRaidRoute,
-            request,
-            cancellationToken);
-    }
+        => raids.PrepareRaidAsync(idempotencyKey, targetUserId, targetColonyId, targetWorldObjectId, targetMapId, targetTile,
+            isHostile, opponentKind, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModEventCreationResponseDto>> CreateSupportPawnWithSnapshotAsync(
         string idempotencyKey,

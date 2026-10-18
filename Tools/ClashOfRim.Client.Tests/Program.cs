@@ -19,6 +19,8 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("raid preparation owns accepted authorization, snapshot download and duration rules", ClientRaidPreparationTests.Run),
+    ("raid protocol preserves preparation and multipart creation contracts", ClientRaidProtocolTests.Run),
     ("observation maps own login adoption, game opening and stale session cleanup", ClientObservationMapsTests.Run),
     ("remote snapshot downloads share authorization, immutable targets and validation", RemoteSnapshotDownloadModuleTests.Run),
     ("support returns own ordered confirmation and durable notification recovery", ClientSupportReturnsTests.Run),
