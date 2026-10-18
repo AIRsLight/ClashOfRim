@@ -23,19 +23,6 @@ public sealed partial class ClashOfRimMod
     internal void StartManualRejectFirstGift() => eventApplications.RejectFirstGift();
     internal void StartManualConfirmFirstGift() => eventApplications.ConfirmFirstGift();
 
-    private sealed class RaidAttackPawnLoad
-    {
-        public RaidAttackPawnLoad(string globalKey, Pawn pawn)
-        {
-            GlobalKey = globalKey;
-            Pawn = pawn;
-        }
-
-        public string GlobalKey { get; }
-
-        public Pawn Pawn { get; }
-    }
-
     private void StartConfirmLocalMutationSnapshot(ClientLocalSnapshotRequest request) => _ = localSnapshotConfirmation.StartAsync(request);
 
     internal void StartManualSnapshotUpload()

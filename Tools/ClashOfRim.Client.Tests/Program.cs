@@ -19,6 +19,7 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("raid attack forces own captured engine state and battlefield handoff", ClientRaidAttackForceTests.Run),
     ("raid preparation owns accepted authorization, snapshot download and duration rules", ClientRaidPreparationTests.Run),
     ("raid protocol preserves preparation and multipart creation contracts", ClientRaidProtocolTests.Run),
     ("observation maps own login adoption, game opening and stale session cleanup", ClientObservationMapsTests.Run),

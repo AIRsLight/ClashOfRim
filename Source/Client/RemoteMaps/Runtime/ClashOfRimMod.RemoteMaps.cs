@@ -12,14 +12,10 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.ClientSnapshots;
-using AIRsLight.ClashOfRim.Diplomacy;
 using AIRsLight.ClashOfRim.Pawns;
 using AIRsLight.ClashOfRim.Raids;
 using AIRsLight.ClashOfRim.RemoteMaps;
 using AIRsLight.ClashOfRim.Support;
-using AIRsLight.ClashOfRim.ThirdPartyCompatibility;
-using AIRsLight.ClashOfRim.Trades;
-using AIRsLight.ClashOfRim.WorldObjects;
 using RimWorld;
 using RimWorld.Planet;
 using UnityEngine;
@@ -82,9 +78,7 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
-        List<Pawn> pawns = caravan.PawnsListForReading
-            .Where(pawn => pawn != null && !pawn.Dead && caravan.IsOwner(pawn))
-            .ToList();
+        IReadOnlyList<Pawn> pawns = new CaravanRaidAttackForceSource(caravan).AttackPawns;
         if (pawns.Count == 0)
         {
             worldMapStatus = ClashOfRimText.Key("ClashOfRim.Raid.StatusNoPawns");
@@ -143,7 +137,7 @@ public sealed partial class ClashOfRimMod
 
     private void StartCreateRaidFromCaravan(Caravan caravan, ModWorldMapMarkerDto target)
     {
-        StartCreateRaid(new CaravanRaidAttackForceSource(caravan), target);
+        StartCreateRaid(new ClientRaidAttackForce(new CaravanRaidAttackForceSource(caravan)), target);
     }
 
     internal void StartCreateRaidFromTransporters(
@@ -172,17 +166,11 @@ public sealed partial class ClashOfRimMod
             Label = targetLabel ?? string.Empty,
             CanRaid = true
         };
-        StartCreateRaid(new TransporterRaidAttackForceSource(
-            transporters,
-            target.Tile,
-            transporterKey,
-            settings.UserId,
-            settings.ColonyId,
-            settings.CurrentSnapshotId),
-            target);
+        StartCreateRaid(new ClientRaidAttackForce(new TransporterRaidAttackForceSource(
+            transporters, target.Tile, transporterKey, target.TileLayerId)), target);
     }
 
-    private void StartCreateRaid(IRaidAttackForceSource attackSource, ModWorldMapMarkerDto target)
+    private void StartCreateRaid(ClientRaidAttackForce attackForce, ModWorldMapMarkerDto target)
     {
         if (!pvpEnabled)
         {
@@ -204,12 +192,6 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
-        if (target.Tile != attackSource.Tile)
-        {
-            worldMapStatus = ClashOfRimText.Key("ClashOfRim.Raid.StatusTargetTileMismatch");
-            return;
-        }
-
         if (string.IsNullOrWhiteSpace(target.OwnerUserId)
             || string.IsNullOrWhiteSpace(target.OwnerColonyId)
             || string.IsNullOrWhiteSpace(target.MapId)
@@ -221,26 +203,12 @@ public sealed partial class ClashOfRimMod
 
         var context = sessionLifecycle.ReadContext();
         target = ClientProtocolJson.Deserialize<ModWorldMapMarkerDto>(ClientProtocolJson.Serialize(target), type => type);
-        IReadOnlyList<Pawn> pawns = attackSource.AttackPawns;
-        if (pawns.Count == 0)
+        if (!attackForce.TryCapture(context, target, out var force, out failureReason))
         {
-            worldMapStatus = ClashOfRimText.Key("ClashOfRim.Raid.StatusNoPawns");
+            worldMapStatus = failureReason;
             return;
         }
-
-        IReadOnlyList<RaidAttackPawnLoad> attackPawns = pawns
-            .Select(pawn =>
-            {
-                string globalKey = PawnGlobalIdUtility.Build(context.UserId, pawn);
-                return new RaidAttackPawnLoad(globalKey, pawn);
-            })
-            .ToList();
-        IReadOnlyList<string> pawnGlobalKeys = attackPawns.Select(pawn => pawn.GlobalKey).ToList();
-        IReadOnlyList<ModThingReferenceDto> carriedThings = attackSource.BuildCarriedThings(
-            context.UserId,
-            context.ColonyId,
-            context.CurrentSnapshotId ?? string.Empty);
-        string idempotencyKey = $"raid-start:{context.UserId}:{context.CurrentSnapshotId ?? string.Empty}:{attackSource.UniqueLoadId}:{target.OwnerUserId}:{target.OwnerColonyId}:{DateTime.UtcNow.Ticks}";
+        string idempotencyKey = $"raid-start:{context.UserId}:{context.CurrentSnapshotId ?? string.Empty}:{force!.SourceLoadId}:{target.OwnerUserId}:{target.OwnerColonyId}:{DateTime.UtcNow.Ticks}";
         if (!TryBeginManualSynchronization(out var manualOperation, out failureReason))
         {
             worldMapStatus = failureReason;
@@ -268,7 +236,7 @@ public sealed partial class ClashOfRimMod
                 operation.QueueContinuation(EnqueueClashOfRimMainThreadAction, next =>
                     FinishEnterRaidBattle(idempotencyKey, prepared.EventId, prepared.PreparationId, target,
                         context.UserId, context.ColonyId, context.CurrentSnapshotId ?? string.Empty,
-                        prepared.Snapshot, attackSource, attackPawns, pawnGlobalKeys, carriedThings,
+                        prepared.Snapshot, attackForce, force,
                         prepared.BattleDuration, prepared.SettlementGraceDuration, prepared.Guards, next));
             }
             catch (Exception ex)
@@ -296,10 +264,8 @@ public sealed partial class ClashOfRimMod
         string attackerColonyId,
         string attackerSnapshotId,
         RemoteSnapshotOpenPayload openPayload,
-        IRaidAttackForceSource attackSource,
-        IReadOnlyList<RaidAttackPawnLoad> attackPawns,
-        IReadOnlyList<string> pawnGlobalKeys,
-        IReadOnlyList<ModThingReferenceDto> carriedThings,
+        ClientRaidAttackForce attackForce,
+        ClientRaidForceManifest force,
         TimeSpan battleDuration,
         TimeSpan settlementGraceDuration,
         ModRaidGuardDeploymentDto? guardDeployment,
@@ -338,10 +304,8 @@ public sealed partial class ClashOfRimMod
                 attackerSnapshotId,
                 openRequest,
                 openPayload.Package.NextLineageToken ?? string.Empty,
-                attackSource,
-                attackPawns,
-                pawnGlobalKeys,
-                carriedThings,
+                attackForce,
+                force,
                 battleDuration,
                 settlementGraceDuration,
                 guardDeployment,
@@ -358,10 +322,8 @@ public sealed partial class ClashOfRimMod
         string attackerSnapshotId,
         RemoteSessionMapOpenRequest openRequest,
         string defenderLineageToken,
-        IRaidAttackForceSource attackSource,
-        IReadOnlyList<RaidAttackPawnLoad> attackPawns,
-        IReadOnlyList<string> pawnGlobalKeys,
-        IReadOnlyList<ModThingReferenceDto> carriedThings,
+        ClientRaidAttackForce attackForce,
+        ClientRaidForceManifest force,
         TimeSpan battleDuration,
         TimeSpan settlementGraceDuration,
         ModRaidGuardDeploymentDto? guardDeployment,
@@ -384,6 +346,14 @@ public sealed partial class ClashOfRimMod
                     + blockedMessage
                     + ".");
                 Messages.Message(blockedMessage, MessageTypeDefOf.RejectInput, historical: false);
+                return;
+            }
+
+            if (attackForce.EntryFailure() is { } entryFailure)
+            {
+                CloseServerEntryProgressWindowNow();
+                worldMapStatus = entryFailure;
+                Messages.Message(worldMapStatus, MessageTypeDefOf.RejectInput, historical: false);
                 return;
             }
 
@@ -421,9 +391,11 @@ public sealed partial class ClashOfRimMod
                 settlementGraceDuration,
                 guardDeployment);
 
-            if (!PrepareRaidBattlefield(session, attackSource, attackPawns))
+            if (!attackForce.TryEnterBattle(session, openResult.Map, out string entryFailureReason))
             {
                 CloseServerEntryProgressWindowNow();
+                worldMapStatus = entryFailureReason;
+                Messages.Message(worldMapStatus, MessageTypeDefOf.RejectInput, historical: false);
                 RemoteMapSessionController.CloseRaidBattleForExternalResolution(
                     session.EventId,
                     "raid attack pawn transfer failed");
@@ -444,8 +416,8 @@ public sealed partial class ClashOfRimMod
                 raidPreparationId,
                 session,
                 target,
-                pawnGlobalKeys,
-                carriedThings,
+                force.PawnGlobalKeys,
+                force.CarriedThings,
                 continuation);
         }
         catch (Exception ex)
@@ -467,422 +439,6 @@ public sealed partial class ClashOfRimMod
                     ClearLocalAtomicMutation();
                 }
             }
-        }
-    }
-
-    private bool PrepareRaidBattlefield(
-        ActiveRaidBattleSession session,
-        IRaidAttackForceSource attackSource,
-        IReadOnlyList<RaidAttackPawnLoad> attackPawns)
-    {
-        string runtimeMapId = string.IsNullOrWhiteSpace(session.ClientMapId)
-            ? session.TargetMapId
-            : session.ClientMapId;
-        Map? map = Find.Maps?.FirstOrDefault(candidate =>
-            MapIdsMatch($"Map_{candidate.uniqueID}", runtimeMapId))
-            ?? Find.CurrentMap;
-        if (map is null)
-        {
-            Log.Warning("[ClashOfRim][Raid] Cannot prepare battlefield because no map is loaded.");
-            return false;
-        }
-
-        Faction? defenderFaction = PlayerFactionProxyUtility.EnsureProxyForUser(session.DefenderUserId);
-        if (defenderFaction is not null)
-        {
-            defenderFaction.SetRelationDirect(Faction.OfPlayer, FactionRelationKind.Hostile, canSendHostilityLetter: false);
-            Faction.OfPlayer?.SetRelationDirect(defenderFaction, FactionRelationKind.Hostile, canSendHostilityLetter: false);
-            RemoteSessionMapAreaSanitizer.Apply(map);
-            RemoteSessionMapConstructionSanitizer.Apply(map);
-            RemoteSessionPawnStateSanitizerResult pawnStateResult = RemoteSessionPawnStateSanitizer.DropLoadedCarriedThings(map);
-            RemoteSessionMapThingAccessSanitizer.ForbidLoadedHaulables(map);
-            RaidDefenderMapUtility.ConvertPlayerOwnedMapObjectsToDefenderProxy(map, defenderFaction);
-            RaidDefenderLootProtectionUtility.Apply(map, defenderFaction);
-            DefensePointRaidAiApplicator.Apply(map, defenderFaction);
-            ClashOfRimCompatibilityApi.NotifyRemoteDefenderMapPrepared(map, defenderFaction);
-            RaidGuardDeploymentUtility.DeployIfNeeded(map, defenderFaction, session);
-            ClashLog.Message("[ClashOfRim][Raid] Prepared defender map pawn state: carriedThingsDropped="
-                + pawnStateResult.DroppedThings
-                + ", carriedThingJobsInterrupted="
-                + pawnStateResult.InterruptedJobs
-                + ", carriedThingsDestroyed="
-                + pawnStateResult.DestroyedThings
-                + ".");
-        }
-
-        foreach (RaidAttackPawnLoad load in attackPawns)
-        {
-            Pawn pawn = load.Pawn;
-            if (pawn is null || pawn.Dead || pawn.Destroyed)
-            {
-                Log.Warning("[ClashOfRim][Raid] Cannot move attack force because pawn is unavailable: " + load.GlobalKey);
-                return false;
-            }
-        }
-
-        RaidCaravanMapEntryResult compatibilityEntry = attackSource.TryEnterMapViaCompatibility(
-            map,
-            attackPawns.Select(load => load.Pawn).ToList());
-        if (compatibilityEntry.Kind == RaidCaravanMapEntryResultKind.Failed)
-        {
-            Log.Warning("[ClashOfRim][Raid] Compatibility handler failed to move attack caravan: "
-                + compatibilityEntry.FailureReason);
-            return false;
-        }
-
-        if (compatibilityEntry.Kind == RaidCaravanMapEntryResultKind.Success)
-        {
-            session.AttackPawnThingIds.AddRange(compatibilityEntry.AttackPawnThingIds);
-            attackSource.CleanupAfterSuccessfulEntry();
-            ClashOfRimGameComponent.SetActiveRaidBattleSession(session);
-            return true;
-        }
-
-        if (!attackSource.TryPlaceAttackersOnMap(session, map, attackPawns, out string placementFailureReason))
-        {
-            Log.Warning("[ClashOfRim][Raid] Failed to move attack force: " + placementFailureReason);
-            return false;
-        }
-
-        attackSource.CleanupAfterSuccessfulEntry();
-        ClashOfRimGameComponent.SetActiveRaidBattleSession(session);
-        return true;
-    }
-
-    private static void RemoveEmptyRaidSourceCaravan(Caravan sourceCaravan)
-    {
-        if (sourceCaravan is null || sourceCaravan.Destroyed)
-        {
-            return;
-        }
-
-        if (sourceCaravan.PawnsListForReading?.Count > 0)
-        {
-            return;
-        }
-
-        if (Find.WorldObjects?.Contains(sourceCaravan) == true)
-        {
-            Find.WorldObjects.Remove(sourceCaravan);
-            ClashLog.Message("[ClashOfRim][Raid] Removed empty source caravan after moving all attackers into raid battle.");
-        }
-    }
-
-    private static bool TryMoveRaidAttackerPawnToMap(
-        Caravan sourceCaravan,
-        RaidAttackPawnLoad load,
-        Map map,
-        IntVec3 entryCell,
-        int entryRadius,
-        out string pawnThingId,
-        out string failureReason)
-    {
-        pawnThingId = string.Empty;
-        failureReason = string.Empty;
-        Pawn pawn = load.Pawn;
-        if (pawn is null || pawn.Dead || pawn.Destroyed)
-        {
-            failureReason = ClashOfRimText.Key("ClashOfRim.Raid.StatusAttackerPawnUnavailable");
-            return false;
-        }
-
-        if (!sourceCaravan.ContainsPawn(pawn))
-        {
-            failureReason = ClashOfRimText.Key("ClashOfRim.Raid.StatusAttackerPawnNotInCaravan");
-            return false;
-        }
-
-        sourceCaravan.RemovePawn(pawn);
-        if (pawn.Spawned)
-        {
-            pawn.DeSpawn(DestroyMode.Vanish);
-        }
-
-        IntVec3 cell = PawnExchangePlacementService.SpawnNearMapEdge(pawn, map, entryCell, entryRadius);
-        if (pawn.Faction != Faction.OfPlayer)
-        {
-            pawn.SetFaction(Faction.OfPlayer);
-        }
-
-        pawnThingId = pawn.ThingID;
-        return true;
-    }
-
-    private interface IRaidAttackForceSource
-    {
-        int Tile { get; }
-
-        string UniqueLoadId { get; }
-
-        IReadOnlyList<Pawn> AttackPawns { get; }
-
-        IReadOnlyList<ModThingReferenceDto> BuildCarriedThings(string userId, string colonyId, string snapshotId);
-
-        bool ContainsPawn(Pawn pawn);
-
-        RaidCaravanMapEntryResult TryEnterMapViaCompatibility(Map map, IReadOnlyList<Pawn> pawns);
-
-        bool TryPlaceAttackersOnMap(
-            ActiveRaidBattleSession session,
-            Map map,
-            IReadOnlyList<RaidAttackPawnLoad> attackPawns,
-            out string failureReason);
-
-        void CleanupAfterSuccessfulEntry();
-    }
-
-    private sealed class CaravanRaidAttackForceSource : IRaidAttackForceSource
-    {
-        private readonly Caravan caravan;
-
-        public CaravanRaidAttackForceSource(Caravan caravan)
-        {
-            this.caravan = caravan;
-        }
-
-        public int Tile => caravan.Tile;
-
-        public string UniqueLoadId => caravan.GetUniqueLoadID();
-
-        public IReadOnlyList<Pawn> AttackPawns => caravan.PawnsListForReading
-            .Where(pawn => pawn != null && !pawn.Dead && caravan.IsOwner(pawn))
-            .ToList();
-
-        public IReadOnlyList<ModThingReferenceDto> BuildCarriedThings(string userId, string colonyId, string snapshotId)
-        {
-            return TradeCaravanFulfillmentUtility.BuildDeliveredThingReferences(caravan, userId, colonyId, snapshotId);
-        }
-
-        public bool ContainsPawn(Pawn pawn)
-        {
-            return caravan.ContainsPawn(pawn);
-        }
-
-        public RaidCaravanMapEntryResult TryEnterMapViaCompatibility(Map map, IReadOnlyList<Pawn> pawns)
-        {
-            return ClashOfRimCompatibilityApi.TryEnterRaidCaravanMap(caravan, map, pawns);
-        }
-
-        public bool TryPlaceAttackersOnMap(
-            ActiveRaidBattleSession session,
-            Map map,
-            IReadOnlyList<RaidAttackPawnLoad> attackPawns,
-            out string failureReason)
-        {
-            failureReason = string.Empty;
-            IntVec3 attackerEntryCell = PawnExchangePlacementService.FindMapEdgeLandingCell(map);
-            int attackerEntryRadius = Math.Min(12, 4 + attackPawns.Count / 3);
-            foreach (RaidAttackPawnLoad load in attackPawns)
-            {
-                if (TryMoveRaidAttackerPawnToMap(
-                        caravan,
-                        load,
-                        map,
-                        attackerEntryCell,
-                        attackerEntryRadius,
-                        out string pawnThingId,
-                        out string pawnFailureReason)
-                    && !string.IsNullOrWhiteSpace(pawnThingId))
-                {
-                    session.AttackPawnThingIds.Add(pawnThingId);
-                    continue;
-                }
-
-                failureReason = ClashOfRimText.Key(
-                    "ClashOfRim.Raid.StatusAttackForcePlacementFailed",
-                    load.GlobalKey.Named("PAWN"),
-                    pawnFailureReason.Named("REASON"));
-                return false;
-            }
-
-            return true;
-        }
-
-        public void CleanupAfterSuccessfulEntry()
-        {
-            RemoveEmptyRaidSourceCaravan(caravan);
-        }
-    }
-
-    private sealed class TransporterRaidAttackForceSource : IRaidAttackForceSource
-    {
-        private readonly List<ActiveTransporterInfo> transporters;
-        private readonly int tile;
-        private readonly string transporterKey;
-        private readonly string userId;
-        private readonly string colonyId;
-        private readonly string snapshotId;
-
-        public TransporterRaidAttackForceSource(
-            List<ActiveTransporterInfo> transporters,
-            int tile,
-            string transporterKey,
-            string userId,
-            string colonyId,
-            string snapshotId)
-        {
-            this.transporters = transporters is null
-                ? new List<ActiveTransporterInfo>()
-                : transporters.Where(transporter => transporter is not null).ToList();
-            this.tile = tile;
-            this.transporterKey = string.IsNullOrWhiteSpace(transporterKey)
-                ? Guid.NewGuid().ToString("N")
-                : transporterKey;
-            this.userId = userId ?? string.Empty;
-            this.colonyId = colonyId ?? string.Empty;
-            this.snapshotId = snapshotId ?? string.Empty;
-        }
-
-        public int Tile => tile;
-
-        public string UniqueLoadId => "transporters:" + transporterKey;
-
-        public IReadOnlyList<Pawn> AttackPawns => EnumeratePayloadThings()
-            .OfType<Pawn>()
-            .Where(IsAttackPawn)
-            .Distinct()
-            .ToList();
-
-        public IReadOnlyList<ModThingReferenceDto> BuildCarriedThings(string userId, string colonyId, string snapshotId)
-        {
-            var references = new List<ModThingReferenceDto>();
-            foreach (Thing thing in EnumeratePayloadThings())
-            {
-                if (thing is Pawn || thing.Destroyed || !TradeThingReferenceUtility.IsTradeableItem(thing))
-                {
-                    continue;
-                }
-
-                CompBiocodable? biocodable = thing.TryGetComp<CompBiocodable>();
-                references.Add(TradeThingReferenceUtility.BuildThingReference(
-                    thing,
-                    $"owner:{this.userId}/colony:{this.colonyId}/snapshot:{this.snapshotId}/transportPods:{transporterKey}/thing:{thing.ThingID}",
-                    thing.stackCount,
-                    BuildBiocodedPawnGlobalId(biocodable?.CodedPawn)));
-            }
-
-            return references;
-        }
-
-        public bool ContainsPawn(Pawn pawn)
-        {
-            return pawn is not null && AttackPawns.Contains(pawn);
-        }
-
-        public RaidCaravanMapEntryResult TryEnterMapViaCompatibility(Map map, IReadOnlyList<Pawn> pawns)
-        {
-            return RaidCaravanMapEntryResult.NotHandled;
-        }
-
-        public bool TryPlaceAttackersOnMap(
-            ActiveRaidBattleSession session,
-            Map map,
-            IReadOnlyList<RaidAttackPawnLoad> attackPawns,
-            out string failureReason)
-        {
-            failureReason = string.Empty;
-            if (transporters.Count == 0)
-            {
-                failureReason = ClashOfRimText.Key("ClashOfRim.Raid.StatusTransporterUnavailable");
-                return false;
-            }
-
-            IntVec3 entryCell = DropCellFinder.GetBestShuttleLandingSpot(map, Faction.OfPlayer);
-            if (!entryCell.IsValid)
-            {
-                entryCell = PawnExchangePlacementService.FindMapEdgeLandingCell(map);
-            }
-
-            var dropPodTransporters = new List<ActiveTransporterInfo>();
-            foreach (ActiveTransporterInfo transporter in transporters)
-            {
-                if (transporter?.innerContainer is null)
-                {
-                    continue;
-                }
-
-                if (transporter.GetShuttle() is not null)
-                {
-                    TransportersArrivalActionUtility.DropShuttle(transporter, map, entryCell, null, Faction.OfPlayer);
-                    continue;
-                }
-
-                dropPodTransporters.Add(transporter);
-            }
-
-            if (dropPodTransporters.Count > 0)
-            {
-                TransportersArrivalActionUtility.DropTravellingDropPods(dropPodTransporters, entryCell, map);
-            }
-
-            foreach (RaidAttackPawnLoad load in attackPawns)
-            {
-                Pawn pawn = load.Pawn;
-                if (pawn is null || pawn.Dead || pawn.Destroyed || string.IsNullOrWhiteSpace(pawn.ThingID))
-                {
-                    failureReason = ClashOfRimText.Key("ClashOfRim.Raid.StatusAttackerPawnUnavailable");
-                    return false;
-                }
-
-                if (!session.AttackPawnThingIds.Contains(pawn.ThingID))
-                {
-                    session.AttackPawnThingIds.Add(pawn.ThingID);
-                }
-            }
-
-            if (session.AttackPawnThingIds.Count == 0)
-            {
-                failureReason = ClashOfRimText.Key("ClashOfRim.Raid.StatusNoPawns");
-                return false;
-            }
-
-            return true;
-        }
-
-        public void CleanupAfterSuccessfulEntry()
-        {
-        }
-
-        private IEnumerable<Thing> EnumeratePayloadThings()
-        {
-            foreach (ActiveTransporterInfo transporter in transporters)
-            {
-                if (transporter?.innerContainer is null)
-                {
-                    continue;
-                }
-
-                Thing? shuttle = transporter.GetShuttle();
-                for (int index = 0; index < transporter.innerContainer.Count; index++)
-                {
-                    Thing thing = transporter.innerContainer[index];
-                    if (thing is null || thing.Destroyed || ReferenceEquals(thing, shuttle))
-                    {
-                        continue;
-                    }
-
-                    yield return thing;
-                }
-            }
-        }
-
-        private static bool IsAttackPawn(Pawn pawn)
-        {
-            return pawn is not null
-                && !pawn.Dead
-                && !pawn.Destroyed
-                && pawn.Faction == Faction.OfPlayer
-                && !pawn.IsPrisonerOfColony;
-        }
-
-        private string? BuildBiocodedPawnGlobalId(Pawn? pawn)
-        {
-            if (pawn is null || string.IsNullOrWhiteSpace(pawn.ThingID))
-            {
-                return null;
-            }
-
-            return PawnGlobalIdUtility.Build(userId, pawn);
         }
     }
 

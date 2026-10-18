@@ -27,6 +27,9 @@ internal static class ClientModuleBoundaryTests
             || t == typeof(ClientObservationTransport)
             || t == typeof(ClientRemoteSnapshotTransport) || t == typeof(ClientRaidTransport)
             || t == typeof(AIRsLight.ClashOfRim.Raids.ClientRaidPreparationPresentation)
+            || t == typeof(AIRsLight.ClashOfRim.Raids.ClientRaidAttackForce) || t == typeof(AIRsLight.ClashOfRim.Raids.ClientRaidBattlefield)
+            || t == typeof(AIRsLight.ClashOfRim.Raids.IRaidAttackForceSource) || t == typeof(AIRsLight.ClashOfRim.Raids.RaidAttackPawnLoad)
+            || t == typeof(AIRsLight.ClashOfRim.Raids.CaravanRaidAttackForceSource) || t == typeof(AIRsLight.ClashOfRim.Raids.TransporterRaidAttackForceSource)
             || t == typeof(ModSnapshotPackageBuilder) || t == typeof(SnapshotSaveSanitizer)
             || t == typeof(ModSnapshotUploadService) || t == typeof(ClientSnapshotPreparationAdapter)
             || t == typeof(ClientSnapshotPackagePresentation) || t == typeof(ClientSnapshotUploadPresentation)
@@ -71,6 +74,8 @@ internal static class ClientModuleBoundaryTests
             throw new InvalidOperationException("Session foundation depends on an event/snapshot domain: " + string.Join(Environment.NewLine, sessionViolations));
         Type[] eventAdapters = { typeof(AIRsLight.ClashOfRim.RemoteMaps.ClientObservationRuntime), typeof(AIRsLight.ClashOfRim.RemoteMaps.ClientObservationPresentation),
             typeof(AIRsLight.ClashOfRim.Raids.ClientRaidPreparationPresentation),
+            typeof(AIRsLight.ClashOfRim.Raids.ClientRaidAttackForce), typeof(AIRsLight.ClashOfRim.Raids.ClientRaidBattlefield),
+            typeof(AIRsLight.ClashOfRim.Raids.CaravanRaidAttackForceSource), typeof(AIRsLight.ClashOfRim.Raids.TransporterRaidAttackForceSource),
             typeof(AIRsLight.ClashOfRim.Support.ClientSupportSource), typeof(AIRsLight.ClashOfRim.Support.ClientSupportActions), typeof(AIRsLight.ClashOfRim.Support.ClientSupportPresentation),
             typeof(AIRsLight.ClashOfRim.Support.ClientSupportReturnRuntime), typeof(AIRsLight.ClashOfRim.Support.SupportPawnLookup),
             typeof(AIRsLight.ClashOfRim.ServerShop.ClientShopRuntime), typeof(AIRsLight.ClashOfRim.ServerShop.ClientShopSource),
