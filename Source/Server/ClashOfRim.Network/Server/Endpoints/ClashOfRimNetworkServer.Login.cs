@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Network.Modules.Compatibility;
 using AIRsLight.ClashOfRim.Network.Modules.Sessions;
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Protocol;
@@ -17,8 +18,8 @@ public static partial class ClashOfRimNetworkServer
 
         var prepared = state.Accounts.PrepareCredentials(request.UserId, request.SteamAuthTicket, request.Password, DateTimeOffset.UtcNow);
         if (prepared.Revalidate() is { } invalid) return RejectLogin(invalid);
-        var input = PrepareCompatibilityHandshakeInput(request.CompatibilityManifestJson, request.CompatibilityManifestId, request.CompatibilityManifestSummaryJson);
-        var entry = new PreparedEntryHandshake(state, prepared, input, EntryPurpose.Login);
+        var input = CompatibilityHandshakeInput.Prepare(request.CompatibilityManifestJson, request.CompatibilityManifestId, request.CompatibilityManifestSummaryJson);
+        var entry = state.EntryHandshakes.Prepare(prepared, input, EntryPurpose.Login);
         string userId = entry.UserId, displayName = entry.DisplayName;
         using var mutation = EnterRecoveredSnapshotMutation(state, entry.Authorize);
         if (mutation.Rejection is { } denied) return RejectLogin(denied, entry.Compatibility);

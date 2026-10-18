@@ -1,71 +1,28 @@
 using AIRsLight.ClashOfRim.Network.Modules.Accounts;
+using static AIRsLight.ClashOfRim.Network.Modules.Compatibility.CompatibilityHandshakeComparison;
+using static AIRsLight.ClashOfRim.Network.Modules.Compatibility.CompatibilityHandshakeContract;
 using AIRsLight.ClashOfRim.Compatibility;
 using AIRsLight.ClashOfRim.Protocol;
 
-namespace AIRsLight.ClashOfRim.Network;
+namespace AIRsLight.ClashOfRim.Network.Modules.Compatibility;
 
-public static partial class ClashOfRimNetworkServer
+internal sealed class CompatibilityHandshakeService(CompatibilityBaselineRegistry baseline,
+    WorldConfigurationRegistry world, Func<CompatibilityComparisonOptions> readOptions)
 {
-    private sealed record CompatibilityHandshakeInput(bool HasFullManifest, string ManifestId,
-        CompatibilityManifest? Manifest, string? ManifestFailure, CompatibilityManifestSummary? Summary, string SummaryFailure);
-
-    private static CompatibilityHandshakeInput PrepareCompatibilityHandshakeInput(string? json, string? id, string? summaryJson)
-    {
-        bool full = !string.IsNullOrWhiteSpace(json);
-        CompatibilityManifest? manifest = null;
-        CompatibilityManifestSummary? summary = null;
-        string? failure = null;
-        string summaryFailure = string.Empty;
-        if (full)
-        {
-            if (!TryReadCompatibilityManifest(json, out manifest, out string reason)) failure = reason;
-            else if (manifest is not null && !ValidCompatibilityManifestShape(manifest))
-                failure = T("Compatibility.InvalidManifestJson", ("MESSAGE", "Manifest contains missing or duplicate fields."));
-        }
-        else
-        {
-            TryReadCompatibilityManifestSummary(summaryJson, out summary, out summaryFailure);
-            if (summary is not null && (!ValidCompatibilityHeader(summary.SchemaVersion, summary.ManifestId, summary.ProtocolVersion, summary.RimWorldVersion)
-                || !UniqueCompatibilityKeys(summary.DlcIds, x => x) || !UniqueCompatibilityKeys(summary.Mods, x => x.PackageId)
-                || !UniqueCompatibilityKeys(summary.DefSummaries, x => x.Name)))
-            {
-                summary = null;
-                summaryFailure = T("Compatibility.InvalidManifestJson", ("MESSAGE", "Summary contains missing or duplicate fields."));
-            }
-        }
-        return new(full, (id ?? string.Empty).Trim(), manifest, failure, summary, summaryFailure);
-    }
-
-    private static bool ValidCompatibilityHeader(int schema, string? id, string? protocol, string? game)
-        => schema > 0 && !string.IsNullOrWhiteSpace(id) && protocol == ProtocolApiVersion.Current && !string.IsNullOrWhiteSpace(game);
-
-    private static bool UniqueCompatibilityKeys<T>(IReadOnlyList<T>? values, Func<T, string?> key) where T : class
-    {
-        if (values is null) return false;
-        var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        return values.All(value => value is not null && key(value) is { } name && !string.IsNullOrWhiteSpace(name) && keys.Add(name.Trim()));
-    }
-
-    private static bool ValidCompatibilityManifestShape(CompatibilityManifest manifest)
-        => ValidCompatibilityHeader(manifest.SchemaVersion, manifest.ManifestId, manifest.ProtocolVersion, manifest.RimWorldVersion)
-            && UniqueCompatibilityKeys(manifest.DlcIds, x => x) && UniqueCompatibilityKeys(manifest.DefSummaries, x => x.Name)
-            && manifest.ModConfigRules is not null && manifest.ModConfigRules.All(x => x is not null)
-            && UniqueCompatibilityKeys(manifest.Mods, x => x.PackageId)
-            && manifest.Mods.All(mod => UniqueCompatibilityKeys(mod.Files, x => x.RelativePath?.Replace('\\', '/').TrimStart('/'))
-                && UniqueCompatibilityKeys(mod.Configs, x => x.FileName));
+    internal string Serialize(CompatibilityManifest manifest) => CompatibilityHandshakeContract.Serialize(manifest, readOptions());
 
     // Compare against current policy without registering an account or assigning an administrator.
-    private static CompatibilityHandshakeResult EvaluateCompatibilityHandshake(ClashOfRimNetworkState state,
+    internal CompatibilityHandshakeResult Evaluate(
         AuthenticationValidationResult auth, CompatibilityHandshakeInput input, DateTimeOffset nowUtc, bool publishBaseline)
     {
-        CompatibilityManifest? serverCompatibilityManifest = state.CompatibilityBaseline.Current;
+        CompatibilityManifest? serverCompatibilityManifest = baseline.Current;
         if (!auth.Accepted || string.IsNullOrWhiteSpace(auth.AuthenticatedUserId))
         {
             return new CompatibilityHandshakeResult(
-                ProtocolResponse.Reject(auth.ErrorCode, auth.Message ?? T("Steam.Failed")),
-                SteamId: null,
+                ProtocolResponse.Reject(auth.ErrorCode, auth.Message ?? ServerLocalization.Text("Steam.Failed")),
+                AuthenticatedUserId: null,
                 DisplayName: null,
-                serverCompatibilityManifest is null ? null : SerializeCompatibilityManifest(serverCompatibilityManifest, state),
+                serverCompatibilityManifest is null ? null : Serialize(serverCompatibilityManifest),
                 Array.Empty<CompatibilityIssueDto>(),
                 CanOverrideCompatibilityBaseline: false,
                 RequiresFullCompatibilityManifest: false,
@@ -73,7 +30,7 @@ public static partial class ClashOfRimNetworkServer
         }
 
         string authenticatedUserId = auth.AuthenticatedUserId!.Trim();
-        bool isAdministrator = state.WorldConfiguration.IsAdministrator(authenticatedUserId);
+        bool isAdministrator = world.IsAdministrator(authenticatedUserId);
         string clientManifestId = input.ManifestId;
         var clientCompatibilityManifest = input.Manifest;
         var summary = input.Summary;
@@ -84,7 +41,7 @@ public static partial class ClashOfRimNetworkServer
             if (serverCompatibilityManifest is null)
             {
                 return new CompatibilityHandshakeResult(
-                    ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("Compatibility.ManifestMissing")),
+                    ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, ServerLocalization.Text("Compatibility.ManifestMissing")),
                     authenticatedUserId,
                     auth.DisplayName,
                     ServerCompatibilityManifestJson: null,
@@ -98,14 +55,14 @@ public static partial class ClashOfRimNetworkServer
                 && string.Equals(serverCompatibilityManifest.ManifestId, clientManifestId, StringComparison.Ordinal))
             {
                 IReadOnlyList<CompatibilityIssue> worldLanguageIssues = BuildWorldLanguageIssues(
-                    state.WorldConfiguration.Current,
+                    world.Current,
                     serverCompatibilityManifest.GameLanguage);
                 return new CompatibilityHandshakeResult(
-                    ProtocolResponse.Ok(T("Compatibility.Validated")),
+                    ProtocolResponse.Ok(ServerLocalization.Text("Compatibility.Validated")),
                     authenticatedUserId,
                     auth.DisplayName,
                     ServerCompatibilityManifestJson: CompatibilityManifestDeliveryPolicy.ShouldIncludeFullManifest(worldLanguageIssues)
-                        ? SerializeCompatibilityManifest(serverCompatibilityManifest, state)
+                        ? Serialize(serverCompatibilityManifest)
                         : null,
                     ToCompatibilityIssueDtos(worldLanguageIssues),
                     isAdministrator,
@@ -119,7 +76,7 @@ public static partial class ClashOfRimNetworkServer
                     ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, summaryFailure),
                     authenticatedUserId,
                     auth.DisplayName,
-                    SerializeCompatibilityManifest(serverCompatibilityManifest, state),
+                    Serialize(serverCompatibilityManifest),
                     Array.Empty<CompatibilityIssueDto>(),
                     isAdministrator,
                     RequiresFullCompatibilityManifest: true,
@@ -129,20 +86,20 @@ public static partial class ClashOfRimNetworkServer
             CompatibilitySummaryHandshake summaryHandshake = CompareCompatibilitySummary(
                 serverCompatibilityManifest,
                 summary,
-                state.ServerConfiguration.CompatibilityOptions);
+                readOptions());
             IReadOnlyList<CompatibilityIssue> summaryWorldLanguageIssues = BuildWorldLanguageIssues(
-                state.WorldConfiguration.Current,
+                world.Current,
                 summary.GameLanguage);
             IReadOnlyList<CompatibilityIssue> summaryAcceptedIssues =
                 summaryHandshake.Issues.Concat(summaryWorldLanguageIssues).ToList();
             if (summaryHandshake.Accepted)
             {
                 return new CompatibilityHandshakeResult(
-                    ProtocolResponse.Ok(T("Compatibility.Validated")),
+                    ProtocolResponse.Ok(ServerLocalization.Text("Compatibility.Validated")),
                     authenticatedUserId,
                     auth.DisplayName,
                     ServerCompatibilityManifestJson: CompatibilityManifestDeliveryPolicy.ShouldIncludeFullManifest(summaryAcceptedIssues)
-                        ? SerializeCompatibilityManifest(serverCompatibilityManifest, state)
+                        ? Serialize(serverCompatibilityManifest)
                         : null,
                     ToCompatibilityIssueDtos(summaryAcceptedIssues),
                     isAdministrator,
@@ -151,10 +108,10 @@ public static partial class ClashOfRimNetworkServer
             }
 
             return new CompatibilityHandshakeResult(
-                ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("Compatibility.ManifestMismatch")),
+                ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, ServerLocalization.Text("Compatibility.ManifestMismatch")),
                 authenticatedUserId,
                 auth.DisplayName,
-                summaryHandshake.RequiresFullManifest ? null : SerializeCompatibilityManifest(serverCompatibilityManifest, state),
+                summaryHandshake.RequiresFullManifest ? null : Serialize(serverCompatibilityManifest),
                 ToCompatibilityIssueDtos(summaryAcceptedIssues),
                 isAdministrator,
                 summaryHandshake.RequiresFullManifest,
@@ -167,7 +124,7 @@ public static partial class ClashOfRimNetworkServer
                 ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, compatibilityManifestFailure),
                 authenticatedUserId,
                 auth.DisplayName,
-                serverCompatibilityManifest is null ? null : SerializeCompatibilityManifest(serverCompatibilityManifest, state),
+                serverCompatibilityManifest is null ? null : Serialize(serverCompatibilityManifest),
                 Array.Empty<CompatibilityIssueDto>(),
                 isAdministrator,
                 RequiresFullCompatibilityManifest: false,
@@ -177,10 +134,10 @@ public static partial class ClashOfRimNetworkServer
         if (clientCompatibilityManifest is null && serverCompatibilityManifest is not null)
         {
             return new CompatibilityHandshakeResult(
-                ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("Compatibility.ManifestMissing")),
+                ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, ServerLocalization.Text("Compatibility.ManifestMissing")),
                 authenticatedUserId,
                 auth.DisplayName,
-                SerializeCompatibilityManifest(serverCompatibilityManifest, state),
+                Serialize(serverCompatibilityManifest),
                 Array.Empty<CompatibilityIssueDto>(),
                 isAdministrator,
                 RequiresFullCompatibilityManifest: false,
@@ -193,7 +150,7 @@ public static partial class ClashOfRimNetworkServer
         {
             if (serverCompatibilityManifest is null && publishBaseline)
             {
-                CompatibilityBaselineUpdateResult update = state.CompatibilityBaseline.EnsureBaseline(
+                CompatibilityBaselineUpdateResult update = baseline.EnsureBaseline(
                     clientCompatibilityManifest,
                     authenticatedUserId,
                     nowUtc);
@@ -207,28 +164,28 @@ public static partial class ClashOfRimNetworkServer
                     ? ComparePartialCompatibilityManifest(
                         serverCompatibilityManifest,
                         clientCompatibilityManifest,
-                        state.ServerConfiguration.CompatibilityOptions)
+                        readOptions())
                     : CompatibilityManifestComparer.Compare(
                         serverCompatibilityManifest,
                         clientCompatibilityManifest,
-                        state.ServerConfiguration.CompatibilityOptions);
+                        readOptions());
                 IReadOnlyList<CompatibilityIssue> issues = comparison.Issues
-                    .Concat(BuildWorldLanguageIssues(state.WorldConfiguration.Current, clientCompatibilityManifest.GameLanguage))
+                    .Concat(BuildWorldLanguageIssues(world.Current, clientCompatibilityManifest.GameLanguage))
                     .ToList();
                 compatibilityIssues = ToCompatibilityIssueDtos(issues);
                 if (CompatibilityManifestDeliveryPolicy.ShouldIncludeFullManifest(issues))
                 {
-                    acceptedServerCompatibilityManifestJson = SerializeCompatibilityManifest(serverCompatibilityManifest, state);
+                    acceptedServerCompatibilityManifestJson = Serialize(serverCompatibilityManifest);
                 }
                 if (!comparison.Accepted)
                 {
                     return new CompatibilityHandshakeResult(
                         ProtocolResponse.Reject(
                             ProtocolErrorCode.ServerRejected,
-                            T("Compatibility.ManifestMismatch")),
+                            ServerLocalization.Text("Compatibility.ManifestMismatch")),
                         authenticatedUserId,
                         auth.DisplayName,
-                        SerializeCompatibilityManifest(serverCompatibilityManifest, state),
+                        Serialize(serverCompatibilityManifest),
                         compatibilityIssues,
                         isAdministrator,
                         RequiresFullCompatibilityManifest: false,
@@ -238,7 +195,7 @@ public static partial class ClashOfRimNetworkServer
         }
 
         return new CompatibilityHandshakeResult(
-            ProtocolResponse.Ok(T("Compatibility.Validated")),
+            ProtocolResponse.Ok(ServerLocalization.Text("Compatibility.Validated")),
             authenticatedUserId,
             auth.DisplayName,
             ServerCompatibilityManifestJson: acceptedServerCompatibilityManifestJson,
@@ -247,5 +204,26 @@ public static partial class ClashOfRimNetworkServer
             RequiresFullCompatibilityManifest: false,
             RequestedCompatibilityPackageIds: Array.Empty<string>());
     }
+    private static IReadOnlyList<CompatibilityIssue> BuildWorldLanguageIssues(
+        WorldConfigurationDto? configuration,
+        string? clientLanguage)
+    {
+        var issues = new List<CompatibilityIssue>();
+        CompatibilityManifestComparer.CompareGameLanguage(
+            issues,
+            configuration?.GameLanguage,
+            clientLanguage);
+        return issues;
+    }
 
 }
+
+internal sealed record CompatibilityHandshakeResult(
+        ProtocolResponse Result,
+        string? AuthenticatedUserId,
+        string? DisplayName,
+        string? ServerCompatibilityManifestJson,
+        IReadOnlyList<CompatibilityIssueDto> CompatibilityIssues,
+        bool CanOverrideCompatibilityBaseline,
+        bool RequiresFullCompatibilityManifest,
+        IReadOnlyList<string> RequestedCompatibilityPackageIds);

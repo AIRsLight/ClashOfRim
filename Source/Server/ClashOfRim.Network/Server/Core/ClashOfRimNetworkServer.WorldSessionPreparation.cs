@@ -1,3 +1,5 @@
+using AIRsLight.ClashOfRim.Network.Modules.Sessions;
+using AIRsLight.ClashOfRim.Network.Modules.Compatibility;
 using AIRsLight.ClashOfRim.Protocol;
 using Microsoft.AspNetCore.Http;
 
@@ -9,8 +11,8 @@ public static partial class ClashOfRimNetworkServer
     {
         var prepared = state.Accounts.PrepareCredentials(request.UserId, request.SteamAuthTicket, request.Password, DateTimeOffset.UtcNow, request.CreateAccountIfMissing);
         if (prepared.Revalidate() is { } invalid) return RejectWorldSession(invalid);
-        var input = PrepareCompatibilityHandshakeInput(request.CompatibilityManifestJson, request.CompatibilityManifestId, request.CompatibilityManifestSummaryJson);
-        var entry = new PreparedEntryHandshake(state, prepared, input, EntryPurpose.WorldPreparation);
+        var input = CompatibilityHandshakeInput.Prepare(request.CompatibilityManifestJson, request.CompatibilityManifestId, request.CompatibilityManifestSummaryJson);
+        var entry = state.EntryHandshakes.Prepare(prepared, input, EntryPurpose.WorldPreparation);
         using var mutation = EnterRecoveredSnapshotMutation(state, entry.Authorize);
         if (mutation.Rejection is { } denied) return RejectWorldSession(denied, entry.Compatibility);
         var nowUtc = DateTimeOffset.UtcNow;

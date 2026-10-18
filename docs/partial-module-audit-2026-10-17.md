@@ -1468,3 +1468,15 @@ M8 继续按账户、世界准备/同步、殖民地生命周期、管理、聊�
 累计 **13/105 个相关客户端单元组通过**：新改密组、模块边界、多语言提示及共用跟踪器的玩家列表、商店目录/购买、佣兵报价/雇佣/事件、支援发送/返回、本地快照确认、袭击恢复。修正锁内失效检查后仅复跑改密和边界 **2/105**，通过；守卫检查 **752** 个模块/生成类型、**153** 个适配类型。初次构建发现错误码为整数、共用准入类型需保留 IsCurrent，修正后使用真实 1.7 程序集编译通过；完整重编译仍为 41 个既有警告，无新增警告，最终增量构建 0 警告/0 错误。日志：`password-client-build.log`、`password-client-unit.log`、`password-client-integration-unit.log`、`password-client-final-unit.log`、`password-client-final-build.log`，位于 `LocalOnly/module-migration/`。未运行 RimTest、NetworkSmoke 或全量回归，未推送；仅提交本步内容，其余工作区修改保留。
 
 M8a2 完成。下一步 **M8a3 服务端入口准入策略、登录发布与退出/连接生命周期**；继续迁出 PreparedEntryHandshake 与 Login/SessionConnections 的宿主编排，复用现有账户凭据证明和会话授权规则。M8 与 M9–M12 仍开放。测试策略继续遵循用户约定：相关单元为主，必要时补单次改动的功能 RimTest，全量由用户安排。
+
+### M8a3a1 服务端入口准入与兼容握手模块（2026-10-18）
+
+`EntryHandshakePolicy` 接管登录/世界准备共同的凭据复验、封禁、维护锁、管理员引导与活动会话排他策略。它只依赖账户证明、管理/世界/会话注册表和兼容握手能力，不接收 NetworkState。两类入口仍共享同一套规则，保留世界初始管理员引导和普通登录排他的原差异；准入检查不创建管理员、账户、基线或会话，账户提交和基线发布仍由调用方在恢复复验后按原顺序执行。失败复验清空上一轮兼容回执，避免迟到拒绝携带旧授权结果。
+
+兼容握手的完整依赖链迁出主类：`CompatibilityHandshakeInput` 负责解析后的形状校验，`CompatibilityHandshakeContract` 统一 JSON 读取、序列化和协议问题映射，`CompatibilityHandshakeComparison` 拥有摘要/选择性详情比较，`CompatibilityHandshakeService` 读取当前基线、世界语言、管理员与比较配置并决定回执/基线发布。原 EntryAuthentication、CompatibilityHandshake 两个 partial 删除；Baseline partial 移除相关算法，管理员覆盖的读写共用模块合同。原路由和 JSON 保持不变；内部结果的 SteamId 改为准确的 AuthenticatedUserId。服务不反调主类或 Legacy 适配器，NetworkState 只装配它们。
+
+新增 `EntryHandshakeModuleTests` 直接组合窄依赖，不构造 NetworkState：四种文化、两种入口的维护/引导/管理员撤销/在线排他、封禁恢复、密码同值替换、认证提供方变化、基线兼容/不兼容替换；完整/摘要/ID 快速路径的世界语言警告与完整清单交付；错误 JSON、重复条目、缺摘要后的补充请求、当前配置规则变化、配置规则序列化不修改基线；账户和基线各自持久化失败、解除故障重试、独立重开，以及不提前发布管理员或会话。真实世界语言夹具复用原 SeedWorld，仅增加可选语言参数，未复制世界/存储故障设施。
+
+累计 **6 个相关服务端单元组通过**：原登录 96 场景、世界准备 106 场景、兼容基线持久化、模块/路由守卫、新独立入口组，以及共享世界夹具的殖民地删除组。独立组加入后总计 157 组，本步只筛选相关组；守卫覆盖 **250** 个模块/生成类型与 **81** 条路由，并新增 Sessions/Compatibility 业务无 HTTP 依赖检查。服务端 Release 最终构建 **0 警告、0 错误**。迁移中修正本地化命名空间/参数签名和误删版本命名空间引用，未改变本地化契约。日志位于 `LocalOnly/module-migration/entry-policy-*.log`；登录/世界测试中的预期注入故障不代表组失败。未运行 NetworkSmoke 套件、RimTest 或全量回归，未推送；只提交本步修改。
+
+**本步后的明确待办**：核对迁出的比较实现时发现，客户端 ComputeModHash 包含配置 HasSavedFile，服务端 ComputeServerModHash 没有该字段；此外摘要比较直接比较全部模组顺序，完整清单比较会排除允许缺失的可选模组和允许额外的纯翻译模组。这是代码中可见的遗留分歧，本步未以既有绿色握手测试宣称其行为正确。下一步 **M8a3a2** 先通过两端实际实现补充复现测试，将摘要生成/哈希和加载顺序语义收敛到共用兼容能力，随后继续 **M8a3b 登录发布、退出及连接清理**。选择性详情的现有契约本步仅保留，不据此宣称整个兼容协议已完成安全性或所有模组组合审计。M8a3、M8 和 M9–M12 仍保持开放。

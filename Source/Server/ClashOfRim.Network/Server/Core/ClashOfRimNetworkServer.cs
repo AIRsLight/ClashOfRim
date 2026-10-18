@@ -23,7 +23,6 @@ using Microsoft.Extensions.Logging;
 using System.Globalization;
 using System.IO.Compression;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Xml;
 
 namespace AIRsLight.ClashOfRim.Network;
@@ -31,13 +30,6 @@ namespace AIRsLight.ClashOfRim.Network;
 public static partial class ClashOfRimNetworkServer
 {
 
-    private static readonly JsonSerializerOptions CompatibilityJsonOptions = new()
-    {
-        WriteIndented = false,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        PropertyNameCaseInsensitive = true,
-        Converters = { new JsonStringEnumConverter() }
-    };
     private static readonly IReadOnlyList<ClientLifecycleHook> ClientLifecycleHooks = new ClientLifecycleHook[]
     {
         (state, lifecycle) => state.RaidProtection.OnLifecycle(lifecycle),
@@ -861,22 +853,6 @@ public static partial class ClashOfRimNetworkServer
 
     private static bool IsVisibleParty(EventParty party, string userId, string colonyId)
         => EventVisibility.MatchesParty(party, userId, colonyId);
-
-    private sealed record CompatibilityHandshakeResult(
-        ProtocolResponse Result,
-        string? SteamId,
-        string? DisplayName,
-        string? ServerCompatibilityManifestJson,
-        IReadOnlyList<CompatibilityIssueDto> CompatibilityIssues,
-        bool CanOverrideCompatibilityBaseline,
-        bool RequiresFullCompatibilityManifest,
-        IReadOnlyList<string> RequestedCompatibilityPackageIds);
-
-    private sealed record CompatibilitySummaryHandshake(
-        bool Accepted,
-        bool RequiresFullManifest,
-        IReadOnlyList<string> RequestedPackageIds,
-        IReadOnlyList<CompatibilityIssue> Issues);
 
     private sealed record SnapshotColonyAnchor(
         string? MapUniqueId,

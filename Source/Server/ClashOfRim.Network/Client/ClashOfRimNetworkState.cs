@@ -1,3 +1,5 @@
+using AIRsLight.ClashOfRim.Network.Modules.Compatibility;
+using AIRsLight.ClashOfRim.Network.Modules.Sessions;
 using AIRsLight.ClashOfRim.Network.Modules.Accounts;
 using AIRsLight.ClashOfRim.Network.Modules.Diplomacy;
 using AIRsLight.ClashOfRim.Network.Modules.Support;
@@ -87,6 +89,8 @@ public sealed class ClashOfRimNetworkState
         SteamAuthTickets = steamAuthTickets ?? new DevelopmentSteamAuthTicketValidator();
         OfflineAccounts = offlineAccounts ?? new OfflineAccountRegistry();
         Accounts = new AccountService(OfflineAccounts, AuthTokens, SteamAuthTickets, () => ServerConfiguration);
+        CompatibilityHandshake = new CompatibilityHandshakeService(CompatibilityBaseline, WorldConfiguration, () => ServerConfiguration.CompatibilityOptions);
+        EntryHandshakes = new EntryHandshakePolicy(AdminControl, WorldConfiguration, LoginSessions, CompatibilityHandshake);
         PawnPackages = pawnPackages ?? new PawnPackageRegistry();
         ThingPackages = thingPackages ?? new ThingPackageRegistry();
         RaidPreparations = raidPreparations ?? new RaidPreparationRegistry();
@@ -290,6 +294,10 @@ public sealed class ClashOfRimNetworkState
     public OfflineAccountRegistry OfflineAccounts { get; }
 
     internal AccountService Accounts { get; }
+
+    internal CompatibilityHandshakeService CompatibilityHandshake { get; }
+
+    internal EntryHandshakePolicy EntryHandshakes { get; }
 
     public PawnPackageRegistry PawnPackages { get; }
 

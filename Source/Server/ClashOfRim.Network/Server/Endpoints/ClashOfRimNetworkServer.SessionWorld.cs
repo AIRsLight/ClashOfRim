@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Network.Modules.Compatibility;
 using AIRsLight.ClashOfRim.Network.Modules.Accounts;
 using AIRsLight.ClashOfRim.Network.Modules.Sessions;
 using static AIRsLight.ClashOfRim.Network.Modules.World.WorldTileGeometry;
