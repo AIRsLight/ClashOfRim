@@ -19,23 +19,22 @@ internal sealed class ClientPlayerPanel
     private readonly ClientSynchronizationCoordinator synchronization;
     private readonly ClientGameRequestTracker lifetime;
     private ClientPlayerPanelView? cached;
-    private float nextRefreshAt;
+    private readonly PanelRefreshSchedule refresh = new();
 
     internal ClientPlayerPanel(ClientSessionLifecycle session, IClientSnapshotGame game,
         ClientPlayerDirectory directory, ClientDiplomacyActions actions, ClientSynchronizationCoordinator synchronization)
     {
         this.directory = directory; this.actions = actions; this.synchronization = synchronization;
-        lifetime = new(session, game, () => { cached = null; nextRefreshAt = 0f; });
+        lifetime = new(session, game, () => { cached = null; refresh.Request(); });
     }
 
     internal object Ownership => lifetime.Capture();
     internal bool Busy => synchronization.ManualInProgress;
     internal void Close() => lifetime.Reset();
-    internal void RequestRefresh() => lifetime.Read(() => nextRefreshAt = 0f);
+    internal void RequestRefresh() => lifetime.Read(() => { refresh.Request(); return true; });
     internal Task RefreshAsync(float now) => lifetime.Read(() =>
     {
-        if (Busy || now < nextRefreshAt) return Task.CompletedTask;
-        nextRefreshAt = now + 30f;
+        if (!refresh.TryStart(now, Busy)) return Task.CompletedTask;
         return directory.RefreshAsync(manual: true);
     });
 

@@ -19,6 +19,8 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("achievement page runtime shares trophy placement and localized presentation", AchievementPageRuntimeTests.Run),
+    ("multiplayer achievement panel owns selection, refresh and trophy commands", MultiplayerAchievementPanelTests.Run),
     ("player colony locator owns cache invalidation and layered targets", PlayerColonyLocatorTests.Run),
     ("multiplayer player panel owns shared rankings, refresh and dialog lifetime", MultiplayerPlayerPanelTests.Run),
     ("ideology package loading owns validation and Scribe cleanup without catalog ownership", IdeoPackageLoaderTests.Run),

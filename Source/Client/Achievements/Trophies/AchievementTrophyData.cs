@@ -57,35 +57,9 @@ internal sealed class AchievementTrophyData : IExposable
         };
     }
 
-    public string ResolvedLabel()
-    {
-        if (!string.IsNullOrWhiteSpace(LabelKey))
-        {
-            string translated = ClashOfRimText.Key(LabelKey);
-            if (!string.Equals(translated, LabelKey, System.StringComparison.Ordinal))
-            {
-                return translated;
-            }
-        }
+    public string ResolvedLabel() => AchievementText.Label(LabelKey, AchievementId);
 
-        return string.IsNullOrWhiteSpace(AchievementId)
-            ? ClashOfRimText.Key("ClashOfRim.Achievement.Unknown")
-            : AchievementId;
-    }
-
-    public string ResolvedDescription()
-    {
-        if (!string.IsNullOrWhiteSpace(DescriptionKey))
-        {
-            string translated = ClashOfRimText.Key(DescriptionKey);
-            if (!string.Equals(translated, DescriptionKey, System.StringComparison.Ordinal))
-            {
-                return translated;
-            }
-        }
-
-        return string.Empty;
-    }
+    public string ResolvedDescription() => AchievementText.Description(DescriptionKey);
 
     public string ResolvedOwner()
     {
@@ -96,7 +70,7 @@ internal sealed class AchievementTrophyData : IExposable
 
     public string ResolvedValue()
     {
-        return Value.ToString("N0", System.Globalization.CultureInfo.InvariantCulture);
+        return AchievementText.Value(Value);
     }
 
     public string BuildInspectLine()

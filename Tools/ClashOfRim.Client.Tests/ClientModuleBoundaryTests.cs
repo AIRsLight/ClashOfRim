@@ -142,6 +142,7 @@ internal static class ClientModuleBoundaryTests
         Console.WriteLine($"Compatibility capability guard checked {compatibilityCapabilities.Length} product and generated types.");
         var pages = typeof(ClashOfRimMod).Assembly.GetTypes()
             .Where(t => t.Namespace is "AIRsLight.ClashOfRim.Multiplayer.Pages" or "AIRsLight.ClashOfRim.Multiplayer.Players"
+                or "AIRsLight.ClashOfRim.Multiplayer.Achievements"
                 || t == typeof(AIRsLight.ClashOfRim.Multiplayer.AllySupportRequestDialogWindow)).ToArray();
         var pageViolations = ModuleDependencyGuard.FindViolations(pages,
             t => t == typeof(ClashOfRimMod) || t == typeof(ClashOfRimSettings) || t == typeof(ClashOfRimModNetworkClient)

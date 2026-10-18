@@ -193,10 +193,10 @@ internal static class ClientAchievementQueryTests
             Entries = new() { new() { UserId = "ranked", ColonyId = "rank-colony", DisplayName = "文化 İ العربية", Value = long.MaxValue - 1, SourceSnapshotId = "rank-source" } } } },
         OwnAchievements = new() { new() { AchievementId = id, Category = "Event", LabelKey = "标签", DescriptionKey = "描述", Color = "Purple", IconId = "icon", Value = 42, SourceSnapshotId = "source" } }
     };
-    private sealed record Call(ClashOfRimClientNetworkContext Context, ClientAchievementTarget Target, CancellationToken Token);
-    private sealed class Fixture : IClientAchievementTransport, IClientAchievementPresentation
+    internal sealed record Call(ClashOfRimClientNetworkContext Context, ClientAchievementTarget Target, CancellationToken Token);
+    internal sealed class Fixture : IClientAchievementTransport, IClientAchievementPresentation
     {
-        internal readonly EventModuleTestPorts Ports = new();
+        internal readonly EventModuleTestPorts Ports;
         internal readonly ClientSessionLifecycle Session;
         internal readonly ClientAchievementQueries Module;
         internal ModListAchievementsResponseDto Reply = ClientAchievementQueryTests.Reply();
@@ -206,10 +206,11 @@ internal static class ClientAchievementQueryTests
         internal bool NetworkFailure;
         internal int Calls, Diagnostics;
         private readonly Channel<Call> calls = Channel.CreateUnbounded<Call>();
-        internal Fixture()
+        internal Fixture(EventModuleTestPorts? ports = null, ClientSessionLifecycle? session = null)
         {
-            ClientSessionWork.Reset();
-            Session = new(Ports, Ports, new ClientSessionConnection(Ports)); Module = new(Session, Ports, this, this);
+            if (ports is null) ClientSessionWork.Reset();
+            Ports = ports ?? new();
+            Session = session ?? new(Ports, Ports, new ClientSessionConnection(Ports)); Module = new(Session, Ports, this, this);
         }
         internal async Task<Call> Next() => await calls.Reader.ReadAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(3));
         public async Task<ClashOfRimClientNetworkResult<ModListAchievementsResponseDto>> ListAsync(ClashOfRimClientNetworkContext context, ClientAchievementTarget target, CancellationToken token)

@@ -1,11 +1,9 @@
 using AIRsLight.ClashOfRim.Modules.Multiplayer;
 using AIRsLight.ClashOfRim.Multiplayer.Pages;
-using static AIRsLight.ClashOfRim.Multiplayer.Players.MultiplayerPlayerText;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using AIRsLight.ClashOfRim.Achievements;
 using AIRsLight.ClashOfRim.Bank;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.Mercenaries;
@@ -23,12 +21,11 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
 {
     private ClientPlayerPanel? playersPanel;
     private MultiplayerDiplomacyPage? diplomacyPage;
-    private ClientPlayerPanelView PlayerView => playersPanel!.Read(ClashOfRimText.Key("ClashOfRim.UnknownPlayer"));
+    private MultiplayerAchievementsPage? achievementsPage;
 
-    private const float PanelRefreshIntervalSeconds = 30f;
+    private const float PanelRefreshIntervalSeconds = PanelRefreshSchedule.IntervalSeconds;
     private const float TradeOrderRowHeight = 96f;
 
-    private Vector2 achievementsScrollPosition;
     private Vector2 tradeOrderScrollPosition;
     private Vector2 tradeDetailScrollPosition;
     private Vector2 serverShopScrollPosition;
@@ -40,10 +37,6 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
     private AdminPanelTab selectedAdminPanelTab = AdminPanelTab.Trade;
     private string selectedTradeScope = "Open";
     private string selectedShopListingKind = "SellToPlayer";
-    private string selectedAchievementUserId = string.Empty;
-    private string selectedAchievementColonyId = string.Empty;
-    private string selectedAchievementOwnerUserId = string.Empty;
-    private string selectedAchievementOwnerColonyId = string.Empty;
     private string? selectedTradeEventId;
     private string bankPrincipalText = "1000";
     private string bankDurationText = "30";
@@ -61,7 +54,6 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
     private string mercenaryGuardQuoteStatus = string.Empty;
     private ModMercenaryGuardQuoteResponseDto? mercenaryGuardQuote;
     private bool mercenaryGuardQuoteInProgress;
-    private float nextAchievementRefreshAt;
     private float nextTradeRefreshAt;
     private float nextShopRefreshAt;
     private float nextBankRefreshAt;
@@ -129,10 +121,6 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
     private string accountNewPassword = string.Empty;
     private readonly Dictionary<string, string> adminShopStockBuffers = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string> adminShopPriceBuffers = new(StringComparer.Ordinal);
-    private int cachedOwnAchievementsVersion = -1;
-    private string cachedOwnAchievementsTargetUserId = string.Empty;
-    private string cachedOwnAchievementsTargetColonyId = string.Empty;
-    private IReadOnlyList<ModAchievementSummaryDto> cachedOwnAchievements = new List<ModAchievementSummaryDto>();
     private int cachedServerShopVersion = -1;
     private IReadOnlyList<ModServerShopListingDto> cachedServerShopListings = Array.Empty<ModServerShopListingDto>();
     private int cachedServerShopSellToPlayerCount;
@@ -169,6 +157,7 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
         }
 
         if (playersPanel is null) (playersPanel, diplomacyPage) = mod.CreatePlayerPages();
+        achievementsPage ??= mod.CreateAchievementsPage(playersPanel);
         TryRefreshSelectedTab(mod);
         Rect tabRect = new(inRect.x, inRect.y + 34f, inRect.width, inRect.height - 34f);
         if (!mod.IsAdministrator && selectedTab == MultiplayerTab.Admin)
@@ -184,7 +173,7 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
                 diplomacyPage!.Draw(contentRect);
                 break;
             case MultiplayerTab.Achievements:
-                DrawAchievementsTab(contentRect, mod);
+                if (achievementsPage!.Draw(contentRect)) Close(doCloseSound: false);
                 break;
             case MultiplayerTab.Bank:
                 DrawBankTab(contentRect, mod);
@@ -214,6 +203,7 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
     {
         playersPanel?.Close();
         diplomacyPage?.Reset();
+        achievementsPage?.Close();
         base.PostClose();
     }
 
@@ -287,7 +277,7 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
                 break;
             case MultiplayerTab.Achievements:
                 playersPanel?.RequestRefresh();
-                nextAchievementRefreshAt = 0f;
+                achievementsPage?.RequestRefresh();
                 break;
             case MultiplayerTab.Bank:
                 nextBankRefreshAt = 0f;
@@ -1345,113 +1335,6 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
         }
     }
 
-    private void DrawAchievementsTab(Rect rect, ClashOfRimMod mod)
-    {
-        Widgets.DrawMenuSection(rect);
-        Rect inner = rect.ContractedBy(10f);
-        EnsureAchievementTarget(mod);
-        IReadOnlyList<ModPlayerSummaryDto> selectablePlayers = AchievementSelectablePlayers(mod);
-
-        Text.Font = GameFont.Medium;
-        Widgets.Label(new Rect(inner.x, inner.y, 110f, 30f), ClashOfRimText.Key("ClashOfRim.Multiplayer.TabAchievements"));
-        Text.Font = GameFont.Small;
-        Rect selectorRect = new(inner.x + 118f, inner.y, Mathf.Max(120f, Mathf.Min(260f, inner.width - 250f)), 30f);
-        if (ClashOfRimUiUtility.SelectionButton(
-                selectorRect,
-                AchievementTargetDisplayName(mod, selectablePlayers),
-                tooltip: ClashOfRimText.Key("ClashOfRim.Achievement.SelectPlayer")))
-        {
-            List<FloatMenuOption> options = selectablePlayers
-                .Select(player => new FloatMenuOption(
-                    PlayerDisplayName(player),
-                    () => SelectAchievementTarget(player, mod)))
-                .ToList();
-            if (options.Count == 0)
-            {
-                options.Add(new FloatMenuOption(ClashOfRimText.Key("ClashOfRim.Multiplayer.NoPlayers"), null));
-            }
-
-            Find.WindowStack.Add(new FloatMenu(options));
-        }
-
-        if (Widgets.ButtonText(new Rect(inner.xMax - 120f, inner.y, 120f, 30f), ClashOfRimText.Key("ClashOfRim.Refresh"), active: !mod.ManualSyncInProgress))
-        {
-            mod.StartRefreshAchievements(selectedAchievementUserId, selectedAchievementColonyId);
-            nextAchievementRefreshAt = Time.realtimeSinceStartup + PanelRefreshIntervalSeconds;
-        }
-
-        Text.Font = GameFont.Tiny;
-        Widgets.Label(new Rect(inner.x, inner.y + 32f, inner.width, 20f), mod.AchievementStatus);
-        Text.Font = GameFont.Small;
-
-        IReadOnlyList<ModAchievementSummaryDto> achievements = OwnAchievements(mod);
-        Rect outRect = new(inner.x, inner.y + 60f, inner.width, inner.height - 60f);
-        const float tileWidth = 220f;
-        bool canCreateTrophy = IsSelectedAchievementTargetSelf(mod);
-        const float tileHeight = 116f;
-        const float gap = 10f;
-        int columns = Math.Max(1, Mathf.FloorToInt((outRect.width - 16f + gap) / (tileWidth + gap)));
-        int rows = Math.Max(1, Mathf.CeilToInt(achievements.Count / (float)columns));
-        Rect viewRect = new(0f, 0f, outRect.width - 16f, Math.Max(outRect.height, rows * (tileHeight + gap)));
-        Widgets.BeginScrollView(outRect, ref achievementsScrollPosition, viewRect);
-        if (achievements.Count == 0)
-        {
-            Widgets.Label(new Rect(0f, 0f, viewRect.width, 28f), ClashOfRimText.Key("ClashOfRim.Achievement.OwnEmpty"));
-        }
-        else
-        {
-            for (int index = 0; index < achievements.Count; index++)
-            {
-                int column = index % columns;
-                int row = index / columns;
-                Rect tile = new(
-                    column * (tileWidth + gap),
-                    row * (tileHeight + gap),
-                    tileWidth,
-                    tileHeight);
-                DrawOwnAchievementTile(tile, achievements[index], mod, selectablePlayers, canCreateTrophy);
-            }
-        }
-
-        Widgets.EndScrollView();
-        Text.Font = GameFont.Small;
-    }
-
-    private void DrawOwnAchievementTile(
-        Rect rect,
-        ModAchievementSummaryDto achievement,
-        ClashOfRimMod mod,
-        IReadOnlyList<ModPlayerSummaryDto> selectablePlayers,
-        bool canCreateTrophy)
-    {
-        Widgets.DrawMenuSection(rect);
-        DrawAchievementColorBorder(rect, achievement.Color, 2);
-        Widgets.DrawHighlightIfMouseover(rect);
-        Rect iconRect = new(rect.x + 10f, rect.y + 16f, 48f, 48f);
-        Widgets.DrawBoxSolid(iconRect, new Color(0.16f, 0.18f, 0.19f, 0.85f));
-        GUI.DrawTexture(iconRect.ContractedBy(6f), AchievementIcon(achievement.IconId), ScaleMode.ScaleToFit);
-
-        Text.Font = GameFont.Small;
-        Rect textRect = new(rect.x + 68f, rect.y + 12f, rect.width - 78f, 24f);
-        TradeUiUtility.DrawTruncatedLabel(textRect, FormatAchievementLabel(achievement));
-        Text.Font = GameFont.Tiny;
-        Rect descriptionRect = new(rect.x + 68f, rect.y + 38f, rect.width - 78f, 22f);
-        TradeUiUtility.DrawTruncatedLabel(descriptionRect, FormatAchievementDescription(achievement));
-        Text.Anchor = TextAnchor.UpperRight;
-        Widgets.Label(new Rect(rect.xMax - 76f, rect.y + 62f, 66f, 20f), FormatAchievementValue(achievement.Value));
-        Text.Anchor = TextAnchor.UpperLeft;
-        if (canCreateTrophy)
-        {
-            Rect buttonRect = new(rect.x + 68f, rect.yMax - 30f, rect.width - 78f, 24f);
-            if (Widgets.ButtonText(buttonRect, ClashOfRimText.Key("ClashOfRim.Achievement.GetTrophyBlueprint")))
-            {
-                StartPlaceAchievementTrophy(achievement, mod, AchievementTargetDisplayName(mod, selectablePlayers));
-            }
-        }
-
-        Text.Font = GameFont.Small;
-    }
-
     private static void DrawDiagnosticsTab(Rect rect, ClashOfRimMod mod)
     {
         Widgets.DrawMenuSection(rect);
@@ -1514,7 +1397,7 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
                 break;
             case MultiplayerTab.Achievements:
                 _ = playersPanel!.RefreshAsync(Time.realtimeSinceStartup);
-                TryRefreshAchievements(mod);
+                achievementsPage!.Tick(Time.realtimeSinceStartup);
                 break;
             case MultiplayerTab.Bank:
                 TryRefreshBank(mod);
@@ -1532,18 +1415,6 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
                 TryRefreshAdmin(mod);
                 break;
         }
-    }
-
-    private void TryRefreshAchievements(ClashOfRimMod mod)
-    {
-        if (mod.ManualSyncInProgress || Time.realtimeSinceStartup < nextAchievementRefreshAt)
-        {
-            return;
-        }
-
-        EnsureAchievementTarget(mod);
-        nextAchievementRefreshAt = Time.realtimeSinceStartup + PanelRefreshIntervalSeconds;
-        mod.StartRefreshAchievements(selectedAchievementUserId, selectedAchievementColonyId);
     }
 
     private void TryRefreshTradeOrders(ClashOfRimMod mod)
@@ -1588,228 +1459,6 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
 
         nextAdminRefreshAt = Time.realtimeSinceStartup + PanelRefreshIntervalSeconds;
         mod.StartRefreshAdminStatus();
-    }
-
-    private void EnsureAchievementTarget(ClashOfRimMod mod)
-    {
-        if (!string.Equals(selectedAchievementOwnerUserId, mod.UserId, StringComparison.Ordinal)
-            || !string.Equals(selectedAchievementOwnerColonyId, mod.ColonyId, StringComparison.Ordinal)
-            || string.IsNullOrWhiteSpace(selectedAchievementUserId)
-            || string.IsNullOrWhiteSpace(selectedAchievementColonyId))
-        {
-            selectedAchievementUserId = mod.UserId;
-            selectedAchievementColonyId = mod.ColonyId;
-            selectedAchievementOwnerUserId = mod.UserId;
-            selectedAchievementOwnerColonyId = mod.ColonyId;
-        }
-    }
-
-    private IReadOnlyList<ModPlayerSummaryDto> AchievementSelectablePlayers(ClashOfRimMod mod)
-    {
-        List<ModPlayerSummaryDto> players = PlayerView.Players
-            .Where(player => !string.IsNullOrWhiteSpace(player.UserId)
-                && !string.IsNullOrWhiteSpace(player.ColonyId))
-            .ToList();
-        if (!players.Any(player => PlayerView.IsSelf(player))
-            && !string.IsNullOrWhiteSpace(mod.UserId)
-            && !string.IsNullOrWhiteSpace(mod.ColonyId))
-        {
-            players.Insert(0, new ModPlayerSummaryDto
-            {
-                UserId = mod.UserId,
-                ColonyId = mod.ColonyId,
-                Online = true,
-                DisplayName = mod.UserId
-            });
-        }
-
-        return players;
-    }
-
-    private string AchievementTargetDisplayName(ClashOfRimMod mod, IReadOnlyList<ModPlayerSummaryDto> players)
-    {
-        ModPlayerSummaryDto? selected = players.FirstOrDefault(player =>
-            string.Equals(player.UserId, selectedAchievementUserId, StringComparison.Ordinal)
-            && string.Equals(player.ColonyId, selectedAchievementColonyId, StringComparison.Ordinal));
-        if (selected is not null)
-        {
-            return PlayerDisplayName(selected);
-        }
-
-        return string.Equals(selectedAchievementUserId, mod.UserId, StringComparison.Ordinal)
-            && string.Equals(selectedAchievementColonyId, mod.ColonyId, StringComparison.Ordinal)
-                ? mod.UserId
-                : string.IsNullOrWhiteSpace(selectedAchievementUserId)
-                    ? ClashOfRimText.Key("ClashOfRim.Achievement.SelectPlayer")
-                    : selectedAchievementUserId;
-    }
-
-    private void SelectAchievementTarget(ModPlayerSummaryDto player, ClashOfRimMod mod)
-    {
-        if (string.Equals(selectedAchievementUserId, player.UserId, StringComparison.Ordinal)
-            && string.Equals(selectedAchievementColonyId, player.ColonyId, StringComparison.Ordinal))
-        {
-            return;
-        }
-
-        selectedAchievementUserId = player.UserId;
-        selectedAchievementColonyId = player.ColonyId;
-        achievementsScrollPosition = Vector2.zero;
-        cachedOwnAchievementsVersion = -1;
-        nextAchievementRefreshAt = Time.realtimeSinceStartup + PanelRefreshIntervalSeconds;
-        mod.StartRefreshAchievements(selectedAchievementUserId, selectedAchievementColonyId);
-    }
-
-    private bool IsSelectedAchievementTargetSelf(ClashOfRimMod mod)
-    {
-        return string.Equals(selectedAchievementUserId, mod.UserId, StringComparison.Ordinal)
-            && string.Equals(selectedAchievementColonyId, mod.ColonyId, StringComparison.Ordinal);
-    }
-
-    private void StartPlaceAchievementTrophy(
-        ModAchievementSummaryDto achievement,
-        ClashOfRimMod mod,
-        string ownerDisplayName)
-    {
-        if (Find.CurrentMap is null)
-        {
-            Messages.Message(ClashOfRimText.Key("ClashOfRim.Achievement.TrophyNoMap"), MessageTypeDefOf.RejectInput, historical: false);
-            return;
-        }
-
-        AchievementTrophyData trophyData = AchievementTrophyData.FromAchievement(
-            achievement,
-            mod.UserId,
-            mod.ColonyId,
-            ownerDisplayName);
-        bool created = AchievementTrophyUtility.TryCreatePlanOnCurrentMap(trophyData, out string message);
-        Messages.Message(message, created ? MessageTypeDefOf.TaskCompletion : MessageTypeDefOf.RejectInput, historical: false);
-        if (!created)
-        {
-            return;
-        }
-
-        Close(doCloseSound: false);
-    }
-
-    private IReadOnlyList<ModAchievementSummaryDto> OwnAchievements(ClashOfRimMod mod)
-    {
-        int version = mod.AchievementLeaderboardsSnapshotVersion;
-        if (version != cachedOwnAchievementsVersion
-            || !string.Equals(cachedOwnAchievementsTargetUserId, selectedAchievementUserId, StringComparison.Ordinal)
-            || !string.Equals(cachedOwnAchievementsTargetColonyId, selectedAchievementColonyId, StringComparison.Ordinal))
-        {
-            if (string.Equals(mod.AchievementTargetUserId, selectedAchievementUserId, StringComparison.Ordinal)
-                && string.Equals(mod.AchievementTargetColonyId, selectedAchievementColonyId, StringComparison.Ordinal))
-            {
-                cachedOwnAchievements = mod.OwnAchievementsSnapshot
-                    .Where(achievement => achievement.Value != 0)
-                    .OrderBy(achievement => achievement.Category, StringComparer.Ordinal)
-                    .ThenBy(achievement => achievement.AchievementId, StringComparer.Ordinal)
-                    .ToList();
-            }
-            else
-            {
-                cachedOwnAchievements = Array.Empty<ModAchievementSummaryDto>();
-            }
-
-            cachedOwnAchievementsVersion = version;
-            cachedOwnAchievementsTargetUserId = selectedAchievementUserId;
-            cachedOwnAchievementsTargetColonyId = selectedAchievementColonyId;
-        }
-
-        return cachedOwnAchievements;
-    }
-
-    private static string FormatAchievementLabel(ModAchievementLeaderboardDto board)
-    {
-        return FormatAchievementLabel(board.LabelKey, board.AchievementId);
-    }
-
-    private static string FormatAchievementLabel(ModAchievementSummaryDto achievement)
-    {
-        return FormatAchievementLabel(achievement.LabelKey, achievement.AchievementId);
-    }
-
-    private static string FormatAchievementDescription(ModAchievementSummaryDto achievement)
-    {
-        if (!string.IsNullOrWhiteSpace(achievement.DescriptionKey))
-        {
-            string translated = ClashOfRimText.Key(achievement.DescriptionKey);
-            if (!string.Equals(translated, achievement.DescriptionKey, StringComparison.Ordinal))
-            {
-                return translated;
-            }
-        }
-
-        return string.Empty;
-    }
-
-    private static string FormatAchievementLabel(string labelKey, string achievementId)
-    {
-        if (!string.IsNullOrWhiteSpace(labelKey))
-        {
-            string translated = ClashOfRimText.Key(labelKey);
-            if (!string.Equals(translated, labelKey, StringComparison.Ordinal))
-            {
-                return translated;
-            }
-        }
-
-        return string.IsNullOrWhiteSpace(achievementId)
-            ? ClashOfRimText.Key("ClashOfRim.Achievement.Unknown")
-            : achievementId;
-    }
-
-    private static Texture2D AchievementIcon(string? iconId)
-    {
-        return ContentFinder<Texture2D>.Get("UI/ClashOfRim/AchievementDefault", reportFailure: false)
-            ?? BaseContent.WhiteTex;
-    }
-
-    private static void DrawAchievementColorBorder(Rect rect, string? color, int thickness)
-    {
-        Color previousColor = GUI.color;
-        GUI.color = AchievementBorderColor(color);
-        Widgets.DrawBox(rect, thickness);
-        GUI.color = previousColor;
-    }
-
-    private static Color AchievementBorderColor(string? color)
-    {
-        if (string.Equals(color, "Blue", StringComparison.OrdinalIgnoreCase))
-        {
-            return new Color(0.36f, 0.68f, 1f, 0.95f);
-        }
-
-        if (string.Equals(color, "Purple", StringComparison.OrdinalIgnoreCase))
-        {
-            return new Color(0.70f, 0.48f, 1f, 0.95f);
-        }
-
-        if (string.Equals(color, "Red", StringComparison.OrdinalIgnoreCase))
-        {
-            return new Color(1f, 0.35f, 0.30f, 0.95f);
-        }
-
-        string? trimmed = color?.Trim();
-        if (!string.IsNullOrWhiteSpace(trimmed)
-            && ColorUtility.TryParseHtmlString(trimmed, out Color parsed))
-        {
-            if (parsed.a <= 0f)
-            {
-                parsed.a = 0.95f;
-            }
-
-            return parsed;
-        }
-
-        return new Color(0.42f, 0.82f, 0.42f, 0.95f);
-    }
-
-    private static string FormatAchievementValue(long value)
-    {
-        return value.ToString("N0", CultureInfo.InvariantCulture);
     }
 
     private (int Min, int Max) GetMercenaryDurationRange(ClashOfRimMod mod)

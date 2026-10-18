@@ -2,6 +2,7 @@ using AIRsLight.ClashOfRim.Modules.Presence;
 using AIRsLight.ClashOfRim.Modules.Multiplayer;
 using AIRsLight.ClashOfRim.Multiplayer.Pages;
 using AIRsLight.ClashOfRim.Multiplayer.Players;
+using AIRsLight.ClashOfRim.Multiplayer.Achievements;
 using AIRsLight.ClashOfRim.Modules.Chat;
 using AIRsLight.ClashOfRim.Modules.Administration;
 using AIRsLight.ClashOfRim.Modules.World;
@@ -431,6 +432,10 @@ public sealed partial class ClashOfRimMod : Mod
             reason => _ = worldSync.RequestAsync(ClientWorldSynchronizationKind.Markers, reason), () => Time.realtimeSinceStartup);
         return (players, new MultiplayerDiplomacyPage(players, locations));
     }
+
+    internal MultiplayerAchievementsPage CreateAchievementsPage(ClientPlayerPanel players) =>
+        new(new ClientAchievementPanel(sessionLifecycle, new ClientSnapshotGame(), achievementQueries,
+            players, synchronization, new ClientAchievementTrophyPlacement()));
 
     internal bool ManualSyncInProgress => synchronization.ManualInProgress;
 
