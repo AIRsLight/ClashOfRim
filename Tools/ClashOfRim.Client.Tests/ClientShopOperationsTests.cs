@@ -230,8 +230,8 @@ internal static class ClientShopOperationsTests
         f.State.End(replacement!);
     }
 
-    private enum Fault { None, Validation, BeforeApply, BeforeApplyThrow, PartialApply, PartialApplyThrow, Hydration, Transport, Forbidden, Rejected, MissingSnapshot, MissingListing, WrongListing }
-    private sealed class Fixture : IDisposable, IClientShopRuntime, IClientShopSource, IClientShopPurchaseTransport, IClientShopPresentation, IClientShopOperationsPresentation
+    internal enum Fault { None, Validation, BeforeApply, BeforeApplyThrow, PartialApply, PartialApplyThrow, Hydration, Transport, Forbidden, Rejected, MissingSnapshot, MissingListing, WrongListing }
+    internal sealed class Fixture : IDisposable, IClientShopRuntime, IClientShopSource, IClientShopPurchaseTransport, IClientShopPresentation, IClientShopOperationsPresentation
     {
         internal readonly EventModuleTestPorts Ports = new();
         internal readonly ClientSynchronizationCoordinator Sync = new();

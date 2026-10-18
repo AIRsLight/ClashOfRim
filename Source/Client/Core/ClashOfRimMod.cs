@@ -440,6 +440,12 @@ public sealed partial class ClashOfRimMod : Mod
     internal MultiplayerTradePage CreateTradePage() =>
         new(new ClientTradePanel(sessionLifecycle, new ClientSnapshotGame(), tradeState, tradeMarket, synchronization, tradeActions));
 
+    internal (ClientShopPanel Model, MultiplayerShopPage Page) CreateShopPage()
+    {
+        var model = new ClientShopPanel(sessionLifecycle, new ClientSnapshotGame(), shopState, shopCatalog, shopOperations, synchronization);
+        return (model, new(model));
+    }
+
     internal bool ManualSyncInProgress => synchronization.ManualInProgress;
 
     internal bool IsServerWorldSetupFlow => worldSetup.Pending;

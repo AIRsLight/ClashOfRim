@@ -23,17 +23,17 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
     private MultiplayerDiplomacyPage? diplomacyPage;
     private MultiplayerAchievementsPage? achievementsPage;
     private MultiplayerTradePage? tradePage;
+    private ClientShopPanel? shopPanel;
+    private MultiplayerShopPage? shopPage;
 
     private const float PanelRefreshIntervalSeconds = PanelRefreshSchedule.IntervalSeconds;
 
-    private Vector2 serverShopScrollPosition;
     private Vector2 bankScrollPosition;
     private Vector2 mercenaryScrollPosition;
     private Vector2 adminScrollPosition;
     private Vector2 adminManifestScrollPosition;
     private MultiplayerTab selectedTab = MultiplayerTab.Trade;
     private AdminPanelTab selectedAdminPanelTab = AdminPanelTab.Trade;
-    private string selectedShopListingKind = "SellToPlayer";
     private string bankPrincipalText = "1000";
     private string bankDurationText = "30";
     private string selectedMercenarySkillDefName = "Shooting";
@@ -50,7 +50,6 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
     private string mercenaryGuardQuoteStatus = string.Empty;
     private ModMercenaryGuardQuoteResponseDto? mercenaryGuardQuote;
     private bool mercenaryGuardQuoteInProgress;
-    private float nextShopRefreshAt;
     private float nextBankRefreshAt;
     private float nextAdminRefreshAt;
     private string adminConfigSignature = string.Empty;
@@ -116,12 +115,6 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
     private string accountNewPassword = string.Empty;
     private readonly Dictionary<string, string> adminShopStockBuffers = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string> adminShopPriceBuffers = new(StringComparer.Ordinal);
-    private int cachedServerShopVersion = -1;
-    private IReadOnlyList<ModServerShopListingDto> cachedServerShopListings = Array.Empty<ModServerShopListingDto>();
-    private int cachedServerShopSellToPlayerCount;
-    private int cachedServerShopBuyFromPlayerCount;
-    private IReadOnlyList<ModServerShopListingDto> cachedServerShopSellToPlayerListings = new List<ModServerShopListingDto>();
-    private IReadOnlyList<ModServerShopListingDto> cachedServerShopBuyFromPlayerListings = new List<ModServerShopListingDto>();
     private MultiplayerTab cachedMainTabsSelectedTab;
     private bool cachedMainTabsDevMode;
     private bool cachedMainTabsAdministrator;
@@ -152,6 +145,7 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
         if (playersPanel is null) (playersPanel, diplomacyPage) = mod.CreatePlayerPages();
         achievementsPage ??= mod.CreateAchievementsPage(playersPanel);
         tradePage ??= mod.CreateTradePage();
+        if (shopPanel is null) (shopPanel, shopPage) = mod.CreateShopPage();
         TryRefreshSelectedTab(mod);
         Rect tabRect = new(inRect.x, inRect.y + 34f, inRect.width, inRect.height - 34f);
         if (!mod.IsAdministrator && selectedTab == MultiplayerTab.Admin)
@@ -173,7 +167,7 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
                 DrawBankTab(contentRect, mod);
                 break;
             case MultiplayerTab.Shop:
-                DrawServerShopTab(contentRect, mod);
+                shopPage!.Draw(contentRect);
                 break;
             case MultiplayerTab.Mercenary:
                 DrawMercenaryTab(contentRect, mod);
@@ -199,6 +193,7 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
         diplomacyPage?.Reset();
         achievementsPage?.Close();
         tradePage?.Close();
+        shopPage?.Close();
         base.PostClose();
     }
 
@@ -284,200 +279,12 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
                 tradePage?.RequestRefresh();
                 break;
             case MultiplayerTab.Shop:
-                nextShopRefreshAt = 0f;
+                shopPanel?.RequestRefresh();
                 break;
             case MultiplayerTab.Admin:
                 nextAdminRefreshAt = 0f;
                 break;
         }
-    }
-
-    private void DrawServerShopTab(Rect rect, ClashOfRimMod mod)
-    {
-        Widgets.DrawMenuSection(rect);
-        Rect inner = rect.ContractedBy(10f);
-        Text.Font = GameFont.Medium;
-        Widgets.Label(new Rect(inner.x, inner.y, inner.width - 132f, 30f), ClashOfRimText.Key("ClashOfRim.Multiplayer.TabShop"));
-        Text.Font = GameFont.Small;
-        if (Widgets.ButtonText(new Rect(inner.xMax - 120f, inner.y, 120f, 30f), ClashOfRimText.Key("ClashOfRim.Refresh"), active: !mod.ServerShopInProgress))
-        {
-            mod.StartRefreshServerShop();
-            nextShopRefreshAt = Time.realtimeSinceStartup + PanelRefreshIntervalSeconds;
-        }
-
-        Text.Font = GameFont.Tiny;
-        Widgets.Label(new Rect(inner.x, inner.y + 32f, inner.width, 20f), mod.ServerShopStatus);
-        Text.Font = GameFont.Small;
-
-        RefreshServerShopListingCache(mod);
-        DrawServerShopModeTabs(new Rect(inner.x, inner.y + 56f, 300f, 30f));
-
-        IReadOnlyList<ModServerShopListingDto> visibleListings = string.Equals(
-            selectedShopListingKind,
-            "BuyFromPlayer",
-            StringComparison.Ordinal)
-            ? cachedServerShopBuyFromPlayerListings
-            : cachedServerShopSellToPlayerListings;
-
-        Rect outRect = new(inner.x, inner.y + 96f, inner.width, inner.height - 96f);
-        const float tileWidth = 156f;
-        const float tileHeight = 180f;
-        const float gap = 10f;
-        int columns = Math.Max(1, Mathf.FloorToInt((outRect.width - 16f + gap) / (tileWidth + gap)));
-        int rows = Math.Max(1, Mathf.CeilToInt(visibleListings.Count / (float)columns));
-        Rect viewRect = new(0f, 0f, outRect.width - 16f, Math.Max(outRect.height, rows * (tileHeight + gap)));
-        Widgets.BeginScrollView(outRect, ref serverShopScrollPosition, viewRect);
-        if (visibleListings.Count == 0)
-        {
-            Widgets.Label(new Rect(0f, 0f, viewRect.width, 40f), ClashOfRimText.Key("ClashOfRim.Shop.NoListings"));
-        }
-        else
-        {
-            for (int index = 0; index < visibleListings.Count; index++)
-            {
-                int column = index % columns;
-                int row = index / columns;
-                Rect tile = new(
-                    column * (tileWidth + gap),
-                    row * (tileHeight + gap),
-                    tileWidth,
-                    tileHeight);
-                DrawServerShopTile(tile, visibleListings[index], mod);
-            }
-        }
-
-        Widgets.EndScrollView();
-    }
-
-    private void DrawServerShopModeTabs(Rect rect)
-    {
-        float halfWidth = (rect.width - 8f) * 0.5f;
-        DrawServerShopModeButton(
-            new Rect(rect.x, rect.y, halfWidth, rect.height),
-            "SellToPlayer",
-            ClashOfRimText.Key("ClashOfRim.Shop.Buy") + " (" + cachedServerShopSellToPlayerCount + ")");
-        DrawServerShopModeButton(
-            new Rect(rect.x + halfWidth + 8f, rect.y, halfWidth, rect.height),
-            "BuyFromPlayer",
-            ClashOfRimText.Key("ClashOfRim.Shop.Sell") + " (" + cachedServerShopBuyFromPlayerCount + ")");
-    }
-
-    private void RefreshServerShopListingCache(ClashOfRimMod mod)
-    {
-        int version = mod.ServerShopListingsSnapshotVersion;
-        if (version == cachedServerShopVersion)
-        {
-            return;
-        }
-
-        List<ModServerShopListingDto> listings = mod.ServerShopListingsSnapshot;
-        cachedServerShopListings = listings;
-        cachedServerShopSellToPlayerListings = listings
-            .Where(listing => !IsServerShopBuyOrder(listing))
-            .ToList();
-        cachedServerShopBuyFromPlayerListings = listings
-            .Where(IsServerShopBuyOrder)
-            .ToList();
-        cachedServerShopSellToPlayerCount = cachedServerShopSellToPlayerListings.Count;
-        cachedServerShopBuyFromPlayerCount = cachedServerShopBuyFromPlayerListings.Count;
-        cachedServerShopVersion = version;
-    }
-
-    private void DrawServerShopModeButton(Rect rect, string listingKind, string label)
-    {
-        bool selected = string.Equals(selectedShopListingKind, listingKind, StringComparison.Ordinal);
-        if (selected)
-        {
-            Widgets.DrawHighlightSelected(rect);
-        }
-
-        if (Widgets.ButtonText(rect, label, active: !selected))
-        {
-            selectedShopListingKind = listingKind;
-            serverShopScrollPosition = Vector2.zero;
-        }
-    }
-
-    private void DrawServerShopTile(Rect rect, ModServerShopListingDto listing, ClashOfRimMod mod)
-    {
-        Widgets.DrawMenuSection(rect);
-        Rect inner = rect.ContractedBy(8f);
-        ModThingReferenceDto? item = listing.Item;
-        bool buyFromPlayer = IsServerShopBuyOrder(listing);
-        Rect iconRect = new(inner.x, inner.y, 42f, 42f);
-        if (item is not null)
-        {
-            TradeUiUtility.DrawThingIconWithInfo(iconRect, item);
-            TooltipHandler.TipRegion(iconRect, TradeUiUtility.ThingLabel(
-                item,
-                asRequirement: buyFromPlayer,
-                qualityRequirementMode: buyFromPlayer ? listing.QualityRequirementMode : null,
-                hitPointsRequirementMode: buyFromPlayer ? listing.HitPointsRequirementMode : null));
-        }
-
-        Text.Font = GameFont.Tiny;
-        Widgets.Label(new Rect(iconRect.xMax + 8f, inner.y, inner.width - 50f, 20f), ClashOfRimText.Key(
-            buyFromPlayer ? "ClashOfRim.Shop.Demand" : "ClashOfRim.Shop.Stock",
-            FormatServerShopStock(listing.StockCount).Named("COUNT")));
-        Widgets.Label(new Rect(iconRect.xMax + 8f, inner.y + 20f, inner.width - 50f, 20f), ClashOfRimText.Key(
-            buyFromPlayer ? "ClashOfRim.Shop.Payout" : "ClashOfRim.Shop.Price",
-            FormatServerShopSilver(listing.PriceSilver).Named("PRICE")));
-        Text.Font = GameFont.Small;
-
-        string label = item is null
-            ? ClashOfRimText.Key("ClashOfRim.UnknownThing")
-            : TradeUiUtility.ThingLabel(
-                item,
-                asRequirement: buyFromPlayer,
-                qualityRequirementMode: buyFromPlayer ? listing.QualityRequirementMode : null,
-                hitPointsRequirementMode: buyFromPlayer ? listing.HitPointsRequirementMode : null);
-        TradeUiUtility.DrawTruncatedLabel(new Rect(inner.x, inner.y + 50f, inner.width, 24f), label);
-
-        const int purchaseCount = 1;
-        bool validCount = listing.StockCount >= purchaseCount;
-        int totalPrice = ClashOfRimMod.CalculateServerShopTotalPrice(listing, purchaseCount);
-        Text.Font = GameFont.Tiny;
-        Widgets.Label(new Rect(inner.x, inner.y + 88f, inner.width, 20f), validCount
-            ? ClashOfRimText.Key(buyFromPlayer ? "ClashOfRim.Shop.TotalPayout" : "ClashOfRim.Shop.TotalPrice", FormatServerShopSilver(totalPrice).Named("PRICE"))
-            : ClashOfRimText.Key(buyFromPlayer ? "ClashOfRim.Shop.NoDemand" : "ClashOfRim.Shop.OutOfStock"));
-        Text.Font = GameFont.Small;
-
-        bool canBuy = item is not null
-            && validCount
-            && !mod.ServerShopInProgress
-            && !mod.ManualSyncInProgress;
-        string actionLabel = ClashOfRimText.Key(buyFromPlayer ? "ClashOfRim.Shop.SellBatch" : "ClashOfRim.Shop.BuyOne");
-        if (Widgets.ButtonText(new Rect(inner.x, inner.yMax - 30f, inner.width, 30f), actionLabel, active: canBuy))
-        {
-            Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation(
-                ClashOfRimText.Key(
-                    buyFromPlayer ? "ClashOfRim.Shop.ConfirmSell" : "ClashOfRim.Shop.ConfirmBuy",
-                    purchaseCount.Named("COUNT"),
-                    label.Named("THING"),
-                    totalPrice.Named("PRICE")),
-                mod.ShopOperations.BindPurchase(listing, purchaseCount)));
-        }
-    }
-
-    private static bool IsServerShopBuyOrder(ModServerShopListingDto listing)
-        => AIRsLight.ClashOfRim.Modules.Shop.ClientShopRules.IsBuyOrder(listing);
-
-    private static string NormalizeServerShopListingKind(string? listingKind)
-        => AIRsLight.ClashOfRim.Modules.Shop.ClientShopRules.NormalizeListingKind(listingKind);
-
-    private static string FormatServerShopStock(int stockCount)
-    {
-        return ColoredText(stockCount.ToString(), stockCount <= 0 ? "#ff6b6b" : "#d7dadb");
-    }
-
-    private static string FormatServerShopSilver(int silver)
-    {
-        return ColoredText(Math.Max(0, silver).ToString(), silver <= 0 ? "#ff6b6b" : "#f1d07a");
-    }
-
-    private static string ColoredText(string text, string color)
-    {
-        return "<color=" + color + ">" + text + "</color>";
     }
 
     private void DrawBankTab(Rect rect, ClashOfRimMod mod)
@@ -1117,23 +924,12 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
                 tradePage!.Tick(Time.realtimeSinceStartup);
                 break;
             case MultiplayerTab.Shop:
-                TryRefreshServerShop(mod);
+                shopPage!.Tick(Time.realtimeSinceStartup);
                 break;
             case MultiplayerTab.Admin:
                 TryRefreshAdmin(mod);
                 break;
         }
-    }
-
-    private void TryRefreshServerShop(ClashOfRimMod mod)
-    {
-        if (mod.ManualSyncInProgress || mod.ServerShopInProgress || Time.realtimeSinceStartup < nextShopRefreshAt)
-        {
-            return;
-        }
-
-        nextShopRefreshAt = Time.realtimeSinceStartup + PanelRefreshIntervalSeconds;
-        mod.StartRefreshServerShop();
     }
 
     private void TryRefreshBank(ClashOfRimMod mod)

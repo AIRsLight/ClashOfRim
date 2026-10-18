@@ -146,8 +146,7 @@ public sealed partial class ClashOfRimMultiplayerWindow
 
     private void DrawAdminShopPanel(Rect rect, ClashOfRimMod mod)
     {
-        RefreshServerShopListingCache(mod);
-        IReadOnlyList<ModServerShopListingDto> listings = cachedServerShopListings;
+        IReadOnlyList<ModServerShopListingDto> listings = shopPanel!.Read().All;
         Rect view = BeginAdminScroll(rect, Math.Max(rect.height, 80f + listings.Count * 54f));
         float y = 0f;
         DrawAdminSectionTitle(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.SectionShop"));

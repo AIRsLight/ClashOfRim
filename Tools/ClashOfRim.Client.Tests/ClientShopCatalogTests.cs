@@ -196,15 +196,15 @@ internal static class ClientShopCatalogTests
     }
     private sealed record Failure(string Code, string Message);
     private sealed record Empty;
-    private sealed record Call(string Kind, ClashOfRimClientNetworkContext Context, CancellationToken Token, ClientShopListingEdit? Edit = null, string? Id = null)
+    internal sealed record Call(string Kind, ClashOfRimClientNetworkContext Context, CancellationToken Token, ClientShopListingEdit? Edit = null, string? Id = null)
     {
         internal readonly TaskCompletionSource<object> Completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal void Complete(object response) => Completion.SetResult(response);
     }
-    private sealed class Fixture : IDisposable, IClientShopCatalogTransport, IClientShopPresentation
+    internal sealed class Fixture : IDisposable, IClientShopCatalogTransport, IClientShopPresentation
     {
-        internal readonly EventModuleTestPorts Ports = new();
-        internal readonly ClientLocalMutationCoordinator Mutations = new();
+        internal readonly EventModuleTestPorts Ports;
+        internal readonly ClientLocalMutationCoordinator Mutations;
         internal readonly ClientSessionLifecycle Session;
         internal readonly ClientShopState State;
         internal readonly ClientShopCatalog Catalog;
@@ -215,10 +215,12 @@ internal static class ClientShopCatalogTests
         internal Exception? HydrationFailure;
         internal TaskCompletionSource? HydrationGate;
         internal readonly TaskCompletionSource HydrationStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        internal Fixture()
+        internal Fixture(EventModuleTestPorts? ports = null, ClientSessionLifecycle? session = null,
+            ClientShopState? state = null, ClientLocalMutationCoordinator? mutations = null)
         {
-            ClientSessionWork.Reset();
-            Session = new(Ports, Ports, new ClientSessionConnection(Ports)); State = new(Session, Ports, this);
+            if (session is null) ClientSessionWork.Reset();
+            Ports = ports ?? new(); Mutations = mutations ?? new();
+            Session = session ?? new(Ports, Ports, new ClientSessionConnection(Ports)); State = state ?? new(Session, Ports, this);
             Catalog = new(State, Mutations, this, this, () => Administrator);
         }
         internal async Task Load(params ModServerShopListingDto[] listings)
