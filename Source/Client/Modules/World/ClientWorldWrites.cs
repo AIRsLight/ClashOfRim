@@ -32,7 +32,6 @@ internal sealed class ClientWorldWrites
     private readonly ClientWorldPublication publication;
     private readonly IClientWorldWriteRuntime runtime;
     private readonly IClientWorldWritePresentation presentation;
-    internal event Action<ModWorldConfigurationDto>? Applied;
     internal event Action? BaselineUpdated;
     internal ClientWorldWrites(ClientSessionLifecycle session, ClientAdminAccess access, ClientWorldBaselineCapture capture,
         ClientWorldBaselineSubmission submission, ClientStorytellerConfiguration storyteller, ClientWorldPublication publication,
@@ -126,7 +125,6 @@ internal sealed class ClientWorldWrites
                     if (accepted is not null)
                     {
                         if (!publication.Publish(observation, accepted, story ? ClientWorldProjection.Storyteller : ClientWorldProjection.Full, Current)) return;
-                        if (!Step(() => Applied?.Invoke(accepted))) return;
                     }
                     if (story) Notice("ClashOfRim.Storyteller.AdminSynced", ClientWorldWriteMessage.Success,
                         ("STORYTELLER", accepted?.StorytellerDefName ?? original.Storyteller ?? ""), ("DIFFICULTY", accepted?.DifficultyDefName ?? original.Difficulty ?? ""));

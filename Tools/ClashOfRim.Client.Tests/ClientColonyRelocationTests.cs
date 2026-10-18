@@ -30,7 +30,7 @@ internal static class ClientColonyRelocationTests
                 foreach (string change in new[] { "user", "auth", "server", "colony", "login", "generation", "game", "world", "world-id", "snapshot", "unavailable" })
                 {
                     await ConfirmationOwnership(change);
-                    foreach (string phase in new[] { "preflight", "settle", "long", "upload", "confirm", "markers" }) await Ownership(phase, change);
+                    foreach (string phase in new[] { "preflight", "settle", "long", "upload", "confirm", "marker-enqueue" }) await Ownership(phase, change);
                 }
                 await Admission(); await Duplicate(); await FlightOwnership(); await AnchorBeforeRetry(); await ImmediateRetry(); await RevalidateLocal(); await RetryBaseChanged(); await DelayedPublication(); await ProjectionFailure();
             }
@@ -69,7 +69,9 @@ internal static class ClientColonyRelocationTests
     private static async Task Success(string mode)
     {
         using var f = new Fixture(); await f.Run(mode);
-        Check(f.Completed == 1 && f.Preflights == 1 && f.Uploads == 1 && f.Confirms == 1 && f.Markers == 1, "Pipeline incomplete: " + mode);
+        Check(f.Completed == 1 && f.Preflights == 1 && f.Uploads == 1 && f.Confirms == 1 && f.Publication.MarkerQueues == 1, "Pipeline incomplete: " + mode);
+        var applied = f.Publication.MarkerApplications.Single();
+        Check(applied.User == "alice" && applied.Markers.Length == 0, "Authoritative empty relocation markers were not projected.");
         Check(f.Settles == (mode == "explicit" ? 1 : 0) && f.Abandons == (mode == "explicit" ? 1 : 0), "Implicit move replayed local work.");
         Check(!f.Sync.IsBusy && !f.Mutations.IsPending && !f.Registration.Suppressed && f.View.Visible is null, "Completed relocation retained locks/suppression.");
         Check(f.PreflightContext!.CurrentSnapshotId == "base" && f.ConfirmContext!.CurrentSnapshotId == "moved" && f.Previous == "base" && f.Relocated == "moved"
@@ -198,7 +200,7 @@ internal static class ClientColonyRelocationTests
         internal ModWorldConfigurationDto? AcceptedWorld;
         internal string? Fault, TargetFailure, Previous, Relocated, PreflightKey, ConfirmKey, UploadKind, Operation;
         internal ClashOfRimClientNetworkContext? PreflightContext, ConfirmContext;
-        internal int Homes = 1, Preflights, Uploads, Confirms, Settles, Abandons, Completed, Markers, Successes, SentTile, SentLayer;
+        internal int Homes = 1, Preflights, Uploads, Confirms, Settles, Abandons, Completed, Successes, SentTile, SentLayer;
         internal bool Remote, Available = true, Destination, Facts = true;
         internal Action<string>? Hook;
         internal Fixture()
@@ -212,7 +214,7 @@ internal static class ClientColonyRelocationTests
             var recovery = new ClientSnapshotFailureRecovery(Cache.Session, Mutations, Sync, Ports, View);
             Flow = new(Cache.Session, Cache, this, new(Cache.Session, Sync, Mutations, transactions), Sync, Mutations, transactions,
                 new(Ports, Ports, this, Sync), recovery, Registration, Publication.Flow, this, this);
-            Flow.MarkersAccepted += _ => { Markers++; Stage("markers"); };
+            Publication.Hook = point => { if (point == "marker-enqueue") Stage(point); };
             Flow.Completed += () => { Check(!Sync.IsBusy, "Completion notified other domains before admission release."); Completed++; Done.TrySetResult(); };
             Ports.BeforeGameAction = () => Facts = true;
             Ports.OnCapture = () => Stage("capture");

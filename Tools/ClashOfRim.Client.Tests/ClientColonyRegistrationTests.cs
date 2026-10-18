@@ -26,7 +26,7 @@ internal static class ClientColonyRegistrationTests
                 {
                     await Basic(kind); await FailureRetry(kind); await ForcedRefresh(kind); await QueueSemantics(kind); await Replacement(kind); await ReceiptLifetime(kind); await DelayedPublication(kind);
                     foreach (string change in Changes)
-                        foreach (string stage in new[] { "extensions", "network", "queued", "project", "markers" }) await Ownership(kind, stage, change);
+                        foreach (string stage in new[] { "extensions", "network", "queued", "project", "marker-enqueue" }) await Ownership(kind, stage, change);
                     foreach (string gate in new[] { "config", "session", "snapshot", "playing", "remote", "world", "objects", "colony-context", "collectors", "suppressed", "mutation", "restore" }) await Admission(kind, gate);
                 }
                 await SharedPipeline(); await Freeze(); await WorldIdentity(); await Deferred(); await EngineThreadBoundary();
@@ -49,7 +49,9 @@ internal static class ClientColonyRegistrationTests
     private static async Task Basic(ClientColonyRegistrationKind kind)
     {
         var f = new Fixture(); await f.Run(kind);
-        Check(f.Calls.Count == 1 && f.Markers == 1 && f.Projects == 1 && !f.Registration.Busy, "Accepted registration did not publish once.");
+        Check(f.Calls.Count == 1 && f.Publication.MarkerQueues == 1 && f.Projects == 1 && !f.Registration.Busy, "Accepted registration did not publish once.");
+        var applied = f.Publication.MarkerApplications.Single();
+        Check(applied.User == "alice" && applied.Markers.Single().Label == "original", "Accepted markers did not reach the engine port.");
         Check(f.Calls[0].Sites.Length == (kind == ClientColonyRegistrationKind.Sites ? 1 : 0), "Extension mode sent sites.");
         Check(f.ExtensionsContext == ("alice", "colony", "base") && f.Calls[0].Context.AuthToken == "auth", "Captured identity lost.");
         await f.Run(kind); Check(f.Calls.Count == 1, "Accepted unchanged data was resubmitted.");
@@ -82,21 +84,28 @@ internal static class ClientColonyRegistrationTests
     {
         var f = new Fixture(); f.Once(stage, () => f.Change(change)); await f.Run(kind);
         bool current = change == "snapshot";
-        Check(f.Markers == (current || stage == "markers" ? 1 : 0), "Stale markers: " + kind + "/" + stage + "/" + change);
-        Check(f.AfterMarkers == (current ? 1 : 0), "Later subscriber crossed ownership: " + kind + "/" + stage + "/" + change);
-        Check(!f.Registration.Busy, "Stale request retained busy state."); scenarios++;
+        Check(f.Publication.MarkerQueues == (current || stage == "marker-enqueue" ? 1 : 0), "Stale markers: " + kind + "/" + stage + "/" + change);
+        bool projectionCurrent = current || stage == "marker-enqueue" && change == "reset";
+        Check(f.Publication.MarkerApplications.Count == (projectionCurrent ? 1 : 0), "Queued projection crossed cache ownership: " + kind + "/" + stage + "/" + change);
+        Check(!f.Registration.Busy, "Stale request retained busy state.");
+        if (change == "reset")
+        {
+            int calls = f.Calls.Count; await f.Run(kind);
+            Check(f.Calls.Count == calls + 1, "Reset request marked its old signature accepted.");
+        }
+        scenarios++;
     }
     private static async Task FailureRetry(ClientColonyRegistrationKind kind)
     {
-        foreach (string fault in new[] { "http", "null", "missing-result", "rejected", "exception", "cancel", "sites", "extensions", "project", "markers" })
+        foreach (string fault in new[] { "http", "null", "missing-result", "rejected", "exception", "cancel", "sites", "extensions", "project", "marker-enqueue" })
         {
             if (kind == ClientColonyRegistrationKind.Extensions && fault == "sites") continue;
             var f = new Fixture(); f.Fault = fault;
-            if (fault is "sites" or "extensions" or "project" or "markers") f.Once(fault, () => throw new InvalidOperationException("injected"));
+            if (fault is "sites" or "extensions" or "project" or "marker-enqueue") f.Once(fault, () => throw new InvalidOperationException("injected"));
             await f.Run(kind);
-            Check(!f.Registration.Busy && f.AfterMarkers == 0, "Failure published or retained busy: " + fault);
+            Check(!f.Registration.Busy && f.Publication.MarkerApplications.Count == 0, "Failure published or retained busy: " + fault);
             int calls = f.Calls.Count; f.Fault = null; await f.Run(kind);
-            Check(f.Calls.Count == calls + 1 && f.AfterMarkers == 1, "Failure was marked accepted or poisoned retry: " + fault); scenarios++;
+            Check(f.Calls.Count == calls + 1 && f.Publication.MarkerApplications.Count == 1, "Failure was marked accepted or poisoned retry: " + fault); scenarios++;
         }
     }
     private static async Task ForcedRefresh(ClientColonyRegistrationKind kind)
@@ -108,7 +117,7 @@ internal static class ClientColonyRegistrationTests
         await f.Ports.PumpUntil(Task.WhenAll(forced, forcedAgain));
         Check(f.Calls.Count == 1 && f.Registration.Busy, "Forced request overlapped active write.");
         f.Hold.SetResult(); await f.Ports.PumpUntil(first);
-        Check(f.Calls.Count == 2 && f.Markers == 2 && !f.Registration.Busy, "Forced invalidation lost or did not coalesce.");
+        Check(f.Calls.Count == 2 && f.Publication.MarkerQueues == 2 && !f.Registration.Busy, "Forced invalidation lost or did not coalesce.");
         Check(f.Calls[1].Muted == (kind == ClientColonyRegistrationKind.Sites), "One-shot notification suppression lost.");
         if (kind == ClientColonyRegistrationKind.Sites) Check(f.CapturedAppearance?.ColorHex == "latest", "Pending appearance was lost.");
         await f.Run(kind); Check(f.Calls.Count == 2, "Completed force did not update signature."); scenarios++;
@@ -119,8 +128,8 @@ internal static class ClientColonyRegistrationTests
         {
             var f = new Fixture { DuplicateQueue = true, DiscardQueue = discard };
             Task work = f.Registration.StartAsync(kind); Action queued = await f.Ports.Next();
-            Check(f.Registration.Busy && f.Markers == 0, "Busy released before main-thread completion."); queued(); await work;
-            Check(f.Markers == (discard ? 0 : 1), "Duplicate/discarded queue published again.");
+            Check(f.Registration.Busy && f.Publication.MarkerQueues == 0, "Busy released before main-thread completion."); queued(); await work;
+            Check(f.Publication.MarkerQueues == (discard ? 0 : 1), "Duplicate/discarded queue published again.");
             f.DiscardQueue = false; await f.Run(kind); Check(f.Calls.Count == (discard ? 2 : 1), "Discard marked unprojected response accepted."); scenarios++;
         }
     }
@@ -131,7 +140,7 @@ internal static class ClientColonyRegistrationTests
         Task replacement = f.Registration.StartAsync(kind); Action queued = await f.Ports.Next();
         f.Hold.SetResult(); await old;
         Check(f.Registration.Busy, "Old finally ended replacement."); queued(); await replacement;
-        Check(f.Markers == 1 && f.Calls.Count == 2, "Old HTTP published into new world."); scenarios++;
+        Check(f.Publication.MarkerQueues == 1 && f.Calls.Count == 2, "Old HTTP published into new world."); scenarios++;
     }
     private static async Task SharedPipeline()
     {
@@ -159,16 +168,17 @@ internal static class ClientColonyRegistrationTests
         var f = new Fixture(); string source = ClientProtocolJson.Serialize(f.Sites[0]);
         f.Once("extensions", () => { f.Sites[0].Tile = 99; f.Sites[0].Appearance!.ColorHex = "changed"; });
         f.OnQueue = () => { f.Response.WorldConfiguration!.PlayerColonySites[0].Label = "borrowed"; f.Response.WorldMapMarkers!.Markers[0].Label = "borrowed"; };
-        f.Registration.MarkersAccepted += (markers, _) => markers!.Markers[0].Label = "observer";
+        f.Publication.ApplyingMarkers = markers => markers.First().Label = "engine changed";
         await f.Run(ClientColonyRegistrationKind.Sites);
-        Check(ClientProtocolJson.Serialize(f.Calls[0].Sites[0]) == source && f.LastMarkerLabel == "original", "Input or response borrowed mutable source.");
+        Check(ClientProtocolJson.Serialize(f.Calls[0].Sites[0]) == source && f.Publication.MarkerApplications.Single().Markers.Single().Label == "original"
+            && f.Publication.Markers.Snapshot.Single().Label == "original", "Input or response borrowed mutable source.");
         Check(f.Occupied.IsBlocked(10, 0, out var site) && site!.Label == "original", "Catalog was not frozen before queue."); scenarios++;
     }
     private static async Task WorldIdentity()
     {
         var f = new Fixture(); f.Response.WorldConfiguration!.WorldConfigurationId = "  world-b  ";
         await f.Run(ClientColonyRegistrationKind.Sites);
-        Check(f.WorldId == "world-b" && f.Markers == 1 && !f.Registration.Busy, "Own accepted world identity invalidated its remaining publication.");
+        Check(f.WorldId == "world-b" && f.Publication.MarkerQueues == 1 && !f.Registration.Busy, "Own accepted world identity invalidated its remaining publication.");
         await f.Run(ClientColonyRegistrationKind.Sites); Check(f.Calls.Count == 1, "Accepted world identity lost signature."); scenarios++;
     }
     private static async Task Deferred()
@@ -185,7 +195,7 @@ internal static class ClientColonyRegistrationTests
             var f = new Fixture { Fault = fault };
             f.Once("network", () => f.ReadFacts = false);
             await f.Run(ClientColonyRegistrationKind.Sites);
-            Check(f.Markers == (fault is null ? 1 : 0), "HTTP completion did not preserve game-thread publication."); scenarios++;
+            Check(f.Publication.MarkerQueues == (fault is null ? 1 : 0), "HTTP completion did not preserve game-thread publication."); scenarios++;
         }
     }
     private static async Task DelayedPublication(ClientColonyRegistrationKind kind)
@@ -230,8 +240,7 @@ internal static class ClientColonyRegistrationTests
         internal bool Playing = true, HasWorld = true, HasObjects = true, HasColony = true, HasCollectors = true, ReadFacts = true, Remote, DuplicateQueue, DiscardQueue;
         internal object World = new();
         public string WorldId { get; private set; } = "world-a";
-        internal int Markers, AfterMarkers, Projects;
-        internal string? LastMarkerLabel;
+        internal int Projects;
         internal ModColonyAppearanceDto? CapturedAppearance;
         internal (string User, string Colony, string Snapshot) ExtensionsContext;
         internal Action<string>? Hook;
@@ -246,11 +255,10 @@ internal static class ClientColonyRegistrationTests
         {
             ClientSessionWork.Reset(); Session = new(Ports, Ports, new(Ports)); Session.PublishLogin(new() { AuthenticatedUserId = "alice", AuthToken = "auth", SessionId = "session" });
             var configuration = new ClientWorldConfiguration(Session, this, this, null!, null!);
-            Occupied = new(Session, this, this, configuration);
+            Occupied = new(Session, this, this);
             Publication = new(Session, Ports, () => WorldId, () => World, configuration, Occupied);
             Registration = new(Session, this, Mutations, this, this, Publication.Flow);
-            Registration.MarkersAccepted += (markers, _) => { Markers++; LastMarkerLabel = markers?.Markers.FirstOrDefault()?.Label; Hook?.Invoke("markers"); };
-            Registration.MarkersAccepted += (_, _) => AfterMarkers++;
+            Publication.Hook = point => { if (point == "marker-enqueue") Hook?.Invoke(point); };
         }
         internal Task Run(ClientColonyRegistrationKind kind) => Ports.PumpUntil(Registration.StartAsync(kind), _ => { });
         public void Remember(string id) { WorldId = id; Hook?.Invoke("remember"); }

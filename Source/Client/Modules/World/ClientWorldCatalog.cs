@@ -28,7 +28,6 @@ internal sealed class ClientWorldCatalog
     private readonly ClientWorldPublication publication;
     internal event Action<string?>? CompatibilityAccepted;
     internal event Action<bool>? AdministratorObserved;
-    internal event Action<ModWorldConfigurationDto?>? Applied;
     internal bool Busy => requests.Busy;
     internal ClientWorldCatalog(ClientSessionLifecycle session, IClientWorldCatalogRuntime runtime,
         IClientWorldPreparationTransport transport, IClientWorldCatalogPresentation presentation, ClientWorldPublication publication)
@@ -78,7 +77,6 @@ internal sealed class ClientWorldCatalog
                         if (!Step(() => CompatibilityAccepted?.Invoke(prepared.ServerCompatibilityManifestJson))) return;
                         if (!Step(() => AdministratorObserved?.Invoke(prepared.IsAdministrator))) return;
                         if (!publication.Publish(observation, world, generation ? ClientWorldProjection.Full : ClientWorldProjection.Storyteller, Current)) return;
-                        if (!Step(() => Applied?.Invoke(world))) return;
                         if (world is null) Report(request, () => presentation.Text("ClashOfRim.WorldCatalog.StatusNoConfiguration"));
                         else
                         {

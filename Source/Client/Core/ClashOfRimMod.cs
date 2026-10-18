@@ -295,7 +295,7 @@ public sealed partial class ClashOfRimMod : Mod
         var featureCatalogs = new ClientWorldFeatureCatalogs(sessionLifecycle, worldTransport);
         featureCatalogs.Diagnostic += message => Log.Warning(message);
         worldConfiguration = new ClientWorldConfiguration(sessionLifecycle, new ClientWorldConfigurationRuntime(), entryStore, storytellerConfiguration, featureCatalogs);
-        occupiedColonySites = new ClientOccupiedColonySites(sessionLifecycle, entryStore, new ClientOccupiedColonySitesRuntime(), worldConfiguration);
+        occupiedColonySites = new ClientOccupiedColonySites(sessionLifecycle, entryStore, new ClientOccupiedColonySitesRuntime());
         worldMarkers = new ClientWorldMarkers(sessionLifecycle, entryStore, occupiedColonySites, new ClientWorldMarkersRuntime(),
             new ClientWorldMarkersPresentation(message => worldMapStatus = message));
         worldLoginPublication = new ClientWorldLoginPublication(sessionLifecycle, worldMarkers);

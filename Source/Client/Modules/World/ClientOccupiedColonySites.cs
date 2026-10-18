@@ -23,16 +23,13 @@ internal sealed class ClientOccupiedColonySites
     private readonly ClientSessionLifecycle session;
     private readonly ClientRequestTracker updates;
     private readonly ClientRequestTracker<string> cache;
-    private readonly IClientWorldIdentity identity;
     private readonly IClientOccupiedColonySitesRuntime runtime;
-    private readonly ClientWorldConfiguration configuration;
     private Dictionary<(int Tile, int Layer), ModPlayerColonySiteDto> sites = new();
-    internal event Action<ModColonyAppearanceDto?>? OwnAppearanceObserved;
 
     internal ClientOccupiedColonySites(ClientSessionLifecycle session, IClientWorldIdentity identity,
-        IClientOccupiedColonySitesRuntime runtime, ClientWorldConfiguration configuration)
+        IClientOccupiedColonySitesRuntime runtime)
     {
-        this.session = session; this.identity = identity; this.runtime = runtime; this.configuration = configuration;
+        this.session = session; this.runtime = runtime;
         updates = new(session, static () => { });
         cache = new(session, () => identity.WorldId, world => world == identity.WorldId, () => sites = new());
     }
@@ -43,7 +40,7 @@ internal sealed class ClientOccupiedColonySites
         updates.Reset(); cache.Reset();
     }
 
-    internal void Replace(ModWorldConfigurationDto? source, Action<ModColonyAppearanceDto?>? observe = null, Func<bool>? current = null, bool remember = true)
+    internal void Replace(IEnumerable<ModPlayerColonySiteDto>? source, Action<ModColonyAppearanceDto?>? observe = null, Func<bool>? current = null)
     {
         using var publication = ClientSessionWork.EnterPublication();
         var request = updates.Begin(replace: true)!;
@@ -52,15 +49,9 @@ internal sealed class ClientOccupiedColonySites
             && updates.TryApply(request, static () => { }) && cache.TryApply(scope, static () => { });
         try
         {
-            string? worldId = source?.WorldConfigurationId;
-            var incoming = ClientProtocolJson.Copy(source?.PlayerColonySites?.ToArray() ?? Array.Empty<ModPlayerColonySiteDto>())
+            var incoming = ClientProtocolJson.Copy(source?.ToArray() ?? Array.Empty<ModPlayerColonySiteDto>())
                 .Where(site => site.Tile >= 0).ToArray();
             if (!Current()) return;
-            string expectedWorld = string.IsNullOrWhiteSpace(worldId) ? scope.Boundary : worldId!.Trim();
-            if (remember) configuration.Remember(new ModWorldConfigurationDto { WorldConfigurationId = worldId ?? string.Empty });
-            // Remember may persist a new world ID or invoke reentrant application code.
-            if (current?.Invoke() == false || session.IsUnavailable || !bound.IsCurrent || !updates.TryApply(request, static () => { }) || identity.WorldId != expectedWorld) return;
-            scope = cache.Capture();
             var replacement = new Dictionary<(int, int), ModPlayerColonySiteDto>();
             foreach (var site in incoming) replacement[(site.Tile, site.TileLayerId)] = site;
             sites = replacement;
@@ -71,11 +62,6 @@ internal sealed class ClientOccupiedColonySites
                 {
                     if (!Current()) return;
                     observe?.Invoke(site.Appearance is null ? null : ClientProtocolJson.Copy(site.Appearance));
-                    foreach (Action<ModColonyAppearanceDto?> handler in OwnAppearanceObserved?.GetInvocationList() ?? Array.Empty<Delegate>())
-                    {
-                        if (!Current()) return;
-                        handler(site.Appearance is null ? null : ClientProtocolJson.Copy(site.Appearance));
-                    }
                 }
             }
             var owners = incoming.Select(site => site.UserId)

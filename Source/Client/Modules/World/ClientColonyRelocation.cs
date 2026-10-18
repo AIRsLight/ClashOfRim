@@ -26,7 +26,6 @@ internal sealed class ClientColonyRelocation
     private readonly IClientColonyRelocationTransport transport;
     private readonly IClientColonyRelocationPresentation view;
     private Job? active;
-    internal event Action<ModWorldMapMarkerDeliveryDto?>? MarkersAccepted;
     internal event Action? Completed;
 
     internal ClientColonyRelocation(ClientSessionLifecycle session, IClientWorldIdentity identity, IClientWorldCatalogRuntime runtime,
@@ -224,8 +223,6 @@ internal sealed class ClientColonyRelocation
                 job.Request.Scope.Boundary.PublishingWorldId = accepted.WorldConfiguration?.WorldConfigurationId?.Trim();
                 if (!publication.Publish(observation!, accepted.WorldConfiguration, ClientWorldProjection.Sites, () => Current(job),
                     ("colony-relocation", accepted.WorldMapMarkers))) return;
-                foreach (Action<ModWorldMapMarkerDeliveryDto?> handler in MarkersAccepted?.GetInvocationList() ?? Array.Empty<Delegate>())
-                    if (!Step(job, () => handler(ClientProtocolJson.Copy(accepted.WorldMapMarkers)))) return;
                 if (!Step(job, () => registration.Invalidate(ClientColonyRegistrationKind.Sites))
                     || !Step(job, () => registration.Suppressed = false) || !Step(job, mutations.Reset) || !Step(job, recovery.Close)) return;
                 string message = Text("Succeeded");

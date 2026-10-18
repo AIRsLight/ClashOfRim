@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.Modules.Administration;
 using AIRsLight.ClashOfRim.Modules.Sessions;
+using AIRsLight.ClashOfRim.Modules.Transport;
 using AIRsLight.ClashOfRim.Modules.World;
 
 internal static class ClientWorldWritesTests
@@ -30,12 +31,12 @@ internal static class ClientWorldWritesTests
                         foreach (string phase in new[] { "source", "metadata", "upload", "queue", "apply-extensions" })
                         { await Ownership(kind, "observation", phase); count++; }
                     foreach (string change in new[] { "user", "server", "colony", "auth", "login", "generation", "game", "world", "permission", "snapshot" })
-                        foreach (string phase in new[] { "source", "capture-story", "source-extensions", "substrate", "metadata", "upload", "queue", "apply-extensions", "prepare-story", "apply-story", "sites", "success-text", "message" })
+                        foreach (string phase in new[] { "source", "capture-story", "source-extensions", "substrate", "metadata", "upload", "queue", "apply-extensions", "prepare-story", "apply-story", "proxy", "success-text", "message" })
                         { await Ownership(kind, change, phase); count++; }
                     foreach (string phase in new[] { "metadata", "upload" })
                         foreach (string fault in new[] { "network", "missing-result", "rejected", "exception", "canceled" })
                         { await Failure(kind, phase, fault); count++; }
-                    foreach (string phase in new[] { "source", "capture-story", "source-extensions", "substrate", "apply-extensions", "prepare-story", "apply-story", "sites", "success-text" })
+                    foreach (string phase in new[] { "source", "capture-story", "source-extensions", "substrate", "apply-extensions", "prepare-story", "apply-story", "proxy", "success-text" })
                     { await CallbackFailure(kind, phase); count++; }
                     foreach (string phase in new[] { "metadata", "upload" })
                         foreach (bool oldFirst in new[] { false, true }) { await Replacement(kind, phase, oldFirst); count++; }
@@ -90,9 +91,10 @@ internal static class ClientWorldWritesTests
     private static async Task Success(ClientWorldWriteKind kind)
     {
         var f = new Fixture(kind); var work = f.Start(); var queue = await f.Ports.Next();
-        Check(f.Access.Busy && f.Applied.Count == 0 && !f.Statuses.Any(s => s.Contains("WorldBaselineUpdated") || s.Contains("AdminSynced")), "Success published before queued application.");
+        Check(f.Access.Busy && f.Projected.Count == 0 && !f.Statuses.Any(s => s.Contains("WorldBaselineUpdated") || s.Contains("AdminSynced")), "Success published before queued application.");
         queue(); queue(); await work;
-        Check(f.Applied.Count == 1 && f.Successes == 1 && f.Markers == (kind == ClientWorldWriteKind.Baseline ? 1 : 0) && !f.Access.Busy, "Completion not exact.");
+        Check(f.Projected.Count == 1 && f.Successes == 1 && f.Markers == (kind == ClientWorldWriteKind.Baseline ? 1 : 0) && !f.Access.Busy, "Completion not exact.");
+        Check(f.Publication.Sites.IsBlocked(9, 7, out var site) && site!.UserId == "bob", "Accepted world sites were not cached.");
         Check(f.Trace.Contains("apply-features") == (kind == ClientWorldWriteKind.Baseline) && f.Trace.Contains("apply-story"), "Wrong application mode.");
         Check(f.Calls.SequenceEqual(new[] { "metadata", "upload" }) && f.Contexts.All(c => c.UserId == "alice" && c.ColonyId == "colony" && c.CurrentSnapshotId == "base"), "Write stages/context changed.");
         Check(f.Sent!.PlanetCoverage == "0.3" && f.Sent.DifficultyValuesXml == Baseline.ValuesXml && f.Sent.Extensions[0].PayloadJson == "{\"value\":0.25}", "Culture changed baseline payload.");
@@ -116,7 +118,7 @@ internal static class ClientWorldWritesTests
     {
         var f = new Fixture(kind) { FaultPhase = phase, Fault = fault };
         await f.Ports.PumpUntil(f.Start());
-        Check(f.Successes == 0 && f.Applied.Count == 0 && !f.Access.Busy && f.Statuses.Last().Contains(fault is "exception" or "canceled" ? "Exception" : phase == "metadata" && fault == "rejected" ? "Rejected" : "Failed"), "Failed submission published success: " + phase + "/" + fault);
+        Check(f.Successes == 0 && f.Projected.Count == 0 && !f.Access.Busy && f.Statuses.Last().Contains(fault is "exception" or "canceled" ? "Exception" : phase == "metadata" && fault == "rejected" ? "Rejected" : "Failed"), "Failed submission published success: " + phase + "/" + fault);
         f.Fault = null; await f.Ports.PumpUntil(f.Start());
         Check(f.Successes == 1, "Submission failure prevented retry.");
     }
@@ -137,7 +139,7 @@ internal static class ClientWorldWritesTests
         if (oldFirst) { release.SetResult(); await old; Check(f.Access.Busy, "Old finally released replacement."); }
         queue(); await next;
         if (!oldFirst) { release.SetResult(); await old; }
-        Check(f.Successes == 1 && f.Applied.Count == 1 && f.Diagnostics.Count == 0 && !f.Access.Busy, "Old world response crossed replacement.");
+        Check(f.Successes == 1 && f.Projected.Count == 1 && f.Diagnostics.Count == 0 && !f.Access.Busy, "Old world response crossed replacement.");
     }
     private static async Task Busy(ClientWorldWriteKind kind)
     {
@@ -152,7 +154,7 @@ internal static class ClientWorldWritesTests
     {
         var f = new Fixture(kind); var old = f.Start(); var oldQueue = await f.Ports.Next();
         f.World = new(); var next = f.Start(); var newQueue = await f.Ports.Next(); oldQueue(); oldQueue(); await old;
-        Check(f.Access.Busy && f.Applied.Count == 0, "Expired queued publication affected next request.");
+        Check(f.Access.Busy && f.Projected.Count == 0, "Expired queued publication affected next request.");
         newQueue(); await next;
         f.DiscardQueue = true; await f.Ports.PumpUntil(f.Start());
         Check(f.Successes == 1 && !f.Access.Busy, "Discarded write published/stranded admission.");
@@ -161,7 +163,7 @@ internal static class ClientWorldWritesTests
     {
         var f = new Fixture(kind) { NoAcceptedConfiguration = true };
         await f.Ports.PumpUntil(f.Start());
-        Check(f.Successes == 1 && f.Applied.Count == 0 && !f.Trace.Contains("apply-story"), "Absent optional accepted config was fabricated/applied.");
+        Check(f.Successes == 1 && f.Projected.Count == 0 && !f.Trace.Contains("apply-story"), "Absent optional accepted config was fabricated/applied.");
         if (kind == ClientWorldWriteKind.Storyteller) Check(f.Statuses.Last().Contains("Cassandra") && f.Statuses.Last().Contains("Custom"), "Success lost captured storyteller fallback.");
     }
     private static async Task CaptureFailure(ClientWorldWriteKind kind)
@@ -195,6 +197,7 @@ internal static class ClientWorldWritesTests
         WorldConfigurationId = "world", SeedString = "种子 İ", PlanetCoverage = "0.3", GameLanguage = "French",
         FactionDefNames = new() { "Tribe" }, Features = new() { new() { DefName = "Island", Label = "île" } },
         StorytellerDefName = Baseline.Storyteller, DifficultyDefName = Baseline.Difficulty, DifficultyValuesXml = Baseline.ValuesXml,
+        PlayerColonySites = new() { new() { UserId = "bob", ColonyId = "remote", Tile = 9, TileLayerId = 7 } },
         TileGeometry = new() { Layers = new() { new() { TileCenters = new() { new() { X = 1.25f } } } } }
     };
     private sealed class Fixture : IClientWorldBaselineRuntime, IClientWorldBaselineTransport, IClientStorytellerRuntime,
@@ -207,7 +210,7 @@ internal static class ClientWorldWritesTests
         internal object World = new(); internal bool HasWorld = true, Observing, DiscardQueue, InvalidSource, NoAcceptedConfiguration;
         internal readonly ConcurrentQueue<string> Trace = new(), Calls = new(), Statuses = new(), Diagnostics = new();
         internal readonly ConcurrentQueue<ClashOfRimClientNetworkContext> Contexts = new();
-        internal readonly List<ModWorldConfigurationDto> Applied = new();
+        internal readonly List<ModWorldConfigurationDto> Projected = new();
         internal ModWorldConfigurationDto? Accepted;
         internal ModWorldConfigurationDto? Sent; internal int Successes, Rejections, Markers, Captures;
         internal string? FaultPhase, Fault, CaptureError; internal Action<string>? Hook; internal Func<string, Task>? Before;
@@ -221,7 +224,7 @@ internal static class ClientWorldWritesTests
             var configuration = new ClientWorldConfiguration(Session, this, this, storyteller, new(Session, this));
             Publication = new(Session, Ports, () => WorldId, () => World, configuration);
             Module = new(Session, Access, new(submission, storyteller), submission, storyteller, Publication.Flow, this, this);
-            Module.Applied += configuration => { Applied.Add(configuration); Step("sites"); };
+            Publication.Hook = point => { if (point == "proxy") Step(point); };
             Module.BaselineUpdated += () => { Markers++; Step("markers"); };
         }
         internal Task Start(string? signature = null) { Captures = 0; return Module.StartAsync(Kind, null, signature); }
@@ -280,7 +283,8 @@ internal static class ClientWorldWritesTests
             public ClientWorldFeatureNames? ApplyFeatures(ModWorldConfigurationDto configuration) { F.Step("apply-features"); return null; }
             public void ApplyFactions(ModWorldConfigurationDto configuration) => F.Step("apply-factions");
             public void ApplyRoads(ModWorldConfigurationDto configuration) => F.Step("apply-roads");
-            public void ApplyExtensions(ModWorldConfigurationDto configuration, string userId, bool worldState) => F.Step("apply-extensions");
+            public void ApplyExtensions(ModWorldConfigurationDto configuration, string userId, bool worldState)
+            { F.Projected.Add(ClientProtocolJson.Copy(configuration)); F.Step("apply-extensions"); }
             public void ApplyObjectLabels(ModWorldConfigurationDto configuration) => F.Step("apply-objects");
         }
         private sealed record StoryChange(Fixture F) : IClientStorytellerChange { public void Apply() => F.Step("apply-story"); }

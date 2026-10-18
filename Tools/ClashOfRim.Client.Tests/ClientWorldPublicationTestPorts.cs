@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.Modules.Sessions;
+using AIRsLight.ClashOfRim.Modules.Transport;
 using AIRsLight.ClashOfRim.Modules.World;
 
 // Real publication/cache/preference modules with narrow in-memory engine/store
@@ -21,13 +23,16 @@ internal sealed class ClientWorldPublicationTestPorts : IClientWorldIdentity, IC
     internal readonly ClientOccupiedColonySites Sites;
     internal readonly Dictionary<string, string> Preferences = new();
     internal readonly List<string> Trace = new();
+    internal readonly List<(string User, ModWorldMapMarkerDto[] Markers)> MarkerApplications = new();
+    internal int MarkerQueues => Trace.Count(point => point == "marker-enqueue");
     internal Action<string>? Hook;
+    internal Action<IReadOnlyCollection<ModWorldMapMarkerDto>>? ApplyingMarkers;
     internal ClientWorldPublicationTestPorts(ClientSessionLifecycle session, EventModuleTestPorts ports,
         Func<string>? worldId = null, Func<object>? world = null, ClientWorldConfiguration? configuration = null, ClientOccupiedColonySites? sites = null)
     {
         this.ports = ports; this.worldId = worldId ?? (() => LocalWorldId); this.world = world ?? (() => ports.GameOwner);
         configuration ??= new(session, this, this, null!, null!);
-        Sites = sites ?? new(session, this, this, configuration);
+        Sites = sites ?? new(session, this, this);
         Markers = new(session, this, Sites, this, this);
         Appearance = new(session, this, this);
         Flow = new(this, configuration, Sites, Appearance, Markers);
@@ -65,8 +70,13 @@ internal sealed class ClientWorldPublicationTestPorts : IClientWorldIdentity, IC
     {
         public bool IsCurrent => ReferenceEquals(Game, F.ports.GameOwner) && ReferenceEquals(World, F.world());
         public bool HasWorldObjects => true;
-        public void Enqueue(Action action, Action discard) => F.ports.Enqueue(action);
-        public ClientWorldMarkersApplied Apply(IReadOnlyCollection<ModWorldMapMarkerDto> markers, string user) { F.Step("markers"); return new(true, "applied"); }
+        public void Enqueue(Action action, Action discard) { F.Step("marker-enqueue"); F.ports.Enqueue(action); }
+        public ClientWorldMarkersApplied Apply(IReadOnlyCollection<ModWorldMapMarkerDto> markers, string user)
+        {
+            F.MarkerApplications.Add((user, ClientProtocolJson.Copy(markers.ToArray())));
+            F.ApplyingMarkers?.Invoke(markers);
+            F.Step("markers"); return new(true, "applied");
+        }
         public bool CanReserve(int tile, int layer) => tile >= 0;
         public bool IsNeighborOrSame(int tile, int other, int layer) => tile == other;
         public void EnsureProxy(string user) => F.Step("proxy");

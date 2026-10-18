@@ -69,7 +69,7 @@ internal sealed class ClientWorldPublication
         // Marker deltas also update the occupied-site cache. Do not replace that
         // newer view with an older full catalog; configuration has its own stream.
         if (!markers.HasNewerObservation(marker))
-            sites.Replace(world, selected => { if (preference is not null) appearance.ObserveServer(preference, selected, Bound); }, Bound, remember: false);
+            sites.Replace(world?.PlayerColonySites, selected => { if (preference is not null) appearance.ObserveServer(preference, selected, Bound); }, Bound);
         if (!Bound()) return false;
         if (update is { } acceptedMarkers)
             markers.Observe(marker, acceptedMarkers.Delivery, reason: acceptedMarkers.Source, current: Bound);

@@ -20,7 +20,7 @@ internal static class ClientOccupiedColonySitesTests
                 CultureInfo.CurrentCulture = CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo(name);
                 Catalog(); FrozenValues(); Markers();
                 foreach (string change in Changes) { CacheLifetime(change); MergeLifetime(change); QueryLifetime(change); }
-                foreach (string stage in new[] { "remember", "appearance", "proxy" })
+                foreach (string stage in new[] { "capture", "appearance", "proxy" })
                 {
                     foreach (string change in Changes) UpdateLifetime(stage, change);
                     ReentrantUpdate(stage); FailureRetry(stage);
@@ -37,35 +37,33 @@ internal static class ClientOccupiedColonySitesTests
     private static void Catalog()
     {
         var f = new Fixture();
-        f.Cache.Replace(Config(Site(10, 0, "surface"), Site(10, 7, "underground"), Site(10, 0, "winner"), Site(-1, 0, "invalid")));
+        f.Replace(Sites(Site(10, 0, "surface"), Site(10, 7, "underground"), Site(10, 0, "winner"), Site(-1, 0, "invalid")));
         Check(f.Block(10, 0)?.UserId == "winner" && f.Block(10, 7)?.UserId == "underground", "Tile/layer key or duplicate precedence changed.");
         Check(f.Block(11, 0)?.UserId == "winner" && f.Block(12, 0) is null, "Adjacency changed.");
         Check(f.Block(10, 3) is null && f.Block(10, 9) is null && f.Block(-1, 0) is null && f.Block(30, 0) is null, "Invalid/space query reserved.");
         Check(f.Geometry.All(pair => pair.Layer is 0 or 7), "Invalid layer reached geometry.");
-        f.Cache.Replace(Config(Site(15, 7, "only-other-layer")));
+        f.Replace(Sites(Site(15, 7, "only-other-layer")));
         Check(f.Block(15, 0) is null && f.Block(15, 7) is not null, "Another layer blocked the surface.");
-        f.Cache.Replace(Config(Site(25, 0), Site(25, 7)));
+        f.Replace(Sites(Site(25, 0), Site(25, 7)));
         Check(f.Block(25, 0) is null && f.Block(25, 7) is not null, "Tile bounds were borrowed from the surface.");
-        f.Cache.Replace(null); Check(f.Block(25, 7) is null && f.WorldId == "world-a", "Null catalog did not clear sites or erased identity.");
-        f.Cache.Replace(Config(Site(10, 0))); f.Cache.Replace(new() { PlayerColonySites = null! });
-        Check(f.Block(10, 0) is null, "Missing site list retained old reservations.");
+        f.Replace(null); Check(f.Block(25, 7) is null && f.WorldId == "world-a", "Null catalog did not clear sites or erased identity.");
+        f.Replace(Sites(Site(10, 0))); f.Replace(Array.Empty<ModPlayerColonySiteDto>());
+        Check(f.Block(10, 0) is null, "Empty site list retained old reservations.");
         scenarios++;
     }
     private static void FrozenValues()
     {
         var f = new Fixture(); var own = Site(5, 0, "alice"); own.ColonyId = "colony";
-        var source = Config(own, Site(10, 0, "Bob"), Site(12, 0, "Bob"), Site(14, 0, "bob"), Site(16, 0, " "));
-        source.WorldConfigurationId = "  world-b  ";
+        var source = Sites(own, Site(10, 0, "Bob"), Site(12, 0, "Bob"), Site(14, 0, "bob"), Site(16, 0, " "));
         string expected = ClientProtocolJson.Serialize(own);
         f.Hook = stage =>
         {
-            if (stage != "remember") return;
-            source.WorldConfigurationId = "changed"; own.Label = "changed"; own.Appearance!.ColorHex = "changed";
-            source.PlayerColonySites.Clear();
+            if (stage != "appearance") return;
+            own.Label = "changed"; own.Appearance!.ColorHex = "changed";
+            source.Clear();
         };
-        f.Cache.OwnAppearanceObserved += appearance => appearance!.ColorHex = "observer changed";
-        f.Cache.Replace(source);
-        Check(f.WorldId == "world-b" && f.Appearances.Count == 1 && f.Appearances[0]!.ColorHex == "#123456", "Input identity/appearance was borrowed.");
+        f.Replace(source, appearance => appearance!.ColorHex = "observer changed");
+        Check(f.WorldId == "world-a" && f.Appearances.Count == 1 && f.Appearances[0]!.ColorHex == "#123456", "Site replacement changed world identity or borrowed appearance.");
         Check(f.Proxies.SequenceEqual(new[] { "Bob", "bob" }), "Remote owners lost ordinal uniqueness/order.");
         var result = f.Block(5, 0)!;
         Check(ClientProtocolJson.Serialize(result) == expected, "Catalog fields were lost or mutated by a callback.");
@@ -73,13 +71,13 @@ internal static class ClientOccupiedColonySitesTests
         Check(ClientProtocolJson.Serialize(f.Block(5, 0)) == expected, "Query exposed cached DTO.");
         f.Hook = null;
         var otherColony = Site(5, 0, "alice"); otherColony.ColonyId = "other";
-        f.Cache.Replace(Config(otherColony, Site(6, 0, "ALICE")));
+        f.Replace(Sites(otherColony, Site(6, 0, "ALICE")));
         Check(f.Appearances.Count == 1 && f.Proxies.Last() == "ALICE", "Own colony/name comparison changed.");
         scenarios++;
     }
     private static void Markers()
     {
-        var f = new Fixture(); f.Cache.Replace(Config(Site(3, 0, "retained")));
+        var f = new Fixture(); f.Replace(Sites(Site(3, 0, "retained")));
         f.Proxies.Clear();
         var source = new[] { Marker(10, 0), Marker(10, 7), Marker(10, 0, "winner"), Marker(-1, 0), Marker(6, 0, " "), Marker(15, 0) };
         source[5].Kind = "tradeablecolony";
@@ -95,13 +93,13 @@ internal static class ClientOccupiedColonySitesTests
     }
     private static void CacheLifetime(string change)
     {
-        var f = new Fixture(); f.Cache.Replace(Config(Site(10, 0))); f.Change(change);
+        var f = new Fixture(); f.Replace(Sites(Site(10, 0))); f.Change(change);
         Check((f.Block(10, 0) is not null) == KeepsCache(change), "Wrong cache lifetime: " + change);
         scenarios++;
     }
     private static void MergeLifetime(string change)
     {
-        var f = new Fixture(); f.Cache.Replace(Config(Site(3, 0)));
+        var f = new Fixture(); f.Replace(Sites(Site(3, 0)));
         IEnumerable<ModWorldMapMarkerDto> Incoming() { yield return Marker(10, 0); f.Change(change); yield return Marker(15, 7); }
         f.Cache.Merge(Incoming());
         Check((f.Block(10, 0) is not null) == KeepsOperation(change), "Lazy markers adopted new scope: " + change);
@@ -112,7 +110,7 @@ internal static class ClientOccupiedColonySitesTests
     {
         foreach (string stage in new[] { "valid", "neighbor" })
         {
-            var f = new Fixture(); f.Cache.Replace(Config(Site(10, 0)));
+            var f = new Fixture(); f.Replace(Sites(Site(10, 0)));
             f.Once(stage, () => f.Change(change));
             Check((f.Block(10, 0) is not null) == KeepsOperation(change), "Query published after " + stage + ": " + change);
             scenarios++;
@@ -122,21 +120,21 @@ internal static class ClientOccupiedColonySitesTests
     {
         var f = new Fixture(); var own = Site(5, 0, "alice"); own.ColonyId = "colony";
         f.Once(stage, () => f.Change(change));
-        f.Cache.Replace(Config(own, Site(10, 0, "bob"), Site(15, 0, "charlie")));
+        f.Replace(Sites(own, Site(10, 0, "bob"), Site(15, 0, "charlie")));
         int expectedProxies = KeepsOperation(change) ? 2 : stage == "proxy" ? 1 : 0;
         Check(f.Proxies.Count == expectedProxies, "Stale update continued proxy effects: " + stage + "/" + change);
-        bool expectedHit = KeepsCache(change) && (stage != "remember" || KeepsOperation(change));
+        bool expectedHit = KeepsCache(change) && (stage != "capture" || KeepsOperation(change));
         Check((f.Block(10, 0) is not null) == expectedHit, "Wrong cache publication boundary: " + stage + "/" + change);
         scenarios++;
     }
     private static void ReentrantUpdate(string stage)
     {
         var f = new Fixture(); var own = Site(5, 0, "alice"); own.ColonyId = "colony";
-        f.Once(stage, () => f.Cache.Replace(Config(Site(15, 0, "replacement"))));
-        f.Cache.Replace(Config(own, Site(10, 0, "old-owner"), Site(12, 0, "must-not-run")));
+        f.Once(stage, () => f.Replace(Sites(Site(15, 0, "replacement"))));
+        f.Replace(Sites(own, Site(10, 0, "old-owner"), Site(12, 0, "must-not-run")));
         Check(f.Block(15, 0)?.UserId == "replacement" && f.Block(10, 0) is null, "Old update replaced reentrant catalog: " + stage);
         Check(!f.Proxies.Contains("must-not-run"), "Old update resumed after replacement: " + stage);
-        f.Cache.Replace(Config(Site(10, 0, "retry")));
+        f.Replace(Sites(Site(10, 0, "retry")));
         Check(f.Block(10, 0)?.UserId == "retry", "Old completion poisoned next update.");
         scenarios++;
     }
@@ -144,17 +142,17 @@ internal static class ClientOccupiedColonySitesTests
     {
         var f = new Fixture(); var own = Site(5, 0, "alice"); own.ColonyId = "colony";
         f.Once(stage, () => throw new InvalidOperationException("injected"));
-        try { f.Cache.Replace(Config(own, Site(10, 0))); throw new Exception("Missing injected failure."); }
+        try { f.Replace(Sites(own, Site(10, 0))); throw new Exception("Missing injected failure."); }
         catch (InvalidOperationException ex) when (ex.Message == "injected") { }
-        Check((f.Block(10, 0) is not null) == (stage != "remember"), "Callback failure rolled back or partly published cache: " + stage);
-        f.Cache.Replace(Config(Site(15, 0))); Check(f.Block(15, 0) is not null && f.Block(10, 0) is null, "Update did not recover.");
+        Check((f.Block(10, 0) is not null) == (stage != "capture"), "Callback failure rolled back or partly published cache: " + stage);
+        f.Replace(Sites(Site(15, 0))); Check(f.Block(15, 0) is not null && f.Block(10, 0) is null, "Update did not recover.");
         scenarios++;
     }
     private static void QueryReplacement()
     {
         foreach (string stage in new[] { "valid", "neighbor" })
         {
-            var f = new Fixture(); f.Cache.Replace(Config(Site(10, 0, "old")));
+            var f = new Fixture(); f.Replace(Sites(Site(10, 0, "old")));
             f.Once(stage, () => f.Cache.Merge(new[] { Marker(10, 0, "new") }));
             Check(f.Block(10, 0) is null && f.Block(10, 0)?.UserId == "new", "Query returned obsolete view in the same world.");
             scenarios++;
@@ -164,19 +162,19 @@ internal static class ClientOccupiedColonySitesTests
     {
         var f = new Fixture(); var own = Site(5, 0, "alice"); own.ColonyId = "colony";
         f.Once("appearance", () => f.Cache.Merge(Array.Empty<ModWorldMapMarkerDto>()));
-        f.Cache.Replace(Config(own, Site(10, 0, "bob")));
+        f.Replace(Sites(own, Site(10, 0, "bob")));
         Check(f.Proxies.SequenceEqual(new[] { "bob" }), "Empty delta interrupted catalog effects.");
         IEnumerable<ModWorldMapMarkerDto> Incoming()
         {
             yield return Marker(15, 0);
-            f.Cache.Replace(Config(Site(3, 0, "replacement")));
+            f.Replace(Sites(Site(3, 0, "replacement")));
             yield return Marker(10, 0);
         }
         f.Cache.Merge(Incoming());
         Check(f.Block(3, 0)?.UserId == "replacement" && f.Block(10, 0) is null, "Lazy delta overwrote a newer same-world view.");
         scenarios++;
     }
-    private static ModWorldConfigurationDto Config(params ModPlayerColonySiteDto[] sites) => new() { WorldConfigurationId = "world-a", PlayerColonySites = sites.ToList() };
+    private static List<ModPlayerColonySiteDto> Sites(params ModPlayerColonySiteDto[] sites) => sites.ToList();
     private static ModPlayerColonySiteDto Site(int tile, int layer, string user = "remote") => new()
     {
         Tile = tile, TileLayerId = layer, UserId = user, ColonyId = "colony-Î", WorldObjectId = "object", MapUniqueId = "map", Label = "基地 Î", FactionName = "faction",
@@ -202,9 +200,20 @@ internal static class ClientOccupiedColonySitesTests
         internal Fixture(IClientOccupiedColonySitesRuntime? runtime = null)
         {
             ClientSessionWork.Reset(); Session = new(Ports, Ports, new(Ports));
-            var configuration = new ClientWorldConfiguration(Session, this, this, null!, null!);
-            Cache = new(Session, this, runtime ?? this, configuration);
-            Cache.OwnAppearanceObserved += appearance => { Appearances.Add(appearance); Hook?.Invoke("appearance"); };
+            Cache = new(Session, this, runtime ?? this);
+        }
+        internal void Replace(IEnumerable<ModPlayerColonySiteDto>? source, Action<ModColonyAppearanceDto?>? observe = null)
+        {
+            Cache.Replace(Incoming(), appearance =>
+            {
+                Appearances.Add(appearance is null ? null : ClientProtocolJson.Copy(appearance));
+                Hook?.Invoke("appearance"); observe?.Invoke(appearance);
+            });
+            IEnumerable<ModPlayerColonySiteDto> Incoming()
+            {
+                Hook?.Invoke("capture");
+                foreach (var site in source ?? Enumerable.Empty<ModPlayerColonySiteDto>()) yield return site;
+            }
         }
         public void Remember(string id) { WorldId = id; Hook?.Invoke("remember"); }
         public IClientOccupiedColonySitesSession Bind() => new Bound(this, Ports.GameOwner, World);

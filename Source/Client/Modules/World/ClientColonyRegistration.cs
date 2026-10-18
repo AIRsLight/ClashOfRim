@@ -40,7 +40,6 @@ internal sealed class ClientColonyRegistration
     private readonly Pending?[] pending = new Pending?[2];
     private ClientColonyRegistrationKind? activeKind;
     private bool suppressed, muteNext;
-    internal event Action<ModWorldMapMarkerDeliveryDto?, string>? MarkersAccepted;
     internal event Action<string, bool>? Diagnostic;
     internal ClientColonyRegistration(ClientSessionLifecycle session, IClientWorldIdentity identity, ClientLocalMutationCoordinator mutations,
         IClientColonyRegistrationRuntime runtime, IClientColonyRegistrationTransport transport, ClientWorldPublication publication)
@@ -160,8 +159,6 @@ internal sealed class ClientColonyRegistration
                             if (bound.WorldId != world) { accepted[0] = accepted[1] = null; bound.WorldId = world; }
                         }
                         finally { bound.PublishingWorldId = null; }
-                        foreach (Action<ModWorldMapMarkerDeliveryDto?, string> handler in MarkersAccepted?.GetInvocationList() ?? Array.Empty<Delegate>())
-                            if (!Step(() => handler(response.WorldMapMarkers is null ? null : ClientProtocolJson.Copy(response.WorldMapMarkers), source))) return;
                         if (input.Kind == ClientColonyRegistrationKind.Sites && ReferenceEquals(revisions[0], siteRevision)) accepted[0] = siteSignature;
                         if (ReferenceEquals(revisions[1], extensionRevision)) accepted[1] = extensionSignature;
                         Report("[ClashOfRim] Colony " + input.Kind + " registered: sites=" + response.AcceptedCount + ", extensions=" + extensions.Length);

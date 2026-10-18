@@ -38,7 +38,7 @@ internal static class ClientOccupiedColonySitesRuntimeTests
                 Check(bound.CanReserve(25, 7) && !bound.CanReserve(25, 0) && !bound.CanReserve(10, 9)
                     && !bound.CanReserve(10, 3) && !bound.CanReserve(-1, 7), "Layer validity/space semantics changed.");
                 var f = new ClientOccupiedColonySitesTests.Fixture(runtime);
-                f.Cache.Replace(new() { WorldConfigurationId = "world-a", PlayerColonySites = new() { new() { Tile = 10, TileLayerId = 7 }, new() { Tile = 25, TileLayerId = 7 } } });
+                f.Replace(new[] { new ModPlayerColonySiteDto { Tile = 10, TileLayerId = 7 }, new ModPlayerColonySiteDto { Tile = 25, TileLayerId = 7 } });
                 var mod = New<ClashOfRimMod>(); Set(mod, "occupiedColonySites", f.Cache);
                 Check(!mod.IsBlockedByServerColonySite(10, out _), "Integer overload borrowed another layer.");
                 Check(mod.IsBlockedByServerColonySite(new PlanetTile(10, 7), out var same) && same!.TileLayerId == 7, "PlanetTile overload lost its layer.");
