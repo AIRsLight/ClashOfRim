@@ -27,7 +27,7 @@ internal sealed class ClientSnapshotReload : IClientSnapshotReload
     { this.session = session; this.synchronization = synchronization; this.mutations = mutations; this.recovery = recovery;
         this.authentication = authentication; this.download = download; this.publication = publication; this.runtime = runtime; this.presentation = presentation; }
     internal event Action<ClientSnapshotReloadCompleted>? Completed;
-    internal bool BlocksGameLifecycle => mutations.Current?.Kind is LocalMutationKind.RaidRestore or LocalMutationKind.SnapshotRestore;
+    internal bool BlocksGameLifecycle => mutations.BlocksGameLifecycle;
 
     // A replaced game may never dispatch the queued vanilla load callback. Engine
     // updates/new requests retire that exact operation instead of retaining its lease.

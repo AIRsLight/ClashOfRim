@@ -110,16 +110,12 @@ public sealed partial class ClashOfRimMod : Mod
     private bool manualSyncInProgress => synchronization.ManualInProgress;
     private bool worldMapMarkerSyncInProgress;
     private bool runtimeWorldObjectSyncInProgress;
-    private bool playerColonySiteRegistrationInProgress;
-    private bool worldConfigurationExtensionSyncInProgress;
+    private readonly ClientColonyRegistration colonyRegistration;
     private bool abandonPlayerColonyInProgress;
-    private bool playerColonySiteRegistrationSuppressed;
     private bool caravanArrivalTargetRefreshInProgress;
     private readonly ClientAdminAccess adminAccess;
     private readonly ClientAdministration administration;
     private readonly ClientWorldWrites worldWrites;
-    private string? lastRegisteredPlayerColonySiteSignature;
-    private string? lastSyncedWorldConfigurationExtensionSignature;
     private bool statusDefaultsInitialized;
     private string loginStatus = string.Empty;
     private string snapshotUploadStatus = string.Empty;
@@ -204,7 +200,6 @@ public sealed partial class ClashOfRimMod : Mod
         var eventConfirmationPreparation = new ClientEventConfirmationPreparation(sessionLifecycle, synchronization, localMutations, eventConfirmation);
         snapshotFailureRecovery = new ClientSnapshotFailureRecovery(sessionLifecycle, localMutations, synchronization,
             new ClientSnapshotGame(), new ClientSnapshotFailureView());
-        snapshotFailureRecovery.ReturningToMenu += () => playerColonySiteRegistrationSuppressed = false;
         var bankPresentation = new ClientBankPresentation();
         bankState = new ClientBankState(sessionLifecycle, new ClientSnapshotGame(), bankPresentation);
         var snapshotTransactions = new ClientSnapshotTransaction(sessionLifecycle, new ClientSnapshotGame(), snapshotPublication);
@@ -303,6 +298,11 @@ public sealed partial class ClashOfRimMod : Mod
         worldConfiguration = new ClientWorldConfiguration(sessionLifecycle, new ClientWorldConfigurationRuntime(), entryStore, storytellerConfiguration, featureCatalogs);
         occupiedColonySites = new ClientOccupiedColonySites(sessionLifecycle, entryStore, new ClientOccupiedColonySitesRuntime(), worldConfiguration);
         occupiedColonySites.OwnAppearanceObserved += CacheServerColonyAppearance;
+        colonyRegistration = new ClientColonyRegistration(sessionLifecycle, entryStore, localMutations, new ClientColonyRegistrationRuntime(),
+            new ClientColonyRegistrationTransport(new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner))), worldConfiguration, occupiedColonySites);
+        snapshotFailureRecovery.ReturningToMenu += () => colonyRegistration.Suppressed = false;
+        colonyRegistration.MarkersAccepted += (markers, source) => CaptureWorldMapMarkers(markers, source: source);
+        colonyRegistration.Diagnostic += (message, warning) => { if (warning) Log.Warning(message); else ClashLog.Message(message); };
         worldCatalog = new ClientWorldCatalog(sessionLifecycle, new ClientWorldCatalogRuntime(), worldTransport,
             new ClientWorldCatalogPresentation(message => worldMapStatus = message), worldConfiguration);
         worldCatalog.CompatibilityAccepted += CaptureServerCompatibilityManifest;
@@ -566,32 +566,9 @@ public sealed partial class ClashOfRimMod : Mod
         && !string.IsNullOrWhiteSpace(lastSessionId)
         && Find.WorldObjects is not null;
 
-    internal bool CanRegisterPlayerColonySites =>
-        settings.IsConfigured
-        && !playerColonySiteRegistrationInProgress
-        && !playerColonySiteRegistrationSuppressed
-        && !localMutations.IsPending
-        && !ClashOfRimGameComponent.HasActiveRaidBattleSession
-        && !ClashOfRimGameComponent.HasActiveObservationSession
-        && !string.IsNullOrWhiteSpace(lastSessionId)
-        && !string.IsNullOrWhiteSpace(settings.CurrentSnapshotId)
-        && Current.ProgramState == ProgramState.Playing
-        && Find.WorldObjects is not null
-        && HasLoadedPlayerColonyContext();
-
-    internal bool IsPlayerColonySiteRegistrationSuppressed => playerColonySiteRegistrationSuppressed;
-
-    internal bool CanSyncWorldConfigurationExtensions =>
-        settings.IsConfigured
-        && ClashOfRimCompatibilityApi.HasWorldConfigurationExtensionCollector
-        && !worldConfigurationExtensionSyncInProgress
-        && !snapshotReload.BlocksGameLifecycle
-        && !ClashOfRimGameComponent.HasActiveRaidBattleSession
-        && !ClashOfRimGameComponent.HasActiveObservationSession
-        && !string.IsNullOrWhiteSpace(lastSessionId)
-        && !string.IsNullOrWhiteSpace(settings.CurrentSnapshotId)
-        && Current.ProgramState == ProgramState.Playing
-        && Find.World is not null;
+    internal bool CanRegisterPlayerColonySites => colonyRegistration.CanStart(ClientColonyRegistrationKind.Sites);
+    internal bool IsPlayerColonySiteRegistrationSuppressed => colonyRegistration.Suppressed;
+    internal bool CanSyncWorldConfigurationExtensions => colonyRegistration.CanStart(ClientColonyRegistrationKind.Extensions);
 
     internal bool CanRefreshCaravanArrivalTargets =>
         settings.IsConfigured

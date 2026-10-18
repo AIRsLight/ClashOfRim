@@ -7,7 +7,6 @@ using AIRsLight.ClashOfRim.Modules.Transport;
 
 namespace AIRsLight.ClashOfRim.Modules.World;
 
-internal interface IClientOccupiedColonySiteIdentity { string WorldId { get; } }
 internal interface IClientOccupiedColonySitesRuntime { IClientOccupiedColonySitesSession Bind(); }
 internal interface IClientOccupiedColonySitesSession
 {
@@ -24,13 +23,13 @@ internal sealed class ClientOccupiedColonySites
     private readonly ClientSessionLifecycle session;
     private readonly ClientRequestTracker updates;
     private readonly ClientRequestTracker<string> cache;
-    private readonly IClientOccupiedColonySiteIdentity identity;
+    private readonly IClientWorldIdentity identity;
     private readonly IClientOccupiedColonySitesRuntime runtime;
     private readonly ClientWorldConfiguration configuration;
     private Dictionary<(int Tile, int Layer), ModPlayerColonySiteDto> sites = new();
     internal event Action<ModColonyAppearanceDto?>? OwnAppearanceObserved;
 
-    internal ClientOccupiedColonySites(ClientSessionLifecycle session, IClientOccupiedColonySiteIdentity identity,
+    internal ClientOccupiedColonySites(ClientSessionLifecycle session, IClientWorldIdentity identity,
         IClientOccupiedColonySitesRuntime runtime, ClientWorldConfiguration configuration)
     {
         this.session = session; this.identity = identity; this.runtime = runtime; this.configuration = configuration;

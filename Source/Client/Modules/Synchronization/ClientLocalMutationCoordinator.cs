@@ -32,6 +32,7 @@ internal sealed class ClientLocalMutationCoordinator
 
     internal LocalMutationState? Current { get { lock (gate) return current; } }
     internal bool IsPending { get { lock (gate) return current is not null; } }
+    internal bool BlocksGameLifecycle => Current?.Kind is LocalMutationKind.RaidRestore or LocalMutationKind.SnapshotRestore;
 
     internal void Begin(LocalMutationKind kind, string status)
     {

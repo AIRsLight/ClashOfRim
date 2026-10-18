@@ -19,6 +19,8 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("colony protocol shares registration, relocation and abandonment wire contracts", ClientColonyProtocolTests.Run),
+    ("colony registration shares capture, writes and accepted publication", ClientColonyRegistrationTests.Run),
     ("occupied colony sites runtime preserves engine layer identity", ClientOccupiedColonySitesRuntimeTests.Run),
     ("occupied colony sites own layered cache and publication boundaries", ClientOccupiedColonySitesTests.Run),
     ("initial world setup owns provisioning and snapshot handoff", ClientInitialWorldSetupTests.Run),

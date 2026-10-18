@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.World;
 using AIRsLight.ClashOfRim.Modules.Events;
 using AIRsLight.ClashOfRim.Modules.Sessions;
 using System;
@@ -148,8 +149,7 @@ public sealed partial class ClashOfRimMod
         TradePawnPreviewService.Reset();
         worldMapMarkerSyncInProgress = false;
         runtimeWorldObjectSyncInProgress = false;
-        playerColonySiteRegistrationInProgress = false;
-        worldConfigurationExtensionSyncInProgress = false;
+        colonyRegistration.Reset();
         abandonPlayerColonyInProgress = false;
         caravanArrivalTargetRefreshInProgress = false;
         bankState.Reset();
@@ -167,8 +167,6 @@ public sealed partial class ClashOfRimMod
         administration.Reset();
         lastWorldConfigurationVersion = 0;
         worldSetup.Reset();
-        playerColonySiteRegistrationSuppressed = false;
-        lastRegisteredPlayerColonySiteSignature = null;
         settings.CurrentSnapshotId = string.Empty;
         settings.CurrentLineageToken = string.Empty;
         playerDirectory.ClearSelection();
@@ -631,198 +629,16 @@ public sealed partial class ClashOfRimMod
     }
 
     internal void StartRegisterPlayerColonySites()
-    {
-        if (!CanRegisterPlayerColonySites)
-        {
-            return;
-        }
-
-        List<ModPlayerColonySiteDto> sites = ClientWorldColonySitesRuntime.Capture(Current.Game, Find.World,
-            settings.UserId,
-            settings.ColonyId,
-            BuildCurrentColonyAppearanceDto(settings));
-        List<ModWorldConfigurationExtensionDto> extensions = ClashOfRimCompatibilityApi.CollectCurrentWorldConfigurationExtensions(
-            settings.UserId,
-            settings.ColonyId,
-            settings.CurrentSnapshotId ?? "unknown").ToList();
-        string signature = BuildPlayerColonySiteSignature(sites, extensions);
-        ClashLog.Message("[ClashOfRim] Checking player colony site registration: sites="
-            + sites.Count
-            + ", worldExtensions="
-            + extensions.Count
-            + ", signatureHash="
-            + RegistrationSignatureHash(signature)
-            + ", signatureBytes="
-            + Encoding.UTF8.GetByteCount(signature).ToString()
-            + ", lastSignatureHash="
-            + (lastRegisteredPlayerColonySiteSignature is null ? "<null>" : RegistrationSignatureHash(lastRegisteredPlayerColonySiteSignature))
-            + ", sample="
-            + DescribePlayerColonySiteSample(sites));
-        if (sites.Count == 0 && extensions.Count == 0)
-        {
-            lastRegisteredPlayerColonySiteSignature = signature;
-            ClashLog.Message("[ClashOfRim] Player colony site registration skipped because no local player colony site or world extension is visible.");
-            return;
-        }
-
-        if (sites.Count == 0)
-        {
-            ClashLog.Message("[ClashOfRim] No local player colony site is visible; syncing local ideos without replacing server colony sites. "
-                + DescribePlayerColonyScanContext());
-        }
-
-        if (lastRegisteredPlayerColonySiteSignature is not null
-            && string.Equals(signature, lastRegisteredPlayerColonySiteSignature, StringComparison.Ordinal))
-        {
-            return;
-        }
-
-        bool suppressWorldConfigurationNotification = suppressNextPlayerColonySiteRegistrationNotification;
-        suppressNextPlayerColonySiteRegistrationNotification = false;
-        playerColonySiteRegistrationInProgress = true;
-        ClientSessionWork.Run(async () =>
-        {
-            try
-            {
-                using var httpClient = new HttpClient();
-                var client = new ClashOfRimModNetworkClient(
-                    httpClient,
-                    ClashOfRimClientNetworkContext.FromSettings(settings));
-                ClashOfRimClientNetworkResult<ModRegisterPlayerColonySitesResponseDto> result =
-                    await ClientSessionWork.Observe(client.RegisterPlayerColonySitesAsync(
-                        sites,
-                        extensions: extensions,
-                        suppressWorldConfigurationNotification: suppressWorldConfigurationNotification));
-                using var publication = ClientSessionWork.EnterPublication();
-                if (!result.Success || result.Response is null)
-                {
-                    Log.Warning("[ClashOfRim] Player colony site registration failed: " + result.ErrorCode + " " + result.Message);
-                    return;
-                }
-
-                if (result.Response.Result?.Accepted != true)
-                {
-                    Log.Warning("[ClashOfRim] Player colony site registration rejected: " + result.Response.Result?.ErrorCode + " " + result.Response.Result?.Message);
-                    return;
-                }
-
-                lastRegisteredPlayerColonySiteSignature = signature;
-                ModWorldConfigurationDto? worldConfiguration = result.Response.WorldConfiguration;
-                ModWorldMapMarkerDeliveryDto? worldMapMarkers = result.Response.WorldMapMarkers;
-                ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
-                {
-                    ApplyServerWorldConfigurationExtensionCatalog(worldConfiguration);
-                    occupiedColonySites.Replace(worldConfiguration);
-                    CaptureWorldMapMarkers(worldMapMarkers, source: "player-colony-site-registration");
-                });
-                ClashLog.Message("[ClashOfRim] Player colony sites registered: " + result.Response.AcceptedCount);
-            }
-            catch (Exception ex)
-            when (ClientSessionWork.IsCurrent)
-            {
-                using var publication = ClientSessionWork.EnterPublication();
-                Log.Warning("[ClashOfRim] Player colony site registration exception: " + ex);
-            }
-            finally
-            {
-                ClientSessionWork.TryApply(() =>
-                {
-                    playerColonySiteRegistrationInProgress = false;
-                });
-            }
-        });
-    }
+        => _ = colonyRegistration.StartAsync(ClientColonyRegistrationKind.Sites, BuildCurrentColonyAppearanceDto(settings));
 
     internal void RequestPlayerColonySiteRegistration(string reason, bool suppressWorldConfigurationNotification = false)
-    {
-        lastRegisteredPlayerColonySiteSignature = null;
-        suppressNextPlayerColonySiteRegistrationNotification |= suppressWorldConfigurationNotification;
-        ClashLog.Message("[ClashOfRim] Player colony site registration requested: " + reason);
-        ClashOfRimGameComponent.EnqueueMainThreadAction(StartRegisterPlayerColonySites);
-    }
+        => _ = colonyRegistration.RequestAsync(ClientColonyRegistrationKind.Sites, reason, BuildCurrentColonyAppearanceDto(settings), suppressWorldConfigurationNotification);
 
     internal void StartSyncWorldConfigurationExtensions()
-    {
-        if (!CanSyncWorldConfigurationExtensions)
-        {
-            return;
-        }
-
-        List<ModWorldConfigurationExtensionDto> extensions = ClashOfRimCompatibilityApi.CollectCurrentWorldConfigurationExtensions(
-            settings.UserId,
-            settings.ColonyId,
-            settings.CurrentSnapshotId ?? "unknown").ToList();
-        if (extensions.Count == 0)
-        {
-            return;
-        }
-
-        string signature = BuildWorldConfigurationExtensionSignature(extensions);
-        if (lastSyncedWorldConfigurationExtensionSignature is not null
-            && string.Equals(signature, lastSyncedWorldConfigurationExtensionSignature, StringComparison.Ordinal))
-        {
-            return;
-        }
-
-        worldConfigurationExtensionSyncInProgress = true;
-        ClientSessionWork.Run(async () =>
-        {
-            try
-            {
-                using var httpClient = new HttpClient();
-                var client = new ClashOfRimModNetworkClient(
-                    httpClient,
-                    ClashOfRimClientNetworkContext.FromSettings(settings));
-                ClashOfRimClientNetworkResult<ModRegisterPlayerColonySitesResponseDto> result =
-                    await ClientSessionWork.Observe(client.RegisterPlayerColonySitesAsync(
-                        Array.Empty<ModPlayerColonySiteDto>(),
-                        extensions: extensions));
-                using var publication = ClientSessionWork.EnterPublication();
-                if (!result.Success || result.Response is null)
-                {
-                    Log.Warning("[ClashOfRim][WorldExtensions] World configuration extension sync failed: " + result.ErrorCode + " " + result.Message);
-                    return;
-                }
-
-                if (result.Response.Result?.Accepted != true)
-                {
-                    Log.Warning("[ClashOfRim][WorldExtensions] World configuration extension sync rejected: " + result.Response.Result?.ErrorCode + " " + result.Response.Result?.Message);
-                    return;
-                }
-
-                lastSyncedWorldConfigurationExtensionSignature = signature;
-                ModWorldConfigurationDto? worldConfiguration = result.Response.WorldConfiguration;
-                ModWorldMapMarkerDeliveryDto? worldMapMarkers = result.Response.WorldMapMarkers;
-                ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
-                {
-                    ApplyServerWorldConfigurationExtensionCatalog(worldConfiguration);
-                    occupiedColonySites.Replace(worldConfiguration);
-                    CaptureWorldMapMarkers(worldMapMarkers, source: "world-configuration-extension-sync");
-                });
-                ClashLog.Message("[ClashOfRim] World configuration extensions synced: " + extensions.Count);
-            }
-            catch (Exception ex)
-            when (ClientSessionWork.IsCurrent)
-            {
-                using var publication = ClientSessionWork.EnterPublication();
-                Log.Warning("[ClashOfRim] World configuration extension sync exception: " + ex);
-            }
-            finally
-            {
-                ClientSessionWork.TryApply(() =>
-                {
-                    worldConfigurationExtensionSyncInProgress = false;
-                });
-            }
-        });
-    }
+        => _ = colonyRegistration.StartAsync(ClientColonyRegistrationKind.Extensions);
 
     internal void RequestWorldConfigurationExtensionSync(string reason)
-    {
-        lastSyncedWorldConfigurationExtensionSignature = null;
-        ClashLog.Message("[ClashOfRim][WorldExtensions] World configuration extension sync requested: " + reason);
-        ClashOfRimGameComponent.EnqueueMainThreadAction(StartSyncWorldConfigurationExtensions);
-    }
+        => _ = colonyRegistration.RequestAsync(ClientColonyRegistrationKind.Extensions, reason);
 
     internal void OpenAbandonPlayerColonyConfirmation(MapParent colony)
     {
@@ -895,7 +711,7 @@ public sealed partial class ClashOfRimMod
                     settings.CurrentSnapshotId = string.Empty;
                     settings.CurrentLineageToken = string.Empty;
                     sessionLifecycle.ClearIdentity();
-                    lastRegisteredPlayerColonySiteSignature = null;
+                    colonyRegistration.Invalidate(ClientColonyRegistrationKind.Sites);
                     eventInbox.Reset();
                     tradeState.Reset();
 
@@ -1344,6 +1160,4 @@ public sealed partial class ClashOfRimMod
             }
         });
     }
-    private static string RegistrationSignatureHash(string value) =>
-        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value))).ToLowerInvariant().Substring(0, 16);
 }

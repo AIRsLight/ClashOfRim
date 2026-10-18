@@ -91,8 +91,6 @@ public sealed partial class ClashOfRimMod
 {
     private const string ColonyAppearanceAccountSeparator = "|";
 
-    private bool suppressNextPlayerColonySiteRegistrationNotification;
-
     internal void OpenColonyAppearanceWindow(MapParent colony)
     {
         Find.WindowStack.Add(new ColonyAppearanceDialogWindow(this, colony));

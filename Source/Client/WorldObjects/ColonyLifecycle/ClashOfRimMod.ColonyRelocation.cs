@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.World;
 using System;
 using static AIRsLight.ClashOfRim.ClientWorldRuntimeValues;
 using System.Collections.Generic;
@@ -232,7 +233,7 @@ public sealed partial class ClashOfRimMod
         }
 
         localMutations.UpdateStatus(ClashOfRimText.Key("ClashOfRim.ColonyRelocation.StatusSettling"));
-        playerColonySiteRegistrationSuppressed = true;
+        colonyRegistration.Suppressed = true;
         int targetTile = target.Tile;
         try
         {
@@ -244,7 +245,7 @@ public sealed partial class ClashOfRimMod
                 false,
                 ex =>
                 {
-                    playerColonySiteRegistrationSuppressed = false;
+                    colonyRegistration.Suppressed = false;
                     ShowColonyRelocationFailure(
                         $"{ex.GetType().Name} {ex.Message}",
                         () => FinishLocalColonyRelocation(oldColony, previousSnapshotId, targetTile, targetTileLayerId, idempotencyKey));
@@ -252,7 +253,7 @@ public sealed partial class ClashOfRimMod
         }
         catch (Exception ex)
         {
-            playerColonySiteRegistrationSuppressed = false;
+            colonyRegistration.Suppressed = false;
             ShowColonyRelocationFailure(
                 $"{ex.GetType().Name} {ex.Message}",
                 () => BeginLocalColonyRelocation(target, oldColony, previousSnapshotId, targetTileLayerId, idempotencyKey, settle));
@@ -298,7 +299,7 @@ public sealed partial class ClashOfRimMod
         }
         finally
         {
-            playerColonySiteRegistrationSuppressed = false;
+            colonyRegistration.Suppressed = false;
         }
     }
 
@@ -455,12 +456,12 @@ public sealed partial class ClashOfRimMod
                 {
                     if (releaseSiteRegistrationSuppressionOnComplete)
                     {
-                        playerColonySiteRegistrationSuppressed = false;
+                        colonyRegistration.Suppressed = false;
                     }
 
                     occupiedColonySites.Replace(result.Response.WorldConfiguration);
                     CaptureWorldMapMarkers(result.Response.WorldMapMarkers, source: "colony-relocation");
-                    lastRegisteredPlayerColonySiteSignature = null;
+                    colonyRegistration.Invalidate(ClientColonyRegistrationKind.Sites);
                     ClearImplicitColonyRelocationFlightState();
                     CompleteLocalAtomicMutation();
                     CloseUnconfirmedSnapshotFailureWindow();
@@ -526,8 +527,8 @@ public sealed partial class ClashOfRimMod
 
         implicitColonyRelocationFlightPending = true;
         implicitColonyRelocationPreviousSnapshotId = previousSnapshotId;
-        playerColonySiteRegistrationSuppressed = true;
-        lastRegisteredPlayerColonySiteSignature = null;
+        colonyRegistration.Suppressed = true;
+        colonyRegistration.Invalidate(ClientColonyRegistrationKind.Sites);
         ClashLog.Message("[ClashOfRim] Gravship relocation atomic section started: targetTile=" + targetTile);
         return true;
     }
@@ -574,8 +575,8 @@ public sealed partial class ClashOfRimMod
         {
             localMutations.UpdateStatus(ClashOfRimText.Key("ClashOfRim.ColonyRelocation.StatusPreflight"));
         }
-        playerColonySiteRegistrationSuppressed = true;
-        lastRegisteredPlayerColonySiteSignature = null;
+        colonyRegistration.Suppressed = true;
+        colonyRegistration.Invalidate(ClientColonyRegistrationKind.Sites);
         ClashLog.Message("[ClashOfRim] Starting implicit colony relocation confirmation: " + reason + ", targetTile=" + targetTile + "," + targetTileLayerId);
 
         ClientSessionWork.Run(async () =>

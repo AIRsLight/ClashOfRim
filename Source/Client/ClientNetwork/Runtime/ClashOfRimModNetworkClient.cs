@@ -33,10 +33,6 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
     private static readonly string UploadSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.UploadSnapshot).Route;
     private static readonly string SyncWorldMapMarkersRoute = ProtocolContractManifest.Find(ProtocolMessageKind.SyncWorldMapMarkers).Route;
     private static readonly string SyncRuntimeWorldObjectsRoute = ProtocolContractManifest.Find(ProtocolMessageKind.SyncRuntimeWorldObjects).Route;
-    private static readonly string RegisterPlayerColonySitesRoute = ProtocolContractManifest.Find(ProtocolMessageKind.RegisterPlayerColonySites).Route;
-    private static readonly string PreflightColonyRelocationRoute = ProtocolContractManifest.Find(ProtocolMessageKind.PreflightColonyRelocation).Route;
-    private static readonly string ConfirmColonyRelocationRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ConfirmColonyRelocation).Route;
-    private static readonly string AbandonPlayerColonyRoute = ProtocolContractManifest.Find(ProtocolMessageKind.AbandonPlayerColony).Route;
     private static readonly string SendChatMessageRoute = ProtocolContractManifest.Find(ProtocolMessageKind.SendChatMessage).Route;
     private static readonly string ListChatMessagesRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ListChatMessages).Route;
     private static readonly string OverrideCompatibilityBaselineRoute = ProtocolContractManifest.Find(ProtocolMessageKind.OverrideCompatibilityBaseline).Route;
@@ -47,6 +43,7 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
     private readonly ClientEventDecisionProtocol eventDecisions;
     private readonly ClientAchievementProtocol achievements;
     private readonly ClientWorldProtocol world;
+    private readonly ClientColonyProtocol colonies;
     private readonly ClientDiplomacyProtocol diplomacy;
     private readonly ClientAccountProtocol accounts;
     private readonly ClientAdminProtocol adminProtocol;
@@ -89,6 +86,7 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
         support = new ClientSupportProtocol(transport, context, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         mercenaries = new ClientMercenaryProtocol(transport, context, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         bankProtocol = new ClientBankProtocol(context, transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
+        colonies = new ClientColonyProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         trades = new ClientTradeProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         gifts = new ClientGiftProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         events = new ClientEventProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
@@ -229,114 +227,21 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
         => world.ReadAsync(context, includeGenerationBaseline, includePlayerColonySites, includeWorldExtensions, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModRegisterPlayerColonySitesResponseDto>> RegisterPlayerColonySitesAsync(
-        IReadOnlyCollection<ModPlayerColonySiteDto> sites,
-        IReadOnlyCollection<ModWorldConfigurationExtensionDto>? extensions = null,
-        bool suppressWorldConfigurationNotification = false,
-        CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModRegisterPlayerColonySitesResponseDto>();
-        }
-
-        var request = new ModRegisterPlayerColonySitesRequestDto
-        {
-            UserId = context.UserId,
-            ColonyId = context.ColonyId,
-            Sites = sites?.ToList() ?? new List<ModPlayerColonySiteDto>(),
-            Extensions = extensions?.ToList() ?? new List<ModWorldConfigurationExtensionDto>(),
-            SuppressWorldConfigurationNotification = suppressWorldConfigurationNotification,
-            AuthToken = context.AuthToken
-        };
-
-        return transport.PostAsync<ModRegisterPlayerColonySitesRequestDto, ModRegisterPlayerColonySitesResponseDto>(
-            RegisterPlayerColonySitesRoute,
-            request,
-            cancellationToken);
-    }
+        IReadOnlyCollection<ModPlayerColonySiteDto> sites, IReadOnlyCollection<ModWorldConfigurationExtensionDto>? extensions = null,
+        bool suppressWorldConfigurationNotification = false, CancellationToken cancellationToken = default)
+        => colonies.RegisterAsync(context, sites, extensions, suppressWorldConfigurationNotification, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModColonyRelocationResponseDto>> PreflightColonyRelocationAsync(
-        int targetTile,
-        string idempotencyKey,
-        int targetTileLayerId = 0,
-        CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModColonyRelocationResponseDto>();
-        }
-
-        var request = new ModPreflightColonyRelocationRequestDto
-        {
-            UserId = context.UserId,
-            ColonyId = context.ColonyId,
-            CurrentSnapshotId = context.CurrentSnapshotId ?? string.Empty,
-            TargetTile = targetTile,
-            TargetTileLayerId = Math.Max(0, targetTileLayerId),
-            IdempotencyKey = idempotencyKey,
-            AuthToken = context.AuthToken
-        };
-
-        return transport.PostAsync<ModPreflightColonyRelocationRequestDto, ModColonyRelocationResponseDto>(
-            PreflightColonyRelocationRoute,
-            request,
-            cancellationToken);
-    }
+        int targetTile, string idempotencyKey, int targetTileLayerId = 0, CancellationToken cancellationToken = default)
+        => colonies.PreflightAsync(context, targetTile, idempotencyKey, targetTileLayerId, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModColonyRelocationResponseDto>> ConfirmColonyRelocationAsync(
-        string previousSnapshotId,
-        string relocatedSnapshotId,
-        int targetTile,
-        string idempotencyKey,
-        int targetTileLayerId = 0,
-        CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModColonyRelocationResponseDto>();
-        }
-
-        var request = new ModConfirmColonyRelocationRequestDto
-        {
-            UserId = context.UserId,
-            ColonyId = context.ColonyId,
-            PreviousSnapshotId = previousSnapshotId ?? string.Empty,
-            RelocatedSnapshotId = relocatedSnapshotId ?? string.Empty,
-            TargetTile = targetTile,
-            TargetTileLayerId = Math.Max(0, targetTileLayerId),
-            IdempotencyKey = idempotencyKey,
-            AuthToken = context.AuthToken
-        };
-
-        return transport.PostAsync<ModConfirmColonyRelocationRequestDto, ModColonyRelocationResponseDto>(
-            ConfirmColonyRelocationRoute,
-            request,
-            cancellationToken);
-    }
+        string previousSnapshotId, string relocatedSnapshotId, int targetTile, string idempotencyKey, int targetTileLayerId = 0, CancellationToken cancellationToken = default)
+        => colonies.ConfirmAsync(context, previousSnapshotId, relocatedSnapshotId, targetTile, idempotencyKey, targetTileLayerId, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModAbandonPlayerColonyResponseDto>> AbandonPlayerColonyAsync(
-        string idempotencyKey,
-        CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModAbandonPlayerColonyResponseDto>();
-        }
-
-        var request = new ModAbandonPlayerColonyRequestDto
-        {
-            UserId = context.UserId,
-            ColonyId = context.ColonyId,
-            CurrentSnapshotId = context.CurrentSnapshotId,
-            IdempotencyKey = idempotencyKey,
-            AuthToken = context.AuthToken
-        };
-
-        return transport.PostAsync<ModAbandonPlayerColonyRequestDto, ModAbandonPlayerColonyResponseDto>(
-            AbandonPlayerColonyRoute,
-            request,
-            cancellationToken);
-    }
+        string idempotencyKey, CancellationToken cancellationToken = default)
+        => colonies.AbandonAsync(context, idempotencyKey, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModBankStatusResponseDto>> GetBankStatusAsync(
         long currentGameTicks,

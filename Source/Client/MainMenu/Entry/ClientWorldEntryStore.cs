@@ -2,7 +2,7 @@ using AIRsLight.ClashOfRim.Modules.World;
 
 namespace AIRsLight.ClashOfRim;
 
-internal sealed class ClientWorldEntryStore : IClientWorldEntryStore, IClientWorldConfigurationStore, IClientOccupiedColonySiteIdentity
+internal sealed class ClientWorldEntryStore : IClientWorldEntryStore, IClientWorldConfigurationStore, IClientWorldIdentity
 {
     private readonly ClashOfRimSettings settings;
     internal ClientWorldEntryStore(ClashOfRimSettings settings) => this.settings = settings;

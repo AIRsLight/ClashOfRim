@@ -131,20 +131,6 @@ public sealed partial class ClashOfRimMod
             .Select(marker => $"id={marker.MarkerId}, kind={marker.Kind}, owner={marker.OwnerUserId}, colony={marker.OwnerColonyId}, tile={marker.Tile}, label={marker.Label}, trade={marker.CanTrade}, raid={marker.CanRaid}, reinforce={marker.CanReinforce}, appearance={DescribeAppearance(marker.Appearance)}"));
     }
 
-    private static string DescribePlayerColonySiteSample(IReadOnlyList<ModPlayerColonySiteDto> sites)
-    {
-        if (sites.Count == 0)
-        {
-            return "<empty>";
-        }
-
-        return string.Join(" | ", sites
-            .OrderBy(site => site.Tile)
-            .ThenBy(site => site.UserId, StringComparer.Ordinal)
-            .Take(5)
-            .Select(site => $"owner={site.UserId}, colony={site.ColonyId}, tile={site.Tile}, worldObject={site.WorldObjectId}, map={site.MapUniqueId}, label={site.Label}, appearance={DescribeAppearance(site.Appearance)}"));
-    }
-
     private static string DescribeAppearance(ModColonyAppearanceDto? appearance)
     {
         if (appearance is null)
@@ -315,28 +301,6 @@ public sealed partial class ClashOfRimMod
         return value.IndexOf(token, StringComparison.OrdinalIgnoreCase) >= 0;
     }
 
-    private static string BuildPlayerColonySiteSignature(
-        IEnumerable<ModPlayerColonySiteDto> sites,
-        IEnumerable<ModWorldConfigurationExtensionDto>? extensions = null)
-    {
-        string siteSignature = string.Join("|", sites
-            .OrderBy(site => site.Tile)
-            .ThenBy(site => site.WorldObjectId, StringComparer.Ordinal)
-            .ThenBy(site => site.MapUniqueId, StringComparer.Ordinal)
-            .Select(site =>
-                (site.UserId ?? string.Empty) + "\u001f"
-                + (site.ColonyId ?? string.Empty) + "\u001f"
-                + (site.WorldObjectId ?? string.Empty) + "\u001f"
-                + (site.MapUniqueId ?? string.Empty) + "\u001f"
-                + site.Tile.ToString(CultureInfo.InvariantCulture) + "\u001f"
-                + site.TileLayerId.ToString(CultureInfo.InvariantCulture) + "\u001f"
-                + (site.Label ?? string.Empty) + "\u001f"
-                + (site.FactionName ?? string.Empty) + "\u001f"
-                + BuildColonyAppearanceSignature(site.Appearance)));
-        return siteSignature + "\u001e" + BuildWorldConfigurationExtensionSignature(
-            extensions ?? Enumerable.Empty<ModWorldConfigurationExtensionDto>());
-    }
-
     private static ModColonyAppearanceDto? BuildCurrentColonyAppearanceDto(ClashOfRimSettings settings)
     {
         ColonyAppearanceSelection appearance = ReadCurrentColonyAppearanceSelection(settings);
@@ -354,73 +318,9 @@ public sealed partial class ClashOfRimMod
         };
     }
 
-    private static string BuildColonyAppearanceSignature(ModColonyAppearanceDto? appearance)
-    {
-        if (appearance is null)
-        {
-            return string.Empty;
-        }
-
-        return (appearance.Mode ?? string.Empty) + "\u001d"
-            + (appearance.IconDefName ?? string.Empty) + "\u001d"
-            + (appearance.ColorDefName ?? string.Empty) + "\u001d"
-            + (appearance.ColorHex ?? string.Empty);
-    }
-
     private static string? NullIfWhiteSpace(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? null : value;
-    }
-
-    private static string BuildWorldConfigurationExtensionSignature(IEnumerable<ModWorldConfigurationExtensionDto> extensions)
-    {
-        return string.Join("|", extensions
-            .OrderBy(extension => extension.ProviderId, StringComparer.Ordinal)
-            .ThenBy(extension => extension.Kind, StringComparer.Ordinal)
-            .Select(extension =>
-                (extension.ProviderId ?? string.Empty) + "\u001f"
-                + (extension.Kind ?? string.Empty) + "\u001f"
-                + (extension.SchemaVersion ?? string.Empty) + "\u001f"
-                + (extension.PayloadJson ?? string.Empty)));
-    }
-
-    private static bool HasLoadedPlayerColonyContext()
-    {
-        if (Find.CurrentMap is not null)
-        {
-            return true;
-        }
-
-        return Find.Maps?.Any(IsPlayerColonyMap) == true;
-    }
-
-    private static string DescribePlayerColonyScanContext()
-    {
-        int maps = Find.Maps?.Count ?? -1;
-        int worldObjects = Find.WorldObjects?.AllWorldObjects?.Count ?? -1;
-        string currentMap = Find.CurrentMap is null
-            ? "<null>"
-            : "Map_" + Find.CurrentMap.uniqueID.ToString(CultureInfo.InvariantCulture);
-        string playerWorldObjectSample = string.Join(
-            "; ",
-            (Find.WorldObjects?.AllWorldObjects ?? Enumerable.Empty<WorldObject>())
-            .Where(IsPlayerColonyWorldObject)
-            .Take(5)
-            .Select(worldObject =>
-                ReadFirstString(ReadMember(worldObject, "def"), "defName", "Name")
-                + "@"
-                + ReadFirstInt(worldObject, "Tile", "tile")?.ToString(CultureInfo.InvariantCulture)));
-
-        return "context=programState:"
-            + Current.ProgramState
-            + ", maps:"
-            + maps.ToString(CultureInfo.InvariantCulture)
-            + ", currentMap:"
-            + currentMap
-            + ", worldObjects:"
-            + worldObjects.ToString(CultureInfo.InvariantCulture)
-            + ", playerWorldObjects:"
-            + (string.IsNullOrWhiteSpace(playerWorldObjectSample) ? "<empty>" : playerWorldObjectSample);
     }
 
 }

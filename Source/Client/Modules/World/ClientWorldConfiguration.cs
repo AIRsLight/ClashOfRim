@@ -5,6 +5,7 @@ using AIRsLight.ClashOfRim.Modules.Transport;
 
 namespace AIRsLight.ClashOfRim.Modules.World;
 
+internal interface IClientWorldIdentity { string WorldId { get; } }
 internal interface IClientWorldConfigurationStore { void Remember(string worldId); }
 internal interface IClientWorldConfigurationRuntime { IClientWorldConfigurationSession Bind(); }
 internal interface IClientWorldConfigurationSession

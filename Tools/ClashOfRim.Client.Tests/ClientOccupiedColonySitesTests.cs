@@ -188,7 +188,7 @@ internal static class ClientOccupiedColonySitesTests
     };
     private static void Check(bool value, string message) { if (!value) throw new InvalidOperationException(message); }
 
-    internal sealed class Fixture : IClientOccupiedColonySiteIdentity, IClientWorldConfigurationStore, IClientOccupiedColonySitesRuntime, IClientWorldConfigurationRuntime
+    internal sealed class Fixture : IClientWorldIdentity, IClientWorldConfigurationStore, IClientOccupiedColonySitesRuntime, IClientWorldConfigurationRuntime
     {
         internal readonly EventModuleTestPorts Ports = new();
         internal readonly ClientSessionLifecycle Session;
