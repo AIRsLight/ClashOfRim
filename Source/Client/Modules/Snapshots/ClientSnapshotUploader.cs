@@ -1,3 +1,4 @@
+using System.Linq;
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -42,7 +43,7 @@ internal sealed class ClientSnapshotUploader
             return ClientSnapshotUploadResult.Failed("NotConfigured", null, SnapshotUploadMessage.NotConfigured);
         if (!gameSession.HasGame)
             return ClientSnapshotUploadResult.Failed("UntrackedSaveFile", null, SnapshotUploadMessage.NoRunningGame);
-        var direct = CopyCandidates(directAchievements);
+        var direct = ClientSnapshotCandidates.DistinctCopy(directAchievements);
         ClientSynchronizationCoordinator.Lease admission;
         if (continuation is null) admission = await synchronization.AcquireSnapshotAsync(token);
         else
@@ -71,7 +72,7 @@ internal sealed class ClientSnapshotUploader
             });
             VerifyContext();
             if (capture.Failure is not null) return new(null, null, capture.Failure);
-            var achievements = MergeCandidates(capture.Achievements, direct);
+            var achievements = ClientSnapshotCandidates.DistinctCopy(capture.Achievements.Concat(direct));
             ModSnapshotPackageBuildResult build = ClientSnapshotPreparation.Build(
                 capture, context.UserId, context.ColonyId, snapshotUploadKind, achievements);
             if (!build.Success || build.Package is null || build.Payload is null)
@@ -148,33 +149,7 @@ internal sealed class ClientSnapshotUploader
             : new("UntrackedSaveFile", null, SnapshotUploadMessage.LineageMismatch, context.CurrentSnapshotId, runtime);
     }
 
-    private static IReadOnlyList<ModSnapshotAchievementCandidateDto> MergeCandidates(
-        IReadOnlyList<ModSnapshotAchievementCandidateDto> queued, IReadOnlyList<ModSnapshotAchievementCandidateDto> direct)
-    {
-        var merged = new List<ModSnapshotAchievementCandidateDto>();
-        var seen = new HashSet<string>(StringComparer.Ordinal);
-        Add(queued); Add(direct);
-        return merged;
-        void Add(IReadOnlyList<ModSnapshotAchievementCandidateDto> candidates)
-        {
-            foreach (var candidate in candidates)
-                if (!string.IsNullOrWhiteSpace(candidate.AchievementId) && !string.IsNullOrWhiteSpace(candidate.EventKey)
-                    && seen.Add(candidate.AchievementId.Trim() + ":" + candidate.EventKey.Trim())) merged.Add(candidate);
-        }
-    }
 
-    private static IReadOnlyList<ModSnapshotAchievementCandidateDto> CopyCandidates(IReadOnlyList<ModSnapshotAchievementCandidateDto>? candidates)
-    {
-        var copy = new List<ModSnapshotAchievementCandidateDto>();
-        if (candidates is null) return copy;
-        foreach (var value in candidates) copy.Add(new ModSnapshotAchievementCandidateDto
-        {
-            AchievementId = value.AchievementId, EventKey = value.EventKey, Value = value.Value,
-            Category = value.Category, LabelKey = value.LabelKey, IconId = value.IconId, Color = value.Color,
-            AggregationKind = value.AggregationKind, MetadataJson = value.MetadataJson
-        });
-        return copy;
-    }
 }
 
 // Domain confirmations retain ownership through capture, HTTP and publication,

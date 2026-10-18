@@ -95,7 +95,9 @@ internal static class SnapshotUploaderModuleTests
             new ModSnapshotAchievementCandidateDto { AchievementId = "achievement", EventKey = "event", Value = 99 },
             new ModSnapshotAchievementCandidateDto { AchievementId = "direct", EventKey = "unique", Value = 3,
                 Category = "c", LabelKey = "l", IconId = "i", Color = "red", AggregationKind = "sum", MetadataJson = "{}" },
-            new ModSnapshotAchievementCandidateDto { AchievementId = "", EventKey = "invalid" }
+            new ModSnapshotAchievementCandidateDto { AchievementId = "", EventKey = "invalid" },
+            new ModSnapshotAchievementCandidateDto { AchievementId = "a:b", EventKey = "c", Value = 4 },
+            new ModSnapshotAchievementCandidateDto { AchievementId = "a", EventKey = "b:c", Value = 5 }
         };
         f.Game.Defer = true;
         Task<ClientSnapshotUploadResult> upload = f.Upload(achievements: direct);
@@ -112,7 +114,7 @@ internal static class SnapshotUploaderModuleTests
             && request.Confirmation == "fixture-confirm" && f.Game.RemovedRaidSessions,
             "Capture or upload lost identity, lineage, classification or game options.");
         Require(request.Key == $"snapshot-upload:alice:colony:{request.Package.SnapshotId}"
-            && request.Achievements.Count == 2 && request.Achievements[0].Value == 7
+            && request.Achievements.Count == 4 && request.Achievements[0].Value == 7
             && request.Achievements[1].Value == 3 && request.Achievements[1].MetadataJson == "{}"
             && request.Achievements[1].Category == "c" && request.Achievements[1].Color == "red",
             "Candidate merge order, deduplication or capture changed.");
@@ -127,7 +129,7 @@ internal static class SnapshotUploaderModuleTests
         var result = await upload;
         Require(result.Failure is null && result.AcceptedSnapshotId == "accepted-1" && result.SourcePath == "memory"
             && f.Store.Snapshot == "accepted-1" && f.Game.Snapshot == "accepted-1" && f.Store.Token == "next"
-            && f.Game.Published!.Count == 2 && f.Store.Writes == 1 && !f.Sync.IsBusy,
+            && f.Game.Published!.Count == 4 && f.Store.Writes == 1 && !f.Sync.IsBusy,
             "Successful upload did not publish the accepted snapshot exactly once.");
         Require(f.Trace.SequenceEqual(new[] { "store", "game", "persist" }), "Publication ordering changed.");
     }

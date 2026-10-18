@@ -14,6 +14,8 @@ internal sealed record ClientLocalSnapshotRequest
     internal string UploadingStatus { get; init; } = "";
     internal bool RemoveRaidBattleSessions { get; init; }
     internal bool BestEffort { get; init; }
+    internal string? ConfirmationOperation { get; init; }
+    internal string SnapshotUploadKind { get; init; } = ModSnapshotUploadKinds.EventApplicationConfirmation;
     internal Action<string>? SetStatus { get; init; }
     internal Func<ModSnapshotUploadResult, string>? BuildFailureStatus { get; init; }
     internal Func<ModSnapshotUploadResult, string>? BuildSuccessStatus { get; init; }
@@ -120,8 +122,8 @@ internal sealed class ClientLocalSnapshotConfirmation
             await ClientSessionWork.Run(async () =>
             {
                 Task<ClientSnapshotUploadResult>? upload = null;
-                TryApply(attempt, request, () => upload = uploader.UploadAsync(intent.RemoveRaidBattleSessions, null,
-                    ModSnapshotUploadKinds.EventApplicationConfirmation, null, attempt.Admission, attempt.Owner.Token,
+                TryApply(attempt, request, () => upload = uploader.UploadAsync(intent.RemoveRaidBattleSessions, intent.ConfirmationOperation,
+                    intent.SnapshotUploadKind, null, attempt.Admission, attempt.Owner.Token,
                     new(() => requests.TryApply(request, static () => { }), id => publishingSnapshot = id)));
                 if (upload is null) return;
                 var result = await upload.ConfigureAwait(false);

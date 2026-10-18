@@ -149,6 +149,7 @@ public sealed partial class ClashOfRimMod : Mod
     private readonly ClientSessionConnection sessionConnection = new(new ClientSessionWebSocketTransport(new ClientWebSocketFactory(), new ClientProtocolMetadata()));
     private Game? serverEntrySourceGame;
     private readonly ClientAchievementQueries achievementQueries;
+    private readonly ClientEndgameAchievements endgameAchievements;
     private readonly List<ModChatMessageDto> lastChatMessages = new();
     private readonly List<ModWorldMapMarkerDto> lastWorldMapMarkers = new();
     private readonly Dictionary<string, ModPlayerColonySiteDto> occupiedPlayerColonySites = new(StringComparer.Ordinal);
@@ -200,6 +201,9 @@ public sealed partial class ClashOfRimMod : Mod
             synchronization, localMutations, snapshotTransactions, snapshotFailureRecovery, ClientSnapshotComposition.Create(settings),
             new ClientLocalSnapshotPresentation(message => snapshotUploadStatus = message));
         localSnapshotConfirmation.Completed += StartQueuedAutomaticEventRefreshAfterLocalAtomicMutation;
+        endgameAchievements = new ClientEndgameAchievements(sessionLifecycle, new ClientSnapshotGame(),
+            new ClientEndgameRuntime(), new ClientAchievementPresentation(), localSnapshotConfirmation);
+        endgameAchievements.Confirmed += () => _ = achievementQueries.RefreshAsync();
         var shopPresentation = new ClientShopPresentation();
         var shopTransport = new ClientShopTransport();
         shopState = new ClientShopState(sessionLifecycle, new ClientSnapshotGame(), shopPresentation);
@@ -738,6 +742,9 @@ public sealed partial class ClashOfRimMod : Mod
     internal string AchievementTargetUserId => achievementQueries.Target.UserId;
     internal string AchievementTargetColonyId => achievementQueries.Target.ColonyId;
     internal string AchievementStatus => achievementQueries.Message;
+    internal bool ConfirmEndgameOrDefer(string key, Action continuation) => endgameAchievements.ConfirmOrDefer(key, continuation);
+    internal void StartEndgameAchievementSnapshotConfirmation(IReadOnlyList<ModSnapshotAchievementCandidateDto> candidates)
+        => _ = endgameAchievements.SubmitAsync(candidates);
     internal void StartRefreshAchievements(string? targetUserId = null, string? targetColonyId = null)
         => _ = achievementQueries.RefreshAsync(targetUserId, targetColonyId);
 

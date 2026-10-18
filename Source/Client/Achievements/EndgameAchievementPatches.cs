@@ -1,11 +1,6 @@
-using AIRsLight.ClashOfRim.Modules.Synchronization;
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
-using System.Threading.Tasks;
-using AIRsLight.ClashOfRim.ClientNetwork;
-using AIRsLight.ClashOfRim.ClientSnapshots;
+using AIRsLight.ClashOfRim.Modules.Achievements;
 using HarmonyLib;
 using RimWorld;
 using RimWorld.Utility;
@@ -15,166 +10,13 @@ namespace AIRsLight.ClashOfRim;
 
 internal static class EndgameAchievementRuntime
 {
-    private const string CategoryEndgame = "Endgame";
-    private const string AggregationSum = "Sum";
-    private const string ColorPurple = "Purple";
-    private const string ColorRed = "Red";
-    internal const string EndgameConfirmationOperation = "EndgameAchievement";
-    private static readonly HashSet<string> ConfirmedContinuations = new(StringComparer.Ordinal);
-    private static readonly object Gate = new();
-
-    public static bool ConfirmOrDefer(string key, Action continuation)
+    internal static bool ConfirmOrDefer(string key, Action continuation)
+        => ClashOfRimMod.Instance?.ConfirmEndgameOrDefer(key, continuation) ?? true;
+    internal static void Confirm(ClientEndgameKind kind, string eventKey)
     {
-        ClashOfRimMod? mod = ClashOfRimMod.Instance;
-        if (mod?.IsInActiveMultiplayerSession != true)
-        {
-            return true;
-        }
-
-        lock (Gate)
-        {
-            if (ConfirmedContinuations.Remove(key))
-            {
-                return true;
-            }
-        }
-
-        Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation(
-            ClashOfRimText.Key("ClashOfRim.Endgame.ConfirmationText"),
-            () =>
-            {
-                lock (Gate)
-                {
-                    ConfirmedContinuations.Add(key);
-                }
-
-                continuation();
-            }));
-        return false;
-    }
-
-    public static void ConfirmShipLaunch(string eventKey)
-    {
-        if (string.IsNullOrWhiteSpace(eventKey))
-        {
-            return;
-        }
-
-        List<ModSnapshotAchievementCandidateDto> candidates = new()
-        {
-            BuildCandidate(
-                "endgame_ship_launch",
-                eventKey + ":launch",
-                1,
-                "ClashOfRim.Achievement.EndgameShipLaunch",
-                "endgame.ship.launch",
-                ColorPurple)
-        };
-        ClashOfRimMod.Instance?.StartEndgameAchievementSnapshotConfirmation(candidates);
-    }
-
-    public static void ConfirmSimpleEndgame(string achievementId, string labelKey, string iconId, string eventKey)
-    {
+        if (string.IsNullOrWhiteSpace(eventKey)) return;
         ClashOfRimMod.Instance?.StartEndgameAchievementSnapshotConfirmation(new[]
-        {
-            BuildCandidate(achievementId, eventKey, 1, labelKey, iconId, ColorRed)
-        });
-    }
-
-    private static ModSnapshotAchievementCandidateDto BuildCandidate(
-        string achievementId,
-        string eventKey,
-        long value,
-        string labelKey,
-        string iconId,
-        string color)
-    {
-        return new ModSnapshotAchievementCandidateDto
-        {
-            AchievementId = achievementId,
-            EventKey = eventKey,
-            Value = value,
-            Category = CategoryEndgame,
-            LabelKey = labelKey,
-            IconId = iconId,
-            Color = color,
-            AggregationKind = AggregationSum
-        };
-    }
-}
-
-public sealed partial class ClashOfRimMod
-{
-    internal void StartEndgameAchievementSnapshotConfirmation(
-        IReadOnlyList<ModSnapshotAchievementCandidateDto> candidates)
-    {
-        if (!IsInActiveMultiplayerSession || candidates.Count == 0)
-        {
-            return;
-        }
-
-        ClashOfRimGameComponent.EnqueuePendingAchievementCandidates(candidates);
-        if (ClashOfRimGameComponent.CopyPendingAchievementCandidates().Count == 0)
-        {
-            return;
-        }
-
-        string operation = ClashOfRimText.Key("ClashOfRim.Endgame.UploadStarted");
-        if (TryRejectBlockedByLocalAtomicMutation(out string blocked))
-        {
-            NotifyPlayerMessage(blocked, MessageTypeDefOf.RejectInput);
-            return;
-        }
-
-        BeginLocalAtomicMutation(LocalMutationKind.Endgame, operation);
-        if (!TryBeginSnapshotUploadTransaction(out var uploadTransaction))
-        {
-            ClearLocalAtomicMutation();
-            NotifyPlayerMessage(ClashOfRimText.Key("ClashOfRim.SnapshotUpload.Busy"), MessageTypeDefOf.RejectInput);
-            return;
-        }
-
-        ClientSessionWork.Run(async () =>
-        {
-            try
-            {
-                var service = new ModSnapshotUploadService(settings, uploadTransaction);
-                ModSnapshotUploadResult result = await ClientSessionWork.Observe(service.UploadConfiguredSnapshotAsync(
-                    removeRaidBattleSessions: false,
-                    confirmationOperation: EndgameAchievementRuntime.EndgameConfirmationOperation,
-                    snapshotUploadKind: ModSnapshotUploadKinds.EndgameAchievement));
-                using var publication = ClientSessionWork.EnterPublication();
-                if (result.Success)
-                {
-                    snapshotUploadStatus = ClashOfRimText.Key("ClashOfRim.Endgame.UploadSucceeded");
-                    NotifyPlayerMessage(snapshotUploadStatus, MessageTypeDefOf.PositiveEvent);
-                    StartRefreshAchievements();
-                }
-                else
-                {
-                    string reason = result.Message ?? result.ErrorCode ?? string.Empty;
-                    snapshotUploadStatus = ClashOfRimText.Key("ClashOfRim.Endgame.UploadFailed", reason.Named("REASON"));
-                    NotifyPlayerMessage(snapshotUploadStatus, MessageTypeDefOf.RejectInput);
-                    Log.Warning("[ClashOfRim] Endgame achievement snapshot confirmation failed: " + result.ErrorCode + " " + result.Message);
-                }
-            }
-            catch (Exception ex)
-            when (ClientSessionWork.IsCurrent)
-            {
-                using var publication = ClientSessionWork.EnterPublication();
-                snapshotUploadStatus = ClashOfRimText.Key("ClashOfRim.Endgame.UploadFailed", ex.Message.Named("REASON"));
-                NotifyPlayerMessage(snapshotUploadStatus, MessageTypeDefOf.RejectInput);
-                Log.Error("[ClashOfRim] Endgame achievement snapshot confirmation exception: " + ex);
-            }
-            finally
-            {
-                ClientSessionWork.TryApply(() =>
-                {
-                    uploadTransaction.Dispose();
-                    CompleteLocalAtomicMutation();
-                });
-            }
-        });
+        { ClientEndgameAchievements.Candidate(kind, eventKey) });
     }
 }
 
@@ -204,28 +46,14 @@ public static class ClashOfRimShipCountdownStringPatch
 public static class ClashOfRimShipCountdownEndedPatch
 {
     private static readonly FieldInfo? ShipRootField = AccessTools.Field(typeof(ShipCountdown), "shipRoot");
-    private static bool shipLaunchObserved;
-    private static string eventKey = string.Empty;
-
-    public static void Prefix()
+    public static void Prefix(out string? __state)
     {
-        shipLaunchObserved = false;
-        eventKey = "ship:" + GenTicks.TicksGame.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        if (ShipRootField?.GetValue(null) is not Building shipRoot)
-        {
-            return;
-        }
-
-        shipLaunchObserved = true;
-        eventKey += ":" + shipRoot.ThingID;
+        __state = ShipRootField?.GetValue(null) is Building root
+            ? "ship:" + GenTicks.TicksGame.ToString(System.Globalization.CultureInfo.InvariantCulture) + ":" + root.ThingID : null;
     }
-
-    public static void Postfix()
+    public static void Postfix(bool __runOriginal, string? __state)
     {
-        if (shipLaunchObserved)
-        {
-            EndgameAchievementRuntime.ConfirmShipLaunch(eventKey);
-        }
+        if (__runOriginal && __state is not null) EndgameAchievementRuntime.Confirm(ClientEndgameKind.Ship, __state);
     }
 }
 
@@ -243,12 +71,10 @@ public static class ClashOfRimArchonexusCountdownPatch
 [HarmonyPatch(typeof(ArchonexusCountdown), "EndGame")]
 public static class ClashOfRimArchonexusEndGamePatch
 {
-    public static void Postfix()
+    public static void Postfix(bool __runOriginal)
     {
-        EndgameAchievementRuntime.ConfirmSimpleEndgame(
-            "endgame_archonexus",
-            "ClashOfRim.Achievement.EndgameArchonexus",
-            "endgame.archonexus",
+        if (!__runOriginal) return;
+        EndgameAchievementRuntime.Confirm(ClientEndgameKind.Archonexus,
             "archonexus:" + GenTicks.TicksGame.ToString(System.Globalization.CultureInfo.InvariantCulture));
     }
 }
@@ -263,12 +89,10 @@ public static class ClashOfRimEmbraceTheVoidPatch
             () => VoidAwakeningUtility.EmbraceTheVoid(pawn));
     }
 
-    public static void Postfix()
+    public static void Postfix(bool __runOriginal)
     {
-        EndgameAchievementRuntime.ConfirmSimpleEndgame(
-            "endgame_void_embrace",
-            "ClashOfRim.Achievement.EndgameVoid",
-            "endgame.void",
+        if (!__runOriginal) return;
+        EndgameAchievementRuntime.Confirm(ClientEndgameKind.VoidEmbrace,
             "void-embrace:" + GenTicks.TicksGame.ToString(System.Globalization.CultureInfo.InvariantCulture));
     }
 }
@@ -283,12 +107,10 @@ public static class ClashOfRimDisruptTheLinkPatch
             () => VoidAwakeningUtility.DisruptTheLink(pawn));
     }
 
-    public static void Postfix()
+    public static void Postfix(bool __runOriginal)
     {
-        EndgameAchievementRuntime.ConfirmSimpleEndgame(
-            "endgame_void_disrupt",
-            "ClashOfRim.Achievement.EndgameVoid",
-            "endgame.void",
+        if (!__runOriginal) return;
+        EndgameAchievementRuntime.Confirm(ClientEndgameKind.VoidDisrupt,
             "void-disrupt:" + GenTicks.TicksGame.ToString(System.Globalization.CultureInfo.InvariantCulture));
     }
 }
@@ -307,12 +129,11 @@ public static class ClashOfRimCerebrexStartCoreDeactivationPatch
 [HarmonyPatch(typeof(CompCerebrexCore), "DeactivateCore")]
 public static class ClashOfRimCerebrexDeactivateCorePatch
 {
-    public static void Postfix(bool scavenging)
+    public static void Postfix(bool scavenging, bool __runOriginal)
     {
-        EndgameAchievementRuntime.ConfirmSimpleEndgame(
-            scavenging ? "endgame_cerebrex_scavenged" : "endgame_cerebrex_destroyed",
-            "ClashOfRim.Achievement.EndgameCerebrex",
-            "endgame.cerebrex",
+        if (!__runOriginal) return;
+        EndgameAchievementRuntime.Confirm(
+            scavenging ? ClientEndgameKind.CerebrexScavenged : ClientEndgameKind.CerebrexDestroyed,
             "cerebrex:" + (scavenging ? "scavenged:" : "destroyed:") + GenTicks.TicksGame.ToString(System.Globalization.CultureInfo.InvariantCulture));
     }
 }

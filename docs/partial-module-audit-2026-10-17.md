@@ -1805,3 +1805,21 @@ M8d3 完成，已核对本轮六条服务端管理路由均由 AdminEndpoints �
 客户端 Release 构建通过，**0 错误、41 个警告**，警告位于本步未修改的文件；不宣称整个客户端无警告。日志：`LocalOnly/module-migration/client-achievement-query-{before,after,related,build}.log`。本步仅运行相关单元与构建，未运行 RimTest 或全量回归，未推送。后续有游戏内验证需要时可运行单次修改范围的 RimTest，全量回归仍由用户安排。
 
 M8g1 完成，下一步 **M8g2 结局候选队列、采集与上传确认**。M8g、M8 和 M9–M12 继续开放。
+
+### M8g2 结局候选队列、确认与上传（2026-10-18）
+
+`ClientEndgameAchievements` 接管结局确认的会话/Game 归属、同步续调放行、六类结局的成就元数据和上传确认意图。删除 EndgameAchievementPatches 中的 Mod partial 和静态全局放行集合；Harmony 补丁只适配游戏回调及事件来源，Mod 仅装配和转发。飞船结束状态改用每次调用的 `__state`，不再共用静态 observed/key。所有结局 Postfix 检查 `__runOriginal`，虚空结局在原方法被确认前缀跳过时不再提前入队；Archonexus、Cerebrex 和飞船也遵守同一触发条件。
+
+确认窗口捕获已有 ClientGameRequestTracker 的所有权。旧账户、服务器、殖民地、凭据、登录代次或 Game 的窗口失效；普通快照推进不撤销仍属于当前游戏的决定。回调只能消费一次，放行许可只在同步续调内有效，成功、异常或未再次进入前缀时都会清除。未进入多人会话、观察地图及不可用会话不采集候选。格式化状态后复验所有权和可用性，避免重入切换游戏时将旧结局上传到新游戏。
+
+`ClientAchievementCandidates` 是每个 Game 的唯一运行时队列。GameComponent 的入队/复制/确认删除仅转发；PendingAchievementCandidates 适配器只持有 Scribe 多阶段加载期间的记录缓冲，保持原 `clashOfRimPendingAchievementCandidates` 键、PendingAchievementCandidateRecord 类型及全部字段，加载完成后交给队列并释放缓冲。删除记录类型中不再使用的 IsValid/StableKey 算法，存档字段未变。
+
+迁移前的上传器用例复现 `(a:b,c)` 与 `(a,b:c)` 被冒号拼接键误合并。`ClientSnapshotCandidates` 统一有效性、裁剪后 Ordinal 元组身份和 DTO 复制；队列与上传器均使用它，上传器不反向依赖成就业务。队列保持首条候选优先、输入/输出隔离和完整元数据；确认只移除实际提交的身份，捕获后新加入的候选保留。此次更改只涉及客户端候选规则，不更换服务端持久化键或成就账本格式。
+
+结局上传复用 ClientLocalSnapshotConfirmation 的准入、捕获、上传、发布、失败重试和完成通知，未复制事务或失败窗口。统一请求新增可选确认操作和上传类别，原调用默认仍为 EventApplicationConfirmation；结局明确使用 EndgameAchievement 操作/类别并保留袭击会话。成功后才刷新成就。与旧流程失败后立即解除本地变更标记不同，失败现在保留待确认状态及队列，通过已有恢复窗口重试或退出；重试只重新捕获/上传，不重放游戏结局。忙碌时仍保留候选，且不释放其他业务的准入。
+
+新增 ClientEndgameAchievementTests **201** 个场景，覆盖四种文化、候选分隔符/大小写/空白/大整数/元数据、双向复制、重复确认、旧格式字面 XML 与实际 Scribe 存读、无队列旧存档、确认重入/异常、七类所有权变化在窗口/捕获/传输/发布/完成阶段的隔离、失败重试、忙碌和捕获后追加。使用现有 EventModuleTestPorts、故障视图及真实确认协调器；Scribe 测试仅替换未初始化的 Prefs.LogVerbose 读取，实际序列化、加载及 PostLoadInit 运行游戏程序集。Harmony 测试使用真实补丁 Postfix 验证跳过原方法无候选，并核对六种成功分支的事件身份及元数据；这不等于执行完整游戏结局动画/流程。
+
+累计 **6 个相关单元组通过**：新结局模块、成就查询、快照上传器、本地快照确认、模块依赖守卫、原 Scribe 文化测试。共享候选规则归位后定向复跑受影响的三个组，再单独补跑旧格式加载断言。守卫检查 **781** 个模块及生成类型、**162** 个适配器及生成类型。客户端 Release 构建通过，**0 错误、41 个警告**。日志：`LocalOnly/module-migration/client-endgame-{before,module,matrix,related-first,related,final,persistence,build}.log`。未运行 RimTest 或全量回归，未推送。
+
+M8g2 及本轮客户端成就迁移完成。下一步 **M8h 客户端世界准备/同步与殖民地生命周期**，随后管理、聊天和剩余服务端协议/快照入口；M8 和 M9–M12 继续开放。

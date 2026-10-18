@@ -1,3 +1,5 @@
+using AIRsLight.ClashOfRim.Achievements;
+using AIRsLight.ClashOfRim.Modules.Achievements;
 using static AIRsLight.ClashOfRim.Modules.Maps.ClientMapIdentity;
 using System;
 using System.Collections.Concurrent;
@@ -35,7 +37,7 @@ public sealed class ClashOfRimGameComponent : GameComponent
     private static readonly WorldObjectLoadIdComparer RuntimeSignatureWorldObjectComparer = new();
     private static int nextDelayedMainThreadActionTick = int.MaxValue;
     private List<string> pendingManualEventIds = new();
-    private List<PendingAchievementCandidateRecord> pendingAchievementCandidates = new();
+    private readonly PendingAchievementCandidates achievementCandidates = new();
     private List<ActiveSupportPawnAssignment> activeSupportAssignments = new();
     private List<RemoteMapThingIdentityRecord> remoteMapThingIdentities = new();
     private ActiveRemoteMapSession? activeRemoteMapSession;
@@ -110,7 +112,7 @@ public sealed class ClashOfRimGameComponent : GameComponent
         base.ExposeData();
         PlayerFactionProxyUtility.ExposeData();
         Scribe_Collections.Look(ref pendingManualEventIds, "clashOfRimPendingManualEventIds", LookMode.Value);
-        Scribe_Collections.Look(ref pendingAchievementCandidates, "clashOfRimPendingAchievementCandidates", LookMode.Deep);
+        achievementCandidates.ExposeData();
         Scribe_Collections.Look(ref activeSupportAssignments, "clashOfRimActiveSupportAssignments", LookMode.Deep);
         Scribe_Collections.Look(ref remoteMapThingIdentities, "clashOfRimRemoteMapThingIdentities", LookMode.Deep);
         Scribe_Deep.Look(ref activeRemoteMapSession, "clashOfRimActiveRemoteMapSession");
@@ -125,10 +127,6 @@ public sealed class ClashOfRimGameComponent : GameComponent
         if (Scribe.mode == LoadSaveMode.PostLoadInit && pendingManualEventIds is null)
         {
             pendingManualEventIds = new List<string>();
-        }
-        if (Scribe.mode == LoadSaveMode.PostLoadInit && pendingAchievementCandidates is null)
-        {
-            pendingAchievementCandidates = new List<PendingAchievementCandidateRecord>();
         }
         if (Scribe.mode == LoadSaveMode.PostLoadInit && activeSupportAssignments is null)
         {
@@ -255,92 +253,14 @@ public sealed class ClashOfRimGameComponent : GameComponent
         return result;
     }
 
+    internal static ClientAchievementCandidates? CurrentAchievementCandidates => Current?.achievementCandidates.Queue;
     internal static IReadOnlyList<ModSnapshotAchievementCandidateDto> EnqueuePendingAchievementCandidates(
         IEnumerable<ModSnapshotAchievementCandidateDto> candidates)
-    {
-        ClashOfRimGameComponent? component = Current;
-        if (component is null)
-        {
-            return new List<ModSnapshotAchievementCandidateDto>();
-        }
-
-        var added = new List<ModSnapshotAchievementCandidateDto>();
-        foreach (ModSnapshotAchievementCandidateDto candidate in candidates ?? Array.Empty<ModSnapshotAchievementCandidateDto>())
-        {
-            var record = new PendingAchievementCandidateRecord(candidate);
-            if (!record.IsValid)
-            {
-                continue;
-            }
-
-            string key = record.StableKey;
-            bool exists = component.pendingAchievementCandidates.Any(existing =>
-                existing is not null
-                && string.Equals(existing.StableKey, key, StringComparison.Ordinal));
-            if (exists)
-            {
-                continue;
-            }
-
-            component.pendingAchievementCandidates.Add(record);
-            added.Add(record.ToDto());
-        }
-
-        return added;
-    }
-
+        => CurrentAchievementCandidates?.Enqueue(candidates) ?? Array.Empty<ModSnapshotAchievementCandidateDto>();
     internal static IReadOnlyList<ModSnapshotAchievementCandidateDto> CopyPendingAchievementCandidates()
-    {
-        ClashOfRimGameComponent? component = Current;
-        if (component is null || component.pendingAchievementCandidates.Count == 0)
-        {
-            return new List<ModSnapshotAchievementCandidateDto>();
-        }
-
-        var result = new List<ModSnapshotAchievementCandidateDto>();
-        var seen = new HashSet<string>(StringComparer.Ordinal);
-        foreach (PendingAchievementCandidateRecord record in component.pendingAchievementCandidates)
-        {
-            if (record is null || !record.IsValid || !seen.Add(record.StableKey))
-            {
-                continue;
-            }
-
-            result.Add(record.ToDto());
-        }
-
-        return result;
-    }
-
+        => CurrentAchievementCandidates?.Snapshot() ?? Array.Empty<ModSnapshotAchievementCandidateDto>();
     internal static void MarkPendingAchievementCandidatesUploaded(IEnumerable<ModSnapshotAchievementCandidateDto> candidates)
-    {
-        ClashOfRimGameComponent? component = Current;
-        if (component is null || component.pendingAchievementCandidates.Count == 0)
-        {
-            return;
-        }
-
-        var uploadedKeys = new HashSet<string>(StringComparer.Ordinal);
-        foreach (ModSnapshotAchievementCandidateDto candidate in candidates ?? Array.Empty<ModSnapshotAchievementCandidateDto>())
-        {
-            if (string.IsNullOrWhiteSpace(candidate.AchievementId) || string.IsNullOrWhiteSpace(candidate.EventKey))
-            {
-                continue;
-            }
-
-            uploadedKeys.Add(candidate.AchievementId.Trim() + ":" + candidate.EventKey.Trim());
-        }
-
-        if (uploadedKeys.Count == 0)
-        {
-            return;
-        }
-
-        component.pendingAchievementCandidates.RemoveAll(record =>
-            record is null
-            || !record.IsValid
-            || uploadedKeys.Contains(record.StableKey));
-    }
+        => CurrentAchievementCandidates?.Acknowledge(candidates);
 
     internal static void SetSnapshotLineage(string? snapshotId, string? token)
     {

@@ -32,11 +32,6 @@ public sealed class PendingAchievementCandidateRecord : IExposable
         MetadataJson = candidate.MetadataJson ?? string.Empty;
     }
 
-    public bool IsValid => !string.IsNullOrWhiteSpace(AchievementId)
-        && !string.IsNullOrWhiteSpace(EventKey);
-
-    public string StableKey => AchievementId.Trim() + ":" + EventKey.Trim();
-
     public ModSnapshotAchievementCandidateDto ToDto()
     {
         return new ModSnapshotAchievementCandidateDto

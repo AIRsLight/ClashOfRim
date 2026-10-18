@@ -19,6 +19,7 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("endgame achievements own pending awards, decisions and snapshot confirmation", ClientEndgameAchievementTests.Run),
     ("achievement queries own replacement, immutable cache and session boundaries", ClientAchievementQueryTests.Run),
     ("colony registration transport binds current session and preserves world fields", ColonyRegistrationTransportTests.Run),
     ("remote map closure shares ordering and retains ownership across failure", ClientRemoteMapClosureTests.Run),
