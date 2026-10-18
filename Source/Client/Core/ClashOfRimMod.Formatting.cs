@@ -53,9 +53,6 @@ public sealed partial class ClashOfRimMod
             label.Named("LABEL"));
     }
 
-    private void CaptureWorldMapMarkers(ModWorldMapMarkerDeliveryDto? delivery, bool applyImmediately = false, string? source = null)
-        => worldMarkers.Observe(delivery, applyImmediately, source);
-
     internal void ApplyCachedWorldMapMarkersToWorldObjects() => worldMarkers.ApplyCached();
 
     private static long? ExtractNotificationVersion(string data)

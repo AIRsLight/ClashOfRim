@@ -42,7 +42,7 @@ internal sealed class ClientWorldMarkers
         IClientWorldMarkersRuntime runtime, IClientWorldMarkersPresentation presentation)
     {
         this.session = session; this.identity = identity; this.occupied = occupied; this.runtime = runtime; this.presentation = presentation;
-        cache = new(session, () => identity.WorldId, id => id == identity.WorldId, () => delivery = null);
+        cache = new(session, () => identity.WorldId, id => id == identity.WorldId, () => { delivery = null; acceptedObservation = 0; });
     }
     internal bool GiftsEnabled => cache.Read(() => delivery?.GiftsEnabled ?? true);
     internal bool PvpEnabled => cache.Read(() => delivery?.PvpEnabled ?? true);
@@ -53,9 +53,6 @@ internal sealed class ClientWorldMarkers
         observationEpoch = new(); cache.Reset();
     }
 
-    internal void Observe(ModWorldMapMarkerDeliveryDto? source, bool immediately = false, string? reason = null)
-        => Observe(CaptureObservation(), source, immediately, reason);
-
     internal Observation CaptureObservation()
     {
         using var publication = ClientSessionWork.EnterPublication();
@@ -63,14 +60,32 @@ internal sealed class ClientWorldMarkers
     }
     internal sealed record Observation(ClientRequestTracker<string>.Scope Scope, IClientWorldMarkersSession Runtime, long Number, object Epoch);
 
-    internal bool OwnsSession(Observation observation) => ReferenceEquals(observation.Epoch, observationEpoch)
-        && !session.IsUnavailable && observation.Runtime.IsCurrent && session.Owns(observation.Scope.Owner, observation.Scope.Context, false);
+    private bool SameSession(Observation observation) => ReferenceEquals(observation.Epoch, observationEpoch)
+        && observation.Runtime.IsCurrent && session.Owns(observation.Scope.Owner, observation.Scope.Context, false);
+    internal bool OwnsSession(Observation observation) => !session.IsUnavailable && SameSession(observation);
     internal bool Owns(Observation observation) => OwnsSession(observation) && cache.TryApply(observation.Scope, static () => { });
+    internal bool OwnsLoginSource(Observation observation) => SameSession(observation) && cache.TryApply(observation.Scope, static () => { });
     internal bool HasNewerObservation(Observation observation) => acceptedObservation > observation.Number;
     internal Observation? AdoptWorld(Observation observation, string world)
     {
         using var p = ClientSessionWork.EnterPublication();
         if (!OwnsSession(observation) || identity.WorldId != world) return null;
+        return observation with { Scope = cache.Capture() };
+    }
+    internal Observation? AdoptLogin(Observation observation, ClientSessionLifecycle.Login login)
+    {
+        using var p = ClientSessionWork.EnterPublication();
+        if (session.IsUnavailable || !ReferenceEquals(observation.Epoch, observationEpoch) || !observation.Runtime.IsCurrent || identity.WorldId != observation.Scope.Boundary
+            || !session.Continues(login, observation.Scope.Owner, observation.Scope.Context)) return null;
+        return observation with { Scope = cache.Capture() };
+    }
+    internal Observation? AdoptColony(Observation observation, string colony)
+    {
+        using var p = ClientSessionWork.EnterPublication();
+        var context = observation.Scope.Context;
+        var expected = context.WithColony(colony, context.CurrentSnapshotId);
+        if (!ReferenceEquals(observation.Epoch, observationEpoch) || session.IsUnavailable || !observation.Runtime.IsCurrent
+            || identity.WorldId != observation.Scope.Boundary || !session.Owns(observation.Scope.Owner, expected, false)) return null;
         return observation with { Scope = cache.Capture() };
     }
 

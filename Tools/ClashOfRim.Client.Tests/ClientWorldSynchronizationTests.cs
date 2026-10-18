@@ -115,7 +115,7 @@ internal static class ClientWorldSynchronizationTests
             Check(f.Applied == (discard ? 0 : 1) && !f.Flow.Busy, "Queue completion/consumption changed."); scenarios++;
         }
         var late = new Fixture { Hold = Signal() }; var old = late.Flow.RequestAsync(ClientWorldSynchronizationKind.Markers, "old"); await late.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
-        late.Markers.Observe(new() { Markers = new() { new() { Label = "newer" } } }, true);
+        late.Markers.Observe(late.Markers.CaptureObservation(), new() { Markers = new() { new() { Label = "newer" } } }, true);
         late.Hold.SetResult(); await late.Pump(old);
         Check(late.Markers.Snapshot.Single().Label == "newer" && late.Applied == 1, "Old HTTP response replaced a newer marker observation."); scenarios++;
     }

@@ -1,4 +1,5 @@
 using AIRsLight.ClashOfRim.ClientNetwork;
+using AIRsLight.ClashOfRim.Modules.Transport;
 
 namespace AIRsLight.ClashOfRim.Modules.Sessions;
 
@@ -9,6 +10,7 @@ internal sealed record ClientSessionCredential(ClashOfRimClientNetworkContext Co
     internal static ClientSessionCredential? Capture(ClashOfRimClientNetworkContext expected, ModLoginResponseDto receipt)
     {
         if (receipt.Result?.Accepted != true || string.IsNullOrWhiteSpace(receipt.AuthToken) || string.IsNullOrWhiteSpace(receipt.SessionId)) return null;
+        receipt = ClientProtocolJson.Copy(receipt);
         return new(new ClashOfRimClientNetworkContext(expected.ServerBaseUrl,
             string.IsNullOrWhiteSpace(receipt.AuthenticatedUserId) ? expected.UserId : receipt.AuthenticatedUserId!.Trim(),
             expected.ColonyId, expected.CurrentSnapshotId, expected.SteamAuthTicket, expected.OfflinePassword, receipt.AuthToken), receipt);

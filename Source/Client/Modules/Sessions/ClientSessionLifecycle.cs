@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using AIRsLight.ClashOfRim.ClientNetwork;
+using AIRsLight.ClashOfRim.Modules.Transport;
 
 namespace AIRsLight.ClashOfRim.Modules.Sessions;
 
@@ -37,26 +38,51 @@ internal sealed class ClientSessionLifecycle
     {
         if (!Owns(owner)) return false;
         var current = ReadContext();
-        return current.ServerBaseUrl == expected.ServerBaseUrl && current.UserId == expected.UserId
-            && current.ColonyId == expected.ColonyId && current.AuthToken == expected.AuthToken
+        return SameIdentity(current, expected)
             && (!requireSnapshot || current.CurrentSnapshotId == expected.CurrentSnapshotId);
     }
+    private static bool SameIdentity(ClashOfRimClientNetworkContext current, ClashOfRimClientNetworkContext expected)
+        => current.ServerBaseUrl == expected.ServerBaseUrl && current.UserId == expected.UserId
+            && current.ColonyId == expected.ColonyId && current.AuthToken == expected.AuthToken;
+    internal bool Owns(Login login) => Owns(login.Owner, login.Context, false);
+    internal bool Continues(Login login, Ownership previousOwner, ClashOfRimClientNetworkContext previousContext)
+        => previousOwner.Token == login.PreviousOwner.Token && ReferenceEquals(previousOwner.Identity, login.PreviousOwner.Identity)
+            && SameIdentity(previousContext, login.PreviousContext) && Owns(login);
     internal event Action<ModLoginResponseDto?>? IdentityChanged;
     // Domain state must be cleared before the credential write persists the exit.
     internal event Action? Ended;
     internal event Action<string>? LogoutFailed;
 
-    internal void PublishLogin(ModLoginResponseDto response)
+    internal Login? PublishLogin(ModLoginResponseDto response)
+    {
+        using var p = ClientSessionWork.EnterPublication();
+        return PublishLogin(CaptureOwnership(), ReadContext(), response);
+    }
+
+    internal Login? PublishLogin(Ownership previousOwner, ClashOfRimClientNetworkContext previousContext, ModLoginResponseDto source)
     {
         using var publication = ClientSessionWork.EnterPublication();
+        if (!Owns(previousOwner, previousContext, false)) return null;
+        var response = ClientProtocolJson.Copy(source);
         connection.Stop(reportStatus: false);
+        if (!Owns(previousOwner, previousContext, false)) return null;
         identityOwner = new object();
         pendingInvalidation = null;
         invalidationHold = null;
         unavailable = false;
         sessionId = response.SessionId;
+        var context = new ClashOfRimClientNetworkContext(previousContext.ServerBaseUrl, NormalizeName(response.AuthenticatedUserId) ?? previousContext.UserId,
+            previousContext.ColonyId, previousContext.CurrentSnapshotId, previousContext.SteamAuthTicket, previousContext.OfflinePassword, response.AuthToken ?? string.Empty);
+        var accepted = new Login(previousOwner, previousContext, CaptureOwnership(), context);
         identities.Write(NormalizeName(response.AuthenticatedUserId), NormalizeName(response.DisplayName), response.AuthToken ?? string.Empty);
-        IdentityChanged?.Invoke(response);
+        foreach (Action<ModLoginResponseDto?> changed in IdentityChanged?.GetInvocationList() ?? Array.Empty<Delegate>())
+        {
+            if (!Owns(accepted)) break;
+            changed(ClientProtocolJson.Copy(response));
+        }
+        // A reentrant callback can already supersede this login. Return its exact
+        // receipt, never adopt whatever identity happens to be current afterwards.
+        return accepted;
     }
 
     internal Invalidation? BeginUnavailable(string? observedAuthToken, string? observedSessionId)
@@ -231,6 +257,7 @@ internal sealed class ClientSessionLifecycle
     }
 
     internal sealed record Exit(Ownership Owner, ClashOfRimClientNetworkContext Context);
+    internal sealed record Login(Ownership PreviousOwner, ClashOfRimClientNetworkContext PreviousContext, Ownership Owner, ClashOfRimClientNetworkContext Context);
     internal sealed class InvalidationHold : IDisposable
     {
         private readonly ClientSessionLifecycle session;

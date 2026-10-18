@@ -22,18 +22,20 @@ internal sealed class ClientWorldEntry
     private readonly IClientWorldSubstrateTransport transport;
     private readonly IClientWorldEntryPresentation view;
     private readonly IClientSnapshotReload reload;
+    private readonly ClientWorldPublication publication;
     internal ClientWorldEntry(ClientSessionLifecycle session, IClientSnapshotGame game, ClientWorldSetupState setup,
-        IClientWorldEntryStore store, IClientWorldSubstrateTransport transport, IClientWorldEntryPresentation view, IClientSnapshotReload reload)
+        IClientWorldEntryStore store, IClientWorldSubstrateTransport transport, IClientWorldEntryPresentation view, IClientSnapshotReload reload, ClientWorldPublication publication)
     {
-        this.session = session; this.setup = setup; this.store = store; this.transport = transport; this.view = view; this.reload = reload;
+        this.session = session; this.setup = setup; this.store = store; this.transport = transport; this.view = view; this.reload = reload; this.publication = publication;
         requests = new(session, game, static () => { });
     }
     internal event Action<ModPrepareWorldSessionResponseDto>? Accepted;
+    internal ClientWorldPublication.Observation Capture() => publication.Capture();
     internal Task Handle(ClashOfRimClientNetworkResult<ModPrepareWorldSessionResponseDto>? result, string? failure,
-        ClientSynchronizationCoordinator.Lease operation)
+        ClientSynchronizationCoordinator.Lease operation, ClientWorldPublication.Observation observation)
     {
         using var p = ClientSessionWork.EnterPublication();
-        if (!operation.IsCurrent) return Task.CompletedTask;
+        if (!operation.IsCurrent || !publication.Owns(observation)) return Task.CompletedTask;
         requests.Reset();
         var request = requests.Begin()!;
         if (failure is not null) { Fail(request, failure); return Task.CompletedTask; }
@@ -42,10 +44,10 @@ internal sealed class ClientWorldEntry
             Fail(request, view.Text("ClashOfRim.WorldSessionRequestFailed", ("CODE", result?.ErrorCode), ("MESSAGE", result?.Message)));
             return Task.CompletedTask;
         }
-        return Decide(request, ClientProtocolJson.Copy(result.Response), operation, setup.LanguageAccepted);
+        return Decide(request, ClientProtocolJson.Copy(result.Response), operation, setup.LanguageAccepted, observation);
     }
     private Task Decide(ClientGameRequestTracker.Request request, ModPrepareWorldSessionResponseDto response,
-        ClientSynchronizationCoordinator.Lease operation, bool languageAccepted)
+        ClientSynchronizationCoordinator.Lease operation, bool languageAccepted, ClientWorldPublication.Observation observation)
     {
         if (!Current(request) || !operation.IsCurrent) return Task.CompletedTask;
         var warning = ClientCompatibilityWarning.FromPreparation(response);
@@ -81,13 +83,13 @@ internal sealed class ClientWorldEntry
             if (!Current(request)) return Task.CompletedTask;
             operation.QueueContinuation((accept, cancel) => view.Compatibility(ClientProtocolJson.Copy(warning), response.WorldConfiguration?.GameLanguage,
                 false, () => Current(request), accept, cancel), next =>
-                requests.TryApply(request, () => { _ = Decide(request, response, next, true); }), completed: () => requests.End(request));
+                requests.TryApply(request, () => { _ = Decide(request, response, next, true, observation); }), completed: () => requests.End(request));
             return Task.CompletedTask;
         }
-        return Publish(request, response, warning, operation, languageAccepted);
+        return Publish(request, response, warning, operation, languageAccepted, observation);
     }
     private Task Publish(ClientGameRequestTracker.Request request, ModPrepareWorldSessionResponseDto response,
-        ModLoginResponseDto warning, ClientSynchronizationCoordinator.Lease operation, bool languageAccepted)
+        ModLoginResponseDto warning, ClientSynchronizationCoordinator.Lease operation, bool languageAccepted, ClientWorldPublication.Observation observation)
     {
         var context = request.Context;
         string colony = string.IsNullOrWhiteSpace(response.AssignedColonyId) ? context.ColonyId : response.AssignedColonyId!;
@@ -97,20 +99,24 @@ internal sealed class ClientWorldEntry
             ? view.Text("ClashOfRim.ExistingColonyLoadFlow", ("USER", context.UserId), ("COLONY", colony), ("SNAPSHOT", snapshot))
             : view.Text(response.RequiresInitialWorldConfiguration ? "ClashOfRim.FirstAdminWorldConfigurationFlow" : "ClashOfRim.JoinExistingWorldFlow",
                 ("USER", context.UserId), ("COLONY", colony));
-        if (!Current(request) || !operation.IsCurrent) return Task.CompletedTask;
+        if (!Current(request) || !operation.IsCurrent || !publication.Owns(observation)) return Task.CompletedTask;
         try { store.Publish(colony, snapshot); }
         catch (Exception ex)
         {
             Fail(request, view.Text("ClashOfRim.ServerEntry.StatusFlowException", ("TYPE", ex.GetType().Name), ("MESSAGE", ex.Message)));
             return Task.CompletedTask;
         }
-        var expected = new ClashOfRimClientNetworkContext(context.ServerBaseUrl, context.UserId, colony, snapshot, context.SteamAuthTicket, context.OfflinePassword, context.AuthToken);
+        var expected = context.WithColony(colony, snapshot);
         // Only this deliberate colony transition can rebind ownership. A persistence
         // callback that changes account/login/Game must not be adopted as this entry.
         if (!session.Owns(request.Scope.Owner, expected, false) || !request.Scope.Boundary.IsCurrent) return Task.CompletedTask;
+        var rebound = publication.AdoptColony(observation, colony);
+        if (rebound is null) return Task.CompletedTask;
+        observation = rebound;
         requests.Reset(); request = requests.Begin()!;
         Accepted?.Invoke(ClientProtocolJson.Copy(response));
         if (!Current(request) || !operation.IsCurrent) return Task.CompletedTask;
+        if (!publication.Publish(observation, response.WorldConfiguration, ClientWorldProjection.Sites, () => Current(request) && operation.IsCurrent)) return Task.CompletedTask;
         ShowCompatibility(request.Scope, warning, response.WorldConfiguration?.GameLanguage, languageAccepted);
         if (!Current(request)) return Task.CompletedTask;
         void PrepareSetup() { setup.LanguageAccepted = languageAccepted; setup.Prepare(response); }

@@ -55,15 +55,15 @@ internal static class ClientColonyAppearanceTests
     private static void Observe()
     {
         var f = new Fixture(); var response = Selection().ToDto()!;
-        f.Flow.ObserveServer(response); response.ColorHex = "mutated";
-        f.Flow.ObserveServer(Selection().ToDto()); f.Flow.ObserveServer(null); f.Flow.ObserveServer(new());
+        f.Flow.ObserveServer(f.Flow.CaptureObservation(), response); response.ColorHex = "mutated";
+        f.Flow.ObserveServer(f.Flow.CaptureObservation(), Selection().ToDto()); f.Flow.ObserveServer(f.Flow.CaptureObservation(), null); f.Flow.ObserveServer(f.Flow.CaptureObservation(), new());
         Check(f.Flow.Read() == Selection() && f.Persists == 1 && f.Registered.Count == 0 && f.Messages == 0, "Server echo aliased data, rewrote identical settings or resubmitted itself."); scenarios++;
     }
     private static void InvalidAccounts()
     {
         foreach (string missing in new[] { "server", "world-id", "user", "colony" })
         {
-            var f = new Fixture(); f.Change(missing, " "); f.Open(); f.Flow.SaveCurrent(Selection()); f.Flow.ObserveServer(Selection().ToDto());
+            var f = new Fixture(); f.Change(missing, " "); f.Open(); f.Flow.SaveCurrent(Selection()); f.Flow.ObserveServer(f.Flow.CaptureObservation(), Selection().ToDto());
             Check(f.Save is null && f.Writes == 0 && f.Persists == 0 && f.Messages == 0 && !f.Flow.Read().HasAny, "Incomplete account produced a false save: " + missing); scenarios++;
         }
     }
@@ -72,7 +72,7 @@ internal static class ClientColonyAppearanceTests
         foreach (bool observe in new[] { false, true })
         {
             var f = new Fixture(); f.Open(); f.Once("persist", () => throw new IOException("disk"));
-            void Save() { if (observe) f.Flow.ObserveServer(Selection().ToDto()); else f.Save!(Selection()); }
+            void Save() { if (observe) f.Flow.ObserveServer(f.Flow.CaptureObservation(), Selection().ToDto()); else f.Save!(Selection()); }
             try { Save(); throw new InvalidOperationException("Persistence failure hidden."); } catch (IOException) { }
             Check(f.Registered.Count == 0 && f.Messages == 0 && f.Persists == 1, "Failed save reported success or registered.");
             Save(); Check(f.Persists == 2 && f.Writes == 1 && f.Messages == (observe ? 0 : 1), "Identical retry did not persist the dirty dictionary."); scenarios++;

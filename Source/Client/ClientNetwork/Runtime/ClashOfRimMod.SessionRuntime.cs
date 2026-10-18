@@ -1,4 +1,5 @@
 using AIRsLight.ClashOfRim.Modules.World;
+using AIRsLight.ClashOfRim.Modules.Transport;
 using AIRsLight.ClashOfRim.Modules.Events;
 using AIRsLight.ClashOfRim.Modules.Sessions;
 using System;
@@ -46,21 +47,24 @@ public sealed partial class ClashOfRimMod
             loginStatus = failureReason;
             return;
         }
+        var markerObservation = worldLoginPublication.Capture();
+        ClientWorldLoginPublication.Accepted? acceptedLogin = null;
         loginStatus = ClashOfRimText.Key("ClashOfRim.Login.StatusLoggingIn");
-
         ClientSessionWork.Run(async () =>
         {
             try
             {
+                if (!worldLoginPublication.IsCurrent(markerObservation)) return;
                 using var httpClient = new HttpClient();
                 var client = new ClashOfRimModNetworkClient(
                     httpClient,
-                    ClashOfRimClientNetworkContext.FromSettings(settings));
+                    markerObservation.Scope.Context);
 
                 ClashOfRimClientNetworkResult<ModLoginResponseDto> result =
                     await ClientSessionWork.Observe(client.LoginAsync("manual-sync"));
 
                 using var publication = ClientSessionWork.EnterPublication();
+                if (!worldLoginPublication.IsCurrent(markerObservation)) return;
                 if (!result.Success || result.Response is null)
                 {
                     loginStatus = ClashOfRimText.Key(
@@ -85,14 +89,15 @@ public sealed partial class ClashOfRimMod
                     "ClashOfRim.Login.StatusSucceeded",
                     result.Response.ServerProtocolVersion.Named("PROTOCOL"),
                     result.Response.SessionId.Named("SESSION"));
-                sessionLifecycle.PublishLogin(result.Response);
+                acceptedLogin = worldLoginPublication.Accept(markerObservation, result.Response);
+                if (acceptedLogin is null) return;
                 eventRefresh.AdoptQueue(result.Response.EventQueue);
-                CaptureWorldMapMarkers(result.Response.WorldMapMarkers, source: "manual-login");
+                worldLoginPublication.Publish(acceptedLogin, "manual-login");
                 StartAutomaticEventRefresh(ClashOfRimText.Key("ClashOfRim.Login.ReasonManual"));
                 _ = playerDirectory.RefreshAsync(manual: false);
             }
             catch (Exception ex)
-            when (ClientSessionWork.IsCurrent)
+            when (ClientSessionWork.IsCurrent && (acceptedLogin is null ? worldLoginPublication.IsCurrent(markerObservation) : worldLoginPublication.IsCurrent(acceptedLogin)))
             {
                 using var publication = ClientSessionWork.EnterPublication();
                 loginStatus = ClashOfRimText.Key(
@@ -653,14 +658,15 @@ public sealed partial class ClashOfRimMod
             window.CompleteReconnect(false, FormatSessionReconnectBlockReason(blocked));
             return;
         }
+        var observation = worldLoginPublication.Capture();
         ClashLog.Message("[ClashOfRim][SessionReconnect] Starting in-place reconnect: user=" + attempt.Expected.UserId
             + ", colony=" + attempt.Expected.ColonyId + ", snapshot=" + attempt.Expected.CurrentSnapshotId
             + ", activeRaid=" + ClashOfRimGameComponent.HasActiveRaidBattleSession
             + ", observation=" + ClashOfRimGameComponent.HasActiveObservationSession + ".");
-        _ = RunSessionReconnect(attempt, window, Current.Game);
+        _ = RunSessionReconnect(attempt, window, Current.Game, observation);
     }
 
-    private async Task RunSessionReconnect(ClientSessionReconnect.Attempt attempt, SessionExpiredWindow window, Game? originalGame)
+    private async Task RunSessionReconnect(ClientSessionReconnect.Attempt attempt, SessionExpiredWindow window, Game? originalGame, ClientWorldMarkers.Observation observation)
     {
         try
         {
@@ -676,7 +682,7 @@ public sealed partial class ClashOfRimMod
                         using var publication = ClientSessionWork.EnterPublication();
                         var result = attempt.Complete(Current.ProgramState == ProgramState.Playing,
                             originalGame is not null && ReferenceEquals(Current.Game, originalGame), localMutations.IsPending);
-                        PresentSessionReconnect(window, attempt.Expected, result);
+                        PresentSessionReconnect(window, attempt.Expected, result, observation);
                         completion.TrySetResult(true);
                     }
                     catch (Exception ex) { completion.TrySetException(ex); }
@@ -696,7 +702,7 @@ public sealed partial class ClashOfRimMod
         }
     }
 
-    private void PresentSessionReconnect(SessionExpiredWindow window, ClashOfRimClientNetworkContext expected, SessionReconnectResult result)
+    private void PresentSessionReconnect(SessionExpiredWindow window, ClashOfRimClientNetworkContext expected, SessionReconnectResult result, ClientWorldMarkers.Observation observation)
     {
         if (result.Outcome == SessionReconnectOutcome.Obsolete) return;
         if (result.Outcome != SessionReconnectOutcome.Succeeded)
@@ -714,6 +720,7 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
+        if (result.Publication is not { } publication || worldLoginPublication.Adopt(observation, publication, result.Login!) is not { } acceptedLogin) return;
         ModLoginResponseDto login = result.Login!;
         ClashLog.Message("[ClashOfRim][SessionReconnect] In-place reconnect accepted: user=" + expected.UserId
             + ", colony=" + expected.ColonyId + ", snapshot=" + expected.CurrentSnapshotId + ", session=" + login.SessionId
@@ -721,7 +728,7 @@ public sealed partial class ClashOfRimMod
         loginStatus = ClashOfRimText.Key("ClashOfRim.SessionExpired.ReconnectSucceeded");
         presenceStatus = loginStatus;
         eventRefresh.AdoptQueue(login.EventQueue);
-        CaptureWorldMapMarkers(login.WorldMapMarkers, source: "session-reconnect");
+        worldLoginPublication.Publish(acceptedLogin, "session-reconnect");
         window.CompleteReconnect(true, loginStatus);
         StartAutomaticEventRefresh(ClashOfRimText.Key("ClashOfRim.SessionExpired.ReconnectReason"));
         _ = playerDirectory.RefreshAsync(manual: false);
@@ -782,23 +789,26 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
+        var markerObservation = worldLoginPublication.Capture();
+        ClientWorldLoginPublication.Accepted? acceptedLogin = null;
         loginStatus = ClashOfRimText.Key("ClashOfRim.MapSession.StatusUploadingInitialSnapshot");
         snapshotUploadStatus = ClashOfRimText.Key("ClashOfRim.MapSession.StatusPackagingCurrentMap");
-
         ClientSessionWork.Run(async () =>
         {
             try
             {
+                if (!worldLoginPublication.IsCurrent(markerObservation)) return;
                 using var httpClient = new HttpClient();
                 var client = new ClashOfRimModNetworkClient(
                     httpClient,
-                    ClashOfRimClientNetworkContext.FromSettings(settings));
+                    markerObservation.Scope.Context);
                 ClientSessionWork.TryApply(() => loginStatus = ClashOfRimText.Key("ClashOfRim.Login.StatusLoggingIn"));
                 ClashOfRimClientNetworkResult<ModLoginResponseDto> login =
                     await ClientSessionWork.Observe(client.LoginAsync("map-session"));
 
                 using (ClientSessionWork.EnterPublication())
                 {
+                    if (!worldLoginPublication.IsCurrent(markerObservation)) return;
                     if (!login.Success || login.Response is null)
                     {
                         loginStatus = ClashOfRimText.Key("ClashOfRim.MapSession.StatusLoginFailed", (login.ErrorCode ?? string.Empty).Named("CODE"), (login.Message ?? string.Empty).Named("MESSAGE"));
@@ -806,7 +816,8 @@ public sealed partial class ClashOfRimMod
                     }
                 }
 
-                ModProtocolResponseDto? serverResult = login.Response.Result;
+                var loginResponse = ClientProtocolJson.Copy(login.Response);
+                ModProtocolResponseDto? serverResult = loginResponse.Result;
                 using (ClientSessionWork.EnterPublication())
                 {
                     if (serverResult is not null && !serverResult.Accepted)
@@ -816,13 +827,15 @@ public sealed partial class ClashOfRimMod
                         return;
                     }
 
-                    sessionLifecycle.PublishLogin(login.Response);
+                    acceptedLogin = worldLoginPublication.Accept(markerObservation, loginResponse);
+                    if (acceptedLogin is null) return;
                 }
 
                 var uploadService = new ModSnapshotUploadService(settings, uploadTransaction);
                 ModSnapshotUploadResult upload = await ClientSessionWork.Observe(uploadService.UploadConfiguredSnapshotAsync(
                     snapshotUploadKind: ModSnapshotUploadKinds.MapSessionSynchronization));
                 using var publication = ClientSessionWork.EnterPublication();
+                if (!worldLoginPublication.IsCurrent(acceptedLogin)) return;
                 if (!upload.Success)
                 {
                     snapshotUploadStatus = ClashOfRimText.Key(
@@ -837,17 +850,17 @@ public sealed partial class ClashOfRimMod
                 loginStatus = ClashOfRimText.Key(
                     "ClashOfRim.MapSession.StatusSucceeded",
                     (upload.AcceptedSnapshotId ?? string.Empty).Named("SNAPSHOT"),
-                    login.Response.SessionId.Named("SESSION"));
+                    loginResponse.SessionId.Named("SESSION"));
                 ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
                     Messages.Message(
                         ClashOfRimText.Key(
                             "ClashOfRim.ServerSessionConnectedMessage",
                             upload.AcceptedSnapshotId.Named("SNAPSHOT"),
-                            login.Response.SessionId.Named("SESSION")),
+                            loginResponse.SessionId.Named("SESSION")),
                         MessageTypeDefOf.PositiveEvent,
                         historical: false));
-                eventRefresh.AdoptQueue(login.Response.EventQueue);
-                CaptureWorldMapMarkers(login.Response.WorldMapMarkers, source: "map-session-login");
+                eventRefresh.AdoptQueue(loginResponse.EventQueue);
+                worldLoginPublication.Publish(acceptedLogin, "map-session-login");
                 StartAutomaticEventRefresh(ClashOfRimText.Key("ClashOfRim.MapSession.ReasonLogin"));
                 _ = playerDirectory.RefreshAsync(manual: false);
                 StartRefreshChatMessages(initialLoad: true);
@@ -860,7 +873,7 @@ public sealed partial class ClashOfRimMod
                 }
             }
             catch (Exception ex)
-            when (ClientSessionWork.IsCurrent)
+            when (ClientSessionWork.IsCurrent && (acceptedLogin is null ? worldLoginPublication.IsCurrent(markerObservation) : worldLoginPublication.IsCurrent(acceptedLogin)))
             {
                 using var publication = ClientSessionWork.EnterPublication();
                 loginStatus = ClashOfRimText.Key(

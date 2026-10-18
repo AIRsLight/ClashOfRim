@@ -59,12 +59,13 @@ internal sealed class ClientWorldEntryStart
                 || context.ColonyId.Length != 0 || !string.IsNullOrEmpty(context.AuthToken)) return false;
             // Capture before scheduling; a delayed worker cannot adopt later settings.
             request = preparation.Begin();
+            var observation = entry.Capture();
             string message = view.Text("ClashOfRim.RequestingWorldSession", ("USER", normalizedUser), ("COLONY", ""));
             if (!session.Owns(owner, context, false) || !source.IsCurrent || !operation.IsCurrent) return false;
             view.Progress(message, -1f);
             if (!session.Owns(owner, context, false) || !source.IsCurrent || !operation.IsCurrent) return false;
             var captured = request;
-            _ = operation.RunContinuation(next => Run(captured, createAccount, next));
+            _ = operation.RunContinuation(next => Run(captured, createAccount, next, observation));
             request = null; // The asynchronous continuation owns it now.
             return true;
         }
@@ -84,13 +85,13 @@ internal sealed class ClientWorldEntryStart
             starting = false;
         }
     }
-    private async Task Run(ClientGameRequestTracker.Request request, bool createAccount, ClientSynchronizationCoordinator.Lease operation)
+    private async Task Run(ClientGameRequestTracker.Request request, bool createAccount, ClientSynchronizationCoordinator.Lease operation, ClientWorldPublication.Observation observation)
     {
         var prepared = await preparation.PrepareAsync(createAccount, request).ConfigureAwait(false);
         if (prepared is null) return;
         if (!operation.IsCurrent) { preparation.Discard(prepared); return; }
         operation.QueueContinuation(view.Enqueue, next =>
-            preparation.Complete(prepared, outcome => { _ = entry.Handle(outcome.Result, outcome.Failure, next); }),
+            preparation.Complete(prepared, outcome => { _ = entry.Handle(outcome.Result, outcome.Failure, next, observation); }),
             completed: () => preparation.Discard(prepared));
     }
 }

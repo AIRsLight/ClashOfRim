@@ -127,8 +127,10 @@ internal sealed class ClientSnapshotReload : IClientSnapshotReload
                     { Fail(job, presentation.LoginFailure(login), !login.Success && ClientNetworkFailurePolicy.CanRetry(login.ErrorCode, login.Message)); return; }
                     if (credential.Context.UserId != job.Context.UserId)
                     { Fail(job, presentation.Text("ClashOfRim.SnapshotReload.IdentityChanged"), false); return; }
-                    session.PublishLogin(credential.Receipt); job.Adopted = true;
-                    job.Owner = session.CaptureOwnership(); job.Context = session.ReadContext();
+                    var accepted = session.PublishLogin(job.Owner, job.Context, credential.Receipt);
+                    if (accepted is null) return;
+                    job.Adopted = true;
+                    job.Owner = accepted.Owner; job.Context = accepted.Context;
                 }).ConfigureAwait(false);
                 if (!job.Adopted) return;
             }

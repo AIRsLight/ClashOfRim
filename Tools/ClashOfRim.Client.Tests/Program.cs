@@ -19,6 +19,7 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("world login publication preserves request observations across identity changes", ClientWorldLoginPublicationTests.Run),
     ("world publication preserves request order and local appearance edits", ClientWorldPublicationTests.Run),
     ("world synchronization runtime shares layered object and path capture", ClientWorldSynchronizationRuntimeTests.Run),
     ("world marker protocol shares read and runtime write wire contracts", ClientWorldMarkerProtocolTests.Run),

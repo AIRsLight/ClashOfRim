@@ -8,11 +8,13 @@ using AIRsLight.ClashOfRim.Modules.World;
 // Real publication/cache/preference modules with narrow in-memory engine/store
 // ports. Workflow tests reuse this instead of replacing publication with a callback.
 internal sealed class ClientWorldPublicationTestPorts : IClientWorldIdentity, IClientWorldMarkersRuntime,
-    IClientWorldMarkersPresentation, IClientOccupiedColonySitesRuntime, IClientColonyAppearanceStore, IClientColonyAppearancePresentation
+    IClientWorldMarkersPresentation, IClientOccupiedColonySitesRuntime, IClientColonyAppearanceStore, IClientColonyAppearancePresentation,
+    IClientWorldConfigurationStore, IClientWorldConfigurationRuntime
 {
     private readonly EventModuleTestPorts ports;
     private readonly Func<string> worldId;
     private readonly Func<object> world;
+    internal string LocalWorldId = "world";
     internal readonly ClientWorldPublication Flow;
     internal readonly ClientWorldMarkers Markers;
     internal readonly ClientColonyAppearance Appearance;
@@ -21,9 +23,10 @@ internal sealed class ClientWorldPublicationTestPorts : IClientWorldIdentity, IC
     internal readonly List<string> Trace = new();
     internal Action<string>? Hook;
     internal ClientWorldPublicationTestPorts(ClientSessionLifecycle session, EventModuleTestPorts ports,
-        Func<string> worldId, Func<object> world, ClientWorldConfiguration configuration, ClientOccupiedColonySites? sites = null)
+        Func<string>? worldId = null, Func<object>? world = null, ClientWorldConfiguration? configuration = null, ClientOccupiedColonySites? sites = null)
     {
-        this.ports = ports; this.worldId = worldId; this.world = world;
+        this.ports = ports; this.worldId = worldId ?? (() => LocalWorldId); this.world = world ?? (() => ports.GameOwner);
+        configuration ??= new(session, this, this, null!, null!);
         Sites = sites ?? new(session, this, this, configuration);
         Markers = new(session, this, Sites, this, this);
         Appearance = new(session, this, this);
@@ -32,6 +35,8 @@ internal sealed class ClientWorldPublicationTestPorts : IClientWorldIdentity, IC
     public string WorldId => worldId();
     public IClientWorldMarkersSession Bind() => new Bound(this, ports.GameOwner, world());
     IClientOccupiedColonySitesSession IClientOccupiedColonySitesRuntime.Bind() => new Bound(this, ports.GameOwner, world());
+    IClientWorldConfigurationSession IClientWorldConfigurationRuntime.Bind() => new Bound(this, ports.GameOwner, world());
+    public void Remember(string value) { LocalWorldId = value; Step("remember"); }
     public ClientColonyAppearanceAccount ReadAccount() => new(ports.Server, WorldId, ports.User, ports.Colony);
     public string? Read(string key) => Preferences.GetValueOrDefault(key);
     public void Write(string key, string? value) { if (value is null) Preferences.Remove(key); else Preferences[key] = value; Step("write"); }
@@ -56,7 +61,7 @@ internal sealed class ClientWorldPublicationTestPorts : IClientWorldIdentity, IC
             await ports.PumpUntil(work);
         }
     }
-    private sealed record Bound(ClientWorldPublicationTestPorts F, object Game, object World) : IClientWorldMarkersSession, IClientOccupiedColonySitesSession
+    private sealed record Bound(ClientWorldPublicationTestPorts F, object Game, object World) : IClientWorldMarkersSession, IClientOccupiedColonySitesSession, IClientWorldConfigurationSession
     {
         public bool IsCurrent => ReferenceEquals(Game, F.ports.GameOwner) && ReferenceEquals(World, F.world());
         public bool HasWorldObjects => true;
@@ -65,5 +70,10 @@ internal sealed class ClientWorldPublicationTestPorts : IClientWorldIdentity, IC
         public bool CanReserve(int tile, int layer) => tile >= 0;
         public bool IsNeighborOrSame(int tile, int other, int layer) => tile == other;
         public void EnsureProxy(string user) => F.Step("proxy");
+        public ClientWorldFeatureNames? ApplyFeatures(ModWorldConfigurationDto configuration) => throw new NotSupportedException();
+        public void ApplyFactions(ModWorldConfigurationDto configuration) => throw new NotSupportedException();
+        public void ApplyRoads(ModWorldConfigurationDto configuration) => throw new NotSupportedException();
+        public void ApplyExtensions(ModWorldConfigurationDto configuration, string user, bool state) => throw new NotSupportedException();
+        public void ApplyObjectLabels(ModWorldConfigurationDto configuration) => throw new NotSupportedException();
     }
 }

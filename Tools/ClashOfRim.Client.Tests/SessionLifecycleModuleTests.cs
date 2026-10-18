@@ -35,7 +35,7 @@ internal static class SessionLifecycleModuleTests
         var response = Login("session", "token", "  canonical-user  ", "  显示名称  ");
         fixture.Session.PublishLogin(response);
         Require(fixture.Store.UserId == "canonical-user" && fixture.Store.DisplayName == "显示名称"
-            && fixture.Store.AuthToken == "token" && fixture.Session.SessionId == "session" && changes[0] == response,
+            && fixture.Store.AuthToken == "token" && fixture.Session.SessionId == "session" && changes[0]?.AuthenticatedUserId == response.AuthenticatedUserId,
             "Login did not publish the server identity and normalized names.");
         fixture.Session.PublishLogin(Login("second", null, "  ", null));
         Require(fixture.Store.UserId == "canonical-user" && fixture.Store.DisplayName == "显示名称" && fixture.Store.AuthToken == "",

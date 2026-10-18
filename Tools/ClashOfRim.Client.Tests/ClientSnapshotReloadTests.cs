@@ -50,6 +50,7 @@ internal static class ClientSnapshotReloadTests
             await LateLogout();
             await CompletionReentry();
             await OrphanedLoad();
+            await LoginCallbackReplacement();
         }
         finally { CultureInfo.CurrentCulture = old; ClientSessionWork.Reset(); }
     }
@@ -95,6 +96,18 @@ internal static class ClientSnapshotReloadTests
             await f.Ports.PumpUntil(f.Module.StartAsync(new(null, ClientSnapshotReloadPurpose.Entry)));
             Check(f.Loads == 0 && !f.Sync.IsBusy && !f.Mutations.IsPending, "Missing snapshot acquired admission or modified the game.");
         }
+    }
+    private static async Task LoginCallbackReplacement()
+    {
+        using var f = new Fixture(true); bool changed = false;
+        f.Session.IdentityChanged += _ =>
+        {
+            if (changed) return; changed = true;
+            f.Session.PublishLogin(new() { AuthenticatedUserId = "alice", AuthToken = "replacement-token", SessionId = "replacement-session" });
+        };
+        await f.Ports.PumpUntil(f.Start());
+        Check(f.Downloads == 0 && f.Loads == 0 && f.Completed == 0 && f.Ports.Auth == "replacement-token" && !f.Sync.IsBusy,
+            "Snapshot reload adopted the identity published by a reentrant login callback.");
     }
     private static async Task FailuresAndRetries()
     {

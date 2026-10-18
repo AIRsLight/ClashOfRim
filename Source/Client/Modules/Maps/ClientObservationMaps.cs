@@ -71,10 +71,11 @@ internal sealed class ClientObservationMaps
                 await Publish(attempt, () =>
                 {
                     if (!login.Success || attempt.Credential is not { } credential) { presentation.LoginFailed(login); return; }
-                    session.PublishLogin(credential.Receipt);
+                    var accepted = session.PublishLogin(attempt.Owner, attempt.Context, credential.Receipt);
+                    if (accepted is null) return;
                     attempt.Adopted = true;
                     // This workflow adopts its own login while retaining the same game and lease.
-                    attempt.Owner = session.CaptureOwnership(); attempt.Context = session.ReadContext();
+                    attempt.Owner = accepted.Owner; attempt.Context = accepted.Context;
                 }).ConfigureAwait(false);
                 if (!attempt.Adopted) return;
             }

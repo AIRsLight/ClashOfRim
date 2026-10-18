@@ -39,14 +39,14 @@ internal static class ClientWorldMarkersRuntimeTests
 
             var sites = new ClientOccupiedColonySitesTests.Fixture();
             var flow = new ClientWorldMarkers(sites.Session, sites, sites.Cache, runtime, new View());
-            flow.Observe(new() { Markers = new() { Marker(0), Marker(7) } });
+            flow.Observe(flow.CaptureObservation(), new() { Markers = new() { Marker(0), Marker(7) } });
             Check(queued.Count == 1 && applied.Count == 0, "Projection bypassed the shared dispatcher.");
             queued[0].Run(); Check(applied.Single() == ("alice", 2), "Runtime failed to pass frozen user/catalog to existing registry.");
             var mod = New<ClashOfRimMod>(); Set(mod, "worldMarkers", flow);
             var caravan = New<Caravan>(); Set(caravan, "tile", new PlanetTile(10, 7));
             Check(mod.FindRaidableTargetsForCaravan(caravan).Single().TileLayerId == 7
                 && mod.FindReinforceableTargetsForCaravan(caravan).Single().TileLayerId == 7, "Host forwarding flattened PlanetTile to surface.");
-            flow.Observe(new(), true); Check(applied.Last() == ("alice", 0), "Empty delivery did not reach registry removal path.");
+            flow.Observe(flow.CaptureObservation(), new(), true); Check(applied.Last() == ("alice", 0), "Empty delivery did not reach registry removal path.");
             created = removed = failed = 0;
             Check(!bound.Apply(Array.Empty<ModWorldMapMarkerDto>(), "alice").Changed, "No-change result produced noisy replay diagnostics.");
             foreach (string kind in new[] { "created", "removed", "failed" })

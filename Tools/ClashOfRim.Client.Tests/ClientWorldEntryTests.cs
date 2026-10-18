@@ -37,6 +37,8 @@ internal static class ClientWorldEntryTests
                 }
                 foreach (string mode in new[] { "network", "null", "malformed", "exception", "discard" }) { await DownloadFailure(mode); count++; }
                 await Replacement(); await PublicationFailure(); await PresentationReentry(); WarningPolicy(); StoreAdapter(); count += 5;
+                foreach (string edit in new[] { "none", "local", "reset", "newer-source", "new-world-local" })
+                    foreach (bool language in new[] { false, true }) { await AppearanceReceipt(edit, language); count++; }
             }
         }
         finally { CultureInfo.CurrentCulture = culture; ClientSessionWork.Reset(); }
@@ -99,6 +101,30 @@ internal static class ClientWorldEntryTests
         Check(!f.Sync.IsBusy && f.Writes == (cancel ? 0 : 1) && f.Loads == (cancel ? 0 : 1) && f.State.LanguageAccepted == !cancel,
             "Language choice replayed or lost its continuation.");
         if (!cancel) Check(f.Ports.Colony == "assigned" && f.Reload!.WorldConfiguration!.DifficultyValuesXml == "<difficulty>0.35</difficulty>", "Prompt exposed mutable prepared response.");
+    }
+    private static async Task AppearanceReceipt(string edit, bool language)
+    {
+        var f = new Fixture(); f.Ports.Colony = "";
+        var response = Reply(language); response.HasExistingColony = true;
+        response.WorldConfiguration!.PlayerColonySites.Add(new() { UserId = "alice", ColonyId = "assigned", Tile = 4, TileLayerId = 7, Appearance = new() { ColorHex = "server" } });
+        if (edit == "new-world-local") f.Publication.LocalWorldId = "before-world";
+        f.On = phase =>
+        {
+            if (phase != "publish") return;
+            if (edit is "local" or "reset") f.Publication.Appearance.SaveCurrent(ClientWorldPublicationTests.Selection(edit == "reset" ? "" : "local"));
+            if (edit == "newer-source")
+            {
+                var config = ClientWorldPublicationTests.Data("newer"); config.PlayerColonySites[0].ColonyId = "assigned";
+                f.Publication.Flow.Publish(f.Publication.Flow.Capture(), config, ClientWorldProjection.Sites, () => true);
+            }
+        };
+        if (edit == "new-world-local") f.Publication.Hook = phase =>
+        { if (phase == "remember") f.Publication.Appearance.SaveCurrent(ClientWorldPublicationTests.Selection("local")); };
+        await f.Run(Ok(response));
+        if (language) f.Confirm!();
+        string expected = edit == "none" ? "server" : edit == "reset" ? "" : edit == "newer-source" ? "newer" : "local";
+        Check(f.Ports.Colony == "assigned" && f.Loads == 1 && f.Publication.Appearance.Read().ColorHex == expected,
+            "Colony/world adoption discarded the original appearance revision: " + edit);
     }
     private static async Task Ownership(string change, string phase)
     {
@@ -235,6 +261,7 @@ internal static class ClientWorldEntryTests
         internal readonly EventModuleTestPorts Ports = new();
         internal readonly ClientSessionLifecycle Session;
         internal readonly ClientWorldSetupState State;
+        internal readonly ClientWorldPublicationTestPorts Publication;
         internal readonly ClientSynchronizationCoordinator Sync = new();
         internal readonly ClientWorldEntry Module;
         internal readonly List<string> Trace = new();
@@ -251,13 +278,14 @@ internal static class ClientWorldEntryTests
         internal Fixture()
         {
             ClientSessionWork.Reset(); Session = new(Ports, Ports, new ClientSessionConnection(Ports)); State = new(Session);
-            Module = new(Session, Ports, State, this, this, this, this);
+            Publication = new(Session, Ports);
+            Module = new(Session, Ports, State, this, this, this, this, Publication.Flow);
             Module.Accepted += _ => { Accepted++; Trace.Add("accepted"); On?.Invoke("accepted"); };
         }
         internal async Task Run(ClashOfRimClientNetworkResult<ModPrepareWorldSessionResponseDto> result, string? failure = null)
         {
             Check(Sync.TryBeginManual(out var lease), "Fixture admission busy.");
-            try { await Module.Handle(result, failure, lease!); } finally { lease!.Dispose(); }
+            try { await Module.Handle(result, failure, lease!, Module.Capture()); } finally { lease!.Dispose(); }
         }
         public void Initialize(string server, string user, string password) => throw new NotSupportedException();
         public void Publish(string colonyId, string snapshotId)

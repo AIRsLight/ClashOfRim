@@ -57,6 +57,7 @@ internal static class ClientObservationMapsTests
                 await CheckObsolete(stage, change);
             await CheckReplacementAdmission();
             await CheckFailures();
+            await LoginCallbackReplacement();
         }
         finally { CultureInfo.CurrentCulture = culture; ClientSessionWork.Reset(); }
     }
@@ -101,6 +102,18 @@ internal static class ClientObservationMapsTests
             "Unadopted login leaked or released another session: " + stage + "/" + change);
     }
 
+    private static async Task LoginCallbackReplacement()
+    {
+        var f = new Fixture(true); bool replaced = false;
+        f.Session.IdentityChanged += _ =>
+        {
+            if (replaced) return; replaced = true;
+            f.Session.PublishLogin(new() { AuthenticatedUserId = "other", AuthToken = "replacement", SessionId = "replacement" });
+        };
+        await f.Ports.PumpUntil(f.Start("Observation")!);
+        Check(f.DownloadCalls == 0 && f.OpenQueued == 0 && !f.Sync.IsBusy && f.Ports.Auth == "replacement",
+            "Observation download adopted the identity installed by another login callback.");
+    }
     private static void Change(Fixture f, string change)
     {
         switch (change)

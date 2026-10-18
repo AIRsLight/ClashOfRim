@@ -26,6 +26,8 @@ internal static class SessionReconnectModuleTests
             await ReplacementDuringCleanup();
             await DiscardedCompletionAndCleanupFailure();
             await DetachedLogoutWire();
+            await LoginCallbackReplacement();
+            await FrozenLoginReceipt();
         }
         finally { ClientSessionWork.Reset(); }
     }
@@ -55,7 +57,7 @@ internal static class SessionReconnectModuleTests
             && f.Synchronization.ManualInProgress && !f.Synchronization.TryAcquireSnapshot(out _)
             && f.Store.Token == "" && f.Lifecycle.SessionId is null, "Prepared login was published or released before the game accepted it.");
         var result = attempt.Complete(true, true, false);
-        Require(result.Outcome == SessionReconnectOutcome.Succeeded && result.Snapshot?.ActiveRaidRecovery?.EventId == "active-raid"
+        Require(result.Outcome == SessionReconnectOutcome.Succeeded && result.Publication is not null && f.Lifecycle.Owns(result.Publication) && result.Snapshot?.ActiveRaidRecovery?.EventId == "active-raid"
             && f.Store.Token == "candidate-token" && f.Lifecycle.SessionId == "candidate-session"
             && f.Transport.MetadataContext?.AuthToken == "candidate-token" && f.Store.Writes == 1,
             "Reconnect did not adopt the authenticated login and exact recovery metadata.");
@@ -65,6 +67,32 @@ internal static class SessionReconnectModuleTests
         await attempt.DisposeAsync();
         Require(f.Logout.Calls.Count == 0 && !f.Service.IsRunning && f.Transport.Calls.SequenceEqual(new[] { "prepare", "login", "metadata" }),
             "Adopted session was logged out or reconnect order changed.");
+    }
+    private static async Task LoginCallbackReplacement()
+    {
+        ClientSessionWork.Reset(); var f = new Fixture(); var attempt = f.Begin();
+        await attempt.PrepareAsync(); bool changed = false;
+        f.Lifecycle.IdentityChanged += _ =>
+        {
+            if (changed) return; changed = true;
+            f.Lifecycle.PublishLogin(Login("replacement-session", "replacement-token"));
+        };
+        var result = attempt.Complete(true, true, false); await attempt.DisposeAsync();
+        Require(result.Outcome == SessionReconnectOutcome.Obsolete && f.Store.Token == "replacement-token" && !f.Synchronization.IsBusy,
+            "Reconnect reported success for a different reentrant login identity.");
+    }
+    private static async Task FrozenLoginReceipt()
+    {
+        ClientSessionWork.Reset(); var f = new Fixture(); f.Transport.PauseAt = "metadata";
+        var attempt = f.Begin(); var pending = attempt.PrepareAsync();
+        await f.Transport.Paused.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        f.Transport.LastLogin!.AuthToken = "reused-response-token";
+        f.Transport.LastLogin.AuthenticatedUserId = "reused-response-user";
+        f.Transport.LastLogin.SessionId = "reused-response-session";
+        f.Transport.Continue.SetResult(true); await pending;
+        var result = attempt.Complete(true, true, false); await attempt.DisposeAsync();
+        Require(result.Outcome == SessionReconnectOutcome.Succeeded && f.Store.Token == "candidate-token"
+            && f.Store.User == "user" && f.Lifecycle.SessionId == "candidate-session", "Metadata wait reused mutable transport login data.");
     }
 
     private static async Task Failures()
@@ -294,6 +322,7 @@ internal static class SessionReconnectModuleTests
         internal readonly List<string> Calls = new();
         internal string? PauseAt;
         internal ClashOfRimClientNetworkContext? MetadataContext;
+        internal ModLoginResponseDto? LastLogin;
         internal readonly TaskCompletionSource<bool> Paused = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal readonly TaskCompletionSource<bool> Continue = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal Transport(string scenario) => this.scenario = scenario;
@@ -322,6 +351,7 @@ internal static class SessionReconnectModuleTests
             if (scenario == "login-rejected") response.Result = Accepted(false);
             if (scenario == "login-no-token") response.AuthToken = null;
             if (scenario == "login-no-session") response.SessionId = null;
+            LastLogin = response;
             return ClashOfRimClientNetworkResult<ModLoginResponseDto>.Ok(response);
         }
         public async Task<ClashOfRimClientNetworkResult<ModDownloadLatestSnapshotResponseDto>> ReadSnapshotAsync(ClashOfRimClientNetworkContext context, CancellationToken token)

@@ -32,6 +32,7 @@ internal static class ClientWorldEntryStartTests
                 foreach (string phase in new[] { "identity", "store", "progress", "format" }) { await Reentry(phase); count++; }
                 foreach (string phase in new[] { "identity", "store", "progress", "hello", "discard" }) { await Failure(phase); count++; }
                 Barrier(); count++;
+                foreach (bool changedWorld in new[] { false, true }) { await DelayedWorldObservation(changedWorld); count++; }
             }
         }
         finally { CultureInfo.CurrentCulture = culture; ClientSessionWork.Reset(); }
@@ -42,6 +43,15 @@ internal static class ClientWorldEntryStartTests
         var f = new Fixture(); var token = ClientSessionWork.Token;
         Check(!f.Start.TryStart(server, user, "secret") && f.Rejections == 1 && f.Ends == 0 && f.Writes == 0 && !f.Sync.IsBusy
             && token == ClientSessionWork.Token && f.Ports.Auth == "auth", $"Invalid input changed session before validation: [{server}]/[{user}], rejected={f.Rejections}, ended={f.Ends}, writes={f.Writes}, failures={f.Failures}.");
+    }
+    private static async Task DelayedWorldObservation(bool changedWorld)
+    {
+        var f = new Fixture(); var delay = new ClientWorldPublicationTestPorts.DelayedReply();
+        f.BeforePrepare = delay.Wait;
+        Check(f.Start.TryStart("localhost", "alice", "password"), "Delayed entry did not begin.");
+        await delay.Complete(f.Ports, f.Idle(), () => { if (changedWorld) f.Publication.LocalWorldId = "replaced-during-http"; });
+        Check(f.Prepares == 1 && f.Scenarios == (changedWorld ? 0 : 1) && f.Ports.Colony == (changedWorld ? "" : "assigned") && !f.Sync.IsBusy,
+            "World entry captured its observation after HTTP or lost its unchanged continuation.");
     }
     private static async Task Input(string server, string expected, bool create)
     {
@@ -145,6 +155,7 @@ internal static class ClientWorldEntryStartTests
         internal readonly ClientSessionLifecycle Session;
         internal readonly ClientSynchronizationCoordinator Sync = new();
         internal readonly ClientWorldSetupState State;
+        internal readonly ClientWorldPublicationTestPorts Publication;
         internal readonly ClientWorldSourceGame Barrier;
         internal readonly ClientWorldEntryStart Start;
         internal readonly TaskCompletionSource Changed = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -153,12 +164,14 @@ internal static class ClientWorldEntryStartTests
         internal bool Create;
         internal ClashOfRimClientNetworkContext? Captured;
         internal Action<string>? On;
+        internal Func<Task>? BeforePrepare;
         internal Fixture()
         {
             ClientSessionWork.Reset(); Session = new(this, Ports, new ClientSessionConnection(Ports)); State = new(Session); Barrier = new(this);
             Session.Ended += () => { Ends++; Sync.Reset(); Barrier.BlockCurrent(); State.Reset(); Ports.Snapshot = ""; };
             var preparation = new ClientWorldPreparation(Session, Ports, this, this);
-            var entry = new ClientWorldEntry(Session, Ports, State, this, this, this, this);
+            Publication = new(Session, Ports);
+            var entry = new ClientWorldEntry(Session, Ports, State, this, this, this, this, Publication.Flow);
             Start = new(Session, Sync, Ports, this, this, preparation, entry);
         }
         public object? Current => Ports.HasGame ? Ports.GameOwner : null;
@@ -180,11 +193,12 @@ internal static class ClientWorldEntryStartTests
                 ProtocolMajor = ClashOfRimVersion.ProtocolMajor, MinimumSupportedProtocolMajor = ClashOfRimVersion.ProtocolMajor,
                 ProtocolMinor = ClashOfRimVersion.ProtocolMinor, MinimumSupportedProtocolMinor = ClashOfRimVersion.ProtocolMinor }));
         }
-        public Task<ClashOfRimClientNetworkResult<ModPrepareWorldSessionResponseDto>> PrepareAsync(ClashOfRimClientNetworkContext context, bool createAccount, CancellationToken token)
+        public async Task<ClashOfRimClientNetworkResult<ModPrepareWorldSessionResponseDto>> PrepareAsync(ClashOfRimClientNetworkContext context, bool createAccount, CancellationToken token)
         {
             Prepares++; Create = createAccount;
-            return Task.FromResult(ClashOfRimClientNetworkResult<ModPrepareWorldSessionResponseDto>.Ok(new()
-            { Result = new() { Accepted = true }, IsAdministrator = true, RequiresInitialWorldConfiguration = true, AssignedColonyId = "assigned" }));
+            if (BeforePrepare is not null) await BeforePrepare();
+            return ClashOfRimClientNetworkResult<ModPrepareWorldSessionResponseDto>.Ok(new()
+            { Result = new() { Accepted = true }, IsAdministrator = true, RequiresInitialWorldConfiguration = true, AssignedColonyId = "assigned" });
         }
         public Task<ClashOfRimClientNetworkResult<ModGetWorldConfigurationResponseDto>> ReadAsync(ClashOfRimClientNetworkContext context, bool generation, CancellationToken token) => throw new NotSupportedException();
         public Task<ClashOfRimClientNetworkResult<byte[]>> DownloadAsync(ClashOfRimClientNetworkContext context, string id, CancellationToken token) => throw new NotSupportedException();

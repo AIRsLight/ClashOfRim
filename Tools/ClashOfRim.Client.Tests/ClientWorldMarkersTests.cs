@@ -40,7 +40,7 @@ internal static class ClientWorldMarkersTests
     private static void Freeze()
     {
         var f = new Fixture(); var input = Data(Marker()); string expected = ClientProtocolJson.Serialize(input.Markers);
-        f.Flow.Observe(input); input.Markers[0].Appearance!.Mode = "borrowed"; input.Markers[0].PathTiles![0] = 999; input.Markers.Clear();
+        f.Flow.Observe(f.Flow.CaptureObservation(), input); input.Markers[0].Appearance!.Mode = "borrowed"; input.Markers[0].PathTiles![0] = 999; input.Markers.Clear();
         var read = f.Flow.Snapshot; Check(ClientProtocolJson.Serialize(read) == expected && !f.Flow.GiftsEnabled && !f.Flow.PvpEnabled, "Delivery was borrowed or lost capabilities.");
         read[0].Appearance!.Mode = "reader"; read[0].PathTiles!.Clear(); read.Clear();
         f.MutateArguments = true; f.Run();
@@ -50,26 +50,26 @@ internal static class ClientWorldMarkersTests
     private static void Empty()
     {
         var f = new Fixture(); f.Flow.ApplyCached(); Check(f.Applied.Count == 0, "Uninitialized cache deleted saved world objects.");
-        f.Flow.Observe(Data(Marker()), true); f.HasWorld = false; f.Flow.Observe(Data(), true);
+        f.Flow.Observe(f.Flow.CaptureObservation(), Data(Marker()), true); f.HasWorld = false; f.Flow.Observe(f.Flow.CaptureObservation(), Data(), true);
         Check(f.Applied.Count == 1 && f.Flow.Snapshot.Count == 0, "No-world delivery was applied or not retained.");
         f.Sites.World = new(); f.Sites.Ports.GameOwner = new(); f.HasWorld = true; f.Flow.ApplyCached();
         Check(f.Applied.Count == 2 && f.Applied.Last().Markers.Count == 0, "Authoritative empty cache did not clear new-world projection.");
         Check(f.Sites.Block(10, 0) is not null, "Empty marker delta incorrectly cleared occupied reservations.");
-        f.Flow.Observe(null, true); Check(f.Flow.GiftsEnabled && f.Flow.PvpEnabled && f.Applied.Last().Markers.Count == 0, "Null delivery default semantics changed.");
-        f.Flow.Observe(new() { Markers = null! }, true); Check(f.Flow.Snapshot.Count == 0, "Null marker list was not normalized."); scenarios++;
+        f.Flow.Observe(f.Flow.CaptureObservation(), null, true); Check(f.Flow.GiftsEnabled && f.Flow.PvpEnabled && f.Applied.Last().Markers.Count == 0, "Null delivery default semantics changed.");
+        f.Flow.Observe(f.Flow.CaptureObservation(), new() { Markers = null! }, true); Check(f.Flow.Snapshot.Count == 0, "Null marker list was not normalized."); scenarios++;
     }
     private static void Queue()
     {
-        var f = new Fixture(); f.Flow.Observe(Data(Marker("old"))); var old = f.Pending[0];
-        f.Flow.Observe(Data(Marker("new"))); var latest = f.Pending[1]; latest.Run(); old.Run(); latest.Run();
+        var f = new Fixture(); f.Flow.Observe(f.Flow.CaptureObservation(), Data(Marker("old"))); var old = f.Pending[0];
+        f.Flow.Observe(f.Flow.CaptureObservation(), Data(Marker("new"))); var latest = f.Pending[1]; latest.Run(); old.Run(); latest.Run();
         Check(f.Applied.Count == 1 && f.Applied[0].Markers[0].MarkerId == "new", "Older/repeated queue projection overwrote latest view.");
-        f.Flow.Observe(Data(Marker("discard"))); var discarded = f.Pending.Last(); discarded.Discard(); discarded.Run();
+        f.Flow.Observe(f.Flow.CaptureObservation(), Data(Marker("discard"))); var discarded = f.Pending.Last(); discarded.Discard(); discarded.Run();
         Check(f.Applied.Count == 1, "Discarded projection ran.");
         f.Flow.ApplyCached(); Check(f.Applied.Last().Markers[0].MarkerId == "discard", "Discarded queue lost retryable cache."); scenarios++;
     }
     private static void Lifetime(string change)
     {
-        var f = new Fixture(); f.Flow.Observe(Data(Marker())); f.Change(change); f.Run();
+        var f = new Fixture(); f.Flow.Observe(f.Flow.CaptureObservation(), Data(Marker())); f.Change(change); f.Run();
         Check(f.Applied.Count == (change == "snapshot" ? 1 : 0), "Old queued work crossed source boundary: " + change);
         bool retained = change is "game" or "world" or "snapshot" or "unavailable";
         Check((f.Flow.Snapshot.Count == 1) == retained && f.Flow.GiftsEnabled == !retained, "Cache lifetime differs from account/server-world lifetime: " + change);
@@ -78,7 +78,7 @@ internal static class ClientWorldMarkersTests
     }
     private static void During(string change, string stage)
     {
-        var f = new Fixture(); f.Once(stage, () => f.Change(change)); f.Flow.Observe(Data(Marker()), true);
+        var f = new Fixture(); f.Once(stage, () => f.Change(change)); f.Flow.Observe(f.Flow.CaptureObservation(), Data(Marker()), true);
         Check(f.Applied.Count == (change == "snapshot" || stage == "apply" ? 1 : 0), "Projection continued after callback changed source: " + stage + "/" + change);
         Check(f.Diagnostics.Count == (change == "snapshot" ? 2 : 1), "Old projection logged completion for a new owner: " + stage + "/" + change); scenarios++;
     }
@@ -86,8 +86,8 @@ internal static class ClientWorldMarkersTests
     {
         foreach (string stage in new[] { "diagnostic", "summary", "status", "available", "apply" })
         {
-            var f = new Fixture(); f.Once(stage, () => f.Flow.Observe(Data(Marker("new")), true));
-            f.Flow.Observe(Data(Marker("old")), true);
+            var f = new Fixture(); f.Once(stage, () => f.Flow.Observe(f.Flow.CaptureObservation(), Data(Marker("new")), true));
+            f.Flow.Observe(f.Flow.CaptureObservation(), Data(Marker("old")), true);
             Check(f.Flow.Snapshot.Single().MarkerId == "new" && f.Applied.Last().Markers.Single().MarkerId == "new", "Old projection resumed after same-world replacement: " + stage);
             Check(f.Applied.Count == (stage == "apply" ? 2 : 1), "Reentrant projection produced extra engine calls."); scenarios++;
         }
@@ -97,7 +97,7 @@ internal static class ClientWorldMarkersTests
         foreach (string stage in new[] { "diagnostic", "enqueue", "summary", "status", "available", "apply" })
         {
             var f = new Fixture(); f.Once(stage, () => throw new InvalidOperationException("injected"));
-            try { f.Flow.Observe(Data(Marker())); f.Run(); throw new Exception("Missing failure: " + stage); }
+            try { f.Flow.Observe(f.Flow.CaptureObservation(), Data(Marker())); f.Run(); throw new Exception("Missing failure: " + stage); }
             catch (InvalidOperationException ex) when (ex.Message == "injected") { }
             Check(f.Flow.Snapshot.Count == 1, "Projection failure erased accepted cache.");
             f.Flow.ApplyCached(); Check(f.Applied.Last().Markers.Single().MarkerId == "marker", "Failed projection could not replay cache."); scenarios++;
@@ -107,18 +107,18 @@ internal static class ClientWorldMarkersTests
     {
         var f = new Fixture(); var sameLayer = Marker("same"); var otherLayer = Marker("other", 7); var self = Marker("self"); self.OwnerUserId = "alice"; self.OwnerColonyId = "colony";
         var noWorldObject = Marker("support-only"); noWorldObject.WorldObjectId = "";
-        var data = Data(sameLayer, otherLayer, self, noWorldObject); data.PvpEnabled = true; f.Flow.Observe(data);
+        var data = Data(sameLayer, otherLayer, self, noWorldObject); data.PvpEnabled = true; f.Flow.Observe(f.Flow.CaptureObservation(), data);
         Check(f.Flow.FindTargets(10, 7, ClientColonyTargetKind.Reinforcement).Single().MarkerId == "other", "Target selection crossed planet layers.");
         var raid = f.Flow.FindTargets(10, 0, ClientColonyTargetKind.Raid);
         Check(raid.Single().MarkerId == "same" && f.Flow.FindTargets(10, 0, ClientColonyTargetKind.Reinforcement).Count == 2, "Raid/support eligibility lost required fields or self exclusion.");
         raid[0].Appearance!.Mode = "caller"; Check(f.Flow.Snapshot[0].Appearance!.Mode == "Color", "Target query exposed cached DTO.");
-        data.PvpEnabled = false; f.Flow.Observe(data); Check(f.Flow.FindTargets(10, 0, ClientColonyTargetKind.Raid).Count == 0, "Disabled PvP still offered raid target.");
+        data.PvpEnabled = false; f.Flow.Observe(f.Flow.CaptureObservation(), data); Check(f.Flow.FindTargets(10, 0, ClientColonyTargetKind.Raid).Count == 0, "Disabled PvP still offered raid target.");
         foreach (var mutate in new Action<ModWorldMapMarkerDto>[] { m => m.OwnerUserId = " ", m => m.OwnerColonyId = null, m => m.SnapshotId = "", m => m.MapId = null, m => m.CanReinforce = false })
         {
-            var invalid = Marker(); mutate(invalid); f.Flow.Observe(Data(invalid));
+            var invalid = Marker(); mutate(invalid); f.Flow.Observe(f.Flow.CaptureObservation(), Data(invalid));
             Check(f.Flow.FindTargets(10, 0, ClientColonyTargetKind.Reinforcement).Count == 0, "Incomplete target was offered."); scenarios++;
         }
-        f.Flow.Observe(Data(Marker())); f.Sites.Ports.Snapshot = "";
+        f.Flow.Observe(f.Flow.CaptureObservation(), Data(Marker())); f.Sites.Ports.Snapshot = "";
         Check(f.Flow.FindTargets(10, 0, ClientColonyTargetKind.Reinforcement).Count == 0, "No-snapshot caller received targets."); scenarios++;
     }
     private static void Check(bool value, string text) { if (!value) throw new InvalidOperationException(text); }

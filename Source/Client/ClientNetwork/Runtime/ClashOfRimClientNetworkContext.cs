@@ -34,6 +34,9 @@ public sealed class ClashOfRimClientNetworkContext
 
     public string? AuthToken { get; }
 
+    internal ClashOfRimClientNetworkContext WithColony(string colony, string? snapshot)
+        => new(ServerBaseUrl, UserId, colony, snapshot, SteamAuthTicket, OfflinePassword, AuthToken);
+
     public bool IsConfigured =>
         !string.IsNullOrWhiteSpace(ServerBaseUrl) &&
         !string.IsNullOrWhiteSpace(UserId) &&

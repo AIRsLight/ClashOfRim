@@ -28,6 +28,14 @@ internal sealed class ClientWorldPublication
         using var p = ClientSessionWork.EnterPublication();
         return new(markers.CaptureObservation(), appearance.CaptureObservation());
     }
+    internal bool Owns(Observation observation) => markers.Owns(observation.Markers);
+    internal Observation? AdoptColony(Observation observation, string colony)
+    {
+        using var p = ClientSessionWork.EnterPublication();
+        var marker = markers.AdoptColony(observation.Markers, colony);
+        var preference = appearance.AdoptColony(observation.Appearance, colony);
+        return marker is not null && preference is not null ? new(marker, preference) : null;
+    }
 
     internal bool Publish(Observation observation, ModWorldConfigurationDto? source, ClientWorldProjection projection,
         Func<bool> current, (string Source, ModWorldMapMarkerDeliveryDto? Delivery)? markerUpdate = null)

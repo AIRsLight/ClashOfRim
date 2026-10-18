@@ -96,11 +96,6 @@ internal sealed class ClientColonyAppearance
         }
         finally { scopes.End(request); }
     }
-    // The publishing source is responsible for validating its server receipt.
-    // Empty server appearance preserves the existing local preference, as before.
-    internal void ObserveServer(ModColonyAppearanceDto? appearance)
-        => ObserveServer(CaptureObservation(), appearance);
-
     internal sealed record Observation(ClientRequestTracker<string>.Scope Scope, ClientColonyAppearanceAccount Account, object Revision);
     internal Observation CaptureObservation()
     {
@@ -111,12 +106,22 @@ internal sealed class ClientColonyAppearance
     internal Observation? AdoptWorld(Observation observation, string world)
     {
         using var p = ClientSessionWork.EnterPublication();
-        if (!ReferenceEquals(editRevision, observation.Revision) || !session.Owns(observation.Scope.Owner, observation.Scope.Context, false)
+        if (!session.Owns(observation.Scope.Owner, observation.Scope.Context, false)
             || ClientColonyAppearanceCodec.AccountKey(observation.Account with { World = world }) != ClientColonyAppearanceCodec.AccountKey(store.ReadAccount())) return null;
+        return observation with { Scope = scopes.Capture(), Account = store.ReadAccount() };
+    }
+    internal Observation? AdoptColony(Observation observation, string colony)
+    {
+        using var p = ClientSessionWork.EnterPublication();
+        var context = observation.Scope.Context;
+        var expected = context.WithColony(colony, context.CurrentSnapshotId);
+        if (!session.Owns(observation.Scope.Owner, expected, false)
+            || ClientColonyAppearanceCodec.AccountKey(observation.Account with { Colony = colony }) != ClientColonyAppearanceCodec.AccountKey(store.ReadAccount())) return null;
         return observation with { Scope = scopes.Capture(), Account = store.ReadAccount() };
     }
     internal void ObserveServer(Observation observation, ModColonyAppearanceDto? appearance, Func<bool>? current = null)
     {
+        // Empty server appearance preserves the existing local preference.
         using var p = ClientSessionWork.EnterPublication();
         var selection = ColonyAppearanceSelection.FromDto(appearance);
         bool Owned() => ReferenceEquals(editRevision, observation.Revision) && current?.Invoke() != false

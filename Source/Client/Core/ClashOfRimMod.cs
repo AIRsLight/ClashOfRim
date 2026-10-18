@@ -155,6 +155,7 @@ public sealed partial class ClashOfRimMod : Mod
     private readonly ClientInitialWorldSetup initialWorldSetup;
     private readonly List<ModChatMessageDto> lastChatMessages = new();
     private readonly ClientWorldMarkers worldMarkers;
+    private readonly ClientWorldLoginPublication worldLoginPublication;
     private readonly ClientWorldSynchronization worldSynchronization;
     private readonly ClientOccupiedColonySites occupiedColonySites;
     private readonly object chatStateLock = new();
@@ -297,6 +298,7 @@ public sealed partial class ClashOfRimMod : Mod
         occupiedColonySites = new ClientOccupiedColonySites(sessionLifecycle, entryStore, new ClientOccupiedColonySitesRuntime(), worldConfiguration);
         worldMarkers = new ClientWorldMarkers(sessionLifecycle, entryStore, occupiedColonySites, new ClientWorldMarkersRuntime(),
             new ClientWorldMarkersPresentation(message => worldMapStatus = message));
+        worldLoginPublication = new ClientWorldLoginPublication(sessionLifecycle, worldMarkers);
         worldSynchronization = new ClientWorldSynchronization(sessionLifecycle, entryStore, localMutations, worldMarkers,
             new ClientWorldSynchronizationRuntime(), new ClientWorldMarkerTransport(new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner))),
             new ClientWorldWritePresentation(message => worldMapStatus = message), tradeMarket.CaptureRefresh);
@@ -342,14 +344,13 @@ public sealed partial class ClashOfRimMod : Mod
         };
         worldGeneration = new ClientWorldGeneration(sessionLifecycle, worldSetup, worldConfiguration, new ClientWorldGenerationRuntime(), new ClientWorldGenerationPresentation(message => loginStatus = message));
         worldEntry = new ClientWorldEntry(sessionLifecycle, new ClientSnapshotGame(), worldSetup,
-            entryStore, worldTransport, entryPresentation, snapshotReload);
+            entryStore, worldTransport, entryPresentation, snapshotReload, worldPublication);
         worldEntryStart = new ClientWorldEntryStart(sessionLifecycle, synchronization, new ClientSnapshotGame(),
             entryStore, entryPresentation, worldPreparation, worldEntry);
         worldEntry.Accepted += response =>
         {
             CaptureServerCompatibilityManifest(response.ServerCompatibilityManifestJson);
             ApplyAdministratorFlag(response.IsAdministrator);
-            occupiedColonySites.Replace(response.WorldConfiguration, colonyAppearance.ObserveServer);
         };
         observationMaps = new ClientObservationMaps(sessionLifecycle, synchronization, new ClientSnapshotGame(),
             new ClientObservationTransport(), new ClientObservationRuntime(),

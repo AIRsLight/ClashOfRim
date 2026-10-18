@@ -119,9 +119,10 @@ internal sealed class ClientSessionReconnect
                     return new(SessionReconnectOutcome.IdentityChanged);
                 if (!string.Equals(currentContext.CurrentSnapshotId, Expected.CurrentSnapshotId, StringComparison.Ordinal))
                     return new(SessionReconnectOutcome.SnapshotChanged);
-                service.lifecycle.PublishLogin(login!);
-                adopted = true;
-                return result;
+                var accepted = service.lifecycle.PublishLogin(Owner, Expected, login!);
+                adopted = accepted is not null;
+                return accepted is not null && service.lifecycle.Owns(accepted)
+                    ? result with { Publication = accepted } : new(SessionReconnectOutcome.Obsolete);
             }
         }
 
@@ -149,4 +150,5 @@ internal sealed class ClientSessionReconnect
 internal sealed record SessionReconnectLocalState(bool IsPlaying, bool HasGame, bool AtomicMutationPending);
 internal enum SessionReconnectOutcome { Succeeded, NetworkFailed, Rejected, SnapshotChanged, IdentityChanged, LocalStateBlocked, Obsolete }
 internal sealed record SessionReconnectResult(SessionReconnectOutcome Outcome, string? Message = null,
-    SessionReconnectBlockReason BlockReason = SessionReconnectBlockReason.None, ModLoginResponseDto? Login = null, ModDownloadLatestSnapshotResponseDto? Snapshot = null);
+    SessionReconnectBlockReason BlockReason = SessionReconnectBlockReason.None, ModLoginResponseDto? Login = null, ModDownloadLatestSnapshotResponseDto? Snapshot = null,
+    ClientSessionLifecycle.Login? Publication = null);
