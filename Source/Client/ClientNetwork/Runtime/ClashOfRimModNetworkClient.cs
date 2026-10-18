@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Accounts;
 using AIRsLight.ClashOfRim.Modules.Diplomacy;
 using AIRsLight.ClashOfRim.Modules.Raids;
 using AIRsLight.ClashOfRim.Modules.Snapshots;
@@ -25,7 +26,6 @@ namespace AIRsLight.ClashOfRim.ClientNetwork;
 public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPackageWriter
 {
     private static readonly string MaintainPresenceRoute = ProtocolContractManifest.Find(ProtocolMessageKind.MaintainPresence).Route;
-    private static readonly string ChangeOfflinePasswordRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ChangeOfflinePassword).Route;
     private static readonly string ListAchievementsRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ListAchievements).Route;
     private static readonly string GetPawnPackagePreviewRoute = ProtocolContractManifest.Find(ProtocolMessageKind.GetPawnPackagePreview).Route;
     private static readonly string UploadSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.UploadSnapshot).Route;
@@ -56,6 +56,7 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
     private readonly ClientEventConfirmationProtocol eventConfirmations;
     private readonly ClientEventDecisionProtocol eventDecisions;
     private readonly ClientDiplomacyProtocol diplomacy;
+    private readonly ClientAccountProtocol accounts;
     private readonly ClientAuthenticationEnvironment authenticationEnvironment = new();
     private readonly ClientSessionProtocol authentication;
     private readonly ClientSetupAuthenticationLease setupAuthentication;
@@ -101,6 +102,7 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
         eventConfirmations = new ClientEventConfirmationProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         eventDecisions = new ClientEventDecisionProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         diplomacy = new ClientDiplomacyProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
+        accounts = new ClientAccountProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         packages = new ClientPackageReader(transport, context, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         authentication = new ClientSessionProtocol(transport, authenticationEnvironment, authenticationEnvironment);
         setupAuthentication = new ClientSetupAuthenticationLease(authentication, transport, authenticationEnvironment);
@@ -172,29 +174,8 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
     }
 
     public Task<ClashOfRimClientNetworkResult<ModChangeOfflinePasswordResponseDto>> ChangeOfflinePasswordAsync(
-        string? currentPassword,
-        string? newPassword,
-        CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModChangeOfflinePasswordResponseDto>();
-        }
-
-        var request = new ModChangeOfflinePasswordRequestDto
-        {
-            UserId = context.UserId,
-            ColonyId = context.ColonyId,
-            AuthToken = context.AuthToken,
-            CurrentPassword = currentPassword,
-            NewPassword = newPassword
-        };
-
-        return transport.PostAsync<ModChangeOfflinePasswordRequestDto, ModChangeOfflinePasswordResponseDto>(
-            ChangeOfflinePasswordRoute,
-            request,
-            cancellationToken);
-    }
+        string? currentPassword, string? newPassword, CancellationToken cancellationToken = default)
+        => accounts.ChangeAsync(context, currentPassword, newPassword, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModAdminUpdateConfigurationResponseDto>> AdminUpdateConfigurationAsync(
         ModAdminConfigurationDto configuration,

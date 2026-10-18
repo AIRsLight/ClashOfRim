@@ -81,7 +81,7 @@ internal sealed class ClientPlayerDirectory
                 else incoming = Copy(result.Response.Players);
             })) return;
             if (incoming is null) { TryApply(request, () => message = failure!); return; }
-            await ClientGamePublication.EnqueueAsync(request.Scope.Game.Enqueue, request.Scope.Owner.Token,
+            await ClientGamePublication.EnqueueAsync(request.Scope.Boundary.Enqueue, request.Scope.Owner.Token,
                 action => TryApply(request, action), () => Publish(request, incoming)).ConfigureAwait(false);
         }
         catch (Exception ex)
@@ -95,7 +95,7 @@ internal sealed class ClientPlayerDirectory
     private void Publish(ClientGameRequestTracker.Request request, List<ModPlayerSummaryDto> incoming)
     {
         if (!TryApply(request, () => { players = incoming; version++; })) return;
-        if (request.Scope.Game.HasGame)
+        if (request.Scope.Boundary.HasGame)
             foreach (var player in incoming.Where(player => !string.IsNullOrWhiteSpace(player.UserId) && player.UserId != request.Context.UserId))
             {
                 if (!TryApply(request, () => runtime.EnsureProxy(player.UserId))) return;

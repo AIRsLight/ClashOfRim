@@ -63,6 +63,7 @@
   <ClashOfRim.Account.PasswordFailed>비밀번호 변경 실패: {CODE} {MESSAGE}</ClashOfRim.Account.PasswordFailed>
   <ClashOfRim.Account.PasswordNoSession>비밀번호를 변경하려면 서버 세션에 접속해 있어야 합니다.</ClashOfRim.Account.PasswordNoSession>
   <ClashOfRim.Account.PasswordRejected>서버가 비밀번호 변경을 거부했습니다: {CODE} {MESSAGE}</ClashOfRim.Account.PasswordRejected>
+  <ClashOfRim.Account.PasswordSaveFailed>서버의 비밀번호는 변경되었지만 로컬 저장에 실패했습니다. 다시 연결할 때 새 비밀번호를 사용하세요. {TYPE} {MESSAGE}</ClashOfRim.Account.PasswordSaveFailed>
   <ClashOfRim.Account.PasswordStatusIdle>비밀번호가 변경되지 않았습니다.</ClashOfRim.Account.PasswordStatusIdle>
   <ClashOfRim.DefensePoint.AssignGizmo>방어자 지정</ClashOfRim.DefensePoint.AssignGizmo>
   <ClashOfRim.DefensePoint.AssignGizmoAssigned>방어자: {0}</ClashOfRim.DefensePoint.AssignGizmoAssigned>

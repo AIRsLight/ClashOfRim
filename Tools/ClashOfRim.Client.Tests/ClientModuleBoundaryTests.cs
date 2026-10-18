@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Account;
 using System;
 using System.Linq;
 using AIRsLight.ClashOfRim;
@@ -53,6 +54,7 @@ internal static class ClientModuleBoundaryTests
             || t == typeof(ClientEventLetterRuntime) || t == typeof(ClientDiplomacyPresentation)
             || t == typeof(ClientEventDecisionPresentation) || t == typeof(ClientEventDecisionRuntime)
             || t == typeof(ClientDiplomacyCreationPresentation) || t == typeof(ClientDiplomacyRelationEffects) || t == typeof(ClientDiplomacyTransport)
+            || t == typeof(ClientPasswordStore) || t == typeof(ClientPasswordTransport) || t == typeof(ClientPasswordPresentation)
             || t == typeof(ClientPlayerDirectoryPresentation) || t == typeof(ClientPlayerDirectoryRuntime) || t == typeof(ClientPlayerSelectionStore)
             || t == typeof(ClientEventReadPresentation) || t == typeof(ClashOfRimEventLetterProjection)
             || t == typeof(ClientEventApplicationRuntime) || t == typeof(ClientEventApplicationPresentation)
@@ -87,7 +89,7 @@ internal static class ClientModuleBoundaryTests
                 || t.Namespace?.StartsWith("AIRsLight.ClashOfRim.Modules.Events", StringComparison.Ordinal) == true);
         if (sessionViolations.Count != 0)
             throw new InvalidOperationException("Session foundation depends on an event/snapshot domain: " + string.Join(Environment.NewLine, sessionViolations));
-        Type[] eventAdapters = { typeof(AIRsLight.ClashOfRim.RemoteMaps.ClientRemoteMapCloseOperation),
+        Type[] eventAdapters = { typeof(ClientPasswordTransport), typeof(ClientPasswordPresentation), typeof(AIRsLight.ClashOfRim.RemoteMaps.ClientRemoteMapCloseOperation),
             typeof(AIRsLight.ClashOfRim.RemoteMaps.ClientRemoteSessionRuntime), typeof(AIRsLight.ClashOfRim.RemoteMaps.RemoteSessionMapUtility), typeof(AIRsLight.ClashOfRim.RemoteMaps.ClientObservationRuntime), typeof(AIRsLight.ClashOfRim.RemoteMaps.ClientObservationPresentation),
             typeof(AIRsLight.ClashOfRim.Raids.ClientRaidPreparationPresentation),
             typeof(AIRsLight.ClashOfRim.Raids.ClientRaidLaunchRuntime), typeof(AIRsLight.ClashOfRim.Raids.ClientRaidLaunchPresentation),

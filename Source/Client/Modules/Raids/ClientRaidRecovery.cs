@@ -51,7 +51,7 @@ internal sealed class ClientRaidRecovery
         using var p = ClientSessionWork.EnterPublication();
         requests.Reset();
         var scope = requests.Capture();
-        if (!scope.Game.HasGame) return;
+        if (!scope.Boundary.HasGame) return;
         awaitingResolution = true;
         pending = new(scope, runtime, recovery is null ? null : new(recovery.EventId, recovery.ServerNowUtc,
             recovery.StartedAtUtc, recovery.DeadlineUtc, recovery.FinalDeadlineUtc), authoritativeReload);

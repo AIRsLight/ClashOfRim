@@ -63,6 +63,7 @@
   <ClashOfRim.Account.PasswordFailed>パスワード変更失敗: {CODE} {MESSAGE}</ClashOfRim.Account.PasswordFailed>
   <ClashOfRim.Account.PasswordNoSession>パスワードを変更するにはサーバーセッション内にいる必要があります。</ClashOfRim.Account.PasswordNoSession>
   <ClashOfRim.Account.PasswordRejected>サーバーがパスワード変更を拒否しました: {CODE} {MESSAGE}</ClashOfRim.Account.PasswordRejected>
+  <ClashOfRim.Account.PasswordSaveFailed>サーバー上のパスワードは変更されましたが、ローカルへの保存に失敗しました。再接続時は新しいパスワードを使用してください。{TYPE} {MESSAGE}</ClashOfRim.Account.PasswordSaveFailed>
   <ClashOfRim.Account.PasswordStatusIdle>パスワードは変更されていません。</ClashOfRim.Account.PasswordStatusIdle>
   <ClashOfRim.DefensePoint.AssignGizmo>防衛者を割り当て</ClashOfRim.DefensePoint.AssignGizmo>
   <ClashOfRim.DefensePoint.AssignGizmoAssigned>防衛者: {0}</ClashOfRim.DefensePoint.AssignGizmoAssigned>

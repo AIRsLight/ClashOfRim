@@ -1,3 +1,5 @@
+using AIRsLight.ClashOfRim.Account;
+using AIRsLight.ClashOfRim.Modules.Accounts;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -68,6 +70,7 @@ internal static class EventCommandPresentationTests
                 DecisionPresentation();
                 DiplomacyCreationPresentation();
                 PlayerDirectoryPresentation();
+                PasswordPresentation();
                 ApplicationPresentation();
                 ReadPresentation();
                 BankPresentation();
@@ -131,6 +134,19 @@ internal static class EventCommandPresentationTests
             "StatusSettlementMissingSourceMap", "StatusSettlementXmlFailed", "StatusSettlementMissingParent", "StatusSettlementMissingMap", "StatusSettlementMissingLocalMapId" })
             RequireResolved(presentation.Text("ClashOfRim.Raid." + key, ("CODE", "code"), ("MESSAGE", "message"), ("REASON", "reason"),
                 ("TYPE", "exception"), ("VALIDATION", "validation"), ("SNAPSHOT", "snapshot"), ("COUNT", 3)));
+    }
+
+    private static void PasswordPresentation()
+    {
+        var view = new ClientPasswordPresentation();
+        foreach (ClientPasswordStage stage in Enum.GetValues(typeof(ClientPasswordStage)))
+        {
+            var notice = new ClientPasswordNotice(stage, "code-é", "message-é", new InvalidOperationException("exception-é"));
+            RequireResolved(view.Format(notice));
+            RequireResolved(view.Format(new(stage)));
+        }
+        if (view.Format(new(ClientPasswordStage.Changed, Message: "server-文化")) != "server-文化")
+            throw new Exception("Password presentation lost the server receipt.");
     }
 
     private static void PlayerDirectoryPresentation()

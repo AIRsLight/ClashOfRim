@@ -63,6 +63,7 @@
   <ClashOfRim.Account.PasswordFailed>修改密码失败：{CODE} {MESSAGE}</ClashOfRim.Account.PasswordFailed>
   <ClashOfRim.Account.PasswordNoSession>尚未进入服务器，不能修改密码。</ClashOfRim.Account.PasswordNoSession>
   <ClashOfRim.Account.PasswordRejected>服务器拒绝修改密码：{CODE} {MESSAGE}</ClashOfRim.Account.PasswordRejected>
+  <ClashOfRim.Account.PasswordSaveFailed>服务器上的密码已更改，但本地保存失败。重新连接时请使用新密码。{TYPE} {MESSAGE}</ClashOfRim.Account.PasswordSaveFailed>
   <ClashOfRim.Account.PasswordStatusIdle>账户密码未修改。</ClashOfRim.Account.PasswordStatusIdle>
   <ClashOfRim.DefensePoint.AssignGizmo>分配防守者</ClashOfRim.DefensePoint.AssignGizmo>
   <ClashOfRim.DefensePoint.AssignGizmoAssigned>防守者：{0}</ClashOfRim.DefensePoint.AssignGizmoAssigned>

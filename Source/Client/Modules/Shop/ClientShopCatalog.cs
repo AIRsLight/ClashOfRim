@@ -102,9 +102,9 @@ internal sealed class ClientShopCatalog
 
     private void QueuePreviews(ClientGameRequestTracker.Scope owner, IReadOnlyList<ModServerShopListingDto> listings)
     {
-        if (!owner.Game.HasGame || listings.Count == 0) return;
+        if (!owner.Boundary.HasGame || listings.Count == 0) return;
         int version = state.Version;
-        owner.Game.Enqueue(() => state.TryApply(owner, () =>
+        owner.Boundary.Enqueue(() => state.TryApply(owner, () =>
         { if (state.Version == version) presentation.PreparePreviews(listings); }), static () => { });
     }
 

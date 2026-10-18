@@ -63,6 +63,7 @@
   <ClashOfRim.Account.PasswordFailed>Не удалось сменить пароль: {CODE} {MESSAGE}</ClashOfRim.Account.PasswordFailed>
   <ClashOfRim.Account.PasswordNoSession>Чтобы сменить пароль, нужно быть в сеансе сервера.</ClashOfRim.Account.PasswordNoSession>
   <ClashOfRim.Account.PasswordRejected>Сервер отклонил смену пароля: {CODE} {MESSAGE}</ClashOfRim.Account.PasswordRejected>
+  <ClashOfRim.Account.PasswordSaveFailed>Пароль на сервере изменён, но сохранить его локально не удалось. При повторном подключении используйте новый пароль. {TYPE} {MESSAGE}</ClashOfRim.Account.PasswordSaveFailed>
   <ClashOfRim.Account.PasswordStatusIdle>Пароль не изменен.</ClashOfRim.Account.PasswordStatusIdle>
   <ClashOfRim.DefensePoint.AssignGizmo>Назначить защитника</ClashOfRim.DefensePoint.AssignGizmo>
   <ClashOfRim.DefensePoint.AssignGizmoAssigned>Защитник: {0}</ClashOfRim.DefensePoint.AssignGizmoAssigned>

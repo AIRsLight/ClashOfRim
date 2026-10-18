@@ -1,3 +1,5 @@
+using AIRsLight.ClashOfRim.Account;
+using AIRsLight.ClashOfRim.Modules.Accounts;
 using AIRsLight.ClashOfRim.Modules.Diplomacy;
 using AIRsLight.ClashOfRim.Modules.Raids;
 using AIRsLight.ClashOfRim.Modules.Maps;
@@ -138,6 +140,7 @@ public sealed partial class ClashOfRimMod : Mod
     private bool chatRefreshInProgress;
     private bool chatSendInProgress;
     private readonly ClientSessionLifecycle sessionLifecycle;
+    private readonly ClientPasswordChange passwordChange;
     private readonly ClientSessionReconnect sessionReconnect;
     private bool languageMismatchAcceptedForCurrentServerEntry;
     private bool blockAutomaticMapSessionForServerEntrySourceGame;
@@ -170,6 +173,9 @@ public sealed partial class ClashOfRimMod : Mod
         snapshotPublication = ClientSnapshotComposition.CreatePublication(settings);
         sessionLifecycle = new ClientSessionLifecycle(new ClientSessionIdentityStore(settings), new ClientSessionLogoutTransport(), sessionConnection);
         sessionReconnect = new ClientSessionReconnect(new ClientSessionReconnectTransport(), sessionLifecycle, synchronization);
+        passwordChange = new ClientPasswordChange(sessionLifecycle,
+            new ClientPasswordTransport(new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner))),
+            new ClientPasswordStore(settings), new ClientPasswordPresentation(), ClientMainThreadDispatcher.EnqueueSession);
         var eventReader = new ClientEventReader(sessionLifecycle, eventInbox, new ClientEventReadTransport(), new ClientSnapshotGame());
         var eventReadPresentation = new ClientEventReadPresentation();
         eventState = new ClientEventState(eventReader, eventReadPresentation);

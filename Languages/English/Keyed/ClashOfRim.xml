@@ -63,6 +63,7 @@
   <ClashOfRim.Account.PasswordFailed>Password change failed: {CODE} {MESSAGE}</ClashOfRim.Account.PasswordFailed>
   <ClashOfRim.Account.PasswordNoSession>You must be in a server session to change the password.</ClashOfRim.Account.PasswordNoSession>
   <ClashOfRim.Account.PasswordRejected>Server rejected password change: {CODE} {MESSAGE}</ClashOfRim.Account.PasswordRejected>
+  <ClashOfRim.Account.PasswordSaveFailed>Password changed on the server, but saving it locally failed. Use the new password when reconnecting. {TYPE} {MESSAGE}</ClashOfRim.Account.PasswordSaveFailed>
   <ClashOfRim.Account.PasswordStatusIdle>Password unchanged.</ClashOfRim.Account.PasswordStatusIdle>
   <ClashOfRim.DefensePoint.AssignGizmo>Assign defender</ClashOfRim.DefensePoint.AssignGizmo>
   <ClashOfRim.DefensePoint.AssignGizmoAssigned>Defender: {0}</ClashOfRim.DefensePoint.AssignGizmoAssigned>
