@@ -1,4 +1,4 @@
-using System.Text.Json;
+using AIRsLight.ClashOfRim.Network.Modules.Snapshots;
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Save;
 using AIRsLight.ClashOfRim.Protocol;
@@ -9,6 +9,7 @@ namespace AIRsLight.ClashOfRim.Network;
 public sealed partial class SnapshotCommitService
 {
     private readonly string? directory;
+    private readonly SnapshotCommitJournal journal;
     private readonly Dictionary<string, SnapshotCommitIntent> pending = new(StringComparer.Ordinal);
     private bool applying;
     internal bool HasPending => pending.Count != 0;
@@ -19,10 +20,10 @@ public sealed partial class SnapshotCommitService
     public SnapshotCommitService(string? directory = null)
     {
         this.directory = directory;
+        journal = new SnapshotCommitJournal(directory);
         if (directory is null) return;
-        Directory.CreateDirectory(directory);
         foreach (var receipt in ReadReceipts(directory)) receipts.TryAdd(ReceiptKey(receipt.Envelope), receipt);
-        foreach (SnapshotCommitIntent intent in ReadPending(directory))
+        foreach (SnapshotCommitIntent intent in journal.ReadPending())
         {
             pending.Add(intent.Id, intent);
             if (intent.Upload is not null) pendingUploads++;
@@ -31,73 +32,8 @@ public sealed partial class SnapshotCommitService
 
     public static void ValidateDirectory(string directory)
     {
-        foreach (SnapshotCommitIntent _ in ReadPending(directory)) { }
+        SnapshotCommitJournal.ValidateDirectory(directory);
         foreach (SnapshotConfirmationReceipt _ in ReadReceipts(directory)) { }
-    }
-
-    private static IEnumerable<SnapshotCommitIntent> ReadPending(string directory)
-    {
-        if (!Directory.Exists(directory)) yield break;
-        foreach (string path in Directory.EnumerateFiles(directory, "*.json"))
-        {
-            SnapshotCommitIntent intent = JsonSerializer.Deserialize<SnapshotCommitIntent>(File.ReadAllBytes(path))
-                ?? throw new InvalidDataException("Empty snapshot commit: " + path);
-            if (intent.Version is not (1 or 2 or 3 or 4 or 5 or 6 or 7 or 8 or 9 or 10 or 11 or 12) || Path.GetFileNameWithoutExtension(path) != intent.Id)
-                throw new InvalidDataException("Unsupported snapshot commit: " + path);
-            SnapshotIdentity identity = intent.Package.Envelope.Identity;
-            if (intent.Loan is null && intent.Debt is null && intent.Gift is null && intent.Trade is null && intent.Shop is null && intent.Mercenary is null && intent.PendingOperations is null && intent.Raid is null && intent.RaidSettlement is null && intent.RaidCleanup is null && intent.Upload is null && intent.Support is null
-                || intent.Loan is { } loan && (loan.UserId != identity.OwnerId || loan.ColonyId != identity.ColonyId || loan.SnapshotId != identity.SnapshotId)
-                || intent.Debt is { } debt && (debt.UserId != identity.OwnerId || debt.ColonyId != identity.ColonyId || debt.SnapshotId != identity.SnapshotId)
-                || intent.Gift is { } gift && (intent.Version is not (2 or 6) || intent.Loan is not null || intent.Debt is not null
-                    || !GiftSnapshotReplayPolicy.Matches(gift, identity.OwnerId!, identity.ColonyId, identity.SnapshotId))
-                || intent.Trade is not null && (intent.Version is not (3 or 6) || intent.Loan is not null || intent.Debt is not null || intent.Gift is not null)
-                || intent.Shop is not null && (intent.Version is not (4 or 6) || intent.Loan is not null || intent.Debt is not null || intent.Gift is not null || intent.Trade is not null)
-                || intent.Mercenary is not null && (intent.Version is not (5 or 6) || intent.Loan is not null || intent.Debt is not null || intent.Gift is not null || intent.Trade is not null || intent.Shop is not null))
-                throw new InvalidDataException("Snapshot journal identity mismatch: " + path);
-            if ((intent.Version == 7) != (intent.Raid is not null)
-                || intent.Raid is not null && (intent.Loan is not null || intent.Debt is not null || intent.Gift is not null
-                    || intent.Trade is not null || intent.Shop is not null || intent.Mercenary is not null))
-                throw new InvalidDataException("Raid journal contains incompatible primary mutations: " + path);
-            intent.Raid?.Validate(identity);
-            if ((intent.Version == 8) != (intent.RaidSettlement is not null)
-                || intent.RaidSettlement is not null && (intent.Loan is not null || intent.Debt is not null || intent.Gift is not null
-                    || intent.Trade is not null || intent.Shop is not null || intent.Mercenary is not null || intent.Raid is not null || intent.PendingOperations is not null))
-                throw new InvalidDataException("Raid settlement journal contains incompatible mutations: " + path);
-            intent.RaidSettlement?.Validate(identity);
-            if ((intent.Version == 9) != (intent.RaidCleanup is not null)
-                || intent.RaidCleanup is not null && (intent.Loan is not null || intent.Debt is not null || intent.Gift is not null
-                    || intent.Trade is not null || intent.Shop is not null || intent.Mercenary is not null || intent.Raid is not null
-                    || intent.RaidSettlement is not null || intent.PendingOperations is not null))
-                throw new InvalidDataException("Raid cleanup journal contains incompatible mutations: " + path);
-            intent.RaidCleanup?.Validate(identity);
-            if ((intent.Version is 10 or 11) != (intent.Upload is not null)
-                || intent.Upload is not null && (intent.Loan is not null || intent.Debt is not null || intent.Gift is not null
-                    || intent.Trade is not null || intent.Shop is not null || intent.Mercenary is not null || intent.Raid is not null
-                    || intent.RaidSettlement is not null || intent.RaidCleanup is not null))
-                throw new InvalidDataException("Ordinary upload journal contains incompatible mutations: " + path);
-            if ((intent.Version == 12) != (intent.Support is not null)
-                || intent.Support is not null && (intent.Loan is not null || intent.Debt is not null || intent.Gift is not null
-                    || intent.Trade is not null || intent.Shop is not null || intent.Mercenary is not null || intent.Raid is not null
-                    || intent.RaidSettlement is not null || intent.RaidCleanup is not null || intent.Upload is not null))
-                throw new InvalidDataException("Support journal contains incompatible mutations: " + path);
-            intent.Support?.Validate(identity);
-            intent.Upload?.Validate(intent);
-            intent.Trade?.Validate(identity);
-            intent.Shop?.Validate(identity);
-            intent.Mercenary?.Validate(identity);
-            if (intent.Version == 6 && intent.PendingOperations is null || intent.Version < 6 && intent.PendingOperations is not null)
-                throw new InvalidDataException("Snapshot confirmation journal is missing its operations: " + path);
-            if (intent.PendingOperations is { } operations)
-            {
-                operations.Validate(new LatestSnapshotRecord(identity, intent.Package.Envelope, intent.Package.Index, intent.AcceptedAtUtc),
-                    allowEmpty: intent.Upload is not null);
-                if (operations.Loan is { } pendingLoan && pendingLoan.LoanId == intent.Loan?.LoanId
-                    || operations.Debts.Any(debt => debt.DebtId == intent.Debt?.DebtId)
-                    || operations.Mercenaries.Any(contract => contract.ContractId == intent.Mercenary?.Contract?.ContractId))
-                    throw new InvalidDataException("A primary mutation overlaps its confirmation batch: " + path);
-            }
-            yield return intent;
-        }
     }
 
     public void Commit(
@@ -136,7 +72,7 @@ public sealed partial class SnapshotCommitService
                 intent = AttachPendingOperations(intent, bank, contracts, legacyRecovery: true);
                 if (intent != original)
                 {
-                    Write(intent, replace: true);
+                    journal.Write(intent, replace: true);
                     pending[intent.Id] = intent;
                 }
             }
@@ -364,7 +300,7 @@ public sealed partial class SnapshotCommitService
     private SnapshotCommitIntent PersistNewIntent(SnapshotCommitIntent intent, PreparedSnapshotPayload? payload)
     {
         intent = intent with { PreparedStoragePayload = payload };
-        Write(intent);
+        journal.Write(intent);
         pending.Add(intent.Id, intent);
         if (intent.Upload is not null) Interlocked.Increment(ref pendingUploads);
         return intent;
@@ -543,7 +479,7 @@ public sealed partial class SnapshotCommitService
                     application = application with { Plan = planConfirmation!(application, snapshot) };
                     application.Validate(snapshot);
                     intent = intent with { Upload = intent.Upload with { Confirmation = application } };
-                    Write(intent, replace: true);
+                    journal.Write(intent, replace: true);
                     pending[intent.Id] = intent;
                 }
                 application.Preflight(ledger!);
@@ -552,7 +488,7 @@ public sealed partial class SnapshotCommitService
                 StoreReceipt(new SnapshotConfirmationReceipt(1, snapshot.Envelope, snapshot.AcceptedAtUtc,
                     application.Request, application.Plan.Results));
             }
-            if (directory is not null) File.Delete(Path.Combine(directory, intent.Id + ".json"));
+            journal.Remove(intent.Id);
             pending.Remove(intent.Id);
             if (intent.Upload is not null) Interlocked.Decrement(ref pendingUploads);
         }
@@ -562,20 +498,6 @@ public sealed partial class SnapshotCommitService
     internal static bool SameVersion(SaveSnapshotEnvelope? left, SaveSnapshotEnvelope right) => left is not null
         && left.Identity == right.Identity && left.OriginalSha256 == right.OriginalSha256
         && left.PayloadSha256 == right.PayloadSha256 && left.NextLineageToken == right.NextLineageToken;
-
-    private void Write(SnapshotCommitIntent intent, bool replace = false)
-    {
-        intent.PreparedStoragePayload?.Validate(intent.Package.Payload);
-        if (directory is null) return;
-        string path = Path.Combine(directory, intent.Id + ".json");
-        string temporary = path + ".tmp";
-        using (var stream = new FileStream(temporary, FileMode.Create, FileAccess.Write, FileShare.None))
-        {
-            JsonSerializer.Serialize(stream, intent);
-            stream.Flush(flushToDisk: true);
-        }
-        File.Move(temporary, path, overwrite: replace);
-    }
 }
 
 public sealed record SnapshotCommitIntent(int Version, string Id, string? PreviousSnapshotId, string? PreviousLineageToken,

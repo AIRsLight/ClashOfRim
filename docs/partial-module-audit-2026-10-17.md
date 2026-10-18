@@ -2578,3 +2578,16 @@ ClientRaidCommands 接管远征队菜单、载具着陆入口和运输舱目标�
 | 服务端 SnapshotCommits、SnapshotPostUpload 和 LegacySnapshotRecoveryAdapter | 仍承载通用提交恢复／后处理装配，属于 M9 的明确剩余工作。原提交服务仍同时持有日志读写、回执和 Apply 业务顺序，尚未完成真正拆分 |
 
 客户端宿主这一轮不再以继续移动 UI 代码来代替后续阶段。**下一步 M9a：提交日志存储与验证边界。** 先迁出 SnapshotCommitService 的物理日志读写及版本 1–12 验证，保持 pending／applying 在提交协调器内唯一持有；随后迁出回执职责与业务 Apply 顺序，并以真实恢复／持久化单元场景验证。M9 结束前必须删除 LegacySnapshotRecoveryAdapter 及旧提交恢复入口。此表只界定本次检查的实际责任，不宣称 M8 全部验证或整体目标已完成；M9–M12 及最终完成审计继续开放。
+
+
+### M9a 提交日志存储与版本验证归属（2026-10-19）
+
+新增独立的 SnapshotCommitJournal，负责日志目录、版本 1–12 的反序列化与身份／业务组合验证、临时文件写入／刷盘／重命名，以及完成后的文件删除。SnapshotCommitService 通过具体日志对象读写；pending、pendingUploads、applying 以及恢复准备快照仍由原协调器唯一持有。没有新增恢复状态机或把业务执行委托藏入存储适配器。历史验证与写入实现逐段比对保持原算法；公开 Intent 序列化形状和服务签名不变。
+
+保留原顺序：新意图先写盘再登记内存；旧版本补齐待确认批次、事件确认生成计划时先替换持久记录再更新内存；业务和确认回执完成后先删除日志再移除内存待办。无磁盘模式仍先验证预压缩载荷。ValidateDirectory 复用同一读盘验证，不创建目录。回执文件和索引本步仍归旧 Receipts partial，下一步单独迁出。
+
+验证先发现 PreparedSnapshotPayloadTests 的会话撤销预期过时：仍期待 Unauthorized，而现有统一授权已返回 SessionUnavailable。用拆分前 HEAD 的提交服务复现同一错误，日志为 `LocalOnly/module-migration/server-commit-journal-baseline.log`；修正测试预期并增加失败模式／错误码诊断，没有更改授权行为。
+
+**15 个相关单元组通过**：会话授权契约、模块边界、快照载荷／恢复准备、银行／礼物／交易／商店／雇佣／支援提交、待确认批次、普通上传、批量事件确认、袭击出征／守方结算／战场清理。覆盖各历史日志业务及中断重放、版本升级检查点、写入失败不发布内存、回执保存和日志删除失败保留待办。模块守卫检查 390 个类型、81 条路由及恢复归属。最终日志：`LocalOnly/module-migration/server-commit-journal-tests.log`。测试编译生产代码；没有全量回归、实机 RimTest、独立发布构建或推送，未修改冻结 1.6。
+
+**下一步 M9b：确认回执模块。** 收回回执查找、幂等冲突判定、持久化和启动验证；复用日志文件的刷盘／重命名机制，删除 Receipts partial。业务 Apply、宿主恢复与 LegacySnapshotRecoveryAdapter 仍待后续 M9 步骤，M9–M12 及最终完成审计继续开放。

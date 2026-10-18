@@ -97,10 +97,10 @@ internal static class PreparedSnapshotPayloadTests
             Check(reply.Result.Accepted && store.PreparedStores == 1 && state.ServerShop.Find("listing")!.StockCount == 2
                 && store.GetLatestPackage(actor.UserId, actor.ColonyId!)!.Payload.SequenceEqual(package.Payload), "prepared shop commit failed");
         else
-            Check(!reply.Result.Accepted && (mode != "revoke" || reply.Result.ErrorCode == ProtocolErrorCode.Unauthorized)
+            Check(!reply.Result.Accepted && (mode != "revoke" || reply.Result.ErrorCode == ProtocolErrorCode.SessionUnavailable)
                 && store.PreparedStores == 0 && state.ServerShop.FindReceipt("purchase") is null && state.ServerShop.Find("listing")!.StockCount == 3
                 && store.GetLatest(actor.UserId, actor.ColonyId!)?.Identity.SnapshotId == (mode == "publish" ? "competing" : null),
-                "prepared payload bypassed current snapshot/session validation");
+                $"prepared payload bypassed current snapshot/session validation ({mode}: {reply.Result.ErrorCode})");
     }
 
     private static void VerifyRecovery(string root, Func<string, SaveSnapshotPackage> fixture)
