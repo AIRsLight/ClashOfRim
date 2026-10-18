@@ -1425,3 +1425,32 @@ HTTP 列表与调用者快照通过共用 JSON 序列化隔离可变 DTO。有�
 累计 **7/104 个相关客户端单元组通过**：玩家目录、外交创建、提示/语言、模块边界，以及共用跟踪器的商店目录、佣兵报价、本地快照确认调用者。补齐动作编排后只重跑玩家目录与依赖检查 **2/104**，通过。守卫覆盖 **730** 个模块/生成类型、**149** 个适配类型；最后清理宿主转发后客户端 Release 编译 **0 错误**，41 个既有警告，无本步新增警告。初次执行文件处理脚本未指定 UTF-8、且构建路径写错，修正后完成，无编码变更混入差异。日志：`LocalOnly/module-migration/player-directory-unit.log`、`player-directory-integration-unit.log`、`player-directory-final-unit.log`、`player-directory-final-build.log`。未运行 RimTest、NetworkSmoke 或全量回归，未推送；仅提交本步文件及共享文件中的本步片段，其余工作区修改独立保留。
 
 M7e2 客户端外交创建与玩家外交状态迁移完成。下一步对 M7 的雇佣、支援、袭击、远程地图及外交做剩余职责核对，确认过渡门面的归属后按顺序进入 M8；本步不提前宣布 M7 整体或 M8–M12 完成。UI 页面/对话框仍使用旧 Mod 入口，属于 M11 的明确待办。
+
+### M7 收尾职责核对与 M8 入口（2026-10-18）
+
+在 `79270f64` 后重新检查两端域目录、主类路由、剩余 partial 和恢复适配器。M7 的核心业务归属已具备进入 M8 的条件；后续阶段仍保留以下明确的接入清理工作，不能将本次核对当作整个项目已消除 partial 或完成全量实机验证。
+
+| 范围 | 当前实现归属 | 尚待后续阶段处理的接入 |
+| --- | --- | --- |
+| 雇佣 | 服务端 MercenaryService/Hiring/IncidentRecovery；客户端 Quotes/Hiring/Incidents/Confirmation 与独立运行时 | QuestPart 的 LoadedModManager 获取及 Mod 转发，归 M11 接入收尾 |
+| 支援 | 服务端 Sending/Returns/Closures/SnapshotDeaths；客户端 Sending/Returns，原 SupportPawns partial 只转发 | 任务、Gizmo 与引擎通知接入，归 M11 |
+| 袭击 | 服务端 Preparation/Starting/EvidenceScheduling/Confirmation/Timeouts/Settlement；客户端 Preparation/Launching/Settlements/Recovery | RemoteMaps partial 中的菜单、车辆入口提示、运输器目标 DTO 转换，归 M11；公开兼容签名随 M10/M11 保留并最终转发 |
+| 远程地图 | 下载、观察、关闭模块与 ClientRemoteSessionRuntime，通用权威重载由 SnapshotReload 拥有 | RemoteMapSessionController 的菜单确认和旧公开外观、下载兼容构造入口，归 M10/M11 |
+| 外交与玩家状态 | DiplomacyService/Publications、ClientDiplomacyCreation/Actions/PlayerDirectory | 多人页面和求援对话框的 Mod 接口，归 M11 |
+| 服务端路由与恢复 | 四个域的端点模块已接管注册；旧 RaidsDiplomacySupport partial 仅剩世界通知和账户/殖民地生命周期 | M8 迁移账户/世界/删除；LegacySnapshotRecoveryAdapter 的通用提交恢复和后处理归 M8/M9 |
+
+本轮读取的客户端依赖证据为 M7e2b 的 730 个模块/生成类型、149 个适配类型检查；服务端在接入下述账户模块后再运行边界组，覆盖 237 个模块/生成类型、81 条原路由及恢复元数据，全部通过。该检查验证依赖和装配，不替代上文各阶段的业务测试或用户安排的全量游戏回归。退出时世界请求 HTTP 400 的历史追踪仍保留在 M8 世界/会话范围。
+
+M8 继续按账户、世界准备/同步、殖民地生命周期、管理、聊天、成就的顺序推进。账户先拆凭据/改密的服务端能力，再迁客户端改密状态与回包发布，之后处理仍在 EntryAuthentication/Login/SessionConnections 中的准入策略、登录发布、退出及连接生命周期；注册与世界准备之间的提交顺序继续共用原凭据证明，不另建注册通道。
+
+### M8a1 服务端账户凭据与密码变更（2026-10-18）
+
+`AccountService` 接管立即认证、延后凭据准备和密码变更授权；原 `CredentialAuthentication` 迁入账户模块，保留唯一的 Steam/离线认证、配置复验、账户证明及错误映射算法。模块依赖只包含账户注册表、令牌注册表、Steam 验证器和配置读取。登录、世界准备、世界读取/上传及兼容基线授权改用明确的账户能力，删除主类 PrepareEntryAuthentication/ValidateAuthentication 包装，既有认证测试也改为直接调用模块，不再反射宿主私有方法。`AccountEndpoints` 独立注册修改密码路由；HTTP 200 业务响应、原 JSON、令牌有效期/用户/殖民地匹配、空新密码和有效登录首次建立离线凭据等现有语义保持不变。没有添加快照恢复、全服变更锁、第二个账户存储或自动重试。
+
+新单元测试先实测失败：未建立离线记录的已认证用户提交错误旧密码，`ChangePassword` 虽然返回拒绝，却提前在内存插入空密码账户。日志 `account-module-before.log` 明确失败于 `Failed password change published a transient empty-password account: wrong-password`。移除这一提前插入，已有注册表在校验和持久化成功后才发布替代记录；初次写入失败也不留下临时账户。现存账户的持久化失败继续保留原记录及凭据证明，成功替换后才使旧证明失效。
+
+`AccountModuleTests` 独立装配账户能力，不构造 NetworkState。覆盖四种文化、用户/殖民地/大小写/缺失/无效/撤销/过期令牌及到期前一 tick、旧/新/空密码、首次建立凭据、重复非幂等请求、存储重开、旧证明、认证配置变化、Steam 验证和八个并发改密仅一个生效。复用 RecoveryTestSupport.Slot 注入失败，另验证真实 Windows 文件替换失败、SQLite 账户表触发器写入失败、解除故障重试及独立重开。测试初稿误把请求 DTO 当 record、文件共享冲突异常预期过窄，修正测试构造和异常类型后通过，没有放宽产品授权或持久化规则。
+
+累计 **5/156 个相关服务端单元组通过**：新账户模块、统一凭据（23 个场景）、普通登录（96 个场景）、世界准备（106 个场景）及模块/路由边界。补齐真实存储故障后只重跑新账户组 **1/156**，通过。服务端控制台 Release 编译 **0 警告、0 错误**。日志：`LocalOnly/module-migration/account-module-before.log`、`account-module-unit.log`、`account-integration-unit.log`、`account-durable-unit.log`、`account-server-final-build.log`。故障矩阵中的预期 IOException 日志不代表测试失败；最终组和进程退出结果均通过。未运行 NetworkSmoke 套件、RimTest 或全量回归，未推送；工作区原有变更独立保留。
+
+本步完成 M8a1，下一步 **M8a2 客户端修改密码的状态、协议与所属会话发布**。登录/退出编排、世界准备发布和账户完整生命周期尚未完成，M8 及 M9–M12 保持开放。

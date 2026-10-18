@@ -1,20 +1,10 @@
+using AIRsLight.ClashOfRim.Network.Modules.Accounts;
 using AIRsLight.ClashOfRim.Protocol;
 
 namespace AIRsLight.ClashOfRim.Network;
 
 public static partial class ClashOfRimNetworkServer
 {
-    private static CredentialAuthentication.PreparedCredentials PrepareEntryAuthentication(
-        ClashOfRimNetworkState state, string userId, string? ticket, string? password,
-        bool createAccount = false, DateTimeOffset? nowUtc = null)
-        => new CredentialAuthentication(state.OfflineAccounts, state.SteamAuthTickets, () => state.ServerConfiguration)
-            .Prepare(userId, ticket, password, nowUtc ?? DateTimeOffset.UtcNow, createAccount);
-
-    // Immediate callers use the same credential proof; they do not acquire entry/recovery policy implicitly.
-    private static AuthenticationValidationResult ValidateAuthentication(ClashOfRimNetworkState state,
-        string userId, string? steamAuthTicket, string? password, DateTimeOffset nowUtc, bool createAccountIfMissing = false)
-        => PrepareEntryAuthentication(state, userId, steamAuthTicket, password, createAccountIfMissing, nowUtc).Commit(nowUtc);
-
     private enum EntryPurpose { Login, WorldPreparation }
 
     // One authorization policy is re-run at every recovery boundary. The purpose only selects

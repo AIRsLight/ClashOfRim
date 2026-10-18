@@ -33,9 +33,9 @@ internal static class ModuleBoundaryTests
         var business = modules.Where(t =>
             t.Namespace is "AIRsLight.ClashOfRim.Network.Modules.Bank" or "AIRsLight.ClashOfRim.Network.Modules.Gifts"
                 or "AIRsLight.ClashOfRim.Network.Modules.Transfers" or "AIRsLight.ClashOfRim.Network.Modules.Trades" or "AIRsLight.ClashOfRim.Network.Modules.Shop" or "AIRsLight.ClashOfRim.Network.Modules.Mercenaries"
-                or "AIRsLight.ClashOfRim.Network.Modules.Diplomacy" or "AIRsLight.ClashOfRim.Network.Modules.Support" or "AIRsLight.ClashOfRim.Network.Modules.Raids"
-            && t.Name is not ("BankEndpoints" or "GiftEndpoints" or "TradeEndpoints" or "ShopEndpoints" or "MercenaryEndpoints" or "SupportEndpoints" or "RaidEndpoints" or "DiplomacyEndpoints")
-            && t.DeclaringType?.Name is not ("BankEndpoints" or "GiftEndpoints" or "TradeEndpoints" or "ShopEndpoints" or "MercenaryEndpoints" or "SupportEndpoints" or "RaidEndpoints" or "DiplomacyEndpoints")).ToArray();
+                or "AIRsLight.ClashOfRim.Network.Modules.Diplomacy" or "AIRsLight.ClashOfRim.Network.Modules.Support" or "AIRsLight.ClashOfRim.Network.Modules.Raids" or "AIRsLight.ClashOfRim.Network.Modules.Accounts"
+            && t.Name is not ("BankEndpoints" or "GiftEndpoints" or "TradeEndpoints" or "ShopEndpoints" or "MercenaryEndpoints" or "SupportEndpoints" or "RaidEndpoints" or "DiplomacyEndpoints" or "AccountEndpoints")
+            && t.DeclaringType?.Name is not ("BankEndpoints" or "GiftEndpoints" or "TradeEndpoints" or "ShopEndpoints" or "MercenaryEndpoints" or "SupportEndpoints" or "RaidEndpoints" or "DiplomacyEndpoints" or "AccountEndpoints")).ToArray();
         var transportLeaks = ModuleDependencyGuard.FindViolations(business,
             t => t.Namespace?.StartsWith("Microsoft.AspNetCore.Http", StringComparison.Ordinal) == true);
         Require(transportLeaks.Count == 0, string.Join(Environment.NewLine, transportLeaks));

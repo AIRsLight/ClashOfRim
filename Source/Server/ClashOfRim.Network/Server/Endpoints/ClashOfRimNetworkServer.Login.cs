@@ -15,7 +15,7 @@ public static partial class ClashOfRimNetworkServer
         if (string.IsNullOrWhiteSpace(request.UserId) || string.IsNullOrWhiteSpace(request.ColonyId))
             return RejectLogin(ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("SessionStream.MissingIdentity")));
 
-        var prepared = PrepareEntryAuthentication(state, request.UserId, request.SteamAuthTicket, request.Password);
+        var prepared = state.Accounts.PrepareCredentials(request.UserId, request.SteamAuthTicket, request.Password, DateTimeOffset.UtcNow);
         if (prepared.Revalidate() is { } invalid) return RejectLogin(invalid);
         var input = PrepareCompatibilityHandshakeInput(request.CompatibilityManifestJson, request.CompatibilityManifestId, request.CompatibilityManifestSummaryJson);
         var entry = new PreparedEntryHandshake(state, prepared, input, EntryPurpose.Login);

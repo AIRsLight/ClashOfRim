@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Network.Modules.Accounts;
 using static AIRsLight.ClashOfRim.Network.Modules.World.WorldTileGeometry;
 using AIRsLight.ClashOfRim.Compatibility;
 using AIRsLight.ClashOfRim.Events;
@@ -442,33 +443,13 @@ public static partial class ClashOfRimNetworkServer
         return issues;
     }
 
-    private static IResult ChangeOfflinePassword(ChangeOfflinePasswordRequest request, ClashOfRimNetworkState state)
-    {
-        DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
-        if (!state.AuthTokens.IsValid(request.AuthToken, request.UserId, request.ColonyId, nowUtc))
-        {
-            return Results.Ok(new ChangeOfflinePasswordResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("OfflineAuth.PasswordChangeUnauthorized"))));
-        }
-
-        bool changed = state.OfflineAccounts.ChangePassword(
-            request.UserId,
-            request.CurrentPassword,
-            request.NewPassword,
-            nowUtc,
-            out string failure);
-        return Results.Ok(new ChangeOfflinePasswordResponse(changed
-            ? ProtocolResponse.Ok(T("OfflineAuth.PasswordChanged"))
-            : ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, CredentialAuthentication.LocalizeOfflineFailure(failure))));
-    }
-
     private static IResult OverrideCompatibilityBaseline(
         OverrideCompatibilityBaselineRequest request,
         ClashOfRimNetworkState state,
         ILoggerFactory loggerFactory)
     {
         DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
-        AuthenticationValidationResult auth = ValidateAuthentication(state, request.UserId, request.SteamAuthTicket, request.Password, nowUtc);
+        AuthenticationValidationResult auth = state.Accounts.Authenticate(request.UserId, request.SteamAuthTicket, request.Password, nowUtc);
         if (!auth.Accepted || string.IsNullOrWhiteSpace(auth.AuthenticatedUserId))
         {
             return Results.Ok(new OverrideCompatibilityBaselineResponse(

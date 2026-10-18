@@ -140,7 +140,6 @@ public sealed class OfflineAccountRegistry
             if (!accounts.TryGetValue(normalizedUserId, out OfflineAccountRecord? account))
             {
                 account = CreateRecord(normalizedUserId, password: string.Empty, nowUtc);
-                accounts[normalizedUserId] = account;
             }
 
             if (!VerifyPassword(currentPassword ?? string.Empty, account))

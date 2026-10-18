@@ -7,7 +7,7 @@ public static partial class ClashOfRimNetworkServer
 {
     private static IResult PrepareAuthenticatedWorldSession(PrepareWorldSessionRequest request, ClashOfRimNetworkState state)
     {
-        var prepared = PrepareEntryAuthentication(state, request.UserId, request.SteamAuthTicket, request.Password, request.CreateAccountIfMissing);
+        var prepared = state.Accounts.PrepareCredentials(request.UserId, request.SteamAuthTicket, request.Password, DateTimeOffset.UtcNow, request.CreateAccountIfMissing);
         if (prepared.Revalidate() is { } invalid) return RejectWorldSession(invalid);
         var input = PrepareCompatibilityHandshakeInput(request.CompatibilityManifestJson, request.CompatibilityManifestId, request.CompatibilityManifestSummaryJson);
         var entry = new PreparedEntryHandshake(state, prepared, input, EntryPurpose.WorldPreparation);

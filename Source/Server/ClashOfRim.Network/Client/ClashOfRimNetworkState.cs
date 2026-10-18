@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Network.Modules.Accounts;
 using AIRsLight.ClashOfRim.Network.Modules.Diplomacy;
 using AIRsLight.ClashOfRim.Network.Modules.Support;
 using AIRsLight.ClashOfRim.Network.Modules.Raids;
@@ -85,6 +86,7 @@ public sealed class ClashOfRimNetworkState
         ServerConfigurationOverrides = serverConfigurationOverrides ?? new ServerConfigurationRegistry();
         SteamAuthTickets = steamAuthTickets ?? new DevelopmentSteamAuthTicketValidator();
         OfflineAccounts = offlineAccounts ?? new OfflineAccountRegistry();
+        Accounts = new AccountService(OfflineAccounts, AuthTokens, SteamAuthTickets, () => ServerConfiguration);
         PawnPackages = pawnPackages ?? new PawnPackageRegistry();
         ThingPackages = thingPackages ?? new ThingPackageRegistry();
         RaidPreparations = raidPreparations ?? new RaidPreparationRegistry();
@@ -286,6 +288,8 @@ public sealed class ClashOfRimNetworkState
     public ISteamAuthTicketValidator SteamAuthTickets { get; }
 
     public OfflineAccountRegistry OfflineAccounts { get; }
+
+    internal AccountService Accounts { get; }
 
     public PawnPackageRegistry PawnPackages { get; }
 

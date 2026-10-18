@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Network.Modules.Accounts;
 using AIRsLight.ClashOfRim.Network.Modules.Sessions;
 using static AIRsLight.ClashOfRim.Network.Modules.World.WorldTileGeometry;
 using AIRsLight.ClashOfRim.Compatibility;
@@ -233,9 +234,7 @@ public static partial class ClashOfRimNetworkServer
                 worldConfiguration: BuildWorldConfigurationForDelivery(state.WorldConfiguration.Current, state)));
         }
 
-        AuthenticationValidationResult auth = ValidateAuthentication(
-            state,
-            request.UserId,
+        AuthenticationValidationResult auth = state.Accounts.Authenticate(request.UserId,
             request.SteamAuthTicket,
             request.Password,
             DateTimeOffset.UtcNow);
@@ -321,8 +320,7 @@ public static partial class ClashOfRimNetworkServer
                 false, 0, 0, BuildWorldConfigurationForDelivery(state.WorldConfiguration.Current, state)));
         }
 
-        AuthenticationValidationResult auth = ValidateAuthentication(
-            state, request.UserId, request.SteamAuthTicket, request.Password, DateTimeOffset.UtcNow);
+        AuthenticationValidationResult auth = state.Accounts.Authenticate(request.UserId, request.SteamAuthTicket, request.Password, DateTimeOffset.UtcNow);
         if (!auth.Accepted || string.IsNullOrWhiteSpace(auth.AuthenticatedUserId))
         {
             return Results.Ok(new UploadWorldSubstrateResponse(
@@ -378,8 +376,7 @@ public static partial class ClashOfRimNetworkServer
             return Results.BadRequest();
         }
 
-        AuthenticationValidationResult auth = ValidateAuthentication(
-            state, request.UserId, request.SteamAuthTicket, request.Password, DateTimeOffset.UtcNow);
+        AuthenticationValidationResult auth = state.Accounts.Authenticate(request.UserId, request.SteamAuthTicket, request.Password, DateTimeOffset.UtcNow);
         if (!auth.Accepted || string.IsNullOrWhiteSpace(auth.AuthenticatedUserId))
         {
             return Results.Unauthorized();
@@ -407,7 +404,7 @@ public static partial class ClashOfRimNetworkServer
                 worldConfiguration: null));
         }
 
-        AuthenticationValidationResult auth = ValidateAuthentication(state, request.UserId, request.SteamAuthTicket, request.Password, DateTimeOffset.UtcNow);
+        AuthenticationValidationResult auth = state.Accounts.Authenticate(request.UserId, request.SteamAuthTicket, request.Password, DateTimeOffset.UtcNow);
         if (!auth.Accepted || string.IsNullOrWhiteSpace(auth.AuthenticatedUserId))
         {
             return Results.Ok(new GetWorldConfigurationResponse(

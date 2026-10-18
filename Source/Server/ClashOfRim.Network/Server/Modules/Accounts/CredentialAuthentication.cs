@@ -1,6 +1,6 @@
 using AIRsLight.ClashOfRim.Protocol;
 
-namespace AIRsLight.ClashOfRim.Network;
+namespace AIRsLight.ClashOfRim.Network.Modules.Accounts;
 
 // Credential verification has no dependency on HTTP, recovery, world setup or session publication.
 internal sealed class CredentialAuthentication(

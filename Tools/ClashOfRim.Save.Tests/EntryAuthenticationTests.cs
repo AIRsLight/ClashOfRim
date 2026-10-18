@@ -1,4 +1,4 @@
-using System.Reflection;
+using AIRsLight.ClashOfRim.Network.Modules.Accounts;
 using AIRsLight.ClashOfRim.Network;
 using AIRsLight.ClashOfRim.Protocol;
 using static RecoveryTestSupport;
@@ -27,8 +27,7 @@ internal static class EntryAuthenticationTests
             AuthenticationValidationResult result;
             if (immediate)
             {
-                var method = typeof(ClashOfRimNetworkServer).GetMethod("ValidateAuthentication", BindingFlags.NonPublic | BindingFlags.Static)!;
-                result = (AuthenticationValidationResult)method.Invoke(null, [state, user, null, password, now, false])!;
+                result = state.Accounts.Authenticate(user, null, password, now);
             }
             else
                 result = new CredentialAuthentication(accounts, steam, () => state.ServerConfiguration).Prepare(user, null, password, now).Validate(now, false);

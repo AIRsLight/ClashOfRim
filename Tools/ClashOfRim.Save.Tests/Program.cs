@@ -76,6 +76,7 @@ var tests = new (string Name, Action Run)[]
     ("管理员基线持久化失败保留当前基线和费用缓存", AdminBaselinePersistenceTests.Run),
     ("兼容性基线持久化先于缓存与审计元数据发布", CompatibilityBaselinePersistenceTests.Run),
     ("统一凭据验证的立即与延后调用契约", EntryAuthenticationTests.Run),
+    ("账户模块凭据准备、密码授权与持久化发布", AccountModuleTests.Run),
     ("普通登录授权恢复与会话延迟发布", () => LoginPreparationTests.Run(BuildFixturePackage)),
     ("登出授权与连接清理会话归属", () => SessionConnectionTests.Run(BuildFixturePackage)),
     ("世界会话认证准备与恢复后兼容性复验", () => WorldSessionPreparationTests.Run(BuildFixturePackage)),
