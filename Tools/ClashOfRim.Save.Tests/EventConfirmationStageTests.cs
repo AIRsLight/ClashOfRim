@@ -1,5 +1,6 @@
-using System.Reflection;
-using System.Runtime.ExceptionServices;
+using System.Globalization;
+using AIRsLight.ClashOfRim.Network.Modules.Events;
+using AIRsLight.ClashOfRim.Network.Modules.Snapshots;
 using System.Text.Json;
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Network;
@@ -28,7 +29,46 @@ internal static class EventConfirmationStageTests
         }
         VerifyBatchRollback();
         VerifyIncompleteLegacy(fixture);
+        var previousCulture = CultureInfo.CurrentCulture;
+        try
+        {
+            foreach (string culture in new[] { "en-US", "zh-CN", "tr-TR", "ja-JP" })
+            foreach (string storage in new[] { "memory", "file", "sqlite" })
+            {
+                CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(culture);
+                VerifyPlanIsolation(fixture, storage);
+            }
+        }
+        finally { CultureInfo.CurrentCulture = previousCulture; }
     }
+
+    private static void VerifyPlanIsolation(Func<string, SaveSnapshotPackage> fixture, string storage) => WithDirectory(root =>
+    {
+        var ledger = OpenLedger(storage, root);
+        foreach (string kind in Kinds) ledger.Append(Source(kind));
+        ledger.Append(Source("gift") with { EventId = "foreign", IdempotencyKey = "foreign", Target = new("other", "other-colony") });
+        ledger.Append(Source("gift") with { EventId = "ended", IdempotencyKey = "ended", Status = ServerEventStatus.Cancelled });
+        var package = fixture("confirmed");
+        var snapshot = new LatestSnapshotRecord(package.Envelope.Identity,
+            package.Envelope with { PreviousSnapshotId = "base" }, package.Index, Applied);
+        var entries = Kinds.Select(kind => Application(kind)).Concat(new[]
+            { Application("trade"), Application("missing"), Application("foreign"), Application("ended") }).ToArray();
+        var mutation = SnapshotConfirmationMutation.Capture(new("base", entries, false), ledger);
+        string Before(IAuthoritativeEventLedger source) => JsonSerializer.Serialize(source.ListAll().OrderBy(item => item.EventId, StringComparer.Ordinal));
+        string before = Before(ledger);
+        var plan = new SnapshotConfirmationPlanner(ledger).Plan(mutation, snapshot);
+        Require(before == Before(ledger) && mutation.Plan is null
+            && (storage == "memory" || before == Before(OpenLedger(storage, root))), "planning published staged changes or modified its captured request");
+        Require(plan.Results.Select(item => item.EventId).SequenceEqual(entries.Select(item => item.EventId))
+            && plan.Results.Take(7).All(item => item.Result.Accepted && item.AppliedSnapshotId == "confirmed")
+            && plan.Results.Skip(7).All(item => !item.Result.Accepted), "plan lost request order, duplicate replay or rejected event results");
+        Require(plan.Changes.Count == 8 && plan.Changes.Where(change => Kinds.Contains(change.Expected.EventId)).All(change =>
+                change.Updated.AppliedSnapshotId == "confirmed" && change.Updated.AppliedAtUtc == Applied)
+            && plan.Changes.Where(change => change.Expected.EventId is "foreign" or "ended").All(change => Same(change.Expected, change.Updated)),
+            "plan changed rejected sources or lost original application attribution");
+        Require(plan.AchievementEvents.Select(item => item.EventId).Order(StringComparer.Ordinal).SequenceEqual(new[] { "drop-pod", "trade" }),
+            "plan duplicated trade achievements or included another event type");
+    });
 
     private static void VerifyRollback(Func<string, SaveSnapshotPackage> fixture, string kind, bool reopen) => WithDirectory(root =>
     {
@@ -201,13 +241,14 @@ internal static class EventConfirmationStageTests
     {
         var package = fixture(snapshot);
         var accepted = new LatestSnapshotRecord(package.Envelope.Identity, package.Envelope with { PreviousSnapshotId = "base" }, package.Index, at ?? Applied);
-        var application = new ConfirmEventApplicationEntry(kind, source, kind == "gift" ? "ItemDeliveryAnchored"
-            : kind == "return" ? "SupportPawnReturnCaravanCreated" : "SupportPawnArrived");
-        try { return (ConfirmEventApplicationResultDto)typeof(ClashOfRimNetworkServer)
-            .GetMethod("ConfirmEventApplicationAfterSnapshot", BindingFlags.NonPublic | BindingFlags.Static)!
-            .Invoke(null, new object[] { application, user, "colonyA", "base", accepted, state, at ?? Applied })!; }
-        catch (TargetInvocationException ex) when (ex.InnerException is not null) { ExceptionDispatchInfo.Capture(ex.InnerException).Throw(); throw; }
+        var application = Application(kind, source);
+        return EventApplicationConfirmation.Evaluate(application, user, "colonyA", "base", accepted, state.Ledger, at ?? Applied,
+            item => state.EventAchievements.Record(item, item.AppliedAtUtc ?? at ?? Applied));
     }
+
+    private static ConfirmEventApplicationEntry Application(string kind, string source = "source") =>
+        new(kind, source, kind == "gift" ? "ItemDeliveryAnchored"
+            : kind == "return" ? "SupportPawnReturnCaravanCreated" : "SupportPawnArrived");
 
     private static IAuthoritativeEventLedger OpenLedger(string storage, string root) => storage switch
     {

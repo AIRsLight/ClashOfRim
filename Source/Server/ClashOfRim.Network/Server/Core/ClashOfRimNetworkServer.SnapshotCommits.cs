@@ -37,7 +37,7 @@ public static partial class ClashOfRimNetworkServer
             item => state.EventAchievements.Record(item, item.AppliedAtUtc ?? item.CreatedAtUtc), state.ServerShop,
             state.MercenaryContracts, state.MercenaryGuards, state.Players,
             (snapshot, kind, mutation) => RunCommittedOrdinaryUpload(state, snapshot, kind, mutation),
-            (mutation, snapshot) => PlanSnapshotConfirmations(state, mutation, snapshot));
+            state.SnapshotConfirmations.Plan);
         state.MercenaryIncidents.Recover();
     }
 

@@ -2626,3 +2626,16 @@ SnapshotCommitRecoveryPreparation 独立持有捕获的意图引用、是否需�
 **3 个相关单元组通过**：快照载荷／真实日志恢复准备矩阵、入口生命周期恢复边界、模块守卫（401 个类型、81 条路由）。复用原故障和暂停夹具，覆盖准备前后中断、内存／重启、竞争完成、批次替换、旧准备失败、目的版本变化／回滚与嵌套锁边界，没有新建重复的恢复模拟实现。日志：`LocalOnly/module-migration/server-commit-preparation-tests.log`。未运行全量回归、实机或独立发布构建，未推送。
 
 **下一步 M9e：确认计划和事件应用判定。** 当前 PlanSnapshotConfirmations 仍调用宿主 EvaluateEventApplication，后者还持有交易入档等业务分支。需让独立模块复用已有确认 consumer、支援确认和账本算法，拥有计划生成及逐条应用判定，再将上传后处理与恢复装配接到这些具体模块。LegacySnapshotRecoveryAdapter、宿主 SnapshotCommits／SnapshotPostUpload 及其旧入口仍未退役；M9、后续 M10–M12 和最终完成审计保持开放。
+
+
+### M9e 确认计划和事件应用判定归属（2026-10-19）
+
+SnapshotConfirmationPlanner 只依赖权威账本，拥有预检、私有临时账本、按请求顺序逐条判定、变更和成就去重、最终计划验证。首次提交和恢复直接绑定该模块的 Plan，不再回调宿主 PlanSnapshotConfirmations。EventApplicationConfirmation 接管事件分派和确认结果映射；交易入档规则由 TradeApplicationConfirmation 持有，支援仍调用既有 SupportApplicationConfirmation，礼物／损失仍使用既有 consumer，原子状态变更复用 SnapshotApplicationCommit。可见性和本地化直接使用已有 EventVisibility／ServerText，不复制宿主帮助函数。
+
+删除宿主 EvaluateEventApplication、ConfirmTradeExchangeAfterSnapshot、计划方法及两种确认响应映射；只有测试使用的 ConfirmEventApplicationAfterSnapshot 私有包装也删除，原故障测试改为直接调用真实事件模块。HTTP 确认接收暂留原宿主入口，接收／授权和计划生成不再混为同一职责。逐段比对事件分派和交易确认体，保留原拒绝优先级、已应用记录修复、来源／父快照校验及账本提交顺序。
+
+在 EventConfirmationStageTests 中复用既有来源、存档和存储夹具新增 **12 个独立计划场景**（四种文化 × 内存／文件／SQLite）。一次计划含六类业务、重复交易、缺失、不可见和终止事件；验证只生成计划、不写真实账本或捕获请求，结果保持原顺序，原应用归属／时间保留，拒绝项不改变来源，交易成就按事件去重。原单条／批量确认故障矩阵继续验证实际提交、持久回执、重复确认和重启恢复。
+
+**3 个相关单元组通过**：事件入档与成就恢复、单条／批量确认日志、模块边界（407 个类型、81 条路由）。日志：`LocalOnly/module-migration/server-confirmation-planner-tests.log`。生产代码随测试编译，没有全量回归、实机或独立发布构建，没有推送，未修改冻结 1.6 或继承修改。
+
+**下一步 M9f：上传后处理的领域职责。** 宿主 SnapshotPostUpload 仍持有快照财富／成就指标与插件指标采集，以及核心后处理装配。需先把具体领域处理迁入对应模块，再处理旧插件上下文到模块输入的适配与恢复装配，保持既有阶段、次序、持久任务和失败策略。LegacySnapshotRecoveryAdapter 及宿主恢复入口仍待删除，M9–M12 与最终完成审计继续开放。

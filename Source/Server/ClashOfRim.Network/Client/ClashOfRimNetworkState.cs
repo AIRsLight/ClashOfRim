@@ -114,6 +114,7 @@ public sealed class ClashOfRimNetworkState
         AchievementAwards = new(Achievements, Plugins, CompatibilityBaseline, Ledger, OnlinePresence, EventNotifications, () => RuntimeLogger);
         EventAchievements = new(AchievementAwards, Plugins, CompatibilityBaseline);
         SnapshotCommits = snapshotCommits ?? new SnapshotCommitService();
+        SnapshotConfirmations = new SnapshotConfirmationPlanner(Ledger);
         RaidQueries = new Modules.Raids.RaidQueries(Ledger, () => ServerConfiguration);
         RaidProtection = new Modules.Raids.RaidProtection(Ledger, RaidProtectionActivations, RaidCooldownOverrides, () => ServerConfiguration, RuntimeLogger);
         ColonyDeletions = colonyDeletions ?? new ColonyDeletionService();
@@ -293,6 +294,7 @@ public sealed class ClashOfRimNetworkState
     internal SnapshotMutationScope EnterSnapshotMutation([System.Runtime.CompilerServices.CallerMemberName] string operation = "")
         => SnapshotMutations.EnterUnrecovered(operation);
     public SnapshotCommitService SnapshotCommits { get; }
+    internal SnapshotConfirmationPlanner SnapshotConfirmations { get; }
     public ColonyDeletionService ColonyDeletions { get; }
 
     public SnapshotUploadPolicy SnapshotUploadPolicy { get; }

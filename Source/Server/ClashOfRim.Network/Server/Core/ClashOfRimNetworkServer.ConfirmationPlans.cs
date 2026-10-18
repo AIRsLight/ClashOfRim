@@ -37,21 +37,4 @@ public static partial class ClashOfRimNetworkServer
         return new(ProtocolResponse.Ok(T("Events.BatchApplicationConfirmed")), receipt.Envelope.Identity.SnapshotId,
             receipt.Results, receipt.Envelope.NextLineageToken);
     }
-
-    private static SnapshotConfirmationPlan PlanSnapshotConfirmations(ClashOfRimNetworkState state,
-        SnapshotConfirmationMutation mutation, LatestSnapshotRecord snapshot)
-    {
-        mutation.Preflight(state.Ledger);
-        var copy = new InMemoryAuthoritativeEventLedger();
-        var sources = mutation.Sources.Select(item => state.Ledger.Find(item.EventId)).Where(item => item is not null).Cast<AuthoritativeEvent>().ToArray();
-        foreach (var source in sources) copy.Append(source);
-        var achievements = new Dictionary<string, AuthoritativeEvent>(StringComparer.Ordinal);
-        var results = mutation.Request.Applications.Select(application => EvaluateEventApplication(application,
-            snapshot.Identity.OwnerId!, snapshot.Identity.ColonyId!, mutation.Request.BaseSnapshotId, snapshot, copy,
-            snapshot.AcceptedAtUtc, item => achievements[item.EventId] = item)).ToArray();
-        var plan = new SnapshotConfirmationPlan(results, sources.Select(source => new LedgerConfirmationChange(source, copy.Find(source.EventId)!)).ToArray(),
-            achievements.Values.ToArray());
-        (mutation with { Plan = plan }).Validate(snapshot);
-        return plan;
-    }
 }

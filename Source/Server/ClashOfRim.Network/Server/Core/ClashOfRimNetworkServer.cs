@@ -231,7 +231,7 @@ public static partial class ClashOfRimNetworkServer
                     postUploadData.ConfirmationOperation, postUploadData.AchievementCandidates,
                     (snapshot, kind, mutation) => RunCommittedOrdinaryUpload(state, snapshot, kind, mutation), confirmation, state.Ledger,
                     item => state.EventAchievements.Record(item, item.AppliedAtUtc ?? item.CreatedAtUtc),
-                    (mutation, snapshot) => PlanSnapshotConfirmations(state, mutation, snapshot), preparedStoragePayload: upload.PreparedStoragePayload);
+                    state.SnapshotConfirmations.Plan, preparedStoragePayload: upload.PreparedStoragePayload);
                 return new(upload);
             }
             if (!storeAccepted || !upload.Accepted || upload.AcceptedSnapshot is null || operations.IsEmpty) return new(upload);
@@ -282,44 +282,6 @@ public static partial class ClashOfRimNetworkServer
 
     private static ProtocolResponse ToProtocolResponse(SnapshotUploadResult upload)
         => SnapshotTransactions.ToProtocolResponse(upload);
-
-    private static ProtocolResponse ToProtocolResponse(RaidAttackerLossConfirmationResult result)
-    {
-        if (result.Accepted)
-        {
-            return ProtocolResponse.Ok(ServerLocalization.Text("Event.ApplicationConfirmed"));
-        }
-
-        return ProtocolResponse.Reject(
-            result.Kind == RaidAttackerLossConfirmationResultKind.LossNotReflected
-                ? ProtocolErrorCode.LossNotReflected
-                : ProtocolErrorCode.Conflict,
-            result.FailureReason ?? T("Events.ApplicationConfirmationRejected"));
-    }
-
-    private static ProtocolResponse ToProtocolResponse(ItemDeliveryApplicationConfirmationResult result)
-    {
-        if (result.Accepted)
-        {
-            return ProtocolResponse.Ok(ServerLocalization.Text("Gift.ApplicationConfirmed"));
-        }
-
-        ProtocolErrorCode errorCode = result.Kind switch
-        {
-            ItemDeliveryApplicationConfirmationResultKind.EventNotFound => ProtocolErrorCode.EventNotFound,
-            ItemDeliveryApplicationConfirmationResultKind.NotTarget => ProtocolErrorCode.EventNotFound,
-            ItemDeliveryApplicationConfirmationResultKind.SnapshotIdentityMismatch => ProtocolErrorCode.IdentityMismatch,
-            ItemDeliveryApplicationConfirmationResultKind.SnapshotBaseMismatch => ProtocolErrorCode.SnapshotMismatch,
-            ItemDeliveryApplicationConfirmationResultKind.NotDelivered => ProtocolErrorCode.SnapshotMismatch,
-            ItemDeliveryApplicationConfirmationResultKind.RejectedByTarget => ProtocolErrorCode.Conflict,
-            ItemDeliveryApplicationConfirmationResultKind.NotAnchored => ProtocolErrorCode.Conflict,
-            _ => ProtocolErrorCode.ValidationFailed
-        };
-
-        return ProtocolResponse.Reject(
-            errorCode,
-            result.FailureReason ?? T("Gift.ApplicationConfirmationRejected"));
-    }
 
     private static ProtocolErrorCode ToProtocolError(SnapshotUploadResultKind kind)
         => SnapshotTransactions.ToProtocolError(kind);
