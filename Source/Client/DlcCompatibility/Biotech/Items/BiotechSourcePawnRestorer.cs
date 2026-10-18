@@ -12,147 +12,100 @@ namespace AIRsLight.ClashOfRim.DlcCompatibility.Biotech.Items;
 
 internal static class BiotechSourcePawnRestorer
 {
-    internal static bool TryFindOrCreate(
-        ReproductiveSourceRecord record,
-        string? currentUserId,
-        out Pawn? pawn,
-        out string? missingDefName)
+    internal static bool TryPrepare(ReproductiveSourceRecord record, PreparedPawn? sharedTarget,
+        out PreparedPawn? preparation, out string? missingDefName)
     {
+        preparation = null;
         missingDefName = null;
-        pawn = FindExisting(record.GlobalId);
-        if (pawn is not null)
-        {
-            return TryApplyState(pawn, record, currentUserId, out missingDefName);
-        }
-
-        if (!TryResolvePawnKind(record, out PawnKindDef? pawnKind, out missingDefName)
-            || pawnKind is null)
-        {
+        Pawn? pawn = sharedTarget?.Pawn ?? FindExisting(record.GlobalId);
+        PawnKindDef? kind = null;
+        if (sharedTarget is null && pawn is null && !TryResolvePawnKind(record, out kind, out missingDefName))
             return false;
-        }
-
-        Faction? faction = ResolveFaction(record, currentUserId);
-        try
-        {
-            pawn = PawnGenerator.GeneratePawn(pawnKind, faction);
-        }
-        catch (Exception ex)
-        {
-            missingDefName = pawnKind.defName;
-            Log.Warning("[ClashOfRim][Biotech] Failed to generate reproductive source pawn placeholder: "
-                + pawnKind.defName
-                + " "
-                + ex.Message);
+        BiotechPawnGeneRestoration? genes = null;
+        if (pawn is not null && !BiotechPawnGeneRestoration.TryPrepare(pawn, record, out genes, out missingDefName))
             return false;
-        }
-
-        if (!string.IsNullOrWhiteSpace(record.Name))
-        {
-            pawn.Name = new NameSingle(record.Name!.Trim());
-        }
-
-        if (!string.IsNullOrWhiteSpace(record.GlobalId))
-        {
-            QuestUtility.AddQuestTag(ref pawn.questTags, BiotechSourcePawnIdentity.ReproductiveSourcePlaceholderTagPrefix + record.GlobalId!.Trim());
-        }
-
-        BiotechSourcePawnIdentity.MarkGlobalId(pawn, record.GlobalId);
-        if (!TryApplyState(pawn, record, currentUserId, out missingDefName))
-        {
-            return false;
-        }
-
-        if (Find.WorldPawns is not null && !Find.WorldPawns.Contains(pawn))
-        {
-            Find.WorldPawns.PassToWorld(pawn, PawnDiscardDecideMode.KeepForever);
-        }
-
+        preparation = new PreparedPawn(record, pawn, kind, sharedTarget, genes);
         return true;
     }
 
-    private static bool TryApplyState(
-        Pawn pawn,
-        ReproductiveSourceRecord record,
-        string? currentUserId,
-        out string? missingDefName)
+    internal sealed class PreparedPawn
     {
-        missingDefName = null;
-        Faction? faction = ResolveFaction(record, currentUserId);
-        if (faction is not null && pawn.Faction != faction)
+        private readonly ReproductiveSourceRecord record;
+        private readonly PawnKindDef? kind;
+        private readonly PreparedPawn? sharedTarget;
+        private readonly bool genesPrepared;
+        private Pawn? pawn;
+        private Faction? generatedFaction;
+        private BiotechPawnGeneRestoration? genes;
+        private bool created;
+
+        internal PreparedPawn(ReproductiveSourceRecord record, Pawn? pawn, PawnKindDef? kind,
+            PreparedPawn? sharedTarget, BiotechPawnGeneRestoration? genes)
         {
-            pawn.SetFaction(faction);
+            this.record = record;
+            this.pawn = pawn;
+            this.kind = kind;
+            this.sharedTarget = sharedTarget;
+            this.genes = genes;
+            genesPrepared = pawn is not null;
         }
 
-        if (Enum.TryParse(record.Gender, ignoreCase: true, out Gender gender) && gender != Gender.None)
-        {
-            pawn.gender = gender;
-        }
+        internal Pawn? Pawn => sharedTarget?.Pawn ?? pawn;
 
-        BiotechSourcePawnIdentity.MarkGlobalId(pawn, record.GlobalId);
-        return TryApplyGenes(pawn, record, out missingDefName);
-    }
-
-    private static bool TryApplyGenes(
-        Pawn pawn,
-        ReproductiveSourceRecord record,
-        out string? missingDefName)
-    {
-        missingDefName = null;
-        if (pawn.genes is null)
+        internal bool TryCreate(string? currentUserId, out string? missingDefName)
         {
-            return true;
-        }
-
-        XenotypeDef? xenotype = XenotypeDefOf.Baseliner;
-        if (!string.IsNullOrWhiteSpace(record.XenotypeDefName))
-        {
-            xenotype = DefDatabase<XenotypeDef>.GetNamedSilentFail(record.XenotypeDefName!);
-            if (xenotype is null)
+            missingDefName = null;
+            if (sharedTarget is null && pawn is null)
             {
-                missingDefName = record.XenotypeDefName;
-                return false;
+                generatedFaction = ResolveFaction(record, currentUserId);
+                try
+                {
+                    pawn = PawnGenerator.GeneratePawn(new PawnGenerationRequest(kind!, generatedFaction,
+                        forceGenerateNewPawn: true, canGeneratePawnRelations: false));
+                    created = pawn is not null;
+                }
+                catch (Exception ex)
+                {
+                    missingDefName = kind!.defName;
+                    Log.Warning("[ClashOfRim][Biotech] Failed to generate reproductive source pawn placeholder: "
+                        + kind.defName + " " + ex.Message);
+                    return false;
+                }
+                if (pawn is null)
+                {
+                    missingDefName = kind!.defName;
+                    return false;
+                }
             }
+            return genesPrepared || BiotechPawnGeneRestoration.TryPrepare(Pawn!, record, out genes, out missingDefName);
         }
 
-        bool hasExplicitGenes = record.EndogeneDefNames.Count > 0 || record.XenogeneDefNames.Count > 0;
-        if (!hasExplicitGenes)
+        internal void Apply(string? currentUserId)
         {
-            pawn.genes.SetXenotype(xenotype ?? XenotypeDefOf.Baseliner);
-            BiotechGeneRuntime.ResetTrackerCaches(pawn);
-            return true;
-        }
-
-        pawn.genes.SetXenotypeDirect(xenotype ?? XenotypeDefOf.Baseliner);
-        pawn.genes.Endogenes.Clear();
-        pawn.genes.ClearXenogenes();
-        foreach (string geneDefName in record.EndogeneDefNames)
-        {
-            GeneDef? gene = BiotechGeneRuntime.ResolveDef(geneDefName);
-            if (gene is null)
+            Pawn target = Pawn!;
+            if (created)
             {
-                missingDefName = geneDefName;
-                return false;
+                if (!string.IsNullOrWhiteSpace(record.Name)) target.Name = new NameSingle(record.Name!.Trim());
+                if (!string.IsNullOrWhiteSpace(record.GlobalId))
+                    QuestUtility.AddQuestTag(ref target.questTags, BiotechSourcePawnIdentity.ReproductiveSourcePlaceholderTagPrefix + record.GlobalId!.Trim());
             }
-
-            pawn.genes.AddGene(gene, xenogene: false);
+            Faction? faction = created ? generatedFaction : ResolveFaction(record, currentUserId);
+            if (faction is not null && target.Faction != faction) target.SetFaction(faction);
+            if (Enum.TryParse(record.Gender, ignoreCase: true, out Gender gender) && gender != Gender.None) target.gender = gender;
+            BiotechSourcePawnIdentity.MarkGlobalId(target, record.GlobalId);
+            genes?.Apply(target);
+            if (created && Find.WorldPawns is not null && !Find.WorldPawns.Contains(target))
+                Find.WorldPawns.PassToWorld(target, PawnDiscardDecideMode.KeepForever);
         }
 
-        foreach (string geneDefName in record.XenogeneDefNames)
+        internal void DiscardCreatedPawn()
         {
-            GeneDef? gene = BiotechGeneRuntime.ResolveDef(geneDefName);
-            if (gene is null)
-            {
-                missingDefName = geneDefName;
-                return false;
-            }
-
-            pawn.genes.AddGene(gene, xenogene: true);
+            if (!created || pawn is null) return;
+            if (Find.WorldPawns?.Contains(pawn) == true) Find.WorldPawns.RemoveAndDiscardPawnViaGC(pawn);
+            else pawn.Discard();
+            pawn = null;
+            created = false;
         }
-
-        BiotechGeneRuntime.ResetTrackerCaches(pawn);
-        pawn.skills?.DirtyAptitudes();
-        pawn.Notify_DisabledWorkTypesChanged();
-        return true;
     }
 
     private static bool TryResolvePawnKind(

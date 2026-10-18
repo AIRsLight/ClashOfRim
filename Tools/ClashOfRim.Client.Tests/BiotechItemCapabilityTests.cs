@@ -18,6 +18,10 @@ internal static class BiotechItemCapabilityTests
 {
     private static WorldPawns world = null!;
     private static Faction player = null!;
+    private static readonly List<Pawn> generated = new();
+    private static readonly HashSet<Pawn> discarded = new();
+    private static int failGenerationAt;
+    private static bool generatedWithGenes;
 
     internal static void Run()
     {
@@ -32,12 +36,23 @@ internal static class BiotechItemCapabilityTests
                 prefix: new HarmonyMethod(typeof(BiotechItemCapabilityTests), nameof(WorldObjects)));
             harmony.Patch(AccessTools.PropertyGetter(typeof(Faction), nameof(Faction.OfPlayer)),
                 prefix: new HarmonyMethod(typeof(BiotechItemCapabilityTests), nameof(Player)));
+            // Assign the engine field without loading the game's mod catalog in the isolated fixture.
+            harmony.Patch(AccessTools.Method(typeof(Pawn_GeneTracker), nameof(Pawn_GeneTracker.SetXenotypeDirect)),
+                prefix: new HarmonyMethod(typeof(BiotechItemCapabilityTests), nameof(SetXenotype)));
+            harmony.Patch(AccessTools.Method(typeof(PawnGenerator), nameof(PawnGenerator.GeneratePawn), new[] { typeof(PawnGenerationRequest) }),
+                prefix: new HarmonyMethod(typeof(BiotechItemCapabilityTests), nameof(GeneratePawn)));
+            harmony.Patch(AccessTools.Method(typeof(Pawn), nameof(Verse.Pawn.Discard)),
+                prefix: new HarmonyMethod(typeof(BiotechItemCapabilityTests), nameof(DiscardPawn)));
+            harmony.Patch(AccessTools.Method(typeof(WorldPawns), nameof(RimWorld.Planet.WorldPawns.PassToWorld)),
+                prefix: new HarmonyMethod(typeof(BiotechItemCapabilityTests), nameof(RetainPawn)));
             foreach (string culture in new[] { "en-US", "zh-CN", "tr-TR", "ja-JP" })
             {
                 CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(culture);
                 world = new WorldPawns();
                 player = new Faction { def = new FactionDef { defName = "BiotechTestPlayer", isPlayer = true } };
                 SourceCaptureAndReuse();
+                FailedRestorationPreservesExistingState();
+                PreparedPlaceholdersHaveSingleOwnership();
                 SharedGeneCacheInvalidation();
                 RegisteredItemCapabilities();
             }
@@ -48,7 +63,7 @@ internal static class BiotechItemCapabilityTests
             CultureInfo.CurrentCulture = previous;
             ClashOfRimCompatibilityApi.ApplyServerDlcBaseline(null);
             ClashOfRimCompatibilityApi.BeginRegistrationCycle("client-tests");
-            world = null!; player = null!;
+            world = null!; player = null!; generated.Clear(); discarded.Clear();
         }
     }
 
@@ -59,7 +74,7 @@ internal static class BiotechItemCapabilityTests
         var sources = new BiotechReproductiveSources(() => { ownerReads++; return owner; });
         var items = new BiotechThingReferenceCompatibility(() => true, sources);
         Check(sources.Capture(new Thing()).Count == 0
-            && sources.TryApply(new ModThingReferenceDto(), new Thing(), out _) && ownerReads == 0,
+            && sources.TryPrepare(new ModThingReferenceDto(), new Thing(), out _, out _) && ownerReads == 0,
             "Items without reproductive sources unnecessarily read session identity.");
         var mother = Pawn("Mother", 1, Gender.Female);
         var father = Pawn("Father", 2, Gender.Male);
@@ -97,12 +112,128 @@ internal static class BiotechItemCapabilityTests
             && world.AllPawnsAliveOrDead.Count() == 1, "Repeated source restoration duplicated a pawn or carrier link.");
 
         var invalid = new ReproductiveSourceRecord(null, null, null, null, "MissingBiotechRace", null, null, false, null, null, null, null);
-        Check(!BiotechSourcePawnRestorer.TryFindOrCreate(invalid, owner, out var absent, out missing)
+        Check(!BiotechSourcePawnRestorer.TryPrepare(invalid, null, out var absent, out missing)
             && absent is null && missing == "MissingBiotechRace", "Missing race did not reject placeholder generation with its definition name.");
         targetComp.pawnSources.Clear();
         items.AppendThingReferenceMetadata(target, transfer);
         Check(!transfer.Metadata.Keys.Any(key => key.StartsWith(BiotechThingMetadataKeys.ReproductiveSourcePrefix, StringComparison.Ordinal)),
             "Capturing an empty carrier left stale source metadata.");
+    }
+
+    private static void FailedRestorationPreservesExistingState()
+    {
+        var failures = new List<string>();
+        var replacement = new GeneDef { defName = "BiotechFailureReplacement" };
+        if (DefDatabase<GeneDef>.GetNamedSilentFail(replacement.defName) is null) DefDatabase<GeneDef>.Add(replacement);
+        foreach (string scenario in new[] { "second-source", "missing-xenotype", "missing-endogene", "missing-xenogene", "item-and-source" })
+        {
+            world = new WorldPawns();
+            var existing = Pawn("Existing", 27, Gender.Male);
+            BiotechSourcePawnIdentity.MarkGlobalId(existing, "owner:alice/pawn:27");
+            ((HashSet<Pawn>)AccessTools.Field(typeof(WorldPawns), "pawnsAlive").GetValue(world)!).Add(existing);
+            var originalGene = new Gene { def = new GeneDef { defName = "OriginalSourceGene" }, pawn = existing };
+            if (scenario is "missing-xenotype" or "missing-endogene" or "missing-xenogene")
+            {
+                existing.genes = new Pawn_GeneTracker(existing);
+                existing.genes.Endogenes.Add(originalGene);
+            }
+
+            var target = Carrier(out var comp);
+            GeneSet? originalSet = null;
+            if (scenario == "item-and-source")
+            {
+                var embryo = new HumanEmbryo { def = new ThingDef { defName = "TestEmbryo", thingClass = typeof(HumanEmbryo) } };
+                originalSet = new GeneSet(); originalSet.AddGene(originalGene.def);
+                Set(embryo, "geneSet", originalSet);
+                comp = new CompHasPawnSources { parent = embryo };
+                Set(embryo, "comps", new List<ThingComp> { comp });
+                target = embryo;
+            }
+            comp.AddSource(existing);
+            var originalSources = comp.pawnSources.ToArray();
+            var reference = new ModThingReferenceDto();
+            bool secondInvalid = scenario is "second-source" or "item-and-source";
+            reference.Metadata[BiotechThingMetadataKeys.ReproductiveSourceCount] = secondInvalid ? "2" : "1";
+            BiotechThingMetadata.WriteReproductiveSourceMetadata(reference, 0,
+                new ReproductiveSourceRecord("Mother", "owner:alice/pawn:27", "alice", "Changed", null, null, "Female", false, null,
+                    scenario == "missing-xenotype" ? "MissingFailureXenotype" : null,
+                    scenario == "missing-endogene" ? new[] { "MissingFailureGene" } : scenario == "missing-xenogene" ? new[] { replacement.defName } : null,
+                    scenario == "missing-xenogene" ? new[] { "MissingFailureXenogene" } : null));
+            if (secondInvalid)
+                BiotechThingMetadata.WriteReproductiveSourceMetadata(reference, 1,
+                    new ReproductiveSourceRecord(null, null, null, null, "MissingFailureRace", null, null, false, null, null, null, null));
+            if (originalSet is not null) BiotechThingMetadata.SetGeneDefNames(reference, new[] { replacement.defName });
+
+            var items = new BiotechThingReferenceCompatibility(() => true, new BiotechReproductiveSources(() => "alice"));
+            bool result = items.TryApplyThingReferenceMetadata(reference, target, out var missing);
+            string expected = scenario switch
+            {
+                "missing-xenotype" => "MissingFailureXenotype",
+                "missing-endogene" => "MissingFailureGene",
+                "missing-xenogene" => "MissingFailureXenogene",
+                _ => "MissingFailureRace"
+            };
+            if (result || missing != expected || existing.gender != Gender.Male || !comp.pawnSources.SequenceEqual(originalSources)
+                || (existing.genes is not null && !existing.genes.Endogenes.SequenceEqual(new[] { originalGene }))
+                || (originalSet is not null && !ReferenceEquals(((HumanEmbryo)target).GeneSet, originalSet)))
+                failures.Add(scenario + ": result=" + result + ", missing=" + missing + ", gender=" + existing.gender
+                    + ", sourceCount=" + comp.pawnSources.Count + ", genes=" + existing.genes?.Endogenes.Count
+                    + ", itemUnchanged=" + (originalSet is null || ReferenceEquals(((HumanEmbryo)target).GeneSet, originalSet)));
+        }
+        Check(failures.Count == 0, "Rejected source restoration changed existing state: " + string.Join("; ", failures));
+    }
+
+    private static void PreparedPlaceholdersHaveSingleOwnership()
+    {
+        var race = DefDatabase<ThingDef>.GetNamedSilentFail("PreparedSourceRace");
+        if (race is null) { race = new ThingDef { defName = "PreparedSourceRace", race = new RaceProperties() }; DefDatabase<ThingDef>.Add(race); }
+        var kind = DefDatabase<PawnKindDef>.GetNamedSilentFail("PreparedSourceKind");
+        if (kind is null) { kind = new PawnKindDef { defName = "PreparedSourceKind", race = race }; DefDatabase<PawnKindDef>.Add(kind); }
+        foreach (string scenario in new[] { "generation-failure", "generated-gene-failure", "shared-new-identity", "abandoned-preparation" })
+        {
+            world = new WorldPawns(); generated.Clear(); discarded.Clear();
+            failGenerationAt = scenario == "generation-failure" ? 2 : 0;
+            generatedWithGenes = scenario == "generated-gene-failure";
+            var existing = Pawn("Original", 47, Gender.Male);
+            BiotechSourcePawnIdentity.MarkGlobalId(existing, "owner:alice/pawn:47");
+            ((HashSet<Pawn>)AccessTools.Field(typeof(WorldPawns), "pawnsAlive").GetValue(world)!).Add(existing);
+            var target = Carrier(out var comp); comp.AddSource(existing);
+            var reference = new ModThingReferenceDto();
+            bool shared = scenario == "shared-new-identity";
+            reference.Metadata[BiotechThingMetadataKeys.ReproductiveSourceCount] = "3";
+            BiotechThingMetadata.WriteReproductiveSourceMetadata(reference, 0,
+                new ReproductiveSourceRecord(null, "owner:alice/pawn:47", "alice", null, null, null, "Female", false, null, null, null, null));
+            for (int i = 1; i <= 2; i++)
+                BiotechThingMetadata.WriteReproductiveSourceMetadata(reference, i,
+                    new ReproductiveSourceRecord(null, "owner:alice/pawn:new" + (shared ? 1 : i), "alice", "New",
+                        shared && i == 2 ? "UnneededRaceForSharedPawn" : race.defName, kind.defName, "Female", false, null, null,
+                        generatedWithGenes && i == 2 ? new[] { "MissingGeneratedGene" } : null, null));
+            var sources = new BiotechReproductiveSources(() => "alice");
+            if (scenario == "abandoned-preparation")
+            {
+                Check(sources.TryPrepare(reference, target, out var pending, out _) && pending is not null, "Valid source preparation failed.");
+                pending!.Dispose(); pending.Dispose();
+                Check(discarded.Count == 2 && discarded.SetEquals(generated) && comp.pawnSources.Single() == existing
+                    && existing.gender == Gender.Male && world.AllPawnsAliveOrDead.Count() == 1,
+                    "Abandoned preparation leaked placeholders, discarded an existing pawn or applied pending state.");
+                continue;
+            }
+            var items = new BiotechThingReferenceCompatibility(() => true, sources);
+            bool result = items.TryApplyThingReferenceMetadata(reference, target, out string? missing);
+            if (shared)
+            {
+                Check(result && missing is null && generated.Count == 1 && discarded.Count == 0 && existing.gender == Gender.Female
+                    && comp.pawnSources.Contains(existing) && comp.pawnSources.Contains(generated[0]) && world.AllPawnsAliveOrDead.Count() == 2,
+                    "Shared new source identity generated more than one pawn or released committed state.");
+            }
+            else
+            {
+                Check(!result && missing == (generatedWithGenes ? "MissingGeneratedGene" : kind.defName)
+                    && generated.Count == (generatedWithGenes ? 2 : 1) && discarded.SetEquals(generated)
+                    && existing.gender == Gender.Male && comp.pawnSources.Single() == existing && world.AllPawnsAliveOrDead.Count() == 1,
+                    "Failed placeholder preparation changed existing state or leaked newly generated pawns: " + scenario);
+            }
+        }
     }
 
     private static void SharedGeneCacheInvalidation()
@@ -168,7 +299,25 @@ internal static class BiotechItemCapabilityTests
     }
 
     private static object? Get(object target, string field) => AccessTools.Field(target.GetType(), field).GetValue(target);
-    private static void Set(object target, string field, object value) => AccessTools.Field(target.GetType(), field).SetValue(target, value);
+    private static void Set(object target, string field, object? value) => AccessTools.Field(target.GetType(), field).SetValue(target, value);
+    private static bool SetXenotype(Pawn_GeneTracker __instance, XenotypeDef? xenotype) { Set(__instance, "xenotype", xenotype); return false; }
+    private static bool GeneratePawn(PawnGenerationRequest __0, ref Pawn __result)
+    {
+        Check(__0.ForceGenerateNewPawn && !__0.CanGeneratePawnRelations, "Placeholder generation may reuse a live pawn or create unrelated relations.");
+        if (failGenerationAt == generated.Count + 1) throw new InvalidOperationException("injected source generation failure");
+        __result = Pawn("Generated", 80 + generated.Count, Gender.None);
+        __result.def = __0.KindDef.race; __result.kindDef = __0.KindDef;
+        if (generatedWithGenes) __result.genes = new Pawn_GeneTracker(__result);
+        generated.Add(__result);
+        return false;
+    }
+    private static bool DiscardPawn(Pawn __instance) { Check(discarded.Add(__instance), "Placeholder discarded twice."); return false; }
+    private static bool RetainPawn(WorldPawns __instance, Pawn __0, PawnDiscardDecideMode __1)
+    {
+        Check(__1 == PawnDiscardDecideMode.KeepForever, "Prepared source lost its retention policy.");
+        ((HashSet<Pawn>)AccessTools.Field(typeof(WorldPawns), "pawnsAlive").GetValue(__instance)!).Add(__0);
+        return false;
+    }
     private static bool WorldPawns(ref WorldPawns __result) { __result = world; return false; }
     private static bool WorldObjects(ref WorldObjectsHolder? __result) { __result = null; return false; }
     private static bool Player(ref Faction __result) { __result = player; return false; }

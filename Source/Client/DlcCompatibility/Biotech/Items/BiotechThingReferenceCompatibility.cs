@@ -104,52 +104,53 @@ internal sealed class BiotechThingReferenceCompatibility
         }
 
         IReadOnlyList<string> geneDefNames = BiotechThingMetadata.GeneDefNames(reference);
-        if (geneDefNames.Count > 0 && thing is GeneSetHolderBase)
+        List<GeneDef>? genes = null;
+        if (geneDefNames.Count > 0 && thing is GeneSetHolderBase
+            && !BiotechGeneRuntime.TryResolveDefs(geneDefNames, out genes, out missingDefName))
+            return false;
+        if (!sources.TryPrepare(reference, thing, out var preparedSources, out missingDefName)) return false;
+
+        using (preparedSources)
         {
-            List<GeneDef> genes = new();
-            foreach (string geneDefName in geneDefNames)
+            if (genes is not null)
             {
-                GeneDef? gene = BiotechGeneRuntime.ResolveDef(geneDefName);
-                if (gene is null)
-                {
-                    missingDefName = geneDefName;
-                    return false;
-                }
-
-                genes.Add(gene);
+                ApplyGenes(reference, thing, genes);
             }
-
-            if (thing is Genepack genepack)
-            {
-                genepack.Initialize(genes);
-            }
-            else if (thing is Xenogerm xenogerm)
-            {
-                Genepack sourcePack = (Genepack)ThingMaker.MakeThing(ThingDefOf.Genepack);
-                sourcePack.Initialize(genes);
-                string? xenotypeIconDefName = BiotechThingMetadata.XenotypeIconDefName(reference);
-                XenotypeIconDef icon = string.IsNullOrWhiteSpace(xenotypeIconDefName)
-                    ? XenotypeIconDefOf.Basic
-                    : DefDatabase<XenotypeIconDef>.GetNamedSilentFail(xenotypeIconDefName) ?? XenotypeIconDefOf.Basic;
-                string? xenotypeName = BiotechThingMetadata.XenotypeName(reference);
-                xenogerm.Initialize(
-                    new List<Genepack> { sourcePack },
-                    string.IsNullOrWhiteSpace(xenotypeName)
-                        ? ClashOfRimText.Key("ClashOfRim.Trade.GeneXenotypeName")
-                        : xenotypeName!,
-                    icon);
-            }
-            else
-            {
-                // Embryos and other base holders have no public Initialize API. Preserve
-                // the transmitted genes rather than regenerating them from parent stubs.
-                var geneSet = new GeneSet();
-                foreach (GeneDef gene in genes) geneSet.AddGene(gene);
-                GeneSetField.SetValue(thing, geneSet);
-            }
+            preparedSources?.Apply();
         }
+        return true;
+    }
 
-        return sources.TryApply(reference, thing, out missingDefName);
+    private static void ApplyGenes(ModThingReferenceDto reference, Thing thing, List<GeneDef> genes)
+    {
+        if (thing is Genepack genepack)
+        {
+            genepack.Initialize(genes);
+        }
+        else if (thing is Xenogerm xenogerm)
+        {
+            Genepack sourcePack = (Genepack)ThingMaker.MakeThing(ThingDefOf.Genepack);
+            sourcePack.Initialize(genes);
+            string? xenotypeIconDefName = BiotechThingMetadata.XenotypeIconDefName(reference);
+            XenotypeIconDef icon = string.IsNullOrWhiteSpace(xenotypeIconDefName)
+                ? XenotypeIconDefOf.Basic
+                : DefDatabase<XenotypeIconDef>.GetNamedSilentFail(xenotypeIconDefName) ?? XenotypeIconDefOf.Basic;
+            string? xenotypeName = BiotechThingMetadata.XenotypeName(reference);
+            xenogerm.Initialize(
+                new List<Genepack> { sourcePack },
+                string.IsNullOrWhiteSpace(xenotypeName)
+                    ? ClashOfRimText.Key("ClashOfRim.Trade.GeneXenotypeName")
+                    : xenotypeName!,
+                icon);
+        }
+        else
+        {
+            // Embryos and other base holders have no public Initialize API. Preserve
+            // the transmitted genes rather than regenerating them from parent stubs.
+            var geneSet = new GeneSet();
+            foreach (GeneDef gene in genes) geneSet.AddGene(gene);
+            GeneSetField.SetValue(thing, geneSet);
+        }
     }
 
     internal int ThingReferenceStrictness(ModThingReferenceDto requirement)

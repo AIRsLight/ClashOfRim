@@ -2825,3 +2825,20 @@ BiotechGeneRuntime 集中原先分散在 pawn 包和远程地图 partial 中的�
 **5 个相关单元组通过**：新物品能力、交易约束、元数据、胚胎／基因包恢复和客户端模块边界。守卫新增覆盖 Biotech.Items／Biotech.Genes，禁止依赖旧 Biotech 聚合类、兼容 API、Mod、全量设置／客户端、LoadedModManager 或服务定位器；检查 1,382 个纯模块类型、115 个引擎能力类型和 312 个事件适配类型。最终日志 `LocalOnly/module-migration/client-biotech-items-final-tests.log`。生产代码随测试编译，只有既有警告。未运行完整回归、专项 RimTest、独立发布构建或推送；冻结 1.6 未修改。占位 pawn 的完整游戏生成、GUI 绘制和完整远程地图加载不由本轮单元测试证明，仍保留在用户安排的后续验证范围。
 
 迁移审查还发现现有失败路径风险，尚未在本轮复现或修正：来源应用在逐项恢复前移除旧链接；来源基因恢复在解析所有 GeneDef 前已设置异种、清空原基因，后续缺失定义可能留下部分修改。这些顺序与迁移前一致，本轮不能据成功路径测试宣称恢复具备失败原子性。**下一步 M10f4：先补这些失败路径的定向复现并收拢准备／应用顺序，再继续 pawn 包、地图清理和防御点组件拆分。** 文化包加载及 M11–M12／最终完成审计继续开放，Biotech 聚合类仍有六个 partial 分片。
+
+
+### M10f4 来源恢复的准备／应用边界与临时 pawn 所有权（2026-10-19）
+
+复用上一阶段的隔离世界夹具，先复现四种拒绝后残留修改：第二个来源的种族缺失时第一个已有 pawn 性别已改变；缺失异种时性别已改变且旧来源链接已清空；缺失内源基因时原基因也已清空；胚胎的新基因在来源失败、整个入口返回 false 时已经替换原集合。复现日志 `LocalOnly/module-migration/client-biotech-source-failure-reproduction.log` 保留四种差异及返回的缺失定义名。
+
+BiotechReproductiveSources 改为准备整个来源批次。先解析并绑定已有 pawn／新 pawn 类型，准备已有 pawn 的全部异种与内源／外源基因，再创建必需的占位 pawn；此阶段不改已有 pawn、不拆旧来源链接。BiotechSourcePawnRestorer.PreparedPawn 持有具体来源记录、目标 pawn、类型和基因准备结果；BiotechPawnGeneRestoration 独立拥有已解析的基因状态及其应用。新增 BiotechGeneRuntime.TryResolveDefs 供物品和来源两侧复用，删除三处边解析边收集的重复循环。无基因 tracker 的来源仍忽略基因字段，保留既有语义。
+
+BiotechPreparedSources 明确拥有尚未提交的新 pawn，生成失败、生成后基因校验失败或调用方放弃准备时，只释放自己创建的对象；已有世界 pawn 不归它释放。同一规范化 GlobalId 的多条记录共享同一个准备目标，避免在登记到世界之前重复生成占位 pawn，仍按记录顺序应用状态。生成使用 forceGenerateNewPawn=true、canGeneratePawnRelations=false，避免准备阶段借用已有世界 pawn 或建立无关关系；这一设置与已有关系占位 pawn 的生成政策一致。提交后按原 KeepForever 策略保留新来源，Dispose 不再清理已提交对象。
+
+物品入口先解析自身基因并准备全部来源，随后才应用物品基因、来源状态和链接。所有正常返回 false 的定义校验／占位生成失败路径均位于提交之前。删除旧来源 TryApply／TryFindOrCreate／TryApplyGenes 入口，不保留另一条逐项修改后再返回 false 的通道。旧链接清理由批次唯一持有；正常成功时的基因集合、身份标签、派系选择及重复应用语义继续复用原实现。
+
+测试新增四种文化下的五种已有状态保留场景（含外源基因缺失且内源基因有效）、第二次生成失败、生成后基因校验失败、同身份新来源复用、放弃准备和重复释放，以及强制新建／不生成关系的请求标志。继续执行原有捕获、已有世界 pawn 复用、重复应用、实际包注册和 DLC 门禁测试。生成、丢弃、世界保留及异种字段赋值由窄引擎夹具控制，准备／定义解析／所有权／应用顺序全部执行生产逻辑；这些测试证明调用顺序和对象归属，不代替完整游戏中的 PawnGenerator、GC 与地图生命周期验证。
+
+**累计 5 个相关单元组通过**：物品能力及失败场景、交易约束、元数据、胚胎／基因包恢复、客户端模块边界。最终主日志 `LocalOnly/module-migration/client-biotech-source-final-tests.log`；补充外源基因场景后该组再次通过，日志 `client-biotech-source-xenogene-tests.log`。守卫检查 1,382 个纯模块类型、118 个引擎能力类型和 312 个事件适配类型。生产随测试编译，没有新增警告；未运行全量回归、专项 RimTest、独立发布构建或推送，冻结 1.6 保持不变。
+
+本步修正已复现的定义拒绝和可报告的生成失败，不声称引擎在应用阶段任意抛异常时拥有全事务回滚；例如游戏自身 AddGene／SetFaction／链接写入发生异常、代理派系创建等全局副作用仍需专项引擎验证。**下一步 M10f5：继续迁出 pawn 交换包、远程地图清理及防御点能力，复用现有基因运行时。** 文化包加载及 M11–M12／最终完成审计继续开放。

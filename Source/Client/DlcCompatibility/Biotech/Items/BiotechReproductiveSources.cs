@@ -94,54 +94,30 @@ internal sealed class BiotechReproductiveSources
         };
     }
 
-    internal bool TryApply(ModThingReferenceDto reference, Thing thing, out string? missingDefName)
+    internal bool TryPrepare(ModThingReferenceDto reference, Thing thing,
+        out BiotechPreparedSources? preparation, out string? missingDefName)
     {
+        preparation = null;
         missingDefName = null;
         IReadOnlyList<ReproductiveSourceRecord> records = BiotechThingMetadata.ReproductiveSources(reference);
-        if (records.Count == 0)
-        {
-            return true;
-        }
-
         CompHasPawnSources? comp = thing.TryGetComp<CompHasPawnSources>();
-        if (comp is null)
-        {
-            return true;
-        }
+        if (records.Count == 0 || comp is null) return true;
 
-        string? userId = currentUserId();
-        ClearExistingPawnSources(comp);
+        var plans = new List<BiotechSourcePawnRestorer.PreparedPawn>(records.Count);
+        var byIdentity = new Dictionary<string, BiotechSourcePawnRestorer.PreparedPawn>(StringComparer.Ordinal);
         foreach (ReproductiveSourceRecord record in records)
         {
-            if (!BiotechSourcePawnRestorer.TryFindOrCreate(record, userId, out Pawn? sourcePawn, out missingDefName)
-                || sourcePawn is null)
-            {
-                return false;
-            }
-
-            comp.AddSource(sourcePawn);
+            string? identity = string.IsNullOrWhiteSpace(record.GlobalId) ? null : record.GlobalId!.Trim();
+            BiotechSourcePawnRestorer.PreparedPawn? shared = null;
+            if (identity is not null) byIdentity.TryGetValue(identity, out shared);
+            if (!BiotechSourcePawnRestorer.TryPrepare(record, shared, out var plan, out missingDefName)) return false;
+            plans.Add(plan!);
+            if (identity is not null && shared is null) byIdentity.Add(identity, plan!);
         }
 
+        var prepared = new BiotechPreparedSources(comp, plans, currentUserId());
+        if (!prepared.TryCreatePawns(out missingDefName)) return false;
+        preparation = prepared;
         return true;
-    }
-
-    private static void ClearExistingPawnSources(CompHasPawnSources comp)
-    {
-        if (comp.pawnSources is null || comp.pawnSources.Count == 0)
-        {
-            comp.pawnSources = new List<Pawn>();
-            return;
-        }
-
-        try
-        {
-            Find.WorldPawns?.RemovePawnSources(comp.pawnSources, comp);
-        }
-        catch (Exception ex)
-        {
-            Log.Warning("[ClashOfRim][Biotech] Failed to unlink old reproductive source references: " + ex.Message);
-        }
-
-        comp.pawnSources.Clear();
     }
 }

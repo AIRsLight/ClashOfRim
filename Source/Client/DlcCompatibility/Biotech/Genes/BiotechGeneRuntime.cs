@@ -1,4 +1,5 @@
 using RimWorld;
+using System.Collections.Generic;
 using System.Reflection;
 using Verse;
 
@@ -38,6 +39,23 @@ internal static class BiotechGeneRuntime
         return string.IsNullOrWhiteSpace(defName)
             ? null
             : DefDatabase<GeneDef>.GetNamedSilentFail(defName);
+    }
+
+    internal static bool TryResolveDefs(IEnumerable<string> names, out List<GeneDef> genes, out string? missingDefName)
+    {
+        genes = new List<GeneDef>();
+        missingDefName = null;
+        foreach (string name in names)
+        {
+            GeneDef? gene = ResolveDef(name);
+            if (gene is null)
+            {
+                missingDefName = name;
+                return false;
+            }
+            genes.Add(gene);
+        }
+        return true;
     }
 
     internal static void ResetCustomXenotypeCaches(Pawn pawn)
