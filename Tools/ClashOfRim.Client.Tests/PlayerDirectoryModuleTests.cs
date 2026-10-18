@@ -51,7 +51,7 @@ internal static class PlayerDirectoryModuleTests
                 "Player list wire fields lost captured identity or changed the existing contract.");
             return new(HttpStatusCode.OK) { Content = new StringContent("{\"result\":{\"accepted\":true},\"players\":[{\"userId\":\"bob\",\"colonyId\":\"c\",\"latestSnapshotWealth\":123}]}", Encoding.UTF8, "application/json") };
         }));
-        var protocol = new ClientDiplomacyProtocol(new ClientProtocolTransport(http, context, new ClientProtocolEnvironment(static (_, _) => { })), () => "unconfigured");
+        var protocol = new ClientDiplomacyProtocol(new ClientProtocolTransport(http, context, new ClientProtocolEnvironment()), () => "unconfigured");
         Check((await protocol.ListAsync(context, default)).Response!.Players.Single().LatestSnapshotWealth == 123, "Directory protocol lost player fields.");
         Check((await new ClashOfRimModNetworkClient(http, context).ListPlayersAsync()).Success && calls == 2, "Public list facade did not forward to the shared protocol.");
         Check(!(await protocol.ListAsync(new("", "", "", null, null, null, null), default)).Success && calls == 2, "Unconfigured list reached HTTP.");

@@ -48,7 +48,6 @@ internal sealed class ClientMercenaryTransport : IClientMercenaryQuoteTransport,
             : ClashOfRimClientNetworkResult<TOut>.Failed(result.ErrorCode ?? "", result.Message ?? "");
 
     private static ClientMercenaryProtocol Create(HttpClient http, ClashOfRimClientNetworkContext context) => new(
-        new ClientProtocolTransport(http, context, new ClientProtocolEnvironment(
-            (message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner))), context,
+        new ClientProtocolTransport(http, context, new ClientProtocolEnvironment()), context,
         () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
 }

@@ -2393,3 +2393,19 @@ HTTP 失效迁移分为服务端协议和客户端请求归属两个提交步骤
 累计 **33 个相关单元／模块组通过**，另通过 NetworkSmoke 的 `--module-boundaries-only` 四组（仅模块依赖、殖民地授权、恢复协调和事件读取单元测试）。守卫检查 **387** 个模块及生成类型和 **81** 条路由。服务端 Release **0 错误、0 警告**；网络测试构建有 2 个既有 SnapshotContentionProbe 可空参数警告。日志：`LocalOnly/module-migration/server-session-authorization-{related,revalidation,policies,final,harness,boundaries-final,build}.log`。测试只覆盖本次共享授权变更影响范围，未运行实机 RimTest、全量回归或推送；冻结 1.6 及原有未提交改动保持独立。
 
 **下一步 M8h4m3b：客户端结构化失效识别和原请求观察凭据。** 当前 ClientProtocolTransport 的中英文文本匹配尚未删除，不能把本步视为端到端迁移完成。客户端需要按明确的拒绝码处理上述三种响应，同时绑定发送前的生命周期／登录归属及实际发送凭据，区分 multipart header 与 body、临时登录和脱离当前会话的注销；旧请求、普通拒绝或损坏 JSON 不得关闭后继会话。M8h4m3、M8h4、M8h、M8 与 M9–M12 继续开放。默认相关单元测试，必要时补单次功能 RimTest，全量仍由用户安排。
+
+### M8h4m3b 客户端 HTTP 失效语义与发送时归属（2026-10-19）
+
+`ClientProtocolSessionObservation` 接管 HTTP 失效识别和请求凭据判定，ClientProtocolTransport 负责请求／响应的传输与资源管理。删除中英文过期关键词匹配及反射读取 Result 的路径；只接受明确的 `accepted=false` 与整数 SessionUnavailable，保留普通权限拒绝和传输错误的返回语义。识别普通成功 HTTP 中的协议拒绝、非成功 HTTP 中的 result 封装及 multipart 中间件直接返回的协议结果；成功的二进制响应始终作为字节交付，不按 JSON 误判。
+
+请求只序列化一次，观察模块检查实际发送的 JSON，响应观察复用已经读取的原始文本，不重复读取网络流，也不在回执到达后重读可变 DTO。JSON 命令使用正文 authToken；SessionId 命令还核对正文用户／殖民地。multipart 中间件的直接拒绝归属请求头；端点 result 可能来自请求头或正文，当两者凭据不一致时不猜测是哪份凭据失效。临时上下文必须属于当前登录才可影响当前会话；未携带会话凭据的 GET／Login、缺失凭据及 bindToSession=false 的清理不捕获失效观察。损坏 JSON、缺少字段、错误类型、重复控制字段和未知错误码不会触发恢复，展示文本完全不参与判断。
+
+环境端口改为发送前捕获观察回调。`ClientSessionRecovery.CaptureUnavailable` 复用 ClientSessionLifecycle 的 Ownership 和 ClientSessionWork 代次，在响应到达时校验原登录；即使新登录复用了相同 AuthToken／SessionId，也不能消费旧回执。快照推进、密码／Steam 票据变化或同一账户的 Game／World 切换不使该账户的真实认证失效变成有效。开始失效后的窗口排队仍按既有恢复模块绑定游戏和身份；终结操作期间的失效延后也复用原 HoldInvalidation，没有第二份会话状态或取消算法。
+
+公开网络门面原有 SessionExpired 回调替换为发送前的捕获桥，运行时 ClientProtocolEnvironment 统一转接到恢复模块。删除各传输适配器和宿主组合处重复的失效转发 lambda；回执到达时不再查找全局回调目标。该桥仍是旧公开门面的组合兼容入口，并未把其他宿主遗留或所有静态组合入口宣称为已移除。
+
+新增 **580 个 HTTP 场景**，四种文化环境下直接序列化服务端共享 ProtocolResponse，覆盖五种传输／响应组合、中文／英文／法文／日文／土耳其文文本、实际发送凭据、仅凭请求头认证的礼物与 Pawn 预览、同凭据重新登录、换账户／服务器／殖民地、代次取消、普通快照推进、临时登录、SessionId 注销与脱离会话清理、原始正文及控制字段异常、可变请求 DTO、排队期间换登录和终结操作延后。复用现有恢复测试 Fixture、真实生命周期和网络 Handler；公开门面测试还在请求发出后替换全局捕获桥，确认旧请求不会改用新的回调。
+
+**14 个相关单元组通过**：HTTP 失效、协议传输、恢复 UI、会话启动、生命周期、重连及两项策略、临时认证、聊天协议、世界协议、远程快照、银行协议与模块守卫。最后精简归属判断后重跑 HTTP、传输与守卫三组；补齐请求头专用协议后单独重跑 HTTP 组。守卫检查 **1,279** 个模块及生成类型、**303** 个适配器及生成类型；客户端 Release **0 错误、40 个既有警告**，RimTest 桥接 **0 错误、1 个既有警告**。日志：`LocalOnly/module-migration/client-http-session-{compile,foundation,tests,related,final,header-only,build,bridge}.log`。本步没有运行实机 RimTest、全量回归或推送；冻结 1.6 和原有未提交工作保持独立。
+
+M8h4m3 的服务端语义及客户端归属迁移完成。**下一步 M8h4m4：退出时的会话领域清理与断开入口**，处理 SessionRuntime 中 ClearTransientMultiplayerSessionStateForExit 和 DisconnectMultiplayerSessionForExit 的宿主编排，继续复用已有生命周期及各领域 Reset，而非复制其清理逻辑。其他 partial 及 M8h4、M8h、M8 与 M9–M12 继续开放。默认相关单元测试，必要时补单次功能 RimTest，全量仍由用户安排。

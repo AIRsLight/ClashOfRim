@@ -57,6 +57,6 @@ internal sealed class ClientTradeOperationsTransport : IClientTradeOperationsTra
         return await new ClientTradeProtocol(Transport(http, context), NotConfigured).QuoteTradeOrderFeeAsync(context, offered, requested, token);
     }
     private static ClientProtocolTransport Transport(HttpClient http, ClashOfRimClientNetworkContext context) => new(http, context,
-        new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner)));
+        new ClientProtocolEnvironment());
     private static string NotConfigured() => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured");
 }

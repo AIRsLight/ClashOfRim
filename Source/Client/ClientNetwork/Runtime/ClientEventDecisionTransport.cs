@@ -22,8 +22,7 @@ internal sealed class ClientEventDecisionTransport : IClientEventDecisionProtoco
         Func<ClientEventDecisionProtocol, Task<ClashOfRimClientNetworkResult<T>>> send)
     {
         using var http = new HttpClient();
-        var protocol = new ClientEventDecisionProtocol(new ClientProtocolTransport(http, context, new ClientProtocolEnvironment(
-            (message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner))),
+        var protocol = new ClientEventDecisionProtocol(new ClientProtocolTransport(http, context, new ClientProtocolEnvironment()),
             () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         return await send(protocol);
     }

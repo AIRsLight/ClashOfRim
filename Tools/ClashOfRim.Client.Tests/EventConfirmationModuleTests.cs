@@ -566,7 +566,7 @@ internal static class EventConfirmationModuleTests
     {
         public string? CurrentLanguage => null;
         public string DeserializationFailure(string name) => name;
-        public void SessionExpired(string message, string? token) => throw new Exception("Unexpected expiry.");
+        public Action? CaptureSessionUnavailable(AIRsLight.ClashOfRim.ClientNetwork.ClashOfRimClientNetworkContext context, string? sessionId) => () => throw new Exception("Unexpected expiry.");
         public void MultipartDisposalFailed(string message) => throw new Exception(message);
     }
     private static ModSnapshotPackageMetadataDto Package() => new() { SnapshotId = "confirmed" };

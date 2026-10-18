@@ -173,12 +173,12 @@ public sealed partial class ClashOfRimMod : Mod
         adminBaselineCapture = new ClientAdminBaselineCapture(sessionLifecycle, new AIRsLight.ClashOfRim.Admin.ClientAdminBaselineRuntime(), ClientMainThreadDispatcher.EnqueueSession);
         var localManifest = new ClientLocalCompatibilityManifest();
         compatibilityBaseline = new ClientCompatibilityBaseline(new ClientCompatibilityBaselineRuntime());
-        var compatibilityEnvironment = new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner));
+        var compatibilityEnvironment = new ClientProtocolEnvironment();
         compatibilityOverride = new ClientCompatibilityOverride(adminAccess, localManifest, compatibilityBaseline, adminBaselineCapture,
             new AIRsLight.ClashOfRim.Admin.ClientAdminBaselineTransport(compatibilityEnvironment, TimeSpan.FromSeconds(15)),
             new ClientCompatibilityOverrideTransport(compatibilityEnvironment), new ClientCompatibilityOverridePresentation(), ClientMainThreadDispatcher.EnqueueSession);
         administration = new ClientAdministration(adminAccess,
-            new AIRsLight.ClashOfRim.Admin.ClientAdminTransport(new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner))),
+            new AIRsLight.ClashOfRim.Admin.ClientAdminTransport(new ClientProtocolEnvironment()),
             new AIRsLight.ClashOfRim.Admin.ClientAdminPresentation());
         worldSetup = new ClientWorldSetupState(sessionLifecycle);
         storytellerConfiguration = new ClientStorytellerConfiguration(sessionLifecycle, worldSetup, new ClientStorytellerRuntime());
@@ -186,13 +186,13 @@ public sealed partial class ClashOfRimMod : Mod
             new AIRsLight.ClashOfRim.CompatibilityClient.CompatibilityMismatchWindow(this, response, language, accept, cancel));
         var entryPresentation = new ClientWorldEntryPresentation(message => { EnsureStatusDefaultsInitialized(); loginStatus = message; },
             (server, account) => Find.WindowStack.Add(new AIRsLight.ClashOfRim.MainMenu.ClashOfRimAccountRegistrationDialog(this, server, account)), compatibilityPresentation);
-        var worldTransport = new ClientWorldPreparationTransport(new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner)));
+        var worldTransport = new ClientWorldPreparationTransport(new ClientProtocolEnvironment());
         worldPreparation = new ClientWorldPreparation(sessionLifecycle, new ClientSnapshotGame(), worldTransport, entryPresentation);
         worldBaselineSubmission = new ClientWorldBaselineSubmission(sessionLifecycle, new ClientWorldBaselineRuntime(), worldTransport);
         worldBaselineCapture = new ClientWorldBaselineCapture(worldBaselineSubmission, storytellerConfiguration);
-        var sessionReconnect = new ClientSessionReconnect(new ClientSessionReconnectTransport(new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner))), sessionLifecycle, synchronization);
+        var sessionReconnect = new ClientSessionReconnect(new ClientSessionReconnectTransport(new ClientProtocolEnvironment()), sessionLifecycle, synchronization);
         passwordChange = new ClientPasswordChange(sessionLifecycle,
-            new ClientPasswordTransport(new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner))),
+            new ClientPasswordTransport(new ClientProtocolEnvironment()),
             new ClientPasswordStore(settings), new ClientPasswordPresentation(), ClientMainThreadDispatcher.EnqueueSession);
         var eventReader = new ClientEventReader(sessionLifecycle, eventInbox, new ClientEventReadTransport(), new ClientSnapshotGame());
         var eventReadPresentation = new ClientEventReadPresentation();
@@ -206,11 +206,11 @@ public sealed partial class ClashOfRimMod : Mod
         bankState = new ClientBankState(sessionLifecycle, new ClientSnapshotGame(), bankPresentation);
         var snapshotTransactions = new ClientSnapshotTransaction(sessionLifecycle, new ClientSnapshotGame(), snapshotPublication);
         var mutationAdmission = new ClientSnapshotMutationAdmission(sessionLifecycle, synchronization, localMutations, snapshotTransactions);
-        var diplomacyTransport = new ClientDiplomacyTransport(new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner)));
+        var diplomacyTransport = new ClientDiplomacyTransport(new ClientProtocolEnvironment());
         playerDirectory = new ClientPlayerDirectory(sessionLifecycle, new ClientSnapshotGame(), synchronization, localMutations,
             diplomacyTransport, new ClientPlayerSelectionStore(settings), new ClientPlayerDirectoryPresentation(), new ClientPlayerDirectoryRuntime());
         achievementQueries = new ClientAchievementQueries(sessionLifecycle, new ClientSnapshotGame(),
-            new ClientAchievementTransport(new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner))),
+            new ClientAchievementTransport(new ClientProtocolEnvironment()),
             new ClientAchievementPresentation());
         var diplomacyCreation = new ClientDiplomacyCreation(mutationAdmission, snapshotTransactions, localMutations, diplomacyTransport,
             new ClientDiplomacyCreationPresentation(message => playerDirectory.Message = message));
@@ -303,11 +303,11 @@ public sealed partial class ClashOfRimMod : Mod
             new ClientWorldMarkersPresentation(message => worldMapStatus = message));
         worldLoginPublication = new ClientWorldLoginPublication(sessionLifecycle, worldMarkers);
         worldSynchronization = new ClientWorldSynchronization(sessionLifecycle, entryStore, localMutations, worldMarkers,
-            new ClientWorldSynchronizationRuntime(), new ClientWorldMarkerTransport(new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner))),
+            new ClientWorldSynchronizationRuntime(), new ClientWorldMarkerTransport(new ClientProtocolEnvironment()),
             new ClientWorldWritePresentation(message => worldMapStatus = message), tradeMarket.CaptureRefresh);
         colonyAppearance = new ClientColonyAppearance(sessionLifecycle, new ClientColonyAppearanceStore(settings), new ClientColonyAppearancePresentation());
         var worldPublication = new ClientWorldPublication(entryStore, worldConfiguration, occupiedColonySites, colonyAppearance, worldMarkers);
-        var colonyTransport = new ClientColonyTransport(new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner)));
+        var colonyTransport = new ClientColonyTransport(new ClientProtocolEnvironment());
         colonyRegistration = new ClientColonyRegistration(sessionLifecycle, entryStore, localMutations, new ClientColonyRegistrationRuntime(), colonyTransport, worldPublication);
         colonyAbandonment = new ClientColonyAbandonment(sessionLifecycle, entryStore, new ClientWorldCatalogRuntime(), colonyTransport,
             new ClientColonyAbandonPresentation(message => worldMapStatus = message));
@@ -330,7 +330,7 @@ public sealed partial class ClashOfRimMod : Mod
         worldWrites.BaselineUpdated += () => RequestWorldMapMarkerRefresh(ClashOfRimText.Key("ClashOfRim.Admin.WorldBaselineRefreshReason"));
         var initialWorldPresentation = new ClientInitialWorldPresentation(message => loginStatus = message, message => snapshotUploadStatus = message, sessionConnection);
         initialWorldSetup = new ClientInitialWorldSetup(sessionLifecycle, worldSetup, synchronization, worldBaselineCapture, worldBaselineSubmission,
-            adminBaselineCapture, new AIRsLight.ClashOfRim.Admin.ClientAdminBaselineTransport(new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner))),
+            adminBaselineCapture, new AIRsLight.ClashOfRim.Admin.ClientAdminBaselineTransport(new ClientProtocolEnvironment()),
             ClientSnapshotComposition.Create(settings), initialWorldPresentation, initialWorldPresentation);
         initialWorldSetup.EffectRequested += effect =>
         {
@@ -373,8 +373,7 @@ public sealed partial class ClashOfRimMod : Mod
             new ClientEventDecisionTransport(), new ClientEventDecisionPresentation(message => eventState.ActionStatus = message),
             new ClientEventDecisionRuntime(RequestWorldMapMarkerRefresh));
         eventDecisions.FailureReported += () => StartAutomaticEventRefresh(ClashOfRimText.Key("ClashOfRim.Events.ReasonFailureReport"));
-        var giftPackageHydration = new ClientGiftPackageHydration(new ClientProtocolEnvironment(
-            (message, token) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, token)));
+        var giftPackageHydration = new ClientGiftPackageHydration(new ClientProtocolEnvironment());
         var eventDelivery = new ClientEventDelivery(eventInbox, new ClientEventLetterRuntime(RequestWorldMapMarkerRefresh));
         eventApplications = new ClientEventApplications(sessionLifecycle, synchronization, localMutations, eventInbox,
             new ClientSnapshotGame(), new ClientEventApplicationRuntime(), giftPackageHydration, eventConfirmations, eventDecisions,
@@ -385,7 +384,7 @@ public sealed partial class ClashOfRimMod : Mod
             }), snapshotFailureRecovery, eventDelivery);
         eventRefresh = new ClientEventRefresh(sessionLifecycle, eventReader, eventInbox, synchronization, localMutations,
             eventApplications, eventDelivery, eventReadPresentation, eventState);
-        chat = new ClientChat(sessionLifecycle, new ClientChatTransport(new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner))), new ClientChatPresentation());
+        chat = new ClientChat(sessionLifecycle, new ClientChatTransport(new ClientProtocolEnvironment()), new ClientChatPresentation());
         var notificationEffects = new ClientSessionNotificationEffects(chat, eventRefresh, worldCatalog);
         sessionNotifications = new ClientSessionNotifications(sessionLifecycle, sessionConnection, eventState, notificationEffects,
             new ClientSessionNotificationPresentation(message => presenceStatus = message));
@@ -394,7 +393,7 @@ public sealed partial class ClashOfRimMod : Mod
             new ClientSessionRecoveryEffects(eventRefresh, playerDirectory, chat, sessionNotifications, raidRecovery));
         notificationEffects.SessionExpired += sessionRecovery.Expired;
         sessionStartup = new ClientSessionStartup(sessionLifecycle, synchronization, localMutations, worldLoginPublication,
-            new ClientSessionLogin(sessionLifecycle, new ClientSessionLoginTransport(new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner)))),
+            new ClientSessionLogin(sessionLifecycle, new ClientSessionLoginTransport(new ClientProtocolEnvironment())),
             ClientSnapshotComposition.Create(settings), new ClientSessionStartupRuntime(sessionConnection),
             new ClientSessionStartupPresentation(message => loginStatus = message, message => snapshotUploadStatus = message, response => ShowCompatibilityMismatchWindow(response)));
         sessionStartup.QueueAccepted += eventRefresh.AdoptQueue;
@@ -447,7 +446,7 @@ public sealed partial class ClashOfRimMod : Mod
         ClashOfRimCompatibilityApi.BeginRegistrationCycle(PackageId);
         BuiltInClientCompatibility.Apply(harmony);
         harmony.PatchAll();
-        ClashOfRimModNetworkClient.SessionExpired = (_, authToken) => sessionRecovery.Expired(authToken);
+        ClashOfRimModNetworkClient.CaptureSessionUnavailable = sessionRecovery.CaptureUnavailable;
         ClashOfRimModNetworkClient.CompatibilityManifestJsonProvider = () => localManifest.BuildJson(null);
         ClashOfRimModNetworkClient.CompatibilityManifestIdProvider = () => localManifest.Id;
         ClashOfRimModNetworkClient.CompatibilityManifestSummaryJsonProvider = () => localManifest.SummaryJson;

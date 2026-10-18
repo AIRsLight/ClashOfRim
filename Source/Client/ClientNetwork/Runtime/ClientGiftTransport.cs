@@ -13,8 +13,7 @@ internal sealed class ClientGiftTransport : IClientGiftTransport
         byte[] payload, CancellationToken token)
     {
         using var http = new HttpClient();
-        var protocol = new ClientGiftProtocol(new ClientProtocolTransport(http, context, new ClientProtocolEnvironment(
-            (message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner))),
+        var protocol = new ClientGiftProtocol(new ClientProtocolTransport(http, context, new ClientProtocolEnvironment()),
             () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         return await protocol.CreateGiftWithSnapshotAsync(context, command.IdempotencyKey,
             command.Target.UserId, command.Target.ColonyId, null, command.Things, command.Message,

@@ -152,7 +152,7 @@ internal static class SupportClosureTransportTests
     {
         public string? CurrentLanguage => null;
         public string DeserializationFailure(string type) => type;
-        public void SessionExpired(string message, string? token) { }
+        public Action? CaptureSessionUnavailable(AIRsLight.ClashOfRim.ClientNetwork.ClashOfRimClientNetworkContext context, string? sessionId) => null;
         public void MultipartDisposalFailed(string message) { }
     }
     private static void Strings(JsonElement data, params (string Field, string? Expected)[] fields)

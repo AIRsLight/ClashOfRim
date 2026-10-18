@@ -65,6 +65,19 @@ internal sealed class ClientSessionRecovery
         this.runtime = runtime; this.view = view; this.effects = effects;
         connection.ConnectionLost += Disconnected;
     }
+    internal Action? CaptureUnavailable(ClashOfRimClientNetworkContext context, string? requestedSessionId)
+    {
+        using var publication = ClientSessionWork.EnterPublication();
+        var owner = session.CaptureOwnership(); var id = session.SessionId;
+        if (!session.Owns(owner, context, false) || (requestedSessionId is not null && requestedSessionId != id)) return null;
+        // Keep the accepted login revision even when a replacement reuses every
+        // visible credential. Snapshot advancement does not retire the account.
+        return () =>
+        {
+            using var p = ClientSessionWork.EnterPublication();
+            if (session.Owns(owner, context, false)) Expired(context.AuthToken, id);
+        };
+    }
     internal void Expired(string? authToken, string? sessionId = null)
     {
         // An unauthenticated request has no session to invalidate.

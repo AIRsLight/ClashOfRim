@@ -59,7 +59,7 @@ internal static class ClientAchievementQueryTests
                 && body.RootElement.GetProperty("currentSnapshotId").GetString() == "snapshot" && body.RootElement.EnumerateObject().Count() == 5, "Achievement request did not preserve the five-field public contract.");
             return new(HttpStatusCode.OK) { Content = new StringContent(ClientProtocolJson.Serialize(Reply()), Encoding.UTF8, "application/json") };
         }));
-        var protocol = new ClientAchievementProtocol(new ClientProtocolTransport(http, original, new ClientProtocolEnvironment(static (_, _) => { })), () => "unconfigured");
+        var protocol = new ClientAchievementProtocol(new ClientProtocolTransport(http, original, new ClientProtocolEnvironment()), () => "unconfigured");
         var target = ClientAchievementTarget.Resolve(context, "  Bob  ", "  colony-b  ");
         var response = await protocol.ListAsync(context, target, default);
         Check(response.Success && response.Response!.Leaderboards.Single().Entries.Single().Value == long.MaxValue - 1

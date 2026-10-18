@@ -262,7 +262,7 @@ internal static class ClientWorldProtocolTests
         internal string CurrentId = "id", CurrentSummary = "summary"; internal IReadOnlyCollection<string>? Requested;
         public string? CurrentLanguage => "zh-CN";
         public string DeserializationFailure(string type) => type;
-        public void SessionExpired(string message, string? token) { }
+        public Action? CaptureSessionUnavailable(AIRsLight.ClashOfRim.ClientNetwork.ClashOfRimClientNetworkContext context, string? sessionId) => null;
         public void MultipartDisposalFailed(string message) { }
         public string? Id => CurrentId;
         public string? SummaryJson => CurrentSummary;

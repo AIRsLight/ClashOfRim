@@ -19,7 +19,7 @@ internal static class ClientProtocolTestPorts
     {
         public string CurrentLanguage => "简体中文 İ";
         public string DeserializationFailure(string type) => type;
-        public void SessionExpired(string message, string? authToken) => throw new InvalidOperationException("Unexpected session expiry.");
+        public Action? CaptureSessionUnavailable(AIRsLight.ClashOfRim.ClientNetwork.ClashOfRimClientNetworkContext context, string? sessionId) => () => throw new InvalidOperationException("Unexpected session expiry.");
         public void MultipartDisposalFailed(string message) => throw new InvalidOperationException("Unexpected multipart.");
     }
 }

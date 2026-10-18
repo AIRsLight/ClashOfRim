@@ -124,7 +124,7 @@ internal static class ClientAdminProtocolTests
     {
         public string CurrentLanguage => "简体中文 İ";
         public string DeserializationFailure(string responseType) => responseType;
-        public void SessionExpired(string message, string? authToken) => throw new InvalidOperationException("Unexpected session expiry.");
+        public Action? CaptureSessionUnavailable(AIRsLight.ClashOfRim.ClientNetwork.ClashOfRimClientNetworkContext context, string? sessionId) => () => throw new InvalidOperationException("Unexpected session expiry.");
         public void MultipartDisposalFailed(string message) => throw new InvalidOperationException("Admin used multipart.");
     }
     private sealed record Legacy(ClashOfRimModNetworkClient Client) : IClientAdminTransport

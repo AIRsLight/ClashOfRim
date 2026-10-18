@@ -160,7 +160,7 @@ internal static class PackageWriteModuleTests
     {
         public string? CurrentLanguage => null;
         public string DeserializationFailure(string type) => type;
-        public void SessionExpired(string message, string? token) { }
+        public Action? CaptureSessionUnavailable(AIRsLight.ClashOfRim.ClientNetwork.ClashOfRimClientNetworkContext context, string? sessionId) => null;
         public void MultipartDisposalFailed(string message) { }
     }
 }

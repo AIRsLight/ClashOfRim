@@ -265,7 +265,7 @@ internal static class TradeCommandTransportTests
     {
         public string? CurrentLanguage => "简体中文";
         public string DeserializationFailure(string type) => type;
-        public void SessionExpired(string message, string? token) { }
+        public Action? CaptureSessionUnavailable(AIRsLight.ClashOfRim.ClientNetwork.ClashOfRimClientNetworkContext context, string? sessionId) => null;
         public void MultipartDisposalFailed(string message) { }
     }
     private static void Require(bool condition, string message) { if (!condition) throw new InvalidOperationException(message); }

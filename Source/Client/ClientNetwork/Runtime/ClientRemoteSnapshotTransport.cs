@@ -15,8 +15,7 @@ internal sealed class ClientRemoteSnapshotTransport : IClientRemoteSnapshotTrans
         ClientSnapshotDownloadTarget target, CancellationToken token, Action<string>? payloadStarting = null)
     {
         using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
-        var transport = new ClientProtocolTransport(http, context, new ClientProtocolEnvironment(
-            (message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner)));
+        var transport = new ClientProtocolTransport(http, context, new ClientProtocolEnvironment());
         var protocol = new ClientSnapshotDownloadProtocol(transport, context,
             () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         return await new ClientRemoteSnapshotDownload(protocol).DownloadAsync(target, token, payloadStarting).ConfigureAwait(false);

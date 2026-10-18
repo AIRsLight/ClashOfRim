@@ -7,9 +7,8 @@ namespace AIRsLight.ClashOfRim.ClientNetwork;
 
 internal sealed class ClientProtocolEnvironment : ClientProtocolMetadata, IClientProtocolEnvironment
 {
-    private readonly Action<string, string?> sessionExpired;
-    internal ClientProtocolEnvironment(Action<string, string?> sessionExpired) => this.sessionExpired = sessionExpired;
-    public void SessionExpired(string message, string? authToken) => sessionExpired(message, authToken);
+    public Action? CaptureSessionUnavailable(ClashOfRimClientNetworkContext context, string? sessionId) =>
+        ClashOfRimModNetworkClient.CaptureSessionUnavailable?.Invoke(context, sessionId);
     public void MultipartDisposalFailed(string message) =>
         Log.Warning("[ClashOfRim] Ignored HTTP multipart dispose NullReferenceException: " + message);
 }

@@ -224,7 +224,7 @@ internal static class ClientSessionRecoveryTests
         late();
         Require(f.Dialog.Results.Count == 1 && f.Effects.Count == 6 && f.Logout.Calls.Count == 1 && f.Ports.Auth == "candidate-token", "Discarded predecessor republished after a successful retry.");
     }
-    private sealed class Fixture : IClientSessionRecoveryRuntime, IClientSessionRecoveryPresentation, IClientSessionRecoveryEffects
+    internal sealed class Fixture : IClientSessionRecoveryRuntime, IClientSessionRecoveryPresentation, IClientSessionRecoveryEffects
     {
         internal readonly EventModuleTestPorts Ports = new();
         internal readonly SessionConnectionTestTransport Stream = new();

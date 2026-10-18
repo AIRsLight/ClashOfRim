@@ -50,7 +50,7 @@ internal static class PasswordChangeModuleTests
                 "Password protocol changed credentials, whitespace, null semantics or wire fields.");
             return new(HttpStatusCode.OK) { Content = new StringContent("{\"result\":{\"accepted\":true,\"message\":\"ok\"}}", Encoding.UTF8, "application/json") };
         }));
-        var protocol = new ClientAccountProtocol(new ClientProtocolTransport(http, context, new ClientProtocolEnvironment(static (_, _) => { })), () => "unconfigured");
+        var protocol = new ClientAccountProtocol(new ClientProtocolTransport(http, context, new ClientProtocolEnvironment()), () => "unconfigured");
         Check((await protocol.ChangeAsync(context, " old-é ", null, default)).Response!.Result!.Accepted, "Password protocol lost receipt.");
         Check((await new ClashOfRimModNetworkClient(http, context).ChangeOfflinePasswordAsync(" old-é ", null)).Success && calls == 2, "Public password facade did not forward.");
         Check(!(await protocol.ChangeAsync(new("", "", "", null, null, null, null), "", "", default)).Success && calls == 2, "Unconfigured protocol reached HTTP.");

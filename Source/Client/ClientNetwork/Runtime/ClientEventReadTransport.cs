@@ -31,7 +31,6 @@ internal sealed class ClientEventReadTransport : IClientEventReadProtocol
     }
 
     private static ClientEventProtocol Create(HttpClient http, ClashOfRimClientNetworkContext context) => new(
-        new ClientProtocolTransport(http, context, new ClientProtocolEnvironment(
-            (message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner))),
+        new ClientProtocolTransport(http, context, new ClientProtocolEnvironment()),
         () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
 }

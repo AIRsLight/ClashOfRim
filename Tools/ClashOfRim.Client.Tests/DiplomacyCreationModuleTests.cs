@@ -55,7 +55,7 @@ internal static class DiplomacyCreationModuleTests
             Check(body.RootElement.GetProperty("expiresAtUtc").GetString() == command.ExpiresAtUtc!.Value.ToString("O", CultureInfo.InvariantCulture), "Diplomacy expiry changed with culture.");
             return new(HttpStatusCode.OK) { Content = new StringContent("{\"result\":{\"accepted\":true},\"eventId\":\"receipt\",\"relationKind\":\"Neutral\"}", Encoding.UTF8, "application/json") };
         }));
-        var protocol = new ClientDiplomacyProtocol(new ClientProtocolTransport(http, context, new ClientProtocolEnvironment(static (_, _) => { })), () => { diagnostics++; return "not-configured"; });
+        var protocol = new ClientDiplomacyProtocol(new ClientProtocolTransport(http, context, new ClientProtocolEnvironment()), () => { diagnostics++; return "not-configured"; });
         var result = await protocol.CreateAsync(context, command, default);
         Check(result.Success && result.Response?.EventId == "receipt" && diagnostics == 0, "Protocol did not return receipt.");
         var facade = new ClashOfRimModNetworkClient(http, context);

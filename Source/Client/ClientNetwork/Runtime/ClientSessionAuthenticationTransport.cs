@@ -25,6 +25,6 @@ internal sealed class ClientSessionAuthenticationTransport : IClientSessionAuthe
     {
         var environment = new ClientAuthenticationEnvironment();
         return new(new ClientProtocolTransport(http, context,
-            new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner))), environment, environment);
+            new ClientProtocolEnvironment()), environment, environment);
     }
 }

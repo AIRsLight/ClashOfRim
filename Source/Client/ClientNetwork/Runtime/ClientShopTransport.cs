@@ -41,5 +41,5 @@ internal sealed class ClientShopTransport : IClientShopCatalogTransport, IClient
     private static string NotConfigured() => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured");
     private static ClientShopProtocol Create(HttpClient http, ClashOfRimClientNetworkContext context) => new(Transport(http, context), context, NotConfigured);
     private static ClientProtocolTransport Transport(HttpClient http, ClashOfRimClientNetworkContext context) => new(http, context,
-        new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner)));
+        new ClientProtocolEnvironment());
 }

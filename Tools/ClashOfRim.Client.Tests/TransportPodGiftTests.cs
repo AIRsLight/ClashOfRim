@@ -46,7 +46,7 @@ public static class TransportPodGiftTests
         var client = new ClashOfRimModNetworkClient(http, context);
         var protocol = new ClientGiftProtocol(new ClientProtocolTransport(http,
             new("http://wrong-server", "wrong", "wrong-colony", "wrong-base", null, null, "wrong-token"),
-            new ClientProtocolEnvironment(static (_, _) => { })), () => "not configured");
+            new ClientProtocolEnvironment()), () => "not configured");
         var snapshot = new ModSnapshotPackageMetadataDto { OwnerId = "sender", ColonyId = "colony", SnapshotId = "removed", PreviousSnapshotId = "base", LineageToken = "lineage" };
         var things = new[] { new ModThingReferenceDto { DefName = "WoodLog", StackCount = 5 } };
         var destination = new ModEventTargetContextDto { MapUniqueId = "map", WorldObjectId = "world", LandingMode = "DropPod" };

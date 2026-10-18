@@ -57,7 +57,8 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
     private readonly ClientShopProtocol shopProtocol;
     internal ClientSnapshotDownloadProtocol SnapshotDownloads { get; }
 
-    public static Action<string, string?>? SessionExpired;
+    // Legacy composition bridge; the returned observer belongs to the login at send time.
+    public static Func<ClashOfRimClientNetworkContext, string?, Action?>? CaptureSessionUnavailable;
     public static Func<string?>? CompatibilityManifestJsonProvider;
     public static Func<string?>? CompatibilityManifestIdProvider;
     public static Func<string?>? CompatibilityManifestSummaryJsonProvider;
@@ -77,7 +78,7 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
     {
         _ = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         this.context = context ?? throw new ArgumentNullException(nameof(context));
-        var protocolEnvironment = new ClientProtocolEnvironment((message, token) => SessionExpired?.Invoke(message, token));
+        var protocolEnvironment = new ClientProtocolEnvironment();
         transport = new ClientProtocolTransport(httpClient, context, protocolEnvironment);
         compatibilityOverride = new ClientCompatibilityOverrideProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         SnapshotDownloads = new ClientSnapshotDownloadProtocol(transport, context, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));

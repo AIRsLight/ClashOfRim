@@ -23,7 +23,6 @@ internal sealed class ClientBankTransport : IClientBankTransport
     }
 
     private static ClientBankProtocol Create(HttpClient http, ClashOfRimClientNetworkContext context) => new(context,
-        new ClientProtocolTransport(http, context, new ClientProtocolEnvironment(
-            (message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner))),
+        new ClientProtocolTransport(http, context, new ClientProtocolEnvironment()),
         () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
 }

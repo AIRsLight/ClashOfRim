@@ -275,7 +275,7 @@ internal static class EventReadModuleTests
     {
         public string? CurrentLanguage => null;
         public string DeserializationFailure(string name) => name;
-        public void SessionExpired(string message, string? authToken) => throw new InvalidOperationException("Unexpected expiry");
+        public Action? CaptureSessionUnavailable(AIRsLight.ClashOfRim.ClientNetwork.ClashOfRimClientNetworkContext context, string? sessionId) => () => throw new InvalidOperationException("Unexpected expiry");
         public void MultipartDisposalFailed(string message) => throw new InvalidOperationException(message);
     }
     private static TaskCompletionSource<T> NewSignal<T>() => new(TaskCreationOptions.RunContinuationsAsynchronously);

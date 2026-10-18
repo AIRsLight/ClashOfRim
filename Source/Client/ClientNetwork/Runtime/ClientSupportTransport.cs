@@ -31,7 +31,6 @@ internal sealed class ClientSupportTransport : IClientSupportSendingTransport, I
     }
 
     private static ClientSupportProtocol Protocol(HttpClient http, ClashOfRimClientNetworkContext context) =>
-        new(new ClientProtocolTransport(http, context, new ClientProtocolEnvironment(
-            (message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner))), context,
+        new(new ClientProtocolTransport(http, context, new ClientProtocolEnvironment()), context,
             () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
 }

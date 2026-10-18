@@ -263,7 +263,7 @@ internal static class SetupAuthenticationModuleTests
         public string ManifestBuildFailedMessage => "manifest failed";
         public string DeserializationFailure(string type) => "invalid " + type;
         public string? BuildJson(IReadOnlyCollection<string>? packageIds) { Requested = packageIds; return Manifest; }
-        public void SessionExpired(string message, string? token) => throw new Exception("Unexpected expiry.");
+        public Action? CaptureSessionUnavailable(AIRsLight.ClashOfRim.ClientNetwork.ClashOfRimClientNetworkContext context, string? sessionId) => () => throw new Exception("Unexpected expiry.");
         public void MultipartDisposalFailed(string message) => throw new Exception(message);
         public void CleanupFailed(string? code, string? message) => CleanupFailures++;
     }

@@ -125,9 +125,7 @@ internal static class ProtocolTransportModuleTests
                 var result = await JsonExchange(transport, kind);
                 Require(!result.Success && result.ErrorCode == "HttpError" && result.Message == "400 Rejected: " + message, "JSON HTTP rejection changed.");
             }
-            bool expiry = message != "ordinary rejection";
-            Require(environment.Expired.Count == (expiry ? 1 : 0)
-                && (!expiry || environment.Expired.Single() == (message, "owner-token")), "Expiry lost its credential owner.");
+            Require(environment.Expired.Count == 0, "Human text alone invalidated a session.");
         }
         foreach (string kind in new[] { "get", "post", "multipart" })
         foreach (string body in new[] { "null", "{broken", "{\"result\":{\"accepted\":false,\"message\":\"session has expired\"}}", "{\"result\":{\"accepted\":true,\"message\":\"session has expired\"}}" })
@@ -138,7 +136,7 @@ internal static class ProtocolTransportModuleTests
             var result = await JsonExchange(new(http, Context, environment), kind);
             if (body == "null") Require(!result.Success && result.ErrorCode == "InvalidOperationException" && result.Message == "decode:Response", "Null response lost presentation mapping.");
             else if (body == "{broken") Require(!result.Success && result.ErrorCode == "SerializationException", "Invalid JSON escaped error mapping.");
-            else Require(result.Success && environment.Expired.Count == (body.Contains("false") ? 1 : 0), "Protocol rejection or successful expiry text was misclassified.");
+            else Require(result.Success && environment.Expired.Count == 0, "Protocol rejection or successful expiry text was misclassified.");
         }
         foreach (Exception failure in new Exception[] { new HttpRequestException("offline"), new IOException("broken pipe"), new InvalidOperationException("invalid") })
         {
@@ -202,11 +200,11 @@ internal static class ProtocolTransportModuleTests
     private sealed class Environment : IClientProtocolEnvironment
     {
         internal string? Language;
-        internal readonly List<(string Message, string? Token)> Expired = new();
+        internal readonly List<string?> Expired = new();
         internal int DisposalFailures;
         public string? CurrentLanguage => Language;
         public string DeserializationFailure(string responseType) => "decode:" + responseType;
-        public void SessionExpired(string message, string? authToken) => Expired.Add((message, authToken));
+        public Action? CaptureSessionUnavailable(ClashOfRimClientNetworkContext context, string? sessionId) => () => Expired.Add(context.AuthToken);
         public void MultipartDisposalFailed(string message) => DisposalFailures++;
     }
     private sealed class TrackingContent : ByteArrayContent

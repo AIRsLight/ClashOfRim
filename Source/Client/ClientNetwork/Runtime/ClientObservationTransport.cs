@@ -24,5 +24,5 @@ internal sealed class ClientObservationTransport : IClientObservationTransport
         => new ClientRemoteSnapshotTransport().DownloadAsync(context, target, token, payloadStarting);
     private static HttpClient CreateHttp() => new() { Timeout = TimeSpan.FromSeconds(60) };
     private static ClientProtocolTransport Protocol(HttpClient http, ClashOfRimClientNetworkContext context) =>
-        new(http, context, new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner)));
+        new(http, context, new ClientProtocolEnvironment());
 }

@@ -16,7 +16,7 @@ internal sealed class ClientSessionLogoutTransport : IClientSessionLogoutTranspo
         using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(15));
         var environment = new ClientAuthenticationEnvironment();
         var transport = new ClientProtocolTransport(http, context,
-            new ClientProtocolEnvironment((message, token) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, token)));
+            new ClientProtocolEnvironment());
         return await new ClientSessionProtocol(transport, environment, environment).LogoutAsync(context, sessionId, cleanup.Token, bindToSession: false);
     }
 }

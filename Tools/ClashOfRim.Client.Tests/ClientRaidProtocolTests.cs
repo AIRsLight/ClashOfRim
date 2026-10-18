@@ -142,7 +142,7 @@ internal static class ClientRaidProtocolTests
         }
         public string? CurrentLanguage => null;
         public string DeserializationFailure(string type) => type;
-        public void SessionExpired(string message, string? token) { }
+        public Action? CaptureSessionUnavailable(AIRsLight.ClashOfRim.ClientNetwork.ClashOfRimClientNetworkContext context, string? sessionId) => null;
         public void MultipartDisposalFailed(string message) { }
         protected override void Dispose(bool disposing) { if (disposing) http.Dispose(); base.Dispose(disposing); }
     }

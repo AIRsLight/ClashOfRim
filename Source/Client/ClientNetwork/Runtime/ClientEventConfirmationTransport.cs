@@ -23,7 +23,6 @@ internal sealed class ClientEventConfirmationTransport : IClientEventConfirmatio
         return await Create(http, context).ConfirmBatchAsync(context, command, token);
     }
     private static ClientEventConfirmationProtocol Create(HttpClient http, ClashOfRimClientNetworkContext context) => new(
-        new ClientProtocolTransport(http, context, new ClientProtocolEnvironment(
-            (message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner))),
+        new ClientProtocolTransport(http, context, new ClientProtocolEnvironment()),
         () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
 }
