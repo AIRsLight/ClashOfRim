@@ -7,10 +7,12 @@ namespace AIRsLight.ClashOfRim.Network.Modules.Snapshots;
 
 internal sealed class SnapshotPostUploads(CoreSnapshotPostUpload core, SnapshotPostUploadRunner runner,
     ServerPluginRegistry plugins, CompatibilityBaselineRegistry baseline, ISnapshotPostUploadPlugins pluginCalls,
-    ISnapshotPostUploadProcessor raidProcessor, RaidEvidenceScheduling raids) : ISnapshotCommitEffects, IRaidEvidencePipeline
+    ISnapshotPostUploadProcessor raidProcessor, RaidEvidenceScheduling raids, RaidSettlementWork raidWork) : ISnapshotCommitEffects, IRaidEvidencePipeline
 {
-    internal IReadOnlyList<ISnapshotPostUploadProcessor> ResolveProcessors() =>
-        CoreProcessors().Concat(plugins.ActiveSnapshotPostUploadProcessors(baseline.Current)).ToArray();
+    internal IReadOnlyList<SnapshotPostUploadWork> ResolveWork() =>
+        core.Operations.Select(operation => new SnapshotPostUploadWork(operation.Processor))
+            .Append(new(raidProcessor, raidWork.BindPostUpload, (job, at) => raids.RecoverPrepared(job, at), raidWork.ReconcileArtifacts))
+            .Concat(pluginCalls.BindWork(plugins.ActiveSnapshotPostUploadProcessors(baseline.Current))).ToArray();
 
     internal void ValidateRegistrations() =>
         SnapshotPostUploadRunner.ValidateRegistrations(CoreProcessors().Concat(plugins.SnapshotPostUploadProcessors).ToArray());

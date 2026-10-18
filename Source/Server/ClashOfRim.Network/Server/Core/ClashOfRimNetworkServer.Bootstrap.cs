@@ -64,8 +64,7 @@ public static partial class ClashOfRimNetworkServer
             }
             networkState.SnapshotPostUploads.ValidateRegistrations();
             builder.Services.AddSingleton(networkState);
-            builder.Services.AddSingleton(new SnapshotPostUploadProcessorSource(
-                networkState.SnapshotPostUploads.ResolveProcessors));
+            builder.Services.AddSingleton(networkState.SnapshotPostUploadBackground);
             builder.Services.AddHostedService<SnapshotPostUploadBackgroundService>();
             app = builder.Build();
             previousRuntimeLogger = networkState.RuntimeLogger;

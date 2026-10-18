@@ -264,7 +264,7 @@ internal static partial class RaidTimeoutRecoveryTests
     {
         RaidTimeoutProcessor.ProcessExpiredRaids(f.State.Ledger, f.State.Ledger.ListAll(), f.Now, isAttackerOnline: _ => true);
         f.Open();
-        using var service = new SnapshotPostUploadBackgroundService(f.State, new SnapshotPostUploadProcessorSource(() => []));
+        using var service = new SnapshotPostUploadBackgroundService(f.State.SnapshotPostUploadBackground);
         service.StartAsync(CancellationToken.None).GetAwaiter().GetResult();
         try
         {

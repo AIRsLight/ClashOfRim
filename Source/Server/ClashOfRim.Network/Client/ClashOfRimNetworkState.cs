@@ -151,7 +151,7 @@ public sealed class ClashOfRimNetworkState
         SnapshotPostUploads = new(new CoreSnapshotPostUpload(Players, WorldLayers, ColonyProjection, SnapshotAchievements,
             SupportDeaths, SnapshotStore, SnapshotMutations, MercenaryIncidents),
             new SnapshotPostUploadRunner(SnapshotPostUploadJobs, () => RuntimeLogger), Plugins, CompatibilityBaseline,
-            new SnapshotPostUploadPluginAdapter(this), new RaidSettlementPostUploadProcessor(), RaidEvidenceScheduling);
+            new SnapshotPostUploadPluginAdapter(this), new RaidSettlementPostUploadProcessor(), RaidEvidenceScheduling, RaidSettlementWork);
         RaidOfflineEvidence = new RaidOfflineEvidence(Ledger, SnapshotStore, SnapshotPostUploadJobs, SnapshotPostUploadArtifacts,
             SnapshotMutations, RaidQueries, RaidEvidenceScheduling, () => RuntimeLogger);
         RaidBattleCleanup = new RaidBattleCleanup(Ledger, SnapshotStore, SnapshotPostUploadJobs, SnapshotMutations,
@@ -248,6 +248,9 @@ public sealed class ClashOfRimNetworkState
         RaidEvidenceConfirmation = new RaidEvidenceConfirmation(Ledger, SnapshotPostUploadJobs, RaidEvidenceScheduling,
             SnapshotMutations, SnapshotRequests, ColonyAuthorization, SnapshotTransactions, PendingConfirmations,
             SnapshotPostUploads, () => RuntimeLogger);
+        SnapshotPostUploadBackground = new(new SnapshotPostUploadWorker(SnapshotPostUploadJobs, () => RuntimeLogger),
+            SnapshotPostUploads.ResolveWork, SnapshotMutations, ColonyDeletions, WorldConfiguration, SnapshotCommits,
+            Ledger, RaidTimeouts, () => RuntimeLogger);
         ConfigurationChanges.Recover();
     }
 
@@ -306,6 +309,7 @@ public sealed class ClashOfRimNetworkState
     public SnapshotCommitService SnapshotCommits { get; }
     internal SnapshotConfirmationPlanner SnapshotConfirmations { get; }
     internal SnapshotPostUploads SnapshotPostUploads { get; }
+    internal SnapshotPostUploadBackground SnapshotPostUploadBackground { get; }
     public ColonyDeletionService ColonyDeletions { get; }
 
     public SnapshotUploadPolicy SnapshotUploadPolicy { get; }

@@ -134,7 +134,7 @@ internal static class ColonyDeletionRecoveryTests
         Fails(() => f.Delete(admin: true));
         var intent = JsonSerializer.Deserialize<ColonyDeletionIntent>(File.ReadAllBytes(Directory.EnumerateFiles(f.Journal, "*.json").Single()))!;
         f.Open();
-        using var background = new SnapshotPostUploadBackgroundService(f.State, new SnapshotPostUploadProcessorSource(() => []));
+        using var background = new SnapshotPostUploadBackgroundService(f.State.SnapshotPostUploadBackground);
         background.StartAsync(CancellationToken.None).GetAwaiter().GetResult();
         try
         {

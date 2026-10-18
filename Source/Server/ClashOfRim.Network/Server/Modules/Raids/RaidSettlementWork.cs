@@ -8,6 +8,12 @@ internal sealed class RaidSettlementWork(RaidSettlement settlement, ISnapshotPos
 {
     internal const string ProcessorId = "core.raid-settlement";
 
+    internal SnapshotPostUploadExecution BindPostUpload(SnapshotPostUploadJobRecord job)
+    {
+        var payload = RaidSettlementDeferredPayload.Deserialize(job.PayloadJson);
+        return new(() => Process(payload, DateTimeOffset.UtcNow), () => Complete(payload));
+    }
+
     internal void Process(RaidSettlementDeferredPayload payload, DateTimeOffset nowUtc)
     {
         // Settlement owns recovery and checks completion before reading disposable evidence.

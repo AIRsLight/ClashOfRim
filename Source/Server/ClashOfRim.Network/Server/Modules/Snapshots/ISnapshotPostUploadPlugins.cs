@@ -5,4 +5,5 @@ namespace AIRsLight.ClashOfRim.Network.Modules.Snapshots;
 internal interface ISnapshotPostUploadPlugins
 {
     IEnumerable<SnapshotPostUploadOperation> Bind(SnapshotPostUploadInput input, IEnumerable<ISnapshotPostUploadProcessor> processors);
+    IEnumerable<SnapshotPostUploadWork> BindWork(IEnumerable<ISnapshotPostUploadProcessor> processors);
 }

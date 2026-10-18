@@ -2689,3 +2689,20 @@ SnapshotRecovery 通过明确的领域、存储和注册表依赖接管原宿主
 **累计 11 个相关单元组通过**：恢复协调器、模块边界（421 个类型、81 条路由）、锁外载荷／日志恢复准备、普通上传、单条／批量确认日志、外交发布、世界图层通知、管理员基线固定批次、佣兵罚款、固定待确认批次和殖民地删除。首批日志 `LocalOnly/module-migration/server-snapshot-recovery-tests.log` 中八组通过后停在上述过时反射调用；修正后只运行未完成／受影响的五组，日志为 `LocalOnly/module-migration/server-snapshot-recovery-followup-tests.log`，全部通过且无编译警告。没有重跑已通过的无关场景，没有全量回归、实机 RimTest、独立发布构建或推送。
 
 **下一步 M9i：后台后处理执行与恢复边界。** SnapshotPostUploadJobExecutor／BackgroundService 仍持有 State 和公开插件上下文，负责 Ready／Prepared 作业分派、失败计数、人工复核及恢复入口。需将这些实际任务职责交给明确依赖的模块，核心袭击任务直接调用领域服务，旧插件上下文留在适配边界；保留现有持久任务与重试规则。M9 尚未完成，M10–M12、剩余宿主事件失败接收及最终完成审计继续开放。
+
+
+### M9i 后台任务执行、恢复与清理归属（2026-10-19）
+
+SnapshotPostUploadWorker 接管原唯一后台执行算法：全量注册 ID 验证、Prepared 恢复、当轮新 Ready 任务执行、完成后删除任务、完成清理失败隔离、指数退避、八次失败预算和人工复核。任务状态和持久化仍唯一归 SnapshotPostUploadJobRegistry；注册验证已保证 ID 唯一，因此去掉随后重复的 GroupBy。保留 Prepared 恢复异常进入普通重试、Ready 执行的明确人工复核异常立即停止重试的原差异，没有新建任务状态机。
+
+SnapshotPostUploadWork 表达具体执行能力，按任务绑定的 SnapshotPostUploadExecution 保有同一次执行和完成回调。插件适配器只转换公开上下文、绑定插件方法，两次回调共用同一个旧上下文。核心袭击由 RaidSettlementWork 直接绑定结算和证据清理，Prepared 恢复直接接到 RaidEvidenceScheduling；生产路径不经过公开袭击处理器或 NetworkState。公开 SnapshotPostUploadJobExecutor 保留签名和常量，仅绑定插件后转发 Worker。
+
+SnapshotPostUploadBackground 使用明确依赖，拥有启动制品清理、五秒恢复检查、待办类型筛选、失败隔离和循环取消；保留成功任务后 25 毫秒／空闲一秒的扫描间隔。原框架 BackgroundService 移到 Composition，仅调用模块 RunAsync。删除旧 SnapshotPostUploadProcessorSource 及失去生产调用的 ResolveProcessors；后台通过实际 ResolveWork 动态选择当前启用插件。五个后台恢复测试改用生产装配，覆盖普通上传、批量确认、世界图层、殖民地删除和袭击超时。
+
+新增独立 Worker 单元组，覆盖四种文化下的到期筛选、完整退避／失败预算、管理员重新入队、Prepared／Ready 的人工复核差异、能力缺失／错误类型／停用处理器、重复注册先于恢复执行、制品清理失败隔离、任务删除先于完成清理，以及公开插件执行／完成上下文一致性。复用袭击证据夹具，验证两种上传路径的实际后台结算和清理，以及持久 Prepared 任务重新打开后在同轮恢复、结算并删除证据。动态插件启停测试现在检查实际工作来源。
+
+**累计 9 个相关单元组通过**：新后台 Worker、上传后处理、模块边界（428 个类型、81 条路由）、普通上传、单条／批量确认日志、世界图层通知、殖民地删除、公开袭击后处理器及袭击超时攻击方清理。日志为 `LocalOnly/module-migration/server-post-upload-worker-tests.log`（八组）和 `LocalOnly/module-migration/server-post-upload-worker-followup-tests.log`（四组，其中三组为新断言及来源清理后的复核）。均通过且无编译警告；未运行全量回归、实机 RimTest、独立发布构建或推送。
+
+M9 收尾核对：SnapshotCommitService 已非 partial，物理日志、回执、业务应用和锁外恢复准备分别归独立模块；pending／pendingUploads／applying 仍由协调器唯一管理。当前源码已不存在旧恢复适配器、旧宿主恢复／后处理入口；内部快照模块无 NetworkState、宿主或旧插件上下文依赖，守卫同时禁止反向调用公开执行器和框架服务。M9 的结构迁移完成，验证范围遵守用户只运行相关单元测试的最新要求。普通快照 HTTP 接收／授权和剩余事件失败接收仍是原计划 M11 的宿主入口整理事项，不能据 M9 完成宣称宿主已全部解耦。
+
+**下一步 M10：兼容 API 的注册生命周期与能力存储。** 按原计划检查 CompatibilityRegistrationScope 的代次／令牌／优先级／顺序归属，再迁出各能力集合；保留第三方公开签名并复用唯一排序、去重和清理算法。Biotech 能力组件、文化包加载、M11 页面及剩余门面、M12 测试设施和最终完成审计继续开放。

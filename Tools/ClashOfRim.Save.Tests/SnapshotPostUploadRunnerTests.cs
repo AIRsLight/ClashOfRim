@@ -109,11 +109,12 @@ internal static class SnapshotPostUploadRunnerTests
                 RequiredPackageIds: [packageId]) { SnapshotPostUploadProcessors = [plugin] }]));
         var state = State(processor);
         state.SnapshotPostUploads.ValidateRegistrations();
-        Check(!state.SnapshotPostUploads.ResolveProcessors().Contains(processor), "Inactive plugin entered the background processor source.");
+        bool Active() => state.SnapshotPostUploads.ResolveWork().Any(work => ReferenceEquals(work.Processor, processor));
+        Check(!Active(), "Inactive plugin entered the background processor source.");
         baseline.ReplaceBaseline(EntryTestSupport.Manifest() with { Mods = [new ModManifestEntry { PackageId = packageId }] }, "admin", DateTimeOffset.UnixEpoch);
-        Check(state.SnapshotPostUploads.ResolveProcessors().Contains(processor), "Processor source did not activate the configured plugin.");
+        Check(Active(), "Processor source did not activate the configured plugin.");
         baseline.ReplaceBaseline(EntryTestSupport.Manifest(), "admin", DateTimeOffset.UnixEpoch.AddDays(1));
-        Check(!state.SnapshotPostUploads.ResolveProcessors().Contains(processor), "Processor source retained a removed plugin.");
+        Check(!Active(), "Processor source retained a removed plugin.");
         var duplicate = State(new LegacyProcessor("core.latest-snapshot-reference"));
         ExpectFailure(duplicate.SnapshotPostUploads.ValidateRegistrations);
     }
@@ -156,6 +157,11 @@ internal static class SnapshotPostUploadRunnerTests
         Run();
         Check(f.Jobs.ListAll().Single() == job, "Unified raid replay replaced the original job.");
         f.CheckPublished(job);
+        var worker = new SnapshotPostUploadWorker(f.Jobs, () => NullLogger.Instance);
+        Check(worker.ProcessReady(state.SnapshotPostUploads.ResolveWork(), f.Data.Now) == 1
+            && f.Jobs.ListAll().Count == 0 && !f.Artifacts.Exists(f.ArtifactId)
+            && f.Ledger.Find(f.Data.Raid.EventId)!.AppliedSnapshotId is not null,
+            "Core raid work did not settle, remove its job and clean immutable evidence.");
     }
 
     private class Metadata(string id) : ISnapshotPostUploadProcessor

@@ -82,7 +82,7 @@ internal static class WorldLayerNotificationRecoveryTests
     private static void VerifyBackground(Fixture f)
     {
         f.Fail("events-first"); ExpectFailure(f.Project); f.ClearFailure(); f.Open();
-        using var background = new SnapshotPostUploadBackgroundService(f.State, new SnapshotPostUploadProcessorSource(() => []));
+        using var background = new SnapshotPostUploadBackgroundService(f.State.SnapshotPostUploadBackground);
         background.StartAsync(CancellationToken.None).GetAwaiter().GetResult();
         try
         {

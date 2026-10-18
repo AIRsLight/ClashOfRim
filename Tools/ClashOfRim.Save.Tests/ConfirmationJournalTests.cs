@@ -129,7 +129,7 @@ internal static class ConfirmationJournalTests
     private static void Background(Fixture f)
     {
         f.Fail("ledger"); ExpectFailure(() => f.Confirm()); var intent = f.Intent(); f.Clear(); f.Open();
-        using var service = new SnapshotPostUploadBackgroundService(f.State, new SnapshotPostUploadProcessorSource(() => []));
+        using var service = new SnapshotPostUploadBackgroundService(f.State.SnapshotPostUploadBackground);
         service.StartAsync(CancellationToken.None).GetAwaiter().GetResult();
         try
         {

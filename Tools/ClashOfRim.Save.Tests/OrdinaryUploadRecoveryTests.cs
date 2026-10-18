@@ -120,7 +120,7 @@ internal static class OrdinaryUploadRecoveryTests
     private static void VerifyBackground(Fixture f)
     {
         f.Fail("processor"); ExpectFailure(() => f.Upload()); var intent = f.ReadIntent(); f.ClearFailure(); f.Open();
-        using var background = new SnapshotPostUploadBackgroundService(f.State, new SnapshotPostUploadProcessorSource(() => [f.Deferred]));
+        using var background = new SnapshotPostUploadBackgroundService(f.State.SnapshotPostUploadBackground);
         background.StartAsync(CancellationToken.None).GetAwaiter().GetResult();
         try
         {

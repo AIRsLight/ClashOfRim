@@ -20,4 +20,18 @@ internal sealed class SnapshotPostUploadPluginAdapter(ClashOfRimNetworkState sta
         processor is IInlineSnapshotPostUploadProcessor inline ? _ => inline.Process(context) : null,
         processor is IDeferredSnapshotPostUploadProcessor deferred ? _ => deferred.CapturePayload(context) : null,
         processor is IScheduledDeferredSnapshotPostUploadProcessor scheduled ? _ => scheduled.Schedule(context) : null);
+
+    public IEnumerable<SnapshotPostUploadWork> BindWork(IEnumerable<ISnapshotPostUploadProcessor> processors) =>
+        processors.Select(processor => new SnapshotPostUploadWork(processor,
+            processor is IDeferredSnapshotPostUploadProcessor deferred ? job => BindExecution(deferred, job) : null,
+            processor is IRecoverableDeferredSnapshotPostUploadProcessor recoverable ? (job, at) => recoverable.RecoverPrepared(state, job, at) : null,
+            processor is IDeferredSnapshotPostUploadArtifactReconciler reconciler ? () => reconciler.ReconcileArtifacts(state) : null));
+
+    private SnapshotPostUploadExecution BindExecution(IDeferredSnapshotPostUploadProcessor processor, SnapshotPostUploadJobRecord job)
+    {
+        var context = new SnapshotPostUploadDeferredContext(state, job.JobId, job.ProcessorId, job.Kind, job.UserId,
+            job.ColonyId, job.SessionId, job.SnapshotId, job.OccurredAtUtc, job.PayloadJson, job.AttemptCount);
+        return new(() => processor.ProcessDeferred(context),
+            processor is IDeferredSnapshotPostUploadCompletionHandler completion ? () => completion.OnDeferredCompleted(context) : null);
+    }
 }
