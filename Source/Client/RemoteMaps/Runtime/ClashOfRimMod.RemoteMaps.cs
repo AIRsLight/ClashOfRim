@@ -12,7 +12,7 @@ public sealed partial class ClashOfRimMod
 {
     internal void OpenCaravanRaidMenu(Caravan caravan, IReadOnlyList<ModWorldMapMarkerDto> targets)
     {
-        if (!pvpEnabled)
+        if (!PvpEnabled)
         {
             worldMapStatus = ClashOfRimText.Key("ClashOfRim.Raid.PvpDisabled");
             Messages.Message(worldMapStatus, MessageTypeDefOf.RejectInput, historical: false);
@@ -58,7 +58,7 @@ public sealed partial class ClashOfRimMod
 
     public void StartRaidFromVehicleLanding(Caravan caravan, ModWorldMapMarkerDto target)
     {
-        if (!pvpEnabled)
+        if (!PvpEnabled)
         {
             worldMapStatus = ClashOfRimText.Key("ClashOfRim.Raid.PvpDisabled");
             Messages.Message(worldMapStatus, MessageTypeDefOf.RejectInput, historical: false);

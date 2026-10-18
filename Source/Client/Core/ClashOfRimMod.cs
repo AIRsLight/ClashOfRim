@@ -130,8 +130,6 @@ public sealed partial class ClashOfRimMod : Mod
     private string worldMapStatus = string.Empty;
     private string chatStatus = string.Empty;
     private string serverCompatibilityManifestJson = string.Empty;
-    private bool giftsEnabled = true;
-    private bool pvpEnabled = true;
     private readonly ClientLocalMutationCoordinator localMutations = new();
     // Read-only bridge for domains that have not yet moved out of the Mod.
     private string? lastSessionId => sessionLifecycle.SessionId;
@@ -159,9 +157,8 @@ public sealed partial class ClashOfRimMod : Mod
     private readonly ClientAdminBaselineCapture adminBaselineCapture;
     private readonly ClientInitialWorldSetup initialWorldSetup;
     private readonly List<ModChatMessageDto> lastChatMessages = new();
-    private readonly List<ModWorldMapMarkerDto> lastWorldMapMarkers = new();
+    private readonly ClientWorldMarkers worldMarkers;
     private readonly ClientOccupiedColonySites occupiedColonySites;
-    private readonly object eventStateLock = new();
     private readonly object chatStateLock = new();
     private long lastChatSequence;
     private long lastReadPrivateChatSequence;
@@ -260,7 +257,7 @@ public sealed partial class ClashOfRimMod : Mod
         mercenaryIncidents.Completed += StartQueuedAutomaticEventRefreshAfterLocalAtomicMutation;
         mercenaryConfirmation.ContractCompleted += (id, key) => _ = mercenaryIncidents.ReportAsync(id, "Completed", key);
         mercenaryConfirmation.BankRefreshRequested += StartRefreshBankStatus;
-        Func<ClientGiftCapabilities> giftCapabilities = () => new(giftsEnabled, pvpEnabled);
+        Func<ClientGiftCapabilities> giftCapabilities = () => new(GiftsEnabled, PvpEnabled);
         var giftPresentation = new ClientGiftPresentation(message => eventState.ActionStatus = message);
         var gifts = new ClientGiftOperations(mutationAdmission, synchronization, localMutations, snapshotTransactions,
             snapshotFailureRecovery, new ClientGiftTransport(), giftPresentation, giftCapabilities);
@@ -279,7 +276,7 @@ public sealed partial class ClashOfRimMod : Mod
         var raidTransport = new ClientRaidTransport();
         raidLaunching = new ClientRaidLaunching(sessionLifecycle, mutationAdmission, synchronization, localMutations,
             snapshotTransactions, snapshotFailureRecovery, new ClientRaidPreparation(raidTransport, new ClientRemoteSnapshotTransport()),
-            raidTransport, new ClientRaidLaunchPresentation(message => worldMapStatus = message), () => pvpEnabled);
+            raidTransport, new ClientRaidLaunchPresentation(message => worldMapStatus = message), () => PvpEnabled);
         raidLaunching.Completed += StartQueuedAutomaticEventRefreshAfterLocalAtomicMutation;
         raidSettlements = new ClientRaidSettlements(sessionLifecycle, mutationAdmission, synchronization, localMutations, snapshotTransactions,
             snapshotFailureRecovery, new ClientRaidSupportLosses(snapshotTransactions, new ClientSupportTransport()),
@@ -300,6 +297,8 @@ public sealed partial class ClashOfRimMod : Mod
         featureCatalogs.Diagnostic += message => Log.Warning(message);
         worldConfiguration = new ClientWorldConfiguration(sessionLifecycle, new ClientWorldConfigurationRuntime(), entryStore, storytellerConfiguration, featureCatalogs);
         occupiedColonySites = new ClientOccupiedColonySites(sessionLifecycle, entryStore, new ClientOccupiedColonySitesRuntime(), worldConfiguration);
+        worldMarkers = new ClientWorldMarkers(sessionLifecycle, entryStore, occupiedColonySites, new ClientWorldMarkersRuntime(),
+            new ClientWorldMarkersPresentation(message => worldMapStatus = message));
         colonyAppearance = new ClientColonyAppearance(sessionLifecycle, new ClientColonyAppearanceStore(settings), new ClientColonyAppearancePresentation());
         occupiedColonySites.OwnAppearanceObserved += colonyAppearance.ObserveServer;
         var colonyTransport = new ClientColonyTransport(new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner)));
@@ -796,20 +795,9 @@ public sealed partial class ClashOfRimMod : Mod
     internal void StartRefreshAchievements(string? targetUserId = null, string? targetColonyId = null)
         => _ = achievementQueries.RefreshAsync(targetUserId, targetColonyId);
 
-    internal bool GiftsEnabled => giftsEnabled;
-
-    internal bool PvpEnabled => pvpEnabled;
-
-    internal List<ModWorldMapMarkerDto> WorldMapMarkersSnapshot
-    {
-        get
-        {
-            lock (eventStateLock)
-            {
-                return lastWorldMapMarkers.ToList();
-            }
-        }
-    }
+    internal bool GiftsEnabled => worldMarkers.GiftsEnabled;
+    internal bool PvpEnabled => worldMarkers.PvpEnabled;
+    internal List<ModWorldMapMarkerDto> WorldMapMarkersSnapshot => worldMarkers.Snapshot;
 
     private bool TryRejectBlockedByLocalAtomicMutation(out string message, LocalMutationKind? continuation = null)
     {

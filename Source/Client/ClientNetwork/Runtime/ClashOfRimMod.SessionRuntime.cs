@@ -159,8 +159,7 @@ public sealed partial class ClashOfRimMod
         chatRefreshInProgress = false;
         chatSendInProgress = false;
         RemoteColonyWorldIconCache.Clear();
-        giftsEnabled = true;
-        pvpEnabled = true;
+        worldMarkers.Reset();
         settings.CurrentWorldConfigurationId = string.Empty;
         chatStatus = ClashOfRimText.Key("ClashOfRim.Chat.StatusIdle");
         administration.Reset();
@@ -170,11 +169,6 @@ public sealed partial class ClashOfRimMod
         settings.CurrentLineageToken = string.Empty;
         playerDirectory.ClearSelection();
         playerDirectory.Reset();
-
-        lock (eventStateLock)
-        {
-            lastWorldMapMarkers.Clear();
-        }
 
         lock (chatStateLock)
         {
@@ -496,8 +490,6 @@ public sealed partial class ClashOfRimMod
                     return;
                 }
 
-                ClashLog.Message("[ClashOfRim] World map marker sync response: "
-                    + DescribeWorldMapMarkerDelivery(result.Response));
                 CaptureWorldMapMarkers(result.Response, source: reason);
             }
             catch (Exception ex)

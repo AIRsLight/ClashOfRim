@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.World;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -19,57 +20,10 @@ public sealed partial class ClashOfRimMod
     internal IReadOnlyList<ModTradeOrderSummaryDto> FindFulfillableTradeOrdersForCaravan(Caravan caravan) => tradeActions.FindFulfillable(caravan);
 
     internal IReadOnlyList<ModWorldMapMarkerDto> FindReinforceableTargetsForCaravan(Caravan caravan)
-    {
-        if (!settings.IsConfigured || string.IsNullOrWhiteSpace(settings.CurrentSnapshotId))
-        {
-            return Array.Empty<ModWorldMapMarkerDto>();
-        }
-
-        int tile = caravan.Tile;
-        lock (eventStateLock)
-        {
-            return lastWorldMapMarkers
-                .Where(marker => marker.CanReinforce)
-                .Where(marker => marker.Tile == tile)
-                .Where(marker => !string.Equals(marker.OwnerUserId, settings.UserId, StringComparison.Ordinal)
-                    || !string.Equals(marker.OwnerColonyId, settings.ColonyId, StringComparison.Ordinal))
-                .Where(marker => !string.IsNullOrWhiteSpace(marker.OwnerUserId))
-                .Where(marker => !string.IsNullOrWhiteSpace(marker.OwnerColonyId))
-                .Where(marker => !string.IsNullOrWhiteSpace(marker.SnapshotId))
-                .Where(marker => !string.IsNullOrWhiteSpace(marker.MapId))
-                .OrderBy(marker => marker.OwnerUserId, StringComparer.Ordinal)
-                .ThenBy(marker => marker.OwnerColonyId, StringComparer.Ordinal)
-                .ToList();
-        }
-    }
+        => worldMarkers.FindTargets(caravan.Tile.tileId, ClientWorldRuntimeValues.ReadFirstTileLayerId(caravan, "Tile", "tile"), ClientColonyTargetKind.Reinforcement);
 
     internal IReadOnlyList<ModWorldMapMarkerDto> FindRaidableTargetsForCaravan(Caravan caravan)
-    {
-        if (!pvpEnabled
-            || !settings.IsConfigured
-            || string.IsNullOrWhiteSpace(settings.CurrentSnapshotId))
-        {
-            return Array.Empty<ModWorldMapMarkerDto>();
-        }
-
-        int tile = caravan.Tile;
-        lock (eventStateLock)
-        {
-            return lastWorldMapMarkers
-                .Where(marker => marker.CanRaid)
-                .Where(marker => marker.Tile == tile)
-                .Where(marker => !string.Equals(marker.OwnerUserId, settings.UserId, StringComparison.Ordinal)
-                    || !string.Equals(marker.OwnerColonyId, settings.ColonyId, StringComparison.Ordinal))
-                .Where(marker => !string.IsNullOrWhiteSpace(marker.OwnerUserId))
-                .Where(marker => !string.IsNullOrWhiteSpace(marker.OwnerColonyId))
-                .Where(marker => !string.IsNullOrWhiteSpace(marker.SnapshotId))
-                .Where(marker => !string.IsNullOrWhiteSpace(marker.MapId))
-                .Where(marker => !string.IsNullOrWhiteSpace(marker.WorldObjectId))
-                .OrderBy(marker => marker.OwnerUserId, StringComparer.Ordinal)
-                .ThenBy(marker => marker.OwnerColonyId, StringComparer.Ordinal)
-                .ToList();
-        }
-    }
+        => worldMarkers.FindTargets(caravan.Tile.tileId, ClientWorldRuntimeValues.ReadFirstTileLayerId(caravan, "Tile", "tile"), ClientColonyTargetKind.Raid);
 
     // UI compatibility entry points until M11; gift modules own policy and execution.
     internal IReadOnlyList<ModWorldMapMarkerDto> FindGiftDeliverableTargetsForCaravan(Caravan caravan)

@@ -1,11 +1,5 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using AIRsLight.ClashOfRim.Bank;
 using AIRsLight.ClashOfRim.ClientNetwork;
-using AIRsLight.ClashOfRim.Protocol;
-using AIRsLight.ClashOfRim.Trades;
-using AIRsLight.ClashOfRim.WorldObjects;
 using Verse;
 
 namespace AIRsLight.ClashOfRim;
@@ -59,124 +53,10 @@ public sealed partial class ClashOfRimMod
             label.Named("LABEL"));
     }
 
-    private void CaptureWorldMapMarkers(
-        ModWorldMapMarkerDeliveryDto? delivery,
-        bool applyImmediately = false,
-        string? source = null)
-    {
-        List<ModWorldMapMarkerDto> markers = delivery?.Markers?.ToList() ?? new List<ModWorldMapMarkerDto>();
-        lock (eventStateLock)
-        {
-            lastWorldMapMarkers.Clear();
-            lastWorldMapMarkers.AddRange(markers);
-            giftsEnabled = delivery?.GiftsEnabled ?? true;
-            pvpEnabled = delivery?.PvpEnabled ?? true;
-        }
+    private void CaptureWorldMapMarkers(ModWorldMapMarkerDeliveryDto? delivery, bool applyImmediately = false, string? source = null)
+        => worldMarkers.Observe(delivery, applyImmediately, source);
 
-        occupiedColonySites.Merge(markers);
-        string sourceLabel = string.IsNullOrWhiteSpace(source)
-            ? "unspecified"
-            : source!;
-        ClashLog.Message("[ClashOfRim] Captured world map markers from "
-            + sourceLabel
-            + ": "
-            + DescribeWorldMapMarkerDelivery(delivery)
-            + ", "
-            + DescribeWorldMapMarkerSample(markers));
-        if (applyImmediately)
-        {
-            worldMapStatus = FormatWorldMapMarkers(markers);
-            RemoteWorldObjectApplyResult applyResult =
-                RemoteRuntimeWorldObjectRegistry.Apply(markers, settings.UserId);
-                ClashLog.Message("[ClashOfRim] Applied world map markers immediately from " + sourceLabel + ": " + applyResult);
-        }
-        else if (Find.WorldObjects is not null)
-        {
-            EnqueueClashOfRimMainThreadAction(() =>
-            {
-                worldMapStatus = FormatWorldMapMarkers(markers);
-                RemoteWorldObjectApplyResult applyResult =
-                    RemoteRuntimeWorldObjectRegistry.Apply(markers, settings.UserId);
-                ClashLog.Message("[ClashOfRim] Applied world map markers on main thread from " + sourceLabel + ": " + applyResult);
-            });
-        }
-        else
-        {
-            EnqueueClashOfRimMainThreadAction(() =>
-            {
-                worldMapStatus = FormatWorldMapMarkers(markers);
-            });
-            Log.Warning("[ClashOfRim] Captured world map markers but Find.WorldObjects is null; cached markers will be applied when the world page is ready.");
-        }
-    }
-
-    internal void ApplyCachedWorldMapMarkersToWorldObjects()
-    {
-        if (Find.WorldObjects is null || string.IsNullOrWhiteSpace(settings.UserId))
-        {
-            return;
-        }
-
-        List<ModWorldMapMarkerDto> markers;
-        lock (eventStateLock)
-        {
-            if (lastWorldMapMarkers.Count == 0)
-            {
-                return;
-            }
-
-            markers = lastWorldMapMarkers.ToList();
-        }
-
-        RemoteWorldObjectApplyResult applyResult =
-            RemoteRuntimeWorldObjectRegistry.Apply(markers, settings.UserId);
-        if (applyResult.Created > 0 || applyResult.Removed > 0 || applyResult.Failed > 0)
-        {
-            ClashLog.Message("[ClashOfRim] Applied cached world map markers on starting-site GUI: " + applyResult);
-        }
-    }
-
-    private static string FormatWorldMapMarkers(IReadOnlyCollection<ModWorldMapMarkerDto>? markers)
-    {
-        if (markers is null || markers.Count == 0)
-        {
-            return ClashOfRimText.Key("ClashOfRim.WorldMap.StatusNoMarkers");
-        }
-
-        string summary = string.Join("；", markers
-            .OrderBy(marker => marker.Tile)
-            .ThenBy(marker => marker.OwnerUserId, StringComparer.Ordinal)
-            .Take(6)
-            .Select(marker =>
-            {
-                string label = string.IsNullOrWhiteSpace(marker.Label)
-                    ? marker.OwnerUserId
-                    : marker.Label!;
-                var actions = new List<string>();
-                if (marker.CanTrade)
-                {
-                    actions.Add(ClashOfRimText.Key("ClashOfRim.WorldMap.ActionTrade"));
-                }
-
-                if (marker.CanRaid)
-                {
-                    actions.Add(ClashOfRimText.Key("ClashOfRim.WorldMap.ActionRaid"));
-                }
-
-                if (marker.CanReinforce)
-                {
-                    actions.Add(ClashOfRimText.Key("ClashOfRim.WorldMap.ActionReinforce"));
-                }
-
-                string actionText = actions.Count == 0 ? ClashOfRimText.Key("ClashOfRim.WorldMap.ActionNone") : string.Join("/", actions);
-                return $"{label}@{marker.Tile} {actionText}";
-            }));
-
-        return ClashOfRimText.Key(
-            "ClashOfRim.WorldMap.StatusMarkerSummary",
-            markers.Count.Named("COUNT"),
-            summary.Named("SUMMARY"));
-    }
+    internal void ApplyCachedWorldMapMarkersToWorldObjects() => worldMarkers.ApplyCached();
 
     private static long? ExtractNotificationVersion(string data)
     {

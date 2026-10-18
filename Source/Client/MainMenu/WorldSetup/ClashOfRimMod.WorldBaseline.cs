@@ -104,47 +104,6 @@ public sealed partial class ClashOfRimMod
         }
     }
 
-    private static string DescribeWorldMapMarkerDelivery(ModWorldMapMarkerDeliveryDto? delivery)
-    {
-        if (delivery is null)
-        {
-            return "delivery=<null>";
-        }
-
-        int tradeable = delivery.Markers.Count(marker => string.Equals(marker.Kind, "TradeableColony", StringComparison.Ordinal));
-        int runtime = delivery.Markers.Count(marker => marker.Kind is "RuntimeCaravan" or "RuntimeShuttle" or "RuntimeTransportPod" or "RuntimeWorldObject");
-        int raid = delivery.Markers.Count(marker => string.Equals(marker.Kind, "ActiveRaidTarget", StringComparison.Ordinal));
-        return $"deliveryUser={delivery.UserId}, generatedAt={delivery.GeneratedAtUtc}, markers={delivery.Markers.Count}, tradeable={tradeable}, runtime={runtime}, raid={raid}";
-    }
-
-    private static string DescribeWorldMapMarkerSample(IReadOnlyList<ModWorldMapMarkerDto> markers)
-    {
-        if (markers.Count == 0)
-        {
-            return "sample=<empty>";
-        }
-
-        return "sample=" + string.Join(" | ", markers
-            .OrderBy(marker => marker.Tile)
-            .ThenBy(marker => marker.MarkerId, StringComparer.Ordinal)
-            .Take(5)
-            .Select(marker => $"id={marker.MarkerId}, kind={marker.Kind}, owner={marker.OwnerUserId}, colony={marker.OwnerColonyId}, tile={marker.Tile}, label={marker.Label}, trade={marker.CanTrade}, raid={marker.CanRaid}, reinforce={marker.CanReinforce}, appearance={DescribeAppearance(marker.Appearance)}"));
-    }
-
-    private static string DescribeAppearance(ModColonyAppearanceDto? appearance)
-    {
-        if (appearance is null)
-        {
-            return "<none>";
-        }
-
-        return (appearance.Mode ?? string.Empty)
-            + "/"
-            + (appearance.IconDefName ?? string.Empty)
-            + "/"
-            + (appearance.ColorDefName ?? appearance.ColorHex ?? string.Empty);
-    }
-
     internal static string DescribeWindow(Window? window)
     {
         if (window is null)

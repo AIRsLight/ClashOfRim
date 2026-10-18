@@ -19,6 +19,8 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("world markers runtime binds engine targets and preserves layered query adapters", ClientWorldMarkersRuntimeTests.Run),
+    ("world markers own immutable cache, capabilities and bound projection", ClientWorldMarkersTests.Run),
     ("colony appearance runtime preserves target, dialog and settings boundaries", ClientColonyAppearanceRuntimeTests.Run),
     ("colony appearance owns account preferences, editing and persistence", ClientColonyAppearanceTests.Run),
     ("colony relocation runtime binds maps, layered anchors and vanilla admission", ClientColonyRelocationRuntimeTests.Run),
