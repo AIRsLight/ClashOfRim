@@ -153,6 +153,7 @@ public sealed partial class ClashOfRimMod : Mod
     private readonly ClientWorldSetupState worldSetup;
     private readonly ClientStorytellerConfiguration storytellerConfiguration;
     private readonly ClientWorldConfiguration worldConfiguration;
+    private readonly ClientWorldCatalog worldCatalog;
     private readonly ClientWorldGeneration worldGeneration;
     private readonly ClientWorldBaselineSubmission worldBaselineSubmission;
     private readonly ClientWorldBaselineCapture worldBaselineCapture;
@@ -294,6 +295,11 @@ public sealed partial class ClashOfRimMod : Mod
         var featureCatalogs = new ClientWorldFeatureCatalogs(sessionLifecycle, worldTransport);
         featureCatalogs.Diagnostic += message => Log.Warning(message);
         worldConfiguration = new ClientWorldConfiguration(sessionLifecycle, new ClientWorldConfigurationRuntime(), entryStore, storytellerConfiguration, featureCatalogs);
+        worldCatalog = new ClientWorldCatalog(sessionLifecycle, new ClientWorldCatalogRuntime(), worldTransport,
+            new ClientWorldCatalogPresentation(message => worldMapStatus = message), worldConfiguration);
+        worldCatalog.CompatibilityAccepted += CaptureServerCompatibilityManifest;
+        worldCatalog.AdministratorObserved += ObserveAdministratorFlag;
+        worldCatalog.Applied += UpdateOccupiedPlayerColonySites;
         worldGeneration = new ClientWorldGeneration(sessionLifecycle, worldSetup, worldConfiguration, new ClientWorldGenerationRuntime(), new ClientWorldGenerationPresentation(message => loginStatus = message));
         worldEntry = new ClientWorldEntry(sessionLifecycle, new ClientSnapshotGame(), worldSetup,
             entryStore, worldTransport, entryPresentation, snapshotReload);

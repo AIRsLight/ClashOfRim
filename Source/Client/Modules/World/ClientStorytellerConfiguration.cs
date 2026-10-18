@@ -42,10 +42,10 @@ internal sealed class ClientStorytellerConfiguration
         var value = scope.Boundary.Capture();
         return requests.TryApply(scope, static () => { }) ? value : new(null, null, null);
     }
-    internal bool ApplyRuntime(ModWorldConfigurationDto configuration)
+    internal bool ApplyRuntime(ModWorldConfigurationDto configuration, Func<bool>? current = null)
     {
         var scope = requests.Capture();
-        return scope.Boundary.IsPlaying && Apply(scope, ClientStorytellerBaseline.From(configuration));
+        return scope.Boundary.IsPlaying && Apply(scope, ClientStorytellerBaseline.From(configuration), current);
     }
     internal bool ContinueSetup(IClientStorytellerPage page)
     {
@@ -64,15 +64,15 @@ internal sealed class ClientStorytellerConfiguration
         var scope = requests.Capture();
         requests.TryApply(scope, scope.Boundary.LockCommitment);
     }
-    private bool Apply(ClientRequestTracker<IClientStorytellerSession>.Scope scope, ClientStorytellerBaseline baseline, Func<bool>? currentPage = null)
+    private bool Apply(ClientRequestTracker<IClientStorytellerSession>.Scope scope, ClientStorytellerBaseline baseline, Func<bool>? current = null)
     {
-        if (!baseline.HasDefinitions || !requests.TryApply(scope, static () => { })) return false;
+        if (!baseline.HasDefinitions || !requests.TryApply(scope, static () => { }) || current?.Invoke() == false) return false;
         var change = scope.Boundary.Prepare(baseline);
         if (change is null) return false;
         bool applied = false;
         requests.TryApply(scope, () =>
         {
-            if (currentPage is not null && !currentPage()) return;
+            if (current?.Invoke() == false) return;
             change.Apply(); applied = true;
         });
         return applied;

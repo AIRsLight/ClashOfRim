@@ -33,14 +33,19 @@ internal sealed class ClientWorldConfiguration
         if (string.IsNullOrWhiteSpace(configuration?.WorldConfigurationId)) return;
         var scope = requests.Capture(); requests.TryApply(scope, () => store.Remember(configuration!.WorldConfigurationId.Trim()));
     }
-    internal bool Apply(ModWorldConfigurationDto configuration, bool worldState = false, bool features = true, ClientWorldFeatureNames? generatedNames = null)
-        => Project(configuration, true, worldState, features, true, generatedNames);
-    internal bool ApplyCatalog(ModWorldConfigurationDto? configuration, bool applyStoryteller = false)
-        => configuration is not null && Project(configuration, false, false, false, applyStoryteller, null);
-    private bool Project(ModWorldConfigurationDto source, bool full, bool worldState, bool features, bool applyStoryteller, ClientWorldFeatureNames? names)
+    internal bool Apply(ModWorldConfigurationDto configuration, bool worldState = false, bool features = true, ClientWorldFeatureNames? generatedNames = null, Func<bool>? current = null)
+        => Project(configuration, true, worldState, features, true, generatedNames, current);
+    internal bool ApplyCatalog(ModWorldConfigurationDto? configuration, bool applyStoryteller = false, Func<bool>? current = null)
+        => configuration is not null && Project(configuration, false, false, false, applyStoryteller, null, current);
+    private bool Project(ModWorldConfigurationDto source, bool full, bool worldState, bool features, bool applyStoryteller, ClientWorldFeatureNames? names, Func<bool>? current)
     {
         var scope = requests.Capture(); var configuration = ClientProtocolJson.Copy(source); var runtime = scope.Boundary;
-        bool Step(Action action) => requests.TryApply(scope, action) && requests.TryApply(scope, static () => { });
+        bool Step(Action action)
+        {
+            bool applied = false;
+            requests.TryApply(scope, () => { if (current?.Invoke() != false) { action(); applied = true; } });
+            return applied && requests.TryApply(scope, static () => { }) && current?.Invoke() != false;
+        }
         if (!Step(() => Remember(configuration))) return false;
         if (full)
         {
@@ -49,7 +54,7 @@ internal sealed class ClientWorldConfiguration
         }
         if (!Step(() => runtime.ApplyExtensions(configuration, scope.Context.UserId, worldState))) return false;
         if (full && !Step(() => runtime.ApplyObjectLabels(configuration))) return false;
-        if (applyStoryteller && !Step(() => storyteller.ApplyRuntime(configuration))) return false;
+        if (applyStoryteller && !Step(() => storyteller.ApplyRuntime(configuration, current))) return false;
         return names is null || Step(() => _ = catalogs.SubmitAsync(configuration.WorldConfigurationId, names));
     }
 }

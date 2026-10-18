@@ -15,6 +15,14 @@ public sealed partial class ClashOfRimMod
         AIRsLight.ClashOfRim.Admin.DeveloperToolAccessPolicy.EnforceCurrentState();
     }
 
+    private void ObserveAdministratorFlag(bool value)
+    {
+        bool wasAdministrator = isAdministrator;
+        ApplyAdministratorFlag(value);
+        if (!value) lastAdminStatus = null;
+        else if (!wasAdministrator) StartRefreshAdminStatus();
+    }
+
     internal void StartRefreshAdminStatus()
     {
         if (!CanRunAdminRequest(out string failure))
