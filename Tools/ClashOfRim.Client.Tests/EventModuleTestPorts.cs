@@ -13,6 +13,7 @@ using AIRsLight.ClashOfRim.Modules.Synchronization;
 internal sealed class EventModuleTestPorts : IClientSessionIdentityStore, IClientSessionLogoutTransport, IClientSessionStreamTransport, IClientSnapshotStore, IClientSnapshotGame
 {
     internal string User = "alice", Auth = "auth", Colony = "colony", Snapshot = "base", Server = "http://localhost";
+    internal string? SteamTicket, Password;
     internal object GameOwner = new();
     internal int Published, GamePublished, Queued, Captures;
     internal byte[] SaveBytes = SnapshotPackageModuleTests.Save();
@@ -26,7 +27,7 @@ internal sealed class EventModuleTestPorts : IClientSessionIdentityStore, IClien
     internal readonly List<string> Trace = new();
     private readonly ConcurrentQueue<Action> pending = new();
     private readonly SemaphoreSlim available = new(0);
-    public ClashOfRimClientNetworkContext ReadContext() => new(Server, User, Colony, Snapshot, null, null, Auth);
+    public ClashOfRimClientNetworkContext ReadContext() => new(Server, User, Colony, Snapshot, SteamTicket, Password, Auth);
     public void Write(string? user, string? displayName, string auth) { if (user is not null) User = user; Auth = auth; }
     public void Publish(string snapshot, string? token) { Snapshot = snapshot; Published++; Trace.Add("store"); OnPublish?.Invoke(); }
     public void Persist() => Trace.Add("persist");

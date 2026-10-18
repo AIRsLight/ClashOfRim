@@ -1,4 +1,5 @@
 using AIRsLight.ClashOfRim.Modules.Administration;
+using AIRsLight.ClashOfRim.Modules.Compatibility;
 using AIRsLight.ClashOfRim.Modules.World;
 using AIRsLight.ClashOfRim.Modules.Achievements;
 using AIRsLight.ClashOfRim.Modules.Accounts;
@@ -33,7 +34,6 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
     private static readonly string UploadSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.UploadSnapshot).Route;
     private static readonly string SendChatMessageRoute = ProtocolContractManifest.Find(ProtocolMessageKind.SendChatMessage).Route;
     private static readonly string ListChatMessagesRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ListChatMessages).Route;
-    private static readonly string OverrideCompatibilityBaselineRoute = ProtocolContractManifest.Find(ProtocolMessageKind.OverrideCompatibilityBaseline).Route;
 
     private readonly ClientProtocolTransport transport;
     private readonly ClientEventProtocol events;
@@ -47,6 +47,7 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
     private readonly ClientAccountProtocol accounts;
     private readonly ClientAdminProtocol adminProtocol;
     private readonly ClientAdminBaselineProtocol adminBaseline;
+    private readonly ClientCompatibilityOverrideProtocol compatibilityOverride;
     private readonly ClientAuthenticationEnvironment authenticationEnvironment = new();
     private readonly ClientSessionProtocol authentication;
     private readonly ClientSessionWebSocketTransport sessionStream;
@@ -78,6 +79,7 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
         this.context = context ?? throw new ArgumentNullException(nameof(context));
         var protocolEnvironment = new ClientProtocolEnvironment((message, token) => SessionExpired?.Invoke(message, token));
         transport = new ClientProtocolTransport(httpClient, context, protocolEnvironment);
+        compatibilityOverride = new ClientCompatibilityOverrideProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         SnapshotDownloads = new ClientSnapshotDownloadProtocol(transport, context, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         packageWriter = new ClientPackageWriter(transport, context, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         shopProtocol = new ClientShopProtocol(transport, context, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
@@ -114,30 +116,8 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
         => authentication.LoginAsync(context, compatibilityDigest, compatibilityManifestJson, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModOverrideCompatibilityBaselineResponseDto>> OverrideCompatibilityBaselineAsync(
-        string compatibilityManifestJson,
-        CancellationToken cancellationToken = default)
-    {
-        if (!context.HasServerIdentity)
-        {
-            return NotConfigured<ModOverrideCompatibilityBaselineResponseDto>();
-        }
-
-        var request = new ModOverrideCompatibilityBaselineRequestDto
-        {
-            UserId = context.UserId,
-            ColonyId = null,
-            CompatibilityManifestJson = compatibilityManifestJson ?? string.Empty,
-            SteamAuthTicket = string.IsNullOrWhiteSpace(context.SteamAuthTicket)
-                ? context.UserId
-                : context.SteamAuthTicket,
-            Password = context.OfflinePassword
-        };
-
-        return transport.PostAsync<ModOverrideCompatibilityBaselineRequestDto, ModOverrideCompatibilityBaselineResponseDto>(
-            OverrideCompatibilityBaselineRoute,
-            request,
-            cancellationToken);
-    }
+        string compatibilityManifestJson, CancellationToken cancellationToken = default)
+        => compatibilityOverride.SubmitAsync(context, compatibilityManifestJson, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModAdminStatusResponseDto>> AdminStatusAsync(CancellationToken cancellationToken = default)
         => adminProtocol.ReadAsync(context, cancellationToken);

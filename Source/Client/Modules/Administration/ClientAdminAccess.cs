@@ -4,9 +4,9 @@ using AIRsLight.ClashOfRim.Modules.Sessions;
 
 namespace AIRsLight.ClashOfRim.Modules.Administration;
 
-// Administrator permission and one in-flight operation belong to the login.
-// World writes may additionally bind their source; losing it frees admission
-// without letting the old HTTP completion release a newer operation.
+// One admission serializes authenticated administration and credential recovery.
+// World writes bind their source; recovery binds its credential and availability.
+// Losing either frees admission without letting old completion release new work.
 internal sealed class ClientAdminAccess
 {
     private readonly ClientRequestTracker requests;
@@ -33,36 +33,51 @@ internal sealed class ClientAdminAccess
         return true;
     });
     internal Ticket? Begin(out string? failureKey, Func<bool>? sourceCurrent = null)
+        => Begin(out failureKey, sourceCurrent, requiresAdministrator: true);
+    // Compatibility recovery must work before login. The server authenticates
+    // the supplied account credential; this ticket grants no local admin role.
+    internal Ticket? BeginCredentials(out string? failureKey)
+        => Begin(out failureKey, null, requiresAdministrator: false);
+    private Ticket? Begin(out string? failureKey, Func<bool>? sourceCurrent, bool requiresAdministrator)
     {
         string? failure = null;
         var result = requests.Read(() =>
         {
             ReleaseExpiredSource();
-            var scope = requests.Capture();
-            if (session.IsUnavailable || !scope.Context.IsConfigured || string.IsNullOrWhiteSpace(scope.Context.AuthToken))
+            var context = session.ReadContext();
+            if (requiresAdministrator
+                ? session.IsUnavailable || !context.IsConfigured || string.IsNullOrWhiteSpace(context.AuthToken) : !context.HasServerIdentity)
             { failure = "ClashOfRim.Admin.NotConnected"; return null; }
-            if (!administrator) { failure = "ClashOfRim.Admin.NotAdministrator"; return null; }
+            if (requiresAdministrator && !administrator) { failure = "ClashOfRim.Admin.NotAdministrator"; return null; }
             if (sourceCurrent?.Invoke() == false) return null;
             var request = requests.Begin();
-            return request is null ? null : active = new(request, sourceCurrent);
+            return request is null ? null : active = new(request, sourceCurrent, requiresAdministrator, session.IsUnavailable);
         });
         failureKey = failure;
         return result;
     }
     private void ReleaseExpiredSource()
-    { if (active is { } ticket && ticket.SourceCurrent?.Invoke() == false) End(ticket); }
+    { if (active is { } ticket && !OwnsSource(ticket)) End(ticket); }
+    private bool OwnsSource(Ticket ticket)
+    {
+        if (ticket.SourceCurrent?.Invoke() == false) return false;
+        if (ticket.RequiresAdministrator) return true;
+        var current = session.ReadContext();
+        return session.IsUnavailable == ticket.UnavailableAtStart
+            && current.OfflinePassword == ticket.Context.OfflinePassword && current.SteamAuthTicket == ticket.Context.SteamAuthTicket;
+    }
     internal bool TryApply(Ticket ticket, Action action)
     {
         bool applied = false;
         requests.TryApply(ticket.Request, () =>
         {
-            if (!administrator || session.IsUnavailable || ticket.SourceCurrent?.Invoke() == false) return;
+            if ((ticket.RequiresAdministrator && (!administrator || session.IsUnavailable)) || !OwnsSource(ticket)) return;
             action(); applied = true;
         });
         return applied;
     }
     internal bool IsCurrent(Ticket ticket) => TryApply(ticket, static () => { });
     internal void End(Ticket ticket) => requests.TryApply(ticket.Request, () => { requests.End(ticket.Request); if (ReferenceEquals(active, ticket)) active = null; });
-    internal sealed record Ticket(ClientRequestTracker.Request Request, Func<bool>? SourceCurrent)
+    internal sealed record Ticket(ClientRequestTracker.Request Request, Func<bool>? SourceCurrent, bool RequiresAdministrator, bool UnavailableAtStart)
     { internal ClashOfRimClientNetworkContext Context => Request.Context; }
 }

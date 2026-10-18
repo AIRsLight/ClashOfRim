@@ -12,7 +12,9 @@ namespace AIRsLight.ClashOfRim.Admin;
 internal sealed class ClientAdminBaselineTransport : IClientAdminBaselineTransport
 {
     private readonly IClientProtocolEnvironment environment;
-    internal ClientAdminBaselineTransport(IClientProtocolEnvironment environment) => this.environment = environment;
+    private readonly TimeSpan? timeout;
+    internal ClientAdminBaselineTransport(IClientProtocolEnvironment environment, TimeSpan? timeout = null)
+    { this.environment = environment; this.timeout = timeout; }
     public Task<ClashOfRimClientNetworkResult<ModGetAdminBaselineRequirementsResponseDto>> RequirementsAsync(ClashOfRimClientNetworkContext context, CancellationToken token)
         => Run(context, protocol => protocol.RequirementsAsync(context, token));
     public Task<ClashOfRimClientNetworkResult<ModSubmitAdminBaselineResponseDto>> SubmitAsync(ClashOfRimClientNetworkContext context, ModSubmitAdminBaselineRequestDto request, CancellationToken token)
@@ -20,6 +22,7 @@ internal sealed class ClientAdminBaselineTransport : IClientAdminBaselineTranspo
     private async Task<T> Run<T>(ClashOfRimClientNetworkContext context, Func<ClientAdminBaselineProtocol, Task<T>> operation)
     {
         using var http = new HttpClient();
+        if (timeout is { } value) http.Timeout = value;
         var diagnostics = new ClientAuthenticationEnvironment();
         var transport = new ClientProtocolTransport(http, context, environment);
         var authentication = new ClientSessionProtocol(transport, diagnostics, diagnostics);

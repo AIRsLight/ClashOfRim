@@ -28,7 +28,7 @@ internal interface IClientAdminBaselineSource
 // callers tied to a world add that boundary without imposing it on menu capture.
 internal sealed class ClientAdminBaselineCapture
 {
-    internal sealed record Captured(ClientRequestTracker<object?>.Scope Scope, ClashOfRimClientNetworkContext Context);
+    internal sealed record Captured(ClientRequestTracker<object?>.Scope Scope, ClashOfRimClientNetworkContext Context, bool Recovering = false);
     private readonly ClientSessionLifecycle session;
     private readonly ClientRequestTracker requests;
     private readonly IClientAdminBaselineSource source;
@@ -36,6 +36,10 @@ internal sealed class ClientAdminBaselineCapture
     internal ClientAdminBaselineCapture(ClientSessionLifecycle session, IClientAdminBaselineSource source, Action<Action, Action> enqueue)
     { this.session = session; requests = new(session, static () => { }); this.source = source; this.enqueue = enqueue; }
     internal Captured Capture() => requests.Read(() => new Captured(requests.Capture(), session.ReadContext()));
+    // Only an explicit credential recovery can capture definitions while its
+    // original session is unavailable. The workflow still checks that ticket.
+    internal Captured CaptureCredentials(ClientAdminAccess.Ticket ticket)
+        => requests.Read(() => new Captured(requests.Capture(), ticket.Context, !ticket.RequiresAdministrator && ticket.UnavailableAtStart));
 
     internal async Task<ModSubmitAdminBaselineRequestDto> CaptureAsync(Captured owner,
         IReadOnlyList<ModAdminBaselineExtensionRequirementDto>? requirements, CancellationToken token = default, Func<bool>? current = null)
@@ -51,7 +55,7 @@ internal sealed class ClientAdminBaselineCapture
             bool applied = false;
             requests.TryApply(owner.Scope, () =>
             {
-                if (cancellation.IsCancellationRequested || session.IsUnavailable || (current is not null && !current())) return;
+                if (cancellation.IsCancellationRequested || (session.IsUnavailable && !owner.Recovering) || (current is not null && !current())) return;
                 action(); applied = true;
             });
             return applied;

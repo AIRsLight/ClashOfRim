@@ -1463,6 +1463,7 @@ internal sealed class CompatibilityBaselineOverrideWindow : Window
     private float progress;
     private bool finished;
     private bool success;
+    private System.Threading.Tasks.Task? operation;
 
     public CompatibilityBaselineOverrideWindow(ClashOfRimMod mod)
     {
@@ -1479,11 +1480,18 @@ internal sealed class CompatibilityBaselineOverrideWindow : Window
     public override void PreOpen()
     {
         base.PreOpen();
-        mod.StartOverrideCompatibilityBaselineFromCurrentClient(UpdateProgress, Finish);
+        operation = mod.StartOverrideCompatibilityBaselineFromCurrentClient(UpdateProgress, Finish);
     }
 
     public override void DoWindowContents(Rect inRect)
     {
+        // A discarded/obsolete session cannot publish callbacks. Its own window
+        // still needs an exit once the operation ends.
+        if (!finished && operation?.IsCompleted == true)
+        {
+            if (operation.IsFaulted) Log.Warning("[ClashOfRim][Compatibility] Override presentation failed: " + operation.Exception);
+            Finish(T("ClashOfRim.Compatibility.Override.Failed"), false);
+        }
         Text.Font = GameFont.Medium;
         Widgets.Label(new Rect(inRect.x, inRect.y, inRect.width, 34f), T("ClashOfRim.Compatibility.Override.Title"));
         Text.Font = GameFont.Small;

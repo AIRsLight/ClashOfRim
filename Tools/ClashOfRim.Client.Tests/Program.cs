@@ -19,6 +19,9 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("compatibility override protocol preserves credential recovery wire contract", ClientCompatibilityOverrideProtocolTests.Run),
+    ("compatibility baseline owns manifest and DLC publication", ClientCompatibilityBaselineTests.Run),
+    ("compatibility override owns credential admission and catalog completion", ClientCompatibilityOverrideTests.Run),
     ("world login publication preserves request observations across identity changes", ClientWorldLoginPublicationTests.Run),
     ("world publication preserves request order and local appearance edits", ClientWorldPublicationTests.Run),
     ("world synchronization runtime shares layered object and path capture", ClientWorldSynchronizationRuntimeTests.Run),

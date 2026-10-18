@@ -39,6 +39,7 @@ using AIRsLight.ClashOfRim.Bank;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.ClientSnapshots;
 using AIRsLight.ClashOfRim.CompatibilityClient;
+using AIRsLight.ClashOfRim.Modules.Compatibility;
 using AIRsLight.ClashOfRim.Diplomacy;
 using AIRsLight.ClashOfRim.EventLetters;
 using AIRsLight.ClashOfRim.Gifts;
@@ -126,7 +127,8 @@ public sealed partial class ClashOfRimMod : Mod
     private string tradeStatus { get => tradeState.Message; set => tradeState.Message = value; }
     private string worldMapStatus = string.Empty;
     private string chatStatus = string.Empty;
-    private string serverCompatibilityManifestJson = string.Empty;
+    private readonly ClientCompatibilityBaseline compatibilityBaseline;
+    private readonly ClientCompatibilityOverride compatibilityOverride;
     private readonly ClientLocalMutationCoordinator localMutations = new();
     // Read-only bridge for domains that have not yet moved out of the Mod.
     private string? lastSessionId => sessionLifecycle.SessionId;
@@ -174,6 +176,12 @@ public sealed partial class ClashOfRimMod : Mod
         sessionLifecycle = new ClientSessionLifecycle(new ClientSessionIdentityStore(settings), new ClientSessionLogoutTransport(), sessionConnection);
         adminAccess = new ClientAdminAccess(sessionLifecycle);
         adminBaselineCapture = new ClientAdminBaselineCapture(sessionLifecycle, new AIRsLight.ClashOfRim.Admin.ClientAdminBaselineRuntime(), ClientMainThreadDispatcher.EnqueueSession);
+        var localManifest = new ClientLocalCompatibilityManifest();
+        compatibilityBaseline = new ClientCompatibilityBaseline(new ClientCompatibilityBaselineRuntime());
+        var compatibilityEnvironment = new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner));
+        compatibilityOverride = new ClientCompatibilityOverride(adminAccess, localManifest, compatibilityBaseline, adminBaselineCapture,
+            new AIRsLight.ClashOfRim.Admin.ClientAdminBaselineTransport(compatibilityEnvironment, TimeSpan.FromSeconds(15)),
+            new ClientCompatibilityOverrideTransport(compatibilityEnvironment), new ClientCompatibilityOverridePresentation(), ClientMainThreadDispatcher.EnqueueSession);
         administration = new ClientAdministration(adminAccess,
             new AIRsLight.ClashOfRim.Admin.ClientAdminTransport(new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner))),
             new AIRsLight.ClashOfRim.Admin.ClientAdminPresentation());
@@ -423,11 +431,11 @@ public sealed partial class ClashOfRimMod : Mod
         BuiltInClientCompatibility.Apply(harmony);
         harmony.PatchAll();
         ClashOfRimModNetworkClient.SessionExpired = (message, authToken) => HandleSessionExpired(message, authToken, observedSessionId: null);
-        ClashOfRimModNetworkClient.CompatibilityManifestJsonProvider = BuildCompatibilityManifestJsonForLogin;
-        ClashOfRimModNetworkClient.CompatibilityManifestIdProvider = BuildCompatibilityManifestIdForLogin;
-        ClashOfRimModNetworkClient.CompatibilityManifestSummaryJsonProvider = BuildCompatibilityManifestSummaryJsonForLogin;
-        ClashOfRimModNetworkClient.CompatibilityManifestJsonForPackagesProvider = BuildCompatibilityManifestJsonForPackages;
-        ClashOfRimModNetworkClient.ServerEntryDiagnosticsLogger = LogCompatibilityManifestForServerEntry;
+        ClashOfRimModNetworkClient.CompatibilityManifestJsonProvider = () => localManifest.BuildJson(null);
+        ClashOfRimModNetworkClient.CompatibilityManifestIdProvider = () => localManifest.Id;
+        ClashOfRimModNetworkClient.CompatibilityManifestSummaryJsonProvider = () => localManifest.SummaryJson;
+        ClashOfRimModNetworkClient.CompatibilityManifestJsonForPackagesProvider = localManifest.BuildJson;
+        ClashOfRimModNetworkClient.ServerEntryDiagnosticsLogger = localManifest.LogEntry;
         Log.Message("[ClashOfRim] Initialized for RimWorld " + VersionControl.CurrentVersionString
             + "; runtime=" + Environment.Version
             + "; Harmony=" + typeof(Harmony).Assembly.GetName().Version
@@ -479,7 +487,7 @@ public sealed partial class ClashOfRimMod : Mod
     internal bool CanEditModSettings => !settings.IsConfigured
         || adminAccess.IsAdministrator;
 
-    internal string ServerCompatibilityManifestJson => serverCompatibilityManifestJson;
+    internal string ServerCompatibilityManifestJson => compatibilityBaseline.Manifest;
 
     internal bool AdminInProgress => adminAccess.Busy;
 
