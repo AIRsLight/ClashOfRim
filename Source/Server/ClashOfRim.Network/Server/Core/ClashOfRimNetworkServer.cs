@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Network.Modules.Raids;
 using AIRsLight.ClashOfRim.Network.Modules.Support;
 using AIRsLight.ClashOfRim.Network.Modules.Mercenaries;
 using AIRsLight.ClashOfRim.Network.Modules.Shop;
@@ -118,9 +119,7 @@ public static partial class ClashOfRimNetworkServer
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.StoreThingPackage).Route, StoreThingPackage);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.GetThingPackage).Route, GetThingPackage);
         ShopEndpoints.Map(app, app.Services.GetRequiredService<ClashOfRimNetworkState>().Shop);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.PrepareRaid).Route, PrepareRaid);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.CreateRaid).Route, CreateRaid).WithMetadata(EndpointSnapshotRecovery.Instance);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.CreateRaidWithSnapshot).Route, CreateRaidWithSnapshot).WithMetadata(EndpointSnapshotRecovery.Instance);
+        RaidEndpoints.Map(app, tradeState.RaidPreparation, tradeState.RaidStarting);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.CreateDiplomacyEvent).Route, CreateDiplomacyEvent).WithMetadata(EndpointSnapshotRecovery.Instance);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.RespondDiplomacyEvent).Route, RespondDiplomacyEvent).WithMetadata(EndpointSnapshotRecovery.Instance);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.SyncWorldMapMarkers).Route, SyncWorldMapMarkers);
@@ -542,24 +541,6 @@ public static partial class ClashOfRimNetworkServer
     private static string NormalizeSnapshotUploadKind(string? snapshotUploadKind, string? confirmationOperation = null)
         => SnapshotTransactions.NormalizeSnapshotUploadKind(snapshotUploadKind, confirmationOperation);
 
-    private static int? CalculateSnapshotWealth(LatestSnapshotRecord snapshot)
-    {
-        float total = 0f;
-        bool hasWealth = false;
-        foreach (MapSummary map in snapshot.Index.Maps)
-        {
-            if (map.WealthTotal is null)
-            {
-                continue;
-            }
-
-            hasWealth = true;
-            total += Math.Max(0f, map.WealthTotal.Value);
-        }
-
-        return hasWealth ? (int)Math.Round(total, MidpointRounding.AwayFromZero) : null;
-    }
-
     private readonly record struct PlayerSnapshotWealthSummary(
         string ColonyId,
         string? CurrentSnapshotId,
@@ -586,7 +567,7 @@ public static partial class ClashOfRimNetworkServer
         string snapshotColonyId = string.IsNullOrWhiteSpace(snapshot.Identity.ColonyId)
             ? colonyId
             : snapshot.Identity.ColonyId!;
-        int? wealth = CalculateSnapshotWealth(snapshot)
+        int? wealth = SnapshotWealth.Total(snapshot.Index)
             ?? CalculateLatestSnapshotWealthFromPackage(state, snapshotOwnerId, snapshotColonyId, snapshot.Identity);
         state.Players.RecordLatestSnapshotWealth(
             snapshotOwnerId,
@@ -705,11 +686,7 @@ public static partial class ClashOfRimNetworkServer
             return null;
         }
 
-        return CalculateSnapshotWealth(new LatestSnapshotRecord(
-            package.Envelope.Identity,
-            package.Envelope,
-            package.Index,
-            DateTimeOffset.UtcNow));
+        return SnapshotWealth.Total(package.Index);
     }
 
     private static void ProcessWorldTileFloatLayersFromAcceptedSnapshot(

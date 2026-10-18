@@ -1,4 +1,5 @@
 using AIRsLight.ClashOfRim.Network.Modules.Support;
+using AIRsLight.ClashOfRim.Network.Modules.Raids;
 using AIRsLight.ClashOfRim.Network.Modules.Mercenaries;
 using AIRsLight.ClashOfRim.Network.Modules.Shop;
 using AIRsLight.ClashOfRim.Network.Modules.Trades;
@@ -112,6 +113,13 @@ public sealed class ClashOfRimNetworkState
         SnapshotTransactions = new SnapshotTransactions(SnapshotStore, SnapshotUploadPolicy, Plugins, CompatibilityBaseline);
         PendingConfirmations = new PendingConfirmationReconciler(BankLoans, MercenaryContracts,
             () => ServerConfiguration, RaidSettlementSnapshotMutationGate);
+        var raidReconciliation = new LegacyRaidDeliveryProtection(this);
+        var raidAdmission = new RaidAdmission(DiplomacyRelations, OnlinePresence, RaidProtection, () => ServerConfiguration);
+        RaidPreparation = new RaidPreparation(SnapshotStore, RaidPreparations, MercenaryGuards, RaidQueries, raidAdmission,
+            raidReconciliation, WorldConfiguration, () => ServerConfiguration);
+        RaidStarting = new RaidStarting(Ledger, SnapshotStore, RaidQueries, MercenaryGuards, SnapshotRequests, SnapshotTransactions,
+            PendingConfirmations, raidAdmission, raidReconciliation, new RaidSnapshotCommitter(SnapshotCommits, SnapshotStore,
+                BankLoans, Ledger, MercenaryContracts, MercenaryGuards, EventNotifications, recovery, () => RuntimeLogger), () => ServerConfiguration);
         BankRequests = new BankRequestAccess(ColonyAuthorization, SnapshotMutations, SnapshotStore, BankLoans, PendingConfirmations);
         Bank = new BankService(BankLoans, MercenaryContracts, SnapshotStore, SnapshotCommits,
             BankRequests, SnapshotRequests, SnapshotTransactions, recovery, () => ServerConfiguration);
@@ -130,7 +138,7 @@ public sealed class ClashOfRimNetworkState
         DeliveryTargets = new DeliveryTargetResolver(SnapshotStore);
         Gifts = new GiftService(Ledger, SnapshotStore, BankLoans, MercenaryContracts, SnapshotCommits,
             SnapshotRequests, SnapshotTransactions, PendingConfirmations, TransferPackages, DeliveryTargets,
-            OnlinePresence, EventNotifications, DiplomacyRelations, new LegacyRaidDeliveryProtection(this),
+            OnlinePresence, EventNotifications, DiplomacyRelations, raidReconciliation,
             recovery, () => ServerConfiguration);
         TradeDelivery = new TradeDelivery(SnapshotStore, OnlinePresence, Ledger, Plugins, CompatibilityBaseline,
             WorldConfiguration, WorldTileDistanceCalculator, () => ServerConfiguration);
@@ -152,6 +160,8 @@ public sealed class ClashOfRimNetworkState
     public IAuthoritativeEventLedger Ledger { get; }
     internal Modules.Raids.RaidQueries RaidQueries { get; }
     internal Modules.Raids.RaidProtection RaidProtection { get; }
+    internal RaidPreparation RaidPreparation { get; }
+    internal RaidStarting RaidStarting { get; }
 
     internal ColonyAccessAuthorization ColonyAuthorization { get; }
     internal ColonySnapshotAuthorization SnapshotAuthorization { get; }

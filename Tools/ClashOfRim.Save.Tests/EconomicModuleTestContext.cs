@@ -19,7 +19,7 @@ using AIRsLight.ClashOfRim.Save;
 // Composes actual domain modules without a network host or its aggregate state.
 internal sealed class EconomicModuleTestContext
 {
-    internal readonly InMemoryColonySnapshotIndexStore Snapshots = new();
+    internal readonly IColonySnapshotIndexStore Snapshots;
     internal readonly InMemoryAuthoritativeEventLedger Ledger = new();
     internal readonly BankLoanRegistry Loans = new();
     internal readonly LoginSessionRegistry Sessions = new();
@@ -32,6 +32,9 @@ internal sealed class EconomicModuleTestContext
     internal readonly ThingPackageRegistry Things = new();
     internal readonly object Gate = new();
     internal readonly RaidProtectionProbe Raids;
+    internal readonly RaidPreparationRegistry RaidPreparations = new();
+    internal readonly RaidPreparation RaidPreparation;
+    internal readonly RaidStarting RaidStarting;
     internal ClashOfRimServerConfiguration Configuration = new(bankLoansEnabled: true, bankMinLoanSilver: 1,
         bankMinDurationDays: 1, bankBaseAnnualInterestRate: 0);
     internal readonly BankRequestAccess Access;
@@ -57,12 +60,13 @@ internal sealed class EconomicModuleTestContext
     internal readonly SaveSnapshotPackage Package;
     internal readonly string Token;
 
-    internal EconomicModuleTestContext(Func<string, SaveSnapshotPackage> factory)
+    internal EconomicModuleTestContext(Func<string, SaveSnapshotPackage> factory, IColonySnapshotIndexStore? snapshots = null)
     {
+        Snapshots = snapshots ?? new InMemoryColonySnapshotIndexStore();
         var mercenaries = MercenaryContracts;
         var mutations = new SnapshotMutationCoordinator(Gate, Recovery);
         var colonies = new ColonyAccessAuthorization(Tokens, Sessions, Relations,
-            new RaidPreparationRegistry(), Ledger, () => Configuration.PvpEnabled);
+            RaidPreparations, Ledger, () => Configuration.PvpEnabled);
         var pending = new PendingConfirmationReconciler(Loans, mercenaries, () => Configuration, Gate);
         Access = new BankRequestAccess(colonies, mutations, Snapshots, Loans, pending);
         var principals = new SnapshotPrincipalAuthorization(Tokens, Sessions);
@@ -81,6 +85,15 @@ internal sealed class EconomicModuleTestContext
         SupportSending = new SupportSending(Ledger, Snapshots, requests, transactions, pending, Presence, Notifications,
             new SupportSnapshotCommitter(commits, Snapshots, Loans, Ledger, mercenaries, Notifications, Recovery));
         Raids = new RaidProtectionProbe(Gate);
+        var raidQueries = new RaidQueries(Ledger, () => Configuration);
+        var raidProtection = new RaidProtection(Ledger, new RaidProtectionActivationRegistry(), new RaidCooldownOverrideRegistry(),
+            () => Configuration, NullLogger.Instance);
+        var raidAdmission = new RaidAdmission(Relations, Presence, raidProtection, () => Configuration);
+        RaidPreparation = new RaidPreparation(Snapshots, RaidPreparations, MercenaryGuards, raidQueries, raidAdmission,
+            Raids, World, () => Configuration);
+        RaidStarting = new RaidStarting(Ledger, Snapshots, raidQueries, MercenaryGuards, requests, transactions, pending,
+            raidAdmission, Raids, new RaidSnapshotCommitter(commits, Snapshots, Loans, Ledger, mercenaries,
+                MercenaryGuards, Notifications, Recovery, () => NullLogger.Instance), () => Configuration);
         Packages = new ItemTransferPackages(Pawns, Things);
         Gifts = new GiftService(Ledger, Snapshots, Loans, mercenaries, commits, requests, transactions, pending,
             Packages, new DeliveryTargetResolver(Snapshots), Presence, Notifications, Relations, Raids, Recovery, () => Configuration);

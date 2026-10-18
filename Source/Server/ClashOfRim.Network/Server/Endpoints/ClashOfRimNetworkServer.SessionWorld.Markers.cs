@@ -1,4 +1,5 @@
 using AIRsLight.ClashOfRim.Compatibility;
+using AIRsLight.ClashOfRim.Network.Modules.Snapshots;
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Network.Plugins;
 using AIRsLight.ClashOfRim.Protocol;
@@ -666,7 +667,7 @@ public static partial class ClashOfRimNetworkServer
             return Math.Max(0, player.LatestSnapshotWealth.Value);
         }
 
-        int? wealth = CalculateSnapshotWealth(snapshot)
+        int? wealth = SnapshotWealth.Total(snapshot.Index)
             ?? CalculateLatestSnapshotWealthFromPackage(state, snapshotOwnerId, snapshotColonyId, snapshot.Identity);
         if (wealth.HasValue)
         {

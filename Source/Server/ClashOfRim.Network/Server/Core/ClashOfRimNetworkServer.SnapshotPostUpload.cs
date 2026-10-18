@@ -1,4 +1,5 @@
 using AIRsLight.ClashOfRim.Events;
+using AIRsLight.ClashOfRim.Network.Modules.Snapshots;
 using AIRsLight.ClashOfRim.Network.Plugins;
 using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Save;
@@ -204,7 +205,7 @@ public static partial class ClashOfRimNetworkServer
         }
 
         var metrics = new Dictionary<string, long>(StringComparer.Ordinal);
-        int? wealth = CalculateSnapshotWealth(snapshot);
+        int? wealth = SnapshotWealth.Total(snapshot.Index);
         if (wealth.HasValue)
         {
             metrics[AchievementRegistry.MetricColonyWealth] = wealth.Value;
