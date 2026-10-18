@@ -125,6 +125,7 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
+        var adminCapture = adminBaselineCapture.Capture();
         progress?.Invoke(ClashOfRimText.Key("ClashOfRim.Compatibility.Override.StageUpload"), 0.24f);
         ClientSessionWork.Run(async () =>
         {
@@ -139,7 +140,7 @@ public sealed partial class ClashOfRimMod
                 };
                 var client = new ClashOfRimModNetworkClient(
                     httpClient,
-                    ClashOfRimClientNetworkContext.FromSettings(settings));
+                    adminCapture.Context);
                 ClashOfRimClientNetworkResult<ModOverrideCompatibilityBaselineResponseDto> result =
                     await ClientSessionWork.Observe(client.OverrideCompatibilityBaselineAsync(manifestJson!));
                 using (ClientSessionWork.EnterPublication())
@@ -168,8 +169,8 @@ public sealed partial class ClashOfRimMod
                         }
                     }
 
-                    ModSubmitAdminBaselineRequestDto adminBaseline = await ClientSessionWork.Observe(BuildAdminBaselineOnMainThreadAsync(
-                        requirementsResult.Response.BaselineExtensions));
+                    ModSubmitAdminBaselineRequestDto adminBaseline = await ClientSessionWork.Observe(adminBaselineCapture.CaptureAsync(
+                        adminCapture, requirementsResult.Response.BaselineExtensions));
                     using (ClientSessionWork.EnterPublication())
                     {
                         EnqueueClashOfRimMainThreadAction(() => progress?.Invoke(ClashOfRimText.Key("ClashOfRim.Compatibility.Override.StageSubmitAdminBaseline"), 0.72f));

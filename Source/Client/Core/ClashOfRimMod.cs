@@ -157,6 +157,7 @@ public sealed partial class ClashOfRimMod : Mod
     private readonly ClientWorldGeneration worldGeneration;
     private readonly ClientWorldBaselineSubmission worldBaselineSubmission;
     private readonly ClientWorldBaselineCapture worldBaselineCapture;
+    private readonly ClientAdminBaselineCapture adminBaselineCapture;
     private readonly List<ModChatMessageDto> lastChatMessages = new();
     private readonly List<ModWorldMapMarkerDto> lastWorldMapMarkers = new();
     private readonly Dictionary<string, ModPlayerColonySiteDto> occupiedPlayerColonySites = new(StringComparer.Ordinal);
@@ -177,6 +178,7 @@ public sealed partial class ClashOfRimMod : Mod
         snapshotPublication = ClientSnapshotComposition.CreatePublication(settings);
         sessionLifecycle = new ClientSessionLifecycle(new ClientSessionIdentityStore(settings), new ClientSessionLogoutTransport(), sessionConnection);
         adminAccess = new ClientAdminAccess(sessionLifecycle);
+        adminBaselineCapture = new ClientAdminBaselineCapture(sessionLifecycle, new AIRsLight.ClashOfRim.Admin.ClientAdminBaselineRuntime(), ClientMainThreadDispatcher.EnqueueSession);
         administration = new ClientAdministration(adminAccess,
             new AIRsLight.ClashOfRim.Admin.ClientAdminTransport(new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner))),
             new AIRsLight.ClashOfRim.Admin.ClientAdminPresentation());

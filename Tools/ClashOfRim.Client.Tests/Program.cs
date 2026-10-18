@@ -19,6 +19,9 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("administrator baseline runtime preserves definition and stat catalogs without a game", ClientAdminBaselineRuntimeTests.Run),
+    ("administrator baseline protocol freezes setup input and shares two wire contracts", ClientAdminBaselineProtocolTests.Run),
+    ("administrator baseline capture owns catalogs and queued session boundaries", ClientAdminBaselineCaptureTests.Run),
     ("administrator protocol shares three wire contracts and captured context", ClientAdminProtocolTests.Run),
     ("administrator control owns cache, commands and follow-up publication", ClientAdministrationTests.Run),
     ("world writes share administrator admission, capture and completion", ClientWorldWritesTests.Run),

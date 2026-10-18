@@ -56,6 +56,7 @@ internal static class ClientModuleBoundaryTests
             || t == typeof(ClientEventDecisionPresentation) || t == typeof(ClientEventDecisionRuntime)
             || t == typeof(ClientDiplomacyCreationPresentation) || t == typeof(ClientDiplomacyRelationEffects) || t == typeof(ClientDiplomacyTransport)
             || t == typeof(ClientPasswordStore) || t == typeof(ClientPasswordTransport) || t == typeof(ClientPasswordPresentation)
+            || t == typeof(AIRsLight.ClashOfRim.Admin.ClientAdminBaselineRuntime)
             || t == typeof(AIRsLight.ClashOfRim.Admin.ClientAdminTransport) || t == typeof(AIRsLight.ClashOfRim.Admin.ClientAdminPresentation)
             || t == typeof(ClientWorldWritePresentation) || t == typeof(ClientWorldCatalogRuntime) || t == typeof(ClientWorldCatalogPresentation)
             || t == typeof(ClientWorldColonySitesRuntime) || t == typeof(ClientWorldBaselineRuntime) || t == typeof(ClientWorldFeaturesRuntime) || t == typeof(ClientWorldNameRuntime)
@@ -119,6 +120,7 @@ internal static class ClientModuleBoundaryTests
             typeof(ClientDiplomacyPresentation), typeof(ClientEventTextFormatting), typeof(ClientEventReadPresentation),
             typeof(ClientEventDecisionPresentation), typeof(ClientEventDecisionRuntime),
             typeof(ClientDiplomacyCreationPresentation), typeof(ClientDiplomacyRelationEffects), typeof(ClientDiplomacyTransport),
+            typeof(AIRsLight.ClashOfRim.Admin.ClientAdminBaselineRuntime),
             typeof(AIRsLight.ClashOfRim.Admin.ClientAdminTransport), typeof(AIRsLight.ClashOfRim.Admin.ClientAdminPresentation),
             typeof(ClientWorldWritePresentation), typeof(ClientWorldCatalogRuntime), typeof(ClientWorldCatalogPresentation),
             typeof(ClientWorldColonySitesRuntime), typeof(ClientWorldBaselineRuntime), typeof(ClientWorldFeaturesRuntime), typeof(ClientWorldNameRuntime),

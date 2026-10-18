@@ -37,8 +37,6 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
     private static readonly string PreflightColonyRelocationRoute = ProtocolContractManifest.Find(ProtocolMessageKind.PreflightColonyRelocation).Route;
     private static readonly string ConfirmColonyRelocationRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ConfirmColonyRelocation).Route;
     private static readonly string AbandonPlayerColonyRoute = ProtocolContractManifest.Find(ProtocolMessageKind.AbandonPlayerColony).Route;
-    private static readonly string GetAdminBaselineRequirementsRoute = ProtocolContractManifest.Find(ProtocolMessageKind.GetAdminBaselineRequirements).Route;
-    private static readonly string SubmitAdminBaselineRoute = ProtocolContractManifest.Find(ProtocolMessageKind.SubmitAdminBaseline).Route;
     private static readonly string SendChatMessageRoute = ProtocolContractManifest.Find(ProtocolMessageKind.SendChatMessage).Route;
     private static readonly string ListChatMessagesRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ListChatMessages).Route;
     private static readonly string OverrideCompatibilityBaselineRoute = ProtocolContractManifest.Find(ProtocolMessageKind.OverrideCompatibilityBaseline).Route;
@@ -52,9 +50,9 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
     private readonly ClientDiplomacyProtocol diplomacy;
     private readonly ClientAccountProtocol accounts;
     private readonly ClientAdminProtocol adminProtocol;
+    private readonly ClientAdminBaselineProtocol adminBaseline;
     private readonly ClientAuthenticationEnvironment authenticationEnvironment = new();
     private readonly ClientSessionProtocol authentication;
-    private readonly ClientSetupAuthenticationLease setupAuthentication;
     private readonly ClientSessionWebSocketTransport sessionStream;
     private readonly ClashOfRimClientNetworkContext context;
     private readonly ClientPackageReader packages;
@@ -102,7 +100,8 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
         adminProtocol = new ClientAdminProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         packages = new ClientPackageReader(transport, context, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         authentication = new ClientSessionProtocol(transport, authenticationEnvironment, authenticationEnvironment);
-        setupAuthentication = new ClientSetupAuthenticationLease(authentication, transport, authenticationEnvironment);
+        var setupAuthentication = new ClientSetupAuthenticationLease(authentication, transport, authenticationEnvironment);
+        adminBaseline = new ClientAdminBaselineProtocol(setupAuthentication, () => authenticationEnvironment.NotConfiguredMessage);
         world = new ClientWorldProtocol(transport, setupAuthentication, authenticationEnvironment, authenticationEnvironment, authenticationEnvironment.LogWorldEntry);
         sessionStream = new ClientSessionWebSocketTransport(new ClientWebSocketFactory(), protocolEnvironment);
     }
@@ -503,28 +502,10 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
 
     public Task<ClashOfRimClientNetworkResult<ModSubmitAdminBaselineResponseDto>> SubmitAdminBaselineAsync(
         ModSubmitAdminBaselineRequestDto request,
-        CancellationToken cancellationToken = default)
-    {
-        return setupAuthentication.RunAsync<ModSubmitAdminBaselineResponseDto>(context, "admin-baseline-setup", (authenticated, requestTransport, token) =>
-        {
-            return requestTransport.PostAsync<ModSubmitAdminBaselineRequestDto, ModSubmitAdminBaselineResponseDto>(
-                SubmitAdminBaselineRoute, request.WithAuthentication(authenticated.UserId, authenticated.ColonyId, authenticated.AuthToken), token);
-        }, cancellationToken);
-    }
+        CancellationToken cancellationToken = default) => adminBaseline.SubmitAsync(context, request, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModGetAdminBaselineRequirementsResponseDto>> GetAdminBaselineRequirementsAsync(
-        CancellationToken cancellationToken = default)
-    {
-        return setupAuthentication.RunAsync<ModGetAdminBaselineRequirementsResponseDto>(context, "admin-baseline-requirements", (authenticated, requestTransport, token) =>
-            requestTransport.PostAsync<ModGetAdminBaselineRequirementsRequestDto, ModGetAdminBaselineRequirementsResponseDto>(
-                GetAdminBaselineRequirementsRoute,
-                new ModGetAdminBaselineRequirementsRequestDto
-                {
-                    UserId = authenticated.UserId,
-                    ColonyId = authenticated.ColonyId,
-                    AuthToken = authenticated.AuthToken
-                }, token), cancellationToken);
-    }
+        CancellationToken cancellationToken = default) => adminBaseline.RequirementsAsync(context, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModSessionStreamClosedDto>> StreamSessionAsync(
         string? sessionId,
