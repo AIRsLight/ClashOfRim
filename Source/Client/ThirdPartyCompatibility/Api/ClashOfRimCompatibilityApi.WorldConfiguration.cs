@@ -193,7 +193,7 @@ public static partial class ClashOfRimCompatibilityApi
 
     public static void RegisterWorldConfigurationExtensionSummaryProvider(WorldConfigurationExtensionSummaryProvider provider)
     {
-        RegisterUnique(WorldConfigurationExtensionSummaryProviders, provider);
+        Registrations.RegisterUnique(WorldConfigurationExtensionSummaryProviders, provider);
     }
 
     public static void RegisterWorldGenerationFloatSettingProvider(string settingKey, WorldGenerationFloatSettingProvider provider)

@@ -15,32 +15,32 @@ public static partial class ClashOfRimCompatibilityApi
 {
     public static void RegisterRaidCaravanMapEntryHandler(RaidCaravanMapEntryHandler handler)
     {
-        RegisterUnique(RaidCaravanMapEntryHandlers, handler);
+        Registrations.RegisterUnique(RaidCaravanMapEntryHandlers, handler);
     }
 
     public static void RegisterRemoteDefenderMapPreparedHandler(RemoteDefenderMapPreparedHandler handler)
     {
-        RegisterUnique(RemoteDefenderMapPreparedHandlers, handler);
+        Registrations.RegisterUnique(RemoteDefenderMapPreparedHandlers, handler);
     }
 
     public static void RegisterRemoteMapLoadedHandler(RemoteMapLoadedHandler handler)
     {
-        RegisterUnique(RemoteMapLoadedHandlers, handler);
+        Registrations.RegisterUnique(RemoteMapLoadedHandlers, handler);
     }
 
     public static void RegisterRemoteMapProjectionReferenceRewriter(RemoteMapProjectionReferenceRewriter rewriter)
     {
-        RegisterUnique(RemoteMapProjectionReferenceRewriters, rewriter);
+        Registrations.RegisterUnique(RemoteMapProjectionReferenceRewriters, rewriter);
     }
 
     public static void RegisterRemoteMapProjectionSanitizer(RemoteMapProjectionSanitizer sanitizer)
     {
-        RegisterUnique(RemoteMapProjectionSanitizers, sanitizer);
+        Registrations.RegisterUnique(RemoteMapProjectionSanitizers, sanitizer);
     }
 
     public static void RegisterRemoteSessionPawnCleanupHandler(RemoteSessionPawnCleanupHandler handler)
     {
-        RegisterUnique(RemoteSessionPawnCleanupHandlers, handler);
+        Registrations.RegisterUnique(RemoteSessionPawnCleanupHandlers, handler);
     }
 
     public static void RegisterRemoteMapIntegerLoadIdRewriter(
@@ -84,7 +84,7 @@ public static partial class ClashOfRimCompatibilityApi
 
     public static void RegisterRemoteMapAreaLoadIdProvider(RemoteMapAreaLoadIdProvider provider)
     {
-        RegisterUnique(RemoteMapAreaLoadIdProviders, provider);
+        Registrations.RegisterUnique(RemoteMapAreaLoadIdProviders, provider);
     }
 
     public static string? BuildRemoteMapAreaLoadId(XElement area, int id)
@@ -111,12 +111,12 @@ public static partial class ClashOfRimCompatibilityApi
 
     public static void RegisterSnapshotSaveSanitizer(CompatibilitySnapshotSaveSanitizer sanitizer)
     {
-        RegisterUnique(SnapshotSaveSanitizers, sanitizer);
+        Registrations.RegisterUnique(SnapshotSaveSanitizers, sanitizer);
     }
 
     public static void RegisterPlayerColonySiteRegistrationSuppressor(PlayerColonySiteRegistrationSuppressor suppressor)
     {
-        RegisterUnique(PlayerColonySiteRegistrationSuppressors, suppressor);
+        Registrations.RegisterUnique(PlayerColonySiteRegistrationSuppressors, suppressor);
     }
 
     public static bool IsPlayerColonySiteRegistrationSuppressedByCompatibility()

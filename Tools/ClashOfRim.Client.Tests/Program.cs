@@ -19,6 +19,7 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("thing compatibility owns capabilities, snapshots and execution policies", ThingCompatibilityTests.Run),
     ("compatibility registration scope owns generations, priority, cleanup and diagnostics", CompatibilityRegistrationScopeTests.Run),
     ("raid commands retain menu ownership and share caravan, vehicle and transporter launch", ClientRaidCommandTests.Run),
     ("snapshot transaction notifications retain their active upload and session", ClientSnapshotTransactionNotificationTests.Run),

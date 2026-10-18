@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.ThirdPartyCompatibility.Things;
 using AIRsLight.ClashOfRim.Modules.Compatibility;
 using AIRsLight.ClashOfRim.RemoteMaps;
 using AIRsLight.ClashOfRim.Raids;
@@ -44,21 +45,10 @@ public static partial class ClashOfRimCompatibilityApi
     private static readonly List<PawnSoldEffectHandler> PawnSoldEffectHandlers = new();
     private static readonly List<TradeablePawnPredicate> TradeablePawnPredicates = new();
     private static readonly List<TradePawnRestoreValidator> TradePawnRestoreValidators = new();
-    private static readonly List<ThingReferenceEditorRegistration> ThingReferenceEditorRegistrations = new();
-    private static readonly List<ThingReferenceDefaultMetadataProvider> ThingReferenceDefaultMetadataProviders = new();
-    private static readonly List<ThingReferenceUniqueRequestPredicate> ThingReferenceUniqueRequestPredicates = new();
-    private static readonly List<ThingReferenceMetadataRegistration> ThingReferenceMetadataRegistrations = new();
-    private static readonly List<ThingReferenceDisplayRegistration> ThingReferenceDisplayRegistrations = new();
-    private static readonly List<ThingReferenceCacheKeyPartsProvider> ThingReferenceCacheKeyPartsProviders = new();
-    private static readonly List<ThingReferenceMetadataNormalizer> ThingReferenceMetadataNormalizers = new();
-    private static readonly List<ThingReferenceThingFactoryRegistration> ThingReferenceThingFactories = new();
-    private static readonly List<ThingReferenceDefKindPredicateRegistration> ThingReferenceDefKindPredicates = new();
-    private static readonly List<ThingTransferRuleRegistration> ThingTransferRuleRegistrations = new();
-    private static readonly List<DefensePointDefNameProvider> DefensePointDefNameProviders = new();
     private static readonly CompatibilityRegistrationScope Registrations = new(message => Log.Warning(message));
+    private static readonly ThingReferenceCompatibility ThingReferences = new(Registrations);
+    private static readonly ThingTransferCompatibility ThingTransfers = new(Registrations);
     private static HashSet<string>? serverDlcIds;
-    private static ThingReferenceDisplayRegistration[]? cachedThingReferenceDisplayRegistrations;
-    private static ThingReferenceCacheKeyPartsProvider[]? cachedThingReferenceCacheKeyPartsProviders;
 
     public static bool IsRemoteMapProjectionLoading => RemoteMapProjectionLoadScope.Active;
 
@@ -72,30 +62,6 @@ public static partial class ClashOfRimCompatibilityApi
     public static bool UseRegistrationToken(CompatibilityRegistrationToken token, Action registration) => Registrations.UseRegistrationToken(token, registration);
     public static bool RevokeRegistrationToken(CompatibilityRegistrationToken? token) => Registrations.RevokeRegistrationToken(token);
     public static int RevokeRegistrationsByOwner(string owner) => Registrations.RevokeRegistrationsByOwner(owner);
-
-    private static void RegisterUnique<T>(List<T> registrations, T registration) where T : class =>
-        Registrations.RegisterUnique(registrations, registration, InvalidateCompatibilityRegistrationSnapshots);
-
-    private static void RegisterMetadataKeyedRegistration<T>(List<T> registrations, T registration, string category, string key,
-        string duplicateRejectedCode, string duplicateReplacedCode) where T : class, IMetadataKeyedRegistration =>
-        Registrations.RegisterMetadataKeyedRegistration(registrations, registration, category, key,
-            duplicateRejectedCode, duplicateReplacedCode, InvalidateCompatibilityRegistrationSnapshots);
-
-    private static IReadOnlyList<ThingReferenceDisplayRegistration> ThingReferenceDisplayRegistrationSnapshot()
-    {
-        return cachedThingReferenceDisplayRegistrations ??= ThingReferenceDisplayRegistrations.ToArray();
-    }
-
-    private static IReadOnlyList<ThingReferenceCacheKeyPartsProvider> ThingReferenceCacheKeyPartsProviderSnapshot()
-    {
-        return cachedThingReferenceCacheKeyPartsProviders ??= ThingReferenceCacheKeyPartsProviders.ToArray();
-    }
-
-    private static void InvalidateCompatibilityRegistrationSnapshots()
-    {
-        cachedThingReferenceDisplayRegistrations = null;
-        cachedThingReferenceCacheKeyPartsProviders = null;
-    }
 
     public static bool IsActiveMultiplayerSession
     {

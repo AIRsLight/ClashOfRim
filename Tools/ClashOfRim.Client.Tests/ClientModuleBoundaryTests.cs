@@ -118,6 +118,16 @@ internal static class ClientModuleBoundaryTests
         if (modules.Length == 0 || violations.Count != 0)
             throw new InvalidOperationException("Client module boundaries: " + string.Join(Environment.NewLine, violations));
         Console.WriteLine($"Client module dependency guard checked {modules.Length} product and generated types.");
+        var thingCapabilities = typeof(ClashOfRimMod).Assembly.GetTypes()
+            .Where(t => t.Namespace == "AIRsLight.ClashOfRim.ThirdPartyCompatibility.Things").ToArray();
+        var thingViolations = ModuleDependencyGuard.FindViolations(thingCapabilities,
+            t => t == typeof(AIRsLight.ClashOfRim.ThirdPartyCompatibility.ClashOfRimCompatibilityApi)
+                || t == typeof(ClashOfRimMod) || t == typeof(ClashOfRimSettings)
+                || t == typeof(ClashOfRimModNetworkClient) || t == typeof(ClashOfRimGameComponent)
+                || t == typeof(IServiceProvider) || t == typeof(Verse.LoadedModManager));
+        if (thingCapabilities.Length == 0 || thingViolations.Count != 0)
+            throw new InvalidOperationException("Thing compatibility capability boundaries: " + string.Join(Environment.NewLine, thingViolations));
+        Console.WriteLine($"Thing compatibility guard checked {thingCapabilities.Length} product and generated types.");
         var sessionModules = modules.Where(t => t.Namespace == "AIRsLight.ClashOfRim.Modules.Sessions").ToArray();
         var sessionViolations = ModuleDependencyGuard.FindViolations(sessionModules,
             t => t.Namespace?.StartsWith("AIRsLight.ClashOfRim.Modules.Snapshots", StringComparison.Ordinal) == true

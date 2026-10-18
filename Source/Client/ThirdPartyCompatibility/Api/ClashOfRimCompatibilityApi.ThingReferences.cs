@@ -1,9 +1,5 @@
-using AIRsLight.ClashOfRim.Modules.Compatibility;
 using AIRsLight.ClashOfRim.ClientNetwork;
-using RimWorld;
-using System;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 using Verse;
 
@@ -15,200 +11,55 @@ public static partial class ClashOfRimCompatibilityApi
         string key,
         ThingTransferValidator? validator,
         ThingTransferMetadataCapturer? capturer,
-        ThingTransferFinalizer? finalizer)
-    {
-        if (string.IsNullOrWhiteSpace(key)
-            || (validator is null && capturer is null && finalizer is null))
-        {
-            return;
-        }
-
-        RegisterMetadataKeyedRegistration(
-            ThingTransferRuleRegistrations,
-            new ThingTransferRuleRegistration(key, validator, capturer, finalizer),
-            nameof(ThingTransferRuleRegistration),
-            key,
-            "ThingTransferRuleDuplicateRejected",
-            "ThingTransferRuleDuplicateReplaced");
-    }
+        ThingTransferFinalizer? finalizer) =>
+        ThingTransfers.RegisterThingTransferRule(key, validator, capturer, finalizer);
 
     public static bool CanTransferThing(
         Thing thing,
         ThingTransferContext context,
-        out string? rejectionCode)
-    {
-        rejectionCode = null;
-        if (thing is null || context is null)
-        {
-            rejectionCode = ThingTransferDecision.ProcessorFailureCode;
-            return false;
-        }
-
-        foreach (ThingTransferRuleRegistration registration in ThingTransferRuleRegistrations.ToList())
-        {
-            if (registration.Validator is null)
-            {
-                continue;
-            }
-
-            if (!Registrations.TryInvokeCompatibilityCallback(
-                    nameof(CanTransferThing),
-                    registration,
-                    () => registration.Validator(thing, context),
-                    out ThingTransferDecision decision))
-            {
-                rejectionCode = ThingTransferDecision.ProcessorFailureCode;
-                return false;
-            }
-
-            if (!decision.Allowed)
-            {
-                rejectionCode = decision.RejectionCode ?? ThingTransferDecision.ProcessorFailureCode;
-                return false;
-            }
-        }
-
-        return true;
-    }
+        out string? rejectionCode) =>
+        ThingTransfers.CanTransferThing(thing, context, out rejectionCode);
 
     public static bool PrepareThingTransfer(
         Thing thing,
         ModThingReferenceDto reference,
         ThingTransferContext context,
-        out string? rejectionCode)
-    {
-        if (!CanTransferThing(thing, context, out rejectionCode) || reference is null)
-        {
-            rejectionCode ??= ThingTransferDecision.ProcessorFailureCode;
-            return false;
-        }
-
-        foreach (ThingTransferRuleRegistration registration in ThingTransferRuleRegistrations.ToList())
-        {
-            if (registration.Capturer is null)
-            {
-                continue;
-            }
-
-            if (!Registrations.TryInvokeCompatibilityCallback(
-                    nameof(PrepareThingTransfer),
-                    registration,
-                    () => registration.Capturer(thing, reference, context)))
-            {
-                rejectionCode = ThingTransferDecision.ProcessorFailureCode;
-                return false;
-            }
-        }
-
-        rejectionCode = null;
-        return true;
-    }
+        out string? rejectionCode) =>
+        ThingTransfers.PrepareThingTransfer(thing, reference, context, out rejectionCode);
 
     public static bool FinalizeThingTransfer(
         ModThingReferenceDto reference,
         Thing thing,
         ThingTransferContext context,
-        out string? missingDefName)
-    {
-        missingDefName = null;
-        if (reference is null || thing is null || context is null)
-        {
-            return false;
-        }
-
-        foreach (ThingTransferRuleRegistration registration in ThingTransferRuleRegistrations.ToList())
-        {
-            if (registration.Finalizer is null)
-            {
-                continue;
-            }
-
-            string? callbackMissingDefName = null;
-            if (!Registrations.TryInvokeCompatibilityCallback(
-                    nameof(FinalizeThingTransfer),
-                    registration,
-                    () => registration.Finalizer(reference, thing, context, out callbackMissingDefName),
-                    out bool finalized)
-                || !finalized)
-            {
-                missingDefName = callbackMissingDefName;
-                return false;
-            }
-        }
-
-        return true;
-    }
+        out string? missingDefName) =>
+        ThingTransfers.FinalizeThingTransfer(reference, thing, context, out missingDefName);
 
     public static void RegisterThingReferenceEditor(
         ThingReferenceEditorHandler editor,
         ThingReferenceMetadataCleaner cleaner,
-        ThingReferenceCompletenessValidator validator)
-    {
-        string key = CompatibilityRegistrationScope.RegistrationKey(editor)
-            + "|"
-            + CompatibilityRegistrationScope.RegistrationKey(cleaner)
-            + "|"
-            + CompatibilityRegistrationScope.RegistrationKey(validator);
-        RegisterThingReferenceEditor(key, editor, cleaner, validator);
-    }
+        ThingReferenceCompletenessValidator validator) =>
+        ThingReferences.RegisterThingReferenceEditor(editor, cleaner, validator);
 
     public static void RegisterThingReferenceEditor(
         string key,
         ThingReferenceEditorHandler editor,
         ThingReferenceMetadataCleaner cleaner,
-        ThingReferenceCompletenessValidator validator)
-    {
-        if (string.IsNullOrWhiteSpace(key)
-            || editor is null
-            || cleaner is null
-            || validator is null)
-        {
-            return;
-        }
+        ThingReferenceCompletenessValidator validator) =>
+        ThingReferences.RegisterThingReferenceEditor(key, editor, cleaner, validator);
 
-        RegisterMetadataKeyedRegistration(
-            ThingReferenceEditorRegistrations,
-            new ThingReferenceEditorRegistration(key, editor, cleaner, validator),
-            nameof(ThingReferenceEditorRegistration),
-            key,
-            "ThingReferenceEditorDuplicateRejected",
-            "ThingReferenceEditorDuplicateReplaced");
-    }
+    public static void RegisterThingReferenceUniqueRequestPredicate(ThingReferenceUniqueRequestPredicate predicate) =>
+        ThingReferences.RegisterThingReferenceUniqueRequestPredicate(predicate);
 
-    public static void RegisterThingReferenceUniqueRequestPredicate(ThingReferenceUniqueRequestPredicate predicate)
-    {
-        RegisterUnique(ThingReferenceUniqueRequestPredicates, predicate);
-    }
-
-    public static void RegisterThingReferenceDefaultMetadataProvider(ThingReferenceDefaultMetadataProvider provider)
-    {
-        RegisterUnique(ThingReferenceDefaultMetadataProviders, provider);
-    }
+    public static void RegisterThingReferenceDefaultMetadataProvider(ThingReferenceDefaultMetadataProvider provider) =>
+        ThingReferences.RegisterThingReferenceDefaultMetadataProvider(provider);
 
     public static void RegisterThingReferenceMetadata(
         ThingReferenceMetadataAppender appender,
         ThingReferenceThingMatcher thingMatcher,
         ThingReferenceDtoMatcher dtoMatcher,
         ThingReferenceMetadataApplier applier,
-        ThingReferenceStrictnessProvider strictnessProvider)
-    {
-        string key = CompatibilityRegistrationScope.RegistrationKey(appender)
-            + "|"
-            + CompatibilityRegistrationScope.RegistrationKey(thingMatcher)
-            + "|"
-            + CompatibilityRegistrationScope.RegistrationKey(dtoMatcher)
-            + "|"
-            + CompatibilityRegistrationScope.RegistrationKey(applier)
-            + "|"
-            + CompatibilityRegistrationScope.RegistrationKey(strictnessProvider);
-        RegisterThingReferenceMetadata(
-            key,
-            appender,
-            thingMatcher,
-            dtoMatcher,
-            applier,
-            strictnessProvider);
-    }
+        ThingReferenceStrictnessProvider strictnessProvider) =>
+        ThingReferences.RegisterThingReferenceMetadata(appender, thingMatcher, dtoMatcher, applier, strictnessProvider);
 
     public static void RegisterThingReferenceMetadata(
         string key,
@@ -216,476 +67,91 @@ public static partial class ClashOfRimCompatibilityApi
         ThingReferenceThingMatcher thingMatcher,
         ThingReferenceDtoMatcher dtoMatcher,
         ThingReferenceMetadataApplier applier,
-        ThingReferenceStrictnessProvider strictnessProvider)
-    {
-        if (string.IsNullOrWhiteSpace(key)
-            || appender is null
-            || thingMatcher is null
-            || dtoMatcher is null
-            || applier is null
-            || strictnessProvider is null)
-        {
-            return;
-        }
-
-        RegisterMetadataKeyedRegistration(
-            ThingReferenceMetadataRegistrations,
-            new ThingReferenceMetadataRegistration(
-                key,
-                appender,
-                thingMatcher,
-                dtoMatcher,
-                applier,
-                strictnessProvider),
-            nameof(ThingReferenceMetadataRegistration),
-            key,
-            "ThingReferenceMetadataDuplicateRejected",
-            "ThingReferenceMetadataDuplicateReplaced");
-    }
+        ThingReferenceStrictnessProvider strictnessProvider) =>
+        ThingReferences.RegisterThingReferenceMetadata(key, appender, thingMatcher, dtoMatcher, applier, strictnessProvider);
 
     public static void RegisterThingReferenceDisplay(
         ThingReferenceDisplayPartsProvider partsProvider,
-        ThingReferenceStandardStatSuppressor standardStatSuppressor)
-    {
-        string key = CompatibilityRegistrationScope.RegistrationKey(partsProvider) + "|" + CompatibilityRegistrationScope.RegistrationKey(standardStatSuppressor);
-        RegisterThingReferenceDisplay(key, partsProvider, standardStatSuppressor);
-    }
+        ThingReferenceStandardStatSuppressor standardStatSuppressor) =>
+        ThingReferences.RegisterThingReferenceDisplay(partsProvider, standardStatSuppressor);
 
     public static void RegisterThingReferenceDisplay(
         string key,
         ThingReferenceDisplayPartsProvider partsProvider,
-        ThingReferenceStandardStatSuppressor standardStatSuppressor)
-    {
-        if (string.IsNullOrWhiteSpace(key)
-            || partsProvider is null
-            || standardStatSuppressor is null)
-        {
-            return;
-        }
+        ThingReferenceStandardStatSuppressor standardStatSuppressor) =>
+        ThingReferences.RegisterThingReferenceDisplay(key, partsProvider, standardStatSuppressor);
 
-        RegisterMetadataKeyedRegistration(
-            ThingReferenceDisplayRegistrations,
-            new ThingReferenceDisplayRegistration(key, partsProvider, standardStatSuppressor),
-            nameof(ThingReferenceDisplayRegistration),
-            key,
-            "ThingReferenceDisplayDuplicateRejected",
-            "ThingReferenceDisplayDuplicateReplaced");
-    }
+    public static void RegisterThingReferenceCacheKeyPartsProvider(ThingReferenceCacheKeyPartsProvider provider) =>
+        ThingReferences.RegisterThingReferenceCacheKeyPartsProvider(provider);
 
-    public static void RegisterThingReferenceCacheKeyPartsProvider(ThingReferenceCacheKeyPartsProvider provider)
-    {
-        RegisterUnique(ThingReferenceCacheKeyPartsProviders, provider);
-    }
+    public static void RegisterThingReferenceMetadataNormalizer(ThingReferenceMetadataNormalizer normalizer) =>
+        ThingReferences.RegisterThingReferenceMetadataNormalizer(normalizer);
 
-    public static void RegisterThingReferenceMetadataNormalizer(ThingReferenceMetadataNormalizer normalizer)
-    {
-        RegisterUnique(ThingReferenceMetadataNormalizers, normalizer);
-    }
+    public static void RegisterThingReferenceThingFactory(ThingReferenceThingFactory factory) =>
+        ThingReferences.RegisterThingReferenceThingFactory(factory);
 
-    public static void RegisterThingReferenceThingFactory(ThingReferenceThingFactory factory)
-    {
-        if (factory is null)
-        {
-            return;
-        }
+    public static void RegisterThingReferenceThingFactory(string key, ThingReferenceThingFactory factory) =>
+        ThingReferences.RegisterThingReferenceThingFactory(key, factory);
 
-        RegisterThingReferenceThingFactory(CompatibilityRegistrationScope.RegistrationKey(factory), factory);
-    }
+    public static bool TryMakeThingReferenceThing(ThingDef def, ThingDef? stuff, out Thing? thing) =>
+        ThingReferences.TryMakeThingReferenceThing(def, stuff, out thing);
 
-    public static void RegisterThingReferenceThingFactory(string key, ThingReferenceThingFactory factory)
-    {
-        if (string.IsNullOrWhiteSpace(key) || factory is null)
-        {
-            return;
-        }
+    public static void RegisterThingReferenceDefKindPredicate(string kind, ThingReferenceDefKindPredicate predicate) =>
+        ThingReferences.RegisterThingReferenceDefKindPredicate(kind, predicate);
 
-        RegisterMetadataKeyedRegistration(
-            ThingReferenceThingFactories,
-            new ThingReferenceThingFactoryRegistration(key, factory),
-            nameof(ThingReferenceThingFactoryRegistration),
-            key,
-            "ThingReferenceThingFactoryDuplicateRejected",
-            "ThingReferenceThingFactoryDuplicateReplaced");
-    }
+    public static bool HasThingReferenceDefKind(string kind, ThingDef? def) =>
+        ThingReferences.HasThingReferenceDefKind(kind, def);
 
-    public static bool TryMakeThingReferenceThing(ThingDef def, ThingDef? stuff, out Thing? thing)
-    {
-        thing = null;
-        if (def is null)
-        {
-            return false;
-        }
+    public static void RegisterDefensePointDefNameProvider(DefensePointDefNameProvider provider) =>
+        ThingReferences.RegisterDefensePointDefNameProvider(provider);
 
-        foreach (ThingReferenceThingFactoryRegistration registration in ThingReferenceThingFactories.ToList())
-        {
-            Thing? created = null;
-            if (!Registrations.TryInvokeCompatibilityCallback(
-                    nameof(TryMakeThingReferenceThing),
-                    registration,
-                    () => registration.Factory(def, stuff, out created),
-                    out bool handled))
-            {
-                continue;
-            }
-
-            if (handled && created is not null)
-            {
-                thing = created;
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    public static void RegisterThingReferenceDefKindPredicate(string kind, ThingReferenceDefKindPredicate predicate)
-    {
-        if (string.IsNullOrWhiteSpace(kind) || predicate is null)
-        {
-            return;
-        }
-
-        string normalizedKind = kind.Trim();
-        var registration = new ThingReferenceDefKindPredicateRegistration(normalizedKind, predicate);
-        Registrations.Register(ThingReferenceDefKindPredicates, registration, nameof(ThingReferenceDefKindPredicateRegistration), normalizedKind, Registrations.ActiveRegistrationPriority());
-    }
-
-    public static bool HasThingReferenceDefKind(string kind, ThingDef? def)
-    {
-        if (def is null || string.IsNullOrWhiteSpace(kind))
-        {
-            return false;
-        }
-
-        string normalizedKind = kind.Trim();
-        foreach (ThingReferenceDefKindPredicateRegistration registration in ThingReferenceDefKindPredicates.ToList())
-        {
-            if (!string.Equals(registration.Kind, normalizedKind, StringComparison.Ordinal))
-            {
-                continue;
-            }
-
-            if (!Registrations.TryInvokeCompatibilityCallback(
-                    nameof(HasThingReferenceDefKind),
-                    registration,
-                    () => registration.Predicate(def),
-                    out bool matched))
-            {
-                continue;
-            }
-
-            if (matched)
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    public static void RegisterDefensePointDefNameProvider(DefensePointDefNameProvider provider)
-    {
-        RegisterUnique(DefensePointDefNameProviders, provider);
-    }
-
-    public static IEnumerable<string> GetCompatibilityDefensePointDefNames()
-    {
-        foreach (DefensePointDefNameProvider provider in DefensePointDefNameProviders.ToList())
-        {
-            if (!Registrations.TryInvokeCompatibilityCallback(
-                    nameof(GetCompatibilityDefensePointDefNames),
-                    provider,
-                    () => provider(),
-                    out IEnumerable<string>? defNames))
-            {
-                continue;
-            }
-
-            foreach (string? defName in defNames ?? Enumerable.Empty<string>())
-            {
-                if (!string.IsNullOrWhiteSpace(defName))
-                {
-                    yield return defName!.Trim();
-                }
-            }
-        }
-    }
+    public static IEnumerable<string> GetCompatibilityDefensePointDefNames() =>
+        ThingReferences.GetCompatibilityDefensePointDefNames();
 
     public static bool TryDrawThingReferenceEditor(
         string surface,
         ThingDef? def,
         ModThingReferenceDto item,
         Rect rect,
-        out float consumedHeight)
-    {
-        foreach (ThingReferenceEditorRegistration registration in ThingReferenceEditorRegistrations.ToList())
-        {
-            float height = 0f;
-            if (!Registrations.TryInvokeCompatibilityCallback(
-                    nameof(TryDrawThingReferenceEditor),
-                    registration,
-                    () => registration.Editor(surface, def, item, rect, out height),
-                    out bool handled))
-            {
-                continue;
-            }
+        out float consumedHeight) =>
+        ThingReferences.TryDrawThingReferenceEditor(surface, def, item, rect, out consumedHeight);
 
-            if (handled)
-            {
-                consumedHeight = height;
-                return true;
-            }
-        }
+    public static void ClearThingReferenceMetadata(string surface, ThingDef? def, ModThingReferenceDto item) =>
+        ThingReferences.ClearThingReferenceMetadata(surface, def, item);
 
-        consumedHeight = 0f;
-        return false;
-    }
+    public static void NormalizeThingReferenceMetadata(ModThingReferenceDto reference) =>
+        ThingReferences.NormalizeThingReferenceMetadata(reference);
 
-    public static void ClearThingReferenceMetadata(string surface, ThingDef? def, ModThingReferenceDto item)
-    {
-        foreach (ThingReferenceEditorRegistration registration in ThingReferenceEditorRegistrations.ToList())
-        {
-            Registrations.TryInvokeCompatibilityCallback(
-                nameof(ClearThingReferenceMetadata),
-                registration,
-                () => registration.Cleaner(surface, def, item));
-        }
-    }
+    public static bool IsThingReferenceComplete(string surface, ThingDef? def, ModThingReferenceDto item) =>
+        ThingReferences.IsThingReferenceComplete(surface, def, item);
 
-    public static void NormalizeThingReferenceMetadata(ModThingReferenceDto reference)
-    {
-        if (reference is null)
-        {
-            return;
-        }
+    public static void ApplyThingReferenceDefaultMetadata(string surface, ThingDef? def, ModThingReferenceDto item) =>
+        ThingReferences.ApplyThingReferenceDefaultMetadata(surface, def, item);
 
-        foreach (ThingReferenceMetadataNormalizer normalizer in ThingReferenceMetadataNormalizers.ToList())
-        {
-            Registrations.TryInvokeCompatibilityCallback(
-                nameof(NormalizeThingReferenceMetadata),
-                normalizer,
-                () => normalizer(reference));
-        }
-    }
+    public static bool IsThingReferenceUniqueRequest(ThingDef? def) =>
+        ThingReferences.IsThingReferenceUniqueRequest(def);
 
-    public static bool IsThingReferenceComplete(string surface, ThingDef? def, ModThingReferenceDto item)
-    {
-        foreach (ThingReferenceEditorRegistration registration in ThingReferenceEditorRegistrations.ToList())
-        {
-            if (!Registrations.TryInvokeCompatibilityCallback(
-                    nameof(IsThingReferenceComplete),
-                    registration,
-                    () => registration.Validator(surface, def, item),
-                    out bool valid))
-            {
-                return false;
-            }
+    public static void AppendThingReferenceMetadata(Thing metadataThing, ModThingReferenceDto reference) =>
+        ThingReferences.AppendThingReferenceMetadata(metadataThing, reference);
 
-            if (!valid)
-            {
-                return false;
-            }
-        }
+    public static bool ThingReferenceMetadataMatches(ModThingReferenceDto requirement, Thing metadataThing) =>
+        ThingReferences.ThingReferenceMetadataMatches(requirement, metadataThing);
 
-        return true;
-    }
+    public static bool ThingReferenceMetadataMatches(ModThingReferenceDto requirement, ModThingReferenceDto candidate) =>
+        ThingReferences.ThingReferenceMetadataMatches(requirement, candidate);
 
-    public static void ApplyThingReferenceDefaultMetadata(string surface, ThingDef? def, ModThingReferenceDto item)
-    {
-        if (item is null)
-        {
-            return;
-        }
+    public static bool TryApplyThingReferenceMetadata(ModThingReferenceDto reference, Thing thing, out string? missingDefName) =>
+        ThingReferences.TryApplyThingReferenceMetadata(reference, thing, out missingDefName);
 
-        foreach (ThingReferenceDefaultMetadataProvider provider in ThingReferenceDefaultMetadataProviders.ToList())
-        {
-            Registrations.TryInvokeCompatibilityCallback(
-                nameof(ApplyThingReferenceDefaultMetadata),
-                provider,
-                () => provider(surface, def, item));
-        }
-    }
+    public static int ThingReferenceMetadataStrictness(ModThingReferenceDto requirement) =>
+        ThingReferences.ThingReferenceMetadataStrictness(requirement);
 
-    public static bool IsThingReferenceUniqueRequest(ThingDef? def)
-    {
-        foreach (ThingReferenceUniqueRequestPredicate predicate in ThingReferenceUniqueRequestPredicates.ToList())
-        {
-            if (!Registrations.TryInvokeCompatibilityCallback(
-                    nameof(IsThingReferenceUniqueRequest),
-                    predicate,
-                    () => predicate(def),
-                    out bool unique))
-            {
-                continue;
-            }
+    public static void AppendThingReferenceDisplayParts(ModThingReferenceDto thing, bool asRequirement, List<string> parts) =>
+        ThingReferences.AppendThingReferenceDisplayParts(thing, asRequirement, parts);
 
-            if (unique)
-            {
-                return true;
-            }
-        }
+    public static bool SuppressesStandardThingStats(ThingDef? def) =>
+        ThingReferences.SuppressesStandardThingStats(def);
 
-        return false;
-    }
-
-    public static void AppendThingReferenceMetadata(Thing metadataThing, ModThingReferenceDto reference)
-    {
-        foreach (ThingReferenceMetadataRegistration registration in ThingReferenceMetadataRegistrations.ToList())
-        {
-            Registrations.TryInvokeCompatibilityCallback(
-                nameof(AppendThingReferenceMetadata),
-                registration,
-                () => registration.Appender(metadataThing, reference));
-        }
-    }
-
-    public static bool ThingReferenceMetadataMatches(ModThingReferenceDto requirement, Thing metadataThing)
-    {
-        foreach (ThingReferenceMetadataRegistration registration in ThingReferenceMetadataRegistrations.ToList())
-        {
-            if (!Registrations.TryInvokeCompatibilityCallback(
-                    nameof(ThingReferenceMetadataMatches),
-                    registration,
-                    () => registration.ThingMatcher(requirement, metadataThing),
-                    out bool matched))
-            {
-                return false;
-            }
-
-            if (!matched)
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    public static bool ThingReferenceMetadataMatches(ModThingReferenceDto requirement, ModThingReferenceDto candidate)
-    {
-        foreach (ThingReferenceMetadataRegistration registration in ThingReferenceMetadataRegistrations.ToList())
-        {
-            if (!Registrations.TryInvokeCompatibilityCallback(
-                    nameof(ThingReferenceMetadataMatches),
-                    registration,
-                    () => registration.DtoMatcher(requirement, candidate),
-                    out bool matched))
-            {
-                return false;
-            }
-
-            if (!matched)
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    public static bool TryApplyThingReferenceMetadata(ModThingReferenceDto reference, Thing thing, out string? missingDefName)
-    {
-        missingDefName = null;
-        foreach (ThingReferenceMetadataRegistration registration in ThingReferenceMetadataRegistrations.ToList())
-        {
-            string? localMissingDefName = null;
-            if (!Registrations.TryInvokeCompatibilityCallback(
-                    nameof(TryApplyThingReferenceMetadata),
-                    registration,
-                    () => registration.Applier(reference, thing, out localMissingDefName),
-                    out bool applied))
-            {
-                return false;
-            }
-
-            missingDefName = localMissingDefName;
-            if (!applied)
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    public static int ThingReferenceMetadataStrictness(ModThingReferenceDto requirement)
-    {
-        int strictness = 0;
-        foreach (ThingReferenceMetadataRegistration registration in ThingReferenceMetadataRegistrations.ToList())
-        {
-            if (Registrations.TryInvokeCompatibilityCallback(
-                    nameof(ThingReferenceMetadataStrictness),
-                    registration,
-                    () => registration.StrictnessProvider(requirement),
-                    out int contribution))
-            {
-                strictness += contribution;
-            }
-        }
-
-        return strictness;
-    }
-
-    public static void AppendThingReferenceDisplayParts(ModThingReferenceDto thing, bool asRequirement, List<string> parts)
-    {
-        if (parts is null)
-        {
-            return;
-        }
-
-        foreach (ThingReferenceDisplayRegistration registration in ThingReferenceDisplayRegistrationSnapshot())
-        {
-            Registrations.TryInvokeCompatibilityCallback(
-                nameof(AppendThingReferenceDisplayParts),
-                registration,
-                () => registration.PartsProvider(thing, asRequirement, parts));
-        }
-    }
-
-    public static bool SuppressesStandardThingStats(ThingDef? def)
-    {
-        foreach (ThingReferenceDisplayRegistration registration in ThingReferenceDisplayRegistrationSnapshot())
-        {
-            if (!Registrations.TryInvokeCompatibilityCallback(
-                    nameof(SuppressesStandardThingStats),
-                    registration,
-                    () => registration.StandardStatSuppressor(def),
-                    out bool suppresses))
-            {
-                continue;
-            }
-
-            if (suppresses)
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    public static IEnumerable<string> ThingReferenceCacheKeyParts(ModThingReferenceDto thing)
-    {
-        if (thing is null)
-        {
-            yield break;
-        }
-
-        foreach (ThingReferenceCacheKeyPartsProvider provider in ThingReferenceCacheKeyPartsProviderSnapshot())
-        {
-            if (!Registrations.TryInvokeCompatibilityCallback(
-                    nameof(ThingReferenceCacheKeyParts),
-                    provider,
-                    () => provider(thing),
-                    out IEnumerable<string>? providedParts))
-            {
-                continue;
-            }
-
-            foreach (string? part in providedParts ?? Enumerable.Empty<string>())
-            {
-                yield return part ?? string.Empty;
-            }
-        }
-    }
+    public static IEnumerable<string> ThingReferenceCacheKeyParts(ModThingReferenceDto thing) =>
+        ThingReferences.ThingReferenceCacheKeyParts(thing);
 }

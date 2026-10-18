@@ -11,7 +11,7 @@ public static partial class ClashOfRimCompatibilityApi
 {
     public static void RegisterFactionPreparedHandler(FactionPreparedHandler handler)
     {
-        RegisterUnique(FactionPreparedHandlers, handler);
+        Registrations.RegisterUnique(FactionPreparedHandlers, handler);
     }
 
     public static void NotifyFactionPrepared(Faction faction, string purpose, string? ownerUserId = null)
@@ -33,7 +33,7 @@ public static partial class ClashOfRimCompatibilityApi
 
     public static void RegisterPlayerProxyFactionPreparedHandler(PlayerProxyFactionPreparedHandler handler)
     {
-        RegisterUnique(PlayerProxyFactionPreparedHandlers, handler);
+        Registrations.RegisterUnique(PlayerProxyFactionPreparedHandlers, handler);
     }
 
     public static void NotifyPlayerProxyFactionPrepared(Faction faction, string ownerUserId)
@@ -67,7 +67,7 @@ public static partial class ClashOfRimCompatibilityApi
     private static void RegisterPawnReferenceMetadataResolverRegistration(
         PawnReferenceMetadataResolverRegistration registration)
     {
-        RegisterMetadataKeyedRegistration(
+        Registrations.RegisterMetadataKeyedRegistration(
             PawnReferenceMetadataResolvers,
             registration,
             nameof(PawnReferenceMetadataResolverRegistration),
@@ -78,7 +78,7 @@ public static partial class ClashOfRimCompatibilityApi
 
     public static void RegisterPawnReferenceMetadataCollector(PawnReferenceMetadataCollector collector)
     {
-        RegisterUnique(PawnReferenceMetadataCollectors, collector);
+        Registrations.RegisterUnique(PawnReferenceMetadataCollectors, collector);
     }
 
     public static void CollectPawnReferenceMetadata(
@@ -147,7 +147,7 @@ public static partial class ClashOfRimCompatibilityApi
     private static void RegisterPawnReferenceMetadataRestorerRegistration(
         PawnReferenceMetadataRestorerRegistration registration)
     {
-        RegisterMetadataKeyedRegistration(
+        Registrations.RegisterMetadataKeyedRegistration(
             PawnReferenceMetadataRestorers,
             registration,
             nameof(PawnReferenceMetadataRestorerRegistration),
@@ -213,7 +213,7 @@ public static partial class ClashOfRimCompatibilityApi
 
     public static void RegisterPawnExchangeExtensionAppender(PawnExchangeExtensionAppender appender)
     {
-        RegisterUnique(PawnExchangeExtensionAppenders, appender);
+        Registrations.RegisterUnique(PawnExchangeExtensionAppenders, appender);
     }
 
     public static void AppendPawnExchangeExtensions(Pawn pawn, ModPawnExchangePackageDto package)
@@ -234,17 +234,17 @@ public static partial class ClashOfRimCompatibilityApi
 
     public static void RegisterPawnExchangePackageRegistrar(PawnExchangePackageRegistrar registrar)
     {
-        RegisterUnique(PawnExchangePackageRegistrars, registrar);
+        Registrations.RegisterUnique(PawnExchangePackageRegistrars, registrar);
     }
 
     public static void RegisterPawnExchangePackageNormalizer(PawnExchangePackageNormalizer normalizer)
     {
-        RegisterUnique(PawnExchangePackageNormalizers, normalizer);
+        Registrations.RegisterUnique(PawnExchangePackageNormalizers, normalizer);
     }
 
     public static void RegisterPawnExchangeLocalSaveOnlyLoadIdPredicate(PawnExchangeLocalSaveOnlyLoadIdPredicate predicate)
     {
-        RegisterUnique(PawnExchangeLocalSaveOnlyLoadIdPredicates, predicate);
+        Registrations.RegisterUnique(PawnExchangeLocalSaveOnlyLoadIdPredicates, predicate);
     }
 
     public static void NormalizePawnExchangePackage(ModPawnExchangePackageDto package)
@@ -326,7 +326,7 @@ public static partial class ClashOfRimCompatibilityApi
 
     public static void RegisterPawnPostRestoreLocalizer(PawnPostRestoreLocalizer localizer)
     {
-        RegisterUnique(PawnPostRestoreLocalizers, localizer);
+        Registrations.RegisterUnique(PawnPostRestoreLocalizers, localizer);
     }
 
     public static void LocalizeRestoredPawnWithCompatibility(Pawn pawn)
@@ -342,7 +342,7 @@ public static partial class ClashOfRimCompatibilityApi
 
     public static void RegisterPawnSoldEffectHandler(PawnSoldEffectHandler handler)
     {
-        RegisterUnique(PawnSoldEffectHandlers, handler);
+        Registrations.RegisterUnique(PawnSoldEffectHandlers, handler);
     }
 
     public static void ApplyPawnSoldEffects(Pawn pawn, Pawn? negotiator)
@@ -358,7 +358,7 @@ public static partial class ClashOfRimCompatibilityApi
 
     public static void RegisterTradeablePawnPredicate(TradeablePawnPredicate predicate)
     {
-        RegisterUnique(TradeablePawnPredicates, predicate);
+        Registrations.RegisterUnique(TradeablePawnPredicates, predicate);
     }
 
     public static bool IsTradeablePawnByCompatibility(Pawn pawn)
@@ -390,7 +390,7 @@ public static partial class ClashOfRimCompatibilityApi
 
     public static void RegisterTradePawnRestoreValidator(TradePawnRestoreValidator validator)
     {
-        RegisterUnique(TradePawnRestoreValidators, validator);
+        Registrations.RegisterUnique(TradePawnRestoreValidators, validator);
     }
 
     public static bool IsTradePawnRestoreAllowedByCompatibility(Pawn pawn)
