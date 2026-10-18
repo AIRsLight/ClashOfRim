@@ -8,21 +8,27 @@ using AIRsLight.ClashOfRim.Protocol;
 
 namespace AIRsLight.ClashOfRim.Modules.Administration;
 
-internal sealed class ClientAdminBaselineProtocol
+internal interface IClientAdminBaselineTransport
+{
+    Task<ClashOfRimClientNetworkResult<ModGetAdminBaselineRequirementsResponseDto>> RequirementsAsync(ClashOfRimClientNetworkContext context, CancellationToken token);
+    Task<ClashOfRimClientNetworkResult<ModSubmitAdminBaselineResponseDto>> SubmitAsync(ClashOfRimClientNetworkContext context, ModSubmitAdminBaselineRequestDto request, CancellationToken token);
+}
+
+internal sealed class ClientAdminBaselineProtocol : IClientAdminBaselineTransport
 {
     private readonly ClientSetupAuthenticationLease setup;
     private readonly Func<string> notConfigured;
     internal ClientAdminBaselineProtocol(ClientSetupAuthenticationLease setup, Func<string> notConfigured)
     { this.setup = setup; this.notConfigured = notConfigured; }
 
-    internal Task<ClashOfRimClientNetworkResult<ModGetAdminBaselineRequirementsResponseDto>> RequirementsAsync(
+    public Task<ClashOfRimClientNetworkResult<ModGetAdminBaselineRequirementsResponseDto>> RequirementsAsync(
         ClashOfRimClientNetworkContext context, CancellationToken token)
         => setup.RunAsync<ModGetAdminBaselineRequirementsResponseDto>(context, "admin-baseline-requirements", (authenticated, transport, cancellation) =>
             transport.PostAsync<ModGetAdminBaselineRequirementsRequestDto, ModGetAdminBaselineRequirementsResponseDto>(
                 ProtocolContractManifest.Find(ProtocolMessageKind.GetAdminBaselineRequirements).Route,
                 new() { UserId = authenticated.UserId, ColonyId = authenticated.ColonyId, AuthToken = authenticated.AuthToken }, cancellation), token);
 
-    internal Task<ClashOfRimClientNetworkResult<ModSubmitAdminBaselineResponseDto>> SubmitAsync(
+    public Task<ClashOfRimClientNetworkResult<ModSubmitAdminBaselineResponseDto>> SubmitAsync(
         ClashOfRimClientNetworkContext context, ModSubmitAdminBaselineRequestDto request, CancellationToken token)
     {
         if (!context.IsConfigured)

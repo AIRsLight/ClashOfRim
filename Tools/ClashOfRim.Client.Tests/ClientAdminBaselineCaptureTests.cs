@@ -125,7 +125,7 @@ internal static class ClientAdminBaselineCaptureTests
             }
         }
     }
-    private sealed class Source : IClientAdminBaselineSource
+    internal sealed class Source : IClientAdminBaselineSource
     {
         internal int Calls; internal Action<int>? After; internal string? Requirement;
         internal ModSubmitAdminBaselineRequestDto? Borrowed;

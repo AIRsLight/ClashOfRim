@@ -158,6 +158,7 @@ public sealed partial class ClashOfRimMod : Mod
     private readonly ClientWorldBaselineSubmission worldBaselineSubmission;
     private readonly ClientWorldBaselineCapture worldBaselineCapture;
     private readonly ClientAdminBaselineCapture adminBaselineCapture;
+    private readonly ClientInitialWorldSetup initialWorldSetup;
     private readonly List<ModChatMessageDto> lastChatMessages = new();
     private readonly List<ModWorldMapMarkerDto> lastWorldMapMarkers = new();
     private readonly Dictionary<string, ModPlayerColonySiteDto> occupiedPlayerColonySites = new(StringComparer.Ordinal);
@@ -311,6 +312,23 @@ public sealed partial class ClashOfRimMod : Mod
             storytellerConfiguration, worldConfiguration, worldWritePresentation, worldWritePresentation);
         worldWrites.Applied += UpdateOccupiedPlayerColonySites;
         worldWrites.BaselineUpdated += () => RequestWorldMapMarkerRefresh(ClashOfRimText.Key("ClashOfRim.Admin.WorldBaselineRefreshReason"));
+        var initialWorldPresentation = new ClientInitialWorldPresentation(message => loginStatus = message, message => snapshotUploadStatus = message, sessionConnection);
+        initialWorldSetup = new ClientInitialWorldSetup(sessionLifecycle, worldSetup, synchronization, worldBaselineCapture, worldBaselineSubmission,
+            adminBaselineCapture, new AIRsLight.ClashOfRim.Admin.ClientAdminBaselineTransport(new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner))),
+            ClientSnapshotComposition.Create(settings), initialWorldPresentation, initialWorldPresentation);
+        initialWorldSetup.EffectRequested += effect =>
+        {
+            switch (effect)
+            {
+                case ClientInitialWorldEffect.Markers: RequestWorldMapMarkerRefresh(ClashOfRimText.Key("ClashOfRim.WorldBaseline.ReasonSubmitted")); break;
+                case ClientInitialWorldEffect.Events: StartAutomaticEventRefresh(ClashOfRimText.Key("ClashOfRim.WorldBaseline.ReasonInitialSnapshotUploaded")); break;
+                case ClientInitialWorldEffect.Players: _ = playerDirectory.RefreshAsync(manual: false); break;
+                case ClientInitialWorldEffect.Chat: StartRefreshChatMessages(initialLoad: true); break;
+                case ClientInitialWorldEffect.ColonySites: StartRegisterPlayerColonySites(); break;
+                case ClientInitialWorldEffect.Extensions: StartSyncWorldConfigurationExtensions(); break;
+                case ClientInitialWorldEffect.Presence: StartManualPresence(); break;
+            }
+        };
         worldGeneration = new ClientWorldGeneration(sessionLifecycle, worldSetup, worldConfiguration, new ClientWorldGenerationRuntime(), new ClientWorldGenerationPresentation(message => loginStatus = message));
         worldEntry = new ClientWorldEntry(sessionLifecycle, new ClientSnapshotGame(), worldSetup,
             entryStore, worldTransport, entryPresentation, snapshotReload);

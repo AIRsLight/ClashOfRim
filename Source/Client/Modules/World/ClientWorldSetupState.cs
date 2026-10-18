@@ -16,6 +16,8 @@ internal sealed class ClientWorldSetupState
     internal ClientWorldSetupState(ClientSessionLifecycle session)
         => requests = new(session, () => { initial = languageAccepted = false; configuration = null; substrate = null; });
     internal bool Pending => requests.Read(() => initial || configuration is not null);
+    internal ClientRequestTracker.Scope CaptureScope() => requests.Capture();
+    internal bool IsCurrent(ClientRequestTracker.Scope scope) => requests.TryApply(scope, static () => { });
     internal bool HasConfiguration => requests.Read(() => configuration is not null);
     internal bool LanguageAccepted { get => requests.Read(() => languageAccepted); set => requests.Read(() => languageAccepted = value); }
     internal ModWorldConfigurationDto? Configuration => requests.Read(() => configuration is null ? null : ClientProtocolJson.Copy(configuration));
