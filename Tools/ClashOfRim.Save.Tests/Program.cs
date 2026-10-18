@@ -97,6 +97,7 @@ var tests = new (string Name, Action Run)[]
     ("银行状态报价与事故报告的授权恢复和只读校验", () => BankRequestRecoveryTests.Run(BuildFixturePackage)),
     ("商店列表会话绑定与恢复后的个性化价格", () => ShopListRecoveryTests.Run(BuildFixturePackage)),
     ("世界配置提交认证与恢复边界", () => WorldConfigurationAuthorizationTests.Run(BuildFixturePackage)),
+    ("世界写入模块、覆盖率、底图与跨语言目录", WorldConfigurationWriteModuleTests.Run),
     ("世界配置与底图引用共同发布且失败保持原状态", WorldConfigurationPersistenceTests.Run),
     ("普通上传和事件确认在恢复前后复验身份且锁外准备", () => UploadConfirmationRecoveryTests.Run(BuildFixturePackage)),
     ("文件日志随宿主释放且构建失败与迟到写入安全", () => FileLoggerLifetimeTests.Run(BuildFixturePackage)),

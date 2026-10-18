@@ -185,7 +185,7 @@ public static partial class ClashOfRimNetworkServer
             if (string.Equals(actionKind, "PromoteAdmin", StringComparison.Ordinal)
                 || string.Equals(actionKind, "RevokeAdmin", StringComparison.Ordinal))
             {
-                SignalWorldConfigurationChanged(state, request.UserId, request.TargetUserId);
+                state.WorldChanges.Signal(request.UserId, request.TargetUserId);
             }
 
             RuntimeLogger(loggerFactory).LogInformation(

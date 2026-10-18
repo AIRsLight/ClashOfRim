@@ -7,15 +7,6 @@ namespace AIRsLight.ClashOfRim.Network;
 
 public static partial class ClashOfRimNetworkServer
 {
-    private static void SignalWorldConfigurationChanged(ClashOfRimNetworkState state, params string?[] additionalUserIds)
-    {
-        IEnumerable<string> knownUsers = state.Players.List().Select(player => player.UserId);
-        IEnumerable<string> additionalUsers = additionalUserIds
-            .Where(userId => !string.IsNullOrWhiteSpace(userId))
-            .Select(userId => userId!);
-        state.WorldConfigurationNotifications.SignalUsers(knownUsers.Concat(additionalUsers));
-    }
-
     private static void ReconcileAbandonedColonyOnClientLifecycle(
         ClashOfRimNetworkState state,
         ClientLifecycleEvent lifecycleEvent)

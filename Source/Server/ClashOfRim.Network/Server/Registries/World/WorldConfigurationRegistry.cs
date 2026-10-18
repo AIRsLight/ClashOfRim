@@ -194,7 +194,7 @@ public sealed class WorldConfigurationRegistry
             string primary = administratorUserId ?? userId;
             var administrators = new HashSet<string>(administratorUserIds, StringComparer.Ordinal) { primary };
             bool isAdministrator = administrators.Contains(userId);
-            if (isAdministrator && HasUsableWorldGenerationBaseline(configuration))
+            if (isAdministrator && (WorldGenerationBaseline.ValidationFailure(configuration) is null))
             {
                 var candidate = CopyWithTileGeometry(MergeSubmittedWorldGenerationBaselineLocked(
                     EnsureSubmittedLanguageFeatureNameCatalog(configuration), userId, activeWorldExtensions), tileGeometry: null);
@@ -257,7 +257,7 @@ public sealed class WorldConfigurationRegistry
 
         lock (gate)
         {
-            if (worldConfiguration is null || !HasUsableWorldGenerationBaseline(worldConfiguration))
+            if (worldConfiguration is null || WorldGenerationBaseline.ValidationFailure(worldConfiguration) is not null)
             {
                 return new WorldFeatureNameCatalogSubmitResult(false, false, "WorldNotConfigured", worldConfiguration);
             }
@@ -309,7 +309,7 @@ public sealed class WorldConfigurationRegistry
 
         lock (gate)
         {
-            if (worldConfiguration is null || !HasUsableWorldGenerationBaseline(worldConfiguration))
+            if (worldConfiguration is null || WorldGenerationBaseline.ValidationFailure(worldConfiguration) is not null)
             {
                 return new WorldSubstrateStoreResult(false, "WorldNotConfigured", 0, 0, worldConfiguration);
             }
@@ -358,7 +358,7 @@ public sealed class WorldConfigurationRegistry
         {
             payload = null;
             if (worldConfiguration is null
-                || !HasUsableWorldGenerationBaseline(worldConfiguration)
+                || WorldGenerationBaseline.ValidationFailure(worldConfiguration) is not null
                 || !string.Equals(worldConfiguration.WorldConfigurationId, worldConfigurationId, StringComparison.Ordinal)
                 || worldSubstratePayload is null
                 || !WorldSubstratePackageCodec.TryDecode(worldSubstratePayload, out _, out _))
@@ -1060,22 +1060,10 @@ public sealed class WorldConfigurationRegistry
         }
     }
 
-    private static bool HasUsableWorldGenerationBaseline(WorldConfigurationDto configuration)
-    {
-        return !string.IsNullOrWhiteSpace(configuration.SeedString)
-            && float.TryParse(
-                configuration.PlanetCoverage,
-                NumberStyles.Float,
-                CultureInfo.InvariantCulture,
-                out float coverage)
-            && coverage > 0f
-            && configuration.FactionDefNames.Count > 0;
-    }
-
     private bool HasReadyWorldLocked()
     {
         return worldConfiguration is not null
-            && HasUsableWorldGenerationBaseline(worldConfiguration)
+            && (WorldGenerationBaseline.ValidationFailure(worldConfiguration) is null)
             && worldSubstratePayload is not null
             && WorldSubstratePackageCodec.TryDecode(worldSubstratePayload, out _, out _);
     }

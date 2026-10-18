@@ -1576,3 +1576,19 @@ M8a3b3 与 M8a3b 完成。下一步 **M8b 世界准备/同步**：迁出世界�
 累计 **7 个相关单元组通过**：新增模块 108 场景、原世界准备 106 场景、模块/路由守卫、独立连接、世界标记、成就/排行榜生命周期及殖民地删除阶段。守卫检查 **294** 个模块/生成类型及 **81** 条路由；服务端 Release 编译 **0 警告、0 错误**。补充实际扩展开关检查后只重跑新增模块和受影响的共用世界夹具组。日志：`LocalOnly/module-migration/world-preparation-before.log`、`world-preparation-after.log`、`world-preparation-related.log`、`world-preparation-final.log`、`world-preparation-build.log`。未运行 RimTest 或全量回归，未推送；本步为纯服务端编排与读取，现有 HTTP 契约场景和独立单元覆盖所改边界。后续确需客户端运行时验证时可运行单次功能 RimTest，全量继续由用户安排。
 
 M8b1 完成；下一步 **M8b2 世界配置提交、底图与名称目录同步**，再处理殖民地生命周期、管理、聊天和成就。M8b、M8 和 M9–M12 保持开放。
+
+### M8b2 世界配置写入、底图传输与名称目录（2026-10-18）
+
+`WorldConfigurationSubmission` 接管管理员配置提交及扩展规范化；`WorldFeatureNames` 接管多语言名称目录提交；`WorldSubstrateTransfer` 接管底图上传/下载的业务结果；`WorldEndpoints` 负责 JSON/multipart、文件响应与 HTTP 状态。原宿主 SessionWorld 和 Baseline 中约 300 行相关实现已删除，模块直接依赖账户、管理员授权、恢复协调、注册表、扩展和交付能力，不依赖 NetworkState、HTTP 或宿主业务委托。配置提交保留锁外扩展准备与恢复准备、兼容基线引用复验、锁内发布及活动记录；底图和目录不启动快照恢复。
+
+`WorldConfigurationChanges` 统一向已登记玩家和本次额外用户发送配置变更通知，名称目录、底图、地点/搬家、管理员操作和快照世界投影的现有调用点均直接使用该模块，删除宿主 SignalWorldConfigurationChanged 包装及算法。仅提交配置仍清除旧底图、隐藏未就绪世界且不提前发通知；底图持久化成功后才发送变更，目录重试不重复通知。此模块负责当前通知收件人选择，不能代替后续世界图层持久待办和殖民地删除流程的迁移。
+
+先用真实 HTTP 测试在旧代码复现 `PlanetCoverage="NaN"` 仍返回 Accepted：入口用 `coverage <= 0` 排除，注册表用 `coverage > 0` 接受，两个算法对 NaN 的结果相反。新增 `WorldGenerationBaseline`，统一提交校验、注册表写入、名称目录/底图准入及读取就绪判断，种子/覆盖率/派系规则只保留一份；覆盖率必须是按 InvariantCulture 解析的有限正数。拒绝 NaN、正负无穷和溢出，继续支持现有正数格式（包括 `0.3`、`30` 和科学计数），未擅自改变覆盖率单位。失败不恢复快照、不写玩家活动，也不替换旧底图或持久世界。
+
+底图上传在解析 multipart 后直接使用 SnapshotPrincipalAuthorization 校验请求头令牌与用户/殖民地，复用会话归属规则；不依赖此前放入 HTTP Items 的身份快照，JSON 中的 AuthToken 不能替代请求头。随后保留账号凭据认证与注册表管理员/世界 ID/包结构检查。下载业务返回明确的 Available/InvalidRequest/Unauthorized/NotFound，由端点维持 200 文件、400、401、404 以及原文件名/MIME 类型。没有增加跨域事务、改变底图编码或扩大名称目录写入权限。
+
+新增 `WorldConfigurationWriteModuleTests`，四种文化共 **148** 场景，独立装配窄模块，复用 SessionModuleTestContext、Slot、原扩展探针和二进制存储夹具。覆盖十类覆盖率、规范化/恢复期间身份与基线变化、持久化失败和重试、两图层底图重开读取、坏包/错世界/错身份/非管理员/撤销或替换会话、下载字节隔离和 multipart/HTTP 契约；名称目录覆盖 Italian 大小写在土耳其文化下的幂等性、语言裁剪、指纹不符、原德语保持、持久失败及通知去重。原真实 HTTP 授权组增加 NaN/Infinity/溢出回归。
+
+累计 **7 个相关单元组通过**：新写入模块 148 场景、原配置授权、配置持久化 119 场景、模块/路由守卫、快照世界投影、世界图层通知恢复和底图就绪。最后补充 Italian 语言及通知去重后仅重跑新组。守卫检查 **304** 个模块/生成类型及 **81** 条路由；服务端 Release 编译 **0 警告、0 错误**。日志位于 `LocalOnly/module-migration/world-write-{before,after,related,final,build}.log`。未运行 RimTest 或全量回归，未推送；其他工作区改动继续保留，Program 只提交本步注册行。
+
+M8b2 完成；下一步 **M8b3 世界标记与运行时世界对象同步入口**，之后继续殖民地生命周期、管理、聊天及成就。M8b、M8 和 M9–M12 保持开放。

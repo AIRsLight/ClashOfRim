@@ -109,11 +109,7 @@ public static partial class ClashOfRimNetworkServer
         DiplomacyEndpoints.Map(app, tradeState.Diplomacy);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.SyncWorldMapMarkers).Route, SyncWorldMapMarkers);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.SyncRuntimeWorldObjects).Route, SyncRuntimeWorldObjects);
-        WorldEndpoints.Map(app, tradeState.WorldPreparation, tradeState.WorldRead);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.SubmitWorldConfiguration).Route, SubmitWorldConfiguration).WithMetadata(EndpointSnapshotRecovery.Instance);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.UploadWorldSubstrate).Route, UploadWorldSubstrate);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.DownloadWorldSubstrate).Route, DownloadWorldSubstrate);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.SubmitWorldFeatureNames).Route, SubmitWorldFeatureNames);
+        WorldEndpoints.Map(app, tradeState.WorldPreparation, tradeState.WorldRead, tradeState.WorldSubmission, tradeState.WorldFeatureNames, tradeState.WorldSubstrate);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.RegisterPlayerColonySites).Route, RegisterPlayerColonySites);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.PreflightColonyRelocation).Route, PreflightColonyRelocation);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.ConfirmColonyRelocation).Route, ConfirmColonyRelocation);
@@ -237,7 +233,7 @@ public static partial class ClashOfRimNetworkServer
             normalizedSites,
             extensions,
             activeWorldExtensions);
-        SignalWorldConfigurationChanged(state, userId);
+        state.WorldChanges.Signal(userId);
     }
 
     private static IReadOnlyList<SnapshotColonyAnchor> ExtractSnapshotColonyAnchors(

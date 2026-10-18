@@ -246,7 +246,7 @@ internal static class WorldConfigurationPersistenceTests
     }
     private sealed class MemoryJson : IJsonPersistenceSlot
     { private string? value; public string? Read() => value; public void Write(string json) => value = json; }
-    private sealed class MemoryBinary : IBinaryPersistenceSlot
+    internal sealed class MemoryBinary : IBinaryPersistenceSlot
     {
         private readonly Dictionary<string, byte[]> values = new();
         public byte[]? ReadBinary(string key) => values.TryGetValue(key, out var bytes) ? bytes.ToArray() : null;

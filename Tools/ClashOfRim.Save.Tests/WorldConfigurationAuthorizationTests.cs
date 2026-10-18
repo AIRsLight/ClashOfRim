@@ -13,7 +13,7 @@ internal static class WorldConfigurationAuthorizationTests
     public static void Run(Func<string, SaveSnapshotPackage> factory)
     {
         foreach (string invalid in new[] { "missing-token", "token", "user", "colony", "missing-user", "missing-colony", "protocol",
-            "missing-world", "seed", "coverage", "factions", "empty-world", "nonadmin", "logout", "replace", "expired" })
+            "missing-world", "seed", "coverage", "coverage-nan", "coverage-infinity", "coverage-overflow", "factions", "empty-world", "nonadmin", "logout", "replace", "expired" })
         {
             using var e = new Env(factory, invalid == "empty-world" ? null : invalid == "nonadmin" ? "other-admin" : "receiver");
             var f = e.F; f.Seed();
@@ -25,7 +25,7 @@ internal static class WorldConfigurationAuthorizationTests
             }
             string before = f.Evidence(), world = e.Evidence();
             using var response = Call(e, invalid); Require(!Accepted(response), "Invalid world submission accepted: " + invalid);
-            Require(e.Provider.Normalizations == (invalid is "seed" or "coverage" or "factions" ? 1 : 0),
+            Require(e.Provider.Normalizations == (invalid is "seed" or "coverage" or "coverage-nan" or "coverage-infinity" or "coverage-overflow" or "factions" ? 1 : 0),
                 "Unauthorized or malformed request invoked extension normalization: " + invalid);
             using var json = JsonDocument.Parse(response.Content.ReadAsStringAsync().GetAwaiter().GetResult());
             Require(!json.RootElement.GetProperty("isAdministrator").GetBoolean()
@@ -98,7 +98,7 @@ internal static class WorldConfigurationAuthorizationTests
         finally { e.Slot.RequireGate = false; }
     }
     private static WorldConfigurationDto Configuration(string seed, string invalid = "") => new("world-test", "spoofed-user", "spoofed-colony",
-        DateTimeOffset.UnixEpoch, invalid == "seed" ? "" : seed, invalid == "coverage" ? "zero" : "30", "Normal", "Normal", "Normal", "Normal", "100",
+        DateTimeOffset.UnixEpoch, invalid == "seed" ? "" : seed, invalid switch { "coverage" => "zero", "coverage-nan" => "NaN", "coverage-infinity" => "Infinity", "coverage-overflow" => "1e100", _ => "30" }, "Normal", "Normal", "Normal", "Normal", "100",
         invalid == "factions" ? [] : ["OutlanderCivil"], [], [], [], [], []);
     private static bool Accepted(HttpResponseMessage response)
     {
@@ -133,7 +133,7 @@ internal static class WorldConfigurationAuthorizationTests
         public void Write(string json)
         { if (RequireGate) Require(Monitor.IsEntered(Gate), "World publication is outside the shared mutation gate."); value = json; }
     }
-    private sealed class Provider : IWorldConfigurationExtensionProvider
+    internal sealed class Provider : IWorldConfigurationExtensionProvider
     {
         public Action? BeforeNormalize; public int Normalizations;
         public IReadOnlyList<WorldConfigurationExtensionKey> HandledKeys => [];
