@@ -8,7 +8,7 @@ using AIRsLight.ClashOfRim.Modules.World;
 
 namespace AIRsLight.ClashOfRim.ClientNetwork;
 
-internal sealed class ClientWorldPreparationTransport : IClientWorldPreparationTransport
+internal sealed class ClientWorldPreparationTransport : IClientWorldPreparationTransport, IClientWorldSubstrateTransport
 {
     private readonly IClientProtocolEnvironment environment;
     internal ClientWorldPreparationTransport(IClientProtocolEnvironment environment) => this.environment = environment;
@@ -18,6 +18,8 @@ internal sealed class ClientWorldPreparationTransport : IClientWorldPreparationT
         => Run(context, protocol => protocol.PrepareAsync(context, createAccount, token));
     public Task<ClashOfRimClientNetworkResult<ModGetWorldConfigurationResponseDto>> ReadAsync(ClashOfRimClientNetworkContext context, bool generation, CancellationToken token)
         => Run(context, protocol => protocol.ReadAsync(context, generation, true, true, token));
+    public Task<ClashOfRimClientNetworkResult<byte[]>> DownloadAsync(ClashOfRimClientNetworkContext context, string configurationId, CancellationToken token)
+        => Run(context, protocol => protocol.DownloadSubstrateAsync(context, configurationId, token));
     private async Task<T> Run<T>(ClashOfRimClientNetworkContext context, Func<ClientWorldProtocol, Task<T>> operation)
     {
         using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(120) };

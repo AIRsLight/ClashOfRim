@@ -2,8 +2,14 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using AIRsLight.ClashOfRim.ClientNetwork;
+using AIRsLight.ClashOfRim.Modules.Synchronization;
 
 namespace AIRsLight.ClashOfRim.Modules.Snapshots;
+
+internal interface IClientSnapshotReload
+{
+    Task StartAsync(ClientSnapshotReloadRequest request, ClientSynchronizationCoordinator.Lease? continuation = null);
+}
 
 internal enum ClientSnapshotReloadPurpose { Entry, Raid }
 internal sealed record ClientSnapshotReloadRequest(string? ExpectedSnapshotId, ClientSnapshotReloadPurpose Purpose,

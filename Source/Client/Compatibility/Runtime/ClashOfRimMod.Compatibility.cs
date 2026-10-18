@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Compatibility;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -19,8 +20,6 @@ namespace AIRsLight.ClashOfRim;
 
 public sealed partial class ClashOfRimMod
 {
-    private const int ProtocolErrorCodeValidationFailed = 7;
-
     private static string? BuildCompatibilityManifestJsonForLogin()
     {
         try
@@ -232,92 +231,12 @@ public sealed partial class ClashOfRimMod
         Action? continueAnyway = null,
         Action? cancelContinuation = null,
         string? authoritativeServerGameLanguage = null)
-    {
-        if (!ShouldShowCompatibilityMismatchWindow(response))
-        {
-            cancelContinuation?.Invoke();
-            return;
-        }
-
-        response ??= new ModLoginResponseDto();
-        if (response.CompatibilityIssues is { Count: > 0 })
-        {
-            ClashLog.Message("[ClashOfRim][Compatibility] mismatch issues:\n"
-                + string.Join(
-                    "\n",
-                    response.CompatibilityIssues.Select(issue =>
-                        "  - severity="
-                        + (issue.Severity ?? string.Empty)
-                        + ", code="
-                        + (issue.Code ?? string.Empty)
-                        + ", subject="
-                        + (issue.Subject ?? string.Empty)
-                        + ", message="
-                        + (issue.Message ?? string.Empty))));
-        }
-
-        EnqueueClashOfRimMainThreadAction(() =>
-        {
-            if (Find.WindowStack.WindowOfType<CompatibilityMismatchWindow>() is null)
-            {
-                Find.WindowStack.Add(new CompatibilityMismatchWindow(
-                    this,
-                    response,
-                    authoritativeServerGameLanguage,
-                    continueAnyway,
-                    cancelContinuation));
-            }
-            else cancelContinuation?.Invoke();
-        }, onDiscard: cancelContinuation);
-    }
+        => compatibilityPresentation.Show(response, worldSetup.LanguageAccepted, authoritativeServerGameLanguage, continueAnyway, cancelContinuation);
 
     private void ShowCompatibilityMismatchWindow(
         ModPrepareWorldSessionResponseDto? response,
         Action? continueAnyway = null,
         Action? cancelContinuation = null)
-    {
-        if (response is null)
-        {
-            cancelContinuation?.Invoke();
-            return;
-        }
-
-        ShowCompatibilityMismatchWindow(new ModLoginResponseDto
-        {
-            Result = response.Result,
-            ServerCompatibilityManifestJson = response.ServerCompatibilityManifestJson,
-            CompatibilityIssues = response.CompatibilityIssues ?? new List<ModCompatibilityIssueDto>(),
-            CanOverrideCompatibilityBaseline = response.CanOverrideCompatibilityBaseline
-        }, continueAnyway, cancelContinuation, response.WorldConfiguration?.GameLanguage);
-    }
-
-    private bool ShouldShowCompatibilityMismatchWindow(ModLoginResponseDto? response)
-    {
-        if (response is null)
-        {
-            return false;
-        }
-
-        if (worldSetup.LanguageAccepted
-            && CompatibilityLanguageMismatchPolicy.CanContinue(response))
-        {
-            return false;
-        }
-
-        if (response.CompatibilityIssues is { Count: > 0 })
-        {
-            return response.Result?.Accepted == true
-                ? response.CompatibilityIssues.Any(issue => !string.Equals(issue.Severity, "Info", StringComparison.OrdinalIgnoreCase))
-                : true;
-        }
-
-        if (response.Result?.Accepted == true)
-        {
-            return false;
-        }
-
-        return response.Result?.ErrorCode == ProtocolErrorCodeValidationFailed
-            && !string.IsNullOrWhiteSpace(response.ServerCompatibilityManifestJson);
-    }
-
+        => compatibilityPresentation.Show(response is null ? null : ClientCompatibilityWarning.FromPreparation(response),
+            worldSetup.LanguageAccepted, response?.WorldConfiguration?.GameLanguage, continueAnyway, cancelContinuation);
 }

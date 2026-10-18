@@ -8,7 +8,7 @@ using AIRsLight.ClashOfRim.Modules.Transport;
 
 namespace AIRsLight.ClashOfRim.Modules.Snapshots;
 
-internal sealed class ClientSnapshotReload
+internal sealed class ClientSnapshotReload : IClientSnapshotReload
 {
     private readonly ClientSessionLifecycle session;
     private readonly ClientSynchronizationCoordinator synchronization;
@@ -44,7 +44,7 @@ internal sealed class ClientSnapshotReload
         presentation.Close(job);
     }
 
-    internal Task StartAsync(ClientSnapshotReloadRequest request, ClientSynchronizationCoordinator.Lease? continuation = null)
+    public Task StartAsync(ClientSnapshotReloadRequest request, ClientSynchronizationCoordinator.Lease? continuation = null)
     {
         using var p = ClientSessionWork.EnterPublication();
         Advance();

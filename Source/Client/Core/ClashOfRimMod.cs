@@ -148,6 +148,8 @@ public sealed partial class ClashOfRimMod : Mod
     private readonly ClientAchievementQueries achievementQueries;
     private readonly ClientEndgameAchievements endgameAchievements;
     private readonly ClientWorldPreparation worldPreparation;
+    private readonly ClientWorldEntry worldEntry;
+    private readonly ClientCompatibilityPresentation compatibilityPresentation;
     private readonly ClientWorldSetupState worldSetup;
     private readonly List<ModChatMessageDto> lastChatMessages = new();
     private readonly List<ModWorldMapMarkerDto> lastWorldMapMarkers = new();
@@ -170,9 +172,12 @@ public sealed partial class ClashOfRimMod : Mod
         snapshotPublication = ClientSnapshotComposition.CreatePublication(settings);
         sessionLifecycle = new ClientSessionLifecycle(new ClientSessionIdentityStore(settings), new ClientSessionLogoutTransport(), sessionConnection);
         worldSetup = new ClientWorldSetupState(sessionLifecycle);
-        worldPreparation = new ClientWorldPreparation(sessionLifecycle, new ClientSnapshotGame(),
-            new ClientWorldPreparationTransport(new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner))),
-            new ClientWorldPreparationPresentation());
+        compatibilityPresentation = new ClientCompatibilityPresentation((response, language, accept, cancel) =>
+            new AIRsLight.ClashOfRim.CompatibilityClient.CompatibilityMismatchWindow(this, response, language, accept, cancel));
+        var entryPresentation = new ClientWorldEntryPresentation(message => loginStatus = message,
+            (server, account) => Find.WindowStack.Add(new AIRsLight.ClashOfRim.MainMenu.ClashOfRimAccountRegistrationDialog(this, server, account)), compatibilityPresentation);
+        var worldTransport = new ClientWorldPreparationTransport(new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner)));
+        worldPreparation = new ClientWorldPreparation(sessionLifecycle, new ClientSnapshotGame(), worldTransport, entryPresentation);
         sessionReconnect = new ClientSessionReconnect(new ClientSessionReconnectTransport(new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner))), sessionLifecycle, synchronization);
         passwordChange = new ClientPasswordChange(sessionLifecycle,
             new ClientPasswordTransport(new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner))),
@@ -278,6 +283,15 @@ public sealed partial class ClashOfRimMod : Mod
                 (message, purpose) => { loginStatus = message; if (purpose == ClientSnapshotReloadPurpose.Raid) worldMapStatus = message; },
                 response => ShowCompatibilityMismatchWindow(response)));
         snapshotReload.Completed += OnServerSnapshotLoaded;
+        worldEntry = new ClientWorldEntry(sessionLifecycle, new ClientSnapshotGame(), worldSetup,
+            new ClientWorldEntryStore(settings), worldTransport, entryPresentation, snapshotReload);
+        worldEntry.Accepted += response =>
+        {
+            CaptureServerCompatibilityManifest(response.ServerCompatibilityManifestJson);
+            ApplyAdministratorFlag(response.IsAdministrator);
+            UpdateOccupiedPlayerColonySites(response.WorldConfiguration);
+            if (response.HasExistingColony) ClearServerEntrySourceGameBlock("existing-colony-restore");
+        };
         observationMaps = new ClientObservationMaps(sessionLifecycle, synchronization, new ClientSnapshotGame(),
             new ClientObservationTransport(), new ClientObservationRuntime(),
             new ClientObservationPresentation(message => worldMapStatus = message, response => ShowCompatibilityMismatchWindow(response)));

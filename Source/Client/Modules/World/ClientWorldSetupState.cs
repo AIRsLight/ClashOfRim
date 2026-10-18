@@ -1,4 +1,3 @@
-using System;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.Modules.Sessions;
 using AIRsLight.ClashOfRim.Modules.Transport;
@@ -34,13 +33,6 @@ internal sealed class ClientWorldSetupState
             return true;
         });
     }
-    internal ClientRequestTracker.Request CaptureDecision() => requests.Begin(replace: true)!;
-    internal bool Accept(ClientRequestTracker.Request decision, Action action)
-        => requests.TryApply(decision, () =>
-        {
-            requests.End(decision);
-            action();
-        });
     internal Ticket? CaptureGeneration() => requests.Read(() => configuration is null || substrate is not null ? null : new Ticket(requests.Capture(), ClientProtocolJson.Copy(configuration)));
     internal bool AttachSubstrate(Ticket ticket, WorldSubstratePackage value)
     {

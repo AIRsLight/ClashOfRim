@@ -1,19 +1,13 @@
 using System;
 using AIRsLight.ClashOfRim.Modules.Synchronization;
-using System.Collections.Generic;
 using AIRsLight.ClashOfRim.Modules.Snapshots;
-using System.Linq;
-using System.Net.Http;
-using System.Threading.Tasks;
 using AIRsLight.ClashOfRim.Compatibility;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.ClientSnapshots;
-using AIRsLight.ClashOfRim.CompatibilityClient;
 using AIRsLight.ClashOfRim.MainMenu;
 using AIRsLight.ClashOfRim.Raids;
 using AIRsLight.ClashOfRim.RemoteMaps;
 using AIRsLight.ClashOfRim.WorldObjects;
-using AIRsLight.ClashOfRim.Protocol;
 using RimWorld;
 using Verse;
 
@@ -106,16 +100,8 @@ public sealed partial class ClashOfRimMod
             if (prepared is null) return;
             if (!operation.IsCurrent) { worldPreparation.Discard(prepared); return; }
             operation.QueueContinuation(EnqueueClashOfRimMainThreadAction, next =>
-                worldPreparation.Complete(prepared, outcome =>
-                {
-                    if (outcome.Failure is { } failure)
-                    {
-                        loginStatus = failure;
-                        Messages.Message(loginStatus, MessageTypeDefOf.RejectInput, historical: false);
-                        ShowServerEntryFailureWindowNow(loginStatus);
-                    }
-                    else FinishMainMenuServerEntryFlow(outcome.Result!, next);
-                }), completed: () => worldPreparation.Discard(prepared));
+                worldPreparation.Complete(prepared, outcome => { _ = worldEntry.Handle(outcome.Result, outcome.Failure, next); }),
+                completed: () => worldPreparation.Discard(prepared));
         });
 
         return true;
@@ -163,242 +149,6 @@ public sealed partial class ClashOfRimMod
             occupiedPlayerColonySites.Clear();
         }
     }
-
-    private void FinishMainMenuServerEntryFlow(
-        ClashOfRimClientNetworkResult<ModPrepareWorldSessionResponseDto> result,
-        ClientSynchronizationCoordinator.Lease operation)
-    {
-        DebugLogFlow("FinishMainMenuServerEntryFlow.Enter", $"success={result.Success}, response={result.Response is not null}");
-        if (!result.Success || result.Response is null)
-        {
-            loginStatus = ClashOfRimText.Key(
-                "ClashOfRim.WorldSessionRequestFailed",
-                result.ErrorCode.Named("CODE"),
-                result.Message.Named("MESSAGE"));
-            Messages.Message(loginStatus, MessageTypeDefOf.RejectInput, historical: false);
-            ShowServerEntryFailureWindowNow(loginStatus);
-            return;
-        }
-
-        ModPrepareWorldSessionResponseDto response = result.Response;
-        if (response.Result?.Accepted != true
-            && response.Result?.ErrorCode == (int)ProtocolErrorCode.AccountNotFound)
-        {
-            CloseServerEntryProgressWindowNow();
-            string server = settings.ServerBaseUrl;
-            string account = settings.UserId;
-            var registration = worldSetup.CaptureDecision();
-            Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation(
-                ClashOfRimText.Key(
-                    "ClashOfRim.ServerEntry.AccountMissingPrompt",
-                    account.Named("USER")),
-                () => worldSetup.Accept(registration, () => Find.WindowStack.Add(new ClashOfRimAccountRegistrationDialog(
-                    this,
-                    server,
-                    account))),
-                destructive: false,
-                title: ClashOfRimText.Key("ClashOfRim.ServerEntry.AccountMissingTitle")));
-            return;
-        }
-
-        CaptureServerCompatibilityManifest(response.ServerCompatibilityManifestJson);
-        if (!string.IsNullOrWhiteSpace(response.AssignedColonyId)
-            && !string.Equals(settings.ColonyId, response.AssignedColonyId, StringComparison.Ordinal))
-        {
-            DebugLogFlow(
-                "FinishMainMenuServerEntryFlow.AssignedColonyId",
-                $"requested={settings.ColonyId}, assigned={response.AssignedColonyId}");
-            settings.ColonyId = response.AssignedColonyId!;
-            settings.CurrentSnapshotId = string.Empty;
-            settings.Write();
-        }
-
-        if (!string.IsNullOrWhiteSpace(response.LatestSnapshotId)
-            && !string.Equals(settings.CurrentSnapshotId, response.LatestSnapshotId, StringComparison.Ordinal))
-        {
-            settings.CurrentSnapshotId = response.LatestSnapshotId!;
-            settings.Write();
-        }
-
-        ApplyAdministratorFlag(response.IsAdministrator);
-
-        if (!worldSetup.LanguageAccepted
-            && CompatibilityLanguageMismatchPolicy.CanContinue(new ModLoginResponseDto
-            {
-                Result = response.Result,
-                CompatibilityIssues = response.CompatibilityIssues ?? new List<ModCompatibilityIssueDto>()
-            }))
-        {
-            CloseServerEntryProgressWindowNow();
-            var decision = worldSetup.CaptureDecision();
-            operation.QueueContinuation(
-                (resume, cancel) => ShowCompatibilityMismatchWindow(response, resume, cancel),
-                next => worldSetup.Accept(decision, () =>
-                {
-                    worldSetup.LanguageAccepted = true;
-                    FinishMainMenuServerEntryFlow(result, next);
-                }));
-            return;
-        }
-
-        if (response.Result?.Accepted != true)
-        {
-            loginStatus = ClashOfRimText.Key(
-                "ClashOfRim.WorldSessionRejected",
-                (response.Result?.Message ?? ClashOfRimText.Key("ClashOfRim.UnknownReason")).Named("REASON"));
-            Messages.Message(loginStatus, MessageTypeDefOf.RejectInput, historical: false);
-            ShowServerEntryFailureWindowNow(loginStatus);
-            ShowCompatibilityMismatchWindow(response);
-            return;
-        }
-
-        ShowCompatibilityMismatchWindow(response);
-
-        if (!response.WorldConfigured && !response.IsAdministrator)
-        {
-            loginStatus = response.Result?.Message ?? ClashOfRimText.Key("ClashOfRim.WaitingFirstAdminWorldConfiguration");
-            Messages.Message(loginStatus, MessageTypeDefOf.RejectInput, historical: false);
-            ShowServerEntryFailureWindowNow(loginStatus);
-            return;
-        }
-
-        if (response.WorldConfigured && !response.HasExistingColony && response.WorldConfiguration is null)
-        {
-            loginStatus = ClashOfRimText.Key("ClashOfRim.WorldConfiguredButMissingConfiguration");
-            Messages.Message(loginStatus, MessageTypeDefOf.RejectInput, historical: false);
-            ShowServerEntryFailureWindowNow(loginStatus);
-            return;
-        }
-
-        worldSetup.Prepare(response);
-        UpdateOccupiedPlayerColonySites(response.WorldConfiguration);
-        DebugLogFlow(
-            "FinishMainMenuServerEntryFlow.Prepared",
-            $"worldConfigured={response.WorldConfigured}, isAdmin={response.IsAdministrator}, requiresInitial={response.RequiresInitialWorldConfiguration}, hasExistingColony={response.HasExistingColony}, latestSnapshot={response.LatestSnapshotId}, hasConfiguration={response.WorldConfiguration is not null}, occupiedSites={occupiedPlayerColonySites.Count}, storyteller={response.WorldConfiguration?.StorytellerDefName}, difficulty={response.WorldConfiguration?.DifficultyDefName}, extensions={response.WorldConfiguration?.Extensions?.Count ?? 0}, {DescribeWorldConfiguration(response.WorldConfiguration)}");
-        if (response.HasExistingColony)
-        {
-            ClearServerEntrySourceGameBlock("existing-colony-restore");
-            string? latestSnapshotId = response.LatestSnapshotId;
-            if (!string.IsNullOrWhiteSpace(latestSnapshotId))
-            {
-                settings.CurrentSnapshotId = latestSnapshotId!;
-                settings.Write();
-            }
-
-            loginStatus = ClashOfRimText.Key(
-                "ClashOfRim.ExistingColonyLoadFlow",
-                settings.UserId.Named("USER"),
-                settings.ColonyId.Named("COLONY"),
-                (latestSnapshotId ?? ClashOfRimText.Key("ClashOfRim.None")).Named("SNAPSHOT"));
-            ShowServerEntryProgressWindowNow(
-                ClashOfRimText.Key("ClashOfRim.ServerEntry.Title"),
-                loginStatus,
-                0.05f,
-                canClose: false);
-            StartRestoreExistingColonySnapshot(
-                latestSnapshotId,
-                worldConfiguration: response.WorldConfiguration,
-                continuation: operation);
-            return;
-        }
-
-        if (response.WorldConfigured && response.WorldConfiguration is not null)
-        {
-            loginStatus = ClashOfRimText.Key("ClashOfRim.JoinExistingWorldFlow", settings.UserId.Named("USER"), settings.ColonyId.Named("COLONY"));
-            ShowServerEntryProgressWindowNow(
-                ClashOfRimText.Key("ClashOfRim.ServerEntry.Title"),
-                loginStatus,
-                0.35f,
-                canClose: false);
-            StartDownloadWorldSubstrateThenOpenScenario(operation);
-            return;
-        }
-
-        loginStatus = response.RequiresInitialWorldConfiguration
-            ? ClashOfRimText.Key(
-                "ClashOfRim.FirstAdminWorldConfigurationFlow",
-                settings.UserId.Named("USER"),
-                settings.ColonyId.Named("COLONY"))
-            : ClashOfRimText.Key(
-                "ClashOfRim.JoinExistingWorldFlow",
-                settings.UserId.Named("USER"),
-                settings.ColonyId.Named("COLONY"));
-        Messages.Message(loginStatus, MessageTypeDefOf.NeutralEvent, historical: false);
-        CloseServerEntryProgressWindowNow();
-        Page_SelectScenario selectScenario = new();
-        DebugLogFlow("FinishMainMenuServerEntryFlow.AddPageSelectScenario.Before", DescribeWindowStack());
-        Find.WindowStack.Add(selectScenario);
-        DebugLogFlow("FinishMainMenuServerEntryFlow.AddPageSelectScenario.After", DescribeWindowStack());
-    }
-
-    private void StartDownloadWorldSubstrateThenOpenScenario(
-        ClientSynchronizationCoordinator.Lease continuation)
-    {
-        var pending = worldSetup.CaptureGeneration();
-        if (pending is null) return;
-        var configuration = pending.Configuration;
-        if (string.IsNullOrWhiteSpace(configuration.WorldConfigurationId))
-        {
-            worldSetup.RejectGeneration(pending);
-            loginStatus = ClashOfRimText.Key("ClashOfRim.WorldConfiguredButMissingConfiguration");
-            ShowServerEntryFailureWindowNow(loginStatus);
-            return;
-        }
-
-        continuation.RunContinuation(async operation =>
-        {
-            try
-            {
-                using var httpClient = new HttpClient();
-                var client = new ClashOfRimModNetworkClient(
-                    httpClient,
-                    pending.Context);
-                ClashOfRimClientNetworkResult<byte[]> result = await ClientSessionWork.Observe(client
-                    .DownloadWorldSubstrateAsync(configuration.WorldConfigurationId)
-                    .ConfigureAwait(false));
-                using var publication = ClientSessionWork.EnterPublication();
-                string? failure = null;
-                WorldSubstratePackage? substrate = null;
-                bool decoded = result.Success
-                    && result.Response is not null
-                    && WorldSubstratePackageCodec.TryDecode(result.Response, out substrate, out failure)
-                    && substrate is not null;
-                if (!decoded)
-                {
-                    string message = result.Message ?? result.ErrorCode ?? failure ?? "Unknown";
-                    operation.QueueContinuation(EnqueueClashOfRimMainThreadAction, _ =>
-                    {
-                        if (!worldSetup.RejectGeneration(pending)) return;
-                        loginStatus = ClashOfRimText.Key("ClashOfRim.WorldSessionRequestFailed", "WorldSubstrate".Named("CODE"), message.Named("MESSAGE"));
-                        ShowServerEntryFailureWindowNow(loginStatus);
-                    });
-                    return;
-                }
-
-                operation.QueueContinuation(EnqueueClashOfRimMainThreadAction, _ =>
-                {
-                    if (!worldSetup.AttachSubstrate(pending, substrate!)) return;
-                    CloseServerEntryProgressWindowNow();
-                    Find.WindowStack.Add(new Page_SelectScenario());
-                });
-            }
-            catch (Exception ex)
-            when (ClientSessionWork.IsCurrent)
-            {
-                using var publication = ClientSessionWork.EnterPublication();
-                operation.QueueContinuation(EnqueueClashOfRimMainThreadAction, _ =>
-                {
-                    if (!worldSetup.RejectGeneration(pending)) return;
-                    loginStatus = ClashOfRimText.Key("ClashOfRim.WorldSessionRequestFailed", ex.GetType().Name.Named("CODE"), ex.Message.Named("MESSAGE"));
-                    ShowServerEntryFailureWindowNow(loginStatus);
-                });
-            }
-        });
-    }
-
-    private void StartRestoreExistingColonySnapshot(string? expectedSnapshotId,
-        ModWorldConfigurationDto? worldConfiguration = null, ClientSynchronizationCoordinator.Lease? continuation = null)
-        => _ = snapshotReload.StartAsync(new(expectedSnapshotId, ClientSnapshotReloadPurpose.Entry, worldConfiguration), continuation);
 
     // World-entry effects remain in M8; authentication, loading, publication and retries
     // are owned by ClientSnapshotReload before this completed-domain notification.

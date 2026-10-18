@@ -1855,3 +1855,21 @@ M8h1 完成的是共同协议依赖；世界准备的待办状态、主菜单分
 累计 **6 个相关单元组通过**：新世界准备、世界协议、模块依赖守卫、会话生命周期、同步准入及主线程入服续调。最后收敛确认消费逻辑后只重跑新模块及依赖守卫。守卫检查 **802** 个模块及生成类型、**174** 个适配器及生成类型。客户端 Release 构建通过，**0 错误、41 个既有警告**。日志：`LocalOnly/module-migration/client-world-preparation-{before,compile,after,related,final,build}.log`。未运行 RimTest、全量回归或推送。
 
 M8h2a 完成。**下一步 M8h2b：入服 UI 分支、结果发布与底图下载**，随后 M8h3 世界生成/应用。FinishMainMenuServerEntryFlow 仍在宿主内，并仍在拒绝/语言确认前发布 AssignedColonyId、LatestSnapshotId 和管理员标记，需在下一步核对并迁移；本步不宣称已修复这一顺序问题。世界生成、运行时同步、殖民地生命周期以及后续 M8–M12 均保持开放。后续默认相关单元测试；需要引擎验证时可补充单次功能 RimTest，全量由用户安排。
+
+### M8h2b 入服结果决定、身份发布与底图下载（2026-10-18）
+
+`ClientWorldEntry` 接管账户不存在提示、拒绝/必要数据校验、语言确认、殖民地与快照发布、初次管理员建图、已有殖民地恢复及底图下载。删除宿主 FinishMainMenuServerEntryFlow、StartDownloadWorldSubstrateThenOpenScenario 和无调用方的 StartRestoreExistingColonySnapshot；ServerEntry partial 净减少约 250 行。模块直接调用既有快照恢复服务新增的窄接口 IClientSnapshotReload，原恢复算法、认证、事务与重试未复制。底图下载复用已有世界协议及准备传输适配器。
+
+代码顺序审计确认旧 Finish 在拒绝/语言确认之前写入 AssignedColonyId、LatestSnapshotId、管理员标记及兼容基线。现在先检查响应和必要世界数据，再完成用户确认，随后一次发布殖民地/快照并发出 Accepted 通知。拒绝、无配置的非管理员、缺少建图配置/编号、已有殖民地缺少快照、取消语言确认均不发布身份或启动后续流程。ClientWorldEntryStore 将两个设置字段合并为一次保存，值未变时不保存，保存抛错时恢复这两个字段的原内存值；不宣称底层设置文件写入已新增磁盘事务。
+
+决定与下载复用 ClientGameRequestTracker，确认期间尚未发布新殖民地；只有本次合法发布引起的殖民地变化可显式重新绑定请求。保存回调、接受通知或进度显示期间若更换账户、服务器、凭据、登录代次或源 Game，不会把新身份当作旧入服流程继续执行。待建图状态依旧允许正常创建新 Game，但尚未完成的底图下载绑定原源 Game：源 Game 被替换、传输失败、包损坏或主线程回调丢弃时，仅清理它自己的未就绪计划。成功才附加底图并打开场景选择，释放准入继续复用现有 Lease 的转移/完成逻辑。
+
+兼容提示选择统一到 ClientCompatibilityWarning，使用 ProtocolErrorCode.ValidationFailed 替换原私有数字常量；语言判断继续复用原 CompatibilityLanguageMismatchPolicy。ClientCompatibilityPresentation 共享排队、去重和窗口创建，入服提供确切所有权校验，旧提示无法在新身份中打开。宿主兼容方法只转发。新的 ClientWorldEntryPresentation 同时用于握手准备，删除重复的 ClientWorldPreparationPresentation。窗口回调归入入服模块后，删除上一步待建图状态里的 CaptureDecision/Accept 转发，避免两处维护窗口决定。
+
+本步没有把仍耦合宿主的领域投影伪称为已迁移：Accepted 通知在组合根接往现有兼容基线应用、管理员工具策略、殖民地站点投影和源 Game 阻挡清理。模块不通过这些通知回调请求宿主决定入服分支；这些接收方的业务迁移仍属于后续世界同步、管理及兼容工作。现有兼容/注册窗口仍由组合根工厂创建，窗口内部的 Mod 耦合留待其对应模块及 M11；未通过适配器持有完整 Mod 来执行原 Finish。
+
+新增 ClientWorldEntryTests **320** 场景，覆盖四种文化、九类拒绝/缺失输入、三类成功分支、语言接受/取消/重复回调、八种所有权变化在窗口/保存/通知/进度/下载/队列阶段的隔离、临时提示和源响应可变引用、底图失败/异常/丢弃、设置保存失败与无变化不写入。实际设置适配器用 Harmony 替换 ModSettings.Write 以注入保存异常，模块测试复用 EventModuleTestPorts 和真实会话/同步准入。夹具初稿仅重置 ClientSessionWork 而未同步重置准入协调器，导致 confirmation/generation 场景仍忙碌；已按真实退出路径同时 Reset 协调器，没有改产品协调器去迁就夹具。旧世界准备测试删除已迁入入服模块的确认用例，现为 **368** 场景。
+
+累计 **9 个相关单元组通过**：新入服模块、世界准备、世界协议、快照恢复、模块依赖守卫、同步准入、主线程入服续调、语言差异放行及兼容详情请求。最后保存适配器与提示共用规则调整后仅补跑新模块及两个兼容组。守卫检查 **818** 个模块及生成类型、**178** 个适配器及生成类型。Release 构建 **0 错误、41 个既有警告**。日志：`LocalOnly/module-migration/client-world-entry-{compile,after,matrix,related,final,build}.log`。未运行 RimTest、全量回归或推送。
+
+M8h2b 完成。下一步 **M8h2c 入服发起、身份输入及源 Game 生命周期阻挡**，再进入 M8h3 世界生成/应用。启动前清理其它领域状态、接受后的领域投影、世界运行时同步与后续 M8–M12 仍开放；本步不代表整个世界入口或整体迁移已经完成。

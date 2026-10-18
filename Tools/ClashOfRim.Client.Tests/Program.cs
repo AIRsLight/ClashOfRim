@@ -19,6 +19,7 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("world entry owns decisions, publication and substrate handoff", ClientWorldEntryTests.Run),
     ("world preparation owns handshake results and pending setup state", ClientWorldPreparationTests.Run),
     ("world protocol owns negotiation, captured setup and seven wire contracts", ClientWorldProtocolTests.Run),
     ("endgame achievements own pending awards, decisions and snapshot confirmation", ClientEndgameAchievementTests.Run),

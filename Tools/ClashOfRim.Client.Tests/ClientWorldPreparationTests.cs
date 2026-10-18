@@ -39,7 +39,7 @@ internal static class ClientWorldPreparationTests
                 foreach (string phase in new[] { "hello", "read", "exception" }) { await Reentry(phase); count++; }
                 foreach (string mode in new[] { "network", "null", "rejected", "missing-result", "null-assignment", "empty-assignment" })
                 { await PreparationBoundary(mode); count++; }
-                await Completion(); await Cancellation(); Setup(); Decisions(); count += 4;
+                await Completion(); await Cancellation(); Setup(); count += 3;
             }
         }
         finally { CultureInfo.CurrentCulture = culture; ClientSessionWork.Reset(); }
@@ -229,27 +229,10 @@ internal static class ClientWorldPreparationTests
     private static void SetupOwnership(string change)
     {
         var f = new Fixture(); f.State.LanguageAccepted = true; f.State.Prepare(SetupResponse());
-        var ticket = f.State.CaptureGeneration()!; var decision = f.State.CaptureDecision(); f.Change(change);
+        var ticket = f.State.CaptureGeneration()!; f.Change(change);
         bool retained = change is "game" or "snapshot";
-        Check(f.State.Pending == retained && f.State.LanguageAccepted == retained && f.State.AttachSubstrate(ticket, Package()) == retained
-            && f.State.Accept(decision, () => { }) == retained, "Setup ownership mismatch: " + change);
+        Check(f.State.Pending == retained && f.State.LanguageAccepted == retained && f.State.AttachSubstrate(ticket, Package()) == retained, "Setup ownership mismatch: " + change);
         Check((f.State.TakeGeneration() is not null) == retained, "Setup failed normal Game transition or retained old identity.");
-    }
-    private static void Decisions()
-    {
-        var f = new Fixture(); int accepted = 0; var first = f.State.CaptureDecision();
-        Check(f.State.Accept(first, () =>
-        {
-            accepted++;
-            Check(!f.State.Accept(first, () => accepted++), "Decision reentered.");
-        }) && accepted == 1 && !f.State.Accept(first, () => accepted++), "Decision replayed.");
-        var failed = f.State.CaptureDecision();
-        try { f.State.Accept(failed, () => throw new ApplicationException()); } catch (ApplicationException) { }
-        Check(!f.State.Accept(failed, () => accepted++), "Throwing decision replayed.");
-        var stale = f.State.CaptureDecision(); f.State.Reset();
-        Check(!f.State.Accept(stale, () => accepted++), "Old window affected new entry.");
-        var older = f.State.CaptureDecision(); var newer = f.State.CaptureDecision();
-        Check(!f.State.Accept(older, () => accepted++) && f.State.Accept(newer, () => accepted++), "Replaced window consumed the new decision.");
     }
     private static TaskCompletionSource Gate() => new(TaskCreationOptions.RunContinuationsAsynchronously);
     private static ModWorldConfigurationDto Configuration() => new()
