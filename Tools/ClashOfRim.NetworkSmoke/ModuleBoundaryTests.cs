@@ -35,10 +35,10 @@ internal static class ModuleBoundaryTests
                 or "AIRsLight.ClashOfRim.Network.Modules.Transfers" or "AIRsLight.ClashOfRim.Network.Modules.Trades" or "AIRsLight.ClashOfRim.Network.Modules.Shop" or "AIRsLight.ClashOfRim.Network.Modules.Mercenaries"
                 or "AIRsLight.ClashOfRim.Network.Modules.Diplomacy" or "AIRsLight.ClashOfRim.Network.Modules.Support" or "AIRsLight.ClashOfRim.Network.Modules.Raids" or "AIRsLight.ClashOfRim.Network.Modules.Accounts"
                 or "AIRsLight.ClashOfRim.Network.Modules.Compatibility" or "AIRsLight.ClashOfRim.Network.Modules.Sessions"
-                or "AIRsLight.ClashOfRim.Network.Modules.World"
+                or "AIRsLight.ClashOfRim.Network.Modules.World" or "AIRsLight.ClashOfRim.Network.Modules.Chat"
                 or "AIRsLight.ClashOfRim.Network.Modules.Achievements" or "AIRsLight.ClashOfRim.Network.Modules.Admin"
-            && t.Name is not ("BankEndpoints" or "GiftEndpoints" or "TradeEndpoints" or "ShopEndpoints" or "MercenaryEndpoints" or "SupportEndpoints" or "RaidEndpoints" or "DiplomacyEndpoints" or "AccountEndpoints" or "SessionEndpoints" or "WorldEndpoints" or "AdminEndpoints")
-            && t.DeclaringType?.Name is not ("BankEndpoints" or "GiftEndpoints" or "TradeEndpoints" or "ShopEndpoints" or "MercenaryEndpoints" or "SupportEndpoints" or "RaidEndpoints" or "DiplomacyEndpoints" or "AccountEndpoints" or "SessionEndpoints" or "WorldEndpoints" or "AdminEndpoints")).ToArray();
+            && t.Name is not ("BankEndpoints" or "GiftEndpoints" or "TradeEndpoints" or "ShopEndpoints" or "MercenaryEndpoints" or "SupportEndpoints" or "RaidEndpoints" or "DiplomacyEndpoints" or "AccountEndpoints" or "SessionEndpoints" or "WorldEndpoints" or "AdminEndpoints" or "ChatEndpoints")
+            && t.DeclaringType?.Name is not ("BankEndpoints" or "GiftEndpoints" or "TradeEndpoints" or "ShopEndpoints" or "MercenaryEndpoints" or "SupportEndpoints" or "RaidEndpoints" or "DiplomacyEndpoints" or "AccountEndpoints" or "SessionEndpoints" or "WorldEndpoints" or "AdminEndpoints" or "ChatEndpoints")).ToArray();
         var transportLeaks = ModuleDependencyGuard.FindViolations(business,
             t => t.Namespace?.StartsWith("Microsoft.AspNetCore.Http", StringComparison.Ordinal) == true);
         Require(transportLeaks.Count == 0, string.Join(Environment.NewLine, transportLeaks));

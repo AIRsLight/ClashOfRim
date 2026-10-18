@@ -16,6 +16,7 @@ internal static class HttpSnapshotRecoveryTests
     // Exercise routing and middleware through Kestrel, not direct handler invocation.
     private static readonly ProtocolMessageKind[] OwnedRoutes =
     [
+        ProtocolMessageKind.SendChatMessage, ProtocolMessageKind.ListChatMessages,
         ProtocolMessageKind.AdminAction, ProtocolMessageKind.AdminStatus, ProtocolMessageKind.AdminUpdateConfiguration, ProtocolMessageKind.OverrideCompatibilityBaseline,
         ProtocolMessageKind.UploadSnapshot, ProtocolMessageKind.DownloadLatestSnapshot,
         ProtocolMessageKind.DownloadLatestSnapshotPayload, ProtocolMessageKind.ConfirmEventApplication,

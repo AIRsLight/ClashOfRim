@@ -26,6 +26,7 @@ if (args.FirstOrDefault() == "--baseline-invalidation-crash")
 
 var tests = new (string Name, Action Run)[]
 {
+    ("聊天模块授权、持久化与流通知协作", () => ChatModuleTests.Run(BuildFixturePackage)),
     ("外交关系发布中断与重启恢复", () => DiplomacyPublicationRecoveryTests.Run(BuildFixturePackage)),
     ("外交决定与通知事务的故障回滚和重试", () => DiplomacyDecisionAtomicityTests.Run(BuildFixturePackage)),
     ("外交模块独立装配、文化、持久重放与动态冷却", () => DiplomacyModuleTests.Run(BuildFixturePackage)),

@@ -453,13 +453,13 @@
     "Kind": "SendChatMessage",
     "Route": "/chat/send",
     "Method": "POST",
-    "OwnsRecovery": false
+    "OwnsRecovery": true
   },
   {
     "Kind": "ListChatMessages",
     "Route": "/chat/list",
     "Method": "POST",
-    "OwnsRecovery": false
+    "OwnsRecovery": true
   },
   {
     "Kind": "OverrideCompatibilityBaseline",

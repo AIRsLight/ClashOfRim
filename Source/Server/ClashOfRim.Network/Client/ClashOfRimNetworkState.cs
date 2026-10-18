@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Network.Modules.Chat;
 using AIRsLight.ClashOfRim.Network.Modules.Admin;
 using AIRsLight.ClashOfRim.Network.Modules.World;
 using AIRsLight.ClashOfRim.Network.Modules.Achievements;
@@ -197,6 +198,7 @@ public sealed class ClashOfRimNetworkState
             EventNotifications, OnlinePresence, new SupportDeliveryReconciliation(Ledger, Players, EventNotifications));
         SessionPresence = new SessionPresence(SessionConnections, () => RuntimeLogger);
         SessionNotifications = new SessionNotifications(EventNotifications, ChatNotifications, WorldConfigurationNotifications, PlayerOnlineNotifications);
+        Chat = new ChatService(ColonyAuthorization, SnapshotMutations, ChatMessages, Players, ChatNotifications);
         Login = new LoginService(Accounts, EntryHandshakes, SnapshotMutations, RaidTimeouts, RaidQueries, LoginSessions,
             AuthTokens, WorldConfiguration, EventDelivery, PlayerActivity, EntryLifecycle, WorldMarkers, () => RuntimeLogger);
         WorldPreparation = new WorldSessionPreparation(Accounts, EntryHandshakes, SnapshotMutations, RaidTimeouts, RaidQueries,
@@ -327,6 +329,7 @@ public sealed class ClashOfRimNetworkState
     internal WorldSubstrateTransfer WorldSubstrate { get; }
     internal SessionPresence SessionPresence { get; }
     internal SessionNotifications SessionNotifications { get; }
+    internal ChatService Chat { get; }
     internal ClientEntryLifecycle EntryLifecycle { get; }
     internal PlayerSessionActivity PlayerActivity { get; }
     internal SessionConnections SessionConnections { get; }

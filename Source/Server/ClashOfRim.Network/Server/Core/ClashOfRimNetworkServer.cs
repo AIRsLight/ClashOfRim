@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Network.Modules.Chat;
 using AIRsLight.ClashOfRim.Network.Modules.Admin;
 using AIRsLight.ClashOfRim.Network.Modules.World;
 using AIRsLight.ClashOfRim.Network.Modules.Sessions;
@@ -110,8 +111,7 @@ public static partial class ClashOfRimNetworkServer
         AdminEndpoints.Map(app, tradeState.AdministratorBaseline, tradeState.AdministratorConfiguration, tradeState.CompatibilityOverride, tradeState.AdministratorActions);
         var mercenaryState = app.Services.GetRequiredService<ClashOfRimNetworkState>();
         MercenaryEndpoints.Map(app, mercenaryState.Mercenaries, mercenaryState.MercenaryHiring);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.SendChatMessage).Route, SendChatMessage);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.ListChatMessages).Route, ListChatMessages);
+        ChatEndpoints.Map(app, tradeState.Chat);
     }
 
     private static string T(string key, params (string Key, string? Value)[] args) => ServerText.Format(key, args);
