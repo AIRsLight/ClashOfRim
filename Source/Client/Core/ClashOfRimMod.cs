@@ -116,6 +116,7 @@ public sealed partial class ClashOfRimMod : Mod
     private bool playerColonySiteRegistrationSuppressed;
     private bool caravanArrivalTargetRefreshInProgress;
     private readonly ClientAdminAccess adminAccess;
+    private readonly ClientAdministration administration;
     private readonly ClientWorldWrites worldWrites;
     private string? lastRegisteredPlayerColonySiteSignature;
     private string? lastSyncedWorldConfigurationExtensionSignature;
@@ -129,11 +130,9 @@ public sealed partial class ClashOfRimMod : Mod
     private string tradeStatus { get => tradeState.Message; set => tradeState.Message = value; }
     private string worldMapStatus = string.Empty;
     private string chatStatus = string.Empty;
-    private string adminStatus = string.Empty;
     private string serverCompatibilityManifestJson = string.Empty;
     private bool giftsEnabled = true;
     private bool pvpEnabled = true;
-    private ModAdminStatusResponseDto? lastAdminStatus;
     private readonly ClientLocalMutationCoordinator localMutations = new();
     // Read-only bridge for domains that have not yet moved out of the Mod.
     private string? lastSessionId => sessionLifecycle.SessionId;
@@ -178,6 +177,9 @@ public sealed partial class ClashOfRimMod : Mod
         snapshotPublication = ClientSnapshotComposition.CreatePublication(settings);
         sessionLifecycle = new ClientSessionLifecycle(new ClientSessionIdentityStore(settings), new ClientSessionLogoutTransport(), sessionConnection);
         adminAccess = new ClientAdminAccess(sessionLifecycle);
+        administration = new ClientAdministration(adminAccess,
+            new AIRsLight.ClashOfRim.Admin.ClientAdminTransport(new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner))),
+            new AIRsLight.ClashOfRim.Admin.ClientAdminPresentation());
         worldSetup = new ClientWorldSetupState(sessionLifecycle);
         storytellerConfiguration = new ClientStorytellerConfiguration(sessionLifecycle, worldSetup, new ClientStorytellerRuntime());
         compatibilityPresentation = new ClientCompatibilityPresentation((response, language, accept, cancel) =>
@@ -300,9 +302,9 @@ public sealed partial class ClashOfRimMod : Mod
         worldCatalog = new ClientWorldCatalog(sessionLifecycle, new ClientWorldCatalogRuntime(), worldTransport,
             new ClientWorldCatalogPresentation(message => worldMapStatus = message), worldConfiguration);
         worldCatalog.CompatibilityAccepted += CaptureServerCompatibilityManifest;
-        worldCatalog.AdministratorObserved += ObserveAdministratorFlag;
+        worldCatalog.AdministratorObserved += value => administration.ObservePermission(value, refresh: true);
         worldCatalog.Applied += UpdateOccupiedPlayerColonySites;
-        var worldWritePresentation = new ClientWorldWritePresentation(message => adminStatus = message);
+        var worldWritePresentation = new ClientWorldWritePresentation(message => administration.Message = message);
         worldWrites = new ClientWorldWrites(sessionLifecycle, adminAccess, worldBaselineCapture, worldBaselineSubmission,
             storytellerConfiguration, worldConfiguration, worldWritePresentation, worldWritePresentation);
         worldWrites.Applied += UpdateOccupiedPlayerColonySites;
@@ -416,7 +418,6 @@ public sealed partial class ClashOfRimMod : Mod
         bankState.Message = ClashOfRimText.Key("ClashOfRim.Status.BankNotPulled");
         shopState.Message = ClashOfRimText.Key("ClashOfRim.Shop.StatusIdle");
         chatStatus = ClashOfRimText.Key("ClashOfRim.Chat.StatusIdle");
-        adminStatus = ClashOfRimText.Key("ClashOfRim.Admin.StatusIdle");
     }
 
     internal bool SnapshotUploadInProgress => synchronization.SnapshotInProgress;
@@ -709,16 +710,8 @@ public sealed partial class ClashOfRimMod : Mod
 
     internal ModBankStatusResponseDto? BankStatusSnapshot => bankState.View;
 
-    internal string AdminStatus
-    {
-        get
-        {
-            EnsureStatusDefaultsInitialized();
-            return adminStatus;
-        }
-    }
-
-    internal ModAdminStatusResponseDto? AdminStatusSnapshot => lastAdminStatus;
+    internal string AdminStatus => administration.Message;
+    internal ModAdminStatusResponseDto? AdminStatusSnapshot => administration.Snapshot;
 
     internal string MercenaryStatus
     {

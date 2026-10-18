@@ -13,17 +13,23 @@ internal sealed class ClientAdminAccess
     private readonly ClientSessionLifecycle session;
     private Ticket? active;
     private bool administrator;
+    internal event Action? Cleared;
+    internal event Action<bool>? PermissionChanged;
     internal ClientAdminAccess(ClientSessionLifecycle session)
     {
         this.session = session;
-        requests = new(session, () => { active = null; administrator = false; });
+        requests = new(session, () => { active = null; administrator = false; Cleared?.Invoke(); });
     }
+    internal T Read<T>(Func<T> read) => requests.Read(read);
+    internal ClientRequestTracker.Scope Capture() => requests.Capture();
+    internal bool TryApply(ClientRequestTracker.Scope scope, Action action) => requests.TryApply(scope, action);
     internal bool IsAdministrator => requests.Read(() => administrator);
     internal bool Busy => requests.Read(() => { ReleaseExpiredSource(); return active is not null; });
     internal void SetAdministrator(bool value) => requests.Read(() =>
     {
         administrator = value;
         if (!value && active is { } old) End(old);
+        PermissionChanged?.Invoke(value);
         return true;
     });
     internal Ticket? Begin(out string? failureKey, Func<bool>? sourceCurrent = null)

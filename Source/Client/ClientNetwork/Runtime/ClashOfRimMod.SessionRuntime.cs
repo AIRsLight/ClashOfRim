@@ -160,12 +160,11 @@ public sealed partial class ClashOfRimMod
         chatRefreshInProgress = false;
         chatSendInProgress = false;
         RemoteColonyWorldIconCache.Clear();
-        lastAdminStatus = null;
         giftsEnabled = true;
         pvpEnabled = true;
         settings.CurrentWorldConfigurationId = string.Empty;
         chatStatus = ClashOfRimText.Key("ClashOfRim.Chat.StatusIdle");
-        adminStatus = ClashOfRimText.Key("ClashOfRim.Admin.StatusIdle");
+        administration.Reset();
         lastWorldConfigurationVersion = 0;
         worldSetup.Reset();
         playerColonySiteRegistrationSuppressed = false;

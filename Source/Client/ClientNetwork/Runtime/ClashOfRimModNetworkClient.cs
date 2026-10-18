@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Administration;
 using AIRsLight.ClashOfRim.Modules.World;
 using AIRsLight.ClashOfRim.Modules.Achievements;
 using AIRsLight.ClashOfRim.Modules.Accounts;
@@ -41,9 +42,6 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
     private static readonly string SendChatMessageRoute = ProtocolContractManifest.Find(ProtocolMessageKind.SendChatMessage).Route;
     private static readonly string ListChatMessagesRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ListChatMessages).Route;
     private static readonly string OverrideCompatibilityBaselineRoute = ProtocolContractManifest.Find(ProtocolMessageKind.OverrideCompatibilityBaseline).Route;
-    private static readonly string AdminStatusRoute = ProtocolContractManifest.Find(ProtocolMessageKind.AdminStatus).Route;
-    private static readonly string AdminUpdateConfigurationRoute = ProtocolContractManifest.Find(ProtocolMessageKind.AdminUpdateConfiguration).Route;
-    private static readonly string AdminActionRoute = ProtocolContractManifest.Find(ProtocolMessageKind.AdminAction).Route;
 
     private readonly ClientProtocolTransport transport;
     private readonly ClientEventProtocol events;
@@ -53,6 +51,7 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
     private readonly ClientWorldProtocol world;
     private readonly ClientDiplomacyProtocol diplomacy;
     private readonly ClientAccountProtocol accounts;
+    private readonly ClientAdminProtocol adminProtocol;
     private readonly ClientAuthenticationEnvironment authenticationEnvironment = new();
     private readonly ClientSessionProtocol authentication;
     private readonly ClientSetupAuthenticationLease setupAuthentication;
@@ -100,6 +99,7 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
         achievements = new ClientAchievementProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         diplomacy = new ClientDiplomacyProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         accounts = new ClientAccountProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
+        adminProtocol = new ClientAdminProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         packages = new ClientPackageReader(transport, context, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         authentication = new ClientSessionProtocol(transport, authenticationEnvironment, authenticationEnvironment);
         setupAuthentication = new ClientSetupAuthenticationLease(authentication, transport, authenticationEnvironment);
@@ -142,86 +142,21 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
             cancellationToken);
     }
 
-    public Task<ClashOfRimClientNetworkResult<ModAdminStatusResponseDto>> AdminStatusAsync(
-        CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModAdminStatusResponseDto>();
-        }
-
-        var request = new ModAdminStatusRequestDto
-        {
-            UserId = context.UserId,
-            ColonyId = context.ColonyId,
-            AuthToken = context.AuthToken
-        };
-
-        return transport.PostAsync<ModAdminStatusRequestDto, ModAdminStatusResponseDto>(
-            AdminStatusRoute,
-            request,
-            cancellationToken);
-    }
+    public Task<ClashOfRimClientNetworkResult<ModAdminStatusResponseDto>> AdminStatusAsync(CancellationToken cancellationToken = default)
+        => adminProtocol.ReadAsync(context, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModChangeOfflinePasswordResponseDto>> ChangeOfflinePasswordAsync(
         string? currentPassword, string? newPassword, CancellationToken cancellationToken = default)
         => accounts.ChangeAsync(context, currentPassword, newPassword, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModAdminUpdateConfigurationResponseDto>> AdminUpdateConfigurationAsync(
-        ModAdminConfigurationDto configuration,
-        CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModAdminUpdateConfigurationResponseDto>();
-        }
-
-        var request = new ModAdminUpdateConfigurationRequestDto
-        {
-            UserId = context.UserId,
-            ColonyId = context.ColonyId,
-            AuthToken = context.AuthToken,
-            Configuration = configuration
-        };
-
-        return transport.PostAsync<ModAdminUpdateConfigurationRequestDto, ModAdminUpdateConfigurationResponseDto>(
-            AdminUpdateConfigurationRoute,
-            request,
-            cancellationToken);
-    }
+        ModAdminConfigurationDto configuration, CancellationToken cancellationToken = default)
+        => adminProtocol.SaveAsync(context, configuration, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModAdminActionResponseDto>> AdminActionAsync(
-        string actionKind,
-        string? targetUserId,
-        string? targetColonyId,
-        string? message,
-        string? notificationSeverity = null,
-        bool persistentNotification = true,
-        CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModAdminActionResponseDto>();
-        }
-
-        var request = new ModAdminActionRequestDto
-        {
-            UserId = context.UserId,
-            ColonyId = context.ColonyId,
-            AuthToken = context.AuthToken,
-            ActionKind = actionKind,
-            TargetUserId = targetUserId,
-            TargetColonyId = targetColonyId,
-            Message = message,
-            NotificationSeverity = notificationSeverity,
-            PersistentNotification = persistentNotification
-        };
-
-        return transport.PostAsync<ModAdminActionRequestDto, ModAdminActionResponseDto>(
-            AdminActionRoute,
-            request,
-            cancellationToken);
-    }
+        string actionKind, string? targetUserId, string? targetColonyId, string? message,
+        string? notificationSeverity = null, bool persistentNotification = true, CancellationToken cancellationToken = default)
+        => adminProtocol.ActAsync(context, new(actionKind, targetUserId, targetColonyId, message, notificationSeverity, persistentNotification), cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModWorldMapMarkerDeliveryDto>> SyncWorldMapMarkersAsync(
         CancellationToken cancellationToken = default)

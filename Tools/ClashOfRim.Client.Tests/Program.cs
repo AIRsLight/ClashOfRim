@@ -19,6 +19,8 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("administrator protocol shares three wire contracts and captured context", ClientAdminProtocolTests.Run),
+    ("administrator control owns cache, commands and follow-up publication", ClientAdministrationTests.Run),
     ("world writes share administrator admission, capture and completion", ClientWorldWritesTests.Run),
     ("world catalog refresh owns replacement, accepted projection and runtime boundaries", ClientWorldCatalogTests.Run),
     ("world baseline runtime binds capture collections, layers and substrate sources", ClientWorldBaselineRuntimeTests.Run),
