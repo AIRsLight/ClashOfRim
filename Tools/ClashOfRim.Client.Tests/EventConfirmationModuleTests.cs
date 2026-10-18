@@ -105,7 +105,6 @@ internal static class EventConfirmationModuleTests
                 && interruptedPublication.Mutations.IsPending && !interruptedPublication.Sync.IsBusy,
                 "Our own interrupted publication lost recovery after advancing snapshot metadata.");
             await WorkflowBatchRetry();
-            await WorkflowPreparedRaid();
         }
         finally { ClientSessionWork.Reset(); }
     }
@@ -154,40 +153,6 @@ internal static class EventConfirmationModuleTests
         Require(f.View.Visible is null, "Successful retry retained the old failure window.");
     }
 
-    private static async Task WorkflowPreparedRaid()
-    {
-        var f = new Fixture(); var continuation = f.Capture().Admission;
-        int completed = 0; f.Workflow.Completed += () => completed++;
-        var command = f.Confirmation.Single(f.Confirmation.Capture(continuation), "raid", "event", null, "raid-base", Package(), new byte[] { 1 }, "settled")
-            with { IdempotencyKey = "prepared-raid-key", UserId = "defender", ColonyId = "defender-colony", HttpTimeout = TimeSpan.FromMinutes(3) };
-        Task work = f.Workflow.PreparedRaidAsync(command, continuation, static () => { }, (_, _) => throw new Exception("Unexpected raid failure"), _ =>
-        {
-            Require(completed == 1 && !f.Mutations.IsPending && !f.Sync.IsBusy, "Raid completion did not precede domain continuation.");
-            f.Mutations.Begin(LocalMutationKind.RaidAttacker, "next");
-            Require(f.Sync.TryAcquireSnapshot(out f.Next), "Raid callback could not continue synchronization.");
-            f.Recovery.Show(LocalMutationKind.RaidAttacker, "next failed", static () => { });
-        });
-        (await f.Ports.Next())(); await work;
-        (await f.Ports.Next())();
-        Require(f.Ports.Captures == 0 && ReferenceEquals(f.Protocol.Single, command) && f.Ports.Snapshot == "base"
-            && f.Next!.IsCurrent && f.View.Message == "next failed", "Prepared workflow rebuilt data, published another identity or closed next failure.");
-        f.Next!.Dispose();
-        foreach (string replacement in new[] { "none", "identity", "game", "mutation", "generation" })
-        {
-            var stale = new Fixture(); stale.Protocol.Failure = "transport"; int failed = 0;
-            var task = stale.Workflow.PreparedRaidAsync(command, null, static () => { }, (_, canRetry) =>
-            { Require(canRetry && !stale.Sync.IsBusy, "Prepared failure retained lease or lost retry."); failed++; }, _ => throw new Exception("Unexpected success"));
-            await task;
-            var pending = await stale.Ports.Next();
-            if (replacement == "identity") stale.Session.ClearIdentity();
-            if (replacement == "game") stale.Ports.GameOwner = new();
-            if (replacement == "mutation") stale.Mutations.Begin(LocalMutationKind.Raid, "new attempt");
-            if (replacement == "generation") ClientSessionWork.Reset();
-            pending();
-            Require(failed == (replacement == "none" ? 1 : 0), "Queued raid failure escaped ownership: " + replacement);
-        }
-    }
-
     internal static void RunPreparationAndRecovery() => PreparationAndRecovery().GetAwaiter().GetResult();
     private static async Task PreparationAndRecovery()
     {
@@ -232,31 +197,6 @@ internal static class EventConfirmationModuleTests
             && successful.Ports.Captures == 1 && successful.Mutations.Current?.Status == "uploading", "Current preparation lost its captured identity or lease.");
         ready.Attempt!.Admission.Dispose();
 
-        foreach (bool snapshot in new[] { false, true })
-        {
-            var f = new Fixture(); f.Ports.Snapshot = "";
-            ClientSynchronizationCoordinator.Lease? continuation;
-            Require(snapshot ? f.Sync.TryAcquireSnapshot(out continuation) : f.Sync.TryBeginManual(out continuation), "Prepared fixture lease missing.");
-            var result = f.Preparation.Prepared(LocalMutationKind.None, "prepared", Package(), new byte[] { 1 }, continuation);
-            Require(result.Failure is null && result.Attempt!.Admission.IsSnapshot && result.Attempt.Admission.IsCurrent
-                && result.Operation == LocalMutationKind.PreparedEvent && f.Ports.Captures == 0 && result.Build is null,
-                "Prepared submission rebuilt a package or rejected its continuation.");
-            result.Attempt!.Admission.Dispose();
-        }
-        var invalid = new Fixture(); var old = invalid.Capture();
-        var empty = invalid.Preparation.Prepared(LocalMutationKind.Raid, "prepared", null, Array.Empty<byte>(), old.Admission);
-        Require(empty.Failure?.Kind == ClientEventPreparationFailureKind.InvalidPreparedData && !invalid.Sync.IsBusy && !invalid.Mutations.IsPending,
-            "Invalid prepared input retained its lease.");
-        var stale = new Fixture(); var staleLease = stale.Capture().Admission;
-        staleLease.Dispose(); var current = stale.Capture().Admission;
-        var staleResult = stale.Preparation.Prepared(LocalMutationKind.Raid, "prepared", Package(), new byte[] { 1 }, staleLease);
-        Require(staleResult.Failure?.Kind == ClientEventPreparationFailureKind.Busy && current.IsCurrent, "Stale continuation affected a replacement lease.");
-        current.Dispose();
-        var blockedPrepared = new Fixture(); var blockedLease = blockedPrepared.Capture().Admission;
-        blockedPrepared.Mutations.Begin(LocalMutationKind.Bank, "bank");
-        var blockedPackage = blockedPrepared.Preparation.Prepared(LocalMutationKind.Raid, "raid", Package(), new byte[] { 1 }, blockedLease);
-        Require(blockedPackage.Failure?.Kind == ClientEventPreparationFailureKind.Blocked && !blockedPrepared.Sync.IsBusy
-            && blockedPrepared.Mutations.Current?.Kind == LocalMutationKind.Bank, "Blocked prepared submission retained its lease or erased unrelated work.");
     }
 
     private static void PreparationFailures()

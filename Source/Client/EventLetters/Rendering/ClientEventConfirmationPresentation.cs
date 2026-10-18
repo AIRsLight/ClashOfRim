@@ -65,7 +65,7 @@ internal sealed class ClientEventConfirmationPresentation : IClientEventConfirma
         }
         else if (notice.Stage == ClientEventConfirmationStage.Failed)
         {
-            if (notice.Problem!.Exception is not null || notice.Purpose == ClientEventConfirmationPurpose.RaidSettlement)
+            if (notice.Problem!.Exception is not null)
                 Log.Warning($"[ClashOfRim][EventConfirm] failed purpose={notice.Purpose} event={notice.EventId} code={notice.Problem.Code} message={message} exception={notice.Problem.Exception}");
         }
         else if (notice.Stage == ClientEventConfirmationStage.Accepted)
@@ -74,8 +74,6 @@ internal sealed class ClientEventConfirmationPresentation : IClientEventConfirma
             if (notice.Purpose == ClientEventConfirmationPurpose.AutomaticEvents)
                 ClashLog.Message($"[ClashOfRim][AutoEventConfirm] completed accepted={notice.Count} rejected={notice.Rejected} appliedSnapshot={notice.SnapshotId ?? "<null>"}.");
         }
-        else if (notice.Stage == ClientEventConfirmationStage.Uploading && notice.Purpose == ClientEventConfirmationPurpose.RaidSettlement)
-            ClashLog.Message($"[ClashOfRim][EventConfirm] prepared raid upload started event={notice.EventId} confirmedSnapshot={notice.SnapshotId}.");
     }
 
     private static string BuildFailure(ClientEventConfirmationPurpose purpose, string prefix, string reason) => IsItemArrival(purpose)
@@ -91,7 +89,6 @@ internal sealed class ClientEventConfirmationPresentation : IClientEventConfirma
         ClientEventConfirmationPurpose.SupportArrival => "ClashOfRim.EventLetter.SupportConfirm",
         ClientEventConfirmationPurpose.Trade => "ClashOfRim.Trade.StatusConfirm",
         ClientEventConfirmationPurpose.AutomaticEvents => "ClashOfRim.Events.StatusAutoConfirm",
-        ClientEventConfirmationPurpose.RaidSettlement => "ClashOfRim.Raid.StatusSettlement",
         _ => throw new ArgumentOutOfRangeException(nameof(purpose))
     };
 }

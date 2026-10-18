@@ -1,8 +1,10 @@
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.Raids;
+using AIRsLight.ClashOfRim.Modules.Raids;
 
 namespace AIRsLight.ClashOfRim.RemoteMaps;
 
+// Retained public data contract; the settlement module owns runtime execution.
 public sealed class RaidBattleSettlementContext
 {
     public RaidBattleSettlementContext(
@@ -26,9 +28,9 @@ public sealed class RaidBattleSettlementContext
     public byte[]? ConfirmedPayload { get; }
 
     public string DefenderIdempotencyKey =>
-        $"raid-settlement:{Session.AttackerUserId}:{Session.EventId}:{FinishReason}";
+        ClientRaidSettlementIntent.Key(Session.AttackerUserId, Session.EventId, FinishReason);
 
-    public string DefenderClientApplicationResult => "RaidBattleReturned:" + FinishReason;
+    public string DefenderClientApplicationResult => ClientRaidSettlementIntent.Result(FinishReason);
 
     public RaidBattleSettlementContext WithPreparedSnapshot(
         ModSnapshotPackageMetadataDto confirmedSnapshot,

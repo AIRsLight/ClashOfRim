@@ -9,7 +9,7 @@ using AIRsLight.ClashOfRim.Modules.Synchronization;
 
 namespace AIRsLight.ClashOfRim.Modules.Events;
 
-internal enum ClientEventConfirmationPurpose { Gift, SupportArrival, Trade, AutomaticEvents, RaidSettlement }
+internal enum ClientEventConfirmationPurpose { Gift, SupportArrival, Trade, AutomaticEvents }
 internal enum ClientEventConfirmationStage { Empty, Uploading, PreparationFailed, Failed, Accepted }
 internal sealed record ClientEventConfirmationNotice(ClientEventConfirmationPurpose Purpose, ClientEventConfirmationStage Stage,
     string EventId = "", int Count = 0, string? SnapshotId = null, int Rejected = 0, int Pending = 0,
@@ -109,42 +109,10 @@ internal sealed class ClientEventConfirmationWorkflow : IClientEventApplicationC
             }));
     }
 
-    // Raid cleanup and deadline policy remain in the raid domain. Failure is
-    // delivered on the captured game, after releasing admission, with ownership
-    // checked again at execution so it cannot attach recovery to a new session.
-    internal Task PreparedRaidAsync(ClientEventConfirmationCommand command, ClientSynchronizationCoordinator.Lease? continuation,
-        Action retry, Action<Action, bool> failedOnMainThread, Action<ModConfirmEventApplicationResponseDto> acceptedOnMainThread)
-    {
-        var notice = new ClientEventConfirmationNotice(ClientEventConfirmationPurpose.RaidSettlement,
-            ClientEventConfirmationStage.Uploading, command.EventId, SnapshotId: command.Snapshot?.SnapshotId);
-        string uploading = presentation.Format(notice);
-        var prepared = preparation.Prepared(LocalMutationKind.Raid, uploading, command.Snapshot, command.Payload, continuation);
-        if (ReportPreparationFailure(prepared, notice, retry)) return Task.CompletedTask;
-        presentation.Report(notice, uploading);
-        var attempt = prepared.Attempt!;
-        return ClientSessionWork.Run(() => confirmation.ConfirmAsync(attempt, command, failure =>
-        {
-            var problem = Problem(failure, failure.Network?.Response?.ServerValidationResult);
-            Report(notice with { Stage = ClientEventConfirmationStage.Failed, Problem = problem });
-            var pending = mutations.Current;
-            attempt.Admission.Dispose();
-            attempt.Game.Enqueue(() => ClientSessionWork.TryApply(() =>
-            {
-                if (attempt.Game.IsCurrent && session.Owns(attempt.Owner, attempt.Context, requireSnapshot: false)
-                    && ReferenceEquals(mutations.Current, pending)) failedOnMainThread(retry, problem.CanRetry);
-            }), static () => { });
-        }, response =>
-        {
-            Complete();
-            // The raid domain must check its active battle before reporting success.
-            acceptedOnMainThread(response);
-        }));
-    }
-
     private bool ReportPreparationFailure(ClientEventPreparationResult prepared, ClientEventConfirmationNotice notice, Action retry)
     {
         if (prepared.Failure is not { } failure) return false;
-        if (failure.Kind is ClientEventPreparationFailureKind.Obsolete or ClientEventPreparationFailureKind.InvalidPreparedData) return true;
+        if (failure.Kind == ClientEventPreparationFailureKind.Obsolete) return true;
         string status = Report(notice with { Stage = ClientEventConfirmationStage.PreparationFailed, PreparationFailure = failure });
         if (failure.Kind is not (ClientEventPreparationFailureKind.Blocked or ClientEventPreparationFailureKind.Busy))
             recovery.Show(prepared.Operation, status, retry);

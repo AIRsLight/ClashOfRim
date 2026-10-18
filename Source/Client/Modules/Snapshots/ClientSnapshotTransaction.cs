@@ -35,8 +35,13 @@ internal sealed class ClientSnapshotTransaction
             publication.Publish(attempt.Game, snapshotId!, lineageToken, Array.Empty<ModSnapshotAchievementCandidateDto>());
     }
 
-    internal async Task ExecuteAsync<T>(Attempt attempt, Func<Task<ClashOfRimClientNetworkResult<T>>> send,
+    internal Task ExecuteAsync<T>(Attempt attempt, Func<Task<ClashOfRimClientNetworkResult<T>>> send,
         Func<T, ModProtocolResponseDto?> serverResult, Action<ClientSnapshotTransactionFailure<T>> failed, Action<T> accepted)
+        => ExecuteAsync(attempt, send, serverResult, failure => { failed(failure); return Task.CompletedTask; }, accepted);
+
+    // Async failure effects retain the same lease until their owned game callback completes.
+    internal async Task ExecuteAsync<T>(Attempt attempt, Func<Task<ClashOfRimClientNetworkResult<T>>> send,
+        Func<T, ModProtocolResponseDto?> serverResult, Func<ClientSnapshotTransactionFailure<T>, Task> failed, Action<T> accepted)
     {
         bool publicationStarted = false;
         try
@@ -45,13 +50,13 @@ internal sealed class ClientSnapshotTransaction
             ClashOfRimClientNetworkResult<T> result = await send().ConfigureAwait(false);
             if (!result.Success || result.Response is null)
             {
-                TryApply(attempt, () => failed(new(ClientSnapshotTransactionFailureKind.Transport, result)));
+                await ReportFailure(new(ClientSnapshotTransactionFailureKind.Transport, result)).ConfigureAwait(false);
                 return;
             }
             ModProtocolResponseDto? response = serverResult(result.Response);
             if (response is { Accepted: false })
             {
-                TryApply(attempt, () => failed(new(ClientSnapshotTransactionFailureKind.Rejected, result, response)));
+                await ReportFailure(new(ClientSnapshotTransactionFailureKind.Rejected, result, response)).ConfigureAwait(false);
                 return;
             }
             await ClientGamePublication.EnqueueAsync(attempt.Game.Enqueue, attempt.Owner.Token,
@@ -66,9 +71,15 @@ internal sealed class ClientSnapshotTransaction
         {
             // Only our own partial publication may advance the base snapshot before
             // throwing. A late HTTP exception must still match the original base.
-            TryApply(attempt, () => failed(new(ClientSnapshotTransactionFailureKind.Exception, Exception: ex)), requireBaseSnapshot: !publicationStarted);
+            await ReportFailure(new(ClientSnapshotTransactionFailureKind.Exception, Exception: ex)).ConfigureAwait(false);
         }
         finally { attempt.Admission.Dispose(); }
+        Task ReportFailure(ClientSnapshotTransactionFailure<T> failure)
+        {
+            Task work = Task.CompletedTask;
+            TryApply(attempt, () => work = failed(failure), requireBaseSnapshot: !publicationStarted);
+            return work;
+        }
     }
 
     internal bool TryApply(Attempt attempt, Action action, bool requireBaseSnapshot = true)

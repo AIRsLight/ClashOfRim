@@ -19,6 +19,7 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("raid settlements own evidence, stable retries and cleanup handoff", ClientRaidSettlementTests.Run),
     ("raid support loss sources retain exact battle pawn and assignment ownership", ClientRaidSupportLossSourceTests.Run),
     ("raid support losses own captured batch reporting and local removal", ClientRaidSupportLossTests.Run),
     ("raid launch owns game preparation, snapshot commit and stable retries", ClientRaidLaunchingTests.Run),

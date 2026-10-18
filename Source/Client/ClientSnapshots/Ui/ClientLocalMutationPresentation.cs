@@ -22,7 +22,6 @@ internal static class ClientLocalMutationPresentation
         LocalMutationKind.GiftSend => "ClashOfRim.GiftDelivery.OperationSend",
         LocalMutationKind.SupportSend => "ClashOfRim.Support.OperationSend",
         LocalMutationKind.Endgame => "ClashOfRim.Endgame.UploadStarted",
-        LocalMutationKind.PreparedEvent => "ClashOfRim.Events.StatusPreparedConfirmOperation",
         _ => "ClashOfRim.LocalAtomicMutation.DefaultOperation"
     });
 

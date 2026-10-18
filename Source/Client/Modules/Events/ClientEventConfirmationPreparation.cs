@@ -7,8 +7,7 @@ using AIRsLight.ClashOfRim.Modules.Synchronization;
 
 namespace AIRsLight.ClashOfRim.Modules.Events;
 
-// Admission and preparation precede both single and batch confirmation. Prepared
-// raid submissions reuse their existing lease and package, without capturing again.
+// Admission and preparation precede both single and batch event confirmation.
 internal sealed class ClientEventConfirmationPreparation
 {
     private readonly ClientSessionLifecycle session;
@@ -21,7 +20,7 @@ internal sealed class ClientEventConfirmationPreparation
 
     internal ClientEventPreparationResult Current(LocalMutationKind operation, string status)
     {
-        var started = Begin(operation, status, requireSnapshot: true, continuation: null);
+        var started = Begin(operation, status);
         if (started.Attempt is not { } attempt) return started;
         bool handedOff = false;
         try
@@ -42,36 +41,19 @@ internal sealed class ClientEventConfirmationPreparation
         finally { if (!handedOff) attempt.Admission.Dispose(); }
     }
 
-    internal ClientEventPreparationResult Prepared(LocalMutationKind operation, string status,
-        ModSnapshotPackageMetadataDto? snapshot, byte[] payload, ClientSynchronizationCoordinator.Lease? continuation)
-    {
-        if (snapshot is null || payload.Length == 0)
-        {
-            continuation?.Dispose();
-            return new(operation, Failure: new(ClientEventPreparationFailureKind.InvalidPreparedData));
-        }
-        return Begin(operation == LocalMutationKind.None ? LocalMutationKind.PreparedEvent : operation,
-            status, requireSnapshot: false, continuation);
-    }
-
-    private ClientEventPreparationResult Begin(LocalMutationKind operation, string status, bool requireSnapshot,
-        ClientSynchronizationCoordinator.Lease? continuation)
+    private ClientEventPreparationResult Begin(LocalMutationKind operation, string status)
     {
         using var publication = ClientSessionWork.EnterPublication();
         var blocked = mutations.BlockingMutation(operation);
         if (blocked is not null)
         {
-            continuation?.Dispose();
             return new(operation, Failure: new(ClientEventPreparationFailureKind.Blocked, Blocked: blocked));
         }
-        if (requireSnapshot)
-        {
-            var context = session.ReadContext();
-            var admission = mutations.CheckAdmission(context.IsConfigured, !string.IsNullOrWhiteSpace(context.CurrentSnapshotId), operation);
-            if (admission != LocalMutationAdmission.Allowed)
-                return new(operation, Failure: new(ClientEventPreparationFailureKind.Admission, Admission: admission));
-        }
-        if (!synchronization.TryAcquireSnapshot(out var lease, continuation))
+        var context = session.ReadContext();
+        var admission = mutations.CheckAdmission(context.IsConfigured, !string.IsNullOrWhiteSpace(context.CurrentSnapshotId), operation);
+        if (admission != LocalMutationAdmission.Allowed)
+            return new(operation, Failure: new(ClientEventPreparationFailureKind.Admission, Admission: admission));
+        if (!synchronization.TryAcquireSnapshot(out var lease))
             return new(operation, Failure: new(ClientEventPreparationFailureKind.Busy));
         try
         {
@@ -85,7 +67,7 @@ internal sealed class ClientEventConfirmationPreparation
         new(operation, Failure: new(ClientEventPreparationFailureKind.Obsolete));
 }
 
-internal enum ClientEventPreparationFailureKind { Blocked, Admission, Busy, Build, InvalidPreparedData, Obsolete }
+internal enum ClientEventPreparationFailureKind { Blocked, Admission, Busy, Build, Obsolete }
 internal sealed record ClientEventPreparationFailure(ClientEventPreparationFailureKind Kind,
     LocalMutationState? Blocked = null, LocalMutationAdmission Admission = LocalMutationAdmission.Allowed,
     SnapshotUploadFailure? SnapshotFailure = null);

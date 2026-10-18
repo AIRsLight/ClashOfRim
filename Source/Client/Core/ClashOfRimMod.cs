@@ -87,9 +87,7 @@ public sealed partial class ClashOfRimMod : Mod
     private readonly ClientSupportReturns supportReturns;
     private readonly ClientObservationMaps observationMaps;
     private readonly ClientRaidLaunching raidLaunching;
-    private readonly ClientRaidSupportLosses raidSupportLosses;
-    private readonly ClientSnapshotTransaction snapshotTransactions;
-    private readonly ClientSnapshotMutationAdmission mutationAdmission;
+    private readonly ClientRaidSettlements raidSettlements;
     internal ClientGiftActions GiftActions => giftActions;
     private readonly ClientEventConfirmationWorkflow eventConfirmations;
     private readonly ClientEventApplications eventApplications;
@@ -152,7 +150,6 @@ public sealed partial class ClashOfRimMod : Mod
     private readonly List<ModChatMessageDto> lastChatMessages = new();
     private readonly List<ModWorldMapMarkerDto> lastWorldMapMarkers = new();
     private readonly Dictionary<string, ModPlayerColonySiteDto> occupiedPlayerColonySites = new(StringComparer.Ordinal);
-    private readonly HashSet<string> finalDeadlineRaidCleanupEventIds = new(StringComparer.Ordinal);
     private readonly HashSet<string> submittedWorldFeatureNameCatalogKeys = new(StringComparer.Ordinal);
     private readonly object eventStateLock = new();
     private readonly object chatStateLock = new();
@@ -182,8 +179,8 @@ public sealed partial class ClashOfRimMod : Mod
         snapshotFailureRecovery.ReturningToMenu += () => playerColonySiteRegistrationSuppressed = false;
         var bankPresentation = new ClientBankPresentation();
         bankState = new ClientBankState(sessionLifecycle, new ClientSnapshotGame(), bankPresentation);
-        snapshotTransactions = new ClientSnapshotTransaction(sessionLifecycle, new ClientSnapshotGame(), snapshotPublication);
-        mutationAdmission = new ClientSnapshotMutationAdmission(sessionLifecycle, synchronization, localMutations, snapshotTransactions);
+        var snapshotTransactions = new ClientSnapshotTransaction(sessionLifecycle, new ClientSnapshotGame(), snapshotPublication);
+        var mutationAdmission = new ClientSnapshotMutationAdmission(sessionLifecycle, synchronization, localMutations, snapshotTransactions);
         localSnapshotConfirmation = new ClientLocalSnapshotConfirmation(sessionLifecycle, new ClientSnapshotGame(), mutationAdmission,
             synchronization, localMutations, snapshotTransactions, snapshotFailureRecovery, ClientSnapshotComposition.Create(settings),
             new ClientLocalSnapshotPresentation(message => snapshotUploadStatus = message));
@@ -245,7 +242,11 @@ public sealed partial class ClashOfRimMod : Mod
             snapshotTransactions, snapshotFailureRecovery, new ClientRaidPreparation(raidTransport, new ClientRemoteSnapshotTransport()),
             raidTransport, new ClientRaidLaunchPresentation(message => worldMapStatus = message), () => pvpEnabled);
         raidLaunching.Completed += StartQueuedAutomaticEventRefreshAfterLocalAtomicMutation;
-        raidSupportLosses = new ClientRaidSupportLosses(snapshotTransactions, new ClientSupportTransport());
+        raidSettlements = new ClientRaidSettlements(sessionLifecycle, mutationAdmission, synchronization, localMutations, snapshotTransactions,
+            snapshotFailureRecovery, new ClientRaidSupportLosses(snapshotTransactions, new ClientSupportTransport()),
+            new ClientEventConfirmationTransport(), eventInbox, localSnapshotConfirmation, new ClientRaidSettlementPresentation(message => worldMapStatus = message));
+        raidSettlements.Completed += () => StartRefreshPlayers(ClashOfRimText.Key("ClashOfRim.Raid.AttackerSnapshotSucceededMessage"), requireManualGate: false);
+        raidSettlements.Expired += StartConfirmSettledRaidCleanupSnapshot;
         observationMaps = new ClientObservationMaps(sessionLifecycle, synchronization, new ClientSnapshotGame(),
             new ClientObservationTransport(), new ClientObservationRuntime(),
             new ClientObservationPresentation(message => worldMapStatus = message, response => ShowCompatibilityMismatchWindow(response)));
@@ -256,7 +257,6 @@ public sealed partial class ClashOfRimMod : Mod
                 {
                     case ClientEventConfirmationPurpose.Trade: tradeStatus = message; break;
                     case ClientEventConfirmationPurpose.AutomaticEvents: eventState.SetDetailsStatus(message); break;
-                    case ClientEventConfirmationPurpose.RaidSettlement: worldMapStatus = message; break;
                     default: eventState.ActionStatus = message; break;
                 }
             }), new ClientEventConfirmationEffects());

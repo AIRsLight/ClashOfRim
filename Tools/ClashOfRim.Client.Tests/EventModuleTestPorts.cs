@@ -19,6 +19,9 @@ internal sealed class EventModuleTestPorts : IClientSessionIdentityStore, IClien
     internal SnapshotUploadFailure? CaptureFailure;
     internal Action? OnCapture;
     internal Action? OnPublish;
+    internal Action? BeforeGameAction;
+    internal bool AllowRaidRemoval;
+    internal readonly List<bool> CaptureModes = new();
     internal readonly List<string> Trace = new();
     private readonly ConcurrentQueue<Action> pending = new();
     private readonly SemaphoreSlim available = new(0);
@@ -33,6 +36,26 @@ internal sealed class EventModuleTestPorts : IClientSessionIdentityStore, IClien
         if (!await available.WaitAsync(TimeSpan.FromSeconds(5))) throw new InvalidOperationException("Event module did not queue game work.");
         if (!pending.TryDequeue(out var action)) throw new InvalidOperationException("Queue lost work."); return action!;
     }
+    internal async Task PumpUntil(Task work, Action<Exception>? gameFailure = null)
+    {
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(8));
+        while (!work.IsCompleted)
+        {
+            using var next = CancellationTokenSource.CreateLinkedTokenSource(timeout.Token);
+            var ready = available.WaitAsync(next.Token);
+            if (await Task.WhenAny(ready, work) == work && !ready.IsCompleted)
+            { next.Cancel(); try { await ready; RunPending(); } catch (OperationCanceledException) { } break; }
+            await ready;
+            RunPending();
+        }
+        await work.WaitAsync(timeout.Token);
+        while (available.Wait(0)) RunPending();
+        void RunPending()
+        {
+            if (!pending.TryDequeue(out var action)) throw new InvalidOperationException("Queue lost work.");
+            try { action(); } catch (Exception ex) when (gameFailure is not null) { gameFailure(ex); }
+        }
+    }
     private sealed record GameSession(EventModuleTestPorts Ports, object Owner) : IClientSnapshotGameSession
     {
         public bool HasGame => true;
@@ -40,14 +63,15 @@ internal sealed class EventModuleTestPorts : IClientSessionIdentityStore, IClien
         public string RuntimeSnapshotId => Ports.Snapshot;
         public SnapshotSaveCapture Capture(bool removeRaidBattleSessions)
         {
-            if (removeRaidBattleSessions) throw new InvalidOperationException("Event confirmation changed snapshot capture mode.");
+            if (removeRaidBattleSessions && !Ports.AllowRaidRemoval) throw new InvalidOperationException("Event confirmation changed snapshot capture mode.");
+            Ports.CaptureModes.Add(removeRaidBattleSessions);
             Ports.Captures++; Ports.OnCapture?.Invoke();
             return new(Ports.SaveBytes, 42f, Array.Empty<ModSnapshotAchievementCandidateDto>(), Ports.CaptureFailure);
         }
         public void Publish(string snapshot, string? token, IReadOnlyList<ModSnapshotAchievementCandidateDto> candidates)
         { if (candidates.Count != 0) throw new InvalidOperationException("Confirmation consumed unrelated achievements."); Ports.GamePublished++; Ports.Trace.Add("game"); }
         public void Enqueue(Action action, Action discard)
-        { Ports.Enqueue(() => { if (IsCurrent) action(); else discard(); }); }
+        { Ports.Enqueue(() => { Ports.BeforeGameAction?.Invoke(); if (IsCurrent) action(); else discard(); }); }
     }
     public Task<ClashOfRimClientNetworkResult<ModLogoutResponseDto>> LogoutAsync(ClashOfRimClientNetworkContext context, string id) => throw new NotSupportedException();
     public Task<ClashOfRimClientNetworkResult<ModSessionStreamClosedDto>> StreamAsync(ClashOfRimClientNetworkContext context, string id, long version, long world, Action<ModSessionStreamEvent> onEvent, CancellationToken token) => throw new NotSupportedException();

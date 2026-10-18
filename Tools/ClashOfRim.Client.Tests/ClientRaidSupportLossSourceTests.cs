@@ -6,6 +6,7 @@ using System.Runtime.CompilerServices;
 using AIRsLight.ClashOfRim;
 using AIRsLight.ClashOfRim.Pawns;
 using AIRsLight.ClashOfRim.Raids;
+using AIRsLight.ClashOfRim.RemoteMaps;
 using AIRsLight.ClashOfRim.Support;
 using HarmonyLib;
 using Verse;
@@ -23,6 +24,7 @@ internal static class ClientRaidSupportLossSourceTests
     private static readonly List<Pawn> removed = new();
     private static bool removeSucceeds;
     private static string label = "支援-é";
+    private static readonly List<(string? Event, string Reason, bool Clear)> closed = new();
 
     internal static void Run()
     {
@@ -82,9 +84,42 @@ internal static class ClientRaidSupportLossSourceTests
             bool rejected = false;
             try { source.Capture(); } catch (InvalidOperationException) { rejected = true; }
             Check(rejected, "Obsolete battle silently became an empty successful batch.");
+            SettlementRuntime(harmony);
         }
         catch (Exception ex) { Console.WriteLine(ex.StackTrace); throw; }
         finally { harmony.UnpatchAll(harmony.Id); Clear(); }
+    }
+    private static void SettlementRuntime(Harmony harmony)
+    {
+        Patch(harmony, AccessTools.Method(typeof(RemoteMapSessionController), nameof(RemoteMapSessionController.PauseRaidBattleTicking)), nameof(SkipEffect));
+        Patch(harmony, AccessTools.Method(typeof(ClashLog), nameof(ClashLog.Message)), nameof(SkipEffect));
+        Patch(harmony, AccessTools.Method(typeof(RemoteSessionMapUtility), nameof(RemoteSessionMapUtility.CloseRaidBattleMap)), nameof(ClosePrefix));
+        Reset(); battle.AttackerUserId = "alice"; battle.AttackerColonyId = "colony"; battle.TargetMapId = "42";
+        var runtime = new ClientRaidSettlementRuntime(battle);
+        battle.TargetMapId = "changed";
+        Check(runtime.Identity.TargetMapId == "42" && runtime.Identity.AttackerUserId == "alice" && runtime.IsCurrent
+            && runtime.TryBegin() && battle.FinishInProgress && !runtime.TryBegin(), "Runtime did not capture identity or mark finish once.");
+        runtime.ResetFinish(); Check(!battle.FinishInProgress, "Runtime failed to reset original finish.");
+        runtime.KeepFinish(); Check(battle.FinishInProgress, "Runtime failed to preserve finish.");
+        runtime.CloseAccepted("retreat");
+        Check(!runtime.IsCurrent && ClashOfRimGameComponent.ActiveRaidBattleSession is null
+            && closed.Single() == ("raid", "raid settlement accepted: retreat", false), "Accepted close changed event/reason/clear ordering.");
+        runtime.CloseAccepted("duplicate"); Check(closed.Count == 1, "Accepted closure repeated.");
+        foreach (bool closeMap in new[] { false, true })
+        {
+            Reset(); runtime = new(battle); runtime.CloseExpired(closeMap); runtime.CloseExpired(closeMap);
+            Check(!runtime.IsCurrent && closed.Count == (closeMap ? 1 : 0), "Expired closure repeated or ignored map policy.");
+        }
+        foreach (bool replaceGame in new[] { false, true })
+        {
+            Reset(); runtime = new(battle);
+            if (replaceGame) game = Uninitialized<Game>();
+            else ClashOfRimGameComponent.SetActiveRaidBattleSession(new() { EventId = "raid", FinishInProgress = true });
+            runtime.ResetFinish(); runtime.KeepFinish(); runtime.CloseAccepted("late"); runtime.CloseExpired(true);
+            Check(!runtime.IsCurrent && !runtime.TryBegin() && closed.Count == 0, "Runtime affected replacement game/battle.");
+            if (!replaceGame) Check(ClashOfRimGameComponent.ActiveRaidBattleSession!.FinishInProgress, "Old runtime reset replacement battle flag.");
+        }
+        Check(!new ClientRaidSettlementRuntime(null).TryBegin(), "Missing battle became active.");
     }
     private static void Reset()
     {
@@ -101,7 +136,7 @@ internal static class ClientRaidSupportLossSourceTests
             assignments.Add(new() { EventId = id, PawnThingId = id, PawnGlobalKey = "global-" + id, PawnLabel = "fallback-" + id, AutoReturnOnSettlement = true });
         }
     }
-    private static void Clear() { assignments.Clear(); live.Clear(); maps.Clear(); destroyed.Clear(); dead.Clear(); removed.Clear(); }
+    private static void Clear() { assignments.Clear(); live.Clear(); maps.Clear(); destroyed.Clear(); dead.Clear(); removed.Clear(); closed.Clear(); }
     private static T Uninitialized<T>() => (T)RuntimeHelpers.GetUninitializedObject(typeof(T));
     private static void Patch(Harmony harmony, MethodInfo method, string prefix) => harmony.Patch(method, prefix: new HarmonyMethod(typeof(ClientRaidSupportLossSourceTests), prefix));
     private static bool GamePrefix(ref Game __result) { __result = game; return false; }
@@ -111,5 +146,8 @@ internal static class ClientRaidSupportLossSourceTests
     private static bool LabelPrefix(ref string __result) { __result = label; return false; }
     private static bool FindPrefix(string __0, ref Pawn? __result) { __result = live.GetValueOrDefault(__0); return false; }
     private static bool RemovePrefix(Pawn __0, ref bool __result) { removed.Add(__0); __result = removeSucceeds; return false; }
+    private static bool SkipEffect() => false;
+    private static bool ClosePrefix(string? __0, string __1, bool __2, ref bool __result)
+    { closed.Add((__0, __1, __2)); __result = true; return false; }
     private static void Check(bool condition, string message) { if (!condition) throw new Exception(message); }
 }

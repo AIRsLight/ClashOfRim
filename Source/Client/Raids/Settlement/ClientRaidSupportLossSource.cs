@@ -11,7 +11,7 @@ namespace AIRsLight.ClashOfRim.Raids;
 
 internal sealed class ClientRaidSupportLossSource : IClientRaidSupportLossSource
 {
-    private readonly Game game;
+    private readonly Game? game;
     private readonly ActiveRaidBattleSession battle;
     private readonly ClashOfRimGameComponent? component;
     private readonly Dictionary<string, Entry> captured = new();

@@ -56,6 +56,7 @@ internal static class EventCommandPresentationTests
                 GiftPresentation();
                 TradePresentation();
                 ShopPresentation();
+                RaidSettlementPresentation();
                 foreach (var purpose in Enum.GetValues<ClientEventConfirmationPurpose>())
                 {
                     var notice = new ClientEventConfirmationNotice(purpose, ClientEventConfirmationStage.Uploading,
@@ -79,8 +80,6 @@ internal static class EventCommandPresentationTests
                         if (kind == ClientSnapshotTransactionFailureKind.Rejected && purpose != ClientEventConfirmationPurpose.AutomaticEvents
                             && !text.Contains("validation-detail")) throw new Exception("Single rejection lost server validation.");
                     }
-                    // Raid acceptance is guarded and presented by the raid domain. It never builds a new package here.
-                    if (purpose != ClientEventConfirmationPurpose.RaidSettlement)
                     {
                         RequireResolved(presentation.Format(notice with { Stage = ClientEventConfirmationStage.Accepted }));
                         string build = presentation.Format(notice with { Stage = ClientEventConfirmationStage.PreparationFailed,
@@ -89,12 +88,24 @@ internal static class EventCommandPresentationTests
                         if (!build.Contains("save-reason")) throw new Exception("Build failure lost reason.");
                         RequireResolved(build);
                     }
-                    if (purpose is not (ClientEventConfirmationPurpose.RaidSettlement or ClientEventConfirmationPurpose.AutomaticEvents))
+                    if (purpose != ClientEventConfirmationPurpose.AutomaticEvents)
                         RequireResolved(presentation.Format(notice with { Stage = ClientEventConfirmationStage.Empty }));
                 }
             }
         }
         finally { CultureInfo.CurrentCulture = originalCulture; harmony.UnpatchAll(harmony.Id); translations.Clear(); }
+    }
+
+    private static void RaidSettlementPresentation()
+    {
+        var presentation = new AIRsLight.ClashOfRim.Raids.ClientRaidSettlementPresentation(static _ => { });
+        foreach (string key in new[] { "StatusSettlementUploading", "StatusSettlementSaveFailed", "StatusSettlementFailed", "StatusSettlementRejected",
+            "StatusSettlementException", "StatusSettlementSucceeded", "StatusSettlementFinalDeadlineExpired", "StatusSettlementReportingSupportLoss",
+            "StatusConfirmationIncomplete", "SettlementSucceededMessage", "StatusAttackerSnapshotUploading", "StatusAttackerSnapshotFailed",
+            "StatusAttackerSnapshotSucceeded", "StatusAttackerSnapshotException", "AttackerSnapshotSucceededMessage", "StatusSettlementEmptySave",
+            "StatusSettlementMissingSourceMap", "StatusSettlementXmlFailed", "StatusSettlementMissingParent", "StatusSettlementMissingMap", "StatusSettlementMissingLocalMapId" })
+            RequireResolved(presentation.Text("ClashOfRim.Raid." + key, ("CODE", "code"), ("MESSAGE", "message"), ("REASON", "reason"),
+                ("TYPE", "exception"), ("VALIDATION", "validation"), ("SNAPSHOT", "snapshot"), ("COUNT", 3)));
     }
 
     private static void DecisionPresentation()

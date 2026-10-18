@@ -1256,3 +1256,19 @@ M7b 的发送与归还业务已迁入实际模块。下一步 **M7c 袭击与远
 累计 **5 个相关客户端单元组通过**（支援损失模块、来源适配器、既有支援归还、出征、模块边界）；最终只重跑受影响的 **4/95** 组，全部通过。依赖守卫检查 **619 个模块及生成类型、117 个适配类型**。本地 .NET 10 与真实 RimWorld 1.7 程序集编译通过，无本步新增警告，保留既有测试警告。日志：`LocalOnly/module-migration/raid-support-loss-existing-unit.log`、`raid-support-loss-module-unit.log`、`raid-support-loss-source-unit.log`、`raid-support-loss-final-unit.log`。
 
 本步未运行 RimTest、NetworkSmoke、全量回归或推送；每步仍只验证受影响范围，全量由用户安排。下一步 **M7d4b 袭击结算快照与确认协调**，之后处理远程会话关闭/恢复；M7 与 M8–M12 保持开放。
+
+### M7d4b 袭击结算证据、确认与攻击方清理（2026-10-18）
+
+`ClientRaidSettlements` 接管结算准入、M7d4a 支援损失前置阶段、长事件保存、证据校验/打包、确认、重试、接受后关图及攻击方清理快照衔接。宿主的结算和最终截止时间入口仅创建本次运行时并转发，远程地图 partial 删除约 380 行业务实现；上步暂留的事务/准入字段恢复为装配局部变量。删除通用事件确认中的 PreparedRaidAsync、已无调用者的 Prepared 准备分支及对应状态/展示分支，领域规则不再混在通用事件工作流中。保留公开 RaidBattleSettlementContext 数据契约，其幂等键和结果字符串与新模块共用 ClientRaidSettlementIntent。
+
+`ClientRaidSettlementSnapshot` 拥有原始存档中袭击父对象、事件关联、地图及地图 ID 的校验和 XML 写出；保留其余存档内容。公开 RaidBattleSnapshotPreparer 仅转换入参和失败提示。新流程从捕获结果直接验证并打包一次，移除旧流程先完整打包、再用 OriginalPayload 重新打包的重复工作；仍复用 ClientSnapshotPreparation、ClientSnapshotPackageBuilder 和事件确认协议，未另写 HTTP、gzip、谱系或哈希算法。`ClientRaidSettlementRuntime` 持有原游戏和战场引用，调用既有暂停/结束标记、地图关闭和组件登记服务；不能操作同事件 ID 的替换战场，也不因空会话清理当前战场。
+
+普通网络重试保留原身份、基础快照、支援批次、证据包及字节，只在保存尚未成功时重新捕获；支援损失已完成后不再报告或删除。服务端 RaidEvidenceConfirmation 的首次入队和重复确认均返回原事件及原证据快照，客户端现要求明确接受且两者匹配，才发布谱系并关图。缺失/错配回执、永久拒绝、部分发布或部分关图保留退出恢复，不允许重发；失败排队后若又出现其他快照，也不能覆盖新业务的失败状态。共享 ClientSnapshotTransaction 增加可等待的失败回调重载，原同步入口转发到同一实现；游戏线程失败处理完成前持续持有本次租约。
+
+证据接受后直接进入既有 ClientLocalSnapshotConfirmation，删除 250ms 轮询及其计数/日志常量。交接期间本地变更状态从 Raid 转为 RaidAttacker，新的清理准入与旧证据租约分开，旧 finally 不释放清理或后续业务；清理重试只重试清理，不重报证据、不再次关图。交接中若身份/游戏已变或基础快照被替换，不重新绑定新状态。沿用攻击方清理的 BestEffort 行为。最终截止时间的本地关闭和提示已归模块，重复处理依赖原战场仍活动这一事实，删除宿主中不随会话清理的事件 ID 集合；**超时后的权威快照重载仍通过 Expired 通知连接旧恢复入口，属于 M7d5，尚未迁移**。
+
+新增独立流程测试真实组合支援批次、统一准入/事务/恢复、存档打包、事件协议端口及本地清理确认。覆盖四种文化 × 三种 HTTP 时限、支援先行、稳定重试、保存/排队/打包/网络/回执/部分发布/关图/清理故障、六个阶段 × 八种身份/服务器/快照/游戏变化，以及三处截止时间、清理竞争与独立重试、旧 finally 隔离、完成时启动新业务、错误账户和保存内容完整性。实际来源测试扩展真实结算运行时：使用真实结束标记和组件状态，仅替换暂停/日志/地图关闭效果，核对关闭原因、清理顺序、重复关闭、空会话和替换游戏/战场。相关提示纳入五种现有语言 × 四种文化的解析验证；不将这些单元结果当作实际地图卸载或 pawn 归还的实机证据。
+
+共享事务及旧事件路径清理后，**11/96 个相关客户端单元组通过**；补齐排队中的部分发布与关图后到期边界后，仅重跑受影响的 **2/96** 组，通过。模块守卫检查 **641 个模块及生成类型、120 个适配类型**。本地 .NET 10 与真实 RimWorld 1.7 程序集编译通过；本步没有新增警告，并修正上步支援来源 Game 字段的可空标注，保留其他既有警告。测试夹具最初用了项目 C# 10 不支持的主构造函数，改为普通构造函数后通过。日志：`LocalOnly/module-migration/raid-settlement-existing-unit.log`、`raid-settlement-module-unit.log`、`raid-settlement-runtime-unit.log`、`raid-settlement-final-unit.log`、`raid-settlement-review-unit.log`。
+
+本步未运行 RimTest、NetworkSmoke、全量回归或推送，工作区既有修改独立保留。下一步 **M7d5 远程会话关闭与袭击恢复**，包括仍在 ServerEntry partial 中的恢复分支及超时后的权威重载衔接；M7 整体与 M8–M12 继续开放。
