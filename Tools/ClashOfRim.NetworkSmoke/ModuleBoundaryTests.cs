@@ -26,7 +26,7 @@ internal static class ModuleBoundaryTests
             t == typeof(ClashOfRimNetworkServer) || t == typeof(ClashOfRimNetworkState)
             || t == typeof(RaidSettlementOperationExecutor) || t == typeof(RaidSettlementDeferredScheduler)
             || t == typeof(RaidSettlementScheduleRequest) || t == typeof(RaidEvidenceRequestAdapter)
-            || t == typeof(LegacyRaidEvidencePipeline)
+            || t == typeof(RaidSettlementPostUploadProcessor)
             || t == typeof(AIRsLight.ClashOfRim.Network.Plugins.SnapshotPostUploadContext)
             || t == typeof(AIRsLight.ClashOfRim.Network.Plugins.SnapshotPostUploadDeferredContext)
             || t == typeof(LegacySnapshotRecoveryAdapter) || t == typeof(SnapshotPostUploadPluginAdapter) || t == typeof(IServiceProvider));

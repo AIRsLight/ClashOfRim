@@ -2661,3 +2661,16 @@ SnapshotPostUploadPluginAdapter 仅把公开上下文转为输入、绑定实际
 新增独立调度单元组，覆盖四种文化下的 Ordinal 排序、对不适用类型仍进行 ID 冲突检查、能力缺失的继续／中止和发生时机、输入归属、调度优先、延迟任务身份与重复入队，以及公开插件接口保留原上下文。**4 个相关单元组通过**：新调度组、模块守卫（413 个类型／81 条路由）、普通上传故障恢复、袭击结算后处理器的异步调度。日志：`LocalOnly/module-migration/server-post-upload-runner-tests.log`。只有相关单元测试，未运行全量、实机或独立发布构建，未推送。
 
 **下一步 M9g2：核心后处理与统一输入入口。** 当前 SnapshotPostUpload partial 仍注册核心处理器并归一化输入，旧公开管线已共用新 Runner。需把核心领域调用和待确认事故恢复交给明确依赖的模块，核心处理器直接接受 SnapshotPostUploadInput；插件只在兼容边界绑定旧上下文。将普通提交、上传和袭击证据接入统一入口并删除 LegacyRaidEvidencePipeline，随后继续退役 LegacySnapshotRecoveryAdapter 和宿主恢复入口。M9g 与整体目标仍未完成。
+
+
+### M9g2 核心后处理和统一输入入口（2026-10-19）
+
+CoreSnapshotPostUpload 使用明确的领域依赖，拥有原六个核心处理器的阶段、次序、适用类型及调用；直接处理 SnapshotPostUploadInput，不经过旧插件上下文。快照引用、世界投影、殖民地位置、成就、支援死亡仍复用既有领域模块；待确认后的事故恢复保留同一变更锁及当前快照身份检查，不重新扫描后续创建的待确认业务。
+
+SnapshotPostUploads 接管普通业务提交、普通上传及袭击证据的输入构造和统一分派。保留提交时接受时间、原始上传种类、确认操作、成就候选，以及搬迁和袭击证据不登记殖民地位置的规则。袭击核心操作直接调用 RaidEvidenceScheduling.SchedulePostUpload；原公开 RaidSettlementPostUploadProcessor 也转发到该方法，共用预准备提交／直接调度分支。Runner 的调度操作只要求 Schedule；通用延迟入队才检查 CapturePayload，不为核心调度添加不会使用的占位实现。公开插件的接口继承关系、能力检查时机和失败策略不变。
+
+插件适配器只构造一次旧上下文并绑定插件调用，多个插件共享同一个上下文。启动注册验证包含全部插件，运行和后台处理器来源动态读取当前基线的启用集合。删除 ClashOfRimNetworkServer.SnapshotPostUpload.cs、LegacyRaidEvidencePipeline，以及旧宿主的已提交快照／普通上传后处理包装；普通上传、提交日志恢复和袭击确认直接接入新模块。守卫新增禁止领域模块反向依赖公开袭击处理器，防止核心流程通过旧上下文绕回 NetworkState。
+
+复用已有调度和普通上传测试，新增四种文化下的插件动态启停／未启用插件与核心 ID 冲突检查、袭击证据直接与预准备两条路径的发布／重放及原始输入断言；普通提交验证通知阶段前已经完成核心投影，普通上传故障矩阵验证 inline 与 deferred 插件共享上下文。**7 个相关单元组通过**：后处理调度、模块边界（419 个类型、81 条路由）、普通上传恢复、单条／批量确认日志、支援死亡恢复、快照成就恢复、公开袭击后处理器。日志：`LocalOnly/module-migration/server-core-post-upload-tests.log`。生产代码随测试编译；未运行全量回归、实机 RimTest 或独立发布构建，未推送。
+
+**下一步 M9h：恢复装配的真实归属。** LegacySnapshotRecoveryAdapter 仍把前置恢复和提交重放转回宿主，并暂代 ISnapshotCommitEffects 转发；需要以明确依赖的恢复模块接管顺序，解决恢复协调器与领域服务的构造依赖后删除该适配器和宿主恢复入口。后台 SnapshotPostUploadJobExecutor／BackgroundService 仍使用旧 State 上下文，其任务恢复与失败处理责任也需复核，不能据本步宣称 M9 完成。M10–M12、剩余宿主事件失败接收及最终完成审计继续开放。

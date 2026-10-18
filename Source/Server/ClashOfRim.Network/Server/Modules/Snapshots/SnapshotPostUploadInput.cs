@@ -8,6 +8,7 @@ internal sealed record SnapshotPostUploadInput(SnapshotPostUploadKind Kind, Late
     SnapshotPostUploadExtraData ExtraData, bool RegisterPlayerColonySite)
 {
     internal SnapshotPostUploadJobInput Job => new(Kind, UserId, ColonyId, SessionId, Snapshot?.Identity.SnapshotId, OccurredAtUtc);
+    internal SnapshotUploadResult AcceptedUpload() => SnapshotUploadResult.Accept(Snapshot, ExtraData.SnapshotUploadKind);
 }
 
 // Null delegates represent absent plugin capabilities; the runner checks them at execution time.

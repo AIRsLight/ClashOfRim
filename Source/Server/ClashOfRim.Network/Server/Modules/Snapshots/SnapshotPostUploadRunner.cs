@@ -44,18 +44,17 @@ internal sealed class SnapshotPostUploadRunner(SnapshotPostUploadJobRegistry job
         {
             if (processor.ExecutionMode == SnapshotPostUploadExecutionMode.Deferred)
             {
-                if (operation.CapturePayload is null)
-                {
-                    throw new InvalidOperationException(
-                        $"Deferred snapshot post-upload processor '{processor.Id}' does not implement {nameof(IDeferredSnapshotPostUploadProcessor)}.");
-                }
-
                 if (operation.Schedule is { } schedule)
                 {
                     schedule(input);
                 }
                 else
                 {
+                    if (operation.CapturePayload is null)
+                    {
+                        throw new InvalidOperationException(
+                            $"Deferred snapshot post-upload processor '{processor.Id}' does not implement {nameof(IDeferredSnapshotPostUploadProcessor)}.");
+                    }
                     string payloadJson = operation.CapturePayload(input);
                     jobs.Enqueue(processor.Id, input.Job, payloadJson);
                 }

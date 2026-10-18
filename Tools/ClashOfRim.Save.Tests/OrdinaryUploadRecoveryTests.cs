@@ -29,6 +29,7 @@ internal static class OrdinaryUploadRecoveryTests
         WithFixture(fixture, false, VerifyRejectedAndNested);
         WithFixture(fixture, false, VerifyInitialWithoutPendingBusiness);
         WithFixture(fixture, false, VerifyAuthorizationAfterPreparation);
+        WithFixture(fixture, false, VerifyCommittedInput);
         foreach (string corrupt in new[] { "missing-context", "foreign-parent", "missing-operations", "null-candidates" })
             WithFixture(fixture, false, f => VerifyBadJournal(f, corrupt));
     }
@@ -53,6 +54,7 @@ internal static class OrdinaryUploadRecoveryTests
         Require(f.State.BankLoans.FindDebtByIdempotencyKey("later")!.Status == BankLoanRegistry.StatusPendingActivation,
             "recovery recaptured work created after acceptance");
         var context = f.Contexts.Last();
+        Require(ReferenceEquals(context, f.Deferred.Context), "inline and deferred plugins received different upload contexts");
         Require(context.ExtraData.ConfirmationOperation == f.Operation && context.OccurredAtUtc == intent.AcceptedAtUtc
             && context.ExtraData.SnapshotUploadKind == intent.SnapshotUploadKind
             && context.RegisterPlayerColonySite == !f.Relocation && context.ExtraData.AchievementCandidates!.Single().AchievementId == Candidate.AchievementId,
@@ -80,6 +82,21 @@ internal static class OrdinaryUploadRecoveryTests
             "deferred work was not scheduled before removing the intent");
         Require(f.State.WorldConfiguration.Current!.PlayerColonySites.Any(site => site.UserId == "userA") == !f.Relocation,
             "relocation registration policy changed during recovery");
+    }
+
+    private static void VerifyCommittedInput(Fixture f)
+    {
+        var snapshot = f.Files.GetLatest("userA", "colonyA")!;
+        f.OnProcess = () => Require(f.State.Players.FindByUserId("userA")?.CurrentSnapshotId == snapshot.Identity.SnapshotId,
+            "plugin notification ran before the core snapshot reference projection");
+        f.State.SnapshotPostUploads.AfterCommit(snapshot, "custom-upload-kind");
+        var context = f.Contexts.Single();
+        Require(ReferenceEquals(context, f.Deferred.Context) && ReferenceEquals(context.Snapshot, snapshot)
+            && context.Kind == SnapshotPostUploadKind.AuthoritativeColonySnapshot
+            && context.UserId == "userA" && context.ColonyId == "colonyA" && context.SessionId is null
+            && context.OccurredAtUtc == snapshot.AcceptedAtUtc && context.RegisterPlayerColonySite
+            && context.ExtraData.SnapshotUploadKind == "custom-upload-kind" && context.ExtraData.ConfirmationOperation is null
+            && context.ExtraData.AchievementCandidates is null, "committed entry changed the original snapshot context");
     }
 
     private static void VerifyConflict(Fixture f, bool reopen, string conflict)
@@ -279,13 +296,14 @@ internal static class OrdinaryUploadRecoveryTests
     private sealed class DeferredProcessor : IDeferredSnapshotPostUploadProcessor
     {
         public int Completed;
+        public SnapshotPostUploadContext? Context;
         public string Id => "test.ordinary-deferred";
         public SnapshotPostUploadStage Stage => SnapshotPostUploadStage.Notification;
         public int Order => 200;
         public SnapshotPostUploadFailureMode FailureMode => SnapshotPostUploadFailureMode.AbortPipeline;
         public SnapshotPostUploadExecutionMode ExecutionMode => SnapshotPostUploadExecutionMode.Deferred;
         public bool Supports(SnapshotPostUploadKind kind) => true;
-        public string CapturePayload(SnapshotPostUploadContext context) => JsonSerializer.Serialize(context.ExtraData);
+        public string CapturePayload(SnapshotPostUploadContext context) { Context = context; return JsonSerializer.Serialize(context.ExtraData); }
         public void ProcessDeferred(SnapshotPostUploadDeferredContext context) => Interlocked.Increment(ref Completed);
     }
     private sealed class InlineProcessor(Action<SnapshotPostUploadContext> action) : IInlineSnapshotPostUploadProcessor

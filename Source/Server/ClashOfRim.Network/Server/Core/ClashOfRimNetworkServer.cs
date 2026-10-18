@@ -229,7 +229,7 @@ public static partial class ClashOfRimNetworkServer
                 state.SnapshotCommits.CommitUpload(state.SnapshotStore, state.BankLoans, state.MercenaryContracts,
                     savePackage, upload.AcceptedSnapshot, operations, upload.SnapshotUploadKind,
                     postUploadData.ConfirmationOperation, postUploadData.AchievementCandidates,
-                    (snapshot, kind, mutation) => RunCommittedOrdinaryUpload(state, snapshot, kind, mutation), confirmation, state.Ledger,
+                    state.SnapshotPostUploads.AfterOrdinaryUpload, confirmation, state.Ledger,
                     item => state.EventAchievements.Record(item, item.AppliedAtUtc ?? item.CreatedAtUtc),
                     state.SnapshotConfirmations.Plan, preparedStoragePayload: upload.PreparedStoragePayload);
                 return new(upload);

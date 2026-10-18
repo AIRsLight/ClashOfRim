@@ -62,13 +62,10 @@ public static partial class ClashOfRimNetworkServer
             {
                 networkState = state;
             }
-            SnapshotPostUploadPipeline.ValidateRegistrations(
-                CoreSnapshotPostUploadProcessors
-                    .Concat(networkState.Plugins.SnapshotPostUploadProcessors)
-                    .ToList());
+            networkState.SnapshotPostUploads.ValidateRegistrations();
             builder.Services.AddSingleton(networkState);
             builder.Services.AddSingleton(new SnapshotPostUploadProcessorSource(
-                () => ResolveSnapshotPostUploadProcessors(networkState)));
+                networkState.SnapshotPostUploads.ResolveProcessors));
             builder.Services.AddHostedService<SnapshotPostUploadBackgroundService>();
             app = builder.Build();
             previousRuntimeLogger = networkState.RuntimeLogger;

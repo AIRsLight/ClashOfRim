@@ -1,7 +1,10 @@
 using System.Globalization;
+using AIRsLight.ClashOfRim.Compatibility;
 using AIRsLight.ClashOfRim.Network;
 using AIRsLight.ClashOfRim.Network.Modules.Snapshots;
+using AIRsLight.ClashOfRim.Network.Modules.Raids;
 using AIRsLight.ClashOfRim.Network.Plugins;
+using AIRsLight.ClashOfRim.Protocol;
 using Microsoft.Extensions.Logging.Abstractions;
 
 internal static class SnapshotPostUploadRunnerTests
@@ -19,6 +22,8 @@ internal static class SnapshotPostUploadRunnerTests
                 foreach (var failure in new[] { SnapshotPostUploadFailureMode.AbortPipeline, SnapshotPostUploadFailureMode.ContinuePipeline })
                     CapabilityBoundary(mode, failure);
                 DeferredPublication();
+                ActiveRegistrations();
+                foreach (bool prepared in new[] { false, true }) UnifiedRaidInput(prepared);
             }
             LegacyContext();
         }
@@ -92,6 +97,65 @@ internal static class SnapshotPostUploadRunnerTests
         SnapshotPostUploadPipeline.Run(context, [first]);
         Check(ReferenceEquals(first.Context, context) && first.Captures == 1 && state.SnapshotPostUploadJobs.ListReady(input.OccurredAtUtc).Count == 1,
             "Legacy deferred capture lost its context or durable enqueue.");
+    }
+
+    private static void ActiveRegistrations()
+    {
+        const string packageId = "test.post-upload";
+        var processor = new LegacyProcessor("test.dynamic");
+        var baseline = new CompatibilityBaselineRegistry();
+        ClashOfRimNetworkState State(ISnapshotPostUploadProcessor plugin) => new(compatibilityBaselineRegistry: baseline,
+            plugins: new ServerPluginRegistry().WithBuiltInPlugins([new(packageId, "test", "1", "test", "", [],
+                RequiredPackageIds: [packageId]) { SnapshotPostUploadProcessors = [plugin] }]));
+        var state = State(processor);
+        state.SnapshotPostUploads.ValidateRegistrations();
+        Check(!state.SnapshotPostUploads.ResolveProcessors().Contains(processor), "Inactive plugin entered the background processor source.");
+        baseline.ReplaceBaseline(EntryTestSupport.Manifest() with { Mods = [new ModManifestEntry { PackageId = packageId }] }, "admin", DateTimeOffset.UnixEpoch);
+        Check(state.SnapshotPostUploads.ResolveProcessors().Contains(processor), "Processor source did not activate the configured plugin.");
+        baseline.ReplaceBaseline(EntryTestSupport.Manifest(), "admin", DateTimeOffset.UnixEpoch.AddDays(1));
+        Check(!state.SnapshotPostUploads.ResolveProcessors().Contains(processor), "Processor source retained a removed plugin.");
+        var duplicate = State(new LegacyProcessor("core.latest-snapshot-reference"));
+        ExpectFailure(duplicate.SnapshotPostUploads.ValidateRegistrations);
+    }
+
+    private static void UnifiedRaidInput(bool prepared)
+    {
+        using var f = new RaidEvidenceModuleTestContext(prepared);
+        var first = new LegacyProcessor("first") { Kind = SnapshotPostUploadKind.RaidSettlementEvidence };
+        var last = new LegacyProcessor("last") { Kind = SnapshotPostUploadKind.RaidSettlementEvidence };
+        var state = new ClashOfRimNetworkState(ledger: f.Ledger, snapshotStore: f.Snapshots, playerRegistry: f.Players,
+            snapshotPostUploadJobs: f.Jobs, snapshotPostUploadArtifacts: f.Artifacts,
+            plugins: new ServerPluginRegistry().WithBuiltInPlugins([new("test.raid-input", "test", "1", "test", "", [])
+                { SnapshotPostUploadProcessors = [last, first] }]));
+        void Run()
+        {
+            if (!prepared) { state.SnapshotPostUploads.Run(f.Request, null); return; }
+            RaidEvidenceSchedulePreparation preparation;
+            using (state.SnapshotMutations.EnterUnrecovered())
+                lock (f.Jobs.SnapshotCommitGate) preparation = state.RaidEvidenceScheduling.Capture(f.Request);
+            using (preparation)
+            {
+                preparation.Prepare(null);
+                using (state.SnapshotMutations.EnterUnrecovered())
+                    lock (f.Jobs.SnapshotCommitGate) state.SnapshotPostUploads.Run(f.Request, preparation);
+            }
+        }
+        Run();
+        var job = f.Jobs.ListAll().Single();
+        f.CheckPublished(job);
+        var context = first.Context!;
+        var extra = context.ExtraData.RaidSettlement!;
+        Check(ReferenceEquals(context, last.Context) && ReferenceEquals(context.Snapshot, f.Request.Snapshot)
+            && context.Kind == f.Request.Job.Kind && context.UserId == f.Request.Job.UserId && context.ColonyId == f.Request.Job.ColonyId
+            && context.SessionId == f.Request.Job.SessionId && context.OccurredAtUtc == f.Request.Job.OccurredAtUtc
+            && !context.RegisterPlayerColonySite && context.ExtraData.SnapshotUploadKind == SnapshotUploadKinds.RaidSettlementEvidence
+            && extra.RaidEventId == f.Request.RaidEventId && ReferenceEquals(extra.EvidencePayload, f.Request.EvidencePayload)
+            && extra.Origin == f.Request.Origin && extra.ClientApplicationResult == f.Request.ClientApplicationResult
+            && extra.RequestHash == f.Request.RequestHash && (extra.PreparedSchedule is not null) == prepared,
+            "Unified raid entry changed evidence identity, preparation or the shared plugin context.");
+        Run();
+        Check(f.Jobs.ListAll().Single() == job, "Unified raid replay replaced the original job.");
+        f.CheckPublished(job);
     }
 
     private class Metadata(string id) : ISnapshotPostUploadProcessor

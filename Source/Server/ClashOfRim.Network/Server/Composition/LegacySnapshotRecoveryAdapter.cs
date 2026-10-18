@@ -11,5 +11,5 @@ internal sealed class LegacySnapshotRecoveryAdapter(ClashOfRimNetworkState state
     public ISnapshotRecoveryPreparation CapturePreparation() => state.SnapshotCommits.CaptureRecoveryPreparation(state.SnapshotStore);
     public void Replay() => ClashOfRimNetworkServer.RecoverSnapshotCommitRecords(state);
     public void AfterCommit(LatestSnapshotRecord snapshot, string? uploadKind) =>
-        ClashOfRimNetworkServer.RunCommittedSnapshotPostUpload(state, snapshot, uploadKind);
+        state.SnapshotPostUploads.AfterCommit(snapshot, uploadKind);
 }

@@ -8,6 +8,16 @@ namespace AIRsLight.ClashOfRim.Network.Modules.Raids;
 internal sealed class RaidEvidenceScheduling(IAuthoritativeEventLedger ledger, IColonySnapshotIndexStore snapshots,
     ISnapshotPostUploadArtifactStore artifacts, SnapshotPostUploadJobRegistry jobs, PlayerRegistry players, SnapshotMutationCoordinator mutations)
 {
+    internal SnapshotPostUploadJobRecord SchedulePostUpload(SnapshotPostUploadInput input)
+    {
+        var data = input.ExtraData.RaidSettlement
+            ?? throw new InvalidOperationException("Raid settlement post-upload data is missing.");
+        if (data.PreparedSchedule is { } prepared)
+            return prepared.Commit(this, input.Snapshot.Envelope, input.OccurredAtUtc);
+        return Schedule(new(data.RaidEventId, input.Snapshot, input.Job, data.EvidencePayload,
+            data.Origin, data.ClientApplicationResult, data.RequestHash));
+    }
+
     internal bool SupportsPreparation => snapshots is IColonySnapshotPackageStore
         && artifacts is IPreparedSnapshotPostUploadArtifactStore and IVersionedSnapshotPostUploadArtifactStore;
 

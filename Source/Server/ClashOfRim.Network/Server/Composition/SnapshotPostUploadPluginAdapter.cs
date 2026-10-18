@@ -4,8 +4,15 @@ using AIRsLight.ClashOfRim.Network.Plugins;
 namespace AIRsLight.ClashOfRim.Network;
 
 // The public plugin contract retains State; only argument conversion and plugin invocation live here.
-internal static class SnapshotPostUploadPluginAdapter
+internal sealed class SnapshotPostUploadPluginAdapter(ClashOfRimNetworkState state) : ISnapshotPostUploadPlugins
 {
+    public IEnumerable<SnapshotPostUploadOperation> Bind(SnapshotPostUploadInput input, IEnumerable<ISnapshotPostUploadProcessor> processors)
+    {
+        var context = new SnapshotPostUploadContext(state, input.Kind, input.Snapshot, input.UserId, input.ColonyId,
+            input.SessionId, input.OccurredAtUtc, input.ExtraData, input.RegisterPlayerColonySite);
+        return processors.Where(processor => processor is not null).Select(processor => Bind(processor, context));
+    }
+
     internal static SnapshotPostUploadInput Input(SnapshotPostUploadContext context) => new(context.Kind, context.Snapshot,
         context.UserId, context.ColonyId, context.SessionId, context.OccurredAtUtc, context.ExtraData, context.RegisterPlayerColonySite);
 

@@ -138,9 +138,6 @@ public sealed class ClashOfRimNetworkState
         RaidSettlementWork = new RaidSettlementWork(RaidSettlement, SnapshotPostUploadArtifacts, SnapshotPostUploadJobs, SnapshotMutations);
         RaidEvidenceScheduling = new RaidEvidenceScheduling(Ledger, SnapshotStore, SnapshotPostUploadArtifacts,
             SnapshotPostUploadJobs, Players, SnapshotMutations);
-        RaidEvidenceConfirmation = new RaidEvidenceConfirmation(Ledger, SnapshotPostUploadJobs, RaidEvidenceScheduling,
-            SnapshotMutations, SnapshotRequests, ColonyAuthorization, SnapshotTransactions, PendingConfirmations,
-            new LegacyRaidEvidencePipeline(this), () => RuntimeLogger);
         RaidOfflineEvidence = new RaidOfflineEvidence(Ledger, SnapshotStore, SnapshotPostUploadJobs, SnapshotPostUploadArtifacts,
             SnapshotMutations, RaidQueries, RaidEvidenceScheduling, () => RuntimeLogger);
         RaidBattleCleanup = new RaidBattleCleanup(Ledger, SnapshotStore, SnapshotPostUploadJobs, SnapshotMutations,
@@ -244,6 +241,13 @@ public sealed class ClashOfRimNetworkState
             AdminBaseline, TradeLifecycle, SnapshotMutations, PlayerActivity);
         WorldFeatureNames = new WorldFeatureNames(Accounts, WorldConfiguration, WorldDelivery, WorldChanges, () => RuntimeLogger);
         WorldSubstrate = new WorldSubstrateTransfer(Accounts, SessionPrincipals, WorldConfiguration, WorldDelivery, WorldChanges, () => RuntimeLogger);
+        SnapshotPostUploads = new(new CoreSnapshotPostUpload(Players, WorldLayers, ColonyProjection, SnapshotAchievements,
+            SupportDeaths, SnapshotStore, SnapshotMutations, MercenaryIncidents),
+            new SnapshotPostUploadRunner(SnapshotPostUploadJobs, () => RuntimeLogger), Plugins, CompatibilityBaseline,
+            new SnapshotPostUploadPluginAdapter(this), new RaidSettlementPostUploadProcessor(), RaidEvidenceScheduling);
+        RaidEvidenceConfirmation = new RaidEvidenceConfirmation(Ledger, SnapshotPostUploadJobs, RaidEvidenceScheduling,
+            SnapshotMutations, SnapshotRequests, ColonyAuthorization, SnapshotTransactions, PendingConfirmations,
+            SnapshotPostUploads, () => RuntimeLogger);
         ConfigurationChanges.Recover();
     }
 
@@ -296,6 +300,7 @@ public sealed class ClashOfRimNetworkState
         => SnapshotMutations.EnterUnrecovered(operation);
     public SnapshotCommitService SnapshotCommits { get; }
     internal SnapshotConfirmationPlanner SnapshotConfirmations { get; }
+    internal SnapshotPostUploads SnapshotPostUploads { get; }
     public ColonyDeletionService ColonyDeletions { get; }
 
     public SnapshotUploadPolicy SnapshotUploadPolicy { get; }
