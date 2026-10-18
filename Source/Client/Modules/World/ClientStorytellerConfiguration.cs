@@ -4,7 +4,7 @@ using AIRsLight.ClashOfRim.Modules.Sessions;
 
 namespace AIRsLight.ClashOfRim.Modules.World;
 
-internal sealed record ClientStorytellerBaseline(string? Storyteller, string? Difficulty, string? ValuesXml)
+internal sealed record ClientStorytellerBaseline(string? Storyteller, string? Difficulty, string? ValuesXml, string? CaptureFailure = null)
 {
     internal bool HasDefinitions => !string.IsNullOrWhiteSpace(Storyteller) && !string.IsNullOrWhiteSpace(Difficulty);
     internal string Signature => string.Join("\u001f", Storyteller ?? "", Difficulty ?? "", ValuesXml ?? "");

@@ -642,7 +642,7 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
-        List<ModPlayerColonySiteDto> sites = ReadCurrentPlayerColonySites(
+        List<ModPlayerColonySiteDto> sites = ClientWorldColonySitesRuntime.Capture(Current.Game, Find.World,
             settings.UserId,
             settings.ColonyId,
             BuildCurrentColonyAppearanceDto(settings));

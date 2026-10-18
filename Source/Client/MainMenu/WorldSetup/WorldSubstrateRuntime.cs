@@ -18,13 +18,17 @@ namespace AIRsLight.ClashOfRim;
 internal static class WorldSubstrateRuntime
 {
     public static bool TryCapture(
+        World? world,
         ModWorldTileGeometryDto? geometry,
+        Func<bool> current,
         out byte[]? payload,
         out string? failure)
     {
         payload = null;
         failure = null;
-        if (Find.World?.grid is null || Find.World.features is null || Find.World.landmarks is null)
+        var grid = world?.grid; var features = world?.features; var landmarks = world?.landmarks;
+        if (!current() || grid is null || features is null
+            || (ModsConfig.OdysseyActive && landmarks is null))
         {
             failure = "World structures are unavailable.";
             return false;
@@ -44,12 +48,13 @@ internal static class WorldSubstrateRuntime
 
         try
         {
-            var package = new WorldSubstratePackage(
-                Find.World.info?.persistentRandomValue ?? 0,
-                CaptureXml(Find.World.grid, "grid"),
-                CaptureXml(Find.World.features, "features"),
-                CaptureXml(Find.World.landmarks, "landmarks"),
-                ModWorldTileGeometryBinaryCodec.Encode(geometry));
+            void RequireOwner() { if (!current()) throw new OperationCanceledException("World substrate source was replaced."); }
+            int seed = world!.info?.persistentRandomValue ?? 0;
+            string gridXml = CaptureXml(grid, "grid"); RequireOwner();
+            string featuresXml = CaptureXml(features, "features"); RequireOwner();
+            // A generated Core-only world has no landmark manager.
+            string landmarksXml = landmarks is null ? "<landmarks />" : CaptureXml(landmarks, "landmarks"); RequireOwner();
+            var package = new WorldSubstratePackage(seed, gridXml, featuresXml, landmarksXml, ModWorldTileGeometryBinaryCodec.Encode(geometry));
             payload = WorldSubstratePackageCodec.Encode(package);
             return true;
         }

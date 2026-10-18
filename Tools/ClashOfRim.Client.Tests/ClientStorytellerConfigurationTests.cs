@@ -118,7 +118,8 @@ internal static class ClientStorytellerConfigurationTests
                 try
                 {
                     Check(session.Prepare(captured) is null && Scribe.mode == LoadSaveMode.Saving, "Busy Scribe overwritten/stopped.");
-                    Check(session.Capture().ValuesXml is null && Scribe.mode == LoadSaveMode.Saving, "Busy capture disturbed Scribe.");
+                    var busy = session.Capture();
+                    Check(busy.ValuesXml is null && busy.CaptureFailure is not null && Scribe.mode == LoadSaveMode.Saving, "Busy capture lost failure or disturbed Scribe.");
                 }
                 finally { Scribe.mode = LoadSaveMode.Inactive; }
                 var preset = session.Prepare(captured with { ValuesXml = null }); Check(preset is not null, "Legacy preset baseline rejected.");

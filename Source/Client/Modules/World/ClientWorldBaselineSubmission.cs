@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -9,7 +10,14 @@ using AIRsLight.ClashOfRim.Modules.Transport;
 namespace AIRsLight.ClashOfRim.Modules.World;
 
 internal interface IClientWorldBaselineRuntime { IClientWorldBaselineSession Bind(); }
-internal interface IClientWorldBaselineSession { bool IsCurrent { get; } }
+internal interface IClientWorldBaselineSession
+{
+    bool IsCurrent { get; }
+    string? Language { get; }
+    ModWorldConfigurationDto ReadWorld(string userId, string colonyId, ModColonyAppearanceDto? appearance);
+    IReadOnlyList<ModWorldConfigurationExtensionDto> ReadExtensions(string userId, string colonyId, string worldId);
+    byte[]? CaptureSubstrate(ModWorldTileGeometryDto? geometry, out string? failure);
+}
 internal interface IClientWorldBaselineTransport
 {
     Task<ClashOfRimClientNetworkResult<ModSubmitWorldConfigurationResponseDto>> SubmitAsync(ClashOfRimClientNetworkContext context, ModWorldConfigurationDto configuration, CancellationToken token);
@@ -29,6 +37,7 @@ internal sealed class ClientWorldBaselineSubmission
     { requests = new(session, runtime.Bind, bound => bound.IsCurrent, () => latest = null); this.transport = transport; this.session = session; }
 
     internal Captured Capture() => requests.Read(() => new Captured(requests.Capture(), session.ReadContext()));
+    internal bool IsCurrent(Captured capture) => requests.TryApply(capture.Scope, static () => { });
 
     internal Prepared? Prepare(Captured capture, ModWorldConfigurationDto configuration, byte[] payload)
     {

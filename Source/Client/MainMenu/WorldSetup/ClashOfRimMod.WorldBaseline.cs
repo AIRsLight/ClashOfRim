@@ -25,7 +25,7 @@ using Verse;
 using Verse.Profile;
 using static AIRsLight.ClashOfRim.ClientWorldRuntimeValues;
 using static AIRsLight.ClashOfRim.ClientWorldConfigurationRuntime;
-using static AIRsLight.ClashOfRim.ClientWorldFeaturesRuntime;
+using static AIRsLight.ClashOfRim.ClientWorldColonySitesRuntime;
 using static AIRsLight.ClashOfRim.ClientWorldNameRuntime;
 using AIRsLight.ClashOfRim.Modules.World;
 
@@ -191,25 +191,24 @@ public sealed partial class ClashOfRimMod
         }
 
         var capture = worldBaselineSubmission.Capture();
-        ModWorldConfigurationDto configuration = BuildCurrentWorldConfiguration(capture.Context);
-        if (!IsUsableWorldGenerationBaseline(configuration, out string baselineFailureReason))
+        ClientWorldBaselineCapture.Result captured;
+        try { captured = worldBaselineCapture.Capture(capture, BuildCurrentColonyAppearanceDto(settings)); }
+        catch (Exception ex)
         {
-            loginStatus = ClashOfRimText.Key("ClashOfRim.WorldBaseline.StatusInvalid", baselineFailureReason.Named("REASON"));
+            loginStatus = ClashOfRimText.Key("ClashOfRim.WorldBaseline.StatusInvalid", ex.Message.Named("REASON"));
+            Log.Warning("[ClashOfRim] Initial world baseline capture failed: " + ex);
+            return;
+        }
+        if (captured.Error is { } error)
+        {
+            loginStatus = ClashOfRimText.Key("ClashOfRim.WorldBaseline.StatusInvalid", DescribeWorldCaptureFailure(error).Named("REASON"));
             Log.Warning("[ClashOfRim] " + loginStatus);
-            EnqueueClashOfRimMainThreadAction(() =>
-                Messages.Message(loginStatus, MessageTypeDefOf.RejectInput, historical: false));
+            Messages.Message(loginStatus, MessageTypeDefOf.RejectInput, historical: false);
             return;
         }
-
-        if (!TryCaptureWorldSubstrate(configuration, out byte[] substratePayload, out string substrateFailure))
-        {
-            loginStatus = ClashOfRimText.Key("ClashOfRim.WorldBaseline.StatusInvalid", substrateFailure.Named("REASON"));
-            Log.Warning("[ClashOfRim] Initial world substrate capture failed: " + substrateFailure);
-            return;
-        }
-
-        var prepared = worldBaselineSubmission.Prepare(capture, configuration, substratePayload);
+        var prepared = captured.Prepared;
         if (prepared is null) { worldSetup.RestoreInitial(initial); return; }
+        var configuration = captured.Configuration!;
 
         // Keep automatic map login from racing the temporary authenticated setup session.
         if (!TryBeginManualSynchronization(out var manualOperation, out string admissionFailure))
@@ -314,10 +313,10 @@ public sealed partial class ClashOfRimMod
         }
 
         var capture = worldBaselineSubmission.Capture();
-        ModWorldConfigurationDto configuration;
+        ClientWorldBaselineCapture.Result captured;
         try
         {
-            configuration = BuildCurrentWorldConfiguration(capture.Context);
+            captured = worldBaselineCapture.Capture(capture, BuildCurrentColonyAppearanceDto(settings));
         }
         catch (Exception ex)
         {
@@ -330,23 +329,13 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
-        if (!IsUsableWorldGenerationBaseline(configuration, out string baselineFailureReason))
+        if (captured.Error is { } error)
         {
-            adminStatus = ClashOfRimText.Key(
-                "ClashOfRim.Admin.WorldBaselineInvalid",
-                baselineFailureReason.Named("REASON"));
+            adminStatus = ClashOfRimText.Key("ClashOfRim.Admin.WorldBaselineInvalid", DescribeWorldCaptureFailure(error).Named("REASON"));
             Messages.Message(adminStatus, MessageTypeDefOf.RejectInput, historical: false);
             return;
         }
-
-        if (!TryCaptureWorldSubstrate(configuration, out byte[] substratePayload, out string substrateFailure))
-        {
-            adminStatus = ClashOfRimText.Key("ClashOfRim.Admin.WorldBaselineInvalid", substrateFailure.Named("REASON"));
-            Messages.Message(adminStatus, MessageTypeDefOf.RejectInput, historical: false);
-            return;
-        }
-
-        var prepared = worldBaselineSubmission.Prepare(capture, configuration, substratePayload);
+        var prepared = captured.Prepared;
         if (prepared is null) return;
 
         adminInProgress = true;
@@ -450,10 +439,10 @@ public sealed partial class ClashOfRimMod
         }
 
         var capture = worldBaselineSubmission.Capture();
-        ModWorldConfigurationDto configuration;
+        ClientWorldBaselineCapture.Result captured;
         try
         {
-            configuration = BuildCurrentWorldConfiguration(capture.Context);
+            captured = worldBaselineCapture.Capture(capture, BuildCurrentColonyAppearanceDto(settings), storytellerOnly: true);
         }
         catch (Exception ex)
         {
@@ -466,26 +455,15 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(configuration.StorytellerDefName)
-            || string.IsNullOrWhiteSpace(configuration.DifficultyDefName))
+        if (captured.Error is { } error)
         {
-            adminStatus = ClashOfRimText.Key(
-                "ClashOfRim.Storyteller.AdminSyncFailed",
-                "MissingStoryteller".Named("CODE"),
-                "storyteller or difficulty is empty".Named("MESSAGE"));
+            adminStatus = ClashOfRimText.Key("ClashOfRim.Storyteller.AdminSyncFailed", error.Code.Named("CODE"), DescribeWorldCaptureFailure(error).Named("MESSAGE"));
             Messages.Message(adminStatus, MessageTypeDefOf.RejectInput, historical: false);
             return;
         }
-
-        if (!TryCaptureWorldSubstrate(configuration, out byte[] substratePayload, out string substrateFailure))
-        {
-            adminStatus = ClashOfRimText.Key("ClashOfRim.Storyteller.AdminSyncFailed", "WorldSubstrate".Named("CODE"), substrateFailure.Named("MESSAGE"));
-            Messages.Message(adminStatus, MessageTypeDefOf.RejectInput, historical: false);
-            return;
-        }
-
-        var prepared = worldBaselineSubmission.Prepare(capture, configuration, substratePayload);
+        var prepared = captured.Prepared;
         if (prepared is null) return;
+        var configuration = captured.Configuration!;
 
         adminInProgress = true;
         adminStatus = ClashOfRimText.Key("ClashOfRim.Storyteller.AdminSyncing");
@@ -937,107 +915,6 @@ public sealed partial class ClashOfRimMod
         }
     }
 
-    private ModWorldConfigurationDto BuildCurrentWorldConfiguration(ClashOfRimClientNetworkContext context)
-    {
-        object? world = Find.World;
-        object? worldInfo = ReadMember(world, "info") ?? ReadMember(world, "Info");
-        var baseline = storytellerConfiguration.Capture();
-        ModWorldConfigurationDto configuration = new()
-        {
-            WorldConfigurationId = "world:" + Guid.NewGuid().ToString("N"),
-            ConfiguredByUserId = context.UserId,
-            ConfiguredByColonyId = context.ColonyId,
-            ConfiguredAtUtc = DateTimeOffset.UtcNow.ToString("O"),
-            SeedString = ReadFirstString(worldInfo, "seedString", "SeedString", "seed"),
-            PlanetCoverage = ReadFirstString(worldInfo, "planetCoverage", "PlanetCoverage"),
-            OverallRainfall = ReadFirstString(worldInfo, "overallRainfall", "OverallRainfall"),
-            OverallTemperature = ReadFirstString(worldInfo, "overallTemperature", "OverallTemperature"),
-            OverallPopulation = ReadFirstString(worldInfo, "overallPopulation", "OverallPopulation"),
-            LandmarkDensity = ReadFirstString(worldInfo, "landmarkDensity", "LandmarkDensity"),
-            TileCount = ReadFirstString(Find.WorldGrid, "TilesCount", "tilesCount"),
-            StorytellerDefName = baseline.Storyteller,
-            DifficultyDefName = baseline.Difficulty,
-            DifficultyValuesXml = baseline.ValuesXml,
-            GameLanguage = ReadCurrentGameLanguage()
-        };
-        configuration.FactionDefNames.AddRange(ReadCurrentWorldFactionDefNames());
-        configuration.Features.AddRange(ReadCurrentWorldFeatures());
-        configuration.Factions.AddRange(ReadCurrentWorldFactions());
-        configuration.Roads.AddRange(ReadCurrentWorldRoads());
-        configuration.WorldObjects.AddRange(ReadCurrentWorldObjects());
-        configuration.PlayerColonySites.AddRange(ReadCurrentPlayerColonySites(
-            context.UserId,
-            context.ColonyId,
-            BuildCurrentColonyAppearanceDto(settings)));
-        configuration.TileGeometry = ReadCurrentWorldTileGeometry();
-        configuration.Extensions.AddRange(ClashOfRimCompatibilityApi.CollectCurrentWorldConfigurationExtensions(
-            context.UserId,
-            context.ColonyId,
-            configuration.WorldConfigurationId));
-        ClashLog.Message(
-            $"[ClashOfRim] Captured world baseline id={configuration.WorldConfigurationId} seed={configuration.SeedString ?? "<null>"} coverage={configuration.PlanetCoverage ?? "<null>"} rainfall={configuration.OverallRainfall ?? "<null>"} temperature={configuration.OverallTemperature ?? "<null>"} population={configuration.OverallPopulation ?? "<null>"} landmarkDensity={configuration.LandmarkDensity ?? "<null>"} generationPollution={ReadWorldGenerationPollution(configuration).ToString(CultureInfo.InvariantCulture)} factionEntries={configuration.FactionDefNames.Count} features={configuration.Features.Count} roads={configuration.Roads.Count} worldExtensions={configuration.Extensions.Count} worldObjects={configuration.WorldObjects.Count} tileGeometryLayers={configuration.TileGeometry?.Layers.Count ?? 0}.");
-        return configuration;
-    }
-
-    private static bool TryCaptureWorldSubstrate(
-        ModWorldConfigurationDto configuration,
-        out byte[] payload,
-        out string failure)
-    {
-        if (WorldSubstrateRuntime.TryCapture(configuration.TileGeometry, out byte[]? captured, out string? captureFailure)
-            && captured is not null)
-        {
-            payload = captured;
-            failure = string.Empty;
-            return true;
-        }
-
-        payload = Array.Empty<byte>();
-        failure = captureFailure ?? "Unknown";
-        return false;
-    }
-
-    private static ModWorldTileGeometryDto? ReadCurrentWorldTileGeometry()
-    {
-        if (Find.WorldGrid?.PlanetLayers is null)
-        {
-            return null;
-        }
-
-        var geometry = new ModWorldTileGeometryDto();
-        foreach (KeyValuePair<int, PlanetLayer> entry in Find.WorldGrid.PlanetLayers.OrderBy(entry => entry.Key))
-        {
-            PlanetLayer layer = entry.Value;
-            if (layer is null || layer.TilesCount <= 0 || layer.AverageTileSize <= 0f)
-            {
-                continue;
-            }
-
-            var layerDto = new ModWorldTileLayerGeometryDto
-            {
-                LayerId = layer.LayerID,
-                LayerDefName = layer.Def?.defName,
-                AverageTileSize = layer.AverageTileSize
-            };
-
-            for (int tile = 0; tile < layer.TilesCount; tile++)
-            {
-                Vector3 center = layer.GetTileCenter(tile);
-                layerDto.TileCenters.Add(new ModWorldTileCenterDto
-                {
-                    Tile = tile,
-                    X = center.x,
-                    Y = center.y,
-                    Z = center.z
-                });
-            }
-
-            geometry.Layers.Add(layerDto);
-        }
-
-        return geometry.Layers.Count == 0 ? null : geometry;
-    }
-
     private void ApplyWorldBaseline(ModWorldConfigurationDto configuration)
         => worldConfiguration.Apply(configuration);
 
@@ -1057,6 +934,9 @@ public sealed partial class ClashOfRimMod
         string suffix = string.IsNullOrWhiteSpace(detail) ? string.Empty : " | " + detail;
         ClashLog.Message("[ClashOfRim.Flow] " + stage + suffix);
     }
+
+    private static string DescribeWorldCaptureFailure(ClientWorldBaselineCapture.Failure failure)
+        => failure.MessageKey is { } key ? ClashOfRimText.Key(key) : failure.Detail ?? "Unknown";
 
     private static string DescribeWorldConfiguration(ModWorldConfigurationDto? configuration)
     {
@@ -1196,226 +1076,6 @@ public sealed partial class ClashOfRimMod
             : action.Method.DeclaringType?.Name + "." + action.Method.Name;
     }
 
-    private static int? ReadFirstInt(object? target, params string[] names)
-    {
-        foreach (string name in names)
-        {
-            object? value = ReadMember(target, name);
-            if (value is int intValue)
-            {
-                return intValue;
-            }
-
-            if (value is PlanetTile planetTile)
-            {
-                return planetTile.Valid ? planetTile.tileId : null;
-            }
-
-            object? tileId = ReadMember(value, "tileId")
-                ?? ReadMember(value, "TileId")
-                ?? ReadMember(value, "id")
-                ?? ReadMember(value, "Id");
-            if (tileId is int reflectedTileId)
-            {
-                return reflectedTileId;
-            }
-
-            if (value is not null
-                && int.TryParse(
-                    Convert.ToString(value, CultureInfo.InvariantCulture),
-                    NumberStyles.Integer,
-                    CultureInfo.InvariantCulture,
-                    out int parsed))
-            {
-                return parsed;
-            }
-        }
-
-        return null;
-    }
-
-    private static int ReadFirstTileLayerId(object? target, params string[] names)
-    {
-        foreach (string name in names)
-        {
-            object? value = ReadMember(target, name);
-            if (value is PlanetTile planetTile)
-            {
-                return ReadPlanetTileLayerId(planetTile);
-            }
-
-            if (value is not null && PlanetTile.TryParse(Convert.ToString(value, CultureInfo.InvariantCulture), out PlanetTile parsed))
-            {
-                return ReadPlanetTileLayerId(parsed);
-            }
-        }
-
-        return 0;
-    }
-
-    private static int ReadPlanetTileLayerId(PlanetTile tile)
-    {
-        object? layerId = ReadMember(tile, "layerId");
-        if (layerId is int reflectedLayerId)
-        {
-            return Math.Max(0, reflectedLayerId);
-        }
-
-        try
-        {
-            return tile.Valid ? Math.Max(0, tile.Layer.LayerID) : 0;
-        }
-        catch
-        {
-            return 0;
-        }
-    }
-
-    private static bool? ReadFirstBool(object? target, params string[] names)
-    {
-        foreach (string name in names)
-        {
-            object? value = ReadMember(target, name);
-            if (value is bool boolValue)
-            {
-                return boolValue;
-            }
-
-            if (value is not null
-                && bool.TryParse(Convert.ToString(value, CultureInfo.InvariantCulture), out bool parsed))
-            {
-                return parsed;
-            }
-        }
-
-        return null;
-    }
-
-    private static List<string> ReadCurrentWorldFactionDefNames()
-    {
-        object? worldInfo = ReadMember(Find.World, "info") ?? ReadMember(Find.World, "Info");
-        if (ReadMember(worldInfo, "factions") is IEnumerable<FactionDef> worldInfoFactions)
-        {
-            List<string> configuredFactionDefs = worldInfoFactions
-                .Where(def => def != null)
-                .Select(def => def.defName)
-                .Where(defName => !string.IsNullOrWhiteSpace(defName))
-                .ToList();
-            if (configuredFactionDefs.Count > 0)
-            {
-                return configuredFactionDefs;
-            }
-        }
-
-        return Find.World?.factionManager?.AllFactions
-            .Where(faction => faction != null && faction != Faction.OfPlayer && faction.def != null)
-            .Select(faction => faction.def.defName)
-            .Where(defName => !string.IsNullOrWhiteSpace(defName))
-            .ToList() ?? new List<string>();
-    }
-
-    private static bool IsUsableWorldGenerationBaseline(ModWorldConfigurationDto configuration, out string failureReason)
-    {
-        if (string.IsNullOrWhiteSpace(configuration.SeedString))
-        {
-            failureReason = ClashOfRimText.Key("ClashOfRim.WorldBaseline.FailureMissingSeed");
-            return false;
-        }
-
-        if (!ClientWorldGenerationInput.TryCoverage(configuration.PlanetCoverage, out _))
-        {
-            failureReason = ClashOfRimText.Key("ClashOfRim.WorldBaseline.FailureMissingCoverage");
-            return false;
-        }
-
-        if (configuration.FactionDefNames.Count == 0)
-        {
-            failureReason = ClashOfRimText.Key("ClashOfRim.WorldBaseline.FailureMissingFactions");
-            return false;
-        }
-
-        if (configuration.Features.Count == 0)
-        {
-            failureReason = ClashOfRimText.Key("ClashOfRim.WorldBaseline.FailureMissingFeatures");
-            return false;
-        }
-
-        failureReason = string.Empty;
-        return true;
-    }
-
-    private static List<ModWorldFactionDto> ReadCurrentWorldFactions()
-    {
-        return Find.World?.factionManager?.AllFactions
-            .Where(faction => faction != null && faction != Faction.OfPlayer && faction.def != null)
-            .Select(faction => new ModWorldFactionDto
-            {
-                DefName = faction.def.defName,
-                Name = faction.Name,
-                ColorR = faction.Color.r,
-                ColorG = faction.Color.g,
-                ColorB = faction.Color.b,
-                ColorA = faction.Color.a
-            })
-            .ToList() ?? new List<ModWorldFactionDto>();
-    }
-
-    private static List<ModWorldRoadDto> ReadCurrentWorldRoads()
-    {
-        List<ModWorldRoadDto> roads = new();
-        foreach (SurfaceTile tile in Find.WorldGrid.Tiles)
-        {
-            if (tile.Roads is null)
-            {
-                continue;
-            }
-
-            foreach (SurfaceTile.RoadLink link in tile.Roads)
-            {
-                if (link.road is null || roads.Any(road =>
-                    road.FromTile == tile.tile && road.ToTile == link.neighbor ||
-                    road.FromTile == link.neighbor && road.ToTile == tile.tile))
-                {
-                    continue;
-                }
-
-                roads.Add(new ModWorldRoadDto
-                {
-                    FromTile = tile.tile,
-                    ToTile = link.neighbor,
-                    RoadDefName = link.road.defName
-                });
-            }
-        }
-
-        return roads;
-    }
-
-    private static List<ModWorldObjectBaselineDto> ReadCurrentWorldObjects()
-    {
-        List<ModWorldObjectBaselineDto> worldObjects = new();
-        foreach (WorldObject worldObject in Find.WorldObjects.AllWorldObjects)
-        {
-            if (worldObject.def is null || worldObject.Faction == Faction.OfPlayer)
-            {
-                continue;
-            }
-
-            string? label = worldObject is Settlement settlement
-                ? settlement.Name
-                : Convert.ToString(ReadMember(worldObject, "Name") ?? ReadMember(worldObject, "Label"), CultureInfo.InvariantCulture);
-            worldObjects.Add(new ModWorldObjectBaselineDto
-            {
-                DefName = worldObject.def.defName,
-                Tile = worldObject.Tile,
-                Label = label,
-                FactionDefName = worldObject.Faction?.def?.defName
-            });
-        }
-
-        return worldObjects;
-    }
-
     private static List<ModRuntimeWorldObjectMarkerDto> ReadCurrentRuntimeWorldObjects()
     {
         var markers = new List<ModRuntimeWorldObjectMarkerDto>();
@@ -1532,91 +1192,6 @@ public sealed partial class ClashOfRimMod
         return value.IndexOf(token, StringComparison.OrdinalIgnoreCase) >= 0;
     }
 
-    private static List<ModPlayerColonySiteDto> ReadCurrentPlayerColonySites(
-        string? userId,
-        string? colonyId,
-        ModColonyAppearanceDto? appearance = null)
-    {
-        List<ModPlayerColonySiteDto> sites = new();
-        if (Find.Maps is null)
-        {
-            return sites;
-        }
-
-        foreach (Map map in Find.Maps)
-        {
-            if (map is null || !IsPlayerColonyMap(map))
-            {
-                continue;
-            }
-
-            int? tile = ReadFirstInt(map, "Tile", "tile");
-            if (!tile.HasValue || !IsValidTile(tile.Value))
-            {
-                continue;
-            }
-
-            object? parent = ReadMember(map, "Parent") ?? ReadMember(map, "parent");
-            sites.Add(new ModPlayerColonySiteDto
-            {
-                UserId = userId ?? string.Empty,
-                ColonyId = colonyId ?? string.Empty,
-                WorldObjectId = ReadWorldObjectId(parent, tile.Value, ReadFirstTileLayerId(map, "Tile", "tile")),
-                MapUniqueId = "Map_" + map.uniqueID,
-                Tile = tile.Value,
-                TileLayerId = ReadFirstTileLayerId(map, "Tile", "tile"),
-                Label = ReadPlayerColonyLabel(parent, colonyId),
-                FactionName = ReadPlayerFactionName(),
-                Appearance = appearance
-            });
-        }
-
-        if (Find.WorldObjects?.AllWorldObjects is not null)
-        {
-            foreach (WorldObject worldObject in Find.WorldObjects.AllWorldObjects)
-            {
-                if (!IsPlayerColonyWorldObject(worldObject))
-                {
-                    continue;
-                }
-
-                int? tile = ReadFirstInt(worldObject, "Tile", "tile");
-                if (!tile.HasValue || !IsValidTile(tile.Value))
-                {
-                    continue;
-                }
-
-                int tileLayerId = ReadFirstTileLayerId(worldObject, "Tile", "tile");
-                string? worldObjectId = ReadWorldObjectId(worldObject, tile.Value, tileLayerId);
-                if (sites.Any(site => string.Equals(site.WorldObjectId, worldObjectId, StringComparison.Ordinal)
-                                      || (site.Tile == tile.Value && site.TileLayerId == tileLayerId)))
-                {
-                    continue;
-                }
-
-                sites.Add(new ModPlayerColonySiteDto
-                {
-                    UserId = userId ?? string.Empty,
-                    ColonyId = colonyId ?? string.Empty,
-                    WorldObjectId = worldObjectId,
-                    MapUniqueId = ReadMapUniqueIdFromWorldObject(worldObject),
-                    Tile = tile.Value,
-                    TileLayerId = tileLayerId,
-                    Label = ReadPlayerColonyLabel(worldObject, colonyId),
-                    FactionName = ReadPlayerFactionName(),
-                    Appearance = appearance
-                });
-            }
-        }
-
-        return sites
-            .GroupBy(site => site.MapUniqueId ?? "tile:" + site.Tile + "," + site.TileLayerId, StringComparer.Ordinal)
-            .Select(group => group.First())
-            .OrderBy(site => site.Tile)
-            .ThenBy(site => site.TileLayerId)
-            .ToList();
-    }
-
     private static string BuildPlayerColonySiteSignature(
         IEnumerable<ModPlayerColonySiteDto> sites,
         IEnumerable<ModWorldConfigurationExtensionDto>? extensions = null)
@@ -1684,74 +1259,6 @@ public sealed partial class ClashOfRimMod
                 + (extension.Kind ?? string.Empty) + "\u001f"
                 + (extension.SchemaVersion ?? string.Empty) + "\u001f"
                 + (extension.PayloadJson ?? string.Empty)));
-    }
-
-    private static bool IsPlayerColonyMap(Map map)
-    {
-        bool? isPlayerHome = ReadFirstBool(map, "IsPlayerHome", "isPlayerHome");
-        if (isPlayerHome.HasValue)
-        {
-            return isPlayerHome.Value;
-        }
-
-        object? parent = ReadMember(map, "Parent") ?? ReadMember(map, "parent");
-        return IsPlayerColonyWorldObject(parent as WorldObject) || ReferenceEquals(map, Find.CurrentMap);
-    }
-
-    private static bool IsPlayerColonyWorldObject(WorldObject? worldObject)
-    {
-        if (worldObject is null || worldObject.Destroyed)
-        {
-            return false;
-        }
-
-        string? defName = ReadFirstString(ReadMember(worldObject, "def"), "defName", "Name");
-        if (string.Equals(defName, "PlayerColony", StringComparison.Ordinal))
-        {
-            return true;
-        }
-
-        if (worldObject is not Settlement)
-        {
-            return false;
-        }
-
-        object? faction = ReadMember(worldObject, "Faction") ?? ReadMember(worldObject, "factionInt");
-        return ReferenceEquals(faction, Faction.OfPlayer);
-    }
-
-    private static string? ReadMapUniqueIdFromWorldObject(WorldObject worldObject)
-    {
-        object? map = ReadMember(worldObject, "Map") ?? ReadMember(worldObject, "map");
-        int? uniqueId = ReadFirstInt(map, "uniqueID", "UniqueID", "uniqueId");
-        return uniqueId.HasValue ? "Map_" + uniqueId.Value.ToString(CultureInfo.InvariantCulture) : null;
-    }
-
-    private static string? ReadWorldObjectId(object? worldObject, int tile, int tileLayerId = 0)
-    {
-        string? id = ReadFirstString(worldObject, "UniqueLoadID", "uniqueLoadID", "ID", "id");
-        if (!string.IsNullOrWhiteSpace(id))
-        {
-            return id!.StartsWith("WorldObject_", StringComparison.Ordinal)
-                ? id
-                : "WorldObject_" + id;
-        }
-
-        return "tile:" + tile.ToString(CultureInfo.InvariantCulture)
-            + ","
-            + Math.Max(0, tileLayerId).ToString(CultureInfo.InvariantCulture);
-    }
-
-    private static string? ReadPlayerColonyLabel(object? parent, string? colonyId)
-    {
-        string? label = ReadFirstString(parent, "Name", "Label", "label");
-        return string.IsNullOrWhiteSpace(label) ? colonyId : label;
-    }
-
-    private static string? ReadPlayerFactionName()
-    {
-        string? name = Faction.OfPlayer?.Name;
-        return string.IsNullOrWhiteSpace(name) ? null : name;
     }
 
     private static bool HasLoadedPlayerColonyContext()

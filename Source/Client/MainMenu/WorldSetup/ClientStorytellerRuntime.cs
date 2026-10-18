@@ -25,7 +25,8 @@ internal sealed class ClientStorytellerRuntime : IClientStorytellerRuntime
                 ?? ReadMember(ReadMember(game, "storyteller"), "difficulty")
                 ?? ReadMember(Find.GameInitData, "difficulty") ?? ReadMember(Find.GameInitData, "difficultyDef");
             string? difficultyDef = ReadDefName(difficulty);
-            return new(storytellerDef, difficultyDef, CaptureValues(game?.storyteller?.difficulty));
+            string? xml = CaptureValues(game?.storyteller?.difficulty, out string? failure);
+            return new(storytellerDef, difficultyDef, xml, failure);
         }
         public IClientStorytellerChange? Prepare(ClientStorytellerBaseline baseline)
         {
@@ -53,13 +54,19 @@ internal sealed class ClientStorytellerRuntime : IClientStorytellerRuntime
             }
         }
     }
-    private static string? CaptureValues(Difficulty? difficulty)
+    private static string? CaptureValues(Difficulty? difficulty, out string? failure)
     {
+        failure = null;
         if (difficulty is null) return null;
         if (Scribe.mode != LoadSaveMode.Inactive)
-        { Log.Warning("[ClashOfRim] Cannot capture difficulty baseline while Scribe is active."); return null; }
-        try { return Scribe.saver.DebugOutputFor(difficulty); }
-        catch (Exception ex) { Log.Warning("[ClashOfRim] Failed to capture difficulty baseline: " + ex.GetType().Name + " " + ex.Message); return null; }
+        { failure = "Cannot capture difficulty baseline while Scribe is active."; Log.Warning("[ClashOfRim] " + failure); return null; }
+        try
+        {
+            string xml = Scribe.saver.DebugOutputFor(difficulty);
+            if (string.IsNullOrWhiteSpace(xml)) failure = "Difficulty capture returned empty XML.";
+            return xml;
+        }
+        catch (Exception ex) { failure = ex.GetType().Name + " " + ex.Message; Log.Warning("[ClashOfRim] Failed to capture difficulty baseline: " + failure); return null; }
     }
     private static Difficulty? ReadValues(string xml, DifficultyDef difficultyDef)
     {

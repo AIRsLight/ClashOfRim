@@ -156,7 +156,8 @@ internal sealed class ClientWorldConfigurationRuntime : IClientWorldConfiguratio
         foreach (ModWorldObjectBaselineDto baseline in worldObjects)
         {
             WorldObject? worldObject = objects
-                .FirstOrDefault(item => item.Tile == baseline.Tile && item.def?.defName == baseline.DefName);
+                .FirstOrDefault(item => item.Tile.tileId == baseline.Tile && ClientWorldRuntimeValues.ReadPlanetTileLayerId(item.Tile) == baseline.TileLayerId
+                    && item.def?.defName == baseline.DefName);
             if (worldObject is null)
             {
                 continue;

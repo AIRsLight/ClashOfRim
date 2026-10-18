@@ -73,8 +73,8 @@ internal static class ClientWorldFeaturesRuntime
     private static ClientWorldFeatureLabelsPlan Resolve(ModWorldConfigurationDto configuration, IReadOnlyList<WorldFeature> features, string? language)
         => Labels.Resolve(configuration, language, features.Select(feature =>
             new ClientWorldFeature(feature.uniqueID, feature.layer.LayerID, Capture(feature), feature.def.label ?? feature.def.defName)).ToArray());
-    internal static List<ModWorldFeatureDto> ReadCurrentWorldFeatures()
-        => Find.WorldFeatures?.features?.Where(feature => feature.def is not null).Select(Capture).ToList() ?? new();
+    internal static List<ModWorldFeatureDto> ReadWorldFeatures(WorldFeatures? features)
+        => features?.features?.Where(feature => feature.def is not null).Select(Capture).ToList() ?? new();
     private static ModWorldFeatureDto Capture(WorldFeature feature) => new()
     { DefName = feature.def.defName, Label = feature.name, MaxDrawSizeInTiles = feature.maxDrawSizeInTiles,
         DrawCenterX = feature.drawCenter.x, DrawCenterY = feature.drawCenter.y, DrawCenterZ = feature.drawCenter.z };

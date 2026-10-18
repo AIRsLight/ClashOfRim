@@ -231,7 +231,13 @@ internal static class ClientWorldBaselineSubmissionTests
         internal ClientWorldBaselineSubmission.Prepared Prepare() => Module.Prepare(Module.Capture(), Configuration(), new byte[] { 1, 2 }) ?? throw new InvalidOperationException("Preparation unexpectedly busy.");
         public IClientWorldBaselineSession Bind() => new Bound(this, Ports.GameOwner, World);
         private sealed record Bound(Fixture Owner, object Game, object World) : IClientWorldBaselineSession
-        { public bool IsCurrent => ReferenceEquals(Owner.Ports.GameOwner, Game) && ReferenceEquals(Owner.World, World); }
+        {
+            public bool IsCurrent => ReferenceEquals(Owner.Ports.GameOwner, Game) && ReferenceEquals(Owner.World, World);
+            public string? Language => "French";
+            public ModWorldConfigurationDto ReadWorld(string user, string colony, ModColonyAppearanceDto? appearance) => throw new NotSupportedException();
+            public IReadOnlyList<ModWorldConfigurationExtensionDto> ReadExtensions(string user, string colony, string world) => throw new NotSupportedException();
+            public byte[]? CaptureSubstrate(ModWorldTileGeometryDto? geometry, out string? failure) => throw new NotSupportedException();
+        }
         private async Task Enter(string phase, ClashOfRimClientNetworkContext context)
         { Trace.Add(phase); Contexts.Add(context); if (Before is not null) await Before(phase); }
         private ClashOfRimClientNetworkResult<T> Reply<T>(string phase, T response)

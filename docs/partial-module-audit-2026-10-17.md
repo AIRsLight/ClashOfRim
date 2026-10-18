@@ -1961,3 +1961,23 @@ DTO 用 MemberwiseClone 提供仅去掉 TileGeometry 的临时序列化视图，
 **4 个相关单元组通过**：新基线提交、世界准备、世界协议及模块依赖守卫。守卫检查 **886** 个模块及生成类型、**200** 个适配器及生成类型。最后缩短底图数据持有期后仅重跑提交和守卫两组。Release 构建 **0 错误、41 个既有警告**。日志：`LocalOnly/module-migration/client-world-submission-{compile,tests,related,final,build}.log`。未运行 RimTest、全量回归或推送，未改冻结 1.6；工作区原有快照上传窗口条件和其它未提交修复保持独立。
 
 M8h4a 完成。下一步 **M8h4b 世界基线的引擎捕获与来源模块**，随后迁移运行时目录刷新、站点缓存和殖民地生命周期。M8h4、M8h、M8 与 M9–M12 均保持开放。验证继续以相关单元测试为默认，需要引擎验证时安排该次功能的定向 RimTest，全量由用户安排。
+
+### M8h4b 世界基线来源、采集顺序与图层归属（2026-10-18）
+
+`ClientWorldBaselineCapture` 接管三个入口的采集顺序、生成身份/时间、完整世界与叙事者更新的不同校验、失败结果和提交准备。引擎来源扩展既有 ClientWorldBaselineRuntime，绑定确切 Game/World 后读取参数、派系、特征、道路、物体、站点与几何；难度仍复用 ClientStorytellerConfiguration，元数据/底图冻结及网络请求仍交给上一步的 ClientWorldBaselineSubmission。删除宿主 BuildCurrentWorldConfiguration、TryCaptureWorldSubstrate、IsUsableWorldGenerationBaseline 及对应引擎读方法，宿主净减少约 500 行。没有把原业务装成回调再调用 Mod。
+
+捕获使用原票据中的账户/殖民地；每个可能运行 Scribe 或兼容提供者的阶段后验证身份、Game/World 与规范化语言，失效后不进入下一阶段、不形成可提交结果。普通快照推进及语言大小写/首尾空白的等价变化保持允许。同步重入只用一个短期 Interlocked 标志拒绝，不在 Scribe 或提供者执行期间持有发布锁；异常和过期返回均释放该标志。捕获完成继续使用共用 DTO 深复制，调用者随后修改外观、配置、扩展或字节不会改写已准备的上传。
+
+引擎站点读取迁入 ClientWorldColonySitesRuntime，基线和原运行时站点登记入口都调用它；地图优先、世界物体去重、tile 有效性和最终排序由纯模块 ClientWorldColonySites 负责。地图编号与 tile/layer 使用结构化键，避免字符串键把不同身份类别混为一谈。原站点检查只用地表 TilesCount，可能拒绝合法的其它图层站点，或接受超出目标图层范围的站点；现在按声明图层的实际 tile 数量验证。共享 ClientWorldRuntimeValues 接收原整数/布尔/tile 图层读取方法，搬家、运行时物体和站点读取复用同一实现。
+
+世界物体基线原本没有填已有的 TileLayerId，名称应用也只按 tile/Def 匹配。本步补齐捕获字段及名称投影的 tile/layer/Def 条件，验证两个图层的同编号物体不会互相改名。未新增线协议字段。派系数量及重复生成 Def、地表道路的无向去重等既有语义保持；这不是对全部世界物体投影、原版道路条件或全部 DLC 场景的重新设计。
+
+WorldSubstrateRuntime.TryCapture 现在接收绑定的 World 和归属检查，不在每次 XML 序列化后重新查 Find.World。预先保留原 grid/features/landmarks 引用，每段 Scribe 返回后验证归属，旧请求不会继续采集新 World 的下一段。吸收工作区原有的 Core-only 空 landmarks 修复并补充定向用例：Core-only 生成世界允许空地标管理器，Odyssey 启用时仍要求其存在。Scribe 忙碌时保留已有状态；捕获失败不给出底图。原版序列化/第三方提供者内部可能访问全局状态，本步保证本模块的来源与结果发布边界，不宣称能隔离任意回调的所有副作用。
+
+检查同时发现难度捕获把 Scribe 忙碌/异常折叠成 ValuesXml=null，而 null 在应用侧合法地代表预设。ClientStorytellerBaseline 增加仅内部使用的 CaptureFailure，缺失难度对象仍允许无 XML，忙碌/异常/空输出则携带失败；新采集模块拒绝上传这种失败结果，防止自定义难度退回预设。签名和线协议不变。原真实 Scribe 测试已补充忙碌时失败标记断言，继续验证它不会 ForceStop 正在进行的 Scribe。
+
+新增 ClientWorldBaselineCaptureTests **312 个场景**，四种文化下覆盖采集顺序、身份与语言变化、扩展编号、可变输入隔离、两种入口校验、覆盖率原值/格式、难度捕获失败、各阶段异常重试/重入，以及多图层站点边界、地图优先和结构化去重。ClientWorldBaselineRuntimeTests 在四种文化下使用真实 Game/World/Faction/Settlement/SurfaceLayer/WorldFeature 对象，验证字段和集合来源、非地表站点/物体、同编号跨层名称应用、几何层排序、旧绑定读取及底图的分段归属、失败和 Core-only/Odyssey 条件。几何数量/坐标、地图属性、道路可用性、语言来源和 Scribe DebugOutputFor 使用 Harmony 替身；底图二进制编码/解码为真实实现。夹具补全了 FactionManager 的玩家缓存，并用替身提供需要原生 NativeArray 的数量/几何结果；未修改产品 API 迁就未初始化对象。测试不等于实机完整建图、完整 Scribe 暴露链或 DLC 游戏流程。
+
+**7 个相关单元组通过**：两个新组、基线提交、特征引擎适配、生成/应用模块、叙事者和依赖守卫。守卫检查 **893** 个模块及生成类型、**208** 个适配器及生成类型。Release 构建 **0 错误、41 个既有警告**。日志：`LocalOnly/module-migration/client-world-capture-{compile,tests,runtime,related,build}.log`。未运行 RimTest、全量回归或推送，未改冻结 1.6。除上述相关 Core-only 捕获修复外，其余原有未提交修改继续独立保留。
+
+M8h4b 完成。下一步 **M8h4c 世界配置目录刷新及运行时同步入口**，然后迁移站点缓存和殖民地生命周期。外观设置持久化、通用管理准入、初次管理基线/快照衔接仍有宿主逻辑，本步没有宣称这些模块已经完成。M8h4、M8h、M8 和 M9–M12 保持开放；继续使用相关单元测试，必要时补定向 RimTest，全量由用户安排。
