@@ -4,11 +4,11 @@ namespace AIRsLight.ClashOfRim.Network.Modules.Snapshots;
 
 internal sealed class LatestSnapshotLookup
 {
-    private readonly Dictionary<string, LatestSnapshotRecord> snapshotsByColony;
+    private readonly Dictionary<(string User, string Colony), LatestSnapshotRecord> snapshotsByColony;
     private readonly Dictionary<string, LatestSnapshotRecord> latestSnapshotsByUser;
 
     private LatestSnapshotLookup(
-        Dictionary<string, LatestSnapshotRecord> snapshotsByColony,
+        Dictionary<(string User, string Colony), LatestSnapshotRecord> snapshotsByColony,
         Dictionary<string, LatestSnapshotRecord> latestSnapshotsByUser)
     {
         this.snapshotsByColony = snapshotsByColony;
@@ -20,7 +20,7 @@ internal sealed class LatestSnapshotLookup
 
     public static LatestSnapshotLookup Build(IReadOnlyList<LatestSnapshotRecord> snapshots)
     {
-        var byColony = new Dictionary<string, LatestSnapshotRecord>(StringComparer.Ordinal);
+        var byColony = new Dictionary<(string User, string Colony), LatestSnapshotRecord>();
         var byUser = new Dictionary<string, LatestSnapshotRecord>(StringComparer.Ordinal);
         foreach (LatestSnapshotRecord snapshot in snapshots)
         {
@@ -33,7 +33,7 @@ internal sealed class LatestSnapshotLookup
 
             if (!string.IsNullOrWhiteSpace(colonyId))
             {
-                byColony[SnapshotLookupKey(ownerId!, colonyId!)] = snapshot;
+                byColony[(ownerId!, colonyId!)] = snapshot;
             }
 
             if (!byUser.TryGetValue(ownerId!, out LatestSnapshotRecord? existing)
@@ -50,7 +50,7 @@ internal sealed class LatestSnapshotLookup
     {
         if (!string.IsNullOrWhiteSpace(userId)
             && !string.IsNullOrWhiteSpace(colonyId)
-            && snapshotsByColony.TryGetValue(SnapshotLookupKey(userId, colonyId), out LatestSnapshotRecord? exact))
+            && snapshotsByColony.TryGetValue((userId, colonyId), out LatestSnapshotRecord? exact))
         {
             return exact;
         }
@@ -64,8 +64,4 @@ internal sealed class LatestSnapshotLookup
                 ? latest
                 : null;
 
-    private static string SnapshotLookupKey(string userId, string colonyId)
-    {
-        return userId + "\u001f" + colonyId;
-    }
 }

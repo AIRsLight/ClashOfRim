@@ -1,9 +1,7 @@
 using System.Globalization;
-using System.Reflection;
 using AIRsLight.ClashOfRim.Network;
 using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Save;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Data.Sqlite;
 
 internal static class AchievementLifecycleTests
@@ -77,8 +75,7 @@ internal static class AchievementLifecycleTests
     }
     private static ListAchievementsResponse List(ClashOfRimNetworkState state, string user, string colony)
     {
-        var method = typeof(ClashOfRimNetworkServer).GetMethod("ListAchievements", BindingFlags.Static | BindingFlags.NonPublic)!;
-        return (ListAchievementsResponse)((IValueHttpResult)method.Invoke(null, new object[] { new ListAchievementsRequest("rank-00", "colony-0", "ranking-0", user, colony), state })!).Value!;
+        return state.AchievementQueries.List(new("rank-00", "colony-0", "ranking-0", user, colony));
     }
     private static void Require(bool condition, string message) { if (!condition) throw new Exception(message); }
 }

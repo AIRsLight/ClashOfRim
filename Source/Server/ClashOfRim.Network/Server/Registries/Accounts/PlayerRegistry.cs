@@ -96,10 +96,7 @@ public sealed class PlayerRegistry
                 currentForWealth is not null && string.Equals(currentForWealth.ColonyId, colonyId, StringComparison.Ordinal)
                     ? currentForWealth.LatestSnapshotWealthSnapshotId
                     : null);
-            PersistPlayers([record], Array.Empty<string>());
-            recordsByUserId[userId] = record;
-            InvalidateSortedCachesLocked();
-            SaveLocked();
+            PublishPlayers([record], Array.Empty<string>());
         }
     }
 
@@ -132,10 +129,7 @@ public sealed class PlayerRegistry
                 sameColony ? current!.DisplayName : null,
                 sameWealthSnapshot ? current!.LatestSnapshotWealth : null,
                 sameWealthSnapshot ? current!.LatestSnapshotWealthSnapshotId : null);
-            PersistPlayers([record], Array.Empty<string>());
-            recordsByUserId[userId] = record;
-            InvalidateSortedCachesLocked();
-            SaveLocked();
+            PublishPlayers([record], Array.Empty<string>());
         }
     }
 
@@ -166,10 +160,7 @@ public sealed class PlayerRegistry
                 sameColony ? current!.DisplayName : null,
                 latestSnapshotWealth,
                 currentSnapshotId);
-            PersistPlayers([record], Array.Empty<string>());
-            recordsByUserId[userId] = record;
-            InvalidateSortedCachesLocked();
-            SaveLocked();
+            PublishPlayers([record], Array.Empty<string>());
         }
     }
 
@@ -217,10 +208,7 @@ public sealed class PlayerRegistry
         {
             if (recordsByUserId.ContainsKey(userId))
             {
-                PersistPlayers(Array.Empty<PlayerSessionRecord>(), [userId]);
-                recordsByUserId.Remove(userId);
-                InvalidateSortedCachesLocked();
-                SaveLocked();
+                PublishPlayers(Array.Empty<PlayerSessionRecord>(), [userId]);
                 return true;
             }
 
@@ -246,19 +234,11 @@ public sealed class PlayerRegistry
                 colonyId,
                 currentSnapshotId,
                 deletedAtUtc);
-            PersistPlayerChanges(
+            PublishPlayerChanges(
                 Array.Empty<PlayerSessionRecord>(),
                 removeActive ? [userId] : Array.Empty<string>(),
                 [tombstone],
                 Array.Empty<(string UserId, string ColonyId)>());
-            if (removeActive)
-            {
-                recordsByUserId.Remove(userId);
-            }
-
-            tombstonesByInstance[InstanceKey(userId, colonyId)] = tombstone;
-            InvalidateSortedCachesLocked();
-            SaveLocked();
         }
     }
 
@@ -438,49 +418,39 @@ public sealed class PlayerRegistry
         }
     }
 
-    private void SaveLocked()
-    {
-        if (legacyPersistence is null)
-        {
-            return;
-        }
-
-        string json = System.Text.Json.JsonSerializer.Serialize(
-            new PlayerRegistryPersistence(
-                SortedRecordsLocked(),
-                SortedTombstonesLocked()),
-            JsonOptions);
-        legacyPersistence.Write(json);
-    }
-
-    private void PersistPlayers(
+    private void PublishPlayers(
         IReadOnlyCollection<PlayerSessionRecord> upserts,
         IReadOnlyCollection<string> deletes)
-    {
-        PersistPlayerChanges(
-            upserts,
-            deletes,
-            Array.Empty<PlayerColonyTombstoneRecord>(),
-            Array.Empty<(string UserId, string ColonyId)>());
-    }
+        => PublishPlayerChanges(upserts, deletes, [], []);
 
-    private void PersistPlayerChanges(
+    private void PublishPlayerChanges(
         IReadOnlyCollection<PlayerSessionRecord> playerUpserts,
         IReadOnlyCollection<string> playerDeletes,
         IReadOnlyCollection<PlayerColonyTombstoneRecord> tombstoneUpserts,
         IReadOnlyCollection<(string UserId, string ColonyId)> tombstoneDeletes)
     {
-        if (structuredPersistence is not null)
+        void Apply(Dictionary<string, PlayerSessionRecord> players, Dictionary<string, PlayerColonyTombstoneRecord> tombstones)
         {
-            structuredPersistence.ApplyBatch(
-                playerUpserts,
-                playerDeletes,
-                tombstoneUpserts,
-                tombstoneDeletes);
-            return;
+            foreach (var user in playerDeletes) players.Remove(user);
+            foreach (var player in playerUpserts) players[player.UserId] = player;
+            foreach (var key in tombstoneDeletes) tombstones.Remove(InstanceKey(key.UserId, key.ColonyId));
+            foreach (var tombstone in tombstoneUpserts) tombstones[InstanceKey(tombstone.UserId, tombstone.ColonyId)] = tombstone;
         }
 
-        // Legacy JSON persistence is written after the in-memory mutation.
+        if (structuredPersistence is not null)
+            structuredPersistence.ApplyBatch(playerUpserts, playerDeletes, tombstoneUpserts, tombstoneDeletes);
+        else if (legacyPersistence is not null)
+        {
+            var nextPlayers = new Dictionary<string, PlayerSessionRecord>(recordsByUserId, StringComparer.Ordinal);
+            var nextTombstones = new Dictionary<string, PlayerColonyTombstoneRecord>(tombstonesByInstance, StringComparer.Ordinal);
+            Apply(nextPlayers, nextTombstones);
+            legacyPersistence.Write(System.Text.Json.JsonSerializer.Serialize(new PlayerRegistryPersistence(
+                nextPlayers.Values.OrderBy(record => record.UserId, StringComparer.Ordinal).ToArray(),
+                nextTombstones.Values.OrderBy(record => record.UserId, StringComparer.Ordinal)
+                    .ThenBy(record => record.ColonyId, StringComparer.Ordinal).ToArray()), JsonOptions));
+        }
+        Apply(recordsByUserId, tombstonesByInstance);
+        InvalidateSortedCachesLocked();
     }
 
     private IReadOnlyList<PlayerSessionRecord> SortedRecordsLocked()

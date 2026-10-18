@@ -9,6 +9,10 @@ namespace AIRsLight.ClashOfRim.Network.Modules.Sessions;
 
 internal static class SessionEndpoints
 {
+    internal static void MapDirectory(IEndpointRouteBuilder endpoints, PlayerDirectory directory)
+        => endpoints.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.ListPlayers).Route,
+            (ListPlayersRequest request) => Results.Ok(directory.List(request))).WithMetadata(EndpointSnapshotRecovery.Instance);
+
     internal static void Map(IEndpointRouteBuilder endpoints, LoginService login, SessionConnections connections,
         SessionPresence presence, SessionNotifications notifications, Func<ILogger> logger)
     {

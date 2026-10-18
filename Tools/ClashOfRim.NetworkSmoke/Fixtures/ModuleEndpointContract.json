@@ -39,13 +39,13 @@
     "Kind": "ListPlayers",
     "Route": "/players/list",
     "Method": "POST",
-    "OwnsRecovery": false
+    "OwnsRecovery": true
   },
   {
     "Kind": "ListAchievements",
     "Route": "/achievements/list",
     "Method": "POST",
-    "OwnsRecovery": false
+    "OwnsRecovery": true
   },
   {
     "Kind": "WaitForEvents",

@@ -147,6 +147,9 @@ public sealed class ClashOfRimNetworkState
             EventNotifications, RaidOfflineEvidence, RaidBattleCleanup, () => ServerConfiguration);
         WorldDelivery = new WorldConfigurationDelivery(Plugins, CompatibilityBaseline);
         PlayerWealth = new PlayerSnapshotWealth(Players, SnapshotStore);
+        var playerCatalog = new PlayerColonyCatalog(Players, SnapshotStore);
+        PlayerDirectory = new PlayerDirectory(playerCatalog, PlayerWealth, DiplomacyRelations, OnlinePresence, SnapshotMutations);
+        AchievementQueries = new AchievementQueries(Achievements, playerCatalog, SnapshotMutations);
         RaidMarkers = new RaidMarkerProjection(Ledger, SnapshotStore);
         WorldMarkers = new WorldMarkerDelivery(Players, OnlinePresence, DiplomacyRelations, SnapshotStore, WorldConfiguration,
             WorldDelivery, RuntimeWorldObjectMarkers, RaidMarkers, RaidProtection, PlayerWealth, () => ServerConfiguration);
@@ -309,6 +312,8 @@ public sealed class ClashOfRimNetworkState
     public PlayerRegistry Players { get; }
     internal WorldConfigurationDelivery WorldDelivery { get; }
     internal PlayerSnapshotWealth PlayerWealth { get; }
+    internal PlayerDirectory PlayerDirectory { get; }
+    internal AchievementQueries AchievementQueries { get; }
     internal RaidMarkerProjection RaidMarkers { get; }
     internal WorldMarkerDelivery WorldMarkers { get; }
     internal LoginService Login { get; }

@@ -17,6 +17,7 @@ internal static class HttpSnapshotRecoveryTests
     private static readonly ProtocolMessageKind[] OwnedRoutes =
     [
         ProtocolMessageKind.SendChatMessage, ProtocolMessageKind.ListChatMessages,
+        ProtocolMessageKind.ListPlayers, ProtocolMessageKind.ListAchievements,
         ProtocolMessageKind.AdminAction, ProtocolMessageKind.AdminStatus, ProtocolMessageKind.AdminUpdateConfiguration, ProtocolMessageKind.OverrideCompatibilityBaseline,
         ProtocolMessageKind.UploadSnapshot, ProtocolMessageKind.DownloadLatestSnapshot,
         ProtocolMessageKind.DownloadLatestSnapshotPayload, ProtocolMessageKind.ConfirmEventApplication,

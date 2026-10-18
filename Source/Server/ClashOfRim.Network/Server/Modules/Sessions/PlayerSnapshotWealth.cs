@@ -17,8 +17,9 @@ internal sealed class PlayerSnapshotWealth(PlayerRegistry players, IColonySnapsh
         DateTimeOffset nowUtc,
         LatestSnapshotLookup? snapshotLookup = null)
     {
-        LatestSnapshotRecord? snapshot = snapshotLookup?.Resolve(userId, colonyId)
-            ?? LatestSnapshotLookup.Resolve(snapshots, userId, colonyId);
+        LatestSnapshotRecord? snapshot = snapshotLookup is null
+            ? LatestSnapshotLookup.Resolve(snapshots, userId, colonyId)
+            : snapshotLookup.Resolve(userId, colonyId);
         if (snapshot is null)
         {
             return new PlayerSnapshotWealthSummary(colonyId, currentSnapshotId, null);

@@ -3,10 +3,26 @@ using AIRsLight.ClashOfRim.Compatibility;
 using AIRsLight.ClashOfRim.Network;
 using AIRsLight.ClashOfRim.Network.Plugins;
 using AIRsLight.ClashOfRim.Protocol;
+using Microsoft.Data.Sqlite;
 
 // Shared test mechanics only. Each suite owns its business setup and assertions.
 internal static class RecoveryTestSupport
 {
+    internal static void WithDatabase(Action<string, string> run)
+    {
+        string root = Path.GetFullPath(Path.Combine(Path.GetTempPath(), "cor-persistence-test-" + Guid.NewGuid().ToString("N")));
+        Directory.CreateDirectory(root);
+        try { string db = Path.Combine(root, "server.sqlite"); ServerDatabaseMigrator.Migrate(db); run(root, db); }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            if (Path.GetDirectoryName(root)!.TrimEnd(Path.DirectorySeparatorChar) != Path.GetFullPath(Path.GetTempPath()).TrimEnd(Path.DirectorySeparatorChar)
+                || !Path.GetFileName(root).StartsWith("cor-persistence-test-", StringComparison.Ordinal))
+                throw new Exception("Unexpected persistence test cleanup path.");
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     internal sealed class Slot(IJsonPersistenceSlot? inner = null) : IJsonPersistenceSlot
     {
         private string? value;

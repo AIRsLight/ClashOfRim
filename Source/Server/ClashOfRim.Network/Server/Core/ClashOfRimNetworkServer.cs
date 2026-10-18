@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Network.Modules.Achievements;
 using AIRsLight.ClashOfRim.Network.Modules.Chat;
 using AIRsLight.ClashOfRim.Network.Modules.Admin;
 using AIRsLight.ClashOfRim.Network.Modules.World;
@@ -90,8 +91,8 @@ public static partial class ClashOfRimNetworkServer
         GiftEndpoints.Map(app, app.Services.GetRequiredService<ClashOfRimNetworkState>().Gifts);
         SessionEndpoints.Map(app, tradeState.Login, tradeState.SessionConnections, tradeState.SessionPresence, tradeState.SessionNotifications, () => tradeState.RuntimeLogger);
         AccountEndpoints.Map(app, app.Services.GetRequiredService<ClashOfRimNetworkState>().Accounts);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.ListPlayers).Route, ListPlayers);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.ListAchievements).Route, ListAchievements);
+        SessionEndpoints.MapDirectory(app, tradeState.PlayerDirectory);
+        AchievementEndpoints.Map(app, tradeState.AchievementQueries);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.UploadSnapshot).Route, UploadSnapshot).WithMetadata(EndpointSnapshotRecovery.Instance);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.DownloadLatestSnapshot).Route, DownloadLatestSnapshot).WithMetadata(EndpointSnapshotRecovery.Instance);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.DownloadLatestSnapshotPayload).Route, DownloadLatestSnapshotPayload).WithMetadata(EndpointSnapshotRecovery.Instance);
@@ -345,16 +346,6 @@ public static partial class ClashOfRimNetworkServer
 
     private static bool AreAllied(ClashOfRimNetworkState state, string userA, string? colonyA, string userB, string? colonyB)
         => state.DiplomacyRelations.AreAllied(userA, colonyA, userB, colonyB);
-
-    private static string ResolveDiplomacyRelationKind(
-        ClashOfRimNetworkState state,
-        string userA,
-        string? colonyA,
-        string userB,
-        string? colonyB)
-    {
-        return state.DiplomacyRelations.GetRelationKind(userA, colonyA, userB, colonyB);
-    }
 
     private static bool IsVisibleParty(EventParty party, string userId, string colonyId)
         => EventVisibility.MatchesParty(party, userId, colonyId);

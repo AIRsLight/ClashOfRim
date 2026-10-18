@@ -26,6 +26,8 @@ if (args.FirstOrDefault() == "--baseline-invalidation-crash")
 
 var tests = new (string Name, Action Run)[]
 {
+    ("玩家目录与成就查询模块、身份投影和排行榜", () => PlayerAchievementQueryModuleTests.Run(BuildFixturePackage)),
+    ("玩家注册表统一发布与持久化失败隔离", PlayerRegistryPublicationTests.Run),
     ("聊天模块授权、持久化与流通知协作", () => ChatModuleTests.Run(BuildFixturePackage)),
     ("外交关系发布中断与重启恢复", () => DiplomacyPublicationRecoveryTests.Run(BuildFixturePackage)),
     ("外交决定与通知事务的故障回滚和重试", () => DiplomacyDecisionAtomicityTests.Run(BuildFixturePackage)),
