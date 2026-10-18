@@ -313,6 +313,10 @@
   <ClashOfRim.AutosaveSnapshot.SkippedAtomic>Загрузка автосохранения пропущена: {REASON}</ClashOfRim.AutosaveSnapshot.SkippedAtomic>
   <ClashOfRim.AutosaveSnapshot.SkippedBusy>Загрузка автосохранения пропущена: синхронизация уже выполняется.</ClashOfRim.AutosaveSnapshot.SkippedBusy>
   <ClashOfRim.AutosaveSnapshot.SkippedNoSession>Загрузка автосохранения пропущена: нет отслеживаемого мультиплеерного сохранения.</ClashOfRim.AutosaveSnapshot.SkippedNoSession>
+  <ClashOfRim.SnapshotReload.Operation>Восстановление серверного снимка</ClashOfRim.SnapshotReload.Operation>
+  <ClashOfRim.SnapshotReload.Waiting>Ожидание завершения текущей синхронизации перед восстановлением серверного снимка.</ClashOfRim.SnapshotReload.Waiting>
+  <ClashOfRim.SnapshotReload.IdentityChanged>Вход вернул другую учётную запись. Серверный снимок не загружен.</ClashOfRim.SnapshotReload.IdentityChanged>
+  <ClashOfRim.SnapshotReload.LoadDiscarded>Загрузка серверного снимка отменена до завершения.</ClashOfRim.SnapshotReload.LoadDiscarded>
   <ClashOfRim.SnapshotRestore.SnapshotIdMismatch>ID загруженного снимка не совпадает с пакетом: ожидалось {EXPECTED}, получено {ACTUAL}.</ClashOfRim.SnapshotRestore.SnapshotIdMismatch>
   <ClashOfRim.SnapshotRestore.PackageMissing>Сервер не вернул содержимое сохранения.</ClashOfRim.SnapshotRestore.PackageMissing>
   <ClashOfRim.SnapshotRestore.PayloadSizeMismatch>Размер серверного сохранения не совпадает.</ClashOfRim.SnapshotRestore.PayloadSizeMismatch>
@@ -981,6 +985,7 @@
   <ClashOfRim.Raid.StatusSubmitting>Отправка рейда на сервер: {TARGET}.</ClashOfRim.Raid.StatusSubmitting>
   <ClashOfRim.Raid.StatusTargetIncomplete>Информация целевого рейда неполна и не может создать событие.</ClashOfRim.Raid.StatusTargetIncomplete>
   <ClashOfRim.Raid.StatusTargetTileMismatch>Караван больше не находится на целевом тайле рейда.</ClashOfRim.Raid.StatusTargetTileMismatch>
+  <ClashOfRim.Raid.RestoreServerUnresolved>В серверном снимке осталось неочищенное поле рейда ({EVENTID}). Восстановление остановлено, чтобы не загружать тот же бой повторно.</ClashOfRim.Raid.RestoreServerUnresolved>
   <ClashOfRim.Raid.RestoreException>Ошибка восстановления рейда: {TYPE}: {MESSAGE}</ClashOfRim.Raid.RestoreException>
   <ClashOfRim.Raid.RestoreInvalidServerTime>Рейд {EVENTID} имеет недействительное серверное время и не может быть восстановлен.</ClashOfRim.Raid.RestoreInvalidServerTime>
   <ClashOfRim.Raid.RestoreMissingLocalBattle>На сервере есть незавершенный рейд {EVENTID}, но в этом сохранении нет восстанавливаемой карты боя.</ClashOfRim.Raid.RestoreMissingLocalBattle>

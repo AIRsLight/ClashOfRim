@@ -30,6 +30,15 @@ internal static class ClientRaidRecoveryTests
                     && f.Notices.Count(n => n.State == ClientRaidRecoveryState.Restored) == (seconds < 0 ? 1 : 0), "Deadline boundary chose the wrong action.");
                 if (seconds < 0) Check(f.Notices.Last().RemainingSeconds == 1, "Remaining time rounded incorrectly.");
             }
+            foreach (bool expired in new[] { false, true })
+            {
+                using var f = new Fixture();
+                f.Module.Reconcile(f, expired ? Data(120) : null, authoritativeReload: true);
+                f.Module.Advance();
+                Check(f.Reloads == 0 && f.Expired == 0 && f.Settlements == 0 && f.Battle.Restores == 0
+                    && f.Module.BlocksBattleLifecycle && f.Notices.Single().State == ClientRaidRecoveryState.ServerUnresolved,
+                    "An unresolved authoritative snapshot recursively reloaded the same battle.");
+            }
             using (var f = new Fixture { IsReady = false })
             {
                 var data = Data(-60); f.Module.Reconcile(f, data);

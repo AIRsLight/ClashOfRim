@@ -37,6 +37,7 @@ internal static class ClientModuleBoundaryTests
             || t == typeof(AIRsLight.ClashOfRim.Raids.ClientRaidAttackForce) || t == typeof(AIRsLight.ClashOfRim.Raids.ClientRaidBattlefield)
             || t == typeof(AIRsLight.ClashOfRim.Raids.IRaidAttackForceSource) || t == typeof(AIRsLight.ClashOfRim.Raids.RaidAttackPawnLoad)
             || t == typeof(AIRsLight.ClashOfRim.Raids.CaravanRaidAttackForceSource) || t == typeof(AIRsLight.ClashOfRim.Raids.TransporterRaidAttackForceSource)
+            || t == typeof(ClientSnapshotReloadRuntime) || t == typeof(ClientSnapshotReloadPresentation) || t == typeof(ServerSessionGameDataLoader)
             || t == typeof(ServerSnapshotRestoreService) || t == typeof(ClientSnapshotRestorePresentation)
             || t == typeof(ModSnapshotPackageBuilder) || t == typeof(SnapshotSaveSanitizer)
             || t == typeof(ModSnapshotUploadService) || t == typeof(ClientSnapshotPreparationAdapter)
@@ -103,6 +104,7 @@ internal static class ClientModuleBoundaryTests
             typeof(ClientEventApplicationRuntime), typeof(ClientEventApplicationPresentation),
             typeof(ClientEventConfirmationPresentation), typeof(ClientEventConfirmationEffects), typeof(ClientSnapshotPreparationPresentation),
             typeof(ClientSnapshotRestorePresentation), typeof(ServerSnapshotRestoreService),
+            typeof(ClientSnapshotReloadRuntime), typeof(ClientSnapshotReloadPresentation), typeof(ServerSessionGameDataLoader),
             typeof(ClientLocalSnapshotPresentation), typeof(ClientSnapshotFailureView), typeof(SnapshotConfirmationFailureWindow) };
         var adapterTypes = typeof(ClashOfRimMod).Assembly.GetTypes().Where(t => eventAdapters.Contains(t)
             || (t.DeclaringType is not null && eventAdapters.Contains(t.DeclaringType))).ToArray();

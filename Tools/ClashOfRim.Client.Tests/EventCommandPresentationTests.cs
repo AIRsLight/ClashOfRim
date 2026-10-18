@@ -24,6 +24,10 @@ internal static class EventCommandPresentationTests
 {
     private static void SnapshotRestorePresentation()
     {
+        foreach (var stage in Enum.GetValues<ClientSnapshotReloadStage>())
+            RequireResolved(ClientSnapshotReloadPresentation.Describe(stage, "snapshot-é").Message);
+        RequireResolved(ClientLocalMutationPresentation.OperationName(LocalMutationKind.SnapshotRestore));
+        foreach (string key in new[] { "Waiting", "IdentityChanged", "LoadDiscarded" }) RequireResolved(ClashOfRimText.Key("ClashOfRim.SnapshotReload." + key));
         foreach (var kind in Enum.GetValues<ClientSnapshotRestoreFailureKind>())
             RequireResolved(ClientSnapshotRestorePresentation.Format(new ClientSnapshotRestoreFailure(kind, "detail-é")));
         foreach (var kind in Enum.GetValues<ClientColonySnapshotFailureKind>())

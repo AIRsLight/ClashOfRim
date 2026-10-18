@@ -313,6 +313,10 @@
   <ClashOfRim.AutosaveSnapshot.SkippedAtomic>自動セーブのアップロードをスキップしました: {REASON}</ClashOfRim.AutosaveSnapshot.SkippedAtomic>
   <ClashOfRim.AutosaveSnapshot.SkippedBusy>自動セーブのアップロードをスキップしました: 同期が既に実行中です。</ClashOfRim.AutosaveSnapshot.SkippedBusy>
   <ClashOfRim.AutosaveSnapshot.SkippedNoSession>自動セーブのアップロードをスキップしました: 追跡中のマルチプレイセーブがありません。</ClashOfRim.AutosaveSnapshot.SkippedNoSession>
+  <ClashOfRim.SnapshotReload.Operation>サーバースナップショットの復元</ClashOfRim.SnapshotReload.Operation>
+  <ClashOfRim.SnapshotReload.Waiting>現在の同期の完了後、サーバースナップショットを復元します。</ClashOfRim.SnapshotReload.Waiting>
+  <ClashOfRim.SnapshotReload.IdentityChanged>ログインで別のアカウントが返されたため、サーバースナップショットを読み込みませんでした。</ClashOfRim.SnapshotReload.IdentityChanged>
+  <ClashOfRim.SnapshotReload.LoadDiscarded>サーバースナップショットの読み込みが完了前に取り消されました。</ClashOfRim.SnapshotReload.LoadDiscarded>
   <ClashOfRim.SnapshotRestore.SnapshotIdMismatch>ダウンロードしたスナップショット ID がパッケージと一致しません。期待値：{EXPECTED}、実際：{ACTUAL}。</ClashOfRim.SnapshotRestore.SnapshotIdMismatch>
   <ClashOfRim.SnapshotRestore.PackageMissing>サーバーがセーブ内容を返しませんでした。</ClashOfRim.SnapshotRestore.PackageMissing>
   <ClashOfRim.SnapshotRestore.PayloadSizeMismatch>サーバーセーブのサイズが一致しません。</ClashOfRim.SnapshotRestore.PayloadSizeMismatch>
@@ -981,6 +985,7 @@
   <ClashOfRim.Raid.StatusSubmitting>サーバーへ襲撃を送信しています: {TARGET}。</ClashOfRim.Raid.StatusSubmitting>
   <ClashOfRim.Raid.StatusTargetIncomplete>対象襲撃情報が不完全で、イベントを作成できません。</ClashOfRim.Raid.StatusTargetIncomplete>
   <ClashOfRim.Raid.StatusTargetTileMismatch>キャラバンはもう対象襲撃タイル上にいません。</ClashOfRim.Raid.StatusTargetTileMismatch>
+  <ClashOfRim.Raid.RestoreServerUnresolved>サーバースナップショットに未処理の襲撃戦場（{EVENTID}）が残っています。同じ戦場の再読み込みを避けるため、復元を停止しました。</ClashOfRim.Raid.RestoreServerUnresolved>
   <ClashOfRim.Raid.RestoreException>襲撃の復元中にエラーが発生しました：{TYPE}：{MESSAGE}</ClashOfRim.Raid.RestoreException>
   <ClashOfRim.Raid.RestoreInvalidServerTime>襲撃 {EVENTID} はサーバー時刻が無効で復元できません。</ClashOfRim.Raid.RestoreInvalidServerTime>
   <ClashOfRim.Raid.RestoreMissingLocalBattle>サーバーに未完了の襲撃 {EVENTID} がありますが、このセーブには復元可能な戦闘マップがありません。</ClashOfRim.Raid.RestoreMissingLocalBattle>

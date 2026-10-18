@@ -31,7 +31,7 @@ internal sealed class ClientRaidSettlements : IClientRaidSettlementActions
         this.inbox = inbox; this.cleanup = cleanup; this.presentation = presentation;
     }
     internal event Action? Completed;
-    // Authoritative reload after expiry remains the remote recovery use case (M7d5).
+    // Composition hands expiry to the authoritative reload workflow.
     internal event Action<string>? Expired;
 
     public Task StartAsync(IClientRaidSettlementRuntime runtime, string reason)

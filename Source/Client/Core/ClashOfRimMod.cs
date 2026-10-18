@@ -89,7 +89,7 @@ public sealed partial class ClashOfRimMod : Mod
     private readonly ClientRaidLaunching raidLaunching;
     private readonly ClientRaidSettlements raidSettlements;
     private readonly ClientRaidRecovery raidRecovery;
-    private readonly ClientColonySnapshotDownload colonySnapshotDownload;
+    private readonly ClientSnapshotReload snapshotReload;
     internal ClientGiftActions GiftActions => giftActions;
     private readonly ClientEventConfirmationWorkflow eventConfirmations;
     private readonly ClientEventApplications eventApplications;
@@ -248,11 +248,16 @@ public sealed partial class ClashOfRimMod : Mod
             snapshotFailureRecovery, new ClientRaidSupportLosses(snapshotTransactions, new ClientSupportTransport()),
             new ClientEventConfirmationTransport(), eventInbox, localSnapshotConfirmation, new ClientRaidSettlementPresentation(message => worldMapStatus = message));
         raidSettlements.Completed += () => StartRefreshPlayers(ClashOfRimText.Key("ClashOfRim.Raid.AttackerSnapshotSucceededMessage"), requireManualGate: false);
-        raidSettlements.Expired += StartConfirmSettledRaidCleanupSnapshot;
+        raidSettlements.Expired += StartRestoreAfterRaid;
         raidRecovery = new ClientRaidRecovery(sessionLifecycle, new ClientSnapshotGame(), snapshotFailureRecovery, raidSettlements,
             new ClientRaidRecoveryPresentation(message => worldMapStatus = message));
-        raidRecovery.ReloadRequested += StartConfirmSettledRaidCleanupSnapshot;
-        colonySnapshotDownload = new ClientColonySnapshotDownload(new ClientRemoteSnapshotTransport());
+        raidRecovery.ReloadRequested += StartRestoreAfterRaid;
+        snapshotReload = new ClientSnapshotReload(sessionLifecycle, synchronization, localMutations, snapshotFailureRecovery,
+            new ClientSessionAuthenticationTransport(), new ClientColonySnapshotDownload(new ClientRemoteSnapshotTransport()),
+            snapshotPublication, new ClientSnapshotReloadRuntime(), new ClientSnapshotReloadPresentation(
+                (message, purpose) => { loginStatus = message; if (purpose == ClientSnapshotReloadPurpose.Raid) worldMapStatus = message; },
+                response => ShowCompatibilityMismatchWindow(response)));
+        snapshotReload.Completed += OnServerSnapshotLoaded;
         observationMaps = new ClientObservationMaps(sessionLifecycle, synchronization, new ClientSnapshotGame(),
             new ClientObservationTransport(), new ClientObservationRuntime(),
             new ClientObservationPresentation(message => worldMapStatus = message, response => ShowCompatibilityMismatchWindow(response)));
@@ -465,6 +470,7 @@ public sealed partial class ClashOfRimMod : Mod
         && !manualSyncInProgress
         && !snapshotUploadInProgress
         && !sessionLifecycle.IsUnavailable
+        && !snapshotReload.BlocksGameLifecycle
         && !IsBlockedServerEntrySourceGame()
         && !ClashOfRimGameComponent.HasActiveRaidBattleSession
         && !ClashOfRimGameComponent.HasActiveObservationSession
@@ -473,6 +479,7 @@ public sealed partial class ClashOfRimMod : Mod
     internal bool CanSyncRuntimeWorldObjects =>
         settings.IsConfigured
         && !runtimeWorldObjectSyncInProgress
+        && !snapshotReload.BlocksGameLifecycle
         && !ClashOfRimGameComponent.HasActiveRaidBattleSession
         && !ClashOfRimGameComponent.HasActiveObservationSession
         && !string.IsNullOrWhiteSpace(lastSessionId)
@@ -497,6 +504,7 @@ public sealed partial class ClashOfRimMod : Mod
         settings.IsConfigured
         && ClashOfRimCompatibilityApi.HasWorldConfigurationExtensionCollector
         && !worldConfigurationExtensionSyncInProgress
+        && !snapshotReload.BlocksGameLifecycle
         && !ClashOfRimGameComponent.HasActiveRaidBattleSession
         && !ClashOfRimGameComponent.HasActiveObservationSession
         && !string.IsNullOrWhiteSpace(lastSessionId)

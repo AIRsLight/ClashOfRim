@@ -120,8 +120,8 @@ public sealed partial class ClashOfRimMod
     internal void StartObserveRemoteMarker(ModWorldMapMarkerDto target, string mode)
         => observationMaps.OpenAsync(target, mode);
 
-    internal void AdvanceRaidRecovery() => raidRecovery.Advance();
-    internal bool RaidRecoveryBlocksBattleLifecycle => raidRecovery.BlocksBattleLifecycle;
+    internal void AdvanceRaidRecovery() { snapshotReload.Advance(); raidRecovery.Advance(); }
+    internal bool RaidRecoveryBlocksBattleLifecycle => raidRecovery.BlocksBattleLifecycle || snapshotReload.BlocksGameLifecycle;
 
     internal void StartFinishActiveRaidBattle(ActiveRaidBattleSession session, string finishReason)
         => _ = raidSettlements.StartAsync(new ClientRaidSettlementRuntime(session), finishReason);

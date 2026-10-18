@@ -14,6 +14,7 @@ internal static class ClientLocalMutationPresentation
         LocalMutationKind.Support => "ClashOfRim.SnapshotConfirmationFailure.OperationSupport",
         LocalMutationKind.SupportArrival => "ClashOfRim.EventLetter.SupportConfirmOperation",
         LocalMutationKind.Raid => "ClashOfRim.SnapshotConfirmationFailure.OperationRaid",
+        LocalMutationKind.SnapshotRestore => "ClashOfRim.SnapshotReload.Operation",
         LocalMutationKind.RaidRestore => "ClashOfRim.SnapshotConfirmationFailure.OperationRaidRestore",
         LocalMutationKind.RaidAttacker => "ClashOfRim.SnapshotConfirmationFailure.OperationRaidAttacker",
         LocalMutationKind.Shop => "ClashOfRim.SnapshotConfirmationFailure.OperationShop",

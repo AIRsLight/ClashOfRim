@@ -78,7 +78,9 @@ internal sealed class ClientSynchronizationCoordinator
 
     // Public upload callers can wait on the same admission used by the game's commands.
     // Capture the signal before checking admission so a completion cannot strand a waiter.
-    internal async Task<Lease> AcquireSnapshotAsync(CancellationToken cancellationToken)
+    internal Task<Lease> AcquireSnapshotAsync(CancellationToken cancellationToken) => AcquireAsync(true, cancellationToken);
+    internal Task<Lease> AcquireManualAsync(CancellationToken cancellationToken) => AcquireAsync(false, cancellationToken);
+    private async Task<Lease> AcquireAsync(bool snapshotAdmission, CancellationToken cancellationToken)
     {
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, ClientSessionWork.Token);
         while (true)
@@ -90,7 +92,7 @@ internal sealed class ClientSynchronizationCoordinator
                 lock (gate) wait = changed.Task;
                 // Waiting is not a rejected command. Publication keeps admission stable
                 // between the availability check and acquisition.
-                if (!IsBusy && TryAcquireSnapshot(out var lease)) return lease;
+                if (!IsBusy && (snapshotAdmission ? TryAcquireSnapshot(out var lease) : TryBeginManual(out lease))) return lease!;
             }
             await wait.WaitAsync(cancellation.Token);
         }
@@ -201,9 +203,11 @@ internal sealed class ClientSynchronizationCoordinator
 
         // Async stages own a new lease before the caller returns. Their finally cannot
         // release a later UI/async stage or a promoted snapshot.
+        internal Lease TransferManual() => owner.TransferManual(this);
+
         internal Task RunContinuation(Func<Lease, Task> action)
         {
-            Lease next = owner.TransferManual(this);
+            Lease next = TransferManual();
             try
             {
                 return ClientSessionWork.Run(async () =>

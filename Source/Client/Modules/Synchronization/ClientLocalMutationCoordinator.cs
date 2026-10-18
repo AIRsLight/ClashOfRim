@@ -115,5 +115,5 @@ internal enum LocalMutationAdmission { Allowed, NotConfigured, PendingMutation, 
 internal enum LocalMutationKind
 {
     None, Bank, Mercenary, AutomaticEvents, Gift, Support, Raid, RaidRestore,
-    RaidAttacker, Shop, Trade, ColonyRelocation, GiftSend, SupportSend, Endgame, SupportArrival
+    RaidAttacker, Shop, Trade, ColonyRelocation, GiftSend, SupportSend, Endgame, SupportArrival, SnapshotRestore
 }

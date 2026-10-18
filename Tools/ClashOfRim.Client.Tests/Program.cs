@@ -19,6 +19,8 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("snapshot reload runtime retains exact game and pending memory load ownership", ClientSnapshotReloadRuntimeTests.Run),
+    ("snapshot reload owns authentication, game replacement and recovery retries", ClientSnapshotReloadTests.Run),
     ("colony snapshot restore owns downloads, identity validation and loadable bytes", ClientColonySnapshotDownloadTests.Run),
     ("raid recovery owns loaded-game readiness and authoritative deadline decisions", ClientRaidRecoveryTests.Run),
     ("raid settlements own evidence, stable retries and cleanup handoff", ClientRaidSettlementTests.Run),

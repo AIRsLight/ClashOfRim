@@ -18,35 +18,26 @@ public static class ServerSessionGameDataLoader
     private static readonly Dictionary<string, PendingServerSessionSave> PendingLoads = new(StringComparer.Ordinal);
     private static int suppressPlayUiRootOnGui;
     private static string suppressedPlayUiRootLoad = string.Empty;
+    private static string suppressedPlayUiRootOwner = string.Empty;
 
     public static void LoadGame(byte[] saveBytes, string saveName, Action? onLoaded = null)
+        => LoadOwned(saveBytes, saveName, action => { action(); return true; }, null, null, onLoaded, null, null);
+
+    internal static PendingServerSessionSave LoadOwned(byte[] saveBytes, string saveName, Func<Action, bool> apply,
+        Action<Game?>? bindGame, Action? mutationStarted, Action? onLoaded, Action<Exception>? onFailed, Action? onDiscarded)
     {
         byte[] payload = saveBytes ?? throw new ArgumentNullException(nameof(saveBytes));
         string displayName = string.IsNullOrWhiteSpace(saveName) ? "server-buffer" : saveName.Trim();
         string virtualSaveName = VirtualSavePrefix + Guid.NewGuid().ToString("N");
-        RegisterPendingLoad(virtualSaveName, payload, displayName, onLoaded);
-        SuppressPlayUiRootOnGui(displayName);
-
-        ClashLog.Message("[ClashOfRim] Prepared server snapshot memory load: snapshot=" + displayName + ", virtualSave=" + virtualSaveName);
-        LongEventHandler.QueueLongEvent(
-            () =>
-            {
-                ClashLog.Message("[ClashOfRim] Entering Play scene for server snapshot memory load: " + displayName);
-                PrepareForServerMemoryLoad();
-                Current.Game = new Game
-                {
-                    InitData = new GameInitData
-                    {
-                        gameToLoad = virtualSaveName
-                    }
-                };
-            },
-            "Play",
-            "LoadingLongEvent",
-            false,
-            null,
-            true,
-            false);
+        var pending = new PendingServerSessionSave(virtualSaveName, payload, displayName, apply, bindGame, mutationStarted, onLoaded, onFailed, onDiscarded);
+        lock (PendingLoadsLock) PendingLoads.Add(virtualSaveName, pending);
+        SuppressPlayUiRootOnGui(displayName, virtualSaveName);
+        try
+        {
+            LongEventHandler.QueueLongEvent(pending.PrepareScene, "Play", "LoadingLongEvent", false, null, true, false);
+            return pending;
+        }
+        catch { pending.Dispose(); throw; }
     }
 
     private static void PrepareForServerMemoryLoad()
@@ -86,70 +77,56 @@ public static class ServerSessionGameDataLoader
         Current.Game = null;
     }
 
-    internal static bool TryConsumePendingLoad(
-        string? virtualSaveName,
-        out byte[] saveBytes,
-        out string displayName,
-        out Action? onLoaded)
+    internal static bool TryLoadPending(string? virtualSaveName)
     {
-        saveBytes = Array.Empty<byte>();
-        displayName = string.Empty;
-        onLoaded = null;
-        if (virtualSaveName is null
-            || string.IsNullOrWhiteSpace(virtualSaveName)
-            || !virtualSaveName.StartsWith(VirtualSavePrefix, StringComparison.Ordinal))
-        {
-            return false;
-        }
-
-        lock (PendingLoadsLock)
-        {
-            if (!PendingLoads.TryGetValue(virtualSaveName, out PendingServerSessionSave? pending))
-            {
-                Log.Error("[ClashOfRim] Missing pending server snapshot memory load for virtual save: " + virtualSaveName);
-                ClearPlayUiRootOnGuiSuppression("missing pending load");
-                return false;
-            }
-
-            PendingLoads.Remove(virtualSaveName);
-            saveBytes = pending.SaveBytes;
-            displayName = pending.DisplayName;
-            onLoaded = pending.OnLoaded;
-            return true;
-        }
+        if (virtualSaveName is null || !virtualSaveName.StartsWith(VirtualSavePrefix, StringComparison.Ordinal)) return false;
+        PendingServerSessionSave? pending;
+        lock (PendingLoadsLock) PendingLoads.Remove(virtualSaveName, out pending);
+        // A cancelled virtual load must never fall through to filesystem loading.
+        if (pending is not null) pending.Load();
+        return true;
     }
 
     internal static bool ShouldSuppressPlayUiRootOnGui => Volatile.Read(ref suppressPlayUiRootOnGui) != 0;
 
     internal static string SuppressedPlayUiRootLoad => suppressedPlayUiRootLoad;
 
-    internal static void ClearPlayUiRootOnGuiSuppression(string reason)
+    private static void ClearPlayUiRootOnGuiSuppression(string owner, string reason)
     {
-        if (Interlocked.Exchange(ref suppressPlayUiRootOnGui, 0) != 0)
+        lock (PendingLoadsLock)
         {
-            ClashLog.Message("[ClashOfRim] Released Play UI root during server snapshot memory load: "
-                + suppressedPlayUiRootLoad
-                + ", reason="
-                + reason);
+            if (suppressedPlayUiRootOwner != owner) return;
+            if (Interlocked.Exchange(ref suppressPlayUiRootOnGui, 0) != 0)
+            {
+                ClashLog.Message("[ClashOfRim] Released Play UI root during server snapshot memory load: "
+                    + suppressedPlayUiRootLoad
+                    + ", reason="
+                    + reason);
+            }
+
+            suppressedPlayUiRootLoad = string.Empty;
+            suppressedPlayUiRootOwner = string.Empty;
         }
-
-        suppressedPlayUiRootLoad = string.Empty;
     }
 
-    private static void SuppressPlayUiRootOnGui(string displayName)
+    private static void SuppressPlayUiRootOnGui(string displayName, string owner)
     {
-        suppressedPlayUiRootLoad = displayName;
-        Interlocked.Exchange(ref suppressPlayUiRootOnGui, 1);
+        lock (PendingLoadsLock)
+        {
+            suppressedPlayUiRootOwner = owner;
+            suppressedPlayUiRootLoad = displayName;
+            Interlocked.Exchange(ref suppressPlayUiRootOnGui, 1);
+        }
     }
 
-    internal static void LoadGameFromServerSaveNow(byte[] saveBytes, string saveName)
+    internal static void LoadGameFromServerSaveNow(byte[] saveBytes, string saveName, Action<Game?>? bindGame = null)
     {
         string mods = LoadedModManager.RunningMods
             .Select(mod => mod.PackageIdPlayerFacing + (!mod.ModMetaData.VersionCompatible ? " (incompatible version)" : string.Empty))
             .ToLineList("  - ", false);
         ClashLog.Message("Loading ClashOfRim server game from memory buffer " + saveName + " with mods:\n" + mods);
         DeepProfiler.Start("Loading ClashOfRim server game from memory buffer " + saveName);
-        Current.Game = new Game();
+        AssignGame(new Game(), bindGame);
         DeepProfiler.Start("InitLoading (read memory buffer)");
         InitLoadingFromBytes(saveBytes, saveName);
         DeepProfiler.End();
@@ -158,12 +135,10 @@ public static class ServerSessionGameDataLoader
             ScribeMetaHeaderUtility.LoadGameDataHeader(ScribeMetaHeaderUtility.ScribeHeaderMode.Map, true);
             if (!Scribe.EnterNode("game"))
             {
-                Log.Error("Could not find game XML node.");
-                Scribe.ForceStop();
-                return;
+                throw new InvalidDataException("Could not find game XML node.");
             }
 
-            Current.Game = new Game();
+            AssignGame(new Game(), bindGame);
             Current.Game.LoadGame();
         }
         catch (Exception)
@@ -216,26 +191,77 @@ public static class ServerSessionGameDataLoader
         }
     }
 
-    private static void RegisterPendingLoad(string virtualSaveName, byte[] saveBytes, string displayName, Action? onLoaded)
+    private static void AssignGame(Game game, Action<Game?>? bindGame)
     {
-        lock (PendingLoadsLock)
-        {
-            PendingLoads[virtualSaveName] = new PendingServerSessionSave(saveBytes, displayName, onLoaded);
-        }
+        Current.Game = game;
+        bindGame?.Invoke(game);
     }
 
-    private sealed class PendingServerSessionSave
+    internal sealed class PendingServerSessionSave : IDisposable
     {
-        public PendingServerSessionSave(byte[] saveBytes, string displayName, Action? onLoaded)
+        private readonly byte[] bytes;
+        private readonly string name;
+        private readonly Func<Action, bool> apply;
+        private readonly Action<Game?>? bind;
+        private readonly Action? mutationStarted, loaded, discarded;
+        private readonly Action<Exception>? failed;
+        private int finished;
+        internal string VirtualName { get; }
+        internal PendingServerSessionSave(string id, byte[] bytes, string name, Func<Action, bool> apply,
+            Action<Game?>? bind, Action? mutationStarted, Action? loaded, Action<Exception>? failed, Action? discarded)
+        { VirtualName = id; this.bytes = bytes; this.name = name; this.apply = apply; this.bind = bind;
+            this.mutationStarted = mutationStarted; this.loaded = loaded; this.failed = failed; this.discarded = discarded; }
+        private bool Run(Action action)
         {
-            SaveBytes = saveBytes;
-            DisplayName = displayName;
-            OnLoaded = onLoaded;
+            if (Volatile.Read(ref finished) != 0) return false;
+            if (apply(action)) return true;
+            Dispose(); return false;
         }
-
-        public byte[] SaveBytes { get; }
-        public string DisplayName { get; }
-        public Action? OnLoaded { get; }
+        internal void PrepareScene()
+        {
+            try
+            {
+                Run(() =>
+                {
+                    mutationStarted?.Invoke();
+                    PrepareForServerMemoryLoad();
+                    bind?.Invoke(Current.Game);
+                    AssignGame(new Game { InitData = new GameInitData { gameToLoad = VirtualName } }, bind);
+                });
+            }
+            catch (Exception ex) { Fail(ex); }
+        }
+        internal void Load()
+        {
+            try
+            {
+                if (!Run(() => LoadGameFromServerSaveNow(bytes, name, bind))) return;
+                ClearPlayUiRootOnGuiSuppression(VirtualName, "server save loaded");
+                LongEventHandler.ExecuteWhenFinished(() =>
+                {
+                    try { Run(() => { Release(); loaded?.Invoke(); Interlocked.Exchange(ref finished, 1); }); }
+                    catch (Exception ex) { Fail(ex); }
+                });
+            }
+            catch (Exception ex) { Fail(ex); }
+        }
+        private void Fail(Exception ex)
+        {
+            if (Interlocked.Exchange(ref finished, 1) != 0) return;
+            Release();
+            if (failed is not null) failed(ex);
+            else System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(ex).Throw();
+        }
+        private void Release()
+        {
+            lock (PendingLoadsLock) PendingLoads.Remove(VirtualName);
+            ClearPlayUiRootOnGuiSuppression(VirtualName, "load finished or discarded");
+        }
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref finished, 1) != 0) return;
+            Release(); discarded?.Invoke();
+        }
     }
 }
 
@@ -243,33 +269,8 @@ public static class ServerSessionGameDataLoader
 internal static class ServerSessionSavedGameLoaderPatch
 {
     [HarmonyPrefix]
-    public static bool Prefix(string fileName)
-    {
-        if (!ServerSessionGameDataLoader.TryConsumePendingLoad(
-                fileName,
-                out byte[] saveBytes,
-                out string displayName,
-                out Action? onLoaded))
-        {
-            return true;
-        }
+    public static bool Prefix(string fileName) => !ServerSessionGameDataLoader.TryLoadPending(fileName);
 
-        ClashLog.Message("[ClashOfRim] Loading server snapshot through vanilla saved-game path: " + displayName);
-        try
-        {
-            ServerSessionGameDataLoader.LoadGameFromServerSaveNow(saveBytes, displayName);
-            if (onLoaded is not null)
-            {
-                LongEventHandler.ExecuteWhenFinished(onLoaded);
-            }
-        }
-        finally
-        {
-            ServerSessionGameDataLoader.ClearPlayUiRootOnGuiSuppression("server save loaded");
-        }
-
-        return false;
-    }
 }
 
 [HarmonyPatch(typeof(UIRoot_Play), nameof(UIRoot_Play.UIRootOnGUI))]

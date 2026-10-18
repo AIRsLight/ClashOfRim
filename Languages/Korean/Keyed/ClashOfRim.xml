@@ -313,6 +313,10 @@
   <ClashOfRim.AutosaveSnapshot.SkippedAtomic>자동 저장 업로드를 건너뜀: {REASON}</ClashOfRim.AutosaveSnapshot.SkippedAtomic>
   <ClashOfRim.AutosaveSnapshot.SkippedBusy>자동 저장 업로드를 건너뜀: 동기화가 이미 실행 중입니다.</ClashOfRim.AutosaveSnapshot.SkippedBusy>
   <ClashOfRim.AutosaveSnapshot.SkippedNoSession>자동 저장 업로드를 건너뜀: 추적 중인 멀티플레이 저장이 없습니다.</ClashOfRim.AutosaveSnapshot.SkippedNoSession>
+  <ClashOfRim.SnapshotReload.Operation>서버 스냅샷 복원</ClashOfRim.SnapshotReload.Operation>
+  <ClashOfRim.SnapshotReload.Waiting>현재 동기화가 완료되면 서버 스냅샷을 복원합니다.</ClashOfRim.SnapshotReload.Waiting>
+  <ClashOfRim.SnapshotReload.IdentityChanged>로그인 결과의 계정이 달라 서버 스냅샷을 불러오지 않았습니다.</ClashOfRim.SnapshotReload.IdentityChanged>
+  <ClashOfRim.SnapshotReload.LoadDiscarded>서버 스냅샷 로드가 완료되기 전에 취소되었습니다.</ClashOfRim.SnapshotReload.LoadDiscarded>
   <ClashOfRim.SnapshotRestore.SnapshotIdMismatch>다운로드한 스냅샷 ID가 패키지와 일치하지 않습니다. 예상: {EXPECTED}, 실제: {ACTUAL}.</ClashOfRim.SnapshotRestore.SnapshotIdMismatch>
   <ClashOfRim.SnapshotRestore.PackageMissing>서버가 저장 내용을 반환하지 않았습니다.</ClashOfRim.SnapshotRestore.PackageMissing>
   <ClashOfRim.SnapshotRestore.PayloadSizeMismatch>서버 저장 크기가 일치하지 않습니다.</ClashOfRim.SnapshotRestore.PayloadSizeMismatch>
@@ -981,6 +985,7 @@
   <ClashOfRim.Raid.StatusSubmitting>서버에 습격 제출 중: {TARGET}.</ClashOfRim.Raid.StatusSubmitting>
   <ClashOfRim.Raid.StatusTargetIncomplete>대상 습격 정보가 불완전하여 이벤트를 만들 수 없습니다.</ClashOfRim.Raid.StatusTargetIncomplete>
   <ClashOfRim.Raid.StatusTargetTileMismatch>카라반이 더 이상 대상 습격 타일에 있지 않습니다.</ClashOfRim.Raid.StatusTargetTileMismatch>
+  <ClashOfRim.Raid.RestoreServerUnresolved>서버 스냅샷에 정리되지 않은 습격 전장({EVENTID})이 남아 있습니다. 같은 전장의 반복 로드를 방지하기 위해 복원을 중단했습니다.</ClashOfRim.Raid.RestoreServerUnresolved>
   <ClashOfRim.Raid.RestoreException>습격 복원 중 오류가 발생했습니다: {TYPE}: {MESSAGE}</ClashOfRim.Raid.RestoreException>
   <ClashOfRim.Raid.RestoreInvalidServerTime>습격 {EVENTID}의 서버 시간이 유효하지 않아 복원할 수 없습니다.</ClashOfRim.Raid.RestoreInvalidServerTime>
   <ClashOfRim.Raid.RestoreMissingLocalBattle>서버에 미완료 습격 {EVENTID}가 있지만 이 저장에는 복구 가능한 전투 지도가 없습니다.</ClashOfRim.Raid.RestoreMissingLocalBattle>

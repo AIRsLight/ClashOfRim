@@ -312,6 +312,10 @@
   <ClashOfRim.AutosaveSnapshot.SkippedAtomic>Auto save upload skipped: {REASON}</ClashOfRim.AutosaveSnapshot.SkippedAtomic>
   <ClashOfRim.AutosaveSnapshot.SkippedBusy>Auto save upload skipped: sync is already running.</ClashOfRim.AutosaveSnapshot.SkippedBusy>
   <ClashOfRim.AutosaveSnapshot.SkippedNoSession>Auto save upload skipped: no tracked multiplayer save is active.</ClashOfRim.AutosaveSnapshot.SkippedNoSession>
+  <ClashOfRim.SnapshotReload.Operation>Restore server snapshot</ClashOfRim.SnapshotReload.Operation>
+  <ClashOfRim.SnapshotReload.Waiting>Waiting for the current synchronization to finish before restoring the server snapshot.</ClashOfRim.SnapshotReload.Waiting>
+  <ClashOfRim.SnapshotReload.IdentityChanged>The login returned a different account. The server snapshot was not loaded.</ClashOfRim.SnapshotReload.IdentityChanged>
+  <ClashOfRim.SnapshotReload.LoadDiscarded>The server snapshot load was discarded before completion.</ClashOfRim.SnapshotReload.LoadDiscarded>
   <ClashOfRim.SnapshotRestore.SnapshotIdMismatch>The downloaded snapshot ID does not match its package: expected {EXPECTED}, actual {ACTUAL}.</ClashOfRim.SnapshotRestore.SnapshotIdMismatch>
   <ClashOfRim.SnapshotRestore.PackageMissing>The server did not return save contents.</ClashOfRim.SnapshotRestore.PackageMissing>
   <ClashOfRim.SnapshotRestore.PayloadSizeMismatch>The server save size does not match.</ClashOfRim.SnapshotRestore.PayloadSizeMismatch>
@@ -980,6 +984,7 @@
   <ClashOfRim.Raid.StatusSubmitting>Submitting raid to the server: {TARGET}.</ClashOfRim.Raid.StatusSubmitting>
   <ClashOfRim.Raid.StatusTargetIncomplete>The target raid information is incomplete and cannot create an event.</ClashOfRim.Raid.StatusTargetIncomplete>
   <ClashOfRim.Raid.StatusTargetTileMismatch>The caravan is no longer on the target raid tile.</ClashOfRim.Raid.StatusTargetTileMismatch>
+  <ClashOfRim.Raid.RestoreServerUnresolved>The server snapshot still contains an unresolved raid battle ({EVENTID}). Recovery stopped to avoid repeatedly loading the same battle.</ClashOfRim.Raid.RestoreServerUnresolved>
   <ClashOfRim.Raid.RestoreException>Raid recovery failed: {TYPE}: {MESSAGE}</ClashOfRim.Raid.RestoreException>
   <ClashOfRim.Raid.RestoreInvalidServerTime>Raid {EVENTID} has invalid server time and cannot be restored.</ClashOfRim.Raid.RestoreInvalidServerTime>
   <ClashOfRim.Raid.RestoreMissingLocalBattle>The server has unfinished raid {EVENTID}, but this save has no recoverable battle map.</ClashOfRim.Raid.RestoreMissingLocalBattle>

@@ -17,7 +17,7 @@ internal interface IClientRaidRecoveryRuntime
     bool Ready { get; }
     IClientRaidRecoveredBattle? ReadBattle();
 }
-internal enum ClientRaidRecoveryState { Waiting, ServerSettled, MissingBattle, InvalidTime, Restored, Exception }
+internal enum ClientRaidRecoveryState { Waiting, ServerSettled, MissingBattle, InvalidTime, Restored, Exception, ServerUnresolved }
 internal sealed record ClientRaidRecoveryNotice(ClientRaidRecoveryState State, string EventId = "", int RemainingSeconds = 0, Exception? Exception = null);
 internal interface IClientRaidRecoveryPresentation
 {
@@ -42,11 +42,11 @@ internal sealed class ClientRaidRecovery
         this.session = session; this.failureRecovery = failureRecovery; this.settlements = settlements; this.presentation = presentation;
         requests = new(session, game, () => { pending = null; awaitingResolution = false; });
     }
-    // This signal still connects to the authoritative reload workflow pending M7d5b.
+    // Composition routes this decision to the owned authoritative reload workflow.
     internal event Action<string>? ReloadRequested;
     internal bool BlocksBattleLifecycle => requests.Read(() => awaitingResolution);
 
-    internal void Reconcile(IClientRaidRecoveryRuntime runtime, ModActiveRaidRecoveryDto? recovery)
+    internal void Reconcile(IClientRaidRecoveryRuntime runtime, ModActiveRaidRecoveryDto? recovery, bool authoritativeReload = false)
     {
         using var p = ClientSessionWork.EnterPublication();
         requests.Reset();
@@ -54,7 +54,7 @@ internal sealed class ClientRaidRecovery
         if (!scope.Game.HasGame) return;
         awaitingResolution = true;
         pending = new(scope, runtime, recovery is null ? null : new(recovery.EventId, recovery.ServerNowUtc,
-            recovery.StartedAtUtc, recovery.DeadlineUtc, recovery.FinalDeadlineUtc));
+            recovery.StartedAtUtc, recovery.DeadlineUtc, recovery.FinalDeadlineUtc), authoritativeReload);
         Advance();
     }
     internal void Advance()
@@ -92,6 +92,7 @@ internal sealed class ClientRaidRecovery
         if (recovery is null)
         {
             if (battle is null) { awaitingResolution = false; return; }
+            if (job.AuthoritativeReload) { Fail(new(ClientRaidRecoveryState.ServerUnresolved, battle.Identity.EventId)); return; }
             Report(new(ClientRaidRecoveryState.ServerSettled, battle.Identity.EventId));
             ReloadRequested?.Invoke(battle.Identity.EventId);
             return;
@@ -101,6 +102,8 @@ internal sealed class ClientRaidRecovery
         var deadlines = ClientRaidServerDeadlines.Read(recovery.Started, recovery.Deadline, recovery.Final);
         if (deadlines is null || !ClientServerTime.TryParseUtc(recovery.Now, out var now))
         { Fail(new(ClientRaidRecoveryState.InvalidTime, recovery.EventId)); return; }
+        if (job.AuthoritativeReload && now.UtcDateTime.Ticks >= deadlines.FinalDeadlineUtcTicks)
+        { Fail(new(ClientRaidRecoveryState.ServerUnresolved, recovery.EventId)); return; }
         battle.RestoreDeadlines(deadlines);
         Apply(job, () =>
         {
@@ -127,11 +130,12 @@ internal sealed class ClientRaidRecovery
     private sealed record Recovery(string EventId, string Now, string Started, string Deadline, string Final);
     private sealed class Pending
     {
-        internal Pending(ClientGameRequestTracker.Scope scope, IClientRaidRecoveryRuntime runtime, Recovery? recovery)
-        { Scope = scope; Runtime = runtime; Recovery = recovery; }
+        internal Pending(ClientGameRequestTracker.Scope scope, IClientRaidRecoveryRuntime runtime, Recovery? recovery, bool authoritativeReload)
+        { Scope = scope; Runtime = runtime; Recovery = recovery; AuthoritativeReload = authoritativeReload; }
         internal readonly ClientGameRequestTracker.Scope Scope;
         internal readonly IClientRaidRecoveryRuntime Runtime;
         internal readonly Recovery? Recovery;
+        internal readonly bool AuthoritativeReload;
         internal bool WaitingReported;
     }
 }

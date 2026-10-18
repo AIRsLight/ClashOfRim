@@ -13,6 +13,7 @@ internal sealed class ClientRaidRecoveryPresentation : IClientRaidRecoveryPresen
     {
         ClientRaidRecoveryState.Waiting => ClashOfRimText.Key("ClashOfRim.ServerEntry.StageLoad"),
         ClientRaidRecoveryState.ServerSettled => ClashOfRimText.Key("ClashOfRim.Raid.RestoreServerAlreadySettled"),
+        ClientRaidRecoveryState.ServerUnresolved => ClashOfRimText.Key("ClashOfRim.Raid.RestoreServerUnresolved", notice.EventId.Named("EVENTID")),
         ClientRaidRecoveryState.MissingBattle => ClashOfRimText.Key("ClashOfRim.Raid.RestoreMissingLocalBattle", notice.EventId.Named("EVENTID")),
         ClientRaidRecoveryState.InvalidTime => ClashOfRimText.Key("ClashOfRim.Raid.RestoreInvalidServerTime", notice.EventId.Named("EVENTID")),
         ClientRaidRecoveryState.Restored => ClashOfRimText.Key("ClashOfRim.Raid.RestoreSucceeded", notice.RemainingSeconds.Named("SECONDS")),
@@ -24,7 +25,7 @@ internal sealed class ClientRaidRecoveryPresentation : IClientRaidRecoveryPresen
         if (notice.State is ClientRaidRecoveryState.Restored or ClientRaidRecoveryState.ServerSettled)
             Messages.Message(message, MessageTypeDefOf.NeutralEvent, historical: false);
         else if (notice.State != ClientRaidRecoveryState.Waiting) status(message);
-        if (notice.State is ClientRaidRecoveryState.Waiting or ClientRaidRecoveryState.MissingBattle or ClientRaidRecoveryState.InvalidTime or ClientRaidRecoveryState.Exception)
+        if (notice.State is ClientRaidRecoveryState.Waiting or ClientRaidRecoveryState.ServerUnresolved or ClientRaidRecoveryState.MissingBattle or ClientRaidRecoveryState.InvalidTime or ClientRaidRecoveryState.Exception)
             Log.Warning("[ClashOfRim][Raid] recovery=" + notice.State + " event=" + notice.EventId + " message=" + message + " exception=" + notice.Exception);
     }
 }

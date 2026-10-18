@@ -57,7 +57,7 @@ internal sealed class ClientSnapshotGame : IClientSnapshotGame
         }
         public void Publish(string snapshotId, string? lineageToken, IReadOnlyList<ModSnapshotAchievementCandidateDto> achievements)
         {
-            if (!string.IsNullOrWhiteSpace(lineageToken)) ClashOfRimGameComponent.SetSnapshotLineage(snapshotId, lineageToken);
+            if (lineageToken is not null) ClashOfRimGameComponent.SetSnapshotLineage(snapshotId, lineageToken);
             if (achievements.Count > 0) ClashOfRimGameComponent.MarkPendingAchievementCandidatesUploaded(achievements);
         }
     }

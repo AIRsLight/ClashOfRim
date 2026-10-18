@@ -559,192 +559,32 @@ public sealed partial class ClashOfRimMod
         });
     }
 
-    private void StartRestoreExistingColonySnapshot(
-        string? expectedSnapshotId,
-        Action<string>? restoreFailureCallback = null,
-        bool allowDifferentSnapshotId = false,
-        ModWorldConfigurationDto? worldConfiguration = null,
-        ClientSynchronizationCoordinator.Lease? continuation = null)
+    private void StartRestoreExistingColonySnapshot(string? expectedSnapshotId,
+        ModWorldConfigurationDto? worldConfiguration = null, ClientSynchronizationCoordinator.Lease? continuation = null)
+        => _ = snapshotReload.StartAsync(new(expectedSnapshotId, ClientSnapshotReloadPurpose.Entry, worldConfiguration), continuation);
+
+    // World-entry effects remain in M8; authentication, loading, publication and retries
+    // are owned by ClientSnapshotReload before this completed-domain notification.
+    private void OnServerSnapshotLoaded(ClientSnapshotReloadCompleted completed)
     {
-        if (string.IsNullOrWhiteSpace(expectedSnapshotId))
+        ClearServerEntrySourceGameBlock("server-snapshot-loaded");
+        if (completed.Request.Purpose == ClientSnapshotReloadPurpose.Raid)
         {
-            loginStatus = ClashOfRimText.Key("ClashOfRim.ExistingColonyMissingSnapshot");
-            ReportRestoreExistingColonySnapshotFailure(loginStatus, restoreFailureCallback);
-            return;
+            worldMapStatus = ClashOfRimText.Key("ClashOfRim.Raid.StatusCleanupSnapshotSucceeded", completed.Snapshot.SnapshotId.Named("SNAPSHOT"));
+            Messages.Message(worldMapStatus, MessageTypeDefOf.NeutralEvent, historical: false);
         }
-
-        if (!TryBeginManualSynchronization(out var manualOperation, out string admissionFailure, continuation))
-        {
-            loginStatus = admissionFailure;
-            ReportRestoreExistingColonySnapshotFailure(loginStatus, restoreFailureCallback);
-            return;
-        }
-        loginStatus = ClashOfRimText.Key(
-            "ClashOfRim.DownloadingExistingSnapshot",
-            expectedSnapshotId.Named("SNAPSHOT"));
-        ShowServerEntryProgressWindowNow(
-            ClashOfRimText.Key("ClashOfRim.ServerEntry.Title"),
-            loginStatus,
-            0.1f,
-            canClose: false);
-        string expected = expectedSnapshotId!;
-        manualOperation.RunContinuation(async operation =>
-        {
-            try
-            {
-                using var httpClient = new HttpClient
-                {
-                    Timeout = TimeSpan.FromSeconds(60)
-                };
-                var client = new ClashOfRimModNetworkClient(
-                    httpClient,
-                    ClashOfRimClientNetworkContext.FromSettings(settings));
-                if (string.IsNullOrWhiteSpace(lastSessionId))
-                {
-                    ShowServerEntryProgressWindow(
-                        ClashOfRimText.Key("ClashOfRim.ServerEntry.Title"),
-                        ClashOfRimText.Key("ClashOfRim.ServerEntry.StageLogin"),
-                        0.2f,
-                        canClose: false);
-                    ClashOfRimClientNetworkResult<ModLoginResponseDto> login =
-                        await ClientSessionWork.Observe(client.LoginAsync("restore-existing-snapshot"));
-                    using var branchPublication = ClientSessionWork.EnterPublication();
-                    if (!login.Success || login.Response is null || login.Response.Result?.Accepted != true)
-                    {
-                        string message = login.Response?.Result?.Message
-                            ?? login.Message
-                            ?? ClashOfRimText.Key("ClashOfRim.ServerEntry.StatusLoginFallback");
-                        ShowCompatibilityMismatchWindow(login.Response);
-                        operation.QueueContinuation(EnqueueClashOfRimMainThreadAction, next =>
-                        {
-                            loginStatus = ClashOfRimText.Key(
-                                "ClashOfRim.DownloadExistingSnapshotRejected",
-                                message.Named("REASON"));
-                            ReportRestoreExistingColonySnapshotFailure(loginStatus, restoreFailureCallback);
-                        });
-                        return;
-                    }
-
-                    sessionLifecycle.PublishLogin(login.Response);
-                }
-
-                // Freeze the download identity after any login. The loaded result must
-                // still belong to this identity, base snapshot and source game.
-                var downloadOwner = sessionLifecycle.CaptureOwnership();
-                var downloadContext = sessionLifecycle.ReadContext();
-                var sourceGame = new ClientSnapshotGame().BindCurrentGame();
-                bool OwnsDownload() => sourceGame.IsCurrent && sessionLifecycle.Owns(downloadOwner, downloadContext, requireSnapshot: true);
-                void Progress(string message, float progress)
-                    => EnqueueClashOfRimMainThreadAction(() => ClientSessionWork.TryApply(() =>
-                    {
-                        if (OwnsDownload()) ShowServerEntryProgressWindowNow(ClashOfRimText.Key("ClashOfRim.ServerEntry.Title"), message, progress, canClose: false);
-                    }));
-                Progress(ClashOfRimText.Key("ClashOfRim.ServerEntry.StageMetadata"), 0.35f);
-                var result = await ClientSessionWork.Observe(colonySnapshotDownload.DownloadAsync(downloadContext,
-                    downloadOwner.Token, snapshot => Progress(ClashOfRimText.Key("ClashOfRim.ServerEntry.StagePayload", snapshot.Named("SNAPSHOT")), 0.58f)));
-                using var publication = ClientSessionWork.EnterPublication();
-                if (!OwnsDownload()) return;
-                operation.QueueContinuation(EnqueueClashOfRimMainThreadAction, next =>
-                {
-                    if (!OwnsDownload()) return;
-                    FinishRestoreExistingColonySnapshot(expected, result, restoreFailureCallback, allowDifferentSnapshotId, worldConfiguration);
-                });
-            }
-            catch (Exception ex)
-            when (ClientSessionWork.IsCurrent)
-            {
-                using var publication = ClientSessionWork.EnterPublication();
-                operation.QueueContinuation(EnqueueClashOfRimMainThreadAction, next =>
-                {
-                    loginStatus = ClashOfRimText.Key(
-                        "ClashOfRim.DownloadExistingSnapshotException",
-                        ex.GetType().Name.Named("TYPE"),
-                        ex.Message.Named("MESSAGE"));
-                    ReportRestoreExistingColonySnapshotFailure(loginStatus, restoreFailureCallback);
-                });
-            }
-        });
-
+        if (completed.Request.WorldConfiguration is { } configuration) ApplyRuntimeWorldConfigurationUpdate(configuration);
+        string reason = ClashOfRimText.Key("ClashOfRim.ServerEntry.ReasonServerSnapshotLoaded");
+        StartAutomaticEventRefresh(reason);
+        StartRefreshPlayers(reason, requireManualGate: false);
+        StartRefreshChatMessages(initialLoad: true);
+        ClashOfRimGameComponent.EnqueueMainThreadAction(() => RequestPlayerColonySiteRegistration(reason));
+        if (!sessionConnection.IsRunning) StartManualPresence();
+        ReconcileRestoredRaidBattleSession(completed.Snapshot.ActiveRaidRecovery, authoritativeReload: true);
     }
 
-    private void FinishRestoreExistingColonySnapshot(
-        string expectedSnapshotId,
-        ClientColonySnapshotDownloadResult result,
-        Action<string>? restoreFailureCallback,
-        bool allowDifferentSnapshotId,
-        ModWorldConfigurationDto? worldConfiguration)
-    {
-        if (result.Snapshot is not { } snapshot)
-        {
-            loginStatus = ClientSnapshotRestorePresentation.Format(result.Failure!);
-            ReportRestoreExistingColonySnapshotFailure(loginStatus, restoreFailureCallback);
-            return;
-        }
-        string snapshotId = snapshot.SnapshotId;
-        if (!allowDifferentSnapshotId && !string.Equals(snapshotId, expectedSnapshotId, StringComparison.Ordinal))
-        {
-            ClashLog.Message(
-                "[ClashOfRim] Server advanced latest snapshot during restore: expected="
-                + expectedSnapshotId
-                + ", actual="
-                + snapshotId
-                + ", user="
-                + settings.UserId
-                + ", colony="
-                + settings.ColonyId
-                + ". Accepting server-authoritative latest snapshot.");
-        }
-
-        settings.CurrentSnapshotId = snapshotId!;
-        settings.CurrentLineageToken = snapshot.LineageToken;
-        settings.Write();
-        ClashLog.Message(
-            "[ClashOfRim] Restored server snapshot to memory: snapshot="
-            + snapshotId
-            + ", saveName="
-            + snapshot.SaveName);
-        ModActiveRaidRecoveryDto? activeRaidRecovery = snapshot.ActiveRaidRecovery;
-        loginStatus = ClashOfRimText.Key(
-            "ClashOfRim.ExistingSnapshotRestored",
-            snapshotId.Named("SNAPSHOT"));
-        ShowServerEntryProgressWindowNow(
-            ClashOfRimText.Key("ClashOfRim.ServerEntry.Title"),
-            ClashOfRimText.Key("ClashOfRim.ServerEntry.StageLoad"),
-            0.95f,
-            canClose: false);
-        CloseUnconfirmedSnapshotFailureWindow();
-        CloseServerEntryProgressWindowNow();
-        ServerSessionGameDataLoader.LoadGame(snapshot.SaveBytes, snapshot.SaveName, () =>
-        {
-            ClearServerEntrySourceGameBlock("server-snapshot-loaded");
-            if (worldConfiguration is not null)
-            {
-                ApplyRuntimeWorldConfigurationUpdate(worldConfiguration);
-            }
-
-            if (!string.IsNullOrWhiteSpace(settings.CurrentLineageToken))
-            {
-                ClashOfRimGameComponent.SetSnapshotLineage(
-                    snapshotId,
-                    settings.CurrentLineageToken);
-            }
-
-            StartAutomaticEventRefresh(ClashOfRimText.Key("ClashOfRim.ServerEntry.ReasonServerSnapshotLoaded"));
-            StartRefreshPlayers(ClashOfRimText.Key("ClashOfRim.ServerEntry.ReasonServerSnapshotLoaded"), requireManualGate: false);
-            StartRefreshChatMessages(initialLoad: true);
-            ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
-                RequestPlayerColonySiteRegistration(ClashOfRimText.Key("ClashOfRim.ServerEntry.ReasonServerSnapshotLoaded")));
-            if (!sessionConnection.IsRunning)
-            {
-                StartManualPresence();
-            }
-
-            ReconcileRestoredRaidBattleSession(activeRaidRecovery);
-        });
-    }
-
-    private void ReconcileRestoredRaidBattleSession(ModActiveRaidRecoveryDto? recovery)
-        => raidRecovery.Reconcile(new ClientRaidRecoveryRuntime(), recovery);
+    private void ReconcileRestoredRaidBattleSession(ModActiveRaidRecoveryDto? recovery, bool authoritativeReload = false)
+        => raidRecovery.Reconcile(new ClientRaidRecoveryRuntime(), recovery, authoritativeReload);
 
     private void MarkServerEntrySourceGame()
     {
@@ -801,26 +641,8 @@ public sealed partial class ClashOfRimMod
         ClashLog.Message("[ClashOfRim] Cleared server-entry source game block: " + reason + ".");
     }
 
-    private void StartConfirmSettledRaidCleanupSnapshot(string eventId)
-    {
-        CloseUnconfirmedSnapshotFailureWindow();
-        synchronization.Reset();
-        CompleteLocalAtomicMutation();
-        worldMapStatus = ClashOfRimText.Key("ClashOfRim.Raid.StatusCleanupSnapshotSucceeded", settings.CurrentSnapshotId.Named("SNAPSHOT"));
-        Messages.Message(worldMapStatus, MessageTypeDefOf.NeutralEvent, historical: false);
-        StartAutomaticEventRefresh(ClashOfRimText.Key("ClashOfRim.ServerEntry.ReasonRaidRecovery"));
-        StartRestoreExistingColonySnapshot(
-            settings.CurrentSnapshotId,
-            restoreFailureCallback: message =>
-            {
-                worldMapStatus = message;
-                ShowUnconfirmedSnapshotFailure(
-                    LocalMutationKind.RaidRestore,
-                    message,
-                    () => StartConfirmSettledRaidCleanupSnapshot(eventId));
-            },
-            allowDifferentSnapshotId: true);
-    }
+    private void StartRestoreAfterRaid(string eventId)
+        => _ = snapshotReload.StartAsync(new(sessionLifecycle.ReadContext().CurrentSnapshotId, ClientSnapshotReloadPurpose.Raid));
 
     private static void EnqueueClashOfRimMainThreadAction(Action action, Action? onDiscard = null)
         => ClientMainThreadDispatcher.Enqueue(action, onDiscard);
@@ -842,18 +664,6 @@ public sealed partial class ClashOfRimMod
             message,
             1f,
             canClose: true);
-    }
-
-    private static void ReportRestoreExistingColonySnapshotFailure(
-        string message,
-        Action<string>? restoreFailureCallback)
-    {
-        ShowServerEntryProgressWindowNow(
-            ClashOfRimText.Key("ClashOfRim.ServerEntry.FailedTitle"),
-            message,
-            1f,
-            canClose: true);
-        restoreFailureCallback?.Invoke(message);
     }
 
 }
