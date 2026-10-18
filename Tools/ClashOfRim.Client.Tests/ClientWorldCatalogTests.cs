@@ -27,6 +27,7 @@ internal static class ClientWorldCatalogTests
                 foreach (bool full in new[] { false, true })
                     foreach (bool inline in new[] { false, true }) { await Success(full, inline); count++; }
                 await Freeze(); count++;
+                await DelayedPublication(); count++;
                 foreach (string change in new[] { "user", "server", "colony", "auth", "login", "generation", "game", "world", "snapshot" })
                     foreach (string phase in new[] { "refreshing", "prepare", "read", "queue", "compatibility", "admin", "remember", "features", "factions", "roads", "extensions", "objects", "story-prepare", "story-apply", "sites", "summary", "success-text" })
                     { await Ownership(change, phase); count++; }
@@ -50,6 +51,25 @@ internal static class ClientWorldCatalogTests
         }
         finally { CultureInfo.CurrentCulture = culture; ClientSessionWork.Reset(); }
         Console.WriteLine($"PASS: world catalog refresh ({count} scenarios)");
+    }
+    private static async Task DelayedPublication()
+    {
+        foreach (bool newerSource in new[] { false, true })
+        {
+            var f = new Fixture(); var delay = new ClientWorldPublicationTestPorts.DelayedReply();
+            f.Read.WorldConfiguration!.WorldConfigurationId = f.WorldId;
+            f.Read.WorldConfiguration.PlayerColonySites[0].Appearance = new() { ColorHex = "old" };
+            f.Before = phase => phase == "read" ? delay.Wait() : Task.CompletedTask;
+            var task = f.Module.RefreshAsync("delayed");
+            await delay.Complete(f.Ports, task, () =>
+            {
+                f.Publication.Appearance.SaveCurrent(ClientWorldPublicationTests.Selection("local"));
+                if (newerSource) f.Publication.Flow.Publish(f.Publication.Flow.Capture(), ClientWorldPublicationTests.Data("new", f.WorldId),
+                    ClientWorldProjection.Sites, () => true, ("newer-source", ClientWorldPublicationTests.Markers("new")));
+            });
+            Check(f.Publication.Appearance.Read().ColorHex == (newerSource ? "new" : "local") && !f.Module.Busy, "Delayed catalog replaced newer preference or remained busy.");
+            if (newerSource) Check(f.Publication.Sites.IsBlocked(4, 7, out var site) && site!.Label == "new", "Old catalog replaced newer sites.");
+        }
     }
     private static async Task Success(bool full, bool inline)
     {
@@ -216,6 +236,8 @@ internal static class ClientWorldCatalogTests
         internal readonly EventModuleTestPorts Ports = new();
         internal readonly ClientSessionLifecycle Session;
         internal readonly ClientWorldCatalog Module;
+        internal readonly ClientWorldPublicationTestPorts Publication;
+        internal string WorldId = "world";
         internal object World = new();
         internal readonly ConcurrentQueue<string> Trace = new(), Statuses = new(), Diagnostics = new();
         internal readonly ConcurrentQueue<(string Phase, ClashOfRimClientNetworkContext Context, bool Full)> Calls = new();
@@ -227,7 +249,9 @@ internal static class ClientWorldCatalogTests
         {
             ClientSessionWork.Reset(); Session = new(Ports, Ports, new(Ports));
             var storyteller = new ClientStorytellerConfiguration(Session, new(Session), this);
-            Module = new(Session, this, this, this, new ClientWorldConfiguration(Session, this, this, storyteller, new(Session, this)));
+            var configuration = new ClientWorldConfiguration(Session, this, this, storyteller, new(Session, this));
+            Publication = new(Session, Ports, () => WorldId, () => World, configuration);
+            Module = new(Session, this, this, this, Publication.Flow);
             Module.CompatibilityAccepted += manifest => { Manifests.Add(manifest); Step("compatibility"); };
             Module.AdministratorObserved += admin => { Administrators.Add(admin); Step("admin"); };
             Module.Applied += config => { Applied.Add(config); Step("sites"); };
@@ -253,7 +277,7 @@ internal static class ClientWorldCatalogTests
         public void Status(string message) => Statuses.Enqueue(message);
         public void Diagnose(string message) => Diagnostics.Enqueue(message);
         public string Summary(ModWorldConfigurationDto configuration) { Step("summary"); return configuration.Extensions[0].PayloadJson!; }
-        public void Remember(string worldId) => Step("remember");
+        public void Remember(string worldId) { WorldId = worldId; Step("remember"); }
         IClientWorldCatalogSession IClientWorldCatalogRuntime.Bind() => new Bound(this, Ports.GameOwner, World);
         IClientWorldConfigurationSession IClientWorldConfigurationRuntime.Bind() => new Bound(this, Ports.GameOwner, World);
         IClientStorytellerSession IClientStorytellerRuntime.Bind() => new Bound(this, Ports.GameOwner, World);

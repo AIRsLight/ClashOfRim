@@ -32,12 +32,39 @@ internal static class ClientColonyRelocationTests
                     await ConfirmationOwnership(change);
                     foreach (string phase in new[] { "preflight", "settle", "long", "upload", "confirm", "markers" }) await Ownership(phase, change);
                 }
-                await Admission(); await Duplicate(); await FlightOwnership(); await AnchorBeforeRetry(); await ImmediateRetry(); await RevalidateLocal(); await RetryBaseChanged();
+                await Admission(); await Duplicate(); await FlightOwnership(); await AnchorBeforeRetry(); await ImmediateRetry(); await RevalidateLocal(); await RetryBaseChanged(); await DelayedPublication(); await ProjectionFailure();
             }
             Console.WriteLine($"  colony relocation: {scenarios} scenarios checked");
         }
         catch (Exception ex) { throw new InvalidOperationException($"Relocation scenario {scenarios}: {ex}"); }
         finally { CultureInfo.CurrentCulture = culture; ClientSessionWork.Reset(); }
+    }
+    private static async Task DelayedPublication()
+    {
+        foreach (bool newerSource in new[] { false, true })
+        {
+            using var f = new Fixture(); var delay = new ClientWorldPublicationTestPorts.DelayedReply();
+            f.BeforeConfirm = delay.Wait; f.AcceptedWorld = ClientWorldPublicationTests.Data("old", f.Cache.WorldId);
+            f.Open(); var task = f.ConfirmAction!();
+            await delay.Complete(f.Ports, task, () =>
+            {
+                f.Publication.Appearance.SaveCurrent(ClientWorldPublicationTests.Selection("local"));
+                if (newerSource) f.Publication.Flow.Publish(f.Publication.Flow.Capture(), ClientWorldPublicationTests.Data("new", f.Cache.WorldId),
+                    ClientWorldProjection.Sites, () => true, ("newer-source", ClientWorldPublicationTests.Markers("new")));
+            });
+            Check(f.Publication.Appearance.Read().ColorHex == (newerSource ? "new" : "local"), "Delayed relocation overwrote newer preference.");
+            Check(f.Completed == 1 && !f.Sync.IsBusy && !f.Mutations.IsPending && !f.Registration.Suppressed, "Superseded relocation view stranded the accepted transaction.");
+            if (newerSource) Check(f.Publication.Markers.Snapshot.Single().Label == "new", "Delayed relocation replaced newer markers.");
+            scenarios++;
+        }
+    }
+    private static async Task ProjectionFailure()
+    {
+        using var f = new Fixture();
+        f.Publication.Hook = phase => { if (phase == "summary") throw new InvalidOperationException("engine projection"); };
+        await f.Run("explicit");
+        Check(f.Completed == 1 && !f.Sync.IsBusy && !f.Mutations.IsPending && !f.Registration.Suppressed && f.View.Visible is null,
+            "Deferred marker failure changed a successfully completed relocation into a failed transaction."); scenarios++;
     }
     private static async Task Success(string mode)
     {
@@ -161,12 +188,14 @@ internal static class ClientColonyRelocationTests
         internal readonly ClientSynchronizationCoordinator Sync = new();
         internal readonly ClientLocalMutationCoordinator Mutations = new();
         internal readonly ClientColonyRegistration Registration;
+        internal readonly ClientWorldPublicationTestPorts Publication;
         internal readonly EventModuleFailureView View;
         internal readonly ClientColonyRelocation Flow;
         internal readonly TaskCompletionSource Entered = new(TaskCreationOptions.RunContinuationsAsynchronously), Done = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource? Hold;
         internal readonly List<string> Trace = new();
-        internal Func<Task>? ConfirmAction;
+        internal Func<Task>? ConfirmAction, BeforeConfirm;
+        internal ModWorldConfigurationDto? AcceptedWorld;
         internal string? Fault, TargetFailure, Previous, Relocated, PreflightKey, ConfirmKey, UploadKind, Operation;
         internal ClashOfRimClientNetworkContext? PreflightContext, ConfirmContext;
         internal int Homes = 1, Preflights, Uploads, Confirms, Settles, Abandons, Completed, Markers, Successes, SentTile, SentLayer;
@@ -176,12 +205,13 @@ internal static class ClientColonyRelocationTests
         {
             Cache.Session.PublishLogin(new() { AuthenticatedUserId = "alice", AuthToken = "auth", SessionId = "session" });
             var configuration = new ClientWorldConfiguration(Cache.Session, Cache, Cache, null!, null!);
-            Registration = new(Cache.Session, Cache, Mutations, this, this, configuration, Cache.Cache);
+            Publication = new(Cache.Session, Ports, () => Cache.WorldId, () => Cache.World, configuration, Cache.Cache);
+            Registration = new(Cache.Session, Cache, Mutations, this, this, Publication.Flow);
             View = new(Ports);
             var transactions = new ClientSnapshotTransaction(Cache.Session, Ports, new(Ports, Ports));
             var recovery = new ClientSnapshotFailureRecovery(Cache.Session, Mutations, Sync, Ports, View);
             Flow = new(Cache.Session, Cache, this, new(Cache.Session, Sync, Mutations, transactions), Sync, Mutations, transactions,
-                new(Ports, Ports, this, Sync), recovery, Registration, Cache.Cache, this, this);
+                new(Ports, Ports, this, Sync), recovery, Registration, Publication.Flow, this, this);
             Flow.MarkersAccepted += _ => { Markers++; Stage("markers"); };
             Flow.Completed += () => { Check(!Sync.IsBusy, "Completion notified other domains before admission release."); Completed++; Done.TrySetResult(); };
             Ports.BeforeGameAction = () => Facts = true;
@@ -210,17 +240,17 @@ internal static class ClientColonyRelocationTests
             Preflights++; PreflightContext = context; PreflightKey = key; SentTile = tile; SentLayer = layer; Entered.TrySetResult();
             if (Hold is not null) await Hold.Task; Stage("preflight"); Facts = false; return Response("preflight");
         }
-        public Task<ClashOfRimClientNetworkResult<ModColonyRelocationResponseDto>> ConfirmAsync(ClashOfRimClientNetworkContext context, string previous, string relocated, int tile, string key, int layer, CancellationToken token)
+        public async Task<ClashOfRimClientNetworkResult<ModColonyRelocationResponseDto>> ConfirmAsync(ClashOfRimClientNetworkContext context, string previous, string relocated, int tile, string key, int layer, CancellationToken token)
         {
             Confirms++; ConfirmContext = context; Previous = previous; Relocated = relocated; ConfirmKey = key; SentTile = tile; SentLayer = layer;
-            Stage("confirm"); Facts = false; return Task.FromResult(Response("confirm"));
+            Stage("confirm"); Facts = false; if (BeforeConfirm is not null) await BeforeConfirm(); return Response("confirm");
         }
         private ClashOfRimClientNetworkResult<ModColonyRelocationResponseDto> Response(string stage)
             => Fault == stage + "-http" ? ClashOfRimClientNetworkResult<ModColonyRelocationResponseDto>.Failed("HttpError", "503 unavailable")
                 : ClashOfRimClientNetworkResult<ModColonyRelocationResponseDto>.Ok(new()
                 {
                     Result = Fault == stage + "-missing" ? null : new() { Accepted = Fault != stage + "-reject", Message = "original" },
-                    WorldConfiguration = new() { WorldConfigurationId = "world-a", PlayerColonySites = new() }, WorldMapMarkers = new()
+                    WorldConfiguration = AcceptedWorld ?? new() { WorldConfigurationId = "world-a", PlayerColonySites = new() }, WorldMapMarkers = new()
                 });
         public Task<ClashOfRimClientNetworkResult<ModUploadSnapshotResponseDto>> UploadAsync(ClashOfRimClientNetworkContext context, string key,
             ModSnapshotPackageMetadataDto package, byte[] payload, string? operation, IReadOnlyList<ModSnapshotAchievementCandidateDto> achievements, CancellationToken token)

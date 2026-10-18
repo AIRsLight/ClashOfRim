@@ -301,31 +301,27 @@ public sealed partial class ClashOfRimMod : Mod
             new ClientWorldSynchronizationRuntime(), new ClientWorldMarkerTransport(new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner))),
             new ClientWorldWritePresentation(message => worldMapStatus = message), tradeMarket.CaptureRefresh);
         colonyAppearance = new ClientColonyAppearance(sessionLifecycle, new ClientColonyAppearanceStore(settings), new ClientColonyAppearancePresentation());
-        occupiedColonySites.OwnAppearanceObserved += colonyAppearance.ObserveServer;
+        var worldPublication = new ClientWorldPublication(entryStore, worldConfiguration, occupiedColonySites, colonyAppearance, worldMarkers);
         var colonyTransport = new ClientColonyTransport(new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner)));
-        colonyRegistration = new ClientColonyRegistration(sessionLifecycle, entryStore, localMutations, new ClientColonyRegistrationRuntime(), colonyTransport, worldConfiguration, occupiedColonySites);
+        colonyRegistration = new ClientColonyRegistration(sessionLifecycle, entryStore, localMutations, new ClientColonyRegistrationRuntime(), colonyTransport, worldPublication);
         colonyAbandonment = new ClientColonyAbandonment(sessionLifecycle, entryStore, new ClientWorldCatalogRuntime(), colonyTransport,
             new ClientColonyAbandonPresentation(message => worldMapStatus = message));
         colonyRelocation = new ClientColonyRelocation(sessionLifecycle, entryStore, new ClientWorldCatalogRuntime(), mutationAdmission,
             synchronization, localMutations, snapshotTransactions, ClientSnapshotComposition.Create(settings), snapshotFailureRecovery,
-            colonyRegistration, occupiedColonySites, colonyTransport, new ClientColonyRelocationPresentation());
+            colonyRegistration, worldPublication, colonyTransport, new ClientColonyRelocationPresentation());
         colonyRelocationCommands = new ClientColonyRelocationCommands(colonyRelocation);
         colonyRelocation.Completed += StartQueuedAutomaticEventRefreshAfterLocalAtomicMutation;
-        colonyRelocation.MarkersAccepted += markers => CaptureWorldMapMarkers(markers, source: "colony-relocation");
         snapshotFailureRecovery.ReturningToMenu += () => colonyRegistration.Suppressed = false;
         colonyAppearance.RegistrationRequested += (appearance, reason) => _ = colonyRegistration.RequestAsync(
             ClientColonyRegistrationKind.Sites, reason, appearance, suppressNotification: true);
-        colonyRegistration.MarkersAccepted += (markers, source) => CaptureWorldMapMarkers(markers, source: source);
         colonyRegistration.Diagnostic += (message, warning) => { if (warning) Log.Warning(message); else ClashLog.Message(message); };
         worldCatalog = new ClientWorldCatalog(sessionLifecycle, new ClientWorldCatalogRuntime(), worldTransport,
-            new ClientWorldCatalogPresentation(message => worldMapStatus = message), worldConfiguration);
+            new ClientWorldCatalogPresentation(message => worldMapStatus = message), worldPublication);
         worldCatalog.CompatibilityAccepted += CaptureServerCompatibilityManifest;
         worldCatalog.AdministratorObserved += value => administration.ObservePermission(value, refresh: true);
-        worldCatalog.Applied += occupiedColonySites.Replace;
         var worldWritePresentation = new ClientWorldWritePresentation(message => administration.Message = message);
         worldWrites = new ClientWorldWrites(sessionLifecycle, adminAccess, worldBaselineCapture, worldBaselineSubmission,
-            storytellerConfiguration, worldConfiguration, worldWritePresentation, worldWritePresentation);
-        worldWrites.Applied += occupiedColonySites.Replace;
+            storytellerConfiguration, worldPublication, worldWritePresentation, worldWritePresentation);
         worldWrites.BaselineUpdated += () => RequestWorldMapMarkerRefresh(ClashOfRimText.Key("ClashOfRim.Admin.WorldBaselineRefreshReason"));
         var initialWorldPresentation = new ClientInitialWorldPresentation(message => loginStatus = message, message => snapshotUploadStatus = message, sessionConnection);
         initialWorldSetup = new ClientInitialWorldSetup(sessionLifecycle, worldSetup, synchronization, worldBaselineCapture, worldBaselineSubmission,
@@ -353,7 +349,7 @@ public sealed partial class ClashOfRimMod : Mod
         {
             CaptureServerCompatibilityManifest(response.ServerCompatibilityManifestJson);
             ApplyAdministratorFlag(response.IsAdministrator);
-            occupiedColonySites.Replace(response.WorldConfiguration);
+            occupiedColonySites.Replace(response.WorldConfiguration, colonyAppearance.ObserveServer);
         };
         observationMaps = new ClientObservationMaps(sessionLifecycle, synchronization, new ClientSnapshotGame(),
             new ClientObservationTransport(), new ClientObservationRuntime(),

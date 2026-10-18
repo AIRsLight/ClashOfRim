@@ -29,23 +29,29 @@ internal enum ClientColonyTargetKind { Reinforcement, Raid }
 internal sealed class ClientWorldMarkers
 {
     private readonly ClientSessionLifecycle session;
+    private readonly IClientWorldIdentity identity;
     private readonly ClientRequestTracker<string> cache;
     private readonly ClientOccupiedColonySites occupied;
     private readonly IClientWorldMarkersRuntime runtime;
     private readonly IClientWorldMarkersPresentation presentation;
     private ModWorldMapMarkerDeliveryDto? delivery;
     private long nextObservation, acceptedObservation;
+    private object observationEpoch = new();
 
     internal ClientWorldMarkers(ClientSessionLifecycle session, IClientWorldIdentity identity, ClientOccupiedColonySites occupied,
         IClientWorldMarkersRuntime runtime, IClientWorldMarkersPresentation presentation)
     {
-        this.session = session; this.occupied = occupied; this.runtime = runtime; this.presentation = presentation;
-        cache = new(session, () => identity.WorldId, id => id == identity.WorldId, () => { delivery = null; acceptedObservation = 0; });
+        this.session = session; this.identity = identity; this.occupied = occupied; this.runtime = runtime; this.presentation = presentation;
+        cache = new(session, () => identity.WorldId, id => id == identity.WorldId, () => delivery = null);
     }
     internal bool GiftsEnabled => cache.Read(() => delivery?.GiftsEnabled ?? true);
     internal bool PvpEnabled => cache.Read(() => delivery?.PvpEnabled ?? true);
     internal List<ModWorldMapMarkerDto> Snapshot => cache.Read(() => CopyMarkers(delivery));
-    internal void Reset() => cache.Reset();
+    internal void Reset()
+    {
+        using var p = ClientSessionWork.EnterPublication();
+        observationEpoch = new(); cache.Reset();
+    }
 
     internal void Observe(ModWorldMapMarkerDeliveryDto? source, bool immediately = false, string? reason = null)
         => Observe(CaptureObservation(), source, immediately, reason);
@@ -53,21 +59,33 @@ internal sealed class ClientWorldMarkers
     internal Observation CaptureObservation()
     {
         using var publication = ClientSessionWork.EnterPublication();
-        return new(cache.Capture(), runtime.Bind(), ++nextObservation);
+        return new(cache.Capture(), runtime.Bind(), ++nextObservation, observationEpoch);
     }
-    internal sealed record Observation(ClientRequestTracker<string>.Scope Scope, IClientWorldMarkersSession Runtime, long Number);
+    internal sealed record Observation(ClientRequestTracker<string>.Scope Scope, IClientWorldMarkersSession Runtime, long Number, object Epoch);
+
+    internal bool OwnsSession(Observation observation) => ReferenceEquals(observation.Epoch, observationEpoch)
+        && !session.IsUnavailable && observation.Runtime.IsCurrent && session.Owns(observation.Scope.Owner, observation.Scope.Context, false);
+    internal bool Owns(Observation observation) => OwnsSession(observation) && cache.TryApply(observation.Scope, static () => { });
+    internal bool HasNewerObservation(Observation observation) => acceptedObservation > observation.Number;
+    internal Observation? AdoptWorld(Observation observation, string world)
+    {
+        using var p = ClientSessionWork.EnterPublication();
+        if (!OwnsSession(observation) || identity.WorldId != world) return null;
+        return observation with { Scope = cache.Capture() };
+    }
 
     internal void Observe(Observation observation, ModWorldMapMarkerDeliveryDto? source, bool immediately = false, string? reason = null, Func<bool>? current = null)
     {
         using var publication = ClientSessionWork.EnterPublication();
         var scope = observation.Scope; var bound = observation.Runtime;
-        bool Owned() => (current?.Invoke() ?? true) && !session.IsUnavailable && bound.IsCurrent && cache.TryApply(scope, static () => { });
+        bool Owned() => Owns(observation);
         var captured = source is null ? new() : ClientProtocolJson.Copy(source);
         captured.Markers ??= new();
-        if (!Owned() || observation.Number <= acceptedObservation) return;
+        if (current?.Invoke() == false || !Owned() || observation.Number <= acceptedObservation) return;
         acceptedObservation = observation.Number;
         delivery = captured;
-        bool Current() => Owned() && ReferenceEquals(delivery, captured);
+        bool Cached() => Owned() && ReferenceEquals(delivery, captured);
+        bool Current() => current?.Invoke() != false && Cached();
         occupied.Merge(captured.Markers);
         if (!Current()) return;
         string label = string.IsNullOrWhiteSpace(reason) ? "unspecified" : reason!;
@@ -79,7 +97,9 @@ internal sealed class ClientWorldMarkers
         {
             using var p = ClientSessionWork.EnterPublication();
             if (consumed) return; consumed = true;
-            Project(scope, bound, captured, Current, label, updateStatus: true);
+            // Once accepted, queued engine work belongs to this cache revision,
+            // not the HTTP request that can finish before the queue is drained.
+            Project(scope, bound, captured, immediately ? Current : Cached, label, updateStatus: true);
         }
         if (immediately) Apply();
         else bound.Enqueue(Apply, () => consumed = true);

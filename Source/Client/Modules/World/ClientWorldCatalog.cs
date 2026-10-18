@@ -25,22 +25,23 @@ internal sealed class ClientWorldCatalog
     private readonly ClientRequestTracker<IClientWorldCatalogSession> requests;
     private readonly IClientWorldPreparationTransport transport;
     private readonly IClientWorldCatalogPresentation presentation;
-    private readonly ClientWorldConfiguration configuration;
+    private readonly ClientWorldPublication publication;
     internal event Action<string?>? CompatibilityAccepted;
     internal event Action<bool>? AdministratorObserved;
     internal event Action<ModWorldConfigurationDto?>? Applied;
     internal bool Busy => requests.Busy;
     internal ClientWorldCatalog(ClientSessionLifecycle session, IClientWorldCatalogRuntime runtime,
-        IClientWorldPreparationTransport transport, IClientWorldCatalogPresentation presentation, ClientWorldConfiguration configuration)
+        IClientWorldPreparationTransport transport, IClientWorldCatalogPresentation presentation, ClientWorldPublication publication)
     {
         requests = new(session, runtime.Bind, bound => bound.IsCurrent, static () => { });
-        this.transport = transport; this.presentation = presentation; this.configuration = configuration;
+        this.transport = transport; this.presentation = presentation; this.publication = publication;
     }
     internal Task RefreshAsync(string reason, bool generation = false)
         => RefreshAsync(requests.Begin(replace: true)!, reason, generation);
 
     private async Task RefreshAsync(ClientRequestTracker<IClientWorldCatalogSession>.Request request, string reason, bool generation)
     {
+        var observation = publication.Capture();
         bool Current() => requests.TryApply(request, static () => { });
         try
         {
@@ -76,9 +77,7 @@ internal sealed class ClientWorldCatalog
                         bool Step(Action action) => requests.TryApply(request, action) && Current();
                         if (!Step(() => CompatibilityAccepted?.Invoke(prepared.ServerCompatibilityManifestJson))) return;
                         if (!Step(() => AdministratorObserved?.Invoke(prepared.IsAdministrator))) return;
-                        if (world is not null && !(generation
-                            ? configuration.Apply(world, current: Current)
-                            : configuration.ApplyCatalog(world, applyStoryteller: true, current: Current))) return;
+                        if (!publication.Publish(observation, world, generation ? ClientWorldProjection.Full : ClientWorldProjection.Storyteller, Current)) return;
                         if (!Step(() => Applied?.Invoke(world))) return;
                         if (world is null) Report(request, () => presentation.Text("ClashOfRim.WorldCatalog.StatusNoConfiguration"));
                         else

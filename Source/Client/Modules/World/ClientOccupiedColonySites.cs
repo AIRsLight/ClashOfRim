@@ -43,12 +43,12 @@ internal sealed class ClientOccupiedColonySites
         updates.Reset(); cache.Reset();
     }
 
-    internal void Replace(ModWorldConfigurationDto? source)
+    internal void Replace(ModWorldConfigurationDto? source, Action<ModColonyAppearanceDto?>? observe = null, Func<bool>? current = null, bool remember = true)
     {
         using var publication = ClientSessionWork.EnterPublication();
         var request = updates.Begin(replace: true)!;
         var scope = cache.Capture(); var bound = runtime.Bind();
-        bool Current() => !session.IsUnavailable && bound.IsCurrent
+        bool Current() => current?.Invoke() != false && !session.IsUnavailable && bound.IsCurrent
             && updates.TryApply(request, static () => { }) && cache.TryApply(scope, static () => { });
         try
         {
@@ -57,9 +57,9 @@ internal sealed class ClientOccupiedColonySites
                 .Where(site => site.Tile >= 0).ToArray();
             if (!Current()) return;
             string expectedWorld = string.IsNullOrWhiteSpace(worldId) ? scope.Boundary : worldId!.Trim();
-            configuration.Remember(new ModWorldConfigurationDto { WorldConfigurationId = worldId ?? string.Empty });
+            if (remember) configuration.Remember(new ModWorldConfigurationDto { WorldConfigurationId = worldId ?? string.Empty });
             // Remember may persist a new world ID or invoke reentrant application code.
-            if (session.IsUnavailable || !bound.IsCurrent || !updates.TryApply(request, static () => { }) || identity.WorldId != expectedWorld) return;
+            if (current?.Invoke() == false || session.IsUnavailable || !bound.IsCurrent || !updates.TryApply(request, static () => { }) || identity.WorldId != expectedWorld) return;
             scope = cache.Capture();
             var replacement = new Dictionary<(int, int), ModPlayerColonySiteDto>();
             foreach (var site in incoming) replacement[(site.Tile, site.TileLayerId)] = site;
@@ -69,10 +69,12 @@ internal sealed class ClientOccupiedColonySites
             {
                 if (site.UserId == request.Context.UserId && site.ColonyId == request.Context.ColonyId)
                 {
-                    foreach (Action<ModColonyAppearanceDto?> observe in OwnAppearanceObserved?.GetInvocationList() ?? Array.Empty<Delegate>())
+                    if (!Current()) return;
+                    observe?.Invoke(site.Appearance is null ? null : ClientProtocolJson.Copy(site.Appearance));
+                    foreach (Action<ModColonyAppearanceDto?> handler in OwnAppearanceObserved?.GetInvocationList() ?? Array.Empty<Delegate>())
                     {
                         if (!Current()) return;
-                        observe(site.Appearance is null ? null : ClientProtocolJson.Copy(site.Appearance));
+                        handler(site.Appearance is null ? null : ClientProtocolJson.Copy(site.Appearance));
                     }
                 }
             }

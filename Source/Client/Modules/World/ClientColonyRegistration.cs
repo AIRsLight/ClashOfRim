@@ -34,8 +34,7 @@ internal sealed class ClientColonyRegistration
     private readonly IClientWorldIdentity identity;
     private readonly ClientLocalMutationCoordinator mutations;
     private readonly IClientColonyRegistrationTransport transport;
-    private readonly ClientWorldConfiguration configuration;
-    private readonly ClientOccupiedColonySites occupied;
+    private readonly ClientWorldPublication publication;
     private readonly string?[] accepted = new string?[2];
     private readonly object[] revisions = { new(), new() };
     private readonly Pending?[] pending = new Pending?[2];
@@ -44,9 +43,9 @@ internal sealed class ClientColonyRegistration
     internal event Action<ModWorldMapMarkerDeliveryDto?, string>? MarkersAccepted;
     internal event Action<string, bool>? Diagnostic;
     internal ClientColonyRegistration(ClientSessionLifecycle session, IClientWorldIdentity identity, ClientLocalMutationCoordinator mutations,
-        IClientColonyRegistrationRuntime runtime, IClientColonyRegistrationTransport transport, ClientWorldConfiguration configuration, ClientOccupiedColonySites occupied)
+        IClientColonyRegistrationRuntime runtime, IClientColonyRegistrationTransport transport, ClientWorldPublication publication)
     {
-        this.session = session; this.identity = identity; this.mutations = mutations; this.transport = transport; this.configuration = configuration; this.occupied = occupied;
+        this.session = session; this.identity = identity; this.mutations = mutations; this.transport = transport; this.publication = publication;
         requests = new(session, () => new(runtime.Bind(), identity.WorldId), bound => bound.Runtime.IsCurrent
             && (identity.WorldId == bound.WorldId || identity.WorldId == bound.PublishingWorldId), Clear);
     }
@@ -111,6 +110,7 @@ internal sealed class ClientColonyRegistration
     private async Task ExecuteAsync(ClientRequestTracker<Boundary>.Request request, Pending input)
     {
         var scope = request.Scope; var bound = scope.Boundary; var runtime = bound.Runtime; var context = request.Context;
+        var observation = publication.Capture();
         object siteRevision = revisions[0], extensionRevision = revisions[1];
         bool Current()
         {
@@ -151,16 +151,15 @@ internal sealed class ClientColonyRegistration
                     {
                         if (consumed || !Ready()) return; consumed = true;
                         string world = string.IsNullOrWhiteSpace(response.WorldConfiguration?.WorldConfigurationId) ? bound.WorldId : response.WorldConfiguration!.WorldConfigurationId.Trim();
+                        string source = input.Kind == ClientColonyRegistrationKind.Sites ? "player-colony-site-registration" : "world-configuration-extension-sync";
                         bound.PublishingWorldId = world;
                         try
                         {
-                            if (response.WorldConfiguration is not null && !configuration.ApplyCatalog(response.WorldConfiguration, current: Ready)) return;
+                            if (!publication.Publish(observation, response.WorldConfiguration, ClientWorldProjection.Catalog, Ready, (source, response.WorldMapMarkers))) return;
                             if (identity.WorldId != world) return;
                             if (bound.WorldId != world) { accepted[0] = accepted[1] = null; bound.WorldId = world; }
                         }
                         finally { bound.PublishingWorldId = null; }
-                        if (!Step(() => occupied.Replace(response.WorldConfiguration))) return;
-                        string source = input.Kind == ClientColonyRegistrationKind.Sites ? "player-colony-site-registration" : "world-configuration-extension-sync";
                         foreach (Action<ModWorldMapMarkerDeliveryDto?, string> handler in MarkersAccepted?.GetInvocationList() ?? Array.Empty<Delegate>())
                             if (!Step(() => handler(response.WorldMapMarkers is null ? null : ClientProtocolJson.Copy(response.WorldMapMarkers), source))) return;
                         if (input.Kind == ClientColonyRegistrationKind.Sites && ReferenceEquals(revisions[0], siteRevision)) accepted[0] = siteSignature;

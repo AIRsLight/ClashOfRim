@@ -22,7 +22,7 @@ internal sealed class ClientColonyRelocation
     private readonly ClientSnapshotUploader uploader;
     private readonly ClientSnapshotFailureRecovery recovery;
     private readonly ClientColonyRegistration registration;
-    private readonly ClientOccupiedColonySites occupied;
+    private readonly ClientWorldPublication publication;
     private readonly IClientColonyRelocationTransport transport;
     private readonly IClientColonyRelocationPresentation view;
     private Job? active;
@@ -32,11 +32,11 @@ internal sealed class ClientColonyRelocation
     internal ClientColonyRelocation(ClientSessionLifecycle session, IClientWorldIdentity identity, IClientWorldCatalogRuntime runtime,
         ClientSnapshotMutationAdmission admission, ClientSynchronizationCoordinator synchronization, ClientLocalMutationCoordinator mutations,
         ClientSnapshotTransaction transactions, ClientSnapshotUploader uploader, ClientSnapshotFailureRecovery recovery,
-        ClientColonyRegistration registration, ClientOccupiedColonySites occupied, IClientColonyRelocationTransport transport, IClientColonyRelocationPresentation view)
+        ClientColonyRegistration registration, ClientWorldPublication publication, IClientColonyRelocationTransport transport, IClientColonyRelocationPresentation view)
     {
         this.session = session; this.admission = admission; this.synchronization = synchronization; this.mutations = mutations;
         this.transactions = transactions; this.uploader = uploader; this.recovery = recovery; this.registration = registration;
-        this.occupied = occupied; this.transport = transport; this.view = view;
+        this.publication = publication; this.transport = transport; this.view = view;
         requests = new(session, () => new(runtime.Bind(), identity.WorldId), boundary => boundary.Runtime.IsCurrent
             && (identity.WorldId == boundary.WorldId || identity.WorldId == boundary.PublishingWorldId), () => active = null);
     }
@@ -201,7 +201,12 @@ internal sealed class ClientColonyRelocation
             }
             if (!Current(job) || job.Stage != Stage.Confirm) return;
             bool valid = false;
-            await Publish(job, () => valid = CheckAnchor(job) && Status(job, "StatusConfirming")).ConfigureAwait(false);
+            ClientWorldPublication.Observation? observation = null;
+            await Publish(job, () =>
+            {
+                valid = CheckAnchor(job) && Status(job, "StatusConfirming");
+                if (valid) observation = publication.Capture();
+            }).ConfigureAwait(false);
             if (!valid || !Current(job)) return;
             var confirmed = await transport.ConfirmAsync(job.Attempt.Context, job.Base, job.Relocated!, job.Tile, job.Key, job.Layer, job.Attempt.Owner.Token).ConfigureAwait(false);
             if (!Current(job)) return;
@@ -217,7 +222,8 @@ internal sealed class ClientColonyRelocation
             {
                 if (!CheckAnchor(job)) return;
                 job.Request.Scope.Boundary.PublishingWorldId = accepted.WorldConfiguration?.WorldConfigurationId?.Trim();
-                if (!Step(job, () => occupied.Replace(accepted.WorldConfiguration))) return;
+                if (!publication.Publish(observation!, accepted.WorldConfiguration, ClientWorldProjection.Sites, () => Current(job),
+                    ("colony-relocation", accepted.WorldMapMarkers))) return;
                 foreach (Action<ModWorldMapMarkerDeliveryDto?> handler in MarkersAccepted?.GetInvocationList() ?? Array.Empty<Delegate>())
                     if (!Step(job, () => handler(ClientProtocolJson.Copy(accepted.WorldMapMarkers)))) return;
                 if (!Step(job, () => registration.Invalidate(ClientColonyRegistrationKind.Sites))

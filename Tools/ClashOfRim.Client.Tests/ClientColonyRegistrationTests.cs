@@ -24,7 +24,7 @@ internal static class ClientColonyRegistrationTests
                 CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(name); Signatures();
                 foreach (var kind in Enum.GetValues<ClientColonyRegistrationKind>())
                 {
-                    await Basic(kind); await FailureRetry(kind); await ForcedRefresh(kind); await QueueSemantics(kind); await Replacement(kind); await ReceiptLifetime(kind);
+                    await Basic(kind); await FailureRetry(kind); await ForcedRefresh(kind); await QueueSemantics(kind); await Replacement(kind); await ReceiptLifetime(kind); await DelayedPublication(kind);
                     foreach (string change in Changes)
                         foreach (string stage in new[] { "extensions", "network", "queued", "project", "markers" }) await Ownership(kind, stage, change);
                     foreach (string gate in new[] { "config", "session", "snapshot", "playing", "remote", "world", "objects", "colony-context", "collectors", "suppressed", "mutation", "restore" }) await Admission(kind, gate);
@@ -188,6 +188,25 @@ internal static class ClientColonyRegistrationTests
             Check(f.Markers == (fault is null ? 1 : 0), "HTTP completion did not preserve game-thread publication."); scenarios++;
         }
     }
+    private static async Task DelayedPublication(ClientColonyRegistrationKind kind)
+    {
+        foreach (bool newerSource in new[] { false, true })
+        {
+            var f = new Fixture(); var delay = new ClientWorldPublicationTestPorts.DelayedReply();
+            f.BeforeReply = delay.Wait;
+            f.Response.WorldConfiguration = ClientWorldPublicationTests.Data("old", f.WorldId);
+            var task = f.Registration.StartAsync(kind);
+            await delay.Complete(f.Ports, task, () =>
+            {
+                f.Publication.Appearance.SaveCurrent(ClientWorldPublicationTests.Selection("local"));
+                if (newerSource) f.Publication.Flow.Publish(f.Publication.Flow.Capture(), ClientWorldPublicationTests.Data("new", f.WorldId),
+                    ClientWorldProjection.Sites, () => true, ("newer-source", ClientWorldPublicationTests.Markers("new")));
+            });
+            Check(f.Publication.Appearance.Read().ColorHex == (newerSource ? "new" : "local"), "Delayed registration overwrote a newer appearance.");
+            Check(!f.Registration.Busy && (!newerSource || f.Publication.Markers.Snapshot.Single().Label == "new"), "Delayed registration replaced newer markers or retained admission.");
+            scenarios++;
+        }
+    }
     private static ModPlayerColonySiteDto Site() => new() { Tile = 10, UserId = "remote", ColonyId = "colony", Label = "original", Appearance = new() { ColorHex = "#123456" } };
     private static TaskCompletionSource NewSignal() => new(TaskCreationOptions.RunContinuationsAsynchronously);
     private static void Check(bool value, string message) { if (!value) throw new InvalidOperationException(message); }
@@ -200,11 +219,13 @@ internal static class ClientColonyRegistrationTests
         internal readonly ClientLocalMutationCoordinator Mutations = new();
         internal readonly ClientColonyRegistration Registration;
         internal readonly ClientOccupiedColonySites Occupied;
+        internal readonly ClientWorldPublicationTestPorts Publication;
         internal readonly List<ModPlayerColonySiteDto> Sites = new() { Site() };
         internal readonly List<ModWorldConfigurationExtensionDto> Extensions = new() { new() { ProviderId = "provider", Kind = "ideo", SchemaVersion = "1", PayloadJson = "{\"name\":\"文化 İ\"}" } };
         internal readonly List<Call> Calls = new();
         internal readonly TaskCompletionSource Entered = NewSignal();
         internal TaskCompletionSource? Hold;
+        internal Func<Task>? BeforeReply;
         internal string? Fault;
         internal bool Playing = true, HasWorld = true, HasObjects = true, HasColony = true, HasCollectors = true, ReadFacts = true, Remote, DuplicateQueue, DiscardQueue;
         internal object World = new();
@@ -226,7 +247,8 @@ internal static class ClientColonyRegistrationTests
             ClientSessionWork.Reset(); Session = new(Ports, Ports, new(Ports)); Session.PublishLogin(new() { AuthenticatedUserId = "alice", AuthToken = "auth", SessionId = "session" });
             var configuration = new ClientWorldConfiguration(Session, this, this, null!, null!);
             Occupied = new(Session, this, this, configuration);
-            Registration = new(Session, this, Mutations, this, this, configuration, Occupied);
+            Publication = new(Session, Ports, () => WorldId, () => World, configuration, Occupied);
+            Registration = new(Session, this, Mutations, this, this, Publication.Flow);
             Registration.MarkersAccepted += (markers, _) => { Markers++; LastMarkerLabel = markers?.Markers.FirstOrDefault()?.Label; Hook?.Invoke("markers"); };
             Registration.MarkersAccepted += (_, _) => AfterMarkers++;
         }
@@ -240,6 +262,7 @@ internal static class ClientColonyRegistrationTests
         {
             Calls.Add(new(context, ClientProtocolJson.Copy(sites.ToArray()), ClientProtocolJson.Copy(extensions!.ToArray()), suppressNotification));
             Entered.TrySetResult(); if (Calls.Count == 1 && Hold is not null) await Hold.Task;
+            if (BeforeReply is not null) await BeforeReply();
             Hook?.Invoke("network");
             return Fault switch
             {

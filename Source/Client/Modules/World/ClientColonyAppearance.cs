@@ -33,6 +33,7 @@ internal sealed class ClientColonyAppearance
     private readonly IClientColonyAppearanceStore store;
     private readonly IClientColonyAppearancePresentation view;
     private object? unpersisted;
+    private object editRevision = new();
     internal event Action<ModColonyAppearanceDto?, string>? RegistrationRequested;
     internal ClientColonyAppearance(ClientSessionLifecycle session, IClientColonyAppearanceStore store, IClientColonyAppearancePresentation view)
     {
@@ -81,6 +82,9 @@ internal sealed class ClientColonyAppearance
         bool Step(Action action) { if (!Current()) return false; action(); return Current(); }
         try
         {
+            if (!Current()) return;
+            // Even an explicit reset or saving the same value is a new local intent.
+            editRevision = new();
             if (!Store(scope, selection, Current)) return;
             string reason = "";
             if (!Step(() => reason = view.Text("ClashOfRim.ColonyAppearance.RegistrationReason"))) return;
@@ -95,12 +99,31 @@ internal sealed class ClientColonyAppearance
     // The publishing source is responsible for validating its server receipt.
     // Empty server appearance preserves the existing local preference, as before.
     internal void ObserveServer(ModColonyAppearanceDto? appearance)
+        => ObserveServer(CaptureObservation(), appearance);
+
+    internal sealed record Observation(ClientRequestTracker<string>.Scope Scope, ClientColonyAppearanceAccount Account, object Revision);
+    internal Observation CaptureObservation()
+    {
+        using var p = ClientSessionWork.EnterPublication();
+        return new(scopes.Capture(), store.ReadAccount(), editRevision);
+    }
+    // Only a validated publication that itself changed the server world may rebind.
+    internal Observation? AdoptWorld(Observation observation, string world)
+    {
+        using var p = ClientSessionWork.EnterPublication();
+        if (!ReferenceEquals(editRevision, observation.Revision) || !session.Owns(observation.Scope.Owner, observation.Scope.Context, false)
+            || ClientColonyAppearanceCodec.AccountKey(observation.Account with { World = world }) != ClientColonyAppearanceCodec.AccountKey(store.ReadAccount())) return null;
+        return observation with { Scope = scopes.Capture(), Account = store.ReadAccount() };
+    }
+    internal void ObserveServer(Observation observation, ModColonyAppearanceDto? appearance, Func<bool>? current = null)
     {
         using var p = ClientSessionWork.EnterPublication();
         var selection = ColonyAppearanceSelection.FromDto(appearance);
-        if (!selection.HasAny) return;
-        var request = scopes.Begin(replace: true)!; var scope = request.Scope;
-        try { Store(scope, selection, () => scope.Boundary.Length != 0 && !session.IsUnavailable && scopes.TryApply(request, static () => { })); }
+        bool Owned() => ReferenceEquals(editRevision, observation.Revision) && current?.Invoke() != false
+            && !session.IsUnavailable && scopes.TryApply(observation.Scope, static () => { });
+        if (!selection.HasAny || !Owned()) return;
+        var request = scopes.Begin(replace: true)!; var scope = observation.Scope;
+        try { Store(scope, selection, () => scope.Boundary.Length != 0 && Owned() && scopes.TryApply(request, static () => { })); }
         finally { scopes.End(request); }
     }
     private bool Store(ClientRequestTracker<string>.Scope scope, ColonyAppearanceSelection selection, Func<bool> current)

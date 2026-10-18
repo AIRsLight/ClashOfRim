@@ -29,18 +29,19 @@ internal sealed class ClientWorldWrites
     private readonly ClientWorldBaselineCapture capture;
     private readonly ClientWorldBaselineSubmission submission;
     private readonly ClientStorytellerConfiguration storyteller;
-    private readonly ClientWorldConfiguration configuration;
+    private readonly ClientWorldPublication publication;
     private readonly IClientWorldWriteRuntime runtime;
     private readonly IClientWorldWritePresentation presentation;
     internal event Action<ModWorldConfigurationDto>? Applied;
     internal event Action? BaselineUpdated;
     internal ClientWorldWrites(ClientSessionLifecycle session, ClientAdminAccess access, ClientWorldBaselineCapture capture,
-        ClientWorldBaselineSubmission submission, ClientStorytellerConfiguration storyteller, ClientWorldConfiguration configuration,
+        ClientWorldBaselineSubmission submission, ClientStorytellerConfiguration storyteller, ClientWorldPublication publication,
         IClientWorldWriteRuntime runtime, IClientWorldWritePresentation presentation)
-    { this.session = session; this.access = access; this.capture = capture; this.submission = submission; this.storyteller = storyteller; this.configuration = configuration; this.runtime = runtime; this.presentation = presentation; }
+    { this.session = session; this.access = access; this.capture = capture; this.submission = submission; this.storyteller = storyteller; this.publication = publication; this.runtime = runtime; this.presentation = presentation; }
 
     internal async Task StartAsync(ClientWorldWriteKind kind, ModColonyAppearanceDto? appearance, string? initialSignature = null)
     {
+        var observation = publication.Capture();
         bool story = kind == ClientWorldWriteKind.Storyteller;
         var source = submission.Capture();
         if (story && (!source.Context.IsConfigured || string.IsNullOrWhiteSpace(source.Context.CurrentSnapshotId)
@@ -124,7 +125,7 @@ internal sealed class ClientWorldWrites
                 {
                     if (accepted is not null)
                     {
-                        if (!(story ? configuration.ApplyCatalog(accepted, applyStoryteller: true, current: Current) : configuration.Apply(accepted, current: Current))) return;
+                        if (!publication.Publish(observation, accepted, story ? ClientWorldProjection.Storyteller : ClientWorldProjection.Full, Current)) return;
                         if (!Step(() => Applied?.Invoke(accepted))) return;
                     }
                     if (story) Notice("ClashOfRim.Storyteller.AdminSynced", ClientWorldWriteMessage.Success,

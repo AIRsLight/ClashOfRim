@@ -25,6 +25,7 @@ internal static class ClientWorldWritesTests
                 foreach (var kind in Enum.GetValues<ClientWorldWriteKind>())
                 {
                     await Success(kind); count++;
+                    await DelayedPublication(kind); count++;
                     if (kind == ClientWorldWriteKind.Storyteller)
                         foreach (string phase in new[] { "source", "metadata", "upload", "queue", "apply-extensions" })
                         { await Ownership(kind, "observation", phase); count++; }
@@ -48,6 +49,24 @@ internal static class ClientWorldWritesTests
         }
         finally { CultureInfo.CurrentCulture = culture; ClientSessionWork.Reset(); }
         Console.WriteLine($"PASS: administrator admission and world writes ({count} scenarios)");
+    }
+    private static async Task DelayedPublication(ClientWorldWriteKind kind)
+    {
+        foreach (bool newerSource in new[] { false, true })
+        {
+            var f = new Fixture(kind); var delay = new ClientWorldPublicationTestPorts.DelayedReply();
+            f.Accepted = Config(); f.Accepted.PlayerColonySites = ClientWorldPublicationTests.Data("old").PlayerColonySites;
+            f.Before = phase => phase == "metadata" ? delay.Wait() : Task.CompletedTask;
+            var task = f.Start();
+            await delay.Complete(f.Ports, task, () =>
+            {
+                f.Publication.Appearance.SaveCurrent(ClientWorldPublicationTests.Selection("local"));
+                if (newerSource) f.Publication.Flow.Publish(f.Publication.Flow.Capture(), ClientWorldPublicationTests.Data("new", f.WorldId),
+                    ClientWorldProjection.Sites, () => true, ("newer-source", ClientWorldPublicationTests.Markers("new")));
+            });
+            Check(f.Publication.Appearance.Read().ColorHex == (newerSource ? "new" : "local") && f.Successes == 1, "Delayed write replaced newer preference or lost successful completion.");
+            if (newerSource) Check(f.Publication.Sites.IsBlocked(4, 7, out var site) && site!.Label == "new", "Old write replaced newer sites.");
+        }
     }
     private static void Admission()
     {
@@ -183,10 +202,13 @@ internal static class ClientWorldWritesTests
     {
         internal readonly EventModuleTestPorts Ports = new(); internal readonly ClientSessionLifecycle Session; internal readonly ClientAdminAccess Access;
         internal readonly ClientWorldWrites Module; internal readonly ClientWorldWriteKind Kind;
+        internal readonly ClientWorldPublicationTestPorts Publication;
+        internal string WorldId = "world";
         internal object World = new(); internal bool HasWorld = true, Observing, DiscardQueue, InvalidSource, NoAcceptedConfiguration;
         internal readonly ConcurrentQueue<string> Trace = new(), Calls = new(), Statuses = new(), Diagnostics = new();
         internal readonly ConcurrentQueue<ClashOfRimClientNetworkContext> Contexts = new();
         internal readonly List<ModWorldConfigurationDto> Applied = new();
+        internal ModWorldConfigurationDto? Accepted;
         internal ModWorldConfigurationDto? Sent; internal int Successes, Rejections, Markers, Captures;
         internal string? FaultPhase, Fault, CaptureError; internal Action<string>? Hook; internal Func<string, Task>? Before;
         internal Fixture(ClientWorldWriteKind kind)
@@ -196,8 +218,9 @@ internal static class ClientWorldWritesTests
             Access = new(Session); Access.SetAdministrator(true);
             var storyteller = new ClientStorytellerConfiguration(Session, new(Session), this);
             var submission = new ClientWorldBaselineSubmission(Session, this, this);
-            Module = new(Session, Access, new(submission, storyteller), submission, storyteller,
-                new ClientWorldConfiguration(Session, this, this, storyteller, new(Session, this)), this, this);
+            var configuration = new ClientWorldConfiguration(Session, this, this, storyteller, new(Session, this));
+            Publication = new(Session, Ports, () => WorldId, () => World, configuration);
+            Module = new(Session, Access, new(submission, storyteller), submission, storyteller, Publication.Flow, this, this);
             Module.Applied += configuration => { Applied.Add(configuration); Step("sites"); };
             Module.BaselineUpdated += () => { Markers++; Step("markers"); };
         }
@@ -224,7 +247,7 @@ internal static class ClientWorldWritesTests
         public void Diagnose(string message) => Diagnostics.Enqueue(message);
         public void Message(string text, ClientWorldWriteMessage kind)
         { if (kind == ClientWorldWriteMessage.Success) { Successes++; Step("message"); } if (kind == ClientWorldWriteMessage.Reject) Rejections++; }
-        public void Remember(string id) => Step("remember");
+        public void Remember(string id) { WorldId = id; Step("remember"); }
         IClientWorldBaselineSession IClientWorldBaselineRuntime.Bind() => new Bound(this, Ports.GameOwner, World);
         IClientStorytellerSession IClientStorytellerRuntime.Bind() => new Bound(this, Ports.GameOwner, World);
         IClientWorldConfigurationSession IClientWorldConfigurationRuntime.Bind() => new Bound(this, Ports.GameOwner, World);
@@ -233,7 +256,7 @@ internal static class ClientWorldWritesTests
         public async Task<ClashOfRimClientNetworkResult<ModSubmitWorldConfigurationResponseDto>> SubmitAsync(ClashOfRimClientNetworkContext context, ModWorldConfigurationDto configuration, CancellationToken token)
         {
             Sent = configuration; string? fault = await Network("metadata", context);
-            return Result(fault, new ModSubmitWorldConfigurationResponseDto { Result = Protocol(fault), WorldConfiguration = NoAcceptedConfiguration ? null : Config() });
+            return Result(fault, new ModSubmitWorldConfigurationResponseDto { Result = Protocol(fault), WorldConfiguration = NoAcceptedConfiguration ? null : Accepted ?? Config() });
         }
         public async Task<ClashOfRimClientNetworkResult<ModUploadWorldSubstrateResponseDto>> UploadAsync(ClashOfRimClientNetworkContext context, string worldId, byte[] payload, CancellationToken token)
         { string? fault = await Network("upload", context); return Result(fault, new ModUploadWorldSubstrateResponseDto { Result = Protocol(fault) }); }
