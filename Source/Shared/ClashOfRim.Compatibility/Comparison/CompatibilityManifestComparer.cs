@@ -1,3 +1,5 @@
+using static AIRsLight.ClashOfRim.Compatibility.CompatibilityManifestRules;
+
 namespace AIRsLight.ClashOfRim.Compatibility;
 
 public static class CompatibilityManifestComparer
@@ -15,89 +17,38 @@ public static class CompatibilityManifestComparer
         var issues = new List<CompatibilityIssue>();
         options ??= CompatibilityComparisonOptions.Default;
 
-        CompareScalar(issues, server.SchemaVersion, client.SchemaVersion, CompatibilityIssueCode.SchemaVersionMismatch, "Manifest schema version mismatch", "schemaVersion");
-        CompareScalar(issues, server.ProtocolVersion, client.ProtocolVersion, CompatibilityIssueCode.ProtocolVersionMismatch, "Protocol version mismatch", "protocolVersion");
-        CompareScalar(issues, server.RimWorldVersion, client.RimWorldVersion, CompatibilityIssueCode.RimWorldVersionMismatch, "RimWorld version mismatch", "rimWorldVersion");
-        CompareSequence(issues, server.DlcIds, client.DlcIds, CompatibilityIssueCode.DlcListMismatch, "Enabled DLC list mismatch", "dlcIds");
+        CompareHeader(issues, server, client);
         CompareMods(issues, server.Mods, client.Mods, options);
         CompareDefSummaries(issues, server.DefSummaries, client.DefSummaries);
 
         return new CompatibilityComparisonResult(issues);
     }
 
-    private static void CompareMods(
-        List<CompatibilityIssue> issues,
-        IReadOnlyList<ModManifestEntry> serverMods,
-        IReadOnlyList<ModManifestEntry> clientMods,
+    private static void CompareMods(List<CompatibilityIssue> issues, IReadOnlyList<ModManifestEntry> serverMods,
+        IReadOnlyList<ModManifestEntry> clientMods, CompatibilityComparisonOptions options)
+        => CompatibilityModSetComparison.Compare(issues, serverMods, clientMods,
+            mod => options.AllowExtraPureTranslationMods && ModFileClassifier.IsPureTranslationMod(mod),
+            (server, client) => { CompareModFiles(issues, server, client); CompareModConfigs(issues, server, client, options); },
+            mod => issues.Add(new(CompatibilityIssueSeverity.Info, CompatibilityIssueCode.AllowedPureTranslationMod,
+                $"Allowed extra pure translation mod: {mod.PackageId}", mod.PackageId)));
+
+    // Compare only details requested by the summary exchange. The caller owns selection;
+    // unknown packages remain rejected and common metadata is checked once per response.
+    internal static CompatibilityComparisonResult CompareSelected(CompatibilityManifest server, CompatibilityManifest client,
         CompatibilityComparisonOptions options)
     {
-        var serverById = serverMods.ToDictionary(mod => NormalizeId(mod.PackageId), mod => mod);
-        var clientById = clientMods.ToDictionary(mod => NormalizeId(mod.PackageId), mod => mod);
-
-        foreach (ModManifestEntry serverMod in serverMods.OrderBy(mod => mod.LoadOrder))
+        var issues = new List<CompatibilityIssue>();
+        CompareHeader(issues, server, client);
+        var byId = server.Mods.ToDictionary(mod => NormalizeId(mod.PackageId));
+        foreach (var mod in client.Mods)
         {
-            if (!clientById.TryGetValue(NormalizeId(serverMod.PackageId), out ModManifestEntry? clientMod))
-            {
-                if (serverMod.Role is ModCompatibilityRole.Optional or ModCompatibilityRole.OptionalPureTranslation)
-                {
-                    issues.Add(new CompatibilityIssue(
-                        CompatibilityIssueSeverity.Info,
-                        CompatibilityIssueCode.MissingMod,
-                        $"Optional mod not installed: {serverMod.PackageId}",
-                        serverMod.PackageId));
-                    continue;
-                }
-
-                issues.Add(Error(CompatibilityIssueCode.MissingMod, $"Missing required mod: {serverMod.PackageId}", serverMod.PackageId));
-                continue;
-            }
-
-            CompareModFiles(issues, serverMod, clientMod);
-            CompareModConfigs(issues, serverMod, clientMod, options);
+            if (!byId.TryGetValue(NormalizeId(mod.PackageId), out var baseline))
+            { issues.Add(Error(CompatibilityIssueCode.UnexpectedMod, $"Unexpected unapproved mod: {mod.PackageId}", mod.PackageId)); continue; }
+            CompareModFiles(issues, baseline, mod);
+            CompareModConfigs(issues, baseline, mod, options);
         }
-
-        foreach (ModManifestEntry clientMod in clientMods)
-        {
-            if (serverById.ContainsKey(NormalizeId(clientMod.PackageId)))
-            {
-                continue;
-            }
-
-            if (options.AllowExtraPureTranslationMods && ModFileClassifier.IsPureTranslationMod(clientMod))
-            {
-                issues.Add(new CompatibilityIssue(
-                    CompatibilityIssueSeverity.Info,
-                    CompatibilityIssueCode.AllowedPureTranslationMod,
-                    $"Allowed extra pure translation mod: {clientMod.PackageId}",
-                    clientMod.PackageId));
-            }
-            else
-            {
-                issues.Add(Error(CompatibilityIssueCode.UnexpectedMod, $"Unexpected unapproved mod: {clientMod.PackageId}", clientMod.PackageId));
-            }
-        }
-
-        var serverOrder = serverMods
-            .Where(mod => clientById.ContainsKey(NormalizeId(mod.PackageId))
-                || mod.Role == ModCompatibilityRole.Required)
-            .OrderBy(mod => mod.LoadOrder)
-            .Select(mod => NormalizeId(mod.PackageId))
-            .ToArray();
-        var clientOrder = clientMods
-            .Where(mod => serverById.ContainsKey(NormalizeId(mod.PackageId))
-                || !options.AllowExtraPureTranslationMods
-                || !ModFileClassifier.IsPureTranslationMod(mod))
-            .OrderBy(mod => mod.LoadOrder)
-            .Select(mod => NormalizeId(mod.PackageId))
-            .ToArray();
-
-        if (!serverOrder.SequenceEqual(clientOrder))
-        {
-            issues.Add(Error(
-                CompatibilityIssueCode.ModOrderMismatch,
-                "Mod load order mismatch, or an unapproved non-translation mod is present",
-                "mods"));
-        }
+        CompareDefSummaries(issues, server.DefSummaries, client.DefSummaries);
+        return new(issues);
     }
 
     private static void CompareModFiles(List<CompatibilityIssue> issues, ModManifestEntry serverMod, ModManifestEntry clientMod)
@@ -174,46 +125,6 @@ public static class CompatibilityManifestComparer
         // its baseline and should not reject or delete unrelated local files.
     }
 
-    private static void CompareDefSummaries(List<CompatibilityIssue> issues, IReadOnlyList<DefSummary> serverDefs, IReadOnlyList<DefSummary> clientDefs)
-    {
-        var serverByName = serverDefs.ToDictionary(def => def.Name, StringComparer.OrdinalIgnoreCase);
-        var clientByName = clientDefs.ToDictionary(def => def.Name, StringComparer.OrdinalIgnoreCase);
-
-        foreach (KeyValuePair<string, DefSummary> serverDefPair in serverByName)
-        {
-            string name = serverDefPair.Key;
-            DefSummary serverDef = serverDefPair.Value;
-            if (!clientByName.TryGetValue(name, out DefSummary? clientDef))
-            {
-                issues.Add(Error(CompatibilityIssueCode.DefSummaryMissing, $"Missing Def summary: {name}", name));
-                continue;
-            }
-
-            if (serverDef.Count != clientDef.Count)
-            {
-                issues.Add(Error(CompatibilityIssueCode.DefSummaryCountMismatch, $"Def count mismatch: {name}", name));
-            }
-
-            if (serverDef.Hash != clientDef.Hash)
-            {
-                issues.Add(Error(CompatibilityIssueCode.DefSummaryHashMismatch, $"Def aggregate hash mismatch: {name}", name));
-            }
-        }
-
-        foreach (string name in clientByName.Keys.Except(serverByName.Keys, StringComparer.OrdinalIgnoreCase))
-        {
-            issues.Add(Error(CompatibilityIssueCode.DefSummaryUnexpected, $"Client has unapproved Def summary: {name}", name));
-        }
-    }
-
-    private static void CompareScalar<T>(List<CompatibilityIssue> issues, T server, T client, CompatibilityIssueCode code, string message, string subject)
-    {
-        if (!EqualityComparer<T>.Default.Equals(server, client))
-        {
-            issues.Add(Error(code, message, subject));
-        }
-    }
-
     public static void CompareGameLanguage(List<CompatibilityIssue> issues, string? server, string? client)
     {
         string serverLanguage = NormalizeLanguage(server);
@@ -230,26 +141,6 @@ public static class CompatibilityManifestComparer
             CompatibilityIssueCode.GameLanguageMismatch,
             $"Game language mismatch: server={server}, client={client}",
             "gameLanguage"));
-    }
-
-    private static void CompareSequence(List<CompatibilityIssue> issues, IReadOnlyList<string> server, IReadOnlyList<string> client, CompatibilityIssueCode code, string message, string subject)
-    {
-        string[] serverValues = server.Select(NormalizeId).ToArray();
-        string[] clientValues = client.Select(NormalizeId).ToArray();
-        if (!serverValues.SequenceEqual(clientValues))
-        {
-            issues.Add(Error(code, message, subject));
-        }
-    }
-
-    private static CompatibilityIssue Error(CompatibilityIssueCode code, string message, string? subject)
-    {
-        return new CompatibilityIssue(CompatibilityIssueSeverity.Error, code, message, subject);
-    }
-
-    private static string NormalizeId(string value)
-    {
-        return value.Trim().ToLowerInvariant();
     }
 
     private static string NormalizeLanguage(string? value)

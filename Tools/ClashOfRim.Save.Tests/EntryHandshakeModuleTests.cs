@@ -114,12 +114,13 @@ internal static class EntryHandshakeModuleTests
         Require(CompatibilityHandshakeContract.TryReadCompatibilityManifest(f.Handshake.Serialize(server), out var delivered, out _)
             && delivered!.ModConfigRules.Single().PackageId == "new-rule" && server.ModConfigRules.Count == 0, "Manifest enrichment mutated baseline or cached old rules.");
         var summary = new CompatibilityManifestSummary { ManifestId = "summary", ProtocolVersion = ProtocolApiVersion.Current,
-            RimWorldVersion = "1.7", Mods = [new() { PackageId = "mod-é", Hash = "different" }] };
+            RimWorldVersion = "1.7", SupportsSelectedDetails = true, Mods = [new() { PackageId = "mod-é", Hash = "different" }] };
         var result = f.Handshake.Evaluate(AuthenticationValidationResult.Accept("receiver"), CompatibilityHandshakeInput.Prepare(null, null, JsonSerializer.Serialize(summary)), f.At, false);
         Require(!result.Result.Accepted && result.RequiresFullCompatibilityManifest && result.RequestedCompatibilityPackageIds.SequenceEqual(new[] { "mod-é" }), "Changed summary did not request the exact package details.");
         var full = server with { Mods = [server.Mods[0], new() { PackageId = "second", LoadOrder = 1 }] };
         f.Baseline.ReplaceBaseline(full, "admin", f.At);
-        Require(f.Handshake.Evaluate(AuthenticationValidationResult.Accept("receiver"), Input(server), f.At, false).Result.Accepted, "Existing selective-details exchange no longer accepts an unchanged requested package.");
+        Require(f.Handshake.Evaluate(AuthenticationValidationResult.Accept("receiver"), CompatibilityHandshakeInput.Prepare(CompatibilityManifestJsonWriter.Write(server), null,
+                CompatibilityManifestJsonWriter.WriteSummary(CompatibilityManifestSummaryBuilder.Build(full))), f.At, false).Result.Accepted, "Existing selective-details exchange no longer accepts an unchanged requested package.");
     }
     private sealed class Fixture
     {

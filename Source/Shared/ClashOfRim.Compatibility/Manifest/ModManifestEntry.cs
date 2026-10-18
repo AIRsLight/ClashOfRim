@@ -1,6 +1,6 @@
 namespace AIRsLight.ClashOfRim.Compatibility;
 
-public sealed record ModManifestEntry
+public sealed record ModManifestEntry : ICompatibilityModIdentity
 {
     public int LoadOrder { get; init; }
     public string PackageId { get; init; } = "";

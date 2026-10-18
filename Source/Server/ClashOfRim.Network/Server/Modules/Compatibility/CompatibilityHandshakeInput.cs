@@ -20,7 +20,7 @@ internal sealed record CompatibilityHandshakeInput(bool HasFullManifest, string 
             else if (manifest is not null && !ValidCompatibilityManifestShape(manifest))
                 failure = InvalidManifest("Manifest contains missing or duplicate fields.");
         }
-        else
+        if (!full || !string.IsNullOrWhiteSpace(summaryJson))
         {
             TryReadCompatibilityManifestSummary(summaryJson, out summary, out summaryFailure);
             if (summary is not null && (!ValidCompatibilityHeader(summary.SchemaVersion, summary.ManifestId, summary.ProtocolVersion, summary.RimWorldVersion)

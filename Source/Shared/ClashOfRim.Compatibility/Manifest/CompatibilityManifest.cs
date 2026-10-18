@@ -1,6 +1,6 @@
 namespace AIRsLight.ClashOfRim.Compatibility;
 
-public sealed record CompatibilityManifest
+public sealed record CompatibilityManifest : ICompatibilityManifestMetadata
 {
     public int SchemaVersion { get; init; } = 1;
     public string ManifestId { get; init; } = "";

@@ -327,7 +327,7 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
             return CompatibilityManifestBuildFailed<ModPrepareWorldSessionResponseDto>();
         }
 
-        request.CompatibilityManifestSummaryJson = null;
+        // Retain the captured summary so the server can distinguish selected details from a complete manifest.
         return await transport.PostAsync<ModPrepareWorldSessionRequestDto, ModPrepareWorldSessionResponseDto>(
             PrepareWorldSessionRoute,
             request,

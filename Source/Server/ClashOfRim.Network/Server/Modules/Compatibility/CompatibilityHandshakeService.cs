@@ -1,5 +1,4 @@
 using AIRsLight.ClashOfRim.Network.Modules.Accounts;
-using static AIRsLight.ClashOfRim.Network.Modules.Compatibility.CompatibilityHandshakeComparison;
 using static AIRsLight.ClashOfRim.Network.Modules.Compatibility.CompatibilityHandshakeContract;
 using AIRsLight.ClashOfRim.Compatibility;
 using AIRsLight.ClashOfRim.Protocol;
@@ -83,7 +82,7 @@ internal sealed class CompatibilityHandshakeService(CompatibilityBaselineRegistr
                     RequestedCompatibilityPackageIds: new[] { "*" });
             }
 
-            CompatibilitySummaryHandshake summaryHandshake = CompareCompatibilitySummary(
+            CompatibilitySummaryComparisonResult summaryHandshake = CompatibilityManifestSummaryComparer.Compare(
                 serverCompatibilityManifest,
                 summary,
                 readOptions());
@@ -148,6 +147,10 @@ internal sealed class CompatibilityHandshakeService(CompatibilityBaselineRegistr
         string? acceptedServerCompatibilityManifestJson = null;
         if (clientCompatibilityManifest is not null)
         {
+            if (serverCompatibilityManifest is null && CompatibilityManifestDetailsComparer.IsSelection(clientCompatibilityManifest, summary))
+                return new(ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, ServerLocalization.Text("Compatibility.ManifestMissing")),
+                    authenticatedUserId, auth.DisplayName, null, Array.Empty<CompatibilityIssueDto>(), isAdministrator,
+                    RequiresFullCompatibilityManifest: true, RequestedCompatibilityPackageIds: new[] { "*" });
             if (serverCompatibilityManifest is null && publishBaseline)
             {
                 CompatibilityBaselineUpdateResult update = baseline.EnsureBaseline(
@@ -158,17 +161,8 @@ internal sealed class CompatibilityHandshakeService(CompatibilityBaselineRegistr
             }
             if (serverCompatibilityManifest is not null)
             {
-                CompatibilityComparisonResult comparison = IsPartialCompatibilityManifest(
-                        serverCompatibilityManifest,
-                        clientCompatibilityManifest)
-                    ? ComparePartialCompatibilityManifest(
-                        serverCompatibilityManifest,
-                        clientCompatibilityManifest,
-                        readOptions())
-                    : CompatibilityManifestComparer.Compare(
-                        serverCompatibilityManifest,
-                        clientCompatibilityManifest,
-                        readOptions());
+                CompatibilityComparisonResult comparison = CompatibilityManifestDetailsComparer.Compare(
+                    serverCompatibilityManifest, clientCompatibilityManifest, summary, readOptions());
                 IReadOnlyList<CompatibilityIssue> issues = comparison.Issues
                     .Concat(BuildWorldLanguageIssues(world.Current, clientCompatibilityManifest.GameLanguage))
                     .ToList();

@@ -189,7 +189,7 @@ internal static class SetupAuthenticationModuleTests
                     else Require(root.GetProperty("compatibilityManifestSummaryJson").GetString() == "summary", "Initial manifest summary missing.");
                 }
                 else Require(root.GetProperty("compatibilityManifestJson").GetString() == "full-manifest"
-                    && (!root.TryGetProperty("compatibilityManifestSummaryJson", out var summary) || summary.ValueKind == JsonValueKind.Null), "Retry retained summary or lost requested manifest.");
+                    && root.GetProperty("compatibilityManifestSummaryJson").GetString() == "summary", "Retry lost the captured summary or requested manifest.");
                 if (mode is "accepted-retry-flag" or "capture-cancel" || calls == 2)
                     return Json("{\"result\":{\"accepted\":true},\"requiresFullCompatibilityManifest\":true,\"sessionId\":\"owned\",\"authToken\":\"token\"}");
                 return Json("{\"result\":{\"accepted\":false},\"requiresFullCompatibilityManifest\":true,\"requestedCompatibilityPackageIds\":[\"a\",\"b\"]}");

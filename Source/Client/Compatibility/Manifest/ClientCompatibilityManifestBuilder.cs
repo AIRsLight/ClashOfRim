@@ -138,7 +138,7 @@ internal static class ClientCompatibilityManifestBuilder
 
     public static string BuildSummaryJson()
     {
-        return CompatibilityManifestJsonWriter.WriteSummary(BuildSummary(Build()));
+        return CompatibilityManifestJsonWriter.WriteSummary(CompatibilityManifestSummaryBuilder.Build(Build()));
     }
 
     public static string BuildJsonForPackages(IReadOnlyCollection<string>? packageIds)
@@ -156,31 +156,6 @@ internal static class ClientCompatibilityManifestBuilder
                 .Where(mod => requested.Contains(mod.PackageId))
                 .ToList()
         });
-    }
-
-    private static CompatibilityManifestSummary BuildSummary(CompatibilityManifest manifest)
-    {
-        return new CompatibilityManifestSummary
-        {
-            SchemaVersion = manifest.SchemaVersion,
-            ManifestId = manifest.ManifestId,
-            ProtocolVersion = manifest.ProtocolVersion,
-            RimWorldVersion = manifest.RimWorldVersion,
-            GameLanguage = manifest.GameLanguage,
-            DlcIds = manifest.DlcIds,
-            ConfigSha256 = manifest.ConfigSha256,
-            Mods = manifest.Mods
-                .Select(mod => new ModManifestSummaryEntry
-                {
-                    LoadOrder = mod.LoadOrder,
-                    PackageId = mod.PackageId,
-                    Name = mod.Name,
-                    Role = mod.Role,
-                    Hash = ComputeModHash(mod)
-                })
-                .ToList(),
-            DefSummaries = manifest.DefSummaries
-        };
     }
 
     private static ModManifestEntry BuildModEntry(ModContentPack mod, int loadOrder)
@@ -757,26 +732,6 @@ internal static class ClientCompatibilityManifestBuilder
     {
         using SHA256 sha = SHA256.Create();
         return ToHex(sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes(text ?? string.Empty)));
-    }
-
-    private static string ComputeModHash(ModManifestEntry mod)
-    {
-        string stableBody = string.Join("\n", new[]
-            {
-                mod.LoadOrder.ToString(),
-                mod.PackageId,
-                mod.Name,
-                mod.Source,
-                mod.WorkshopId,
-                mod.Role.ToString()
-            })
-            + "\n" + string.Join("\n", mod.Files
-                .OrderBy(file => file.RelativePath, StringComparer.OrdinalIgnoreCase)
-                .Select(file => file.RelativePath + "|" + file.Size + "|" + file.Sha256 + "|" + file.Kind))
-            + "\n" + string.Join("\n", mod.Configs
-                .OrderBy(config => config.FileName, StringComparer.OrdinalIgnoreCase)
-                .Select(config => config.FileName + "|" + config.HasSavedFile + "|" + config.Sha256));
-        return HashText(stableBody);
     }
 
     private static string? ResolveCurrentRimWorldLanguage()

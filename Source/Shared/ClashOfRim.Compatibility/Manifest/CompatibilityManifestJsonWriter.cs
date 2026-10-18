@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 
 namespace AIRsLight.ClashOfRim.Compatibility;
@@ -44,6 +45,7 @@ public static class CompatibilityManifestJsonWriter
         WriteProperty(json, "gameLanguage", summary.GameLanguage);
         WriteStringArrayProperty(json, "dlcIds", summary.DlcIds);
         WriteProperty(json, "configSha256", summary.ConfigSha256);
+        if (summary.SupportsSelectedDetails) WriteProperty(json, "supportsSelectedDetails", true);
         WriteSummaryMods(json, summary.Mods);
         WriteDefs(json, summary.DefSummaries);
         TrimTrailingComma(json);
@@ -177,14 +179,14 @@ public static class CompatibilityManifestJsonWriter
     private static void WriteProperty(StringBuilder json, string name, int value)
     {
         WriteName(json, name);
-        json.Append(value);
+        json.Append(value.ToString(CultureInfo.InvariantCulture));
         json.Append(',');
     }
 
     private static void WriteProperty(StringBuilder json, string name, long value)
     {
         WriteName(json, name);
-        json.Append(value);
+        json.Append(value.ToString(CultureInfo.InvariantCulture));
         json.Append(',');
     }
 

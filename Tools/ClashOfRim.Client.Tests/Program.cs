@@ -74,6 +74,7 @@ var tests = new (string Name, Action Run)[]
     ("diplomacy creation owns frozen targets, authoritative receipts and publication", DiplomacyCreationModuleTests.Run),
     ("player directory owns refresh replacement, projections and target selection", PlayerDirectoryModuleTests.Run),
     ("account password change owns credentials, session publication and persistence", PasswordChangeModuleTests.Run),
+    ("compatibility summary matches client wire and full manifest decisions", CompatibilitySummaryContractTests.Run),
     ("package reads and hydration use captured context, shared state restoration and cancellation", PackageReadModuleTests.Run),
     ("package error presentation preserves public and domain contracts", SnapshotPackagePresentationTests.Run),
     ("protocol transport owns request encoding, responses and cancellation", ProtocolTransportModuleTests.Run),

@@ -38,7 +38,7 @@ internal sealed class ClientSessionProtocol : IClientSessionAuthentication
         request.CompatibilityManifestJson = manifests.BuildJson(result.Response.RequestedCompatibilityPackageIds);
         if (string.IsNullOrWhiteSpace(request.CompatibilityManifestJson))
             return ClashOfRimClientNetworkResult<ModLoginResponseDto>.Failed("CompatibilityManifestBuildFailed", diagnostics.ManifestBuildFailedMessage);
-        request.CompatibilityManifestSummaryJson = null;
+        // Retain the captured summary so the server can distinguish selected details from a complete manifest.
         return await ownedTransport.PostLoginAsync(LoginRoute, request, token, captureReceipt).ConfigureAwait(false);
     }
 
