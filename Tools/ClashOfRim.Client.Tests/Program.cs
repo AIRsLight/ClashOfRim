@@ -19,6 +19,8 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("support sending owns removal, immutable confirmation and recovery", ClientSupportSendingTests.Run),
+    ("support source captures caravan identity before departure and revalidates ownership", ClientSupportSourceTests.Run),
     ("pawn exchange capture shares support and gift identity, gear and references", PawnExchangeCaptureTests.Run),
     ("mercenary incidents own ordered debt confirmation and recoverable reports", ClientMercenaryIncidentsTests.Run),
     ("local snapshot confirmation owns retries, cleanup and domain continuations", LocalSnapshotConfirmationModuleTests.Run),

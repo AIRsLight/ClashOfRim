@@ -51,6 +51,7 @@ internal static class EventCommandPresentationTests
                 ReadPresentation();
                 BankPresentation();
                 MercenaryPresentation();
+                SupportPresentation();
                 LocalSnapshotPresentation();
                 GiftPresentation();
                 TradePresentation();
@@ -232,6 +233,18 @@ internal static class EventCommandPresentationTests
             "StatusOrderSubmitException", "StatusCreateRejected", "MissingSuffix", "StatusFulfillFailed", "StatusFulfillRejected", "StatusFulfillException" })
             RequireResolved(operations.Text("ClashOfRim.Trade." + key, ("EVENTID", "order"), ("MESSAGE", "message"), ("REASON", "reason"),
                 ("FEE", 12), ("ACCEPTOR", "acceptor"), ("OWNER", "owner"), ("TYPE", "Exception"), ("CODE", "rejected"), ("MISSING", "Steel")));
+    }
+
+    private static void SupportPresentation()
+    {
+        var view = new AIRsLight.ClashOfRim.Support.ClientSupportPresentation(static _ => { });
+        RequireResolved(view.Busy); RequireResolved(view.BaseSnapshotChanged);
+        foreach (var admission in new[] { LocalMutationAdmission.NotConfigured, LocalMutationAdmission.SnapshotMissing, LocalMutationAdmission.PendingMutation })
+            RequireResolved(view.Admission(admission, new(LocalMutationKind.SupportSend, "pending", default)));
+        foreach (string key in new[] { "StatusNoTargets", "StatusNoPawns", "StatusPawnNotInCaravan", "StatusTargetTileMismatch", "StatusReserving", "StatusPackagingSnapshot",
+            "StatusSnapshotBuildFailed", "StatusSubmitting", "StatusSubmittingTransaction", "StatusCreateFailed", "StatusCreateRejected", "StatusConfirmationIncomplete",
+            "StatusCreated", "CreatedMessage", "StatusException", "CaravanPawnOption", "ConfirmSend" })
+            RequireResolved(view.Text(key, ("PAWN", "pawn"), ("TARGET", "target"), ("REASON", "reason"), ("CODE", "code"), ("MESSAGE", "message"), ("EVENTID", "event"), ("TYPE", "Exception")));
     }
 
     private static void MercenaryPresentation()

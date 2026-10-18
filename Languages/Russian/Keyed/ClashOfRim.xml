@@ -1907,4 +1907,5 @@
   <ClashOfRim.SnapshotConfirmation.BaseSnapshotChanged>Текущий базовый снимок изменился. Перед продолжением операции загрузите актуальное сохранение с сервера.</ClashOfRim.SnapshotConfirmation.BaseSnapshotChanged>
   <ClashOfRim.Trade.StatusOrderUnavailable>Торговый заказ больше недоступен или не поддерживает выбранный способ доставки. Обновите рынок.</ClashOfRim.Trade.StatusOrderUnavailable>
   <ClashOfRim.Trade.StatusConfirmationIncomplete>Сервер не вернул полное подтверждение сделки и снимка. Локальные изменения остаются неподтверждёнными. Вернитесь в главное меню и загрузите серверное сохранение заново.</ClashOfRim.Trade.StatusConfirmationIncomplete>
+  <ClashOfRim.Support.StatusConfirmationIncomplete>Сервер не вернул соответствующее событие поддержки и подтверждённый снимок. Локальные изменения не подтверждены. Загрузите сохранение с сервера заново.</ClashOfRim.Support.StatusConfirmationIncomplete>
 </LanguageData>

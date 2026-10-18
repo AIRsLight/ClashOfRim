@@ -1,4 +1,5 @@
 using AIRsLight.ClashOfRim.Modules.Mercenaries;
+using AIRsLight.ClashOfRim.Modules.Support;
 using AIRsLight.ClashOfRim.Modules.Shop;
 using AIRsLight.ClashOfRim.ServerShop;
 using AIRsLight.ClashOfRim.Modules.Trades;
@@ -82,6 +83,7 @@ public sealed partial class ClashOfRimMod : Mod
     internal ClientShopOperations ShopOperations => shopOperations;
     internal ClientTradeActions TradeActions => tradeActions;
     private readonly ClientGiftActions giftActions;
+    private readonly ClientSupportActions supportActions;
     internal ClientGiftActions GiftActions => giftActions;
     private readonly ClientEventConfirmationWorkflow eventConfirmations;
     private readonly ClientEventApplications eventApplications;
@@ -223,6 +225,11 @@ public sealed partial class ClashOfRimMod : Mod
         gifts.Completed += StartQueuedAutomaticEventRefreshAfterLocalAtomicMutation;
         giftActions = new ClientGiftActions(gifts, sessionLifecycle, new ClientSnapshotGame(), giftPresentation,
             giftCapabilities, () => WorldMapMarkersSnapshot);
+        var supportPresentation = new ClientSupportPresentation(message => tradeStatus = message);
+        var supportSending = new ClientSupportSending(sessionLifecycle, new ClientSnapshotGame(), mutationAdmission, synchronization,
+            localMutations, snapshotTransactions, snapshotFailureRecovery, new ClientSupportTransport(), supportPresentation);
+        supportSending.Completed += StartQueuedAutomaticEventRefreshAfterLocalAtomicMutation;
+        supportActions = new ClientSupportActions(supportSending, supportPresentation);
         eventConfirmations = new ClientEventConfirmationWorkflow(sessionLifecycle, eventConfirmationPreparation, eventConfirmation,
             localMutations, snapshotFailureRecovery, eventInbox, new ClientEventConfirmationPresentation((purpose, message) =>
             {

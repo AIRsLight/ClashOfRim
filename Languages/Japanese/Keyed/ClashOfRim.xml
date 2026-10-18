@@ -1907,4 +1907,5 @@
   <ClashOfRim.SnapshotConfirmation.BaseSnapshotChanged>現在の基準スナップショットが変更されました。この処理を続ける前に、サーバーの正式なセーブを読み込んでください。</ClashOfRim.SnapshotConfirmation.BaseSnapshotChanged>
   <ClashOfRim.Trade.StatusOrderUnavailable>この取引注文は利用できないか、選択した配送方法に対応していません。市場を更新してください。</ClashOfRim.Trade.StatusOrderUnavailable>
   <ClashOfRim.Trade.StatusConfirmationIncomplete>サーバーから取引とスナップショットの完全な確認が返されませんでした。ローカルの変更は未確認です。メインメニューに戻り、サーバーのセーブデータを再読み込みしてください。</ClashOfRim.Trade.StatusConfirmationIncomplete>
+  <ClashOfRim.Support.StatusConfirmationIncomplete>サーバーから一致する支援イベントと確認用スナップショットが返されませんでした。ローカルの変更は未確認です。サーバーのセーブを再読み込みしてください。</ClashOfRim.Support.StatusConfirmationIncomplete>
 </LanguageData>

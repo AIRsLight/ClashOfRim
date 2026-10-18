@@ -1916,4 +1916,5 @@
   <ClashOfRim.SnapshotConfirmation.BaseSnapshotChanged>The active snapshot changed. Reload the authoritative save before continuing this transaction.</ClashOfRim.SnapshotConfirmation.BaseSnapshotChanged>
   <ClashOfRim.Trade.StatusOrderUnavailable>The trade order is no longer available or does not support the selected delivery method. Refresh the market.</ClashOfRim.Trade.StatusOrderUnavailable>
   <ClashOfRim.Trade.StatusConfirmationIncomplete>The server did not return a complete trade and snapshot confirmation. Local changes remain unconfirmed. Return to the main menu and reload the server save.</ClashOfRim.Trade.StatusConfirmationIncomplete>
+  <ClashOfRim.Support.StatusConfirmationIncomplete>The server did not return a matching support event and confirmation snapshot. Local changes remain unconfirmed. Reload the server save.</ClashOfRim.Support.StatusConfirmationIncomplete>
 </LanguageData>
