@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Compatibility.Biotech;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.ThirdPartyCompatibility;
 using AIRsLight.ClashOfRim.Trades;
@@ -27,7 +28,7 @@ internal static partial class BiotechCompatibility
 
         if (string.Equals(surface, ThingReferenceSurfaces.TradeRequest, StringComparison.Ordinal))
         {
-            IReadOnlyList<string> targetGeneDefNames = TargetGeneDefNames(item);
+            IReadOnlyList<string> targetGeneDefNames = BiotechThingMetadata.TargetGeneDefNames(item);
             string requestLabel = targetGeneDefNames.Count == 0
                 ? ClashOfRimText.Key("ClashOfRim.Trade.SelectGene")
                 : FormatGeneList(targetGeneDefNames);
@@ -47,7 +48,7 @@ internal static partial class BiotechCompatibility
             return false;
         }
 
-        IReadOnlyList<string> geneDefNames = GeneDefNames(item);
+        IReadOnlyList<string> geneDefNames = BiotechThingMetadata.GeneDefNames(item);
         string listingLabel = geneDefNames.Count == 0
             ? ClashOfRimText.Key("ClashOfRim.Shop.SelectGenes")
             : FormatGeneList(geneDefNames);

@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Compatibility.Biotech;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -42,7 +43,7 @@ internal sealed class BiotechGeneSelectionDialogWindow : Window
         Rect actionsRect = new(inRect.x, searchRect.yMax + 8f, inRect.width, 30f);
         if (Widgets.ButtonText(new Rect(actionsRect.x, actionsRect.y, 120f, 28f), ClashOfRimText.Key("ClashOfRim.Clear")))
         {
-            BiotechCompatibility.SetTargetGeneDefNames(target, Array.Empty<string>());
+            BiotechThingMetadata.SetTargetGeneDefNames(target, Array.Empty<string>());
             target.DisplayLabel = null;
         }
 
@@ -52,7 +53,7 @@ internal sealed class BiotechGeneSelectionDialogWindow : Window
         }
 
         List<GeneDef> genes = FilterGenes(searchText).ToList();
-        IReadOnlyList<string> selectedGeneDefNames = BiotechCompatibility.TargetGeneDefNames(target);
+        IReadOnlyList<string> selectedGeneDefNames = BiotechThingMetadata.TargetGeneDefNames(target);
         Rect outRect = new(inRect.x, actionsRect.yMax + 10f, inRect.width, inRect.height - actionsRect.yMax - 10f);
         int columns = Math.Max(1, Mathf.FloorToInt((outRect.width - 16f + GeneGap) / (GeneSize.x + GeneGap)));
         int rows = Mathf.CeilToInt(genes.Count / (float)columns);
@@ -88,7 +89,7 @@ internal sealed class BiotechGeneSelectionDialogWindow : Window
             if (Widgets.ButtonInvisible(geneRect))
             {
                 ToggleGene(gene.defName);
-                selectedGeneDefNames = BiotechCompatibility.TargetGeneDefNames(target);
+                selectedGeneDefNames = BiotechThingMetadata.TargetGeneDefNames(target);
                 target.DisplayLabel = null;
             }
         }
@@ -98,7 +99,7 @@ internal sealed class BiotechGeneSelectionDialogWindow : Window
 
     private void ToggleGene(string geneDefName)
     {
-        List<string> selected = BiotechCompatibility.TargetGeneDefNames(target).ToList();
+        List<string> selected = BiotechThingMetadata.TargetGeneDefNames(target).ToList();
         int existingIndex = selected.FindIndex(candidate => string.Equals(
             candidate,
             geneDefName,
@@ -112,7 +113,7 @@ internal sealed class BiotechGeneSelectionDialogWindow : Window
             selected.Add(geneDefName);
         }
 
-        BiotechCompatibility.SetTargetGeneDefNames(target, selected);
+        BiotechThingMetadata.SetTargetGeneDefNames(target, selected);
     }
 
     private static IEnumerable<GeneDef> FilterGenes(string query)

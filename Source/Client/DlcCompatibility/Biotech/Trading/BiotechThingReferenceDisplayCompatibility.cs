@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Compatibility.Biotech;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using RimWorld;
 using System;
@@ -16,9 +17,9 @@ internal static partial class BiotechCompatibility
             return;
         }
 
-        NormalizeBiotechMetadata(thing);
-        IReadOnlyList<string> targetGeneDefNames = TargetGeneDefNames(thing);
-        IReadOnlyList<string> geneDefNames = GeneDefNames(thing);
+        BiotechThingMetadata.Normalize(thing);
+        IReadOnlyList<string> targetGeneDefNames = BiotechThingMetadata.TargetGeneDefNames(thing);
+        IReadOnlyList<string> geneDefNames = BiotechThingMetadata.GeneDefNames(thing);
         if (asRequirement && targetGeneDefNames.Count > 0)
         {
             parts.Add(ClashOfRimText.Key(
@@ -30,7 +31,7 @@ internal static partial class BiotechCompatibility
             parts.Add(FormatGeneList(geneDefNames));
         }
 
-        IReadOnlyList<ReproductiveSourceRecord> reproductiveSources = ReproductiveSources(thing);
+        IReadOnlyList<ReproductiveSourceRecord> reproductiveSources = BiotechThingMetadata.ReproductiveSources(thing);
         if (reproductiveSources.Count > 0)
         {
             parts.Add(ClashOfRimText.Key(
@@ -46,11 +47,11 @@ internal static partial class BiotechCompatibility
             yield break;
         }
 
-        NormalizeBiotechMetadata(thing);
-        yield return string.Join(",", GeneDefNames(thing));
-        yield return string.Join(",", TargetGeneDefNames(thing));
-        yield return XenotypeName(thing) ?? string.Empty;
-        yield return XenotypeIconDefName(thing) ?? string.Empty;
+        BiotechThingMetadata.Normalize(thing);
+        yield return string.Join(",", BiotechThingMetadata.GeneDefNames(thing));
+        yield return string.Join(",", BiotechThingMetadata.TargetGeneDefNames(thing));
+        yield return BiotechThingMetadata.XenotypeName(thing) ?? string.Empty;
+        yield return BiotechThingMetadata.XenotypeIconDefName(thing) ?? string.Empty;
         foreach (string part in ReproductiveSourceCacheKeyParts(thing))
         {
             yield return part;
@@ -116,7 +117,7 @@ internal static partial class BiotechCompatibility
 
     private static IEnumerable<string> ReproductiveSourceCacheKeyParts(ModThingReferenceDto thing)
     {
-        foreach (ReproductiveSourceRecord source in ReproductiveSources(thing))
+        foreach (ReproductiveSourceRecord source in BiotechThingMetadata.ReproductiveSources(thing))
         {
             yield return source.Role ?? string.Empty;
             yield return source.GlobalId ?? string.Empty;

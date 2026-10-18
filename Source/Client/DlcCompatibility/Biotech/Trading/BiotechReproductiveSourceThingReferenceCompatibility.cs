@@ -1,3 +1,5 @@
+using AIRsLight.ClashOfRim.Protocol;
+using AIRsLight.ClashOfRim.Modules.Compatibility.Biotech;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.Diplomacy;
 using AIRsLight.ClashOfRim.Pawns;
@@ -26,11 +28,11 @@ internal static partial class BiotechCompatibility
             return;
         }
 
-        ClearReproductiveSourceMetadata(reference);
+        BiotechThingMetadata.ClearReproductiveSourceMetadata(reference);
         List<Pawn> sources = (comp.pawnSources ?? new List<Pawn>())
             .Where(pawn => pawn is not null)
             .Distinct()
-            .Take(MaxReproductiveSources)
+            .Take(BiotechThingMetadataKeys.MaxReproductiveSources)
             .ToList();
         if (sources.Count == 0)
         {
@@ -38,10 +40,10 @@ internal static partial class BiotechCompatibility
         }
 
         ClashOfRimMod? mod = ClashOfRimMod.Instance ?? LoadedModManager.GetMod<ClashOfRimMod>();
-        reference.Metadata[MetadataReproductiveSourceCount] = sources.Count.ToString(CultureInfo.InvariantCulture);
+        reference.Metadata[BiotechThingMetadataKeys.ReproductiveSourceCount] = sources.Count.ToString(CultureInfo.InvariantCulture);
         for (int i = 0; i < sources.Count; i++)
         {
-            WriteReproductiveSourceMetadata(reference, i, BuildReproductiveSourceRecord(sources[i], mod));
+            BiotechThingMetadata.WriteReproductiveSourceMetadata(reference, i, BuildReproductiveSourceRecord(sources[i], mod));
         }
     }
 
@@ -88,7 +90,7 @@ internal static partial class BiotechCompatibility
     private static bool TryApplyReproductiveSourceMetadata(ModThingReferenceDto reference, Thing thing, out string? missingDefName)
     {
         missingDefName = null;
-        IReadOnlyList<ReproductiveSourceRecord> records = ReproductiveSources(reference);
+        IReadOnlyList<ReproductiveSourceRecord> records = BiotechThingMetadata.ReproductiveSources(reference);
         if (records.Count == 0)
         {
             return true;
@@ -541,256 +543,8 @@ internal static partial class BiotechCompatibility
         return (comp.pawnSources ?? new List<Pawn>())
             .Where(pawn => pawn is not null)
             .Distinct()
-            .Take(MaxReproductiveSources)
+            .Take(BiotechThingMetadataKeys.MaxReproductiveSources)
             .Select(pawn => BuildReproductiveSourceRecord(pawn, mod))
             .ToList();
-    }
-
-    private static bool ReproductiveSourceRequirementMatches(
-        ModThingReferenceDto requirement,
-        IReadOnlyList<ReproductiveSourceRecord> candidateSources)
-    {
-        IReadOnlyList<ReproductiveSourceRecord> requiredSources = ReproductiveSources(requirement);
-        if (requiredSources.Count == 0)
-        {
-            return true;
-        }
-
-        if (candidateSources.Count == 0)
-        {
-            return false;
-        }
-
-        foreach (ReproductiveSourceRecord required in requiredSources)
-        {
-            if (!candidateSources.Any(candidate => ReproductiveSourceRecordMatches(required, candidate)))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    private static bool ReproductiveSourceRecordMatches(
-        ReproductiveSourceRecord required,
-        ReproductiveSourceRecord candidate)
-    {
-        return MetadataTextMatches(required.Role, candidate.Role)
-            && MetadataTextMatches(required.RaceDefName, candidate.RaceDefName)
-            && MetadataListMatches(required.EndogeneDefNames, candidate.EndogeneDefNames)
-            && MetadataListMatches(required.XenogeneDefNames, candidate.XenogeneDefNames);
-    }
-
-    private static bool MetadataTextMatches(string? required, string? candidate)
-    {
-        return string.IsNullOrWhiteSpace(required)
-            || string.Equals(required, candidate, StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool MetadataListMatches(IReadOnlyList<string> required, IReadOnlyList<string> candidate)
-    {
-        if (required.Count == 0)
-        {
-            return true;
-        }
-
-        return required.Count == candidate.Count
-            && required.All(requiredValue => candidate.Any(candidateValue => string.Equals(
-                requiredValue,
-                candidateValue,
-                StringComparison.OrdinalIgnoreCase)));
-    }
-
-    private static IReadOnlyList<ReproductiveSourceRecord> ReproductiveSources(ModThingReferenceDto? reference)
-    {
-        NormalizeBiotechMetadata(reference);
-        if (reference is null
-            || !reference.Metadata.TryGetValue(MetadataReproductiveSourceCount, out string? countText)
-            || !int.TryParse(countText, NumberStyles.Integer, CultureInfo.InvariantCulture, out int count)
-            || count <= 0)
-        {
-            return Array.Empty<ReproductiveSourceRecord>();
-        }
-
-        count = Math.Min(count, MaxReproductiveSources);
-        var records = new List<ReproductiveSourceRecord>(count);
-        for (int i = 0; i < count; i++)
-        {
-            ReproductiveSourceRecord record = ReadReproductiveSourceMetadata(reference, i);
-            if (!string.IsNullOrWhiteSpace(record.GlobalId)
-                || !string.IsNullOrWhiteSpace(record.RaceDefName)
-                || record.EndogeneDefNames.Count > 0
-                || record.XenogeneDefNames.Count > 0)
-            {
-                records.Add(record);
-            }
-        }
-
-        return records;
-    }
-
-    private static void WriteReproductiveSourceMetadata(
-        ModThingReferenceDto reference,
-        int index,
-        ReproductiveSourceRecord record)
-    {
-        WriteIndexedMetadataText(reference, index, MetadataReproductiveSourceRole, record.Role);
-        WriteIndexedMetadataText(reference, index, MetadataReproductiveSourceGlobalId, record.GlobalId);
-        WriteIndexedMetadataText(reference, index, MetadataReproductiveSourceOwnerUserId, record.OwnerUserId);
-        WriteIndexedMetadataText(reference, index, MetadataReproductiveSourceName, record.Name);
-        WriteIndexedMetadataText(reference, index, MetadataReproductiveSourceRaceDef, record.RaceDefName);
-        WriteIndexedMetadataText(reference, index, MetadataReproductiveSourcePawnKindDef, record.PawnKindDefName);
-        WriteIndexedMetadataText(reference, index, MetadataReproductiveSourceGender, record.Gender);
-        WriteIndexedMetadataText(reference, index, MetadataReproductiveSourceDead, record.Dead ? "true" : null);
-        WriteIndexedMetadataText(reference, index, MetadataReproductiveSourceFactionDef, record.FactionDefName);
-        WriteIndexedMetadataText(reference, index, MetadataReproductiveSourceXenotypeDef, record.XenotypeDefName);
-        WriteIndexedMetadataList(reference, index, MetadataReproductiveSourceEndogeneDefNames, record.EndogeneDefNames);
-        WriteIndexedMetadataList(reference, index, MetadataReproductiveSourceXenogeneDefNames, record.XenogeneDefNames);
-    }
-
-    private static ReproductiveSourceRecord ReadReproductiveSourceMetadata(ModThingReferenceDto reference, int index)
-    {
-        return new ReproductiveSourceRecord(
-            Role: ReadIndexedMetadataText(reference, index, MetadataReproductiveSourceRole),
-            GlobalId: ReadIndexedMetadataText(reference, index, MetadataReproductiveSourceGlobalId),
-            OwnerUserId: ReadIndexedMetadataText(reference, index, MetadataReproductiveSourceOwnerUserId),
-            Name: ReadIndexedMetadataText(reference, index, MetadataReproductiveSourceName),
-            RaceDefName: ReadIndexedMetadataText(reference, index, MetadataReproductiveSourceRaceDef),
-            PawnKindDefName: ReadIndexedMetadataText(reference, index, MetadataReproductiveSourcePawnKindDef),
-            Gender: ReadIndexedMetadataText(reference, index, MetadataReproductiveSourceGender),
-            Dead: string.Equals(ReadIndexedMetadataText(reference, index, MetadataReproductiveSourceDead), "true", StringComparison.OrdinalIgnoreCase),
-            FactionDefName: ReadIndexedMetadataText(reference, index, MetadataReproductiveSourceFactionDef),
-            XenotypeDefName: ReadIndexedMetadataText(reference, index, MetadataReproductiveSourceXenotypeDef),
-            EndogeneDefNames: ReadIndexedMetadataList(reference, index, MetadataReproductiveSourceEndogeneDefNames),
-            XenogeneDefNames: ReadIndexedMetadataList(reference, index, MetadataReproductiveSourceXenogeneDefNames));
-    }
-
-    private static string? ReadIndexedMetadataText(ModThingReferenceDto reference, int index, string field)
-    {
-        string key = ReproductiveSourceKey(index, field);
-        return reference.Metadata.TryGetValue(key, out string? value) && !string.IsNullOrWhiteSpace(value)
-            ? value
-            : null;
-    }
-
-    private static void WriteIndexedMetadataText(ModThingReferenceDto reference, int index, string field, string? value)
-    {
-        string key = ReproductiveSourceKey(index, field);
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            reference.Metadata.Remove(key);
-            return;
-        }
-
-        reference.Metadata[key] = value;
-    }
-
-    private static IReadOnlyList<string> ReadIndexedMetadataList(ModThingReferenceDto reference, int index, string field)
-    {
-        string? value = ReadIndexedMetadataText(reference, index, field);
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return Array.Empty<string>();
-        }
-
-        return value!
-            .Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
-            .Select(item => item.Trim())
-            .Where(item => !string.IsNullOrWhiteSpace(item))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-    }
-
-    private static void WriteIndexedMetadataList(
-        ModThingReferenceDto reference,
-        int index,
-        string field,
-        IEnumerable<string>? values)
-    {
-        string[] normalized = (values ?? Array.Empty<string>())
-            .Where(value => !string.IsNullOrWhiteSpace(value))
-            .Select(value => value.Trim())
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-        WriteIndexedMetadataText(reference, index, field, normalized.Length == 0 ? null : string.Join(",", normalized));
-    }
-
-    private static void ClearReproductiveSourceMetadata(ModThingReferenceDto? reference)
-    {
-        if (reference?.Metadata is null || reference.Metadata.Count == 0)
-        {
-            return;
-        }
-
-        foreach (string key in reference.Metadata.Keys
-                     .Where(key => key.StartsWith(MetadataReproductiveSourcePrefix, StringComparison.Ordinal))
-                     .ToList())
-        {
-            reference.Metadata.Remove(key);
-        }
-    }
-
-    private static string ReproductiveSourceKey(int index, string field)
-    {
-        return MetadataReproductiveSourcePrefix
-            + index.ToString(CultureInfo.InvariantCulture)
-            + "."
-            + field;
-    }
-
-    private readonly struct ReproductiveSourceRecord
-    {
-        public ReproductiveSourceRecord(
-            string? Role,
-            string? GlobalId,
-            string? OwnerUserId,
-            string? Name,
-            string? RaceDefName,
-            string? PawnKindDefName,
-            string? Gender,
-            bool Dead,
-            string? FactionDefName,
-            string? XenotypeDefName,
-            IReadOnlyList<string>? EndogeneDefNames,
-            IReadOnlyList<string>? XenogeneDefNames)
-        {
-            this.Role = Role;
-            this.GlobalId = GlobalId;
-            this.OwnerUserId = OwnerUserId;
-            this.Name = Name;
-            this.RaceDefName = RaceDefName;
-            this.PawnKindDefName = PawnKindDefName;
-            this.Gender = Gender;
-            this.Dead = Dead;
-            this.FactionDefName = FactionDefName;
-            this.XenotypeDefName = XenotypeDefName;
-            this.EndogeneDefNames = EndogeneDefNames ?? Array.Empty<string>();
-            this.XenogeneDefNames = XenogeneDefNames ?? Array.Empty<string>();
-        }
-
-        public string? Role { get; }
-
-        public string? GlobalId { get; }
-
-        public string? OwnerUserId { get; }
-
-        public string? Name { get; }
-
-        public string? RaceDefName { get; }
-
-        public string? PawnKindDefName { get; }
-
-        public string? Gender { get; }
-
-        public bool Dead { get; }
-
-        public string? FactionDefName { get; }
-
-        public string? XenotypeDefName { get; }
-
-        public IReadOnlyList<string> EndogeneDefNames { get; }
-
-        public IReadOnlyList<string> XenogeneDefNames { get; }
     }
 }

@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Compatibility.Biotech;
 using AIRsLight.ClashOfRim.RemoteMaps;
 using AIRsLight.ClashOfRim.ThirdPartyCompatibility;
 using HarmonyLib;
@@ -68,7 +69,7 @@ internal static class BiotechCompatibilityPackage
             BiotechCompatibility.AppendThingReferenceDisplayParts,
             BiotechCompatibility.SuppressesStandardThingStats);
         ClashOfRimCompatibilityApi.RegisterThingReferenceCacheKeyPartsProvider(BiotechCompatibility.ThingReferenceCacheKeyParts);
-        ClashOfRimCompatibilityApi.RegisterThingReferenceMetadataNormalizer(BiotechCompatibility.NormalizeBiotechThingReferenceMetadata);
+        ClashOfRimCompatibilityApi.RegisterThingReferenceMetadataNormalizer(BiotechThingMetadata.Normalize);
         BiotechThingTransferCompatibility.Apply();
         ClashOfRimCompatibilityApi.RegisterDefensePointDefNameProvider(BiotechCompatibility.BiotechDefensePointDefNames);
         RemoteSessionGlobalStateGuard.RegisterRemoteMapRemovalGlobalEffectsSuppressedHandler(

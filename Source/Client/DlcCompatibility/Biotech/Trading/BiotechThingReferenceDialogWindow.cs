@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Compatibility.Biotech;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -43,13 +44,13 @@ internal sealed class BiotechThingReferenceDialogWindow : Window
         Rect footerRect = new(inRect.x, inRect.yMax - 36f, inRect.width, 32f);
         if (Widgets.ButtonText(new Rect(footerRect.x, footerRect.y, 110f, 32f), ClashOfRimText.Key("ClashOfRim.Clear")))
         {
-            BiotechCompatibility.SetGeneDefNames(target, Array.Empty<string>());
-            BiotechCompatibility.SetTargetGeneDefName(target, null);
+            BiotechThingMetadata.SetGeneDefNames(target, Array.Empty<string>());
+            BiotechThingMetadata.SetTargetGeneDefName(target, null);
         }
 
         Widgets.Label(
             new Rect(footerRect.x + 120f, footerRect.y + 6f, footerRect.width - 280f, 24f),
-            BiotechCompatibility.FormatGeneList(BiotechCompatibility.GeneDefNames(target)));
+            BiotechCompatibility.FormatGeneList(BiotechThingMetadata.GeneDefNames(target)));
         if (Widgets.ButtonText(new Rect(footerRect.xMax - 120f, footerRect.y, 120f, 32f), ClashOfRimText.Key("ClashOfRim.Done")))
         {
             Close();
@@ -72,7 +73,7 @@ internal sealed class BiotechThingReferenceDialogWindow : Window
                 row * (EntrySize.y + EntryGap),
                 EntrySize.x,
                 EntrySize.y);
-            bool selected = BiotechCompatibility.GeneDefNames(target).Any(defName => string.Equals(defName, gene.defName, StringComparison.OrdinalIgnoreCase));
+            bool selected = BiotechThingMetadata.GeneDefNames(target).Any(defName => string.Equals(defName, gene.defName, StringComparison.OrdinalIgnoreCase));
             if (selected)
             {
                 Widgets.DrawHighlightSelected(geneRect);
@@ -96,7 +97,7 @@ internal sealed class BiotechThingReferenceDialogWindow : Window
 
     private void ToggleGene(string defName)
     {
-        List<string> geneDefNames = BiotechCompatibility.GeneDefNames(target).ToList();
+        List<string> geneDefNames = BiotechThingMetadata.GeneDefNames(target).ToList();
         int existing = geneDefNames.FindIndex(candidate => string.Equals(candidate, defName, StringComparison.OrdinalIgnoreCase));
         if (existing >= 0)
         {
@@ -107,8 +108,8 @@ internal sealed class BiotechThingReferenceDialogWindow : Window
             geneDefNames.Add(defName);
         }
 
-        BiotechCompatibility.SetGeneDefNames(target, geneDefNames);
-        BiotechCompatibility.SetTargetGeneDefName(target, null);
+        BiotechThingMetadata.SetGeneDefNames(target, geneDefNames);
+        BiotechThingMetadata.SetTargetGeneDefName(target, null);
         target.DisplayLabel = null;
     }
 

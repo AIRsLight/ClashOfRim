@@ -1,3 +1,5 @@
+using AIRsLight.ClashOfRim.Protocol;
+using AIRsLight.ClashOfRim.Modules.Compatibility.Biotech;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.ThirdPartyCompatibility;
 using AIRsLight.ClashOfRim.Trades;
@@ -13,81 +15,6 @@ internal static partial class BiotechCompatibility
 {
     private static readonly System.Reflection.FieldInfo GeneSetField = typeof(GeneSetHolderBase).GetField(
         "geneSet", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
-    private const string MetadataGeneDefNames = "rimworld.biotech.geneDefNames";
-    private const string MetadataTargetGeneDefName = "rimworld.biotech.targetGeneDefName";
-    private const string MetadataXenotypeName = "rimworld.biotech.xenotypeName";
-    private const string MetadataXenotypeIconDefName = "rimworld.biotech.xenotypeIconDefName";
-    private const string MetadataReproductiveSourcePrefix = "rimworld.biotech.reproductiveSource.";
-    private const string MetadataReproductiveSourceCount = MetadataReproductiveSourcePrefix + "count";
-    private const string MetadataReproductiveSourceRole = "role";
-    private const string MetadataReproductiveSourceGlobalId = "globalId";
-    private const string MetadataReproductiveSourceOwnerUserId = "ownerUserId";
-    private const string MetadataReproductiveSourceName = "name";
-    private const string MetadataReproductiveSourceRaceDef = "raceDef";
-    private const string MetadataReproductiveSourcePawnKindDef = "pawnKindDef";
-    private const string MetadataReproductiveSourceGender = "gender";
-    private const string MetadataReproductiveSourceDead = "dead";
-    private const string MetadataReproductiveSourceFactionDef = "factionDef";
-    private const string MetadataReproductiveSourceXenotypeDef = "xenotypeDef";
-    private const string MetadataReproductiveSourceEndogeneDefNames = "endogeneDefNames";
-    private const string MetadataReproductiveSourceXenogeneDefNames = "xenogeneDefNames";
-    private const int MaxReproductiveSources = 4;
-
-    internal static IReadOnlyList<string> GeneDefNames(ModThingReferenceDto? reference)
-    {
-        NormalizeBiotechMetadata(reference);
-        return ReadMetadataList(reference, MetadataGeneDefNames);
-    }
-
-    internal static void SetGeneDefNames(ModThingReferenceDto? reference, IEnumerable<string>? geneDefNames)
-    {
-        WriteMetadataList(reference, MetadataGeneDefNames, geneDefNames);
-    }
-
-    internal static string? TargetGeneDefName(ModThingReferenceDto? reference)
-    {
-        return TargetGeneDefNames(reference).FirstOrDefault();
-    }
-
-    internal static IReadOnlyList<string> TargetGeneDefNames(ModThingReferenceDto? reference)
-    {
-        NormalizeBiotechMetadata(reference);
-        return ReadMetadataList(reference, MetadataTargetGeneDefName);
-    }
-
-    internal static void SetTargetGeneDefName(ModThingReferenceDto? reference, string? geneDefName)
-    {
-        SetTargetGeneDefNames(reference, string.IsNullOrWhiteSpace(geneDefName)
-            ? Array.Empty<string>()
-            : new[] { geneDefName! });
-    }
-
-    internal static void SetTargetGeneDefNames(ModThingReferenceDto? reference, IEnumerable<string>? geneDefNames)
-    {
-        WriteMetadataList(reference, MetadataTargetGeneDefName, geneDefNames);
-    }
-
-    internal static string? XenotypeName(ModThingReferenceDto? reference)
-    {
-        NormalizeBiotechMetadata(reference);
-        return ReadMetadataText(reference, MetadataXenotypeName);
-    }
-
-    internal static void SetXenotypeName(ModThingReferenceDto? reference, string? xenotypeName)
-    {
-        WriteMetadataText(reference, MetadataXenotypeName, xenotypeName);
-    }
-
-    internal static string? XenotypeIconDefName(ModThingReferenceDto? reference)
-    {
-        NormalizeBiotechMetadata(reference);
-        return ReadMetadataText(reference, MetadataXenotypeIconDefName);
-    }
-
-    internal static void SetXenotypeIconDefName(ModThingReferenceDto? reference, string? iconDefName)
-    {
-        WriteMetadataText(reference, MetadataXenotypeIconDefName, iconDefName);
-    }
 
     internal static void ClearThingReferenceMetadata(string surface, ThingDef? def, ModThingReferenceDto item)
     {
@@ -96,11 +23,7 @@ internal static partial class BiotechCompatibility
             return;
         }
 
-        item.Metadata.Remove(MetadataGeneDefNames);
-        item.Metadata.Remove(MetadataTargetGeneDefName);
-        item.Metadata.Remove(MetadataXenotypeName);
-        item.Metadata.Remove(MetadataXenotypeIconDefName);
-        ClearReproductiveSourceMetadata(item);
+        BiotechThingMetadata.Clear(item);
     }
 
     internal static bool IsThingReferenceComplete(string surface, ThingDef? def, ModThingReferenceDto item)
@@ -112,11 +35,11 @@ internal static partial class BiotechCompatibility
 
         if (string.Equals(surface, ThingReferenceSurfaces.TradeRequest, StringComparison.Ordinal))
         {
-            return TargetGeneDefNames(item).Count > 0;
+            return BiotechThingMetadata.TargetGeneDefNames(item).Count > 0;
         }
 
         return !string.Equals(surface, ThingReferenceSurfaces.ServerShopListing, StringComparison.Ordinal)
-            || GeneDefNames(item).Count > 0;
+            || BiotechThingMetadata.GeneDefNames(item).Count > 0;
     }
 
     internal static bool IsUniqueThingReferenceRequest(ThingDef? def)
@@ -133,7 +56,7 @@ internal static partial class BiotechCompatibility
 
         if (metadataThing is GeneSetHolderBase { GeneSet: not null } geneHolder)
         {
-            SetGeneDefNames(reference, geneHolder.GeneSet.GenesListForReading
+            BiotechThingMetadata.SetGeneDefNames(reference, geneHolder.GeneSet.GenesListForReading
                 .Select(gene => gene.defName)
                 .Where(defName => !string.IsNullOrWhiteSpace(defName))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -142,48 +65,43 @@ internal static partial class BiotechCompatibility
 
         if (metadataThing is Xenogerm xenogerm)
         {
-            SetXenotypeName(reference, string.IsNullOrWhiteSpace(xenogerm.xenotypeName) ? null : xenogerm.xenotypeName);
-            SetXenotypeIconDefName(reference, xenogerm.iconDef?.defName);
+            BiotechThingMetadata.SetXenotypeName(reference, string.IsNullOrWhiteSpace(xenogerm.xenotypeName) ? null : xenogerm.xenotypeName);
+            BiotechThingMetadata.SetXenotypeIconDefName(reference, xenogerm.iconDef?.defName);
         }
 
         AppendReproductiveSourceMetadata(metadataThing, reference);
     }
 
-    internal static void NormalizeBiotechThingReferenceMetadata(ModThingReferenceDto reference)
-    {
-        NormalizeBiotechMetadata(reference);
-    }
-
     internal static bool ThingReferenceMatches(ModThingReferenceDto requirement, Thing metadataThing)
     {
-        NormalizeBiotechMetadata(requirement);
+        BiotechThingMetadata.Normalize(requirement);
         return !HasBiotechTradeMetadata
-            || (GeneRequirementMatches(requirement, CandidateGeneDefNames(metadataThing))
-                && ReproductiveSourceRequirementMatches(requirement, CandidateReproductiveSources(metadataThing)));
+            || (BiotechThingMetadata.GeneRequirementMatches(requirement, CandidateGeneDefNames(metadataThing))
+                && BiotechThingMetadata.ReproductiveSourceRequirementMatches(requirement, CandidateReproductiveSources(metadataThing)));
     }
 
     internal static bool ThingReferenceDtoMatches(ModThingReferenceDto requirement, ModThingReferenceDto candidate)
     {
-        NormalizeBiotechMetadata(requirement);
-        NormalizeBiotechMetadata(candidate);
+        BiotechThingMetadata.Normalize(requirement);
+        BiotechThingMetadata.Normalize(candidate);
         return !HasBiotechTradeMetadata
-            || (GeneRequirementMatches(requirement, GeneDefNames(candidate))
-                && ReproductiveSourceRequirementMatches(requirement, ReproductiveSources(candidate)));
+            || (BiotechThingMetadata.GeneRequirementMatches(requirement, BiotechThingMetadata.GeneDefNames(candidate))
+                && BiotechThingMetadata.ReproductiveSourceRequirementMatches(requirement, BiotechThingMetadata.ReproductiveSources(candidate)));
     }
 
     internal static bool TryApplyThingReferenceMetadata(ModThingReferenceDto reference, Thing thing, out string? missingDefName)
     {
         missingDefName = null;
-        NormalizeBiotechMetadata(reference);
+        BiotechThingMetadata.Normalize(reference);
         if (!HasBiotechTradeMetadata)
         {
             return true;
         }
 
-        if (GeneDefNames(reference).Count > 0 && thing is GeneSetHolderBase)
+        if (BiotechThingMetadata.GeneDefNames(reference).Count > 0 && thing is GeneSetHolderBase)
         {
             List<GeneDef> genes = new();
-            foreach (string geneDefName in GeneDefNames(reference))
+            foreach (string geneDefName in BiotechThingMetadata.GeneDefNames(reference))
             {
                 GeneDef? gene = ResolveGeneDef(geneDefName);
                 if (gene is null)
@@ -205,11 +123,11 @@ internal static partial class BiotechCompatibility
             {
                 Genepack sourcePack = (Genepack)ThingMaker.MakeThing(ThingDefOf.Genepack);
                 sourcePack.Initialize(genes);
-                string? xenotypeIconDefName = XenotypeIconDefName(reference);
+                string? xenotypeIconDefName = BiotechThingMetadata.XenotypeIconDefName(reference);
                 XenotypeIconDef icon = string.IsNullOrWhiteSpace(xenotypeIconDefName)
                     ? XenotypeIconDefOf.Basic
                     : DefDatabase<XenotypeIconDef>.GetNamedSilentFail(xenotypeIconDefName) ?? XenotypeIconDefOf.Basic;
-                string? xenotypeName = XenotypeName(reference);
+                string? xenotypeName = BiotechThingMetadata.XenotypeName(reference);
                 xenogerm.Initialize(
                     new List<Genepack> { sourcePack },
                     string.IsNullOrWhiteSpace(xenotypeName)
@@ -232,14 +150,14 @@ internal static partial class BiotechCompatibility
 
     internal static int ThingReferenceStrictness(ModThingReferenceDto requirement)
     {
-        NormalizeBiotechMetadata(requirement);
+        BiotechThingMetadata.Normalize(requirement);
         if (!HasBiotechTradeMetadata)
         {
             return 0;
         }
 
-        int strictness = TargetGeneDefNames(requirement).Count > 0 ? 1_000_000 : 0;
-        if (ReproductiveSources(requirement).Count > 0)
+        int strictness = BiotechThingMetadata.TargetGeneDefNames(requirement).Count > 0 ? 1_000_000 : 0;
+        if (BiotechThingMetadata.ReproductiveSources(requirement).Count > 0)
         {
             strictness += 900_000;
         }
@@ -264,101 +182,4 @@ internal static partial class BiotechCompatibility
             : Array.Empty<string>();
     }
 
-    private static bool GeneRequirementMatches(ModThingReferenceDto requirement, IReadOnlyCollection<string>? candidateGeneDefNames)
-    {
-        NormalizeBiotechMetadata(requirement);
-        IReadOnlyList<string> targetGeneDefNames = TargetGeneDefNames(requirement);
-        if (targetGeneDefNames.Count == 0)
-        {
-            return true;
-        }
-
-        if (candidateGeneDefNames is null || candidateGeneDefNames.Count == 0)
-        {
-            return false;
-        }
-
-        return targetGeneDefNames.All(targetGeneDefName =>
-            candidateGeneDefNames.Any(geneDefName => string.Equals(
-                    geneDefName,
-                    targetGeneDefName,
-                    StringComparison.OrdinalIgnoreCase)));
-    }
-
-    private static void NormalizeBiotechMetadata(ModThingReferenceDto? reference)
-    {
-        if (reference is null)
-        {
-            return;
-        }
-
-        reference.Metadata ??= new Dictionary<string, string?>();
-    }
-
-    private static IReadOnlyList<string> ReadMetadataList(ModThingReferenceDto? reference, string key)
-    {
-        NormalizeBiotechMetadata(reference);
-        if (reference is null
-            || !reference.Metadata.TryGetValue(key, out string? value)
-            || string.IsNullOrWhiteSpace(value))
-        {
-            return Array.Empty<string>();
-        }
-
-        return value!
-            .Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
-            .Select(gene => gene.Trim())
-            .Where(gene => !string.IsNullOrWhiteSpace(gene))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-    }
-
-    private static void WriteMetadataList(ModThingReferenceDto? reference, string key, IEnumerable<string>? values)
-    {
-        if (reference is null)
-        {
-            return;
-        }
-
-        reference.Metadata ??= new Dictionary<string, string?>();
-        string[] normalized = (values ?? Array.Empty<string>())
-            .Where(value => !string.IsNullOrWhiteSpace(value))
-            .Select(value => value.Trim())
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-        if (normalized.Length == 0)
-        {
-            reference.Metadata.Remove(key);
-            return;
-        }
-
-        reference.Metadata[key] = string.Join(",", normalized);
-    }
-
-    private static string? ReadMetadataText(ModThingReferenceDto? reference, string key)
-    {
-        NormalizeBiotechMetadata(reference);
-        return reference is not null
-            && reference.Metadata.TryGetValue(key, out string? value)
-            && !string.IsNullOrWhiteSpace(value)
-                ? value
-                : null;
-    }
-
-    private static void WriteMetadataText(ModThingReferenceDto? reference, string key, string? value)
-    {
-        if (reference is null)
-        {
-            return;
-        }
-
-        reference.Metadata ??= new Dictionary<string, string?>();
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            reference.Metadata.Remove(key);
-            return;
-        }
-
-        reference.Metadata[key] = value;
-    }
 }

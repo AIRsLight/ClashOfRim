@@ -4,16 +4,16 @@ namespace AIRsLight.ClashOfRim.Network.Plugins.DlcCompatibility;
 
 internal sealed class BiotechTradeThingMetadataMatcher : ITradeThingMetadataMatcher
 {
-    public const string GeneDefNamesKey = "rimworld.biotech.geneDefNames";
-    public const string TargetGeneDefNameKey = "rimworld.biotech.targetGeneDefName";
-    public const string XenotypeNameKey = "rimworld.biotech.xenotypeName";
-    public const string XenotypeIconDefNameKey = "rimworld.biotech.xenotypeIconDefName";
-    public const string ReproductiveSourcePrefix = "rimworld.biotech.reproductiveSource.";
-    public const string ReproductiveSourceCountKey = ReproductiveSourcePrefix + "count";
-    public const string ReproductiveSourceRoleField = "role";
-    public const string ReproductiveSourceRaceDefField = "raceDef";
-    public const string ReproductiveSourceEndogeneDefNamesField = "endogeneDefNames";
-    public const string ReproductiveSourceXenogeneDefNamesField = "xenogeneDefNames";
+    public const string GeneDefNamesKey = BiotechThingMetadataKeys.GeneDefNames;
+    public const string TargetGeneDefNameKey = BiotechThingMetadataKeys.TargetGeneDefNames;
+    public const string XenotypeNameKey = BiotechThingMetadataKeys.XenotypeName;
+    public const string XenotypeIconDefNameKey = BiotechThingMetadataKeys.XenotypeIconDefName;
+    public const string ReproductiveSourcePrefix = BiotechThingMetadataKeys.ReproductiveSourcePrefix;
+    public const string ReproductiveSourceCountKey = BiotechThingMetadataKeys.ReproductiveSourceCount;
+    public const string ReproductiveSourceRoleField = BiotechThingMetadataKeys.SourceRole;
+    public const string ReproductiveSourceRaceDefField = BiotechThingMetadataKeys.SourceRaceDef;
+    public const string ReproductiveSourceEndogeneDefNamesField = BiotechThingMetadataKeys.SourceEndogeneDefNames;
+    public const string ReproductiveSourceXenogeneDefNamesField = BiotechThingMetadataKeys.SourceXenogeneDefNames;
 
     public int RequirementStrictness(ThingReferenceDto requirement)
     {
@@ -146,7 +146,7 @@ internal sealed class BiotechTradeThingMetadataMatcher : ITradeThingMetadataMatc
             return Array.Empty<ReproductiveSourceRecord>();
         }
 
-        count = Math.Min(count, 4);
+        count = Math.Min(count, BiotechThingMetadataKeys.MaxReproductiveSources);
         var records = new List<ReproductiveSourceRecord>(count);
         for (int i = 0; i < count; i++)
         {
