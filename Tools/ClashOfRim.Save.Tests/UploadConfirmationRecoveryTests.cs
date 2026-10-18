@@ -52,7 +52,7 @@ internal static class UploadConfirmationRecoveryTests
                     if (stage == "payload") f.Store.BeforePrepare = () => throw new IOException("recovery preparation failed");
                     else f.Store.FailPreparation = true;
                 }
-                if (change == "compete") ClashOfRimNetworkServer.RecoverSnapshotCommits(f.State);
+                if (change == "compete") f.State.SnapshotMutations.Recover();
                 if (change == "newer") f.Store.Inner.StoreLatest(f.Package with { Envelope = f.Package.Envelope with
                     { Identity = new("foreign", "foreign-colony", "newer"), NextLineageToken = "newer-token" } }, f.Package.Index, DateTimeOffset.UtcNow);
                 before = f.Evidence();

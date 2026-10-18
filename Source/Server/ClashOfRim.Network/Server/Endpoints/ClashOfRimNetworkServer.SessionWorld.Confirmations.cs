@@ -112,7 +112,7 @@ public static partial class ClashOfRimNetworkServer
                 affectedEventCount: 0));
         }
 
-        using (var mutation = EnterRecoveredSnapshotMutation(state, () =>
+        using (var mutation = state.SnapshotMutations.Enter(() =>
             AuthorizeColony(state, request.AuthToken, request.UserId, request.ColonyId, request.EventId,
                 authorizationScope: null, DateTimeOffset.UtcNow)))
         {

@@ -99,13 +99,13 @@ internal static class RaidSettlementCommitTests
         var latest = f.Files.GetLatest("defender", "defender-colony")?.Envelope;
         if (conflict)
         {
-            Fails(() => ClashOfRimNetworkServer.RecoverSnapshotCommits(f.State), "Conflict was overwritten by recovery.");
+            Fails(() => f.State.SnapshotMutations.Recover(), "Conflict was overwritten by recovery.");
             Require(File.Exists(path) && f.Files.GetLatest("defender", "defender-colony")?.Envelope == latest,
                 "Recovery discarded its journal or overwrote a conflicting destination.");
             return;
         }
         // Recover through the production coordinator, then retry the operation with a later clock.
-        ClashOfRimNetworkServer.RecoverSnapshotCommits(f.State);
+        f.State.SnapshotMutations.Recover();
         var duplicate = RaidSettlementOperationExecutor.Execute(f.State, f.Payload, f.Evidence, f.Now.AddHours(4));
         Require(duplicate.Kind == RaidSettlementOperationResultKind.AlreadyCompleted, "Retry recalculated settlement.");
         Require(!Directory.EnumerateFiles(f.Journal, "*.json").Any()

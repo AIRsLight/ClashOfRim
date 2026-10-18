@@ -45,7 +45,7 @@ internal static class LoginPreparationTests
         SnapshotPreparationGateProbe.Run(e.F.State.RaidSettlementSnapshotMutationGate, hook => e.F.Store.BeforePrepare = hook, () => response = e.Call(), () =>
         {
             Change(e, mode); e.F.Store.FailPreparation = mode == "failure"; e.F.Store.FailPublication = mode == "publication-failure";
-            if (mode == "compete") ClashOfRimNetworkServer.RecoverSnapshotCommits(e.F.State);
+            if (mode == "compete") e.F.State.SnapshotMutations.Recover();
             before = e.F.Evidence(); domain = e.Domain(); Require(e.OldValid(), "Preparation displaced a session before recovery.");
         });
         using (response)

@@ -7,6 +7,7 @@ internal static class SnapshotMutationCoordinatorTests
     {
         foreach (int rejectOn in new[] { 1, 2, 3 }) AuthorizationBoundaries(rejectOn);
         NoPreparationRequired();
+        DeferredComposition();
         NestedOwnership();
         foreach (string mode in new[] { "obsolete", "obsolete-failure", "install-conflict" }) PreparationRetry(mode);
         foreach (string phase in new[] { "authorize", "prerequisites", "capture", "prepare", "install", "replay" }) FailureReleasesGate(phase);
@@ -61,6 +62,23 @@ internal static class SnapshotMutationCoordinatorTests
         Require(!Monitor.IsEntered(f.Gate), "Nested recovery leaked a lock level.");
     }
 
+    private static void DeferredComposition()
+    {
+        var f = new RecoveryProbe(deferred: true) { NeedsPreparation = false };
+        using (f.Coordinator.EnterUnrecovered())
+            Require(f.Resolutions == 0, "An unrecovered scope resolved the recovery graph.");
+        var denied = ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, "session replaced");
+        using (var mutation = f.Coordinator.Enter(() => denied))
+            Require(ReferenceEquals(mutation.Rejection, denied) && f.Resolutions == 0 && f.Replays == 0,
+                "Rejected entry resolved or executed recovery.");
+        Parallel.For(0, 8, _ => f.Coordinator.Recover());
+        Require(f.Resolutions == 1 && f.Captures == 8 && f.Replays == 8 && !Monitor.IsEntered(f.Gate),
+            "Concurrent recovery did not share one composed graph and the original mutation gate.");
+        using (f.Coordinator.EnterUnrecovered()) f.Coordinator.Recover();
+        Require(f.Resolutions == 1 && f.Captures == 8 && f.Replays == 9 && !Monitor.IsEntered(f.Gate),
+            "Nested recovery recaptured preparation or resolved another graph.");
+    }
+
     private static void PreparationRetry(string mode)
     {
         var f = new RecoveryProbe { RetryMode = mode };
@@ -101,9 +119,11 @@ internal static class SnapshotMutationCoordinatorTests
         internal string? FaultPhase;
         internal string? RetryMode;
         internal bool NeedsPreparation = true;
-        internal int Captures, Preparations, Replays;
+        internal int Captures, Preparations, Replays, Resolutions;
 
-        internal RecoveryProbe() => Coordinator = new(Gate, this);
+        internal RecoveryProbe(bool deferred = false) => Coordinator = deferred
+            ? new(Gate, new Lazy<ISnapshotRecovery>(() => { Resolutions++; RequireHeld(); return this; }))
+            : new(Gate, this);
         internal void RequireHeld() => Require(Monitor.IsEntered(Gate), "Recovery/publication ran outside the mutation gate.");
         internal void Fail(string phase) { if (FaultPhase == phase) throw Failure; }
 

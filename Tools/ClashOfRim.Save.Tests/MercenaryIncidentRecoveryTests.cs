@@ -1,12 +1,10 @@
 using AIRsLight.ClashOfRim.Network.Modules.Mercenaries;
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Network;
-using AIRsLight.ClashOfRim.Network.Plugins;
 using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Save;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Data.Sqlite;
-using System.Reflection;
 using System.IO.Compression;
 using System.Xml.Linq;
 
@@ -100,7 +98,7 @@ internal static class MercenaryIncidentRecoveryTests
             if (!confirm)
             {
                 state.BankLoans.ReconcilePendingConfirmations("user", "colony", DateTimeOffset.UtcNow, TimeSpan.Zero, true);
-                ClashOfRimNetworkServer.RecoverSnapshotCommits(state);
+                state.SnapshotMutations.Recover();
                 Require(state.BankLoans.FindDebtByIdempotencyKey("incident") is null && state.MercenaryContracts.FindActive("contract") is not null
                     && state.Ledger.ListAll().Count == 0, "Cancelling an unconfirmed fine left irreversible side effects.");
                 continue;
@@ -121,10 +119,6 @@ internal static class MercenaryIncidentRecoveryTests
             }
             var upload = PendingOperationCommitCrashTests.Receive(state, package);
             Require(upload.Accepted, "Incident confirmation snapshot was rejected: " + upload);
-            LatestSnapshotRecord latest = upload.AcceptedSnapshot!;
-            var context = new SnapshotPostUploadContext(state, SnapshotPostUploadKind.AuthoritativeColonySnapshot, latest,
-                "user", "colony", null, DateTimeOffset.UtcNow, new SnapshotPostUploadExtraData(null, null, null), false);
-            Invoke("ConfirmPendingOperationsFromSnapshot", context);
             Require(state.BankLoans.FindDebtByIdempotencyKey("incident") is { Status: BankLoanRegistry.StatusActive, MercenaryIncidentFinalized: true }
                 && state.MercenaryContracts.Find("contract")!.Status == MercenaryContractRegistry.StatusCompleted
                 && state.Ledger.ListAll().Count == 1, "Confirmed snapshot did not finalize the fine and contract.");
@@ -177,8 +171,6 @@ internal static class MercenaryIncidentRecoveryTests
     private static MercenaryIncidentResponse Report(ClashOfRimNetworkState state, string key, string kind, string token,
         string user = "user", string colony = "colony", string snapshot = "before", string contractId = "contract") =>
         state.Mercenaries.ReportMercenaryIncident(new ReportMercenaryIncidentRequest(key, user, colony, snapshot, token, 1000, contractId, kind));
-    private static object? Invoke(string method, params object[] arguments) => typeof(ClashOfRimNetworkServer)
-        .GetMethod(method, BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, arguments);
     private static void Execute(string database, string sql)
     {
         using var connection = new SqliteConnection("Data Source=" + database);

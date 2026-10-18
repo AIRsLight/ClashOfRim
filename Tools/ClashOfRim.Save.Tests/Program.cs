@@ -26,6 +26,7 @@ if (args.FirstOrDefault() == "--baseline-invalidation-crash")
 
 var tests = new (string Name, Action Run)[]
 {
+    ("快照恢复协调器的授权、锁外准备与惰性装配", SnapshotMutationCoordinatorTests.Run),
     ("后处理模块顺序、能力边界与插件上下文兼容", SnapshotPostUploadRunnerTests.Run),
     ("会话授权结构化失效与普通拒绝、HTTP 传播", () => SessionAuthorizationTests.Run(BuildFixturePackage)),
     ("玩家目录与成就查询模块、身份投影和排行榜", () => PlayerAchievementQueryModuleTests.Run(BuildFixturePackage)),

@@ -38,7 +38,7 @@ internal static class ExpeditionEndpointRecoveryPreparationTests
             if (change == "replace") f.State.LoginSessions.TryCreate("userA", "colonyA", DateTimeOffset.UtcNow, out _);
             if (change is "revoke" or "revoke-failure") f.State.AuthTokens.RevokeForUser("userA");
             if (change == "newer") f.ChangeDecision("source");
-            if (change == "compete") ClashOfRimNetworkServer.RecoverSnapshotCommits(f.State);
+            if (change == "compete") f.State.SnapshotMutations.Recover();
             if (change is "failure" or "revoke-failure") f.Store.FailPreparation = true;
             before = f.Evidence();
         }

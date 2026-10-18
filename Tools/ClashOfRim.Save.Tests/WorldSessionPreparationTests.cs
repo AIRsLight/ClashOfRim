@@ -56,7 +56,7 @@ internal static class WorldSessionPreparationTests
         {
             Change(e, change); if (change == "failure") e.F.Store.FailPreparation = true;
             if (change == "publication-failure") e.F.Store.FailPublication = true;
-            if (change == "compete") ClashOfRimNetworkServer.RecoverSnapshotCommits(e.F.State);
+            if (change == "compete") e.F.State.SnapshotMutations.Recover();
             before = e.F.Evidence(); domain = e.Domain();
         });
         using (response)

@@ -89,7 +89,7 @@ internal static partial class RaidCleanupCommitTests
             legacy = f.State.Ledger.MarkApplied(legacy.EventId, "consumed", f.Now);
         }
         f.Open();
-        ClashOfRimNetworkServer.RecoverSnapshotCommits(f.State);
+        f.State.SnapshotMutations.Recover();
         f.InvokeCleanup();
         var actual = f.State.Ledger.Find(legacy.EventId);
         Require(actual is not null && JsonSerializer.Serialize(actual) == JsonSerializer.Serialize(legacy)
@@ -140,11 +140,11 @@ internal static partial class RaidCleanupCommitTests
         var latest = f.Files.GetLatest("attacker", "colony-a")?.Envelope;
         if (conflict)
         {
-            Fails(() => ClashOfRimNetworkServer.RecoverSnapshotCommits(f.State), "Conflicting cleanup was recovered automatically.");
+            Fails(() => f.State.SnapshotMutations.Recover(), "Conflicting cleanup was recovered automatically.");
             Require(File.Exists(path) && f.Files.GetLatest("attacker", "colony-a")?.Envelope == latest, "Conflict lost its journal or overwritten snapshot.");
             return;
         }
-        ClashOfRimNetworkServer.RecoverSnapshotCommits(f.State);
+        f.State.SnapshotMutations.Recover();
         f.InvokeCleanup();
         Require(!Directory.EnumerateFiles(f.Journal, "*.json").Any() && f.State.Ledger.ListAll().Count == 4
             && f.State.Ledger.Find(f.Support.EventId)!.Status == ServerEventStatus.Failed

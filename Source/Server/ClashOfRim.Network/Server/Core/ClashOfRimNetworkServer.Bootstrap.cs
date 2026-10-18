@@ -70,7 +70,7 @@ public static partial class ClashOfRimNetworkServer
             app = builder.Build();
             previousRuntimeLogger = networkState.RuntimeLogger;
             networkState.SetRuntimeLogger(RuntimeLogger(app.Services.GetRequiredService<ILoggerFactory>()));
-            RecoverSnapshotCommits(networkState);
+            networkState.SnapshotMutations.Recover();
             app.Logger.LogInformation(T("Server.LocalizationLoaded", ("LANGUAGES", string.Join(", ", ServerLocalization.LoadedLanguages))));
             if (plugins.Plugins.Count > 0)
             {
@@ -144,7 +144,7 @@ public static partial class ClashOfRimNetworkServer
                 // Let endpoints with explicit ownership control validation and recovery order.
                 // Keep the fallback for routes that have not yet acquired explicit recovery ownership.
                 if (context.GetEndpoint()?.Metadata.GetMetadata<EndpointSnapshotRecovery>() is null)
-                    RecoverSnapshotCommits(networkState);
+                    networkState.SnapshotMutations.Recover();
                 await next(context);
             });
             MapEndpoints(app);

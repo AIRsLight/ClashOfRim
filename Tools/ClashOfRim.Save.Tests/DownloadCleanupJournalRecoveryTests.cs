@@ -40,7 +40,7 @@ internal static partial class RaidCleanupCommitTests
                 captures++;
                 Require(f.Store.WritesByOwner.Count == 0 && f.State.Ledger.ListAll().Count == 2,
                     "Download cleanup published before journal preparation completed.");
-                if (change == "compete") ClashOfRimNetworkServer.RecoverSnapshotCommits(f.State);
+                if (change == "compete") f.State.SnapshotMutations.Recover();
                 if (change == "failure") f.Store.FailPreparation = true;
                 if (change == "newer") f.Files.StoreLatest(foreign.Package with { Envelope = foreign.Package.Envelope with
                     { Identity = new("foreign", "foreign-colony", "newer"), NextLineageToken = "newer" } }, foreign.Package.Index, f.Now);
@@ -65,7 +65,7 @@ internal static partial class RaidCleanupCommitTests
                 "Failed download recovery changed state or lost its journal.");
             if (change == "failure")
             {
-                f.Open(); ClashOfRimNetworkServer.RecoverSnapshotCommits(f.State);
+                f.Open(); f.State.SnapshotMutations.Recover();
                 Require(!f.State.SnapshotCommits.HasPending && f.State.Ledger.FindByIdempotencyKey("download-foreign") is not null,
                     "Download recovery preparation failure could not resume after reopening.");
             }

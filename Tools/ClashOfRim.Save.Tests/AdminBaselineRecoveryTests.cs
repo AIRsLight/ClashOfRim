@@ -50,12 +50,12 @@ internal static class AdminBaselineRecoveryTests
             Require(ReferenceEquals(before, state.AdminBaseline.Current) && f.Slot.Read() == durable && Snapshot(state) == ledgerBefore
                 && ReferenceEquals(policy, state.AdminBaseline.BuildEffectiveTradeFeePolicy(state.ServerConfiguration)), "Failed baseline published prices, pending work or refunds.");
         f.Fault.Clear(); state = f.Open();
-        ClashOfRimNetworkServer.RecoverSnapshotCommits(state);
+        state.SnapshotMutations.Recover();
         if (committed) AssertRecovered(state);
         else Require(Snapshot(state) == ledgerBefore && state.AdminBaseline.Current!.StandardMarketValuePerThing.ContainsKey("Steel"), "Restart applied an uncommitted baseline.");
         Submit(state); AssertRecovered(state);
         string completed = Snapshot(state); long signals = state.EventNotifications.GetVersion("seller");
-        ClashOfRimNetworkServer.RecoverSnapshotCommits(state);
+        state.SnapshotMutations.Recover();
         Require(Snapshot(state) == completed && signals == state.EventNotifications.GetVersion("seller"), "Completed baseline work was replayed again.");
         AssertRecovered(f.Open());
     }
@@ -96,7 +96,7 @@ internal static class AdminBaselineRecoveryTests
         if (!existing) foreach (var item in state.Ledger.ListAll().Where(item => item.Type is ServerEventType.ItemDelivery or ServerEventType.ServerNotification)) Consume(state.Ledger, item);
         var protectedIds = state.Ledger.ListAll().Where(item => item.Type is ServerEventType.ItemDelivery or ServerEventType.ServerNotification).Select(item => item.EventId).ToArray();
         string before = JsonSerializer.Serialize(protectedIds.Select(state.Ledger.Find));
-        state = f.Open(); ClashOfRimNetworkServer.RecoverSnapshotCommits(state); AssertRecovered(state);
+        state = f.Open(); state.SnapshotMutations.Recover(); AssertRecovered(state);
         Require(before == JsonSerializer.Serialize(protectedIds.Select(state.Ledger.Find)), "Recovery rewrote consumed refunds or notifications.");
     }
 
@@ -143,7 +143,7 @@ internal static class AdminBaselineRecoveryTests
         string durable = f.Slot.Read()!;
         state.Ledger.ChangeStatus(state.AdminBaseline.ListPendingTradeInvalidations()[0].OrderId, ServerEventStatus.AppliedToSnapshot);
         string evidence = Snapshot(state); state = f.Open();
-        Expect(() => ClashOfRimNetworkServer.RecoverSnapshotCommits(state), typeof(InvalidOperationException));
+        Expect(() => state.SnapshotMutations.Recover(), typeof(InvalidOperationException));
         Require(f.Slot.Read() == durable && Snapshot(state) == evidence, "Recovery guessed past changed order evidence or dropped the pending decision.");
     }
 
@@ -185,7 +185,7 @@ internal static class AdminBaselineRecoveryTests
         using var child = Process.Start(start)!; var output = child.StandardOutput.ReadToEndAsync(); var error = child.StandardError.ReadToEndAsync();
         if (!child.WaitForExit(30000)) { child.Kill(entireProcessTree: true); child.WaitForExit(); throw new Exception("Baseline crash child timed out."); }
         Require(child.ExitCode == 75, "Child missed baseline crash checkpoint: " + output.GetAwaiter().GetResult() + error.GetAwaiter().GetResult());
-        var state = f.Open(); ClashOfRimNetworkServer.RecoverSnapshotCommits(state); AssertRecovered(state);
+        var state = f.Open(); state.SnapshotMutations.Recover(); AssertRecovered(state);
     }
 
     internal static void CrashChild(string[] args)
@@ -205,7 +205,7 @@ internal static class AdminBaselineRecoveryTests
         Sql(database, sql); Expect(() => Submit(state), typeof(SqliteException));
         Require(phase == "completion" || Snapshot(state) == before, "SQLite failure partially published an invalidation batch.");
         Sql(database, "drop trigger fail;"); state = f.Open();
-        if (phase == "baseline") Submit(state); else ClashOfRimNetworkServer.RecoverSnapshotCommits(state);
+        if (phase == "baseline") Submit(state); else state.SnapshotMutations.Recover();
         AssertRecovered(state);
     }
 
@@ -231,7 +231,7 @@ internal static class AdminBaselineRecoveryTests
     private static void Concurrent()
     {
         using var f = new Fixture("sqlite"); var state = f.Seed(); f.Fault.Stage = "ledger-before"; Expect(() => Submit(state)); f.Fault.Clear();
-        Task.WaitAll(Enumerable.Range(0, 6).Select(_ => Task.Run(() => ClashOfRimNetworkServer.RecoverSnapshotCommits(state))).ToArray());
+        Task.WaitAll(Enumerable.Range(0, 6).Select(_ => Task.Run(() => state.SnapshotMutations.Recover())).ToArray());
         AssertRecovered(state); Require(state.EventNotifications.GetVersion("seller") == 2, "Concurrent recovery duplicated wakeups.");
     }
 

@@ -51,7 +51,7 @@ internal static class TradeMarketRecoveryTests
             {
                 Change(e, change);
                 if (change is "failure" or "revoke-failure") f.Store.FailPreparation = true;
-                if (change == "compete") ClashOfRimNetworkServer.RecoverSnapshotCommits(f.State);
+                if (change == "compete") f.State.SnapshotMutations.Recover();
                 before = f.Evidence();
             });
         using (response)
@@ -103,7 +103,7 @@ internal static class TradeMarketRecoveryTests
             () => { try { Maintain(e, kind); } catch (IOException ex) { failure = ex; } }, () =>
             {
                 if (change == "failure") f.Store.FailPreparation = true;
-                if (change == "compete") ClashOfRimNetworkServer.RecoverSnapshotCommits(f.State);
+                if (change == "compete") f.State.SnapshotMutations.Recover();
             });
         Require((failure is not null) == (change == "failure"), "Standalone maintenance recovery failed unexpectedly.");
         if (failure is not null) { e.AssertNoExpiration(); f.Store.FailPreparation = false; Maintain(e, kind); }

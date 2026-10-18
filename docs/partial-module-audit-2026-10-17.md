@@ -2674,3 +2674,18 @@ SnapshotPostUploads 接管普通业务提交、普通上传及袭击证据的输
 复用已有调度和普通上传测试，新增四种文化下的插件动态启停／未启用插件与核心 ID 冲突检查、袭击证据直接与预准备两条路径的发布／重放及原始输入断言；普通提交验证通知阶段前已经完成核心投影，普通上传故障矩阵验证 inline 与 deferred 插件共享上下文。**7 个相关单元组通过**：后处理调度、模块边界（419 个类型、81 条路由）、普通上传恢复、单条／批量确认日志、支援死亡恢复、快照成就恢复、公开袭击后处理器。日志：`LocalOnly/module-migration/server-core-post-upload-tests.log`。生产代码随测试编译；未运行全量回归、实机 RimTest 或独立发布构建，未推送。
 
 **下一步 M9h：恢复装配的真实归属。** LegacySnapshotRecoveryAdapter 仍把前置恢复和提交重放转回宿主，并暂代 ISnapshotCommitEffects 转发；需要以明确依赖的恢复模块接管顺序，解决恢复协调器与领域服务的构造依赖后删除该适配器和宿主恢复入口。后台 SnapshotPostUploadJobExecutor／BackgroundService 仍使用旧 State 上下文，其任务恢复与失败处理责任也需复核，不能据本步宣称 M9 完成。M10–M12、剩余宿主事件失败接收及最终完成审计继续开放。
+
+
+### M9h 提交恢复装配和顺序归属（2026-10-19）
+
+SnapshotRecovery 通过明确的领域、存储和注册表依赖接管原宿主的恢复流程：先拒绝殖民地删除中的嵌套变更，再依次恢复管理配置、世界图层通知、管理员基线订单失效、殖民地删除和外交发布；恢复准备仍由 SnapshotCommitService 捕获，提交日志重放后再收尾佣兵事故。原通知、成就、确认计划和上传效果全部使用既有模块，不复制恢复算法或待办状态。
+
+装配处对恢复模块使用 Lazy<ISnapshotRecovery> 一次性构造，解开“领域依赖变更协调器、恢复又依赖领域”的循环。工厂只创建具体恢复对象，不承载恢复业务。SnapshotMutationCoordinator 仍先授权后解析恢复对象，保持锁外准备、过期准备重捕获、恢复后的授权复验，以及嵌套调用不释放外层锁。纯 EnterUnrecovered 和授权拒绝不会解析恢复对象。协调器新增 Recover 入口供启动、后台和测试使用，复用 Enter；其余请求直接使用 Enter，不再经过宿主包装。
+
+提前装配后处理所需的领域模块，让银行、雇佣、礼物、支援、交易、商店和袭击出征直接接收 SnapshotPostUploads 作为提交效果。恢复模块不再兼任提交效果，也不保存 NetworkState。删除 LegacySnapshotRecoveryAdapter 和 ClashOfRimNetworkServer.SnapshotCommits.cs；启动、后台、剩余宿主请求及测试调用同步迁移，没有保留仅为旧测试服务的宿主入口。
+
+复用 SnapshotMutationCoordinatorTests 增加惰性装配断言：普通未恢复锁和拒绝请求不解析依赖；八个并发恢复共用一个恢复对象和原变更锁；嵌套恢复不重新捕获准备。将该组链接进 Save.Tests，可单独筛选，无需运行完整 NetworkSmoke。测试发现两处仍反射调用上轮删除的 ConfirmPendingOperationsFromSnapshot：佣兵测试改为直接断言真实上传已完成罚款／合同收尾，待确认批次测试通过真实后处理入口重放旧快照，继续验证后来创建的债务不会被确认。
+
+**累计 11 个相关单元组通过**：恢复协调器、模块边界（421 个类型、81 条路由）、锁外载荷／日志恢复准备、普通上传、单条／批量确认日志、外交发布、世界图层通知、管理员基线固定批次、佣兵罚款、固定待确认批次和殖民地删除。首批日志 `LocalOnly/module-migration/server-snapshot-recovery-tests.log` 中八组通过后停在上述过时反射调用；修正后只运行未完成／受影响的五组，日志为 `LocalOnly/module-migration/server-snapshot-recovery-followup-tests.log`，全部通过且无编译警告。没有重跑已通过的无关场景，没有全量回归、实机 RimTest、独立发布构建或推送。
+
+**下一步 M9i：后台后处理执行与恢复边界。** SnapshotPostUploadJobExecutor／BackgroundService 仍持有 State 和公开插件上下文，负责 Ready／Prepared 作业分派、失败计数、人工复核及恢复入口。需将这些实际任务职责交给明确依赖的模块，核心袭击任务直接调用领域服务，旧插件上下文留在适配边界；保留现有持久任务与重试规则。M9 尚未完成，M10–M12、剩余宿主事件失败接收及最终完成审计继续开放。

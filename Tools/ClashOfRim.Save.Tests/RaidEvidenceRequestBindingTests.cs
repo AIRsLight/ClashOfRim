@@ -90,7 +90,7 @@ internal static partial class RaidEvidenceAuthorizationTests
         try { f.Complete(); } catch (Exception ex) when (ex is IOException or Microsoft.Data.Sqlite.SqliteException) { failed = true; }
         Require(failed && f.State.SnapshotCommits.HasPending, "Settlement failure lost its receipt intent.");
         if (fault == "ledger") f.Sql("drop trigger fail_receipt;");
-        f.Open(); ClashOfRimNetworkServer.RecoverSnapshotCommits(f.State);
+        f.Open(); f.State.SnapshotMutations.Recover();
         f.Complete(); // Finish the interrupted job and delete its artifact after ledger recovery.
         f.Open();
         var reply = f.Invoke();

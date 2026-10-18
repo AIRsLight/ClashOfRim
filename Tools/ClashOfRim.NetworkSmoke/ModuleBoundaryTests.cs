@@ -29,7 +29,7 @@ internal static class ModuleBoundaryTests
             || t == typeof(RaidSettlementPostUploadProcessor)
             || t == typeof(AIRsLight.ClashOfRim.Network.Plugins.SnapshotPostUploadContext)
             || t == typeof(AIRsLight.ClashOfRim.Network.Plugins.SnapshotPostUploadDeferredContext)
-            || t == typeof(LegacySnapshotRecoveryAdapter) || t == typeof(SnapshotPostUploadPluginAdapter) || t == typeof(IServiceProvider));
+            || t == typeof(SnapshotPostUploadPluginAdapter) || t == typeof(IServiceProvider));
         Require(violations.Count == 0, string.Join(Environment.NewLine, violations));
         Type[] commitModules = [typeof(SnapshotCommitApplication), typeof(SnapshotCommitJournal), typeof(SnapshotConfirmationReceipts), typeof(SnapshotCommitRecoveryPreparation)];
         var commitBackReferences = ModuleDependencyGuard.FindViolations(

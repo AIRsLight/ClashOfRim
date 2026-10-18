@@ -190,7 +190,7 @@ public static partial class ClashOfRimNetworkServer
         if (!prepared.Accepted) return new(prepared);
         // Authorization is safe to repeat before/after recovery; business validation must
         // read recovered receipts and current state only after the recovery scope is acquired.
-        using (var mutation = EnterRecoveredSnapshotMutation(state, () => authorizeCommit?.Invoke()))
+        using (var mutation = state.SnapshotMutations.Enter(() => authorizeCommit?.Invoke()))
         {
             if (mutation.Rejection is { } denied)
                 return SnapshotReception.Denied(denied);

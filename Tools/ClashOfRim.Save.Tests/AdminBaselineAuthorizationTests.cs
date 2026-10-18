@@ -46,7 +46,7 @@ internal static class AdminBaselineAuthorizationTests
                         if (change is "revoke" or "revoke-failure") f.State.AuthTokens.RevokeForUser("receiver");
                         if (change == "role") RevokeRole(f);
                         if (change is "failure" or "revoke-failure") f.Store.FailPreparation = true;
-                        if (change == "compete") ClashOfRimNetworkServer.RecoverSnapshotCommits(f.State);
+                        if (change == "compete") f.State.SnapshotMutations.Recover();
                         before = f.Evidence();
                     });
                 using (response)

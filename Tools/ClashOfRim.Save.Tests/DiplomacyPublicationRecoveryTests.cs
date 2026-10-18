@@ -282,7 +282,7 @@ internal static class DiplomacyPublicationRecoveryTests
         ledger.Append(AuthoritativeEventFactory.Create(ServerEventType.WarDeclaration, new("userA", "colonyA"), party, "war", false,
             new WarDeclarationEventPayload("war", null), at));
         var live = new ClashOfRimNetworkState(ledger: ledger);
-        ClashOfRimNetworkServer.RecoverSnapshotCommits(live);
+        live.SnapshotMutations.Recover();
         Check(live.DiplomacyRelations.GetRelationKind("userA", "colonyA", "userB", "colonyB") == "Hostile"
             && live.EventNotifications.GetVersion("userB") == 1, "Actual server recovery did not publish the persisted diplomacy event.");
         var deletion = new ColonyDeletionService(); var tombstone = Tombstone(party, at.AddSeconds(1));
@@ -291,7 +291,7 @@ internal static class DiplomacyPublicationRecoveryTests
         Fails<IOException>(() => deletion.Commit<bool>(intent, _ => throw new IOException("pending deletion")));
         var slot = new RecoveryTestSupport.Slot { Fail = true };
         var state = new ClashOfRimNetworkState(ledger: ledger, diplomacyRelations: new DiplomacyRelationRegistry(slot), colonyDeletions: deletion);
-        ClashOfRimNetworkServer.RecoverSnapshotCommits(state);
+        state.SnapshotMutations.Recover();
         Check(!deletion.HasPending && state.DiplomacyRelations.List().Count == 0 && slot.Writes == 0,
             "Composition recovered diplomacy before finishing colony deletion.");
     }

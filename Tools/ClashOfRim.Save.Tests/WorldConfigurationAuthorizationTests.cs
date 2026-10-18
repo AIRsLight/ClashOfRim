@@ -46,7 +46,7 @@ internal static class WorldConfigurationAuthorizationTests
                 {
                     Change(e, change);
                     if (change is "failure" or "revoke-failure") f.Store.FailPreparation = true;
-                    if (change == "compete") ClashOfRimNetworkServer.RecoverSnapshotCommits(f.State);
+                    if (change == "compete") f.State.SnapshotMutations.Recover();
                     before = f.Evidence(); world = e.Evidence();
                 });
             using (response)

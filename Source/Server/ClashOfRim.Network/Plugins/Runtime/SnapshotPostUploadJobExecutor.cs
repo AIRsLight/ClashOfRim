@@ -206,7 +206,7 @@ internal sealed class SnapshotPostUploadBackgroundService : BackgroundService
                     try
                     {
                         if (state.ColonyDeletions.HasPending || state.WorldConfiguration.HasPendingLayerNotifications || state.SnapshotCommits.HasPendingUploads)
-                            ClashOfRimNetworkServer.RecoverSnapshotCommits(state);
+                            state.SnapshotMutations.Recover();
                     }
                     catch (Exception ex)
                     {

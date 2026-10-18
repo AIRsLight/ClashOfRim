@@ -43,7 +43,7 @@ internal static class TradeLifecycleRecoveryTests
                 if (change is "failure" or "revoke-failure") f.Store.FailPreparation = true;
                 if (change == "newer") f.Store.Inner.StoreLatest(f.Package with { Envelope = f.Package.Envelope with
                     { Identity = new("foreign", "foreign-colony", "newer"), NextLineageToken = "newer" } }, f.Package.Index, DateTimeOffset.UtcNow);
-                if (change == "compete") ClashOfRimNetworkServer.RecoverSnapshotCommits(f.State);
+                if (change == "compete") f.State.SnapshotMutations.Recover();
                 if (change == "terminal") f.State.Ledger.ChangeStatus(f.Order.EventId, ServerEventStatus.Failed);
                 if (change == "party")
                 {

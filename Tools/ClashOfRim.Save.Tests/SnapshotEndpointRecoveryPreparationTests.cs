@@ -184,7 +184,7 @@ internal static class SnapshotEndpointRecoveryPreparationTests
                 var newer = f.Package with { Envelope = f.Package.Envelope with { Identity = new("userA", "colonyA", "newer"), NextLineageToken = "newer-token" } };
                 f.Store.Inner.StoreLatest(newer, newer.Index, DateTimeOffset.UtcNow);
             }
-            if (change == "compete") ClashOfRimNetworkServer.RecoverSnapshotCommits(f.State);
+            if (change == "compete") f.State.SnapshotMutations.Recover();
             if (change is "failure" or "revoke-failure") f.Store.FailPreparation = true;
             baseline = f.Evidence();
         }

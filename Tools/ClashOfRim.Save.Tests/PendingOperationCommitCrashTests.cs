@@ -1,5 +1,4 @@
 using AIRsLight.ClashOfRim.Network;
-using AIRsLight.ClashOfRim.Network.Plugins;
 using AIRsLight.ClashOfRim.Save;
 using Microsoft.Data.Sqlite;
 using System.Reflection;
@@ -182,11 +181,7 @@ internal static class PendingOperationCommitCrashTests
                 && state.BankLoans.FindDebtByIdempotencyKey("later") is null
                 && !Directory.EnumerateFiles(journal, "*.json").Any(), "Relogin cancelled work already owned by the snapshot journal.");
             NewDebt(state.BankLoans, "after-confirmation", DateTimeOffset.UtcNow);
-            var context = new SnapshotPostUploadContext(state, SnapshotPostUploadKind.AuthoritativeColonySnapshot,
-                state.SnapshotStore.GetLatest("userA", "colonyA")!, "userA", "colonyA", null, DateTimeOffset.UtcNow,
-                new SnapshotPostUploadExtraData(null, null, null), false);
-            typeof(ClashOfRimNetworkServer).GetMethod("ConfirmPendingOperationsFromSnapshot", BindingFlags.Static | BindingFlags.NonPublic)!
-                .Invoke(null, [context]);
+            state.SnapshotPostUploads.AfterCommit(state.SnapshotStore.GetLatest("userA", "colonyA")!, null);
             Require(state.BankLoans.FindDebtByIdempotencyKey("after-confirmation")!.Status == BankLoanRegistry.StatusPendingActivation,
                 "Delayed snapshot post-processing confirmed a later operation.");
         });

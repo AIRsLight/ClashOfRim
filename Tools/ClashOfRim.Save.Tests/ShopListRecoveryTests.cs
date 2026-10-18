@@ -39,7 +39,7 @@ internal static class ShopListRecoveryTests
             {
                 Change(e, change);
                 if (change is "failure" or "revoke-failure") e.F.Store.FailPreparation = true;
-                if (change == "compete") ClashOfRimNetworkServer.RecoverSnapshotCommits(e.F.State);
+                if (change == "compete") e.F.State.SnapshotMutations.Recover();
                 before = e.F.Evidence();
             });
         using (response)

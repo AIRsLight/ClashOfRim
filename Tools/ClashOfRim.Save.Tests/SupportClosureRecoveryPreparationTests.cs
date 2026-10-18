@@ -40,7 +40,7 @@ internal static partial class SupportClosureTests
                 if (change is "failure" or "revoke-failure") f.Store.FailPreparation = true;
                 if (change == "newer") f.Store.Inner.StoreLatest(f.Package with { Envelope = f.Package.Envelope with
                     { Identity = new("foreign", "foreign-colony", "newer"), NextLineageToken = "newer" } }, f.Package.Index, OriginalTime);
-                if (change == "compete") ClashOfRimNetworkServer.RecoverSnapshotCommits(f.State);
+                if (change == "compete") f.State.SnapshotMutations.Recover();
                 if (change == "target") Sql(f.Database, "update events set target_user_id = 'other' where event_id = 'source';");
                 if (change == "cancelled") f.State.Ledger.ChangeStatus("source", ServerEventStatus.Cancelled);
                 if (change == "delivery") f.State.Ledger.MarkDelivered("source", "delivered-during-recovery", OriginalTime);
@@ -67,7 +67,7 @@ internal static partial class SupportClosureTests
                 "Denied or failed support closure changed durable state or discarded recovery.");
             if (change == "failure")
             {
-                f.Open(); ClashOfRimNetworkServer.RecoverSnapshotCommits(f.State);
+                f.Open(); f.State.SnapshotMutations.Recover();
                 Require(f.Call().Created, "Support closure did not resume after reopening failed preparation.");
                 f.AssertClosed(f.Kind);
             }

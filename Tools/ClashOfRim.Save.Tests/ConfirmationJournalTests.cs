@@ -121,7 +121,7 @@ internal static class ConfirmationJournalTests
         if (reopen) f.Open();
         string before = JsonSerializer.Serialize(f.State.Ledger.ListAll());
         var envelopeBefore = f.Files.GetLatest("userA", "colonyA")!.Envelope;
-        ExpectFailure(() => ClashOfRimNetworkServer.RecoverSnapshotCommits(f.State));
+        ExpectFailure(() => f.State.SnapshotMutations.Recover());
         Require(JsonSerializer.Serialize(f.State.Ledger.ListAll()) == before && f.Files.GetLatest("userA", "colonyA")!.Envelope == envelopeBefore
             && f.State.SnapshotCommits.HasPendingUploads, "conflict overwrote newer state or discarded intent");
     }
@@ -264,7 +264,7 @@ internal static class ConfirmationJournalTests
         else if (corrupt == "changes") mutation["Plan"]!["Changes"]![0]!["Updated"]!["Target"]!["UserId"] = "intruder";
         else if (corrupt is "receipt" or "receipt-name")
         {
-            ClashOfRimNetworkServer.RecoverSnapshotCommits(f.State);
+            f.State.SnapshotMutations.Recover();
             path = Directory.EnumerateFiles(Path.Combine(f.Journal, "confirmation-receipts"), "*.json").Single();
             node = JsonNode.Parse(File.ReadAllText(path))!;
             if (corrupt == "receipt") node["Version"] = 99;

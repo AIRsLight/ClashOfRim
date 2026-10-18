@@ -64,7 +64,7 @@ internal static class WorldLayerNotificationRecoveryTests
         long ownerVersion = f.State.EventNotifications.GetVersion("owner");
         long worldVersion = f.State.WorldConfigurationNotifications.GetVersion("observer");
         if (!configured) f.Project();
-        else ClashOfRimNetworkServer.RecoverSnapshotCommits(f.State);
+        else f.State.SnapshotMutations.Recover();
         VerifyCompleted(f);
         Require(f.State.EventNotifications.GetVersion("owner") > ownerVersion
             && f.State.WorldConfigurationNotifications.GetVersion("observer") > worldVersion, "recovery omitted a persisted recipient wake-up");
@@ -100,7 +100,7 @@ internal static class WorldLayerNotificationRecoveryTests
         Require(f.State.WorldConfiguration.ListPendingLayerNotifications().Single().Notifications.Count == 0,
             "far-away colonies received notifications");
         f.ClearFailure(); f.Open();
-        ClashOfRimNetworkServer.RecoverSnapshotCommits(f.State);
+        f.State.SnapshotMutations.Recover();
         Require(!f.State.WorldConfiguration.HasPendingLayerNotifications && f.Ledger.ListAll().Count == 0
             && f.State.WorldConfigurationNotifications.GetVersion("observer") == 1,
             "empty event batch lost the world-change wake-up");
@@ -111,7 +111,7 @@ internal static class WorldLayerNotificationRecoveryTests
         f.Fail("events-first"); ExpectFailure(f.Project); f.ClearFailure();
         var work = f.State.WorldConfiguration.ListPendingLayerNotifications().Single();
         f.Ledger.Append(work.Notifications[0] with { Target = new EventParty("wrong", "wrong") });
-        ExpectFailure(() => ClashOfRimNetworkServer.RecoverSnapshotCommits(f.State));
+        ExpectFailure(() => f.State.SnapshotMutations.Recover());
         Require(f.OpenWorld().HasPendingLayerNotifications && f.Ledger.ListAll().Count == 1,
             "conflict discarded work or partially appended the notification batch");
         Require(f.State.EventNotifications.GetVersion("owner") == 0, "conflict woke recipients");

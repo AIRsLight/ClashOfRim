@@ -111,7 +111,7 @@ internal static partial class RaidCommitCrashTests
         f.State.Ledger.Append(changed);
         if (intent.Raid.GuardNotification is { } notice) f.State.Ledger.Append(notice);
         string before = f.Evidence(); bool rejected = false;
-        try { ClashOfRimNetworkServer.RecoverSnapshotCommits(f.State); } catch (InvalidDataException) { rejected = true; }
+        try { f.State.SnapshotMutations.Recover(); } catch (InvalidDataException) { rejected = true; }
         Require(rejected && before == f.Evidence() && f.Store.Writes == 0 && f.State.SnapshotCommits.HasPending,
             "Recovery published a snapshot over conflicting raid content.");
     }

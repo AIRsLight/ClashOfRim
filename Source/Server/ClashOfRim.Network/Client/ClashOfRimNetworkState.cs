@@ -123,8 +123,8 @@ public sealed class ClashOfRimNetworkState
         ColonyAuthorization = new ColonyAccessAuthorization(SessionPrincipals, DiplomacyRelations,
             RaidPreparations, Ledger, () => ServerConfiguration.PvpEnabled);
         SnapshotAuthorization = new ColonySnapshotAuthorization(ColonyAuthorization, SnapshotStore);
-        var recovery = new LegacySnapshotRecoveryAdapter(this);
-        SnapshotMutations = new SnapshotMutationCoordinator(RaidSettlementSnapshotMutationGate, recovery);
+        // Resolve once after composition; recovery needs the domains that use this coordinator.
+        SnapshotMutations = new SnapshotMutationCoordinator(RaidSettlementSnapshotMutationGate, new Lazy<ISnapshotRecovery>(CreateSnapshotRecovery));
         DiplomacyPublications = new DiplomacyPublications(Ledger, DiplomacyRelations, OnlinePresence, user => EventNotifications.SignalUser(user));
         Diplomacy = new DiplomacyService(Ledger, SnapshotAuthorization, SnapshotMutations, DiplomacyRelations,
             OnlinePresence, DiplomacyPublications, () => ServerConfiguration, () => RuntimeLogger);
@@ -138,6 +138,20 @@ public sealed class ClashOfRimNetworkState
         RaidSettlementWork = new RaidSettlementWork(RaidSettlement, SnapshotPostUploadArtifacts, SnapshotPostUploadJobs, SnapshotMutations);
         RaidEvidenceScheduling = new RaidEvidenceScheduling(Ledger, SnapshotStore, SnapshotPostUploadArtifacts,
             SnapshotPostUploadJobs, Players, SnapshotMutations);
+        MercenaryIncidents = new MercenaryIncidentRecovery(BankLoans, MercenaryContracts, Ledger, OnlinePresence, EventNotifications);
+        var supportClosures = new SupportClosures(Ledger, EventNotifications);
+        SupportDeaths = new SupportSnapshotDeaths(Ledger, OnlinePresence, EventNotifications, supportClosures, SnapshotMutations, SnapshotCommits);
+        WorldChanges = new WorldConfigurationChanges(Players, WorldConfigurationNotifications);
+        WorldLayerNotifications = new WorldLayerNotifications(WorldConfiguration, Ledger, Players, OnlinePresence, WorldTileDistanceCalculator,
+            SnapshotMutations, EventNotifications, WorldChanges);
+        WorldLayers = new SnapshotWorldLayers(SnapshotStore, WorldConfiguration, Plugins, CompatibilityBaseline, Players,
+            SnapshotMutations, WorldLayerNotifications, () => RuntimeLogger);
+        ColonyLocations = new SnapshotColonyLocations(Plugins, CompatibilityBaseline);
+        ColonyProjection = new SnapshotColonyProjection(WorldConfiguration, Plugins, CompatibilityBaseline, ColonyLocations, WorldChanges);
+        SnapshotPostUploads = new(new CoreSnapshotPostUpload(Players, WorldLayers, ColonyProjection, SnapshotAchievements,
+            SupportDeaths, SnapshotStore, SnapshotMutations, MercenaryIncidents),
+            new SnapshotPostUploadRunner(SnapshotPostUploadJobs, () => RuntimeLogger), Plugins, CompatibilityBaseline,
+            new SnapshotPostUploadPluginAdapter(this), new RaidSettlementPostUploadProcessor(), RaidEvidenceScheduling);
         RaidOfflineEvidence = new RaidOfflineEvidence(Ledger, SnapshotStore, SnapshotPostUploadJobs, SnapshotPostUploadArtifacts,
             SnapshotMutations, RaidQueries, RaidEvidenceScheduling, () => RuntimeLogger);
         RaidBattleCleanup = new RaidBattleCleanup(Ledger, SnapshotStore, SnapshotPostUploadJobs, SnapshotMutations,
@@ -162,38 +176,35 @@ public sealed class ClashOfRimNetworkState
             raidReconciliation, WorldConfiguration, () => ServerConfiguration);
         RaidStarting = new RaidStarting(Ledger, SnapshotStore, RaidQueries, MercenaryGuards, SnapshotRequests, SnapshotTransactions,
             PendingConfirmations, raidAdmission, raidReconciliation, new RaidSnapshotCommitter(SnapshotCommits, SnapshotStore,
-                BankLoans, Ledger, MercenaryContracts, MercenaryGuards, EventNotifications, recovery, () => RuntimeLogger), () => ServerConfiguration);
+                BankLoans, Ledger, MercenaryContracts, MercenaryGuards, EventNotifications, SnapshotPostUploads, () => RuntimeLogger), () => ServerConfiguration);
         BankRequests = new BankRequestAccess(ColonyAuthorization, SnapshotMutations, SnapshotStore, BankLoans, PendingConfirmations);
         Bank = new BankService(BankLoans, MercenaryContracts, SnapshotStore, SnapshotCommits,
-            BankRequests, SnapshotRequests, SnapshotTransactions, recovery, () => ServerConfiguration);
+            BankRequests, SnapshotRequests, SnapshotTransactions, SnapshotPostUploads, () => ServerConfiguration);
         Mercenaries = new MercenaryService(MercenaryContracts, MercenaryGuards, BankLoans, BankRequests, Bank, () => ServerConfiguration);
         MercenaryHiring = new MercenaryHiring(MercenaryContracts, MercenaryGuards, BankRequests, Bank, SnapshotRequests,
-            SnapshotTransactions, new MercenarySnapshotCommitter(SnapshotCommits, SnapshotStore, BankLoans, MercenaryContracts, MercenaryGuards, recovery),
+            SnapshotTransactions, new MercenarySnapshotCommitter(SnapshotCommits, SnapshotStore, BankLoans, MercenaryContracts, MercenaryGuards, SnapshotPostUploads),
             () => ServerConfiguration);
-        MercenaryIncidents = new MercenaryIncidentRecovery(BankLoans, MercenaryContracts, Ledger, OnlinePresence, EventNotifications);
-        var supportClosures = new SupportClosures(Ledger, EventNotifications);
         Support = new SupportService(Ledger, SnapshotRequests, OnlinePresence, supportClosures);
-        SupportDeaths = new SupportSnapshotDeaths(Ledger, OnlinePresence, EventNotifications, supportClosures, SnapshotMutations, SnapshotCommits);
         SupportSending = new SupportSending(Ledger, SnapshotStore, SnapshotRequests, SnapshotTransactions, PendingConfirmations,
             OnlinePresence, EventNotifications, new SupportSnapshotCommitter(SnapshotCommits, SnapshotStore, BankLoans, Ledger,
-                MercenaryContracts, EventNotifications, recovery));
+                MercenaryContracts, EventNotifications, SnapshotPostUploads));
         TransferPackages = new ItemTransferPackages(PawnPackages, ThingPackages);
         DeliveryTargets = new DeliveryTargetResolver(SnapshotStore);
         Gifts = new GiftService(Ledger, SnapshotStore, BankLoans, MercenaryContracts, SnapshotCommits,
             SnapshotRequests, SnapshotTransactions, PendingConfirmations, TransferPackages, DeliveryTargets,
             OnlinePresence, EventNotifications, DiplomacyRelations, raidReconciliation,
-            recovery, () => ServerConfiguration);
+            SnapshotPostUploads, () => ServerConfiguration);
         TradeDelivery = new TradeDelivery(SnapshotStore, OnlinePresence, Ledger, Plugins, CompatibilityBaseline,
             WorldConfiguration, WorldTileDistanceCalculator, () => ServerConfiguration);
         TradeLifecycle = new TradeLifecycle(Ledger, SnapshotStore, SnapshotMutations, RaidSettlementSnapshotMutationGate,
             TradeDelivery, AdminBaseline, OnlinePresence, EventNotifications, RuntimeLogger, () => ServerConfiguration);
         var tradeCommits = new TradeSnapshotCommitter(SnapshotCommits, SnapshotStore, BankLoans, Ledger, MercenaryContracts,
-            EventNotifications, recovery, EventAchievements);
+            EventNotifications, SnapshotPostUploads, EventAchievements);
         Trades = new TradeService(Ledger, SnapshotRequests, ColonyAuthorization, SnapshotMutations, SnapshotTransactions,
             PendingConfirmations, TransferPackages, tradeCommits, TradeLifecycle, TradeDelivery, AdminBaseline,
             Plugins, CompatibilityBaseline, OnlinePresence, EventNotifications, RuntimeLogger, () => ServerConfiguration);
         TradeMarket = new TradeMarket(Ledger, SnapshotRequests, TradeLifecycle, TradeDelivery, () => ServerConfiguration);
-        var shopCommits = new ShopSnapshotCommitter(SnapshotCommits, SnapshotStore, BankLoans, ServerShop, MercenaryContracts, recovery);
+        var shopCommits = new ShopSnapshotCommitter(SnapshotCommits, SnapshotStore, BankLoans, ServerShop, MercenaryContracts, SnapshotPostUploads);
         Shop = new ShopService(ServerShop, SnapshotRequests, AdminAuthorization, SnapshotMutations, SnapshotTransactions,
             PendingConfirmations, shopCommits, AdminBaseline, Plugins, CompatibilityBaseline, RuntimeLogger, () => ServerConfiguration);
         EventDelivery = new EventDeliveryService(SnapshotAuthorization, SnapshotMutations, Ledger,
@@ -206,13 +217,6 @@ public sealed class ClashOfRimNetworkState
         WorldPreparation = new WorldSessionPreparation(Accounts, EntryHandshakes, SnapshotMutations, RaidTimeouts, RaidQueries,
             WorldConfiguration, new WorldColonySelection(Players, SnapshotStore, Ledger), PlayerActivity, EntryLifecycle);
         WorldRead = new WorldConfigurationRead(Accounts, WorldConfiguration, WorldDelivery);
-        WorldChanges = new WorldConfigurationChanges(Players, WorldConfigurationNotifications);
-        WorldLayerNotifications = new WorldLayerNotifications(WorldConfiguration, Ledger, Players, OnlinePresence, WorldTileDistanceCalculator,
-            SnapshotMutations, EventNotifications, WorldChanges);
-        WorldLayers = new SnapshotWorldLayers(SnapshotStore, WorldConfiguration, Plugins, CompatibilityBaseline, Players,
-            SnapshotMutations, WorldLayerNotifications, () => RuntimeLogger);
-        ColonyLocations = new SnapshotColonyLocations(Plugins, CompatibilityBaseline);
-        ColonyProjection = new SnapshotColonyProjection(WorldConfiguration, Plugins, CompatibilityBaseline, ColonyLocations, WorldChanges);
         var colonyAccess = new ColonyLifecycleAccess(ColonyAuthorization, Players);
         ColonyDeletion = new ColonyDeletion(SnapshotStore, Ledger, ColonyDeletions, SnapshotCommits, SnapshotMutations,
             WorldConfiguration, Plugins, CompatibilityBaseline, RuntimeWorldObjectMarkers, DiplomacyRelations, BankLoans,
@@ -241,15 +245,16 @@ public sealed class ClashOfRimNetworkState
             AdminBaseline, TradeLifecycle, SnapshotMutations, PlayerActivity);
         WorldFeatureNames = new WorldFeatureNames(Accounts, WorldConfiguration, WorldDelivery, WorldChanges, () => RuntimeLogger);
         WorldSubstrate = new WorldSubstrateTransfer(Accounts, SessionPrincipals, WorldConfiguration, WorldDelivery, WorldChanges, () => RuntimeLogger);
-        SnapshotPostUploads = new(new CoreSnapshotPostUpload(Players, WorldLayers, ColonyProjection, SnapshotAchievements,
-            SupportDeaths, SnapshotStore, SnapshotMutations, MercenaryIncidents),
-            new SnapshotPostUploadRunner(SnapshotPostUploadJobs, () => RuntimeLogger), Plugins, CompatibilityBaseline,
-            new SnapshotPostUploadPluginAdapter(this), new RaidSettlementPostUploadProcessor(), RaidEvidenceScheduling);
         RaidEvidenceConfirmation = new RaidEvidenceConfirmation(Ledger, SnapshotPostUploadJobs, RaidEvidenceScheduling,
             SnapshotMutations, SnapshotRequests, ColonyAuthorization, SnapshotTransactions, PendingConfirmations,
             SnapshotPostUploads, () => RuntimeLogger);
         ConfigurationChanges.Recover();
     }
+
+    private SnapshotRecovery CreateSnapshotRecovery() => new(ColonyDeletions, ConfigurationChanges,
+        WorldLayerNotifications, TradeLifecycle, ColonyDeletion, DiplomacyPublications, SnapshotCommits, SnapshotStore,
+        BankLoans, SnapshotPostUploads, Ledger, EventNotifications, EventAchievements, ServerShop, MercenaryContracts,
+        MercenaryGuards, Players, SnapshotConfirmations, MercenaryIncidents);
 
     public IAuthoritativeEventLedger Ledger { get; }
     internal Modules.Raids.RaidQueries RaidQueries { get; }

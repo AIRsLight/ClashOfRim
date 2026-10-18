@@ -53,7 +53,7 @@ internal static partial class EventFailureReportTests
                 if (change is "failure" or "revoke-failure") f.Store.FailPreparation = true;
                 if (change == "newer") f.Store.Inner.StoreLatest(f.Package with { Envelope = f.Package.Envelope with
                     { Identity = new("foreign", "foreign-colony", "newer"), NextLineageToken = "newer" } }, f.Package.Index, Original);
-                if (change == "compete") ClashOfRimNetworkServer.RecoverSnapshotCommits(f.State);
+                if (change == "compete") f.State.SnapshotMutations.Recover();
                 if (change == "target") f.ChangeParty("target_user_id");
                 if (change == "terminal") f.State.Ledger.ChangeStatus(f.Source.EventId, ServerEventStatus.AppliedToSnapshot);
                 if (change == "delivery") f.State.Ledger.MarkDelivered(f.Source.EventId, "during-recovery", Original);

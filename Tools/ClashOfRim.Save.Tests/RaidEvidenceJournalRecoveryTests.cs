@@ -50,7 +50,7 @@ internal static partial class RaidEvidenceAuthorizationTests
                 if (change is "revoke" or "revoke-failure") f.State.AuthTokens.RevokeForUser("userA");
                 if (change is "failure" or "revoke-failure") f.Store.FailPreparation = true;
                 if (change == "cancel") f.State.Ledger.ChangeStatus(f.Raid.EventId, ServerEventStatus.Cancelled);
-                if (change == "compete") ClashOfRimNetworkServer.RecoverSnapshotCommits(f.State);
+                if (change == "compete") f.State.SnapshotMutations.Recover();
                 if (change == "newer") f.Store.Inner.StoreLatest(intent.Package with { Envelope = intent.Package.Envelope with
                     { Identity = new("foreign", "foreign-colony", "newer"), NextLineageToken = "newer" } }, intent.Package.Index, DateTimeOffset.UtcNow);
                 if (change == "source")
@@ -77,7 +77,7 @@ internal static partial class RaidEvidenceAuthorizationTests
                 "Revoked evidence recovery returned confirmation credentials.");
             if (change == "failure")
             {
-                f.Open(); ClashOfRimNetworkServer.RecoverSnapshotCommits(f.State);
+                f.Open(); f.State.SnapshotMutations.Recover();
                 Require(!f.State.SnapshotCommits.HasPending && f.State.Ledger.FindByIdempotencyKey("foreign-gift") is not null,
                     "Evidence recovery preparation failure did not resume after reopening.");
             }

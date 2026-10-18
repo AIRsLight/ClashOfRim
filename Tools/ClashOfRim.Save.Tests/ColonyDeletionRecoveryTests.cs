@@ -292,7 +292,7 @@ internal static class ColonyDeletionRecoveryTests
                 Require(result.Result.Accepted, "player abandonment rejected");
             }
         }
-        public void Recover() => ClashOfRimNetworkServer.RecoverSnapshotCommits(State);
+        public void Recover() => State.SnapshotMutations.Recover();
         public void Sql(string sql)
         {
             using var connection = new SqliteConnection("Data Source=" + Database); connection.Open();

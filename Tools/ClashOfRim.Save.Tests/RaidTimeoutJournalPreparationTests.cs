@@ -61,7 +61,7 @@ internal static partial class RaidTimeoutRecoveryTests
             captures++;
             Require(f.Store.WritesByOwner.GetValueOrDefault("foreign") == 0 && f.State.Ledger.FindByIdempotencyKey("foreign") is null,
                 "Maintenance recovery published before preparation completed.");
-            if (change == "compete") ClashOfRimNetworkServer.RecoverSnapshotCommits(f.State);
+            if (change == "compete") f.State.SnapshotMutations.Recover();
             if (change == "failure") f.Store.FailPreparation = true;
             if (change == "newer") f.Files.StoreLatest(foreign.Package with { Envelope = foreign.Package.Envelope with
                 { Identity = new("foreign", "foreign-colony", "newer"), NextLineageToken = "newer" } }, foreign.Package.Index, f.Now);
@@ -89,7 +89,7 @@ internal static partial class RaidTimeoutRecoveryTests
                 "Failed maintenance recovery changed business or discarded its intent.");
             if (change == "failure")
             {
-                f.Open(); ClashOfRimNetworkServer.RecoverSnapshotCommits(f.State);
+                f.Open(); f.State.SnapshotMutations.Recover();
                 Require(!f.State.SnapshotCommits.HasPending && f.State.Ledger.FindByIdempotencyKey("foreign") is not null,
                     "Preparation failure could not resume after reopening.");
             }

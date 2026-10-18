@@ -76,7 +76,7 @@ internal static class SessionConnectionTests
             {
                 e.Change(change);
                 if (change.Contains("failure")) e.F.Store.FailPreparation = true;
-                if (change == "compete") ClashOfRimNetworkServer.RecoverSnapshotCommits(e.F.State);
+                if (change == "compete") e.F.State.SnapshotMutations.Recover();
                 before = e.F.Evidence(); business = e.Business(includeOriginal: entry != "close");
             });
         if (change is "none" or "compete")

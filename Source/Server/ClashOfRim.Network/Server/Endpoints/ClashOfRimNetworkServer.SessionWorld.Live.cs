@@ -124,7 +124,7 @@ public static partial class ClashOfRimNetworkServer
             authorizationEventId, authorizationScope, DateTimeOffset.UtcNow);
         SnapshotDownloadResult Denied(ProtocolResponse failure) => new(failure, null, HttpStatusCode: StatusCodes.Status401Unauthorized);
 
-        using (var recovery = EnterRecoveredSnapshotMutation(state, Authorize))
+        using (var recovery = state.SnapshotMutations.Enter(Authorize))
         {
             if (recovery.Rejection is { } failure) return Denied(failure);
         }

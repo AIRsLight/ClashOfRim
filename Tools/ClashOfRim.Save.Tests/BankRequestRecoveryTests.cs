@@ -43,7 +43,7 @@ internal static class BankRequestRecoveryTests
             {
                 Change(e, change);
                 if (change is "failure" or "revoke-failure") e.F.Store.FailPreparation = true;
-                if (change == "compete") ClashOfRimNetworkServer.RecoverSnapshotCommits(e.F.State);
+                if (change == "compete") e.F.State.SnapshotMutations.Recover();
                 if (change == "loan") e.F.State.BankLoans.ConfirmPendingForSnapshot("receiver", "away", "base", 1000, DateTimeOffset.UtcNow);
                 before = e.F.Evidence(); bank = e.Bank();
             });

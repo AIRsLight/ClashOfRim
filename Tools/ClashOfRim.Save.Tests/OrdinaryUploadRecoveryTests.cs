@@ -111,7 +111,7 @@ internal static class OrdinaryUploadRecoveryTests
         };
         f.Files.StoreLatest(current with { Envelope = envelope }, current.Index, DateTimeOffset.UtcNow);
         if (reopen) f.Open();
-        ExpectFailure(() => ClashOfRimNetworkServer.RecoverSnapshotCommits(f.State));
+        ExpectFailure(() => f.State.SnapshotMutations.Recover());
         Require(f.Files.GetLatest("userA", "colonyA")!.Envelope == envelope && f.State.SnapshotCommits.HasPendingUploads
             && f.State.BankLoans.FindDebtByIdempotencyKey("original")!.Status == BankLoanRegistry.StatusPendingActivation,
             "recovery overwrote conflicting state or applied its pending business records");
@@ -183,7 +183,7 @@ internal static class OrdinaryUploadRecoveryTests
         };
         ExpectFailure(() => f.Upload()); var intent = f.ReadIntent(); f.OnProcess = null;
         Require(SnapshotCommitService.SameVersion(f.Files.GetLatest("userA", "colonyA")!.Envelope, intent.Package.Envelope), "nested publication changed the accepted token");
-        ClashOfRimNetworkServer.RecoverSnapshotCommits(f.State); VerifyCompleted(f, intent);
+        f.State.SnapshotMutations.Recover(); VerifyCompleted(f, intent);
     }
 
     private static void VerifyBadJournal(Fixture f, string corrupt)

@@ -52,7 +52,7 @@ internal static partial class GiftRejectionEndpointTests
                 if (change is "failure" or "revoke-failure") f.Store.FailPreparation = true;
                 if (change == "newer") f.Store.Inner.StoreLatest(f.Package with { Envelope = f.Package.Envelope with
                     { Identity = new("foreign", "foreign-colony", "newer"), NextLineageToken = "newer" } }, f.Package.Index, At);
-                if (change == "compete") ClashOfRimNetworkServer.RecoverSnapshotCommits(f.State);
+                if (change == "compete") f.State.SnapshotMutations.Recover();
                 if (change == "target")
                 {
                     using var connection = new SqliteConnection("Data Source=" + f.Database); connection.Open();

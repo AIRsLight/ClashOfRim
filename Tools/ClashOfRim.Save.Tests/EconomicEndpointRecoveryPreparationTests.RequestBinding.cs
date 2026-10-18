@@ -175,7 +175,7 @@ internal static partial class EconomicEndpointRecoveryPreparationTests
                 : ((TradeEventPayload)main.Payload) with { FeeSilver = 999 }
         };
         f.State.Ledger.Append(bad); string before = f.Evidence(); bool failed = false;
-        try { ClashOfRimNetworkServer.RecoverSnapshotCommits(f.State); }
+        try { f.State.SnapshotMutations.Recover(); }
         catch (Exception ex) when (ex is InvalidDataException or InvalidOperationException) { failed = true; }
         Check(failed && before == f.Evidence() && f.Store.Writes == 0 && f.State.SnapshotCommits.HasPending,
             "Recovery accepted conflicting persisted request content: " + f.Kind + "/" + fault);

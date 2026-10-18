@@ -240,7 +240,7 @@ internal static class SnapshotJournalRecoveryPreparationTests
             Store.Fault = null;
             Require(failed && State.SnapshotCommits.HasPending, "Could not seed durable intent.");
         }
-        public void Recover() => ClashOfRimNetworkServer.RecoverSnapshotCommits(State);
+        public void Recover() => State.SnapshotMutations.Recover();
         public void Publish(SaveSnapshotPackage package) => Store.Inner.StoreLatest(package, package.Index, DateTimeOffset.UtcNow);
         public string PersistentState() => JsonSerializer.Serialize(new { snapshots = Store.ListLatest().Select(item => new { item.Envelope, item.AcceptedAtUtc }),
             bank = State.BankLoans.FindByIdempotencyKey("commit-evidence"),
