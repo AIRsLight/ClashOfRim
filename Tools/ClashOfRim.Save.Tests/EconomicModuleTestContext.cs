@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Network.Modules.Diplomacy;
 using AIRsLight.ClashOfRim.Network.Modules.Support;
 using AIRsLight.ClashOfRim.Network.Modules.Trades;
 using AIRsLight.ClashOfRim.Network.Modules.Mercenaries;
@@ -20,12 +21,13 @@ using AIRsLight.ClashOfRim.Save;
 internal sealed class EconomicModuleTestContext
 {
     internal readonly IColonySnapshotIndexStore Snapshots;
-    internal readonly InMemoryAuthoritativeEventLedger Ledger = new();
+    internal readonly IAuthoritativeEventLedger Ledger;
     internal readonly BankLoanRegistry Loans = new();
     internal readonly LoginSessionRegistry Sessions = new();
     internal readonly AuthTokenRegistry Tokens = new();
     internal readonly RecoveryProbe Recovery = new();
-    internal readonly DiplomacyRelationRegistry Relations = new();
+    internal readonly DiplomacyRelationRegistry Relations;
+    internal readonly DiplomacyService Diplomacy;
     internal readonly OnlinePresenceRegistry Presence = new();
     internal readonly EventNotificationHub Notifications = new();
     internal readonly PawnPackageRegistry Pawns = new();
@@ -60,13 +62,17 @@ internal sealed class EconomicModuleTestContext
     internal readonly SaveSnapshotPackage Package;
     internal readonly string Token;
 
-    internal EconomicModuleTestContext(Func<string, SaveSnapshotPackage> factory, IColonySnapshotIndexStore? snapshots = null)
+    internal EconomicModuleTestContext(Func<string, SaveSnapshotPackage> factory, IColonySnapshotIndexStore? snapshots = null,
+        IAuthoritativeEventLedger? ledger = null, DiplomacyRelationRegistry? relations = null)
     {
         Snapshots = snapshots ?? new InMemoryColonySnapshotIndexStore();
+        Ledger = ledger ?? new InMemoryAuthoritativeEventLedger(); Relations = relations ?? new DiplomacyRelationRegistry();
         var mercenaries = MercenaryContracts;
         var mutations = new SnapshotMutationCoordinator(Gate, Recovery);
         var colonies = new ColonyAccessAuthorization(Tokens, Sessions, Relations,
             RaidPreparations, Ledger, () => Configuration.PvpEnabled);
+        Diplomacy = new DiplomacyService(Ledger, new ColonySnapshotAuthorization(colonies, Snapshots), mutations, Relations,
+            Presence, Notifications, () => Configuration, () => NullLogger.Instance);
         var pending = new PendingConfirmationReconciler(Loans, mercenaries, () => Configuration, Gate);
         Access = new BankRequestAccess(colonies, mutations, Snapshots, Loans, pending);
         var principals = new SnapshotPrincipalAuthorization(Tokens, Sessions);

@@ -1350,3 +1350,20 @@ M7 收尾检查发现尚不能整体关闭本阶段：
 | 提交日志/通用快照后处理、兼容注册表、UI 及场景组织 | 已在 M9–M12 明确，继续由各阶段处理 | 不在此阶段以改名或删除 partial 代替迁移 |
 
 本步完成 M7d5c；下一步按顺序 **M7e1 服务端外交与支援求援边界**，随后 M7e2，再复核是否满足 M7 的完成条件。M7 整体与 M8–M12 保持开放。按用户约定，可按单次修改需要追加定向 RimTest，全量仍由用户安排。
+
+
+### M7e1a 服务端外交与支援求援的实际模块边界（2026-10-18）
+
+`DiplomacyService` 接管外交创建、目标响应、求援频率查询、恢复前后授权、回执重放、关系写入和通知发布；`DiplomacyPolicy` 接管输入校验、关系转换、冷却边界、载荷及响应通知构造。依赖显式限定为账本、殖民地快照授权、既有变更协调器、关系/在线注册表、通知、配置读取和日志。没有传入 NetworkState、HTTP、宿主或任意恢复回调；仍使用同一个 `SnapshotMutationCoordinator` 执行锁外准备与再授权，未增加第二个恢复入口或锁。
+
+`DiplomacyEndpoints` 独立注册创建与响应两条 POST 路由，保留协议清单路径、JSON 类型、HTTP 200 业务响应及 `EndpointSnapshotRecovery` 元数据。服务器主类只装配模块与端点；旧 `RaidsDiplomacySupport` partial 删除 **525 行业务实现**及不再使用的引用，剩下的世界通知、账户生命周期和殖民地清理归 M8。依赖检查把外交服务纳入无 HTTP 约束，继续检查全部已迁移模块不得引用主类或全量状态。
+
+合并外交名称校验/事件种类解析的两套分支为同一个 OrdinalIgnoreCase 映射，关系值改用注册表常量，求援前缀统一定义。删除宿主的幂等键查询包装，复用账本查找；历史账户级事件的响应可见性继续使用共用 `EventVisibility`，创建重放仍要求精确用户/殖民地绑定，二者不混同。关系冷却和求援冷却保留不同显示粒度，共用其各自唯一策略入口；动态配置在恢复完成后读取，求援的一次检查只读取一次时限。
+
+新增独立 `DiplomacyModuleTests`，通过已有 EconomicModuleTestContext 装配真实模块。共享夹具允许注入账本与关系存储，保留原默认值和统一恢复探针，没有构造服务器宿主、复制 HTTP 层或新建故障槽。覆盖四种文化 × 内存/文件/SQLite × 五种操作 × 在线/离线（120 组生命周期组合），协议名称大小写、双方身份、决定/通知关联、强制通知不可拒绝、重复决定不可翻转、成功持久化后的独立重开、变更配置及基础快照后的原回执；另有每种文化的全关系转换矩阵和冷却到期前一 tick/等于/后一 tick、动态冷却开关、两种恢复阶段 × 五类配置/关系/快照/登录/令牌变化，以及十二个竞争响应只有一个决定。第一次新测试错误地把 EventParty 第三个字段当作快照（实际为 FactionId），按既有 ToEventParty 契约修正预期后通过，没有改动产品字段含义。
+
+最终 **4/153 个相关服务端单元组通过**：新外交模块、已有外交 HTTP 授权/恢复/并发、支援模块及模块边界/路由。守卫检查 **225** 个模块与生成类型、**81** 条路由。去除临时探针并清理引用后只重跑新模块 **1/153** 组，通过。服务端控制台 Release 编译 **0 警告、0 错误**。使用系统 .NET 8；初次误用客户端本地 .NET 10 工具链时缺少 .NET 8 运行时，切回已有工具链后完成。日志：`LocalOnly/module-migration/diplomacy-existing-unit.log`、`diplomacy-extraction-unit.log`、`diplomacy-module-unit.log`、`diplomacy-final-unit.log`、`diplomacy-clean-unit.log`、`diplomacy-console-build.log`。没有运行 NetworkSmoke 套件；这里使用的是 Save.Tests 中链接的单个模块/路由检查。未运行 RimTest、全量回归或推送。
+
+**收尾审查发现并单独实测了尚未修复的持久化缺口，不能据上述成功路径宣称外交恢复完成。** 以共享 `RecoveryTestSupport.Slot` 在关系注册表写入时抛 IOException：宣战账本先写入，第一次调用失败；解除故障后同键重试命中重复请求分支，没有补写关系或通知。最小探针实际输出：`InitialWriteFailed=True; LedgerCount=1; Replay=True/DuplicateRequest; Relation=Neutral; NotificationVersion=0`，而成功恢复应为 Hostile 并唤醒接收方。证据 `LocalOnly/module-migration/diplomacy-publication-gap.log`，探针源码保存在同目录 `DiplomacyPublicationGapProbe.cs`；探针已从正式单元入口移除，它的诊断结果不是“恢复测试通过”。探针首次缺少本地化初始化，在进入业务前失败；补齐初始化后才得到以上有效证据。
+
+旧响应路径也以“决定、通知、关系”分步写入；重复已决定事件直接返回，因此需一并验证。下一步 **M7e1b 外交决定与关系发布的持久化恢复**：先把该探针变成正式失败回归，覆盖决定/通知/关系各阶段失败、相反决定重试、重启、后来的关系变更及废弃殖民地，复用现有账本批次和持久化能力，避免以简单重写旧关系覆盖较新状态。此项完成后再继续 M7e2 客户端外交；M7 整体及 M8–M12 保持开放。本提交只完成真实模块归属和正常契约迁移，不把新的恢复缺口隐含算作已解决，工作区原有修改继续独立保留。

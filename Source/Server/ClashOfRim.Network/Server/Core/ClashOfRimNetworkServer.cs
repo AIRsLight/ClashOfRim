@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Network.Modules.Diplomacy;
 using AIRsLight.ClashOfRim.Network.Modules.Raids;
 using AIRsLight.ClashOfRim.Network.Modules.Support;
 using AIRsLight.ClashOfRim.Network.Modules.Mercenaries;
@@ -120,8 +121,7 @@ public static partial class ClashOfRimNetworkServer
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.GetThingPackage).Route, GetThingPackage);
         ShopEndpoints.Map(app, app.Services.GetRequiredService<ClashOfRimNetworkState>().Shop);
         RaidEndpoints.Map(app, tradeState.RaidPreparation, tradeState.RaidStarting);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.CreateDiplomacyEvent).Route, CreateDiplomacyEvent).WithMetadata(EndpointSnapshotRecovery.Instance);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.RespondDiplomacyEvent).Route, RespondDiplomacyEvent).WithMetadata(EndpointSnapshotRecovery.Instance);
+        DiplomacyEndpoints.Map(app, tradeState.Diplomacy);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.SyncWorldMapMarkers).Route, SyncWorldMapMarkers);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.SyncRuntimeWorldObjects).Route, SyncRuntimeWorldObjects);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.PrepareWorldSession).Route, PrepareWorldSession).WithMetadata(EndpointSnapshotRecovery.Instance);
