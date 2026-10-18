@@ -522,21 +522,6 @@ public static partial class ClashOfRimNetworkServer
         }
     }
 
-    private static IResult Logout(
-        LogoutRequest request,
-        ClashOfRimNetworkState state,
-        ILoggerFactory loggerFactory)
-    {
-        var result = state.SessionConnections.Logout(request);
-        RuntimeLogger(loggerFactory).LogInformation(
-            "玩家请求登出：user={UserId} colony={ColonyId} session={SessionId} disconnected={Disconnected}",
-            request.UserId,
-            request.ColonyId,
-            request.SessionId,
-            result.Disconnected);
-        return Results.Ok(result);
-    }
-
     private static IResult ListPlayers(ListPlayersRequest request, ClashOfRimNetworkState state)
     {
         if (string.IsNullOrWhiteSpace(request.UserId) || string.IsNullOrWhiteSpace(request.ColonyId))

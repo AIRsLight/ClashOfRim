@@ -80,6 +80,7 @@ var tests = new (string Name, Action Run)[]
     ("入口准入与兼容握手模块的独立策略和发布", EntryHandshakeModuleTests.Run),
     ("兼容摘要与完整或选择性详情交换一致性", CompatibilityHandshakeExchangeTests.Run),
     ("普通登录授权恢复与会话延迟发布", () => LoginPreparationTests.Run(BuildFixturePackage)),
+    ("登录模块独立装配与最后发布边界", LoginModuleTests.Run),
     ("登出授权与连接清理会话归属", () => SessionConnectionTests.Run(BuildFixturePackage)),
     ("连接模块独立装配、活动快照与失败清理", () => SessionConnectionModuleTests.Run(BuildFixturePackage)),
     ("入口生命周期独立模块与恢复边界", () => ClientEntryLifecycleTests.Run(BuildFixturePackage)),

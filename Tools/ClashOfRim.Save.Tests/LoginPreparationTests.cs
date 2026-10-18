@@ -69,7 +69,7 @@ internal static class LoginPreparationTests
     }
     private static void DuringPlayerWrite(Func<string, SaveSnapshotPackage> factory, string mode)
     {
-        using var e = new Env(factory); int tokens = TokenCount(e.F.State); string? replacement = null; bool invoked = false;
+        using var e = new Env(factory); int tokens = TokenCount(e.F.State.AuthTokens); string? replacement = null; bool invoked = false;
         e.Players.Before = json =>
         {
             if (!json.Contains("\"receiver\"", StringComparison.Ordinal)) return;
@@ -84,7 +84,7 @@ internal static class LoginPreparationTests
         };
         using var response = e.Call();
         if (mode == "failure") Require(response.StatusCode == HttpStatusCode.InternalServerError, "Player persistence failure swallowed."); else Denied(response);
-        Require(invoked && TokenCount(e.F.State) == tokens, "Failure leaked an unreturned auth token or missed write boundary.");
+        Require(invoked && TokenCount(e.F.State.AuthTokens) == tokens, "Failure leaked an unreturned auth token or missed write boundary.");
         if (mode == "logout") Require(!e.OldValid(), "Login undid logout.");
         else if (mode == "replace") Require(e.F.State.LoginSessions.IsValid("receiver", "away", replacement, DateTimeOffset.UtcNow), "Login overwrote another login.");
         else Require(e.OldValid(), "Failure lost the prior session.");
@@ -165,7 +165,7 @@ internal static class LoginPreparationTests
     }
     private static void Lifecycle(Func<string, SaveSnapshotPackage> factory, string mode)
     {
-        using var e = new Env(factory); var bank = e.F.State.BankLoans; int tokens = TokenCount(e.F.State);
+        using var e = new Env(factory); var bank = e.F.State.BankLoans; int tokens = TokenCount(e.F.State.AuthTokens);
         bank.Create("pending", "receiver", "away", "base", 100, 1, 7, 1000, DateTimeOffset.UtcNow.AddHours(-1));
         bool invoked = false; e.Bank.Before = _ =>
         {
@@ -180,7 +180,7 @@ internal static class LoginPreparationTests
         {
             if (mode == "failure") Require(response.StatusCode == HttpStatusCode.InternalServerError && bank.FindByIdempotencyKey("pending") is not null, "Failed lifecycle cleanup lost its pending record.");
             else Denied(response);
-            Require(e.OldValid() && TokenCount(e.F.State) == tokens, "Failed lifecycle published session or token.");
+            Require(e.OldValid() && TokenCount(e.F.State.AuthTokens) == tokens, "Failed lifecycle published session or token.");
             e.Bank.Before = null; e.Restore(); using var retry = e.Call(); e.Accepted(retry);
         }
         Require(bank.FindByIdempotencyKey("pending") is null, "Successful lifecycle did not clear pending confirmation."); e.F.AssertRecovered();
@@ -249,7 +249,7 @@ internal static class LoginPreparationTests
         if (mode == "active") Require(e.F.State.LoginSessions.TryBeginStream("receiver", "away", e.OldSession, DateTimeOffset.UtcNow), "Cannot start original stream.");
     }
     private static AuthoritativeEvent Raid() { var now = DateTimeOffset.UtcNow; return AuthoritativeEventFactory.Create(ServerEventType.Raid, new("attacker", "home"), new("receiver", "away"), "raid", false, new RaidEventPayload("defender", null, now, null, null, new RaidAttackForceRecord("departed", ["pawn"], [])), now); }
-    private static int TokenCount(ClashOfRimNetworkState state) => ((IDictionary)typeof(AuthTokenRegistry).GetField("tokens", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(state.AuthTokens)!).Count;
+    internal static int TokenCount(AuthTokenRegistry tokens) => ((IDictionary)typeof(AuthTokenRegistry).GetField("tokens", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(tokens)!).Count;
     private static LoginResponse Body(HttpResponseMessage response) { response.EnsureSuccessStatusCode(); return JsonSerializer.Deserialize<LoginResponse>(response.Content.ReadAsStringAsync().GetAwaiter().GetResult(), new JsonSerializerOptions(JsonSerializerDefaults.Web))!; }
     private static LoginResponse Denied(HttpResponseMessage response) { var b = Body(response); Require(!b.Result.Accepted && b.SessionId is null && b.AuthToken is null && b.EventQueue is null && b.WorldMapMarkers is null, "Denied login disclosed a session."); return b; }
     private static void Require(bool value, string message) { if (!value) throw new Exception(message); }
@@ -267,7 +267,7 @@ internal static class LoginPreparationTests
         }
         private void CaptureOld() { Require(F.State.AuthTokens.TryGetPrincipal(F.Token, DateTimeOffset.UtcNow, out var principal), "No fixture token."); OldSession = principal!.SessionId; }
         public bool OldValid() => F.State.LoginSessions.IsValid("receiver", "away", OldSession, DateTimeOffset.UtcNow) && F.State.AuthTokens.IsValid(F.Token, "receiver", "away", DateTimeOffset.UtcNow);
-        public string Domain() => JsonSerializer.Serialize(new { baseline = Baseline.Read(), admins = F.State.WorldConfiguration.ListAdministrators(), player = F.State.Players.FindByUserId("receiver"), tokens = TokenCount(F.State) });
+        public string Domain() => JsonSerializer.Serialize(new { baseline = Baseline.Read(), admins = F.State.WorldConfiguration.ListAdministrators(), player = F.State.Players.FindByUserId("receiver"), tokens = TokenCount(F.State.AuthTokens) });
         public LoginResponse Accepted(HttpResponseMessage response)
         {
             var b = Body(response); Require(b.Result.Accepted, "Login rejected: " + b.Result.Message);

@@ -1,13 +1,8 @@
 using System.Globalization;
-using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Network;
-using AIRsLight.ClashOfRim.Network.Modules.Economy;
-using AIRsLight.ClashOfRim.Network.Modules.Raids;
-using AIRsLight.ClashOfRim.Network.Modules.Sessions;
 using AIRsLight.ClashOfRim.Network.Modules.Snapshots;
 using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Save;
-using Microsoft.Extensions.Logging.Abstractions;
 
 internal static class SessionConnectionModuleTests
 {
@@ -32,7 +27,7 @@ internal static class SessionConnectionModuleTests
 
     private static void Lifecycle(bool connected)
     {
-        var f = new Fixture();
+        var f = new SessionModuleTestContext();
         Check(f.Presence.TryConnectExclusive("observer", "observer-session", out var observerLease), "Observer could not connect.");
         using var observer = observerLease;
         var owner = f.Issue();
@@ -70,7 +65,7 @@ internal static class SessionConnectionModuleTests
 
     private static void FailedOpen(bool replace)
     {
-        var f = new Fixture();
+        var f = new SessionModuleTestContext();
         var owner = f.Issue();
         Check(f.Presence.TryConnectExclusive("observer", "observer-session", out var observerLease), "Observer could not connect.");
         using var observer = observerLease;
@@ -96,7 +91,7 @@ internal static class SessionConnectionModuleTests
 
     private static void FailedRecovery(string entry)
     {
-        var f = new Fixture(); var owner = f.Issue(); OnlinePresenceLease? lease = null;
+        var f = new SessionModuleTestContext(); var owner = f.Issue(); OnlinePresenceLease? lease = null;
         if (entry != "open") Check(f.Connections.Open("user", "colony", owner.Session, null, out lease) is null, "Fixture stream failed.");
         f.Recovery.OnPrerequisites = () => throw new IOException("Recovery failed.");
         Throws(() =>
@@ -113,7 +108,7 @@ internal static class SessionConnectionModuleTests
 
     private static void DetachedTimeoutPreparation()
     {
-        var f = new Fixture(); var owner = f.Issue();
+        var f = new SessionModuleTestContext(); var owner = f.Issue();
         Check(f.Connections.Open("user", "colony", owner.Session, null, out var lease) is null, "Fixture stream failed.");
         int captures = 0, prepared = 0;
         f.Recovery.OnCapture = () => { if (++captures == 2) f.Recovery.NeedsPreparation = true; };
@@ -128,7 +123,7 @@ internal static class SessionConnectionModuleTests
 
     private static void SnapshotSelection(Func<string, SaveSnapshotPackage> factory)
     {
-        var f = new Fixture(); var package = factory("activity"); var now = DateTimeOffset.UtcNow;
+        var f = new SessionModuleTestContext(); var package = factory("activity"); var now = DateTimeOffset.UtcNow;
         void Add(string user, string colony, string id, int seconds)
         {
             var envelope = package.Envelope with { Identity = new(user, colony, id) };
@@ -155,46 +150,6 @@ internal static class SessionConnectionModuleTests
         Check(f.Players.FindByUserId("user")!.ColonyId == "missing", "Activity revived a deleted colony.");
     }
 
-    // Only real, narrow modules and registries: no host, HTTP server or aggregate state.
-    private sealed class Fixture
-    {
-        internal readonly object Gate = new();
-        internal readonly EconomicModuleTestContext.RecoveryProbe Recovery = new();
-        internal readonly RecoveryTestSupport.Slot PlayerSlot = new();
-        internal readonly InMemoryColonySnapshotIndexStore Snapshots = new();
-        internal readonly LoginSessionRegistry Sessions = new();
-        internal readonly AuthTokenRegistry Tokens = new();
-        internal readonly OnlinePresenceRegistry Presence = new();
-        internal readonly PlayerOnlineNotificationHub Notifications = new();
-        internal readonly BankLoanRegistry Loans = new();
-        internal readonly PlayerRegistry Players;
-        internal readonly PlayerSessionActivity Activity;
-        internal readonly SessionConnections Connections;
-        internal Fixture()
-        {
-            Players = new(PlayerSlot); Activity = new(Players, Snapshots);
-            var mutations = new SnapshotMutationCoordinator(Gate, Recovery);
-            var ledger = new InMemoryAuthoritativeEventLedger(); var jobs = new SnapshotPostUploadJobRegistry();
-            var artifacts = new InMemorySnapshotPostUploadArtifactStore(); var events = new EventNotificationHub();
-            var config = new ClashOfRimServerConfiguration(); var queries = new RaidQueries(ledger, () => config);
-            var scheduling = new RaidEvidenceScheduling(ledger, Snapshots, artifacts, jobs, Players, mutations);
-            var offline = new RaidOfflineEvidence(ledger, Snapshots, jobs, artifacts, mutations, queries, scheduling, () => NullLogger.Instance);
-            var cleanup = new RaidBattleCleanup(ledger, Snapshots, jobs, mutations, queries, new SnapshotCommitService(), Loans,
-                Players, Presence, events, () => NullLogger.Instance);
-            var raids = new RaidTimeouts(ledger, Snapshots, jobs, mutations, Presence, events, offline, cleanup, () => config);
-            var pending = new PendingConfirmationReconciler(Loans, new MercenaryContractRegistry(), () => config, mutations);
-            Connections = new(Sessions, Tokens, Presence, Notifications, Activity, mutations, pending, raids);
-        }
-        internal (string Session, string Token) Issue()
-        {
-            Check(Sessions.TryCreate("user", "colony", DateTimeOffset.UtcNow, out var session), "Fixture login failed.");
-            return (session, Tokens.Issue("user", "user", "colony", session, DateTimeOffset.UtcNow));
-        }
-        internal bool Valid((string Session, string Token) owner) => Sessions.IsValid("user", "colony", owner.Session, DateTimeOffset.UtcNow)
-            && Tokens.IsValid(owner.Token, "user", "colony", DateTimeOffset.UtcNow);
-        internal bool Retired((string Session, string Token) owner) => !Sessions.IsValid("user", "colony", owner.Session, DateTimeOffset.UtcNow)
-            && !Tokens.IsValid(owner.Token, "user", "colony", DateTimeOffset.UtcNow);
-    }
     private static void Throws(Action action) { try { action(); } catch (IOException) { return; } throw new Exception("Expected persistence/recovery failure."); }
     private static void Check(bool value, string message) { if (!value) throw new Exception(message); }
 }
