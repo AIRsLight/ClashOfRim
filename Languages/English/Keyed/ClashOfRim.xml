@@ -1919,4 +1919,5 @@
   <ClashOfRim.Support.StatusConfirmationIncomplete>The server did not return a matching support event and confirmation snapshot. Local changes remain unconfirmed. Reload the server save.</ClashOfRim.Support.StatusConfirmationIncomplete>
   <ClashOfRim.Support.StatusReturnLocalRemoveFailed>Could not finish removing support pawn {PAWN} locally. The return remains pending.</ClashOfRim.Support.StatusReturnLocalRemoveFailed>
   <ClashOfRim.Support.StatusReturnConfirmationIncomplete>The server did not provide a complete support return receipt. The return remains pending.</ClashOfRim.Support.StatusReturnConfirmationIncomplete>
+  <ClashOfRim.Raid.StatusConfirmationIncomplete>The server did not confirm the matching raid and snapshot. Local changes remain unconfirmed. Return to the main menu and reload the server save.</ClashOfRim.Raid.StatusConfirmationIncomplete>
 </LanguageData>

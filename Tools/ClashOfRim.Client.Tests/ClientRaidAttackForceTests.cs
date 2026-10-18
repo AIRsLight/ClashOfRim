@@ -56,6 +56,7 @@ internal static class ClientRaidAttackForceTests
             }
             CaravanSource();
             TransporterSource();
+            LaunchRuntime(harmony);
         }
         catch (Exception ex) { Console.WriteLine(ex.StackTrace); throw; }
         finally { harmony.UnpatchAll(harmony.Id); CultureInfo.CurrentCulture = culture; Clear(); }
@@ -240,6 +241,52 @@ internal static class ClientRaidAttackForceTests
         }
         public void CleanupAfterSuccessfulEntry() => trace.Add("cleanup");
     }
+
+    private static RemoteSessionMapOpenRequest? openedRequest;
+    private static RemoteSessionMapParent? battleParent;
+    private static bool failOpen, missingMap;
+    private static void LaunchRuntime(Harmony harmony)
+    {
+        void Patch(Type type, string method, string prefix) => harmony.Patch(AccessTools.Method(type, method), prefix: new HarmonyMethod(typeof(ClientRaidAttackForceTests), prefix));
+        Patch(typeof(RemoteSessionMapUtility), nameof(RemoteSessionMapUtility.TryOpen), nameof(OpenMap));
+        Patch(typeof(RemoteSessionMapUtility), nameof(RemoteSessionMapUtility.FindActiveSessionMap), nameof(FindBattle));
+        harmony.Patch(AccessTools.PropertyGetter(typeof(ClashOfRimGameComponent), nameof(ClashOfRimGameComponent.ActiveRaidBattleSession)),
+            prefix: new HarmonyMethod(typeof(ClientRaidAttackForceTests), nameof(ActiveBattle)));
+        harmony.Patch(AccessTools.PropertyGetter(typeof(MapParent), nameof(MapParent.Map)), prefix: new HarmonyMethod(typeof(ClientRaidAttackForceTests), nameof(BattleMap)));
+        foreach (bool failed in new[] { false, true })
+        {
+            Reset(); openedRequest = null; failOpen = failed; missingMap = false; battleParent = Uninitialized<RemoteSessionMapParent>(); map.uniqueID = 91;
+            var runtime = new ClientRaidLaunchRuntime(new Source());
+            var target = Target(); target.OwnerUserId = "defender"; target.OwnerColonyId = "defender-colony"; target.MapId = "Map_source"; target.WorldObjectId = "world";
+            Check(runtime.TryCapture(context, target, out _, out _) && runtime.EntryFailure() is null && !runtime.HasBattle, "Runtime capture/pre-open state incorrect.");
+            var snapshot = new RemoteSnapshotOpenPayload("defender-snapshot", new() { NextLineageToken = "defender-lineage" }, new byte[] { 1, 2, 3 });
+            var prepared = new ClientPreparedRaid("raid", "authorization", TimeSpan.FromMinutes(15), TimeSpan.FromMinutes(2),
+                new() { ContractId = "guard", Tier = "elite", Points = 91, Seed = 7 }, snapshot);
+            string? reason = runtime.Open(context, target, prepared);
+            Check(openedRequest is { Mode: "RaidBattle", SnapshotId: "defender-snapshot", RelatedEventId: "raid", CloseExistingObservationSessions: true }
+                && ReferenceEquals(openedRequest.Target, target) && ReferenceEquals(openedRequest.Package, snapshot.Package)
+                && ReferenceEquals(openedRequest.Payload, snapshot.Payload), "Runtime changed map open request.");
+            if (failed)
+            { Check(reason == "map failed" && registered is null && !runtime.HasBattle && trace.Count == 0, "Failed map reached pawn transfer/registration."); continue; }
+            Check(reason is null && runtime.HasBattle && registered is { EventId: "raid", AttackerUserId: "user-é", AttackerColonyId: "colony", AttackerSnapshotId: "base",
+                DefenderUserId: "defender", DefenderColonyId: "defender-colony", DefenderSnapshotId: "defender-snapshot", DefenderLineageToken: "defender-lineage",
+                TargetMapId: "Map_source", ClientMapId: "Map_91", TargetTile: 7, GuardDeploymentId: "guard", GuardDeploymentPoints: 91, GuardDeploymentSeed: 7 }, "Runtime lost battle identity/guard/source mapping.");
+            Check(registered!.DeadlineUtcTicks - registered.StartedAtUtcTicks == TimeSpan.FromMinutes(15).Ticks
+                && registered.FinalDeadlineUtcTicks - registered.DeadlineUtcTicks == TimeSpan.FromMinutes(2).Ticks, "Runtime changed fallback deadlines.");
+            long previousDeadline = registered.DeadlineUtcTicks; runtime.ApplyReceipt("accepted", null);
+            Check(registered.AttackerSnapshotId == "accepted" && registered.DeadlineUtcTicks == previousDeadline, "Missing server deadlines erased local fallback.");
+            runtime.ApplyReceipt("next", new(10, 20, 30));
+            Check(registered.AttackerSnapshotId == "next" && registered.StartedAtUtcTicks == 10 && registered.DeadlineUtcTicks == 20 && registered.FinalDeadlineUtcTicks == 30, "Server receipt not applied to owned battle.");
+            missingMap = true; Check(!runtime.HasBattle, "Missing map accepted for snapshot."); missingMap = false;
+            registered = new(); Check(!runtime.HasBattle, "Replacement battle borrowed by old runtime.");
+        }
+    }
+    private static bool OpenMap(RemoteSessionMapOpenRequest __0, out RemoteSessionMapOpenResult result, ref bool __result)
+    { openedRequest = __0; result = failOpen ? RemoteSessionMapOpenResult.Failed("map failed") : RemoteSessionMapOpenResult.Opened(battleParent, map); __result = !failOpen; return false; }
+    private static bool FindBattle(ActiveRemoteMapSession __0, ref RemoteSessionMapParent? __result)
+    { Check(__0.RelatedEventId == "raid", "Wrong battle lookup."); __result = missingMap ? null : battleParent; return false; }
+    private static bool ActiveBattle(ref ActiveRaidBattleSession? __result) { __result = registered; return false; }
+    private static bool BattleMap(ref Map? __result) { __result = map; return false; }
 
     private static void Install(Harmony harmony)
     {

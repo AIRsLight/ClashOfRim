@@ -86,7 +86,7 @@ public sealed partial class ClashOfRimMod : Mod
     private readonly ClientSupportActions supportActions;
     private readonly ClientSupportReturns supportReturns;
     private readonly ClientObservationMaps observationMaps;
-    private readonly ClientRaidPreparation raidPreparation = new(new ClientRaidTransport(), new ClientRemoteSnapshotTransport());
+    private readonly ClientRaidLaunching raidLaunching;
     internal ClientGiftActions GiftActions => giftActions;
     private readonly ClientEventConfirmationWorkflow eventConfirmations;
     private readonly ClientEventApplications eventApplications;
@@ -237,6 +237,11 @@ public sealed partial class ClashOfRimMod : Mod
             snapshotTransactions, snapshotFailureRecovery, localSnapshotConfirmation, new ClientSupportReturnRuntime(supportPresentation),
             new ClientSupportTransport(), supportPresentation);
         supportReturns.Completed += StartQueuedAutomaticEventRefreshAfterLocalAtomicMutation;
+        var raidTransport = new ClientRaidTransport();
+        raidLaunching = new ClientRaidLaunching(sessionLifecycle, mutationAdmission, synchronization, localMutations,
+            snapshotTransactions, snapshotFailureRecovery, new ClientRaidPreparation(raidTransport, new ClientRemoteSnapshotTransport()),
+            raidTransport, new ClientRaidLaunchPresentation(message => worldMapStatus = message), () => pvpEnabled);
+        raidLaunching.Completed += StartQueuedAutomaticEventRefreshAfterLocalAtomicMutation;
         observationMaps = new ClientObservationMaps(sessionLifecycle, synchronization, new ClientSnapshotGame(),
             new ClientObservationTransport(), new ClientObservationRuntime(),
             new ClientObservationPresentation(message => worldMapStatus = message, response => ShowCompatibilityMismatchWindow(response)));

@@ -27,6 +27,8 @@ internal static class ClientModuleBoundaryTests
             || t == typeof(ClientObservationTransport)
             || t == typeof(ClientRemoteSnapshotTransport) || t == typeof(ClientRaidTransport)
             || t == typeof(AIRsLight.ClashOfRim.Raids.ClientRaidPreparationPresentation)
+            || t == typeof(AIRsLight.ClashOfRim.Raids.ClientRaidLaunchRuntime) || t == typeof(AIRsLight.ClashOfRim.Raids.ClientRaidLaunchPresentation)
+            || t == typeof(AIRsLight.ClashOfRim.RemoteMaps.ClientRemoteMapLongEvent)
             || t == typeof(AIRsLight.ClashOfRim.Raids.ClientRaidAttackForce) || t == typeof(AIRsLight.ClashOfRim.Raids.ClientRaidBattlefield)
             || t == typeof(AIRsLight.ClashOfRim.Raids.IRaidAttackForceSource) || t == typeof(AIRsLight.ClashOfRim.Raids.RaidAttackPawnLoad)
             || t == typeof(AIRsLight.ClashOfRim.Raids.CaravanRaidAttackForceSource) || t == typeof(AIRsLight.ClashOfRim.Raids.TransporterRaidAttackForceSource)
@@ -74,6 +76,8 @@ internal static class ClientModuleBoundaryTests
             throw new InvalidOperationException("Session foundation depends on an event/snapshot domain: " + string.Join(Environment.NewLine, sessionViolations));
         Type[] eventAdapters = { typeof(AIRsLight.ClashOfRim.RemoteMaps.ClientObservationRuntime), typeof(AIRsLight.ClashOfRim.RemoteMaps.ClientObservationPresentation),
             typeof(AIRsLight.ClashOfRim.Raids.ClientRaidPreparationPresentation),
+            typeof(AIRsLight.ClashOfRim.Raids.ClientRaidLaunchRuntime), typeof(AIRsLight.ClashOfRim.Raids.ClientRaidLaunchPresentation),
+            typeof(AIRsLight.ClashOfRim.RemoteMaps.ClientRemoteMapLongEvent),
             typeof(AIRsLight.ClashOfRim.Raids.ClientRaidAttackForce), typeof(AIRsLight.ClashOfRim.Raids.ClientRaidBattlefield),
             typeof(AIRsLight.ClashOfRim.Raids.CaravanRaidAttackForceSource), typeof(AIRsLight.ClashOfRim.Raids.TransporterRaidAttackForceSource),
             typeof(AIRsLight.ClashOfRim.Support.ClientSupportSource), typeof(AIRsLight.ClashOfRim.Support.ClientSupportActions), typeof(AIRsLight.ClashOfRim.Support.ClientSupportPresentation),

@@ -1910,4 +1910,5 @@
   <ClashOfRim.Support.StatusConfirmationIncomplete>Сервер не вернул соответствующее событие поддержки и подтверждённый снимок. Локальные изменения не подтверждены. Загрузите сохранение с сервера заново.</ClashOfRim.Support.StatusConfirmationIncomplete>
   <ClashOfRim.Support.StatusReturnLocalRemoveFailed>Не удалось завершить локальное удаление пешки поддержки {PAWN}. Возврат ожидает завершения.</ClashOfRim.Support.StatusReturnLocalRemoveFailed>
   <ClashOfRim.Support.StatusReturnConfirmationIncomplete>Сервер не предоставил полное подтверждение возврата поддержки. Возврат ожидает завершения.</ClashOfRim.Support.StatusReturnConfirmationIncomplete>
+  <ClashOfRim.Raid.StatusConfirmationIncomplete>Сервер не подтвердил соответствующий рейд и снимок. Локальные изменения остаются неподтверждёнными. Вернитесь в главное меню и загрузите сохранение с сервера заново.</ClashOfRim.Raid.StatusConfirmationIncomplete>
 </LanguageData>

@@ -997,13 +997,7 @@ public sealed partial class ClashOfRimMod
     }
 
     private static bool TryParseServerUtc(string? value, out DateTimeOffset parsed)
-    {
-        return DateTimeOffset.TryParse(
-            value,
-            CultureInfo.InvariantCulture,
-            DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
-            out parsed);
-    }
+        => AIRsLight.ClashOfRim.Modules.Transport.ClientServerTime.TryParseUtc(value, out parsed);
 
     private static void EnqueueClashOfRimMainThreadAction(Action action, Action? onDiscard = null)
         => ClientMainThreadDispatcher.Enqueue(action, onDiscard);

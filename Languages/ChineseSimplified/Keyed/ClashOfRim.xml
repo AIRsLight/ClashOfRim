@@ -1919,4 +1919,5 @@
   <ClashOfRim.Support.StatusConfirmationIncomplete>服务器未返回匹配的支援事件和确认快照。本地变更仍未确认，请重新加载服务器存档。</ClashOfRim.Support.StatusConfirmationIncomplete>
   <ClashOfRim.Support.StatusReturnLocalRemoveFailed>未能完成支援角色 {PAWN} 的本地移除，归还仍待处理。</ClashOfRim.Support.StatusReturnLocalRemoveFailed>
   <ClashOfRim.Support.StatusReturnConfirmationIncomplete>服务器未提供完整的支援归还回执，归还仍待处理。</ClashOfRim.Support.StatusReturnConfirmationIncomplete>
+  <ClashOfRim.Raid.StatusConfirmationIncomplete>服务器未确认匹配的袭击事件和快照。本地变更仍未确认，请返回主菜单并重新加载服务器存档。</ClashOfRim.Raid.StatusConfirmationIncomplete>
 </LanguageData>

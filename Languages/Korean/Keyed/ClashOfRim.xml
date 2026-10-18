@@ -1910,4 +1910,5 @@
   <ClashOfRim.Support.StatusConfirmationIncomplete>서버가 일치하는 지원 이벤트와 확인 스냅샷을 반환하지 않았습니다. 로컬 변경 사항이 확인되지 않았습니다. 서버 저장을 다시 불러오세요.</ClashOfRim.Support.StatusConfirmationIncomplete>
   <ClashOfRim.Support.StatusReturnLocalRemoveFailed>지원 폰 {PAWN}의 로컬 제거를 완료하지 못했습니다. 반환은 보류 중입니다.</ClashOfRim.Support.StatusReturnLocalRemoveFailed>
   <ClashOfRim.Support.StatusReturnConfirmationIncomplete>서버에서 완전한 지원 반환 확인을 받지 못했습니다. 반환은 보류 중입니다.</ClashOfRim.Support.StatusReturnConfirmationIncomplete>
+  <ClashOfRim.Raid.StatusConfirmationIncomplete>서버가 일치하는 습격과 스냅샷을 확인하지 않았습니다. 로컬 변경은 아직 확인되지 않았습니다. 메인 메뉴로 돌아가 서버 저장을 다시 불러오세요.</ClashOfRim.Raid.StatusConfirmationIncomplete>
 </LanguageData>

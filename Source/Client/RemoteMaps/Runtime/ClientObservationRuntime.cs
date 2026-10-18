@@ -7,9 +7,7 @@ namespace AIRsLight.ClashOfRim.RemoteMaps;
 
 internal sealed class ClientObservationRuntime : IClientObservationRuntime
 {
-    public void EnqueueOpen(Action action, Action onDiscard) => LongEventHandler.QueueLongEvent(
-        ClientSessionWork.Guard(action, onDiscard), "ClashOfRim.RemoteSessionMap.StatusGeneratingLong", doAsynchronously: false,
-        exceptionHandler: ex => Log.Warning("[ClashOfRim] Remote map long event failed: " + ex), showExtraUIInfo: false);
+    public void EnqueueOpen(Action action, Action onDiscard) => ClientRemoteMapLongEvent.Enqueue(action, onDiscard);
 
     public string? Open(RemoteSessionMapOpenRequest request)
     {

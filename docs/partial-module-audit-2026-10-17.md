@@ -1226,3 +1226,19 @@ M7b 的发送与归还业务已迁入实际模块。下一步 **M7c 袭击与远
 累计 **4 个相关客户端单元组通过**（攻击队伍/战场、准备、协议、模块边界）。最终四组为 **4/92**；补充生物编码引用及精简来源清理后，只重跑受影响的 **2/92** 组，均通过。守卫覆盖 **580 个模块及生成类型、109 个适配类型**。使用本地 .NET 10 与真实 1.7 程序集编译通过，无本步新增警告，原有测试警告保留。新增夹具曾因 ThingOwner 泛型访问、Harmony 返回类型、重载与内部翻译方法选择失败，修正夹具后通过；未放宽产品检查。日志：`LocalOnly/module-migration/raid-force-existing-unit.log`、`raid-force-module-unit.log`、`raid-force-final-unit.log`、`raid-force-review-unit.log`。
 
 本步未运行 RimTest、全量回归或推送；工作区原有修改保持独立。出征的主线程/长事件协调、快照提交及恢复重试尚在旧 partial，下一步接入统一快照事务并迁出，之后处理本地结算与远程会话关闭/恢复。M7 与 M8–M12 继续开放。
+
+### M7d3c 客户端袭击出征、快照提交与恢复重试（2026-10-18）
+
+`ClientRaidLaunching` 接管出征准入、目标/队伍捕获、准备下载、游戏线程与长事件调度、本地变更登记、快照打包、提交及失败重试。Mod 的远行队/运输舱入口仅构造具体来源并调用模块，删除旧 StartCreateRaid、FinishEnterRaidBattle、OpenPreparedRaidBattle、两个 StartSubmitPreparedRaid 方法和截止时间应用方法；删除已无调用者的 StartConfirmRaidStartSnapshot。原远程地图 partial 减少约 670 行，保留尚未迁移的结算、攻击方恢复及 UI 入口。
+
+全过程复用 `ClientSnapshotMutationAdmission`、`ClientSnapshotTransaction`、`ClientSnapshotFailureRecovery` 和 `ClientGamePublication`，没有第二套会话代次、快照锁或失败窗口。一次执行捕获原身份、令牌、基础快照及游戏，在准备结果排队、长事件执行、入图后、打包后、网络结果及最终发布边界复验；手工准入升级为快照准入时保留同一事务上下文。每次执行仅释放自己的租约，完成回调之前释放准入，旧 finally 不清理随后启动的业务。
+
+失败后的用户重试保留原命令、身份、基础快照及已打包字节，只在打包本身失败时重新打包；不会再次请求准备、下载地图、开图或搬运 pawn。重试前仍检查原战场存在。网络暂时故障允许重试，拒绝/永久失败、缺失或不匹配的事件与快照回执、战场已消失和部分发布均保留未确认状态并禁止重发。确认必须明确 Accepted 且匹配本次事件与打包快照，不能再凭可空回执或任意 AppliedSnapshotId 完成本地变更。服务端 RaidStarting 的首次提交和重复回执均返回原请求快照与对应袭击，已核对这一绑定契约。进入可能改变游戏的开图步骤后失败，也保留退出恢复状态，避免原 finally 无条件解除本地变更保护后继续游玩。
+
+`ClientRaidLaunchRuntime` 拥有本次战场引用并负责现有地图服务/队伍运行时的衔接；提交前与回执发布前验证仍是同一活动战场。`ClientRaidTransport` 调用既有领域协议，移除提交时重新读取 settings/构造完整网络客户端的路径。服务端时间解析统一至 `ClientServerTime`，出征与旧进入服务器恢复入口共用不依赖文化的 UTC 规则；三个时限完整时一起应用，缺失或非法时保留本地回退。观察、出征及旧结算的长事件排队共用 `ClientRemoteMapLongEvent`。新增不完整确认提示覆盖现有五种语言，XML 与键唯一性校验通过。
+
+新增独立 ClientRaidLaunchingTests，复用既有 EventModuleTestPorts/FailureView，真实组合准备、事务、打包、准入与恢复模块，不构造 Mod 或完整游戏。覆盖四种文化 × 三种时限响应、冻结目标、准备授权/守卫绑定、打包与网络重试、拒绝和永久故障、不完整/错误回执、无战场、开图失败、准入与捕获拒绝；**8 个阶段 × 8 种身份/服务器/基础快照/游戏变化**均不得发布。另覆盖旧 finally 对新租约的隔离、重试基础快照变化、部分发布、发布中出现其他快照、战场在等待回执时消失、长事件丢弃/排队异常/开图异常，以及完成回调启动其他业务。已有队伍测试增加实际 ClientRaidLaunchRuntime 的请求构造、地图服务失败、战场身份/守卫与时限映射、缺失地图及替换战场检查；引擎生成效果仍由测试边界替换，未声称完成实机验证。
+
+累计 **6 个相关客户端单元组通过**：新出征模块、攻击队伍与新运行时、准备、协议、观察、模块边界。既有范围先 **4/92** 组通过；新增模块与运行时分别 **1/93** 组通过；补齐排队异常、部分变更与重入用例后，只验证受影响的 **4/93** 组，全部通过。模块守卫检查 **604 个模块及生成类型、113 个适配类型**。本地 .NET 10 与真实 RimWorld 1.7 程序集编译通过，没有本步新增警告；保留原有测试警告。日志：`LocalOnly/module-migration/raid-launch-existing-unit.log`、`raid-launch-module-unit.log`、`raid-launch-runtime-unit.log`、`raid-launch-review-unit.log`。
+
+未运行 RimTest、NetworkSmoke、全量回归或推送；工作区原有修改独立保留。下一步 **M7d4 客户端袭击结算及支援损失协调**，之后迁移远程会话关闭/恢复。M7 与 M8–M12 继续开放，不能将出征完成等同于远程地图整个生命周期完成。
