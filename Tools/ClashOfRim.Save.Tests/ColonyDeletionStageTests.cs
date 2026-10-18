@@ -163,9 +163,8 @@ internal static class ColonyDeletionStageTests
 
     private static void CloseEvents(ClashOfRimNetworkState state)
     {
-        Type lifecycle = typeof(ClashOfRimNetworkServer).GetNestedType("ClientLifecycleEvent", BindingFlags.NonPublic)!;
-        object abandoned = lifecycle.GetMethod("ColonyAbandoned", BindingFlags.Public | BindingFlags.Static)!
-            .Invoke(null, new object[] { "owner", "abandoned", "snapshot", DateTimeOffset.UnixEpoch })!;
+        object abandoned = AIRsLight.ClashOfRim.Network.Modules.Sessions.ClientLifecycleEvent.ColonyAbandoned(
+            "owner", "abandoned", "snapshot", DateTimeOffset.UnixEpoch);
         typeof(ClashOfRimNetworkServer).GetMethod("ReconcileAbandonedColonyOnClientLifecycle", BindingFlags.NonPublic | BindingFlags.Static)!
             .Invoke(null, new[] { state, abandoned });
     }

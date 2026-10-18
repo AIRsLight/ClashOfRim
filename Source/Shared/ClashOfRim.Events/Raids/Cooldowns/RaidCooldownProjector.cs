@@ -39,8 +39,7 @@ public static class RaidCooldownProjector
                 }
             }
 
-            if (evt.Type == ServerEventType.Raid
-                && evt.Payload is RaidEventPayload { OpponentKind: RaidOpponentKind.Player }
+            if (IsPlayerSourceRaid(evt)
                 && string.Equals(evt.Target.UserId, defenderUserId, StringComparison.Ordinal)
                 && (string.IsNullOrWhiteSpace(defenderColonyId) ||
                     string.Equals(evt.Target.ColonyId, defenderColonyId, StringComparison.Ordinal)))
@@ -80,10 +79,7 @@ public static class RaidCooldownProjector
         Func<AuthoritativeEvent, DateTimeOffset?>? defenderProtectionStartResolver,
         bool requireDefenderProtectionActivation)
     {
-        if (raid.Payload is not RaidEventPayload { OpponentKind: RaidOpponentKind.Player } payload)
-        {
-            return null;
-        }
+        var payload = (RaidEventPayload)raid.Payload;
 
         if (payload.FinishedAtUtc != null || payload.Settlement != null || payload.ReturnedSnapshotId != null)
         {
@@ -198,9 +194,12 @@ public static class RaidCooldownProjector
 
     private static bool HasSettlementCompletion(AuthoritativeEvent raid)
     {
-        return raid.Payload is RaidEventPayload { OpponentKind: RaidOpponentKind.Player } payload
+        return IsPlayerSourceRaid(raid) && raid.Payload is RaidEventPayload payload
             && (payload.Settlement != null || payload.ReturnedSnapshotId != null);
     }
+
+    private static bool IsPlayerSourceRaid(AuthoritativeEvent raid) => raid.Type == ServerEventType.Raid
+        && raid.Payload is RaidEventPayload { OpponentKind: RaidOpponentKind.Player, AttackerLoss: null };
 
     private static string RaidCompletionKey(AuthoritativeEvent evt)
     {

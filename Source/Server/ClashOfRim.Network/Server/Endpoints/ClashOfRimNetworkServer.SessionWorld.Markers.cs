@@ -122,7 +122,7 @@ public static partial class ClashOfRimNetworkServer
             baselineMarkers,
             BuildRaidAvailabilitySources(userId, colonyId, baselineMarkers, state, nowUtc),
             nowUtc,
-            BuildRaidEligibilityPolicy(state.ServerConfiguration));
+            Modules.Raids.RaidPolicies.BuildEligibility(state.ServerConfiguration));
         baselineMarkers = WithFriendlyReinforcementAvailability(userId, colonyId, baselineMarkers, state);
         IReadOnlyList<WorldMapMarker> runtimeMarkers = state.RuntimeWorldObjectMarkers.ListVisibleMarkers(userId, nowUtc);
         IReadOnlyList<WorldMapMarker> markers = MergeContextualizeAndSortMarkers(
@@ -636,7 +636,7 @@ public static partial class ClashOfRimNetworkServer
                 string.Equals(relationKind, DiplomacyRelationRegistry.RelationHostile, StringComparison.Ordinal),
                 state.OnlinePresence.IsUserOnline(marker.OwnerUserId),
                 defenderWealth,
-                CurrentRaidCooldownUntil(state, marker.OwnerUserId, marker.ColonyId, nowUtc)));
+                state.RaidProtection.CurrentUntil(marker.OwnerUserId, marker.ColonyId, nowUtc)));
         }
 
         return sources;
@@ -861,21 +861,4 @@ public static partial class ClashOfRimNetworkServer
         return "colony-tombstone:" + userId + ":" + colonyId;
     }
 
-    private static RaidEligibilityPolicy BuildRaidEligibilityPolicy(ClashOfRimServerConfiguration configuration)
-        => Modules.Raids.RaidPolicies.BuildEligibility(configuration);
-
-    private static RaidCooldownPolicy BuildRaidCooldownPolicy(ClashOfRimServerConfiguration configuration)
-    {
-        return new RaidCooldownPolicy(
-            configuration.RaidProtectionDuration,
-            RaidCooldownPolicy.Default.TimeoutCooldown,
-            RaidCooldownPolicy.Default.CancelledCooldown);
-    }
-
-    private static RaidDefenseLockPolicy BuildRaidDefenseLockPolicy(ClashOfRimServerConfiguration configuration)
-    {
-        return new RaidDefenseLockPolicy(
-            configuration.RaidMaxDuration,
-            configuration.RaidTimeoutGracePeriod);
-    }
 }

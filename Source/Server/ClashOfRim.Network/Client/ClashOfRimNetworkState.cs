@@ -98,6 +98,8 @@ public sealed class ClashOfRimNetworkState
         SnapshotPostUploadArtifacts = snapshotPostUploadArtifacts ?? new InMemorySnapshotPostUploadArtifactStore();
         RuntimeLogger = runtimeLogger ?? NullLogger.Instance;
         SnapshotCommits = snapshotCommits ?? new SnapshotCommitService();
+        RaidQueries = new Modules.Raids.RaidQueries(Ledger, () => ServerConfiguration);
+        RaidProtection = new Modules.Raids.RaidProtection(Ledger, RaidProtectionActivations, RaidCooldownOverrides, () => ServerConfiguration, RuntimeLogger);
         ColonyDeletions = colonyDeletions ?? new ColonyDeletionService();
         ColonyAuthorization = new ColonyAccessAuthorization(AuthTokens, LoginSessions, DiplomacyRelations,
             RaidPreparations, Ledger, () => ServerConfiguration.PvpEnabled);
@@ -148,6 +150,8 @@ public sealed class ClashOfRimNetworkState
     }
 
     public IAuthoritativeEventLedger Ledger { get; }
+    internal Modules.Raids.RaidQueries RaidQueries { get; }
+    internal Modules.Raids.RaidProtection RaidProtection { get; }
 
     internal ColonyAccessAuthorization ColonyAuthorization { get; }
     internal ColonySnapshotAuthorization SnapshotAuthorization { get; }

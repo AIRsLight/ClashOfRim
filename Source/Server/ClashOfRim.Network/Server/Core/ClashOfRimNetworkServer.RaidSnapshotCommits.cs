@@ -80,7 +80,7 @@ public static partial class ClashOfRimNetworkServer
         if (!state.ServerConfiguration.PvpEnabled) return ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, T("Pvp.Disabled"));
         if (ResolveRaidOpponentKind(request.OpponentKind) != RaidOpponentKind.Player)
             return ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("Raid.PlayerOnlyTransaction"));
-        if (FindUnsettledAttackerRaid(state, request.Attacker.UserId, request.Attacker.ColonyId, request.IdempotencyKey) is { } blockingRaid)
+        if (state.RaidQueries.UnsettledAttacker(request.Attacker.UserId, request.Attacker.ColonyId, request.IdempotencyKey) is { } blockingRaid)
         {
             blockingRaidId = blockingRaid.EventId;
             return ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, T("Raid.BlockedByUnsettledAttackerRaid"));
@@ -93,9 +93,9 @@ public static partial class ClashOfRimNetworkServer
             state.DiplomacyRelations.GetRelationKind(request.Attacker.UserId, request.Attacker.ColonyId,
                 request.Defender.UserId, request.Defender.ColonyId) == DiplomacyRelationRegistry.RelationHostile,
             request.DefenderOnline || state.OnlinePresence.IsUserOnline(request.Defender.UserId), now,
-            CurrentRaidCooldownUntil(state, request.Defender.UserId, request.Defender.ColonyId, now),
+            state.RaidProtection.CurrentUntil(request.Defender.UserId, request.Defender.ColonyId, now),
             CalculateSnapshotWealth(defender) ?? 0, defender.Identity, defender.Index.Maps, request.TargetMapId);
-        var checkedEligibility = RaidEligibilityChecker.Check(eligibility, BuildRaidEligibilityPolicy(state.ServerConfiguration));
+        var checkedEligibility = RaidEligibilityChecker.Check(eligibility, Modules.Raids.RaidPolicies.BuildEligibility(state.ServerConfiguration));
         if (!checkedEligibility.Eligible) return ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected,
             T("Raid.PrepareRejected", ("REASONS", string.Join(", ", checkedEligibility.FailureReasons))));
         if (state.PendingConfirmations.ReconcileSnapshot(request.Attacker.UserId, request.Attacker.ColonyId!, now) is { } expired) return expired;

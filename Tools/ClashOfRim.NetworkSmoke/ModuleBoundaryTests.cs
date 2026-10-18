@@ -28,7 +28,7 @@ internal static class ModuleBoundaryTests
         var business = modules.Where(t =>
             t.Namespace is "AIRsLight.ClashOfRim.Network.Modules.Bank" or "AIRsLight.ClashOfRim.Network.Modules.Gifts"
                 or "AIRsLight.ClashOfRim.Network.Modules.Transfers" or "AIRsLight.ClashOfRim.Network.Modules.Trades" or "AIRsLight.ClashOfRim.Network.Modules.Shop" or "AIRsLight.ClashOfRim.Network.Modules.Mercenaries"
-                or "AIRsLight.ClashOfRim.Network.Modules.Support"
+                or "AIRsLight.ClashOfRim.Network.Modules.Support" or "AIRsLight.ClashOfRim.Network.Modules.Raids"
             && t.Name is not ("BankEndpoints" or "GiftEndpoints" or "TradeEndpoints" or "ShopEndpoints" or "MercenaryEndpoints" or "SupportEndpoints")
             && t.DeclaringType?.Name is not ("BankEndpoints" or "GiftEndpoints" or "TradeEndpoints" or "ShopEndpoints" or "MercenaryEndpoints" or "SupportEndpoints")).ToArray();
         var transportLeaks = ModuleDependencyGuard.FindViolations(business,

@@ -83,9 +83,8 @@ internal static class SnapshotJournalRecoveryPreparationTests
 
     private static object Lifecycle(string kind, string user, string colony)
     {
-        var type = typeof(ClashOfRimNetworkServer).GetNestedType("ClientLifecycleEvent", BindingFlags.NonPublic)!;
-        var kinds = typeof(ClashOfRimNetworkServer).GetNestedType("ClientLifecycleEventKind", BindingFlags.NonPublic)!;
-        return Activator.CreateInstance(type, Enum.Parse(kinds, kind), user, colony, "evidence", "session", DateTimeOffset.UtcNow)!;
+        return new AIRsLight.ClashOfRim.Network.Modules.Sessions.ClientLifecycleEvent(
+            Enum.Parse<AIRsLight.ClashOfRim.Network.Modules.Sessions.ClientLifecycleEventKind>(kind), user, colony, "evidence", "session", DateTimeOffset.UtcNow);
     }
 
     private static void Invoke(string name, params object[] args)

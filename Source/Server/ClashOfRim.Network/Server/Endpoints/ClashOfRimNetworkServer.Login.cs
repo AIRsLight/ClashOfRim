@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Network.Modules.Sessions;
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Protocol;
 using Microsoft.AspNetCore.Http;
@@ -23,7 +24,7 @@ public static partial class ClashOfRimNetworkServer
         if (mutation.Rejection is { } denied) return RejectLogin(denied, entry.Compatibility);
         var nowUtc = DateTimeOffset.UtcNow;
         ReconcileExpiredRaidEvents(state, nowUtc);
-        if (FindDefenderLoginBlockingRaid(state, userId, request.ColonyId) is not null)
+        if (state.RaidQueries.BlockingDefender(userId, request.ColonyId) is not null)
             return RejectLogin(ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, T("Login.BlockedByDefenseRaid")),
                 userId: userId, displayName: displayName, isAdministrator: state.WorldConfiguration.IsAdministrator(userId));
 
@@ -41,7 +42,7 @@ public static partial class ClashOfRimNetworkServer
         RuntimeLogger(loggerFactory).LogInformation(
             "准备发布玩家登录会话：user={UserId} colony={ColonyId} session={SessionId}", userId, request.ColonyId, session.SessionId);
         if (entry.Authorize() is { } finalDenied) return RejectLogin(finalDenied, entry.Compatibility);
-        if (FindDefenderLoginBlockingRaid(state, userId, request.ColonyId) is not null)
+        if (state.RaidQueries.BlockingDefender(userId, request.ColonyId) is not null)
             return RejectLogin(ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, T("Login.BlockedByDefenseRaid")),
                 userId: userId, displayName: displayName, isAdministrator: state.WorldConfiguration.IsAdministrator(userId));
 

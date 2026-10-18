@@ -37,7 +37,7 @@ public static partial class ClashOfRimNetworkServer
     };
     private static readonly IReadOnlyList<ClientLifecycleHook> ClientLifecycleHooks = new ClientLifecycleHook[]
     {
-        ActivateRaidProtectionOnClientLifecycle,
+        (state, lifecycle) => state.RaidProtection.OnLifecycle(lifecycle),
         ReconcilePendingConfirmationsOnClientLifecycle,
         ReconcileAbandonedColonyOnClientLifecycle
     };

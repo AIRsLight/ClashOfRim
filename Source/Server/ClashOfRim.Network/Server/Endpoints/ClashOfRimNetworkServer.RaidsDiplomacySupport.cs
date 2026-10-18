@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Network.Modules.Sessions;
 using static AIRsLight.ClashOfRim.Network.Modules.Support.SupportReturns;
 using static AIRsLight.ClashOfRim.Network.Modules.Support.SupportClosures;
 using static AIRsLight.ClashOfRim.Network.Modules.Trades.TradeRules;
@@ -32,7 +33,7 @@ public static partial class ClashOfRimNetworkServer
         DateTimeOffset? startedAtUtc = raidEvent.Payload is RaidEventPayload payload
             ? payload.StartedAtUtc
             : null;
-        RaidDefenseLockPolicy policy = BuildRaidDefenseLockPolicy(state.ServerConfiguration);
+        RaidDefenseLockPolicy policy = Modules.Raids.RaidPolicies.BuildDefenseLock(state.ServerConfiguration);
         return new EventCreationResponse(
             response,
             raidEvent.EventId,
@@ -117,9 +118,7 @@ public static partial class ClashOfRimNetworkServer
                 expiresAtUtc: null));
         }
 
-        AuthoritativeEvent? blockingRaid = FindUnsettledAttackerRaid(
-            state,
-            request.Attacker.UserId,
+        AuthoritativeEvent? blockingRaid = state.RaidQueries.UnsettledAttacker(request.Attacker.UserId,
             request.Attacker.ColonyId,
             request.IdempotencyKey);
         if (blockingRaid is not null)
@@ -198,14 +197,14 @@ public static partial class ClashOfRimNetworkServer
             string.Equals(relationKind, DiplomacyRelationRegistry.RelationHostile, StringComparison.Ordinal),
             state.OnlinePresence.IsUserOnline(request.Defender.UserId),
             nowUtc,
-            CurrentRaidCooldownUntil(state, request.Defender.UserId, request.Defender.ColonyId, nowUtc),
+            state.RaidProtection.CurrentUntil(request.Defender.UserId, request.Defender.ColonyId, nowUtc),
             defenderWealth,
             defenderPackage.Envelope.Identity,
             defenderPackage.Index.Maps,
             request.TargetMapId);
         RaidEligibilityResult eligibilityResult = RaidEligibilityChecker.Check(
             eligibility,
-            BuildRaidEligibilityPolicy(state.ServerConfiguration));
+            Modules.Raids.RaidPolicies.BuildEligibility(state.ServerConfiguration));
         if (!eligibilityResult.Eligible)
         {
             return Results.Ok(new PrepareRaidResponse(
@@ -835,42 +834,6 @@ public static partial class ClashOfRimNetworkServer
         state.WorldConfigurationNotifications.SignalUsers(knownUsers.Concat(additionalUsers));
     }
 
-    private static AuthoritativeEvent? FindUnsettledAttackerRaid(
-        ClashOfRimNetworkState state,
-        string? attackerUserId,
-        string? attackerColonyId,
-        string? excludedIdempotencyKey)
-    {
-        if (string.IsNullOrWhiteSpace(attackerUserId))
-        {
-            return null;
-        }
-
-        return RaidUnsettledProjector.BuildForAttacker(
-                attackerUserId!,
-                attackerColonyId,
-                state.Ledger.ListByTypeForActor(ServerEventType.Raid, attackerUserId!, attackerColonyId),
-                excludedIdempotencyKey)
-            .FirstOrDefault();
-    }
-
-    internal static AuthoritativeEvent? FindDefenderLoginBlockingRaid(
-        ClashOfRimNetworkState state,
-        string? defenderUserId,
-        string? defenderColonyId)
-    {
-        if (string.IsNullOrWhiteSpace(defenderUserId))
-        {
-            return null;
-        }
-
-        return RaidUnsettledProjector.BuildForDefender(
-                defenderUserId!,
-                defenderColonyId,
-                state.Ledger.ListByTypeForTarget(ServerEventType.Raid, defenderUserId!, defenderColonyId))
-            .FirstOrDefault();
-    }
-
     private static void RunClientLifecycleHooks(
         ClashOfRimNetworkState state,
         ClientLifecycleEvent lifecycleEvent)
@@ -879,86 +842,6 @@ public static partial class ClashOfRimNetworkServer
         {
             hook(state, lifecycleEvent);
         }
-    }
-
-    private static void ActivateRaidProtectionOnClientLifecycle(
-        ClashOfRimNetworkState state,
-        ClientLifecycleEvent lifecycleEvent)
-    {
-        if (lifecycleEvent.Kind != ClientLifecycleEventKind.LoggedIn
-            || string.IsNullOrWhiteSpace(lifecycleEvent.UserId)
-            || string.IsNullOrWhiteSpace(lifecycleEvent.ColonyId))
-        {
-            return;
-        }
-
-        RaidCooldownPolicy policy = BuildRaidCooldownPolicy(state.ServerConfiguration);
-        int activated = 0;
-        foreach (AuthoritativeEvent raid in state.Ledger.ListByTypeForTarget(
-            ServerEventType.Raid,
-            lifecycleEvent.UserId,
-            lifecycleEvent.ColonyId))
-        {
-            if (!ShouldActivateRaidProtectionTimer(raid, policy))
-            {
-                continue;
-            }
-
-            if (state.RaidProtectionActivations.ActivateIfMissing(
-                raid.EventId,
-                raid.Target.UserId,
-                raid.Target.ColonyId,
-                lifecycleEvent.OccurredAtUtc))
-            {
-                activated++;
-            }
-        }
-
-        if (activated > 0)
-        {
-            state.RuntimeLogger.LogInformation(
-                "Activated raid protection countdown for defender user={UserId} colony={ColonyId} count={Count}",
-                lifecycleEvent.UserId,
-                lifecycleEvent.ColonyId,
-                activated);
-        }
-    }
-
-    private static bool ShouldActivateRaidProtectionTimer(
-        AuthoritativeEvent raid,
-        RaidCooldownPolicy policy)
-    {
-        if (raid.Payload is not RaidEventPayload { OpponentKind: RaidOpponentKind.Player } payload)
-        {
-            return false;
-        }
-
-        if (payload.FinishedAtUtc != null || payload.Settlement != null || payload.ReturnedSnapshotId != null)
-        {
-            return policy.SettlementCooldown > TimeSpan.Zero;
-        }
-
-        if (raid.Status == ServerEventStatus.Failed)
-        {
-            return policy.TimeoutCooldown > TimeSpan.Zero;
-        }
-
-        if (raid.Status == ServerEventStatus.Cancelled)
-        {
-            return policy.CancelledCooldown > TimeSpan.Zero;
-        }
-
-        return false;
-    }
-
-    private static DateTimeOffset? ResolveRaidProtectionActivatedAt(
-        ClashOfRimNetworkState state,
-        AuthoritativeEvent raid)
-    {
-        return state.RaidProtectionActivations.FindActivatedAt(
-            raid.EventId,
-            raid.Target.UserId,
-            raid.Target.ColonyId);
     }
 
     private static void ReconcilePendingConfirmationsOnClientLifecycle(
@@ -1104,49 +987,6 @@ public static partial class ClashOfRimNetworkServer
         }
     }
 
-    private static AuthoritativeEvent? FindActiveSourceRaidForAttacker(
-        ClashOfRimNetworkState state,
-        string? attackerUserId,
-        string? attackerColonyId)
-    {
-        if (string.IsNullOrWhiteSpace(attackerUserId))
-        {
-            return null;
-        }
-
-        return RaidUnsettledProjector.BuildActiveSourceForAttacker(
-                attackerUserId!,
-                attackerColonyId,
-                state.Ledger.ListByTypeForActor(ServerEventType.Raid, attackerUserId!, attackerColonyId))
-            .FirstOrDefault();
-    }
-
-    private static ActiveRaidRecoveryDto? BuildActiveRaidRecoveryDto(
-        ClashOfRimNetworkState state,
-        string? attackerUserId,
-        string? attackerColonyId,
-        DateTimeOffset nowUtc)
-    {
-        AuthoritativeEvent? raid = FindActiveSourceRaidForAttacker(state, attackerUserId, attackerColonyId);
-        if (raid?.Payload is not RaidEventPayload payload || payload.StartedAtUtc is null)
-        {
-            return null;
-        }
-
-        RaidDefenseLockPolicy policy = BuildRaidDefenseLockPolicy(state.ServerConfiguration);
-        DateTimeOffset startedAtUtc = payload.StartedAtUtc.Value;
-        return new ActiveRaidRecoveryDto(
-            raid.EventId,
-            raid.Status.ToString(),
-            nowUtc,
-            startedAtUtc,
-            startedAtUtc + policy.MaxRaidDuration,
-            startedAtUtc + policy.ServerTimeoutDuration,
-            raid.Target.UserId,
-            raid.Target.ColonyId,
-            payload.DefenderSnapshotId);
-    }
-
     internal static RaidTimeoutProcessingResult ReconcileExpiredRaidEvents(
         ClashOfRimNetworkState state,
         DateTimeOffset nowUtc)
@@ -1161,7 +1001,7 @@ public static partial class ClashOfRimNetworkServer
 
     private static RaidTimeoutProcessingResult ProcessExpiredRaidEventsLocked(ClashOfRimNetworkState state, DateTimeOffset nowUtc)
         => RaidTimeoutProcessor.ProcessExpiredRaids(state.Ledger, state.Ledger.ListByType(ServerEventType.Raid), nowUtc,
-            BuildRaidDefenseLockPolicy(state.ServerConfiguration), party => state.OnlinePresence.IsUserOnline(party.UserId));
+            Modules.Raids.RaidPolicies.BuildDefenseLock(state.ServerConfiguration), party => state.OnlinePresence.IsUserOnline(party.UserId));
 
     internal static void RecoverPendingRaidTimeoutWork(ClashOfRimNetworkState state, DateTimeOffset nowUtc)
         => CompletePendingRaidTimeoutWork(state, new RaidTimeoutProcessingResult([], [], [], []), nowUtc);
@@ -1415,7 +1255,7 @@ public static partial class ClashOfRimNetworkServer
     private static bool CanCleanupRaidBattleSnapshot(ClashOfRimNetworkState state, AuthoritativeEvent raid, SaveSnapshotPackage package)
     {
         if (raid.Actor.UserId != package.Envelope.Identity.OwnerId || raid.Actor.ColonyId != package.Envelope.Identity.ColonyId
-            || FindActiveSourceRaidForAttacker(state, raid.Actor.UserId, raid.Actor.ColonyId) is not null) return false;
+            || state.RaidQueries.ActiveAttacker(raid.Actor.UserId, raid.Actor.ColonyId) is not null) return false;
         var battles = package.Index.WorldObjects.Where(item => item.Def == "ClashOfRim_RemoteRaidBattleMapParent").ToArray();
         return battles.Length > 0 && battles.All(item => item.ClashOfRimRelatedEventId == raid.EventId);
     }
@@ -1448,82 +1288,6 @@ public static partial class ClashOfRimNetworkServer
             Array.Empty<AuthoritativeEvent>(),
             Array.Empty<AuthoritativeEvent>(),
             Array.Empty<RaidCleanupCompletion>());
-    }
-
-    private enum ClientLifecycleEventKind
-    {
-        InitialWorldSessionPrepared,
-        LoggedIn,
-        ColonyAbandoned
-    }
-
-    private readonly record struct ClientLifecycleEvent(
-        ClientLifecycleEventKind Kind,
-        string UserId,
-        string ColonyId,
-        string? CurrentSnapshotId,
-        string? SessionId,
-        DateTimeOffset OccurredAtUtc)
-    {
-        public static ClientLifecycleEvent InitialWorldSessionPrepared(
-            string userId,
-            string colonyId,
-            string? currentSnapshotId,
-            DateTimeOffset occurredAtUtc)
-        {
-            return new ClientLifecycleEvent(
-                ClientLifecycleEventKind.InitialWorldSessionPrepared,
-                userId,
-                colonyId,
-                currentSnapshotId,
-                SessionId: null,
-                occurredAtUtc);
-        }
-
-        public static ClientLifecycleEvent LoggedIn(
-            string userId,
-            string colonyId,
-            string sessionId,
-            string? currentSnapshotId,
-            DateTimeOffset occurredAtUtc)
-        {
-            return new ClientLifecycleEvent(
-                ClientLifecycleEventKind.LoggedIn,
-                userId,
-                colonyId,
-                currentSnapshotId,
-                sessionId,
-                occurredAtUtc);
-        }
-
-        public static ClientLifecycleEvent ColonyAbandoned(
-            string userId,
-            string colonyId,
-            string? currentSnapshotId,
-            DateTimeOffset occurredAtUtc)
-        {
-            return new ClientLifecycleEvent(
-                ClientLifecycleEventKind.ColonyAbandoned,
-                userId,
-                colonyId,
-                currentSnapshotId,
-                SessionId: null,
-                occurredAtUtc);
-        }
-    }
-    private static DateTimeOffset? CurrentRaidCooldownUntil(
-        ClashOfRimNetworkState state,
-        string defenderUserId,
-        string? defenderColonyId,
-        DateTimeOffset nowUtc)
-    {
-        return string.IsNullOrWhiteSpace(defenderColonyId)
-            ? null
-            : RaidCooldownRuntimeService.CurrentUntil(
-                state,
-                defenderUserId,
-                defenderColonyId,
-                nowUtc);
     }
 
 }

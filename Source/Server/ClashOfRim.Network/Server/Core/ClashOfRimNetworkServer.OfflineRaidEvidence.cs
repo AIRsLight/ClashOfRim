@@ -73,7 +73,7 @@ public static partial class ClashOfRimNetworkServer
                 if (!SameRaidCleanupSource(state.Ledger.Find(raid.EventId), raid)
                     || !RaidSettlementDeferredScheduler.SameVersion(packages.GetLatest(owner, colony)?.Envelope, attackerVersion)
                     || !RaidSettlementDeferredScheduler.SameVersion(packages.GetLatest(defender, defenseColony)?.Envelope, defenderVersion)
-                    || FindActiveSourceRaidForAttacker(state, owner, colony) is not null) return null;
+                    || state.RaidQueries.ActiveAttacker(owner, colony) is not null) return null;
                 existing = state.SnapshotPostUploadJobs.Find(jobId);
                 if (existing is not null)
                 {

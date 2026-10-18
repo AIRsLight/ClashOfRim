@@ -1034,7 +1034,7 @@ public static partial class ClashOfRimNetworkServer
                 return new(ProtocolResponse.Reject(ProtocolErrorCode.EventNotFound, T("Snapshot.PayloadNotFound")),
                     null, HttpStatusCode: StatusCodes.Status404NotFound);
             return new(ProtocolResponse.Ok(T("Snapshot.LatestReturned")), package,
-                requestedSnapshotId is null ? BuildActiveRaidRecoveryDto(state, userId, colonyId, DateTimeOffset.UtcNow) : null);
+                requestedSnapshotId is null ? state.RaidQueries.Recovery(userId, colonyId, DateTimeOffset.UtcNow) : null);
         }
     }
 

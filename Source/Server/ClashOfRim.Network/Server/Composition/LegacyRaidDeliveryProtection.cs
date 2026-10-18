@@ -8,7 +8,7 @@ internal sealed class LegacyRaidDeliveryProtection(ClashOfRimNetworkState state)
 {
     public void Reconcile(DateTimeOffset nowUtc) => ClashOfRimNetworkServer.ReconcileExpiredRaidEvents(state, nowUtc);
     public AuthoritativeEvent? FindBlockingRaid(string userId, string? colonyId) =>
-        ClashOfRimNetworkServer.FindDefenderLoginBlockingRaid(state, userId, colonyId);
+        state.RaidQueries.BlockingDefender(userId, colonyId);
     public DateTimeOffset? CurrentCooldownUntil(string userId, string? colonyId, DateTimeOffset nowUtc) =>
-        string.IsNullOrWhiteSpace(colonyId) ? null : RaidCooldownRuntimeService.CurrentUntil(state, userId, colonyId, nowUtc);
+        state.RaidProtection.CurrentUntil(userId, colonyId, nowUtc);
 }

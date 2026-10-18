@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Network.Modules.Sessions;
 using static AIRsLight.ClashOfRim.Network.Modules.World.WorldTileGeometry;
 using AIRsLight.ClashOfRim.Compatibility;
 using AIRsLight.ClashOfRim.Events;
@@ -115,9 +116,7 @@ public static partial class ClashOfRimNetworkServer
 
         if (hasExistingColony)
         {
-            AuthoritativeEvent? blockingRaid = FindDefenderLoginBlockingRaid(
-                state,
-                userId,
+            AuthoritativeEvent? blockingRaid = state.RaidQueries.BlockingDefender(userId,
                 assignedColonyId);
             if (blockingRaid is not null)
             {
