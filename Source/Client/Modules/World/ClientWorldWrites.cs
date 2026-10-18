@@ -32,7 +32,7 @@ internal sealed class ClientWorldWrites
     private readonly ClientWorldPublication publication;
     private readonly IClientWorldWriteRuntime runtime;
     private readonly IClientWorldWritePresentation presentation;
-    internal event Action? BaselineUpdated;
+    internal event Action<Func<Action, bool>>? BaselineUpdated;
     internal ClientWorldWrites(ClientSessionLifecycle session, ClientAdminAccess access, ClientWorldBaselineCapture capture,
         ClientWorldBaselineSubmission submission, ClientStorytellerConfiguration storyteller, ClientWorldPublication publication,
         IClientWorldWriteRuntime runtime, IClientWorldWritePresentation presentation)
@@ -132,7 +132,7 @@ internal sealed class ClientWorldWrites
                     {
                         Notice("ClashOfRim.Admin.WorldBaselineUpdated", ClientWorldWriteMessage.Success,
                             ("FACTIONS", accepted?.Factions.Count ?? 0), ("WORLDOBJECTS", accepted?.WorldObjects.Count ?? 0));
-                        Apply(() => BaselineUpdated?.Invoke());
+                        Step(() => BaselineUpdated?.Invoke(Step));
                     }
                 })).ConfigureAwait(false);
             }).ConfigureAwait(false);

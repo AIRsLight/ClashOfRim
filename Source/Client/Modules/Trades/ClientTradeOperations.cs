@@ -27,7 +27,7 @@ internal sealed class ClientTradeOperations
         ClientTradeState state, IClientTradeOperationsTransport transport, IClientTradeOperationsPresentation presentation)
     { this.admission = admission; this.synchronization = synchronization; this.mutations = mutations; this.transactions = transactions;
         this.recovery = recovery; this.state = state; this.transport = transport; this.presentation = presentation; }
-    internal event Action<ClientTradeOperation>? Completed;
+    internal event Action<ClientTradeOperation, Func<Action, bool>>? Completed;
 
     internal Task StartAsync(IClientTradeSource source, ModTradeOrderSummaryDto order)
     {
@@ -162,8 +162,9 @@ internal sealed class ClientTradeOperations
                     state.Message = message; presentation.Message(message, false);
                     transactions.TryApply(attempt, () => { mutations.Reset(); recovery.Close(); }, requireBaseSnapshot: false);
                 }, requireBaseSnapshot: false);
-                if (transactions.TryApply(attempt, static () => { }, requireBaseSnapshot: false))
-                { attempt.Admission.Dispose(); Completed?.Invoke(job.Command.Operation); }
+                var completion = transactions.CaptureCompletion(attempt, response.AppliedSnapshotId);
+                attempt.Admission.Dispose();
+                completion(() => Completed?.Invoke(job.Command.Operation, completion));
             }));
     }
 

@@ -225,7 +225,7 @@ internal static class ClientWorldWritesTests
             Publication = new(Session, Ports, () => WorldId, () => World, configuration);
             Module = new(Session, Access, new(submission, storyteller), submission, storyteller, Publication.Flow, this, this);
             Publication.Hook = point => { if (point == "proxy") Step(point); };
-            Module.BaselineUpdated += () => { Markers++; Step("markers"); };
+            Module.BaselineUpdated += step => { Markers++; Step("markers"); };
         }
         internal Task Start(string? signature = null) { Captures = 0; return Module.StartAsync(Kind, null, signature); }
         internal void Step(string point) { Trace.Enqueue(point); Hook?.Invoke(point); }

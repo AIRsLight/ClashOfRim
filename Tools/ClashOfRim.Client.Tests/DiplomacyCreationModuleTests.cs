@@ -198,6 +198,18 @@ internal static class DiplomacyCreationModuleTests
 
     private static async Task Reentry()
     {
+        foreach (string change in new[] { "login", "server", "colony", "game", "snapshot", "generation" })
+        {
+            var releasing = new Fixture();
+            // Its completion receipt must stop after a reentrant refresh action.
+            releasing.Module.RefreshRequired += step =>
+            {
+                step(() => releasing.Replace(change));
+                Check(!step(() => throw new InvalidOperationException("Stale diplomacy continuation.")), "Diplomacy receipt rebound after refresh.");
+            };
+            releasing.Start(out var done); await releasing.Ports.PumpUntil(done);
+            Check(!releasing.Sync.IsBusy, "Diplomacy completion retained admission."); releasing.Sync.Reset();
+        }
         var f = new Fixture(); ClientSynchronizationCoordinator.Lease? next = null;
         f.OnRefresh = () => Check(f.Sync.TryBeginManual(out next), "Refresh could not begin after creation released admission.");
         f.Start(out var work); await f.Ports.PumpUntil(work);
@@ -234,7 +246,7 @@ internal static class DiplomacyCreationModuleTests
             Session = new(Ports, Ports, new ClientSessionConnection(Ports));
             var transactions = new ClientSnapshotTransaction(Session, Ports, new(Ports, Ports));
             Module = new(new(Session, Sync, Mutations, transactions), transactions, Mutations, this, this);
-            Module.RefreshRequired += () => { Refreshed++; OnRefresh?.Invoke(); };
+            Module.RefreshRequired += step => { Refreshed++; OnRefresh?.Invoke(); };
         }
         internal bool Start(out Task work) => Module.Start("WarDeclaration", new("bob", "target"), null, out work);
         public string DefaultMessage(string kind) => "default:" + kind;

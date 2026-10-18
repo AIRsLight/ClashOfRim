@@ -48,7 +48,7 @@ internal sealed class ClientDiplomacyCreation
         ClientLocalMutationCoordinator mutations, IClientDiplomacyCreationTransport transport, IClientDiplomacyCreationPresentation presentation)
     { this.admission = admission; this.transactions = transactions; this.mutations = mutations; this.transport = transport; this.presentation = presentation; }
 
-    internal event Action? RefreshRequired;
+    internal event Action<Func<Action, bool>>? RefreshRequired;
 
     internal bool Start(string kind, ClientDiplomacyTarget target, string? message, out Task work)
     {
@@ -106,8 +106,9 @@ internal sealed class ClientDiplomacyCreation
         if (!transactions.TryApply(attempt, () => presentation.Report(notice))) return;
         transactions.TryApply(attempt, () =>
         {
+            var completion = transactions.CaptureCompletion(attempt, attempt.Context.CurrentSnapshotId);
             attempt.Admission.Dispose();
-            RefreshRequired?.Invoke();
+            completion(() => RefreshRequired?.Invoke(completion));
         });
     }
 }

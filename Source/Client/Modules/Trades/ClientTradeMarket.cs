@@ -23,7 +23,7 @@ internal sealed class ClientTradeMarket
     { this.session = session; this.state = state; this.mutations = mutations; this.admission = admission;
         this.transactions = transactions; this.transport = transport; this.presentation = presentation; }
 
-    internal event Action? Accepted;
+    internal event Action<Func<Action, bool>>? Accepted;
     internal Action Bind(Action action)
     {
         var owner = state.Capture();
@@ -105,7 +105,8 @@ internal sealed class ClientTradeMarket
                 state.Accepted(eventId, response.MemoEventId);
                 state.Message = presentation.Text(response.MemoCreated ? "StatusAcceptedOrder" : "StatusAcceptMemoExists",
                     ("EVENTID", response.TradeEventId), ("MEMOID", response.MemoEventId));
-                Accepted?.Invoke();
+                bool Step(Action action) => TryApply(attempt, owner, action) && TryApply(attempt, owner, static () => { });
+                Step(() => Accepted?.Invoke(Step));
             }));
     }
 

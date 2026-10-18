@@ -26,7 +26,7 @@ internal static class ClientTradeOperationsTests
                 CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(culture);
                 var f = new Fixture(kind);
                 int completed = 0;
-                f.Operations.Completed += operation => { Check(operation == kind && !f.Sync.IsBusy && !f.Mutations.IsPending, "Completion preceded cleanup."); completed++; };
+                f.Operations.Completed += (operation, step) => { Check(operation == kind && !f.Sync.IsBusy && !f.Mutations.IsPending, "Completion preceded cleanup."); completed++; };
                 Task work = await Begin(f);
                 Check(f.Applied == 1 && f.Ports.Captures == 1 && f.Sync.SnapshotInProgress, "Local preparation escaped admission.");
                 f.Order.EventId = "changed"; f.Order.OfferedThings[0].Metadata!["state"] = "changed";
@@ -43,6 +43,7 @@ internal static class ClientTradeOperationsTests
             }
             foreach (var kind in Enum.GetValues<ClientTradeOperation>())
             {
+                await CompletionReleaseReplacement(kind);
                 await Retry(kind, build: true); await Retry(kind, build: false);
                 foreach (bool exception in new[] { false, true })
                 foreach (bool mutated in new[] { false, true })
@@ -140,6 +141,19 @@ internal static class ClientTradeOperationsTests
             finally { f.OnGameQueue = false; }
         }
         return task;
+    }
+
+    private static async Task CompletionReleaseReplacement(ClientTradeOperation kind)
+    {
+        foreach (string change in new[] { "server", "user", "colony", "auth", "snapshot", "game", "login", "generation" })
+        {
+            var f = new Fixture(kind); int completed = 0;
+            f.Operations.Completed += (_, _) => completed++;
+            f.Sync.SnapshotChanged += notice => { if (notice.Phase == SnapshotTransactionPhase.Ended) Change(f, change); };
+            var work = await Begin(f); (await f.Ports.Next())(); await work;
+            Check(completed == 0 && !f.Sync.IsBusy, "Trade completion borrowed the source installed during release: " + kind + "/" + change);
+            f.Sync.Reset();
+        }
     }
     private static async Task Retry(ClientTradeOperation kind, bool build)
     {

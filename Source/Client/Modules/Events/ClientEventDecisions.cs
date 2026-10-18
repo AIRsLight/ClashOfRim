@@ -45,7 +45,7 @@ internal sealed class ClientEventDecisions : IClientEventApplicationDecisions
         this.game = game; this.protocol = protocol; this.presentation = presentation; this.runtime = runtime;
     }
 
-    internal event Action? FailureReported;
+    internal event Action<Func<Action, bool>>? FailureReported;
 
     public bool RejectGift(string eventId, string? reason, out Task work) => Start(ClientEventDecisionKind.RejectGift, eventId,
         a => protocol.RejectGiftAsync(a.Context, eventId, reason, a.Owner.Token),
@@ -135,7 +135,8 @@ internal sealed class ClientEventDecisions : IClientEventApplicationDecisions
                 TryApply(attempt, () =>
                 {
                     presentation.Report(new(kind, ClientEventDecisionStage.Accepted, eventId, Receipt: receipt));
-                    FailureReported?.Invoke();
+                    bool Step(Action action) => TryApply(attempt, action) && TryApply(attempt, static () => { });
+                    Step(() => FailureReported?.Invoke(Step));
                 });
                 return;
             }

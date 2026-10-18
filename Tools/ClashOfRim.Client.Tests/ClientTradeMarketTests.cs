@@ -253,7 +253,7 @@ internal static class ClientTradeMarketTests
             State = new(Session, Ports, this);
             var transactions = new ClientSnapshotTransaction(Session, Ports, new ClientSnapshotPublication(Ports, Ports));
             Market = new(Session, State, Mutations, new ClientSnapshotMutationAdmission(Session, Sync, Mutations, transactions), transactions, this, this);
-            Market.Accepted += () => AcceptedNotices++;
+            Market.Accepted += step => AcceptedNotices++;
         }
         internal async Task Load(ModListTradeOrdersResponseDto response, string scope = "Open")
         { Task work = Market.RefreshAsync(scope); var call = await Next(); call.Complete(Ok(response)); await work; }

@@ -37,6 +37,7 @@ internal static class ClientShopOperationsTests
             await QuantityBounds();
             await Confirmation();
             await CompletionStartsRefresh();
+            await CompletionReleaseReplacement();
             await PartialPublication();
         }
         finally { CultureInfo.CurrentCulture = original; ClientSessionWork.Reset(); }
@@ -205,10 +206,28 @@ internal static class ClientShopOperationsTests
     {
         using var f = new Fixture(false);
         ClientGameRequestTracker.Request? refresh = null;
-        f.Operations.Completed += () => refresh = f.State.Begin();
+        f.Operations.Completed += step => refresh = f.State.Begin();
         Task work = f.Start(); (await f.Ports.Next())(); await work;
         Require(refresh is not null && f.State.Busy, "Purchase finalizer cleared the catalogue refresh started by completion.");
         f.State.End(refresh!);
+    }
+
+    private static async Task CompletionReleaseReplacement()
+    {
+        using var f = new Fixture(false);
+        ClientGameRequestTracker.Request? replacement = null;
+        f.Sync.SnapshotChanged += notice =>
+        {
+            if (notice.Phase == SnapshotTransactionPhase.Ended)
+            {
+                f.Session.PublishLogin(new() { AuthToken = "auth", SessionId = "replacement" });
+                replacement = f.State.Begin();
+            }
+        };
+        await f.Ports.PumpUntil(f.Start());
+        Require(f.Completed == 0, "Shop completion refreshed a login installed during admission release.");
+        Require(replacement is not null && f.State.Busy, "Shop release erased the request installed by the new login.");
+        f.State.End(replacement!);
     }
 
     private enum Fault { None, Validation, BeforeApply, BeforeApplyThrow, PartialApply, PartialApplyThrow, Hydration, Transport, Forbidden, Rejected, MissingSnapshot, MissingListing, WrongListing }
@@ -241,7 +260,7 @@ internal static class ClientShopOperationsTests
             var transactions = new ClientSnapshotTransaction(Session, Ports, new ClientSnapshotPublication(Ports, Ports));
             Operations = new(State, new ClientSnapshotMutationAdmission(Session, Sync, Mutations, transactions), Sync, Mutations, transactions,
                 new ClientSnapshotFailureRecovery(Session, Mutations, Sync, Ports, View), this, this, this, this);
-            Operations.Completed += () => { Require(!State.Busy && !Sync.IsBusy && !Mutations.IsPending, "Shop completed before cleanup."); Completed++; Completion.TrySetResult(); };
+            Operations.Completed += step => { Require(!State.Busy && !Sync.IsBusy && !Mutations.IsPending, "Shop completed before cleanup."); Completed++; Completion.TrySetResult(); };
         }
         internal Task Start() => Operations.StartAsync(Listing, Count);
         internal void RequirePackages() { Listing.Item!.ThingPackageId = "complex-package"; }

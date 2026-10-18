@@ -61,7 +61,9 @@ internal class ClientRequestTracker<TBoundary>
         });
         return applied;
     }
-    internal void End(Request request) => TryApply(request, () => { request.Admission?.Dispose(); work = null; });
+    // Release observers can synchronously install another request. Detach this
+    // request first so its finalizer never clears that successor.
+    internal void End(Request request) => TryApply(request, () => { work = null; request.Admission?.Dispose(); });
 
     internal sealed record Scope(ClientSessionLifecycle.Ownership Owner, ClashOfRimClientNetworkContext Context, TBoundary Boundary);
     internal sealed record Request(Scope Scope, ClashOfRimClientNetworkContext Context)

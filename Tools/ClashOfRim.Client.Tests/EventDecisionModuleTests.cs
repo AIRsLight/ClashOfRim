@@ -165,6 +165,13 @@ internal static class EventDecisionModuleTests
 
     private static async Task Reports()
     {
+        foreach (string change in new[] { "login", "clear", "server", "colony", "game", "generation", "snapshot" })
+        {
+            var f = new Fixture();
+            f.OnReport = notice => { if (notice.Stage == ClientEventDecisionStage.Accepted) f.Replace(change); };
+            await f.Decisions.ReportFailureAsync("event", "source", "reason");
+            Require(f.Refreshed == (change == "snapshot" ? 1 : 0), "Accepted report presentation rebound refresh into another owner: " + change);
+        }
         foreach (string failure in new[] { "none", "transport", "null", "rejected", "exception" })
         {
             var f = new Fixture(); f.Protocol.Failure = failure; f.Mutations.Begin(LocalMutationKind.Gift, "local application failed");
@@ -242,13 +249,14 @@ internal static class EventDecisionModuleTests
         internal readonly List<string> Handled = new(), Relations = new();
         internal int Refreshed;
         internal Action? OnHandled;
+        internal Action<ClientEventDecisionNotice>? OnReport;
         private readonly Action<Action, Action> enqueue;
         internal Fixture(IClientSnapshotGame? game = null)
         {
             enqueue = game is null ? (action, _) => Ports.Enqueue(action) : new ClientEventDecisionRuntime(static _ => { }).Enqueue;
             Session = new(Ports, Ports, new ClientSessionConnection(Ports));
             Decisions = new(Session, Sync, Mutations, game ?? Ports, Protocol, this, this);
-            Decisions.FailureReported += () => Refreshed++;
+            Decisions.FailureReported += step => Refreshed++;
         }
         internal bool Start(ClientEventDecisionKind kind, out Task work) => kind switch
         {
@@ -256,7 +264,7 @@ internal static class EventDecisionModuleTests
             ClientEventDecisionKind.RejectSupport => Decisions.RejectSupport("event", "reason", out work),
             _ => Decisions.RespondDiplomacy("event", "actor", ServerEventType.AllianceRequest, kind == ClientEventDecisionKind.AcceptDiplomacy, "reason", out work)
         };
-        public void Report(ClientEventDecisionNotice notice) => Notices.Add(notice);
+        public void Report(ClientEventDecisionNotice notice) { Notices.Add(notice); OnReport?.Invoke(notice); }
         public void Enqueue(Action action, Action onDiscard) => enqueue(action, onDiscard);
         public void MarkHandled(string eventId) { Handled.Add(eventId); OnHandled?.Invoke(); }
         public void ApplyDiplomacyRelation(string userId, string? relationKind, ServerEventType eventType) => Relations.Add($"{userId}:{relationKind}:{eventType}");

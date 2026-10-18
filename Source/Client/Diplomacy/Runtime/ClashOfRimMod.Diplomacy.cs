@@ -15,9 +15,4 @@ public sealed partial class ClashOfRimMod
     internal void StartCreateDiplomacyEvent(string kind, string? customMessage = null, string? targetDisplayName = null) =>
         diplomacyActions.Create(kind, customMessage, targetDisplayName, out _);
 
-    private void RequestDiplomacyStateRefresh(string reason)
-    {
-        _ = playerDirectory.RefreshAsync(manual: false);
-        RequestWorldMapMarkerRefresh(reason);
-    }
 }

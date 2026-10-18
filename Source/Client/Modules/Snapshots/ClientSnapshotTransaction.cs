@@ -94,6 +94,23 @@ internal sealed class ClientSnapshotTransaction
         return applied;
     }
 
+    // Capture while still owning admission. Dependent domains start after release,
+    // but must retain the original identity/Game and the explicitly accepted snapshot.
+    internal Func<Action, bool> CaptureCompletion(Attempt attempt, string? acceptedSnapshot, Func<bool>? current = null)
+    {
+        using var p = ClientSessionWork.EnterPublication();
+        bool accepted = TryApply(attempt, static () => { }, requireBaseSnapshot: false)
+            && session.ReadContext().CurrentSnapshotId == acceptedSnapshot && current?.Invoke() != false;
+        bool Current() => accepted && attempt.Game.IsCurrent && session.Owns(attempt.Owner, attempt.Context, false)
+            && session.ReadContext().CurrentSnapshotId == acceptedSnapshot && current?.Invoke() != false;
+        return action =>
+        {
+            using var publication = ClientSessionWork.EnterPublication();
+            if (!Current()) return false;
+            action(); return Current();
+        };
+    }
+
     internal sealed record Attempt(ClientSessionLifecycle.Ownership Owner, ClashOfRimClientNetworkContext Context,
         IClientSnapshotGameSession Game, ClientSynchronizationCoordinator.Lease Admission);
 }

@@ -216,7 +216,6 @@ public sealed partial class ClashOfRimMod : Mod
         var diplomacyCreation = new ClientDiplomacyCreation(mutationAdmission, snapshotTransactions, localMutations, diplomacyTransport,
             new ClientDiplomacyCreationPresentation(message => playerDirectory.Message = message));
         diplomacyActions = new ClientDiplomacyActions(playerDirectory, diplomacyCreation);
-        diplomacyCreation.RefreshRequired += () => RequestDiplomacyStateRefresh(ClashOfRimText.Key("ClashOfRim.Diplomacy.RefreshReasonRelationChanged"));
         localSnapshotConfirmation = new ClientLocalSnapshotConfirmation(sessionLifecycle, new ClientSnapshotGame(), mutationAdmission,
             synchronization, localMutations, snapshotTransactions, snapshotFailureRecovery, ClientSnapshotComposition.Create(settings),
             new ClientLocalSnapshotPresentation(message => snapshotUploadStatus = message));
@@ -230,7 +229,6 @@ public sealed partial class ClashOfRimMod : Mod
         shopCatalog = new ClientShopCatalog(shopState, localMutations, shopTransport, shopPresentation, () => adminAccess.IsAdministrator);
         shopOperations = new ClientShopOperations(shopState, mutationAdmission, synchronization, localMutations, snapshotTransactions,
             snapshotFailureRecovery, new ClientShopRuntime(), shopTransport, shopPresentation, shopPresentation);
-        shopOperations.Completed += () => { StartQueuedAutomaticEventRefreshAfterLocalAtomicMutation(); StartRefreshServerShop(); };
         var tradePresentation = new ClientTradeMarketPresentation();
         tradeState = new ClientTradeState(sessionLifecycle, new ClientSnapshotGame(), tradePresentation);
         tradeMarket = new ClientTradeMarket(sessionLifecycle, tradeState, localMutations, mutationAdmission,
@@ -329,7 +327,6 @@ public sealed partial class ClashOfRimMod : Mod
         var worldWritePresentation = new ClientWorldWritePresentation(message => administration.Message = message);
         worldWrites = new ClientWorldWrites(sessionLifecycle, adminAccess, worldBaselineCapture, worldBaselineSubmission,
             storytellerConfiguration, worldPublication, worldWritePresentation, worldWritePresentation);
-        worldWrites.BaselineUpdated += () => RequestWorldMapMarkerRefresh(ClashOfRimText.Key("ClashOfRim.Admin.WorldBaselineRefreshReason"));
         worldGeneration = new ClientWorldGeneration(sessionLifecycle, worldSetup, worldConfiguration, new ClientWorldGenerationRuntime(), new ClientWorldGenerationPresentation(message => loginStatus = message));
         worldEntry = new ClientWorldEntry(sessionLifecycle, new ClientSnapshotGame(), worldSetup,
             entryStore, worldTransport, entryPresentation, snapshotReload, worldPublication, serverMetadata);
@@ -352,7 +349,6 @@ public sealed partial class ClashOfRimMod : Mod
         var eventDecisions = new ClientEventDecisions(sessionLifecycle, synchronization, localMutations, new ClientSnapshotGame(),
             new ClientEventDecisionTransport(), new ClientEventDecisionPresentation(message => eventState.ActionStatus = message),
             new ClientEventDecisionRuntime(RequestWorldMapMarkerRefresh));
-        eventDecisions.FailureReported += () => StartAutomaticEventRefresh(ClashOfRimText.Key("ClashOfRim.Events.ReasonFailureReport"));
         var giftPackageHydration = new ClientGiftPackageHydration(new ClientProtocolEnvironment());
         var eventDelivery = new ClientEventDelivery(eventInbox, new ClientEventLetterRuntime(RequestWorldMapMarkerRefresh));
         eventApplications = new ClientEventApplications(sessionLifecycle, synchronization, localMutations, eventInbox,
@@ -385,16 +381,13 @@ public sealed partial class ClashOfRimMod : Mod
             new ClientSessionLogin(sessionLifecycle, new ClientSessionLoginTransport(new ClientProtocolEnvironment())),
             ClientSnapshotComposition.Create(settings), new ClientSessionStartupRuntime(sessionConnection),
             new ClientSessionStartupPresentation(message => loginStatus = message, message => snapshotUploadStatus = message, response => ShowCompatibilityMismatchWindow(response)), sessionFollowups);
-        tradeMarket.Accepted += () =>
-        {
-            var read = eventRefresh.CaptureQueueRead();
-            _ = ClientSessionWork.Run(() => eventRefresh.ReadQueueAsync(read));
-        };
-        tradeOperations.Completed += operation =>
-        {
-            if (operation == ClientTradeOperation.Create) StartQueuedAutomaticEventRefreshAfterLocalAtomicMutation();
-            else StartAutomaticEventRefresh(ClashOfRimText.Key("ClashOfRim.Trade.ReasonFulfillment"));
-        };
+        var operationFollowups = new ClientOperationFollowups(eventRefresh, shopCatalog, playerDirectory, worldSynchronization, new ClientSessionFollowupText());
+        shopOperations.Completed += step => _ = operationFollowups.ShopCompleted(step);
+        tradeOperations.Completed += (operation, step) => _ = operationFollowups.TradeCompleted(operation, step);
+        tradeMarket.Accepted += step => _ = operationFollowups.TradeAccepted(step);
+        diplomacyCreation.RefreshRequired += step => _ = operationFollowups.DiplomacyFinished(step);
+        worldWrites.BaselineUpdated += step => _ = operationFollowups.BaselineUpdated(step);
+        eventDecisions.FailureReported += step => _ = operationFollowups.FailureReported(step);
         eventApplications.RefreshRequested += StartAutomaticEventRefresh;
         eventApplications.Deferred += eventRefresh.Defer;
         eventApplications.CompletedWithoutConfirmation += StartQueuedAutomaticEventRefreshAfterLocalAtomicMutation;

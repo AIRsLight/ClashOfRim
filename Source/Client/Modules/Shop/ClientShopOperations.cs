@@ -28,7 +28,7 @@ internal sealed class ClientShopOperations
     { this.state = state; this.admission = admission; this.synchronization = synchronization; this.mutations = mutations;
         this.transactions = transactions; this.recovery = recovery; this.runtime = runtime; this.transport = transport;
         this.presentation = presentation; this.notices = notices; }
-    internal event Action? Completed;
+    internal event Action<Func<Action, bool>>? Completed;
 
     internal Action BindPurchase(ModServerShopListingDto listing, int count)
     {
@@ -142,8 +142,10 @@ internal sealed class ClientShopOperations
                         ("COUNT", job.Command.PurchaseCount), ("PRICE", job.Command.TotalPrice));
                     notices.Message(state.Message, false);
                     mutations.Reset(); recovery.Close();
+                    var completion = transactions.CaptureCompletion(attempt, response.AppliedSnapshotId,
+                        () => state.TryApply(request.Scope, static () => { }));
                     state.End(request); // Exact upload lease is released before dependent refresh.
-                    Completed?.Invoke();
+                    completion(() => Completed?.Invoke(completion));
                 }, requireBaseSnapshot: false);
             })));
     }
