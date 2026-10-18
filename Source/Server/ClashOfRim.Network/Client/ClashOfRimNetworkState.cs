@@ -193,6 +193,9 @@ public sealed class ClashOfRimNetworkState
         SessionNotifications = new SessionNotifications(EventNotifications, ChatNotifications, WorldConfigurationNotifications, PlayerOnlineNotifications);
         Login = new LoginService(Accounts, EntryHandshakes, SnapshotMutations, RaidTimeouts, RaidQueries, LoginSessions,
             AuthTokens, WorldConfiguration, EventDelivery, PlayerActivity, EntryLifecycle, WorldMarkers, () => RuntimeLogger);
+        WorldPreparation = new WorldSessionPreparation(Accounts, EntryHandshakes, SnapshotMutations, RaidTimeouts, RaidQueries,
+            WorldConfiguration, new WorldColonySelection(Players, SnapshotStore, Ledger), PlayerActivity, EntryLifecycle);
+        WorldRead = new WorldConfigurationRead(Accounts, WorldConfiguration, WorldDelivery);
     }
 
     public IAuthoritativeEventLedger Ledger { get; }
@@ -264,6 +267,8 @@ public sealed class ClashOfRimNetworkState
     internal RaidMarkerProjection RaidMarkers { get; }
     internal WorldMarkerDelivery WorldMarkers { get; }
     internal LoginService Login { get; }
+    internal WorldSessionPreparation WorldPreparation { get; }
+    internal WorldConfigurationRead WorldRead { get; }
     internal SessionPresence SessionPresence { get; }
     internal SessionNotifications SessionNotifications { get; }
     internal ClientEntryLifecycle EntryLifecycle { get; }

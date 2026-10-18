@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Network.Modules.World;
 using AIRsLight.ClashOfRim.Network.Modules.Sessions;
 using AIRsLight.ClashOfRim.Network.Modules.Accounts;
 using AIRsLight.ClashOfRim.Network.Modules.Diplomacy;
@@ -108,8 +109,7 @@ public static partial class ClashOfRimNetworkServer
         DiplomacyEndpoints.Map(app, tradeState.Diplomacy);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.SyncWorldMapMarkers).Route, SyncWorldMapMarkers);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.SyncRuntimeWorldObjects).Route, SyncRuntimeWorldObjects);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.PrepareWorldSession).Route, PrepareWorldSession).WithMetadata(EndpointSnapshotRecovery.Instance);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.GetWorldConfiguration).Route, GetWorldConfiguration);
+        WorldEndpoints.Map(app, tradeState.WorldPreparation, tradeState.WorldRead);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.SubmitWorldConfiguration).Route, SubmitWorldConfiguration).WithMetadata(EndpointSnapshotRecovery.Instance);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.UploadWorldSubstrate).Route, UploadWorldSubstrate);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.DownloadWorldSubstrate).Route, DownloadWorldSubstrate);

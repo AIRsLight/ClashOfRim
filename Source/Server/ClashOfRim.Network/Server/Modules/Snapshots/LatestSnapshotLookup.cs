@@ -55,11 +55,14 @@ internal sealed class LatestSnapshotLookup
             return exact;
         }
 
-        return !string.IsNullOrWhiteSpace(userId)
+        return ForUser(userId);
+    }
+
+    internal LatestSnapshotRecord? ForUser(string userId)
+        => !string.IsNullOrWhiteSpace(userId)
             && latestSnapshotsByUser.TryGetValue(userId, out LatestSnapshotRecord? latest)
                 ? latest
                 : null;
-    }
 
     private static string SnapshotLookupKey(string userId, string colonyId)
     {

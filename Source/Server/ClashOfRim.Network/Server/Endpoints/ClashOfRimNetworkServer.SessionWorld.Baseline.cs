@@ -128,18 +128,6 @@ public static partial class ClashOfRimNetworkServer
         }
     }
 
-    private static string BuildWorldSessionMessage(WorldSessionState session)
-    {
-        if (session.WorldConfigured)
-        {
-            return T("WorldSession.ExistingConfiguration");
-        }
-
-        return session.IsAdministrator
-            ? T("WorldSession.FirstAdminSetup")
-            : T("WorldSession.WaitingForAdmin");
-    }
-
     private static WorldConfigurationDto NormalizeWorldConfiguration(
         WorldConfigurationDto configuration,
         string userId,
