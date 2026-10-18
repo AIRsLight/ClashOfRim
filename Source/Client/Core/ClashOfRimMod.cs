@@ -158,6 +158,7 @@ public sealed partial class ClashOfRimMod : Mod
     private readonly List<ModChatMessageDto> lastChatMessages = new();
     private readonly ClientWorldMarkers worldMarkers;
     private readonly ClientWorldLoginPublication worldLoginPublication;
+    private readonly ClientSessionStartup sessionStartup;
     private readonly ClientWorldSynchronization worldSynchronization;
     private readonly ClientOccupiedColonySites occupiedColonySites;
     private readonly object chatStateLock = new();
@@ -390,6 +391,22 @@ public sealed partial class ClashOfRimMod : Mod
             }), snapshotFailureRecovery, eventDelivery);
         eventRefresh = new ClientEventRefresh(sessionLifecycle, eventReader, eventInbox, synchronization, localMutations,
             eventApplications, eventDelivery, eventReadPresentation, eventState);
+        sessionStartup = new ClientSessionStartup(sessionLifecycle, synchronization, localMutations, worldLoginPublication,
+            new ClientSessionLogin(sessionLifecycle, new ClientSessionLoginTransport(new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner)))),
+            ClientSnapshotComposition.Create(settings), new ClientSessionStartupRuntime(sessionConnection),
+            new ClientSessionStartupPresentation(message => loginStatus = message, message => snapshotUploadStatus = message, response => ShowCompatibilityMismatchWindow(response)));
+        sessionStartup.QueueAccepted += eventRefresh.AdoptQueue;
+        sessionStartup.EffectRequested += (kind, effect) =>
+        {
+            switch (effect)
+            {
+                case ClientSessionStartEffect.Events: StartAutomaticEventRefresh(ClashOfRimText.Key(kind == ClientSessionStartKind.Map ? "ClashOfRim.MapSession.ReasonLogin" : "ClashOfRim.Login.ReasonManual")); break;
+                case ClientSessionStartEffect.Players: _ = playerDirectory.RefreshAsync(manual: false); break;
+                case ClientSessionStartEffect.Chat: StartRefreshChatMessages(initialLoad: true); break;
+                case ClientSessionStartEffect.ColonySites: RequestPlayerColonySiteRegistration(ClashOfRimText.Key("ClashOfRim.MapSession.ReasonLoginSucceeded")); break;
+                case ClientSessionStartEffect.Presence: StartManualPresence(); break;
+            }
+        };
         tradeMarket.Accepted += () =>
         {
             var read = eventRefresh.CaptureQueueRead();
@@ -798,22 +815,4 @@ public sealed partial class ClashOfRimMod : Mod
         return blocked is not null;
     }
 
-    private bool CanRunManualSync(out string failureReason, LocalMutationKind? continuation = null)
-    {
-        using var publication = ClientSessionWork.EnterPublication();
-        LocalMutationAdmission admission = localMutations.CheckAdmission(
-            settings.IsConfigured, !string.IsNullOrWhiteSpace(settings.CurrentSnapshotId), continuation);
-        failureReason = ClientLocalMutationPresentation.AdmissionFailure(admission, localMutations.Current);
-        return admission == LocalMutationAdmission.Allowed;
-    }
-
-    private bool TryBeginManualSynchronization(
-        [NotNullWhen(true)] out ClientSynchronizationCoordinator.Lease? operation,
-        out string failureReason,
-        ClientSynchronizationCoordinator.Lease? continuation = null)
-    {
-        bool accepted = synchronization.TryBeginManual(out operation, continuation);
-        failureReason = accepted ? string.Empty : ClashOfRimText.Key("ClashOfRim.Sync.StatusBusy");
-        return accepted;
-    }
 }

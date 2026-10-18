@@ -19,6 +19,7 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("session startup shares manual and map login, credentials and followups", ClientSessionStartupTests.Run),
     ("compatibility override protocol preserves credential recovery wire contract", ClientCompatibilityOverrideProtocolTests.Run),
     ("compatibility baseline owns manifest and DLC publication", ClientCompatibilityBaselineTests.Run),
     ("compatibility override owns credential admission and catalog completion", ClientCompatibilityOverrideTests.Run),

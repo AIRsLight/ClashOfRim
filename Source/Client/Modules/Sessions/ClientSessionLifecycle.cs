@@ -45,6 +45,8 @@ internal sealed class ClientSessionLifecycle
         => current.ServerBaseUrl == expected.ServerBaseUrl && current.UserId == expected.UserId
             && current.ColonyId == expected.ColonyId && current.AuthToken == expected.AuthToken;
     internal bool Owns(Login login) => Owns(login.Owner, login.Context, false);
+    internal bool Holds(ClientSessionCredential credential)
+        => sessionId == credential.Receipt.SessionId && SameIdentity(ReadContext(), credential.Context);
     internal bool Continues(Login login, Ownership previousOwner, ClashOfRimClientNetworkContext previousContext)
         => previousOwner.Token == login.PreviousOwner.Token && ReferenceEquals(previousOwner.Identity, login.PreviousOwner.Identity)
             && SameIdentity(previousContext, login.PreviousContext) && Owns(login);
@@ -59,7 +61,7 @@ internal sealed class ClientSessionLifecycle
         return PublishLogin(CaptureOwnership(), ReadContext(), response);
     }
 
-    internal Login? PublishLogin(Ownership previousOwner, ClashOfRimClientNetworkContext previousContext, ModLoginResponseDto source)
+    internal Login? PublishLogin(Ownership previousOwner, ClashOfRimClientNetworkContext previousContext, ModLoginResponseDto source, Action<Login>? capturePublication = null)
     {
         using var publication = ClientSessionWork.EnterPublication();
         if (!Owns(previousOwner, previousContext, false)) return null;
@@ -74,6 +76,7 @@ internal sealed class ClientSessionLifecycle
         var context = new ClashOfRimClientNetworkContext(previousContext.ServerBaseUrl, NormalizeName(response.AuthenticatedUserId) ?? previousContext.UserId,
             previousContext.ColonyId, previousContext.CurrentSnapshotId, previousContext.SteamAuthTicket, previousContext.OfflinePassword, response.AuthToken ?? string.Empty);
         var accepted = new Login(previousOwner, previousContext, CaptureOwnership(), context);
+        capturePublication?.Invoke(accepted);
         identities.Write(NormalizeName(response.AuthenticatedUserId), NormalizeName(response.DisplayName), response.AuthToken ?? string.Empty);
         foreach (Action<ModLoginResponseDto?> changed in IdentityChanged?.GetInvocationList() ?? Array.Empty<Delegate>())
         {
