@@ -113,6 +113,9 @@ public sealed class ClashOfRimNetworkState
         SnapshotTransactions = new SnapshotTransactions(SnapshotStore, SnapshotUploadPolicy, Plugins, CompatibilityBaseline);
         PendingConfirmations = new PendingConfirmationReconciler(BankLoans, MercenaryContracts,
             () => ServerConfiguration, RaidSettlementSnapshotMutationGate);
+        RaidSettlement = new RaidSettlement(Ledger, SnapshotStore, SnapshotMutations, SnapshotCommits, BankLoans, Players,
+            EventNotifications, OnlinePresence, AdminBaseline, Plugins, CompatibilityBaseline, () => ServerConfiguration, () => RuntimeLogger);
+        RaidSettlementWork = new RaidSettlementWork(RaidSettlement, SnapshotPostUploadArtifacts, SnapshotPostUploadJobs, SnapshotMutations);
         var raidReconciliation = new LegacyRaidDeliveryProtection(this);
         var raidAdmission = new RaidAdmission(DiplomacyRelations, OnlinePresence, RaidProtection, () => ServerConfiguration);
         RaidPreparation = new RaidPreparation(SnapshotStore, RaidPreparations, MercenaryGuards, RaidQueries, raidAdmission,
@@ -162,6 +165,8 @@ public sealed class ClashOfRimNetworkState
     internal Modules.Raids.RaidProtection RaidProtection { get; }
     internal RaidPreparation RaidPreparation { get; }
     internal RaidStarting RaidStarting { get; }
+    internal RaidSettlement RaidSettlement { get; }
+    internal RaidSettlementWork RaidSettlementWork { get; }
 
     internal ColonyAccessAuthorization ColonyAuthorization { get; }
     internal ColonySnapshotAuthorization SnapshotAuthorization { get; }

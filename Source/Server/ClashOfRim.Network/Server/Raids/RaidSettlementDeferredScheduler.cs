@@ -9,7 +9,7 @@ namespace AIRsLight.ClashOfRim.Network;
 
 public static class RaidSettlementDeferredScheduler
 {
-    public const string ProcessorId = "core.raid-settlement";
+    public const string ProcessorId = Modules.Raids.RaidSettlementWork.ProcessorId;
 
     public static SnapshotPostUploadJobRecord Schedule(
         ClashOfRimNetworkState state,

@@ -23,6 +23,9 @@ internal static class ModuleBoundaryTests
             .Where(t => t.Namespace?.StartsWith("AIRsLight.ClashOfRim.Network.Modules.", StringComparison.Ordinal) == true).ToArray();
         var violations = ModuleDependencyGuard.FindViolations(modules, t =>
             t == typeof(ClashOfRimNetworkServer) || t == typeof(ClashOfRimNetworkState)
+            || t == typeof(RaidSettlementOperationExecutor) || t == typeof(RaidSettlementDeferredScheduler)
+            || t == typeof(AIRsLight.ClashOfRim.Network.Plugins.SnapshotPostUploadContext)
+            || t == typeof(AIRsLight.ClashOfRim.Network.Plugins.SnapshotPostUploadDeferredContext)
             || t == typeof(LegacySnapshotRecoveryAdapter) || t == typeof(LegacyRaidDeliveryProtection) || t == typeof(LegacyEventAchievementRecorder) || t == typeof(IServiceProvider));
         Require(violations.Count == 0, string.Join(Environment.NewLine, violations));
         var business = modules.Where(t =>

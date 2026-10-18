@@ -220,20 +220,17 @@ internal static class RaidSettlementCommitTests
         {
             Root = root;
             ServerDatabaseMigrator.Migrate(Database);
-            Original = Package("defender", "defender-colony", "before", true);
-            Raid = AuthoritativeEventFactory.Create(ServerEventType.Raid, new EventParty("attacker", "attacker-colony"),
-                new EventParty("defender", "defender-colony"), "test-raid", false,
-                new RaidEventPayload("before", null, Now, null, null, new RaidAttackForceRecord("attack", [], [])), Now,
-                new EventTargetContext("WorldObject_1", "0", 1, EventLandingMode.MapEdge));
-            Evidence = Package("attacker", "attacker-colony", "evidence", false);
+            var data = new RaidSettlementTestData(root);
+            Original = data.Original;
+            Raid = data.Raid;
+            Evidence = data.Evidence;
             var result = RaidSettlementReturnProcessor.Process(new RaidSettlementReturnRequest(Raid.EventId, Original.Envelope.Identity,
                 Original, Evidence, "0", LossRatio: 0.35f, ReturnedMapUniqueId: "7"));
             Require(result.Accepted, "Fixture settlement invalid: " + result.Kind);
             Edited = RaidSettlementSnapshotEditor.ApplySettlementLosses(Original, result, "settled", Now);
             Mutation = new RaidSettlementSnapshotMutation(Raid,
                 RaidSettlementLedgerRecorder.CreateSettlementEvent(Raid, result, Now, false), Original.Envelope, "settled", Now);
-            Payload = new RaidSettlementDeferredPayload(Raid.EventId, "attacker", "attacker-colony", "defender", "defender-colony",
-                "evidence", "before", "artifact", RaidSettlementOrigin.OnlineEvidence, "Applied");
+            Payload = data.Payload;
             Open();
             State.Ledger.Append(Raid);
             Files.StoreLatest(Original, Original.Index, Now);
@@ -245,19 +242,6 @@ internal static class RaidSettlementCommitTests
             Store = new CrashStore(Files);
             State = new ClashOfRimNetworkState(ledger: new SqliteAuthoritativeEventLedger(Database), snapshotStore: Store,
                 playerRegistry: new PlayerRegistry(new SqlitePlayerRegistryStore(Database), null), snapshotCommits: new SnapshotCommitService(Journal));
-        }
-        private SaveSnapshotPackage Package(string owner, string colony, string id, bool things)
-        {
-            string path = Path.Combine(Root, id + ".rws");
-            string world = things ? "" : "<world><worldObjects><worldObjects><li Class=\"AIRsLight.ClashOfRim.RemoteMaps.RemoteSessionMapParent\"><ID>7</ID>"
-                + "<def>ClashOfRim_RemoteRaidBattleMapParent</def><clashOfRimRelatedEventId>" + Raid.EventId
-                + "</clashOfRimRelatedEventId></li></worldObjects></worldObjects></world>";
-            File.WriteAllText(path, "<savegame><meta><gameVersion>1.7-test</gameVersion></meta><game>" + world
-                + "<maps><li><uniqueID>" + (things ? "0" : "7") + "</uniqueID><mapInfo><parent>WorldObject_7</parent></mapInfo><things>"
-                + (things ? "<thing Class=\"ThingWithComps\"><id>steel</id><def>Steel</def><stackCount>10</stackCount></thing>" : "")
-                + "</things></li></maps></game></savegame>");
-            var package = SaveSnapshotPackageBuilder.FromFile(path, new SnapshotIdentity(owner, colony, id), Now);
-            return package with { Envelope = package.Envelope with { NextLineageToken = id + "-token" } };
         }
         public void Sql(string sql)
         {

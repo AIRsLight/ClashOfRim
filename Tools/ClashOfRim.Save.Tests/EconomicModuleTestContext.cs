@@ -128,13 +128,14 @@ internal sealed class EconomicModuleTestContext
         internal readonly List<string> AchievementEvents = new();
         public void Record(AuthoritativeEvent item, DateTimeOffset nowUtc) => AchievementEvents.Add(item.EventId);
         internal Action? OnReplay;
+        internal Action? OnCapture, OnPrepare;
         public void RecoverPrerequisites() { }
-        public ISnapshotRecoveryPreparation CapturePreparation() => this;
+        public ISnapshotRecoveryPreparation CapturePreparation() { OnCapture?.Invoke(); return this; }
         public void Replay() { Replays++; OnReplay?.Invoke(); }
-        public bool NeedsPreparation => false;
+        public bool NeedsPreparation { get; set; }
         public bool IsCurrent => true;
-        public void Prepare() { }
-        public bool TryInstall() => true;
+        public void Prepare() => OnPrepare?.Invoke();
+        public bool TryInstall() { NeedsPreparation = false; return true; }
         public void AfterCommit(LatestSnapshotRecord snapshot, string? uploadKind) => Commits++;
     }
 

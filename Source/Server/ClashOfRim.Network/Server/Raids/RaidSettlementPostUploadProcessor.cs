@@ -1,5 +1,4 @@
 using AIRsLight.ClashOfRim.Network.Plugins;
-using Microsoft.Extensions.Logging;
 
 namespace AIRsLight.ClashOfRim.Network;
 
@@ -49,28 +48,7 @@ public sealed class RaidSettlementPostUploadProcessor :
     public void ProcessDeferred(SnapshotPostUploadDeferredContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
-        RaidSettlementDeferredPayload payload = RaidSettlementDeferredPayload.Deserialize(context.PayloadJson);
-        ClashOfRimNetworkServer.RecoverSnapshotCommits(context.State);
-        if (context.State.Ledger.Find(payload.RaidEventId)?.Status == Events.ServerEventStatus.AppliedToSnapshot)
-        {
-            return;
-        }
-
-        Save.SaveSnapshotPackage evidence = context.State.SnapshotPostUploadArtifacts.Read(payload.EvidenceArtifactId)
-            ?? throw new IOException($"Raid settlement evidence artifact '{payload.EvidenceArtifactId}' was not found.");
-        RaidSettlementOperationResult result = RaidSettlementOperationExecutor.Execute(
-            context.State,
-            payload,
-            evidence,
-            DateTimeOffset.UtcNow);
-        if (result.Kind is RaidSettlementOperationResultKind.Completed
-            or RaidSettlementOperationResultKind.AlreadyCompleted)
-        {
-            return;
-        }
-
-        throw new SnapshotPostUploadManualReviewException(
-            result.Message ?? $"Raid settlement '{payload.RaidEventId}' requires manual review.");
+        context.State.RaidSettlementWork.Process(RaidSettlementDeferredPayload.Deserialize(context.PayloadJson), DateTimeOffset.UtcNow);
     }
 
     public void RecoverPrepared(
@@ -83,19 +61,12 @@ public sealed class RaidSettlementPostUploadProcessor :
 
     public void OnDeferredCompleted(SnapshotPostUploadDeferredContext context)
     {
-        RaidSettlementDeferredPayload payload = RaidSettlementDeferredPayload.Deserialize(context.PayloadJson);
-        context.State.SnapshotPostUploadArtifacts.Delete(payload.EvidenceArtifactId);
+        context.State.RaidSettlementWork.Complete(RaidSettlementDeferredPayload.Deserialize(context.PayloadJson));
     }
 
     public void ReconcileArtifacts(ClashOfRimNetworkState state)
     {
         ArgumentNullException.ThrowIfNull(state);
-        using var mutation = state.EnterSnapshotMutation();
-        HashSet<string> referencedArtifactIds = state.SnapshotPostUploadJobs.ListAll()
-            .Where(job => string.Equals(job.ProcessorId, Id, StringComparison.Ordinal))
-            .Select(job => RaidSettlementDeferredPayload.Deserialize(job.PayloadJson).EvidenceArtifactId)
-            .Where(artifactId => !string.IsNullOrWhiteSpace(artifactId))
-            .ToHashSet(StringComparer.Ordinal);
-        state.SnapshotPostUploadArtifacts.DeleteUnreferenced(referencedArtifactIds);
+        state.RaidSettlementWork.ReconcileArtifacts();
     }
 }
