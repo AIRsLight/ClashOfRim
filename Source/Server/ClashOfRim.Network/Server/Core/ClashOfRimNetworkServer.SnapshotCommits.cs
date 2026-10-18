@@ -33,7 +33,7 @@ public static partial class ClashOfRimNetworkServer
         state.SnapshotCommits.Recover(state.SnapshotStore, state.BankLoans,
             (snapshot, kind) => RunCommittedSnapshotPostUpload(state, snapshot, kind), state.Ledger,
             userId => state.EventNotifications.SignalUsers(new[] { userId }),
-            item => RecordAuthoritativeEventAchievements(state, item, item.AppliedAtUtc ?? item.CreatedAtUtc), state.ServerShop,
+            item => state.EventAchievements.Record(item, item.AppliedAtUtc ?? item.CreatedAtUtc), state.ServerShop,
             state.MercenaryContracts, state.MercenaryGuards, state.Players,
             (snapshot, kind, mutation) => RunCommittedOrdinaryUpload(state, snapshot, kind, mutation),
             (mutation, snapshot) => PlanSnapshotConfirmations(state, mutation, snapshot));

@@ -239,7 +239,7 @@ public static partial class ClashOfRimNetworkServer
                     savePackage, upload.AcceptedSnapshot, operations, upload.SnapshotUploadKind,
                     postUploadData.ConfirmationOperation, postUploadData.AchievementCandidates,
                     (snapshot, kind, mutation) => RunCommittedOrdinaryUpload(state, snapshot, kind, mutation), confirmation, state.Ledger,
-                    item => RecordAuthoritativeEventAchievements(state, item, item.AppliedAtUtc ?? item.CreatedAtUtc),
+                    item => state.EventAchievements.Record(item, item.AppliedAtUtc ?? item.CreatedAtUtc),
                     (mutation, snapshot) => PlanSnapshotConfirmations(state, mutation, snapshot), preparedStoragePayload: upload.PreparedStoragePayload);
                 return upload;
             }

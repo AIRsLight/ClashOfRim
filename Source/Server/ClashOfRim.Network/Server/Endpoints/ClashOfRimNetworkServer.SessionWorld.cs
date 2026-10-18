@@ -221,7 +221,7 @@ public static partial class ClashOfRimNetworkServer
             FormatTileRef(normalizedSites[0].Tile, normalizedSites[0].TileLayerId),
             normalizedSites[0].MapUniqueId,
             normalizedSites[0].WorldObjectId);
-        RecordColonyRelocationAchievements(state, request.UserId, request.ColonyId, request.RelocatedSnapshotId, nowUtc);
+        state.AchievementAwards.RecordRelocation(request.UserId, request.ColonyId, request.RelocatedSnapshotId, nowUtc);
         WorldMapMarkerDelivery markers = state.WorldMarkers.Build(request.UserId, request.ColonyId, nowUtc);
         return Results.Ok(new ColonyRelocationResponse(
             ProtocolResponse.Ok(T("ColonyRelocation.Confirmed")),

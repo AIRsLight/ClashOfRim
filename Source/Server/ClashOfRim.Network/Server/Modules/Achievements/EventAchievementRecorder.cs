@@ -1,48 +1,27 @@
 using AIRsLight.ClashOfRim.Events;
+using AIRsLight.ClashOfRim.Network.Modules.Events;
 using AIRsLight.ClashOfRim.Network.Plugins;
 using AIRsLight.ClashOfRim.Protocol;
 
-namespace AIRsLight.ClashOfRim.Network;
+namespace AIRsLight.ClashOfRim.Network.Modules.Achievements;
 
-public static partial class ClashOfRimNetworkServer
+internal sealed class EventAchievementRecorder(AchievementAwards awards, ServerPluginRegistry plugins,
+    CompatibilityBaselineRegistry baseline) : IEventAchievementRecorder
 {
-    private static void RecordColonyRelocationAchievements(
-        ClashOfRimNetworkState state,
-        string userId,
-        string colonyId,
-        string sourceSnapshotId,
-        DateTimeOffset nowUtc)
-    {
-        RecordEventMetricAchievementsForParty(
-            state,
-            userId,
-            colonyId,
-            "colony-relocation:" + sourceSnapshotId,
-            sourceSnapshotId,
-            new Dictionary<string, long>(StringComparer.Ordinal)
-            {
-                [AchievementRegistry.MetricColonyRelocations] = 1
-            },
-            nowUtc);
-    }
-
-    internal static void RecordAuthoritativeEventAchievements(
-        ClashOfRimNetworkState state,
+    public void Record(
         AuthoritativeEvent ledgerEvent,
         DateTimeOffset nowUtc)
     {
         if (TryBuildCompletedTradeMetrics(ledgerEvent, out IReadOnlyDictionary<string, long>? tradeMetrics))
         {
-            RecordEventMetricAchievementsForParty(
-                state,
+            awards.RecordCumulative(
                 ledgerEvent.Actor.UserId,
                 ledgerEvent.Actor.ColonyId,
                 ledgerEvent.EventId + ":actor",
                 ResolveEventAchievementSourceSnapshotId(ledgerEvent),
                 tradeMetrics!,
                 nowUtc);
-            RecordEventMetricAchievementsForParty(
-                state,
+            awards.RecordCumulative(
                 ledgerEvent.Target.UserId,
                 ledgerEvent.Target.ColonyId,
                 ledgerEvent.EventId + ":target",
@@ -52,7 +31,7 @@ public static partial class ClashOfRimNetworkServer
         }
 
         IReadOnlyList<IAuthoritativeEventAchievementMetricProvider> providers =
-            state.Plugins.ActiveAuthoritativeEventAchievementMetricProviders(state.CompatibilityBaseline.Current);
+            plugins.ActiveAuthoritativeEventAchievementMetricProviders(baseline.Current);
         if (providers.Count == 0)
         {
             return;
@@ -81,45 +60,13 @@ public static partial class ClashOfRimNetworkServer
             return;
         }
 
-        RecordEventMetricAchievementsForParty(
-            state,
+        awards.RecordCumulative(
             ledgerEvent.Actor.UserId,
             ledgerEvent.Actor.ColonyId,
             ledgerEvent.EventId + ":plugin:" + ledgerEvent.Actor.UserId + ":" + ledgerEvent.Actor.ColonyId,
             ResolveEventAchievementSourceSnapshotId(ledgerEvent),
             pluginMetrics,
             nowUtc);
-    }
-
-    private static void RecordEventMetricAchievementsForParty(
-        ClashOfRimNetworkState state,
-        string? userId,
-        string? colonyId,
-        string sourceEventKey,
-        string? sourceSnapshotId,
-        IReadOnlyDictionary<string, long> metricDeltas,
-        DateTimeOffset nowUtc)
-    {
-        if (string.IsNullOrWhiteSpace(userId)
-            || string.IsNullOrWhiteSpace(colonyId)
-            || string.IsNullOrWhiteSpace(sourceEventKey)
-            || metricDeltas.Count == 0)
-        {
-            return;
-        }
-
-        IReadOnlyList<AchievementEventRecord> newlyRecorded = state.Achievements.RecordCumulativeMetricAchievements(
-            userId!,
-            colonyId!,
-            sourceEventKey,
-            sourceSnapshotId,
-            metricDeltas,
-            state.Plugins.ActiveAchievementDefinitions(state.CompatibilityBaseline.Current),
-            nowUtc, includePreviouslyRecorded: true);
-        if (newlyRecorded.Count > 0)
-        {
-            NotifyUnlockedAchievements(state, userId!, colonyId!, newlyRecorded, nowUtc);
-        }
     }
 
     private static bool TryBuildCompletedTradeMetrics(

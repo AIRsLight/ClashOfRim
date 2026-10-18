@@ -28,7 +28,7 @@ internal static class ModuleBoundaryTests
             || t == typeof(LegacyRaidEvidencePipeline)
             || t == typeof(AIRsLight.ClashOfRim.Network.Plugins.SnapshotPostUploadContext)
             || t == typeof(AIRsLight.ClashOfRim.Network.Plugins.SnapshotPostUploadDeferredContext)
-            || t == typeof(LegacySnapshotRecoveryAdapter) || t == typeof(LegacyEventAchievementRecorder) || t == typeof(IServiceProvider));
+            || t == typeof(LegacySnapshotRecoveryAdapter) || t == typeof(IServiceProvider));
         Require(violations.Count == 0, string.Join(Environment.NewLine, violations));
         var business = modules.Where(t =>
             t.Namespace is "AIRsLight.ClashOfRim.Network.Modules.Bank" or "AIRsLight.ClashOfRim.Network.Modules.Gifts"
@@ -36,6 +36,7 @@ internal static class ModuleBoundaryTests
                 or "AIRsLight.ClashOfRim.Network.Modules.Diplomacy" or "AIRsLight.ClashOfRim.Network.Modules.Support" or "AIRsLight.ClashOfRim.Network.Modules.Raids" or "AIRsLight.ClashOfRim.Network.Modules.Accounts"
                 or "AIRsLight.ClashOfRim.Network.Modules.Compatibility" or "AIRsLight.ClashOfRim.Network.Modules.Sessions"
                 or "AIRsLight.ClashOfRim.Network.Modules.World"
+                or "AIRsLight.ClashOfRim.Network.Modules.Achievements"
             && t.Name is not ("BankEndpoints" or "GiftEndpoints" or "TradeEndpoints" or "ShopEndpoints" or "MercenaryEndpoints" or "SupportEndpoints" or "RaidEndpoints" or "DiplomacyEndpoints" or "AccountEndpoints" or "SessionEndpoints" or "WorldEndpoints")
             && t.DeclaringType?.Name is not ("BankEndpoints" or "GiftEndpoints" or "TradeEndpoints" or "ShopEndpoints" or "MercenaryEndpoints" or "SupportEndpoints" or "RaidEndpoints" or "DiplomacyEndpoints" or "AccountEndpoints" or "SessionEndpoints" or "WorldEndpoints")).ToArray();
         var transportLeaks = ModuleDependencyGuard.FindViolations(business,

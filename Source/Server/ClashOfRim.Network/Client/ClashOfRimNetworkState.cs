@@ -1,4 +1,5 @@
 using AIRsLight.ClashOfRim.Network.Modules.World;
+using AIRsLight.ClashOfRim.Network.Modules.Achievements;
 using AIRsLight.ClashOfRim.Network.Modules.Compatibility;
 using AIRsLight.ClashOfRim.Network.Modules.Sessions;
 using AIRsLight.ClashOfRim.Network.Modules.Accounts;
@@ -106,6 +107,8 @@ public sealed class ClashOfRimNetworkState
         SnapshotPostUploadJobs = snapshotPostUploadJobs ?? new SnapshotPostUploadJobRegistry();
         SnapshotPostUploadArtifacts = snapshotPostUploadArtifacts ?? new InMemorySnapshotPostUploadArtifactStore();
         RuntimeLogger = runtimeLogger ?? NullLogger.Instance;
+        AchievementAwards = new(Achievements, Plugins, CompatibilityBaseline, Ledger, OnlinePresence, EventNotifications, () => RuntimeLogger);
+        EventAchievements = new(AchievementAwards, Plugins, CompatibilityBaseline);
         SnapshotCommits = snapshotCommits ?? new SnapshotCommitService();
         RaidQueries = new Modules.Raids.RaidQueries(Ledger, () => ServerConfiguration);
         RaidProtection = new Modules.Raids.RaidProtection(Ledger, RaidProtectionActivations, RaidCooldownOverrides, () => ServerConfiguration, RuntimeLogger);
@@ -179,7 +182,7 @@ public sealed class ClashOfRimNetworkState
         TradeLifecycle = new TradeLifecycle(Ledger, SnapshotStore, SnapshotMutations, RaidSettlementSnapshotMutationGate,
             TradeDelivery, AdminBaseline, OnlinePresence, EventNotifications, RuntimeLogger, () => ServerConfiguration);
         var tradeCommits = new TradeSnapshotCommitter(SnapshotCommits, SnapshotStore, BankLoans, Ledger, MercenaryContracts,
-            EventNotifications, recovery, new LegacyEventAchievementRecorder(this));
+            EventNotifications, recovery, EventAchievements);
         Trades = new TradeService(Ledger, SnapshotRequests, ColonyAuthorization, SnapshotMutations, SnapshotTransactions,
             PendingConfirmations, TransferPackages, tradeCommits, TradeLifecycle, TradeDelivery, AdminBaseline,
             Plugins, CompatibilityBaseline, OnlinePresence, EventNotifications, RuntimeLogger, () => ServerConfiguration);
@@ -367,6 +370,8 @@ public sealed class ClashOfRimNetworkState
     public ServerShopRegistry ServerShop { get; }
 
     public AchievementRegistry Achievements { get; }
+    internal AchievementAwards AchievementAwards { get; }
+    internal EventAchievementRecorder EventAchievements { get; }
 
     public SnapshotPostUploadJobRegistry SnapshotPostUploadJobs { get; }
 

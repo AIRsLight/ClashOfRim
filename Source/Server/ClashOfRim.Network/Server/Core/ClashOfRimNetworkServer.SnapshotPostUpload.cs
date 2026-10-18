@@ -250,74 +250,8 @@ public static partial class ClashOfRimNetworkServer
         var snapshotAchievements = state.Achievements.ListSnapshotEvents(ownerId, colonyId, snapshotId!);
         if (snapshotAchievements.Count > 0)
         {
-            NotifyUnlockedAchievements(state, ownerId, colonyId, snapshotAchievements, nowUtc);
+            state.AchievementAwards.Notify(ownerId, colonyId, snapshotAchievements, nowUtc);
         }
-    }
-
-    private static void NotifyUnlockedAchievements(
-        ClashOfRimNetworkState state,
-        string userId,
-        string colonyId,
-        IReadOnlyCollection<AchievementEventRecord> achievements,
-        DateTimeOffset nowUtc)
-    {
-        bool hasNotifications = false;
-        foreach (AchievementEventRecord achievement in achievements)
-        {
-            string notificationId = "achievement-unlocked:"
-                + achievement.UserId
-                + ":"
-                + achievement.ColonyId
-                + ":"
-                + achievement.AchievementId
-                + ":"
-                + achievement.EventKey;
-            string label = ResolveAchievementNotificationLabel(achievement);
-            AuthoritativeEvent notification = AuthoritativeEventFactory.CreateForLedger(state.Ledger,
-                ServerEventType.ServerNotification,
-                new EventParty("server"),
-                new EventParty(userId, colonyId),
-                notificationId,
-                state.OnlinePresence.IsUserOnline(userId),
-                new ServerNotificationEventPayload(
-                    notificationId,
-                    T("Achievements.UnlockedTitle"),
-                    T(
-                        "Achievements.UnlockedMessage",
-                        ("ACHIEVEMENT", label),
-                        ("VALUE", achievement.Value.ToString(System.Globalization.CultureInfo.InvariantCulture))),
-                    ServerNotificationSeverity.Info,
-                    FromAdministrator: false,
-                    RelatedUserId: achievement.UserId,
-                    RelatedColonyId: achievement.ColonyId),
-                nowUtc);
-            LedgerAppendResult append = state.Ledger.Append(notification);
-            LogEventAppend(state, append, "achievement-unlocked");
-            hasNotifications = true; // Retry wake-up even when the notification was persisted before interruption.
-        }
-
-        if (hasNotifications)
-        {
-            state.EventNotifications.SignalUser(userId);
-        }
-    }
-
-    private static string ResolveAchievementNotificationLabel(AchievementEventRecord achievement)
-    {
-        if (!string.IsNullOrWhiteSpace(achievement.LabelKey))
-        {
-            try
-            {
-                return T(achievement.LabelKey);
-            }
-            catch (KeyNotFoundException)
-            {
-            }
-        }
-
-        return string.IsNullOrWhiteSpace(achievement.AchievementId)
-            ? T("Achievements.UnknownLabel")
-            : achievement.AchievementId;
     }
 
     private static void AddMetricIfPresent(IDictionary<string, long> metrics, string metricId, int? value)

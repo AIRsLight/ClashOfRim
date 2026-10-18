@@ -1,7 +1,6 @@
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Network;
 using Microsoft.Data.Sqlite;
-using System.Reflection;
 
 internal static class AchievementRecoveryTests
 {
@@ -23,7 +22,7 @@ internal static class AchievementRecoveryTests
                 Execute(database, $"create trigger fail_achievement before insert on {table} begin select raise(abort, 'injected failure'); end;");
                 bool failed = false;
                 try { Record(state); }
-                catch (TargetInvocationException ex) when (ex.InnerException is SqliteException) { failed = true; }
+                catch (SqliteException) { failed = true; }
                 Require(failed, "Achievement persistence failure was not injected.");
                 if (table != "events") Require(state.Achievements.ListAggregates().Count == 0, "Uncommitted achievement leaked into cache.");
                 Execute(database, "drop trigger fail_achievement;");
@@ -45,9 +44,8 @@ internal static class AchievementRecoveryTests
 
     private static void Record(ClashOfRimNetworkState state)
     {
-        var method = typeof(ClashOfRimNetworkServer).GetMethod("RecordEventMetricAchievementsForParty", BindingFlags.Static | BindingFlags.NonPublic)!;
-        method.Invoke(null, new object[] { state, "user", "colony", "trade-event", "snapshot",
-            new Dictionary<string, long> { [AchievementRegistry.MetricCompletedTradeCount] = 10 }, DateTimeOffset.UnixEpoch });
+        state.AchievementAwards.RecordCumulative("user", "colony", "trade-event", "snapshot",
+            new Dictionary<string, long> { [AchievementRegistry.MetricCompletedTradeCount] = 10 }, DateTimeOffset.UnixEpoch);
     }
 
     private static long Scalar(string database, string sql)

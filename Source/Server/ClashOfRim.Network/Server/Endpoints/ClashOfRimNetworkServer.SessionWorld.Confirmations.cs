@@ -106,7 +106,7 @@ public static partial class ClashOfRimNetworkServer
         ClashOfRimNetworkState state,
         DateTimeOffset nowUtc)
         => EvaluateEventApplication(application, userId, colonyId, baseSnapshotId, acceptedSnapshot, state.Ledger, nowUtc,
-            item => RecordAuthoritativeEventAchievements(state, item, item.AppliedAtUtc ?? nowUtc));
+            item => state.EventAchievements.Record(item, item.AppliedAtUtc ?? nowUtc));
     private static ConfirmEventApplicationResultDto EvaluateEventApplication(
         ConfirmEventApplicationEntry application,
         string userId,

@@ -1637,3 +1637,15 @@ M8b3 完成；下一步 **M8c 殖民地地点登记、搬家和废弃生命周�
 累计 **8 个相关测试组通过**：新登记组、共享定位组、模块/路由守卫、真实 HTTP 恢复、殖民地删除恢复、原世界配置授权、世界写入模块及客户端登记传输。守卫检查 **321** 个类型及 **81** 条路由，服务端 Release 构建 **0 警告、0 错误**。客户端使用本地 Steam 1.7 引用编译并仅运行新传输组，现有可空/FormatterServices 警告仍在；NetworkSmoke 的 14 个登记调用补齐真实测试会话或登录凭据，仅编译，仍有原 SnapshotContentionProbe 两个可空警告。日志位于 `LocalOnly/module-migration/colony-registration-{before,after,related,final,client,build,smoke-build}.log`。未运行 RimTest 或全量回归，未推送；三个共享 Program 仅提交本步变更。
 
 M8c2 完成，M8c1 记录的登记授权缺口已修复。下一步 **M8c3 搬家预检与确认**，随后迁出废弃殖民地及其世界图层通知/删除恢复协作。M8c、M8 和 M9–M12 保持开放。
+
+### M8c3a 搬家所需的共享成就授予与事件统计（2026-10-18）
+
+继续迁移搬家确认时，发现其成就写入仍直接调用宿主私有函数，交易模块也通过 LegacyEventAchievementRecorder 回调宿主。先迁出这项真实依赖：`AchievementAwards` 拥有搬家累计、通用累计指标授予、持久成就的通知投递及重放；`EventAchievementRecorder` 拥有已完成交易与插件事件指标的选择、统计及双参与方归属，并直接实现交易模块原有的 IEventAchievementRecorder。删除整个 EventAchievements partial 和 LegacyEventAchievementRecorder，快照后处理、交易提交、提交恢复、事件确认及搬家确认均直接调用模块，不再回调宿主成就算法。
+
+保留搬家按来源快照计次、累计阈值、事件/账户/殖民地隔离，以及先保存指标与解锁、后追加通知的顺序。通知重试使用同一已持久解锁记录和幂等通知，已存在通知也再次唤醒接收者。交易仍仅统计 AppliedToSnapshot 的 SelfDeliveryExchange/ServerDropPodExchange，价值取双边较大值，沿用逐项四舍五入、Silver 回退和最小数量规则；费用不作为成交价值。来源快照保留 Applied/Delivered/EventId 的优先级。插件定义与指标提供者每次按当前兼容基线选择，单个提供者异常继续隔离。此步没有新增跨域事务或改写这些规则。
+
+新增 AchievementAwardModuleTests，独立组装注册表、账本、通知及两个模块，复用 Slot 与 InterruptedLedger 故障设施。四种文化共 **272** 场景，覆盖全部交易阶段 × 状态、价值与来源规则、重复搬家快照、阈值、保存及通知追加前/后故障、重开重试、插件启停与故障、不同玩家/重建殖民地隔离、标签缺失回退及在线通知。原 AchievementRecoveryTests 改为直接调用模块，去除对已删除宿主私有函数的反射。测试初稿错误要求英文通知显示数值，但现有翻译模板只显示成就名；断言已按真实通知契约修正，产品文案未改变。
+
+累计 **7 个相关单元组通过**：新模块 272 场景、模块/路由守卫、交易成就恢复、成就与排行榜生命周期、快照成就恢复、交易模块及普通上传后处理恢复。守卫检查 **323** 个类型和 **81** 条路由，新增成就业务模块也纳入传输依赖限制；服务端 Release 构建 **0 警告、0 错误**。日志位于 `LocalOnly/module-migration/achievement-awards-{after,related,callers,build}.log`。未运行 RimTest、NetworkSmoke 套件或全量回归，未推送，仅提交本步修改。
+
+M8c3a 依赖迁移完成；下一步 **M8c3b 搬家预检与确认模块**。当前搬家入口和授权/恢复顺序仍在旧宿主中，尚未完成迁移；成就列表、快照指标采集和排行榜仍是后续工作，不能把授予模块拆出视为整个成就域完成。M8c3、M8 及 M9–M12 保持开放。
