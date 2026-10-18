@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Network.Modules.Raids;
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Network;
 using AIRsLight.ClashOfRim.Network.Plugins;
@@ -66,7 +67,7 @@ internal static partial class RaidEvidenceAuthorizationTests
                 if (change == "artifact")
                 {
                     string id = replay ? RaidSettlementDeferredPayload.Deserialize(f.State.SnapshotPostUploadJobs.ListAll().Single().PayloadJson).EvidenceArtifactId
-                        : RaidSettlementDeferredScheduler.BuildArtifactId(f.Raid.EventId, f.Package.Envelope.Identity.SnapshotId!);
+                        : RaidEvidenceRules.BuildArtifactId(f.Raid.EventId, f.Package.Envelope.Identity.SnapshotId!);
                     var original = f.ArtifactStore.Inner.Read(id);
                     f.ArtifactStore.Inner.Delete(id);
                     if (original is not null) f.ArtifactStore.Inner.Store(id, original);

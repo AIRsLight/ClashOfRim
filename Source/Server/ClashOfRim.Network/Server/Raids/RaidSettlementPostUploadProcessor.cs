@@ -28,16 +28,10 @@ public sealed class RaidSettlementPostUploadProcessor :
         ArgumentNullException.ThrowIfNull(context);
         RaidSettlementPostUploadData data = context.ExtraData.RaidSettlement
             ?? throw new InvalidOperationException("Raid settlement post-upload data is missing.");
-        if (data.PreparedSchedule is { } prepared) return prepared.Commit(context);
-        return RaidSettlementDeferredScheduler.Schedule(
-            context.State,
-            new RaidSettlementScheduleRequest(
-                data.RaidEventId,
-                context,
-                data.EvidencePayload,
-                data.Origin,
-                data.ClientApplicationResult,
-                data.RequestHash));
+        if (data.PreparedSchedule is { } prepared)
+            return prepared.Commit(context.State.RaidEvidenceScheduling, context.Snapshot.Envelope, context.OccurredAtUtc);
+        return context.State.RaidEvidenceScheduling.Schedule(RaidEvidenceRequestAdapter.From(new RaidSettlementScheduleRequest(
+            data.RaidEventId, context, data.EvidencePayload, data.Origin, data.ClientApplicationResult, data.RequestHash)));
     }
 
     public string CapturePayload(SnapshotPostUploadContext context)
@@ -56,7 +50,7 @@ public sealed class RaidSettlementPostUploadProcessor :
         SnapshotPostUploadJobRecord job,
         DateTimeOffset nowUtc)
     {
-        RaidSettlementDeferredScheduler.RecoverPrepared(state, job, nowUtc);
+        state.RaidEvidenceScheduling.RecoverPrepared(job, nowUtc);
     }
 
     public void OnDeferredCompleted(SnapshotPostUploadDeferredContext context)

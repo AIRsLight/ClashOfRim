@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Network.Modules.Raids;
 using Microsoft.Extensions.Logging;
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Network.Plugins;
@@ -35,7 +36,7 @@ public static partial class ClashOfRimNetworkServer
                 defenderVersion = packages.GetLatest(defender, defenseColony)?.Envelope;
                 if (existing is null && attackerVersion?.Identity.SnapshotId is { } snapshotId)
                 {
-                    artifactId = RaidSettlementDeferredScheduler.BuildArtifactId(raid.EventId, snapshotId);
+                    artifactId = RaidEvidenceRules.BuildArtifactId(raid.EventId, snapshotId);
                     // Only an unreferenced orphan may be replaced. Concurrent preparations are invalidated.
                     state.SnapshotPostUploadArtifacts.Delete(artifactId);
                 }
@@ -46,7 +47,7 @@ public static partial class ClashOfRimNetworkServer
             if (!MatchesRaidSettlementJob(raid, existing))
                 throw new InvalidDataException("Timed-out raid has a conflicting settlement job.");
             if (existing.State == SnapshotPostUploadJobState.Prepared)
-                existing = RaidSettlementDeferredScheduler.RecoverPrepared(state, existing, nowUtc);
+                existing = state.RaidEvidenceScheduling.RecoverPrepared(existing, nowUtc);
             return existing.State == SnapshotPostUploadJobState.Ready ? existing : null;
         }
 
@@ -56,14 +57,14 @@ public static partial class ClashOfRimNetworkServer
         bool missing = evidence is null || captured.Defender is null
             || captured.Defender.Envelope.Identity.SnapshotId != source.DefenderSnapshotId;
         // The read may itself have crossed a publication. Never prepare a package from a different version.
-        if (!missing && (!RaidSettlementDeferredScheduler.SameVersion(evidence!.Envelope, attackerVersion)
-            || !RaidSettlementDeferredScheduler.SameVersion(captured.Defender!.Envelope, defenderVersion))) return null;
+        if (!missing && (!RaidEvidenceRules.SameVersion(evidence!.Envelope, attackerVersion)
+            || !RaidEvidenceRules.SameVersion(captured.Defender!.Envelope, defenderVersion))) return null;
 
         using var prepared = missing ? null : SnapshotPreparationService.Run(() =>
         {
             if (evidence!.Envelope.Identity.OwnerId != owner || evidence.Envelope.Identity.ColonyId != colony)
                 throw new InvalidDataException("Offline evidence does not belong to the attacker.");
-            RaidSettlementDeferredScheduler.ValidatePayload(evidence);
+            RaidEvidenceRules.ValidatePayload(evidence);
             return (state.SnapshotPostUploadArtifacts as IPreparedSnapshotPostUploadArtifactStore)?.Prepare(artifactId!, evidence!);
         });
         using (EnterRecoveredSnapshotMutation(state))
@@ -71,8 +72,8 @@ public static partial class ClashOfRimNetworkServer
             lock (state.SnapshotPostUploadJobs.SnapshotCommitGate)
             {
                 if (!SameRaidCleanupSource(state.Ledger.Find(raid.EventId), raid)
-                    || !RaidSettlementDeferredScheduler.SameVersion(packages.GetLatest(owner, colony)?.Envelope, attackerVersion)
-                    || !RaidSettlementDeferredScheduler.SameVersion(packages.GetLatest(defender, defenseColony)?.Envelope, defenderVersion)
+                    || !RaidEvidenceRules.SameVersion(packages.GetLatest(owner, colony)?.Envelope, attackerVersion)
+                    || !RaidEvidenceRules.SameVersion(packages.GetLatest(defender, defenseColony)?.Envelope, defenderVersion)
                     || state.RaidQueries.ActiveAttacker(owner, colony) is not null) return null;
                 existing = state.SnapshotPostUploadJobs.Find(jobId);
                 if (existing is not null)
@@ -102,7 +103,7 @@ public static partial class ClashOfRimNetworkServer
                     RaidSettlementOrigin.OfflineTimeout, "OfflineTimeout", new RaidEvidencePublication(attackerVersion, evidence.Envelope));
                 var job = state.SnapshotPostUploadJobs.EnqueuePrepared(jobId, RaidSettlementDeferredScheduler.ProcessorId, context, payload.Serialize());
                 // The evidence and Prepared intent now survive every subsequent failure.
-                return RaidSettlementDeferredScheduler.CompletePreparedEvidence(state, job, payload, evidence, nowUtc);
+                return state.RaidEvidenceScheduling.CompletePreparedEvidence(job, payload, evidence, nowUtc);
             }
         }
     }

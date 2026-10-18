@@ -6,12 +6,13 @@ namespace AIRsLight.ClashOfRim.Network.Modules.Snapshots;
 
 internal sealed class SnapshotMutationCoordinator(object gate, ISnapshotRecovery recovery)
 {
+    internal bool IsEntered => Monitor.IsEntered(gate);
     internal SnapshotMutationScope EnterUnrecovered([CallerMemberName] string operation = "") => new(gate, operation);
 
     // Transfers ownership of a synchronous scope on this thread; dispose it before awaiting.
     internal RecoveredSnapshotMutation Enter(Func<ProtocolResponse?>? authorize = null, [CallerMemberName] string operation = "")
     {
-        bool nested = Monitor.IsEntered(gate);
+        bool nested = IsEntered;
         while (true)
         {
             ISnapshotRecoveryPreparation? preparation;

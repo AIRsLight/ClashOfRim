@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Network.Modules.Raids;
 using System.Reflection;
 using System.Runtime.ExceptionServices;
 using AIRsLight.ClashOfRim.Events;
@@ -90,7 +91,7 @@ internal static partial class RaidTimeoutRecoveryTests
                         if (change == "job-review") f.State.SnapshotPostUploadJobs.MarkManualReview(job.JobId, "review during preparation");
                     }
                 }
-                if (change == "artifact-deleted") f.Artifacts.Delete(RaidSettlementDeferredScheduler.BuildArtifactId(f.Raid.EventId, original.Envelope.Identity.SnapshotId!));
+                if (change == "artifact-deleted") f.Artifacts.Delete(RaidEvidenceRules.BuildArtifactId(f.Raid.EventId, original.Envelope.Identity.SnapshotId!));
             });
         if (change is "missing" or "restored")
             Require((f.State.Ledger.Find(f.Raid.EventId)!.LastApplicationResult == EventApplicationResultKind.NeedsManualReview) == (change == "missing"),

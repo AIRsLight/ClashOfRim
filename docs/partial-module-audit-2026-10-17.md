@@ -1125,3 +1125,17 @@ M7b 的发送与归还业务已迁入实际模块。下一步 **M7c 袭击与远
 累计 **7 个相关单元组通过**：独立结算模块、准备/出征模块、模块边界与路由、守方结算提交崩溃恢复、兼容执行器幂等、后台后处理器、超时攻击方清理。先执行 **4/148** 组旧测试，新测试单独通过后最终执行 **6/149** 组；其余组未运行。依赖守卫检查 **188** 个模块/生成类型、**81** 条路由。服务端控制台 Release 编译 **0 警告、0 错误**。证据为 `LocalOnly/module-migration/raid-settlement-existing-unit.log`、`raid-settlement-module-unit.log`、`raid-settlement-final-unit.log`、`raid-settlement-console-build.log`。
 
 本步没有运行 NetworkSmoke、RimTest 或全量回归。**M7c3 仍未完成**：证据确认入口、Prepared/Ready 调度与恢复、离线证据准备、超时清理及其旧适配器仍待迁出；下一步 M7c3b 处理证据调度及准备对象与插件上下文的耦合。随后继续客户端远程地图和 M8–M12。原工作区改动保持独立，测试入口只提交本步一条注册。
+
+### M7c3b 证据调度与准备对象（2026-10-18）
+
+`RaidEvidenceScheduling` 接管证据调度、Prepared 恢复及快照/玩家引用发布；`RaidEvidenceSchedulePreparation` 迁入袭击模块，接管请求级捕获、锁外准备、版本复验与提交。两者直接接收账本、快照、制品、任务、玩家注册表和恢复协调器，不持有完整 NetworkState 或插件上下文。旧准备类文件删除；约 300 行的公开 `RaidSettlementDeferredScheduler` 缩为兼容转发。插件处理器和仍待迁移的证据确认/离线超时入口调用相同模块。
+
+新增纯数据 `RaidEvidenceSchedule` 和 `SnapshotPostUploadJobInput`。`RaidEvidenceRequestAdapter` 仅在装配边界转换公开插件请求；任务注册表的公开上下文入口也转换为同一数据输入，共用原来的持久化、内存登记与状态变换实现，不新建第二套任务存储算法。准备对象保留原任务时间与证据信息，并在提交时验证所属调度模块；插件上下文只在旧入口重建。来源、任务绑定、载荷完整性及制品 ID 计算集中到 `RaidEvidenceRules`；快照版本比较复用 `SnapshotCommitService.SameVersion`，保留双空版本的既有语义。任务快照 ID 必须与证据快照一致。
+
+**恢复边界：** 独立 Prepared 恢复直接进入 `SnapshotMutationCoordinator.Enter`，移除原来外层裸锁包裹恢复的结构，首次捕获及最终发布前的日志准备均可释放业务锁，返回后重新检查任务状态和目的快照。同步调度已经恢复后调用内部完成方法，避免再次嵌套恢复。Prepared → 快照与玩家引用发布 → Ready 的顺序不变；并发完成、人工复核或修订任务不得被旧准备结果重新激活。兼容同步 `Schedule` 仍保留原来的锁内存储路径，本步没有把它改成全面锁外准备；正式在线准备路径继续在锁外读取、压缩和暂存。
+
+新增 `RaidEvidenceSchedulingModuleTests`，不创建服务器宿主或 NetworkState。复用 `RaidSettlementTestData`、`RecoveryProbe` 和 `SnapshotPreparationGateProbe`，使用真实文件快照/制品与 SQLite 任务存储。覆盖四种文化下的同步及准备式发布、重开后的 Ready 重放、原会话/时间/谱系回执保留、请求哈希冲突、错误模块提交和准备对象重复消费；两条入口都拒绝类型、来源、用户、殖民地、快照 ID、包身份和字节错配。另在独立恢复的两个日志准备边界分别暂停，验证另一线程能取得业务锁，并测试新快照、人工复核、已完成任务及证据删除时的拒绝或保留行为。依赖守卫进一步禁止模块引用公开上下文请求和转换适配器。
+
+累计 **7 个相关单元组通过**：既有证据发布恢复、在线证据与授权、独立调度模块、普通上传后处理恢复、袭击后处理器、离线超时清理、模块边界与路由。先运行 **3/149** 组既有测试；新增组首次编译使用了不存在的测试枚举名，改为现有 `AuthoritativeColonySnapshot` 后 **1/150** 组通过；最后仅运行 **4/150** 组受影响测试。依赖守卫检查 **194** 个模块/生成类型、**81** 条路由。服务端控制台 Release 编译 **0 警告、0 错误**。证据：`LocalOnly/module-migration/raid-scheduling-existing-unit.log`、`raid-scheduling-module-unit.log`、`raid-scheduling-final-unit.log`、`raid-scheduling-console-build.log`。
+
+本步未运行 NetworkSmoke、RimTest 或全量回归。**M7c3 继续开放**：下一步迁移证据确认入口与离线超时编排，之后处理客户端远程地图；M8–M12 仍待推进。本步只提交自己的修改，保留工作区已有变更。

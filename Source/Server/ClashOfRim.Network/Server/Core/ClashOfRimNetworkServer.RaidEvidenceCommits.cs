@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Network.Modules.Raids;
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Network.Plugins;
 using AIRsLight.ClashOfRim.Protocol;
@@ -51,12 +52,12 @@ public static partial class ClashOfRimNetworkServer
                     if (!upload.Accepted || upload.AcceptedSnapshot is null)
                         return RaidEvidenceRejected(request, ToProtocolResponse(upload), upload.Kind.ToString());
                     var context = CreateRaidEvidenceContext(state, request, bytes, upload.AcceptedSnapshot, nowUtc, binding);
-                    if (!RaidEvidenceSchedulePreparation.Supports(state))
+                    if (!state.RaidEvidenceScheduling.SupportsPreparation)
                         return RunLegacyRaidEvidencePipeline(state, request, context, replay);
                     try
                     {
-                        preparation = new RaidEvidenceSchedulePreparation(state,
-                            new RaidSettlementScheduleRequest(source.EventId, context, bytes, RaidSettlementOrigin.OnlineEvidence, request.ClientApplicationResult, binding));
+                        preparation = state.RaidEvidenceScheduling.Capture(RaidEvidenceRequestAdapter.From(
+                            new RaidSettlementScheduleRequest(source.EventId, context, bytes, RaidSettlementOrigin.OnlineEvidence, request.ClientApplicationResult, binding)));
                     }
                     catch (Exception ex) { return RaidEvidenceQueueFailure(state, request, ex); }
                 }
@@ -80,7 +81,7 @@ public static partial class ClashOfRimNetworkServer
                         try
                         {
                             if (!preparation.TryValidate()) continue;
-                            var context = preparation.Context;
+                            var context = CreateRaidEvidenceContext(state, request, bytes, preparation.Snapshot, preparation.OccurredAtUtc, binding);
                             context = context with { ExtraData = context.ExtraData with
                                 { RaidSettlement = context.ExtraData.RaidSettlement! with { PreparedSchedule = preparation } } };
                             RunSnapshotPostUploadProcessors(state, context);
@@ -125,8 +126,8 @@ public static partial class ClashOfRimNetworkServer
                 var job = state.SnapshotPostUploadJobs.Find("raid-settlement:" + request.EventId)!;
                 var payload = RaidSettlementDeferredPayload.Deserialize(job.PayloadJson);
                 var original = state.SnapshotPostUploadArtifacts.Read(payload.EvidenceArtifactId) ?? throw new IOException("Raid evidence artifact is missing.");
-                RaidSettlementDeferredScheduler.ValidatePayload(original);
-                RaidSettlementDeferredScheduler.ValidateEvidenceBinding(state, job, payload, original);
+                RaidEvidenceRules.ValidatePayload(original);
+                RaidEvidenceRules.ValidateBinding(state.Ledger, job, payload, original);
                 if (job.State is not (SnapshotPostUploadJobState.Prepared or SnapshotPostUploadJobState.Ready)
                     || payload.RequestHash != data.RequestHash || payload.Origin != data.Origin || payload.ClientApplicationResult != data.ClientApplicationResult
                     || original.Envelope != (context.Snapshot.Envelope with { CreatedAtUtc = original.Envelope.CreatedAtUtc, NextLineageToken = original.Envelope.NextLineageToken })

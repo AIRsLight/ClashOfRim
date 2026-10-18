@@ -1,4 +1,5 @@
 using AIRsLight.ClashOfRim.Network.Plugins;
+using AIRsLight.ClashOfRim.Network.Modules.Snapshots;
 
 namespace AIRsLight.ClashOfRim.Network;
 
@@ -30,13 +31,12 @@ public sealed class SnapshotPostUploadJobRegistry
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(payloadJson);
 
-        string snapshotId = context.Snapshot?.Identity.SnapshotId
-            ?? $"{context.UserId}:{context.ColonyId}:{context.OccurredAtUtc.UtcTicks}";
-        string jobId = snapshotId + ":" + processorId;
+        var input = Input(context);
+        string jobId = input.ResolvedSnapshotId + ":" + processorId;
         return EnqueueCore(
             jobId,
             processorId,
-            context,
+            input,
             payloadJson,
             SnapshotPostUploadJobState.Ready);
     }
@@ -46,6 +46,17 @@ public sealed class SnapshotPostUploadJobRegistry
         string processorId,
         SnapshotPostUploadContext context,
         string payloadJson)
+        => EnqueuePrepared(jobId, processorId, Input(context), payloadJson);
+
+    internal static SnapshotPostUploadJobInput Input(SnapshotPostUploadContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        return new(context.Kind, context.UserId, context.ColonyId, context.SessionId,
+            context.Snapshot?.Identity.SnapshotId, context.OccurredAtUtc);
+    }
+
+    internal SnapshotPostUploadJobRecord EnqueuePrepared(
+        string jobId, string processorId, SnapshotPostUploadJobInput context, string payloadJson)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(jobId);
         ArgumentException.ThrowIfNullOrWhiteSpace(processorId);
@@ -63,12 +74,11 @@ public sealed class SnapshotPostUploadJobRegistry
     private SnapshotPostUploadJobRecord EnqueueCore(
         string jobId,
         string processorId,
-        SnapshotPostUploadContext context,
+        SnapshotPostUploadJobInput context,
         string payloadJson,
         SnapshotPostUploadJobState state)
     {
-        string snapshotId = context.Snapshot?.Identity.SnapshotId
-            ?? $"{context.UserId}:{context.ColonyId}:{context.OccurredAtUtc.UtcTicks}";
+        string snapshotId = context.ResolvedSnapshotId;
         lock (gate)
         {
             if (jobsById.TryGetValue(jobId, out SnapshotPostUploadJobRecord? existing))

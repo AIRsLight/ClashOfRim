@@ -1,4 +1,5 @@
 using System.Text.Json;
+using AIRsLight.ClashOfRim.Network.Modules.Raids;
 
 namespace AIRsLight.ClashOfRim.Network;
 

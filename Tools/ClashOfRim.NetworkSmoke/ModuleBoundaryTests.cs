@@ -24,6 +24,7 @@ internal static class ModuleBoundaryTests
         var violations = ModuleDependencyGuard.FindViolations(modules, t =>
             t == typeof(ClashOfRimNetworkServer) || t == typeof(ClashOfRimNetworkState)
             || t == typeof(RaidSettlementOperationExecutor) || t == typeof(RaidSettlementDeferredScheduler)
+            || t == typeof(RaidSettlementScheduleRequest) || t == typeof(RaidEvidenceRequestAdapter)
             || t == typeof(AIRsLight.ClashOfRim.Network.Plugins.SnapshotPostUploadContext)
             || t == typeof(AIRsLight.ClashOfRim.Network.Plugins.SnapshotPostUploadDeferredContext)
             || t == typeof(LegacySnapshotRecoveryAdapter) || t == typeof(LegacyRaidDeliveryProtection) || t == typeof(LegacyEventAchievementRecorder) || t == typeof(IServiceProvider));
