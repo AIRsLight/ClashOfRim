@@ -25,21 +25,25 @@ internal sealed class ClientRaidSettlementRuntime : IClientRaidRecoveredBattle
         battle!.FinishInProgress = false;
         ClashOfRimGameComponent.SetActiveRaidBattleSession(battle);
     }
-    public bool TryBegin() => IsCurrent && RemoteMapSessionController.TryBeginRaidBattleFinish(battle);
-    public void KeepFinish() { if (IsCurrent) RemoteMapSessionController.KeepRaidBattleFinishInProgress(battle); }
-    public void ResetFinish() { if (IsCurrent) RemoteMapSessionController.ResetRaidBattleFinish(battle); }
+    public bool TryBegin() => IsCurrent && ClientRemoteSessionRuntime.TryBeginRaidBattleFinish(battle);
+    public void KeepFinish() { if (IsCurrent) ClientRemoteSessionRuntime.KeepRaidBattleFinishInProgress(battle); }
+    public void ResetFinish() { if (IsCurrent) ClientRemoteSessionRuntime.ResetRaidBattleFinish(battle); }
     public IClientRaidSupportLossSource SupportLosses => new ClientRaidSupportLossSource(battle!);
     public void EnqueueSaving(Action action, Action discarded) => ClientRemoteMapLongEvent.Enqueue(action, discarded, "ClashOfRim.Raid.StatusSettlementSavingLong");
-    public void CloseAccepted(string reason)
+    public bool CloseAccepted(string reason)
     {
-        if (!IsCurrent) return;
-        RemoteMapSessionController.CloseRaidBattleAfterSettlementAccepted(battle!, reason);
-        ClashOfRimGameComponent.ClearActiveRaidBattleSession(Identity.EventId);
+        if (!IsCurrent) return false;
+        ClientRemoteSessionRuntime.CloseRaidBattleAfterSettlementAccepted(battle!, reason);
+        if (IsCurrent) ClashOfRimGameComponent.ClearActiveRaidBattleSession(Identity.EventId);
+        return OwnsClosure;
     }
-    public void CloseExpired(bool closeLocalMap)
+    public bool CloseExpired(bool closeLocalMap)
     {
-        if (!IsCurrent) return;
-        if (closeLocalMap) RemoteMapSessionController.CloseRaidBattleForFinalDeadline(battle!);
+        if (!IsCurrent) return false;
+        if (closeLocalMap) ClientRemoteSessionRuntime.CloseRaidBattleForFinalDeadline(battle!);
         else ClashOfRimGameComponent.ClearActiveRaidBattleSession(Identity.EventId);
+        return IsCurrent || OwnsClosure;
     }
+    private bool OwnsClosure => ReferenceEquals(Current.Game, game)
+        && ClashOfRimGameComponent.ActiveRaidBattleSession is null && ClashOfRimGameComponent.ActiveRemoteMapSession is null;
 }

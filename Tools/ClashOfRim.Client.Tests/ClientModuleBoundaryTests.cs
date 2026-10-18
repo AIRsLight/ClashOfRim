@@ -22,6 +22,10 @@ internal static class ClientModuleBoundaryTests
             || t == typeof(ClientMainThreadDispatcher)
             || t == typeof(AIRsLight.ClashOfRim.RemoteMaps.RemoteSnapshotDownloadService)
             || t == typeof(AIRsLight.ClashOfRim.RemoteMaps.RemoteSnapshotDownloadValidator)
+            || t == typeof(AIRsLight.ClashOfRim.RemoteMaps.ClientRemoteMapCloseOperation)
+            || t == typeof(AIRsLight.ClashOfRim.RemoteMaps.ClientRemoteSessionRuntime)
+            || t == typeof(AIRsLight.ClashOfRim.RemoteMaps.RemoteMapSessionController)
+            || t == typeof(AIRsLight.ClashOfRim.RemoteMaps.RemoteSessionMapUtility)
             || t == typeof(AIRsLight.ClashOfRim.RemoteMaps.ClientObservationRuntime)
             || t == typeof(AIRsLight.ClashOfRim.RemoteMaps.ClientObservationPresentation)
             || t == typeof(ClientObservationTransport)
@@ -81,7 +85,8 @@ internal static class ClientModuleBoundaryTests
                 || t.Namespace?.StartsWith("AIRsLight.ClashOfRim.Modules.Events", StringComparison.Ordinal) == true);
         if (sessionViolations.Count != 0)
             throw new InvalidOperationException("Session foundation depends on an event/snapshot domain: " + string.Join(Environment.NewLine, sessionViolations));
-        Type[] eventAdapters = { typeof(AIRsLight.ClashOfRim.RemoteMaps.ClientObservationRuntime), typeof(AIRsLight.ClashOfRim.RemoteMaps.ClientObservationPresentation),
+        Type[] eventAdapters = { typeof(AIRsLight.ClashOfRim.RemoteMaps.ClientRemoteMapCloseOperation),
+            typeof(AIRsLight.ClashOfRim.RemoteMaps.ClientRemoteSessionRuntime), typeof(AIRsLight.ClashOfRim.RemoteMaps.RemoteSessionMapUtility), typeof(AIRsLight.ClashOfRim.RemoteMaps.ClientObservationRuntime), typeof(AIRsLight.ClashOfRim.RemoteMaps.ClientObservationPresentation),
             typeof(AIRsLight.ClashOfRim.Raids.ClientRaidPreparationPresentation),
             typeof(AIRsLight.ClashOfRim.Raids.ClientRaidLaunchRuntime), typeof(AIRsLight.ClashOfRim.Raids.ClientRaidLaunchPresentation),
             typeof(AIRsLight.ClashOfRim.Raids.ClientRaidSupportLossSource), typeof(AIRsLight.ClashOfRim.Raids.ClientRaidSupportLossPresentation),
@@ -109,7 +114,8 @@ internal static class ClientModuleBoundaryTests
         var adapterTypes = typeof(ClashOfRimMod).Assembly.GetTypes().Where(t => eventAdapters.Contains(t)
             || (t.DeclaringType is not null && eventAdapters.Contains(t.DeclaringType))).ToArray();
         var adapterViolations = ModuleDependencyGuard.FindViolations(adapterTypes, t => t == typeof(ClashOfRimMod)
-            || t == typeof(ClashOfRimSettings) || t == typeof(ClashOfRimModNetworkClient) || t == typeof(IServiceProvider));
+            || t == typeof(ClashOfRimSettings) || t == typeof(ClashOfRimModNetworkClient) || t == typeof(IServiceProvider)
+            || t == typeof(AIRsLight.ClashOfRim.RemoteMaps.RemoteMapSessionController));
         if (adapterViolations.Count != 0)
             throw new InvalidOperationException("Event adapters depend on the legacy host: " + string.Join(Environment.NewLine, adapterViolations));
         Console.WriteLine($"Event adapter dependency guard checked {adapterTypes.Length} product and generated types.");

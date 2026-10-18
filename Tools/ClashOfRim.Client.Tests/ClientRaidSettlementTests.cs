@@ -155,6 +155,21 @@ internal static class ClientRaidSettlementTests
                 f.ExpireAfterClose = true; await f.Run();
                 Check(f.Closed == 1 && f.Expired == 0 && f.View.Visible is not null && f.View.Retry is null, "Partial close at deadline lost exit recovery.");
             }
+            foreach (string change in new[] { "user", "colony", "auth", "server", "snapshot", "game", "login", "generation", "battle" })
+            foreach (bool expiry in new[] { false, true })
+            {
+                using var f = new Fixture();
+                f.AfterClose = () =>
+                {
+                    if (change is "battle" or "game") f.ObsoleteClose = true;
+                    if (change != "battle") f.Change(change);
+                    f.Mutations.Begin(LocalMutationKind.Bank, "replacement");
+                };
+                if (expiry) f.Module.Expire(f); else await f.Run();
+                Check(f.Uploads == 0 && f.Completed == 0 && f.Expired == 0 && f.View.Visible is null
+                    && f.Mutations.Current?.Kind == LocalMutationKind.Bank,
+                    "Closure callback changed owner but old settlement continued: " + change + "/" + expiry);
+            }
             SaveValidation();
         }
         finally { CultureInfo.CurrentCulture = culture; ClientSessionWork.Reset(); }
@@ -193,7 +208,8 @@ internal static class ClientRaidSettlementTests
         internal readonly List<ClientEventConfirmationCommand> Commands = new();
         internal readonly TaskCompletionSource Finished = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal ClashOfRimClientNetworkContext? CleanupContext;
-        internal bool Current = true, Finishing, ExpireAfterClose;
+        internal bool Current = true, Finishing, ExpireAfterClose, ObsoleteClose;
+        internal Action? AfterClose;
         internal int Closed, Expired, Uploads, Completed, Removed, SourceCaptures, SupportCalls;
         internal TimeSpan Remaining = TimeSpan.FromMinutes(2);
         internal string Fault = "";
@@ -222,9 +238,9 @@ internal static class ClientRaidSettlementTests
         public IClientRaidSupportLossSource SupportLosses => this;
         public void EnqueueSaving(Action action, Action discarded)
         { if (Fault == "queue") throw new Injected("queue"); Ports.Enqueue(() => { OnSaving?.Invoke(); action(); }); }
-        public void CloseAccepted(string reason)
-        { if (Fault == "close") throw new Injected("close"); Closed++; Current = false; if (ExpireAfterClose) Remaining = TimeSpan.Zero; if (Fault == "after-close") throw new Injected("after close"); }
-        public void CloseExpired(bool closeLocalMap) => Current = false;
+        public bool CloseAccepted(string reason)
+        { if (Fault == "close") throw new Injected("close"); Closed++; Current = false; if (ExpireAfterClose) Remaining = TimeSpan.Zero; if (Fault == "after-close") throw new Injected("after close"); AfterClose?.Invoke(); return !ObsoleteClose; }
+        public bool CloseExpired(bool closeLocalMap) { Current = false; AfterClose?.Invoke(); return !ObsoleteClose; }
         public IReadOnlyList<ClientRaidSupportLoss> Capture() { SourceCaptures++; return new[] { new ClientRaidSupportLoss("support", "key", "pawn") }; }
         public void InProgress(ClientRaidSupportLoss loss, bool value) { }
         public bool RemoveAndComplete(ClientRaidSupportLoss loss) { Removed++; return true; }

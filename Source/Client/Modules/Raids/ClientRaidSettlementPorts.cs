@@ -25,8 +25,8 @@ internal interface IClientRaidSettlementRuntime
     void ResetFinish();
     IClientRaidSupportLossSource SupportLosses { get; }
     void EnqueueSaving(Action action, Action discarded);
-    void CloseAccepted(string reason);
-    void CloseExpired(bool closeLocalMap);
+    bool CloseAccepted(string reason);
+    bool CloseExpired(bool closeLocalMap);
 }
 
 internal interface IClientRaidSettlementPresentation

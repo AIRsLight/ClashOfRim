@@ -135,8 +135,8 @@ internal static class ClientRaidRecoveryTests
         public void ResetFinish() => throw new NotSupportedException();
         public IClientRaidSupportLossSource SupportLosses => throw new NotSupportedException();
         public void EnqueueSaving(Action action, Action discarded) => throw new NotSupportedException();
-        public void CloseAccepted(string reason) => throw new NotSupportedException();
-        public void CloseExpired(bool closeLocalMap) => throw new NotSupportedException();
+        public bool CloseAccepted(string reason) => throw new NotSupportedException();
+        public bool CloseExpired(bool closeLocalMap) => throw new NotSupportedException();
     }
     private sealed class Fixture : IClientRaidRecoveryRuntime, IClientRaidSettlementActions, IClientRaidRecoveryPresentation, IDisposable
     {

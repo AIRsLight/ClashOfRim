@@ -19,6 +19,8 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("remote map closure shares ordering and retains ownership across failure", ClientRemoteMapClosureTests.Run),
+    ("remote map close runtime binds exact game map and session", ClientRemoteMapCloseRuntimeTests.Run),
     ("snapshot reload runtime retains exact game and pending memory load ownership", ClientSnapshotReloadRuntimeTests.Run),
     ("snapshot reload owns authentication, game replacement and recovery retries", ClientSnapshotReloadTests.Run),
     ("colony snapshot restore owns downloads, identity validation and loadable bytes", ClientColonySnapshotDownloadTests.Run),

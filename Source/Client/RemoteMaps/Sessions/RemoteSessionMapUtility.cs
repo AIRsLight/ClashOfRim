@@ -16,9 +16,7 @@ public static class RemoteSessionMapUtility
     private const string ScoutMapParentDefName = "ClashOfRim_RemoteScoutMapParent";
     private const string RaidObservationMapParentDefName = "ClashOfRim_RemoteRaidObservationMapParent";
     private const string RaidBattleMapParentDefName = "ClashOfRim_RemoteRaidBattleMapParent";
-    private static int explicitRaidBattleMapCloseDepth;
-
-    internal static bool ExplicitRaidBattleMapCloseInProgress => explicitRaidBattleMapCloseDepth > 0;
+    internal static bool ExplicitRaidBattleMapCloseInProgress => ClientRemoteMapCloseOperation.ExplicitRaidRemoval;
 
     public static bool TryOpen(RemoteSessionMapOpenRequest request, out RemoteSessionMapOpenResult result)
     {
@@ -87,9 +85,10 @@ public static class RemoteSessionMapUtility
             return false;
         }
 
-        if (closeExistingObservationSessions)
+        if (closeExistingObservationSessions && !CloseExistingSessionMaps())
         {
-            CloseExistingSessionMaps();
+            failureReason = ClashOfRimText.Key("ClashOfRim.RemoteSessionMap.ActiveSessionBlocksOpen");
+            return false;
         }
 
         RemoteSessionMapParent carrier = CreateTemporarySessionMapParent(
@@ -178,147 +177,41 @@ public static class RemoteSessionMapUtility
     }
 
     public static bool CloseActiveObservationMap()
-    {
-        RemoteSessionMapParent? mapParent = FindActiveSessionMap();
-        if (mapParent is null || mapParent.IsRaidBattle)
-        {
-            return false;
-        }
+        => CloseObservationSession(ClashOfRimGameComponent.ActiveRemoteMapSession);
 
-        CloseObservationMap(mapParent);
-        return true;
+    internal static bool CloseObservationSession(ActiveRemoteMapSession? session)
+    {
+        if (session?.IsObservation != true || !ReferenceEquals(session, ClashOfRimGameComponent.ActiveRemoteMapSession)) return false;
+        var parent = FindActiveSessionMap(session);
+        return parent is not null && !parent.IsRaidBattle && CloseObservation(parent);
     }
 
-    public static void CloseObservationMap(MapParent? mapParent)
-    {
-        if (mapParent is null)
-        {
-            return;
-        }
+    public static void CloseObservationMap(MapParent? mapParent) => CloseObservation(mapParent);
 
-        Map? map = mapParent.Map;
-        RemoteSessionMapParent? temporary = mapParent as RemoteSessionMapParent;
-        if (map is not null && Current.Game?.Maps?.Contains(map) == true)
-        {
-            RaidTrapVisibilityController.EndHiddenTrapSession(map);
-            RemoteSessionPocketMapUtility.ClosePocketMapsForSource(map, "remote session map close");
-            PrepareCurrentMapForRemoval(map);
-            RemoteSessionThingCleanup.DiscardMarkedMapThings(map, temporary, "remote session map close");
-            using (RemoteSessionGlobalStateGuard.BeginSuppressRemoteMapRemovalGlobalEffects())
-            {
-                Current.Game.DeinitAndRemoveMap(map, notifyPlayer: false);
-            }
-            RemoteSessionThingCleanup.DiscardMarkedReferencePawns(temporary, "remote session map close");
-        }
-        RemoteSessionThingCleanup.DiscardMarkedReferencePawns(temporary, "remote session map close");
-
-        if (temporary is not null && Find.WorldObjects?.Contains(temporary) == true)
-        {
-            Find.WorldObjects.Remove(temporary);
-        }
-
-        ClashOfRimGameComponent.RemoveRemoteMapThingIdentities(
-            sessionId: temporary?.SessionId,
-            relatedEventId: temporary?.RelatedEventId,
-            mapUniqueId: map is null ? null : map.uniqueID.ToString());
-        ClashOfRimGameComponent.ClearActiveObservationSession(
-            temporary?.SessionId);
-        RemoteMapSnapshotProjector.CleanupUnusedRemoteNpcFactions("remote session map close");
-        Messages.Message(
-            ClashOfRimText.Key("ClashOfRim.RemoteSessionMap.Closed"),
-            MessageTypeDefOf.NeutralEvent,
-            historical: false);
-    }
+    private static bool CloseObservation(MapParent? parent)
+        => parent is not null && parent is not RemoteSessionMapParent { IsRaidBattle: true }
+            && AIRsLight.ClashOfRim.Modules.Maps.ClientRemoteMapClosure.Close(
+                new ClientRemoteMapCloseOperation(parent), "remote session map close", clearActiveSession: true);
 
     public static bool CloseRaidBattleMap(string? relatedEventId, string reason, bool clearActiveSession = true)
     {
-        WorldObjectsHolder? worldObjects = Current.Game?.World?.worldObjects;
-        if (worldObjects is null)
-        {
-            Log.Warning("[ClashOfRim][Raid] Refused to close raid battle map before world objects were available: event="
-                + (relatedEventId ?? string.Empty)
-                + ", reason="
-                + (reason ?? string.Empty)
-                + ".");
-            return false;
-        }
-
-        RemoteSessionMapParent? battle = worldObjects.AllWorldObjects
-            .OfType<RemoteSessionMapParent>()
-            .FirstOrDefault(parent =>
-                parent.IsRaidBattle
-                && (string.IsNullOrWhiteSpace(relatedEventId)
-                    || string.Equals(parent.RelatedEventId, relatedEventId, StringComparison.Ordinal)));
-        if (battle is null)
-        {
-            return false;
-        }
-
-        Map? map = battle.Map;
-        if (map is not null && Current.Game?.Maps?.Contains(map) == true)
-        {
-            if (!ReferenceEquals(map.Parent, battle))
-            {
-                Log.Warning("[ClashOfRim][Raid] Refused to close raid battle because its map parent did not match the battle world object: event="
-                    + (battle.RelatedEventId ?? string.Empty)
-                    + ", map=Map_"
-                    + map.uniqueID
-                    + ", reason="
-                    + (reason ?? string.Empty)
-                    + ".");
-                return false;
-            }
-
-            RaidTrapVisibilityController.EndHiddenTrapSession(map);
-            RemoteSessionPocketMapUtility.ClosePocketMapsForSource(map, reason);
-            PrepareCurrentMapForRemoval(map);
-            RemoteSessionThingCleanup.DiscardMarkedMapThings(map, battle, reason);
-            explicitRaidBattleMapCloseDepth++;
-            try
-            {
-                using (RemoteSessionGlobalStateGuard.BeginSuppressRemoteMapRemovalGlobalEffects())
-                {
-                    Current.Game.DeinitAndRemoveMap(map, notifyPlayer: false);
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.Warning("[ClashOfRim][Raid] Raid battle map removal threw during "
-                    + (reason ?? string.Empty)
-                    + "; continuing session cleanup: "
-                    + ex);
-            }
-            finally
-            {
-                explicitRaidBattleMapCloseDepth = Math.Max(0, explicitRaidBattleMapCloseDepth - 1);
-            }
-            RemoteSessionThingCleanup.DiscardMarkedReferencePawns(battle, reason);
-        }
-        RemoteSessionThingCleanup.DiscardMarkedReferencePawns(battle, reason);
-
-        if (worldObjects.Contains(battle))
-        {
-            worldObjects.Remove(battle);
-        }
-
-        ClashOfRimGameComponent.RemoveRemoteMapThingIdentities(
-            sessionId: battle.SessionId,
-            relatedEventId: battle.RelatedEventId,
-            mapUniqueId: map is null ? null : map.uniqueID.ToString());
-        if (clearActiveSession)
-        {
-            ClashOfRimGameComponent.ClearActiveRaidBattleSession(battle.RelatedEventId);
-        }
-        RemoteMapSnapshotProjector.CleanupUnusedRemoteNpcFactions(reason);
-
-        ClashLog.Message("[ClashOfRim][Raid] Closed raid battle map for event "
-            + (battle.RelatedEventId ?? string.Empty)
-            + ": "
-            + reason);
-        return true;
+        // An omitted event must never select an arbitrary currently active battle.
+        if (string.IsNullOrWhiteSpace(relatedEventId)) return false;
+        var battle = Current.Game?.World?.worldObjects?.AllWorldObjects.OfType<RemoteSessionMapParent>()
+            .FirstOrDefault(parent => parent.IsRaidBattle && string.Equals(parent.RelatedEventId, relatedEventId, StringComparison.Ordinal));
+        return battle is not null && AIRsLight.ClashOfRim.Modules.Maps.ClientRemoteMapClosure.Close(
+            new ClientRemoteMapCloseOperation(battle), reason, clearActiveSession);
     }
 
-    private static bool MatchesSession(RemoteSessionMapParent? parent, ActiveRemoteMapSession session)
+    internal static bool CloseRaidBattleSession(ActiveRaidBattleSession session, string reason, bool clearActiveSession)
+    {
+        if (!ClientRemoteSessionRuntime.Owns(session)) return false;
+        var parent = FindActiveSessionMap(ActiveRemoteMapSession.FromRaidBattle(session));
+        return parent is not null && AIRsLight.ClashOfRim.Modules.Maps.ClientRemoteMapClosure.Close(
+            new ClientRemoteMapCloseOperation(parent), reason, clearActiveSession);
+    }
+
+    internal static bool MatchesSession(RemoteSessionMapParent? parent, ActiveRemoteMapSession session)
     {
         if (parent is null)
         {
@@ -329,6 +222,9 @@ public static class RemoteSessionMapUtility
         {
             return false;
         }
+
+        if (!string.IsNullOrWhiteSpace(session.ClientMapId) && parent.Map is Map map
+            && !AIRsLight.ClashOfRim.Modules.Maps.ClientMapIdentity.MapIdsMatch("Map_" + map.uniqueID, session.ClientMapId)) return false;
 
         if (!string.IsNullOrWhiteSpace(session.RelatedEventId))
         {
@@ -353,15 +249,17 @@ public static class RemoteSessionMapUtility
         return true;
     }
 
-    private static void CloseExistingSessionMaps()
+    internal static bool CloseExistingSessionMaps()
     {
+        var game = Current.Game;
         foreach (RemoteSessionMapParent existing in Find.WorldObjects.AllWorldObjects
                      .OfType<RemoteSessionMapParent>()
                      .Where(existing => !existing.IsRaidBattle)
                      .ToList())
         {
-            Close(existing);
+            if (!CloseObservation(existing) || !ReferenceEquals(Current.Game, game)) return false;
         }
+        return !HasBlockingRemoteSessionMap(closeExistingObservationSessions: false, out _);
     }
 
     private static bool HasBlockingRemoteSessionMap(
@@ -438,7 +336,7 @@ public static class RemoteSessionMapUtility
         return ScoutMapParentDefName;
     }
 
-    private static void PrepareCurrentMapForRemoval(Map map)
+    internal static void PrepareCurrentMapForRemoval(Map map)
     {
         if (Current.Game is null || !ReferenceEquals(Current.Game.CurrentMap, map))
         {

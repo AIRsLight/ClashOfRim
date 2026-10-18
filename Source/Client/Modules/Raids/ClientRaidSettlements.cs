@@ -49,7 +49,8 @@ internal sealed class ClientRaidSettlements : IClientRaidSettlementActions
     {
         using var p = ClientSessionWork.EnterPublication();
         if (!OwnsBattle(runtime) || string.IsNullOrWhiteSpace(runtime.Identity.EventId)) return;
-        runtime.CloseExpired(closeLocalMap);
+        var owner = session.CaptureOwnership(); var context = session.ReadContext();
+        if (!runtime.CloseExpired(closeLocalMap) || !session.Owns(owner, context, requireSnapshot: true)) return;
         recovery.Close();
         string message = Text("StatusSettlementFinalDeadlineExpired"); presentation.Status(message); presentation.Message(message, false);
         Expired?.Invoke(runtime.Identity.EventId);
@@ -154,7 +155,9 @@ internal sealed class ClientRaidSettlements : IClientRaidSettlementActions
                 {
                     if (session.ReadContext().CurrentSnapshotId != response.AppliedSnapshotId || !job.Runtime.IsCurrent) return;
                     job.Closing = true;
-                    job.Runtime.CloseAccepted(job.Reason);
+                    if (!job.Runtime.CloseAccepted(job.Reason)
+                        || !transactions.TryApply(attempt, static () => { }, requireBaseSnapshot: false)
+                        || session.ReadContext().CurrentSnapshotId != response.AppliedSnapshotId) return;
                     inbox.ForgetGroup(job.Identity.EventId);
                     presentation.Status(Text("StatusSettlementSucceeded", ("SNAPSHOT", response.AppliedSnapshotId)));
                     presentation.Message(Text("SettlementSucceededMessage"), true);

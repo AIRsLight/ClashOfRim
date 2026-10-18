@@ -1,4 +1,3 @@
-using static AIRsLight.ClashOfRim.Modules.Maps.ClientMapIdentity;
 using System;
 using System.Linq;
 using AIRsLight.ClashOfRim.ClientNetwork;
@@ -23,7 +22,7 @@ public static class RemoteMapSessionController
         string raidFinishReason,
         bool requireConfirmation = false)
     {
-        if (session is null || !session.IsActive)
+        if (session is null || !session.IsActive || !ReferenceEquals(session, ClashOfRimGameComponent.ActiveRemoteMapSession))
         {
             return false;
         }
@@ -37,7 +36,7 @@ public static class RemoteMapSessionController
                 requireConfirmation);
         }
 
-        return RemoteSessionMapUtility.CloseActiveObservationMap();
+        return RemoteSessionMapUtility.CloseObservationSession(session);
     }
 
     public static bool TryRequestRaidBattleFinish(
@@ -46,25 +45,27 @@ public static class RemoteMapSessionController
         string finishReason,
         bool requireConfirmation = false)
     {
-        if (mod is null || session is null || session.FinishInProgress)
+        if (mod is null || !ClientRemoteSessionRuntime.Owns(session) || session.FinishInProgress)
         {
             return false;
         }
 
+        var game = Current.Game;
         string reason = finishReason ?? string.Empty;
         if (requireConfirmation)
         {
-            ShowRaidBattleFinishConfirmation(mod, session, reason);
+            ShowRaidBattleFinishConfirmation(mod, session, reason, game);
             return true;
         }
 
-        return StartRaidBattleFinish(mod, session, reason);
+        return StartRaidBattleFinish(mod, session, reason, game);
     }
 
     private static void ShowRaidBattleFinishConfirmation(
         ClashOfRimMod mod,
         ActiveRaidBattleSession session,
-        string finishReason)
+        string finishReason,
+        Game game)
     {
         int playerPawnCount = CountPlayerPawnsOnRaidBattleMap(session);
         string text = playerPawnCount > 0
@@ -74,14 +75,16 @@ public static class RemoteMapSessionController
             : ClashOfRimText.Key("ClashOfRim.Raid.ConfirmFinishNoPawns");
         Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation(
             text,
-            () => StartRaidBattleFinish(mod, session, finishReason)));
+            () => StartRaidBattleFinish(mod, session, finishReason, game)));
     }
 
     private static bool StartRaidBattleFinish(
         ClashOfRimMod mod,
         ActiveRaidBattleSession session,
-        string reason)
+        string reason,
+        Game game)
     {
+        if (!ReferenceEquals(Current.Game, game) || !ClientRemoteSessionRuntime.Owns(session) || session.FinishInProgress) return false;
         ClashLog.Message("[ClashOfRim][RemoteSession] Requesting raid battle finish: event="
             + session.EventId
             + ", reason="
@@ -107,188 +110,24 @@ public static class RemoteMapSessionController
     }
 
     private static Map? FindRaidBattleMap(ActiveRaidBattleSession session)
-    {
-        string runtimeMapId = string.IsNullOrWhiteSpace(session.ClientMapId)
-            ? session.TargetMapId
-            : session.ClientMapId;
-        if (Find.Maps is null || string.IsNullOrWhiteSpace(runtimeMapId))
-        {
-            return null;
-        }
+        => RemoteSessionMapUtility.FindActiveSessionMap(ActiveRemoteMapSession.FromRaidBattle(session))?.Map;
 
-        return Find.Maps.FirstOrDefault(map =>
-            map is not null
-            && MapIdsMatch("Map_" + map.uniqueID, runtimeMapId));
-    }
-
-    public static bool TryBeginRaidBattleFinish(ActiveRaidBattleSession? session)
-    {
-        if (session is null || string.IsNullOrWhiteSpace(session.EventId) || session.FinishInProgress)
-        {
-            return false;
-        }
-
-        PauseRaidBattleTicking();
-        ClashOfRimGameComponent.MarkRaidBattleFinishInProgress(session.EventId, inProgress: true);
-        ClashLog.Message("[ClashOfRim][RemoteSession] Raid battle finish started: event="
-            + session.EventId
-            + ".");
-        return true;
-    }
-
-    public static void KeepRaidBattleFinishInProgress(ActiveRaidBattleSession? session)
-    {
-        if (session is null || string.IsNullOrWhiteSpace(session.EventId))
-        {
-            return;
-        }
-
-        PauseRaidBattleTicking();
-        ClashOfRimGameComponent.MarkRaidBattleFinishInProgress(session.EventId, inProgress: true);
-        ClashLog.Message("[ClashOfRim][RemoteSession] Raid battle finish kept in progress: event="
-            + session.EventId
-            + ".");
-    }
-
-    public static void ResetRaidBattleFinish(ActiveRaidBattleSession? session)
-    {
-        if (session is null || string.IsNullOrWhiteSpace(session.EventId))
-        {
-            return;
-        }
-
-        ClashOfRimGameComponent.MarkRaidBattleFinishInProgress(session.EventId, inProgress: false);
-        ClashLog.Message("[ClashOfRim][RemoteSession] Raid battle finish reset: event="
-            + session.EventId
-            + ".");
-    }
-
+    public static bool TryBeginRaidBattleFinish(ActiveRaidBattleSession? session) => ClientRemoteSessionRuntime.TryBeginRaidBattleFinish(session);
+    public static void KeepRaidBattleFinishInProgress(ActiveRaidBattleSession? session) => ClientRemoteSessionRuntime.KeepRaidBattleFinishInProgress(session);
+    public static void ResetRaidBattleFinish(ActiveRaidBattleSession? session) => ClientRemoteSessionRuntime.ResetRaidBattleFinish(session);
     public static bool CloseRaidBattleAfterSettlementAccepted(ActiveRaidBattleSession session, string finishReason)
-    {
-        if (session is null)
-        {
-            return false;
-        }
-
-        bool closed = RemoteSessionMapUtility.CloseRaidBattleMap(
-            session.EventId,
-            "raid settlement accepted: " + finishReason,
-            clearActiveSession: false);
-        ClashLog.Message("[ClashOfRim][RemoteSession] Closed raid battle after settlement upload was accepted: event="
-            + session.EventId
-            + ", reason="
-            + (finishReason ?? string.Empty)
-            + ", closed="
-            + closed
-            + ".");
-        return closed;
-    }
-
+        => ClientRemoteSessionRuntime.CloseRaidBattleAfterSettlementAccepted(session, finishReason);
     public static bool CloseRaidBattleForExternalResolution(string? eventId, string reason)
-    {
-        bool closed = RemoteSessionMapUtility.CloseRaidBattleMap(eventId, reason);
-        ClashLog.Message("[ClashOfRim][RemoteSession] Closed raid battle for external resolution: event="
-            + (eventId ?? string.Empty)
-            + ", reason="
-            + (reason ?? string.Empty)
-            + ", closed="
-            + closed
-            + ".");
-        return closed;
-    }
-
+        => ClientRemoteSessionRuntime.CloseRaidBattleForExternalResolution(eventId, reason);
     public static bool CloseRaidBattleForFinalDeadline(ActiveRaidBattleSession session)
-    {
-        if (session is null || string.IsNullOrWhiteSpace(session.EventId))
-        {
-            return false;
-        }
-
-        PauseRaidBattleTicking();
-        bool closed = RemoteSessionMapUtility.CloseRaidBattleMap(
-            session.EventId,
-            "raid settlement final deadline expired");
-        ClashOfRimGameComponent.ClearActiveRaidBattleSession(session.EventId);
-        ClashLog.Message("[ClashOfRim][RemoteSession] Closed raid battle at final deadline: event="
-            + session.EventId
-            + ", closed="
-            + closed
-            + ".");
-        return closed;
-    }
-
-    public static void CloseObservation(RemoteSessionMapParent? mapParent)
-    {
-        RemoteSessionMapUtility.CloseObservationMap(mapParent);
-    }
-
-    public static ActiveRemoteMapSession RegisterOpenedObservation(
-        RemoteSessionMapOpenRequest request,
-        RemoteSessionMapOpenResult result)
-    {
-        ActiveRemoteMapSession session = ActiveRemoteMapSession.FromOpenedObservation(request, result);
-        ClashOfRimGameComponent.SetActiveObservationSession(session);
-        ClashLog.Message("[ClashOfRim][RemoteSession] Registered observation session: session="
-            + session.SessionId
-            + ", mode="
-            + session.Mode
-            + ", target="
-            + session.TargetUserId
-            + ".");
-        return session;
-    }
-
-    public static ActiveRaidBattleSession CreateRaidBattleSession(
-        string raidEventId,
-        string attackerUserId,
-        string attackerColonyId,
-        string attackerSnapshotId,
-        RemoteSessionMapOpenRequest request,
-        RemoteSessionMapOpenResult result,
-        string defenderLineageToken,
-        TimeSpan battleDuration,
-        TimeSpan settlementGraceDuration,
-        ModRaidGuardDeploymentDto? guardDeployment = null)
-    {
-        DateTime nowUtc = DateTime.UtcNow;
-        ActiveRaidBattleSession session = new()
-        {
-            EventId = raidEventId,
-            AttackerUserId = attackerUserId,
-            AttackerColonyId = attackerColonyId,
-            AttackerSnapshotId = attackerSnapshotId,
-            DefenderUserId = request.Target.OwnerUserId ?? string.Empty,
-            DefenderColonyId = request.Target.OwnerColonyId ?? string.Empty,
-            DefenderSnapshotId = request.SnapshotId ?? string.Empty,
-            DefenderLineageToken = defenderLineageToken ?? string.Empty,
-            TargetWorldObjectId = request.Target.WorldObjectId ?? string.Empty,
-            TargetMapId = request.Target.MapId ?? string.Empty,
-            ClientMapId = result.Map is null ? string.Empty : "Map_" + result.Map.uniqueID,
-            TargetTile = request.Target.Tile,
-            SavePath = "memory:" + request.SessionId,
-            StartedAtUtcTicks = nowUtc.Ticks,
-            DeadlineUtcTicks = nowUtc.Add(battleDuration).Ticks,
-            FinalDeadlineUtcTicks = nowUtc.Add(battleDuration).Add(settlementGraceDuration).Ticks,
-            GuardDeploymentId = guardDeployment?.ContractId ?? string.Empty,
-            GuardDeploymentTier = guardDeployment?.Tier ?? string.Empty,
-            GuardDeploymentPoints = Math.Max(0, guardDeployment?.Points ?? 0),
-            GuardDeploymentSeed = guardDeployment?.Seed ?? 0
-        };
-        ClashLog.Message("[ClashOfRim][RemoteSession] Created raid battle session: event="
-            + session.EventId
-            + ", defender="
-            + session.DefenderUserId
-            + ", clientMap="
-            + session.ClientMapId
-            + ".");
-        return session;
-    }
-
-    public static void PauseRaidBattleTicking()
-    {
-        if (Find.TickManager is not null)
-        {
-            Find.TickManager.CurTimeSpeed = TimeSpeed.Paused;
-        }
-    }
+        => ClientRemoteSessionRuntime.CloseRaidBattleForFinalDeadline(session);
+    public static void CloseObservation(RemoteSessionMapParent? mapParent) => ClientRemoteSessionRuntime.CloseObservation(mapParent);
+    public static ActiveRemoteMapSession RegisterOpenedObservation(RemoteSessionMapOpenRequest request, RemoteSessionMapOpenResult result)
+        => ClientRemoteSessionRuntime.RegisterOpenedObservation(request, result);
+    public static ActiveRaidBattleSession CreateRaidBattleSession(string raidEventId, string attackerUserId,
+        string attackerColonyId, string attackerSnapshotId, RemoteSessionMapOpenRequest request, RemoteSessionMapOpenResult result,
+        string defenderLineageToken, TimeSpan battleDuration, TimeSpan settlementGraceDuration, ModRaidGuardDeploymentDto? guardDeployment = null)
+        => ClientRemoteSessionRuntime.CreateRaidBattleSession(raidEventId, attackerUserId, attackerColonyId, attackerSnapshotId,
+            request, result, defenderLineageToken, battleDuration, settlementGraceDuration, guardDeployment);
+    public static void PauseRaidBattleTicking() => ClientRemoteSessionRuntime.PauseRaidBattleTicking();
 }

@@ -98,9 +98,9 @@ internal static class ClientRaidSupportLossSourceTests
     }
     private static void SettlementRuntime(Harmony harmony)
     {
-        Patch(harmony, AccessTools.Method(typeof(RemoteMapSessionController), nameof(RemoteMapSessionController.PauseRaidBattleTicking)), nameof(SkipEffect));
+        Patch(harmony, AccessTools.Method(typeof(ClientRemoteSessionRuntime), nameof(ClientRemoteSessionRuntime.PauseRaidBattleTicking)), nameof(SkipEffect));
         Patch(harmony, AccessTools.Method(typeof(ClashLog), nameof(ClashLog.Message)), nameof(SkipEffect));
-        Patch(harmony, AccessTools.Method(typeof(RemoteSessionMapUtility), nameof(RemoteSessionMapUtility.CloseRaidBattleMap)), nameof(ClosePrefix));
+        Patch(harmony, AccessTools.Method(typeof(RemoteSessionMapUtility), nameof(RemoteSessionMapUtility.CloseRaidBattleSession)), nameof(ClosePrefix));
         Reset(); battle.AttackerUserId = "alice"; battle.AttackerColonyId = "colony"; battle.TargetMapId = "42";
         var runtime = new ClientRaidSettlementRuntime(battle);
         battle.TargetMapId = "changed";
@@ -188,7 +188,7 @@ internal static class ClientRaidSupportLossSourceTests
     private static bool RecoveryMapPrefix(ref Map? __result) { __result = recoveryMap; return false; }
     private static bool FindRecoveryMap(ActiveRemoteMapSession? __0, ref RemoteSessionMapParent? __result)
     { Check(__0?.RelatedEventId == "raid", "Recovery looked up another event."); __result = recoveryParent; return false; }
-    private static bool ClosePrefix(string? __0, string __1, bool __2, ref bool __result)
-    { closed.Add((__0, __1, __2)); __result = true; return false; }
+    private static bool ClosePrefix(ActiveRaidBattleSession __0, string __1, bool __2, ref bool __result)
+    { closed.Add((__0.EventId, __1, __2)); __result = true; return false; }
     private static void Check(bool condition, string message) { if (!condition) throw new Exception(message); }
 }

@@ -14,7 +14,7 @@ internal sealed class ClientObservationRuntime : IClientObservationRuntime
         ClashLog.Message("[ClashOfRim][Observation] Opening " + request.Mode + " snapshot target="
             + request.Target.OwnerUserId + "/" + request.Target.OwnerColonyId + ", snapshot=" + request.SnapshotId);
         if (!RemoteSessionMapUtility.TryOpen(request, out var result)) return result.FailureReason;
-        RemoteMapSessionController.RegisterOpenedObservation(request, result);
+        ClientRemoteSessionRuntime.RegisterOpenedObservation(request, result);
         return null;
     }
 }

@@ -40,7 +40,7 @@ internal sealed class ClientEventApplicationRuntime : IClientEventApplicationRun
         {
             if (!RaidAttackerLossPayloadReader.TryRead(detail, context.CurrentSnapshotId, out var request, out string message) || request is null)
                 return new(false, message, string.Empty);
-            RemoteMapSessionController.CloseRaidBattleForExternalResolution(request.SourceRaidEventId, "raid attacker loss event applied");
+            ClientRemoteSessionRuntime.CloseRaidBattleForExternalResolution(request.SourceRaidEventId, "raid attacker loss event applied");
             var result = RaidAttackerLossApplicator.Apply(request);
             return new(result.Applied, result.FailureReason ?? string.Empty, result.Kind.ToString(), request.SourceRaidEventId);
         }

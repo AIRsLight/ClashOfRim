@@ -26,11 +26,11 @@ internal sealed class ClientRaidLaunchRuntime : IClientRaidLaunchRuntime
             CloseExistingObservationSessions = true, FailureCleanupReason = "raid battle map generation failure"
         };
         if (!RemoteSessionMapUtility.TryOpen(request, out var result)) return result.FailureReason;
-        battle = RemoteMapSessionController.CreateRaidBattleSession(prepared.EventId, context.UserId, context.ColonyId,
+        battle = ClientRemoteSessionRuntime.CreateRaidBattleSession(prepared.EventId, context.UserId, context.ColonyId,
             context.CurrentSnapshotId ?? string.Empty, request, result, prepared.Snapshot.Package.NextLineageToken ?? string.Empty,
             prepared.BattleDuration, prepared.SettlementGraceDuration, prepared.Guards);
         if (force.TryEnterBattle(battle, result.Map, out var failure)) return null;
-        RemoteMapSessionController.CloseRaidBattleForExternalResolution(battle.EventId, "raid attack pawn transfer failed");
+        ClientRemoteSessionRuntime.CloseRaidBattleForExternalResolution(battle.EventId, "raid attack pawn transfer failed");
         return failure;
     }
     public bool HasBattle => battle is not null && ReferenceEquals(ClashOfRimGameComponent.ActiveRaidBattleSession, battle)
