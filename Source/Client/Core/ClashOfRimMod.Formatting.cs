@@ -73,7 +73,7 @@ public sealed partial class ClashOfRimMod
             pvpEnabled = delivery?.PvpEnabled ?? true;
         }
 
-        MergeOccupiedPlayerColonySitesFromWorldMapMarkers(markers);
+        occupiedColonySites.Merge(markers);
         string sourceLabel = string.IsNullOrWhiteSpace(source)
             ? "unspecified"
             : source!;

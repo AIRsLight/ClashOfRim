@@ -161,10 +161,9 @@ public sealed partial class ClashOfRimMod : Mod
     private readonly ClientInitialWorldSetup initialWorldSetup;
     private readonly List<ModChatMessageDto> lastChatMessages = new();
     private readonly List<ModWorldMapMarkerDto> lastWorldMapMarkers = new();
-    private readonly Dictionary<string, ModPlayerColonySiteDto> occupiedPlayerColonySites = new(StringComparer.Ordinal);
+    private readonly ClientOccupiedColonySites occupiedColonySites;
     private readonly object eventStateLock = new();
     private readonly object chatStateLock = new();
-    private readonly object colonySiteStateLock = new();
     private long lastChatSequence;
     private long lastReadPrivateChatSequence;
     private int chatMessagesSnapshotVersion;
@@ -302,15 +301,17 @@ public sealed partial class ClashOfRimMod : Mod
         var featureCatalogs = new ClientWorldFeatureCatalogs(sessionLifecycle, worldTransport);
         featureCatalogs.Diagnostic += message => Log.Warning(message);
         worldConfiguration = new ClientWorldConfiguration(sessionLifecycle, new ClientWorldConfigurationRuntime(), entryStore, storytellerConfiguration, featureCatalogs);
+        occupiedColonySites = new ClientOccupiedColonySites(sessionLifecycle, entryStore, new ClientOccupiedColonySitesRuntime(), worldConfiguration);
+        occupiedColonySites.OwnAppearanceObserved += CacheServerColonyAppearance;
         worldCatalog = new ClientWorldCatalog(sessionLifecycle, new ClientWorldCatalogRuntime(), worldTransport,
             new ClientWorldCatalogPresentation(message => worldMapStatus = message), worldConfiguration);
         worldCatalog.CompatibilityAccepted += CaptureServerCompatibilityManifest;
         worldCatalog.AdministratorObserved += value => administration.ObservePermission(value, refresh: true);
-        worldCatalog.Applied += UpdateOccupiedPlayerColonySites;
+        worldCatalog.Applied += occupiedColonySites.Replace;
         var worldWritePresentation = new ClientWorldWritePresentation(message => administration.Message = message);
         worldWrites = new ClientWorldWrites(sessionLifecycle, adminAccess, worldBaselineCapture, worldBaselineSubmission,
             storytellerConfiguration, worldConfiguration, worldWritePresentation, worldWritePresentation);
-        worldWrites.Applied += UpdateOccupiedPlayerColonySites;
+        worldWrites.Applied += occupiedColonySites.Replace;
         worldWrites.BaselineUpdated += () => RequestWorldMapMarkerRefresh(ClashOfRimText.Key("ClashOfRim.Admin.WorldBaselineRefreshReason"));
         var initialWorldPresentation = new ClientInitialWorldPresentation(message => loginStatus = message, message => snapshotUploadStatus = message, sessionConnection);
         initialWorldSetup = new ClientInitialWorldSetup(sessionLifecycle, worldSetup, synchronization, worldBaselineCapture, worldBaselineSubmission,
@@ -338,7 +339,7 @@ public sealed partial class ClashOfRimMod : Mod
         {
             CaptureServerCompatibilityManifest(response.ServerCompatibilityManifestJson);
             ApplyAdministratorFlag(response.IsAdministrator);
-            UpdateOccupiedPlayerColonySites(response.WorldConfiguration);
+            occupiedColonySites.Replace(response.WorldConfiguration);
         };
         observationMaps = new ClientObservationMaps(sessionLifecycle, synchronization, new ClientSnapshotGame(),
             new ClientObservationTransport(), new ClientObservationRuntime(),

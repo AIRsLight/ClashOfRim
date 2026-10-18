@@ -37,50 +37,12 @@ public sealed partial class ClashOfRimMod
         => worldGeneration.TryStart(new ClientWorldGenerationPage(createWorldPage));
 
     internal bool IsBlockedByServerColonySite(int tile, out ModPlayerColonySiteDto? blockingSite)
-    {
-        blockingSite = null;
-        if (Find.WorldGrid is null)
-        {
-            return false;
-        }
-
-        List<ModPlayerColonySiteDto> sites;
-        lock (colonySiteStateLock)
-        {
-            if (occupiedPlayerColonySites.Count == 0)
-            {
-                return false;
-            }
-
-            sites = occupiedPlayerColonySites.Values.ToList();
-        }
-
-        foreach (ModPlayerColonySiteDto site in sites)
-        {
-            if (!IsValidTile(site.Tile))
-            {
-                continue;
-            }
-
-            if (Find.WorldGrid.IsNeighborOrSame(tile, site.Tile))
-            {
-                blockingSite = site;
-                return true;
-            }
-        }
-
-        return false;
-    }
+        => occupiedColonySites.IsBlocked(tile, 0, out blockingSite);
 
     internal bool IsBlockedByServerColonySite(PlanetTile tile, out ModPlayerColonySiteDto? blockingSite)
     {
         blockingSite = null;
-        if (!tile.Valid || tile.LayerDef.isSpace)
-        {
-            return false;
-        }
-
-        return IsBlockedByServerColonySite(tile.tileId, out blockingSite);
+        return tile.Valid && occupiedColonySites.IsBlocked(tile.tileId, ReadPlanetTileLayerId(tile), out blockingSite);
     }
 
     internal static string FormatBlockedColonySite(ModPlayerColonySiteDto site)
@@ -94,86 +56,6 @@ public sealed partial class ClashOfRimMod
         return string.IsNullOrWhiteSpace(label)
             ? $"{owner}@{site.Tile}"
             : $"{owner}/{label}@{site.Tile}";
-    }
-
-    private void UpdateOccupiedPlayerColonySites(ModWorldConfigurationDto? configuration)
-    {
-        RememberWorldConfigurationIdentity(configuration);
-        List<string> remoteSiteOwners = new();
-        lock (colonySiteStateLock)
-        {
-            occupiedPlayerColonySites.Clear();
-            if (configuration?.PlayerColonySites is null)
-            {
-                return;
-            }
-
-            foreach (ModPlayerColonySiteDto site in configuration.PlayerColonySites)
-            {
-                if (site.Tile >= 0)
-                {
-                    occupiedPlayerColonySites[ColonySiteCacheKey(site)] = site;
-                    if (string.Equals(site.UserId, settings.UserId, StringComparison.Ordinal)
-                        && string.Equals(site.ColonyId, settings.ColonyId, StringComparison.Ordinal))
-                    {
-                        CacheServerColonyAppearance(site.Appearance);
-                    }
-
-                    if (!string.IsNullOrWhiteSpace(site.UserId)
-                        && !string.Equals(site.UserId, settings.UserId, StringComparison.Ordinal)
-                        && !remoteSiteOwners.Contains(site.UserId, StringComparer.Ordinal))
-                    {
-                        remoteSiteOwners.Add(site.UserId);
-                    }
-                }
-            }
-        }
-
-        foreach (string owner in remoteSiteOwners)
-        {
-            PlayerFactionProxyUtility.EnsureProxyForUser(owner);
-        }
-    }
-
-    private void RememberWorldConfigurationIdentity(ModWorldConfigurationDto? configuration) => worldConfiguration.Remember(configuration);
-
-    private void MergeOccupiedPlayerColonySitesFromWorldMapMarkers(IEnumerable<ModWorldMapMarkerDto> markers)
-    {
-        List<ModPlayerColonySiteDto> colonySites = markers
-            .Where(marker => string.Equals(marker.Kind, "TradeableColony", StringComparison.Ordinal))
-            .Where(marker => marker.Tile >= 0)
-            .Where(marker => !string.IsNullOrWhiteSpace(marker.OwnerUserId))
-            .Select(marker => new ModPlayerColonySiteDto
-            {
-                UserId = marker.OwnerUserId,
-                ColonyId = marker.OwnerColonyId ?? string.Empty,
-                WorldObjectId = marker.WorldObjectId,
-                MapUniqueId = marker.MapId,
-                Tile = marker.Tile,
-                TileLayerId = marker.TileLayerId,
-                Label = marker.Label,
-                Appearance = marker.Appearance
-            })
-            .ToList();
-        if (colonySites.Count == 0)
-        {
-            return;
-        }
-
-        lock (colonySiteStateLock)
-        {
-            foreach (ModPlayerColonySiteDto site in colonySites)
-            {
-                occupiedPlayerColonySites[ColonySiteCacheKey(site)] = site;
-            }
-        }
-    }
-
-    private static string ColonySiteCacheKey(ModPlayerColonySiteDto site)
-    {
-        return site.Tile.ToString(CultureInfo.InvariantCulture)
-            + ","
-            + site.TileLayerId.ToString(CultureInfo.InvariantCulture);
     }
 
     internal void SubmitInitialWorldConfigurationIfPending()

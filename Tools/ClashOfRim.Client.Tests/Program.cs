@@ -19,6 +19,8 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("occupied colony sites runtime preserves engine layer identity", ClientOccupiedColonySitesRuntimeTests.Run),
+    ("occupied colony sites own layered cache and publication boundaries", ClientOccupiedColonySitesTests.Run),
     ("initial world setup owns provisioning and snapshot handoff", ClientInitialWorldSetupTests.Run),
     ("administrator baseline runtime preserves definition and stat catalogs without a game", ClientAdminBaselineRuntimeTests.Run),
     ("administrator baseline protocol freezes setup input and shares two wire contracts", ClientAdminBaselineProtocolTests.Run),

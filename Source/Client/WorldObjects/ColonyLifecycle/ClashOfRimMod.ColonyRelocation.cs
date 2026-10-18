@@ -458,7 +458,7 @@ public sealed partial class ClashOfRimMod
                         playerColonySiteRegistrationSuppressed = false;
                     }
 
-                    UpdateOccupiedPlayerColonySites(result.Response.WorldConfiguration);
+                    occupiedColonySites.Replace(result.Response.WorldConfiguration);
                     CaptureWorldMapMarkers(result.Response.WorldMapMarkers, source: "colony-relocation");
                     lastRegisteredPlayerColonySiteSignature = null;
                     ClearImplicitColonyRelocationFlightState();

@@ -188,10 +188,7 @@ public sealed partial class ClashOfRimMod
             chatMessagesSnapshotVersion++;
         }
 
-        lock (colonySiteStateLock)
-        {
-            occupiedPlayerColonySites.Clear();
-        }
+        occupiedColonySites.Reset();
     }
 
     internal void StartRefreshChatMessages(bool initialLoad = false)
@@ -715,7 +712,7 @@ public sealed partial class ClashOfRimMod
                 ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
                 {
                     ApplyServerWorldConfigurationExtensionCatalog(worldConfiguration);
-                    UpdateOccupiedPlayerColonySites(worldConfiguration);
+                    occupiedColonySites.Replace(worldConfiguration);
                     CaptureWorldMapMarkers(worldMapMarkers, source: "player-colony-site-registration");
                 });
                 ClashLog.Message("[ClashOfRim] Player colony sites registered: " + result.Response.AcceptedCount);
@@ -799,7 +796,7 @@ public sealed partial class ClashOfRimMod
                 ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
                 {
                     ApplyServerWorldConfigurationExtensionCatalog(worldConfiguration);
-                    UpdateOccupiedPlayerColonySites(worldConfiguration);
+                    occupiedColonySites.Replace(worldConfiguration);
                     CaptureWorldMapMarkers(worldMapMarkers, source: "world-configuration-extension-sync");
                 });
                 ClashLog.Message("[ClashOfRim] World configuration extensions synced: " + extensions.Count);
@@ -902,7 +899,7 @@ public sealed partial class ClashOfRimMod
                     eventInbox.Reset();
                     tradeState.Reset();
 
-                    UpdateOccupiedPlayerColonySites(result.Response.WorldConfiguration);
+                    occupiedColonySites.Replace(result.Response.WorldConfiguration);
                     CaptureWorldMapMarkers(result.Response.WorldMapMarkers, source: "abandon-colony");
                     settings.Write();
                     Messages.Message(ClashOfRimText.Key("ClashOfRim.AbandonColony.StatusSucceeded"), MessageTypeDefOf.NeutralEvent, false);

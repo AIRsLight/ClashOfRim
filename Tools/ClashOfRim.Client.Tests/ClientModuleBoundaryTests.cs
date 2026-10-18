@@ -60,7 +60,7 @@ internal static class ClientModuleBoundaryTests
             || t == typeof(AIRsLight.ClashOfRim.Admin.ClientAdminBaselineRuntime)
             || t == typeof(AIRsLight.ClashOfRim.Admin.ClientAdminTransport) || t == typeof(AIRsLight.ClashOfRim.Admin.ClientAdminPresentation)
             || t == typeof(ClientWorldWritePresentation) || t == typeof(ClientWorldCatalogRuntime) || t == typeof(ClientWorldCatalogPresentation)
-            || t == typeof(ClientWorldColonySitesRuntime) || t == typeof(ClientWorldBaselineRuntime) || t == typeof(ClientWorldFeaturesRuntime) || t == typeof(ClientWorldNameRuntime)
+            || t == typeof(ClientOccupiedColonySitesRuntime) || t == typeof(ClientWorldColonySitesRuntime) || t == typeof(ClientWorldBaselineRuntime) || t == typeof(ClientWorldFeaturesRuntime) || t == typeof(ClientWorldNameRuntime)
             || t == typeof(ClientWorldConfigurationRuntime) || t == typeof(ClientWorldGenerationRuntime) || t == typeof(ClientWorldGenerationPage) || t == typeof(ClientWorldGenerationPresentation)
             || t == typeof(ClientStorytellerRuntime) || t == typeof(ClientStorytellerPage) || t == typeof(ClientWorldRuntimeValues)
             || t == typeof(ClientWorldSourceGameRuntime) || t == typeof(ClientCompatibilityPresentation) || t == typeof(ClientWorldEntryStore) || t == typeof(ClientWorldPreparationTransport) || t == typeof(ClientWorldEntryPresentation)
@@ -125,7 +125,7 @@ internal static class ClientModuleBoundaryTests
             typeof(AIRsLight.ClashOfRim.Admin.ClientAdminBaselineRuntime),
             typeof(AIRsLight.ClashOfRim.Admin.ClientAdminTransport), typeof(AIRsLight.ClashOfRim.Admin.ClientAdminPresentation),
             typeof(ClientWorldWritePresentation), typeof(ClientWorldCatalogRuntime), typeof(ClientWorldCatalogPresentation),
-            typeof(ClientWorldColonySitesRuntime), typeof(ClientWorldBaselineRuntime), typeof(ClientWorldFeaturesRuntime), typeof(ClientWorldNameRuntime),
+            typeof(ClientOccupiedColonySitesRuntime), typeof(ClientWorldColonySitesRuntime), typeof(ClientWorldBaselineRuntime), typeof(ClientWorldFeaturesRuntime), typeof(ClientWorldNameRuntime),
             typeof(ClientWorldConfigurationRuntime), typeof(ClientWorldGenerationRuntime), typeof(ClientWorldGenerationPage), typeof(ClientWorldGenerationPresentation),
             typeof(ClientStorytellerRuntime), typeof(ClientStorytellerPage), typeof(ClientWorldRuntimeValues),
             typeof(ClientWorldSourceGameRuntime), typeof(ClientCompatibilityPresentation), typeof(ClientWorldPreparationTransport), typeof(ClientWorldEntryPresentation),

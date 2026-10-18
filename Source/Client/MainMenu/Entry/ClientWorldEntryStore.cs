@@ -2,10 +2,11 @@ using AIRsLight.ClashOfRim.Modules.World;
 
 namespace AIRsLight.ClashOfRim;
 
-internal sealed class ClientWorldEntryStore : IClientWorldEntryStore, IClientWorldConfigurationStore
+internal sealed class ClientWorldEntryStore : IClientWorldEntryStore, IClientWorldConfigurationStore, IClientOccupiedColonySiteIdentity
 {
     private readonly ClashOfRimSettings settings;
     internal ClientWorldEntryStore(ClashOfRimSettings settings) => this.settings = settings;
+    public string WorldId => settings.CurrentWorldConfigurationId;
     public void Initialize(string server, string user, string password)
     {
         var previous = (settings.ServerBaseUrl, settings.UserId, settings.ColonyId, settings.OfflinePassword,
