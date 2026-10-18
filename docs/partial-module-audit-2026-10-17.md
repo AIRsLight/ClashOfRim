@@ -2650,3 +2650,14 @@ SnapshotAchievements 接管原宿主的快照身份选择、财富／殖民者�
 补充四种文化下不依赖 NetworkState 的模块测试：动态基线启用／停用指标插件、失败提供者不阻断后续提供者、财富 12.5 舍入为 13、负历史指标归零、缺失指标不凭空补值、真实快照身份优先于调用者兜底、重复候选和通知不累计。**3 个相关单元组通过**：快照成就恢复、普通上传完整故障恢复、模块守卫（408 个类型、81 条路由）。日志：`LocalOnly/module-migration/server-snapshot-achievements-tests.log`。测试编译生产代码，无全量回归、实机或独立发布构建，无推送。
 
 **下一步 M9g：后处理输入、核心处理器与插件边界。** SnapshotPostUpload partial 仍负责上下文归一化、核心阶段／次序注册、待确认后续事故恢复和管线分派；公开插件上下文仍带 State。需让内部模块使用具体输入／领域依赖，旧插件上下文只在兼容适配处转换，复用现有管线的持久任务和失败策略。完成后再收回恢复装配，删除 LegacySnapshotRecoveryAdapter／LegacyRaidEvidencePipeline 和宿主旧入口。M9 及 M10–M12、最终完成审计仍开放。
+
+
+### M9g1 后处理调度与旧插件调用边界（2026-10-19）
+
+新增不含宿主的 SnapshotPostUploadInput／Operation 和 SnapshotPostUploadRunner。Runner 接管原唯一管线的全局 ID 验证、适用类型筛选、阶段／Order／Ordinal ID 排序、执行能力检查、通用延迟入队及失败继续／中止策略；原公开 SnapshotPostUploadPipeline 仅将插件调用绑定后委托 Runner，ValidateRegistrations 也共用这一实现，没有留下第二套调度算法。
+
+SnapshotPostUploadPluginAdapter 仅把公开上下文转为输入、绑定实际插件的 Process／CapturePayload／Schedule。保留一次调用中的原上下文对象；未实现的能力保留为空，仍在对应处理器实际执行时检查，不能提前拒绝尚未执行或不支持当前类型的处理器。Runner 自己持有作业注册表和日志接口；调度处理器优先于通用 Capture／Enqueue，后者使用现有注册表新增的类型化输入入口，持久任务 ID 与幂等算法未复制。模块守卫禁止内部模块反向引用这个插件适配器。
+
+新增独立调度单元组，覆盖四种文化下的 Ordinal 排序、对不适用类型仍进行 ID 冲突检查、能力缺失的继续／中止和发生时机、输入归属、调度优先、延迟任务身份与重复入队，以及公开插件接口保留原上下文。**4 个相关单元组通过**：新调度组、模块守卫（413 个类型／81 条路由）、普通上传故障恢复、袭击结算后处理器的异步调度。日志：`LocalOnly/module-migration/server-post-upload-runner-tests.log`。只有相关单元测试，未运行全量、实机或独立发布构建，未推送。
+
+**下一步 M9g2：核心后处理与统一输入入口。** 当前 SnapshotPostUpload partial 仍注册核心处理器并归一化输入，旧公开管线已共用新 Runner。需把核心领域调用和待确认事故恢复交给明确依赖的模块，核心处理器直接接受 SnapshotPostUploadInput；插件只在兼容边界绑定旧上下文。将普通提交、上传和袭击证据接入统一入口并删除 LegacyRaidEvidencePipeline，随后继续退役 LegacySnapshotRecoveryAdapter 和宿主恢复入口。M9g 与整体目标仍未完成。

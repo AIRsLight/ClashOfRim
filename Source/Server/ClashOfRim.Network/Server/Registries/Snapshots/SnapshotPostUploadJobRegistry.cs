@@ -22,21 +22,23 @@ public sealed class SnapshotPostUploadJobRegistry
         Load();
     }
 
-    public SnapshotPostUploadJobRecord Enqueue(
+    public SnapshotPostUploadJobRecord Enqueue(string processorId, SnapshotPostUploadContext context, string payloadJson) =>
+        Enqueue(processorId, context is null ? null! : Input(context), payloadJson);
+
+    internal SnapshotPostUploadJobRecord Enqueue(
         string processorId,
-        SnapshotPostUploadContext context,
+        SnapshotPostUploadJobInput context,
         string payloadJson)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(processorId);
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(payloadJson);
 
-        var input = Input(context);
-        string jobId = input.ResolvedSnapshotId + ":" + processorId;
+        string jobId = context.ResolvedSnapshotId + ":" + processorId;
         return EnqueueCore(
             jobId,
             processorId,
-            input,
+            context,
             payloadJson,
             SnapshotPostUploadJobState.Ready);
     }
