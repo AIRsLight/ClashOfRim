@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Network.Modules.Sessions;
 using AIRsLight.ClashOfRim.Network.Modules.Economy;
 using AIRsLight.ClashOfRim.Network.Modules.Snapshots;
 using AIRsLight.ClashOfRim.Compatibility;
@@ -554,7 +555,7 @@ public static partial class ClashOfRimNetworkServer
                 string? currentSnapshotId = ResolveCurrentSnapshotId(snapshotLookup, record.UserId, record.ColonyId, record.CurrentSnapshotId);
                 PlayerSnapshotWealthSummary snapshotSummary = IsSnapshotWealthCacheCurrent(record, currentSnapshotId)
                     ? new PlayerSnapshotWealthSummary(record.ColonyId, currentSnapshotId, record.LatestSnapshotWealth)
-                    : CacheLatestSnapshotWealth(state, record.UserId, record.ColonyId, currentSnapshotId, nowUtc, snapshotLookup);
+                    : state.PlayerWealth.CacheLatest(record.UserId, record.ColonyId, currentSnapshotId, nowUtc, snapshotLookup);
                 return new PlayerSummaryDto(
                     record.UserId,
                     snapshotSummary.ColonyId,

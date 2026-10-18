@@ -39,7 +39,7 @@ public static partial class ClashOfRimNetworkServer
         state.PlayerActivity.Record(userId, request.ColonyId, request.CurrentSnapshotId, nowUtc, displayName);
         state.EntryLifecycle.Apply(ClientLifecycleEvent.LoggedIn(userId, request.ColonyId, session.SessionId, request.CurrentSnapshotId, nowUtc));
         var queue = state.EventDelivery.ReadQueue(userId, request.ColonyId);
-        var markers = ProtocolDtoMapper.ToDto(BuildWorldMapMarkerDelivery(userId, request.ColonyId, state, nowUtc));
+        var markers = ProtocolDtoMapper.ToDto(state.WorldMarkers.Build(userId, request.ColonyId, nowUtc));
         RuntimeLogger(loggerFactory).LogInformation(
             "准备发布玩家登录会话：user={UserId} colony={ColonyId} session={SessionId}", userId, request.ColonyId, session.SessionId);
         if (entry.Authorize() is { } finalDenied) return RejectLogin(finalDenied, entry.Compatibility);

@@ -83,6 +83,7 @@ var tests = new (string Name, Action Run)[]
     ("登出授权与连接清理会话归属", () => SessionConnectionTests.Run(BuildFixturePackage)),
     ("连接模块独立装配、活动快照与失败清理", () => SessionConnectionModuleTests.Run(BuildFixturePackage)),
     ("入口生命周期独立模块与恢复边界", () => ClientEntryLifecycleTests.Run(BuildFixturePackage)),
+    ("世界标记交付模块与远程地图归属", () => WorldMarkerModuleTests.Run(BuildFixturePackage)),
     ("世界会话认证准备与恢复后兼容性复验", () => WorldSessionPreparationTests.Run(BuildFixturePackage)),
     ("真实 HTTP 请求在端点授权后恢复快照日志", () => HttpSnapshotRecoveryTests.Run(BuildFixturePackage)),
     ("管理员基线认证与恢复提交边界", () => AdminBaselineAuthorizationTests.Run(BuildFixturePackage)),

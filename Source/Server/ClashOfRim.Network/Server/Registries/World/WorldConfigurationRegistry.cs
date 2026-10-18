@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Network.Modules.World;
 using AIRsLight.ClashOfRim.Compatibility;
 using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Network.Plugins;
@@ -391,7 +392,7 @@ public sealed class WorldConfigurationRegistry
                 IReadOnlyList<PlayerColonySiteDto> mergedSites = worldConfiguration.PlayerColonySites;
                 if (sites.Count > 0)
                 {
-                    var bySite = new Dictionary<string, PlayerColonySiteDto>(StringComparer.Ordinal);
+                    var bySite = new Dictionary<(string UserId, string ColonyId, string SiteId), PlayerColonySiteDto>();
                     foreach (PlayerColonySiteDto site in worldConfiguration.PlayerColonySites)
                     {
                         if (site.Tile >= 0
@@ -400,7 +401,7 @@ public sealed class WorldConfigurationRegistry
                             && (!string.Equals(site.UserId, userId, StringComparison.Ordinal)
                                 || !string.Equals(site.ColonyId, colonyId, StringComparison.Ordinal)))
                         {
-                            bySite[ColonySiteKey(site)] = site;
+                            bySite[WorldColonySites.Key(site)] = site;
                         }
                     }
 
@@ -418,7 +419,7 @@ public sealed class WorldConfigurationRegistry
                                 site.FactionName,
                                 site.Appearance,
                                 site.TileLayerId);
-                            bySite[ColonySiteKey(normalized)] = normalized;
+                            bySite[WorldColonySites.Key(normalized)] = normalized;
                         }
                     }
 
@@ -591,30 +592,18 @@ public sealed class WorldConfigurationRegistry
         }
     }
 
-    private static string ColonySiteKey(PlayerColonySiteDto site)
-    {
-        string stableSiteId = !string.IsNullOrWhiteSpace(site.WorldObjectId)
-            ? site.WorldObjectId!
-            : !string.IsNullOrWhiteSpace(site.MapUniqueId)
-                ? site.MapUniqueId!
-                : "tile:" + site.Tile.ToString(System.Globalization.CultureInfo.InvariantCulture)
-                    + ","
-                    + Math.Max(0, site.TileLayerId).ToString(System.Globalization.CultureInfo.InvariantCulture);
-        return site.UserId + "\n" + site.ColonyId + "\n" + stableSiteId;
-    }
-
     private static IReadOnlyList<PlayerColonySiteDto> MergePlayerColonySites(
         IReadOnlyList<PlayerColonySiteDto> current,
         IReadOnlyList<PlayerColonySiteDto>? incoming)
     {
-        var bySite = new Dictionary<string, PlayerColonySiteDto>(StringComparer.Ordinal);
+        var bySite = new Dictionary<(string UserId, string ColonyId, string SiteId), PlayerColonySiteDto>();
         foreach (PlayerColonySiteDto site in current)
         {
             if (site.Tile >= 0
                 && !string.IsNullOrWhiteSpace(site.UserId)
                 && !string.IsNullOrWhiteSpace(site.ColonyId))
             {
-                bySite[ColonySiteKey(site)] = site;
+                bySite[WorldColonySites.Key(site)] = site;
             }
         }
 
@@ -624,7 +613,7 @@ public sealed class WorldConfigurationRegistry
                 && !string.IsNullOrWhiteSpace(site.UserId)
                 && !string.IsNullOrWhiteSpace(site.ColonyId))
             {
-                bySite[ColonySiteKey(site)] = site;
+                bySite[WorldColonySites.Key(site)] = site;
             }
         }
 

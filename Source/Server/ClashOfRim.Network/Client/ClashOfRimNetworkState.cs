@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Network.Modules.World;
 using AIRsLight.ClashOfRim.Network.Modules.Compatibility;
 using AIRsLight.ClashOfRim.Network.Modules.Sessions;
 using AIRsLight.ClashOfRim.Network.Modules.Accounts;
@@ -137,6 +138,11 @@ public sealed class ClashOfRimNetworkState
             RaidQueries, SnapshotCommits, BankLoans, Players, OnlinePresence, EventNotifications, () => RuntimeLogger);
         RaidTimeouts = new RaidTimeouts(Ledger, SnapshotStore, SnapshotPostUploadJobs, SnapshotMutations, OnlinePresence,
             EventNotifications, RaidOfflineEvidence, RaidBattleCleanup, () => ServerConfiguration);
+        WorldDelivery = new WorldConfigurationDelivery(Plugins, CompatibilityBaseline);
+        PlayerWealth = new PlayerSnapshotWealth(Players, SnapshotStore);
+        RaidMarkers = new RaidMarkerProjection(Ledger, SnapshotStore);
+        WorldMarkers = new WorldMarkerDelivery(Players, OnlinePresence, DiplomacyRelations, SnapshotStore, WorldConfiguration,
+            WorldDelivery, RuntimeWorldObjectMarkers, RaidMarkers, RaidProtection, PlayerWealth, () => ServerConfiguration);
         EntryLifecycle = new ClientEntryLifecycle(RaidProtection, PendingConfirmations);
         PlayerActivity = new PlayerSessionActivity(Players, SnapshotStore);
         SessionConnections = new SessionConnections(LoginSessions, AuthTokens, OnlinePresence, PlayerOnlineNotifications,
@@ -249,6 +255,10 @@ public sealed class ClashOfRimNetworkState
     public LoginSessionRegistry LoginSessions { get; }
 
     public PlayerRegistry Players { get; }
+    internal WorldConfigurationDelivery WorldDelivery { get; }
+    internal PlayerSnapshotWealth PlayerWealth { get; }
+    internal RaidMarkerProjection RaidMarkers { get; }
+    internal WorldMarkerDelivery WorldMarkers { get; }
     internal ClientEntryLifecycle EntryLifecycle { get; }
     internal PlayerSessionActivity PlayerActivity { get; }
     internal SessionConnections SessionConnections { get; }

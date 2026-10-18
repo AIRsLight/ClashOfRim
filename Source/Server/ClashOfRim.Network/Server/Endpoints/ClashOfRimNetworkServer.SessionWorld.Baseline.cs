@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Network.Modules.World;
 using static AIRsLight.ClashOfRim.Network.Modules.Compatibility.CompatibilityHandshakeContract;
 using AIRsLight.ClashOfRim.Network.Modules.Accounts;
 using static AIRsLight.ClashOfRim.Network.Modules.World.WorldTileGeometry;
@@ -208,77 +209,12 @@ public static partial class ClashOfRimNetworkServer
         return true;
     }
 
-    private static WorldConfigurationDto? BuildWorldConfigurationForDelivery(
-        WorldConfigurationDto? configuration,
-        ClashOfRimNetworkState state,
-        bool includeGenerationBaseline = true,
-        bool includePlayerColonySites = true,
-        bool includeWorldExtensions = true)
-    {
-        if (configuration is null)
-        {
-            return null;
-        }
-
-        IReadOnlyList<PlayerColonySiteDto> occupiedSites = includePlayerColonySites
-            ? BuildCurrentPlayerColonySites(configuration)
-            : Array.Empty<PlayerColonySiteDto>();
-        IReadOnlyList<WorldConfigurationExtensionDto> extensions =
-            ActiveWorldConfigurationExtensions(state).BuildDeliveryExtensions(
-                includeGenerationBaseline ? configuration.Extensions : Array.Empty<WorldConfigurationExtensionDto>(),
-                includeWorldExtensions);
-        return new WorldConfigurationDto(
-            configuration.WorldConfigurationId,
-            configuration.ConfiguredByUserId,
-            configuration.ConfiguredByColonyId,
-            configuration.ConfiguredAtUtc,
-            includeGenerationBaseline ? configuration.SeedString : null,
-            includeGenerationBaseline ? configuration.PlanetCoverage : null,
-            includeGenerationBaseline ? configuration.OverallRainfall : null,
-            includeGenerationBaseline ? configuration.OverallTemperature : null,
-            includeGenerationBaseline ? configuration.OverallPopulation : null,
-            includeGenerationBaseline ? configuration.LandmarkDensity : null,
-            includeGenerationBaseline ? configuration.TileCount : null,
-            includeGenerationBaseline ? configuration.FactionDefNames : Array.Empty<string>(),
-            includeGenerationBaseline ? configuration.Features : Array.Empty<WorldFeatureDto>(),
-            includeGenerationBaseline ? configuration.Factions : Array.Empty<WorldFactionDto>(),
-            includeGenerationBaseline ? configuration.Roads : Array.Empty<WorldRoadDto>(),
-            includeGenerationBaseline ? configuration.WorldObjects : Array.Empty<WorldObjectBaselineDto>(),
-            occupiedSites,
-            configuration.StorytellerDefName,
-            configuration.DifficultyDefName,
-            tileGeometry: null,
-            difficultyValuesXml: configuration.DifficultyValuesXml,
-            extensions: extensions,
-            gameLanguage: configuration.GameLanguage,
-            featureNameCatalogs: includeGenerationBaseline ? configuration.FeatureNameCatalogs : Array.Empty<WorldFeatureNameCatalogDto>());
-    }
-
-    private static IReadOnlyList<PlayerColonySiteDto> BuildCurrentPlayerColonySites(
-        WorldConfigurationDto configuration)
-    {
-        var bySite = new Dictionary<string, PlayerColonySiteDto>(StringComparer.Ordinal);
-        foreach (PlayerColonySiteDto site in configuration.PlayerColonySites)
-        {
-            if (site.Tile >= 0 && !string.IsNullOrWhiteSpace(site.UserId) && !string.IsNullOrWhiteSpace(site.ColonyId))
-            {
-                bySite[ColonySiteKey(site)] = site;
-            }
-        }
-
-        return bySite.Values
-            .OrderBy(site => site.Tile)
-            .ThenBy(site => site.UserId, StringComparer.Ordinal)
-            .ThenBy(site => site.ColonyId, StringComparer.Ordinal)
-            .ToList();
-    }
-
     private static IReadOnlyList<PlayerColonySiteDto> NormalizePlayerColonySites(
         string userId,
         string colonyId,
         IEnumerable<PlayerColonySiteDto> sites)
     {
-        var bySite = new Dictionary<string, PlayerColonySiteDto>(StringComparer.Ordinal);
+        var bySite = new Dictionary<(string UserId, string ColonyId, string SiteId), PlayerColonySiteDto>();
         foreach (PlayerColonySiteDto site in sites)
         {
             if (site.Tile < 0)
@@ -296,7 +232,7 @@ public static partial class ClashOfRimNetworkServer
                 site.FactionName,
                 site.Appearance,
                 site.TileLayerId);
-            bySite[ColonySiteKey(normalized)] = normalized;
+            bySite[WorldColonySites.Key(normalized)] = normalized;
         }
 
         return bySite.Values
@@ -372,7 +308,7 @@ public static partial class ClashOfRimNetworkServer
 
         List<PlayerColonySiteDto> userSites = existingSites
             .Where(site => string.Equals(site.UserId, userId, StringComparison.Ordinal) && site.Tile >= 0)
-            .GroupBy(ColonySiteKey, StringComparer.Ordinal)
+            .GroupBy(WorldColonySites.Key)
             .Select(group => group.First())
             .ToList();
         if (userSites.Count == 0)
@@ -411,22 +347,10 @@ public static partial class ClashOfRimNetworkServer
             .Where(site => string.Equals(site.UserId, userId, StringComparison.Ordinal)
                 && string.Equals(site.ColonyId, colonyId, StringComparison.Ordinal)
                 && site.Tile >= 0)
-            .GroupBy(ColonySiteKey, StringComparer.Ordinal)
+            .GroupBy(WorldColonySites.Key)
             .Select(group => group.First())
             .FirstOrDefault(site => site.Tile != requested.Tile
                 || Math.Max(0, site.TileLayerId) != Math.Max(0, requested.TileLayerId));
-    }
-
-    private static string ColonySiteKey(PlayerColonySiteDto site)
-    {
-        string stableSiteId = !string.IsNullOrWhiteSpace(site.WorldObjectId)
-            ? site.WorldObjectId!
-            : !string.IsNullOrWhiteSpace(site.MapUniqueId)
-                ? site.MapUniqueId!
-                : "tile:" + site.Tile.ToString(CultureInfo.InvariantCulture)
-                    + ","
-                    + Math.Max(0, site.TileLayerId).ToString(CultureInfo.InvariantCulture);
-        return $"{site.UserId}\u001f{site.ColonyId}\u001f{stableSiteId}";
     }
 
     private static IResult OverrideCompatibilityBaseline(

@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Network.Modules.World;
 using AIRsLight.ClashOfRim.Network.Modules.Compatibility;
 using AIRsLight.ClashOfRim.Network.Modules.Accounts;
 using AIRsLight.ClashOfRim.Network.Modules.Sessions;
@@ -63,7 +64,7 @@ public static partial class ClashOfRimNetworkServer
             : request.ColonyId!.Trim();
         string assignedColonyId = state.Players.ResolveActiveColonyId(userId, requestedColonyId, nowUtc);
         WorldSessionState session = state.WorldConfiguration.Prepare(userId);
-        WorldConfigurationDto? deliveredConfiguration = BuildWorldConfigurationForDelivery(session.WorldConfiguration, state);
+        WorldConfigurationDto? deliveredConfiguration = state.WorldDelivery.Build(session.WorldConfiguration);
         LatestSnapshotRecord? latestSnapshot = state.SnapshotStore.GetLatest(userId, assignedColonyId);
         bool hasRegisteredColonySite = HasRegisteredPlayerColonySite(deliveredConfiguration, userId, assignedColonyId);
         if (latestSnapshot is null && !hasRegisteredColonySite)
@@ -203,7 +204,7 @@ public static partial class ClashOfRimNetworkServer
                 after.WorldConfiguration?.PlayerColonySites.Count ?? 0);
             return Results.Ok(new SubmitWorldConfigurationResponse(
                 ProtocolResponse.Ok(T("WorldConfiguration.Registered")), after.IsAdministrator, after.WorldConfigured,
-                after.AdministratorUserId, BuildWorldConfigurationForDelivery(after.WorldConfiguration, state)));
+                after.AdministratorUserId, state.WorldDelivery.Build(after.WorldConfiguration)));
         }
     }
 
@@ -218,7 +219,7 @@ public static partial class ClashOfRimNetworkServer
                 ProtocolResponse.Reject(ProtocolErrorCode.IncompatibleProtocolVersion, T("Protocol.IncompatibleVersion")),
                 accepted: false,
                 created: false,
-                worldConfiguration: BuildWorldConfigurationForDelivery(state.WorldConfiguration.Current, state)));
+                worldConfiguration: state.WorldDelivery.Build(state.WorldConfiguration.Current)));
         }
 
         if (string.IsNullOrWhiteSpace(request.UserId)
@@ -231,7 +232,7 @@ public static partial class ClashOfRimNetworkServer
                 ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("WorldConfiguration.FeatureNamesMissingRequest")),
                 accepted: false,
                 created: false,
-                worldConfiguration: BuildWorldConfigurationForDelivery(state.WorldConfiguration.Current, state)));
+                worldConfiguration: state.WorldDelivery.Build(state.WorldConfiguration.Current)));
         }
 
         AuthenticationValidationResult auth = state.Accounts.Authenticate(request.UserId,
@@ -244,7 +245,7 @@ public static partial class ClashOfRimNetworkServer
                 ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, auth.Message ?? T("Steam.Failed")),
                 accepted: false,
                 created: false,
-                worldConfiguration: BuildWorldConfigurationForDelivery(state.WorldConfiguration.Current, state)));
+                worldConfiguration: state.WorldDelivery.Build(state.WorldConfiguration.Current)));
         }
 
         WorldFeatureNameCatalogSubmitResult result = state.WorldConfiguration.SubmitWorldFeatureNames(
@@ -253,7 +254,7 @@ public static partial class ClashOfRimNetworkServer
             request.Language,
             request.WorldConfigurationId,
             request.Features);
-        WorldConfigurationDto? deliveredConfiguration = BuildWorldConfigurationForDelivery(result.WorldConfiguration, state);
+        WorldConfigurationDto? deliveredConfiguration = state.WorldDelivery.Build(result.WorldConfiguration);
         if (!result.Accepted)
         {
             return Results.Ok(new SubmitWorldFeatureNamesResponse(
@@ -296,7 +297,7 @@ public static partial class ClashOfRimNetworkServer
         {
             return Results.Ok(new UploadWorldSubstrateResponse(
                 ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("WorldConfiguration.TileGeometryMissingRequest")),
-                false, 0, 0, BuildWorldConfigurationForDelivery(state.WorldConfiguration.Current, state)));
+                false, 0, 0, state.WorldDelivery.Build(state.WorldConfiguration.Current)));
         }
 
         UploadWorldSubstrateRequest request = multipart.Request;
@@ -307,7 +308,7 @@ public static partial class ClashOfRimNetworkServer
         {
             return Results.Ok(new UploadWorldSubstrateResponse(
                 ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("WorldConfiguration.TileGeometryMissingRequest")),
-                false, 0, 0, BuildWorldConfigurationForDelivery(state.WorldConfiguration.Current, state)));
+                false, 0, 0, state.WorldDelivery.Build(state.WorldConfiguration.Current)));
         }
 
         if (!MultipartSnapshotAuthentication.MatchesPrincipal(
@@ -317,7 +318,7 @@ public static partial class ClashOfRimNetworkServer
         {
             return Results.Ok(new UploadWorldSubstrateResponse(
                 ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed")),
-                false, 0, 0, BuildWorldConfigurationForDelivery(state.WorldConfiguration.Current, state)));
+                false, 0, 0, state.WorldDelivery.Build(state.WorldConfiguration.Current)));
         }
 
         AuthenticationValidationResult auth = state.Accounts.Authenticate(request.UserId, request.SteamAuthTicket, request.Password, DateTimeOffset.UtcNow);
@@ -325,7 +326,7 @@ public static partial class ClashOfRimNetworkServer
         {
             return Results.Ok(new UploadWorldSubstrateResponse(
                 ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, auth.Message ?? T("Steam.Failed")),
-                false, 0, 0, BuildWorldConfigurationForDelivery(state.WorldConfiguration.Current, state)));
+                false, 0, 0, state.WorldDelivery.Build(state.WorldConfiguration.Current)));
         }
 
         WorldSubstrateStoreResult result = state.WorldConfiguration.StoreWorldSubstrate(
@@ -333,7 +334,7 @@ public static partial class ClashOfRimNetworkServer
             request.ColonyId,
             request.WorldConfigurationId,
             multipart.Payload);
-        WorldConfigurationDto? delivered = BuildWorldConfigurationForDelivery(result.WorldConfiguration, state);
+        WorldConfigurationDto? delivered = state.WorldDelivery.Build(result.WorldConfiguration);
         if (!result.Accepted)
         {
             return Results.Ok(new UploadWorldSubstrateResponse(
@@ -412,9 +413,7 @@ public static partial class ClashOfRimNetworkServer
                 worldConfiguration: null));
         }
 
-        WorldConfigurationDto? configuration = BuildWorldConfigurationForDelivery(
-            state.WorldConfiguration.Current,
-            state,
+        WorldConfigurationDto? configuration = state.WorldDelivery.Build(state.WorldConfiguration.Current,
             request.IncludeGenerationBaseline,
             request.IncludePlayerColonySites,
             request.IncludeWorldExtensions);
@@ -441,13 +440,13 @@ public static partial class ClashOfRimNetworkServer
             && state.Players.IsDeleted(request.UserId, request.ColonyId))
             return Results.Ok(new RegisterPlayerColonySitesResponse(
                 ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, T("Auth.IdentityDenied")), 0,
-                BuildWorldConfigurationForDelivery(state.WorldConfiguration.Current, state), null));
+                state.WorldDelivery.Build(state.WorldConfiguration.Current), null));
         if (!string.Equals(request.ProtocolVersion, ProtocolApiVersion.Current, StringComparison.Ordinal))
         {
             return Results.Ok(new RegisterPlayerColonySitesResponse(
                 ProtocolResponse.Reject(ProtocolErrorCode.IncompatibleProtocolVersion, T("Protocol.IncompatibleVersion")),
                 acceptedCount: 0,
-                worldConfiguration: BuildWorldConfigurationForDelivery(state.WorldConfiguration.Current, state),
+                worldConfiguration: state.WorldDelivery.Build(state.WorldConfiguration.Current),
                 worldMapMarkers: null));
         }
 
@@ -457,11 +456,11 @@ public static partial class ClashOfRimNetworkServer
             return Results.Ok(new RegisterPlayerColonySitesResponse(
                 ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("WorldColonySites.MissingIdentity")),
                 acceptedCount: 0,
-                worldConfiguration: BuildWorldConfigurationForDelivery(state.WorldConfiguration.Current, state),
+                worldConfiguration: state.WorldDelivery.Build(state.WorldConfiguration.Current),
                 worldMapMarkers: null));
         }
 
-        WorldConfigurationDto? currentConfiguration = BuildWorldConfigurationForDelivery(state.WorldConfiguration.Current, state);
+        WorldConfigurationDto? currentConfiguration = state.WorldDelivery.Build(state.WorldConfiguration.Current);
         if (currentConfiguration is null)
         {
             return Results.Ok(new RegisterPlayerColonySitesResponse(
@@ -580,8 +579,8 @@ public static partial class ClashOfRimNetworkServer
             incomingExtensions,
             activeWorldExtensions);
         state.PlayerActivity.Record(request.UserId, request.ColonyId, currentSnapshotId: null, DateTimeOffset.UtcNow);
-        WorldConfigurationDto? deliveredConfiguration = BuildWorldConfigurationForDelivery(session.WorldConfiguration, state);
-        WorldMapMarkerDelivery markers = BuildWorldMapMarkerDelivery(request.UserId, request.ColonyId, state, DateTimeOffset.UtcNow);
+        WorldConfigurationDto? deliveredConfiguration = state.WorldDelivery.Build(session.WorldConfiguration);
+        WorldMapMarkerDelivery markers = state.WorldMarkers.Build(request.UserId, request.ColonyId, DateTimeOffset.UtcNow);
         string message = normalizedSites.Count > 0 ? T("WorldColonySites.Registered") : T("WorldColonySites.WorldExtensionsRegistered");
         if (!request.SuppressWorldConfigurationNotification)
         {
@@ -623,7 +622,7 @@ public static partial class ClashOfRimNetworkServer
                 rejection!,
                 oldSite,
                 newSite: null,
-                BuildWorldConfigurationForDelivery(state.WorldConfiguration.Current, state),
+                state.WorldDelivery.Build(state.WorldConfiguration.Current),
                 worldMapMarkers: null));
         }
 
@@ -631,7 +630,7 @@ public static partial class ClashOfRimNetworkServer
             ProtocolResponse.Ok(T("ColonyRelocation.PreflightAccepted")),
             oldSite,
             newSite: null,
-            BuildWorldConfigurationForDelivery(state.WorldConfiguration.Current, state),
+            state.WorldDelivery.Build(state.WorldConfiguration.Current),
             worldMapMarkers: null));
     }
 
@@ -660,7 +659,7 @@ public static partial class ClashOfRimNetworkServer
                 rejection!,
                 oldSite,
                 newSite: null,
-                BuildWorldConfigurationForDelivery(state.WorldConfiguration.Current, state),
+                state.WorldDelivery.Build(state.WorldConfiguration.Current),
                 worldMapMarkers: null));
         }
 
@@ -672,7 +671,7 @@ public static partial class ClashOfRimNetworkServer
                 ProtocolResponse.Reject(ProtocolErrorCode.SnapshotMismatch, T("ColonyRelocation.RelocatedSnapshotNotLatest")),
                 oldSite,
                 newSite: null,
-                BuildWorldConfigurationForDelivery(state.WorldConfiguration.Current, state),
+                state.WorldDelivery.Build(state.WorldConfiguration.Current),
                 worldMapMarkers: null));
         }
 
@@ -690,7 +689,7 @@ public static partial class ClashOfRimNetworkServer
                         ("ACTUAL", FormatTileRef(anchors[0].Tile, anchors[0].TileLayerId)))),
                 oldSite,
                 newSite: null,
-                BuildWorldConfigurationForDelivery(state.WorldConfiguration.Current, state),
+                state.WorldDelivery.Build(state.WorldConfiguration.Current),
                 worldMapMarkers: null));
         }
 
@@ -703,7 +702,7 @@ public static partial class ClashOfRimNetworkServer
                 ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, T("ColonyRelocation.ExpectedSingleAnchor")),
                 oldSite,
                 newSite: null,
-                BuildWorldConfigurationForDelivery(state.WorldConfiguration.Current, state),
+                state.WorldDelivery.Build(state.WorldConfiguration.Current),
                 worldMapMarkers: null));
         }
 
@@ -729,7 +728,7 @@ public static partial class ClashOfRimNetworkServer
                 ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, T("ColonyRelocation.ExpectedSingleAnchor")),
                 oldSite,
                 newSite: null,
-                BuildWorldConfigurationForDelivery(state.WorldConfiguration.Current, state),
+                state.WorldDelivery.Build(state.WorldConfiguration.Current),
                 worldMapMarkers: null));
         }
 
@@ -749,7 +748,7 @@ public static partial class ClashOfRimNetworkServer
                         ("OWNER", tileConflict.UserId + "/" + tileConflict.ColonyId))),
                 oldSite,
                 newSite: null,
-                BuildWorldConfigurationForDelivery(state.WorldConfiguration.Current, state),
+                state.WorldDelivery.Build(state.WorldConfiguration.Current),
                 worldMapMarkers: null));
         }
 
@@ -770,7 +769,7 @@ public static partial class ClashOfRimNetworkServer
                         ("OWNER", nearbyConflict.UserId + "/" + nearbyConflict.ColonyId))),
                 oldSite,
                 newSite: null,
-                BuildWorldConfigurationForDelivery(state.WorldConfiguration.Current, state),
+                state.WorldDelivery.Build(state.WorldConfiguration.Current),
                 worldMapMarkers: null));
         }
 
@@ -799,12 +798,12 @@ public static partial class ClashOfRimNetworkServer
             normalizedSites[0].MapUniqueId,
             normalizedSites[0].WorldObjectId);
         RecordColonyRelocationAchievements(state, request.UserId, request.ColonyId, request.RelocatedSnapshotId, nowUtc);
-        WorldMapMarkerDelivery markers = BuildWorldMapMarkerDelivery(request.UserId, request.ColonyId, state, nowUtc);
+        WorldMapMarkerDelivery markers = state.WorldMarkers.Build(request.UserId, request.ColonyId, nowUtc);
         return Results.Ok(new ColonyRelocationResponse(
             ProtocolResponse.Ok(T("ColonyRelocation.Confirmed")),
             oldSite,
             normalizedSites[0],
-            BuildWorldConfigurationForDelivery(session.WorldConfiguration, state),
+            state.WorldDelivery.Build(session.WorldConfiguration),
             ProtocolDtoMapper.ToDto(markers)));
     }
 
@@ -871,7 +870,7 @@ public static partial class ClashOfRimNetworkServer
             .Where(site => string.Equals(site.UserId, userId, StringComparison.Ordinal)
                 && string.Equals(site.ColonyId, colonyId, StringComparison.Ordinal)
                 && site.Tile >= 0)
-            .GroupBy(ColonySiteKey, StringComparer.Ordinal)
+            .GroupBy(WorldColonySites.Key)
             .Select(group => group.First())
             .ToList();
         if (userSites.Count != 1)
@@ -922,7 +921,7 @@ public static partial class ClashOfRimNetworkServer
             return false;
         }
 
-        if (HasActiveRaidForParticipant(state, userId, colonyId))
+        if (state.RaidMarkers.HasParticipant(userId, colonyId))
         {
             rejection = ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, T("ColonyRelocation.BlockedByActiveRaid"));
             return false;
@@ -996,7 +995,7 @@ public static partial class ClashOfRimNetworkServer
             return false;
         }
 
-        if (HasActiveRaidForParticipant(state, userId, colonyId))
+        if (state.RaidMarkers.HasParticipant(userId, colonyId))
         {
             rejection = ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, T("ColonyRelocation.BlockedByActiveRaid"));
             return false;
@@ -1027,7 +1026,7 @@ public static partial class ClashOfRimNetworkServer
             .Where(site => string.Equals(site.UserId, userId, StringComparison.Ordinal)
                 && string.Equals(site.ColonyId, colonyId, StringComparison.Ordinal)
                 && site.Tile >= 0)
-            .GroupBy(ColonySiteKey, StringComparer.Ordinal)
+            .GroupBy(WorldColonySites.Key)
             .Select(group => group.First())
             .FirstOrDefault();
     }
@@ -1141,7 +1140,7 @@ public static partial class ClashOfRimNetworkServer
                 removedSites: 0,
                 removedEvents: 0,
                 removedRuntimeMarkers: 0,
-                worldConfiguration: BuildWorldConfigurationForDelivery(state.WorldConfiguration.Current, state),
+                worldConfiguration: state.WorldDelivery.Build(state.WorldConfiguration.Current),
                 worldMapMarkers: null));
         }
 
@@ -1155,7 +1154,7 @@ public static partial class ClashOfRimNetworkServer
                 removedSites: 0,
                 removedEvents: 0,
                 removedRuntimeMarkers: 0,
-                worldConfiguration: BuildWorldConfigurationForDelivery(state.WorldConfiguration.Current, state),
+                worldConfiguration: state.WorldDelivery.Build(state.WorldConfiguration.Current),
                 worldMapMarkers: null));
         }
 
@@ -1171,7 +1170,7 @@ public static partial class ClashOfRimNetworkServer
                 removedSites: 0,
                 removedEvents: 0,
                 removedRuntimeMarkers: 0,
-                worldConfiguration: BuildWorldConfigurationForDelivery(state.WorldConfiguration.Current, state),
+                worldConfiguration: state.WorldDelivery.Build(state.WorldConfiguration.Current),
                 worldMapMarkers: null));
         }
 
@@ -1196,7 +1195,7 @@ public static partial class ClashOfRimNetworkServer
                     removedSites: 0,
                     removedEvents: 0,
                     removedRuntimeMarkers: 0,
-                    worldConfiguration: BuildWorldConfigurationForDelivery(state.WorldConfiguration.Current, state),
+                    worldConfiguration: state.WorldDelivery.Build(state.WorldConfiguration.Current),
                     worldMapMarkers: null));
             }
 
@@ -1211,7 +1210,7 @@ public static partial class ClashOfRimNetworkServer
                     removedSites: 0,
                     removedEvents: 0,
                     removedRuntimeMarkers: 0,
-                    worldConfiguration: BuildWorldConfigurationForDelivery(state.WorldConfiguration.Current, state),
+                    worldConfiguration: state.WorldDelivery.Build(state.WorldConfiguration.Current),
                     worldMapMarkers: null));
             }
 
@@ -1223,10 +1222,8 @@ public static partial class ClashOfRimNetworkServer
                 nowUtc);
         }
 
-        WorldConfigurationDto? deliveredConfiguration = BuildWorldConfigurationForDelivery(
-            cleanup.RemovedSites.Session.WorldConfiguration,
-            state);
-        WorldMapMarkerDelivery markers = BuildWorldMapMarkerDelivery(request.UserId, request.ColonyId, state, nowUtc);
+        WorldConfigurationDto? deliveredConfiguration = state.WorldDelivery.Build(cleanup.RemovedSites.Session.WorldConfiguration);
+        WorldMapMarkerDelivery markers = state.WorldMarkers.Build(request.UserId, request.ColonyId, nowUtc);
         RuntimeLogger(loggerFactory).LogInformation(
             "殖民地废弃完成：user={UserId} colony={ColonyId} snapshotRemoved={SnapshotRemoved} removedSites={RemovedSites} removedEvents={RemovedEvents} removedRuntimeMarkers={RemovedRuntimeMarkers}",
             request.UserId,

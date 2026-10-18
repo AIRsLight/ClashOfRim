@@ -135,15 +135,8 @@ static void VerifyLightweightWorldConfigurationKeepsRuntimeDifficulty()
     const string difficultyXml =
         "<saveable Class=\"RimWorld.Difficulty\"><threatScale>2.35</threatScale></saveable>";
     WorldConfigurationDto source = BuildMinimalWorldConfiguration(difficultyXml);
-    MethodInfo? deliveryMethod = typeof(ClashOfRimNetworkServer).GetMethod(
-        "BuildWorldConfigurationForDelivery",
-        BindingFlags.NonPublic | BindingFlags.Static);
-    Require(deliveryMethod is not null, "应能定位世界配置交付裁剪入口");
-
     var state = new ClashOfRimNetworkState();
-    var delivered = (WorldConfigurationDto?)deliveryMethod!.Invoke(
-        null,
-        new object?[] { source, state, false, true, true });
+    var delivered = state.WorldDelivery.Build(source, false, true, true);
     Require(delivered is not null, "轻量世界配置交付不应为空");
     Require(delivered!.SeedString is null, "轻量世界配置不应携带世界生成种子");
     Require(delivered.FactionDefNames.Count == 0, "轻量世界配置不应携带完整阵营生成基线");

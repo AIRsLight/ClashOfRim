@@ -527,64 +527,6 @@ public static partial class ClashOfRimNetworkServer
     private static string NormalizeSnapshotUploadKind(string? snapshotUploadKind, string? confirmationOperation = null)
         => SnapshotTransactions.NormalizeSnapshotUploadKind(snapshotUploadKind, confirmationOperation);
 
-    private readonly record struct PlayerSnapshotWealthSummary(
-        string ColonyId,
-        string? CurrentSnapshotId,
-        int? LatestSnapshotWealth);
-
-    private static PlayerSnapshotWealthSummary CacheLatestSnapshotWealth(
-        ClashOfRimNetworkState state,
-        string userId,
-        string colonyId,
-        string? currentSnapshotId,
-        DateTimeOffset nowUtc,
-        LatestSnapshotLookup? snapshotLookup = null)
-    {
-        LatestSnapshotRecord? snapshot = snapshotLookup?.Resolve(userId, colonyId)
-            ?? LatestSnapshotLookup.Resolve(state.SnapshotStore, userId, colonyId);
-        if (snapshot is null)
-        {
-            return new PlayerSnapshotWealthSummary(colonyId, currentSnapshotId, null);
-        }
-
-        string snapshotOwnerId = string.IsNullOrWhiteSpace(snapshot.Identity.OwnerId)
-            ? userId
-            : snapshot.Identity.OwnerId!;
-        string snapshotColonyId = string.IsNullOrWhiteSpace(snapshot.Identity.ColonyId)
-            ? colonyId
-            : snapshot.Identity.ColonyId!;
-        int? wealth = SnapshotWealth.Total(snapshot.Index)
-            ?? CalculateLatestSnapshotWealthFromPackage(state, snapshotOwnerId, snapshotColonyId, snapshot.Identity);
-        state.Players.RecordLatestSnapshotWealth(
-            snapshotOwnerId,
-            snapshotColonyId,
-            snapshot.Identity.SnapshotId,
-            wealth,
-            nowUtc);
-        return new PlayerSnapshotWealthSummary(snapshotColonyId, snapshot.Identity.SnapshotId, wealth);
-    }
-
-    private static int? CalculateLatestSnapshotWealthFromPackage(
-        ClashOfRimNetworkState state,
-        string userId,
-        string colonyId,
-        SnapshotIdentity identity)
-    {
-        if (state.SnapshotStore is not IColonySnapshotPackageStore packageStore)
-        {
-            return null;
-        }
-
-        SaveSnapshotPackage? package = packageStore.GetLatestPackage(userId, colonyId);
-        if (package is null
-            || !string.Equals(package.Envelope.Identity.SnapshotId, identity.SnapshotId, StringComparison.Ordinal))
-        {
-            return null;
-        }
-
-        return SnapshotWealth.Total(package.Index);
-    }
-
     private static void ProcessWorldTileFloatLayersFromAcceptedSnapshot(
         ClashOfRimNetworkState state,
         string userId,
