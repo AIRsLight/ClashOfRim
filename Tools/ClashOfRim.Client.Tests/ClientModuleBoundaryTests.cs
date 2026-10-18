@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Multiplayer.Diagnostics;
 using AIRsLight.ClashOfRim.Achievements;
 using AIRsLight.ClashOfRim.Account;
 using System;
@@ -65,7 +66,7 @@ internal static class ClientModuleBoundaryTests
             || t == typeof(ClientSessionNotificationEffects) || t == typeof(ClientSessionNotificationPresentation) || t == typeof(ClientConnectionStatusPresentation)
             || t == typeof(ClientSessionExitResources) || t == typeof(ClientSessionIdentityStore)
             || t == typeof(ClientSessionFollowupText) || t == typeof(ClientSnapshotWorldPresentation) || t == typeof(ClientSnapshotSavingPresentation)
-            || t == typeof(ClientSnapshotTransactionPresentation) || t == typeof(ClientRuntimeSummaryPresentation)
+            || t == typeof(ClientSnapshotTransactionPresentation) || t == typeof(ClientDiagnosticsText)
             || t == typeof(AIRsLight.ClashOfRim.MainMenu.ClientWorldSetupDiagnostics)
             || t == typeof(AIRsLight.ClashOfRim.CompatibilityClient.ClientCompatibilityOverrideTransport)
             || t == typeof(AIRsLight.ClashOfRim.CompatibilityClient.ClientCompatibilityOverridePresentation)
@@ -142,7 +143,7 @@ internal static class ClientModuleBoundaryTests
         Console.WriteLine($"Compatibility capability guard checked {compatibilityCapabilities.Length} product and generated types.");
         var pages = typeof(ClashOfRimMod).Assembly.GetTypes()
             .Where(t => t.Namespace is "AIRsLight.ClashOfRim.Multiplayer.Pages" or "AIRsLight.ClashOfRim.Multiplayer.Players"
-                or "AIRsLight.ClashOfRim.Multiplayer.Achievements"
+                or "AIRsLight.ClashOfRim.Multiplayer.Achievements" or "AIRsLight.ClashOfRim.Multiplayer.Diagnostics"
                 || t == typeof(AIRsLight.ClashOfRim.Multiplayer.AllySupportRequestDialogWindow)).ToArray();
         var pageViolations = ModuleDependencyGuard.FindViolations(pages,
             t => t == typeof(ClashOfRimMod) || t == typeof(ClashOfRimSettings) || t == typeof(ClashOfRimModNetworkClient)
@@ -184,7 +185,7 @@ internal static class ClientModuleBoundaryTests
             typeof(ClientSessionNotificationEffects), typeof(ClientSessionNotificationPresentation), typeof(ClientConnectionStatusPresentation),
             typeof(ClientSessionExitResources),
             typeof(ClientSessionFollowupText), typeof(ClientSnapshotWorldPresentation), typeof(ClientSnapshotSavingPresentation),
-            typeof(ClientSnapshotTransactionPresentation), typeof(ClientRuntimeSummaryPresentation), typeof(AIRsLight.ClashOfRim.MainMenu.ClientWorldSetupDiagnostics),
+            typeof(ClientSnapshotTransactionPresentation), typeof(ClientDiagnosticsText), typeof(AIRsLight.ClashOfRim.MainMenu.ClientWorldSetupDiagnostics),
             typeof(AIRsLight.ClashOfRim.CompatibilityClient.ClientCompatibilityOverrideTransport),
             typeof(AIRsLight.ClashOfRim.CompatibilityClient.ClientCompatibilityOverridePresentation),
             typeof(AIRsLight.ClashOfRim.CompatibilityClient.ClientCompatibilityBaselineRuntime),

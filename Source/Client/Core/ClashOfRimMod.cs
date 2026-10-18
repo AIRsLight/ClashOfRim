@@ -1,3 +1,5 @@
+using AIRsLight.ClashOfRim.Modules.Diagnostics;
+using AIRsLight.ClashOfRim.Multiplayer.Diagnostics;
 using AIRsLight.ClashOfRim.Modules.Presence;
 using AIRsLight.ClashOfRim.Modules.Multiplayer;
 using AIRsLight.ClashOfRim.Multiplayer.Pages;
@@ -119,12 +121,8 @@ public sealed partial class ClashOfRimMod : Mod
     private readonly ClientAdminAccess adminAccess;
     private readonly ClientAdministration administration;
     private readonly ClientWorldWrites worldWrites;
-    private string? loginStatus;
-    private string? snapshotUploadStatus;
-    private string? presenceStatus;
     private readonly ClientDiplomacyActions diplomacyActions;
     private readonly ClientPlayerDirectory playerDirectory;
-    private string? worldMapStatus;
     private readonly ClientCompatibilityBaseline compatibilityBaseline;
     private readonly ClientCompatibilityOverride compatibilityOverride;
     private readonly ClientLocalMutationCoordinator localMutations = new();
@@ -132,6 +130,7 @@ public sealed partial class ClashOfRimMod : Mod
     private readonly ClientSessionLifecycle sessionLifecycle;
     private readonly ClientChat chat;
     private readonly ClientPasswordChange passwordChange;
+    private readonly ClientRuntimeDiagnostics diagnostics;
     private readonly ClientSessionRecovery sessionRecovery;
     private readonly ClientSessionConnection sessionConnection = new(new ClientSessionWebSocketTransport(new ClientWebSocketFactory(), new ClientProtocolMetadata()));
     private readonly ClientAchievementQueries achievementQueries;
@@ -165,6 +164,10 @@ public sealed partial class ClashOfRimMod : Mod
         snapshotPublication = ClientSnapshotComposition.CreatePublication(settings);
         var sessionIdentity = new ClientSessionIdentityStore(settings);
         sessionLifecycle = new ClientSessionLifecycle(sessionIdentity, new ClientSessionLogoutTransport(), sessionConnection);
+        var eventReader = new ClientEventReader(sessionLifecycle, eventInbox, new ClientEventReadTransport(), new ClientSnapshotGame());
+        var eventReadPresentation = new ClientEventReadPresentation();
+        eventState = new ClientEventState(eventReader, eventReadPresentation);
+        diagnostics = new ClientRuntimeDiagnostics(sessionLifecycle, eventState);
         adminAccess = new ClientAdminAccess(sessionLifecycle);
         adminBaselineCapture = new ClientAdminBaselineCapture(sessionLifecycle, new AIRsLight.ClashOfRim.Admin.ClientAdminBaselineRuntime(), ClientMainThreadDispatcher.EnqueueSession);
         var localManifest = new ClientLocalCompatibilityManifest();
@@ -181,7 +184,7 @@ public sealed partial class ClashOfRimMod : Mod
         storytellerConfiguration = new ClientStorytellerConfiguration(sessionLifecycle, worldSetup, new ClientStorytellerRuntime());
         compatibilityPresentation = new ClientCompatibilityPresentation((response, language, accept, cancel) =>
             new AIRsLight.ClashOfRim.CompatibilityClient.CompatibilityMismatchWindow(this, response, language, accept, cancel));
-        var entryPresentation = new ClientWorldEntryPresentation(message => loginStatus = message,
+        var entryPresentation = new ClientWorldEntryPresentation(message => diagnostics.LoginStatus = message,
             (server, account) => Find.WindowStack.Add(new AIRsLight.ClashOfRim.MainMenu.ClashOfRimAccountRegistrationDialog(this, server, account)), compatibilityPresentation);
         var worldTransport = new ClientWorldPreparationTransport(new ClientProtocolEnvironment());
         worldPreparation = new ClientWorldPreparation(sessionLifecycle, new ClientSnapshotGame(), worldTransport, entryPresentation);
@@ -191,9 +194,6 @@ public sealed partial class ClashOfRimMod : Mod
         passwordChange = new ClientPasswordChange(sessionLifecycle,
             new ClientPasswordTransport(new ClientProtocolEnvironment()),
             new ClientPasswordStore(settings), new ClientPasswordPresentation(), ClientMainThreadDispatcher.EnqueueSession);
-        var eventReader = new ClientEventReader(sessionLifecycle, eventInbox, new ClientEventReadTransport(), new ClientSnapshotGame());
-        var eventReadPresentation = new ClientEventReadPresentation();
-        eventState = new ClientEventState(eventReader, eventReadPresentation);
         var eventConfirmation = new ClientEventConfirmation(sessionLifecycle, new ClientSnapshotGame(),
             snapshotPublication, eventInbox, new ClientEventConfirmationTransport());
         var eventConfirmationPreparation = new ClientEventConfirmationPreparation(sessionLifecycle, synchronization, localMutations, eventConfirmation);
@@ -214,7 +214,7 @@ public sealed partial class ClashOfRimMod : Mod
         diplomacyActions = new ClientDiplomacyActions(playerDirectory, diplomacyCreation);
         localSnapshotConfirmation = new ClientLocalSnapshotConfirmation(sessionLifecycle, new ClientSnapshotGame(), mutationAdmission,
             synchronization, localMutations, snapshotTransactions, snapshotFailureRecovery, ClientSnapshotComposition.Create(settings),
-            new ClientLocalSnapshotPresentation(message => snapshotUploadStatus = message));
+            new ClientLocalSnapshotPresentation(message => diagnostics.SnapshotUploadStatus = message));
         localSnapshotConfirmation.Completed += StartQueuedAutomaticEventRefreshAfterLocalAtomicMutation;
         endgameAchievements = new ClientEndgameAchievements(sessionLifecycle, new ClientSnapshotGame(),
             new ClientEndgameRuntime(), new ClientAchievementPresentation(), localSnapshotConfirmation);
@@ -271,7 +271,7 @@ public sealed partial class ClashOfRimMod : Mod
             new ClientSupportTransport(), supportPresentation);
         supportReturns.Completed += StartQueuedAutomaticEventRefreshAfterLocalAtomicMutation;
         var raidTransport = new ClientRaidTransport();
-        var raidPresentation = new ClientRaidLaunchPresentation(message => worldMapStatus = message);
+        var raidPresentation = new ClientRaidLaunchPresentation(message => diagnostics.WorldMapStatus = message);
         var raidLaunching = new ClientRaidLaunching(sessionLifecycle, mutationAdmission, synchronization, localMutations,
             snapshotTransactions, snapshotFailureRecovery, new ClientRaidPreparation(raidTransport, new ClientRemoteSnapshotTransport()),
             raidTransport, raidPresentation, () => PvpEnabled);
@@ -279,16 +279,16 @@ public sealed partial class ClashOfRimMod : Mod
         raidLaunching.Completed += StartQueuedAutomaticEventRefreshAfterLocalAtomicMutation;
         raidSettlements = new ClientRaidSettlements(sessionLifecycle, mutationAdmission, synchronization, localMutations, snapshotTransactions,
             snapshotFailureRecovery, new ClientRaidSupportLosses(snapshotTransactions, new ClientSupportTransport()),
-            new ClientEventConfirmationTransport(), eventInbox, localSnapshotConfirmation, new ClientRaidSettlementPresentation(message => worldMapStatus = message));
+            new ClientEventConfirmationTransport(), eventInbox, localSnapshotConfirmation, new ClientRaidSettlementPresentation(message => diagnostics.WorldMapStatus = message));
         raidSettlements.Completed += () => _ = playerDirectory.RefreshAsync(manual: false);
         raidSettlements.Expired += StartRestoreAfterRaid;
         raidRecovery = new ClientRaidRecovery(sessionLifecycle, new ClientSnapshotGame(), snapshotFailureRecovery, raidSettlements,
-            new ClientRaidRecoveryPresentation(message => worldMapStatus = message));
+            new ClientRaidRecoveryPresentation(message => diagnostics.WorldMapStatus = message));
         raidRecovery.ReloadRequested += StartRestoreAfterRaid;
         snapshotReload = new ClientSnapshotReload(sessionLifecycle, synchronization, localMutations, snapshotFailureRecovery,
             new ClientSessionAuthenticationTransport(), new ClientColonySnapshotDownload(new ClientRemoteSnapshotTransport()),
             snapshotPublication, new ClientSnapshotReloadRuntime(), new ClientSnapshotReloadPresentation(
-                (message, purpose) => { loginStatus = message; if (purpose == ClientSnapshotReloadPurpose.Raid) worldMapStatus = message; },
+                (message, purpose) => { diagnostics.LoginStatus = message; if (purpose == ClientSnapshotReloadPurpose.Raid) diagnostics.WorldMapStatus = message; },
                 response => ShowCompatibilityMismatchWindow(response)));
         var entryStore = new ClientWorldEntryStore(settings);
         var featureCatalogs = new ClientWorldFeatureCatalogs(sessionLifecycle, worldTransport);
@@ -297,20 +297,20 @@ public sealed partial class ClashOfRimMod : Mod
         worldConfiguration = new ClientWorldConfiguration(sessionLifecycle, configurationRuntime, entryStore, storytellerConfiguration, featureCatalogs);
         occupiedColonySites = new ClientOccupiedColonySites(sessionLifecycle, entryStore, new ClientOccupiedColonySitesRuntime());
         worldMarkers = new ClientWorldMarkers(sessionLifecycle, entryStore, occupiedColonySites, new ClientWorldMarkersRuntime(),
-            new ClientWorldMarkersPresentation(message => worldMapStatus = message));
+            new ClientWorldMarkersPresentation(message => diagnostics.WorldMapStatus = message));
         worldLoginPublication = new ClientWorldLoginPublication(sessionLifecycle, worldMarkers);
         worldSynchronization = new ClientWorldSynchronization(sessionLifecycle, entryStore, localMutations, worldMarkers,
             new ClientWorldSynchronizationRuntime(), new ClientWorldMarkerTransport(new ClientProtocolEnvironment()),
-            new ClientWorldWritePresentation(message => worldMapStatus = message), tradeMarket.CaptureRefresh);
+            new ClientWorldWritePresentation(message => diagnostics.WorldMapStatus = message), tradeMarket.CaptureRefresh);
         colonyAppearance = new ClientColonyAppearance(sessionLifecycle, new ClientColonyAppearanceStore(settings), new ClientColonyAppearancePresentation());
         var worldPublication = new ClientWorldPublication(entryStore, worldConfiguration, occupiedColonySites, colonyAppearance, worldMarkers);
         var colonyTransport = new ClientColonyTransport(new ClientProtocolEnvironment());
         colonyRegistration = new ClientColonyRegistration(sessionLifecycle, entryStore, localMutations, new ClientColonyRegistrationRuntime(), colonyTransport, worldPublication);
         snapshotSaving = new ClientSnapshotSaving(sessionLifecycle, synchronization, localMutations, ClientSnapshotComposition.Create(settings),
             new ClientSnapshotGame(), entryStore, configurationRuntime, colonyRegistration, colonyAppearance,
-            new ClientSnapshotSavingPresentation(message => snapshotUploadStatus = message));
+            new ClientSnapshotSavingPresentation(message => diagnostics.SnapshotUploadStatus = message));
         colonyAbandonment = new ClientColonyAbandonment(sessionLifecycle, entryStore, new ClientWorldCatalogRuntime(), colonyTransport,
-            new ClientColonyAbandonPresentation(message => worldMapStatus = message));
+            new ClientColonyAbandonPresentation(message => diagnostics.WorldMapStatus = message));
         colonyRelocation = new ClientColonyRelocation(sessionLifecycle, entryStore, new ClientWorldCatalogRuntime(), mutationAdmission,
             synchronization, localMutations, snapshotTransactions, ClientSnapshotComposition.Create(settings), snapshotFailureRecovery,
             colonyRegistration, worldPublication, colonyTransport, new ClientColonyRelocationPresentation());
@@ -321,18 +321,18 @@ public sealed partial class ClashOfRimMod : Mod
             ClientColonyRegistrationKind.Sites, reason, appearance, suppressNotification: true);
         colonyRegistration.Diagnostic += (message, warning) => { if (warning) Log.Warning(message); else ClashLog.Message(message); };
         worldCatalog = new ClientWorldCatalog(sessionLifecycle, new ClientWorldCatalogRuntime(), worldTransport,
-            new ClientWorldCatalogPresentation(message => worldMapStatus = message), worldPublication, serverMetadata);
+            new ClientWorldCatalogPresentation(message => diagnostics.WorldMapStatus = message), worldPublication, serverMetadata);
         var worldWritePresentation = new ClientWorldWritePresentation(message => administration.Message = message);
         worldWrites = new ClientWorldWrites(sessionLifecycle, adminAccess, worldBaselineCapture, worldBaselineSubmission,
             storytellerConfiguration, worldPublication, worldWritePresentation, worldWritePresentation);
-        worldGeneration = new ClientWorldGeneration(sessionLifecycle, worldSetup, worldConfiguration, new ClientWorldGenerationRuntime(), new ClientWorldGenerationPresentation(message => loginStatus = message));
+        worldGeneration = new ClientWorldGeneration(sessionLifecycle, worldSetup, worldConfiguration, new ClientWorldGenerationRuntime(), new ClientWorldGenerationPresentation(message => diagnostics.LoginStatus = message));
         worldEntry = new ClientWorldEntry(sessionLifecycle, new ClientSnapshotGame(), worldSetup,
             entryStore, worldTransport, entryPresentation, snapshotReload, worldPublication, serverMetadata);
         worldEntryStart = new ClientWorldEntryStart(sessionLifecycle, synchronization, new ClientSnapshotGame(),
             entryStore, entryPresentation, worldPreparation, worldEntry);
         observationMaps = new ClientObservationMaps(sessionLifecycle, synchronization, new ClientSnapshotGame(),
             new ClientObservationTransport(), new ClientObservationRuntime(),
-            new ClientObservationPresentation(message => worldMapStatus = message, response => ShowCompatibilityMismatchWindow(response)));
+            new ClientObservationPresentation(message => diagnostics.WorldMapStatus = message, response => ShowCompatibilityMismatchWindow(response)));
         eventConfirmations = new ClientEventConfirmationWorkflow(sessionLifecycle, eventConfirmationPreparation, eventConfirmation,
             localMutations, snapshotFailureRecovery, eventInbox, new ClientEventConfirmationPresentation((purpose, message) =>
             {
@@ -361,24 +361,24 @@ public sealed partial class ClashOfRimMod : Mod
         chat = new ClientChat(sessionLifecycle, new ClientChatTransport(new ClientProtocolEnvironment()), new ClientChatPresentation());
         var notificationEffects = new ClientSessionNotificationEffects(chat, eventRefresh, worldCatalog);
         sessionNotifications = new ClientSessionNotifications(sessionLifecycle, sessionConnection, eventState, notificationEffects,
-            new ClientSessionNotificationPresentation(message => presenceStatus = message));
+            new ClientSessionNotificationPresentation(message => diagnostics.PresenceStatus = message));
         sessionRecovery = new ClientSessionRecovery(sessionLifecycle, sessionConnection, sessionReconnect, localMutations, worldLoginPublication,
-            new ClientSessionRecoveryRuntime(), new ClientSessionRecoveryPresentation(message => loginStatus = message, message => presenceStatus = message),
+            new ClientSessionRecoveryRuntime(), new ClientSessionRecoveryPresentation(message => diagnostics.LoginStatus = message, message => diagnostics.PresenceStatus = message),
             new ClientSessionRecoveryEffects(eventRefresh, playerDirectory, chat, sessionNotifications, raidRecovery));
         notificationEffects.SessionExpired += sessionRecovery.Expired;
         var sessionFollowups = new ClientSessionFollowups(eventRefresh, playerDirectory, chat, colonyRegistration, colonyAppearance,
             worldSynchronization, sessionNotifications, new ClientSessionFollowupText());
         var snapshotWorld = new ClientSnapshotWorld(sourceGame, worldConfiguration, entryStore, configurationRuntime, sessionConnection,
-            sessionFollowups, raidRecovery, new ClientRaidRecoveryRuntime(), new ClientSnapshotWorldPresentation(message => worldMapStatus = message));
+            sessionFollowups, raidRecovery, new ClientRaidRecoveryRuntime(), new ClientSnapshotWorldPresentation(message => diagnostics.WorldMapStatus = message));
         snapshotReload.Completed += snapshotWorld.Continue;
-        var initialWorldPresentation = new ClientInitialWorldPresentation(message => loginStatus = message, message => snapshotUploadStatus = message, sessionConnection);
+        var initialWorldPresentation = new ClientInitialWorldPresentation(message => diagnostics.LoginStatus = message, message => diagnostics.SnapshotUploadStatus = message, sessionConnection);
         initialWorldSetup = new ClientInitialWorldSetup(sessionLifecycle, worldSetup, synchronization, worldBaselineCapture, worldBaselineSubmission,
             adminBaselineCapture, new AIRsLight.ClashOfRim.Admin.ClientAdminBaselineTransport(new ClientProtocolEnvironment()),
             ClientSnapshotComposition.Create(settings), initialWorldPresentation, initialWorldPresentation, sessionFollowups);
         sessionStartup = new ClientSessionStartup(sessionLifecycle, synchronization, localMutations, sourceGame, worldLoginPublication,
             new ClientSessionLogin(sessionLifecycle, new ClientSessionLoginTransport(new ClientProtocolEnvironment())),
             ClientSnapshotComposition.Create(settings), new ClientSessionStartupRuntime(sessionConnection),
-            new ClientSessionStartupPresentation(message => loginStatus = message, message => snapshotUploadStatus = message, response => ShowCompatibilityMismatchWindow(response)), sessionFollowups);
+            new ClientSessionStartupPresentation(message => diagnostics.LoginStatus = message, message => diagnostics.SnapshotUploadStatus = message, response => ShowCompatibilityMismatchWindow(response)), sessionFollowups);
         var operationFollowups = new ClientOperationFollowups(eventRefresh, shopCatalog, playerDirectory, worldSynchronization, new ClientSessionFollowupText());
         shopOperations.Completed += step => _ = operationFollowups.ShopCompleted(step);
         tradeOperations.Completed += (operation, step) => _ = operationFollowups.TradeCompleted(operation, step);
@@ -405,7 +405,7 @@ public sealed partial class ClashOfRimMod : Mod
             new ClientSnapshotGame(), new ClientSnapshotTransactionPresentation());
         synchronization.SnapshotChanged += snapshotNotifications.Observe;
         sessionLifecycle.LogoutFailed += message => Log.Warning("[ClashOfRim] " + message);
-        _ = new ClientConnectionStatus(sessionLifecycle, sessionConnection, new ClientConnectionStatusPresentation(message => presenceStatus = message));
+        _ = new ClientConnectionStatus(sessionLifecycle, sessionConnection, new ClientConnectionStatusPresentation(message => diagnostics.PresenceStatus = message));
         var harmony = new Harmony(PackageId);
         ClashOfRimCompatibilityApi.BeginRegistrationCycle(PackageId);
         BuiltInClientCompatibility.Apply(harmony);
@@ -455,6 +455,9 @@ public sealed partial class ClashOfRimMod : Mod
     internal MultiplayerMercenaryPage CreateMercenaryPage(ClientBankPanel bank) =>
         new(new ClientMercenaryPanel(sessionLifecycle, new ClientSnapshotGame(), mercenaryState, mercenaryQuotes,
             mercenaryHiring, synchronization, bank.Read, () => worldMarkers.PvpEnabled));
+
+    internal MultiplayerAccountPage CreateAccountPage() => new(new ClientAccountPanel(sessionLifecycle, passwordChange));
+    internal MultiplayerDiagnosticsPage CreateDiagnosticsPage() => new(diagnostics);
 
     internal bool ManualSyncInProgress => synchronization.ManualInProgress;
 
@@ -508,7 +511,7 @@ public sealed partial class ClashOfRimMod : Mod
 
     internal bool CanRefreshCaravanArrivalTargets => worldSynchronization.CanStart(ClientWorldSynchronizationKind.CaravanTargets);
 
-    internal string LoginStatus => loginStatus ?? ClashOfRimText.Key("ClashOfRim.Status.NotLoggedIn");
+    internal string LoginStatus => ClientDiagnosticsText.Login(diagnostics.LoginStatus);
 
     internal string EventQueueStatus => eventState.QueueStatus;
 
@@ -516,15 +519,15 @@ public sealed partial class ClashOfRimMod : Mod
 
     internal string GiftProcessingStatus => eventState.ActionStatus;
 
-    internal string SnapshotUploadStatus => snapshotUploadStatus ?? ClashOfRimText.Key("ClashOfRim.Status.SnapshotUploadNotStarted");
+    internal string SnapshotUploadStatus => ClientDiagnosticsText.SnapshotUpload(diagnostics.SnapshotUploadStatus);
 
-    internal string PresenceStatus => presenceStatus ?? ClashOfRimText.Key("ClashOfRim.Status.PresenceNotStarted");
+    internal string PresenceStatus => ClientDiagnosticsText.Presence(diagnostics.PresenceStatus);
 
     internal string PlayerListStatus => playerDirectory.Message;
 
     internal string TradeStatus => tradeState.Message;
 
-    internal string WorldMapStatus => worldMapStatus ?? ClashOfRimText.Key("ClashOfRim.Status.WorldMapNotSynced");
+    internal string WorldMapStatus => ClientDiagnosticsText.WorldMap(diagnostics.WorldMapStatus);
 
     internal string ChatStatus => chat.Status;
     internal IReadOnlyList<ModChatMessageDto> ChatMessagesSnapshot => chat.CopyMessages();

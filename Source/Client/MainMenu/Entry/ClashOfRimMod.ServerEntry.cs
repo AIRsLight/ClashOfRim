@@ -4,9 +4,6 @@ namespace AIRsLight.ClashOfRim;
 
 public sealed partial class ClashOfRimMod
 {
-    internal string FormatCurrentMapRuntimeSummary()
-        => ClientRuntimeSummaryPresentation.Format(sessionLifecycle.ReadContext());
-
     internal bool StartMainMenuServerEntryFlow(string? serverBaseUrl, string? userId, string? password, bool createAccountIfMissing = false)
         => worldEntryStart.TryStart(serverBaseUrl, userId, password, createAccountIfMissing);
 

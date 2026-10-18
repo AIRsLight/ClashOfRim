@@ -192,7 +192,7 @@ internal static class EventRefreshModuleTests
         }
     }
 
-    private sealed class Fixture : IClientAutomaticEventApplications, IClientEventLetterDelivery, IClientEventReadPresentation
+    internal sealed class Fixture : IClientAutomaticEventApplications, IClientEventLetterDelivery, IClientEventReadPresentation
     {
         internal readonly EventModuleTestPorts Ports = new();
         internal readonly EventReadTestProtocol Protocol = new();

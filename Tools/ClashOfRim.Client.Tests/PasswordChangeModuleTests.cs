@@ -195,7 +195,7 @@ internal static class PasswordChangeModuleTests
     }
     private static readonly string[] Changes = { "user", "auth", "server", "colony", "login", "clear", "unavailable", "generation" };
     private static ClashOfRimClientNetworkResult<ModChangeOfflinePasswordResponseDto> Ok() => ClashOfRimClientNetworkResult<ModChangeOfflinePasswordResponseDto>.Ok(new() { Result = new() { Accepted = true, Message = "server-文化" } });
-    private sealed class Fixture : IClientPasswordTransport, IClientPasswordStore, IClientPasswordPresentation
+    internal sealed class Fixture : IClientPasswordTransport, IClientPasswordStore, IClientPasswordPresentation
     {
         internal readonly EventModuleTestPorts Ports = new();
         internal readonly ClientSessionLifecycle Session;

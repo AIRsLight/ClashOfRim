@@ -1,3 +1,5 @@
+using AIRsLight.ClashOfRim.Modules.Diagnostics;
+using AIRsLight.ClashOfRim.Multiplayer.Diagnostics;
 using AIRsLight.ClashOfRim.Account;
 using AIRsLight.ClashOfRim.Modules.Accounts;
 using System;
@@ -56,8 +58,8 @@ internal static class EventCommandPresentationTests
             if (!log.Contains("owner=<none>") || phase != SnapshotTransactionPhase.Started && !log.Contains("age=n/a"))
                 throw new Exception("Transaction diagnostic lost unavailable values: " + log);
         }
-        var context = new ClashOfRimClientNetworkContext("server-é", "user-é", "colony-é", "snapshot-é", "steam-secret", "password-secret", "auth-secret");
-        string summary = ClientRuntimeSummaryPresentation.Describe(42, context);
+        var view = new ClientDiagnosticsView("server-é", "user-é", "colony-é", "snapshot-é", true, null, null, null, null, "", "");
+        string summary = ClientDiagnosticsText.Describe(42, view);
         RequireResolved(summary);
         foreach (var (key, argument, value) in new[]
         {
@@ -67,9 +69,13 @@ internal static class EventCommandPresentationTests
         })
             if (translations["ClashOfRim." + key].Contains("{" + argument + "}") && !summary.Contains(value))
                 throw new Exception("Runtime summary lost " + value);
-        foreach (string secret in new[] { "steam-secret", "password-secret", "auth-secret" })
-            if (summary.Contains(secret)) throw new Exception("Runtime summary included credentials.");
-        RequireResolved(ClientRuntimeSummaryPresentation.Describe(null, new("", "", "", null, null, null, null)));
+        RequireResolved(ClientDiagnosticsText.Describe(null, view with { IsConfigured = false, SnapshotId = null }));
+        foreach (var format in new Func<string?, string>[] { ClientDiagnosticsText.Login, ClientDiagnosticsText.SnapshotUpload,
+            ClientDiagnosticsText.Presence, ClientDiagnosticsText.WorldMap })
+        {
+            RequireResolved(format(null));
+            if (format("") != "" || format("published-é") != "published-é") throw new Exception("Diagnostic fallback replaced a published message.");
+        }
     }
     private static void SnapshotSavingPresentation()
     {

@@ -2,14 +2,7 @@ using AIRsLight.ClashOfRim.Modules.Multiplayer;
 using AIRsLight.ClashOfRim.Multiplayer.Pages;
 using System;
 using System.Collections.Generic;
-using System.Globalization;
-using System.Linq;
-using AIRsLight.ClashOfRim.ClientNetwork;
-using AIRsLight.ClashOfRim.Trades;
-using AIRsLight.ClashOfRim.Visuals;
-using AIRsLight.ClashOfRim.WorldObjects;
 using RimWorld;
-using RimWorld.Planet;
 using UnityEngine;
 using Verse;
 
@@ -26,6 +19,8 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
     private ClientBankPanel? bankPanel;
     private MultiplayerBankPage? bankPage;
     private MultiplayerMercenaryPage? mercenaryPage;
+    private MultiplayerAccountPage? accountPage;
+    private MultiplayerDiagnosticsPage? diagnosticsPage;
 
     private const float PanelRefreshIntervalSeconds = PanelRefreshSchedule.IntervalSeconds;
 
@@ -93,8 +88,6 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
     private string adminBroadcastTargetColonyId = string.Empty;
     private bool adminBroadcastPersistent = true;
     private string adminMaintenanceReason = string.Empty;
-    private string accountCurrentPassword = string.Empty;
-    private string accountNewPassword = string.Empty;
     private readonly Dictionary<string, string> adminShopStockBuffers = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string> adminShopPriceBuffers = new(StringComparer.Ordinal);
     private MultiplayerTab cachedMainTabsSelectedTab;
@@ -130,6 +123,8 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
         if (shopPanel is null) (shopPanel, shopPage) = mod.CreateShopPage();
         if (bankPanel is null) (bankPanel, bankPage) = mod.CreateBankPage();
         mercenaryPage ??= mod.CreateMercenaryPage(bankPanel);
+        accountPage ??= mod.CreateAccountPage();
+        diagnosticsPage ??= mod.CreateDiagnosticsPage();
         TryRefreshSelectedTab(mod);
         Rect tabRect = new(inRect.x, inRect.y + 34f, inRect.width, inRect.height - 34f);
         if (!mod.IsAdministrator && selectedTab == MultiplayerTab.Admin)
@@ -157,10 +152,10 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
                 mercenaryPage!.Draw(contentRect);
                 break;
             case MultiplayerTab.Diagnostics:
-                DrawDiagnosticsTab(contentRect, mod);
+                diagnosticsPage!.Draw(contentRect);
                 break;
             case MultiplayerTab.Account:
-                DrawAccountTab(contentRect, mod);
+                accountPage!.Draw(contentRect);
                 break;
             case MultiplayerTab.Admin:
                 DrawAdminTab(contentRect, mod);
@@ -180,6 +175,7 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
         shopPage?.Close();
         bankPage?.Close();
         mercenaryPage?.Close();
+        accountPage?.Close();
         base.PostClose();
     }
 
@@ -269,59 +265,6 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
                 nextAdminRefreshAt = 0f;
                 break;
         }
-    }
-
-    private static void DrawDiagnosticsTab(Rect rect, ClashOfRimMod mod)
-    {
-        Widgets.DrawMenuSection(rect);
-        Rect inner = rect.ContractedBy(10f);
-        Listing_Standard listing = new();
-        listing.Begin(inner);
-        listing.Label($"{mod.UserId}/{mod.ColonyId}");
-        listing.GapLine();
-        listing.Label(mod.FormatCurrentMapRuntimeSummary());
-        listing.Label(mod.SnapshotUploadStatus);
-        listing.Label(mod.LoginStatus);
-        listing.Label(mod.WorldMapStatus);
-        listing.Label(mod.PresenceStatus);
-        listing.GapLine();
-        listing.Label(mod.EventQueueStatus);
-        listing.Label(mod.EventDetailsStatus);
-        listing.End();
-    }
-
-    private void DrawAccountTab(Rect rect, ClashOfRimMod mod)
-    {
-        Widgets.DrawMenuSection(rect);
-        Rect inner = rect.ContractedBy(10f);
-        Text.Font = GameFont.Medium;
-        Widgets.Label(new Rect(inner.x, inner.y, inner.width, 30f), ClashOfRimText.Key("ClashOfRim.Multiplayer.TabAccount"));
-        Text.Font = GameFont.Small;
-
-        float y = inner.y + 44f;
-        Widgets.Label(new Rect(inner.x, y, inner.width, 24f), ClashOfRimText.Key(
-            "ClashOfRim.Account.CurrentUser",
-            mod.CurrentUserId.Named("USER")));
-        y += 38f;
-
-        Widgets.Label(new Rect(inner.x, y, 130f, 24f), ClashOfRimText.Key("ClashOfRim.Account.CurrentPassword"));
-        accountCurrentPassword = GUI.PasswordField(new Rect(inner.x + 140f, y - 2f, 260f, 28f), accountCurrentPassword ?? string.Empty, '*');
-        y += 36f;
-
-        Widgets.Label(new Rect(inner.x, y, 130f, 24f), ClashOfRimText.Key("ClashOfRim.Account.NewPassword"));
-        accountNewPassword = GUI.PasswordField(new Rect(inner.x + 140f, y - 2f, 260f, 28f), accountNewPassword ?? string.Empty, '*');
-        y += 42f;
-
-        if (Widgets.ButtonText(new Rect(inner.x + 140f, y, 160f, 30f), ClashOfRimText.Key("ClashOfRim.Account.ChangePassword"), active: !mod.AccountPasswordInProgress))
-        {
-            mod.StartChangeOfflinePassword(accountCurrentPassword ?? string.Empty, accountNewPassword ?? string.Empty);
-            accountCurrentPassword = string.Empty;
-            accountNewPassword = string.Empty;
-        }
-
-        Text.Font = GameFont.Tiny;
-        Widgets.Label(new Rect(inner.x, y + 44f, inner.width, 40f), mod.AccountPasswordStatus);
-        Text.Font = GameFont.Small;
     }
 
     private void TryRefreshSelectedTab(ClashOfRimMod mod)
