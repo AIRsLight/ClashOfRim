@@ -121,7 +121,13 @@ public sealed class ClashOfRimNetworkState
         RaidEvidenceConfirmation = new RaidEvidenceConfirmation(Ledger, SnapshotPostUploadJobs, RaidEvidenceScheduling,
             SnapshotMutations, SnapshotRequests, ColonyAuthorization, SnapshotTransactions, PendingConfirmations,
             new LegacyRaidEvidencePipeline(this), () => RuntimeLogger);
-        var raidReconciliation = new LegacyRaidDeliveryProtection(this);
+        RaidOfflineEvidence = new RaidOfflineEvidence(Ledger, SnapshotStore, SnapshotPostUploadJobs, SnapshotPostUploadArtifacts,
+            SnapshotMutations, RaidQueries, RaidEvidenceScheduling, () => RuntimeLogger);
+        RaidBattleCleanup = new RaidBattleCleanup(Ledger, SnapshotStore, SnapshotPostUploadJobs, SnapshotMutations,
+            RaidQueries, SnapshotCommits, BankLoans, Players, OnlinePresence, EventNotifications, () => RuntimeLogger);
+        RaidTimeouts = new RaidTimeouts(Ledger, SnapshotStore, SnapshotPostUploadJobs, SnapshotMutations, OnlinePresence,
+            EventNotifications, RaidOfflineEvidence, RaidBattleCleanup, () => ServerConfiguration);
+        var raidReconciliation = new RaidDeliveryProtection(RaidTimeouts, RaidQueries, RaidProtection);
         var raidAdmission = new RaidAdmission(DiplomacyRelations, OnlinePresence, RaidProtection, () => ServerConfiguration);
         RaidPreparation = new RaidPreparation(SnapshotStore, RaidPreparations, MercenaryGuards, RaidQueries, raidAdmission,
             raidReconciliation, WorldConfiguration, () => ServerConfiguration);
@@ -174,6 +180,9 @@ public sealed class ClashOfRimNetworkState
     internal RaidSettlementWork RaidSettlementWork { get; }
     internal RaidEvidenceScheduling RaidEvidenceScheduling { get; }
     internal RaidEvidenceConfirmation RaidEvidenceConfirmation { get; }
+    internal RaidOfflineEvidence RaidOfflineEvidence { get; }
+    internal RaidBattleCleanup RaidBattleCleanup { get; }
+    internal RaidTimeouts RaidTimeouts { get; }
 
     internal ColonyAccessAuthorization ColonyAuthorization { get; }
     internal ColonySnapshotAuthorization SnapshotAuthorization { get; }

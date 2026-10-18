@@ -1,4 +1,3 @@
-using System.Reflection;
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Network;
 using AIRsLight.ClashOfRim.Protocol;
@@ -8,8 +7,6 @@ internal static class DownloadCleanupBaselineTests
 {
     public static void Run(SaveSnapshotPackage captured)
     {
-        MethodInfo cleanup = typeof(ClashOfRimNetworkServer).GetMethod("CleanupSettledRaidBattleSnapshotBeforeDownload",
-            BindingFlags.Static | BindingFlags.NonPublic)!;
         foreach (string change in new[] { "unchanged", "snapshot", "hash", "token", "removed" })
         {
             string root = Path.Combine(Path.GetTempPath(), "cor-download-cleanup-" + Guid.NewGuid().ToString("N"));
@@ -39,8 +36,7 @@ internal static class DownloadCleanupBaselineTests
                 else if (change != "unchanged")
                     store.StoreLatest(captured with { Envelope = newerEnvelope }, captured.Index, DateTimeOffset.UtcNow);
                 LatestSnapshotRecord? before = store.GetLatest(identity.OwnerId!, identity.ColonyId!);
-                var returned = (SaveSnapshotPackage)cleanup.Invoke(null,
-                    new object?[] { state, store, captured, identity.OwnerId!, identity.ColonyId!, DateTimeOffset.UtcNow, null })!;
+                var returned = state.RaidBattleCleanup.BeforeDownload(captured, identity.OwnerId!, identity.ColonyId!, DateTimeOffset.UtcNow);
                 LatestSnapshotRecord? after = store.GetLatest(identity.OwnerId!, identity.ColonyId!);
                 if (change == "unchanged")
                 {

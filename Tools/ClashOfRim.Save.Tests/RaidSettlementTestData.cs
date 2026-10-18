@@ -30,7 +30,7 @@ internal sealed class RaidSettlementTestData
     {
         string path = Path.Combine(Root, id + ".rws");
         string world = things ? "" : "<world><worldObjects><worldObjects><li Class=\"AIRsLight.ClashOfRim.RemoteMaps.RemoteSessionMapParent\"><ID>7</ID>"
-            + "<def>ClashOfRim_RemoteRaidBattleMapParent</def><clashOfRimRelatedEventId>" + Raid.EventId
+            + "<def>ClashOfRim_RemoteRaidBattleMapParent</def><clashOfRimMode>RaidBattle</clashOfRimMode><clashOfRimRelatedEventId>" + Raid.EventId
             + "</clashOfRimRelatedEventId></li></worldObjects></worldObjects></world>";
         File.WriteAllText(path, "<savegame><meta><gameVersion>1.7-test</gameVersion></meta><game>" + world
             + "<maps><li><uniqueID>" + (things ? "0" : "7") + "</uniqueID><mapInfo><parent>WorldObject_7</parent></mapInfo><things>"

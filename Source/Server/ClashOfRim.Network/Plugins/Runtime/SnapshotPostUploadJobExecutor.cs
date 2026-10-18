@@ -215,7 +215,7 @@ internal sealed class SnapshotPostUploadBackgroundService : BackgroundService
                     try
                     {
                         if (Events.RaidTimeoutProcessor.PendingWork(state.Ledger).Count > 0)
-                            ClashOfRimNetworkServer.RecoverPendingRaidTimeoutWork(state, DateTimeOffset.UtcNow);
+                            state.RaidTimeouts.RecoverPending(DateTimeOffset.UtcNow);
                     }
                     catch (Exception ex)
                     {

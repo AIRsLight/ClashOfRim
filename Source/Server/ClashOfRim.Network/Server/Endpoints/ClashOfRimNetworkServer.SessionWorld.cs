@@ -55,7 +55,7 @@ public static partial class ClashOfRimNetworkServer
         string userId, CompatibilityHandshakeResult compatibility, DateTimeOffset nowUtc)
     {
         if (!Monitor.IsEntered(state.RaidSettlementSnapshotMutationGate)) throw new InvalidOperationException("World session preparation requires the recovered mutation scope.");
-        ReconcileExpiredRaidEvents(state, nowUtc);
+        state.RaidTimeouts.Reconcile(nowUtc);
         string requestedColonyId = string.IsNullOrWhiteSpace(request.ColonyId)
             ? CreateDefaultColonyId(userId)
             : request.ColonyId!.Trim();

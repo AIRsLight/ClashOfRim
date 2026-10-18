@@ -53,10 +53,10 @@ public static partial class ClashOfRimNetworkServer
             // Keep login publication excluded through the colony cleanup and the raid offline decision.
             disconnected = EndSessionConnectionLocked(state, userId, sessionId);
             ReconcilePendingConfirmationsLocked(state, userId, colonyId, nowUtc, forceCancel: false);
-            timeouts = ProcessExpiredRaidEventsLocked(state, nowUtc);
+            timeouts = state.RaidTimeouts.ExpireUnderMutation(nowUtc);
         }
         // These are durable server jobs with their own source checks; prepare their snapshots outside the gate.
-        CompletePendingRaidTimeoutWork(state, timeouts, nowUtc);
+        state.RaidTimeouts.CompletePending(timeouts, nowUtc);
         return new(ProtocolResponse.Ok(T("Logout.Success")), userId, disconnected);
     }
 

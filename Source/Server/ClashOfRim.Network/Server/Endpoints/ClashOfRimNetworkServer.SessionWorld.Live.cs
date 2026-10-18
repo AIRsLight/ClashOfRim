@@ -922,7 +922,7 @@ public static partial class ClashOfRimNetworkServer
         }
         // Timeout processing is server maintenance. Admit the caller before starting it,
         // then revalidate the caller after preparing its own snapshot and recovering new work.
-        ReconcileExpiredRaidEvents(state, nowUtc);
+        state.RaidTimeouts.Reconcile(nowUtc);
 
         if (TryRejectExpiredPendingConfirmationSnapshot(
                 state,
@@ -1010,14 +1010,14 @@ public static partial class ClashOfRimNetworkServer
         }
         DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
         // Timeout maintenance is server work; the caller's access is checked again before cleanup and delivery.
-        if (requestedSnapshotId is null) ReconcileExpiredRaidEvents(state, nowUtc);
+        if (requestedSnapshotId is null) state.RaidTimeouts.Reconcile(nowUtc);
         if (state.SnapshotStore is not IColonySnapshotPackageStore packageStore)
             return new(ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, T("Snapshot.StoreDownloadUnsupported")),
                 null, HttpStatusCode: StatusCodes.Status500InternalServerError);
 
         var package = packageStore.GetLatestPackage(userId, colonyId);
         if (package is not null)
-            package = CleanupSettledRaidBattleSnapshotBeforeDownload(state, packageStore, package, userId, colonyId, nowUtc, Authorize);
+            package = state.RaidBattleCleanup.BeforeDownload(package, userId, colonyId, nowUtc, Authorize);
 
         using (state.EnterSnapshotMutation())
         {
@@ -1036,71 +1036,6 @@ public static partial class ClashOfRimNetworkServer
             return new(ProtocolResponse.Ok(T("Snapshot.LatestReturned")), package,
                 requestedSnapshotId is null ? state.RaidQueries.Recovery(userId, colonyId, DateTimeOffset.UtcNow) : null);
         }
-    }
-
-    private static SaveSnapshotPackage CleanupSettledRaidBattleSnapshotBeforeDownload(
-        ClashOfRimNetworkState state,
-        IColonySnapshotPackageStore packageStore,
-        SaveSnapshotPackage package,
-        string userId,
-        string colonyId,
-        DateTimeOffset nowUtc,
-        Func<ProtocolResponse?>? authorize = null)
-    {
-        if (!package.Index.WorldObjects.Any(worldObject =>
-                worldObject.Def == "ClashOfRim_RemoteRaidBattleMapParent")) return package;
-        AuthoritativeEvent raid;
-        using (var recovery = EnterRecoveredSnapshotMutation(state, authorize))
-        {
-            if (recovery.Rejection is not null) return package;
-            if (!SnapshotCommitService.SameVersion(packageStore.GetLatest(userId, colonyId)?.Envelope, package.Envelope)) return package;
-            string? raidEventId = package.Index.WorldObjects
-                .Where(item => item.Def == "ClashOfRim_RemoteRaidBattleMapParent")
-                .Select(item => item.ClashOfRimRelatedEventId).FirstOrDefault(id => !string.IsNullOrWhiteSpace(id));
-            var source = string.IsNullOrWhiteSpace(raidEventId) ? null : state.Ledger.Find(raidEventId);
-            if (source?.Payload is not RaidEventPayload || !CanCleanupRaidBattleSnapshot(state, source, package)) return package;
-            raid = source;
-        }
-
-        (bool Changed, SaveSnapshotPackage Package, RaidAttackerSnapshotCleanupResult Result, PreparedSnapshotPayload? Storage) prepared;
-        try
-        {
-            prepared = SnapshotPreparationService.Run(() =>
-            {
-                bool changed = RaidAttackerSnapshotCleanupEditor.TryRemoveRaidBattleState(package,
-                    BuildTimedOutRaidCleanupSnapshotId(colonyId, raid.EventId, nowUtc), nowUtc, out var cleaned, out RaidAttackerSnapshotCleanupResult result);
-                var storage = changed ? (packageStore as IPreparedColonySnapshotPackageStore)?.PreparePayload(cleaned.Payload) : null;
-                return (changed, cleaned, result, storage);
-            });
-        }
-        catch (Exception ex) when (ex is IOException or InvalidDataException or System.Xml.XmlException or InvalidOperationException)
-        {
-            state.RuntimeLogger.LogWarning(ex,
-                "Failed to prepare stale raid battle cleanup: user={UserId} colony={ColonyId} sourceSnapshot={SourceSnapshotId}",
-                userId, colonyId, package.Envelope.Identity.SnapshotId);
-            return package;
-        }
-        if (!prepared.Changed) return package;
-
-        using (var recovery = EnterRecoveredSnapshotMutation(state, authorize))
-        {
-            if (recovery.Rejection is not null) return package;
-            // Preparation may overlap an upload, deletion, a new raid or a support closure.
-            // Rebuild the loss batch from current support records only after revalidating the source.
-            var current = state.Ledger.Find(raid.EventId);
-            if (!SnapshotCommitService.SameVersion(packageStore.GetLatest(userId, colonyId)?.Envelope, package.Envelope)
-                || current?.Payload is not RaidEventPayload payload || current.Status != raid.Status
-                || !RaidSettlementSnapshotMutation.SameSource(current, raid)
-                || !CanCleanupRaidBattleSnapshot(state, current, package)) return package;
-            var mutation = BuildRaidCleanupMutation(state, current, payload, package, prepared.Package, prepared.Result, nowUtc, "map-cleanup");
-            state.SnapshotCommits.CommitRaidCleanup(packageStore, state.BankLoans, state.Ledger, state.Players,
-                prepared.Package, mutation, nowUtc, user => state.EventNotifications.SignalUser(user), prepared.Storage);
-        }
-        state.RuntimeLogger.LogInformation(
-            "Cleaned stale raid battle snapshot before download: user={UserId} colony={ColonyId} sourceSnapshot={SourceSnapshotId} cleanedSnapshot={CleanedSnapshotId} removedMaps={RemovedMapCount} lostAttackPawns={LostAttackPawns} lostSupportPawns={LostSupportPawns}",
-            userId, colonyId, package.Envelope.Identity.SnapshotId, prepared.Package.Envelope.Identity.SnapshotId,
-            prepared.Result.RemovedMapCount, prepared.Result.LostAttackPawns.Count, prepared.Result.LostSupportPawns.Count);
-        return prepared.Package;
     }
 
     private static ChatMessageDto ToChatMessageDto(ChatMessageRecord message)

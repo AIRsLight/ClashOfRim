@@ -1,5 +1,3 @@
-using System.Reflection;
-using System.Runtime.ExceptionServices;
 using System.Text.Json;
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Network;
@@ -176,11 +174,7 @@ internal static partial class RaidCleanupCommitTests
             "Cleanup targeted a different owner or raid battle.");
     }
 
-    private static object? Invoke(string name, params object[] args)
-    {
-        try { return typeof(ClashOfRimNetworkServer).GetMethod(name, BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, args); }
-        catch (TargetInvocationException ex) when (ex.InnerException is not null) { ExceptionDispatchInfo.Capture(ex.InnerException).Throw(); throw; }
-    }
+
     private static void Require(bool value, string message) { if (!value) throw new Exception(message); }
     private static void Fails(Action action, string message)
     {
@@ -228,8 +222,8 @@ internal static partial class RaidCleanupCommitTests
             State.Players.RecordLatestSnapshotReference("attacker", "colony-a", Original.Envelope.Identity.SnapshotId, Now);
             Require(RaidAttackerSnapshotCleanupEditor.TryRemoveRaidBattleState(Original, "cleaned", Now, out Cleaned,
                 out RaidAttackerSnapshotCleanupResult result), "Cleanup fixture was not removable.");
-            Mutation = (RaidCleanupSnapshotMutation)Invoke("BuildRaidCleanupMutation", State, Raid, (RaidEventPayload)Raid.Payload,
-                Original, Cleaned, result, Now, timeout ? "timeout" : "map-cleanup")!;
+            Mutation = State.RaidBattleCleanup.BuildMutation(Raid, (RaidEventPayload)Raid.Payload,
+                Original, Cleaned, result, Now, timeout ? "timeout" : "map-cleanup");
         }
         public void Open()
         {
@@ -240,9 +234,8 @@ internal static partial class RaidCleanupCommitTests
         }
         public void InvokeCleanup()
         {
-            if (timeout) Invoke("CleanupTimedOutRaidAttackerSnapshots", State, new[] { Raid }, Now);
-            else Invoke("CleanupSettledRaidBattleSnapshotBeforeDownload", State, Store,
-                Store.GetLatestPackage("attacker", "colony-a")!, "attacker", "colony-a", Now, null!);
+            if (timeout) State.RaidBattleCleanup.CleanupTimeouts(new[] { Raid }, Now);
+            else State.RaidBattleCleanup.BeforeDownload(Store.GetLatestPackage("attacker", "colony-a")!, "attacker", "colony-a", Now);
         }
         public void Sql(string sql)
         {

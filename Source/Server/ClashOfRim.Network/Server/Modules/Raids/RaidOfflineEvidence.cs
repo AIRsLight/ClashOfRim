@@ -1,19 +1,45 @@
-using AIRsLight.ClashOfRim.Network.Modules.Raids;
-using Microsoft.Extensions.Logging;
 using AIRsLight.ClashOfRim.Events;
+using AIRsLight.ClashOfRim.Network.Modules.Snapshots;
 using AIRsLight.ClashOfRim.Network.Plugins;
 using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Save;
+using Microsoft.Extensions.Logging;
+using static AIRsLight.ClashOfRim.Network.Modules.Raids.RaidTimeoutRules;
 
-namespace AIRsLight.ClashOfRim.Network;
+namespace AIRsLight.ClashOfRim.Network.Modules.Raids;
 
-public static partial class ClashOfRimNetworkServer
+internal sealed class RaidOfflineEvidence(IAuthoritativeEventLedger ledger, IColonySnapshotIndexStore snapshots,
+    SnapshotPostUploadJobRegistry jobs, ISnapshotPostUploadArtifactStore artifacts, SnapshotMutationCoordinator mutations,
+    RaidQueries queries, RaidEvidenceScheduling scheduling, Func<ILogger> logger)
 {
-    // The caller must not hold the mutation gate: reading and preparing evidence can wait for a slot.
-    private static SnapshotPostUploadJobRecord? ScheduleOfflineTimedOutRaid(
-        ClashOfRimNetworkState state, AuthoritativeEvent raid, DateTimeOffset nowUtc)
+    internal IReadOnlySet<string> ScheduleAll(
+        IReadOnlyList<AuthoritativeEvent> offlineFailedRaids,
+        DateTimeOffset nowUtc)
     {
-        if (state.SnapshotStore is not IColonySnapshotPackageStore packages
+        var queuedRaidIds = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var raid in offlineFailedRaids)
+        {
+            try
+            {
+                var job = Schedule(raid, nowUtc);
+                if (job is null) continue;
+                queuedRaidIds.Add(raid.EventId);
+                logger().LogInformation("Queued offline raid timeout settlement: raid={RaidEventId} job={JobId} evidence={EvidenceSnapshotId}",
+                    raid.EventId, job.JobId, job.SnapshotId);
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or IOException)
+            {
+                logger().LogWarning(ex, "Offline raid timeout settlement could not be queued: raid={RaidEventId}", raid.EventId);
+            }
+        }
+        return queuedRaidIds;
+    }
+
+    // The caller must not hold the mutation gate: reading and preparing evidence can wait for a slot.
+    internal SnapshotPostUploadJobRecord? Schedule(
+        AuthoritativeEvent raid, DateTimeOffset nowUtc)
+    {
+        if (snapshots is not IColonySnapshotPackageStore packages
             || raid.Payload is not RaidEventPayload { OpponentKind: RaidOpponentKind.Player,
                 TimeoutWork: { AttackerWasOffline: true, Completed: false } } source
             || string.IsNullOrWhiteSpace(raid.Actor.UserId) || string.IsNullOrWhiteSpace(raid.Target.UserId)
@@ -25,12 +51,12 @@ public static partial class ClashOfRimNetworkServer
         SaveSnapshotEnvelope? attackerVersion, defenderVersion;
         SnapshotPostUploadJobRecord? existing;
         string? artifactId = null;
-        using (EnterRecoveredSnapshotMutation(state))
+        using (mutations.Enter())
         {
-            lock (state.SnapshotPostUploadJobs.SnapshotCommitGate)
+            lock (jobs.SnapshotCommitGate)
             {
-                if (!SameRaidCleanupSource(state.Ledger.Find(raid.EventId), raid)) return null;
-                existing = state.SnapshotPostUploadJobs.Find(jobId);
+                if (!SameSource(ledger.Find(raid.EventId), raid)) return null;
+                existing = jobs.Find(jobId);
                 if (existing is null && (source.Settlement is not null || source.ReturnedSnapshotId is not null)) return null;
                 attackerVersion = packages.GetLatest(owner, colony)?.Envelope;
                 defenderVersion = packages.GetLatest(defender, defenseColony)?.Envelope;
@@ -38,16 +64,16 @@ public static partial class ClashOfRimNetworkServer
                 {
                     artifactId = RaidEvidenceRules.BuildArtifactId(raid.EventId, snapshotId);
                     // Only an unreferenced orphan may be replaced. Concurrent preparations are invalidated.
-                    state.SnapshotPostUploadArtifacts.Delete(artifactId);
+                    artifacts.Delete(artifactId);
                 }
             }
         }
         if (existing is not null)
         {
-            if (!MatchesRaidSettlementJob(raid, existing))
+            if (!MatchesJob(raid, existing))
                 throw new InvalidDataException("Timed-out raid has a conflicting settlement job.");
             if (existing.State == SnapshotPostUploadJobState.Prepared)
-                existing = state.RaidEvidenceScheduling.RecoverPrepared(existing, nowUtc);
+                existing = scheduling.RecoverPrepared(existing, nowUtc);
             return existing.State == SnapshotPostUploadJobState.Ready ? existing : null;
         }
 
@@ -65,45 +91,44 @@ public static partial class ClashOfRimNetworkServer
             if (evidence!.Envelope.Identity.OwnerId != owner || evidence.Envelope.Identity.ColonyId != colony)
                 throw new InvalidDataException("Offline evidence does not belong to the attacker.");
             RaidEvidenceRules.ValidatePayload(evidence);
-            return (state.SnapshotPostUploadArtifacts as IPreparedSnapshotPostUploadArtifactStore)?.Prepare(artifactId!, evidence!);
+            return (artifacts as IPreparedSnapshotPostUploadArtifactStore)?.Prepare(artifactId!, evidence!);
         });
-        using (EnterRecoveredSnapshotMutation(state))
+        using (mutations.Enter())
         {
-            lock (state.SnapshotPostUploadJobs.SnapshotCommitGate)
+            lock (jobs.SnapshotCommitGate)
             {
-                if (!SameRaidCleanupSource(state.Ledger.Find(raid.EventId), raid)
+                if (!SameSource(ledger.Find(raid.EventId), raid)
                     || !RaidEvidenceRules.SameVersion(packages.GetLatest(owner, colony)?.Envelope, attackerVersion)
                     || !RaidEvidenceRules.SameVersion(packages.GetLatest(defender, defenseColony)?.Envelope, defenderVersion)
-                    || state.RaidQueries.ActiveAttacker(owner, colony) is not null) return null;
-                existing = state.SnapshotPostUploadJobs.Find(jobId);
+                    || queries.ActiveAttacker(owner, colony) is not null) return null;
+                existing = jobs.Find(jobId);
                 if (existing is not null)
                 {
-                    if (!MatchesRaidSettlementJob(raid, existing))
+                    if (!MatchesJob(raid, existing))
                         throw new InvalidDataException("Timed-out raid has a conflicting settlement job.");
                     return existing.State == SnapshotPostUploadJobState.Ready ? existing : null;
                 }
                 if (missing)
                 {
-                    state.RuntimeLogger.LogWarning("Offline raid timeout settlement missing snapshot: raid={RaidEventId}", raid.EventId);
-                    state.Ledger.ReportApplicationResult(raid.EventId, EventApplicationResultKind.NeedsManualReview,
-                        T("Raid.OfflineTimeoutSettlementMissingSnapshot"), nextRetryAtUtc: null);
+                    logger().LogWarning("Offline raid timeout settlement missing snapshot: raid={RaidEventId}", raid.EventId);
+                    ledger.ReportApplicationResult(raid.EventId, EventApplicationResultKind.NeedsManualReview,
+                        ServerText.Format("Raid.OfflineTimeoutSettlementMissingSnapshot"), nextRetryAtUtc: null);
                     return null;
                 }
                 if (prepared is not null)
                 {
                     if (!prepared.TryPublish()) return null;
                 }
-                else state.SnapshotPostUploadArtifacts.Store(artifactId!, evidence!);
+                else artifacts.Store(artifactId!, evidence!);
 
-                var context = new SnapshotPostUploadContext(state, SnapshotPostUploadKind.RaidSettlementEvidence,
-                    new LatestSnapshotRecord(evidence!.Envelope.Identity, evidence.Envelope, evidence.Index, nowUtc),
-                    owner, colony, null, nowUtc, SnapshotPostUploadExtraData.Empty, RegisterPlayerColonySite: false);
+                var input = new SnapshotPostUploadJobInput(SnapshotPostUploadKind.RaidSettlementEvidence,
+                    owner, colony, null, evidence!.Envelope.Identity.SnapshotId, nowUtc);
                 var payload = new RaidSettlementDeferredPayload(raid.EventId, owner, colony, defender, defenseColony,
                     evidence.Envelope.Identity.SnapshotId!, source.DefenderSnapshotId, artifactId!,
                     RaidSettlementOrigin.OfflineTimeout, "OfflineTimeout", new RaidEvidencePublication(attackerVersion, evidence.Envelope));
-                var job = state.SnapshotPostUploadJobs.EnqueuePrepared(jobId, RaidSettlementDeferredScheduler.ProcessorId, context, payload.Serialize());
+                var job = jobs.EnqueuePrepared(jobId, RaidSettlementWork.ProcessorId, input, payload.Serialize());
                 // The evidence and Prepared intent now survive every subsequent failure.
-                return state.RaidEvidenceScheduling.CompletePreparedEvidence(job, payload, evidence, nowUtc);
+                return scheduling.CompletePreparedEvidence(job, payload, evidence, nowUtc);
             }
         }
     }

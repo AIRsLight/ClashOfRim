@@ -1,6 +1,4 @@
 using AIRsLight.ClashOfRim.Network.Modules.Raids;
-using System.Reflection;
-using System.Runtime.ExceptionServices;
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Network;
 using AIRsLight.ClashOfRim.Network.Plugins;
@@ -48,7 +46,7 @@ internal static partial class RaidTimeoutRecoveryTests
         if (recovery) RaidTimeoutProcessor.ProcessExpiredRaids(f.State.Ledger, f.State.Ledger.ListAll(), f.Now, isAttackerOnline: _ => false);
         SnapshotPreparationGateProbe.Run(f.State.RaidSettlementSnapshotMutationGate,
             hook => { if (phase == "read") f.Store.BeforeRead = owner => { if (owner == "attacker") hook?.Invoke(); }; else f.Artifacts.BeforePrepare = hook; },
-            () => { if (recovery) ClashOfRimNetworkServer.RecoverPendingRaidTimeoutWork(f.State, f.Now); else f.Reconcile(); }, () =>
+            () => { if (recovery) f.State.RaidTimeouts.RecoverPending(f.Now); else f.Reconcile(); }, () =>
             {
                 Require(f.State.SnapshotPostUploadJobs.ListAll().Count == 0 && f.Store.PreparedWrites == 0
                     && ((RaidEventPayload)f.State.Ledger.Find(f.Raid.EventId)!.Payload).TimeoutWork is { Completed: false, AttackerWasOffline: true },
@@ -129,7 +127,7 @@ internal static partial class RaidTimeoutRecoveryTests
         if (!offline) f.State.OnlinePresence.TryConnectExclusive("attacker", out _);
         if (recovery) RaidTimeoutProcessor.ProcessExpiredRaids(f.State.Ledger, f.State.Ledger.ListAll(), f.Now, isAttackerOnline: _ => !offline);
         SnapshotPreparationGateProbe.Run(f.State.RaidSettlementSnapshotMutationGate, hook => f.Store.BeforePrepare = hook,
-            () => { if (recovery) ClashOfRimNetworkServer.RecoverPendingRaidTimeoutWork(f.State, f.Now); else f.Reconcile(); }, () =>
+            () => { if (recovery) f.State.RaidTimeouts.RecoverPending(f.Now); else f.Reconcile(); }, () =>
             {
                 Require(f.Store.PreparedWrites == 0 && ((RaidEventPayload)f.State.Ledger.Find(f.Raid.EventId)!.Payload).TimeoutWork is { Completed: false } work
                     && work.AttackerWasOffline == offline && f.State.Ledger.ListAll().Count == 3, "Timeout classification was not durable before preparation.");
@@ -196,7 +194,7 @@ internal static partial class RaidTimeoutRecoveryTests
         RaidTimeoutProcessor.ProcessExpiredRaids(f.State.Ledger, f.State.Ledger.ListAll(), f.Now, isAttackerOnline: _ => true);
         SnapshotPreparationGateProbe.Run(f.State.RaidSettlementSnapshotMutationGate,
             hook => f.Store.BeforeRead = owner => { if (owner == "later") hook?.Invoke(); },
-            () => ClashOfRimNetworkServer.RecoverPendingRaidTimeoutWork(f.State, f.Now), () =>
+            () => f.State.RaidTimeouts.RecoverPending(f.Now), () =>
             {
                 Require(f.Store.PreparedWrites == 1, "Completion probe ran before the first cleanup.");
                 if (changedSnapshot)
@@ -246,7 +244,7 @@ internal static partial class RaidTimeoutRecoveryTests
         if (offline && timeoutCommitted) f.State.OnlinePresence.TryConnectExclusive("attacker", out _);
         else if (!offline && reopen && !timeoutCommitted) f.State.OnlinePresence.TryConnectExclusive("attacker", out _);
         if (!timeoutCommitted) f.Reconcile();
-        else ClashOfRimNetworkServer.RecoverPendingRaidTimeoutWork(f.State, f.Now);
+        else f.State.RaidTimeouts.RecoverPending(f.Now);
         f.Reconcile();
         source = f.State.Ledger.Find(f.Raid.EventId)!;
         Require(((RaidEventPayload)source.Payload).TimeoutWork is { Completed: true } completed
@@ -363,11 +361,7 @@ internal static partial class RaidTimeoutRecoveryTests
                 snapshotPostUploadJobs: new SnapshotPostUploadJobRegistry(new SqliteSnapshotPostUploadJobStore(Database)),
                 snapshotPostUploadArtifacts: Artifacts);
         }
-        public void Reconcile()
-        {
-            try { typeof(ClashOfRimNetworkServer).GetMethod("ReconcileExpiredRaidEvents", BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, [State, Now]); }
-            catch (TargetInvocationException ex) when (ex.InnerException is not null) { ExceptionDispatchInfo.Capture(ex.InnerException).Throw(); }
-        }
+        public void Reconcile() => State.RaidTimeouts.Reconcile(Now);
         public void Sql(string sql)
         {
             using var connection = new SqliteConnection("Data Source=" + Database);

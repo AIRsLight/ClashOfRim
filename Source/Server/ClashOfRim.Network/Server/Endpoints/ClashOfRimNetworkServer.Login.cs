@@ -23,7 +23,7 @@ public static partial class ClashOfRimNetworkServer
         using var mutation = EnterRecoveredSnapshotMutation(state, entry.Authorize);
         if (mutation.Rejection is { } denied) return RejectLogin(denied, entry.Compatibility);
         var nowUtc = DateTimeOffset.UtcNow;
-        ReconcileExpiredRaidEvents(state, nowUtc);
+        state.RaidTimeouts.Reconcile(nowUtc);
         if (state.RaidQueries.BlockingDefender(userId, request.ColonyId) is not null)
             return RejectLogin(ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, T("Login.BlockedByDefenseRaid")),
                 userId: userId, displayName: displayName, isAdministrator: state.WorldConfiguration.IsAdministrator(userId));

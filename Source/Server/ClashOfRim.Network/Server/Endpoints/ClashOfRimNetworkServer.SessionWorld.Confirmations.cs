@@ -475,20 +475,4 @@ public static partial class ClashOfRimNetworkServer
             yield return notification;
         }
     }
-    private static string SanitizeSnapshotIdPart(string value)
-    {
-        char[] chars = (value ?? string.Empty).Trim().ToCharArray();
-        for (int i = 0; i < chars.Length; i++)
-        {
-            char c = chars[i];
-            if (!char.IsLetterOrDigit(c) && c != '-' && c != '_')
-            {
-                chars[i] = '-';
-            }
-        }
-
-        string sanitized = new(chars);
-        return string.IsNullOrWhiteSpace(sanitized) ? "snapshot" : sanitized;
-    }
-
 }

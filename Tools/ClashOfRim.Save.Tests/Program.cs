@@ -26,6 +26,7 @@ if (args.FirstOrDefault() == "--baseline-invalidation-crash")
 
 var tests = new (string Name, Action Run)[]
 {
+    ("袭击超时模块独立判定、离线证据与战场清理", RaidTimeoutModuleTests.Run),
     ("袭击证据确认模块独立授权、恢复复验与结算重放", RaidEvidenceConfirmationModuleTests.Run),
     ("袭击证据调度模块独立准备、发布与持久恢复", RaidEvidenceSchedulingModuleTests.Run),
     ("袭击结算模块独立执行、恢复准备与证据清理", RaidSettlementModuleTests.Run),

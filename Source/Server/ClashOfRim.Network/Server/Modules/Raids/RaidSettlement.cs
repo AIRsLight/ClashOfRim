@@ -1,5 +1,3 @@
-using System.Security.Cryptography;
-using System.Text;
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Save;
@@ -94,7 +92,7 @@ internal sealed class RaidSettlement(IAuthoritativeEventLedger ledger, IColonySn
             return ManualReview(payload.RaidEventId, $"Raid settlement was rejected: {settlement.Kind}.");
         }
 
-        string editedSnapshotId = BuildSettlementSnapshotId(payload.DefenderColonyId, sourceRaid.EventId);
+        string editedSnapshotId = RaidSnapshotIds.Settlement(payload.DefenderColonyId, sourceRaid.EventId);
         SaveSnapshotPackage editedPackage;
         try
         {
@@ -239,30 +237,6 @@ internal sealed class RaidSettlement(IAuthoritativeEventLedger ledger, IColonySn
             null,
             null,
             message);
-    }
-
-    private static string BuildSettlementSnapshotId(string colonyId, string raidEventId)
-    {
-        byte[] hash = SHA256.HashData(Encoding.UTF8.GetBytes(raidEventId));
-        return SanitizeSnapshotIdPart(colonyId)
-            + "-raid-settled-"
-            + Convert.ToHexString(hash.AsSpan(0, 8)).ToLowerInvariant();
-    }
-
-    private static string SanitizeSnapshotIdPart(string value)
-    {
-        char[] chars = (value ?? string.Empty).Trim().ToCharArray();
-        for (int i = 0; i < chars.Length; i++)
-        {
-            char c = chars[i];
-            if (!char.IsLetterOrDigit(c) && c != '-' && c != '_')
-            {
-                chars[i] = '-';
-            }
-        }
-
-        string sanitized = new(chars);
-        return string.IsNullOrWhiteSpace(sanitized) ? "snapshot" : sanitized;
     }
 
     private static string ResolveEvidenceMapId(

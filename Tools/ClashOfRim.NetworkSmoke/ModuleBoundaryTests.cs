@@ -28,7 +28,7 @@ internal static class ModuleBoundaryTests
             || t == typeof(LegacyRaidEvidencePipeline)
             || t == typeof(AIRsLight.ClashOfRim.Network.Plugins.SnapshotPostUploadContext)
             || t == typeof(AIRsLight.ClashOfRim.Network.Plugins.SnapshotPostUploadDeferredContext)
-            || t == typeof(LegacySnapshotRecoveryAdapter) || t == typeof(LegacyRaidDeliveryProtection) || t == typeof(LegacyEventAchievementRecorder) || t == typeof(IServiceProvider));
+            || t == typeof(LegacySnapshotRecoveryAdapter) || t == typeof(LegacyEventAchievementRecorder) || t == typeof(IServiceProvider));
         Require(violations.Count == 0, string.Join(Environment.NewLine, violations));
         var business = modules.Where(t =>
             t.Namespace is "AIRsLight.ClashOfRim.Network.Modules.Bank" or "AIRsLight.ClashOfRim.Network.Modules.Gifts"

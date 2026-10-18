@@ -19,7 +19,7 @@ public static partial class ClashOfRimNetworkServer
     private static IResult SyncWorldMapMarkers(SyncWorldMapMarkersRequest request, ClashOfRimNetworkState state)
     {
         DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
-        ReconcileExpiredRaidEvents(state, nowUtc);
+        state.RaidTimeouts.Reconcile(nowUtc);
         if (string.IsNullOrWhiteSpace(request.UserId))
         {
             return Results.Ok(new WorldMapMarkerDeliveryDto(

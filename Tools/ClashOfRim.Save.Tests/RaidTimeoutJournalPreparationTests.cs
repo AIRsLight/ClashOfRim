@@ -1,5 +1,3 @@
-using System.Reflection;
-using System.Runtime.ExceptionServices;
 using System.Text.Json;
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Network;
@@ -34,7 +32,7 @@ internal static partial class RaidTimeoutRecoveryTests
         if (phase != "classify") RaidTimeoutProcessor.ProcessExpiredRaids(f.State.Ledger, f.State.Ledger.ListAll(), f.Now,
             isAttackerOnline: _ => phase == "complete");
         var source = f.State.Ledger.Find(f.Raid.EventId)!;
-        if (phase.StartsWith("cleanup")) f.CallMaintenance("ScheduleOfflineTimedOutRaid", f.State, source, f.Now);
+        if (phase.StartsWith("cleanup")) f.State.RaidOfflineEvidence.Schedule(source, f.Now);
         var foreign = f.CreateForeignIntent();
         Action? recoveryHook = null;
         void Inject()
@@ -53,9 +51,9 @@ internal static partial class RaidTimeoutRecoveryTests
             try
             {
                 if (phase == "classify") f.Reconcile();
-                else if (phase is "pending" or "complete") ClashOfRimNetworkServer.RecoverPendingRaidTimeoutWork(f.State, f.Now);
-                else if (phase.StartsWith("schedule")) f.CallMaintenance("ScheduleOfflineTimedOutRaid", f.State, source, f.Now);
-                else f.CallMaintenance("CleanupTimedOutRaidAttackerSnapshots", f.State, new[] { source }, f.Now);
+                else if (phase is "pending" or "complete") f.State.RaidTimeouts.RecoverPending(f.Now);
+                else if (phase.StartsWith("schedule")) f.State.RaidOfflineEvidence.Schedule(source, f.Now);
+                else f.State.RaidBattleCleanup.CleanupTimeouts(new[] { source }, f.Now);
             }
             catch (Exception ex) { failure = ex; }
         }, () =>
@@ -122,11 +120,7 @@ internal static partial class RaidTimeoutRecoveryTests
 
     private sealed partial class Fixture
     {
-        public object? CallMaintenance(string method, params object[] arguments)
-        {
-            try { return typeof(ClashOfRimNetworkServer).GetMethod(method, BindingFlags.NonPublic | BindingFlags.Static)!.Invoke(null, arguments); }
-            catch (TargetInvocationException ex) when (ex.InnerException is not null) { ExceptionDispatchInfo.Capture(ex.InnerException).Throw(); throw; }
-        }
+
         public (SaveSnapshotPackage Package, AuthoritativeEvent Event) CreateForeignIntent()
         {
             var template = Files.GetLatestPackage("defender", "defender-colony")!;

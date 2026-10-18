@@ -3,6 +3,8 @@ using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Save;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
+using System.Reflection;
+using System.Runtime.ExceptionServices;
 
 internal static partial class RaidCleanupCommitTests
 {
@@ -116,6 +118,13 @@ internal static partial class RaidCleanupCommitTests
         Monitor.Exit(f.State.RaidSettlementSnapshotMutationGate);
     }).WaitAsync(TimeSpan.FromSeconds(5)).GetAwaiter().GetResult();
 
+    // Download HTTP endpoints still belong to the world/account migration; cleanup tests call the module directly.
+    private static object? InvokeDownload(string name, params object[] args)
+    {
+        try { return typeof(ClashOfRimNetworkServer).GetMethod(name, BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, args); }
+        catch (TargetInvocationException ex) when (ex.InnerException is not null) { ExceptionDispatchInfo.Capture(ex.InnerException).Throw(); throw; }
+    }
+
     private sealed record DownloadReply(bool Accepted, int HttpStatus, ProtocolErrorCode? ErrorCode,
         string? SnapshotId = null, string? Lineage = null, byte[]? Bytes = null, ActiveRaidRecoveryDto? Recovery = null);
 
@@ -138,9 +147,9 @@ internal static partial class RaidCleanupCommitTests
         public DownloadReply Download(bool payload)
         {
             var result = payload
-                ? Invoke("DownloadLatestSnapshotPayload", new DownloadLatestSnapshotPayloadRequest("attacker", "colony-a",
+                ? InvokeDownload("DownloadLatestSnapshotPayload", new DownloadLatestSnapshotPayloadRequest("attacker", "colony-a",
                     Files.GetLatest("attacker", "colony-a")!.Identity.SnapshotId!, downloadToken, authorizationScope: downloadScope), State)
-                : Invoke("DownloadLatestSnapshot", new DownloadLatestSnapshotRequest("attacker", "colony-a", downloadToken, authorizationScope: downloadScope), State);
+                : InvokeDownload("DownloadLatestSnapshot", new DownloadLatestSnapshotRequest("attacker", "colony-a", downloadToken, authorizationScope: downloadScope), State);
             if (result is FileContentHttpResult file) return new(true, 200, null, Bytes: file.FileContents.ToArray());
             if (result is IValueHttpResult { Value: DownloadLatestSnapshotResponse metadata })
                 return new(metadata.Result.Accepted, 200, metadata.Result.ErrorCode, metadata.SnapshotId, metadata.Package?.NextLineageToken, Recovery: metadata.ActiveRaidRecovery);
