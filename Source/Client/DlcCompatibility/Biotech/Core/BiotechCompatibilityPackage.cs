@@ -1,3 +1,5 @@
+using AIRsLight.ClashOfRim.DlcCompatibility.Biotech.Pawns;
+using AIRsLight.ClashOfRim.DlcCompatibility.Biotech.RemoteMaps;
 using AIRsLight.ClashOfRim.DlcCompatibility.Biotech.Items;
 using AIRsLight.ClashOfRim.Modules.Compatibility.Biotech;
 using AIRsLight.ClashOfRim.RemoteMaps;
@@ -13,6 +15,13 @@ internal static class BiotechCompatibilityPackage
     private static readonly BiotechThingReferenceCompatibility ThingReferences = new(TradeMetadataEnabled, new BiotechReproductiveSources(CurrentUserId));
     private static readonly BiotechThingReferenceDisplay ThingDisplay = new(TradeMetadataEnabled);
     private static readonly BiotechThingReferenceEditor ThingEditor = new(TradeMetadataEnabled);
+    private static readonly BiotechPawnExchangeCompatibility PawnExchange = new(PawnExchangeEnabled, text => Log.Warning(text));
+    private static readonly BiotechRemoteMapProjection Projection = new(PawnExchangeEnabled, WorldPollutionEnabled, text => ClashLog.Message(text));
+    private static readonly BiotechRemoteMapRuntimeSanitizer MapRuntime = new(PawnExchangeEnabled, text => ClashLog.Message(text));
+    private static readonly BiotechDefensePoints DefensePoints = new(() => PawnExchangeEnabled() || TradeMetadataEnabled() || WorldPollutionEnabled());
+
+    private static bool PawnExchangeEnabled() => ClashOfRimCompatibilityApi.HasCompatibilityCapability(BiotechCompatibilityKeys.PawnExchange);
+    private static bool WorldPollutionEnabled() => ClashOfRimCompatibilityApi.HasCompatibilityCapability(BiotechCompatibilityKeys.WorldPollution);
 
     private static bool TradeMetadataEnabled() => ClashOfRimCompatibilityApi.HasCompatibilityCapability(BiotechCompatibilityKeys.TradeMetadata);
     private static string? CurrentUserId() => (ClashOfRimMod.Instance ?? LoadedModManager.GetMod<ClashOfRimMod>())?.UserId;
@@ -40,28 +49,7 @@ internal static class BiotechCompatibilityPackage
             return;
         }
 
-        ClashOfRimCompatibilityApi.RegisterRemoteMapProjectionSanitizer(BiotechCompatibility.SanitizeBiotechRemoteMapProjection);
-        ClashOfRimCompatibilityApi.RegisterRemoteMapLoadedHandler(BiotechCompatibility.SanitizeBiotechRemoteMapLoaded);
-        ClashOfRimCompatibilityApi.RegisterRemoteMapAreaLoadIdProvider(BiotechCompatibility.BuildBiotechAreaLoadId);
-        ClashOfRimCompatibilityApi.RegisterWorldConfigurationExtensionHandler(
-            BiotechCompatibilityKeys.PackageId,
-            BiotechCompatibilityKeys.WorldGeneration,
-            BiotechWorldConfigurationCompatibility.CollectWorldGenerationExtension,
-            applier: null);
-        ClashOfRimCompatibilityApi.RegisterWorldConfigurationExtensionHandler(
-            BiotechCompatibilityKeys.PackageId,
-            BiotechCompatibilityKeys.WorldPollution,
-            BiotechWorldConfigurationCompatibility.CollectWorldPollutionExtension,
-            BiotechWorldConfigurationCompatibility.ApplyWorldPollutionExtension);
-        ClashOfRimCompatibilityApi.RegisterWorldConfigurationExtensionSummaryProvider(BiotechWorldConfigurationCompatibility.WorldPollutionSummary);
-        ClashOfRimCompatibilityApi.RegisterWorldGenerationFloatSettingProvider("pollution", BiotechWorldConfigurationCompatibility.TryResolveWorldGenerationPollution);
-        ClashOfRimCompatibilityApi.RegisterPawnExchangeExtensionAppender(BiotechCompatibility.AppendBiotechPawnExchangeExtension);
-        ClashOfRimCompatibilityApi.RegisterPawnExchangePackageRegistrar(BiotechCompatibility.TryRegisterBiotechPawnExchangePayload);
-        ClashOfRimCompatibilityApi.RegisterPawnExchangePackageNormalizer(BiotechCompatibility.NormalizeBiotechPawnExchangePackage);
-        ClashOfRimCompatibilityApi.RegisterPawnPostRestoreLocalizer(BiotechCompatibility.ResetRestoredPawnGeneCaches);
-        RegisterItemCapabilities();
-        BiotechThingTransferCompatibility.Apply();
-        ClashOfRimCompatibilityApi.RegisterDefensePointDefNameProvider(BiotechCompatibility.BiotechDefensePointDefNames);
+        RegisterCapabilities();
         RemoteSessionGlobalStateGuard.RegisterRemoteMapRemovalGlobalEffectsSuppressedHandler(
             RemoteSessionBiotechDissolutionEffectState.ClearPendingRemoteEffectsAfterSuppression);
 
@@ -89,5 +77,30 @@ internal static class BiotechCompatibilityPackage
             ThingDisplay.SuppressesStandardThingStats);
         ClashOfRimCompatibilityApi.RegisterThingReferenceCacheKeyPartsProvider(ThingDisplay.ThingReferenceCacheKeyParts);
         ClashOfRimCompatibilityApi.RegisterThingReferenceMetadataNormalizer(BiotechThingMetadata.Normalize);
+    }
+
+    internal static void RegisterCapabilities()
+    {
+        ClashOfRimCompatibilityApi.RegisterRemoteMapProjectionSanitizer((package, map, pawns) => Projection.Sanitize(map, pawns));
+        ClashOfRimCompatibilityApi.RegisterRemoteMapLoadedHandler((map, carrier, scope, package) => MapRuntime.Sanitize(map));
+        ClashOfRimCompatibilityApi.RegisterRemoteMapAreaLoadIdProvider(Projection.BuildAreaLoadId);
+        ClashOfRimCompatibilityApi.RegisterWorldConfigurationExtensionHandler(
+            BiotechCompatibilityKeys.PackageId,
+            BiotechCompatibilityKeys.WorldGeneration,
+            BiotechWorldConfigurationCompatibility.CollectWorldGenerationExtension,
+            applier: null);
+        ClashOfRimCompatibilityApi.RegisterWorldConfigurationExtensionHandler(
+            BiotechCompatibilityKeys.PackageId,
+            BiotechCompatibilityKeys.WorldPollution,
+            BiotechWorldConfigurationCompatibility.CollectWorldPollutionExtension,
+            BiotechWorldConfigurationCompatibility.ApplyWorldPollutionExtension);
+        ClashOfRimCompatibilityApi.RegisterWorldConfigurationExtensionSummaryProvider(BiotechWorldConfigurationCompatibility.WorldPollutionSummary);
+        ClashOfRimCompatibilityApi.RegisterWorldGenerationFloatSettingProvider("pollution", BiotechWorldConfigurationCompatibility.TryResolveWorldGenerationPollution);
+        ClashOfRimCompatibilityApi.RegisterPawnExchangeExtensionAppender(PawnExchange.Append);
+        ClashOfRimCompatibilityApi.RegisterPawnExchangePackageRegistrar(PawnExchange.TryRegister);
+        ClashOfRimCompatibilityApi.RegisterPawnPostRestoreLocalizer(PawnExchange.ResetRestoredPawnGeneCaches);
+        RegisterItemCapabilities();
+        BiotechThingTransferCompatibility.Apply();
+        ClashOfRimCompatibilityApi.RegisterDefensePointDefNameProvider(DefensePoints.DefNames);
     }
 }

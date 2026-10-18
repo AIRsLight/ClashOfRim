@@ -19,6 +19,7 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("biotech pawn packages and map capabilities own persistence and sanitation", BiotechPawnAndMapCapabilityTests.Run),
     ("biotech item capabilities own sources, identity, restoration and gene caches", BiotechItemCapabilityTests.Run),
     ("biotech trade constraints agree across client and server cultures", BiotechTradeConstraintTests.Run),
     ("biotech metadata shares wire keys, codec and matching across item surfaces", BiotechThingMetadataTests.Run),

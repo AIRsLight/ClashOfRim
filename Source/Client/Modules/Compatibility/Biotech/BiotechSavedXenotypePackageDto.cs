@@ -1,6 +1,6 @@
 using System.Runtime.Serialization;
 
-namespace AIRsLight.ClashOfRim.DlcCompatibility;
+namespace AIRsLight.ClashOfRim.Modules.Compatibility.Biotech;
 
 [DataContract]
 internal sealed class BiotechSavedXenotypePackageDto

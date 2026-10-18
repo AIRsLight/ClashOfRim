@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Compatibility.Biotech;
 using System.Text.Json;
 using AIRsLight.ClashOfRim;
 using AIRsLight.ClashOfRim.ClientNetwork;
@@ -58,9 +59,8 @@ internal sealed partial class DomainCommands
             }
             if (ModsConfig.BiotechActive && typeof(GeneSetHolderBase).IsAssignableFrom(def.thingClass))
             {
-                var biotech = typeof(ClashOfRimMod).Assembly.GetType("AIRsLight.ClashOfRim.DlcCompatibility.BiotechCompatibility", true)!;
                 var genes = DefDatabase<GeneDef>.AllDefsListForReading.Where(g => g.biostatArc == 0 && !g.defName.StartsWith("Hair_", StringComparison.Ordinal)).OrderBy(g => g.defName, StringComparer.Ordinal).Take(2).Select(g => g.defName).ToArray();
-                InvokeStatic(biotech, "SetGeneDefNames", item, genes);
+                BiotechThingMetadata.SetGeneDefNames(item, genes);
             }
             bool complete = (bool)InvokeStatic(ShopEditor, "HasCompleteItem", item, ThingReferenceSurfaces.ServerShopListing)!;
             return new { reference = bridge.Objects.Add(item), data = item, complete, defName = def.defName };

@@ -22,7 +22,7 @@ internal static class ClientModuleBoundaryTests
             || t == typeof(ClashOfRimSettings) || t == typeof(ClashOfRimModNetworkClient) || t == typeof(IServiceProvider)
             || t == typeof(ClashOfRimGameComponent) || t == typeof(ClashOfRimText)
             || t == typeof(AIRsLight.ClashOfRim.ThirdPartyCompatibility.ClashOfRimCompatibilityApi)
-            || t == typeof(AIRsLight.ClashOfRim.DlcCompatibility.BiotechCompatibility)
+            || t.FullName == "AIRsLight.ClashOfRim.DlcCompatibility.BiotechCompatibility"
             || t == typeof(ClientMainThreadDispatcher)
             || t == typeof(AIRsLight.ClashOfRim.RemoteMaps.RemoteSnapshotDownloadService)
             || t == typeof(AIRsLight.ClashOfRim.RemoteMaps.RemoteSnapshotDownloadValidator)
@@ -124,10 +124,12 @@ internal static class ClientModuleBoundaryTests
                 or "AIRsLight.ClashOfRim.ThirdPartyCompatibility.Pawns"
                 or "AIRsLight.ClashOfRim.ThirdPartyCompatibility.RemoteMaps"
                 or "AIRsLight.ClashOfRim.DlcCompatibility.Biotech.Items"
-                or "AIRsLight.ClashOfRim.DlcCompatibility.Biotech.Genes").ToArray();
+                or "AIRsLight.ClashOfRim.DlcCompatibility.Biotech.Genes"
+                or "AIRsLight.ClashOfRim.DlcCompatibility.Biotech.Pawns"
+                or "AIRsLight.ClashOfRim.DlcCompatibility.Biotech.RemoteMaps").ToArray();
         var compatibilityViolations = ModuleDependencyGuard.FindViolations(compatibilityCapabilities,
             t => t == typeof(AIRsLight.ClashOfRim.ThirdPartyCompatibility.ClashOfRimCompatibilityApi)
-                || t == typeof(AIRsLight.ClashOfRim.DlcCompatibility.BiotechCompatibility)
+                || t.FullName == "AIRsLight.ClashOfRim.DlcCompatibility.BiotechCompatibility"
                 || t == typeof(ClashOfRimMod) || t == typeof(ClashOfRimSettings)
                 || t == typeof(ClashOfRimModNetworkClient) || t == typeof(ClashOfRimGameComponent)
                 || t == typeof(IServiceProvider) || t == typeof(Verse.LoadedModManager) || t == typeof(ClashLog));

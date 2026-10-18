@@ -2842,3 +2842,22 @@ BiotechPreparedSources 明确拥有尚未提交的新 pawn，生成失败、生�
 **累计 5 个相关单元组通过**：物品能力及失败场景、交易约束、元数据、胚胎／基因包恢复、客户端模块边界。最终主日志 `LocalOnly/module-migration/client-biotech-source-final-tests.log`；补充外源基因场景后该组再次通过，日志 `client-biotech-source-xenogene-tests.log`。守卫检查 1,382 个纯模块类型、118 个引擎能力类型和 312 个事件适配类型。生产随测试编译，没有新增警告；未运行全量回归、专项 RimTest、独立发布构建或推送，冻结 1.6 保持不变。
 
 本步修正已复现的定义拒绝和可报告的生成失败，不声称引擎在应用阶段任意抛异常时拥有全事务回滚；例如游戏自身 AddGene／SetFaction／链接写入发生异常、代理派系创建等全局副作用仍需专项引擎验证。**下一步 M10f5：继续迁出 pawn 交换包、远程地图清理及防御点能力，复用现有基因运行时。** 文化包加载及 M11–M12／最终完成审计继续开放。
+
+
+### M10f5 pawn 包、地图净化与防御点组件收尾（2026-10-19）
+
+剩余 Biotech pawn 包、地图 XML／运行时清理、区域 ID 和防御点实现全部迁出，删除旧 BiotechCompatibility 聚合类。纯模块 BiotechPawnExchangePayload 拥有扩展身份选择、元数据与自定义异种 JSON 契约，BiotechSavedXenotypePackageDto 与它同属无引擎依赖目录；引擎组件 BiotechPawnExchangeCompatibility 接收明确的能力查询与诊断端口，协调捕获、注册和恢复缓存。BiotechSavedXenotypePackages 独立拥有临时文件、大小／哈希检查、游戏自定义异种数据库与等价去重；只有入口组件判断 DLC 能力，不再通过旧全局聚合类重复查询。
+
+删除无效 NormalizeBiotechPawnExchangePackage 及其注册：原实现先从已有扩展读出 xenotypeDef，再把相同值写回同一扩展；扩展缺失时的创建分支不可达。没有把这个无效逻辑搬到新组件或新建一个空包装。公开兼容 API 的规范化入口保持不变，测试确认移除该内置回调后扩展对象、元数据对象及原字段不变。
+
+BiotechRemoteMapProjection 作为纯模块拥有保存 XML 的基因引用净化与污染区域 ID 构造，分别接收 pawn 交换／污染能力查询；诊断通过明确日志端口输出。区域数字使用 InvariantCulture，保持类名前缀匹配的 Ordinal 语义。BiotechRemoteMapRuntimeSanitizer 作为引擎组件拥有无效基因剔除、所属 pawn 修复、本地 ID 及缓存重置，继续复用 CorePawnGeneIdentity 和 BiotechGeneRuntime，删除单纯转发本地 ID 清理的包装。BiotechDefensePoints 独立提供防御点定义，保留 pawn 交换、交易元数据或污染任一能力启用即可提供的规则，世界生成能力单独启用不算。
+
+包装配器只绑定具体组件及必要的参数转换，保留现有独立世界配置／物品流转实现。静态核对确认移除无效 normalizer 后的 13 个注册调用／注册组顺序与上一步一致；真实公开 API 测试验证重复装配不重复执行加载回调、扩展捕获和防御点提供者。模块守卫扩展覆盖新 pawn／地图引擎命名空间，旧聚合类禁令改为完整类型名检查，保留未来反向依赖防线。
+
+同步修复 RimTest 商店模板桥接的遗留入口：CatalogCommands 原来仍用反射调用已迁走的 SetGeneDefNames，现在直接调用 BiotechThingMetadata.SetGeneDefNames。没有在生产层恢复旧方法来迎合测试；命令、参数和返回结构未改。按用户要求未单独构建桥接，也未把这次源码更新宣称为实机命令验证。
+
+新增四种文化下的 JSON 字段／Unicode 往返、Ordinal 扩展身份、首个重复扩展和损坏载荷诊断、XML 双根净化与重复执行、有效／无效基因引用及化学依赖、污染独立能力及自定义数字文化、异种捕获／导入去重、UTF-8 字节上限与哈希拒绝、成功／失败后的临时文件删除、游戏缺失和 DLC 门禁、恢复缓存门禁、加载地图清理及日志，以及真实包注册和四种单独能力组合。测试夹具仅提供引擎全局／自定义异种 getter、原生异种文件读写及工作类型通知边界；模块的解析、持久化、去重、清理和注册均执行生产代码。
+
+**5 个相关单元组通过**：新 pawn／地图能力组、此前 Biotech 物品／恢复失败组、已有远程地图能力组、pawn 能力组、客户端模块边界。最终日志 `LocalOnly/module-migration/client-biotech-pawn-map-final-tests.log`。守卫检查 1,389 个纯模块类型、124 个引擎能力类型和 312 个事件适配类型；生产随测试编译，没有新增警告。源码搜索确认 Biotech 目录无 partial，Source／Tools 中旧 BiotechCompatibility 名称只剩两条禁止依赖的守卫字符串。未运行全量回归、专项 RimTest、独立发布／桥接构建或推送，冻结 1.6 未修改；原生异种序列化、GUI 和完整地图加载仍需后续专项／全量验证。
+
+M10f 的 Biotech 结构迁移已完成，M10 尚未完成。**下一步 M10g：RemoteIdeoMaterializer.PackageLoading 的真实加载器拆分。** 按原方案提取 IdeoPackageLoader，继续复用现有文化目录物化服务并保留 Scribe／Game 线程边界；随后推进 M11 宿主与页面、M12 测试设施及最终完成审计。

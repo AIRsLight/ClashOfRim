@@ -1,22 +1,26 @@
+using System;
 using AIRsLight.ClashOfRim.DlcCompatibility.Biotech.Genes;
-using AIRsLight.ClashOfRim.ClientNetwork;
-using AIRsLight.ClashOfRim.RemoteMaps;
 using RimWorld;
 using System.Collections.Generic;
 using System.Linq;
 using Verse;
 
-namespace AIRsLight.ClashOfRim.DlcCompatibility;
+namespace AIRsLight.ClashOfRim.DlcCompatibility.Biotech.RemoteMaps;
 
-internal static partial class BiotechCompatibility
+internal sealed class BiotechRemoteMapRuntimeSanitizer
 {
-    internal static void SanitizeBiotechRemoteMapLoaded(
-        Map map,
-        RemoteSessionMapParent carrier,
-        string scope,
-        ModSnapshotPackageMetadataDto package)
+    private readonly Func<bool> enabled;
+    private readonly Action<string> message;
+
+    internal BiotechRemoteMapRuntimeSanitizer(Func<bool> enabled, Action<string> message)
     {
-        if (!HasBiotechPawnExchange || map?.mapPawns is null || Find.UniqueIDsManager is null)
+        this.enabled = enabled;
+        this.message = message;
+    }
+
+    internal void Sanitize(Map map)
+    {
+        if (!enabled() || map?.mapPawns is null || Find.UniqueIDsManager is null)
         {
             return;
         }
@@ -32,8 +36,8 @@ internal static partial class BiotechCompatibility
             removedGenes += RemoveInvalidGenes(pawn.genes.Endogenes, ref changed);
             relinkedGenes += RelinkGenesToPawn(pawn.genes.Xenogenes, pawn, ref changed);
             relinkedGenes += RelinkGenesToPawn(pawn.genes.Endogenes, pawn, ref changed);
-            int pawnLocalizedGenes = LocalizeRemoteMapGeneLoadIds(pawn.genes.Xenogenes)
-                + LocalizeRemoteMapGeneLoadIds(pawn.genes.Endogenes);
+            int pawnLocalizedGenes = CoreCompatibility.CorePawnGeneIdentity.LocalizeGenes(pawn.genes.Xenogenes)
+                + CoreCompatibility.CorePawnGeneIdentity.LocalizeGenes(pawn.genes.Endogenes);
             localizedGenes += pawnLocalizedGenes;
             changed = changed || pawnLocalizedGenes > 0;
 
@@ -50,7 +54,7 @@ internal static partial class BiotechCompatibility
 
         if (pawnsTouched > 0 || removedGenes > 0 || relinkedGenes > 0)
         {
-            ClashLog.Message("[ClashOfRim][RemoteMapProjection][Biotech] Sanitized loaded remote-map genes: pawns="
+            message("[ClashOfRim][RemoteMapProjection][Biotech] Sanitized loaded remote-map genes: pawns="
                 + pawnsTouched
                 + ", removedGenes="
                 + removedGenes
@@ -88,7 +92,7 @@ internal static partial class BiotechCompatibility
         int relinked = 0;
         foreach (Gene gene in genes)
         {
-            if (gene is null || gene.pawn == pawn)
+            if (gene.pawn == pawn)
             {
                 continue;
             }
@@ -101,8 +105,4 @@ internal static partial class BiotechCompatibility
         return relinked;
     }
 
-    private static int LocalizeRemoteMapGeneLoadIds(List<Gene>? genes)
-    {
-        return CoreCompatibility.CorePawnGeneIdentity.LocalizeGenes(genes);
-    }
 }

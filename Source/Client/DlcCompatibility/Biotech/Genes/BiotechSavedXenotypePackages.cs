@@ -4,19 +4,19 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
-using AIRsLight.ClashOfRim;
+using AIRsLight.ClashOfRim.Modules.Compatibility.Biotech;
 using RimWorld;
 using Verse;
 
-namespace AIRsLight.ClashOfRim.DlcCompatibility;
+namespace AIRsLight.ClashOfRim.DlcCompatibility.Biotech.Genes;
 
-internal static class SavedXenotypePackageUtility
+internal static class BiotechSavedXenotypePackages
 {
     private const int MaxXenotypeXmlBytes = 1024 * 1024;
 
     public static BiotechSavedXenotypePackageDto? BuildPackage(Pawn pawn)
     {
-        if (!BiotechCompatibility.HasBiotechPawnExchange || pawn.genes?.CustomXenotype is not CustomXenotype customXenotype)
+        if (pawn.genes?.CustomXenotype is not CustomXenotype customXenotype)
         {
             return null;
         }
@@ -42,12 +42,6 @@ internal static class SavedXenotypePackageUtility
         if (package is null || string.IsNullOrWhiteSpace(package.Xml))
         {
             return true;
-        }
-
-        if (!BiotechCompatibility.HasBiotechPawnExchange)
-        {
-            message = ClashOfRimText.Key("ClashOfRim.Xenotype.StatusBiotechMissing");
-            return false;
         }
 
         if (Current.Game is null)

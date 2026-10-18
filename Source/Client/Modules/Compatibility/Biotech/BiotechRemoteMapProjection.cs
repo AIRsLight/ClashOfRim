@@ -1,19 +1,28 @@
-using AIRsLight.ClashOfRim.ClientNetwork;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Xml.Linq;
 
-namespace AIRsLight.ClashOfRim.DlcCompatibility;
+namespace AIRsLight.ClashOfRim.Modules.Compatibility.Biotech;
 
-internal static partial class BiotechCompatibility
+internal sealed class BiotechRemoteMapProjection
 {
-    internal static void SanitizeBiotechRemoteMapProjection(
-        ModSnapshotPackageMetadataDto package,
+    private readonly Func<bool> pawnExchangeEnabled;
+    private readonly Func<bool> pollutionEnabled;
+    private readonly Action<string> message;
+
+    internal BiotechRemoteMapProjection(Func<bool> pawnExchangeEnabled, Func<bool> pollutionEnabled, Action<string> message)
+    {
+        this.pawnExchangeEnabled = pawnExchangeEnabled;
+        this.pollutionEnabled = pollutionEnabled;
+        this.message = message;
+    }
+
+    internal void Sanitize(
         XElement mapElement,
         XElement referencePawnsElement)
     {
-        if (!HasBiotechPawnExchange)
+        if (!pawnExchangeEnabled())
         {
             return;
         }
@@ -22,7 +31,7 @@ internal static partial class BiotechCompatibility
         SanitizePawnGeneReferences(referencePawnsElement);
     }
 
-    private static void SanitizePawnGeneReferences(XElement mapElement)
+    private void SanitizePawnGeneReferences(XElement mapElement)
     {
         int pawnLinksRewritten = 0;
         int overriddenLinksCleared = 0;
@@ -105,7 +114,7 @@ internal static partial class BiotechCompatibility
 
         if (pawnLinksRewritten > 0 || overriddenLinksCleared > 0 || hediffGeneLinksCleared > 0 || chemicalDependencyHediffsRemoved > 0)
         {
-            ClashLog.Message("[ClashOfRim][RemoteMapProjection][Biotech] Sanitized pawn gene references: pawnLinksRewritten="
+            message("[ClashOfRim][RemoteMapProjection][Biotech] Sanitized pawn gene references: pawnLinksRewritten="
                 + pawnLinksRewritten
                 + ", overriddenLinksCleared="
                 + overriddenLinksCleared
@@ -167,4 +176,12 @@ internal static partial class BiotechCompatibility
         return value.StartsWith("Gene_", StringComparison.Ordinal);
     }
 
+    internal string? BuildAreaLoadId(XElement area, int id)
+    {
+        if (!pollutionEnabled()) return null;
+        string className = area.Attribute("Class")?.Value ?? string.Empty;
+        return className.Contains("Area_PollutionClear", StringComparison.Ordinal)
+            ? "Area_" + id.ToString(System.Globalization.CultureInfo.InvariantCulture) + "_PollutionClear"
+            : null;
+    }
 }
