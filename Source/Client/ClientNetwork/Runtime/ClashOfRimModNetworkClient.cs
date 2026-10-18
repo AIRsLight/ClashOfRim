@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Chat;
 using AIRsLight.ClashOfRim.Modules.Administration;
 using AIRsLight.ClashOfRim.Modules.Compatibility;
 using AIRsLight.ClashOfRim.Modules.World;
@@ -32,10 +33,9 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
     private static readonly string MaintainPresenceRoute = ProtocolContractManifest.Find(ProtocolMessageKind.MaintainPresence).Route;
     private static readonly string GetPawnPackagePreviewRoute = ProtocolContractManifest.Find(ProtocolMessageKind.GetPawnPackagePreview).Route;
     private static readonly string UploadSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.UploadSnapshot).Route;
-    private static readonly string SendChatMessageRoute = ProtocolContractManifest.Find(ProtocolMessageKind.SendChatMessage).Route;
-    private static readonly string ListChatMessagesRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ListChatMessages).Route;
 
     private readonly ClientProtocolTransport transport;
+    private readonly ClientChatProtocol chat;
     private readonly ClientEventProtocol events;
     private readonly ClientEventConfirmationProtocol eventConfirmations;
     private readonly ClientEventDecisionProtocol eventDecisions;
@@ -91,6 +91,7 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
         worldMarkers = new ClientWorldMarkerProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         trades = new ClientTradeProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         gifts = new ClientGiftProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
+        chat = new ClientChatProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         events = new ClientEventProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         eventConfirmations = new ClientEventConfirmationProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         eventDecisions = new ClientEventDecisionProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
@@ -297,54 +298,12 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
         => mercenaries.ReportMercenaryIncidentAsync(idempotencyKey, currentGameTicks, contractId, incidentKind, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModSendChatMessageResponseDto>> SendChatMessageAsync(
-        string? targetUserId,
-        string text,
-        CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModSendChatMessageResponseDto>();
-        }
-
-        var request = new ModSendChatMessageRequestDto
-        {
-            UserId = context.UserId,
-            ColonyId = context.ColonyId,
-            AuthToken = context.AuthToken,
-            TargetUserId = targetUserId,
-            Text = text
-        };
-
-        return transport.PostAsync<ModSendChatMessageRequestDto, ModSendChatMessageResponseDto>(
-            SendChatMessageRoute,
-            request,
-            cancellationToken);
-    }
+        string? targetUserId, string text, CancellationToken cancellationToken = default)
+        => chat.SendAsync(context, targetUserId, text, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModListChatMessagesResponseDto>> ListChatMessagesAsync(
-        long afterSequence,
-        int limit = 100,
-        CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModListChatMessagesResponseDto>();
-        }
-
-        var request = new ModListChatMessagesRequestDto
-        {
-            UserId = context.UserId,
-            ColonyId = context.ColonyId,
-            AuthToken = context.AuthToken,
-            AfterSequence = Math.Max(0, afterSequence),
-            Limit = limit
-        };
-
-        return transport.PostAsync<ModListChatMessagesRequestDto, ModListChatMessagesResponseDto>(
-            ListChatMessagesRoute,
-            request,
-            cancellationToken);
-    }
+        long afterSequence, int limit = 100, CancellationToken cancellationToken = default)
+        => chat.ListAsync(context, afterSequence, limit, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModSubmitAdminBaselineResponseDto>> SubmitAdminBaselineAsync(
         ModSubmitAdminBaselineRequestDto request,

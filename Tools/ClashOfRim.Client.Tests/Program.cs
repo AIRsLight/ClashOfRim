@@ -19,6 +19,8 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("chat owns conversation cache, cursors, unread state and request lifetimes", ClientChatTests.Run),
+    ("chat protocol shares send and list contracts with the public facade", ClientChatProtocolTests.Run),
     ("session startup shares manual and map login, credentials and followups", ClientSessionStartupTests.Run),
     ("compatibility override protocol preserves credential recovery wire contract", ClientCompatibilityOverrideProtocolTests.Run),
     ("compatibility baseline owns manifest and DLC publication", ClientCompatibilityBaselineTests.Run),

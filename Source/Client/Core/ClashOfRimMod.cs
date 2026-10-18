@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Chat;
 using AIRsLight.ClashOfRim.Modules.Administration;
 using AIRsLight.ClashOfRim.Modules.World;
 using AIRsLight.ClashOfRim.Modules.Achievements;
@@ -126,16 +127,14 @@ public sealed partial class ClashOfRimMod : Mod
     // Transitional status bridge for local fulfillment and support, pending their module stages.
     private string tradeStatus { get => tradeState.Message; set => tradeState.Message = value; }
     private string worldMapStatus = string.Empty;
-    private string chatStatus = string.Empty;
     private readonly ClientCompatibilityBaseline compatibilityBaseline;
     private readonly ClientCompatibilityOverride compatibilityOverride;
     private readonly ClientLocalMutationCoordinator localMutations = new();
     // Read-only bridge for domains that have not yet moved out of the Mod.
     private string? lastSessionId => sessionLifecycle.SessionId;
     private long lastWorldConfigurationVersion;
-    private bool chatRefreshInProgress;
-    private bool chatSendInProgress;
     private readonly ClientSessionLifecycle sessionLifecycle;
+    private readonly ClientChat chat;
     private readonly ClientPasswordChange passwordChange;
     private readonly ClientSessionReconnect sessionReconnect;
     private readonly ClientSessionConnection sessionConnection = new(new ClientSessionWebSocketTransport(new ClientWebSocketFactory(), new ClientProtocolMetadata()));
@@ -155,17 +154,11 @@ public sealed partial class ClashOfRimMod : Mod
     private readonly ClientWorldBaselineCapture worldBaselineCapture;
     private readonly ClientAdminBaselineCapture adminBaselineCapture;
     private readonly ClientInitialWorldSetup initialWorldSetup;
-    private readonly List<ModChatMessageDto> lastChatMessages = new();
     private readonly ClientWorldMarkers worldMarkers;
     private readonly ClientWorldLoginPublication worldLoginPublication;
     private readonly ClientSessionStartup sessionStartup;
     private readonly ClientWorldSynchronization worldSynchronization;
     private readonly ClientOccupiedColonySites occupiedColonySites;
-    private readonly object chatStateLock = new();
-    private long lastChatSequence;
-    private long lastReadPrivateChatSequence;
-    private int chatMessagesSnapshotVersion;
-    private int unreadPrivateChatCount;
 
     internal static ClashOfRimMod? Instance { get; private set; }
 
@@ -391,6 +384,7 @@ public sealed partial class ClashOfRimMod : Mod
             }), snapshotFailureRecovery, eventDelivery);
         eventRefresh = new ClientEventRefresh(sessionLifecycle, eventReader, eventInbox, synchronization, localMutations,
             eventApplications, eventDelivery, eventReadPresentation, eventState);
+        chat = new ClientChat(sessionLifecycle, new ClientChatTransport(new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner))), new ClientChatPresentation());
         sessionStartup = new ClientSessionStartup(sessionLifecycle, synchronization, localMutations, worldLoginPublication,
             new ClientSessionLogin(sessionLifecycle, new ClientSessionLoginTransport(new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner)))),
             ClientSnapshotComposition.Create(settings), new ClientSessionStartupRuntime(sessionConnection),
@@ -474,7 +468,6 @@ public sealed partial class ClashOfRimMod : Mod
         worldMapStatus = ClashOfRimText.Key("ClashOfRim.Status.WorldMapNotSynced");
         bankState.Message = ClashOfRimText.Key("ClashOfRim.Status.BankNotPulled");
         shopState.Message = ClashOfRimText.Key("ClashOfRim.Shop.StatusIdle");
-        chatStatus = ClashOfRimText.Key("ClashOfRim.Chat.StatusIdle");
     }
 
     internal bool SnapshotUploadInProgress => synchronization.SnapshotInProgress;
@@ -493,7 +486,7 @@ public sealed partial class ClashOfRimMod : Mod
 
     internal bool PresenceInProgress => sessionConnection.IsRunning;
 
-    internal bool ChatInProgress => chatRefreshInProgress || chatSendInProgress;
+    internal bool ChatInProgress => chat.Busy;
 
     internal bool IsAdministrator => adminAccess.IsAdministrator;
 
@@ -675,47 +668,10 @@ public sealed partial class ClashOfRimMod : Mod
         }
     }
 
-    internal string ChatStatus
-    {
-        get
-        {
-            EnsureStatusDefaultsInitialized();
-            return chatStatus;
-        }
-    }
-
-    internal IReadOnlyList<ModChatMessageDto> ChatMessagesSnapshot
-    {
-        get
-        {
-            lock (chatStateLock)
-            {
-                return lastChatMessages.ToList();
-            }
-        }
-    }
-
-    internal int UnreadPrivateChatCount
-    {
-        get
-        {
-            lock (chatStateLock)
-            {
-                return unreadPrivateChatCount;
-            }
-        }
-    }
-
-    internal int ChatMessagesSnapshotVersion
-    {
-        get
-        {
-            lock (chatStateLock)
-            {
-                return chatMessagesSnapshotVersion;
-            }
-        }
-    }
+    internal string ChatStatus => chat.Status;
+    internal IReadOnlyList<ModChatMessageDto> ChatMessagesSnapshot => chat.CopyMessages();
+    internal int UnreadPrivateChatCount => chat.UnreadPrivate;
+    internal int ChatMessagesSnapshotVersion => chat.Version;
 
     internal string BankStatus
     {
