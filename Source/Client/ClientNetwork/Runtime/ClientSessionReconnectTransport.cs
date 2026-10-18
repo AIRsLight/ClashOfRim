@@ -24,13 +24,14 @@ internal sealed class ClientSessionReconnectTransport : IClientSessionReconnectT
         return await new ClientWorldProtocol(transport, setup, environment, environment, environment.LogWorldEntry).PrepareAsync(context, false, token);
     }
 
-    public async Task<ClashOfRimClientNetworkResult<ModLoginResponseDto>> LoginAsync(ClashOfRimClientNetworkContext context, CancellationToken token)
+    public async Task<ClashOfRimClientNetworkResult<ModLoginResponseDto>> LoginAsync(ClashOfRimClientNetworkContext context,
+        string purpose, CancellationToken token, Action<ModLoginResponseDto> captureReceipt)
     {
         using var http = CreateHttp();
         var environment = new ClientAuthenticationEnvironment();
         var transport = new ClientProtocolTransport(http, context,
             protocolEnvironment);
-        return await new ClientSessionProtocol(transport, environment, environment).LoginAsync(context, "session-reconnect", null, token);
+        return await new ClientSessionProtocol(transport, environment, environment).LoginAsync(context, purpose, null, token, captureReceipt);
     }
 
     public async Task<ClashOfRimClientNetworkResult<ModDownloadLatestSnapshotResponseDto>> ReadSnapshotAsync(ClashOfRimClientNetworkContext context, CancellationToken token)

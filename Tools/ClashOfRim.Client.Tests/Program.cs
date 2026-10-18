@@ -19,6 +19,7 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("session recovery UI owns expiry, in-place reconnect and domain followups", ClientSessionRecoveryTests.Run),
     ("connection status owns source identity, localization and reentrant publication", ClientConnectionStatusTests.Run),
     ("session notifications own payload semantics, cursors and bound effects", ClientSessionNotificationTests.Run),
     ("chat owns conversation cache, cursors, unread state and request lifetimes", ClientChatTests.Run),

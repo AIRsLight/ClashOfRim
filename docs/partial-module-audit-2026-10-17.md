@@ -2359,3 +2359,21 @@ M8h4m2 分为连接状态与失效/重连 UI 两个提交步骤。本步由 `Cli
 核对 HTTP 遗留：ClientProtocolTransport 仍对中英文过期文本做匹配；ProtocolErrorCode 没有独立 SessionExpired，SessionConnections 的过期响应使用通用 ServerRejected，殖民地/管理员授权还通过文本传递失效原因。不能简单把所有 ServerRejected 或 Unauthorized 当作会话过期。后续需要端到端明确结构化失效语义及原请求身份归属，并覆盖多语言和普通权限拒绝，不能只替换客户端关键词。
 
 **下一步 M8h4m2b：不可用提示与原地重连 UI 编排**，复用现有生命周期延后失效、重连 Attempt、世界登录发布和相关领域模块；随后处理 HTTP 失效语义。M8h4m2、M8h4、M8h、M8 与 M9–M12 继续开放。默认跑相关单元测试，必要时补单次功能 RimTest，全量仍由用户安排。
+
+### M8h4m2b 不可用提示、原地重连与登录凭据复用（2026-10-19）
+
+`ClientSessionRecovery` 接管失效/断线判定后的 UI 编排：延后失效、清理身份、提示、原地重连、失败重试、成功后的领域刷新。Mod 删除 HandleSessionExpired、HandleSessionDisconnected、HandleSessionUnavailable、StartSessionReconnect、RunSessionReconnect、PresentSessionReconnect 和阻止原因格式化，另删除已无调用的取消判断助手。宿主仅组合模块及状态输出；流失效通过适配器事件直接连接恢复模块，不再回调宿主业务方法。游戏/世界绑定、主线程队列、窗口与日志由窄运行时端口提供。
+
+生命周期仍唯一负责 Begin/CompleteUnavailable 和终结操作期间的失效延后。新增 CompleteUnavailableOwned 返回原有清理算法的精确身份回执，原 bool 入口复用它。恢复模块以该回执绑定提示窗口，排队后换身份、Game 或 World 不清理后继会话；翻译、状态赋值、关闭主标签和窗口展示发生重入后停止旧编排。没有认证或 SessionId 的请求不能启动失效。普通断线仍要求正在游戏、存在 Game 和快照；认证失效可在菜单显示，排队复用已有 EnqueueSession，不再依赖 GameComponent 队列。
+
+窗口的重连与返回菜单动作均检查原身份及原游戏；失效窗口在绘制时关闭过期实例，旧按钮不能退出或重连新会话。一次重连已发布自己的登录、后续回调却失败时，窗口只延续该次精确登录回执，保留失败状态及安全重试能力，不借用任意当前身份。绘制按钮使用 finally 恢复 GUI.enabled，重连按钮触发后重新计算菜单按钮是否可用。
+
+重连继续使用现有 ClientSessionReconnect 的准备、身份/快照校验和同步准入；主线程发布改为复用 ClientGamePublication。队列重复、丢弃、丢弃后晚到及入队后抛异常只消费一次；临时凭据释放始终在 Run 外层 finally 完成，涵盖代次在调度前失效。成功顺序保留队列接管、原世界观察凭据发布、关闭窗口、事件/玩家/聊天/在线流刷新和袭击恢复；每个后续动作前重新验证来源。效果适配器直接调用已有领域模块，未复制其算法或通过 Mod 回调间接执行。
+
+同时消除 ClientSessionReconnect 内独立维护的临时登录凭据、adopted 标记和注销选择算法，统一使用 `ClientSessionLogin.Attempt`。重连传输实现共享登录端口并传递 captureReceipt，收到成功回执后才取消仍能释放原临时凭据。身份发布回调抛异常时，重连保留共享登录模块捕获的精确发布回执；写入前失败会释放未接管凭据，写入后失败不会误注销已接管凭据。元数据在准备完成时冻结，排队期间复用传输 DTO 不会改写快照判断或袭击恢复信息。
+
+新增恢复流程组 **688 个场景**，四种文化环境下覆盖失效与断线分支、延后失效、缺少/过期凭据、重复提示、菜单失效、旧窗口按钮、准入拒绝、各网络阶段失败、排队与发布期间的身份/Game/World/世界 ID 变化、待定本地变更、重复/丢弃/晚到回调、世界观察顺序、可变回执、后续动作重入、异常后重试及前后继清理。测试使用真实生命周期、重连、世界发布和同步模块。旧重连组补三项存储写入前后失败及捕获成功回执后的取消测试；原私有重连/注销测试传输抽为共享设施，两组共用，未增设第二套故障槽。
+
+最终 **13 个相关单元组通过**：恢复 UI 流程、连接状态、通知、连接、生命周期、重连及两组策略、会话启动、世界登录发布、袭击恢复、HTTP 传输和模块守卫。守卫检查 **1,277** 个模块及生成类型、**303** 个适配器及生成类型。客户端 Release **0 错误、40 个既有警告**；RimTest 桥接 **0 错误、1 个既有警告**。日志：`LocalOnly/module-migration/client-session-recovery-{compile,tests,related,credentials,final,build,bridge}.log`。未运行实机 RimTest、全量回归或推送；单元测试不等同于引擎窗口实测，冻结 1.6 及原有未提交工作保持独立。
+
+M8h4m2 的状态和恢复 UI 编排迁移完成。**下一步 M8h4m3：HTTP 会话失效的结构化语义与请求归属**，消除 ClientProtocolTransport 的中英文文本判断，端到端区分失效与普通权限/业务拒绝。SessionRuntime 仍有退出时领域清理等宿主职责，其他 partial 尚未全部迁移；M8h4、M8h、M8 与 M9–M12 继续开放。相关单元测试为默认，必要时补单次功能 RimTest，全量由用户安排。

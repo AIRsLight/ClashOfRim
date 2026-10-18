@@ -11,11 +11,11 @@ internal sealed class ClientSessionNotificationEffects : IClientSessionNotificat
     private readonly ClientChat chat;
     private readonly ClientEventRefresh ledger;
     private readonly ClientWorldCatalog world;
-    private readonly Action<string?, string> expired;
-    internal ClientSessionNotificationEffects(ClientChat chat, ClientEventRefresh ledger, ClientWorldCatalog world, Action<string?, string> expired)
-    { this.chat = chat; this.ledger = ledger; this.world = world; this.expired = expired; }
+    internal event Action<string?, string>? SessionExpired;
+    internal ClientSessionNotificationEffects(ClientChat chat, ClientEventRefresh ledger, ClientWorldCatalog world)
+    { this.chat = chat; this.ledger = ledger; this.world = world; }
     public void RefreshChat(bool initial) => _ = chat.RefreshAsync(initial);
     public void RefreshLedger(string reason) => _ = ledger.StartAutomatic(reason);
     public void RefreshWorld(string reason) => _ = world.RefreshAsync(reason, generation: true);
-    public void Expired(ClashOfRimClientNetworkContext context, string sessionId) => expired(context.AuthToken, sessionId);
+    public void Expired(ClashOfRimClientNetworkContext context, string sessionId) => SessionExpired?.Invoke(context.AuthToken, sessionId);
 }

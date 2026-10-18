@@ -1,3 +1,4 @@
+using static SessionReconnectTestTransport;
 using AIRsLight.ClashOfRim.Modules.Synchronization;
 using System;
 using System.Collections.Generic;
@@ -28,8 +29,31 @@ internal static class SessionReconnectModuleTests
             await DetachedLogoutWire();
             await LoginCallbackReplacement();
             await FrozenLoginReceipt();
+            foreach (bool afterWrite in new[] { false, true }) await StoreFailure(afterWrite);
+            await CapturedCancellation();
         }
         finally { ClientSessionWork.Reset(); }
+    }
+
+    private static async Task StoreFailure(bool afterWrite)
+    {
+        ClientSessionWork.Reset(); var f = new Fixture(); var attempt = f.Begin(); await attempt.PrepareAsync();
+        f.Store.Failure = afterWrite ? "after" : "before";
+        bool failed = false;
+        try { attempt.Complete(true, true, false); }
+        catch (InvalidOperationException ex) when (ex.Message == "store failure") { failed = true; }
+        await attempt.DisposeAsync();
+        Require(failed && attempt.Published is not null && !f.Synchronization.IsBusy
+            && f.Logout.Calls.Count == (afterWrite ? 0 : 1) && f.Store.Token == (afterWrite ? "candidate-token" : ""),
+            "Reconnect did not reuse login ownership around identity-store failure.");
+    }
+
+    private static async Task CapturedCancellation()
+    {
+        ClientSessionWork.Reset(); var f = new Fixture("login-canceled-after-receipt"); var attempt = f.Begin();
+        await attempt.PrepareAsync(); var result = attempt.Complete(true, true, false); await attempt.DisposeAsync();
+        Require(result.Outcome == SessionReconnectOutcome.NetworkFailed && f.Logout.Calls.Single().Session == "candidate-session"
+            && f.Store.Token == "" && !f.Synchronization.IsBusy, "Canceled accepted login leaked its temporary credential.");
     }
 
     private static async Task AdmissionAndAdoption()
@@ -272,8 +296,8 @@ internal static class SessionReconnectModuleTests
     {
         internal readonly Store Store = new();
         internal readonly ClientSynchronizationCoordinator Synchronization = new();
-        internal readonly Logout Logout = new();
-        internal readonly Transport Transport;
+        internal readonly SessionLogoutTestTransport Logout = new();
+        internal readonly SessionReconnectTestTransport Transport;
         internal readonly ClientSessionLifecycle Lifecycle;
         internal readonly ClientSessionReconnect Service;
         internal Fixture(string scenario = "success")
@@ -293,21 +317,13 @@ internal static class SessionReconnectModuleTests
     {
         internal string Url = "http://localhost:12345", User = "user", Colony = "colony", Snapshot = "snapshot", Token = "";
         internal int Writes;
+        internal string? Failure;
         public ClashOfRimClientNetworkContext ReadContext() => new(Url, User, Colony, Snapshot, null, "password", Token);
-        public void Write(string? userId, string? displayName, string authToken) { User = userId ?? User; Token = authToken; Writes++; }
-    }
-    private sealed class Logout : IClientSessionLogoutTransport
-    {
-        internal readonly List<(ClashOfRimClientNetworkContext Context, string Session)> Calls = new();
-        internal bool Pause, Fails;
-        internal readonly TaskCompletionSource<bool> Started = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        internal readonly TaskCompletionSource<bool> Continue = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        public async Task<ClashOfRimClientNetworkResult<ModLogoutResponseDto>> LogoutAsync(ClashOfRimClientNetworkContext context, string sessionId)
+        public void Write(string? userId, string? displayName, string authToken)
         {
-            Calls.Add((context, sessionId)); Started.TrySetResult(true);
-            if (Pause) await Continue.Task;
-            if (Fails) throw new InvalidOperationException("cleanup failure");
-            return ClashOfRimClientNetworkResult<ModLogoutResponseDto>.Ok(new() { Result = Accepted() });
+            if (Failure == "before") throw new InvalidOperationException("store failure");
+            User = userId ?? User; Token = authToken; Writes++;
+            if (Failure == "after") throw new InvalidOperationException("store failure");
         }
     }
     private sealed class Stream : IClientSessionStreamTransport
@@ -316,57 +332,5 @@ internal static class SessionReconnectModuleTests
             long notificationVersion, long worldVersion, Action<ModSessionStreamEvent> onEvent, CancellationToken cancellationToken) =>
             Task.FromResult(ClashOfRimClientNetworkResult<ModSessionStreamClosedDto>.Ok(new(true)));
     }
-    private sealed class Transport : IClientSessionReconnectTransport
-    {
-        private readonly string scenario;
-        internal readonly List<string> Calls = new();
-        internal string? PauseAt;
-        internal ClashOfRimClientNetworkContext? MetadataContext;
-        internal ModLoginResponseDto? LastLogin;
-        internal readonly TaskCompletionSource<bool> Paused = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        internal readonly TaskCompletionSource<bool> Continue = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        internal Transport(string scenario) => this.scenario = scenario;
-        private async Task Before(string stage)
-        {
-            Calls.Add(stage);
-            if (PauseAt == stage) { Paused.SetResult(true); await Continue.Task; }
-            if (scenario == stage + "-throw") throw new InvalidOperationException("transport failure");
-        }
-        public async Task<ClashOfRimClientNetworkResult<ModPrepareWorldSessionResponseDto>> PrepareAsync(ClashOfRimClientNetworkContext context, CancellationToken token)
-        {
-            await Before("prepare");
-            if (scenario == "prepare-network") return ClashOfRimClientNetworkResult<ModPrepareWorldSessionResponseDto>.Failed("network", "offline");
-            return ClashOfRimClientNetworkResult<ModPrepareWorldSessionResponseDto>.Ok(new()
-            {
-                Result = Accepted(scenario != "prepare-rejected"), HasExistingColony = scenario != "prepare-new-colony",
-                AssignedColonyId = scenario == "prepare-colony" ? "COLONY" : "colony", LatestSnapshotId = scenario == "prepare-snapshot" ? "other" : "snapshot"
-            });
-        }
-        public async Task<ClashOfRimClientNetworkResult<ModLoginResponseDto>> LoginAsync(ClashOfRimClientNetworkContext context, CancellationToken token)
-        {
-            await Before("login");
-            if (scenario == "login-network") return ClashOfRimClientNetworkResult<ModLoginResponseDto>.Failed("network", "offline");
-            var response = Login("candidate-session", "candidate-token");
-            response.AuthenticatedUserId = scenario == "login-identity" ? " different-user " : " user ";
-            if (scenario == "login-rejected") response.Result = Accepted(false);
-            if (scenario == "login-no-token") response.AuthToken = null;
-            if (scenario == "login-no-session") response.SessionId = null;
-            LastLogin = response;
-            return ClashOfRimClientNetworkResult<ModLoginResponseDto>.Ok(response);
-        }
-        public async Task<ClashOfRimClientNetworkResult<ModDownloadLatestSnapshotResponseDto>> ReadSnapshotAsync(ClashOfRimClientNetworkContext context, CancellationToken token)
-        {
-            MetadataContext = context;
-            await Before("metadata");
-            if (scenario == "metadata-network") return ClashOfRimClientNetworkResult<ModDownloadLatestSnapshotResponseDto>.Failed("network", "offline");
-            return ClashOfRimClientNetworkResult<ModDownloadLatestSnapshotResponseDto>.Ok(new()
-            {
-                Result = Accepted(scenario != "metadata-rejected"), SnapshotId = scenario == "metadata-snapshot" ? "other" : "snapshot",
-                ActiveRaidRecovery = new() { EventId = "active-raid" }
-            });
-        }
-    }
-    private static ModProtocolResponseDto Accepted(bool value = true) => new() { Accepted = value, Message = value ? "ok" : "rejected" };
-    private static ModLoginResponseDto Login(string session, string token) => new() { Result = Accepted(), SessionId = session, AuthToken = token };
     private static void Require(bool value, string message) { if (!value) throw new InvalidOperationException(message); }
 }

@@ -137,7 +137,7 @@ public sealed partial class ClashOfRimMod : Mod
     private readonly ClientSessionLifecycle sessionLifecycle;
     private readonly ClientChat chat;
     private readonly ClientPasswordChange passwordChange;
-    private readonly ClientSessionReconnect sessionReconnect;
+    private readonly ClientSessionRecovery sessionRecovery;
     private readonly ClientSessionConnection sessionConnection = new(new ClientSessionWebSocketTransport(new ClientWebSocketFactory(), new ClientProtocolMetadata()));
     private readonly ClientAchievementQueries achievementQueries;
     private readonly ClientEndgameAchievements endgameAchievements;
@@ -190,7 +190,7 @@ public sealed partial class ClashOfRimMod : Mod
         worldPreparation = new ClientWorldPreparation(sessionLifecycle, new ClientSnapshotGame(), worldTransport, entryPresentation);
         worldBaselineSubmission = new ClientWorldBaselineSubmission(sessionLifecycle, new ClientWorldBaselineRuntime(), worldTransport);
         worldBaselineCapture = new ClientWorldBaselineCapture(worldBaselineSubmission, storytellerConfiguration);
-        sessionReconnect = new ClientSessionReconnect(new ClientSessionReconnectTransport(new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner))), sessionLifecycle, synchronization);
+        var sessionReconnect = new ClientSessionReconnect(new ClientSessionReconnectTransport(new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner))), sessionLifecycle, synchronization);
         passwordChange = new ClientPasswordChange(sessionLifecycle,
             new ClientPasswordTransport(new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner))),
             new ClientPasswordStore(settings), new ClientPasswordPresentation(), ClientMainThreadDispatcher.EnqueueSession);
@@ -386,9 +386,13 @@ public sealed partial class ClashOfRimMod : Mod
         eventRefresh = new ClientEventRefresh(sessionLifecycle, eventReader, eventInbox, synchronization, localMutations,
             eventApplications, eventDelivery, eventReadPresentation, eventState);
         chat = new ClientChat(sessionLifecycle, new ClientChatTransport(new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner))), new ClientChatPresentation());
-        sessionNotifications = new ClientSessionNotifications(sessionLifecycle, sessionConnection, eventState,
-            new ClientSessionNotificationEffects(chat, eventRefresh, worldCatalog, (auth, id) => HandleSessionExpired(null, auth, id)),
+        var notificationEffects = new ClientSessionNotificationEffects(chat, eventRefresh, worldCatalog);
+        sessionNotifications = new ClientSessionNotifications(sessionLifecycle, sessionConnection, eventState, notificationEffects,
             new ClientSessionNotificationPresentation(message => presenceStatus = message));
+        sessionRecovery = new ClientSessionRecovery(sessionLifecycle, sessionConnection, sessionReconnect, localMutations, worldLoginPublication,
+            new ClientSessionRecoveryRuntime(), new ClientSessionRecoveryPresentation(message => loginStatus = message, message => presenceStatus = message),
+            new ClientSessionRecoveryEffects(eventRefresh, playerDirectory, chat, sessionNotifications, raidRecovery));
+        notificationEffects.SessionExpired += sessionRecovery.Expired;
         sessionStartup = new ClientSessionStartup(sessionLifecycle, synchronization, localMutations, worldLoginPublication,
             new ClientSessionLogin(sessionLifecycle, new ClientSessionLoginTransport(new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner)))),
             ClientSnapshotComposition.Create(settings), new ClientSessionStartupRuntime(sessionConnection),
@@ -439,12 +443,11 @@ public sealed partial class ClashOfRimMod : Mod
         synchronization.SnapshotChanged += PresentSnapshotTransaction;
         sessionLifecycle.LogoutFailed += message => Log.Warning("[ClashOfRim] " + message);
         _ = new ClientConnectionStatus(sessionLifecycle, sessionConnection, new ClientConnectionStatusPresentation(message => presenceStatus = message));
-        sessionConnection.ConnectionLost += HandleSessionDisconnected;
         var harmony = new Harmony(PackageId);
         ClashOfRimCompatibilityApi.BeginRegistrationCycle(PackageId);
         BuiltInClientCompatibility.Apply(harmony);
         harmony.PatchAll();
-        ClashOfRimModNetworkClient.SessionExpired = (message, authToken) => HandleSessionExpired(message, authToken, observedSessionId: null);
+        ClashOfRimModNetworkClient.SessionExpired = (_, authToken) => sessionRecovery.Expired(authToken);
         ClashOfRimModNetworkClient.CompatibilityManifestJsonProvider = () => localManifest.BuildJson(null);
         ClashOfRimModNetworkClient.CompatibilityManifestIdProvider = () => localManifest.Id;
         ClashOfRimModNetworkClient.CompatibilityManifestSummaryJsonProvider = () => localManifest.SummaryJson;

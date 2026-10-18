@@ -4,9 +4,8 @@ using AIRsLight.ClashOfRim.ClientNetwork;
 
 namespace AIRsLight.ClashOfRim.Modules.Sessions;
 
-internal interface IClientSessionReconnectTransport
+internal interface IClientSessionReconnectTransport : IClientSessionLoginTransport
 {
     Task<ClashOfRimClientNetworkResult<ModPrepareWorldSessionResponseDto>> PrepareAsync(ClashOfRimClientNetworkContext context, CancellationToken token);
-    Task<ClashOfRimClientNetworkResult<ModLoginResponseDto>> LoginAsync(ClashOfRimClientNetworkContext context, CancellationToken token);
     Task<ClashOfRimClientNetworkResult<ModDownloadLatestSnapshotResponseDto>> ReadSnapshotAsync(ClashOfRimClientNetworkContext context, CancellationToken token);
 }

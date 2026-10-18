@@ -105,12 +105,15 @@ internal sealed class ClientSessionLifecycle
     // Called by the main-thread continuation. A new login in the SAME generation cancels
     // this transition too, so an old queued expiry cannot clear the new credentials or UI.
     internal bool CompleteUnavailable(Invalidation invalidation)
+        => CompleteUnavailableOwned(invalidation) is not null;
+
+    internal Exit? CompleteUnavailableOwned(Invalidation invalidation)
     {
-        bool completed = false;
+        Exit? completed = null;
         ClientSessionWork.TryApply(() =>
         {
             if (!ReferenceEquals(pendingInvalidation, invalidation) || invalidation.Owner != ClientSessionWork.Token || HoldingInvalidation) return;
-            completed = ClearIdentityCore() is not null;
+            completed = ClearIdentityCore();
         });
         return completed;
     }

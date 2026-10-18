@@ -1,26 +1,30 @@
 using System;
+using AIRsLight.ClashOfRim.Modules.World;
 using UnityEngine;
 using Verse;
 
 namespace AIRsLight.ClashOfRim.ClientSnapshots;
 
-internal sealed class SessionExpiredWindow : Window
+internal sealed class SessionExpiredWindow : Window, IClientSessionRecoveryDialog
 {
     private readonly string title;
     private readonly string message;
     private readonly Action<SessionExpiredWindow> reconnect;
-    private readonly Action returnToMainMenu;
+    private readonly Action<IClientSessionRecoveryDialog> returnToMainMenu;
+    private readonly Func<bool> current;
     private string status = string.Empty;
     private bool busy;
 
     public SessionExpiredWindow(
         string title,
         string message,
+        Func<bool> current,
         Action<SessionExpiredWindow> reconnect,
-        Action returnToMainMenu)
+        Action<IClientSessionRecoveryDialog> returnToMainMenu)
     {
         this.title = title ?? string.Empty;
         this.message = message ?? string.Empty;
+        this.current = current;
         this.reconnect = reconnect ?? throw new ArgumentNullException(nameof(reconnect));
         this.returnToMainMenu = returnToMainMenu ?? throw new ArgumentNullException(nameof(returnToMainMenu));
         doCloseX = false;
@@ -32,6 +36,8 @@ internal sealed class SessionExpiredWindow : Window
     }
 
     public override Vector2 InitialSize => new(600f, 250f);
+    bool IClientSessionRecoveryDialog.IsOpen => ReferenceEquals(Find.WindowStack.WindowOfType<SessionExpiredWindow>(), this);
+    void IClientSessionRecoveryDialog.Close() => Close();
 
     public void CompleteReconnect(bool succeeded, string resultStatus)
     {
@@ -45,6 +51,7 @@ internal sealed class SessionExpiredWindow : Window
 
     public override void DoWindowContents(Rect inRect)
     {
+        if (!current()) { Close(); return; }
         Text.Font = GameFont.Medium;
         Widgets.Label(new Rect(inRect.x, inRect.y, inRect.width, 34f), title);
         Text.Font = GameFont.Small;
@@ -56,22 +63,25 @@ internal sealed class SessionExpiredWindow : Window
         }
 
         bool oldEnabled = GUI.enabled;
-        GUI.enabled = oldEnabled && !busy;
-        Rect reconnectRect = new(inRect.xMax - 372f, inRect.yMax - 38f, 180f, 32f);
-        if (Widgets.ButtonText(reconnectRect, ClashOfRimText.Key("ClashOfRim.SessionExpired.Reconnect")))
+        try
         {
-            busy = true;
-            status = ClashOfRimText.Key("ClashOfRim.SessionExpired.Reconnecting");
-            reconnect(this);
-        }
+            GUI.enabled = oldEnabled && !busy;
+            Rect reconnectRect = new(inRect.xMax - 372f, inRect.yMax - 38f, 180f, 32f);
+            if (Widgets.ButtonText(reconnectRect, ClashOfRimText.Key("ClashOfRim.SessionExpired.Reconnect")))
+            {
+                busy = true;
+                status = ClashOfRimText.Key("ClashOfRim.SessionExpired.Reconnecting");
+                reconnect(this);
+            }
 
-        Rect menuRect = new(inRect.xMax - 180f, inRect.yMax - 38f, 180f, 32f);
-        if (Widgets.ButtonText(menuRect, ClashOfRimText.Key("ClashOfRim.SessionExpired.ReturnToMainMenu")))
-        {
-            busy = true;
-            returnToMainMenu();
+            GUI.enabled = oldEnabled && !busy;
+            Rect menuRect = new(inRect.xMax - 180f, inRect.yMax - 38f, 180f, 32f);
+            if (Widgets.ButtonText(menuRect, ClashOfRimText.Key("ClashOfRim.SessionExpired.ReturnToMainMenu")))
+            {
+                busy = true;
+                returnToMainMenu(this);
+            }
         }
-
-        GUI.enabled = oldEnabled;
+        finally { GUI.enabled = oldEnabled; }
     }
 }

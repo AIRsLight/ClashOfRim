@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.Modules.Synchronization;
+using AIRsLight.ClashOfRim.Modules.Transport;
 
 namespace AIRsLight.ClashOfRim.Modules.Sessions;
 
@@ -11,10 +12,11 @@ internal sealed class ClientSessionReconnect
     private readonly IClientSessionReconnectTransport transport;
     private readonly ClientSessionLifecycle lifecycle;
     private readonly ClientSynchronizationCoordinator synchronization;
+    private readonly ClientSessionLogin authentication;
     private Attempt? current;
 
     internal ClientSessionReconnect(IClientSessionReconnectTransport transport, ClientSessionLifecycle lifecycle, ClientSynchronizationCoordinator synchronization)
-    { this.transport = transport; this.lifecycle = lifecycle; this.synchronization = synchronization; }
+    { this.transport = transport; this.lifecycle = lifecycle; this.synchronization = synchronization; authentication = new(lifecycle, transport); }
 
     internal bool IsRunning => Volatile.Read(ref current) is Attempt attempt && lifecycle.Owns(attempt.Owner);
 
@@ -39,16 +41,17 @@ internal sealed class ClientSessionReconnect
         private readonly ClientSessionReconnect service;
         private readonly object completionGate = new();
         private readonly ClientSynchronizationCoordinator.Lease admission;
-        private ModLoginResponseDto? login;
-        private ClashOfRimClientNetworkContext? authenticated;
+        private readonly ClientSessionLogin.Attempt login;
         private SessionReconnectResult? prepared;
-        private bool adopted, disposed;
+        private bool disposed;
 
         internal Attempt(ClientSessionReconnect service, ClashOfRimClientNetworkContext expected, ClientSessionLifecycle.Ownership owner,
             ClientSynchronizationCoordinator.Lease admission)
-        { this.service = service; Expected = expected; Owner = owner; this.admission = admission; }
+        { this.service = service; Expected = expected; Owner = owner; this.admission = admission; login = service.authentication.Create(expected); }
         internal ClashOfRimClientNetworkContext Expected { get; }
         internal ClientSessionLifecycle.Ownership Owner { get; }
+        // Exact proof retained by shared login ownership, including callbacks that throw.
+        internal SessionReconnectResult? Published { get; private set; }
         private bool IsCurrent => ReferenceEquals(Volatile.Read(ref service.current), this) && service.lifecycle.Owns(Owner);
 
         internal async Task PrepareAsync()
@@ -71,28 +74,23 @@ internal sealed class ClientSessionReconnect
                 return new(SessionReconnectOutcome.SnapshotChanged, "Before login: expectedColony=" + Expected.ColonyId
                     + ", assignedColony=" + world.AssignedColonyId + ", expectedSnapshot=" + Expected.CurrentSnapshotId + ", latestSnapshot=" + world.LatestSnapshotId);
 
-            // Capture a returned credential BEFORE checking ownership; even a late accepted
-            // login must be released with its own authenticated identity.
-            var response = await service.transport.LoginAsync(Expected, Owner.Token);
-            if (response.Success && response.Response is { } receipt && ClientSessionCredential.Capture(Expected, receipt) is { } credential)
-            {
-                login = credential.Receipt;
-                authenticated = credential.Context;
-            }
+            // Shared login ownership captures accepted credentials even if request
+            // cancellation subsequently rejects publication of that same receipt.
+            var response = await login.RequestAsync("session-reconnect", Owner.Token);
             if (!IsCurrent) return new(SessionReconnectOutcome.Obsolete);
             if (!response.Success || response.Response is null)
                 return new(SessionReconnectOutcome.NetworkFailed, response.Message ?? response.ErrorCode);
-            if (authenticated is null) return new(SessionReconnectOutcome.Rejected, response.Response.Result?.Message);
-            if (!string.Equals(authenticated.UserId, Expected.UserId, StringComparison.Ordinal))
+            if (login.Credential is not { } credential) return new(SessionReconnectOutcome.Rejected, response.Response.Result?.Message);
+            if (!string.Equals(credential.Context.UserId, Expected.UserId, StringComparison.Ordinal))
                 return new(SessionReconnectOutcome.IdentityChanged);
 
-            var metadata = await service.transport.ReadSnapshotAsync(authenticated, Owner.Token);
+            var metadata = await service.transport.ReadSnapshotAsync(credential.Context, Owner.Token);
             if (!IsCurrent) return new(SessionReconnectOutcome.Obsolete);
             if (!metadata.Success || metadata.Response?.Result?.Accepted != true
                 || !string.Equals(metadata.Response.SnapshotId, Expected.CurrentSnapshotId, StringComparison.Ordinal))
                 return new(SessionReconnectOutcome.SnapshotChanged, "After login: expectedSnapshot=" + Expected.CurrentSnapshotId
                     + ", latestSnapshot=" + metadata.Response?.SnapshotId + ", error=" + (metadata.Message ?? metadata.Response?.Result?.Message ?? metadata.ErrorCode));
-            return new(SessionReconnectOutcome.Succeeded, Login: login, Snapshot: metadata.Response);
+            return new(SessionReconnectOutcome.Succeeded, Login: credential.Receipt, Snapshot: ClientProtocolJson.Copy(metadata.Response));
         }
 
         internal SessionReconnectResult Complete(bool isPlaying, bool hasOriginalGame, bool atomicMutationPending)
@@ -106,7 +104,7 @@ internal sealed class ClientSessionReconnect
             using var publication = ClientSessionWork.EnterPublication();
             lock (completionGate)
             {
-                if (disposed || adopted || !IsCurrent) return new(SessionReconnectOutcome.Obsolete);
+                if (disposed || Published is not null || !IsCurrent) return new(SessionReconnectOutcome.Obsolete);
                 var result = prepared ?? throw new InvalidOperationException("Reconnect must be prepared before completion.");
                 if (result.Outcome != SessionReconnectOutcome.Succeeded) return result;
                 var currentContext = service.lifecycle.ReadContext();
@@ -119,28 +117,28 @@ internal sealed class ClientSessionReconnect
                     return new(SessionReconnectOutcome.IdentityChanged);
                 if (!string.Equals(currentContext.CurrentSnapshotId, Expected.CurrentSnapshotId, StringComparison.Ordinal))
                     return new(SessionReconnectOutcome.SnapshotChanged);
-                var accepted = service.lifecycle.PublishLogin(Owner, Expected, login!);
-                adopted = accepted is not null;
+                ClientSessionLifecycle.Login? accepted;
+                try { accepted = login.Publish(Owner); }
+                finally
+                {
+                    if (login.Publication is { } proof) Published = result with { Publication = proof };
+                }
                 return accepted is not null && service.lifecycle.Owns(accepted)
-                    ? result with { Publication = accepted } : new(SessionReconnectOutcome.Obsolete);
+                    ? Published! : new(SessionReconnectOutcome.Obsolete);
             }
         }
 
         public async ValueTask DisposeAsync()
         {
-            ClashOfRimClientNetworkContext? release;
-            string? releaseSession;
             lock (completionGate)
             {
                 if (disposed) return;
                 disposed = true;
-                release = adopted ? null : authenticated;
-                releaseSession = login?.SessionId;
             }
             try
             {
                 admission.Dispose();
-                if (release is not null) await service.lifecycle.ReleaseSessionAsync(release, releaseSession!);
+                await login.DisposeAsync();
             }
             finally { Interlocked.CompareExchange(ref service.current, null, this); }
         }
