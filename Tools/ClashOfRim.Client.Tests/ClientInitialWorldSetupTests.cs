@@ -49,8 +49,8 @@ internal static class ClientInitialWorldSetupTests
         Check(f.Calls.SequenceEqual(snapshot ? new[] { "metadata", "world-upload", "requirements", "admin-submit", "snapshot-upload" }
             : new[] { "metadata", "world-upload", "requirements", "admin-submit" }), "Initial setup duplicated or reordered requests.");
         Check(f.Successes == (snapshot ? 2 : 1) && !f.Sync.IsBusy && !f.Setup.Pending, "Successful setup lost completion/admission.");
-        Check(f.Effects.SequenceEqual(snapshot ? Enum.GetValues<ClientInitialWorldEffect>().Where(e => !presence || e != ClientInitialWorldEffect.Presence)
-            : new[] { ClientInitialWorldEffect.Markers }), "Snapshot handoff effects changed order or ran outside Playing/session.");
+        Check(f.Effects.SequenceEqual(snapshot ? Enum.GetValues<ClientSessionFollowup>().Where(e => !presence || e != ClientSessionFollowup.Presence)
+            : new[] { ClientSessionFollowup.Markers }), "Snapshot handoff effects changed order or ran outside Playing/session.");
         Check(f.Source.Calls == 8 && f.Ports.Captures == (snapshot ? 1 : 0) && f.Ports.Published == (snapshot ? 1 : 0), "Repeated queue callback captured/published twice.");
         if (snapshot) Check(f.PromotionObserved && f.UploadKind == ModSnapshotUploadKinds.InitialColonySnapshot && f.Ports.CaptureModes.SequenceEqual(new[] { false }), "Snapshot did not promote the existing manual lease or changed its purpose.");
         int calls = f.Calls.Count; await f.Start(); Check(f.Calls.Count == calls, "Consumed initial setup restarted on another lifecycle callback.");
@@ -118,7 +118,7 @@ internal static class ClientInitialWorldSetupTests
         await f.Ports.PumpUntil(f.Start(), ex => { if (ex is not InvalidOperationException) throw ex; });
         Check(threw && !f.Sync.IsBusy && f.Diagnostics.Count > 0, "Callback failure leaked or escaped reporting: " + phase);
         f.Hook = null; f.Prepare(); await f.Ports.PumpUntil(f.Start());
-        Check(!f.Sync.IsBusy && f.Effects.Last() == ClientInitialWorldEffect.Presence, "Callback failure prevented a new setup attempt.");
+        Check(!f.Sync.IsBusy && f.Effects.Last() == ClientSessionFollowup.Presence, "Callback failure prevented a new setup attempt.");
     }
     private static async Task Discard(int index)
     {
@@ -168,7 +168,7 @@ internal static class ClientInitialWorldSetupTests
     private static TaskCompletionSource Signal() => new(TaskCreationOptions.RunContinuationsAsynchronously);
     private static void Check(bool value, string message) { if (!value) throw new InvalidOperationException(message); }
     private sealed class Fixture : IClientWorldBaselineRuntime, IClientWorldBaselineTransport, IClientStorytellerRuntime,
-        IClientAdminBaselineTransport, IClientSnapshotTransport, IClientInitialWorldRuntime, IClientInitialWorldPresentation
+        IClientAdminBaselineTransport, IClientSnapshotTransport, IClientInitialWorldRuntime, IClientInitialWorldPresentation, IClientSessionFollowups
     {
         internal readonly EventModuleTestPorts Ports = new();
         internal readonly ClientSessionLifecycle Session;
@@ -177,7 +177,7 @@ internal static class ClientInitialWorldSetupTests
         internal readonly ClientAdminBaselineCaptureTests.Source Source = new();
         internal readonly ClientInitialWorldSetup Module;
         internal readonly ConcurrentQueue<string> Trace = new(), Calls = new(), Statuses = new(), Diagnostics = new();
-        internal readonly List<ClientInitialWorldEffect> Effects = new();
+        internal readonly List<ClientSessionFollowup> Effects = new();
         internal object World = new(); internal bool HasWorld = true, Playing, Presence, RepeatQueue, InvalidWorld, PromotionObserved;
         internal string? FaultPhase, Fault, UploadKind; internal int Successes, DiscardIndex, QueueIndex;
         internal ModProtocolResponseDto? LastProtocol;
@@ -190,19 +190,25 @@ internal static class ClientInitialWorldSetupTests
             var submission = new ClientWorldBaselineSubmission(Session, this, this);
             var storyteller = new ClientStorytellerConfiguration(Session, Setup, this);
             Module = new(Session, Setup, Sync, new(submission, storyteller), submission, new(Session, Source, Enqueue), this,
-                new ClientSnapshotUploader(Ports, Ports, this, Sync), this, this);
-            Module.EffectRequested += effect =>
-            {
-                if (effect != ClientInitialWorldEffect.Markers) Check(!Sync.IsBusy, "Follow-up effects ran before releasing snapshot admission.");
-                else Check(Sync.ManualInProgress && !Sync.SnapshotInProgress, "Baseline publication released manual admission before the snapshot handoff.");
-                Effects.Add(effect); Step("effect-" + effect);
-            };
+                new ClientSnapshotUploader(Ports, Ports, this, Sync), this, this, this);
             Source.After = step => { if (step % 8 == 1) Step("admin-capture"); };
             Ports.OnCapture = () => Step("save"); Ports.OnPublish = () => Step("store");
             Sync.SnapshotChanged += notice => { if (notice.Phase == SnapshotTransactionPhase.Started) PromotionObserved = true; };
         }
         internal void Prepare() => Setup.Prepare(new() { Result = new() { Accepted = true }, RequiresInitialWorldConfiguration = true });
         internal Task Start() => Module.StartAsync(new() { ColorHex = "#123456" });
+        public void AdoptQueue(ModEventQueueSummaryDto? queue) => throw new NotSupportedException();
+        public Task Dispatch(ClientSessionFollowup effect, ClientSessionFollowupSource source, Func<Action, bool> step)
+        {
+            Check(source == ClientSessionFollowupSource.InitialWorld, "Wrong followup source.");
+            step(() =>
+            {
+                if (effect != ClientSessionFollowup.Markers) Check(!Sync.IsBusy, "Follow-up effects ran before releasing snapshot admission.");
+                else Check(Sync.ManualInProgress && !Sync.SnapshotInProgress, "Baseline publication released manual admission before the snapshot handoff.");
+                Effects.Add(effect); Step("effect-" + effect);
+            });
+            return Task.CompletedTask;
+        }
         internal void Step(string stage) { Trace.Enqueue(stage); Hook?.Invoke(stage); }
         internal void Change(string change)
         {

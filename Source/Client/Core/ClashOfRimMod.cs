@@ -329,23 +329,6 @@ public sealed partial class ClashOfRimMod : Mod
         worldWrites = new ClientWorldWrites(sessionLifecycle, adminAccess, worldBaselineCapture, worldBaselineSubmission,
             storytellerConfiguration, worldPublication, worldWritePresentation, worldWritePresentation);
         worldWrites.BaselineUpdated += () => RequestWorldMapMarkerRefresh(ClashOfRimText.Key("ClashOfRim.Admin.WorldBaselineRefreshReason"));
-        var initialWorldPresentation = new ClientInitialWorldPresentation(message => loginStatus = message, message => snapshotUploadStatus = message, sessionConnection);
-        initialWorldSetup = new ClientInitialWorldSetup(sessionLifecycle, worldSetup, synchronization, worldBaselineCapture, worldBaselineSubmission,
-            adminBaselineCapture, new AIRsLight.ClashOfRim.Admin.ClientAdminBaselineTransport(new ClientProtocolEnvironment()),
-            ClientSnapshotComposition.Create(settings), initialWorldPresentation, initialWorldPresentation);
-        initialWorldSetup.EffectRequested += effect =>
-        {
-            switch (effect)
-            {
-                case ClientInitialWorldEffect.Markers: RequestWorldMapMarkerRefresh(ClashOfRimText.Key("ClashOfRim.WorldBaseline.ReasonSubmitted")); break;
-                case ClientInitialWorldEffect.Events: StartAutomaticEventRefresh(ClashOfRimText.Key("ClashOfRim.WorldBaseline.ReasonInitialSnapshotUploaded")); break;
-                case ClientInitialWorldEffect.Players: _ = playerDirectory.RefreshAsync(manual: false); break;
-                case ClientInitialWorldEffect.Chat: StartRefreshChatMessages(initialLoad: true); break;
-                case ClientInitialWorldEffect.ColonySites: StartRegisterPlayerColonySites(); break;
-                case ClientInitialWorldEffect.Extensions: StartSyncWorldConfigurationExtensions(); break;
-                case ClientInitialWorldEffect.Presence: StartManualPresence(); break;
-            }
-        };
         worldGeneration = new ClientWorldGeneration(sessionLifecycle, worldSetup, worldConfiguration, new ClientWorldGenerationRuntime(), new ClientWorldGenerationPresentation(message => loginStatus = message));
         worldEntry = new ClientWorldEntry(sessionLifecycle, new ClientSnapshotGame(), worldSetup,
             entryStore, worldTransport, entryPresentation, snapshotReload, worldPublication);
@@ -393,22 +376,16 @@ public sealed partial class ClashOfRimMod : Mod
             new ClientSessionRecoveryRuntime(), new ClientSessionRecoveryPresentation(message => loginStatus = message, message => presenceStatus = message),
             new ClientSessionRecoveryEffects(eventRefresh, playerDirectory, chat, sessionNotifications, raidRecovery));
         notificationEffects.SessionExpired += sessionRecovery.Expired;
+        var sessionFollowups = new ClientSessionFollowups(eventRefresh, playerDirectory, chat, colonyRegistration, colonyAppearance,
+            worldSynchronization, sessionNotifications, new ClientSessionFollowupText());
+        var initialWorldPresentation = new ClientInitialWorldPresentation(message => loginStatus = message, message => snapshotUploadStatus = message, sessionConnection);
+        initialWorldSetup = new ClientInitialWorldSetup(sessionLifecycle, worldSetup, synchronization, worldBaselineCapture, worldBaselineSubmission,
+            adminBaselineCapture, new AIRsLight.ClashOfRim.Admin.ClientAdminBaselineTransport(new ClientProtocolEnvironment()),
+            ClientSnapshotComposition.Create(settings), initialWorldPresentation, initialWorldPresentation, sessionFollowups);
         sessionStartup = new ClientSessionStartup(sessionLifecycle, synchronization, localMutations, worldLoginPublication,
             new ClientSessionLogin(sessionLifecycle, new ClientSessionLoginTransport(new ClientProtocolEnvironment())),
             ClientSnapshotComposition.Create(settings), new ClientSessionStartupRuntime(sessionConnection),
-            new ClientSessionStartupPresentation(message => loginStatus = message, message => snapshotUploadStatus = message, response => ShowCompatibilityMismatchWindow(response)));
-        sessionStartup.QueueAccepted += eventRefresh.AdoptQueue;
-        sessionStartup.EffectRequested += (kind, effect) =>
-        {
-            switch (effect)
-            {
-                case ClientSessionStartEffect.Events: StartAutomaticEventRefresh(ClashOfRimText.Key(kind == ClientSessionStartKind.Map ? "ClashOfRim.MapSession.ReasonLogin" : "ClashOfRim.Login.ReasonManual")); break;
-                case ClientSessionStartEffect.Players: _ = playerDirectory.RefreshAsync(manual: false); break;
-                case ClientSessionStartEffect.Chat: StartRefreshChatMessages(initialLoad: true); break;
-                case ClientSessionStartEffect.ColonySites: RequestPlayerColonySiteRegistration(ClashOfRimText.Key("ClashOfRim.MapSession.ReasonLoginSucceeded")); break;
-                case ClientSessionStartEffect.Presence: StartManualPresence(); break;
-            }
-        };
+            new ClientSessionStartupPresentation(message => loginStatus = message, message => snapshotUploadStatus = message, response => ShowCompatibilityMismatchWindow(response)), sessionFollowups);
         tradeMarket.Accepted += () =>
         {
             var read = eventRefresh.CaptureQueueRead();

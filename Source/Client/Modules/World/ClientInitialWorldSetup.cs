@@ -10,7 +10,6 @@ using AIRsLight.ClashOfRim.Modules.Transport;
 
 namespace AIRsLight.ClashOfRim.Modules.World;
 
-internal enum ClientInitialWorldEffect { Markers, Events, Players, Chat, ColonySites, Extensions, Presence }
 internal interface IClientInitialWorldRuntime
 {
     bool IsPlaying { get; }
@@ -24,7 +23,7 @@ internal interface IClientInitialWorldPresentation : IClientWorldWritePresentati
 }
 
 // One initial setup receipt owns metadata, substrate, administrator catalogs and
-// optional in-game snapshot completion. Other domains receive guarded notifications.
+// optional in-game snapshot completion. Followups retain the same source check.
 internal sealed class ClientInitialWorldSetup
 {
     private sealed record Boundary(ClientWorldBaselineSubmission.Captured World, ClientRequestTracker.Scope Setup);
@@ -39,15 +38,17 @@ internal sealed class ClientInitialWorldSetup
     private readonly ClientSnapshotUploader snapshots;
     private readonly IClientInitialWorldRuntime runtime;
     private readonly IClientInitialWorldPresentation presentation;
-    internal event Action<ClientInitialWorldEffect>? EffectRequested;
+    private readonly IClientSessionFollowups followups;
 
     internal ClientInitialWorldSetup(ClientSessionLifecycle session, ClientWorldSetupState setup, ClientSynchronizationCoordinator synchronization,
         ClientWorldBaselineCapture capture, ClientWorldBaselineSubmission submission, ClientAdminBaselineCapture adminCapture,
-        IClientAdminBaselineTransport adminTransport, ClientSnapshotUploader snapshots, IClientInitialWorldRuntime runtime, IClientInitialWorldPresentation presentation)
+        IClientAdminBaselineTransport adminTransport, ClientSnapshotUploader snapshots, IClientInitialWorldRuntime runtime, IClientInitialWorldPresentation presentation,
+        IClientSessionFollowups followups)
     {
         this.session = session; this.setup = setup; this.synchronization = synchronization; this.capture = capture;
         this.submission = submission; this.adminCapture = adminCapture; this.adminTransport = adminTransport;
         this.snapshots = snapshots; this.runtime = runtime; this.presentation = presentation;
+        this.followups = followups;
         requests = new(session, () => new(submission.Capture(), setup.CaptureScope()),
             boundary => submission.IsCurrent(boundary.World) && setup.IsCurrent(boundary.Setup), static () => { });
     }
@@ -118,12 +119,7 @@ internal sealed class ClientInitialWorldSetup
             return ClientGamePublication.EnqueueAsync((run, discard) => runtime.Enqueue(run, () => { consumed = true; discard(); }),
                 request.Scope.Owner.Token, Apply, () => { if (consumed) return; consumed = true; action(); });
         }
-        bool Notify(ClientInitialWorldEffect effect)
-        {
-            foreach (Action<ClientInitialWorldEffect> handler in EffectRequested?.GetInvocationList() ?? Array.Empty<Delegate>())
-                if (!Step(() => handler(effect))) return false;
-            return Current();
-        }
+        bool Notify(ClientSessionFollowup effect) => Step(() => _ = followups.Dispatch(effect, ClientSessionFollowupSource.InitialWorld, Step));
         try
         {
             if (!Current()) return;
@@ -165,7 +161,7 @@ internal sealed class ClientInitialWorldSetup
                 {
                     Notice("ClashOfRim.WorldBaseline.StatusSubmitted", message: ClientWorldWriteMessage.Success,
                         args: new[] { ("PRICECOUNT", (object?)accepted.StandardMarketValueCount), ("TRAPAUTO", (object?)accepted.TrapAutoApprovedCount), ("TRAPCANDIDATE", (object?)accepted.TrapCandidateCount) });
-                    if (!Current() || !Notify(ClientInitialWorldEffect.Markers)) return;
+                    if (!Current() || !Notify(ClientSessionFollowup.Markers)) return;
                     if (runtime.IsPlaying && !string.IsNullOrWhiteSpace(session.SessionId) && Current()) upload = UploadSnapshot();
                 })).ConfigureAwait(false);
                 if (upload is not null) await upload.ConfigureAwait(false);
@@ -237,10 +233,10 @@ internal sealed class ClientInitialWorldSetup
                 if (!Current()) return;
                 // Follow-up domains may themselves need synchronization admission.
                 request.Admission = null; admission.Dispose();
-                foreach (var effect in new[] { ClientInitialWorldEffect.Events, ClientInitialWorldEffect.Players, ClientInitialWorldEffect.Chat,
-                    ClientInitialWorldEffect.ColonySites, ClientInitialWorldEffect.Extensions })
+                foreach (var effect in new[] { ClientSessionFollowup.Events, ClientSessionFollowup.Players, ClientSessionFollowup.Chat,
+                    ClientSessionFollowup.ColonySites, ClientSessionFollowup.Extensions })
                     if (!Notify(effect)) return;
-                if (!runtime.IsPresenceRunning) Notify(ClientInitialWorldEffect.Presence);
+                if (!runtime.IsPresenceRunning) Notify(ClientSessionFollowup.Presence);
             }).ConfigureAwait(false);
         }
     }

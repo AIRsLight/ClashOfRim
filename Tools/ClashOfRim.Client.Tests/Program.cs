@@ -19,6 +19,7 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("session followups dispatch real domains under the source workflow receipt", ClientSessionFollowupTests.Run),
     ("session cleanup owns domain teardown and persistence ordering", ClientSessionCleanupTests.Run),
     ("HTTP session failures preserve structured semantics and original login ownership", ClientHttpSessionTests.Run),
     ("session recovery UI owns expiry, in-place reconnect and domain followups", ClientSessionRecoveryTests.Run),

@@ -10,7 +10,6 @@ using AIRsLight.ClashOfRim.Modules.Transport;
 namespace AIRsLight.ClashOfRim.Modules.World;
 
 internal enum ClientSessionStartKind { Manual, Map }
-internal enum ClientSessionStartEffect { Events, Players, Chat, ColonySites, Presence }
 internal interface IClientSessionStartupRuntime
 {
     IClientSessionStartupSession Bind();
@@ -46,14 +45,14 @@ internal sealed class ClientSessionStartup
     private readonly IClientSessionStartupRuntime runtime;
     private readonly IClientSessionStartupPresentation view;
     private Job? active;
-    internal event Action<ModEventQueueSummaryDto?>? QueueAccepted;
-    internal event Action<ClientSessionStartKind, ClientSessionStartEffect>? EffectRequested;
+    private readonly IClientSessionFollowups followups;
     internal ClientSessionStartup(ClientSessionLifecycle session, ClientSynchronizationCoordinator synchronization, ClientLocalMutationCoordinator mutations,
         ClientWorldLoginPublication publication, ClientSessionLogin login, ClientSnapshotUploader snapshots,
-        IClientSessionStartupRuntime runtime, IClientSessionStartupPresentation view)
+        IClientSessionStartupRuntime runtime, IClientSessionStartupPresentation view, IClientSessionFollowups followups)
     {
         this.session = session; this.synchronization = synchronization; this.mutations = mutations; this.publication = publication;
         this.login = login; this.snapshots = snapshots; this.runtime = runtime; this.view = view;
+        this.followups = followups;
     }
     internal Task StartAsync(ClientSessionStartKind kind)
     {
@@ -137,12 +136,8 @@ internal sealed class ClientSessionStartup
                 }).ConfigureAwait(false);
             return applied && Current(job);
         }
-        bool Notify(ClientSessionStartEffect effect)
-        {
-            foreach (Action<ClientSessionStartKind, ClientSessionStartEffect> handler in EffectRequested?.GetInvocationList() ?? Array.Empty<Delegate>())
-                if (!Step(() => handler(job.Kind, effect))) return false;
-            return Current(job);
-        }
+        bool Notify(ClientSessionFollowup effect) => Step(() => _ = followups.Dispatch(effect,
+            map ? ClientSessionFollowupSource.MapLogin : ClientSessionFollowupSource.ManualLogin, Step));
         try
         {
             if (map)
@@ -208,14 +203,13 @@ internal sealed class ClientSessionStartup
                         if (!Step(() => message = view.Text("ClashOfRim.ServerSessionConnectedMessage", ("SNAPSHOT", snapshot), ("SESSION", credential.Receipt.SessionId)))
                             || !Step(() => view.Message(message))) return;
                     }
-                    foreach (Action<ModEventQueueSummaryDto?> handler in QueueAccepted?.GetInvocationList() ?? Array.Empty<Delegate>())
-                        if (!Step(() => handler(credential.Receipt.EventQueue is null ? null : ClientProtocolJson.Copy(credential.Receipt.EventQueue)))) return;
+                    if (!Step(() => followups.AdoptQueue(credential.Receipt.EventQueue is null ? null : ClientProtocolJson.Copy(credential.Receipt.EventQueue)))) return;
                     if (!Step(() => publication.Publish(job.Accepted!, map ? "map-session-login" : "manual-login"))) return;
                     job.Released = true; job.Admission.Dispose();
-                    foreach (var effect in new[] { ClientSessionStartEffect.Events, ClientSessionStartEffect.Players }) if (!Notify(effect)) return;
+                    foreach (var effect in new[] { ClientSessionFollowup.Events, ClientSessionFollowup.Players }) if (!Notify(effect)) return;
                     if (!map) return;
-                    foreach (var effect in new[] { ClientSessionStartEffect.Chat, ClientSessionStartEffect.ColonySites }) if (!Notify(effect)) return;
-                    if (!runtime.IsPresenceRunning) Notify(ClientSessionStartEffect.Presence);
+                    foreach (var effect in new[] { ClientSessionFollowup.Chat, ClientSessionFollowup.ColonySites }) if (!Notify(effect)) return;
+                    if (!runtime.IsPresenceRunning) Notify(ClientSessionFollowup.Presence);
                 }).ConfigureAwait(false);
             }).ConfigureAwait(false);
         }

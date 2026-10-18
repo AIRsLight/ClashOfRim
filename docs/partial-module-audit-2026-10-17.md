@@ -2435,3 +2435,17 @@ ExitCompleted 只在显式退出完成领域清理和凭据持久化后触发。
 **15 个相关单元组通过**：清理、银行、雇佣事故／雇佣、交易市场、商店目录、玩家目录、事件刷新、模块守卫，以及生命周期、连接状态、恢复 UI、会话启动、废弃殖民地和重连。测试项目编译通过；守卫检查 **1,281** 个模块及生成类型、**304** 个适配器及生成类型。复现及最终验证日志：`LocalOnly/module-migration/client-session-cleanup-{repro,domains,related}.log`。没有运行全量回归、实机 RimTest 或独立发布构建，没有推送；冻结 1.6 及原有未提交工作保持独立。
 
 M8h4m4 的断开与退出清理迁移完成；SessionRuntime 当前保留引擎／旧调用方的薄入口。**下一步 M8h4n：迁移宿主中会话及初次建服成功后的领域分派。** 核对发现 Core 仍通过 sessionStartup.EffectRequested 和 initialWorldSetup.EffectRequested 的 switch 决定事件、玩家、聊天、站点、世界及 presence 后续动作，IdentityChanged 也仍在宿主接续兼容清单与管理员权限。应由工作流模块直接连接已有领域并复用原回执归属，避免只把 switch 移入适配器或再传回 Mod。其他 partial 及 M8h4、M8h、M8、M9–M12 继续开放；全量验证仍由用户安排。
+
+### M8h4n1 登录／初次建服的共同领域分派（2026-10-19）
+
+删除 Core 中两处 EffectRequested switch 和启动时 QueueAccepted 业务订阅。ClientSessionStartup 与 ClientInitialWorldSetup 继续拥有动作次序、成功条件和同步准入释放时机，通过共同的 IClientSessionFollowups 调用领域分派；生产实现 ClientSessionFollowups 直接依赖事件、玩家、聊天、站点注册、外观、世界同步和在线通知模块。宿主只装配这些依赖，翻译适配器只有 Text，没有搬入业务 switch 或 Mod 回调。
+
+原先两套动作枚举统一为 ClientSessionFollowup，来源明确区分手动登录、地图登录和初次建服。手动登录仍只刷新事件和玩家；地图登录补初始聊天、带原因的站点刷新和按需 presence；初次建服先刷新标记，在初始快照成功且释放准入后再启动其余动作。初次站点登记继续直接 StartAsync，地图登录继续 RequestAsync，扩展同步只提交扩展；没有将它们合并为行为不同的通用刷新。队列采用直接进入真实事件模块，保留传入 DTO 与工作流冻结回执的隔离。
+
+领域分派使用工作流传入的原 Step，在翻译原因、采集外观和启动目标请求之间分别检查来源，不在分派时重新捕获新会话，也没有复制会话／Game 版本算法。各领域启动后继续拥有自己的请求生命周期。Dispatch 返回领域 Task 便于直接测试其边界，生产工作流保持既有后续请求独立运行的行为，不等待全部刷新结束才完成登录。
+
+新增 **796 个场景**，四种文化下组合真实领域模块与共享引擎测试端口，覆盖全部实际来源／动作组合、初始聊天分页、站点外观与扩展区别、刷新原因、原账户／SessionId、身份／代次／Game／世界／快照变化、翻译与外观采集重入、异常停止分派及队列 DTO 隔离。受控传输在首个业务请求处返回失败，因此本组证明目标和请求边界，不将其描述为所有后续业务成功的端到端实测。既有启动 **1,012**、初次建服 **780** 个场景继续检验工作流的成功、失败、回执和准入顺序。
+
+**12 个相关单元组通过**：新分派组、会话启动、初次建服、模块守卫、事件刷新、玩家目录、聊天、世界同步、在线通知、外观模块／适配器和站点注册。测试项目编译通过；守卫检查 **1,284** 个模块及生成类型、**305** 个适配器及生成类型。日志：`LocalOnly/module-migration/client-session-followups-{foundation,tests,related,registration}.log`。没有运行全量回归、实机 RimTest 或独立发布构建，没有推送；冻结 1.6 和原有未提交工作保持独立。
+
+**下一步 M8h4n2：身份发布后的兼容清单与管理员权限接续。** Core 的 IdentityChanged 和 worldEntry.Accepted 仍各自调用 CaptureServerCompatibilityManifest／ApplyAdministratorFlag，worldCatalog 仍分别订阅兼容清单和权限观察。需要核对共同发布语义和回调重入归属，再直接连接已有兼容／权限模块。其他 partial 及 M8h4n、M8h4、M8h、M8、M9–M12 继续开放；全量验证由用户安排。

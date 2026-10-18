@@ -56,8 +56,8 @@ internal static class ClientSessionStartupTests
         Check(f.Calls.SequenceEqual(map ? new[] { "login", "upload" } : new[] { "login" }), "Duplicate/reordered startup requests.");
         Check(f.Session.SessionId == "accepted-session" && f.Ports.User == "Alice" && f.Ports.Auth == "accepted-auth", "Frozen canonical credential was not adopted.");
         Check(f.Logouts.IsEmpty && !f.Sync.IsBusy && f.Queues == 1, "Successful startup released a live credential or leaked admission.");
-        Check(f.Effects.SequenceEqual(map ? Enum.GetValues<ClientSessionStartEffect>().Where(e => !presence || e != ClientSessionStartEffect.Presence)
-            : new[] { ClientSessionStartEffect.Events, ClientSessionStartEffect.Players }), "Wrong startup effects/order.");
+        Check(f.Effects.SequenceEqual(map ? new[] { ClientSessionFollowup.Events, ClientSessionFollowup.Players, ClientSessionFollowup.Chat, ClientSessionFollowup.ColonySites, ClientSessionFollowup.Presence }.Where(e => !presence || e != ClientSessionFollowup.Presence)
+            : new[] { ClientSessionFollowup.Events, ClientSessionFollowup.Players }), "Wrong startup effects/order.");
         Check(f.WorldPorts.MarkerApplications.Last().Markers.Single().Label == "login", "Frozen login marker receipt was not projected.");
         Check(f.Ports.Captures == (map ? 1 : 0) && f.Ports.Published == (map ? 1 : 0) && f.Messages == (map ? 1 : 0), "Wrong map capture/publication count.");
         if (map) Check(f.UploadKind == ModSnapshotUploadKinds.MapSessionSynchronization && f.Ports.Snapshot == "accepted-snapshot"
@@ -160,7 +160,7 @@ internal static class ClientSessionStartupTests
         f.Hook = phase => { if (phase == "effect-Events" && successor is null) successor = f.Start(); };
         await f.Ports.PumpUntil(f.Start()); Check(successor is not null, "Followup was not reached.");
         await f.Ports.PumpUntil(successor!);
-        Check(f.Calls.Count(s => s == "login") == 2 && f.Effects.Count(e => e == ClientSessionStartEffect.Players) == 1 && !f.Sync.IsBusy,
+        Check(f.Calls.Count(s => s == "login") == 2 && f.Effects.Count(e => e == ClientSessionFollowup.Players) == 1 && !f.Sync.IsBusy,
             $"Followup restart was blocked or predecessor continued effects: {kind}, calls={string.Join(',', f.Calls)}, effects={string.Join(',', f.Effects)}, busy={f.Sync.IsBusy}, statuses={string.Join(',', f.Statuses)}.");
     }
     private static async Task NewerMarkers()
@@ -198,7 +198,7 @@ internal static class ClientSessionStartupTests
     }
     private static void Check(bool ok, string message) { if (!ok) throw new InvalidOperationException(message); }
     private sealed class Fixture : IClientSessionLoginTransport, IClientSessionLogoutTransport, IClientSnapshotTransport,
-        IClientSessionStartupRuntime, IClientSessionStartupPresentation
+        IClientSessionStartupRuntime, IClientSessionStartupPresentation, IClientSessionFollowups
     {
         internal readonly EventModuleTestPorts Ports = new();
         internal readonly ClientSynchronizationCoordinator Sync = new();
@@ -209,7 +209,7 @@ internal static class ClientSessionStartupTests
         internal readonly ClientSessionStartKind Kind;
         internal readonly ConcurrentQueue<string> Calls = new(), Statuses = new(), Diagnostics = new();
         internal readonly ConcurrentQueue<(ClashOfRimClientNetworkContext Context, string Id)> Logouts = new();
-        internal readonly List<ClientSessionStartEffect> Effects = new();
+        internal readonly List<ClientSessionFollowup> Effects = new();
         internal object World = new(); internal bool Playing = true, HasMap = true, Presence, RepeatQueue, MutateReceipt;
         internal string? FaultPhase, Fault, UploadKind; internal int Queues, Messages, Mismatches, DiscardIndex, QueueIndex;
         internal ClashOfRimClientNetworkContext? RequestContext;
@@ -219,14 +219,22 @@ internal static class ClientSessionStartupTests
             ClientSessionWork.Reset(); Kind = kind; Session = new(Ports, this, new(Ports));
             Session.PublishLogin(new() { AuthenticatedUserId = "alice", AuthToken = "auth", SessionId = "original" });
             WorldPorts = new(Session, Ports, world: () => World);
-            Module = new(Session, Sync, Mutations, new(Session, WorldPorts.Markers), new(Session, this), new(Ports, Ports, this, Sync), this, this);
+            Module = new(Session, Sync, Mutations, new(Session, WorldPorts.Markers), new(Session, this), new(Ports, Ports, this, Sync), this, this, this);
             Session.IdentityChanged += _ => Step("identity");
-            Module.QueueAccepted += queue => { Check(queue!.DirectlyProcessable.Single().EventId == "event", "Mutable login queue receipt."); queue.DirectlyProcessable.Clear(); };
-            Module.QueueAccepted += queue => { Check(queue!.DirectlyProcessable.Single().EventId == "event", "Queue subscribers shared mutable DTO."); Queues++; Step("queue"); };
-            Module.EffectRequested += (_, effect) => { Check(!Sync.IsBusy, "Followup ran under startup admission."); Effects.Add(effect); Step("effect-" + effect); };
             Ports.OnCapture = () => Step("save"); Ports.OnPublish = () => Step("store");
         }
         internal Task Start() => Module.StartAsync(Kind);
+        public void AdoptQueue(ModEventQueueSummaryDto? queue)
+        {
+            Check(queue!.DirectlyProcessable.Single().EventId == "event", "Mutable login queue receipt.");
+            queue.DirectlyProcessable.Clear(); Queues++; Step("queue");
+        }
+        public Task Dispatch(ClientSessionFollowup effect, ClientSessionFollowupSource source, Func<Action, bool> step)
+        {
+            Check(source == (Kind == ClientSessionStartKind.Map ? ClientSessionFollowupSource.MapLogin : ClientSessionFollowupSource.ManualLogin), "Wrong followup source.");
+            step(() => { Check(!Sync.IsBusy, "Followup ran under startup admission."); Effects.Add(effect); Step("effect-" + effect); });
+            return Task.CompletedTask;
+        }
         private void Step(string phase) => Hook?.Invoke(phase);
         internal void Change(string change)
         {
