@@ -1,4 +1,5 @@
 using AIRsLight.ClashOfRim.ClientNetwork;
+using AIRsLight.ClashOfRim.Modules.Maps;
 using Verse;
 
 namespace AIRsLight.ClashOfRim.RemoteMaps;
@@ -12,35 +13,19 @@ public static class RemoteSnapshotDownloadValidator
         out RemoteSnapshotOpenPayload? openPayload,
         out string failureReason)
     {
-        openPayload = null;
-        failureReason = string.Empty;
-        if (!metadata.Success || metadata.Response is null || metadata.Response.Result?.Accepted != true)
+        if (ClientRemoteSnapshotDownload.TryGetOpenPayload(new RemoteSnapshotDownloadResult(metadata, payload), out openPayload, out var failure))
         {
-            failureReason = ClashOfRimText.Key(
-                failureKeys.MetadataFailed,
-                metadata.ErrorCode.Named("CODE"),
-                (metadata.Response?.Result?.Message ?? metadata.Message).Named("MESSAGE"));
-            return false;
+            failureReason = string.Empty;
+            return true;
         }
-
-        ModSnapshotPackageMetadataDto? package = metadata.Response.Package;
-        string? snapshotId = metadata.Response.SnapshotId ?? package?.SnapshotId;
-        if (package is null || string.IsNullOrWhiteSpace(snapshotId))
+        failureReason = failure!.Kind switch
         {
-            failureReason = ClashOfRimText.Key(failureKeys.MissingSnapshot);
-            return false;
-        }
-
-        if (payload is null || !payload.Success || payload.Response is null)
-        {
-            failureReason = ClashOfRimText.Key(
-                failureKeys.PayloadFailed,
-                (payload?.ErrorCode ?? "MissingPayload").Named("CODE"),
-                (payload?.Message ?? ClashOfRimText.Key("ClashOfRim.UnknownReason")).Named("MESSAGE"));
-            return false;
-        }
-
-        openPayload = new RemoteSnapshotOpenPayload(snapshotId!, package, payload.Response);
-        return true;
+            ClientRemoteSnapshotFailureKind.Metadata => ClashOfRimText.Key(failureKeys.MetadataFailed,
+                failure.Code.Named("CODE"), failure.Message.Named("MESSAGE")),
+            ClientRemoteSnapshotFailureKind.MissingSnapshot => ClashOfRimText.Key(failureKeys.MissingSnapshot),
+            _ => ClashOfRimText.Key(failureKeys.PayloadFailed, failure.Code.Named("CODE"),
+                (failure.Message ?? ClashOfRimText.Key("ClashOfRim.UnknownReason")).Named("MESSAGE"))
+        };
+        return false;
     }
 }

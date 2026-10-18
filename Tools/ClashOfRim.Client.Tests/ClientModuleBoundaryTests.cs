@@ -20,6 +20,8 @@ internal static class ClientModuleBoundaryTests
             || t == typeof(ClashOfRimSettings) || t == typeof(ClashOfRimModNetworkClient) || t == typeof(IServiceProvider)
             || t == typeof(ClashOfRimGameComponent) || t == typeof(ClashOfRimText)
             || t == typeof(ClientMainThreadDispatcher)
+            || t == typeof(AIRsLight.ClashOfRim.RemoteMaps.RemoteSnapshotDownloadService)
+            || t == typeof(AIRsLight.ClashOfRim.RemoteMaps.RemoteSnapshotDownloadValidator)
             || t == typeof(ModSnapshotPackageBuilder) || t == typeof(SnapshotSaveSanitizer)
             || t == typeof(ModSnapshotUploadService) || t == typeof(ClientSnapshotPreparationAdapter)
             || t == typeof(ClientSnapshotPackagePresentation) || t == typeof(ClientSnapshotUploadPresentation)

@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Snapshots;
 using AIRsLight.ClashOfRim.Modules.Support;
 using AIRsLight.ClashOfRim.Modules.Mercenaries;
 using AIRsLight.ClashOfRim.Modules.Shop;
@@ -30,8 +31,6 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
     private static readonly string CreateRaidWithSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.CreateRaidWithSnapshot).Route;
     private static readonly string CreateDiplomacyEventRoute = ProtocolContractManifest.Find(ProtocolMessageKind.CreateDiplomacyEvent).Route;
     private static readonly string UploadSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.UploadSnapshot).Route;
-    private static readonly string DownloadLatestSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.DownloadLatestSnapshot).Route;
-    private static readonly string DownloadLatestSnapshotPayloadRoute = ProtocolContractManifest.Find(ProtocolMessageKind.DownloadLatestSnapshotPayload).Route;
     private static readonly string SyncWorldMapMarkersRoute = ProtocolContractManifest.Find(ProtocolMessageKind.SyncWorldMapMarkers).Route;
     private static readonly string SyncRuntimeWorldObjectsRoute = ProtocolContractManifest.Find(ProtocolMessageKind.SyncRuntimeWorldObjects).Route;
     private static readonly string PrepareWorldSessionRoute = ProtocolContractManifest.Find(ProtocolMessageKind.PrepareWorldSession).Route;
@@ -66,6 +65,7 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
     private readonly ClientPackageReader packages;
     private readonly ClientPackageWriter packageWriter;
     private readonly ClientShopProtocol shopProtocol;
+    internal ClientSnapshotDownloadProtocol SnapshotDownloads { get; }
 
     public static Action<string, string?>? SessionExpired;
     public static Func<string?>? CompatibilityManifestJsonProvider;
@@ -88,6 +88,7 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
         this.context = context ?? throw new ArgumentNullException(nameof(context));
         var protocolEnvironment = new ClientProtocolEnvironment((message, token) => SessionExpired?.Invoke(message, token));
         transport = new ClientProtocolTransport(httpClient, context, protocolEnvironment);
+        SnapshotDownloads = new ClientSnapshotDownloadProtocol(transport, context, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         packageWriter = new ClientPackageWriter(transport, context, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         shopProtocol = new ClientShopProtocol(transport, context, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         support = new ClientSupportProtocol(transport, context, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
@@ -1281,14 +1282,7 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
 
     public Task<ClashOfRimClientNetworkResult<ModDownloadLatestSnapshotResponseDto>> DownloadLatestSnapshotAsync(
         CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModDownloadLatestSnapshotResponseDto>();
-        }
-
-        return DownloadLatestSnapshotAsync(context.UserId, context.ColonyId, cancellationToken: cancellationToken);
-    }
+        => DownloadLatestSnapshotAsync(context.UserId, context.ColonyId, cancellationToken: cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModDownloadLatestSnapshotResponseDto>> DownloadLatestSnapshotAsync(
         string userId,
@@ -1296,38 +1290,13 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
         string? authorizationEventId = null,
         string? authorizationScope = null,
         CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModDownloadLatestSnapshotResponseDto>();
-        }
-
-        var request = new ModDownloadLatestSnapshotRequestDto
-        {
-            UserId = userId ?? string.Empty,
-            ColonyId = colonyId ?? string.Empty,
-            AuthToken = context.AuthToken,
-            AuthorizationEventId = authorizationEventId,
-            AuthorizationScope = authorizationScope
-        };
-
-        return transport.PostAsync<ModDownloadLatestSnapshotRequestDto, ModDownloadLatestSnapshotResponseDto>(
-            DownloadLatestSnapshotRoute,
-            request,
-            cancellationToken);
-    }
+        => SnapshotDownloads.MetadataAsync(new ClientSnapshotDownloadTarget(userId ?? string.Empty, colonyId ?? string.Empty,
+            authorizationEventId, authorizationScope), cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<byte[]>> DownloadLatestSnapshotPayloadAsync(
         string snapshotId,
         CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<byte[]>();
-        }
-
-        return DownloadLatestSnapshotPayloadAsync(context.UserId, context.ColonyId, snapshotId, cancellationToken: cancellationToken);
-    }
+        => DownloadLatestSnapshotPayloadAsync(context.UserId, context.ColonyId, snapshotId, cancellationToken: cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<byte[]>> DownloadLatestSnapshotPayloadAsync(
         string userId,
@@ -1336,24 +1305,8 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
         string? authorizationEventId = null,
         string? authorizationScope = null,
         CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<byte[]>();
-        }
-
-        var request = new ModDownloadLatestSnapshotPayloadRequestDto
-        {
-            UserId = userId ?? string.Empty,
-            ColonyId = colonyId ?? string.Empty,
-            SnapshotId = snapshotId ?? string.Empty,
-            AuthToken = context.AuthToken,
-            AuthorizationEventId = authorizationEventId,
-            AuthorizationScope = authorizationScope
-        };
-
-        return transport.PostForBytesAsync(DownloadLatestSnapshotPayloadRoute, request, cancellationToken);
-    }
+        => SnapshotDownloads.PayloadAsync(new ClientSnapshotDownloadTarget(userId ?? string.Empty, colonyId ?? string.Empty,
+            authorizationEventId, authorizationScope), snapshotId, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModConfirmEventApplicationResponseDto>> ConfirmEventApplicationAsync(
         string idempotencyKey,

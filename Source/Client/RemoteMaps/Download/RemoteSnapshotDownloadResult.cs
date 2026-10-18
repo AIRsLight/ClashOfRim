@@ -1,4 +1,5 @@
 using AIRsLight.ClashOfRim.ClientNetwork;
+using AIRsLight.ClashOfRim.Modules.Maps;
 
 namespace AIRsLight.ClashOfRim.RemoteMaps;
 
@@ -16,5 +17,5 @@ public sealed class RemoteSnapshotDownloadResult
 
     public ClashOfRimClientNetworkResult<byte[]>? Payload { get; }
 
-    public string? SnapshotId => Metadata.Response?.SnapshotId ?? Metadata.Response?.Package?.SnapshotId;
+    public string? SnapshotId => ClientRemoteSnapshotDownload.SnapshotId(Metadata.Response);
 }
