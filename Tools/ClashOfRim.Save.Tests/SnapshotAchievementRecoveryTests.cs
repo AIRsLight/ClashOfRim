@@ -1,5 +1,9 @@
 using static RecoveryTestSupport;
-using System.Reflection;
+using System.Globalization;
+using AIRsLight.ClashOfRim.Compatibility;
+using AIRsLight.ClashOfRim.Network.Modules.Achievements;
+using AIRsLight.ClashOfRim.Network.Plugins;
+using Microsoft.Extensions.Logging.Abstractions;
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Network;
 using AIRsLight.ClashOfRim.Protocol;
@@ -19,6 +23,72 @@ internal static class SnapshotAchievementRecoveryTests
         foreach (string fault in new[] { "achievement", "aggregate", "notification-first", "notification-second" })
             VerifyRecovery(fixture, reopen, fault);
         VerifyLegacyCache();
+        var previousCulture = CultureInfo.CurrentCulture;
+        try
+        {
+            foreach (string culture in new[] { "en-US", "zh-CN", "tr-TR", "ja-JP" })
+            {
+                CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(culture);
+                VerifyMetricModule(fixture);
+            }
+        }
+        finally { CultureInfo.CurrentCulture = previousCulture; }
+    }
+
+    private static void VerifyMetricModule(Func<string, SaveSnapshotPackage> fixture)
+    {
+        var players = new PlayerRegistry(); var registry = new AchievementRegistry();
+        var ledger = new InMemoryAuthoritativeEventLedger(); var baseline = new CompatibilityBaselineRegistry();
+        var provider = new MetricProvider(false); var failing = new MetricProvider(true);
+        var plugins = new ServerPluginRegistry().WithBuiltInPlugins([new("test.snapshot-metrics", "test", "1", "test", "", [],
+            AchievementDefinitions: [AchievementDefinition.NumericThreshold("snapshot_plugin", "plugin-metric", 1, "Snapshot", "missing.label", null)],
+            SnapshotAchievementMetricProviders: [failing, provider], RequiredPackageIds: ["test.snapshot-metrics"])]);
+        var awards = new AchievementAwards(registry, plugins, baseline, ledger, new(), new(), () => NullLogger.Instance);
+        var module = new SnapshotAchievements(players, registry, awards, plugins, baseline, () => NullLogger.Instance);
+        var package = fixture("metrics");
+        var snapshot = new LatestSnapshotRecord(package.Envelope.Identity, package.Envelope, package.Index with
+        {
+            Maps = package.Index.Maps.Take(1).Select(map => map with { WealthTotal = 12.5f }).ToArray(),
+            HistoryWealthItems = 250_000, HistoryWealthBuildings = null, HistoryWealthPawns = null,
+            HistoryPlayerColonistCount = -2, HistoryPrisonerCount = null, HistoryColonistMood = -1, StoryColonistsLaunched = 2
+        }, Accepted);
+        void Record() => module.Record("fallback-user", "fallback-colony", snapshot, Accepted, [Candidate]);
+        Record();
+        Require(provider.Calls == 0 && !registry.ListAggregates().Any(item => item.AchievementId == "snapshot_plugin"), "inactive snapshot plugin ran");
+        baseline.ReplaceBaseline(EntryTestSupport.Manifest() with { Mods = [new ModManifestEntry { PackageId = "test.snapshot-metrics" }] }, "admin", Accepted);
+        Record(); Record();
+        Require(provider.Calls == 2 && failing.Calls == 2
+            && registry.ListAggregates().Single(item => item.AchievementId == "snapshot_plugin").Value == 3
+            && registry.ListAggregates().Single(item => item.AchievementId == "snapshot_replay").Value == 7,
+            "snapshot provider failure blocked remaining providers or repeated candidates accumulated");
+        Require(provider.Metrics![AchievementRegistry.MetricColonyWealth] == 13
+            && provider.Metrics[AchievementRegistry.MetricWealthItems] == 250_000
+            && provider.Metrics[AchievementRegistry.MetricPlayerColonists] == 0
+            && provider.Metrics[AchievementRegistry.MetricColonistMood] == 0
+            && provider.Metrics[AchievementRegistry.MetricColonistsLaunched] == 2
+            && !provider.Metrics.ContainsKey(AchievementRegistry.MetricPrisoners)
+            && !provider.Metrics.ContainsKey(AchievementRegistry.MetricWealthBuildings), "snapshot metric rounding, clamping or missing values changed");
+        Require(players.FindByUserId("userA") is { LatestSnapshotWealth: 13, LatestSnapshotWealthSnapshotId: "metrics" }
+            && players.FindByUserId("fallback-user") is null && ledger.ListAll().All(item => item.Target == new EventParty("userA", "colonyA")),
+            "wealth or notifications used fallback identity over the accepted snapshot");
+        int notificationCount = ledger.ListAll().Count;
+        baseline.ReplaceBaseline(EntryTestSupport.Manifest(), "admin", Accepted);
+        Record();
+        Require(provider.Calls == 2 && failing.Calls == 2 && ledger.ListAll().Count == notificationCount,
+            "removed snapshot plugin remained active or replay duplicated notifications");
+    }
+
+    private sealed class MetricProvider(bool fail) : ISnapshotAchievementMetricProvider
+    {
+        internal int Calls;
+        internal Dictionary<string, long>? Metrics;
+        public void CollectSnapshotAchievementMetrics(SnapshotAchievementMetricContext context)
+        {
+            Calls++;
+            if (fail) throw new IOException("injected snapshot metric failure");
+            Metrics = new(context.Metrics, StringComparer.Ordinal);
+            context.SetMetric("plugin-metric", 3);
+        }
     }
 
     private static void VerifyRecovery(Func<string, SaveSnapshotPackage> fixture, bool reopen, string fault)
@@ -45,7 +115,7 @@ internal static class SnapshotAchievementRecoveryTests
             Sql(database, $"create trigger fail_snapshot_achievement before insert on {table} {condition} begin select raise(abort, 'injected snapshot achievement failure'); end;");
             bool failed = false;
             try { Record(state, snapshot, [Candidate]); }
-            catch (TargetInvocationException ex) when (ex.InnerException is SqliteException) { failed = true; }
+            catch (SqliteException) { failed = true; }
             Require(failed, "fault was not injected");
             int expectedRecords = fault is "achievement" or "aggregate" ? 1 : 2;
             foreach (var current in new[] { state, Open() })
@@ -133,8 +203,7 @@ internal static class SnapshotAchievementRecoveryTests
 
     private static void Record(ClashOfRimNetworkState state, LatestSnapshotRecord snapshot, IReadOnlyCollection<SnapshotAchievementCandidateDto> candidates,
         DateTimeOffset? occurredAt = null) =>
-        typeof(ClashOfRimNetworkServer).GetMethod("RecordSnapshotMetricsAndAchievements", BindingFlags.NonPublic | BindingFlags.Static)!
-            .Invoke(null, new object[] { state, snapshot.Identity.OwnerId!, snapshot.Identity.ColonyId!, snapshot, occurredAt ?? Accepted, candidates });
+        state.SnapshotAchievements.Record(snapshot.Identity.OwnerId!, snapshot.Identity.ColonyId!, snapshot, occurredAt ?? Accepted, candidates);
     private static void Sql(string database, string sql)
     {
         using var connection = new SqliteConnection("Data Source=" + database); connection.Open();

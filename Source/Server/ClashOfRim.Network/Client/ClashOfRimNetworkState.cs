@@ -113,6 +113,7 @@ public sealed class ClashOfRimNetworkState
         RuntimeLogger = runtimeLogger ?? NullLogger.Instance;
         AchievementAwards = new(Achievements, Plugins, CompatibilityBaseline, Ledger, OnlinePresence, EventNotifications, () => RuntimeLogger);
         EventAchievements = new(AchievementAwards, Plugins, CompatibilityBaseline);
+        SnapshotAchievements = new(Players, Achievements, AchievementAwards, Plugins, CompatibilityBaseline, () => RuntimeLogger);
         SnapshotCommits = snapshotCommits ?? new SnapshotCommitService();
         SnapshotConfirmations = new SnapshotConfirmationPlanner(Ledger);
         RaidQueries = new Modules.Raids.RaidQueries(Ledger, () => ServerConfiguration);
@@ -401,6 +402,7 @@ public sealed class ClashOfRimNetworkState
     public AchievementRegistry Achievements { get; }
     internal AchievementAwards AchievementAwards { get; }
     internal EventAchievementRecorder EventAchievements { get; }
+    internal SnapshotAchievements SnapshotAchievements { get; }
 
     public SnapshotPostUploadJobRegistry SnapshotPostUploadJobs { get; }
 

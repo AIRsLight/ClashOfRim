@@ -245,35 +245,6 @@ public static partial class ClashOfRimNetworkServer
     private static SnapshotUploadReceiver CreateSnapshotReceiver(ClashOfRimNetworkState state)
         => state.SnapshotTransactions.CreateSnapshotReceiver();
 
-    private static void RecordAcceptedSnapshotReference(
-        ClashOfRimNetworkState state,
-        string userId,
-        string colonyId,
-        SnapshotUploadResult upload,
-        DateTimeOffset acceptedAtUtc)
-    {
-        if (!upload.Accepted || upload.AcceptedSnapshot is null)
-        {
-            return;
-        }
-
-        RecordLatestSnapshotReference(state, userId, colonyId, upload.AcceptedSnapshot, acceptedAtUtc);
-    }
-
-    private static void RecordLatestSnapshotReference(
-        ClashOfRimNetworkState state,
-        string userId,
-        string colonyId,
-        LatestSnapshotRecord snapshot,
-        DateTimeOffset acceptedAtUtc)
-    {
-        state.Players.RecordLatestSnapshotReference(
-            userId,
-            colonyId,
-            snapshot.Identity.SnapshotId,
-            acceptedAtUtc);
-    }
-
     private static string NormalizeSnapshotUploadKind(string? snapshotUploadKind, string? confirmationOperation = null)
         => SnapshotTransactions.NormalizeSnapshotUploadKind(snapshotUploadKind, confirmationOperation);
 

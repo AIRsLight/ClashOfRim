@@ -18,12 +18,8 @@ public static partial class ClashOfRimNetworkServer
                 order: 100,
                 SnapshotPostUploadFailureMode.AbortPipeline,
                 SnapshotPostUploadKind.AuthoritativeColonySnapshot,
-                context => RecordAcceptedSnapshotReference(
-                    context.State,
-                    context.UserId,
-                    context.ColonyId,
-                    AcceptedUpload(context),
-                    context.OccurredAtUtc)),
+                context => context.State.Players.RecordLatestSnapshotReference(
+                    context.UserId, context.ColonyId, context.Snapshot.Identity.SnapshotId, context.OccurredAtUtc)),
             InlineSnapshotPostUploadProcessor.Create(
                 "core.world-tile-float-layers",
                 SnapshotPostUploadStage.AuthoritativeProjection,
@@ -54,8 +50,7 @@ public static partial class ClashOfRimNetworkServer
                 order: 100,
                 SnapshotPostUploadFailureMode.AbortPipeline,
                 SnapshotPostUploadKind.AuthoritativeColonySnapshot,
-                context => RecordSnapshotMetricsAndAchievements(
-                    context.State,
+                context => context.State.SnapshotAchievements.Record(
                     context.UserId,
                     context.ColonyId,
                     context.Snapshot,
@@ -177,113 +172,6 @@ public static partial class ClashOfRimNetworkServer
         // Confirmation is captured and committed with snapshot publication. Never rescan here:
         // a later request may have created new pending work after this snapshot was accepted.
         context.State.MercenaryIncidents.Recover();
-    }
-
-    private static void RecordSnapshotMetricsAndAchievements(
-        ClashOfRimNetworkState state,
-        string fallbackUserId,
-        string fallbackColonyId,
-        LatestSnapshotRecord snapshot,
-        DateTimeOffset nowUtc,
-        IReadOnlyCollection<SnapshotAchievementCandidateDto>? achievementCandidates)
-    {
-        string ownerId = string.IsNullOrWhiteSpace(snapshot.Identity.OwnerId)
-            ? fallbackUserId
-            : snapshot.Identity.OwnerId!;
-        string colonyId = string.IsNullOrWhiteSpace(snapshot.Identity.ColonyId)
-            ? fallbackColonyId
-            : snapshot.Identity.ColonyId!;
-        string? snapshotId = snapshot.Identity.SnapshotId;
-        if (string.IsNullOrWhiteSpace(ownerId) || string.IsNullOrWhiteSpace(colonyId))
-        {
-            return;
-        }
-
-        var metrics = new Dictionary<string, long>(StringComparer.Ordinal);
-        int? wealth = SnapshotWealth.Total(snapshot.Index);
-        if (wealth.HasValue)
-        {
-            metrics[AchievementRegistry.MetricColonyWealth] = wealth.Value;
-            state.Players.RecordLatestSnapshotWealth(
-                ownerId,
-                colonyId,
-                snapshotId,
-                wealth.Value,
-                nowUtc);
-        }
-
-        int colonistCount = CalculateSnapshotPlayerColonists(snapshot);
-        metrics[AchievementRegistry.MetricPlayerColonists] = colonistCount;
-        AddMetricIfPresent(metrics, AchievementRegistry.MetricWealthItems, snapshot.Index.HistoryWealthItems);
-        AddMetricIfPresent(metrics, AchievementRegistry.MetricWealthBuildings, snapshot.Index.HistoryWealthBuildings);
-        AddMetricIfPresent(metrics, AchievementRegistry.MetricWealthPawns, snapshot.Index.HistoryWealthPawns);
-        AddMetricIfPresent(metrics, AchievementRegistry.MetricPrisoners, snapshot.Index.HistoryPrisonerCount);
-        AddMetricIfPresent(metrics, AchievementRegistry.MetricColonistMood, snapshot.Index.HistoryColonistMood);
-        AddMetricIfPresent(metrics, AchievementRegistry.MetricColonistsLaunched, snapshot.Index.StoryColonistsLaunched);
-
-        CollectPluginSnapshotAchievementMetrics(state, snapshot, metrics);
-
-        if (string.IsNullOrWhiteSpace(snapshotId))
-        {
-            return;
-        }
-
-        state.Achievements.RecordSnapshotMetricAchievements(
-            ownerId,
-            colonyId,
-            snapshotId!,
-            metrics,
-            state.Plugins.ActiveAchievementDefinitions(state.CompatibilityBaseline.Current),
-            nowUtc);
-
-        foreach (SnapshotAchievementCandidateDto candidate in achievementCandidates ?? Array.Empty<SnapshotAchievementCandidateDto>())
-        {
-            state.Achievements.TryRecord(ownerId, colonyId, snapshotId!, candidate, nowUtc, out _);
-        }
-
-        // A previous attempt may have persisted an unlock and then failed to append
-        // its notification. Replay all durable unlocks from this exact snapshot.
-        var snapshotAchievements = state.Achievements.ListSnapshotEvents(ownerId, colonyId, snapshotId!);
-        if (snapshotAchievements.Count > 0)
-        {
-            state.AchievementAwards.Notify(ownerId, colonyId, snapshotAchievements, nowUtc);
-        }
-    }
-
-    private static void AddMetricIfPresent(IDictionary<string, long> metrics, string metricId, int? value)
-    {
-        if (value.HasValue)
-        {
-            metrics[metricId] = Math.Max(0, value.Value);
-        }
-    }
-
-    private static int CalculateSnapshotPlayerColonists(LatestSnapshotRecord snapshot)
-    {
-        return Math.Max(0, snapshot.Index.HistoryPlayerColonistCount ?? 0);
-    }
-
-    private static void CollectPluginSnapshotAchievementMetrics(
-        ClashOfRimNetworkState state,
-        LatestSnapshotRecord snapshot,
-        IDictionary<string, long> metrics)
-    {
-        foreach (ISnapshotAchievementMetricProvider provider in
-            state.Plugins.ActiveSnapshotAchievementMetricProviders(state.CompatibilityBaseline.Current))
-        {
-            try
-            {
-                provider.CollectSnapshotAchievementMetrics(new SnapshotAchievementMetricContext(snapshot, metrics));
-            }
-            catch (Exception ex)
-            {
-                state.RuntimeLogger.LogWarning(
-                    ex,
-                    "Snapshot achievement metric provider failed: provider={Provider} snapshot={SnapshotId}",
-                    provider.GetType().FullName,
-                    snapshot.Identity.SnapshotId);
-            }
-        }
     }
 
     private sealed class InlineSnapshotPostUploadProcessor : IInlineSnapshotPostUploadProcessor

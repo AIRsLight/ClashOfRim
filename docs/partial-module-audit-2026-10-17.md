@@ -2639,3 +2639,14 @@ SnapshotConfirmationPlanner 只依赖权威账本，拥有预检、私有临时�
 **3 个相关单元组通过**：事件入档与成就恢复、单条／批量确认日志、模块边界（407 个类型、81 条路由）。日志：`LocalOnly/module-migration/server-confirmation-planner-tests.log`。生产代码随测试编译，没有全量回归、实机或独立发布构建，没有推送，未修改冻结 1.6 或继承修改。
 
 **下一步 M9f：上传后处理的领域职责。** 宿主 SnapshotPostUpload 仍持有快照财富／成就指标与插件指标采集，以及核心后处理装配。需先把具体领域处理迁入对应模块，再处理旧插件上下文到模块输入的适配与恢复装配，保持既有阶段、次序、持久任务和失败策略。LegacySnapshotRecoveryAdapter 及宿主恢复入口仍待删除，M9–M12 与最终完成审计继续开放。
+
+
+### M9f 快照财富／成就领域处理归属（2026-10-19）
+
+SnapshotAchievements 接管原宿主的快照身份选择、财富／殖民者／历史指标提取、插件指标采集、阈值与候选记录及持久解锁通知重放。明确依赖玩家／成就注册表、AchievementAwards、插件目录、兼容基线和日志接口；财富计算复用 SnapshotWealth，通知继续由 AchievementAwards 唯一实现。保留失败插件隔离、动态读取当前基线、原快照来源重放和候选幂等，不新增另一套成就计算或通知流程。
+
+核心后处理注册改为调用 SnapshotAchievements.Record。快照引用登记直接调用已有 PlayerRegistry.RecordLatestSnapshotReference，删除仅用于这一已接受上下文的 RecordAcceptedSnapshotReference／RecordLatestSnapshotReference 宿主包装。原快照成就故障测试不再反射宿主私有方法，直接执行领域模块；原 SQLite 事件／聚合／首条和后续通知故障、重启与来源隔离断言继续保留。
+
+补充四种文化下不依赖 NetworkState 的模块测试：动态基线启用／停用指标插件、失败提供者不阻断后续提供者、财富 12.5 舍入为 13、负历史指标归零、缺失指标不凭空补值、真实快照身份优先于调用者兜底、重复候选和通知不累计。**3 个相关单元组通过**：快照成就恢复、普通上传完整故障恢复、模块守卫（408 个类型、81 条路由）。日志：`LocalOnly/module-migration/server-snapshot-achievements-tests.log`。测试编译生产代码，无全量回归、实机或独立发布构建，无推送。
+
+**下一步 M9g：后处理输入、核心处理器与插件边界。** SnapshotPostUpload partial 仍负责上下文归一化、核心阶段／次序注册、待确认后续事故恢复和管线分派；公开插件上下文仍带 State。需让内部模块使用具体输入／领域依赖，旧插件上下文只在兼容适配处转换，复用现有管线的持久任务和失败策略。完成后再收回恢复装配，删除 LegacySnapshotRecoveryAdapter／LegacyRaidEvidencePipeline 和宿主旧入口。M9 及 M10–M12、最终完成审计仍开放。
