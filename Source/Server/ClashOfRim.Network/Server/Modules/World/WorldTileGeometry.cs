@@ -1,4 +1,4 @@
-using System.Globalization;
+using AIRsLight.ClashOfRim.Save;
 using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Events;
 
@@ -8,30 +8,9 @@ internal static class WorldTileGeometry
 {
     internal static bool TryParsePlanetTile(string? tileText, out WorldTileRef tileRef)
     {
-        tileRef = default;
-        if (string.IsNullOrWhiteSpace(tileText))
-        {
-            return false;
-        }
-
-        string text = tileText!.Trim();
-        string[] parts = text.Split(',', 2);
-        if (!int.TryParse(parts[0].Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int tile)
-            || tile < 0)
-        {
-            return false;
-        }
-
-        int layerId = 0;
-        if (parts.Length == 2
-            && (!int.TryParse(parts[1].Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out layerId)
-                || layerId < 0))
-        {
-            return false;
-        }
-
-        tileRef = new WorldTileRef(tile, layerId);
-        return true;
+        bool valid = WorldTileText.TryParse(tileText, out int tile, out int layer);
+        tileRef = valid ? new WorldTileRef(tile, layer) : default;
+        return valid;
     }
 
     internal static WorldTileGeometryDistanceSource? BuildWorldTileGeometryDistanceSource(WorldConfigurationDto? configuration)

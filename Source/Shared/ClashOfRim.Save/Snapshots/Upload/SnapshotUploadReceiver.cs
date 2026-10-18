@@ -411,13 +411,13 @@ public sealed class SnapshotUploadReceiver
             return null;
         }
 
-        IReadOnlyList<ColonyAnchor> expectedAnchors = ExtractColonyAnchors(previous.Index);
+        IReadOnlyList<SnapshotColonyAnchor> expectedAnchors = PlayerColonyAnchors.Extract(previous.Index, additionalPlayerColonyAnchorPredicates);
         if (expectedAnchors.Count == 0)
         {
             return null;
         }
 
-        IReadOnlyList<ColonyAnchor> actualAnchors = ExtractColonyAnchors(rebuiltIndex);
+        IReadOnlyList<SnapshotColonyAnchor> actualAnchors = PlayerColonyAnchors.Extract(rebuiltIndex, additionalPlayerColonyAnchorPredicates);
         if (actualAnchors.Any(actual => expectedAnchors.Any(expected => IsSameAnchor(expected, actual))))
         {
             return null;
@@ -435,145 +435,15 @@ public sealed class SnapshotUploadReceiver
 
     private static bool IsSingleColonyRelocation(
         SnapshotUploadValidationRules validationRules,
-        IReadOnlyList<ColonyAnchor> expectedAnchors,
-        IReadOnlyList<ColonyAnchor> actualAnchors)
+        IReadOnlyList<SnapshotColonyAnchor> expectedAnchors,
+        IReadOnlyList<SnapshotColonyAnchor> actualAnchors)
     {
         return validationRules.AllowSingleColonyRelocation
             && expectedAnchors.Count == 1
             && actualAnchors.Count == 1;
     }
 
-    private IReadOnlyList<ColonyAnchor> ExtractColonyAnchors(SaveSnapshotIndex index)
-    {
-        var anchors = new List<ColonyAnchor>();
-        HashSet<string> playerFactionIds = BuildPlayerFactionIds(index);
-        foreach (MapSummary map in index.Maps)
-        {
-            if (string.IsNullOrWhiteSpace(map.ParentWorldObjectId))
-            {
-                continue;
-            }
-
-            WorldObjectSummary? worldObject = FindWorldObjectById(index.WorldObjects, map.ParentWorldObjectId!);
-            if (worldObject is null
-                || worldObject.Destroyed
-                || !IsPlayerColonyAnchor(map, worldObject, playerFactionIds)
-                || !TryParseTile(worldObject.Tile, out int tile, out int tileLayerId))
-            {
-                continue;
-            }
-
-            anchors.Add(new ColonyAnchor(
-                map.UniqueId,
-                worldObject.UniqueLoadId ?? worldObject.Id,
-                tile,
-                tileLayerId));
-        }
-
-        return anchors
-            .GroupBy(anchor => anchor.WorldObjectId ?? anchor.MapUniqueId ?? "tile:" + anchor.Tile + "," + anchor.TileLayerId, StringComparer.Ordinal)
-            .Select(group => group.First())
-            .ToList();
-    }
-
-    private static HashSet<string> BuildPlayerFactionIds(SaveSnapshotIndex index)
-    {
-        var result = new HashSet<string>(StringComparer.Ordinal);
-        foreach (FactionSummary faction in index.Factions)
-        {
-            if (!IsPlayerFaction(faction))
-            {
-                continue;
-            }
-
-            AddFactionId(result, faction.UniqueLoadId);
-            AddFactionId(result, faction.LoadId);
-            if (!string.IsNullOrWhiteSpace(faction.LoadId))
-            {
-                AddFactionId(result, "Faction_" + faction.LoadId);
-            }
-        }
-
-        return result;
-    }
-
-    private static bool IsPlayerFaction(FactionSummary faction)
-    {
-        return string.Equals(faction.Def, "PlayerColony", StringComparison.Ordinal)
-            || string.Equals(faction.Def, "PlayerTribe", StringComparison.Ordinal);
-    }
-
-    private static void AddFactionId(HashSet<string> result, string? value)
-    {
-        if (!string.IsNullOrWhiteSpace(value))
-        {
-            result.Add(value);
-        }
-    }
-
-    private static WorldObjectSummary? FindWorldObjectById(
-        IEnumerable<WorldObjectSummary> worldObjects,
-        string worldObjectId)
-    {
-        return worldObjects.FirstOrDefault(candidate =>
-            string.Equals(candidate.UniqueLoadId, worldObjectId, StringComparison.Ordinal)
-            || string.Equals(candidate.Id, worldObjectId, StringComparison.Ordinal));
-    }
-
-    private bool IsPlayerColonyAnchor(
-        MapSummary map,
-        WorldObjectSummary worldObject,
-        IReadOnlySet<string> playerFactionIds)
-    {
-        if (WorldObjectTypeIdentity.IsSettlement(worldObject))
-        {
-            return HasPlayerColonyEvidence(map, worldObject, playerFactionIds);
-        }
-
-        if (!map.WasSpawnedViaGravshipLanding || additionalPlayerColonyAnchorPredicates is null)
-        {
-            return false;
-        }
-
-        return HasPlayerColonyEvidence(map, worldObject, playerFactionIds)
-            && additionalPlayerColonyAnchorPredicates.Any(predicate => predicate(worldObject));
-    }
-
-    private static bool HasPlayerColonyEvidence(
-        MapSummary map,
-        WorldObjectSummary worldObject,
-        IReadOnlySet<string> playerFactionIds)
-    {
-        return map.PlayerColonistCount > 0
-            || (!string.IsNullOrWhiteSpace(worldObject.Faction)
-                && playerFactionIds.Contains(worldObject.Faction!));
-    }
-
-    private static bool TryParseTile(string? value, out int tile, out int tileLayerId)
-    {
-        tile = default;
-        tileLayerId = 0;
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return false;
-        }
-
-        string[] parts = value.Split(',', 2);
-        if (!int.TryParse(parts[0].Trim(), out tile) || tile < 0)
-        {
-            return false;
-        }
-
-        if (parts.Length > 1
-            && (!int.TryParse(parts[1].Trim(), out tileLayerId) || tileLayerId < 0))
-        {
-            return false;
-        }
-
-        return true;
-    }
-
-    private static bool IsSameAnchor(ColonyAnchor expected, ColonyAnchor actual)
+    private static bool IsSameAnchor(SnapshotColonyAnchor expected, SnapshotColonyAnchor actual)
     {
         if (!string.IsNullOrWhiteSpace(expected.WorldObjectId)
             && !string.IsNullOrWhiteSpace(actual.WorldObjectId)
@@ -732,7 +602,6 @@ public sealed class SnapshotUploadReceiver
         return Convert.ToHexString(RandomNumberGenerator.GetBytes(32)).ToLowerInvariant();
     }
 
-    private sealed record ColonyAnchor(string? MapUniqueId, string? WorldObjectId, int Tile, int TileLayerId);
 
     private sealed record PayloadSnapshotMetadata(string? LineageSnapshotId, string? LineageToken, long? GameTicks);
 }

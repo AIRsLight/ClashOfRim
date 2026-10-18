@@ -87,6 +87,7 @@ var tests = new (string Name, Action Run)[]
     ("入口生命周期独立模块与恢复边界", () => ClientEntryLifecycleTests.Run(BuildFixturePackage)),
     ("世界标记交付模块与远程地图归属", () => WorldMarkerModuleTests.Run(BuildFixturePackage)),
     ("世界同步模块、运行时批次与身份隔离", () => WorldSynchronizationModuleTests.Run(BuildFixturePackage)),
+    ("殖民地共享定位、连续性与快照投影模块", () => ColonySiteModuleTests.Run(BuildFixturePackage)),
     ("世界会话认证准备与恢复后兼容性复验", () => WorldSessionPreparationTests.Run(BuildFixturePackage)),
     ("世界准备模块、殖民地选择与发布复验", () => WorldPreparationModuleTests.Run(BuildFixturePackage)),
     ("真实 HTTP 请求在端点授权后恢复快照日志", () => HttpSnapshotRecoveryTests.Run(BuildFixturePackage)),

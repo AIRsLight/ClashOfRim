@@ -1,3 +1,4 @@
+using static AIRsLight.ClashOfRim.Network.Modules.World.ColonySiteRules;
 using AIRsLight.ClashOfRim.Network.Modules.World;
 using AIRsLight.ClashOfRim.Network.Modules.Compatibility;
 using AIRsLight.ClashOfRim.Network.Modules.Accounts;
@@ -149,7 +150,7 @@ public static partial class ClashOfRimNetworkServer
         }
 
         PlayerColonySiteDto? nearbyConflict = FindNearbyPlayerColonyConflict(
-            state,
+            state.WorldConfiguration.Current, state.WorldTileDistanceCalculator,
             currentConfiguration.PlayerColonySites,
             normalizedSites,
             request.UserId,
@@ -272,7 +273,7 @@ public static partial class ClashOfRimNetworkServer
         }
 
         int targetTileLayerId = Math.Max(0, request.TargetTileLayerId);
-        IReadOnlyList<SnapshotColonyAnchor> anchors = ExtractSnapshotColonyAnchors(state, latest.Index);
+        IReadOnlyList<SnapshotColonyAnchor> anchors = state.ColonyLocations.Extract(latest.Index);
         if (anchors.Count == 1
             && (anchors[0].Tile != request.TargetTile || anchors[0].TileLayerId != targetTileLayerId))
         {
@@ -349,7 +350,7 @@ public static partial class ClashOfRimNetworkServer
         }
 
         PlayerColonySiteDto? nearbyConflict = FindNearbyPlayerColonyConflict(
-            state,
+            state.WorldConfiguration.Current, state.WorldTileDistanceCalculator,
             state.WorldConfiguration.Current?.PlayerColonySites ?? Array.Empty<PlayerColonySiteDto>(),
             normalizedSites,
             request.UserId,
@@ -501,7 +502,7 @@ public static partial class ClashOfRimNetworkServer
         }
 
         PlayerColonySiteDto? nearbyConflict = FindNearbyPlayerColonyConflict(
-            state,
+            state.WorldConfiguration.Current, state.WorldTileDistanceCalculator,
             state.WorldConfiguration.Current?.PlayerColonySites ?? Array.Empty<PlayerColonySiteDto>(),
             new[] { requestedSite },
             userId,

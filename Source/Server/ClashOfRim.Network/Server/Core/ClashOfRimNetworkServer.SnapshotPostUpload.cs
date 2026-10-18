@@ -46,8 +46,7 @@ public static partial class ClashOfRimNetworkServer
                 {
                     if (context.RegisterPlayerColonySite)
                     {
-                        TryRegisterPlayerColonySiteFromAcceptedSnapshot(
-                            context.State,
+                        context.State.ColonyProjection.Apply(
                             context.UserId,
                             context.ColonyId,
                             AcceptedUpload(context));
