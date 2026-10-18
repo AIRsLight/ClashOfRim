@@ -73,57 +73,37 @@ public sealed class AdminControlRegistry
         }
     }
 
-    public bool Ban(string userId)
+    public bool Ban(string userId) => SetBanned(userId, true);
+    public bool Unban(string userId) => SetBanned(userId, false);
+
+    private bool SetBanned(string userId, bool banned)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(userId);
         lock (gate)
         {
-            bool added = bannedUsers.Add(userId);
-            if (added)
-            {
-                PersistChanges(
-                    new Dictionary<string, string>(StringComparer.Ordinal)
-                    {
-                        [BanRowKey(userId)] = JsonSerializer.Serialize(userId, JsonOptions)
-                    },
-                    Array.Empty<string>());
-            }
-
-            return added;
-        }
-    }
-
-    public bool Unban(string userId)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(userId);
-        lock (gate)
-        {
-            bool removed = bannedUsers.Remove(userId);
-            if (removed)
-            {
-                PersistChanges(
-                    new Dictionary<string, string>(StringComparer.Ordinal),
-                    [BanRowKey(userId)]);
-            }
-
-            return removed;
+            if (bannedUsers.Contains(userId) == banned) return false;
+            var candidate = new HashSet<string>(bannedUsers, StringComparer.Ordinal);
+            if (banned) candidate.Add(userId); else candidate.Remove(userId);
+            PersistChanges(banned ? new Dictionary<string, string>(StringComparer.Ordinal)
+                { [BanRowKey(userId)] = JsonSerializer.Serialize(userId, JsonOptions) } : new Dictionary<string, string>(StringComparer.Ordinal),
+                banned ? [] : [BanRowKey(userId)],
+                Snapshot() with { BannedUsers = candidate.OrderBy(id => id, StringComparer.Ordinal).ToList() });
+            if (banned) bannedUsers.Add(userId); else bannedUsers.Remove(userId);
+            return true;
         }
     }
 
     public void SetMaintenanceLoginLocked(bool locked, string? reason)
     {
+        string? normalizedReason = string.IsNullOrWhiteSpace(reason) ? null : reason.Trim();
         lock (gate)
         {
+            if (maintenanceLoginLocked == locked && maintenanceReason == normalizedReason) return;
+            PersistChanges(new Dictionary<string, string>(StringComparer.Ordinal)
+                { ["state:maintenance"] = JsonSerializer.Serialize(new AdminControlStateRecord(locked, normalizedReason), JsonOptions) }, [],
+                Snapshot() with { MaintenanceLoginLocked = locked, MaintenanceReason = normalizedReason });
             maintenanceLoginLocked = locked;
-            maintenanceReason = string.IsNullOrWhiteSpace(reason) ? null : reason.Trim();
-            PersistChanges(
-                new Dictionary<string, string>(StringComparer.Ordinal)
-                {
-                    ["state:maintenance"] = JsonSerializer.Serialize(
-                        new AdminControlStateRecord(maintenanceLoginLocked, maintenanceReason),
-                        JsonOptions)
-                },
-                Array.Empty<string>());
+            maintenanceReason = normalizedReason;
         }
     }
 
@@ -141,6 +121,7 @@ public sealed class AdminControlRegistry
 
     private AdminAuditRecord AppendAudit(AdminAuditRecord record, bool once)
     {
+        record = record.WithoutCredentials();
         lock (gate)
         {
             if (once && auditRecords.Contains(record)) return record;
@@ -148,7 +129,7 @@ public sealed class AdminControlRegistry
             if (structuredPersistence is not null && auditRecords.Count < MaxAuditRecords)
                 structuredPersistence.ApplyBatch(new Dictionary<string, string>(StringComparer.Ordinal)
                 { [AuditRowKey(record, auditRecords.Count)] = JsonSerializer.Serialize(record, JsonOptions) }, []);
-            else SaveLocked(candidate);
+            else SaveLocked(Snapshot() with { AuditRecords = candidate });
             auditRecords.Clear();
             auditRecords.AddRange(candidate);
             return record;
@@ -221,7 +202,7 @@ public sealed class AdminControlRegistry
                     AdminAuditRecord? record = JsonSerializer.Deserialize<AdminAuditRecord>(pair.Value, JsonOptions);
                     if (record is not null)
                     {
-                        auditRecords.Add(record);
+                        auditRecords.Add(record.WithoutCredentials());
                     }
                 }
             }
@@ -271,8 +252,9 @@ public sealed class AdminControlRegistry
         }
 
         HashSet<string> existingAuditKeys = auditRecords.Select(AuditRecordKey).ToHashSet(StringComparer.Ordinal);
-        foreach (AdminAuditRecord record in persisted.AuditRecords ?? Array.Empty<AdminAuditRecord>())
+        foreach (AdminAuditRecord stored in persisted.AuditRecords ?? Array.Empty<AdminAuditRecord>())
         {
+            AdminAuditRecord record = stored.WithoutCredentials();
             string key = AuditRecordKey(record);
             if (existingAuditKeys.Add(key))
             {
@@ -285,63 +267,38 @@ public sealed class AdminControlRegistry
         return imported;
     }
 
-    private void SaveLocked(IReadOnlyList<AdminAuditRecord>? candidateAudits = null)
+    private AdminControlRegistryPersistence Snapshot() => new(maintenanceLoginLocked, maintenanceReason,
+        bannedUsers.OrderBy(userId => userId, StringComparer.Ordinal).ToList(), auditRecords.ToList());
+
+    private void SaveLocked(AdminControlRegistryPersistence candidate)
     {
-        if (structuredPersistence is not null)
-        {
-            structuredPersistence.ReplaceAll(BuildStructuredRows(candidateAudits));
-            return;
-        }
-
-        if (legacyPersistence is null)
-        {
-            return;
-        }
-
-        string json = JsonSerializer.Serialize(
-            new AdminControlRegistryPersistence(
-                maintenanceLoginLocked,
-                maintenanceReason,
-                bannedUsers.OrderBy(userId => userId, StringComparer.Ordinal).ToList(),
-                candidateAudits ?? auditRecords.ToList()),
-            JsonOptions);
-        legacyPersistence.Write(json);
+        if (structuredPersistence is not null) structuredPersistence.ReplaceAll(BuildStructuredRows(candidate));
+        else legacyPersistence?.Write(JsonSerializer.Serialize(candidate, JsonOptions));
     }
 
-    private Dictionary<string, string> BuildStructuredRows(IReadOnlyList<AdminAuditRecord>? candidateAudits = null)
+    private Dictionary<string, string> BuildStructuredRows(AdminControlRegistryPersistence? candidate = null)
     {
+        candidate ??= Snapshot();
         Dictionary<string, string> rows = new(StringComparer.Ordinal)
         {
             ["state:maintenance"] = JsonSerializer.Serialize(
-                new AdminControlStateRecord(maintenanceLoginLocked, maintenanceReason),
-                JsonOptions)
+                new AdminControlStateRecord(candidate.MaintenanceLoginLocked, candidate.MaintenanceReason), JsonOptions)
         };
-        foreach (string userId in bannedUsers)
-        {
-            rows[BanRowKey(userId)] = JsonSerializer.Serialize(userId, JsonOptions);
-        }
-
-        var records = candidateAudits ?? auditRecords;
+        foreach (string userId in candidate.BannedUsers ?? []) rows[BanRowKey(userId)] = JsonSerializer.Serialize(userId, JsonOptions);
+        var records = candidate.AuditRecords ?? [];
         for (int index = 0; index < records.Count; index++)
         {
             AdminAuditRecord record = records[index];
             rows[AuditRowKey(record, index)] = JsonSerializer.Serialize(record, JsonOptions);
         }
-
         return rows;
     }
 
-    private void PersistChanges(
-        IReadOnlyDictionary<string, string> upserts,
-        IReadOnlyCollection<string> deletes)
+    private void PersistChanges(IReadOnlyDictionary<string, string> upserts,
+        IReadOnlyCollection<string> deletes, AdminControlRegistryPersistence candidate)
     {
-        if (structuredPersistence is not null)
-        {
-            structuredPersistence.ApplyBatch(upserts, deletes);
-            return;
-        }
-
-        SaveLocked();
+        if (structuredPersistence is not null) structuredPersistence.ApplyBatch(upserts, deletes);
+        else SaveLocked(candidate);
     }
 
     private void TrimAuditRecords()
@@ -391,8 +348,11 @@ public sealed record AdminAuditRecord(
     string? Message,
     DateTimeOffset CreatedAtUtc)
 {
+    internal AdminAuditRecord WithoutCredentials() => ActionKind == "ResetOfflinePassword" && Message is not null
+        ? this with { Message = null } : this;
+
     public AdminAuditRecordDto ToDto()
     {
-        return new AdminAuditRecordDto(ActionKind, ActorUserId, TargetUserId, Message, CreatedAtUtc);
+        return new AdminAuditRecordDto(ActionKind, ActorUserId, TargetUserId, WithoutCredentials().Message, CreatedAtUtc);
     }
 }

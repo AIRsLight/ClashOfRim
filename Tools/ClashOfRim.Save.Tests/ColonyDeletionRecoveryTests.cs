@@ -1,4 +1,3 @@
-using System.Reflection;
 using System.Text.Json;
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Network;
@@ -243,6 +242,7 @@ internal static class ColonyDeletionRecoveryTests
         public FileColonySnapshotIndexStore Files = null!;
         public CrashStore Store = null!;
         private string token = null!;
+        private string adminToken = null!;
         internal string Token => token;
         public Fixture(string root, SaveSnapshotPackage package)
         {
@@ -275,12 +275,15 @@ internal static class ColonyDeletionRecoveryTests
                 worldConfigurationRegistry: new WorldConfigurationRegistry(new SqliteKeyedJsonRecordStore(Database, "world-configuration"), null, new SqliteJsonPersistenceSlot(Database, "world-configuration"), null));
             State.LoginSessions.TryCreate("userA", "colonyA", Now, out string session);
             token = State.AuthTokens.Issue("userA", "userA", "colonyA", session, Now);
+            State.WorldConfiguration.PromoteAdministrator("admin");
+            State.LoginSessions.TryCreate("admin", "admin-colony", Now, out var adminSession);
+            adminToken = State.AuthTokens.Issue("admin", "admin", "admin-colony", adminSession, Now);
         }
         public void Delete(bool admin)
         {
             if (admin)
             {
-                var result = (ProtocolResponse)Invoke("DeletePlayerSave", State, "userA", "colonyA", Now, 0)!;
+                var result = State.AdministratorActions.Execute(new("admin", "admin-colony", adminToken, "DeletePlayerSave", "userA", "colonyA", null)).Result;
                 Require(result.Accepted, "admin deletion rejected");
             }
             else
@@ -289,7 +292,7 @@ internal static class ColonyDeletionRecoveryTests
                 Require(result.Result.Accepted, "player abandonment rejected");
             }
         }
-        public void Recover() => Invoke("RecoverSnapshotCommits", State);
+        public void Recover() => ClashOfRimNetworkServer.RecoverSnapshotCommits(State);
         public void Sql(string sql)
         {
             using var connection = new SqliteConnection("Data Source=" + Database); connection.Open();
@@ -320,14 +323,12 @@ internal static class ColonyDeletionRecoveryTests
         public void Lock(string path) => stream ??= new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
         public void Dispose() => stream?.Dispose();
     }
-    private static object? Invoke(string name, params object?[] args) => typeof(ClashOfRimNetworkServer).GetMethod(name, BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, args);
     private static void Fails(Action action)
     {
         try { action(); }
         catch (Exception ex)
         {
             Exception failure = ex;
-            while (failure is TargetInvocationException { InnerException: { } inner }) failure = inner;
             if (failure is IOException or SqliteException or InvalidDataException or InvalidOperationException or UnauthorizedAccessException) return;
             throw;
         }

@@ -9,8 +9,10 @@ namespace AIRsLight.ClashOfRim.Network.Modules.Admin;
 internal static class AdminEndpoints
 {
     internal static void Map(IEndpointRouteBuilder endpoints, AdministratorBaseline baseline,
-        AdministratorConfiguration configuration, CompatibilityBaselineOverride compatibility)
+        AdministratorConfiguration configuration, CompatibilityBaselineOverride compatibility, AdministratorActions actions)
     {
+        endpoints.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.AdminAction).Route,
+            (AdminActionRequest request) => Results.Ok(actions.Execute(request))).WithMetadata(EndpointSnapshotRecovery.Instance);
         endpoints.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.AdminStatus).Route,
             (AdminStatusRequest request) => Results.Ok(configuration.Status(request))).WithMetadata(EndpointSnapshotRecovery.Instance);
         endpoints.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.AdminUpdateConfiguration).Route,

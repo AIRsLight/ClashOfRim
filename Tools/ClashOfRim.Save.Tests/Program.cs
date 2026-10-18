@@ -96,6 +96,7 @@ var tests = new (string Name, Action Run)[]
     ("世界会话认证准备与恢复后兼容性复验", () => WorldSessionPreparationTests.Run(BuildFixturePackage)),
     ("世界准备模块、殖民地选择与发布复验", () => WorldPreparationModuleTests.Run(BuildFixturePackage)),
     ("真实 HTTP 请求在端点授权后恢复快照日志", () => HttpSnapshotRecoveryTests.Run(BuildFixturePackage)),
+    ("管理员动作模块、策略保存和会话隔离", () => AdministratorActionModuleTests.Run(BuildFixturePackage)),
     ("管理配置模块、发布恢复与兼容清单覆盖", () => AdminConfigurationModuleTests.Run(BuildFixturePackage)),
     ("管理员基线模块、插件隔离与提交边界", () => AdminBaselineModuleTests.Run(BuildFixturePackage)),
     ("管理员基线认证与恢复提交边界", () => AdminBaselineAuthorizationTests.Run(BuildFixturePackage)),

@@ -41,7 +41,8 @@ internal static class ColonyAbandonmentBaselineTests
             Require(!Invoke(state, package.Envelope.Identity.SnapshotId, oldToken).Result.Accepted, "Old token accepted repeated abandonment.");
             // An interrupted deletion may be replayed after another generation exists.
             // A transport's finally block can also arrive after the replacement login.
-            state.ColonyDeletion.Delete("userA", "colonyA", now);
+            using (state.SnapshotMutations.Enter())
+                state.ColonyDeletion.DeleteUnderMutation("userA", "colonyA", state.SnapshotStore.GetLatest("userA", "colonyA"), now);
             state.SessionConnections.Close("userA", "colonyA", oldSession, oldLease);
             Require(state.LoginSessions.IsValid("userA", "rebuilt", newSession, now)
                 && state.LoginSessions.Refresh("userA", "rebuilt", newSession, now) && newLease.Touch()

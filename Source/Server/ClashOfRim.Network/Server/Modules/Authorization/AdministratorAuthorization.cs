@@ -5,9 +5,10 @@ namespace AIRsLight.ClashOfRim.Network.Modules.Authorization;
 
 internal sealed class AdministratorAuthorization(AuthTokenRegistry tokens, LoginSessionRegistry sessions, WorldConfigurationRegistry world)
 {
-    internal ProtocolResponse? Authorize(string userId, string? colonyId, string? token) =>
+    internal ProtocolResponse? Authorize(string userId, string? colonyId, string? token,
+        ProtocolErrorCode rejectionCode = ProtocolErrorCode.ServerRejected) =>
         TryAuthorize(userId, colonyId ?? string.Empty, token, DateTimeOffset.UtcNow, out string failure)
-            ? null : ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, failure);
+            ? null : ProtocolResponse.Reject(rejectionCode, failure);
 
     internal bool TryAuthorize(string userId, string colonyId, string? token, DateTimeOffset nowUtc, out string failure)
     {

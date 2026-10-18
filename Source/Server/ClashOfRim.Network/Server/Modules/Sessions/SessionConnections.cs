@@ -116,6 +116,15 @@ internal sealed class SessionConnections(LoginSessionRegistry sessions, AuthToke
         tokens.RevokeForColony(userId, colonyId);
     }
 
+    // Explicit administrator commands retire the current account connection, even if its colony changed.
+    internal bool EndUserUnderMutation(string userId)
+    {
+        bool ended = sessions.EndUser(userId);
+        ended |= online.ForceDisconnect(userId);
+        tokens.RevokeForUser(userId);
+        return ended;
+    }
+
     internal bool EndUnderMutation(string userId, string? sessionId)
     {
         if (string.IsNullOrWhiteSpace(sessionId)) return false;

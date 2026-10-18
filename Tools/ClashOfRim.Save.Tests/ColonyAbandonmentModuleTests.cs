@@ -119,14 +119,20 @@ internal static class ColonyAbandonmentModuleTests
                 "Interruption lost deletion intent or published failed world candidate.");
             f.WorldSlot.Fail = false;
         }
-        else { f.Deletion.Delete("user", "colony", DateTimeOffset.UtcNow); f.AssertDeleted(); }
+        else
+        {
+            Check(f.Module.Abandon(new(ProtocolApiVersion.Current, "user", "colony", "before", "delete", f.Token)).Result.Accepted, "Initial deletion failed.");
+            f.AssertDeleted();
+        }
         f.S.Sessions.EndUser("user"); var now = DateTimeOffset.UtcNow;
         Check(f.S.Sessions.TryCreate("user", "rebuilt", now, out var session) && f.S.Sessions.TryBeginStream("user", "rebuilt", session, now), "Could not create replacement.");
         string token = f.S.Tokens.Issue("user", "user", "rebuilt", session, now);
         Check(f.S.Presence.TryConnectExclusive("user", session, out var lease), "Could not create replacement presence.");
         using var replacement = lease!;
         f.S.Players.Record("user", "rebuilt", null, now);
-        if (resume) f.Deletion.Recover(); else f.Deletion.Delete("user", "colony", now);
+        if (resume) f.Deletion.Recover();
+        else using (f.S.Mutations.Enter())
+            f.Deletion.DeleteUnderMutation("user", "colony", f.S.Snapshots.GetLatest("user", "colony"), now);
         f.AssertDeleted();
         Check(f.S.Sessions.IsValid("user", "rebuilt", session, now) && f.S.Tokens.IsValid(token, "user", "rebuilt", now)
             && replacement.Touch() && !f.S.Players.IsDeleted("user", "rebuilt"), "Old deletion cleanup damaged replacement session.");

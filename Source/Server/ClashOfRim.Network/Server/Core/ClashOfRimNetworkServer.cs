@@ -107,12 +107,11 @@ public static partial class ClashOfRimNetworkServer
         RaidEndpoints.Map(app, tradeState.RaidPreparation, tradeState.RaidStarting);
         DiplomacyEndpoints.Map(app, tradeState.Diplomacy);
         WorldEndpoints.Map(app, tradeState.WorldPreparation, tradeState.WorldRead, tradeState.WorldSubmission, tradeState.WorldFeatureNames, tradeState.WorldSubstrate, tradeState.WorldSync, tradeState.ColonyRegistration, tradeState.ColonyRelocation, tradeState.ColonyAbandonment);
-        AdminEndpoints.Map(app, tradeState.AdministratorBaseline, tradeState.AdministratorConfiguration, tradeState.CompatibilityOverride);
+        AdminEndpoints.Map(app, tradeState.AdministratorBaseline, tradeState.AdministratorConfiguration, tradeState.CompatibilityOverride, tradeState.AdministratorActions);
         var mercenaryState = app.Services.GetRequiredService<ClashOfRimNetworkState>();
         MercenaryEndpoints.Map(app, mercenaryState.Mercenaries, mercenaryState.MercenaryHiring);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.SendChatMessage).Route, SendChatMessage);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.ListChatMessages).Route, ListChatMessages);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.AdminAction).Route, AdminAction);
     }
 
     private static string T(string key, params (string Key, string? Value)[] args) => ServerText.Format(key, args);

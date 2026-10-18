@@ -14,13 +14,6 @@ internal sealed class ColonyDeletion(IColonySnapshotIndexStore snapshots, IAutho
     MercenaryContractRegistry mercenaries, SessionConnections connections, EventNotificationHub notifications,
     WorldConfigurationChanges worldChanges)
 {
-    // Administrative callers have their own authorization. Player requests enter through ColonyAbandonment.
-    internal ColonyDeletionResult Delete(string userId, string colonyId, DateTimeOffset nowUtc)
-    {
-        using var mutation = mutations.Enter();
-        return DeleteUnderMutation(userId, colonyId, snapshots.GetLatest(userId, colonyId), nowUtc);
-    }
-
     internal ColonyDeletionResult DeleteUnderMutation(string userId, string colonyId, LatestSnapshotRecord? latest, DateTimeOffset nowUtc)
     {
         if (commits.HasPending) throw new InvalidOperationException("Finish snapshot commits before beginning colony deletion.");

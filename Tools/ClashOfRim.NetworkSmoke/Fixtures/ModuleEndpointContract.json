@@ -483,6 +483,6 @@
     "Kind": "AdminAction",
     "Route": "/admin/action",
     "Method": "POST",
-    "OwnsRecovery": false
+    "OwnsRecovery": true
   }
 ]

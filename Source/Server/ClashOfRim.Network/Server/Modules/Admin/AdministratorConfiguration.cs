@@ -43,6 +43,5 @@ internal sealed class AdministratorConfiguration(AdministratorAuthorization auth
     }
 
     private ProtocolResponse? Authorize(string userId, string colonyId, string? token)
-        => authorization.TryAuthorize(userId, colonyId, token, DateTimeOffset.UtcNow, out string failure)
-            ? null : ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, failure);
+        => authorization.Authorize(userId, colonyId, token, ProtocolErrorCode.Unauthorized);
 }

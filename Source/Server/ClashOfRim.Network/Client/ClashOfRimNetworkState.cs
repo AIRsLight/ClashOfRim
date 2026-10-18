@@ -224,6 +224,11 @@ public sealed class ClashOfRimNetworkState
         WorldSubmission = new WorldConfigurationSubmission(AdminAuthorization, CompatibilityBaseline, Plugins, SnapshotMutations,
             WorldConfiguration, PlayerActivity, WorldDelivery, () => RuntimeLogger);
         ConfigurationChanges = new AdminConfigurationChanges(ConfigurationState, ServerConfigurationOverrides, CompatibilityBaseline, AdminControl, SnapshotMutations);
+        var administratorPlayers = new AdministratorPlayers(AdminControl, SessionConnections, EventNotifications, Players,
+            SnapshotStore, ColonyDeletion, OfflineAccounts);
+        var administratorBroadcasts = new AdministratorBroadcasts(Ledger, Players, OnlinePresence, EventNotifications);
+        AdministratorActions = new AdministratorActions(AdminAuthorization, SnapshotMutations, AdminControl, administratorPlayers,
+            administratorBroadcasts, WorldConfiguration, WorldChanges, () => RuntimeLogger);
         AdministratorConfiguration = new AdministratorConfiguration(AdminAuthorization, SnapshotMutations, ConfigurationChanges,
             WorldConfiguration, Players, OnlinePresence, AdminControl, () => RuntimeLogger);
         CompatibilityOverride = new CompatibilityBaselineOverride(Accounts, WorldConfiguration, CompatibilityBaseline,
@@ -329,6 +334,7 @@ public sealed class ClashOfRimNetworkState
     internal ServerConfigurationState ConfigurationState { get; }
     internal AdminConfigurationChanges ConfigurationChanges { get; }
     internal AdministratorConfiguration AdministratorConfiguration { get; }
+    internal AdministratorActions AdministratorActions { get; }
     internal CompatibilityBaselineOverride CompatibilityOverride { get; }
     public ClashOfRimServerConfiguration ServerConfiguration => ConfigurationState.Current;
     public ClashOfRimServerConfiguration UpdateServerConfiguration(ClashOfRimServerConfiguration configuration)
