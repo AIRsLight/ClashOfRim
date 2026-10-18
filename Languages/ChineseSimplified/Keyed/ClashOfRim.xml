@@ -1927,4 +1927,9 @@
   <ClashOfRim.Support.StatusReturnLocalRemoveFailed>未能完成支援角色 {PAWN} 的本地移除，归还仍待处理。</ClashOfRim.Support.StatusReturnLocalRemoveFailed>
   <ClashOfRim.Support.StatusReturnConfirmationIncomplete>服务器未提供完整的支援归还回执，归还仍待处理。</ClashOfRim.Support.StatusReturnConfirmationIncomplete>
   <ClashOfRim.Raid.StatusConfirmationIncomplete>服务器未确认匹配的袭击事件和快照。本地变更仍未确认，请返回主菜单并重新加载服务器存档。</ClashOfRim.Raid.StatusConfirmationIncomplete>
+  <ClashOfRim.Diplomacy.CreationStarted>正在发送外交消息……</ClashOfRim.Diplomacy.CreationStarted>
+  <ClashOfRim.Diplomacy.CreationTransportFailed>外交消息发送失败：{CODE} {MESSAGE}</ClashOfRim.Diplomacy.CreationTransportFailed>
+  <ClashOfRim.Diplomacy.CreationRejected>服务器拒绝了外交消息：{CODE} {MESSAGE}</ClashOfRim.Diplomacy.CreationRejected>
+  <ClashOfRim.Diplomacy.CreationIncomplete>外交回执不完整，正在刷新玩家关系。</ClashOfRim.Diplomacy.CreationIncomplete>
+  <ClashOfRim.Diplomacy.CreationException>外交消息发生异常（{TYPE}）：{MESSAGE}</ClashOfRim.Diplomacy.CreationException>
 </LanguageData>

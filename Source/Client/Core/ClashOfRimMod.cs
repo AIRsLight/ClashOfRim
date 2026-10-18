@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Diplomacy;
 using AIRsLight.ClashOfRim.Modules.Raids;
 using AIRsLight.ClashOfRim.Modules.Maps;
 using AIRsLight.ClashOfRim.Modules.Mercenaries;
@@ -116,6 +117,7 @@ public sealed partial class ClashOfRimMod : Mod
     private string loginStatus = string.Empty;
     private string snapshotUploadStatus = string.Empty;
     private string presenceStatus = string.Empty;
+    private readonly ClientDiplomacyCreation diplomacyCreation;
     private string playerListStatus = string.Empty;
     // Transitional status bridge for local fulfillment and support, pending their module stages.
     private string tradeStatus { get => tradeState.Message; set => tradeState.Message = value; }
@@ -183,6 +185,10 @@ public sealed partial class ClashOfRimMod : Mod
         bankState = new ClientBankState(sessionLifecycle, new ClientSnapshotGame(), bankPresentation);
         var snapshotTransactions = new ClientSnapshotTransaction(sessionLifecycle, new ClientSnapshotGame(), snapshotPublication);
         var mutationAdmission = new ClientSnapshotMutationAdmission(sessionLifecycle, synchronization, localMutations, snapshotTransactions);
+        diplomacyCreation = new ClientDiplomacyCreation(mutationAdmission, snapshotTransactions, localMutations,
+            new ClientDiplomacyTransport(new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner))),
+            new ClientDiplomacyCreationPresentation(message => playerListStatus = message));
+        diplomacyCreation.RefreshRequired += () => RequestDiplomacyStateRefresh(ClashOfRimText.Key("ClashOfRim.Diplomacy.RefreshReasonRelationChanged"));
         localSnapshotConfirmation = new ClientLocalSnapshotConfirmation(sessionLifecycle, new ClientSnapshotGame(), mutationAdmission,
             synchronization, localMutations, snapshotTransactions, snapshotFailureRecovery, ClientSnapshotComposition.Create(settings),
             new ClientLocalSnapshotPresentation(message => snapshotUploadStatus = message));

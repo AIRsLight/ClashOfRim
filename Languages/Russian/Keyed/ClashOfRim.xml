@@ -1918,4 +1918,9 @@
   <ClashOfRim.Support.StatusReturnLocalRemoveFailed>Не удалось завершить локальное удаление пешки поддержки {PAWN}. Возврат ожидает завершения.</ClashOfRim.Support.StatusReturnLocalRemoveFailed>
   <ClashOfRim.Support.StatusReturnConfirmationIncomplete>Сервер не предоставил полное подтверждение возврата поддержки. Возврат ожидает завершения.</ClashOfRim.Support.StatusReturnConfirmationIncomplete>
   <ClashOfRim.Raid.StatusConfirmationIncomplete>Сервер не подтвердил соответствующий рейд и снимок. Локальные изменения остаются неподтверждёнными. Вернитесь в главное меню и загрузите сохранение с сервера заново.</ClashOfRim.Raid.StatusConfirmationIncomplete>
+  <ClashOfRim.Diplomacy.CreationStarted>Отправка дипломатического сообщения…</ClashOfRim.Diplomacy.CreationStarted>
+  <ClashOfRim.Diplomacy.CreationTransportFailed>Не удалось отправить дипломатическое сообщение: {CODE} {MESSAGE}</ClashOfRim.Diplomacy.CreationTransportFailed>
+  <ClashOfRim.Diplomacy.CreationRejected>Сервер отклонил дипломатическое сообщение: {CODE} {MESSAGE}</ClashOfRim.Diplomacy.CreationRejected>
+  <ClashOfRim.Diplomacy.CreationIncomplete>Дипломатический ответ неполон. Обновление отношений с игроками.</ClashOfRim.Diplomacy.CreationIncomplete>
+  <ClashOfRim.Diplomacy.CreationException>Ошибка дипломатического сообщения ({TYPE}): {MESSAGE}</ClashOfRim.Diplomacy.CreationException>
 </LanguageData>

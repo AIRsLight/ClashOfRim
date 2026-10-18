@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Diplomacy;
 using AIRsLight.ClashOfRim.Modules.Raids;
 using AIRsLight.ClashOfRim.Modules.Snapshots;
 using AIRsLight.ClashOfRim.Modules.Support;
@@ -28,7 +29,6 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
     private static readonly string ListPlayersRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ListPlayers).Route;
     private static readonly string ListAchievementsRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ListAchievements).Route;
     private static readonly string GetPawnPackagePreviewRoute = ProtocolContractManifest.Find(ProtocolMessageKind.GetPawnPackagePreview).Route;
-    private static readonly string CreateDiplomacyEventRoute = ProtocolContractManifest.Find(ProtocolMessageKind.CreateDiplomacyEvent).Route;
     private static readonly string UploadSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.UploadSnapshot).Route;
     private static readonly string SyncWorldMapMarkersRoute = ProtocolContractManifest.Find(ProtocolMessageKind.SyncWorldMapMarkers).Route;
     private static readonly string SyncRuntimeWorldObjectsRoute = ProtocolContractManifest.Find(ProtocolMessageKind.SyncRuntimeWorldObjects).Route;
@@ -56,6 +56,7 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
     private readonly ClientEventProtocol events;
     private readonly ClientEventConfirmationProtocol eventConfirmations;
     private readonly ClientEventDecisionProtocol eventDecisions;
+    private readonly ClientDiplomacyProtocol diplomacy;
     private readonly ClientAuthenticationEnvironment authenticationEnvironment = new();
     private readonly ClientSessionProtocol authentication;
     private readonly ClientSetupAuthenticationLease setupAuthentication;
@@ -100,6 +101,7 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
         events = new ClientEventProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         eventConfirmations = new ClientEventConfirmationProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         eventDecisions = new ClientEventDecisionProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
+        diplomacy = new ClientDiplomacyProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         packages = new ClientPackageReader(transport, context, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         authentication = new ClientSessionProtocol(transport, authenticationEnvironment, authenticationEnvironment);
         setupAuthentication = new ClientSetupAuthenticationLease(authentication, transport, authenticationEnvironment);
@@ -891,38 +893,7 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
         string? message,
         DateTimeOffset? expiresAtUtc = null,
         CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModDiplomacyEventResponseDto>();
-        }
-
-        var request = new ModCreateDiplomacyEventRequestDto
-        {
-            IdempotencyKey = idempotencyKey,
-            Actor = new ModProtocolIdentityDto
-            {
-                UserId = context.UserId,
-                ColonyId = context.ColonyId,
-                SnapshotId = context.CurrentSnapshotId
-            },
-            Target = new ModProtocolIdentityDto
-            {
-                UserId = targetUserId,
-                ColonyId = targetColonyId,
-                SnapshotId = null
-            },
-            Kind = kind,
-            Message = message,
-            ExpiresAtUtc = expiresAtUtc?.ToString("O"),
-            AuthToken = context.AuthToken
-        };
-
-        return transport.PostAsync<ModCreateDiplomacyEventRequestDto, ModDiplomacyEventResponseDto>(
-            CreateDiplomacyEventRoute,
-            request,
-            cancellationToken);
-    }
+        => diplomacy.CreateAsync(context, new(idempotencyKey, new(targetUserId, targetColonyId), kind, message, expiresAtUtc), cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModDiplomacyEventResponseDto>> RespondDiplomacyEventAsync(
         string eventId,

@@ -1918,4 +1918,9 @@
   <ClashOfRim.Support.StatusReturnLocalRemoveFailed>支援ポーン {PAWN} のローカルでの削除を完了できませんでした。帰還処理は保留中です。</ClashOfRim.Support.StatusReturnLocalRemoveFailed>
   <ClashOfRim.Support.StatusReturnConfirmationIncomplete>サーバーから完全な支援帰還の受領情報が返されませんでした。帰還処理は保留中です。</ClashOfRim.Support.StatusReturnConfirmationIncomplete>
   <ClashOfRim.Raid.StatusConfirmationIncomplete>サーバーから対応する襲撃とスナップショットの確認が返されませんでした。ローカルの変更は未確認です。メインメニューに戻り、サーバーのセーブを再読み込みしてください。</ClashOfRim.Raid.StatusConfirmationIncomplete>
+  <ClashOfRim.Diplomacy.CreationStarted>外交メッセージを送信中…</ClashOfRim.Diplomacy.CreationStarted>
+  <ClashOfRim.Diplomacy.CreationTransportFailed>外交メッセージを送信できませんでした：{CODE} {MESSAGE}</ClashOfRim.Diplomacy.CreationTransportFailed>
+  <ClashOfRim.Diplomacy.CreationRejected>サーバーが外交メッセージを拒否しました：{CODE} {MESSAGE}</ClashOfRim.Diplomacy.CreationRejected>
+  <ClashOfRim.Diplomacy.CreationIncomplete>外交の応答が不完全です。プレイヤー関係を更新しています。</ClashOfRim.Diplomacy.CreationIncomplete>
+  <ClashOfRim.Diplomacy.CreationException>外交メッセージでエラーが発生しました（{TYPE}）：{MESSAGE}</ClashOfRim.Diplomacy.CreationException>
 </LanguageData>

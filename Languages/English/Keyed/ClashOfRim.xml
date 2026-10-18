@@ -1927,4 +1927,9 @@
   <ClashOfRim.Support.StatusReturnLocalRemoveFailed>Could not finish removing support pawn {PAWN} locally. The return remains pending.</ClashOfRim.Support.StatusReturnLocalRemoveFailed>
   <ClashOfRim.Support.StatusReturnConfirmationIncomplete>The server did not provide a complete support return receipt. The return remains pending.</ClashOfRim.Support.StatusReturnConfirmationIncomplete>
   <ClashOfRim.Raid.StatusConfirmationIncomplete>The server did not confirm the matching raid and snapshot. Local changes remain unconfirmed. Return to the main menu and reload the server save.</ClashOfRim.Raid.StatusConfirmationIncomplete>
+  <ClashOfRim.Diplomacy.CreationStarted>Sending diplomacy message…</ClashOfRim.Diplomacy.CreationStarted>
+  <ClashOfRim.Diplomacy.CreationTransportFailed>Could not send diplomacy message: {CODE} {MESSAGE}</ClashOfRim.Diplomacy.CreationTransportFailed>
+  <ClashOfRim.Diplomacy.CreationRejected>The server rejected the diplomacy message: {CODE} {MESSAGE}</ClashOfRim.Diplomacy.CreationRejected>
+  <ClashOfRim.Diplomacy.CreationIncomplete>The diplomacy receipt is incomplete. Refreshing player relations.</ClashOfRim.Diplomacy.CreationIncomplete>
+  <ClashOfRim.Diplomacy.CreationException>Diplomacy message failed ({TYPE}): {MESSAGE}</ClashOfRim.Diplomacy.CreationException>
 </LanguageData>

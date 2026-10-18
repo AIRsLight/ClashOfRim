@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Diplomacy;
 using System;
 using AIRsLight.ClashOfRim.Protocol;
 using RimWorld;
@@ -21,26 +22,14 @@ internal static class ClientDiplomacyPresentation
 
     internal static bool TryResolveServerRelationKind(string? relationKind, out FactionRelationKind resolved)
     {
-        if (string.Equals(relationKind, "Ally", StringComparison.OrdinalIgnoreCase))
+        bool valid = ClientDiplomacyNames.TryRelation(relationKind, out var relation);
+        resolved = relation switch
         {
-            resolved = FactionRelationKind.Ally;
-            return true;
-        }
-
-        if (string.Equals(relationKind, "Hostile", StringComparison.OrdinalIgnoreCase))
-        {
-            resolved = FactionRelationKind.Hostile;
-            return true;
-        }
-
-        if (string.Equals(relationKind, "Neutral", StringComparison.OrdinalIgnoreCase))
-        {
-            resolved = FactionRelationKind.Neutral;
-            return true;
-        }
-
-        resolved = FactionRelationKind.Neutral;
-        return false;
+            ClientDiplomacyRelation.Ally => FactionRelationKind.Ally,
+            ClientDiplomacyRelation.Hostile => FactionRelationKind.Hostile,
+            _ => FactionRelationKind.Neutral
+        };
+        return valid;
     }
 
     internal static string DiplomacyRelationReason(ServerEventType eventType)

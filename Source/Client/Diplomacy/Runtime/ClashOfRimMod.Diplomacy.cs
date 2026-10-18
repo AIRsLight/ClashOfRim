@@ -197,6 +197,7 @@ public sealed partial class ClashOfRimMod
 
     internal void StartCreateDiplomacyEvent(string kind, ModPlayerSummaryDto target, string? customMessage = null)
     {
+        using var guard = ClientSessionWork.EnterPublication();
         if (target is null || string.IsNullOrWhiteSpace(target.UserId) || string.IsNullOrWhiteSpace(target.ColonyId))
         {
             return;
@@ -221,91 +222,8 @@ public sealed partial class ClashOfRimMod
 
     internal void StartCreateDiplomacyEvent(string kind, string? customMessage = null, string? targetDisplayName = null)
     {
-        if (!CanRunManualSync(out string failureReason) || !HasTarget(out failureReason))
-        {
-            return;
-        }
-
-        if (!TryBeginManualSynchronization(out var manualOperation, out failureReason))
-        {
-            playerListStatus = failureReason;
-            return;
-        }
-        ClientSessionWork.Run(async () =>
-        {
-            try
-            {
-                using var httpClient = new HttpClient();
-                var client = new ClashOfRimModNetworkClient(
-                    httpClient,
-                    ClashOfRimClientNetworkContext.FromSettings(settings));
-                string idempotencyKey = $"diplomacy:{settings.UserId}:{settings.TargetUserId}:{kind}:{DateTime.UtcNow.Ticks}";
-                ClashOfRimClientNetworkResult<ModDiplomacyEventResponseDto> result =
-                    await ClientSessionWork.Observe(client.CreateDiplomacyEventAsync(
-                        idempotencyKey,
-                        settings.TargetUserId,
-                        settings.TargetColonyId,
-                        targetSnapshotId: null,
-                        kind,
-                        string.IsNullOrWhiteSpace(customMessage) ? DefaultDiplomacyMessage(kind) : customMessage,
-                        kind.Equals("WarDeclaration", StringComparison.OrdinalIgnoreCase)
-                            || kind.Equals("AllianceCancellation", StringComparison.OrdinalIgnoreCase)
-                            || kind.Equals("SupportRequest", StringComparison.OrdinalIgnoreCase)
-                            ? null
-                            : DateTimeOffset.UtcNow.AddDays(3)));
-
-                using var publication = ClientSessionWork.EnterPublication();
-                if (!result.Success || result.Response is null)
-                {
-                    return;
-                }
-
-                ModProtocolResponseDto? serverResult = result.Response.Result;
-                if (serverResult is not null && !serverResult.Accepted)
-                {
-                    RequestDiplomacyStateRefresh(ClashOfRimText.Key("ClashOfRim.Diplomacy.RefreshReasonRelationChanged"));
-                    return;
-                }
-
-                string targetUserId = settings.TargetUserId;
-                FactionRelationKind? immediateRelationKind = kind switch
-                {
-                    "AllianceCancellation" => FactionRelationKind.Neutral,
-                    "WarDeclaration" => FactionRelationKind.Hostile,
-                    _ => null
-                };
-                if (immediateRelationKind is FactionRelationKind relationKind)
-                {
-                    ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
-                    {
-                        PlayerFactionProxyUtility.SetPlayerRelation(
-                            targetUserId,
-                            relationKind,
-                            DiplomacyRelationReason(kind));
-                    });
-                }
-
-                RequestDiplomacyStateRefresh(ClashOfRimText.Key("ClashOfRim.Diplomacy.RefreshReasonRelationChanged"));
-                string targetName = string.IsNullOrWhiteSpace(targetDisplayName)
-                    ? settings.TargetUserId
-                    : targetDisplayName!;
-                ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
-                    Messages.Message(
-                        FormatDiplomacySuccessMessage(kind, targetName),
-                        MessageTypeDefOf.NeutralEvent,
-                        historical: false));
-            }
-            catch (Exception ex)
-            when (ClientSessionWork.IsCurrent)
-            {
-                using var publication = ClientSessionWork.EnterPublication();
-                Log.Warning("[ClashOfRim] Diplomacy event creation failed: " + ex);
-            }
-            finally
-            {
-                manualOperation.Dispose();
-            }
-        });
+        using var guard = ClientSessionWork.EnterPublication();
+        diplomacyCreation.Start(kind, new(settings.TargetUserId, settings.TargetColonyId, targetDisplayName), customMessage, out _);
     }
 
     private static string DisplayNameOrUserId(ModPlayerSummaryDto player)
@@ -320,26 +238,11 @@ public sealed partial class ClashOfRimMod
             : player.UserId;
     }
 
-    private static string FormatDiplomacySuccessMessage(string kind, string targetName)
-    {
-        return kind switch
-        {
-            "AllianceRequest" => ClashOfRimText.Key("ClashOfRim.Diplomacy.MessageAllianceRequestSent", targetName.Named("PLAYER")),
-            "AllianceCancellation" => ClashOfRimText.Key("ClashOfRim.Diplomacy.MessageAllianceCancellationSent", targetName.Named("PLAYER")),
-            "WarDeclaration" => ClashOfRimText.Key("ClashOfRim.Diplomacy.MessageWarDeclarationSent", targetName.Named("PLAYER")),
-            "PeaceRequest" => ClashOfRimText.Key("ClashOfRim.Diplomacy.MessagePeaceRequestSent", targetName.Named("PLAYER")),
-            "SupportRequest" => ClashOfRimText.Key("ClashOfRim.Diplomacy.MessageSupportRequestSent", targetName.Named("PLAYER")),
-            _ => ClashOfRimText.Key("ClashOfRim.Diplomacy.MessageEventSent", FormatDiplomacyKind(kind).Named("KIND"), targetName.Named("PLAYER"))
-        };
-    }
-
     private void RequestDiplomacyStateRefresh(string reason)
     {
-        ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
-        {
-            StartRefreshPlayers(reason, requireManualGate: false);
-            RequestWorldMapMarkerRefresh(reason);
-        });
+        // The creation module invokes this on its owning Game after releasing admission.
+        StartRefreshPlayers(reason, requireManualGate: false);
+        RequestWorldMapMarkerRefresh(reason);
     }
 
 }

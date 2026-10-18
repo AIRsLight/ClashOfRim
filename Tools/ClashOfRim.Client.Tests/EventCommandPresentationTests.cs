@@ -12,6 +12,7 @@ using AIRsLight.ClashOfRim.Bank;
 using AIRsLight.ClashOfRim.Protocol;
 using RimWorld;
 using AIRsLight.ClashOfRim.Modules.Events;
+using AIRsLight.ClashOfRim.Modules.Diplomacy;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.ClientSnapshots;
 using AIRsLight.ClashOfRim.Modules.Sessions;
@@ -65,6 +66,7 @@ internal static class EventCommandPresentationTests
                 CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(culture);
                 translations = XDocument.Load(file).Root!.Elements().ToDictionary(e => e.Name.LocalName, e => e.Value);
                 DecisionPresentation();
+                DiplomacyCreationPresentation();
                 ApplicationPresentation();
                 ReadPresentation();
                 BankPresentation();
@@ -128,6 +130,36 @@ internal static class EventCommandPresentationTests
             "StatusSettlementMissingSourceMap", "StatusSettlementXmlFailed", "StatusSettlementMissingParent", "StatusSettlementMissingMap", "StatusSettlementMissingLocalMapId" })
             RequireResolved(presentation.Text("ClashOfRim.Raid." + key, ("CODE", "code"), ("MESSAGE", "message"), ("REASON", "reason"),
                 ("TYPE", "exception"), ("VALIDATION", "validation"), ("SNAPSHOT", "snapshot"), ("COUNT", 3)));
+    }
+
+    private static void DiplomacyCreationPresentation()
+    {
+        var presentation = new ClientDiplomacyCreationPresentation(static _ => { });
+        foreach (var kind in Enum.GetValues<ClientDiplomacyKind>())
+        {
+            RequireResolved(presentation.DefaultMessage(kind.ToString()));
+            foreach (var stage in Enum.GetValues<ClientDiplomacyCreationStage>())
+            {
+                var notice = new ClientDiplomacyCreationNotice(stage, kind.ToString(), new("user-é", "colony", "display-文化"),
+                    "code-é", "message-é", new InvalidOperationException("exception"), LocalMutationAdmission.SnapshotMissing);
+                string text = ClientDiplomacyCreationPresentation.Format(notice);
+                RequireResolved(text);
+                if (stage == ClientDiplomacyCreationStage.Accepted && !text.Contains("display-文化"))
+                    throw new Exception("Creation success lost the captured target display name.");
+                if (stage is ClientDiplomacyCreationStage.TransportFailed or ClientDiplomacyCreationStage.Rejected
+                    && (!text.Contains("code-é") || !text.Contains("message-é")))
+                    throw new Exception("Creation failure lost server diagnostics.");
+                if (stage == ClientDiplomacyCreationStage.Exception && (!text.Contains("InvalidOperationException") || !text.Contains("message-é")))
+                    throw new Exception("Creation exception lost its type or detail.");
+            }
+        }
+        RequireResolved(ClientDiplomacyCreationPresentation.Format(new(ClientDiplomacyCreationStage.Accepted, "SupportRequest", new("user-é", "colony"))));
+        relations.Clear(); relationAvailable = true;
+        presentation.ApplyRelation("target-é", "nEuTrAl", "WarDeclaration");
+        presentation.ApplyRelation("target-é", "Ally", "AllianceCancellation");
+        foreach (string invalid in new[] { "unknown", "0", "99", " Hostile" }) presentation.ApplyRelation("target-é", invalid, "WarDeclaration");
+        if (!relations.SequenceEqual(new[] { ((string?)"target-é", FactionRelationKind.Neutral), ((string?)"target-é", FactionRelationKind.Ally) }))
+            throw new Exception("Creation adapter inferred a relation from the command or accepted an invalid name.");
     }
 
     private static void DecisionPresentation()

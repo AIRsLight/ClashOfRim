@@ -1397,3 +1397,17 @@ M7e1a 的关系写入失败探针已转为正式 `DiplomacyPublicationRecoveryTe
 累计 **11/155 个相关服务端单元组通过**：先 **9/155**（两组外交故障、外交正常模块与 HTTP 授权、延后读取、模块边界、三组废弃/删除），补齐真实关系存储和旧版废弃场景后只重跑新恢复组 **1/155**，共享夹具/故障代理原调用者再验证 **2/155**（支援模块与支援死亡恢复）。守卫检查 **230** 个模块/生成类型、**81** 条路由；服务端控制台 Release 编译 **0 警告、0 错误**。日志：`LocalOnly/module-migration/diplomacy-publication-before.log`、`diplomacy-publication-recovery-unit.log`、`diplomacy-publication-matrix-unit.log`、`diplomacy-publication-integration-unit.log`、`diplomacy-publication-durable-unit.log`、`diplomacy-publication-shared-fixture-unit.log`、`diplomacy-publication-console-build.log`。本步仅运行相关单元和所需编译，未运行 RimTest、NetworkSmoke 套件或全量回归，未推送；工作区原有修改独立保留。
 
 M7e1 服务端外交模块与两阶段恢复工作完成；下一步 **M7e2 客户端外交创建及玩家外交状态归属**，继续复用既有事件协议、会话准入与响应决策模块。M7 整体及 M8–M12 保持开放。
+
+### M7e2a 客户端外交创建命令与回执发布（2026-10-18）
+
+`ClientDiplomacyCreation` 接管五种外交/求援命令的准入、参数捕获、发送、回执验证和游戏线程发布。复用 `ClientSnapshotMutationAdmission`、`ClientSnapshotTransaction`、`ClientSessionLifecycle` 与 `ClientGamePublication` 的身份、原 Game、基础快照和精确准入凭据；外交命令不捕获/上传存档，也不登记新的本地变更。发送前固定双方用户/殖民地、目标显示名、默认或自定义消息、幂等键及邀请期限，不再在后台或回包后读取可变化的目标设置。结盟/求和邀请保留三天期限；其余操作不设期限。没有新增队列、锁、恢复或自动重试机制。
+
+`ClientDiplomacyProtocol` 成为创建请求的唯一构造位置，沿用协议清单路由和原 JSON 身份字段，公开网络客户端保留转发签名；目标快照仍按原契约不发送。期限使用不随文化变化的格式。传输适配器通过现有协议环境接口接收会话过期通知，装配留在宿主，模块及适配器均不反向依赖完整网络客户端。Mod 的创建入口仅转发，删除原异步创建编排；目标选择与玩家列表暂留待下一步迁移。
+
+成功必须有明确接受结果、事件 ID，以及宣战/解盟所需的合法关系回执；不完整响应只提示并刷新，不宣称成功。关系始终取服务端回执，重复宣战返回较新的 Ally 时不会被客户端重新推导为 Hostile。创建和响应决策共用关系解析及代理更新；名称解析拒绝数字、未定义值和带空白的值。审查发现仅用 Enum.TryParse 与名称比较仍会接受未定义数字，已补齐同一个通用解析器并加入边界测试。发布逐效果复验归属，准入释放后才请求刷新，旧 finally 不能释放刷新启动的新操作。新增五种语言的发送、失败和回执不完整提示。
+
+新 `DiplomacyCreationModuleTests` 直接装配模块，复用 `EventModuleTestPorts`，不构造完整 Mod 或复制游戏逻辑。覆盖四种文化 × 五种操作 × 有/无 Game、实际 JSON/公开转发契约、切换目标、不完整和重复回执、无配置/快照/本地未确认/占用准入、五个成功发布阶段 × 九类身份/会话/Game/快照/准入变化、四种失败 × 两个阶段 × 九类变化、HTTP 等待/游戏回调排队期间退出、刷新重入及代理更新抛错。原提示测试复用翻译与代理夹具，校验五种语言中的全部新阶段、参数和权威关系。测试初稿的 C# 版本/构造签名问题已修正；会话代次测试按实际退出组合同时重置共享准入，避免要求旧代次主动释放新代次状态。依赖守卫曾实际拒绝传输适配器引用旧网络客户端，改为注入已有窄接口后通过。
+
+累计 **4/103 个相关客户端单元组通过**：新外交创建、已有事件决策、多语言/语义提示和模块边界；最后补充迟到失败及取消场景后只重跑新组 **1/103**，通过。依赖检查覆盖 **708** 个模块/生成类型与 **144** 个适配类型；本地 .NET 10 工具链结合真实 RimWorld 1.7 程序集编译通过，无本步新增警告。日志：`LocalOnly/module-migration/diplomacy-client-module-unit.log`、`diplomacy-client-integration-unit.log`、`diplomacy-client-final-unit.log`。游戏线程、代理关系和提示效果使用受控端口或补丁验证，本次没有新增实机证明。未运行 RimTest、NetworkSmoke 或全量回归，未推送；工作区原有修改独立保留。按用户约定，后续必要时可安排单次修改功能的 RimTest，全量仍由用户安排。
+
+本步仅完成 **M7e2a**。下一步 **M7e2b 玩家列表状态、刷新与目标选择**：迁出 `lastPlayers`、版本、状态文案及选择持久化，复用现有请求归属跟踪与游戏发布机制，处理迟到列表、可变 DTO 和跨 Game 刷新的边界。当前刷新实现及状态回调仍是这一待办的过渡桥接，不据创建命令测试关闭玩家状态迁移；M7e2、M7 与 M8–M12 保持开放。

@@ -80,12 +80,7 @@ internal sealed class ClientEventDecisionRuntime : IClientEventDecisionRuntime
     public void MarkHandled(string eventId) => ClashOfRimGameComponent.MarkManualEventHandled(eventId);
     public void ApplyDiplomacyRelation(string userId, string? relationKind, ServerEventType eventType)
     {
-        if (ClientDiplomacyPresentation.TryResolveServerRelationKind(relationKind, out var relation))
-        {
-            if (!PlayerFactionProxyUtility.SetPlayerRelation(userId, relation, ClientDiplomacyPresentation.DiplomacyRelationReason(eventType)))
-                Log.Warning($"[ClashOfRim][EventDecision] diplomacy proxy unavailable user={userId} relation={relationKind}; refreshing world projection.");
-        }
-        else Log.Warning($"[ClashOfRim][EventDecision] unrecognized diplomacy receipt relation={relationKind ?? "<null>"}; refreshing world projection.");
+        ClientDiplomacyRelationEffects.Apply(userId, relationKind, ClientDiplomacyPresentation.DiplomacyRelationReason(eventType));
         refreshWorld(ClashOfRimText.Key("ClashOfRim.EventLetter.RefreshReasonDiplomacyRelationChanged"));
     }
 }

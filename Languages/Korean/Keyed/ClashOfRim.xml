@@ -1918,4 +1918,9 @@
   <ClashOfRim.Support.StatusReturnLocalRemoveFailed>지원 폰 {PAWN}의 로컬 제거를 완료하지 못했습니다. 반환은 보류 중입니다.</ClashOfRim.Support.StatusReturnLocalRemoveFailed>
   <ClashOfRim.Support.StatusReturnConfirmationIncomplete>서버에서 완전한 지원 반환 확인을 받지 못했습니다. 반환은 보류 중입니다.</ClashOfRim.Support.StatusReturnConfirmationIncomplete>
   <ClashOfRim.Raid.StatusConfirmationIncomplete>서버가 일치하는 습격과 스냅샷을 확인하지 않았습니다. 로컬 변경은 아직 확인되지 않았습니다. 메인 메뉴로 돌아가 서버 저장을 다시 불러오세요.</ClashOfRim.Raid.StatusConfirmationIncomplete>
+  <ClashOfRim.Diplomacy.CreationStarted>외교 메시지 전송 중…</ClashOfRim.Diplomacy.CreationStarted>
+  <ClashOfRim.Diplomacy.CreationTransportFailed>외교 메시지를 보내지 못했습니다: {CODE} {MESSAGE}</ClashOfRim.Diplomacy.CreationTransportFailed>
+  <ClashOfRim.Diplomacy.CreationRejected>서버가 외교 메시지를 거부했습니다: {CODE} {MESSAGE}</ClashOfRim.Diplomacy.CreationRejected>
+  <ClashOfRim.Diplomacy.CreationIncomplete>외교 응답이 불완전합니다. 플레이어 관계를 새로 고칩니다.</ClashOfRim.Diplomacy.CreationIncomplete>
+  <ClashOfRim.Diplomacy.CreationException>외교 메시지 오류 ({TYPE}): {MESSAGE}</ClashOfRim.Diplomacy.CreationException>
 </LanguageData>
