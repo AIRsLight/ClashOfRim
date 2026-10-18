@@ -34,12 +34,13 @@ internal sealed class ClientWorldMarkers
     private readonly IClientWorldMarkersRuntime runtime;
     private readonly IClientWorldMarkersPresentation presentation;
     private ModWorldMapMarkerDeliveryDto? delivery;
+    private long nextObservation, acceptedObservation;
 
     internal ClientWorldMarkers(ClientSessionLifecycle session, IClientWorldIdentity identity, ClientOccupiedColonySites occupied,
         IClientWorldMarkersRuntime runtime, IClientWorldMarkersPresentation presentation)
     {
         this.session = session; this.occupied = occupied; this.runtime = runtime; this.presentation = presentation;
-        cache = new(session, () => identity.WorldId, id => id == identity.WorldId, () => delivery = null);
+        cache = new(session, () => identity.WorldId, id => id == identity.WorldId, () => { delivery = null; acceptedObservation = 0; });
     }
     internal bool GiftsEnabled => cache.Read(() => delivery?.GiftsEnabled ?? true);
     internal bool PvpEnabled => cache.Read(() => delivery?.PvpEnabled ?? true);
@@ -47,16 +48,27 @@ internal sealed class ClientWorldMarkers
     internal void Reset() => cache.Reset();
 
     internal void Observe(ModWorldMapMarkerDeliveryDto? source, bool immediately = false, string? reason = null)
+        => Observe(CaptureObservation(), source, immediately, reason);
+
+    internal Observation CaptureObservation()
     {
         using var publication = ClientSessionWork.EnterPublication();
-        var scope = cache.Capture(); var bound = runtime.Bind();
-        bool Owned() => !session.IsUnavailable && bound.IsCurrent && cache.TryApply(scope, static () => { });
+        return new(cache.Capture(), runtime.Bind(), ++nextObservation);
+    }
+    internal sealed record Observation(ClientRequestTracker<string>.Scope Scope, IClientWorldMarkersSession Runtime, long Number);
+
+    internal void Observe(Observation observation, ModWorldMapMarkerDeliveryDto? source, bool immediately = false, string? reason = null, Func<bool>? current = null)
+    {
+        using var publication = ClientSessionWork.EnterPublication();
+        var scope = observation.Scope; var bound = observation.Runtime;
+        bool Owned() => (current?.Invoke() ?? true) && !session.IsUnavailable && bound.IsCurrent && cache.TryApply(scope, static () => { });
         var captured = source is null ? new() : ClientProtocolJson.Copy(source);
         captured.Markers ??= new();
-        if (!Owned()) return;
+        if (!Owned() || observation.Number <= acceptedObservation) return;
+        acceptedObservation = observation.Number;
         delivery = captured;
         bool Current() => Owned() && ReferenceEquals(delivery, captured);
-        occupied.Merge(CopyMarkers(captured));
+        occupied.Merge(captured.Markers);
         if (!Current()) return;
         string label = string.IsNullOrWhiteSpace(reason) ? "unspecified" : reason!;
         presentation.Diagnose("[ClashOfRim] Captured world map markers from " + label

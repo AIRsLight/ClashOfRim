@@ -59,7 +59,7 @@ internal static class ClientOccupiedColonySitesRuntimeTests
             CultureInfo.CurrentCulture = culture; queries.Clear(); ClientSessionWork.Reset();
         }
     }
-    private static SurfaceLayer Layer(int id, int count, bool space = false)
+    internal static SurfaceLayer Layer(int id, int count, bool space = false)
     {
         var layer = New<SurfaceLayer>(); Set(layer, "layerId", id); Set(layer, "def", new PlanetLayerDef { defName = "layer" + id, isSpace = space });
         Set(layer, "tiles", Enumerable.Range(0, count).Select(i => (Tile)new SurfaceTile { tile = new PlanetTile(i, id) }).ToList()); return layer;

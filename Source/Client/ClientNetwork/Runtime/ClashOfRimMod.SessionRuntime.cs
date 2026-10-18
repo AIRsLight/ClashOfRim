@@ -147,10 +147,7 @@ public sealed partial class ClashOfRimMod
     private void ClearTransientMultiplayerSessionStateForExit()
     {
         TradePawnPreviewService.Reset();
-        worldMapMarkerSyncInProgress = false;
-        runtimeWorldObjectSyncInProgress = false;
         colonyRegistration.Reset();
-        caravanArrivalTargetRefreshInProgress = false;
         bankState.Reset();
         mercenaryState.Reset();
         mercenaryIncidents.Reset();
@@ -160,6 +157,7 @@ public sealed partial class ClashOfRimMod
         chatSendInProgress = false;
         RemoteColonyWorldIconCache.Clear();
         worldMarkers.Reset();
+        worldSynchronization.Reset();
         settings.CurrentWorldConfigurationId = string.Empty;
         chatStatus = ClashOfRimText.Key("ClashOfRim.Chat.StatusIdle");
         administration.Reset();
@@ -437,187 +435,14 @@ public sealed partial class ClashOfRimMod
         return true;
     }
 
-    internal void StartSyncWorldMapMarkers()
-    {
-        RequestWorldMapMarkerRefresh("manual-refresh-world-map");
-    }
-
+    internal void StartSyncWorldMapMarkers() => RequestWorldMapMarkerRefresh("manual-refresh-world-map");
     internal void RequestWorldMapMarkerRefresh(string reason)
-    {
-        ClashLog.Message("[ClashOfRim] Requesting world map marker refresh: "
-            + reason
-            + $", configured={settings.IsConfigured}, user={settings.UserId}, colony={settings.ColonyId}, hasWorldObjects={Find.WorldObjects is not null}, inProgress={worldMapMarkerSyncInProgress}");
-        if (!settings.IsConfigured)
-        {
-            worldMapStatus = ClashOfRimText.Key("ClashOfRim.WorldMap.StatusNotConfigured");
-            Log.Warning("[ClashOfRim] World map marker sync skipped: " + worldMapStatus);
-            return;
-        }
-
-        if (Find.WorldObjects is null)
-        {
-            worldMapStatus = ClashOfRimText.Key("ClashOfRim.WorldMap.StatusWorldObjectsMissing");
-            Log.Warning("[ClashOfRim] World map marker sync skipped: " + worldMapStatus);
-            return;
-        }
-
-        if (worldMapMarkerSyncInProgress)
-        {
-            ClashLog.Message("[ClashOfRim] World map marker refresh merged because a request is already running: " + reason);
-            return;
-        }
-
-        worldMapMarkerSyncInProgress = true;
-        worldMapStatus = ClashOfRimText.Key("ClashOfRim.WorldMap.StatusSyncing");
-        ClientSessionWork.Run(async () =>
-        {
-            try
-            {
-                using var httpClient = new HttpClient();
-                var client = new ClashOfRimModNetworkClient(
-                    httpClient,
-                    ClashOfRimClientNetworkContext.FromSettings(settings));
-                ClashOfRimClientNetworkResult<ModWorldMapMarkerDeliveryDto> result =
-                    await ClientSessionWork.Observe(client.SyncWorldMapMarkersAsync());
-                using var publication = ClientSessionWork.EnterPublication();
-                if (!result.Success || result.Response is null)
-                {
-                    worldMapStatus = ClashOfRimText.Key(
-                        "ClashOfRim.WorldMap.StatusSyncFailed",
-                        (result.ErrorCode ?? string.Empty).Named("CODE"),
-                        (result.Message ?? string.Empty).Named("MESSAGE"));
-                    Log.Warning("[ClashOfRim] World map marker sync failed: " + result.ErrorCode + " " + result.Message);
-                    return;
-                }
-
-                CaptureWorldMapMarkers(result.Response, source: reason);
-            }
-            catch (Exception ex)
-            when (ClientSessionWork.IsCurrent)
-            {
-                using var publication = ClientSessionWork.EnterPublication();
-                worldMapStatus = ClashOfRimText.Key(
-                    "ClashOfRim.WorldMap.StatusSyncException",
-                    ex.GetType().Name.Named("TYPE"),
-                    ex.Message.Named("MESSAGE"));
-                Log.Warning("[ClashOfRim] World map marker sync failed: " + ex);
-            }
-            finally
-            {
-                ClientSessionWork.TryApply(() =>
-                {
-                    worldMapMarkerSyncInProgress = false;
-                });
-            }
-        });
-    }
-
+        => _ = worldSynchronization.RequestAsync(ClientWorldSynchronizationKind.Markers, reason);
     internal void StartRefreshCaravanArrivalTargets(string caravanTileSignature)
-    {
-        if (!CanRefreshCaravanArrivalTargets || string.IsNullOrWhiteSpace(caravanTileSignature))
-        {
-            return;
-        }
-
-        caravanArrivalTargetRefreshInProgress = true;
-        worldMapStatus = ClashOfRimText.Key("ClashOfRim.WorldMap.StatusCaravanTargetsRefreshing");
-        var refreshTrades = tradeMarket.CaptureRefresh();
-        ClientSessionWork.Run(async () =>
-        {
-            try
-            {
-                using var httpClient = new HttpClient();
-                var client = new ClashOfRimModNetworkClient(
-                    httpClient,
-                    ClashOfRimClientNetworkContext.FromSettings(settings));
-
-                ClashOfRimClientNetworkResult<ModWorldMapMarkerDeliveryDto> markers =
-                    await ClientSessionWork.Observe(client.SyncWorldMapMarkersAsync());
-                using (ClientSessionWork.EnterPublication())
-                {
-                    if (!markers.Success || markers.Response is null)
-                    {
-                        worldMapStatus = ClashOfRimText.Key("ClashOfRim.WorldMap.StatusCaravanTargetsFailed", (markers.ErrorCode ?? string.Empty).Named("CODE"), (markers.Message ?? string.Empty).Named("MESSAGE"));
-                        return;
-                    }
-
-                    CaptureWorldMapMarkers(markers.Response, source: "caravan-target-refresh");
-                }
-
-                await ClientSessionWork.Observe(refreshTrades());
-            }
-            catch (Exception ex)
-            when (ClientSessionWork.IsCurrent)
-            {
-                using var publication = ClientSessionWork.EnterPublication();
-                worldMapStatus = ClashOfRimText.Key(
-                    "ClashOfRim.WorldMap.StatusCaravanTargetsException",
-                    ex.GetType().Name.Named("TYPE"),
-                    ex.Message.Named("MESSAGE"));
-                Log.Warning("[ClashOfRim] Caravan arrival target refresh failed: " + ex);
-            }
-            finally
-            {
-                ClientSessionWork.TryApply(() =>
-                {
-                    caravanArrivalTargetRefreshInProgress = false;
-                });
-            }
-        });
-    }
-
+        => _ = worldSynchronization.RequestAsync(ClientWorldSynchronizationKind.CaravanTargets, "caravan-target-refresh", caravanTileSignature);
     internal void StartSyncRuntimeWorldObjects()
-    {
-        if (!CanSyncRuntimeWorldObjects)
-        {
-            return;
-        }
-
-        List<ModRuntimeWorldObjectMarkerDto> objects = ReadCurrentRuntimeWorldObjects();
-        runtimeWorldObjectSyncInProgress = true;
-        ClientSessionWork.Run(async () =>
-        {
-            try
-            {
-                using var httpClient = new HttpClient();
-                var client = new ClashOfRimModNetworkClient(
-                    httpClient,
-                    ClashOfRimClientNetworkContext.FromSettings(settings));
-                ClashOfRimClientNetworkResult<ModSyncRuntimeWorldObjectsResponseDto> result =
-                    await ClientSessionWork.Observe(client.SyncRuntimeWorldObjectsAsync(objects));
-                using var publication = ClientSessionWork.EnterPublication();
-                if (!result.Success || result.Response is null)
-                {
-                    Log.Warning("[ClashOfRim] Runtime world object sync failed: " + result.ErrorCode + " " + result.Message);
-                    return;
-                }
-
-                if (result.Response.Result is not null && !result.Response.Result.Accepted)
-                {
-                    Log.Warning("[ClashOfRim] Runtime world object sync rejected: "
-                        + result.Response.Result.ErrorCode
-                        + " "
-                        + result.Response.Result.Message);
-                    return;
-                }
-
-                CaptureWorldMapMarkers(result.Response.WorldMapMarkers, source: "runtime-world-object-sync");
-            }
-            catch (Exception ex)
-            when (ClientSessionWork.IsCurrent)
-            {
-                using var publication = ClientSessionWork.EnterPublication();
-                Log.Warning("[ClashOfRim] Runtime world object sync exception: " + ex);
-            }
-            finally
-            {
-                ClientSessionWork.TryApply(() =>
-                {
-                    runtimeWorldObjectSyncInProgress = false;
-                });
-            }
-        });
-    }
+        => _ = worldSynchronization.RequestAsync(ClientWorldSynchronizationKind.RuntimeObjects, "runtime-world-object-sync");
+    internal void PollWorldSynchronization(int ticks) => _ = worldSynchronization.Poll(ticks);
 
     internal void StartRegisterPlayerColonySites()
         => _ = colonyRegistration.StartAsync(ClientColonyRegistrationKind.Sites, colonyAppearance.Capture());

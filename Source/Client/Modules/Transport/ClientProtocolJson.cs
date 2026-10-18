@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Runtime.Serialization.Json;
 using System.Text;
 
@@ -10,6 +12,10 @@ internal static class ClientProtocolJson
     private static readonly DataContractJsonSerializerSettings Settings = new() { UseSimpleDictionaryFormat = true };
 
     internal static T Copy<T>(T value) => Deserialize<T>(Serialize(value), static type => type);
+
+    // Preserve duplicate entries and field boundaries, ignoring only item order.
+    internal static string UnorderedSignature<T>(IEnumerable<T> values)
+        => Serialize(values.Select(Serialize).OrderBy(value => value, StringComparer.Ordinal).ToArray());
 
     internal static string Serialize<T>(T value)
     {

@@ -19,6 +19,9 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("world synchronization runtime shares layered object and path capture", ClientWorldSynchronizationRuntimeTests.Run),
+    ("world marker protocol shares read and runtime write wire contracts", ClientWorldMarkerProtocolTests.Run),
+    ("world synchronization owns refresh, coalescing and accepted polling", ClientWorldSynchronizationTests.Run),
     ("world markers runtime binds engine targets and preserves layered query adapters", ClientWorldMarkersRuntimeTests.Run),
     ("world markers own immutable cache, capabilities and bound projection", ClientWorldMarkersTests.Run),
     ("colony appearance runtime preserves target, dialog and settings boundaries", ClientColonyAppearanceRuntimeTests.Run),

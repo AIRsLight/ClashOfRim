@@ -108,14 +108,11 @@ public sealed partial class ClashOfRimMod : Mod
     private readonly ClientSynchronizationCoordinator synchronization = ClientSnapshotComposition.Synchronization;
     private bool snapshotUploadInProgress => synchronization.SnapshotInProgress;
     private bool manualSyncInProgress => synchronization.ManualInProgress;
-    private bool worldMapMarkerSyncInProgress;
-    private bool runtimeWorldObjectSyncInProgress;
     private readonly ClientColonyRegistration colonyRegistration;
     private readonly ClientColonyAppearance colonyAppearance;
     private readonly ClientColonyAbandonment colonyAbandonment;
     private readonly ClientColonyRelocation colonyRelocation;
     private readonly ClientColonyRelocationCommands colonyRelocationCommands;
-    private bool caravanArrivalTargetRefreshInProgress;
     private readonly ClientAdminAccess adminAccess;
     private readonly ClientAdministration administration;
     private readonly ClientWorldWrites worldWrites;
@@ -158,6 +155,7 @@ public sealed partial class ClashOfRimMod : Mod
     private readonly ClientInitialWorldSetup initialWorldSetup;
     private readonly List<ModChatMessageDto> lastChatMessages = new();
     private readonly ClientWorldMarkers worldMarkers;
+    private readonly ClientWorldSynchronization worldSynchronization;
     private readonly ClientOccupiedColonySites occupiedColonySites;
     private readonly object chatStateLock = new();
     private long lastChatSequence;
@@ -299,6 +297,9 @@ public sealed partial class ClashOfRimMod : Mod
         occupiedColonySites = new ClientOccupiedColonySites(sessionLifecycle, entryStore, new ClientOccupiedColonySitesRuntime(), worldConfiguration);
         worldMarkers = new ClientWorldMarkers(sessionLifecycle, entryStore, occupiedColonySites, new ClientWorldMarkersRuntime(),
             new ClientWorldMarkersPresentation(message => worldMapStatus = message));
+        worldSynchronization = new ClientWorldSynchronization(sessionLifecycle, entryStore, localMutations, worldMarkers,
+            new ClientWorldSynchronizationRuntime(), new ClientWorldMarkerTransport(new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner))),
+            new ClientWorldWritePresentation(message => worldMapStatus = message), tradeMarket.CaptureRefresh);
         colonyAppearance = new ClientColonyAppearance(sessionLifecycle, new ClientColonyAppearanceStore(settings), new ClientColonyAppearancePresentation());
         occupiedColonySites.OwnAppearanceObserved += colonyAppearance.ObserveServer;
         var colonyTransport = new ClientColonyTransport(new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner)));
@@ -570,27 +571,13 @@ public sealed partial class ClashOfRimMod : Mod
         && !ClashOfRimGameComponent.HasActiveObservationSession
         && string.IsNullOrWhiteSpace(lastSessionId);
 
-    internal bool CanSyncRuntimeWorldObjects =>
-        settings.IsConfigured
-        && !runtimeWorldObjectSyncInProgress
-        && !snapshotReload.BlocksGameLifecycle
-        && !ClashOfRimGameComponent.HasActiveRaidBattleSession
-        && !ClashOfRimGameComponent.HasActiveObservationSession
-        && !string.IsNullOrWhiteSpace(lastSessionId)
-        && Find.WorldObjects is not null;
+    internal bool CanSyncRuntimeWorldObjects => worldSynchronization.CanStart(ClientWorldSynchronizationKind.RuntimeObjects);
 
     internal bool CanRegisterPlayerColonySites => colonyRegistration.CanStart(ClientColonyRegistrationKind.Sites);
     internal bool IsPlayerColonySiteRegistrationSuppressed => colonyRegistration.Suppressed;
     internal bool CanSyncWorldConfigurationExtensions => colonyRegistration.CanStart(ClientColonyRegistrationKind.Extensions);
 
-    internal bool CanRefreshCaravanArrivalTargets =>
-        settings.IsConfigured
-        && !caravanArrivalTargetRefreshInProgress
-        && !ClashOfRimGameComponent.HasActiveRaidBattleSession
-        && !ClashOfRimGameComponent.HasActiveObservationSession
-        && !string.IsNullOrWhiteSpace(lastSessionId)
-        && !string.IsNullOrWhiteSpace(settings.CurrentSnapshotId)
-        && Find.WorldObjects is not null;
+    internal bool CanRefreshCaravanArrivalTargets => worldSynchronization.CanStart(ClientWorldSynchronizationKind.CaravanTargets);
 
     internal string LoginStatus
     {

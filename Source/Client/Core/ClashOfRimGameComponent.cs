@@ -7,7 +7,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Text;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.ClientSnapshots;
 using AIRsLight.ClashOfRim.Diplomacy;
@@ -26,15 +25,10 @@ namespace AIRsLight.ClashOfRim;
 public sealed class ClashOfRimGameComponent : GameComponent
 {
     private const float WorldMapMarkerRefreshIntervalSeconds = 30f;
-    private const int RuntimeWorldObjectLeaseRefreshTicks = 2500;
-    private const int RuntimeWorldObjectChangeCheckTicks = 250;
     private const int RemoteWorldObjectOrphanCleanupTicks = 250;
     private static readonly ConcurrentQueue<Action> MainThreadActions = new();
     private static readonly ConcurrentQueue<DelayedMainThreadAction> DelayedMainThreadActions = new();
     private static readonly object DelayedMainThreadActionsGate = new();
-    private static readonly List<WorldObject> RuntimeSignatureWorldObjects = new();
-    private static readonly StringBuilder RuntimeSignatureBuilder = new(512);
-    private static readonly WorldObjectLoadIdComparer RuntimeSignatureWorldObjectComparer = new();
     private static int nextDelayedMainThreadActionTick = int.MaxValue;
     private List<string> pendingManualEventIds = new();
     private readonly PendingAchievementCandidates achievementCandidates = new();
@@ -49,13 +43,8 @@ public sealed class ClashOfRimGameComponent : GameComponent
     private string activeObservationTargetSnapshotId = string.Empty;
     private string lineageSnapshotId = string.Empty;
     private string lineageToken = string.Empty;
-    private int nextRuntimeWorldObjectSyncTick;
-    private int nextRuntimeWorldObjectSyncCheckTick;
     private int nextPlayerColonySiteRegistrationTick;
-    private int nextCaravanArrivalTargetRefreshCheckTick;
     private int nextRemoteWorldObjectOrphanCleanupTick;
-    private string lastPlayerCaravanTileSignature = string.Empty;
-    private string lastRuntimeWorldObjectSyncSignature = string.Empty;
     private bool automaticSessionAttempted;
     private bool worldMapWasSelected;
     private bool chatOverlayMinimized = true;
@@ -99,8 +88,7 @@ public sealed class ClashOfRimGameComponent : GameComponent
         mod?.AdvanceRaidRecovery();
         TryStartAutomaticRuntimeSession(mod);
         TryRegisterPlayerColonySites(mod, ticks);
-        TrySyncRuntimeWorldObjects(mod, ticks);
-        TryRefreshCaravanArrivalTargets(mod, ticks);
+        mod?.PollWorldSynchronization(ticks);
         TryCleanupRemoteWorldObjectOrphans(ticks);
         TryFinishExpiredRaidBattle(mod);
         TryHandleRaidBattleFinalDeadline(mod);
@@ -893,32 +881,6 @@ public sealed class ClashOfRimGameComponent : GameComponent
         mod.StartMapServerSession();
     }
 
-    private void TrySyncRuntimeWorldObjects(ClashOfRimMod? mod, int ticks)
-    {
-        if (ticks < nextRuntimeWorldObjectSyncCheckTick && ticks < nextRuntimeWorldObjectSyncTick)
-        {
-            return;
-        }
-
-        nextRuntimeWorldObjectSyncCheckTick = ticks + RuntimeWorldObjectChangeCheckTicks;
-        if (mod?.CanSyncRuntimeWorldObjects != true)
-        {
-            return;
-        }
-
-        string signature = BuildRuntimeWorldObjectSyncSignature();
-        bool changed = !string.Equals(signature, lastRuntimeWorldObjectSyncSignature, StringComparison.Ordinal);
-        bool hasRuntimeObjects = !string.IsNullOrWhiteSpace(signature);
-        if (!changed && (!hasRuntimeObjects || ticks < nextRuntimeWorldObjectSyncTick))
-        {
-            return;
-        }
-
-        mod.StartSyncRuntimeWorldObjects();
-        lastRuntimeWorldObjectSyncSignature = signature;
-        nextRuntimeWorldObjectSyncTick = ticks + RuntimeWorldObjectLeaseRefreshTicks;
-    }
-
     private void TryRegisterPlayerColonySites(ClashOfRimMod? mod, int ticks)
     {
         if (ticks < nextPlayerColonySiteRegistrationTick)
@@ -930,27 +892,6 @@ public sealed class ClashOfRimGameComponent : GameComponent
         if (mod?.CanRegisterPlayerColonySites == true)
         {
             mod.StartRegisterPlayerColonySites();
-        }
-    }
-
-    private void TryRefreshCaravanArrivalTargets(ClashOfRimMod? mod, int ticks)
-    {
-        if (ticks < nextCaravanArrivalTargetRefreshCheckTick)
-        {
-            return;
-        }
-
-        nextCaravanArrivalTargetRefreshCheckTick = ticks + 250;
-        string signature = BuildPlayerCaravanTileSignature();
-        if (string.Equals(signature, lastPlayerCaravanTileSignature, StringComparison.Ordinal))
-        {
-            return;
-        }
-
-        lastPlayerCaravanTileSignature = signature;
-        if (!string.IsNullOrWhiteSpace(signature) && mod?.CanRefreshCaravanArrivalTargets == true)
-        {
-            mod.StartRefreshCaravanArrivalTargets(signature);
         }
     }
 
@@ -1212,151 +1153,6 @@ public sealed class ClashOfRimGameComponent : GameComponent
             : $"{minutes:00}:{seconds:00}";
     }
 
-    private static string BuildPlayerCaravanTileSignature()
-    {
-        List<WorldObject>? worldObjects = Find.WorldObjects?.AllWorldObjects;
-        if (worldObjects is null)
-        {
-            return string.Empty;
-        }
-
-        try
-        {
-            for (int index = 0; index < worldObjects.Count; index++)
-            {
-                if (worldObjects[index] is Caravan caravan
-                    && !caravan.Destroyed
-                    && caravan.Spawned
-                    && caravan.IsPlayerControlled)
-                {
-                    RuntimeSignatureWorldObjects.Add(caravan);
-                }
-            }
-
-            return BuildRuntimeWorldObjectSignatureFromBuffer(includePath: false);
-        }
-        finally
-        {
-            RuntimeSignatureWorldObjects.Clear();
-            RuntimeSignatureBuilder.Clear();
-        }
-    }
-
-    private static string BuildRuntimeWorldObjectSyncSignature()
-    {
-        List<WorldObject>? worldObjects = Find.WorldObjects?.AllWorldObjects;
-        if (worldObjects is null)
-        {
-            return string.Empty;
-        }
-
-        try
-        {
-            for (int index = 0; index < worldObjects.Count; index++)
-            {
-                WorldObject worldObject = worldObjects[index];
-                if (IsRuntimeWorldObjectForSync(worldObject))
-                {
-                    RuntimeSignatureWorldObjects.Add(worldObject);
-                }
-            }
-
-            return BuildRuntimeWorldObjectSignatureFromBuffer(includePath: true);
-        }
-        finally
-        {
-            RuntimeSignatureWorldObjects.Clear();
-            RuntimeSignatureBuilder.Clear();
-        }
-    }
-
-    private static string BuildRuntimeWorldObjectSignatureFromBuffer(bool includePath)
-    {
-        if (RuntimeSignatureWorldObjects.Count == 0)
-        {
-            return string.Empty;
-        }
-
-        RuntimeSignatureWorldObjects.Sort(RuntimeSignatureWorldObjectComparer);
-        for (int index = 0; index < RuntimeSignatureWorldObjects.Count; index++)
-        {
-            if (index > 0)
-            {
-                RuntimeSignatureBuilder.Append('|');
-            }
-
-            WorldObject worldObject = RuntimeSignatureWorldObjects[index];
-            RuntimeSignatureBuilder.Append(worldObject.GetUniqueLoadID());
-            RuntimeSignatureBuilder.Append(':');
-            RuntimeSignatureBuilder.Append(worldObject.Tile);
-            if (includePath)
-            {
-                RuntimeSignatureBuilder.Append(':');
-                AppendRuntimeWorldObjectPathSignature(RuntimeSignatureBuilder, worldObject);
-            }
-        }
-
-        return RuntimeSignatureBuilder.ToString();
-    }
-
-    private static bool IsRuntimeWorldObjectForSync(WorldObject worldObject)
-    {
-        if (worldObject is null
-            || worldObject.Destroyed
-            || !worldObject.Spawned
-            || worldObject is RemoteRuntimeWorldObject
-            || worldObject is RemoteColonyMapParent
-            || worldObject is RemoteSessionMapParent
-            || worldObject is Settlement
-            || worldObject.def is null
-            || worldObject.Faction != Faction.OfPlayer)
-        {
-            return false;
-        }
-
-        string className = worldObject.GetType().Name;
-        string defName = worldObject.def.defName ?? string.Empty;
-        return worldObject is Caravan
-            || ContainsRuntimeWorldObjectToken(className)
-            || ContainsRuntimeWorldObjectToken(defName);
-    }
-
-    private static void AppendRuntimeWorldObjectPathSignature(StringBuilder builder, WorldObject worldObject)
-    {
-        if (worldObject is not Caravan caravan
-            || caravan.pather is null
-            || !caravan.pather.Moving
-            || caravan.pather.curPath is null
-            || !caravan.pather.curPath.Found
-            || caravan.pather.curPath.NodesLeftCount < 2)
-        {
-            return;
-        }
-
-        for (int i = 0; i < caravan.pather.curPath.NodesLeftCount; i++)
-        {
-            if (i > 0)
-            {
-                builder.Append(',');
-            }
-
-            builder.Append(caravan.pather.curPath.Peek(i));
-        }
-    }
-
-    private static bool ContainsRuntimeWorldObjectToken(string value)
-    {
-        return ContainsToken(value, "Caravan")
-            || ContainsToken(value, "Shuttle")
-            || ContainsToken(value, "TransportPod")
-            || ContainsToken(value, "Traveling");
-    }
-
-    private static bool ContainsToken(string value, string token)
-    {
-        return value.IndexOf(token, StringComparison.OrdinalIgnoreCase) >= 0;
-    }
-
     private static void RunMainThreadActions()
     {
         // Setup continuations can be queued just before the entry UI stops updating.
@@ -1434,29 +1230,6 @@ public sealed class ClashOfRimGameComponent : GameComponent
         public int DueTick { get; }
 
         public Action Action { get; }
-    }
-
-    private sealed class WorldObjectLoadIdComparer : IComparer<WorldObject>
-    {
-        public int Compare(WorldObject? x, WorldObject? y)
-        {
-            if (ReferenceEquals(x, y))
-            {
-                return 0;
-            }
-
-            if (x is null)
-            {
-                return -1;
-            }
-
-            if (y is null)
-            {
-                return 1;
-            }
-
-            return string.Compare(x.GetUniqueLoadID(), y.GetUniqueLoadID(), StringComparison.Ordinal);
-        }
     }
 
 }

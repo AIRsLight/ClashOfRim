@@ -6,7 +6,7 @@ using Verse;
 
 namespace AIRsLight.ClashOfRim;
 
-internal class ClientWorldWritePresentation : IClientWorldWritePresentation, IClientWorldWriteRuntime
+internal class ClientWorldWritePresentation : IClientWorldWritePresentation, IClientWorldWriteRuntime, IClientWorldSynchronizationPresentation
 {
     private readonly Action<string> status;
     internal ClientWorldWritePresentation(Action<string> status) => this.status = status;

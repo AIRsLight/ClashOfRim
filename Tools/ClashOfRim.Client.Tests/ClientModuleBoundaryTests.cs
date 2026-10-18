@@ -60,6 +60,7 @@ internal static class ClientModuleBoundaryTests
             || t == typeof(AIRsLight.ClashOfRim.Admin.ClientAdminBaselineRuntime)
             || t == typeof(AIRsLight.ClashOfRim.Admin.ClientAdminTransport) || t == typeof(AIRsLight.ClashOfRim.Admin.ClientAdminPresentation)
             || t == typeof(ClientWorldWritePresentation) || t == typeof(ClientWorldCatalogRuntime) || t == typeof(ClientWorldCatalogPresentation)
+            || t == typeof(ClientWorldMarkerTransport) || t == typeof(AIRsLight.ClashOfRim.WorldObjects.ClientWorldSynchronizationRuntime)
             || t == typeof(AIRsLight.ClashOfRim.WorldObjects.ClientWorldMarkersRuntime) || t == typeof(AIRsLight.ClashOfRim.WorldObjects.ClientWorldMarkersPresentation)
             || t == typeof(AIRsLight.ClashOfRim.WorldObjects.ClientColonyAppearanceStore)
             || t == typeof(AIRsLight.ClashOfRim.WorldObjects.ClientColonyAppearanceTarget) || t == typeof(AIRsLight.ClashOfRim.WorldObjects.ClientColonyAppearancePresentation)
@@ -134,6 +135,7 @@ internal static class ClientModuleBoundaryTests
             typeof(AIRsLight.ClashOfRim.Admin.ClientAdminBaselineRuntime),
             typeof(AIRsLight.ClashOfRim.Admin.ClientAdminTransport), typeof(AIRsLight.ClashOfRim.Admin.ClientAdminPresentation),
             typeof(ClientWorldWritePresentation), typeof(ClientWorldCatalogRuntime), typeof(ClientWorldCatalogPresentation),
+            typeof(ClientWorldMarkerTransport), typeof(AIRsLight.ClashOfRim.WorldObjects.ClientWorldSynchronizationRuntime),
             typeof(AIRsLight.ClashOfRim.WorldObjects.ClientWorldMarkersRuntime), typeof(AIRsLight.ClashOfRim.WorldObjects.ClientWorldMarkersPresentation),
             typeof(AIRsLight.ClashOfRim.WorldObjects.ClientColonyAppearanceTarget), typeof(AIRsLight.ClashOfRim.WorldObjects.ClientColonyAppearancePresentation), typeof(ColonyAppearanceDialogWindow),
             typeof(AIRsLight.ClashOfRim.WorldObjects.ClientColonyAbandonTarget), typeof(AIRsLight.ClashOfRim.WorldObjects.ClientColonyAbandonPresentation), typeof(AIRsLight.ClashOfRim.WorldObjects.AbandonPlayerColonyConfirmationWindow),

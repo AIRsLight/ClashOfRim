@@ -2189,3 +2189,24 @@ M8h4i1 的同步外观存储与窗口归属迁移完成。下一步 **M8h4i2：�
 **11 个相关单元组通过**：两个标记组、两个外观组、注册（764）、搬迁（464）、两个占用站点组、交易执行、礼物发送及模块依赖守卫。守卫检查 **1,119** 个模块及生成类型、**263** 个适配器及生成类型。客户端 Release 构建 **0 错误、40 个既有警告**；RimTest 桥接编译 **0 错误、1 个既有警告**。日志：`LocalOnly/module-migration/client-world-markers-{compile,tests,runtime,related,build,build-final,bridge}.log`，runtime 初稿失败记录由 related 中的最终通过结果替代。未运行实机 RimTest、全量回归或推送，冻结 1.6 与原有未提交工作独立保留。
 
 本步完成 M8h4i2 的缓存/投影子步骤，**下一步 M8h4i2b：三个 HTTP 刷新入口、运行时对象采集及请求来源顺序**。worldMapMarkerSyncInProgress、runtimeWorldObjectSyncInProgress、caravanArrivalTargetRefreshInProgress 和对应网络编排仍在 SessionRuntime；运行时对象筛选/签名与 GameComponent 还有重复。注册/目录/搬迁等来源的请求期凭据和上节“同账户旧响应覆盖新外观”仍开放，不能把投影队列的版本保护当作这些问题已经修复。M8h4i、M8h4、M8h、M8 与 M9–M12 保持进行中；默认相关单元测试，按需补单次功能 RimTest，全量由用户安排。
+
+
+### M8h4i2b 世界标记网络刷新、运行时采集与成功后调度（2026-10-19）
+
+`ClientWorldSynchronization` 接管手动标记读取、商队到达目标刷新、运行时对象上传三个入口的准入、捕获、HTTP、失败展示、主线程发布及交易目录衔接。原三个忙碌字段删除；SessionRuntime 仅保留转发。复用 ClientRequestTracker、ClientSessionWork、ClientGamePublication、ClientLocalMutationCoordinator、ClientWorldMarkers 及 tradeMarket.CaptureRefresh，不再在后台从 settings 创建客户端身份。三个入口串行共享准入，忙碌期间按模式合并待处理请求；普通快照推进允许继续，账户/登录、服务器世界 ID 或 Game/World 更换则使旧请求和收尾失效，新世界不必等待旧 HTTP 结束。
+
+运行时和商队的 250 tick 变化检查、运行时 2,500 tick 租约刷新、已接受签名与待处理输入由模块持有，GameComponent 只转发 tick。删除其两组调度字段、扫描方法、静态签名缓冲和比较器。只有完成对应发布/交易衔接后才确认签名；HTTP 失败、回调异常、被丢弃的首次发布和交易刷新失败不会把变化标为完成。空运行时批次会在最后一个对象消失后上传一次清空，成功后不再持续续租。轮询遇到状态恢复为已接受或正在提交的值时，撤销过时的自动待处理批次；若正在提交的是另一值，则保留恢复原值的后续提交，不能只比较历史成功值。显式请求仍保留显式刷新语义。
+
+`ClientWorldSynchronizationRuntime` 统一提供上传批次和商队位置采集。上传签名直接来自同一批 DTO 的全部字段，检测路径、图层、标签和元数据变化；与站点注册共用 ClientProtocolJson.UnorderedSignature，保留重复项及内部路径顺序，仅忽略对象枚举顺序。采集统一排除销毁/未生成、非玩家、殖民地和远程代理对象，使用对应图层的瓦片数量验证，修正原上传扫描与签名扫描条件不一致的问题。路径报文仅支持单图层整数节点，跨图层、无效节点、未找到、停止或不足两节点的路径不再被压平或拼成部分路径。对象 ID 和图层读取继续复用既有工具，未增加另一套反射实现。
+
+`ClientWorldMarkerProtocol` 接管两个真实报文，旧公开网络门面只转发；ClientWorldMarkerTransport 仅装配共享 ClientProtocolTransport。路由来自 ProtocolContractManifest，保持旧字段、可空快照/令牌、UTC 时间和空对象集合契约；没有给标记读取新增 authToken/protocolVersion 字段。运行时工作流保留旧协议对缺失 Result 的接受语义，明确拒绝仍失败；协议层只负责传输，不自行改变业务拒绝规则。
+
+标记模块新增在请求发起时捕获的观察凭据，包含会话/服务器世界、引擎目标和本地观察序号。这三个入口在请求准入时捕获，晚到响应不能覆盖已经发布的较新标记观察，也不依赖字符串时间戳排序。发布还传入原请求归属检查，测试曾暴露摘要回调重置同步模块后，缓存模块仍能继续应用的交接漏洞，现由共同检查阻止。HTTP 后续只检查领域归属，地图可用性、远程会话、采集、tick 和引擎应用限于主线程阶段；忙碌状态持续到发布及交易衔接结束。
+
+新增编排单元组最终 **848 个场景**：四种文化下覆盖三入口准入、失败/拒绝/缺失/取消、十二类归属变化在网络/队列/摘要/应用阶段的隔离、快照推进、重复/丢弃队列、按阶段异常重试、旧 HTTP 与新世界交错、合并请求及冻结输入、成功后签名/续租、批次消失/商队重现、过时待处理项撤销和恢复原值提交，以及较新标记观察抵挡旧 HTTP。复用 EventModuleTestPorts 和占用站点夹具。新增协议组 **112 个场景**，验证新协议及旧门面两路实际 HTTP 报文、身份/语言/文化/时间、默认值、取消及无效响应；抽出 ClientProtocolTestPorts，供新组和既有殖民地协议测试共用 Handler/Environment，未再复制一套设施。
+
+新增运行时组在四种文化下使用真实 Game/World、分层网格、Caravan 和其他世界对象，验证分类、完整筛选、非地表瓦片、路径过滤、商队位置与源世界绑定。复用已有分层测试对象构造器，以 Harmony 提供集合、生成状态、路径及标签事实，不执行真实移动或飞船运行。**11 个相关单元组通过**：三个新组、两个标记组、殖民地协议（224）、注册（764）、两个占用站点组、交易市场和模块守卫；最后补全合并边界后重跑编排与守卫。守卫检查 **1,143** 个模块及生成类型、**270** 个适配器及生成类型。客户端 Release 构建 **0 错误、40 个既有警告**；RimTest 桥接构建 **0 错误、1 个既有警告**。日志：`LocalOnly/module-migration/client-world-sync-{compile,tests,final,protocol,runtime,related,coalescing,build,build-final,bridge}.log`。
+
+未运行实机 RimTest、全量回归或推送，冻结 1.6 保持不变。GameComponent 原有未提交的暂停/无头队列与自动会话改动、Program 原有测试注册及其他工作区修改均独立保留，未混入本步提交。
+
+M8h4i2b 的三个刷新工作流和周期采集调度完成。**下一步 M8h4i2c：注册、目录、搬迁等来源的观察凭据及外观编辑版本**。这些其他来源目前仍在发布时调用现有观察入口，不能据此宣称跨所有 HTTP 来源的顺序已经解决；M8h4i1 所记同账户旧响应覆盖新外观仍开放。世界界面选中后的周期触发仍属于 UI/引擎调度入口；兼容覆盖、StartMapServerSession、聊天及 M9–M12 的原计划继续推进。默认相关单元测试，按需补功能级 RimTest，全量由用户安排。

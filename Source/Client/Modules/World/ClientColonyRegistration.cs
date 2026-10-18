@@ -180,7 +180,7 @@ internal sealed class ClientColonyRegistration
     // Structured, ordinal fingerprints preserve field boundaries, duplicate entries
     // and every DTO field while ignoring input enumeration order and UI culture.
     internal static string Signature<T>(IEnumerable<T> values)
-        => ClientProtocolJson.Serialize(values.Select(ClientProtocolJson.Serialize).OrderBy(value => value, StringComparer.Ordinal).ToArray());
+        => ClientProtocolJson.UnorderedSignature(values);
     private sealed record Pending(ClientColonyRegistrationKind Kind, ModColonyAppearanceDto? Appearance);
     private sealed class Boundary
     {

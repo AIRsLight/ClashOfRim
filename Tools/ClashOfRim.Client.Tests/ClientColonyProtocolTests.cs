@@ -1,3 +1,5 @@
+using static ClientProtocolTestPorts;
+using Environment = ClientProtocolTestPorts.Environment;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -120,19 +122,5 @@ internal static class ClientColonyProtocolTests
         return (relocation.Success, relocation.Response?.Result?.Accepted, relocation.ErrorCode);
     }
     private static ClashOfRimClientNetworkContext Context() => new("http://localhost/base", "用户 İ", "colony", "base", null, null, "auth");
-    private static HttpResponseMessage Json(string value) => new(HttpStatusCode.OK) { Content = new StringContent(value, Encoding.UTF8, "application/json") };
     private static void Check(bool value, string message) { if (!value) throw new InvalidOperationException(message); }
-    private sealed class Handler : HttpMessageHandler
-    {
-        private readonly Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> send;
-        internal Handler(Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> send) => this.send = send;
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken token) => send(request, token);
-    }
-    private sealed class Environment : IClientProtocolEnvironment
-    {
-        public string CurrentLanguage => "简体中文 İ";
-        public string DeserializationFailure(string type) => type;
-        public void SessionExpired(string message, string? authToken) => throw new InvalidOperationException("Unexpected session expiry.");
-        public void MultipartDisposalFailed(string message) => throw new InvalidOperationException("Unexpected multipart.");
-    }
 }

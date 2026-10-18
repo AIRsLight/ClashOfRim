@@ -31,8 +31,6 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
     private static readonly string MaintainPresenceRoute = ProtocolContractManifest.Find(ProtocolMessageKind.MaintainPresence).Route;
     private static readonly string GetPawnPackagePreviewRoute = ProtocolContractManifest.Find(ProtocolMessageKind.GetPawnPackagePreview).Route;
     private static readonly string UploadSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.UploadSnapshot).Route;
-    private static readonly string SyncWorldMapMarkersRoute = ProtocolContractManifest.Find(ProtocolMessageKind.SyncWorldMapMarkers).Route;
-    private static readonly string SyncRuntimeWorldObjectsRoute = ProtocolContractManifest.Find(ProtocolMessageKind.SyncRuntimeWorldObjects).Route;
     private static readonly string SendChatMessageRoute = ProtocolContractManifest.Find(ProtocolMessageKind.SendChatMessage).Route;
     private static readonly string ListChatMessagesRoute = ProtocolContractManifest.Find(ProtocolMessageKind.ListChatMessages).Route;
     private static readonly string OverrideCompatibilityBaselineRoute = ProtocolContractManifest.Find(ProtocolMessageKind.OverrideCompatibilityBaseline).Route;
@@ -44,6 +42,7 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
     private readonly ClientAchievementProtocol achievements;
     private readonly ClientWorldProtocol world;
     private readonly ClientColonyProtocol colonies;
+    private readonly ClientWorldMarkerProtocol worldMarkers;
     private readonly ClientDiplomacyProtocol diplomacy;
     private readonly ClientAccountProtocol accounts;
     private readonly ClientAdminProtocol adminProtocol;
@@ -87,6 +86,7 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
         mercenaries = new ClientMercenaryProtocol(transport, context, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         bankProtocol = new ClientBankProtocol(context, transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         colonies = new ClientColonyProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
+        worldMarkers = new ClientWorldMarkerProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         trades = new ClientTradeProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         gifts = new ClientGiftProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         events = new ClientEventProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
@@ -155,51 +155,12 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
         string? notificationSeverity = null, bool persistentNotification = true, CancellationToken cancellationToken = default)
         => adminProtocol.ActAsync(context, new(actionKind, targetUserId, targetColonyId, message, notificationSeverity, persistentNotification), cancellationToken);
 
-    public Task<ClashOfRimClientNetworkResult<ModWorldMapMarkerDeliveryDto>> SyncWorldMapMarkersAsync(
-        CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModWorldMapMarkerDeliveryDto>();
-        }
-
-        var request = new ModSyncWorldMapMarkersRequestDto
-        {
-            UserId = context.UserId,
-            ColonyId = context.ColonyId,
-            KnownAtUtc = DateTimeOffset.UtcNow.ToString("O")
-        };
-
-        return transport.PostAsync<ModSyncWorldMapMarkersRequestDto, ModWorldMapMarkerDeliveryDto>(
-            SyncWorldMapMarkersRoute,
-            request,
-            cancellationToken);
-    }
+    public Task<ClashOfRimClientNetworkResult<ModWorldMapMarkerDeliveryDto>> SyncWorldMapMarkersAsync(CancellationToken cancellationToken = default)
+        => worldMarkers.ReadAsync(context, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModSyncRuntimeWorldObjectsResponseDto>> SyncRuntimeWorldObjectsAsync(
-        IReadOnlyCollection<ModRuntimeWorldObjectMarkerDto> objects,
-        CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModSyncRuntimeWorldObjectsResponseDto>();
-        }
-
-        var request = new ModSyncRuntimeWorldObjectsRequestDto
-        {
-            UserId = context.UserId,
-            ColonyId = context.ColonyId,
-            SnapshotId = context.CurrentSnapshotId,
-            SentAtUtc = DateTimeOffset.UtcNow.ToString("O"),
-            Objects = objects?.ToList() ?? new List<ModRuntimeWorldObjectMarkerDto>(),
-            AuthToken = context.AuthToken
-        };
-
-        return transport.PostAsync<ModSyncRuntimeWorldObjectsRequestDto, ModSyncRuntimeWorldObjectsResponseDto>(
-            SyncRuntimeWorldObjectsRoute,
-            request,
-            cancellationToken);
-    }
+        IReadOnlyCollection<ModRuntimeWorldObjectMarkerDto> objects, CancellationToken cancellationToken = default)
+        => worldMarkers.WriteAsync(context, objects, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModPrepareWorldSessionResponseDto>> PrepareWorldSessionAsync(
         bool createAccountIfMissing = false, CancellationToken cancellationToken = default)
