@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Administration;
 using AIRsLight.ClashOfRim.Modules.World;
 using AIRsLight.ClashOfRim.Modules.Achievements;
 using AIRsLight.ClashOfRim.Achievements;
@@ -114,8 +115,8 @@ public sealed partial class ClashOfRimMod : Mod
     private bool abandonPlayerColonyInProgress;
     private bool playerColonySiteRegistrationSuppressed;
     private bool caravanArrivalTargetRefreshInProgress;
-    private bool adminInProgress;
-    private bool isAdministrator;
+    private readonly ClientAdminAccess adminAccess;
+    private readonly ClientWorldWrites worldWrites;
     private string? lastRegisteredPlayerColonySiteSignature;
     private string? lastSyncedWorldConfigurationExtensionSignature;
     private bool statusDefaultsInitialized;
@@ -176,6 +177,7 @@ public sealed partial class ClashOfRimMod : Mod
         settings = GetSettings<ClashOfRimSettings>();
         snapshotPublication = ClientSnapshotComposition.CreatePublication(settings);
         sessionLifecycle = new ClientSessionLifecycle(new ClientSessionIdentityStore(settings), new ClientSessionLogoutTransport(), sessionConnection);
+        adminAccess = new ClientAdminAccess(sessionLifecycle);
         worldSetup = new ClientWorldSetupState(sessionLifecycle);
         storytellerConfiguration = new ClientStorytellerConfiguration(sessionLifecycle, worldSetup, new ClientStorytellerRuntime());
         compatibilityPresentation = new ClientCompatibilityPresentation((response, language, accept, cancel) =>
@@ -223,7 +225,7 @@ public sealed partial class ClashOfRimMod : Mod
         var shopPresentation = new ClientShopPresentation();
         var shopTransport = new ClientShopTransport();
         shopState = new ClientShopState(sessionLifecycle, new ClientSnapshotGame(), shopPresentation);
-        shopCatalog = new ClientShopCatalog(shopState, localMutations, shopTransport, shopPresentation, () => isAdministrator);
+        shopCatalog = new ClientShopCatalog(shopState, localMutations, shopTransport, shopPresentation, () => adminAccess.IsAdministrator);
         shopOperations = new ClientShopOperations(shopState, mutationAdmission, synchronization, localMutations, snapshotTransactions,
             snapshotFailureRecovery, new ClientShopRuntime(), shopTransport, shopPresentation, shopPresentation);
         shopOperations.Completed += () => { StartQueuedAutomaticEventRefreshAfterLocalAtomicMutation(); StartRefreshServerShop(); };
@@ -300,6 +302,11 @@ public sealed partial class ClashOfRimMod : Mod
         worldCatalog.CompatibilityAccepted += CaptureServerCompatibilityManifest;
         worldCatalog.AdministratorObserved += ObserveAdministratorFlag;
         worldCatalog.Applied += UpdateOccupiedPlayerColonySites;
+        var worldWritePresentation = new ClientWorldWritePresentation(message => adminStatus = message);
+        worldWrites = new ClientWorldWrites(sessionLifecycle, adminAccess, worldBaselineCapture, worldBaselineSubmission,
+            storytellerConfiguration, worldConfiguration, worldWritePresentation, worldWritePresentation);
+        worldWrites.Applied += UpdateOccupiedPlayerColonySites;
+        worldWrites.BaselineUpdated += () => RequestWorldMapMarkerRefresh(ClashOfRimText.Key("ClashOfRim.Admin.WorldBaselineRefreshReason"));
         worldGeneration = new ClientWorldGeneration(sessionLifecycle, worldSetup, worldConfiguration, new ClientWorldGenerationRuntime(), new ClientWorldGenerationPresentation(message => loginStatus = message));
         worldEntry = new ClientWorldEntry(sessionLifecycle, new ClientSnapshotGame(), worldSetup,
             entryStore, worldTransport, entryPresentation, snapshotReload);
@@ -430,18 +437,18 @@ public sealed partial class ClashOfRimMod : Mod
 
     internal bool ChatInProgress => chatRefreshInProgress || chatSendInProgress;
 
-    internal bool IsAdministrator => isAdministrator;
+    internal bool IsAdministrator => adminAccess.IsAdministrator;
 
     internal bool CanUseDeveloperTools => Current.ProgramState != ProgramState.Playing
         || !settings.IsConfigured
-        || isAdministrator;
+        || adminAccess.IsAdministrator;
 
     internal bool CanEditModSettings => !settings.IsConfigured
-        || isAdministrator;
+        || adminAccess.IsAdministrator;
 
     internal string ServerCompatibilityManifestJson => serverCompatibilityManifestJson;
 
-    internal bool AdminInProgress => adminInProgress;
+    internal bool AdminInProgress => adminAccess.Busy;
 
     internal bool TryBeginSnapshotUploadTransaction(
         [NotNullWhen(true)] out ClientSynchronizationCoordinator.Lease? transaction,

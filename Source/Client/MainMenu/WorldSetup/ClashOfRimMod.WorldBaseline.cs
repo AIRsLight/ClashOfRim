@@ -305,239 +305,12 @@ public sealed partial class ClashOfRimMod
     }
 
     internal void StartUpdateServerWorldBaseline()
-    {
-        if (!CanRunAdminRequest(out string failure))
-        {
-            adminStatus = failure;
-            return;
-        }
-
-        var capture = worldBaselineSubmission.Capture();
-        ClientWorldBaselineCapture.Result captured;
-        try
-        {
-            captured = worldBaselineCapture.Capture(capture, BuildCurrentColonyAppearanceDto(settings));
-        }
-        catch (Exception ex)
-        {
-            adminStatus = ClashOfRimText.Key(
-                "ClashOfRim.Admin.WorldBaselineCaptureFailed",
-                ex.GetType().Name.Named("TYPE"),
-                ex.Message.Named("MESSAGE"));
-            Log.Warning("[ClashOfRim] World baseline capture failed: " + ex);
-            Messages.Message(adminStatus, MessageTypeDefOf.RejectInput, historical: false);
-            return;
-        }
-
-        if (captured.Error is { } error)
-        {
-            adminStatus = ClashOfRimText.Key("ClashOfRim.Admin.WorldBaselineInvalid", DescribeWorldCaptureFailure(error).Named("REASON"));
-            Messages.Message(adminStatus, MessageTypeDefOf.RejectInput, historical: false);
-            return;
-        }
-        var prepared = captured.Prepared;
-        if (prepared is null) return;
-
-        adminInProgress = true;
-        adminStatus = ClashOfRimText.Key("ClashOfRim.Admin.WorldBaselineUpdating");
-        ClientSessionWork.Run(async () =>
-        {
-            try
-            {
-                var result = await worldBaselineSubmission.SubmitAsync(prepared);
-                if (result is null) return;
-                using var publication = ClientSessionWork.EnterPublication();
-                if (!worldBaselineSubmission.IsCurrent(prepared)) return;
-                if (!result.Success || result.Response is null)
-                {
-                    adminStatus = ClashOfRimText.Key(
-                        "ClashOfRim.Admin.StatusFailed",
-                        (result.ErrorCode ?? string.Empty).Named("CODE"),
-                        (result.Message ?? string.Empty).Named("MESSAGE"));
-                    return;
-                }
-
-                ModProtocolResponseDto? serverResult = result.Response.Result;
-                if (serverResult is not null && !serverResult.Accepted)
-                {
-                    adminStatus = ClashOfRimText.Key(
-                        "ClashOfRim.Admin.StatusRejected",
-                        serverResult.ErrorCode.Named("CODE"),
-                        (serverResult.Message ?? string.Empty).Named("MESSAGE"));
-                    return;
-                }
-
-                ModWorldConfigurationDto? acceptedConfiguration = result.Response.WorldConfiguration;
-                adminStatus = ClashOfRimText.Key(
-                    "ClashOfRim.Admin.WorldBaselineUpdated",
-                    (acceptedConfiguration?.Factions.Count ?? 0).Named("FACTIONS"),
-                    (acceptedConfiguration?.WorldObjects.Count ?? 0).Named("WORLDOBJECTS"));
-                ClashOfRimGameComponent.EnqueueMainThreadAction(() => worldBaselineSubmission.Complete(prepared, () =>
-                {
-                    if (acceptedConfiguration is not null)
-                    {
-                        ApplyWorldBaseline(acceptedConfiguration);
-                        if (!worldBaselineSubmission.IsCurrent(prepared)) return;
-                        UpdateOccupiedPlayerColonySites(acceptedConfiguration);
-                    }
-
-                    Messages.Message(adminStatus, MessageTypeDefOf.PositiveEvent, historical: false);
-                    RequestWorldMapMarkerRefresh(ClashOfRimText.Key("ClashOfRim.Admin.WorldBaselineRefreshReason"));
-                }));
-            }
-            catch (Exception ex)
-            when (ClientSessionWork.IsCurrent)
-            {
-                using var publication = ClientSessionWork.EnterPublication();
-                if (!worldBaselineSubmission.IsCurrent(prepared)) return;
-                adminStatus = ClashOfRimText.Key(
-                    "ClashOfRim.Admin.StatusException",
-                    ex.GetType().Name.Named("TYPE"),
-                    ex.Message.Named("MESSAGE"));
-                Log.Warning("[ClashOfRim] World baseline update failed: " + ex);
-            }
-            finally
-            {
-                ClientSessionWork.TryApply(() =>
-                {
-                    adminInProgress = false;
-                });
-            }
-        });
-    }
+        => _ = worldWrites.StartAsync(ClientWorldWriteKind.Baseline, BuildCurrentColonyAppearanceDto(settings));
 
     internal string BuildCurrentStorytellerDifficultySignature() => storytellerConfiguration.Capture().Signature;
 
     internal void SubmitRuntimeStorytellerSettingsIfChanged(string? initialSignature)
-    {
-        if (!IsInActiveMultiplayerSession || !isAdministrator)
-        {
-            return;
-        }
-
-        string currentSignature = BuildCurrentStorytellerDifficultySignature();
-        if (!string.IsNullOrWhiteSpace(initialSignature)
-            && string.Equals(initialSignature, currentSignature, StringComparison.Ordinal))
-        {
-            return;
-        }
-
-        StartSubmitRuntimeStorytellerSettings();
-    }
-
-    private void StartSubmitRuntimeStorytellerSettings()
-    {
-        if (!CanRunAdminRequest(out string failure))
-        {
-            Messages.Message(failure, MessageTypeDefOf.RejectInput, historical: false);
-            return;
-        }
-
-        if (adminInProgress)
-        {
-            return;
-        }
-
-        var capture = worldBaselineSubmission.Capture();
-        ClientWorldBaselineCapture.Result captured;
-        try
-        {
-            captured = worldBaselineCapture.Capture(capture, BuildCurrentColonyAppearanceDto(settings), storytellerOnly: true);
-        }
-        catch (Exception ex)
-        {
-            adminStatus = ClashOfRimText.Key(
-                "ClashOfRim.Storyteller.AdminSyncFailed",
-                ex.GetType().Name.Named("CODE"),
-                ex.Message.Named("MESSAGE"));
-            Log.Warning("[ClashOfRim] Storyteller/difficulty capture failed: " + ex);
-            Messages.Message(adminStatus, MessageTypeDefOf.RejectInput, historical: false);
-            return;
-        }
-
-        if (captured.Error is { } error)
-        {
-            adminStatus = ClashOfRimText.Key("ClashOfRim.Storyteller.AdminSyncFailed", error.Code.Named("CODE"), DescribeWorldCaptureFailure(error).Named("MESSAGE"));
-            Messages.Message(adminStatus, MessageTypeDefOf.RejectInput, historical: false);
-            return;
-        }
-        var prepared = captured.Prepared;
-        if (prepared is null) return;
-        var configuration = captured.Configuration!;
-
-        adminInProgress = true;
-        adminStatus = ClashOfRimText.Key("ClashOfRim.Storyteller.AdminSyncing");
-        Messages.Message(adminStatus, MessageTypeDefOf.NeutralEvent, historical: false);
-        ClientSessionWork.Run(async () =>
-        {
-            try
-            {
-                var result = await worldBaselineSubmission.SubmitAsync(prepared);
-                if (result is null) return;
-                using var publication = ClientSessionWork.EnterPublication();
-                if (!worldBaselineSubmission.IsCurrent(prepared)) return;
-                if (!result.Success || result.Response is null)
-                {
-                    adminStatus = ClashOfRimText.Key(
-                        "ClashOfRim.Storyteller.AdminSyncFailed",
-                        (result.ErrorCode ?? string.Empty).Named("CODE"),
-                        (result.Message ?? string.Empty).Named("MESSAGE"));
-                    ClashOfRimGameComponent.EnqueueMainThreadAction(() => worldBaselineSubmission.TryApply(prepared, () =>
-                        Messages.Message(adminStatus, MessageTypeDefOf.RejectInput, historical: false)));
-                    return;
-                }
-
-                ModProtocolResponseDto? serverResult = result.Response.Result;
-                if (serverResult is not null && !serverResult.Accepted)
-                {
-                    adminStatus = ClashOfRimText.Key(
-                        "ClashOfRim.Storyteller.AdminSyncRejected",
-                        serverResult.ErrorCode.Named("CODE"),
-                        (serverResult.Message ?? string.Empty).Named("MESSAGE"));
-                    ClashOfRimGameComponent.EnqueueMainThreadAction(() => worldBaselineSubmission.TryApply(prepared, () =>
-                        Messages.Message(adminStatus, MessageTypeDefOf.RejectInput, historical: false)));
-                    return;
-                }
-
-                ModWorldConfigurationDto? acceptedConfiguration = result.Response.WorldConfiguration;
-                adminStatus = ClashOfRimText.Key(
-                    "ClashOfRim.Storyteller.AdminSynced",
-                    (acceptedConfiguration?.StorytellerDefName ?? configuration.StorytellerDefName ?? string.Empty).Named("STORYTELLER"),
-                    (acceptedConfiguration?.DifficultyDefName ?? configuration.DifficultyDefName ?? string.Empty).Named("DIFFICULTY"));
-                ClashOfRimGameComponent.EnqueueMainThreadAction(() => worldBaselineSubmission.Complete(prepared, () =>
-                {
-                    if (acceptedConfiguration is not null)
-                    {
-                        ApplyRuntimeWorldConfigurationUpdate(acceptedConfiguration);
-                        if (!worldBaselineSubmission.IsCurrent(prepared)) return;
-                        UpdateOccupiedPlayerColonySites(acceptedConfiguration);
-                    }
-
-                    Messages.Message(adminStatus, MessageTypeDefOf.PositiveEvent, historical: false);
-                }));
-            }
-            catch (Exception ex)
-            when (ClientSessionWork.IsCurrent)
-            {
-                using var publication = ClientSessionWork.EnterPublication();
-                if (!worldBaselineSubmission.IsCurrent(prepared)) return;
-                adminStatus = ClashOfRimText.Key(
-                    "ClashOfRim.Storyteller.AdminSyncException",
-                    ex.GetType().Name.Named("TYPE"),
-                    ex.Message.Named("MESSAGE"));
-                Log.Warning("[ClashOfRim] Storyteller/difficulty sync failed: " + ex);
-                ClashOfRimGameComponent.EnqueueMainThreadAction(() => worldBaselineSubmission.TryApply(prepared, () =>
-                    Messages.Message(adminStatus, MessageTypeDefOf.RejectInput, historical: false)));
-            }
-            finally
-            {
-                ClientSessionWork.TryApply(() =>
-                {
-                    adminInProgress = false;
-                });
-            }
-        });
-    }
+        => _ = worldWrites.StartAsync(ClientWorldWriteKind.Storyteller, BuildCurrentColonyAppearanceDto(settings), initialSignature);
 
     private void StartInitialColonySnapshotUpload()
     {
@@ -915,9 +688,6 @@ public sealed partial class ClashOfRimMod
         }
     }
 
-    private void ApplyWorldBaseline(ModWorldConfigurationDto configuration)
-        => worldConfiguration.Apply(configuration);
-
     private void ApplyServerWorldConfigurationExtensionCatalog(ModWorldConfigurationDto? configuration)
         => worldConfiguration.ApplyCatalog(configuration);
 
@@ -936,7 +706,7 @@ public sealed partial class ClashOfRimMod
     }
 
     private static string DescribeWorldCaptureFailure(ClientWorldBaselineCapture.Failure failure)
-        => failure.MessageKey is { } key ? ClashOfRimText.Key(key) : failure.Detail ?? "Unknown";
+        => ClientWorldWritePresentation.DescribeCaptureFailure(failure);
 
     private static string DescribeWorldConfiguration(ModWorldConfigurationDto? configuration)
     {

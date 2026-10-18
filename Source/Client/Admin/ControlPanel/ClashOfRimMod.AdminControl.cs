@@ -1,3 +1,5 @@
+using AIRsLight.ClashOfRim.Modules.Sessions;
+using AIRsLight.ClashOfRim.Modules.Transport;
 using System;
 using System.Net.Http;
 using System.Threading.Tasks;
@@ -11,13 +13,13 @@ public sealed partial class ClashOfRimMod
 {
     internal void ApplyAdministratorFlag(bool value)
     {
-        isAdministrator = value;
+        adminAccess.SetAdministrator(value);
         AIRsLight.ClashOfRim.Admin.DeveloperToolAccessPolicy.EnforceCurrentState();
     }
 
     private void ObserveAdministratorFlag(bool value)
     {
-        bool wasAdministrator = isAdministrator;
+        bool wasAdministrator = adminAccess.IsAdministrator;
         ApplyAdministratorFlag(value);
         if (!value) lastAdminStatus = null;
         else if (!wasAdministrator) StartRefreshAdminStatus();
@@ -25,24 +27,25 @@ public sealed partial class ClashOfRimMod
 
     internal void StartRefreshAdminStatus()
     {
-        if (!CanRunAdminRequest(out string failure))
+        var request = adminAccess.Begin(out string? failure);
+        if (request is null)
         {
-            adminStatus = failure;
+            if (failure is not null) adminStatus = ClashOfRimText.Key(failure);
             return;
         }
-
-        adminInProgress = true;
         adminStatus = ClashOfRimText.Key("ClashOfRim.Admin.StatusRefreshing");
         ClientSessionWork.Run(async () =>
         {
             try
             {
+                if (!adminAccess.IsCurrent(request)) return;
                 using var httpClient = new HttpClient();
                 var client = new ClashOfRimModNetworkClient(
                     httpClient,
-                    ClashOfRimClientNetworkContext.FromSettings(settings));
-                ClashOfRimClientNetworkResult<ModAdminStatusResponseDto> result = await ClientSessionWork.Observe(client.AdminStatusAsync());
+                    request.Context);
+                ClashOfRimClientNetworkResult<ModAdminStatusResponseDto> result = await ClientSessionWork.Observe(client.AdminStatusAsync(request.Request.Scope.Owner.Token));
                 using var publication = ClientSessionWork.EnterPublication();
+                if (!adminAccess.IsCurrent(request)) return;
                 if (!result.Success || result.Response is null)
                 {
                     adminStatus = ClashOfRimText.Key(
@@ -53,23 +56,24 @@ public sealed partial class ClashOfRimMod
                 }
 
                 ModProtocolResponseDto? serverResult = result.Response.Result;
-                if (serverResult is not null && !serverResult.Accepted)
+                if (serverResult?.Accepted != true)
                 {
                     adminStatus = ClashOfRimText.Key(
                         "ClashOfRim.Admin.StatusRejected",
-                        serverResult.ErrorCode.Named("CODE"),
-                        (serverResult.Message ?? string.Empty).Named("MESSAGE"));
+                        (serverResult?.ErrorCode.ToString() ?? string.Empty).Named("CODE"),
+                        (serverResult?.Message ?? string.Empty).Named("MESSAGE"));
                     return;
                 }
 
-                ApplyAdministratorFlag(result.Response.IsAdministrator);
-                lastAdminStatus = result.Response;
+                lastAdminStatus = result.Response.IsAdministrator ? ClientProtocolJson.Copy(result.Response) : null;
                 adminStatus = ClashOfRimText.Key("ClashOfRim.Admin.StatusRefreshed");
+                ApplyAdministratorFlag(result.Response.IsAdministrator);
             }
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
                 using var publication = ClientSessionWork.EnterPublication();
+                if (!adminAccess.IsCurrent(request)) return;
                 adminStatus = ClashOfRimText.Key(
                     "ClashOfRim.Admin.StatusException",
                     ex.GetType().Name.Named("TYPE"),
@@ -78,35 +82,35 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                ClientSessionWork.TryApply(() =>
-                {
-                    adminInProgress = false;
-                });
+                adminAccess.End(request);
             }
         });
     }
 
     internal void StartUpdateAdminConfiguration(ModAdminConfigurationDto configuration)
     {
-        if (!CanRunAdminRequest(out string failure))
+        var request = adminAccess.Begin(out string? failure);
+        if (request is null)
         {
-            adminStatus = failure;
+            if (failure is not null) adminStatus = ClashOfRimText.Key(failure);
             return;
         }
-
-        adminInProgress = true;
+        try { configuration = ClientProtocolJson.Copy(configuration); }
+        catch { adminAccess.End(request); throw; }
         adminStatus = ClashOfRimText.Key("ClashOfRim.Admin.StatusSaving");
         ClientSessionWork.Run(async () =>
         {
             try
             {
+                if (!adminAccess.IsCurrent(request)) return;
                 using var httpClient = new HttpClient();
                 var client = new ClashOfRimModNetworkClient(
                     httpClient,
-                    ClashOfRimClientNetworkContext.FromSettings(settings));
+                    request.Context);
                 ClashOfRimClientNetworkResult<ModAdminUpdateConfigurationResponseDto> result =
-                    await ClientSessionWork.Observe(client.AdminUpdateConfigurationAsync(configuration));
+                    await ClientSessionWork.Observe(client.AdminUpdateConfigurationAsync(configuration, request.Request.Scope.Owner.Token));
                 using var publication = ClientSessionWork.EnterPublication();
+                if (!adminAccess.IsCurrent(request)) return;
                 if (!result.Success || result.Response is null)
                 {
                     adminStatus = ClashOfRimText.Key(
@@ -117,12 +121,12 @@ public sealed partial class ClashOfRimMod
                 }
 
                 ModProtocolResponseDto? serverResult = result.Response.Result;
-                if (serverResult is not null && !serverResult.Accepted)
+                if (serverResult?.Accepted != true)
                 {
                     adminStatus = ClashOfRimText.Key(
                         "ClashOfRim.Admin.StatusRejected",
-                        serverResult.ErrorCode.Named("CODE"),
-                        (serverResult.Message ?? string.Empty).Named("MESSAGE"));
+                        (serverResult?.ErrorCode.ToString() ?? string.Empty).Named("CODE"),
+                        (serverResult?.Message ?? string.Empty).Named("MESSAGE"));
                     return;
                 }
 
@@ -132,13 +136,16 @@ public sealed partial class ClashOfRimMod
                 }
 
                 adminStatus = ClashOfRimText.Key("ClashOfRim.Admin.StatusSaved");
-                ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
-                    Messages.Message(ClashOfRimText.Key("ClashOfRim.Admin.SavedMessage"), MessageTypeDefOf.PositiveEvent));
+                string savedMessage = ClashOfRimText.Key("ClashOfRim.Admin.SavedMessage");
+                publication.Dispose();
+                await ClientGamePublication.EnqueueAsync(ClientMainThreadDispatcher.Enqueue, request.Request.Scope.Owner.Token,
+                    action => adminAccess.TryApply(request, action), () => Messages.Message(savedMessage, MessageTypeDefOf.PositiveEvent));
             }
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
                 using var publication = ClientSessionWork.EnterPublication();
+                if (!adminAccess.IsCurrent(request)) return;
                 adminStatus = ClashOfRimText.Key(
                     "ClashOfRim.Admin.StatusException",
                     ex.GetType().Name.Named("TYPE"),
@@ -147,10 +154,7 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                ClientSessionWork.TryApply(() =>
-                {
-                    adminInProgress = false;
-                });
+                adminAccess.End(request);
             }
         });
     }
@@ -163,22 +167,22 @@ public sealed partial class ClashOfRimMod
         string? notificationSeverity = null,
         bool persistentNotification = true)
     {
-        if (!CanRunAdminRequest(out string failure))
+        var request = adminAccess.Begin(out string? failure);
+        if (request is null)
         {
-            adminStatus = failure;
+            if (failure is not null) adminStatus = ClashOfRimText.Key(failure);
             return;
         }
-
-        adminInProgress = true;
         adminStatus = ClashOfRimText.Key("ClashOfRim.Admin.StatusSendingAction");
         ClientSessionWork.Run(async () =>
         {
             try
             {
+                if (!adminAccess.IsCurrent(request)) return;
                 using var httpClient = new HttpClient();
                 var client = new ClashOfRimModNetworkClient(
                     httpClient,
-                    ClashOfRimClientNetworkContext.FromSettings(settings));
+                    request.Context);
                 ClashOfRimClientNetworkResult<ModAdminActionResponseDto> result =
                     await ClientSessionWork.Observe(client.AdminActionAsync(
                         actionKind,
@@ -186,8 +190,9 @@ public sealed partial class ClashOfRimMod
                         targetColonyId,
                         message,
                         notificationSeverity,
-                        persistentNotification));
+                        persistentNotification, request.Request.Scope.Owner.Token));
                 using var publication = ClientSessionWork.EnterPublication();
+                if (!adminAccess.IsCurrent(request)) return;
                 if (!result.Success || result.Response is null)
                 {
                     adminStatus = ClashOfRimText.Key(
@@ -198,24 +203,32 @@ public sealed partial class ClashOfRimMod
                 }
 
                 ModProtocolResponseDto? serverResult = result.Response.Result;
-                if (serverResult is not null && !serverResult.Accepted)
+                if (serverResult?.Accepted != true)
                 {
                     adminStatus = ClashOfRimText.Key(
                         "ClashOfRim.Admin.StatusRejected",
-                        serverResult.ErrorCode.Named("CODE"),
-                        (serverResult.Message ?? string.Empty).Named("MESSAGE"));
+                        (serverResult?.ErrorCode.ToString() ?? string.Empty).Named("CODE"),
+                        (serverResult?.Message ?? string.Empty).Named("MESSAGE"));
                     return;
                 }
 
-                adminStatus = serverResult?.Message ?? ClashOfRimText.Key("ClashOfRim.Admin.StatusActionDone");
-                StartRefreshAdminStatus();
-                ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
-                    Messages.Message(adminStatus, MessageTypeDefOf.PositiveEvent));
+                string completedMessage = serverResult?.Message ?? ClashOfRimText.Key("ClashOfRim.Admin.StatusActionDone");
+                adminStatus = completedMessage;
+                publication.Dispose();
+                await ClientGamePublication.EnqueueAsync(ClientMainThreadDispatcher.Enqueue, request.Request.Scope.Owner.Token,
+                    action => adminAccess.TryApply(request, action), () =>
+                    {
+                        Messages.Message(completedMessage, MessageTypeDefOf.PositiveEvent);
+                        if (!adminAccess.IsCurrent(request)) return;
+                        adminAccess.End(request);
+                        StartRefreshAdminStatus();
+                    });
             }
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
                 using var publication = ClientSessionWork.EnterPublication();
+                if (!adminAccess.IsCurrent(request)) return;
                 adminStatus = ClashOfRimText.Key(
                     "ClashOfRim.Admin.StatusException",
                     ex.GetType().Name.Named("TYPE"),
@@ -224,29 +237,9 @@ public sealed partial class ClashOfRimMod
             }
             finally
             {
-                ClientSessionWork.TryApply(() =>
-                {
-                    adminInProgress = false;
-                });
+                adminAccess.End(request);
             }
         });
     }
 
-    private bool CanRunAdminRequest(out string failure)
-    {
-        if (!settings.IsConfigured || string.IsNullOrWhiteSpace(settings.AuthToken))
-        {
-            failure = ClashOfRimText.Key("ClashOfRim.Admin.NotConnected");
-            return false;
-        }
-
-        if (!isAdministrator)
-        {
-            failure = ClashOfRimText.Key("ClashOfRim.Admin.NotAdministrator");
-            return false;
-        }
-
-        failure = string.Empty;
-        return true;
-    }
 }

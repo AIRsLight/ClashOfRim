@@ -19,6 +19,7 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("world writes share administrator admission, capture and completion", ClientWorldWritesTests.Run),
     ("world catalog refresh owns replacement, accepted projection and runtime boundaries", ClientWorldCatalogTests.Run),
     ("world baseline runtime binds capture collections, layers and substrate sources", ClientWorldBaselineRuntimeTests.Run),
     ("world baseline capture owns source, validation and layered colony sites", ClientWorldBaselineCaptureTests.Run),

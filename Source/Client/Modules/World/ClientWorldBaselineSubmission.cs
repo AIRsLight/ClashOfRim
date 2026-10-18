@@ -93,7 +93,7 @@ internal sealed class ClientWorldBaselineSubmission
         return completed;
     }
 
-    internal async Task<ClashOfRimClientNetworkResult<ModSubmitWorldConfigurationResponseDto>?> SubmitAsync(Prepared prepared)
+    internal async Task<ClashOfRimClientNetworkResult<ModSubmitWorldConfigurationResponseDto>?> SubmitAsync(Prepared prepared, Func<bool>? current = null)
     {
         var request = prepared.Request;
         (ModWorldConfigurationDto Metadata, byte[] Payload)? input = null;
@@ -105,7 +105,7 @@ internal sealed class ClientWorldBaselineSubmission
         if (input is null) return null;
         // Retain only the receipt after sending, not a whole world's byte package.
         var (metadata, payload) = input.Value;
-        bool Current() => requests.TryApply(request, static () => { });
+        bool Current() => requests.TryApply(request, static () => { }) && current?.Invoke() != false;
         try
         {
             if (!Current()) return null;

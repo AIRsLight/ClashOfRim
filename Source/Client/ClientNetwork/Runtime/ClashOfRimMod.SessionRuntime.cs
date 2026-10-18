@@ -156,7 +156,6 @@ public sealed partial class ClashOfRimMod
         mercenaryState.Reset();
         mercenaryIncidents.Reset();
         shopState.Reset();
-        adminInProgress = false;
         tradeState.Reset();
         chatRefreshInProgress = false;
         chatSendInProgress = false;

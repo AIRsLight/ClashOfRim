@@ -15,11 +15,11 @@ internal sealed class ClientWorldBaselineCapture
     internal ClientWorldBaselineCapture(ClientWorldBaselineSubmission submission, ClientStorytellerConfiguration storyteller)
     { this.submission = submission; this.storyteller = storyteller; }
 
-    internal Result Capture(ClientWorldBaselineSubmission.Captured capture, ModColonyAppearanceDto? appearance, bool storytellerOnly = false)
+    internal Result Capture(ClientWorldBaselineSubmission.Captured capture, ModColonyAppearanceDto? appearance, bool storytellerOnly = false, Func<bool>? current = null)
     {
-        if (!submission.IsCurrent(capture) || Interlocked.CompareExchange(ref capturing, 1, 0) != 0) return Result.Empty;
+        if (!submission.IsCurrent(capture) || current?.Invoke() == false || Interlocked.CompareExchange(ref capturing, 1, 0) != 0) return Result.Empty;
         string? language = null; bool hasLanguage = false;
-        bool Current() => submission.IsCurrent(capture) && (!hasLanguage || ClientWorldFeatureLabels.SameLanguage(language, capture.Scope.Boundary.Language));
+        bool Current() => submission.IsCurrent(capture) && current?.Invoke() != false && (!hasLanguage || ClientWorldFeatureLabels.SameLanguage(language, capture.Scope.Boundary.Language));
         try
         {
             var source = capture.Scope.Boundary;
