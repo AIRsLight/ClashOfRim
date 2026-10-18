@@ -26,6 +26,12 @@ internal sealed class ClientSynchronizationCoordinator
     internal bool IsBusy { get { lock (gate) return manual is not null || snapshot is not null; } }
     internal event Action<SnapshotTransactionNotice>? SnapshotChanged;
 
+    internal bool IsCurrent(SnapshotTransactionNotice notice)
+    {
+        lock (gate) return notice.Phase == SnapshotTransactionPhase.Started && notice.Sequence == sequence
+            && snapshot?.IsCurrent == true;
+    }
+
     internal bool TryBeginManual([NotNullWhen(true)] out Lease? lease, Lease? continuation = null)
     {
         using var publication = ClientSessionWork.EnterPublication();

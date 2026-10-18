@@ -2516,3 +2516,16 @@ ClientOperationFollowups 收回 Core 中的六类业务接续：商店完成、�
 **15 个相关单元组通过**：新完成分派、商店购买、交易提交／市场、外交创建、世界写入、事件决策、模块守卫，以及保存、会话分派／启动、初次建服、管理控制、玩家目录和商店目录。测试项目编译通过；守卫检查 **1,328** 个模块及生成类型、**307** 个适配器及生成类型。复现及验证日志：`LocalOnly/module-migration/client-operation-followups-{repro,release-repro,foundation,tests,domains,related}.log`。没有运行全量回归、实机 RimTest 或独立发布构建，没有推送；冻结 1.6 和原有未提交工作保持独立。
 
 **下一步 M8h4r：宿主事务展示与世界诊断遗留。** Core 的 PresentSnapshotTransaction 仍拥有日志格式和排队消息逻辑；WorldBaseline partial 中仍有世界／窗口诊断实现和无调用方的旧入口，需要核对实际引用后迁入窄引擎适配器或删除。随后还需核对宿主自动登录／同步生命周期条件的所有权，不能仅按 partial 行数宣称 M8 完成。M8h4、M8h、M8、M9–M12 继续开放，全量验证由用户安排。
+
+
+### M8h4r 事务通知、运行摘要和世界诊断（2026-10-19）
+
+ClientSnapshotTransactionNotifications 接管上传开始通知的排队与归属判断，Core 仅装配和订阅。ClientSnapshotTransactionPresentation 负责原有三类事务日志、翻译和游戏消息，保留日志字段及级别，序号和耗时使用不受当前文化影响的格式。原通知只在执行时检查 Playing，可能在上传已经结束后仍显示“正在上传”；现在复用同步协调器的事务序号、Lease.IsCurrent、会话 Ownership 和确切 Game，在翻译后和队列执行时检查原来源。没有新增事务代次或另一套身份比较算法，正常快照 ID 推进不会撤销仍在执行的上传提示。日志记录仍保留已发生的开始、拒绝和结束事件。
+
+世界窗口和流程诊断移入 ClientWorldSetupDiagnostics，三个 Harmony 补丁直接调用该适配器；运行摘要由 ClientRuntimeSummaryPresentation 根据只读网络上下文与当前地图格式化。经引用检查删除无调用方的 ApplyServerWorldConfigurationExtensionCatalog、DescribeCurrentWorldState，以及只转接队列／关闭窗口的宿主私有别名。主线程派发测试改为直接调用既有 ClientMainThreadDispatcher，继续覆盖真实入口／游戏队列泵。三个新适配器加入双向依赖守卫，领域模块不能反向使用适配器，适配器不能依赖旧 Mod。
+
+新增事务通知测试覆盖准入、手动准入晋升、重复继续、拒绝、完成后排队消息、旧事务与新事务交替、入口状态及空文案；另以 40 个时序／来源组合验证日志、翻译、排队和执行前发生的身份、同凭据登录、代次、Game、重置、快照与密码变化。复用 EventModuleTestPorts 和真实同步／会话模块；测试队列故意不提供额外归属防护，避免掩盖通知模块缺陷。既有展示测试补充事务日志及运行摘要，在四种文化与所有交付翻译文件中检查格式和占位参数；保留原文案不展示快照 ID 的行为，并检查摘要不输出凭据。
+
+**5 个相关单元组通过**：事务通知、同步协调器、主线程队列、多语言命令展示、模块依赖守卫。测试项目编译生产代码，守卫检查 **1,332** 个模块及生成类型、**310** 个适配器及生成类型。日志：`LocalOnly/module-migration/client-snapshot-notifications-{tests,final}.log`。本步以单元测试验证，没有安排 RimTest 或全量回归；后续涉及游戏内行为时可补充单次修改的定向 RimTest，全量仍由用户安排。没有独立发布构建或推送，冻结 1.6 及工作区原有修改未纳入本步。
+
+**下一步 M8h4s：自动登录及会话可用性条件。** Core 的 CanStartAutomaticMapServerSession 仍组合配置、Playing／地图、同步准入、失效恢复、来源 Game、袭击／观察和 SessionId；ShouldShowMultiplayerMainButton 与 IsInActiveMultiplayerSession 也留在宿主。需核对实际调用方及既有启动模块的准入语义，迁出业务条件并复用所属领域，不能新增平行的生命周期状态或把判断原样塞进适配器。M8h4、M8h、M8、M9–M12 继续开放。

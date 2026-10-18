@@ -10,7 +10,6 @@ using Verse;
 internal static class MainThreadDispatchTests
 {
     private static int inGameCompletion;
-    private static readonly MethodInfo Dispatch = typeof(ClashOfRimMod).GetMethod("EnqueueClashOfRimMainThreadAction", BindingFlags.Static | BindingFlags.NonPublic)!;
     private static readonly MethodInfo PumpGame = typeof(ClashOfRimGameComponent).GetMethod("RunMainThreadActions", BindingFlags.Static | BindingFlags.NonPublic)!;
     private static readonly MethodInfo PumpEntry = typeof(ClashOfRimMod).Assembly.GetType("AIRsLight.ClashOfRim.MainMenu.ClashOfRimMainMenuPatches", true)!
         .GetMethod("RunQueuedMainThreadActions", BindingFlags.Static | BindingFlags.NonPublic)!;
@@ -87,6 +86,6 @@ internal static class MainThreadDispatchTests
         }
     }
 
-    private static void Enqueue(Action action, Action? discard = null) => Dispatch.Invoke(null, new object?[] { action, discard });
+    private static void Enqueue(Action action, Action? discard = null) => ClientMainThreadDispatcher.Enqueue(action, discard);
     private static void Require(bool value, string message) { if (!value) throw new Exception(message); }
 }

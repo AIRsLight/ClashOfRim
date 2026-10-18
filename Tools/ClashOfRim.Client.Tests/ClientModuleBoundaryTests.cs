@@ -62,6 +62,8 @@ internal static class ClientModuleBoundaryTests
             || t == typeof(ClientSessionNotificationEffects) || t == typeof(ClientSessionNotificationPresentation) || t == typeof(ClientConnectionStatusPresentation)
             || t == typeof(ClientSessionExitResources) || t == typeof(ClientSessionIdentityStore)
             || t == typeof(ClientSessionFollowupText) || t == typeof(ClientSnapshotWorldPresentation) || t == typeof(ClientSnapshotSavingPresentation)
+            || t == typeof(ClientSnapshotTransactionPresentation) || t == typeof(ClientRuntimeSummaryPresentation)
+            || t == typeof(AIRsLight.ClashOfRim.MainMenu.ClientWorldSetupDiagnostics)
             || t == typeof(AIRsLight.ClashOfRim.CompatibilityClient.ClientCompatibilityOverrideTransport)
             || t == typeof(AIRsLight.ClashOfRim.CompatibilityClient.ClientCompatibilityOverridePresentation)
             || t == typeof(AIRsLight.ClashOfRim.CompatibilityClient.ClientCompatibilityBaselineRuntime)
@@ -147,6 +149,7 @@ internal static class ClientModuleBoundaryTests
             typeof(ClientSessionNotificationEffects), typeof(ClientSessionNotificationPresentation), typeof(ClientConnectionStatusPresentation),
             typeof(ClientSessionExitResources),
             typeof(ClientSessionFollowupText), typeof(ClientSnapshotWorldPresentation), typeof(ClientSnapshotSavingPresentation),
+            typeof(ClientSnapshotTransactionPresentation), typeof(ClientRuntimeSummaryPresentation), typeof(AIRsLight.ClashOfRim.MainMenu.ClientWorldSetupDiagnostics),
             typeof(AIRsLight.ClashOfRim.CompatibilityClient.ClientCompatibilityOverrideTransport),
             typeof(AIRsLight.ClashOfRim.CompatibilityClient.ClientCompatibilityOverridePresentation),
             typeof(AIRsLight.ClashOfRim.CompatibilityClient.ClientCompatibilityBaselineRuntime),

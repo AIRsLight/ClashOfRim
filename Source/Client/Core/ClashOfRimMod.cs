@@ -23,7 +23,6 @@ using AIRsLight.ClashOfRim.Modules.Sessions;
 using AIRsLight.ClashOfRim.Modules.Transport;
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -403,7 +402,9 @@ public sealed partial class ClashOfRimMod : Mod
             new ClientSessionExitResources(), colonyRegistration, bankState, mercenaryState, mercenaryIncidents, shopState,
             tradeState, chat, worldMarkers, worldSynchronization, sessionIdentity, administration, sessionNotifications,
             worldSetup, playerDirectory, occupiedColonySites);
-        synchronization.SnapshotChanged += PresentSnapshotTransaction;
+        var snapshotNotifications = new ClientSnapshotTransactionNotifications(sessionLifecycle, synchronization,
+            new ClientSnapshotGame(), new ClientSnapshotTransactionPresentation());
+        synchronization.SnapshotChanged += snapshotNotifications.Observe;
         sessionLifecycle.LogoutFailed += message => Log.Warning("[ClashOfRim] " + message);
         _ = new ClientConnectionStatus(sessionLifecycle, sessionConnection, new ClientConnectionStatusPresentation(message => presenceStatus = message));
         var harmony = new Harmony(PackageId);
@@ -469,47 +470,6 @@ public sealed partial class ClashOfRimMod : Mod
     internal string ServerCompatibilityManifestJson => compatibilityBaseline.Manifest;
 
     internal bool AdminInProgress => adminAccess.Busy;
-
-    private void PresentSnapshotTransaction(SnapshotTransactionNotice notice)
-    {
-        string owner = string.IsNullOrWhiteSpace(notice.Owner) ? "<none>" : notice.Owner;
-        string age = notice.Age?.TotalSeconds.ToString("0.000", CultureInfo.InvariantCulture) + "s";
-        if (notice.Age is null) age = "n/a";
-        if (notice.Phase == SnapshotTransactionPhase.Rejected)
-        {
-            Log.Warning("[ClashOfRim][SnapshotTxn] begin rejected: requested=" + notice.RequestedOwner
-                + ", snapshotUploadInProgress=" + notice.SnapshotInProgress
-                + ", manualSyncInProgress=" + notice.ManualInProgress + ", owner=" + owner + ", seq=" + notice.Sequence + ", age=" + age);
-        }
-        else if (notice.Phase == SnapshotTransactionPhase.Started)
-        {
-            ClashLog.Message("[ClashOfRim][SnapshotTxn] begin: owner=" + owner + ", seq=" + notice.Sequence + ".");
-            NotifyPlayerMessage(ClashOfRimText.Key("ClashOfRim.SnapshotUpload.Uploading"), MessageTypeDefOf.NeutralEvent);
-        }
-        else
-        {
-            ClashLog.Message("[ClashOfRim][SnapshotTxn] end: owner=" + owner + ", seq=" + notice.Sequence
-                + ", snapshotUploadInProgress=" + notice.SnapshotInProgress + ", manualSyncInProgress=" + notice.ManualInProgress + ", age=" + age + ".");
-        }
-    }
-
-    private static void NotifyPlayerMessage(string message, MessageTypeDef messageType, bool historical = false)
-    {
-        if (string.IsNullOrWhiteSpace(message))
-        {
-            return;
-        }
-
-        EnqueueClashOfRimMainThreadAction(() =>
-        {
-            if (Current.ProgramState != ProgramState.Playing)
-            {
-                return;
-            }
-
-            Messages.Message(message, messageType, historical);
-        });
-    }
 
     internal bool IsAnyManualOrSnapshotSyncInProgress() => synchronization.IsBusy;
 

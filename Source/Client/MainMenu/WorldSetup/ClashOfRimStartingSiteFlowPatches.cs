@@ -11,9 +11,9 @@ public static class ClashOfRimStartingSitePreOpenPatch
     [HarmonyPostfix]
     public static void Postfix(Page_SelectStartingSite __instance)
     {
-        ClashOfRimMod.DebugLogFlow(
+        ClientWorldSetupDiagnostics.Log(
             "Page_SelectStartingSite.PreOpen",
-            ClashOfRimMod.DescribeWindow(__instance) + ", " + ClashOfRimMod.DescribeWindowStack());
+            ClientWorldSetupDiagnostics.DescribeWindow(__instance) + ", " + ClientWorldSetupDiagnostics.DescribeWindowStack());
     }
 }
 
@@ -26,9 +26,9 @@ public static class ClashOfRimStartingSitePostOpenPatch
     [HarmonyPostfix]
     public static void Postfix(Page_SelectStartingSite __instance)
     {
-        ClashOfRimMod.DebugLogFlow(
+        ClientWorldSetupDiagnostics.Log(
             "Page_SelectStartingSite.PostOpen",
-            ClashOfRimMod.DescribeWindow(__instance) + ", " + ClashOfRimMod.DescribeWindowStack());
+            ClientWorldSetupDiagnostics.DescribeWindow(__instance) + ", " + ClientWorldSetupDiagnostics.DescribeWindowStack());
         LoadedModManager.GetMod<ClashOfRimMod>().SubmitInitialWorldConfigurationIfPending();
         nextRefreshAt = Time.realtimeSinceStartup + WorldMapMarkerRefreshIntervalSeconds;
         LoadedModManager.GetMod<ClashOfRimMod>().RequestWorldMapMarkerRefresh(ClashOfRimText.Key("ClashOfRim.WorldMap.ReasonStartingSiteEntered"));
@@ -65,8 +65,8 @@ public static class ClashOfRimStartingSitePostClosePatch
     [HarmonyPostfix]
     public static void Postfix(Page_SelectStartingSite __instance)
     {
-        ClashOfRimMod.DebugLogFlow(
+        ClientWorldSetupDiagnostics.Log(
             "Page_SelectStartingSite.PostClose",
-            ClashOfRimMod.DescribeWindow(__instance) + ", " + ClashOfRimMod.DescribeWindowStack());
+            ClientWorldSetupDiagnostics.DescribeWindow(__instance) + ", " + ClientWorldSetupDiagnostics.DescribeWindowStack());
     }
 }

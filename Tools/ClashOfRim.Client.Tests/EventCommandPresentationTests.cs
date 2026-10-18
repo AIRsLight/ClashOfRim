@@ -26,6 +26,34 @@ using Verse;
 
 internal static class EventCommandPresentationTests
 {
+    private static void SnapshotTransactionPresentation()
+    {
+        RequireResolved(new ClientSnapshotTransactionPresentation().Uploading);
+        foreach (var phase in Enum.GetValues<SnapshotTransactionPhase>())
+        {
+            var notice = new SnapshotTransactionNotice(phase, "request", "owner", 1234, true, true, TimeSpan.FromSeconds(3.25));
+            string log = ClientSnapshotTransactionPresentation.Describe(notice);
+            if (!log.Contains("owner=owner, seq=1234") || phase != SnapshotTransactionPhase.Started && !log.Contains("age=3.250s"))
+                throw new Exception("Transaction diagnostic lost ownership or invariant numbers: " + log);
+            log = ClientSnapshotTransactionPresentation.Describe(notice with { Owner = " ", Age = null });
+            if (!log.Contains("owner=<none>") || phase != SnapshotTransactionPhase.Started && !log.Contains("age=n/a"))
+                throw new Exception("Transaction diagnostic lost unavailable values: " + log);
+        }
+        var context = new ClashOfRimClientNetworkContext("server-é", "user-é", "colony-é", "snapshot-é", "steam-secret", "password-secret", "auth-secret");
+        string summary = ClientRuntimeSummaryPresentation.Describe(42, context);
+        RequireResolved(summary);
+        foreach (var (key, argument, value) in new[]
+        {
+            ("CurrentMapSummary", "MAPID", "42"), ("RuntimeConfigurationSummary", "SERVER", "server-é"),
+            ("RuntimeConfigurationSummary", "USER", "user-é"), ("RuntimeConfigurationSummary", "COLONY", "colony-é"),
+            ("CurrentSnapshotSummary", "SNAPSHOT", "snapshot-é")
+        })
+            if (translations["ClashOfRim." + key].Contains("{" + argument + "}") && !summary.Contains(value))
+                throw new Exception("Runtime summary lost " + value);
+        foreach (string secret in new[] { "steam-secret", "password-secret", "auth-secret" })
+            if (summary.Contains(secret)) throw new Exception("Runtime summary included credentials.");
+        RequireResolved(ClientRuntimeSummaryPresentation.Describe(null, new("", "", "", null, null, null, null)));
+    }
     private static void SnapshotSavingPresentation()
     {
         var presentation = new ClientSnapshotSavingPresentation(static _ => { });
@@ -108,6 +136,7 @@ internal static class EventCommandPresentationTests
                 RaidSettlementPresentation();
                 SnapshotRestorePresentation();
                 SnapshotSavingPresentation();
+                SnapshotTransactionPresentation();
                 foreach (var purpose in Enum.GetValues<ClientEventConfirmationPurpose>())
                 {
                     var notice = new ClientEventConfirmationNotice(purpose, ClientEventConfirmationStage.Uploading,

@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using AIRsLight.ClashOfRim.ClientNetwork;
+using AIRsLight.ClashOfRim.ClientSnapshots;
 using AIRsLight.ClashOfRim.Modules.Compatibility;
 
 namespace AIRsLight.ClashOfRim;
@@ -9,7 +10,7 @@ public sealed partial class ClashOfRimMod
 {
     internal Task StartOverrideCompatibilityBaselineFromCurrentClient(Action<string, float>? progress, Action<string, bool> completion)
     {
-        CloseServerEntryProgressWindowNow();
+        ServerEntryProgressWindow.CloseCurrent();
         return compatibilityOverride.StartAsync(progress, completion);
     }
 
