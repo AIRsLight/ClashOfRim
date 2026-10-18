@@ -56,7 +56,7 @@ internal static class ClientModuleBoundaryTests
             || t == typeof(ClientEventDecisionPresentation) || t == typeof(ClientEventDecisionRuntime)
             || t == typeof(ClientDiplomacyCreationPresentation) || t == typeof(ClientDiplomacyRelationEffects) || t == typeof(ClientDiplomacyTransport)
             || t == typeof(ClientPasswordStore) || t == typeof(ClientPasswordTransport) || t == typeof(ClientPasswordPresentation)
-            || t == typeof(ClientWorldFeaturesRuntime) || t == typeof(ClientWorldNameRuntime)
+            || t == typeof(ClientWorldBaselineRuntime) || t == typeof(ClientWorldFeaturesRuntime) || t == typeof(ClientWorldNameRuntime)
             || t == typeof(ClientWorldConfigurationRuntime) || t == typeof(ClientWorldGenerationRuntime) || t == typeof(ClientWorldGenerationPage) || t == typeof(ClientWorldGenerationPresentation)
             || t == typeof(ClientStorytellerRuntime) || t == typeof(ClientStorytellerPage) || t == typeof(ClientWorldRuntimeValues)
             || t == typeof(ClientWorldSourceGameRuntime) || t == typeof(ClientCompatibilityPresentation) || t == typeof(ClientWorldEntryStore) || t == typeof(ClientWorldPreparationTransport) || t == typeof(ClientWorldEntryPresentation)
@@ -117,7 +117,7 @@ internal static class ClientModuleBoundaryTests
             typeof(ClientDiplomacyPresentation), typeof(ClientEventTextFormatting), typeof(ClientEventReadPresentation),
             typeof(ClientEventDecisionPresentation), typeof(ClientEventDecisionRuntime),
             typeof(ClientDiplomacyCreationPresentation), typeof(ClientDiplomacyRelationEffects), typeof(ClientDiplomacyTransport),
-            typeof(ClientWorldFeaturesRuntime), typeof(ClientWorldNameRuntime),
+            typeof(ClientWorldBaselineRuntime), typeof(ClientWorldFeaturesRuntime), typeof(ClientWorldNameRuntime),
             typeof(ClientWorldConfigurationRuntime), typeof(ClientWorldGenerationRuntime), typeof(ClientWorldGenerationPage), typeof(ClientWorldGenerationPresentation),
             typeof(ClientStorytellerRuntime), typeof(ClientStorytellerPage), typeof(ClientWorldRuntimeValues),
             typeof(ClientWorldSourceGameRuntime), typeof(ClientCompatibilityPresentation), typeof(ClientWorldPreparationTransport), typeof(ClientWorldEntryPresentation),

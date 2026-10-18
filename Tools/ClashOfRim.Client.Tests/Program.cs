@@ -19,6 +19,7 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("world baseline submission owns frozen input, substrate acceptance and publication", ClientWorldBaselineSubmissionTests.Run),
     ("world feature names share culture, catalog and geometry policy", ClientWorldFeatureLabelsTests.Run),
     ("world feature runtime preserves IDs, layers and tile links", ClientWorldFeaturesRuntimeTests.Run),
     ("world generation runtime binds engine inputs, worlds and setup pages", ClientWorldGenerationRuntimeTests.Run),

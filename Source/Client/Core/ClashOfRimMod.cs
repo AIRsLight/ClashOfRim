@@ -154,6 +154,7 @@ public sealed partial class ClashOfRimMod : Mod
     private readonly ClientStorytellerConfiguration storytellerConfiguration;
     private readonly ClientWorldConfiguration worldConfiguration;
     private readonly ClientWorldGeneration worldGeneration;
+    private readonly ClientWorldBaselineSubmission worldBaselineSubmission;
     private readonly List<ModChatMessageDto> lastChatMessages = new();
     private readonly List<ModWorldMapMarkerDto> lastWorldMapMarkers = new();
     private readonly Dictionary<string, ModPlayerColonySiteDto> occupiedPlayerColonySites = new(StringComparer.Ordinal);
@@ -181,6 +182,7 @@ public sealed partial class ClashOfRimMod : Mod
             (server, account) => Find.WindowStack.Add(new AIRsLight.ClashOfRim.MainMenu.ClashOfRimAccountRegistrationDialog(this, server, account)), compatibilityPresentation);
         var worldTransport = new ClientWorldPreparationTransport(new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner)));
         worldPreparation = new ClientWorldPreparation(sessionLifecycle, new ClientSnapshotGame(), worldTransport, entryPresentation);
+        worldBaselineSubmission = new ClientWorldBaselineSubmission(sessionLifecycle, new ClientWorldBaselineRuntime(), worldTransport);
         sessionReconnect = new ClientSessionReconnect(new ClientSessionReconnectTransport(new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner))), sessionLifecycle, synchronization);
         passwordChange = new ClientPasswordChange(sessionLifecycle,
             new ClientPasswordTransport(new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner))),

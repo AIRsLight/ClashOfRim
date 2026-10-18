@@ -617,6 +617,14 @@ public sealed class ModAbandonPlayerColonyResponseDto
 [DataContract]
 public sealed class ModWorldConfigurationDto
 {
+    // A shallow serialization view; callers that retain it must deep-copy it.
+    internal ModWorldConfigurationDto MetadataView()
+    {
+        var view = (ModWorldConfigurationDto)MemberwiseClone();
+        view.TileGeometry = null;
+        return view;
+    }
+
     [DataMember(Name = "worldConfigurationId")]
     public string WorldConfigurationId { get; set; } = string.Empty;
 

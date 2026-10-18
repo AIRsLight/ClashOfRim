@@ -190,7 +190,8 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
-        ModWorldConfigurationDto configuration = BuildCurrentWorldConfiguration();
+        var capture = worldBaselineSubmission.Capture();
+        ModWorldConfigurationDto configuration = BuildCurrentWorldConfiguration(capture.Context);
         if (!IsUsableWorldGenerationBaseline(configuration, out string baselineFailureReason))
         {
             loginStatus = ClashOfRimText.Key("ClashOfRim.WorldBaseline.StatusInvalid", baselineFailureReason.Named("REASON"));
@@ -207,9 +208,13 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
+        var prepared = worldBaselineSubmission.Prepare(capture, configuration, substratePayload);
+        if (prepared is null) { worldSetup.RestoreInitial(initial); return; }
+
         // Keep automatic map login from racing the temporary authenticated setup session.
         if (!TryBeginManualSynchronization(out var manualOperation, out string admissionFailure))
         {
+            worldBaselineSubmission.Discard(prepared);
             worldSetup.RestoreInitial(initial);
             loginStatus = admissionFailure;
             return;
@@ -220,14 +225,11 @@ public sealed partial class ClashOfRimMod
         {
             try
             {
-                using var httpClient = new HttpClient();
-                var client = new ClashOfRimModNetworkClient(
-                    httpClient,
-                    ClashOfRimClientNetworkContext.FromSettings(settings));
-                ClashOfRimClientNetworkResult<ModSubmitWorldConfigurationResponseDto> result =
-                    await ClientSessionWork.Observe(SubmitWorldConfigurationWithDetachedGeometryAsync(client, configuration, substratePayload, "initial world configuration"));
+                var result = await worldBaselineSubmission.SubmitAsync(prepared);
+                if (result is null) return;
                 using (ClientSessionWork.EnterPublication())
                 {
+                    if (!worldBaselineSubmission.IsCurrent(prepared)) return;
                     if (!result.Success || result.Response?.Result?.Accepted != true)
                     {
                         loginStatus = ClashOfRimText.Key("ClashOfRim.WorldBaseline.StatusWorldConfigFailed", (result.ErrorCode ?? result.Response?.Result?.ErrorCode.ToString() ?? string.Empty).Named("CODE"), (result.Message ?? result.Response?.Result?.Message ?? string.Empty).Named("MESSAGE"));
@@ -238,24 +240,30 @@ public sealed partial class ClashOfRimMod
                     ClashLog.Message("[ClashOfRim] Initial world configuration accepted by server: " + DescribeWorldConfiguration(result.Response.WorldConfiguration));
                 }
 
+                using var httpClient = new HttpClient();
+                var client = new ClashOfRimModNetworkClient(httpClient, prepared.Context);
                 ClashOfRimClientNetworkResult<ModGetAdminBaselineRequirementsResponseDto> requirementsResult =
                     await ClientSessionWork.Observe(client.GetAdminBaselineRequirementsAsync());
                 using (ClientSessionWork.EnterPublication())
                 {
+                    if (!worldBaselineSubmission.IsCurrent(prepared)) return;
                     if (!requirementsResult.Success || requirementsResult.Response?.Result?.Accepted != true)
                     {
                         loginStatus = ClashOfRimText.Key("ClashOfRim.WorldBaseline.StatusAdminBaselineFailed", (requirementsResult.ErrorCode ?? requirementsResult.Response?.Result?.ErrorCode.ToString() ?? string.Empty).Named("CODE"), (requirementsResult.Message ?? requirementsResult.Response?.Result?.Message ?? string.Empty).Named("MESSAGE"));
                         Log.Warning("[ClashOfRim] Admin baseline requirements rejected after world configuration submit: " + loginStatus);
-                        EnqueueClashOfRimMainThreadAction(() => Messages.Message(loginStatus, MessageTypeDefOf.RejectInput, historical: false));
+                        EnqueueClashOfRimMainThreadAction(() => worldBaselineSubmission.TryApply(prepared, () =>
+                            Messages.Message(loginStatus, MessageTypeDefOf.RejectInput, historical: false)));
                         return;
                     }
                 }
 
                 ModSubmitAdminBaselineRequestDto adminBaseline = await ClientSessionWork.Observe(BuildAdminBaselineOnMainThreadAsync(
-                    requirementsResult.Response.BaselineExtensions));
+                    requirementsResult.Response.BaselineExtensions, prepared));
+                if (!worldBaselineSubmission.IsCurrent(prepared)) return;
                 ClashOfRimClientNetworkResult<ModSubmitAdminBaselineResponseDto> baselineResult =
                     await ClientSessionWork.Observe(client.SubmitAdminBaselineAsync(adminBaseline));
                 using var publication = ClientSessionWork.EnterPublication();
+                if (!worldBaselineSubmission.IsCurrent(prepared)) return;
                 if (!baselineResult.Success || baselineResult.Response?.Result?.Accepted != true)
                 {
                     loginStatus = ClashOfRimText.Key(
@@ -263,8 +271,8 @@ public sealed partial class ClashOfRimMod
                         (baselineResult.ErrorCode ?? baselineResult.Response?.Result?.ErrorCode.ToString() ?? string.Empty).Named("CODE"),
                         (baselineResult.Message ?? baselineResult.Response?.Result?.Message ?? string.Empty).Named("MESSAGE"));
                     Log.Warning("[ClashOfRim] Admin baseline rejected after world configuration submit: " + loginStatus);
-                    EnqueueClashOfRimMainThreadAction(() =>
-                        Messages.Message(loginStatus, MessageTypeDefOf.RejectInput, historical: false));
+                    EnqueueClashOfRimMainThreadAction(() => worldBaselineSubmission.TryApply(prepared, () =>
+                        Messages.Message(loginStatus, MessageTypeDefOf.RejectInput, historical: false)));
                     return;
                 }
 
@@ -274,17 +282,19 @@ public sealed partial class ClashOfRimMod
                     baselineResponse.StandardMarketValueCount.Named("PRICECOUNT"),
                     baselineResponse.TrapAutoApprovedCount.Named("TRAPAUTO"),
                     baselineResponse.TrapCandidateCount.Named("TRAPCANDIDATE"));
-                EnqueueClashOfRimMainThreadAction(() =>
+                EnqueueClashOfRimMainThreadAction(() => worldBaselineSubmission.Complete(prepared, () =>
                 {
                     Messages.Message(loginStatus, MessageTypeDefOf.PositiveEvent, historical: false);
                     RequestWorldMapMarkerRefresh(ClashOfRimText.Key("ClashOfRim.WorldBaseline.ReasonSubmitted"));
+                    if (!worldBaselineSubmission.IsCurrent(prepared)) return;
                     StartInitialColonySnapshotUpload();
-                });
+                }));
             }
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
                 using var publication = ClientSessionWork.EnterPublication();
+                if (!worldBaselineSubmission.IsCurrent(prepared)) return;
                 loginStatus = ClashOfRimText.Key("ClashOfRim.WorldBaseline.StatusSubmitException", ex.Message.Named("MESSAGE"));
                 Log.Warning("[ClashOfRim] Initial world configuration submit exception: " + ex);
             }
@@ -303,10 +313,11 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
+        var capture = worldBaselineSubmission.Capture();
         ModWorldConfigurationDto configuration;
         try
         {
-            configuration = BuildCurrentWorldConfiguration();
+            configuration = BuildCurrentWorldConfiguration(capture.Context);
         }
         catch (Exception ex)
         {
@@ -335,19 +346,19 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
+        var prepared = worldBaselineSubmission.Prepare(capture, configuration, substratePayload);
+        if (prepared is null) return;
+
         adminInProgress = true;
         adminStatus = ClashOfRimText.Key("ClashOfRim.Admin.WorldBaselineUpdating");
         ClientSessionWork.Run(async () =>
         {
             try
             {
-                using var httpClient = new HttpClient();
-                var client = new ClashOfRimModNetworkClient(
-                    httpClient,
-                    ClashOfRimClientNetworkContext.FromSettings(settings));
-                ClashOfRimClientNetworkResult<ModSubmitWorldConfigurationResponseDto> result =
-                    await ClientSessionWork.Observe(SubmitWorldConfigurationWithDetachedGeometryAsync(client, configuration, substratePayload, "admin world baseline update"));
+                var result = await worldBaselineSubmission.SubmitAsync(prepared);
+                if (result is null) return;
                 using var publication = ClientSessionWork.EnterPublication();
+                if (!worldBaselineSubmission.IsCurrent(prepared)) return;
                 if (!result.Success || result.Response is null)
                 {
                     adminStatus = ClashOfRimText.Key(
@@ -372,22 +383,24 @@ public sealed partial class ClashOfRimMod
                     "ClashOfRim.Admin.WorldBaselineUpdated",
                     (acceptedConfiguration?.Factions.Count ?? 0).Named("FACTIONS"),
                     (acceptedConfiguration?.WorldObjects.Count ?? 0).Named("WORLDOBJECTS"));
-                ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
+                ClashOfRimGameComponent.EnqueueMainThreadAction(() => worldBaselineSubmission.Complete(prepared, () =>
                 {
                     if (acceptedConfiguration is not null)
                     {
                         ApplyWorldBaseline(acceptedConfiguration);
+                        if (!worldBaselineSubmission.IsCurrent(prepared)) return;
                         UpdateOccupiedPlayerColonySites(acceptedConfiguration);
                     }
 
                     Messages.Message(adminStatus, MessageTypeDefOf.PositiveEvent, historical: false);
                     RequestWorldMapMarkerRefresh(ClashOfRimText.Key("ClashOfRim.Admin.WorldBaselineRefreshReason"));
-                });
+                }));
             }
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
                 using var publication = ClientSessionWork.EnterPublication();
+                if (!worldBaselineSubmission.IsCurrent(prepared)) return;
                 adminStatus = ClashOfRimText.Key(
                     "ClashOfRim.Admin.StatusException",
                     ex.GetType().Name.Named("TYPE"),
@@ -436,10 +449,11 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
+        var capture = worldBaselineSubmission.Capture();
         ModWorldConfigurationDto configuration;
         try
         {
-            configuration = BuildCurrentWorldConfiguration();
+            configuration = BuildCurrentWorldConfiguration(capture.Context);
         }
         catch (Exception ex)
         {
@@ -470,6 +484,9 @@ public sealed partial class ClashOfRimMod
             return;
         }
 
+        var prepared = worldBaselineSubmission.Prepare(capture, configuration, substratePayload);
+        if (prepared is null) return;
+
         adminInProgress = true;
         adminStatus = ClashOfRimText.Key("ClashOfRim.Storyteller.AdminSyncing");
         Messages.Message(adminStatus, MessageTypeDefOf.NeutralEvent, historical: false);
@@ -477,21 +494,18 @@ public sealed partial class ClashOfRimMod
         {
             try
             {
-                using var httpClient = new HttpClient();
-                var client = new ClashOfRimModNetworkClient(
-                    httpClient,
-                    ClashOfRimClientNetworkContext.FromSettings(settings));
-                ClashOfRimClientNetworkResult<ModSubmitWorldConfigurationResponseDto> result =
-                    await ClientSessionWork.Observe(SubmitWorldConfigurationWithDetachedGeometryAsync(client, configuration, substratePayload, "storyteller baseline sync"));
+                var result = await worldBaselineSubmission.SubmitAsync(prepared);
+                if (result is null) return;
                 using var publication = ClientSessionWork.EnterPublication();
+                if (!worldBaselineSubmission.IsCurrent(prepared)) return;
                 if (!result.Success || result.Response is null)
                 {
                     adminStatus = ClashOfRimText.Key(
                         "ClashOfRim.Storyteller.AdminSyncFailed",
                         (result.ErrorCode ?? string.Empty).Named("CODE"),
                         (result.Message ?? string.Empty).Named("MESSAGE"));
-                    ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
-                        Messages.Message(adminStatus, MessageTypeDefOf.RejectInput, historical: false));
+                    ClashOfRimGameComponent.EnqueueMainThreadAction(() => worldBaselineSubmission.TryApply(prepared, () =>
+                        Messages.Message(adminStatus, MessageTypeDefOf.RejectInput, historical: false)));
                     return;
                 }
 
@@ -502,8 +516,8 @@ public sealed partial class ClashOfRimMod
                         "ClashOfRim.Storyteller.AdminSyncRejected",
                         serverResult.ErrorCode.Named("CODE"),
                         (serverResult.Message ?? string.Empty).Named("MESSAGE"));
-                    ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
-                        Messages.Message(adminStatus, MessageTypeDefOf.RejectInput, historical: false));
+                    ClashOfRimGameComponent.EnqueueMainThreadAction(() => worldBaselineSubmission.TryApply(prepared, () =>
+                        Messages.Message(adminStatus, MessageTypeDefOf.RejectInput, historical: false)));
                     return;
                 }
 
@@ -512,28 +526,30 @@ public sealed partial class ClashOfRimMod
                     "ClashOfRim.Storyteller.AdminSynced",
                     (acceptedConfiguration?.StorytellerDefName ?? configuration.StorytellerDefName ?? string.Empty).Named("STORYTELLER"),
                     (acceptedConfiguration?.DifficultyDefName ?? configuration.DifficultyDefName ?? string.Empty).Named("DIFFICULTY"));
-                ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
+                ClashOfRimGameComponent.EnqueueMainThreadAction(() => worldBaselineSubmission.Complete(prepared, () =>
                 {
                     if (acceptedConfiguration is not null)
                     {
                         ApplyRuntimeWorldConfigurationUpdate(acceptedConfiguration);
+                        if (!worldBaselineSubmission.IsCurrent(prepared)) return;
                         UpdateOccupiedPlayerColonySites(acceptedConfiguration);
                     }
 
                     Messages.Message(adminStatus, MessageTypeDefOf.PositiveEvent, historical: false);
-                });
+                }));
             }
             catch (Exception ex)
             when (ClientSessionWork.IsCurrent)
             {
                 using var publication = ClientSessionWork.EnterPublication();
+                if (!worldBaselineSubmission.IsCurrent(prepared)) return;
                 adminStatus = ClashOfRimText.Key(
                     "ClashOfRim.Storyteller.AdminSyncException",
                     ex.GetType().Name.Named("TYPE"),
                     ex.Message.Named("MESSAGE"));
                 Log.Warning("[ClashOfRim] Storyteller/difficulty sync failed: " + ex);
-                ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
-                    Messages.Message(adminStatus, MessageTypeDefOf.RejectInput, historical: false));
+                ClashOfRimGameComponent.EnqueueMainThreadAction(() => worldBaselineSubmission.TryApply(prepared, () =>
+                    Messages.Message(adminStatus, MessageTypeDefOf.RejectInput, historical: false)));
             }
             finally
             {
@@ -626,15 +642,20 @@ public sealed partial class ClashOfRimMod
     }
 
     private async Task<ModSubmitAdminBaselineRequestDto> BuildAdminBaselineOnMainThreadAsync(
-        IReadOnlyList<ModAdminBaselineExtensionRequirementDto>? extensionRequirements)
+        IReadOnlyList<ModAdminBaselineExtensionRequirementDto>? extensionRequirements,
+        ClientWorldBaselineSubmission.Prepared? prepared = null)
     {
+        string userId = prepared?.Context.UserId ?? settings.UserId;
         var completion = new TaskCompletionSource<ModSubmitAdminBaselineRequestDto>(TaskCreationOptions.RunContinuationsAsynchronously);
         using var registration = ClientSessionWork.Token.Register(() => completion.TrySetCanceled());
         EnqueueClashOfRimMainThreadAction(() =>
         {
             try
             {
-                completion.TrySetResult(BuildAdminBaseline(extensionRequirements));
+                if (prepared is not null && !worldBaselineSubmission.IsCurrent(prepared)) { completion.TrySetCanceled(); return; }
+                var baseline = BuildAdminBaseline(extensionRequirements, userId);
+                if (prepared is null || worldBaselineSubmission.IsCurrent(prepared)) completion.TrySetResult(baseline);
+                else completion.TrySetCanceled();
             }
             catch (Exception ex)
             {
@@ -645,14 +666,14 @@ public sealed partial class ClashOfRimMod
     }
 
     private ModSubmitAdminBaselineRequestDto BuildAdminBaseline(
-        IReadOnlyList<ModAdminBaselineExtensionRequirementDto>? extensionRequirements)
+        IReadOnlyList<ModAdminBaselineExtensionRequirementDto>? extensionRequirements, string userId)
     {
         DateTimeOffset generatedAtUtc = DateTimeOffset.UtcNow;
         TrapClassificationUploadPackage trapPackage = TrapClassificationUploadBuilder.Build(
             TrapClassificationScanner.ScanLoadedThingDefs(),
             adminApprovedCandidateDefNames: null,
             generatedAtUtc,
-            settings.UserId);
+            userId);
 
         ModSubmitAdminBaselineRequestDto baseline = new()
         {
@@ -916,7 +937,7 @@ public sealed partial class ClashOfRimMod
         }
     }
 
-    private ModWorldConfigurationDto BuildCurrentWorldConfiguration()
+    private ModWorldConfigurationDto BuildCurrentWorldConfiguration(ClashOfRimClientNetworkContext context)
     {
         object? world = Find.World;
         object? worldInfo = ReadMember(world, "info") ?? ReadMember(world, "Info");
@@ -924,8 +945,8 @@ public sealed partial class ClashOfRimMod
         ModWorldConfigurationDto configuration = new()
         {
             WorldConfigurationId = "world:" + Guid.NewGuid().ToString("N"),
-            ConfiguredByUserId = settings.UserId,
-            ConfiguredByColonyId = settings.ColonyId,
+            ConfiguredByUserId = context.UserId,
+            ConfiguredByColonyId = context.ColonyId,
             ConfiguredAtUtc = DateTimeOffset.UtcNow.ToString("O"),
             SeedString = ReadFirstString(worldInfo, "seedString", "SeedString", "seed"),
             PlanetCoverage = ReadFirstString(worldInfo, "planetCoverage", "PlanetCoverage"),
@@ -945,65 +966,17 @@ public sealed partial class ClashOfRimMod
         configuration.Roads.AddRange(ReadCurrentWorldRoads());
         configuration.WorldObjects.AddRange(ReadCurrentWorldObjects());
         configuration.PlayerColonySites.AddRange(ReadCurrentPlayerColonySites(
-            settings.UserId,
-            settings.ColonyId,
+            context.UserId,
+            context.ColonyId,
             BuildCurrentColonyAppearanceDto(settings)));
         configuration.TileGeometry = ReadCurrentWorldTileGeometry();
         configuration.Extensions.AddRange(ClashOfRimCompatibilityApi.CollectCurrentWorldConfigurationExtensions(
-            settings.UserId,
-            settings.ColonyId,
+            context.UserId,
+            context.ColonyId,
             configuration.WorldConfigurationId));
         ClashLog.Message(
             $"[ClashOfRim] Captured world baseline id={configuration.WorldConfigurationId} seed={configuration.SeedString ?? "<null>"} coverage={configuration.PlanetCoverage ?? "<null>"} rainfall={configuration.OverallRainfall ?? "<null>"} temperature={configuration.OverallTemperature ?? "<null>"} population={configuration.OverallPopulation ?? "<null>"} landmarkDensity={configuration.LandmarkDensity ?? "<null>"} generationPollution={ReadWorldGenerationPollution(configuration).ToString(CultureInfo.InvariantCulture)} factionEntries={configuration.FactionDefNames.Count} features={configuration.Features.Count} roads={configuration.Roads.Count} worldExtensions={configuration.Extensions.Count} worldObjects={configuration.WorldObjects.Count} tileGeometryLayers={configuration.TileGeometry?.Layers.Count ?? 0}.");
         return configuration;
-    }
-
-    private async Task<ClashOfRimClientNetworkResult<ModSubmitWorldConfigurationResponseDto>> SubmitWorldConfigurationWithDetachedGeometryAsync(
-        ClashOfRimModNetworkClient client,
-        ModWorldConfigurationDto configuration,
-        byte[] substratePayload,
-        string context)
-    {
-        ModWorldTileGeometryDto? tileGeometry = configuration.TileGeometry;
-        int tileCenterCount = CountWorldTileCenters(tileGeometry);
-        ModWorldConfigurationDto lightweightConfiguration = CopyWorldConfiguration(configuration, includeTileGeometry: false);
-        ClashLog.Message(
-            $"[ClashOfRim] Submitting world configuration without tile geometry: context={context}, "
-            + $"features={lightweightConfiguration.Features.Count}, roads={lightweightConfiguration.Roads.Count}, "
-            + $"worldObjects={lightweightConfiguration.WorldObjects.Count}, tileCentersDetached={tileCenterCount}.");
-
-        ClashOfRimClientNetworkResult<ModSubmitWorldConfigurationResponseDto> result =
-            await client.SubmitWorldConfigurationAsync(lightweightConfiguration).ConfigureAwait(false);
-        if (!result.Success || result.Response?.Result?.Accepted != true || tileCenterCount <= 0)
-        {
-            return result;
-        }
-
-        string worldConfigurationId = result.Response.WorldConfiguration?.WorldConfigurationId
-            ?? configuration.WorldConfigurationId
-            ?? string.Empty;
-        if (string.IsNullOrWhiteSpace(worldConfigurationId))
-        {
-            Log.Warning("[ClashOfRim] Skipped detached world tile geometry submit because the accepted world configuration id is empty.");
-            return result;
-        }
-
-        ClashOfRimClientNetworkResult<ModUploadWorldSubstrateResponseDto> substrateResult =
-            await client.UploadWorldSubstrateAsync(worldConfigurationId, substratePayload).ConfigureAwait(false);
-        if (!substrateResult.Success || substrateResult.Response?.Result?.Accepted != true)
-        {
-            string message = substrateResult.Message
-                ?? substrateResult.Response?.Result?.Message
-                ?? substrateResult.ErrorCode
-                ?? substrateResult.Response?.Result?.ErrorCode.ToString()
-                ?? "Unknown";
-            throw new InvalidOperationException("World substrate upload failed after " + context + ": " + message);
-        }
-
-        ClashLog.Message(
-            "[ClashOfRim] World substrate accepted by server: "
-            + $"layers={substrateResult.Response.LayerCount}, tileCenters={substrateResult.Response.TileCenterCount}, bytes={substratePayload.Length}.");
-        return result;
     }
 
     private static bool TryCaptureWorldSubstrate(
@@ -1022,45 +995,6 @@ public sealed partial class ClashOfRimMod
         payload = Array.Empty<byte>();
         failure = captureFailure ?? "Unknown";
         return false;
-    }
-
-    private static int CountWorldTileCenters(ModWorldTileGeometryDto? geometry)
-    {
-        return geometry?.Layers.Sum(layer => layer.TileCenters.Count) ?? 0;
-    }
-
-    private static ModWorldConfigurationDto CopyWorldConfiguration(
-        ModWorldConfigurationDto source,
-        bool includeTileGeometry)
-    {
-        var copy = new ModWorldConfigurationDto
-        {
-            WorldConfigurationId = source.WorldConfigurationId,
-            ConfiguredByUserId = source.ConfiguredByUserId,
-            ConfiguredByColonyId = source.ConfiguredByColonyId,
-            ConfiguredAtUtc = source.ConfiguredAtUtc,
-            SeedString = source.SeedString,
-            PlanetCoverage = source.PlanetCoverage,
-            OverallRainfall = source.OverallRainfall,
-            OverallTemperature = source.OverallTemperature,
-            OverallPopulation = source.OverallPopulation,
-            LandmarkDensity = source.LandmarkDensity,
-            TileCount = source.TileCount,
-            StorytellerDefName = source.StorytellerDefName,
-            DifficultyDefName = source.DifficultyDefName,
-            DifficultyValuesXml = source.DifficultyValuesXml,
-            GameLanguage = source.GameLanguage,
-            TileGeometry = includeTileGeometry ? source.TileGeometry : null
-        };
-        copy.FactionDefNames.AddRange(source.FactionDefNames);
-        copy.Features.AddRange(source.Features);
-        copy.FeatureNameCatalogs.AddRange(source.FeatureNameCatalogs);
-        copy.Factions.AddRange(source.Factions);
-        copy.Roads.AddRange(source.Roads);
-        copy.WorldObjects.AddRange(source.WorldObjects);
-        copy.PlayerColonySites.AddRange(source.PlayerColonySites);
-        copy.Extensions.AddRange(source.Extensions);
-        return copy;
     }
 
     private static ModWorldTileGeometryDto? ReadCurrentWorldTileGeometry()

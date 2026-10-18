@@ -8,7 +8,7 @@ using AIRsLight.ClashOfRim.Modules.World;
 
 namespace AIRsLight.ClashOfRim.ClientNetwork;
 
-internal sealed class ClientWorldPreparationTransport : IClientWorldPreparationTransport, IClientWorldSubstrateTransport, IClientWorldFeatureCatalogTransport
+internal sealed class ClientWorldPreparationTransport : IClientWorldPreparationTransport, IClientWorldSubstrateTransport, IClientWorldFeatureCatalogTransport, IClientWorldBaselineTransport
 {
     private readonly IClientProtocolEnvironment environment;
     internal ClientWorldPreparationTransport(IClientProtocolEnvironment environment) => this.environment = environment;
@@ -20,6 +20,10 @@ internal sealed class ClientWorldPreparationTransport : IClientWorldPreparationT
         => Run(context, protocol => protocol.ReadAsync(context, generation, true, true, token));
     public Task<ClashOfRimClientNetworkResult<byte[]>> DownloadAsync(ClashOfRimClientNetworkContext context, string configurationId, CancellationToken token)
         => Run(context, protocol => protocol.DownloadSubstrateAsync(context, configurationId, token));
+    public Task<ClashOfRimClientNetworkResult<ModSubmitWorldConfigurationResponseDto>> SubmitAsync(ClashOfRimClientNetworkContext context, ModWorldConfigurationDto configuration, CancellationToken token)
+        => Run(context, protocol => protocol.SubmitAsync(context, configuration, token));
+    public Task<ClashOfRimClientNetworkResult<ModUploadWorldSubstrateResponseDto>> UploadAsync(ClashOfRimClientNetworkContext context, string worldId, byte[] payload, CancellationToken token)
+        => Run(context, protocol => protocol.UploadSubstrateAsync(context, worldId, payload, token));
     public Task<ClashOfRimClientNetworkResult<ModSubmitWorldFeatureNamesResponseDto>> SubmitNamesAsync(ClashOfRimClientNetworkContext context, string language, string world, System.Collections.Generic.IReadOnlyList<ModWorldFeatureDto> features, CancellationToken token)
         => Run(context, protocol => protocol.SubmitNamesAsync(context, language, world, features, token));
     private async Task<T> Run<T>(ClashOfRimClientNetworkContext context, Func<ClientWorldProtocol, Task<T>> operation)
