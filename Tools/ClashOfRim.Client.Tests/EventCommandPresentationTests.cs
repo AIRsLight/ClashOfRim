@@ -26,6 +26,23 @@ using Verse;
 
 internal static class EventCommandPresentationTests
 {
+    private static void RaidCommandPresentation()
+    {
+        var view = new AIRsLight.ClashOfRim.Raids.ClientRaidLaunchPresentation(static _ => { });
+        string target = view.TargetLabel(new() { OwnerUserId = "user-é", OwnerColonyId = "colony-é", Label = "label-é", Tile = 42 });
+        RequireResolved(target);
+        foreach (string suffix in new[] { "CaravanTargetOption", "ConfirmStart" })
+        {
+            string key = "ClashOfRim.Raid." + suffix;
+            string text = view.Text(key, ("TARGET", target), ("COUNT", 3)); RequireResolved(text);
+            if (translations[key].Contains("{TARGET}") && !text.Contains(target)
+                || translations[key].Contains("{COUNT}") && !text.Contains("3")) throw new Exception("Raid command lost confirmation arguments.");
+        }
+        foreach (string key in new[] { "ClashOfRim.Raid.PvpDisabled", "ClashOfRim.Raid.StatusNoTargets", "ClashOfRim.Raid.StatusNoPawns",
+            "ClashOfRim.Raid.StatusTargetIncomplete", "ClashOfRim.Raid.StatusAttackerPawnUnavailable",
+            "ClashOfRim.VehicleFramework.RemoteLanding.RaidStartFailedNoCaravan", "ClashOfRim.VehicleFramework.RemoteLanding.RaidUnavailable" })
+            RequireResolved(view.Text(key));
+    }
     private static void SnapshotTransactionPresentation()
     {
         RequireResolved(new ClientSnapshotTransactionPresentation().Uploading);
@@ -120,6 +137,9 @@ internal static class EventCommandPresentationTests
             {
                 CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(culture);
                 translations = XDocument.Load(file).Root!.Elements().ToDictionary(e => e.Name.LocalName, e => e.Value);
+                string language = new FileInfo(file).Directory!.Parent!.Name;
+                string vehicleText = Path.Combine(root.FullName, "ThirdPartyCompat", "Languages", language, "Keyed", "ClashOfRimVehicleFramework.xml");
+                foreach (var entry in XDocument.Load(vehicleText).Root!.Elements()) translations.Add(entry.Name.LocalName, entry.Value);
                 DecisionPresentation();
                 DiplomacyCreationPresentation();
                 PlayerDirectoryPresentation();
@@ -134,6 +154,7 @@ internal static class EventCommandPresentationTests
                 TradePresentation();
                 ShopPresentation();
                 RaidSettlementPresentation();
+                RaidCommandPresentation();
                 SnapshotRestorePresentation();
                 SnapshotSavingPresentation();
                 SnapshotTransactionPresentation();

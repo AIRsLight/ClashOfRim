@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.Modules.Sessions;
@@ -30,12 +31,14 @@ internal sealed class ClientRaidLaunching
         this.transport = transport; this.presentation = presentation; this.pvpEnabled = pvpEnabled; }
 
     internal event Action? Completed;
+    internal bool Enabled => pvpEnabled();
+    internal static bool IsRaidable([NotNullWhen(true)] ModWorldMapMarkerDto? target) => target?.CanRaid == true;
 
-    internal Task StartAsync(IClientRaidLaunchRuntime runtime, ModWorldMapMarkerDto target)
+    internal Task StartAsync(IClientRaidLaunchRuntime runtime, ModWorldMapMarkerDto? target)
     {
         using var p = ClientSessionWork.EnterPublication();
-        if (!pvpEnabled()) { Reject(Text("PvpDisabled")); return Task.CompletedTask; }
-        if (string.IsNullOrWhiteSpace(target.OwnerUserId) || string.IsNullOrWhiteSpace(target.OwnerColonyId)
+        if (!Enabled) { Reject(Text("PvpDisabled")); return Task.CompletedTask; }
+        if (!IsRaidable(target) || string.IsNullOrWhiteSpace(target.OwnerUserId) || string.IsNullOrWhiteSpace(target.OwnerColonyId)
             || string.IsNullOrWhiteSpace(target.WorldObjectId) || string.IsNullOrWhiteSpace(target.MapId))
         { Reject(Text("StatusTargetIncomplete")); return Task.CompletedTask; }
         var result = admission.Begin();

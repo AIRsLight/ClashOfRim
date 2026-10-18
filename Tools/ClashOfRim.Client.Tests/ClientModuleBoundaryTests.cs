@@ -33,6 +33,7 @@ internal static class ClientModuleBoundaryTests
             || t == typeof(ClientObservationTransport)
             || t == typeof(ClientRemoteSnapshotTransport) || t == typeof(ClientRaidTransport)
             || t == typeof(AIRsLight.ClashOfRim.Raids.ClientRaidPreparationPresentation)
+            || t == typeof(AIRsLight.ClashOfRim.Raids.ClientRaidCommandSource)
             || t == typeof(AIRsLight.ClashOfRim.Raids.ClientRaidLaunchRuntime) || t == typeof(AIRsLight.ClashOfRim.Raids.ClientRaidLaunchPresentation)
             || t == typeof(AIRsLight.ClashOfRim.Raids.ClientRaidSupportLossSource) || t == typeof(AIRsLight.ClashOfRim.Raids.ClientRaidSupportLossPresentation)
             || t == typeof(AIRsLight.ClashOfRim.Raids.ClientRaidSettlementRuntime) || t == typeof(AIRsLight.ClashOfRim.Raids.ClientRaidSettlementPresentation)
@@ -125,7 +126,7 @@ internal static class ClientModuleBoundaryTests
         Type[] eventAdapters = { typeof(ClientPasswordTransport), typeof(ClientPasswordPresentation), typeof(AIRsLight.ClashOfRim.RemoteMaps.ClientRemoteMapCloseOperation),
             typeof(AIRsLight.ClashOfRim.RemoteMaps.ClientRemoteSessionRuntime), typeof(AIRsLight.ClashOfRim.RemoteMaps.RemoteSessionMapUtility), typeof(AIRsLight.ClashOfRim.RemoteMaps.ClientObservationRuntime), typeof(AIRsLight.ClashOfRim.RemoteMaps.ClientObservationPresentation),
             typeof(AIRsLight.ClashOfRim.Raids.ClientRaidPreparationPresentation),
-            typeof(AIRsLight.ClashOfRim.Raids.ClientRaidLaunchRuntime), typeof(AIRsLight.ClashOfRim.Raids.ClientRaidLaunchPresentation),
+            typeof(AIRsLight.ClashOfRim.Raids.ClientRaidCommandSource), typeof(AIRsLight.ClashOfRim.Raids.ClientRaidLaunchRuntime), typeof(AIRsLight.ClashOfRim.Raids.ClientRaidLaunchPresentation),
             typeof(AIRsLight.ClashOfRim.Raids.ClientRaidSupportLossSource), typeof(AIRsLight.ClashOfRim.Raids.ClientRaidSupportLossPresentation),
             typeof(AIRsLight.ClashOfRim.Raids.ClientRaidSettlementRuntime), typeof(AIRsLight.ClashOfRim.Raids.ClientRaidSettlementPresentation),
             typeof(AIRsLight.ClashOfRim.Raids.ClientRaidRecoveryRuntime), typeof(AIRsLight.ClashOfRim.Raids.ClientRaidRecoveryPresentation),

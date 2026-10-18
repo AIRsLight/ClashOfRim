@@ -93,7 +93,7 @@ public sealed partial class ClashOfRimMod : Mod
     private readonly ClientSupportActions supportActions;
     private readonly ClientSupportReturns supportReturns;
     private readonly ClientObservationMaps observationMaps;
-    private readonly ClientRaidLaunching raidLaunching;
+    private readonly ClientRaidCommands raidCommands;
     private readonly ClientRaidSettlements raidSettlements;
     private readonly ClientRaidRecovery raidRecovery;
     private readonly ClientSnapshotReload snapshotReload;
@@ -270,9 +270,11 @@ public sealed partial class ClashOfRimMod : Mod
             new ClientSupportTransport(), supportPresentation);
         supportReturns.Completed += StartQueuedAutomaticEventRefreshAfterLocalAtomicMutation;
         var raidTransport = new ClientRaidTransport();
-        raidLaunching = new ClientRaidLaunching(sessionLifecycle, mutationAdmission, synchronization, localMutations,
+        var raidPresentation = new ClientRaidLaunchPresentation(message => worldMapStatus = message);
+        var raidLaunching = new ClientRaidLaunching(sessionLifecycle, mutationAdmission, synchronization, localMutations,
             snapshotTransactions, snapshotFailureRecovery, new ClientRaidPreparation(raidTransport, new ClientRemoteSnapshotTransport()),
-            raidTransport, new ClientRaidLaunchPresentation(message => worldMapStatus = message), () => PvpEnabled);
+            raidTransport, raidPresentation, () => PvpEnabled);
+        raidCommands = new ClientRaidCommands(sessionLifecycle, raidLaunching, raidPresentation);
         raidLaunching.Completed += StartQueuedAutomaticEventRefreshAfterLocalAtomicMutation;
         raidSettlements = new ClientRaidSettlements(sessionLifecycle, mutationAdmission, synchronization, localMutations, snapshotTransactions,
             snapshotFailureRecovery, new ClientRaidSupportLosses(snapshotTransactions, new ClientSupportTransport()),

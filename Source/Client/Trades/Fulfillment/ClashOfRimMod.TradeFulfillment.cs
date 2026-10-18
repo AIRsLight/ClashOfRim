@@ -46,12 +46,6 @@ public sealed partial class ClashOfRimMod
 
     internal void StartFulfillTradeOrderByDropPod(ModTradeOrderSummaryDto order) => tradeActions.FulfillByDropPod(order);
 
-    private static string FormatSupportTargetLabel(ModWorldMapMarkerDto marker)
-        => ClientWorldTargetPresentation.Label(marker);
-
     internal string FormatWorldMapTargetLabel(ModWorldMapMarkerDto marker)
-    {
-        return FormatSupportTargetLabel(marker);
-    }
-
+        => ClientWorldTargetPresentation.Label(marker);
 }

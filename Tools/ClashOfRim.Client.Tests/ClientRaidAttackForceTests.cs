@@ -24,6 +24,7 @@ using Verse;
 internal static class ClientRaidAttackForceTests
 {
     private static Game game = null!;
+    private static World world = null!;
     private static Map map = null!;
     private static Faction player = null!;
     private static Faction? defender;
@@ -56,12 +57,32 @@ internal static class ClientRaidAttackForceTests
             }
             CaravanSource();
             TransporterSource();
+            CommandSource();
             LaunchRuntime(harmony);
         }
         catch (Exception ex) { Console.WriteLine(ex.StackTrace); throw; }
         finally { harmony.UnpatchAll(harmony.Id); CultureInfo.CurrentCulture = culture; Clear(); }
     }
 
+    private static void CommandSource()
+    {
+        Reset();
+        var source = new Source(); var command = new ClientRaidCommandSource(source);
+        Check(command.IsCurrent && command.IsAvailable && command.PawnCount == 1, "Command source lost engine availability/count.");
+        Check(command.CreateLaunch().TryCapture(context, Target(), out var manifest, out _)
+            && manifest!.SourceLoadId == "original" && source.CargoContext == ("user-é", "colony", "base"),
+            "Command launch did not reuse the captured source adapter.");
+        world = Uninitialized<World>();
+        Check(!command.IsCurrent, "Command source survived world replacement in the same game.");
+        command = new(source); game = Uninitialized<Game>();
+        Check(!command.IsCurrent, "Command source survived game replacement.");
+        var missing = ClientRaidCommandSource.ForCaravan(null);
+        Check(missing.IsCurrent && !missing.IsAvailable && missing.PawnCount == 0, "Missing vehicle caravan was not represented as unavailable.");
+        var caravanSource = ClientRaidCommandSource.ForCaravan(caravan);
+        Check(caravanSource.IsAvailable, "Existing caravan was unavailable.");
+        caravanDestroyed = true;
+        Check(!caravanSource.IsAvailable, "Command source ignored destroyed caravan.");
+    }
     private static void CaptureAndRevalidate()
     {
         Reset();
@@ -293,6 +314,7 @@ internal static class ClientRaidAttackForceTests
         void Patch(Type type, string method, string prefix) => harmony.Patch(AccessTools.Method(type, method), prefix: new HarmonyMethod(typeof(ClientRaidAttackForceTests), prefix));
         void Getter(Type type, string property, string prefix) => harmony.Patch(AccessTools.PropertyGetter(type, property), prefix: new HarmonyMethod(typeof(ClientRaidAttackForceTests), prefix));
         Getter(typeof(Current), nameof(Current.Game), nameof(Game));
+        Getter(typeof(Find), nameof(Find.World), nameof(CurrentWorld));
         Getter(typeof(Pawn), nameof(Pawn.Dead), nameof(Dead));
         Getter(typeof(Thing), nameof(Thing.Destroyed), nameof(Destroyed));
         Getter(typeof(Thing), nameof(Thing.Faction), nameof(ThingFaction));
@@ -338,7 +360,7 @@ internal static class ClientRaidAttackForceTests
     }
 
     private static void Clear() { destroyed.Clear(); dead.Clear(); nonOwners.Clear(); prisoners.Clear(); trace.Clear(); members.Clear(); shuttles.Clear(); referenced.Clear(); landed.Clear(); registered = null; }
-    private static void Reset() { Clear(); game = Uninitialized<Game>(); map = Uninitialized<Map>(); player = Uninitialized<Faction>(); defender = null; caravan = Uninitialized<Caravan>(); caravanDestroyed = false; caravanInWorld = true; tile = 7; layer = 2; }
+    private static void Reset() { Clear(); game = Uninitialized<Game>(); world = Uninitialized<World>(); map = Uninitialized<Map>(); player = Uninitialized<Faction>(); defender = null; caravan = Uninitialized<Caravan>(); caravanDestroyed = false; caravanInWorld = true; tile = 7; layer = 2; }
     private static T Uninitialized<T>() => (T)RuntimeHelpers.GetUninitializedObject(typeof(T));
     private static Pawn NewPawn(int id) => new() { def = new ThingDef { defName = "Human" }, thingIDNumber = id };
     private static Thing NewThing(string name, int id) => new() { def = new ThingDef { defName = name }, thingIDNumber = id, stackCount = 2 };
@@ -347,6 +369,7 @@ internal static class ClientRaidAttackForceTests
     private static bool Skip() => false;
     private static bool Text(string __0, ref string __result) { __result = __0; return false; }
     private static bool Game(ref Game __result) { __result = game; return false; }
+    private static bool CurrentWorld(ref World __result) { __result = world; return false; }
     private static bool Dead(Pawn __instance, ref bool __result) { __result = dead.Contains(__instance); return false; }
     private static bool Destroyed(Thing __instance, ref bool __result) { __result = destroyed.Contains(__instance); return false; }
     private static bool ThingFaction(Thing __instance, ref Faction? __result) { __result = __instance is Pawn p && nonOwners.Contains(p) ? null : player; return false; }
