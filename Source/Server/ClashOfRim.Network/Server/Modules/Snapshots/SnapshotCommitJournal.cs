@@ -91,13 +91,7 @@ internal sealed class SnapshotCommitJournal
         intent.PreparedStoragePayload?.Validate(intent.Package.Payload);
         if (directory is null) return;
         string path = Path.Combine(directory, intent.Id + ".json");
-        string temporary = path + ".tmp";
-        using (var stream = new FileStream(temporary, FileMode.Create, FileAccess.Write, FileShare.None))
-        {
-            JsonSerializer.Serialize(stream, intent);
-            stream.Flush(flushToDisk: true);
-        }
-        File.Move(temporary, path, overwrite: replace);
+        SnapshotJournalFile.Write(path, intent, replace);
     }
 
     internal void Remove(string id)

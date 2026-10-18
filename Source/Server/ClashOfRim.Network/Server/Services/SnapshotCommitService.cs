@@ -8,7 +8,7 @@ namespace AIRsLight.ClashOfRim.Network;
 /// <summary>A write-ahead intent bridges snapshot files and business records. Call under the snapshot mutation gate.</summary>
 public sealed partial class SnapshotCommitService
 {
-    private readonly string? directory;
+    private readonly SnapshotConfirmationReceipts receipts;
     private readonly SnapshotCommitJournal journal;
     private readonly Dictionary<string, SnapshotCommitIntent> pending = new(StringComparer.Ordinal);
     private bool applying;
@@ -19,10 +19,8 @@ public sealed partial class SnapshotCommitService
 
     public SnapshotCommitService(string? directory = null)
     {
-        this.directory = directory;
         journal = new SnapshotCommitJournal(directory);
-        if (directory is null) return;
-        foreach (var receipt in ReadReceipts(directory)) receipts.TryAdd(ReceiptKey(receipt.Envelope), receipt);
+        receipts = new SnapshotConfirmationReceipts(directory);
         foreach (SnapshotCommitIntent intent in journal.ReadPending())
         {
             pending.Add(intent.Id, intent);
@@ -33,8 +31,13 @@ public sealed partial class SnapshotCommitService
     public static void ValidateDirectory(string directory)
     {
         SnapshotCommitJournal.ValidateDirectory(directory);
-        foreach (SnapshotConfirmationReceipt _ in ReadReceipts(directory)) { }
+        SnapshotConfirmationReceipts.ValidateDirectory(directory);
     }
+
+    internal SnapshotConfirmationReceipt? FindConfirmationReceipt(SaveSnapshotEnvelope envelope) => receipts.Find(envelope);
+
+    internal SnapshotConfirmationReceipt? FindConfirmationReceipt(SnapshotIdentity identity, string originalHash, string payloadHash) =>
+        receipts.Find(identity, originalHash, payloadHash);
 
     public void Commit(
         IColonySnapshotIndexStore snapshots, BankLoanRegistry bank, SaveSnapshotPackage package,
@@ -485,7 +488,7 @@ public sealed partial class SnapshotCommitService
                 application.Preflight(ledger!);
                 ledger!.ApplyBatch(application.Plan!.Batch);
                 foreach (var item in application.Plan.AchievementEvents) recordTrade!(item);
-                StoreReceipt(new SnapshotConfirmationReceipt(1, snapshot.Envelope, snapshot.AcceptedAtUtc,
+                receipts.Store(new SnapshotConfirmationReceipt(1, snapshot.Envelope, snapshot.AcceptedAtUtc,
                     application.Request, application.Plan.Results));
             }
             journal.Remove(intent.Id);

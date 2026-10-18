@@ -34,8 +34,9 @@ internal static class ConfirmationJournalTests
                 WithFixture(fixture, true, f => RemainingKinds(f, kind, reopen));
         }
         WithFixture(fixture, false, EmptyAndUnwritableJournal);
-        foreach (string corrupt in new[] { "version", "sources", "results", "changes", "receipt" })
+        foreach (string corrupt in new[] { "version", "sources", "results", "changes", "receipt", "intent-name", "receipt-name" })
             WithFixture(fixture, false, f => Corrupt(f, corrupt));
+        WithFixture(fixture, false, InterruptedTemporaryFiles);
         foreach (string storage in new[] { "memory", "file", "sqlite" }) BatchSemantics(storage);
     }
 
@@ -251,15 +252,37 @@ internal static class ConfirmationJournalTests
         else if (corrupt == "sources") mutation["Sources"]![0]!["EventId"] = "other";
         else if (corrupt == "results") mutation["Plan"]!["Results"] = new JsonArray();
         else if (corrupt == "changes") mutation["Plan"]!["Changes"]![0]!["Updated"]!["Target"]!["UserId"] = "intruder";
-        else
+        else if (corrupt is "receipt" or "receipt-name")
         {
             ClashOfRimNetworkServer.RecoverSnapshotCommits(f.State);
             path = Directory.EnumerateFiles(Path.Combine(f.Journal, "confirmation-receipts"), "*.json").Single();
-            node = JsonNode.Parse(File.ReadAllText(path))!; node["Version"] = 99;
+            node = JsonNode.Parse(File.ReadAllText(path))!;
+            if (corrupt == "receipt") node["Version"] = 99;
         }
-        File.WriteAllText(path, node.ToJsonString());
+        if (corrupt is "intent-name" or "receipt-name")
+            File.Move(path, Path.Combine(Path.GetDirectoryName(path)!, "wrong-identity.json"));
+        else File.WriteAllText(path, node.ToJsonString());
         ExpectFailure(() => SnapshotCommitService.ValidateDirectory(f.Journal));
         ExpectFailure(() => new SnapshotCommitService(f.Journal));
+    }
+
+    private static void InterruptedTemporaryFiles(Fixture f)
+    {
+        f.Fail("before"); ExpectFailure(() => f.Confirm()); f.Clear();
+        var intent = f.Intent();
+        File.WriteAllText(Path.Combine(f.Journal, intent.Id + ".json.tmp"), "incomplete intent");
+        string receipts = Path.Combine(f.Journal, "confirmation-receipts");
+        Directory.CreateDirectory(receipts);
+        File.WriteAllText(Path.Combine(receipts, "incomplete.json.tmp"), "incomplete receipt");
+        SnapshotCommitService.ValidateDirectory(f.Journal);
+        f.Open();
+        var response = f.Confirm();
+        Require(response.Result.Accepted, "temporary files blocked durable intent recovery");
+        VerifyCompleted(f, intent, response);
+        SnapshotCommitService.ValidateDirectory(f.Journal);
+        f.Open();
+        Require(JsonSerializer.Serialize(f.Confirm()) == JsonSerializer.Serialize(response),
+            "temporary receipt replaced the original completed results");
     }
 
     private static void BatchSemantics(string storage) => WithDirectory(root =>
