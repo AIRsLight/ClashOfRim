@@ -318,6 +318,7 @@
   "WorldConfiguration.MissingRequest": "세계 설정에 사용자, 정착지 또는 설정 내용이 없습니다.",
   "WorldConfiguration.AdminOnly": "초기 세계 설정은 첫 번째 서버 관리자만 제출할 수 있습니다.",
   "WorldConfiguration.InvalidBaseline": "세계 설정을 받을 수 없습니다: {REASON}",
+  "WorldColonySites.WorldChanged": "정착지 등록을 준비하는 동안 월드가 변경되었습니다. 월드를 새로 고친 후 다시 시도하세요.",
   "WorldConfiguration.CompatibilityChanged": "월드 설정을 준비하는 동안 서버 호환성 정보가 변경되었습니다. 서버 정보를 새로 고친 후 다시 시도하세요.",
   "WorldConfiguration.Registered": "세계 설정을 저장했습니다.",
   "WorldConfiguration.FeatureNamesMissingRequest": "지형 이름 카탈로그에 사용자, 정착지, 언어, 세계 설정 또는 지형 이름이 없습니다.",

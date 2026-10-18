@@ -380,7 +380,8 @@ public sealed class RegisterPlayerColonySitesRequest
         string colonyId,
         IReadOnlyList<PlayerColonySiteDto>? sites,
         IReadOnlyList<WorldConfigurationExtensionDto>? extensions = null,
-        bool suppressWorldConfigurationNotification = false)
+        bool suppressWorldConfigurationNotification = false,
+        string? authToken = null)
     {
         ProtocolVersion = protocolVersion;
         UserId = userId;
@@ -388,6 +389,7 @@ public sealed class RegisterPlayerColonySitesRequest
         Sites = sites ?? Array.Empty<PlayerColonySiteDto>();
         Extensions = extensions ?? Array.Empty<WorldConfigurationExtensionDto>();
         SuppressWorldConfigurationNotification = suppressWorldConfigurationNotification;
+        AuthToken = authToken;
     }
 
     public string ProtocolVersion { get; }
@@ -401,6 +403,8 @@ public sealed class RegisterPlayerColonySitesRequest
     public IReadOnlyList<WorldConfigurationExtensionDto> Extensions { get; }
 
     public bool SuppressWorldConfigurationNotification { get; }
+
+    public string? AuthToken { get; }
 }
 
 public sealed class RegisterPlayerColonySitesResponse

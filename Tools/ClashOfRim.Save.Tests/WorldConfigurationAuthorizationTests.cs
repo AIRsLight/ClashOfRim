@@ -136,7 +136,8 @@ internal static class WorldConfigurationAuthorizationTests
     internal sealed class Provider : IWorldConfigurationExtensionProvider
     {
         public Action? BeforeNormalize; public int Normalizations;
-        public IReadOnlyList<WorldConfigurationExtensionKey> HandledKeys => [];
+        internal IReadOnlyList<WorldConfigurationExtensionKey> Keys = [];
+        public IReadOnlyList<WorldConfigurationExtensionKey> HandledKeys => Keys;
         public IReadOnlyList<WorldConfigurationExtensionDto> NormalizeSubmittedExtensions(WorldConfigurationExtensionContext context, IReadOnlyList<WorldConfigurationExtensionDto> incoming)
         { Normalizations++; BeforeNormalize?.Invoke(); return incoming; }
         public IReadOnlyList<WorldConfigurationExtensionDto> MergeExtensions(WorldConfigurationExtensionContext context, IReadOnlyList<WorldConfigurationExtensionDto> current, IReadOnlyList<WorldConfigurationExtensionDto> incoming) => incoming;

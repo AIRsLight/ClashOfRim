@@ -339,7 +339,7 @@
     "Kind": "RegisterPlayerColonySites",
     "Route": "/world/colony-sites",
     "Method": "POST",
-    "OwnsRecovery": false
+    "OwnsRecovery": true
   },
   {
     "Kind": "PreflightColonyRelocation",

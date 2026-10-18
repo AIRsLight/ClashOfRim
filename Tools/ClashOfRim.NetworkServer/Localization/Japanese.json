@@ -317,6 +317,7 @@
   "WorldConfiguration.MissingRequest": "ワールド設定にユーザー、コロニー、または設定内容がありません。",
   "WorldConfiguration.AdminOnly": "初期ワールド設定を送信できるのは最初のサーバー管理者のみです。",
   "WorldConfiguration.InvalidBaseline": "ワールド設定を受け入れられません: {REASON}",
+  "WorldColonySites.WorldChanged": "コロニー登録の準備中にワールドが変更されました。ワールドを更新して再試行してください。",
   "WorldConfiguration.CompatibilityChanged": "ワールド設定の準備中にサーバーの互換性情報が変更されました。サーバー情報を更新して再試行してください。",
   "WorldConfiguration.Registered": "ワールド設定を保存しました。",
   "WorldConfiguration.FeatureNamesMissingRequest": "地形名カタログにユーザー、コロニー、言語、ワールド設定、または地形名がありません。",

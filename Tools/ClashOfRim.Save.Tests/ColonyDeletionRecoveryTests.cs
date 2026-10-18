@@ -168,9 +168,12 @@ internal static class ColonyDeletionRecoveryTests
         Fails(() => f.Delete(admin: false));
         f.Store.Fault = null;
         var request = new RegisterPlayerColonySitesRequest(ProtocolApiVersion.Current, "userA", "colonyA",
-            [new PlayerColonySiteDto("userA", "colonyA", "late", "late", 1, "late request")]);
-        var result = (IValueHttpResult)Invoke("RegisterPlayerColonySites", request, f.State, NullLoggerFactory.Instance)!;
-        Require(!((RegisterPlayerColonySitesResponse)result.Value!).Result.Accepted && !f.State.ColonyDeletions.HasPending
+            [new PlayerColonySiteDto("userA", "colonyA", "late", "late", 1, "late request")], authToken: f.Token);
+        var result = f.State.ColonyRegistration.Register(request);
+        Require(!result.Result.Accepted, "late registration accepted a deleted colony");
+        // A retired credential must not drive recovery; maintenance remains responsible for finishing its intent.
+        using (f.State.SnapshotMutations.Enter()) { }
+        Require(!f.State.ColonyDeletions.HasPending
             && f.State.WorldConfiguration.Current!.PlayerColonySites.All(site => site.ColonyId != "colonyA")
             && f.State.Players.IsDeleted("userA", "colonyA"), "late registration resurrected the deleted colony");
     }
@@ -242,6 +245,7 @@ internal static class ColonyDeletionRecoveryTests
         public FileColonySnapshotIndexStore Files = null!;
         public CrashStore Store = null!;
         private string token = null!;
+        internal string Token => token;
         public Fixture(string root, SaveSnapshotPackage package)
         {
             this.root = root; Package = package;

@@ -1517,7 +1517,7 @@ try
             new[]
             {
                 new PlayerColonySiteDto("user-b", "colony-b", "WorldObject_111", "0", 42, "玩家B殖民地")
-            }));
+            }, authToken: SeedSmokeColonyRegistrationToken(state, "user-b", "colony-b")));
     Require(registeredColonySites.Result.Accepted, "后续用户应能在快照上传前登记殖民地地块");
     Equal(1, registeredColonySites.AcceptedCount, "服务器应接受一个殖民地地块登记");
     Require(registeredColonySites.WorldConfiguration?.PlayerColonySites.Any(site => site.UserId == "user-b" && site.Tile == 42) == true, "登记后世界配置应立即包含后续用户地块");
@@ -1530,7 +1530,7 @@ try
             new[]
             {
                 new PlayerColonySiteDto("user-b", "colony-b", "WorldObject_111", "0", 42, "玩家B殖民地")
-            }));
+            }, authToken: SeedSmokeColonyRegistrationToken(state, "user-b", "colony-b")));
     Require(duplicateOwnerColonySites.Result.Accepted, "同一用户殖民地重复登记同一地块应作为覆盖更新接受");
 
     RegisterPlayerColonySitesResponse sameUserRefreshedColonySites = await client.RegisterPlayerColonySitesAsync(
@@ -1570,7 +1570,7 @@ try
                     hidden: false,
                     initialPlayerIdeo: true,
                     memeCount: 1,
-                    preceptCount: 1))));
+                    preceptCount: 1)), authToken: SeedSmokeColonyRegistrationToken(state, "user-b", "colony-b")));
     Require(sameUserRefreshedColonySites.Result.Accepted, "同一用户同一殖民地应能刷新同地块登记和扩展目录");
     Require(sameUserRefreshedColonySites.WorldConfiguration?.PlayerColonySites.Any(site => site.UserId == "user-b" && site.Tile == 42) == true, "同地块刷新后世界配置应保持原地块");
 
@@ -1582,7 +1582,7 @@ try
             new[]
             {
                 new PlayerColonySiteDto("user-b", "colony-b", "WorldObject_202", "Map_22", 43, "玩家B错误普通迁移")
-            }));
+            }, authToken: SeedSmokeColonyRegistrationToken(state, "user-b", "colony-b")));
     Require(!sameUserMovedColonySites.Result.Accepted, "同一用户同一殖民地换地块必须走搬迁确认，不能通过普通登记更新");
     Equal(ProtocolErrorCode.ServerRejected, sameUserMovedColonySites.Result.ErrorCode, "普通登记换地块应由服务器拒绝");
 
@@ -1594,7 +1594,7 @@ try
             new[]
             {
                 new PlayerColonySiteDto("user-b", "colony-b-2", "WorldObject_203", "Map_23", 44, "玩家B第二殖民地")
-            }));
+            }, authToken: SeedSmokeColonyRegistrationToken(state, "user-b", "colony-b-2")));
     Require(!sameUserSecondColonySites.Result.Accepted, "已有殖民地的玩家不能再创建第二个殖民地");
     Equal(ProtocolErrorCode.ServerRejected, sameUserSecondColonySites.Result.ErrorCode, "同一玩家第二殖民地应由服务器拒绝");
 
@@ -1606,7 +1606,7 @@ try
             new[]
             {
                 new PlayerColonySiteDto("user-c", "colony-c", "WorldObject_300", "Map_30", 42, "玩家C重叠殖民地")
-            }));
+            }, authToken: SeedSmokeColonyRegistrationToken(state, "user-c", "colony-c")));
     Require(!conflictingColonySites.Result.Accepted, "不同用户殖民地不能登记到已占用地块");
     Equal(ProtocolErrorCode.ServerRejected, conflictingColonySites.Result.ErrorCode, "重叠殖民地地块应由服务器拒绝");
     Equal(0, conflictingColonySites.AcceptedCount, "重叠殖民地地块不应被接受");
@@ -1704,7 +1704,7 @@ try
                     hidden: false,
                     initialPlayerIdeo: true,
                     memeCount: 2,
-                    preceptCount: 2))));
+                    preceptCount: 2)), authToken: SeedSmokeColonyRegistrationToken(state, "user-b", "colony-b")));
     Require(summaryOnlyIdeoRefresh.Result.Accepted, "文化摘要刷新不应被拒绝");
     WorldIdeoSummaryDto refreshedUserBIdeo = ReadIdeoExtension(summaryOnlyIdeoRefresh.WorldConfiguration).Single(ideo => ideo.GlobalKey == "owner:user-b/ideo:7");
     Equal("玩家B文化已演进", refreshedUserBIdeo.Name, "文化摘要刷新应更新显示字段");
@@ -2356,7 +2356,7 @@ try
                     hidden: false,
                     initialPlayerIdeo: true,
                     memeCount: 1,
-                    preceptCount: 1))));
+                    preceptCount: 1)), authToken: SeedSmokeColonyRegistrationToken(state, "user-e", "colony-e")));
     Require(wsWorldConfigurationRegistration.Result.Accepted, "其他玩家登记文化应成功");
     string wsWorldConfigurationNotification = await wsWorldConfigurationChanged;
     Require(wsWorldConfigurationNotification.Contains("\"eventName\":\"worldConfigurationChanged\"", StringComparison.Ordinal), "WS 应立即收到世界目录更新通知");
@@ -2904,7 +2904,7 @@ try
             ProtocolApiVersion.Current,
             "user-surface",
             "colony-surface",
-            new[] { new PlayerColonySiteDto("user-surface", "colony-surface", "WorldObject_901", "Map_901", 123, "地表殖民地") }));
+            new[] { new PlayerColonySiteDto("user-surface", "colony-surface", "WorldObject_901", "Map_901", 123, "地表殖民地") }, authToken: SeedSmokeColonyRegistrationToken(state, "user-surface", "colony-surface")));
     Require(registeredSurfaceColony.Result.Accepted, "显式登记后地表殖民地应进入多人标记来源");
     WorldMapMarkerDeliveryDto worldMarkers = await client.SyncWorldMapMarkersAsync(new SyncWorldMapMarkersRequest(
         "user-a",
@@ -3393,7 +3393,7 @@ try
             ProtocolApiVersion.Current,
             "user-d",
             "colony-d",
-            new[] { new PlayerColonySiteDto("user-d", "colony-d", "WorldObject_900", "Map_90", 900, "临时殖民地") }));
+            new[] { new PlayerColonySiteDto("user-d", "colony-d", "WorldObject_900", "Map_90", 900, "临时殖民地") }, authToken: userDAuthToken));
     Require(transientColonySites.Result.Accepted, "无快照玩家应能登记临时殖民地地块");
     Require(transientColonySites.WorldConfiguration?.PlayerColonySites.Any(site => site.UserId == "user-d" && site.ColonyId == "colony-d") == true, "临时登记后服务器应包含该殖民地地块");
 
@@ -3402,7 +3402,7 @@ try
             ProtocolApiVersion.Current,
             "user-d",
             "colony-d",
-            Array.Empty<PlayerColonySiteDto>()));
+            Array.Empty<PlayerColonySiteDto>(), authToken: userDAuthToken));
     Require(!clearedColonySites.Result.Accepted, "空殖民地地块集合不应再作为清理入口");
     Equal(ProtocolErrorCode.ValidationFailed, clearedColonySites.Result.ErrorCode, "清理殖民地必须使用服务器放弃流程");
     Require(clearedColonySites.WorldConfiguration?.PlayerColonySites.Any(site => site.UserId == "user-d" && site.ColonyId == "colony-d") == true, "空集合拒绝后服务器应继续保留该殖民地地块");
@@ -3474,7 +3474,7 @@ try
             ProtocolApiVersion.Current,
             "user-f",
             "colony-f",
-            new[] { new PlayerColonySiteDto("user-f", "colony-f", "WorldObject_901", "Map_91", 901, "待删除殖民地") }));
+            new[] { new PlayerColonySiteDto("user-f", "colony-f", "WorldObject_901", "Map_91", 901, "待删除殖民地") }, authToken: SeedSmokeColonyRegistrationToken(state, "user-f", "colony-f")));
     Require(adminDeleteTargetSites.Result.Accepted, "管理员删除测试前应能登记目标殖民地地块");
     state.SnapshotStore.StoreLatest(BuildSyntheticSnapshotRecord(
         "user-f",
@@ -4045,7 +4045,7 @@ static async Task VerifyColonyRelocationExplicitConfirmationAsync()
                         "Map_202",
                         202,
                         "错误普通搬迁")
-                }));
+                }, authToken: login.AuthToken));
         Require(!ordinaryRegistrationRelocation.Result.Accepted, "普通地块登记不能把已有殖民地搬迁到新地块");
         Equal(ProtocolErrorCode.ServerRejected, ordinaryRegistrationRelocation.Result.ErrorCode, "普通地块搬迁应由服务器拒绝");
         PlayerColonySiteDto? siteAfterRejectedOrdinaryRegistration = state.WorldConfiguration.Current?.PlayerColonySites
@@ -4365,13 +4365,15 @@ static async Task VerifyDefaultPersistentServerStateAsync()
                 compatibilityManifestJson: compatibilityManifestJson, createAccountIfMissing: true));
             Require(siteOwner.Result.Accepted, "登记地块前应先注册其玩家账户");
 
+            var siteRegistrationLogin = await LoginSmokeSetup(firstClient, "user-b", "colony-b", compatibilityManifestJson);
             RegisterPlayerColonySitesResponse registered = await firstClient.RegisterPlayerColonySitesAsync(
                 new RegisterPlayerColonySitesRequest(
                     ProtocolApiVersion.Current,
                     "user-b",
                     "colony-b",
-                    new[] { new PlayerColonySiteDto("user-b", "colony-b", "WorldObject_20", "Map_20", 20, "玩家B") }));
+                    new[] { new PlayerColonySiteDto("user-b", "colony-b", "WorldObject_20", "Map_20", 20, "玩家B") }, authToken: siteRegistrationLogin.AuthToken));
             Require(registered.Result.Accepted, "默认持久化服务端应接受玩家地块登记");
+            await LogoutSmokeSetup(firstHttp, "user-b", "colony-b", siteRegistrationLogin.SessionId);
 
             LoginResponse adminLogin = await firstClient.LoginAsync(new LoginRequest(
                 ProtocolApiVersion.Current,
@@ -4812,6 +4814,14 @@ static WorldTileGeometryDto BuildSmokeWorldTileGeometry()
                 new WorldTileCenterDto(900, 2f, 0f, 0f)
             })
     });
+}
+
+// Seed only the session required by these in-process business scenarios. Login itself is tested separately.
+static string SeedSmokeColonyRegistrationToken(ClashOfRimNetworkState state, string user, string colony)
+{
+    var now = DateTimeOffset.UtcNow;
+    Require(state.LoginSessions.TryCreate(user, colony, now, out var session), "地点登记测试必须取得所属殖民地的会话");
+    return state.AuthTokens.Issue(user, user, colony, session, now);
 }
 
 static async Task<LoginResponse> LoginSmokeSetup(ClashOfRimNetworkClient client, string user, string colony, string manifest)

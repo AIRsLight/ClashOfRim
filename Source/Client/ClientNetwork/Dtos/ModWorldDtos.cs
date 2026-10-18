@@ -468,6 +468,9 @@ public sealed class ModRegisterPlayerColonySitesRequestDto
 
     [DataMember(Name = "suppressWorldConfigurationNotification")]
     public bool SuppressWorldConfigurationNotification { get; set; }
+
+    [DataMember(Name = "authToken")]
+    public string? AuthToken { get; set; }
 }
 
 [DataContract]

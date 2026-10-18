@@ -463,7 +463,8 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
             ColonyId = context.ColonyId,
             Sites = sites?.ToList() ?? new List<ModPlayerColonySiteDto>(),
             Extensions = extensions?.ToList() ?? new List<ModWorldConfigurationExtensionDto>(),
-            SuppressWorldConfigurationNotification = suppressWorldConfigurationNotification
+            SuppressWorldConfigurationNotification = suppressWorldConfigurationNotification,
+            AuthToken = context.AuthToken
         };
 
         return transport.PostAsync<ModRegisterPlayerColonySitesRequestDto, ModRegisterPlayerColonySitesResponseDto>(

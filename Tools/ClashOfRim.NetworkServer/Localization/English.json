@@ -317,6 +317,7 @@
   "WorldConfiguration.MissingRequest": "World configuration is missing user, colony, or configuration content.",
   "WorldConfiguration.AdminOnly": "Only the first server administrator can submit the initial world configuration.",
   "WorldConfiguration.InvalidBaseline": "World configuration could not be accepted: {REASON}",
+  "WorldColonySites.WorldChanged": "The world changed while preparing colony registration. Refresh the world and retry.",
   "WorldConfiguration.CompatibilityChanged": "Server compatibility changed while preparing world configuration. Refresh server information and retry.",
   "WorldConfiguration.Registered": "World configuration saved.",
   "WorldConfiguration.FeatureNamesMissingRequest": "World feature name catalog is missing user, colony, language, world configuration, or feature names.",
