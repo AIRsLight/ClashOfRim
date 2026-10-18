@@ -6,6 +6,19 @@ namespace AIRsLight.ClashOfRim.Network.Modules.World;
 
 internal static class ColonySiteRules
 {
+    internal static ProtocolResponse? TargetRejection(WorldConfigurationDto configuration, IWorldTileDistanceCalculator distances,
+        IEnumerable<PlayerColonySiteDto> existing, IReadOnlyList<PlayerColonySiteDto> requested, string userId, string colonyId)
+    {
+        if (FindSameTilePlayerColonyConflict(existing, requested, userId, colonyId) is { } occupied)
+            return Conflict("WorldColonySites.TileOccupied", occupied);
+        if (FindNearbyPlayerColonyConflict(configuration, distances, existing, requested, userId, colonyId) is { } nearby)
+            return Conflict("WorldColonySites.TileTooClose", nearby);
+        return null;
+    }
+
+    private static ProtocolResponse Conflict(string key, PlayerColonySiteDto site) => ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected,
+        ServerText.Format(key, ("TILE", site.Tile.ToString(System.Globalization.CultureInfo.InvariantCulture)), ("OWNER", site.UserId + "/" + site.ColonyId)));
+
     internal static IReadOnlyList<PlayerColonySiteDto> NormalizePlayerColonySites(
         string userId,
         string colonyId,

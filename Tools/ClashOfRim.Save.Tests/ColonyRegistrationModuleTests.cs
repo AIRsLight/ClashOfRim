@@ -156,7 +156,7 @@ internal static class ColonyRegistrationModuleTests
             var protection = new AIRsLight.ClashOfRim.Network.Modules.Raids.RaidProtection(S.Ledger, new(), new(), () => S.Configuration, NullLogger.Instance);
             var markers = new WorldMarkerDelivery(S.Players, S.Presence, relations, S.Snapshots, World, delivery, new(),
                 new(S.Ledger, S.Snapshots), protection, new(S.Players, S.Snapshots), () => S.Configuration);
-            Module = new(new(S.Tokens, S.Sessions, relations, new(), S.Ledger, () => S.Configuration.PvpEnabled), S.Players, S.Mutations,
+            Module = new(new(new(S.Tokens, S.Sessions, relations, new(), S.Ledger, () => S.Configuration.PvpEnabled), S.Players), S.Mutations,
                 World, Baseline, Plugins, Distances, S.Activity, delivery, markers, new(S.Players, Notifications), () => NullLogger.Instance);
         }
         internal WorldConfigurationRegistry Reopen() => new(Slot, Binary, Plugins.ActiveWorldConfigurationExtensions(Baseline.Current));

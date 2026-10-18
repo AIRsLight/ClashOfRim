@@ -202,8 +202,12 @@ public sealed class ClashOfRimNetworkState
         WorldChanges = new WorldConfigurationChanges(Players, WorldConfigurationNotifications);
         ColonyLocations = new SnapshotColonyLocations(Plugins, CompatibilityBaseline);
         ColonyProjection = new SnapshotColonyProjection(WorldConfiguration, Plugins, CompatibilityBaseline, ColonyLocations, WorldChanges);
-        ColonyRegistration = new ColonySiteRegistration(ColonyAuthorization, Players, SnapshotMutations, WorldConfiguration,
+        var colonyAccess = new ColonyLifecycleAccess(ColonyAuthorization, Players);
+        ColonyRegistration = new ColonySiteRegistration(colonyAccess, SnapshotMutations, WorldConfiguration,
             CompatibilityBaseline, Plugins, WorldTileDistanceCalculator, PlayerActivity, WorldDelivery, WorldMarkers, WorldChanges, () => RuntimeLogger);
+        ColonyRelocation = new ColonyRelocation(colonyAccess, SnapshotMutations, SnapshotStore, WorldConfiguration, ColonyLocations,
+            WorldTileDistanceCalculator, RaidMarkers, Ledger, Plugins, CompatibilityBaseline, AchievementAwards,
+            WorldDelivery, WorldMarkers, WorldChanges, () => RuntimeLogger);
         WorldSync = new WorldSynchronization(ColonyAuthorization, SnapshotMutations, RaidTimeouts, RuntimeWorldObjectMarkers, WorldMarkers);
         WorldSubmission = new WorldConfigurationSubmission(AdminAuthorization, CompatibilityBaseline, Plugins, SnapshotMutations,
             WorldConfiguration, PlayerActivity, WorldDelivery, () => RuntimeLogger);
@@ -286,6 +290,7 @@ public sealed class ClashOfRimNetworkState
     internal SnapshotColonyLocations ColonyLocations { get; }
     internal SnapshotColonyProjection ColonyProjection { get; }
     internal ColonySiteRegistration ColonyRegistration { get; }
+    internal ColonyRelocation ColonyRelocation { get; }
     internal WorldSynchronization WorldSync { get; }
     internal WorldConfigurationSubmission WorldSubmission { get; }
     internal WorldFeatureNames WorldFeatureNames { get; }

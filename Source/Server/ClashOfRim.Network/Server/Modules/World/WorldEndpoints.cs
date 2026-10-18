@@ -10,8 +10,12 @@ internal static class WorldEndpoints
 {
     internal static void Map(IEndpointRouteBuilder endpoints, WorldSessionPreparation preparation, WorldConfigurationRead read,
         WorldConfigurationSubmission submission, WorldFeatureNames featureNames, WorldSubstrateTransfer substrate, WorldSynchronization synchronization,
-        ColonySiteRegistration registration)
+        ColonySiteRegistration registration, ColonyRelocation relocation)
     {
+        endpoints.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.PreflightColonyRelocation).Route,
+            (PreflightColonyRelocationRequest request) => Results.Ok(relocation.Preflight(request))).WithMetadata(EndpointSnapshotRecovery.Instance);
+        endpoints.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.ConfirmColonyRelocation).Route,
+            (ConfirmColonyRelocationRequest request) => Results.Ok(relocation.Confirm(request))).WithMetadata(EndpointSnapshotRecovery.Instance);
         endpoints.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.RegisterPlayerColonySites).Route,
             (RegisterPlayerColonySitesRequest request) => Results.Ok(registration.Register(request))).WithMetadata(EndpointSnapshotRecovery.Instance);
         endpoints.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.SyncWorldMapMarkers).Route,

@@ -345,13 +345,13 @@
     "Kind": "PreflightColonyRelocation",
     "Route": "/world/colony-sites/relocation/preflight",
     "Method": "POST",
-    "OwnsRecovery": false
+    "OwnsRecovery": true
   },
   {
     "Kind": "ConfirmColonyRelocation",
     "Route": "/world/colony-sites/relocation/confirm",
     "Method": "POST",
-    "OwnsRecovery": false
+    "OwnsRecovery": true
   },
   {
     "Kind": "AbandonPlayerColony",

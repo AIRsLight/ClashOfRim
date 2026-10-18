@@ -1,5 +1,4 @@
 using System.Globalization;
-using AIRsLight.ClashOfRim.Network.Modules.Authorization;
 using AIRsLight.ClashOfRim.Network.Modules.Sessions;
 using AIRsLight.ClashOfRim.Network.Modules.Snapshots;
 using AIRsLight.ClashOfRim.Network.Plugins;
@@ -10,7 +9,7 @@ using static AIRsLight.ClashOfRim.Network.ServerText;
 
 namespace AIRsLight.ClashOfRim.Network.Modules.World;
 
-internal sealed class ColonySiteRegistration(ColonyAccessAuthorization authorization, PlayerRegistry players,
+internal sealed class ColonySiteRegistration(ColonyLifecycleAccess access,
     SnapshotMutationCoordinator mutations, WorldConfigurationRegistry world, CompatibilityBaselineRegistry baseline,
     ServerPluginRegistry plugins, IWorldTileDistanceCalculator distances, PlayerSessionActivity activity,
     WorldConfigurationDelivery delivery, WorldMarkerDelivery markers, WorldConfigurationChanges changes, Func<ILogger> logger)
@@ -23,13 +22,7 @@ internal sealed class ColonySiteRegistration(ColonyAccessAuthorization authoriza
             return Reject(ProtocolResponse.Reject(ProtocolErrorCode.IncompatibleProtocolVersion, Format("Protocol.IncompatibleVersion")));
         if (string.IsNullOrWhiteSpace(request.UserId) || string.IsNullOrWhiteSpace(request.ColonyId))
             return Reject(ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, Format("WorldColonySites.MissingIdentity")));
-        ProtocolResponse? Authorize()
-        {
-            if (players.IsDeleted(request.UserId, request.ColonyId))
-                return ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, Format("Auth.IdentityDenied"));
-            return authorization.TryAuthorize(request.AuthToken, request.UserId, request.ColonyId, null, null, DateTimeOffset.UtcNow, out var failure)
-                ? null : ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, failure);
-        }
+        ProtocolResponse? Authorize() => access.Authorize(request.AuthToken, request.UserId, request.ColonyId);
         if (Authorize() is { } initialFailure) return Reject(initialFailure);
         var initialWorld = world.Current;
         if (initialWorld is null)
@@ -65,10 +58,8 @@ internal sealed class ColonySiteRegistration(ColonyAccessAuthorization authoriza
         if (FindExistingSameColonySiteOnDifferentTile(occupied, sites, request.UserId, request.ColonyId) is { } relocated)
             return Reject(ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, Format("WorldColonySites.RelocationRequiresConfirmation",
                 ("OLD_TILE", relocated.Tile.ToString(CultureInfo.InvariantCulture)), ("NEW_TILE", sites[0].Tile.ToString(CultureInfo.InvariantCulture)))), true);
-        if (FindSameTilePlayerColonyConflict(occupied, sites, request.UserId, request.ColonyId) is { } conflict)
-            return Reject(Conflict("WorldColonySites.TileOccupied", conflict), true);
-        if (FindNearbyPlayerColonyConflict(current, distances, occupied, sites, request.UserId, request.ColonyId) is { } nearby)
-            return Reject(Conflict("WorldColonySites.TileTooClose", nearby), true);
+        if (TargetRejection(current, distances, occupied, sites, request.UserId, request.ColonyId) is { } targetFailure)
+            return Reject(targetFailure, true);
 
         WorldSessionState session = world.RegisterPlayerColonySites(request.UserId, request.ColonyId, sites, incoming, extensions);
         activity.Record(request.UserId, request.ColonyId, currentSnapshotId: null, DateTimeOffset.UtcNow);
@@ -82,8 +73,4 @@ internal sealed class ColonySiteRegistration(ColonyAccessAuthorization authoriza
         return new(ProtocolResponse.Ok(Format(sites.Count > 0 ? "WorldColonySites.Registered" : "WorldColonySites.WorldExtensionsRegistered")),
             sites.Count, delivered, ProtocolDtoMapper.ToDto(worldMarkers));
     }
-
-    private static ProtocolResponse Conflict(string key, PlayerColonySiteDto site)
-        => ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, Format(key,
-            ("TILE", site.Tile.ToString(CultureInfo.InvariantCulture)), ("OWNER", site.UserId + "/" + site.ColonyId)));
 }
