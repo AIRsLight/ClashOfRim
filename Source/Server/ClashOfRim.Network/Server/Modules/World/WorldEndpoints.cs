@@ -9,8 +9,12 @@ namespace AIRsLight.ClashOfRim.Network.Modules.World;
 internal static class WorldEndpoints
 {
     internal static void Map(IEndpointRouteBuilder endpoints, WorldSessionPreparation preparation, WorldConfigurationRead read,
-        WorldConfigurationSubmission submission, WorldFeatureNames featureNames, WorldSubstrateTransfer substrate)
+        WorldConfigurationSubmission submission, WorldFeatureNames featureNames, WorldSubstrateTransfer substrate, WorldSynchronization synchronization)
     {
+        endpoints.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.SyncWorldMapMarkers).Route,
+            (SyncWorldMapMarkersRequest request) => Results.Ok(synchronization.Read(request))).WithMetadata(EndpointSnapshotRecovery.Instance);
+        endpoints.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.SyncRuntimeWorldObjects).Route,
+            (SyncRuntimeWorldObjectsRequest request) => Results.Ok(synchronization.Replace(request))).WithMetadata(EndpointSnapshotRecovery.Instance);
         endpoints.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.PrepareWorldSession).Route,
             (PrepareWorldSessionRequest request) => Results.Ok(preparation.Prepare(request))).WithMetadata(EndpointSnapshotRecovery.Instance);
         endpoints.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.GetWorldConfiguration).Route,

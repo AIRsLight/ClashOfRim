@@ -107,9 +107,7 @@ public static partial class ClashOfRimNetworkServer
         ShopEndpoints.Map(app, app.Services.GetRequiredService<ClashOfRimNetworkState>().Shop);
         RaidEndpoints.Map(app, tradeState.RaidPreparation, tradeState.RaidStarting);
         DiplomacyEndpoints.Map(app, tradeState.Diplomacy);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.SyncWorldMapMarkers).Route, SyncWorldMapMarkers);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.SyncRuntimeWorldObjects).Route, SyncRuntimeWorldObjects);
-        WorldEndpoints.Map(app, tradeState.WorldPreparation, tradeState.WorldRead, tradeState.WorldSubmission, tradeState.WorldFeatureNames, tradeState.WorldSubstrate);
+        WorldEndpoints.Map(app, tradeState.WorldPreparation, tradeState.WorldRead, tradeState.WorldSubmission, tradeState.WorldFeatureNames, tradeState.WorldSubstrate, tradeState.WorldSync);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.RegisterPlayerColonySites).Route, RegisterPlayerColonySites);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.PreflightColonyRelocation).Route, PreflightColonyRelocation);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.ConfirmColonyRelocation).Route, ConfirmColonyRelocation);

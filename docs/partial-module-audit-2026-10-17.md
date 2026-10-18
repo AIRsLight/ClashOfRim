@@ -1565,7 +1565,7 @@ M8a3b3 与 M8a3b 完成。下一步 **M8b 世界准备/同步**：迁出世界�
 
 ### M8b1 世界准备、殖民地选择与配置读取（2026-10-18）
 
-`WorldSessionPreparation` 接管世界准备的凭据/兼容握手、恢复边界、账号与基线发布、殖民地选择、玩家活动和入口生命周期；`WorldColonySelection` 拥有继续旧殖民地及废弃后分配新 ID 的规则；`WorldConfigurationRead` 拥有配置读取；`WorldEndpoints` 只注册协议路由并包装 HTTP 响应。删除原 WorldSessionPreparation partial，以及 SessionWorld、Markers、Baseline 中约 280 行对应算法/辅助方法。模块不依赖 NetworkState、宿主静态类或 HTTP，不回调宿主业务。准备端点保留恢复元数据，读取端点保持无恢复契约。
+`WorldSessionPreparation` 接管世界准备的凭据/兼容握手、恢复边界、账号与基线发布、殖民地选择、玩家活动和入口生命周期；`WorldColonySelection` 拥有继续旧殖民地及废弃后分配新 ID 的规则；`WorldConfigurationRead` 拥有配置读取；`WorldEndpoints` 只注册协议路由并包装 HTTP 响应。删除原 WorldSessionPreparation partial，以及 SessionWorld、Markers、Baseline 中约 280 行对应算法/辅助方法。模块不依赖 NetworkState、宿主静态类或 HTTP，不回调宿主业务。准备端点保留恢复元数据；读取模块自身不调用恢复，但端点仍保留旧中间件的兜底恢复归属（M8b3 核实并纠正原表述）。
 
 继续复用 EntryHandshakePolicy、WorldColonySites、ColonyTombstones 和 LatestSnapshotLookup；后者开放已有的按用户取最新记录能力，避免另写快照排序规则。选择殖民地只需要规范化地点，不再构造整份世界交付 DTO 或调用扩展交付钩子。保留活动殖民地/请求殖民地的精确匹配、最新未删除快照、请求地点/序数最小地点的回退顺序，以及旧账本墓碑即使缺少现代键和最终状态仍可触发替换 ID 的兼容语义；普通通知、其他账户和已删除候选不能混入。世界准备仍不签发登录令牌、不替换已有在线会话，成功响应保持轻量配置约定。
 
@@ -1579,7 +1579,7 @@ M8b1 完成；下一步 **M8b2 世界配置提交、底图与名称目录同步*
 
 ### M8b2 世界配置写入、底图传输与名称目录（2026-10-18）
 
-`WorldConfigurationSubmission` 接管管理员配置提交及扩展规范化；`WorldFeatureNames` 接管多语言名称目录提交；`WorldSubstrateTransfer` 接管底图上传/下载的业务结果；`WorldEndpoints` 负责 JSON/multipart、文件响应与 HTTP 状态。原宿主 SessionWorld 和 Baseline 中约 300 行相关实现已删除，模块直接依赖账户、管理员授权、恢复协调、注册表、扩展和交付能力，不依赖 NetworkState、HTTP 或宿主业务委托。配置提交保留锁外扩展准备与恢复准备、兼容基线引用复验、锁内发布及活动记录；底图和目录不启动快照恢复。
+`WorldConfigurationSubmission` 接管管理员配置提交及扩展规范化；`WorldFeatureNames` 接管多语言名称目录提交；`WorldSubstrateTransfer` 接管底图上传/下载的业务结果；`WorldEndpoints` 负责 JSON/multipart、文件响应与 HTTP 状态。原宿主 SessionWorld 和 Baseline 中约 300 行相关实现已删除，模块直接依赖账户、管理员授权、恢复协调、注册表、扩展和交付能力，不依赖 NetworkState、HTTP 或宿主业务委托。配置提交保留锁外扩展准备与恢复准备、兼容基线引用复验、锁内发布及活动记录；底图和目录模块自身不调用快照恢复，但其 HTTP 端点仍沿用旧中间件的兜底恢复；后续须继续迁移入口恢复归属（M8b3 核实并补充）。
 
 `WorldConfigurationChanges` 统一向已登记玩家和本次额外用户发送配置变更通知，名称目录、底图、地点/搬家、管理员操作和快照世界投影的现有调用点均直接使用该模块，删除宿主 SignalWorldConfigurationChanged 包装及算法。仅提交配置仍清除旧底图、隐藏未就绪世界且不提前发通知；底图持久化成功后才发送变更，目录重试不重复通知。此模块负责当前通知收件人选择，不能代替后续世界图层持久待办和殖民地删除流程的迁移。
 
@@ -1592,3 +1592,20 @@ M8b1 完成；下一步 **M8b2 世界配置提交、底图与名称目录同步*
 累计 **7 个相关单元组通过**：新写入模块 148 场景、原配置授权、配置持久化 119 场景、模块/路由守卫、快照世界投影、世界图层通知恢复和底图就绪。最后补充 Italian 语言及通知去重后仅重跑新组。守卫检查 **304** 个模块/生成类型及 **81** 条路由；服务端 Release 编译 **0 警告、0 错误**。日志位于 `LocalOnly/module-migration/world-write-{before,after,related,final,build}.log`。未运行 RimTest 或全量回归，未推送；其他工作区改动继续保留，Program 只提交本步注册行。
 
 M8b2 完成；下一步 **M8b3 世界标记与运行时世界对象同步入口**，之后继续殖民地生命周期、管理、聊天及成就。M8b、M8 和 M9–M12 保持开放。
+
+
+### M8b3 世界标记同步、运行时批次与恢复归属（2026-10-18）
+
+`WorldSynchronization` 接管世界标记读取和运行时对象替换，直接依赖 ColonyAccessAuthorization、SnapshotMutationCoordinator、RaidTimeouts、RuntimeWorldObjectMarkerRegistry 和 WorldMarkerDelivery；WorldEndpoints 注册两个路由。删除 Markers partial 中对应业务和失效引用，没有保留宿主转发算法或引入 NetworkState。世界标记读取仍沿用无令牌、返回完整当前列表的既有协议，KnownAtUtc 不作为可信增量版本；运行时同步继续绑定本人殖民地身份，SentAtUtc 不作为服务器租期依据。
+
+旧代码上一次复现五个问题：`a_b`/`a-b` 所属用户的标记被损失性格式化成同一 ID；`("a\nb", "c")`/`("a", "b\nc")` 的所属键冲突；枚举新批次中途抛错后旧批次已被删除；调用方修改路径数组会改变已发布标记；真实 HTTP 无效令牌请求在拒绝前已恢复待处理快照业务。失败日志保留完整五项结果。
+
+运行时注册表改为按 `(UserId, ColonyId)` 保存完整批次，删除原来需要同步维护的标记字典、所属索引和冗余记录字段。先完成过滤、同对象最后一项覆盖及不可变路径/列表捕获，再在短锁内整体替换；失败保持旧批次，空批次仅清空本人，整批租期仍为 90 秒，从实际发布时刻起算，不让慢恢复消耗新租期；读取也在恢复后更新服务器时间再移除过期标记。有效输入计数保留旧协议语义，即同对象重复输入仍分别计数，最终只保存最后一项。无效空项、空 ID 和负地块被过滤，零号地块、图层和未知运行时类型兜底保持支持。
+
+公开 MarkerId 保留原前缀，并逐段 URI 转义完整身份，避免标点碰撞；内部身份不再依赖字符串分隔。核对客户端 CaptureWorldMapMarkers 和 RemoteRuntimeWorldObjectRegistry：列表整体更新、MarkerId 仅作 Ordinal 不透明键，旧 ID 不在新列表时会移除，无解析旧前缀段的依赖。此处是源码核对，未宣称游戏实机验证。运行时标记本来是非持久、短租期状态，没有为 ID 变化添加持久迁移或兼容双索引。
+
+两条路由明确标记由端点拥有恢复归属：空身份读取先返回空结果；有效读取仍通过 RaidTimeouts 完成恢复/超时处理，再构造标记；写入先授权并在全服锁外捕获批次，进入恢复协调器后复验身份，再发布。恢复准备失败、准备期间或重放期间令牌被撤销/会话被替换均不会覆盖旧标记。仅更新对应两条路由契约，并把它们纳入原真实 HTTP 畸形请求守卫，未移除通用中间件。另纠正 M8b1/M8b2 的恢复表述：配置读取、底图和名称目录模块虽未显式调用恢复，其 HTTP 端点仍有旧中间件兜底，不能称为整个请求免恢复，相关收敛仍待后续阶段。
+
+新增 WorldSynchronizationModuleTests，四种文化及真实 HTTP 共 **114** 场景：用户/殖民地/对象/转义/Unicode 身份隔离、删除和重复删除、路径不可变、失败批次、重复项与无效项、空批次、90 秒边界与续期、延迟发布租期、归属拒绝、锁外准备、恢复期间会话变化、重试和实际路由恢复。复用 SessionModuleTestContext、RecoveryProbe 及原 HTTP 恢复夹具，未复制故障槽。累计 **6 个相关单元组通过**：新同步矩阵、模块/路由守卫、真实 HTTP 恢复、世界标记交付、袭击超时和殖民地删除恢复。最后补充延迟发布与服务器时间校验后只重跑新同步组及受影响的标记交付组。守卫检查 **306** 个模块/生成类型与 **81** 条路由；服务端 Release 编译 **0 警告、0 错误**。日志位于 `LocalOnly/module-migration/world-sync-{before,after,matrix,related,final,build}.log`。未运行 RimTest、NetworkSmoke 套件或全量回归，未推送。
+
+M8b3 完成；下一步 **M8c 殖民地地点登记、搬家和废弃生命周期**，包括其世界图层通知/删除恢复协作。客户端相关边界、剩余恢复归属、管理、聊天及成就仍需继续推进；M8 和 M9–M12 保持开放。

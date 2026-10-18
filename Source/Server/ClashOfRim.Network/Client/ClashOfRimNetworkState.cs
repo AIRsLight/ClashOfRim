@@ -197,6 +197,7 @@ public sealed class ClashOfRimNetworkState
             WorldConfiguration, new WorldColonySelection(Players, SnapshotStore, Ledger), PlayerActivity, EntryLifecycle);
         WorldRead = new WorldConfigurationRead(Accounts, WorldConfiguration, WorldDelivery);
         WorldChanges = new WorldConfigurationChanges(Players, WorldConfigurationNotifications);
+        WorldSync = new WorldSynchronization(ColonyAuthorization, SnapshotMutations, RaidTimeouts, RuntimeWorldObjectMarkers, WorldMarkers);
         WorldSubmission = new WorldConfigurationSubmission(AdminAuthorization, CompatibilityBaseline, Plugins, SnapshotMutations,
             WorldConfiguration, PlayerActivity, WorldDelivery, () => RuntimeLogger);
         WorldFeatureNames = new WorldFeatureNames(Accounts, WorldConfiguration, WorldDelivery, WorldChanges, () => RuntimeLogger);
@@ -275,6 +276,7 @@ public sealed class ClashOfRimNetworkState
     internal WorldSessionPreparation WorldPreparation { get; }
     internal WorldConfigurationRead WorldRead { get; }
     internal WorldConfigurationChanges WorldChanges { get; }
+    internal WorldSynchronization WorldSync { get; }
     internal WorldConfigurationSubmission WorldSubmission { get; }
     internal WorldFeatureNames WorldFeatureNames { get; }
     internal WorldSubstrateTransfer WorldSubstrate { get; }

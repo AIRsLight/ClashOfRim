@@ -1,86 +1,12 @@
 using AIRsLight.ClashOfRim.Network.Modules.Raids;
 using AIRsLight.ClashOfRim.Network.Modules.Sessions;
-using AIRsLight.ClashOfRim.Compatibility;
-using AIRsLight.ClashOfRim.Network.Modules.Snapshots;
 using AIRsLight.ClashOfRim.Events;
-using AIRsLight.ClashOfRim.Network.Plugins;
 using AIRsLight.ClashOfRim.Protocol;
-using AIRsLight.ClashOfRim.Save;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-using System.Globalization;
-using System.Security.Cryptography;
-using System.Text;
-using System.Text.Json;
 
 namespace AIRsLight.ClashOfRim.Network;
 
 public static partial class ClashOfRimNetworkServer
 {
-    private static IResult SyncWorldMapMarkers(SyncWorldMapMarkersRequest request, ClashOfRimNetworkState state)
-    {
-        DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
-        state.RaidTimeouts.Reconcile(nowUtc);
-        if (string.IsNullOrWhiteSpace(request.UserId))
-        {
-            return Results.Ok(new WorldMapMarkerDeliveryDto(
-                string.Empty,
-                nowUtc,
-                Array.Empty<WorldMapMarkerDto>()));
-        }
-
-        WorldMapMarkerDelivery delivery = state.WorldMarkers.Build(request.UserId, request.ColonyId, nowUtc);
-
-        return Results.Ok(ProtocolDtoMapper.ToDto(delivery));
-    }
-
-    private static IResult SyncRuntimeWorldObjects(SyncRuntimeWorldObjectsRequest request, ClashOfRimNetworkState state)
-    {
-        DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
-        if (string.IsNullOrWhiteSpace(request.UserId) || string.IsNullOrWhiteSpace(request.ColonyId))
-        {
-            return Results.Ok(new SyncRuntimeWorldObjectsResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("RuntimeObjects.MissingIdentity")),
-                request.UserId,
-                nowUtc,
-                acceptedCount: 0,
-                worldMapMarkers: null));
-        }
-
-        if (!IsAuthorizedForColony(
-                state,
-                request.AuthToken,
-                request.UserId,
-                request.ColonyId,
-                authorizationEventId: null,
-                authorizationScope: null,
-                nowUtc,
-                out string authFailure))
-        {
-            return Results.Ok(new SyncRuntimeWorldObjectsResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, authFailure),
-                request.UserId,
-                nowUtc,
-                acceptedCount: 0,
-                worldMapMarkers: null));
-        }
-
-        int accepted = state.RuntimeWorldObjectMarkers.ReplaceForOwner(
-            request.UserId,
-            request.ColonyId,
-            request.SnapshotId,
-            request.Objects,
-            nowUtc);
-        WorldMapMarkerDelivery delivery = state.WorldMarkers.Build(request.UserId, request.ColonyId, nowUtc);
-        return Results.Ok(new SyncRuntimeWorldObjectsResponse(
-            ProtocolResponse.Ok(T("RuntimeObjects.Synced")),
-            request.UserId,
-            nowUtc,
-            accepted,
-            ProtocolDtoMapper.ToDto(delivery)));
-    }
-
     private static bool HasPendingOldMapBoundDeliveryEvent(
         ClashOfRimNetworkState state,
         string userId,

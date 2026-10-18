@@ -291,13 +291,13 @@
     "Kind": "SyncWorldMapMarkers",
     "Route": "/world/markers",
     "Method": "POST",
-    "OwnsRecovery": false
+    "OwnsRecovery": true
   },
   {
     "Kind": "SyncRuntimeWorldObjects",
     "Route": "/world/runtime-objects",
     "Method": "POST",
-    "OwnsRecovery": false
+    "OwnsRecovery": true
   },
   {
     "Kind": "PrepareWorldSession",

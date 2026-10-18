@@ -30,6 +30,7 @@ internal static class HttpSnapshotRecoveryTests
         ProtocolMessageKind.RejectSupportPawn, ProtocolMessageKind.FinishSupportPawn,
         ProtocolMessageKind.GetBankStatus, ProtocolMessageKind.QuoteMercenary, ProtocolMessageKind.QuoteMercenaryGuard, ProtocolMessageKind.ReportMercenaryIncident,
         ProtocolMessageKind.Login, ProtocolMessageKind.Logout, ProtocolMessageKind.MaintainPresence,
+        ProtocolMessageKind.SyncWorldMapMarkers, ProtocolMessageKind.SyncRuntimeWorldObjects,
         ProtocolMessageKind.PrepareWorldSession, ProtocolMessageKind.ListServerShop, ProtocolMessageKind.UpsertServerShopListing, ProtocolMessageKind.RemoveServerShopListing,
         ProtocolMessageKind.CreateBankLoan, ProtocolMessageKind.RepayBankLoan, ProtocolMessageKind.RepayBankDebt, ProtocolMessageKind.HireMercenary,
         ProtocolMessageKind.CreateBankLoanWithSnapshot, ProtocolMessageKind.RepayBankLoanWithSnapshot,
