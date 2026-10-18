@@ -10,6 +10,7 @@ using AIRsLight.ClashOfRim.Modules.Administration;
 using AIRsLight.ClashOfRim.Modules.Bank;
 using AIRsLight.ClashOfRim.Modules.Chat;
 using AIRsLight.ClashOfRim.Modules.Diplomacy;
+using AIRsLight.ClashOfRim.Modules.Diagnostics;
 using AIRsLight.ClashOfRim.Modules.Events;
 using AIRsLight.ClashOfRim.Modules.Mercenaries;
 using AIRsLight.ClashOfRim.Modules.Presence;
@@ -61,8 +62,8 @@ internal static class ClientSessionCleanupTests
             foreach (string firstRead in properties)
             {
                 var f = new Fixture(); var host = Host(f);
-                Set(host, "loginStatus", "login-progress"); Set(host, "snapshotUploadStatus", "snapshot-progress");
-                Set(host, "presenceStatus", "presence-progress"); Set(host, "worldMapStatus", "world-progress");
+                f.Diagnostics.LoginStatus = "login-progress"; f.Diagnostics.SnapshotUploadStatus = "snapshot-progress";
+                f.Diagnostics.PresenceStatus = "presence-progress"; f.Diagnostics.WorldMapStatus = "world-progress";
                 f.Bank.Message = "bank-progress"; f.Shop.Message = "shop-progress"; f.Trade.Message = "trade-progress";
                 f.Mercenaries.Message = "mercenary-progress"; f.Events.ActionStatus = "gift-progress";
                 f.Events.SetQueueStatus("queue-progress"); f.Events.SetDetailsStatus("details-progress");
@@ -88,7 +89,7 @@ internal static class ClientSessionCleanupTests
             }
             {
                 var f = new Fixture(); var host = Host(f);
-                foreach (string field in new[] { "loginStatus", "snapshotUploadStatus", "presenceStatus", "worldMapStatus" }) Set(host, field, "");
+                f.Diagnostics.LoginStatus = f.Diagnostics.SnapshotUploadStatus = f.Diagnostics.PresenceStatus = f.Diagnostics.WorldMapStatus = "";
                 Require(host.LoginStatus == "" && host.SnapshotUploadStatus == "" && host.PresenceStatus == "" && host.WorldMapStatus == "",
                     "Explicitly cleared presentation text was replaced by a default.");
             }
@@ -103,6 +104,7 @@ internal static class ClientSessionCleanupTests
         var host = (ClashOfRimMod)RuntimeHelpers.GetUninitializedObject(typeof(ClashOfRimMod));
         Set(host, "bankState", f.Bank); Set(host, "shopState", f.Shop); Set(host, "tradeState", f.Trade);
         Set(host, "mercenaryState", f.Mercenaries); Set(host, "eventState", f.Events);
+        Set(host, "diagnostics", f.Diagnostics);
         return host;
     }
     private static void Set(ClashOfRimMod host, string field, object value)
@@ -192,6 +194,7 @@ internal static class ClientSessionCleanupTests
         internal readonly ClientLocalMutationCoordinator Mutations = new();
         internal readonly ClientEventInbox Inbox = new();
         internal readonly ClientEventState Events;
+        internal readonly ClientRuntimeDiagnostics Diagnostics;
         internal readonly ClientBankState Bank;
         internal readonly ClientShopState Shop;
         internal readonly ClientTradeState Trade;
@@ -219,6 +222,7 @@ internal static class ClientSessionCleanupTests
             World = new(Session, Ports);
             SourceGame = new(this); Setup = new(Session);
             Events = new(new ClientEventReader(Session, Inbox, null!, Ports), this);
+            Diagnostics = new(Session, Events);
             Bank = new(Session, Ports, this); Shop = new(Session, Ports, this); Trade = new(Session, Ports, this);
             Mercenaries = new(Session, Ports, this);
             var recovery = new ClientSnapshotFailureRecovery(Session, Mutations, Sync, Ports, new EventModuleFailureView(Ports));

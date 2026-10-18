@@ -2988,3 +2988,8 @@ M10 的能力注册表和 DLC 组件拆分已完成。**下一步 M11：多人�
 **6 个相关单元组通过**：新账户页面模型、新诊断投影、原改密模块、事件刷新、事件命令／状态翻译和客户端模块边界。日志 `LocalOnly/module-migration/client-account-diagnostics-final-tests.log`；守卫检查 1,465 个纯模块类型、125 个兼容能力类型、19 个页面／适配类型和 312 个事件适配类型。生产随测试编译；本步未运行专项 RimTest、全量回归或独立发布／桥接构建，GUI 密码框和诊断布局未实机验证。冻结 1.6 与原有未提交改动保留，未推送。
 
 **下一步 M11h：管理员配置草稿和提交边界。** 随后继续管理员其他页面、宿主过渡门面及 M12／最终审计；M11 整体仍开放。后续以相关单元测试为主，必要时仅增加当次改动对应的 RimTest，全量仍由用户安排。
+
+
+### M11g 验证补充：会话清理夹具（2026-10-19）
+
+M11h 补查共享权限所关联的会话清理单元组时，发现旧夹具仍通过反射注入已迁出的 `loginStatus`／`snapshotUploadStatus`／`presenceStatus`／`worldMapStatus` 字段，因字段不存在而在测试初始化时失败。夹具现装配真实 `ClientRuntimeDiagnostics` 并注入宿主，原有状态读取、默认文案、空消息、清理顺序与重入断言均保留。**会话清理 260 个场景通过**，日志 `LocalOnly/module-migration/client-diagnostics-cleanup-tests.log`；该补修不修改生产行为，不扩大为全量回归。
