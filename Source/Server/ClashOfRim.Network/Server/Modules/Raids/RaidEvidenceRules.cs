@@ -55,6 +55,16 @@ internal static class RaidEvidenceRules
             throw new InvalidDataException("Raid evidence payload does not match its envelope.");
     }
 
+    internal static void ValidateReplay(RaidEvidenceSchedule request, RaidSettlementDeferredPayload payload, SaveSnapshotPackage original)
+    {
+        if (payload.RequestHash != request.RequestHash || payload.Origin != request.Origin
+            || payload.ClientApplicationResult != request.ClientApplicationResult
+            || original.Envelope != (request.Snapshot.Envelope with
+                { CreatedAtUtc = original.Envelope.CreatedAtUtc, NextLineageToken = original.Envelope.NextLineageToken })
+            || !original.Payload.AsSpan().SequenceEqual(request.EvidencePayload))
+            throw new InvalidOperationException("Raid evidence retry differs from its original request.");
+    }
+
     internal static bool SameVersion(SaveSnapshotEnvelope? left, SaveSnapshotEnvelope? right) =>
         right is null ? left is null : SnapshotCommitService.SameVersion(left, right);
 

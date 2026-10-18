@@ -1,5 +1,6 @@
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Network;
+using AIRsLight.ClashOfRim.Network.Modules.Raids;
 using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Save;
 using System.Text.Json.Nodes;

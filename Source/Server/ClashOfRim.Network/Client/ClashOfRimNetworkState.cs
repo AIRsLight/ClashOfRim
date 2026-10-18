@@ -118,6 +118,9 @@ public sealed class ClashOfRimNetworkState
         RaidSettlementWork = new RaidSettlementWork(RaidSettlement, SnapshotPostUploadArtifacts, SnapshotPostUploadJobs, SnapshotMutations);
         RaidEvidenceScheduling = new RaidEvidenceScheduling(Ledger, SnapshotStore, SnapshotPostUploadArtifacts,
             SnapshotPostUploadJobs, Players, SnapshotMutations);
+        RaidEvidenceConfirmation = new RaidEvidenceConfirmation(Ledger, SnapshotPostUploadJobs, RaidEvidenceScheduling,
+            SnapshotMutations, SnapshotRequests, ColonyAuthorization, SnapshotTransactions, PendingConfirmations,
+            new LegacyRaidEvidencePipeline(this), () => RuntimeLogger);
         var raidReconciliation = new LegacyRaidDeliveryProtection(this);
         var raidAdmission = new RaidAdmission(DiplomacyRelations, OnlinePresence, RaidProtection, () => ServerConfiguration);
         RaidPreparation = new RaidPreparation(SnapshotStore, RaidPreparations, MercenaryGuards, RaidQueries, raidAdmission,
@@ -170,6 +173,7 @@ public sealed class ClashOfRimNetworkState
     internal RaidSettlement RaidSettlement { get; }
     internal RaidSettlementWork RaidSettlementWork { get; }
     internal RaidEvidenceScheduling RaidEvidenceScheduling { get; }
+    internal RaidEvidenceConfirmation RaidEvidenceConfirmation { get; }
 
     internal ColonyAccessAuthorization ColonyAuthorization { get; }
     internal ColonySnapshotAuthorization SnapshotAuthorization { get; }

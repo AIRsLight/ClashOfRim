@@ -14,6 +14,20 @@ internal sealed class RaidEvidenceScheduling(IAuthoritativeEventLedger ledger, I
     internal RaidEvidenceSchedulePreparation Capture(RaidEvidenceSchedule request) =>
         new(this, ledger, (IColonySnapshotPackageStore)snapshots, artifacts, jobs, mutations, request);
 
+    // Called under the same mutation/job gates as prepared capture. Validates before plugin effects run.
+    internal RaidEvidenceSchedule ReadReplay(RaidEvidenceSchedule request)
+    {
+        var job = jobs.Find("raid-settlement:" + request.RaidEventId)
+            ?? throw new InvalidOperationException("Raid evidence task is missing.");
+        if (job.State is not (SnapshotPostUploadJobState.Prepared or SnapshotPostUploadJobState.Ready))
+            throw new InvalidOperationException("Raid evidence task requires manual review.");
+        var payload = RaidSettlementDeferredPayload.Deserialize(job.PayloadJson);
+        var original = ReadEvidence(job, payload);
+        ValidateReplay(request, payload, original);
+        return request with { Snapshot = new(original.Envelope.Identity, original.Envelope, original.Index, job.OccurredAtUtc),
+            Job = request.Job with { OccurredAtUtc = job.OccurredAtUtc } };
+    }
+
     internal SnapshotPostUploadJobRecord Schedule(RaidEvidenceSchedule request)
     {
         ArgumentNullException.ThrowIfNull(request);

@@ -49,7 +49,7 @@ public static partial class ClashOfRimNetworkServer
                 serverValidationResult: "AuthFailed"));
         }
 
-        bool playerRaidSettlement = IsPlayerRaidSettlementConfirmation(state, request.EventId, request.SourceEventId);
+        bool playerRaidSettlement = state.RaidEvidenceConfirmation.Handles(request.EventId, request.SourceEventId);
         if (!playerRaidSettlement)
         {
             var response = ReceiveConfirmationSnapshot(state, request.UserId, request.ColonyId, request.AuthToken,
@@ -59,46 +59,8 @@ public static partial class ClashOfRimNetworkServer
             return Results.Ok(new ConfirmEventApplicationResponse(result?.Result ?? response.Result, request.EventId,
                 result?.AppliedSnapshotId, result?.ServerValidationResult ?? "InvalidConfirmation", response.NextLineageToken));
         }
-        return ConfirmRaidEvidenceSnapshot(httpRequest, state, request, multipart.Payload, nowUtc);
-    }
-
-    private static ProtocolResponse? ValidateRaidEvidenceAuthority(HttpRequest http, ClashOfRimNetworkState state,
-        ConfirmEventApplicationMetadataRequest request, out AuthoritativeEvent? source)
-    {
-        source = null;
-        var now = DateTimeOffset.UtcNow;
-        if (!MultipartSnapshotAuthentication.TryAuthorize(http, state, now)
-            || !MultipartSnapshotAuthentication.MatchesPrincipal(http, request.UserId, request.ColonyId)
-            || !IsAuthorizedForColony(state, request.AuthToken, request.UserId, request.ColonyId, request.EventId, null, now, out _))
-            return ProtocolResponse.Reject(ProtocolErrorCode.Unauthorized, T("Auth.Failed"));
-        source = state.Ledger.Find(request.EventId);
-        if (source?.Type != ServerEventType.Raid
-            || source.Payload is not RaidEventPayload { OpponentKind: RaidOpponentKind.Player, AttackerLoss: null }
-            || source.Actor.UserId != request.UserId || source.Actor.ColonyId != request.ColonyId
-            || request.ConfirmedSnapshot.OwnerId != request.UserId || request.ConfirmedSnapshot.ColonyId != request.ColonyId
-            || source.Status is ServerEventStatus.Cancelled or ServerEventStatus.RejectedByTarget or ServerEventStatus.Conflict)
-            return ProtocolResponse.Reject(ProtocolErrorCode.Conflict, T("Auth.IdentityDenied"));
-        return null;
-    }
-
-    private static IResult RaidEvidenceRejected(ConfirmEventApplicationMetadataRequest request, ProtocolResponse failure, string validation)
-        => Results.Ok(new ConfirmEventApplicationResponse(failure, request.EventId, null, validation));
-
-    private static IResult CompletedRaidEvidenceReply(ClashOfRimNetworkState state, ConfirmEventApplicationMetadataRequest request, string binding)
-    {
-        var source = state.Ledger.Find(request.EventId)!;
-        var settlement = state.Ledger.FindByIdempotencyKey("raid-settlement:" + request.EventId);
-        if (settlement?.Type != ServerEventType.Raid || settlement.Actor != source.Actor || settlement.Target != source.Target
-            || settlement.TargetContext != source.TargetContext
-            || settlement.Payload is not RaidEventPayload { Settlement: not null } receipt
-            || receipt.EvidenceRequestHash != binding || receipt.ReturnedSnapshotId != request.ConfirmedSnapshot.SnapshotId
-            || receipt.DefenderSnapshotId != ((RaidEventPayload)source.Payload).DefenderSnapshotId)
-            return RaidEvidenceRejected(request, ProtocolResponse.Reject(ProtocolErrorCode.Conflict,
-                T("Raid.SettlementQueueFailed")), "CompletedRequestConflict");
-        return Results.Ok(new ConfirmEventApplicationResponse(
-            new ProtocolResponse(true, ProtocolErrorCode.DuplicateRequest, T("Raid.SettlementAlreadyConfirmed")),
-            request.EventId, receipt.ReturnedSnapshotId, "AlreadyApplied",
-            FindSnapshotNextLineageToken(state, request.UserId, request.ColonyId, receipt.ReturnedSnapshotId)));
+        return Results.Ok(state.RaidEvidenceConfirmation.Confirm(request, multipart.Payload,
+            httpRequest.Headers[MultipartSnapshotAuthentication.HeaderName].FirstOrDefault(), nowUtc));
     }
 
     private static async Task<IResult> ConfirmEventApplications(HttpRequest httpRequest, ClashOfRimNetworkState state)
@@ -513,22 +475,6 @@ public static partial class ClashOfRimNetworkServer
             yield return notification;
         }
     }
-
-    private static bool IsPlayerRaidSettlementConfirmation(
-        ClashOfRimNetworkState state,
-        string eventId,
-        string? sourceEventId)
-    {
-        if (!string.IsNullOrWhiteSpace(sourceEventId))
-        {
-            return false;
-        }
-
-        AuthoritativeEvent? ledgerEvent = state.Ledger.Find(eventId);
-        return ledgerEvent?.Type == ServerEventType.Raid
-            && ledgerEvent.Payload is RaidEventPayload { OpponentKind: RaidOpponentKind.Player, AttackerLoss: null };
-    }
-
     private static string SanitizeSnapshotIdPart(string value)
     {
         char[] chars = (value ?? string.Empty).Trim().ToCharArray();

@@ -140,7 +140,7 @@ public static partial class ClashOfRimNetworkServer
                 registerPlayerColonySite));
     }
 
-    private static void RunSnapshotPostUploadProcessors(
+    internal static void RunSnapshotPostUploadProcessors(
         ClashOfRimNetworkState state,
         SnapshotPostUploadContext context)
     {

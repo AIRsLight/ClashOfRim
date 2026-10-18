@@ -1139,3 +1139,19 @@ M7b 的发送与归还业务已迁入实际模块。下一步 **M7c 袭击与远
 累计 **7 个相关单元组通过**：既有证据发布恢复、在线证据与授权、独立调度模块、普通上传后处理恢复、袭击后处理器、离线超时清理、模块边界与路由。先运行 **3/149** 组既有测试；新增组首次编译使用了不存在的测试枚举名，改为现有 `AuthoritativeColonySnapshot` 后 **1/150** 组通过；最后仅运行 **4/150** 组受影响测试。依赖守卫检查 **194** 个模块/生成类型、**81** 条路由。服务端控制台 Release 编译 **0 警告、0 错误**。证据：`LocalOnly/module-migration/raid-scheduling-existing-unit.log`、`raid-scheduling-module-unit.log`、`raid-scheduling-final-unit.log`、`raid-scheduling-console-build.log`。
 
 本步未运行 NetworkSmoke、RimTest 或全量回归。**M7c3 继续开放**：下一步迁移证据确认入口与离线超时编排，之后处理客户端远程地图；M8–M12 仍待推进。本步只提交自己的修改，保留工作区已有变更。
+
+### M7c3c 在线证据确认（2026-10-18）
+
+`RaidEvidenceConfirmation` 接管原始袭击/损失确认分派条件、请求绑定、调用身份与袭击来源校验、待确认操作协调、证据上传准备、调度前复验、插件调用及排队/完成回执。业务只接收 DTO、字节和请求头令牌，返回协议响应，不依赖 HttpRequest、IResult、完整 NetworkState 或服务器宿主。删除 `ClashOfRimNetworkServer.RaidEvidenceCommits.cs`，从通用确认 partial 移除袭击专用授权、完成回执及分派判断；通用端点只解析 multipart、保留原有通用授权与非袭击分支，再调用该模块。袭击请求绑定辅助类也迁入所属模块。
+
+授权继续复用 `SnapshotRequestAuthorization` 与 `ColonyAccessAuthorization`，同时验证请求头本人身份和元数据令牌原有事件范围。恢复协调器在恢复前后校验权限，首次入口从其最后一次校验获取来源；删除原来紧接协调器后再次进行的同一授权检查。来源内容/状态、超期待确认以及已完成回执仍在每个提交边界复验。三个必要恢复边界保持不变，准备式证据仍在锁外读取和暂存；重复完成只返回原结算绑定的攻击方回执，不重新运行后处理，也不要求已清理的证据文件。
+
+`IRaidEvidencePipeline` 提供窄后处理端口，`LegacyRaidEvidencePipeline` 在装配层把纯证据数据转换成既有公开插件上下文，保持第三方处理器及其阶段顺序。该适配器没有袭击确认算法；通用后处理的宿主依赖仍待 M9 迁移，不能据此宣称整个快照生命周期已独立。模块依赖守卫禁止直接引用这一适配器。同步存储重放改由调度模块的 `ReadReplay` 校验并恢复原回执；它与准备对象共用 `RaidEvidenceRules.ValidateReplay`，合并原先重复的请求哈希、来源、应用结果、信封及字节一致性判断，保持公开同步调度的原有严格契约。
+
+新增 `RaidEvidenceConfirmationModuleTests`，不构造服务器状态、不使用 HTTP 或宿主私有方法反射。四种文化 × 准备式/基础制品存储验证真实上传、调度和结算模块串联，覆盖更新登录会话后的重试、原任务时间/谱系保留、排队前冲突、结算后删除任务和证据仍可重放、错误完成请求不泄露谱系。请求头、元数据令牌、守方冒充和载荷所有者不一致均在恢复前被拒绝；在三个恢复准备边界暂停，使用另一线程验证锁可用，并验证退出、替换会话、取消袭击，以及后两阶段来源内容变化后的拒绝与零发布。
+
+上一步调度测试的文件/SQLite 夹具提取为 `RaidEvidenceModuleTestContext`，新旧测试共用真实存储、样本、恢复槽及并发探针。独立上传测试最初缺少本地化加载、基础与证据内容相同、谱系仅写在信封，触发真实上传校验；补齐测试初始化、不同基础内容及存档内谱系组件后通过，未放宽产品校验。迁移期间编译发现的命名空间导入与协议构造参数问题也已修正。
+
+累计 **4 个相关单元组通过**：独立确认模块、独立调度模块、既有在线证据/授权/绑定/故障恢复、模块边界与路由。既有测试先执行 **2/150** 组，共享夹具和新增测试完成后 **2/151** 组通过，最终受影响范围 **3/151** 组通过。依赖守卫检查 **199** 个模块/生成类型、**81** 条路由。服务端控制台 Release 编译 **0 警告、0 错误**。日志：`LocalOnly/module-migration/raid-confirmation-existing-unit.log`、`raid-confirmation-module-unit.log`、`raid-confirmation-final-unit.log`、`raid-confirmation-console-build.log`。
+
+本步未运行 NetworkSmoke、RimTest 或全量回归。下一步 **M7c3d 离线证据与超时清理编排**，并移除其旧袭击协调适配器；之后继续客户端远程地图和 M8–M12。M7 与整个模块化目标保持开放，工作区原有修改独立保留。

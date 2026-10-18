@@ -1,6 +1,6 @@
 using AIRsLight.ClashOfRim.Protocol;
 
-namespace AIRsLight.ClashOfRim.Network;
+namespace AIRsLight.ClashOfRim.Network.Modules.Raids;
 
 internal static class RaidEvidenceRequestBinding
 {

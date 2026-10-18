@@ -76,10 +76,7 @@ internal sealed class RaidEvidenceSchedulePreparation : IDisposable
             read = ((IVersionedSnapshotPostUploadArtifactStore)artifacts).ReadCaptured(artifactId);
             var original = read.Package ?? throw new IOException("Raid evidence artifact is missing.");
             ValidatePayload(original);
-            if (payload!.RequestHash != request.RequestHash || payload.Origin != request.Origin || payload.ClientApplicationResult != request.ClientApplicationResult
-                || original.Envelope != (evidence.Envelope with { CreatedAtUtc = original.Envelope.CreatedAtUtc, NextLineageToken = original.Envelope.NextLineageToken })
-                || !original.Payload.AsSpan().SequenceEqual(evidence.Payload))
-                throw new InvalidOperationException("Raid evidence retry differs from its original request.");
+            ValidateReplay(request with { EvidencePayload = evidence.Payload }, payload!, original);
             evidence = original;
         }
         else
