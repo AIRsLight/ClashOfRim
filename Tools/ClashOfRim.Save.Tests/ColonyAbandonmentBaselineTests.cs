@@ -49,8 +49,7 @@ internal static class ColonyAbandonmentBaselineTests
             // A transport's finally block can also arrive after the replacement login.
             typeof(ClashOfRimNetworkServer).GetMethod("CleanupAbandonedColony", BindingFlags.Static | BindingFlags.NonPublic)!
                 .Invoke(null, new object[] { state, "userA", "colonyA", now });
-            typeof(ClashOfRimNetworkServer).GetMethod("CloseSessionConnection", BindingFlags.Static | BindingFlags.NonPublic)!
-                .Invoke(null, new object[] { state, "userA", "colonyA", oldSession, oldLease });
+            state.SessionConnections.Close("userA", "colonyA", oldSession, oldLease);
             Require(state.LoginSessions.IsValid("userA", "rebuilt", newSession, now)
                 && state.LoginSessions.Refresh("userA", "rebuilt", newSession, now) && newLease.Touch()
                 && state.AuthTokens.IsValid(newToken, "userA", "rebuilt", now)

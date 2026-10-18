@@ -1,7 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Net.WebSockets;
-using System.Reflection;
 using System.Text.Json;
 using AIRsLight.ClashOfRim.Network;
 using AIRsLight.ClashOfRim.Protocol;
@@ -252,15 +251,13 @@ internal static class SessionConnectionTests
                 LastStatus = response.StatusCode;
                 return response.StatusCode == HttpStatusCode.OK && ReadAccepted(response);
             }
-            object?[] args = entry == "close" ? [F.State, "receiver", "away", Session, original]
-                : [F.State, "receiver", "away", Session, "base", null];
-            bool owned = CurrentValid();
-            object? result;
-            try { result = typeof(ClashOfRimNetworkServer).GetMethod(entry == "close" ? "CloseSessionConnection" : "OpenSessionConnection", BindingFlags.NonPublic | BindingFlags.Static)!.Invoke(null, args); }
-            catch (TargetInvocationException ex) when (ex.InnerException is not null)
-            { System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(ex.InnerException).Throw(); throw; }
-            if (entry == "close") return owned && replacementSession is null && PendingGone();
-            opened = (OnlinePresenceLease?)args[5]; return result is null;
+            if (entry == "close")
+            {
+                bool owned = CurrentValid();
+                F.State.SessionConnections.Close("receiver", "away", Session, original);
+                return owned && replacementSession is null && PendingGone();
+            }
+            return F.State.SessionConnections.Open("receiver", "away", Session, "base", out opened) is null;
         }
         public Uri StreamUri(string user, string colony, string? session)
             => new UriBuilder(F.Client.BaseAddress!) { Scheme = "ws", Path = Route(ProtocolMessageKind.StreamSession),

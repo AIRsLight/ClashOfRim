@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Network.Modules.Snapshots;
 using AIRsLight.ClashOfRim.Compatibility;
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Network.Plugins;
@@ -59,7 +60,7 @@ public static partial class ClashOfRimNetworkServer
             return;
         }
 
-        if (OpenSessionConnection(state, userId, colonyId, sessionId, currentSnapshotId, out var presence) is { } denied)
+        if (state.SessionConnections.Open(userId, colonyId, sessionId, currentSnapshotId, out var presence) is { } denied)
         {
             await RejectSessionStreamRequestAsync(
                 context,
@@ -291,7 +292,7 @@ public static partial class ClashOfRimNetworkServer
             }
 
             webSocket?.Dispose();
-            CloseSessionConnection(state, userId, colonyId, sessionId, presence);
+            state.SessionConnections.Close(userId, colonyId, sessionId, presence);
             RuntimeLogger(loggerFactory).LogInformation(
                 "玩家离线：user={UserId} colony={ColonyId} session={SessionId} channel=ws",
                 userId,
@@ -466,7 +467,7 @@ public static partial class ClashOfRimNetworkServer
                 online: false));
         }
 
-        if (OpenSessionConnection(state, request.UserId, request.ColonyId, request.SessionId, request.CurrentSnapshotId, out var presence) is { } denied)
+        if (state.SessionConnections.Open(request.UserId, request.ColonyId, request.SessionId, request.CurrentSnapshotId, out var presence) is { } denied)
         {
             return Results.Ok(new MaintainPresenceResponse(
                 denied,
@@ -510,7 +511,7 @@ public static partial class ClashOfRimNetworkServer
         }
         finally
         {
-            CloseSessionConnection(state, request.UserId, request.ColonyId, request.SessionId, presence);
+            state.SessionConnections.Close(request.UserId, request.ColonyId, request.SessionId, presence);
             RuntimeLogger(loggerFactory).LogInformation(
                 "玩家离线：user={UserId} colony={ColonyId} session={SessionId} channel=presence",
                 request.UserId,
@@ -524,17 +525,7 @@ public static partial class ClashOfRimNetworkServer
         ClashOfRimNetworkState state,
         ILoggerFactory loggerFactory)
     {
-        if (string.IsNullOrWhiteSpace(request.UserId)
-            || string.IsNullOrWhiteSpace(request.ColonyId)
-            || string.IsNullOrWhiteSpace(request.SessionId))
-        {
-            return Results.Ok(new LogoutResponse(
-                ProtocolResponse.Reject(ProtocolErrorCode.ValidationFailed, T("Presence.MissingIdentity")),
-                request.UserId ?? string.Empty,
-                disconnected: false));
-        }
-
-        var result = DisconnectSession(state, request.UserId, request.ColonyId, request.SessionId);
+        var result = state.SessionConnections.Logout(request);
         RuntimeLogger(loggerFactory).LogInformation(
             "玩家请求登出：user={UserId} colony={ColonyId} session={SessionId} disconnected={Disconnected}",
             request.UserId,
@@ -554,7 +545,7 @@ public static partial class ClashOfRimNetworkServer
         }
 
         DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
-        RecordPlayerSeen(state, request.UserId, request.ColonyId, request.CurrentSnapshotId, nowUtc);
+        state.PlayerActivity.Record(request.UserId, request.ColonyId, request.CurrentSnapshotId, nowUtc);
         LatestSnapshotLookup snapshotLookup = LatestSnapshotLookup.Build(state.SnapshotStore.ListLatest());
         List<PlayerSummaryDto> players = state.Players.List()
             .Select(record =>
@@ -597,7 +588,7 @@ public static partial class ClashOfRimNetworkServer
         }
 
         DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
-        RecordPlayerSeen(state, request.UserId, request.ColonyId, request.CurrentSnapshotId, nowUtc);
+        state.PlayerActivity.Record(request.UserId, request.ColonyId, request.CurrentSnapshotId, nowUtc);
         string targetUserId = string.IsNullOrWhiteSpace(request.TargetUserId)
             ? request.UserId
             : request.TargetUserId!.Trim();
@@ -727,48 +718,6 @@ public static partial class ClashOfRimNetworkServer
     private static string PlayerColonyKey(string userId, string colonyId)
     {
         return (userId ?? string.Empty) + "\u001f" + (colonyId ?? string.Empty);
-    }
-
-    private static void RecordPlayerSeen(
-        ClashOfRimNetworkState state,
-        string userId,
-        string colonyId,
-        string? currentSnapshotId,
-        DateTimeOffset seenAtUtc,
-        string? displayName = null)
-    {
-        state.Players.Record(
-            userId,
-            colonyId,
-            ResolveCurrentSnapshotId(state, userId, colonyId, currentSnapshotId),
-            seenAtUtc,
-            displayName);
-    }
-
-    private static string? ResolveCurrentSnapshotId(
-        ClashOfRimNetworkState state,
-        string userId,
-        string colonyId,
-        string? currentSnapshotId)
-    {
-        LatestSnapshotRecord? exact = state.SnapshotStore.GetLatest(userId, colonyId);
-        if (exact is not null)
-        {
-            return exact.Identity.SnapshotId;
-        }
-
-        LatestSnapshotRecord? byUser = ResolveLatestSnapshotForPlayer(state, userId, colonyId);
-        if (byUser is not null)
-        {
-            return byUser.Identity.SnapshotId;
-        }
-
-        if (!string.IsNullOrWhiteSpace(currentSnapshotId))
-        {
-            return currentSnapshotId;
-        }
-
-        return null;
     }
 
     private static string? ResolveCurrentSnapshotId(

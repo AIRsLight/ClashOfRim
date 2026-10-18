@@ -137,7 +137,7 @@ public static partial class ClashOfRimNetworkServer
             }
         }
 
-        RecordPlayerSeen(state, userId, assignedColonyId, currentSnapshotId: null, nowUtc);
+        state.PlayerActivity.Record(userId, assignedColonyId, currentSnapshotId: null, nowUtc);
         RunClientLifecycleHooks(
             state,
             ClientLifecycleEvent.InitialWorldSessionPrepared(
@@ -197,7 +197,7 @@ public static partial class ClashOfRimNetworkServer
             WorldSessionState after = state.WorldConfiguration.Submit(request.UserId, configuration, activeWorldExtensions);
             if (!after.IsAdministrator)
                 return Reject(ProtocolResponse.Reject(ProtocolErrorCode.ServerRejected, T("Admin.Unauthorized")));
-            RecordPlayerSeen(state, request.UserId, request.ColonyId, currentSnapshotId: null, DateTimeOffset.UtcNow);
+            state.PlayerActivity.Record(request.UserId, request.ColonyId, currentSnapshotId: null, DateTimeOffset.UtcNow);
             RuntimeLogger(loggerFactory).LogInformation(
                 "世界基线已提交：user={UserId} colony={ColonyId} administrator={AdministratorUserId} configured={WorldConfigured} playerSites={PlayerSiteCount}",
                 request.UserId, request.ColonyId, after.AdministratorUserId, after.WorldConfigured,
@@ -580,7 +580,7 @@ public static partial class ClashOfRimNetworkServer
             normalizedSites,
             incomingExtensions,
             activeWorldExtensions);
-        RecordPlayerSeen(state, request.UserId, request.ColonyId, currentSnapshotId: null, DateTimeOffset.UtcNow);
+        state.PlayerActivity.Record(request.UserId, request.ColonyId, currentSnapshotId: null, DateTimeOffset.UtcNow);
         WorldConfigurationDto? deliveredConfiguration = BuildWorldConfigurationForDelivery(session.WorldConfiguration, state);
         WorldMapMarkerDelivery markers = BuildWorldMapMarkerDelivery(request.UserId, request.ColonyId, state, DateTimeOffset.UtcNow);
         string message = normalizedSites.Count > 0 ? T("WorldColonySites.Registered") : T("WorldColonySites.WorldExtensionsRegistered");
@@ -1298,7 +1298,7 @@ public static partial class ClashOfRimNetworkServer
         state.Ledger.ApplyBatch(intent.Batch);
         // Deletion and login publication share the mutation gate. Retire only this
         // colony's connection; recovery must never disconnect its replacement.
-        EndSessionConnectionLocked(state, userId, state.LoginSessions.FindSessionIdForColony(userId, colonyId));
+        state.SessionConnections.EndUnderMutation(userId, state.LoginSessions.FindSessionIdForColony(userId, colonyId));
         state.AuthTokens.RevokeForColony(userId, colonyId);
         state.EventNotifications.SignalUsers(intent.NotifyUsers);
         state.WorldConfigurationNotifications.SignalUsers(intent.WorldNotifyUsers.Concat(state.Players.List().Select(player => player.UserId)));

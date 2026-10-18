@@ -548,7 +548,7 @@ public static partial class ClashOfRimNetworkServer
         LatestSnapshotLookup? snapshotLookup = null)
     {
         LatestSnapshotRecord? snapshot = snapshotLookup?.Resolve(userId, colonyId)
-            ?? ResolveLatestSnapshotForPlayer(state, userId, colonyId);
+            ?? LatestSnapshotLookup.Resolve(state.SnapshotStore, userId, colonyId);
         if (snapshot is null)
         {
             return new PlayerSnapshotWealthSummary(colonyId, currentSnapshotId, null);
@@ -569,96 +569,6 @@ public static partial class ClashOfRimNetworkServer
             wealth,
             nowUtc);
         return new PlayerSnapshotWealthSummary(snapshotColonyId, snapshot.Identity.SnapshotId, wealth);
-    }
-
-    private static LatestSnapshotRecord? ResolveLatestSnapshotForPlayer(
-        ClashOfRimNetworkState state,
-        string userId,
-        string colonyId)
-    {
-        LatestSnapshotRecord? exact = state.SnapshotStore.GetLatest(userId, colonyId);
-        if (exact is not null)
-        {
-            return exact;
-        }
-
-        LatestSnapshotRecord? latest = null;
-        foreach (LatestSnapshotRecord snapshot in state.SnapshotStore.ListLatest())
-        {
-            if (!string.Equals(snapshot.Identity.OwnerId, userId, StringComparison.Ordinal))
-            {
-                continue;
-            }
-
-            if (latest is null || snapshot.AcceptedAtUtc > latest.AcceptedAtUtc)
-            {
-                latest = snapshot;
-            }
-        }
-
-        return latest;
-    }
-
-    private sealed class LatestSnapshotLookup
-    {
-        private readonly Dictionary<string, LatestSnapshotRecord> snapshotsByColony;
-        private readonly Dictionary<string, LatestSnapshotRecord> latestSnapshotsByUser;
-
-        private LatestSnapshotLookup(
-            Dictionary<string, LatestSnapshotRecord> snapshotsByColony,
-            Dictionary<string, LatestSnapshotRecord> latestSnapshotsByUser)
-        {
-            this.snapshotsByColony = snapshotsByColony;
-            this.latestSnapshotsByUser = latestSnapshotsByUser;
-        }
-
-        public static LatestSnapshotLookup Build(IReadOnlyList<LatestSnapshotRecord> snapshots)
-        {
-            var byColony = new Dictionary<string, LatestSnapshotRecord>(StringComparer.Ordinal);
-            var byUser = new Dictionary<string, LatestSnapshotRecord>(StringComparer.Ordinal);
-            foreach (LatestSnapshotRecord snapshot in snapshots)
-            {
-                string? ownerId = snapshot.Identity.OwnerId;
-                string? colonyId = snapshot.Identity.ColonyId;
-                if (string.IsNullOrWhiteSpace(ownerId))
-                {
-                    continue;
-                }
-
-                if (!string.IsNullOrWhiteSpace(colonyId))
-                {
-                    byColony[SnapshotLookupKey(ownerId!, colonyId!)] = snapshot;
-                }
-
-                if (!byUser.TryGetValue(ownerId!, out LatestSnapshotRecord? existing)
-                    || snapshot.AcceptedAtUtc > existing.AcceptedAtUtc)
-                {
-                    byUser[ownerId!] = snapshot;
-                }
-            }
-
-            return new LatestSnapshotLookup(byColony, byUser);
-        }
-
-        public LatestSnapshotRecord? Resolve(string userId, string colonyId)
-        {
-            if (!string.IsNullOrWhiteSpace(userId)
-                && !string.IsNullOrWhiteSpace(colonyId)
-                && snapshotsByColony.TryGetValue(SnapshotLookupKey(userId, colonyId), out LatestSnapshotRecord? exact))
-            {
-                return exact;
-            }
-
-            return !string.IsNullOrWhiteSpace(userId)
-                && latestSnapshotsByUser.TryGetValue(userId, out LatestSnapshotRecord? latest)
-                    ? latest
-                    : null;
-        }
-
-        private static string SnapshotLookupKey(string userId, string colonyId)
-        {
-            return userId + "\u001f" + colonyId;
-        }
     }
 
     private static int? CalculateLatestSnapshotWealthFromPackage(

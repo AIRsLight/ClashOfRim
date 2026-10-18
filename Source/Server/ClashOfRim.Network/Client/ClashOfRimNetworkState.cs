@@ -137,6 +137,9 @@ public sealed class ClashOfRimNetworkState
             RaidQueries, SnapshotCommits, BankLoans, Players, OnlinePresence, EventNotifications, () => RuntimeLogger);
         RaidTimeouts = new RaidTimeouts(Ledger, SnapshotStore, SnapshotPostUploadJobs, SnapshotMutations, OnlinePresence,
             EventNotifications, RaidOfflineEvidence, RaidBattleCleanup, () => ServerConfiguration);
+        PlayerActivity = new PlayerSessionActivity(Players, SnapshotStore);
+        SessionConnections = new SessionConnections(LoginSessions, AuthTokens, OnlinePresence, PlayerOnlineNotifications,
+            PlayerActivity, SnapshotMutations, PendingConfirmations, RaidTimeouts);
         var raidReconciliation = new RaidDeliveryProtection(RaidTimeouts, RaidQueries, RaidProtection);
         var raidAdmission = new RaidAdmission(DiplomacyRelations, OnlinePresence, RaidProtection, () => ServerConfiguration);
         RaidPreparation = new RaidPreparation(SnapshotStore, RaidPreparations, MercenaryGuards, RaidQueries, raidAdmission,
@@ -245,6 +248,8 @@ public sealed class ClashOfRimNetworkState
     public LoginSessionRegistry LoginSessions { get; }
 
     public PlayerRegistry Players { get; }
+    internal PlayerSessionActivity PlayerActivity { get; }
+    internal SessionConnections SessionConnections { get; }
 
     private readonly object configurationGate = new();
     private ClashOfRimServerConfiguration serverConfiguration;

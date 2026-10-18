@@ -36,7 +36,7 @@ public static partial class ClashOfRimNetworkServer
         // These writes are independently persisted. A failed login must not publish its session
         // or displace an existing pending session, even when a lifecycle hook throws.
         state.EventDelivery.ReconcileDeliveryLeases(userId, nowUtc);
-        RecordPlayerSeen(state, userId, request.ColonyId, request.CurrentSnapshotId, nowUtc, displayName);
+        state.PlayerActivity.Record(userId, request.ColonyId, request.CurrentSnapshotId, nowUtc, displayName);
         RunClientLifecycleHooks(state, ClientLifecycleEvent.LoggedIn(userId, request.ColonyId, session.SessionId, request.CurrentSnapshotId, nowUtc));
         var queue = state.EventDelivery.ReadQueue(userId, request.ColonyId);
         var markers = ProtocolDtoMapper.ToDto(BuildWorldMapMarkerDelivery(userId, request.ColonyId, state, nowUtc));

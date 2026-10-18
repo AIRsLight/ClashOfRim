@@ -107,7 +107,7 @@ public static partial class ClashOfRimNetworkServer
             int cancelledTradeOrderCount = invalidations.Count;
             if (!string.IsNullOrWhiteSpace(request.ColonyId))
             {
-                RecordPlayerSeen(state, request.UserId, request.ColonyId!, currentSnapshotId: null, nowUtc);
+                state.PlayerActivity.Record(request.UserId, request.ColonyId!, currentSnapshotId: null, nowUtc);
             }
 
             return Results.Ok(new SubmitAdminBaselineResponse(
