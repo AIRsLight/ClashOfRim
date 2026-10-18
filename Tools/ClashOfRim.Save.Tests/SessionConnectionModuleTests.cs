@@ -182,7 +182,7 @@ internal static class SessionConnectionModuleTests
             var cleanup = new RaidBattleCleanup(ledger, Snapshots, jobs, mutations, queries, new SnapshotCommitService(), Loans,
                 Players, Presence, events, () => NullLogger.Instance);
             var raids = new RaidTimeouts(ledger, Snapshots, jobs, mutations, Presence, events, offline, cleanup, () => config);
-            var pending = new PendingConfirmationReconciler(Loans, new MercenaryContractRegistry(), () => config, Gate);
+            var pending = new PendingConfirmationReconciler(Loans, new MercenaryContractRegistry(), () => config, mutations);
             Connections = new(Sessions, Tokens, Presence, Notifications, Activity, mutations, pending, raids);
         }
         internal (string Session, string Token) Issue()

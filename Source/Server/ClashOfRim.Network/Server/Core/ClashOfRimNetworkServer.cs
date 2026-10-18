@@ -30,13 +30,6 @@ namespace AIRsLight.ClashOfRim.Network;
 public static partial class ClashOfRimNetworkServer
 {
 
-    private static readonly IReadOnlyList<ClientLifecycleHook> ClientLifecycleHooks = new ClientLifecycleHook[]
-    {
-        (state, lifecycle) => state.RaidProtection.OnLifecycle(lifecycle),
-        ReconcilePendingConfirmationsOnClientLifecycle,
-        ReconcileAbandonedColonyOnClientLifecycle
-    };
-
     private static void UseRequestDiagnostics(WebApplication app)
     {
         app.Use(async (context, next) =>

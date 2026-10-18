@@ -1,6 +1,5 @@
 using AIRsLight.ClashOfRim.Network.Modules.Sessions;
 using static AIRsLight.ClashOfRim.Network.Modules.Trades.TradeRules;
-using AIRsLight.ClashOfRim.Network.Modules.Economy;
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Protocol;
 
@@ -17,72 +16,6 @@ public static partial class ClashOfRimNetworkServer
         state.WorldConfigurationNotifications.SignalUsers(knownUsers.Concat(additionalUsers));
     }
 
-    private static void RunClientLifecycleHooks(
-        ClashOfRimNetworkState state,
-        ClientLifecycleEvent lifecycleEvent)
-    {
-        foreach (ClientLifecycleHook hook in ClientLifecycleHooks)
-        {
-            hook(state, lifecycleEvent);
-        }
-    }
-
-    private static void ReconcilePendingConfirmationsOnClientLifecycle(
-        ClashOfRimNetworkState state,
-        ClientLifecycleEvent lifecycleEvent)
-    {
-        // Abandonment reconciles and closes the colony in one recovered boundary below.
-        if (lifecycleEvent.Kind == ClientLifecycleEventKind.ColonyAbandoned
-            || string.IsNullOrWhiteSpace(lifecycleEvent.UserId)
-            || string.IsNullOrWhiteSpace(lifecycleEvent.ColonyId))
-        {
-            return;
-        }
-
-        ReconcilePendingConfirmationsForColony(
-            state,
-            lifecycleEvent.UserId,
-            lifecycleEvent.ColonyId,
-            lifecycleEvent.OccurredAtUtc,
-            forceCancel: lifecycleEvent.Kind is ClientLifecycleEventKind.LoggedIn
-                or ClientLifecycleEventKind.InitialWorldSessionPrepared);
-    }
-
-    private static PendingConfirmationReconciliationResult ReconcilePendingConfirmationsForColony(
-        ClashOfRimNetworkState state,
-        string userId,
-        string colonyId,
-        DateTimeOffset nowUtc,
-        bool forceCancel)
-    {
-        using var mutation = EnterRecoveredSnapshotMutation(state);
-        return ReconcilePendingConfirmationsLocked(state, userId, colonyId, nowUtc, forceCancel);
-    }
-
-    private static PendingConfirmationReconciliationResult ReconcilePendingConfirmationsLocked(
-        ClashOfRimNetworkState state, string userId, string colonyId, DateTimeOffset nowUtc, bool forceCancel)
-        => state.PendingConfirmations.Reconcile(userId, colonyId, nowUtc, forceCancel);
-
-    private static bool TryRejectExpiredPendingConfirmationSnapshot(
-        ClashOfRimNetworkState state,
-        string userId,
-        string colonyId,
-        DateTimeOffset nowUtc,
-        out ProtocolResponse? rejection)
-    {
-        PendingConfirmationReconciliationResult result = ReconcilePendingConfirmationsForColony(
-            state,
-            userId,
-            colonyId,
-            nowUtc,
-            forceCancel: false);
-        rejection = PendingConfirmationRejection(result);
-        return rejection is not null;
-    }
-
-    private static ProtocolResponse? PendingConfirmationRejection(PendingConfirmationReconciliationResult result)
-        => PendingConfirmationReconciler.Rejection(result);
-
     private static void ReconcileAbandonedColonyOnClientLifecycle(
         ClashOfRimNetworkState state,
         ClientLifecycleEvent lifecycleEvent)
@@ -95,7 +28,7 @@ public static partial class ClashOfRimNetworkServer
         }
 
         using var mutation = EnterRecoveredSnapshotMutation(state);
-        ReconcilePendingConfirmationsLocked(state, lifecycleEvent.UserId, lifecycleEvent.ColonyId,
+        state.PendingConfirmations.Reconcile(lifecycleEvent.UserId, lifecycleEvent.ColonyId,
             lifecycleEvent.OccurredAtUtc, forceCancel: false);
         ReconcileAbandonedColonyLocked(state, lifecycleEvent);
     }
@@ -163,10 +96,5 @@ public static partial class ClashOfRimNetworkServer
             users.Add(userId!);
         }
     }
-
-    private delegate void ClientLifecycleHook(
-        ClashOfRimNetworkState state,
-        ClientLifecycleEvent lifecycleEvent);
-
 
 }

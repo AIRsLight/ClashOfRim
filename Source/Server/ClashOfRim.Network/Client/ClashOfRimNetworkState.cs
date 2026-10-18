@@ -122,7 +122,7 @@ public sealed class ClashOfRimNetworkState
         SnapshotRequests = new SnapshotRequestAuthorization(SnapshotPrincipals, ColonyAuthorization, SnapshotMutations);
         SnapshotTransactions = new SnapshotTransactions(SnapshotStore, SnapshotUploadPolicy, Plugins, CompatibilityBaseline);
         PendingConfirmations = new PendingConfirmationReconciler(BankLoans, MercenaryContracts,
-            () => ServerConfiguration, RaidSettlementSnapshotMutationGate);
+            () => ServerConfiguration, SnapshotMutations);
         RaidSettlement = new RaidSettlement(Ledger, SnapshotStore, SnapshotMutations, SnapshotCommits, BankLoans, Players,
             EventNotifications, OnlinePresence, AdminBaseline, Plugins, CompatibilityBaseline, () => ServerConfiguration, () => RuntimeLogger);
         RaidSettlementWork = new RaidSettlementWork(RaidSettlement, SnapshotPostUploadArtifacts, SnapshotPostUploadJobs, SnapshotMutations);
@@ -137,6 +137,7 @@ public sealed class ClashOfRimNetworkState
             RaidQueries, SnapshotCommits, BankLoans, Players, OnlinePresence, EventNotifications, () => RuntimeLogger);
         RaidTimeouts = new RaidTimeouts(Ledger, SnapshotStore, SnapshotPostUploadJobs, SnapshotMutations, OnlinePresence,
             EventNotifications, RaidOfflineEvidence, RaidBattleCleanup, () => ServerConfiguration);
+        EntryLifecycle = new ClientEntryLifecycle(RaidProtection, PendingConfirmations);
         PlayerActivity = new PlayerSessionActivity(Players, SnapshotStore);
         SessionConnections = new SessionConnections(LoginSessions, AuthTokens, OnlinePresence, PlayerOnlineNotifications,
             PlayerActivity, SnapshotMutations, PendingConfirmations, RaidTimeouts);
@@ -248,6 +249,7 @@ public sealed class ClashOfRimNetworkState
     public LoginSessionRegistry LoginSessions { get; }
 
     public PlayerRegistry Players { get; }
+    internal ClientEntryLifecycle EntryLifecycle { get; }
     internal PlayerSessionActivity PlayerActivity { get; }
     internal SessionConnections SessionConnections { get; }
 

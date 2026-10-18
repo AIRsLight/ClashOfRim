@@ -175,8 +175,7 @@ internal static class PendingOperationCommitCrashTests
             Execute(database, "drop trigger fail_confirm;");
             state = Open();
             NewDebt(state.BankLoans, "later", DateTimeOffset.UtcNow);
-            typeof(ClashOfRimNetworkServer).GetMethod("ReconcilePendingConfirmationsForColony", BindingFlags.Static | BindingFlags.NonPublic)!
-                .Invoke(null, [state, "userA", "colonyA", DateTimeOffset.UtcNow, true]);
+            state.PendingConfirmations.ReconcileAfterRecovery("userA", "colonyA", DateTimeOffset.UtcNow, forceCancel: true);
             Require(state.BankLoans.FindByIdempotencyKey("loan")!.Status == BankLoanRegistry.StatusActive
                 && state.BankLoans.FindDebtByIdempotencyKey("debt")!.Status == BankLoanRegistry.StatusActive
                 && state.MercenaryContracts.Find("contract")!.Status == MercenaryContractRegistry.StatusActive

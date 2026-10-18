@@ -126,7 +126,7 @@ internal static class RaidEvidenceConfirmationModuleTests
             Pipeline = new(Context);
             Confirmation = new(Context.Ledger, Context.Jobs, Context.Scheduling, Context.Mutations, requests, colonies,
                 new(Context.Snapshots, SnapshotUploadPolicy.AllowAnyVersion, new ServerPluginRegistry(), new CompatibilityBaselineRegistry()),
-                new PendingConfirmationReconciler(new BankLoanRegistry(), new MercenaryContractRegistry(), () => new(), Context.Gate),
+                new PendingConfirmationReconciler(new BankLoanRegistry(), new MercenaryContractRegistry(), () => new(), Context.Mutations),
                 Pipeline, () => NullLogger.Instance);
             Token = Renew("attacker", "attacker-colony");
         }

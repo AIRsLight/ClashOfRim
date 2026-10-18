@@ -138,8 +138,7 @@ public static partial class ClashOfRimNetworkServer
         }
 
         state.PlayerActivity.Record(userId, assignedColonyId, currentSnapshotId: null, nowUtc);
-        RunClientLifecycleHooks(
-            state,
+        state.EntryLifecycle.Apply(
             ClientLifecycleEvent.InitialWorldSessionPrepared(
                 userId,
                 assignedColonyId,

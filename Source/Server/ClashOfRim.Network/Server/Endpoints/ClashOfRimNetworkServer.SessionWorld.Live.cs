@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Network.Modules.Economy;
 using AIRsLight.ClashOfRim.Network.Modules.Snapshots;
 using AIRsLight.ClashOfRim.Compatibility;
 using AIRsLight.ClashOfRim.Events;
@@ -873,15 +874,11 @@ public static partial class ClashOfRimNetworkServer
         // then revalidate the caller after preparing its own snapshot and recovering new work.
         state.RaidTimeouts.Reconcile(nowUtc);
 
-        if (TryRejectExpiredPendingConfirmationSnapshot(
-                state,
-                request.UserId,
-                request.ColonyId,
-                nowUtc,
-                out ProtocolResponse? pendingConfirmationFailure))
+        if (PendingConfirmationReconciler.Rejection(state.PendingConfirmations.ReconcileAfterRecovery(
+                request.UserId, request.ColonyId, nowUtc, forceCancel: false)) is { } pendingConfirmationFailure)
         {
             return Results.Ok(new UploadSnapshotResponse(
-                pendingConfirmationFailure!,
+                pendingConfirmationFailure,
                 acceptedSnapshotId: null,
                 uploadResult: "PendingConfirmationExpired"));
         }

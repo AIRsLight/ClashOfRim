@@ -78,7 +78,7 @@ internal sealed class EconomicModuleTestContext
         Recovery.OnPrerequisites = DiplomacyPublications.Recover;
         Diplomacy = new DiplomacyService(Ledger, new ColonySnapshotAuthorization(colonies, Snapshots), mutations, Relations,
             Presence, DiplomacyPublications, () => Configuration, () => NullLogger.Instance);
-        var pending = new PendingConfirmationReconciler(Loans, mercenaries, () => Configuration, Gate);
+        var pending = new PendingConfirmationReconciler(Loans, mercenaries, () => Configuration, mutations);
         Access = new BankRequestAccess(colonies, mutations, Snapshots, Loans, pending);
         var principals = new SnapshotPrincipalAuthorization(Tokens, Sessions);
         var requests = new SnapshotRequestAuthorization(principals, colonies, mutations);

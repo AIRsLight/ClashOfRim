@@ -1,11 +1,19 @@
 using AIRsLight.ClashOfRim.Protocol;
+using AIRsLight.ClashOfRim.Network.Modules.Snapshots;
 
 namespace AIRsLight.ClashOfRim.Network.Modules.Economy;
 
 internal sealed class PendingConfirmationReconciler(
     BankLoanRegistry loans, MercenaryContractRegistry mercenaries,
-    Func<ClashOfRimServerConfiguration> configuration, object gate)
+    Func<ClashOfRimServerConfiguration> configuration, SnapshotMutationCoordinator mutations)
 {
+    internal PendingConfirmationReconciliationResult ReconcileAfterRecovery(
+        string userId, string colonyId, DateTimeOffset nowUtc, bool forceCancel)
+    {
+        using var mutation = mutations.Enter();
+        return Reconcile(userId, colonyId, nowUtc, forceCancel);
+    }
+
     internal PendingConfirmationReconciliationResult Reconcile(
         string userId, string colonyId, DateTimeOffset nowUtc, bool forceCancel)
     {
@@ -27,7 +35,7 @@ internal sealed class PendingConfirmationReconciler(
 
     internal ProtocolResponse? ReconcileSnapshot(string userId, string colonyId, DateTimeOffset nowUtc)
     {
-        if (!Monitor.IsEntered(gate))
+        if (!mutations.IsEntered)
             throw new InvalidOperationException("Snapshot reconciliation requires the recovered mutation scope.");
         return Rejection(
             Reconcile(userId, colonyId, nowUtc, forceCancel: false));

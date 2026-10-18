@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Network.Modules.Sessions;
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Network;
 using AIRsLight.ClashOfRim.Network.Plugins;
@@ -10,7 +11,6 @@ internal static class SnapshotJournalRecoveryPreparationTests
 {
     public static void Run(Func<string, SaveSnapshotPackage> factory)
     {
-        RunLifecycleBoundaries(factory);
         foreach (bool reopen in new[] { false, true })
         foreach (bool after in new[] { false, true })
         foreach (string change in new[] { "none", "newer", "token", "remove", "published", "compete", "replace", "failure", "obsolete-failure" })
@@ -64,24 +64,30 @@ internal static class SnapshotJournalRecoveryPreparationTests
                 f.Seed("evidence"); f.Store.Reset();
                 string before = f.PersistentState();
                 // The other lifecycle handler owns this event; empty identity belongs to neither.
-                string hook = kind == "ColonyAbandoned" ? "ReconcilePendingConfirmationsOnClientLifecycle" : "ReconcileAbandonedColonyOnClientLifecycle";
-                Invoke(hook, f.State, Lifecycle(kind, invalid == "user" ? "" : "userA", invalid == "colony" ? "" : "colonyA"));
+                bool entryHandler = kind == "ColonyAbandoned";
+                CallLifecycle(entryHandler, f.State, Lifecycle(kind, invalid == "user" ? "" : "userA", invalid == "colony" ? "" : "colonyA"));
                 if (invalid != "none")
-                    Invoke(kind == "ColonyAbandoned" ? "ReconcileAbandonedColonyOnClientLifecycle" : "ReconcilePendingConfirmationsOnClientLifecycle",
+                    CallLifecycle(!entryHandler,
                         f.State, Lifecycle(kind, invalid == "user" ? "" : "userA", invalid == "colony" ? "" : "colonyA"));
                 Require(f.State.SnapshotCommits.HasPending && f.Store.Preparations == 0 && f.Store.Writes == 0
                     && f.PostCalls == 0 && before == f.PersistentState(), "Unrelated lifecycle hook started recovery.");
             });
     }
 
-    private static void CallEntry(Fixture f, string entry)
+    private static void CallLifecycle(bool entryHandler, ClashOfRimNetworkState state, ClientLifecycleEvent lifecycle)
     {
-        if (entry == "pending") Invoke("ReconcilePendingConfirmationsForColony", f.State, "userA", "colonyA", DateTimeOffset.UtcNow, true);
-        else Invoke(entry == "login" ? "ReconcilePendingConfirmationsOnClientLifecycle" : "ReconcileAbandonedColonyOnClientLifecycle",
-            f.State, Lifecycle(entry == "login" ? "LoggedIn" : "ColonyAbandoned", "userA", "colonyA"));
+        if (entryHandler) state.EntryLifecycle.Apply(lifecycle);
+        else Invoke("ReconcileAbandonedColonyOnClientLifecycle", state, lifecycle);
     }
 
-    private static object Lifecycle(string kind, string user, string colony)
+    private static void CallEntry(Fixture f, string entry)
+    {
+        if (entry == "pending") f.State.PendingConfirmations.ReconcileAfterRecovery("userA", "colonyA", DateTimeOffset.UtcNow, true);
+        else if (entry == "login") f.State.EntryLifecycle.Apply(Lifecycle("LoggedIn", "userA", "colonyA"));
+        else Invoke("ReconcileAbandonedColonyOnClientLifecycle", f.State, Lifecycle("ColonyAbandoned", "userA", "colonyA"));
+    }
+
+    private static ClientLifecycleEvent Lifecycle(string kind, string user, string colony)
     {
         return new AIRsLight.ClashOfRim.Network.Modules.Sessions.ClientLifecycleEvent(
             Enum.Parse<AIRsLight.ClashOfRim.Network.Modules.Sessions.ClientLifecycleEventKind>(kind), user, colony, "evidence", "session", DateTimeOffset.UtcNow);

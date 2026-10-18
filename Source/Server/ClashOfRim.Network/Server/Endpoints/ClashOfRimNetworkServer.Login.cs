@@ -37,7 +37,7 @@ public static partial class ClashOfRimNetworkServer
         // or displace an existing pending session, even when a lifecycle hook throws.
         state.EventDelivery.ReconcileDeliveryLeases(userId, nowUtc);
         state.PlayerActivity.Record(userId, request.ColonyId, request.CurrentSnapshotId, nowUtc, displayName);
-        RunClientLifecycleHooks(state, ClientLifecycleEvent.LoggedIn(userId, request.ColonyId, session.SessionId, request.CurrentSnapshotId, nowUtc));
+        state.EntryLifecycle.Apply(ClientLifecycleEvent.LoggedIn(userId, request.ColonyId, session.SessionId, request.CurrentSnapshotId, nowUtc));
         var queue = state.EventDelivery.ReadQueue(userId, request.ColonyId);
         var markers = ProtocolDtoMapper.ToDto(BuildWorldMapMarkerDelivery(userId, request.ColonyId, state, nowUtc));
         RuntimeLogger(loggerFactory).LogInformation(
