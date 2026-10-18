@@ -20,6 +20,8 @@ internal static class ClientSessionStartupTests
         var culture = CultureInfo.CurrentCulture; int count = 0;
         try
         {
+            count += await AutomaticEligibility();
+            count += SessionAvailability();
             foreach (string name in new[] { "en-US", "fr-FR", "tr-TR", "zh-CN" })
             {
                 CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(name);
@@ -47,6 +49,82 @@ internal static class ClientSessionStartupTests
         }
         finally { CultureInfo.CurrentCulture = culture; ClientSessionWork.Reset(); }
         Console.WriteLine($"PASS: session startup ({count} scenarios)");
+    }
+    private static async Task<int> AutomaticEligibility()
+    {
+        int count = 0;
+        foreach (var kind in Enum.GetValues<LocalMutationKind>().Where(k => k != LocalMutationKind.None))
+        {
+            var f = AutomaticFixture();
+            f.Mutations.Begin(kind, "waiting for confirmation");
+            Check(!f.Module.CanStartAutomatic, "Automatic login consumes its one attempt during pending " + kind);
+            f.Mutations.Reset();
+            Check(f.Module.CanStartAutomatic, "Cleared mutation did not restore automatic login eligibility: " + kind);
+            await f.Ports.PumpUntil(f.Start());
+            Check(f.Session.SessionId == "accepted-session" && !f.Module.CanStartAutomatic
+                && f.Calls.SequenceEqual(new[] { "login", "upload" }), "Resumed automatic map login did not complete exactly once.");
+            count++;
+        }
+        foreach (string gate in new[] { "server", "user", "colony", "playing", "map", "manual", "snapshot", "unavailable", "source", "raid", "observation", "session" })
+        {
+            var f = AutomaticFixture();
+            ClientSynchronizationCoordinator.Lease? lease = null;
+            switch (gate)
+            {
+                case "server": f.Ports.Server = " "; break;
+                case "user": f.Ports.User = " "; break;
+                case "colony": f.Ports.Colony = " "; break;
+                case "playing": f.Playing = false; break;
+                case "map": f.HasMap = false; break;
+                case "manual": Check(f.Sync.TryBeginManual(out lease), "Manual setup failed."); break;
+                case "snapshot": Check(f.Sync.TryAcquireSnapshot(out lease), "Snapshot setup failed."); break;
+                case "unavailable": f.Session.BeginUnavailable(f.Ports.Auth, null); break;
+                case "source": f.SourceGame.BlockCurrent(); break;
+                case "raid": f.RaidBattle = true; break;
+                case "observation": f.Observing = true; break;
+                case "session": f.Session.PublishLogin(new() { SessionId = "connected", AuthToken = "auth" }); break;
+            }
+            Check(!f.Module.CanStartAutomatic && f.Calls.IsEmpty && f.Statuses.IsEmpty, "Automatic eligibility ignored " + gate + " or had side effects.");
+            lease?.Dispose();
+            if (gate is "manual" or "snapshot") Check(f.Module.CanStartAutomatic, "Released admission did not unblock eligibility.");
+            if (gate == "source")
+            {
+                Check(!f.SourceGame.Initialized(f.Ports.GameOwner) && !f.Module.CanStartAutomatic, "Old source game removed its own barrier.");
+                f.Ports.GameOwner = new();
+                Check(f.SourceGame.Initialized(f.Ports.GameOwner) && f.Module.CanStartAutomatic, "New game inherited the old source barrier.");
+            }
+            count++;
+        }
+        var initial = AutomaticFixture();
+        initial.Ports.Snapshot = ""; initial.Ports.Auth = "";
+        Check(initial.Module.CanStartAutomatic, "First map login incorrectly requires an existing snapshot or token.");
+        await initial.Ports.PumpUntil(initial.Start());
+        Check(initial.Session.SessionId == "accepted-session", "First map login could not establish its session.");
+        return count + 1;
+    }
+    private static Fixture AutomaticFixture()
+    {
+        var f = new Fixture(ClientSessionStartKind.Map);
+        f.Session.PublishLogin(new() { SessionId = " ", AuthToken = "auth" });
+        Check(f.Module.CanStartAutomatic, "Configured map without a session was not eligible.");
+        return f;
+    }
+    private static int SessionAvailability()
+    {
+        foreach (bool configured in new[] { false, true })
+        foreach (bool connected in new[] { false, true })
+        foreach (bool snapshot in new[] { false, true })
+        foreach (bool observing in new[] { false, true })
+        {
+            var f = new Fixture(ClientSessionStartKind.Map) { Observing = observing, Playing = false, HasMap = false, RaidBattle = true };
+            f.Session.PublishLogin(new() { SessionId = connected ? "connected" : " ", AuthToken = "" });
+            f.Ports.Colony = configured ? "colony" : " "; f.Ports.Snapshot = snapshot ? "snapshot" : " ";
+            f.Session.BeginUnavailable(null, null);
+            Check(f.Session.HasConfiguredSession == (configured && connected), "Main button/autosave session availability changed.");
+            Check(f.Session.HasSnapshotSession(f.Ports.ReadContext()) == (configured && connected && snapshot), "Menu save snapshot availability changed.");
+            Check(f.Module.IsInActiveWorld == (configured && connected && snapshot && !observing), "Active world availability changed.");
+        }
+        return 16;
     }
     private static async Task Success(ClientSessionStartKind kind, bool presence)
     {
@@ -198,7 +276,7 @@ internal static class ClientSessionStartupTests
     }
     private static void Check(bool ok, string message) { if (!ok) throw new InvalidOperationException(message); }
     private sealed class Fixture : IClientSessionLoginTransport, IClientSessionLogoutTransport, IClientSnapshotTransport,
-        IClientSessionStartupRuntime, IClientSessionStartupPresentation, IClientSessionFollowups
+        IClientSessionStartupRuntime, IClientSessionStartupPresentation, IClientSessionFollowups, IClientWorldSourceGame
     {
         internal readonly EventModuleTestPorts Ports = new();
         internal readonly ClientSynchronizationCoordinator Sync = new();
@@ -206,11 +284,13 @@ internal static class ClientSessionStartupTests
         internal readonly ClientSessionLifecycle Session;
         internal readonly ClientWorldPublicationTestPorts WorldPorts;
         internal readonly ClientSessionStartup Module;
+        internal readonly ClientWorldSourceGame SourceGame;
         internal readonly ClientSessionStartKind Kind;
         internal readonly ConcurrentQueue<string> Calls = new(), Statuses = new(), Diagnostics = new();
         internal readonly ConcurrentQueue<(ClashOfRimClientNetworkContext Context, string Id)> Logouts = new();
         internal readonly List<ClientSessionFollowup> Effects = new();
-        internal object World = new(); internal bool Playing = true, HasMap = true, Presence, RepeatQueue, MutateReceipt;
+        internal object World = new(); internal bool Playing = true, HasMap = true, Presence, RepeatQueue, MutateReceipt, RaidBattle, Observing;
+        public object Current => Ports.GameOwner;
         internal string? FaultPhase, Fault, UploadKind; internal int Queues, Messages, Mismatches, DiscardIndex, QueueIndex;
         internal ClashOfRimClientNetworkContext? RequestContext;
         internal Action<string>? Hook; internal Func<string, Task>? Before;
@@ -219,7 +299,8 @@ internal static class ClientSessionStartupTests
             ClientSessionWork.Reset(); Kind = kind; Session = new(Ports, this, new(Ports));
             Session.PublishLogin(new() { AuthenticatedUserId = "alice", AuthToken = "auth", SessionId = "original" });
             WorldPorts = new(Session, Ports, world: () => World);
-            Module = new(Session, Sync, Mutations, new(Session, WorldPorts.Markers), new(Session, this), new(Ports, Ports, this, Sync), this, this, this);
+            SourceGame = new(this);
+            Module = new(Session, Sync, Mutations, SourceGame, new(Session, WorldPorts.Markers), new(Session, this), new(Ports, Ports, this, Sync), this, this, this);
             Session.IdentityChanged += _ => Step("identity");
             Ports.OnCapture = () => Step("save"); Ports.OnPublish = () => Step("store");
         }
@@ -304,6 +385,8 @@ internal static class ClientSessionStartupTests
             public bool IsCurrent => ReferenceEquals(F.Ports.GameOwner, Game) && ReferenceEquals(F.World, World);
             public bool IsPlaying => F.Playing;
             public bool HasMap => F.HasMap;
+            public bool HasRaidBattle => F.RaidBattle;
+            public bool IsObserving => F.Observing;
         }
     }
 }

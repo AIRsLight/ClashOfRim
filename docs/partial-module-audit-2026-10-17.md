@@ -2529,3 +2529,16 @@ ClientSnapshotTransactionNotifications 接管上传开始通知的排队与归�
 **5 个相关单元组通过**：事务通知、同步协调器、主线程队列、多语言命令展示、模块依赖守卫。测试项目编译生产代码，守卫检查 **1,332** 个模块及生成类型、**310** 个适配器及生成类型。日志：`LocalOnly/module-migration/client-snapshot-notifications-{tests,final}.log`。本步以单元测试验证，没有安排 RimTest 或全量回归；后续涉及游戏内行为时可补充单次修改的定向 RimTest，全量仍由用户安排。没有独立发布构建或推送，冻结 1.6 及工作区原有修改未纳入本步。
 
 **下一步 M8h4s：自动登录及会话可用性条件。** Core 的 CanStartAutomaticMapServerSession 仍组合配置、Playing／地图、同步准入、失效恢复、来源 Game、袭击／观察和 SessionId；ShouldShowMultiplayerMainButton 与 IsInActiveMultiplayerSession 也留在宿主。需核对实际调用方及既有启动模块的准入语义，迁出业务条件并复用所属领域，不能新增平行的生命周期状态或把判断原样塞进适配器。M8h4、M8h、M8、M9–M12 继续开放。
+
+
+### M8h4s 自动登录准入和会话可用性（2026-10-19）
+
+CanStartAutomaticMapServerSession 的条件收回既有 ClientSessionStartup。启动模块直接读取同步准入、本地变更、会话生命周期及 ClientWorldSourceGame；现有启动运行时端口只增加袭击／观察这两个引擎事实。没有增加自动登录状态或新的综合运行时判定回调。Core 变为薄查询入口，删除无引用的 manualSyncInProgress、snapshotUploadInProgress、lastSessionId 三个私有桥接属性。
+
+保留原条件迁入后，新增单元测试先复现普通待确认变更的准入分歧：Bank 变更存在时，自动登录预检查仍返回 true，而实际 StartAsync 会拒绝。生产 GameComponent 在调用启动前就将 automaticSessionAttempted 设为 true，因此可能提前消耗本 Game 的唯一尝试。现在预检查共用 ClientLocalMutationCoordinator.CheckAdmission，与地图启动一致地等待所有未确认变更结束；首次地图登录仍无需已有快照或认证令牌。复现日志：`LocalOnly/module-migration/client-session-eligibility-repro.log`。单元复现覆盖准入分歧，未声称在实机运行了完整 tick 生命周期。
+
+ClientSessionLifecycle 提供配置会话及带快照会话的共用查询，供主按钮、保存／自动保存及世界会话可用性使用；带快照查询保留调用方捕获的上下文参数。ClientSessionStartup 管理额外排除观察模式的世界可用性。保持原行为：主按钮／自动保存拦截无需快照，菜单保存需要快照；世界可用性排除观察模式，但不额外引入 Playing、当前地图、袭击、令牌或暂时失效条件。是否允许实际操作仍由各自工作流判断。
+
+既有启动测试增加 **45 个场景**：16 类本地变更阻塞后恢复并完成真实启动工作流，12 个配置／地图／同步／失效／来源 Game／袭击／观察／既有会话条件，1 个首次地图登录，以及 16 组会话可用性组合。沿用原测试端口和实际启动／保存／生命周期模块。**5 个相关单元组通过**：启动（1,057 场景）、保存（1,868 场景）、世界入口（336 场景）、会话生命周期和模块守卫；生产代码随测试项目编译，守卫仍为 1,332／310 个类型。最终日志：`LocalOnly/module-migration/client-session-eligibility-tests.log`。没有全量回归、实机 RimTest、独立发布构建或推送，未修改冻结 1.6，也未纳入继承的工作区修改。
+
+**下一步 M8h4t：剩余袭击入口和宿主责任核查。** RemoteMaps partial 仍有远征队／载具入口的 PvP 和目标判断、两层确认回调及运输舱目标组装，需要核对 ClientRaidLaunching 已有的准入与目标转换，避免保留两套策略或把宿主业务回调搬进适配器。随后按实际责任核对其余 partial，区分尚未迁出的领域工作与 M11 的 UI／公开门面；M8h4、M8h、M8、M9–M12 继续开放。

@@ -107,8 +107,6 @@ public sealed partial class ClashOfRimMod : Mod
     private readonly ClientSnapshotPreparationAdapter snapshotPreparation = ClientSnapshotComposition.CreatePreparation();
     private readonly ClientSnapshotPublication snapshotPublication;
     private readonly ClientSynchronizationCoordinator synchronization = ClientSnapshotComposition.Synchronization;
-    private bool snapshotUploadInProgress => synchronization.SnapshotInProgress;
-    private bool manualSyncInProgress => synchronization.ManualInProgress;
     private readonly ClientColonyRegistration colonyRegistration;
     private readonly ClientColonyAppearance colonyAppearance;
     private readonly ClientColonyAbandonment colonyAbandonment;
@@ -129,8 +127,6 @@ public sealed partial class ClashOfRimMod : Mod
     private readonly ClientCompatibilityBaseline compatibilityBaseline;
     private readonly ClientCompatibilityOverride compatibilityOverride;
     private readonly ClientLocalMutationCoordinator localMutations = new();
-    // Read-only bridge for domains that have not yet moved out of the Mod.
-    private string? lastSessionId => sessionLifecycle.SessionId;
     private readonly ClientSessionNotifications sessionNotifications;
     private readonly ClientSessionLifecycle sessionLifecycle;
     private readonly ClientChat chat;
@@ -376,7 +372,7 @@ public sealed partial class ClashOfRimMod : Mod
         initialWorldSetup = new ClientInitialWorldSetup(sessionLifecycle, worldSetup, synchronization, worldBaselineCapture, worldBaselineSubmission,
             adminBaselineCapture, new AIRsLight.ClashOfRim.Admin.ClientAdminBaselineTransport(new ClientProtocolEnvironment()),
             ClientSnapshotComposition.Create(settings), initialWorldPresentation, initialWorldPresentation, sessionFollowups);
-        sessionStartup = new ClientSessionStartup(sessionLifecycle, synchronization, localMutations, worldLoginPublication,
+        sessionStartup = new ClientSessionStartup(sessionLifecycle, synchronization, localMutations, sourceGame, worldLoginPublication,
             new ClientSessionLogin(sessionLifecycle, new ClientSessionLoginTransport(new ClientProtocolEnvironment())),
             ClientSnapshotComposition.Create(settings), new ClientSessionStartupRuntime(sessionConnection),
             new ClientSessionStartupPresentation(message => loginStatus = message, message => snapshotUploadStatus = message, response => ShowCompatibilityMismatchWindow(response)), sessionFollowups);
@@ -475,32 +471,15 @@ public sealed partial class ClashOfRimMod : Mod
 
     internal string CurrentUserId => settings.UserId;
 
-    internal bool ShouldShowMultiplayerMainButton =>
-        settings.IsConfigured
-        && !string.IsNullOrWhiteSpace(lastSessionId);
+    internal bool ShouldShowMultiplayerMainButton => sessionLifecycle.HasConfiguredSession;
 
-    internal bool IsInActiveMultiplayerSession =>
-        settings.IsConfigured
-        && !string.IsNullOrWhiteSpace(settings.CurrentSnapshotId)
-        && !string.IsNullOrWhiteSpace(lastSessionId)
-        && !ClashOfRimGameComponent.HasActiveObservationSession;
+    internal bool IsInActiveMultiplayerSession => sessionStartup.IsInActiveWorld;
 
     internal bool CanUseVanillaMenuSnapshotUpload => snapshotSaving.CanUseMenu;
 
     internal bool ShouldInterceptVanillaAutosave => snapshotSaving.InterceptsAutosave;
 
-    internal bool CanStartAutomaticMapServerSession =>
-        settings.IsConfigured
-        && Current.ProgramState == ProgramState.Playing
-        && Find.CurrentMap is not null
-        && !manualSyncInProgress
-        && !snapshotUploadInProgress
-        && !sessionLifecycle.IsUnavailable
-        && !snapshotReload.BlocksGameLifecycle
-        && !sourceGame.BlocksCurrent
-        && !ClashOfRimGameComponent.HasActiveRaidBattleSession
-        && !ClashOfRimGameComponent.HasActiveObservationSession
-        && string.IsNullOrWhiteSpace(lastSessionId);
+    internal bool CanStartAutomaticMapServerSession => sessionStartup.CanStartAutomatic;
 
     internal bool CanSyncRuntimeWorldObjects => worldSynchronization.CanStart(ClientWorldSynchronizationKind.RuntimeObjects);
 

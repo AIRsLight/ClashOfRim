@@ -29,6 +29,11 @@ internal sealed class ClientSessionLifecycle
     }
 
     internal string? SessionId => sessionId;
+    internal bool HasConfiguredSession => HasSession(ReadContext());
+    internal bool HasSnapshotSession(ClashOfRimClientNetworkContext context)
+        => HasSession(context) && !string.IsNullOrWhiteSpace(context.CurrentSnapshotId);
+    private bool HasSession(ClashOfRimClientNetworkContext context)
+        => context.IsConfigured && !string.IsNullOrWhiteSpace(sessionId);
     internal bool IsUnavailable => unavailable;
     internal ClashOfRimClientNetworkContext ReadContext() => identities.ReadContext();
     internal Ownership CaptureOwnership() => new(identityOwner, ClientSessionWork.Token);

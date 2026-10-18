@@ -42,10 +42,8 @@ internal sealed class ClientSnapshotSaving
         requests = new(session, () => new(game.BindCurrentGame(), world.Bind(), identity.WorldId),
             bound => bound.Game.IsCurrent && bound.World.IsCurrent && identity.WorldId == bound.WorldId, static () => { });
     }
-    internal bool CanUseMenu => HasTrackedSession(session.ReadContext());
-    internal bool InterceptsAutosave => session.ReadContext().IsConfigured && !string.IsNullOrWhiteSpace(session.SessionId);
-    private bool HasTrackedSession(ClashOfRimClientNetworkContext context) => context.IsConfigured
-        && !string.IsNullOrWhiteSpace(context.CurrentSnapshotId) && !string.IsNullOrWhiteSpace(session.SessionId);
+    internal bool CanUseMenu => session.HasSnapshotSession(session.ReadContext());
+    internal bool InterceptsAutosave => session.HasConfiguredSession;
 
     internal Task StartAsync(ClientSnapshotSaveKind kind, Action? onSavedExit = null)
     {
@@ -59,7 +57,7 @@ internal sealed class ClientSnapshotSaving
         }
         var blocked = mutations.BlockingMutation();
         if (blocked is not null) { Present(new(kind, ClientSnapshotSaveStage.Blocked, Mutation: blocked), Step); return Task.CompletedTask; }
-        if (kind != ClientSnapshotSaveKind.Manual && !HasTrackedSession(context))
+        if (kind != ClientSnapshotSaveKind.Manual && !session.HasSnapshotSession(context))
         { Present(new(kind, ClientSnapshotSaveStage.NoSession), Step); return Task.CompletedTask; }
         ClientSynchronizationCoordinator.Lease? lease = null;
         try

@@ -21,6 +21,8 @@ internal interface IClientSessionStartupSession
     bool IsCurrent { get; }
     bool IsPlaying { get; }
     bool HasMap { get; }
+    bool HasRaidBattle { get; }
+    bool IsObserving { get; }
 }
 internal interface IClientSessionStartupPresentation
 {
@@ -39,6 +41,7 @@ internal sealed class ClientSessionStartup
     private readonly ClientSessionLifecycle session;
     private readonly ClientSynchronizationCoordinator synchronization;
     private readonly ClientLocalMutationCoordinator mutations;
+    private readonly ClientWorldSourceGame sourceGame;
     private readonly ClientWorldLoginPublication publication;
     private readonly ClientSessionLogin login;
     private readonly ClientSnapshotUploader snapshots;
@@ -46,13 +49,28 @@ internal sealed class ClientSessionStartup
     private readonly IClientSessionStartupPresentation view;
     private Job? active;
     private readonly IClientSessionFollowups followups;
-    internal ClientSessionStartup(ClientSessionLifecycle session, ClientSynchronizationCoordinator synchronization, ClientLocalMutationCoordinator mutations,
+    internal ClientSessionStartup(ClientSessionLifecycle session, ClientSynchronizationCoordinator synchronization, ClientLocalMutationCoordinator mutations, ClientWorldSourceGame sourceGame,
         ClientWorldLoginPublication publication, ClientSessionLogin login, ClientSnapshotUploader snapshots,
         IClientSessionStartupRuntime runtime, IClientSessionStartupPresentation view, IClientSessionFollowups followups)
     {
-        this.session = session; this.synchronization = synchronization; this.mutations = mutations; this.publication = publication;
+        this.session = session; this.synchronization = synchronization; this.mutations = mutations; this.sourceGame = sourceGame; this.publication = publication;
         this.login = login; this.snapshots = snapshots; this.runtime = runtime; this.view = view;
         this.followups = followups;
+    }
+    internal bool IsInActiveWorld => session.HasSnapshotSession(session.ReadContext()) && !runtime.Bind().IsObserving;
+    internal bool CanStartAutomatic
+    {
+        get
+        {
+            using var p = ClientSessionWork.EnterPublication();
+            var context = session.ReadContext(); var bound = runtime.Bind();
+            // A denied pending mutation must not consume the game's one automatic
+            // startup opportunity. Use the same map admission as StartAsync.
+            return mutations.CheckAdmission(context.IsConfigured, hasSnapshot: true) == LocalMutationAdmission.Allowed
+                && bound.IsPlaying && bound.HasMap && !synchronization.IsBusy
+                && !session.IsUnavailable && !sourceGame.BlocksCurrent
+                && !bound.HasRaidBattle && !bound.IsObserving && string.IsNullOrWhiteSpace(session.SessionId);
+        }
     }
     internal Task StartAsync(ClientSessionStartKind kind)
     {

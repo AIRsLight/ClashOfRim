@@ -18,5 +18,7 @@ internal sealed class ClientSessionStartupRuntime : IClientSessionStartupRuntime
         public bool IsCurrent => ReferenceEquals(Game, Current.Game) && ReferenceEquals(World, Find.World);
         public bool IsPlaying => Current.ProgramState == ProgramState.Playing;
         public bool HasMap => Find.CurrentMap is not null;
+        public bool HasRaidBattle => ClashOfRimGameComponent.HasActiveRaidBattleSession;
+        public bool IsObserving => ClashOfRimGameComponent.HasActiveObservationSession;
     }
 }
