@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Text.Json;
 using AIRsLight.ClashOfRim.Network;
+using AIRsLight.ClashOfRim.Network.Modules.Snapshots;
 using AIRsLight.ClashOfRim.Protocol;
 using ClashOfRim.TestSupport;
 using Microsoft.AspNetCore.Builder;
@@ -30,6 +31,11 @@ internal static class ModuleBoundaryTests
             || t == typeof(AIRsLight.ClashOfRim.Network.Plugins.SnapshotPostUploadDeferredContext)
             || t == typeof(LegacySnapshotRecoveryAdapter) || t == typeof(IServiceProvider));
         Require(violations.Count == 0, string.Join(Environment.NewLine, violations));
+        Type[] commitModules = [typeof(SnapshotCommitApplication), typeof(SnapshotCommitJournal), typeof(SnapshotConfirmationReceipts)];
+        var commitBackReferences = ModuleDependencyGuard.FindViolations(
+            modules.Where(t => commitModules.Any(root => t == root || t.FullName!.StartsWith(root.FullName + "+", StringComparison.Ordinal))),
+            t => t == typeof(SnapshotCommitService));
+        Require(commitBackReferences.Count == 0, string.Join(Environment.NewLine, commitBackReferences));
         var business = modules.Where(t =>
             t.Namespace is "AIRsLight.ClashOfRim.Network.Modules.Bank" or "AIRsLight.ClashOfRim.Network.Modules.Gifts"
                 or "AIRsLight.ClashOfRim.Network.Modules.Transfers" or "AIRsLight.ClashOfRim.Network.Modules.Trades" or "AIRsLight.ClashOfRim.Network.Modules.Shop" or "AIRsLight.ClashOfRim.Network.Modules.Mercenaries"

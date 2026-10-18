@@ -2602,3 +2602,16 @@ ClientRaidCommands 接管远征队菜单、载具着陆入口和运输舱目标�
 复用原 ConfirmationJournalTests 夹具，增加意图文件错名、回执文件错名拒绝启动／验证，以及中断残留临时文件不参与恢复的场景；临时文件场景继续走真实确认、持久回执和再次启动重放。**3 个相关单元组通过**：确认日志完整故障矩阵、待确认批次升级与恢复、服务端模块边界（393 个类型、81 条路由）。日志：`LocalOnly/module-migration/server-confirmation-receipts-tests.log`。生产代码随测试编译，未运行全量、实机或独立发布构建，未推送。
 
 **下一步 M9c：业务提交应用流程。** 将当前 Apply 的业务预检、快照发布和领域写入顺序交给独立模块；协调器继续唯一管理 pending／applying，并负责检查点落盘后替换内存、完成后删除待办。后续还需迁出宿主恢复／后处理并退役 LegacySnapshotRecoveryAdapter，M9–M12 继续开放。
+
+
+### M9c 提交应用流程与检查点归属（2026-10-19）
+
+SnapshotCommitApplication 接管一次已登记意图的业务预检、父版本／已发布版本判断、快照写入、各领域变更、固定待确认批次、后处理及确认账本／成就／回执顺序。它只接收明确的存储、领域注册表、效果和检查点依赖，不引用 SnapshotCommitService、NetworkState 或服务器宿主。逐段比对迁出的业务体，除检查点端口外保持原执行算法；SameVersion 的唯一比较实现归应用模块，原内部调用入口保留转发。
+
+协调器仍持有 pending／pendingUploads／applying、原业务锁进入顺序及完成清理。ISnapshotCommitCheckpoint 只允许应用模块请求持久检查点；协调器先替换日志，再发布 pending 中的意图。历史版本升级与确认计划保存共用 PersistCheckpoint。应用模块不持有待办索引、不执行恢复循环，也不能自行删除日志；异常仍通过原 finally 结束 applying，业务效果完成后才删除文件和内存登记。
+
+确认日志既有故障矩阵增加执行作用域检查：后处理必须处于快照、银行、佣兵原业务锁内，嵌套 Recover 不得重复执行当前意图；各故障出口必须清除 applying 且保留待办，成功出口不得遗留待办。架构守卫增加日志、回执、应用模块及其生成类型不得反向依赖提交协调器的检查。
+
+**14 个相关单元组通过**：快照准备／恢复、各经济业务与支援提交、固定确认批次、普通上传、单条／批量事件确认、袭击出征／守方结算／战场清理及模块边界。守卫为 396 个类型、81 条路由。日志：`LocalOnly/module-migration/server-commit-application-tests.log`。测试编译生产代码；未运行全量、实机、独立发布构建或推送，继承修改未纳入提交。
+
+**下一步 M9d：恢复准备与待办所有权边界。** RecoveryPreparation partial 仍直接访问协调器私有集合；需让准备模块持有捕获批次和压缩结果，协调器通过窄端口判定批次归属并安装准备结果，保留锁外准备、过期批次拒绝和回滚再捕获语义，删除该 partial。之后继续迁出宿主恢复／后处理并删除 LegacySnapshotRecoveryAdapter；现有后处理和确认计划回调仍是未完成的 M9 边界，不能据本步宣称 M9 完成。

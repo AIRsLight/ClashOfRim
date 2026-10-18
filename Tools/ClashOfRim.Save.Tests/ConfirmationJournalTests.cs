@@ -42,7 +42,16 @@ internal static class ConfirmationJournalTests
 
     private static void Recovery(Fixture f, bool reopen, string fault)
     {
+        f.OnPost = () =>
+        {
+            Require(f.State.SnapshotCommits.IsApplying && f.State.SnapshotCommits.HasPendingUploads
+                && Monitor.IsEntered(f.State.RaidSettlementSnapshotMutationGate)
+                && Monitor.IsEntered(f.State.BankLoans.SnapshotCommitGate)
+                && Monitor.IsEntered(f.State.MercenaryContracts.SnapshotCommitGate), "post-processing escaped its coordinator scope");
+            f.State.SnapshotCommits.Recover(f.Files, f.State.BankLoans, (_, _) => throw new Exception("Nested replay applied the active intent."));
+        };
         f.Fail(fault); ExpectFailure(() => f.Confirm());
+        Require(!f.State.SnapshotCommits.IsApplying && f.State.SnapshotCommits.HasPending, "failed application lost its pending state or leaked its applying scope");
         var intent = f.Intent();
         Require(intent.Version == 11 && intent.Upload?.Confirmation is { } mutation && mutation.Request.Single == f.Single
             && mutation.Request.BaseSnapshotId == "before", "missing original confirmation intent");
@@ -70,7 +79,8 @@ internal static class ConfirmationJournalTests
 
     private static void VerifyCompleted(Fixture f, SnapshotCommitIntent intent, ConfirmEventApplicationsResponse response)
     {
-        Require(!f.State.SnapshotCommits.HasPendingUploads && !Directory.EnumerateFiles(f.Journal, "*.json").Any(), "completed intent remained");
+        Require(!f.State.SnapshotCommits.IsApplying && !f.State.SnapshotCommits.HasPending
+            && !f.State.SnapshotCommits.HasPendingUploads && !Directory.EnumerateFiles(f.Journal, "*.json").Any(), "completed intent remained");
         Require(SnapshotCommitService.SameVersion(f.Files.GetLatest("userA", "colonyA")!.Envelope, intent.Package.Envelope), "published snapshot changed");
         var applied = f.State.Ledger.Find("trade")!;
         Require(applied.Status == ServerEventStatus.AppliedToSnapshot && applied.AppliedAtUtc == intent.AcceptedAtUtc
@@ -309,7 +319,7 @@ internal static class ConfirmationJournalTests
         public ClashOfRimNetworkState State = null!;
         public FileColonySnapshotIndexStore Files = null!;
         public int PostCalls;
-        public Action? OnPrepare;
+        public Action? OnPrepare, OnPost;
         private string? fault;
         private CrashStore store = null!;
         private FileStream? held;
@@ -355,7 +365,7 @@ internal static class ConfirmationJournalTests
                 bankLoans: new BankLoanRegistry(new SqliteDomainKeyedJsonRecordStore(Database, SqliteDomainRegistrySchema.BankLoans), null),
                 achievements: new AchievementRegistry(new SqliteDomainKeyedJsonRecordStore(Database, SqliteDomainRegistrySchema.Achievements), null),
                 plugins: new ServerPluginRegistry().WithBuiltInPlugins([new("test.confirm", "confirm", "1", "test", "", [])
-                { SnapshotPostUploadProcessors = [new Processor(() => { PostCalls++; if (fault == "processor") throw new IOException("processor"); if (fault == "plan") Hold(); })],
+                { SnapshotPostUploadProcessors = [new Processor(() => { PostCalls++; OnPost?.Invoke(); if (fault == "processor") throw new IOException("processor"); if (fault == "plan") Hold(); })],
                     SaveIndexExtensions = [new PrepareHook(() => OnPrepare?.Invoke())] }]));
         }
         private void Hold() => held ??= new FileStream(Directory.EnumerateFiles(Journal, "*.json").Single(), FileMode.Open, FileAccess.Read, FileShare.Read);
