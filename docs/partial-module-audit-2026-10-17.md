@@ -2465,3 +2465,20 @@ ClientServerMetadata 接管登录身份通知、入服准备接受和世界目�
 累计 **17 个相关单元组通过**；最终重点重跑元数据、目录、入服／发起、管理控制和模块守卫六组，并验证兼容基线／覆盖、生命周期、恢复 UI 和启动。测试项目编译通过；守卫检查 **1,288** 个模块及生成类型、**305** 个适配器及生成类型。日志：`LocalOnly/module-migration/client-server-metadata-{foundation,tests,world-repro,final,related}.log`。没有运行全量回归、实机 RimTest 或独立发布构建，没有推送；冻结 1.6 及原有未提交工作保持独立。
 
 M8h4n 的启动／初次建服分派和身份元数据接续迁移完成。**下一步 M8h4o：快照加载完成后的世界接续。** 当前 OnServerSnapshotLoaded 仍在 ServerEntry partial 内执行源场景解锁、袭击恢复提示、运行时世界配置应用、事件／玩家／聊天刷新、站点排队、presence 和袭击状态恢复，注释也明确将其留在 M8；应复用新领域分派及已有快照完成回执。手动／菜单快照上传等其他 partial 遗留同样尚未收回模块，不能把 M8h4、M8h、M8 或 M9–M12 标记完成。全量验证仍由用户安排。
+
+
+### M8h4o 快照加载后的世界接续（2026-10-19）
+
+删除 ServerEntry partial 中的 OnServerSnapshotLoaded、ReconcileRestoredRaidBattleSession 及 WorldBaseline 中已无调用方的 ApplyRuntimeWorldConfigurationUpdate。新增 ClientSnapshotWorld，直接连接源场景状态、世界配置、共用领域分派和袭击恢复；宿主只装配依赖并订阅 Continue。新增展示适配器仅负责袭击恢复文字、状态和游戏消息，没有迁入业务回调。
+
+完成前的边界测试先复现了旧流程的缺口：Loaded 提示期间切换服务器后，旧任务仍调用完成订阅者（`client-snapshot-world-repro.log`）。ClientSnapshotReload 现在在恢复窗口关闭和完成提示后复查原任务；完成回执保留已接受的身份／会话代次、快照和确切 Game，并提供 Step。准入及加载资源释放不撤销有效回执；下一次实际加载开始会撤销旧回执，完成订阅者重入登录后也不会继续调用后续订阅者。模块仅保留不含存档的回执标识，避免为了迟到动作长期持有下载内容。
+
+世界接续沿用回执 Step，并约束已加载世界对象与 WorldConfigurationId。配置自身的 Remember 可在应用期间接续到响应指定的世界 ID，其他世界替换仍停止旧操作。运行时配置继续使用已有 ApplyCatalog／storyteller 算法，不增加地形生成、占用站点或标记投影。缺少 storyteller 定义时保留既有行为：已经应用的目录仍生效，继续启动后续领域。
+
+ClientSessionFollowups 增加 SnapshotReload 来源，事件和站点原因使用原有加载成功翻译键，玩家／初始聊天／presence 继续共用真实领域实现。站点登记通过完成回执绑定的 Game 排队，在执行时再次检查来源；不会把旧加载的排队动作绑定到新登录。顺序保持源场景解锁、袭击专用提示、配置应用、事件／玩家／聊天、站点排队、按需 presence、权威袭击恢复；每个目标领域启动后继续管理自己的请求。
+
+新增世界接续组 **636 个场景**：四种文化下通过真实快照加载、生命周期、配置／storyteller、源场景及袭击恢复模块，验证入服／袭击、无／同／异／空世界 ID、缺失 storyteller、已有在线连接、提示和配置／领域回调重入、排队前身份／Game／世界／快照替换、同凭据重新登录、异常释放准入、袭击元数据传递和未就绪恢复失效。该组的领域分派端口只记录工作流请求；共用分派组另增加 **292** 个快照来源场景（合计 **1,088**），直接验证真实目标领域、翻译原因、初始聊天和站点外观。加载组另补 **21** 个完成提示／回执场景，包含资源释放后仍有效、新加载前后旧回执均失效和多个订阅者之间的重新登录。原加载测试的受控传输／引擎端口提取为 ClientSnapshotReloadTestPorts，由两组共用，没有复制加载业务算法。文化测试使用窄端口，不代表引擎语言切换实测。
+
+**11 个相关单元组通过**：世界接续、共用分派、快照加载及其引擎适配器、袭击恢复、storyteller、会话启动、初次建服、世界入服／发起和模块守卫。测试项目编译通过；守卫检查 **1,298** 个模块及生成类型、**306** 个适配器及生成类型。日志：`LocalOnly/module-migration/client-snapshot-world-{repro,foundation,tests,final}.log`。没有运行全量回归、实机 RimTest 或独立发布构建，没有推送；冻结 1.6 和原有未提交工作保持独立。
+
+**下一步 M8h4p：手动／菜单快照上传。** EventApplications partial 仍直接持有准入、ModSnapshotUploadService(settings)、成功／失败展示及扩展同步，部分排队回调读取可变宿主状态。应先区分两个入口的保存与退出语义，再复用既有快照上传、准入和世界领域模块。其他 partial 及 M8h4、M8h、M8、M9–M12 继续开放，全量验证由用户安排。

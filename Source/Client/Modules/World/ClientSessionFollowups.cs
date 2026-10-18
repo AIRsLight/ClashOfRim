@@ -9,7 +9,7 @@ using AIRsLight.ClashOfRim.Modules.Presence;
 namespace AIRsLight.ClashOfRim.Modules.World;
 
 internal enum ClientSessionFollowup { Markers, Events, Players, Chat, ColonySites, Extensions, Presence }
-internal enum ClientSessionFollowupSource { ManualLogin, MapLogin, InitialWorld }
+internal enum ClientSessionFollowupSource { ManualLogin, MapLogin, InitialWorld, SnapshotReload }
 internal interface IClientSessionFollowups
 {
     void AdoptQueue(ModEventQueueSummaryDto? queue);
@@ -54,6 +54,7 @@ internal sealed class ClientSessionFollowups : IClientSessionFollowups
                     ClientSessionFollowupSource.ManualLogin => "ClashOfRim.Login.ReasonManual",
                     ClientSessionFollowupSource.MapLogin => "ClashOfRim.MapSession.ReasonLogin",
                     ClientSessionFollowupSource.InitialWorld => "ClashOfRim.WorldBaseline.ReasonInitialSnapshotUploaded",
+                    ClientSessionFollowupSource.SnapshotReload => "ClashOfRim.ServerEntry.ReasonServerSnapshotLoaded",
                     _ => throw new ArgumentOutOfRangeException(nameof(source))
                 };
                 if (Reason(key)) step(() => work = events.StartAutomatic(reason));
@@ -63,7 +64,8 @@ internal sealed class ClientSessionFollowups : IClientSessionFollowups
             case ClientSessionFollowup.Chat:
                 step(() => work = chat.RefreshAsync(initial: true)); break;
             case ClientSessionFollowup.ColonySites:
-                if (source != ClientSessionFollowupSource.InitialWorld && !Reason("ClashOfRim.MapSession.ReasonLoginSucceeded")) break;
+                if (source != ClientSessionFollowupSource.InitialWorld && !Reason(source == ClientSessionFollowupSource.SnapshotReload
+                    ? "ClashOfRim.ServerEntry.ReasonServerSnapshotLoaded" : "ClashOfRim.MapSession.ReasonLoginSucceeded")) break;
                 ModColonyAppearanceDto? captured = null;
                 if (step(() => captured = appearance.Capture()))
                     step(() => work = source == ClientSessionFollowupSource.InitialWorld

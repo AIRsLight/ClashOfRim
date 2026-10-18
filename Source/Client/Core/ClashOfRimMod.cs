@@ -295,11 +295,11 @@ public sealed partial class ClashOfRimMod : Mod
             snapshotPublication, new ClientSnapshotReloadRuntime(), new ClientSnapshotReloadPresentation(
                 (message, purpose) => { loginStatus = message; if (purpose == ClientSnapshotReloadPurpose.Raid) worldMapStatus = message; },
                 response => ShowCompatibilityMismatchWindow(response)));
-        snapshotReload.Completed += OnServerSnapshotLoaded;
         var entryStore = new ClientWorldEntryStore(settings);
         var featureCatalogs = new ClientWorldFeatureCatalogs(sessionLifecycle, worldTransport);
         featureCatalogs.Diagnostic += message => Log.Warning(message);
-        worldConfiguration = new ClientWorldConfiguration(sessionLifecycle, new ClientWorldConfigurationRuntime(), entryStore, storytellerConfiguration, featureCatalogs);
+        var configurationRuntime = new ClientWorldConfigurationRuntime();
+        worldConfiguration = new ClientWorldConfiguration(sessionLifecycle, configurationRuntime, entryStore, storytellerConfiguration, featureCatalogs);
         occupiedColonySites = new ClientOccupiedColonySites(sessionLifecycle, entryStore, new ClientOccupiedColonySitesRuntime());
         worldMarkers = new ClientWorldMarkers(sessionLifecycle, entryStore, occupiedColonySites, new ClientWorldMarkersRuntime(),
             new ClientWorldMarkersPresentation(message => worldMapStatus = message));
@@ -372,6 +372,9 @@ public sealed partial class ClashOfRimMod : Mod
         notificationEffects.SessionExpired += sessionRecovery.Expired;
         var sessionFollowups = new ClientSessionFollowups(eventRefresh, playerDirectory, chat, colonyRegistration, colonyAppearance,
             worldSynchronization, sessionNotifications, new ClientSessionFollowupText());
+        var snapshotWorld = new ClientSnapshotWorld(sourceGame, worldConfiguration, entryStore, configurationRuntime, sessionConnection,
+            sessionFollowups, raidRecovery, new ClientRaidRecoveryRuntime(), new ClientSnapshotWorldPresentation(message => worldMapStatus = message));
+        snapshotReload.Completed += snapshotWorld.Continue;
         var initialWorldPresentation = new ClientInitialWorldPresentation(message => loginStatus = message, message => snapshotUploadStatus = message, sessionConnection);
         initialWorldSetup = new ClientInitialWorldSetup(sessionLifecycle, worldSetup, synchronization, worldBaselineCapture, worldBaselineSubmission,
             adminBaselineCapture, new AIRsLight.ClashOfRim.Admin.ClientAdminBaselineTransport(new ClientProtocolEnvironment()),

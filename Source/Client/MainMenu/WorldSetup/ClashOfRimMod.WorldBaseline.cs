@@ -72,9 +72,6 @@ public sealed partial class ClashOfRimMod
     private void ApplyServerWorldConfigurationExtensionCatalog(ModWorldConfigurationDto? configuration)
         => worldConfiguration.ApplyCatalog(configuration);
 
-    private void ApplyRuntimeWorldConfigurationUpdate(ModWorldConfigurationDto configuration)
-        => worldConfiguration.ApplyCatalog(configuration, applyStoryteller: true);
-
     internal bool TryApplyServerStorytellerBaselineAndContinue(Window storytellerPage)
         => storytellerConfiguration.ContinueSetup(new ClientStorytellerPage(storytellerPage));
 

@@ -20,6 +20,7 @@ internal sealed class ClientSnapshotReload : IClientSnapshotReload
     private readonly IClientSnapshotReloadRuntime runtime;
     private readonly IClientSnapshotReloadPresentation presentation;
     private Job? active;
+    private object? completion;
     internal ClientSnapshotReload(ClientSessionLifecycle session, ClientSynchronizationCoordinator synchronization,
         ClientLocalMutationCoordinator mutations, ClientSnapshotFailureRecovery recovery, IClientSessionAuthentication authentication,
         ClientColonySnapshotDownload download, ClientSnapshotPublication publication, IClientSnapshotReloadRuntime runtime,
@@ -76,6 +77,7 @@ internal sealed class ClientSnapshotReload : IClientSnapshotReload
             // Transfer synchronously, before the entry caller can finalize its own lease.
             if (job.Admission is { } lease) job.Admission = lease.TransferManual();
             active = job;
+            completion = null;
             recovery.Close();
             mutations.Begin(job.Kind, presentation.Text("ClashOfRim.ServerEntry.StageLoad")); job.Mutation = mutations.Current;
             presentation.Progress(job, job.Admission is null ? ClientSnapshotReloadStage.Waiting : ClientSnapshotReloadStage.Downloading, job.Request.ExpectedSnapshotId!);
@@ -168,9 +170,14 @@ internal sealed class ClientSnapshotReload : IClientSnapshotReload
                 job.Context = WithSnapshot(job.Context, job.Snapshot.SnapshotId);
                 mutations.Reset(); job.Mutation = null;
                 recovery.Close();
+                if (!Owns(job)) return;
                 presentation.Progress(job, ClientSnapshotReloadStage.Loaded, job.Snapshot.SnapshotId);
+                if (!Owns(job)) return;
                 job.Admission!.Dispose(); active = null;
-                Completed?.Invoke(new(job.Snapshot, job.Request));
+                var receipt = Complete(job);
+                if (Completed is { } handlers)
+                    foreach (Action<ClientSnapshotReloadCompleted> handler in handlers.GetInvocationList())
+                        if (!receipt.Step(() => handler(receipt))) break;
             }).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (job.Token.IsCancellationRequested) { }
@@ -179,6 +186,22 @@ internal sealed class ClientSnapshotReload : IClientSnapshotReload
             await Publish(job, () => Fail(job, presentation.Exception(ex), ClientNetworkFailurePolicy.CanRetry(ex)),
                 requireSnapshot: !job.Publishing).ConfigureAwait(false);
         }
+    }
+    private ClientSnapshotReloadCompleted Complete(Job job)
+    {
+        // Keep only a receipt identity in the coordinator, not the downloaded save.
+        // Continuations outlive admission/load disposal and retain the accepted game
+        // and identity. A new reload retires them even before its scene changes.
+        var ticket = completion = new object();
+        var owner = job.Owner; var context = job.Context; var game = job.Load.Game;
+        bool Current() => ReferenceEquals(completion, ticket) && game.IsCurrent && session.Owns(owner, context, true);
+        bool Step(Action action)
+        {
+            using var p = ClientSessionWork.EnterPublication();
+            if (!Current()) return false;
+            action(); return Current();
+        }
+        return new(job.Snapshot!, job.Request, game, Step);
     }
     private void Fail(Job job, string message, bool canRetry)
     {

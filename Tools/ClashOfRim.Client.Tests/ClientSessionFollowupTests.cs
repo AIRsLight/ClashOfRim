@@ -33,7 +33,7 @@ internal static class ClientSessionFollowupTests
                     foreach (string change in new[] { "user", "server", "colony", "auth", "login", "generation", "game", "world", "snapshot", "password" })
                     { await Dispatch(effect, source, change, "before"); cases++; }
                     if (effect is ClientSessionFollowup.Events or ClientSessionFollowup.Markers
-                        || effect == ClientSessionFollowup.ColonySites && source == ClientSessionFollowupSource.MapLogin)
+                        || effect == ClientSessionFollowup.ColonySites && source != ClientSessionFollowupSource.InitialWorld)
                         foreach (string change in new[] { "login", "generation", "game", "world", "snapshot", "password" })
                         { await Dispatch(effect, source, change, "text"); cases++; }
                     if (effect == ClientSessionFollowup.ColonySites)
@@ -68,15 +68,17 @@ internal static class ClientSessionFollowupTests
         if (effect == ClientSessionFollowup.ColonySites)
         {
             Require(f.SiteAppearance?.ColorHex == "#123456" && f.SiteCount == 1 && !f.Suppressed, "Colony followup lost appearance/sites/notification semantics.");
-            Require(f.RegistrationRequested == (source == ClientSessionFollowupSource.MapLogin), "Map request and initial immediate registration were conflated.");
+            Require(f.RegistrationRequested == (source != ClientSessionFollowupSource.InitialWorld), "Map request and initial immediate registration were conflated.");
         }
         if (effect == ClientSessionFollowup.Extensions) Require(f.SiteCount == 0 && f.ExtensionCount == 1 && !f.RegistrationRequested, "Extension-only followup registered colony sites.");
         string? key = effect switch
         {
             ClientSessionFollowup.Events => source == ClientSessionFollowupSource.ManualLogin ? "ClashOfRim.Login.ReasonManual"
-                : source == ClientSessionFollowupSource.MapLogin ? "ClashOfRim.MapSession.ReasonLogin" : "ClashOfRim.WorldBaseline.ReasonInitialSnapshotUploaded",
+                : source == ClientSessionFollowupSource.MapLogin ? "ClashOfRim.MapSession.ReasonLogin"
+                : source == ClientSessionFollowupSource.SnapshotReload ? "ClashOfRim.ServerEntry.ReasonServerSnapshotLoaded" : "ClashOfRim.WorldBaseline.ReasonInitialSnapshotUploaded",
             ClientSessionFollowup.Markers => "ClashOfRim.WorldBaseline.ReasonSubmitted",
             ClientSessionFollowup.ColonySites when source == ClientSessionFollowupSource.MapLogin => "ClashOfRim.MapSession.ReasonLoginSucceeded",
+            ClientSessionFollowup.ColonySites when source == ClientSessionFollowupSource.SnapshotReload => "ClashOfRim.ServerEntry.ReasonServerSnapshotLoaded",
             _ => null
         };
         Require(f.Keys.SequenceEqual(key is null ? Array.Empty<string>() : new[] { key }), "Wrong localized followup reason.");

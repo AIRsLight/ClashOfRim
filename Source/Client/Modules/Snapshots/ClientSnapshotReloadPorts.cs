@@ -14,7 +14,8 @@ internal interface IClientSnapshotReload
 internal enum ClientSnapshotReloadPurpose { Entry, Raid }
 internal sealed record ClientSnapshotReloadRequest(string? ExpectedSnapshotId, ClientSnapshotReloadPurpose Purpose,
     ModWorldConfigurationDto? WorldConfiguration = null);
-internal sealed record ClientSnapshotReloadCompleted(ClientRestoredSnapshot Snapshot, ClientSnapshotReloadRequest Request);
+internal sealed record ClientSnapshotReloadCompleted(ClientRestoredSnapshot Snapshot, ClientSnapshotReloadRequest Request,
+    IClientSnapshotGameSession Game, Func<Action, bool> Step);
 internal interface IClientSnapshotReloadRuntime
 {
     void Enqueue(Action action, Action discarded);
