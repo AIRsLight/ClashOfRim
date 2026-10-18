@@ -85,8 +85,7 @@ internal static partial class BiotechCompatibility
         BiotechThingMetadata.Normalize(requirement);
         BiotechThingMetadata.Normalize(candidate);
         return !HasBiotechTradeMetadata
-            || (BiotechThingMetadata.GeneRequirementMatches(requirement, BiotechThingMetadata.GeneDefNames(candidate))
-                && BiotechThingMetadata.ReproductiveSourceRequirementMatches(requirement, BiotechThingMetadata.ReproductiveSources(candidate)));
+            || BiotechTradeConstraints.Matches(requirement.Metadata, candidate.Metadata);
     }
 
     internal static bool TryApplyThingReferenceMetadata(ModThingReferenceDto reference, Thing thing, out string? missingDefName)
@@ -151,18 +150,7 @@ internal static partial class BiotechCompatibility
     internal static int ThingReferenceStrictness(ModThingReferenceDto requirement)
     {
         BiotechThingMetadata.Normalize(requirement);
-        if (!HasBiotechTradeMetadata)
-        {
-            return 0;
-        }
-
-        int strictness = BiotechThingMetadata.TargetGeneDefNames(requirement).Count > 0 ? 1_000_000 : 0;
-        if (BiotechThingMetadata.ReproductiveSources(requirement).Count > 0)
-        {
-            strictness += 900_000;
-        }
-
-        return strictness;
+        return HasBiotechTradeMetadata ? BiotechTradeConstraints.RequirementStrictness(requirement.Metadata) : 0;
     }
 
     private static GeneDef? ResolveGeneDef(string? defName)

@@ -26,6 +26,7 @@ if (args.FirstOrDefault() == "--baseline-invalidation-crash")
 
 var tests = new (string Name, Action Run)[]
 {
+    ("biotech trade constraints agree across client and server cultures", BiotechTradeConstraintTests.Run),
     ("后台后处理任务恢复、重试预算和插件完成上下文", SnapshotPostUploadWorkerTests.Run),
     ("快照恢复协调器的授权、锁外准备与惰性装配", SnapshotMutationCoordinatorTests.Run),
     ("后处理模块顺序、能力边界与插件上下文兼容", SnapshotPostUploadRunnerTests.Run),

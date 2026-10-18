@@ -2,7 +2,6 @@ using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.Protocol;
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 
 namespace AIRsLight.ClashOfRim.Modules.Compatibility.Biotech;
@@ -63,22 +62,8 @@ internal static class BiotechThingMetadata
 
     internal static bool GeneRequirementMatches(ModThingReferenceDto requirement, IReadOnlyCollection<string>? candidateGeneDefNames)
     {
-        IReadOnlyList<string> targetGeneDefNames = TargetGeneDefNames(requirement);
-        if (targetGeneDefNames.Count == 0)
-        {
-            return true;
-        }
-
-        if (candidateGeneDefNames is null || candidateGeneDefNames.Count == 0)
-        {
-            return false;
-        }
-
-        return targetGeneDefNames.All(targetGeneDefName =>
-            candidateGeneDefNames.Any(geneDefName => string.Equals(
-                    geneDefName,
-                    targetGeneDefName,
-                    StringComparison.OrdinalIgnoreCase)));
+        Normalize(requirement);
+        return BiotechTradeConstraints.MatchesGenes(requirement.Metadata, candidateGeneDefNames);
     }
 
     internal static void Normalize(ModThingReferenceDto? reference)
@@ -94,19 +79,7 @@ internal static class BiotechThingMetadata
     private static IReadOnlyList<string> ReadMetadataList(ModThingReferenceDto? reference, string key)
     {
         Normalize(reference);
-        if (reference is null
-            || !reference.Metadata.TryGetValue(key, out string? value)
-            || string.IsNullOrWhiteSpace(value))
-        {
-            return Array.Empty<string>();
-        }
-
-        return value!
-            .Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
-            .Select(gene => gene.Trim())
-            .Where(gene => !string.IsNullOrWhiteSpace(gene))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        return BiotechThingMetadataCodec.ReadList(reference?.Metadata, key);
     }
 
     private static void WriteMetadataList(ModThingReferenceDto? reference, string key, IEnumerable<string>? values)
@@ -116,29 +89,14 @@ internal static class BiotechThingMetadata
             return;
         }
 
-        reference.Metadata ??= new Dictionary<string, string?>();
-        string[] normalized = (values ?? Array.Empty<string>())
-            .Where(value => !string.IsNullOrWhiteSpace(value))
-            .Select(value => value.Trim())
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-        if (normalized.Length == 0)
-        {
-            reference.Metadata.Remove(key);
-            return;
-        }
-
-        reference.Metadata[key] = string.Join(",", normalized);
+        Normalize(reference);
+        BiotechThingMetadataCodec.WriteList(reference.Metadata, key, values);
     }
 
     private static string? ReadMetadataText(ModThingReferenceDto? reference, string key)
     {
         Normalize(reference);
-        return reference is not null
-            && reference.Metadata.TryGetValue(key, out string? value)
-            && !string.IsNullOrWhiteSpace(value)
-                ? value
-                : null;
+        return BiotechThingMetadataCodec.ReadText(reference?.Metadata, key);
     }
 
     private static void WriteMetadataText(ModThingReferenceDto? reference, string key, string? value)
@@ -148,84 +106,29 @@ internal static class BiotechThingMetadata
             return;
         }
 
-        reference.Metadata ??= new Dictionary<string, string?>();
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            reference.Metadata.Remove(key);
-            return;
-        }
-
-        reference.Metadata[key] = value;
+        Normalize(reference);
+        BiotechThingMetadataCodec.WriteText(reference.Metadata, key, value);
     }
 
     internal static bool ReproductiveSourceRequirementMatches(
         ModThingReferenceDto requirement,
         IReadOnlyList<ReproductiveSourceRecord> candidateSources)
     {
-        IReadOnlyList<ReproductiveSourceRecord> requiredSources = ReproductiveSources(requirement);
-        if (requiredSources.Count == 0)
-        {
-            return true;
-        }
-
-        if (candidateSources.Count == 0)
-        {
-            return false;
-        }
-
-        foreach (ReproductiveSourceRecord required in requiredSources)
-        {
-            if (!candidateSources.Any(candidate => ReproductiveSourceRecordMatches(required, candidate)))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    private static bool ReproductiveSourceRecordMatches(
-        ReproductiveSourceRecord required,
-        ReproductiveSourceRecord candidate)
-    {
-        return MetadataTextMatches(required.Role, candidate.Role)
-            && MetadataTextMatches(required.RaceDefName, candidate.RaceDefName)
-            && MetadataListMatches(required.EndogeneDefNames, candidate.EndogeneDefNames)
-            && MetadataListMatches(required.XenogeneDefNames, candidate.XenogeneDefNames);
-    }
-
-    private static bool MetadataTextMatches(string? required, string? candidate)
-    {
-        return string.IsNullOrWhiteSpace(required)
-            || string.Equals(required, candidate, StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool MetadataListMatches(IReadOnlyList<string> required, IReadOnlyList<string> candidate)
-    {
-        if (required.Count == 0)
-        {
-            return true;
-        }
-
-        return required.Count == candidate.Count
-            && required.All(requiredValue => candidate.Any(candidateValue => string.Equals(
-                requiredValue,
-                candidateValue,
-                StringComparison.OrdinalIgnoreCase)));
+        Normalize(requirement);
+        return BiotechTradeConstraints.MatchesSources(requirement.Metadata, candidateSources
+            .Select(source => new BiotechSourceConstraint(source.Role, source.RaceDefName, source.EndogeneDefNames, source.XenogeneDefNames))
+            .ToArray());
     }
 
     internal static IReadOnlyList<ReproductiveSourceRecord> ReproductiveSources(ModThingReferenceDto? reference)
     {
         Normalize(reference);
-        if (reference is null
-            || !reference.Metadata.TryGetValue(BiotechThingMetadataKeys.ReproductiveSourceCount, out string? countText)
-            || !int.TryParse(countText, NumberStyles.Integer, CultureInfo.InvariantCulture, out int count)
-            || count <= 0)
+        if (reference is null)
         {
             return Array.Empty<ReproductiveSourceRecord>();
         }
 
-        count = Math.Min(count, BiotechThingMetadataKeys.MaxReproductiveSources);
+        int count = BiotechThingMetadataCodec.SourceCount(reference.Metadata);
         var records = new List<ReproductiveSourceRecord>(count);
         for (int i = 0; i < count; i++)
         {
@@ -279,16 +182,16 @@ internal static class BiotechThingMetadata
     }
 
     private static string? ReadIndexedMetadataText(ModThingReferenceDto reference, int index, string field) =>
-        ReadMetadataText(reference, ReproductiveSourceKey(index, field));
+        ReadMetadataText(reference, BiotechThingMetadataCodec.SourceKey(index, field));
 
     private static void WriteIndexedMetadataText(ModThingReferenceDto reference, int index, string field, string? value) =>
-        WriteMetadataText(reference, ReproductiveSourceKey(index, field), value);
+        WriteMetadataText(reference, BiotechThingMetadataCodec.SourceKey(index, field), value);
 
     private static IReadOnlyList<string> ReadIndexedMetadataList(ModThingReferenceDto reference, int index, string field) =>
-        ReadMetadataList(reference, ReproductiveSourceKey(index, field));
+        ReadMetadataList(reference, BiotechThingMetadataCodec.SourceKey(index, field));
 
     private static void WriteIndexedMetadataList(ModThingReferenceDto reference, int index, string field, IEnumerable<string>? values) =>
-        WriteMetadataList(reference, ReproductiveSourceKey(index, field), values);
+        WriteMetadataList(reference, BiotechThingMetadataCodec.SourceKey(index, field), values);
 
     internal static void Clear(ModThingReferenceDto reference)
     {
@@ -312,13 +215,5 @@ internal static class BiotechThingMetadata
         {
             reference.Metadata.Remove(key);
         }
-    }
-
-    private static string ReproductiveSourceKey(int index, string field)
-    {
-        return BiotechThingMetadataKeys.ReproductiveSourcePrefix
-            + index.ToString(CultureInfo.InvariantCulture)
-            + "."
-            + field;
     }
 }

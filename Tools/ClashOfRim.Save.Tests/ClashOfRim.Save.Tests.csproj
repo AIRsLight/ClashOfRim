@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <Compile Include="..\TestSupport\ModuleDependencyGuard.cs" Link="TestSupport\ModuleDependencyGuard.cs" />
+    <Compile Include="..\TestSupport\BiotechTradeConstraintCases.cs" Link="TestSupport\BiotechTradeConstraintCases.cs" />
     <Compile Include="..\TestSupport\ServerTestLocalization.cs" Link="TestSupport\ServerTestLocalization.cs" />
     <Compile Include="..\TestSupport\ServerShopPricingTests.cs" Link="TestSupport\ServerShopPricingTests.cs" />
     <Compile Include="..\ClashOfRim.NetworkSmoke\ModuleBoundaryTests.cs" Link="ModuleBoundaryTests.cs" />

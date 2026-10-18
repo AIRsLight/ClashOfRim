@@ -19,6 +19,7 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("biotech trade constraints agree across client and server cultures", BiotechTradeConstraintTests.Run),
     ("biotech metadata shares wire keys, codec and matching across item surfaces", BiotechThingMetadataTests.Run),
     ("world compatibility owns extensions, settings, package catalog and DLC policy", WorldCompatibilityTests.Run),
     ("raid defender proxy protection reuses idempotent health protection", RaidDefenderProxyProtectionTests.Run),

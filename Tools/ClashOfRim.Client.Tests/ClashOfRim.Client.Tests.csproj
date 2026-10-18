@@ -9,6 +9,7 @@
   <ItemGroup>
     <ProjectReference Include="../../Source/Client/ClashOfRim.csproj" />
     <Compile Include="../TestSupport/ModuleDependencyGuard.cs" Link="ModuleDependencyGuard.cs" />
+    <Compile Include="../TestSupport/BiotechTradeConstraintCases.cs" Link="BiotechTradeConstraintCases.cs" />
     <Compile Include="../TestSupport/ServerShopPricingTests.cs" Link="ServerShopPricingTests.cs" />
     <Compile Include="../TestSupport/SnapshotPackageModuleTests.cs" Link="SnapshotPackageModuleTests.cs" />
     <Compile Include="../TestSupport/EventInboxModuleTests.cs" Link="EventInboxModuleTests.cs" />
