@@ -108,8 +108,9 @@ public sealed class ClashOfRimNetworkState
         SnapshotAuthorization = new ColonySnapshotAuthorization(ColonyAuthorization, SnapshotStore);
         var recovery = new LegacySnapshotRecoveryAdapter(this);
         SnapshotMutations = new SnapshotMutationCoordinator(RaidSettlementSnapshotMutationGate, recovery);
+        DiplomacyPublications = new DiplomacyPublications(Ledger, DiplomacyRelations, OnlinePresence, user => EventNotifications.SignalUser(user));
         Diplomacy = new DiplomacyService(Ledger, SnapshotAuthorization, SnapshotMutations, DiplomacyRelations,
-            OnlinePresence, EventNotifications, () => ServerConfiguration, () => RuntimeLogger);
+            OnlinePresence, DiplomacyPublications, () => ServerConfiguration, () => RuntimeLogger);
         SnapshotPrincipals = new SnapshotPrincipalAuthorization(AuthTokens, LoginSessions);
         AdminAuthorization = new AdministratorAuthorization(AuthTokens, LoginSessions, WorldConfiguration);
         SnapshotRequests = new SnapshotRequestAuthorization(SnapshotPrincipals, ColonyAuthorization, SnapshotMutations);
@@ -206,6 +207,7 @@ public sealed class ClashOfRimNetworkState
     internal GiftService Gifts { get; }
     internal SupportService Support { get; }
     internal DiplomacyService Diplomacy { get; }
+    internal DiplomacyPublications DiplomacyPublications { get; }
     internal SupportSending SupportSending { get; }
     internal SupportSnapshotDeaths SupportDeaths { get; }
     internal TradeService Trades { get; }

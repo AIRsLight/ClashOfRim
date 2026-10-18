@@ -131,7 +131,7 @@ public static partial class ClashOfRimNetworkServer
 
         foreach (AuthoritativeEvent item in ledger.ListAll())
         {
-            if (IsTerminalForAbandonedColonyCleanup(item.Status) || IsColonyTombstoneEvent(item, userId, colonyId)) continue;
+            if (IsTerminalForAbandonedColonyCleanup(item.Status) || ColonyTombstones.IsFor(item, userId, colonyId)) continue;
             bool actorMatches = IsVisibleParty(item.Actor, userId, colonyId);
             if (!actorMatches && !IsVisibleParty(item.Target, userId, colonyId)) continue;
 
@@ -154,12 +154,6 @@ public static partial class ClashOfRimNetworkServer
             or ServerEventStatus.Conflict
             or ServerEventStatus.Cancelled
             or ServerEventStatus.Failed;
-    }
-
-    private static bool IsColonyTombstoneEvent(AuthoritativeEvent ledgerEvent, string userId, string colonyId)
-    {
-        return ledgerEvent.Payload is ServerNotificationEventPayload payload
-            && string.Equals(payload.NotificationId, BuildColonyTombstoneNotificationId(userId, colonyId), StringComparison.Ordinal);
     }
 
     private static void AddSignalUser(HashSet<string> users, string? userId)

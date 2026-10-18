@@ -7,9 +7,10 @@ using AIRsLight.ClashOfRim.Save;
 internal static class DiplomacyTestSupport
 {
     internal static EconomicModuleTestContext Fixture(Func<string, SaveSnapshotPackage> factory,
-        IAuthoritativeEventLedger? ledger = null, DiplomacyRelationRegistry? relations = null)
+        IAuthoritativeEventLedger? ledger = null, DiplomacyRelationRegistry? relations = null,
+        Action<string, EventNotificationHub>? diplomacySignal = null)
     {
-        var f = new EconomicModuleTestContext(factory, ledger: ledger, relations: relations)
+        var f = new EconomicModuleTestContext(factory, ledger: ledger, relations: relations, diplomacySignal: diplomacySignal)
             { Configuration = new(diplomacyRelationChangeCooldown: TimeSpan.Zero, diplomacySupportRequestCooldown: TimeSpan.Zero) };
         var identity = new SnapshotIdentity("userB", "colonyB", "target");
         f.Snapshots.StoreLatest(new(identity, f.Package.Envelope with { Identity = identity }, f.Package.Index, DateTimeOffset.UtcNow));

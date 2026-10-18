@@ -1267,7 +1267,7 @@ public static partial class ClashOfRimNetworkServer
         if (state.SnapshotCommits.HasPending)
             throw new InvalidOperationException("Finish snapshot commits before beginning colony deletion.");
         LedgerBatch closure = BuildAbandonedColonyEventClosure(state.Ledger, userId, colonyId, out var notifyUsers);
-        var existing = state.Ledger.FindByIdempotencyKey("colony-abandoned:" + userId + ":" + colonyId);
+        var existing = state.Ledger.FindByIdempotencyKey(ColonyTombstones.Key(userId, colonyId));
         if (existing is not null && latest is not null)
             throw new InvalidDataException("A deleted colony has a snapshot again; refusing to reuse its tombstone.");
         AuthoritativeEvent tombstone = existing ?? CreateColonyTombstoneEvent(userId, colonyId, latest?.Identity.SnapshotId, nowUtc);

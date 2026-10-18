@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Network.Modules.Sessions;
 using AIRsLight.ClashOfRim.Compatibility;
 using AIRsLight.ClashOfRim.Network.Modules.Snapshots;
 using AIRsLight.ClashOfRim.Events;
@@ -812,8 +813,7 @@ public static partial class ClashOfRimNetworkServer
     {
         return state.Ledger.ListByTypeForActor(ServerEventType.ServerNotification, userId, colonyId).Any(ledgerEvent =>
             IsVisibleParty(ledgerEvent.Actor, userId, colonyId)
-            && ledgerEvent.Payload is ServerNotificationEventPayload payload
-            && string.Equals(payload.NotificationId, BuildColonyTombstoneNotificationId(userId, colonyId), StringComparison.Ordinal));
+            && ColonyTombstones.IsFor(ledgerEvent, userId, colonyId));
     }
 
     private static AuthoritativeEvent CreateColonyTombstoneEvent(
@@ -822,8 +822,8 @@ public static partial class ClashOfRimNetworkServer
         string? abandonedSnapshotId,
         DateTimeOffset nowUtc)
     {
-        string notificationId = BuildColonyTombstoneNotificationId(userId, colonyId);
-        string idempotencyKey = "colony-abandoned:" + userId + ":" + colonyId;
+        string notificationId = ColonyTombstones.NotificationId(userId, colonyId);
+        string idempotencyKey = ColonyTombstones.Key(userId, colonyId);
         AuthoritativeEvent tombstone = new(
             AuthoritativeEventFactory.BuildEventId(ServerEventType.ServerNotification, idempotencyKey),
             ServerEventType.ServerNotification,
@@ -855,11 +855,6 @@ public static partial class ClashOfRimNetworkServer
             AppliedSnapshotId: abandonedSnapshotId,
             AppliedAtUtc: nowUtc);
         return tombstone;
-    }
-
-    private static string BuildColonyTombstoneNotificationId(string userId, string colonyId)
-    {
-        return "colony-tombstone:" + userId + ":" + colonyId;
     }
 
 }

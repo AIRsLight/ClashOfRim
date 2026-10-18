@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Network.Modules.Sessions;
 using System.Text.Json;
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Protocol;
@@ -103,12 +104,12 @@ internal sealed record ColonyDeletionIntent(int Version, string Id, string UserI
             throw new InvalidDataException("Colony deletion notification recipients are incomplete.");
         if (Tombstone.Type != ServerEventType.ServerNotification || Tombstone.Actor != new EventParty(UserId, ColonyId)
             || Tombstone.Target != new EventParty("server") || Tombstone.Status != ServerEventStatus.AppliedToSnapshot
-            || Tombstone.IdempotencyKey != "colony-abandoned:" + UserId + ":" + ColonyId
+            || Tombstone.IdempotencyKey != ColonyTombstones.Key(UserId, ColonyId)
             || !AuthoritativeEventFactory.IsKnownEventId(ServerEventType.ServerNotification, Tombstone.IdempotencyKey, Tombstone.EventId)
             || Tombstone.CreatedAtUtc != DeletedAtUtc || Tombstone.AppliedAtUtc != DeletedAtUtc
             || Previous is not null && Tombstone.AppliedSnapshotId != Previous.Identity.SnapshotId
             || Tombstone.Payload is not ServerNotificationEventPayload payload
-            || payload.NotificationId != "colony-tombstone:" + UserId + ":" + ColonyId
+            || payload.NotificationId != ColonyTombstones.NotificationId(UserId, ColonyId)
             || payload.RelatedUserId != UserId || payload.RelatedColonyId != ColonyId)
             throw new InvalidDataException("Colony deletion tombstone mismatch.");
         foreach (var change in Batch.StatusChanges)

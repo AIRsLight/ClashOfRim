@@ -175,6 +175,12 @@ internal static class DiplomacyPolicy
         };
     }
 
+    internal static string ResponseNotificationKey(string sourceEventId, bool accepted) => $"diplomacy-response:{sourceEventId}:{accepted}";
+
+    internal static bool IsSupportRequestNotification(AuthoritativeEvent item) => item.Type == ServerEventType.ServerNotification
+        && item.Payload is ServerNotificationEventPayload payload
+        && payload.NotificationId == SupportRequestPrefix + item.IdempotencyKey;
+
     internal static AuthoritativeEvent CreateDiplomacyResponseNotification(
         AuthoritativeEvent diplomacyEvent,
         bool accepted,
@@ -196,7 +202,7 @@ internal static class DiplomacyPolicy
             ("COLONY", diplomacyEvent.Target.ColonyId),
             ("ACTION", action),
             ("EVENT", diplomacyEvent.EventId));
-        string notificationId = $"diplomacy-response:{diplomacyEvent.EventId}:{accepted}";
+        string notificationId = ResponseNotificationKey(diplomacyEvent.EventId, accepted);
         return AuthoritativeEventFactory.Create(
             ServerEventType.ServerNotification,
             new EventParty("server"),

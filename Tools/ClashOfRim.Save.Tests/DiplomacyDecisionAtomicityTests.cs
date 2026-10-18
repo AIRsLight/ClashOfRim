@@ -132,7 +132,7 @@ internal static class DiplomacyDecisionAtomicityTests
         Check(ledger.ListAll().Count == 2 && ledger.Find(id)!.TargetDecision == (accepted ? TargetEventDecision.Accepted : TargetEventDecision.Rejected),
             "Committed response loss did not retain both ledger records.");
         var receipt = ledger.ListByType(ServerEventType.ServerNotification).Single();
-        // Only the ledger transaction is covered here; relation/wake-up recovery is M7e1b2.
+        // An already-read notification must stay consumed when the relation projection is recovered.
         ledger.MarkAccepted(receipt.EventId, DateTimeOffset.UtcNow, "notification already read");
         string committed = Snapshot(ledger);
         f = Fixture(factory, backend == "memory" ? ledger : Open(backend, path)); token = f.Issue("userB", "colonyB");
@@ -143,6 +143,8 @@ internal static class DiplomacyDecisionAtomicityTests
             var result = f.Diplomacy.Respond(new(id, "userB", "colonyB", "target", !accepted, "different replay reason", token));
             Check(result.Result.ErrorCode == ProtocolErrorCode.DuplicateRequest && committed == Snapshot(f.Ledger),
                 "Opposite replay after restart changed original decision, notice text, or notice consumption.");
+            Check(Relation(f) == (accepted ? "Ally" : "Neutral") && result.NotificationEventId == receipt.EventId
+                && f.Notifications.GetVersion("userA") == 0, "Recovery lost the receipt, missed the relation, or woke an already-read notice.");
         }
         finally { CultureInfo.CurrentCulture = originalCulture; }
     }

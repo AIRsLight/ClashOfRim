@@ -3,6 +3,7 @@ using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Network.Modules.Authorization;
 using AIRsLight.ClashOfRim.Network.Modules.Snapshots;
 using AIRsLight.ClashOfRim.Network.Modules.Events;
+using AIRsLight.ClashOfRim.Network.Modules.Sessions;
 using Microsoft.Extensions.Logging;
 using static AIRsLight.ClashOfRim.Events.EventSemanticClassifier;
 using static AIRsLight.ClashOfRim.Network.Modules.Diplomacy.DiplomacyPolicy;
@@ -12,7 +13,7 @@ namespace AIRsLight.ClashOfRim.Network.Modules.Diplomacy;
 
 internal sealed class DiplomacyService(IAuthoritativeEventLedger ledger, ColonySnapshotAuthorization authorization,
     SnapshotMutationCoordinator mutations, DiplomacyRelationRegistry relations, OnlinePresenceRegistry presence,
-    EventNotificationHub notifications, Func<ClashOfRimServerConfiguration> configuration, Func<ILogger> logger)
+    DiplomacyPublications publications, Func<ClashOfRimServerConfiguration> configuration, Func<ILogger> logger)
 {
     internal DiplomacyEventResponse Create(CreateDiplomacyEventRequest request)
     {
@@ -27,7 +28,8 @@ internal sealed class DiplomacyService(IAuthoritativeEventLedger ledger, ColonyS
             if (authorization.Authorize(request.AuthToken, request.Actor.UserId, request.Actor.ColonyId!) is { } failure)
                 return failure;
             if (ledger.FindByIdempotencyKey(request.IdempotencyKey) is not { } existing)
-                return authorization.RequireCurrent(request.Actor.UserId, request.Actor.ColonyId!, request.Actor.SnapshotId);
+                return ValidateActiveColonies(ToEventParty(request.Actor), ToEventParty(request.Target))
+                    ?? authorization.RequireCurrent(request.Actor.UserId, request.Actor.ColonyId!, request.Actor.SnapshotId);
             // A key is global to the ledger; authenticate and bind a replay before recovery.
             return MatchesEndpoint(existing.Actor, request.Actor.UserId, request.Actor.ColonyId)
                 && MatchesEndpoint(existing.Target, request.Target.UserId, request.Target.ColonyId)
@@ -72,6 +74,8 @@ internal sealed class DiplomacyService(IAuthoritativeEventLedger ledger, ColonyS
             return new DiplomacyEventResponse(relationValidation, null, null, currentRelationKind);
         }
 
+        if (type is ServerEventType.WarDeclaration or ServerEventType.AllianceCancellation)
+            nowUtc = DiplomacyPublications.NextRelationTime(currentRelation, nowUtc);
         bool targetOnline = presence.IsUserOnline(request.Target.UserId);
         AuthoritativeEvent diplomacyEvent = AuthoritativeEventFactory.CreateForLedger(ledger,
             type,
@@ -84,11 +88,13 @@ internal sealed class DiplomacyService(IAuthoritativeEventLedger ledger, ColonyS
                 : CreateDiplomacyPayload(type, request.IdempotencyKey, request.Message, request.ExpiresAtUtc),
             nowUtc);
 
+        publications.TrackCreation(diplomacyEvent.EventId);
         LedgerAppendResult append = ledger.Append(diplomacyEvent);
+        publications.Recover();
+        EventDiagnostics.LogAppend(logger(), append, "signal-target");
         string? relationKind = type is ServerEventType.WarDeclaration or ServerEventType.AllianceCancellation
-            ? PersistDiplomacyRelation(append.Event, accepted: true, nowUtc)
+            ? relations.GetRelationKind(request.Actor.UserId, request.Actor.ColonyId, request.Target.UserId, request.Target.ColonyId)
             : supportRequest ? currentRelationKind : null;
-        SignalIfCreated(append, diplomacyEvent.Target.UserId);
         return new DiplomacyEventResponse(
             append.Created
                 ? ProtocolResponse.Ok(ServerLocalization.Text("Diplomacy.EventCreated"))
@@ -121,7 +127,8 @@ internal sealed class DiplomacyService(IAuthoritativeEventLedger ledger, ColonyS
                 || !EventVisibility.MatchesParty(existing.Target, request.UserId, request.ColonyId))
                 return ProtocolResponse.Reject(ProtocolErrorCode.EventNotFound, ServerText.Format("Diplomacy.NotFoundOrInvisible"));
             return existing.Status is ServerEventStatus.AppliedToSnapshot or ServerEventStatus.RejectedByTarget ? null
-                : authorization.RequireCurrent(request.UserId, request.ColonyId, request.CurrentSnapshotId);
+                : ValidateActiveColonies(existing.Actor, existing.Target)
+                    ?? authorization.RequireCurrent(request.UserId, request.ColonyId, request.CurrentSnapshotId);
         }
         using var mutation = mutations.Enter(Authorize);
         if (mutation.Rejection is { } denied)
@@ -134,7 +141,7 @@ internal sealed class DiplomacyService(IAuthoritativeEventLedger ledger, ColonyS
             return new DiplomacyEventResponse(
                 new ProtocolResponse(true, ProtocolErrorCode.DuplicateRequest, ServerLocalization.Text("Diplomacy.EventProcessed")),
                 diplomacyEvent.EventId,
-                null,
+                publications.FindResponse(diplomacyEvent)?.EventId,
                 relations.GetRelationKind(
                     diplomacyEvent.Actor.UserId,
                     diplomacyEvent.Actor.ColonyId,
@@ -179,6 +186,7 @@ internal sealed class DiplomacyService(IAuthoritativeEventLedger ledger, ColonyS
                     null,
                     currentRelationKind);
             }
+            nowUtc = DiplomacyPublications.NextRelationTime(currentRelation, nowUtc);
         }
 
         var decision = new LedgerDiplomacyDecisionChange(diplomacyEvent, request.Accepted, nowUtc, request.Reason);
@@ -190,12 +198,14 @@ internal sealed class DiplomacyService(IAuthoritativeEventLedger ledger, ColonyS
             nowUtc);
         notification = AuthoritativeEventFactory.ResolvePersistedIdentity(ledger, notification);
         bool notificationCreated = ledger.Find(notification.EventId) is null;
+        publications.TrackDecision(changed.EventId);
         ledger.ApplyBatch(new LedgerBatch([notification], [], DiplomacyDecisionChanges: [decision]));
+        publications.Recover();
         var notificationAppend = new LedgerAppendResult(ledger.Find(notification.EventId)!, notificationCreated);
         string? relationKind = request.Accepted && changed.Type is ServerEventType.AllianceRequest or ServerEventType.PeaceRequest
-            ? PersistDiplomacyRelation(changed, accepted: true, nowUtc)
+            ? relations.GetRelationKind(changed.Actor.UserId, changed.Actor.ColonyId, changed.Target.UserId, changed.Target.ColonyId)
             : null;
-        SignalIfCreated(notificationAppend, notification.Target.UserId);
+        EventDiagnostics.LogAppend(logger(), notificationAppend, "signal-target");
 
         return new DiplomacyEventResponse(
             ProtocolResponse.Ok(request.Accepted ? ServerLocalization.Text("Diplomacy.Accepted") : ServerLocalization.Text("Diplomacy.Rejected")),
@@ -223,6 +233,10 @@ internal sealed class DiplomacyService(IAuthoritativeEventLedger ledger, ColonyS
         return ValidateSupportRequestCooldown(latest?.CreatedAtUtc, nowUtc, configuration().DiplomacySupportRequestCooldown);
     }
 
+    private ProtocolResponse? ValidateActiveColonies(EventParty actor, EventParty target) =>
+        ColonyTombstones.IsDeleted(ledger, actor) || ColonyTombstones.IsDeleted(ledger, target)
+            ? ProtocolResponse.Reject(ProtocolErrorCode.Conflict, ServerText.Format("Diplomacy.NotFoundOrInvisible")) : null;
+
     private static AuthoritativeEvent? FindLatestSupportRequestEvent(
         IAuthoritativeEventLedger ledger,
         string userA,
@@ -238,43 +252,4 @@ internal sealed class DiplomacyService(IAuthoritativeEventLedger ledger, ColonyS
             .FirstOrDefault();
     }
 
-    private static bool IsSupportRequestNotification(AuthoritativeEvent evt)
-    {
-        return evt.Type == ServerEventType.ServerNotification
-            && evt.Payload is ServerNotificationEventPayload payload
-            && payload.NotificationId.StartsWith(SupportRequestPrefix, StringComparison.Ordinal);
-    }
-
-    private string? PersistDiplomacyRelation(
-        AuthoritativeEvent diplomacyEvent,
-        bool accepted,
-        DateTimeOffset nowUtc)
-    {
-        string? relationKind = ResolveDiplomacyRelationKind(diplomacyEvent.Type, accepted);
-        if (relationKind is null)
-        {
-            return null;
-        }
-
-        DiplomacyRelationRecord record = relations.SetRelationKind(
-            diplomacyEvent.Actor.UserId,
-            diplomacyEvent.Actor.ColonyId,
-            diplomacyEvent.Target.UserId,
-            diplomacyEvent.Target.ColonyId,
-            relationKind,
-            diplomacyEvent.EventId,
-            nowUtc);
-        return record.RelationKind;
-    }
-
-    private void SignalIfCreated(
-        LedgerAppendResult append,
-        string targetUserId)
-    {
-        EventDiagnostics.LogAppend(logger(), append, "signal-target");
-        if (append.Created && !string.IsNullOrWhiteSpace(targetUserId))
-        {
-            notifications.SignalUser(targetUserId);
-        }
-    }
 }

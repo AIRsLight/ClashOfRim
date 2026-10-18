@@ -310,7 +310,7 @@ public sealed class DiplomacyRelationRegistry
         legacyPersistence.Write(json);
     }
 
-    private static string RelationKey(string userA, string? colonyA, string userB, string? colonyB)
+    internal static string RelationKey(string userA, string? colonyA, string userB, string? colonyB)
     {
         RelationEndpoint first = new(userA, NormalizeColonyId(colonyA));
         RelationEndpoint second = new(userB, NormalizeColonyId(colonyB));

@@ -28,6 +28,7 @@ internal sealed class EconomicModuleTestContext
     internal readonly RecoveryProbe Recovery = new();
     internal readonly DiplomacyRelationRegistry Relations;
     internal readonly DiplomacyService Diplomacy;
+    internal readonly DiplomacyPublications DiplomacyPublications;
     internal readonly OnlinePresenceRegistry Presence = new();
     internal readonly EventNotificationHub Notifications = new();
     internal readonly PawnPackageRegistry Pawns = new();
@@ -63,7 +64,8 @@ internal sealed class EconomicModuleTestContext
     internal readonly string Token;
 
     internal EconomicModuleTestContext(Func<string, SaveSnapshotPackage> factory, IColonySnapshotIndexStore? snapshots = null,
-        IAuthoritativeEventLedger? ledger = null, DiplomacyRelationRegistry? relations = null)
+        IAuthoritativeEventLedger? ledger = null, DiplomacyRelationRegistry? relations = null,
+        Action<string, EventNotificationHub>? diplomacySignal = null)
     {
         Snapshots = snapshots ?? new InMemoryColonySnapshotIndexStore();
         Ledger = ledger ?? new InMemoryAuthoritativeEventLedger(); Relations = relations ?? new DiplomacyRelationRegistry();
@@ -71,8 +73,11 @@ internal sealed class EconomicModuleTestContext
         var mutations = new SnapshotMutationCoordinator(Gate, Recovery);
         var colonies = new ColonyAccessAuthorization(Tokens, Sessions, Relations,
             RaidPreparations, Ledger, () => Configuration.PvpEnabled);
+        DiplomacyPublications = new DiplomacyPublications(Ledger, Relations, Presence,
+            user => { if (diplomacySignal is null) Notifications.SignalUser(user); else diplomacySignal(user, Notifications); });
+        Recovery.OnPrerequisites = DiplomacyPublications.Recover;
         Diplomacy = new DiplomacyService(Ledger, new ColonySnapshotAuthorization(colonies, Snapshots), mutations, Relations,
-            Presence, Notifications, () => Configuration, () => NullLogger.Instance);
+            Presence, DiplomacyPublications, () => Configuration, () => NullLogger.Instance);
         var pending = new PendingConfirmationReconciler(Loans, mercenaries, () => Configuration, Gate);
         Access = new BankRequestAccess(colonies, mutations, Snapshots, Loans, pending);
         var principals = new SnapshotPrincipalAuthorization(Tokens, Sessions);
@@ -135,7 +140,8 @@ internal sealed class EconomicModuleTestContext
         public void Record(AuthoritativeEvent item, DateTimeOffset nowUtc) => AchievementEvents.Add(item.EventId);
         internal Action? OnReplay;
         internal Action? OnCapture, OnPrepare;
-        public void RecoverPrerequisites() { }
+        internal Action? OnPrerequisites;
+        public void RecoverPrerequisites() => OnPrerequisites?.Invoke();
         public ISnapshotRecoveryPreparation CapturePreparation() { OnCapture?.Invoke(); return this; }
         public void Replay() { Replays++; OnReplay?.Invoke(); }
         public bool NeedsPreparation { get; set; }
