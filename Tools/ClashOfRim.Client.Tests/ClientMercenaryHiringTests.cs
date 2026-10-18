@@ -191,15 +191,16 @@ internal static class ClientMercenaryHiringTests
         f.State.Requests.End(next!);
     }
 
-    private enum Fault { None, QuoteTransport, QuoteRejected, QuoteException, InvalidPrice, InvalidRatio, InsufficientSilver,
+    internal enum Fault { None, QuoteTransport, QuoteRejected, QuoteException, InvalidPrice, InvalidRatio, InsufficientSilver,
         BeforeEffectException, PartialFailure, PartialException, Transport, Forbidden, Rejected, MissingContract, WrongContract, MissingSnapshot, WrongSnapshot }
-    private sealed class Fixture : IDisposable, IClientMercenaryRuntime, IClientMercenarySource, IClientMercenaryHiringTransport, IClientMercenaryHiringPresentation, IClientBankPresentation
+    internal sealed class Fixture : IDisposable, IClientMercenaryRuntime, IClientMercenarySource, IClientMercenaryHiringTransport, IClientMercenaryHiringPresentation, IClientBankPresentation
     {
         internal readonly EventModuleTestPorts Ports = new();
         internal readonly ClientSessionLifecycle Session;
         internal readonly ClientSynchronizationCoordinator Sync = new();
         internal readonly ClientLocalMutationCoordinator Mutations = new();
         internal readonly ClientMercenaryState State;
+        internal readonly ClientBankState Bank;
         internal readonly ClientMercenaryHiring Hiring;
         internal readonly EventModuleFailureView View;
         private readonly bool guard;
@@ -220,7 +221,8 @@ internal static class ClientMercenaryHiringTests
             this.guard = guard; ClientSessionWork.Reset();
             Session = new(Ports, Ports, new ClientSessionConnection(Ports)); State = new(Session, Ports, this); View = new(Ports);
             var transactions = new ClientSnapshotTransaction(Session, Ports, new ClientSnapshotPublication(Ports, Ports));
-            Hiring = new(State, new ClientBankState(Session, Ports, this), new ClientSnapshotMutationAdmission(Session, Sync, Mutations, transactions),
+            Bank = new(Session, Ports, this);
+            Hiring = new(State, Bank, new ClientSnapshotMutationAdmission(Session, Sync, Mutations, transactions),
                 Sync, Mutations, transactions, new ClientSnapshotFailureRecovery(Session, Mutations, Sync, Ports, View), this, this, this);
             Hiring.Completed += () => { Require(!State.Busy && !Sync.IsBusy && !Mutations.IsPending, "Completed before releasing own work."); Completed++; Done.TrySetResult(); };
         }

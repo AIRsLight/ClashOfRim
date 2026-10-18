@@ -39,6 +39,7 @@ internal sealed class ClientMercenaryQuotes
         var context = session.ReadContext();
         var owningGame = game.BindCurrentGame();
         long ticks = readTicks();
+        int bankVersion = bank.Version;
         bool Apply(Action action)
         {
             bool applied = false;
@@ -77,9 +78,10 @@ internal sealed class ClientMercenaryQuotes
             // before enqueue and when the game thread actually publishes the result.
             await ClientGamePublication.EnqueueAsync(owningGame.Enqueue, owner.Token, Apply, () =>
             {
-                // A completed ordinary upload may advance the base while a quote is in flight.
-                // Finish that UI request, but never replace the bank view for the newer base.
-                if (response is not null && session.Owns(owner, context, requireSnapshot: true)) bank.View = statusOf(response);
+                // Finish the caller's request even if an upload or another bank
+                // publication superseded the ancillary configuration it carries.
+                if (response is not null && bank.Version == bankVersion && session.Owns(owner, context, requireSnapshot: true))
+                    bank.View = statusOf(response);
                 callback(key, message, response);
             }).ConfigureAwait(false);
         });

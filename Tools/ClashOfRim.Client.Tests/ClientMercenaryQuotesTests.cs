@@ -130,9 +130,9 @@ internal static class ClientMercenaryQuotesTests
         Check(gameThrew && taskThrew && invoked == 1 && f.Ports.Queued == 1 && f.Diagnostics == 0, "A callback exception caused a second delivery.");
     }
 
-    private sealed class Fixture : IClientMercenaryQuoteTransport, IClientMercenaryPresentation, IClientBankPresentation
+    internal sealed class Fixture : IClientMercenaryQuoteTransport, IClientMercenaryPresentation, IClientBankPresentation
     {
-        internal readonly EventModuleTestPorts Ports = new();
+        internal readonly EventModuleTestPorts Ports;
         internal readonly ClientSessionLifecycle Session;
         internal readonly ClientBankState Bank;
         internal readonly ClientMercenaryQuotes Quotes;
@@ -144,11 +144,14 @@ internal static class ClientMercenaryQuotesTests
         internal long Ticks;
         internal string? LastKey, LastMessage, Arguments;
         internal ClashOfRimClientNetworkContext? Captured;
-        internal Fixture()
+        internal int Price = 350;
+        internal ModBankStatusResponseDto ReplyBank = new() { ColonyWealth = 123, OpenDebts = new() { new() { DebtId = "fine", AmountSilver = 12 } } };
+        internal Fixture(EventModuleTestPorts? ports = null, ClientSessionLifecycle? session = null, ClientBankState? bank = null)
         {
-            ClientSessionWork.Reset();
-            Session = new(Ports, Ports, new ClientSessionConnection(Ports));
-            Bank = new(Session, Ports, this); Bank.View = new() { ColonyWealth = 9 };
+            if (session is null) ClientSessionWork.Reset();
+            Ports = ports ?? new(); Session = session ?? new(Ports, Ports, new ClientSessionConnection(Ports));
+            Bank = bank ?? new(Session, Ports, this);
+            if (bank is null) Bank.View = new() { ColonyWealth = 9 };
             Quotes = new(Session, Ports, Bank, this, this, () => { TickReads++; return 12345; });
         }
         internal Task Start(bool guard, string key = "selection") => guard
@@ -158,10 +161,10 @@ internal static class ClientMercenaryQuotesTests
         { Callbacks++; LastKey = key; LastMessage = message; HasQuote = response is not null; if (bank?.OpenDebts?.Count > 0) bank.OpenDebts[0].AmountSilver = 9999; }
         public Task<ClashOfRimClientNetworkResult<ModMercenaryQuoteResponseDto>> QuoteAsync(ClashOfRimClientNetworkContext context,
             long ticks, string skill, int level, int days, CancellationToken token) => Send(context, ticks, skill + ":" + level + ":" + days,
-                () => new ModMercenaryQuoteResponseDto { Result = Result(), PriceSilver = 350, BankStatus = Status() });
+                () => new ModMercenaryQuoteResponseDto { Result = Result(), PriceSilver = Price, BankStatus = ClientBankView.Copy(ReplyBank) });
         public Task<ClashOfRimClientNetworkResult<ModMercenaryGuardQuoteResponseDto>> QuoteGuardAsync(ClashOfRimClientNetworkContext context,
             long ticks, string tier, CancellationToken token) => Send(context, ticks, tier,
-                () => new ModMercenaryGuardQuoteResponseDto { Result = Result(), PriceSilver = 350, BankStatus = Status() });
+                () => new ModMercenaryGuardQuoteResponseDto { Result = Result(), PriceSilver = Price, BankStatus = ClientBankView.Copy(ReplyBank) });
         private async Task<ClashOfRimClientNetworkResult<T>> Send<T>(ClashOfRimClientNetworkContext context, long ticks, string args, Func<T> response)
         {
             Interlocked.Increment(ref Calls); Captured = context; Ticks = ticks; Arguments = args; Sent.TrySetResult();
@@ -172,7 +175,6 @@ internal static class ClientMercenaryQuotesTests
                 : ClashOfRimClientNetworkResult<T>.Ok(Outcome == "missing" ? default! : response());
         }
         private ModProtocolResponseDto Result() => new() { Accepted = Outcome != "rejected", ErrorCode = 2, Message = "server-message" };
-        private static ModBankStatusResponseDto Status() => new() { ColonyWealth = 123, OpenDebts = new() { new() { DebtId = "fine", AmountSilver = 12 } } };
         public string Text(string key, params (string Name, object? Value)[] args) => key + string.Join(";", args.Select(a => a.Name + "=" + a.Value));
         public void Diagnose(Exception exception) => Diagnostics++;
         public string Summary(ModBankStatusResponseDto? status) => "bank";

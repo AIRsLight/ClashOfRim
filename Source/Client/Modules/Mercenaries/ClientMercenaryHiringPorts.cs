@@ -9,6 +9,7 @@ namespace AIRsLight.ClashOfRim.Modules.Mercenaries;
 internal sealed record ClientMercenarySelection(string Skill, int Level, int Days, string? GuardTier = null)
 {
     internal bool IsGuard => GuardTier is not null;
+    internal static string NormalizeGuardTier(string? tier) => tier is "Skilled" or "Master" ? tier : "Apprentice";
 }
 internal sealed record ClientMercenaryOffer(ModProtocolResponseDto? Result, ModBankStatusResponseDto? BankStatus,
     int Price, int SurgeryFine = 0, int DeathFine = 0, string Tier = "", float PointRatio = 0);

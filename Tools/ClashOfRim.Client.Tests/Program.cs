@@ -19,6 +19,7 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("multiplayer mercenary panel unifies quote ownership, selections and hiring", MultiplayerMercenaryPanelTests.Run),
     ("multiplayer bank panel owns drafts, shared views and exact repayment confirmations", MultiplayerBankPanelTests.Run),
     ("multiplayer shop panel owns shared projections, refresh and purchase confirmations", MultiplayerShopPanelTests.Run),
     ("multiplayer trade panel shares market state and owns views and confirmations", MultiplayerTradePanelTests.Run),

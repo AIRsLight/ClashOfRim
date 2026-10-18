@@ -452,6 +452,10 @@ public sealed partial class ClashOfRimMod : Mod
         return (model, new(model));
     }
 
+    internal MultiplayerMercenaryPage CreateMercenaryPage(ClientBankPanel bank) =>
+        new(new ClientMercenaryPanel(sessionLifecycle, new ClientSnapshotGame(), mercenaryState, mercenaryQuotes,
+            mercenaryHiring, synchronization, bank.Read, () => worldMarkers.PvpEnabled));
+
     internal bool ManualSyncInProgress => synchronization.ManualInProgress;
 
     internal bool IsServerWorldSetupFlow => worldSetup.Pending;

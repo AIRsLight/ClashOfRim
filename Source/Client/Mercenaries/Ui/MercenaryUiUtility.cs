@@ -1,13 +1,16 @@
+using AIRsLight.ClashOfRim.Modules.Mercenaries;
 using Verse;
 
 namespace AIRsLight.ClashOfRim.Mercenaries;
 
 internal static class MercenaryUiUtility
 {
-    public static string BuildQuoteRequestKey(string skillDefName, int skillLevel, int durationDays, string? snapshotId)
+    internal static string GuardTierLabel(string tier) => ClientMercenarySelection.NormalizeGuardTier(tier) switch
     {
-        return $"{skillDefName}|{skillLevel}|{durationDays}|{snapshotId}";
-    }
+        "Skilled" => ClashOfRimText.Key("ClashOfRim.Mercenary.GuardScaleStandard"),
+        "Master" => ClashOfRimText.Key("ClashOfRim.Mercenary.GuardScaleLarge"),
+        _ => ClashOfRimText.Key("ClashOfRim.Mercenary.GuardScaleSmall")
+    };
 
     public static string FormatDurationLine(int days)
     {
