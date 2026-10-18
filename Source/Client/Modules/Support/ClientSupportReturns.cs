@@ -114,7 +114,7 @@ internal sealed class ClientSupportReturns
                 // Freeze nested data from the engine adapter for notification retries.
                 payload = payload with { Package = payload.Package is null ? null : ClientProtocolJson.Deserialize<ModPawnExchangePackageDto>(
                     ClientProtocolJson.Serialize(payload.Package), type => "Invalid support return package: " + type) };
-                job.Command = new($"support-finish:{attempt.Context.UserId}:{attempt.Context.ColonyId}:{payload.EventId}:{payload.FinishReason}", payload);
+                job.Command = ClientSupportReturnCommand.Create(attempt.Context, payload);
                 confirmed = confirmation.ContinueAsync(new ClientLocalSnapshotRequest
                 {
                     Operation = LocalMutationKind.Support,

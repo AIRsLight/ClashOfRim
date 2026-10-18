@@ -164,20 +164,13 @@ public sealed partial class ClashOfRimMod
         worldMapStatus = ClashOfRimText.Key("ClashOfRim.Raid.StatusSettlementUploading");
         var context = new RaidBattleSettlementContext(session, finishReason);
 
-        if (TryReportRaidSettlementSupportLossesBeforeSnapshot(context))
-        {
-            return;
-        }
-
-        QueueRemoteMapLongEvent(
-            "ClashOfRim.Raid.StatusSettlementSavingLong",
-            () => ContinueFinishActiveRaidBattleAfterSupportResolution(context));
+        StartRaidSettlementSupportPhase(context);
     }
 
-    private void ContinueFinishActiveRaidBattleAfterSupportResolution(RaidBattleSettlementContext context)
+    private void ContinueFinishActiveRaidBattleAfterSupportResolution(RaidBattleSettlementContext context, ClientSynchronizationCoordinator.Lease? continuation = null)
     {
         ActiveRaidBattleSession session = context.Session;
-        if (!TryBeginSnapshotUploadTransaction(out var uploadTransaction))
+        if (!synchronization.TryAcquireSnapshot(out var uploadTransaction, continuation))
         {
             worldMapStatus = ClashOfRimText.Key("ClashOfRim.SnapshotUpload.Busy");
             Messages.Message(worldMapStatus, MessageTypeDefOf.RejectInput, historical: false);
@@ -399,173 +392,73 @@ public sealed partial class ClashOfRimMod
         });
     }
 
-    private bool TryReportRaidSettlementSupportLossesBeforeSnapshot(RaidBattleSettlementContext context)
+    // Temporary sequencing until the remaining settlement snapshot/close phases
+    // move into their module. Loss reporting and pawn ownership live in the dependency.
+    private void StartRaidSettlementSupportPhase(RaidBattleSettlementContext context, ClientSnapshotTransaction.Attempt? original = null,
+        ClientRaidSupportLosses.Batch? originalBatch = null)
     {
-        ActiveRaidBattleSession session = context.Session;
-        ClashOfRimGameComponent? component = Verse.Current.Game?.GetComponent<ClashOfRimGameComponent>();
-        if (component is null)
+        var admitted = original is null ? mutationAdmission.Begin() : mutationAdmission.Retry(original, LocalMutationKind.Raid);
+        if (admitted.Failure == ClientSnapshotAdmissionFailure.Obsolete) return;
+        if (admitted.Attempt is not { } attempt)
         {
-            return false;
+            worldMapStatus = admitted.Failure == ClientSnapshotAdmissionFailure.BaseSnapshotChanged
+                ? ClashOfRimText.Key("ClashOfRim.SnapshotConfirmation.BaseSnapshotChanged")
+                : admitted.Failure == ClientSnapshotAdmissionFailure.Busy ? ClashOfRimText.Key("ClashOfRim.SnapshotUpload.Busy")
+                : ClientLocalMutationPresentation.AdmissionFailure(admitted.Admission, localMutations.Current);
+            RemoteMapSessionController.ResetRaidBattleFinish(context.Session);
+            if (original is null) Messages.Message(worldMapStatus, MessageTypeDefOf.RejectInput, historical: false);
+            else ShowUnconfirmedSnapshotFailure(LocalMutationKind.Raid, worldMapStatus,
+                () => StartRaidSettlementSupportPhase(context, original, originalBatch), admitted.Failure == ClientSnapshotAdmissionFailure.Busy);
+            return;
         }
-
-        List<PendingSupportPawnLoss> pending = new();
-        foreach (ActiveSupportPawnAssignment assignment in component.CopyActiveSupportAssignments())
-        {
-            if (!assignment.AutoReturnOnSettlement || assignment.FinishInProgress)
-            {
-                continue;
-            }
-
-            Pawn? pawn = SupportPawnLookup.FindActive(assignment.PawnThingId);
-            if (pawn is null || pawn.Dead)
-            {
-                continue;
-            }
-
-            if (pawn.Map is null || !MapIdsMatch("Map_" + pawn.Map.uniqueID, session.ClientMapId))
-            {
-                continue;
-            }
-
-            pending.Add(new PendingSupportPawnLoss(
-                assignment,
-                pawn,
-                string.IsNullOrWhiteSpace(pawn.LabelShort) ? assignment.PawnLabel : pawn.LabelShort));
-        }
-
-        if (pending.Count == 0)
-        {
-            return false;
-        }
-
-        foreach (PendingSupportPawnLoss loss in pending)
-        {
-            component.MarkSupportAssignmentInProgress(loss.Assignment.EventId, inProgress: true);
-        }
-
-        worldMapStatus = ClashOfRimText.Key(
-            "ClashOfRim.Raid.StatusSettlementReportingSupportLoss",
-            pending.Count.Named("COUNT"));
-
-        ClientSessionWork.Run(async () =>
-        {
-            try
-            {
-                using var httpClient = new HttpClient();
-                var client = new ClashOfRimModNetworkClient(
-                    httpClient,
-                    ClashOfRimClientNetworkContext.FromSettings(settings));
-                foreach (PendingSupportPawnLoss loss in pending)
-                {
-                    string idempotencyKey =
-                        $"support-finish:{settings.UserId}:{settings.ColonyId}:{loss.Assignment.EventId}:RaidSettlementLost";
-                    ClashOfRimClientNetworkResult<ModFinishSupportPawnResponseDto> result =
-                        await ClientSessionWork.Observe(client.FinishSupportPawnAsync(
-                            idempotencyKey,
-                            loss.Assignment.EventId,
-                            "RaidSettlementLost",
-                            loss.Assignment.PawnGlobalKey,
-                            loss.PawnLabel,
-                            pawnDead: true,
-                            pawnPackage: null));
-
-                    using var branchPublication = ClientSessionWork.EnterPublication();
-                    if (!result.Success || result.Response is null)
-                    {
-                        worldMapStatus = ClashOfRimText.Key(
-                            "ClashOfRim.Raid.StatusSettlementSupportLossFailed",
-                            loss.PawnLabel.Named("PAWN"),
-                            result.ErrorCode.Named("CODE"),
-                            result.Message.Named("MESSAGE"));
-                        ShowRaidSettlementSupportLossFailure(context, component, pending);
-                        return;
-                    }
-
-                    ModProtocolResponseDto? response = result.Response.Result;
-                    if (response is not null && !response.Accepted)
-                    {
-                        worldMapStatus = ClashOfRimText.Key(
-                            "ClashOfRim.Raid.StatusSettlementSupportLossRejected",
-                            loss.PawnLabel.Named("PAWN"),
-                            response.ErrorCode.Named("CODE"),
-                            response.Message.Named("MESSAGE"));
-                        ShowRaidSettlementSupportLossFailure(context, component, pending);
-                        return;
-                    }
-                }
-
-                using var publication = ClientSessionWork.EnterPublication();
-                ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
-                {
-                    foreach (PendingSupportPawnLoss loss in pending)
-                    {
-                        Pawn? currentPawn = SupportPawnLookup.FindActive(loss.Assignment.PawnThingId) ?? loss.Pawn;
-                        if (currentPawn is not null && !currentPawn.Destroyed && !PawnExchangeLifecycleService.RemoveFromLocalWorld(currentPawn))
-                        {
-                            worldMapStatus = ClashOfRimText.Key(
-                                "ClashOfRim.Raid.StatusSettlementSupportLossLocalRemoveFailed",
-                                loss.PawnLabel.Named("PAWN"));
-                            ShowRaidSettlementSupportLossFailure(context, component, pending);
-                            return;
-                        }
-
-                        component.MarkSupportAssignmentFinished(loss.Assignment.EventId);
-                    }
-
-                    QueueRemoteMapLongEvent(
-                        "ClashOfRim.Raid.StatusSettlementSavingLong",
-                        () => ContinueFinishActiveRaidBattleAfterSupportResolution(context));
-                });
-            }
-            catch (Exception ex)
-            when (ClientSessionWork.IsCurrent)
-            {
-                using var publication = ClientSessionWork.EnterPublication();
-                worldMapStatus = ClashOfRimText.Key(
-                    "ClashOfRim.Raid.StatusSettlementSupportLossException",
-                    ex.GetType().Name.Named("TYPE"),
-                    ex.Message.Named("MESSAGE"));
-                ShowRaidSettlementSupportLossFailure(context, component, pending);
-                Log.Warning("[ClashOfRim] Raid settlement support loss reporting failed: " + ex);
-            }
-        });
-
-        return true;
+        RemoteMapSessionController.KeepRaidBattleFinishInProgress(context.Session);
+        _ = ResolveRaidSettlementSupportAsync(context, attempt, originalBatch?.WithAdmission(attempt.Admission));
     }
 
-    private void ShowRaidSettlementSupportLossFailure(
-        RaidBattleSettlementContext context,
-        ClashOfRimGameComponent component,
-        IReadOnlyList<PendingSupportPawnLoss> pending)
+    private async Task ResolveRaidSettlementSupportAsync(RaidBattleSettlementContext context, ClientSnapshotTransaction.Attempt attempt,
+        ClientRaidSupportLosses.Batch? batch)
     {
-        ActiveRaidBattleSession session = context.Session;
-        ClashOfRimGameComponent.EnqueueMainThreadAction(() =>
+        try
         {
-            if (!string.Equals(
-                    ClashOfRimGameComponent.ActiveRaidBattleSession?.EventId,
-                    session.EventId,
-                    StringComparison.Ordinal))
-            {
-                return;
-            }
+            batch ??= raidSupportLosses.Capture(attempt, new ClientRaidSupportLossSource(context.Session));
+            if (batch is null) return;
+            if (batch.Count > 0) worldMapStatus = ClashOfRimText.Key("ClashOfRim.Raid.StatusSettlementReportingSupportLoss", batch.Count.Named("COUNT"));
+            var result = await raidSupportLosses.ResolveAsync(batch).ConfigureAwait(false);
+            Task? settlement = null;
+            await AIRsLight.ClashOfRim.Modules.Sessions.ClientGamePublication.EnqueueAsync(attempt.Game.Enqueue, attempt.Owner.Token,
+                action => snapshotTransactions.TryApply(attempt, action), () =>
+                {
+                    if (result.Failure is { } failure)
+                    { FinishRaidSupportFailure(context, attempt, failure, batch); return; }
+                    if (!result.Success) return;
+                    CloseServerEntryProgressWindowNow();
+                    settlement = AIRsLight.ClashOfRim.Modules.Sessions.ClientGamePublication.EnqueueAsync(
+                        (run, discarded) => ClientRemoteMapLongEvent.Enqueue(run, discarded, "ClashOfRim.Raid.StatusSettlementSavingLong"),
+                        attempt.Owner.Token, action => snapshotTransactions.TryApply(attempt, action),
+                        () => ContinueFinishActiveRaidBattleAfterSupportResolution(context, attempt.Admission));
+                }).ConfigureAwait(false);
+            if (settlement is not null) await settlement.ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (!ClientSessionWork.IsCurrent || attempt.Owner.Token.IsCancellationRequested) { }
+        catch (Exception ex)
+        {
+            await AIRsLight.ClashOfRim.Modules.Sessions.ClientGamePublication.EnqueueAsync(attempt.Game.Enqueue, attempt.Owner.Token,
+                action => snapshotTransactions.TryApply(attempt, action), () => FinishRaidSupportFailure(context, attempt,
+                    new ClientRaidSupportLossFailure(ClientRaidSupportLossFailureKind.Exception, Exception: ex), batch)).ConfigureAwait(false);
+        }
+        finally { attempt.Admission.Dispose(); }
+    }
 
-            if (session.IsFinalDeadlineExpired)
-            {
-                HandleRaidBattleFinalDeadlineExpired(session);
-                return;
-            }
-
-            foreach (PendingSupportPawnLoss loss in pending)
-            {
-                component.MarkSupportAssignmentInProgress(loss.Assignment.EventId, inProgress: false);
-            }
-
-            RemoteMapSessionController.ResetRaidBattleFinish(session);
-            ShowUnconfirmedSnapshotFailure(
-                LocalMutationKind.Raid,
-                worldMapStatus,
-                () => StartFinishActiveRaidBattle(session, context.FinishReason));
-        });
+    private void FinishRaidSupportFailure(RaidBattleSettlementContext context, ClientSnapshotTransaction.Attempt attempt,
+        ClientRaidSupportLossFailure failure, ClientRaidSupportLosses.Batch? batch)
+    {
+        if (!ReferenceEquals(ClashOfRimGameComponent.ActiveRaidBattleSession, context.Session)) return;
+        if (context.Session.IsFinalDeadlineExpired) { HandleRaidBattleFinalDeadlineExpired(context.Session); return; }
+        worldMapStatus = ClientRaidSupportLossPresentation.Failure(failure);
+        RemoteMapSessionController.ResetRaidBattleFinish(context.Session);
+        ShowUnconfirmedSnapshotFailure(LocalMutationKind.Raid, worldMapStatus,
+            () => StartRaidSettlementSupportPhase(context, attempt, batch), failure.CanRetry);
+        if (failure.Exception is not null) Log.Warning("[ClashOfRim] Raid support loss failed: " + failure.Exception);
     }
 
     private void ShowRaidSettlementFailure(RaidBattleSettlementContext context, Action? retryAction = null, bool allowRetry = false)
@@ -626,21 +519,5 @@ public sealed partial class ClashOfRimMod
         return remaining < TimeSpan.FromSeconds(60)
             ? remaining
             : TimeSpan.FromSeconds(60);
-    }
-    private sealed class PendingSupportPawnLoss
-    {
-        public PendingSupportPawnLoss(
-            ActiveSupportPawnAssignment assignment,
-            Pawn pawn,
-            string pawnLabel)
-        {
-            Assignment = assignment;
-            Pawn = pawn;
-            PawnLabel = pawnLabel;
-        }
-
-        public ActiveSupportPawnAssignment Assignment { get; }
-        public Pawn Pawn { get; }
-        public string PawnLabel { get; }
     }
 }

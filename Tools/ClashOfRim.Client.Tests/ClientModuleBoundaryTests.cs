@@ -28,6 +28,7 @@ internal static class ClientModuleBoundaryTests
             || t == typeof(ClientRemoteSnapshotTransport) || t == typeof(ClientRaidTransport)
             || t == typeof(AIRsLight.ClashOfRim.Raids.ClientRaidPreparationPresentation)
             || t == typeof(AIRsLight.ClashOfRim.Raids.ClientRaidLaunchRuntime) || t == typeof(AIRsLight.ClashOfRim.Raids.ClientRaidLaunchPresentation)
+            || t == typeof(AIRsLight.ClashOfRim.Raids.ClientRaidSupportLossSource) || t == typeof(AIRsLight.ClashOfRim.Raids.ClientRaidSupportLossPresentation)
             || t == typeof(AIRsLight.ClashOfRim.RemoteMaps.ClientRemoteMapLongEvent)
             || t == typeof(AIRsLight.ClashOfRim.Raids.ClientRaidAttackForce) || t == typeof(AIRsLight.ClashOfRim.Raids.ClientRaidBattlefield)
             || t == typeof(AIRsLight.ClashOfRim.Raids.IRaidAttackForceSource) || t == typeof(AIRsLight.ClashOfRim.Raids.RaidAttackPawnLoad)
@@ -77,6 +78,7 @@ internal static class ClientModuleBoundaryTests
         Type[] eventAdapters = { typeof(AIRsLight.ClashOfRim.RemoteMaps.ClientObservationRuntime), typeof(AIRsLight.ClashOfRim.RemoteMaps.ClientObservationPresentation),
             typeof(AIRsLight.ClashOfRim.Raids.ClientRaidPreparationPresentation),
             typeof(AIRsLight.ClashOfRim.Raids.ClientRaidLaunchRuntime), typeof(AIRsLight.ClashOfRim.Raids.ClientRaidLaunchPresentation),
+            typeof(AIRsLight.ClashOfRim.Raids.ClientRaidSupportLossSource), typeof(AIRsLight.ClashOfRim.Raids.ClientRaidSupportLossPresentation),
             typeof(AIRsLight.ClashOfRim.RemoteMaps.ClientRemoteMapLongEvent),
             typeof(AIRsLight.ClashOfRim.Raids.ClientRaidAttackForce), typeof(AIRsLight.ClashOfRim.Raids.ClientRaidBattlefield),
             typeof(AIRsLight.ClashOfRim.Raids.CaravanRaidAttackForceSource), typeof(AIRsLight.ClashOfRim.Raids.TransporterRaidAttackForceSource),

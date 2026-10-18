@@ -19,6 +19,8 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("raid support loss sources retain exact battle pawn and assignment ownership", ClientRaidSupportLossSourceTests.Run),
+    ("raid support losses own captured batch reporting and local removal", ClientRaidSupportLossTests.Run),
     ("raid launch owns game preparation, snapshot commit and stable retries", ClientRaidLaunchingTests.Run),
     ("raid attack forces own captured engine state and battlefield handoff", ClientRaidAttackForceTests.Run),
     ("raid preparation owns accepted authorization, snapshot download and duration rules", ClientRaidPreparationTests.Run),

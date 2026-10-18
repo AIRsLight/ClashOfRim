@@ -1,0 +1,115 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using System.Runtime.CompilerServices;
+using AIRsLight.ClashOfRim;
+using AIRsLight.ClashOfRim.Pawns;
+using AIRsLight.ClashOfRim.Raids;
+using AIRsLight.ClashOfRim.Support;
+using HarmonyLib;
+using Verse;
+
+// Exercise the real source and game component, substituting engine/service effects only.
+internal static class ClientRaidSupportLossSourceTests
+{
+    private static Game game = null!;
+    private static ActiveRaidBattleSession battle = null!;
+    private static readonly List<ActiveSupportPawnAssignment> assignments = new();
+    private static readonly Dictionary<string, Pawn> live = new();
+    private static readonly Dictionary<Thing, Map?> maps = new(ReferenceEqualityComparer.Instance);
+    private static readonly HashSet<Thing> destroyed = new(ReferenceEqualityComparer.Instance);
+    private static readonly HashSet<Pawn> dead = new(ReferenceEqualityComparer.Instance);
+    private static readonly List<Pawn> removed = new();
+    private static bool removeSucceeds;
+    private static string label = "支援-é";
+
+    internal static void Run()
+    {
+        var harmony = new Harmony("ClashOfRim.Tests.RaidSupportLossSource");
+        try
+        {
+            Patch(harmony, AccessTools.PropertyGetter(typeof(Current), nameof(Current.Game)), nameof(GamePrefix));
+            Patch(harmony, AccessTools.PropertyGetter(typeof(Pawn), nameof(Pawn.Dead)), nameof(DeadPrefix));
+            Patch(harmony, AccessTools.PropertyGetter(typeof(Thing), nameof(Thing.Destroyed)), nameof(DestroyedPrefix));
+            Patch(harmony, AccessTools.PropertyGetter(typeof(Thing), nameof(Thing.Map)), nameof(MapPrefix));
+            Patch(harmony, AccessTools.PropertyGetter(typeof(Pawn), nameof(Pawn.LabelShort)), nameof(LabelPrefix));
+            Patch(harmony, AccessTools.Method(typeof(SupportPawnLookup), nameof(SupportPawnLookup.FindActive)), nameof(FindPrefix));
+            Patch(harmony, AccessTools.Method(typeof(PawnExchangeLifecycleService), nameof(PawnExchangeLifecycleService.RemoveFromLocalWorld)), nameof(RemovePrefix));
+
+            Reset();
+            assignments[2].AutoReturnOnSettlement = false;
+            assignments[3].FinishInProgress = true;
+            dead.Add(live["5"]); destroyed.Add(live["6"]); live.Remove("7");
+            maps[live["8"]] = null; var otherMap = Uninitialized<Map>(); otherMap.uniqueID = 8; maps[live["9"]] = otherMap;
+            var source = new ClientRaidSupportLossSource(battle); var losses = source.Capture();
+            Check(losses.Select(loss => loss.EventId).SequenceEqual(new[] { "1", "2" }), "Source selected non-returning, pending, missing, dead or other-map pawns.");
+            source.InProgress(losses[0], true);
+            Check(assignments[0].FinishInProgress, "Did not mark captured assignment.");
+            assignments[0].PawnGlobalKey = "changed"; assignments[0].PawnLabel = "changed";
+            Check(losses[0].GlobalKey == "global-1" && losses[0].PawnName == label, "Captured loss aliases mutable assignment.");
+            removeSucceeds = false;
+            Check(!source.RemoveAndComplete(losses[0]) && assignments.Any(a => a.EventId == "1"), "Failed removal completed assignment.");
+            removeSucceeds = true; removed.Clear(); var captured = live["1"];
+            Check(source.RemoveAndComplete(losses[0]) && removed.Count == 1 && ReferenceEquals(removed[0], captured)
+                && assignments.All(a => a.EventId != "1") && !source.RemoveAndComplete(losses[0]), "Removal did not finish exact assignment once.");
+
+            foreach (string invalid in new[] { "game", "battle", "pawn", "assignment", "loss" })
+            {
+                Reset(); source = new(battle); var loss = source.Capture()[0]; var original = assignments[0];
+                source.InProgress(loss, true);
+                switch (invalid)
+                {
+                    case "game": game = Uninitialized<Game>(); break;
+                    case "battle": ClashOfRimGameComponent.SetActiveRaidBattleSession(new() { EventId = "raid", ClientMapId = "Map_7" }); break;
+                    case "pawn": live["1"] = Uninitialized<Pawn>(); break;
+                    case "assignment": assignments[0] = new() { EventId = "1", FinishInProgress = true }; break;
+                    case "loss": loss = loss with { }; break;
+                }
+                Check(!source.RemoveAndComplete(loss) && removed.Count == 0 && assignments.Count == 9, "Stale source removed replacement: " + invalid);
+                source.InProgress(loss, false);
+                if (invalid != "pawn") Check(original.FinishInProgress && assignments[0].FinishInProgress, "Stale source cleared unrelated flag: " + invalid);
+            }
+            foreach (bool alreadyDestroyed in new[] { false, true })
+            {
+                Reset(); label = ""; source = new(battle); var loss = source.Capture()[0]; var pawn = live["1"];
+                Check(loss.PawnName == "fallback-1", "Missing pawn label lost assignment fallback.");
+                if (alreadyDestroyed) destroyed.Add(pawn); else live.Remove("1");
+                Check(source.RemoveAndComplete(loss) && removed.Count == (alreadyDestroyed ? 0 : 1)
+                    && assignments.Count == 8, "Captured pawn disappearance prevented correct completion.");
+            }
+            Reset(); source = new(battle); game = Uninitialized<Game>();
+            bool rejected = false;
+            try { source.Capture(); } catch (InvalidOperationException) { rejected = true; }
+            Check(rejected, "Obsolete battle silently became an empty successful batch.");
+        }
+        catch (Exception ex) { Console.WriteLine(ex.StackTrace); throw; }
+        finally { harmony.UnpatchAll(harmony.Id); Clear(); }
+    }
+    private static void Reset()
+    {
+        Clear(); removeSucceeds = true; label = "支援-é";
+        game = Uninitialized<Game>(); var component = new ClashOfRimGameComponent(game);
+        AccessTools.Field(typeof(Game), "components").SetValue(game, new List<GameComponent> { component });
+        AccessTools.Field(typeof(ClashOfRimGameComponent), "activeSupportAssignments").SetValue(component, assignments);
+        battle = new() { EventId = "raid", ClientMapId = "Map_7" }; ClashOfRimGameComponent.SetActiveRaidBattleSession(battle);
+        var map = Uninitialized<Map>(); map.uniqueID = 7;
+        for (int i = 1; i <= 9; i++)
+        {
+            string id = i.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            var pawn = Uninitialized<Pawn>(); live.Add(id, pawn); maps.Add(pawn, map);
+            assignments.Add(new() { EventId = id, PawnThingId = id, PawnGlobalKey = "global-" + id, PawnLabel = "fallback-" + id, AutoReturnOnSettlement = true });
+        }
+    }
+    private static void Clear() { assignments.Clear(); live.Clear(); maps.Clear(); destroyed.Clear(); dead.Clear(); removed.Clear(); }
+    private static T Uninitialized<T>() => (T)RuntimeHelpers.GetUninitializedObject(typeof(T));
+    private static void Patch(Harmony harmony, MethodInfo method, string prefix) => harmony.Patch(method, prefix: new HarmonyMethod(typeof(ClientRaidSupportLossSourceTests), prefix));
+    private static bool GamePrefix(ref Game __result) { __result = game; return false; }
+    private static bool DeadPrefix(Pawn __instance, ref bool __result) { __result = dead.Contains(__instance); return false; }
+    private static bool DestroyedPrefix(Thing __instance, ref bool __result) { __result = destroyed.Contains(__instance); return false; }
+    private static bool MapPrefix(Thing __instance, ref Map? __result) { __result = maps.GetValueOrDefault(__instance); return false; }
+    private static bool LabelPrefix(ref string __result) { __result = label; return false; }
+    private static bool FindPrefix(string __0, ref Pawn? __result) { __result = live.GetValueOrDefault(__0); return false; }
+    private static bool RemovePrefix(Pawn __0, ref bool __result) { removed.Add(__0); __result = removeSucceeds; return false; }
+    private static void Check(bool condition, string message) { if (!condition) throw new Exception(message); }
+}

@@ -8,7 +8,11 @@ namespace AIRsLight.ClashOfRim.Modules.Support;
 internal sealed record ClientSupportReturnView(bool Permanent, bool Departing, bool HasPawn, bool CanFinish);
 internal sealed record ClientSupportReturnPayload(string EventId, string GlobalKey, string PawnName, string FinishReason,
     bool Dead, ModPawnExchangePackageDto? Package);
-internal sealed record ClientSupportReturnCommand(string IdempotencyKey, ClientSupportReturnPayload Payload);
+internal sealed record ClientSupportReturnCommand(string IdempotencyKey, ClientSupportReturnPayload Payload)
+{
+    internal static ClientSupportReturnCommand Create(ClashOfRimClientNetworkContext context, ClientSupportReturnPayload payload) =>
+        new($"support-finish:{context.UserId}:{context.ColonyId}:{payload.EventId}:{payload.FinishReason}", payload);
+}
 internal interface IClientSupportReturnRuntime
 {
     IClientSupportReturnSource? Find(string eventId);
