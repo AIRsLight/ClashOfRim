@@ -21,6 +21,7 @@ internal static class ClientModuleBoundaryTests
         var violations = ModuleDependencyGuard.FindViolations(modules, t => t == typeof(ClashOfRimMod)
             || t == typeof(ClashOfRimSettings) || t == typeof(ClashOfRimModNetworkClient) || t == typeof(IServiceProvider)
             || t == typeof(ClashOfRimGameComponent) || t == typeof(ClashOfRimText)
+            || t == typeof(AIRsLight.ClashOfRim.ThirdPartyCompatibility.ClashOfRimCompatibilityApi)
             || t == typeof(ClientMainThreadDispatcher)
             || t == typeof(AIRsLight.ClashOfRim.RemoteMaps.RemoteSnapshotDownloadService)
             || t == typeof(AIRsLight.ClashOfRim.RemoteMaps.RemoteSnapshotDownloadValidator)

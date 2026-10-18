@@ -23,7 +23,7 @@ public static partial class ClashOfRimCompatibilityApi
         IReadOnlyList<Pawn> safeAttackPawns = attackPawns ?? new List<Pawn>();
         foreach (RaidCaravanMapEntryHandler handler in RaidCaravanMapEntryHandlers.ToList())
         {
-            if (!TryInvokeCompatibilityCallback(
+            if (!Registrations.TryInvokeCompatibilityCallback(
                     nameof(TryEnterRaidCaravanMap),
                     handler,
                     () => handler(caravan, map, safeAttackPawns),
@@ -50,7 +50,7 @@ public static partial class ClashOfRimCompatibilityApi
 
         foreach (RemoteDefenderMapPreparedHandler handler in RemoteDefenderMapPreparedHandlers.ToList())
         {
-            TryInvokeCompatibilityCallback(
+            Registrations.TryInvokeCompatibilityCallback(
                 nameof(NotifyRemoteDefenderMapPrepared),
                 handler,
                 () => handler(map, defenderFaction));
@@ -66,7 +66,7 @@ public static partial class ClashOfRimCompatibilityApi
 
         foreach (RemoteMapLoadedHandler handler in RemoteMapLoadedHandlers.ToList())
         {
-            TryInvokeCompatibilityCallback(
+            Registrations.TryInvokeCompatibilityCallback(
                 nameof(NotifyRemoteMapLoaded),
                 handler,
                 () => handler(map, carrier, scope, package));
@@ -86,7 +86,7 @@ public static partial class ClashOfRimCompatibilityApi
         var references = new List<ILoadReferenceable>();
         foreach (RemoteMapProjectionReferenceRewriter rewriter in RemoteMapProjectionReferenceRewriters.ToList())
         {
-            if (!TryInvokeCompatibilityCallback(
+            if (!Registrations.TryInvokeCompatibilityCallback(
                     nameof(RewriteRemoteMapProjectionReferences),
                     rewriter,
                     () => rewriter(package, sourceDocument, projectionElement),
@@ -116,7 +116,7 @@ public static partial class ClashOfRimCompatibilityApi
     {
         foreach (RemoteMapProjectionSanitizer sanitizer in RemoteMapProjectionSanitizers.ToList())
         {
-            TryInvokeCompatibilityCallback(
+            Registrations.TryInvokeCompatibilityCallback(
                 nameof(SanitizeRemoteMapProjection),
                 sanitizer,
                 () => sanitizer(package, mapElement, referencePawnsElement));
@@ -132,7 +132,7 @@ public static partial class ClashOfRimCompatibilityApi
 
         foreach (RemoteSessionPawnCleanupHandler handler in RemoteSessionPawnCleanupHandlers.ToList())
         {
-            if (!TryInvokeCompatibilityCallback(
+            if (!Registrations.TryInvokeCompatibilityCallback(
                     nameof(TryCleanupRemoteSessionPawn),
                     handler,
                     () => handler(pawn, reason),
@@ -155,7 +155,7 @@ public static partial class ClashOfRimCompatibilityApi
         int changes = 0;
         foreach (CompatibilitySnapshotSaveSanitizer sanitizer in SnapshotSaveSanitizers.ToList())
         {
-            if (TryInvokeCompatibilityCallback(
+            if (Registrations.TryInvokeCompatibilityCallback(
                     nameof(SanitizeSnapshotSave),
                     sanitizer,
                     () => sanitizer(document),

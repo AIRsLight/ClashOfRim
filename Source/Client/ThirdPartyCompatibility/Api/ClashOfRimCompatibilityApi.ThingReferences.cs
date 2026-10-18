@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Compatibility;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using RimWorld;
 using System;
@@ -50,7 +51,7 @@ public static partial class ClashOfRimCompatibilityApi
                 continue;
             }
 
-            if (!TryInvokeCompatibilityCallback(
+            if (!Registrations.TryInvokeCompatibilityCallback(
                     nameof(CanTransferThing),
                     registration,
                     () => registration.Validator(thing, context),
@@ -89,7 +90,7 @@ public static partial class ClashOfRimCompatibilityApi
                 continue;
             }
 
-            if (!TryInvokeCompatibilityCallback(
+            if (!Registrations.TryInvokeCompatibilityCallback(
                     nameof(PrepareThingTransfer),
                     registration,
                     () => registration.Capturer(thing, reference, context)))
@@ -123,7 +124,7 @@ public static partial class ClashOfRimCompatibilityApi
             }
 
             string? callbackMissingDefName = null;
-            if (!TryInvokeCompatibilityCallback(
+            if (!Registrations.TryInvokeCompatibilityCallback(
                     nameof(FinalizeThingTransfer),
                     registration,
                     () => registration.Finalizer(reference, thing, context, out callbackMissingDefName),
@@ -143,11 +144,11 @@ public static partial class ClashOfRimCompatibilityApi
         ThingReferenceMetadataCleaner cleaner,
         ThingReferenceCompletenessValidator validator)
     {
-        string key = RegistrationKey(editor)
+        string key = CompatibilityRegistrationScope.RegistrationKey(editor)
             + "|"
-            + RegistrationKey(cleaner)
+            + CompatibilityRegistrationScope.RegistrationKey(cleaner)
             + "|"
-            + RegistrationKey(validator);
+            + CompatibilityRegistrationScope.RegistrationKey(validator);
         RegisterThingReferenceEditor(key, editor, cleaner, validator);
     }
 
@@ -191,15 +192,15 @@ public static partial class ClashOfRimCompatibilityApi
         ThingReferenceMetadataApplier applier,
         ThingReferenceStrictnessProvider strictnessProvider)
     {
-        string key = RegistrationKey(appender)
+        string key = CompatibilityRegistrationScope.RegistrationKey(appender)
             + "|"
-            + RegistrationKey(thingMatcher)
+            + CompatibilityRegistrationScope.RegistrationKey(thingMatcher)
             + "|"
-            + RegistrationKey(dtoMatcher)
+            + CompatibilityRegistrationScope.RegistrationKey(dtoMatcher)
             + "|"
-            + RegistrationKey(applier)
+            + CompatibilityRegistrationScope.RegistrationKey(applier)
             + "|"
-            + RegistrationKey(strictnessProvider);
+            + CompatibilityRegistrationScope.RegistrationKey(strictnessProvider);
         RegisterThingReferenceMetadata(
             key,
             appender,
@@ -246,7 +247,7 @@ public static partial class ClashOfRimCompatibilityApi
         ThingReferenceDisplayPartsProvider partsProvider,
         ThingReferenceStandardStatSuppressor standardStatSuppressor)
     {
-        string key = RegistrationKey(partsProvider) + "|" + RegistrationKey(standardStatSuppressor);
+        string key = CompatibilityRegistrationScope.RegistrationKey(partsProvider) + "|" + CompatibilityRegistrationScope.RegistrationKey(standardStatSuppressor);
         RegisterThingReferenceDisplay(key, partsProvider, standardStatSuppressor);
     }
 
@@ -288,7 +289,7 @@ public static partial class ClashOfRimCompatibilityApi
             return;
         }
 
-        RegisterThingReferenceThingFactory(RegistrationKey(factory), factory);
+        RegisterThingReferenceThingFactory(CompatibilityRegistrationScope.RegistrationKey(factory), factory);
     }
 
     public static void RegisterThingReferenceThingFactory(string key, ThingReferenceThingFactory factory)
@@ -318,7 +319,7 @@ public static partial class ClashOfRimCompatibilityApi
         foreach (ThingReferenceThingFactoryRegistration registration in ThingReferenceThingFactories.ToList())
         {
             Thing? created = null;
-            if (!TryInvokeCompatibilityCallback(
+            if (!Registrations.TryInvokeCompatibilityCallback(
                     nameof(TryMakeThingReferenceThing),
                     registration,
                     () => registration.Factory(def, stuff, out created),
@@ -346,22 +347,7 @@ public static partial class ClashOfRimCompatibilityApi
 
         string normalizedKind = kind.Trim();
         var registration = new ThingReferenceDefKindPredicateRegistration(normalizedKind, predicate);
-        ThingReferenceDefKindPredicates.Add(registration);
-        int priority = ActiveRegistrationPriority();
-        RegistrationPriorities[registration] = priority;
-        RegistrationOrders[registration] = unchecked(++registrationOrderSequence);
-        SortRegistrationsByPriority(ThingReferenceDefKindPredicates);
-        CompatibilityRegistrationRecord record = AddRegistrationRecord(
-            nameof(ThingReferenceDefKindPredicateRegistration),
-            normalizedKind,
-            priority);
-        TrackRegistration(() =>
-        {
-            ThingReferenceDefKindPredicates.Remove(registration);
-            RegistrationPriorities.Remove(registration);
-            RegistrationOrders.Remove(registration);
-            RegistrationRecords.Remove(record);
-        });
+        Registrations.Register(ThingReferenceDefKindPredicates, registration, nameof(ThingReferenceDefKindPredicateRegistration), normalizedKind, Registrations.ActiveRegistrationPriority());
     }
 
     public static bool HasThingReferenceDefKind(string kind, ThingDef? def)
@@ -379,7 +365,7 @@ public static partial class ClashOfRimCompatibilityApi
                 continue;
             }
 
-            if (!TryInvokeCompatibilityCallback(
+            if (!Registrations.TryInvokeCompatibilityCallback(
                     nameof(HasThingReferenceDefKind),
                     registration,
                     () => registration.Predicate(def),
@@ -406,7 +392,7 @@ public static partial class ClashOfRimCompatibilityApi
     {
         foreach (DefensePointDefNameProvider provider in DefensePointDefNameProviders.ToList())
         {
-            if (!TryInvokeCompatibilityCallback(
+            if (!Registrations.TryInvokeCompatibilityCallback(
                     nameof(GetCompatibilityDefensePointDefNames),
                     provider,
                     () => provider(),
@@ -435,7 +421,7 @@ public static partial class ClashOfRimCompatibilityApi
         foreach (ThingReferenceEditorRegistration registration in ThingReferenceEditorRegistrations.ToList())
         {
             float height = 0f;
-            if (!TryInvokeCompatibilityCallback(
+            if (!Registrations.TryInvokeCompatibilityCallback(
                     nameof(TryDrawThingReferenceEditor),
                     registration,
                     () => registration.Editor(surface, def, item, rect, out height),
@@ -459,7 +445,7 @@ public static partial class ClashOfRimCompatibilityApi
     {
         foreach (ThingReferenceEditorRegistration registration in ThingReferenceEditorRegistrations.ToList())
         {
-            TryInvokeCompatibilityCallback(
+            Registrations.TryInvokeCompatibilityCallback(
                 nameof(ClearThingReferenceMetadata),
                 registration,
                 () => registration.Cleaner(surface, def, item));
@@ -475,7 +461,7 @@ public static partial class ClashOfRimCompatibilityApi
 
         foreach (ThingReferenceMetadataNormalizer normalizer in ThingReferenceMetadataNormalizers.ToList())
         {
-            TryInvokeCompatibilityCallback(
+            Registrations.TryInvokeCompatibilityCallback(
                 nameof(NormalizeThingReferenceMetadata),
                 normalizer,
                 () => normalizer(reference));
@@ -486,7 +472,7 @@ public static partial class ClashOfRimCompatibilityApi
     {
         foreach (ThingReferenceEditorRegistration registration in ThingReferenceEditorRegistrations.ToList())
         {
-            if (!TryInvokeCompatibilityCallback(
+            if (!Registrations.TryInvokeCompatibilityCallback(
                     nameof(IsThingReferenceComplete),
                     registration,
                     () => registration.Validator(surface, def, item),
@@ -513,7 +499,7 @@ public static partial class ClashOfRimCompatibilityApi
 
         foreach (ThingReferenceDefaultMetadataProvider provider in ThingReferenceDefaultMetadataProviders.ToList())
         {
-            TryInvokeCompatibilityCallback(
+            Registrations.TryInvokeCompatibilityCallback(
                 nameof(ApplyThingReferenceDefaultMetadata),
                 provider,
                 () => provider(surface, def, item));
@@ -524,7 +510,7 @@ public static partial class ClashOfRimCompatibilityApi
     {
         foreach (ThingReferenceUniqueRequestPredicate predicate in ThingReferenceUniqueRequestPredicates.ToList())
         {
-            if (!TryInvokeCompatibilityCallback(
+            if (!Registrations.TryInvokeCompatibilityCallback(
                     nameof(IsThingReferenceUniqueRequest),
                     predicate,
                     () => predicate(def),
@@ -546,7 +532,7 @@ public static partial class ClashOfRimCompatibilityApi
     {
         foreach (ThingReferenceMetadataRegistration registration in ThingReferenceMetadataRegistrations.ToList())
         {
-            TryInvokeCompatibilityCallback(
+            Registrations.TryInvokeCompatibilityCallback(
                 nameof(AppendThingReferenceMetadata),
                 registration,
                 () => registration.Appender(metadataThing, reference));
@@ -557,7 +543,7 @@ public static partial class ClashOfRimCompatibilityApi
     {
         foreach (ThingReferenceMetadataRegistration registration in ThingReferenceMetadataRegistrations.ToList())
         {
-            if (!TryInvokeCompatibilityCallback(
+            if (!Registrations.TryInvokeCompatibilityCallback(
                     nameof(ThingReferenceMetadataMatches),
                     registration,
                     () => registration.ThingMatcher(requirement, metadataThing),
@@ -579,7 +565,7 @@ public static partial class ClashOfRimCompatibilityApi
     {
         foreach (ThingReferenceMetadataRegistration registration in ThingReferenceMetadataRegistrations.ToList())
         {
-            if (!TryInvokeCompatibilityCallback(
+            if (!Registrations.TryInvokeCompatibilityCallback(
                     nameof(ThingReferenceMetadataMatches),
                     registration,
                     () => registration.DtoMatcher(requirement, candidate),
@@ -603,7 +589,7 @@ public static partial class ClashOfRimCompatibilityApi
         foreach (ThingReferenceMetadataRegistration registration in ThingReferenceMetadataRegistrations.ToList())
         {
             string? localMissingDefName = null;
-            if (!TryInvokeCompatibilityCallback(
+            if (!Registrations.TryInvokeCompatibilityCallback(
                     nameof(TryApplyThingReferenceMetadata),
                     registration,
                     () => registration.Applier(reference, thing, out localMissingDefName),
@@ -627,7 +613,7 @@ public static partial class ClashOfRimCompatibilityApi
         int strictness = 0;
         foreach (ThingReferenceMetadataRegistration registration in ThingReferenceMetadataRegistrations.ToList())
         {
-            if (TryInvokeCompatibilityCallback(
+            if (Registrations.TryInvokeCompatibilityCallback(
                     nameof(ThingReferenceMetadataStrictness),
                     registration,
                     () => registration.StrictnessProvider(requirement),
@@ -649,7 +635,7 @@ public static partial class ClashOfRimCompatibilityApi
 
         foreach (ThingReferenceDisplayRegistration registration in ThingReferenceDisplayRegistrationSnapshot())
         {
-            TryInvokeCompatibilityCallback(
+            Registrations.TryInvokeCompatibilityCallback(
                 nameof(AppendThingReferenceDisplayParts),
                 registration,
                 () => registration.PartsProvider(thing, asRequirement, parts));
@@ -660,7 +646,7 @@ public static partial class ClashOfRimCompatibilityApi
     {
         foreach (ThingReferenceDisplayRegistration registration in ThingReferenceDisplayRegistrationSnapshot())
         {
-            if (!TryInvokeCompatibilityCallback(
+            if (!Registrations.TryInvokeCompatibilityCallback(
                     nameof(SuppressesStandardThingStats),
                     registration,
                     () => registration.StandardStatSuppressor(def),
@@ -687,7 +673,7 @@ public static partial class ClashOfRimCompatibilityApi
 
         foreach (ThingReferenceCacheKeyPartsProvider provider in ThingReferenceCacheKeyPartsProviderSnapshot())
         {
-            if (!TryInvokeCompatibilityCallback(
+            if (!Registrations.TryInvokeCompatibilityCallback(
                     nameof(ThingReferenceCacheKeyParts),
                     provider,
                     () => provider(thing),

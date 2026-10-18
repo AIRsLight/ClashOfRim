@@ -24,7 +24,7 @@ public static partial class ClashOfRimCompatibilityApi
         string normalizedPurpose = string.IsNullOrWhiteSpace(purpose) ? "Unknown" : purpose.Trim();
         foreach (FactionPreparedHandler handler in FactionPreparedHandlers.ToList())
         {
-            TryInvokeCompatibilityCallback(
+            Registrations.TryInvokeCompatibilityCallback(
                 nameof(NotifyFactionPrepared),
                 handler,
                 () => handler(faction, normalizedPurpose, ownerUserId));
@@ -46,7 +46,7 @@ public static partial class ClashOfRimCompatibilityApi
         NotifyFactionPrepared(faction, "PlayerProxy", ownerUserId);
         foreach (PlayerProxyFactionPreparedHandler handler in PlayerProxyFactionPreparedHandlers.ToList())
         {
-            TryInvokeCompatibilityCallback(
+            Registrations.TryInvokeCompatibilityCallback(
                 nameof(NotifyPlayerProxyFactionPrepared),
                 handler,
                 () => handler(faction, ownerUserId));
@@ -94,7 +94,7 @@ public static partial class ClashOfRimCompatibilityApi
 
         foreach (PawnReferenceMetadataCollector collector in PawnReferenceMetadataCollectors.ToList())
         {
-            TryInvokeCompatibilityCallback(
+            Registrations.TryInvokeCompatibilityCallback(
                 nameof(CollectPawnReferenceMetadata),
                 collector,
                 () => collector(pawn, metadata, userId, colonyId));
@@ -115,7 +115,7 @@ public static partial class ClashOfRimCompatibilityApi
                 continue;
             }
 
-            if (!TryInvokeCompatibilityCallback(
+            if (!Registrations.TryInvokeCompatibilityCallback(
                     nameof(ResolvePawnReferenceMetadata),
                     registration,
                     () => registration.Resolver(pawn, metadataKey, userId, colonyId),
@@ -170,7 +170,7 @@ public static partial class ClashOfRimCompatibilityApi
                 continue;
             }
 
-            if (!TryInvokeCompatibilityCallback(
+            if (!Registrations.TryInvokeCompatibilityCallback(
                     nameof(RestorePawnReferenceMetadata),
                     registration,
                     () => registration.Restorer(pawn, metadataKey, metadataValue, label),
@@ -225,7 +225,7 @@ public static partial class ClashOfRimCompatibilityApi
 
         foreach (PawnExchangeExtensionAppender appender in PawnExchangeExtensionAppenders.ToList())
         {
-            TryInvokeCompatibilityCallback(
+            Registrations.TryInvokeCompatibilityCallback(
                 nameof(AppendPawnExchangeExtensions),
                 appender,
                 () => appender(pawn, package));
@@ -256,9 +256,9 @@ public static partial class ClashOfRimCompatibilityApi
 
         foreach (PawnExchangePackageNormalizer normalizer in PawnExchangePackageNormalizers.ToList())
         {
-            string key = RegistrationKey(normalizer);
+            string key = AIRsLight.ClashOfRim.Modules.Compatibility.CompatibilityRegistrationScope.RegistrationKey(normalizer);
             ClashLog.Message("[ClashOfRim][Compatibility] pawn package normalizer begin: " + key + ".");
-            TryInvokeCompatibilityCallback(
+            Registrations.TryInvokeCompatibilityCallback(
                 nameof(NormalizePawnExchangePackage),
                 normalizer,
                 () => normalizer(package));
@@ -277,7 +277,7 @@ public static partial class ClashOfRimCompatibilityApi
         foreach (PawnExchangePackageRegistrar registrar in PawnExchangePackageRegistrars.ToList())
         {
             string registrarMessage = string.Empty;
-            if (!TryInvokeCompatibilityCallback(
+            if (!Registrations.TryInvokeCompatibilityCallback(
                     nameof(TryRegisterPawnExchangePackageExtensions),
                     registrar,
                     () => registrar(package, out registrarMessage),
@@ -306,7 +306,7 @@ public static partial class ClashOfRimCompatibilityApi
 
         foreach (PawnExchangeLocalSaveOnlyLoadIdPredicate predicate in PawnExchangeLocalSaveOnlyLoadIdPredicates.ToList())
         {
-            if (!TryInvokeCompatibilityCallback(
+            if (!Registrations.TryInvokeCompatibilityCallback(
                     nameof(IsPawnExchangeLocalSaveOnlyLoadId),
                     predicate,
                     () => predicate(loadId!),
@@ -333,7 +333,7 @@ public static partial class ClashOfRimCompatibilityApi
     {
         foreach (PawnPostRestoreLocalizer localizer in PawnPostRestoreLocalizers.ToList())
         {
-            TryInvokeCompatibilityCallback(
+            Registrations.TryInvokeCompatibilityCallback(
                 nameof(LocalizeRestoredPawnWithCompatibility),
                 localizer,
                 () => localizer(pawn));
@@ -349,7 +349,7 @@ public static partial class ClashOfRimCompatibilityApi
     {
         foreach (PawnSoldEffectHandler handler in PawnSoldEffectHandlers.ToList())
         {
-            TryInvokeCompatibilityCallback(
+            Registrations.TryInvokeCompatibilityCallback(
                 nameof(ApplyPawnSoldEffects),
                 handler,
                 () => handler(pawn, negotiator));
@@ -370,7 +370,7 @@ public static partial class ClashOfRimCompatibilityApi
 
         foreach (TradeablePawnPredicate predicate in TradeablePawnPredicates.ToList())
         {
-            if (!TryInvokeCompatibilityCallback(
+            if (!Registrations.TryInvokeCompatibilityCallback(
                     nameof(IsTradeablePawnByCompatibility),
                     predicate,
                     () => predicate(pawn),
@@ -402,7 +402,7 @@ public static partial class ClashOfRimCompatibilityApi
 
         foreach (TradePawnRestoreValidator validator in TradePawnRestoreValidators.ToList())
         {
-            if (!TryInvokeCompatibilityCallback(
+            if (!Registrations.TryInvokeCompatibilityCallback(
                     nameof(IsTradePawnRestoreAllowedByCompatibility),
                     validator,
                     () => validator(pawn),

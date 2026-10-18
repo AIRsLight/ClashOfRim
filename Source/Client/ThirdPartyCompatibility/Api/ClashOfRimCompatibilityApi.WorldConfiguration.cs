@@ -17,17 +17,17 @@ public static partial class ClashOfRimCompatibilityApi
             return;
         }
 
-        int priority = ActiveRegistrationPriority();
+        int priority = Registrations.ActiveRegistrationPriority();
         string requestKey = AdminBaselineExtensionProviderRegistration.Key(providerId, kind);
         AdminBaselineExtensionProviderRegistration? existing = AdminBaselineExtensionProviders.FirstOrDefault(registration =>
             string.Equals(registration.ProviderId, providerId, System.StringComparison.OrdinalIgnoreCase)
             && string.Equals(registration.Kind, kind, System.StringComparison.OrdinalIgnoreCase));
         if (existing is not null)
         {
-            int existingPriority = RegistrationPriority(existing);
+            int existingPriority = Registrations.RegistrationPriority(existing);
             if (priority <= existingPriority)
             {
-                AddRegistrationDiagnostic(
+                Registrations.AddRegistrationDiagnostic(
                     "Warning",
                     "AdminBaselineExtensionDuplicateRejected",
                     nameof(AdminBaselineExtensionProviderRegistration),
@@ -36,32 +36,18 @@ public static partial class ClashOfRimCompatibilityApi
                 return;
             }
 
-            AddRegistrationDiagnostic(
+            Registrations.AddRegistrationDiagnostic(
                 "Warning",
                 "AdminBaselineExtensionDuplicateReplaced",
                 nameof(AdminBaselineExtensionProviderRegistration),
                 requestKey,
                 "Admin baseline extension '" + providerId + "/" + kind + "' replaced an existing registration with priority " + existingPriority + ".");
             AdminBaselineExtensionProviders.Remove(existing);
-            RemoveRegistrationTracking(existing, nameof(AdminBaselineExtensionProviderRegistration), requestKey);
+            Registrations.RemoveRegistrationTracking(existing, nameof(AdminBaselineExtensionProviderRegistration), requestKey);
         }
 
         var registration = new AdminBaselineExtensionProviderRegistration(providerId, kind, provider);
-        AdminBaselineExtensionProviders.Add(registration);
-        RegistrationPriorities[registration] = priority;
-        RegistrationOrders[registration] = unchecked(++registrationOrderSequence);
-        SortRegistrationsByPriority(AdminBaselineExtensionProviders);
-        CompatibilityRegistrationRecord record = AddRegistrationRecord(
-            nameof(AdminBaselineExtensionProviderRegistration),
-            registration.RequestKey,
-            priority);
-        TrackRegistration(() =>
-        {
-            AdminBaselineExtensionProviders.Remove(registration);
-            RegistrationPriorities.Remove(registration);
-            RegistrationOrders.Remove(registration);
-            RegistrationRecords.Remove(record);
-        });
+        Registrations.Register(AdminBaselineExtensionProviders, registration, nameof(AdminBaselineExtensionProviderRegistration), registration.RequestKey, priority);
     }
 
     public static void RegisterCompatibilityPackage(
@@ -74,15 +60,15 @@ public static partial class ClashOfRimCompatibilityApi
             return;
         }
 
-        int priority = ActiveRegistrationPriority();
+        int priority = Registrations.ActiveRegistrationPriority();
         CompatibilityPackageRegistration? existing = CompatibilityPackages.FirstOrDefault(registration =>
             string.Equals(registration.PackageId, packageId, System.StringComparison.OrdinalIgnoreCase));
         if (existing is not null)
         {
-            int existingPriority = RegistrationPriority(existing);
+            int existingPriority = Registrations.RegistrationPriority(existing);
             if (priority <= existingPriority)
             {
-                AddRegistrationDiagnostic(
+                Registrations.AddRegistrationDiagnostic(
                     "Warning",
                     "CompatibilityPackageDuplicateRejected",
                     nameof(CompatibilityPackageRegistration),
@@ -91,14 +77,14 @@ public static partial class ClashOfRimCompatibilityApi
                 return;
             }
 
-            AddRegistrationDiagnostic(
+            Registrations.AddRegistrationDiagnostic(
                 "Warning",
                 "CompatibilityPackageDuplicateReplaced",
                 nameof(CompatibilityPackageRegistration),
                 packageId,
                 "Compatibility package '" + packageId + "' replaced an existing registration with priority " + existingPriority + ".");
             CompatibilityPackages.Remove(existing);
-            RemoveRegistrationTracking(existing, nameof(CompatibilityPackageRegistration), packageId);
+            Registrations.RemoveRegistrationTracking(existing, nameof(CompatibilityPackageRegistration), packageId);
         }
 
         foreach (string capability in capabilities
@@ -108,7 +94,7 @@ public static partial class ClashOfRimCompatibilityApi
         {
             if (CompatibilityPackages.Any(registration => registration.Capabilities.Contains(capability)))
             {
-                AddRegistrationDiagnostic(
+                Registrations.AddRegistrationDiagnostic(
                     "Info",
                     "CompatibilityCapabilityShared",
                     nameof(CompatibilityPackageRegistration),
@@ -118,21 +104,7 @@ public static partial class ClashOfRimCompatibilityApi
         }
 
         var registration = new CompatibilityPackageRegistration(packageId, isLocallyActive, capabilities);
-        CompatibilityPackages.Add(registration);
-        RegistrationPriorities[registration] = priority;
-        RegistrationOrders[registration] = unchecked(++registrationOrderSequence);
-        SortRegistrationsByPriority(CompatibilityPackages);
-        CompatibilityRegistrationRecord record = AddRegistrationRecord(
-            nameof(CompatibilityPackageRegistration),
-            packageId,
-            priority);
-        TrackRegistration(() =>
-        {
-            CompatibilityPackages.Remove(registration);
-            RegistrationPriorities.Remove(registration);
-            RegistrationOrders.Remove(registration);
-            RegistrationRecords.Remove(record);
-        });
+        Registrations.Register(CompatibilityPackages, registration, nameof(CompatibilityPackageRegistration), packageId, priority);
     }
 
     public static void ApplyServerDlcBaseline(IEnumerable<string>? dlcIds)
@@ -151,7 +123,7 @@ public static partial class ClashOfRimCompatibilityApi
 
         foreach (CompatibilityPackageRegistration package in CompatibilityPackages.ToList())
         {
-            if (!TryInvokeCompatibilityCallback(
+            if (!Registrations.TryInvokeCompatibilityCallback(
                     nameof(HasCompatibilityCapability),
                     package,
                     package.IsLocallyActive,
@@ -184,16 +156,16 @@ public static partial class ClashOfRimCompatibilityApi
             return;
         }
 
-        int priority = ActiveRegistrationPriority();
+        int priority = Registrations.ActiveRegistrationPriority();
         string requestKey = WorldConfigurationExtensionHandlerRegistration.Key(providerId, kind);
         WorldConfigurationExtensionHandlerRegistration? existing = WorldConfigurationExtensionHandlers.FirstOrDefault(registration =>
             string.Equals(registration.RequestKey, requestKey, StringComparison.OrdinalIgnoreCase));
         if (existing is not null)
         {
-            int existingPriority = RegistrationPriority(existing);
+            int existingPriority = Registrations.RegistrationPriority(existing);
             if (priority <= existingPriority)
             {
-                AddRegistrationDiagnostic(
+                Registrations.AddRegistrationDiagnostic(
                     "Warning",
                     "WorldConfigurationExtensionDuplicateRejected",
                     nameof(WorldConfigurationExtensionHandlerRegistration),
@@ -202,32 +174,18 @@ public static partial class ClashOfRimCompatibilityApi
                 return;
             }
 
-            AddRegistrationDiagnostic(
+            Registrations.AddRegistrationDiagnostic(
                 "Warning",
                 "WorldConfigurationExtensionDuplicateReplaced",
                 nameof(WorldConfigurationExtensionHandlerRegistration),
                 requestKey,
                 "World configuration extension handler '" + requestKey + "' replaced an existing registration with priority " + existingPriority + ".");
             WorldConfigurationExtensionHandlers.Remove(existing);
-            RemoveRegistrationTracking(existing, nameof(WorldConfigurationExtensionHandlerRegistration), requestKey);
+            Registrations.RemoveRegistrationTracking(existing, nameof(WorldConfigurationExtensionHandlerRegistration), requestKey);
         }
 
         var registration = new WorldConfigurationExtensionHandlerRegistration(providerId, kind, collector, applier);
-        WorldConfigurationExtensionHandlers.Add(registration);
-        RegistrationPriorities[registration] = priority;
-        RegistrationOrders[registration] = unchecked(++registrationOrderSequence);
-        SortRegistrationsByPriority(WorldConfigurationExtensionHandlers);
-        CompatibilityRegistrationRecord record = AddRegistrationRecord(
-            nameof(WorldConfigurationExtensionHandlerRegistration),
-            requestKey,
-            priority);
-        TrackRegistration(() =>
-        {
-            WorldConfigurationExtensionHandlers.Remove(registration);
-            RegistrationPriorities.Remove(registration);
-            RegistrationOrders.Remove(registration);
-            RegistrationRecords.Remove(record);
-        });
+        Registrations.Register(WorldConfigurationExtensionHandlers, registration, nameof(WorldConfigurationExtensionHandlerRegistration), requestKey, priority);
     }
 
     public static bool HasWorldConfigurationExtensionCollector =>
@@ -245,16 +203,16 @@ public static partial class ClashOfRimCompatibilityApi
             return;
         }
 
-        int priority = ActiveRegistrationPriority();
+        int priority = Registrations.ActiveRegistrationPriority();
         string normalizedKey = settingKey.Trim();
         WorldGenerationFloatSettingProviderRegistration? existing = WorldGenerationFloatSettingProviders.FirstOrDefault(registration =>
             string.Equals(registration.SettingKey, normalizedKey, StringComparison.OrdinalIgnoreCase));
         if (existing is not null)
         {
-            int existingPriority = RegistrationPriority(existing);
+            int existingPriority = Registrations.RegistrationPriority(existing);
             if (priority <= existingPriority)
             {
-                AddRegistrationDiagnostic(
+                Registrations.AddRegistrationDiagnostic(
                     "Warning",
                     "WorldGenerationFloatSettingDuplicateRejected",
                     nameof(WorldGenerationFloatSettingProviderRegistration),
@@ -263,32 +221,18 @@ public static partial class ClashOfRimCompatibilityApi
                 return;
             }
 
-            AddRegistrationDiagnostic(
+            Registrations.AddRegistrationDiagnostic(
                 "Warning",
                 "WorldGenerationFloatSettingDuplicateReplaced",
                 nameof(WorldGenerationFloatSettingProviderRegistration),
                 normalizedKey,
                 "World generation float setting '" + normalizedKey + "' replaced an existing registration with priority " + existingPriority + ".");
             WorldGenerationFloatSettingProviders.Remove(existing);
-            RemoveRegistrationTracking(existing, nameof(WorldGenerationFloatSettingProviderRegistration), normalizedKey);
+            Registrations.RemoveRegistrationTracking(existing, nameof(WorldGenerationFloatSettingProviderRegistration), normalizedKey);
         }
 
         var registration = new WorldGenerationFloatSettingProviderRegistration(normalizedKey, provider);
-        WorldGenerationFloatSettingProviders.Add(registration);
-        RegistrationPriorities[registration] = priority;
-        RegistrationOrders[registration] = unchecked(++registrationOrderSequence);
-        SortRegistrationsByPriority(WorldGenerationFloatSettingProviders);
-        CompatibilityRegistrationRecord record = AddRegistrationRecord(
-            nameof(WorldGenerationFloatSettingProviderRegistration),
-            normalizedKey,
-            priority);
-        TrackRegistration(() =>
-        {
-            WorldGenerationFloatSettingProviders.Remove(registration);
-            RegistrationPriorities.Remove(registration);
-            RegistrationOrders.Remove(registration);
-            RegistrationRecords.Remove(record);
-        });
+        Registrations.Register(WorldGenerationFloatSettingProviders, registration, nameof(WorldGenerationFloatSettingProviderRegistration), normalizedKey, priority);
     }
 
     public static float ResolveWorldGenerationFloatSetting(
@@ -309,7 +253,7 @@ public static partial class ClashOfRimCompatibilityApi
             }
 
             float value = defaultValue;
-            if (!TryInvokeCompatibilityCallback(
+            if (!Registrations.TryInvokeCompatibilityCallback(
                     nameof(ResolveWorldGenerationFloatSetting),
                     registration,
                     () => registration.Provider(configuration, out value),
@@ -340,7 +284,7 @@ public static partial class ClashOfRimCompatibilityApi
                 continue;
             }
 
-            if (!TryInvokeCompatibilityCallback(
+            if (!Registrations.TryInvokeCompatibilityCallback(
                     nameof(CollectCurrentWorldConfigurationExtensions),
                     registration,
                     () => registration.Collector(userId, colonyId, worldConfigurationId),
@@ -386,7 +330,7 @@ public static partial class ClashOfRimCompatibilityApi
                 continue;
             }
 
-            if (TryInvokeCompatibilityCallback(
+            if (Registrations.TryInvokeCompatibilityCallback(
                     nameof(ApplyWorldConfigurationExtensions),
                     registration,
                     () => registration.Applier(configuration, localUserId, applyWorldState),
@@ -410,7 +354,7 @@ public static partial class ClashOfRimCompatibilityApi
         var items = new List<WorldConfigurationExtensionSummaryItem>();
         foreach (WorldConfigurationExtensionSummaryProvider provider in WorldConfigurationExtensionSummaryProviders.ToList())
         {
-            if (!TryInvokeCompatibilityCallback(
+            if (!Registrations.TryInvokeCompatibilityCallback(
                     nameof(GetWorldConfigurationExtensionSummary),
                     provider,
                     () => provider(configuration),
@@ -459,7 +403,7 @@ public static partial class ClashOfRimCompatibilityApi
                 continue;
             }
 
-            if (!TryInvokeCompatibilityCallback(
+            if (!Registrations.TryInvokeCompatibilityCallback(
                     nameof(AppendAdminBaselineExtensions),
                     registration,
                     () => registration.Provider(),

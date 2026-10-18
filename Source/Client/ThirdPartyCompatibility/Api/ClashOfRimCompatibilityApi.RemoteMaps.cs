@@ -65,7 +65,7 @@ public static partial class ClashOfRimCompatibilityApi
         if (RemoteMapIntegerLoadIdRewriters.Any(registration =>
             string.Equals(registration.LoadIdPrefix, normalizedPrefix, StringComparison.Ordinal)))
         {
-            AddRegistrationDiagnostic(
+            Registrations.AddRegistrationDiagnostic(
                 "Warning",
                 "RemoteMapLoadIdPrefixShared",
                 nameof(RemoteMapIntegerLoadIdRewriterRegistration),
@@ -74,22 +74,7 @@ public static partial class ClashOfRimCompatibilityApi
         }
 
         var registration = new RemoteMapIntegerLoadIdRewriterRegistration(normalizedPrefix, predicate, nextId);
-        RemoteMapIntegerLoadIdRewriters.Add(registration);
-        int priority = ActiveRegistrationPriority();
-        RegistrationPriorities[registration] = priority;
-        RegistrationOrders[registration] = unchecked(++registrationOrderSequence);
-        SortRegistrationsByPriority(RemoteMapIntegerLoadIdRewriters);
-        CompatibilityRegistrationRecord record = AddRegistrationRecord(
-            nameof(RemoteMapIntegerLoadIdRewriterRegistration),
-            normalizedPrefix,
-            priority);
-        TrackRegistration(() =>
-        {
-            RemoteMapIntegerLoadIdRewriters.Remove(registration);
-            RegistrationPriorities.Remove(registration);
-            RegistrationOrders.Remove(registration);
-            RegistrationRecords.Remove(record);
-        });
+        Registrations.Register(RemoteMapIntegerLoadIdRewriters, registration, nameof(RemoteMapIntegerLoadIdRewriterRegistration), normalizedPrefix, Registrations.ActiveRegistrationPriority());
     }
 
     public static IReadOnlyList<RemoteMapIntegerLoadIdRewriterRegistration> GetRemoteMapIntegerLoadIdRewriters()
@@ -106,7 +91,7 @@ public static partial class ClashOfRimCompatibilityApi
     {
         foreach (RemoteMapAreaLoadIdProvider provider in RemoteMapAreaLoadIdProviders.ToList())
         {
-            if (!TryInvokeCompatibilityCallback(
+            if (!Registrations.TryInvokeCompatibilityCallback(
                     nameof(BuildRemoteMapAreaLoadId),
                     provider,
                     () => provider(area, id),
@@ -138,7 +123,7 @@ public static partial class ClashOfRimCompatibilityApi
     {
         foreach (PlayerColonySiteRegistrationSuppressor suppressor in PlayerColonySiteRegistrationSuppressors.ToList())
         {
-            if (!TryInvokeCompatibilityCallback(
+            if (!Registrations.TryInvokeCompatibilityCallback(
                     nameof(IsPlayerColonySiteRegistrationSuppressedByCompatibility),
                     suppressor,
                     () => suppressor(),
