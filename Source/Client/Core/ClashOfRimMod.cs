@@ -142,13 +142,13 @@ public sealed partial class ClashOfRimMod : Mod
     private readonly ClientSessionLifecycle sessionLifecycle;
     private readonly ClientPasswordChange passwordChange;
     private readonly ClientSessionReconnect sessionReconnect;
-    private bool blockAutomaticMapSessionForServerEntrySourceGame;
     private readonly ClientSessionConnection sessionConnection = new(new ClientSessionWebSocketTransport(new ClientWebSocketFactory(), new ClientProtocolMetadata()));
-    private Game? serverEntrySourceGame;
     private readonly ClientAchievementQueries achievementQueries;
     private readonly ClientEndgameAchievements endgameAchievements;
     private readonly ClientWorldPreparation worldPreparation;
     private readonly ClientWorldEntry worldEntry;
+    private readonly ClientWorldEntryStart worldEntryStart;
+    private readonly ClientWorldSourceGame sourceGame = new(new ClientWorldSourceGameRuntime());
     private readonly ClientCompatibilityPresentation compatibilityPresentation;
     private readonly ClientWorldSetupState worldSetup;
     private readonly List<ModChatMessageDto> lastChatMessages = new();
@@ -174,7 +174,7 @@ public sealed partial class ClashOfRimMod : Mod
         worldSetup = new ClientWorldSetupState(sessionLifecycle);
         compatibilityPresentation = new ClientCompatibilityPresentation((response, language, accept, cancel) =>
             new AIRsLight.ClashOfRim.CompatibilityClient.CompatibilityMismatchWindow(this, response, language, accept, cancel));
-        var entryPresentation = new ClientWorldEntryPresentation(message => loginStatus = message,
+        var entryPresentation = new ClientWorldEntryPresentation(message => { EnsureStatusDefaultsInitialized(); loginStatus = message; },
             (server, account) => Find.WindowStack.Add(new AIRsLight.ClashOfRim.MainMenu.ClashOfRimAccountRegistrationDialog(this, server, account)), compatibilityPresentation);
         var worldTransport = new ClientWorldPreparationTransport(new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner)));
         worldPreparation = new ClientWorldPreparation(sessionLifecycle, new ClientSnapshotGame(), worldTransport, entryPresentation);
@@ -283,14 +283,16 @@ public sealed partial class ClashOfRimMod : Mod
                 (message, purpose) => { loginStatus = message; if (purpose == ClientSnapshotReloadPurpose.Raid) worldMapStatus = message; },
                 response => ShowCompatibilityMismatchWindow(response)));
         snapshotReload.Completed += OnServerSnapshotLoaded;
+        var entryStore = new ClientWorldEntryStore(settings);
         worldEntry = new ClientWorldEntry(sessionLifecycle, new ClientSnapshotGame(), worldSetup,
-            new ClientWorldEntryStore(settings), worldTransport, entryPresentation, snapshotReload);
+            entryStore, worldTransport, entryPresentation, snapshotReload);
+        worldEntryStart = new ClientWorldEntryStart(sessionLifecycle, synchronization, new ClientSnapshotGame(),
+            entryStore, entryPresentation, worldPreparation, worldEntry);
         worldEntry.Accepted += response =>
         {
             CaptureServerCompatibilityManifest(response.ServerCompatibilityManifestJson);
             ApplyAdministratorFlag(response.IsAdministrator);
             UpdateOccupiedPlayerColonySites(response.WorldConfiguration);
-            if (response.HasExistingColony) ClearServerEntrySourceGameBlock("existing-colony-restore");
         };
         observationMaps = new ClientObservationMaps(sessionLifecycle, synchronization, new ClientSnapshotGame(),
             new ClientObservationTransport(), new ClientObservationRuntime(),
@@ -351,6 +353,7 @@ public sealed partial class ClashOfRimMod : Mod
         sessionLifecycle.Ended += localMutations.Reset;
         sessionLifecycle.Ended += eventInbox.Reset;
         sessionLifecycle.Ended += eventState.Reset;
+        sessionLifecycle.Ended += sourceGame.BlockCurrent;
         sessionLifecycle.Ended += ClearTransientMultiplayerSessionStateForExit;
         synchronization.SnapshotChanged += PresentSnapshotTransaction;
         sessionLifecycle.LogoutFailed += message => Log.Warning("[ClashOfRim] " + message);
@@ -503,7 +506,7 @@ public sealed partial class ClashOfRimMod : Mod
         && !snapshotUploadInProgress
         && !sessionLifecycle.IsUnavailable
         && !snapshotReload.BlocksGameLifecycle
-        && !IsBlockedServerEntrySourceGame()
+        && !sourceGame.BlocksCurrent
         && !ClashOfRimGameComponent.HasActiveRaidBattleSession
         && !ClashOfRimGameComponent.HasActiveObservationSession
         && string.IsNullOrWhiteSpace(lastSessionId);

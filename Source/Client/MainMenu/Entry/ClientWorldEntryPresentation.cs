@@ -18,6 +18,7 @@ internal sealed class ClientWorldEntryPresentation : IClientWorldEntryPresentati
     public string Text(string key, params (string Name, object? Value)[] arguments)
         => ClashOfRimText.Key(key, arguments.Select(argument => (argument.Value ?? "").Named(argument.Name)).ToArray());
     public void Diagnose(string message) => Log.Warning("[ClashOfRim] " + message);
+    public void Reject(string message) => Messages.Message(message, MessageTypeDefOf.RejectInput, historical: false);
     public void Failure(string message)
     {
         status(message); Messages.Message(message, MessageTypeDefOf.RejectInput, historical: false);

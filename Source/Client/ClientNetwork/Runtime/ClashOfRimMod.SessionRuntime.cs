@@ -160,9 +160,13 @@ public sealed partial class ClashOfRimMod
         tradeState.Reset();
         chatRefreshInProgress = false;
         chatSendInProgress = false;
-        // GoToMainMenu unloads the scene asynchronously. Its old game can still
-        // update after logout, so retain the same admission barrier used by entry.
-        MarkServerEntrySourceGame();
+        RemoteColonyWorldIconCache.Clear();
+        lastAdminStatus = null;
+        giftsEnabled = true;
+        pvpEnabled = true;
+        settings.CurrentWorldConfigurationId = string.Empty;
+        chatStatus = ClashOfRimText.Key("ClashOfRim.Chat.StatusIdle");
+        adminStatus = ClashOfRimText.Key("ClashOfRim.Admin.StatusIdle");
         lastWorldConfigurationVersion = 0;
         worldSetup.Reset();
         playerColonySiteRegistrationSuppressed = false;

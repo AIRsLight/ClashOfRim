@@ -31,9 +31,10 @@ internal sealed class ClientWorldPreparation
     internal ClientWorldPreparation(ClientSessionLifecycle session, IClientSnapshotGame game,
         IClientWorldPreparationTransport transport, IClientWorldPreparationPresentation presentation)
     { requests = new(session, game, static () => { }); this.transport = transport; this.presentation = presentation; }
-    internal async Task<Prepared?> PrepareAsync(bool createAccount)
+    internal ClientGameRequestTracker.Request Begin() => requests.Begin(replace: true)!;
+    internal async Task<Prepared?> PrepareAsync(bool createAccount, ClientGameRequestTracker.Request? captured = null)
     {
-        var request = requests.Begin(replace: true)!;
+        var request = captured ?? Begin();
         Prepared? prepared = null;
         bool Current() => requests.TryApply(request, static () => { });
         try
@@ -95,7 +96,8 @@ internal sealed class ClientWorldPreparation
             publish(prepared);
         });
     }
-    internal void Discard(Prepared prepared) => requests.End(prepared.Request);
+    internal void Discard(Prepared prepared) => Discard(prepared.Request);
+    internal void Discard(ClientGameRequestTracker.Request request) => requests.End(request);
     private string? ValidateHello(ClashOfRimClientNetworkResult<ModServerHelloResponseDto> result)
     {
         if (!result.Success || result.Response is null)

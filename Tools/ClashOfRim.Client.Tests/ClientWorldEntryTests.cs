@@ -208,6 +208,15 @@ internal static class ClientWorldEntryTests
             Check(settings.ColonyId == "old" && settings.CurrentSnapshotId == "old-snapshot", "Failed settings write left partial identity in memory.");
             failWrite = false; store.Publish("new", "new-snapshot");
             Check(settingsWrites == 2 && settings.ColonyId == "new" && settings.CurrentSnapshotId == "new-snapshot", "Identity fields were not saved together.");
+            settings.ServerBaseUrl = "old-server"; settings.UserId = "old-user"; settings.OfflinePassword = "old-password";
+            settings.CurrentLineageToken = "lineage";
+            failWrite = true;
+            try { store.Initialize("new-server", "new-user", "new-password"); } catch (InvalidOperationException) { }
+            Check(settings.ServerBaseUrl == "old-server" && settings.UserId == "old-user" && settings.OfflinePassword == "old-password"
+                && settings.ColonyId == "new" && settings.CurrentSnapshotId == "new-snapshot" && settings.CurrentLineageToken == "lineage", "Failed entry input save left partial settings.");
+            failWrite = false; store.Initialize("new-server", "new-user", "  password  ");
+            Check(settingsWrites == 4 && settings.ServerBaseUrl == "new-server" && settings.UserId == "new-user" && settings.OfflinePassword == "  password  "
+                && settings.ColonyId == "" && settings.CurrentSnapshotId == "" && settings.CurrentLineageToken == "", "Entry input did not clear colony lineage together.");
         }
         finally { harmony.UnpatchAll(harmony.Id); }
     }
@@ -250,6 +259,7 @@ internal static class ClientWorldEntryTests
             Check(Sync.TryBeginManual(out var lease), "Fixture admission busy.");
             try { await Module.Handle(result, failure, lease!); } finally { lease!.Dispose(); }
         }
+        public void Initialize(string server, string user, string password) => throw new NotSupportedException();
         public void Publish(string colonyId, string snapshotId)
         {
             if (ThrowStore) throw new InvalidOperationException("disk full");
@@ -266,6 +276,7 @@ internal static class ClientWorldEntryTests
             using var owned = continuation!.TransferManual(); Reload = request; Loads++; return Task.CompletedTask;
         }
         public string Text(string key, params (string Name, object? Value)[] arguments) { On?.Invoke("text"); return key; }
+        public void Reject(string message) => throw new NotSupportedException();
         public void Failure(string message) { Failures++; Trace.Add("failure"); }
         public void Progress(string message, float progress) { On?.Invoke("progress"); }
         public void Scenario(string? message) { Scenarios++; Trace.Add("scenario"); }

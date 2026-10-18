@@ -7,6 +7,7 @@ namespace AIRsLight.ClashOfRim.Modules.World;
 
 internal interface IClientWorldEntryStore
 {
+    void Initialize(string server, string user, string password);
     void Publish(string colonyId, string snapshotId);
 }
 internal interface IClientWorldSubstrateTransport
@@ -16,6 +17,7 @@ internal interface IClientWorldSubstrateTransport
 internal interface IClientWorldEntryPresentation
 {
     string Text(string key, params (string Name, object? Value)[] arguments);
+    void Reject(string message);
     void Failure(string message);
     void Progress(string message, float progress);
     void Scenario(string? message);

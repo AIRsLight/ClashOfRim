@@ -7,10 +7,10 @@ namespace AIRsLight.ClashOfRim.MainMenu;
 public static class ClashOfRimWorldSetupPatches
 {
     [HarmonyPostfix]
-    public static void Postfix()
+    public static void Postfix(Game __instance)
     {
         ClashOfRimMod mod = LoadedModManager.GetMod<ClashOfRimMod>();
-        mod.MarkServerEntryNewGameInitialized();
+        if (!mod.MarkServerEntryNewGameInitialized(__instance)) return;
         mod.SubmitInitialWorldConfigurationIfPending();
     }
 }
