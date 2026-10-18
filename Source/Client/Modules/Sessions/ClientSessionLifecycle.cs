@@ -140,8 +140,8 @@ internal sealed class ClientSessionLifecycle
         return EndCore(owner, context, false, sendLogout).Logout;
     }
 
-    internal Exit? EndOwned(Ownership owner, ClashOfRimClientNetworkContext context, bool requireSnapshot = false)
-        => EndCore(owner, context, requireSnapshot, sendLogout: false).Receipt;
+    internal Exit? EndOwned(Ownership owner, ClashOfRimClientNetworkContext context, bool requireSnapshot = false, bool sendLogout = false)
+        => EndCore(owner, context, requireSnapshot, sendLogout).Receipt;
 
     private (Exit? Receipt, Task Logout) EndCore(Ownership owner, ClashOfRimClientNetworkContext context, bool requireSnapshot, bool sendLogout)
     {

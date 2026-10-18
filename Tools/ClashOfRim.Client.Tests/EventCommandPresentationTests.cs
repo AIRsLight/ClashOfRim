@@ -20,11 +20,36 @@ using AIRsLight.ClashOfRim.ClientSnapshots;
 using AIRsLight.ClashOfRim.Modules.Sessions;
 using AIRsLight.ClashOfRim.Modules.Snapshots;
 using AIRsLight.ClashOfRim.Modules.Synchronization;
+using AIRsLight.ClashOfRim.Modules.World;
 using HarmonyLib;
 using Verse;
 
 internal static class EventCommandPresentationTests
 {
+    private static void SnapshotSavingPresentation()
+    {
+        var presentation = new ClientSnapshotSavingPresentation(static _ => { });
+        var mutations = new ClientLocalMutationCoordinator(); mutations.Begin(LocalMutationKind.Bank, "pending-é");
+        foreach (var kind in Enum.GetValues<ClientSnapshotSaveKind>())
+        foreach (var stage in Enum.GetValues<ClientSnapshotSaveStage>())
+        {
+            if (kind == ClientSnapshotSaveKind.Manual && stage == ClientSnapshotSaveStage.NoSession) continue;
+            var notice = new ClientSnapshotSaveNotice(kind, stage, "snapshot-é",
+                new("code-é", "failure-é", SnapshotUploadMessage.UploadFailed), mutations.Current, new IOException("exception-é"));
+            if (stage != ClientSnapshotSaveStage.Exception) notice = notice with { Exception = null };
+            string message = presentation.Format(notice); RequireResolved(message);
+            string successKey = kind switch
+            {
+                ClientSnapshotSaveKind.Manual => "ClashOfRim.SnapshotUpload.Succeeded",
+                ClientSnapshotSaveKind.Menu => "ClashOfRim.Menu.UploadSnapshotSucceeded",
+                _ => "ClashOfRim.AutosaveSnapshot.Succeeded"
+            };
+            if (stage == ClientSnapshotSaveStage.Succeeded && translations[successKey].Contains("{SNAPSHOT}") && !message.Contains("snapshot-é")
+                || stage == ClientSnapshotSaveStage.Failed && (!message.Contains("code-é") || !message.Contains("failure-é"))
+                || stage == ClientSnapshotSaveStage.Exception && (!message.Contains("IOException") || !message.Contains("exception-é")))
+                throw new Exception("Snapshot saving lost semantic message arguments: " + kind + "/" + stage);
+        }
+    }
     private static void SnapshotRestorePresentation()
     {
         foreach (var stage in Enum.GetValues<ClientSnapshotReloadStage>())
@@ -82,6 +107,7 @@ internal static class EventCommandPresentationTests
                 ShopPresentation();
                 RaidSettlementPresentation();
                 SnapshotRestorePresentation();
+                SnapshotSavingPresentation();
                 foreach (var purpose in Enum.GetValues<ClientEventConfirmationPurpose>())
                 {
                     var notice = new ClientEventConfirmationNotice(purpose, ClientEventConfirmationStage.Uploading,

@@ -2482,3 +2482,20 @@ ClientSessionFollowups 增加 SnapshotReload 来源，事件和站点原因使�
 **11 个相关单元组通过**：世界接续、共用分派、快照加载及其引擎适配器、袭击恢复、storyteller、会话启动、初次建服、世界入服／发起和模块守卫。测试项目编译通过；守卫检查 **1,298** 个模块及生成类型、**306** 个适配器及生成类型。日志：`LocalOnly/module-migration/client-snapshot-world-{repro,foundation,tests,final}.log`。没有运行全量回归、实机 RimTest 或独立发布构建，没有推送；冻结 1.6 和原有未提交工作保持独立。
 
 **下一步 M8h4p：手动／菜单快照上传。** EventApplications partial 仍直接持有准入、ModSnapshotUploadService(settings)、成功／失败展示及扩展同步，部分排队回调读取可变宿主状态。应先区分两个入口的保存与退出语义，再复用既有快照上传、准入和世界领域模块。其他 partial 及 M8h4、M8h、M8、M9–M12 继续开放，全量验证由用户安排。
+
+
+### M8h4p 手动、菜单和自动保存的统一工作流（2026-10-19）
+
+EventApplications partial 的三个上传实现统一收回 ClientSnapshotSaving；原文件从 243 行缩减为薄命令入口。新的世界工作流直接依赖 ClientSnapshotUploader、ClientColonyRegistration、ClientColonyAppearance 和会话生命周期。快照捕获、打包、上传、lineage／成就发布及准入仍由已有快照模块处理，没有复制上传算法，也不再从宿主创建 ModSnapshotUploadService(settings)。公开上传兼容门面保持不变。删除宿主已无调用方的 TryBeginSnapshotUploadTransaction、TryRejectBlockedByLocalAtomicMutation；菜单可用性与自动保存拦截条件交由工作流提供。
+
+保留三类语义：手动上传不额外要求已有 SessionId／快照，使用 ManualUpload，成功后强制请求扩展刷新；菜单保存要求已跟踪会话，也使用 ManualUpload，成功后启动站点和扩展登记，可接续返回菜单／退出程序；自动保存使用 AutoSave，阻塞／未跟踪会话／忙碌时只更新状态和日志，上传失败及成功仍显示游戏消息。站点和扩展登记保持独立启动，保存后退出不等待这两个网络请求完成，不把这一步描述成目录登记与退出的原子事务。
+
+来源检查复用 ClientRequestTracker、原会话所有权和 ClientSnapshotUploadScope，约束账户、会话代次、确切 Game／世界、WorldConfigurationId 及原快照；只有上传器声明的快照发布允许接续到接受的快照 ID。准入在排队完成展示前释放，释放回调若启动新保存，旧请求不能覆盖消息、登记站点或退出。成功／失败消息使用本次不可变文本，不再让排队回调读取可变的 snapshotUploadStatus。翻译、状态赋值、消息、外观采集及领域启动之间继续使用原请求检查。
+
+菜单保存退出复用 EndOwned／ContinueExit。EndOwned 增加默认 false 的 sendLogout 参数，保存后退出显式请求释放原连接；已经在服务器完成废弃等操作的现有调用方保持原语义。退出清理和认证清空完成后才执行窄场景回调，同凭据重新登录、退出完成通知换 Game／世界均会撤销旧退出；嵌套的场景断开复用退出回执，不重复清理或注销。注销使用保存成功时的原身份及快照，网络失败不回写后继会话。场景回调失败单独记录，不将已经成功的保存改写为上传失败。
+
+新增保存工作流组 **1,868 个场景**，四种文化下组合真实上传、生命周期、准入、站点登记、外观和世界测试端口。覆盖三个入口、上传类型／保留袭击状态、拒绝与静默跳过、捕获／传输／服务端拒绝／发布异常、释放和排队时序、原身份／快照／Game／世界替换、同凭据登录、未确认变更、准入释放时启动后继保存、退出期间清设置／重入登录／换场景、嵌套退出和注销失败。复用 EventModuleTestPorts 与 ClientWorldPublicationTestPorts；站点传输在真实请求处受控返回失败，用于证明目标、参数和启动边界，不声称目录业务全部成功。既有展示组补充三个入口全部有效阶段，在四种文化与所有已交付翻译文件中检查键及参数；保留某些语言成功提示省略快照 ID 的既有设计。
+
+**11 个相关单元组通过**：新保存工作流、快照上传器、会话生命周期、站点登记／协议、外观模块／适配器、殖民地废弃／适配器、命令展示和模块守卫。测试项目编译通过；守卫检查 **1,318** 个模块及生成类型、**307** 个适配器及生成类型。日志：`LocalOnly/module-migration/client-snapshot-saving-{foundation,tests,related,presentation,final}.log`；最终结果见 final 日志（related 的早期展示断言错误已纠正并重跑）。没有运行全量回归、实机 RimTest 或独立发布构建，没有推送；冻结 1.6 和原有未提交工作保持独立。
+
+**下一步 M8h4q：宿主剩余跨域完成接续。** Core 仍在商店完成、交易完成及目录接受等回调中决定多个刷新动作或按结果选择事件刷新策略，世界基线完成也在宿主翻译原因再启动标记刷新。应区分纯依赖连接与实际业务分派，收回后者并保留原完成来源，不能把这些 switch／回调原样包进运行时适配器。快照事务展示和世界诊断等宿主遗留亦未清理；M8h4、M8h、M8、M9–M12 继续开放，全量验证由用户安排。

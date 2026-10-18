@@ -19,7 +19,6 @@ using AIRsLight.ClashOfRim.Modules.Bank;
 using AIRsLight.ClashOfRim.Modules.Events;
 using AIRsLight.ClashOfRim.Modules.Synchronization;
 using AIRsLight.ClashOfRim.Modules.Snapshots;
-using System.Diagnostics.CodeAnalysis;
 using AIRsLight.ClashOfRim.Modules.Sessions;
 using AIRsLight.ClashOfRim.Modules.Transport;
 using System;
@@ -29,7 +28,6 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Reflection;
-using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Json;
 using System.Security.Cryptography;
@@ -100,6 +98,7 @@ public sealed partial class ClashOfRimMod : Mod
     private readonly ClientRaidSettlements raidSettlements;
     private readonly ClientRaidRecovery raidRecovery;
     private readonly ClientSnapshotReload snapshotReload;
+    private readonly ClientSnapshotSaving snapshotSaving;
     internal ClientGiftActions GiftActions => giftActions;
     private readonly ClientEventConfirmationWorkflow eventConfirmations;
     private readonly ClientEventApplications eventApplications;
@@ -311,6 +310,9 @@ public sealed partial class ClashOfRimMod : Mod
         var worldPublication = new ClientWorldPublication(entryStore, worldConfiguration, occupiedColonySites, colonyAppearance, worldMarkers);
         var colonyTransport = new ClientColonyTransport(new ClientProtocolEnvironment());
         colonyRegistration = new ClientColonyRegistration(sessionLifecycle, entryStore, localMutations, new ClientColonyRegistrationRuntime(), colonyTransport, worldPublication);
+        snapshotSaving = new ClientSnapshotSaving(sessionLifecycle, synchronization, localMutations, ClientSnapshotComposition.Create(settings),
+            new ClientSnapshotGame(), entryStore, configurationRuntime, colonyRegistration, colonyAppearance,
+            new ClientSnapshotSavingPresentation(message => snapshotUploadStatus = message));
         colonyAbandonment = new ClientColonyAbandonment(sessionLifecycle, entryStore, new ClientWorldCatalogRuntime(), colonyTransport,
             new ClientColonyAbandonPresentation(message => worldMapStatus = message));
         colonyRelocation = new ClientColonyRelocation(sessionLifecycle, entryStore, new ClientWorldCatalogRuntime(), mutationAdmission,
@@ -475,14 +477,6 @@ public sealed partial class ClashOfRimMod : Mod
 
     internal bool AdminInProgress => adminAccess.Busy;
 
-    internal bool TryBeginSnapshotUploadTransaction(
-        [NotNullWhen(true)] out ClientSynchronizationCoordinator.Lease? transaction,
-        [CallerMemberName] string callerMember = "",
-        [CallerFilePath] string callerFile = "",
-        [CallerLineNumber] int callerLine = 0)
-        => synchronization.TryAcquireSnapshot(out transaction,
-            callerMember: callerMember, callerFile: callerFile, callerLine: callerLine);
-
     private void PresentSnapshotTransaction(SnapshotTransactionNotice notice)
     {
         string owner = string.IsNullOrWhiteSpace(notice.Owner) ? "<none>" : notice.Owner;
@@ -538,14 +532,9 @@ public sealed partial class ClashOfRimMod : Mod
         && !string.IsNullOrWhiteSpace(lastSessionId)
         && !ClashOfRimGameComponent.HasActiveObservationSession;
 
-    internal bool CanUseVanillaMenuSnapshotUpload =>
-        settings.IsConfigured
-        && !string.IsNullOrWhiteSpace(settings.CurrentSnapshotId)
-        && !string.IsNullOrWhiteSpace(lastSessionId);
+    internal bool CanUseVanillaMenuSnapshotUpload => snapshotSaving.CanUseMenu;
 
-    internal bool ShouldInterceptVanillaAutosave =>
-        settings.IsConfigured
-        && !string.IsNullOrWhiteSpace(lastSessionId);
+    internal bool ShouldInterceptVanillaAutosave => snapshotSaving.InterceptsAutosave;
 
     internal bool CanStartAutomaticMapServerSession =>
         settings.IsConfigured
@@ -737,12 +726,5 @@ public sealed partial class ClashOfRimMod : Mod
     internal bool GiftsEnabled => worldMarkers.GiftsEnabled;
     internal bool PvpEnabled => worldMarkers.PvpEnabled;
     internal List<ModWorldMapMarkerDto> WorldMapMarkersSnapshot => worldMarkers.Snapshot;
-
-    private bool TryRejectBlockedByLocalAtomicMutation(out string message, LocalMutationKind? continuation = null)
-    {
-        LocalMutationState? blocked = localMutations.BlockingMutation(continuation);
-        message = blocked is null ? string.Empty : ClientLocalMutationPresentation.Blocked(blocked);
-        return blocked is not null;
-    }
 
 }

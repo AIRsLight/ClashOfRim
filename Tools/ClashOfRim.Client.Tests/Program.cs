@@ -19,6 +19,7 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("snapshot saving shares manual, menu and autosave with owned exit", ClientSnapshotSavingTests.Run),
     ("snapshot world continuation preserves loaded-game receipt and domain ordering", ClientSnapshotWorldTests.Run),
     ("server metadata shares compatibility and permission publication under original ownership", ClientServerMetadataTests.Run),
     ("session followups dispatch real domains under the source workflow receipt", ClientSessionFollowupTests.Run),
