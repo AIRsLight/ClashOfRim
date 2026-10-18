@@ -7,6 +7,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Runtime.Serialization.Json;
 using System.Text;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using AIRsLight.ClashOfRim.ClientNetwork;
@@ -656,11 +657,11 @@ public sealed partial class ClashOfRimMod
             + ", worldExtensions="
             + extensions.Count
             + ", signatureHash="
-            + ShortHash(signature)
+            + RegistrationSignatureHash(signature)
             + ", signatureBytes="
             + Encoding.UTF8.GetByteCount(signature).ToString()
             + ", lastSignatureHash="
-            + (lastRegisteredPlayerColonySiteSignature is null ? "<null>" : ShortHash(lastRegisteredPlayerColonySiteSignature))
+            + (lastRegisteredPlayerColonySiteSignature is null ? "<null>" : RegistrationSignatureHash(lastRegisteredPlayerColonySiteSignature))
             + ", sample="
             + DescribePlayerColonySiteSample(sites));
         if (sites.Count == 0 && extensions.Count == 0)
@@ -1501,4 +1502,6 @@ public sealed partial class ClashOfRimMod
             }
         });
     }
+    private static string RegistrationSignatureHash(string value) =>
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value))).ToLowerInvariant().Substring(0, 16);
 }
