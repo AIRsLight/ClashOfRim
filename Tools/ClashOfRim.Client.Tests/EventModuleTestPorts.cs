@@ -87,11 +87,12 @@ internal sealed class EventModuleFailureView : IClientSnapshotFailureView
     internal Action? Retry, Exit, Closed;
     internal Func<bool>? CurrentSession;
     internal int Shown, Menus;
+    internal Action? OnShown;
     internal string? Message => Visible?.State.Status;
     public void Show(ClientLocalMutationCoordinator.Failure failure, Action? retry, Action exit, Func<bool> belongsToCurrentSession, Action closed)
     {
         if (Visible is not null) Close(Visible);
-        Visible = failure; Retry = retry; Exit = exit; CurrentSession = belongsToCurrentSession; Closed = closed; Shown++;
+        Visible = failure; Retry = retry; Exit = exit; CurrentSession = belongsToCurrentSession; Closed = closed; Shown++; OnShown?.Invoke();
     }
     public void Close(ClientLocalMutationCoordinator.Failure failure) { if (ReferenceEquals(Visible, failure)) { Visible = null; Closed?.Invoke(); } }
     public void ReturnToMenu() => Menus++;

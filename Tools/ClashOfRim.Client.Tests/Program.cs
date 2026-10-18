@@ -19,6 +19,8 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("colony relocation runtime binds maps, layered anchors and vanilla admission", ClientColonyRelocationRuntimeTests.Run),
+    ("colony relocation shares explicit settlement, flight and snapshot confirmation", ClientColonyRelocationTests.Run),
     ("colony abandonment runtime binds exact colony, game and world", ClientColonyAbandonRuntimeTests.Run),
     ("colony abandonment owns confirmation, terminal receipt and session exit", ClientColonyAbandonmentTests.Run),
     ("colony protocol shares registration, relocation and abandonment wire contracts", ClientColonyProtocolTests.Run),

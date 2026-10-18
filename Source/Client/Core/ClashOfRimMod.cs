@@ -112,6 +112,8 @@ public sealed partial class ClashOfRimMod : Mod
     private bool runtimeWorldObjectSyncInProgress;
     private readonly ClientColonyRegistration colonyRegistration;
     private readonly ClientColonyAbandonment colonyAbandonment;
+    private readonly ClientColonyRelocation colonyRelocation;
+    private readonly ClientColonyRelocationCommands colonyRelocationCommands;
     private bool caravanArrivalTargetRefreshInProgress;
     private readonly ClientAdminAccess adminAccess;
     private readonly ClientAdministration administration;
@@ -302,6 +304,12 @@ public sealed partial class ClashOfRimMod : Mod
         colonyRegistration = new ClientColonyRegistration(sessionLifecycle, entryStore, localMutations, new ClientColonyRegistrationRuntime(), colonyTransport, worldConfiguration, occupiedColonySites);
         colonyAbandonment = new ClientColonyAbandonment(sessionLifecycle, entryStore, new ClientWorldCatalogRuntime(), colonyTransport,
             new ClientColonyAbandonPresentation(message => worldMapStatus = message));
+        colonyRelocation = new ClientColonyRelocation(sessionLifecycle, entryStore, new ClientWorldCatalogRuntime(), mutationAdmission,
+            synchronization, localMutations, snapshotTransactions, ClientSnapshotComposition.Create(settings), snapshotFailureRecovery,
+            colonyRegistration, occupiedColonySites, colonyTransport, new ClientColonyRelocationPresentation());
+        colonyRelocationCommands = new ClientColonyRelocationCommands(colonyRelocation);
+        colonyRelocation.Completed += StartQueuedAutomaticEventRefreshAfterLocalAtomicMutation;
+        colonyRelocation.MarkersAccepted += markers => CaptureWorldMapMarkers(markers, source: "colony-relocation");
         snapshotFailureRecovery.ReturningToMenu += () => colonyRegistration.Suppressed = false;
         colonyRegistration.MarkersAccepted += (markers, source) => CaptureWorldMapMarkers(markers, source: source);
         colonyRegistration.Diagnostic += (message, warning) => { if (warning) Log.Warning(message); else ClashLog.Message(message); };
@@ -798,17 +806,6 @@ public sealed partial class ClashOfRimMod : Mod
             }
         }
     }
-
-    private void BeginLocalAtomicMutation(LocalMutationKind operation, string? status = null)
-        => localMutations.Begin(operation, status ?? string.Empty);
-
-    private void CompleteLocalAtomicMutation()
-    {
-        localMutations.Reset();
-        StartQueuedAutomaticEventRefreshAfterLocalAtomicMutation();
-    }
-
-    private void ClearLocalAtomicMutation() => localMutations.Reset();
 
     private bool TryRejectBlockedByLocalAtomicMutation(out string message, LocalMutationKind? continuation = null)
     {

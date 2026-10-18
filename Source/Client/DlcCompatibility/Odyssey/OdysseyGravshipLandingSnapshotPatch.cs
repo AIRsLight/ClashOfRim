@@ -56,9 +56,8 @@ internal static class OdysseyGravshipLandingSnapshotPatch
         try
         {
             ClashOfRimMod mod = LoadedModManager.GetMod<ClashOfRimMod>();
-            string reason = ClashOfRimText.Key("ClashOfRim.WorldCatalog.ReasonPlayerColonyMapCreated");
             ClashLog.Message("[ClashOfRim] Gravship landed on player map; starting implicit colony relocation confirmation.");
-            mod.StartImplicitColonyRelocationConfirmation(map, reason);
+            mod.StartImplicitColonyRelocationConfirmation(map);
         }
         catch (System.Exception ex)
         {

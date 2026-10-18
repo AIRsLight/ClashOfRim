@@ -44,7 +44,7 @@ public static class RemoteSessionOdysseyGravEngineLaunchCheckPatch
 [HarmonyPatch(typeof(WorldComponent_GravshipController), nameof(WorldComponent_GravshipController.InitiateTakeoff))]
 public static class RemoteSessionOdysseyGravshipTakeoffPatch
 {
-    public static bool Prefix(Building_GravEngine engine, PlanetTile targetTile)
+    public static bool Prefix(Building_GravEngine engine)
     {
         if (!OdysseyCompatibilityPackage.HasRemoteStateGuards)
         {
@@ -59,7 +59,7 @@ public static class RemoteSessionOdysseyGravshipTakeoffPatch
         try
         {
             ClashOfRimMod mod = LoadedModManager.GetMod<ClashOfRimMod>();
-            return mod.TryBeginImplicitColonyRelocationTakeoff(engine.Map, targetTile);
+            return mod.TryBeginImplicitColonyRelocationTakeoff(engine.Map);
         }
         catch (System.Exception ex)
         {

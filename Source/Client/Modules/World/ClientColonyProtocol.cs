@@ -16,7 +16,7 @@ internal interface IClientColonyRegistrationTransport
         bool suppressNotification, CancellationToken token);
 }
 
-internal sealed class ClientColonyProtocol : IClientColonyRegistrationTransport, IClientColonyAbandonTransport
+internal sealed class ClientColonyProtocol : IClientColonyRegistrationTransport, IClientColonyAbandonTransport, IClientColonyRelocationTransport
 {
     private readonly ClientProtocolTransport transport;
     private readonly Func<string> notConfigured;
@@ -30,14 +30,14 @@ internal sealed class ClientColonyProtocol : IClientColonyRegistrationTransport,
             UserId = context.UserId, ColonyId = context.ColonyId, AuthToken = context.AuthToken,
             Sites = sites?.ToList() ?? new(), Extensions = extensions?.ToList() ?? new(), SuppressWorldConfigurationNotification = suppressNotification
         }, token);
-    internal Task<ClashOfRimClientNetworkResult<ModColonyRelocationResponseDto>> PreflightAsync(ClashOfRimClientNetworkContext context,
+    public Task<ClashOfRimClientNetworkResult<ModColonyRelocationResponseDto>> PreflightAsync(ClashOfRimClientNetworkContext context,
         int tile, string key, int layer, CancellationToken token)
         => Send<ModPreflightColonyRelocationRequestDto, ModColonyRelocationResponseDto>(context, ProtocolMessageKind.PreflightColonyRelocation, new()
         {
             UserId = context.UserId, ColonyId = context.ColonyId, AuthToken = context.AuthToken, CurrentSnapshotId = context.CurrentSnapshotId ?? "",
             TargetTile = tile, TargetTileLayerId = Math.Max(0, layer), IdempotencyKey = key
         }, token);
-    internal Task<ClashOfRimClientNetworkResult<ModColonyRelocationResponseDto>> ConfirmAsync(ClashOfRimClientNetworkContext context,
+    public Task<ClashOfRimClientNetworkResult<ModColonyRelocationResponseDto>> ConfirmAsync(ClashOfRimClientNetworkContext context,
         string previous, string relocated, int tile, string key, int layer, CancellationToken token)
         => Send<ModConfirmColonyRelocationRequestDto, ModColonyRelocationResponseDto>(context, ProtocolMessageKind.ConfirmColonyRelocation, new()
         {
