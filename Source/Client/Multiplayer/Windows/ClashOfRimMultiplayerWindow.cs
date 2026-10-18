@@ -1,3 +1,6 @@
+using AIRsLight.ClashOfRim.Modules.Multiplayer;
+using AIRsLight.ClashOfRim.Multiplayer.Pages;
+using static AIRsLight.ClashOfRim.Multiplayer.Players.MultiplayerPlayerText;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -18,13 +21,13 @@ namespace AIRsLight.ClashOfRim.Multiplayer;
 
 public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
 {
+    private ClientPlayerPanel? playersPanel;
+    private MultiplayerDiplomacyPage? diplomacyPage;
+    private ClientPlayerPanelView PlayerView => playersPanel!.Read(ClashOfRimText.Key("ClashOfRim.UnknownPlayer"));
+
     private const float PanelRefreshIntervalSeconds = 30f;
-    private const float PlayerLocationCacheSeconds = 2f;
-    private const float DiplomacyRowHeight = 70f;
     private const float TradeOrderRowHeight = 96f;
 
-    private Vector2 diplomacyScrollPosition;
-    private Vector2 diplomacyScoreboardScrollPosition;
     private Vector2 achievementsScrollPosition;
     private Vector2 tradeOrderScrollPosition;
     private Vector2 tradeDetailScrollPosition;
@@ -58,7 +61,6 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
     private string mercenaryGuardQuoteStatus = string.Empty;
     private ModMercenaryGuardQuoteResponseDto? mercenaryGuardQuote;
     private bool mercenaryGuardQuoteInProgress;
-    private float nextPlayerRefreshAt;
     private float nextAchievementRefreshAt;
     private float nextTradeRefreshAt;
     private float nextShopRefreshAt;
@@ -127,17 +129,10 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
     private string accountNewPassword = string.Empty;
     private readonly Dictionary<string, string> adminShopStockBuffers = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string> adminShopPriceBuffers = new(StringComparer.Ordinal);
-    private int cachedPlayersVersion = -1;
-    private string cachedPlayersUserId = string.Empty;
-    private string cachedPlayersColonyId = string.Empty;
-    private IReadOnlyList<ModPlayerSummaryDto> cachedSortedPlayers = new List<ModPlayerSummaryDto>();
-    private IReadOnlyList<ModPlayerSummaryDto> cachedWealthRankedPlayers = new List<ModPlayerSummaryDto>();
     private int cachedOwnAchievementsVersion = -1;
     private string cachedOwnAchievementsTargetUserId = string.Empty;
     private string cachedOwnAchievementsTargetColonyId = string.Empty;
     private IReadOnlyList<ModAchievementSummaryDto> cachedOwnAchievements = new List<ModAchievementSummaryDto>();
-    private readonly Dictionary<string, PlayerLocationCacheEntry> playerLocationCache = new(StringComparer.Ordinal);
-    private int playerLocationCachePlayersVersion = -1;
     private int cachedServerShopVersion = -1;
     private IReadOnlyList<ModServerShopListingDto> cachedServerShopListings = Array.Empty<ModServerShopListingDto>();
     private int cachedServerShopSellToPlayerCount;
@@ -173,6 +168,7 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
             return;
         }
 
+        if (playersPanel is null) (playersPanel, diplomacyPage) = mod.CreatePlayerPages();
         TryRefreshSelectedTab(mod);
         Rect tabRect = new(inRect.x, inRect.y + 34f, inRect.width, inRect.height - 34f);
         if (!mod.IsAdministrator && selectedTab == MultiplayerTab.Admin)
@@ -185,7 +181,7 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
         switch (selectedTab)
         {
             case MultiplayerTab.Diplomacy:
-                DrawDiplomacyTab(contentRect, mod);
+                diplomacyPage!.Draw(contentRect);
                 break;
             case MultiplayerTab.Achievements:
                 DrawAchievementsTab(contentRect, mod);
@@ -212,6 +208,13 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
                 DrawTradeTab(contentRect, mod);
                 break;
         }
+    }
+
+    public override void PostClose()
+    {
+        playersPanel?.Close();
+        diplomacyPage?.Reset();
+        base.PostClose();
     }
 
     private List<TabRecord> MainTabs(ClashOfRimMod mod)
@@ -280,10 +283,10 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
         switch (tab)
         {
             case MultiplayerTab.Diplomacy:
-                nextPlayerRefreshAt = 0f;
+                playersPanel?.RequestRefresh();
                 break;
             case MultiplayerTab.Achievements:
-                nextPlayerRefreshAt = 0f;
+                playersPanel?.RequestRefresh();
                 nextAchievementRefreshAt = 0f;
                 break;
             case MultiplayerTab.Bank:
@@ -1342,86 +1345,6 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
         }
     }
 
-    private void DrawDiplomacyTab(Rect rect, ClashOfRimMod mod)
-    {
-        Widgets.DrawMenuSection(rect);
-        Rect inner = rect.ContractedBy(10f);
-        Text.Font = GameFont.Medium;
-        Widgets.Label(new Rect(inner.x, inner.y, inner.width, 30f), ClashOfRimText.Key("ClashOfRim.Multiplayer.TabDiplomacy"));
-        Text.Font = GameFont.Small;
-
-        IReadOnlyList<ModPlayerSummaryDto> players = SortedPlayers(mod);
-        float contentY = inner.y + 42f;
-        float contentHeight = inner.height - 42f;
-        const float gap = 10f;
-        float scoreboardWidth = Mathf.Min(340f, Mathf.Max(260f, inner.width * 0.34f));
-        Rect listPanelRect = new(inner.x, contentY, inner.width - scoreboardWidth - gap, contentHeight);
-        Rect scoreboardPanelRect = new(listPanelRect.xMax + gap, contentY, scoreboardWidth, contentHeight);
-
-        Widgets.DrawMenuSection(listPanelRect);
-        Rect listInner = listPanelRect.ContractedBy(8f);
-        Rect outRect = new(listInner.x, listInner.y, listInner.width, listInner.height);
-        Rect viewRect = new(0f, 0f, outRect.width - 16f, Math.Max(outRect.height, players.Count * DiplomacyRowHeight));
-        Widgets.BeginScrollView(outRect, ref diplomacyScrollPosition, viewRect);
-        if (players.Count == 0)
-        {
-            Widgets.Label(new Rect(0f, 0f, viewRect.width, 32f), ClashOfRimText.Key("ClashOfRim.Multiplayer.NoPlayers"));
-        }
-        else
-        {
-            for (int index = 0; index < players.Count; index++)
-            {
-                DrawDiplomacyRow(new Rect(0f, index * DiplomacyRowHeight, viewRect.width, DiplomacyRowHeight - 4f), players[index], mod);
-            }
-        }
-
-        Widgets.EndScrollView();
-
-        DrawWealthScoreboard(scoreboardPanelRect, mod);
-    }
-
-    private void DrawWealthScoreboard(Rect rect, ClashOfRimMod mod)
-    {
-        Widgets.DrawMenuSection(rect);
-        Rect inner = rect.ContractedBy(8f);
-        Text.Font = GameFont.Small;
-        Widgets.Label(new Rect(inner.x, inner.y, inner.width, 24f), ClashOfRimText.Key("ClashOfRim.Scoreboard.Title"));
-
-        Rect outRect = new(inner.x, inner.y + 30f, inner.width, inner.height - 30f);
-        IReadOnlyList<ModPlayerSummaryDto> rankedPlayers = SortedPlayersByWealth(mod);
-        const float rowHeight = 28f;
-        Rect viewRect = new(0f, 0f, outRect.width - 16f, Math.Max(outRect.height, rowHeight * (rankedPlayers.Count + 1) + 18f));
-
-        Widgets.BeginScrollView(outRect, ref diplomacyScoreboardScrollPosition, viewRect);
-        Text.Font = GameFont.Tiny;
-        float y = 0f;
-        Widgets.Label(new Rect(0f, y, 34f, 22f), ClashOfRimText.Key("ClashOfRim.Scoreboard.RankHeader"));
-        Widgets.Label(new Rect(38f, y, viewRect.width - 130f, 22f), ClashOfRimText.Key("ClashOfRim.Scoreboard.PlayerHeader"));
-        Text.Anchor = TextAnchor.UpperRight;
-        Widgets.Label(new Rect(viewRect.width - 90f, y, 90f, 22f), ClashOfRimText.Key("ClashOfRim.Scoreboard.WealthHeader"));
-        Text.Anchor = TextAnchor.UpperLeft;
-        Widgets.DrawLineHorizontal(0f, y + 24f, viewRect.width);
-
-        if (rankedPlayers.Count == 0)
-        {
-            Text.Font = GameFont.Small;
-            Widgets.Label(new Rect(0f, y + rowHeight, viewRect.width, 32f), ClashOfRimText.Key("ClashOfRim.Multiplayer.NoPlayers"));
-            y += rowHeight * 2f;
-        }
-        else
-        {
-            for (int index = 0; index < rankedPlayers.Count; index++)
-            {
-                DrawWealthScoreboardRow(new Rect(0f, y + rowHeight * (index + 1), viewRect.width, rowHeight), index + 1, rankedPlayers[index], mod);
-            }
-
-            y += rowHeight * (rankedPlayers.Count + 1);
-        }
-
-        Text.Font = GameFont.Small;
-        Widgets.EndScrollView();
-    }
-
     private void DrawAchievementsTab(Rect rect, ClashOfRimMod mod)
     {
         Widgets.DrawMenuSection(rect);
@@ -1529,157 +1452,6 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
         Text.Font = GameFont.Small;
     }
 
-    private static void DrawWealthScoreboardRow(Rect rect, int rank, ModPlayerSummaryDto player, ClashOfRimMod mod)
-    {
-        bool isSelf = IsSelfPlayer(player, mod);
-        if (isSelf)
-        {
-            Widgets.DrawHighlightSelected(rect);
-        }
-        else
-        {
-            Widgets.DrawHighlightIfMouseover(rect);
-        }
-
-        Text.Font = GameFont.Tiny;
-        Color previousColor = GUI.color;
-        if (isSelf)
-        {
-            GUI.color = new Color(1f, 0.86f, 0.35f);
-        }
-
-        Widgets.Label(new Rect(rect.x, rect.y + 4f, 34f, 22f), rank.ToString(CultureInfo.InvariantCulture));
-        Widgets.Label(new Rect(rect.x + 38f, rect.y + 4f, rect.width - 132f, 22f), PlayerDisplayName(player));
-        Text.Anchor = TextAnchor.UpperRight;
-        Widgets.Label(new Rect(rect.xMax - 90f, rect.y + 4f, 90f, 22f), FormatPlayerWealth(player.LatestSnapshotWealth));
-        Text.Anchor = TextAnchor.UpperLeft;
-        GUI.color = previousColor;
-        Text.Font = GameFont.Small;
-    }
-
-    private void DrawDiplomacyRow(Rect rect, ModPlayerSummaryDto player, ClashOfRimMod mod)
-    {
-        Widgets.DrawHighlightIfMouseover(rect);
-        bool isSelf = IsSelfPlayer(player, mod);
-        string online = IsPlayerOnlineForDisplay(player, mod)
-            ? ClashOfRimText.Key("ClashOfRim.Multiplayer.Online")
-            : ClashOfRimText.Key("ClashOfRim.Multiplayer.Offline");
-        string self = isSelf ? "  " + ClashOfRimText.Key("ClashOfRim.Multiplayer.CurrentPlayer") : string.Empty;
-        string relationKind = NormalizeDiplomacyRelationKind(player.RelationKind);
-        string relation = FormatDiplomacyRelationKind(relationKind);
-
-        const float buttonWidth = 112f;
-        const float buttonHeight = 30f;
-        const float buttonGap = 8f;
-        int diplomacyButtonCount = !isSelf && !mod.ManualSyncInProgress
-            ? relationKind is "Neutral" or "Ally" ? 2 : 1
-            : 0;
-        int buttonCount = !isSelf && !mod.ManualSyncInProgress
-            ? diplomacyButtonCount + 1
-            : 0;
-        float buttonAreaWidth = buttonCount > 0
-            ? buttonCount * buttonWidth + Math.Max(0, buttonCount - 1) * buttonGap
-            : 0f;
-        float textWidth = Math.Max(120f, rect.width - buttonAreaWidth - 24f);
-        Rect nameRect = new(rect.x + 8f, rect.y + 5f, textWidth, 22f);
-        Rect statusRect = new(rect.x + 8f, rect.y + 28f, textWidth, 20f);
-        TradeUiUtility.DrawTruncatedLabel(nameRect, PlayerDisplayName(player));
-        Text.Font = GameFont.Tiny;
-        TradeUiUtility.DrawTruncatedLabel(statusRect, $"{online}  {relation}{self}");
-        if (Prefs.DevMode)
-        {
-            string debugLine = $"{player.UserId}/{player.ColonyId}  "
-                + (string.IsNullOrWhiteSpace(player.CurrentSnapshotId) ? ClashOfRimText.Key("ClashOfRim.CurrentSnapshotMissing") : player.CurrentSnapshotId!);
-            TradeUiUtility.DrawTruncatedLabel(new Rect(rect.x + 8f, rect.y + 48f, textWidth, 18f), debugLine);
-        }
-        Text.Font = GameFont.Small;
-
-        if (isSelf || mod.ManualSyncInProgress)
-        {
-            return;
-        }
-
-        float buttonY = rect.y + (rect.height - buttonHeight) * 0.5f;
-        float buttonX = rect.xMax - buttonCount * buttonWidth - Math.Max(0, buttonCount - 1) * buttonGap;
-        if (relationKind == "Neutral")
-        {
-            if (Widgets.ButtonText(new Rect(buttonX, buttonY, buttonWidth, buttonHeight), ClashOfRimText.Key("ClashOfRim.Diplomacy.RequestAlliance")))
-            {
-                ConfirmDiplomacyEvent(mod, "AllianceRequest", player);
-            }
-
-            buttonX += buttonWidth + buttonGap;
-        }
-
-        if (relationKind == "Ally")
-        {
-            if (Widgets.ButtonText(new Rect(buttonX, buttonY, buttonWidth, buttonHeight), ClashOfRimText.Key("ClashOfRim.Diplomacy.CancelAlliance")))
-            {
-                ConfirmDiplomacyEvent(mod, "AllianceCancellation", player);
-            }
-
-            buttonX += buttonWidth + buttonGap;
-
-            if (Widgets.ButtonText(new Rect(buttonX, buttonY, buttonWidth, buttonHeight), ClashOfRimText.Key("ClashOfRim.Diplomacy.RequestSupport")))
-            {
-                Find.WindowStack.Add(new AllySupportRequestDialogWindow(mod, player));
-            }
-
-            buttonX += buttonWidth + buttonGap;
-        }
-        else if (relationKind == "Neutral")
-        {
-            if (Widgets.ButtonText(new Rect(buttonX, buttonY, buttonWidth, buttonHeight), ClashOfRimText.Key("ClashOfRim.Diplomacy.DeclareWar")))
-            {
-                ConfirmDiplomacyEvent(mod, "WarDeclaration", player);
-            }
-
-            buttonX += buttonWidth + buttonGap;
-        }
-
-        if (relationKind == "Hostile")
-        {
-            if (Widgets.ButtonText(new Rect(buttonX, buttonY, buttonWidth, buttonHeight), ClashOfRimText.Key("ClashOfRim.Diplomacy.RequestPeace")))
-            {
-                ConfirmDiplomacyEvent(mod, "PeaceRequest", player);
-            }
-
-            buttonX += buttonWidth + buttonGap;
-        }
-
-        Rect locateRect = new(buttonX, buttonY, buttonWidth, buttonHeight);
-        bool canLocate = CanLocatePlayerColony(player, mod);
-        if (Widgets.ButtonText(locateRect, ClashOfRimText.Key("ClashOfRim.Multiplayer.LocatePlayer"), active: canLocate))
-        {
-            TryLocatePlayerColony(player, mod);
-        }
-
-        if (!canLocate)
-        {
-            TooltipHandler.TipRegion(locateRect, ClashOfRimText.Key("ClashOfRim.Multiplayer.PlayerLocationUnavailable"));
-        }
-    }
-
-    private static void ConfirmDiplomacyEvent(ClashOfRimMod mod, string kind, ModPlayerSummaryDto player)
-    {
-        string key = kind switch
-        {
-            "AllianceRequest" => "ClashOfRim.Diplomacy.ConfirmAllianceRequest",
-            "AllianceCancellation" => "ClashOfRim.Diplomacy.ConfirmAllianceCancellation",
-            "WarDeclaration" => "ClashOfRim.Diplomacy.ConfirmWarDeclaration",
-            "PeaceRequest" => "ClashOfRim.Diplomacy.ConfirmPeaceRequest",
-            _ => "ClashOfRim.Diplomacy.ConfirmEvent"
-        };
-
-        string message = ClashOfRimText.Key(
-            key,
-            PlayerDisplayName(player).Named("PLAYER"),
-            kind.Named("KIND"));
-        Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation(
-            message,
-            () => mod.StartCreateDiplomacyEvent(kind, player)));
-    }
-
     private static void DrawDiagnosticsTab(Rect rect, ClashOfRimMod mod)
     {
         Widgets.DrawMenuSection(rect);
@@ -1738,10 +1510,10 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
         switch (selectedTab)
         {
             case MultiplayerTab.Diplomacy:
-                TryRefreshPlayers(mod);
+                _ = playersPanel!.RefreshAsync(Time.realtimeSinceStartup);
                 break;
             case MultiplayerTab.Achievements:
-                TryRefreshPlayers(mod);
+                _ = playersPanel!.RefreshAsync(Time.realtimeSinceStartup);
                 TryRefreshAchievements(mod);
                 break;
             case MultiplayerTab.Bank:
@@ -1760,17 +1532,6 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
                 TryRefreshAdmin(mod);
                 break;
         }
-    }
-
-    private void TryRefreshPlayers(ClashOfRimMod mod)
-    {
-        if (mod.ManualSyncInProgress || Time.realtimeSinceStartup < nextPlayerRefreshAt)
-        {
-            return;
-        }
-
-        nextPlayerRefreshAt = Time.realtimeSinceStartup + PanelRefreshIntervalSeconds;
-        mod.StartRefreshPlayers();
     }
 
     private void TryRefreshAchievements(ClashOfRimMod mod)
@@ -1829,18 +1590,6 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
         mod.StartRefreshAdminStatus();
     }
 
-    private IReadOnlyList<ModPlayerSummaryDto> SortedPlayers(ClashOfRimMod mod)
-    {
-        RefreshPlayerSortCache(mod);
-        return cachedSortedPlayers;
-    }
-
-    private IReadOnlyList<ModPlayerSummaryDto> SortedPlayersByWealth(ClashOfRimMod mod)
-    {
-        RefreshPlayerSortCache(mod);
-        return cachedWealthRankedPlayers;
-    }
-
     private void EnsureAchievementTarget(ClashOfRimMod mod)
     {
         if (!string.Equals(selectedAchievementOwnerUserId, mod.UserId, StringComparison.Ordinal)
@@ -1857,11 +1606,11 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
 
     private IReadOnlyList<ModPlayerSummaryDto> AchievementSelectablePlayers(ClashOfRimMod mod)
     {
-        List<ModPlayerSummaryDto> players = SortedPlayers(mod)
+        List<ModPlayerSummaryDto> players = PlayerView.Players
             .Where(player => !string.IsNullOrWhiteSpace(player.UserId)
                 && !string.IsNullOrWhiteSpace(player.ColonyId))
             .ToList();
-        if (!players.Any(player => IsSelfPlayer(player, mod))
+        if (!players.Any(player => PlayerView.IsSelf(player))
             && !string.IsNullOrWhiteSpace(mod.UserId)
             && !string.IsNullOrWhiteSpace(mod.ColonyId))
         {
@@ -1972,43 +1721,6 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
         return cachedOwnAchievements;
     }
 
-    private void RefreshPlayerSortCache(ClashOfRimMod mod)
-    {
-        int version = mod.PlayersSnapshotVersion;
-        if (version == cachedPlayersVersion
-            && string.Equals(mod.UserId, cachedPlayersUserId, StringComparison.Ordinal)
-            && string.Equals(mod.ColonyId, cachedPlayersColonyId, StringComparison.Ordinal))
-        {
-            return;
-        }
-
-        List<ModPlayerSummaryDto> snapshot = mod.PlayersSnapshot
-            .Where(HasVisiblePlayerColony)
-            .ToList();
-        cachedSortedPlayers = snapshot
-            .OrderBy(player => IsSelfPlayer(player, mod) ? 0 : 1)
-            .ThenByDescending(player => IsPlayerOnlineForDisplay(player, mod))
-            .ThenBy(player => player.UserId, StringComparer.Ordinal)
-            .ThenBy(player => player.ColonyId, StringComparer.Ordinal)
-            .ToList();
-        cachedWealthRankedPlayers = snapshot
-            .OrderByDescending(player => player.LatestSnapshotWealth.HasValue)
-            .ThenByDescending(player => player.LatestSnapshotWealth ?? 0)
-            .ThenBy(PlayerDisplayName, StringComparer.Ordinal)
-            .ThenBy(player => player.ColonyId, StringComparer.Ordinal)
-            .ToList();
-        cachedPlayersVersion = version;
-        cachedPlayersUserId = mod.UserId;
-        cachedPlayersColonyId = mod.ColonyId;
-    }
-
-    private static string FormatPlayerWealth(int? wealth)
-    {
-        return wealth.HasValue
-            ? wealth.Value.ToString("N0", CultureInfo.InvariantCulture)
-            : ClashOfRimText.Key("ClashOfRim.Scoreboard.WealthUnknown");
-    }
-
     private static string FormatAchievementLabel(ModAchievementLeaderboardDto board)
     {
         return FormatAchievementLabel(board.LabelKey, board.AchievementId);
@@ -2100,18 +1812,6 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
         return value.ToString("N0", CultureInfo.InvariantCulture);
     }
 
-    private static bool IsSelfPlayer(ModPlayerSummaryDto player, ClashOfRimMod mod)
-    {
-        return string.Equals(player.UserId, mod.UserId, StringComparison.Ordinal)
-            && string.Equals(player.ColonyId, mod.ColonyId, StringComparison.Ordinal);
-    }
-
-    private static bool HasVisiblePlayerColony(ModPlayerSummaryDto player)
-    {
-        return !string.IsNullOrWhiteSpace(player.ColonyId)
-            && !string.IsNullOrWhiteSpace(player.CurrentSnapshotId);
-    }
-
     private (int Min, int Max) GetMercenaryDurationRange(ClashOfRimMod mod)
     {
         ModBankStatusResponseDto? status = mercenaryQuote?.BankStatus ?? mod.BankStatusSnapshot;
@@ -2146,235 +1846,6 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
     private static float ClampFloat(float value, int min, int max)
     {
         return value < min ? min : value > max ? max : value;
-    }
-
-    private static bool IsPlayerOnlineForDisplay(ModPlayerSummaryDto player, ClashOfRimMod mod)
-    {
-        return IsSelfPlayer(player, mod) || player.Online;
-    }
-
-    private bool CanLocatePlayerColony(ModPlayerSummaryDto player, ClashOfRimMod mod)
-    {
-        return TryResolveCachedPlayerColonyTarget(player, mod, out _, out _);
-    }
-
-    private void TryLocatePlayerColony(ModPlayerSummaryDto player, ClashOfRimMod mod)
-    {
-        if (!TryResolveCachedPlayerColonyTarget(player, mod, out WorldObject? worldObject, out PlanetTile tile))
-        {
-            Messages.Message(
-                ClashOfRimText.Key("ClashOfRim.Multiplayer.PlayerLocationUnavailable"),
-                MessageTypeDefOf.RejectInput,
-                historical: false);
-            playerLocationCache.Remove(PlayerLocationCacheKey(player));
-            mod.RequestWorldMapMarkerRefresh(ClashOfRimText.Key("ClashOfRim.WorldMap.ReasonLocatePlayer"));
-            return;
-        }
-
-        if (worldObject is not null && worldObject.Spawned)
-        {
-            CameraJumper.TryJump(new GlobalTargetInfo(worldObject), CameraJumper.MovementMode.Pan);
-            return;
-        }
-
-        CameraJumper.TryJump(tile, CameraJumper.MovementMode.Pan);
-    }
-
-    private bool TryResolveCachedPlayerColonyTarget(
-        ModPlayerSummaryDto player,
-        ClashOfRimMod mod,
-        out WorldObject? worldObject,
-        out PlanetTile tile)
-    {
-        int playerVersion = mod.PlayersSnapshotVersion;
-        if (playerLocationCachePlayersVersion != playerVersion)
-        {
-            playerLocationCache.Clear();
-            playerLocationCachePlayersVersion = playerVersion;
-        }
-
-        string key = PlayerLocationCacheKey(player);
-        float now = Time.realtimeSinceStartup;
-        if (playerLocationCache.TryGetValue(key, out PlayerLocationCacheEntry cached)
-            && cached.ExpiresAt > now
-            && (cached.WorldObject is null || cached.WorldObject.Spawned))
-        {
-            worldObject = cached.WorldObject;
-            tile = cached.Tile;
-            return cached.Found;
-        }
-
-        bool found = TryResolvePlayerColonyTarget(player, mod, out worldObject, out tile);
-        playerLocationCache[key] = new PlayerLocationCacheEntry
-        {
-            ExpiresAt = now + PlayerLocationCacheSeconds,
-            Found = found,
-            WorldObject = worldObject,
-            Tile = tile
-        };
-        return found;
-    }
-
-    private static bool TryResolvePlayerColonyTarget(
-        ModPlayerSummaryDto player,
-        ClashOfRimMod mod,
-        out WorldObject? worldObject,
-        out PlanetTile tile)
-    {
-        worldObject = null;
-        tile = PlanetTile.Invalid;
-
-        if (Find.WorldGrid is null)
-        {
-            return false;
-        }
-
-        IRemoteWorldObjectView? bestView = null;
-        List<WorldObject>? worldObjects = Find.WorldObjects?.AllWorldObjects;
-        if (worldObjects is not null)
-        {
-            for (int index = 0; index < worldObjects.Count; index++)
-            {
-                if (worldObjects[index] is not IRemoteWorldObjectView view
-                    || !IsPlayerColonyViewForPlayer(view, player)
-                    || !IsValidWorldTile(view.Tile))
-                {
-                    continue;
-                }
-
-                if (bestView is null || IsBetterPlayerColonyView(view, bestView))
-                {
-                    bestView = view;
-                }
-            }
-        }
-
-        worldObject = bestView?.WorldObject;
-        if (worldObject is not null)
-        {
-            tile = worldObject.Tile;
-            return true;
-        }
-
-        ModWorldMapMarkerDto? marker = null;
-        List<ModWorldMapMarkerDto> markers = mod.WorldMapMarkersSnapshot;
-        for (int index = 0; index < markers.Count; index++)
-        {
-            ModWorldMapMarkerDto candidate = markers[index];
-            if (!IsPlayerColonyMarkerForPlayer(candidate, player) || !IsValidTileId(candidate.Tile))
-            {
-                continue;
-            }
-
-            if (marker is null || IsBetterPlayerColonyMarker(candidate, marker))
-            {
-                marker = candidate;
-            }
-        }
-
-        if (marker is null)
-        {
-            return false;
-        }
-
-        tile = new PlanetTile(marker.Tile, Math.Max(0, marker.TileLayerId));
-        return IsValidWorldTile(tile);
-    }
-
-    private static bool IsBetterPlayerColonyView(IRemoteWorldObjectView candidate, IRemoteWorldObjectView current)
-    {
-        bool candidateIsMapParent = candidate.WorldObject is RemoteColonyMapParent;
-        bool currentIsMapParent = current.WorldObject is RemoteColonyMapParent;
-        if (candidateIsMapParent != currentIsMapParent)
-        {
-            return candidateIsMapParent;
-        }
-
-        return string.Compare(candidate.Label, current.Label, StringComparison.Ordinal) < 0;
-    }
-
-    private static bool IsBetterPlayerColonyMarker(ModWorldMapMarkerDto candidate, ModWorldMapMarkerDto current)
-    {
-        return string.Compare(candidate.Label, current.Label, StringComparison.Ordinal) < 0;
-    }
-
-    private static bool IsPlayerColonyViewForPlayer(IRemoteWorldObjectView view, ModPlayerSummaryDto player)
-    {
-        return view.RuntimeKind == "TradeableColony"
-            && string.Equals(view.OwnerUserId, player.UserId, StringComparison.Ordinal)
-            && (string.IsNullOrWhiteSpace(player.ColonyId)
-                || string.Equals(view.OwnerColonyId, player.ColonyId, StringComparison.Ordinal));
-    }
-
-    private static bool IsPlayerColonyMarkerForPlayer(ModWorldMapMarkerDto marker, ModPlayerSummaryDto player)
-    {
-        return marker.Kind == "TradeableColony"
-            && string.Equals(marker.OwnerUserId, player.UserId, StringComparison.Ordinal)
-            && (string.IsNullOrWhiteSpace(player.ColonyId)
-                || string.Equals(marker.OwnerColonyId, player.ColonyId, StringComparison.Ordinal));
-    }
-
-    private static bool IsValidTileId(int tileId)
-    {
-        return tileId >= 0 && Find.WorldGrid is not null && tileId < Find.WorldGrid.TilesCount;
-    }
-
-    private static bool IsValidWorldTile(PlanetTile tile)
-    {
-        return tile.Valid && IsValidTileId(tile);
-    }
-
-    private static string PlayerLocationCacheKey(ModPlayerSummaryDto player)
-    {
-        return (player.UserId ?? string.Empty) + "\u001f" + (player.ColonyId ?? string.Empty);
-    }
-
-    private sealed class PlayerLocationCacheEntry
-    {
-        public float ExpiresAt { get; set; }
-
-        public bool Found { get; set; }
-
-        public WorldObject? WorldObject { get; set; }
-
-        public PlanetTile Tile { get; set; }
-    }
-
-    private static string PlayerDisplayName(ModPlayerSummaryDto player)
-    {
-        if (!string.IsNullOrWhiteSpace(player.DisplayName))
-        {
-            return player.DisplayName!;
-        }
-
-        return string.IsNullOrWhiteSpace(player.UserId)
-            ? ClashOfRimText.Key("ClashOfRim.UnknownPlayer")
-            : player.UserId;
-    }
-
-    private static string NormalizeDiplomacyRelationKind(string? relationKind)
-    {
-        if (string.Equals(relationKind, "Ally", StringComparison.OrdinalIgnoreCase))
-        {
-            return "Ally";
-        }
-
-        if (string.Equals(relationKind, "Hostile", StringComparison.OrdinalIgnoreCase))
-        {
-            return "Hostile";
-        }
-
-        return "Neutral";
-    }
-
-    private static string FormatDiplomacyRelationKind(string relationKind)
-    {
-        return relationKind switch
-        {
-            "Ally" => ClashOfRimText.Key("ClashOfRim.Diplomacy.RelationAlly"),
-            "Hostile" => ClashOfRimText.Key("ClashOfRim.Diplomacy.RelationHostile"),
-            _ => ClashOfRimText.Key("ClashOfRim.Diplomacy.RelationNeutral")
-        };
     }
 
     private string TradeScopeTitle()

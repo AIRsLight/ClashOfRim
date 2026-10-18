@@ -250,7 +250,7 @@ internal static class PlayerDirectoryModuleTests
             new() { UserId = target, ColonyId = "target", CurrentSnapshotId = "target-base", DisplayName = "display-文化", Online = true, RelationKind = "aLlY", LatestSnapshotWealth = 17 }
         }
     };
-    private sealed class Fixture : IClientPlayerDirectoryTransport, IClientPlayerSelectionStore, IClientPlayerDirectoryPresentation, IClientPlayerDirectoryRuntime,
+    internal sealed class Fixture : IClientPlayerDirectoryTransport, IClientPlayerSelectionStore, IClientPlayerDirectoryPresentation, IClientPlayerDirectoryRuntime,
         IClientDiplomacyCreationTransport, IClientDiplomacyCreationPresentation
     {
         internal readonly EventModuleTestPorts Ports = new();

@@ -42,8 +42,7 @@ internal sealed class ClientWorldSynchronizationRuntime : IClientWorldSynchroniz
                     result.Add(new() { WorldObjectId = caravan.GetUniqueLoadID(), Tile = caravan.Tile.tileId, TileLayerId = ClientWorldRuntimeValues.ReadPlanetTileLayerId(caravan.Tile) });
             return result;
         }
-        private bool Valid(PlanetTile tile) => tile.tileId >= 0 && World?.grid?.PlanetLayers is { } layers
-            && layers.TryGetValue(ClientWorldRuntimeValues.ReadPlanetTileLayerId(tile), out var layer) && tile.tileId < layer.TilesCount;
+        private bool Valid(PlanetTile tile) => ClientWorldTileGeometry.Contains(World, tile);
         private List<int>? Path(WorldObject value, int layer)
         {
             if (value is not Caravan caravan || caravan.pather?.Moving != true || caravan.pather.curPath is not { Found: true } path || path.NodesLeftCount < 2) return null;

@@ -115,6 +115,7 @@ internal static class ClientModuleBoundaryTests
             || t == typeof(AIRsLight.ClashOfRim.Trades.ClientTradeActions) || t == typeof(AIRsLight.ClashOfRim.Trades.ClientTradeOperationsPresentation)
             || t == typeof(AIRsLight.ClashOfRim.Trades.ClientTradeDraftSource) || t == typeof(AIRsLight.ClashOfRim.Trades.ClientTradeCaravanSource)
             || t == typeof(AIRsLight.ClashOfRim.Trades.ClientTradeDropPodSource)
+            || t.Namespace?.StartsWith("AIRsLight.ClashOfRim.Multiplayer.", StringComparison.Ordinal) == true
             || t.Namespace?.Split('.')[0] is "Verse" or "RimWorld" or "UnityEngine");
         if (modules.Length == 0 || violations.Count != 0)
             throw new InvalidOperationException("Client module boundaries: " + string.Join(Environment.NewLine, violations));
@@ -139,6 +140,16 @@ internal static class ClientModuleBoundaryTests
         if (compatibilityCapabilities.Length == 0 || compatibilityViolations.Count != 0)
             throw new InvalidOperationException("Compatibility capability boundaries: " + string.Join(Environment.NewLine, compatibilityViolations));
         Console.WriteLine($"Compatibility capability guard checked {compatibilityCapabilities.Length} product and generated types.");
+        var pages = typeof(ClashOfRimMod).Assembly.GetTypes()
+            .Where(t => t.Namespace is "AIRsLight.ClashOfRim.Multiplayer.Pages" or "AIRsLight.ClashOfRim.Multiplayer.Players"
+                || t == typeof(AIRsLight.ClashOfRim.Multiplayer.AllySupportRequestDialogWindow)).ToArray();
+        var pageViolations = ModuleDependencyGuard.FindViolations(pages,
+            t => t == typeof(ClashOfRimMod) || t == typeof(ClashOfRimSettings) || t == typeof(ClashOfRimModNetworkClient)
+                || t == typeof(AIRsLight.ClashOfRim.Multiplayer.ClashOfRimMultiplayerWindow)
+                || t == typeof(Verse.LoadedModManager) || t == typeof(IServiceProvider));
+        if (pages.Length == 0 || pageViolations.Count != 0)
+            throw new InvalidOperationException("Multiplayer page boundaries: " + string.Join(Environment.NewLine, pageViolations));
+        Console.WriteLine($"Multiplayer page guard checked {pages.Length} product and generated types.");
         var sessionModules = modules.Where(t => t.Namespace == "AIRsLight.ClashOfRim.Modules.Sessions").ToArray();
         var sessionViolations = ModuleDependencyGuard.FindViolations(sessionModules,
             t => t.Namespace?.StartsWith("AIRsLight.ClashOfRim.Modules.Snapshots", StringComparison.Ordinal) == true

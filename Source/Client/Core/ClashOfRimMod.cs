@@ -1,4 +1,7 @@
 using AIRsLight.ClashOfRim.Modules.Presence;
+using AIRsLight.ClashOfRim.Modules.Multiplayer;
+using AIRsLight.ClashOfRim.Multiplayer.Pages;
+using AIRsLight.ClashOfRim.Multiplayer.Players;
 using AIRsLight.ClashOfRim.Modules.Chat;
 using AIRsLight.ClashOfRim.Modules.Administration;
 using AIRsLight.ClashOfRim.Modules.World;
@@ -419,6 +422,16 @@ public sealed partial class ClashOfRimMod : Mod
     }
 
     internal bool SnapshotUploadInProgress => synchronization.SnapshotInProgress;
+    internal (ClientPlayerPanel Players, MultiplayerDiplomacyPage Diplomacy) CreatePlayerPages()
+    {
+        var players = new ClientPlayerPanel(sessionLifecycle, new ClientSnapshotGame(), playerDirectory, diplomacyActions, synchronization);
+        var markers = worldMarkers;
+        var worldSync = worldSynchronization;
+        var locations = new PlayerColonyLocator(() => markers.Snapshot,
+            reason => _ = worldSync.RequestAsync(ClientWorldSynchronizationKind.Markers, reason), () => Time.realtimeSinceStartup);
+        return (players, new MultiplayerDiplomacyPage(players, locations));
+    }
+
     internal bool ManualSyncInProgress => synchronization.ManualInProgress;
 
     internal bool IsServerWorldSetupFlow => worldSetup.Pending;

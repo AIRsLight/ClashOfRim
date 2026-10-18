@@ -1,4 +1,5 @@
-using AIRsLight.ClashOfRim.ClientNetwork;
+using System;
+using System.Threading.Tasks;
 using RimWorld;
 using UnityEngine;
 using Verse;
@@ -8,14 +9,14 @@ namespace AIRsLight.ClashOfRim.Multiplayer;
 internal sealed class AllySupportRequestDialogWindow : Window
 {
     private const int MaxMessageLength = 500;
-    private readonly ClashOfRimMod mod;
-    private readonly ModPlayerSummaryDto target;
+    private readonly string targetUserId;
+    private readonly Func<string?, Task> send;
     private string message = string.Empty;
 
-    public AllySupportRequestDialogWindow(ClashOfRimMod mod, ModPlayerSummaryDto target)
+    internal AllySupportRequestDialogWindow(string targetUserId, Func<string?, Task> send)
     {
-        this.mod = mod;
-        this.target = target;
+        this.targetUserId = targetUserId;
+        this.send = send;
         doCloseX = true;
         closeOnClickedOutside = false;
         absorbInputAroundWindow = true;
@@ -68,14 +69,14 @@ internal sealed class AllySupportRequestDialogWindow : Window
 
     private void Submit()
     {
-        mod.StartCreateDiplomacyEvent("SupportRequest", target, message);
+        _ = send(message);
         Close();
     }
 
     private string TargetName()
     {
-        return string.IsNullOrWhiteSpace(target.UserId)
+        return string.IsNullOrWhiteSpace(targetUserId)
             ? ClashOfRimText.Key("ClashOfRim.UnknownPlayer")
-            : target.UserId;
+            : targetUserId;
     }
 }

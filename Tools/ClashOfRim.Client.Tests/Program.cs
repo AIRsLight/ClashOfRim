@@ -19,6 +19,8 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("player colony locator owns cache invalidation and layered targets", PlayerColonyLocatorTests.Run),
+    ("multiplayer player panel owns shared rankings, refresh and dialog lifetime", MultiplayerPlayerPanelTests.Run),
     ("ideology package loading owns validation and Scribe cleanup without catalog ownership", IdeoPackageLoaderTests.Run),
     ("biotech pawn packages and map capabilities own persistence and sanitation", BiotechPawnAndMapCapabilityTests.Run),
     ("biotech item capabilities own sources, identity, restoration and gene caches", BiotechItemCapabilityTests.Run),
