@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Network.Modules.Admin;
 using AIRsLight.ClashOfRim.Network.Modules.World;
 using AIRsLight.ClashOfRim.Network.Modules.Sessions;
 using AIRsLight.ClashOfRim.Network.Modules.Accounts;
@@ -106,8 +107,7 @@ public static partial class ClashOfRimNetworkServer
         RaidEndpoints.Map(app, tradeState.RaidPreparation, tradeState.RaidStarting);
         DiplomacyEndpoints.Map(app, tradeState.Diplomacy);
         WorldEndpoints.Map(app, tradeState.WorldPreparation, tradeState.WorldRead, tradeState.WorldSubmission, tradeState.WorldFeatureNames, tradeState.WorldSubstrate, tradeState.WorldSync, tradeState.ColonyRegistration, tradeState.ColonyRelocation, tradeState.ColonyAbandonment);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.GetAdminBaselineRequirements).Route, GetAdminBaselineRequirements).WithMetadata(EndpointSnapshotRecovery.Instance);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.SubmitAdminBaseline).Route, SubmitAdminBaseline).WithMetadata(EndpointSnapshotRecovery.Instance);
+        AdminEndpoints.Map(app, tradeState.AdministratorBaseline);
         var mercenaryState = app.Services.GetRequiredService<ClashOfRimNetworkState>();
         MercenaryEndpoints.Map(app, mercenaryState.Mercenaries, mercenaryState.MercenaryHiring);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.SendChatMessage).Route, SendChatMessage);

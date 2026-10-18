@@ -206,9 +206,6 @@ public static partial class ClashOfRimNetworkServer
             affected));
     }
 
-    private static ProtocolResponse? AuthorizeAdministratorRequest(ClashOfRimNetworkState state, string userId, string? colonyId, string? token)
-        => state.AdminAuthorization.Authorize(userId, colonyId, token);
-
     private static bool TryAuthorizeAdmin(ClashOfRimNetworkState state, string userId, string colonyId,
         string? authToken, DateTimeOffset nowUtc, out string failure)
         => state.AdminAuthorization.TryAuthorize(userId, colonyId, authToken, nowUtc, out failure);

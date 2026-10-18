@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Network.Modules.Admin;
 using AIRsLight.ClashOfRim.Network.Modules.World;
 using AIRsLight.ClashOfRim.Network.Modules.Achievements;
 using AIRsLight.ClashOfRim.Network.Modules.Compatibility;
@@ -220,6 +221,8 @@ public sealed class ClashOfRimNetworkState
         WorldSync = new WorldSynchronization(ColonyAuthorization, SnapshotMutations, RaidTimeouts, RuntimeWorldObjectMarkers, WorldMarkers);
         WorldSubmission = new WorldConfigurationSubmission(AdminAuthorization, CompatibilityBaseline, Plugins, SnapshotMutations,
             WorldConfiguration, PlayerActivity, WorldDelivery, () => RuntimeLogger);
+        AdministratorBaseline = new AdministratorBaseline(AdminAuthorization, WorldConfiguration, CompatibilityBaseline, Plugins,
+            AdminBaseline, TradeLifecycle, SnapshotMutations, PlayerActivity);
         WorldFeatureNames = new WorldFeatureNames(Accounts, WorldConfiguration, WorldDelivery, WorldChanges, () => RuntimeLogger);
         WorldSubstrate = new WorldSubstrateTransfer(Accounts, SnapshotPrincipals, WorldConfiguration, WorldDelivery, WorldChanges, () => RuntimeLogger);
     }
@@ -243,6 +246,7 @@ public sealed class ClashOfRimNetworkState
     internal SnapshotPrincipalAuthorization SnapshotPrincipals { get; }
     internal SnapshotRequestAuthorization SnapshotRequests { get; }
     internal AdministratorAuthorization AdminAuthorization { get; }
+    internal AdministratorBaseline AdministratorBaseline { get; }
     internal ShopService Shop { get; }
     internal SnapshotTransactions SnapshotTransactions { get; }
     internal PendingConfirmationReconciler PendingConfirmations { get; }

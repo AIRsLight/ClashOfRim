@@ -1695,3 +1695,23 @@ M8c4a 完成；下一步 **M8c4b 世界图层投影、通知构造及持久通�
 累计 **6 个相关单元组通过**：新图层模块 132 场景、原世界通知持久恢复、共享定位/投影 168 场景、快照世界投影保存失败、普通上传后处理恢复及模块/路由守卫。守卫检查 **344** 个类型和 **81** 条路由；服务端 Release 构建 **0 警告、0 错误**。日志：`LocalOnly/module-migration/world-layers-{before,after,matrix,related,build}.log`。未运行 RimTest、NetworkSmoke 套件或全量回归，未推送；本步为服务端流程，单元和原持久恢复夹具覆盖变更边界。
 
 M8c4b 完成。已核对本轮服务端地点登记、搬家、废弃、图层通知和启动扩展重建的生产调用，均指向对应模块，原宿主算法不再保留。下一步 **M8d 管理入口与管理员基线操作**，随后聊天和剩余成就/排行榜。客户端对应迁移、剩余端点恢复归属及通用提交/后处理协调仍按完整计划推进；M8 和 M9–M12 保持开放。
+
+### M8d1 管理员基线要求与提交模块（2026-10-18）
+
+`AdministratorBaseline` 接管管理员基线要求查询、插件要求汇总和基线提交编排；`AdminEndpoints` 拥有这两个入口的路由绑定。模块直接使用 AdministratorAuthorization、SnapshotMutationCoordinator、AdminBaselineRegistry、TradeLifecycle 和 PlayerSessionActivity，不接收 NetworkState、HTTP 或宿主业务回调。删除 SessionWorld.Baseline 中对应入口和辅助算法，以及已无调用者的 AuthorizeAdministratorRequest 转发；该 partial 目前仅剩尚未迁移的兼容清单覆盖入口，不能视为整个管理域已拆完。
+
+真实 HTTP 用例先复现了插件异常隔离缺口：GetRequirements 返回 IEnumerable 后，插件在延迟枚举中抛出异常，逃出原 try/catch，整个要求查询返回 500。现在在单个提供者的异常边界内物化结果；失败提供者的部分结果不会发布，健康提供者仍正常返回。空集合、空元素和缺失标识按无有效要求处理；重复要求继续按 OrdinalIgnoreCase 的提供者及类型取最后一项，再按 Ordinal 排序，改用两层分组避免拼接分隔符造成键碰撞。保留提供者自行依据当前包集合筛选要求的契约和原日志格式，没有增加一套插件筛选或异常恢复设施。
+
+保持协议/身份先校验、本人管理员会话先于恢复、恢复准备锁外执行，以及重新入锁/重放后的授权复验。提交继续在锁外复用 AdminBaselineSnapshot.FromRequest 规范化，锁内按恢复后的账本生成订单失效批次，与基线共同持久化，再调用已有 TradeLifecycle 完成退款及通知。没有复制订单关闭算法或引入新事务日志。要求查询的插件回调仍在原变更边界内，本步未宣称将这些回调移到锁外；查询不写玩家活动，成功提交才记录活动。已有基线存在标记、响应字段和两条路由的恢复归属均保持不变。
+
+新增独立 AdminBaselineModuleTests，复用 SessionModuleTestContext、Slot 和恢复探针，不构造 NetworkState。四种进程文化加真实 HTTP 共 **145** 场景，覆盖插件直接/延迟异常、空元素、重复及分隔符键、元数据保留、Royalty/Odyssey 启停和基线替换、无效凭据/角色/旧会话、准备及重放期间撤销身份、恢复锁边界、规范化价格及来源时间、保存失败保留缓存/活动、重开重试，以及恢复中新出现订单的取消和退款幂等。原 AdminBaselineAuthorizationTests 和 AdminBaselineRecoveryTests 改为直接调用模块；前者删除自建 GateSlot，使用共享 Slot 的写入探针。首次独立测试漏掉本地化初始化，已补齐现有 LoadLocalization 调用，没有改动产品初始化行为。
+
+累计 **5 个相关测试组通过**：新模块 145 场景、原基线认证/恢复提交边界、基线持久化失败、基线与订单共同恢复（85 场景），以及模块/路由守卫。守卫检查 **350** 个类型、**81** 条路由；Admin 业务模块纳入 HTTP 依赖限制。服务端 Release 构建 **0 警告、0 错误**。日志：`LocalOnly/module-migration/admin-baseline-module-{before,after,matrix,related,build}.log`。未运行 RimTest 或全量回归，未推送；本步服务端边界由独立单元、原持久恢复及定向 HTTP 用例验证。
+
+M8d1 完成，**下一步 M8d2 管理配置查询、更新及兼容清单覆盖**，随后管理员动作。本轮源码检查记录三个尚未修复的风险，下一步先复现并确定一致性边界：
+
+1. AdminUpdateConfiguration 在配置持久化前发布运行时配置；ServerConfigurationRegistry.Replace 本身也先修改缓存再保存。保存失败可能让当前进程使用未持久化的配置。
+2. 同一更新先保存兼容性角色，再保存配置覆盖，两个存储没有共同提交或恢复记录。仅调换写入顺序不能保证失败后的角色和配置一致，不能以简单换序宣称已解决。
+3. 未授权的配置更新响应仍调用 ToAdminConfigurationDto 返回完整管理配置；现有管理查询/更新/动作还依赖通用中间件恢复，需随入口迁移验证授权前无关恢复及权限变化。
+
+这些是后续待复现的源码风险，不包含在本步修复或测试通过结论中。M8d、M8 和 M9–M12 继续开放。

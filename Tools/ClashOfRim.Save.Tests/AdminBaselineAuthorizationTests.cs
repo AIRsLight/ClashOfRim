@@ -1,12 +1,10 @@
 using System.Collections;
 using System.Net;
-using System.Reflection;
 using System.Text.Json;
 using AIRsLight.ClashOfRim.Network;
 using AIRsLight.ClashOfRim.Network.Plugins;
 using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Save;
-using Microsoft.AspNetCore.Http;
 using Fixture = HttpSnapshotRecoveryTests.Fixture;
 
 internal static class AdminBaselineAuthorizationTests
@@ -84,16 +82,15 @@ internal static class AdminBaselineAuthorizationTests
 
     private static void VerifyPublicationGate()
     {
-        var slot = new GateSlot();
+        var slot = new RecoveryTestSupport.Slot();
         var state = new ClashOfRimNetworkState(adminBaselineRegistry: new AdminBaselineRegistry(slot));
-        slot.Gate = state.RaidSettlementSnapshotMutationGate;
+        slot.Before = _ => Require(Monitor.IsEntered(state.RaidSettlementSnapshotMutationGate), "Baseline persisted outside the shared trade mutation gate.");
         state.WorldConfiguration.Prepare("admin"); var now = DateTimeOffset.UtcNow;
         state.LoginSessions.TryCreate("admin", "colony", now, out var session);
         string token = state.AuthTokens.Issue("admin", "admin", "colony", session, now);
-        var handler = typeof(ClashOfRimNetworkServer).GetMethod("SubmitAdminBaseline", BindingFlags.NonPublic | BindingFlags.Static)!;
-        var response = (SubmitAdminBaselineResponse)((IValueHttpResult)handler.Invoke(null,
-            [new SubmitAdminBaselineRequest(ProtocolApiVersion.Current, "admin", "colony", now, [new("Steel", 12)], [], authToken: token), state])!).Value!;
-        Require(response.Result.Accepted && slot.Written && state.AdminBaseline.Current!.StandardMarketValuePerThing["Steel"] == 12,
+        var response = state.AdministratorBaseline.Submit(
+            new SubmitAdminBaselineRequest(ProtocolApiVersion.Current, "admin", "colony", now, [new("Steel", 12)], [], authToken: token));
+        Require(response.Result.Accepted && slot.Writes == 1 && state.AdminBaseline.Current!.StandardMarketValuePerThing["Steel"] == 12,
             "Authenticated baseline was not persisted and published.");
     }
 
@@ -101,10 +98,9 @@ internal static class AdminBaselineAuthorizationTests
     {
         using var f = new Fixture(factory); f.Start(); f.State.WorldConfiguration.Prepare("receiver");
         var values = new ProbedValues(); SubmitAdminBaselineResponse? result = null;
-        var handler = typeof(ClashOfRimNetworkServer).GetMethod("SubmitAdminBaseline", BindingFlags.NonPublic | BindingFlags.Static)!;
         SnapshotPreparationGateProbe.Run(f.State.RaidSettlementSnapshotMutationGate, hook => values.BeforeRead = hook,
-            () => result = (SubmitAdminBaselineResponse)((IValueHttpResult)handler.Invoke(null,
-                [new SubmitAdminBaselineRequest(ProtocolApiVersion.Current, "receiver", "away", DateTimeOffset.UtcNow, values, [], authToken: f.Token), f.State])!).Value!,
+            () => result = f.State.AdministratorBaseline.Submit(
+                new SubmitAdminBaselineRequest(ProtocolApiVersion.Current, "receiver", "away", DateTimeOffset.UtcNow, values, [], authToken: f.Token)),
             () => { if (revoke) f.State.AuthTokens.RevokeForUser("receiver"); });
         Require(result!.Result.Accepted == !revoke && (f.State.AdminBaseline.Current is not null) == !revoke,
             "Normalization did not recheck administrator credentials before publication.");
@@ -134,16 +130,6 @@ internal static class AdminBaselineAuthorizationTests
         public Action? BeforeRead; public int Count => 1; public StandardMarketValueDto this[int index] => new("Steel", 12);
         public IEnumerator<StandardMarketValueDto> GetEnumerator() { BeforeRead?.Invoke(); yield return this[0]; }
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
-    }
-    private sealed class GateSlot : IJsonPersistenceSlot
-    {
-        public object Gate = null!; public bool Written;
-        public string? Read() => null;
-        public void Write(string json)
-        {
-            Require(Monitor.IsEntered(Gate), "Baseline persisted outside the shared trade mutation gate.");
-            Written = true;
-        }
     }
     private sealed class Publication(Action callback) : IInlineSnapshotPostUploadProcessor
     {

@@ -8,7 +8,6 @@ using System.Text.Json.Nodes;
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Network;
 using AIRsLight.ClashOfRim.Protocol;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Data.Sqlite;
 
 internal static class AdminBaselineRecoveryTests
@@ -260,10 +259,7 @@ internal static class AdminBaselineRecoveryTests
         return state.AuthTokens.Issue("admin", "admin", "colony", session, now);
     }
     private static SubmitAdminBaselineResponse Call(ClashOfRimNetworkState state, SubmitAdminBaselineRequest request)
-    {
-        try { return (SubmitAdminBaselineResponse)((IValueHttpResult)typeof(ClashOfRimNetworkServer).GetMethod("SubmitAdminBaseline", BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, [request, state])!).Value!; }
-        catch (TargetInvocationException ex) when (ex.InnerException is not null) { ExceptionDispatchInfo.Capture(ex.InnerException).Throw(); throw; }
-    }
+        => state.AdministratorBaseline.Submit(request);
     private static void Expect(Action action, params Type[] types)
     { try { action(); } catch (Exception ex) when (types.Length == 0 ? ex is IOException : types.Any(type => type.IsInstanceOfType(ex))) { return; } throw new Exception("Expected interruption missing."); }
     private static void Require(bool condition, string message) { if (!condition) throw new Exception(message); }
