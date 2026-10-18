@@ -56,7 +56,7 @@ internal static class ClientModuleBoundaryTests
             || t == typeof(ClientEventDecisionPresentation) || t == typeof(ClientEventDecisionRuntime)
             || t == typeof(ClientDiplomacyCreationPresentation) || t == typeof(ClientDiplomacyRelationEffects) || t == typeof(ClientDiplomacyTransport)
             || t == typeof(ClientPasswordStore) || t == typeof(ClientPasswordTransport) || t == typeof(ClientPasswordPresentation)
-            || t == typeof(ClientAchievementTransport) || t == typeof(ClientAchievementPresentation)
+            || t == typeof(ClientAchievementTransport) || t == typeof(ClientAchievementPresentation) || t == typeof(ClientSessionReconnectTransport)
             || t == typeof(ClientEndgameRuntime) || t == typeof(PendingAchievementCandidates)
             || t == typeof(ClientPlayerDirectoryPresentation) || t == typeof(ClientPlayerDirectoryRuntime) || t == typeof(ClientPlayerSelectionStore)
             || t == typeof(ClientEventReadPresentation) || t == typeof(ClashOfRimEventLetterProjection)
@@ -113,7 +113,7 @@ internal static class ClientModuleBoundaryTests
             typeof(ClientDiplomacyPresentation), typeof(ClientEventTextFormatting), typeof(ClientEventReadPresentation),
             typeof(ClientEventDecisionPresentation), typeof(ClientEventDecisionRuntime),
             typeof(ClientDiplomacyCreationPresentation), typeof(ClientDiplomacyRelationEffects), typeof(ClientDiplomacyTransport),
-            typeof(ClientAchievementPresentation), typeof(ClientAchievementTransport), typeof(ClientEndgameRuntime), typeof(PendingAchievementCandidates),
+            typeof(ClientAchievementPresentation), typeof(ClientAchievementTransport), typeof(ClientSessionReconnectTransport), typeof(ClientEndgameRuntime), typeof(PendingAchievementCandidates),
             typeof(ClientPlayerDirectoryPresentation), typeof(ClientPlayerDirectoryRuntime),
             typeof(ClientGiftPackageHydration), typeof(PawnPackageHydration),
             typeof(ClientEventApplicationRuntime), typeof(ClientEventApplicationPresentation),

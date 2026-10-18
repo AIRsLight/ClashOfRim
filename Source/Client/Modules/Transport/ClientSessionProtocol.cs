@@ -33,9 +33,9 @@ internal sealed class ClientSessionProtocol : IClientSessionAuthentication
         ClientProtocolTransport ownedTransport = transport.ForContext(context);
         var result = await ownedTransport.PostLoginAsync(LoginRoute, request, token, captureReceipt).ConfigureAwait(false);
         // An accepted credential already owns a session. Never create another for a contradictory retry flag.
-        if (!string.IsNullOrWhiteSpace(manifest) || result.Response?.RequiresFullCompatibilityManifest != true
-            || result.Response.Result?.Accepted == true) return result;
-        request.CompatibilityManifestJson = manifests.BuildJson(result.Response.RequestedCompatibilityPackageIds);
+        if (!ClientCompatibilityNegotiation.NeedsDetails(result.Response?.Result?.Accepted,
+            result.Response?.RequiresFullCompatibilityManifest == true, manifest)) return result;
+        request.CompatibilityManifestJson = manifests.BuildJson(result.Response?.RequestedCompatibilityPackageIds);
         if (string.IsNullOrWhiteSpace(request.CompatibilityManifestJson))
             return ClashOfRimClientNetworkResult<ModLoginResponseDto>.Failed("CompatibilityManifestBuildFailed", diagnostics.ManifestBuildFailedMessage);
         // Retain the captured summary so the server can distinguish selected details from a complete manifest.

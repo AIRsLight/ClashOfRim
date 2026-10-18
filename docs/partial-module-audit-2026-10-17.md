@@ -1823,3 +1823,19 @@ M8g1 完成，下一步 **M8g2 结局候选队列、采集与上传确认**。M8
 累计 **6 个相关单元组通过**：新结局模块、成就查询、快照上传器、本地快照确认、模块依赖守卫、原 Scribe 文化测试。共享候选规则归位后定向复跑受影响的三个组，再单独补跑旧格式加载断言。守卫检查 **781** 个模块及生成类型、**162** 个适配器及生成类型。客户端 Release 构建通过，**0 错误、41 个警告**。日志：`LocalOnly/module-migration/client-endgame-{before,module,matrix,related-first,related,final,persistence,build}.log`。未运行 RimTest 或全量回归，未推送。
 
 M8g2 及本轮客户端成就迁移完成。下一步 **M8h 客户端世界准备/同步与殖民地生命周期**，随后管理、聊天和剩余服务端协议/快照入口；M8 和 M9–M12 继续开放。
+
+### M8h1 世界协议、准备协商与提交输入归属（2026-10-18）
+
+先迁移主菜单入服、运行时刷新和重连共同依赖的协议层。`ClientWorldProtocol` 接管 ServerHello、PrepareWorldSession、Get/SubmitWorldConfiguration、SubmitWorldFeatureNames、Upload/DownloadWorldSubstrate 七个入口；原网络客户端删除约 199 行实现，仅保留签名兼容的转发与装配。模块直接使用 ClientProtocolTransport、现有兼容清单端口和 ClientSetupAuthenticationLease，不访问 Mod、settings、引擎或宽协议客户端。路由继续来自协议清单，七类请求字段、读配置的三个独立包含选项、二进制认证头、账户创建意图及 Steam 凭据回退不变。
+
+四个迁移前定向用例复现：准备响应已接受但携带 RequiresFullCompatibilityManifest 时仍重复请求；没有结构化标记的拒绝响应仅因包含中英文“完整模组列表”字样而重试；等待临时登录期间外部修改配置 DTO 或底图字节会改变实际提交内容。登录与准备现在共用 ClientCompatibilityNegotiation，只在尚未接受、明确要求详情且未提供详情时进行一次补充请求，保留第一次捕获的摘要/清单编号和服务器要求的包子集，不从本地化消息推断协议行为。登录原有的凭据回执捕获和清理语义不变，1.6 冻结代码未改动。
+
+世界配置和底图字节在开始临时登录前复制，确保请求归属一致；成功或失败继续由已有租约释放其临时会话，借用凭据不登出，不发布到用户设置。配置深复制收敛到 ClientProtocolJson.Copy，成就查询复用这一方法并删除自己的相同包装。世界文化扩展、难度 XML、覆盖率字符串、图层几何及嵌套元数据保留原值，没有新增世界参数解析或第二套序列化器。
+
+ClientSessionReconnectTransport 也移除宽客户端依赖：准备调用世界协议，登录调用既有会话协议，快照读取调用既有快照下载协议；主类只注入传输环境。原公开兼容性提供者和进入诊断钩子由具名 ClientAuthenticationEnvironment 适配，模块不直接读取静态宿主字段；诊断钩子异常隔离保持原行为。重连适配器加入依赖守卫。
+
+新增 ClientWorldProtocolTests **208** 场景，独立装配协议/租约并比较公开门面的实际请求。覆盖四种文化、七个完整请求字段集、路由/上下文/二进制内容、嵌套世界配置及文化数据、八种读取选项、接受/标记/多语言文本的协商矩阵、摘要捕获、详情缺失/异常/取消、临时认证身份、拒绝/HTTP 失败/取消后的清理、无殖民地准备和写入准入。初稿误用了世界特征 Name 和整数 TileCount，已按实际 DTO 的 Label/string 契约修正测试；没有为夹具改动产品 DTO。
+
+累计 **8 个相关测试组通过**：新世界协议、原成就查询、模块守卫、重连模块、兼容摘要契约、公共传输、临时认证租约及已有工作区的世界底图认证测试；后一测试保持原工作区状态，不随本步提交。守卫检查 **786** 个模块及生成类型、**167** 个适配器及生成类型。客户端 Release 构建通过，**0 错误、41 个警告**。日志：`LocalOnly/module-migration/client-world-protocol-{before,after,matrix,related,build}.log`。未运行 RimTest、全量回归或推送。
+
+M8h1 完成的是共同协议依赖；世界准备的待办状态、主菜单分支、实际世界生成/应用以及运行时同步仍在宿主中。下一步 **M8h2 入服世界准备与待办状态**，随后迁移世界生成/应用、同步及殖民地生命周期；M8h、M8 和 M9–M12 保持开放。

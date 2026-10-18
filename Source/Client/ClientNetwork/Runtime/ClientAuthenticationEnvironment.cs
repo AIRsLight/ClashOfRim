@@ -14,6 +14,12 @@ internal sealed class ClientAuthenticationEnvironment : IClientCompatibilityMani
     public string NotConfiguredMessage => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured");
     public string ManifestBuildFailedMessage => ClashOfRimText.Key("ClashOfRim.Compatibility.ManifestBuildFailed");
 
+    public void LogWorldEntry()
+    {
+        try { ClashOfRimModNetworkClient.ServerEntryDiagnosticsLogger?.Invoke(); }
+        catch (Exception ex) { Log.Warning("[ClashOfRim][Compatibility] Failed to log the server entry mod list: " + ex); }
+    }
+
     public string? BuildJson(IReadOnlyCollection<string>? packageIds)
     {
         string? requested = ClashOfRimModNetworkClient.CompatibilityManifestJsonForPackagesProvider?.Invoke(packageIds);

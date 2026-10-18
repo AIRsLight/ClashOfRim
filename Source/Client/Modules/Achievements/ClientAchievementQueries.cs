@@ -30,8 +30,8 @@ internal sealed class ClientAchievementQueries
     internal bool Busy => requests.Busy;
     internal string Message => requests.Read(() => message);
     internal ClientAchievementTarget Target => requests.Read(() => target);
-    internal List<ModAchievementLeaderboardDto> CopyLeaderboards() => requests.Read(() => Copy(boards));
-    internal List<ModAchievementSummaryDto> CopyAchievements() => requests.Read(() => Copy(own));
+    internal List<ModAchievementLeaderboardDto> CopyLeaderboards() => requests.Read(() => ClientProtocolJson.Copy(boards));
+    internal List<ModAchievementSummaryDto> CopyAchievements() => requests.Read(() => ClientProtocolJson.Copy(own));
     internal void Reset() => requests.Reset();
 
     internal Task RefreshAsync(string? userId = null, string? colonyId = null)
@@ -69,7 +69,7 @@ internal sealed class ClientAchievementQueries
                 Status(request, "ClashOfRim.Achievement.StatusRefreshFailed", ("CODE", "InvalidResponse"), ("MESSAGE", ""));
             else
             {
-                var snapshot = Copy(result.Response);
+                var snapshot = ClientProtocolJson.Copy(result.Response);
                 string text = "";
                 if (!requests.TryApply(request, () => text = presentation.Text("ClashOfRim.Achievement.StatusRefreshed"))) return;
                 requests.TryApply(request, () =>
@@ -98,5 +98,4 @@ internal sealed class ClientAchievementQueries
         => response.Result?.Accepted == true && response.Leaderboards is not null && response.OwnAchievements is not null
             && response.OwnAchievements.All(achievement => achievement is not null)
             && response.Leaderboards.All(board => board is not null && board.Entries is not null && board.Entries.All(entry => entry is not null));
-    private static T Copy<T>(T value) => ClientProtocolJson.Deserialize<T>(ClientProtocolJson.Serialize(value), static type => type);
 }

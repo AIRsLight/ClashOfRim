@@ -170,7 +170,7 @@ public sealed partial class ClashOfRimMod : Mod
         settings = GetSettings<ClashOfRimSettings>();
         snapshotPublication = ClientSnapshotComposition.CreatePublication(settings);
         sessionLifecycle = new ClientSessionLifecycle(new ClientSessionIdentityStore(settings), new ClientSessionLogoutTransport(), sessionConnection);
-        sessionReconnect = new ClientSessionReconnect(new ClientSessionReconnectTransport(), sessionLifecycle, synchronization);
+        sessionReconnect = new ClientSessionReconnect(new ClientSessionReconnectTransport(new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner))), sessionLifecycle, synchronization);
         passwordChange = new ClientPasswordChange(sessionLifecycle,
             new ClientPasswordTransport(new ClientProtocolEnvironment((message, owner) => ClashOfRimModNetworkClient.SessionExpired?.Invoke(message, owner))),
             new ClientPasswordStore(settings), new ClientPasswordPresentation(), ClientMainThreadDispatcher.EnqueueSession);

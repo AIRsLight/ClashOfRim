@@ -9,6 +9,8 @@ internal static class ClientProtocolJson
 {
     private static readonly DataContractJsonSerializerSettings Settings = new() { UseSimpleDictionaryFormat = true };
 
+    internal static T Copy<T>(T value) => Deserialize<T>(Serialize(value), static type => type);
+
     internal static string Serialize<T>(T value)
     {
         var serializer = new DataContractJsonSerializer(typeof(T), Settings);
