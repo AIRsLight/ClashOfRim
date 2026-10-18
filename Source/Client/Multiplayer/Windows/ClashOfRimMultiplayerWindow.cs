@@ -21,6 +21,8 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
     private MultiplayerMercenaryPage? mercenaryPage;
     private MultiplayerAccountPage? accountPage;
     private MultiplayerDiagnosticsPage? diagnosticsPage;
+    private ClientAdminConfigurationEditor? adminConfiguration;
+    private MultiplayerAdminConfigurationPage? adminConfigurationPage;
 
     private const float PanelRefreshIntervalSeconds = PanelRefreshSchedule.IntervalSeconds;
 
@@ -29,59 +31,6 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
     private MultiplayerTab selectedTab = MultiplayerTab.Trade;
     private AdminPanelTab selectedAdminPanelTab = AdminPanelTab.Trade;
     private float nextAdminRefreshAt;
-    private string adminConfigSignature = string.Empty;
-    private bool adminTradeMarketplaceEnabled = true;
-    private string adminTradeOrderExpirationDaysText = string.Empty;
-    private string adminMaxOpenTradeOrdersText = string.Empty;
-    private string adminPostageBaseText = string.Empty;
-    private string adminPostagePerTileText = string.Empty;
-    private string adminPostageCrossLayerText = string.Empty;
-    private string adminTradeBaseFeeRateText = string.Empty;
-    private string adminTradeFeeStrategy = "Publisher";
-    private string adminRelationCooldownHoursText = string.Empty;
-    private string adminSupportCooldownMinutesText = string.Empty;
-    private string adminForcedGiftCooldownMinutesText = string.Empty;
-    private bool adminGiftsEnabled = true;
-    private bool adminBankLoansEnabled = true;
-    private string adminBankMinLoanSilverText = string.Empty;
-    private string adminBankMaxLoanSilverText = string.Empty;
-    private string adminBankLoanRatioText = string.Empty;
-    private string adminBankInterestRateText = string.Empty;
-    private string adminBankMinDaysText = string.Empty;
-    private string adminBankMaxDaysText = string.Empty;
-    private string adminBankInterestCurveText = string.Empty;
-    private string adminBankPenaltyIntervalText = string.Empty;
-    private string adminBankPenaltyPointsText = string.Empty;
-    private bool adminMercenariesEnabled = true;
-    private string adminMercApprenticeText = string.Empty;
-    private string adminMercSkilledText = string.Empty;
-    private string adminMercMasterText = string.Empty;
-    private string adminMercMinDaysText = string.Empty;
-    private string adminMercMaxDaysText = string.Empty;
-    private string adminMercDurationCurveText = string.Empty;
-    private string adminMercMaxActiveText = string.Empty;
-    private string adminMercHarmfulSurgeryText = string.Empty;
-    private string adminMercApprenticeDeathText = string.Empty;
-    private string adminMercSkilledDeathText = string.Empty;
-    private string adminMercMasterDeathText = string.Empty;
-    private bool adminMercGuardsEnabled = true;
-    private string adminMercGuardApprenticeText = string.Empty;
-    private string adminMercGuardSkilledText = string.Empty;
-    private string adminMercGuardMasterText = string.Empty;
-    private string adminMercGuardApprenticeRatioText = string.Empty;
-    private string adminMercGuardSkilledRatioText = string.Empty;
-    private string adminMercGuardMasterRatioText = string.Empty;
-    private bool adminPvpEnabled = true;
-    private string adminRaidProtectionHoursText = string.Empty;
-    private string adminRaidMaxDurationMinutesText = string.Empty;
-    private string adminRaidTimeoutGraceMinutesText = string.Empty;
-    private string adminRaidMinimumDefenderWealthText = string.Empty;
-    private string adminRaidLossRatioText = string.Empty;
-    private string adminRaidBuildingHpLossRatioText = string.Empty;
-    private string adminRaidMinimumHpRatioText = string.Empty;
-    private string adminPendingConfirmationMinutesText = string.Empty;
-    private readonly List<AdminFixedTradeFeeRow> adminFixedTradeFeeRows = new();
-    private readonly List<AdminBankOverduePenaltyStageRow> adminBankOverduePenaltyStageRows = new();
     private string adminBroadcastMessage = string.Empty;
     private string adminBroadcastSeverity = "Info";
     private string adminBroadcastTargetUserId = string.Empty;
@@ -125,6 +74,7 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
         mercenaryPage ??= mod.CreateMercenaryPage(bankPanel);
         accountPage ??= mod.CreateAccountPage();
         diagnosticsPage ??= mod.CreateDiagnosticsPage();
+        if (adminConfiguration is null) (adminConfiguration, adminConfigurationPage) = mod.CreateAdminConfigurationPage();
         TryRefreshSelectedTab(mod);
         Rect tabRect = new(inRect.x, inRect.y + 34f, inRect.width, inRect.height - 34f);
         if (!mod.IsAdministrator && selectedTab == MultiplayerTab.Admin)
@@ -176,6 +126,7 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
         bankPage?.Close();
         mercenaryPage?.Close();
         accountPage?.Close();
+        adminConfigurationPage?.Close();
         base.PostClose();
     }
 

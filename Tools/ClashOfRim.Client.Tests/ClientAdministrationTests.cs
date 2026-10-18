@@ -175,7 +175,7 @@ internal static class ClientAdministrationTests
     private static void Check(bool value, string message) { if (!value) throw new InvalidOperationException(message); }
     private static ModAdminConfigurationDto Config(int days) => new() { TradeOrderExpirationDays = days, TradeBaseFeeRate = 0.13f,
         CompatibilityMods = new() { new() { PackageId = "测试 İ", Configs = new() { new() { FileName = "settings.xml", Mode = "Enforce" } } } } };
-    private sealed class Fixture : IClientAdminTransport, IClientAdminPresentation
+    internal sealed class Fixture : IClientAdminTransport, IClientAdminPresentation
     {
         internal readonly EventModuleTestPorts Ports = new(); internal readonly ClientSessionLifecycle Session;
         internal readonly ClientAdminAccess Access; internal readonly ClientAdministration Module;

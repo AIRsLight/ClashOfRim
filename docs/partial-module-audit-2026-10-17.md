@@ -2993,3 +2993,22 @@ M10 的能力注册表和 DLC 组件拆分已完成。**下一步 M11：多人�
 ### M11g 验证补充：会话清理夹具（2026-10-19）
 
 M11h 补查共享权限所关联的会话清理单元组时，发现旧夹具仍通过反射注入已迁出的 `loginStatus`／`snapshotUploadStatus`／`presenceStatus`／`worldMapStatus` 字段，因字段不存在而在测试初始化时失败。夹具现装配真实 `ClientRuntimeDiagnostics` 并注入宿主，原有状态读取、默认文案、空消息、清理顺序与重入断言均保留。**会话清理 260 个场景通过**，日志 `LocalOnly/module-migration/client-diagnostics-cleanup-tests.log`；该补修不修改生产行为，不扩大为全量回归。
+
+
+### M11h：管理员配置草稿、统一转换与提交边界（2026-10-19）
+
+`ClientAdminConfigurationDraft` 拥有配置输入、固定费用／银行处罚行和独立兼容清单副本；`ClientAdminConfigurationEditor` 拥有草稿刷新、菜单回调及保存归属。`MultiplayerAdminConfigurationPage` 接管交易、银行、雇佣和袭击四个配置页面及共同保存栏，`MultiplayerAdminLayout` 提供配置页和剩余管理员页面共用的布局函数。主窗口删除 53 项配置状态字段，Admin partial 删除约 800 行转换、签名和配置绘制代码；这些职责已由独立类型实际持有，未用业务回调转交给原窗口。
+
+数值和曲线字段每项只声明一处读取／写回映射，`ClientAdminTextInput` 统一负责输入解析，并让按钮有效性与实际构建调用同一解析器。修复原实现按当前文化 ToString、却按 InvariantCulture 解析的错配；现在展示与输入使用固定文化，浮点格式保留往返精度，避免仅打开再保存就把服务端小数截为两／三位。拒绝 NaN、Infinity 和解析溢出的非有限值；字段范围继续由原服务端业务规则处理，没有复制整套管理配置校验。曲线空文本、固定费用空行忽略／负数归零、自定义处罚事件名和旧处罚阶段默认强度语义保留，费用策略直接复用共享 `TradeFeeStrategies.Normalize`。
+
+删除手工维护五十余项的分隔符签名，改为在已接受配置对象替换时使用现有 `ClientProtocolJson` 比较完整配置。固定费用先规范顺序，保持仅列表顺序变化时保留草稿的既有行为；普通逐帧读取不重新序列化或深拷贝。相同配置刷新、文化切换、Game／快照变化和重复确认相同管理员权限均保留未完成输入。服务端配置实际变化（含兼容清单）或页面关闭会替换草稿；保存成功以服务端返回配置为准，失败保留草稿供显式重试，不引入字段合并或自动重试。
+
+修复兼容清单编辑直接污染 `ClientAdministration.Snapshot` 的问题：清单页的角色／配置模式菜单现在只编辑草稿副本，构建请求时再次隔离输出，已接受缓存仅由原管理请求发布。新草稿不再通过 LoadedModManager 回读宿主中的兼容清单，也不维护另一套管理后端。保存、权限检查、共享准入、网络、发布和结果通知继续由 `ClientAdministration`／`ClientAdminAccess` 负责；页面关闭不取消已提交且仍属于有效会话的管理请求。
+
+编辑器复用 `ClientRequestTracker`，以现有会话和管理员授权对象绑定草稿；`ClientAdminAccess` 将原权限布尔值改为包含布尔值的不可变授权对象，重复同值观察保持对象，真正撤销／授予产生新对象，不增加第二套角色标志或页面专用代次计数器。关闭、换号／服务器／殖民地／认证、重登、会话代次变化、失效或撤权使旧菜单与未提交保存失效，撤权后重新授予也不复活旧草稿。费用、处罚和兼容清单的延迟选择还检查原行仍属于该草稿；输入编辑不占管理请求准入，实际保存沿用共享忙碌规则。
+
+测试复用原 `ClientAdministrationTests.Fixture`，未另建管理网络／故障夹具。新增五种文化下所有配置字段与嵌套数据的精确往返、各文本字段无效输入、非有限值／溢出／曲线和处罚行、缓存与构建结果隔离、同值／变值刷新、输入中途文化切换、实际菜单编辑、13 类旧草稿失效、移除行的迟到菜单、忙碌提交、请求冻结、保存中关闭以及网络／拒绝／异常后的重试。反向验证将浮点格式化临时切回当前文化，测试报 `Unedited configuration is invalid under tr-TR`；将授权对象身份比较弱化为布尔值比较，测试报 `Old draft menu crossed permission-return`。日志分别为 `LocalOnly/module-migration/client-admin-config-culture-before.log` 和 `client-admin-config-grant-before.log`，均已恢复正确实现。
+
+**8 个相关单元组通过**：新管理员配置模型、原管理控制（848 场景）、管理协议（168）、管理员基线捕获（416）、兼容覆盖、共享管理员准入／世界写入（1,324）、会话清理（260）及客户端模块边界。最终日志 `LocalOnly/module-migration/client-admin-configuration-final-tests.log`；最后移除草稿中的重复费用排序并加强字段覆盖后，单独复跑配置组通过，日志 `client-admin-configuration-draft-final-tests.log`。守卫检查 1,486 个纯模块类型、125 个兼容能力类型、26 个页面／适配类型和 312 个事件适配类型。生产随单元测试编译；未运行全量回归、专项 RimTest 或独立发布／桥接构建，GUI 布局和实际游戏内管理员操作未在本步实机验证。冻结 1.6 和原有未提交改动保留，未推送。
+
+**下一步 M11i：管理员商店的库存／价格草稿及编辑操作归属。** 随后继续玩家管理、公告／维护、清单操作、管理员页面宿主及 Mod／网络过渡门面；M11 整体和 M12／最终审计仍开放。

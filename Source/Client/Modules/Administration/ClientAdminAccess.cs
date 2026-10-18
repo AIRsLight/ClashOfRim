@@ -12,22 +12,23 @@ internal sealed class ClientAdminAccess
     private readonly ClientRequestTracker requests;
     private readonly ClientSessionLifecycle session;
     private Ticket? active;
-    private bool administrator;
+    private Permission permission = new(false);
     internal event Action? Cleared;
     internal event Action<bool>? PermissionChanged;
     internal ClientAdminAccess(ClientSessionLifecycle session)
     {
         this.session = session;
-        requests = new(session, () => { active = null; administrator = false; Cleared?.Invoke(); });
+        requests = new(session, () => { active = null; permission = new(false); Cleared?.Invoke(); });
     }
     internal T Read<T>(Func<T> read) => requests.Read(read);
     internal ClientRequestTracker.Scope Capture() => requests.Capture();
     internal bool TryApply(ClientRequestTracker.Scope scope, Action action) => requests.TryApply(scope, action);
-    internal bool IsAdministrator => requests.Read(() => administrator);
+    internal Permission CurrentPermission => requests.Read(() => permission);
+    internal bool IsAdministrator => CurrentPermission.Allowed;
     internal bool Busy => requests.Read(() => { ReleaseExpiredSource(); return active is not null; });
     internal void SetAdministrator(bool value) => requests.Read(() =>
     {
-        administrator = value;
+        if (permission.Allowed != value) permission = new(value);
         if (!value && active is { } old) End(old);
         PermissionChanged?.Invoke(value);
         return true;
@@ -48,7 +49,7 @@ internal sealed class ClientAdminAccess
             if (requiresAdministrator
                 ? session.IsUnavailable || !context.IsConfigured || string.IsNullOrWhiteSpace(context.AuthToken) : !context.HasServerIdentity)
             { failure = "ClashOfRim.Admin.NotConnected"; return null; }
-            if (requiresAdministrator && !administrator) { failure = "ClashOfRim.Admin.NotAdministrator"; return null; }
+            if (requiresAdministrator && !permission.Allowed) { failure = "ClashOfRim.Admin.NotAdministrator"; return null; }
             if (sourceCurrent?.Invoke() == false) return null;
             var request = requests.Begin();
             return request is null ? null : active = new(request, sourceCurrent, requiresAdministrator, session.IsUnavailable);
@@ -71,7 +72,7 @@ internal sealed class ClientAdminAccess
         bool applied = false;
         requests.TryApply(ticket.Request, () =>
         {
-            if ((ticket.RequiresAdministrator && (!administrator || session.IsUnavailable)) || !OwnsSource(ticket)) return;
+            if ((ticket.RequiresAdministrator && (!permission.Allowed || session.IsUnavailable)) || !OwnsSource(ticket)) return;
             action(); applied = true;
         });
         return applied;
@@ -80,4 +81,7 @@ internal sealed class ClientAdminAccess
     internal void End(Ticket ticket) => requests.TryApply(ticket.Request, () => { requests.End(ticket.Request); if (ReferenceEquals(active, ticket)) active = null; });
     internal sealed record Ticket(ClientRequestTracker.Request Request, Func<bool>? SourceCurrent, bool RequiresAdministrator, bool UnavailableAtStart)
     { internal ClashOfRimClientNetworkContext Context => Request.Context; }
+    // Retain the actual grant identity across repeated observations of the same role.
+    // Revocation/regrant must not revive a menu or draft created under the old grant.
+    internal sealed record Permission(bool Allowed);
 }

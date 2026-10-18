@@ -1,6 +1,7 @@
+using AIRsLight.ClashOfRim.Modules.Multiplayer;
+using static AIRsLight.ClashOfRim.Multiplayer.Pages.MultiplayerAdminLayout;
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.Compatibility;
@@ -39,10 +40,7 @@ public sealed partial class ClashOfRimMultiplayerWindow
         Widgets.Label(new Rect(content.x, content.y, content.width, 24f), mod.AdminStatus);
 
         ModAdminStatusResponseDto? status = mod.AdminStatusSnapshot;
-        if (status?.Configuration is not null)
-        {
-            EnsureAdminConfigFields(status.Configuration);
-        }
+        var draft = adminConfiguration!.Read();
 
         Rect body = new(content.x, content.y + 32f, content.width, content.height - 32f);
         switch (selectedAdminPanelTab)
@@ -51,13 +49,13 @@ public sealed partial class ClashOfRimMultiplayerWindow
                 DrawAdminShopPanel(body, mod);
                 break;
             case AdminPanelTab.Bank:
-                DrawAdminBankPanel(body, mod, status?.Configuration);
+                adminConfigurationPage!.DrawAdminBankPanel(body, draft);
                 break;
             case AdminPanelTab.Mercenary:
-                DrawAdminMercenaryPanel(body, mod, status?.Configuration);
+                adminConfigurationPage!.DrawAdminMercenaryPanel(body, draft);
                 break;
             case AdminPanelTab.Raid:
-                DrawAdminRaidPanel(body, mod, status?.Configuration);
+                adminConfigurationPage!.DrawAdminRaidPanel(body, draft);
                 break;
             case AdminPanelTab.Players:
                 DrawAdminPlayersPanel(body, mod, status);
@@ -66,13 +64,13 @@ public sealed partial class ClashOfRimMultiplayerWindow
                 DrawAdminMaintenancePanel(body, mod, status);
                 break;
             case AdminPanelTab.Manifest:
-                DrawAdminManifestPanel(body, mod, status?.Configuration);
+                DrawAdminManifestPanel(body, mod, status?.Configuration, draft);
                 break;
             case AdminPanelTab.Audit:
                 DrawAdminAuditPanel(body, status);
                 break;
             default:
-                DrawAdminTradePanel(body, mod, status?.Configuration);
+                adminConfigurationPage!.DrawAdminTradePanel(body, draft);
                 break;
         }
     }
@@ -121,33 +119,10 @@ public sealed partial class ClashOfRimMultiplayerWindow
         cachedAdminTabs = null;
     }
 
-    private void DrawAdminTradePanel(Rect rect, ClashOfRimMod mod, ModAdminConfigurationDto? config)
-    {
-        if (config is null)
-        {
-            Widgets.Label(rect, ClashOfRimText.Key("ClashOfRim.Admin.NoStatus"));
-            return;
-        }
-
-        Rect view = BeginAdminScrollWithSaveFooter(rect, 762f + adminFixedTradeFeeRows.Count * 34f);
-        float y = 0f;
-        DrawAdminCheckboxRow(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.TradeEnabled"), ref adminTradeMarketplaceEnabled);
-        DrawAdminTextRow(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.TradeExpirationDays"), ref adminTradeOrderExpirationDaysText);
-        DrawAdminTextRow(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.MaxOpenTradeOrders"), ref adminMaxOpenTradeOrdersText);
-        DrawAdminTextRow(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.TradeBaseFeeRate"), ref adminTradeBaseFeeRateText);
-        DrawAdminTradeFeeStrategyRow(view, ref y);
-        DrawAdminFixedTradeFeeRows(view, ref y, mod);
-        DrawAdminTextRow(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.PostageBase"), ref adminPostageBaseText);
-        DrawAdminTextRow(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.PostagePerTile"), ref adminPostagePerTileText);
-        DrawAdminTextRow(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.PostageCrossLayer"), ref adminPostageCrossLayerText);
-        Widgets.EndScrollView();
-        DrawAdminSaveFooter(rect, mod);
-    }
-
     private void DrawAdminShopPanel(Rect rect, ClashOfRimMod mod)
     {
         IReadOnlyList<ModServerShopListingDto> listings = shopPanel!.Read().All;
-        Rect view = BeginAdminScroll(rect, Math.Max(rect.height, 80f + listings.Count * 54f));
+        Rect view = BeginAdminScroll(rect, ref adminScrollPosition, Math.Max(rect.height, 80f + listings.Count * 54f));
         float y = 0f;
         DrawAdminSectionTitle(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.SectionShop"));
         Text.Font = GameFont.Tiny;
@@ -251,75 +226,15 @@ public sealed partial class ClashOfRimMultiplayerWindow
         return string.Equals(listing.ListingKind, "BuyFromPlayer", StringComparison.Ordinal);
     }
 
-    private void DrawAdminBankPanel(Rect rect, ClashOfRimMod mod, ModAdminConfigurationDto? config)
+    private void DrawAdminManifestPanel(Rect rect, ClashOfRimMod mod, ModAdminConfigurationDto? config, ClientAdminConfigurationDraft? draft)
     {
-        if (config is null)
+        if (config is null || draft is null)
         {
             Widgets.Label(rect, ClashOfRimText.Key("ClashOfRim.Admin.NoStatus"));
             return;
         }
 
-        Rect view = BeginAdminScrollWithSaveFooter(rect, 510f + adminBankOverduePenaltyStageRows.Count * 34f);
-        float y = 0f;
-        DrawAdminCheckboxRow(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.BankEnabled"), ref adminBankLoansEnabled);
-        DrawAdminTextRow(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.BankMinLoanSilver"), ref adminBankMinLoanSilverText);
-        DrawAdminTextRow(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.BankMaxLoanSilver"), ref adminBankMaxLoanSilverText);
-        DrawAdminTextRow(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.BankLoanRatio"), ref adminBankLoanRatioText);
-        DrawAdminTextRow(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.BankInterestRate"), ref adminBankInterestRateText);
-        DrawAdminTextRow(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.BankMinDays"), ref adminBankMinDaysText);
-        DrawAdminTextRow(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.BankMaxDays"), ref adminBankMaxDaysText);
-        DrawAdminTextRow(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.BankInterestCurve"), ref adminBankInterestCurveText);
-        DrawAdminTextRow(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.BankPenaltyInterval"), ref adminBankPenaltyIntervalText);
-        DrawAdminTextRow(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.BankPenaltyPoints"), ref adminBankPenaltyPointsText);
-        DrawAdminBankOverduePenaltyRows(view, ref y, mod);
-        Widgets.EndScrollView();
-        DrawAdminSaveFooter(rect, mod);
-    }
-
-    private void DrawAdminMercenaryPanel(Rect rect, ClashOfRimMod mod, ModAdminConfigurationDto? config)
-    {
-        if (config is null)
-        {
-            Widgets.Label(rect, ClashOfRimText.Key("ClashOfRim.Admin.NoStatus"));
-            return;
-        }
-
-        Rect view = BeginAdminScrollWithSaveFooter(rect, 690f);
-        float y = 0f;
-        DrawAdminSectionTitle(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.SectionMercenaryContracts"));
-        DrawAdminCheckboxRow(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.MercEnabled"), ref adminMercenariesEnabled);
-        DrawAdminTextRow(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.MercApprentice"), ref adminMercApprenticeText);
-        DrawAdminTextRow(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.MercSkilled"), ref adminMercSkilledText);
-        DrawAdminTextRow(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.MercMaster"), ref adminMercMasterText);
-        DrawAdminTextRow(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.MercMinDays"), ref adminMercMinDaysText);
-        DrawAdminTextRow(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.MercMaxDays"), ref adminMercMaxDaysText);
-        DrawAdminTextRow(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.MercDurationCurve"), ref adminMercDurationCurveText);
-        DrawAdminTextRow(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.MercMaxActive"), ref adminMercMaxActiveText);
-        DrawAdminTextRow(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.MercHarmfulSurgery"), ref adminMercHarmfulSurgeryText);
-        DrawAdminTextRow(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.MercApprenticeDeath"), ref adminMercApprenticeDeathText);
-        DrawAdminTextRow(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.MercSkilledDeath"), ref adminMercSkilledDeathText);
-        DrawAdminTextRow(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.MercMasterDeath"), ref adminMercMasterDeathText);
-        DrawAdminSectionTitle(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.SectionMercenaryGuards"));
-        DrawAdminCheckboxRow(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.MercGuardEnabled"), ref adminMercGuardsEnabled);
-        DrawAdminTextRow(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.MercGuardApprentice"), ref adminMercGuardApprenticeText);
-        DrawAdminTextRow(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.MercGuardSkilled"), ref adminMercGuardSkilledText);
-        DrawAdminTextRow(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.MercGuardMaster"), ref adminMercGuardMasterText);
-        DrawAdminTextRow(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.MercGuardApprenticeRatio"), ref adminMercGuardApprenticeRatioText);
-        DrawAdminTextRow(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.MercGuardSkilledRatio"), ref adminMercGuardSkilledRatioText);
-        DrawAdminTextRow(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.MercGuardMasterRatio"), ref adminMercGuardMasterRatioText);
-        Widgets.EndScrollView();
-        DrawAdminSaveFooter(rect, mod);
-    }
-
-    private void DrawAdminManifestPanel(Rect rect, ClashOfRimMod mod, ModAdminConfigurationDto? config)
-    {
-        if (config is null)
-        {
-            Widgets.Label(rect, ClashOfRimText.Key("ClashOfRim.Admin.NoStatus"));
-            return;
-        }
-
-        IReadOnlyList<ModAdminCompatibilityModDto> mods = config.CompatibilityMods;
+        IReadOnlyList<ModAdminCompatibilityModDto> mods = draft.CompatibilityMods;
         float height = 136f + mods.Sum(modEntry => 42f + Math.Max(1, modEntry.Configs.Count) * 32f);
         Rect scrollRect = AdminScrollRectWithSaveFooter(rect);
         Rect view = new(0f, 0f, scrollRect.width - 16f, Math.Max(scrollRect.height, height));
@@ -352,7 +267,7 @@ public sealed partial class ClashOfRimMultiplayerWindow
         {
             Widgets.Label(new Rect(0f, y, view.width, 30f), ClashOfRimText.Key("ClashOfRim.Admin.NoManifest"));
             Widgets.EndScrollView();
-            DrawAdminSaveFooter(rect, mod);
+            adminConfigurationPage!.DrawAdminSaveFooter(rect, draft);
             return;
         }
 
@@ -366,7 +281,7 @@ public sealed partial class ClashOfRimMultiplayerWindow
                     AdminModRoleLabel(modEntry.Role),
                     !mod.AdminInProgress))
             {
-                OpenAdminModRoleMenu(modEntry);
+                OpenAdminModRoleMenu(draft, modEntry);
             }
 
             Text.Font = GameFont.Tiny;
@@ -393,7 +308,7 @@ public sealed partial class ClashOfRimMultiplayerWindow
                         AdminConfigModeLabel(configEntry.Mode),
                         !mod.AdminInProgress))
                 {
-                    OpenAdminConfigModeMenu(configEntry);
+                    OpenAdminConfigModeMenu(draft, modEntry, configEntry);
                 }
 
                 y += 32f;
@@ -401,44 +316,13 @@ public sealed partial class ClashOfRimMultiplayerWindow
         }
 
         Widgets.EndScrollView();
-        DrawAdminSaveFooter(rect, mod);
-    }
-
-    private void DrawAdminRaidPanel(Rect rect, ClashOfRimMod mod, ModAdminConfigurationDto? config)
-    {
-        if (config is null)
-        {
-            Widgets.Label(rect, ClashOfRimText.Key("ClashOfRim.Admin.NoStatus"));
-            return;
-        }
-
-        const float raidAdminContentHeight = (2f * 34f) + (13f * 32f) + 16f;
-        Rect view = BeginAdminScrollWithSaveFooter(rect, raidAdminContentHeight);
-        float y = 0f;
-        DrawAdminSectionTitle(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.SectionRaid"));
-        DrawAdminCheckboxRow(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.PvpEnabled"), ref adminPvpEnabled);
-        DrawAdminTextRow(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.RaidProtectionHours"), ref adminRaidProtectionHoursText);
-        DrawAdminTextRow(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.RaidMaxDurationMinutes"), ref adminRaidMaxDurationMinutesText);
-        DrawAdminTextRow(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.RaidTimeoutGraceMinutes"), ref adminRaidTimeoutGraceMinutesText);
-        DrawAdminTextRow(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.RaidMinimumDefenderWealth"), ref adminRaidMinimumDefenderWealthText);
-        DrawAdminTextRow(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.RaidLossRatio"), ref adminRaidLossRatioText);
-        DrawAdminTextRow(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.RaidBuildingHpLossRatio"), ref adminRaidBuildingHpLossRatioText);
-        DrawAdminTextRow(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.RaidMinimumHpRatio"), ref adminRaidMinimumHpRatioText);
-        DrawAdminTextRow(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.PendingConfirmationMinutes"), ref adminPendingConfirmationMinutesText);
-
-        DrawAdminSectionTitle(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.SectionCooldown"));
-        DrawAdminTextRow(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.RelationCooldownHours"), ref adminRelationCooldownHoursText);
-        DrawAdminTextRow(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.SupportCooldownMinutes"), ref adminSupportCooldownMinutesText);
-        DrawAdminCheckboxRow(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.GiftsEnabled"), ref adminGiftsEnabled);
-        DrawAdminTextRow(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.ForcedGiftCooldownMinutes"), ref adminForcedGiftCooldownMinutesText);
-        Widgets.EndScrollView();
-        DrawAdminSaveFooter(rect, mod);
+        adminConfigurationPage!.DrawAdminSaveFooter(rect, draft);
     }
 
     private void DrawAdminPlayersPanel(Rect rect, ClashOfRimMod mod, ModAdminStatusResponseDto? status)
     {
         IReadOnlyList<ModAdminPlayerSummaryDto> players = status?.Players ?? new List<ModAdminPlayerSummaryDto>();
-        Rect view = BeginAdminScroll(rect, Math.Max(rect.height, players.Count * 70f + 20f));
+        Rect view = BeginAdminScroll(rect, ref adminScrollPosition, Math.Max(rect.height, players.Count * 70f + 20f));
         float y = 0f;
         if (players.Count == 0)
         {
@@ -486,7 +370,7 @@ public sealed partial class ClashOfRimMultiplayerWindow
 
     private void DrawAdminMaintenancePanel(Rect rect, ClashOfRimMod mod, ModAdminStatusResponseDto? status)
     {
-        Rect view = BeginAdminScroll(rect, 300f);
+        Rect view = BeginAdminScroll(rect, ref adminScrollPosition, 300f);
         float y = 0f;
         DrawAdminSectionTitle(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.SectionBroadcast"));
         Widgets.Label(new Rect(0f, y, 160f, 24f), ClashOfRimText.Key("ClashOfRim.Admin.BroadcastMessage"));
@@ -616,7 +500,7 @@ public sealed partial class ClashOfRimMultiplayerWindow
     private void DrawAdminAuditPanel(Rect rect, ModAdminStatusResponseDto? status)
     {
         IReadOnlyList<ModAdminAuditRecordDto> audits = status?.AuditRecords ?? new List<ModAdminAuditRecordDto>();
-        Rect view = BeginAdminScroll(rect, Math.Max(rect.height, audits.Count * 42f + 20f));
+        Rect view = BeginAdminScroll(rect, ref adminScrollPosition, Math.Max(rect.height, audits.Count * 42f + 20f));
         float y = 0f;
         foreach (ModAdminAuditRecordDto audit in audits)
         {
@@ -637,185 +521,6 @@ public sealed partial class ClashOfRimMultiplayerWindow
         }
 
         Widgets.EndScrollView();
-    }
-
-    private Rect BeginAdminScroll(Rect rect, float minHeight)
-    {
-        Rect view = new(0f, 0f, rect.width - 16f, Math.Max(rect.height, minHeight));
-        Widgets.BeginScrollView(rect, ref adminScrollPosition, view);
-        return view;
-    }
-
-    private Rect BeginAdminScrollWithSaveFooter(Rect rect, float minHeight)
-    {
-        return BeginAdminScroll(AdminScrollRectWithSaveFooter(rect), minHeight);
-    }
-
-    private static Rect AdminScrollRectWithSaveFooter(Rect rect)
-    {
-        const float footerHeight = 44f;
-        return new Rect(rect.x, rect.y, rect.width, Math.Max(0f, rect.height - footerHeight));
-    }
-
-    private static Rect AdminSaveFooterRect(Rect rect)
-    {
-        const float footerHeight = 44f;
-        return new Rect(rect.x, rect.yMax - footerHeight + 6f, rect.width, footerHeight - 6f);
-    }
-
-    private static void DrawAdminSectionTitle(Rect view, ref float y, string title)
-    {
-        Text.Font = GameFont.Medium;
-        Widgets.Label(new Rect(0f, y, view.width, 28f), title);
-        Text.Font = GameFont.Small;
-        y += 34f;
-    }
-
-    private static void DrawAdminTextRow(Rect view, ref float y, string label, ref string value)
-    {
-        Widgets.Label(new Rect(0f, y, 300f, 24f), label);
-        value = Widgets.TextField(new Rect(310f, y, 180f, 26f), value);
-        y += 32f;
-    }
-
-    private static void DrawAdminCheckboxRow(Rect view, ref float y, string label, ref bool value)
-    {
-        Widgets.CheckboxLabeled(new Rect(0f, y, Math.Min(view.width, 490f), 28f), label, ref value);
-        y += 32f;
-    }
-
-    private static bool DrawAdminSelectionButton(Rect rect, string label, bool active = true)
-    {
-        return ClashOfRimUiUtility.SelectionButton(rect, label, active);
-    }
-
-    private void DrawAdminTradeFeeStrategyRow(Rect view, ref float y)
-    {
-        Widgets.Label(new Rect(0f, y, 300f, 24f), ClashOfRimText.Key("ClashOfRim.Admin.TradeFeeStrategy"));
-        if (DrawAdminSelectionButton(
-                new Rect(310f, y, 180f, 26f),
-                AdminTradeFeeStrategyLabel(adminTradeFeeStrategy)))
-        {
-            OpenAdminTradeFeeStrategyMenu();
-        }
-
-        y += 32f;
-    }
-
-    private void DrawAdminFixedTradeFeeRows(Rect view, ref float y, ClashOfRimMod mod)
-    {
-        y += 6f;
-        Widgets.Label(new Rect(0f, y, 300f, 24f), ClashOfRimText.Key("ClashOfRim.Admin.FixedTradeFees"));
-        if (Widgets.ButtonText(new Rect(310f, y, 120f, 26f), ClashOfRimText.Key("ClashOfRim.Admin.AddFixedTradeFee"), active: !mod.AdminInProgress))
-        {
-            Find.WindowStack.Add(new AdminThingDefSelectionDialogWindow(def =>
-            {
-                adminFixedTradeFeeRows.Add(new AdminFixedTradeFeeRow(def.defName, "0"));
-            }));
-        }
-
-        y += 32f;
-        Text.Font = GameFont.Tiny;
-        Widgets.Label(new Rect(20f, y, 300f, 20f), ClashOfRimText.Key("ClashOfRim.Admin.FixedTradeFeeThing"));
-        Widgets.Label(new Rect(330f, y, 160f, 20f), ClashOfRimText.Key("ClashOfRim.Admin.FixedTradeFeeSilver"));
-        Text.Font = GameFont.Small;
-        y += 22f;
-
-        for (int i = 0; i < adminFixedTradeFeeRows.Count; i++)
-        {
-            AdminFixedTradeFeeRow row = adminFixedTradeFeeRows[i];
-            string thingLabel = AdminThingLabel(row.ThingDefName);
-            if (DrawAdminSelectionButton(
-                    new Rect(20f, y, 300f, 26f),
-                    thingLabel,
-                    !mod.AdminInProgress))
-            {
-                AdminFixedTradeFeeRow capturedRow = row;
-                Find.WindowStack.Add(new AdminThingDefSelectionDialogWindow(def =>
-                {
-                    capturedRow.ThingDefName = def.defName;
-                }));
-            }
-
-            row.SilverPerUnit = Widgets.TextField(new Rect(330f, y, 120f, 26f), row.SilverPerUnit);
-            if (Widgets.ButtonText(new Rect(470f, y, 80f, 26f), ClashOfRimText.Key("ClashOfRim.Admin.Remove"), active: !mod.AdminInProgress))
-            {
-                adminFixedTradeFeeRows.RemoveAt(i);
-                i--;
-                y += 30f;
-                continue;
-            }
-
-            y += 30f;
-        }
-
-        y += 6f;
-    }
-
-    private void DrawAdminBankOverduePenaltyRows(Rect view, ref float y, ClashOfRimMod mod)
-    {
-        y += 6f;
-        Widgets.Label(new Rect(0f, y, 300f, 24f), ClashOfRimText.Key("ClashOfRim.Admin.BankOverduePenaltyStages"));
-        if (Widgets.ButtonText(new Rect(310f, y, 120f, 26f), ClashOfRimText.Key("ClashOfRim.Admin.AddBankPenaltyEvent"), active: !mod.AdminInProgress))
-        {
-            Find.WindowStack.Add(new AdminIncidentDefSelectionDialogWindow(def =>
-            {
-                adminBankOverduePenaltyStageRows.Add(new AdminBankOverduePenaltyStageRow("4", def.defName, "1"));
-            }));
-        }
-
-        y += 32f;
-        Text.Font = GameFont.Tiny;
-        Widgets.Label(new Rect(20f, y, 100f, 20f), ClashOfRimText.Key("ClashOfRim.Admin.BankPenaltyStartCount"));
-        Widgets.Label(new Rect(130f, y, 300f, 20f), ClashOfRimText.Key("ClashOfRim.Admin.BankPenaltyEvent"));
-        Widgets.Label(new Rect(440f, y, 90f, 20f), ClashOfRimText.Key("ClashOfRim.Admin.BankPenaltySeverity"));
-        Text.Font = GameFont.Small;
-        y += 22f;
-
-        for (int i = 0; i < adminBankOverduePenaltyStageRows.Count; i++)
-        {
-            AdminBankOverduePenaltyStageRow row = adminBankOverduePenaltyStageRows[i];
-            row.TriggerPenaltyCount = Widgets.TextField(new Rect(20f, y, 100f, 26f), row.TriggerPenaltyCount);
-            if (DrawAdminSelectionButton(
-                    new Rect(130f, y, 300f, 26f),
-                    AdminPenaltyEventLabel(row.Kind),
-                    !mod.AdminInProgress))
-            {
-                AdminBankOverduePenaltyStageRow capturedRow = row;
-                Find.WindowStack.Add(new AdminIncidentDefSelectionDialogWindow(def =>
-                {
-                    capturedRow.Kind = def.defName;
-                }));
-            }
-
-            row.Severity = Widgets.TextField(new Rect(440f, y, 80f, 26f), row.Severity);
-            if (Widgets.ButtonText(new Rect(540f, y, 80f, 26f), ClashOfRimText.Key("ClashOfRim.Admin.Remove"), active: !mod.AdminInProgress))
-            {
-                adminBankOverduePenaltyStageRows.RemoveAt(i);
-                i--;
-                y += 30f;
-                continue;
-            }
-
-            y += 30f;
-        }
-
-        y += 6f;
-    }
-
-    private void DrawAdminSaveFooter(Rect rect, ClashOfRimMod mod)
-    {
-        Rect footer = AdminSaveFooterRect(rect);
-        bool parsed = TryBuildAdminConfiguration(out ModAdminConfigurationDto config);
-        if (!parsed)
-        {
-            Widgets.Label(new Rect(footer.x, footer.y + 6f, footer.width - 170f, 30f), ClashOfRimText.Key("ClashOfRim.Admin.InvalidConfig"));
-        }
-
-        if (Widgets.ButtonText(new Rect(footer.xMax - 150f, footer.y + 2f, 140f, 30f), ClashOfRimText.Key("ClashOfRim.Admin.Save"), active: parsed && !mod.AdminInProgress))
-        {
-            mod.StartUpdateAdminConfiguration(config);
-        }
     }
 
     private void OpenAdminPlayerActionMenu(ClashOfRimMod mod, ModAdminPlayerSummaryDto player)
@@ -864,350 +569,6 @@ public sealed partial class ClashOfRimMultiplayerWindow
         });
     }
 
-    private void EnsureAdminConfigFields(ModAdminConfigurationDto config)
-    {
-        string signature = string.Join("|",
-            config.TradeMarketplaceEnabled,
-            config.TradeOrderExpirationDays,
-            config.MaxOpenTradeOrdersPerOwner,
-            config.TradePostageBaseSilver,
-            config.TradePostageSilverPerTile,
-            config.TradePostageCrossLayerOverheadDistanceTiles,
-            config.TradeBaseFeeRate,
-            config.TradeFeeStrategy,
-            config.DiplomacyRelationChangeCooldownHours,
-            config.DiplomacySupportRequestCooldownMinutes,
-            config.ForcedGiftDeliveryCooldownMinutes,
-            config.GiftsEnabled,
-            config.BankLoansEnabled,
-            config.BankMinLoanSilver,
-            config.BankMaxLoanSilver,
-            config.BankMaxLoanWealthRatio,
-            config.BankBaseAnnualInterestRate,
-            config.BankMinDurationDays,
-            config.BankMaxDurationDays,
-            config.BankInterestDurationMultiplierCurve,
-            config.BankPenaltyIntervalDays,
-            config.BankPenaltyRaidPointsPerSilver,
-            config.BankOverduePenaltyStages,
-            config.MercenariesEnabled,
-            config.MercenaryApprenticeDailySilver,
-            config.MercenarySkilledDailySilver,
-            config.MercenaryMasterDailySilver,
-            config.MercenaryMinDurationDays,
-            config.MercenaryMaxDurationDays,
-            config.MercenaryDurationMultiplierCurve,
-            config.MaxActiveMercenariesPerColony,
-            config.MercenaryHarmfulSurgeryFineSilver,
-            config.MercenaryApprenticeDeathFineSilver,
-            config.MercenarySkilledDeathFineSilver,
-            config.MercenaryMasterDeathFineSilver,
-            config.MercenaryGuardsEnabled,
-            config.MercenaryGuardApprenticeSilver,
-            config.MercenaryGuardSkilledSilver,
-            config.MercenaryGuardMasterSilver,
-            config.MercenaryGuardApprenticePointsRatio,
-            config.MercenaryGuardSkilledPointsRatio,
-            config.MercenaryGuardMasterPointsRatio,
-            config.PvpEnabled,
-            config.RaidProtectionHours,
-            config.RaidMaxDurationMinutes,
-            config.RaidTimeoutGraceMinutes,
-            config.RaidMinimumDefenderWealth,
-            config.RaidSettlementLossRatio,
-            config.RaidSettlementBuildingHitPointsLossRatio,
-            config.RaidSettlementMinimumRemainingHitPointsRatio,
-            config.PendingConfirmationTimeoutMinutes,
-            string.Join(",", config.FixedTradeFees
-                .OrderBy(entry => entry.ThingDefName, StringComparer.OrdinalIgnoreCase)
-                .Select(entry => $"{entry.ThingDefName}:{entry.SilverPerUnit}")));
-        if (string.Equals(adminConfigSignature, signature, StringComparison.Ordinal))
-        {
-            return;
-        }
-
-        adminConfigSignature = signature;
-        adminTradeMarketplaceEnabled = config.TradeMarketplaceEnabled;
-        adminTradeOrderExpirationDaysText = config.TradeOrderExpirationDays.ToString();
-        adminMaxOpenTradeOrdersText = config.MaxOpenTradeOrdersPerOwner.ToString();
-        adminPostageBaseText = config.TradePostageBaseSilver.ToString();
-        adminPostagePerTileText = config.TradePostageSilverPerTile.ToString();
-        adminPostageCrossLayerText = config.TradePostageCrossLayerOverheadDistanceTiles.ToString();
-        adminTradeBaseFeeRateText = config.TradeBaseFeeRate.ToString("0.###");
-        adminTradeFeeStrategy = NormalizeAdminTradeFeeStrategy(config.TradeFeeStrategy);
-        adminRelationCooldownHoursText = config.DiplomacyRelationChangeCooldownHours.ToString("0.##");
-        adminSupportCooldownMinutesText = config.DiplomacySupportRequestCooldownMinutes.ToString("0.##");
-        adminForcedGiftCooldownMinutesText = config.ForcedGiftDeliveryCooldownMinutes.ToString("0.##");
-        adminGiftsEnabled = config.GiftsEnabled;
-        adminBankLoansEnabled = config.BankLoansEnabled;
-        adminBankMinLoanSilverText = config.BankMinLoanSilver.ToString();
-        adminBankMaxLoanSilverText = config.BankMaxLoanSilver.ToString();
-        adminBankLoanRatioText = config.BankMaxLoanWealthRatio.ToString("0.###");
-        adminBankInterestRateText = config.BankBaseAnnualInterestRate.ToString("0.###");
-        adminBankMinDaysText = config.BankMinDurationDays.ToString();
-        adminBankMaxDaysText = config.BankMaxDurationDays.ToString();
-        adminBankInterestCurveText = config.BankInterestDurationMultiplierCurve;
-        adminBankPenaltyIntervalText = config.BankPenaltyIntervalDays.ToString();
-        adminBankPenaltyPointsText = config.BankPenaltyRaidPointsPerSilver.ToString("0.###");
-        adminBankOverduePenaltyStageRows.Clear();
-        adminBankOverduePenaltyStageRows.AddRange(ParseAdminBankOverduePenaltyStageRows(config.BankOverduePenaltyStages));
-        adminMercenariesEnabled = config.MercenariesEnabled;
-        adminMercApprenticeText = config.MercenaryApprenticeDailySilver.ToString();
-        adminMercSkilledText = config.MercenarySkilledDailySilver.ToString();
-        adminMercMasterText = config.MercenaryMasterDailySilver.ToString();
-        adminMercMinDaysText = config.MercenaryMinDurationDays.ToString();
-        adminMercMaxDaysText = config.MercenaryMaxDurationDays.ToString();
-        adminMercDurationCurveText = config.MercenaryDurationMultiplierCurve;
-        adminMercMaxActiveText = config.MaxActiveMercenariesPerColony.ToString();
-        adminMercHarmfulSurgeryText = config.MercenaryHarmfulSurgeryFineSilver.ToString();
-        adminMercApprenticeDeathText = config.MercenaryApprenticeDeathFineSilver.ToString();
-        adminMercSkilledDeathText = config.MercenarySkilledDeathFineSilver.ToString();
-        adminMercMasterDeathText = config.MercenaryMasterDeathFineSilver.ToString();
-        adminMercGuardsEnabled = config.MercenaryGuardsEnabled;
-        adminMercGuardApprenticeText = config.MercenaryGuardApprenticeSilver.ToString();
-        adminMercGuardSkilledText = config.MercenaryGuardSkilledSilver.ToString();
-        adminMercGuardMasterText = config.MercenaryGuardMasterSilver.ToString();
-        adminMercGuardApprenticeRatioText = config.MercenaryGuardApprenticePointsRatio.ToString("0.###");
-        adminMercGuardSkilledRatioText = config.MercenaryGuardSkilledPointsRatio.ToString("0.###");
-        adminMercGuardMasterRatioText = config.MercenaryGuardMasterPointsRatio.ToString("0.###");
-        adminPvpEnabled = config.PvpEnabled;
-        adminRaidProtectionHoursText = config.RaidProtectionHours.ToString("0.##");
-        adminRaidMaxDurationMinutesText = config.RaidMaxDurationMinutes.ToString("0.##");
-        adminRaidTimeoutGraceMinutesText = config.RaidTimeoutGraceMinutes.ToString("0.##");
-        adminRaidMinimumDefenderWealthText = config.RaidMinimumDefenderWealth.ToString();
-        adminRaidLossRatioText = config.RaidSettlementLossRatio.ToString("0.###");
-        adminRaidBuildingHpLossRatioText = config.RaidSettlementBuildingHitPointsLossRatio.ToString("0.###");
-        adminRaidMinimumHpRatioText = config.RaidSettlementMinimumRemainingHitPointsRatio.ToString("0.###");
-        adminPendingConfirmationMinutesText = config.PendingConfirmationTimeoutMinutes.ToString("0.##");
-        adminFixedTradeFeeRows.Clear();
-        adminFixedTradeFeeRows.AddRange(config.FixedTradeFees
-            .OrderBy(entry => entry.ThingDefName, StringComparer.OrdinalIgnoreCase)
-            .Select(entry => new AdminFixedTradeFeeRow(entry.ThingDefName, entry.SilverPerUnit.ToString())));
-    }
-
-    private bool TryBuildAdminConfiguration(out ModAdminConfigurationDto config)
-    {
-        config = new ModAdminConfigurationDto();
-        if (!TryParseInt(adminTradeOrderExpirationDaysText, out int tradeOrderExpirationDays)
-            || !TryParseInt(adminMaxOpenTradeOrdersText, out int maxOpenTradeOrders)
-            || !TryParseInt(adminPostageBaseText, out int postageBase)
-            || !TryParseInt(adminPostagePerTileText, out int postagePerTile)
-            || !TryParseInt(adminPostageCrossLayerText, out int postageCrossLayer)
-            || !TryParseFloat(adminTradeBaseFeeRateText, out float tradeBaseFeeRate)
-            || !TryParseDouble(adminRelationCooldownHoursText, out double relationCooldownHours)
-            || !TryParseDouble(adminSupportCooldownMinutesText, out double supportCooldownMinutes)
-            || !TryParseDouble(adminForcedGiftCooldownMinutesText, out double forcedGiftCooldownMinutes)
-            || !TryParseInt(adminBankMinLoanSilverText, out int bankMinLoanSilver)
-            || !TryParseInt(adminBankMaxLoanSilverText, out int bankMaxLoanSilver)
-            || !TryParseFloat(adminBankLoanRatioText, out float bankLoanRatio)
-            || !TryParseFloat(adminBankInterestRateText, out float bankInterestRate)
-            || !TryParseInt(adminBankMinDaysText, out int bankMinDays)
-            || !TryParseInt(adminBankMaxDaysText, out int bankMaxDays)
-            || !IsValidAdminCurveText(adminBankInterestCurveText)
-            || !TryParseInt(adminBankPenaltyIntervalText, out int bankPenaltyInterval)
-            || !TryParseFloat(adminBankPenaltyPointsText, out float bankPenaltyPoints)
-            || !TryBuildAdminBankOverduePenaltyStages(out string bankOverduePenaltyStages)
-            || !TryParseInt(adminMercApprenticeText, out int mercApprentice)
-            || !TryParseInt(adminMercSkilledText, out int mercSkilled)
-            || !TryParseInt(adminMercMasterText, out int mercMaster)
-            || !TryParseInt(adminMercMinDaysText, out int mercMinDays)
-            || !TryParseInt(adminMercMaxDaysText, out int mercMaxDays)
-            || !IsValidAdminCurveText(adminMercDurationCurveText)
-            || !TryParseInt(adminMercMaxActiveText, out int mercMaxActive)
-            || !TryParseInt(adminMercHarmfulSurgeryText, out int mercHarmfulSurgery)
-            || !TryParseInt(adminMercApprenticeDeathText, out int mercApprenticeDeath)
-            || !TryParseInt(adminMercSkilledDeathText, out int mercSkilledDeath)
-            || !TryParseInt(adminMercMasterDeathText, out int mercMasterDeath)
-            || !TryParseInt(adminMercGuardApprenticeText, out int mercGuardApprentice)
-            || !TryParseInt(adminMercGuardSkilledText, out int mercGuardSkilled)
-            || !TryParseInt(adminMercGuardMasterText, out int mercGuardMaster)
-            || !TryParseFloat(adminMercGuardApprenticeRatioText, out float mercGuardApprenticeRatio)
-            || !TryParseFloat(adminMercGuardSkilledRatioText, out float mercGuardSkilledRatio)
-            || !TryParseFloat(adminMercGuardMasterRatioText, out float mercGuardMasterRatio)
-            || !TryParseDouble(adminRaidProtectionHoursText, out double raidProtectionHours)
-            || !TryParseDouble(adminRaidMaxDurationMinutesText, out double raidMaxDurationMinutes)
-            || !TryParseDouble(adminRaidTimeoutGraceMinutesText, out double raidTimeoutGraceMinutes)
-            || !TryParseInt(adminRaidMinimumDefenderWealthText, out int raidMinimumDefenderWealth)
-            || !TryParseDouble(adminRaidLossRatioText, out double raidLossRatio)
-            || !TryParseDouble(adminRaidBuildingHpLossRatioText, out double raidBuildingHpLossRatio)
-            || !TryParseDouble(adminRaidMinimumHpRatioText, out double raidMinimumHpRatio)
-            || !TryParseDouble(adminPendingConfirmationMinutesText, out double pendingConfirmationMinutes)
-            || !TryBuildFixedTradeFees(out List<ModAdminFixedTradeFeeDto> fixedTradeFees))
-        {
-            return false;
-        }
-
-        config.TradeMarketplaceEnabled = adminTradeMarketplaceEnabled;
-        config.TradeOrderExpirationDays = tradeOrderExpirationDays;
-        config.MaxOpenTradeOrdersPerOwner = maxOpenTradeOrders;
-        config.TradePostageBaseSilver = postageBase;
-        config.TradePostageSilverPerTile = postagePerTile;
-        config.TradePostageCrossLayerOverheadDistanceTiles = postageCrossLayer;
-        config.TradeBaseFeeRate = tradeBaseFeeRate;
-        config.TradeFeeStrategy = NormalizeAdminTradeFeeStrategy(adminTradeFeeStrategy);
-        config.DiplomacyRelationChangeCooldownHours = relationCooldownHours;
-        config.DiplomacySupportRequestCooldownMinutes = supportCooldownMinutes;
-        config.ForcedGiftDeliveryCooldownMinutes = forcedGiftCooldownMinutes;
-        config.GiftsEnabled = adminGiftsEnabled;
-        config.BankLoansEnabled = adminBankLoansEnabled;
-        config.BankMinLoanSilver = bankMinLoanSilver;
-        config.BankMaxLoanSilver = bankMaxLoanSilver;
-        config.BankMaxLoanWealthRatio = bankLoanRatio;
-        config.BankBaseAnnualInterestRate = bankInterestRate;
-        config.BankMinDurationDays = bankMinDays;
-        config.BankMaxDurationDays = bankMaxDays;
-        config.BankInterestDurationMultiplierCurve = adminBankInterestCurveText.Trim();
-        config.BankPenaltyIntervalDays = bankPenaltyInterval;
-        config.BankPenaltyRaidPointsPerSilver = bankPenaltyPoints;
-        config.BankOverduePenaltyStages = bankOverduePenaltyStages;
-        config.MercenariesEnabled = adminMercenariesEnabled;
-        config.MercenaryApprenticeDailySilver = mercApprentice;
-        config.MercenarySkilledDailySilver = mercSkilled;
-        config.MercenaryMasterDailySilver = mercMaster;
-        config.MercenaryMinDurationDays = mercMinDays;
-        config.MercenaryMaxDurationDays = mercMaxDays;
-        config.MercenaryDurationMultiplierCurve = adminMercDurationCurveText.Trim();
-        config.MaxActiveMercenariesPerColony = mercMaxActive;
-        config.MercenaryHarmfulSurgeryFineSilver = mercHarmfulSurgery;
-        config.MercenaryApprenticeDeathFineSilver = mercApprenticeDeath;
-        config.MercenarySkilledDeathFineSilver = mercSkilledDeath;
-        config.MercenaryMasterDeathFineSilver = mercMasterDeath;
-        config.MercenaryGuardsEnabled = adminMercGuardsEnabled;
-        config.MercenaryGuardApprenticeSilver = mercGuardApprentice;
-        config.MercenaryGuardSkilledSilver = mercGuardSkilled;
-        config.MercenaryGuardMasterSilver = mercGuardMaster;
-        config.MercenaryGuardApprenticePointsRatio = mercGuardApprenticeRatio;
-        config.MercenaryGuardSkilledPointsRatio = mercGuardSkilledRatio;
-        config.MercenaryGuardMasterPointsRatio = mercGuardMasterRatio;
-        config.PvpEnabled = adminPvpEnabled;
-        config.RaidProtectionHours = raidProtectionHours;
-        config.RaidMaxDurationMinutes = raidMaxDurationMinutes;
-        config.RaidTimeoutGraceMinutes = raidTimeoutGraceMinutes;
-        config.RaidMinimumDefenderWealth = raidMinimumDefenderWealth;
-        config.RaidSettlementLossRatio = raidLossRatio;
-        config.RaidSettlementBuildingHitPointsLossRatio = raidBuildingHpLossRatio;
-        config.RaidSettlementMinimumRemainingHitPointsRatio = raidMinimumHpRatio;
-        config.PendingConfirmationTimeoutMinutes = pendingConfirmationMinutes;
-        config.FixedTradeFees = fixedTradeFees;
-        config.CompatibilityMods = CloneAdminCompatibilityMods(
-            LoadedModManager.GetMod<ClashOfRimMod>()?.AdminStatusSnapshot?.Configuration?.CompatibilityMods);
-        return true;
-    }
-
-    private bool TryBuildFixedTradeFees(out List<ModAdminFixedTradeFeeDto> fixedTradeFees)
-    {
-        fixedTradeFees = new List<ModAdminFixedTradeFeeDto>();
-        foreach (AdminFixedTradeFeeRow row in adminFixedTradeFeeRows)
-        {
-            string defName = row.ThingDefName.Trim();
-            if (string.IsNullOrWhiteSpace(defName)
-                && string.IsNullOrWhiteSpace(row.SilverPerUnit))
-            {
-                continue;
-            }
-
-            if (string.IsNullOrWhiteSpace(defName)
-                || !TryParseInt(row.SilverPerUnit, out int silverPerUnit))
-            {
-                return false;
-            }
-
-            fixedTradeFees.Add(new ModAdminFixedTradeFeeDto
-            {
-                ThingDefName = defName,
-                SilverPerUnit = Math.Max(0, silverPerUnit)
-            });
-        }
-
-        return true;
-    }
-
-    private bool TryBuildAdminBankOverduePenaltyStages(out string stagesText)
-    {
-        var parts = new List<string>();
-        stagesText = string.Empty;
-        foreach (AdminBankOverduePenaltyStageRow row in adminBankOverduePenaltyStageRows)
-        {
-            string kind = row.Kind.Trim();
-            if (string.IsNullOrWhiteSpace(kind)
-                && string.IsNullOrWhiteSpace(row.TriggerPenaltyCount)
-                && string.IsNullOrWhiteSpace(row.Severity))
-            {
-                continue;
-            }
-
-            if (string.IsNullOrWhiteSpace(kind)
-                || !TryParseInt(row.TriggerPenaltyCount, out int triggerCount)
-                || triggerCount <= 0
-                || !TryParseFloat(row.Severity, out float severity)
-                || severity < 0f
-                || float.IsNaN(severity))
-            {
-                return false;
-            }
-
-            parts.Add(triggerCount.ToString(CultureInfo.InvariantCulture)
-                + ":"
-                + kind
-                + ":"
-                + severity.ToString("0.###", CultureInfo.InvariantCulture));
-        }
-
-        stagesText = string.Join(",", parts);
-        return true;
-    }
-
-    private static IReadOnlyList<AdminBankOverduePenaltyStageRow> ParseAdminBankOverduePenaltyStageRows(string text)
-    {
-        var rows = new List<AdminBankOverduePenaltyStageRow>();
-        if (string.IsNullOrWhiteSpace(text))
-        {
-            return rows;
-        }
-
-        foreach (string part in text.Split(new[] { ',', ';', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries))
-        {
-            string[] pieces = part.Trim().Split(':');
-            if (pieces.Length < 2)
-            {
-                continue;
-            }
-
-            string trigger = pieces[0].Trim();
-            string kind = pieces[1].Trim();
-            string severity = pieces.Length >= 3 && !string.IsNullOrWhiteSpace(pieces[2])
-                ? pieces[2].Trim()
-                : "1";
-            if (!string.IsNullOrWhiteSpace(trigger) && !string.IsNullOrWhiteSpace(kind))
-            {
-                rows.Add(new AdminBankOverduePenaltyStageRow(trigger, kind, severity));
-            }
-        }
-
-        return rows;
-    }
-
-    private static List<ModAdminCompatibilityModDto> CloneAdminCompatibilityMods(IReadOnlyList<ModAdminCompatibilityModDto>? source)
-    {
-        return (source ?? new List<ModAdminCompatibilityModDto>())
-            .Select(mod => new ModAdminCompatibilityModDto
-            {
-                PackageId = mod.PackageId,
-                Name = mod.Name,
-                LoadOrder = mod.LoadOrder,
-                Role = mod.Role,
-                Configs = mod.Configs
-                    .Select(config => new ModAdminCompatibilityConfigDto
-                    {
-                        FileName = config.FileName,
-                        Mode = config.Mode,
-                        HasSavedFile = config.HasSavedFile
-                    })
-                    .ToList()
-            })
-            .ToList();
-    }
-
     private static string DisplayAdminModName(ModAdminCompatibilityModDto mod)
     {
         return string.IsNullOrWhiteSpace(mod.Name) ? mod.PackageId : mod.Name;
@@ -1225,13 +586,14 @@ public sealed partial class ClashOfRimMultiplayerWindow
             : ClashOfRimText.Key("ClashOfRim.Admin.ModRoleRequired");
     }
 
-    private static void OpenAdminModRoleMenu(ModAdminCompatibilityModDto mod)
+    private void OpenAdminModRoleMenu(ClientAdminConfigurationDraft draft, ModAdminCompatibilityModDto mod)
     {
+        var select = adminConfiguration!.SelectModRole(draft, mod);
         var options = new List<FloatMenuOption>
         {
-            new(ClashOfRimText.Key("ClashOfRim.Admin.ModRoleRequired"), () => mod.Role = "Required"),
-            new(ClashOfRimText.Key("ClashOfRim.Admin.ModRoleOptional"), () => mod.Role = "Optional"),
-            new(ClashOfRimText.Key("ClashOfRim.Admin.ModRoleTranslation"), () => mod.Role = "OptionalPureTranslation")
+            new(ClashOfRimText.Key("ClashOfRim.Admin.ModRoleRequired"), () => select("Required")),
+            new(ClashOfRimText.Key("ClashOfRim.Admin.ModRoleOptional"), () => select("Optional")),
+            new(ClashOfRimText.Key("ClashOfRim.Admin.ModRoleTranslation"), () => select("OptionalPureTranslation"))
         };
         Find.WindowStack.Add(new FloatMenu(options));
     }
@@ -1246,13 +608,14 @@ public sealed partial class ClashOfRimMultiplayerWindow
         };
     }
 
-    private static void OpenAdminConfigModeMenu(ModAdminCompatibilityConfigDto config)
+    private void OpenAdminConfigModeMenu(ClientAdminConfigurationDraft draft, ModAdminCompatibilityModDto mod, ModAdminCompatibilityConfigDto config)
     {
+        var select = adminConfiguration!.SelectConfigMode(draft, mod, config);
         var options = new List<FloatMenuOption>
         {
-            new(ClashOfRimText.Key("ClashOfRim.Admin.ConfigModeEnforce"), () => config.Mode = "Enforce"),
-            new(ClashOfRimText.Key("ClashOfRim.Admin.ConfigModeWarn"), () => config.Mode = "Warn"),
-            new(ClashOfRimText.Key("ClashOfRim.Admin.ConfigModeIgnore"), () => config.Mode = "Ignore")
+            new(ClashOfRimText.Key("ClashOfRim.Admin.ConfigModeEnforce"), () => select("Enforce")),
+            new(ClashOfRimText.Key("ClashOfRim.Admin.ConfigModeWarn"), () => select("Warn")),
+            new(ClashOfRimText.Key("ClashOfRim.Admin.ConfigModeIgnore"), () => select("Ignore"))
         };
         Find.WindowStack.Add(new FloatMenu(options));
     }
@@ -1270,112 +633,6 @@ public sealed partial class ClashOfRimMultiplayerWindow
         }
 
         return "Enforce";
-    }
-
-    private string AdminTradeFeeStrategyLabel(string strategy)
-    {
-        return NormalizeAdminTradeFeeStrategy(strategy) switch
-        {
-            "HighestSide" => ClashOfRimText.Key("ClashOfRim.Admin.TradeFeeStrategyHighestSide"),
-            "SumBothSides" => ClashOfRimText.Key("ClashOfRim.Admin.TradeFeeStrategySumBothSides"),
-            _ => ClashOfRimText.Key("ClashOfRim.Admin.TradeFeeStrategyPublisher")
-        };
-    }
-
-    private void OpenAdminTradeFeeStrategyMenu()
-    {
-        var options = new List<FloatMenuOption>
-        {
-            new(ClashOfRimText.Key("ClashOfRim.Admin.TradeFeeStrategyPublisher"), () => adminTradeFeeStrategy = "Publisher"),
-            new(ClashOfRimText.Key("ClashOfRim.Admin.TradeFeeStrategyHighestSide"), () => adminTradeFeeStrategy = "HighestSide"),
-            new(ClashOfRimText.Key("ClashOfRim.Admin.TradeFeeStrategySumBothSides"), () => adminTradeFeeStrategy = "SumBothSides")
-        };
-        Find.WindowStack.Add(new FloatMenu(options));
-    }
-
-    private static string NormalizeAdminTradeFeeStrategy(string? strategy)
-    {
-        if (string.Equals(strategy, "HighestSide", StringComparison.OrdinalIgnoreCase))
-        {
-            return "HighestSide";
-        }
-
-        if (string.Equals(strategy, "SumBothSides", StringComparison.OrdinalIgnoreCase))
-        {
-            return "SumBothSides";
-        }
-
-        return "Publisher";
-    }
-
-    private static bool TryParseInt(string text, out int value)
-    {
-        return int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out value);
-    }
-
-    private static bool TryParseFloat(string text, out float value)
-    {
-        return float.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value);
-    }
-
-    private static bool TryParseDouble(string text, out double value)
-    {
-        return double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value);
-    }
-
-    private static bool IsValidAdminCurveText(string text)
-    {
-        if (string.IsNullOrWhiteSpace(text))
-        {
-            return true;
-        }
-
-        foreach (string part in text.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries))
-        {
-            string[] pieces = part.Split(new[] { ':', '=' }, StringSplitOptions.RemoveEmptyEntries);
-            if (pieces.Length != 2
-                || !int.TryParse(pieces[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out int days)
-                || days < 0
-                || !float.TryParse(pieces[1], NumberStyles.Float, CultureInfo.InvariantCulture, out float multiplier)
-                || multiplier < 0f
-                || float.IsNaN(multiplier))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    private static string AdminThingLabel(string defName)
-    {
-        ThingDef? def = DefDatabase<ThingDef>.GetNamedSilentFail(defName);
-        if (def is null)
-        {
-            return string.IsNullOrWhiteSpace(defName)
-                ? ClashOfRimText.Key("ClashOfRim.Admin.SelectThing")
-                : defName;
-        }
-
-        return def.LabelCap.ToString();
-    }
-
-    private static string AdminPenaltyEventLabel(string kind)
-    {
-        if (string.Equals(kind, "PsychicWhisper", StringComparison.OrdinalIgnoreCase))
-        {
-            return ClashOfRimText.Key("ClashOfRim.Admin.BankPenaltyEventPsychicWhisper");
-        }
-
-        IncidentDef? def = DefDatabase<IncidentDef>.GetNamedSilentFail(kind);
-        if (def is null)
-        {
-            return string.IsNullOrWhiteSpace(kind)
-                ? ClashOfRimText.Key("ClashOfRim.Admin.SelectEvent")
-                : kind;
-        }
-
-        return def.LabelCap.ToString();
     }
 
     private static void OpenCompatibilityBaselineOverride(ClashOfRimMod mod, ModAdminConfigurationDto config)
@@ -1425,35 +682,6 @@ public sealed partial class ClashOfRimMultiplayerWindow
         return postfix.Length > 0 && value.EndsWith(postfix, StringComparison.OrdinalIgnoreCase)
             ? value.Substring(0, value.Length - postfix.Length).ToLowerInvariant()
             : value.ToLowerInvariant();
-    }
-
-    private sealed class AdminFixedTradeFeeRow
-    {
-        public AdminFixedTradeFeeRow(string thingDefName, string silverPerUnit)
-        {
-            ThingDefName = thingDefName;
-            SilverPerUnit = silverPerUnit;
-        }
-
-        public string ThingDefName { get; set; }
-
-        public string SilverPerUnit { get; set; }
-    }
-
-    private sealed class AdminBankOverduePenaltyStageRow
-    {
-        public AdminBankOverduePenaltyStageRow(string triggerPenaltyCount, string kind, string severity)
-        {
-            TriggerPenaltyCount = triggerPenaltyCount;
-            Kind = kind;
-            Severity = severity;
-        }
-
-        public string TriggerPenaltyCount { get; set; }
-
-        public string Kind { get; set; }
-
-        public string Severity { get; set; }
     }
 
     private sealed class AdminResetPasswordDialogWindow : Window

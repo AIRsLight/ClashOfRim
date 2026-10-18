@@ -456,6 +456,12 @@ public sealed partial class ClashOfRimMod : Mod
         new(new ClientMercenaryPanel(sessionLifecycle, new ClientSnapshotGame(), mercenaryState, mercenaryQuotes,
             mercenaryHiring, synchronization, bank.Read, () => worldMarkers.PvpEnabled));
 
+    internal (ClientAdminConfigurationEditor Editor, MultiplayerAdminConfigurationPage Page) CreateAdminConfigurationPage()
+    {
+        var editor = new ClientAdminConfigurationEditor(sessionLifecycle, adminAccess, administration);
+        return (editor, new(editor));
+    }
+
     internal MultiplayerAccountPage CreateAccountPage() => new(new ClientAccountPanel(sessionLifecycle, passwordChange));
     internal MultiplayerDiagnosticsPage CreateDiagnosticsPage() => new(diagnostics);
 
