@@ -43,7 +43,7 @@ internal static class RemoteTransporterActionsTests
         Patch(AccessTools.Method(typeof(ClientRaidCommands), nameof(ClientRaidCommands.StartTransporters)), nameof(StartRaid));
         Patch(AccessTools.Method(typeof(RemoteWorldObjectUiUtility), nameof(RemoteWorldObjectUiUtility.ReadTileLayerId)), nameof(Layer));
         Patch(AccessTools.PropertyGetter(typeof(Find), nameof(Find.World)), nameof(World));
-        Patch(AccessTools.PropertyGetter(typeof(Prefs), nameof(Prefs.LogVerbose)), nameof(Inactive));
+        using var nativeScribe = new NativeScribeTestScope();
         Patch(AccessTools.PropertyGetter(typeof(GenTypes), "AllActiveAssemblies"), nameof(Assemblies));
         foreach (var method in AccessTools.GetDeclaredMethods(typeof(ClashOfRimText)).Where(m => m.Name == nameof(ClashOfRimText.Key))) Patch(method, nameof(Text));
         foreach (var method in typeof(Messages).GetMethods().Where(m => m.Name == nameof(Messages.Message))) Patch(method, nameof(Quiet));

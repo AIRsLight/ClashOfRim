@@ -58,7 +58,7 @@ internal static class PawnScribeLoader
             started = true;
             Scribe.loader.InitLoading(tempFile);
             Pawn? loaded = null;
-            Scribe_Deep.Look(ref loaded, "pawn");
+            ReadPawn(ref loaded);
             Scribe.loader.FinalizeLoading();
             finalized = true;
             if (loaded is null)
@@ -94,6 +94,10 @@ internal static class PawnScribeLoader
             }
         }
     }
+
+    // Keep the generic engine call behind the pawn adapter's own boundary.
+    // Runtime instrumentation of this adapter must not replace Look<T> for other T.
+    private static void ReadPawn(ref Pawn? pawn) => Scribe_Deep.Look(ref pawn, "pawn");
 
     internal static bool ValidateRuntimeState(Pawn pawn, string label, out string message)
     {

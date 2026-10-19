@@ -41,7 +41,7 @@ internal static class PawnPreviewDlcTests
         Patch(AccessTools.PropertyGetter(typeof(Find), nameof(Find.UniqueIDsManager)), nameof(Ids));
         Patch(AccessTools.Method(typeof(ClashOfRimCompatibilityApi), nameof(ClashOfRimCompatibilityApi.LocalizeRestoredPawnWithCompatibility)), nameof(Gameplay));
         Patch(AccessTools.PropertyGetter(typeof(ModsConfig), nameof(ModsConfig.BiotechActive)), nameof(Active));
-        Patch(AccessTools.PropertyGetter(typeof(Prefs), nameof(Prefs.LogVerbose)), nameof(Inactive));
+        using var nativeScribe = new NativeScribeTestScope();
         Patch(AccessTools.PropertyGetter(typeof(GenTypes), "AllActiveAssemblies"), nameof(Assemblies));
         Patch(AccessTools.Method(typeof(ClashOfRimCompatibilityApi), nameof(ClashOfRimCompatibilityApi.HasCompatibilityCapability)), nameof(Active));
         Patch(AccessTools.Method(typeof(GameDataSaveLoader), nameof(GameDataSaveLoader.TryLoadXenotype)), nameof(LoadXenotype));

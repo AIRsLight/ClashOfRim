@@ -34,31 +34,30 @@ internal static class PawnScribeLoaderTests
         var culture = CultureInfo.CurrentCulture;
         var harmony = new Harmony("ClashOfRim.Tests.PawnScribeLoader");
         void Patch(MethodBase method, string prefix) => harmony.Patch(method, prefix: new HarmonyMethod(typeof(PawnScribeLoaderTests), prefix));
-        Patch(AccessTools.Method(typeof(ScribeLoader), nameof(ScribeLoader.InitLoading)), nameof(Init));
-        Patch(AccessTools.Method(typeof(ScribeLoader), nameof(ScribeLoader.FinalizeLoading)), nameof(Finalize));
-        Patch(AccessTools.Method(typeof(ScribeLoader), nameof(ScribeLoader.ForceStop)), nameof(Stop));
-        Patch(typeof(Scribe_Deep).GetMethods().Single(m => m.Name == "Look" && m.GetParameters().Length == 3).MakeGenericMethod(typeof(Pawn)), nameof(Deep));
-        Patch(AccessTools.Method(typeof(ClashOfRimText), nameof(ClashOfRimText.Key), new[] { typeof(string), typeof(NamedArgument[]) }), nameof(Text));
-        Patch(AccessTools.Method(typeof(ClashOfRimText), nameof(ClashOfRimText.Key), new[] { typeof(string) }), nameof(Text));
-        Patch(AccessTools.Method(typeof(Log), nameof(Log.Warning), new[] { typeof(string) }), nameof(Warning));
-        Patch(AccessTools.Method(typeof(ClashLog), nameof(ClashLog.Message)), nameof(Quiet));
-        Patch(AccessTools.Method(typeof(ClashOfRimCompatibilityApi), nameof(ClashOfRimCompatibilityApi.TryRegisterPawnExchangePackageExtensions)), nameof(Register));
-        Patch(AccessTools.Method(typeof(PawnExchangeLoadIdUtility), nameof(PawnExchangeLoadIdUtility.LocalizeRestoredPawn)), nameof(Localize));
-        Patch(AccessTools.Method(typeof(ClashOfRimCompatibilityApi), nameof(ClashOfRimCompatibilityApi.RestorePawnReferenceMetadata),
-            new[] { typeof(Pawn), typeof(IReadOnlyDictionary<string, string?>), typeof(string) }), nameof(Metadata));
-        Patch(AccessTools.PropertyGetter(typeof(Faction), nameof(Faction.OfPlayer)), nameof(Player));
-        Patch(AccessTools.Method(typeof(Pawn), nameof(Pawn.SetFaction)), nameof(SetFaction));
-        Patch(AccessTools.Method(typeof(PawnExchangeScribeRestorer), "MarkPawnGlobalId"), nameof(Mark));
-        Patch(AccessTools.Method(typeof(PawnExchangeScribeRestorer), "MergeRelationshipPlaceholdersForGlobalId"), nameof(Merge));
-        Patch(AccessTools.Method(typeof(PawnExchangeScribeRestorer), "RestoreOneLayerRelationships"), nameof(Relations));
         try
         {
+            Patch(AccessTools.Method(typeof(ScribeLoader), nameof(ScribeLoader.InitLoading)), nameof(Init));
+            Patch(AccessTools.Method(typeof(ScribeLoader), nameof(ScribeLoader.FinalizeLoading)), nameof(Finalize));
+            Patch(AccessTools.Method(typeof(ScribeLoader), nameof(ScribeLoader.ForceStop)), nameof(Stop));
+            Patch(AccessTools.Method(typeof(PawnScribeLoader), "ReadPawn"), nameof(Deep));
+            Patch(AccessTools.Method(typeof(ClashOfRimText), nameof(ClashOfRimText.Key), new[] { typeof(string), typeof(NamedArgument[]) }), nameof(Text));
+            Patch(AccessTools.Method(typeof(ClashOfRimText), nameof(ClashOfRimText.Key), new[] { typeof(string) }), nameof(Text));
+            Patch(AccessTools.Method(typeof(Log), nameof(Log.Warning), new[] { typeof(string) }), nameof(Warning));
+            Patch(AccessTools.Method(typeof(ClashLog), nameof(ClashLog.Message)), nameof(Quiet));
+            Patch(AccessTools.Method(typeof(ClashOfRimCompatibilityApi), nameof(ClashOfRimCompatibilityApi.TryRegisterPawnExchangePackageExtensions)), nameof(Register));
+            Patch(AccessTools.Method(typeof(PawnExchangeLoadIdUtility), nameof(PawnExchangeLoadIdUtility.LocalizeRestoredPawn)), nameof(Localize));
+            Patch(AccessTools.Method(typeof(ClashOfRimCompatibilityApi), nameof(ClashOfRimCompatibilityApi.RestorePawnReferenceMetadata),
+                new[] { typeof(Pawn), typeof(IReadOnlyDictionary<string, string?>), typeof(string) }), nameof(Metadata));
+            Patch(AccessTools.PropertyGetter(typeof(Faction), nameof(Faction.OfPlayer)), nameof(Player));
+            Patch(AccessTools.Method(typeof(Pawn), nameof(Pawn.SetFaction)), nameof(SetFaction));
+            Patch(AccessTools.Method(typeof(PawnExchangeScribeRestorer), "MarkPawnGlobalId"), nameof(Mark));
+            Patch(AccessTools.Method(typeof(PawnExchangeScribeRestorer), "MergeRelationshipPlaceholdersForGlobalId"), nameof(Merge));
+            Patch(AccessTools.Method(typeof(PawnExchangeScribeRestorer), "RestoreOneLayerRelationships"), nameof(Relations));
             foreach (string name in new[] { "en-US", "zh-CN", "tr-TR", "ar-SA" })
             {
                 CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(name);
                 Documents(); NativeLifetime(); Arrival(); Preview();
             }
-            Console.WriteLine("PASS: pawn Scribe separation (four cultures; frozen XML, native failures/cleanup, arrival order)");
         }
         finally
         {
@@ -66,6 +65,33 @@ internal static class PawnScribeLoaderTests
             harmony.UnpatchAll(harmony.Id); CultureInfo.CurrentCulture = culture;
             onRegister = null; loaded = null; trace.Clear(); paths.Clear(); warnings.Clear();
         }
+        NativeScribeIsolation();
+        Console.WriteLine("PASS: pawn Scribe separation (four cultures; frozen XML, native failures/cleanup, arrival order; native generic isolation)");
+    }
+
+    private static void NativeScribeIsolation()
+    {
+        string path = Path.Combine(Path.GetTempPath(), "clash-pawn-scribe-isolation-" + Guid.NewGuid().ToString("N") + ".xml");
+        using var nativeScribe = new NativeScribeTestScope();
+        try
+        {
+            // A different reference type must still deserialize after this fixture.
+            string xml = Scribe.saver.DebugOutputFor(new ScribeProbe { Value = 37 });
+            File.WriteAllText(path, "<root>" + xml + "</root>");
+            ScribeProbe? restored = null;
+            Scribe.loader.InitLoading(path);
+            Scribe_Deep.Look(ref restored, "saveable");
+            Scribe.loader.FinalizeLoading();
+            Check(restored?.Value == 37 && Scribe.mode == LoadSaveMode.Inactive,
+                "Pawn fixture changed native Scribe behavior for another reference type.");
+        }
+        finally { Scribe.ForceStop(); File.Delete(path); }
+    }
+
+    private sealed class ScribeProbe : IExposable
+    {
+        public int Value;
+        public void ExposeData() => Scribe_Values.Look(ref Value, "value");
     }
 
     private static ModPawnScribePayloadDto Payload(string xml = Xml) => new()

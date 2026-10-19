@@ -83,11 +83,9 @@ internal static class ClientEndgameAchievementTests
         reopened.Acknowledge(new[] { Award("a:b", "c") }); Check(reopened.Count == 2, "Duplicate acknowledgment changed queue.");
         reopened.Restore(null); Check(reopened.Count == 0, "Missing legacy queue did not restore empty.");
     }
-    private static bool QuietPrefs(ref bool __result) { __result = false; return false; }
     private static void Persistence()
     {
-        var harmony = new Harmony("ClashOfRim.Tests.EndgameScribe");
-        harmony.Patch(AccessTools.PropertyGetter(typeof(Prefs), "LogVerbose"), prefix: new HarmonyMethod(typeof(ClientEndgameAchievementTests), nameof(QuietPrefs)));
+        using var nativeScribe = new NativeScribeTestScope();
         var saved = new PendingAchievementCandidates();
         saved.Queue.Enqueue(new[] { Award("a:b", "c"), Award("a", "b:c") });
         string xml = Scribe.saver.DebugOutputFor(saved);
@@ -110,7 +108,7 @@ internal static class ClientEndgameAchievementTests
                 if (contents == fields) Check(loaded!.Queue.Snapshot()[1].EventKey == "b:c" && loaded.Queue.Snapshot()[0].LabelKey == "标签", "Scribe lost identity/metadata.");
             }
         }
-        finally { Scribe.ForceStop(); File.Delete(path); harmony.UnpatchAll(harmony.Id); }
+        finally { Scribe.ForceStop(); File.Delete(path); }
     }
     private static void Dialog()
     {

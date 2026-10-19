@@ -22,16 +22,16 @@
 
 | 顺序 | 范围 | 具体剩余工作与当前证据 |
 | --- | --- | --- |
-| 1 | Harmony／Scribe 和外部契约（M13b） | 原始 JSON／枚举／补丁／Scribe 差异已有静态清单，历史日志／回执已有等价核对和相关单元证据；尚需完成所有差异分类并关闭存档／补丁验证。当前还存在下面已复现的测试隔离问题，不能宣称相关组合测试全通过。 |
+| 1 | Harmony／Scribe 和外部契约（M13b） | 原始 JSON／枚举／补丁／Scribe 差异已有静态清单，历史日志／回执已有等价核对和相关单元证据；尚需完成所有差异分类并关闭存档／补丁验证。复审发现的测试隔离问题已在 M13b2 修复，七个相关组合测试组通过，见下文。 |
 | 2 | 客户端／服务端组合根及状态归属（A1／A2／A4） | [ClashOfRimMod](../Source/Client/Core/ClashOfRimMod.cs#L61) 为 642 行，[NetworkState](../Source/Server/ClashOfRim.Network/Client/ClashOfRimNetworkState.cs#L28) 为 452 行、39 个构造参数、128 个属性。已检查其装配和转发用途，模块边界守卫通过；仍需逐项收拢静态 Attach、延迟恢复装配及状态唯一所有者的例外清单。体量本身不构成残留 partial 耦合。 |
 | 3 | 窗口／页面生命周期（A5） | [窗口宿主](../Source/Client/Multiplayer/Windows/ClashOfRimMultiplayerWindow.cs#L12) 持有静态工厂绑定，替换装配时关闭旧页面；[MultiplayerWindowPages.Close](../Source/Client/Multiplayer/Composition/MultiplayerWindowPages.cs#L13) 统一转发关闭。还需将关窗、重开、编辑草稿和会话切换的状态所有权与现有行为测试逐项对应。 |
 | 4 | DLC 能力和游戏加载生命周期（A7） | 能力／Ideology 边界单元通过；仍需最后核对 Biotech 编解码唯一来源、Ideology 目录／加载对象与 Scribe 的生命周期归属及允许的游戏适配依赖。 |
 
-### 已复现、仍未修复：pawn 测试影响后续难度同步测试
+### 已复现问题：pawn 测试影响后续难度同步测试（M13b2 已修复）
 
 移除上轮临时诊断输出后，以当前源码编译客户端测试：难度同步测试单独运行通过 **113 个场景**；同进程先运行 `PawnScribeLoaderTests`，再运行 `ClientStorytellerConfigurationTests`，前者通过，后者在 `session.Prepare(captured)` 返回空后报 `Valid Scribe difficulty rejected.`，进程退出 1。
 
-这是可复现的测试间状态／运行时隔离问题，尚不能据此断定游戏正常执行会失败。调查入口为 [PawnScribeLoaderTests 的原生／泛型 Harmony 补丁](../Tools/ClashOfRim.Client.Tests/PawnScribeLoaderTests.cs#L33)及其 finally 清理，以及 [难度基线恢复](../Source/Client/MainMenu/WorldSetup/ClientStorytellerRuntime.cs#L79)。根因尚未确认；后续应修复隔离，不能靠换序、只跑单组或放宽断言将其标记通过。它属于上述第 1 类验收阻塞，不增加 partial 剩余数量。
+这是可复现的测试间状态／运行时隔离问题，不能据此断定游戏正常执行会失败。调查入口为 [PawnScribeLoaderTests 的原生／泛型 Harmony 补丁](../Tools/ClashOfRim.Client.Tests/PawnScribeLoaderTests.cs#L33)及其 finally 清理，以及 [难度基线恢复](../Source/Client/MainMenu/WorldSetup/ClientStorytellerRuntime.cs#L79)。审计时尚未确认根因；后续 M13b2 已修复共享泛型补丁和测试性能分析环境问题，保留注册顺序及原断言。它不增加 partial 剩余数量。
 
 本次新增证据：
 
@@ -42,7 +42,7 @@
 
 此前已产生且本次核阅的证据：`final-recovery-ownership-tests.log` 中九组恢复归属相关单元通过；`final-journal-static-audit.log` 核对历史日志、回执和应用顺序；`final-journal-receipts-tests.log` 中回执恢复组通过；`final-contract-inventory.log` 记录契约差异数量。这些没有在本次重新全跑，也没有仅凭静态差异计数关闭契约验收。
 
-本次只更新审计记录，保留其他既有未提交工作；未运行全量回归或实机 RimTest。整体结论是 **partial 拆分剩余 0 组，最终验收仍有四类工作，其中一个测试隔离阻塞已复现**。
+本次复审只更新审计记录，保留其他既有未提交工作；未运行全量回归或实机 RimTest。整体结论是 **partial 拆分剩余 0 组，最终验收仍有四类工作**。复审发现的测试隔离阻塞后续已按 M13b2 处理。
 
 ## 本轮已完成的三个实现步骤
 
@@ -94,6 +94,20 @@
 在 Client.Core.Tests.csproj 中增加对同一生产 `ClientSnapshotPayloadCodec.cs` 的 Compile 链接，未复制压缩／哈希逻辑，也未引入游戏程序集。现有快照测试继续验证五种文化下的 Gzip 解码、SHA256、lineage、输入不变及畸形 XML；独立测试项目运行通过，退出 0，包括客户端／服务端 JSON 契约、语言头和会话发布检查。既有 WireContractTests 等未提交修改保留，不纳入本次提交。
 
 复现日志：`LocalOnly/module-migration/final-wire-core-build-reproduction.log`；通过日志：`LocalOnly/module-migration/final-wire-core-tests.log`。本次仅修复测试项目接线并运行该单元项目，没有完整回归或独立产品构建。其余最终契约核对继续进行，不能据此关闭最终验收。
+
+## M13b2：修复原生 Scribe 测试的跨类型与性能分析耦合
+
+在当前本地 1.7 程序集和 .NET 10 测试进程中，捕获到的真实错误为 `ScribeExtractor.SaveableFromNode` 尝试将 `RimWorld.Difficulty` 转成 `Verse.Pawn`。`PawnScribeLoaderTests` 对 `Scribe_Deep.Look<Pawn>` 的补丁撤销后，其他引用类型的反序列化仍被影响；Harmony 的 owner 清单已清空，不能据此认为共享泛型运行时代码也已隔离。日志为 `LocalOnly/module-migration/scribe-isolation-native-error.log`。
+
+将游戏泛型读取留在 `PawnScribeLoader.ReadPawn` 这一非泛型适配边界中，测试只替换该边界。生产的 `pawn` 键、读取参数、加载／完成／异常清理顺序均保持；没有复制 Scribe 算法，也没有增加可变全局委托或第二套载荷模型。测试补丁安装纳入原有 try/finally，使安装中途失败也会撤销已安装的替身。
+
+补上撤销全部 pawn 替身后的真实 Scribe 往返检查，读取另一种 `IExposable` 引用类型。临时恢复旧的泛型补丁时，新断言稳定报 `Pawn fixture changed native Scribe behavior for another reference type.`；恢复适配边界后通过。这证明新增检查能够独立检出原缺陷，不依赖后续测试恰好发现污染。红灯日志 `scribe-isolation-regression-red.log`，未调整测试注册顺序。
+
+同时定位并移除四处重复的 `Prefs.LogVerbose` getter 补丁。控制台测试没有完整游戏设置，而 Scribe 的 `DeepProfiler.Start/End` 会访问该 getter；它已被其他调用内联时，随后给 getter 打补丁不能可靠覆盖。统一使用 `NativeScribeTestScope` 保存并临时关闭 `DeepProfiler.enabled`，退出时恢复原值；真实 Scribe 与原有异常／清理断言继续运行。该范围只处理性能分析环境，Scribe 会话仍由各测试负责，不通过全局吞异常或全进程常驻补丁规避失败。
+
+原生行为核对使用 reverse-engineer-anything 技能：REA 确认本地 `Assembly-CSharp.dll` 的 SHA256 为 `eff7d97949f919fb2b151ebfb906e9be749b63410b7dbda78eeebb7972b245c3`（证据 `ev_6fc529c145774af2271351edd8953f176ef7f659cff6b896f9185ac078a41332`）；元数据超出 REA 表示预算，未将缺失信息作为事实。使用既有 ILSpy 单类型输出核对 `ScribeLoader`／`DeepProfiler`，记录为 `LocalOnly/module-migration/current-native-ScribeLoader.cs`、`current-native-DeepProfiler.cs`；错误及修复结果另由实际单元运行证明。
+
+**七个相关客户端单元组通过，进程退出 0**：世界设置生命周期、远程运输菜单／到达、DLC pawn 预览、pawn Scribe 及原生隔离、难度同步（113 场景）、终局成就（201 场景）、支援返回持久状态。日志 `LocalOnly/module-migration/scribe-isolation-related-tests.log`。未运行全量回归、实机 RimTest 或独立发布构建；既有未提交工作及冻结 1.6 保持。本步骤关闭测试隔离阻塞，契约差异归类和组合根／状态所有权的最终验收继续进行。
 
 ## 下一步
 

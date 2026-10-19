@@ -81,13 +81,13 @@ internal static class ClientStorytellerConfigurationTests
     }
     private static void Runtime()
     {
+        using var nativeScribe = new NativeScribeTestScope();
         var oldGame = Current.Game; var oldState = Current.ProgramState;
         var oldStories = DefDatabase<StorytellerDef>.AllDefsListForReading.ToArray();
         var oldDifficulties = DefDatabase<DifficultyDef>.AllDefsListForReading.ToArray();
         var culture = CultureInfo.CurrentCulture; var ui = CultureInfo.CurrentUICulture;
         var harmony = new Harmony("ClashOfRim.Tests.StorytellerConfiguration");
         harmony.CreateClassProcessor(typeof(ClashOfRimMod).Assembly.GetType("AIRsLight.ClashOfRim.CoreCompatibility.InvariantGameDataCulturePatch", true)!).Patch();
-        harmony.Patch(AccessTools.PropertyGetter(typeof(Prefs), "LogVerbose"), prefix: new HarmonyMethod(typeof(ClientStorytellerConfigurationTests), nameof(QuietPrefs)));
         try
         {
             var story = new StorytellerDef { defName = "ClashStorytellerTest" };
@@ -138,7 +138,6 @@ internal static class ClientStorytellerConfigurationTests
             DefDatabase<DifficultyDef>.Clear(); foreach (var def in oldDifficulties) DefDatabase<DifficultyDef>.Add(def);
         }
     }
-    private static bool QuietPrefs(ref bool __result) { __result = false; return false; }
     private static ModWorldConfigurationDto Config(string story = "story") => new()
     { StorytellerDefName = story, DifficultyDefName = "difficulty", DifficultyValuesXml = "<saveable><threatScale>1.37</threatScale></saveable>" };
     private static ClientStorytellerBaseline Baseline() => ClientStorytellerBaseline.From(Config());
