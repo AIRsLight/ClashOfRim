@@ -70,6 +70,11 @@ internal sealed class BankScenario(TestRun run, ScenarioPolling polling, ColonyS
         var loan = bank.GetProperty("activeLoan"); string id = loan.String("loanId");
         Check(await colonyFixture.Stock("A", "Silver") == cash + loan.Int("principalSilver"), "Loan delivery count mismatch.");
         await Penalty("A", "loans", id); await Penalty("A", "loans", id);
+        // Reload preserves the quest but clears the bank view. Repayment must use
+        // a refreshed quote, as it does when the player reopens the bank panel.
+        bank = await economy.RefreshBank("A");
+        Check(bank.GetProperty("activeLoan").ValueKind == JsonValueKind.Object && bank.GetProperty("activeLoan").String("loanId") == id,
+            "Reload did not restore the current unpaid loan quote.");
         var part = QuestPart(await run.CallAsync("A", "clash.bank.quests"), "loans", id);
         await run.CallAsync("A", "clash.fixture.bankCash", new { amount = part.Int("totalDueSilver") - 1, acknowledgeFixture = true });
         await economy.AssertNoMutation("A", () => run.InvokeClientAsync("A", "StartRepayBankLoan"));
