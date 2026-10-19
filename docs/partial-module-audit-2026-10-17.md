@@ -3598,3 +3598,11 @@ loopback 与 fixture 准入集中到 `BridgeActionPolicy`，复用原执行顺�
 **3 个相关单元组通过**：桥接模块、客户端模块／契约边界、事件收件箱，日志 `LocalOnly/module-migration/bridge-domain-final-tests.log`；强化嵌套类型守卫后再次运行桥接组通过，日志 `bridge-domain-boundary-final.log`。本次随单元项目编译生产与真实桥接，没有独立构建、全量回归、专项实机或推送；原有未提交修改保留。这些证据验证注册、准入和观察边界，不等同于 58 个命令的游戏行为实测。
 
 **下一步 M12b：GameSuite 场景与 fixture。** 桥接仍保留必要的私有窗口适配和显式客户端动作兼容协议，后续审计继续核对；场景共享状态、Save 测试分片、内聚类型合并与最终审计尚未完成。
+
+### M12b1：场景轮询与对话框策略从 GameSuite 独立（2026-10-19）
+
+`ScenarioDialogs` 负责原窗口按钮选择、Steam 缺失提示的本地化 Ignore 选择、禁止 Quit 和语言警告准入；只持有测试运行器和明确的语言差异许可。`ScenarioPolling` 负责等待选项、普通暂停恢复、空闲检查和 tick 操作完成确认，继续使用 RimTest 原 `EventuallyAsync`／`RunOperationAsync`，没有另写轮询或重试算法。`ScenarioAssertions` 统一页面句柄、断言及 JSON 比较。三个模块不依赖 GameSuite、完整场景配置、服务端状态或服务容器；GameSuite 暂保留单向转发供后续逐域场景迁移使用。
+
+Save 单元项目引用实际 GameTests 项目，随单元编译整个场景程序集；测试通过 RimTest 原 `TestRun` 与模拟 `IRimTestConnection` 执行，未启动游戏、管道或服务器。**新增相关单元组通过**，日志 `LocalOnly/module-migration/scenario-polling-tests.log`。覆盖四组语言标签下的 Steam Ignore／普通确认／Quit 拒绝、语言警告许可矩阵、三类等待下的运行／暂停／强制暂停矩阵、客户端隔离及取消、旧 tick 操作回执排除、失败／取消不重发、不完整 tick 预算拒绝，以及八种业务忙碌状态的等待。原超时、操作参数、对话框检查与观察顺序保留。
+
+没有运行全量回归、专项实机、独立构建或推送。测试入口仅提交本阶段新增行，原未提交工作保留。**下一步 M12b2：以独立的轮询／对话框设施继续迁出世界建档和各业务场景，明确场景数据与领域 fixture 的归属。** 当前仅完成共享执行设施拆分，GameSuite 的业务 partial 和共享场景状态仍须继续处理。

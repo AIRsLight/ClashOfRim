@@ -17,6 +17,8 @@ internal sealed partial class GameSuite
     private readonly string root, pipeA, pipeB;
     private readonly SuiteProfile profile;
     private readonly TestRun run;
+    private readonly ScenarioDialogs dialogs;
+    private readonly ScenarioPolling polling;
     private readonly Microsoft.AspNetCore.Builder.WebApplication server;
     private readonly Dictionary<string, HashSet<int>> startupErrors = new();
     private readonly Dictionary<string, RimTestClient> clients = new();
@@ -39,6 +41,8 @@ internal sealed partial class GameSuite
         this.root = root; this.pipeA = pipeA; this.pipeB = pipeB; this.profile = profile;
         Directory.CreateDirectory(root);
         run = new TestRun(root, WorldCases.Concat(profile.Features ? FeatureCases : profile.GiftReplay ? GiftReplayCases : StabilityCases(profile.Stability)).Append("runtime-errors").ToArray());
+        dialogs = new ScenarioDialogs(run, profile.A.Language != profile.B.Language);
+        polling = new ScenarioPolling(run, dialogs);
         server = ClashOfRimNetworkServer.Build([
             "--contentRoot", Path.Combine(root, "Server"), "--urls", "http://127.0.0.1:0",
         "--Persistence:DataDirectory", Path.Combine(root, "Server", "Data"), "--Authentication:DebugMode", "false",

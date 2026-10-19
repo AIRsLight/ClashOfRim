@@ -51,6 +51,7 @@ var tests = new (string Name, Action Run)[]
     ("礼物模块独立装配、回执、拒收及强制投送保护", () => GiftModuleTests.Run(BuildFixturePackage)),
     ("物品流转模块保留复杂包、文化与存储幂等", ItemTransferModuleTests.Run),
     ("服务端模块依赖、路由与恢复归属", () => ModuleBoundaryTests.RunAsync().GetAwaiter().GetResult()),
+    ("游戏场景轮询与对话框策略独立于宿主", GameScenarioPollingTests.Run),
     ("银行模块独立装配、凭据、借还款与回执", () => BankModuleTests.Run(BuildFixturePackage)),
     ("外交命令授权、快照、恢复复验与并发幂等", () => DiplomacyAuthorizationTests.Run(BuildFixturePackage)),
     ("意识形态摘要重建保留显示元数据", IdeologyMetadataTests.Run),

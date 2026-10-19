@@ -14,42 +14,14 @@ namespace ClashOfRim.GameTests;
 
 internal sealed partial class GameSuite
 {
-    static JsonElement[] Items(JsonElement p) => p.GetProperty("items").EnumerateArray().ToArray();
-    static string H(JsonElement v) => v.GetProperty("reference").String("handle");
-    static void Check(bool ok, string reason) => RimTest.Testing.Check.That(ok, reason);
+    Task<JsonElement> Wait(string client, string method, object? input, Func<JsonElement, bool> predicate, int seconds = 90)
+        => polling.Wait(client, method, input, predicate, seconds);
+    Task Confirm(string client) => dialogs.Confirm(client);
+    Task<bool> AcceptLanguageWarning(string client) => dialogs.AcceptLanguageWarning(client);
+    Task<JsonElement> Idle(string client) => polling.Idle(client);
+    Task Step(string client, int ticks) => polling.Step(client, ticks);
     Task<JsonElement> Call(string client, string method, object? input = null) => run.CallAsync(client, method, input);
-    WaitOptions Waiting(string client, string method, int seconds = 90) => new(TimeSpan.FromSeconds(seconds), AfterUnmet: async (value, token) =>
-    {
-        if (method == "clash.state") await AcceptLanguageWarning(client);
-        // The flight ceremony opens the original abandon-map warning after ticking.
-        // Resolve it explicitly and retain the dialog/button evidence in the trace.
-        if (method == "clash.gravship") await Confirm(client);
-        // This suite explicitly resumes ordinary event pauses, while forced modal pauses remain effective.
-        // RimTest itself never makes this gameplay-policy decision.
-        var ticking = method == "time.status" ? value : await run.CallAsync(client, "time.status", token: token);
-        if (ticking.OptionalString("state") == "running" && ticking.Bool("paused") && !ticking.Bool("forcedPause"))
-            await run.CallAsync(client, "time.resume", token: token);
-    });
-    Task<JsonElement> Wait(string client, string method, object? input, Func<JsonElement, bool> predicate, int seconds = 90) =>
-        run.EventuallyAsync(client, method, input, predicate, Waiting(client, method, seconds));
     Task<JsonElement> Invoke(string client, string action, object? input = null) => Call(client, "clash.invoke", new { action, arguments = input ?? new { } });
-    async Task Confirm(string client)
-    {
-        var dialogs = Items(await Call(client, "dialogs.messages"));
-        if (dialogs.Length == 0) return;
-        var labels = await Call(client, "clash.labels");
-        foreach (var dialog in dialogs)
-        {
-            var buttons = dialog.GetProperty("buttons").EnumerateArray().ToArray();
-            // Isolated offline profiles may lack Steam; the game explicitly offers continuing.
-            // Match the current game's translated text and original label, never a fixed position/language.
-            var choice = dialog.String("text") == labels.String("steamClientMissing")
-                ? buttons.Single(b => b.String("label") == labels.String("ignore"))
-                : buttons.Single(b => b.String("id") == "A");
-            Check(choice.String("label") != labels.String("quit"), "Unexpected quit dialog: " + dialog.GetRawText());
-            await Call(client, "dialogs.choose", new { dialog = H(dialog), button = choice.String("id") });
-        }
-    }
     async Task Enter(string client, string url, bool register = true)
     {
         Console.WriteLine("ENTER " + client);
@@ -164,29 +136,11 @@ internal sealed partial class GameSuite
             await Call(client, "pawn.draft", new { pawn = H(pawn), drafted = true });
         return home;
     }
-    async Task<bool> AcceptLanguageWarning(string client)
-    {
-        var warning = await Call(client, "clash.compatibility");
-        if (!warning.Bool("open")) return false;
-        Check(profile.A.Language != profile.B.Language && warning.Bool("canContinue"), "Unexpected compatibility mismatch; do not bypass it.");
-        await Call(client, "clash.compatibility.continue");
-        return true;
-    }
     Task Case(string id, Func<Task> body) => run.RunCaseAsync(id, body, CaptureLogs);
     Task CaptureLogs() => run.CaptureLogsAsync();
-    Task<JsonElement> Idle(string client) => Wait(client, "clash.state", null, s =>
-        !s.Bool("manualSyncInProgress") && !s.Bool("snapshotUploadInProgress") && !s.Bool("localAtomicMutationPending") && !s.Bool("bankInProgress") && !s.Bool("serverShopInProgress") && !s.Bool("mercenaryInProgress") && !s.Bool("adminInProgress") && !s.Bool("tradeOrdersPageLoadInProgress"));
     async Task<int> Stock(string client, string def)
     {
         var inventory = await Call(client, "clash.inventory");
         return inventory.GetProperty("maps").EnumerateArray().Sum(m => m.GetProperty("items").TryGetProperty(def, out var v) ? v.GetInt32() : 0);
     }
-    async Task Step(string client, int ticks)
-    {
-        var operation = await run.RunOperationAsync(client, "time.step", new { ticks, tps = 1200 }, "time.status", null,
-            (accepted, current) => current.OptionalString("id") == accepted.String("id") && current.String("state") == "completed",
-            Waiting(client, "time.status"), failed: (accepted, current) => current.OptionalString("id") == accepted.String("id") && current.String("state") is "cancelled" or "failed" ? "Tick operation stopped: " + current.GetRawText() : null);
-        RimTest.Testing.Check.Equal(ticks, operation.LastObservation.Int("advancedTicks"), "Tick budget did not complete");
-    }
-
 }

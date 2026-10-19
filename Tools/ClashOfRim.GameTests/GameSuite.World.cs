@@ -56,13 +56,6 @@ internal sealed partial class GameSuite
         try { await Case(id, body); }
         catch (Exception) { } // TestRun retains the failure; independent observations still run.
     }
-    static void Equal(JsonElement left, JsonElement right, string message)
-    {
-        if (JsonNode.DeepEquals(JsonNode.Parse(left.GetRawText()), JsonNode.Parse(right.GetRawText()))) return;
-        string Summary(JsonElement value) => value.GetRawText().Length <= 1500 ? value.GetRawText()
-            : "sha256=" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value.GetRawText())));
-        Check(false, message + "\nExpected: " + Summary(left) + "\nActual: " + Summary(right));
-    }
     async Task WorldChecks()
     {
         worldA = await Call("A", "clash.world.details"); worldB = await Call("B", "clash.world.details");
