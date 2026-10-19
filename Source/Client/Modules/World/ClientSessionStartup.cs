@@ -58,6 +58,26 @@ internal sealed class ClientSessionStartup
         this.followups = followups;
     }
     internal bool IsInActiveWorld => session.HasSnapshotSession(session.ReadContext()) && !runtime.Bind().IsObserving;
+    internal AutomaticStartup CreateAutomatic(Func<bool> currentGame) => new(this, currentGame);
+    // One opportunity per source Game. Eligibility denials leave it available;
+    // admitted failures still require an explicit user retry, as before.
+    internal sealed class AutomaticStartup
+    {
+        private readonly ClientSessionStartup owner;
+        private readonly Func<bool> currentGame;
+        private bool attempted;
+        internal AutomaticStartup(ClientSessionStartup owner, Func<bool> currentGame)
+        { this.owner = owner; this.currentGame = currentGame; }
+        internal Task PollAsync()
+        {
+            using var p = ClientSessionWork.EnterPublication();
+            if (attempted || !currentGame()) return Task.CompletedTask;
+            var source = owner.publication.Capture();
+            if (!owner.CanStartAutomatic || !currentGame() || !owner.publication.IsCurrent(source)) return Task.CompletedTask;
+            attempted = true;
+            return owner.StartAsync(ClientSessionStartKind.Map);
+        }
+    }
     internal bool CanStartAutomatic
     {
         get

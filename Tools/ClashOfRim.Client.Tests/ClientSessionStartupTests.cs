@@ -102,7 +102,7 @@ internal static class ClientSessionStartupTests
         Check(initial.Session.SessionId == "accepted-session", "First map login could not establish its session.");
         return count + 1;
     }
-    private static Fixture AutomaticFixture()
+    internal static Fixture AutomaticFixture()
     {
         var f = new Fixture(ClientSessionStartKind.Map);
         f.Session.PublishLogin(new() { SessionId = " ", AuthToken = "auth" });
@@ -275,7 +275,7 @@ internal static class ClientSessionStartupTests
         Check(f.Logouts.Count == 1 && attempt.Publish(f.Session.CaptureOwnership()) is null, "Disposed credential published or released twice.");
     }
     private static void Check(bool ok, string message) { if (!ok) throw new InvalidOperationException(message); }
-    private sealed class Fixture : IClientSessionLoginTransport, IClientSessionLogoutTransport, IClientSnapshotTransport,
+    internal sealed class Fixture : IClientSessionLoginTransport, IClientSessionLogoutTransport, IClientSnapshotTransport,
         IClientSessionStartupRuntime, IClientSessionStartupPresentation, IClientSessionFollowups, IClientWorldSourceGame
     {
         internal readonly EventModuleTestPorts Ports = new();

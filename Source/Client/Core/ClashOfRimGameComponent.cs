@@ -45,7 +45,7 @@ public sealed class ClashOfRimGameComponent : GameComponent
     private string lineageToken = string.Empty;
     private int nextPlayerColonySiteRegistrationTick;
     private int nextRemoteWorldObjectOrphanCleanupTick;
-    private bool automaticSessionAttempted;
+    private readonly Game game;
     private bool worldMapWasSelected;
     private bool chatOverlayMinimized = true;
     private string chatInput = string.Empty;
@@ -58,6 +58,7 @@ public sealed class ClashOfRimGameComponent : GameComponent
 
     public ClashOfRimGameComponent(Game game)
     {
+        this.game = game;
     }
 
     public override void GameComponentOnGUI()
@@ -86,7 +87,7 @@ public sealed class ClashOfRimGameComponent : GameComponent
         int ticks = Find.TickManager?.TicksGame ?? 0;
         ClashOfRimMod? mod = LoadedModManager.GetMod<ClashOfRimMod>();
         mod?.AdvanceRaidRecovery();
-        TryStartAutomaticRuntimeSession(mod);
+        TryStartAutomaticRuntimeSession();
         TryRegisterPlayerColonySites(mod, ticks);
         mod?.PollWorldSynchronization(ticks);
         TryCleanupRemoteWorldObjectOrphans(ticks);
@@ -869,17 +870,8 @@ public sealed class ClashOfRimGameComponent : GameComponent
 
     private static ClashOfRimGameComponent? Current => Verse.Current.Game?.GetComponent<ClashOfRimGameComponent>();
 
-    private void TryStartAutomaticRuntimeSession(ClashOfRimMod? mod)
-    {
-        if (automaticSessionAttempted
-            || mod?.CanStartAutomaticMapServerSession != true)
-        {
-            return;
-        }
-
-        automaticSessionAttempted = true;
-        mod.StartMapServerSession();
-    }
+    private void TryStartAutomaticRuntimeSession()
+        => _ = ClientAutomaticSessionStartup.Current?.PollAsync(game);
 
     private void TryRegisterPlayerColonySites(ClashOfRimMod? mod, int ticks)
     {

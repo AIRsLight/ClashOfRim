@@ -384,6 +384,7 @@ public sealed partial class ClashOfRimMod : Mod
             new ClientSessionLogin(sessionLifecycle, new ClientSessionLoginTransport(new ClientProtocolEnvironment())),
             ClientSnapshotComposition.Create(settings), new ClientSessionStartupRuntime(sessionConnection),
             new ClientSessionStartupPresentation(message => diagnostics.LoginStatus = message, message => diagnostics.SnapshotUploadStatus = message, response => ShowCompatibilityMismatchWindow(response)), sessionFollowups);
+        ClientAutomaticSessionStartup.Attach(new(sessionStartup));
         var operationFollowups = new ClientOperationFollowups(eventRefresh, shopCatalog, playerDirectory, worldSynchronization, new ClientSessionFollowupText());
         shopOperations.Completed += step => _ = operationFollowups.ShopCompleted(step);
         tradeOperations.Completed += (operation, step) => _ = operationFollowups.TradeCompleted(operation, step);
@@ -543,7 +544,6 @@ public sealed partial class ClashOfRimMod : Mod
 
     internal bool ShouldInterceptVanillaAutosave => snapshotSaving.InterceptsAutosave;
 
-    internal bool CanStartAutomaticMapServerSession => sessionStartup.CanStartAutomatic;
 
     internal bool CanSyncRuntimeWorldObjects => worldSynchronization.CanStart(ClientWorldSynchronizationKind.RuntimeObjects);
 

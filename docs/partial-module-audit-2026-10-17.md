@@ -3292,3 +3292,13 @@ PNG 下载保持四路并发、20 秒超时及 256 项纹理容量；详情保�
 **6 个相关单元组通过**：新增设置生命周期、初始世界提交、世界同步、标记、世界入口和模块边界。最终日志 `LocalOnly/module-migration/world-setup-lifecycle-tests.log`；守卫检查 1,654 个纯模块类型、127 个兼容能力类型、115 个页面／适配类型及 312 个事件适配类型。生产随单元测试编译；未运行全量实机回归、专项 RimTest 或独立发布／桥接构建，冻结 1.6 和原有未提交修改保留，未推送。
 
 **下一步 M11o8：游戏组件生命周期接入。** 复核 GameComponent 的初始化、读档、轮询和界面入口，按现有模块责任消除 Mod 转发；该文件存在原有未提交修改，迁移时保留并仅提交本阶段差异。之后继续网络／服务器过渡门面、M12 和最终审计，M11 整体仍开放。验证继续使用相关单元测试，必要时补单次功能 RimTest，全量由用户安排。
+
+### M11o8a：自动地图登录机会归会话启动模块所有（2026-10-19）
+
+GameComponent 不再保存 `automaticSessionAttempted` 或分别询问 Mod 资格后启动登录。现有 `ClientSessionStartup` 的 `AutomaticStartup` 保存一次尝试状态，复用同一个自动准入判断与 Map 登录／快照／后续发布流程。临时未就绪、同步忙碌和待确认变更不消费机会；真正发起后的失败保持原有一次尝试语义，仍可显式重试。检查期间的归属变化也不消费机会。删除仅为组件服务的 `CanStartAutomaticMapServerSession` 和 `StartMapServerSession` 两个 Mod 转发。
+
+`ClientAutomaticSessionStartup` 使用 Game 弱表绑定机会，组件从构造参数保留自己的 Game，再传给这一窄适配器。旧 Game 的组件回调不能替新 Game 启动登录，同一 Game 的重复组件不能取得第二份机会，新的 Game 则可取得自己的机会。适配器重装配后旧实例失效。已存在机会的每帧查询不再创建捕获闭包；资格和网络执行仍在原模块。GameComponent 其余袭击、世界轮询和界面逻辑保持下一阶段范围，没有创建集中所有领域操作的新运行时门面。原有未提交的 Update 排队／自动入口改动保留，已适配新入口，未纳入本次暂存。
+
+新增测试复用会话启动夹具，检查七种可恢复准入、来源失效、一次成功／失败、显式重试、回调重入、十种检查期间的归属变化，以及真实 GameComponent Tick 的未绑定、未就绪、同 Game 多组件、旧 Game／新 Game 和适配器替换。引擎测试替换 Mod 查找、TickManager、队列调度及无关孤儿清理，登录与上传通过原夹具运行真实业务模块；没有启动游戏场景。两项临时错误实现分别被 `An already used game automatically retried after session removal.`、`Old GameComponent started the replacement game's login.` 捕获，日志 `LocalOnly/module-migration/automatic-session-{once,game}-negative.log`，错误实现已恢复。
+
+**4 个相关单元组通过**：新增自动启动、会话启动、主线程入口交接和模块边界。最终日志 `LocalOnly/module-migration/automatic-session-tests.log`；守卫检查 1,655 个纯模块类型、127 个兼容能力类型、117 个页面／适配类型及 312 个事件适配类型。生产随测试编译；未运行全量实机回归、专项 RimTest 或独立发布／桥接构建，未推送。下一步 **M11o8b：世界视图刷新、站点定期登记及运行时对象轮询**，继续复用各自模块并从 GameComponent 收回相关状态；M11、M12 和最终审计仍开放。

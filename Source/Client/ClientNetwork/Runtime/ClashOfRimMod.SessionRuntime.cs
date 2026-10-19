@@ -51,5 +51,4 @@ public sealed partial class ClashOfRimMod
     private void StartRefreshWorldConfigurationCatalog(string reason, bool includeGenerationBaseline = false)
         => _ = worldCatalog.RefreshAsync(reason, includeGenerationBaseline);
 
-    internal void StartMapServerSession() => _ = sessionStartup.StartAsync(ClientSessionStartKind.Map);
 }
