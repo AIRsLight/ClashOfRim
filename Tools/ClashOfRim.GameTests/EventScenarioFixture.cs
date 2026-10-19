@@ -7,10 +7,10 @@ namespace ClashOfRim.GameTests;
 
 internal sealed class EventScenarioFixture(ScenarioPolling polling, IAuthoritativeEventLedger ledger)
 {
-    internal async Task<AuthoritativeEvent> AwaitLedger(string id, Func<AuthoritativeEvent, bool> predicate)
+    internal async Task<AuthoritativeEvent> AwaitLedger(string id, Func<AuthoritativeEvent, bool> predicate, int seconds = 90)
     {
         var timer = Stopwatch.StartNew();
-        while (timer.Elapsed.TotalSeconds < 90)
+        while (timer.Elapsed.TotalSeconds < seconds)
         {
             if (ledger.Find(id) is { } current && predicate(current)) return current;
             await Task.Delay(100);

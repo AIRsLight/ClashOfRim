@@ -57,6 +57,8 @@ var tests = new (string Name, Action Run)[]
     ("游戏运行诊断精确限定启动豁免", GameWorldEntryScenarioTests.Diagnostics),
     ("游戏远行队与礼物场景状态归属和守恒断言", GameTransferScenarioTests.Run),
     ("游戏离线投递与通知场景决定、退回和重连边界", GameOfflineScenarioTests.Run),
+    ("游戏远程地图观察隔离与战斗重载身份", GameSupportRemoteScenarioTests.Remote),
+    ("游戏支援场景五类生命周期与状态守恒断言", GameSupportRemoteScenarioTests.Support),
     ("银行模块独立装配、凭据、借还款与回执", () => BankModuleTests.Run(BuildFixturePackage)),
     ("外交命令授权、快照、恢复复验与并发幂等", () => DiplomacyAuthorizationTests.Run(BuildFixturePackage)),
     ("意识形态摘要重建保留显示元数据", IdeologyMetadataTests.Run),

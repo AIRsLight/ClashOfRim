@@ -22,6 +22,8 @@ internal sealed partial class GameSuite
     private readonly ColonyScenarioFixture colonyFixture;
     private readonly CaravanScenario caravanFixture;
     private readonly GiftScenario giftScenario;
+    private readonly SupportScenario support;
+    private readonly RemoteMapScenario remoteMaps;
     private readonly NotificationScenario notifications;
     private readonly EventScenarioFixture eventFixture;
     private readonly ScenarioRuntimeDiagnostics diagnostics;
@@ -55,6 +57,8 @@ internal sealed partial class GameSuite
         var serverState = ServerState;
         caravanFixture = new(run, polling, dialogs, colonyFixture);
         eventFixture = new(polling, serverState.Ledger);
+        support = new(run, polling, dialogs, caravanFixture, serverState.Ledger, eventFixture);
+        remoteMaps = new(run, polling, colonyFixture);
         world = new(run, polling, profile, serverState.WorldConfiguration, serverState.WorldTileDistanceCalculator,
             id => WorldPersistenceProbe.Read(root, id));
         entry = new(run, polling, dialogs, world, colonyFixture, diagnostics, () => url, serverState.OnlinePresence.IsUserOnline);
@@ -120,11 +124,11 @@ internal sealed partial class GameSuite
                 await Case("trade-drop-pod-fulfillment", TradeFulfill);
                 await Case("achievement-unlock-leaderboard", Achievements);
                 await Case("alliance-request-accept", Alliance);
-                await Case("ally-observation-close", ObserveAlly);
+                await Case("ally-observation-close", () => remoteMaps.ObserveAlly(profile.Stability == "transfers"));
                 await Case("caravan-load-travel", caravanFixture.Travel);
                 await Case("trade-caravan-fulfillment", TradeCaravanFulfill);
                 await Case("caravan-gift-accept", giftScenario.Accept);
-                await Case("support-send-early-return", Support);
+                await Case("support-send-early-return", support.Run);
                 await Case("mercenary-hire", Mercenary);
                 await Case("mercenary-recall", MercenaryRecall);
                 await Case("raid-open-settle", async () => { await Raid(); await entry.LoginExisting(true); });

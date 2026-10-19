@@ -37,7 +37,7 @@ internal sealed class GameScenarioTestRuntime : IDisposable
             var args = Wire.Element(arguments ?? new { }); owner.Calls.Add((client, method, args));
             object result = owner.Script?.Invoke(client, method, args) ?? (method switch
             {
-                "runtime.hello" => new { headless = owner.Headless, capabilities = new[] { "time.status", "clash.state", "clash.gravship", "game.state", "clash.difficulty", "clash.world.details", "caravans.list", "caravan.state", "clash.events" }.Select(name => new Capability(name, name, "observe")).ToArray() },
+                "runtime.hello" => new { headless = owner.Headless, capabilities = new[] { "time.status", "clash.state", "clash.gravship", "game.state", "clash.difficulty", "clash.world.details", "caravans.list", "caravan.state", "clash.events", "clash.records", "clash.remote", "clash.inventory", "clash.support.assignments" }.Select(name => new Capability(name, name, "observe")).ToArray() },
                 "clash.compatibility" => new { open = false },
                 "dialogs.messages" or "dialogs.nodes" or "pages.list" => new { items = Array.Empty<object>() },
                 "runtime.logs" => new { items = owner.Logs[client].Where(e => e.Int("sequence") > (args.TryGetProperty("after", out var after) ? after.GetInt32() : 0)).ToArray() },

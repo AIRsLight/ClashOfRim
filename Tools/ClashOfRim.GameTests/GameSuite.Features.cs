@@ -243,126 +243,6 @@ internal sealed partial class GameSuite
         await Invoke("A", "StartRefreshPlayers"); await Idle("A");
         await Wait("A", "clash.records", new { kind = "players" }, p => Items(p).Any(v => v.GetProperty("data").String("userId") == "rimtest-B" && v.GetProperty("data").OptionalString("relationKind") == "Ally"));
     }
-    async Task ObserveAlly()
-    {
-        await Idle("B"); await Invoke("B", "StartManualSnapshotUpload"); await Idle("B");
-        await Invoke("A", "StartSyncWorldMapMarkers");
-        var markers = await Wait("A", "clash.records", new { kind = "markers" }, p => Items(p).Any(v => v.GetProperty("data").String("ownerUserId") == "rimtest-B"));
-        var target = Items(markers).Single(v => v.GetProperty("data").String("ownerUserId") == "rimtest-B" && v.GetProperty("data").String("kind") == "TradeableColony");
-        int before = (await Call("A", "game.state")).Int("mapCount");
-        string snapshot = (await Call("A", "clash.state")).String("currentSnapshotId");
-        var homeBefore = profile.Stability == "transfers" ? await Call("A", "clash.stability.map") : default;
-        var targetBefore = profile.Stability == "transfers" ? await Call("B", "clash.stability.map") : default;
-        await Invoke("A", "StartObserveRemoteMarker", new { target = target.GetProperty("reference"), mode = "FriendlyObservation" });
-        var remote = await Wait("A", "clash.remote", null, s => s.Bool("active") && s.GetProperty("session").Bool("isObservation"));
-        Check(remote.GetProperty("session").String("targetUserId") == "rimtest-B", "Wrong observation owner.");
-        Check((await Call("A", "game.state")).Int("mapCount") == before + 1, "Remote map did not open.");
-        if (profile.Stability == "transfers") await Call("A", "clash.fixture.remoteLoss", new { acknowledgeFixture = true });
-        Check((await Call("A", "clash.remote.close")).Bool("invoked"), "Observation close was not accepted.");
-        await Wait("A", "clash.remote", null, s => !s.Bool("active"));
-        Check((await Call("A", "game.state")).Int("mapCount") == before && (await Call("A", "clash.state")).String("currentSnapshotId") == snapshot,
-            "Closing observation changed home map count or authoritative snapshot.");
-        if (profile.Stability == "transfers")
-        {
-            Equal(homeBefore, await Call("A", "clash.stability.map"), "Observation mutated viewer home inventory/buildings");
-            Equal(targetBefore, await Call("B", "clash.stability.map"), "Observation mutated target inventory/buildings");
-        }
-    }
-    Task Support() => Support("early", false);
-    async Task Support(string mode, bool verifyState)
-    {
-        await Idle("A"); await Idle("B");
-        var previousEvents = Items(await Call("B", "clash.events", new { limit = 200 })).Select(v => v.GetProperty("data").String("eventId")).ToHashSet();
-        var originalCaravan = Items(await Call("A", "caravans.list")).Single(c => H(c) == caravanFixture.Handle);
-        var originalPawn = originalCaravan.GetProperty("pawns")[0];
-        var identity = await Call("A", "clash.pawn.identity", new { pawn = originalPawn.String("handle") });
-        var originalState = verifyState ? await Call("A", "clash.stability.pawn", new { pawn = originalPawn.String("handle") }) : default;
-        var targetPawns = (await Call("B", "clash.inventory")).GetProperty("maps")[0].GetProperty("colonists").EnumerateArray().Select(p => p.String("id")).ToHashSet();
-        await Call("A", "world.select", new { target = caravanFixture.Handle });
-        string supportLabel = (await Call("A", "clash.labels")).String("support");
-        var gizmo = Items(await Call("A", "world.gizmos", new { target = caravanFixture.Handle })).Single(g => g.String("label") == supportLabel && !g.Bool("disabled"));
-        await Call("A", "world.invokeGizmo", new { target = caravanFixture.Handle, type = gizmo.String("type"), label = gizmo.String("label") });
-        await dialogs.ChooseOnlyMenu("A"); await Confirm("A");
-        string window = H(Items(await Call("A", "ui.windows")).Single(w => w.GetProperty("reference").String("type").EndsWith(".SupportDurationDialogWindow")));
-        await Call("A", "clash.support.confirmDuration", new { window, days = 3, permanent = mode == "permanent" }); await Idle("A");
-        bool Incoming(JsonElement v) => !previousEvents.Contains(v.GetProperty("data").String("eventId")) && v.GetProperty("data").String("payloadSummary").Contains("SupportDurationDays", StringComparison.OrdinalIgnoreCase);
-        var incoming = await Wait("B", "clash.events", new { limit = 200 }, p => Items(p).Any(Incoming));
-        var request = Items(incoming).Single(Incoming);
-        string id = request.GetProperty("data").String("eventId");
-        if (mode == "reject")
-        {
-            Check((await Invoke("B", "HandleEventLetterAction", new { eventId = id, actionKind = "Reject" })).Bool("returnValue"), "Support rejection rejected.");
-            await Idle("B"); await AwaitSupportReturn(originalState, verifyState);
-            Check(!Items(await Call("B", "clash.support.assignments")).Any(s => s.String("eventId") == id), "Rejected support became an assignment.");
-            return;
-        }
-        Check((await Invoke("B", "HandleEventLetterAction", new { eventId = id, actionKind = "Accept" })).Bool("returnValue"), "Support acceptance rejected.");
-        if (mode == "permanent")
-        {
-            var landed = await Wait("B", "clash.inventory", null, p => p.GetProperty("maps")[0].GetProperty("colonists").GetArrayLength() == targetPawns.Count + 1);
-            var pawn = landed.GetProperty("maps")[0].GetProperty("colonists").EnumerateArray().Single(p => !targetPawns.Contains(p.String("id")));
-            Equal(originalState.GetProperty("data"), (await Call("B", "clash.stability.pawn", new { pawn = H(pawn) })).GetProperty("data"), "Permanent support changed stable state");
-            Check(!Items(await Call("B", "clash.support.assignments")).Any(s => s.String("eventId") == id), "Permanent support incorrectly acquired an expiry assignment.");
-            await Invoke("B", "HandleEventLetterAction", new { eventId = id, actionKind = "Accept" }); await Idle("B"); await Step("B", 600);
-            Check((await Call("B", "clash.inventory")).GetProperty("maps")[0].GetProperty("colonists").GetArrayLength() == targetPawns.Count + 1, "Repeated permanent acceptance duplicated pawn.");
-            return;
-        }
-        var assigned = await Wait("B", "clash.support.assignments", null, p => Items(p).Any(s => s.String("eventId") == id));
-        Check(Items(assigned).Single(s => s.String("eventId") == id).Int("supportDurationDays") == 3, "Support duration did not persist.");
-        await Idle("B"); await Step("B", 600);
-        if (verifyState)
-        {
-            var receivedState = await Call("B", "clash.stability.pawn", new { thingId = Items(assigned).Single(s => s.String("eventId") == id).String("pawnThingId") });
-            Equal(originalState.GetProperty("data"), receivedState.GetProperty("data"), "Support delivery changed stable pawn state");
-            int count = Items(assigned).Length;
-            await Invoke("B", "HandleEventLetterAction", new { eventId = id, actionKind = "Accept" }); await Idle("B");
-            Check(Items(await Call("B", "clash.support.assignments")).Length == count, "Repeated support acceptance duplicated assignments.");
-        }
-        var receivedIdentity = await Call("B", "clash.pawn.identity", new { thingId = Items(assigned).Single(s => s.String("eventId") == id).String("pawnThingId") });
-        foreach (string field in new[] { "name", "race", "kind", "gender", "biologicalAge" }) Equal(identity.GetProperty(field), receivedIdentity.GetProperty(field), "Support changed pawn " + field);
-        Check(receivedIdentity.Bool("ideologyRegistered"), "Transferred pawn has a dangling ideology reference.");
-        if (identity.GetProperty("ideology").ValueKind != JsonValueKind.Null)
-        {
-            var receivedIdeo = receivedIdentity.GetProperty("ideology");
-            Check(receivedIdeo.ValueKind != JsonValueKind.Null, "Support lost pawn ideology.");
-            foreach (string field in new[] { "culture", "foundation", "memes", "precepts" }) Equal(identity.GetProperty("ideology").GetProperty(field), receivedIdeo.GetProperty(field), "Support changed pawn ideology " + field);
-        }
-        if (mode == "death") await Call("B", "clash.fixture.supportDeath", new { thingId = Items(assigned).Single(s => s.String("eventId") == id).String("pawnThingId"), acknowledgeFixture = true });
-        if (mode is "expiry" or "death") await Call("B", "clash.fixture.supportDue", new { eventId = id, acknowledgeFixture = true });
-        else Check((await Call("B", "clash.support.return", new { eventId = id })).Bool("accepted"), "Early support return rejected.");
-        await Idle("B");
-        await Call("B", "time.run", new { tps = 1200 });
-        try { await Wait("B", "clash.support.assignments", null, p => !Items(p).Any(s => s.String("eventId") == id)); }
-        finally { await Call("B", "time.cancel"); }
-        if (mode == "death")
-        {
-            await Idle("B"); await Step("A", 600); await Step("B", 600);
-            var timer = Stopwatch.StartNew();
-            while (ServerState.Ledger.Find(id)?.Status.ToString() != "Failed" && timer.Elapsed.TotalSeconds < 30) await Task.Delay(100);
-            Check(ServerState.Ledger.Find(id)?.Status.ToString() == "Failed", "Expired dead support did not settle as a loss.");
-            var losses = ServerState.Ledger.ListAll().Where(e => e.Payload is AIRsLight.ClashOfRim.Events.SupportPawnEventPayload p && p.SourceEventId == id && p.ReturnToSender).ToArray();
-            Check(losses.Length == 1 && ((AIRsLight.ClashOfRim.Events.SupportPawnEventPayload)losses[0].Payload).PawnPackage is null, "Death closure duplicated or returned a living pawn.");
-            timer.Restart();
-            while (ServerState.Ledger.Find(losses[0].EventId)?.Status.ToString() != "AppliedToSnapshot" && timer.Elapsed.TotalSeconds < 30) await Task.Delay(100);
-            Check(ServerState.Ledger.Find(losses[0].EventId)?.Status.ToString() == "AppliedToSnapshot", "Owner did not persist the support loss.");
-            await Invoke("B", "HandleEventLetterAction", new { eventId = id, actionKind = "Accept" }); await Idle("B"); await Step("B", 600);
-            Check((await Call("B", "clash.inventory")).GetProperty("maps")[0].GetProperty("colonists").GetArrayLength() == targetPawns.Count
-                && !Items(await Call("B", "clash.support.assignments")).Any(s => s.String("eventId") == id), "Repeated acceptance resurrected finished dead support.");
-            Check(Items(await Call("A", "caravans.list")).Sum(c => c.GetProperty("pawns").GetArrayLength()) == 0, "Dead support resurrected in owner's caravan.");
-            var closed = Items(await Call("B", "clash.stability.support", new { limit = 200 })).Single(q => q.String("eventId") == id);
-            Check(closed.Bool("completed"), "Dead support quest remained active.");
-            await run.RecordAsync(new { serverObservation = "support-death-closure", source = id, loss = losses[0].EventId });
-            return;
-        }
-        await AwaitSupportReturn(originalState, verifyState);
-        if (verifyState)
-        {
-            await Step("B", 60);
-            var quest = Items(await Call("B", "clash.stability.support", new { limit = 200 })).Single(p => p.String("eventId") == id);
-            Check(quest.Bool("completed") && quest.Bool("finishRequested") && quest.String("finishReason") == (mode == "expiry" ? "QuestExpired" : "EarlyReturn"), "Support quest did not reach its expected terminal state.");
-            Check((await Call("B", "clash.inventory")).GetProperty("maps")[0].GetProperty("colonists").GetArrayLength() == targetPawns.Count, "Support departure left a duplicate resident pawn.");
-        }
-    }
     async Task Raid()
     {
         await Idle("A"); await Idle("B");
@@ -414,7 +294,7 @@ internal sealed partial class GameSuite
         if (profile.Stability == "transfers")
         {
             loss = await Call("A", "clash.fixture.remoteLoss", new { acknowledgeFixture = true });
-            await ReloadActiveBattle(eventId);
+            await remoteMaps.ReloadBattle(eventId);
         }
         // Explicitly test finishing with the attack force still present (the original warning is retained).
         Check((await Call("A", "clash.remote.close")).Bool("invoked"), "Raid finish action rejected.");
