@@ -243,7 +243,7 @@ internal static class ClientEndgameAchievementTests
         finally { harmony.UnpatchAll(harmony.Id); observed.Clear(); }
     }
 
-    private sealed class Fixture : IDisposable, IClientSnapshotGame, IClientSnapshotTransport, IClientLocalSnapshotPresentation, IClientEndgameRuntime, IClientEndgamePresentation
+    internal sealed class Fixture : IDisposable, IClientSnapshotGame, IClientSnapshotTransport, IClientLocalSnapshotPresentation, IClientEndgameRuntime, IClientEndgamePresentation
     {
         internal readonly EventModuleTestPorts Ports = new();
         internal readonly ClientSessionLifecycle Session;
@@ -262,9 +262,10 @@ internal static class ClientEndgameAchievementTests
         internal ClientAchievementCandidates Pending { get; } = new();
         ClientAchievementCandidates? IClientEndgameRuntime.Pending => NoQueue ? null : Pending;
         public bool IsObserving => Observing;
-        internal Fixture()
+        internal Fixture(bool reset = true)
         {
-            ClientSessionWork.Reset(); Session = new(Ports, Ports, new ClientSessionConnection(Ports));
+            if (reset) ClientSessionWork.Reset();
+            Session = new(Ports, Ports, new ClientSessionConnection(Ports));
             Session.PublishLogin(new() { AuthenticatedUserId = "alice", AuthToken = "auth", SessionId = "session" });
             View = new(Ports);
             var transactions = new ClientSnapshotTransaction(Session, this, new ClientSnapshotPublication(Ports, this));

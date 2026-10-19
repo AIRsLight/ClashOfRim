@@ -10,12 +10,20 @@ namespace AIRsLight.ClashOfRim;
 
 internal static class EndgameAchievementRuntime
 {
+    private static ClientEndgameAchievements? achievements;
+    internal static void Attach(ClientEndgameAchievements? value) => achievements = value;
     internal static bool ConfirmOrDefer(string key, Action continuation)
-        => ClashOfRimMod.Instance?.ConfirmEndgameOrDefer(key, continuation) ?? true;
+    {
+        var owner = achievements;
+        return owner?.ConfirmOrDefer(key, () =>
+        {
+            if (ReferenceEquals(owner, achievements)) continuation();
+        }) ?? true;
+    }
     internal static void Confirm(ClientEndgameKind kind, string eventKey)
     {
         if (string.IsNullOrWhiteSpace(eventKey)) return;
-        ClashOfRimMod.Instance?.StartEndgameAchievementSnapshotConfirmation(new[]
+        _ = achievements?.SubmitAsync(new[]
         { ClientEndgameAchievements.Candidate(kind, eventKey) });
     }
 }

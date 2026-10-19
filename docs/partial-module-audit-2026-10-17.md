@@ -3498,3 +3498,11 @@ pawn 的明确全局标签及关系占位标签继续优先于本地 ThingID；�
 测试运行真实关系解析／已知 pawn 枚举和已注册的 Biotech 来源捕获。四种文化下覆盖本地／外来／占位身份、同 ThingID 冲突、未绑定／空账户、登录换名、Unicode 与斜杠规范化、重新装配、快照前进和暂时断线。补充依赖守卫覆盖两个入口及生成类型。**5 个相关单元组通过**：账户关系解析、Biotech 物品能力、原重复 pawn 流转、Scribe 加载和模块边界；日志 `LocalOnly/module-migration/pawn-account-final-tests.log`。守卫为 1,701／127／14／196／9／315。生产随单元编译，未运行全量回归、专项 RimTest 或独立构建，未推送。
 
 **下一步 M11o12h：结局成就回调。** 当前扫描发现 `EndgameAchievementRuntime` 仍通过 `ClashOfRimMod.Instance` 进入原结局模块；先清除此处接线，再继续网络／服务器过渡门面、M12 和最终审计。
+
+### M11o12h：结局入口直接连接成就模块（2026-10-19）
+
+`EndgameAchievementRuntime` 直接绑定 `ClientEndgameAchievements`，删除 Mod 的确认与提交两个转发。引擎确认回调复用模块原有一次性许可、会话／游戏归属和快照前进规则；适配器额外限定回调只能返回原装配，防止旧确认通过新装配重新打开对话框或执行结局。奖励继续调用原候选目录、去重队列和统一 Endgame 快照事务，不复制结局判定或提交流程。
+
+新增入口测试复用原结局模块夹具，运行真实 Harmony 前后缀、确认许可、奖励队列和提交链，仅替换原生游戏结局效果。四种文化下检查七类入口参数、重复确认、同步重入及许可释放；十类变化覆盖旧确认的账户、游戏、代次、装配归属及快照前进例外。六类结束奖励验证原始事件 key、跳过原方法不发奖、忙时保留、重复候选去重及稍后一次提交。原结局测试的 **201 场景**继续通过；连同新入口和依赖守卫，**3 个相关单元组通过**，日志 `LocalOnly/module-migration/endgame-callback-tests.log`。守卫为 1,701／127／14／213／9／315，未运行全量回归、专项 RimTest、独立构建或推送。
+
+此时扫描 `Source/Client` 已无 `ClashOfRimMod.Instance`／`GetMod<ClashOfRimMod>` 调用；这只证明这两种运行时查找已清除，不代表仍接收 Mod 的兼容构造函数、宿主转发、协议构造和服务器业务全部迁完。**下一步 M11p：协议客户端剩余请求构造及过渡入口。** `ClashOfRimModNetworkClient` 仍直接构造 MaintainPresence／UploadSnapshot 请求；服务器仍有 FailureReports 等业务分片。继续逐项迁移后再进入 M12 和最终审计。

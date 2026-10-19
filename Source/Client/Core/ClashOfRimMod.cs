@@ -434,6 +434,7 @@ public sealed partial class ClashOfRimMod : Mod
         }
 
         Instance = this;
+        EndgameAchievementRuntime.Attach(endgameAchievements);
         BiotechCompatibilityPackage.Attach(sessionLifecycle);
         PawnExchangeScribeRestorer.Attach(sessionLifecycle);
         MainButtonWorker_ClashOfRimMultiplayer.Attach(sessionLifecycle);
@@ -599,9 +600,6 @@ public sealed partial class ClashOfRimMod : Mod
     internal string AchievementTargetUserId => achievementQueries.Target.UserId;
     internal string AchievementTargetColonyId => achievementQueries.Target.ColonyId;
     internal string AchievementStatus => achievementQueries.Message;
-    internal bool ConfirmEndgameOrDefer(string key, Action continuation) => endgameAchievements.ConfirmOrDefer(key, continuation);
-    internal void StartEndgameAchievementSnapshotConfirmation(IReadOnlyList<ModSnapshotAchievementCandidateDto> candidates)
-        => _ = endgameAchievements.SubmitAsync(candidates);
     internal void StartRefreshAchievements(string? targetUserId = null, string? targetColonyId = null)
         => _ = achievementQueries.RefreshAsync(targetUserId, targetColonyId);
 
