@@ -104,7 +104,10 @@ internal static class ClientRaidSupportLossSourceTests
         Reset(); battle.AttackerUserId = "alice"; battle.AttackerColonyId = "colony"; battle.TargetMapId = "42";
         var runtime = new ClientRaidSettlementRuntime(battle);
         battle.TargetMapId = "changed";
-        Check(runtime.Identity.TargetMapId == "42" && runtime.Identity.AttackerUserId == "alice" && runtime.IsCurrent
+        Check(runtime.Identity.TargetMapId == "42" && runtime.Identity.AttackerUserId == "alice" && !runtime.IsCurrent
+            && !runtime.TryBegin() && !battle.FinishInProgress, "Changed battle identity retained settlement authority.");
+        battle.TargetMapId = "42";
+        Check(runtime.IsCurrent
             && runtime.TryBegin() && battle.FinishInProgress && !runtime.TryBegin(), "Runtime did not capture identity or mark finish once.");
         runtime.ResetFinish(); Check(!battle.FinishInProgress, "Runtime failed to reset original finish.");
         runtime.KeepFinish(); Check(battle.FinishInProgress, "Runtime failed to preserve finish.");
