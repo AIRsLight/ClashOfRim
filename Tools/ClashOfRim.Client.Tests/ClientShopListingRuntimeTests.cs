@@ -16,20 +16,17 @@ using Verse;
 
 internal static class ClientShopListingRuntimeTests
 {
-    private static List<ThingDef> definitions = new();
     private static int estimates;
     internal static void Run()
     {
         var culture = CultureInfo.CurrentCulture;
+        var previousDefinitions = DefDatabase<ThingDef>.AllDefsListForReading.ToArray();
         var harmony = new Harmony("ClashOfRim.Tests.ShopListingRuntime");
         var token = ClashOfRimCompatibilityApi.CreateRegistrationToken("shop-listing-runtime-tests");
         var defaults = new List<(string Surface, string? Inner, string? Definition)>();
         try
         {
             void Patch(MethodBase method, string name) => harmony.Patch(method, prefix: new HarmonyMethod(typeof(ClientShopListingRuntimeTests), name));
-            Patch(AccessTools.PropertyGetter(typeof(DefDatabase<ThingDef>), "AllDefsListForReading"), nameof(Definitions));
-            Patch(AccessTools.Method(typeof(DefDatabase<ThingDef>), "GetNamed"), nameof(Named));
-            Patch(AccessTools.Method(typeof(DefDatabase<ThingDef>), "GetNamedSilentFail"), nameof(Named));
             Patch(AccessTools.PropertyGetter(typeof(ThingDef), "BaseMaxHitPoints"), nameof(MaxHp));
             Patch(AccessTools.Method(typeof(TradeUiUtility), nameof(TradeUiUtility.TryEstimateUnitMarketValue)), nameof(Estimate));
             Patch(AccessTools.Method(typeof(TradeUiUtility), nameof(TradeUiUtility.FormatMarketValue)), nameof(Format));
@@ -47,18 +44,21 @@ internal static class ClientShopListingRuntimeTests
             var building = new ThingDef { defName = "ShopEditorBuilding", label = "building", thingClass = typeof(Building), category = ThingCategory.Building,
                 minifiedDef = shell, useHitPoints = true, stuffCategories = new() { category }, comps = new() { new() { compClass = typeof(CompQuality) } } };
             var plain = new ThingDef { defName = "ShopEditorPlain", label = "普通", thingClass = typeof(Thing), category = ThingCategory.Item };
-            definitions = Enumerable.Range(0, 130).Select(i => new ThingDef { defName = "ShopEditorItem" + i, label = "entry " + i,
+            var definitions = Enumerable.Range(0, 130).Select(i => new ThingDef { defName = "ShopEditorItem" + i, label = "entry " + i,
                 thingClass = typeof(Thing), category = ThingCategory.Item }).ToList();
             definitions.AddRange(new[] { steel, shell, building, plain,
                 new ThingDef { defName = "ShopEditorCorpse", label = "corpse", thingClass = typeof(Corpse), category = ThingCategory.Item } });
+            ReplaceDefinitions(definitions);
             var runtime = new ClientShopListingRuntime(); var catalog = runtime.Catalog;
             Check(catalog.Count == 133 && catalog.Any(d => d.DefName == building.defName) && !catalog.Any(d => d.DefName == shell.defName)
                 && !catalog.Any(d => d.DefName == "ShopEditorCorpse"), "Engine catalog changed corpse/wrapper/packable filtering.");
             Check(ReferenceEquals(catalog, runtime.Catalog), "Unchanged engine catalog rebuilt each read.");
             CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(culture.Name == "tr-TR" ? "zh-CN" : "tr-TR");
             Check(!ReferenceEquals(catalog, runtime.Catalog), "Culture change kept the old ordered/localized catalog.");
-            var refreshed = runtime.Catalog; definitions = new(definitions);
-            Check(!ReferenceEquals(refreshed, runtime.Catalog), "Replaced definition source retained old descriptors.");
+            var refreshed = runtime.Catalog;
+            DefDatabase<ThingDef>.Add(new ThingDef { defName = "ShopEditorOtherCorpse", label = "corpse", thingClass = typeof(Corpse), category = ThingCategory.Item });
+            Check(!ReferenceEquals(refreshed, runtime.Catalog) && runtime.Catalog.Count == 133,
+                "Changed definition source retained old descriptors or stopped filtering corpses.");
             foreach (string surface in new[] { ThingReferenceSurfaces.ServerShopListing, ThingReferenceSurfaces.TradeRequest })
             {
                 int count = defaults.Count; var item = runtime.Create(building.defName, surface);
@@ -86,7 +86,7 @@ internal static class ClientShopListingRuntimeTests
         finally
         {
             ClashOfRimCompatibilityApi.RevokeRegistrationToken(token); harmony.UnpatchAll(harmony.Id);
-            CultureInfo.CurrentCulture = culture; definitions.Clear();
+            CultureInfo.CurrentCulture = culture; ReplaceDefinitions(previousDefinitions);
         }
     }
     private static void BridgeEntryPoints(ThingDef building, ThingDef steel)
@@ -100,8 +100,13 @@ internal static class ClientShopListingRuntimeTests
         Check(item.MinifiedInnerStuffDefName == steel.defName && item.MinifiedInnerQuality == "Excellent" && item.MinifiedInnerHitPoints == 146
             && (bool)Invoke("HasCompleteItem", item, ThingReferenceSurfaces.ServerShopListing)!, "RimTest entry points diverged from extracted editing.");
     }
-    private static bool Definitions(ref List<ThingDef> __result) { __result = definitions; return false; }
-    private static bool Named(string __0, ref ThingDef? __result) { __result = definitions.FirstOrDefault(def => def.defName == __0); return false; }
+    private static void ReplaceDefinitions(IEnumerable<ThingDef> definitions)
+    {
+        // Generic DefDatabase patches can share generated code with GeneDef and
+        // leave later tests reading ThingDef state. Use the real database instead.
+        DefDatabase<ThingDef>.Clear();
+        foreach (var definition in definitions) DefDatabase<ThingDef>.Add(definition);
+    }
     private static bool MaxHp(ref int __result) { __result = 200; return false; }
     private static bool Estimate(ref float marketValue, ref bool __result) { estimates++; marketValue = 2.5f; __result = true; return false; }
     private static bool Format(float marketValue, ref string __result) { __result = "unit:" + marketValue.ToString(CultureInfo.InvariantCulture); return false; }
