@@ -223,6 +223,7 @@ var tests = new (string Name, Action Run)[]
     ("shop protocol owns four contracts, captured authentication and snapshots", ClientShopProtocolTests.Run),
     ("shared shop pricing preserves rounding, bounds and lifetime counts", ServerShopPricingTests.Run),
     ("transport pod gifts use retryable authenticated snapshots", TransportPodGiftTests.Run),
+    ("transport pod gift fixture owns contention and restores engine bindings", TransportPodGiftFixtureTests.Run),
     ("registered rejection is shared by UI and authoritative preparation", RegisteredRejectionIsShared),
     ("registered capture and finalize handlers run", RegisteredCaptureAndFinalizeHandlersRun),
     ("unfinished things are rejected", UnfinishedThingsAreRejected),

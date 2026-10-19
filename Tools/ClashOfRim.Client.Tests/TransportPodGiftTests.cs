@@ -13,7 +13,7 @@ using System.Threading.Tasks;
 using AIRsLight.ClashOfRim;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.Gifts;
-using AIRsLight.ClashOfRim.Modules.Synchronization;
+using AIRsLight.ClashOfRim.WorldObjects;
 using AIRsLight.ClashOfRim.Protocol;
 using RimWorld;
 using RimWorld.Planet;
@@ -102,9 +102,9 @@ public static class TransportPodGiftTests
     public static object StartInGame()
     {
         var mod = LoadedModManager.GetMod<ClashOfRimMod>();
-        var type = typeof(ClashOfRimMod);
-        var markers = (IEnumerable<ModWorldMapMarkerDto>)type.GetProperty("WorldMapMarkersSnapshot", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!.GetValue(mod)!;
-        var target = markers.First(m => m.OwnerUserId == "rimtest-B" && !string.IsNullOrEmpty(m.MapId));
+        if (ClientTransporterActions.Current?.CanStartGiftArrival != true)
+            throw new InvalidOperationException("Fixture requires an idle configured client.");
+        var target = mod.WorldMapMarkersSnapshot.First(m => m.OwnerUserId == "rimtest-B" && !string.IsNullOrEmpty(m.MapId));
         var action = new RemoteGiftTransportersArrivalAction();
         string transporterKey = "rimtest-pod-" + Guid.NewGuid().ToString("N");
         void SetAction(string name, object? value) => typeof(RemoteGiftTransportersArrivalAction).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(action, value);
@@ -125,20 +125,13 @@ public static class TransportPodGiftTests
             if ((bool)arrivedFlag.GetValue(voyage)! || !Find.WorldObjects.AllWorldObjects.Contains(voyage) || !cargo.innerContainer.Contains(wood))
                 throw new Exception("Busy arrival lost cargo or consumed engine arrival flag: " + name);
         }
-        // Locate the composed module; exercise its real admission instead of mutating flags.
-        var synchronization = (ClientSynchronizationCoordinator)type.GetField("synchronization", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(mod)!;
-        if (!synchronization.TryAcquireSnapshot(out var snapshot)) throw new Exception("Fixture requires an idle client.");
-        using (snapshot) AssertBusyArrival("snapshot");
-        if (!synchronization.TryBeginManual(out var manual)) throw new Exception("Fixture requires an idle client.");
-        using (manual) AssertBusyArrival("manual");
-        var atomic = (ClientLocalMutationCoordinator)type.GetField("localMutations", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(mod)!;
-        if (atomic.IsPending) throw new Exception("Fixture requires no pending atomic mutation.");
-        try { atomic.Begin(LocalMutationKind.GiftSend, "fixture"); AssertBusyArrival("atomic mutation"); }
-        finally { atomic.Reset(); }
+        // Exercise the same engine guard with explicitly owned domain dependencies.
+        // Do not invalidate the live session or locate its private fields.
+        TransportPodGiftContention.Run(new ClientGiftTestFixture(ClientGiftSourceKind.TransportPods, resetSession: false), AssertBusyArrival);
         string beforeSnapshot = mod.CurrentSnapshotId;
         string worldObjectId = voyage.GetUniqueLoadID(), thingId = wood.ThingID;
         arrived.Invoke(voyage, null);
-        if (!atomic.IsPending
+        if (!mod.LocalAtomicMutationPending
             || Find.WorldObjects.AllWorldObjects.Contains(voyage) || ((System.Collections.IList)transporters.GetValue(voyage)!).Count != 0)
             throw new Exception("Arrival did not guard the mutation before engine cleanup.");
         return new { key = $"gift-transport-pods:{mod.UserId}:{beforeSnapshot}:{transporterKey}", beforeSnapshot, worldObjectId, thingId, userId = mod.UserId, colonyId = mod.ColonyId };

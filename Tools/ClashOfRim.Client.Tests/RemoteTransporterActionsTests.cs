@@ -52,7 +52,7 @@ internal static class RemoteTransporterActionsTests
             foreach (string name in new[] { "en-US", "zh-CN", "fr-FR", "tr-TR" })
             {
                 CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(name);
-                var gifts = new ClientGiftModuleTests.Fixture(ClientGiftSourceKind.TransportPods);
+                var gifts = new ClientGiftTestFixture(ClientGiftSourceKind.TransportPods);
                 var raids = new ClientRaidCommandTests.Fixture();
                 var giftActions = new ClientGiftActions(gifts.Gifts, gifts.Session, gifts.Ports, gifts,
                     () => gifts.Capabilities, () => Array.Empty<ModWorldMapMarkerDto>());
@@ -69,7 +69,7 @@ internal static class RemoteTransporterActionsTests
         }
     }
 
-    private static void Matrix(ClientGiftModuleTests.Fixture f, ClientTransporterActions actions)
+    private static void Matrix(ClientGiftTestFixture f, ClientTransporterActions actions)
     {
         foreach (bool gifts in new[] { false, true })
         foreach (bool pvp in new[] { false, true })
@@ -119,7 +119,7 @@ internal static class RemoteTransporterActionsTests
         finally { cargoAccepted = true; }
     }
 
-    private static void SerializationAndDispatch(ClientGiftModuleTests.Fixture f)
+    private static void SerializationAndDispatch(ClientGiftTestFixture f)
     {
         f.Capabilities = new(true, true);
         var view = new View();
@@ -186,7 +186,7 @@ internal static class RemoteTransporterActionsTests
         finally { ClientTransporterActions.Attach(attached); }
     }
 
-    private static void ArrivalGuard(ClientGiftModuleTests.Fixture f)
+    private static void ArrivalGuard(ClientGiftTestFixture f)
     {
         bool Guard(TransportersArrivalAction action) => (bool)AccessTools.Method(typeof(RemoteGiftArrivalGuard), "Prefix").Invoke(null, new object[] { action })!;
         var gift = new RemoteGiftTransportersArrivalAction();
