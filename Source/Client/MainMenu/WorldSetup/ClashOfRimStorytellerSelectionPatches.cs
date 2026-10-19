@@ -19,9 +19,9 @@ public static class ClashOfRimStorytellerSelectionPatches
             return;
         }
 
-        ClashOfRimMod mod = LoadedModManager.GetMod<ClashOfRimMod>();
-        mod.LockMultiplayerCommitmentModeIfNeeded();
-        mod.TryApplyServerStorytellerBaselineAndContinue(storytellerPage);
+        var configuration = ClientStorytellerPage.Configuration;
+        configuration?.LockCommitment();
+        configuration?.ContinueSetup(new ClientStorytellerPage(storytellerPage));
     }
 
 }
@@ -40,6 +40,6 @@ public static class ClashOfRimStorytellerCommitmentModePatch
     [HarmonyPostfix]
     public static void Postfix()
     {
-        LoadedModManager.GetMod<ClashOfRimMod>().LockMultiplayerCommitmentModeIfNeeded();
+        ClientStorytellerPage.Configuration?.LockCommitment();
     }
 }

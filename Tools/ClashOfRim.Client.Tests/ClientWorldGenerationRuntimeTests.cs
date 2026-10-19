@@ -5,6 +5,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using AIRsLight.ClashOfRim;
 using AIRsLight.ClashOfRim.ClientNetwork;
+using AIRsLight.ClashOfRim.MainMenu;
 using AIRsLight.ClashOfRim.Modules.World;
 using HarmonyLib;
 using RimWorld;
@@ -24,6 +25,7 @@ internal static class ClientWorldGenerationRuntimeTests
     internal static void Run()
     {
         var game = Current.Game; var creating = Current.CreatingWorld; var culture = CultureInfo.CurrentCulture;
+        var generation = ClientWorldGenerationPage.Generation; var storyteller = ClientStorytellerPage.Configuration;
         var defs = DefDatabase<FactionDef>.AllDefsListForReading.ToArray();
         var harmony = new Harmony("ClashOfRim.Tests.WorldGenerationRuntime");
         void Patch(System.Reflection.MethodBase method, string prefix) => harmony.Patch(method, prefix: new HarmonyMethod(typeof(ClientWorldGenerationRuntimeTests), prefix));
@@ -77,13 +79,14 @@ internal static class ClientWorldGenerationRuntimeTests
             catch (InvalidOperationException) { }
             Check(Current.CreatingWorld is null && pushed == popped, "Native generation failure leaked creating world/Rand state.");
             generating = null;
-            Pages(); Store();
+            Pages(); PageEntrypoints(); Store();
         }
         finally
         {
             harmony.UnpatchAll(harmony.Id); Current.Game = game; Current.CreatingWorld = creating; CultureInfo.CurrentCulture = culture;
             DefDatabase<FactionDef>.Clear(); foreach (var def in defs) DefDatabase<FactionDef>.Add(def);
             generating = closing = null; windows.Clear();
+            ClientWorldGenerationPage.Attach(generation); ClientStorytellerPage.Attach(storyteller);
         }
     }
     private static void Pages()
@@ -113,6 +116,39 @@ internal static class ClientWorldGenerationRuntimeTests
         try { store.Remember("new"); throw new Exception("Store failure lost."); } catch (InvalidOperationException) { }
         Check(settings.CurrentWorldConfigurationId == "previous", "Failed world identity save polluted memory.");
         failWrite = false; store.Remember("new"); Check(writes == 2 && settings.CurrentWorldConfigurationId == "new", "World identity did not persist.");
+    }
+    private static void PageEntrypoints()
+    {
+        Current.Game = New<Game>(); windows.Clear();
+        var source = New<Page_CreateWorldParams>(); var next = New<Page_SelectStartingSite>(); source.next = next; windows.Add(source);
+        ClientWorldGenerationPage.Attach(null);
+        Check(ClashOfRimCreateWorldParamsPatches.Prefix(source), "Unbound world generation blocked vanilla.");
+        var generation = new ClientWorldGenerationTests.Fixture(); ClientWorldGenerationPage.Attach(generation.Generation);
+        Check(ClashOfRimCreateWorldParamsPatches.Prefix(source), "Ordinary setup was intercepted.");
+        generation.Prepare(false);
+        Check(!ClashOfRimCreateWorldParamsPatches.Prefix(source) && generation.Queued.Count == 0 && windows.Contains(source), "Pending substrate fell through to vanilla generation.");
+        generation.Attach();
+        Check(!ClashOfRimCreateWorldParamsPatches.Prefix(source) && generation.Queued.Count == 1 && !windows.Contains(source), "Server generation lost source-page ownership.");
+        generation.Pump(); Check(generation.Successes == 1 && windows.Contains(next), "Generation patch did not run existing module/continuation.");
+        generation.Prepare(); windows.Clear(); windows.Add(source);
+        Check(!ClashOfRimCreateWorldParamsPatches.Prefix(source), "Second server generation was not intercepted.");
+        generation.Change("user"); generation.Pump(); Check(!windows.Contains(next), "Old generation advanced setup after account replacement.");
+
+        var storyteller = new ClientStorytellerConfigurationTests.Fixture();
+        var page = New<Page_SelectStoryteller>(); var create = New<Page_CreateWorldParams>(); page.next = create;
+        windows.Clear(); windows.Add(page); ClientStorytellerPage.Attach(storyteller.Module);
+        ClashOfRimStorytellerCommitmentModePatch.Postfix(); ClashOfRimStorytellerSelectionPatches.Postfix(page);
+        Check(storyteller.Locked == 0 && storyteller.Applied == 0 && windows.Contains(page), "Ordinary storyteller setup was changed.");
+        storyteller.Prepare(); ClashOfRimStorytellerCommitmentModePatch.Postfix(); ClashOfRimStorytellerSelectionPatches.Postfix(page);
+        Check(storyteller.Locked == 2 && storyteller.Applied == 1 && !windows.Contains(page) && windows.Contains(create), "Server storyteller baseline/commitment skipped existing module.");
+        ClashOfRimStorytellerSelectionPatches.Postfix(page); Check(storyteller.Applied == 1, "Closed storyteller page applied twice.");
+        windows.Clear(); windows.Add(page); closing = () => Current.Game = New<Game>();
+        ClashOfRimStorytellerSelectionPatches.Postfix(page); closing = null;
+        Check(!windows.Contains(create), "Storyteller close callback opened the old continuation in a new game.");
+        windows.Clear(); windows.Add(page); closing = () => storyteller.Change("user");
+        ClashOfRimStorytellerSelectionPatches.Postfix(page); closing = null;
+        Check(!windows.Contains(create), "Storyteller close callback advanced a replacement account's setup.");
+        ClientStorytellerPage.Attach(null); ClashOfRimStorytellerCommitmentModePatch.Postfix(); ClashOfRimStorytellerSelectionPatches.Postfix(page);
     }
     private static T New<T>() => (T)RuntimeHelpers.GetUninitializedObject(typeof(T));
     private static void Check(bool ok, string message) { if (!ok) throw new InvalidOperationException(message); }

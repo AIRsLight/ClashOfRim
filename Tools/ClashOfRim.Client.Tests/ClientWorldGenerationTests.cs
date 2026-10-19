@@ -140,7 +140,7 @@ internal static class ClientWorldGenerationTests
     private static ModWorldConfigurationDto Config(string seed = "seed", string coverage = "0.3") => new()
     { WorldConfigurationId = "world", SeedString = seed, PlanetCoverage = coverage, GameLanguage = "en-US" };
     private static void Check(bool ok, string message) { if (!ok) throw new InvalidOperationException(message); }
-    private sealed class Page : IClientWorldGenerationPage
+    internal sealed class Page : IClientWorldGenerationPage
     {
         private readonly Fixture f;
         internal bool Open = true; internal int Advanced;
@@ -150,7 +150,7 @@ internal static class ClientWorldGenerationTests
         public void Reopen() => Open = true;
         public void Continue(Func<bool> current) { if (current()) { Advanced++; f.Step("next"); } }
     }
-    private sealed class Fixture : IClientWorldGenerationRuntime, IClientWorldConfigurationRuntime, IClientWorldConfigurationStore,
+    internal sealed class Fixture : IClientWorldGenerationRuntime, IClientWorldConfigurationRuntime, IClientWorldConfigurationStore,
         IClientWorldGenerationPresentation, IClientStorytellerRuntime, IClientWorldFeatureCatalogTransport
     {
         internal readonly EventModuleTestPorts Ports = new();

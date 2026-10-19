@@ -17,8 +17,8 @@ public static class ClashOfRimStartingSiteValidationPatch
             return;
         }
 
-        ClashOfRimMod mod = LoadedModManager.GetMod<ClashOfRimMod>();
-        if (!mod.IsBlockedByServerColonySite(tile, out ModPlayerColonySiteDto? blockingSite) || blockingSite is null)
+        if (ClientWorldSiteReservations.Current is not { } reservations
+            || !reservations.IsBlocked(tile, out ModPlayerColonySiteDto? blockingSite) || blockingSite is null)
         {
             return;
         }
@@ -26,6 +26,6 @@ public static class ClashOfRimStartingSiteValidationPatch
         __result = false;
         reason?.AppendLine(ClashOfRimText.Key(
             "ClashOfRim.StartingSiteBlockedByServerColony",
-            ClashOfRimMod.FormatBlockedColonySite(blockingSite).Named("SITE")));
+            ClientWorldSiteReservations.Format(blockingSite).Named("SITE")));
     }
 }

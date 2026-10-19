@@ -24,7 +24,7 @@ internal interface IClientStorytellerChange { void Apply(); }
 internal interface IClientStorytellerPage
 {
     bool IsCurrent { get; }
-    void Continue();
+    void Continue(Func<bool> current);
 }
 
 // Both world setup and runtime refresh use the same baseline and publication path.
@@ -55,7 +55,12 @@ internal sealed class ClientStorytellerConfiguration
         bool CurrentPage() => setup.IsCurrent(ticket) && page.IsCurrent;
         if (!Apply(scope, ClientStorytellerBaseline.From(ticket.Configuration), CurrentPage)) return false;
         bool continued = false;
-        requests.TryApply(scope, () => { if (CurrentPage()) { page.Continue(); continued = true; } });
+        requests.TryApply(scope, () =>
+        {
+            if (!CurrentPage()) return;
+            page.Continue(() => setup.IsCurrent(ticket) && requests.TryApply(scope, static () => { }));
+            continued = true;
+        });
         return continued;
     }
     internal void LockCommitment()

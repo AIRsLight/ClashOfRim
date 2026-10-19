@@ -3268,3 +3268,15 @@ PNG 下载保持四路并发、20 秒超时及 256 项纹理容量；详情保�
 两项临时错误实现分别被 `Old storyteller editor crossed user during appearance capture` 和 `Unchanged colliding window used another page's signature.` 捕获。日志 `LocalOnly/module-migration/storyteller-editor-{capture,window}-negative.log`，错误实现已恢复。**4 个相关单元组通过**：新增难度编辑、世界写入、难度配置和模块边界。最终日志 `LocalOnly/module-migration/storyteller-editor-tests.log`；守卫检查 1,649 个纯模块类型、127 个兼容能力类型、98 个页面／适配类型及 312 个事件适配类型。生产随单元测试编译；未运行全量实机回归、专项 RimTest 或独立发布／桥接构建。冻结 1.6 和原有未提交修改保留，未推送。
 
 **下一步 M11o7b：世界准备页的真实接线。** 继续迁移服务器世界生成、难度基线／承诺模式、起始站点刷新和占用站点验证补丁，复用已提取的生成、配置、站点及同步模块，缩减剩余 WorldBaseline 与 ServerEntry 过渡入口；随后处理游戏组件的生命周期接入、网络／服务器门面及 M12。M11 整体和最终审计仍开放。
+
+### M11o7b1：世界生成、难度准备与站点校验接线（2026-10-19）
+
+服务器世界生成与难度准备的 Harmony 补丁直接使用组合根绑定在既有页面适配器上的 `ClientWorldGeneration`／`ClientStorytellerConfiguration`，不再查找整个 Mod。删除生成、难度基线继续和承诺模式三个 Mod 转发及仅为转发保存的 worldGeneration 字段；生成计划消费、异步建图、基线准备和应用仍是原模块实现，没有复制进页面类。
+
+`ClientWorldSiteReservations` 仅承接 PlanetTile 到层号的转换与拒绝原因中的站点格式化，实际缓存、邻接和几何资格仍由 `ClientOccupiedColonySites` 拥有。起始站点验证、任务新站点与路径距离选址使用同一查询；删除 Mod 的两个 IsBlocked 重载和格式化方法。两个选址补丁继续共用原验证器组合，先执行传入验证器，再检查服务器占用。未绑定适配器时保留原版结果；移除把所有查询异常转换为未占用的 catch，几何失败不再静默放行。没有更改占用半径、层号或空间层规则。
+
+实际接线测试复现并修复难度页关闭回调的后续跳转：关闭时可能切换 Game 或账户，原适配器仍无条件 Add 下一页。页面继续端口现在接收模块的原归属检查，关闭后核对 Game 和作用域再跳页；没有另造一个会话标志。测试复用原世界生成、难度和占用夹具，运行实际补丁，覆盖未绑定／普通准备、等待底层世界包、生成排队和下一页、旧账户生成完成、难度应用／承诺模式、重复推进、关闭时换 Game／账户，以及多层站点、原验证器短路、原版拒绝、站点说明回退和几何异常。窗口栈、实际建图、翻译和引擎几何使用既有或窄替身，未渲染 GUI 或实际生成／选择地图。
+
+两项临时错误实现被 `Storyteller close callback advanced a replacement account's setup.` 和 `PlanetTile adapter lost its layer.` 捕获，日志 `LocalOnly/module-migration/world-setup-entry-{storyteller,layer}-negative.log`，错误实现已恢复。**7 个相关单元组通过**：世界生成模块／运行时、占用站点模块／运行时、难度配置、难度编辑和模块边界。最终日志 `LocalOnly/module-migration/world-setup-entry-tests.log`；守卫检查 1,649 个纯模块类型、127 个兼容能力类型、109 个页面／适配类型及 312 个事件适配类型。生产随单元测试编译；未运行全量实机回归、专项 RimTest 或独立发布／桥接构建。冻结 1.6 和原有未提交修改保留，未推送。
+
+**下一步 M11o7b2：起始站点页生命周期与初始世界提交。** PostOpen／ExtraOnGUI 仍通过 Mod 触发初次提交、应用缓存与刷新，30 秒期限仍是全局静态字段；新游戏初始化也仍经 Mod 转发。将页面和刷新期限绑定原会话／Game／World，复用现有初始世界、来源 Game 和世界同步模块，完成 WorldBaseline 门面的退役。之后继续游戏组件及网络／服务器剩余门面，再推进 M12。

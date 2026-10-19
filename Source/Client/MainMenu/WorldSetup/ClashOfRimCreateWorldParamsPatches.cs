@@ -10,7 +10,6 @@ public static class ClashOfRimCreateWorldParamsPatches
     [HarmonyPrefix]
     public static bool Prefix(Page_CreateWorldParams __instance)
     {
-        ClashOfRimMod mod = LoadedModManager.GetMod<ClashOfRimMod>();
-        return !mod.TryGenerateWorldFromServerConfiguration(__instance);
+        return ClientWorldGenerationPage.Generation?.TryStart(new ClientWorldGenerationPage(__instance)) != true;
     }
 }

@@ -142,7 +142,6 @@ public sealed partial class ClashOfRimMod : Mod
     private readonly ClientStorytellerConfiguration storytellerConfiguration;
     private readonly ClientWorldConfiguration worldConfiguration;
     private readonly ClientWorldCatalog worldCatalog;
-    private readonly ClientWorldGeneration worldGeneration;
     private readonly ClientWorldBaselineSubmission worldBaselineSubmission;
     private readonly ClientWorldBaselineCapture worldBaselineCapture;
     private readonly ClientAdminBaselineCapture adminBaselineCapture;
@@ -180,6 +179,7 @@ public sealed partial class ClashOfRimMod : Mod
         var serverMetadata = new ClientServerMetadata(sessionLifecycle, compatibilityBaseline, administration);
         worldSetup = new ClientWorldSetupState(sessionLifecycle);
         storytellerConfiguration = new ClientStorytellerConfiguration(sessionLifecycle, worldSetup, new ClientStorytellerRuntime());
+        ClientStorytellerPage.Attach(storytellerConfiguration);
         compatibilityPresentation = new ClientCompatibilityPresentation(CreateCompatibilityMismatch);
         var entryPresentation = new ClientWorldEntryPresentation(message => diagnostics.LoginStatus = message,
             (server, account) => Find.WindowStack.Add(new AIRsLight.ClashOfRim.MainMenu.ClashOfRimAccountRegistrationDialog(CreateAccountRegistrationForm(server, account))), compatibilityPresentation);
@@ -294,6 +294,7 @@ public sealed partial class ClashOfRimMod : Mod
         var configurationRuntime = new ClientWorldConfigurationRuntime();
         worldConfiguration = new ClientWorldConfiguration(sessionLifecycle, configurationRuntime, entryStore, storytellerConfiguration, featureCatalogs);
         occupiedColonySites = new ClientOccupiedColonySites(sessionLifecycle, entryStore, new ClientOccupiedColonySitesRuntime());
+        ClientWorldSiteReservations.Attach(new ClientWorldSiteReservations(occupiedColonySites));
         worldMarkers = new ClientWorldMarkers(sessionLifecycle, entryStore, occupiedColonySites, new ClientWorldMarkersRuntime(),
             new ClientWorldMarkersPresentation(message => diagnostics.WorldMapStatus = message));
         worldLoginPublication = new ClientWorldLoginPublication(sessionLifecycle, worldMarkers);
@@ -326,7 +327,7 @@ public sealed partial class ClashOfRimMod : Mod
         worldWrites = new ClientWorldWrites(sessionLifecycle, adminAccess, worldBaselineCapture, worldBaselineSubmission,
             storytellerConfiguration, worldPublication, worldWritePresentation, worldWritePresentation);
         ClientStorytellerEditor.Attach(new ClientStorytellerEditor(worldWrites, colonyAppearance));
-        worldGeneration = new ClientWorldGeneration(sessionLifecycle, worldSetup, worldConfiguration, new ClientWorldGenerationRuntime(), new ClientWorldGenerationPresentation(message => diagnostics.LoginStatus = message));
+        ClientWorldGenerationPage.Attach(new ClientWorldGeneration(sessionLifecycle, worldSetup, worldConfiguration, new ClientWorldGenerationRuntime(), new ClientWorldGenerationPresentation(message => diagnostics.LoginStatus = message)));
         worldEntry = new ClientWorldEntry(sessionLifecycle, new ClientSnapshotGame(), worldSetup,
             entryStore, worldTransport, entryPresentation, snapshotReload, worldPublication, serverMetadata);
         worldEntryStart = new ClientWorldEntryStart(sessionLifecycle, synchronization, new ClientSnapshotGame(),

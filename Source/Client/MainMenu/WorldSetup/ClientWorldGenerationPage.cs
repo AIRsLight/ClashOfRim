@@ -8,6 +8,8 @@ namespace AIRsLight.ClashOfRim;
 
 internal sealed class ClientWorldGenerationPage : IClientWorldGenerationPage
 {
+    internal static ClientWorldGeneration? Generation { get; private set; }
+    internal static void Attach(ClientWorldGeneration? value) => Generation = value;
     private readonly Window page;
     private readonly Game? game;
     private readonly Page? next;

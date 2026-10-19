@@ -143,13 +143,13 @@ internal static class ClientStorytellerConfigurationTests
     { StorytellerDefName = story, DifficultyDefName = "difficulty", DifficultyValuesXml = "<saveable><threatScale>1.37</threatScale></saveable>" };
     private static ClientStorytellerBaseline Baseline() => ClientStorytellerBaseline.From(Config());
     private static void Check(bool ok, string message) { if (!ok) throw new InvalidOperationException(message); }
-    private sealed class Page : IClientStorytellerPage
+    internal sealed class Page : IClientStorytellerPage
     {
         internal bool Current = true; internal int Continued;
         public bool IsCurrent => Current;
-        public void Continue() { Current = false; Continued++; }
+        public void Continue(Func<bool> current) { if (current()) { Current = false; Continued++; } }
     }
-    private sealed class Fixture : IClientStorytellerRuntime
+    internal sealed class Fixture : IClientStorytellerRuntime
     {
         internal readonly EventModuleTestPorts Ports = new();
         internal readonly ClientSessionLifecycle Session;
