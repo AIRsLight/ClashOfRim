@@ -10,6 +10,7 @@ using AIRsLight.ClashOfRim.Modules.Transport;
 namespace AIRsLight.ClashOfRim.Modules.World;
 
 internal enum ClientColonyRegistrationKind { Sites, Extensions }
+internal sealed record ClientColonySiteChange(string Reason, ModColonyAppearanceDto? Appearance);
 internal interface IClientColonyRegistrationRuntime { IClientColonyRegistrationSession Bind(); }
 internal interface IClientColonyRegistrationSession
 {
@@ -87,7 +88,24 @@ internal sealed class ClientColonyRegistration
     internal Task RequestAsync(ClientColonyRegistrationKind kind, string reason, ModColonyAppearanceDto? appearance = null, bool suppressNotification = false)
     {
         using var publication = ClientSessionWork.EnterPublication();
-        var scope = requests.Capture(); Invalidate(kind);
+        return RequestAsync(requests.Capture(), kind, reason, appearance, suppressNotification);
+    }
+    // Engine events must not queue intermediate sites while relocation or a
+    // compatibility callback suppresses publication. Capture under the original
+    // scope, since compatibility and appearance reads can change the session.
+    internal Task NotifySitesAsync(Func<ClientColonySiteChange?> capture)
+    {
+        using var publication = ClientSessionWork.EnterPublication();
+        var scope = requests.Capture();
+        if (suppressed) return Task.CompletedTask;
+        var change = capture();
+        if (change is null || !requests.TryApply(scope, static () => { }) || suppressed) return Task.CompletedTask;
+        return RequestAsync(scope, ClientColonyRegistrationKind.Sites, change.Reason, change.Appearance, false);
+    }
+    private Task RequestAsync(ClientRequestTracker<Boundary>.Scope scope, ClientColonyRegistrationKind kind, string reason,
+        ModColonyAppearanceDto? appearance, bool suppressNotification)
+    {
+        Invalidate(kind);
         if (kind == ClientColonyRegistrationKind.Sites) muteNext |= suppressNotification;
         pending[(int)kind] = new(kind, appearance is null ? null : ClientProtocolJson.Copy(appearance));
         requests.TryApply(scope, () => Diagnostic?.Invoke("[ClashOfRim] Colony " + kind + " refresh requested: " + reason, false));

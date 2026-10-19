@@ -29,7 +29,7 @@ internal static class ClientColonyRegistrationTests
                         foreach (string stage in new[] { "extensions", "network", "queued", "project", "marker-enqueue" }) await Ownership(kind, stage, change);
                     foreach (string gate in new[] { "config", "session", "snapshot", "playing", "remote", "world", "objects", "colony-context", "collectors", "suppressed", "mutation", "restore" }) await Admission(kind, gate);
                 }
-                await SharedPipeline(); await Freeze(); await WorldIdentity(); await Deferred(); await EngineThreadBoundary();
+                await SharedPipeline(); await Freeze(); await WorldIdentity(); await Deferred(); await EngineThreadBoundary(); await SiteEvents();
             }
             Console.WriteLine($"  colony registration: {scenarios} scenarios checked");
         }
@@ -221,7 +221,44 @@ internal static class ClientColonyRegistrationTests
     private static TaskCompletionSource NewSignal() => new(TaskCreationOptions.RunContinuationsAsynchronously);
     private static void Check(bool value, string message) { if (!value) throw new InvalidOperationException(message); }
 
-    private sealed class Fixture : IClientWorldIdentity, IClientWorldConfigurationStore, IClientColonyRegistrationRuntime,
+    private static async Task SiteEvents()
+    {
+        foreach (string gate in new[] { "suppressed", "irrelevant", "capture-suppressed", "capture-error" })
+        {
+            var f = new Fixture(); await f.Run(ClientColonyRegistrationKind.Sites); int captures = 0, queues = f.Ports.Queued;
+            f.Registration.Suppressed = gate == "suppressed";
+            try
+            {
+                await f.Ports.PumpUntil(f.Registration.NotifySitesAsync(() =>
+                {
+                    captures++;
+                    if (gate == "irrelevant") return null;
+                    if (gate == "capture-error") throw new InvalidOperationException("capture");
+                    f.Registration.Suppressed = true; return new("event", null);
+                }));
+                Check(gate != "capture-error", "Capture failure disappeared.");
+            }
+            catch (InvalidOperationException ex) when (gate == "capture-error" && ex.Message == "capture") { }
+            Check(captures == (gate == "suppressed" ? 0 : 1) && f.Ports.Queued == queues, "Skipped site event queued work: " + gate);
+            f.Registration.Suppressed = false; await f.Run(ClientColonyRegistrationKind.Sites);
+            Check(f.Calls.Count == 1, "Skipped site event invalidated an accepted registration: " + gate); scenarios++;
+        }
+        foreach (string change in new[] { "user", "auth", "server", "colony", "login", "generation", "world-id", "game", "world", "reset" })
+        {
+            var f = new Fixture(); await f.Run(ClientColonyRegistrationKind.Sites); int queues = f.Ports.Queued;
+            await f.Ports.PumpUntil(f.Registration.NotifySitesAsync(() =>
+            { f.Change(change); return new("old event", new() { ColorHex = "old-owner" }); }));
+            Check(f.Calls.Count == 1 && f.Ports.Queued == queues, "Site capture crossed original scope: " + change);
+            await f.Run(ClientColonyRegistrationKind.Sites);
+            Check(f.CapturedAppearance is null, "Old site event retained pending appearance for replacement scope: " + change); scenarios++;
+        }
+        var live = new Fixture(); await live.Run(ClientColonyRegistrationKind.Sites);
+        var appearance = new ModColonyAppearanceDto { ColorHex = "123abc" };
+        await live.Ports.PumpUntil(live.Registration.NotifySitesAsync(() => { live.Change("snapshot"); return new("created", appearance); }));
+        Check(live.Calls.Count == 2 && live.CapturedAppearance?.ColorHex == "123abc" && !live.Calls[1].Muted
+            && live.Calls[1].Context.CurrentSnapshotId == "advanced", "Site event lost forced refresh, appearance or latest snapshot."); scenarios++;
+    }
+    internal sealed class Fixture : IClientWorldIdentity, IClientWorldConfigurationStore, IClientColonyRegistrationRuntime,
         IClientWorldConfigurationRuntime, IClientOccupiedColonySitesRuntime, IClientColonyRegistrationTransport
     {
         internal readonly EventModuleTestPorts Ports = new();
@@ -321,5 +358,5 @@ internal static class ClientColonyRegistrationTests
             public void EnsureProxy(string user) { }
         }
     }
-    private sealed record Call(ClashOfRimClientNetworkContext Context, ModPlayerColonySiteDto[] Sites, ModWorldConfigurationExtensionDto[] Extensions, bool Muted);
+    internal sealed record Call(ClashOfRimClientNetworkContext Context, ModPlayerColonySiteDto[] Sites, ModWorldConfigurationExtensionDto[] Extensions, bool Muted);
 }

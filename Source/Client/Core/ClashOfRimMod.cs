@@ -304,6 +304,7 @@ public sealed partial class ClashOfRimMod : Mod
         var worldPublication = new ClientWorldPublication(entryStore, worldConfiguration, occupiedColonySites, colonyAppearance, worldMarkers);
         var colonyTransport = new ClientColonyTransport(new ClientProtocolEnvironment());
         colonyRegistration = new ClientColonyRegistration(sessionLifecycle, entryStore, localMutations, new ClientColonyRegistrationRuntime(), colonyTransport, worldPublication);
+        ClientColonySiteEvents.Attach(new ClientColonySiteEvents(colonyRegistration, colonyAppearance));
         snapshotSaving = new ClientSnapshotSaving(sessionLifecycle, synchronization, localMutations, ClientSnapshotComposition.Create(settings),
             new ClientSnapshotGame(), entryStore, configurationRuntime, colonyRegistration, colonyAppearance,
             new ClientSnapshotSavingPresentation(message => diagnostics.SnapshotUploadStatus = message));
@@ -544,7 +545,6 @@ public sealed partial class ClashOfRimMod : Mod
     internal bool CanSyncRuntimeWorldObjects => worldSynchronization.CanStart(ClientWorldSynchronizationKind.RuntimeObjects);
 
     internal bool CanRegisterPlayerColonySites => colonyRegistration.CanStart(ClientColonyRegistrationKind.Sites);
-    internal bool IsPlayerColonySiteRegistrationSuppressed => colonyRegistration.Suppressed;
     internal bool CanSyncWorldConfigurationExtensions => colonyRegistration.CanStart(ClientColonyRegistrationKind.Extensions);
 
     internal bool CanRefreshCaravanArrivalTargets => worldSynchronization.CanStart(ClientWorldSynchronizationKind.CaravanTargets);
