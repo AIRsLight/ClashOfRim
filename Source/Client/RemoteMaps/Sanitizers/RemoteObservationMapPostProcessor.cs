@@ -152,7 +152,8 @@ public static class RemoteObservationMapPostProcessor
             return false;
         }
 
-        return pawn.RaceProps?.Humanlike == true || pawn.RaceProps?.IsMechanoid == true;
+        return (pawn.RaceProps?.Humanlike == true || pawn.RaceProps?.IsMechanoid == true) &&
+            ClashOfRimCompatibilityApi.CanUseDefaultRemotePawnAi(pawn);
     }
 
     private static int ApplyFriendlyObservationResidentLords(Map map, RemoteSessionMapParent carrier)

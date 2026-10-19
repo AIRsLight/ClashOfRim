@@ -16,9 +16,24 @@ internal sealed class RemoteMapLifecycleCompatibility
     private readonly List<RemoteDefenderMapPreparedHandler> RemoteDefenderMapPreparedHandlers = new();
     private readonly List<RemoteMapLoadedHandler> RemoteMapLoadedHandlers = new();
     private readonly List<RemoteSessionPawnCleanupHandler> RemoteSessionPawnCleanupHandlers = new();
+    private readonly List<Func<Pawn, bool>> DefaultPawnAiFilters = new();
     private readonly CompatibilityRegistrationScope Registrations;
 
     internal RemoteMapLifecycleCompatibility(CompatibilityRegistrationScope registrations) => Registrations = registrations;
+
+    internal void RegisterRemotePawnDefaultAiFilter(Func<Pawn, bool> filter) =>
+        Registrations.RegisterUnique(DefaultPawnAiFilters, filter);
+
+    internal bool CanUseDefaultRemotePawnAi(Pawn pawn)
+    {
+        foreach (var filter in DefaultPawnAiFilters.ToList())
+        {
+            if (Registrations.TryInvokeCompatibilityCallback(
+                    nameof(CanUseDefaultRemotePawnAi), filter, () => filter(pawn), out bool allowed) && !allowed)
+                return false;
+        }
+        return true;
+    }
 
     internal void RegisterRaidCaravanMapEntryHandler(RaidCaravanMapEntryHandler handler)
     {

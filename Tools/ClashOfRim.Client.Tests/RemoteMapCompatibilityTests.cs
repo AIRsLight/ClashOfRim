@@ -24,6 +24,7 @@ internal static class RemoteMapCompatibilityTests
             {
                 CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(culture);
                 MapLifecycle();
+                DefaultPawnAi();
                 ProjectionReferences();
                 RemoteFactionProjectionTests.Run();
                 LoadIdRegistration();
@@ -36,6 +37,26 @@ internal static class RemoteMapCompatibilityTests
             CultureInfo.CurrentCulture = previous;
             ClashOfRimCompatibilityApi.BeginRegistrationCycle("client-tests");
         }
+    }
+
+    private static void DefaultPawnAi()
+    {
+        var f = new Fixture(); var pawn = New<Pawn>(); var other = New<Pawn>();
+        Check(f.Lifecycle.CanUseDefaultRemotePawnAi(pawn), "Empty filters must preserve default AI.");
+        var token = f.Scope.BeginRegistrationCycle("special-ai"); int calls = 0;
+        Func<Pawn, bool> filter = actual => { calls++; return !ReferenceEquals(actual, pawn); };
+        f.Lifecycle.RegisterRemotePawnDefaultAiFilter(_ => throw new Exception("filter"));
+        f.Lifecycle.RegisterRemotePawnDefaultAiFilter(filter);
+        f.Lifecycle.RegisterRemotePawnDefaultAiFilter(filter);
+        Check(!f.Lifecycle.CanUseDefaultRemotePawnAi(pawn) && f.Lifecycle.CanUseDefaultRemotePawnAi(other)
+            && calls == 2 && f.Scope.Diagnostics.Count == 2, "AI filtering lost pawn identity, deduplication or failure isolation.");
+        f.Scope.RevokeRegistrationToken(token);
+        Check(f.Lifecycle.CanUseDefaultRemotePawnAi(pawn) && calls == 2, "Revoked AI filter remained active.");
+        var owner = ClashOfRimCompatibilityApi.BeginRegistrationCycle("ai-facade");
+        ClashOfRimCompatibilityApi.RegisterRemotePawnDefaultAiFilter(_ => false);
+        Check(!ClashOfRimCompatibilityApi.CanUseDefaultRemotePawnAi(pawn), "Facade did not delegate the AI filter.");
+        ClashOfRimCompatibilityApi.RevokeRegistrationToken(owner);
+        Check(ClashOfRimCompatibilityApi.CanUseDefaultRemotePawnAi(pawn), "Facade retained revoked AI filter.");
     }
 
     private static void MapLifecycle()

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using AIRsLight.ClashOfRim.ThirdPartyCompatibility;
 using RimWorld;
 using Verse;
 using Verse.AI;
@@ -125,7 +126,8 @@ public static class DefensePointRaidAiApplicator
     {
         return pawn is { Spawned: true, Dead: false, Downed: false } &&
             pawn.Faction == defenderFaction &&
-            pawn.mindState is not null;
+            pawn.mindState is not null &&
+            ClashOfRimCompatibilityApi.CanUseDefaultRemotePawnAi(pawn);
     }
 
     private static Lord MakeLordForPoint(

@@ -400,6 +400,14 @@ public static class ClashOfRimCompatibilityApi
     public static void RegisterRemoteDefenderMapPreparedHandler(RemoteDefenderMapPreparedHandler handler) =>
         RemoteMapLifecycle.RegisterRemoteDefenderMapPreparedHandler(handler);
 
+    // Return false for pawns whose mod owns their AI (for example, vehicles).
+    // Evaluated before ordinary resident/defender Lords or jobs are assigned.
+    public static void RegisterRemotePawnDefaultAiFilter(Func<Pawn, bool> filter) =>
+        RemoteMapLifecycle.RegisterRemotePawnDefaultAiFilter(filter);
+
+    public static bool CanUseDefaultRemotePawnAi(Pawn pawn) =>
+        RemoteMapLifecycle.CanUseDefaultRemotePawnAi(pawn);
+
     public static void RegisterRemoteMapLoadedHandler(RemoteMapLoadedHandler handler) =>
         RemoteMapLifecycle.RegisterRemoteMapLoadedHandler(handler);
 
