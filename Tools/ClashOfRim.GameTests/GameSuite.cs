@@ -32,6 +32,7 @@ internal sealed partial class GameSuite
     private readonly ShopScenario shop;
     private readonly TradeScenarioFixture tradeActions;
     private readonly TradeScenario trades;
+    private readonly AchievementScenario achievements;
     private readonly ComplexItemScenario complexItems;
     private readonly ShopCatalogScenario shopCatalog;
     private readonly ShopStressScenario shopStress;
@@ -49,6 +50,7 @@ internal sealed partial class GameSuite
     private readonly Microsoft.AspNetCore.Builder.WebApplication server;
     private readonly Dictionary<string, RimTestClient> clients = new();
     private string url = "";
+    private ClashOfRimNetworkState ServerState => server.Services.GetRequiredService<ClashOfRimNetworkState>();
     private static readonly string[] FeatureCases = ["account-password-change", "colony-appearance-sync", "public-chat", "private-chat-read", "admin-configuration-permissions",
     "bank-loan-repayment", "shop-purchase-stock", "trade-cancel-refund", "trade-drop-pod-fulfillment", "alliance-request-accept",
     "ally-observation-close", "caravan-load-travel", "caravan-gift-accept", "support-send-early-return", "mercenary-hire", "mercenary-recall", "raid-open-settle",
@@ -80,6 +82,7 @@ internal sealed partial class GameSuite
         caravanFixture = new(run, polling, dialogs, colonyFixture);
         tradeActions = new(run, polling, dialogs);
         trades = new(run, polling, dialogs, colonyFixture, economy, caravanFixture, tradeActions);
+        achievements = new(run, polling, trades, serverState.Achievements, serverState.SnapshotStore, serverState.Players);
         complexItems = new(run, polling, colonyFixture, tradeActions);
         eventFixture = new(polling, serverState.Ledger);
         support = new(run, polling, dialogs, caravanFixture, serverState.Ledger, eventFixture);
@@ -154,7 +157,7 @@ internal sealed partial class GameSuite
                 await Case("trade-cancel-refund", trades.Cancel);
                 await Case("trade-memo-cancel", trades.CancelMemo);
                 await Case("trade-drop-pod-fulfillment", trades.Fulfill);
-                await Case("achievement-unlock-leaderboard", Achievements);
+                await Case("achievement-unlock-leaderboard", achievements.ReachTradeThreshold);
                 await Case("alliance-request-accept", diplomacy.Alliance);
                 await Case("ally-observation-close", () => remoteMaps.ObserveAlly(profile.Stability == "transfers"));
                 await Case("caravan-load-travel", caravanFixture.Travel);

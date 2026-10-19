@@ -77,6 +77,8 @@ var tests = new (string Name, Action Run)[]
     ("游戏聊天场景路由、文化与历史观察", GameSocialScenarioTests.Chat),
     ("游戏外交场景事件身份与殖民地代次", GameSocialScenarioTests.Diplomacy),
     ("游戏外观场景权威状态、观察与异常恢复", GameSocialScenarioTests.Appearance),
+    ("游戏成就场景交易积累、代次与刷新", () => GameAchievementScenarioTests.Unlock(BuildFixturePackage)),
+    ("游戏成就场景排行榜权威值与历史隔离", () => GameAchievementScenarioTests.Boards(BuildFixturePackage)),
     ("银行模块独立装配、凭据、借还款与回执", () => BankModuleTests.Run(BuildFixturePackage)),
     ("外交命令授权、快照、恢复复验与并发幂等", () => DiplomacyAuthorizationTests.Run(BuildFixturePackage)),
     ("意识形态摘要重建保留显示元数据", IdeologyMetadataTests.Run),

@@ -19,12 +19,12 @@ internal sealed partial class GameSuite
             // the buyer explicitly so postage cannot mask lifecycle assertions.
             await Call("B", "clash.fixture.bankCash", new { amount = 10000, acknowledgeFixture = true });
             await colonyFixture.StoreStartingResources("A"); await colonyFixture.StoreStartingResources("B");
-            await trades.Fulfill(); await Achievements();
-            await CheckAchievementRefresh("A"); await CheckAchievementRefresh("B");
+            await trades.Fulfill(); await achievements.ReachTradeThreshold();
+            await achievements.Refresh("A"); await achievements.Refresh("B");
             // Re-upload and refresh the same cumulative history: it must not count deliveries twice.
-            var before = JsonSerializer.Serialize(ServerState.Achievements.ListAggregates());
+            var before = achievements.CaptureHistory();
             for (int i = 0; i < 2; i++) { await Invoke("A", "StartManualSnapshotUpload"); await Idle("A"); }
-            Check(before == JsonSerializer.Serialize(ServerState.Achievements.ListAggregates()), "Uploads replayed achievement accounting.");
+            Check(before == achievements.CaptureHistory(), "Uploads replayed achievement accounting.");
         });
         await Case("account-liabilities-before-abandon", async () =>
         {
@@ -53,40 +53,13 @@ internal sealed partial class GameSuite
         {
             await colonyFixture.StoreStartingResources("A");
             await trades.Fulfill();
-            var own = await CheckAchievementRefresh("A");
+            var own = await achievements.Refresh("A");
             Check(!Items(own).Any(v => v.GetProperty("data").String("achievementId") == "trades_10"), "New colony inherited old completed trade count.");
-            await Achievements(); await CheckAchievementRefresh("A"); await CheckAchievementRefresh("B");
-            await colonyFixture.Reload("A", "rimtest-rebuilt-achievements"); await CheckAchievementRefresh("A");
+            await achievements.ReachTradeThreshold(); await achievements.Refresh("A"); await achievements.Refresh("B");
+            await colonyFixture.Reload("A", "rimtest-rebuilt-achievements"); await achievements.Refresh("A");
         });
         await Case("account-abandon-guest", () => AbandonAccountColony("B", "A"));
         await Case("account-rebuild-guest", () => RebuildAccountColony("B", "A"));
-    }
-
-    async Task<JsonElement> CheckAchievementRefresh(string client, string? targetClient = null, string? targetColony = null)
-    {
-        int version = (await Call(client, "clash.achievement.version")).Int("version");
-        await Invoke(client, "StartRefreshAchievements", new { targetUserId = targetClient is null ? null : "rimtest-" + targetClient, targetColonyId = targetColony });
-        await Wait(client, "clash.achievement.version", null, v => v.Int("version") > version);
-        var boards = Items(await Call(client, "clash.records", new { kind = "leaderboards" }));
-        var active = ServerState.SnapshotStore.ListLatest().Select(s => (s.Identity.OwnerId, s.Identity.ColonyId)).ToHashSet();
-        var expected = ServerState.Achievements.ListAggregates().Where(a => active.Contains((a.UserId, a.ColonyId))).ToArray();
-        Check(boards.Length == expected.Select(a => a.AchievementId).Distinct().Count(), "Leaderboard omitted an active achievement category.");
-        foreach (var board in boards)
-        {
-            var entries = board.GetProperty("data").GetProperty("entries").EnumerateArray().ToArray();
-            Check(entries.Length == Math.Min(10, expected.Count(a => a.AchievementId == board.GetProperty("data").String("achievementId"))), "Leaderboard omitted active colonies.");
-            Check(entries.Length <= 10 && entries.Select(e => e.String("userId") + "/" + e.String("colonyId")).Distinct().Count() == entries.Length, "Leaderboard contains duplicate/excess entries.");
-            var sorted = entries.OrderByDescending(e => e.GetProperty("value").GetInt64()).ThenBy(e => e.String("userId"), StringComparer.Ordinal).ThenBy(e => e.String("colonyId"), StringComparer.Ordinal).ToArray();
-            Check(entries.Select(e => e.GetRawText()).SequenceEqual(sorted.Select(e => e.GetRawText())), "Leaderboard order is unstable.");
-            foreach (var entry in entries)
-            {
-                string user = entry.String("userId"), colony = entry.String("colonyId");
-                Check(!ServerState.Players.IsDeleted(user, colony), "Deleted colony leaked into leaderboard.");
-                var aggregate = ServerState.Achievements.ListAggregates().Single(a => a.UserId == user && a.ColonyId == colony && a.AchievementId == board.GetProperty("data").String("achievementId"));
-                Check(aggregate.Value == entry.GetProperty("value").GetInt64(), "Leaderboard differs from authoritative value.");
-            }
-        }
-        return await Call(client, "clash.records", new { kind = "achievements" });
     }
 
     async Task AbandonAccountColony(string client, string survivor)
@@ -98,7 +71,7 @@ internal sealed partial class GameSuite
         var other = await Call(survivor, "clash.state"); string otherColony = other.String("colonyId");
         string? survivorSnapshot = ServerState.SnapshotStore.GetLatest("rimtest-" + survivor, otherColony)?.Identity.SnapshotId;
         int silver = await colonyFixture.Stock(survivor, "Silver"), steel = await colonyFixture.Stock(survivor, "Steel");
-        var history = JsonSerializer.Serialize(ServerState.Achievements.ListAggregates().Where(a => a.UserId == user));
+        var history = achievements.CaptureHistory(user);
         await Call(client, "clash.abandon.open");
         Check(!(await Call(client, "clash.abandon")).Bool("ready"), "Abandon confirmation skipped countdown.");
         await Call(client, "clash.abandon.choose", new { confirm = false });
@@ -110,7 +83,7 @@ internal sealed partial class GameSuite
         Check(ServerState.Players.IsDeleted(user, colony) && ServerState.SnapshotStore.GetLatest(user, colony) is null, "Abandonment did not delete snapshot and tombstone colony.");
         Check(!ServerState.WorldConfiguration.Current!.PlayerColonySites.Any(s => s.UserId == user && s.ColonyId == colony), "Abandoned site remained registered.");
         Check(ServerState.BankLoans.GetActive(user, colony) is null && ServerState.BankLoans.GetOpenDebts(user, colony).Count == 0 && ServerState.MercenaryContracts.CountOpenForColony(user, colony) == 0, "Abandoned colony retained liabilities/contracts.");
-        Check(history == JsonSerializer.Serialize(ServerState.Achievements.ListAggregates().Where(a => a.UserId == user)), "Abandonment destroyed achievement history.");
+        Check(history == achievements.CaptureHistory(user), "Abandonment destroyed achievement history.");
         Check(ServerState.OfflineAccounts.Authenticate(user, "local-test-password", DateTimeOffset.UtcNow).Accepted, "Abandonment deleted account credentials.");
         Check(ServerState.WorldConfiguration.IsAdministrator("rimtest-A"), "Abandoning owner removed server administration.");
         Check(ServerState.SnapshotStore.GetLatest("rimtest-" + survivor, otherColony)?.Identity.SnapshotId == survivorSnapshot && await colonyFixture.Stock(survivor, "Silver") == silver && await colonyFixture.Stock(survivor, "Steel") == steel, "Abandonment mutated survivor snapshot or stock.");
@@ -122,7 +95,7 @@ internal sealed partial class GameSuite
             var bank = await economy.RefreshBank("B");
             Check(bank.GetProperty("activeLoan").ValueKind == JsonValueKind.Object && bank.GetProperty("openDebts").EnumerateArray().Any(d => d.String("debtId") == lifecycleDebt), "Owner abandonment cleared guest liabilities.");
         }
-        var oldOwn = await CheckAchievementRefresh(survivor, client, colony);
+        var oldOwn = await achievements.Refresh(survivor, client, colony);
         Check(Items(oldOwn).Length == 0, "Deleted colony achievements remain visible through direct target lookup.");
         await players.Refresh(survivor);
         await Wait(survivor, "clash.records", new { kind = "players" }, p => !Items(p).Any(v => v.GetProperty("data").String("userId") == user));
@@ -141,7 +114,7 @@ internal sealed partial class GameSuite
         Check(bank.GetProperty("activeLoan").ValueKind == JsonValueKind.Null && bank.GetProperty("openDebts").GetArrayLength() == 0, "New colony inherited prior liabilities.");
         var quests = await Call(client, "clash.bank.quests");
         Check(quests.GetProperty("loans").GetArrayLength() == 0 && quests.GetProperty("debts").GetArrayLength() == 0 && Items(await Call(client, "clash.mercenaries")).Length == 0, "Old quest/mercenary state crossed generation boundary.");
-        var own = await CheckAchievementRefresh(client);
+        var own = await achievements.Refresh(client);
         Check(!Items(own).Any(v => v.GetProperty("data").String("achievementId") == "trades_10"), "Rebuild inherited old trade achievement.");
         await chat.VerifyPrivateHistory(client);
         await Invoke(client, "StartRefreshServerShop"); await Idle(client);
