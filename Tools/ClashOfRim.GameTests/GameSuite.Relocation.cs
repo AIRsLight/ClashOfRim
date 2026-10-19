@@ -8,9 +8,9 @@ internal sealed partial class GameSuite
     async Task Relocate(string client, string kind)
     {
         var dlc = await Call(client, "clash.fixture.dlcPawn", new { acknowledgeFixture = true });
-        var bank = await RefreshBank(client);
+        var bank = await economy.RefreshBank(client);
         await Invoke(client, "StartCreateBankLoan", new { principalSilver = bank.Int("minLoanSilver"), durationDays = bank.Int("minDurationDays") });
-        await Idle(client); await Step(client, 600); bank = await RefreshBank(client);
+        await Idle(client); await Step(client, 600); bank = await economy.RefreshBank(client);
         string loan = bank.GetProperty("activeLoan").String("loanId");
         int cash = await colonyFixture.Stock(client, "Silver");
         var before = await Call(client, "clash.state");
@@ -45,13 +45,13 @@ internal sealed partial class GameSuite
         Check((await Call(client, "clash.state")).String("colonyId") == before.String("colonyId"), "Relocation changed colony account.");
         var site = ServerState.WorldConfiguration.Current!.PlayerColonySites.Single(s => s.UserId == "rimtest-" + client);
         Check(site.Tile == tile, "Server retained old colony location.");
-        Check((await RefreshBank(client)).GetProperty("activeLoan").String("loanId") == loan, "Moving lost the bank loan.");
+        Check((await economy.RefreshBank(client)).GetProperty("activeLoan").String("loanId") == loan, "Moving lost the bank loan.");
         Equal(dlc.GetProperty("state"), await Call(client, "clash.dlc.pawns"), "Relocation changed DLC pawn state");
         await colonyFixture.Reload(client, "rimtest-relocation-" + kind);
         homes = (await Call(client, "clash.inventory")).GetProperty("maps");
         Check(homes.GetArrayLength() == 1 && homes[0].Int("tileId") == tile && await colonyFixture.Stock(client, "Silver") == cash, "Reload undid relocation/cash.");
         Equal(dlc.GetProperty("state"), await Call(client, "clash.dlc.pawns"), "Reload changed relocated DLC pawn state");
         await Invoke(client, "StartRepayBankLoan"); await Idle(client);
-        Check((await RefreshBank(client)).GetProperty("activeLoan").ValueKind == JsonValueKind.Null, "Relocated colony could not repay loan.");
+        Check((await economy.RefreshBank(client)).GetProperty("activeLoan").ValueKind == JsonValueKind.Null, "Relocated colony could not repay loan.");
     }
 }

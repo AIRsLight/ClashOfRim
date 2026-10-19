@@ -8,23 +8,13 @@ namespace ClashOfRim.GameTests;
 internal sealed partial class GameSuite
 {
     ClashOfRimNetworkState ServerState => server.Services.GetRequiredService<ClashOfRimNetworkState>();
-    async Task NoEconomicMutation(string client, Func<Task> action)
-    {
-        await Idle(client);
-        int silver = await colonyFixture.Stock(client, "Silver"), steel = await colonyFixture.Stock(client, "Steel");
-        string snapshot = (await Call(client, "clash.state")).String("currentSnapshotId");
-        await action(); await Idle(client);
-        Check(await colonyFixture.Stock(client, "Silver") == silver && await colonyFixture.Stock(client, "Steel") == steel, "Rejected operation changed stock.");
-        Check((await Call(client, "clash.state")).String("currentSnapshotId") == snapshot, "Rejected operation published a snapshot.");
-    }
     async Task BankBounds()
     {
-        await Invoke("A", "StartRefreshBankStatus"); await Idle("A");
-        var bank = await Call("A", "clash.bank");
+        var bank = await economy.RefreshBank("A");
         foreach (var (amount, days) in new[] { (0, bank.Int("minDurationDays")), (-1, bank.Int("minDurationDays")),
             (int.MaxValue, bank.Int("minDurationDays")), (bank.Int("minLoanSilver"), bank.Int("minDurationDays") - 1),
             (bank.Int("minLoanSilver"), bank.Int("maxDurationDays") + 1) })
-            await NoEconomicMutation("A", async () => { await Invoke("A", "StartCreateBankLoan", new { principalSilver = amount, durationDays = days }); });
+            await economy.AssertNoMutation("A", async () => { await Invoke("A", "StartCreateBankLoan", new { principalSilver = amount, durationDays = days }); });
         Check((await Call("A", "clash.bank")).GetProperty("activeLoan").ValueKind == JsonValueKind.Null, "Invalid bank input created a loan.");
     }
     async Task UnicodeChat()
@@ -89,7 +79,7 @@ internal sealed partial class GameSuite
         var shop = await Wait("B", "clash.records", new { kind = "shop" }, s => Items(s).Any(v => v.GetProperty("data").OptionalString("listingKind") == "BuyFromPlayer"));
         var listing = Items(shop).Single(v => v.GetProperty("data").OptionalString("listingKind") == "BuyFromPlayer");
         string id = listing.GetProperty("data").String("listingId");
-        await NoEconomicMutation("B", async () => { await Invoke("B", "StartPurchaseServerShopListing", new { listing = listing.GetProperty("reference"), purchaseCount = 2 }); });
+        await economy.AssertNoMutation("B", async () => { await Invoke("B", "StartPurchaseServerShopListing", new { listing = listing.GetProperty("reference"), purchaseCount = 2 }); });
         int silver = await colonyFixture.Stock("B", "Silver"), steel = await colonyFixture.Stock("B", "Steel");
         await Invoke("B", "StartPurchaseServerShopListing", new { listing = listing.GetProperty("reference"), purchaseCount = 1 }); await Idle("B");
         await colonyFixture.AwaitStock("B", "Silver", silver + 10);
@@ -97,7 +87,7 @@ internal sealed partial class GameSuite
         await Invoke("B", "StartRefreshServerShop");
         var exhausted = await Wait("B", "clash.records", new { kind = "shop" }, p => Items(p).Any(v => v.GetProperty("data").String("listingId") == id && v.GetProperty("data").Int("stockCount") == 0));
         listing = Items(exhausted).Single(v => v.GetProperty("data").String("listingId") == id);
-        await NoEconomicMutation("B", async () => { await Invoke("B", "StartPurchaseServerShopListing", new { listing = listing.GetProperty("reference"), purchaseCount = 1 }); });
+        await economy.AssertNoMutation("B", async () => { await Invoke("B", "StartPurchaseServerShopListing", new { listing = listing.GetProperty("reference"), purchaseCount = 1 }); });
         await Invoke("A", "StartRefreshServerShop"); await Idle("A");
         var current = Items(await Call("A", "clash.records", new { kind = "shop" })).Single(v => v.GetProperty("data").String("listingId") == id);
         Check(current.GetProperty("data").Int("stockCount") == 0, "Buyback stock not exhausted.");

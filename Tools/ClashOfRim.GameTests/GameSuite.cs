@@ -20,6 +20,8 @@ internal sealed partial class GameSuite
     private readonly ScenarioDialogs dialogs;
     private readonly ScenarioPolling polling;
     private readonly ColonyScenarioFixture colonyFixture;
+    private readonly EconomicScenarioFixture economy;
+    private readonly MercenaryScenario mercenaries;
     private readonly CaravanScenario caravanFixture;
     private readonly GiftScenario giftScenario;
     private readonly SupportScenario support;
@@ -56,6 +58,12 @@ internal sealed partial class GameSuite
         colonyFixture = new(run, polling);
         diagnostics = new(run);
         var serverState = ServerState;
+        economy = new(run, polling, colonyFixture);
+        mercenaries = new(run, polling, colonyFixture, economy, serverState.MercenaryContracts, serverState.MercenaryGuards, () =>
+        {
+            var configuration = serverState.ServerConfiguration;
+            return (configuration.MercenaryGuardApprenticeSilver, configuration.MercenaryGuardApprenticePointsRatio);
+        });
         caravanFixture = new(run, polling, dialogs, colonyFixture);
         eventFixture = new(polling, serverState.Ledger);
         support = new(run, polling, dialogs, caravanFixture, serverState.Ledger, eventFixture);
@@ -131,13 +139,13 @@ internal sealed partial class GameSuite
                 await Case("trade-caravan-fulfillment", TradeCaravanFulfill);
                 await Case("caravan-gift-accept", giftScenario.Accept);
                 await Case("support-send-early-return", support.Run);
-                await Case("mercenary-hire", Mercenary);
-                await Case("mercenary-recall", MercenaryRecall);
+                await Case("mercenary-hire", mercenaries.Hire);
+                await Case("mercenary-recall", mercenaries.Recall);
                 await Case("raid-open-settle", async () => { await raids.Run(profile.Stability == "transfers"); await entry.LoginExisting(true); });
                 foreach (string client in clients.Keys)
                 {
                     if (!(await Call(client, "clash.state")).Bool("isInActiveMultiplayerSession")) continue;
-                    await Invoke(client, "StartRefreshBankStatus"); await Wait(client, "clash.state", null, s => !s.Bool("bankInProgress")); await Call(client, "clash.bank");
+                    await economy.RefreshBank(client);
                     await Invoke(client, "StartRefreshAchievements"); await Invoke(client, "StartRefreshTradeOrders");
                     await Invoke(client, "StartRefreshServerShop"); await Invoke(client, "StartSyncWorldMapMarkers");
                     await Call(client, "clash.records", new { kind = "markers" });

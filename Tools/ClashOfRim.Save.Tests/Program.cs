@@ -60,6 +60,8 @@ var tests = new (string Name, Action Run)[]
     ("游戏远程地图观察隔离与战斗重载身份", GameSupportRemoteScenarioTests.Remote),
     ("游戏支援场景五类生命周期与状态守恒断言", GameSupportRemoteScenarioTests.Support),
     ("游戏袭击场景结算、重放与失败配置恢复", () => GameRaidScenarioTests.Run(BuildFixturePackage)),
+    ("游戏经济夹具刷新顺序与拒绝操作守恒", GameEconomicScenarioTests.Fixtures),
+    ("游戏雇佣场景到达、召回与守卫购买边界", GameEconomicScenarioTests.Mercenaries),
     ("银行模块独立装配、凭据、借还款与回执", () => BankModuleTests.Run(BuildFixturePackage)),
     ("外交命令授权、快照、恢复复验与并发幂等", () => DiplomacyAuthorizationTests.Run(BuildFixturePackage)),
     ("意识形态摘要重建保留显示元数据", IdeologyMetadataTests.Run),

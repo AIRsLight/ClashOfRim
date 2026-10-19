@@ -16,8 +16,7 @@ internal sealed partial class GameSuite
 {
     async Task Bank()
     {
-        await Idle("A"); await Invoke("A", "StartRefreshBankStatus"); await Idle("A");
-        var bank = await Call("A", "clash.bank");
+        var bank = await economy.RefreshBank("A");
         Check(bank.GetProperty("result").Bool("accepted") && bank.Bool("bankLoansEnabled"), "Bank unavailable.");
         int principal = Math.Max(bank.Int("minLoanSilver"), 100);
         Check(principal <= bank.Int("maxLoanSilver"), "Fixture colony cannot borrow minimum principal.");
@@ -31,12 +30,12 @@ internal sealed partial class GameSuite
         Check(await colonyFixture.Stock("A", "Silver") == silver + principal, "Loan cash did not reach the map exactly once.");
         Check((await Call("A", "clash.state")).String("currentSnapshotId") != previousSnapshot, "Loan did not advance authoritative snapshot.");
         int due = bank.GetProperty("activeLoan").Int("totalDueSilver");
-        await NoEconomicMutation("A", async () => { await Invoke("A", "StartCreateBankLoan", new { principalSilver = principal, durationDays = bank.Int("minDurationDays") }); });
+        await economy.AssertNoMutation("A", async () => { await Invoke("A", "StartCreateBankLoan", new { principalSilver = principal, durationDays = bank.Int("minDurationDays") }); });
         await Invoke("A", "StartRepayBankLoan"); await Idle("A");
         bank = await Call("A", "clash.bank");
         Check(bank.GetProperty("activeLoan").ValueKind == JsonValueKind.Null, "Loan remains active after repayment.");
         Check(await colonyFixture.Stock("A", "Silver") == silver + principal - due, "Repayment cash mismatch.");
-        await NoEconomicMutation("A", async () => { await Invoke("A", "StartRepayBankLoan"); });
+        await economy.AssertNoMutation("A", async () => { await Invoke("A", "StartRepayBankLoan"); });
     }
     async Task PrivateChat()
     {
@@ -67,19 +66,6 @@ internal sealed partial class GameSuite
         await Invoke("A", "StartUpdateAdminConfiguration", new { configuration = original }); await Idle("A");
         await Invoke("A", "StartRefreshAdminStatus"); await Idle("A");
         Check((await Call("A", "clash.admin")).GetProperty("configuration").Bool("giftsEnabled") == original.Bool("giftsEnabled"), "Configuration restore failed.");
-    }
-    async Task Mercenary()
-    {
-        await Idle("B"); await Invoke("B", "StartRefreshBankStatus"); await Idle("B");
-        var bank = await Call("B", "clash.bank"); int before = await colonyFixture.Stock("B", "Silver");
-        await Invoke("B", "StartHireMercenary", new { skillDefName = "Mining", skillLevel = 7, durationDays = bank.Int("mercenaryMinDurationDays") });
-        var contracts = await Wait("B", "clash.mercenaries", null, p => Items(p).Any(c => !c.Bool("completed")));
-        await Idle("B"); await Step("B", 600);
-        contracts = await Wait("B", "clash.mercenaries", null, p => Items(p).Any(c => c.Bool("spawned")));
-        var contract = Items(contracts).Single(c => !c.Bool("completed"));
-        Check(contract.Int("actualSkill") == 7 && contract.Int("priceSilver") > 0, "Wrong mercenary skill/price.");
-        Check(await colonyFixture.Stock("B", "Silver") == before - contract.Int("priceSilver"), "Mercenary charge mismatch.");
-        await Call("B", "pawn.draft", new { pawn = contract.GetProperty("pawn").String("handle"), drafted = true });
     }
     async Task PasswordChange()
     {
@@ -115,30 +101,6 @@ internal sealed partial class GameSuite
         while (state.WorldConfiguration.Current!.PlayerColonySites.Single(s => s.UserId == "rimtest-A").Appearance?.ColorHex != original?.ColorHex && watch.Elapsed.TotalSeconds < 90)
             await Task.Delay(100);
         Check(state.WorldConfiguration.Current!.PlayerColonySites.Single(s => s.UserId == "rimtest-A").Appearance?.ColorHex == original?.ColorHex, "Appearance restore failed.");
-    }
-    async Task MercenaryRecall()
-    {
-        var contract = Items(await Call("B", "clash.mercenaries")).Single(c => !c.Bool("completed"));
-        string id = contract.String("contractId");
-        await Call("B", "pawn.draft", new { pawn = contract.GetProperty("pawn").String("handle"), drafted = false });
-        Check((await Call("B", "clash.mercenary.recall", new { contract = H(contract) })).Bool("accepted"), "Recall action rejected.");
-        await Step("B", 600);
-        contract = Items(await Call("B", "clash.mercenaries")).Single(c => c.String("contractId") == id);
-        string shuttle = contract.GetProperty("shuttle").String("handle");
-        await Call("B", "selection.set", new { handle = shuttle });
-        string loadLabel = (await Call("B", "clash.labels")).String("load");
-        var load = Items(await Call("B", "gizmos.list", new { handle = shuttle })).Single(g => g.String("label") == loadLabel && !g.Bool("disabled"));
-        await Call("B", "gizmos.invoke", new { handle = shuttle, type = load.String("type"), label = load.String("label") });
-        await Call("B", "time.run", new { tps = 1200 });
-        try { await Wait("B", "clash.mercenaries", null, p => !Items(p).Any(c => c.String("contractId") == id && !c.Bool("completed"))); }
-        finally { await Call("B", "time.cancel"); }
-        await Idle("B");
-        var state = server.Services.GetRequiredService<ClashOfRimNetworkState>();
-        var watch = Stopwatch.StartNew();
-        while (state.MercenaryContracts.Find(id)?.Status != MercenaryContractRegistry.StatusCompleted && watch.Elapsed.TotalSeconds < 90)
-            await Task.Delay(100);
-        Check(state.MercenaryContracts.Find(id)?.Status == MercenaryContractRegistry.StatusCompleted, "Recall did not close the authoritative contract.");
-        await run.RecordAsync(new { serverObservation = "mercenary-recall", contractId = id, status = state.MercenaryContracts.Find(id)?.Status });
     }
     Task Shop() => Shop(preserveListing: false);
     async Task Shop(bool preserveListing)

@@ -33,17 +33,17 @@ internal sealed partial class GameSuite
             Check(Items(preservedShop).Length == 1, "Expected a surviving global listing.");
             foreach (string client in clients.Keys)
             {
-                var bank = await RefreshBank(client);
+                var bank = await economy.RefreshBank(client);
                 await Invoke(client, "StartCreateBankLoan", new { principalSilver = bank.Int("minLoanSilver"), durationDays = bank.Int("minDurationDays") });
                 await Idle(client); await Step(client, 600);
-                Check((await RefreshBank(client)).GetProperty("activeLoan").ValueKind == JsonValueKind.Object, "Missing lifecycle loan.");
+                Check((await economy.RefreshBank(client)).GetProperty("activeLoan").ValueKind == JsonValueKind.Object, "Missing lifecycle loan.");
             }
-            await Mercenary();
+            await mercenaries.Hire();
             var contract = Items(await Call("B", "clash.mercenaries")).Single(c => !c.Bool("completed"));
             await Call("B", "clash.fixture.mercenaryDeath", new { contractId = contract.String("contractId"), acknowledgeFixture = true });
             var debt = await Wait("B", "clash.bank", null, b => b.GetProperty("openDebts").GetArrayLength() == 1);
             lifecycleDebt = debt.GetProperty("openDebts")[0].String("debtId"); await Idle("B");
-            await Mercenary(); // Leave a second contract active when its colony is abandoned.
+            await mercenaries.Hire(); // Leave a second contract active when its colony is abandoned.
             var order = await CreateTrade(); lifecycleOrder = order.GetProperty("data").String("eventId");
             await Invoke("B", "StartRefreshTradeOrders");
             var orders = await Wait("B", "clash.records", new { kind = "trades" }, p => Items(p).Any(v => v.GetProperty("data").String("eventId") == lifecycleOrder));
@@ -123,7 +123,7 @@ internal sealed partial class GameSuite
             Check(ServerState.Ledger.Find(lifecycleOrder)!.Status == ServerEventStatus.Cancelled, "Abandoned seller's order remained executable.");
             var memos = ServerState.Ledger.ListAll().Where(e => e.Payload is TradeEventPayload p && p.TradeId == lifecycleOrder && p.Stage == TradeStage.AcceptedMemo).ToArray();
             Check(memos.Length == 1 && memos[0].Status == ServerEventStatus.Cancelled, "Abandoned seller's acceptance memo remained executable.");
-            var bank = await RefreshBank("B");
+            var bank = await economy.RefreshBank("B");
             Check(bank.GetProperty("activeLoan").ValueKind == JsonValueKind.Object && bank.GetProperty("openDebts").EnumerateArray().Any(d => d.String("debtId") == lifecycleDebt), "Owner abandonment cleared guest liabilities.");
         }
         var oldOwn = await CheckAchievementRefresh(survivor, client, colony);
@@ -141,7 +141,7 @@ internal sealed partial class GameSuite
         var state = await Call(client, "clash.state"); string colony = state.String("colonyId"), user = "rimtest-" + client;
         Check(colony != abandonedColonies[client] && ServerState.Players.IsDeleted(user, abandonedColonies[client]), "Rebuild reused/deleted old generation tombstone.");
         Check(ServerState.SnapshotStore.GetLatest(user, colony) is not null && ServerState.WorldConfiguration.Current!.PlayerColonySites.Count(s => s.UserId == user) == 1, "Rebuild did not publish exactly one active colony.");
-        var bank = await RefreshBank(client);
+        var bank = await economy.RefreshBank(client);
         Check(bank.GetProperty("activeLoan").ValueKind == JsonValueKind.Null && bank.GetProperty("openDebts").GetArrayLength() == 0, "New colony inherited prior liabilities.");
         var quests = await Call(client, "clash.bank.quests");
         Check(quests.GetProperty("loans").GetArrayLength() == 0 && quests.GetProperty("debts").GetArrayLength() == 0 && Items(await Call(client, "clash.mercenaries")).Length == 0, "Old quest/mercenary state crossed generation boundary.");

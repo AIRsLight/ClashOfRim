@@ -8,9 +8,9 @@ internal sealed partial class GameSuite
     async Task GravshipMove(string client, bool existingSite)
     {
         var dlc = await Call(client, "clash.fixture.dlcPawn", new { acknowledgeFixture = true });
-        var bank = await RefreshBank(client);
+        var bank = await economy.RefreshBank(client);
         await Invoke(client, "StartCreateBankLoan", new { principalSilver = bank.Int("minLoanSilver"), durationDays = bank.Int("minDurationDays") });
-        await Idle(client); await Step(client, 600); bank = await RefreshBank(client);
+        await Idle(client); await Step(client, 600); bank = await economy.RefreshBank(client);
         string loan = bank.GetProperty("activeLoan").String("loanId");
         int cash = await colonyFixture.Stock(client, "Silver"), steel = await colonyFixture.Stock(client, "Steel");
         var state = await Call(client, "clash.state");
@@ -39,13 +39,13 @@ internal sealed partial class GameSuite
         var engine = (await Call(client, "clash.gravship")).GetProperty("engines");
         Check(engine.GetArrayLength() == 1 && engine[0].String("id") == fixture.String("engine") && engine[0].GetProperty("fuel").GetSingle() < 100, "Flight failed to transport original engine or consume fuel.");
         Check(ServerState.WorldConfiguration.Current!.PlayerColonySites.Single(s => s.UserId == "rimtest-" + client).Tile == fixture.Int("tile"), "Flight did not update server anchor.");
-        Check((await RefreshBank(client)).GetProperty("activeLoan").String("loanId") == loan, "Flight lost unpaid loan.");
+        Check((await economy.RefreshBank(client)).GetProperty("activeLoan").String("loanId") == loan, "Flight lost unpaid loan.");
         Equal(dlc.GetProperty("state"), await Call(client, "clash.dlc.pawns"), "Flight changed DLC pawn state");
         await colonyFixture.Reload(client, "rimtest-gravship");
         Check((await Call(client, "clash.inventory")).GetProperty("maps")[0].Int("tileId") == fixture.Int("tile"), "Reload undid flight.");
         Check(await colonyFixture.Stock(client, "Silver") == cash && await colonyFixture.Stock(client, "Steel") == steel, "Reload changed flight cargo.");
         Equal(dlc.GetProperty("state"), await Call(client, "clash.dlc.pawns"), "Reload changed flown DLC pawn state");
         await Invoke(client, "StartRepayBankLoan"); await Idle(client);
-        Check((await RefreshBank(client)).GetProperty("activeLoan").ValueKind == JsonValueKind.Null, "Landed colony cannot repay loan.");
+        Check((await economy.RefreshBank(client)).GetProperty("activeLoan").ValueKind == JsonValueKind.Null, "Landed colony cannot repay loan.");
     }
 }

@@ -50,7 +50,7 @@ internal sealed partial class GameSuite
             await Case("bank-input-rejection", BankBounds);
             await Case("bank-overdue-repayment", BankOverdue);
             await Case("bank-mercenary-debt", BankDebt);
-            await Case("mercenary-guard-purchase", MercenaryGuardPurchase);
+            await Case("mercenary-guard-purchase", mercenaries.GuardPurchase);
         }
         if (profile.Stability == "catalog") await Case("shop-complete-catalog", ShopCatalog);
         if (profile.Stability == "catalog-sample") await Case("shop-selected-catalog", ShopCatalog);
