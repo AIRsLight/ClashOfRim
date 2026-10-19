@@ -23,6 +23,7 @@ internal sealed partial class GameSuite
     private readonly CaravanScenario caravanFixture;
     private readonly GiftScenario giftScenario;
     private readonly SupportScenario support;
+    private readonly RaidScenario raids;
     private readonly RemoteMapScenario remoteMaps;
     private readonly NotificationScenario notifications;
     private readonly EventScenarioFixture eventFixture;
@@ -65,6 +66,7 @@ internal sealed partial class GameSuite
         giftScenario = new(run, polling, dialogs, colonyFixture, caravanFixture, eventFixture, serverState.Ledger, entry);
         notifications = new(run, polling, entry, eventFixture, serverState.Ledger);
         roundtrips = new(run, polling, colonyFixture, entry);
+        raids = new(run, polling, dialogs, caravanFixture, remoteMaps, entry, serverState.SnapshotStore, serverState.DiplomacyRelations, serverState.Ledger, eventFixture);
     }
     public async Task<int> RunAsync()
     {
@@ -131,7 +133,7 @@ internal sealed partial class GameSuite
                 await Case("support-send-early-return", support.Run);
                 await Case("mercenary-hire", Mercenary);
                 await Case("mercenary-recall", MercenaryRecall);
-                await Case("raid-open-settle", async () => { await Raid(); await entry.LoginExisting(true); });
+                await Case("raid-open-settle", async () => { await raids.Run(profile.Stability == "transfers"); await entry.LoginExisting(true); });
                 foreach (string client in clients.Keys)
                 {
                     if (!(await Call(client, "clash.state")).Bool("isInActiveMultiplayerSession")) continue;

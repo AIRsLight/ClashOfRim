@@ -5,7 +5,6 @@ namespace ClashOfRim.GameTests;
 
 internal sealed partial class GameSuite
 {
-    private JsonElement raidLoss;
     internal static string[] StabilityCases(string? kind) => kind switch
     {
         "offline-delivery" => ["alliance-request-accept", "caravan-load-travel", "gift-offline-deferred-accept", "gift-offline-reject-return", "notification-offline-policy"],
@@ -84,8 +83,8 @@ internal sealed partial class GameSuite
             else await Case("raid-loss-reload-settlement", async () =>
             {
                 int before = await colonyFixture.Stock("B", "Steel");
-                await Raid(); await entry.LoginExisting(true);
-                Check(await colonyFixture.Stock("B", "Steel") == before - raidLoss.Int("count"), "Defender reload did not preserve battle loss exactly once.");
+                var result = await raids.Run(verifyLoss: true); await entry.LoginExisting(true);
+                Check(result.DefenderLossCount is int loss && await colonyFixture.Stock("B", "Steel") == before - loss, "Defender reload did not preserve battle loss exactly once.");
             });
         }
     }
