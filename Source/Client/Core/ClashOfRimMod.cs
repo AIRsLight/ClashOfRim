@@ -331,6 +331,7 @@ public sealed partial class ClashOfRimMod : Mod
         colonyAppearance.RegistrationRequested += (appearance, reason) => _ = colonyRegistration.RequestAsync(
             ClientColonyRegistrationKind.Sites, reason, appearance, suppressNotification: true);
         colonyRegistration.Diagnostic += (message, warning) => { if (warning) Log.Warning(message); else ClashLog.Message(message); };
+        AIRsLight.ClashOfRim.DlcCompatibility.ClientIdeologyReforms.Attach(new(colonyRegistration));
         worldCatalog = new ClientWorldCatalog(sessionLifecycle, new ClientWorldCatalogRuntime(), worldTransport,
             new ClientWorldCatalogPresentation(message => diagnostics.WorldMapStatus = message), worldPublication, serverMetadata);
         ClashOfRimCompatibilityApi.AttachCatalog(worldCatalog);

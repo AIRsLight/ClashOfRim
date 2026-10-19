@@ -275,7 +275,7 @@ internal static class ClientColonyRegistrationTests
             f.Registration.Suppressed = gate == "suppressed";
             try
             {
-                await f.Ports.PumpUntil(f.Registration.NotifySitesAsync(() =>
+                await f.Ports.PumpUntil(f.Registration.NotifyAsync(ClientColonyRegistrationKind.Sites, () =>
                 {
                     captures++;
                     if (gate == "irrelevant") return null;
@@ -292,7 +292,7 @@ internal static class ClientColonyRegistrationTests
         foreach (string change in new[] { "user", "auth", "server", "colony", "login", "generation", "world-id", "game", "world", "reset" })
         {
             var f = new Fixture(); await f.Run(ClientColonyRegistrationKind.Sites); int queues = f.Ports.Queued;
-            await f.Ports.PumpUntil(f.Registration.NotifySitesAsync(() =>
+            await f.Ports.PumpUntil(f.Registration.NotifyAsync(ClientColonyRegistrationKind.Sites, () =>
             { f.Change(change); return new("old event", new() { ColorHex = "old-owner" }); }));
             Check(f.Calls.Count == 1 && f.Ports.Queued == queues, "Site capture crossed original scope: " + change);
             await f.Run(ClientColonyRegistrationKind.Sites);
@@ -300,7 +300,7 @@ internal static class ClientColonyRegistrationTests
         }
         var live = new Fixture(); await live.Run(ClientColonyRegistrationKind.Sites);
         var appearance = new ModColonyAppearanceDto { ColorHex = "123abc" };
-        await live.Ports.PumpUntil(live.Registration.NotifySitesAsync(() => { live.Change("snapshot"); return new("created", appearance); }));
+        await live.Ports.PumpUntil(live.Registration.NotifyAsync(ClientColonyRegistrationKind.Sites, () => { live.Change("snapshot"); return new("created", appearance); }));
         Check(live.Calls.Count == 2 && live.CapturedAppearance?.ColorHex == "123abc" && !live.Calls[1].Muted
             && live.Calls[1].Context.CurrentSnapshotId == "advanced", "Site event lost forced refresh, appearance or latest snapshot."); scenarios++;
     }

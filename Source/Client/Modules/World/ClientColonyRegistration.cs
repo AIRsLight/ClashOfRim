@@ -10,7 +10,7 @@ using AIRsLight.ClashOfRim.Modules.Transport;
 namespace AIRsLight.ClashOfRim.Modules.World;
 
 internal enum ClientColonyRegistrationKind { Sites, Extensions }
-internal sealed record ClientColonySiteChange(string Reason, ModColonyAppearanceDto? Appearance);
+internal sealed record ClientColonyRegistrationChange(string Reason, ModColonyAppearanceDto? Appearance = null);
 internal interface IClientColonyRegistrationRuntime { IClientColonyRegistrationSession Bind(); }
 internal interface IClientColonyRegistrationSession
 {
@@ -104,14 +104,14 @@ internal sealed class ClientColonyRegistration
     // Engine events must not queue intermediate sites while relocation or a
     // compatibility callback suppresses publication. Capture under the original
     // scope, since compatibility and appearance reads can change the session.
-    internal Task NotifySitesAsync(Func<ClientColonySiteChange?> capture)
+    internal Task NotifyAsync(ClientColonyRegistrationKind kind, Func<ClientColonyRegistrationChange?> capture)
     {
         using var publication = ClientSessionWork.EnterPublication();
         var scope = requests.Capture();
-        if (suppressed) return Task.CompletedTask;
+        if (kind == ClientColonyRegistrationKind.Sites && suppressed) return Task.CompletedTask;
         var change = capture();
-        if (change is null || !requests.TryApply(scope, static () => { }) || suppressed) return Task.CompletedTask;
-        return RequestAsync(scope, ClientColonyRegistrationKind.Sites, change.Reason, change.Appearance, false);
+        if (change is null || !requests.TryApply(scope, static () => { }) || kind == ClientColonyRegistrationKind.Sites && suppressed) return Task.CompletedTask;
+        return RequestAsync(scope, kind, change.Reason, change.Appearance, false);
     }
     private Task RequestAsync(ClientRequestTracker<Boundary>.Scope scope, ClientColonyRegistrationKind kind, string reason,
         ModColonyAppearanceDto? appearance, bool suppressNotification)

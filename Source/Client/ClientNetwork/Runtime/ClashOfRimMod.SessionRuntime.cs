@@ -33,9 +33,6 @@ public sealed partial class ClashOfRimMod
     internal void StartSyncWorldConfigurationExtensions()
         => _ = colonyRegistration.StartAsync(ClientColonyRegistrationKind.Extensions);
 
-    internal void RequestWorldConfigurationExtensionSync(string reason)
-        => _ = colonyRegistration.RequestAsync(ClientColonyRegistrationKind.Extensions, reason);
-
     internal void OpenAbandonPlayerColonyConfirmation(MapParent colony)
         => colonyAbandonment.Open(new ClientColonyAbandonTarget(colony));
 }

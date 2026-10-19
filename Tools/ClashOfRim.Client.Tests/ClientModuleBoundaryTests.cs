@@ -144,6 +144,8 @@ internal static class ClientModuleBoundaryTests
             throw new InvalidOperationException("Compatibility capability boundaries: " + string.Join(Environment.NewLine, compatibilityViolations));
         Console.WriteLine($"Compatibility capability guard checked {compatibilityCapabilities.Length} product and generated types.");
         Type[] ideologyRoots = { typeof(AIRsLight.ClashOfRim.DlcCompatibility.ClientSharedIdeologyWorld),
+            typeof(AIRsLight.ClashOfRim.DlcCompatibility.ClientIdeologyReforms),
+            typeof(AIRsLight.ClashOfRim.DlcCompatibility.IdeoReformSyncPatches),
             typeof(AIRsLight.ClashOfRim.DlcCompatibility.ClassicIdeoSetupPatch),
             typeof(AIRsLight.ClashOfRim.DlcCompatibility.SharedIdeologySetupWorldPatch),
             typeof(AIRsLight.ClashOfRim.DlcCompatibility.PlayerIdeoForkPatches), typeof(ClientMultiplayerWorldStatus) };

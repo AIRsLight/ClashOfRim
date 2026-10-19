@@ -25,7 +25,7 @@ internal sealed class ClientColonySiteEvents
 
     internal async Task NotifyAsync(MapParent? parent, Map? map, ClientColonySiteEvent kind)
     {
-        ClientColonySiteChange? Capture()
+        ClientColonyRegistrationChange? Capture()
         {
             if (map?.IsPlayerHome != true && (parent is null || parent.Faction != Faction.OfPlayer)) return null;
             if (ClashOfRimCompatibilityApi.IsPlayerColonySiteRegistrationSuppressedByCompatibility()) return null;
@@ -34,7 +34,7 @@ internal sealed class ClientColonySiteEvents
             var selected = captureAppearance();
             return ReferenceEquals(Current, this) ? new(reason, selected) : null;
         }
-        try { await registration.NotifySitesAsync(Capture).ConfigureAwait(false); }
+        try { await registration.NotifyAsync(ClientColonyRegistrationKind.Sites, Capture).ConfigureAwait(false); }
         catch (Exception ex) { Log.Warning("[ClashOfRim] Failed to request player colony site " + kind + " registration: " + ex); }
     }
 }
