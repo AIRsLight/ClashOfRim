@@ -19,6 +19,7 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("main menu server entry binds native windows to the existing entry forms", ClientMainMenuEntryTests.Run),
     ("main menu saving and engine exits preserve original ownership and save workflow", ClientMainMenuSavingTests.Run),
     ("chat overlay owns game drafts and cadence while reusing account conversation", ClientChatOverlayTests.Run),
     ("raid finish commands bind delayed confirmation and map removal to original ownership", ClientRaidFinishTests.Run),

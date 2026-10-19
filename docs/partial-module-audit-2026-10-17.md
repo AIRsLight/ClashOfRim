@@ -3372,3 +3372,15 @@ GameComponent 的世界视图选中状态、30 秒期限和刷新私有方法收
 临时删除菜单作用域检查、把自动保存资格误换成菜单资格，分别被 `Retained menu adopted user`、`Autosave interception changed: no-snapshot` 捕获，日志 `LocalOnly/module-migration/menu-saving-{scope,autosave}-negative.log`，错误实现已恢复。**5 个相关单元组通过**：新菜单入口、快照保存（1,868 场景）、远程地图关闭运行时、入口主线程交接及模块边界。最终日志 `LocalOnly/module-migration/menu-saving-tests.log`；守卫检查 1,670／127／130／312 个类型。生产随单元项目编译；未跑全量回归、专项 RimTest 或独立构建，未推送，原有修改及冻结 1.6 保留。
 
 **下一步 M11o9b：主菜单加入服务器与入口窗口创建。** 主菜单只剩创建服务器入口窗时查询 Mod；迁移到原入口模块的窄装配入口，再继续兼容、网络／服务器过渡门面、M12 和最终审计。
+
+### M11o9b：主菜单加入服务器直接使用入口表单（2026-10-19）
+
+`ClientServerEntryWindows` 装配现有 `ClientWorldEntryStart`，在菜单生成时准备原有 `ClientWorldEntryForm`，由该表单保存默认地址、账户和后续凭据。开窗只接受原装配、来源 Game、Entry 场景和仍有效的表单；重复点击不重复创建窗口。关闭后的表单不能通过旧菜单重新打开，新的菜单可以创建新表单。菜单标签翻译期间发生登录变化也不会让旧操作采用新账户。未装配时保留原错误提示，但迟到的菜单不会覆盖后来装配的入口或在游戏场景弹出错误。
+
+删除主菜单的 Mod 查询及私有开窗方法，整个主菜单补丁及其生成类型已加入模块边界守卫。窗口本身继续使用原表单构造、输入校验、密码清理及提交逻辑；公共 Mod 构造函数仍作为已有兼容入口保留，不增加新业务实现。单机重启确认和入口主线程队列未改动。
+
+新增测试运行实际主菜单补丁、入口窗口构造、关闭和接受键提交，复用原入口夹具及共享翻译／绘制替身。检查空／短／普通选项列表、重复菜单改写和重复点击、关闭后重开、十类旧菜单失效、普通快照前进、未装配及翻译期间装配变化。窗口提交验证 Unicode 地址／账户输入的既有规范化、密码不预填／关闭后清空，以及一次原登录准备与场景后续。窗口栈、原生关闭／按键事件和日志使用替身；登录和世界准备运行原模块及测试协议端口，未连接真实服务器或渲染窗口。
+
+临时移除表单有效性和窗口去重检查分别被 `Closed menu form reopened or retained its password.`、`Opening entry duplicated windows or started login.` 捕获，日志 `LocalOnly/module-migration/menu-entry-{form,duplicate}-negative.log`，错误实现已恢复。**5 个相关单元组通过**：新菜单入口、菜单保存、原入口表单、入口启动（336 场景）及模块边界。最终日志 `LocalOnly/module-migration/menu-entry-tests.log`；守卫检查 1,670／127／136／312 个类型。未跑全量回归、专项 RimTest 或独立构建，未推送；冻结 1.6 和原有未提交修改继续保留。
+
+**下一步 M11o10：公共兼容 API 的会话读取与世界刷新接线。** `ClashOfRimCompatibilityApi` 仍通过 Mod 查询多人状态、管理员状态和请求世界基线刷新；按这些领域的现有模块迁移，避免新增聚合所有能力的门面。之后继续网络／服务器过渡门面、M12 和最终审计，完整目标仍未完成。

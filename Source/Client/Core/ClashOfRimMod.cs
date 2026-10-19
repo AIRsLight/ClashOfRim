@@ -339,6 +339,7 @@ public sealed partial class ClashOfRimMod : Mod
             entryStore, worldTransport, entryPresentation, snapshotReload, worldPublication, serverMetadata);
         worldEntryStart = new ClientWorldEntryStart(sessionLifecycle, synchronization, new ClientSnapshotGame(),
             entryStore, entryPresentation, worldPreparation, worldEntry);
+        ClientServerEntryWindows.Attach(new(worldEntryStart));
         observationMaps = new ClientObservationMaps(sessionLifecycle, synchronization, new ClientSnapshotGame(),
             new ClientObservationTransport(), new ClientObservationRuntime(),
             new ClientObservationPresentation(message => diagnostics.WorldMapStatus = message, response => ShowCompatibilityMismatchWindow(response)));

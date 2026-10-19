@@ -147,16 +147,17 @@ public static class ClashOfRimMainMenuPatches
             }
         }
 
-        string label = ClashOfRimText.Key("ClashOfRim.ServerEntry.JoinTitle");
         if (optList.OfType<ClashOfRimMenuOption>().Any(option => option.Kind == ClashOfRimMenuOptionKind.ServerEntry))
         {
             return;
         }
 
+        var open = ClientServerEntryWindows.PrepareOpen();
+        string label = ClashOfRimText.Key("ClashOfRim.ServerEntry.JoinTitle");
         optList.Insert(Math.Min(1, optList.Count), new ClashOfRimMenuOption(
             ClashOfRimMenuOptionKind.ServerEntry,
             label,
-            OpenServerEntryDialog));
+            open));
     }
 
     private static void RequestStandaloneRestart()
@@ -166,23 +167,6 @@ public static class ClashOfRimMainMenuPatches
             GenCommandLine.Restart,
             destructive: false,
             title: ClashOfRimText.Key("ClashOfRim.Compatibility.ServerProfileActiveTitle")));
-    }
-
-    private static void OpenServerEntryDialog()
-    {
-        ClashOfRimMod? mod = ClashOfRimMod.Instance ?? LoadedModManager.GetMod<ClashOfRimMod>();
-        if (mod is null)
-        {
-            string message = ClashOfRimText.Key("ClashOfRim.ServerEntry.ModUnavailable");
-            Log.Warning("[ClashOfRim] Main menu server entry requested before mod instance was available.");
-            Find.WindowStack.Add(new Dialog_MessageBox(message));
-            return;
-        }
-
-        if (Find.WindowStack.WindowOfType<ClashOfRimServerEntryDialog>() is null)
-        {
-            Find.WindowStack.Add(new ClashOfRimServerEntryDialog(mod.CreateServerEntryForm()));
-        }
     }
 
     private static void RewritePlayingMenuForMultiplayer(List<ListableOption> optList)
