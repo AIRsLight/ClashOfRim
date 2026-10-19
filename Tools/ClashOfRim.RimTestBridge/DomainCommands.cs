@@ -3,6 +3,7 @@ using System.Reflection;
 using System.Text.Json;
 using AIRsLight.ClashOfRim;
 using AIRsLight.ClashOfRim.ClientNetwork;
+using AIRsLight.ClashOfRim.CompatibilityClient;
 using AIRsLight.ClashOfRim.Multiplayer;
 using AIRsLight.ClashOfRim.RemoteMaps;
 using AIRsLight.ClashOfRim.Trades;
@@ -40,16 +41,14 @@ internal sealed partial class DomainCommands
         var r = bridge.Router;
         r.Register("clash.compatibility", "Observe the original compatibility decision; only accepted language warnings offer continuation.", "observe", _ =>
         {
-            var window = Find.WindowStack.Windows.SingleOrDefault(w => w.GetType().Name == "CompatibilityMismatchWindow");
-            return new { open = window is not null, canContinue = window is not null && Field<bool>(window, "canContinueAnyway") };
+            var window = Find.WindowStack.WindowOfType<CompatibilityMismatchWindow>();
+            return new { open = window is not null, canContinue = window?.CanContinue == true };
         });
         r.Register("clash.compatibility.continue", "Choose the original Join Anyway button when the product permits a language-only warning.", "semantic", _ =>
         {
             Loopback();
-            var window = Find.WindowStack.Windows.Single(w => w.GetType().Name == "CompatibilityMismatchWindow");
-            if (!Field<bool>(window, "canContinueAnyway") || Field<bool>(window, "continuationHandled")) throw new CommandException("disabled", "Compatibility cannot be bypassed.");
-            var continuation = Field<Action>(window, "continueAnyway");
-            Set(window, "continuationHandled", true); window.Close(); continuation();
+            var window = Find.WindowStack.WindowOfType<CompatibilityMismatchWindow>();
+            if (window?.TryContinue() != true) throw new CommandException("disabled", "Compatibility cannot be bypassed.");
             return new { invoked = true };
         });
         r.Register("clash.support.return", "Use the original quest early-return button, including completion tracking.", "semantic", a =>

@@ -3116,3 +3116,21 @@ M11h 补查共享权限所关联的会话清理单元组时，发现旧夹具仍
 **5 个相关单元组通过**：新增入口表单、原入服启动（336 场景）、入服决策（364）、世界准备（368）和客户端模块边界。最终日志 `LocalOnly/module-migration/entry-form-final-tests.log`；守卫检查 1,566 个纯模块类型、125 个兼容能力类型、49 个页面／适配类型及 312 个事件适配类型。生产随测试编译；本步没有运行全量回归、专项 RimTest 或独立发布／桥接构建，实际 GUI 绘制、键盘事件及自动关窗仍待实机验证。冻结 1.6 和原有未提交修改保留，未推送。
 
 **下一步 M11o2：兼容不匹配窗口与其恢复入口。** 继续处理仍保存整个 Mod 的 `CompatibilityMismatchWindow`，迁移其操作和延迟回调的真实依赖；之后继续清理其他适配器及仍被桥接使用的过渡门面。M11 整体、M12 和最终审计仍开放。后续仍以相关单元测试为主，必要时运行本次修改功能的 RimTest；全量由用户安排。
+
+### M11o2：兼容差异报告、恢复生命周期与共用覆盖确认（2026-10-19）
+
+`CompatibilityMismatchWindow` 已从混合文件移出，并改为只持有 `ClientCompatibilityMismatch`。原来窗口负责的清单解析、模组／文件／Def／配置差异计算、服务端问题兜底及恢复条件移到 `ClientCompatibilityReport`；输出为只读集合和不可变记录，内部 wire DTO 不再暴露给窗口。窗口只保留绘制、滚动、选项卡和操作转交。`CompatibilityBaselineApplicator` 保留原本的引擎配置写入／重启适配职责；语言警告策略也单独归档，原命名空间和判定语义保留。
+
+报告复用原差异算法和显式问题分类，保留权威世界语言优先、协议错误只显示在总览、文件更新时间／工坊提示、额外本地配置透传及未被本地计算表示的服务端问题。清单索引在解析边界建立一次并供后续比较复用；空集合字段归一化，畸形 JSON、空元素或归一化后重复的身份转为诊断与服务端问题兜底，避免打开窗口时抛出字典／空引用异常。报告不再解析和保留未参与展示的配置 XML、角色、来源等字段；实际修复仍使用原始服务器清单字符串。
+
+`ClientCompatibilityMismatch` 在 UI 排队前复制响应并捕获会话、Game、密码／Steam 凭据、可用状态及调用方归属；进入主线程后才捕获本地清单和构建报告。排队期间或开窗后发生身份／凭据变化，旧报告不能继续加入、修改本地配置或发起覆盖。关闭和失效只释放原继续流程一次；选择继续先消费本次决定，再关窗并复核拥有者，关窗回调切换登录或抛错时释放原继续流程。继续加入仍只允许服务端已接受的纯语言警告。三种本地修复分别调用原清单套用、配置 overlay 和本地配置覆盖适配器，保留原始载荷、状态消息及重启行为；回调重入不会重复执行，结果不会发布到另一会话。
+
+管理员清单页与登录前恢复现在共用 `ClientCompatibilityOverrideIntent` 和 `IClientCompatibilityModOrderSource`。原管理员页中的顺序归一化、Steam 后缀处理、未知来源警告、延迟确认后复核、一处消费和忙碌后重试逻辑已迁出，未保留另一套实现。两个调用方只提供各自草稿／窗口归属及准入条件。恢复仍调用原 `ClientCompatibilityOverride` 的凭据准入、覆盖、基线发布和目录上传；登录前不伪造管理员权限。关窗不取消已经准入的恢复业务。已无调用方的 Mod 覆盖窗口工厂删除。
+
+RimTest 的 `clash.compatibility`／`clash.compatibility.continue` 命令名称和输出字段保持不变；桥接改用窗口的 `CanContinue`／`TryContinue()`，删除反射修改 `continuationHandled` 和直接调用私有回调的旁路。窗口、其生成类型及修复适配器纳入模块依赖守卫；语言策略也纳入纯模块守卫。旧事件源码守卫同步读取迁出后的报告和窗口文件。
+
+新增测试复用现有兼容覆盖夹具，覆盖四种文化、全部声明问题码、未知问题、清单／文件／Def／配置差异、工坊链接、权威语言、不可变报告、稀疏／畸形／重复身份清单、12 类旧窗口失效、排队期间响应变更、重复打开、继续与取消的一次性语义、捕获／格式化／关窗／修复异常和重入、三种修复路径、凭据恢复忙碌与三类网络故障重试，以及确认后的本地模组顺序变化。三项临时错误实现反向验证分别触发 `Caller predicate changed ownership after its check: game`、`Authoritative fallback was lost or duplicated by subject.`、`Confirmation authorized another local mod order.`，日志 `LocalOnly/module-migration/compatibility-window-{owner,fallback,order}-negative.log`，均已恢复。
+
+**7 个相关客户端单元组通过**：新增兼容差异、原兼容覆盖（1,064 场景）、管理员清单、管理员宿主、入服决策（364）、语言继续策略及模块边界；日志 `LocalOnly/module-migration/compatibility-window-final-tests.log`。守卫检查 1,594 个纯模块类型、125 个兼容能力类型、52 个页面／适配类型及 311 个事件适配类型。另运行事件单元项目的 51 组检查，包含变更后的权威问题源码守卫，全部通过，日志 `LocalOnly/module-migration/compatibility-window-events-unit.log`。客户端生产代码随单元测试编译；没有运行全量实机回归、专项 RimTest 或独立发布／桥接构建。真实窗口交互、覆盖进度衔接、文件写入与重启仍待实机验证，不能将纯模块测试等同于这些效果的实测。冻结 1.6 和原有未提交修改保留，未推送。
+
+**下一步 M11o3：交易 pawn 预览及剩余 UI 适配依赖。** 已确认 `TradePawnPreviewService` 仍通过 `Mod.Instance` 获取网络上下文和缓存服务端标识，继续迁移其实际数据请求／缓存归属，再处理其余调用方和网络／服务器过渡门面。M11 整体、M12 和最终审计仍开放；全量测试由用户安排。

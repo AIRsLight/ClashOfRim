@@ -18,7 +18,8 @@ internal static class ClientModuleBoundaryTests
     internal static void Run()
     {
         var modules = typeof(ClashOfRimMod).Assembly.GetTypes()
-            .Where(t => t.Namespace?.StartsWith("AIRsLight.ClashOfRim.Modules.", StringComparison.Ordinal) == true).ToArray();
+            .Where(t => t.Namespace?.StartsWith("AIRsLight.ClashOfRim.Modules.", StringComparison.Ordinal) == true
+                || t == typeof(AIRsLight.ClashOfRim.CompatibilityClient.CompatibilityLanguageMismatchPolicy)).ToArray();
         var violations = ModuleDependencyGuard.FindViolations(modules, t => t == typeof(ClashOfRimMod)
             || t == typeof(ClashOfRimSettings) || t == typeof(ClashOfRimModNetworkClient) || t == typeof(IServiceProvider)
             || t == typeof(ClashOfRimGameComponent) || t == typeof(ClashOfRimText)
@@ -148,6 +149,9 @@ internal static class ClientModuleBoundaryTests
                 || t == typeof(AIRsLight.ClashOfRim.Multiplayer.AllySupportRequestDialogWindow)
                 || t == typeof(AIRsLight.ClashOfRim.ServerShop.ClientShopListingRuntime)
                 || t == typeof(AIRsLight.ClashOfRim.CompatibilityClient.CompatibilityBaselineOverrideWindow)
+                || t == typeof(AIRsLight.ClashOfRim.CompatibilityClient.CompatibilityMismatchWindow)
+                || t.DeclaringType == typeof(AIRsLight.ClashOfRim.CompatibilityClient.CompatibilityMismatchWindow)
+                || t == typeof(AIRsLight.ClashOfRim.CompatibilityClient.ClientCompatibilityRepairRuntime)
                 || t.DeclaringType == typeof(AIRsLight.ClashOfRim.CompatibilityClient.CompatibilityBaselineOverrideWindow)
                 || t.DeclaringType == typeof(AIRsLight.ClashOfRim.ServerShop.ClientShopListingRuntime)).ToArray();
         var pageViolations = ModuleDependencyGuard.FindViolations(pages,

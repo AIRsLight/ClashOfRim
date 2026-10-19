@@ -227,6 +227,8 @@ static void VerifyCompatibilityMismatchUiUsesAuthoritativeFallback()
 {
     string sourcePath = FindRepositoryFile("Source", "Client", "Compatibility", "Manifest", "CompatibilityBaselineApplicator.cs");
     string source = File.ReadAllText(sourcePath);
+    source += File.ReadAllText(FindRepositoryFile("Source", "Client", "Compatibility", "Manifest", "CompatibilityMismatchWindow.cs"));
+    source += File.ReadAllText(FindRepositoryFile("Source", "Client", "Modules", "Compatibility", "ClientCompatibilityReport.cs"));
     Require(
         source.Contains("AppendUnrepresentedFallbackEntries(entries, fallbackIssues, CompatibilityTab.Config);", StringComparison.Ordinal),
         "配置页在本地差异计算遗漏时仍必须展示服务端返回的权威配置问题");

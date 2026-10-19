@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Compatibility;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -190,7 +191,7 @@ internal static class MultiplayerAdminHostTests
         Check(!ReferenceEquals(auditRows, audit.Read()) && audit.Read().Single().ActionKind == "previous", "Host close retained audit projection or cleared accepted records.");
         await f.Ports.PumpUntil(model.RefreshAsync(100)); Check(f.Calls.Count == 2, "Closed host could not refresh on reopen.");
     }
-    private sealed class OrderSource : IClientAdminManifestSource
+    private sealed class OrderSource : IClientCompatibilityModOrderSource
     {
         public string SteamPostfix => "_steam";
         public IReadOnlyList<string> ReadPackageOrder() => new[] { "测试 İ" };

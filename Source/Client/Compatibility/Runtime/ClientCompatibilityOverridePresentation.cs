@@ -4,7 +4,7 @@ using Verse;
 
 namespace AIRsLight.ClashOfRim.CompatibilityClient;
 
-internal sealed class ClientCompatibilityOverridePresentation : IClientCompatibilityOverridePresentation
+internal sealed class ClientCompatibilityOverridePresentation : IClientCompatibilityOverridePresentation, IClientCompatibilityReportText
 {
     public string Text(string key, params (string Name, object? Value)[] args)
         => ClashOfRimText.Key(key, args.Select(arg => arg.Value.Named(arg.Name)).ToArray());

@@ -182,8 +182,7 @@ public sealed partial class ClashOfRimMod : Mod
         var serverMetadata = new ClientServerMetadata(sessionLifecycle, compatibilityBaseline, administration);
         worldSetup = new ClientWorldSetupState(sessionLifecycle);
         storytellerConfiguration = new ClientStorytellerConfiguration(sessionLifecycle, worldSetup, new ClientStorytellerRuntime());
-        compatibilityPresentation = new ClientCompatibilityPresentation((response, language, accept, cancel) =>
-            new AIRsLight.ClashOfRim.CompatibilityClient.CompatibilityMismatchWindow(this, response, language, accept, cancel));
+        compatibilityPresentation = new ClientCompatibilityPresentation(CreateCompatibilityMismatch);
         var entryPresentation = new ClientWorldEntryPresentation(message => diagnostics.LoginStatus = message,
             (server, account) => Find.WindowStack.Add(new AIRsLight.ClashOfRim.MainMenu.ClashOfRimAccountRegistrationDialog(CreateAccountRegistrationForm(server, account))), compatibilityPresentation);
         var worldTransport = new ClientWorldPreparationTransport(new ClientProtocolEnvironment());
@@ -479,7 +478,13 @@ public sealed partial class ClashOfRimMod : Mod
             new(new ClientAdminAuditPanel(sessionLifecycle, adminAccess, administration)));
     }
 
-    internal CompatibilityBaselineOverrideWindow CreateCompatibilityBaselineOverrideWindow() => new(compatibilityOverride.StartAsync);
+    private ClientCompatibilityMismatch CreateCompatibilityMismatch(ModLoginResponseDto response, string? language,
+        Action? accept, Action? cancel, Func<bool>? current)
+    {
+        var local = new ClientLocalCompatibilityManifest();
+        return new(sessionLifecycle, new ClientSnapshotGame(), adminAccess, compatibilityOverride, local, local,
+            new ClientCompatibilityOverridePresentation(), new ClientCompatibilityRepairRuntime(), response, language, accept, cancel, current);
+    }
 
     internal ClientWorldEntryForm CreateServerEntryForm() => worldEntryStart.CreateForm();
     internal ClientWorldEntryForm CreateAccountRegistrationForm(string server, string user) => worldEntryStart.CreateRegistrationForm(server, user);

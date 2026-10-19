@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Modules.Compatibility;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -177,7 +178,7 @@ internal static class MultiplayerAdminManifestTests
     {
         var f = new FixtureState(); await f.Refresh(); return f;
     }
-    private sealed class OrderSource : IClientAdminManifestSource
+    private sealed class OrderSource : IClientCompatibilityModOrderSource
     {
         internal string[]? Ids = { "mod.i", "MOD.B_STEAM" }; internal string Postfix = "_steam"; internal Action? Hook;
         public string SteamPostfix => Postfix;
