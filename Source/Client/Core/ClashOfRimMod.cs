@@ -287,6 +287,7 @@ public sealed partial class ClashOfRimMod : Mod
             snapshotPublication, new ClientSnapshotReloadRuntime(), new ClientSnapshotReloadPresentation(
                 (message, purpose) => { diagnostics.LoginStatus = message; if (purpose == ClientSnapshotReloadPurpose.Raid) diagnostics.WorldMapStatus = message; },
                 response => ShowCompatibilityMismatchWindow(response)));
+        ClientRaidLifecycleCallbacks.Attach(new(new ClientRaidLifecycle(new ClientSnapshotGame(), snapshotReload, raidRecovery, synchronization, raidSettlements)));
         var entryStore = new ClientWorldEntryStore(settings);
         var featureCatalogs = new ClientWorldFeatureCatalogs(sessionLifecycle, worldTransport);
         featureCatalogs.Diagnostic += message => Log.Warning(message);

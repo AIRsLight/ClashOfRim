@@ -3322,3 +3322,15 @@ GameComponent 的世界视图选中状态、30 秒期限和刷新私有方法收
 新增世界轮询测试复用同步夹具及组件测试环境，覆盖进入／停留／退出重入、准确 30 秒边界、失败后下一周期重试、十类作用域切换和翻译期间失效。引擎组执行实际 GameComponent OnGUI／Tick，检查视图隐藏、非 Playing、缺少世界对象、原 Game、适配器替换，以及原 250 tick 对象／商队轮询。引擎视图、时间和队列使用替身；业务模块仍执行原 HTTP／发布端口，没有渲染游戏或进行真实对象移动。临时将期限改为 31 秒、移除原 Game 校验分别被 `World view lost its 30-second boundary.`、`Old GameComponent polled the replacement world.` 捕获，日志 `LocalOnly/module-migration/world-poll-{cadence,game}-negative.log`，错误实现已恢复。
 
 **6 个相关单元组通过**：新增世界轮询、设置生命周期、世界同步、站点事件、自动启动和模块边界。最终日志 `LocalOnly/module-migration/world-poll-tests.log`；守卫检查 1,657 个纯模块类型、127 个兼容能力类型、118 个页面／适配类型及 312 个事件适配类型。生产随测试编译，未运行全量实机回归、专项 RimTest 或独立发布／桥接构建，未推送。原有未提交修改继续保留。下一步 **M11o8c：袭击恢复／期限与远端会话界面回调**，复用既有恢复、结算、期限和地图关闭模块，再处理聊天界面、网络／服务器门面与 M12；M11 整体及最终审计仍开放。
+
+### M11o8c1：袭击恢复与自动期限归独立生命周期模块（2026-10-19）
+
+`ClientRaidLifecycle` 协调已有快照重载、袭击恢复及自动期限入口。恢复推进保持先清理失去来源的加载操作、再推进原 Game 恢复；加载操作若改变 Game，当前回调不继续恢复新场景。期限判断使用现有战斗运行时，恢复／快照重载期间阻止自动动作；最终期限优先进入原 Expire，普通到期仅在未结算且快照上传空闲时调用原 StartAsync。最终过期不因正在上传或 FinishInProgress 被延迟。未复制支援损失、证据打包、上传确认、结算清理或重载算法。
+
+`ClientRaidLifecycleCallbacks` 核对 GameComponent 构造时的 Game 与当前装配，再将原战斗转换为 `ClientRaidSettlementRuntime`。OnGUI／Update／Tick 保持原推进位置与顺序，删去组件的两个自动期限方法、三个 Mod 转发／状态属性。Update 和 Tick 已不再查找整个 Mod，GUI 中的远端会话与聊天入口仍待迁移。组件原有未提交的 Update 队列／自动登录补充继续保留，只适配新接线，未纳入本阶段提交。
+
+新增生命周期测试枚举战斗归属、普通／最终期限、结算进行中及快照忙碌的组合；复用真实重载夹具与恢复模块，验证等待只提示一次、恢复服务器期限、遗失加载回调的退休及租约释放。自动动作选择通过既有 `IClientRaidSettlementActions` 的计数替身观察，结算事务仍由独立真实结算测试覆盖，未把替身结果当作网络结算证据。引擎组使用共享组件环境，运行实际三个生命周期入口及 `ClientRaidSettlementRuntime`，验证恢复阻止、原战斗、最终期限越过上传忙碌、旧 Game 与装配替换。删除原恢复测试中通过反射拼装空 Mod 的案例，由这些入口测试接替。没有运行实际游戏场景或渲染界面。
+
+两项临时错误实现被 `Pending recovery allowed deadlines or repeated waiting effects.` 和 `Old component expired the new game's battle.` 捕获，日志 `LocalOnly/module-migration/raid-lifecycle-{recovery,game}-negative.log`，错误实现已恢复。**8 个相关单元组通过**：新增袭击生命周期、袭击恢复／结算、快照重载、世界轮询、自动启动、站点事件和模块边界。最终日志 `LocalOnly/module-migration/raid-lifecycle-tests.log`；守卫检查 1,659 个纯模块类型、127 个兼容能力类型、119 个页面／适配类型及 312 个事件适配类型。生产随测试编译，未运行全量实机回归、专项 RimTest 或独立发布／桥接构建，未推送。
+
+**下一步 M11o8c2：手动结束战斗、地图移除与远端会话界面。** `RemoteMapSessionController` 的确认回调仍捕获整个 Mod，组件叠层与主菜单关闭入口也仍依赖它；继续将延迟确认绑定原会话／战斗并调用原结算／关闭模块。其后处理聊天界面、网络／服务器剩余门面和 M12，完整目标仍未完成。

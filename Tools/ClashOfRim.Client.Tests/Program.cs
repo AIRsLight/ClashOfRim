@@ -19,6 +19,7 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("raid lifecycle coordinates recovery and deadline polling for its source game", ClientRaidLifecycleTests.Run),
     ("world polling shares marker cadence and binds component callbacks to their game", ClientWorldPollingTests.Run),
     ("automatic session startup belongs to its source game and consumes admission once", ClientAutomaticSessionStartupTests.Run),
     ("world setup lifecycle binds page polling and reuses initial provisioning", ClientWorldSetupLifecycleTests.Run),

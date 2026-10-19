@@ -61,9 +61,8 @@ public sealed class ClashOfRimGameComponent : GameComponent
     {
         RunMainThreadActions();
         ClashOfRimMod? mod = LoadedModManager.GetMod<ClashOfRimMod>();
-        mod?.AdvanceRaidRecovery();
-        TryFinishExpiredRaidBattle(mod);
-        TryHandleRaidBattleFinalDeadline(mod);
+        ClientRaidLifecycleCallbacks.Current?.Advance(game);
+        _ = ClientRaidLifecycleCallbacks.Current?.PollAsync(game, activeRaidBattleSession);
         _ = ClientWorldSynchronizationCallbacks.Current?.ViewAsync(game);
         DrawRemoteMapSessionOverlay(mod);
         DrawChatOverlay(mod);
@@ -71,24 +70,20 @@ public sealed class ClashOfRimGameComponent : GameComponent
 
     public override void GameComponentUpdate()
     {
-        ClashOfRimMod? mod = LoadedModManager.GetMod<ClashOfRimMod>();
-        mod?.AdvanceRaidRecovery();
-        TryFinishExpiredRaidBattle(mod);
-        TryHandleRaidBattleFinalDeadline(mod);
+        ClientRaidLifecycleCallbacks.Current?.Advance(game);
+        _ = ClientRaidLifecycleCallbacks.Current?.PollAsync(game, activeRaidBattleSession);
     }
 
     public override void GameComponentTick()
     {
         RunMainThreadActions();
         int ticks = Find.TickManager?.TicksGame ?? 0;
-        ClashOfRimMod? mod = LoadedModManager.GetMod<ClashOfRimMod>();
-        mod?.AdvanceRaidRecovery();
+        ClientRaidLifecycleCallbacks.Current?.Advance(game);
         TryStartAutomaticRuntimeSession();
         _ = ClientColonySiteEvents.Current?.PollAsync(game, ticks);
         _ = ClientWorldSynchronizationCallbacks.Current?.TickAsync(game, ticks);
         TryCleanupRemoteWorldObjectOrphans(ticks);
-        TryFinishExpiredRaidBattle(mod);
-        TryHandleRaidBattleFinalDeadline(mod);
+        _ = ClientRaidLifecycleCallbacks.Current?.PollAsync(game, activeRaidBattleSession);
 
     }
 
@@ -1042,34 +1037,6 @@ public sealed class ClashOfRimGameComponent : GameComponent
         }
 
         return cachedChatMessages;
-    }
-
-    private void TryFinishExpiredRaidBattle(ClashOfRimMod? mod)
-    {
-        if (activeRaidBattleSession is null
-            || activeRaidBattleSession.FinishInProgress
-            || !activeRaidBattleSession.IsExpired
-            || mod is null
-            || mod.RaidRecoveryBlocksBattleLifecycle
-            || mod.SnapshotUploadInProgress)
-        {
-            return;
-        }
-
-        RemoteMapSessionController.TryRequestRaidBattleFinish(mod, activeRaidBattleSession, "Expired");
-    }
-
-    private void TryHandleRaidBattleFinalDeadline(ClashOfRimMod? mod)
-    {
-        if (activeRaidBattleSession is null
-            || !activeRaidBattleSession.IsFinalDeadlineExpired
-            || mod is null
-            || mod.RaidRecoveryBlocksBattleLifecycle)
-        {
-            return;
-        }
-
-        mod.HandleRaidBattleFinalDeadlineExpired(activeRaidBattleSession);
     }
 
     private void TryCleanupRemoteWorldObjectOrphans(int ticks)

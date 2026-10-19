@@ -99,18 +99,7 @@ internal static class ClientRaidRecoveryTests
                 var data = Data(-60); data.DeadlineUtc = "9999-01-01T00:00:00Z"; data.FinalDeadlineUtc = "9999-12-31T00:00:00Z";
                 f.Module.Reconcile(f, data); Check(f.Notices.Last().RemainingSeconds == int.MaxValue, "Long server time overflowed remaining seconds.");
             }
-            using (var f = new Fixture { IsReady = false })
-            {
-                f.Module.Reconcile(f, Data(1));
-                var mod = (AIRsLight.ClashOfRim.ClashOfRimMod)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(AIRsLight.ClashOfRim.ClashOfRimMod));
-                HarmonyLib.AccessTools.Field(typeof(AIRsLight.ClashOfRim.ClashOfRimMod), "raidRecovery").SetValue(mod, f.Module);
-                var component = new AIRsLight.ClashOfRim.ClashOfRimGameComponent(null!);
-                HarmonyLib.AccessTools.Field(component.GetType(), "activeRaidBattleSession").SetValue(component,
-                    new AIRsLight.ClashOfRim.Raids.ActiveRaidBattleSession { EventId = "raid", DeadlineUtcTicks = 1, FinalDeadlineUtcTicks = 1 });
-                HarmonyLib.AccessTools.Method(component.GetType(), "TryFinishExpiredRaidBattle").Invoke(component, new object[] { mod });
-                HarmonyLib.AccessTools.Method(component.GetType(), "TryHandleRaidBattleFinalDeadline").Invoke(component, new object[] { mod });
-                Check(f.Module.BlocksBattleLifecycle, "Engine callbacks bypassed pending recovery.");
-            }
+
         }
         finally { CultureInfo.CurrentCulture = previous; ClientSessionWork.Reset(); }
     }
