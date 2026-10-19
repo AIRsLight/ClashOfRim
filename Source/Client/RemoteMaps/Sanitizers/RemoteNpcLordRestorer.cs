@@ -162,6 +162,9 @@ internal static class RemoteNpcLordRestorer
     {
         switch (snapshot.Kind)
         {
+            case RemoteNpcLordJobKind.DefendBase:
+                return new LordJob_DefendBase(faction, ParseCell(snapshot.DefSpot, map.Center),
+                    snapshot.DelayBeforeAssault, snapshot.AttackWhenPlayerBecameEnemy);
             case RemoteNpcLordJobKind.AssaultColony:
                 return new LordJob_AssaultColony(
                     faction,

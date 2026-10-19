@@ -23,6 +23,22 @@ internal static class RemoteFactionProjectionTests
         var readId = AccessTools.Method(typeof(RemoteMapSnapshotProjector), "ReadFactionLoadId");
         Check((string)readId.Invoke(null, new object[] { XElement.Parse("<li><loadID>0</loadID></li>") })! == "Faction_0", "Explicit zero differs from omitted zero.");
         Check(readId.Invoke(null, new object[] { XElement.Parse("<li><loadID>-1</loadID></li>") }) is null, "Invalid negative faction ID accepted.");
+        DefenseLord();
+    }
+    private static void DefenseLord()
+    {
+        foreach (bool explicitValues in new[] { false, true })
+        {
+            var xml = XElement.Parse("<lordJob Class=\"RimWorld.LordJob_DefendBase\"><baseCenter>(31, 0, 47)</baseCenter>"
+                + (explicitValues ? "<delayBeforeAssault>180000</delayBeforeAssault><attackWhenPlayerBecameEnemy>True</attackWhenPlayerBecameEnemy>" : "") + "</lordJob>");
+            object?[] args = { xml, null };
+            Check((bool)AccessTools.Method(typeof(RemoteMapSnapshotProjector), "TryCreateRemoteNpcLordSnapshot").Invoke(null, args)!, "Friendly native guard lord was discarded.");
+            var captured = (RemoteNpcLordSnapshot)args[1]!;
+            captured.PawnLoadIds.Add("Thing_Human42");
+            var clone = captured.CloneWithProjectedThingIds(new Dictionary<string, string> { ["Thing_Human42"] = "Thing_Human90" });
+            Check(clone.Kind == RemoteNpcLordJobKind.DefendBase && clone.DefSpot == "(31, 0, 47)" && clone.DelayBeforeAssault == (explicitValues ? 180000 : 25000)
+                && clone.AttackWhenPlayerBecameEnemy == explicitValues && clone.PawnLoadIds[0] == "Thing_Human90", "Guard projection lost identity or native parameters.");
+        }
     }
     private static void Check(bool value, string message) { if (!value) throw new InvalidOperationException(message); }
 }

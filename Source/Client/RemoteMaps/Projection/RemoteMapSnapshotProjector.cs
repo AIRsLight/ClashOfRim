@@ -938,6 +938,15 @@ public static class RemoteMapSnapshotProjector
         string className = SimpleClassName(lordJob.Attribute("Class")?.Value?.Trim() ?? string.Empty);
         switch (className)
         {
+            case "LordJob_DefendBase":
+                snapshot = new RemoteNpcLordSnapshot
+                {
+                    Kind = RemoteNpcLordJobKind.DefendBase,
+                    DefSpot = lordJob.Element("baseCenter")?.Value?.Trim() ?? string.Empty,
+                    DelayBeforeAssault = ReadInt(lordJob, "delayBeforeAssault", 25000),
+                    AttackWhenPlayerBecameEnemy = ReadBool(lordJob, "attackWhenPlayerBecameEnemy", false)
+                };
+                return true;
             case "LordJob_AssaultColony":
                 snapshot = new RemoteNpcLordSnapshot
                 {

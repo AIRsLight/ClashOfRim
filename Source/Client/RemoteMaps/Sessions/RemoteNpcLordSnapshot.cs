@@ -9,7 +9,8 @@ internal enum RemoteNpcLordJobKind
     StageThenAttack,
     SleepThenAssaultColony,
     MechanoidsDefend,
-    SleepThenMechanoidsDefend
+    SleepThenMechanoidsDefend,
+    DefendBase
 }
 
 internal sealed class RemoteNpcLordSnapshot
@@ -42,6 +43,8 @@ internal sealed class RemoteNpcLordSnapshot
     public string DefSpot = string.Empty;
     public bool CanAssaultColony;
     public bool IsMechCluster;
+    public int DelayBeforeAssault = 25000;
+    public bool AttackWhenPlayerBecameEnemy;
 
     public RemoteNpcLordSnapshot CloneWithProjectedThingIds(IReadOnlyDictionary<string, string> projectedByOriginalLoadId)
     {
@@ -70,7 +73,9 @@ internal sealed class RemoteNpcLordSnapshot
             DefendRadius = DefendRadius,
             DefSpot = DefSpot,
             CanAssaultColony = CanAssaultColony,
-            IsMechCluster = IsMechCluster
+            IsMechCluster = IsMechCluster,
+            DelayBeforeAssault = DelayBeforeAssault,
+            AttackWhenPlayerBecameEnemy = AttackWhenPlayerBecameEnemy
         };
     }
 
