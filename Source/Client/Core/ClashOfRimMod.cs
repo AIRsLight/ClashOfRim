@@ -278,6 +278,10 @@ public sealed partial class ClashOfRimMod : Mod
             snapshotTransactions, snapshotFailureRecovery, new ClientRaidPreparation(raidTransport, new ClientRemoteSnapshotTransport()),
             raidTransport, raidPresentation, () => PvpEnabled);
         raidCommands = new ClientRaidCommands(sessionLifecycle, raidLaunching, raidPresentation);
+        GiftCaravanGizmoPatches.Attach(sessionLifecycle, giftActions);
+        TradeCaravanGizmoPatches.Attach(sessionLifecycle, tradeActions);
+        SupportCaravanGizmoPatches.Attach(sessionLifecycle, supportActions, worldMarkers);
+        RaidCaravanGizmoPatches.Attach(sessionLifecycle, raidCommands, worldMarkers);
         ClientTransporterActions.Attach(new ClientTransporterActions(giftActions, raidCommands, giftCapabilities));
         raidLaunching.Completed += StartQueuedAutomaticEventRefreshAfterLocalAtomicMutation;
         raidSettlements = new ClientRaidSettlements(sessionLifecycle, mutationAdmission, synchronization, localMutations, snapshotTransactions,

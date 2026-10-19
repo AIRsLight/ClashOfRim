@@ -164,6 +164,11 @@ internal static class ClientModuleBoundaryTests
                 || t == typeof(AIRsLight.ClashOfRim.Multiplayer.AllySupportRequestDialogWindow)
                 || t == typeof(AIRsLight.ClashOfRim.Support.QuestPart_ClashSupportPawn)
                 || t == typeof(ClashOfRimEventChoiceLetter) || t.DeclaringType == typeof(ClashOfRimEventChoiceLetter)
+                || t.Namespace == "AIRsLight.ClashOfRim.Caravans"
+                || t == typeof(AIRsLight.ClashOfRim.Gifts.GiftCaravanGizmoPatches) || t.DeclaringType == typeof(AIRsLight.ClashOfRim.Gifts.GiftCaravanGizmoPatches)
+                || t == typeof(AIRsLight.ClashOfRim.Trades.TradeCaravanGizmoPatches) || t.DeclaringType == typeof(AIRsLight.ClashOfRim.Trades.TradeCaravanGizmoPatches)
+                || t == typeof(AIRsLight.ClashOfRim.Support.SupportCaravanGizmoPatches) || t.DeclaringType == typeof(AIRsLight.ClashOfRim.Support.SupportCaravanGizmoPatches)
+                || t == typeof(AIRsLight.ClashOfRim.Raids.RaidCaravanGizmoPatches) || t.DeclaringType == typeof(AIRsLight.ClashOfRim.Raids.RaidCaravanGizmoPatches)
                 || t == typeof(AIRsLight.ClashOfRim.Quests.ClientManagedQuestOwner)
                 || t == typeof(AIRsLight.ClashOfRim.Mercenaries.QuestPart_ClashMercenary)
                 || t == typeof(AIRsLight.ClashOfRim.Mercenaries.ClientMercenaryQuestCallbacks)

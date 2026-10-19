@@ -1,8 +1,11 @@
 using System.Collections.Generic;
+using System.Linq;
+using AIRsLight.ClashOfRim.Caravans;
 using AIRsLight.ClashOfRim.ClientNetwork;
+using AIRsLight.ClashOfRim.Modules.Sessions;
+using AIRsLight.ClashOfRim.Modules.World;
 using AIRsLight.ClashOfRim.Visuals;
 using HarmonyLib;
-using RimWorld;
 using RimWorld.Planet;
 using Verse;
 
@@ -11,54 +14,22 @@ namespace AIRsLight.ClashOfRim.Support;
 [HarmonyPatch(typeof(Caravan), nameof(Caravan.GetGizmos))]
 public static class SupportCaravanGizmoPatches
 {
+    private sealed record Binding(ClientSessionLifecycle Session, ClientSupportActions Actions, ClientWorldMarkers Markers);
+    private static Binding? binding;
+    internal static void Attach(ClientSessionLifecycle session, ClientSupportActions actions, ClientWorldMarkers markers) => binding = new(session, actions, markers);
+
     public static void Postfix(Caravan __instance, ref IEnumerable<Gizmo> __result)
     {
-        if (__instance == null || __instance.Destroyed || !__instance.Spawned || !__instance.IsPlayerControlled)
-        {
-            return;
-        }
-
-        ClashOfRimMod mod = LoadedModManager.GetMod<ClashOfRimMod>();
-        IReadOnlyList<ModWorldMapMarkerDto> targets = mod.FindReinforceableTargetsForCaravan(__instance);
-        if (targets.Count == 0)
-        {
-            return;
-        }
-
-        var pawns = new List<Pawn>();
-        foreach (Pawn pawn in __instance.PawnsListForReading)
-        {
-            if (pawn != null && !pawn.Dead && __instance.IsOwner(pawn))
-            {
-                pawns.Add(pawn);
-            }
-        }
-
-        if (pawns.Count == 0)
-        {
-            return;
-        }
-
-        var command = new Command_Action
-        {
-            defaultLabel = targets.Count == 1
-                ? ClashOfRimText.Key("ClashOfRim.Support.CaravanGizmo")
-                : ClashOfRimText.Key("ClashOfRim.Support.CaravanGizmoCount", targets.Count.Named("COUNT")),
-            defaultDesc = ClashOfRimText.Key("ClashOfRim.Support.CaravanGizmoDesc"),
-            icon = ClashCommandIcons.SendSupport,
-            action = () => mod.OpenCaravanSupportPawnMenu(__instance, targets, pawns)
-        };
-
-        __result = AppendGizmo(__result, command);
-    }
-
-    private static IEnumerable<Gizmo> AppendGizmo(IEnumerable<Gizmo> source, Gizmo appended)
-    {
-        foreach (Gizmo gizmo in source)
-        {
-            yield return gizmo;
-        }
-
-        yield return appended;
+        var current = binding;
+        if (current is null) return;
+        var scope = ClientCaravanGizmoContext.Capture(current.Session, __instance, () => ReferenceEquals(binding, current));
+        if (scope is null) return;
+        IReadOnlyList<ModWorldMapMarkerDto> targets = System.Array.Empty<ModWorldMapMarkerDto>();
+        Pawn[] pawns = System.Array.Empty<Pawn>();
+        if (!scope.Step(() => targets = ClientCaravanGizmoContext.FindTargets(current.Markers, __instance, ClientColonyTargetKind.Reinforcement))
+            || targets.Count == 0 || !scope.Step(() => pawns = ClientCaravanGizmoContext.OwnedPawns(__instance)) || pawns.Length == 0) return;
+        scope.Append(ref __result, targets.Count, "ClashOfRim.Support.CaravanGizmo", () => ClashCommandIcons.SendSupport,
+            () => current.Actions.OpenMenu(__instance, targets, pawns.Where(p => ClientCaravanGizmoContext.OwnsPawn(__instance, p)).ToArray()),
+            () => pawns.Any(p => ClientCaravanGizmoContext.OwnsPawn(__instance, p)));
     }
 }

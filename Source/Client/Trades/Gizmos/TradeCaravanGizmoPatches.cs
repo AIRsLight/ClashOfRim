@@ -1,5 +1,7 @@
 using System.Collections.Generic;
+using AIRsLight.ClashOfRim.Caravans;
 using AIRsLight.ClashOfRim.ClientNetwork;
+using AIRsLight.ClashOfRim.Modules.Sessions;
 using AIRsLight.ClashOfRim.Visuals;
 using HarmonyLib;
 using RimWorld.Planet;
@@ -10,40 +12,19 @@ namespace AIRsLight.ClashOfRim.Trades;
 [HarmonyPatch(typeof(Caravan), nameof(Caravan.GetGizmos))]
 public static class TradeCaravanGizmoPatches
 {
+    private sealed record Binding(ClientSessionLifecycle Session, ClientTradeActions Actions);
+    private static Binding? binding;
+    internal static void Attach(ClientSessionLifecycle session, ClientTradeActions actions) => binding = new(session, actions);
+
     public static void Postfix(Caravan __instance, ref IEnumerable<Gizmo> __result)
     {
-        if (__instance == null || __instance.Destroyed || !__instance.Spawned || !__instance.IsPlayerControlled)
-        {
-            return;
-        }
-
-        ClashOfRimMod mod = LoadedModManager.GetMod<ClashOfRimMod>();
-        IReadOnlyList<ModTradeOrderSummaryDto> orders = mod.FindFulfillableTradeOrdersForCaravan(__instance);
-        if (orders.Count == 0)
-        {
-            return;
-        }
-
-        var command = new Command_Action
-        {
-            defaultLabel = orders.Count == 1
-                ? ClashOfRimText.Key("ClashOfRim.Trade.CaravanFulfillGizmo")
-                : ClashOfRimText.Key("ClashOfRim.Trade.CaravanFulfillGizmoCount", orders.Count.Named("COUNT")),
-            defaultDesc = ClashOfRimText.Key("ClashOfRim.Trade.CaravanFulfillGizmoDesc"),
-            icon = ClashCommandIcons.TradeFulfill,
-            action = () => mod.OpenCaravanTradeFulfillmentMenu(__instance, orders)
-        };
-
-        __result = AppendGizmo(__result, command);
-    }
-
-    private static IEnumerable<Gizmo> AppendGizmo(IEnumerable<Gizmo> source, Gizmo appended)
-    {
-        foreach (Gizmo gizmo in source)
-        {
-            yield return gizmo;
-        }
-
-        yield return appended;
+        var current = binding;
+        if (current is null) return;
+        var scope = ClientCaravanGizmoContext.Capture(current.Session, __instance, () => ReferenceEquals(binding, current));
+        if (scope is null) return;
+        IReadOnlyList<ModTradeOrderSummaryDto> orders = System.Array.Empty<ModTradeOrderSummaryDto>();
+        if (!scope.Step(() => orders = current.Actions.FindFulfillable(__instance))) return;
+        scope.Append(ref __result, orders.Count, "ClashOfRim.Trade.CaravanFulfillGizmo", () => ClashCommandIcons.TradeFulfill,
+            () => current.Actions.OpenCaravanMenu(__instance, orders));
     }
 }

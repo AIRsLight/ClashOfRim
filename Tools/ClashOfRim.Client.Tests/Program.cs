@@ -162,6 +162,7 @@ var tests = new (string Name, Action Run)[]
     ("gift sends own capture, removal, retries and deferred arrival", ClientGiftModuleTests.Run),
     ("bank workflow owns preparation, retry, session state and game publication", ClientBankModuleTests.Run),
     ("bank protocol shares all seven routes and captured credentials with the facade", ClientBankProtocolTests.Run),
+    ("caravan gizmos preserve domain routing and delayed source ownership", ClientCaravanGizmoTests.Run),
     ("client modules cannot depend on the Mod, full settings or broad protocol client", ClientModuleBoundaryTests.Run),
     ("event choice letters bind delayed actions to their original event and session", EventChoiceLetterTests.Run),
     ("event applications own game effects, hydration and confirmation handoff", EventApplicationModuleTests.Run),

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using AIRsLight.ClashOfRim;
+using AIRsLight.ClashOfRim.Caravans;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.Modules.World;
 using AIRsLight.ClashOfRim.WorldObjects;
@@ -42,10 +43,9 @@ internal static class ClientWorldMarkersRuntimeTests
             flow.Observe(flow.CaptureObservation(), new() { Markers = new() { Marker(0), Marker(7) } });
             Check(queued.Count == 1 && applied.Count == 0, "Projection bypassed the shared dispatcher.");
             queued[0].Run(); Check(applied.Single() == ("alice", 2), "Runtime failed to pass frozen user/catalog to existing registry.");
-            var mod = New<ClashOfRimMod>(); Set(mod, "worldMarkers", flow);
             var caravan = New<Caravan>(); Set(caravan, "tile", new PlanetTile(10, 7));
-            Check(mod.FindRaidableTargetsForCaravan(caravan).Single().TileLayerId == 7
-                && mod.FindReinforceableTargetsForCaravan(caravan).Single().TileLayerId == 7, "Host forwarding flattened PlanetTile to surface.");
+            Check(ClientCaravanGizmoContext.FindTargets(flow, caravan, ClientColonyTargetKind.Raid).Single().TileLayerId == 7
+                && ClientCaravanGizmoContext.FindTargets(flow, caravan, ClientColonyTargetKind.Reinforcement).Single().TileLayerId == 7, "Caravan query flattened PlanetTile to surface.");
             flow.Observe(flow.CaptureObservation(), new(), true); Check(applied.Last() == ("alice", 0), "Empty delivery did not reach registry removal path.");
             created = removed = failed = 0;
             Check(!bound.Apply(Array.Empty<ModWorldMapMarkerDto>(), "alice").Changed, "No-change result produced noisy replay diagnostics.");
