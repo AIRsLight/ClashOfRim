@@ -21,7 +21,7 @@ internal static class ServiceSnapshotReplayRaceTests
         var state = new ClashOfRimNetworkState(serverConfiguration: MercenaryCommitCrashTests.Configuration());
         bool raid = kind.EndsWith("raid"), guarded = kind == "guarded-raid", shop = kind.StartsWith("shop");
         string shopKind = kind == "shop-buy" ? ServerShopListingKinds.BuyFromPlayer : ServerShopListingKinds.SellToPlayer;
-        var package = raid ? RaidCommitCrashTests.Setup(state, fixture, guarded)
+        var package = raid ? RaidTestPreparation.Prepare(state.SnapshotStore, state.DiplomacyRelations, state.MercenaryGuards, fixture, guarded)
             : shop ? fixture("paid") : SnapshotEndpointPreparation.Prepare(state.SnapshotStore, fixture, Actor, "paid");
         if (shop) ShopCommitCrashTests.Seed(state.ServerShop, stock: 3, kind: shopKind);
         var now = DateTimeOffset.UtcNow;
@@ -32,7 +32,7 @@ internal static class ServiceSnapshotReplayRaceTests
         {
             if (raid)
             {
-                var r = await RaidCommitCrashTests.Invoke(state, package, guarded, key: Key(i), token: token);
+                var r = await RaidCreationTestClient.Invoke(state, package, guarded, key: Key(i), token: token);
                 return new(r.Result, r.EventId, r.AppliedSnapshotId, r.NextLineageToken);
             }
             if (shop)

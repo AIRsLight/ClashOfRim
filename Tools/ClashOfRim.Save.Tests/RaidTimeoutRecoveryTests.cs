@@ -179,7 +179,7 @@ internal static partial class RaidTimeoutRecoveryTests
         f.State.OnlinePresence.TryConnectExclusive("attacker", out _);
         EventCreationResponse? reply = null;
         SnapshotPreparationGateProbe.Run(f.State.RaidSettlementSnapshotMutationGate, hook => f.Store.BeforePrepare = hook,
-            () => reply = RaidCommitCrashTests.Invoke(f.State, original, false).GetAwaiter().GetResult(),
+            () => reply = RaidCreationTestClient.Invoke(f.State, original, false).GetAwaiter().GetResult(),
             () => { if (revoke) f.State.LoginSessions.EndUser("userA"); });
         Require(f.Store.PreparedWrites == 1 && RaidTimeoutProcessor.PendingWork(f.State.Ledger).Count == 0
             && reply is { Result.Accepted: false } && (!revoke || reply.Result.ErrorCode == ProtocolErrorCode.SessionUnavailable)

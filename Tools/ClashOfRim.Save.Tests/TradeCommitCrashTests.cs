@@ -20,7 +20,7 @@ internal static class TradeCommitCrashTests
                 AuthoritativeEvent order = SeedOrder(ledger);
                 var files = new FileColonySnapshotIndexStore(Path.Combine(root, "snapshots"));
                 var bank = new BankLoanRegistry();
-                if (fault == 1) PendingOperationCommitCrashTests.AddAncillary(bank);
+                if (fault == 1) PendingBankTestDebt.AddAncillary(bank);
                 SaveSnapshotPackage package = fixture("trade-commit");
                 LatestSnapshotRecord snapshot = new SnapshotUploadReceiver(files).Receive(
                     new SnapshotUploadContext("userA", "colonyA", "trade-commit"), package,
@@ -75,7 +75,7 @@ internal static class TradeCommitCrashTests
                     && ledger.Find(exchange.EventId)!.AppliedSnapshotId == "trade-commit" && processed == 1 && signaled == 2 && recorded == 1
                     && files.GetLatest("userA", "colonyA")!.Envelope.NextLineageToken == snapshot.Envelope.NextLineageToken
                     && !Directory.EnumerateFiles(Path.Combine(root, "intents"), "*.json").Any(), "Trade recovery was incomplete or duplicated events.");
-                if (fault == 1) PendingOperationCommitCrashTests.VerifyAncillary(bank, "trade-commit");
+                if (fault == 1) PendingBankTestDebt.VerifyAncillary(bank, "trade-commit");
             }
             finally { SqliteConnection.ClearAllPools(); Directory.Delete(root, recursive: true); }
         }

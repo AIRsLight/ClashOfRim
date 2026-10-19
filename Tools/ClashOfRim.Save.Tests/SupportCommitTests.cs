@@ -139,7 +139,7 @@ internal static class SupportCommitTests
     private static void Crash(Func<string, SaveSnapshotPackage> fixture, string root, string phase, bool reopen)
     {
         var state = Open(root); var plan = Plan(fixture, root, state);
-        if (phase == "after-snapshot") PendingOperationCommitCrashTests.AddAncillary(state.BankLoans);
+        if (phase == "after-snapshot") PendingBankTestDebt.AddAncillary(state.BankLoans);
         if (phase == "sql") Sql(root, "create trigger fail_support before insert on events begin select raise(abort, 'support fault'); end;");
         var store = new FaultStore((IColonySnapshotPackageStore)state.SnapshotStore, phase);
         bool failed = false;
@@ -165,7 +165,7 @@ internal static class SupportCommitTests
             && state.SnapshotStore.GetLatest("userA", "colonyA")!.Envelope.NextLineageToken == plan.Snapshot.Envelope.NextLineageToken
             && !Directory.GetFiles(Path.Combine(root, "intents"), "*.json").Any()
             && (consumed is null || consumed == JsonSerializer.Serialize(state.Ledger.ListAll())), "recovery incomplete or overwrote consumed support");
-        if (phase == "after-snapshot") PendingOperationCommitCrashTests.VerifyAncillary(bank, "after");
+        if (phase == "after-snapshot") PendingBankTestDebt.VerifyAncillary(bank, "after");
     }
 
     private static void RecoveryConflict(Func<string, SaveSnapshotPackage> fixture, string root, string conflict)

@@ -47,7 +47,7 @@ internal static class PendingOperationCommitCrashTests
             if (table is not null) Execute(database, "drop trigger fail_confirm;");
 
             // These records are deliberately inserted after the intent, bypassing the production coordinator.
-            NewDebt(bank, "later", Accepted.AddMinutes(1));
+            PendingBankTestDebt.Create(bank, "later", Accepted.AddMinutes(1));
             NewContract(contracts, "later", Accepted.AddMinutes(1));
             if (fault == 4) contracts.ReconcilePendingConfirmations("userA", "colonyA", Accepted, TimeSpan.Zero, true);
             if (fault == 5)
@@ -121,7 +121,7 @@ internal static class PendingOperationCommitCrashTests
                 Require(failed, "Primary post-upload fault was not injected.");
                 contracts.Complete("contract", "userA", "colonyA");
             }
-            NewDebt(bank, "later", Accepted.AddMinutes(1));
+            PendingBankTestDebt.Create(bank, "later", Accepted.AddMinutes(1));
             NewContract(contracts, "later", Accepted.AddMinutes(1));
             commits = new SnapshotCommitService(journal);
             bank = Bank(database);
@@ -134,7 +134,7 @@ internal static class PendingOperationCommitCrashTests
                 Require(upgraded.Version == 6 && upgraded.PendingOperations!.Loan is null && upgraded.PendingOperations.Debts.Count == 1
                     && upgraded.PendingOperations.Mercenaries.Count == 1, "Legacy recovery did not durably freeze its original batch.");
                 // Even an old timestamp cannot add work to the already-upgraded intent.
-                NewDebt(bank, "backdated", DateTimeOffset.UnixEpoch);
+                PendingBankTestDebt.Create(bank, "backdated", DateTimeOffset.UnixEpoch);
                 commits = new SnapshotCommitService(journal);
             }
             int postUploads = 0;
@@ -172,14 +172,14 @@ internal static class PendingOperationCommitCrashTests
                 "Ordinary upload did not reach the snapshot-to-bank crash boundary.");
             Execute(database, "drop trigger fail_confirm;");
             state = Open();
-            NewDebt(state.BankLoans, "later", DateTimeOffset.UtcNow);
+            PendingBankTestDebt.Create(state.BankLoans, "later", DateTimeOffset.UtcNow);
             state.PendingConfirmations.ReconcileAfterRecovery("userA", "colonyA", DateTimeOffset.UtcNow, forceCancel: true);
             Require(state.BankLoans.FindByIdempotencyKey("loan")!.Status == BankLoanRegistry.StatusActive
                 && state.BankLoans.FindDebtByIdempotencyKey("debt")!.Status == BankLoanRegistry.StatusActive
                 && state.MercenaryContracts.Find("contract")!.Status == MercenaryContractRegistry.StatusActive
                 && state.BankLoans.FindDebtByIdempotencyKey("later") is null
                 && !Directory.EnumerateFiles(journal, "*.json").Any(), "Relogin cancelled work already owned by the snapshot journal.");
-            NewDebt(state.BankLoans, "after-confirmation", DateTimeOffset.UtcNow);
+            PendingBankTestDebt.Create(state.BankLoans, "after-confirmation", DateTimeOffset.UtcNow);
             state.SnapshotPostUploads.AfterCommit(state.SnapshotStore.GetLatest("userA", "colonyA")!, null);
             Require(state.BankLoans.FindDebtByIdempotencyKey("after-confirmation")!.Status == BankLoanRegistry.StatusPendingActivation,
                 "Delayed snapshot post-processing confirmed a later operation.");
@@ -190,23 +190,16 @@ internal static class PendingOperationCommitCrashTests
         state.SnapshotReception.Receive(package.Envelope.Identity.OwnerId!, package.Envelope.Identity.ColonyId!,
             package.Envelope.Identity.SnapshotId!, ProtocolDtoMapper.ToMetadataDto(package), package.Payload, DateTimeOffset.UtcNow).Upload;
 
-    internal static void AddAncillary(BankLoanRegistry bank) => NewDebt(bank, "ancillary", DateTimeOffset.UnixEpoch);
-    internal static void VerifyAncillary(BankLoanRegistry bank, string snapshotId) =>
-        Require(bank.FindDebtByIdempotencyKey("ancillary") is { Status: BankLoanRegistry.StatusActive } debt && debt.SnapshotId == snapshotId,
-            "Business snapshot recovery lost its ancillary confirmation batch.");
-
     private static void Seed(BankLoanRegistry bank, MercenaryContractRegistry contracts, bool repayment)
     {
         bank.Create("loan", "userA", "colonyA", "before", 100, 10, 7, 1000, DateTimeOffset.UnixEpoch, "loan");
-        NewDebt(bank, "debt", DateTimeOffset.UnixEpoch);
+        PendingBankTestDebt.Create(bank, "debt", DateTimeOffset.UnixEpoch);
         NewContract(contracts, "contract", DateTimeOffset.UnixEpoch);
         if (!repayment) return;
         bank.ConfirmPendingForSnapshot("userA", "colonyA", "before", 1000, DateTimeOffset.UnixEpoch);
         bank.MarkRepaymentPending("loan-payment", "userA", "colonyA", 2000, DateTimeOffset.UnixEpoch);
         bank.MarkDebtRepaymentPending("debt-payment", "userA", "colonyA", bank.FindDebtByIdempotencyKey("debt")!.DebtId, 2000, DateTimeOffset.UnixEpoch);
     }
-    private static void NewDebt(BankLoanRegistry bank, string key, DateTimeOffset at) => bank.CreateDebt(key,
-        "userA", "colonyA", "before", 50, BankLoanRegistry.DebtSourceFine, "fine", "source", 1000, at, true);
     private static void NewContract(MercenaryContractRegistry contracts, string key, DateTimeOffset at) => contracts.Create(key,
         "userA", "colonyA", "before", "Shooting", 7, 7, 560, 1000, 1500, 1000, at, key);
     private static BankLoanRegistry Bank(string database) => new(new SqliteDomainKeyedJsonRecordStore(database, SqliteDomainRegistrySchema.BankLoans), null);

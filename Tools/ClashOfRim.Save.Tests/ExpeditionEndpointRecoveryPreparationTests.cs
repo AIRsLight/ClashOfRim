@@ -127,24 +127,23 @@ internal static class ExpeditionEndpointRecoveryPreparationTests
             this.root = root; Kind = kind; database = Path.Combine(root, "server.sqlite");
             ServerDatabaseMigrator.Migrate(database); Open(); Store.Gate = null;
             Package = kind == "support" ? SupportCommitTests.Prepare(factory, State, root)
-                : RaidCommitCrashTests.Setup(State, factory, kind == "guarded-raid");
+                : RaidTestPreparation.Prepare(State.SnapshotStore, State.DiplomacyRelations, State.MercenaryGuards, factory, kind == "guarded-raid");
             Store.Gate = Gate; Store.Reset();
         }
         public void Open()
         {
             Store = new(Path.Combine(root, "snapshots"));
             State = new(snapshotStore: Store, ledger: new SqliteAuthoritativeEventLedger(database),
-                mercenaryGuards: new MercenaryGuardContractRegistry(new SqliteDomainKeyedJsonRecordStore(database, SqliteDomainRegistrySchema.MercenaryGuards), null),
+                mercenaryGuards: RaidTestPreparation.OpenGuards(database),
                 snapshotCommits: new SnapshotCommitService(Journal), serverConfiguration: new ClashOfRimServerConfiguration(pvpEnabled: true));
             Store.Gate = Gate;
-            State.LoginSessions.TryCreate("userA", "colonyA", DateTimeOffset.UtcNow, out string session);
-            token = State.AuthTokens.Issue("userA", "userA", "colonyA", session, DateTimeOffset.UtcNow);
-            State.DiplomacyRelations.SetRelationKind("userA", "colonyA", "userB", "colonyB", DiplomacyRelationRegistry.RelationHostile, null, DateTimeOffset.UtcNow);
+            token = SessionTestAuthentication.Token(State, "userA", "colonyA");
+            RaidTestPreparation.SetHostile(State.DiplomacyRelations);
         }
         public EventCreationResponse Call(bool wrongPrincipal = false)
         {
             var principal = new ProtocolIdentity("userA", "colonyA", "before");
-            if (Kind != "support") return RaidCommitCrashTests.Invoke(State, Package, Kind == "guarded-raid", principal: principal, token: token,
+            if (Kind != "support") return RaidCreationTestClient.Invoke(State, Package, Kind == "guarded-raid", principal: principal, token: token,
                 actorOverride: wrongPrincipal ? new("userB", "colonyB", "before") : null).GetAwaiter().GetResult();
             var request = JsonSerializer.SerializeToNode(SupportCommitTests.Request(Package))!;
             request["SupportPawn"]!["TargetContext"] = null;

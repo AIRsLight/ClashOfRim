@@ -2,52 +2,49 @@ using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Network;
 using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Save;
-using System.Text.Json;
 using System.Text.Json.Nodes;
+using static SnapshotTestAssertions;
 
-internal static partial class RaidCommitCrashTests
+internal static class RaidCreationRequestBindingTests
 {
-    private static void RunBindings(Func<string, SaveSnapshotPackage> factory)
+    public static void Run(Func<string, SaveSnapshotPackage> factory)
     {
         SnapshotEndpointTestClient.LoadLocalization();
         foreach (bool guarded in new[] { false, true })
         {
-            foreach (bool reopen in new[] { false, true }) WithBinding(factory, guarded, f => VerifyBoundCreation(f, reopen));
-            foreach (bool pending in new[] { false, true }) WithBinding(factory, guarded, f => VerifyLegacyCreation(f, pending));
-            foreach (string fault in new[] { "binding", "payload" }) WithBinding(factory, guarded, f => VerifyCreationConflict(f, fault));
-            foreach (bool bytes in new[] { false, true }) WithBinding(factory, guarded, f => VerifyCreationRace(f, bytes));
-            foreach (bool changed in new[] { false, true }) WithBinding(factory, guarded, f => VerifyFinalCreationReplay(f, changed));
+            foreach (bool reopen in new[] { false, true }) RaidCreationFixture.With(factory, guarded, f => VerifyBoundCreation(f, reopen));
+            foreach (bool pending in new[] { false, true }) RaidCreationFixture.With(factory, guarded, f => VerifyLegacyCreation(f, pending));
+            foreach (string fault in new[] { "binding", "payload" }) RaidCreationFixture.With(factory, guarded, f => VerifyCreationConflict(f, fault));
+            foreach (bool bytes in new[] { false, true }) RaidCreationFixture.With(factory, guarded, f => VerifyCreationRace(f, bytes));
+            foreach (bool changed in new[] { false, true }) RaidCreationFixture.With(factory, guarded, f => VerifyFinalCreationReplay(f, changed));
         }
     }
 
-    private static void WithBinding(Func<string, SaveSnapshotPackage> factory, bool guarded, Action<BindingFixture> run)
-        => WithStorage((database, root) => run(new BindingFixture(database, root, factory, guarded)));
-
-    private static void VerifyBoundCreation(BindingFixture f, bool reopen)
+    private static void VerifyBoundCreation(RaidCreationFixture f, bool reopen)
     {
-        var original = f.Call(); Require(original.Result.Accepted, "Could not create bound raid.");
+        var original = f.Call(); Check(original.Result.Accepted, "Could not create bound raid.");
         if (reopen) f.Open();
         f.Store.Reset(); string before = f.Evidence();
         foreach (var (name, change) in RaidCreationMutations())
         {
             var rejected = f.Call(change);
-            Require(!rejected.Result.Accepted && rejected.EventId is null && rejected.AppliedSnapshotId is null && rejected.NextLineageToken is null
+            Check(!rejected.Result.Accepted && rejected.EventId is null && rejected.AppliedSnapshotId is null && rejected.NextLineageToken is null
                 && before == f.Evidence() && f.Store.Writes == 0, "Changed raid creation replay was accepted: " + name);
         }
         var corrupt = f.Package.Payload.ToArray(); corrupt[^1] ^= 1;
         var bad = f.Call(bytes: corrupt);
-        Require(!bad.Result.Accepted && bad.NextLineageToken is null && before == f.Evidence() && f.Store.Writes == 0,
+        Check(!bad.Result.Accepted && bad.NextLineageToken is null && before == f.Evidence() && f.Store.Writes == 0,
             "Raid replay trusted metadata instead of actual bytes.");
-        SameCreation(original, f.Call()); Require(before == f.Evidence(), "Exact raid retry changed persistent state.");
+        SameCreation(original, f.Call()); Check(before == f.Evidence(), "Exact raid retry changed persistent state.");
         f.State.Ledger.MarkDelivered(original.EventId!, "settled", DateTimeOffset.UtcNow);
         f.State.Ledger.MarkApplied(original.EventId!, "settled", DateTimeOffset.UtcNow);
-        if (f.Guarded) SeedGuard(f.State.MercenaryGuards, "replacement");
+        if (f.Guarded) RaidTestPreparation.SeedGuard(f.State.MercenaryGuards, "replacement");
         before = f.Evidence(); SameCreation(original, f.Call());
-        Require(before == f.Evidence(), "Raid retry reopened completed work or consumed a replacement guard.");
+        Check(before == f.Evidence(), "Raid retry reopened completed work or consumed a replacement guard.");
         var newer = f.Package with { Envelope = f.Package.Envelope with { Identity = new("userA", "colonyA", "newer"), NextLineageToken = "newer-secret" } };
         f.Store.Inner.StoreLatest(newer, newer.Index, DateTimeOffset.UtcNow);
         before = f.Evidence(); var historical = f.Call();
-        Require(historical.Result.Accepted && historical.EventId == original.EventId && historical.AppliedSnapshotId == original.AppliedSnapshotId
+        Check(historical.Result.Accepted && historical.EventId == original.EventId && historical.AppliedSnapshotId == original.AppliedSnapshotId
             && historical.NextLineageToken is null && before == f.Evidence(), "Historical raid retry returned newer credentials.");
     }
 
@@ -72,12 +69,12 @@ internal static partial class RaidCommitCrashTests
             { ["GlobalKey"] = "changed", ["DefName"] = "Silver", ["StackCount"] = 1 }));
     }
 
-    private static void SameCreation(EventCreationResponse original, EventCreationResponse replay) => Require(replay.Result.Accepted
+    private static void SameCreation(EventCreationResponse original, EventCreationResponse replay) => Check(replay.Result.Accepted
         && replay.Result.ErrorCode == ProtocolErrorCode.DuplicateRequest && replay.EventId == original.EventId
         && replay.AppliedSnapshotId == original.AppliedSnapshotId && replay.NextLineageToken == original.NextLineageToken,
         "Raid replay lost original confirmation.");
 
-    private static void VerifyLegacyCreation(BindingFixture f, bool pending)
+    private static void VerifyLegacyCreation(RaidCreationFixture f, bool pending)
     {
         if (pending)
         {
@@ -88,21 +85,21 @@ internal static partial class RaidCommitCrashTests
         }
         else
         {
-            Require(f.Call().Result.Accepted, "Could not create legacy fixture.");
+            Check(f.Call().Result.Accepted, "Could not create legacy fixture.");
             var raid = f.State.Ledger.FindByIdempotencyKey("raid")!;
             var payload = (RaidEventPayload)raid.Payload;
             f.State.Ledger.ApplyBatch(new LedgerBatch([], [new(raid.EventId, raid.Status, raid.Status, payload,
                 payload with { CreationRequestHash = null }, raid)]));
         }
         f.Open(); var rejected = f.Call();
-        Require(!rejected.Result.Accepted && rejected.EventId is null && rejected.NextLineageToken is null && !f.State.SnapshotCommits.HasPending
+        Check(!rejected.Result.Accepted && rejected.EventId is null && rejected.NextLineageToken is null && !f.State.SnapshotCommits.HasPending
             && ((RaidEventPayload)f.State.Ledger.FindByIdempotencyKey("raid")!.Payload).CreationRequestHash is null
             && (!f.Guarded || f.State.MercenaryGuards.FindByIdempotencyKey("guard")!.Status == MercenaryGuardContractRegistry.StatusConsumed),
             "Legacy recovery lost the raid/guard or adopted a new request hash.");
-        f.Open(); string before = f.Evidence(); Require(!f.Call().Result.Accepted && before == f.Evidence(), "Legacy retry rewrote state.");
+        f.Open(); string before = f.Evidence(); Check(!f.Call().Result.Accepted && before == f.Evidence(), "Legacy retry rewrote state.");
     }
 
-    private static void VerifyCreationConflict(BindingFixture f, string fault)
+    private static void VerifyCreationConflict(RaidCreationFixture f, string fault)
     {
         var intent = f.Seed(); f.Open();
         var raid = intent.Raid!.Raid; var payload = (RaidEventPayload)raid.Payload;
@@ -112,24 +109,24 @@ internal static partial class RaidCommitCrashTests
         if (intent.Raid.GuardNotification is { } notice) f.State.Ledger.Append(notice);
         string before = f.Evidence(); bool rejected = false;
         try { f.State.SnapshotMutations.Recover(); } catch (InvalidDataException) { rejected = true; }
-        Require(rejected && before == f.Evidence() && f.Store.Writes == 0 && f.State.SnapshotCommits.HasPending,
+        Check(rejected && before == f.Evidence() && f.Store.Writes == 0 && f.State.SnapshotCommits.HasPending,
             "Recovery published a snapshot over conflicting raid content.");
     }
 
-    private static void VerifyCreationRace(BindingFixture f, bool bytes)
+    private static void VerifyCreationRace(RaidCreationFixture f, bool bytes)
     {
         Action<JsonObject> Change(int i) => root => root["Raid"]!["DefenderWealth"] = 100000 + i;
         var replies = SnapshotReplayRace.Run(i => Task.FromResult(bytes ? f.Call(bytes: i == 1 ? null : [(byte)i])
             : f.Call(Change(i))), () => { });
-        Require(replies.Count(r => r.Result.Accepted) == 1 && f.Store.Writes == 1 && f.State.Ledger.ListByType(ServerEventType.Raid).Count == 1,
+        Check(replies.Count(r => r.Result.Accepted) == 1 && f.Store.Writes == 1 && f.State.Ledger.ListByType(ServerEventType.Raid).Count == 1,
             "Different same-key raid requests shared a successful confirmation.");
         int winner = Array.FindIndex(replies, r => r.Result.Accepted);
         SameCreation(replies[winner], bytes ? f.Call() : f.Call(Change(winner + 1)));
-        Require(replies.Where(r => !r.Result.Accepted).All(r => r.AppliedSnapshotId is null && r.NextLineageToken is null),
+        Check(replies.Where(r => !r.Result.Accepted).All(r => r.AppliedSnapshotId is null && r.NextLineageToken is null),
             "Rejected raid competitor received credentials.");
     }
 
-    private static void VerifyFinalCreationReplay(BindingFixture f, bool changed)
+    private static void VerifyFinalCreationReplay(RaidCreationFixture f, bool changed)
     {
         var intent = f.Seed(); File.Delete(Directory.GetFiles(f.Journal, "*.json").Single()); f.Open();
         var prepared = f.Store.PreparePayload(intent.Package.Payload);
@@ -141,46 +138,8 @@ internal static partial class RaidCommitCrashTests
                 f.State.SnapshotCommits.CommitRaid(f.Store, f.State.BankLoans, f.State.Ledger, f.State.MercenaryContracts, f.State.MercenaryGuards,
                     intent.Package, snapshot, intent.Raid!, (_, _) => { }, _ => { }, preparedStoragePayload: prepared);
             });
-        Require(reply!.Result.Accepted != changed && (changed ? reply.NextLineageToken is null && reply.AppliedSnapshotId is null
+        Check(reply!.Result.Accepted != changed && (changed ? reply.NextLineageToken is null && reply.AppliedSnapshotId is null
             : reply.Result.ErrorCode == ProtocolErrorCode.DuplicateRequest && reply.EventId == intent.Raid!.Raid.EventId),
             "Final raid replay ignored original request binding.");
-    }
-
-    private sealed class BindingFixture
-    {
-        private readonly string database, root;
-        public bool Guarded { get; }
-        public SaveSnapshotPackage Package { get; }
-        public string Journal => Path.Combine(root, "intents");
-        public ClashOfRimNetworkState State = null!;
-        public SnapshotRecoveryTestStore Store = null!;
-        private string token = "";
-        public BindingFixture(string database, string root, Func<string, SaveSnapshotPackage> factory, bool guarded)
-        {
-            this.database = database; this.root = root; Guarded = guarded; Open();
-            Store.Gate = null; Package = Setup(State, factory, guarded); Store.Gate = State.RaidSettlementSnapshotMutationGate; Store.Reset();
-        }
-        public void Open()
-        {
-            Store = new(Path.Combine(root, "snapshots"));
-            State = new(snapshotStore: Store, ledger: new SqliteAuthoritativeEventLedger(database), mercenaryGuards: Guards(database),
-                snapshotCommits: new SnapshotCommitService(Journal), serverConfiguration: new ClashOfRimServerConfiguration(pvpEnabled: true));
-            Store.Gate = State.RaidSettlementSnapshotMutationGate;
-            State.LoginSessions.TryCreate("userA", "colonyA", DateTimeOffset.UtcNow, out string session);
-            token = State.AuthTokens.Issue("userA", "userA", "colonyA", session, DateTimeOffset.UtcNow);
-            State.DiplomacyRelations.SetRelationKind("userA", "colonyA", "userB", "colonyB", DiplomacyRelationRegistry.RelationHostile, null, DateTimeOffset.UtcNow);
-        }
-        public EventCreationResponse Call(Action<JsonObject>? mutate = null, byte[]? bytes = null) => Invoke(State,
-            bytes is null ? Package : Package with { Payload = bytes }, Guarded, token: token, mutate: mutate).GetAwaiter().GetResult();
-        public string Evidence() => JsonSerializer.Serialize(new { snapshots = Store.ListLatest(), events = State.Ledger.ListAll(),
-            guard = State.MercenaryGuards.FindByIdempotencyKey("guard"), replacement = State.MercenaryGuards.FindByIdempotencyKey("replacement"),
-            a = State.EventNotifications.GetVersion("userA"), b = State.EventNotifications.GetVersion("userB") });
-        public SnapshotCommitIntent Seed()
-        {
-            Store.FailPublication = true;
-            try { Call(); throw new Exception("Missing publication failure."); } catch (IOException) { }
-            Store.FailPublication = false;
-            return JsonSerializer.Deserialize<SnapshotCommitIntent>(File.ReadAllBytes(Directory.GetFiles(Journal, "*.json").Single()))!;
-        }
     }
 }
