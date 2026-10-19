@@ -265,6 +265,16 @@ internal static class ClientModuleBoundaryTests
         if (pages.Length == 0 || pageViolations.Count != 0)
             throw new InvalidOperationException("Multiplayer page boundaries: " + string.Join(Environment.NewLine, pageViolations));
         Console.WriteLine($"Multiplayer page guard checked {pages.Length} product and generated types.");
+        var shellRoots = new[] { typeof(AIRsLight.ClashOfRim.Multiplayer.MultiplayerPageFactory),
+            typeof(AIRsLight.ClashOfRim.Multiplayer.MultiplayerWindowPages), typeof(AIRsLight.ClashOfRim.Multiplayer.ClashOfRimMultiplayerWindow),
+            typeof(AIRsLight.ClashOfRim.Multiplayer.MainButtonWorker_ClashOfRimMultiplayer) };
+        var shells = typeof(ClashOfRimMod).Assembly.GetTypes().Where(t => shellRoots.Contains(t)
+            || t.DeclaringType is { } declaring && shellRoots.Contains(declaring)).ToArray();
+        var shellViolations = ModuleDependencyGuard.FindViolations(shells, t => t == typeof(ClashOfRimMod)
+            || t == typeof(ClashOfRimSettings) || t == typeof(ClashOfRimModNetworkClient)
+            || t == typeof(Verse.LoadedModManager) || t == typeof(IServiceProvider));
+        if (shellViolations.Count != 0) throw new InvalidOperationException("Multiplayer shell boundaries: " + string.Join(Environment.NewLine, shellViolations));
+        Console.WriteLine($"Multiplayer shell guard checked {shells.Length} product and generated types.");
         var sessionModules = modules.Where(t => t.Namespace == "AIRsLight.ClashOfRim.Modules.Sessions").ToArray();
         var sessionViolations = ModuleDependencyGuard.FindViolations(sessionModules,
             t => t.Namespace?.StartsWith("AIRsLight.ClashOfRim.Modules.Snapshots", StringComparison.Ordinal) == true

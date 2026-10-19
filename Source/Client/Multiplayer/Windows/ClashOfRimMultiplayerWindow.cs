@@ -1,4 +1,3 @@
-using AIRsLight.ClashOfRim.Modules.Multiplayer;
 using AIRsLight.ClashOfRim.Multiplayer.Pages;
 using System;
 using System.Collections.Generic;
@@ -10,18 +9,10 @@ namespace AIRsLight.ClashOfRim.Multiplayer;
 
 public sealed class ClashOfRimMultiplayerWindow : MainTabWindow
 {
-    private ClientPlayerPanel? playersPanel;
-    private MultiplayerDiplomacyPage? diplomacyPage;
-    private MultiplayerAchievementsPage? achievementsPage;
-    private MultiplayerTradePage? tradePage;
-    private ClientShopPanel? shopPanel;
-    private MultiplayerShopPage? shopPage;
-    private ClientBankPanel? bankPanel;
-    private MultiplayerBankPage? bankPage;
-    private MultiplayerMercenaryPage? mercenaryPage;
-    private MultiplayerAccountPage? accountPage;
-    private MultiplayerDiagnosticsPage? diagnosticsPage;
-    private MultiplayerAdminPage? adminPage;
+    private static MultiplayerPageFactory? factory;
+    internal static void Attach(MultiplayerPageFactory? value) => factory = value;
+    private MultiplayerPageFactory? composition;
+    private MultiplayerWindowPages? pages;
     private readonly MultiplayerTabCache<(MultiplayerTab Selected, bool Developer, bool Administrator)> mainTabs = new();
 
     private MultiplayerTab selectedTab = MultiplayerTab.Trade;
@@ -39,118 +30,117 @@ public sealed class ClashOfRimMultiplayerWindow : MainTabWindow
 
     public override void DoWindowContents(Rect inRect)
     {
-        ClashOfRimMod? mod = LoadedModManager.GetMod<ClashOfRimMod>();
-        if (mod is null)
+        var current = factory;
+        if (current is null)
         {
             Widgets.Label(inRect, ClashOfRimText.Key("ClashOfRim.RuntimeConfigurationMissing"));
             return;
         }
-
-        if (playersPanel is null) (playersPanel, diplomacyPage) = mod.CreatePlayerPages();
-        achievementsPage ??= mod.CreateAchievementsPage(playersPanel);
-        tradePage ??= mod.CreateTradePage();
-        if (shopPanel is null) (shopPanel, shopPage) = mod.CreateShopPage();
-        if (bankPanel is null) (bankPanel, bankPage) = mod.CreateBankPage();
-        mercenaryPage ??= mod.CreateMercenaryPage(bankPanel);
-        accountPage ??= mod.CreateAccountPage();
-        diagnosticsPage ??= mod.CreateDiagnosticsPage();
-        adminPage ??= mod.CreateAdminPage(shopPanel);
-        TryRefreshSelectedTab();
-        Rect tabRect = new(inRect.x, inRect.y + 34f, inRect.width, inRect.height - 34f);
-        if (!adminPage.IsAvailable && selectedTab == MultiplayerTab.Admin)
+        if (!ReferenceEquals(composition, current))
         {
-            selectedTab = MultiplayerTab.Trade;
+            pages?.Close(); mainTabs.Clear();
+            composition = current; pages = current.Create();
         }
-
-        TabDrawer.DrawTabs(tabRect, MainTabs());
+        var displayed = pages!;
+        object owner = displayed.Players.Ownership;
+        bool CurrentPage() => ReferenceEquals(factory, current) && ReferenceEquals(pages, displayed)
+            && ReferenceEquals(owner, displayed.Players.Ownership);
+        if (!CanSelect(selectedTab)) selectedTab = MultiplayerTab.Trade;
+        TryRefreshSelectedTab();
+        if (!CurrentPage()) return;
+        Rect tabRect = new(inRect.x, inRect.y + 34f, inRect.width, inRect.height - 34f);
+        var tabs = MainTabs(owner, CurrentPage);
+        if (!CurrentPage()) return;
+        TabDrawer.DrawTabs(tabRect, tabs);
+        if (!CurrentPage()) return;
+        if (!CanSelect(selectedTab)) selectedTab = MultiplayerTab.Trade;
         Rect contentRect = tabRect;
         switch (selectedTab)
         {
             case MultiplayerTab.Diplomacy:
-                diplomacyPage!.Draw(contentRect);
+                pages!.Diplomacy.Draw(contentRect);
                 break;
             case MultiplayerTab.Achievements:
-                if (achievementsPage!.Draw(contentRect)) Close(doCloseSound: false);
+                if (pages!.Achievements.Draw(contentRect)) Close(doCloseSound: false);
                 break;
             case MultiplayerTab.Bank:
-                bankPage!.Draw(contentRect);
+                pages!.Bank.Draw(contentRect);
                 break;
             case MultiplayerTab.Shop:
-                shopPage!.Draw(contentRect);
+                pages!.Shop.Draw(contentRect);
                 break;
             case MultiplayerTab.Mercenary:
-                mercenaryPage!.Draw(contentRect);
+                pages!.Mercenary.Draw(contentRect);
                 break;
             case MultiplayerTab.Diagnostics:
-                diagnosticsPage!.Draw(contentRect);
+                pages!.Diagnostics.Draw(contentRect);
                 break;
             case MultiplayerTab.Account:
-                accountPage!.Draw(contentRect);
+                pages!.Account.Draw(contentRect);
                 break;
             case MultiplayerTab.Admin:
-                adminPage.Draw(contentRect);
+                pages!.Admin.Draw(contentRect);
                 break;
             default:
-                tradePage!.Draw(contentRect);
+                pages!.Trade.Draw(contentRect);
                 break;
         }
     }
 
     public override void PostClose()
     {
-        playersPanel?.Close();
-        diplomacyPage?.Reset();
-        achievementsPage?.Close();
-        tradePage?.Close();
-        shopPage?.Close();
-        bankPage?.Close();
-        mercenaryPage?.Close();
-        accountPage?.Close();
-        adminPage?.Close();
+        pages?.Close();
         mainTabs.Clear();
         base.PostClose();
     }
 
-    private List<TabRecord> MainTabs()
+    private List<TabRecord> MainTabs(object owner, Func<bool> current)
     {
-        bool devMode = Prefs.DevMode, administrator = adminPage!.IsAvailable;
-        return mainTabs.Read(this, (selectedTab, devMode, administrator), LanguageDatabase.activeLanguage,
-            () => BuildMainTabs(devMode, administrator));
+        bool devMode = Prefs.DevMode, administrator = pages!.Admin.IsAvailable;
+        return mainTabs.Read(owner, (selectedTab, devMode, administrator), LanguageDatabase.activeLanguage,
+            () => BuildMainTabs(devMode, administrator, current));
     }
 
-    private List<TabRecord> BuildMainTabs(bool devMode, bool administrator)
+    private List<TabRecord> BuildMainTabs(bool devMode, bool administrator, Func<bool> current)
     {
         var tabs = new List<TabRecord>
         {
-            MainTab(MultiplayerTab.Trade, ClashOfRimText.Key("ClashOfRim.Multiplayer.TabTrade")),
-            MainTab(MultiplayerTab.Shop, ClashOfRimText.Key("ClashOfRim.Multiplayer.TabShop")),
-            MainTab(MultiplayerTab.Bank, ClashOfRimText.Key("ClashOfRim.Multiplayer.TabBank")),
-            MainTab(MultiplayerTab.Mercenary, ClashOfRimText.Key("ClashOfRim.Multiplayer.TabMercenary")),
-            MainTab(MultiplayerTab.Diplomacy, ClashOfRimText.Key("ClashOfRim.Multiplayer.TabDiplomacy")),
-            MainTab(MultiplayerTab.Achievements, ClashOfRimText.Key("ClashOfRim.Multiplayer.TabAchievements")),
-            MainTab(MultiplayerTab.Account, ClashOfRimText.Key("ClashOfRim.Multiplayer.TabAccount"))
+            MainTab(current, MultiplayerTab.Trade, ClashOfRimText.Key("ClashOfRim.Multiplayer.TabTrade")),
+            MainTab(current, MultiplayerTab.Shop, ClashOfRimText.Key("ClashOfRim.Multiplayer.TabShop")),
+            MainTab(current, MultiplayerTab.Bank, ClashOfRimText.Key("ClashOfRim.Multiplayer.TabBank")),
+            MainTab(current, MultiplayerTab.Mercenary, ClashOfRimText.Key("ClashOfRim.Multiplayer.TabMercenary")),
+            MainTab(current, MultiplayerTab.Diplomacy, ClashOfRimText.Key("ClashOfRim.Multiplayer.TabDiplomacy")),
+            MainTab(current, MultiplayerTab.Achievements, ClashOfRimText.Key("ClashOfRim.Multiplayer.TabAchievements")),
+            MainTab(current, MultiplayerTab.Account, ClashOfRimText.Key("ClashOfRim.Multiplayer.TabAccount"))
         };
         if (devMode)
         {
-            tabs.Add(MainTab(MultiplayerTab.Diagnostics, ClashOfRimText.Key("ClashOfRim.Multiplayer.TabDiagnostics")));
+            tabs.Add(MainTab(current, MultiplayerTab.Diagnostics, ClashOfRimText.Key("ClashOfRim.Multiplayer.TabDiagnostics")));
         }
 
         if (administrator)
         {
-            tabs.Add(MainTab(MultiplayerTab.Admin, ClashOfRimText.Key("ClashOfRim.Multiplayer.TabAdmin")));
+            tabs.Add(MainTab(current, MultiplayerTab.Admin, ClashOfRimText.Key("ClashOfRim.Multiplayer.TabAdmin")));
         }
 
         return tabs;
     }
 
-    private TabRecord MainTab(MultiplayerTab tab, string label)
+    private TabRecord MainTab(Func<bool> current, MultiplayerTab tab, string label)
     {
-        return new TabRecord(label, () => SelectMainTab(tab), selectedTab == tab);
+        return new TabRecord(label, () => { if (current()) SelectMainTab(tab); }, selectedTab == tab);
     }
+
+    private bool CanSelect(MultiplayerTab tab) => tab switch
+    {
+        MultiplayerTab.Admin => pages!.Admin.IsAvailable,
+        MultiplayerTab.Diagnostics => Prefs.DevMode,
+        _ => true
+    };
 
     private void SelectMainTab(MultiplayerTab tab)
     {
-        if (selectedTab == tab)
+        if (selectedTab == tab || !CanSelect(tab))
         {
             return;
         }
@@ -164,24 +154,24 @@ public sealed class ClashOfRimMultiplayerWindow : MainTabWindow
         switch (tab)
         {
             case MultiplayerTab.Diplomacy:
-                playersPanel?.RequestRefresh();
+                pages?.Players.RequestRefresh();
                 break;
             case MultiplayerTab.Achievements:
-                playersPanel?.RequestRefresh();
-                achievementsPage?.RequestRefresh();
+                pages?.Players.RequestRefresh();
+                pages?.Achievements.RequestRefresh();
                 break;
             case MultiplayerTab.Bank:
             case MultiplayerTab.Mercenary:
-                bankPanel?.RequestRefresh();
+                pages?.BankModel.RequestRefresh();
                 break;
             case MultiplayerTab.Trade:
-                tradePage?.RequestRefresh();
+                pages?.Trade.RequestRefresh();
                 break;
             case MultiplayerTab.Shop:
-                shopPanel?.RequestRefresh();
+                pages?.ShopModel.RequestRefresh();
                 break;
             case MultiplayerTab.Admin:
-                adminPage?.RequestRefresh();
+                pages?.Admin.RequestRefresh();
                 break;
         }
     }
@@ -191,24 +181,24 @@ public sealed class ClashOfRimMultiplayerWindow : MainTabWindow
         switch (selectedTab)
         {
             case MultiplayerTab.Diplomacy:
-                _ = playersPanel!.RefreshAsync(Time.realtimeSinceStartup);
+                _ = pages!.Players.RefreshAsync(Time.realtimeSinceStartup);
                 break;
             case MultiplayerTab.Achievements:
-                _ = playersPanel!.RefreshAsync(Time.realtimeSinceStartup);
-                achievementsPage!.Tick(Time.realtimeSinceStartup);
+                _ = pages!.Players.RefreshAsync(Time.realtimeSinceStartup);
+                pages!.Achievements.Tick(Time.realtimeSinceStartup);
                 break;
             case MultiplayerTab.Bank:
             case MultiplayerTab.Mercenary:
-                bankPage!.Tick(Time.realtimeSinceStartup);
+                pages!.Bank.Tick(Time.realtimeSinceStartup);
                 break;
             case MultiplayerTab.Trade:
-                tradePage!.Tick(Time.realtimeSinceStartup);
+                pages!.Trade.Tick(Time.realtimeSinceStartup);
                 break;
             case MultiplayerTab.Shop:
-                shopPage!.Tick(Time.realtimeSinceStartup);
+                pages!.Shop.Tick(Time.realtimeSinceStartup);
                 break;
             case MultiplayerTab.Admin:
-                adminPage!.Tick(Time.realtimeSinceStartup);
+                pages!.Admin.Tick(Time.realtimeSinceStartup);
                 break;
         }
     }

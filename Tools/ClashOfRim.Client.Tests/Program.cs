@@ -43,6 +43,7 @@ var tests = new (string Name, Action Run)[]
     ("pawn previews own requests, caches and engine publication", ClientPawnPreviewTests.Run),
     ("compatibility mismatch owns report, repairs and deferred continuations", ClientCompatibilityMismatchTests.Run),
     ("world entry forms own credentials, registration validation and window lifetime", ClientWorldEntryFormTests.Run),
+    ("multiplayer window composition owns shared models and session-bound navigation", MultiplayerWindowTests.Run),
     ("administrator host owns navigation, refresh cadence and child cleanup", MultiplayerAdminHostTests.Run),
     ("administrator manifest owns baseline confirmations and audit projection", MultiplayerAdminManifestTests.Run),
     ("administrator maintenance panel owns broadcast targets, drafts and explicit lock commands", MultiplayerAdminMaintenanceTests.Run),

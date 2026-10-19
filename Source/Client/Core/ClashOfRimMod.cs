@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Multiplayer;
 using AIRsLight.ClashOfRim.Modules.Diagnostics;
 using AIRsLight.ClashOfRim.Multiplayer.Diagnostics;
 using AIRsLight.ClashOfRim.Modules.Presence;
@@ -75,6 +76,7 @@ public sealed partial class ClashOfRimMod : Mod
     private const int ProtocolErrorEventNotFound = 5;
 
     private readonly ClashOfRimSettings settings;
+    private readonly MultiplayerPageFactory multiplayerPages;
     private readonly ClientEventInbox eventInbox = new();
     private readonly ClientEventRefresh eventRefresh;
     private readonly ClientEventState eventState;
@@ -420,6 +422,10 @@ public sealed partial class ClashOfRimMod : Mod
         eventApplications.RefreshRequested += StartAutomaticEventRefresh;
         eventApplications.Deferred += eventRefresh.Defer;
         eventApplications.CompletedWithoutConfirmation += StartQueuedAutomaticEventRefreshAfterLocalAtomicMutation;
+        multiplayerPages = new(sessionLifecycle, synchronization, playerDirectory, diplomacyActions,
+            worldMarkers, worldSynchronization, achievementQueries, tradeState, tradeMarket, tradeActions,
+            shopState, shopCatalog, shopOperations, bankState, bankOperations, mercenaryState, mercenaryQuotes, mercenaryHiring,
+            adminAccess, administration, compatibilityOverride, worldWrites, colonyAppearance, passwordChange, diagnostics);
         if (!string.Equals(content.PackageId, PackageId, StringComparison.OrdinalIgnoreCase))
         {
             Log.Warning("[ClashOfRim] Ignored ClashOfRim mod class loaded from unexpected package: " + (content.PackageId ?? "<null>") + ".");
@@ -427,6 +433,8 @@ public sealed partial class ClashOfRimMod : Mod
         }
 
         Instance = this;
+        MainButtonWorker_ClashOfRimMultiplayer.Attach(sessionLifecycle);
+        ClashOfRimMultiplayerWindow.Attach(multiplayerPages);
         var pawnPreviews = new ClientPawnPreviews(sessionLifecycle, new ClientSnapshotGame(),
             new ClientPawnPreviewTransport(new ClientProtocolEnvironment()), new ClientPawnPreviewRuntime());
         TradeUiUtility.AttachPawnPreviews(pawnPreviews);
@@ -457,61 +465,9 @@ public sealed partial class ClashOfRimMod : Mod
     }
 
     internal bool SnapshotUploadInProgress => synchronization.SnapshotInProgress;
-    internal (ClientPlayerPanel Players, MultiplayerDiplomacyPage Diplomacy) CreatePlayerPages()
-    {
-        var players = new ClientPlayerPanel(sessionLifecycle, new ClientSnapshotGame(), playerDirectory, diplomacyActions, synchronization);
-        var markers = worldMarkers;
-        var worldSync = worldSynchronization;
-        var locations = new PlayerColonyLocator(() => markers.Snapshot,
-            reason => _ = worldSync.RequestAsync(ClientWorldSynchronizationKind.Markers, reason), () => Time.realtimeSinceStartup);
-        return (players, new MultiplayerDiplomacyPage(players, locations));
-    }
-
-    internal MultiplayerAchievementsPage CreateAchievementsPage(ClientPlayerPanel players) =>
-        new(new ClientAchievementPanel(sessionLifecycle, new ClientSnapshotGame(), achievementQueries,
-            players, synchronization, new ClientAchievementTrophyPlacement()));
-
-    internal MultiplayerTradePage CreateTradePage() =>
-        new(new ClientTradePanel(sessionLifecycle, new ClientSnapshotGame(), tradeState, tradeMarket, synchronization, tradeActions));
-
-    internal (ClientShopPanel Model, MultiplayerShopPage Page) CreateShopPage()
-    {
-        var model = CreateShopPanel();
-        return (model, new(model));
-    }
-
-    private ClientShopPanel CreateShopPanel() =>
-        new(sessionLifecycle, new ClientSnapshotGame(), shopState, shopCatalog, shopOperations, synchronization);
-
-    private ClientAdminShopPanel CreateAdminShopPanel(ClientShopPanel shop) =>
-        new(sessionLifecycle, adminAccess, shopState, shopCatalog, shop);
-
-    internal ClientAdminShopPanel.Edit CreateAdminShopEdit(ModServerShopListingDto? listing)
-    {
-        var panel = CreateAdminShopPanel(CreateShopPanel());
-        return listing is null ? panel.PrepareEdit() : panel.PrepareExistingEdit(listing);
-    }
-
-    internal (ClientBankPanel Model, MultiplayerBankPage Page) CreateBankPage()
-    {
-        var model = new ClientBankPanel(sessionLifecycle, new ClientSnapshotGame(), bankState, bankOperations, synchronization, new ClientBankRuntime());
-        return (model, new(model));
-    }
-
-    internal MultiplayerMercenaryPage CreateMercenaryPage(ClientBankPanel bank) =>
-        new(new ClientMercenaryPanel(sessionLifecycle, new ClientSnapshotGame(), mercenaryState, mercenaryQuotes,
-            mercenaryHiring, synchronization, bank.Read, () => worldMarkers.PvpEnabled));
-
-    internal MultiplayerAdminPage CreateAdminPage(ClientShopPanel shop)
-    {
-        var configuration = new ClientAdminConfigurationEditor(sessionLifecycle, adminAccess, administration);
-        var players = new ClientAdminPlayerPanel(sessionLifecycle, adminAccess, administration);
-        return new(new ClientAdminPanel(sessionLifecycle, adminAccess, administration), configuration, new(configuration),
-            new(CreateAdminShopPanel(shop)), new(players),
-            new(new ClientAdminMaintenancePanel(sessionLifecycle, players, administration)),
-            new(new ClientAdminManifestPanel(configuration, new ClientLocalCompatibilityManifest(), compatibilityOverride, worldWrites, colonyAppearance.Capture)),
-            new(new ClientAdminAuditPanel(sessionLifecycle, adminAccess, administration)));
-    }
+    // Existing standalone windows retain these constructor compatibility entries.
+    internal MultiplayerTradePage CreateTradePage() => multiplayerPages.CreateTradePage();
+    internal ClientAdminShopPanel.Edit CreateAdminShopEdit(ModServerShopListingDto? listing) => multiplayerPages.CreateAdminShopEdit(listing);
 
     private ClientCompatibilityMismatch CreateCompatibilityMismatch(ModLoginResponseDto response, string? language,
         Action? accept, Action? cancel, Func<bool>? current)
@@ -524,8 +480,6 @@ public sealed partial class ClashOfRimMod : Mod
     internal ClientWorldEntryForm CreateServerEntryForm() => worldEntryStart.CreateForm();
     internal ClientWorldEntryForm CreateAccountRegistrationForm(string server, string user) => worldEntryStart.CreateRegistrationForm(server, user);
 
-    internal MultiplayerAccountPage CreateAccountPage() => new(new ClientAccountPanel(sessionLifecycle, passwordChange));
-    internal MultiplayerDiagnosticsPage CreateDiagnosticsPage() => new(diagnostics);
 
     internal bool ManualSyncInProgress => synchronization.ManualInProgress;
 
@@ -551,7 +505,6 @@ public sealed partial class ClashOfRimMod : Mod
 
     internal string CurrentUserId => settings.UserId;
 
-    internal bool ShouldShowMultiplayerMainButton => sessionLifecycle.HasConfiguredSession;
 
 
 
