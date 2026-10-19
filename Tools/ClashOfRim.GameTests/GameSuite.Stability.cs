@@ -34,7 +34,7 @@ internal sealed partial class GameSuite
             await Case("gift-offline-reject-return", giftScenario.OfflineReject);
             await Case("notification-offline-policy", notifications.OfflineDelivery);
         }
-        if (profile.Stability == "account") await AccountLifecycle();
+        if (profile.Stability == "account") await accounts.Run();
         if (profile.Stability == "gravship")
         {
             await Case("gravship-new-map", () => GravshipMove("A", false));

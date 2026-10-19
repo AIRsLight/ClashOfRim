@@ -33,8 +33,8 @@ internal sealed class GameTradeTestFixture : IDisposable
         Complex = new(runtime.Run, runtime.Polling, colony, Actions);
         runtime.Script = Reply;
     }
-    internal static async Task<GameTradeTestFixture> Create(string fault = "none", string label = "Confirm")
-        => new(await GameScenarioTestRuntime.Create(plannedCases: ComplexCases), fault, label);
+    internal static async Task<GameTradeTestFixture> Create(string fault = "none", string label = "Confirm", IEnumerable<string>? plannedCases = null)
+        => new(await GameScenarioTestRuntime.Create(plannedCases: plannedCases ?? ComplexCases), fault, label);
     internal object? Reply(string client, string method, JsonElement args)
     {
         switch (method)

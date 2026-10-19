@@ -33,6 +33,7 @@ internal sealed partial class GameSuite
     private readonly TradeScenarioFixture tradeActions;
     private readonly TradeScenario trades;
     private readonly AchievementScenario achievements;
+    private readonly AccountLifecycleScenario accounts;
     private readonly ComplexItemScenario complexItems;
     private readonly ShopCatalogScenario shopCatalog;
     private readonly ShopStressScenario shopStress;
@@ -106,6 +107,10 @@ internal sealed partial class GameSuite
         shopStress = new(run, colonyFixture, shopActions, serverState.ServerShop,
             (id, buyers) => ShopPersistenceProbe.Read(root, id, buyers), Path.Combine(root, "shop-stress.json"));
         raids = new(run, polling, dialogs, caravanFixture, remoteMaps, entry, serverState.SnapshotStore, serverState.DiplomacyRelations, serverState.Ledger, eventFixture);
+        var accountAuthority = new AccountLifecycleAuthority(serverState.SnapshotStore, serverState.Players, serverState.WorldConfiguration,
+            serverState.BankLoans, serverState.MercenaryContracts, serverState.OfflineAccounts, serverState.Ledger);
+        var accountColonies = new AccountColonyScenario(run, polling, colonyFixture, economy, achievements, entry, chat, players, shopActions, accountAuthority, () => url);
+        accounts = new(run, polling, colonyFixture, economy, mercenaries, passwords, achievements, chat, shop, diplomacy, trades, tradeActions, accountColonies);
     }
     public async Task<int> RunAsync()
     {
