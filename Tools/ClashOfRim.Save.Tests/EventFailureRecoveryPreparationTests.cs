@@ -4,7 +4,7 @@ using AIRsLight.ClashOfRim.Network;
 using AIRsLight.ClashOfRim.Network.Plugins;
 using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Save;
-using TestStore = SnapshotEndpointRecoveryPreparationTests.Store;
+using TestStore = SnapshotRecoveryTestStore;
 
 internal static partial class EventFailureReportTests
 {
@@ -20,7 +20,7 @@ internal static partial class EventFailureReportTests
             WithDirectory(root =>
             {
                 var f = new RecoveryFixture(root, factory, kind); f.SeedIntent();
-                var replies = ServiceSnapshotReplayRaceTests.Race(_ => Task.FromResult(f.Call()), () => { });
+                var replies = SnapshotReplayRace.Run(_ => Task.FromResult(f.Call()), () => { });
                 Require(replies.All(r => r.Result.Accepted) && replies.Count(r => r.AffectedEventCount > 0) == 1,
                     "Concurrent failure reports recalculated the failure batch.");
                 f.AssertRecovered(); VerifyCompleted(f.State.Ledger, f.Source, kind); f.AssertReleased();

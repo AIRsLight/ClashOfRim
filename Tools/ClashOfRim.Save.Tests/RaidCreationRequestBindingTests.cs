@@ -119,7 +119,7 @@ internal static partial class RaidCommitCrashTests
     private static void VerifyCreationRace(BindingFixture f, bool bytes)
     {
         Action<JsonObject> Change(int i) => root => root["Raid"]!["DefenderWealth"] = 100000 + i;
-        var replies = ServiceSnapshotReplayRaceTests.Race(i => Task.FromResult(bytes ? f.Call(bytes: i == 1 ? null : [(byte)i])
+        var replies = SnapshotReplayRace.Run(i => Task.FromResult(bytes ? f.Call(bytes: i == 1 ? null : [(byte)i])
             : f.Call(Change(i))), () => { });
         Require(replies.Count(r => r.Result.Accepted) == 1 && f.Store.Writes == 1 && f.State.Ledger.ListByType(ServerEventType.Raid).Count == 1,
             "Different same-key raid requests shared a successful confirmation.");
@@ -153,7 +153,7 @@ internal static partial class RaidCommitCrashTests
         public SaveSnapshotPackage Package { get; }
         public string Journal => Path.Combine(root, "intents");
         public ClashOfRimNetworkState State = null!;
-        public SnapshotEndpointRecoveryPreparationTests.Store Store = null!;
+        public SnapshotRecoveryTestStore Store = null!;
         private string token = "";
         public BindingFixture(string database, string root, Func<string, SaveSnapshotPackage> factory, bool guarded)
         {

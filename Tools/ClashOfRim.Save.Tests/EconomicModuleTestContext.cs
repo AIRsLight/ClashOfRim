@@ -122,7 +122,7 @@ internal sealed class EconomicModuleTestContext
         Shop = new ShopService(ShopRegistry, requests, new AdministratorAuthorization(principals, World), mutations, transactions, pending,
             new ShopSnapshotCommitter(commits, Snapshots, Loans, ShopRegistry, mercenaries, Recovery), Baseline, plugins, compatibility,
             NullLogger.Instance, () => Configuration);
-        Package = MercenaryCommitCrashTests.PrepareEndpoint(Snapshots, factory, new("userA", "colonyA", "before"), "paid");
+        Package = SnapshotEndpointPreparation.Prepare(Snapshots, factory, new("userA", "colonyA", "before"), "paid");
         Token = Issue("userA", "colonyA");
     }
 

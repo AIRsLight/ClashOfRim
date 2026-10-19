@@ -5,7 +5,7 @@ using AIRsLight.ClashOfRim.Network.Plugins;
 using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Save;
 using Microsoft.Data.Sqlite;
-using TestStore = SnapshotEndpointRecoveryPreparationTests.Store;
+using TestStore = SnapshotRecoveryTestStore;
 
 internal static partial class GiftRejectionEndpointTests
 {
@@ -19,7 +19,7 @@ internal static partial class GiftRejectionEndpointTests
         WithRoot(root =>
         {
             var f = new RecoveryFixture(root, factory); f.Seed();
-            var replies = ServiceSnapshotReplayRaceTests.Race(_ => Task.FromResult(f.Call()), () => { });
+            var replies = SnapshotReplayRace.Run(_ => Task.FromResult(f.Call()), () => { });
             Require(replies.All(r => r.Result.Accepted) && replies.Count(r => r.ReturnEventCreated) == 1
                 && replies.Select(r => r.ReturnEventId).Distinct().Count() == 1 && f.Store.Writes == 1 && !f.State.SnapshotCommits.HasPending,
                 "Concurrent gift rejection duplicated recovery or returns.");

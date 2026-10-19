@@ -2,9 +2,7 @@ using AIRsLight.ClashOfRim.Network;
 using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Save;
 using Microsoft.Data.Sqlite;
-using System.IO.Compression;
 using System.Text.Json;
-using System.Xml.Linq;
 
 internal static class MercenaryCommitCrashTests
 {
@@ -128,7 +126,7 @@ internal static class MercenaryCommitCrashTests
     {
         SnapshotEndpointTestClient.LoadLocalization();
         var state = new ClashOfRimNetworkState(serverConfiguration: Configuration());
-        var package = PrepareEndpoint(state, fixture, Buyer, "paid");
+        var package = SnapshotEndpointPreparation.Prepare(state.SnapshotStore, fixture, Buyer, "paid");
         var accepted = await Invoke(state, package, Buyer, guard);
         Require(accepted.Result.Accepted && accepted.SnapshotId == "paid" && !string.IsNullOrWhiteSpace(accepted.Token),
             "Hire endpoint rejected: " + JsonSerializer.Serialize(accepted));
@@ -138,7 +136,7 @@ internal static class MercenaryCommitCrashTests
         foreach (string changed in new[] { "id", "price", "terms", "snapshot" })
             Require(!(await Invoke(state, package, Buyer, guard, change: changed)).Result.Accepted, "Hire replay accepted changed " + changed);
         var other = new ProtocolIdentity("other", "other-colony", "before");
-        var otherPackage = PrepareEndpoint(state, fixture, other, "paid");
+        var otherPackage = SnapshotEndpointPreparation.Prepare(state.SnapshotStore, fixture, other, "paid");
         Require(!(await Invoke(state, otherPackage, other, guard)).Result.Accepted, "Hire replay accepted another owner.");
         Require((await Invoke(state, package, Buyer, guard, principal: other)).Result.ErrorCode == ProtocolErrorCode.Unauthorized,
             "Hire endpoint accepted a mismatched multipart principal.");
@@ -155,7 +153,7 @@ internal static class MercenaryCommitCrashTests
             "Contract ID conflict published the second colony's paid snapshot.");
 
         var invalid = new ClashOfRimNetworkState(serverConfiguration: Configuration());
-        var invalidPackage = PrepareEndpoint(invalid, fixture, Buyer, "invalid");
+        var invalidPackage = SnapshotEndpointPreparation.Prepare(invalid.SnapshotStore, fixture, Buyer, "invalid");
         Require(!(await Invoke(invalid, invalidPackage with { Payload = new byte[] { 1 } }, Buyer, guard)).Result.Accepted
             && invalid.SnapshotStore.GetLatest("userA", "colonyA")!.Identity.SnapshotId == "before", "Invalid hire payload published a snapshot.");
 
@@ -167,7 +165,7 @@ internal static class MercenaryCommitCrashTests
         }
 
         var raced = new ClashOfRimNetworkState(serverConfiguration: Configuration());
-        var candidate = PrepareEndpoint(raced, fixture, Buyer, "race");
+        var candidate = SnapshotEndpointPreparation.Prepare(raced.SnapshotStore, fixture, Buyer, "race");
         raced.LoginSessions.TryCreate("userA", "colonyA", DateTimeOffset.UtcNow, out var session);
         string token = raced.AuthTokens.Issue("userA", "userA", "colonyA", session, DateTimeOffset.UtcNow);
         var attempts = Enumerable.Range(0, 2).Select(i => Task.Run(() => Invoke(raced,
@@ -193,7 +191,7 @@ internal static class MercenaryCommitCrashTests
                 serverConfiguration: Configuration(), mercenaryContracts: Contracts(database), mercenaryGuards: Guards(database),
                 snapshotCommits: new SnapshotCommitService(Path.Combine(root, "intents")));
             var state = Open();
-            var package = PrepareEndpoint(state, fixture, Buyer, "recovered");
+            var package = SnapshotEndpointPreparation.Prepare(state.SnapshotStore, fixture, Buyer, "recovered");
             Execute(database, $"create trigger fail_hire before insert on {(guard ? "server_mercenary_guard_contracts" : "server_mercenary_contracts")} begin select raise(abort, 'injected failure'); end;");
             bool failed = false;
             try { await Invoke(state, package, Buyer, guard); } catch (SqliteException) { failed = true; }
@@ -230,32 +228,6 @@ internal static class MercenaryCommitCrashTests
                     change == "price" ? 561 : 560, 1000, 1500, metadata), package.Payload, principal ?? owner, token);
             return new Reply(response.Result, response.Contract?.ContractId, response.AppliedSnapshotId, response.NextLineageToken);
         }
-    }
-
-    internal static SaveSnapshotPackage PrepareEndpoint(ClashOfRimNetworkState state, Func<string, SaveSnapshotPackage> fixture,
-        ProtocolIdentity owner, string snapshotId)
-        => PrepareEndpoint(state.SnapshotStore, fixture, owner, snapshotId);
-
-    internal static SaveSnapshotPackage PrepareEndpoint(IColonySnapshotIndexStore snapshots, Func<string, SaveSnapshotPackage> fixture,
-        ProtocolIdentity owner, string snapshotId)
-    {
-        var baseline = fixture("before");
-        baseline = baseline with { Envelope = baseline.Envelope with { Identity = new SnapshotIdentity(owner.UserId, owner.ColonyId!, "before") } };
-        var accepted = new SnapshotUploadReceiver(snapshots).Receive(new SnapshotUploadContext(owner.UserId, owner.ColonyId!, "before"),
-            baseline, DateTimeOffset.UtcNow).AcceptedSnapshot!;
-        using var compressed = new MemoryStream(baseline.Payload);
-        using var gzip = new GZipStream(compressed, CompressionMode.Decompress);
-        var document = XDocument.Load(gzip);
-        document.Root!.Element("game")!.Add(new XElement("components", new XElement("li",
-            new XAttribute("Class", "AIRsLight.ClashOfRim.ClashOfRimGameComponent"),
-            new XElement("clashOfRimLineageSnapshotId", "before"), new XElement("clashOfRimLineageToken", accepted.Envelope.NextLineageToken))));
-        string path = Path.Combine(Path.GetTempPath(), "cor-hire-child-" + Guid.NewGuid().ToString("N") + ".rws");
-        try
-        {
-            document.Save(path);
-            return SaveSnapshotPackageBuilder.FromFile(path, new SnapshotIdentity(owner.UserId, owner.ColonyId!, snapshotId), DateTimeOffset.UtcNow);
-        }
-        finally { File.Delete(path); }
     }
 
     private static MercenaryContractRecord Contract(string key, string id, string snapshot) => new(id, key, "userA", "colonyA", snapshot,

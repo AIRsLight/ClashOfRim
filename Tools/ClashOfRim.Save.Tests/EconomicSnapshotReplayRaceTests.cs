@@ -16,7 +16,6 @@ internal static class EconomicSnapshotReplayRaceTests
     public static void Run(Func<string, SaveSnapshotPackage> fixture)
     {
         SnapshotEndpointTestClient.LoadLocalization();
-        EconomicEndpointRecoveryPreparationTests.Run(fixture);
         foreach (string kind in new[] { "gift", "order", "self-delivery", "drop-pod" })
         {
             foreach (bool sameKey in new[] { true, false }) RunScenario(fixture, kind, sameKey);

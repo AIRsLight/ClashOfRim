@@ -5,7 +5,7 @@ using AIRsLight.ClashOfRim.Save;
 using Microsoft.Data.Sqlite;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using TestStore = SnapshotEndpointRecoveryPreparationTests.Store;
+using TestStore = SnapshotRecoveryTestStore;
 
 internal static class ExpeditionEndpointRecoveryPreparationTests
 {
@@ -76,7 +76,7 @@ internal static class ExpeditionEndpointRecoveryPreparationTests
     private static void VerifyConcurrent(Fixture f)
     {
         var original = f.Seed(); f.Open();
-        var replies = ServiceSnapshotReplayRaceTests.Race(_ => Task.FromResult(f.Call()), () => { });
+        var replies = SnapshotReplayRace.Run(_ => Task.FromResult(f.Call()), () => { });
         foreach (var reply in replies) f.AssertReplay(reply, original);
         Check(f.Store.Writes == 1 && f.Store.PreparedWrites == 1, "Concurrent expedition recovery published twice.");
         f.AssertReleased();

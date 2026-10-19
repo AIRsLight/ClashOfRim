@@ -8,7 +8,7 @@ using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Save;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Data.Sqlite;
-using TestStore = SnapshotEndpointRecoveryPreparationTests.Store;
+using TestStore = SnapshotRecoveryTestStore;
 
 internal static class TradeLifecycleRecoveryTests
 {
@@ -148,7 +148,7 @@ internal static class TradeLifecycleRecoveryTests
 
     private static void Concurrent(Fixture f)
     {
-        f.Seed(); var replies = ServiceSnapshotReplayRaceTests.Race(_ => Task.FromResult(f.Call()), () => { });
+        f.Seed(); var replies = SnapshotReplayRace.Run(_ => Task.FromResult(f.Call()), () => { });
         Require(replies.All(r => r.Result.Accepted) && replies.Count(r => r.Created) == (f.Kind == "complete" ? 0 : 1)
             && replies.Select(r => r.MemoId).Distinct().Count() == 1, "Concurrent trade commands duplicated their receipt.");
         f.AssertRecovered(); f.AssertSuccess(); f.AssertReleased();

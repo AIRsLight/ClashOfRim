@@ -4,7 +4,7 @@ using AIRsLight.ClashOfRim.Network;
 using AIRsLight.ClashOfRim.Network.Plugins;
 using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Save;
-using TestStore = SnapshotEndpointRecoveryPreparationTests.Store;
+using TestStore = SnapshotRecoveryTestStore;
 
 internal static partial class SupportClosureTests
 {
@@ -129,7 +129,7 @@ internal static partial class SupportClosureTests
     private static void VerifyConcurrentClosureRecovery(ClosureRecoveryFixture f)
     {
         f.Seed();
-        var replies = ServiceSnapshotReplayRaceTests.Race(_ => Task.FromResult(f.Call()), () => { });
+        var replies = SnapshotReplayRace.Run(_ => Task.FromResult(f.Call()), () => { });
         Require(replies.All(r => r.Accepted) && replies.Count(r => r.Created) == 1 && replies.Select(r => r.ReturnId).Distinct().Count() == 1
             && f.Store.Writes == 1 && !f.State.SnapshotCommits.HasPending, "Concurrent support recovery duplicated publication or closures.");
         f.AssertClosed(f.Kind); f.AssertReleased();

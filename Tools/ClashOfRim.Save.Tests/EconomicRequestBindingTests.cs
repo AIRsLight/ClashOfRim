@@ -4,19 +4,23 @@ using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Save;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Fixture = EconomicEndpointFixture;
+using Reply = EconomicEndpointFixture.Reply;
+using static SnapshotTestAssertions;
 
-internal static partial class EconomicEndpointRecoveryPreparationTests
+internal static class EconomicRequestBindingTests
 {
-    private static void RunBindings(Func<string, SaveSnapshotPackage> factory)
+    public static void Run(Func<string, SaveSnapshotPackage> factory)
     {
+        SnapshotEndpointTestClient.LoadLocalization();
         VerifyCanonicalBinding();
         foreach (string kind in new[] { "gift", "order", "self-delivery", "drop-pod" })
         {
-            foreach (bool reopen in new[] { false, true }) With(factory, kind, f => VerifyBoundReplay(f, reopen));
-            foreach (bool pending in new[] { false, true }) With(factory, kind, f => VerifyUnboundHistory(f, pending));
-            foreach (string fault in new[] { "binding", "payload" }) With(factory, kind, f => VerifyJournalConflict(f, fault));
-            foreach (bool bytes in new[] { false, true }) With(factory, kind, f => VerifyBindingRace(f, bytes));
-            With(factory, kind, VerifyMalformedBinding);
+            foreach (bool reopen in new[] { false, true }) Fixture.With(factory, kind, f => VerifyBoundReplay(f, reopen));
+            foreach (bool pending in new[] { false, true }) Fixture.With(factory, kind, f => VerifyUnboundHistory(f, pending));
+            foreach (string fault in new[] { "binding", "payload" }) Fixture.With(factory, kind, f => VerifyJournalConflict(f, fault));
+            foreach (bool bytes in new[] { false, true }) Fixture.With(factory, kind, f => VerifyBindingRace(f, bytes));
+            Fixture.With(factory, kind, VerifyMalformedBinding);
         }
     }
 
@@ -169,7 +173,7 @@ internal static partial class EconomicEndpointRecoveryPreparationTests
     {
         var intent = f.Seed(); f.Open(); f.Store.Reset();
         var main = intent.Gift ?? intent.Trade!.Batch.Events[0];
-        var bad = fault == "binding" ? WithHash(main, "v1:" + new string('0', 64)) : main with
+        var bad = fault == "binding" ? Fixture.WithHash(main, "v1:" + new string('0', 64)) : main with
         {
             Payload = main.Payload is ItemDeliveryEventPayload gift ? gift with { Message = "changed" }
                 : ((TradeEventPayload)main.Payload) with { FeeSilver = 999 }
@@ -187,7 +191,7 @@ internal static partial class EconomicEndpointRecoveryPreparationTests
         f.Store.Reset();
         Action<JsonObject> Change(int i) => root => root[f.Kind == "gift" ? "Gift" : f.Kind == "order" ? "TradeOrder" : "Fulfillment"]!
             [f.Kind == "gift" ? "Things" : f.Kind == "order" ? "RequestedThings" : "DeliveredThings"]![0]!["StackCount"] = 100 + i;
-        var replies = ServiceSnapshotReplayRaceTests.Race(i => Task.FromResult(bytes ? f.Call(bytes: i == 1 ? null : new byte[] { (byte)i })
+        var replies = SnapshotReplayRace.Run(i => Task.FromResult(bytes ? f.Call(bytes: i == 1 ? null : new byte[] { (byte)i })
             : f.Call(mutate: Change(i))), () => { });
         Check(replies.Count(r => r.Result.Accepted) == 1 && f.Store.Writes == 1, "Changed same-key requests shared a successful confirmation.");
         int winner = Array.FindIndex(replies, r => r.Result.Accepted);
@@ -196,25 +200,4 @@ internal static partial class EconomicEndpointRecoveryPreparationTests
         f.AssertReleased();
     }
 
-    private static AuthoritativeEvent WithHash(AuthoritativeEvent item, string? hash) => item with
-    {
-        Payload = item.Payload is ItemDeliveryEventPayload gift ? gift with { CreationRequestHash = hash }
-            : ((TradeEventPayload)item.Payload) with { CreationRequestHash = hash }
-    };
-
-    private sealed partial class Fixture
-    {
-        public string? MainHash() => State.Ledger.FindByIdempotencyKey("operation")?.Payload switch
-        {
-            ItemDeliveryEventPayload gift => gift.CreationRequestHash,
-            TradeEventPayload trade => trade.CreationRequestHash,
-            _ => null
-        };
-        public void SetMainHash(string? hash)
-        {
-            var original = State.Ledger.FindByIdempotencyKey("operation")!;
-            State.Ledger.ApplyBatch(new LedgerBatch([], [new(original.EventId, original.Status, original.Status,
-                original.Payload, WithHash(original, hash).Payload, original)]));
-        }
-    }
 }

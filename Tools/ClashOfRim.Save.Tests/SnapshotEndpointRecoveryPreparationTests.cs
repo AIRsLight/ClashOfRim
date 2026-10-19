@@ -242,7 +242,7 @@ internal static class SnapshotEndpointRecoveryPreparationTests
     {
         f.SeedHttp(); f.Open(); f.Store.Reset();
         string expectedToken = f.ReadIntent().Package.Envelope.NextLineageToken!;
-        var replies = ServiceSnapshotReplayRaceTests.Race(_ => Task.FromResult(f.Call()), () => { });
+        var replies = SnapshotReplayRace.Run(_ => Task.FromResult(f.Call()), () => { });
         Require(replies.All(r => r.Result.Accepted && r.Result.ErrorCode == ProtocolErrorCode.DuplicateRequest && r.Token == expectedToken)
             && replies.Select(r => r.Token).Distinct().Count() == 1 && replies.Select(r => r.Id).Distinct().Count() == 1
             && f.Store.Writes == 1 && f.Store.PreparedWrites == 1 && !f.State.SnapshotCommits.HasPending && f.BusinessCommitted,
@@ -298,13 +298,13 @@ internal static class SnapshotEndpointRecoveryPreparationTests
         public string Journal => Path.Combine(root, "journal");
         public SaveSnapshotPackage Package { get; }
         public ClashOfRimNetworkState State = null!;
-        public Store Store = null!;
+        public SnapshotRecoveryTestStore Store = null!;
         public Fixture(string root, Func<string, SaveSnapshotPackage> factory, string kind)
         {
             this.root = root; Kind = kind;
             database = Path.Combine(root, "server.sqlite"); ServerDatabaseMigrator.Migrate(database); Open();
             Store.Gate = null; // Seed the baseline outside the endpoint under test.
-            Package = MercenaryCommitCrashTests.PrepareEndpoint(State, factory, new("userA", "colonyA", "before"), "paid");
+            Package = SnapshotEndpointPreparation.Prepare(State.SnapshotStore, factory, new("userA", "colonyA", "before"), "paid");
             if (Shop) ShopCommitCrashTests.Seed(State.ServerShop, kind: ShopKind);
             if (kind == "loan")
             {
@@ -433,38 +433,5 @@ internal static class SnapshotEndpointRecoveryPreparationTests
             listing = State.ServerShop.Find("listing"), receipt = State.ServerShop.FindReceipt("operation"),
             contract = State.MercenaryContracts.FindByIdempotencyKey("operation"), guard = State.MercenaryGuards.FindByIdempotencyKey("operation"),
             journal = Directory.EnumerateFiles(Journal, "*.json").Order().Select(File.ReadAllText).ToArray() });
-    }
-    internal sealed class Store(string root) : IPreparedColonySnapshotPackageStore
-    {
-        public FileColonySnapshotIndexStore Inner { get; } = new(root);
-        public Action? BeforePrepare;
-        public object? Gate;
-        public bool FailPublication, FailPreparation;
-        public int PreparedWrites, RawWrites;
-        public int Writes => PreparedWrites + RawWrites;
-        public void Reset() { PreparedWrites = 0; RawWrites = 0; }
-        public PreparedSnapshotPayload PreparePayload(byte[] bytes)
-        {
-            BeforePrepare?.Invoke();
-            if (FailPreparation) throw new IOException("preparation failed");
-            return Inner.PreparePayload(bytes);
-        }
-        public void StorePrepared(SaveSnapshotPackage p, SaveSnapshotIndex i, DateTimeOffset at, PreparedSnapshotPayload prepared)
-        {
-            Require(Gate is null || Monitor.IsEntered(Gate), "Snapshot recovery scope did not retain the mutation gate for publication.");
-            if (FailPublication) throw new IOException("publication failed");
-            Inner.StorePrepared(p, i, at, prepared); PreparedWrites++;
-        }
-        public void StoreLatest(SaveSnapshotPackage p, SaveSnapshotIndex i, DateTimeOffset at)
-        {
-            Require(Gate is null || Monitor.IsEntered(Gate), "Snapshot recovery scope did not retain the mutation gate for publication.");
-            if (FailPublication) throw new IOException("publication failed");
-            Inner.StoreLatest(p, i, at); RawWrites++;
-        }
-        public void StoreLatest(LatestSnapshotRecord record) => Inner.StoreLatest(record);
-        public LatestSnapshotRecord? GetLatest(string owner, string colony) => Inner.GetLatest(owner, colony);
-        public SaveSnapshotPackage? GetLatestPackage(string owner, string colony) => Inner.GetLatestPackage(owner, colony);
-        public IReadOnlyList<LatestSnapshotRecord> ListLatest() => Inner.ListLatest();
-        public bool RemoveLatest(string owner, string colony) => Inner.RemoveLatest(owner, colony);
     }
 }

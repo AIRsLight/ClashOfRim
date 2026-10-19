@@ -158,7 +158,7 @@ internal static partial class RaidEvidenceAuthorizationTests
     private static void VerifyConcurrentJournal(Fixture f)
     {
         f.SeedRecovery(f.ForeignIntent());
-        var replies = ServiceSnapshotReplayRaceTests.Race(_ => Task.FromResult(f.Invoke()), () => { });
+        var replies = SnapshotReplayRace.Run(_ => Task.FromResult(f.Invoke()), () => { });
         Require(replies.All(r => r.Result.Accepted && r.AppliedSnapshotId == "evidence")
             && replies.Select(r => r.NextLineageToken).Distinct().Count() == 1
             && !f.State.SnapshotCommits.HasPending && f.Store.WritesByOwner.GetValueOrDefault("foreign") == 1

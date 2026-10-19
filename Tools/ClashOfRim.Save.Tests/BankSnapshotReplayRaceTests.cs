@@ -20,7 +20,7 @@ internal static class BankSnapshotReplayRaceTests
     {
         var state = new ClashOfRimNetworkState(serverConfiguration: new ClashOfRimServerConfiguration(
             bankLoansEnabled: true, bankMinLoanSilver: 1, bankMinDurationDays: 1, bankBaseAnnualInterestRate: 0));
-        var package = MercenaryCommitCrashTests.PrepareEndpoint(state, fixture, Actor, "paid");
+        var package = SnapshotEndpointPreparation.Prepare(state.SnapshotStore, fixture, Actor, "paid");
         var now = DateTimeOffset.UtcNow;
         string debtId = "";
         if (kind == "loan")
@@ -61,11 +61,11 @@ internal static class BankSnapshotReplayRaceTests
         {
             Snapshots = state.SnapshotStore.ListLatest(), Events = state.Ledger.ListAll(),
             Seed = state.BankLoans.FindByIdempotencyKey("seed"), Debt = state.BankLoans.FindDebtByIdempotencyKey("seed"),
-            Loans = Enumerable.Range(1, 12).Select(i => state.BankLoans.FindByIdempotencyKey(Key(i))).ToArray(),
-            Debts = Enumerable.Range(1, 12).Select(i => state.BankLoans.FindDebtByIdempotencyKey(Key(i))).ToArray()
+            Loans = Enumerable.Range(1, SnapshotReplayRace.ParticipantCount).Select(i => state.BankLoans.FindByIdempotencyKey(Key(i))).ToArray(),
+            Debts = Enumerable.Range(1, SnapshotReplayRace.ParticipantCount).Select(i => state.BankLoans.FindDebtByIdempotencyKey(Key(i))).ToArray()
         });
         string before = Evidence(); long notifications = state.EventNotifications.GetVersion(Actor.UserId);
-        var replies = ServiceSnapshotReplayRaceTests.Race(i => Call(i), () =>
+        var replies = SnapshotReplayRace.Run(i => Call(i), () =>
         {
             if (mode == "revoke") state.LoginSessions.EndUser(Actor.UserId);
             if (mode == "replace") state.LoginSessions.TryCreate(Actor.UserId, Actor.ColonyId!, DateTimeOffset.UtcNow, out _);
@@ -78,7 +78,7 @@ internal static class BankSnapshotReplayRaceTests
             return;
         }
         var accepted = replies.Where(r => r.Result.Accepted).ToArray();
-        Check(accepted.Length == (mode == "same" ? 12 : 1) && accepted.Count(r => r.Result.ErrorCode == ProtocolErrorCode.None) == 1,
+        Check(accepted.Length == (mode == "same" ? SnapshotReplayRace.ParticipantCount : 1) && accepted.Count(r => r.Result.ErrorCode == ProtocolErrorCode.None) == 1,
             "Concurrent bank replay rejected or duplicated: " + kind + "/" + mode + " " + JsonSerializer.Serialize(replies));
         var winner = accepted.Single(r => r.Result.ErrorCode == ProtocolErrorCode.None);
         Check(winner.SnapshotId == "paid" && winner.Delta == (kind == "borrow" ? 100 : -110)
