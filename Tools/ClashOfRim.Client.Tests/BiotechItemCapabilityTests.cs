@@ -7,6 +7,7 @@ using AIRsLight.ClashOfRim.DlcCompatibility;
 using AIRsLight.ClashOfRim.DlcCompatibility.Biotech.Genes;
 using AIRsLight.ClashOfRim.DlcCompatibility.Biotech.Items;
 using AIRsLight.ClashOfRim.Modules.Compatibility.Biotech;
+using AIRsLight.ClashOfRim.Modules.Sessions;
 using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.ThirdPartyCompatibility;
 using HarmonyLib;
@@ -276,10 +277,47 @@ internal static class BiotechItemCapabilityTests
             "Package registration lost matching/strictness or duplicated the display cache provider.");
         ClashOfRimCompatibilityApi.ClearThingReferenceMetadata(ThingReferenceSurfaces.TradeRequest, new ThingDef { thingClass = typeof(Thing) }, dto);
         Check(dto.Metadata.Count == 0, "Changing to an ordinary item retained Biotech metadata.");
+        RegisteredSourceIdentity();
         ClashOfRimCompatibilityApi.ApplyServerDlcBaseline(Array.Empty<string>());
         Check(!ClashOfRimCompatibilityApi.IsThingReferenceUniqueRequest(geneDef)
             && !ClashOfRimCompatibilityApi.SuppressesStandardThingStats(geneDef)
             && !ClashOfRimCompatibilityApi.ThingReferenceCacheKeyParts(dto).Any(), "Registered item components ignored a changed DLC baseline.");
+    }
+
+    private static void RegisteredSourceIdentity()
+    {
+        var field = AccessTools.Field(typeof(BiotechCompatibilityPackage), "session");
+        var previous = (ClientSessionLifecycle?)field.GetValue(null);
+        try
+        {
+            ClientSessionWork.Reset();
+            var ports = new EventModuleTestPorts();
+            var session = new ClientSessionLifecycle(ports, ports, new(ports));
+            var carrier = Carrier(out var comp);
+            var foreign = Pawn("Foreign", 52, Gender.Female);
+            foreign.questTags = new() { "ClashOfRim.PawnGlobalId:owner:original/pawn:Human7" };
+            comp.pawnSources = new() { Pawn("Local", 51, Gender.Male), foreign };
+            void Capture(string owner)
+            {
+                var reference = new ModThingReferenceDto();
+                ClashOfRimCompatibilityApi.AppendThingReferenceMetadata(carrier, reference);
+                var records = BiotechThingMetadata.ReproductiveSources(reference);
+                Check(records.Count == 2 && records[0].GlobalId == "owner:" + owner + "/pawn:TestHuman51"
+                    && records[0].OwnerUserId == (owner == "unknown" ? null : owner)
+                    && records[1].GlobalId == "owner:original/pawn:Human7" && records[1].OwnerUserId == "original",
+                    "Registered source capture cached or re-keyed the account identity: " + owner);
+            }
+            BiotechCompatibilityPackage.Attach(null); Capture("unknown");
+            BiotechCompatibilityPackage.Attach(session); Capture("alice");
+            session.PublishLogin(new() { AuthenticatedUserId = "bob", AuthToken = "new-auth", SessionId = "new-session" }); Capture("bob");
+            ports.Snapshot = "advanced"; session.BeginUnavailable(null, null); Capture("bob");
+            ports.User = "玩家İ"; Capture("玩家İ");
+            ports.User = ""; Capture("unknown");
+            var replacement = new EventModuleTestPorts { User = "replacement" };
+            BiotechCompatibilityPackage.Attach(new(replacement, replacement, new(replacement))); Capture("replacement");
+            BiotechCompatibilityPackage.Attach(null); Capture("unknown");
+        }
+        finally { BiotechCompatibilityPackage.Attach(previous); ClientSessionWork.Reset(); }
     }
 
     private static ThingWithComps Carrier(out CompHasPawnSources comp)

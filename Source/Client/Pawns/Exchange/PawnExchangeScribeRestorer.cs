@@ -6,6 +6,7 @@ using System.Linq;
 using System.Xml;
 using AIRsLight.ClashOfRim;
 using AIRsLight.ClashOfRim.ClientNetwork;
+using AIRsLight.ClashOfRim.Modules.Sessions;
 using AIRsLight.ClashOfRim.ThirdPartyCompatibility;
 using RimWorld;
 using RimWorld.Planet;
@@ -15,6 +16,8 @@ namespace AIRsLight.ClashOfRim.Pawns;
 
 internal static class PawnExchangeScribeRestorer
 {
+    private static ClientSessionLifecycle? session;
+    internal static void Attach(ClientSessionLifecycle? value) => session = value;
     private const string RelationshipPlaceholderTagPrefix = "ClashOfRim.RelationshipPlaceholder:";
     private const string PawnGlobalIdTagPrefix = "ClashOfRim.PawnGlobalId:";
 
@@ -280,8 +283,9 @@ internal static class PawnExchangeScribeRestorer
             return null;
         }
 
-        string globalTag = PawnGlobalIdTagPrefix + globalId.Trim();
-        string placeholderTag = RelationshipPlaceholderTagPrefix + globalId.Trim();
+        globalId = globalId.Trim();
+        string globalTag = PawnGlobalIdTagPrefix + globalId;
+        string placeholderTag = RelationshipPlaceholderTagPrefix + globalId;
         Pawn? tagged = EnumerateKnownPawns()
             .FirstOrDefault(pawn => pawn.questTags is not null
                 && (pawn.questTags.Contains(globalTag, StringComparer.Ordinal)
@@ -290,6 +294,9 @@ internal static class PawnExchangeScribeRestorer
         {
             return tagged;
         }
+
+        if (!PawnGlobalIdUtility.CanResolveLocalThingId(globalId, session?.ReadContext().UserId))
+            return null;
 
         string? localThingId = ExtractGlobalPawnLocalThingId(globalId);
         if (string.IsNullOrWhiteSpace(localThingId))

@@ -64,6 +64,13 @@ internal static class PawnGlobalIdUtility
         return true;
     }
 
+    // ThingID is only unique within its owner's save. Foreign IDs must be resolved
+    // through their explicit global tag, never by a coincident local ThingID.
+    internal static bool CanResolveLocalThingId(string? globalId, string? currentUserId)
+        => !string.IsNullOrWhiteSpace(currentUserId)
+            && TryExtractOwnerUserId(globalId, out string? owner)
+            && string.Equals(owner, Segment(currentUserId), StringComparison.Ordinal);
+
     private static string Segment(string? value)
     {
         if (string.IsNullOrWhiteSpace(value))

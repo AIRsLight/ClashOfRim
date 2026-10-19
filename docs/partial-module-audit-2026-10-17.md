@@ -3488,3 +3488,13 @@ GameComponent 的世界视图选中状态、30 秒期限和刷新私有方法收
 **9 个相关单元组通过**：新窗口入口、原管理主页、账户、佣兵、银行、商店、成就、玩家和模块边界；日志 `LocalOnly/module-migration/multiplayer-composition-final-tests.log`。新增窗口依赖守卫检查 9 个类型，其余守卫为 1,701／127／14／184／315。生产代码随单元项目编译；本次无需专项 RimTest，未运行全量回归、独立构建或推送。后续必要时只安排单次改动涉及的 RimTest 场景，全量仍由用户安排。冻结 1.6 和原有未提交修改保留。
 
 **下一步 M11o12g：剩余 Biotech／pawn 恢复的账户读取。** pawn 恢复文件已有未提交修改，须保留并只提交本阶段精确变更。其后继续网络／服务器过渡门面、M12 和最终审计，完整目标仍未完成。
+
+### M11o12g：Biotech 与 pawn 恢复直接读取会话身份（2026-10-19）
+
+`BiotechCompatibilityPackage` 与 `PawnExchangeScribeRestorer` 直接绑定原 `ClientSessionLifecycle`，读取当前账户时不再查询 Mod、全局实例或完整设置。删除已无调用方的 Mod `CurrentUserId` 转发；不新增账户缓存、通用服务定位器或第二套身份生命周期。Biotech 保留每批来源捕获一次账户的规则，已有全局身份仍归原所有者；无装配时继续以 unknown 表示新来源。
+
+pawn 的明确全局标签及关系占位标签继续优先于本地 ThingID；本地回退使用现有 `PawnGlobalIdUtility` 规则，只允许当前已知账户。为使本次提交独立完整，精确收纳原工作区尚未提交的这条账户限制及七行共享判断函数，物种／关系生成等其余修改保留未提交。新测试复现带首尾空白的 ID 在标签路径和本地回退路径处理不一致，现于解析入口统一 Trim；不改变身份大小写规则或格式。
+
+测试运行真实关系解析／已知 pawn 枚举和已注册的 Biotech 来源捕获。四种文化下覆盖本地／外来／占位身份、同 ThingID 冲突、未绑定／空账户、登录换名、Unicode 与斜杠规范化、重新装配、快照前进和暂时断线。补充依赖守卫覆盖两个入口及生成类型。**5 个相关单元组通过**：账户关系解析、Biotech 物品能力、原重复 pawn 流转、Scribe 加载和模块边界；日志 `LocalOnly/module-migration/pawn-account-final-tests.log`。守卫为 1,701／127／14／196／9／315。生产随单元编译，未运行全量回归、专项 RimTest 或独立构建，未推送。
+
+**下一步 M11o12h：结局成就回调。** 当前扫描发现 `EndgameAchievementRuntime` 仍通过 `ClashOfRimMod.Instance` 进入原结局模块；先清除此处接线，再继续网络／服务器过渡门面、M12 和最终审计。

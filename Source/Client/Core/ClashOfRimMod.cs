@@ -48,6 +48,7 @@ using AIRsLight.ClashOfRim.ClientSnapshots;
 using AIRsLight.ClashOfRim.CompatibilityClient;
 using AIRsLight.ClashOfRim.Modules.Compatibility;
 using AIRsLight.ClashOfRim.Diplomacy;
+using AIRsLight.ClashOfRim.DlcCompatibility;
 using AIRsLight.ClashOfRim.EventLetters;
 using AIRsLight.ClashOfRim.Gifts;
 using AIRsLight.ClashOfRim.MainMenu;
@@ -433,6 +434,8 @@ public sealed partial class ClashOfRimMod : Mod
         }
 
         Instance = this;
+        BiotechCompatibilityPackage.Attach(sessionLifecycle);
+        PawnExchangeScribeRestorer.Attach(sessionLifecycle);
         MainButtonWorker_ClashOfRimMultiplayer.Attach(sessionLifecycle);
         ClashOfRimMultiplayerWindow.Attach(multiplayerPages);
         var pawnPreviews = new ClientPawnPreviews(sessionLifecycle, new ClientSnapshotGame(),
@@ -503,7 +506,6 @@ public sealed partial class ClashOfRimMod : Mod
 
     internal bool IsAnyManualOrSnapshotSyncInProgress() => synchronization.IsBusy;
 
-    internal string CurrentUserId => settings.UserId;
 
 
 

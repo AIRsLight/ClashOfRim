@@ -197,6 +197,7 @@ var tests = new (string Name, Action Run)[]
     ("session WebSocket transport owns duplex failure, framing and closure", SessionWebSocketTransportTests.Run),
     ("setup authentication owns temporary credentials, cancellation and bounded cleanup", SetupAuthenticationModuleTests.Run),
     ("actual event letters share rendering, action and automatic application rules", EventLetterPolicyTests.Run),
+    ("pawn relationship resolution reads the bound account and preserves global identities", PawnAccountIdentityTests.Run),
     ("repeated pawn transfer preserves global relationship identity", PawnTransferIdentityTests.Run),
     ("item durability uses final quality maximum", ThingMetadataOrderTests.Run),
     ("shop distinguishes minifiable contents from empty wrappers", ShopDefinitionEligibilityTests.Run),

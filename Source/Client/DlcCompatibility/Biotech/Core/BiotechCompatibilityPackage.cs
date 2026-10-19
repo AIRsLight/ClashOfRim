@@ -2,6 +2,7 @@ using AIRsLight.ClashOfRim.DlcCompatibility.Biotech.Pawns;
 using AIRsLight.ClashOfRim.DlcCompatibility.Biotech.RemoteMaps;
 using AIRsLight.ClashOfRim.DlcCompatibility.Biotech.Items;
 using AIRsLight.ClashOfRim.Modules.Compatibility.Biotech;
+using AIRsLight.ClashOfRim.Modules.Sessions;
 using AIRsLight.ClashOfRim.RemoteMaps;
 using AIRsLight.ClashOfRim.ThirdPartyCompatibility;
 using HarmonyLib;
@@ -12,6 +13,8 @@ namespace AIRsLight.ClashOfRim.DlcCompatibility;
 
 internal static class BiotechCompatibilityPackage
 {
+    private static ClientSessionLifecycle? session;
+    internal static void Attach(ClientSessionLifecycle? value) => session = value;
     private static readonly BiotechThingReferenceCompatibility ThingReferences = new(TradeMetadataEnabled, new BiotechReproductiveSources(CurrentUserId));
     private static readonly BiotechThingReferenceDisplay ThingDisplay = new(TradeMetadataEnabled);
     private static readonly BiotechThingReferenceEditor ThingEditor = new(TradeMetadataEnabled);
@@ -24,7 +27,7 @@ internal static class BiotechCompatibilityPackage
     private static bool WorldPollutionEnabled() => ClashOfRimCompatibilityApi.HasCompatibilityCapability(BiotechCompatibilityKeys.WorldPollution);
 
     private static bool TradeMetadataEnabled() => ClashOfRimCompatibilityApi.HasCompatibilityCapability(BiotechCompatibilityKeys.TradeMetadata);
-    private static string? CurrentUserId() => (ClashOfRimMod.Instance ?? LoadedModManager.GetMod<ClashOfRimMod>())?.UserId;
+    private static string? CurrentUserId() => session?.ReadContext().UserId;
 
     public static BuiltInDlcCompatibilityPackageDescriptor Descriptor { get; } =
         new(BiotechCompatibilityKeys.PackageId, Apply, order: 300);
