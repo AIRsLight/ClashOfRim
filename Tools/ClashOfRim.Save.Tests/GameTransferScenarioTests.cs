@@ -94,24 +94,17 @@ internal static class GameTransferScenarioTests
         var ledger = new InMemoryAuthoritativeEventLedger(); var colony = new ColonyScenarioFixture(f.Run, f.Polling);
         var caravan = new CaravanScenario(f.Run, f.Polling, f.Dialogs, colony); caravan.Use(Wire.Element(Ref("sender-caravan")));
         var events = new EventScenarioFixture(f.Polling, ledger);
-        var gift = new GiftScenario(f.Run, f.Polling, f.Dialogs, colony, caravan, events, ledger);
+        var gift = new GiftScenario(f.Run, f.Polling, f.Dialogs, colony, caravan, events, ledger, f.CreateEntry());
         int cargo = 10, recipient = 20, selected = 0, receives = 0; bool applied = false, duplicate = false; string id = "";
         string label = language + " gift";
         f.Script = (_, method, args) => method switch
         {
-            "caravan.state" => new { items = new[] { new { defName = "WoodLog", count = cargo } } },
             "clash.inventory" => new { maps = new[] { new { items = new Dictionary<string, int> { ["WoodLog"] = recipient } } } },
-            "world.gizmos" => List(new { label = "Gift", type = "wrong", disabled = false }, new { label, type = "disabled", disabled = true }, new { label, type = "gift-command", disabled = false }),
-            "clash.labels" => new { gift = label },
-            "menus.list" => List(Ref("target-menu")),
-            "menus.options" => List(new { reference = new { handle = "recipient" }, disabled = false }),
-            "ui.windows" => List(Ref("other-window", "Other"), Ref("gift-window", "Mod.GiftDeliveryDialogWindow")),
-            "clash.gift.inventory" => List(new { reference = new { handle = "small" }, defName = "WoodLog", count = 1 }, new { reference = new { handle = "wood" }, defName = "WoodLog", count = 10 }),
             "clash.gift.select" => Select(args),
             "clash.gift.submit" => Send(args),
             "clash.events" => List(new { data = new { eventId = ++receives == 1 ? "unrelated-event" : id } }),
             "clash.invoke" when args.String("action") == "HandleEventLetterAction" => Accept(args),
-            _ => null
+            _ => GameGiftTestUi.Reply(method, label, cargo)
         };
         object Select(JsonElement args) { selected = args.Int("count"); return new { }; }
         object Send(JsonElement args)
@@ -140,7 +133,7 @@ internal static class GameTransferScenarioTests
         Check(f.Calls.Single(c => c.Method == "clash.gift.select").Args.String("thing") == "wood", "Gift selected insufficient cargo.");
         await gift.Replay();
         duplicate = true; await Reject<AssertionException>(gift.Replay);
-        var independent = new GiftScenario(f.Run, f.Polling, f.Dialogs, colony, caravan, events, ledger);
+        var independent = new GiftScenario(f.Run, f.Polling, f.Dialogs, colony, caravan, events, ledger, f.CreateEntry());
         await Reject<AssertionException>(independent.Replay);
         int polls = 0;
         await events.AwaitLedger(id, e =>

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using AIRsLight.ClashOfRim.Network;
 using ClashOfRim.GameTests;
 using RimTest.Client;
 using RimTest.Protocol;
@@ -23,6 +24,10 @@ internal sealed class GameScenarioTestRuntime : IDisposable
         f.Calls.Clear(); return f;
     }
     internal int Count(string method) => Calls.Count(c => c.Method == method);
+    internal ServerEntryScenario CreateEntry(Func<string>? address = null, Func<string, bool>? isUserOnline = null, WorldScenario? world = null)
+        => new(Run, Polling, Dialogs,
+            world ?? new(Run, Polling, new(), new(), new StraightLineWorldTileDistanceCalculator(), _ => throw new InvalidOperationException("Unexpected disk probe.")),
+            new(Run, Polling), new(Run), address ?? (() => "http://test-server"), isUserOnline ?? (_ => false));
     public void Dispose() => Directory.Delete(path, recursive: true);
     private sealed class Connection(GameScenarioTestRuntime owner, string client) : IRimTestConnection
     {

@@ -18,8 +18,7 @@ internal sealed class SessionPersistenceScenario(TestRun run, ScenarioPolling po
     {
         await polling.Idle("B");
         var before = await run.CallAsync("B", "clash.state"); var world = await run.CallAsync("B", "clash.world.details");
-        await run.InvokeClientAsync("B", "StartManualSnapshotUpload"); await polling.Idle("B");
-        await entry.ExitSession("B");
+        await entry.LogoutWithSnapshot("B");
         await entry.LoginExisting(true);
         Check((await run.CallAsync("B", "clash.state")).String("colonyId") == before.String("colonyId"), "Reconnect changed colony identity.");
         var after = await run.CallAsync("B", "clash.world.details");

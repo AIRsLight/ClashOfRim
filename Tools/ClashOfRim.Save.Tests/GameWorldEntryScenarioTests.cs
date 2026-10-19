@@ -17,7 +17,7 @@ internal static class GameWorldEntryScenarioTests
     {
         var roots = new[] { typeof(WorldScenario), typeof(ServerEntryScenario), typeof(ColonyScenarioFixture),
             typeof(SessionPersistenceScenario), typeof(ScenarioRuntimeDiagnostics), typeof(ScenarioClientActions),
-            typeof(CaravanScenario), typeof(GiftScenario), typeof(EventScenarioFixture) };
+            typeof(CaravanScenario), typeof(GiftScenario), typeof(EventScenarioFixture), typeof(NotificationScenario) };
         bool Owned(Type type) => roots.Contains(type) || type.DeclaringType is { } parent && Owned(parent);
         var violations = ModuleDependencyGuard.FindViolations(typeof(GameSuite).Assembly.GetTypes().Where(Owned).ToArray(),
             t => t == typeof(GameSuite) || t == typeof(ClashOfRimNetworkState) || t == typeof(ClashOfRimNetworkServer)
@@ -286,7 +286,7 @@ internal static class GameWorldEntryScenarioTests
     private static WorldScenario NewWorld(GameScenarioTestRuntime f, SuiteProfile profile, WorldConfigurationRegistry? registry = null, Distances? distances = null)
         => new(f.Run, f.Polling, profile, registry ?? new(), distances ?? new(), _ => throw new InvalidOperationException("Unexpected persistence probe."));
     private static ServerEntryScenario NewEntry(GameScenarioTestRuntime f, Func<string> address)
-        => new(f.Run, f.Polling, f.Dialogs, NewWorld(f, new(), ReadyWorld()), new(f.Run, f.Polling), new(f.Run), address);
+        => f.CreateEntry(address, world: NewWorld(f, new(), ReadyWorld()));
     private static WorldConfigurationRegistry ReadyWorld()
     {
         var registry = new WorldConfigurationRegistry();

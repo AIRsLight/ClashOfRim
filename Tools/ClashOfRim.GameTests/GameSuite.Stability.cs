@@ -31,9 +31,9 @@ internal sealed partial class GameSuite
         {
             await Case("alliance-request-accept", Alliance);
             await Case("caravan-load-travel", caravanFixture.Travel);
-            await Case("gift-offline-deferred-accept", OfflineGiftAccept);
-            await Case("gift-offline-reject-return", OfflineGiftReject);
-            await Case("notification-offline-policy", OfflineNotifications);
+            await Case("gift-offline-deferred-accept", giftScenario.OfflineAccept);
+            await Case("gift-offline-reject-return", giftScenario.OfflineReject);
+            await Case("notification-offline-policy", notifications.OfflineDelivery);
         }
         if (profile.Stability == "account") await AccountLifecycle();
         if (profile.Stability == "gravship")

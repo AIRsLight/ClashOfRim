@@ -5,7 +5,7 @@ using RimTest.Testing;
 namespace ClashOfRim.GameTests;
 
 internal sealed class ServerEntryScenario(TestRun run, ScenarioPolling polling, ScenarioDialogs dialogs,
-    WorldScenario world, ColonyScenarioFixture colony, ScenarioRuntimeDiagnostics diagnostics, Func<string> serverAddress)
+    WorldScenario world, ColonyScenarioFixture colony, ScenarioRuntimeDiagnostics diagnostics, Func<string> serverAddress, Func<string, bool> isUserOnline)
 {
     private int? firstColonyTile;
     internal void SetNeighbouringColony(int tile) => firstColonyTile = tile;
@@ -98,4 +98,15 @@ internal sealed class ServerEntryScenario(TestRun run, ScenarioPolling polling, 
             await polling.Idle(client);
         }
     }
+    internal async Task LogoutWithSnapshot(string client)
+    {
+        await polling.Idle(client); await run.InvokeClientAsync(client, "StartManualSnapshotUpload"); await polling.Idle(client);
+        await ExitSession(client);
+        // The menu becomes ready before the asynchronous logout reaches the server.
+        var timer = Stopwatch.StartNew();
+        while (isUserOnline("rimtest-" + client) && timer.Elapsed.TotalSeconds < 30)
+            await Task.Delay(100);
+        Check(!isUserOnline("rimtest-" + client), "Logout left server presence online.");
+    }
+
 }

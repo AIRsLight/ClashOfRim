@@ -22,6 +22,7 @@ internal sealed partial class GameSuite
     private readonly ColonyScenarioFixture colonyFixture;
     private readonly CaravanScenario caravanFixture;
     private readonly GiftScenario giftScenario;
+    private readonly NotificationScenario notifications;
     private readonly EventScenarioFixture eventFixture;
     private readonly ScenarioRuntimeDiagnostics diagnostics;
     private readonly WorldScenario world;
@@ -54,10 +55,11 @@ internal sealed partial class GameSuite
         var serverState = ServerState;
         caravanFixture = new(run, polling, dialogs, colonyFixture);
         eventFixture = new(polling, serverState.Ledger);
-        giftScenario = new(run, polling, dialogs, colonyFixture, caravanFixture, eventFixture, serverState.Ledger);
         world = new(run, polling, profile, serverState.WorldConfiguration, serverState.WorldTileDistanceCalculator,
             id => WorldPersistenceProbe.Read(root, id));
-        entry = new(run, polling, dialogs, world, colonyFixture, diagnostics, () => url);
+        entry = new(run, polling, dialogs, world, colonyFixture, diagnostics, () => url, serverState.OnlinePresence.IsUserOnline);
+        giftScenario = new(run, polling, dialogs, colonyFixture, caravanFixture, eventFixture, serverState.Ledger, entry);
+        notifications = new(run, polling, entry, eventFixture, serverState.Ledger);
         roundtrips = new(run, polling, colonyFixture, entry);
     }
     public async Task<int> RunAsync()

@@ -77,13 +77,7 @@ internal sealed partial class GameSuite
         const string message = "RimTest notice 中文 Français 1,25";
         await Invoke("A", "StartAdminAction", new { actionKind = "Broadcast", targetUserId = "rimtest-B", message, persistentNotification = true }); await Idle("A");
         await Invoke("B", "StartRefreshEventsForTest");
-        await Wait("B", "clash.events", new { limit = 200 }, p => Items(p).Any(v =>
-        {
-            var data = v.GetProperty("data");
-            if (data.String("eventType") != "serverNotification") return false;
-            using var payload = JsonDocument.Parse(data.String("payloadSummary"));
-            return payload.RootElement.OptionalString("Message") == message;
-        }));
+        await Wait("B", "clash.events", new { limit = 200 }, p => Items(p).Any(v => NotificationScenario.HasMessage(v, message)));
         Check(ServerState.AdminControl.ListAudit().Any(a => a.ActionKind == "Broadcast" && a.Message == message), "Broadcast audit missing.");
     }
     async Task ShopBuyback()
