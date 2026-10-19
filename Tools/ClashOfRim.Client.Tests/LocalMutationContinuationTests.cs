@@ -59,7 +59,8 @@ internal static class LocalMutationContinuationTests
         var settings = new ClashOfRimSettings
         { ServerBaseUrl = "http://localhost", UserId = "alice", ColonyId = "colony", CurrentSnapshotId = "snapshot" };
         var lifecycle = new ClientSessionLifecycle(new ClientSessionIdentityStore(settings), new ClientSessionLogoutTransport(),
-            new ClientSessionConnection(new ClientSessionWebSocketTransport(new ClientWebSocketFactory(), new ClientProtocolMetadata())));
+            new ClientSessionConnection(new ClientSessionWebSocketTransport(new ClientWebSocketFactory(), new ClientProtocolMetadata(),
+                () => "Not configured")));
         var game = new ClientSnapshotGame();
         var inbox = new ClientEventInbox();
         var confirmation = new ClientEventConfirmation(lifecycle, game, ClientSnapshotComposition.CreatePublication(settings),

@@ -2,7 +2,7 @@
 
 本轮代码基线为 `0f1affba` 加工作区，承接[主计划](partial-module-audit-2026-10-17.md)的 A1–A9、M1–M12 和六条每步验收标准。**partial 清理已经完成，整体目标尚未完成验收。** 本表分别记录已经核对的范围和仍需补足的证据，不把编译或结构扫描等同于游戏行为验证。
 
-**最新状态（M13c1）：重新扫描 1,914 个 C# 文件，partial 类型／声明／文件仍为 0／0／0。组合根复核发现并修复提前发布绑定的问题，四个相关单元组通过。** 外部契约差异已在 M13b3 完成归类；组合根／状态所有权、页面生命周期、DLC 能力与加载生命周期三类边界仍需完成最后验收。以下保留各审计时点的数量与证据，不代表全量游戏行为已经回归。
+**最新状态（M13c2）：A1／A2／A4 的状态所有权、组合根和兼容例外已完成核对；修复了仍留在旧门面的 WebSocket 准入规则。剩余 A5 页面生命周期、A7 DLC 能力与加载生命周期两类最终验收。** 最近扫描的 1,914 个 C# 文件中，partial 类型／声明／文件为 0／0／0；本步没有新增 partial。以下保留各审计时点的数量与证据，不代表全量游戏行为已经回归。
 
 ## 最新复审：还剩多少 partial 耦合
 
@@ -20,12 +20,12 @@
 
 ### 复审时的四类验收及后续状态
 
-以下是复审时的四类收尾工作，**不是四组已确认的 partial 缺陷**，也不应据文件长度重新安排机械拆分。第 1 类后续已在 M13b3 完成契约核对，当前余下第 2–4 类。
+以下是复审时的四类收尾工作，**不是四组已确认的 partial 缺陷**，也不应据文件长度重新安排机械拆分。第 1 类已在 M13b3、第 2 类已在 M13c2 完成核对，当前余下第 3–4 类。
 
 | 顺序 | 范围 | 具体剩余工作与当前证据 |
 | --- | --- | --- |
 | 1 | Harmony／Scribe 和外部契约（M13b） | 已完成迁移基线的差异分类、历史日志／回执等价核对和相关单元验证，见 M13b3。复审发现的测试隔离问题已在 M13b2 修复。游戏全量回归仍由用户安排。 |
-| 2 | 客户端／服务端组合根及状态归属（A1／A2／A4） | [ClashOfRimMod](../Source/Client/Core/ClashOfRimMod.cs#L61) 原复审时为 642 行，[NetworkState](../Source/Server/ClashOfRim.Network/Client/ClashOfRimNetworkState.cs#L28) 为 452 行、39 个构造参数、128 个属性。M13c1 已修复 34 处提前绑定及其中支援／袭击两个空依赖；仍需逐项收拢静态 Attach、延迟恢复装配及状态唯一所有者的例外清单。体量本身不构成残留 partial 耦合。 |
+| 2 | 客户端／服务端组合根及状态归属（A1／A2／A4） | 已完成，详见 M13c2 的状态归属和具名例外清单。M13c1 修复提前绑定，M13c2 将最后一处旧网络门面准入分支迁入传输模块；独立会话／协议及服务端协调器／路由边界组通过。NetworkState 的 39 个构造参数、128 个属性用于显式装配，体量本身不构成残留 partial 耦合。 |
 | 3 | 窗口／页面生命周期（A5） | [窗口宿主](../Source/Client/Multiplayer/Windows/ClashOfRimMultiplayerWindow.cs#L12) 持有静态工厂绑定，替换装配时关闭旧页面；[MultiplayerWindowPages.Close](../Source/Client/Multiplayer/Composition/MultiplayerWindowPages.cs#L13) 统一转发关闭。还需将关窗、重开、编辑草稿和会话切换的状态所有权与现有行为测试逐项对应。 |
 | 4 | DLC 能力和游戏加载生命周期（A7） | 能力／Ideology 边界单元通过；仍需最后核对 Biotech 编解码唯一来源、Ideology 目录／加载对象与 Scribe 的生命周期归属及允许的游戏适配依赖。 |
 
@@ -57,6 +57,8 @@
 扫描 `Source`、`Tools`、`ThirdPartyCompat/Source` 共 **1,912 个 C# 文件**，partial 类型／声明／文件为 **0／0／0**；整个 ThirdPartyCompat 也经文本交叉检查。DTO 文件中既存关系字段的未提交修改不属于本次提交。冻结 1.6、RimTest 子仓库以及其他既有工作未纳入这三步变更。
 
 ## M13a：边界、路由、兼容 API 与冻结文件
+
+本表保留 M13a 时点的验收范围；后续关闭情况以顶部状态表及 M13b／M13c 记录为准。
 
 | 原计划要求 | 当前证据 | 验收范围及剩余工作 |
 | --- | --- | --- |
@@ -148,6 +150,36 @@ M13b 的迁移契约复核完成；A1／A2／A4、A5、A7 的最终所有权／�
 
 本步关闭这两种已复现装配错误，未据此关闭 A1／A2／A4 的全部所有权验收。A5、A7 的最终核对继续保留。
 
+## M13c2：会话、传输与组合根的所有权验收
+
+从 `a76164cc` 加工作区逐项核对 A1／A2／A4，不以模块命名或 partial 清零替代状态检查：
+
+| 所有者 | 当前职责与实际边界 |
+| --- | --- |
+| `ClientSessionLifecycle` | 拥有登录身份、sessionId、失效转换和身份所有权；设置写入通过 `ClientSessionIdentityStore`，旧 Mod 属性只读取。退出先切换 `ClientSessionWork` 代次，再逐个复验清理订阅者；旧身份 Logout 捕获原凭证，在发布锁外完成。重入登录可终止剩余旧清理。 |
+| `ClientSessionConnection`／`ClientSessionWork` | 前者拥有连接、连接锁和旧帧失效 revision；后者仅拥有全客户端的取消代次、异步上下文和发布锁。锁顺序保持发布锁在前、连接／缓存锁在后；取消旧代次在发布锁外，不把身份复制到静态任务设施中。 |
+| `ClientSynchronizationCoordinator`／`ClientLocalMutationCoordinator` | 分别拥有上传同步与本地待确认事务状态。`ClientSnapshotComposition` 只为 Mod 和公开上传兼容入口提供同一同步协调器；多个上传器不各自创建第二把同步锁或第二份设置缓存。 |
+| `ClientProtocolTransport`／`ClientSessionWebSocketTransport`／`ClientSetupAuthenticationLease` | HTTP 与 WebSocket 实现各自的传输生命周期；临时登录由 lease 捕获唯一凭证，借用凭证不退出，迟到凭证仍按所属会话限时清理。普通登录和设置不由 lease 替换。旧网络客户端只装配及转发；本步移出其最后一处准入分支。 |
+| `ClashOfRimNetworkState` | 组合根创建或接收同一批注册表，再给业务模块传实际依赖；配置由 `ServerConfigurationState`，账本／银行／商店等缓存及持久化由各注册表所有。仅在全部依赖已创建后恢复配置，不在业务模块中反查容器。 |
+| `SnapshotMutationCoordinator`／`SnapshotRecovery` | 组合根中的 `Lazy<ISnapshotRecovery>` 只用于解决恢复依赖其他领域模块的装配顺序；惰性值只创建一次。协调器负责授权复验、锁外准备、重入及锁释放，恢复器组合具名领域恢复。旧 `LegacySnapshotRecoveryAdapter` 不再存在；生产业务不回调 NetworkState 或服务器静态入口。 |
+
+### 保留的具名接入例外及退出条件
+
+- **引擎组合根与静态 Attach：** `ClashOfRimMod` 构造函数显式列出的引擎回调、商队菜单、页面、预览及兼容能力绑定，只在包准入和完整构造后发布。它们持有所属模块的窄入口，不通过 `Mod.Instance` 找服务。此例外限于具体接入类型，不豁免整个业务命名空间；当引擎接入支持直接传实例时才能撤掉对应静态绑定。
+- **应用级共享入口：** `ClientSessionWork` 和 `ClientSnapshotComposition` 分别保留单游戏客户端的代次／发布边界、唯一同步协调器。`ClientSessionCleanup.Attach` 只是应用寿命内的清理装配，逐项调用同一领域实例的 Reset；它没有第二份业务状态。若将来支持同进程多个独立客户端，应由各自运行时显式持有这些实例，不能给当前各域分别创建代次或锁。
+- **既有客户端兼容协议：** Mod 的 RimTest 动作／观察入口及旧窗口工厂、公开 `ClashOfRimModNetworkClient`、`ModSnapshotUploadService` 保留调用转发。旧网络客户端的六个静态提供者只经 `ClientProtocolEnvironment`／`ClientAuthenticationEnvironment` 读取，纯模块只依赖窄端口。保留原因是旧调用者及明确的 RimTest／第三方契约；删除条件是相应调用者迁移并明确升级其接口版本，不能在本次保持兼容的拆分中直接删 API。
+- **服务端宿主和插件兼容：** `ClashOfRimNetworkServer`、`PersistentServerState`、`ClashOfRimNetworkState` 负责装配；业务端点仅接收对应模块。旧插件上下文仍含 State，因此仅 `SnapshotPostUploadPluginAdapter`／`RaidEvidenceRequestAdapter` 转换参数，`RaidSettlementOperationExecutor`／`RaidSettlementDeferredScheduler`／`SnapshotPostUploadJobExecutor` 等既有公开入口转发给正式模块。删除条件是插件契约升级且调用者完成迁移。编译后依赖守卫明确禁止业务模块反向引用这些兼容入口及 IServiceProvider，不能用该例外绕过领域依赖。
+
+### 本步修复与验证
+
+复核发现 `ClashOfRimModNetworkClient.StreamSessionAsync` 仍独自检查 `context.IsConfigured`；直接调用 `ClientSessionWebSocketTransport` 时空用户会尝试打开连接。新增独立单元先复现此差异（退出 1），再将同一判定移入传输模块，移除旧门面的分支与私有 NotConfigured 帮助函数。错误文案通过现有模式的窄委托提供，不扩大通用元数据接口，也不在传输层依赖游戏翻译。公开方法签名、NotConfigured 错误码和“未配置优先于取消”的既有结果保持。
+
+新增矩阵覆盖服务器／用户／殖民地缺失各自配合正常／已取消 token，共六种情况，要求不建连、不发事件、错误文案按调用时读取。已有 WebSocket 组继续检查双向失败、帧和文化格式、取消、迟到完成及关闭超时。
+
+本步通过 **九个相关客户端组及两个服务端单元组**：会话生命周期、重连、HTTP 传输、临时认证四组；WebSocket、连接所有权、银行／事件本地变更延续、真实组合根、客户端依赖守卫五组；服务端协调器及模块／81 路由两组。后两组在 Save.Tests 中定向执行，没有运行完整 NetworkSmoke。客户端守卫覆盖 1,702 个纯模块／生成类型，服务端覆盖 466 个模块类型；它们检查编译后签名、方法体和状态机，不只是文本检索。
+
+日志：`LocalOnly/module-migration/final-session-transport-ownership-tests.log`、`websocket-admission-red.log`、`websocket-admission-related-tests.log`、`final-server-composition-tests.log`、`final-coordinator-composition-tests.log`。M13c1 的清理顺序 260 场景证据仍有效，本步未重复运行该组。无全量、实机或独立发布构建；保留其他未提交工作及冻结 1.6，未推送。**A1／A2／A4 本轮模块拆分验收完成；A5、A7 继续。**
+
 ## 下一步
 
-M13c 按顺序收拢组合根／状态所有权与静态装配例外、窗口／页面生命周期、DLC 能力与加载生命周期。若发现实际缺陷，按依赖顺序修复并运行相关单元后提交。本表中的未验证项全部补足前，不将目标标记完成。
+继续按顺序核对 A5 窗口／页面生命周期和 A7 DLC 能力／加载生命周期。若发现实际缺陷，按依赖顺序修复并运行相关单元后提交。本表中的未验证项全部补足前，不将目标标记完成。

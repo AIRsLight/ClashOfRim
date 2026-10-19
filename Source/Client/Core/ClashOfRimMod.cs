@@ -105,7 +105,8 @@ public sealed class ClashOfRimMod : Mod
     private readonly ClientChat chat;
     private readonly ClientPasswordChange passwordChange;
     private readonly ClientRuntimeDiagnostics diagnostics;
-    private readonly ClientSessionConnection sessionConnection = new(new ClientSessionWebSocketTransport(new ClientWebSocketFactory(), new ClientProtocolMetadata()));
+    private readonly ClientSessionConnection sessionConnection = new(new ClientSessionWebSocketTransport(new ClientWebSocketFactory(), new ClientProtocolMetadata(),
+        () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured")));
     private readonly ClientAchievementQueries achievementQueries;
     private readonly ClientWorldEntryStart worldEntryStart;
     private readonly ClientWorldSourceGame sourceGame = new(new ClientWorldSourceGameRuntime());

@@ -100,7 +100,8 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
         var setupAuthentication = new ClientSetupAuthenticationLease(authentication, transport, authenticationEnvironment);
         adminBaseline = new ClientAdminBaselineProtocol(setupAuthentication, () => authenticationEnvironment.NotConfiguredMessage);
         world = new ClientWorldProtocol(transport, setupAuthentication, authenticationEnvironment, authenticationEnvironment, authenticationEnvironment.LogWorldEntry);
-        sessionStream = new ClientSessionWebSocketTransport(new ClientWebSocketFactory(), protocolEnvironment);
+        sessionStream = new ClientSessionWebSocketTransport(new ClientWebSocketFactory(), protocolEnvironment,
+            () => authenticationEnvironment.NotConfiguredMessage);
     }
 
     public Task<ClashOfRimClientNetworkResult<ModServerHelloResponseDto>> ServerHelloAsync(
@@ -314,10 +315,7 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
         long knownWorldConfigurationVersion,
         Action<ModSessionStreamEvent> onEvent,
         CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured) return NotConfigured<ModSessionStreamClosedDto>();
-        return sessionStream.StreamAsync(context, sessionId, knownNotificationVersion, knownWorldConfigurationVersion, onEvent, cancellationToken);
-    }
+        => sessionStream.StreamAsync(context, sessionId, knownNotificationVersion, knownWorldConfigurationVersion, onEvent, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModMaintainPresenceResponseDto>> MaintainPresenceAsync(
         string? sessionId,
@@ -661,12 +659,5 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
         string reason,
         CancellationToken cancellationToken = default)
         => eventDecisions.ReportFailureAsync(context, new(idempotencyKey, eventId, sourceEventId, currentSnapshotId, reason), cancellationToken);
-
-    private static Task<ClashOfRimClientNetworkResult<T>> NotConfigured<T>()
-    {
-        return Task.FromResult(ClashOfRimClientNetworkResult<T>.Failed(
-            "NotConfigured",
-            ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured")));
-    }
 
 }

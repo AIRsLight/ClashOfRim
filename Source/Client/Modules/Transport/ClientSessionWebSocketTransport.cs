@@ -20,12 +20,15 @@ internal sealed class ClientSessionWebSocketTransport : IClientSessionStreamTran
     private static readonly string StreamSessionRoute = ProtocolContractManifest.Find(ProtocolMessageKind.StreamSession).Route;
     private readonly IClientWebSocketFactory sockets;
     private readonly IClientProtocolMetadata protocolEnvironment;
+    private readonly Func<string> notConfigured;
     private readonly TimeSpan closeTimeout;
 
-    internal ClientSessionWebSocketTransport(IClientWebSocketFactory sockets, IClientProtocolMetadata environment, TimeSpan? closeTimeout = null)
+    internal ClientSessionWebSocketTransport(IClientWebSocketFactory sockets, IClientProtocolMetadata environment,
+        Func<string> notConfigured, TimeSpan? closeTimeout = null)
     {
         this.sockets = sockets;
         protocolEnvironment = environment;
+        this.notConfigured = notConfigured;
         this.closeTimeout = closeTimeout ?? TimeSpan.FromSeconds(5);
     }
 
@@ -37,6 +40,9 @@ internal sealed class ClientSessionWebSocketTransport : IClientSessionStreamTran
         Action<ModSessionStreamEvent> onEvent,
         CancellationToken cancellationToken = default)
     {
+        if (!context.IsConfigured)
+            return ClashOfRimClientNetworkResult<ModSessionStreamClosedDto>.Failed("NotConfigured", notConfigured());
+
         CancellationToken owner = ClientSessionWork.Token;
         using var sessionCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, owner);
         cancellationToken = sessionCancellation.Token;

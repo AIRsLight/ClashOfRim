@@ -20,7 +20,7 @@ internal static class SessionWebSocketTransportTests
     private static async Task RunAsync()
     {
         var errors = new List<Exception>();
-        foreach (var test in new Func<Task>[] { HeartbeatFailure, CancelPendingReceive, WireAndRemoteClose,
+        foreach (var test in new Func<Task>[] { UnconfiguredContext, HeartbeatFailure, CancelPendingReceive, WireAndRemoteClose,
             CloseTimeout, FailureMapping, LateReceiveAndConnect, SessionReset, CallbackFailure, ConnectionReportsFailure })
         {
             ClientSessionWork.Reset();
@@ -29,6 +29,28 @@ internal static class SessionWebSocketTransportTests
             finally { ClientSessionWork.Reset(); }
         }
         if (errors.Count != 0) throw new AggregateException(errors);
+    }
+
+    private static async Task UnconfiguredContext()
+    {
+        using var socket = new Socket();
+        var factory = new Factory(socket) { Error = new InvalidOperationException("Unconfigured context opened a socket.") };
+        string message = "未配置";
+        var transport = new ClientSessionWebSocketTransport(factory, new Metadata(), () => message);
+        foreach (string missing in new[] { "user", "colony", "server" })
+        foreach (bool canceled in new[] { false, true })
+        {
+            using var cancellation = new CancellationTokenSource();
+            if (canceled) cancellation.Cancel();
+            var context = new ClashOfRimClientNetworkContext(missing == "server" ? " " : Context.ServerBaseUrl,
+                missing == "user" ? " " : Context.UserId, missing == "colony" ? " " : Context.ColonyId,
+                Context.CurrentSnapshotId, null, null, Context.AuthToken);
+            var result = await transport.StreamAsync(context, "session", 0, 0,
+                _ => throw new InvalidOperationException("Unconfigured stream published an event."), cancellation.Token);
+            Require(!result.Success && result.ErrorCode == "NotConfigured" && result.Message == message && factory.Uri is null,
+                "Stream admission depends on the legacy facade: " + missing + ", canceled=" + canceled);
+            message += ".";
+        }
     }
 
     private static async Task HeartbeatFailure()
@@ -72,7 +94,7 @@ internal static class SessionWebSocketTransportTests
         try
         {
             CultureInfo.CurrentCulture = culture;
-            work = new ClientSessionWebSocketTransport(factory, new Metadata()).StreamAsync(Context, "session?1", -12, 34, events.Add);
+            work = new ClientSessionWebSocketTransport(factory, new Metadata(), NotConfigured).StreamAsync(Context, "session?1", -12, 34, events.Add);
         }
         finally { CultureInfo.CurrentCulture = previous; }
         await socket.Receiving.Task;
@@ -99,7 +121,7 @@ internal static class SessionWebSocketTransportTests
 
         using var minimal = new Socket { StallSend = true };
         var minimalFactory = new Factory(minimal);
-        work = new ClientSessionWebSocketTransport(minimalFactory, new Metadata(null)).StreamAsync(
+        work = new ClientSessionWebSocketTransport(minimalFactory, new Metadata(null), NotConfigured).StreamAsync(
             new ClashOfRimClientNetworkContext("http://localhost:8123", "a", "b", null, null, null, null), null, 0, 0, _ => { });
         minimal.RemoteClose();
         result = await Finish(work, "Remote close did not cancel an in-flight send.");
@@ -112,7 +134,7 @@ internal static class SessionWebSocketTransportTests
     private static async Task CloseTimeout()
     {
         using var socket = new Socket { StallClose = true };
-        var work = new ClientSessionWebSocketTransport(new Factory(socket), new Metadata(), TimeSpan.FromMilliseconds(30))
+        var work = new ClientSessionWebSocketTransport(new Factory(socket), new Metadata(), NotConfigured, TimeSpan.FromMilliseconds(30))
             .StreamAsync(Context, "session", 0, 0, _ => { });
         socket.RemoteClose();
         try
@@ -158,7 +180,7 @@ internal static class SessionWebSocketTransportTests
             using var socket = new Socket { LateReceive = new(TaskCreationOptions.RunContinuationsAsynchronously) };
             using var cancellation = new CancellationTokenSource();
             int events = 0;
-            var work = new ClientSessionWebSocketTransport(new Factory(socket), new Metadata())
+            var work = new ClientSessionWebSocketTransport(new Factory(socket), new Metadata(), NotConfigured)
                 .StreamAsync(Context, "session", 0, 0, _ => events++, cancellation.Token);
             await socket.Receiving.Task;
             if (reset) ClientSessionWork.Reset(); else cancellation.Cancel();
@@ -194,7 +216,7 @@ internal static class SessionWebSocketTransportTests
     {
         using var socket = new Socket { StallSend = true };
         var expected = new ApplicationException("subscriber failed");
-        var work = new ClientSessionWebSocketTransport(new Factory(socket), new Metadata())
+        var work = new ClientSessionWebSocketTransport(new Factory(socket), new Metadata(), NotConfigured)
             .StreamAsync(Context, "session", 0, 0, _ => throw expected);
         socket.Text("{\"eventName\":\"notice\",\"data\":\"{}\"}");
         try { await Finish(work, "Callback failure left the ping task running."); throw new Exception("Callback failure was swallowed."); }
@@ -205,7 +227,7 @@ internal static class SessionWebSocketTransportTests
     private static async Task ConnectionReportsFailure()
     {
         using var socket = new Socket { SendError = new WebSocketException("ping failed") };
-        var connection = new ClientSessionConnection(new ClientSessionWebSocketTransport(new Factory(socket), new Metadata()));
+        var connection = new ClientSessionConnection(new ClientSessionWebSocketTransport(new Factory(socket), new Metadata(), NotConfigured));
         var statuses = new List<SessionConnectionStatus>();
         string? lost = null;
         connection.StatusChanged += (status, _) => statuses.Add(status);
@@ -217,7 +239,7 @@ internal static class SessionWebSocketTransportTests
     }
 
     private static Task<ClashOfRimClientNetworkResult<ModSessionStreamClosedDto>> Stream(Factory factory, CancellationToken token = default) =>
-        new ClientSessionWebSocketTransport(factory, new Metadata()).StreamAsync(Context, "session?1", 12, 34, _ => { }, token);
+        new ClientSessionWebSocketTransport(factory, new Metadata(), NotConfigured).StreamAsync(Context, "session?1", 12, 34, _ => { }, token);
     private static async Task<T> Finish<T>(Task<T> work, string failure)
     {
         if (await Task.WhenAny(work, Task.Delay(1500)) != work) throw new Exception(failure);
@@ -226,6 +248,7 @@ internal static class SessionWebSocketTransportTests
     private static async Task Observe(Task work) { try { await work.WaitAsync(TimeSpan.FromSeconds(2)); } catch { } }
     private static void Require(bool value, string message) { if (!value) throw new Exception(message); }
 
+    private static string NotConfigured() => "Not configured";
     private sealed class Metadata : IClientProtocolMetadata
     {
         internal Metadata(string? language = "简体中文") => CurrentLanguage = language;
