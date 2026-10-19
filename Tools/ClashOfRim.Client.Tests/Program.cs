@@ -19,6 +19,7 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("support quest lifecycle owns transitions and reuses the return transaction", ClientSupportQuestLifecycleTests.Run),
     ("ideology reform events reuse scoped extension registration", ClientIdeologyReformTests.Run),
     ("compatibility runtime entries use session permission and world catalog owners", CompatibilityRuntimeEntryTests.Run),
     ("main menu server entry binds native windows to the existing entry forms", ClientMainMenuEntryTests.Run),

@@ -153,8 +153,8 @@ internal static class ClientSupportReturnsTests
         Task first = f.Confirm(); await f.Steps(5); await first; await f.Steps(5); await next!;
         Require(f.Refreshes == 2 && !f.Sync.IsBusy && !f.Mutations.IsPending, "Old finally ended completion callback work.");
     }
-    private enum Fault { None, Transport, Exception, Rejected, Forbidden, MissingReceipt, MissingResult, Prepare, Complete, Upload }
-    private sealed class Source : IClientSupportReturnSource
+    internal enum Fault { None, Transport, Exception, Rejected, Forbidden, MissingReceipt, MissingResult, Prepare, Complete, Upload }
+    internal sealed class Source : IClientSupportReturnSource
     {
         private readonly string eventId;
         internal Source(string eventId) => this.eventId = eventId;
@@ -172,7 +172,7 @@ internal static class ClientSupportReturnsTests
         }
         public void Complete() { Completions++; if (Failure == Fault.Complete) throw new IOException("partial quest completion"); }
     }
-    private sealed class Fixture : IDisposable, IClientSupportReturnRuntime, IClientSupportReturnTransport, IClientSupportPresentation,
+    internal sealed class Fixture : IDisposable, IClientSupportReturnRuntime, IClientSupportReturnTransport, IClientSupportPresentation,
         IClientSnapshotTransport, IClientLocalSnapshotPresentation
     {
         internal readonly EventModuleTestPorts Ports = new();

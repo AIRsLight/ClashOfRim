@@ -270,6 +270,7 @@ public sealed partial class ClashOfRimMod : Mod
             snapshotTransactions, snapshotFailureRecovery, localSnapshotConfirmation, new ClientSupportReturnRuntime(supportPresentation),
             new ClientSupportTransport(), supportPresentation);
         supportReturns.Completed += StartQueuedAutomaticEventRefreshAfterLocalAtomicMutation;
+        ClientSupportQuestCallbacks.Attach(new(new ClientSupportQuestLifecycle(sessionLifecycle, new ClientSnapshotGame(), supportReturns)));
         var raidTransport = new ClientRaidTransport();
         var raidPresentation = new ClientRaidLaunchPresentation(message => diagnostics.WorldMapStatus = message);
         var raidLaunching = new ClientRaidLaunching(sessionLifecycle, mutationAdmission, synchronization, localMutations,

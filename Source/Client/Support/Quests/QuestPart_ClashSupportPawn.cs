@@ -1,4 +1,3 @@
-using System;
 using AIRsLight.ClashOfRim.Quests;
 using RimWorld;
 using Verse;
@@ -33,61 +32,10 @@ public sealed class QuestPart_ClashSupportPawn : QuestPartActivable
     public override void QuestPartTick()
     {
         base.QuestPartTick();
-        if (Completed || string.IsNullOrWhiteSpace(EventId))
-        {
-            return;
-        }
-
-        if (PermanentSupport)
-        {
-            Completed = true;
-            ClashManagedQuestUtility.EndManagedQuest(this, QuestEndOutcome.Success, sendLetter: false, playSound: false);
-            return;
-        }
-
-        ClashOfRimGameComponent? component = Verse.Current.Game?.GetComponent<ClashOfRimGameComponent>();
-        bool assignmentStillExists = component?.HasSupportAssignment(EventId) == true;
-        if (!assignmentStillExists)
-        {
-            Completed = true;
-            ClashManagedQuestUtility.EndManagedQuest(this, QuestEndOutcome.Success, sendLetter: false, playSound: false);
-            return;
-        }
-
-        ClashOfRimMod? mod = LoadedModManager.GetMod<ClashOfRimMod>();
-        if (FinishRequested)
-        {
-            _ = mod?.TryConfirmDepartedSupportAssignment(EventId, string.IsNullOrWhiteSpace(FinishReason) ? "QuestExpired" : FinishReason);
-            return;
-        }
-
-        if (IsExpired)
-        {
-            if (mod?.TryStartSupportAssignmentReturnFromQuest(EventId, "QuestExpired") == true)
-            {
-                FinishRequested = true;
-                FinishReason = "QuestExpired";
-            }
-        }
+        _ = ClientSupportQuestCallbacks.Current?.TickAsync(this);
     }
 
-    public bool TryStartEarlyReturnNow()
-    {
-        if (!CanStartEarlyReturnNow)
-        {
-            return false;
-        }
-
-        ClashOfRimMod? mod = LoadedModManager.GetMod<ClashOfRimMod>();
-        if (mod?.TryStartSupportAssignmentReturnFromQuest(EventId, "EarlyReturn") != true)
-        {
-            return false;
-        }
-
-        FinishRequested = true;
-        FinishReason = "EarlyReturn";
-        return true;
-    }
+    public bool TryStartEarlyReturnNow() => ClientSupportQuestCallbacks.Current?.TryStartEarlyReturn(this) == true;
 
     public override void ExposeData()
     {
