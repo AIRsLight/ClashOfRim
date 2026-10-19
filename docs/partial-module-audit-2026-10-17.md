@@ -4,7 +4,7 @@
 
 审计基线为 `ee55d0b0` 加当时工作区，包括此前未提交的改动。初次审计只增加计划；后续实施状态见文末记录。以下 P2/P3 表示结构改造优先级，不代表新复现的功能故障。1.6 冻结内容不参与改造。
 
-**实施进度（M12c7 后）：剩余 8 个 partial 类型、15 处声明、13 个文件；其中实际跨文件为 3 个类型、10 处声明、10 个文件。** GameSuite 已收尾，经济、事件失败报告、礼物拒收、袭击创建、清理、证据及超时的验证入口与共享夹具已独立。后续仍有 1 组 Save 测试模块化、2 个生产类型归并、5 个单声明修饰符清理和最终复核；详细实施与验证见文末。[M12c3 后审计](partial-module-audit-2026-10-19-post-m12c3.md)及其[机器清单](partial-module-inventory-2026-10-19-post-m12c3.json)保留 M12c4 开始前的时点，[GameSuite 收尾后审计](partial-module-audit-2026-10-19-post-gamesuite.md)保留 M12c1 开始前的时点。
+**实施进度（M12c8 后）：剩余 7 个 partial 类型、13 处声明、11 个文件；其中实际跨文件为 2 个类型、8 处声明、8 个文件。** GameSuite 和计划内八组 Save.Tests 的 partial 拆分已完成，测试工具不再有 partial 类型声明。后续仍有 2 个生产类型归并、5 个单声明修饰符清理和最终复核；详细实施与验证见文末。[M12c3 后审计](partial-module-audit-2026-10-19-post-m12c3.md)及其[机器清单](partial-module-inventory-2026-10-19-post-m12c3.json)保留 M12c4 开始前的时点，[GameSuite 收尾后审计](partial-module-audit-2026-10-19-post-gamesuite.md)保留 M12c1 开始前的时点。
 
 2026-10-19 再审计快照：以 `62a9ffb7` 加当时工作区扫描 **1,905 个 C# 文件**，剩余量为 **12／26／19**。该时点 M12c6 只有共享设施准备改动，未计为完成。[机器清单](partial-module-inventory-2026-10-19-post-m12c5.json)及文末“剩余 partial 耦合再审计”保留该时点的范围、依赖证据和处理顺序；后续 M12c6 已完成，见最新实施记录。
 
@@ -4066,3 +4066,23 @@ GameSuite 删除无调用者的 `Confirm`、`AcceptLanguageWarning`、`Idle`、`
 扫描 **1,912 个源文件**，剩余 **8 个 partial 类型、15 处声明、13 个文件**，实际跨文件为 **3 个类型、10 处声明、10 个文件**；机器结果 `LocalOnly/partial-module-audit/inventory-after-raid-timeout.json`。仅修改测试与文档，既存未提交工作及冻结 1.6 保留，未推送。
 
 **下一步 M12c8：SupportClosureTests 与恢复准备分片，解除恢复夹具对测试类、凭据和完成断言的反向依赖。** 此后仍有兼容 API 门面、银行注册表归并，五处单声明修饰符清理及最终依赖／外部契约复核，整体目标继续保持未完成。
+
+### M12c8：支援结束、恢复夹具与案例凭据所有权独立（2026-10-19）
+
+`SupportClosureTests` 和 `SupportClosureRecoveryPreparationTests` 成为两个独立非 partial 入口，各自初始化本地化并在 Program 登记。主测试不再隐式运行恢复矩阵；返回、损失和拒绝的全部原场景仍由对应入口执行。`SupportClosureTestData` 集中源事件、pawn 包与 XML、请求、历史键及业务种类，Kinds 对外只读，内容和原始时间保持不变。
+
+`SupportClosureTestClient` 接管真实支援服务调用，每个实例拥有自己的线程安全令牌缓存。构造器只保存支援服务、账本、会话注册表和令牌注册表；Create 在装配点从状态容器取得这些依赖，客户端不保留整个 NetworkState。删除测试类内按 NetworkState 索引的静态 ConditionalWeakTable，普通案例显式创建客户端，重建状态时同步替换客户端。相同客户端并发调用共用已有会话；另一个客户端创建新会话后，旧客户端仍使用旧凭据并被拒绝，不会隐式重新登录。令牌创建复用 `SessionTestAuthentication` 新增的窄依赖重载，现有接受状态容器的入口仅负责转发。
+
+`SupportClosureRecoveryFixture` 独立拥有数据库、日志、源事件、外部意图、快照、当前状态、存储、请求客户端和凭据，私有构造器经自身 With 作用域及 `SqliteTestDirectory` 管理资源。Open 保留持久输入，替换客户端／令牌／锁绑定，清除故障钩子与 AfterPublication 回调，沿用原重开语义。夹具不再调用 SupportClosureTests.Source／Call／Verify，也不通过测试类创建会话。
+
+完成断言迁入 `SupportClosureTestAssertions`，明确接收待核对的事件集合。恢复夹具先排除自身外部礼物，再复用相同断言，删除为验证结果而复制 InMemoryAuthoritativeEventLedger 的步骤；状态、双方归属、源事件、pawn 身份及拒绝元数据的检查全部保留。事件一致性检查复用 `EventLedgerTestEvidence.Same`，仍同时比较事件和运行时 payload，未换成较弱的仅事件比较。目录、断言、异常检查及锁释放复用已有设施；共享 `SqliteTestDatabase` 负责两个入口原本共用的 SQL 执行，不再让恢复测试依赖另一测试类的私有方法。
+
+原 **13 个核心场景方法、5 个恢复场景方法及两组入口矩阵**均经静态比对确认保留，包括嵌套源 ID、旧键迁移、账本回滚、并发完成、鉴权、取消及相反结算；恢复矩阵仍有 **66 次夹具组合**。源事件、pawn XML／包、请求字段、历史键算法、调用分支、死亡 pawn 断言与完成判定也已逐项核对，日志 `LocalOnly/module-migration/support-closure-static-review.log`。比对只证明迁移一致性，行为证据来自相关测试。
+
+新增生命周期验证覆盖三种业务、原始／预准备意图和正常／异常退出的 **12 个组合**：重开保持源事件和待办日志，旧客户端与旧凭据不能触发恢复，新的请求只发布一次外部意图并产生一个结束回执，重复调用不改写持久业务，异常仍删除目录。额外客户端所有权验证包含 16 路首次取令牌竞争、同一状态中新客户端替换会话，以及两个独立案例相同用户的状态隔离。编译依赖守卫覆盖两类验证及其数据、请求、断言、夹具和共享设施，禁止反向依赖其他测试类。
+
+**5 个不同相关单元测试组通过，两个进程均退出 0**。`support-closure-modules-tests.log` 包含原支援结束、独立恢复准备和新夹具三组；`support-closure-auth-consumers-tests.log` 包含共享认证入口的袭击创建、袭击证据夹具两组。没有全量回归、RimTest 实机或独立发布构建。仅测试与文档变更，既存未提交工作和冻结 1.6 保留，未推送。
+
+扫描 **1,918 个源文件**，剩余 **7 个 partial 类型、13 处声明、11 个文件**；其中跨文件仅 **ClashOfRimCompatibilityApi、BankLoanRegistry** 两个生产类型，合计 **8 处声明、8 个文件**。`Tools` 已无 partial 类型；机器结果 `LocalOnly/partial-module-audit/inventory-after-support-closure.json`。这不代表所有非 partial 测试代码的依赖均已审计。
+
+**下一步归并 ClashOfRimCompatibilityApi 的六个公开门面分片，保持已经独立的能力模块和外部 API 契约。** 随后归并 BankLoanRegistry，清理五处单声明修饰符，并完成原计划的依赖、API／协议／Harmony／存档契约复核；整体目标仍未完成。

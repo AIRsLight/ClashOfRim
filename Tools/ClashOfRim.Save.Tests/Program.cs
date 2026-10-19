@@ -114,6 +114,8 @@ var tests = new (string Name, Action Run)[]
     ("事件入档原子提交且重复确认恢复应用结果与交易成就", () => EventConfirmationStageTests.Run(BuildFixturePackage)),
     ("单条批量事件确认跨中断恢复且保留原始结果回执", () => ConfirmationJournalTests.Run(BuildFixturePackage)),
     ("支援结束与拒绝原子提交且按源事件去重", () => SupportClosureTests.Run(BuildFixturePackage)),
+    ("支援结束恢复准备、授权复验与并发重放", () => SupportClosureRecoveryPreparationTests.Run(BuildFixturePackage)),
+    ("支援结束夹具、请求凭据与恢复生命周期", () => SupportClosureFixtureTests.Run(BuildFixturePackage)),
     ("事件失败报告夹具与共享设施依赖边界", EventFailureFixtureTests.Run),
     ("事件失败报告限定接收方和来源且重试恢复通知", EventFailureReportTests.Run),
     ("事件失败报告恢复准备、委托授权与重开", () => EventFailureRecoveryPreparationTests.Run(BuildFixturePackage)),
