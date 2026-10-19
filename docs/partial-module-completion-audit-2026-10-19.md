@@ -2,6 +2,48 @@
 
 本轮代码基线为 `0f1affba` 加工作区，承接[主计划](partial-module-audit-2026-10-17.md)的 A1–A9、M1–M12 和六条每步验收标准。**partial 清理已经完成，整体目标尚未完成验收。** 本表分别记录已经核对的范围和仍需补足的证据，不把编译或结构扫描等同于游戏行为验证。
 
+## 最新复审：还剩多少 partial 耦合
+
+复审基线为 `123056d9` 加当前工作区。重新运行 Roslyn 清单工具，覆盖 `Source`、`Tools`、`ThirdPartyCompat/Source` 的 **1,912 个 C# 文件**，排除 `bin`／`obj`；另对整个 ThirdPartyCompat 进行文本交叉检查。结果如下，冻结 1.6 和独立 RimTest 子仓库不计入本次迁移范围。
+
+| 计数口径 | 当前剩余 |
+| --- | ---: |
+| 跨文件 partial 类型／耦合组 | **0** |
+| 单文件多余 partial 类型 | **0** |
+| partial 类型声明／涉及文件 | **0／0** |
+
+最后两组兼容 API、银行注册表分别已在 `4aae8aff`、`1183cf28` 归并；五处单声明修饰符已在 `0f1affba` 清理。旧报告中的 **7／13／11** 是 M12c8 时点的历史数量，不是当前待办。当前机器结果为 `LocalOnly/partial-module-audit/inventory-current-reaudit.json`（空清单）。
+
+本次同时重跑两组边界单元，均退出 0：客户端检查 1,702 个纯模块／生成类型，另覆盖兼容能力 127、Ideology 装配 14、页面 213、窗口宿主 9、事件适配 318 个类型；服务端检查 466 个模块类型、81 个端点及恢复归属。客户端和服务端业务模块目录中未检索到对 Mod、全量 NetworkState、服务器宿主或 IServiceProvider 的直接引用。上述结果证明现有守卫范围内的边界，不足以证明所有跨域生命周期都已验收。
+
+### 仍未关闭的四类验收
+
+以下是四类收尾工作，**不是四组已确认的 partial 缺陷**，也不应据文件长度重新安排机械拆分。
+
+| 顺序 | 范围 | 具体剩余工作与当前证据 |
+| --- | --- | --- |
+| 1 | Harmony／Scribe 和外部契约（M13b） | 原始 JSON／枚举／补丁／Scribe 差异已有静态清单，历史日志／回执已有等价核对和相关单元证据；尚需完成所有差异分类并关闭存档／补丁验证。当前还存在下面已复现的测试隔离问题，不能宣称相关组合测试全通过。 |
+| 2 | 客户端／服务端组合根及状态归属（A1／A2／A4） | [ClashOfRimMod](../Source/Client/Core/ClashOfRimMod.cs#L61) 为 642 行，[NetworkState](../Source/Server/ClashOfRim.Network/Client/ClashOfRimNetworkState.cs#L28) 为 452 行、39 个构造参数、128 个属性。已检查其装配和转发用途，模块边界守卫通过；仍需逐项收拢静态 Attach、延迟恢复装配及状态唯一所有者的例外清单。体量本身不构成残留 partial 耦合。 |
+| 3 | 窗口／页面生命周期（A5） | [窗口宿主](../Source/Client/Multiplayer/Windows/ClashOfRimMultiplayerWindow.cs#L12) 持有静态工厂绑定，替换装配时关闭旧页面；[MultiplayerWindowPages.Close](../Source/Client/Multiplayer/Composition/MultiplayerWindowPages.cs#L13) 统一转发关闭。还需将关窗、重开、编辑草稿和会话切换的状态所有权与现有行为测试逐项对应。 |
+| 4 | DLC 能力和游戏加载生命周期（A7） | 能力／Ideology 边界单元通过；仍需最后核对 Biotech 编解码唯一来源、Ideology 目录／加载对象与 Scribe 的生命周期归属及允许的游戏适配依赖。 |
+
+### 已复现、仍未修复：pawn 测试影响后续难度同步测试
+
+移除上轮临时诊断输出后，以当前源码编译客户端测试：难度同步测试单独运行通过 **113 个场景**；同进程先运行 `PawnScribeLoaderTests`，再运行 `ClientStorytellerConfigurationTests`，前者通过，后者在 `session.Prepare(captured)` 返回空后报 `Valid Scribe difficulty rejected.`，进程退出 1。
+
+这是可复现的测试间状态／运行时隔离问题，尚不能据此断定游戏正常执行会失败。调查入口为 [PawnScribeLoaderTests 的原生／泛型 Harmony 补丁](../Tools/ClashOfRim.Client.Tests/PawnScribeLoaderTests.cs#L33)及其 finally 清理，以及 [难度基线恢复](../Source/Client/MainMenu/WorldSetup/ClientStorytellerRuntime.cs#L79)。根因尚未确认；后续应修复隔离，不能靠换序、只跑单组或放宽断言将其标记通过。它属于上述第 1 类验收阻塞，不增加 partial 剩余数量。
+
+本次新增证据：
+
+- `LocalOnly/module-migration/partial-reaudit-client-boundaries.log`：客户端边界组通过。
+- `LocalOnly/module-migration/partial-reaudit-server-boundaries.log`：服务端边界组通过。
+- `LocalOnly/module-migration/partial-reaudit-storyteller-alone.log`：难度同步单组通过。
+- `LocalOnly/module-migration/partial-reaudit-scribe-isolation.log`：两组按当前注册顺序运行，复现失败。
+
+此前已产生且本次核阅的证据：`final-recovery-ownership-tests.log` 中九组恢复归属相关单元通过；`final-journal-static-audit.log` 核对历史日志、回执和应用顺序；`final-journal-receipts-tests.log` 中回执恢复组通过；`final-contract-inventory.log` 记录契约差异数量。这些没有在本次重新全跑，也没有仅凭静态差异计数关闭契约验收。
+
+本次只更新审计记录，保留其他既有未提交工作；未运行全量回归或实机 RimTest。整体结论是 **partial 拆分剩余 0 组，最终验收仍有四类工作，其中一个测试隔离阻塞已复现**。
+
 ## 本轮已完成的三个实现步骤
 
 | 提交 | 结果 | 本步验证 |
