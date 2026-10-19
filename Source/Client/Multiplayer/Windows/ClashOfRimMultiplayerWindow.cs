@@ -17,6 +17,7 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
     private ClientShopPanel? shopPanel;
     private MultiplayerShopPage? shopPage;
     private MultiplayerAdminShopPage? adminShopPage;
+    private MultiplayerAdminPlayersPage? adminPlayersPage;
     private ClientBankPanel? bankPanel;
     private MultiplayerBankPage? bankPage;
     private MultiplayerMercenaryPage? mercenaryPage;
@@ -70,6 +71,7 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
         tradePage ??= mod.CreateTradePage();
         if (shopPanel is null) (shopPanel, shopPage) = mod.CreateShopPage();
         adminShopPage ??= mod.CreateAdminShopPage(shopPanel);
+        adminPlayersPage ??= mod.CreateAdminPlayersPage();
         if (bankPanel is null) (bankPanel, bankPage) = mod.CreateBankPage();
         mercenaryPage ??= mod.CreateMercenaryPage(bankPanel);
         accountPage ??= mod.CreateAccountPage();
@@ -124,6 +126,7 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
         tradePage?.Close();
         shopPage?.Close();
         adminShopPage?.Close();
+        adminPlayersPage?.Close();
         bankPage?.Close();
         mercenaryPage?.Close();
         accountPage?.Close();

@@ -183,6 +183,7 @@ internal static class ClientAdministrationTests
         internal readonly ConcurrentQueue<(string Operation, ClashOfRimClientNetworkContext Context)> Calls = new();
         internal Action<string>? Hook; internal Func<string, Task>? Before; internal string? FaultOperation, Fault; internal bool Discard;
         internal ModAdminConfigurationDto? Sent;
+        internal Action<ClientAdminCommand>? ObserveCommand;
         internal ModAdminStatusResponseDto ReadResponse = new() { Result = new() { Accepted = true }, IsAdministrator = true, Configuration = Config(3), Players = new() { new() { UserId = "alice" } } };
         internal ModAdminUpdateConfigurationResponseDto SaveResponse = new() { Result = new() { Accepted = true }, Configuration = Config(5) };
         internal ModAdminActionResponseDto ActionResponse = new() { Result = new() { Accepted = true } };
@@ -217,7 +218,11 @@ internal static class ClientAdministrationTests
         public Task<ClashOfRimClientNetworkResult<ModAdminUpdateConfigurationResponseDto>> SaveAsync(ClashOfRimClientNetworkContext context, ModAdminConfigurationDto configuration, CancellationToken token)
         { Sent = configuration; return Network("save", context, SaveResponse, result => SaveResponse.Result = result); }
         public Task<ClashOfRimClientNetworkResult<ModAdminActionResponseDto>> ActAsync(ClashOfRimClientNetworkContext context, ClientAdminCommand command, CancellationToken token)
-        { Check(command.Kind == "Custom İ" && command.Message == "消息" && !command.Persistent, "Command fields changed."); return Network("action", context, ActionResponse, result => ActionResponse.Result = result); }
+        {
+            if (ObserveCommand is { } observe) observe(command);
+            else Check(command.Kind == "Custom İ" && command.Message == "消息" && !command.Persistent, "Command fields changed.");
+            return Network("action", context, ActionResponse, result => ActionResponse.Result = result);
+        }
         private async Task<ClashOfRimClientNetworkResult<T>> Network<T>(string operation, ClashOfRimClientNetworkContext context, T response, Action<ModProtocolResponseDto?> setResult) where T : class
         {
             Calls.Enqueue((operation, context)); string? fault = operation == FaultOperation ? Fault : null;

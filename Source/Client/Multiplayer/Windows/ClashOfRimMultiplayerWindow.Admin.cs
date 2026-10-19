@@ -58,7 +58,7 @@ public sealed partial class ClashOfRimMultiplayerWindow
                 adminConfigurationPage!.DrawAdminRaidPanel(body, draft);
                 break;
             case AdminPanelTab.Players:
-                DrawAdminPlayersPanel(body, mod, status);
+                adminPlayersPage!.Draw(body);
                 break;
             case AdminPanelTab.Maintenance:
                 DrawAdminMaintenancePanel(body, mod, status);
@@ -210,55 +210,6 @@ public sealed partial class ClashOfRimMultiplayerWindow
 
         Widgets.EndScrollView();
         adminConfigurationPage!.DrawAdminSaveFooter(rect, draft);
-    }
-
-    private void DrawAdminPlayersPanel(Rect rect, ClashOfRimMod mod, ModAdminStatusResponseDto? status)
-    {
-        IReadOnlyList<ModAdminPlayerSummaryDto> players = status?.Players ?? new List<ModAdminPlayerSummaryDto>();
-        Rect view = BeginAdminScroll(rect, ref adminScrollPosition, Math.Max(rect.height, players.Count * 70f + 20f));
-        float y = 0f;
-        if (players.Count == 0)
-        {
-            Widgets.Label(new Rect(0f, y, view.width, 32f), ClashOfRimText.Key("ClashOfRim.Admin.NoPlayers"));
-        }
-
-        foreach (ModAdminPlayerSummaryDto player in players)
-        {
-            Rect row = new(0f, y, view.width, 64f);
-            Widgets.DrawMenuSection(row);
-            Rect inner = row.ContractedBy(6f);
-            string flags = (player.Online ? ClashOfRimText.Key("ClashOfRim.Multiplayer.Online") : ClashOfRimText.Key("ClashOfRim.Multiplayer.Offline"))
-                + (player.IsAdministrator ? "  " + ClashOfRimText.Key("ClashOfRim.Admin.AdminFlag") : string.Empty)
-                + (player.IsBanned ? "  " + ClashOfRimText.Key("ClashOfRim.Admin.BannedFlag") : string.Empty);
-            string displayName = string.IsNullOrWhiteSpace(player.DisplayName) ? player.UserId : player.DisplayName!;
-            Widgets.Label(new Rect(inner.x, inner.y, inner.width - 520f, 24f), displayName);
-            Text.Font = GameFont.Tiny;
-            Widgets.Label(new Rect(inner.x, inner.y + 26f, inner.width - 520f, 18f), flags + "  " + player.UserId);
-            Text.Font = GameFont.Small;
-
-            float x = inner.xMax - 150f;
-            bool isCurrentPlayer = string.Equals(player.UserId, mod.CurrentUserId, StringComparison.Ordinal);
-            if (isCurrentPlayer)
-            {
-                Text.Font = GameFont.Tiny;
-                Widgets.Label(new Rect(x - 120f, inner.y + 14f, 260f, 24f), ClashOfRimText.Key("ClashOfRim.Multiplayer.CurrentPlayer"));
-                Text.Font = GameFont.Small;
-                y += 70f;
-                continue;
-            }
-
-            if (Widgets.ButtonText(
-                    new Rect(x, inner.y + 10f, 140f, 30f),
-                    ClashOfRimText.Key("ClashOfRim.Admin.PlayerManage"),
-                    active: !mod.AdminInProgress))
-            {
-                OpenAdminPlayerActionMenu(mod, player);
-            }
-
-            y += 70f;
-        }
-
-        Widgets.EndScrollView();
     }
 
     private void DrawAdminMaintenancePanel(Rect rect, ClashOfRimMod mod, ModAdminStatusResponseDto? status)
@@ -416,52 +367,6 @@ public sealed partial class ClashOfRimMultiplayerWindow
         Widgets.EndScrollView();
     }
 
-    private void OpenAdminPlayerActionMenu(ClashOfRimMod mod, ModAdminPlayerSummaryDto player)
-    {
-        var options = new List<FloatMenuOption>
-        {
-            BuildAdminPlayerActionOption(mod, "Kick", player, ClashOfRimText.Key("ClashOfRim.Admin.ActionKick")),
-            BuildAdminPlayerActionOption(
-                mod,
-                player.IsBanned ? "Unban" : "Ban",
-                player,
-                player.IsBanned ? ClashOfRimText.Key("ClashOfRim.Admin.ActionUnban") : ClashOfRimText.Key("ClashOfRim.Admin.ActionBan")),
-            BuildAdminPlayerActionOption(
-                mod,
-                player.IsAdministrator ? "RevokeAdmin" : "PromoteAdmin",
-                player,
-                player.IsAdministrator ? ClashOfRimText.Key("ClashOfRim.Admin.ActionRevokeAdmin") : ClashOfRimText.Key("ClashOfRim.Admin.ActionPromoteAdmin")),
-            BuildAdminPlayerActionOption(
-                mod,
-                "DeletePlayerSave",
-                player,
-                ClashOfRimText.Key("ClashOfRim.Admin.ActionDeletePlayerSave"),
-                ClashOfRimText.Key(
-                    "ClashOfRim.Admin.ConfirmDeletePlayerSave",
-                    player.UserId.Named("USER"))),
-            new(ClashOfRimText.Key("ClashOfRim.Admin.ActionResetPassword"), () =>
-            {
-                Find.WindowStack.Add(new AdminResetPasswordDialogWindow(mod, player));
-            })
-        };
-        Find.WindowStack.Add(new FloatMenu(options));
-    }
-
-    private static FloatMenuOption BuildAdminPlayerActionOption(
-        ClashOfRimMod mod,
-        string actionKind,
-        ModAdminPlayerSummaryDto player,
-        string label,
-        string? confirmationText = null)
-    {
-        return new FloatMenuOption(label, () =>
-        {
-            Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation(
-                confirmationText ?? ClashOfRimText.Key("ClashOfRim.Admin.ConfirmAction", label.Named("ACTION"), player.UserId.Named("USER")),
-                () => mod.StartAdminAction(actionKind, player.UserId, player.ColonyId)));
-        });
-    }
-
     private static string DisplayAdminModName(ModAdminCompatibilityModDto mod)
     {
         return string.IsNullOrWhiteSpace(mod.Name) ? mod.PackageId : mod.Name;
@@ -577,56 +482,4 @@ public sealed partial class ClashOfRimMultiplayerWindow
             : value.ToLowerInvariant();
     }
 
-    private sealed class AdminResetPasswordDialogWindow : Window
-    {
-        private readonly ClashOfRimMod mod;
-        private readonly ModAdminPlayerSummaryDto player;
-        private string newPassword = string.Empty;
-
-        public AdminResetPasswordDialogWindow(ClashOfRimMod mod, ModAdminPlayerSummaryDto player)
-        {
-            this.mod = mod;
-            this.player = player;
-            doCloseX = true;
-            closeOnClickedOutside = false;
-            absorbInputAroundWindow = true;
-            forcePause = false;
-        }
-
-        public override Vector2 InitialSize => new(460f, 190f);
-
-        public override void DoWindowContents(Rect inRect)
-        {
-            Text.Font = GameFont.Medium;
-            Widgets.Label(new Rect(inRect.x, inRect.y, inRect.width, 30f), ClashOfRimText.Key("ClashOfRim.Admin.ActionResetPassword"));
-            Text.Font = GameFont.Small;
-            Widgets.Label(new Rect(inRect.x, inRect.y + 42f, inRect.width, 24f), ClashOfRimText.Key(
-                "ClashOfRim.Admin.ResetPasswordTarget",
-                player.UserId.Named("USER")));
-            Widgets.Label(new Rect(inRect.x, inRect.y + 76f, 110f, 24f), ClashOfRimText.Key("ClashOfRim.Admin.NewPassword"));
-            newPassword = GUI.PasswordField(new Rect(inRect.x + 120f, inRect.y + 74f, inRect.width - 120f, 28f), newPassword ?? string.Empty, '*');
-
-            if (Widgets.ButtonText(new Rect(inRect.xMax - 204f, inRect.yMax - 36f, 96f, 32f), ClashOfRimText.Key("ClashOfRim.Cancel")))
-            {
-                Close();
-            }
-
-            if (Widgets.ButtonText(new Rect(inRect.xMax - 100f, inRect.yMax - 36f, 100f, 32f), ClashOfRimText.Key("ClashOfRim.Confirm")))
-            {
-                Confirm();
-            }
-        }
-
-        public override void OnAcceptKeyPressed()
-        {
-            Confirm();
-            Event.current?.Use();
-        }
-
-        private void Confirm()
-        {
-            mod.StartAdminAction("ResetOfflinePassword", player.UserId, player.ColonyId, message: newPassword ?? string.Empty);
-            Close();
-        }
-    }
 }
