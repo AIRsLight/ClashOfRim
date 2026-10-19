@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace AIRsLight.ClashOfRim.ClientNetwork;
 
 [DataContract]
-public sealed partial class ModThingReferenceDto
+public sealed class ModThingReferenceDto
 {
     [DataMember(Name = "globalKey")]
     public string GlobalKey { get; set; } = string.Empty;

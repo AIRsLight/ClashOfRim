@@ -4,7 +4,7 @@
 
 审计基线为 `ee55d0b0` 加当时工作区，包括此前未提交的改动。初次审计只增加计划；后续实施状态见文末记录。以下 P2/P3 表示结构改造优先级，不代表新复现的功能故障。1.6 冻结内容不参与改造。
 
-**实施进度（M12d2 后）：跨文件 partial 已清零，剩余 5 个单声明类型、5 处声明、3 个文件。** GameSuite、计划内八组 Save.Tests 的 partial 拆分，以及兼容 API 门面和银行注册表归并已完成。后续仍有五处多余修饰符清理和最终依赖／契约复核；详细实施与验证见文末。[M12c3 后审计](partial-module-audit-2026-10-19-post-m12c3.md)及其[机器清单](partial-module-inventory-2026-10-19-post-m12c3.json)保留 M12c4 开始前的时点，[GameSuite 收尾后审计](partial-module-audit-2026-10-19-post-gamesuite.md)保留 M12c1 开始前的时点。
+**实施进度（M12d3 后）：扫描范围内的 partial 类型、声明和文件均已清零。** GameSuite、计划内八组 Save.Tests 拆分，兼容 API／银行注册表归并及五处多余修饰符清理已完成。最终依赖与 API／协议／Harmony／存档契约复核仍待完成，不能仅据 partial 清零宣布整体目标完成；详细实施与验证见文末。[M12c3 后审计](partial-module-audit-2026-10-19-post-m12c3.md)及其[机器清单](partial-module-inventory-2026-10-19-post-m12c3.json)保留 M12c4 开始前的时点，[GameSuite 收尾后审计](partial-module-audit-2026-10-19-post-gamesuite.md)保留 M12c1 开始前的时点。
 
 2026-10-19 M12c8 后审计快照：以 `e7d39465` 加当时工作区重新扫描 **1,918 个 C# 文件**，确认当时 **7／13／11** 数量，HEAD 与工作区的 partial 声明清单一致。剩余两组均为生产类型归并，其中银行仍直接跨文件访问锁和账务状态；详见 [M12c8 后审计](partial-module-audit-2026-10-19-post-m12c8.md)及其[机器清单](partial-module-inventory-2026-10-19-post-m12c8.json)。本轮只记录审计，不代表已完成这两项归并或最终契约复核。
 
@@ -4114,3 +4114,16 @@ Roslyn 与基线 `4aae8aff` 对比，确认 **60 个直接成员**的 token 和�
 扫描 **1,912 个源文件**，剩余 **5 个单声明 partial 类型、5 处声明、3 个文件，跨文件 partial 为 0**；机器结果 `LocalOnly/partial-module-audit/inventory-after-bank-registry.json`。仅本步生产文件及实施记录变更，既有未提交工作和冻结 1.6 保留；没有全量回归、RimTest 或独立构建，未推送。
 
 **下一步 M12d3：只移除五个 DTO／摘要类型上的多余 partial 修饰符，保留序列化契约并隔离既有未提交变更。** 之后必须完成最终依赖与外部契约复核，不能以跨文件 partial 清零代替该验收。
+
+
+### M12d3：移除五个单声明类型的多余修饰符（2026-10-19）
+
+只删除 `ModThingReferenceDto`、`ModCrossMapPawnReferenceDto`、`ModPawnExchangeIdentityDto`、`ModPawnExchangeAppearanceDto`、`ItemDeliveryItemSummary` 声明中的 partial。字段、属性、DataContract／DataMember、默认值、载荷读取和其他类型保持原样，不新增替代类或重复的序列化逻辑。
+
+以修改前工作区快照逐字比对，确认三个文件只有五处修饰符变化。`ModPawnExchangeDtos.cs` 和 `ItemDeliveryPayloadReader.cs` 中既有的关系字段改动原样保留但不纳入本次提交；暂存内容从 HEAD 加五处修改构造，并独立核对工作区减去本次修改后仍等于原快照。证据 `LocalOnly/module-migration/partial-modifier-static-review.log`。
+
+**3 个相关客户端单元组通过，进程退出 0**：包读取／恢复、支援请求传输、交易请求传输。复用现有数据契约与流程验证，覆盖物品 DTO、pawn 引用／包和礼物摘要的调用链；不为单纯修饰符清理增加重复测试。日志 `LocalOnly/module-migration/partial-modifier-contract-tests.log`。本步骤未改写契约内容，静态逐字等价与实际生产项目编译也已核对。
+
+重新扫描 **1,912 个源文件**，结果为 **0 个 partial 类型、0 处声明、0 个文件**；额外文本交叉检索 Source、Tools 和整个 ThirdPartyCompat 也为零。机器结果 `LocalOnly/partial-module-audit/inventory-after-modifier-cleanup.json`。未修改冻结 1.6，未运行全量回归、RimTest 或独立构建，未推送。
+
+**下一步 M13：按照本计划的目标边界及六条验收标准，逐项核对当前依赖、公开 API、端点／JSON、Harmony、存档／日志、RimTest 命令和冻结版本证据。** 发现缺口继续修复，完成前保持整体目标未完成；全量实机验证仍由用户安排。

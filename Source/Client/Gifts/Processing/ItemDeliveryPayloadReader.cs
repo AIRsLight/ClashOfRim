@@ -61,7 +61,7 @@ internal sealed class ItemDeliveryPayloadSummary
 }
 
 [DataContract]
-internal sealed partial class ItemDeliveryItemSummary
+internal sealed class ItemDeliveryItemSummary
 {
     [DataMember(Name = "GlobalKey")]
     public string GlobalKey { get; set; } = string.Empty;

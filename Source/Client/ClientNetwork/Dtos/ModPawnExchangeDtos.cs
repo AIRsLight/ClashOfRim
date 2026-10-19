@@ -17,7 +17,7 @@ public sealed class ModProtocolIdentityDto
 }
 
 [DataContract]
-public sealed partial class ModCrossMapPawnReferenceDto
+public sealed class ModCrossMapPawnReferenceDto
 {
     [DataMember(Name = "globalId")]
     public string GlobalId { get; set; } = string.Empty;
@@ -92,7 +92,7 @@ public sealed class ModPawnExchangeExtensionPackageDto
 }
 
 [DataContract]
-public sealed partial class ModPawnExchangeIdentityDto
+public sealed class ModPawnExchangeIdentityDto
 {
     [DataMember(Name = "thingDef")]
     public string? ThingDef { get; set; }
@@ -108,7 +108,7 @@ public sealed partial class ModPawnExchangeIdentityDto
 }
 
 [DataContract]
-public sealed partial class ModPawnExchangeAppearanceDto
+public sealed class ModPawnExchangeAppearanceDto
 {
     [DataMember(Name = "displayName")]
     public string? DisplayName { get; set; }
