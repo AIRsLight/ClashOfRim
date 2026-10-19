@@ -88,6 +88,8 @@ var tests = new (string Name, Action Run)[]
     ("chat protocol shares send and list contracts with the public facade", ClientChatProtocolTests.Run),
     ("session startup shares manual and map login, credentials and followups", ClientSessionStartupTests.Run),
     ("compatibility override protocol preserves credential recovery wire contract", ClientCompatibilityOverrideProtocolTests.Run),
+    ("mod config policy shares manifest identity, enforcement rules and cache", ClientModSettingsPolicyTests.Run),
+    ("settings and developer adapters use owned access and isolated profile lifecycle", ClientSettingsAccessTests.Run),
     ("compatibility baseline owns manifest and DLC publication", ClientCompatibilityBaselineTests.Run),
     ("compatibility override owns credential admission and catalog completion", ClientCompatibilityOverrideTests.Run),
     ("world login publication preserves request observations across identity changes", ClientWorldLoginPublicationTests.Run),

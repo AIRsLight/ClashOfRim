@@ -166,11 +166,14 @@ public sealed partial class ClashOfRimMod : Mod
         eventState = new ClientEventState(eventReader, eventReadPresentation);
         diagnostics = new ClientRuntimeDiagnostics(sessionLifecycle, eventState);
         adminAccess = new ClientAdminAccess(sessionLifecycle);
+        DeveloperToolAccessPolicy.Attach(adminAccess);
         ClashOfRimCompatibilityApi.AttachSession(sessionLifecycle);
         ClashOfRimCompatibilityApi.AttachAdministration(adminAccess);
         adminBaselineCapture = new ClientAdminBaselineCapture(sessionLifecycle, new AIRsLight.ClashOfRim.Admin.ClientAdminBaselineRuntime(), ClientMainThreadDispatcher.EnqueueSession);
         var localManifest = new ClientLocalCompatibilityManifest();
         compatibilityBaseline = new ClientCompatibilityBaseline(new ClientCompatibilityBaselineRuntime());
+        ModSettingsBaselinePolicy.Attach(adminAccess, compatibilityBaseline);
+        CompatibilityConfigOverlayPath.Attach(sessionLifecycle, compatibilityBaseline);
         var compatibilityEnvironment = new ClientProtocolEnvironment();
         compatibilityOverride = new ClientCompatibilityOverride(adminAccess, localManifest, compatibilityBaseline, adminBaselineCapture,
             new AIRsLight.ClashOfRim.Admin.ClientAdminBaselineTransport(compatibilityEnvironment, TimeSpan.FromSeconds(15)),
@@ -541,15 +544,6 @@ public sealed partial class ClashOfRimMod : Mod
     internal bool ChatInProgress => chat.Busy;
 
     internal bool IsAdministrator => adminAccess.IsAdministrator;
-
-    internal bool CanUseDeveloperTools => Current.ProgramState != ProgramState.Playing
-        || !settings.IsConfigured
-        || adminAccess.IsAdministrator;
-
-    internal bool CanEditModSettings => !settings.IsConfigured
-        || adminAccess.IsAdministrator;
-
-    internal string ServerCompatibilityManifestJson => compatibilityBaseline.Manifest;
 
     internal bool AdminInProgress => adminAccess.Busy;
 

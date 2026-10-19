@@ -1,7 +1,9 @@
 using HarmonyLib;
+using AIRsLight.ClashOfRim.Modules.Administration;
+using AIRsLight.ClashOfRim.Modules.Compatibility;
+using AIRsLight.ClashOfRim.Modules.Sessions;
 using RimWorld;
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -75,8 +77,14 @@ public static class ClashOfRimGetSettingsFilenameOverlayPatch
 
 internal static class ModSettingsBaselinePolicy
 {
-    private static string? cachedManifestJson;
-    private static CompatibilityManifestDto? cachedManifest;
+    private static ClientAdminAccess? access;
+    // Other mods may read their settings before this mod has been constructed.
+    private static ClientModSettingsPolicy policy = CreatePolicy(null);
+    internal static void Attach(ClientAdminAccess administration, ClientCompatibilityBaseline baseline)
+    { access = administration; policy = CreatePolicy(baseline); }
+    private static ClientModSettingsPolicy CreatePolicy(ClientCompatibilityBaseline? baseline) => new(baseline,
+        () => CompatibilityConfigOverlayPath.ActiveManifestJson,
+        message => Log.Warning("[ClashOfRim][Compatibility] Failed to parse server manifest for settings lock: " + message));
 
     public static bool CanEditModSettingsWindow(Dialog_ModSettings window)
     {
@@ -119,17 +127,9 @@ internal static class ModSettingsBaselinePolicy
         return true;
     }
 
-    public static void InvalidateManifestCache()
-    {
-        cachedManifestJson = null;
-        cachedManifest = null;
-    }
+    public static void InvalidateManifestCache() => policy.Invalidate();
 
-    private static bool CanEditAllModSettings()
-    {
-        ClashOfRimMod? mod = LoadedModManager.GetMod<ClashOfRimMod>();
-        return mod is null || mod.CanEditModSettings;
-    }
+    private static bool CanEditAllModSettings() => access?.CanEditLocalSettings != false;
 
     private static bool IsControlledConfig(string modIdentifier, string modHandleName)
     {
@@ -144,21 +144,7 @@ internal static class ModSettingsBaselinePolicy
             return false;
         }
 
-        CompatibilityManifestDto? manifest = ReadServerManifest();
-        if (manifest is null)
-        {
-            return false;
-        }
-
-        bool presentInBaseline = manifest.Mods.Any(mod =>
-            string.Equals(mod.PackageId, packageId, StringComparison.OrdinalIgnoreCase)
-            && mod.Configs.Any(config => string.Equals(config.FileName, modHandleName, StringComparison.OrdinalIgnoreCase)));
-        if (!presentInBaseline)
-        {
-            return false;
-        }
-
-        return string.Equals(ResolveConfigMode(manifest, packageId ?? modIdentifier, modHandleName), "Enforce", StringComparison.OrdinalIgnoreCase);
+        return policy.IsControlled(packageId ?? modIdentifier, modHandleName);
     }
 
     private static Mod? GetDialogMod(Dialog_ModSettings window)
@@ -202,116 +188,14 @@ internal static class ModSettingsBaselinePolicy
             && string.Equals(trimmed, ClashOfRimMod.PackageId, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static CompatibilityManifestDto? ReadServerManifest()
-    {
-        ClashOfRimMod? mod = LoadedModManager.GetMod<ClashOfRimMod>();
-        string json = mod?.ServerCompatibilityManifestJson ?? string.Empty;
-        if (string.IsNullOrWhiteSpace(json))
-        {
-            json = CompatibilityConfigOverlayPath.ActiveManifestJson ?? string.Empty;
-        }
-
-        if (string.IsNullOrWhiteSpace(json))
-        {
-            cachedManifestJson = null;
-            cachedManifest = null;
-            return null;
-        }
-
-        if (string.Equals(cachedManifestJson, json, StringComparison.Ordinal) && cachedManifest is not null)
-        {
-            return cachedManifest;
-        }
-
-        try
-        {
-            var serializer = new DataContractJsonSerializer(typeof(CompatibilityManifestDto));
-            using var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
-            cachedManifest = serializer.ReadObject(stream) as CompatibilityManifestDto;
-            cachedManifestJson = json;
-            return cachedManifest;
-        }
-        catch (Exception ex)
-        {
-            Log.Warning("[ClashOfRim][Compatibility] Failed to parse server manifest for settings lock: " + ex.Message);
-            cachedManifestJson = null;
-            cachedManifest = null;
-            return null;
-        }
-    }
-
-    private static string ResolveConfigMode(CompatibilityManifestDto manifest, string packageId, string fileName)
-    {
-        CompatibilityConfigRuleDto? best = null;
-        foreach (CompatibilityConfigRuleDto rule in manifest.ModConfigRules)
-        {
-            if (!string.Equals(rule.PackageId?.Trim(), packageId?.Trim(), StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            if (!string.IsNullOrWhiteSpace(rule.FileName)
-                && !string.Equals(rule.FileName, fileName, StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            if (best is null
-                || (!string.IsNullOrWhiteSpace(rule.FileName) && string.IsNullOrWhiteSpace(best.FileName)))
-            {
-                best = rule;
-            }
-        }
-
-        return string.IsNullOrWhiteSpace(best?.Mode) ? "Enforce" : best!.Mode!;
-    }
-
-    [DataContract]
-    private sealed class CompatibilityManifestDto
-    {
-        [DataMember(Name = "manifestId")]
-        public string ManifestId { get; set; } = string.Empty;
-
-        [DataMember(Name = "modConfigRules")]
-        public List<CompatibilityConfigRuleDto> ModConfigRules { get; set; } = new();
-
-        [DataMember(Name = "mods")]
-        public List<CompatibilityModDto> Mods { get; set; } = new();
-    }
-
-    [DataContract]
-    private sealed class CompatibilityConfigRuleDto
-    {
-        [DataMember(Name = "packageId")]
-        public string PackageId { get; set; } = string.Empty;
-
-        [DataMember(Name = "fileName")]
-        public string? FileName { get; set; }
-
-        [DataMember(Name = "mode")]
-        public string Mode { get; set; } = "Enforce";
-    }
-
-    [DataContract]
-    private sealed class CompatibilityModDto
-    {
-        [DataMember(Name = "packageId")]
-        public string PackageId { get; set; } = string.Empty;
-
-        [DataMember(Name = "configs")]
-        public List<CompatibilityConfigDto> Configs { get; set; } = new();
-    }
-
-    [DataContract]
-    private sealed class CompatibilityConfigDto
-    {
-        [DataMember(Name = "fileName")]
-        public string FileName { get; set; } = string.Empty;
-    }
 }
 
 internal static class CompatibilityConfigOverlayPath
 {
+    private static ClientSessionLifecycle? session;
+    private static ClientCompatibilityBaseline? baseline;
+    internal static void Attach(ClientSessionLifecycle lifecycle, ClientCompatibilityBaseline compatibility)
+    { session = lifecycle; baseline = compatibility; }
     private const string OverlayRootFolderName = "ClashOfRimConfigOverlays";
     private const string ActiveOverlayFileName = "active.json";
     private static ActiveOverlayDto? cachedActiveOverlay;
@@ -410,8 +294,7 @@ internal static class CompatibilityConfigOverlayPath
 
     private static string ResolveCurrentScope(string? manifestJsonOverride = null)
     {
-        ClashOfRimMod? mod = LoadedModManager.GetMod<ClashOfRimMod>();
-        string manifestJson = manifestJsonOverride ?? mod?.ServerCompatibilityManifestJson ?? string.Empty;
+        string manifestJson = manifestJsonOverride ?? baseline?.Manifest ?? string.Empty;
         string manifestId = TryReadManifestId(manifestJson) ?? string.Empty;
         string server = ResolveCurrentServerBaseUrl();
         ActiveOverlayDto? active = ResolveActiveOverlay();
@@ -436,7 +319,7 @@ internal static class CompatibilityConfigOverlayPath
 
     private static string ResolveCurrentServerBaseUrl()
     {
-        return (LoadedModManager.GetMod<ClashOfRimMod>()?.ServerBaseUrl ?? string.Empty).Trim().TrimEnd('/');
+        return (session?.ReadContext().ServerBaseUrl ?? string.Empty).Trim().TrimEnd('/');
     }
 
     private static bool IsActiveForCurrentServer(ActiveOverlayDto active)
@@ -479,11 +362,7 @@ internal static class CompatibilityConfigOverlayPath
 
         try
         {
-            var serializer = new DataContractJsonSerializer(typeof(OverlayManifestDto));
-            using var stream = new MemoryStream(Encoding.UTF8.GetBytes(manifestJson));
-            OverlayManifestDto? manifest = serializer.ReadObject(stream) as OverlayManifestDto;
-            return manifest?.Mods.Any(mod => string.Equals(mod.PackageId, packageId, StringComparison.OrdinalIgnoreCase)
-                && mod.Configs.Any(config => string.Equals(config.FileName, fileName, StringComparison.OrdinalIgnoreCase))) == true;
+            return ClientModConfigManifest.Read(manifestJson)?.Declares(packageId, fileName) == true;
         }
         catch (Exception ex)
         {
@@ -501,9 +380,7 @@ internal static class CompatibilityConfigOverlayPath
 
         try
         {
-            var serializer = new DataContractJsonSerializer(typeof(ManifestIdDto));
-            using var stream = new MemoryStream(Encoding.UTF8.GetBytes(manifestJson));
-            return (serializer.ReadObject(stream) as ManifestIdDto)?.ManifestId;
+            return ClientModConfigManifest.Read(manifestJson)?.Id;
         }
         catch
         {
@@ -581,13 +458,6 @@ internal static class CompatibilityConfigOverlayPath
     }
 
     [DataContract]
-    private sealed class ManifestIdDto
-    {
-        [DataMember(Name = "manifestId")]
-        public string ManifestId { get; set; } = string.Empty;
-    }
-
-    [DataContract]
     private sealed class ActiveOverlayDto
     {
         [DataMember(Name = "scope")]
@@ -603,27 +473,4 @@ internal static class CompatibilityConfigOverlayPath
         public bool ProfileArmed { get; set; }
     }
 
-    [DataContract]
-    private sealed class OverlayManifestDto
-    {
-        [DataMember(Name = "mods")]
-        public List<OverlayModDto> Mods { get; set; } = new();
-    }
-
-    [DataContract]
-    private sealed class OverlayModDto
-    {
-        [DataMember(Name = "packageId")]
-        public string PackageId { get; set; } = string.Empty;
-
-        [DataMember(Name = "configs")]
-        public List<OverlayConfigDto> Configs { get; set; } = new();
-    }
-
-    [DataContract]
-    private sealed class OverlayConfigDto
-    {
-        [DataMember(Name = "fileName")]
-        public string FileName { get; set; } = string.Empty;
-    }
 }

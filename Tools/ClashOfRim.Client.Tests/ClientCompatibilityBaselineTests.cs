@@ -39,7 +39,7 @@ internal static class ClientCompatibilityBaselineTests
         finally { ClientSessionWork.Reset(); }
     }
     private static void Check(bool value, string message) { if (!value) throw new InvalidOperationException(message); }
-    private sealed class Fixture : IClientCompatibilityBaselineRuntime
+    internal sealed class Fixture : IClientCompatibilityBaselineRuntime
     {
         internal readonly ClientCompatibilityBaseline Flow;
         internal readonly List<string[]?> Calls = new();

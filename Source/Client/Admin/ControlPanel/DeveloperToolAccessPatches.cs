@@ -1,4 +1,5 @@
 using HarmonyLib;
+using AIRsLight.ClashOfRim.Modules.Administration;
 using LudeonTK;
 using RimWorld;
 using UnityEngine;
@@ -40,12 +41,13 @@ public static class ClashOfRimDebugWindowsOpenerPatch
 
 internal static class DeveloperToolAccessPolicy
 {
+    private static ClientAdminAccess? access;
+    internal static void Attach(ClientAdminAccess value) => access = value;
     private static float nextNotificationAt;
 
     public static bool CanUseDeveloperTools()
     {
-        ClashOfRimMod? mod = LoadedModManager.GetMod<ClashOfRimMod>();
-        return mod is null || mod.CanUseDeveloperTools;
+        return Current.ProgramState != ProgramState.Playing || access?.CanEditLocalSettings != false;
     }
 
     public static void NotifyBlocked()

@@ -165,6 +165,14 @@ internal static class ClientModuleBoundaryTests
                 || t == typeof(AIRsLight.ClashOfRim.Support.QuestPart_ClashSupportPawn)
                 || t == typeof(ClashOfRimEventChoiceLetter) || t.DeclaringType == typeof(ClashOfRimEventChoiceLetter)
                 || t.Namespace == "AIRsLight.ClashOfRim.Caravans"
+                || t == typeof(AIRsLight.ClashOfRim.Admin.DeveloperToolAccessPolicy)
+                || t == typeof(AIRsLight.ClashOfRim.Admin.ClashOfRimPrefsDevModePatch)
+                || t == typeof(AIRsLight.ClashOfRim.Admin.ClashOfRimDebugWindowsOpenerPatch)
+                || t == typeof(AIRsLight.ClashOfRim.CompatibilityClient.CompatibilityConfigOverlayPath)
+                || t.DeclaringType == typeof(AIRsLight.ClashOfRim.CompatibilityClient.CompatibilityConfigOverlayPath)
+                || t == typeof(AIRsLight.ClashOfRim.CompatibilityClient.ClashOfRimDialogModSettingsPatch)
+                || t == typeof(AIRsLight.ClashOfRim.CompatibilityClient.ClashOfRimDialogModSettingsPreClosePatch)
+                || t == typeof(AIRsLight.ClashOfRim.CompatibilityClient.ClashOfRimWriteModSettingsPatch)
                 || t == typeof(AIRsLight.ClashOfRim.Gifts.GiftCaravanGizmoPatches) || t.DeclaringType == typeof(AIRsLight.ClashOfRim.Gifts.GiftCaravanGizmoPatches)
                 || t == typeof(AIRsLight.ClashOfRim.Trades.TradeCaravanGizmoPatches) || t.DeclaringType == typeof(AIRsLight.ClashOfRim.Trades.TradeCaravanGizmoPatches)
                 || t == typeof(AIRsLight.ClashOfRim.Support.SupportCaravanGizmoPatches) || t.DeclaringType == typeof(AIRsLight.ClashOfRim.Support.SupportCaravanGizmoPatches)
@@ -316,6 +324,8 @@ internal static class ClientModuleBoundaryTests
             typeof(ClientEventApplicationRuntime), typeof(ClientEventApplicationPresentation),
             typeof(ClientEventConfirmationPresentation), typeof(ClientEventConfirmationEffects), typeof(ClientSnapshotPreparationPresentation),
             typeof(ClientSnapshotRestorePresentation), typeof(ServerSnapshotRestoreService),
+            typeof(AIRsLight.ClashOfRim.CompatibilityClient.ModSettingsBaselinePolicy),
+            typeof(AIRsLight.ClashOfRim.CompatibilityClient.ClashOfRimGetSettingsFilenameOverlayPatch),
             typeof(ClientSnapshotReloadRuntime), typeof(ClientSnapshotReloadPresentation), typeof(ServerSessionGameDataLoader),
             typeof(ClientLocalSnapshotPresentation), typeof(ClientSnapshotFailureView), typeof(SnapshotConfirmationFailureWindow) };
         var adapterTypes = typeof(ClashOfRimMod).Assembly.GetTypes().Where(t => eventAdapters.Contains(t)

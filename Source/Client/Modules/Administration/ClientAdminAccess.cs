@@ -25,6 +25,7 @@ internal sealed class ClientAdminAccess
     internal bool TryApply(ClientRequestTracker.Scope scope, Action action) => requests.TryApply(scope, action);
     internal Permission CurrentPermission => requests.Read(() => permission);
     internal bool IsAdministrator => CurrentPermission.Allowed;
+    internal bool CanEditLocalSettings => requests.Read(() => !session.ReadContext().IsConfigured || permission.Allowed);
     internal bool Busy => requests.Read(() => { ReleaseExpiredSource(); return active is not null; });
     internal void SetAdministrator(bool value) => requests.Read(() =>
     {
