@@ -1,0 +1,814 @@
+[
+  {
+    "Type": "AIRsLight.ClashOfRim.ClientNetwork.ModCrossMapPawnReferenceDto",
+    "Parts": 1,
+    "Files": 1,
+    "Lines": 21,
+    "Methods": 0,
+    "Fields": 0,
+    "ConstFields": 0,
+    "ReadOnlyFields": 0,
+    "CrossPartFields": 0,
+    "CrossFileCalls": 0,
+    "FieldsByReach": [],
+    "PartsInfo": [
+      {
+        "File": "Source/Client/ClientNetwork/Dtos/ModPawnExchangeDtos.cs",
+        "Line": 19,
+        "Lines": 21,
+        "Methods": 0,
+        "Fields": 0
+      }
+    ],
+    "Calls": []
+  },
+  {
+    "Type": "AIRsLight.ClashOfRim.ClientNetwork.ModPawnExchangeIdentityDto",
+    "Parts": 1,
+    "Files": 1,
+    "Lines": 15,
+    "Methods": 0,
+    "Fields": 0,
+    "ConstFields": 0,
+    "ReadOnlyFields": 0,
+    "CrossPartFields": 0,
+    "CrossFileCalls": 0,
+    "FieldsByReach": [],
+    "PartsInfo": [
+      {
+        "File": "Source/Client/ClientNetwork/Dtos/ModPawnExchangeDtos.cs",
+        "Line": 94,
+        "Lines": 15,
+        "Methods": 0,
+        "Fields": 0
+      }
+    ],
+    "Calls": []
+  },
+  {
+    "Type": "AIRsLight.ClashOfRim.ClientNetwork.ModPawnExchangeAppearanceDto",
+    "Parts": 1,
+    "Files": 1,
+    "Lines": 25,
+    "Methods": 0,
+    "Fields": 0,
+    "ConstFields": 0,
+    "ReadOnlyFields": 0,
+    "CrossPartFields": 0,
+    "CrossFileCalls": 0,
+    "FieldsByReach": [],
+    "PartsInfo": [
+      {
+        "File": "Source/Client/ClientNetwork/Dtos/ModPawnExchangeDtos.cs",
+        "Line": 110,
+        "Lines": 25,
+        "Methods": 0,
+        "Fields": 0
+      }
+    ],
+    "Calls": []
+  },
+  {
+    "Type": "AIRsLight.ClashOfRim.ClientNetwork.ModThingReferenceDto",
+    "Parts": 1,
+    "Files": 1,
+    "Lines": 78,
+    "Methods": 0,
+    "Fields": 0,
+    "ConstFields": 0,
+    "ReadOnlyFields": 0,
+    "CrossPartFields": 0,
+    "CrossFileCalls": 0,
+    "FieldsByReach": [],
+    "PartsInfo": [
+      {
+        "File": "Source/Client/ClientNetwork/Dtos/ModTradeDtos.cs",
+        "Line": 6,
+        "Lines": 78,
+        "Methods": 0,
+        "Fields": 0
+      }
+    ],
+    "Calls": []
+  },
+  {
+    "Type": "AIRsLight.ClashOfRim.Gifts.ItemDeliveryItemSummary",
+    "Parts": 1,
+    "Files": 1,
+    "Lines": 81,
+    "Methods": 0,
+    "Fields": 0,
+    "ConstFields": 0,
+    "ReadOnlyFields": 0,
+    "CrossPartFields": 0,
+    "CrossFileCalls": 0,
+    "FieldsByReach": [],
+    "PartsInfo": [
+      {
+        "File": "Source/Client/Gifts/Processing/ItemDeliveryPayloadReader.cs",
+        "Line": 63,
+        "Lines": 81,
+        "Methods": 0,
+        "Fields": 0
+      }
+    ],
+    "Calls": []
+  },
+  {
+    "Type": "AIRsLight.ClashOfRim.ThirdPartyCompatibility.ClashOfRimCompatibilityApi",
+    "Parts": 6,
+    "Files": 6,
+    "Lines": 459,
+    "Methods": 110,
+    "Fields": 18,
+    "ConstFields": 0,
+    "ReadOnlyFields": 15,
+    "CrossPartFields": 14,
+    "CrossFileCalls": 0,
+    "FieldsByReach": [
+      {
+        "Name": "SnapshotSanitization",
+        "Files": 3,
+        "References": [
+          "Source/Client/ThirdPartyCompatibility/Api/ClashOfRimCompatibilityApi.cs",
+          "Source/Client/ThirdPartyCompatibility/Api/ClashOfRimCompatibilityApi.RemoteMapRuntime.cs",
+          "Source/Client/ThirdPartyCompatibility/Api/ClashOfRimCompatibilityApi.RemoteMaps.cs"
+        ],
+        "Declaration": "Source/Client/ThirdPartyCompatibility/Api/ClashOfRimCompatibilityApi.cs"
+      },
+      {
+        "Name": "RemoteMapLifecycle",
+        "Files": 2,
+        "References": [
+          "Source/Client/ThirdPartyCompatibility/Api/ClashOfRimCompatibilityApi.RemoteMapRuntime.cs",
+          "Source/Client/ThirdPartyCompatibility/Api/ClashOfRimCompatibilityApi.RemoteMaps.cs"
+        ],
+        "Declaration": "Source/Client/ThirdPartyCompatibility/Api/ClashOfRimCompatibilityApi.cs"
+      },
+      {
+        "Name": "RemoteMapProjection",
+        "Files": 2,
+        "References": [
+          "Source/Client/ThirdPartyCompatibility/Api/ClashOfRimCompatibilityApi.RemoteMapRuntime.cs",
+          "Source/Client/ThirdPartyCompatibility/Api/ClashOfRimCompatibilityApi.RemoteMaps.cs"
+        ],
+        "Declaration": "Source/Client/ThirdPartyCompatibility/Api/ClashOfRimCompatibilityApi.cs"
+      },
+      {
+        "Name": "session",
+        "Files": 1,
+        "References": [
+          "Source/Client/ThirdPartyCompatibility/Api/ClashOfRimCompatibilityApi.cs"
+        ],
+        "Declaration": "Source/Client/ThirdPartyCompatibility/Api/ClashOfRimCompatibilityApi.cs"
+      },
+      {
+        "Name": "administration",
+        "Files": 1,
+        "References": [
+          "Source/Client/ThirdPartyCompatibility/Api/ClashOfRimCompatibilityApi.cs"
+        ],
+        "Declaration": "Source/Client/ThirdPartyCompatibility/Api/ClashOfRimCompatibilityApi.cs"
+      },
+      {
+        "Name": "catalog",
+        "Files": 1,
+        "References": [
+          "Source/Client/ThirdPartyCompatibility/Api/ClashOfRimCompatibilityApi.cs"
+        ],
+        "Declaration": "Source/Client/ThirdPartyCompatibility/Api/ClashOfRimCompatibilityApi.cs"
+      },
+      {
+        "Name": "Registrations",
+        "Files": 1,
+        "References": [
+          "Source/Client/ThirdPartyCompatibility/Api/ClashOfRimCompatibilityApi.cs"
+        ],
+        "Declaration": "Source/Client/ThirdPartyCompatibility/Api/ClashOfRimCompatibilityApi.cs"
+      },
+      {
+        "Name": "AdminBaseline",
+        "Files": 1,
+        "References": [
+          "Source/Client/ThirdPartyCompatibility/Api/ClashOfRimCompatibilityApi.WorldConfiguration.cs"
+        ],
+        "Declaration": "Source/Client/ThirdPartyCompatibility/Api/ClashOfRimCompatibilityApi.cs"
+      },
+      {
+        "Name": "WorldConfiguration",
+        "Files": 1,
+        "References": [
+          "Source/Client/ThirdPartyCompatibility/Api/ClashOfRimCompatibilityApi.WorldConfiguration.cs"
+        ],
+        "Declaration": "Source/Client/ThirdPartyCompatibility/Api/ClashOfRimCompatibilityApi.cs"
+      },
+      {
+        "Name": "WorldGenerationSettings",
+        "Files": 1,
+        "References": [
+          "Source/Client/ThirdPartyCompatibility/Api/ClashOfRimCompatibilityApi.WorldConfiguration.cs"
+        ],
+        "Declaration": "Source/Client/ThirdPartyCompatibility/Api/ClashOfRimCompatibilityApi.cs"
+      },
+      {
+        "Name": "CompatibilityPackages",
+        "Files": 1,
+        "References": [
+          "Source/Client/ThirdPartyCompatibility/Api/ClashOfRimCompatibilityApi.WorldConfiguration.cs"
+        ],
+        "Declaration": "Source/Client/ThirdPartyCompatibility/Api/ClashOfRimCompatibilityApi.cs"
+      },
+      {
+        "Name": "ColonySite",
+        "Files": 1,
+        "References": [
+          "Source/Client/ThirdPartyCompatibility/Api/ClashOfRimCompatibilityApi.RemoteMaps.cs"
+        ],
+        "Declaration": "Source/Client/ThirdPartyCompatibility/Api/ClashOfRimCompatibilityApi.cs"
+      },
+      {
+        "Name": "FactionPreparation",
+        "Files": 1,
+        "References": [
+          "Source/Client/ThirdPartyCompatibility/Api/ClashOfRimCompatibilityApi.Pawns.cs"
+        ],
+        "Declaration": "Source/Client/ThirdPartyCompatibility/Api/ClashOfRimCompatibilityApi.cs"
+      },
+      {
+        "Name": "PawnReferences",
+        "Files": 1,
+        "References": [
+          "Source/Client/ThirdPartyCompatibility/Api/ClashOfRimCompatibilityApi.Pawns.cs"
+        ],
+        "Declaration": "Source/Client/ThirdPartyCompatibility/Api/ClashOfRimCompatibilityApi.cs"
+      },
+      {
+        "Name": "PawnExchange",
+        "Files": 1,
+        "References": [
+          "Source/Client/ThirdPartyCompatibility/Api/ClashOfRimCompatibilityApi.Pawns.cs"
+        ],
+        "Declaration": "Source/Client/ThirdPartyCompatibility/Api/ClashOfRimCompatibilityApi.cs"
+      },
+      {
+        "Name": "PawnTrade",
+        "Files": 1,
+        "References": [
+          "Source/Client/ThirdPartyCompatibility/Api/ClashOfRimCompatibilityApi.Pawns.cs"
+        ],
+        "Declaration": "Source/Client/ThirdPartyCompatibility/Api/ClashOfRimCompatibilityApi.cs"
+      },
+      {
+        "Name": "ThingReferences",
+        "Files": 1,
+        "References": [
+          "Source/Client/ThirdPartyCompatibility/Api/ClashOfRimCompatibilityApi.ThingReferences.cs"
+        ],
+        "Declaration": "Source/Client/ThirdPartyCompatibility/Api/ClashOfRimCompatibilityApi.cs"
+      },
+      {
+        "Name": "ThingTransfers",
+        "Files": 1,
+        "References": [
+          "Source/Client/ThirdPartyCompatibility/Api/ClashOfRimCompatibilityApi.ThingReferences.cs"
+        ],
+        "Declaration": "Source/Client/ThirdPartyCompatibility/Api/ClashOfRimCompatibilityApi.cs"
+      }
+    ],
+    "PartsInfo": [
+      {
+        "File": "Source/Client/ThirdPartyCompatibility/Api/ClashOfRimCompatibilityApi.cs",
+        "Line": 15,
+        "Lines": 76,
+        "Methods": 13,
+        "Fields": 18
+      },
+      {
+        "File": "Source/Client/ThirdPartyCompatibility/Api/ClashOfRimCompatibilityApi.Pawns.cs",
+        "Line": 8,
+        "Lines": 95,
+        "Methods": 29,
+        "Fields": 0
+      },
+      {
+        "File": "Source/Client/ThirdPartyCompatibility/Api/ClashOfRimCompatibilityApi.RemoteMapRuntime.cs",
+        "Line": 13,
+        "Lines": 32,
+        "Methods": 8,
+        "Fields": 0
+      },
+      {
+        "File": "Source/Client/ThirdPartyCompatibility/Api/ClashOfRimCompatibilityApi.RemoteMaps.cs",
+        "Line": 13,
+        "Lines": 44,
+        "Methods": 13,
+        "Fields": 0
+      },
+      {
+        "File": "Source/Client/ThirdPartyCompatibility/Api/ClashOfRimCompatibilityApi.ThingReferences.cs",
+        "Line": 8,
+        "Lines": 150,
+        "Methods": 35,
+        "Fields": 0
+      },
+      {
+        "File": "Source/Client/ThirdPartyCompatibility/Api/ClashOfRimCompatibilityApi.WorldConfiguration.cs",
+        "Line": 7,
+        "Lines": 62,
+        "Methods": 12,
+        "Fields": 0
+      }
+    ],
+    "Calls": []
+  },
+  {
+    "Type": "AIRsLight.ClashOfRim.Network.BankLoanRegistry",
+    "Parts": 2,
+    "Files": 2,
+    "Lines": 983,
+    "Methods": 40,
+    "Fields": 15,
+    "ConstFields": 5,
+    "ReadOnlyFields": 10,
+    "CrossPartFields": 5,
+    "CrossFileCalls": 1,
+    "FieldsByReach": [
+      {
+        "Name": "StatusPendingActivation",
+        "Files": 2,
+        "References": [
+          "Source/Server/ClashOfRim.Network/Server/Registries/Economy/BankLoanRegistry.cs",
+          "Source/Server/ClashOfRim.Network/Server/Registries/Economy/BankLoanRegistry.PendingOperations.cs"
+        ],
+        "Declaration": "Source/Server/ClashOfRim.Network/Server/Registries/Economy/BankLoanRegistry.cs"
+      },
+      {
+        "Name": "StatusPendingRepayment",
+        "Files": 2,
+        "References": [
+          "Source/Server/ClashOfRim.Network/Server/Registries/Economy/BankLoanRegistry.cs",
+          "Source/Server/ClashOfRim.Network/Server/Registries/Economy/BankLoanRegistry.PendingOperations.cs"
+        ],
+        "Declaration": "Source/Server/ClashOfRim.Network/Server/Registries/Economy/BankLoanRegistry.cs"
+      },
+      {
+        "Name": "gate",
+        "Files": 2,
+        "References": [
+          "Source/Server/ClashOfRim.Network/Server/Registries/Economy/BankLoanRegistry.cs",
+          "Source/Server/ClashOfRim.Network/Server/Registries/Economy/BankLoanRegistry.PendingOperations.cs"
+        ],
+        "Declaration": "Source/Server/ClashOfRim.Network/Server/Registries/Economy/BankLoanRegistry.cs"
+      },
+      {
+        "Name": "loans",
+        "Files": 2,
+        "References": [
+          "Source/Server/ClashOfRim.Network/Server/Registries/Economy/BankLoanRegistry.cs",
+          "Source/Server/ClashOfRim.Network/Server/Registries/Economy/BankLoanRegistry.PendingOperations.cs"
+        ],
+        "Declaration": "Source/Server/ClashOfRim.Network/Server/Registries/Economy/BankLoanRegistry.cs"
+      },
+      {
+        "Name": "debts",
+        "Files": 2,
+        "References": [
+          "Source/Server/ClashOfRim.Network/Server/Registries/Economy/BankLoanRegistry.cs",
+          "Source/Server/ClashOfRim.Network/Server/Registries/Economy/BankLoanRegistry.PendingOperations.cs"
+        ],
+        "Declaration": "Source/Server/ClashOfRim.Network/Server/Registries/Economy/BankLoanRegistry.cs"
+      },
+      {
+        "Name": "StatusActive",
+        "Files": 1,
+        "References": [
+          "Source/Server/ClashOfRim.Network/Server/Registries/Economy/BankLoanRegistry.cs"
+        ],
+        "Declaration": "Source/Server/ClashOfRim.Network/Server/Registries/Economy/BankLoanRegistry.cs"
+      },
+      {
+        "Name": "StatusRepaid",
+        "Files": 1,
+        "References": [
+          "Source/Server/ClashOfRim.Network/Server/Registries/Economy/BankLoanRegistry.cs"
+        ],
+        "Declaration": "Source/Server/ClashOfRim.Network/Server/Registries/Economy/BankLoanRegistry.cs"
+      },
+      {
+        "Name": "DebtSourceFine",
+        "Files": 1,
+        "References": [
+          "Source/Server/ClashOfRim.Network/Server/Registries/Economy/BankLoanRegistry.cs"
+        ],
+        "Declaration": "Source/Server/ClashOfRim.Network/Server/Registries/Economy/BankLoanRegistry.cs"
+      },
+      {
+        "Name": "JsonOptions",
+        "Files": 1,
+        "References": [
+          "Source/Server/ClashOfRim.Network/Server/Registries/Economy/BankLoanRegistry.cs"
+        ],
+        "Declaration": "Source/Server/ClashOfRim.Network/Server/Registries/Economy/BankLoanRegistry.cs"
+      },
+      {
+        "Name": "structuredPersistence",
+        "Files": 1,
+        "References": [
+          "Source/Server/ClashOfRim.Network/Server/Registries/Economy/BankLoanRegistry.cs"
+        ],
+        "Declaration": "Source/Server/ClashOfRim.Network/Server/Registries/Economy/BankLoanRegistry.cs"
+      },
+      {
+        "Name": "legacyPersistence",
+        "Files": 1,
+        "References": [
+          "Source/Server/ClashOfRim.Network/Server/Registries/Economy/BankLoanRegistry.cs"
+        ],
+        "Declaration": "Source/Server/ClashOfRim.Network/Server/Registries/Economy/BankLoanRegistry.cs"
+      },
+      {
+        "Name": "activeLoanIdByColony",
+        "Files": 1,
+        "References": [
+          "Source/Server/ClashOfRim.Network/Server/Registries/Economy/BankLoanRegistry.cs"
+        ],
+        "Declaration": "Source/Server/ClashOfRim.Network/Server/Registries/Economy/BankLoanRegistry.cs"
+      },
+      {
+        "Name": "idByIdempotencyKey",
+        "Files": 1,
+        "References": [
+          "Source/Server/ClashOfRim.Network/Server/Registries/Economy/BankLoanRegistry.cs"
+        ],
+        "Declaration": "Source/Server/ClashOfRim.Network/Server/Registries/Economy/BankLoanRegistry.cs"
+      },
+      {
+        "Name": "debtIdByIdempotencyKey",
+        "Files": 1,
+        "References": [
+          "Source/Server/ClashOfRim.Network/Server/Registries/Economy/BankLoanRegistry.cs"
+        ],
+        "Declaration": "Source/Server/ClashOfRim.Network/Server/Registries/Economy/BankLoanRegistry.cs"
+      },
+      {
+        "Name": "openDebtsByColony",
+        "Files": 1,
+        "References": [
+          "Source/Server/ClashOfRim.Network/Server/Registries/Economy/BankLoanRegistry.cs"
+        ],
+        "Declaration": "Source/Server/ClashOfRim.Network/Server/Registries/Economy/BankLoanRegistry.cs"
+      }
+    ],
+    "PartsInfo": [
+      {
+        "File": "Source/Server/ClashOfRim.Network/Server/Registries/Economy/BankLoanRegistry.cs",
+        "Line": 5,
+        "Lines": 940,
+        "Methods": 37,
+        "Fields": 15
+      },
+      {
+        "File": "Source/Server/ClashOfRim.Network/Server/Registries/Economy/BankLoanRegistry.PendingOperations.cs",
+        "Line": 5,
+        "Lines": 43,
+        "Methods": 3,
+        "Fields": 0
+      }
+    ],
+    "Calls": [
+      "Source/Server/ClashOfRim.Network/Server/Registries/Economy/BankLoanRegistry.PendingOperations.cs -\u003E Source/Server/ClashOfRim.Network/Server/Registries/Economy/BankLoanRegistry.cs:GetActive"
+    ]
+  },
+  {
+    "Type": "RaidEvidenceAuthorizationTests",
+    "Parts": 4,
+    "Files": 4,
+    "Lines": 825,
+    "Methods": 25,
+    "Fields": 0,
+    "ConstFields": 0,
+    "ReadOnlyFields": 0,
+    "CrossPartFields": 0,
+    "CrossFileCalls": 6,
+    "FieldsByReach": [],
+    "PartsInfo": [
+      {
+        "File": "Tools/ClashOfRim.Save.Tests/RaidEvidenceAuthorizationTests.cs",
+        "Line": 8,
+        "Lines": 181,
+        "Methods": 5,
+        "Fields": 0
+      },
+      {
+        "File": "Tools/ClashOfRim.Save.Tests/RaidEvidenceJournalRecoveryTests.cs",
+        "Line": 7,
+        "Lines": 197,
+        "Methods": 5,
+        "Fields": 0
+      },
+      {
+        "File": "Tools/ClashOfRim.Save.Tests/RaidEvidenceOnlineTests.cs",
+        "Line": 8,
+        "Lines": 269,
+        "Methods": 7,
+        "Fields": 0
+      },
+      {
+        "File": "Tools/ClashOfRim.Save.Tests/RaidEvidenceRequestBindingTests.cs",
+        "Line": 8,
+        "Lines": 178,
+        "Methods": 8,
+        "Fields": 0
+      }
+    ],
+    "Calls": [
+      "Tools/ClashOfRim.Save.Tests/RaidEvidenceAuthorizationTests.cs -\u003E Tools/ClashOfRim.Save.Tests/RaidEvidenceJournalRecoveryTests.cs:RunJournalRecovery",
+      "Tools/ClashOfRim.Save.Tests/RaidEvidenceAuthorizationTests.cs -\u003E Tools/ClashOfRim.Save.Tests/RaidEvidenceOnlineTests.cs:RunOnline",
+      "Tools/ClashOfRim.Save.Tests/RaidEvidenceAuthorizationTests.cs -\u003E Tools/ClashOfRim.Save.Tests/RaidEvidenceRequestBindingTests.cs:RunBindings",
+      "Tools/ClashOfRim.Save.Tests/RaidEvidenceJournalRecoveryTests.cs -\u003E Tools/ClashOfRim.Save.Tests/RaidEvidenceAuthorizationTests.cs:Require",
+      "Tools/ClashOfRim.Save.Tests/RaidEvidenceOnlineTests.cs -\u003E Tools/ClashOfRim.Save.Tests/RaidEvidenceAuthorizationTests.cs:Require",
+      "Tools/ClashOfRim.Save.Tests/RaidEvidenceRequestBindingTests.cs -\u003E Tools/ClashOfRim.Save.Tests/RaidEvidenceAuthorizationTests.cs:Require"
+    ]
+  },
+  {
+    "Type": "RaidEvidenceAuthorizationTests.Fixture",
+    "Parts": 3,
+    "Files": 3,
+    "Lines": 145,
+    "Methods": 14,
+    "Fields": 7,
+    "ConstFields": 0,
+    "ReadOnlyFields": 3,
+    "CrossPartFields": 2,
+    "CrossFileCalls": 2,
+    "FieldsByReach": [
+      {
+        "Name": "root",
+        "Files": 3,
+        "References": [
+          "Tools/ClashOfRim.Save.Tests/RaidEvidenceAuthorizationTests.cs",
+          "Tools/ClashOfRim.Save.Tests/RaidEvidenceJournalRecoveryTests.cs",
+          "Tools/ClashOfRim.Save.Tests/RaidEvidenceRequestBindingTests.cs"
+        ],
+        "Declaration": "Tools/ClashOfRim.Save.Tests/RaidEvidenceAuthorizationTests.cs"
+      },
+      {
+        "Name": "database",
+        "Files": 2,
+        "References": [
+          "Tools/ClashOfRim.Save.Tests/RaidEvidenceAuthorizationTests.cs",
+          "Tools/ClashOfRim.Save.Tests/RaidEvidenceRequestBindingTests.cs"
+        ],
+        "Declaration": "Tools/ClashOfRim.Save.Tests/RaidEvidenceAuthorizationTests.cs"
+      },
+      {
+        "Name": "BeforeSchedule",
+        "Files": 1,
+        "References": [
+          "Tools/ClashOfRim.Save.Tests/RaidEvidenceAuthorizationTests.cs"
+        ],
+        "Declaration": "Tools/ClashOfRim.Save.Tests/RaidEvidenceAuthorizationTests.cs"
+      },
+      {
+        "Name": "AfterSchedule",
+        "Files": 1,
+        "References": [
+          "Tools/ClashOfRim.Save.Tests/RaidEvidenceAuthorizationTests.cs"
+        ],
+        "Declaration": "Tools/ClashOfRim.Save.Tests/RaidEvidenceAuthorizationTests.cs"
+      },
+      {
+        "Name": "attackerToken",
+        "Files": 1,
+        "References": [
+          "Tools/ClashOfRim.Save.Tests/RaidEvidenceAuthorizationTests.cs"
+        ],
+        "Declaration": "Tools/ClashOfRim.Save.Tests/RaidEvidenceAuthorizationTests.cs"
+      },
+      {
+        "Name": "defenderToken",
+        "Files": 1,
+        "References": [
+          "Tools/ClashOfRim.Save.Tests/RaidEvidenceAuthorizationTests.cs"
+        ],
+        "Declaration": "Tools/ClashOfRim.Save.Tests/RaidEvidenceAuthorizationTests.cs"
+      },
+      {
+        "Name": "legacyArtifacts",
+        "Files": 1,
+        "References": [
+          "Tools/ClashOfRim.Save.Tests/RaidEvidenceAuthorizationTests.cs"
+        ],
+        "Declaration": "Tools/ClashOfRim.Save.Tests/RaidEvidenceAuthorizationTests.cs"
+      }
+    ],
+    "PartsInfo": [
+      {
+        "File": "Tools/ClashOfRim.Save.Tests/RaidEvidenceAuthorizationTests.cs",
+        "Line": 83,
+        "Lines": 75,
+        "Methods": 5,
+        "Fields": 7
+      },
+      {
+        "File": "Tools/ClashOfRim.Save.Tests/RaidEvidenceJournalRecoveryTests.cs",
+        "Line": 170,
+        "Lines": 33,
+        "Methods": 4,
+        "Fields": 0
+      },
+      {
+        "File": "Tools/ClashOfRim.Save.Tests/RaidEvidenceRequestBindingTests.cs",
+        "Line": 148,
+        "Lines": 37,
+        "Methods": 5,
+        "Fields": 0
+      }
+    ],
+    "Calls": [
+      "Tools/ClashOfRim.Save.Tests/RaidEvidenceJournalRecoveryTests.cs -\u003E Tools/ClashOfRim.Save.Tests/RaidEvidenceAuthorizationTests.cs:StateEvidence",
+      "Tools/ClashOfRim.Save.Tests/RaidEvidenceRequestBindingTests.cs -\u003E Tools/ClashOfRim.Save.Tests/RaidEvidenceAuthorizationTests.cs:Open"
+    ]
+  },
+  {
+    "Type": "RaidTimeoutRecoveryTests",
+    "Parts": 2,
+    "Files": 2,
+    "Lines": 564,
+    "Methods": 14,
+    "Fields": 0,
+    "ConstFields": 0,
+    "ReadOnlyFields": 0,
+    "CrossPartFields": 0,
+    "CrossFileCalls": 2,
+    "FieldsByReach": [],
+    "PartsInfo": [
+      {
+        "File": "Tools/ClashOfRim.Save.Tests/RaidTimeoutJournalPreparationTests.cs",
+        "Line": 7,
+        "Lines": 140,
+        "Methods": 2,
+        "Fields": 0
+      },
+      {
+        "File": "Tools/ClashOfRim.Save.Tests/RaidTimeoutRecoveryTests.cs",
+        "Line": 9,
+        "Lines": 424,
+        "Methods": 12,
+        "Fields": 0
+      }
+    ],
+    "Calls": [
+      "Tools/ClashOfRim.Save.Tests/RaidTimeoutJournalPreparationTests.cs -\u003E Tools/ClashOfRim.Save.Tests/RaidTimeoutRecoveryTests.cs:Require",
+      "Tools/ClashOfRim.Save.Tests/RaidTimeoutRecoveryTests.cs -\u003E Tools/ClashOfRim.Save.Tests/RaidTimeoutJournalPreparationTests.cs:RunJournalPreparation"
+    ]
+  },
+  {
+    "Type": "RaidTimeoutRecoveryTests.Fixture",
+    "Parts": 2,
+    "Files": 2,
+    "Lines": 72,
+    "Methods": 6,
+    "Fields": 5,
+    "ConstFields": 0,
+    "ReadOnlyFields": 0,
+    "CrossPartFields": 3,
+    "CrossFileCalls": 0,
+    "FieldsByReach": [
+      {
+        "Name": "Files",
+        "Files": 2,
+        "References": [
+          "Tools/ClashOfRim.Save.Tests/RaidTimeoutJournalPreparationTests.cs",
+          "Tools/ClashOfRim.Save.Tests/RaidTimeoutRecoveryTests.cs"
+        ],
+        "Declaration": "Tools/ClashOfRim.Save.Tests/RaidTimeoutRecoveryTests.cs"
+      },
+      {
+        "Name": "Store",
+        "Files": 2,
+        "References": [
+          "Tools/ClashOfRim.Save.Tests/RaidTimeoutJournalPreparationTests.cs",
+          "Tools/ClashOfRim.Save.Tests/RaidTimeoutRecoveryTests.cs"
+        ],
+        "Declaration": "Tools/ClashOfRim.Save.Tests/RaidTimeoutRecoveryTests.cs"
+      },
+      {
+        "Name": "State",
+        "Files": 2,
+        "References": [
+          "Tools/ClashOfRim.Save.Tests/RaidTimeoutJournalPreparationTests.cs",
+          "Tools/ClashOfRim.Save.Tests/RaidTimeoutRecoveryTests.cs"
+        ],
+        "Declaration": "Tools/ClashOfRim.Save.Tests/RaidTimeoutRecoveryTests.cs"
+      },
+      {
+        "Name": "Raid",
+        "Files": 1,
+        "References": [
+          "Tools/ClashOfRim.Save.Tests/RaidTimeoutRecoveryTests.cs"
+        ],
+        "Declaration": "Tools/ClashOfRim.Save.Tests/RaidTimeoutRecoveryTests.cs"
+      },
+      {
+        "Name": "Artifacts",
+        "Files": 1,
+        "References": [
+          "Tools/ClashOfRim.Save.Tests/RaidTimeoutRecoveryTests.cs"
+        ],
+        "Declaration": "Tools/ClashOfRim.Save.Tests/RaidTimeoutRecoveryTests.cs"
+      }
+    ],
+    "PartsInfo": [
+      {
+        "File": "Tools/ClashOfRim.Save.Tests/RaidTimeoutJournalPreparationTests.cs",
+        "Line": 121,
+        "Lines": 25,
+        "Methods": 3,
+        "Fields": 0
+      },
+      {
+        "File": "Tools/ClashOfRim.Save.Tests/RaidTimeoutRecoveryTests.cs",
+        "Line": 327,
+        "Lines": 47,
+        "Methods": 3,
+        "Fields": 5
+      }
+    ],
+    "Calls": []
+  },
+  {
+    "Type": "SupportClosureTests",
+    "Parts": 2,
+    "Files": 2,
+    "Lines": 627,
+    "Methods": 33,
+    "Fields": 4,
+    "ConstFields": 1,
+    "ReadOnlyFields": 3,
+    "CrossPartFields": 2,
+    "CrossFileCalls": 8,
+    "FieldsByReach": [
+      {
+        "Name": "OriginalTime",
+        "Files": 2,
+        "References": [
+          "Tools/ClashOfRim.Save.Tests/SupportClosureRecoveryPreparationTests.cs",
+          "Tools/ClashOfRim.Save.Tests/SupportClosureTests.cs"
+        ],
+        "Declaration": "Tools/ClashOfRim.Save.Tests/SupportClosureTests.cs"
+      },
+      {
+        "Name": "Kinds",
+        "Files": 2,
+        "References": [
+          "Tools/ClashOfRim.Save.Tests/SupportClosureRecoveryPreparationTests.cs",
+          "Tools/ClashOfRim.Save.Tests/SupportClosureTests.cs"
+        ],
+        "Declaration": "Tools/ClashOfRim.Save.Tests/SupportClosureTests.cs"
+      },
+      {
+        "Name": "PawnKey",
+        "Files": 1,
+        "References": [
+          "Tools/ClashOfRim.Save.Tests/SupportClosureTests.cs"
+        ],
+        "Declaration": "Tools/ClashOfRim.Save.Tests/SupportClosureTests.cs"
+      },
+      {
+        "Name": "Tokens",
+        "Files": 1,
+        "References": [
+          "Tools/ClashOfRim.Save.Tests/SupportClosureTests.cs"
+        ],
+        "Declaration": "Tools/ClashOfRim.Save.Tests/SupportClosureTests.cs"
+      }
+    ],
+    "PartsInfo": [
+      {
+        "File": "Tools/ClashOfRim.Save.Tests/SupportClosureRecoveryPreparationTests.cs",
+        "Line": 9,
+        "Lines": 203,
+        "Methods": 6,
+        "Fields": 0
+      },
+      {
+        "File": "Tools/ClashOfRim.Save.Tests/SupportClosureTests.cs",
+        "Line": 11,
+        "Lines": 424,
+        "Methods": 27,
+        "Fields": 4
+      }
+    ],
+    "Calls": [
+      "Tools/ClashOfRim.Save.Tests/SupportClosureRecoveryPreparationTests.cs -\u003E Tools/ClashOfRim.Save.Tests/SupportClosureTests.cs:Call",
+      "Tools/ClashOfRim.Save.Tests/SupportClosureRecoveryPreparationTests.cs -\u003E Tools/ClashOfRim.Save.Tests/SupportClosureTests.cs:Require",
+      "Tools/ClashOfRim.Save.Tests/SupportClosureRecoveryPreparationTests.cs -\u003E Tools/ClashOfRim.Save.Tests/SupportClosureTests.cs:Same",
+      "Tools/ClashOfRim.Save.Tests/SupportClosureRecoveryPreparationTests.cs -\u003E Tools/ClashOfRim.Save.Tests/SupportClosureTests.cs:Source",
+      "Tools/ClashOfRim.Save.Tests/SupportClosureRecoveryPreparationTests.cs -\u003E Tools/ClashOfRim.Save.Tests/SupportClosureTests.cs:Sql",
+      "Tools/ClashOfRim.Save.Tests/SupportClosureRecoveryPreparationTests.cs -\u003E Tools/ClashOfRim.Save.Tests/SupportClosureTests.cs:Token",
+      "Tools/ClashOfRim.Save.Tests/SupportClosureRecoveryPreparationTests.cs -\u003E Tools/ClashOfRim.Save.Tests/SupportClosureTests.cs:Verify",
+      "Tools/ClashOfRim.Save.Tests/SupportClosureTests.cs -\u003E Tools/ClashOfRim.Save.Tests/SupportClosureRecoveryPreparationTests.cs:RunRecoveryPreparation"
+    ]
+  }
+]

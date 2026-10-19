@@ -6,6 +6,8 @@
 
 **实施进度（M12c5 后）：剩余 12 个 partial 类型、26 处声明、19 个文件；其中实际跨文件为 7 个类型、21 处声明、16 个文件。** GameSuite 已收尾，经济、事件失败报告、礼物拒收、袭击创建及清理的验证入口与共享夹具已独立。后续仍有 3 组 Save 测试模块化、2 个生产类型归并、5 个单声明修饰符清理和最终复核；详细实施与验证见文末。[M12c3 后审计](partial-module-audit-2026-10-19-post-m12c3.md)及其[机器清单](partial-module-inventory-2026-10-19-post-m12c3.json)保留 M12c4 开始前的时点，[GameSuite 收尾后审计](partial-module-audit-2026-10-19-post-gamesuite.md)保留 M12c1 开始前的时点。
 
+2026-10-19 再审计：以 `62a9ffb7` 加当前工作区重新扫描 **1,905 个 C# 文件**，以上剩余量不变。M12c6 已有共享设施的准备改动，但原测试与夹具仍未迁移，不计为完成。最新[机器清单](partial-module-inventory-2026-10-19-post-m12c5.json)及文末“剩余 partial 耦合再审计”记录本次范围、依赖证据和处理顺序。
+
 历史复核：从 `66496c68` 到 `258305ca` 加当时工作区，GameSuite 从 9 个分片、880 行降至 6 个分片、555 行；交易／复杂物品、管理／密码已经提交，聊天／外交／外观拆分及 Features 分片删除在该复核时尚未提交，后续 M12b7b 已完成（见文末）。该次审计只更新文档与机器清单，没有代为验收或提交这批场景代码。若只统计已提交的 `258305ca`，仍为 **20 个类型、49 处声明、37 个文件**，GameSuite 为 7 个分片、618 行。
 
 M12b7b／M12b7c／M12b8 已提交聊天、外交、外观、成就、排行榜及账户生命周期场景迁移。仅统计审计基线 `5a890a37`，仍为 **20 个 partial 类型、46 处声明、34 个文件**，GameSuite 为 **4 个分片、394 行**。搬家／飞船提取在该次审计时尚未验证；后续 M12b9 已完成相关单元验证并随实施记录提交，M12b10a 进一步迁出 pawn 准备与袭击重登组合断言，当时 GameSuite 为 **2 个分片、282 行**；M12b10b 已继续完成目录与宿主收尾，见文末。下文较早的复核表及原机器清单保留为历史记录。
@@ -3991,3 +3993,36 @@ GameSuite 删除无调用者的 `Confirm`、`AcceptLanguageWarning`、`Idle`、`
 扫描 1,904 个源文件，剩余 **12 个 partial 类型、26 处声明、19 个文件**，实际跨文件为 **7 个类型、21 处声明、16 个文件**。仅修改测试与文档，既存未提交工作与冻结 1.6 保留。
 
 **下一步 M12c6：RaidEvidenceAuthorizationTests 的授权、在线、请求绑定、日志恢复四个验证入口，以及三个 Fixture 分片。** 随后继续袭击超时与支援结束，共剩 3 组测试；两个生产归并、五处标记及最终依赖／外部契约复核仍未完成。
+
+### 剩余 partial 耦合再审计（2026-10-19，M12c5 后）
+
+本次基线为 `62a9ffb7` 加当前工作区。既有 Roslyn 扫描器检查 `Source`、`Tools`、`ThirdPartyCompat/Source` 下 1,905 个 C# 文件，排除 bin、obj、冻结 1.6 和独立 RimTest 子仓库；按命名空间及外层类型区分嵌套 Fixture。HEAD 的声明文本与工作区核对同为 26 处，扫描根之外的仓库源码检索未发现额外类型声明。类型清单与 M12c5 完成时相同；源文件增加来自尚未接入案例的共享产物存储设施。
+
+| 类别 | partial 类型 | 声明 | 不重复文件 | 剩余工作 |
+| --- | ---: | ---: | ---: | --- |
+| Save.Tests 验证入口及嵌套 Fixture | 5 | 13 | 8 | 3 组真正模块化 |
+| 生产兼容门面、银行注册表 | 2 | 8 | 8 | 2 个类型归并 |
+| 单声明 DTO／摘要 | 5 | 5 | 3 | 5 处多余关键字 |
+| **总计** | **12** | **26** | **19** | **3 组拆分 + 2 个归并 + 5 处标记** |
+
+真正跨文件的是 **7 个类型、21 处声明、16 个文件**，对应下表五项工程。两个嵌套 Fixture 已包含在各自的测试组里，不另算一项。对照上次 M12c3 审计，数量从 **15／34／24** 降至 **12／26／19**：袭击创建和清理两个测试组已经完成；证据、超时和支援结束仍在原列表中，没有新增一组未处理的 partial。
+
+| 顺序 | 剩余类型／测试组 | 外层分片 | 嵌套 Fixture 分片 | 当前耦合与处理边界 |
+| --- | --- | ---: | ---: | --- |
+| M12c6 | RaidEvidenceAuthorizationTests | 4 | 3 | 授权、在线、绑定、日志恢复共用存储、凭据、请求构造和回调；独立四个入口，由一个夹具拥有重开及资源释放 |
+| M12c7 | RaidTimeoutRecoveryTests | 2 | 2 | 超时维护和日志准备共用时钟、快照、任务、数据库及故障状态；集中夹具生命周期，独立验证入口 |
+| M12c8 | SupportClosureTests | 2 | — | 恢复夹具反向调用测试类，依赖共用业务种类、时间、令牌和断言；提取请求／数据／夹具，复用已有公共设施 |
+| 随后 | ClashOfRimCompatibilityApi | 6 | — | 能力模块及注册生命周期已独立；归并公开转发门面，保持 API 签名、顺序和异常语义 |
+| 随后 | BankLoanRegistry | 2 | — | PendingOperations 依赖主类的锁、借款／欠款集合和持久化；归并为一个账务状态所有者 |
+
+证据组的[主入口](../Tools/ClashOfRim.Save.Tests/RaidEvidenceAuthorizationTests.cs#L10)仍隐式调用另外三类验证，[Fixture](../Tools/ClashOfRim.Save.Tests/RaidEvidenceAuthorizationTests.cs#L83)与[绑定分片](../Tools/ClashOfRim.Save.Tests/RaidEvidenceRequestBindingTests.cs#L148)、[日志分片](../Tools/ClashOfRim.Save.Tests/RaidEvidenceJournalRecoveryTests.cs#L170)共同维护状态。工作区中的 SnapshotRecoveryTestStore／SnapshotPublicationProbe 扩展及新增 SnapshotArtifactTestStore 仅是 M12c6 的准备：旧 ObservedStore、ObservedArtifacts、LegacyArtifacts 和 EvidenceProcessor 仍由案例使用。本次没有将未迁移、未验证的设施记为拆分完成，也没有代为提交这些代码。
+
+证据夹具还应在迁移时补全生命周期检查：[WithFixture](../Tools/ClashOfRim.Save.Tests/RaidEvidenceAuthorizationTests.cs#L71)只在案例正常返回后检查当前产物句柄，[Open](../Tools/ClashOfRim.Save.Tests/RaidEvidenceAuthorizationTests.cs#L111)直接替换旧存储。重开前与异常退出时都应检查所属句柄，防止漏检；这是测试设施的检查缺口，本次没有复现产品句柄泄漏。共享存储接入必须保留原始／预准备发布故障的差别，以及旧版、版本化、预准备产物接口的能力差别，不能为了复用改变测试路径。
+
+超时组虽已在 Program 独立登记，内部仍通过 [RunJournalPreparation](../Tools/ClashOfRim.Save.Tests/RaidTimeoutRecoveryTests.cs#L14)套跑另一分片；[Fixture 主体](../Tools/ClashOfRim.Save.Tests/RaidTimeoutRecoveryTests.cs#L327)和[日志部分](../Tools/ClashOfRim.Save.Tests/RaidTimeoutJournalPreparationTests.cs#L121)一起读写同一状态。支援的[恢复夹具](../Tools/ClashOfRim.Save.Tests/SupportClosureRecoveryPreparationTests.cs#L150)仍直接调用 SupportClosureTests.Source／Call／Verify；[令牌缓存](../Tools/ClashOfRim.Save.Tests/SupportClosureTests.cs#L16)仍属于验证类，不能只把类移出文件后保留这种反向依赖。
+
+两个生产类型的处理目的不同于上述测试拆分：[兼容 API](../Source/Client/ThirdPartyCompatibility/Api/ClashOfRimCompatibilityApi.cs#L15)已把能力委托给独立模块，剩余 6 片共 459 行是门面收尾；[银行待确认操作](../Source/Server/ClashOfRim.Network/Server/Registries/Economy/BankLoanRegistry.PendingOperations.cs#L5)则与主类共同维护账务原子性，2 片共 983 行应保留一个锁、状态及持久化所有者。不要为消除 partial 再建立第二套银行写入边界。
+
+最后五处单声明类型为 ModThingReferenceDto、ModCrossMapPawnReferenceDto、ModPawnExchangeIdentityDto、ModPawnExchangeAppearanceDto、ItemDeliveryItemSummary；它们没有实际分片耦合，只需清理关键字，保持 DTO／序列化契约并避开既存未提交改动。
+
+本次只进行静态扫描、源码依赖核对和文档更新，没有运行单元、实机或全量回归。机器清单包含有限符号解析，不能代替完整 MSBuild／运行时调用图；partial 清零后仍需原计划中的依赖及 API／协议／Harmony／存档契约复核，也不代表项目所有非 partial 耦合已消失。后续仍按上表顺序，逐步运行相关单元测试后提交，全量由用户安排。
