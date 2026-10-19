@@ -158,10 +158,10 @@ internal static class ClientCompatibilityOverrideTests
     }
     private static TaskCompletionSource Signal() => new(TaskCreationOptions.RunContinuationsAsynchronously);
     private static void Check(bool value, string message) { if (!value) throw new InvalidOperationException(message); }
-    private sealed class Fixture : IClientCompatibilityManifestSource, IClientCompatibilityOverridePresentation,
+    internal sealed class Fixture : IClientCompatibilityManifestSource, IClientCompatibilityOverridePresentation,
         IClientCompatibilityBaselineRuntime, IClientCompatibilityOverrideTransport, IClientAdminBaselineTransport
     {
-        internal readonly EventModuleTestPorts Ports = new();
+        internal readonly EventModuleTestPorts Ports;
         internal readonly ClientAdminBaselineCaptureTests.Source Source = new();
         internal readonly ClientSessionLifecycle Session;
         internal readonly ClientAdminAccess Access;
@@ -181,10 +181,15 @@ internal static class ClientCompatibilityOverrideTests
         internal Func<string, Task>? Before;
         internal int Invalidations, DiscardAt, Queues;
         private bool engine = true;
-        internal Fixture()
+        internal Fixture(ClientAdministrationTests.Fixture? admin = null)
         {
-            ClientSessionWork.Reset(); Ports.Auth = ""; Ports.Password = "original-password";
-            Session = new(Ports, Ports, new(Ports)); Access = new(Session); Baseline = new(this);
+            if (admin is null)
+            {
+                ClientSessionWork.Reset(); Ports = new(); Ports.Auth = ""; Ports.Password = "original-password";
+                Session = new(Ports, Ports, new(Ports)); Access = new(Session);
+            }
+            else { Ports = admin.Ports; Session = admin.Session; Access = admin.Access; }
+            Baseline = new(this);
             Source.After = step => { Check(engine, "Capture off engine queue."); Step("capture-" + ((step - 1) % 8 + 1)); };
             Flow = new(Access, this, Baseline, new(Session, Source, Enqueue), this, this, this, Enqueue);
         }

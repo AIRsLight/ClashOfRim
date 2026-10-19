@@ -42,7 +42,7 @@ internal sealed class MultiplayerAdminConfigurationPage
         DrawAdminTextRow(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.PostagePerTile"), ref draft.TradePostageSilverPerTile.Text);
         DrawAdminTextRow(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.PostageCrossLayer"), ref draft.TradePostageCrossLayerOverheadDistanceTiles.Text);
         Widgets.EndScrollView();
-        DrawAdminSaveFooter(rect, draft);
+        DrawAdminSaveFooter(rect, model, draft);
     }
 
     internal void DrawAdminBankPanel(Rect rect, ClientAdminConfigurationDraft? draft)
@@ -67,7 +67,7 @@ internal sealed class MultiplayerAdminConfigurationPage
         DrawAdminTextRow(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.BankPenaltyPoints"), ref draft.BankPenaltyRaidPointsPerSilver.Text);
         DrawAdminBankOverduePenaltyRows(view, ref y, draft);
         Widgets.EndScrollView();
-        DrawAdminSaveFooter(rect, draft);
+        DrawAdminSaveFooter(rect, model, draft);
     }
 
     internal void DrawAdminMercenaryPanel(Rect rect, ClientAdminConfigurationDraft? draft)
@@ -102,7 +102,7 @@ internal sealed class MultiplayerAdminConfigurationPage
         DrawAdminTextRow(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.MercGuardSkilledRatio"), ref draft.MercenaryGuardSkilledPointsRatio.Text);
         DrawAdminTextRow(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.MercGuardMasterRatio"), ref draft.MercenaryGuardMasterPointsRatio.Text);
         Widgets.EndScrollView();
-        DrawAdminSaveFooter(rect, draft);
+        DrawAdminSaveFooter(rect, model, draft);
     }
 
     internal void DrawAdminRaidPanel(Rect rect, ClientAdminConfigurationDraft? draft)
@@ -133,7 +133,7 @@ internal sealed class MultiplayerAdminConfigurationPage
         DrawAdminCheckboxRow(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.GiftsEnabled"), ref draft.GiftsEnabled);
         DrawAdminTextRow(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.ForcedGiftCooldownMinutes"), ref draft.ForcedGiftDeliveryCooldownMinutes.Text);
         Widgets.EndScrollView();
-        DrawAdminSaveFooter(rect, draft);
+        DrawAdminSaveFooter(rect, model, draft);
     }
 
     private void DrawAdminTradeFeeStrategyRow(Rect view, ref float y, ClientAdminConfigurationDraft draft)
@@ -238,21 +238,6 @@ internal sealed class MultiplayerAdminConfigurationPage
         }
 
         y += 6f;
-    }
-
-    internal void DrawAdminSaveFooter(Rect rect, ClientAdminConfigurationDraft draft)
-    {
-        Rect footer = AdminSaveFooterRect(rect);
-        bool parsed = draft.IsValid;
-        if (!parsed)
-        {
-            Widgets.Label(new Rect(footer.x, footer.y + 6f, footer.width - 170f, 30f), ClashOfRimText.Key("ClashOfRim.Admin.InvalidConfig"));
-        }
-
-        if (Widgets.ButtonText(new Rect(footer.xMax - 150f, footer.y + 2f, 140f, 30f), ClashOfRimText.Key("ClashOfRim.Admin.Save"), active: parsed && !model.Busy))
-        {
-            _ = model.SaveAsync(draft);
-        }
     }
 
     private string AdminTradeFeeStrategyLabel(string strategy)

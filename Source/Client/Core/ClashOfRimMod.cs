@@ -476,6 +476,13 @@ public sealed partial class ClashOfRimMod : Mod
         return (editor, new(editor));
     }
 
+    internal MultiplayerAdminManifestPage CreateAdminManifestPage(ClientAdminConfigurationEditor editor) =>
+        new(new ClientAdminManifestPanel(editor, new ClientLocalCompatibilityManifest(), compatibilityOverride, worldWrites, colonyAppearance.Capture));
+
+    internal MultiplayerAdminAuditPage CreateAdminAuditPage() => new(new ClientAdminAuditPanel(sessionLifecycle, adminAccess, administration));
+
+    internal CompatibilityBaselineOverrideWindow CreateCompatibilityBaselineOverrideWindow() => new(compatibilityOverride.StartAsync);
+
     internal (MultiplayerAdminPlayersPage Players, MultiplayerAdminMaintenancePage Maintenance) CreateAdminOperationsPages()
     {
         var players = new ClientAdminPlayerPanel(sessionLifecycle, adminAccess, administration);

@@ -26,11 +26,11 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
     private MultiplayerDiagnosticsPage? diagnosticsPage;
     private ClientAdminConfigurationEditor? adminConfiguration;
     private MultiplayerAdminConfigurationPage? adminConfigurationPage;
+    private MultiplayerAdminManifestPage? adminManifestPage;
+    private MultiplayerAdminAuditPage? adminAuditPage;
 
     private const float PanelRefreshIntervalSeconds = PanelRefreshSchedule.IntervalSeconds;
 
-    private Vector2 adminScrollPosition;
-    private Vector2 adminManifestScrollPosition;
     private MultiplayerTab selectedTab = MultiplayerTab.Trade;
     private AdminPanelTab selectedAdminPanelTab = AdminPanelTab.Trade;
     private float nextAdminRefreshAt;
@@ -72,6 +72,8 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
         accountPage ??= mod.CreateAccountPage();
         diagnosticsPage ??= mod.CreateDiagnosticsPage();
         if (adminConfiguration is null) (adminConfiguration, adminConfigurationPage) = mod.CreateAdminConfigurationPage();
+        adminManifestPage ??= mod.CreateAdminManifestPage(adminConfiguration);
+        adminAuditPage ??= mod.CreateAdminAuditPage();
         TryRefreshSelectedTab(mod);
         Rect tabRect = new(inRect.x, inRect.y + 34f, inRect.width, inRect.height - 34f);
         if (!mod.IsAdministrator && selectedTab == MultiplayerTab.Admin)
@@ -127,6 +129,8 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
         mercenaryPage?.Close();
         accountPage?.Close();
         adminConfigurationPage?.Close();
+        adminManifestPage?.Close();
+        adminAuditPage?.Close();
         base.PostClose();
     }
 

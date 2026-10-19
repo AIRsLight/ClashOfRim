@@ -200,10 +200,10 @@ internal static class ClientWorldWritesTests
         PlayerColonySites = new() { new() { UserId = "bob", ColonyId = "remote", Tile = 9, TileLayerId = 7 } },
         TileGeometry = new() { Layers = new() { new() { TileCenters = new() { new() { X = 1.25f } } } } }
     };
-    private sealed class Fixture : IClientWorldBaselineRuntime, IClientWorldBaselineTransport, IClientStorytellerRuntime,
+    internal sealed class Fixture : IClientWorldBaselineRuntime, IClientWorldBaselineTransport, IClientStorytellerRuntime,
         IClientWorldConfigurationRuntime, IClientWorldConfigurationStore, IClientWorldFeatureCatalogTransport, IClientWorldWriteRuntime, IClientWorldWritePresentation
     {
-        internal readonly EventModuleTestPorts Ports = new(); internal readonly ClientSessionLifecycle Session; internal readonly ClientAdminAccess Access;
+        internal readonly EventModuleTestPorts Ports; internal readonly ClientSessionLifecycle Session; internal readonly ClientAdminAccess Access;
         internal readonly ClientWorldWrites Module; internal readonly ClientWorldWriteKind Kind;
         internal readonly ClientWorldPublicationTestPorts Publication;
         internal string WorldId = "world";
@@ -214,11 +214,17 @@ internal static class ClientWorldWritesTests
         internal ModWorldConfigurationDto? Accepted;
         internal ModWorldConfigurationDto? Sent; internal int Successes, Rejections, Markers, Captures;
         internal string? FaultPhase, Fault, CaptureError; internal Action<string>? Hook; internal Func<string, Task>? Before;
-        internal Fixture(ClientWorldWriteKind kind)
+        internal ModColonyAppearanceDto? CapturedAppearance;
+        internal Fixture(ClientWorldWriteKind kind, ClientAdministrationTests.Fixture? admin = null)
         {
-            Kind = kind; ClientSessionWork.Reset(); Session = new(Ports, Ports, new(Ports));
-            Session.PublishLogin(new() { AuthenticatedUserId = "alice", AuthToken = "auth", SessionId = "session" });
-            Access = new(Session); Access.SetAdministrator(true);
+            Kind = kind;
+            if (admin is null)
+            {
+                ClientSessionWork.Reset(); Ports = new(); Session = new(Ports, Ports, new(Ports));
+                Session.PublishLogin(new() { AuthenticatedUserId = "alice", AuthToken = "auth", SessionId = "session" });
+                Access = new(Session); Access.SetAdministrator(true);
+            }
+            else { Ports = admin.Ports; Session = admin.Session; Access = admin.Access; }
             var storyteller = new ClientStorytellerConfiguration(Session, new(Session), this);
             var submission = new ClientWorldBaselineSubmission(Session, this, this);
             var configuration = new ClientWorldConfiguration(Session, this, this, storyteller, new(Session, this));
@@ -272,7 +278,7 @@ internal static class ClientWorldWritesTests
             public bool IsCurrent => F.HasWorld && ReferenceEquals(Game, F.Ports.GameOwner) && ReferenceEquals(World, F.World);
             public string Language => "French"; public bool IsPlaying => true;
             public ModWorldConfigurationDto ReadWorld(string userId, string colonyId, ModColonyAppearanceDto? appearance)
-            { F.Step("source"); var value = Config(); if (F.InvalidSource) value.SeedString = ""; return value; }
+            { F.CapturedAppearance = appearance; F.Step("source"); var value = Config(); if (F.InvalidSource) value.SeedString = ""; return value; }
             public IReadOnlyList<ModWorldConfigurationExtensionDto> ReadExtensions(string userId, string colonyId, string worldId)
             { F.Step("source-extensions"); return new[] { new ModWorldConfigurationExtensionDto { ProviderId = "pollution", PayloadJson = "{\"value\":0.25}" } }; }
             public byte[] CaptureSubstrate(ModWorldTileGeometryDto? geometry, out string? failure) { F.Step("substrate"); failure = null; return new byte[] { 1 }; }

@@ -1,13 +1,21 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using AIRsLight.ClashOfRim.Compatibility;
+using AIRsLight.ClashOfRim.Modules.Multiplayer;
 using AIRsLight.ClashOfRim.Modules.Transport;
 using Verse;
 
 namespace AIRsLight.ClashOfRim.CompatibilityClient;
 
-internal sealed class ClientLocalCompatibilityManifest : IClientCompatibilityManifestSource
+internal sealed class ClientLocalCompatibilityManifest : IClientCompatibilityManifestSource, IClientAdminManifestSource
 {
+    public string SteamPostfix => ModMetaData.SteamModPostfix ?? "";
+    public IReadOnlyList<string>? ReadPackageOrder()
+    {
+        try { return ClientCompatibilityManifestBuilder.Build().Mods.OrderBy(mod => mod.LoadOrder).Select(mod => mod.PackageId).ToArray(); }
+        catch (Exception ex) { Log.Warning("[ClashOfRim][Compatibility] Failed to compare admin override mod list: " + ex); return null; }
+    }
     public string? Id => Read(() => ClientCompatibilityManifestBuilder.Build().ManifestId, "id");
     public string? SummaryJson => Read(ClientCompatibilityManifestBuilder.BuildSummaryJson, "summary");
     public string? BuildJson(IReadOnlyCollection<string>? packageIds)

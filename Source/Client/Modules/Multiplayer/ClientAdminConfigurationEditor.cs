@@ -27,6 +27,14 @@ internal sealed class ClientAdminConfigurationEditor
             () => { observed = null; signature = null; draft = null; });
     }
     internal bool Busy => access.Busy;
+    internal bool IsCurrent(ClientAdminConfigurationDraft candidate) => lifetime.Read(() => ReferenceEquals(Read(), candidate));
+    internal bool TryUse(ClientAdminConfigurationDraft candidate, Action action, bool requireIdle = false) => lifetime.Read(() =>
+    {
+        if (!IsCurrent(candidate) || (requireIdle && access.Busy)) return false;
+        action(); return true;
+    });
+    internal string[]? ReadAcceptedModOrder(ClientAdminConfigurationDraft candidate) => lifetime.Read(() => IsCurrent(candidate)
+        ? observed!.CompatibilityMods.OrderBy(mod => mod.LoadOrder).Select(mod => mod.PackageId).ToArray() : null);
     internal void Close() => lifetime.Reset();
     internal ClientAdminConfigurationDraft? Read() => lifetime.Read(() =>
     {
@@ -63,9 +71,5 @@ internal sealed class ClientAdminConfigurationEditor
         => Bind(candidate, value => { if (candidate.CompatibilityMods.Contains(mod) && mod.Configs.Contains(config)) config.Mode = value; });
 
     private Action<string> Bind(ClientAdminConfigurationDraft candidate, Action<string> edit)
-    {
-        var owner = lifetime.Capture();
-        return value => lifetime.TryApply(owner, () =>
-        { if (ReferenceEquals(Read(), candidate)) edit(value); });
-    }
+        => value => TryUse(candidate, () => edit(value));
 }

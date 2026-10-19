@@ -19,6 +19,7 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("administrator manifest owns baseline confirmations and audit projection", MultiplayerAdminManifestTests.Run),
     ("administrator maintenance panel owns broadcast targets, drafts and explicit lock commands", MultiplayerAdminMaintenanceTests.Run),
     ("administrator player panel owns targets, action menus and password drafts", MultiplayerAdminPlayerTests.Run),
     ("shop listing runtime owns engine templates, metadata and RimTest entry points", ClientShopListingRuntimeTests.Run),

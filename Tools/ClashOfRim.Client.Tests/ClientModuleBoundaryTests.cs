@@ -147,6 +147,8 @@ internal static class ClientModuleBoundaryTests
                 or "AIRsLight.ClashOfRim.Multiplayer.Achievements" or "AIRsLight.ClashOfRim.Multiplayer.Diagnostics"
                 || t == typeof(AIRsLight.ClashOfRim.Multiplayer.AllySupportRequestDialogWindow)
                 || t == typeof(AIRsLight.ClashOfRim.ServerShop.ClientShopListingRuntime)
+                || t == typeof(AIRsLight.ClashOfRim.CompatibilityClient.CompatibilityBaselineOverrideWindow)
+                || t.DeclaringType == typeof(AIRsLight.ClashOfRim.CompatibilityClient.CompatibilityBaselineOverrideWindow)
                 || t.DeclaringType == typeof(AIRsLight.ClashOfRim.ServerShop.ClientShopListingRuntime)).ToArray();
         var pageViolations = ModuleDependencyGuard.FindViolations(pages,
             t => t == typeof(ClashOfRimMod) || t == typeof(ClashOfRimSettings) || t == typeof(ClashOfRimModNetworkClient)

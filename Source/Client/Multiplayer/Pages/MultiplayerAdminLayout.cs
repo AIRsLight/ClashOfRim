@@ -1,4 +1,5 @@
 using System;
+using AIRsLight.ClashOfRim.Modules.Multiplayer;
 using UnityEngine;
 using Verse;
 
@@ -6,6 +7,21 @@ namespace AIRsLight.ClashOfRim.Multiplayer.Pages;
 
 internal static class MultiplayerAdminLayout
 {
+    internal static void DrawAdminSaveFooter(Rect rect, ClientAdminConfigurationEditor model, ClientAdminConfigurationDraft draft)
+    {
+        Rect footer = AdminSaveFooterRect(rect);
+        bool parsed = draft.IsValid;
+        if (!parsed)
+        {
+            Widgets.Label(new Rect(footer.x, footer.y + 6f, footer.width - 170f, 30f), ClashOfRimText.Key("ClashOfRim.Admin.InvalidConfig"));
+        }
+
+        if (Widgets.ButtonText(new Rect(footer.xMax - 150f, footer.y + 2f, 140f, 30f), ClashOfRimText.Key("ClashOfRim.Admin.Save"), active: parsed && !model.Busy))
+        {
+            _ = model.SaveAsync(draft);
+        }
+    }
+
     internal static Rect BeginAdminScroll(Rect rect, ref Vector2 scroll, float minHeight)
     {
         Rect view = new(0f, 0f, rect.width - 16f, Math.Max(rect.height, minHeight));
