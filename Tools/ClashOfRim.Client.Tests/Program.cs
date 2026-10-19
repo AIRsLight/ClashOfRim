@@ -19,6 +19,7 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("world setup lifecycle binds page polling and reuses initial provisioning", ClientWorldSetupLifecycleTests.Run),
     ("storyteller editor binds page identity, permission and delayed submission", ClientStorytellerEditorTests.Run),
     ("colony site events share suppression, capture and original registration scope", ClientColonySiteEventTests.Run),
     ("colony gizmos retain original session and target through delayed clicks", ClientColonyGizmoTests.Run),

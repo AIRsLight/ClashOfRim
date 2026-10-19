@@ -167,7 +167,7 @@ internal static class ClientInitialWorldSetupTests
     }
     private static TaskCompletionSource Signal() => new(TaskCreationOptions.RunContinuationsAsynchronously);
     private static void Check(bool value, string message) { if (!value) throw new InvalidOperationException(message); }
-    private sealed class Fixture : IClientWorldBaselineRuntime, IClientWorldBaselineTransport, IClientStorytellerRuntime,
+    internal sealed class Fixture : IClientWorldBaselineRuntime, IClientWorldBaselineTransport, IClientStorytellerRuntime,
         IClientAdminBaselineTransport, IClientSnapshotTransport, IClientInitialWorldRuntime, IClientInitialWorldPresentation, IClientSessionFollowups
     {
         internal readonly EventModuleTestPorts Ports = new();

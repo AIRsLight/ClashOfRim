@@ -145,7 +145,6 @@ public sealed partial class ClashOfRimMod : Mod
     private readonly ClientWorldBaselineSubmission worldBaselineSubmission;
     private readonly ClientWorldBaselineCapture worldBaselineCapture;
     private readonly ClientAdminBaselineCapture adminBaselineCapture;
-    private readonly ClientInitialWorldSetup initialWorldSetup;
     private readonly ClientWorldMarkers worldMarkers;
     private readonly ClientWorldLoginPublication worldLoginPublication;
     private readonly ClientSessionStartup sessionStartup;
@@ -376,9 +375,11 @@ public sealed partial class ClashOfRimMod : Mod
             sessionFollowups, raidRecovery, new ClientRaidRecoveryRuntime(), new ClientSnapshotWorldPresentation(message => diagnostics.WorldMapStatus = message));
         snapshotReload.Completed += snapshotWorld.Continue;
         var initialWorldPresentation = new ClientInitialWorldPresentation(message => diagnostics.LoginStatus = message, message => diagnostics.SnapshotUploadStatus = message, sessionConnection);
-        initialWorldSetup = new ClientInitialWorldSetup(sessionLifecycle, worldSetup, synchronization, worldBaselineCapture, worldBaselineSubmission,
+        var initialWorldSetup = new ClientInitialWorldSetup(sessionLifecycle, worldSetup, synchronization, worldBaselineCapture, worldBaselineSubmission,
             adminBaselineCapture, new AIRsLight.ClashOfRim.Admin.ClientAdminBaselineTransport(new ClientProtocolEnvironment()),
             ClientSnapshotComposition.Create(settings), initialWorldPresentation, initialWorldPresentation, sessionFollowups);
+        ClientWorldSetupPages.Attach(new ClientWorldSetupPages(new ClientWorldSetupLifecycle(sessionLifecycle, new ClientWorldCatalogRuntime(),
+            sourceGame, initialWorldSetup, colonyAppearance, worldSynchronization, worldMarkers, initialWorldPresentation)));
         sessionStartup = new ClientSessionStartup(sessionLifecycle, synchronization, localMutations, sourceGame, worldLoginPublication,
             new ClientSessionLogin(sessionLifecycle, new ClientSessionLoginTransport(new ClientProtocolEnvironment())),
             ClientSnapshotComposition.Create(settings), new ClientSessionStartupRuntime(sessionConnection),

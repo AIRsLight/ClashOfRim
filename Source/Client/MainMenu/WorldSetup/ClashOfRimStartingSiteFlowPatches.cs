@@ -1,6 +1,5 @@
 using HarmonyLib;
 using RimWorld;
-using UnityEngine;
 using Verse;
 
 namespace AIRsLight.ClashOfRim.MainMenu;
@@ -20,29 +19,13 @@ public static class ClashOfRimStartingSitePreOpenPatch
 [HarmonyPatch(typeof(Page_SelectStartingSite), nameof(Page_SelectStartingSite.PostOpen))]
 public static class ClashOfRimStartingSitePostOpenPatch
 {
-    private const float WorldMapMarkerRefreshIntervalSeconds = 30f;
-    private static float nextRefreshAt;
-
     [HarmonyPostfix]
     public static void Postfix(Page_SelectStartingSite __instance)
     {
         ClientWorldSetupDiagnostics.Log(
             "Page_SelectStartingSite.PostOpen",
             ClientWorldSetupDiagnostics.DescribeWindow(__instance) + ", " + ClientWorldSetupDiagnostics.DescribeWindowStack());
-        LoadedModManager.GetMod<ClashOfRimMod>().SubmitInitialWorldConfigurationIfPending();
-        nextRefreshAt = Time.realtimeSinceStartup + WorldMapMarkerRefreshIntervalSeconds;
-        LoadedModManager.GetMod<ClashOfRimMod>().RequestWorldMapMarkerRefresh(ClashOfRimText.Key("ClashOfRim.WorldMap.ReasonStartingSiteEntered"));
-    }
-
-    internal static void TryRefreshWhileOpen()
-    {
-        if (Time.realtimeSinceStartup < nextRefreshAt)
-        {
-            return;
-        }
-
-        nextRefreshAt = Time.realtimeSinceStartup + WorldMapMarkerRefreshIntervalSeconds;
-        LoadedModManager.GetMod<ClashOfRimMod>().RequestWorldMapMarkerRefresh(ClashOfRimText.Key("ClashOfRim.WorldMap.ReasonStartingSiteStayed"));
+        _ = ClientWorldSetupPages.Current?.OpenedAsync(__instance);
     }
 }
 
@@ -50,12 +33,10 @@ public static class ClashOfRimStartingSitePostOpenPatch
 public static class ClashOfRimStartingSiteExtraOnGuiPatch
 {
     [HarmonyPostfix]
-    public static void Postfix()
+    public static void Postfix(Page_SelectStartingSite __instance)
     {
         ClashOfRimMainMenuPatches.RunQueuedMainThreadActions();
-        ClashOfRimMod mod = LoadedModManager.GetMod<ClashOfRimMod>();
-        mod.ApplyCachedWorldMapMarkersToWorldObjects();
-        ClashOfRimStartingSitePostOpenPatch.TryRefreshWhileOpen();
+        _ = ClientWorldSetupPages.Current?.UpdatedAsync(__instance);
     }
 }
 
@@ -65,6 +46,7 @@ public static class ClashOfRimStartingSitePostClosePatch
     [HarmonyPostfix]
     public static void Postfix(Page_SelectStartingSite __instance)
     {
+        ClientWorldSetupPages.Current?.Closed(__instance);
         ClientWorldSetupDiagnostics.Log(
             "Page_SelectStartingSite.PostClose",
             ClientWorldSetupDiagnostics.DescribeWindow(__instance) + ", " + ClientWorldSetupDiagnostics.DescribeWindowStack());

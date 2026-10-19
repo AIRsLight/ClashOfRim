@@ -3280,3 +3280,15 @@ PNG 下载保持四路并发、20 秒超时及 256 项纹理容量；详情保�
 两项临时错误实现被 `Storyteller close callback advanced a replacement account's setup.` 和 `PlanetTile adapter lost its layer.` 捕获，日志 `LocalOnly/module-migration/world-setup-entry-{storyteller,layer}-negative.log`，错误实现已恢复。**7 个相关单元组通过**：世界生成模块／运行时、占用站点模块／运行时、难度配置、难度编辑和模块边界。最终日志 `LocalOnly/module-migration/world-setup-entry-tests.log`；守卫检查 1,649 个纯模块类型、127 个兼容能力类型、109 个页面／适配类型及 312 个事件适配类型。生产随单元测试编译；未运行全量实机回归、专项 RimTest 或独立发布／桥接构建。冻结 1.6 和原有未提交修改保留，未推送。
 
 **下一步 M11o7b2：起始站点页生命周期与初始世界提交。** PostOpen／ExtraOnGUI 仍通过 Mod 触发初次提交、应用缓存与刷新，30 秒期限仍是全局静态字段；新游戏初始化也仍经 Mod 转发。将页面和刷新期限绑定原会话／Game／World，复用现有初始世界、来源 Game 和世界同步模块，完成 WorldBaseline 门面的退役。之后继续游戏组件及网络／服务器剩余门面，再推进 M12。
+
+### M11o7b2：起始站点访问拥有刷新期限与来源（2026-10-19）
+
+`ClientWorldSetupLifecycle` 为每次起始站点访问保存 30 秒刷新期限，绑定原会话、Game、World 和页面存活条件；`ClientWorldSetupPages` 仅把实际 Window 引用、窗口栈及引擎时间转换为这一访问。打开、绘制、关闭和新游戏初始化补丁直接使用该适配器，不再查找整个 Mod。删除仅为这些调用保留的两个 Mod 转发和 `ClashOfRimMod.WorldBaseline.cs`，初始提交模块缩为组合根局部依赖。窗口通过弱表登记，关闭时先移除并使访问失效；另一个窗口打开不再修改旧窗口的刷新期限，旧窗口关闭也不停止新窗口。
+
+打开仍按原顺序启动初始世界提交及标记刷新，绘制仍先处理主线程队列并应用缓存，再按期限刷新。初始化继续使用既有来源 Game 屏障；初始配置票据、管理员基线、快照交接、标记同步准入及缓存发布均由原模块完成。页面关闭只停止后续轮询，已准入的初始提交仍受原业务作用域控制。页面作用域不绑定将由初始化发布的世界 ID，因此同一 Game／World 的合法世界 ID 和快照更新不会误使页面失效。翻译和缓存投影回调后复核访问归属，防止回调切换会话后触发新会话的刷新。
+
+新增测试复用初始提交和世界发布夹具，覆盖打开／初始化重复调用、独立期限和 30 秒边界、未启动／关闭／移出窗口栈、适配器替换、九类身份或运行时变更、翻译与投影期间变更、合法世界 ID／快照前进、来源 Game 屏障和提交途中关页。引擎接线测试运行实际四个补丁及真实模块，以 postfix 观察任务；时间、窗口栈、日志和主线程队列入口使用替身，未渲染 GUI 或运行真实世界生成。临时改回共享期限、移除访问归属检查，分别被 `Opening another page moved the first page's deadline.` 和 `Old setup visit crossed user` 捕获；日志 `LocalOnly/module-migration/world-setup-lifecycle-{deadline,scope}-negative.log`，错误实现已恢复。
+
+**6 个相关单元组通过**：新增设置生命周期、初始世界提交、世界同步、标记、世界入口和模块边界。最终日志 `LocalOnly/module-migration/world-setup-lifecycle-tests.log`；守卫检查 1,654 个纯模块类型、127 个兼容能力类型、115 个页面／适配类型及 312 个事件适配类型。生产随单元测试编译；未运行全量实机回归、专项 RimTest 或独立发布／桥接构建，冻结 1.6 和原有未提交修改保留，未推送。
+
+**下一步 M11o8：游戏组件生命周期接入。** 复核 GameComponent 的初始化、读档、轮询和界面入口，按现有模块责任消除 Mod 转发；该文件存在原有未提交修改，迁移时保留并仅提交本阶段差异。之后继续网络／服务器过渡门面、M12 和最终审计，M11 整体仍开放。验证继续使用相关单元测试，必要时补单次功能 RimTest，全量由用户安排。
