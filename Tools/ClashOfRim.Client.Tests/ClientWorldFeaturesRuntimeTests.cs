@@ -36,6 +36,7 @@ internal static class ClientWorldFeaturesRuntimeTests
         {
             var def = new FeatureDef { defName = "ClashFeatureTest", label = "default local label", nameMaker = new RulePackDef() };
             DefDatabase<FeatureDef>.Add(def);
+            SubstrateTransfer(def);
             foreach (string name in new[] { "en-US", "fr-FR", "tr-TR", "zh-CN" })
             {
                 CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(name);
@@ -47,6 +48,62 @@ internal static class ClientWorldFeaturesRuntimeTests
             harmony.UnpatchAll(harmony.Id); DefDatabase<FeatureDef>.Clear(); foreach (var def in defs) DefDatabase<FeatureDef>.Add(def);
             Current.Game = game; Current.CreatingWorld = creating; CultureInfo.CurrentCulture = culture; naming = null; failNames = false;
         }
+    }
+    private static void SubstrateTransfer(FeatureDef def)
+    {
+        using var mutators = new DefDatabaseTestScope<TileMutatorDef>();
+        var authoritative = new TileMutatorDef { defName = "AuthoritativeTileMutator", shortHash = 41001 };
+        var stale = new TileMutatorDef { defName = "LocallyGeneratedTileMutator", shortHash = 41002 };
+        mutators.Replace(new[] { authoritative, stale });
+        Check(ReferenceEquals(DefDatabase<TileMutatorDef>.GetByShortHash(authoritative.shortHash), authoritative), "Mutator fixture did not register its native short hash.");
+        var source = new Fixture(def); var target = new Fixture(def);
+        var patch = new Harmony("ClashOfRim.Tests.WorldSubstrateRawTransfer");
+        patch.Patch(AccessTools.PropertyGetter(typeof(PlanetLayer), nameof(PlanetLayer.TilesCount)),
+            prefix: new HarmonyMethod(typeof(ClientWorldFeaturesRuntimeTests), nameof(TileCount)));
+        // The fixture omits geometry and climate buffers; retain the game's actual
+        // sparse mutator decoder to test replacement of generated tile state.
+        patch.Patch(AccessTools.Method(typeof(SurfaceLayer), "RawDataToTiles"),
+            prefix: new HarmonyMethod(typeof(ClientWorldFeaturesRuntimeTests), nameof(DecodeMutators)));
+        try
+        {
+            foreach (var layer in source.Layers)
+            {
+                AccessTools.Field(typeof(SurfaceLayer), "tileMutatorTiles").SetValue(layer, DataSerializeUtility.SerializeInt(new[] { 0 }));
+                AccessTools.Field(typeof(SurfaceLayer), "tileMutatorDefs").SetValue(layer, DataSerializeUtility.SerializeUshort(new[] { authoritative.shortHash }));
+            }
+            foreach (var layer in target.Layers)
+            {
+                layer.tileFeature = null;
+                foreach (var tile in layer.Tiles) tile.mutatorsNullable = new() { stale };
+            }
+            void Copy() => AccessTools.Method(typeof(WorldSubstrateRuntime), "CopyGridRawData").Invoke(null, new object[] { source.World.grid, target.World.grid });
+            Copy();
+            bool featuresCopied = source.Layers.Zip(target.Layers).All(pair => pair.Second.tileFeature is not null
+                && pair.First.tileFeature.SequenceEqual(pair.Second.tileFeature) && !ReferenceEquals(pair.First.tileFeature, pair.Second.tileFeature));
+            bool mutatorsReplaced = target.Layers.All(layer => layer.Tiles[0].Mutators.SequenceEqual(new[] { authoritative })
+                && layer.Tiles.Skip(1).All(tile => !tile.Mutators.Any()));
+            Check(featuresCopied && mutatorsReplaced, $"Substrate copy lost feature bytes: {!featuresCopied}; mutators differ: {!mutatorsReplaced}; actual: "
+                + string.Join(" | ", target.Layers.SelectMany(layer => layer.Tiles).Select(tile => string.Join(",", tile.Mutators.Select(m => m.defName)))));
+            ClientWorldFeaturesRuntime.Restore(target.World, source.Xml(), target.Config, () => true);
+            Check(target.Layers.All(layer => layer.Tiles[0].feature?.layer == layer && layer.Tiles[1].feature is null),
+                "Copied substrate did not restore authoritative feature links.");
+            foreach (var layer in source.Layers)
+            {
+                layer.tileFeature = null;
+                AccessTools.Field(typeof(SurfaceLayer), "tileMutatorTiles").SetValue(layer, null);
+                AccessTools.Field(typeof(SurfaceLayer), "tileMutatorDefs").SetValue(layer, null);
+            }
+            Copy();
+            Check(target.Layers.All(layer => layer.tileFeature is null && layer.Tiles.All(tile => !tile.Mutators.Any())),
+                "An empty authoritative substrate retained previous features or mutators.");
+        }
+        finally { patch.UnpatchAll(patch.Id); }
+    }
+    private static bool TileCount(PlanetLayer __instance, ref int __result) { __result = __instance.Tiles.Count; return false; }
+    private static bool DecodeMutators(SurfaceLayer __instance)
+    {
+        AccessTools.Method(typeof(SurfaceLayer), "DeserializeMutators").Invoke(__instance, Array.Empty<object>());
+        return false;
     }
     private static void Topology(FeatureDef def)
     {

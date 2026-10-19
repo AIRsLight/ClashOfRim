@@ -157,6 +157,10 @@ internal static class WorldSubstrateRuntime
                 throw new MissingMethodException(destination.GetType().FullName, "RawDataToTiles");
             }
 
+            // SurfaceLayer decodes a sparse mutator list and clears only tiles
+            // present in that list. Unlisted tiles must lose local generation state.
+            if (destination is SurfaceLayer)
+                foreach (Tile tile in destination.Tiles) tile.mutatorsNullable = null;
             rawDataToTiles.Invoke(destination, null);
         }
     }
@@ -165,7 +169,7 @@ internal static class WorldSubstrateRuntime
     {
         for (Type? type = source.GetType(); type is not null && type != typeof(object); type = type.BaseType)
         {
-            foreach (FieldInfo field in type.GetFields(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.DeclaredOnly))
+            foreach (FieldInfo field in type.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly))
             {
                 if (field.FieldType != typeof(byte[]))
                 {

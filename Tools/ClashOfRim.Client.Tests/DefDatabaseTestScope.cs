@@ -13,6 +13,7 @@ internal sealed class DefDatabaseTestScope<T> : IDisposable where T : Def, new()
     {
         DefDatabase<T>.Clear();
         foreach (var definition in definitions) DefDatabase<T>.Add(definition);
+        DefDatabase<T>.InitializeShortHashDictionary();
     }
 
     public void Dispose() => Replace(previous);
