@@ -12,131 +12,177 @@ using AIRsLight.ClashOfRim.Network.Modules.Mercenaries;
 using AIRsLight.ClashOfRim.Network.Modules.Shop;
 using AIRsLight.ClashOfRim.Network.Modules.Trades;
 using AIRsLight.ClashOfRim.Network.Modules.Gifts;
-using static AIRsLight.ClashOfRim.Network.Modules.Transfers.ItemTransferMapper;
 using AIRsLight.ClashOfRim.Network.Modules.Snapshots;
 using AIRsLight.ClashOfRim.Network.Modules.Bank;
 using AIRsLight.ClashOfRim.Network.Modules.Events;
-using AIRsLight.ClashOfRim.Events;
-using AIRsLight.ClashOfRim.Compatibility;
+using AIRsLight.ClashOfRim.Network.Hosting;
+using AIRsLight.ClashOfRim.Network.Modules.Compatibility;
 using AIRsLight.ClashOfRim.Network.Plugins;
 using AIRsLight.ClashOfRim.Protocol;
-using AIRsLight.ClashOfRim.Save;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using System.Globalization;
-using System.Text.Json;
+using Microsoft.Extensions.Logging.Console;
 
 namespace AIRsLight.ClashOfRim.Network;
 
-public static partial class ClashOfRimNetworkServer
+public static class ClashOfRimNetworkServer
 {
-
-    private static void UseRequestDiagnostics(WebApplication app)
+    public static WebApplication Build(string[] args, ClashOfRimNetworkState? state = null)
     {
-        app.Use(async (context, next) =>
+        WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+        builder.WebHost.ConfigureKestrel(options =>
         {
-            string? language = context.Request.Headers[ServerLocalization.LanguageHeader].FirstOrDefault();
-            using ServerLocalizationScope scope = ServerLocalization.BeginRequest(language);
-            ILogger logger = context.RequestServices
-                .GetRequiredService<ILoggerFactory>()
-                .CreateLogger("AIRsLight.ClashOfRim.Network.RequestDiagnostics");
-
-            try
-            {
-                await next(context);
-                if (context.Response.StatusCode >= StatusCodes.Status400BadRequest)
-                {
-                    logger.LogWarning(
-                        "HTTP {StatusCode} for {Method} {Path}{QueryString}",
-                        context.Response.StatusCode,
-                        context.Request.Method,
-                        context.Request.Path,
-                        context.Request.QueryString);
-                }
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(
-                    ex,
-                    "Unhandled exception while processing {Method} {Path}{QueryString}",
-                    context.Request.Method,
-                    context.Request.Path,
-                    context.Request.QueryString);
-
-                if (!context.Response.HasStarted)
-                {
-                    context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-                    await context.Response.WriteAsJsonAsync(new
-                    {
-                        result = ProtocolResponse.Reject(
-                            ProtocolErrorCode.ServerRejected,
-                            ServerLocalization.Text("Server.InternalError"))
-                    });
-                }
-            }
+            options.Limits.MaxRequestBodySize = ServerStartupConfiguration.MaxRequestBodySize(builder.Configuration);
         });
+        string logFilePath = ServerStartupConfiguration.LogFilePath(builder.Environment.ContentRootPath);
+        builder.Logging.AddFilter<ConsoleLoggerProvider>("Microsoft.AspNetCore.Hosting.Diagnostics", LogLevel.Warning);
+        builder.Logging.AddFilter<ConsoleLoggerProvider>("Microsoft.AspNetCore.Routing.EndpointMiddleware", LogLevel.Warning);
+        builder.Logging.AddFilter<ConsoleLoggerProvider>("Microsoft.AspNetCore.Http.Result", LogLevel.Warning);
+        ClashOfRimFileLoggerProvider? fileLogger = null;
+        WebApplication? app = null;
+        ClashOfRimNetworkState? networkState = state;
+        ILogger? previousRuntimeLogger = null;
+        try
+        {
+            // A factory registration gives the host ownership; defer opening until its services need logging.
+            builder.Services.AddSingleton<ILoggerProvider>(_ => fileLogger = new ClashOfRimFileLoggerProvider(logFilePath));
+            ServerLocalizationFileLoader.Load(builder.Environment.ContentRootPath);
+            string serverLanguage = ServerStartupConfiguration.ResolveLanguage(args, builder.Configuration);
+            if (!ServerLocalization.HasLanguage(serverLanguage))
+            {
+                throw new InvalidOperationException(ServerText.Format("Server.LanguageUnavailable", ("LANGUAGE", serverLanguage)));
+            }
+
+            ServerLocalization.SetDefaultLanguage(serverLanguage);
+            ServerPluginRegistry plugins = ServerPluginLoader
+                .Load(builder.Environment.ContentRootPath)
+                .WithBuiltInPlugins(BuiltInServerPlugins.Descriptors);
+            ServerPersistenceMigrationResult? persistenceMigrationResult = null;
+            ServerPersistenceMigrationService? persistenceMigrations = null;
+            if (state is null)
+            {
+                string dataDirectory = ServerStartupConfiguration.DataDirectory(builder.Configuration, builder.Environment.ContentRootPath);
+                persistenceMigrations = new ServerPersistenceMigrationService(dataDirectory);
+                (networkState, persistenceMigrationResult) = PersistentServerState.Create(
+                    dataDirectory,
+                    ServerStartupConfiguration.ServerConfiguration(builder.Configuration),
+                    plugins,
+                    persistenceMigrations);
+            }
+            else
+            {
+                networkState = state;
+            }
+            networkState.SnapshotPostUploads.ValidateRegistrations();
+            builder.Services.AddSingleton(networkState);
+            builder.Services.AddSingleton(networkState.SnapshotPostUploadBackground);
+            builder.Services.AddHostedService<SnapshotPostUploadBackgroundService>();
+            app = builder.Build();
+            previousRuntimeLogger = networkState.RuntimeLogger;
+            networkState.SetRuntimeLogger(app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("AIRsLight.ClashOfRim.Network.Runtime"));
+            networkState.SnapshotMutations.Recover();
+            app.Logger.LogInformation(ServerText.Format("Server.LocalizationLoaded", ("LANGUAGES", string.Join(", ", ServerLocalization.LoadedLanguages))));
+            if (plugins.Plugins.Count > 0)
+            {
+                app.Logger.LogInformation(
+                    ServerText.Format("Server.PluginsLoaded", ("PLUGINS", "{Plugins}")),
+                    string.Join(", ", plugins.Plugins.Select(plugin => $"{plugin.Id}:{string.Join("+", plugin.Capabilities)}")));
+            }
+
+            app.Logger.LogInformation(ServerText.Format("Server.LogFilePath", ("PATH", logFilePath)));
+            int recoveredWorldExtensionSnapshots = networkState.ColonyProjection.RecoverExtensions(networkState.SnapshotStore.ListLatest());
+            if (recoveredWorldExtensionSnapshots > 0)
+            {
+                app.Logger.LogInformation(
+                    ServerText.Format("Server.WorldExtensionsRecovered", ("COUNT", "{SnapshotCount}")),
+                    recoveredWorldExtensionSnapshots);
+            }
+
+            if (persistenceMigrationResult is not null)
+            {
+                ServerDatabaseMigrationResult databaseMigration = persistenceMigrationResult.Database;
+                app.Logger.LogInformation(
+                    ServerText.Format(
+                        "Server.DatabaseSchemaReady",
+                        ("FROM", databaseMigration.StartingVersion.ToString()),
+                        ("TO", databaseMigration.FinalVersion.ToString()),
+                        ("MIGRATIONS", databaseMigration.AppliedMigrations.Count == 0
+                            ? "none"
+                            : string.Join(", ", databaseMigration.AppliedMigrations))));
+                if (databaseMigration.RequiresWorldSubstrateRebaseline)
+                {
+                    app.Logger.LogWarning(ServerText.Format("Server.DatabaseWorldRebaselineRequired"));
+                }
+                else if (!string.IsNullOrWhiteSpace(databaseMigration.RecoveredWorldSubstrateSnapshotId))
+                {
+                    app.Logger.LogInformation(
+                        ServerText.Format("Server.DatabaseWorldSubstrateRecovered", ("SNAPSHOT", databaseMigration.RecoveredWorldSubstrateSnapshotId)));
+                }
+                app.Logger.LogInformation(
+                    ServerText.Format(
+                        "Server.SnapshotPackagesReady",
+                        ("TOTAL", persistenceMigrationResult.Snapshots.TotalPackages.ToString()),
+                        ("CURRENT", persistenceMigrationResult.Snapshots.CurrentPackages.ToString()),
+                        ("MIGRATIONS", persistenceMigrationResult.Snapshots.AppliedMigrations.Count == 0
+                            ? "none"
+                            : string.Join(", ", persistenceMigrationResult.Snapshots.AppliedMigrations))));
+            }
+            app.Logger.LogInformation(
+                ServerText.Format("Server.MaxRequestBodySize", ("BYTES", ServerStartupConfiguration.MaxRequestBodySize(builder.Configuration).ToString())));
+            app.UseWebSockets(new WebSocketOptions
+            {
+                KeepAliveInterval = TimeSpan.FromSeconds(20)
+            });
+            ServerRequestPipeline.Use(app, networkState.SessionPrincipals, networkState.SnapshotMutations,
+                app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("AIRsLight.ClashOfRim.Network.RequestDiagnostics"));
+            MapEndpoints(app);
+            plugins.MapEndpoints(app);
+            return app;
+        }
+        catch
+        {
+            // Build may fail after creating the service provider or during startup recovery.
+            // The caller cannot dispose a host that was never returned.
+            if (previousRuntimeLogger is not null) networkState?.SetRuntimeLogger(previousRuntimeLogger);
+            try { app?.DisposeAsync().AsTask().GetAwaiter().GetResult(); }
+            finally { fileLogger?.Dispose(); }
+            throw;
+        }
     }
 
     public static void MapEndpoints(WebApplication app)
     {
-        EventReadEndpoints.Map(app, app.Services.GetRequiredService<ClashOfRimNetworkState>().EventDelivery);
-        app.MapGet("/server/plugins", ListServerPlugins);
-        app.MapGet(ProtocolContractManifest.Find(ProtocolMessageKind.ServerHello).Route, ServerHello);
-        BankEndpoints.Map(app, app.Services.GetRequiredService<ClashOfRimNetworkState>().Bank);
-        var tradeState = app.Services.GetRequiredService<ClashOfRimNetworkState>();
-        TradeEndpoints.Map(app, tradeState.Trades, tradeState.TradeMarket);
-        SupportEndpoints.Map(app, tradeState.SupportSending, tradeState.Support);
-        GiftEndpoints.Map(app, app.Services.GetRequiredService<ClashOfRimNetworkState>().Gifts);
-        SessionEndpoints.Map(app, tradeState.Login, tradeState.SessionConnections, tradeState.SessionPresence, tradeState.SessionNotifications, () => tradeState.RuntimeLogger);
-        AccountEndpoints.Map(app, app.Services.GetRequiredService<ClashOfRimNetworkState>().Accounts);
-        SessionEndpoints.MapDirectory(app, tradeState.PlayerDirectory);
-        AchievementEndpoints.Map(app, tradeState.AchievementQueries);
-        SnapshotEndpoints.Map(app, tradeState.SnapshotUploads, tradeState.SnapshotDownloads);
-        EventConfirmationEndpoints.Map(app, tradeState.EventConfirmations);
-        EventFailureEndpoints.Map(app, tradeState.EventFailureReports);
-        PackageEndpoints.Map(app, tradeState.TransferPackages, tradeState.PawnPreviews);
-        ShopEndpoints.Map(app, app.Services.GetRequiredService<ClashOfRimNetworkState>().Shop);
-        RaidEndpoints.Map(app, tradeState.RaidPreparation, tradeState.RaidStarting);
-        DiplomacyEndpoints.Map(app, tradeState.Diplomacy);
-        WorldEndpoints.Map(app, tradeState.WorldPreparation, tradeState.WorldRead, tradeState.WorldSubmission, tradeState.WorldFeatureNames, tradeState.WorldSubstrate, tradeState.WorldSync, tradeState.ColonyRegistration, tradeState.ColonyRelocation, tradeState.ColonyAbandonment);
-        AdminEndpoints.Map(app, tradeState.AdministratorBaseline, tradeState.AdministratorConfiguration, tradeState.CompatibilityOverride, tradeState.AdministratorActions);
-        var mercenaryState = app.Services.GetRequiredService<ClashOfRimNetworkState>();
-        MercenaryEndpoints.Map(app, mercenaryState.Mercenaries, mercenaryState.MercenaryHiring);
-        ChatEndpoints.Map(app, tradeState.Chat);
+        var state = app.Services.GetRequiredService<ClashOfRimNetworkState>();
+        EventReadEndpoints.Map(app, state.EventDelivery);
+        ServerInformationEndpoints.Map(app, state.ServerInformation);
+        BankEndpoints.Map(app, state.Bank);
+        TradeEndpoints.Map(app, state.Trades, state.TradeMarket);
+        SupportEndpoints.Map(app, state.SupportSending, state.Support);
+        GiftEndpoints.Map(app, state.Gifts);
+        SessionEndpoints.Map(app, state.Login, state.SessionConnections, state.SessionPresence, state.SessionNotifications, () => state.RuntimeLogger);
+        AccountEndpoints.Map(app, state.Accounts);
+        SessionEndpoints.MapDirectory(app, state.PlayerDirectory);
+        AchievementEndpoints.Map(app, state.AchievementQueries);
+        SnapshotEndpoints.Map(app, state.SnapshotUploads, state.SnapshotDownloads);
+        EventConfirmationEndpoints.Map(app, state.EventConfirmations);
+        EventFailureEndpoints.Map(app, state.EventFailureReports);
+        PackageEndpoints.Map(app, state.TransferPackages, state.PawnPreviews);
+        ShopEndpoints.Map(app, state.Shop);
+        RaidEndpoints.Map(app, state.RaidPreparation, state.RaidStarting);
+        DiplomacyEndpoints.Map(app, state.Diplomacy);
+        WorldEndpoints.Map(app, state.WorldPreparation, state.WorldRead, state.WorldSubmission, state.WorldFeatureNames, state.WorldSubstrate, state.WorldSync, state.ColonyRegistration, state.ColonyRelocation, state.ColonyAbandonment);
+        AdminEndpoints.Map(app, state.AdministratorBaseline, state.AdministratorConfiguration, state.CompatibilityOverride, state.AdministratorActions);
+        MercenaryEndpoints.Map(app, state.Mercenaries, state.MercenaryHiring);
+        ChatEndpoints.Map(app, state.Chat);
     }
 
-    private static string T(string key, params (string Key, string? Value)[] args) => ServerText.Format(key, args);
+    // Public startup helpers are also used by the standalone server's migration commands.
+    public static string ResolveServerLanguage(string[] args, IConfiguration configuration) =>
+        ServerStartupConfiguration.ResolveLanguage(args, configuration);
 
-    private static IResult ServerHello(ClashOfRimNetworkState state)
-    {
-        IReadOnlyList<ServerPluginVersionDto> plugins = state.Plugins.Plugins
-            .Select(plugin => new ServerPluginVersionDto(
-                plugin.Id,
-                plugin.Name,
-                plugin.Version,
-                plugin.Capabilities))
-            .ToList();
-
-        return Results.Ok(new ServerHelloResponse(
-            ProtocolResponse.Ok(),
-            ClashOfRimVersion.ProductName,
-            ClashOfRimVersion.ProductVersion,
-            ProtocolApiVersion.Current,
-            ProtocolApiVersion.Major,
-            ProtocolApiVersion.Minor,
-            ProtocolApiVersion.MinimumSupportedMajor,
-            ProtocolApiVersion.MinimumSupportedMinor,
-            ClashOfRimVersion.CompatibilityApiVersion,
-            DateTimeOffset.UtcNow.ToString("O"),
-            plugins));
-    }
-
-    private static ILogger RuntimeLogger(ILoggerFactory loggerFactory)
-    {
-        return loggerFactory.CreateLogger("AIRsLight.ClashOfRim.Network.Runtime");
-    }
-
+    public static string ResolveDataDirectory(IConfiguration configuration, string contentRootPath) =>
+        ServerStartupConfiguration.DataDirectory(configuration, contentRootPath);
 }

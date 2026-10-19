@@ -44,9 +44,12 @@ public static class MultipartSnapshotAuthentication
         => Authorize(request, state, nowUtc) is null;
 
     public static ProtocolResponse? Authorize(HttpRequest request, ClashOfRimNetworkState state, DateTimeOffset nowUtc)
+        => Authorize(request, state.SessionPrincipals, nowUtc);
+
+    internal static ProtocolResponse? Authorize(HttpRequest request, SessionPrincipalAuthorization principals, DateTimeOffset nowUtc)
     {
         string? token = request.Headers[HeaderName].FirstOrDefault();
-        if (state.SessionPrincipals.Authorize(token, nowUtc, out AuthTokenPrincipal? principal) is { } rejection)
+        if (principals.Authorize(token, nowUtc, out AuthTokenPrincipal? principal) is { } rejection)
         {
             request.HttpContext.Items.Remove(PrincipalItemKey);
             return rejection;

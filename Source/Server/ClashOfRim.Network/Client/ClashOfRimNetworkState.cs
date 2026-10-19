@@ -70,6 +70,7 @@ public sealed class ClashOfRimNetworkState
         ColonyDeletionService? colonyDeletions = null)
     {
         Plugins = plugins ?? new ServerPluginRegistry().WithBuiltInPlugins(BuiltInServerPlugins.Descriptors);
+        ServerInformation = new ServerInformation(Plugins);
         Ledger = ledger ?? new InMemoryAuthoritativeEventLedger();
         SnapshotStore = snapshotStore ?? new InMemoryColonySnapshotIndexStore();
         SnapshotUploadPolicy = snapshotUploadPolicy ?? SnapshotUploadPolicy.AllowAnyVersion;
@@ -271,6 +272,7 @@ public sealed class ClashOfRimNetworkState
         MercenaryGuards, Players, SnapshotConfirmations, MercenaryIncidents);
 
     public IAuthoritativeEventLedger Ledger { get; }
+    internal ServerInformation ServerInformation { get; }
     internal Modules.Raids.RaidQueries RaidQueries { get; }
     internal Modules.Raids.RaidProtection RaidProtection { get; }
     internal RaidPreparation RaidPreparation { get; }

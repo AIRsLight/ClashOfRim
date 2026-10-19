@@ -119,6 +119,7 @@ var tests = new (string Name, Action Run)[]
     ("世界配置与底图引用共同发布且失败保持原状态", WorldConfigurationPersistenceTests.Run),
     ("普通上传和事件确认在恢复前后复验身份且锁外准备", () => UploadConfirmationRecoveryTests.Run(BuildFixturePackage)),
     ("文件日志随宿主释放且构建失败与迟到写入安全", () => FileLoggerLifetimeTests.Run(BuildFixturePackage)),
+    ("服务器启动配置优先级、文化与元数据协议", () => ServerHostingTests.Run(BuildFixturePackage)),
     ("交易失败校验唯一履约图并保留旧补偿和接单回执", () => TradeFailureGraphTests.Run(BuildFixturePackage)),
     ("交易关闭退货原子提交且不重复补偿已入档物品", TradeClosureTests.Run),
     ("商店持久化失败保留库存缓存且允许重试", ShopRegistryPersistenceTests.Run),

@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Text.Json;
 using AIRsLight.ClashOfRim.Network;
+using AIRsLight.ClashOfRim.Network.Hosting;
 using AIRsLight.ClashOfRim.Network.Modules.Snapshots;
 using AIRsLight.ClashOfRim.Protocol;
 using ClashOfRim.TestSupport;
@@ -33,6 +34,11 @@ internal static class ModuleBoundaryTests
             || t == typeof(AIRsLight.ClashOfRim.Network.Plugins.SnapshotPostUploadJobExecutor)
             || t == typeof(AIRsLight.ClashOfRim.Network.Plugins.SnapshotPostUploadBackgroundService) || t == typeof(IServiceProvider));
         Require(violations.Count == 0, string.Join(Environment.NewLine, violations));
+        var hosting = typeof(ClashOfRimNetworkState).Assembly.GetTypes().Where(t =>
+            t.Namespace == typeof(ServerRequestPipeline).Namespace && OwningType(t) != typeof(PersistentServerState));
+        var hostingLeaks = ModuleDependencyGuard.FindViolations(hosting, t =>
+            t == typeof(ClashOfRimNetworkServer) || t == typeof(ClashOfRimNetworkState) || t == typeof(IServiceProvider));
+        Require(hostingLeaks.Count == 0, string.Join(Environment.NewLine, hostingLeaks));
         Type[] commitModules = [typeof(SnapshotCommitApplication), typeof(SnapshotCommitJournal), typeof(SnapshotConfirmationReceipts), typeof(SnapshotCommitRecoveryPreparation)];
         var commitBackReferences = ModuleDependencyGuard.FindViolations(
             modules.Where(t => commitModules.Any(root => t == root || t.FullName!.StartsWith(root.FullName + "+", StringComparison.Ordinal))),
@@ -89,7 +95,7 @@ internal static class ModuleBoundaryTests
         or "MercenaryEndpoints" or "SupportEndpoints" or "RaidEndpoints" or "DiplomacyEndpoints"
         or "AccountEndpoints" or "SessionEndpoints" or "WorldEndpoints" or "AdminEndpoints"
         or "ChatEndpoints" or "AchievementEndpoints" or "EventReadEndpoints" or "EventFailureEndpoints"
-        or "EventConfirmationEndpoints" or "SnapshotEndpoints" or "PackageEndpoints";
+        or "EventConfirmationEndpoints" or "SnapshotEndpoints" or "PackageEndpoints" or "ServerInformationEndpoints";
 
     private static void Require(bool ok, string message) { if (!ok) throw new Exception(message); }
     private sealed class ForbiddenProbe { public static void Execute() { } }
