@@ -254,6 +254,7 @@ public sealed partial class ClashOfRimMod : Mod
         mercenaryIncidents.Completed += StartQueuedAutomaticEventRefreshAfterLocalAtomicMutation;
         mercenaryConfirmation.ContractCompleted += (id, key) => _ = mercenaryIncidents.ReportAsync(id, "Completed", key);
         mercenaryConfirmation.BankRefreshRequested += StartRefreshBankStatus;
+        ClientMercenaryQuestCallbacks.Attach(new(new ClientMercenaryQuestLifecycle(sessionLifecycle, new ClientSnapshotGame(), mercenaryIncidents, mercenaryConfirmation)));
         Func<ClientGiftCapabilities> giftCapabilities = () => new(GiftsEnabled, PvpEnabled);
         var giftPresentation = new ClientGiftPresentation(message => eventState.ActionStatus = message);
         var gifts = new ClientGiftOperations(mutationAdmission, synchronization, localMutations, snapshotTransactions,

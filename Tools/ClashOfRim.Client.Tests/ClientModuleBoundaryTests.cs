@@ -163,6 +163,10 @@ internal static class ClientModuleBoundaryTests
                 or "AIRsLight.ClashOfRim.Multiplayer.Achievements" or "AIRsLight.ClashOfRim.Multiplayer.Diagnostics"
                 || t == typeof(AIRsLight.ClashOfRim.Multiplayer.AllySupportRequestDialogWindow)
                 || t == typeof(AIRsLight.ClashOfRim.Support.QuestPart_ClashSupportPawn)
+                || t == typeof(AIRsLight.ClashOfRim.Quests.ClientManagedQuestOwner)
+                || t == typeof(AIRsLight.ClashOfRim.Mercenaries.QuestPart_ClashMercenary)
+                || t == typeof(AIRsLight.ClashOfRim.Mercenaries.ClientMercenaryQuestCallbacks)
+                || t.DeclaringType == typeof(AIRsLight.ClashOfRim.Mercenaries.ClientMercenaryQuestCallbacks)
                 || t == typeof(AIRsLight.ClashOfRim.Support.ClientSupportQuestCallbacks)
                 || t.DeclaringType == typeof(AIRsLight.ClashOfRim.Support.ClientSupportQuestCallbacks)
                 || t == typeof(AIRsLight.ClashOfRim.ServerShop.ClientShopListingRuntime)

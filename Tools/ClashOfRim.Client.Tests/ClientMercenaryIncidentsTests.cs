@@ -169,8 +169,8 @@ internal static class ClientMercenaryIncidentsTests
         await next.WaitAsync(TimeSpan.FromSeconds(5));
         Require(f.Commands.Count == 1 && f.View.Menus == 1 && !f.Sync.IsBusy, "Returning to menu dispatched queued incidents.");
     }
-    private enum Fault { None, Transport, Exception, Rejected, Forbidden, MissingStatus, MissingDebtId, Apply, Upload }
-    private sealed class Fixture : IDisposable, IClientMercenaryIncidentRuntime, IClientMercenaryIncidentTransport,
+    internal enum Fault { None, Transport, Exception, Rejected, Forbidden, MissingStatus, MissingDebtId, Apply, Upload }
+    internal sealed class Fixture : IDisposable, IClientMercenaryIncidentRuntime, IClientMercenaryIncidentTransport,
         IClientMercenaryHiringPresentation, IClientMercenaryIncidentPresentation, IClientBankPresentation, IClientSnapshotTransport, IClientLocalSnapshotPresentation
     {
         internal readonly EventModuleTestPorts Ports = new();
@@ -180,6 +180,7 @@ internal static class ClientMercenaryIncidentsTests
         internal readonly ClientMercenaryState State;
         internal readonly ClientBankState Bank;
         internal readonly ClientMercenaryIncidents Incidents;
+        internal readonly ClientMercenaryConfirmation Confirmation;
         internal readonly EventModuleFailureView View;
         internal readonly List<ClientMercenaryIncidentCommand> Commands = new();
         internal readonly List<ClashOfRimClientNetworkContext> Contexts = new();
@@ -196,9 +197,9 @@ internal static class ClientMercenaryIncidentsTests
             var admission = new ClientSnapshotMutationAdmission(Session, Sync, Mutations, transactions);
             var recovery = new ClientSnapshotFailureRecovery(Session, Mutations, Sync, Ports, View);
             var local = new ClientLocalSnapshotConfirmation(Session, Ports, admission, Sync, Mutations, transactions, recovery, new ClientSnapshotUploader(Ports, Ports, this, Sync), this);
-            var confirmation = new ClientMercenaryConfirmation(local, State, this);
-            Incidents = new(Session, State, Bank, Sync, Mutations, admission, transactions, recovery, confirmation, this, this, this);
-            confirmation.BankRefreshRequested += () => { Require(!Sync.IsBusy, "Bank refresh ran under incident lease."); Refreshes++; };
+            Confirmation = new ClientMercenaryConfirmation(local, State, this);
+            Incidents = new(Session, State, Bank, Sync, Mutations, admission, transactions, recovery, Confirmation, this, this, this);
+            Confirmation.BankRefreshRequested += () => { Require(!Sync.IsBusy, "Bank refresh ran under incident lease."); Refreshes++; };
             Incidents.BankRefreshRequested += () => { Require(!Sync.IsBusy, "Completed report retained lease."); Refreshes++; };
             Ports.OnCapture = () => CapturedDebts.Add(Applied.ToArray());
         }

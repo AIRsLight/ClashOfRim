@@ -13,25 +13,20 @@ using Verse;
 
 internal static class ClientSupportQuestLifecycleTests
 {
-    private static QuestManager manager = null!;
-    private static long ticks;
     private static Task? dispatched;
-    private static int ended;
     private static string? confirmedReason;
     internal static void Run() => RunAsync().GetAwaiter().GetResult();
     private static async Task RunAsync()
     {
         var binding = ClientSupportQuestCallbacks.Current; var game = Current.Game;
+        using var runtime = new ClientQuestTestRuntime("ClashOfRim.Tests.SupportQuestLifecycle");
         var harmony = new Harmony("ClashOfRim.Tests.SupportQuestLifecycle");
         void Prefix(System.Reflection.MethodBase method, string prefix) => harmony.Patch(method, prefix: new HarmonyMethod(typeof(ClientSupportQuestLifecycleTests), prefix));
-        Prefix(AccessTools.PropertyGetter(typeof(Find), nameof(Find.QuestManager)), nameof(Manager));
-        Prefix(AccessTools.PropertyGetter(typeof(ClashManagedQuestTimingUtility), nameof(ClashManagedQuestTimingUtility.CurrentGameTicks)), nameof(Ticks));
-        Prefix(AccessTools.Method(typeof(ClashManagedQuestUtility), nameof(ClashManagedQuestUtility.EndManagedQuest)), nameof(End));
         Prefix(AccessTools.Method(typeof(ClientSupportReturns), nameof(ClientSupportReturns.ConfirmAsync)), nameof(Confirm));
         harmony.Patch(AccessTools.Method(typeof(ClientSupportQuestCallbacks), nameof(ClientSupportQuestCallbacks.TickAsync)), postfix: new HarmonyMethod(typeof(ClientSupportQuestLifecycleTests), nameof(Observe)));
         try
         {
-            await Transitions(); await Ownership(); await Engine();
+            await Transitions(); await Ownership(); await Engine(runtime);
         }
         finally { harmony.UnpatchAll(harmony.Id); ClientSupportQuestCallbacks.Attach(binding); Current.Game = game; dispatched = null; ClientSessionWork.Reset(); }
     }
@@ -95,29 +90,29 @@ internal static class ClientSupportQuestLifecycleTests
                 && f.Source.Departures == (!completing && change == "snapshot" ? 1 : 0), "Quest callback crossed " + change);
         }
     }
-    private static async Task Engine()
+    private static async Task Engine(ClientQuestTestRuntime runtime)
     {
         foreach (string state in new[] { "before-due", "due", "no-deadline", "early", "missing", "permanent", "unbound", "removed-quest", "removed-part", "old-game", "detached", "relogin" })
         {
             using var f = new ClientSupportReturnsTests.Fixture(); f.Source.Departing = false; f.Source.Ready = false;
-            var source = New<Game>(); Current.Game = source; f.Ports.GameOwner = source;
+            var source = runtime.NewGame(); f.Ports.GameOwner = source;
             var component = new ClashOfRimGameComponent(source);
             AccessTools.Field(typeof(Game), "components").SetValue(source, new List<GameComponent> { component });
             AccessTools.Field(typeof(ClashOfRimGameComponent), "activeSupportAssignments").SetValue(component,
                 new List<ActiveSupportPawnAssignment> { new() { EventId = "event" } });
-            manager = new QuestManager(); var quest = new Quest(); var part = new QuestPart_ClashSupportPawn { EventId = "event", ExpiresAtGameTicks = 100 };
-            quest.AddPart(part); manager.QuestsListForReading.Add(quest);
+            var part = new QuestPart_ClashSupportPawn { EventId = "event", ExpiresAtGameTicks = 100 };
+            var quest = runtime.Add(part);
             var callbacks = new ClientSupportQuestCallbacks(Flow(f)); ClientSupportQuestCallbacks.Attach(callbacks);
-            ticks = 99; ended = 0; dispatched = null; part.QuestPartTick(); await f.Ports.PumpUntil(dispatched ?? Task.CompletedTask);
+            runtime.Ticks = 99; dispatched = null; part.QuestPartTick(); await f.Ports.PumpUntil(dispatched ?? Task.CompletedTask);
             Check(!part.FinishRequested && f.Source.Departures == 0, "Quest expired before its deadline.");
-            ticks = state == "before-due" ? 99 : 100;
+            runtime.Ticks = state == "before-due" ? 99 : 100;
             switch (state)
             {
                 case "no-deadline": part.ExpiresAtGameTicks = 0; break;
                 case "missing": component.MarkSupportAssignmentFinished("event"); break;
                 case "permanent": part.PermanentSupport = true; break;
                 case "unbound": ClientSupportQuestCallbacks.Attach(null); break;
-                case "removed-quest": manager.QuestsListForReading.Clear(); break;
+                case "removed-quest": runtime.Manager.QuestsListForReading.Clear(); break;
                 case "removed-part": quest.PartsListForReading.Remove(part); break;
                 case "old-game": Current.Game = New<Game>(); f.Ports.GameOwner = Current.Game; break;
                 case "detached": ClientSupportQuestCallbacks.Attach(new(Flow(f))); break;
@@ -127,9 +122,9 @@ internal static class ClientSupportQuestLifecycleTests
             else if (state == "detached") await callbacks.TickAsync(part);
             else { dispatched = null; part.QuestPartTick(); await f.Ports.PumpUntil(dispatched ?? Task.CompletedTask); }
             Check(f.Source.Departures == (state is "due" or "early" or "relogin" ? 1 : 0)
-                && ended == (state is "missing" or "permanent" ? 1 : 0), "Engine quest crossed source ownership or changed transition: " + state);
+                && runtime.Endings.Count == (state is "missing" or "permanent" ? 1 : 0), "Engine quest crossed source ownership or changed transition: " + state);
             if (state is "due" or "early" or "relogin") Check(part.FinishRequested && part.FinishReason == (state == "early" ? "EarlyReturn" : "QuestExpired"), "Serialized quest return fields changed.");
-            if (state is "missing" or "permanent") Check(part.Completed, "Completion did not update the serialized quest part.");
+            if (state is "missing" or "permanent") Check(part.Completed && runtime.Endings[0] == (part, QuestEndOutcome.Success, false, false), "Completion changed serialized fields, outcome or notifications.");
         }
     }
     private sealed class State : IClientSupportQuest
@@ -150,10 +145,6 @@ internal static class ClientSupportQuestLifecycleTests
     }
     private static ClientSupportQuestLifecycle Flow(ClientSupportReturnsTests.Fixture f) => new(f.Session, f.Ports, f.Returns);
     private static T New<T>() => (T)RuntimeHelpers.GetUninitializedObject(typeof(T));
-    private static bool Manager(ref QuestManager __result) { __result = manager; return false; }
-    private static bool Ticks(ref long __result) { __result = ticks; return false; }
-    private static bool End(QuestEndOutcome outcome, bool sendLetter, bool playSound)
-    { Check(outcome == QuestEndOutcome.Success && !sendLetter && !playSound, "Support completion changed quest outcome or notifications."); ended++; return false; }
     private static void Observe(Task __result) => dispatched = __result;
     private static void Confirm(string reason) => confirmedReason = reason;
     private static void Check(bool condition, string message) { if (!condition) throw new InvalidOperationException(message); }

@@ -1,4 +1,5 @@
 using System;
+using AIRsLight.ClashOfRim.Modules.Quests;
 using RimWorld;
 using Verse;
 
@@ -6,7 +7,7 @@ namespace AIRsLight.ClashOfRim.Quests;
 
 internal static class ClashManagedQuestTimingUtility
 {
-    public const int TicksPerDay = 60000;
+    public const int TicksPerDay = ClientQuestTiming.TicksPerDay;
 
     public static long CurrentGameTicks => Find.TickManager?.TicksGame ?? 0;
 
@@ -22,7 +23,7 @@ internal static class ClashManagedQuestTimingUtility
 
     public static bool IsExpiredAt(long dueAtGameTicks, long currentGameTicks)
     {
-        return dueAtGameTicks > 0 && currentGameTicks >= dueAtGameTicks;
+        return ClientQuestTiming.IsExpired(dueAtGameTicks, currentGameTicks);
     }
 
     public static long RemainingTicks(long dueAtGameTicks)

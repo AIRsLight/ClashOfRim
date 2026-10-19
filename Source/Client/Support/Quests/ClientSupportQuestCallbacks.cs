@@ -19,17 +19,16 @@ internal sealed class ClientSupportQuestCallbacks
     private Bound Bind(QuestPart_ClashSupportPawn part)
     {
         if (quests.TryGetValue(part, out var bound)) return bound;
-        return quests.GetValue(part, value => new(this, Verse.Current.Game, value));
+        return quests.GetValue(part, value => new(this, new ClientManagedQuestOwner(value), value));
     }
 
-    private sealed record Bound(ClientSupportQuestCallbacks Owner, Game? Game, QuestPart_ClashSupportPawn Part) : IClientSupportQuest
+    private sealed record Bound(ClientSupportQuestCallbacks Owner, ClientManagedQuestOwner Source, QuestPart_ClashSupportPawn Part) : IClientSupportQuest
     {
-        public bool IsCurrent => ReferenceEquals(Current, Owner) && Game is not null && ReferenceEquals(Game, Verse.Current.Game)
-            && Part.quest is { } quest && quest.PartsListForReading.Contains(Part) && Find.QuestManager?.QuestsListForReading.Contains(quest) == true;
+        public bool IsCurrent => ReferenceEquals(Current, Owner) && Source.IsCurrent;
         public string EventId => Part.EventId;
         public bool Completed => Part.Completed;
         public bool Permanent => Part.PermanentSupport;
-        public bool HasAssignment => Game?.GetComponent<ClashOfRimGameComponent>()?.HasSupportAssignment(Part.EventId) == true;
+        public bool HasAssignment => Source.Game?.GetComponent<ClashOfRimGameComponent>()?.HasSupportAssignment(Part.EventId) == true;
         public bool Expired => ClashManagedQuestTimingUtility.IsExpired(Part.ExpiresAtGameTicks);
         public bool FinishRequested => Part.FinishRequested;
         public string FinishReason => Part.FinishReason;
