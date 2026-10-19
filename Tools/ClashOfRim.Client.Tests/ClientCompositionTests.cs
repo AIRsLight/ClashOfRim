@@ -7,7 +7,13 @@ using System.Runtime.CompilerServices;
 using AIRsLight.ClashOfRim;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.ClientSnapshots;
+using AIRsLight.ClashOfRim.Modules.Bank;
+using AIRsLight.ClashOfRim.Modules.Diagnostics;
+using AIRsLight.ClashOfRim.Modules.Events;
+using AIRsLight.ClashOfRim.Modules.Mercenaries;
+using AIRsLight.ClashOfRim.Modules.Shop;
 using AIRsLight.ClashOfRim.Modules.Snapshots;
+using AIRsLight.ClashOfRim.Modules.Trades;
 using AIRsLight.ClashOfRim.Modules.Gifts;
 using AIRsLight.ClashOfRim.Modules.Synchronization;
 using AIRsLight.ClashOfRim.Modules.World;
@@ -41,7 +47,7 @@ internal static class ClientCompositionTests
                 postfix: new HarmonyMethod(typeof(ClientCompositionTests), nameof(Settings)));
             harmony.Patch(AccessTools.GetDeclaredConstructors(typeof(ClientSnapshotTransactionNotifications)).Single(),
                 postfix: new HarmonyMethod(typeof(ClientCompositionTests), nameof(ObserveSubscription)));
-            foreach (Type type in new[] { typeof(ClientSnapshotMutationAdmission), typeof(ClientGiftOperations), typeof(ClientGiftActions), typeof(ClientTransporterActions) })
+            foreach (Type type in new[] { typeof(ClientSnapshotMutationAdmission), typeof(ClientGiftOperations), typeof(ClientGiftActions), typeof(ClientTransporterActions), typeof(ClientRuntimeDiagnostics) })
                 harmony.Patch(AccessTools.GetDeclaredConstructors(type).Single(),
                     postfix: new HarmonyMethod(typeof(ClientCompositionTests), nameof(ObserveConstruction)));
             Patch(AccessTools.PropertyGetter(typeof(ModContentPack), nameof(ModContentPack.PackageId)), nameof(Package));
@@ -87,6 +93,15 @@ internal static class ClientCompositionTests
             }
             if (errors.Count != 0) throw new InvalidOperationException(string.Join(" | ", errors.Distinct()));
             Console.WriteLine("PASS: composition publishes complete owners only for the expected package (two cultures).");
+            Patch(AccessTools.Method(typeof(ClashOfRimText), nameof(ClashOfRimText.Key), new[] { typeof(string) }), nameof(HostText));
+            Patch(AccessTools.Method(typeof(ClashOfRimText), nameof(ClashOfRimText.Key), new[] { typeof(string), typeof(NamedArgument[]) }), nameof(HostText));
+            int statusCases = 0;
+            foreach (string name in new[] { "en-US", "zh-CN", "fr-FR", "tr-TR" })
+            {
+                CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(name);
+                statusCases += CheckHostStatusReads();
+            }
+            Console.WriteLine($"PASS: composed status properties ({statusCases} scenarios).");
         }
         finally
         {
@@ -106,6 +121,72 @@ internal static class ClientCompositionTests
             AccessTools.Field(typeof(Mod), "modSettings").SetValue(__instance, new ClashOfRimSettings());
     }
     private static bool Package(ref string __result) { __result = package!; return false; }
+    private static int CheckHostStatusReads()
+    {
+        (string Name, Func<ClashOfRimMod, string> Read)[] properties = {
+            (nameof(ClashOfRimMod.LoginStatus), host => host.LoginStatus),
+            (nameof(ClashOfRimMod.EventQueueStatus), host => host.EventQueueStatus),
+            (nameof(ClashOfRimMod.EventDetailsStatus), host => host.EventDetailsStatus),
+            (nameof(ClashOfRimMod.GiftProcessingStatus), host => host.GiftProcessingStatus),
+            (nameof(ClashOfRimMod.SnapshotUploadStatus), host => host.SnapshotUploadStatus),
+            (nameof(ClashOfRimMod.PresenceStatus), host => host.PresenceStatus),
+            (nameof(ClashOfRimMod.TradeStatus), host => host.TradeStatus),
+            (nameof(ClashOfRimMod.WorldMapStatus), host => host.WorldMapStatus),
+            (nameof(ClashOfRimMod.BankStatus), host => host.BankStatus),
+            (nameof(ClashOfRimMod.MercenaryStatus), host => host.MercenaryStatus),
+            (nameof(ClashOfRimMod.ServerShopStatus), host => host.ServerShopStatus) };
+        foreach (var firstRead in properties)
+        {
+            var f = CreateStatusHost(); var host = f.Mod;
+            f.Diagnostics.LoginStatus = "login-progress"; f.Diagnostics.SnapshotUploadStatus = "snapshot-progress";
+            f.Diagnostics.PresenceStatus = "presence-progress"; f.Diagnostics.WorldMapStatus = "world-progress";
+            f.Bank.Message = "bank-progress"; f.Shop.Message = "shop-progress"; f.Trade.Message = "trade-progress";
+            f.Mercenaries.Message = "mercenary-progress"; f.Events.ActionStatus = "gift-progress";
+            f.Events.SetQueueStatus("queue-progress"); f.Events.SetDetailsStatus("details-progress");
+            _ = firstRead.Read(host);
+            Require(host.LoginStatus == "login-progress" && host.SnapshotUploadStatus == "snapshot-progress"
+                && host.PresenceStatus == "presence-progress" && host.WorldMapStatus == "world-progress"
+                && host.BankStatus == "bank-progress" && host.ServerShopStatus == "shop-progress" && host.TradeStatus == "trade-progress"
+                && host.MercenaryStatus == "mercenary-progress" && host.GiftProcessingStatus == "gift-progress"
+                && host.EventQueueStatus == "queue-progress" && host.EventDetailsStatus == "details-progress",
+                "First UI status read overwrote published domain state: " + firstRead.Name);
+        }
+        {
+            var f = CreateStatusHost(); var host = f.Mod;
+            (Func<ClashOfRimMod, string> Read, string Key)[] defaults = {
+                (host => host.LoginStatus, "NotLoggedIn"), (host => host.SnapshotUploadStatus, "SnapshotUploadNotStarted"),
+                (host => host.PresenceStatus, "PresenceNotStarted"), (host => host.WorldMapStatus, "WorldMapNotSynced") };
+            foreach (var property in defaults)
+                Require(property.Read(host) == CultureInfo.CurrentCulture.Name + ":ClashOfRim.Status." + property.Key,
+                    "Missing status did not use its own localized default.");
+            f.Bank.Message = "completed"; f.Shop.Message = "completed"; f.Trade.Message = "completed";
+            f.Bank.Reset(); f.Shop.Reset(); f.Trade.Reset();
+            Require(host.BankStatus == f.Bank.Message && host.ServerShopStatus == f.Shop.Message && host.TradeStatus == f.Trade.Message,
+                "Host reintroduced defaults owned by domain reset.");
+        }
+        {
+            var f = CreateStatusHost(); var host = f.Mod;
+            f.Diagnostics.LoginStatus = f.Diagnostics.SnapshotUploadStatus = f.Diagnostics.PresenceStatus = f.Diagnostics.WorldMapStatus = "";
+            Require(host.LoginStatus == "" && host.SnapshotUploadStatus == "" && host.PresenceStatus == "" && host.WorldMapStatus == "",
+                "Explicitly cleared presentation text was replaced by a default.");
+        }
+        return properties.Length + 2;
+    }
+    // Observe real constructor and publication arguments; never write private Mod fields.
+    private static StatusHost CreateStatusHost()
+    {
+        package = "airslight.clashofrim";
+        publications.Clear(); warnings.Clear(); constructions.Clear();
+        var mod = Create();
+        var owners = publications.Single(p => p.Method.DeclaringType == typeof(ClientSessionCleanup)).Arguments;
+        return new(mod, constructions.Select(c => c.Instance).OfType<ClientRuntimeDiagnostics>().Single(),
+            owners.OfType<ClientBankState>().Single(), owners.OfType<ClientShopState>().Single(),
+            owners.OfType<ClientTradeState>().Single(), owners.OfType<ClientMercenaryState>().Single(), owners.OfType<ClientEventState>().Single());
+    }
+    private sealed record StatusHost(ClashOfRimMod Mod, ClientRuntimeDiagnostics Diagnostics, ClientBankState Bank,
+        ClientShopState Shop, ClientTradeState Trade, ClientMercenaryState Mercenaries, ClientEventState Events);
+    private static bool HostText(string __0, ref string __result) { __result = CultureInfo.CurrentCulture.Name + ":" + __0; return false; }
+    private static void Require(bool condition, string message) { if (!condition) throw new InvalidOperationException(message); }
     private static void ObserveSubscription(ClientSnapshotTransactionNotifications __instance) => observers.Add(__instance);
     private static void ObserveConstruction(object __instance, object[] __args) => constructions.Add((__instance, __args));
     private static void CheckGiftComposition(ClashOfRimMod mod, List<string> errors)

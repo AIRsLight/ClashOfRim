@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Reflection;
-using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using AIRsLight.ClashOfRim;
 using AIRsLight.ClashOfRim.ClientNetwork;
@@ -10,7 +8,6 @@ using AIRsLight.ClashOfRim.Modules.Administration;
 using AIRsLight.ClashOfRim.Modules.Bank;
 using AIRsLight.ClashOfRim.Modules.Chat;
 using AIRsLight.ClashOfRim.Modules.Diplomacy;
-using AIRsLight.ClashOfRim.Modules.Diagnostics;
 using AIRsLight.ClashOfRim.Modules.Events;
 using AIRsLight.ClashOfRim.Modules.Mercenaries;
 using AIRsLight.ClashOfRim.Modules.Presence;
@@ -20,7 +17,6 @@ using AIRsLight.ClashOfRim.Modules.Snapshots;
 using AIRsLight.ClashOfRim.Modules.Synchronization;
 using AIRsLight.ClashOfRim.Modules.Trades;
 using AIRsLight.ClashOfRim.Modules.World;
-using HarmonyLib;
 
 internal static class ClientSessionCleanupTests
 {
@@ -33,7 +29,6 @@ internal static class ClientSessionCleanupTests
             foreach (string culture in new[] { "en-US", "zh-CN", "fr-FR", "tr-TR" })
             {
                 CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(culture);
-                cases += HostStatusReads();
                 foreach (string mode in new[] { "end", "owned", "clear", "expiry" })
                 { await Scope(mode); cases++; }
                 foreach (string stage in new[] { "previews", "bank", "mercenaries", "shop", "trade", "icons", "world", "snapshot", "selection", "players", "InitialQueue", "InitialDetails", "InitialAction" })
@@ -47,69 +42,6 @@ internal static class ClientSessionCleanupTests
         }
         finally { CultureInfo.CurrentCulture = previous; ClientSessionWork.Reset(); }
     }
-
-    private static int HostStatusReads()
-    {
-        var harmony = new Harmony("ClashOfRim.Tests.HostStatusReads");
-        harmony.Patch(AccessTools.Method(typeof(ClashOfRimText), "Key", new[] { typeof(string) }),
-            prefix: new HarmonyMethod(typeof(ClientSessionCleanupTests), nameof(HostText)));
-        string[] properties = { nameof(ClashOfRimMod.LoginStatus), nameof(ClashOfRimMod.EventQueueStatus), nameof(ClashOfRimMod.EventDetailsStatus),
-            nameof(ClashOfRimMod.GiftProcessingStatus), nameof(ClashOfRimMod.SnapshotUploadStatus), nameof(ClashOfRimMod.PresenceStatus),
-            nameof(ClashOfRimMod.TradeStatus), nameof(ClashOfRimMod.WorldMapStatus), nameof(ClashOfRimMod.BankStatus),
-            nameof(ClashOfRimMod.MercenaryStatus), nameof(ClashOfRimMod.ServerShopStatus) };
-        try
-        {
-            foreach (string firstRead in properties)
-            {
-                var f = new Fixture(); var host = Host(f);
-                f.Diagnostics.LoginStatus = "login-progress"; f.Diagnostics.SnapshotUploadStatus = "snapshot-progress";
-                f.Diagnostics.PresenceStatus = "presence-progress"; f.Diagnostics.WorldMapStatus = "world-progress";
-                f.Bank.Message = "bank-progress"; f.Shop.Message = "shop-progress"; f.Trade.Message = "trade-progress";
-                f.Mercenaries.Message = "mercenary-progress"; f.Events.ActionStatus = "gift-progress";
-                f.Events.SetQueueStatus("queue-progress"); f.Events.SetDetailsStatus("details-progress");
-                _ = typeof(ClashOfRimMod).GetProperty(firstRead, BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(host);
-                Require(host.LoginStatus == "login-progress" && host.SnapshotUploadStatus == "snapshot-progress"
-                    && host.PresenceStatus == "presence-progress" && host.WorldMapStatus == "world-progress"
-                    && host.BankStatus == "bank-progress" && host.ServerShopStatus == "shop-progress" && host.TradeStatus == "trade-progress"
-                    && host.MercenaryStatus == "mercenary-progress" && host.GiftProcessingStatus == "gift-progress"
-                    && host.EventQueueStatus == "queue-progress" && host.EventDetailsStatus == "details-progress",
-                    "First UI status read overwrote published domain state: " + firstRead);
-            }
-            {
-                var f = new Fixture(); var host = Host(f);
-                foreach (var (property, key) in new[] { (nameof(ClashOfRimMod.LoginStatus), "NotLoggedIn"),
-                    (nameof(ClashOfRimMod.SnapshotUploadStatus), "SnapshotUploadNotStarted"),
-                    (nameof(ClashOfRimMod.PresenceStatus), "PresenceNotStarted"), (nameof(ClashOfRimMod.WorldMapStatus), "WorldMapNotSynced") })
-                    Require((string)typeof(ClashOfRimMod).GetProperty(property, BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(host)!
-                        == CultureInfo.CurrentCulture.Name + ":ClashOfRim.Status." + key, "Missing status did not use its own localized default.");
-                f.Bank.Message = "completed"; f.Shop.Message = "completed"; f.Trade.Message = "completed";
-                f.Bank.Reset(); f.Shop.Reset(); f.Trade.Reset();
-                Require(host.BankStatus == f.Bank.Message && host.ServerShopStatus == f.Shop.Message && host.TradeStatus == f.Trade.Message,
-                    "Host reintroduced defaults owned by domain reset.");
-            }
-            {
-                var f = new Fixture(); var host = Host(f);
-                f.Diagnostics.LoginStatus = f.Diagnostics.SnapshotUploadStatus = f.Diagnostics.PresenceStatus = f.Diagnostics.WorldMapStatus = "";
-                Require(host.LoginStatus == "" && host.SnapshotUploadStatus == "" && host.PresenceStatus == "" && host.WorldMapStatus == "",
-                    "Explicitly cleared presentation text was replaced by a default.");
-            }
-        }
-        finally { harmony.UnpatchAll(harmony.Id); }
-        return properties.Length + 2;
-    }
-    // An isolated legacy UI shell reads real domain state; its constructor's game
-    // registration and Harmony setup are unrelated to these read-only properties.
-    private static ClashOfRimMod Host(Fixture f)
-    {
-        var host = (ClashOfRimMod)RuntimeHelpers.GetUninitializedObject(typeof(ClashOfRimMod));
-        Set(host, "bankState", f.Bank); Set(host, "shopState", f.Shop); Set(host, "tradeState", f.Trade);
-        Set(host, "mercenaryState", f.Mercenaries); Set(host, "eventState", f.Events);
-        Set(host, "diagnostics", f.Diagnostics);
-        return host;
-    }
-    private static void Set(ClashOfRimMod host, string field, object value)
-        => typeof(ClashOfRimMod).GetField(field, BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(host, value);
-    private static bool HostText(string __0, ref string __result) { __result = CultureInfo.CurrentCulture.Name + ":" + __0; return false; }
 
     private static async Task Scope(string mode)
     {
@@ -194,7 +126,6 @@ internal static class ClientSessionCleanupTests
         internal readonly ClientLocalMutationCoordinator Mutations = new();
         internal readonly ClientEventInbox Inbox = new();
         internal readonly ClientEventState Events;
-        internal readonly ClientRuntimeDiagnostics Diagnostics;
         internal readonly ClientBankState Bank;
         internal readonly ClientShopState Shop;
         internal readonly ClientTradeState Trade;
@@ -222,7 +153,6 @@ internal static class ClientSessionCleanupTests
             World = new(Session, Ports);
             SourceGame = new(this); Setup = new(Session);
             Events = new(new ClientEventReader(Session, Inbox, null!, Ports), this);
-            Diagnostics = new(Session, Events);
             Bank = new(Session, Ports, this); Shop = new(Session, Ports, this); Trade = new(Session, Ports, this);
             Mercenaries = new(Session, Ports, this);
             var recovery = new ClientSnapshotFailureRecovery(Session, Mutations, Sync, Ports, new EventModuleFailureView(Ports));
