@@ -1,7 +1,6 @@
 using System.Text.Json;
 using ClashOfRim.GameTests;
 using ClashOfRim.TestSupport;
-using RimTest.Client;
 using RimTest.Protocol;
 using RimTest.Testing;
 
@@ -28,7 +27,7 @@ internal static class GameScenarioPollingTests
 
     private static async Task DialogChoices(string language)
     {
-        using var f = await Fixture.Create();
+        using var f = await GameScenarioTestRuntime.Create();
         string notice = language + ": Steam missing", ignore = language + ": Ignore", quit = language + ": Quit";
         bool steam = true, badChoice = false;
         f.Script = (_, method, _) => method switch
@@ -54,7 +53,7 @@ internal static class GameScenarioPollingTests
         foreach (bool open in new[] { false, true })
         foreach (bool canContinue in new[] { false, true })
         {
-            using var f = await Fixture.Create(allowLanguage);
+            using var f = await GameScenarioTestRuntime.Create(allowLanguage);
             f.Script = (_, method, _) => method == "clash.compatibility" ? new { open, canContinue } : null;
             if (open && (!allowLanguage || !canContinue))
                 await Reject<AssertionException>(async () => { await f.Dialogs.AcceptLanguageWarning("A"); });
@@ -70,7 +69,7 @@ internal static class GameScenarioPollingTests
         foreach (bool paused in new[] { false, true })
         foreach (bool forced in new[] { false, true })
         {
-            using var f = await Fixture.Create();
+            using var f = await GameScenarioTestRuntime.Create();
             var value = new { state = running ? "running" : "completed", paused, forcedPause = forced };
             f.Script = (_, query, _) => query == "time.status" ? value : null;
             var options = f.Polling.Waiting("B", method, 37);
@@ -82,7 +81,7 @@ internal static class GameScenarioPollingTests
                 && f.Count("dialogs.messages") == (method == "clash.gravship" ? 1 : 0), "A wait handled another domain's dialogs.");
             Check(f.Calls.All(c => c.Client == "B"), "Polling affected the other client.");
         }
-        using var cancelled = await Fixture.Create();
+        using var cancelled = await GameScenarioTestRuntime.Create();
         using var token = new CancellationTokenSource(); token.Cancel();
         await Reject<OperationCanceledException>(() => cancelled.Polling.Waiting("A", "time.status").AfterUnmet!(
             Wire.Element(new { state = "running", paused = true, forcedPause = false }), token.Token));
@@ -91,7 +90,7 @@ internal static class GameScenarioPollingTests
 
     private static async Task Operations()
     {
-        using (var f = await Fixture.Create())
+        using (var f = await GameScenarioTestRuntime.Create())
         {
             int observations = 0;
             f.Script = (_, method, _) => method switch
@@ -105,13 +104,13 @@ internal static class GameScenarioPollingTests
         }
         foreach (string state in new[] { "failed", "cancelled" })
         {
-            using var f = await Fixture.Create();
+            using var f = await GameScenarioTestRuntime.Create();
             f.Script = (_, method, _) => method switch
             { "time.step" => new { id = "current" }, "time.status" => new { id = "current", state }, _ => null };
             await Reject<OperationException>(() => f.Polling.Step("A", 60));
             Check(f.Count("time.step") == 1, "A failed tick operation was resubmitted.");
         }
-        using var incomplete = await Fixture.Create();
+        using var incomplete = await GameScenarioTestRuntime.Create();
         incomplete.Script = (_, method, _) => method switch
         { "time.step" => new { id = "current" }, "time.status" => new { id = "current", state = "completed", advancedTicks = 59 }, _ => null };
         await Reject<AssertionException>(() => incomplete.Polling.Step("A", 60));
@@ -122,7 +121,7 @@ internal static class GameScenarioPollingTests
         foreach (string busy in new[] { "manualSyncInProgress", "snapshotUploadInProgress", "localAtomicMutationPending", "bankInProgress",
             "serverShopInProgress", "mercenaryInProgress", "adminInProgress", "tradeOrdersPageLoadInProgress" })
         {
-            using var f = await Fixture.Create(); int polls = 0;
+            using var f = await GameScenarioTestRuntime.Create(); int polls = 0;
             f.Script = (_, method, _) => method == "clash.state" ? new Dictionary<string, bool> { [busy] = ++polls == 1 } : null;
             await f.Polling.Idle("A");
             Check(polls == 2, "Idle skipped busy state: " + busy);
@@ -136,40 +135,4 @@ internal static class GameScenarioPollingTests
         throw new InvalidOperationException("Expected " + typeof(T).Name);
     }
 
-    private sealed class Fixture : IDisposable
-    {
-        private readonly string path = Path.Combine(Path.GetTempPath(), "ClashScenarioPolling-" + Guid.NewGuid().ToString("N"));
-        internal readonly List<(string Client, string Method, JsonElement Args)> Calls = new();
-        internal readonly TestRun Run;
-        internal readonly ScenarioDialogs Dialogs;
-        internal readonly ScenarioPolling Polling;
-        internal Func<string, string, JsonElement, object?>? Script;
-        private Fixture(bool allowLanguage)
-        { Run = new(path, new[] { "unit" }); Dialogs = new(Run, allowLanguage); Polling = new(Run, Dialogs); }
-        internal static async Task<Fixture> Create(bool allowLanguage = false)
-        {
-            var f = new Fixture(allowLanguage);
-            await f.Run.AddClientAsync("A", new Connection(f, "A")); await f.Run.AddClientAsync("B", new Connection(f, "B"));
-            f.Calls.Clear(); return f;
-        }
-        internal int Count(string method) => Calls.Count(c => c.Method == method);
-        public void Dispose() => Directory.Delete(path, recursive: true);
-        private sealed class Connection(Fixture owner, string client) : IRimTestConnection
-        {
-            public Task<JsonElement> CallAsync(string method, object? arguments = null, int timeoutMs = 10000, CancellationToken token = default)
-            {
-                token.ThrowIfCancellationRequested();
-                var args = Wire.Element(arguments ?? new { }); owner.Calls.Add((client, method, args));
-                object result = owner.Script?.Invoke(client, method, args) ?? (method switch
-                {
-                    "runtime.hello" => new { capabilities = new[] { "time.status", "clash.state", "clash.gravship" }.Select(name => new Capability(name, name, "observe")).ToArray() },
-                    "clash.compatibility" => new { open = false },
-                    "dialogs.messages" => new { items = Array.Empty<object>() },
-                    "time.status" => new { state = "completed" },
-                    _ => new { }
-                });
-                return Task.FromResult(Wire.Element(result));
-            }
-        }
-    }
 }

@@ -37,13 +37,13 @@ internal sealed partial class GameSuite
                 queryTimes.Add(timer.Elapsed.TotalMilliseconds);
             }
             // Exercise a real authenticated client snapshot purchase while the entire catalog is cached.
-            int steel = await Stock("B", "Steel"), silver = await Stock("B", "Silver");
+            int steel = await colonyFixture.Stock("B", "Steel"), silver = await colonyFixture.Stock("B", "Silver");
             string selected = "stress-" + (size - 1).ToString("D6");
             var record = (await Call("B", "clash.shop.listing", new { listingId = selected })).GetProperty("listing");
             var purchase = Stopwatch.StartNew();
             await Invoke("B", "StartPurchaseServerShopListing", new { listing = record.GetProperty("reference"), purchaseCount = 1 });
             await Idle("B"); await AwaitStock("B", "Steel", steel + 1);
-            Check(await Stock("B", "Silver") == silver - 1 && shop.Find(selected)!.StockCount == 2, "Large-catalog purchase violated balances.");
+            Check(await colonyFixture.Stock("B", "Silver") == silver - 1 && shop.Find(selected)!.StockCount == 2, "Large-catalog purchase violated balances.");
             purchase.Stop();
             // Registry contention/replay is separate from the preceding live snapshot transaction.
             string raceId = "stress-000000";

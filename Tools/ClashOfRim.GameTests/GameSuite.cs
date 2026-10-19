@@ -19,15 +19,16 @@ internal sealed partial class GameSuite
     private readonly TestRun run;
     private readonly ScenarioDialogs dialogs;
     private readonly ScenarioPolling polling;
+    private readonly ColonyScenarioFixture colonyFixture;
+    private readonly ScenarioRuntimeDiagnostics diagnostics;
+    private readonly WorldScenario world;
+    private readonly ServerEntryScenario entry;
+    private readonly SessionPersistenceScenario roundtrips;
     private readonly Microsoft.AspNetCore.Builder.WebApplication server;
-    private readonly Dictionary<string, HashSet<int>> startupErrors = new();
     private readonly Dictionary<string, RimTestClient> clients = new();
     private string? expedition;
     private string? acceptedGiftId;
-    private int? firstColonyTile;
     private string url = "";
-    private JsonElement expectedDifficulty, expectedWorld;
-    private JsonElement worldA, worldB;
     private static readonly string[] FeatureCases = ["account-password-change", "colony-appearance-sync", "public-chat", "private-chat-read", "admin-configuration-permissions",
     "bank-loan-repayment", "shop-purchase-stock", "trade-cancel-refund", "trade-drop-pod-fulfillment", "alliance-request-accept",
     "ally-observation-close", "caravan-load-travel", "caravan-gift-accept", "support-send-early-return", "mercenary-hire", "mercenary-recall", "raid-open-settle",
@@ -47,6 +48,13 @@ internal sealed partial class GameSuite
             "--contentRoot", Path.Combine(root, "Server"), "--urls", "http://127.0.0.1:0",
         "--Persistence:DataDirectory", Path.Combine(root, "Server", "Data"), "--Authentication:DebugMode", "false",
         "--Localization:Language", "English", "--Logging:LogLevel:Default", "Warning"]);
+        colonyFixture = new(run, polling);
+        diagnostics = new(run);
+        var serverState = ServerState;
+        world = new(run, polling, profile, serverState.WorldConfiguration, serverState.WorldTileDistanceCalculator,
+            id => WorldPersistenceProbe.Read(root, id));
+        entry = new(run, polling, dialogs, world, colonyFixture, diagnostics, () => url);
+        roundtrips = new(run, polling, colonyFixture, entry);
     }
     public async Task<int> RunAsync()
     {
@@ -65,24 +73,16 @@ internal sealed partial class GameSuite
                 {
                     var hello = await Call(client, "runtime.hello"); Check(!hello.Bool("unsafeEnabled"), "Unsafe mode must remain off.");
                     await Wait(client, "game.state", null, s => s.Bool("startupReady") && !s.Bool("playing"));
-                    VerifyLaunch(client, hello);
+                    world.VerifyLaunch(client, hello);
                     await Call(client, "clash.actions", new { limit = 200 });
                 }
             });
             await Case("shared-world-entry", async () =>
             {
-                await Enter("A", url); await Enter("B", url);
-                Check(server.Services.GetRequiredService<ClashOfRimNetworkState>().WorldConfiguration.Current is not null, "No persisted server world baseline.");
-                var worldA = await Call("A", "clash.world"); var worldB = await Call("B", "clash.world");
-                Check(!string.IsNullOrWhiteSpace(worldA.OptionalString("worldConfigurationId")) && worldA.GetRawText() == worldB.GetRawText(), "Clients did not apply the same authoritative world identity/topology.");
-                var a = (await Call("A", "clash.inventory")).GetProperty("maps")[0];
-                var b = (await Call("B", "clash.inventory")).GetProperty("maps")[0];
-                Check(a.Int("tileId") != b.Int("tileId"), "Clients occupied the same colony tile.");
-                var sites = server.Services.GetRequiredService<ClashOfRimNetworkState>().WorldConfiguration.Current!.PlayerColonySites;
-                Check(sites.Any(s => s.UserId == "rimtest-A" && s.Tile == a.Int("tileId")) &&
-                    sites.Any(s => s.UserId == "rimtest-B" && s.Tile == b.Int("tileId")), "Both colony sites must be registered authoritatively.");
+                await entry.Enter("A", url); await entry.Enter("B", url);
+                await world.VerifySharedEntry();
             });
-            await WorldChecks();
+            await world.Run();
             if (profile.Features)
             {
                 await Case("account-password-change", PasswordChange);
@@ -121,7 +121,7 @@ internal sealed partial class GameSuite
                 await Case("support-send-early-return", Support);
                 await Case("mercenary-hire", Mercenary);
                 await Case("mercenary-recall", MercenaryRecall);
-                await Case("raid-open-settle", async () => { await Raid(); await LoginExisting(true); });
+                await Case("raid-open-settle", async () => { await Raid(); await entry.LoginExisting(true); });
                 foreach (string client in clients.Keys)
                 {
                     if (!(await Call(client, "clash.state")).Bool("isInActiveMultiplayerSession")) continue;
@@ -141,20 +141,9 @@ internal sealed partial class GameSuite
             await RunStability();
             // Reload tests run last: a broken serialized world must not prevent observing
             // independent live business features, or be uploaded as if it were valid.
-            await Case("snapshot-save-reload", SaveReload);
-            await Case("session-reconnect", Reconnect);
-            await Case("runtime-errors", async () =>
-            {
-                await CaptureLogs();
-                foreach (string client in clients.Keys)
-                {
-                    var errors = run.Logs.Where(e => e.Client == client).Select(e => e.Entry).Where(e =>
-                        (e.String("level") is "error" or "bridge" or "probe" && !startupErrors[client].Contains(e.Int("sequence"))) ||
-                        e.String("message").Contains("[ClashOfRim] Main thread action failed:") ||
-                        e.String("message").Contains("[ClashOfRim][AutoEventApply] prepare failed")).ToArray();
-                    Check(errors.Length == 0, "Unexpected game errors: " + JsonSerializer.Serialize(errors));
-                }
-            });
+            await Case("snapshot-save-reload", roundtrips.SaveReload);
+            await Case("session-reconnect", roundtrips.Reconnect);
+            await Case("runtime-errors", () => diagnostics.Verify(clients.Keys));
             passed = true;
         }
         catch (Exception ex)
@@ -172,4 +161,14 @@ internal sealed partial class GameSuite
         return passed ? 0 : 1;
 
     }
+    Task<JsonElement> Wait(string client, string method, object? input, Func<JsonElement, bool> predicate, int seconds = 90)
+        => polling.Wait(client, method, input, predicate, seconds);
+    Task Confirm(string client) => dialogs.Confirm(client);
+    Task<bool> AcceptLanguageWarning(string client) => dialogs.AcceptLanguageWarning(client);
+    Task<JsonElement> Idle(string client) => polling.Idle(client);
+    Task Step(string client, int ticks) => polling.Step(client, ticks);
+    Task<JsonElement> Call(string client, string method, object? input = null) => run.CallAsync(client, method, input);
+    Task<JsonElement> Invoke(string client, string action, object? input = null) => run.InvokeClientAsync(client, action, input);
+    Task Case(string id, Func<Task> body) => run.RunCaseAsync(id, body, CaptureLogs);
+    Task CaptureLogs() => run.CaptureLogsAsync();
 }

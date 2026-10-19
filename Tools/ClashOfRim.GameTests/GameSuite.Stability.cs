@@ -83,9 +83,9 @@ internal sealed partial class GameSuite
                 await Case("support-death-expiry", () => Support("death", true));
             else await Case("raid-loss-reload-settlement", async () =>
             {
-                int before = await Stock("B", "Steel");
-                await Raid(); await LoginExisting(true);
-                Check(await Stock("B", "Steel") == before - raidLoss.Int("count"), "Defender reload did not preserve battle loss exactly once.");
+                int before = await colonyFixture.Stock("B", "Steel");
+                await Raid(); await entry.LoginExisting(true);
+                Check(await colonyFixture.Stock("B", "Steel") == before - raidLoss.Int("count"), "Defender reload did not preserve battle loss exactly once.");
             });
         }
     }

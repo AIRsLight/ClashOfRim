@@ -2,18 +2,21 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Nodes;
 using System.Xml.Linq;
 using AIRsLight.ClashOfRim.Network;
 using AIRsLight.ClashOfRim.Protocol;
-using Microsoft.Extensions.DependencyInjection;
 using RimTest.Protocol;
+using RimTest.Testing;
 
 namespace ClashOfRim.GameTests;
 
-internal sealed partial class GameSuite
+internal sealed class WorldScenario(TestRun run, ScenarioPolling polling, SuiteProfile profile,
+    WorldConfigurationRegistry world, IWorldTileDistanceCalculator distances,
+    Func<string, Task<WorldPersistenceEvidence>> readPersisted)
 {
-    void VerifyLaunch(string client, JsonElement hello)
+    private JsonElement expectedDifficulty, expectedWorld;
+    private JsonElement worldA, worldB;
+    internal void VerifyLaunch(string client, JsonElement hello)
     {
         var expected = client == "A" ? profile.A : profile.B;
         Check(hello.String("culture") == expected.Culture && hello.String("uiCulture") == expected.Culture && hello.String("language") == expected.Language,
@@ -22,9 +25,21 @@ internal sealed partial class GameSuite
             .Where(id => id.StartsWith("ludeon.rimworld.", StringComparison.Ordinal)).Order(StringComparer.Ordinal);
         Check(actualDlc.SequenceEqual(profile.Expansions.Select(e => "ludeon.rimworld." + e.ToLowerInvariant()).Order(StringComparer.Ordinal)), "Active DLC set differs from the profile.");
     }
-    async Task ConfigureWorld(string client, string page)
+    internal async Task VerifySharedEntry()
     {
-        var options = await Call(client, "setup.options");
+        Check(world.Current is not null, "No persisted server world baseline.");
+        var worldA = await run.CallAsync("A", "clash.world"); var worldB = await run.CallAsync("B", "clash.world");
+        Check(!string.IsNullOrWhiteSpace(worldA.OptionalString("worldConfigurationId")) && worldA.GetRawText() == worldB.GetRawText(), "Clients did not apply the same authoritative world identity/topology.");
+        var a = (await run.CallAsync("A", "clash.inventory")).GetProperty("maps")[0];
+        var b = (await run.CallAsync("B", "clash.inventory")).GetProperty("maps")[0];
+        Check(a.Int("tileId") != b.Int("tileId"), "Clients occupied the same colony tile.");
+        var sites = world.Current!.PlayerColonySites;
+        Check(sites.Any(s => s.UserId == "rimtest-A" && s.Tile == a.Int("tileId")) &&
+            sites.Any(s => s.UserId == "rimtest-B" && s.Tile == b.Int("tileId")), "Both colony sites must be registered authoritatively.");
+    }
+    internal async Task ConfigureWorld(string client, string page)
+    {
+        var options = await run.CallAsync(client, "setup.options");
         string Resolve(string field, string value)
         {
             var values = options.GetProperty(field).EnumerateArray().Select(v => v.GetString()!).ToArray();
@@ -47,20 +62,20 @@ internal sealed partial class GameSuite
         };
         if (profile.Expansions.Contains("Odyssey")) input["landmarks"] = Resolve("landmarks", profile.Landmarks);
         if (profile.Expansions.Contains("Biotech")) input["pollution"] = profile.Pollution;
-        var response = await Call(client, "setup.world", input);
+        var response = await run.CallAsync(client, "setup.world", input);
         if (client == "A") expectedWorld = response;
     }
+    Task Case(string id, Func<Task> body) => run.RunCaseAsync(id, body, () => run.CaptureLogsAsync());
     Task AssertCase(string id, Action body) => ObserveCase(id, () => { body(); return Task.CompletedTask; });
     async Task ObserveCase(string id, Func<Task> body)
     {
         try { await Case(id, body); }
         catch (Exception) { } // TestRun retains the failure; independent observations still run.
     }
-    async Task WorldChecks()
+    internal async Task Run()
     {
-        worldA = await Call("A", "clash.world.details"); worldB = await Call("B", "clash.world.details");
-        var state = server.Services.GetRequiredService<ClashOfRimNetworkState>();
-        var baseline = state.WorldConfiguration.Current!;
+        worldA = await run.CallAsync("A", "clash.world.details"); worldB = await run.CallAsync("B", "clash.world.details");
+        var baseline = world.Current!;
         await AssertCase("world-parameters", () =>
         {
             Check(expectedWorld.ValueKind == JsonValueKind.Object, "Host never configured a world.");
@@ -89,7 +104,7 @@ internal sealed partial class GameSuite
                 string digest = GeometryDigest(layer);
                 Check(a.String("geometrySha256") == digest && b.String("geometrySha256") == digest, "Actual tile centers differ from persisted geometry.");
             }
-            Check(state.WorldConfiguration.TryGetWorldSubstrate(baseline.WorldConfigurationId, out var payload) && payload is { Length: > 0 }, "Detached world substrate was never uploaded.");
+            Check(world.TryGetWorldSubstrate(baseline.WorldConfigurationId, out var payload) && payload is { Length: > 0 }, "Detached world substrate was never uploaded.");
             Check(WorldSubstratePackageCodec.TryDecode(payload!, out var package, out _) && package!.TileGeometryPayload.Length > 0, "Detached substrate is invalid.");
         });
         await ObserveCase("world-tile-data", async () =>
@@ -129,32 +144,29 @@ internal sealed partial class GameSuite
         await AssertCase("culture-references", CheckCultures);
         await ObserveCase("world-persistence", async () =>
         {
-            var persistedBaseline = state.WorldConfiguration.Current!;
-            // A fresh service container must reconstruct from disk; observing the live registry alone cannot test persistence.
-            await using var reload = ClashOfRimNetworkServer.Build(["--contentRoot", Path.Combine(root, "Server"),
-                "--Persistence:DataDirectory", Path.Combine(root, "Server", "Data"), "--Logging:LogLevel:Default", "Warning"]);
-            var restored = reload.Services.GetRequiredService<ClashOfRimNetworkState>().WorldConfiguration;
-            Check(restored.Current?.WorldConfigurationId == baseline.WorldConfigurationId, "World identity did not survive registry reconstruction.");
+            var persistedBaseline = world.Current!;
+            var restored = await readPersisted(baseline.WorldConfigurationId);
+            Check(restored.Configuration?.WorldConfigurationId == baseline.WorldConfigurationId, "World identity did not survive registry reconstruction.");
             var expected = JsonSerializer.SerializeToElement(persistedBaseline, Wire.Json);
-            var actual = JsonSerializer.SerializeToElement(restored.Current, Wire.Json);
+            var actual = JsonSerializer.SerializeToElement(restored.Configuration, Wire.Json);
             foreach (var field in expected.EnumerateObject())
             {
                 try { Equal(field.Value, actual.GetProperty(field.Name), "Persisted baseline field differs: " + field.Name); }
                 catch
                 {
-                    await File.WriteAllTextAsync(Path.Combine(root, "world-persistence-expected.json"), expected.GetRawText());
-                    await File.WriteAllTextAsync(Path.Combine(root, "world-persistence-actual.json"), actual.GetRawText());
+                    await File.WriteAllTextAsync(Path.Combine(run.DirectoryPath, "world-persistence-expected.json"), expected.GetRawText());
+                    await File.WriteAllTextAsync(Path.Combine(run.DirectoryPath, "world-persistence-actual.json"), actual.GetRawText());
                     throw;
                 }
             }
-            Check(restored.TryGetWorldSubstrate(baseline.WorldConfigurationId, out var blob) && state.WorldConfiguration.TryGetWorldSubstrate(baseline.WorldConfigurationId, out var original)
-                && blob!.AsSpan().SequenceEqual(original), "World substrate did not survive persistence.");
+            Check(restored.Substrate is not null && world.TryGetWorldSubstrate(baseline.WorldConfigurationId, out var original)
+                && restored.Substrate.AsSpan().SequenceEqual(original), "World substrate did not survive persistence.");
         });
         await Case("storyteller-permission", async () =>
         {
-            var before = await Call("B", "clash.world.details");
-            Check(!(await Call("B", "clash.storyteller.open")).Bool("opened"), "Ordinary player opened locked storyteller settings.");
-            var after = await Call("B", "clash.world.details");
+            var before = await run.CallAsync("B", "clash.world.details");
+            Check(!(await run.CallAsync("B", "clash.storyteller.open")).Bool("opened"), "Ordinary player opened locked storyteller settings.");
+            var after = await run.CallAsync("B", "clash.world.details");
             Equal(before.GetProperty("difficultyValues"), after.GetProperty("difficultyValues"), "Denied editor changed difficulty.");
         });
         await Case("runtime-difficulty-sync", RuntimeDifficulty);
@@ -163,9 +175,9 @@ internal sealed partial class GameSuite
     {
         async Task<JsonElement> Select(string storyteller, string difficulty, Dictionary<string, float>? values)
         {
-            var page = await Call("A", "clash.storyteller.open");
+            var page = await run.CallAsync("A", "clash.storyteller.open");
             Check(page.Bool("opened"), "Administrator could not open storyteller editor.");
-            var selected = await Call("A", "storyteller.configure", new
+            var selected = await run.CallAsync("A", "storyteller.configure", new
             {
                 page = page.GetProperty("reference").String("handle"),
                 storyteller,
@@ -173,9 +185,9 @@ internal sealed partial class GameSuite
                 baseDifficulty = profile.BaseDifficulty,
                 values
             });
-            await Idle("A");
-            Check(ServerState.WorldConfiguration.Current!.StorytellerDefName == storyteller && ServerState.WorldConfiguration.Current.DifficultyDefName == difficulty, "Runtime selection was not persisted.");
-            var applied = await Wait("B", "clash.difficulty", null, d => d.String("storyteller") == storyteller && d.String("difficulty") == difficulty, 90);
+            await polling.Idle("A");
+            Check(world.Current!.StorytellerDefName == storyteller && world.Current.DifficultyDefName == difficulty, "Runtime selection was not persisted.");
+            var applied = await polling.Wait("B", "clash.difficulty", null, d => d.String("storyteller") == storyteller && d.String("difficulty") == difficulty, 90);
             Equal(selected.GetProperty("values"), applied.GetProperty("values"), "Runtime difficulty values differ on guest.");
             return applied;
         }
@@ -191,8 +203,8 @@ internal sealed partial class GameSuite
             var blocks = a.GetProperty("blocks").EnumerateArray().ToArray(); var other = b.GetProperty("blocks").EnumerateArray().ToArray();
             int first = Enumerable.Range(0, blocks.Length).First(i => blocks[i].GetString() != other[i].GetString());
             var input = new { layerId = a.Int("id"), start = first * 1024, count = Math.Min(1024, a.Int("count") - first * 1024) };
-            var left = (await Call("A", "clash.world.tiles", input)).EnumerateArray().ToArray();
-            var right = (await Call("B", "clash.world.tiles", input)).EnumerateArray().ToArray();
+            var left = (await run.CallAsync("A", "clash.world.tiles", input)).EnumerateArray().ToArray();
+            var right = (await run.CallAsync("B", "clash.world.tiles", input)).EnumerateArray().ToArray();
             await run.RecordAsync(new { observation = "tile-differences", layerId = a.Int("id"), examples = left.Zip(right).Where(p => p.First.GetRawText() != p.Second.GetRawText()).Take(8).Select(p => new { host = p.First, guest = p.Second }).ToArray() });
         }
     }
@@ -210,7 +222,7 @@ internal sealed partial class GameSuite
             }
         }
         // Local player ideologies may differ; shared NPC factions must keep canonical culture/memes/precepts.
-        foreach (string def in ServerState.WorldConfiguration.Current!.Factions.Select(f => f.DefName).Distinct(StringComparer.Ordinal))
+        foreach (string def in world.Current!.Factions.Select(f => f.DefName).Distinct(StringComparer.Ordinal))
         {
             var a = worldA.GetProperty("factions").EnumerateArray().Where(f => f.String("defName") == def).ToArray();
             var b = worldB.GetProperty("factions").EnumerateArray().Where(f => f.String("defName") == def).ToArray();
@@ -231,28 +243,45 @@ internal sealed partial class GameSuite
         foreach (var tile in layer.TileCenters.OrderBy(t => t.Tile)) { writer.Write(tile.Tile); writer.Write(tile.X); writer.Write(tile.Y); writer.Write(tile.Z); }
         writer.Flush(); return Convert.ToHexString(SHA256.HashData(stream.ToArray()));
     }
-    async Task SaveReload()
+    internal async Task SelectSite(string client, string page, int? firstColonyTile)
     {
-        await Idle("B"); await Call("B", "time.set", new { speed = "Paused" });
-        var before = await Call("B", "clash.world.details"); int silver = await Stock("B", "Silver");
-        string epoch = (await Call("B", "game.state")).String("epoch");
-        await Call("B", "game.save", new { name = "rimtest-roundtrip" });
-        await Call("B", "game.load", new { name = "rimtest-roundtrip" });
-        await Wait("B", "game.state", null, s => s.String("epoch") != epoch && s.Bool("playerHasControl") && s.Int("mapCount") > 0, 180);
-        await Call("B", "time.set", new { speed = "Paused" });
-        var after = await Call("B", "clash.world.details");
-        foreach (string key in new[] { "worldConfigurationId", "info", "layers", "storyteller", "difficulty", "difficultyValues", "features", "factions", "ideologies", "pawns" }) Equal(before.GetProperty(key), after.GetProperty(key), "Save/load changed " + key);
-        Check(await Stock("B", "Silver") == silver, "Save/load changed stock.");
+        object siteQuery = firstColonyTile is int origin
+            ? new { page = page, biome = "TemperateForest", limit = 200, nearTileId = origin, maxDistance = 8 }
+            : new { page = page, biome = "TemperateForest", limit = 200 };
+        var sites = Items(await run.CallAsync(client, "setup.sites", siteQuery));
+        if (sites.Length == 0 && !profile.Features)
+        {
+            // Extreme climates need not contain temperate forest. Site validity
+            // still comes from the original settlement validator.
+            siteQuery = firstColonyTile is int near
+                ? new { page = page, limit = 200, nearTileId = near, maxDistance = 8 }
+                : new { page = page, limit = 200 };
+            sites = Items(await run.CallAsync(client, "setup.sites", siteQuery));
+        }
+        if (firstColonyTile is int firstTile)
+        {
+            // Vanilla graph adjacency and the server's geometry estimate can
+            // differ. Select a site accepted by both; never bypass registration.
+            var geometry = world.Current!.TileGeometry!;
+            var source = new WorldTileGeometryDistanceSource(geometry.Layers.Select(l => new WorldTileLayerGeometry(
+                l.LayerId, l.AverageTileSize, l.TileCenters.Select(c => new WorldTileCenter(c.Tile, c.X, c.Y, c.Z)))));
+            sites = sites.Where(s => distances.TryCalculateDistance(source,
+                new WorldTileRef(firstTile, s.Int("layerId")), new WorldTileRef(s.Int("tileId"), s.Int("layerId")), 0) is >= 2).ToArray();
+        }
+        Check(sites.Length > 0, "No valid temperate settlement site.");
+        await run.CallAsync(client, "setup.site", new { page = page, tileId = sites[0].Int("tileId") });
     }
-    async Task Reconnect()
+    internal async Task SelectStoryteller(string client, string page)
     {
-        await Idle("B");
-        var before = await Call("B", "clash.state"); var world = await Call("B", "clash.world.details");
-        await Invoke("B", "StartManualSnapshotUpload"); await Idle("B");
-        await ExitSession("B");
-        await LoginExisting(true);
-        Check((await Call("B", "clash.state")).String("colonyId") == before.String("colonyId"), "Reconnect changed colony identity.");
-        var after = await Call("B", "clash.world.details");
-        foreach (string key in new[] { "worldConfigurationId", "info", "layers", "storyteller", "difficulty", "difficultyValues", "features", "factions", "ideologies" }) Equal(world.GetProperty(key), after.GetProperty(key), "Reconnect changed " + key);
+        var selected = await run.CallAsync(client, "setup.storyteller", new
+        {
+            page,
+            storyteller = profile.Storyteller,
+            difficulty = profile.Difficulty,
+            baseDifficulty = profile.BaseDifficulty,
+            values = profile.CustomValues,
+            permadeath = false
+        });
+        if (client == "A") expectedDifficulty = selected.GetProperty("values");
     }
 }

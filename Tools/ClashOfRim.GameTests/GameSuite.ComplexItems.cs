@@ -28,7 +28,7 @@ internal sealed partial class GameSuite
         });
         await Case("complex-item-trade-delivery", async () =>
         {
-            int woodA = await Stock("A", "WoodLog"), woodB = await Stock("B", "WoodLog");
+            int woodA = await colonyFixture.Stock("A", "WoodLog"), woodB = await colonyFixture.Stock("B", "WoodLog");
             var order = await CreateTrade(available); string id = order.GetProperty("data").String("eventId");
             await Invoke("B", "StartRefreshTradeOrders");
             var orders = await Wait("B", "clash.records", new { kind = "trades" }, p => Items(p).Any(o => o.GetProperty("data").String("eventId") == id));
@@ -36,7 +36,7 @@ internal sealed partial class GameSuite
             await Invoke("B", "StartFulfillTradeOrderByDropPod", new { order = buyer.GetProperty("reference") }); await Idle("B");
             await AwaitStock("A", "WoodLog", woodA + 5); await Step("B", 600); await Idle("B");
             await VerifyComplexItems("B", fixtures, "delivery");
-            Check(await Stock("B", "WoodLog") == woodB - 5, "Complex trade payment was not conserved.");
+            Check(await colonyFixture.Stock("B", "WoodLog") == woodB - 5, "Complex trade payment was not conserved.");
             foreach (var item in fixtures)
             {
                 string def = item.GetProperty("data").OptionalString("innerDef") ?? item.GetProperty("data").String("defName");

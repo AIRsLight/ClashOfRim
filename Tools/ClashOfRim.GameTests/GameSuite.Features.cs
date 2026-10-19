@@ -21,21 +21,21 @@ internal sealed partial class GameSuite
         Check(bank.GetProperty("result").Bool("accepted") && bank.Bool("bankLoansEnabled"), "Bank unavailable.");
         int principal = Math.Max(bank.Int("minLoanSilver"), 100);
         Check(principal <= bank.Int("maxLoanSilver"), "Fixture colony cannot borrow minimum principal.");
-        int silver = await Stock("A", "Silver"); string previousSnapshot = (await Call("A", "clash.state")).String("currentSnapshotId");
+        int silver = await colonyFixture.Stock("A", "Silver"); string previousSnapshot = (await Call("A", "clash.state")).String("currentSnapshotId");
         await Invoke("A", "StartCreateBankLoan", new { principalSilver = principal, durationDays = bank.Int("minDurationDays") });
         await Idle("A");
         bank = await Call("A", "clash.bank");
         Check(bank.GetProperty("activeLoan").ValueKind == JsonValueKind.Object, "Loan was not created.");
         Check(bank.GetProperty("activeLoan").Int("principalSilver") == principal, "Wrong loan principal.");
         await Step("A", 600); // Let the original drop pod land and open before counting spawned stock.
-        Check(await Stock("A", "Silver") == silver + principal, "Loan cash did not reach the map exactly once.");
+        Check(await colonyFixture.Stock("A", "Silver") == silver + principal, "Loan cash did not reach the map exactly once.");
         Check((await Call("A", "clash.state")).String("currentSnapshotId") != previousSnapshot, "Loan did not advance authoritative snapshot.");
         int due = bank.GetProperty("activeLoan").Int("totalDueSilver");
         await NoEconomicMutation("A", async () => { await Invoke("A", "StartCreateBankLoan", new { principalSilver = principal, durationDays = bank.Int("minDurationDays") }); });
         await Invoke("A", "StartRepayBankLoan"); await Idle("A");
         bank = await Call("A", "clash.bank");
         Check(bank.GetProperty("activeLoan").ValueKind == JsonValueKind.Null, "Loan remains active after repayment.");
-        Check(await Stock("A", "Silver") == silver + principal - due, "Repayment cash mismatch.");
+        Check(await colonyFixture.Stock("A", "Silver") == silver + principal - due, "Repayment cash mismatch.");
         await NoEconomicMutation("A", async () => { await Invoke("A", "StartRepayBankLoan"); });
     }
     async Task PrivateChat()
@@ -71,14 +71,14 @@ internal sealed partial class GameSuite
     async Task Mercenary()
     {
         await Idle("B"); await Invoke("B", "StartRefreshBankStatus"); await Idle("B");
-        var bank = await Call("B", "clash.bank"); int before = await Stock("B", "Silver");
+        var bank = await Call("B", "clash.bank"); int before = await colonyFixture.Stock("B", "Silver");
         await Invoke("B", "StartHireMercenary", new { skillDefName = "Mining", skillLevel = 7, durationDays = bank.Int("mercenaryMinDurationDays") });
         var contracts = await Wait("B", "clash.mercenaries", null, p => Items(p).Any(c => !c.Bool("completed")));
         await Idle("B"); await Step("B", 600);
         contracts = await Wait("B", "clash.mercenaries", null, p => Items(p).Any(c => c.Bool("spawned")));
         var contract = Items(contracts).Single(c => !c.Bool("completed"));
         Check(contract.Int("actualSkill") == 7 && contract.Int("priceSilver") > 0, "Wrong mercenary skill/price.");
-        Check(await Stock("B", "Silver") == before - contract.Int("priceSilver"), "Mercenary charge mismatch.");
+        Check(await colonyFixture.Stock("B", "Silver") == before - contract.Int("priceSilver"), "Mercenary charge mismatch.");
         await Call("B", "pawn.draft", new { pawn = contract.GetProperty("pawn").String("handle"), drafted = true });
     }
     async Task PasswordChange()
@@ -150,11 +150,11 @@ internal sealed partial class GameSuite
         await Invoke("B", "StartRefreshServerShop");
         var shop = await Wait("B", "clash.records", new { kind = "shop" }, s => Items(s).Any(v => v.GetProperty("data").GetProperty("item").String("defName") == "Steel"));
         var listing = Items(shop).Single(v => v.GetProperty("data").GetProperty("item").String("defName") == "Steel");
-        int steel = await Stock("B", "Steel"), silver = await Stock("B", "Silver");
+        int steel = await colonyFixture.Stock("B", "Steel"), silver = await colonyFixture.Stock("B", "Silver");
         Check(silver >= 10, "Purchase fixture lacks landed silver.");
         await Invoke("B", "StartPurchaseServerShopListing", new { listing = listing.GetProperty("reference"), purchaseCount = 1 });
         await Idle("B"); await Step("B", 600);
-        int actualSteel = await Stock("B", "Steel"), actualSilver = await Stock("B", "Silver");
+        int actualSteel = await colonyFixture.Stock("B", "Steel"), actualSilver = await colonyFixture.Stock("B", "Silver");
         Check(actualSteel == steel + 5 && actualSilver == silver - 10, $"Shop stock mismatch: steel {steel} -> {actualSteel}, silver {silver} -> {actualSilver}.");
         await Invoke("A", "StartRefreshServerShop");
         shop = await Wait("A", "clash.records", new { kind = "shop" }, s => Items(s).Any(v => v.GetProperty("data").String("listingId") == listing.GetProperty("data").String("listingId") && v.GetProperty("data").Int("stockCount") == 2));
@@ -201,24 +201,24 @@ internal sealed partial class GameSuite
     {
         for (int i = 0; i < 12; i++)
         {
-            if (await Stock(client, def) == expected) return;
+            if (await colonyFixture.Stock(client, def) == expected) return;
             await Step(client, 300); await Task.Delay(150);
         }
-        throw new Exception(client + " stock mismatch for " + def + ": expected " + expected + ", actual " + await Stock(client, def));
+        throw new Exception(client + " stock mismatch for " + def + ": expected " + expected + ", actual " + await colonyFixture.Stock(client, def));
     }
     async Task TradeCancel()
     {
         await StoreStartingResources("A"); await StoreStartingResources("B");
-        int steel = await Stock("A", "Steel");
+        int steel = await colonyFixture.Stock("A", "Steel");
         var order = await CreateTrade();
-        Check(await Stock("A", "Steel") == steel - 5, "Trade creation did not reserve offered stock.");
+        Check(await colonyFixture.Stock("A", "Steel") == steel - 5, "Trade creation did not reserve offered stock.");
         await Invoke("A", "StartCancelTradeOrder", new { order = order.GetProperty("reference") });
         await Wait("A", "clash.records", new { kind = "trades" }, p => Items(p).Length == 0);
         await AwaitStock("A", "Steel", steel); await Idle("A");
     }
     async Task TradeFulfill()
     {
-        int steelA = await Stock("A", "Steel"), steelB = await Stock("B", "Steel"), woodA = await Stock("A", "WoodLog"), woodB = await Stock("B", "WoodLog");
+        int steelA = await colonyFixture.Stock("A", "Steel"), steelB = await colonyFixture.Stock("B", "Steel"), woodA = await colonyFixture.Stock("A", "WoodLog"), woodB = await colonyFixture.Stock("B", "WoodLog");
         var order = await CreateTrade(); string id = order.GetProperty("data").String("eventId");
         await Invoke("B", "StartRefreshTradeOrders");
         var listed = await Wait("B", "clash.records", new { kind = "trades" }, p => Items(p).Any(v => v.GetProperty("data").String("eventId") == id));
@@ -226,14 +226,14 @@ internal sealed partial class GameSuite
         Check(buyerOrder.GetProperty("data").GetProperty("serverDropPodPostage").Bool("reachable"), "Trade delivery quote is unreachable.");
         await Invoke("B", "StartFulfillTradeOrderByDropPod", new { order = buyerOrder.GetProperty("reference") });
         await Idle("B"); await AwaitStock("A", "WoodLog", woodA + 5); await AwaitStock("B", "Steel", steelB + 5);
-        Check(await Stock("A", "Steel") == steelA - 5 && await Stock("B", "WoodLog") == woodB - 5, "Trade did not conserve offered/requested items.");
+        Check(await colonyFixture.Stock("A", "Steel") == steelA - 5 && await colonyFixture.Stock("B", "WoodLog") == woodB - 5, "Trade did not conserve offered/requested items.");
         await Idle("A"); await Idle("B");
     }
     async Task TradeCaravanFulfill()
     {
         await Idle("A"); await Idle("B"); await StoreStartingResources("B");
         int steel = await CaravanStock("Steel"), wood = await CaravanStock("WoodLog");
-        int sellerSteel = await Stock("B", "Steel"), sellerWood = await Stock("B", "WoodLog");
+        int sellerSteel = await colonyFixture.Stock("B", "Steel"), sellerWood = await colonyFixture.Stock("B", "WoodLog");
         string previous = (await Call("A", "clash.state")).String("currentSnapshotId");
         var order = await CreateTrade(client: "B"); string id = order.GetProperty("data").String("eventId");
         await Invoke("A", "StartRefreshTradeOrders"); await Idle("A");
@@ -249,7 +249,7 @@ internal sealed partial class GameSuite
             "Caravan fulfillment lost or duplicated exchanged cargo.");
         Check((await Call("A", "clash.state")).String("currentSnapshotId") != previous, "Caravan exchange did not commit a snapshot.");
         await AwaitStock("B", "WoodLog", sellerWood + 5); await Idle("B");
-        Check(await Stock("B", "Steel") == sellerSteel - 5, "Caravan seller escrow was not conserved.");
+        Check(await colonyFixture.Stock("B", "Steel") == sellerSteel - 5, "Caravan seller escrow was not conserved.");
     }
     async Task Alliance()
     {
@@ -315,7 +315,7 @@ internal sealed partial class GameSuite
         foreach (var (def, count) in new[] { ("WoodLog", 10), ("MealSurvivalPack", 10) })
         {
             var candidates = groups.Where(g => g.String("defName") == def && g.Int("maximum") >= count).ToArray();
-            Check(candidates.Length > 0, $"Caravan fixture cannot select {count} {def}; colony stock is {await Stock("A", def)}. Check home area, reachability and reservations.");
+            Check(candidates.Length > 0, $"Caravan fixture cannot select {count} {def}; colony stock is {await colonyFixture.Stock("A", def)}. Check home area, reachability and reservations.");
             var group = candidates[0];
             await Call("A", "caravan.select", new { draft, group = H(group), count });
         }
@@ -332,7 +332,7 @@ internal sealed partial class GameSuite
     }
     async Task Gift()
     {
-        int before = await Stock("B", "WoodLog");
+        int before = await colonyFixture.Stock("B", "WoodLog");
         string id = await SendCaravanGift(5, "RimTest gift");
         await ReceiveEvent("B", id);
         Check((await Invoke("B", "HandleEventLetterAction", new { eventId = id, actionKind = "Accept" })).Bool("returnValue"), "Gift acceptance rejected.");
@@ -342,10 +342,10 @@ internal sealed partial class GameSuite
     async Task GiftReplay()
     {
         Check(acceptedGiftId is not null, "Missing accepted gift prerequisite.");
-        int before = await Stock("B", "WoodLog");
+        int before = await colonyFixture.Stock("B", "WoodLog");
         await Invoke("B", "HandleEventLetterAction", new { eventId = acceptedGiftId, actionKind = "Accept" });
         await Idle("B"); await Invoke("B", "StartRefreshEventsForTest"); await Step("B", 600);
-        int after = await Stock("B", "WoodLog");
+        int after = await colonyFixture.Stock("B", "WoodLog");
         Check(after == before, $"Repeated accept changed gift stock from {before} to {after}.");
     }
     Task Support() => Support("early", false);
@@ -469,7 +469,7 @@ internal sealed partial class GameSuite
         }
         await Invoke("B", "StartManualSnapshotUpload"); await Idle("B");
         string defenderSnapshot = state.SnapshotStore.GetLatest("rimtest-B", "colony-rimtest-B")!.Identity.SnapshotId ?? throw new Exception("Missing persisted defender snapshot identity.");
-        await ExitSession("B");
+        await entry.ExitSession("B");
         // Refresh the same world catalog a player sees until the logout reaches the server.
         JsonElement marker = default;
         for (int i = 0; i < 30; i++)

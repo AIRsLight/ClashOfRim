@@ -35,7 +35,7 @@ internal sealed partial class GameSuite
         }
         // Validate every editor configuration before starting the much slower purchase loop.
         Console.WriteLine($"CATALOG templates ready: {definitions.Count}");
-        int cash = await Stock("B", "Silver");
+        int cash = await colonyFixture.Stock("B", "Silver");
         if (cash < definitions.Count + 50)
         {
             await Invoke("B", "StartRefreshBankStatus"); await Idle("B");
@@ -47,7 +47,7 @@ internal sealed partial class GameSuite
         }
         var results = new List<object>();
         var pending = new List<(string Def, string Id, int Before, Stopwatch Watch)>();
-        int initialSilver = await Stock("B", "Silver"), bought = 0, silverReceived = 0;
+        int initialSilver = await colonyFixture.Stock("B", "Silver"), bought = 0, silverReceived = 0;
         async Task LandBatch()
         {
             if (pending.Count == 0) return;
@@ -88,7 +88,7 @@ internal sealed partial class GameSuite
             if (pending.Count == 20) { Console.WriteLine($"CATALOG {bought}/{definitions.Count}"); await LandBatch(); }
         }
         await LandBatch();
-        Check(await Stock("B", "Silver") == initialSilver - bought + silverReceived, "Catalog purchases did not conserve silver.");
+        Check(await colonyFixture.Stock("B", "Silver") == initialSilver - bought + silverReceived, "Catalog purchases did not conserve silver.");
         Check(failures.Count == 0, "Catalog failures: " + string.Join("; ", failures));
         Check(bought == definitions.Count, "Not all offered definitions were purchased.");
     }

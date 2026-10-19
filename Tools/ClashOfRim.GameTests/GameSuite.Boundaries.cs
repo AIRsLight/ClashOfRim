@@ -11,10 +11,10 @@ internal sealed partial class GameSuite
     async Task NoEconomicMutation(string client, Func<Task> action)
     {
         await Idle(client);
-        int silver = await Stock(client, "Silver"), steel = await Stock(client, "Steel");
+        int silver = await colonyFixture.Stock(client, "Silver"), steel = await colonyFixture.Stock(client, "Steel");
         string snapshot = (await Call(client, "clash.state")).String("currentSnapshotId");
         await action(); await Idle(client);
-        Check(await Stock(client, "Silver") == silver && await Stock(client, "Steel") == steel, "Rejected operation changed stock.");
+        Check(await colonyFixture.Stock(client, "Silver") == silver && await colonyFixture.Stock(client, "Steel") == steel, "Rejected operation changed stock.");
         Check((await Call(client, "clash.state")).String("currentSnapshotId") == snapshot, "Rejected operation published a snapshot.");
     }
     async Task BankBounds()
@@ -96,10 +96,10 @@ internal sealed partial class GameSuite
         var listing = Items(shop).Single(v => v.GetProperty("data").OptionalString("listingKind") == "BuyFromPlayer");
         string id = listing.GetProperty("data").String("listingId");
         await NoEconomicMutation("B", async () => { await Invoke("B", "StartPurchaseServerShopListing", new { listing = listing.GetProperty("reference"), purchaseCount = 2 }); });
-        int silver = await Stock("B", "Silver"), steel = await Stock("B", "Steel");
+        int silver = await colonyFixture.Stock("B", "Silver"), steel = await colonyFixture.Stock("B", "Steel");
         await Invoke("B", "StartPurchaseServerShopListing", new { listing = listing.GetProperty("reference"), purchaseCount = 1 }); await Idle("B");
         await AwaitStock("B", "Silver", silver + 10);
-        Check(await Stock("B", "Steel") == steel - 5, "Buyback did not remove exact items.");
+        Check(await colonyFixture.Stock("B", "Steel") == steel - 5, "Buyback did not remove exact items.");
         await Invoke("B", "StartRefreshServerShop");
         var exhausted = await Wait("B", "clash.records", new { kind = "shop" }, p => Items(p).Any(v => v.GetProperty("data").String("listingId") == id && v.GetProperty("data").Int("stockCount") == 0));
         listing = Items(exhausted).Single(v => v.GetProperty("data").String("listingId") == id);
@@ -111,7 +111,7 @@ internal sealed partial class GameSuite
     }
     async Task TradeMemo()
     {
-        int steel = await Stock("A", "Steel"), buyerSteel = await Stock("B", "Steel"), buyerWood = await Stock("B", "WoodLog");
+        int steel = await colonyFixture.Stock("A", "Steel"), buyerSteel = await colonyFixture.Stock("B", "Steel"), buyerWood = await colonyFixture.Stock("B", "WoodLog");
         var order = await CreateTrade(); string id = order.GetProperty("data").String("eventId");
         await Invoke("B", "StartRefreshTradeOrders");
         var orders = await Wait("B", "clash.records", new { kind = "trades" }, p => Items(p).Any(v => v.GetProperty("data").String("eventId") == id));
@@ -119,14 +119,14 @@ internal sealed partial class GameSuite
         await Invoke("B", "StartAcceptTradeOrder", new { order = buyer.GetProperty("reference"), postagePaidByAcceptor = false }); await Idle("B");
         orders = await Wait("B", "clash.records", new { kind = "trades" }, p => Items(p).Any(v => v.GetProperty("data").String("eventId") == id && v.GetProperty("data").Bool("viewerHasAccepted")));
         buyer = Items(orders).Single(v => v.GetProperty("data").String("eventId") == id);
-        Check(await Stock("B", "Steel") == buyerSteel && await Stock("B", "WoodLog") == buyerWood, "Accepting memo prematurely delivered trade goods.");
+        Check(await colonyFixture.Stock("B", "Steel") == buyerSteel && await colonyFixture.Stock("B", "WoodLog") == buyerWood, "Accepting memo prematurely delivered trade goods.");
         await Invoke("B", "StartCancelAcceptedTradeMemo", new { order = buyer.GetProperty("reference") }); await Idle("B");
         await Wait("B", "clash.records", new { kind = "trades" }, p => Items(p).Any(v => v.GetProperty("data").String("eventId") == id && !v.GetProperty("data").Bool("viewerHasAccepted")));
         await Idle("A");
         await Invoke("A", "StartRefreshTradeOrders", new { scope = "Mine" });
         var remaining = await Wait("A", "clash.records", new { kind = "trades" }, p => Items(p).Any(v => v.GetProperty("data").String("eventId") == id && v.GetProperty("data").Int("acceptedMemoCount") == 0));
         order = Items(remaining).Single(v => v.GetProperty("data").String("eventId") == id);
-        Check(order.GetProperty("data").Int("acceptedMemoCount") == 0 && await Stock("A", "Steel") == steel - 5, "Cancelling memo changed seller escrow/order.");
+        Check(order.GetProperty("data").Int("acceptedMemoCount") == 0 && await colonyFixture.Stock("A", "Steel") == steel - 5, "Cancelling memo changed seller escrow/order.");
         await Invoke("A", "StartCancelTradeOrder", new { order = order.GetProperty("reference") }); await Idle("A"); await AwaitStock("A", "Steel", steel);
     }
     async Task Achievements()

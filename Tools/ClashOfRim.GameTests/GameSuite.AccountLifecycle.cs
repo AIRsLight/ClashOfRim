@@ -60,7 +60,7 @@ internal sealed partial class GameSuite
             var own = await CheckAchievementRefresh("A");
             Check(!Items(own).Any(v => v.GetProperty("data").String("achievementId") == "trades_10"), "New colony inherited old completed trade count.");
             await Achievements(); await CheckAchievementRefresh("A"); await CheckAchievementRefresh("B");
-            await ReloadLocal("A", "rimtest-rebuilt-achievements"); await CheckAchievementRefresh("A");
+            await colonyFixture.Reload("A", "rimtest-rebuilt-achievements"); await CheckAchievementRefresh("A");
         });
         await Case("account-abandon-guest", () => AbandonAccountColony("B", "A"));
         await Case("account-rebuild-guest", () => RebuildAccountColony("B", "A"));
@@ -101,7 +101,7 @@ internal sealed partial class GameSuite
         abandonedColonies[client] = colony;
         var other = await Call(survivor, "clash.state"); string otherColony = other.String("colonyId");
         string? survivorSnapshot = ServerState.SnapshotStore.GetLatest("rimtest-" + survivor, otherColony)?.Identity.SnapshotId;
-        int silver = await Stock(survivor, "Silver"), steel = await Stock(survivor, "Steel");
+        int silver = await colonyFixture.Stock(survivor, "Silver"), steel = await colonyFixture.Stock(survivor, "Steel");
         var history = JsonSerializer.Serialize(ServerState.Achievements.ListAggregates().Where(a => a.UserId == user));
         await Call(client, "clash.abandon.open");
         Check(!(await Call(client, "clash.abandon")).Bool("ready"), "Abandon confirmation skipped countdown.");
@@ -117,7 +117,7 @@ internal sealed partial class GameSuite
         Check(history == JsonSerializer.Serialize(ServerState.Achievements.ListAggregates().Where(a => a.UserId == user)), "Abandonment destroyed achievement history.");
         Check(ServerState.OfflineAccounts.Authenticate(user, "local-test-password", DateTimeOffset.UtcNow).Accepted, "Abandonment deleted account credentials.");
         Check(ServerState.WorldConfiguration.IsAdministrator("rimtest-A"), "Abandoning owner removed server administration.");
-        Check(ServerState.SnapshotStore.GetLatest("rimtest-" + survivor, otherColony)?.Identity.SnapshotId == survivorSnapshot && await Stock(survivor, "Silver") == silver && await Stock(survivor, "Steel") == steel, "Abandonment mutated survivor snapshot or stock.");
+        Check(ServerState.SnapshotStore.GetLatest("rimtest-" + survivor, otherColony)?.Identity.SnapshotId == survivorSnapshot && await colonyFixture.Stock(survivor, "Silver") == silver && await colonyFixture.Stock(survivor, "Steel") == steel, "Abandonment mutated survivor snapshot or stock.");
         if (client == "A")
         {
             Check(ServerState.Ledger.Find(lifecycleOrder)!.Status == ServerEventStatus.Cancelled, "Abandoned seller's order remained executable.");
@@ -136,8 +136,8 @@ internal sealed partial class GameSuite
     async Task RebuildAccountColony(string client, string survivor)
     {
         // Select beside the surviving colony, so the same server distance constraints apply.
-        firstColonyTile = (await Call(survivor, "clash.inventory")).GetProperty("maps")[0].Int("tileId");
-        await Enter(client, url, register: false); await Idle(client);
+        entry.SetNeighbouringColony((await Call(survivor, "clash.inventory")).GetProperty("maps")[0].Int("tileId"));
+        await entry.Enter(client, url, register: false); await Idle(client);
         var state = await Call(client, "clash.state"); string colony = state.String("colonyId"), user = "rimtest-" + client;
         Check(colony != abandonedColonies[client] && ServerState.Players.IsDeleted(user, abandonedColonies[client]), "Rebuild reused/deleted old generation tombstone.");
         Check(ServerState.SnapshotStore.GetLatest(user, colony) is not null && ServerState.WorldConfiguration.Current!.PlayerColonySites.Count(s => s.UserId == user) == 1, "Rebuild did not publish exactly one active colony.");
