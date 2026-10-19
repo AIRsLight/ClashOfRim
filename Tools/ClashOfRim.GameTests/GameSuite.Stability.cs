@@ -37,13 +37,13 @@ internal sealed partial class GameSuite
         if (profile.Stability == "account") await accounts.Run();
         if (profile.Stability == "gravship")
         {
-            await Case("gravship-new-map", () => GravshipMove("A", false));
-            await Case("gravship-quest-site", () => GravshipMove("B", true));
+            await Case("gravship-new-map", () => gravship.Run("A", false));
+            await Case("gravship-quest-site", () => gravship.Run("B", true));
         }
         if (profile.Stability == "relocation")
         {
-            await Case("relocation-caravan", () => Relocate("A", "caravan"));
-            await Case("relocation-quest-site", () => Relocate("B", "site"));
+            await Case("relocation-caravan", () => relocation.Run("A", "caravan"));
+            await Case("relocation-quest-site", () => relocation.Run("B", "site"));
         }
         if (profile.Stability == "bank")
         {

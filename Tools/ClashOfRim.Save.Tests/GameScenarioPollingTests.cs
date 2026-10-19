@@ -11,7 +11,7 @@ internal static class GameScenarioPollingTests
     {
         Boundaries();
         foreach (string language in new[] { "English", "中文", "Français", "Türkçe" }) await DialogChoices(language);
-        await Compatibility(); await Pauses(); await Operations(); await BusyStates();
+        await Compatibility(); await Pauses(); await Operations(); await BusyStates(); await ContinuousTicks();
     }
 
     private static void Boundaries()
@@ -125,6 +125,36 @@ internal static class GameScenarioPollingTests
             f.Script = (_, method, _) => method == "clash.state" ? new Dictionary<string, bool> { [busy] = ++polls == 1 } : null;
             await f.Polling.Idle("A");
             Check(polls == 2, "Idle skipped busy state: " + busy);
+        }
+    }
+
+    private static async Task ContinuousTicks()
+    {
+        foreach (string fault in new[] { "none", "start", "observe", "predicate", "timeout" })
+        {
+            using var f = await GameScenarioTestRuntime.Create(); bool ticking = false; int reads = 0;
+            f.Script = (_, method, args) =>
+            {
+                if (method == "time.run")
+                {
+                    Check(args.Int("tps") == 1200, "Continuous ticking changed budget."); ticking = true;
+                    if (fault == "start") throw new IOException("start response failed");
+                }
+                if (method == "time.cancel") ticking = false;
+                if (method == "clash.gravship")
+                {
+                    reads++; if (fault == "observe") throw new IOException("observation failed");
+                    return new { ready = fault != "timeout" && reads >= 2 };
+                }
+                return null;
+            };
+            Task Wait() => f.Polling.RunUntil("B", "clash.gravship", null,
+                s => fault == "predicate" ? throw new IOException("predicate failed") : s.Bool("ready"), seconds: 1);
+            if (fault == "none") await Wait();
+            else if (fault == "timeout") await Reject<TimeoutException>(Wait);
+            else await Reject<IOException>(Wait);
+            Check(!ticking && f.Count("time.run") == 1 && f.Count("time.cancel") == 1, "Continuous ticking leaked or retried after " + fault);
+            Check(f.Calls.All(c => c.Client == "B"), "Continuous ticking crossed clients.");
         }
     }
 

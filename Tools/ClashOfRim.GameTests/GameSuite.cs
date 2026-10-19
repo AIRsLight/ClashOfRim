@@ -34,6 +34,8 @@ internal sealed partial class GameSuite
     private readonly TradeScenario trades;
     private readonly AchievementScenario achievements;
     private readonly AccountLifecycleScenario accounts;
+    private readonly RelocationScenario relocation;
+    private readonly GravshipScenario gravship;
     private readonly ComplexItemScenario complexItems;
     private readonly ShopCatalogScenario shopCatalog;
     private readonly ShopStressScenario shopStress;
@@ -51,7 +53,6 @@ internal sealed partial class GameSuite
     private readonly Microsoft.AspNetCore.Builder.WebApplication server;
     private readonly Dictionary<string, RimTestClient> clients = new();
     private string url = "";
-    private ClashOfRimNetworkState ServerState => server.Services.GetRequiredService<ClashOfRimNetworkState>();
     private static readonly string[] FeatureCases = ["account-password-change", "colony-appearance-sync", "public-chat", "private-chat-read", "admin-configuration-permissions",
     "bank-loan-repayment", "shop-purchase-stock", "trade-cancel-refund", "trade-drop-pod-fulfillment", "alliance-request-accept",
     "ally-observation-close", "caravan-load-travel", "caravan-gift-accept", "support-send-early-return", "mercenary-hire", "mercenary-recall", "raid-open-settle",
@@ -73,7 +74,7 @@ internal sealed partial class GameSuite
         "--Localization:Language", "English", "--Logging:LogLevel:Default", "Warning"]);
         colonyFixture = new(run, polling);
         diagnostics = new(run);
-        var serverState = ServerState;
+        var serverState = server.Services.GetRequiredService<ClashOfRimNetworkState>();
         economy = new(run, polling, colonyFixture);
         mercenaries = new(run, polling, colonyFixture, economy, serverState.MercenaryContracts, serverState.MercenaryGuards, () =>
         {
@@ -111,6 +112,9 @@ internal sealed partial class GameSuite
             serverState.BankLoans, serverState.MercenaryContracts, serverState.OfflineAccounts, serverState.Ledger);
         var accountColonies = new AccountColonyScenario(run, polling, colonyFixture, economy, achievements, entry, chat, players, shopActions, accountAuthority, () => url);
         accounts = new(run, polling, colonyFixture, economy, mercenaries, passwords, achievements, chat, shop, diplomacy, trades, tradeActions, accountColonies);
+        var moves = new ColonyMoveScenarioFixture(run, polling, colonyFixture, economy, serverState.WorldConfiguration);
+        relocation = new(run, moves);
+        gravship = new(run, polling, dialogs, moves);
     }
     public async Task<int> RunAsync()
     {

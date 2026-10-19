@@ -2,6 +2,8 @@
 
 审计基线：`5a890a37` 加审计开始时的工作区。结论是仍有 **9 组需要真正模块化的测试代码、2 个适合归并的生产类型、5 处多余修饰符**；不能把 20 个类型都算成尚未处理的业务模块。
 
+后续进度：M12b9 已修复下文两个草稿验收缺口，6 个相关单元组通过并随步骤提交，详见[实施记录](partial-module-audit-2026-10-17.md)。本文和机器清单继续保留原审计时点；目录／宿主、Save 测试及生产归并仍待处理。
+
 ## 统计口径
 
 沿用原 Roslyn 扫描器，扫描 Source、Tools、ThirdPartyCompat/Source 下 1,868 个 C# 文件；排除 bin、obj、冻结 1.6 和独立 RimTest 子仓库。另以文本检索核对 ThirdPartyCompat/ServerPlugins、Shared，没有额外 partial。类型按命名空间和外层类型区分；跨文件关系只包括成功解析的符号，不是完整 MSBuild 或运行时依赖图。[机器清单](partial-module-inventory-2026-10-19-remaining.json)保留每个声明的位置、字段及已解析跨文件调用。

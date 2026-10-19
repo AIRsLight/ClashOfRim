@@ -21,6 +21,15 @@ internal sealed class ScenarioPolling(TestRun run, ScenarioDialogs dialogs)
     });
     internal Task<JsonElement> Wait(string client, string method, object? input, Func<JsonElement, bool> predicate, int seconds = 90) =>
         run.EventuallyAsync(client, method, input, predicate, Waiting(client, method, seconds));
+    internal async Task<JsonElement> RunUntil(string client, string method, object? input, Func<JsonElement, bool> predicate, int seconds = 90)
+    {
+        try
+        {
+            await run.CallAsync(client, "time.run", new { tps = 1200 });
+            return await Wait(client, method, input, predicate, seconds);
+        }
+        finally { await run.CallAsync(client, "time.cancel"); }
+    }
     internal Task<JsonElement> Idle(string client) => Wait(client, "clash.state", null, s =>
         !s.Bool("manualSyncInProgress") && !s.Bool("snapshotUploadInProgress") && !s.Bool("localAtomicMutationPending") && !s.Bool("bankInProgress") && !s.Bool("serverShopInProgress") && !s.Bool("mercenaryInProgress") && !s.Bool("adminInProgress") && !s.Bool("tradeOrdersPageLoadInProgress"));
     internal async Task Step(string client, int ticks)

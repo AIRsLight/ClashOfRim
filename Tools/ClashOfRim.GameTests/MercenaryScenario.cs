@@ -35,12 +35,7 @@ internal sealed class MercenaryScenario(TestRun run, ScenarioPolling polling, Co
         string loadLabel = (await run.CallAsync("B", "clash.labels")).String("load");
         var load = Items(await run.CallAsync("B", "gizmos.list", new { handle = shuttle })).Single(g => g.String("label") == loadLabel && !g.Bool("disabled"));
         await run.CallAsync("B", "gizmos.invoke", new { handle = shuttle, type = load.String("type"), label = load.String("label") });
-        try
-        {
-            await run.CallAsync("B", "time.run", new { tps = 1200 });
-            await polling.Wait("B", "clash.mercenaries", null, p => !Items(p).Any(c => c.String("contractId") == id && !c.Bool("completed")));
-        }
-        finally { await run.CallAsync("B", "time.cancel"); }
+        await polling.RunUntil("B", "clash.mercenaries", null, p => !Items(p).Any(c => c.String("contractId") == id && !c.Bool("completed")));
         await polling.Idle("B");
         var watch = Stopwatch.StartNew();
         while (mercenaryContracts.Find(id)?.Status != MercenaryContractRegistry.StatusCompleted && watch.Elapsed.TotalSeconds < 90)
