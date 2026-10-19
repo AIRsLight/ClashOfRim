@@ -372,13 +372,13 @@ internal static class ConfirmationJournalTests
         public ConfirmEventApplicationsResponse Confirm(IReadOnlyList<ConfirmEventApplicationEntry>? entries = null, string baseId = "before", SaveSnapshotPackage? package = null)
         {
             package ??= Package; entries ??= Entries;
-            if (!Single) return SnapshotEndpointTestClient.Invoke<ConfirmEventApplicationsResponse>("ConfirmEventApplications", State,
-                token => new ConfirmEventApplicationsMetadataRequest("request", "userA", "colonyA", baseId, ProtocolDtoMapper.ToMetadataDto(package), entries, token),
-                package.Payload, new("userA", "colonyA", null)).GetAwaiter().GetResult();
+            string token = TradeCommandAuthTests.Token(State, "userA", "colonyA");
+            if (!Single) return State.EventConfirmations.Confirm(new ConfirmEventApplicationsMetadataRequest(
+                "request", "userA", "colonyA", baseId, ProtocolDtoMapper.ToMetadataDto(package), entries, token), package.Payload);
             var entry = entries[0];
-            var result = SnapshotEndpointTestClient.Invoke<ConfirmEventApplicationResponse>("ConfirmEventApplication", State,
-                token => new ConfirmEventApplicationMetadataRequest("request", entry.EventId, entry.SourceEventId, "userA", "colonyA", baseId,
-                    ProtocolDtoMapper.ToMetadataDto(package), entry.ClientApplicationResult, token), package.Payload, new("userA", "colonyA", null)).GetAwaiter().GetResult();
+            var result = State.EventConfirmations.Confirm(new ConfirmEventApplicationMetadataRequest(
+                "request", entry.EventId, entry.SourceEventId, "userA", "colonyA", baseId,
+                ProtocolDtoMapper.ToMetadataDto(package), entry.ClientApplicationResult, token), package.Payload, token);
             return new(result.Result, result.AppliedSnapshotId, [new(result.EventId, result.Result, result.AppliedSnapshotId, result.ServerValidationResult)], result.NextLineageToken);
         }
         public SnapshotCommitIntent Intent() => JsonSerializer.Deserialize<SnapshotCommitIntent>(File.ReadAllBytes(Directory.EnumerateFiles(Journal, "*.json").Single()))!;

@@ -4,6 +4,7 @@ using AIRsLight.ClashOfRim.Network.Modules.Mercenaries;
 using AIRsLight.ClashOfRim.Network.Modules.Trades;
 using AIRsLight.ClashOfRim.Network.Modules.Shop;
 using AIRsLight.ClashOfRim.Network.Modules.Gifts;
+using AIRsLight.ClashOfRim.Network.Modules.Events;
 using AIRsLight.ClashOfRim.Network;
 using AIRsLight.ClashOfRim.Network.Modules.Bank;
 using AIRsLight.ClashOfRim.Protocol;
@@ -41,7 +42,11 @@ internal static class SnapshotEndpointTestClient
         if (!MultipartSnapshotAuthentication.TryAuthorize(context.Request, state, now))
             throw new Exception("Fixture authentication failed.");
         IResult result;
-        if (name == nameof(BankEndpoints.CreateBankLoanWithSnapshot))
+        if (name == nameof(EventConfirmationEndpoints.ConfirmEventApplication))
+            result = await EventConfirmationEndpoints.ConfirmEventApplication(context.Request, state.EventConfirmations);
+        else if (name == nameof(EventConfirmationEndpoints.ConfirmEventApplications))
+            result = await EventConfirmationEndpoints.ConfirmEventApplications(context.Request, state.EventConfirmations);
+        else if (name == nameof(BankEndpoints.CreateBankLoanWithSnapshot))
             result = await BankEndpoints.CreateBankLoanWithSnapshot(context.Request, state.Bank);
         else if (name == nameof(BankEndpoints.RepayBankLoanWithSnapshot))
             result = await BankEndpoints.RepayBankLoanWithSnapshot(context.Request, state.Bank);

@@ -249,6 +249,11 @@ public sealed class ClashOfRimNetworkState
         RaidEvidenceConfirmation = new RaidEvidenceConfirmation(Ledger, SnapshotPostUploadJobs, RaidEvidenceScheduling,
             SnapshotMutations, SnapshotRequests, ColonyAuthorization, SnapshotTransactions, PendingConfirmations,
             SnapshotPostUploads, () => RuntimeLogger);
+        SnapshotReception = new SnapshotReceptionService(SnapshotTransactions, SnapshotMutations, SnapshotCommits,
+            SnapshotStore, BankLoans, MercenaryContracts, SnapshotPostUploads, Ledger, EventAchievements,
+            SnapshotConfirmations, MercenaryIncidents);
+        EventConfirmations = new EventConfirmations(ColonyAuthorization, SnapshotReception, SnapshotCommits,
+            PendingConfirmations, RaidEvidenceConfirmation);
         SnapshotPostUploadBackground = new(new SnapshotPostUploadWorker(SnapshotPostUploadJobs, () => RuntimeLogger),
             SnapshotPostUploads.ResolveWork, SnapshotMutations, ColonyDeletions, WorldConfiguration, SnapshotCommits,
             Ledger, RaidTimeouts, () => RuntimeLogger);
@@ -277,12 +282,14 @@ public sealed class ClashOfRimNetworkState
     internal ColonySnapshotAuthorization SnapshotAuthorization { get; }
     internal EventDeliveryService EventDelivery { get; }
     internal EventFailureReports EventFailureReports { get; }
+    internal EventConfirmations EventConfirmations { get; }
     internal SessionPrincipalAuthorization SessionPrincipals { get; }
     internal SnapshotRequestAuthorization SnapshotRequests { get; }
     internal AdministratorAuthorization AdminAuthorization { get; }
     internal AdministratorBaseline AdministratorBaseline { get; }
     internal ShopService Shop { get; }
     internal SnapshotTransactions SnapshotTransactions { get; }
+    internal SnapshotReceptionService SnapshotReception { get; }
     internal PendingConfirmationReconciler PendingConfirmations { get; }
     internal BankRequestAccess BankRequests { get; }
     internal BankService Bank { get; }

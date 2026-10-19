@@ -1,5 +1,4 @@
 using System.IO.Compression;
-using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Xml.Linq;
@@ -174,11 +173,10 @@ internal static class OrdinaryUploadRecoveryTests
         {
             try
             {
-                typeof(ClashOfRimNetworkServer).GetMethod("ReceiveSnapshot", BindingFlags.NonPublic | BindingFlags.Static)!
-                    .Invoke(null, new object?[] { f.State, "userA", "colonyA", "ordinary", ProtocolDtoMapper.ToMetadataDto(f.Package), f.Package.Payload,
-                        DateTimeOffset.UtcNow, true, true, null, null, null, false });
+                f.State.SnapshotReception.Receive("userA", "colonyA", "ordinary", ProtocolDtoMapper.ToMetadataDto(f.Package),
+                    f.Package.Payload, DateTimeOffset.UtcNow);
             }
-            catch (TargetInvocationException ex) when (ex.InnerException is InvalidOperationException) { throw new IOException("nested publication rejected"); }
+            catch (InvalidOperationException) { throw new IOException("nested publication rejected"); }
             throw new Exception("nested publication was not rejected");
         };
         ExpectFailure(() => f.Upload()); var intent = f.ReadIntent(); f.OnProcess = null;

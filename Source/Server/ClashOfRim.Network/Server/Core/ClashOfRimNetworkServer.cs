@@ -96,8 +96,7 @@ public static partial class ClashOfRimNetworkServer
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.UploadSnapshot).Route, UploadSnapshot).WithMetadata(EndpointSnapshotRecovery.Instance);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.DownloadLatestSnapshot).Route, DownloadLatestSnapshot).WithMetadata(EndpointSnapshotRecovery.Instance);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.DownloadLatestSnapshotPayload).Route, DownloadLatestSnapshotPayload).WithMetadata(EndpointSnapshotRecovery.Instance);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.ConfirmEventApplication).Route, ConfirmEventApplication).WithMetadata(EndpointSnapshotRecovery.Instance);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.ConfirmEventApplications).Route, ConfirmEventApplications).WithMetadata(EndpointSnapshotRecovery.Instance);
+        EventConfirmationEndpoints.Map(app, tradeState.EventConfirmations);
         EventFailureEndpoints.Map(app, tradeState.EventFailureReports);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.StorePawnPackage).Route, StorePawnPackage);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.GetPawnPackage).Route, GetPawnPackage);
@@ -149,113 +148,8 @@ public static partial class ClashOfRimNetworkServer
     private static void LogEventAppend(ClashOfRimNetworkState state, LedgerAppendResult append, string source)
         => EventDiagnostics.LogAppend(state.RuntimeLogger, append, source);
 
-    private static SnapshotUploadResult ReceiveSnapshot(
-        ClashOfRimNetworkState state,
-        string userId,
-        string colonyId,
-        string snapshotId,
-        SnapshotPackageMetadataDto package,
-        byte[] payload,
-        DateTimeOffset acceptedAtUtc,
-        bool storeAccepted = true,
-        bool validateGameplayContinuity = true,
-        string? confirmationOperation = null,
-        string? snapshotUploadKind = null,
-        string? requiredRaidEventId = null,
-        bool allowRaidSettlementEvidenceSnapshotKind = false)
-        => ReceiveSnapshotCore(state, userId, colonyId, snapshotId, package, payload, acceptedAtUtc, storeAccepted,
-            validateGameplayContinuity, confirmationOperation, snapshotUploadKind, requiredRaidEventId, allowRaidSettlementEvidenceSnapshotKind).Upload;
-
-    private static SnapshotReception ReceiveSnapshotCore(
-        ClashOfRimNetworkState state, string userId, string colonyId, string snapshotId, SnapshotPackageMetadataDto package,
-        byte[] payload, DateTimeOffset acceptedAtUtc, bool storeAccepted = true, bool validateGameplayContinuity = true,
-        string? confirmationOperation = null, string? snapshotUploadKind = null, string? requiredRaidEventId = null,
-        bool allowRaidSettlementEvidenceSnapshotKind = false, SnapshotPostUploadExtraData? postUploadData = null,
-        Func<ProtocolResponse?>? validateCommit = null, SnapshotConfirmationRequest? confirmation = null,
-        Func<ProtocolResponse?>? authorizeCommit = null)
-    {
-        var receiver = CreateSnapshotReceiver(state);
-        string normalizedSnapshotUploadKind = NormalizeSnapshotUploadKind(
-            snapshotUploadKind ?? package.SnapshotUploadKind, confirmationOperation);
-        if (!allowRaidSettlementEvidenceSnapshotKind
-            && string.Equals(normalizedSnapshotUploadKind, SnapshotUploadKinds.RaidSettlementEvidence, StringComparison.Ordinal))
-        {
-            return new(SnapshotUploadResult.Reject(SnapshotUploadResultKind.InvalidPayload,
-                "Raid settlement evidence snapshots are only accepted by the raid settlement confirmation endpoint."));
-        }
-        var context = new SnapshotUploadContext(userId, colonyId, snapshotId, confirmationOperation,
-            normalizedSnapshotUploadKind, requiredRaidEventId);
-        SaveSnapshotPackage savePackage = ProtocolDtoMapper.ToSaveSnapshotPackage(package, payload);
-        SnapshotUploadResult prepared = SnapshotPreparationService.Prepare(receiver, context, savePackage, acceptedAtUtc);
-        if (!prepared.Accepted) return new(prepared);
-        // Authorization is safe to repeat before/after recovery; business validation must
-        // read recovered receipts and current state only after the recovery scope is acquired.
-        using (var mutation = state.SnapshotMutations.Enter(() => authorizeCommit?.Invoke()))
-        {
-            if (mutation.Rejection is { } denied)
-                return SnapshotReception.Denied(denied);
-            if (state.SnapshotCommits.IsApplying)
-                throw new InvalidOperationException("Cannot publish a nested snapshot while a commit is being applied.");
-            if (validateCommit?.Invoke() is { } authFailure)
-                return SnapshotReception.Denied(authFailure);
-            if (postUploadData is not null)
-            {
-                if (confirmation is not null && state.SnapshotCommits.FindConfirmationReceipt(prepared.AcceptedSnapshot!.Envelope) is { } receipt)
-                {
-                    return new(confirmation.Matches(receipt.Request)
-                        && prepared.AcceptedSnapshot.Envelope.OriginalSha256 == receipt.Envelope.OriginalSha256
-                        && prepared.AcceptedSnapshot.Envelope.PayloadSha256 == receipt.Envelope.PayloadSha256
-                        ? SnapshotUploadResult.Accept(new LatestSnapshotRecord(receipt.Envelope.Identity, receipt.Envelope,
-                            prepared.AcceptedSnapshot.Index, receipt.AcceptedAtUtc), normalizedSnapshotUploadKind)
-                        : SnapshotUploadResult.Reject(SnapshotUploadResultKind.SnapshotReplayDetected, "Snapshot confirmation differs from its original request."));
-                }
-                // A lost response must not create a new lineage token or run supplied
-                // candidates again. Recovery above already used the original context.
-                var latest = state.SnapshotStore.GetLatest(userId, colonyId);
-                if (latest?.Identity.SnapshotId == snapshotId && confirmation is null)
-                {
-                    return new(latest.Envelope.OriginalSha256 == prepared.AcceptedSnapshot!.Envelope.OriginalSha256
-                        && latest.Envelope.PayloadSha256 == prepared.AcceptedSnapshot.Envelope.PayloadSha256
-                        ? SnapshotUploadResult.Accept(latest, normalizedSnapshotUploadKind)
-                        : SnapshotUploadResult.Reject(SnapshotUploadResultKind.SnapshotReplayDetected,
-                            "Snapshot identity was already accepted with different content."));
-                }
-            }
-            var operations = PendingSnapshotOperations.Capture(state.BankLoans, state.MercenaryContracts, prepared.AcceptedSnapshot!);
-            var upload = receiver.CommitPrepared(context, savePackage, prepared,
-                storeAccepted: storeAccepted && operations.IsEmpty && postUploadData is null, validateGameplayContinuity);
-            if (postUploadData is not null && upload.Accepted && upload.AcceptedSnapshot is not null)
-            {
-                state.SnapshotCommits.CommitUpload(state.SnapshotStore, state.BankLoans, state.MercenaryContracts,
-                    savePackage, upload.AcceptedSnapshot, operations, upload.SnapshotUploadKind,
-                    postUploadData.ConfirmationOperation, postUploadData.AchievementCandidates,
-                    state.SnapshotPostUploads.AfterOrdinaryUpload, confirmation, state.Ledger,
-                    item => state.EventAchievements.Record(item, item.AppliedAtUtc ?? item.CreatedAtUtc),
-                    state.SnapshotConfirmations.Plan, preparedStoragePayload: upload.PreparedStoragePayload);
-                return new(upload);
-            }
-            if (!storeAccepted || !upload.Accepted || upload.AcceptedSnapshot is null || operations.IsEmpty) return new(upload);
-            state.SnapshotCommits.CommitPendingOperations(state.SnapshotStore, state.BankLoans, state.MercenaryContracts,
-                savePackage, upload.AcceptedSnapshot, operations, upload.SnapshotUploadKind, preparedStoragePayload: upload.PreparedStoragePayload);
-            state.MercenaryIncidents.Recover();
-            return new(upload);
-        }
-    }
-
-    private static SnapshotUploadReceiver CreateSnapshotReceiver(ClashOfRimNetworkState state)
-        => state.SnapshotTransactions.CreateSnapshotReceiver();
-
-    private static string NormalizeSnapshotUploadKind(string? snapshotUploadKind, string? confirmationOperation = null)
-        => SnapshotTransactions.NormalizeSnapshotUploadKind(snapshotUploadKind, confirmationOperation);
-
     private static Task<MultipartSnapshotRequest<TRequest>?> ReadMultipartSnapshotRequest<TRequest>(HttpRequest httpRequest)
         => MultipartSnapshotReader.Read<TRequest>(httpRequest);
-
-    private static ProtocolResponse ToProtocolResponse(SnapshotUploadResult upload)
-        => SnapshotTransactions.ToProtocolResponse(upload);
-
-    private static ProtocolErrorCode ToProtocolError(SnapshotUploadResultKind kind)
-        => SnapshotTransactions.ToProtocolError(kind);
 
     // Compatibility for domains scheduled for M6/M7; the package service owns the implementation.
     private static bool TryStoreInlinePawnPackages(ClashOfRimNetworkState state, ProtocolIdentity owner,

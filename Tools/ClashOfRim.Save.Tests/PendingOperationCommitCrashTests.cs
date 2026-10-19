@@ -1,7 +1,6 @@
 using AIRsLight.ClashOfRim.Network;
 using AIRsLight.ClashOfRim.Save;
 using Microsoft.Data.Sqlite;
-using System.Reflection;
 using System.Text.Json;
 
 internal static class PendingOperationCommitCrashTests
@@ -168,7 +167,7 @@ internal static class PendingOperationCommitCrashTests
             Execute(database, "create trigger fail_confirm before insert on server_bank_debts begin select raise(abort, 'injected failure'); end;");
             bool failed = false;
             try { Receive(state, package); }
-            catch (TargetInvocationException ex) when (ex.InnerException is SqliteException) { failed = true; }
+            catch (SqliteException) { failed = true; }
             Require(failed && state.SnapshotStore.GetLatest("userA", "colonyA")?.Identity.SnapshotId == "ordinary",
                 "Ordinary upload did not reach the snapshot-to-bank crash boundary.");
             Execute(database, "drop trigger fail_confirm;");
@@ -188,9 +187,8 @@ internal static class PendingOperationCommitCrashTests
     }
 
     internal static SnapshotUploadResult Receive(ClashOfRimNetworkState state, SaveSnapshotPackage package) =>
-        (SnapshotUploadResult)typeof(ClashOfRimNetworkServer).GetMethod("ReceiveSnapshot", BindingFlags.Static | BindingFlags.NonPublic)!
-            .Invoke(null, [state, package.Envelope.Identity.OwnerId!, package.Envelope.Identity.ColonyId!, package.Envelope.Identity.SnapshotId!,
-                ProtocolDtoMapper.ToMetadataDto(package), package.Payload, DateTimeOffset.UtcNow, true, true, null, null, null, false])!;
+        state.SnapshotReception.Receive(package.Envelope.Identity.OwnerId!, package.Envelope.Identity.ColonyId!,
+            package.Envelope.Identity.SnapshotId!, ProtocolDtoMapper.ToMetadataDto(package), package.Payload, DateTimeOffset.UtcNow).Upload;
 
     internal static void AddAncillary(BankLoanRegistry bank) => NewDebt(bank, "ancillary", DateTimeOffset.UnixEpoch);
     internal static void VerifyAncillary(BankLoanRegistry bank, string snapshotId) =>

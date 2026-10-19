@@ -3526,3 +3526,13 @@ MaintainPresence 并入原 `ClientSessionProtocol`，与登录／登出共享会
 **4 个相关单元组通过**：失败报告（六类事件、三种账本、故障回滚、通知中断／重试、来源与授权变化、恢复竞争）、交易失败图、交易关闭原子补偿和服务端模块边界。日志 `LocalOnly/module-migration/event-failure-module-tests.log`。边界守卫检查 **436 个类型、81 条路由及恢复归属**；Events 业务纳入禁止 HTTP 依赖的检查，端点例外沿声明类型追溯，覆盖异步状态机而不放宽业务类型。生产随单元项目编译；未运行全量回归、专项 RimTest、独立构建或推送，原有未提交修改保留。
 
 **下一步 M11p3：确认快照入口。** ConfirmationPlans 与 SessionWorld.Confirmations 仍将确认计划、multipart 读取和宿主转发混在一起，下一阶段沿现有快照事务／确认模块移交职责；随后清点剩余服务器分片、M12 与最终审计。
+
+### M11p3：确认编排与共享快照接收脱离服务器宿主（2026-10-19）
+
+`EventConfirmations` 负责单条／批量确认的授权、普通确认与袭击证据分流、确认回执读取和响应映射；袭击路径继续直接调用已有 `RaidEvidenceConfirmation`。`EventConfirmationEndpoints` 仅处理原 multipart 格式、头部凭据、缺失载荷响应和路由。删除 ConfirmationPlans 与 SessionWorld.Confirmations 两个 partial，确认模块不再依赖宿主、全量状态或 HTTP 类型。
+
+普通上传与事件确认原本共用的接收流程迁入 `SnapshotReceptionService`，两条生产调用链共用同一实现。准备、恢复后复验、已提交回执／快照重放、待确认账务捕获和原提交服务的调用顺序保持不变；继续使用原计划器、后处理及成就记录端口，不复制账本变更算法。删除已无调用方的宿主接收／归一化／错误映射转发，以及无人使用的跳过持久化、跳过连续性验证、覆盖快照类型和放行袭击证据参数；普通接收仍拒绝袭击证据专用类型。接收模块纳入禁止 HTTP 依赖的守卫，嵌套类型追溯复用同一检查函数。
+
+确认日志测试直接调用业务模块；原定向 HTTP 测试继续覆盖实际路由、multipart、认证和恢复边界。普通上传嵌套拒绝与待确认账务故障测试移除私有宿主反射，直接捕获业务异常。**6 个相关单元组通过**：单条／批量确认日志、普通上传上下文与中断恢复、普通上传及确认的 HTTP 授权复验、待确认批次恢复、袭击证据地图及授权矩阵、模块边界。日志 `LocalOnly/module-migration/event-confirmations-final-tests.log`；守卫检查 **444 个类型、81 条路由及恢复归属**。生产随单元编译；未运行全量回归、专项 RimTest、独立构建或推送，原有未提交修改保留。
+
+**下一步 M11p4：普通上传与快照下载入口。** SessionWorld.Live 仍持有上传预检、超时维护、下载授权与清理编排；后续迁往快照模块，并清除 TransactionSnapshotPreparation 等失去调用方的宿主转发。包存储入口、剩余装配分片、M12 与最终审计仍待完成。

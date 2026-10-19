@@ -57,8 +57,7 @@ public static partial class ClashOfRimNetworkServer
                 uploadResult: "PendingConfirmationExpired"));
         }
 
-        var received = ReceiveSnapshotCore(
-            state,
+        var received = state.SnapshotReception.Receive(
             request.UserId,
             request.ColonyId,
             request.SnapshotId,
