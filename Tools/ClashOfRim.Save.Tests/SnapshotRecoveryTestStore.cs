@@ -4,7 +4,8 @@ using static SnapshotTestAssertions;
 internal sealed class SnapshotRecoveryTestStore(string root) : IPreparedColonySnapshotPackageStore
 {
     public FileColonySnapshotIndexStore Inner { get; } = new(root);
-    public Action? BeforePrepare, BeforeRead, AfterRead;
+    public Action? BeforePrepare, AfterRead;
+    public Action<string>? BeforeRead;
     public Action<bool>? BeforePublication, AfterPublication;
     public SaveSnapshotPackage? ReadOverride;
     public object? Gate;
@@ -49,7 +50,7 @@ internal sealed class SnapshotRecoveryTestStore(string root) : IPreparedColonySn
     public LatestSnapshotRecord? GetLatest(string owner, string colony) => Inner.GetLatest(owner, colony);
     public SaveSnapshotPackage? GetLatestPackage(string owner, string colony)
     {
-        BeforeRead?.Invoke();
+        BeforeRead?.Invoke(owner);
         var package = ReadOverride ?? Inner.GetLatestPackage(owner, colony);
         AfterRead?.Invoke();
         return package;

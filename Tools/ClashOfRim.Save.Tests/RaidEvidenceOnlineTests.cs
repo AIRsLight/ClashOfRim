@@ -42,7 +42,7 @@ internal static class RaidEvidenceOnlineTests
         string? expected = null;
         bool competing = false;
         SnapshotPreparationGateProbe.Run(f.State.RaidSettlementSnapshotMutationGate,
-            hook => { if (phase == "defender") f.Store.BeforeRead = hook; else if (replay) f.ArtifactStore.AfterRead = hook; else f.ArtifactStore.AfterPrepare = hook; },
+            hook => { if (phase == "defender") f.Store.BeforeRead = hook is null ? null : _ => hook(); else if (replay) f.ArtifactStore.AfterRead = hook; else f.ArtifactStore.AfterPrepare = hook; },
             () => reply = f.Invoke(), () =>
             {
                 Check(callbacks == 0, "Postprocessors ran before schedule preparation was validated.");

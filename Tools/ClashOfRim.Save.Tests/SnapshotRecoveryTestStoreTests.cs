@@ -43,11 +43,18 @@ internal static class SnapshotRecoveryTestStoreTests
 
                 store.Inner.StoreLatest(package, package.Index, DateTimeOffset.UnixEpoch);
                 var replacement = package with { Envelope = package.Envelope with { Identity = package.Envelope.Identity with { SnapshotId = "replacement" } } };
+                string? readOwner = null;
+                store.BeforeRead = name =>
+                {
+                    readOwner = name;
+                    var beforeRead = package with { Envelope = package.Envelope with { Identity = package.Envelope.Identity with { SnapshotId = "before-read" } } };
+                    store.Inner.StoreLatest(beforeRead, beforeRead.Index, DateTimeOffset.UnixEpoch);
+                };
                 store.AfterRead = () => store.Inner.StoreLatest(replacement, replacement.Index, DateTimeOffset.UnixEpoch);
                 var captured = store.GetLatestPackage(owner, colony);
-                Check(captured!.Envelope.Identity.SnapshotId == "stored" && store.GetLatest(owner, colony)!.Identity.SnapshotId == "replacement",
+                Check(readOwner == owner && captured!.Envelope.Identity.SnapshotId == "before-read" && store.GetLatest(owner, colony)!.Identity.SnapshotId == "replacement",
                     "Read probe returned a later snapshot instead of its captured package.");
-                store.AfterRead = null; store.ReadOverride = package;
+                store.BeforeRead = null; store.AfterRead = null; store.ReadOverride = package;
                 Check(ReferenceEquals(store.GetLatestPackage(owner, colony), package) && store.Writes == 0,
                     "Read override was republished or replaced by stored content.");
             });

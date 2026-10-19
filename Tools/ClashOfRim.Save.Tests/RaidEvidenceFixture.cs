@@ -143,7 +143,7 @@ internal sealed class RaidEvidenceFixture
         });
 
     private void AssertArtifactsReleased()
-        => Check(ArtifactStore.ActiveHandles == 0, "Online request leaked artifact revision handles.");
+        => ArtifactStore.AssertReleased("Online request leaked artifact revision handles.");
 
     // These faults belong to one opened store. Raw recovery and prepared publication remain distinct paths.
     internal sealed class PublicationFaults

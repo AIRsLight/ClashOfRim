@@ -17,6 +17,7 @@ internal class VersionedSnapshotArtifactTestStore(FileSnapshotPostUploadArtifact
     public FileSnapshotPostUploadArtifactStore Inner { get; } = inner;
     public int ActiveHandles => ((System.Collections.IDictionary)typeof(FileSnapshotPostUploadArtifactStore)
         .GetField("activePreparations", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(Inner)!).Count;
+    public void AssertReleased(string message) => SnapshotTestAssertions.Check(ActiveHandles == 0, message);
     public Action? BeforeRead, AfterRead;
     public ISnapshotPostUploadArtifactRead ReadCaptured(string id)
     {

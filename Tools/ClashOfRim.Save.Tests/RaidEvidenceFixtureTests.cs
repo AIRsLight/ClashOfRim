@@ -46,7 +46,8 @@ internal static class RaidEvidenceFixtureTests
             string? authenticationFailure = null;
             try { f.Invoke(); } catch (Exception ex) { authenticationFailure = ex.Message; }
             Check(authenticationFailure == "Fixture authentication failed.", "Ended fixture session unexpectedly remained authorized.");
-            oldStore.BeforePrepare = oldStore.BeforeRead = oldStore.AfterRead = () => throw new InjectedFailure();
+            oldStore.BeforePrepare = oldStore.AfterRead = () => throw new InjectedFailure();
+            oldStore.BeforeRead = _ => throw new InjectedFailure();
             oldStore.FailPreparation = oldStore.FailPublication = oldStore.FailAfterPublication = true;
             oldStore.ReadOverride = package;
             oldFaults.PreparedFault = "before"; oldFaults.FailRaw = true;
