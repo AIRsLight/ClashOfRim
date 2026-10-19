@@ -258,10 +258,10 @@ internal static class OrdinaryUploadRecoveryTests
         public UploadSnapshotResponse Upload(string? operation = null, IReadOnlyList<SnapshotAchievementCandidateDto>? candidates = null, SaveSnapshotPackage? package = null)
         {
             package ??= Package;
-            return SnapshotEndpointTestClient.Invoke<UploadSnapshotResponse>("UploadSnapshot", State,
-                token => new UploadSnapshotMetadataRequest("ordinary-request", "userA", "colonyA", package.Envelope.Identity.SnapshotId!,
-                    ProtocolDtoMapper.ToMetadataDto(package), token, operation ?? Operation, candidates ?? [Candidate]),
-                package.Payload, new ProtocolIdentity("userA", "colonyA", null)).GetAwaiter().GetResult();
+            string token = TradeCommandAuthTests.Token(State, "userA", "colonyA");
+            return State.SnapshotUploads.Upload(new UploadSnapshotMetadataRequest(
+                "ordinary-request", "userA", "colonyA", package.Envelope.Identity.SnapshotId!,
+                ProtocolDtoMapper.ToMetadataDto(package), token, operation ?? Operation, candidates ?? [Candidate]), package.Payload);
         }
         public SnapshotCommitIntent ReadIntent()
         {

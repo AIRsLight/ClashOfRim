@@ -252,6 +252,10 @@ public sealed class ClashOfRimNetworkState
         SnapshotReception = new SnapshotReceptionService(SnapshotTransactions, SnapshotMutations, SnapshotCommits,
             SnapshotStore, BankLoans, MercenaryContracts, SnapshotPostUploads, Ledger, EventAchievements,
             SnapshotConfirmations, MercenaryIncidents);
+        SnapshotUploads = new SnapshotUploads(ColonyAuthorization, SnapshotMutations, SnapshotReception,
+            PendingConfirmations, RaidTimeouts, () => RuntimeLogger);
+        SnapshotDownloads = new SnapshotDownloads(ColonyAuthorization, SnapshotMutations, SnapshotStore,
+            RaidTimeouts, RaidBattleCleanup, RaidQueries);
         EventConfirmations = new EventConfirmations(ColonyAuthorization, SnapshotReception, SnapshotCommits,
             PendingConfirmations, RaidEvidenceConfirmation);
         SnapshotPostUploadBackground = new(new SnapshotPostUploadWorker(SnapshotPostUploadJobs, () => RuntimeLogger),
@@ -290,6 +294,8 @@ public sealed class ClashOfRimNetworkState
     internal ShopService Shop { get; }
     internal SnapshotTransactions SnapshotTransactions { get; }
     internal SnapshotReceptionService SnapshotReception { get; }
+    internal SnapshotUploads SnapshotUploads { get; }
+    internal SnapshotDownloads SnapshotDownloads { get; }
     internal PendingConfirmationReconciler PendingConfirmations { get; }
     internal BankRequestAccess BankRequests { get; }
     internal BankService Bank { get; }

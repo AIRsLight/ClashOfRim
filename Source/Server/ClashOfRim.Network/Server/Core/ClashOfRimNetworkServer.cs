@@ -93,9 +93,7 @@ public static partial class ClashOfRimNetworkServer
         AccountEndpoints.Map(app, app.Services.GetRequiredService<ClashOfRimNetworkState>().Accounts);
         SessionEndpoints.MapDirectory(app, tradeState.PlayerDirectory);
         AchievementEndpoints.Map(app, tradeState.AchievementQueries);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.UploadSnapshot).Route, UploadSnapshot).WithMetadata(EndpointSnapshotRecovery.Instance);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.DownloadLatestSnapshot).Route, DownloadLatestSnapshot).WithMetadata(EndpointSnapshotRecovery.Instance);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.DownloadLatestSnapshotPayload).Route, DownloadLatestSnapshotPayload).WithMetadata(EndpointSnapshotRecovery.Instance);
+        SnapshotEndpoints.Map(app, tradeState.SnapshotUploads, tradeState.SnapshotDownloads);
         EventConfirmationEndpoints.Map(app, tradeState.EventConfirmations);
         EventFailureEndpoints.Map(app, tradeState.EventFailureReports);
         app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.StorePawnPackage).Route, StorePawnPackage);
@@ -163,12 +161,6 @@ public static partial class ClashOfRimNetworkServer
 
     private static bool IsVisibleTo(AuthoritativeEvent ledgerEvent, string userId, string colonyId)
         => EventVisibility.IsVisibleTo(ledgerEvent, userId, colonyId);
-
-    private static ProtocolResponse? AuthorizeColony(ClashOfRimNetworkState state, string? authToken,
-        string userId, string colonyId, string? authorizationEventId, string? authorizationScope,
-        DateTimeOffset nowUtc)
-        => state.ColonyAuthorization.Authorize(authToken, userId, colonyId,
-            authorizationEventId, authorizationScope, nowUtc);
 
     private static bool AreAllied(ClashOfRimNetworkState state, string userA, string? colonyA, string userB, string? colonyB)
         => state.DiplomacyRelations.AreAllied(userA, colonyA, userB, colonyB);

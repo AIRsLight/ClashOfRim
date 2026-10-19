@@ -46,7 +46,8 @@ internal static class ModuleBoundaryTests
                 or "AIRsLight.ClashOfRim.Network.Modules.World" or "AIRsLight.ClashOfRim.Network.Modules.Chat"
                 or "AIRsLight.ClashOfRim.Network.Modules.Achievements" or "AIRsLight.ClashOfRim.Network.Modules.Admin"
                 or "AIRsLight.ClashOfRim.Network.Modules.Events"
-            && !IsHttpEndpoint(t) || OwningType(t) == typeof(SnapshotReceptionService)).ToArray();
+                or "AIRsLight.ClashOfRim.Network.Modules.Snapshots"
+            && !IsHttpEndpoint(t) && OwningType(t) != typeof(MultipartSnapshotReader)).ToArray();
         var transportLeaks = ModuleDependencyGuard.FindViolations(business,
             t => t.Namespace?.StartsWith("Microsoft.AspNetCore.Http", StringComparison.Ordinal) == true);
         Require(transportLeaks.Count == 0, string.Join(Environment.NewLine, transportLeaks));
@@ -88,7 +89,7 @@ internal static class ModuleBoundaryTests
         or "MercenaryEndpoints" or "SupportEndpoints" or "RaidEndpoints" or "DiplomacyEndpoints"
         or "AccountEndpoints" or "SessionEndpoints" or "WorldEndpoints" or "AdminEndpoints"
         or "ChatEndpoints" or "AchievementEndpoints" or "EventReadEndpoints" or "EventFailureEndpoints"
-        or "EventConfirmationEndpoints";
+        or "EventConfirmationEndpoints" or "SnapshotEndpoints";
 
     private static void Require(bool ok, string message) { if (!ok) throw new Exception(message); }
     private sealed class ForbiddenProbe { public static void Execute() { } }

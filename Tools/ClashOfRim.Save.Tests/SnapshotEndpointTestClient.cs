@@ -5,11 +5,11 @@ using AIRsLight.ClashOfRim.Network.Modules.Trades;
 using AIRsLight.ClashOfRim.Network.Modules.Shop;
 using AIRsLight.ClashOfRim.Network.Modules.Gifts;
 using AIRsLight.ClashOfRim.Network.Modules.Events;
+using AIRsLight.ClashOfRim.Network.Modules.Snapshots;
 using AIRsLight.ClashOfRim.Network;
 using AIRsLight.ClashOfRim.Network.Modules.Bank;
 using AIRsLight.ClashOfRim.Protocol;
 using Microsoft.AspNetCore.Http;
-using System.Reflection;
 using System.Text.Json;
 
 internal static class SnapshotEndpointTestClient
@@ -42,7 +42,9 @@ internal static class SnapshotEndpointTestClient
         if (!MultipartSnapshotAuthentication.TryAuthorize(context.Request, state, now))
             throw new Exception("Fixture authentication failed.");
         IResult result;
-        if (name == nameof(EventConfirmationEndpoints.ConfirmEventApplication))
+        if (name == nameof(SnapshotEndpoints.UploadSnapshot))
+            result = await SnapshotEndpoints.UploadSnapshot(context.Request, state.SnapshotUploads);
+        else if (name == nameof(EventConfirmationEndpoints.ConfirmEventApplication))
             result = await EventConfirmationEndpoints.ConfirmEventApplication(context.Request, state.EventConfirmations);
         else if (name == nameof(EventConfirmationEndpoints.ConfirmEventApplications))
             result = await EventConfirmationEndpoints.ConfirmEventApplications(context.Request, state.EventConfirmations);
@@ -68,11 +70,7 @@ internal static class SnapshotEndpointTestClient
             result = await SupportEndpoints.CreateSupportPawnWithSnapshot(context.Request, state.SupportSending);
         else if (name == nameof(RaidEndpoints.CreateRaidWithSnapshot))
             result = await RaidEndpoints.CreateRaidWithSnapshot(context.Request, state.RaidStarting);
-        else
-        {
-            MethodInfo endpoint = typeof(ClashOfRimNetworkServer).GetMethod(name, BindingFlags.NonPublic | BindingFlags.Static)!;
-            result = await (Task<IResult>)endpoint.Invoke(null, new object[] { context.Request, state })!;
-        }
+        else throw new ArgumentOutOfRangeException(nameof(name), name, "Unknown snapshot endpoint fixture.");
         return (T)((IValueHttpResult)result).Value!;
     }
 }

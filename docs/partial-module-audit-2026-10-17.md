@@ -3536,3 +3536,13 @@ MaintainPresence 并入原 `ClientSessionProtocol`，与登录／登出共享会
 确认日志测试直接调用业务模块；原定向 HTTP 测试继续覆盖实际路由、multipart、认证和恢复边界。普通上传嵌套拒绝与待确认账务故障测试移除私有宿主反射，直接捕获业务异常。**6 个相关单元组通过**：单条／批量确认日志、普通上传上下文与中断恢复、普通上传及确认的 HTTP 授权复验、待确认批次恢复、袭击证据地图及授权矩阵、模块边界。日志 `LocalOnly/module-migration/event-confirmations-final-tests.log`；守卫检查 **444 个类型、81 条路由及恢复归属**。生产随单元编译；未运行全量回归、专项 RimTest、独立构建或推送，原有未提交修改保留。
 
 **下一步 M11p4：普通上传与快照下载入口。** SessionWorld.Live 仍持有上传预检、超时维护、下载授权与清理编排；后续迁往快照模块，并清除 TransactionSnapshotPreparation 等失去调用方的宿主转发。包存储入口、剩余装配分片、M12 与最终审计仍待完成。
+
+### M11p4：普通上传与下载编排归快照模块（2026-10-19）
+
+`SnapshotUploads` 负责普通上传的初始授权／恢复、超时维护、待确认业务协调和响应诊断，继续调用上一阶段共享的 `SnapshotReceptionService`。初始恢复与接收复验共用同一授权回调，不另建授权状态。`SnapshotDownloads` 统一元数据与载荷的授权、恢复、袭击战场清理和最终版本检查；清理仍调用原 `RaidBattleCleanup`，结束前使用不重放恢复的短作用域复验身份及快照版本。删除 SessionWorld.Live 和 TransactionSnapshotPreparation 两个 partial，以及已无调用方的血缘令牌、授权与事务准备转发。
+
+`SnapshotEndpoints` 只处理 multipart、路由和响应格式。下载模块返回明确的业务结果，HTTP 400／401／404／500 与文件响应由适配器映射；元数据仍保留原 HTTP 200 协议响应，载荷保持原字节、媒体类型及文件名。快照模块整体纳入禁止 HTTP 依赖的守卫，仅明确的端点与 multipart 读取适配器豁免。普通上传恢复测试直接调用模块，下载边界测试直接调用端点；共享测试入口删除最后的宿主私有方法反射兜底。
+
+**5 个相关单元组通过**：普通上传原上下文与中断恢复、上传／确认 HTTP 恢复前后复验、下载清理及权限变化矩阵、结构化会话失效与 HTTP 传播、模块边界。新增下载约定检查覆盖缺字段优先级、仅索引存储、存档缺失／ID 不匹配、原始字节／媒体类型／文件名。原下载矩阵继续验证读包、清理准备／提交及恢复期间的注销、换会话、撤销凭据、失去盟友资格和版本变化。日志 `LocalOnly/module-migration/snapshot-transfer-tests.log`、`snapshot-download-tests.log`；守卫检查 **453 个类型、81 条路由及恢复归属**。未运行全量回归、专项 RimTest、独立构建或推送；原有未提交修改保留。
+
+**下一步 M11p5：pawn／物品包及预览入口。** Packages partial 仍持有请求校验、包映射和预览访问编排；迁往传输模块，保留现有注册表与 HTTP 认证边界。其后继续剩余装配分片、M12 与最终审计。
