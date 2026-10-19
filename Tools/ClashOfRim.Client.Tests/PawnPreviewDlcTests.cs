@@ -30,6 +30,7 @@ internal static class PawnPreviewDlcTests
     internal static void Run()
     {
         var previousGame = Current.Game; var culture = CultureInfo.CurrentCulture;
+        var registration = ClashOfRimCompatibilityApi.CreateRegistrationToken("pawn-preview-dlc-tests");
         var harmony = new Harmony("ClashOfRim.Tests.PawnPreviewDlc");
         void Patch(System.Reflection.MethodBase method, string prefix) => harmony.Patch(method, prefix: new HarmonyMethod(typeof(PawnPreviewDlcTests), prefix));
         Patch(AccessTools.Method(typeof(Pawn_IdeoTracker), nameof(Pawn_IdeoTracker.ExposeData)), nameof(ObserveIdeo));
@@ -43,7 +44,6 @@ internal static class PawnPreviewDlcTests
         Patch(AccessTools.PropertyGetter(typeof(ModsConfig), nameof(ModsConfig.BiotechActive)), nameof(Active));
         using var nativeScribe = new NativeScribeTestScope();
         Patch(AccessTools.PropertyGetter(typeof(GenTypes), "AllActiveAssemblies"), nameof(Assemblies));
-        Patch(AccessTools.Method(typeof(ClashOfRimCompatibilityApi), nameof(ClashOfRimCompatibilityApi.HasCompatibilityCapability)), nameof(Active));
         Patch(AccessTools.Method(typeof(GameDataSaveLoader), nameof(GameDataSaveLoader.TryLoadXenotype)), nameof(LoadXenotype));
         Patch(AccessTools.Method(typeof(ContentFinder<Texture2D>), nameof(ContentFinder<Texture2D>.Get)), nameof(Texture));
         Patch(AccessTools.Method(typeof(ClashOfRimText), nameof(ClashOfRimText.Key), new[] { typeof(string), typeof(NamedArgument[]) }), nameof(Text));
@@ -56,6 +56,14 @@ internal static class PawnPreviewDlcTests
         const string ideoKey = "owner:preview-fixture/ideo:42";
         try
         {
+            // Use the capability registry: a patched forwarding getter can be
+            // inlined after another test unpatches its caller in Release builds.
+            Check(ClashOfRimCompatibilityApi.UseRegistrationToken(registration, () =>
+                ClashOfRimCompatibilityApi.RegisterCompatibilityPackage("pawn-preview-dlc-tests", static () => true,
+                    new[] { IdeologyCompatibilityKeys.PawnReference, RoyaltyCompatibilityKeys.RemoteStateGuards })),
+                "Preview capability registration failed.");
+            Check(IdeologyPawnReferenceCompatibility.HasPawnReference,
+                "Preview ideology capability is unavailable.");
             DefDatabase<RoyalTitleDef>.Add(title); factions.AllFactionsListForReading.Add(empire);
             ideos.IdeosListForReading.Add(ideo); RemoteIdeoCatalog.Register(ideo, ideoKey);
             Current.Game = (Game)RuntimeHelpers.GetUninitializedObject(typeof(Game));
@@ -67,8 +75,10 @@ internal static class PawnPreviewDlcTests
                 var pawn = new Pawn(); pawn.ideo = new PawnPreviewIdeoTracker(pawn);
                 Set(pawn.ideo, "certaintyInt", 0.75f); pawn.ideo.joinTick = 42;
                 var package = new ModPawnExchangePackageDto { Reference = new() { Metadata = new() { [IdeologyPawnReferenceCompatibility.PawnMetadataIdeoGlobalId] = ideoKey } } };
-                Check(IdeologyPawnReferenceCompatibility.RestorePreview(pawn, package, out _) && ReferenceEquals(pawn.ideo.Ideo, ideo)
-                    && (float)Get(pawn.ideo, "certaintyInt")! == 0.75f && pawn.ideo.joinTick == 42, "Ideology preview converted or reset the pawn.");
+                Check(IdeologyPawnReferenceCompatibility.RestorePreview(pawn, package, out var ideoMessage),
+                    "Ideology preview restoration rejected: " + ideoMessage);
+                Check(ReferenceEquals(pawn.ideo.Ideo, ideo), "Ideology preview did not bind the catalog object.");
+                Check((float)Get(pawn.ideo, "certaintyInt")! == 0.75f && pawn.ideo.joinTick == 42, "Ideology preview converted or reset the pawn.");
                 Check(RemoteIdeoCatalog.TryGetIdeo(ideoKey, out var retained) && ReferenceEquals(retained, ideo), "Preview replaced the world ideology.");
                 package.Reference.Metadata[IdeologyPawnReferenceCompatibility.PawnMetadataIdeoGlobalId] = "unknown";
                 Check(!IdeologyPawnReferenceCompatibility.RestorePreview(pawn, package, out _), "Unknown ideology was silently replaced with a local belief.");
@@ -95,6 +105,7 @@ internal static class PawnPreviewDlcTests
         catch (Exception ex) { Console.Error.WriteLine(ex); throw; }
         finally
         {
+            ClashOfRimCompatibilityApi.RevokeRegistrationToken(registration);
             Scribe.ForceStop(); Current.Game = previousGame; CultureInfo.CurrentCulture = culture;
             RemoteIdeoCatalog.Unregister(ideo); ideos.IdeosListForReading.Remove(ideo); factions.AllFactionsListForReading.Remove(empire);
             DefDatabase<RoyalTitleDef>.Clear(); foreach (var previous in previousTitles) DefDatabase<RoyalTitleDef>.Add(previous);
@@ -155,7 +166,6 @@ internal static class PawnPreviewDlcTests
     private static bool Ideos(ref IdeoManager __result) { __result = ideos; return false; }
     private static bool Ids(ref UniqueIDsManager __result) { __result = ids; return false; }
     private static bool Active(ref bool __result) { __result = true; return false; }
-    private static bool Inactive(ref bool __result) { __result = false; return false; }
     private static bool Assemblies(ref IEnumerable<System.Reflection.Assembly> __result)
     { __result = new[] { typeof(Pawn).Assembly, typeof(PawnPreviewIdeoTracker).Assembly }; return false; }
     private static bool Texture(ref Texture2D? __result) { __result = null; return false; }
