@@ -4,7 +4,7 @@
 
 审计基线为 `ee55d0b0` 加当时工作区，包括此前未提交的改动。初次审计只增加计划；后续实施状态见文末记录。以下 P2/P3 表示结构改造优先级，不代表新复现的功能故障。1.6 冻结内容不参与改造。
 
-**实施进度（M12d1 后）：剩余 6 个 partial 类型、7 处声明、5 个文件；其中实际跨文件仅 BankLoanRegistry，2 处声明、2 个文件。** GameSuite、计划内八组 Save.Tests 的 partial 拆分和兼容 API 门面归并已完成，测试工具不再有 partial 类型声明。后续仍有银行注册表归并、5 个单声明修饰符清理和最终复核；详细实施与验证见文末。[M12c3 后审计](partial-module-audit-2026-10-19-post-m12c3.md)及其[机器清单](partial-module-inventory-2026-10-19-post-m12c3.json)保留 M12c4 开始前的时点，[GameSuite 收尾后审计](partial-module-audit-2026-10-19-post-gamesuite.md)保留 M12c1 开始前的时点。
+**实施进度（M12d2 后）：跨文件 partial 已清零，剩余 5 个单声明类型、5 处声明、3 个文件。** GameSuite、计划内八组 Save.Tests 的 partial 拆分，以及兼容 API 门面和银行注册表归并已完成。后续仍有五处多余修饰符清理和最终依赖／契约复核；详细实施与验证见文末。[M12c3 后审计](partial-module-audit-2026-10-19-post-m12c3.md)及其[机器清单](partial-module-inventory-2026-10-19-post-m12c3.json)保留 M12c4 开始前的时点，[GameSuite 收尾后审计](partial-module-audit-2026-10-19-post-gamesuite.md)保留 M12c1 开始前的时点。
 
 2026-10-19 M12c8 后审计快照：以 `e7d39465` 加当时工作区重新扫描 **1,918 个 C# 文件**，确认当时 **7／13／11** 数量，HEAD 与工作区的 partial 声明清单一致。剩余两组均为生产类型归并，其中银行仍直接跨文件访问锁和账务状态；详见 [M12c8 后审计](partial-module-audit-2026-10-19-post-m12c8.md)及其[机器清单](partial-module-inventory-2026-10-19-post-m12c8.json)。本轮只记录审计，不代表已完成这两项归并或最终契约复核。
 
@@ -4101,3 +4101,16 @@ Roslyn 对比本步基线 `e2c462ed`，确认 **134 个直接成员（110 方法
 重新扫描 **1,913 个源文件**，剩余 **6 个 partial 类型、7 处声明、5 个文件**，跨文件仅银行注册表 **1／2／2**，机器结果 `LocalOnly/partial-module-audit/inventory-after-compatibility-facade.json`。既有未提交工作和冻结 1.6 保留，未推送。
 
 **下一步 M12d2：归并 BankLoanRegistry 的待确认操作，保留单一锁、缓存索引和持久化写入所有者。** 随后清理五处修饰符并完成最终依赖与契约复核；整体目标未完成。
+
+
+### M12d2：银行注册表归并，维持单一账务写入所有者（2026-10-19）
+
+将待确认操作的捕获、验证和应用归入非 partial `BankLoanRegistry`。继续共享原来的 gate、贷款／债务集合、幂等索引及 `PersistBankRecords`，没有增加第二个写入服务或状态副本。快照确认继续调用 `PendingSnapshotOperations.Confirm`；锁范围、已确认记录的重放验证、落盘后更新缓存和索引的次序全部保留。
+
+Roslyn 与基线 `4aae8aff` 对比，确认 **60 个直接成员**的 token 和成员顺序一致：40 个方法、15 个字段、1 个属性、3 个构造器及1个嵌套持久化记录。字段初始化、签名、默认值、方法体均未改写；同文件中的外部账务记录、确认结果及策略类型也逐 token 保留。日志 `LocalOnly/module-migration/bank-registry-static-review.log`。
+
+**3 个相关单元组通过，进程退出 0**：银行快照提交崩溃恢复／重试、普通写入与批量确认失败的缓存／幂等索引一致性、普通快照固定待确认批次恢复。最后一组覆盖激活／还款、重开／原实例及六类故障的 24 个组合，并验证主提交和收件生命周期；包含待确认批次捕获、持久化失败回滚、后续新债务不被旧批次确认，以及冲突时保留日志和最新快照。日志 `LocalOnly/module-migration/bank-registry-consolidation-tests.log`。未增加只复述文件归并的测试，复用原有行为测试。
+
+扫描 **1,912 个源文件**，剩余 **5 个单声明 partial 类型、5 处声明、3 个文件，跨文件 partial 为 0**；机器结果 `LocalOnly/partial-module-audit/inventory-after-bank-registry.json`。仅本步生产文件及实施记录变更，既有未提交工作和冻结 1.6 保留；没有全量回归、RimTest 或独立构建，未推送。
+
+**下一步 M12d3：只移除五个 DTO／摘要类型上的多余 partial 修饰符，保留序列化契约并隔离既有未提交变更。** 之后必须完成最终依赖与外部契约复核，不能以跨文件 partial 清零代替该验收。
