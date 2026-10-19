@@ -169,7 +169,7 @@ internal static class ClientObservationMapsTests
         Check(next!.IsCurrent, "Cleanup released a later admission."); next.Dispose();
     }
 
-    private sealed class Fixture : IClientObservationTransport, IClientObservationRuntime, IClientObservationPresentation, IClientSessionLogoutTransport
+    internal sealed class Fixture : IClientObservationTransport, IClientObservationRuntime, IClientObservationPresentation, IClientSessionLogoutTransport
     {
         internal readonly EventModuleTestPorts Ports = new();
         internal readonly ClientSynchronizationCoordinator Sync = new();
@@ -250,6 +250,6 @@ internal static class ClientObservationMapsTests
         private void Notice() { Check(onGameThread, "Observation UI published outside game thread."); Notices++; }
     }
     private static TaskCompletionSource NewSignal() => new(TaskCreationOptions.RunContinuationsAsynchronously);
-    private static void Game(Action action) { bool previous = onGameThread; onGameThread = true; try { action(); } finally { onGameThread = previous; } }
+    internal static void Game(Action action) { bool previous = onGameThread; onGameThread = true; try { action(); } finally { onGameThread = previous; } }
     private static void Check(bool condition, string message) { if (!condition) throw new InvalidOperationException(message); }
 }

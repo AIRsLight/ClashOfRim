@@ -86,7 +86,7 @@ internal static class RemoteTransporterActionsTests
             bool complete = missing is not ("user" or "colony" or "map");
             string? raidFailure = !pvp ? "ClashOfRim.Raid.PvpDisabled" : !complete || missing == "world" || !raidable ? "ClashOfRim.Raid.StatusTargetIncomplete" : null;
             Check(ClientRaidTargets.Rejection(target, pvp) == raidFailure, "Raid admission changed target requirements.");
-            Check(Menu<bool>("CanReceiveTransportPodRaid", view) == (raidFailure is null), "Raid menu diverged from launch policy.");
+            Check(actions.CanOffer(target, ClientTransporterChoice.Raid) == (raidFailure is null), "Raid menu diverged from launch policy.");
             giftCargoCalls = raidCargoCalls = 0;
             AssertReport(actions.RaidAcceptance(target, cargo), raidFailure);
             AssertReport(new RemoteRaidTransportersArrivalAction(view).StillValid(cargo, view.Tile), raidFailure);
@@ -97,9 +97,9 @@ internal static class RemoteTransporterActionsTests
                 string? arrivalFailure = !gifts ? "ClashOfRim.GiftDelivery.Disabled" : forced && !pvp ? "ClashOfRim.Raid.PvpDisabled"
                     : !complete ? "ClashOfRim.GiftDelivery.StatusTargetIncomplete" : null;
                 string? menuFailure = arrivalFailure ?? (!offered ? "ClashOfRim.GiftDelivery.StatusTargetIncomplete" : null);
-                Check(Menu<bool>("CanReceiveTransportPodDelivery", view, forced) == offered, "Gift menu changed ordinary/forced visibility.");
+                Check(actions.CanOffer(target, forced ? ClientTransporterChoice.ForcedDelivery : ClientTransporterChoice.Gift) == offered, "Gift menu changed ordinary/forced visibility.");
                 giftCargoCalls = 0; surface = null;
-                AssertReport(Menu<FloatMenuAcceptanceReport>("CanSendTransportPodDelivery", view, cargo, forced), menuFailure);
+                AssertReport(actions.Acceptance(target, cargo, forced ? ClientTransporterChoice.ForcedDelivery : ClientTransporterChoice.Gift), menuFailure);
                 AssertReport(new RemoteGiftTransportersArrivalAction(view, forced).StillValid(cargo, view.Tile), arrivalFailure);
                 Check(giftCargoCalls == (menuFailure is null ? 1 : 0) + (arrivalFailure is null ? 1 : 0), "Gift cargo bypassed policy or was redundantly checked.");
                 if (giftCargoCalls > 0) Check(surface == (forced ? ThingReferenceSurfaces.ForcedDelivery : ThingReferenceSurfaces.Gift), "Wrong gift transfer surface.");
@@ -202,7 +202,6 @@ internal static class RemoteTransporterActionsTests
 
     private static TransportersArrivalAction Load(string path)
     { Scribe.loader.InitLoading(path); TransportersArrivalAction? value = null; Scribe_Deep.Look(ref value, "arrival"); Scribe.loader.FinalizeLoading(); return value!; }
-    private static T Menu<T>(string name, params object[] args) => (T)AccessTools.Method(typeof(RemoteWorldObjectUiUtility), name).Invoke(null, args)!;
     private static void AssertReport(FloatMenuAcceptanceReport report, string? reason)
         => Check(report.Accepted == (reason is null) && (reason is null || report.FailReason == reason), "Unexpected transport admission: " + report.FailReason + " expected=" + reason);
     private static void Check(bool value, string message) { if (!value) throw new Exception(message); }

@@ -333,6 +333,8 @@ public sealed partial class ClashOfRimMod : Mod
         observationMaps = new ClientObservationMaps(sessionLifecycle, synchronization, new ClientSnapshotGame(),
             new ClientObservationTransport(), new ClientObservationRuntime(),
             new ClientObservationPresentation(message => diagnostics.WorldMapStatus = message, response => ShowCompatibilityMismatchWindow(response)));
+        RemoteWorldObjectUiUtility.AttachCommands(new ClientWorldObjectCommands(sessionLifecycle, new ClientSnapshotGame(),
+            observationMaps, new ClientWorldObjectCommandRuntime()));
         eventConfirmations = new ClientEventConfirmationWorkflow(sessionLifecycle, eventConfirmationPreparation, eventConfirmation,
             localMutations, snapshotFailureRecovery, eventInbox, new ClientEventConfirmationPresentation((purpose, message) =>
             {

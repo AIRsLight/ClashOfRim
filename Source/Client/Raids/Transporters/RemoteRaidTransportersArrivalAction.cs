@@ -26,14 +26,17 @@ public sealed class RemoteRaidTransportersArrivalAction : TransportersArrivalAct
     }
 
     internal RemoteRaidTransportersArrivalAction(IRemoteWorldObjectView target)
+        : this(RemoteWorldObjectUiUtility.CaptureTarget(target), target.Label) { }
+
+    internal RemoteRaidTransportersArrivalAction(ModWorldMapMarkerDto target, string label)
     {
         targetUserId = target.OwnerUserId ?? string.Empty;
         targetColonyId = target.OwnerColonyId ?? string.Empty;
-        targetSnapshotId = target.SourceSnapshotId ?? string.Empty;
-        targetMapId = target.SourceMapId ?? string.Empty;
-        targetWorldObjectId = target.SourceWorldObjectId ?? string.Empty;
-        targetLabel = target.Label ?? string.Empty;
-        targetTileLayerId = RemoteWorldObjectUiUtility.ReadTileLayerId(target.Tile);
+        targetSnapshotId = target.SnapshotId ?? string.Empty;
+        targetMapId = target.MapId ?? string.Empty;
+        targetWorldObjectId = target.WorldObjectId ?? string.Empty;
+        targetLabel = label ?? string.Empty;
+        targetTileLayerId = target.TileLayerId;
         transporterKey = Guid.NewGuid().ToString("N");
         canRaid = target.CanRaid;
     }

@@ -31,14 +31,17 @@ public sealed class RemoteGiftTransportersArrivalAction : TransportersArrivalAct
         : this((IRemoteWorldObjectView)target, forcedDelivery) { }
 
     internal RemoteGiftTransportersArrivalAction(IRemoteWorldObjectView target, bool forcedDelivery)
+        : this(RemoteWorldObjectUiUtility.CaptureTarget(target), target.Label, forcedDelivery) { }
+
+    internal RemoteGiftTransportersArrivalAction(ModWorldMapMarkerDto target, string label, bool forcedDelivery)
     {
         markerId = target.MarkerId ?? string.Empty;
         targetUserId = target.OwnerUserId ?? string.Empty;
         targetColonyId = target.OwnerColonyId ?? string.Empty;
-        targetSnapshotId = target.SourceSnapshotId ?? string.Empty;
-        targetMapId = target.SourceMapId ?? string.Empty;
-        targetWorldObjectId = target.SourceWorldObjectId ?? string.Empty;
-        targetLabel = target.Label ?? string.Empty;
+        targetSnapshotId = target.SnapshotId ?? string.Empty;
+        targetMapId = target.MapId ?? string.Empty;
+        targetWorldObjectId = target.WorldObjectId ?? string.Empty;
+        targetLabel = label ?? string.Empty;
         transporterKey = Guid.NewGuid().ToString("N");
         this.forcedDelivery = forcedDelivery;
     }

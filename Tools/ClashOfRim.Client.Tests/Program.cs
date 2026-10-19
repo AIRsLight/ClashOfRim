@@ -19,6 +19,8 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("world object UI preserves frozen choices through native menus and delayed confirmations", ClientWorldObjectUiTests.Run),
+    ("world object commands bind delayed choices to session, game and target", ClientWorldObjectCommandsTests.Run),
     ("remote transporter menus and arrivals share policy and existing modules", RemoteTransporterActionsTests.Run),
     ("pawn preview DLC display avoids world registration and gameplay setters", PawnPreviewDlcTests.Run),
     ("pawn Scribe loading separates payload, native lifetime and arrival effects", PawnScribeLoaderTests.Run),

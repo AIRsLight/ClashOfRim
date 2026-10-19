@@ -13,6 +13,8 @@ using Verse;
 
 namespace AIRsLight.ClashOfRim.WorldObjects;
 
+internal enum ClientTransporterChoice { Gift, ForcedDelivery, Raid }
+
 // The engine constructs/deserializes arrival actions itself. Bind that entry
 // point to the composed gift/raid modules without looking up the entire Mod.
 internal sealed class ClientTransporterActions
@@ -28,6 +30,18 @@ internal sealed class ClientTransporterActions
 
     internal ClientGiftCapabilities Capabilities => capabilities();
     internal bool CanStartGiftArrival => gifts.CanStartArrival;
+
+    internal bool CanOffer(ModWorldMapMarkerDto target, ClientTransporterChoice choice)
+        => choice == ClientTransporterChoice.Raid ? ClientRaidTargets.Rejection(target, Capabilities.PvpEnabled) is null
+            : ClientGiftTargets.CanOfferDelivery(target, Capabilities, choice == ClientTransporterChoice.ForcedDelivery);
+
+    internal string? TargetRejection(ModWorldMapMarkerDto target, ClientTransporterChoice choice)
+        => choice == ClientTransporterChoice.Raid ? ClientRaidTargets.Rejection(target, Capabilities.PvpEnabled)
+            : ClientGiftTargets.TransporterRejection(target, Capabilities, choice == ClientTransporterChoice.ForcedDelivery, menu: true);
+
+    internal FloatMenuAcceptanceReport Acceptance(ModWorldMapMarkerDto target, IEnumerable<IThingHolder> pods, ClientTransporterChoice choice)
+        => choice == ClientTransporterChoice.Raid ? RaidAcceptance(target, pods)
+            : GiftAcceptance(target, pods, choice == ClientTransporterChoice.ForcedDelivery, menu: true);
 
     internal FloatMenuAcceptanceReport GiftAcceptance(ModWorldMapMarkerDto target, IEnumerable<IThingHolder> pods, bool forced, bool menu = false)
     {

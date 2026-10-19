@@ -3,10 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using AIRsLight.ClashOfRim.ClientNetwork;
-using AIRsLight.ClashOfRim.Diplomacy;
+using AIRsLight.ClashOfRim.Modules.Maps;
+using AIRsLight.ClashOfRim.Modules.World;
 using AIRsLight.ClashOfRim.Gifts;
-using AIRsLight.ClashOfRim.Modules.Gifts;
-using AIRsLight.ClashOfRim.Modules.Raids;
 using AIRsLight.ClashOfRim.Raids;
 using AIRsLight.ClashOfRim.RemoteMaps;
 using RimWorld;
@@ -18,6 +17,9 @@ namespace AIRsLight.ClashOfRim.WorldObjects;
 
 internal static class RemoteWorldObjectUiUtility
 {
+    private static ClientWorldObjectCommands? commands;
+    internal static void AttachCommands(ClientWorldObjectCommands? value) { commands?.Reset(); commands = value; }
+
     public static string BuildInspectString(IRemoteWorldObjectView view, string baseInspectString)
     {
         var builder = new StringBuilder(baseInspectString);
@@ -59,157 +61,118 @@ internal static class RemoteWorldObjectUiUtility
             yield return gizmo;
         }
 
-        if (CanScout(view))
+        var selection = commands?.Capture(new ClientWorldObjectCommandTarget(view));
+        if (selection is null) yield break;
+        var captured = selection.CopyTarget();
+        if (selection.ObservationMode is { } mode)
         {
-            bool allied = IsAlliedWithPlayer(view);
-            bool blocked = HasActiveRemoteMapSession();
+            bool blocked = selection.ObservationBlocked;
+            string commandKey = mode == ClientRemoteMapModes.RaidObservation ? "ObserveRaid"
+                : mode == ClientRemoteMapModes.FriendlyObservation ? "ObserveAlly" : "Scout";
             Command_Action command = new()
             {
-                defaultLabel = ClashOfRimText.Key(allied
-                    ? "ClashOfRim.RemoteWorldObject.ObserveAlly"
-                    : "ClashOfRim.RemoteWorldObject.Scout"),
-                defaultDesc = ClashOfRimText.Key(allied
-                    ? "ClashOfRim.RemoteWorldObject.ObserveAllyDesc"
-                    : "ClashOfRim.RemoteWorldObject.ScoutDesc"),
+                defaultLabel = ClashOfRimText.Key("ClashOfRim.RemoteWorldObject." + commandKey),
+                defaultDesc = ClashOfRimText.Key("ClashOfRim.RemoteWorldObject." + commandKey + "Desc"),
                 icon = RemoteWorldObjectCommandIcons.ShowMap,
-                action = () => StartObservation(view, allied
-                    ? RemoteSessionMapParent.FriendlyObservationMode
-                    : RemoteSessionMapParent.ScoutMode)
+                action = () => _ = selection.Observe()
             };
-            if (blocked)
-            {
-                command.Disable(ClashOfRimText.Key("ClashOfRim.RemoteSessionMap.ActiveSessionBlocksOpen"));
-            }
-
-            yield return command;
-        }
-
-        if (CanObserveRaid(view))
-        {
-            bool blocked = HasActiveRemoteMapSession();
-            Command_Action command = new()
-            {
-                defaultLabel = ClashOfRimText.Key("ClashOfRim.RemoteWorldObject.ObserveRaid"),
-                defaultDesc = ClashOfRimText.Key("ClashOfRim.RemoteWorldObject.ObserveRaidDesc"),
-                icon = RemoteWorldObjectCommandIcons.ShowMap,
-                action = () => StartObservation(view, RemoteSessionMapParent.RaidObservationMode)
-            };
-            if (blocked)
-            {
-                command.Disable(ClashOfRimText.Key("ClashOfRim.RemoteSessionMap.ActiveSessionBlocksOpen"));
-            }
-
+            if (blocked) command.Disable(ClashOfRimText.Key("ClashOfRim.RemoteSessionMap.ActiveSessionBlocksOpen"));
             yield return command;
         }
 
         if (view.WorldObject is MapParent { HasMap: true } mapParent)
         {
+            var capturedMap = mapParent.Map;
             yield return new Command_Action
             {
                 defaultLabel = ClashOfRimText.Key("ClashOfRim.RemoteSessionMap.Close"),
                 defaultDesc = ClashOfRimText.Key("ClashOfRim.RemoteSessionMap.CloseDesc"),
                 icon = TexButton.CloseXSmall,
-                action = () => RemoteSessionMapUtility.CloseObservationMap(mapParent)
+                action = () => selection.TryCommit(() => ReferenceEquals(capturedMap, mapParent.Map), () => RemoteSessionMapUtility.CloseObservationMap(mapParent))
             };
         }
-        else if (useRuntimeActionNotice && (view.CanRaid || view.CanReinforce))
+        else if (useRuntimeActionNotice && (captured.CanRaid || captured.CanReinforce))
         {
-            bool raidDisabled = view.CanRaid && ClientTransporterActions.Current?.Capabilities.PvpEnabled != true;
+            bool raidDisabled = captured.CanRaid && ClientTransporterActions.Current?.Capabilities.PvpEnabled != true;
             yield return new Command_Action
             {
                 defaultLabel = ClashOfRimText.Key("ClashOfRim.RemoteWorldObject.ActionNotice"),
                 defaultDesc = raidDisabled
                     ? ClashOfRimText.Key("ClashOfRim.Raid.PvpDisabled")
-                    : view.CanRaid
+                    : captured.CanRaid
                     ? ClashOfRimText.Key("ClashOfRim.RemoteWorldObject.RaidActionNoticeDesc")
                     : ClashOfRimText.Key("ClashOfRim.RemoteWorldObject.ReinforceActionNoticeDesc"),
-                icon = view.CanRaid ? RemoteWorldObjectCommandIcons.LaunchRaid : RemoteWorldObjectCommandIcons.SendSupport,
-                action = () => Messages.Message(
-                    raidDisabled
-                        ? ClashOfRimText.Key("ClashOfRim.Raid.PvpDisabled")
-                        : view.CanRaid
-                        ? ClashOfRimText.Key("ClashOfRim.RemoteWorldObject.RaidActionNoticeMessage")
-                        : ClashOfRimText.Key("ClashOfRim.RemoteWorldObject.ReinforceActionNoticeMessage"),
-                    view.WorldObject,
-                    raidDisabled ? MessageTypeDefOf.RejectInput : MessageTypeDefOf.NeutralEvent,
-                    historical: false)
+                icon = captured.CanRaid ? RemoteWorldObjectCommandIcons.LaunchRaid : RemoteWorldObjectCommandIcons.SendSupport,
+                action = () => selection.TryStep(() =>
+                {
+                    bool disabled = captured.CanRaid && ClientTransporterActions.Current?.Capabilities.PvpEnabled != true;
+                    string message = ClashOfRimText.Key(disabled ? "ClashOfRim.Raid.PvpDisabled" : captured.CanRaid
+                        ? "ClashOfRim.RemoteWorldObject.RaidActionNoticeMessage" : "ClashOfRim.RemoteWorldObject.ReinforceActionNoticeMessage");
+                    selection.TryStep(() => Messages.Message(message, view.WorldObject,
+                        disabled ? MessageTypeDefOf.RejectInput : MessageTypeDefOf.NeutralEvent, historical: false));
+                })
             };
         }
     }
 
     public static IEnumerable<FloatMenuOption> BuildTransportersFloatMenuOptions(
-        IRemoteWorldObjectView view,
-        IEnumerable<IThingHolder> pods,
-        Action<PlanetTile, TransportersArrivalAction> launchAction)
+        IRemoteWorldObjectView view, IEnumerable<IThingHolder> pods, Action<PlanetTile, TransportersArrivalAction> launchAction)
     {
-        IReadOnlyList<IThingHolder> podList = pods as IReadOnlyList<IThingHolder> ?? pods.ToList();
-        bool containsNonGiftPawn = GiftTransporterPayloadUtility.ContainsNonGiftPawn(podList);
-        if (CanReceiveTransportPodRaid(view))
-        {
-            string label = ClashOfRimText.Key(
-                "ClashOfRim.Raid.TransportPodOption",
-                view.Label.Named("TARGET"));
-            foreach (FloatMenuOption option in TransportersArrivalActionUtility.GetFloatMenuOptions<RemoteRaidTransportersArrivalAction>(
-                         () => CanSendTransportPodRaid(view, podList),
-                         () => new RemoteRaidTransportersArrivalAction(view),
-                         label,
-                         launchAction,
-                         view.Tile,
-                         action => Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation(
-                             ClashOfRimText.Key("ClashOfRim.Raid.TransportPodConfirm", view.Label.Named("TARGET")),
-                             action))))
-            {
-                yield return option;
-            }
-        }
-
-        if (containsNonGiftPawn && IsNonHostileOrbitalTarget(view))
-        {
-            yield return new FloatMenuOption(
-                ClashOfRimText.Key("ClashOfRim.Transporters.OrbitalNonHostileDisabled", view.Label.Named("TARGET")),
-                null);
-            yield break;
-        }
+        var selection = commands?.Capture(new ClientWorldObjectCommandTarget(view));
+        var actions = ClientTransporterActions.Current;
+        if (selection is null || actions is null) yield break;
+        var target = selection.CopyTarget();
+        string label = view.Label;
+        PlanetTile destination = view.Tile;
+        IReadOnlyList<IThingHolder> cargo = pods as IReadOnlyList<IThingHolder> ?? pods.ToList();
+        bool containsNonGiftPawn = GiftTransporterPayloadUtility.ContainsNonGiftPawn(cargo);
+        if (actions.CanOffer(target, ClientTransporterChoice.Raid))
+            foreach (var option in TransportOptions(selection, actions, target, label, destination, cargo, launchAction,
+                ClientTransporterChoice.Raid, () => new RemoteRaidTransportersArrivalAction(target, label),
+                "ClashOfRim.Raid.TransportPodOption", "ClashOfRim.Raid.TransportPodConfirm")) yield return option;
 
         if (containsNonGiftPawn)
         {
+            if (target.TileLayerId > 0 && target.RelationKind != "Hostile")
+                yield return new FloatMenuOption(ClashOfRimText.Key("ClashOfRim.Transporters.OrbitalNonHostileDisabled", label.Named("TARGET")), null);
             yield break;
         }
+        if (actions.CanOffer(target, ClientTransporterChoice.Gift))
+            foreach (var option in TransportOptions(selection, actions, target, label, destination, cargo, launchAction,
+                ClientTransporterChoice.Gift, () => new RemoteGiftTransportersArrivalAction(target, label, false),
+                "ClashOfRim.GiftDelivery.TransportPodGiftOption", null)) yield return option;
+        if (actions.CanOffer(target, ClientTransporterChoice.ForcedDelivery))
+            foreach (var option in TransportOptions(selection, actions, target, label, destination, cargo, launchAction,
+                ClientTransporterChoice.ForcedDelivery, () => new RemoteGiftTransportersArrivalAction(target, label, true),
+                "ClashOfRim.GiftDelivery.TransportPodForcedOption", "ClashOfRim.GiftDelivery.TransportPodForcedConfirm")) yield return option;
+    }
 
-        if (CanReceiveTransportPodDelivery(view, forced: false))
-        {
-            string label = ClashOfRimText.Key(
-                "ClashOfRim.GiftDelivery.TransportPodGiftOption",
-                view.Label.Named("TARGET"));
-            foreach (FloatMenuOption option in TransportersArrivalActionUtility.GetFloatMenuOptions<RemoteGiftTransportersArrivalAction>(
-                         () => CanSendTransportPodDelivery(view, podList, forced: false),
-                         () => new RemoteGiftTransportersArrivalAction(view, forcedDelivery: false),
-                         label,
-                         launchAction,
-                         view.Tile))
+    private static IEnumerable<FloatMenuOption> TransportOptions<T>(ClientWorldObjectCommands.Selection selection,
+        ClientTransporterActions actions, ModWorldMapMarkerDto target, string label, PlanetTile destination,
+        IReadOnlyList<IThingHolder> cargo, Action<PlanetTile, TransportersArrivalAction> launch, ClientTransporterChoice choice,
+        Func<T> createArrival, string labelKey, string? confirmKey) where T : TransportersArrivalAction
+    {
+        FloatMenuAcceptanceReport Acceptance()
+            => selection.IsCurrent && ReferenceEquals(actions, ClientTransporterActions.Current)
+                ? actions.Acceptance(target, cargo, choice)
+                : ClientTransporterActions.Reject(choice == ClientTransporterChoice.Raid
+                    ? "ClashOfRim.Raid.StatusTargetIncomplete" : "ClashOfRim.GiftDelivery.StatusTargetIncomplete");
+        return TransportersArrivalActionUtility.GetFloatMenuOptions(Acceptance, createArrival,
+            ClashOfRimText.Key(labelKey, label.Named("TARGET")),
+            (tile, arrival) => selection.TryCommit(() =>
             {
-                yield return option;
-            }
-        }
-
-        if (CanReceiveTransportPodDelivery(view, forced: true))
-        {
-            string label = ClashOfRimText.Key(
-                "ClashOfRim.GiftDelivery.TransportPodForcedOption",
-                view.Label.Named("TARGET"));
-            foreach (FloatMenuOption option in TransportersArrivalActionUtility.GetFloatMenuOptions<RemoteGiftTransportersArrivalAction>(
-                         () => CanSendTransportPodDelivery(view, podList, forced: true),
-                         () => new RemoteGiftTransportersArrivalAction(view, forcedDelivery: true),
-                         label,
-                         launchAction,
-                         view.Tile,
-                         action => Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation(
-                             ClashOfRimText.Key("ClashOfRim.GiftDelivery.TransportPodForcedConfirm", view.Label.Named("TARGET")),
-                             action))))
+                var report = Acceptance();
+                if (!report.Accepted) return false;
+                // Compatibility cargo validation may have changed configuration.
+                // Recheck only policy here, without scanning cargo a second time.
+                return ReferenceEquals(actions, ClientTransporterActions.Current)
+                    && actions.TargetRejection(target, choice) is null;
+            }, () => launch(tile, arrival)), destination,
+            confirmKey is null ? null : action => selection.TryPresent(() =>
             {
-                yield return option;
-            }
-        }
+                string prompt = ClashOfRimText.Key(confirmKey, label.Named("TARGET"));
+                selection.TryStep(() => Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation(prompt, action)));
+            }));
     }
 
     public static string BuildLabel(IRemoteWorldObjectView view, bool useRuntimeKindFallback)
@@ -251,23 +214,6 @@ internal static class RemoteWorldObjectUiUtility
 
         builder.Append(value);
     }
-
-    private static ClientGiftCapabilities TransporterCapabilities
-        => ClientTransporterActions.Current?.Capabilities ?? new(false, false);
-
-    private static bool CanReceiveTransportPodDelivery(IRemoteWorldObjectView view, bool forced)
-        => ClientGiftTargets.CanOfferDelivery(CaptureTarget(view), TransporterCapabilities, forced);
-
-    private static bool CanReceiveTransportPodRaid(IRemoteWorldObjectView view)
-        => ClientRaidTargets.Rejection(CaptureTarget(view), TransporterCapabilities.PvpEnabled) is null;
-
-    private static FloatMenuAcceptanceReport CanSendTransportPodRaid(IRemoteWorldObjectView view, IReadOnlyList<IThingHolder> pods)
-        => ClientTransporterActions.Current?.RaidAcceptance(CaptureTarget(view), pods)
-            ?? ClientTransporterActions.Reject("ClashOfRim.Raid.PvpDisabled");
-
-    private static FloatMenuAcceptanceReport CanSendTransportPodDelivery(IRemoteWorldObjectView view, IEnumerable<IThingHolder> pods, bool forced)
-        => ClientTransporterActions.Current?.GiftAcceptance(CaptureTarget(view), pods, forced, menu: true)
-            ?? ClientTransporterActions.Reject("ClashOfRim.GiftDelivery.Disabled");
 
     private static string FormatRelationKind(string? relationKind)
     {
@@ -349,36 +295,6 @@ internal static class RemoteWorldObjectUiUtility
         return true;
     }
 
-    private static bool CanScout(IRemoteWorldObjectView view)
-    {
-        return string.Equals(view.RuntimeKind, "TradeableColony", StringComparison.Ordinal)
-            && !string.IsNullOrWhiteSpace(view.OwnerUserId)
-            && !string.IsNullOrWhiteSpace(view.OwnerColonyId);
-    }
-
-    private static bool CanObserveRaid(IRemoteWorldObjectView view)
-    {
-        return string.Equals(view.RuntimeKind, "ActiveRaidTarget", StringComparison.Ordinal)
-            && !string.IsNullOrWhiteSpace(view.RelatedEventId)
-            && !string.IsNullOrWhiteSpace(view.OwnerUserId)
-            && !string.IsNullOrWhiteSpace(view.OwnerColonyId);
-    }
-
-    private static void StartObservation(IRemoteWorldObjectView view, string mode)
-    {
-        if (HasActiveRemoteMapSession())
-        {
-            Messages.Message(
-                ClashOfRimText.Key("ClashOfRim.RemoteSessionMap.ActiveSessionBlocksOpen"),
-                MessageTypeDefOf.RejectInput,
-                historical: false);
-            return;
-        }
-
-        ClashOfRimMod mod = LoadedModManager.GetMod<ClashOfRimMod>();
-        mod.StartObserveRemoteMarker(CaptureTarget(view), mode);
-    }
-
     internal static ModWorldMapMarkerDto CaptureTarget(IRemoteWorldObjectView view)
     {
         return new ModWorldMapMarkerDto
@@ -396,19 +312,9 @@ internal static class RemoteWorldObjectUiUtility
             RelatedEventId = view.RelatedEventId,
             CanRaid = view.CanRaid,
             CanTrade = view.CanTrade,
-            CanReinforce = view.CanReinforce
+            CanReinforce = view.CanReinforce,
+            RelationKind = view.RelationKind
         };
-    }
-
-    private static bool HasActiveRemoteMapSession()
-    {
-        ActiveRemoteMapSession? session = ClashOfRimGameComponent.ActiveRemoteMapSession;
-        if (session?.IsActive == true)
-        {
-            return true;
-        }
-
-        return RemoteSessionMapUtility.FindActiveSessionMap() is not null;
     }
 
     internal static int ReadTileLayerId(PlanetTile tile)
@@ -423,22 +329,4 @@ internal static class RemoteWorldObjectUiUtility
         }
     }
 
-    private static bool IsAlliedWithPlayer(IRemoteWorldObjectView view)
-    {
-        if (view.CanReinforce)
-        {
-            return true;
-        }
-
-        Faction? proxy = PlayerFactionProxyUtility.EnsureProxyForUser(view.OwnerUserId);
-        return proxy is not null
-            && Faction.OfPlayer is not null
-            && proxy.RelationKindWith(Faction.OfPlayer) == FactionRelationKind.Ally;
-    }
-
-    private static bool IsNonHostileOrbitalTarget(IRemoteWorldObjectView view)
-    {
-        return ReadTileLayerId(view.Tile) > 0
-            && !string.Equals(view.RelationKind, "Hostile", StringComparison.Ordinal);
-    }
 }
