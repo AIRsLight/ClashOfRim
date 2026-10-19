@@ -185,7 +185,7 @@ public sealed partial class ClashOfRimMod : Mod
         compatibilityPresentation = new ClientCompatibilityPresentation((response, language, accept, cancel) =>
             new AIRsLight.ClashOfRim.CompatibilityClient.CompatibilityMismatchWindow(this, response, language, accept, cancel));
         var entryPresentation = new ClientWorldEntryPresentation(message => diagnostics.LoginStatus = message,
-            (server, account) => Find.WindowStack.Add(new AIRsLight.ClashOfRim.MainMenu.ClashOfRimAccountRegistrationDialog(this, server, account)), compatibilityPresentation);
+            (server, account) => Find.WindowStack.Add(new AIRsLight.ClashOfRim.MainMenu.ClashOfRimAccountRegistrationDialog(CreateAccountRegistrationForm(server, account))), compatibilityPresentation);
         var worldTransport = new ClientWorldPreparationTransport(new ClientProtocolEnvironment());
         worldPreparation = new ClientWorldPreparation(sessionLifecycle, new ClientSnapshotGame(), worldTransport, entryPresentation);
         worldBaselineSubmission = new ClientWorldBaselineSubmission(sessionLifecycle, new ClientWorldBaselineRuntime(), worldTransport);
@@ -480,6 +480,9 @@ public sealed partial class ClashOfRimMod : Mod
     }
 
     internal CompatibilityBaselineOverrideWindow CreateCompatibilityBaselineOverrideWindow() => new(compatibilityOverride.StartAsync);
+
+    internal ClientWorldEntryForm CreateServerEntryForm() => worldEntryStart.CreateForm();
+    internal ClientWorldEntryForm CreateAccountRegistrationForm(string server, string user) => worldEntryStart.CreateRegistrationForm(server, user);
 
     internal MultiplayerAccountPage CreateAccountPage() => new(new ClientAccountPanel(sessionLifecycle, passwordChange));
     internal MultiplayerDiagnosticsPage CreateDiagnosticsPage() => new(diagnostics);

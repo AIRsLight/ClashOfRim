@@ -1,4 +1,5 @@
-using RimWorld;
+using System;
+using AIRsLight.ClashOfRim.Modules.World;
 using UnityEngine;
 using Verse;
 
@@ -8,20 +9,15 @@ public sealed class ClashOfRimAccountRegistrationDialog : Window
 {
     private const string PasswordInputControl = "ClashOfRim.AccountRegistration.Password";
     private const string PasswordConfirmationInputControl = "ClashOfRim.AccountRegistration.PasswordConfirmation";
-    private readonly ClashOfRimMod mod;
-    private readonly string serverBaseUrl;
-    private readonly string userId;
-    private string password = string.Empty;
-    private string passwordConfirmation = string.Empty;
+    private readonly ClientWorldEntryForm form;
 
-    public ClashOfRimAccountRegistrationDialog(
-        ClashOfRimMod mod,
-        string serverBaseUrl,
-        string userId)
+    // Compatibility constructor only; the window never retains the Mod.
+    public ClashOfRimAccountRegistrationDialog(ClashOfRimMod mod, string serverBaseUrl, string userId)
+        : this((mod ?? throw new ArgumentNullException(nameof(mod))).CreateAccountRegistrationForm(serverBaseUrl, userId)) { }
+
+    internal ClashOfRimAccountRegistrationDialog(ClientWorldEntryForm form)
     {
-        this.mod = mod;
-        this.serverBaseUrl = serverBaseUrl;
-        this.userId = userId;
+        this.form = form;
         doCloseX = true;
         closeOnClickedOutside = false;
         absorbInputAroundWindow = true;
@@ -32,6 +28,7 @@ public sealed class ClashOfRimAccountRegistrationDialog : Window
 
     public override void DoWindowContents(Rect inRect)
     {
+        if (!form.IsCurrent) { Close(); return; }
         Text.Font = GameFont.Medium;
         Widgets.Label(
             new Rect(inRect.x, inRect.y, inRect.width, 30f),
@@ -42,15 +39,15 @@ public sealed class ClashOfRimAccountRegistrationDialog : Window
             new Rect(inRect.x, inRect.y + 40f, inRect.width, 28f),
             ClashOfRimText.Key(
                 "ClashOfRim.ServerEntry.CreateAccountUser",
-                userId.Named("USER")));
+                form.UserId.Named("USER")));
 
         const float labelWidth = 150f;
         Rect passwordLabelRect = new(inRect.x, inRect.y + 78f, labelWidth, 28f);
         Widgets.Label(passwordLabelRect, ClashOfRimText.Key("ClashOfRim.Password"));
         GUI.SetNextControlName(PasswordInputControl);
-        password = GUI.PasswordField(
+        form.Password = GUI.PasswordField(
             new Rect(passwordLabelRect.xMax + 8f, passwordLabelRect.y, inRect.width - labelWidth - 8f, 28f),
-            password ?? string.Empty,
+            form.Password,
             '*');
 
         Rect confirmationLabelRect = new(inRect.x, inRect.y + 116f, labelWidth, 28f);
@@ -58,9 +55,9 @@ public sealed class ClashOfRimAccountRegistrationDialog : Window
             confirmationLabelRect,
             ClashOfRimText.Key("ClashOfRim.ServerEntry.PasswordConfirmation"));
         GUI.SetNextControlName(PasswordConfirmationInputControl);
-        passwordConfirmation = GUI.PasswordField(
+        form.PasswordConfirmation = GUI.PasswordField(
             new Rect(confirmationLabelRect.xMax + 8f, confirmationLabelRect.y, inRect.width - labelWidth - 8f, 28f),
-            passwordConfirmation ?? string.Empty,
+            form.PasswordConfirmation,
             '*');
 
         HandleTabFocus();
@@ -86,34 +83,15 @@ public sealed class ClashOfRimAccountRegistrationDialog : Window
         Event.current?.Use();
     }
 
+    public override void PostClose()
+    {
+        form.Close();
+        base.PostClose();
+    }
+
     private void Submit()
     {
-        if (string.IsNullOrEmpty(password))
-        {
-            Messages.Message(
-                ClashOfRimText.Key("ClashOfRim.ServerEntry.PasswordRequired"),
-                MessageTypeDefOf.RejectInput,
-                historical: false);
-            return;
-        }
-
-        if (!string.Equals(password, passwordConfirmation, System.StringComparison.Ordinal))
-        {
-            Messages.Message(
-                ClashOfRimText.Key("ClashOfRim.ServerEntry.PasswordMismatch"),
-                MessageTypeDefOf.RejectInput,
-                historical: false);
-            return;
-        }
-
-        if (mod.StartMainMenuServerEntryFlow(
-                serverBaseUrl,
-                userId,
-                password,
-                createAccountIfMissing: true))
-        {
-            Close();
-        }
+        if (form.Submit()) Close();
     }
 
     private static void HandleTabFocus()

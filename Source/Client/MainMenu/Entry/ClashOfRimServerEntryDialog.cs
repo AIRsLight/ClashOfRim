@@ -1,4 +1,4 @@
-using RimWorld;
+using AIRsLight.ClashOfRim.Modules.World;
 using System;
 using UnityEngine;
 using Verse;
@@ -7,28 +7,20 @@ namespace AIRsLight.ClashOfRim.MainMenu;
 
 public sealed class ClashOfRimServerEntryDialog : Window
 {
-    private const string DefaultServerBaseUrl = "http://127.0.0.1:5000";
     private const string ServerAddressInputControl = "ClashOfRim.ServerEntry.ServerAddress";
     private const string UserIdInputControl = "ClashOfRim.ServerEntry.UserId";
     private const string PasswordInputControl = "ClashOfRim.ServerEntry.Password";
     private const float LabelWidth = 130f;
     private const float InputOffset = LabelWidth + 10f;
-    private readonly ClashOfRimMod mod;
-    private string serverBaseUrl;
-    private string userId;
-    private string password;
+    private readonly ClientWorldEntryForm form;
 
+    // Preserve the public integration constructor; runtime UI uses the form overload.
     public ClashOfRimServerEntryDialog(ClashOfRimMod mod)
-    {
-        if (mod is null)
-        {
-            throw new ArgumentNullException(nameof(mod));
-        }
+        : this((mod ?? throw new ArgumentNullException(nameof(mod))).CreateServerEntryForm()) { }
 
-        this.mod = mod;
-        serverBaseUrl = string.IsNullOrWhiteSpace(mod.ServerBaseUrl) ? DefaultServerBaseUrl : mod.ServerBaseUrl;
-        userId = mod.UserId ?? string.Empty;
-        password = string.Empty;
+    internal ClashOfRimServerEntryDialog(ClientWorldEntryForm form)
+    {
+        this.form = form;
         doCloseX = true;
         closeOnClickedOutside = false;
         absorbInputAroundWindow = true;
@@ -39,6 +31,7 @@ public sealed class ClashOfRimServerEntryDialog : Window
 
     public override void DoWindowContents(Rect inRect)
     {
+        if (!form.IsCurrent) { Close(); return; }
         Text.Font = GameFont.Small;
         Widgets.Label(new Rect(inRect.x, inRect.y, inRect.width, 28f), ClashOfRimText.Key("ClashOfRim.ServerEntry.JoinTitle"));
 
@@ -46,19 +39,19 @@ public sealed class ClashOfRimServerEntryDialog : Window
         Widgets.Label(serverLabelRect, ClashOfRimText.Key("ClashOfRim.ServerAddress"));
         Rect serverInputRect = new(inRect.x + InputOffset, serverLabelRect.y, inRect.width - InputOffset, 30f);
         GUI.SetNextControlName(ServerAddressInputControl);
-        serverBaseUrl = Widgets.TextField(serverInputRect, serverBaseUrl ?? string.Empty);
+        form.ServerBaseUrl = Widgets.TextField(serverInputRect, form.ServerBaseUrl);
 
         Rect inputLabelRect = new(inRect.x, inRect.y + 82f, LabelWidth, 30f);
         Widgets.Label(inputLabelRect, ClashOfRimText.Key("ClashOfRim.UserId"));
         Rect inputRect = new(inRect.x + InputOffset, inputLabelRect.y, inRect.width - InputOffset, 30f);
         GUI.SetNextControlName(UserIdInputControl);
-        userId = Widgets.TextField(inputRect, userId ?? string.Empty);
+        form.UserId = Widgets.TextField(inputRect, form.UserId);
 
         Rect passwordLabelRect = new(inRect.x, inRect.y + 122f, LabelWidth, 30f);
         Widgets.Label(passwordLabelRect, ClashOfRimText.Key("ClashOfRim.Password"));
         Rect passwordRect = new(inRect.x + InputOffset, passwordLabelRect.y, inRect.width - InputOffset, 30f);
         GUI.SetNextControlName(PasswordInputControl);
-        password = GUI.PasswordField(passwordRect, password ?? string.Empty, '*');
+        form.Password = GUI.PasswordField(passwordRect, form.Password, '*');
 
         HandleTabFocus();
 
@@ -79,6 +72,12 @@ public sealed class ClashOfRimServerEntryDialog : Window
     {
         Submit();
         Event.current?.Use();
+    }
+
+    public override void PostClose()
+    {
+        form.Close();
+        base.PostClose();
     }
 
     private static void HandleTabFocus()
@@ -118,7 +117,7 @@ public sealed class ClashOfRimServerEntryDialog : Window
 
     private void Submit()
     {
-        if (mod.StartMainMenuServerEntryFlow(serverBaseUrl, userId, password))
+        if (form.Submit())
         {
             Close();
         }

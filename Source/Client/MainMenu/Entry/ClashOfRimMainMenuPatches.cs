@@ -180,7 +180,7 @@ public static class ClashOfRimMainMenuPatches
 
         if (Find.WindowStack.WindowOfType<ClashOfRimServerEntryDialog>() is null)
         {
-            Find.WindowStack.Add(new ClashOfRimServerEntryDialog(mod));
+            Find.WindowStack.Add(new ClashOfRimServerEntryDialog(mod.CreateServerEntryForm()));
         }
     }
 

@@ -19,6 +19,7 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("world entry forms own credentials, registration validation and window lifetime", ClientWorldEntryFormTests.Run),
     ("administrator host owns navigation, refresh cadence and child cleanup", MultiplayerAdminHostTests.Run),
     ("administrator manifest owns baseline confirmations and audit projection", MultiplayerAdminManifestTests.Run),
     ("administrator maintenance panel owns broadcast targets, drafts and explicit lock commands", MultiplayerAdminMaintenanceTests.Run),

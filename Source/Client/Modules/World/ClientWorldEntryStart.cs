@@ -25,6 +25,9 @@ internal sealed class ClientWorldEntryStart
     { this.session = session; this.synchronization = synchronization; this.game = game; this.store = store;
         this.view = view; this.preparation = preparation; this.entry = entry; }
 
+    internal ClientWorldEntryForm CreateForm() => new(session, game, this, view, false);
+    internal ClientWorldEntryForm CreateRegistrationForm(string server, string user) => new(session, game, this, view, true, server, user);
+
     internal bool TryStart(string? server, string? user, string? password, bool createAccount = false)
     {
         using var p = ClientSessionWork.EnterPublication();

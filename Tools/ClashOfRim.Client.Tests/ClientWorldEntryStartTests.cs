@@ -148,7 +148,7 @@ internal static class ClientWorldEntryStartTests
         f.Ports.HasGame = false; f.Barrier.BlockCurrent(); f.Ports.HasGame = true; Check(!f.Barrier.BlocksCurrent, "Menu entry captured a nonexistent game.");
     }
     private static void Check(bool value, string message) { if (!value) throw new InvalidOperationException(message); }
-    private sealed class Fixture : IClientWorldEntryStore, IClientWorldPreparationTransport, IClientWorldPreparationPresentation,
+    internal sealed class Fixture : IClientWorldEntryStore, IClientWorldPreparationTransport, IClientWorldPreparationPresentation,
         IClientWorldEntryPresentation, IClientWorldSubstrateTransport, IClientSnapshotReload, IClientWorldSourceGame, IClientSessionIdentityStore, IClientServerMetadata
     {
         internal readonly EventModuleTestPorts Ports = new();
@@ -160,11 +160,14 @@ internal static class ClientWorldEntryStartTests
         internal readonly ClientWorldEntryStart Start;
         internal readonly TaskCompletionSource Changed = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal int Ends, Writes, Rejections, Failures, Hellos, Prepares, Scenarios;
-        internal string? Password, ThrowAt;
+        internal string? Password, ThrowAt, Rejected;
         internal bool Create;
         internal ClashOfRimClientNetworkContext? Captured;
         internal Action<string>? On;
         internal Func<Task>? BeforePrepare;
+        internal ModPrepareWorldSessionResponseDto? PrepareResponse;
+        internal Action<string, Action>? ConfirmAccount;
+        internal Action<string, string>? RegisterAccount;
         internal Fixture()
         {
             ClientSessionWork.Reset(); Session = new(this, Ports, new ClientSessionConnection(Ports)); State = new(Session); Barrier = new(this);
@@ -202,7 +205,7 @@ internal static class ClientWorldEntryStartTests
         {
             Prepares++; Create = createAccount;
             if (BeforePrepare is not null) await BeforePrepare();
-            return ClashOfRimClientNetworkResult<ModPrepareWorldSessionResponseDto>.Ok(new()
+            return ClashOfRimClientNetworkResult<ModPrepareWorldSessionResponseDto>.Ok(PrepareResponse ?? new()
             { Result = new() { Accepted = true }, IsAdministrator = true, RequiresInitialWorldConfiguration = true, AssignedColonyId = "assigned" });
         }
         public Task<ClashOfRimClientNetworkResult<ModGetWorldConfigurationResponseDto>> ReadAsync(ClashOfRimClientNetworkContext context, bool generation, CancellationToken token) => throw new NotSupportedException();
@@ -210,13 +213,15 @@ internal static class ClientWorldEntryStartTests
         public Task StartAsync(ClientSnapshotReloadRequest request, ClientSynchronizationCoordinator.Lease? continuation = null) => throw new NotSupportedException();
         public string Text(string key, params (string Name, object? Value)[] arguments) { Visit("format"); return key; }
         public void Diagnose(string message) { }
-        public void Reject(string message) => Rejections++;
+        public void Reject(string message) { Rejections++; Rejected = message; Visit("reject"); }
         public void Failure(string message) => Failures++;
         public void Progress(string message, float progress) => Visit("progress");
         public void Scenario(string? message) => Scenarios++;
         public void CloseProgress() { }
-        public void ConfirmRegistration(string account, Action accept) => throw new NotSupportedException();
-        public void Register(string server, string account) => throw new NotSupportedException();
+        public void ConfirmRegistration(string account, Action accept)
+        { if (ConfirmAccount is null) throw new NotSupportedException(); ConfirmAccount(account, accept); }
+        public void Register(string server, string account)
+        { if (RegisterAccount is null) throw new NotSupportedException(); RegisterAccount(server, account); }
         public void Compatibility(ModLoginResponseDto response, string? language, bool languageAccepted, Func<bool> current, Action? accept = null, Action? cancel = null) { }
         public void Enqueue(Action action, Action discard) => Ports.Enqueue(() => { if (ThrowAt == "discard") discard(); else action(); });
         private void Visit(string phase) { if (ThrowAt == phase) throw new InvalidOperationException(phase + " failed"); On?.Invoke(phase); }
