@@ -58,8 +58,9 @@ public static class MultipartSnapshotAuthentication
 
     public static bool MatchesPrincipal(HttpRequest request, string? userId, string? colonyId)
     {
-        return request.HttpContext.Items.TryGetValue(PrincipalItemKey, out object? value)
-            && value is AuthTokenPrincipal principal
-            && SessionPrincipalAuthorization.Matches(principal, userId, colonyId);
+        return Principal(request) is { } principal && SessionPrincipalAuthorization.Matches(principal, userId, colonyId);
     }
+
+    internal static AuthTokenPrincipal? Principal(HttpRequest request) =>
+        request.HttpContext.Items.TryGetValue(PrincipalItemKey, out object? value) ? value as AuthTokenPrincipal : null;
 }

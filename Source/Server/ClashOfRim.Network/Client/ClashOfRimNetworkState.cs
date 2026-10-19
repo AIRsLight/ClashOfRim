@@ -189,6 +189,7 @@ public sealed class ClashOfRimNetworkState
             OnlinePresence, EventNotifications, new SupportSnapshotCommitter(SnapshotCommits, SnapshotStore, BankLoans, Ledger,
                 MercenaryContracts, EventNotifications, SnapshotPostUploads));
         TransferPackages = new ItemTransferPackages(PawnPackages, ThingPackages);
+        PawnPreviews = new PawnPackagePreviews(PawnPackages);
         DeliveryTargets = new DeliveryTargetResolver(SnapshotStore);
         Gifts = new GiftService(Ledger, SnapshotStore, BankLoans, MercenaryContracts, SnapshotCommits,
             SnapshotRequests, SnapshotTransactions, PendingConfirmations, TransferPackages, DeliveryTargets,
@@ -303,6 +304,7 @@ public sealed class ClashOfRimNetworkState
     internal MercenaryHiring MercenaryHiring { get; }
     internal MercenaryIncidentRecovery MercenaryIncidents { get; }
     internal ItemTransferPackages TransferPackages { get; }
+    internal PawnPackagePreviews PawnPreviews { get; }
     internal DeliveryTargetResolver DeliveryTargets { get; }
     internal GiftService Gifts { get; }
     internal SupportService Support { get; }

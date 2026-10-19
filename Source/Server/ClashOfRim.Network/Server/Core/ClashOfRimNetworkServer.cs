@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.Network.Modules.Transfers;
 using AIRsLight.ClashOfRim.Network.Modules.Achievements;
 using AIRsLight.ClashOfRim.Network.Modules.Chat;
 using AIRsLight.ClashOfRim.Network.Modules.Admin;
@@ -96,12 +97,7 @@ public static partial class ClashOfRimNetworkServer
         SnapshotEndpoints.Map(app, tradeState.SnapshotUploads, tradeState.SnapshotDownloads);
         EventConfirmationEndpoints.Map(app, tradeState.EventConfirmations);
         EventFailureEndpoints.Map(app, tradeState.EventFailureReports);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.StorePawnPackage).Route, StorePawnPackage);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.GetPawnPackage).Route, GetPawnPackage);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.StorePawnPackagePreview).Route, StorePawnPackagePreview);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.GetPawnPackagePreview).Route, GetPawnPackagePreview);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.StoreThingPackage).Route, StoreThingPackage);
-        app.MapPost(ProtocolContractManifest.Find(ProtocolMessageKind.GetThingPackage).Route, GetThingPackage);
+        PackageEndpoints.Map(app, tradeState.TransferPackages, tradeState.PawnPreviews);
         ShopEndpoints.Map(app, app.Services.GetRequiredService<ClashOfRimNetworkState>().Shop);
         RaidEndpoints.Map(app, tradeState.RaidPreparation, tradeState.RaidStarting);
         DiplomacyEndpoints.Map(app, tradeState.Diplomacy);
@@ -142,32 +138,5 @@ public static partial class ClashOfRimNetworkServer
     {
         return loggerFactory.CreateLogger("AIRsLight.ClashOfRim.Network.Runtime");
     }
-
-    private static void LogEventAppend(ClashOfRimNetworkState state, LedgerAppendResult append, string source)
-        => EventDiagnostics.LogAppend(state.RuntimeLogger, append, source);
-
-    private static Task<MultipartSnapshotRequest<TRequest>?> ReadMultipartSnapshotRequest<TRequest>(HttpRequest httpRequest)
-        => MultipartSnapshotReader.Read<TRequest>(httpRequest);
-
-    // Compatibility for domains scheduled for M6/M7; the package service owns the implementation.
-    private static bool TryStoreInlinePawnPackages(ClashOfRimNetworkState state, ProtocolIdentity owner,
-        string idempotencyPrefix, IReadOnlyList<ThingReferenceDto> things,
-        out IReadOnlyList<ThingReferenceDto> storedThings, out ProtocolResponse? failure)
-        => state.TransferPackages.TryStore(owner, idempotencyPrefix, things, out storedThings, out failure);
-
-    private static EventTargetContext? ResolveLatestDeliveryTargetContext(
-        ProtocolIdentity target, ClashOfRimNetworkState state, EventLandingMode landingMode)
-        => state.DeliveryTargets.ResolveLatest(target, landingMode);
-
-    private static bool IsVisibleTo(AuthoritativeEvent ledgerEvent, string userId, string colonyId)
-        => EventVisibility.IsVisibleTo(ledgerEvent, userId, colonyId);
-
-    private static bool AreAllied(ClashOfRimNetworkState state, string userA, string? colonyA, string userB, string? colonyB)
-        => state.DiplomacyRelations.AreAllied(userA, colonyA, userB, colonyB);
-
-    private static bool IsVisibleParty(EventParty party, string userId, string colonyId)
-        => EventVisibility.MatchesParty(party, userId, colonyId);
-
-
 
 }

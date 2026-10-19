@@ -89,7 +89,7 @@ internal static class ModuleBoundaryTests
         or "MercenaryEndpoints" or "SupportEndpoints" or "RaidEndpoints" or "DiplomacyEndpoints"
         or "AccountEndpoints" or "SessionEndpoints" or "WorldEndpoints" or "AdminEndpoints"
         or "ChatEndpoints" or "AchievementEndpoints" or "EventReadEndpoints" or "EventFailureEndpoints"
-        or "EventConfirmationEndpoints" or "SnapshotEndpoints";
+        or "EventConfirmationEndpoints" or "SnapshotEndpoints" or "PackageEndpoints";
 
     private static void Require(bool ok, string message) { if (!ok) throw new Exception(message); }
     private sealed class ForbiddenProbe { public static void Execute() { } }
