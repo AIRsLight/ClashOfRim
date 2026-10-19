@@ -1,6 +1,6 @@
 using HarmonyLib;
 using RimWorld.Planet;
-using Verse;
+using AIRsLight.ClashOfRim.WorldObjects;
 
 namespace AIRsLight.ClashOfRim.Gifts;
 
@@ -12,7 +12,6 @@ internal static class RemoteGiftArrivalGuard
     private static bool Prefix(TransportersArrivalAction ___arrivalAction)
     {
         if (___arrivalAction is not RemoteGiftTransportersArrivalAction) return true;
-        var mod = LoadedModManager.GetMod<ClashOfRimMod>();
-        return mod is not null && mod.CanStartTransportPodGiftArrival();
+        return ClientTransporterActions.Current?.CanStartGiftArrival == true;
     }
 }

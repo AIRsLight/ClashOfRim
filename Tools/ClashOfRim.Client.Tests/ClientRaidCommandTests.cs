@@ -138,7 +138,7 @@ internal static class ClientRaidCommandTests
         var empty = ClientRaidCommands.TransporterTarget(null, null, null, null, null, 0, 0, null);
         Check(new[] { empty.OwnerUserId, empty.OwnerColonyId, empty.SnapshotId, empty.MapId, empty.WorldObjectId, empty.Label }.All(v => v == ""), "Null target fields were not normalized.");
     }
-    private sealed class Fixture : IClientRaidCommandPresentation
+    internal sealed class Fixture : IClientRaidCommandPresentation
     {
         internal readonly ClientRaidLaunchTestPorts Core = new() { Fault = "prepare" };
         internal readonly ClientRaidCommands Commands;

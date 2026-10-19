@@ -37,15 +37,15 @@ internal sealed class ClientGiftOperations
     {
         using var publication = ClientSessionWork.EnterPublication();
         var policy = capabilities();
-        if (!policy.GiftsEnabled) { Reject(Text("Disabled")); return Task.CompletedTask; }
-        if (forced && !policy.PvpEnabled) { Reject(presentation.Text("ClashOfRim.Raid.PvpDisabled")); return Task.CompletedTask; }
+        if (ClientGiftTargets.DisabledReason(policy, forced) is { } disabled)
+        { Reject(presentation.Text(disabled)); return Task.CompletedTask; }
         var attempt = AcceptAdmission(admission.Begin());
         if (attempt is null) return Task.CompletedTask;
         bool handedOff = false;
         try
         {
             var cargo = source.Describe();
-            if (string.IsNullOrWhiteSpace(target.UserId) || string.IsNullOrWhiteSpace(target.ColonyId) || string.IsNullOrWhiteSpace(target.MapId))
+            if (!ClientGiftTargets.HasContext(target.UserId, target.ColonyId, target.MapId))
             { Reject(Text("StatusTargetIncomplete")); return Task.CompletedTask; }
             if (cargo.Tile != target.Tile || cargo.TileLayerId != target.TileLayerId)
             { Reject(Text("StatusTargetTileMismatch")); return Task.CompletedTask; }

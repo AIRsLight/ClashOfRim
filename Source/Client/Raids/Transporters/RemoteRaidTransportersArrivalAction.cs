@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
+using AIRsLight.ClashOfRim.ClientNetwork;
+using AIRsLight.ClashOfRim.Modules.Raids;
 using AIRsLight.ClashOfRim.WorldObjects;
 using RimWorld;
 using RimWorld.Planet;
@@ -32,7 +33,7 @@ public sealed class RemoteRaidTransportersArrivalAction : TransportersArrivalAct
         targetMapId = target.SourceMapId ?? string.Empty;
         targetWorldObjectId = target.SourceWorldObjectId ?? string.Empty;
         targetLabel = target.Label ?? string.Empty;
-        targetTileLayerId = ReadTileLayerId(target.Tile);
+        targetTileLayerId = RemoteWorldObjectUiUtility.ReadTileLayerId(target.Tile);
         transporterKey = Guid.NewGuid().ToString("N");
         canRaid = target.CanRaid;
     }
@@ -70,21 +71,8 @@ public sealed class RemoteRaidTransportersArrivalAction : TransportersArrivalAct
             return baseReport;
         }
 
-        ClashOfRimMod mod = LoadedModManager.GetMod<ClashOfRimMod>();
-        if (mod?.PvpEnabled != true)
-        {
-            return FloatMenuAcceptanceReport.WithFailReason(ClashOfRimText.Key("ClashOfRim.Raid.PvpDisabled"));
-        }
-
-        if (!HasTargetContext() || !canRaid)
-        {
-            return FloatMenuAcceptanceReport.WithFailReason(ClashOfRimText.Key("ClashOfRim.Raid.StatusTargetIncomplete"));
-        }
-
-        IReadOnlyList<IThingHolder> podList = pods as IReadOnlyList<IThingHolder> ?? pods.ToList();
-        return podList.Count > 0 && TransportersArrivalActionUtility.AnyNonDownedColonist(podList)
-            ? FloatMenuAcceptanceReport.WasAccepted
-            : FloatMenuAcceptanceReport.WithFailReason(ClashOfRimText.Key("ClashOfRim.Raid.TransportPodRejectNoColonist"));
+        return ClientTransporterActions.Current?.RaidAcceptance(Target(destinationTile), pods)
+            ?? ClientTransporterActions.Reject("ClashOfRim.Raid.PvpDisabled");
     }
 
     public override void Arrived(List<ActiveTransporterInfo> transporters, PlanetTile tile)
@@ -105,37 +93,14 @@ public sealed class RemoteRaidTransportersArrivalAction : TransportersArrivalAct
             return;
         }
 
-        ClashOfRimMod mod = LoadedModManager.GetMod<ClashOfRimMod>();
-        mod.StartCreateRaidFromTransporters(
-            transporterKey,
-            targetUserId,
-            targetColonyId,
-            targetSnapshotId,
-            targetMapId,
-            targetWorldObjectId,
-            tile,
-            ReadTileLayerId(tile),
-            targetLabel,
-            transporters);
+        ClientTransporterActions.Current!.StartRaid(transporterKey, Target(tile), transporters);
     }
 
-    private bool HasTargetContext()
+    private ModWorldMapMarkerDto Target(PlanetTile tile)
     {
-        return !string.IsNullOrWhiteSpace(targetUserId)
-            && !string.IsNullOrWhiteSpace(targetColonyId)
-            && !string.IsNullOrWhiteSpace(targetMapId)
-            && !string.IsNullOrWhiteSpace(targetWorldObjectId);
-    }
-
-    private static int ReadTileLayerId(PlanetTile tile)
-    {
-        try
-        {
-            return tile.Valid ? Math.Max(0, tile.Layer.LayerID) : 0;
-        }
-        catch
-        {
-            return 0;
-        }
+        var target = ClientRaidCommands.TransporterTarget(targetUserId, targetColonyId, targetSnapshotId, targetMapId,
+            targetWorldObjectId, tile, RemoteWorldObjectUiUtility.ReadTileLayerId(tile), targetLabel);
+        target.CanRaid = canRaid;
+        return target;
     }
 }

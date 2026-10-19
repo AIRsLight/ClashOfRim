@@ -35,12 +35,6 @@ public sealed partial class ClashOfRimMod
     internal void StartCreateGiftFromCaravan(Caravan caravan, ModWorldMapMarkerDto target,
         IReadOnlyList<TradeOfferSelection> selections, bool forcedDelivery, string? message)
         => giftActions.SendCaravan(caravan, ClientGiftActions.Target(target), selections, forcedDelivery, message);
-    internal void StartCreateGiftFromTransportPods(string transporterKey, string targetUserId, string targetColonyId,
-        string targetSnapshotId, string targetMapId, string targetWorldObjectId, PlanetTile targetTile,
-        string targetLabel, IReadOnlyList<ActiveTransporterInfo> transporters, bool forcedDelivery)
-        => giftActions.SendTransportPods(transporterKey, targetUserId, targetColonyId, targetSnapshotId, targetMapId,
-            targetWorldObjectId, targetTile, targetLabel, transporters, forcedDelivery);
-    internal bool CanStartTransportPodGiftArrival() => giftActions.CanStartArrival;
 
     internal void OpenCaravanTradeFulfillmentMenu(Caravan caravan, IReadOnlyList<ModTradeOrderSummaryDto> orders) => tradeActions.OpenCaravanMenu(caravan, orders);
 

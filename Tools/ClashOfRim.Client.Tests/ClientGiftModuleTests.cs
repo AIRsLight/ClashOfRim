@@ -167,7 +167,7 @@ internal static class ClientGiftModuleTests
         Check(ClientGiftTargets.Find(context, new(true, false), result, 4, 0, true).Count == 0, "Forced target list bypassed PVP policy.");
     }
 
-    private sealed class Fixture : IClientGiftSource, IClientGiftTransport, IClientGiftPresentation
+    internal sealed class Fixture : IClientGiftSource, IClientGiftTransport, IClientGiftPresentation
     {
         internal readonly EventModuleTestPorts Ports = new();
         internal readonly EventModuleFailureView Failure;

@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using AIRsLight.ClashOfRim.ThirdPartyCompatibility;
+using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.WorldObjects;
 using RimWorld;
 using RimWorld.Planet;
@@ -25,30 +25,10 @@ public sealed class RemoteGiftTransportersArrivalAction : TransportersArrivalAct
     }
 
     public RemoteGiftTransportersArrivalAction(RemoteRuntimeWorldObject target, bool forcedDelivery)
-    {
-        markerId = target.MarkerId ?? string.Empty;
-        targetUserId = target.OwnerUserId ?? string.Empty;
-        targetColonyId = target.OwnerColonyId ?? string.Empty;
-        targetSnapshotId = target.SourceSnapshotId ?? string.Empty;
-        targetMapId = target.SourceMapId ?? string.Empty;
-        targetWorldObjectId = target.SourceWorldObjectId ?? string.Empty;
-        targetLabel = target.Label ?? string.Empty;
-        transporterKey = Guid.NewGuid().ToString("N");
-        this.forcedDelivery = forcedDelivery;
-    }
+        : this((IRemoteWorldObjectView)target, forcedDelivery) { }
 
     public RemoteGiftTransportersArrivalAction(RemoteColonyMapParent target, bool forcedDelivery)
-    {
-        markerId = target.MarkerId ?? string.Empty;
-        targetUserId = target.OwnerUserId ?? string.Empty;
-        targetColonyId = target.OwnerColonyId ?? string.Empty;
-        targetSnapshotId = target.SourceSnapshotId ?? string.Empty;
-        targetMapId = target.SourceMapId ?? string.Empty;
-        targetWorldObjectId = target.SourceWorldObjectId ?? string.Empty;
-        targetLabel = target.Label ?? string.Empty;
-        transporterKey = Guid.NewGuid().ToString("N");
-        this.forcedDelivery = forcedDelivery;
-    }
+        : this((IRemoteWorldObjectView)target, forcedDelivery) { }
 
     internal RemoteGiftTransportersArrivalAction(IRemoteWorldObjectView target, bool forcedDelivery)
     {
@@ -97,19 +77,8 @@ public sealed class RemoteGiftTransportersArrivalAction : TransportersArrivalAct
             return baseReport;
         }
 
-        if (!HasTargetContext())
-        {
-            return FloatMenuAcceptanceReport.WithFailReason(ClashOfRimText.Key("ClashOfRim.GiftDelivery.StatusTargetIncomplete"));
-        }
-
-        ClashOfRimMod mod = LoadedModManager.GetMod<ClashOfRimMod>();
-        if (!mod.GiftsEnabled || forcedDelivery && !mod.PvpEnabled)
-            return FloatMenuAcceptanceReport.WithFailReason(ClashOfRimText.Key(!mod.GiftsEnabled
-                ? "ClashOfRim.GiftDelivery.Disabled" : "ClashOfRim.Raid.PvpDisabled"));
-
-        return GiftTransporterPayloadUtility.CanSend(
-            pods,
-            forcedDelivery ? ThingReferenceSurfaces.ForcedDelivery : ThingReferenceSurfaces.Gift);
+        return ClientTransporterActions.Current?.GiftAcceptance(Target(destinationTile), pods, forcedDelivery)
+            ?? ClientTransporterActions.Reject("ClashOfRim.GiftDelivery.Disabled");
     }
 
     public override void Arrived(List<ActiveTransporterInfo> transporters, PlanetTile tile)
@@ -130,24 +99,13 @@ public sealed class RemoteGiftTransportersArrivalAction : TransportersArrivalAct
             return;
         }
 
-        ClashOfRimMod mod = LoadedModManager.GetMod<ClashOfRimMod>();
-        mod.StartCreateGiftFromTransportPods(
-            transporterKey,
-            targetUserId,
-            targetColonyId,
-            targetSnapshotId,
-            targetMapId,
-            targetWorldObjectId,
-            tile,
-            targetLabel,
-            transporters,
-            forcedDelivery);
+        ClientTransporterActions.Current!.SendGift(transporterKey, Target(tile), tile, transporters, forcedDelivery);
     }
 
-    private bool HasTargetContext()
+    private ModWorldMapMarkerDto Target(PlanetTile tile) => new()
     {
-        return !string.IsNullOrWhiteSpace(targetUserId)
-            && !string.IsNullOrWhiteSpace(targetColonyId)
-            && !string.IsNullOrWhiteSpace(targetMapId);
-    }
+        MarkerId = markerId, Kind = "TradeableColony", OwnerUserId = targetUserId, OwnerColonyId = targetColonyId,
+        SnapshotId = targetSnapshotId, MapId = targetMapId, WorldObjectId = targetWorldObjectId,
+        Tile = tile, Label = targetLabel
+    };
 }

@@ -19,6 +19,7 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("remote transporter menus and arrivals share policy and existing modules", RemoteTransporterActionsTests.Run),
     ("pawn preview DLC display avoids world registration and gameplay setters", PawnPreviewDlcTests.Run),
     ("pawn Scribe loading separates payload, native lifetime and arrival effects", PawnScribeLoaderTests.Run),
     ("pawn previews own requests, caches and engine publication", ClientPawnPreviewTests.Run),

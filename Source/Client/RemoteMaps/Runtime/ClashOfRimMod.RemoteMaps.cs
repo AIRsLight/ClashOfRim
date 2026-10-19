@@ -15,24 +15,6 @@ public sealed partial class ClashOfRimMod
     public void StartRaidFromVehicleLanding(Caravan caravan, ModWorldMapMarkerDto target)
         => _ = raidCommands.StartVehicle(ClientRaidCommandSource.ForCaravan(caravan), target);
 
-    internal void StartCreateRaidFromTransporters(
-        string transporterKey,
-        string targetUserId,
-        string targetColonyId,
-        string targetSnapshotId,
-        string targetMapId,
-        string targetWorldObjectId,
-        PlanetTile targetTile,
-        int targetTileLayerId,
-        string targetLabel,
-        List<ActiveTransporterInfo> transporters)
-    {
-        var target = ClientRaidCommands.TransporterTarget(targetUserId, targetColonyId, targetSnapshotId, targetMapId,
-            targetWorldObjectId, targetTile, targetTileLayerId, targetLabel);
-        _ = raidCommands.StartTransporters(new ClientRaidCommandSource(new TransporterRaidAttackForceSource(
-            transporters, target.Tile, transporterKey, target.TileLayerId)), target);
-    }
-
     internal void StartObserveRemoteMarker(ModWorldMapMarkerDto target, string mode)
         => observationMaps.OpenAsync(target, mode);
 

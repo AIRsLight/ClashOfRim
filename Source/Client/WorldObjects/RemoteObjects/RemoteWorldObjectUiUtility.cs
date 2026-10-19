@@ -5,9 +5,10 @@ using System.Text;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.Diplomacy;
 using AIRsLight.ClashOfRim.Gifts;
+using AIRsLight.ClashOfRim.Modules.Gifts;
+using AIRsLight.ClashOfRim.Modules.Raids;
 using AIRsLight.ClashOfRim.Raids;
 using AIRsLight.ClashOfRim.RemoteMaps;
-using AIRsLight.ClashOfRim.ThirdPartyCompatibility;
 using RimWorld;
 using RimWorld.Planet;
 using UnityEngine;
@@ -113,7 +114,7 @@ internal static class RemoteWorldObjectUiUtility
         }
         else if (useRuntimeActionNotice && (view.CanRaid || view.CanReinforce))
         {
-            bool raidDisabled = view.CanRaid && LoadedModManager.GetMod<ClashOfRimMod>()?.PvpEnabled != true;
+            bool raidDisabled = view.CanRaid && ClientTransporterActions.Current?.Capabilities.PvpEnabled != true;
             yield return new Command_Action
             {
                 defaultLabel = ClashOfRimText.Key("ClashOfRim.RemoteWorldObject.ActionNotice"),
@@ -251,76 +252,22 @@ internal static class RemoteWorldObjectUiUtility
         builder.Append(value);
     }
 
+    private static ClientGiftCapabilities TransporterCapabilities
+        => ClientTransporterActions.Current?.Capabilities ?? new(false, false);
+
     private static bool CanReceiveTransportPodDelivery(IRemoteWorldObjectView view, bool forced)
-    {
-        if (!string.Equals(view.RuntimeKind, "TradeableColony", StringComparison.Ordinal)
-            || string.IsNullOrWhiteSpace(view.OwnerUserId)
-            || string.IsNullOrWhiteSpace(view.OwnerColonyId)
-            || string.IsNullOrWhiteSpace(view.SourceMapId))
-        {
-            return false;
-        }
-
-        if (forced && LoadedModManager.GetMod<ClashOfRimMod>()?.PvpEnabled != true)
-        {
-            return false;
-        }
-
-        return forced ? view.CanRaid : true;
-    }
+        => ClientGiftTargets.CanOfferDelivery(CaptureTarget(view), TransporterCapabilities, forced);
 
     private static bool CanReceiveTransportPodRaid(IRemoteWorldObjectView view)
-    {
-        return LoadedModManager.GetMod<ClashOfRimMod>()?.PvpEnabled == true
-            && view.CanRaid
-            && !string.IsNullOrWhiteSpace(view.OwnerUserId)
-            && !string.IsNullOrWhiteSpace(view.OwnerColonyId)
-            && !string.IsNullOrWhiteSpace(view.SourceMapId)
-            && !string.IsNullOrWhiteSpace(view.SourceWorldObjectId);
-    }
+        => ClientRaidTargets.Rejection(CaptureTarget(view), TransporterCapabilities.PvpEnabled) is null;
 
-    private static FloatMenuAcceptanceReport CanSendTransportPodRaid(
-        IRemoteWorldObjectView view,
-        IReadOnlyList<IThingHolder> pods)
-    {
-        if (!CanReceiveTransportPodRaid(view))
-        {
-            string reason = LoadedModManager.GetMod<ClashOfRimMod>()?.PvpEnabled != true
-                ? ClashOfRimText.Key("ClashOfRim.Raid.PvpDisabled")
-                : ClashOfRimText.Key("ClashOfRim.Raid.StatusTargetIncomplete");
-            return FloatMenuAcceptanceReport.WithFailReason(reason);
-        }
+    private static FloatMenuAcceptanceReport CanSendTransportPodRaid(IRemoteWorldObjectView view, IReadOnlyList<IThingHolder> pods)
+        => ClientTransporterActions.Current?.RaidAcceptance(CaptureTarget(view), pods)
+            ?? ClientTransporterActions.Reject("ClashOfRim.Raid.PvpDisabled");
 
-        return pods.Count > 0 && TransportersArrivalActionUtility.AnyNonDownedColonist(pods)
-            ? FloatMenuAcceptanceReport.WasAccepted
-            : FloatMenuAcceptanceReport.WithFailReason(ClashOfRimText.Key("ClashOfRim.Raid.TransportPodRejectNoColonist"));
-    }
-
-    private static FloatMenuAcceptanceReport CanSendTransportPodDelivery(
-        IRemoteWorldObjectView view,
-        IEnumerable<IThingHolder> pods,
-        bool forced)
-    {
-        ClashOfRimMod mod = LoadedModManager.GetMod<ClashOfRimMod>();
-        if (mod?.GiftsEnabled != true)
-        {
-            return FloatMenuAcceptanceReport.WithFailReason(ClashOfRimText.Key("ClashOfRim.GiftDelivery.Disabled"));
-        }
-
-        if (forced && mod.PvpEnabled != true)
-        {
-            return FloatMenuAcceptanceReport.WithFailReason(ClashOfRimText.Key("ClashOfRim.Raid.PvpDisabled"));
-        }
-
-        if (!CanReceiveTransportPodDelivery(view, forced))
-        {
-            return FloatMenuAcceptanceReport.WithFailReason(ClashOfRimText.Key("ClashOfRim.GiftDelivery.StatusTargetIncomplete"));
-        }
-
-        return GiftTransporterPayloadUtility.CanSend(
-            pods,
-            forced ? ThingReferenceSurfaces.ForcedDelivery : ThingReferenceSurfaces.Gift);
-    }
+    private static FloatMenuAcceptanceReport CanSendTransportPodDelivery(IRemoteWorldObjectView view, IEnumerable<IThingHolder> pods, bool forced)
+        => ClientTransporterActions.Current?.GiftAcceptance(CaptureTarget(view), pods, forced, menu: true)
+            ?? ClientTransporterActions.Reject("ClashOfRim.GiftDelivery.Disabled");
 
     private static string FormatRelationKind(string? relationKind)
     {
@@ -428,7 +375,13 @@ internal static class RemoteWorldObjectUiUtility
             return;
         }
 
-        var target = new ModWorldMapMarkerDto
+        ClashOfRimMod mod = LoadedModManager.GetMod<ClashOfRimMod>();
+        mod.StartObserveRemoteMarker(CaptureTarget(view), mode);
+    }
+
+    internal static ModWorldMapMarkerDto CaptureTarget(IRemoteWorldObjectView view)
+    {
+        return new ModWorldMapMarkerDto
         {
             MarkerId = view.MarkerId,
             Kind = view.RuntimeKind,
@@ -445,8 +398,6 @@ internal static class RemoteWorldObjectUiUtility
             CanTrade = view.CanTrade,
             CanReinforce = view.CanReinforce
         };
-        ClashOfRimMod mod = LoadedModManager.GetMod<ClashOfRimMod>();
-        mod.StartObserveRemoteMarker(target, mode);
     }
 
     private static bool HasActiveRemoteMapSession()

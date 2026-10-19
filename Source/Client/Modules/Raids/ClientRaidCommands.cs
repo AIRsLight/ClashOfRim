@@ -102,7 +102,7 @@ internal sealed class ClientRaidCommands
             Notice(step, vehicle ? "ClashOfRim.VehicleFramework.RemoteLanding.RaidStartFailedNoCaravan" : "ClashOfRim.Raid.StatusAttackerPawnUnavailable");
             return false;
         }
-        if (!ClientRaidLaunching.IsRaidable(target))
+        if (!ClientRaidTargets.IsRaidable(target))
         {
             Notice(step, vehicle ? "ClashOfRim.VehicleFramework.RemoteLanding.RaidUnavailable" : "ClashOfRim.Raid.StatusTargetIncomplete");
             return false;

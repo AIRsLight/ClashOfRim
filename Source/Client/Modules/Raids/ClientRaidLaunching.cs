@@ -1,5 +1,4 @@
 using System;
-using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.Modules.Sessions;
@@ -32,20 +31,17 @@ internal sealed class ClientRaidLaunching
 
     internal event Action? Completed;
     internal bool Enabled => pvpEnabled();
-    internal static bool IsRaidable([NotNullWhen(true)] ModWorldMapMarkerDto? target) => target?.CanRaid == true;
 
     internal Task StartAsync(IClientRaidLaunchRuntime runtime, ModWorldMapMarkerDto? target)
     {
         using var p = ClientSessionWork.EnterPublication();
-        if (!Enabled) { Reject(Text("PvpDisabled")); return Task.CompletedTask; }
-        if (!IsRaidable(target) || string.IsNullOrWhiteSpace(target.OwnerUserId) || string.IsNullOrWhiteSpace(target.OwnerColonyId)
-            || string.IsNullOrWhiteSpace(target.WorldObjectId) || string.IsNullOrWhiteSpace(target.MapId))
-        { Reject(Text("StatusTargetIncomplete")); return Task.CompletedTask; }
+        if (ClientRaidTargets.Rejection(target, Enabled) is { } rejection)
+        { Reject(presentation.Text(rejection)); return Task.CompletedTask; }
         var result = admission.Begin();
         if (result.Attempt is not { } attempt) { Reject(AdmissionText(result)); return Task.CompletedTask; }
         try
         {
-            target = ClientProtocolJson.Deserialize<ModWorldMapMarkerDto>(ClientProtocolJson.Serialize(target), type => type);
+            target = ClientProtocolJson.Copy(target!);
             bool captured = runtime.TryCapture(attempt.Context, target, out var force, out var failure);
             if (!transactions.TryApply(attempt, static () => { })) { attempt.Admission.Dispose(); return Task.CompletedTask; }
             if (!captured) { Reject(failure); attempt.Admission.Dispose(); return Task.CompletedTask; }
