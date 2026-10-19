@@ -9,29 +9,28 @@ using Verse;
 
 internal static class ClientAdminBaselineRuntimeTests
 {
-    private static List<ThingDef> definitions = new();
     private static readonly HashSet<StatDef> failed = new();
     internal static void Run()
     {
         var culture = CultureInfo.CurrentCulture; var market = StatDefOf.MarketValue; var hp = StatDefOf.MaxHitPoints;
         var game = Current.Game; var harmony = new Harmony("ClashOfRim.Tests.AdminBaselineRuntime");
+        using var database = new DefDatabaseTestScope<ThingDef>();
         try
         {
-            harmony.Patch(AccessTools.PropertyGetter(typeof(DefDatabase<ThingDef>), "AllDefsListForReading"), prefix: new HarmonyMethod(typeof(ClientAdminBaselineRuntimeTests), nameof(Definitions)));
             harmony.Patch(AccessTools.Method(typeof(StatExtension), nameof(StatExtension.GetStatValueAbstract), new[] { typeof(BuildableDef), typeof(StatDef), typeof(ThingDef) }), prefix: new HarmonyMethod(typeof(ClientAdminBaselineRuntimeTests), nameof(Stat)));
             Current.Game = null;
             foreach (string name in new[] { "en-US", "fr-FR", "tr-TR", "zh-CN" })
             {
-                CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(name); Catalogs();
+                CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(name); Catalogs(database);
             }
         }
         finally
         {
             harmony.UnpatchAll(harmony.Id); CultureInfo.CurrentCulture = culture; StatDefOf.MarketValue = market; StatDefOf.MaxHitPoints = hp;
-            Current.Game = game; definitions.Clear(); failed.Clear();
+            Current.Game = game; failed.Clear();
         }
     }
-    private static void Catalogs()
+    private static void Catalogs(DefDatabaseTestScope<ThingDef> database)
     {
         failed.Clear();
         var quality = new StatPart_Quality();
@@ -57,7 +56,8 @@ internal static class ClientAdminBaselineRuntimeTests
         var invulnerable = new ThingDef { defName = "invulnerable", category = ThingCategory.Building, useHitPoints = false };
         var trap = new ThingDef { defName = "auto", thingClass = typeof(Building_Trap), category = ThingCategory.Building };
         var candidate = new ThingDef { defName = "candidateTrap", thingClass = typeof(Thing), category = ThingCategory.Item };
-        definitions = new() { useful, Stuff("same"), Stuff("incompatible", false), building, fallback, negative, pawn, invulnerable, trap, candidate, new() { defName = "" }, null! };
+        database.Replace(new[] { useful, Stuff("same"), Stuff("incompatible", false), building, fallback, negative, pawn, invulnerable, trap, candidate });
+        DefDatabase<ThingDef>.AllDefsListForReading.AddRange(new ThingDef[] { new() { defName = "" }, null! });
         var runtime = new ClientAdminBaselineRuntime();
         var values = runtime.ReadMarketValues();
         Check(values.Count == 10 && values.Select(v => v.DefName).SequenceEqual(values.Select(v => v.DefName).OrderBy(v => v, StringComparer.Ordinal)), "Market capture lost filtering/ordinal order.");
@@ -83,7 +83,6 @@ internal static class ClientAdminBaselineRuntimeTests
         Check(traps.Count == 2 && traps.Single(t => t.DefName == "auto").Status == TrapClassificationScanStatus.ApprovedByInheritance
             && traps.Single(t => t.DefName == "candidateTrap").Status == TrapClassificationScanStatus.CandidateRequiresApproval, "Runtime stopped using the shared trap classifier.");
     }
-    private static bool Definitions(ref List<ThingDef> __result) { __result = definitions; return false; }
     private static bool Stat(BuildableDef __0, StatDef __1, ThingDef? __2, ref float __result)
     {
         if (__0.defName == "fallback")

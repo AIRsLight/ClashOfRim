@@ -20,7 +20,7 @@ internal static class ClientShopListingRuntimeTests
     internal static void Run()
     {
         var culture = CultureInfo.CurrentCulture;
-        var previousDefinitions = DefDatabase<ThingDef>.AllDefsListForReading.ToArray();
+        using var database = new DefDatabaseTestScope<ThingDef>();
         var harmony = new Harmony("ClashOfRim.Tests.ShopListingRuntime");
         var token = ClashOfRimCompatibilityApi.CreateRegistrationToken("shop-listing-runtime-tests");
         var defaults = new List<(string Surface, string? Inner, string? Definition)>();
@@ -48,7 +48,7 @@ internal static class ClientShopListingRuntimeTests
                 thingClass = typeof(Thing), category = ThingCategory.Item }).ToList();
             definitions.AddRange(new[] { steel, shell, building, plain,
                 new ThingDef { defName = "ShopEditorCorpse", label = "corpse", thingClass = typeof(Corpse), category = ThingCategory.Item } });
-            ReplaceDefinitions(definitions);
+            database.Replace(definitions);
             var runtime = new ClientShopListingRuntime(); var catalog = runtime.Catalog;
             Check(catalog.Count == 133 && catalog.Any(d => d.DefName == building.defName) && !catalog.Any(d => d.DefName == shell.defName)
                 && !catalog.Any(d => d.DefName == "ShopEditorCorpse"), "Engine catalog changed corpse/wrapper/packable filtering.");
@@ -86,7 +86,7 @@ internal static class ClientShopListingRuntimeTests
         finally
         {
             ClashOfRimCompatibilityApi.RevokeRegistrationToken(token); harmony.UnpatchAll(harmony.Id);
-            CultureInfo.CurrentCulture = culture; ReplaceDefinitions(previousDefinitions);
+            CultureInfo.CurrentCulture = culture;
         }
     }
     private static void BridgeEntryPoints(ThingDef building, ThingDef steel)
@@ -99,13 +99,6 @@ internal static class ClientShopListingRuntimeTests
         Invoke("SetItemStuff", item, steel.defName); Invoke("SetItemQuality", item, "Excellent"); Invoke("SetItemHitPoints", item, 146);
         Check(item.MinifiedInnerStuffDefName == steel.defName && item.MinifiedInnerQuality == "Excellent" && item.MinifiedInnerHitPoints == 146
             && (bool)Invoke("HasCompleteItem", item, ThingReferenceSurfaces.ServerShopListing)!, "RimTest entry points diverged from extracted editing.");
-    }
-    private static void ReplaceDefinitions(IEnumerable<ThingDef> definitions)
-    {
-        // Generic DefDatabase patches can share generated code with GeneDef and
-        // leave later tests reading ThingDef state. Use the real database instead.
-        DefDatabase<ThingDef>.Clear();
-        foreach (var definition in definitions) DefDatabase<ThingDef>.Add(definition);
     }
     private static bool MaxHp(ref int __result) { __result = 200; return false; }
     private static bool Estimate(ref float marketValue, ref bool __result) { estimates++; marketValue = 2.5f; __result = true; return false; }
