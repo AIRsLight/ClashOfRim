@@ -20,4 +20,9 @@ internal sealed class EconomicScenarioFixture(TestRun run, ScenarioPolling polli
         Check(await colonyFixture.Stock(client, "Silver") == silver && await colonyFixture.Stock(client, "Steel") == steel, "Rejected operation changed stock.");
         Check((await run.CallAsync(client, "clash.state")).String("currentSnapshotId") == snapshot, "Rejected operation published a snapshot.");
     }
+    internal async Task AssertSnapshotAdvanced(string client, string previous)
+    {
+        string snapshot = (await run.CallAsync(client, "clash.state")).String("currentSnapshotId");
+        Check(!string.IsNullOrWhiteSpace(snapshot) && snapshot != previous, "Economic operation did not publish a new snapshot.");
+    }
 }

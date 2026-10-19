@@ -61,7 +61,7 @@ internal static class GameEconomicScenarioTests
         foreach (string fault in new[] { "none", "old-spawned", "skill", "price", "undercharge", "overcharge" }) await Hire(fault);
         foreach (string label in new[] { "Load", "装载", "Charger", "Yükle" }) await Recall(label, "none");
         foreach (string fault in new[] { "rejected", "poll-failed", "start-failed" }) await Recall("装载", fault);
-        foreach (string fault in new[] { "none", "price", "ratio", "tier", "wrong-colony", "undercharge", "overcharge", "snapshot", "replay-cash", "replay-snapshot", "replacement" }) await Guard(fault);
+        foreach (string fault in new[] { "none", "price", "ratio", "tier", "wrong-colony", "undercharge", "overcharge", "snapshot", "empty-snapshot", "blank-snapshot", "replay-cash", "replay-snapshot", "replacement" }) await Guard(fault);
     }
     private static async Task Hire(string fault)
     {
@@ -186,7 +186,7 @@ internal static class GameEconomicScenarioTests
                 guards.ActivateWithSnapshot("first", "rebuilt-user", fault == "wrong-colony" ? "old-colony" : "rebuilt-colony", "guard", "after",
                     fault == "tier" ? "Veteran" : "Apprentice", fault == "price" ? price + 1 : price, fault == "ratio" ? ratio + 0.1f : ratio, 0, DateTimeOffset.UnixEpoch);
                 silver -= price + (fault == "undercharge" ? -1 : fault == "overcharge" ? 1 : 0);
-                if (fault != "snapshot") snapshot = "after";
+                snapshot = fault switch { "snapshot" => snapshot, "empty-snapshot" => "", "blank-snapshot" => " ", _ => "after" };
                 // A later configuration read must not replace this purchase's captured quote.
                 price = 60; ratio = 0.8f;
             }

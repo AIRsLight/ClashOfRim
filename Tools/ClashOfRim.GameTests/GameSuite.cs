@@ -22,6 +22,7 @@ internal sealed partial class GameSuite
     private readonly ColonyScenarioFixture colonyFixture;
     private readonly EconomicScenarioFixture economy;
     private readonly MercenaryScenario mercenaries;
+    private readonly BankScenario bank;
     private readonly CaravanScenario caravanFixture;
     private readonly GiftScenario giftScenario;
     private readonly SupportScenario support;
@@ -74,6 +75,7 @@ internal sealed partial class GameSuite
         giftScenario = new(run, polling, dialogs, colonyFixture, caravanFixture, eventFixture, serverState.Ledger, entry);
         notifications = new(run, polling, entry, eventFixture, serverState.Ledger);
         roundtrips = new(run, polling, colonyFixture, entry);
+        bank = new(run, polling, colonyFixture, economy, mercenaries, roundtrips);
         raids = new(run, polling, dialogs, caravanFixture, remoteMaps, entry, serverState.SnapshotStore, serverState.DiplomacyRelations, serverState.Ledger, eventFixture);
     }
     public async Task<int> RunAsync()
@@ -125,8 +127,8 @@ internal sealed partial class GameSuite
                 await Case("admin-kick-reconnect", AdminKick);
                 await Case("admin-ban-unban", AdminBan);
                 await Case("maintenance-password-rejection", MaintenanceAndPassword);
-                await Case("bank-input-rejection", BankBounds);
-                await Case("bank-loan-repayment", Bank);
+                await Case("bank-input-rejection", bank.InputBounds);
+                await Case("bank-loan-repayment", bank.LoanRepayment);
                 await Case("shop-purchase-stock", Shop);
                 await Case("shop-buyback-stock-rejection", ShopBuyback);
                 await Case("trade-cancel-refund", TradeCancel);

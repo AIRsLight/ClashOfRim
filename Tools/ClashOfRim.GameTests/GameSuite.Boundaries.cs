@@ -8,15 +8,6 @@ namespace ClashOfRim.GameTests;
 internal sealed partial class GameSuite
 {
     ClashOfRimNetworkState ServerState => server.Services.GetRequiredService<ClashOfRimNetworkState>();
-    async Task BankBounds()
-    {
-        var bank = await economy.RefreshBank("A");
-        foreach (var (amount, days) in new[] { (0, bank.Int("minDurationDays")), (-1, bank.Int("minDurationDays")),
-            (int.MaxValue, bank.Int("minDurationDays")), (bank.Int("minLoanSilver"), bank.Int("minDurationDays") - 1),
-            (bank.Int("minLoanSilver"), bank.Int("maxDurationDays") + 1) })
-            await economy.AssertNoMutation("A", async () => { await Invoke("A", "StartCreateBankLoan", new { principalSilver = amount, durationDays = days }); });
-        Check((await Call("A", "clash.bank")).GetProperty("activeLoan").ValueKind == JsonValueKind.Null, "Invalid bank input created a loan.");
-    }
     async Task UnicodeChat()
     {
         const string message = "RimTest 中文 Français Türkçe İı 日本語 한국어 😀 1,25 / 1.25";

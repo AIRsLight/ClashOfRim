@@ -61,7 +61,7 @@ internal sealed class MercenaryScenario(TestRun run, ScenarioPolling polling, Co
             && contract.PointRatio == quote.PointRatio,
             "Guard purchase did not persist the quoted contract.");
         Check(await colonyFixture.Stock("B", "Silver") == price, "Guard purchase did not charge exactly once.");
-        Check((await run.CallAsync("B", "clash.state")).String("currentSnapshotId") != before.String("currentSnapshotId"), "Guard purchase did not commit a snapshot.");
+        await economy.AssertSnapshotAdvanced("B", before.String("currentSnapshotId"));
         await economy.AssertNoMutation("B", async () => { await run.InvokeClientAsync("B", "StartHireMercenaryGuard", new { tier = "Apprentice" }); });
         Check(guards.FindActiveForColony(before.String("userId"), before.String("colonyId"))?.ContractId == contract!.ContractId,
             "Repeated purchase replaced an active guard.");

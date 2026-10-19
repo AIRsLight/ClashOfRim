@@ -14,29 +14,6 @@ namespace ClashOfRim.GameTests;
 
 internal sealed partial class GameSuite
 {
-    async Task Bank()
-    {
-        var bank = await economy.RefreshBank("A");
-        Check(bank.GetProperty("result").Bool("accepted") && bank.Bool("bankLoansEnabled"), "Bank unavailable.");
-        int principal = Math.Max(bank.Int("minLoanSilver"), 100);
-        Check(principal <= bank.Int("maxLoanSilver"), "Fixture colony cannot borrow minimum principal.");
-        int silver = await colonyFixture.Stock("A", "Silver"); string previousSnapshot = (await Call("A", "clash.state")).String("currentSnapshotId");
-        await Invoke("A", "StartCreateBankLoan", new { principalSilver = principal, durationDays = bank.Int("minDurationDays") });
-        await Idle("A");
-        bank = await Call("A", "clash.bank");
-        Check(bank.GetProperty("activeLoan").ValueKind == JsonValueKind.Object, "Loan was not created.");
-        Check(bank.GetProperty("activeLoan").Int("principalSilver") == principal, "Wrong loan principal.");
-        await Step("A", 600); // Let the original drop pod land and open before counting spawned stock.
-        Check(await colonyFixture.Stock("A", "Silver") == silver + principal, "Loan cash did not reach the map exactly once.");
-        Check((await Call("A", "clash.state")).String("currentSnapshotId") != previousSnapshot, "Loan did not advance authoritative snapshot.");
-        int due = bank.GetProperty("activeLoan").Int("totalDueSilver");
-        await economy.AssertNoMutation("A", async () => { await Invoke("A", "StartCreateBankLoan", new { principalSilver = principal, durationDays = bank.Int("minDurationDays") }); });
-        await Invoke("A", "StartRepayBankLoan"); await Idle("A");
-        bank = await Call("A", "clash.bank");
-        Check(bank.GetProperty("activeLoan").ValueKind == JsonValueKind.Null, "Loan remains active after repayment.");
-        Check(await colonyFixture.Stock("A", "Silver") == silver + principal - due, "Repayment cash mismatch.");
-        await economy.AssertNoMutation("A", async () => { await Invoke("A", "StartRepayBankLoan"); });
-    }
     async Task PrivateChat()
     {
         await Invoke("A", "StartSendChatMessage", new { rawText = "@rimtest-B RimTest private exchange" });
