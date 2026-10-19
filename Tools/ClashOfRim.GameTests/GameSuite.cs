@@ -25,6 +25,10 @@ internal sealed partial class GameSuite
     private readonly BankScenario bank;
     private readonly AdministrationScenario administration;
     private readonly PasswordScenario passwords;
+    private readonly ChatScenario chat;
+    private readonly PlayerScenarioFixture players;
+    private readonly DiplomacyScenario diplomacy;
+    private readonly ColonyAppearanceScenario appearance;
     private readonly ShopScenario shop;
     private readonly TradeScenarioFixture tradeActions;
     private readonly TradeScenario trades;
@@ -85,6 +89,10 @@ internal sealed partial class GameSuite
         entry = new(run, polling, dialogs, world, colonyFixture, diagnostics, () => url, serverState.OnlinePresence.IsUserOnline);
         administration = new(run, polling, entry, serverState.AdminControl, serverState.WorldConfiguration);
         passwords = new(run, polling, serverState.OfflineAccounts);
+        chat = new(run, polling);
+        players = new(run, polling);
+        diplomacy = new(run, polling, players);
+        appearance = new(run, polling, serverState.WorldConfiguration);
         giftScenario = new(run, polling, dialogs, colonyFixture, caravanFixture, eventFixture, serverState.Ledger, entry);
         notifications = new(run, polling, entry, eventFixture, serverState.Ledger);
         roundtrips = new(run, polling, colonyFixture, entry);
@@ -126,18 +134,12 @@ internal sealed partial class GameSuite
             if (profile.Features)
             {
                 await Case("account-password-change", passwords.Change);
-                await Case("colony-appearance-sync", Appearance);
-                await Invoke("A", "StartRefreshPlayers"); await Invoke("B", "StartRefreshPlayers");
-                await Wait("A", "clash.records", new { kind = "players" }, p => Items(p).Any(v => v.GetProperty("data").String("userId") == "rimtest-B"));
-                await Case("public-chat", async () =>
-                {
-                    await Invoke("A", "StartSendChatMessage", new { rawText = "RimTest public exchange" });
-                    await Wait("A", "clash.state", null, s => !s.Bool("chatInProgress"));
-                    await Invoke("B", "StartRefreshChatMessages");
-                    await Wait("B", "clash.records", new { kind = "chat" }, p => Items(p).Any(v => v.GetProperty("data").GetRawText().Contains("RimTest public exchange")));
-                });
-                await Case("private-chat-read", PrivateChat);
-                await Case("unicode-chat-blank-rejection", UnicodeChat);
+                await Case("colony-appearance-sync", appearance.Run);
+                await players.Refresh("A"); await players.Refresh("B");
+                await players.Observe("A", "rimtest-B");
+                await Case("public-chat", chat.Public);
+                await Case("private-chat-read", chat.Private);
+                await Case("unicode-chat-blank-rejection", chat.UnicodeAndBlankRejection);
                 await Case("admin-configuration-permissions", administration.Configuration);
                 await Case("admin-action-permissions", administration.Guards);
                 await Case("admin-role-grant-revoke", administration.Roles);
@@ -153,7 +155,7 @@ internal sealed partial class GameSuite
                 await Case("trade-memo-cancel", trades.CancelMemo);
                 await Case("trade-drop-pod-fulfillment", trades.Fulfill);
                 await Case("achievement-unlock-leaderboard", Achievements);
-                await Case("alliance-request-accept", Alliance);
+                await Case("alliance-request-accept", diplomacy.Alliance);
                 await Case("ally-observation-close", () => remoteMaps.ObserveAlly(profile.Stability == "transfers"));
                 await Case("caravan-load-travel", caravanFixture.Travel);
                 await Case("trade-caravan-fulfillment", trades.FulfillByCaravan);
@@ -173,7 +175,7 @@ internal sealed partial class GameSuite
             }
             if (profile.GiftReplay)
             {
-                await Case("alliance-request-accept", Alliance);
+                await Case("alliance-request-accept", diplomacy.Alliance);
                 await Case("caravan-load-travel", caravanFixture.Travel);
                 await Case("caravan-gift-accept", giftScenario.Accept);
                 await Case("gift-repeat-accept", giftScenario.Replay);

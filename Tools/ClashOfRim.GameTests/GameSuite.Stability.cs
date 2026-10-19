@@ -28,7 +28,7 @@ internal sealed partial class GameSuite
     {
         if (profile.Stability == "offline-delivery")
         {
-            await Case("alliance-request-accept", Alliance);
+            await Case("alliance-request-accept", diplomacy.Alliance);
             await Case("caravan-load-travel", caravanFixture.Travel);
             await Case("gift-offline-deferred-accept", giftScenario.OfflineAccept);
             await Case("gift-offline-reject-return", giftScenario.OfflineReject);
@@ -58,14 +58,14 @@ internal sealed partial class GameSuite
         if (profile.Stability == "items") await complexItems.Run();
         if (profile.Stability is "permanent" or "death")
         {
-            await Case("alliance-request-accept", Alliance);
+            await Case("alliance-request-accept", diplomacy.Alliance);
             await Case("caravan-load-travel", caravanFixture.Travel);
             await Case(profile.Stability == "death" ? "support-death-expiry" : "support-permanent-state", () => support.Run(profile.Stability, true));
         }
         if (profile.Stability is "transfers" or "support-returns")
         {
             string? fixturePawn = null;
-            await Case("alliance-request-accept", Alliance);
+            await Case("alliance-request-accept", diplomacy.Alliance);
             if (profile.Stability == "transfers")
                 await Case("remote-map-isolation-repeat", async () => { for (int i = 0; i < 3; i++) await remoteMaps.ObserveAlly(true); });
             await Case("pawn-state-fixture", async () =>

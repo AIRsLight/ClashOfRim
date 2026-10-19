@@ -8,22 +8,6 @@ namespace ClashOfRim.GameTests;
 internal sealed partial class GameSuite
 {
     ClashOfRimNetworkState ServerState => server.Services.GetRequiredService<ClashOfRimNetworkState>();
-    async Task UnicodeChat()
-    {
-        const string message = "RimTest 中文 Français Türkçe İı 日本語 한국어 😀 1,25 / 1.25";
-        await Invoke("A", "StartSendChatMessage", new { rawText = message });
-        await Wait("A", "clash.state", null, s => !s.Bool("chatInProgress"));
-        await Invoke("B", "StartRefreshChatMessages");
-        var received = await Wait("B", "clash.records", new { kind = "chat", limit = 200 }, p => Items(p).Any(v => v.GetProperty("data").OptionalString("text") == message));
-        Check(Items(received).Count(v => v.GetProperty("data").OptionalString("text") == message) == 1, "Unicode message duplicated.");
-        string snapshot = (await Call("A", "clash.state")).String("currentSnapshotId");
-        await Invoke("A", "StartSendChatMessage", new { rawText = " \t " });
-        await Wait("A", "clash.state", null, s => !s.Bool("chatInProgress"));
-        await Invoke("B", "StartRefreshChatMessages");
-        var after = await Call("B", "clash.records", new { kind = "chat", limit = 200 });
-        Check(!Items(after).Any(v => string.IsNullOrWhiteSpace(v.GetProperty("data").OptionalString("text"))), "Blank chat entered the feed.");
-        Check((await Call("A", "clash.state")).String("currentSnapshotId") == snapshot, "Chat mutated colony snapshot.");
-    }
     async Task Achievements()
     {
         // The first fulfilled order was tested above. Reach the shipped threshold by

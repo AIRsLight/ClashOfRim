@@ -28,7 +28,7 @@ internal sealed partial class GameSuite
         });
         await Case("account-liabilities-before-abandon", async () =>
         {
-            await PrivateChat(); await shop.Purchase(preserveListing: true); await Alliance();
+            await chat.Private(); await shop.Purchase(preserveListing: true); await diplomacy.Alliance();
             preservedShop = await Call("A", "clash.records", new { kind = "shop" });
             Check(Items(preservedShop).Length == 1, "Expected a surviving global listing.");
             foreach (string client in clients.Keys)
@@ -124,7 +124,7 @@ internal sealed partial class GameSuite
         }
         var oldOwn = await CheckAchievementRefresh(survivor, client, colony);
         Check(Items(oldOwn).Length == 0, "Deleted colony achievements remain visible through direct target lookup.");
-        await Invoke(survivor, "StartRefreshPlayers");
+        await players.Refresh(survivor);
         await Wait(survivor, "clash.records", new { kind = "players" }, p => !Items(p).Any(v => v.GetProperty("data").String("userId") == user));
         await run.RecordAsync(new { accountLifecycle = "abandoned", client, colony, survivorSnapshot });
     }
@@ -143,12 +143,11 @@ internal sealed partial class GameSuite
         Check(quests.GetProperty("loans").GetArrayLength() == 0 && quests.GetProperty("debts").GetArrayLength() == 0 && Items(await Call(client, "clash.mercenaries")).Length == 0, "Old quest/mercenary state crossed generation boundary.");
         var own = await CheckAchievementRefresh(client);
         Check(!Items(own).Any(v => v.GetProperty("data").String("achievementId") == "trades_10"), "Rebuild inherited old trade achievement.");
-        await Invoke(client, "StartRefreshChatMessages");
-        await Wait(client, "clash.records", new { kind = "chat" }, p => Items(p).Any(v => v.GetProperty("data").GetRawText().Contains("RimTest private exchange")));
+        await chat.VerifyPrivateHistory(client);
         await Invoke(client, "StartRefreshServerShop"); await Idle(client);
         var shop = Items(await Call(client, "clash.records", new { kind = "shop" })).Select(v => v.GetProperty("data").GetRawText());
         Check(shop.SequenceEqual(Items(preservedShop).Select(v => v.GetProperty("data").GetRawText())), "Abandon/rebuild changed global shop listings.");
-        await Invoke(survivor, "StartRefreshPlayers");
+        await players.Refresh(survivor);
         await Wait(survivor, "clash.records", new { kind = "players" }, p => Items(p).Any(v => v.GetProperty("data").String("userId") == user && v.GetProperty("data").String("colonyId") == colony && v.GetProperty("data").OptionalString("relationKind") != "Ally"));
         Check(state.Bool("isAdministrator") == (client == "A"), "Rebuild changed account administration role.");
         await run.RecordAsync(new { accountLifecycle = "rebuilt", client, oldColony = abandonedColonies[client], colony });

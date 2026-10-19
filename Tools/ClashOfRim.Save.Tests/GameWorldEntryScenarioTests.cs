@@ -18,7 +18,7 @@ internal static class GameWorldEntryScenarioTests
         var roots = new[] { typeof(WorldScenario), typeof(ServerEntryScenario), typeof(ColonyScenarioFixture),
             typeof(SessionPersistenceScenario), typeof(ScenarioRuntimeDiagnostics), typeof(ScenarioClientActions),
             typeof(CaravanScenario), typeof(GiftScenario), typeof(EventScenarioFixture), typeof(NotificationScenario), typeof(SupportScenario), typeof(RemoteMapScenario), typeof(RaidScenario), typeof(EconomicScenarioFixture), typeof(MercenaryScenario), typeof(BankScenario),
-            typeof(ShopScenario), typeof(ShopScenarioFixture), typeof(ShopCatalogScenario), typeof(ShopStressScenario), typeof(ShopVolumeFixture), typeof(ShopPersistenceEvidence), typeof(TradeScenarioFixture), typeof(TradeScenarioOrder), typeof(TradeScenario), typeof(ComplexItemScenario), typeof(AdministrationScenario), typeof(PasswordScenario) };
+            typeof(ShopScenario), typeof(ShopScenarioFixture), typeof(ShopCatalogScenario), typeof(ShopStressScenario), typeof(ShopVolumeFixture), typeof(ShopPersistenceEvidence), typeof(TradeScenarioFixture), typeof(TradeScenarioOrder), typeof(TradeScenario), typeof(ComplexItemScenario), typeof(AdministrationScenario), typeof(PasswordScenario), typeof(ChatScenario), typeof(PlayerScenarioFixture), typeof(DiplomacyScenario), typeof(ColonyAppearanceScenario) };
         bool Owned(Type type) => roots.Contains(type) || type.DeclaringType is { } parent && Owned(parent);
         var violations = ModuleDependencyGuard.FindViolations(typeof(GameSuite).Assembly.GetTypes().Where(Owned).ToArray(),
             t => t == typeof(GameSuite) || t == typeof(ClashOfRimNetworkState) || t == typeof(ClashOfRimNetworkServer)
@@ -84,7 +84,7 @@ internal static class GameWorldEntryScenarioTests
             if (!features) Check(f.Calls.Last().Args.Int("tileId") == 41, "Fallback chose an unoffered tile.");
         }
         using var near = await GameScenarioTestRuntime.Create();
-        var distances = new Distances(); var world = ReadyWorld();
+        var distances = new Distances(); var world = GameWorldTestFixture.ReadyRegistry();
         var module = NewWorld(near, new SuiteProfile(), world, distances);
         near.Script = (_, method, _) => method == "setup.sites" ? new { items = new[] {
             new { tileId = 31, layerId = 0 }, new { tileId = 32, layerId = 0 }, new { tileId = 33, layerId = 0 } } } : null;
@@ -287,17 +287,7 @@ internal static class GameWorldEntryScenarioTests
     private static WorldScenario NewWorld(GameScenarioTestRuntime f, SuiteProfile profile, WorldConfigurationRegistry? registry = null, Distances? distances = null)
         => new(f.Run, f.Polling, profile, registry ?? new(), distances ?? new(), _ => throw new InvalidOperationException("Unexpected persistence probe."));
     private static ServerEntryScenario NewEntry(GameScenarioTestRuntime f, Func<string> address)
-        => f.CreateEntry(address, world: NewWorld(f, new(), ReadyWorld()));
-    private static WorldConfigurationRegistry ReadyWorld()
-    {
-        var registry = new WorldConfigurationRegistry();
-        registry.Submit("user", new WorldConfigurationDto("world", "user", "colony", DateTimeOffset.UnixEpoch,
-            "seed", "0.3", "Normal", "Normal", "Normal", "Normal", "0", ["OutlanderCivil"], [], [], [], [], [], "Cassandra", "Peaceful"));
-        var payload = WorldSubstratePackageCodec.Encode(new WorldSubstratePackage(1, "<grid><layers><keys><li>0</li></keys><values><li/></values></layers></grid>",
-            "<features/>", "<landmarks/>", WorldTileGeometryBinaryCodec.Encode(new WorldTileGeometryDto([new(0, "Surface", 1, [new(0, 1, 0, 0)])]))!));
-        Check(registry.StoreWorldSubstrate("user", "colony", "world", payload).Accepted, "Cannot seed authoritative test world.");
-        return registry;
-    }
+        => f.CreateEntry(address, world: NewWorld(f, new(), GameWorldTestFixture.ReadyRegistry()));
     private sealed class Distances : IWorldTileDistanceCalculator
     {
         internal bool Allow = true;
