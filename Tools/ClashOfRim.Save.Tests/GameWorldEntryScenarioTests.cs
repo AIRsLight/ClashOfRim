@@ -17,7 +17,8 @@ internal static class GameWorldEntryScenarioTests
     {
         var roots = new[] { typeof(WorldScenario), typeof(ServerEntryScenario), typeof(ColonyScenarioFixture),
             typeof(SessionPersistenceScenario), typeof(ScenarioRuntimeDiagnostics), typeof(ScenarioClientActions),
-            typeof(CaravanScenario), typeof(GiftScenario), typeof(EventScenarioFixture), typeof(NotificationScenario), typeof(SupportScenario), typeof(RemoteMapScenario), typeof(RaidScenario), typeof(EconomicScenarioFixture), typeof(MercenaryScenario), typeof(BankScenario) };
+            typeof(CaravanScenario), typeof(GiftScenario), typeof(EventScenarioFixture), typeof(NotificationScenario), typeof(SupportScenario), typeof(RemoteMapScenario), typeof(RaidScenario), typeof(EconomicScenarioFixture), typeof(MercenaryScenario), typeof(BankScenario),
+            typeof(ShopScenario), typeof(ShopScenarioFixture), typeof(ShopCatalogScenario), typeof(ShopStressScenario), typeof(ShopVolumeFixture), typeof(ShopPersistenceEvidence) };
         bool Owned(Type type) => roots.Contains(type) || type.DeclaringType is { } parent && Owned(parent);
         var violations = ModuleDependencyGuard.FindViolations(typeof(GameSuite).Assembly.GetTypes().Where(Owned).ToArray(),
             t => t == typeof(GameSuite) || t == typeof(ClashOfRimNetworkState) || t == typeof(ClashOfRimNetworkServer)

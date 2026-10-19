@@ -61,29 +61,6 @@ internal sealed partial class GameSuite
         await Wait("B", "clash.events", new { limit = 200 }, p => Items(p).Any(v => NotificationScenario.HasMessage(v, message)));
         Check(ServerState.AdminControl.ListAudit().Any(a => a.ActionKind == "Broadcast" && a.Message == message), "Broadcast audit missing.");
     }
-    async Task ShopBuyback()
-    {
-        await colonyFixture.StoreStartingResources("B");
-        var template = await Call("A", "clash.shop.template", new { defName = "Steel", count = 5 });
-        await Invoke("A", "StartUpsertServerShopListing", new { listingId = (string?)null, listingKind = "BuyFromPlayer", item = template.GetProperty("reference"), priceSilver = 10, stockCount = 1 }); await Idle("A");
-        await Invoke("B", "StartRefreshServerShop");
-        var shop = await Wait("B", "clash.records", new { kind = "shop" }, s => Items(s).Any(v => v.GetProperty("data").OptionalString("listingKind") == "BuyFromPlayer"));
-        var listing = Items(shop).Single(v => v.GetProperty("data").OptionalString("listingKind") == "BuyFromPlayer");
-        string id = listing.GetProperty("data").String("listingId");
-        await economy.AssertNoMutation("B", async () => { await Invoke("B", "StartPurchaseServerShopListing", new { listing = listing.GetProperty("reference"), purchaseCount = 2 }); });
-        int silver = await colonyFixture.Stock("B", "Silver"), steel = await colonyFixture.Stock("B", "Steel");
-        await Invoke("B", "StartPurchaseServerShopListing", new { listing = listing.GetProperty("reference"), purchaseCount = 1 }); await Idle("B");
-        await colonyFixture.AwaitStock("B", "Silver", silver + 10);
-        Check(await colonyFixture.Stock("B", "Steel") == steel - 5, "Buyback did not remove exact items.");
-        await Invoke("B", "StartRefreshServerShop");
-        var exhausted = await Wait("B", "clash.records", new { kind = "shop" }, p => Items(p).Any(v => v.GetProperty("data").String("listingId") == id && v.GetProperty("data").Int("stockCount") == 0));
-        listing = Items(exhausted).Single(v => v.GetProperty("data").String("listingId") == id);
-        await economy.AssertNoMutation("B", async () => { await Invoke("B", "StartPurchaseServerShopListing", new { listing = listing.GetProperty("reference"), purchaseCount = 1 }); });
-        await Invoke("A", "StartRefreshServerShop"); await Idle("A");
-        var current = Items(await Call("A", "clash.records", new { kind = "shop" })).Single(v => v.GetProperty("data").String("listingId") == id);
-        Check(current.GetProperty("data").Int("stockCount") == 0, "Buyback stock not exhausted.");
-        await Invoke("A", "StartRemoveServerShopListing", new { listing = current.GetProperty("reference") }); await Idle("A");
-    }
     async Task TradeMemo()
     {
         int steel = await colonyFixture.Stock("A", "Steel"), buyerSteel = await colonyFixture.Stock("B", "Steel"), buyerWood = await colonyFixture.Stock("B", "WoodLog");

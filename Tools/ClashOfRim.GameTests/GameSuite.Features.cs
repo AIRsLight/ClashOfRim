@@ -79,29 +79,6 @@ internal sealed partial class GameSuite
             await Task.Delay(100);
         Check(state.WorldConfiguration.Current!.PlayerColonySites.Single(s => s.UserId == "rimtest-A").Appearance?.ColorHex == original?.ColorHex, "Appearance restore failed.");
     }
-    Task Shop() => Shop(preserveListing: false);
-    async Task Shop(bool preserveListing)
-    {
-        await Idle("A");
-        var template = await Call("A", "clash.shop.template", new { defName = "Steel", count = 5 });
-        await Invoke("A", "StartUpsertServerShopListing", new { listingId = (string?)null, listingKind = "SellToPlayer", item = template.GetProperty("reference"), priceSilver = 10, stockCount = 3 });
-        await Wait("A", "clash.state", null, s => !s.Bool("adminInProgress") && !s.Bool("serverShopInProgress"));
-        await Invoke("B", "StartRefreshServerShop");
-        var shop = await Wait("B", "clash.records", new { kind = "shop" }, s => Items(s).Any(v => v.GetProperty("data").GetProperty("item").String("defName") == "Steel"));
-        var listing = Items(shop).Single(v => v.GetProperty("data").GetProperty("item").String("defName") == "Steel");
-        int steel = await colonyFixture.Stock("B", "Steel"), silver = await colonyFixture.Stock("B", "Silver");
-        Check(silver >= 10, "Purchase fixture lacks landed silver.");
-        await Invoke("B", "StartPurchaseServerShopListing", new { listing = listing.GetProperty("reference"), purchaseCount = 1 });
-        await Idle("B"); await Step("B", 600);
-        int actualSteel = await colonyFixture.Stock("B", "Steel"), actualSilver = await colonyFixture.Stock("B", "Silver");
-        Check(actualSteel == steel + 5 && actualSilver == silver - 10, $"Shop stock mismatch: steel {steel} -> {actualSteel}, silver {silver} -> {actualSilver}.");
-        await Invoke("A", "StartRefreshServerShop");
-        shop = await Wait("A", "clash.records", new { kind = "shop" }, s => Items(s).Any(v => v.GetProperty("data").String("listingId") == listing.GetProperty("data").String("listingId") && v.GetProperty("data").Int("stockCount") == 2));
-        var refreshed = Items(shop).Single(v => v.GetProperty("data").String("listingId") == listing.GetProperty("data").String("listingId"));
-        if (preserveListing) return;
-        await Invoke("A", "StartRemoveServerShopListing", new { listing = refreshed.GetProperty("reference") });
-        await Wait("A", "clash.records", new { kind = "shop" }, s => !Items(s).Any(v => v.GetProperty("data").String("listingId") == listing.GetProperty("data").String("listingId")));
-    }
     async Task<JsonElement> CreateTrade(IReadOnlyList<string>? offerReferences = null, string client = "A")
     {
         await Idle(client);

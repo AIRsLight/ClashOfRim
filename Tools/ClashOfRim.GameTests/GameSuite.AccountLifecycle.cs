@@ -28,7 +28,7 @@ internal sealed partial class GameSuite
         });
         await Case("account-liabilities-before-abandon", async () =>
         {
-            await PrivateChat(); await Shop(preserveListing: true); await Alliance();
+            await PrivateChat(); await shop.Purchase(preserveListing: true); await Alliance();
             preservedShop = await Call("A", "clash.records", new { kind = "shop" });
             Check(Items(preservedShop).Length == 1, "Expected a surviving global listing.");
             foreach (string client in clients.Keys)

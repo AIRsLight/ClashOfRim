@@ -52,9 +52,9 @@ internal sealed partial class GameSuite
             await Case("bank-mercenary-debt", bank.MercenaryDebt);
             await Case("mercenary-guard-purchase", mercenaries.GuardPurchase);
         }
-        if (profile.Stability == "catalog") await Case("shop-complete-catalog", ShopCatalog);
-        if (profile.Stability == "catalog-sample") await Case("shop-selected-catalog", ShopCatalog);
-        if (profile.Stability == "stress") await Case("shop-large-data", ShopStress);
+        if (profile.Stability == "catalog") await Case("shop-complete-catalog", () => shopCatalog.Run(profile.CatalogDefinitions));
+        if (profile.Stability == "catalog-sample") await Case("shop-selected-catalog", () => shopCatalog.Run(profile.CatalogDefinitions));
+        if (profile.Stability == "stress") await Case("shop-large-data", shopStress.Run);
         if (profile.Stability == "items") await ComplexItems();
         if (profile.Stability is "permanent" or "death")
         {

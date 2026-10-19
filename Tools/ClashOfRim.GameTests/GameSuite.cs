@@ -23,6 +23,9 @@ internal sealed partial class GameSuite
     private readonly EconomicScenarioFixture economy;
     private readonly MercenaryScenario mercenaries;
     private readonly BankScenario bank;
+    private readonly ShopScenario shop;
+    private readonly ShopCatalogScenario shopCatalog;
+    private readonly ShopStressScenario shopStress;
     private readonly CaravanScenario caravanFixture;
     private readonly GiftScenario giftScenario;
     private readonly SupportScenario support;
@@ -76,6 +79,11 @@ internal sealed partial class GameSuite
         notifications = new(run, polling, entry, eventFixture, serverState.Ledger);
         roundtrips = new(run, polling, colonyFixture, entry);
         bank = new(run, polling, colonyFixture, economy, mercenaries, roundtrips);
+        var shopActions = new ShopScenarioFixture(run, polling);
+        shop = new(run, polling, colonyFixture, economy, shopActions);
+        shopCatalog = new(run, polling, colonyFixture, economy, shopActions, serverState.ServerShop, Path.Combine(root, "shop-catalog.json"));
+        shopStress = new(run, colonyFixture, shopActions, serverState.ServerShop,
+            (id, buyers) => ShopPersistenceProbe.Read(root, id, buyers), Path.Combine(root, "shop-stress.json"));
         raids = new(run, polling, dialogs, caravanFixture, remoteMaps, entry, serverState.SnapshotStore, serverState.DiplomacyRelations, serverState.Ledger, eventFixture);
     }
     public async Task<int> RunAsync()
@@ -129,8 +137,8 @@ internal sealed partial class GameSuite
                 await Case("maintenance-password-rejection", MaintenanceAndPassword);
                 await Case("bank-input-rejection", bank.InputBounds);
                 await Case("bank-loan-repayment", bank.LoanRepayment);
-                await Case("shop-purchase-stock", Shop);
-                await Case("shop-buyback-stock-rejection", ShopBuyback);
+                await Case("shop-purchase-stock", shop.Purchase);
+                await Case("shop-buyback-stock-rejection", shop.Buyback);
                 await Case("trade-cancel-refund", TradeCancel);
                 await Case("trade-memo-cancel", TradeMemo);
                 await Case("trade-drop-pod-fulfillment", TradeFulfill);
