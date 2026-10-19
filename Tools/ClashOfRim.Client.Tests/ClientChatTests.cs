@@ -194,10 +194,10 @@ internal static class ClientChatTests
         await f.Ports.PumpUntil(f.Start(send)); await f.Ports.PumpUntil(next!);
         Check(f.Module.CopyMessages().Count == 1 && f.Requests.Count == 2 && !f.Module.Busy, "Reentrant cache reset adopted old result or lost new work.");
     }
-    private static ModChatMessageDto Message(long sequence, string? target = null) => new()
+    internal static ModChatMessageDto Message(long sequence, string? target = null) => new()
     { Sequence = sequence, MessageId = "message-" + sequence.ToString(CultureInfo.InvariantCulture), Channel = target is null ? "Public" : "Private", FromUserId = "bob", TargetUserId = target, Text = "消息 İ " + sequence };
     private static void Check(bool value, string message) { if (!value) throw new InvalidOperationException(message); }
-    private sealed class Fixture : IClientChatTransport, IClientChatPresentation
+    internal sealed class Fixture : IClientChatTransport, IClientChatPresentation
     {
         internal readonly EventModuleTestPorts Ports = new();
         internal readonly ClientSessionLifecycle Session;

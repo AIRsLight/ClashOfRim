@@ -10,7 +10,6 @@ using AIRsLight.ClashOfRim.RemoteMaps;
 using HarmonyLib;
 using RimWorld;
 using RimWorld.Planet;
-using UnityEngine;
 using Verse;
 
 internal static class ClientRaidFinishTests
@@ -59,16 +58,13 @@ internal static class ClientRaidFinishTests
     private static Map map = null!;
     private static Action? confirm, translating;
     private static int windows, pawnCount;
-    private static int overlayButtons;
-    private static bool worldSelected;
+    private static ClientOverlayTestRuntime gui = null!;
     private static Action? clicking;
-    private static readonly List<string> overlayLabels = new();
     private static readonly List<Task> dispatched = new();
-    private static readonly List<string> texts = new();
     private static async Task EngineActions()
     {
         var harmony = new Harmony("ClashOfRim.Tests.RaidFinish"); using var engine = new ClientGameComponentTestRuntime(harmony.Id);
-        var oldState = Current.ProgramState;
+        using var drawing = new ClientOverlayTestRuntime(harmony.Id); gui = drawing;
         void Prefix(System.Reflection.MethodBase method, string name) => harmony.Patch(method, prefix: new HarmonyMethod(typeof(ClientRaidFinishTests), name));
         void Method(Type type, string method, string name) => Prefix(AccessTools.Method(type, method), name);
         void Getter(Type type, string property, string name) => Prefix(AccessTools.PropertyGetter(type, property), name);
@@ -84,15 +80,8 @@ internal static class ClientRaidFinishTests
         Getter(typeof(Map), nameof(Map.Parent), nameof(Parent));
         Method(typeof(ClashLog), nameof(ClashLog.Message), nameof(Skip));
         Method(typeof(Log), nameof(Log.Warning), nameof(Skip));
-        foreach (var method in AccessTools.GetDeclaredMethods(typeof(ClashOfRimText)).Where(m => m.Name == nameof(ClashOfRimText.Key))) Prefix(method, nameof(Text));
         foreach (var method in AccessTools.GetDeclaredMethods(typeof(Dialog_MessageBox)).Where(m => m.Name == nameof(Dialog_MessageBox.CreateConfirmation))) Prefix(method, nameof(Confirm));
         foreach (var method in AccessTools.GetDeclaredMethods(typeof(Messages)).Where(m => m.Name == nameof(Messages.Message))) Prefix(method, nameof(Skip));
-        Getter(typeof(WorldRendererUtility), nameof(WorldRendererUtility.WorldSelected), nameof(WorldSelected));
-        foreach (var (type, name) in new[] { (typeof(GUI), nameof(GUI.color)), (typeof(Verse.Text), nameof(Verse.Text.Font)), (typeof(Verse.Text), nameof(Verse.Text.Anchor)) })
-            Prefix(AccessTools.PropertySetter(type, name), nameof(Skip));
-        foreach (var method in AccessTools.GetDeclaredMethods(typeof(Widgets)).Where(m => m.Name == nameof(Widgets.DrawWindowBackground))) Prefix(method, nameof(Skip));
-        foreach (var method in AccessTools.GetDeclaredMethods(typeof(Widgets)).Where(m => m.Name == nameof(Widgets.Label))) Prefix(method, nameof(Label));
-        foreach (var method in AccessTools.GetDeclaredMethods(typeof(Widgets)).Where(m => m.Name == nameof(Widgets.ButtonText))) Prefix(method, nameof(Button));
         harmony.Patch(AccessTools.Method(typeof(ClientRaidSettlements.FinishCommand), nameof(ClientRaidSettlements.FinishCommand.StartAsync)),
             postfix: new HarmonyMethod(typeof(ClientRaidFinishTests), nameof(Dispatch)));
         try
@@ -102,7 +91,7 @@ internal static class ClientRaidFinishTests
                 using var f = SetUp(); pawnCount = pawns;
                 Check(RemoteMapSessionController.TryRequestRaidBattleFinish(battle, "ManualFinish", true) && windows == 1 && confirm is not null,
                     "Facade failed to show the typed finish confirmation.");
-                Check(texts.Single().Contains(pawns == 0 ? "ConfirmFinishNoPawns" : "ConfirmFinishWithPlayerPawns") && !f.Sync.IsBusy && !f.Finishing,
+                Check(gui.TextKeys.Single().Contains(pawns == 0 ? "ConfirmFinishNoPawns" : "ConfirmFinishWithPlayerPawns") && !f.Sync.IsBusy && !f.Finishing,
                     "Confirmation changed pawn branch or started before confirmation.");
                 confirm!(); confirm(); await Pump();
                 Check(f.Completed == 1 && f.SourceCaptures == 1 && f.Commands.Count == 1, "Native confirmation bypassed/duplicated original settlement pipeline.");
@@ -153,23 +142,23 @@ internal static class ClientRaidFinishTests
                 using var f = SetUp();
                 if (condition == "expired") battle!.DeadlineUtcTicks = 1;
                 if (condition == "finishing") battle!.FinishInProgress = true;
-                if (condition == "world") worldSelected = true;
+                if (condition == "world") gui.WorldSelected = true;
                 if (condition == "entry") Current.ProgramState = ProgramState.Entry;
                 if (condition == "old-game") Current.Game = New<Game>();
                 if (condition == "unbound") ClientRaidFinishActions.Attach(null);
                 if (condition == "draw-auth") clicking = () => f.Change("auth");
                 component.GameComponentOnGUI();
                 bool hidden = condition is "world" or "entry" or "old-game";
-                Check(overlayButtons == (hidden ? 0 : 1), "Overlay visibility changed: " + condition);
+                Check(gui.Buttons.Count == (hidden ? 0 : 1), "Overlay visibility changed: " + condition);
                 Check(windows == (condition == "active" ? 1 : 0) && f.SourceCaptures == 0, "Overlay button crossed eligibility or started before confirmation: " + condition);
                 if (condition is "expired" or "finishing")
-                    Check(overlayLabels.Contains("ClashOfRim.Raid.StatusSettlementUploading"), "Empty settlement status lost fallback.");
+                    Check(gui.Labels.Contains("ClashOfRim.Raid.StatusSettlementUploading"), "Empty settlement status lost fallback.");
                 if (condition == "active") { confirm!(); await Pump(); Check(f.Completed == 1, "Overlay button failed to invoke original settlement."); }
             }
         }
         finally
         {
-            Current.ProgramState = oldState; battle = null; confirm = translating = clicking = null; dispatched.Clear(); harmony.UnpatchAll(harmony.Id);
+            battle = null; confirm = translating = clicking = null; dispatched.Clear(); harmony.UnpatchAll(harmony.Id);
         }
     }
     private static ClientRaidSettlementTests.Fixture SetUp()
@@ -180,22 +169,20 @@ internal static class ClientRaidFinishTests
         component = new(game); AccessTools.Field(typeof(Game), "components").SetValue(game, new List<GameComponent> { component });
         ClashOfRimGameComponent.SetActiveRaidBattleSession(battle);
         parent = New<RemoteSessionMapParent>(); parent.Mode = "RaidBattle"; map = New<Map>(); map.uniqueID = 42;
-        ClientRaidFinishActions.Attach(new(fixture.Module)); confirm = translating = null; windows = pawnCount = 0; dispatched.Clear(); texts.Clear();
+        ClientRaidFinishActions.Attach(new(fixture.Module)); confirm = translating = null; windows = pawnCount = 0; dispatched.Clear();
         ClientRaidBattleOverlay.Attach(new(ClientRaidFinishActions.Current!, () => null));
-        Current.ProgramState = ProgramState.Playing; overlayButtons = 0; worldSelected = false; clicking = null; overlayLabels.Clear();
+        gui.Reset(); clicking = null;
+        gui.Click = _ => { clicking?.Invoke(); return true; };
+        gui.Translating = _ => { var hook = translating; translating = null; hook?.Invoke(); };
         return fixture;
     }
     private static async Task Pump() { var tasks = Task.WhenAll(dispatched.ToArray()); dispatched.Clear(); await fixture.Pump(tasks); }
     private static void Dispatch(Task __result) => dispatched.Add(__result);
     private static bool Parent(ref MapParent __result) { __result = parent; return false; }
-    private static bool WorldSelected(ref bool __result) { __result = worldSelected; return false; }
-    private static bool Label(object[] __args) { overlayLabels.Add(__args[1]?.ToString() ?? ""); return false; }
-    private static bool Button(ref bool __result) { overlayButtons++; clicking?.Invoke(); __result = true; return false; }
     private static bool Stack(ref WindowStack __result) { __result = New<WindowStack>(); return false; }
     private static bool Add() { windows++; return false; }
     private static bool Pawns(ref int __result) { __result = pawnCount; return false; }
     private static bool Confirm(object[] __args, ref Dialog_MessageBox __result) { confirm = (Action)__args[1]; __result = New<Dialog_MessageBox>(); return false; }
-    private static bool Text(string __0, ref string __result) { texts.Add(__0); var hook = translating; translating = null; hook?.Invoke(); __result = __0; return false; }
     private static bool Support(ref IClientRaidSupportLossSource __result) { __result = fixture; return false; }
     private static bool Save(Action action, Action discarded) { fixture.EnqueueSaving(action, discarded); return false; }
     private static bool Begin(ref bool __result)

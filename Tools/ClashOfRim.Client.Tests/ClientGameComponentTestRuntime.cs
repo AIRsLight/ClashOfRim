@@ -1,5 +1,6 @@
 using System;
 using AIRsLight.ClashOfRim;
+using AIRsLight.ClashOfRim.Chat;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.WorldObjects;
 using AIRsLight.ClashOfRim.Raids;
@@ -19,6 +20,7 @@ internal sealed class ClientGameComponentTestRuntime : IDisposable
     private readonly ClientRaidLifecycleCallbacks? previousRaids = ClientRaidLifecycleCallbacks.Current;
     private readonly ClientRaidFinishActions? previousFinish = ClientRaidFinishActions.Current;
     private readonly ClientRaidBattleOverlay? previousOverlay = ClientRaidBattleOverlay.Current;
+    private readonly ClientChatOverlay? previousChat = ClientChatOverlay.Current;
     private readonly TickManager tickManager = (TickManager)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(TickManager));
     private readonly Harmony harmony;
     internal int Drains { get; private set; }
@@ -30,6 +32,7 @@ internal sealed class ClientGameComponentTestRuntime : IDisposable
         ClientWorldSynchronizationCallbacks.Attach(null);
         ClientRaidLifecycleCallbacks.Attach(null);
         ClientRaidFinishActions.Attach(null); ClientRaidBattleOverlay.Attach(null);
+        ClientChatOverlay.Attach(null);
         void Prefix(System.Reflection.MethodBase method, string prefix) => harmony.Patch(method, prefix: new HarmonyMethod(typeof(ClientGameComponentTestRuntime), prefix));
         Prefix(AccessTools.Method(typeof(LoadedModManager), nameof(LoadedModManager.GetMod), Type.EmptyTypes, new[] { typeof(ClashOfRimMod) }), nameof(NoMod));
         Prefix(AccessTools.PropertyGetter(typeof(Find), nameof(Find.TickManager)), nameof(GetTicks));
@@ -44,6 +47,7 @@ internal sealed class ClientGameComponentTestRuntime : IDisposable
         ClientWorldSynchronizationCallbacks.Attach(previousWorld);
         ClientRaidLifecycleCallbacks.Attach(previousRaids);
         ClientRaidFinishActions.Attach(previousFinish); ClientRaidBattleOverlay.Attach(previousOverlay);
+        ClientChatOverlay.Attach(previousChat);
     }
     private static bool NoMod(ref ClashOfRimMod? __result) { __result = null; return false; }
     private static bool GetTicks(ref TickManager __result) { __result = active!.tickManager; return false; }

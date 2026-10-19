@@ -19,6 +19,7 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("chat overlay owns game drafts and cadence while reusing account conversation", ClientChatOverlayTests.Run),
     ("raid finish commands bind delayed confirmation and map removal to original ownership", ClientRaidFinishTests.Run),
     ("raid lifecycle coordinates recovery and deadline polling for its source game", ClientRaidLifecycleTests.Run),
     ("world polling shares marker cadence and binds component callbacks to their game", ClientWorldPollingTests.Run),

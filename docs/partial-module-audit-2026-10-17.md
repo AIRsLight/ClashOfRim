@@ -3346,3 +3346,17 @@ GameComponent 的世界视图选中状态、30 秒期限和刷新私有方法收
 临时移除会话归属和战斗事件身份检查分别被 `Old finish confirmation crossed auth`、`Native old confirmation crossed event` 捕获，日志 `LocalOnly/module-migration/raid-finish-{owner,identity}-negative.log`，错误实现已恢复。**5 个相关单元组通过**：结束命令、袭击生命周期、远程地图关闭运行时、袭击结算和模块边界。最终日志 `LocalOnly/module-migration/raid-finish-tests.log`；守卫检查 1,660／127／123／312 个类型。生产随测试编译；未运行全量回归、专项 RimTest 或独立构建，未推送。冻结 1.6 及原有未提交修改保留，组件只暂存本阶段差异。
 
 **下一步 M11o8d：聊天叠层状态及刷新／发送入口。** 从 GameComponent 收回界面状态，复用既有聊天模块及作用域，消除 GUI 最后一个 Mod 查找。之后继续主菜单、网络／服务器门面、M12 和最终审计，完整目标仍开放。
+
+### M11o8d：聊天叠层模型与引擎绘制独立（2026-10-19）
+
+`ClientChatOverlayModel` 持有草稿、折叠／滚动状态、版本化展示缓存及轮询期限，使用现有 `ClientGameRequestTracker` 绑定账户、登录代际和来源 Game。界面失效后旧操作不能借用新作用域；重新读取产生默认折叠、空输入和独立期限的新视图。普通快照、密码和 Steam 票据更新不清空输入。Game 更换只替换界面状态，账户聊天记录仍遵循原 `ClientChat` 的生命周期，不随界面一起删除。
+
+10 秒轮询复用 `PanelRefreshSchedule`，该计时器增加间隔参数，其他面板仍默认 30 秒。刷新、发送、私聊语法、消息游标、未读状态和错误处理全部调用既有 `ClientChat`，没有第二套收发实现。发送在原视图内检查忙碌并消费草稿，资格回调或绘制期间切换账户／Game／适配器时阻止旧界面操作。
+
+`Chat/Ui/ClientChatOverlay` 接收这个模型，承接原布局、私聊标识、折叠与发送按钮。GameComponent 只调用绑定的绘制器，已移除最后一个 Mod 查找以及全部聊天字段和私有绘制／缓存方法；删除无调用方的 ChatMessagesSnapshotVersion 转发。现有 RimTest 桥接仍使用的聊天命令和快照属性保持兼容，待 M12 迁移。生产通过相关单元项目编译，未单独构建桥接。
+
+测试复用真实聊天夹具，覆盖九类所有权变化、旧视图的发送／轮询／已读操作、Game 切换保留账户记录、版本缓存、10 秒准确边界、忙碌时保留输入、非法私聊及 Unicode 文本、正常快照前进和资格回调失效。引擎组执行实际 GameComponent、绘制器与模型，覆盖折叠／展开的已读时机、聊天与袭击叠层位置、非 Playing／世界视图／旧 Game、未绑定及绘制期间的账户／Game／适配器切换。新增共享 `ClientOverlayTestRuntime`，袭击和聊天测试共用绘制、输入、翻译、时间及视图替身，避免分别维护同样的 Harmony 故障入口；没有渲染真实画面。
+
+临时把旧作用域替换成当前作用域、把刷新间隔改为 11 秒，分别被 `Old chat overlay crossed server`、`Chat refresh boundary or version cache failed.` 捕获，日志 `LocalOnly/module-migration/chat-overlay-{scope,cadence}-negative.log`，错误实现已恢复。**7 个相关单元组通过**：聊天叠层、聊天业务（432 场景）、聊天协议（112 场景）、袭击结束、世界轮询、成就面板和模块边界。最终日志 `LocalOnly/module-migration/chat-overlay-tests.log`；守卫检查 1,668／127／124／312 个类型。未运行全量回归或专项 RimTest，未推送；冻结 1.6 和原有未提交修改继续保留。
+
+**下一步 M11o9：主菜单入口及剩余过渡门面。** GameComponent 的本轮登录、轮询、袭击及聊天入口迁移已完成；主菜单仍通过 Mod 发起快照上传／退出，按既有快照保存与会话退出所有权迁移，再复核网络／服务器门面、M12 与最终审计。M11 整体尚未关闭。

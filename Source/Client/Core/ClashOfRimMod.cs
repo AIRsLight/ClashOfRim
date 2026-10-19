@@ -6,6 +6,7 @@ using AIRsLight.ClashOfRim.Multiplayer.Pages;
 using AIRsLight.ClashOfRim.Multiplayer.Players;
 using AIRsLight.ClashOfRim.Multiplayer.Achievements;
 using AIRsLight.ClashOfRim.Modules.Chat;
+using AIRsLight.ClashOfRim.Chat;
 using AIRsLight.ClashOfRim.Modules.Administration;
 using AIRsLight.ClashOfRim.Modules.World;
 using AIRsLight.ClashOfRim.Modules.Achievements;
@@ -390,6 +391,7 @@ public sealed partial class ClashOfRimMod : Mod
             ClientSnapshotComposition.Create(settings), new ClientSessionStartupRuntime(sessionConnection),
             new ClientSessionStartupPresentation(message => diagnostics.LoginStatus = message, message => diagnostics.SnapshotUploadStatus = message, response => ShowCompatibilityMismatchWindow(response)), sessionFollowups);
         ClientAutomaticSessionStartup.Attach(new(sessionStartup));
+        ClientChatOverlay.Attach(new(new ClientChatOverlayModel(chat, sessionLifecycle, new ClientSnapshotGame(), () => sessionStartup.IsInActiveWorld)));
         var operationFollowups = new ClientOperationFollowups(eventRefresh, shopCatalog, playerDirectory, worldSynchronization, new ClientSessionFollowupText());
         shopOperations.Completed += step => _ = operationFollowups.ShopCompleted(step);
         tradeOperations.Completed += (operation, step) => _ = operationFollowups.TradeCompleted(operation, step);
@@ -577,7 +579,6 @@ public sealed partial class ClashOfRimMod : Mod
     internal string ChatStatus => chat.Status;
     internal IReadOnlyList<ModChatMessageDto> ChatMessagesSnapshot => chat.CopyMessages();
     internal int UnreadPrivateChatCount => chat.UnreadPrivate;
-    internal int ChatMessagesSnapshotVersion => chat.Version;
 
     internal string BankStatus => bankState.Message;
 
