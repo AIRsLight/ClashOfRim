@@ -4,7 +4,7 @@
 
 审计基线为 `ee55d0b0` 加当时工作区，包括此前未提交的改动。初次审计只增加计划；后续实施状态见文末记录。以下 P2/P3 表示结构改造优先级，不代表新复现的功能故障。1.6 冻结内容不参与改造。
 
-**实施进度（M12c4 后）：剩余 14 个 partial 类型、32 处声明、22 个文件；其中实际跨文件为 9 个类型、27 处声明、19 个文件。** GameSuite 已收尾，经济、事件失败报告、礼物拒收和袭击创建的验证入口与共享夹具已独立。后续仍有 4 组 Save 测试模块化、2 个生产类型归并、5 个单声明修饰符清理和最终复核；详细实施与验证见文末。[M12c3 后审计](partial-module-audit-2026-10-19-post-m12c3.md)及其[机器清单](partial-module-inventory-2026-10-19-post-m12c3.json)保留 M12c4 开始前的时点，[GameSuite 收尾后审计](partial-module-audit-2026-10-19-post-gamesuite.md)保留 M12c1 开始前的时点。
+**实施进度（M12c5 后）：剩余 12 个 partial 类型、26 处声明、19 个文件；其中实际跨文件为 7 个类型、21 处声明、16 个文件。** GameSuite 已收尾，经济、事件失败报告、礼物拒收、袭击创建及清理的验证入口与共享夹具已独立。后续仍有 3 组 Save 测试模块化、2 个生产类型归并、5 个单声明修饰符清理和最终复核；详细实施与验证见文末。[M12c3 后审计](partial-module-audit-2026-10-19-post-m12c3.md)及其[机器清单](partial-module-inventory-2026-10-19-post-m12c3.json)保留 M12c4 开始前的时点，[GameSuite 收尾后审计](partial-module-audit-2026-10-19-post-gamesuite.md)保留 M12c1 开始前的时点。
 
 历史复核：从 `66496c68` 到 `258305ca` 加当时工作区，GameSuite 从 9 个分片、880 行降至 6 个分片、555 行；交易／复杂物品、管理／密码已经提交，聊天／外交／外观拆分及 Features 分片删除在该复核时尚未提交，后续 M12b7b 已完成（见文末）。该次审计只更新文档与机器清单，没有代为验收或提交这批场景代码。若只统计已提交的 `258305ca`，仍为 **20 个类型、49 处声明、37 个文件**，GameSuite 为 7 个分片、618 行。
 
@@ -3969,3 +3969,25 @@ GameSuite 删除无调用者的 `Confirm`、`AcceptLanguageWarning`、`Idle`、`
 扫描 1,899 个源文件，剩余 **14 个 partial 类型、32 处声明、22 个文件**，实际跨文件为 **9 个类型、27 处声明、19 个文件**。本次只修改测试与文档，保留既存未提交工作、生产实现和冻结 1.6。未运行全量回归、RimTest 实机或独立发布构建，未推送。
 
 **下一步 M12c5：RaidCleanupCommitTests 的清理、下载授权和下载日志恢复三个验证入口，以及三个 Fixture 分片的真实模块化。** 随后处理袭击证据、超时和支援结束，合计仍有 4 组测试；两个生产归并、五处修饰符及最终依赖／契约复核继续保留，整体目标未完成。
+
+### M12c5：袭击清理、下载授权和日志恢复独立，共用故障存储（2026-10-19）
+
+`RaidCleanupFixture` 收拢原三个 Fixture 分片的数据库、日志、原始／清理后快照、损失变更、源袭击与支援、当前运行状态和下载凭据。私有构造器与自身 `With` 配合 `SqliteTestDirectory` 管理完整资源作用域；State／Store 只能由夹具重建，Files 始终指向同一 Store.Inner。重开保留本案例的输入和变更，重新加载持久状态并清除旧下载身份、令牌、范围和故障钩子；测试通过明确的 RefreshRaid 更新故意破坏的来源，而不是任意替换夹具的源事件字段。
+
+`RaidCleanupCommitTests`、`SnapshotDownloadAuthorizationTests` 和 `DownloadCleanupJournalRecoveryTests` 成为三个独立验证入口，各自初始化本地化并在 Program 登记。`SnapshotDownloadTestClient` 只接收下载服务、快照索引及凭据，统一元数据／文件响应读取；夹具不再调用外层测试类的私有响应解析。认证复用 `SessionTestAuthentication`，保留原调用路径中创建会话必须成功的前置断言；两处相同的锁释放探针归 `SnapshotTestAssertions.GateReleased`。
+
+原 Program 内联战场 XML 提取为 [RaidCleanup.xml](../Tools/ClashOfRim.Save.Tests/Fixtures/RaidCleanup.xml)，由 `RaidCleanupSnapshot` 使用既有快照包构建器按原身份、时间和 RawRws 编码加载。XML 内容及原 1.6-test 测试标签保留，不改变冻结模组；使用 .xml 扩展名，使其不受仓库 .rws 二进制属性影响，便于直接审查差异。原编辑器验证不再套跑清理／下载／超时测试；原下载基线和超时组也独立登记，全部复用同一份输入定义。超时组内部的 partial 与夹具仍待 M12c7，独立登记不算完成其模块拆分。
+
+删除专属 CrashStore，扩展既有 `SnapshotRecoveryTestStore`，用同一发布入口处理原始／预准备载荷、发布前后故障及按所有者计数。**WriteAttempts／PreparedWriteAttempts 表示写入尝试，Writes／PreparedWrites／RawWrites 与 WritesByOwner 表示底层发布成功。** 原清理测试中按尝试计数的断言改用明确对应的字段，原公共存储调用者继续读取成功计数；发布后异常不会抹掉已成功落盘的证据。读取钩子继续在捕获包之后运行，保留读覆盖能力；Reset 仅清理计数，不改变落盘数据、故障配置或 hook。
+
+原清理组 **70 次夹具组合**、下载授权及 HTTP 契约组 **71 次夹具组合**、下载日志恢复组 **21 次夹具组合** 全部保留。新增生命周期覆盖超时／下载清理、自己／外部意图、正常／异常退出的 **8 个组合**，验证重开、未认证时不得先恢复、重新授权后的单次清理和双方损失，以及有待办日志时的异常目录清理。重开检查使用实际落盘索引：最初将内存索引直接比较的验证失败，是因为索引持久化有意省略 Things 和源路径，已改为核对实际持久视图；没有修改产品持久化格式或削弱原业务证据断言。
+
+共享存储新增 **6 个原始／预准备及无故障／发布前／发布后组合**，直接读取重新打开的文件存储验证成功计数与持久数据一致，另覆盖锁外拒写、Reset、读取捕获和覆盖不发布。编译依赖守卫覆盖三个验证类、夹具、下载客户端、输入定义和公共设施，禁止反向依赖其他测试类。静态比对确认授权断言、HTTP 响应契约、故障异常类型判定、日志证据和原 XML 内容保持，45 个原诊断字符串仍在；日志 `LocalOnly/module-migration/raid-cleanup-static-review.log` 是辅助证据。
+
+**23 个不同的相关单元／HTTP 测试组通过，两个最终测试进程均退出 0**。`raid-cleanup-modules-tests.log` 包含清理夹具、提交、下载授权、日志恢复、下载基线、超时及原编辑器七组；`raid-cleanup-shared-consumers-tests.log` 包含共享存储及经济、事件失败报告、礼物拒收、袭击创建、出征恢复、服务并发、真实 HTTP、支援结束、交易完成等十六组。后者针对公共存储和认证设施的现有调用者，日志中的 preparation failed 是原故障注入场景，相关组通过。未运行全量 Save／NetworkSmoke、RimTest 游戏验证或独立发布构建，未推送。
+
+输入文件改用 .xml 扩展名后，单独复验原编辑器组通过，退出 0，日志 `raid-cleanup-xml-fixture-tests.log`；原 XML 文本也再次核对一致，其余行为组没有为文件名调整重复执行。
+
+扫描 1,904 个源文件，剩余 **12 个 partial 类型、26 处声明、19 个文件**，实际跨文件为 **7 个类型、21 处声明、16 个文件**。仅修改测试与文档，既存未提交工作与冻结 1.6 保留。
+
+**下一步 M12c6：RaidEvidenceAuthorizationTests 的授权、在线、请求绑定、日志恢复四个验证入口，以及三个 Fixture 分片。** 随后继续袭击超时与支援结束，共剩 3 组测试；两个生产归并、五处标记及最终依赖／外部契约复核仍未完成。

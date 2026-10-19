@@ -89,6 +89,7 @@ var tests = new (string Name, Action Run)[]
     ("银行模块独立装配、凭据、借还款与回执", () => BankModuleTests.Run(BuildFixturePackage)),
     ("外交命令授权、快照、恢复复验与并发幂等", () => DiplomacyAuthorizationTests.Run(BuildFixturePackage)),
     ("意识形态摘要重建保留显示元数据", IdeologyMetadataTests.Run),
+    ("共享快照故障存储区分尝试、成功发布和读取捕获", () => SnapshotRecoveryTestStoreTests.Run(BuildFixturePackage)),
     ("快照载荷压缩在业务锁外准备且保持格式与恢复兼容", () => PreparedSnapshotPayloadTests.Run(BuildFixturePackage)),
     ("银行并发快照重试与会话失效", () => BankSnapshotReplayRaceTests.Run(BuildFixturePackage)),
     ("银行快照提交跨崩溃恢复且重试幂等", () => BankCommitCrashTests.Run(BuildFixturePackage)),
@@ -249,6 +250,12 @@ var tests = new (string Name, Action Run)[]
     ("未触发隐藏地雷代理保留原地雷结算身份", VerifyUntriggeredHiddenTrapProxySettlementIdentity),
     ("仍存在的受伤建筑按结算上限保留耐久损失", VerifyExistingBuildingSettlementDamage),
     ("袭击返回快照拒绝身份和地图不匹配", VerifyRaidSettlementReturnRejections),
+    ("袭击清理夹具重开与下载凭据生命周期", () => RaidCleanupFixtureTests.Run(RaidCleanupSnapshot.Create())),
+    ("袭击清理准备、提交中断与旧损失回执恢复", () => RaidCleanupCommitTests.Run(RaidCleanupSnapshot.Create())),
+    ("快照下载授权、HTTP 契约与锁外复验", () => SnapshotDownloadAuthorizationTests.Run(RaidCleanupSnapshot.Create())),
+    ("下载清理日志恢复与最终状态复验", () => DownloadCleanupJournalRecoveryTests.Run(RaidCleanupSnapshot.Create())),
+    ("下载清理拒绝覆盖变化的已捕获快照", () => DownloadCleanupBaselineTests.Run(RaidCleanupSnapshot.Create())),
+    ("袭击超时维护与日志准备恢复", () => RaidTimeoutRecoveryTests.Run(RaidCleanupSnapshot.Create())),
     ("超时袭击攻击者快照只清理远程战场", VerifyRaidAttackerSnapshotCleanupOnlyRemovesRaidBattleMap),
     ("空远程地图会话不会触发袭击清理", VerifyRaidAttackerSnapshotCleanupIgnoresNullRemoteMapSession),
     ("消失判定忽略新增对象", VerifyDisappearanceDiff),
@@ -4551,192 +4558,7 @@ static void VerifyRaidSettlementReturnRejections()
 
 static void VerifyRaidAttackerSnapshotCleanupOnlyRemovesRaidBattleMap()
 {
-    var identity = new SnapshotIdentity("attacker", "colony-a", "attacker-before-timeout");
-    SaveSnapshotPackage original = XmlSettlementPackage(
-        identity,
-        """
-        <?xml version="1.0" encoding="utf-8"?>
-        <savegame>
-          <meta><gameVersion>1.6-test</gameVersion></meta>
-          <game>
-            <currentMapIndex>1</currentMapIndex>
-            <components>
-              <li Class="AIRsLight.ClashOfRim.ClashOfRimGameComponent">
-                <clashOfRimLineageSnapshotId>attacker-before-timeout</clashOfRimLineageSnapshotId>
-                <clashOfRimLineageToken>base-token</clashOfRimLineageToken>
-                <clashOfRimActiveRaidBattleSession>
-                  <eventId>raid-timeout-001</eventId>
-                  <attackPawnThingIds>
-                    <li>raid-attacker</li>
-                    <li>escaped-attacker</li>
-                  </attackPawnThingIds>
-                </clashOfRimActiveRaidBattleSession>
-                <clashOfRimActiveSupportAssignments>
-                  <li>
-                    <eventId>support-in-raid</eventId>
-                    <pawnThingId>raid-support</pawnThingId>
-                    <pawnGlobalKey>owner:ally/colony:ally-colony/snapshot:support/map:caravan/thing:raid-support</pawnGlobalKey>
-                    <pawnLabel>支援者</pawnLabel>
-                    <autoReturnOnSettlement>True</autoReturnOnSettlement>
-                  </li>
-                  <li>
-                    <eventId>support-escaped</eventId>
-                    <pawnThingId>escaped-support</pawnThingId>
-                    <pawnGlobalKey>owner:ally/colony:ally-colony/snapshot:support/map:caravan/thing:escaped-support</pawnGlobalKey>
-                    <autoReturnOnSettlement>True</autoReturnOnSettlement>
-                  </li>
-                </clashOfRimActiveSupportAssignments>
-                <clashOfRimActiveRemoteMapSession>
-                  <kind>RaidBattle</kind>
-                  <relatedEventId>raid-timeout-001</relatedEventId>
-                </clashOfRimActiveRemoteMapSession>
-              </li>
-            </components>
-            <world>
-              <worldObjects>
-                <worldObjects>
-                  <li Class="MapParent">
-                    <def>Settlement</def>
-                    <ID>1</ID>
-                    <tile>10</tile>
-                  </li>
-                  <li Class="AIRsLight.ClashOfRim.RemoteMaps.RemoteSessionMapParent">
-                    <def>ClashOfRim_RemoteRaidBattleMapParent</def>
-                    <ID>123</ID>
-                    <tile>20</tile>
-                    <clashOfRimMode>RaidBattle</clashOfRimMode>
-                    <clashOfRimRelatedEventId>raid-timeout-001</clashOfRimRelatedEventId>
-                  </li>
-                </worldObjects>
-              </worldObjects>
-              <worldPawns>
-                <pawnsAlive />
-              </worldPawns>
-            </world>
-            <initData>
-              <startingAndOptionalPawns>
-                <li>Thing_raid-defender</li>
-                <li>Thing_raid-attacker</li>
-              </startingAndOptionalPawns>
-            </initData>
-            <taleManager>
-              <tales>
-                <li Class="RimWorld.Tale_SinglePawn">
-                  <pawnData>
-                    <pawn>Thing_raid-defender</pawn>
-                    <kind>Colonist</kind>
-                  </pawnData>
-                </li>
-              </tales>
-            </taleManager>
-            <playLog>
-              <entries>
-                <li Class="Verse.PlayLogEntry_Interaction">
-                  <initiator>Thing_home-colonist</initiator>
-                  <recipient>Thing_raid-defender</recipient>
-                </li>
-              </entries>
-            </playLog>
-            <battleLog>
-              <entries>
-                <li Class="Verse.BattleLogEntry_ExplosionImpact">
-                  <initiatorPawn>Thing_raid-defender</initiatorPawn>
-                  <recipientPawn>Thing_home-colonist</recipientPawn>
-                </li>
-              </entries>
-            </battleLog>
-            <maps>
-              <li>
-                <uniqueID>0</uniqueID>
-                <mapInfo><parent>WorldObject_1</parent></mapInfo>
-                <things>
-                  <thing Class="Pawn">
-                    <id>home-colonist</id>
-                    <def>Human</def>
-                    <kindDef>Colonist</kindDef>
-                    <relations>
-                      <directRelations>
-                        <li>
-                          <def>Lover</def>
-                          <otherPawn>Thing_raid-defender</otherPawn>
-                        </li>
-                        <li>
-                          <def>Friend</def>
-                          <otherPawn>Thing_raid-attacker</otherPawn>
-                        </li>
-                      </directRelations>
-                      <pregnancyApproaches>
-                        <keys>
-                          <li>Thing_raid-defender</li>
-                          <li>Thing_raid-attacker</li>
-                        </keys>
-                        <values>
-                          <li>Normal</li>
-                          <li>AvoidPregnancy</li>
-                        </values>
-                      </pregnancyApproaches>
-                    </relations>
-                    <needs>
-                      <mood>
-                        <thoughts>
-                          <memories>
-                            <li Class="RimWorld.Thought_MemorySocial">
-                              <otherPawn>Thing_raid-defender</otherPawn>
-                            </li>
-                          </memories>
-                        </thoughts>
-                      </mood>
-                    </needs>
-                  </thing>
-                </things>
-              </li>
-              <li>
-                <uniqueID>9</uniqueID>
-                <mapInfo><parent>WorldObject_123</parent></mapInfo>
-                <things>
-                  <thing Class="Pawn">
-                    <id>raid-attacker</id>
-                    <def>Human</def>
-                    <kindDef>Colonist</kindDef>
-                    <genes>
-                      <xenogenes>
-                        <li Class="Verse.Gene">
-                          <def>Robust</def>
-                          <loadID>0</loadID>
-                        </li>
-                      </xenogenes>
-                      <endogenes>
-                        <li Class="Verse.Gene">
-                          <def>StrongMeleeDamage</def>
-                          <loadID>0</loadID>
-                        </li>
-                      </endogenes>
-                    </genes>
-                  </thing>
-                  <thing Class="Pawn">
-                    <id>raid-support</id>
-                    <def>Human</def>
-                    <kindDef>Colonist</kindDef>
-                    <genes>
-                      <xenogenes>
-                        <li Class="Verse.Gene">
-                          <def>Robust</def>
-                          <loadID>0</loadID>
-                        </li>
-                      </xenogenes>
-                    </genes>
-                  </thing>
-                  <thing Class="Pawn"><id>raid-defender</id><def>Human</def><kindDef>Colonist</kindDef></thing>
-                </things>
-              </li>
-            </maps>
-          </game>
-        </savegame>
-        """);
-
-    DownloadCleanupBaselineTests.Run(original);
-    RaidCleanupCommitTests.Run(original);
-    RaidTimeoutRecoveryTests.Run(original);
+    SaveSnapshotPackage original = RaidCleanupSnapshot.Create();
     bool cleaned = RaidAttackerSnapshotCleanupEditor.TryRemoveRaidBattleState(
         original,
         "attacker-after-timeout-cleanup",

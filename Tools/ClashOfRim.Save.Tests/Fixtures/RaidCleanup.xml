@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="utf-8"?>
+<savegame>
+  <meta><gameVersion>1.6-test</gameVersion></meta>
+  <game>
+    <currentMapIndex>1</currentMapIndex>
+    <components>
+      <li Class="AIRsLight.ClashOfRim.ClashOfRimGameComponent">
+        <clashOfRimLineageSnapshotId>attacker-before-timeout</clashOfRimLineageSnapshotId>
+        <clashOfRimLineageToken>base-token</clashOfRimLineageToken>
+        <clashOfRimActiveRaidBattleSession>
+          <eventId>raid-timeout-001</eventId>
+          <attackPawnThingIds>
+            <li>raid-attacker</li>
+            <li>escaped-attacker</li>
+          </attackPawnThingIds>
+        </clashOfRimActiveRaidBattleSession>
+        <clashOfRimActiveSupportAssignments>
+          <li>
+            <eventId>support-in-raid</eventId>
+            <pawnThingId>raid-support</pawnThingId>
+            <pawnGlobalKey>owner:ally/colony:ally-colony/snapshot:support/map:caravan/thing:raid-support</pawnGlobalKey>
+            <pawnLabel>支援者</pawnLabel>
+            <autoReturnOnSettlement>True</autoReturnOnSettlement>
+          </li>
+          <li>
+            <eventId>support-escaped</eventId>
+            <pawnThingId>escaped-support</pawnThingId>
+            <pawnGlobalKey>owner:ally/colony:ally-colony/snapshot:support/map:caravan/thing:escaped-support</pawnGlobalKey>
+            <autoReturnOnSettlement>True</autoReturnOnSettlement>
+          </li>
+        </clashOfRimActiveSupportAssignments>
+        <clashOfRimActiveRemoteMapSession>
+          <kind>RaidBattle</kind>
+          <relatedEventId>raid-timeout-001</relatedEventId>
+        </clashOfRimActiveRemoteMapSession>
+      </li>
+    </components>
+    <world>
+      <worldObjects>
+        <worldObjects>
+          <li Class="MapParent">
+            <def>Settlement</def>
+            <ID>1</ID>
+            <tile>10</tile>
+          </li>
+          <li Class="AIRsLight.ClashOfRim.RemoteMaps.RemoteSessionMapParent">
+            <def>ClashOfRim_RemoteRaidBattleMapParent</def>
+            <ID>123</ID>
+            <tile>20</tile>
+            <clashOfRimMode>RaidBattle</clashOfRimMode>
+            <clashOfRimRelatedEventId>raid-timeout-001</clashOfRimRelatedEventId>
+          </li>
+        </worldObjects>
+      </worldObjects>
+      <worldPawns>
+        <pawnsAlive />
+      </worldPawns>
+    </world>
+    <initData>
+      <startingAndOptionalPawns>
+        <li>Thing_raid-defender</li>
+        <li>Thing_raid-attacker</li>
+      </startingAndOptionalPawns>
+    </initData>
+    <taleManager>
+      <tales>
+        <li Class="RimWorld.Tale_SinglePawn">
+          <pawnData>
+            <pawn>Thing_raid-defender</pawn>
+            <kind>Colonist</kind>
+          </pawnData>
+        </li>
+      </tales>
+    </taleManager>
+    <playLog>
+      <entries>
+        <li Class="Verse.PlayLogEntry_Interaction">
+          <initiator>Thing_home-colonist</initiator>
+          <recipient>Thing_raid-defender</recipient>
+        </li>
+      </entries>
+    </playLog>
+    <battleLog>
+      <entries>
+        <li Class="Verse.BattleLogEntry_ExplosionImpact">
+          <initiatorPawn>Thing_raid-defender</initiatorPawn>
+          <recipientPawn>Thing_home-colonist</recipientPawn>
+        </li>
+      </entries>
+    </battleLog>
+    <maps>
+      <li>
+        <uniqueID>0</uniqueID>
+        <mapInfo><parent>WorldObject_1</parent></mapInfo>
+        <things>
+          <thing Class="Pawn">
+            <id>home-colonist</id>
+            <def>Human</def>
+            <kindDef>Colonist</kindDef>
+            <relations>
+              <directRelations>
+                <li>
+                  <def>Lover</def>
+                  <otherPawn>Thing_raid-defender</otherPawn>
+                </li>
+                <li>
+                  <def>Friend</def>
+                  <otherPawn>Thing_raid-attacker</otherPawn>
+                </li>
+              </directRelations>
+              <pregnancyApproaches>
+                <keys>
+                  <li>Thing_raid-defender</li>
+                  <li>Thing_raid-attacker</li>
+                </keys>
+                <values>
+                  <li>Normal</li>
+                  <li>AvoidPregnancy</li>
+                </values>
+              </pregnancyApproaches>
+            </relations>
+            <needs>
+              <mood>
+                <thoughts>
+                  <memories>
+                    <li Class="RimWorld.Thought_MemorySocial">
+                      <otherPawn>Thing_raid-defender</otherPawn>
+                    </li>
+                  </memories>
+                </thoughts>
+              </mood>
+            </needs>
+          </thing>
+        </things>
+      </li>
+      <li>
+        <uniqueID>9</uniqueID>
+        <mapInfo><parent>WorldObject_123</parent></mapInfo>
+        <things>
+          <thing Class="Pawn">
+            <id>raid-attacker</id>
+            <def>Human</def>
+            <kindDef>Colonist</kindDef>
+            <genes>
+              <xenogenes>
+                <li Class="Verse.Gene">
+                  <def>Robust</def>
+                  <loadID>0</loadID>
+                </li>
+              </xenogenes>
+              <endogenes>
+                <li Class="Verse.Gene">
+                  <def>StrongMeleeDamage</def>
+                  <loadID>0</loadID>
+                </li>
+              </endogenes>
+            </genes>
+          </thing>
+          <thing Class="Pawn">
+            <id>raid-support</id>
+            <def>Human</def>
+            <kindDef>Colonist</kindDef>
+            <genes>
+              <xenogenes>
+                <li Class="Verse.Gene">
+                  <def>Robust</def>
+                  <loadID>0</loadID>
+                </li>
+              </xenogenes>
+            </genes>
+          </thing>
+          <thing Class="Pawn"><id>raid-defender</id><def>Human</def><kindDef>Colonist</kindDef></thing>
+        </things>
+      </li>
+    </maps>
+  </game>
+</savegame>

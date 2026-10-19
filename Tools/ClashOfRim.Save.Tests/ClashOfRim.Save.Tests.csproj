@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Update="Fixtures\RaidCleanup.xml" CopyToOutputDirectory="PreserveNewest" />
     <None Update="Fixtures\GameScenarioPlans.json" CopyToOutputDirectory="PreserveNewest" />
     <Compile Include="..\TestSupport\ModuleDependencyGuard.cs" Link="TestSupport\ModuleDependencyGuard.cs" />
     <Compile Include="..\TestSupport\BiotechTradeConstraintCases.cs" Link="TestSupport\BiotechTradeConstraintCases.cs" />
