@@ -57,8 +57,9 @@ internal static class ClientSettingsAccessTests
                 AccessTools.Field(typeof(Dialog_ModSettings), "mod").SetValue(window, New<UncontrolledMod>());
                 Check(ModSettingsBaselinePolicy.CanEditModSettingsWindow(window), "Uncontrolled mod window was locked.");
             }
-            PermissionLifetime(); ProfileLifecycle();
+            PermissionLifetime(); ProfileLifecycle(); BaselineApplication();
         }
+        catch (Exception ex) { Console.WriteLine(ex.ToString()); throw; }
         finally { CultureInfo.CurrentCulture = culture; ClientSessionWork.Reset(); }
     }
     private static void PermissionLifetime()
@@ -133,6 +134,69 @@ internal static class ClientSettingsAccessTests
             AccessTools.Field(typeof(CompatibilityConfigOverlayPath), flag).SetValue(null, false);
         AccessTools.Field(typeof(CompatibilityConfigOverlayPath), "cachedActiveOverlay").SetValue(null, null);
     }
+    private static void BaselineApplication()
+    {
+        var f = new Fixture();
+        string Manifest(string id, string configs) => "{\"manifestId\":\"" + id + "\",\"mods\":[{\"packageId\":\"example.mod\",\"loadOrder\":0,\"configs\":" + configs + "}]}";
+        const string config = "[{\"fileName\":\"ExampleMod\",\"hasSavedFile\":true,\"canonicalXml\":\"<settings><value>服务端 İ</value></settings>\"}]";
+        string oldManifest = Manifest("old-baseline", config), incoming = Manifest("incoming-baseline", config);
+        f.Baseline.Flow.Apply(oldManifest); CompatibilityConfigOverlayPath.Deactivate();
+        string previous = CompatibilityConfigOverlayPath.Resolve("example.mod", "ExampleMod");
+        CompatibilityConfigOverlayPath.EnsureDirectoryFor(previous); File.WriteAllText(previous, "<previous />");
+        int restarts = native.Restarts;
+        Check(CompatibilityBaselineApplicator.TryApplyServerConfigOverlay(incoming, out _), "Valid server configuration was rejected.");
+        string activePath = Path.Combine(native.Root, "ClashOfRimConfigOverlays", "active.json");
+        using var active = System.Text.Json.JsonDocument.Parse(File.ReadAllText(activePath));
+        string target = Path.Combine(native.Root, "ClashOfRimConfigOverlays", active.RootElement.GetProperty("scope").GetString()!, "example.mod", "Mod_example.mod_ExampleMod.xml");
+        Check(File.Exists(target) && File.ReadAllText(target) == "<settings><value>服务端 İ</value></settings>" && File.ReadAllText(previous) == "<previous />",
+            "New baseline activated one scope but wrote into the previous baseline scope.");
+        Check(native.Restarts == restarts + 1, "Configuration application did not request exactly one restart.");
+        f.Baseline.Flow.Apply(incoming); ResetBoot();
+        Check(CompatibilityConfigOverlayPath.TryResolveActiveConfigPath("example.mod", "ExampleMod", out string loaded) && loaded == target,
+            "Next boot did not select the newly written server configuration.");
+
+        string absent = Manifest("defaults", "[{\"fileName\":\"ExampleMod\",\"hasSavedFile\":false}]");
+        string stale = CompatibilityConfigOverlayPath.Resolve("example.mod", "ExampleMod", absent);
+        CompatibilityConfigOverlayPath.EnsureDirectoryFor(stale); File.WriteAllText(stale, "<stale />");
+        Check(CompatibilityBaselineApplicator.TryApplyServerConfigOverlay(absent, out _) && !File.Exists(stale), "Server defaults retained stale overlay XML.");
+        string local = Path.Combine(native.Root, "Mod_ExampleFolder_ExampleMod.xml"), unrelated = Path.Combine(native.Root, "uncontrolled.xml");
+        File.WriteAllText(unrelated, "<untouched />");
+        Check(CompatibilityBaselineApplicator.TryOverwriteLocalConfigs(incoming, out _) && File.ReadAllText(local) == File.ReadAllText(target)
+            && !File.Exists(activePath), "Local overwrite did not resolve the installed folder or deactivate overlay.");
+        Check(CompatibilityBaselineApplicator.TryOverwriteLocalConfigs(absent, out _) && !File.Exists(local)
+            && File.ReadAllText(unrelated) == "<untouched />", "Local defaults removed the wrong files.");
+
+        var dataField = AccessTools.Field(typeof(ModsConfig), "data");
+        File.WriteAllText(Path.Combine(native.Root, "ModsConfig.xml"), "<ModsConfigData><activeMods /><knownExpansions /></ModsConfigData>");
+        object originalData = dataField.GetValue(null)!;
+        try
+        {
+            dataField.SetValue(null, Activator.CreateInstance(dataField.FieldType, true));
+            const string mods = "{\"mods\":[{\"packageId\":\"example.mod\",\"loadOrder\":2,\"configs\":[]},{\"packageId\":\"ludeon.rimworld\",\"loadOrder\":0,\"configs\":[]},{\"packageId\":\"example.local\",\"loadOrder\":1,\"configs\":[]}]}";
+            Check(CompatibilityBaselineApplicator.TryApplyServerManifest(mods, out _), "Valid server mod order rejected.");
+            var savedMods = System.Xml.Linq.XDocument.Load(Path.Combine(native.Root, "ModsConfig.xml")).Descendants("activeMods").Single().Elements("li").Select(e => e.Value);
+            Check(savedMods.SequenceEqual(new[] { "ludeon.rimworld", "example.local", "example.mod" + ModMetaData.SteamModPostfix }), "Mod order or local/Steam package resolution changed.");
+        }
+        finally { dataField.SetValue(null, originalData); }
+
+        foreach (string malformed in new[] { "{}", "{\"mods\":null}", "{\"mods\":[null]}", Manifest("bad", "null"),
+            Manifest("bad", "[null]"), Manifest("bad", "[{\"fileName\":\"ExampleMod\",\"canonicalXml\":\"<broken\"}]"),
+            Manifest("bad", "[{\"fileName\":\"ExampleMod\",\"hasSavedFile\":true,\"canonicalXml\":\"<broken\"}]"),
+            Manifest("bad", "[{\"fileName\":\"ExampleMod\",\"hasSavedFile\":true,\"canonicalXml\":\"<ok />\",\"sha256\":\"wrong\"}]") })
+        foreach (int kind in new[] { 0, 1, 2 })
+        {
+            var before = Directory.GetFiles(native.Root, "*", SearchOption.AllDirectories).ToDictionary(p => p, File.ReadAllText);
+            int restartBefore = native.Restarts;
+            bool accepted = kind switch
+            {
+                0 => CompatibilityBaselineApplicator.TryApplyServerConfigOverlay(malformed, out _),
+                1 => CompatibilityBaselineApplicator.TryOverwriteLocalConfigs(malformed, out _),
+                _ => CompatibilityBaselineApplicator.TryApplyServerManifest(malformed, out _)
+            };
+            Check(!accepted && native.Restarts == restartBefore && before.Count == Directory.GetFiles(native.Root, "*", SearchOption.AllDirectories).Length
+                && before.All(p => File.ReadAllText(p.Key) == p.Value), "Invalid baseline changed files, activation or restart state: " + malformed);
+        }
+    }
     private sealed class Fixture
     {
         internal readonly ClientCompatibilityBaselineTests.Fixture Baseline = new();
@@ -151,6 +215,7 @@ internal static class ClientSettingsAccessTests
     {
         internal readonly string Root = Path.Combine(Path.GetTempPath(), "ClashOfRim.SettingsTests-" + Guid.NewGuid().ToString("N"));
         internal bool DevMode;
+        internal int Restarts;
         internal readonly List<Type> Removed = new();
         internal readonly ModContentPack Pack = New<ModContentPack>();
         private readonly bool savedGod = DebugSettings.godMode, savedPalette = DebugSettings.devPalette;
@@ -173,6 +238,9 @@ internal static class ClientSettingsAccessTests
             Patch(AccessTools.PropertyGetter(typeof(ModContentPack), nameof(ModContentPack.FolderName)), nameof(FolderName));
             Patch(AccessTools.PropertyGetter(typeof(ModContentPack), nameof(ModContentPack.PackageId)), nameof(PackageId));
             Patch(AccessTools.PropertyGetter(typeof(ModContentPack), nameof(ModContentPack.PackageIdPlayerFacing)), nameof(PackageId));
+            Patch(AccessTools.Method(typeof(GenCommandLine), nameof(GenCommandLine.Restart)), nameof(Restart));
+            Patch(AccessTools.Method(typeof(ModLister), nameof(ModLister.GetModWithIdentifier)), nameof(FindInstalled));
+            Patch(AccessTools.PropertyGetter(typeof(ModLister), nameof(ModLister.AllInstalledMods)), nameof(InstalledMods));
         }
         public void Dispose()
         {
@@ -192,6 +260,19 @@ internal static class ClientSettingsAccessTests
     private static bool Content(ref ModContentPack __result) { __result = native.Pack; return false; }
     private static bool FolderName(ref string __result) { __result = "ExampleFolder"; return false; }
     private static bool PackageId(ref string __result) { __result = "example.mod"; return false; }
+    private static bool Restart() { native.Restarts++; return false; }
+    private static bool InstalledMods(ref IEnumerable<ModMetaData> __result) { __result = Array.Empty<ModMetaData>(); return false; }
+    private static bool FindInstalled(string __0, ref ModMetaData? __result)
+    {
+        __result = null;
+        if (__0 is "example.local" or "example.mod_steam" or "ludeon.rimworld")
+        {
+            __result = New<ModMetaData>();
+            AccessTools.Field(typeof(ModMetaData), "packageIdLowerCase").SetValue(__result, __0.Replace("_steam", ""));
+            AccessTools.Field(typeof(ModMetaData), "appendPackageIdSteamPostfix").SetValue(__result, __0.EndsWith("_steam", StringComparison.Ordinal));
+        }
+        return false;
+    }
     private static bool Skip() => false;
     private static T New<T>() => (T)RuntimeHelpers.GetUninitializedObject(typeof(T));
     private sealed class ExampleMod : Mod { internal ExampleMod(ModContentPack content) : base(content) { } }

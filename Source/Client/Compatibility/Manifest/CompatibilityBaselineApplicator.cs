@@ -7,6 +7,9 @@ using System.Runtime.Serialization;
 using System.Runtime.Serialization.Json;
 using System.Text;
 using System.Reflection;
+using System.Xml;
+using System.Xml.Linq;
+using AIRsLight.ClashOfRim.Compatibility;
 using Verse;
 
 namespace AIRsLight.ClashOfRim.CompatibilityClient;
@@ -29,8 +32,8 @@ internal static class CompatibilityBaselineApplicator
             return false;
         }
 
+        ApplyConfigOverlays(manifest, manifestJson);
         CompatibilityConfigOverlayPath.Activate(manifestJson);
-        ApplyConfigOverlays(manifest);
         ApplyModList(manifest);
         ModsConfig.Save();
         message = T("ClashOfRim.Compatibility.ApplyRestarting");
@@ -50,8 +53,8 @@ internal static class CompatibilityBaselineApplicator
             return false;
         }
 
+        ApplyConfigOverlays(manifest, manifestJson);
         CompatibilityConfigOverlayPath.Activate(manifestJson);
-        ApplyConfigOverlays(manifest);
         message = T("ClashOfRim.Compatibility.ConfigApplyOverlayRestarting");
         GenCommandLine.Restart();
         return true;
@@ -87,12 +90,46 @@ internal static class CompatibilityBaselineApplicator
         {
             var serializer = new DataContractJsonSerializer(typeof(CompatibilityManifestDto));
             using var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
-            return serializer.ReadObject(stream) as CompatibilityManifestDto;
+            var manifest = serializer.ReadObject(stream) as CompatibilityManifestDto;
+            ValidateManifest(manifest);
+            return manifest;
         }
         catch (Exception ex)
         {
             Log.Warning("[ClashOfRim][Compatibility] Failed to parse server manifest: " + ex);
             return null;
+        }
+    }
+
+    // Validate the entire input before any file, mod order or next-boot activation is changed.
+    private static void ValidateManifest(CompatibilityManifestDto? manifest)
+    {
+        if (manifest?.Mods is null || manifest.Mods.Count == 0)
+            throw new SerializationException("The server baseline has no mod list.");
+        var packages = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var mod in manifest.Mods)
+        {
+            if (mod is null || string.IsNullOrWhiteSpace(mod.PackageId) || !packages.Add(mod.PackageId)
+                || mod.Configs is null)
+                throw new SerializationException("The server baseline contains an invalid or duplicate mod.");
+            var files = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var config in mod.Configs)
+            {
+                if (config is null || string.IsNullOrWhiteSpace(config.FileName) || !files.Add(config.FileName))
+                    throw new SerializationException("The server baseline contains an invalid or duplicate config.");
+                if (!config.HasSavedFile)
+                {
+                    if (!string.IsNullOrWhiteSpace(config.CanonicalXml))
+                        throw new SerializationException("An absent config cannot contain saved XML.");
+                    continue;
+                }
+                using var reader = XmlReader.Create(new StringReader(config.CanonicalXml ?? string.Empty),
+                    new XmlReaderSettings { DtdProcessing = DtdProcessing.Prohibit, XmlResolver = null });
+                _ = XDocument.Load(reader);
+                if (!string.IsNullOrWhiteSpace(config.Sha256) && !string.Equals(config.Sha256,
+                    ModConfigXmlCanonicalizer.Sha256(config.CanonicalXml!), StringComparison.OrdinalIgnoreCase))
+                    throw new SerializationException("The server config does not match its declared hash.");
+            }
         }
     }
 
@@ -111,9 +148,9 @@ internal static class CompatibilityBaselineApplicator
         activeModsField?.SetValue(data, activeMods);
     }
 
-    private static void ApplyConfigOverlays(CompatibilityManifestDto manifest)
+    private static void ApplyConfigOverlays(CompatibilityManifestDto manifest, string manifestJson)
     {
-        ApplyConfigFiles(manifest, (packageId, fileName) => CompatibilityConfigOverlayPath.Resolve(packageId, fileName));
+        ApplyConfigFiles(manifest, (packageId, fileName) => CompatibilityConfigOverlayPath.Resolve(packageId, fileName, manifestJson));
     }
 
     private static void ApplyConfigFiles(
@@ -185,7 +222,7 @@ internal static class CompatibilityBaselineApplicator
     [DataContract]
     private sealed class CompatibilityManifestDto
     {
-        [DataMember(Name = "mods")]
+        [DataMember(Name = "mods", IsRequired = true)]
         public List<CompatibilityModDto> Mods { get; set; } = new();
     }
 
@@ -198,7 +235,7 @@ internal static class CompatibilityBaselineApplicator
         [DataMember(Name = "packageId")]
         public string PackageId { get; set; } = string.Empty;
 
-        [DataMember(Name = "configs")]
+        [DataMember(Name = "configs", IsRequired = true)]
         public List<CompatibilityConfigDto> Configs { get; set; } = new();
     }
 
@@ -208,10 +245,13 @@ internal static class CompatibilityBaselineApplicator
         [DataMember(Name = "fileName")]
         public string FileName { get; set; } = string.Empty;
 
-        [DataMember(Name = "hasSavedFile")]
+        [DataMember(Name = "hasSavedFile", IsRequired = true)]
         public bool HasSavedFile { get; set; } = true;
 
         [DataMember(Name = "canonicalXml")]
         public string CanonicalXml { get; set; } = string.Empty;
+
+        [DataMember(Name = "sha256")]
+        public string? Sha256 { get; set; }
     }
 }

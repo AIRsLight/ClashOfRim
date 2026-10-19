@@ -203,9 +203,9 @@ internal static class CompatibilityConfigOverlayPath
     private static bool profileActivationChecked;
     private static bool profileActiveForCurrentProcess;
 
-    public static string Resolve(string packageId, string fileName)
+    public static string Resolve(string packageId, string fileName, string? manifestJson = null)
     {
-        return ResolveOverlayConfigPath(ResolveCurrentScope(), packageId, fileName);
+        return ResolveOverlayConfigPath(ResolveCurrentScope(manifestJson), packageId, fileName);
     }
 
     public static bool TryResolveActiveConfigPath(string packageId, string fileName, out string path)
