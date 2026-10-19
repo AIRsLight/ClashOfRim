@@ -36,11 +36,6 @@ public sealed partial class ClashOfRimMod
     internal void SubmitInitialWorldConfigurationIfPending()
         => _ = initialWorldSetup.StartAsync(colonyAppearance.Capture());
 
-    internal string BuildCurrentStorytellerDifficultySignature() => storytellerConfiguration.Capture().Signature;
-
-    internal void SubmitRuntimeStorytellerSettingsIfChanged(string? initialSignature)
-        => _ = worldWrites.StartAsync(ClientWorldWriteKind.Storyteller, colonyAppearance.Capture(), initialSignature);
-
     internal bool TryApplyServerStorytellerBaselineAndContinue(Window storytellerPage)
         => storytellerConfiguration.ContinueSetup(new ClientStorytellerPage(storytellerPage));
 

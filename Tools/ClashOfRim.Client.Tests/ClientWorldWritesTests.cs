@@ -215,6 +215,7 @@ internal static class ClientWorldWritesTests
         internal ModWorldConfigurationDto? Sent; internal int Successes, Rejections, Markers, Captures;
         internal string? FaultPhase, Fault, CaptureError; internal Action<string>? Hook; internal Func<string, Task>? Before;
         internal ModColonyAppearanceDto? CapturedAppearance;
+        internal ClientStorytellerBaseline CurrentBaseline = Baseline;
         internal Fixture(ClientWorldWriteKind kind, ClientAdministrationTests.Fixture? admin = null)
         {
             Kind = kind;
@@ -283,7 +284,7 @@ internal static class ClientWorldWritesTests
             { F.Step("source-extensions"); return new[] { new ModWorldConfigurationExtensionDto { ProviderId = "pollution", PayloadJson = "{\"value\":0.25}" } }; }
             public byte[] CaptureSubstrate(ModWorldTileGeometryDto? geometry, out string? failure) { F.Step("substrate"); failure = null; return new byte[] { 1 }; }
             public ClientStorytellerBaseline Capture()
-            { F.Captures++; F.Step(F.Kind == ClientWorldWriteKind.Storyteller && F.Captures == 1 ? "signature" : "capture-story"); return F.InvalidSource ? new(null, null, null) : Baseline with { CaptureFailure = F.CaptureError }; }
+            { F.Captures++; F.Step(F.Kind == ClientWorldWriteKind.Storyteller && F.Captures == 1 ? "signature" : "capture-story"); return F.InvalidSource ? new(null, null, null) : F.CurrentBaseline with { CaptureFailure = F.CaptureError }; }
             public IClientStorytellerChange Prepare(ClientStorytellerBaseline baseline) { F.Step("prepare-story"); return new StoryChange(F); }
             public void LockCommitment() => throw new NotSupportedException();
             public ClientWorldFeatureNames? ApplyFeatures(ModWorldConfigurationDto configuration) { F.Step("apply-features"); return null; }

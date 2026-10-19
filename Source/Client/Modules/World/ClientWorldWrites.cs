@@ -38,6 +38,59 @@ internal sealed class ClientWorldWrites
         IClientWorldWriteRuntime runtime, IClientWorldWritePresentation presentation)
     { this.session = session; this.access = access; this.capture = capture; this.submission = submission; this.storyteller = storyteller; this.publication = publication; this.runtime = runtime; this.presentation = presentation; }
 
+    internal bool OpenStorytellerEdit(out StorytellerEdit? edit)
+    {
+        using var p = ClientSessionWork.EnterPublication();
+        edit = null;
+        var source = submission.Capture();
+        // A page opened outside a multiplayer world must not become a server
+        // write merely because the player signs in before closing it.
+        if (!session.HasSnapshotSession(source.Context) || runtime.IsObserving) return true;
+        var permission = access.CurrentPermission;
+        bool Current() => OwnsEdit(source, permission);
+        if (!Current()) return false;
+        if (!permission.Allowed)
+        {
+            string message = presentation.Text("ClashOfRim.Storyteller.SettingsLocked");
+            if (Current()) presentation.Message(message, ClientWorldWriteMessage.Reject);
+            return false;
+        }
+        var initial = storyteller.Capture();
+        if (!Current()) return false;
+        if (initial.CaptureFailure is { } failure)
+        {
+            string message = presentation.Text("ClashOfRim.Storyteller.AdminSyncFailed", ("CODE", "CaptureFailed"), ("MESSAGE", failure));
+            if (Current()) presentation.Message(message, ClientWorldWriteMessage.Reject);
+            return false;
+        }
+        edit = new(this, source, permission, initial.Signature);
+        return true;
+    }
+    private bool OwnsEdit(ClientWorldBaselineSubmission.Captured source, ClientAdminAccess.Permission permission)
+        => !session.IsUnavailable && !runtime.IsObserving && submission.IsCurrent(source)
+            && ReferenceEquals(permission, access.CurrentPermission);
+    internal sealed class StorytellerEdit
+    {
+        private readonly ClientWorldWrites owner;
+        private readonly ClientWorldBaselineSubmission.Captured source;
+        private readonly ClientAdminAccess.Permission permission;
+        private readonly string signature;
+        private bool closed;
+        internal StorytellerEdit(ClientWorldWrites owner, ClientWorldBaselineSubmission.Captured source, ClientAdminAccess.Permission permission, string signature)
+        { this.owner = owner; this.source = source; this.permission = permission; this.signature = signature; }
+        internal bool IsCurrent => !closed && owner.OwnsEdit(source, permission);
+        internal Task CloseAsync(Func<ModColonyAppearanceDto?> captureAppearance)
+        {
+            using var p = ClientSessionWork.EnterPublication();
+            if (closed) return Task.CompletedTask;
+            closed = true;
+            if (!owner.OwnsEdit(source, permission)) return Task.CompletedTask;
+            var appearance = captureAppearance();
+            return owner.OwnsEdit(source, permission)
+                ? owner.StartAsync(ClientWorldWriteKind.Storyteller, appearance, signature) : Task.CompletedTask;
+        }
+    }
+
     internal async Task StartAsync(ClientWorldWriteKind kind, ModColonyAppearanceDto? appearance, string? initialSignature = null)
     {
         var observation = publication.Capture();

@@ -325,6 +325,7 @@ public sealed partial class ClashOfRimMod : Mod
         var worldWritePresentation = new ClientWorldWritePresentation(message => administration.Message = message);
         worldWrites = new ClientWorldWrites(sessionLifecycle, adminAccess, worldBaselineCapture, worldBaselineSubmission,
             storytellerConfiguration, worldPublication, worldWritePresentation, worldWritePresentation);
+        ClientStorytellerEditor.Attach(new ClientStorytellerEditor(worldWrites, colonyAppearance));
         worldGeneration = new ClientWorldGeneration(sessionLifecycle, worldSetup, worldConfiguration, new ClientWorldGenerationRuntime(), new ClientWorldGenerationPresentation(message => diagnostics.LoginStatus = message));
         worldEntry = new ClientWorldEntry(sessionLifecycle, new ClientSnapshotGame(), worldSetup,
             entryStore, worldTransport, entryPresentation, snapshotReload, worldPublication, serverMetadata);
