@@ -109,6 +109,7 @@ internal static class ClientModuleBoundaryTests
             || t == typeof(AIRsLight.ClashOfRim.Mercenaries.ClientMercenaryIncidentRuntime)
             || t == typeof(ClientMercenaryTransport) || t == typeof(AIRsLight.ClashOfRim.Mercenaries.ClientMercenaryPresentation)
             || t == typeof(AIRsLight.ClashOfRim.ServerShop.ClientShopRuntime) || t == typeof(AIRsLight.ClashOfRim.ServerShop.ClientShopSource)
+            || t == typeof(AIRsLight.ClashOfRim.ServerShop.ClientShopListingRuntime)
             || t == typeof(ClientTradeOperationsTransport) || t == typeof(PawnPackageTransferService) || t == typeof(PawnExchangeCapture)
             || t == typeof(ClientSupportTransport) || t == typeof(AIRsLight.ClashOfRim.Support.ClientSupportSource)
             || t == typeof(AIRsLight.ClashOfRim.Support.ClientSupportReturnRuntime) || t == typeof(AIRsLight.ClashOfRim.Support.SupportPawnLookup)
@@ -144,7 +145,9 @@ internal static class ClientModuleBoundaryTests
         var pages = typeof(ClashOfRimMod).Assembly.GetTypes()
             .Where(t => t.Namespace is "AIRsLight.ClashOfRim.Multiplayer.Pages" or "AIRsLight.ClashOfRim.Multiplayer.Players"
                 or "AIRsLight.ClashOfRim.Multiplayer.Achievements" or "AIRsLight.ClashOfRim.Multiplayer.Diagnostics"
-                || t == typeof(AIRsLight.ClashOfRim.Multiplayer.AllySupportRequestDialogWindow)).ToArray();
+                || t == typeof(AIRsLight.ClashOfRim.Multiplayer.AllySupportRequestDialogWindow)
+                || t == typeof(AIRsLight.ClashOfRim.ServerShop.ClientShopListingRuntime)
+                || t.DeclaringType == typeof(AIRsLight.ClashOfRim.ServerShop.ClientShopListingRuntime)).ToArray();
         var pageViolations = ModuleDependencyGuard.FindViolations(pages,
             t => t == typeof(ClashOfRimMod) || t == typeof(ClashOfRimSettings) || t == typeof(ClashOfRimModNetworkClient)
                 || t == typeof(AIRsLight.ClashOfRim.Multiplayer.ClashOfRimMultiplayerWindow)

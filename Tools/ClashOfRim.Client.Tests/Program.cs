@@ -19,6 +19,8 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("shop listing runtime owns engine templates, metadata and RimTest entry points", ClientShopListingRuntimeTests.Run),
+    ("shop listing editor owns search, item edits, culture and price suggestions", ClientShopListingEditorTests.Run),
     ("multiplayer admin shop owns row drafts, editor copies and delayed actions", MultiplayerAdminShopTests.Run),
     ("multiplayer admin configuration owns drafts, parsing and permission-bound saves", MultiplayerAdminConfigurationTests.Run),
     ("multiplayer account drafts own submission and session lifetime", MultiplayerAccountDiagnosticsTests.Account),

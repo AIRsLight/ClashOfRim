@@ -204,7 +204,7 @@ internal static class MultiplayerAdminShopTests
             PawnPackage = new() { PendingPreviewPng = new byte[] { 1, 2 } }, ThingPackage = new() { Scribe = new() { XmlGzipBase64 = "payload" } } }
     };
     private static ClientShopListingEdit Command(ModThingReferenceDto? item = null) => new("supplied-id", "SellToPlayer", item ?? Listing("a").Item!, 12, 3);
-    private sealed class Fixture : IDisposable
+    internal sealed class Fixture : IDisposable
     {
         internal readonly ClientShopOperationsTests.Fixture Operations = new(false);
         internal readonly ClientShopCatalogTests.Fixture Catalog;

@@ -61,10 +61,10 @@ internal sealed class ClientAdminShopPanel
         return ordered = list.AsReadOnly();
     });
 
-    internal bool CanChange(Row? row = null) => lifetime.Read(() =>
+    internal bool CanChange(Row? row = null, bool requireIdle = true) => lifetime.Read(() =>
     {
         Read();
-        return access.IsAdministrator && !session.IsUnavailable && !state.Busy
+        return access.IsAdministrator && !session.IsUnavailable && (!requireIdle || !state.Busy)
             && (row is null || (rows.TryGetValue(row.Listing.ListingId, out var current) && ReferenceEquals(current, row)));
     });
     internal bool CanSave(Row row) => CanChange(row) && row.TryBuild(out _);
@@ -133,14 +133,17 @@ internal sealed class ClientAdminShopPanel
             listingId = row?.Listing.ListingId;
             Listing = row is null ? null : ClientShopState.Copy(new[] { row.Listing })[0];
         }
-        internal bool CanSubmit
+        internal bool IsCurrent => TryEdit(static () => { });
+        internal bool CanSubmit => IsCurrent && !panel.state.Busy;
+        internal bool TryEdit(Action action)
         {
-            get
+            bool applied = false;
+            panel.lifetime.TryApply(owner, () =>
             {
-                bool allowed = false;
-                panel.lifetime.TryApply(owner, () => allowed = !closed && panel.CanChange(row));
-                return allowed;
-            }
+                if (closed || !panel.CanChange(row, requireIdle: false)) return;
+                action(); applied = true;
+            });
+            return applied;
         }
         internal void Close() => closed = true;
         internal Task? Submit(ClientShopListingEdit edit)
