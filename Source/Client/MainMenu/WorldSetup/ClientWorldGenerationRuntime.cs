@@ -64,9 +64,9 @@ internal sealed class ClientWorldGenerationRuntime : IClientWorldGenerationRunti
                 if (!owner.IsCurrent) return;
                 owner.game!.World = value; owner.world = value; published = true;
             }
-            public ClientWorldFeatureNames? ApplySubstrate(WorldSubstratePackage substrate, ModWorldConfigurationDto configuration)
+            public ClientWorldFeatureNames? ApplySubstrate(WorldSubstratePackage substrate, ModWorldConfigurationDto configuration, Func<bool> current)
             {
-                if (!WorldSubstrateRuntime.TryApply(substrate, configuration, out var names, out var failure))
+                if (!WorldSubstrateRuntime.TryApply(substrate, configuration, current, out var names, out var failure))
                     throw new InvalidOperationException("Server world substrate could not be applied: " + failure);
                 return names;
             }

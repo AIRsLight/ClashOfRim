@@ -26,7 +26,7 @@ internal interface IClientWorldGenerationSession
 internal interface IClientGeneratedWorld : IDisposable
 {
     void Publish();
-    ClientWorldFeatureNames? ApplySubstrate(WorldSubstratePackage substrate, ModWorldConfigurationDto configuration);
+    ClientWorldFeatureNames? ApplySubstrate(WorldSubstratePackage substrate, ModWorldConfigurationDto configuration, Func<bool> current);
     void Complete(Func<bool> current);
 }
 internal interface IClientWorldGenerationPage
@@ -89,8 +89,12 @@ internal sealed class ClientWorldGeneration
                 {
                     generated = runtime.Generate(input, Current);
                     if (!Step(generated.Publish)) { Discard(); return; }
-                    ClientWorldFeatureNames? names = null;
-                    if (!Step(() => names = generated.ApplySubstrate(plan.Substrate, plan.Configuration))) { Discard(); return; }
+                    // Native Scribe finalization waits for parallel tile validation,
+                    // whose reservation readers also enter the publication gate.
+                    // Like generation, substrate loading must run outside that gate.
+                    if (!Current()) { Discard(); return; }
+                    var names = generated.ApplySubstrate(plan.Substrate, plan.Configuration, Current);
+                    if (!Current()) { Discard(); return; }
                     bool applied = false;
                     if (!Step(() => applied = configuration.Apply(plan.Configuration, worldState: true, features: false, generatedNames: names))) { Discard(); return; }
                     if (!applied) throw new InvalidOperationException("World configuration ownership changed during application.");

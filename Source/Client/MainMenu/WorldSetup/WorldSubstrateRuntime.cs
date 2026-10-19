@@ -68,18 +68,20 @@ internal static class WorldSubstrateRuntime
     public static bool TryApply(
         WorldSubstratePackage package,
         ModWorldConfigurationDto configuration,
+        Func<bool> current,
         out ClientWorldFeatureNames? names,
         out string? failure)
     {
         names = null; failure = null;
         var world = Find.World; var game = Current.Game;
-        bool IsCurrent() => ReferenceEquals(world, Find.World) && ReferenceEquals(game, Current.Game);
+        bool IsCurrent() => current() && ReferenceEquals(world, Find.World) && ReferenceEquals(game, Current.Game);
         void RequireOwner() { if (!IsCurrent()) throw new OperationCanceledException("World substrate target was replaced."); }
         if (package is null || world?.grid is null) { failure = "World substrate or generated world is unavailable."; return false; }
         if (Scribe.mode != LoadSaveMode.Inactive) { failure = "Scribe is active."; return false; }
         string? temporaryPath = null;
         try
         {
+            RequireOwner();
             WorldGrid donor = LoadDonorGrid(package.GridXml, out temporaryPath);
             RequireOwner();
             CopyGridRawData(donor, world.grid);
@@ -92,9 +94,12 @@ internal static class WorldSubstrateRuntime
             RequireOwner();
             foreach (PlanetLayer layer in world.grid.PlanetLayers.Values)
             {
+                RequireOwner();
                 layer.FastTileFinder.RegenerateCache();
+                RequireOwner();
                 layer.SetAllLayersDirty();
             }
+            RequireOwner();
             world.features.textsCreated = false;
             return true;
         }

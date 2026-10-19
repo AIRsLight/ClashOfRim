@@ -32,6 +32,7 @@ internal static class ClientWorldGenerationTests
             }
             Catalogs().GetAwaiter().GetResult(); count++;
             GeneratedReceipt(); count++;
+            ParallelSubstrateReaders(); count++;
         }
         finally { CultureInfo.CurrentCulture = culture; ClientSessionWork.Reset(); }
         Console.WriteLine($"PASS: world generation/application ({count} scenarios)");
@@ -48,6 +49,25 @@ internal static class ClientWorldGenerationTests
         var finish = f.Completed.Dequeue(); finish(); finish();
         Check(f.Page.Advanced == 1 && f.Successes == 1 && f.Failures == 0 && f.Created.Single().Committed, "Completion not exact.");
         Check(string.Join(",", f.Trace) == "close,queue,generate,publish,substrate,labels,remember,factions,roads,extensions,objects,completion,status,next", "Generation order changed: " + string.Join(",", f.Trace));
+    }
+    private static void ParallelSubstrateReaders()
+    {
+        var f = new Fixture(); f.Prepare();
+        Task? reader = null;
+        f.Hook = stage =>
+        {
+            if (stage != "substrate") return;
+            // RimWorld 1.7 FinalizeLoading regenerates FastTileFinder in parallel;
+            // each tile invokes the reservation reader under the publication gate.
+            reader = Task.Factory.StartNew(() =>
+            {
+                using var publication = ClientSessionWork.EnterPublication();
+            }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+            Check(reader.Wait(TimeSpan.FromSeconds(2)), "Substrate loading holds the publication gate while waiting for tile readers.");
+        };
+        f.Generation.TryStart(f.Page); f.Pump();
+        Check(reader is not null && reader.Wait(TimeSpan.FromSeconds(2)) && f.Failures == 0 && f.Successes == 1 && f.Page.Advanced == 1,
+            "Parallel substrate tile readers prevented world entry.");
     }
     private static void Ownership(string change, string stage)
     {
@@ -232,7 +252,8 @@ internal static class ClientWorldGenerationTests
             private bool published, disposed; internal bool Committed;
             internal BuiltWorld(GenerationSession owner) { this.owner = owner; previous = owner.World; }
             public void Publish() { owner.F.World = owner.World = value; published = true; owner.F.Step("publish"); }
-            public ClientWorldFeatureNames? ApplySubstrate(WorldSubstratePackage substrate, ModWorldConfigurationDto configuration) { owner.F.Step("substrate"); owner.F.Step("labels"); return owner.F.FeatureNames; }
+            public ClientWorldFeatureNames? ApplySubstrate(WorldSubstratePackage substrate, ModWorldConfigurationDto configuration, Func<bool> current)
+            { owner.F.Step("substrate"); if (current()) owner.F.Step("labels"); return owner.F.FeatureNames; }
             public void Complete(Func<bool> current) { owner.F.Step("completion"); Committed = current(); }
             public void Dispose() { if (disposed) return; disposed = true; if (!Committed && published && owner.IsCurrent) owner.F.World = owner.World = previous; }
         }
