@@ -1,3 +1,8 @@
+using RimTest.Runtime;
+using RimWorld.Planet;
+using AIRsLight.ClashOfRim.ClientNetwork;
+using AIRsLight.ClashOfRim;
+using static ClashOfRim.RimTestBridge.BridgeReflection;
 using RimTest.Protocol;
 using RimWorld;
 using UnityEngine;
@@ -5,24 +10,24 @@ using Verse;
 
 namespace ClashOfRim.RimTestBridge;
 
-internal sealed partial class DomainCommands
+internal sealed class AccountLifecycleCommands
 {
-    private void RegisterAccountLifecycle()
+    internal AccountLifecycleCommands(CommandRouter router, BridgeActionPolicy policy, Action<MapParent> openAbandon, Func<int> achievementVersion)
     {
-        bridge.Router.Register("clash.abandon", "Observe the real abandonment confirmation and its ten second countdown.", "observe", _ =>
+        router.Register("clash.abandon", "Observe the real abandonment confirmation and its ten second countdown.", "observe", _ =>
         {
             var window = AbandonWindow();
             return new { open = window is not null, ready = window is not null && Time.realtimeSinceStartup - Field<float>(window, "openedAtRealtime") >= 10f };
         });
-        bridge.Router.Register("clash.abandon.open", "Open the current home colony's original abandonment confirmation.", "semantic", _ =>
+        router.Register("clash.abandon.open", "Open the current home colony's original abandonment confirmation.", "semantic", _ =>
         {
-            Loopback(); var map = Find.CurrentMap;
+            policy.RequireLoopback(); var map = Find.CurrentMap;
             if (map?.IsPlayerHome != true) throw new CommandException("invalid_context", "Expected current home map.");
-            Invoke(Mod, "OpenAbandonPlayerColonyConfirmation", map.Parent); return new { invoked = true };
+            openAbandon(map.Parent); return new { invoked = true };
         });
-        bridge.Router.Register("clash.abandon.choose", "Cancel or confirm the visible abandonment dialog, respecting its countdown and original action.", "semantic", a =>
+        router.Register("clash.abandon.choose", "Cancel or confirm the visible abandonment dialog, respecting its countdown and original action.", "semantic", a =>
         {
-            Loopback(); var window = AbandonWindow() ?? throw new CommandException("invalid_context", "No abandonment dialog.");
+            policy.RequireLoopback(); var window = AbandonWindow() ?? throw new CommandException("invalid_context", "No abandonment dialog.");
             bool confirm = a.Bool("confirm");
             if (confirm && Time.realtimeSinceStartup - Field<float>(window, "openedAtRealtime") < 10f)
                 throw new CommandException("disabled", "Abandonment countdown has not elapsed.");
@@ -30,8 +35,8 @@ internal sealed partial class DomainCommands
             window.Close(); if (confirm) _ = action();
             return new { invoked = true, confirm };
         });
-        bridge.Router.Register("clash.achievement.version", "Observe achievement publication version for deterministic refresh completion.", "observe", _ =>
-            new { version = Field<int>(Mod, "achievementLeaderboardsSnapshotVersion") });
+        router.Register("clash.achievement.version", "Observe achievement publication version for deterministic refresh completion.", "observe", _ =>
+            new { version = achievementVersion() });
     }
     private static Window? AbandonWindow() => Find.WindowStack.Windows.SingleOrDefault(w => w.GetType().Name == "AbandonPlayerColonyConfirmationWindow");
 }

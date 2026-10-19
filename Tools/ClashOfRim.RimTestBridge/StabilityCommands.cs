@@ -1,3 +1,4 @@
+using static ClashOfRim.RimTestBridge.BridgeReflection;
 using System.Collections;
 using System.Security.Cryptography;
 using System.Text.Json;
@@ -15,33 +16,34 @@ namespace ClashOfRim.RimTestBridge;
 
 /// <summary>Independent, stable observations shared by lifecycle and transfer scenarios.
 /// Fixtures are bounded, explicitly opted into per command and never reported as player actions.</summary>
-internal sealed partial class DomainCommands
+internal sealed class StabilityCommands
 {
-    private static readonly Type ThingUtility = typeof(ClashOfRimMod).Assembly.GetType("AIRsLight.ClashOfRim.Trades.TradeThingReferenceUtility", true)!;
-    private void RegisterStability()
+    private readonly ObjectRegistry objects;
+    internal StabilityCommands(CommandRouter router, ObjectRegistry objects, BridgeActionPolicy policy)
     {
-        bridge.Router.Register("clash.stability.pawn", "Read stable pawn traits, skills, permanent health, genes, relations and gear without using the transfer serializer.", "observe", a =>
+        this.objects = objects;
+        router.Register("clash.stability.pawn", "Read stable pawn traits, skills, permanent health, genes, relations and gear without using the transfer serializer.", "observe", a =>
         {
             var pawn = FindPawn(a);
-            return new { reference = bridge.Objects.Add(pawn), id = pawn.ThingID, data = PawnState(pawn) };
+            return new { reference = objects.Add(pawn), id = pawn.ThingID, data = PawnState(pawn) };
         });
-        bridge.Router.Register("clash.stability.map", "Read spawned item/building contents and unique identities; no simulation is advanced.", "observe", a =>
+        router.Register("clash.stability.map", "Read spawned item/building contents and unique identities; no simulation is advanced.", "observe", a =>
         {
-            var map = StabilityMap(a);
+            var map = BridgeMaps.Select(a);
             var things = map.listerThings.AllThings.Where(t => t.def.category is ThingCategory.Item or ThingCategory.Building)
-                .OrderBy(t => t.ThingID, StringComparer.Ordinal).Select(t => new { id = t.ThingID, x = t.Position.x, z = t.Position.z, state = ThingState(t) }).ToArray();
+                .OrderBy(t => t.ThingID, StringComparer.Ordinal).Select(t => new { id = t.ThingID, x = t.Position.x, z = t.Position.z, state = ThingObservation.Read(t) }).ToArray();
             return new { mapId = "Map_" + map.uniqueID, thingCount = things.Length, duplicateIds = things.GroupBy(t => t.id).Where(g => g.Count() > 1).Select(g => g.Key).ToArray(),
                 sha256 = Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(things, Wire.Json))) };
         });
-        bridge.Router.Register("clash.stability.items", "Independent facts for spawned items matching a definition, including minified inner items.", "observe", a =>
-            ObjectInspector.Paginate(StabilityMap(a).listerThings.AllThings.Where(t => t.def.defName == a.String("defName") || (t is MinifiedThing m && m.InnerThing?.def.defName == a.String("defName")))
-                .OrderBy(t => t.ThingID, StringComparer.Ordinal).Select(t => new { reference = bridge.Objects.Add(t), id = t.ThingID, data = ThingState(t) }).ToArray(), a));
-        bridge.Router.Register("clash.stability.support", "Support quest lifecycle facts, including finished quests and deadlines.", "observe", a =>
+        router.Register("clash.stability.items", "Independent facts for spawned items matching a definition, including minified inner items.", "observe", a =>
+            ObjectInspector.Paginate(BridgeMaps.Select(a).listerThings.AllThings.Where(t => t.def.defName == a.String("defName") || (t is MinifiedThing m && m.InnerThing?.def.defName == a.String("defName")))
+                .OrderBy(t => t.ThingID, StringComparer.Ordinal).Select(t => new { reference = objects.Add(t), id = t.ThingID, data = ThingObservation.Read(t) }).ToArray(), a));
+        router.Register("clash.stability.support", "Support quest lifecycle facts, including finished quests and deadlines.", "observe", a =>
             ObjectInspector.Paginate(Find.QuestManager.QuestsListForReading.SelectMany(q => q.PartsListForReading.OfType<QuestPart_ClashSupportPawn>())
                 .Select(p => new { p.EventId, p.PermanentSupport, p.ExpiresAtGameTicks, p.Completed, p.FinishRequested, p.FinishReason }).ToArray(), a));
-        bridge.Router.Register("clash.fixture.pawnState", "FIXTURE: set one existing player pawn's gear quality/durability, permanent scar, skill, sibling and deceased relationship references; requires explicit acknowledgement and debug capability.", "fixture", a =>
+        router.Register("clash.fixture.pawnState", "FIXTURE: set one existing player pawn's gear quality/durability, permanent scar, skill, sibling and deceased relationship references; requires explicit acknowledgement and debug capability.", "fixture", a =>
         {
-            Fixture(a); var p = FindPawn(a);
+            policy.RequireFixture(a); var p = FindPawn(a);
             if (!p.Spawned || p.Faction != Faction.OfPlayer || !p.RaceProps.Humanlike) throw new CommandException("invalid_context", "Requires spawned player human.");
             var other = p.Map.mapPawns.FreeColonistsSpawned.First(q => q != p);
             if (!p.relations.DirectRelationExists(PawnRelationDefOf.Sibling, other)) p.relations.AddDirectRelation(PawnRelationDefOf.Sibling, other);
@@ -67,27 +69,27 @@ internal sealed partial class DomainCommands
             var scar = HediffMaker.MakeHediff(HediffDefOf.Cut, p, part);
             scar.Severity = 2; scar.TryGetComp<HediffComp_GetsPermanent>().IsPermanent = true;
             p.health.AddHediff(scar);
-            return new { fixture = true, pawn = bridge.Objects.Add(p), data = PawnState(p) };
+            return new { fixture = true, pawn = objects.Add(p), data = PawnState(p) };
         });
-        bridge.Router.Register("clash.fixture.supportDue", "FIXTURE: advance one active temporary support quest deadline to the next game tick; does not run or complete the quest.", "fixture", a =>
+        router.Register("clash.fixture.supportDue", "FIXTURE: advance one active temporary support quest deadline to the next game tick; does not run or complete the quest.", "fixture", a =>
         {
-            Fixture(a);
+            policy.RequireFixture(a);
             var p = Find.QuestManager.QuestsListForReading.SelectMany(q => q.PartsListForReading.OfType<QuestPart_ClashSupportPawn>())
                 .Single(p => p.EventId == a.String("eventId") && !p.Completed && !p.PermanentSupport && !p.FinishRequested);
             long original = p.ExpiresAtGameTicks; p.ExpiresAtGameTicks = Find.TickManager.TicksGame + 1;
             return new { fixture = true, original, p.ExpiresAtGameTicks };
         });
-        bridge.Router.Register("clash.fixture.supportDeath", "FIXTURE: kill one active borrowed pawn through the game's death path; requires explicit acknowledgement.", "fixture", a =>
+        router.Register("clash.fixture.supportDeath", "FIXTURE: kill one active borrowed pawn through the game's death path; requires explicit acknowledgement.", "fixture", a =>
         {
-            Fixture(a); var pawn = FindPawn(a);
+            policy.RequireFixture(a); var pawn = FindPawn(a);
             if (!pawn.Spawned || pawn.Dead || AccessTools.Method(typeof(ClashOfRimGameComponent), "FindSupportAssignment").Invoke(null, new object[] { pawn }) is null)
                 throw new CommandException("invalid_context", "Requires a living spawned support pawn.");
             pawn.Kill(null);
             return new { fixture = true, pawn.Dead, pawn.ThingID };
         });
-        bridge.Router.Register("clash.fixture.complexItems", "FIXTURE: create six ordinary game items with non-default quality, durability, taint, ingredients, rot, color and fuel for real trade transfer tests.", "fixture", a =>
+        router.Register("clash.fixture.complexItems", "FIXTURE: create six ordinary game items with non-default quality, durability, taint, ingredients, rot, color and fuel for real trade transfer tests.", "fixture", a =>
         {
-            Fixture(a); var map = StabilityMap(a); var cell = map.mapPawns.FreeColonistsSpawned.First().Position;
+            policy.RequireFixture(a); var map = BridgeMaps.Select(a); var cell = map.mapPawns.FreeColonistsSpawned.First().Position;
             var result = new List<object>();
             foreach (var (name, material) in new[] { ("Apparel_Duster", "Cloth"), ("Gun_BoltActionRifle", ""), ("MealFine", ""), ("Bed", "WoodLog"), ("SculptureSmall", "BlocksMarble"), ("FueledStove", "") })
             {
@@ -102,13 +104,13 @@ internal sealed partial class DomainCommands
                 if (t.TryGetComp<CompRefuelable>() is { } fuel) fuel.Refuel(fuel.Props.fuelCapacity * 0.37f);
                 if (t.def.category == ThingCategory.Building) t = t.MakeMinified();
                 if (!GenPlace.TryPlaceThing(t, cell, map, ThingPlaceMode.Near)) throw new CommandException("fixture_failed", name);
-                result.Add(new { reference = bridge.Objects.Add(t), data = ThingState(t) });
+                result.Add(new { reference = objects.Add(t), data = ThingObservation.Read(t) });
             }
             return new { fixture = true, items = result };
         });
-        bridge.Router.Register("clash.fixture.remoteLoss", "FIXTURE: destroy one steel stack on an active remote map, exercising ordinary destruction callbacks; no server or home map writes.", "fixture", a =>
+        router.Register("clash.fixture.remoteLoss", "FIXTURE: destroy one steel stack on an active remote map, exercising ordinary destruction callbacks; no server or home map writes.", "fixture", a =>
         {
-            Fixture(a); var session = Session();
+            policy.RequireFixture(a); var session = ClashOfRimGameComponent.ActiveRemoteMapSession;
             if (session?.IsActive != true) throw new CommandException("invalid_context", "Requires remote map.");
             var map = Find.Maps.Single(m => "Map_" + m.uniqueID == session.ClientMapId);
             var thing = map.listerThings.ThingsOfDef(ThingDefOf.Steel).OrderBy(t => t.ThingID, StringComparer.Ordinal).First();
@@ -117,16 +119,8 @@ internal sealed partial class DomainCommands
             return new { fixture = true, before };
         });
     }
-    private void Fixture(JsonElement a)
-    {
-        Loopback();
-        if (!a.Bool("acknowledgeFixture") || !bridge.Router.Capabilities.Any(c => c.Method == "debug.invoke"))
-            throw new CommandException("disabled", "Explicit fixture acknowledgement and AllowDebug required.");
-    }
-    private Pawn FindPawn(JsonElement a) => a.OptionalString("pawn") is { } handle ? bridge.Objects.Get<Pawn>(handle) :
+    private Pawn FindPawn(JsonElement a) => a.OptionalString("pawn") is { } handle ? objects.Get<Pawn>(handle) :
         Find.Maps.SelectMany(m => m.mapPawns.AllPawnsSpawned).Single(p => p.ThingID == a.String("thingId"));
-    private static Map StabilityMap(JsonElement a) => a.OptionalString("mapId") is { } id
-        ? Find.Maps.Single(m => "Map_" + m.uniqueID == id) : Find.Maps.Single(m => m.IsPlayerHome);
     private static object PawnState(Pawn p) => new
     {
         name = p.Name?.ToStringFull, race = p.def.defName, kind = p.kindDef.defName, gender = p.gender.ToString(),
@@ -138,27 +132,7 @@ internal sealed partial class DomainCommands
         // Relationship stubs promise LabelShort, species and stable identity, not a full NameTriple.
         relations = p.relations?.DirectRelations.OrderBy(r => r.def.defName, StringComparer.Ordinal).ThenBy(r => r.otherPawn.LabelShort, StringComparer.Ordinal)
             .Select(r => new { defName = r.def.defName, name = r.otherPawn.LabelShort, race = r.otherPawn.def.defName, kind = r.otherPawn.kindDef.defName, dead = r.otherPawn.Dead }).ToArray(),
-        equipment = p.equipment?.AllEquipmentListForReading.OrderBy(t => t.def.defName, StringComparer.Ordinal).Select(ThingState).ToArray(),
-        apparel = p.apparel?.WornApparel.OrderBy(t => t.def.defName, StringComparer.Ordinal).Select(ThingState).ToArray()
+        equipment = p.equipment?.AllEquipmentListForReading.OrderBy(t => t.def.defName, StringComparer.Ordinal).Select(ThingObservation.Read).ToArray(),
+        apparel = p.apparel?.WornApparel.OrderBy(t => t.def.defName, StringComparer.Ordinal).Select(ThingObservation.Read).ToArray()
     };
-    private static object ThingState(Thing t)
-    {
-        var value = t is MinifiedThing m ? m.InnerThing : t;
-        if (value is null) return new { defName = t.def.defName, emptyMinified = true };
-        var coded = value.TryGetComp<CompBiocodable>();
-        return new
-        {
-            defName = t.def.defName, innerDef = t is MinifiedThing ? value.def.defName : null, count = t.stackCount,
-            stuff = value.Stuff?.defName, quality = value.TryGetComp<CompQuality>()?.Quality.ToString(),
-            hp = value.def.useHitPoints ? (int?)value.HitPoints : null, tainted = (value as Apparel)?.WornByCorpse,
-            deterioration = AmbientDamageObservation.Loss(value),
-            biocoded = coded?.Biocoded, codedPawn = coded?.Biocoded == true ? coded.CodedPawnLabel : null,
-            ingredients = value.TryGetComp<CompIngredients>()?.ingredients.Select(d => d.defName).Order(StringComparer.Ordinal).ToArray(),
-            genes = (value as GeneSetHolderBase)?.GeneSet?.GenesListForReading.Select(g => g.defName).Order(StringComparer.Ordinal).ToArray(),
-            color = value.TryGetComp<CompColorable>()?.Color.ToString(),
-            style = value.StyleDef?.defName,
-            rotTicks = value.TryGetComp<CompRottable>()?.RotProgress,
-            fuel = value.TryGetComp<CompRefuelable>()?.Fuel
-        };
-    }
 }

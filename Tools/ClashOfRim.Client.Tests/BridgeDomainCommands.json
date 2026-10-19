@@ -1,0 +1,292 @@
+[
+  {
+    "method": "clash.abandon",
+    "description": "Observe the real abandonment confirmation and its ten second countdown.",
+    "mode": "observe"
+  },
+  {
+    "method": "clash.abandon.choose",
+    "description": "Cancel or confirm the visible abandonment dialog, respecting its countdown and original action.",
+    "mode": "semantic"
+  },
+  {
+    "method": "clash.abandon.open",
+    "description": "Open the current home colony's original abandonment confirmation.",
+    "mode": "semantic"
+  },
+  {
+    "method": "clash.achievement.version",
+    "description": "Observe achievement publication version for deterministic refresh completion.",
+    "mode": "observe"
+  },
+  {
+    "method": "clash.bank.debts",
+    "description": "References to debt records currently displayed by the bank, for its original repay action.",
+    "mode": "observe"
+  },
+  {
+    "method": "clash.bank.quests",
+    "description": "Observe persisted bank quest accounting and penalty clocks independently of network DTOs.",
+    "mode": "observe"
+  },
+  {
+    "method": "clash.compatibility",
+    "description": "Observe the original compatibility decision; only accepted language warnings offer continuation.",
+    "mode": "observe"
+  },
+  {
+    "method": "clash.compatibility.continue",
+    "description": "Choose the original Join Anyway button when the product permits a language-only warning.",
+    "mode": "semantic"
+  },
+  {
+    "method": "clash.dlc.pawns",
+    "description": "Read stable DLC pawn identities: royal title/honor, psylink/abilities, ideology/culture, genes and death-refusal uses.",
+    "mode": "observe"
+  },
+  {
+    "method": "clash.events",
+    "description": "Read an isolated snapshot of the client event inbox.",
+    "mode": "observe"
+  },
+  {
+    "method": "clash.fixture.bankCash",
+    "description": "FIXTURE: replace spawned home silver with an explicit 0..20000 balance to test insufficient/exact payment; does not change bank records.",
+    "mode": "fixture"
+  },
+  {
+    "method": "clash.fixture.bankDeadline",
+    "description": "FIXTURE: shorten one existing unpaid quest's local deadline/next penalty to 10 ticks; leaves fees, stages, interval, ledger and punishment execution unchanged.",
+    "mode": "fixture"
+  },
+  {
+    "method": "clash.fixture.complexItems",
+    "description": "FIXTURE: create six ordinary game items with non-default quality, durability, taint, ingredients, rot, color and fuel for real trade transfer tests.",
+    "mode": "fixture"
+  },
+  {
+    "method": "clash.fixture.dlcPawn",
+    "description": "FIXTURE: give one colonist representative enabled-DLC state using game APIs. Does not emulate earning titles, surgery, rituals or resurrection.",
+    "mode": "fixture"
+  },
+  {
+    "method": "clash.fixture.gravship",
+    "description": "FIXTURE: construct a fueled researched ship, board all three colonists and move silver/steel onto it; no launch/settlement callbacks or controller state are injected.",
+    "mode": "fixture"
+  },
+  {
+    "method": "clash.fixture.mercenaryDeath",
+    "description": "FIXTURE: kill the pawn of one active hired contract through Pawn.Kill; the real death notification creates any debt.",
+    "mode": "fixture"
+  },
+  {
+    "method": "clash.fixture.pawnState",
+    "description": "FIXTURE: set one existing player pawn's gear quality/durability, permanent scar, skill, sibling and deceased relationship references; requires explicit acknowledgement and debug capability.",
+    "mode": "fixture"
+  },
+  {
+    "method": "clash.fixture.relocation",
+    "description": "FIXTURE: move current colonists and silver/10 steel into a nearby caravan or generated ItemStash site; settlement and server registration remain untouched.",
+    "mode": "fixture"
+  },
+  {
+    "method": "clash.fixture.relocationEnemy",
+    "description": "FIXTURE: add/remove one hostile mech on an existing destination map to test settle threat validation.",
+    "mode": "fixture"
+  },
+  {
+    "method": "clash.fixture.remoteLoss",
+    "description": "FIXTURE: destroy one steel stack on an active remote map, exercising ordinary destruction callbacks; no server or home map writes.",
+    "mode": "fixture"
+  },
+  {
+    "method": "clash.fixture.supportDeath",
+    "description": "FIXTURE: kill one active borrowed pawn through the game's death path; requires explicit acknowledgement.",
+    "mode": "fixture"
+  },
+  {
+    "method": "clash.fixture.supportDue",
+    "description": "FIXTURE: advance one active temporary support quest deadline to the next game tick; does not run or complete the quest.",
+    "mode": "fixture"
+  },
+  {
+    "method": "clash.gift.inventory",
+    "description": "Original gift dialog caravan inventory candidates.",
+    "mode": "observe"
+  },
+  {
+    "method": "clash.gift.select",
+    "description": "Select a bounded quantity from currently available caravan cargo in the original gift dialog.",
+    "mode": "semantic"
+  },
+  {
+    "method": "clash.gift.submit",
+    "description": "Submit the original gift editor; retains its confirmation and server distance/permission validation.",
+    "mode": "semantic"
+  },
+  {
+    "method": "clash.gravship",
+    "description": "Observe flight/cutscene, landing marker and ship cargo identities without initiating a flight.",
+    "mode": "observe"
+  },
+  {
+    "method": "clash.gravship.begin",
+    "description": "Submit the visible original gravship ritual dialog with its CanBegin validation; confirmations remain explicit.",
+    "mode": "semantic"
+  },
+  {
+    "method": "clash.gravship.destination",
+    "description": "Choose a same-surface flight tile through the current original tile picker validator and confirm callback.",
+    "mode": "semantic"
+  },
+  {
+    "method": "clash.gravship.land",
+    "description": "Confirm the current placed landing zone using the original button action, including designator guard, marker release and landing sound.",
+    "mode": "semantic"
+  },
+  {
+    "method": "clash.gravship.pilot",
+    "description": "Choose the console's original Launch gravship pawn menu option; the pawn must walk to the console and open its launch ceremony.",
+    "mode": "semantic"
+  },
+  {
+    "method": "clash.gravship.placeLanding",
+    "description": "Choose the first center-near cell accepted by the original landing designator; does not force invalid cells or start landing.",
+    "mode": "semantic"
+  },
+  {
+    "method": "clash.inventory",
+    "description": "Count spawned home-map stock and colonists; excludes in-flight delivery containers.",
+    "mode": "observe"
+  },
+  {
+    "method": "clash.mercenaries",
+    "description": "Observe original mercenary quest contracts and current pawn/recall state.",
+    "mode": "observe"
+  },
+  {
+    "method": "clash.mercenary.recall",
+    "description": "Use the original quest recall action on an active contract.",
+    "mode": "semantic"
+  },
+  {
+    "method": "clash.relocation",
+    "description": "Observe local map anchors, pawn identities and original settle command availability.",
+    "mode": "observe"
+  },
+  {
+    "method": "clash.relocation.confirm",
+    "description": "Choose the visible mod relocation confirmation's original confirm callback.",
+    "mode": "semantic"
+  },
+  {
+    "method": "clash.relocation.settleMap",
+    "description": "Invoke the current existing-map settle command with normal enemy and colony limit checks.",
+    "mode": "semantic"
+  },
+  {
+    "method": "clash.remote",
+    "description": "Read active observation/raid identity and object references.",
+    "mode": "observe"
+  },
+  {
+    "method": "clash.remote.close",
+    "description": "Original remote-map primary action, with raid confirmation enabled.",
+    "mode": "semantic"
+  },
+  {
+    "method": "clash.shop.catalog",
+    "description": "Enumerate every definition offered by the original shop editor, without its UI search display limit.",
+    "mode": "observe"
+  },
+  {
+    "method": "clash.shop.catalogTemplate",
+    "description": "Use original editor default metadata and concrete offered stuff, quality, durability and gene selections. No listing is published.",
+    "mode": "semantic"
+  },
+  {
+    "method": "clash.shop.listing",
+    "description": "Look up one current shop view-model record by listing ID; does not refresh or cache objects not selected.",
+    "mode": "observe"
+  },
+  {
+    "method": "clash.shop.received",
+    "description": "Compare spawned inventory directly with a concrete shop template; no transfer serialization is used.",
+    "mode": "observe"
+  },
+  {
+    "method": "clash.shop.template",
+    "description": "Build a simple shop item with the original admin editor. Does not publish a listing.",
+    "mode": "semantic"
+  },
+  {
+    "method": "clash.stability.items",
+    "description": "Independent facts for spawned items matching a definition, including minified inner items.",
+    "mode": "observe"
+  },
+  {
+    "method": "clash.stability.map",
+    "description": "Read spawned item/building contents and unique identities; no simulation is advanced.",
+    "mode": "observe"
+  },
+  {
+    "method": "clash.stability.pawn",
+    "description": "Read stable pawn traits, skills, permanent health, genes, relations and gear without using the transfer serializer.",
+    "mode": "observe"
+  },
+  {
+    "method": "clash.stability.support",
+    "description": "Support quest lifecycle facts, including finished quests and deadlines.",
+    "mode": "observe"
+  },
+  {
+    "method": "clash.support.assignments",
+    "description": "Read current received support assignments and their stable event/pawn identities.",
+    "mode": "observe"
+  },
+  {
+    "method": "clash.support.confirmDuration",
+    "description": "Confirm the original support-duration dialog using its offered 3..30 day range or permanent mode.",
+    "mode": "semantic"
+  },
+  {
+    "method": "clash.support.return",
+    "description": "Use the original quest early-return button, including completion tracking.",
+    "mode": "semantic"
+  },
+  {
+    "method": "clash.trade.beacon",
+    "description": "Toggle original trade editor beacon restriction and clear its selections as the UI does.",
+    "mode": "semantic"
+  },
+  {
+    "method": "clash.trade.candidates",
+    "description": "Original currently accessible offer candidates; filters compatibility and beacon range.",
+    "mode": "observe"
+  },
+  {
+    "method": "clash.trade.offer",
+    "description": "Select an original offer candidate and a bounded stack count in the current editor.",
+    "mode": "semantic"
+  },
+  {
+    "method": "clash.trade.request",
+    "description": "Add a request using original definition eligibility and metadata builders. Complex requests remain editable through their UI.",
+    "mode": "semantic"
+  },
+  {
+    "method": "clash.trade.state",
+    "description": "Read the current trade editor and its original submit validation.",
+    "mode": "observe"
+  },
+  {
+    "method": "clash.trade.submit",
+    "description": "Original quote-and-confirm flow; never bypasses fee calculation or confirmation.",
+    "mode": "semantic"
+  },
+  {
+    "method": "clash.world",
+    "description": "Read world identity and generated topology counts without credentials or payload contents.",
+    "mode": "observe"
+  }
+]

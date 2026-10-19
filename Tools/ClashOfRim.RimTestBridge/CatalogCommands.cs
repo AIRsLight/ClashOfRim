@@ -1,3 +1,5 @@
+using RimWorld.Planet;
+using static ClashOfRim.RimTestBridge.BridgeReflection;
 using AIRsLight.ClashOfRim.Modules.Compatibility.Biotech;
 using System.Text.Json;
 using AIRsLight.ClashOfRim;
@@ -13,17 +15,18 @@ using Verse;
 
 namespace ClashOfRim.RimTestBridge;
 
-internal sealed partial class DomainCommands
+internal sealed class CatalogCommands
 {
+    private static readonly Type ThingUtility = typeof(TradeOrderDialogWindow).Assembly.GetType("AIRsLight.ClashOfRim.Trades.TradeThingReferenceUtility", true)!;
     private static readonly Type ShopEditor = typeof(ServerShopListingDialogWindow);
-    private void RegisterCatalog()
+    internal CatalogCommands(CommandRouter router, ObjectRegistry objects, BridgeActionPolicy policy, Func<IReadOnlyList<ModServerShopListingDto>> shopListings)
     {
-        bridge.Router.Register("clash.shop.catalog", "Enumerate every definition offered by the original shop editor, without its UI search display limit.", "observe", a =>
+        router.Register("clash.shop.catalog", "Enumerate every definition offered by the original shop editor, without its UI search display limit.", "observe", a =>
             ObjectInspector.Paginate(((IEnumerable<ThingDef>)InvokeStatic(ShopEditor, "SearchThingDefs", "")!).OrderBy(d => d.defName, StringComparer.Ordinal)
                 .Select(d => new { defName = d.defName, category = d.category.ToString(), type = d.thingClass.FullName }).ToArray(), a));
-        bridge.Router.Register("clash.shop.catalogTemplate", "Use original editor default metadata and concrete offered stuff, quality, durability and gene selections. No listing is published.", "semantic", a =>
+        router.Register("clash.shop.catalogTemplate", "Use original editor default metadata and concrete offered stuff, quality, durability and gene selections. No listing is published.", "semantic", a =>
         {
-            Loopback();
+            policy.RequireLoopback();
             var def = ((IEnumerable<ThingDef>)InvokeStatic(ShopEditor, "SearchThingDefs", a.String("defName"))!).Single(d => d.defName == a.String("defName"));
             var item = (ModThingReferenceDto)InvokeStatic(ShopEditor, "BuildItemReference", def)!;
             bool variant = a.Bool("variant");
@@ -34,24 +37,24 @@ internal sealed partial class DomainCommands
             }
             if (variant && item.Quality is not null) InvokeStatic(ShopEditor, "SetItemQuality", item, QualityCategory.Masterwork.ToString());
             if (variant && item.HitPoints is int hp) InvokeStatic(ShopEditor, "SetItemHitPoints", item, Math.Max(1, hp * 73 / 100));
-            var core = typeof(ClashOfRimMod).Assembly.GetType("AIRsLight.ClashOfRim.CoreCompatibility.CoreThingReferenceMetadata", true)!;
+            var core = typeof(TradeOrderDialogWindow).Assembly.GetType("AIRsLight.ClashOfRim.CoreCompatibility.CoreThingReferenceMetadata", true)!;
             if ((bool)InvokeStatic(core, "IsSkillBookDef", def)!) InvokeStatic(core, "SetBookSkillDefNames", item, new[] { "Shooting", "Cooking" });
             if ((bool)InvokeStatic(core, "IsResearchBookDef", def)!)
             {
                 var research = ((IEnumerable<ResearchProjectDef>)InvokeStatic(core, "ResearchBookProjects", def)!).OrderBy(d => d.defName, StringComparer.Ordinal).First();
                 InvokeStatic(core, "SetResearchProjectDefName", item, research.defName);
             }
-            var trainer = typeof(ClashOfRimMod).Assembly.GetType("AIRsLight.ClashOfRim.Traits.TraitTrainerUtility", true)!;
+            var trainer = typeof(TradeOrderDialogWindow).Assembly.GetType("AIRsLight.ClashOfRim.Traits.TraitTrainerUtility", true)!;
             if ((bool)InvokeStatic(trainer, "IsTraitTrainerDef", def)!)
                 InvokeStatic(trainer, "SetTrait", item, TraitDefOf.Kind, 0);
             if (ModsConfig.RoyaltyActive && def.HasComp<CompBladelinkWeapon>())
             {
-                var royalty = typeof(ClashOfRimMod).Assembly.GetType("AIRsLight.ClashOfRim.DlcCompatibility.RoyaltyThingReferenceCompatibility", true)!;
+                var royalty = typeof(TradeOrderDialogWindow).Assembly.GetType("AIRsLight.ClashOfRim.DlcCompatibility.RoyaltyThingReferenceCompatibility", true)!;
                 item.UniqueWeaponTraits = new List<string> { ((IEnumerable<WeaponTraitDef>)InvokeStatic(royalty, "MatchingTraits")!).OrderBy(d => d.defName, StringComparer.Ordinal).First().defName };
             }
             if (ModsConfig.OdysseyActive && def.HasComp<CompUniqueWeapon>())
             {
-                var odyssey = typeof(ClashOfRimMod).Assembly.GetType("AIRsLight.ClashOfRim.DlcCompatibility.OdysseyThingReferenceCompatibility", true)!;
+                var odyssey = typeof(TradeOrderDialogWindow).Assembly.GetType("AIRsLight.ClashOfRim.DlcCompatibility.OdysseyThingReferenceCompatibility", true)!;
                 var trait = ((IEnumerable<WeaponTraitDef>)InvokeStatic(odyssey, "MatchingTraits", def)!).OrderBy(d => d.defName, StringComparer.Ordinal)
                     .First(t => (bool)InvokeStatic(odyssey, "CanAddTrait", def, item, t)!);
                 item.UniqueWeaponTraits = new List<string> { trait.defName };
@@ -63,20 +66,20 @@ internal sealed partial class DomainCommands
                 BiotechThingMetadata.SetGeneDefNames(item, genes);
             }
             bool complete = (bool)InvokeStatic(ShopEditor, "HasCompleteItem", item, ThingReferenceSurfaces.ServerShopListing)!;
-            return new { reference = bridge.Objects.Add(item), data = item, complete, defName = def.defName };
+            return new { reference = objects.Add(item), data = item, complete, defName = def.defName };
         });
-        bridge.Router.Register("clash.shop.listing", "Look up one current shop view-model record by listing ID; does not refresh or cache objects not selected.", "observe", a =>
+        router.Register("clash.shop.listing", "Look up one current shop view-model record by listing ID; does not refresh or cache objects not selected.", "observe", a =>
         {
-            var listings = (IEnumerable<ModServerShopListingDto>)AccessTools.Property(typeof(ClashOfRimMod), "ServerShopListingsSnapshot").GetValue(Mod)!;
+            var listings = shopListings();
             var item = listings.SingleOrDefault(l => l.ListingId == a.String("listingId"));
-            return new { count = listings.Count(), listing = item is null ? null : Record(item) };
+            return new { count = listings.Count(), listing = item is null ? null : objects.Record(item) };
         });
-        bridge.Router.Register("clash.shop.received", "Compare spawned inventory directly with a concrete shop template; no transfer serialization is used.", "observe", a =>
+        router.Register("clash.shop.received", "Compare spawned inventory directly with a concrete shop template; no transfer serialization is used.", "observe", a =>
         {
             // Bind only a previously observed template; the external runner cannot inject arbitrary DTOs.
-            var item = bridge.Objects.Get<ModThingReferenceDto>(a.String("template"));
+            var item = objects.Get<ModThingReferenceDto>(a.String("template"));
             var def = item.MinifiedInnerDefName ?? item.DefName;
-            var things = StabilityMap(a).listerThings.AllThings.Where(t => (t is MinifiedThing m ? m.InnerThing?.def.defName : t.def.defName) == def).ToArray();
+            var things = BridgeMaps.Select(a).listerThings.AllThings.Where(t => (t is MinifiedThing m ? m.InnerThing?.def.defName : t.def.defName) == def).ToArray();
             bool Match(Thing t)
             {
                 var inner = t is MinifiedThing m ? m.InnerThing : t;
@@ -89,7 +92,17 @@ internal sealed partial class DomainCommands
                         string.Join(",", holder.GeneSet.GenesListForReading.Select(g => g.defName).Order(StringComparer.Ordinal)) ==
                         string.Join(",", genes!.Split(',').Select(s => s.Trim()).Order(StringComparer.Ordinal)));
             }
-            return new { total = things.Sum(t => t.stackCount), matching = things.Where(Match).Sum(t => t.stackCount), facts = things.Take(8).Select(ThingState).ToArray() };
+            return new { total = things.Sum(t => t.stackCount), matching = things.Where(Match).Sum(t => t.stackCount), facts = things.Take(8).Select(ThingObservation.Read).ToArray() };
+        });
+        router.Register("clash.shop.template", "Build a simple shop item with the original admin editor. Does not publish a listing.", "semantic", a =>
+        {
+            policy.RequireLoopback(); string name = a.String("defName"); int count = a.Int("count", 1);
+            var def = ((IEnumerable<ThingDef>)InvokeStatic(typeof(ServerShopListingDialogWindow), "SearchThingDefs", name)!).SingleOrDefault(d => d.defName == name);
+            if (def is null || count < 1 || count > 100000) throw new CommandException("invalid_arguments", "Invalid shop item/count.");
+            var item = (ModThingReferenceDto)InvokeStatic(typeof(ServerShopListingDialogWindow), "BuildItemReference", def)!; item.StackCount = count;
+            if (!(bool)InvokeStatic(typeof(ServerShopListingDialogWindow), "HasCompleteItem", item, ThingReferenceSurfaces.ServerShopListing)!)
+                throw new CommandException("unsupported", "Item requires further metadata in the original editor.");
+            return objects.Record(item);
         });
     }
     private static bool MatchesMetadata(ModThingReferenceDto item, Thing thing)

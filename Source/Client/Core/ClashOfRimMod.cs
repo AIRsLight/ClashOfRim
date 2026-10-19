@@ -520,6 +520,7 @@ public sealed class ClashOfRimMod : Mod
     internal List<ModPlayerSummaryDto> PlayersSnapshot => playerDirectory.CopyPlayers();
 
     internal List<ModAchievementLeaderboardDto> AchievementLeaderboardsSnapshot => achievementQueries.CopyLeaderboards();
+    internal int AchievementLeaderboardsSnapshotVersion => achievementQueries.Version;
     internal List<ModAchievementSummaryDto> OwnAchievementsSnapshot => achievementQueries.CopyAchievements();
 
     internal string AchievementStatus => achievementQueries.Message;
@@ -527,6 +528,7 @@ public sealed class ClashOfRimMod : Mod
         => _ = achievementQueries.RefreshAsync(targetUserId, targetColonyId);
 
     internal List<ModWorldMapMarkerDto> WorldMapMarkersSnapshot => worldMarkers.Snapshot;
+    internal string WorldConfigurationId => settings.CurrentWorldConfigurationId;
 
     internal bool AccountPasswordInProgress => passwordChange.Busy;
     internal string AccountPasswordStatus => passwordChange.Message;

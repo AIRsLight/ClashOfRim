@@ -169,6 +169,7 @@ var tests = new (string Name, Action Run)[]
     ("bank protocol shares all seven routes and captured credentials with the facade", ClientBankProtocolTests.Run),
     ("caravan gizmos preserve domain routing and delayed source ownership", ClientCaravanGizmoTests.Run),
     ("client modules cannot depend on the Mod, full settings or broad protocol client", ClientModuleBoundaryTests.Run),
+    ("RimTest domain modules preserve commands, admission and independent observations", BridgeDomainModuleTests.Run),
     ("event choice letters bind delayed actions to their original event and session", EventChoiceLetterTests.Run),
     ("event applications own game effects, hydration and confirmation handoff", EventApplicationModuleTests.Run),
     ("event refresh owns coalescing, cursor, state and delayed delivery", EventRefreshModuleTests.Run),

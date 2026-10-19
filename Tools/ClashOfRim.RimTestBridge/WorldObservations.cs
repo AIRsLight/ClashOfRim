@@ -68,10 +68,9 @@ internal static class WorldObservations
     {
         if (Find.World?.grid is null) return null;
         var mod = LoadedModManager.GetMod<ClashOfRimMod>();
-        var settings = AccessTools.Field(mod.GetType(), "settings").GetValue(mod);
         return new
         {
-            worldConfigurationId = AccessTools.Field(settings.GetType(), "CurrentWorldConfigurationId").GetValue(settings),
+            worldConfigurationId = mod.WorldConfigurationId,
             info = Scalars(Find.World.info),
             storyteller = Current.Game.storyteller.def.defName,
             difficulty = Current.Game.storyteller.difficultyDef.defName,

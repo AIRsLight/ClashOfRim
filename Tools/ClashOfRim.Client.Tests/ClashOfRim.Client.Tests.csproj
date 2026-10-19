@@ -8,13 +8,14 @@
   <Import Project="../RimWorld.Client.props" />
   <ItemGroup>
     <ProjectReference Include="../../Source/Client/ClashOfRim.csproj" />
+    <ProjectReference Include="../ClashOfRim.RimTestBridge/ClashOfRim.RimTestBridge.csproj" />
+    <ProjectReference Include="../../RimTest/src/RimTest.RimWorld/RimTest.RimWorld.csproj" />
     <Compile Include="../TestSupport/ModuleDependencyGuard.cs" Link="ModuleDependencyGuard.cs" />
     <Compile Include="../TestSupport/BiotechTradeConstraintCases.cs" Link="BiotechTradeConstraintCases.cs" />
     <Compile Include="../TestSupport/ServerShopPricingTests.cs" Link="ServerShopPricingTests.cs" />
     <Compile Include="../TestSupport/SnapshotPackageModuleTests.cs" Link="SnapshotPackageModuleTests.cs" />
     <Compile Include="../TestSupport/EventInboxModuleTests.cs" Link="EventInboxModuleTests.cs" />
-    <Compile Include="../ClashOfRim.RimTestBridge/EventDetailsObservation.cs" Link="EventDetailsObservation.cs" />
-    <Compile Include="../ClashOfRim.RimTestBridge/ClientActionContract.cs" Link="ClientActionContract.cs" />
+    <EmbeddedResource Include="BridgeDomainCommands.json" />
   </ItemGroup>
   <Target Name="RequireRuntimeGameAssemblies" BeforeTargets="Build">
     <Error Condition="'$(RimWorldManagedDir)' == ''" Text="Client tests execute game code. Set RimWorldManagedDir to the installed RimWorld 1.7 directory; NuGet reference assemblies cannot execute." />

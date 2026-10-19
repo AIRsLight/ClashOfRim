@@ -53,7 +53,8 @@ internal static class ClientActionContract
     }
 
     internal static Dictionary<string, PropertyInfo> ResolveProperties(Type owner)
-        => StateProperties.Concat(RecordProperties.Values).Concat(new[] { "BankStatusSnapshot", "AdminStatusSnapshot" })
+        => StateProperties.Concat(RecordProperties.Values).Concat(new[] { "BankStatusSnapshot", "AdminStatusSnapshot",
+                "AchievementLeaderboardsSnapshotVersion", "WorldConfigurationId" })
             .Distinct().ToDictionary(name => name, name =>
             {
                 var property = owner.GetProperty(name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);

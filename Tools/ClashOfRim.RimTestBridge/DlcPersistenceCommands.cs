@@ -1,17 +1,22 @@
+using RimTest.Runtime;
+using RimWorld.Planet;
+using AIRsLight.ClashOfRim.ClientNetwork;
+using AIRsLight.ClashOfRim;
+using static ClashOfRim.RimTestBridge.BridgeReflection;
 using RimTest.Protocol;
 using RimWorld;
 using Verse;
 
 namespace ClashOfRim.RimTestBridge;
 
-internal sealed partial class DomainCommands
+internal sealed class DlcPersistenceCommands
 {
-    private void RegisterDlcPersistence()
+    internal DlcPersistenceCommands(CommandRouter router, BridgeActionPolicy policy)
     {
-        bridge.Router.Register("clash.dlc.pawns", "Read stable DLC pawn identities: royal title/honor, psylink/abilities, ideology/culture, genes and death-refusal uses.", "observe", _ => DlcPawnState());
-        bridge.Router.Register("clash.fixture.dlcPawn", "FIXTURE: give one colonist representative enabled-DLC state using game APIs. Does not emulate earning titles, surgery, rituals or resurrection.", "fixture", a =>
+        router.Register("clash.dlc.pawns", "Read stable DLC pawn identities: royal title/honor, psylink/abilities, ideology/culture, genes and death-refusal uses.", "observe", _ => DlcPawnState());
+        router.Register("clash.fixture.dlcPawn", "FIXTURE: give one colonist representative enabled-DLC state using game APIs. Does not emulate earning titles, surgery, rituals or resurrection.", "fixture", a =>
         {
-            Fixture(a); var p = StabilityMap(a).mapPawns.FreeColonistsSpawned.OrderBy(p => p.ThingID).First();
+            policy.RequireFixture(a); var p = BridgeMaps.Select(a).mapPawns.FreeColonistsSpawned.OrderBy(p => p.ThingID).First();
             if (ModsConfig.RoyaltyActive)
             {
                 var empire = Find.FactionManager.FirstFactionOfDef(FactionDefOf.Empire) ?? throw new InvalidOperationException("Empire missing.");

@@ -29,7 +29,12 @@ internal sealed class ClientActions
     internal ClientActions(GameBridge bridge)
     {
         this.bridge = bridge;
-        new DomainCommands(bridge);
+        BankRaidObservation.Install();
+        DomainCommands.Register(bridge.Router, bridge.Objects, new BridgeActionPolicy(() => Mod.ServerBaseUrl, bridge.Router),
+            (int? knownVersion, out int version) => Mod.ReadEventDetails(knownVersion, out version),
+            () => Mod.BankStatusSnapshot, () => Mod.ServerShopListingsSnapshot,
+            colony => Mod.OpenAbandonPlayerColonyConfirmation(colony),
+            () => Mod.AchievementLeaderboardsSnapshotVersion, () => Mod.WorldConfigurationId);
         WorldObservations.Register(bridge);
         bridge.Router.Register("clash.actions", "Discover explicit client UI entry points and exact parameter contracts. Discovery is not test coverage.", "observe", a =>
             ObjectInspector.Paginate(Actions.Select(m => new
