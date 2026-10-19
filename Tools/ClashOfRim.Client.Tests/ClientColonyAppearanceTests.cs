@@ -128,7 +128,7 @@ internal static class ClientColonyAppearanceTests
         }
     }
     private static void Check(bool value, string message) { if (!value) throw new InvalidOperationException(message); }
-    private sealed class Fixture : IClientColonyAppearanceStore, IClientColonyAppearancePresentation
+    internal sealed class Fixture : IClientColonyAppearanceStore, IClientColonyAppearancePresentation
     {
         internal readonly EventModuleTestPorts Ports = new();
         internal readonly ClientSessionLifecycle Session;
@@ -140,7 +140,8 @@ internal static class ClientColonyAppearanceTests
         internal object World = new();
         internal bool Available = true;
         internal Action<ColonyAppearanceSelection>? Save;
-        internal int Writes, Persists, Messages, LaterRegistrations;
+        internal int Writes, Persists, Messages, LaterRegistrations, Windows;
+        internal ColonyAppearanceSelection? OpenedSelection;
         internal Action<string>? Hook;
         internal Fixture()
         {
@@ -151,12 +152,14 @@ internal static class ClientColonyAppearanceTests
             Flow.RegistrationRequested += (_, _) => LaterRegistrations++;
         }
         internal string Key => ClientColonyAppearanceCodec.AccountKey(ReadAccount());
-        internal void Open() => Flow.Open(new Target(this, Ports.GameOwner, World));
+        internal IClientColonyAppearanceTarget CreateTarget() => new Target(this, Ports.GameOwner, World);
+        internal void Open() => Flow.Open(CreateTarget());
         public ClientColonyAppearanceAccount ReadAccount() => new(Ports.Server, WorldId, Ports.User, Ports.Colony);
         public string? Read(string key) { string? value = Values.GetValueOrDefault(key); Stage("read"); return value; }
         public void Write(string key, string? packed) { Writes++; if (packed is null) Values.Remove(key); else Values[key] = packed; Stage("write"); }
         public void Persist() { Persists++; Stage("persist"); }
-        public void Open(string colony, ColonyAppearanceSelection current, Action<ColonyAppearanceSelection> save) => Save = save;
+        public void Open(string colony, ColonyAppearanceSelection current, Action<ColonyAppearanceSelection> save)
+        { Save = save; OpenedSelection = current; Windows++; }
         public string Text(string key, params (string Name, object? Value)[] args) { Stage(key.EndsWith("RegistrationReason", StringComparison.Ordinal) ? "reason" : "success-text"); return key; }
         public void Message(string message, ClientWorldWriteMessage kind) { Messages++; Stage("message"); }
         public void Diagnose(string message) { }

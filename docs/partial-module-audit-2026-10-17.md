@@ -3218,3 +3218,15 @@ PNG 下载保持四路并发、20 秒超时及 256 项纹理容量；详情保�
 三项临时错误实现被 `Old world-object choice crossed marker`、`Repeated menu/confirmation launched twice.` 和 `Confirmation bypassed configuration change during-cargo` 捕获；日志 `LocalOnly/module-migration/world-object-{target,once,policy}-negative.log`，错误实现均已恢复。**7 个相关单元组通过**：新增选择归属、原生菜单接线、运输准入、袭击命令、观察地图、礼物发送和模块边界。最终日志 `LocalOnly/module-migration/world-object-final-tests.log`；守卫检查 1,643 个纯模块类型、127 个兼容能力类型、79 个页面／适配类型及 311 个事件适配类型。生产随单元测试编译，未运行全量实机回归、专项 RimTest 或独立发布／桥接构建；冻结 1.6 与原有未提交修改保留，未推送。
 
 **下一步 M11o6：玩家殖民地 gizmo 与生命周期适配入口。** `PlayerColonyAppearanceGizmoPatch` 和 `PlayerColonyAbandonCommandPatch` 仍查找并捕获整个 Mod，分别启动已有外观／废弃殖民地模块；继续迁移这些入口和相邻生命周期调用，复用已有目标、会话及表单归属。其后继续网络／服务器过渡门面与 M12，M11 整体和最终审计仍开放；全量实机验证由用户安排。
+
+### M11o6a：殖民地外观与废弃 gizmo 直接连接既有模块（2026-10-19）
+
+`ClientColonyGizmos` 由组合根注入现有外观与废弃模块，将它们产生的命令转换为引擎 gizmo。两个 Harmony 补丁不再查找／捕获整个 Mod，也不再以重复的 catch 隐藏查找失败。外观模块在创建按钮时捕获原账户作用域和 Game／World／殖民地目标，附带当时的图标选择；废弃模块同样提前捕获会话和目标。延迟点击复用原有 Open 实现并核对原归属，不能在切换账户或世界后为新会话打开窗口。适配器重装配也使旧按钮失效。
+
+外观编辑器在点击时仍读取同一账户的最新偏好；图标保留创建时的选择。可编辑目标判断复用原适配器，不增加第二套殖民地分类。原保存、持久化重试、注册发布、废弃确认、网络执行和终态退出流程不复制。关闭窗口后可再次打开；忙碌拒绝不永久消费 gizmo。表单保存及确认提交继续沿用既有的一次性回调。未配置或非玩家／不再存在的目标保留原版 gizmo，已配置但未认证的废弃入口仍给出原拒绝消息。已无调用方的 `CurrentColonyAppearanceSelection` 删除；RimTest 桥接白名单仍使用的 Open／Save 方法保留并转发同一业务模块。
+
+新增按钮测试复用已有外观和废弃夹具，在四种文化下覆盖创建后切换账户、认证、登录实例、世界、Game、代次或目标，读取偏好时重入、普通快照前进、图标冻结而表单读取最新值、重复保存／确认、废弃终态和忙碌后重试。引擎适配测试执行实际两个补丁与所生成的 action，检查原版命令保留、标签／图标／顺序、世界对象移除、World 更换、适配器重装配和纹理读取期间切换账户。纹理和世界集合访问使用替身，未渲染窗口或执行真实退出场景。两项临时错误实现分别被 `Old appearance gizmo crossed server` 和 `Old abandonment gizmo crossed server` 捕获；日志 `LocalOnly/module-migration/colony-gizmos-{appearance,abandonment}-negative.log`，错误实现已恢复。
+
+**6 个相关单元组通过**：新增殖民地 gizmo、外观模块／运行时、废弃模块／运行时和模块边界。最终日志 `LocalOnly/module-migration/colony-gizmos-tests.log`；守卫检查 1,646 个纯模块类型、127 个兼容能力类型、84 个页面／适配类型及 311 个事件适配类型。生产随单元测试编译；未运行全量实机回归、专项 RimTest 或独立发布／桥接构建。冻结 1.6 和原有未提交修改保留，未推送。
+
+**下一步 M11o6b：搬家与殖民地站点事件适配。** 核对搬家按钮、Odyssey 起飞／落地和殖民地站点注册补丁，接入已有搬家／注册模块，删除无调用方的 Mod 包装，保持现有抑制、准入和提交算法的单一归属。之后继续 M11 网络／服务器过渡门面、M12 及最终审计。

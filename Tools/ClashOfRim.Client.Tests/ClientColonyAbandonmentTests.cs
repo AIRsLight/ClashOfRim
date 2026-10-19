@@ -159,7 +159,7 @@ internal static class ClientColonyAbandonmentTests
     private static TaskCompletionSource NewSignal() => new(TaskCreationOptions.RunContinuationsAsynchronously);
     private static void Check(bool value, string message) { if (!value) throw new InvalidOperationException(message); }
 
-    private sealed class Fixture : IClientWorldIdentity, IClientWorldCatalogRuntime, IClientColonyAbandonTransport, IClientColonyAbandonPresentation,
+    internal sealed class Fixture : IClientWorldIdentity, IClientWorldCatalogRuntime, IClientColonyAbandonTransport, IClientColonyAbandonPresentation,
         IClientSessionIdentityStore, IClientSessionLogoutTransport
     {
         internal readonly EventModuleTestPorts Ports = new();
@@ -191,7 +191,8 @@ internal static class ClientColonyAbandonmentTests
             Session.IdentityChanged += response => { if (response is null) Stage("identity"); };
             Module = new(Session, this, this, this, this); Trace.Clear();
         }
-        internal void Open() => Module.Open(new Target(this, Ports.GameOwner, World));
+        internal IClientColonyAbandonTarget CreateTarget() => new Target(this, Ports.GameOwner, World);
+        internal void Open() => Module.Open(CreateTarget());
         internal Task Run(Task work) => Ports.PumpUntil(work, error => GameErrors.Add(error));
         public ClashOfRimClientNetworkContext ReadContext() => Ports.ReadContext();
         public void Write(string? user, string? name, string auth) { if (auth.Length == 0) Stage("persist"); Ports.Write(user, name, auth); }

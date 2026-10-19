@@ -43,8 +43,22 @@ internal sealed class ClientColonyAbandonment
     internal void Open(IClientColonyAbandonTarget target)
     {
         using var publication = ClientSessionWork.EnterPublication();
+        Open(requests.Capture(), target);
+    }
+    internal Action? Command(IClientColonyAbandonTarget target)
+    {
+        using var publication = ClientSessionWork.EnterPublication();
         var scope = requests.Capture();
-        bool Current() => requests.TryApply(scope, static () => { }) && target.IsCurrent;
+        return scope.Context.IsConfigured && Current(scope, target) && target.IsAvailable && Current(scope, target)
+            ? () => Open(scope, target) : null;
+    }
+    private bool Current(ClientRequestTracker<Boundary>.Scope scope, IClientColonyAbandonTarget target)
+        => target.IsCurrent && requests.TryApply(scope, static () => { });
+    private void Open(ClientRequestTracker<Boundary>.Scope scope, IClientColonyAbandonTarget target)
+    {
+        using var publication = ClientSessionWork.EnterPublication();
+        bool Current() => this.Current(scope, target);
+        if (!Current()) return;
         if (!scope.Context.IsConfigured || string.IsNullOrWhiteSpace(scope.Context.AuthToken) || session.IsUnavailable)
         { Reject("ClashOfRim.AbandonColony.StatusNotConfigured", Current); return; }
         if (requests.Busy) { Reject("ClashOfRim.AbandonColony.StatusSubmitting", Current); return; }

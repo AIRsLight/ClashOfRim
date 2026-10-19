@@ -19,6 +19,7 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("colony gizmos retain original session and target through delayed clicks", ClientColonyGizmoTests.Run),
     ("world object UI preserves frozen choices through native menus and delayed confirmations", ClientWorldObjectUiTests.Run),
     ("world object commands bind delayed choices to session, game and target", ClientWorldObjectCommandsTests.Run),
     ("remote transporter menus and arrivals share policy and existing modules", RemoteTransporterActionsTests.Run),

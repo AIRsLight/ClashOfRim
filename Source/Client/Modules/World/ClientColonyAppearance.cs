@@ -23,6 +23,7 @@ internal interface IClientColonyAppearancePresentation : IClientWorldPreparation
     void Open(string colony, ColonyAppearanceSelection current, Action<ColonyAppearanceSelection> save);
     void Message(string message, ClientWorldWriteMessage kind);
 }
+internal sealed record ClientColonyAppearanceCommand(ColonyAppearanceSelection Appearance, Action Open);
 
 // Account-scoped preferences remain in the existing persistent store. The module
 // owns their encoding, writes and publication; dialogs retain the original owner.
@@ -54,18 +55,34 @@ internal sealed class ClientColonyAppearance
     internal void Open(IClientColonyAppearanceTarget target)
     {
         using var p = ClientSessionWork.EnterPublication();
+        Open(scopes.Capture(), target);
+    }
+    internal ClientColonyAppearanceCommand? Command(IClientColonyAppearanceTarget target)
+    {
+        using var p = ClientSessionWork.EnterPublication();
         var scope = scopes.Capture();
-        bool Current() => scope.Boundary.Length != 0 && !session.IsUnavailable && scopes.TryApply(scope, static () => { }) && target.IsCurrent;
-        if (!Current() || !target.IsAvailable) return;
+        if (!Ready(scope, target)) return null;
+        var appearance = Read(scope);
+        return Ready(scope, target) ? new(appearance, () => Open(scope, target)) : null;
+    }
+    private bool Current(ClientRequestTracker<string>.Scope scope, IClientColonyAppearanceTarget target)
+        => scope.Boundary.Length != 0 && !session.IsUnavailable && target.IsCurrent && scopes.TryApply(scope, static () => { });
+    private bool Ready(ClientRequestTracker<string>.Scope scope, IClientColonyAppearanceTarget target)
+        => Current(scope, target) && target.IsAvailable && Current(scope, target);
+    private void Open(ClientRequestTracker<string>.Scope scope, IClientColonyAppearanceTarget target)
+    {
+        using var p = ClientSessionWork.EnterPublication();
+        bool Current() => this.Current(scope, target);
+        if (!Ready(scope, target)) return;
         var selected = Read(scope); string label = target.Label;
-        if (!Current()) return;
+        if (!Ready(scope, target)) return;
         bool consumed = false;
         view.Open(label, selected, selection =>
         {
             using var edit = ClientSessionWork.EnterPublication();
             if (consumed) return; consumed = true;
-            if (!Current() || !target.IsAvailable || !Current()) return;
-            try { Save(scope, selection, () => Current() && target.IsAvailable && Current()); }
+            if (!Ready(scope, target)) return;
+            try { Save(scope, selection, () => Ready(scope, target)); }
             catch { if (Current()) consumed = false; throw; }
         });
     }

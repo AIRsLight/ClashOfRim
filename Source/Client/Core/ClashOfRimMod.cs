@@ -311,6 +311,7 @@ public sealed partial class ClashOfRimMod : Mod
             new ClientSnapshotSavingPresentation(message => diagnostics.SnapshotUploadStatus = message));
         colonyAbandonment = new ClientColonyAbandonment(sessionLifecycle, entryStore, new ClientWorldCatalogRuntime(), colonyTransport,
             new ClientColonyAbandonPresentation(message => diagnostics.WorldMapStatus = message));
+        ClientColonyGizmos.Attach(new ClientColonyGizmos(colonyAppearance, colonyAbandonment));
         colonyRelocation = new ClientColonyRelocation(sessionLifecycle, entryStore, new ClientWorldCatalogRuntime(), mutationAdmission,
             synchronization, localMutations, snapshotTransactions, ClientSnapshotComposition.Create(settings), snapshotFailureRecovery,
             colonyRegistration, worldPublication, colonyTransport, new ClientColonyRelocationPresentation());
