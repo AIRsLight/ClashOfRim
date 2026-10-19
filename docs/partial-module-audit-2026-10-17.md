@@ -4,6 +4,8 @@
 
 审计基线为 `ee55d0b0` 加当时工作区，包括此前未提交的改动。初次审计只增加计划；后续实施状态见文末记录。以下 P2/P3 表示结构改造优先级，不代表新复现的功能故障。1.6 冻结内容不参与改造。
 
+**最新复核（2026-10-19，`c004a964`）：剩余 20 个 partial 类型、54 处声明、42 个文件。需要继续模块化的是 GameSuite 与 8 组 Save 测试；另有 2 个生产类型待归并、5 个单声明类型待去除修饰符。** 下文最初基线表不代表当前状态，最新明细见文末「剩余 partial 耦合复核」及[当前清单](partial-module-inventory-2026-10-19.json)。
+
 ## 使用范围
 
 扫描 `Source/`、`Tools/`、`ThirdPartyCompat/Source/` 的 946 个 C# 文件，排除 `bin/`、`obj/`、冻结版本和独立的 RimTest 子仓库。发现 30 个 partial 类型：生产代码 16 个类型、102 处分片声明、100 个文件；项目测试工具 14 个类型、52 处分片声明、42 个文件。第三方兼容包自身未发现 partial 声明，但依赖主客户端兼容 API。
@@ -3676,3 +3678,60 @@ Save 单元项目引用实际 GameTests 项目，随单元编译整个场景程�
 **3 个相关单元组通过**：世界／模块依赖边界、经济夹具、雇佣场景，日志 `LocalOnly/module-migration/economy-mercenary-tests.log`。经济夹具覆盖刷新前后异步空闲、双客户端隔离、多地图库存汇总、白银／钢铁／快照变化和动作异常不重试。雇佣覆盖到达延迟、历史合同干扰、技能／价格错误、少扣／多扣；召回覆盖四种语言按钮、禁用按钮排除、拒绝、客户端结束后仍等待真实注册表完成、启动与观察异常清理；守卫覆盖重建后的账户／殖民地、报价版本变化、错价／比例／等级／殖民地、收费错误、快照未更新、重复收费／发布快照／替换合同。新模块及其生成类型纳入现有依赖守卫。
 
 测试复用同一模拟连接与真实合同注册表，随单元项目编译实际场景程序集，未启动游戏或服务器、未运行全量回归、未独立构建或推送；原有未提交修改保留。**下一步 M12b6b：银行借还款、逾期罚息与死亡欠款场景独立**，随后继续商店／交易、账户及其他场景、Save 测试分片、内聚类型合并与最终审计。M12 整体尚未完成。
+
+## 剩余 partial 耦合复核（2026-10-19）
+
+基线为 `c004a964` 加当前工作区，沿用原 Roslyn 扫描器与范围，扫描 1,845 个 C# 文件；排除构建输出、冻结 1.6 与独立 RimTest 子仓库。另以文本检索核对第三方兼容目录，无额外 partial 类型。类型按命名空间及外层类型区分，不把不同测试中的 `Fixture` 合并为一个类型。[本次机器清单](partial-module-inventory-2026-10-19.json)记录每个声明的位置、行数、字段和已解析跨文件调用。
+
+| 当前类别 | partial 类型数 | 声明数 | 不重复文件数 | 剩余性质 |
+| --- | ---: | ---: | ---: | --- |
+| GameSuite | 1 | 12 | 12 | 场景业务和宿主设施仍共享私有成员，继续按域拆分 |
+| Save 测试 | 12：8 个外层测试类 + 4 个嵌套 Fixture | 29 | 19 | 共享测试构造、故障状态和私有辅助函数，改为明确的 fixture 组合 |
+| 生产兼容门面与银行注册表 | 2 | 8 | 8 | 保持现有职责与锁，归并同一类型的文件 |
+| 单声明 DTO／载荷摘要 | 5 | 5 | 3 | 无跨文件耦合，只清理多余修饰符 |
+| **合计** | **20** | **54** | **42** | **9 组测试模块化工作，2 组生产归并，5 处修饰符清理** |
+
+最初为 30 个类型、154 处声明、142 个文件；当前生产代码从 16 个 partial 类型降为 7 个。此数字不能换算为整体工程完成率，也不证明所有非 partial 类型都已经消除耦合。本轮只重新审计剩余 partial 及其直接依赖，没有把既往单元或实机结果算作本轮验证。
+
+### 1. GameSuite：当前最大的场景拆分工作
+
+12 个分片合计 1,182 行类型代码、50 个直接方法、31 个字段，其中 18 个字段存在已解析的跨分片使用；字段包括只读场景依赖，并不等于 18 份可变业务状态。除宿主文件外，11 个分片仍有 40 个方法、1,002 行代码。银行流程还散落在 `Features`、`Boundaries` 和 `Bank`；商店与交易也跨基本场景、边界、目录、压力及复杂物品文件。
+
+最明确的剩余业务耦合在[账户生命周期](../Tools/ClashOfRim.GameTests/GameSuite.AccountLifecycle.cs#L13)：直接调用其他分片的 `PasswordChange`、`TradeFulfill`、`Achievements`、`PrivateChat`、`Shop`、`Alliance`、`CreateTrade`，同时通过 [ServerState 服务定位](../Tools/ClashOfRim.GameTests/GameSuite.Boundaries.cs#L10)读取多个领域。`abandonedColonies`、`lifecycleOrder`、`lifecycleDebt`、`preservedShop` 四个字段已局限于账户分片，可整体交给账户场景，无需拆成四个新服务。
+
+建议继续按依赖顺序完成以下职责组；这是职责清单，不是承诺的提交次数：
+
+1. 银行借还款、输入拒绝、逾期、死亡欠款，复用本步的经济和雇佣夹具。
+2. 商店购买／回购、目录与压力场景，共用上架和购买观察；压力夹具保持独立职责。
+3. 交易创建／取消／履约／备注与复杂物品，显式传递订单及物品基线。
+4. 管理、聊天、外交／外观、密码和成就，分别交给对应场景；账户流程消费它们的明确入口。
+5. 账户废弃／重建及排行榜断言，收回上述四个字段和代次结果。
+6. 搬家与飞船场景，复用银行、库存、重载及世界位置观察。
+7. 收尾场景清单与宿主路由：[SuiteProfile.Validate](../Tools/ClashOfRim.GameTests/SuiteProfile.cs#L29)目前仍反向调用 `GameSuite.StabilityCases`；应抽出同一场景清单供配置校验与调度使用，避免另造重复清单。
+
+### 2. Save 测试：8 组外层场景，4 个嵌套 fixture
+
+| 外层类型 | 外层分片数 | 嵌套 partial Fixture 分片数 | 外层类型行数 |
+| --- | ---: | ---: | ---: |
+| `EconomicEndpointRecoveryPreparationTests` | 2 | 2 | 486 |
+| `EventFailureReportTests` | 2 | — | 542 |
+| `GiftRejectionEndpointTests` | 2 | — | 405 |
+| `RaidCommitCrashTests` | 2 | — | 465 |
+| `RaidCleanupCommitTests` | 3 | 3 | 621 |
+| `RaidEvidenceAuthorizationTests` | 4 | 3 | 825 |
+| `RaidTimeoutRecoveryTests` | 2 | 2 | 564 |
+| `SupportClosureTests` | 2 | — | 637 |
+
+外层合计 4,545 行，已经包含嵌套 Fixture，不能再加嵌套类型的行数。恢复测试依赖主分片的请求构造、种子数据、固定时间、鉴权和结果比较；四个 Fixture 的附加分片还直接访问其 `State`、存储、根目录和数据库。代表证据为[经济请求绑定 Fixture](../Tools/ClashOfRim.Save.Tests/EconomicEndpointRecoveryPreparationTests.RequestBinding.cs#L205)、[袭击证据 Fixture](../Tools/ClashOfRim.Save.Tests/RaidEvidenceRequestBindingTests.cs#L148)、[超时日志 Fixture](../Tools/ClashOfRim.Save.Tests/RaidTimeoutJournalPreparationTests.cs#L121)。
+
+处理方式是按这 8 个业务组迁移显式 fixture 和测试入口；先把同一 fixture 的状态及生命周期收拢，再让不同验证类组合它。继续复用 `SnapshotPreparationGateProbe`、现有故障存储与授权客户端，保留各业务特有的结果断言，不将所有场景装进接收整包参数的通用测试框架。集成 fixture 为装配真实服务保留 NetworkState 有合理用途；重点是所有权和明确入口，并非机械禁止测试访问真实状态。
+
+### 3. 生产代码：两类归并和五处修饰符
+
+`ClashOfRimCompatibilityApi` 还有 6 个分片、459 行类型代码、110 个直接方法。14 个跨分片字段现在是能力对象引用；注册代次、排序和能力集合已由独立模块管理，原先“52 个字段、44 个跨分片字段”的状况已经过时。[核心装配](../Source/Client/ThirdPartyCompatibility/Api/ClashOfRimCompatibilityApi.cs#L17)和[能力转发](../Source/Client/ThirdPartyCompatibility/Api/ClashOfRimCompatibilityApi.RemoteMapRuntime.cs#L15)显示此处主要剩公开门面归并；保留公开签名和现有兼容异常策略，不再重拆已经独立的模块。文件名含 `Registrations` 的 527 行文件是独立契约声明，不是第七个 partial 分片。
+
+`BankLoanRegistry` 还有 2 个分片、983 行类型代码；[待确认操作](../Source/Server/ClashOfRim.Network/Server/Registries/Economy/BankLoanRegistry.PendingOperations.cs#L7)使用主类同一个 gate、贷款／债务集合及持久化发布。这是应保持内聚的单一账务聚合，归并文件即可，不拆出能独立改写同一账本的新服务。
+
+`ModThingReferenceDto`、`ModCrossMapPawnReferenceDto`、`ModPawnExchangeIdentityDto`、`ModPawnExchangeAppearanceDto`、`ItemDeliveryItemSummary` 各只有一处声明，分布在 3 个文件；没有 partial 跨文件耦合，只需去除修饰符并保持序列化契约。相关文件含既存未提交工作，后续清理只提交自己的行。
+
+本轮只运行静态审计工具并核对源代码，未修改生产或测试执行逻辑，未运行单元、专项 RimTest 或全量回归。M12 和最终依赖／契约核对仍未完成；全量验证继续由用户安排。
