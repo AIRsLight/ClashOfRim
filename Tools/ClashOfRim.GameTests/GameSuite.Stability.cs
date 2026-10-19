@@ -55,7 +55,7 @@ internal sealed partial class GameSuite
         if (profile.Stability == "catalog") await Case("shop-complete-catalog", () => shopCatalog.Run(profile.CatalogDefinitions));
         if (profile.Stability == "catalog-sample") await Case("shop-selected-catalog", () => shopCatalog.Run(profile.CatalogDefinitions));
         if (profile.Stability == "stress") await Case("shop-large-data", shopStress.Run);
-        if (profile.Stability == "items") await ComplexItems();
+        if (profile.Stability == "items") await complexItems.Run();
         if (profile.Stability is "permanent" or "death")
         {
             await Case("alliance-request-accept", Alliance);

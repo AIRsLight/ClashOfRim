@@ -61,31 +61,11 @@ internal sealed partial class GameSuite
         await Wait("B", "clash.events", new { limit = 200 }, p => Items(p).Any(v => NotificationScenario.HasMessage(v, message)));
         Check(ServerState.AdminControl.ListAudit().Any(a => a.ActionKind == "Broadcast" && a.Message == message), "Broadcast audit missing.");
     }
-    async Task TradeMemo()
-    {
-        int steel = await colonyFixture.Stock("A", "Steel"), buyerSteel = await colonyFixture.Stock("B", "Steel"), buyerWood = await colonyFixture.Stock("B", "WoodLog");
-        var order = await CreateTrade(); string id = order.GetProperty("data").String("eventId");
-        await Invoke("B", "StartRefreshTradeOrders");
-        var orders = await Wait("B", "clash.records", new { kind = "trades" }, p => Items(p).Any(v => v.GetProperty("data").String("eventId") == id));
-        var buyer = Items(orders).Single(v => v.GetProperty("data").String("eventId") == id);
-        await Invoke("B", "StartAcceptTradeOrder", new { order = buyer.GetProperty("reference"), postagePaidByAcceptor = false }); await Idle("B");
-        orders = await Wait("B", "clash.records", new { kind = "trades" }, p => Items(p).Any(v => v.GetProperty("data").String("eventId") == id && v.GetProperty("data").Bool("viewerHasAccepted")));
-        buyer = Items(orders).Single(v => v.GetProperty("data").String("eventId") == id);
-        Check(await colonyFixture.Stock("B", "Steel") == buyerSteel && await colonyFixture.Stock("B", "WoodLog") == buyerWood, "Accepting memo prematurely delivered trade goods.");
-        await Invoke("B", "StartCancelAcceptedTradeMemo", new { order = buyer.GetProperty("reference") }); await Idle("B");
-        await Wait("B", "clash.records", new { kind = "trades" }, p => Items(p).Any(v => v.GetProperty("data").String("eventId") == id && !v.GetProperty("data").Bool("viewerHasAccepted")));
-        await Idle("A");
-        await Invoke("A", "StartRefreshTradeOrders", new { scope = "Mine" });
-        var remaining = await Wait("A", "clash.records", new { kind = "trades" }, p => Items(p).Any(v => v.GetProperty("data").String("eventId") == id && v.GetProperty("data").Int("acceptedMemoCount") == 0));
-        order = Items(remaining).Single(v => v.GetProperty("data").String("eventId") == id);
-        Check(order.GetProperty("data").Int("acceptedMemoCount") == 0 && await colonyFixture.Stock("A", "Steel") == steel - 5, "Cancelling memo changed seller escrow/order.");
-        await Invoke("A", "StartCancelTradeOrder", new { order = order.GetProperty("reference") }); await Idle("A"); await colonyFixture.AwaitStock("A", "Steel", steel);
-    }
     async Task Achievements()
     {
         // The first fulfilled order was tested above. Reach the shipped threshold by
         // nine further real deliveries; never insert achievement rows directly.
-        for (int i = 1; i < 10; i++) await TradeFulfill();
+        for (int i = 1; i < 10; i++) await trades.Fulfill();
         await Invoke("A", "StartRefreshAchievements");
         var own = await Wait("A", "clash.records", new { kind = "achievements" }, p => Items(p).Any(v => v.GetProperty("data").String("achievementId") == "trades_10"));
         var achievement = Items(own).Single(v => v.GetProperty("data").String("achievementId") == "trades_10").GetProperty("data");

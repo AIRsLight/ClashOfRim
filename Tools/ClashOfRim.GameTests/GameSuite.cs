@@ -24,6 +24,9 @@ internal sealed partial class GameSuite
     private readonly MercenaryScenario mercenaries;
     private readonly BankScenario bank;
     private readonly ShopScenario shop;
+    private readonly TradeScenarioFixture tradeActions;
+    private readonly TradeScenario trades;
+    private readonly ComplexItemScenario complexItems;
     private readonly ShopCatalogScenario shopCatalog;
     private readonly ShopStressScenario shopStress;
     private readonly CaravanScenario caravanFixture;
@@ -69,6 +72,9 @@ internal sealed partial class GameSuite
             return (configuration.MercenaryGuardApprenticeSilver, configuration.MercenaryGuardApprenticePointsRatio);
         });
         caravanFixture = new(run, polling, dialogs, colonyFixture);
+        tradeActions = new(run, polling, dialogs);
+        trades = new(run, polling, dialogs, colonyFixture, economy, caravanFixture, tradeActions);
+        complexItems = new(run, polling, colonyFixture, tradeActions);
         eventFixture = new(polling, serverState.Ledger);
         support = new(run, polling, dialogs, caravanFixture, serverState.Ledger, eventFixture);
         remoteMaps = new(run, polling, colonyFixture);
@@ -139,14 +145,14 @@ internal sealed partial class GameSuite
                 await Case("bank-loan-repayment", bank.LoanRepayment);
                 await Case("shop-purchase-stock", shop.Purchase);
                 await Case("shop-buyback-stock-rejection", shop.Buyback);
-                await Case("trade-cancel-refund", TradeCancel);
-                await Case("trade-memo-cancel", TradeMemo);
-                await Case("trade-drop-pod-fulfillment", TradeFulfill);
+                await Case("trade-cancel-refund", trades.Cancel);
+                await Case("trade-memo-cancel", trades.CancelMemo);
+                await Case("trade-drop-pod-fulfillment", trades.Fulfill);
                 await Case("achievement-unlock-leaderboard", Achievements);
                 await Case("alliance-request-accept", Alliance);
                 await Case("ally-observation-close", () => remoteMaps.ObserveAlly(profile.Stability == "transfers"));
                 await Case("caravan-load-travel", caravanFixture.Travel);
-                await Case("trade-caravan-fulfillment", TradeCaravanFulfill);
+                await Case("trade-caravan-fulfillment", trades.FulfillByCaravan);
                 await Case("caravan-gift-accept", giftScenario.Accept);
                 await Case("support-send-early-return", support.Run);
                 await Case("mercenary-hire", mercenaries.Hire);

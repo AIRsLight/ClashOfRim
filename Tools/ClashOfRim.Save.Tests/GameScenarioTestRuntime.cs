@@ -15,11 +15,11 @@ internal sealed class GameScenarioTestRuntime : IDisposable
     internal Func<string, string, JsonElement, object?>? Script;
     internal bool Headless = true;
     internal readonly Dictionary<string, List<JsonElement>> Logs = new() { ["A"] = [], ["B"] = [] };
-    private GameScenarioTestRuntime(bool allowLanguage)
-    { Run = new(path, new[] { "unit" }); Dialogs = new(Run, allowLanguage); Polling = new(Run, Dialogs); }
-    internal static async Task<GameScenarioTestRuntime> Create(bool allowLanguage = false)
+    private GameScenarioTestRuntime(bool allowLanguage, IEnumerable<string>? plannedCases)
+    { Run = new(path, plannedCases ?? ["unit"]); Dialogs = new(Run, allowLanguage); Polling = new(Run, Dialogs); }
+    internal static async Task<GameScenarioTestRuntime> Create(bool allowLanguage = false, IEnumerable<string>? plannedCases = null)
     {
-        var f = new GameScenarioTestRuntime(allowLanguage);
+        var f = new GameScenarioTestRuntime(allowLanguage, plannedCases);
         await f.Run.AddClientAsync("A", new Connection(f, "A")); await f.Run.AddClientAsync("B", new Connection(f, "B"));
         f.Calls.Clear(); return f;
     }
@@ -37,7 +37,7 @@ internal sealed class GameScenarioTestRuntime : IDisposable
             var args = Wire.Element(arguments ?? new { }); owner.Calls.Add((client, method, args));
             object result = owner.Script?.Invoke(client, method, args) ?? (method switch
             {
-                "runtime.hello" => new { headless = owner.Headless, capabilities = new[] { "time.status", "clash.state", "clash.gravship", "game.state", "clash.difficulty", "clash.world.details", "caravans.list", "caravan.state", "clash.events", "clash.records", "clash.remote", "clash.inventory", "clash.support.assignments", "clash.mercenaries", "clash.bank" }.Select(name => new Capability(name, name, "observe")).ToArray() },
+                "runtime.hello" => new { headless = owner.Headless, capabilities = new[] { "time.status", "clash.state", "clash.gravship", "game.state", "clash.difficulty", "clash.world.details", "caravans.list", "caravan.state", "clash.events", "clash.records", "clash.remote", "clash.inventory", "clash.support.assignments", "clash.mercenaries", "clash.bank", "dialogs.messages" }.Select(name => new Capability(name, name, "observe")).ToArray() },
                 "clash.compatibility" => new { open = false },
                 "dialogs.messages" or "dialogs.nodes" or "pages.list" => new { items = Array.Empty<object>() },
                 "runtime.logs" => new { items = owner.Logs[client].Where(e => e.Int("sequence") > (args.TryGetProperty("after", out var after) ? after.GetInt32() : 0)).ToArray() },

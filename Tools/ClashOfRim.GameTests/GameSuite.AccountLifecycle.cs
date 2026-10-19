@@ -19,7 +19,7 @@ internal sealed partial class GameSuite
             // the buyer explicitly so postage cannot mask lifecycle assertions.
             await Call("B", "clash.fixture.bankCash", new { amount = 10000, acknowledgeFixture = true });
             await colonyFixture.StoreStartingResources("A"); await colonyFixture.StoreStartingResources("B");
-            await TradeFulfill(); await Achievements();
+            await trades.Fulfill(); await Achievements();
             await CheckAchievementRefresh("A"); await CheckAchievementRefresh("B");
             // Re-upload and refresh the same cumulative history: it must not count deliveries twice.
             var before = JsonSerializer.Serialize(ServerState.Achievements.ListAggregates());
@@ -44,19 +44,15 @@ internal sealed partial class GameSuite
             var debt = await Wait("B", "clash.bank", null, b => b.GetProperty("openDebts").GetArrayLength() == 1);
             lifecycleDebt = debt.GetProperty("openDebts")[0].String("debtId"); await Idle("B");
             await mercenaries.Hire(); // Leave a second contract active when its colony is abandoned.
-            var order = await CreateTrade(); lifecycleOrder = order.GetProperty("data").String("eventId");
-            await Invoke("B", "StartRefreshTradeOrders");
-            var orders = await Wait("B", "clash.records", new { kind = "trades" }, p => Items(p).Any(v => v.GetProperty("data").String("eventId") == lifecycleOrder));
-            var buyer = Items(orders).Single(v => v.GetProperty("data").String("eventId") == lifecycleOrder);
-            await Invoke("B", "StartAcceptTradeOrder", new { order = buyer.GetProperty("reference"), postagePaidByAcceptor = false }); await Idle("B");
-            await Wait("B", "clash.records", new { kind = "trades" }, p => Items(p).Any(v => v.GetProperty("data").String("eventId") == lifecycleOrder && v.GetProperty("data").Bool("viewerHasAccepted")));
+            var order = await tradeActions.Create(); lifecycleOrder = order.EventId;
+            await tradeActions.AcceptMemo(await tradeActions.Refresh("B", lifecycleOrder));
         });
         await Case("account-abandon-owner", () => AbandonAccountColony("A", "B"));
         await Case("account-rebuild-owner", () => RebuildAccountColony("A", "B"));
         await Case("account-achievements-new-generation", async () =>
         {
             await colonyFixture.StoreStartingResources("A");
-            await TradeFulfill();
+            await trades.Fulfill();
             var own = await CheckAchievementRefresh("A");
             Check(!Items(own).Any(v => v.GetProperty("data").String("achievementId") == "trades_10"), "New colony inherited old completed trade count.");
             await Achievements(); await CheckAchievementRefresh("A"); await CheckAchievementRefresh("B");
