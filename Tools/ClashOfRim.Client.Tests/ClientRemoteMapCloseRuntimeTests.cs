@@ -16,8 +16,8 @@ using Verse;
 // Real closure, session component and facade; substitute only engine unloading/pawn/UI effects.
 internal static class ClientRemoteMapCloseRuntimeTests
 {
-    private static Game game = null!;
-    private static World world = null!;
+    private static Game game { get => Current.Game; set => Current.Game = value; }
+    private static World world { get => game.World; set => game.World = value; }
     private static readonly List<WorldObject> parents = new();
     private static readonly List<Map> maps = new();
     private static readonly Dictionary<MapParent, Map?> parentMaps = new();
@@ -32,13 +32,12 @@ internal static class ClientRemoteMapCloseRuntimeTests
 
     internal static void Run()
     {
+        var previousGame = Current.Game;
         var harmony = new Harmony("ClashOfRim.Tests.RemoteMapClose");
         try
         {
             void Patch(Type type, string method, string prefix) => harmony.Patch(AccessTools.Method(type, method), prefix: new HarmonyMethod(typeof(ClientRemoteMapCloseRuntimeTests), prefix));
             void Getter(Type type, string property, string prefix) => harmony.Patch(AccessTools.PropertyGetter(type, property), prefix: new HarmonyMethod(typeof(ClientRemoteMapCloseRuntimeTests), prefix));
-            Getter(typeof(Current), nameof(Current.Game), nameof(Game));
-            Getter(typeof(Game), nameof(Verse.Game.World), nameof(World));
             Getter(typeof(Game), nameof(Verse.Game.Maps), nameof(Maps));
             Getter(typeof(MapParent), nameof(MapParent.Map), nameof(ParentMap));
             Getter(typeof(Map), nameof(Verse.Map.Parent), nameof(MapOwner));
@@ -177,7 +176,7 @@ internal static class ClientRemoteMapCloseRuntimeTests
                 && parents.Contains(legacy) && ClashOfRimGameComponent.ActiveRemoteMapSession is not null, "Legacy remote marker or unrelated session removed.");
         }
         catch (Exception exception) { Console.WriteLine(exception.StackTrace); throw; }
-        finally { harmony.UnpatchAll(harmony.Id); after = null; parents.Clear(); maps.Clear(); parentMaps.Clear(); mapParents.Clear(); trace.Clear(); }
+        finally { harmony.UnpatchAll(harmony.Id); Current.Game = previousGame; after = null; parents.Clear(); maps.Clear(); parentMaps.Clear(); mapParents.Clear(); trace.Clear(); }
     }
     private static void Reset(bool raid, bool loaded)
     {
@@ -193,14 +192,13 @@ internal static class ClientRemoteMapCloseRuntimeTests
     private static Game NewGame()
     {
         var value = Uninitialized<Game>();
+        value.World = Current.Game?.World ?? NewWorld();
         AccessTools.Field(typeof(Game), "components").SetValue(value, new List<GameComponent> { new ClashOfRimGameComponent(value) }); return value;
     }
     private static World NewWorld() { var value = Uninitialized<World>(); value.worldObjects = Uninitialized<WorldObjectsHolder>(); return value; }
     private static T Uninitialized<T>() => (T)RuntimeHelpers.GetUninitializedObject(typeof(T));
     private static void Check(bool condition, string message) { if (!condition) throw new Exception(message); }
     private static void Step(string name) { trace.Add(name); after?.Invoke(name); }
-    private static bool Game(ref Game __result) { __result = game; return false; }
-    private static bool World(ref World __result) { __result = world; return false; }
     private static bool Maps(ref List<Map> __result) { __result = maps; return false; }
     private static bool ParentMap(MapParent __instance, ref Map? __result) { __result = parentMaps.GetValueOrDefault(__instance); return false; }
     private static bool MapOwner(Map __instance, ref MapParent __result) { __result = mapParents[__instance]; return false; }
