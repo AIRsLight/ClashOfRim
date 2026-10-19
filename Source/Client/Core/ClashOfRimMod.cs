@@ -476,8 +476,11 @@ public sealed partial class ClashOfRimMod : Mod
         return (editor, new(editor));
     }
 
-    internal MultiplayerAdminPlayersPage CreateAdminPlayersPage() =>
-        new(new ClientAdminPlayerPanel(sessionLifecycle, adminAccess, administration));
+    internal (MultiplayerAdminPlayersPage Players, MultiplayerAdminMaintenancePage Maintenance) CreateAdminOperationsPages()
+    {
+        var players = new ClientAdminPlayerPanel(sessionLifecycle, adminAccess, administration);
+        return (new(players), new(new ClientAdminMaintenancePanel(sessionLifecycle, players, administration)));
+    }
 
     internal MultiplayerAccountPage CreateAccountPage() => new(new ClientAccountPanel(sessionLifecycle, passwordChange));
     internal MultiplayerDiagnosticsPage CreateDiagnosticsPage() => new(diagnostics);

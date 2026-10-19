@@ -19,6 +19,7 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("administrator maintenance panel owns broadcast targets, drafts and explicit lock commands", MultiplayerAdminMaintenanceTests.Run),
     ("administrator player panel owns targets, action menus and password drafts", MultiplayerAdminPlayerTests.Run),
     ("shop listing runtime owns engine templates, metadata and RimTest entry points", ClientShopListingRuntimeTests.Run),
     ("shop listing editor owns search, item edits, culture and price suggestions", ClientShopListingEditorTests.Run),

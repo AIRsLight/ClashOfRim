@@ -18,6 +18,7 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
     private MultiplayerShopPage? shopPage;
     private MultiplayerAdminShopPage? adminShopPage;
     private MultiplayerAdminPlayersPage? adminPlayersPage;
+    private MultiplayerAdminMaintenancePage? adminMaintenancePage;
     private ClientBankPanel? bankPanel;
     private MultiplayerBankPage? bankPage;
     private MultiplayerMercenaryPage? mercenaryPage;
@@ -33,12 +34,6 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
     private MultiplayerTab selectedTab = MultiplayerTab.Trade;
     private AdminPanelTab selectedAdminPanelTab = AdminPanelTab.Trade;
     private float nextAdminRefreshAt;
-    private string adminBroadcastMessage = string.Empty;
-    private string adminBroadcastSeverity = "Info";
-    private string adminBroadcastTargetUserId = string.Empty;
-    private string adminBroadcastTargetColonyId = string.Empty;
-    private bool adminBroadcastPersistent = true;
-    private string adminMaintenanceReason = string.Empty;
     private MultiplayerTab cachedMainTabsSelectedTab;
     private bool cachedMainTabsDevMode;
     private bool cachedMainTabsAdministrator;
@@ -71,7 +66,7 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
         tradePage ??= mod.CreateTradePage();
         if (shopPanel is null) (shopPanel, shopPage) = mod.CreateShopPage();
         adminShopPage ??= mod.CreateAdminShopPage(shopPanel);
-        adminPlayersPage ??= mod.CreateAdminPlayersPage();
+        if (adminPlayersPage is null) (adminPlayersPage, adminMaintenancePage) = mod.CreateAdminOperationsPages();
         if (bankPanel is null) (bankPanel, bankPage) = mod.CreateBankPage();
         mercenaryPage ??= mod.CreateMercenaryPage(bankPanel);
         accountPage ??= mod.CreateAccountPage();
@@ -127,6 +122,7 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
         shopPage?.Close();
         adminShopPage?.Close();
         adminPlayersPage?.Close();
+        adminMaintenancePage?.Close();
         bankPage?.Close();
         mercenaryPage?.Close();
         accountPage?.Close();

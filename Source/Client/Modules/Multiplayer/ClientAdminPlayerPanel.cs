@@ -20,6 +20,8 @@ internal sealed class ClientAdminPlayerPanel
     private ModAdminStatusResponseDto? observed;
     private Dictionary<(string User, string Colony), Row> targets = new();
     private IReadOnlyList<Row> rows = Array.Empty<Row>();
+    private Dictionary<string, Account> accounts = new(StringComparer.Ordinal);
+    private IReadOnlyList<Account> accountList = Array.Empty<Account>();
 
     internal ClientAdminPlayerPanel(ClientSessionLifecycle session, ClientAdminAccess access, ClientAdministration administration)
     {
@@ -28,10 +30,13 @@ internal sealed class ClientAdminPlayerPanel
             boundary => ReferenceEquals(boundary.Permission, access.CurrentPermission) && boundary.Unavailable == session.IsUnavailable, Clear);
     }
     internal object Ownership => lifetime.Capture();
+    internal bool IsAvailable => lifetime.Read(() => access.IsAdministrator && !session.IsUnavailable);
+    internal bool Busy => access.Busy;
     internal void Close() => lifetime.Reset();
     private void Clear()
     {
         observed = null; targets.Clear(); rows = Array.Empty<Row>();
+        accounts.Clear(); accountList = Array.Empty<Account>();
         foreach (var password in passwords) password.Clear();
         passwords.Clear();
     }
@@ -41,17 +46,33 @@ internal sealed class ClientAdminPlayerPanel
         if (ReferenceEquals(source, observed)) return rows;
         var next = new Dictionary<(string User, string Colony), Row>();
         var ordered = new List<Row>();
+        var nextAccounts = new Dictionary<string, Account>(StringComparer.Ordinal);
+        var orderedAccounts = new List<Account>();
         string currentUser = session.ReadContext().UserId;
         foreach (var player in source?.Players ?? Enumerable.Empty<ModAdminPlayerSummaryDto>())
         {
             var key = (player.UserId, player.ColonyId);
-            if (!targets.TryGetValue(key, out var row)) row = new(player, currentUser);
+            if (!nextAccounts.TryGetValue(player.UserId, out var account))
+            {
+                if (!accounts.TryGetValue(player.UserId, out account)) account = new(player.UserId);
+                nextAccounts.Add(player.UserId, account);
+                if (!string.IsNullOrWhiteSpace(player.UserId)) orderedAccounts.Add(account);
+            }
+            if (!targets.TryGetValue(key, out var row)) row = new(player, currentUser, account);
             else row.Update(player);
             next[key] = row; ordered.Add(row);
         }
         observed = source; targets = next; rows = ordered.AsReadOnly();
+        accounts = nextAccounts; accountList = orderedAccounts.AsReadOnly();
         foreach (var password in passwords.ToArray()) if (!Contains(password.Target)) password.Close();
         return rows;
+    });
+    internal IReadOnlyList<Account> ReadAccounts() => lifetime.Read(() => { Read(); return accountList; });
+    internal bool ContainsAccount(Account account) => lifetime.Read(() =>
+    {
+        Read();
+        return IsAvailable && !string.IsNullOrWhiteSpace(account.UserId)
+            && accounts.TryGetValue(account.UserId, out var current) && ReferenceEquals(current, account);
     });
     private bool Contains(Row row) => targets.TryGetValue((row.UserId, row.ColonyId), out var current) && ReferenceEquals(current, row);
     internal bool CanManage(Row row) => lifetime.Read(() => { Read(); return Available(row) && !access.Busy; });
@@ -93,12 +114,20 @@ internal sealed class ClientAdminPlayerPanel
     }
 
     internal sealed record Boundary(ClientAdminAccess.Permission Permission, bool Unavailable);
+    // Notifications address accounts. Colony-sensitive administration uses Row instead.
+    internal sealed class Account
+    {
+        internal string UserId { get; }
+        internal string DisplayName { get; set; }
+        internal Account(string user) { UserId = user; DisplayName = user; }
+    }
     internal sealed class Row
     {
         internal string UserId { get; }
         internal string ColonyId { get; }
         internal bool IsSelf { get; }
-        internal string DisplayName { get; private set; } = "";
+        internal Account Account { get; }
+        internal string DisplayName => Account.DisplayName;
         internal bool Online { get; private set; }
         private Flag banned = new(false), administrator = new(false);
         internal bool IsBanned => banned.Value;
@@ -109,11 +138,11 @@ internal sealed class ClientAdminPlayerPanel
             ClientAdminPlayerAction.PromoteAdmin or ClientAdminPlayerAction.RevokeAdmin => administrator,
             _ => null
         };
-        internal Row(ModAdminPlayerSummaryDto player, string currentUser)
-        { UserId = player.UserId; ColonyId = player.ColonyId; IsSelf = UserId == currentUser; Update(player); }
+        internal Row(ModAdminPlayerSummaryDto player, string currentUser, Account account)
+        { UserId = player.UserId; ColonyId = player.ColonyId; Account = account; IsSelf = UserId == currentUser; Update(player); }
         internal void Update(ModAdminPlayerSummaryDto player)
         {
-            DisplayName = string.IsNullOrWhiteSpace(player.DisplayName) ? player.UserId : player.DisplayName!;
+            Account.DisplayName = string.IsNullOrWhiteSpace(player.DisplayName) ? player.UserId : player.DisplayName!;
             Online = player.Online;
             if (banned.Value != player.IsBanned) banned = new(player.IsBanned);
             if (administrator.Value != player.IsAdministrator) administrator = new(player.IsAdministrator);

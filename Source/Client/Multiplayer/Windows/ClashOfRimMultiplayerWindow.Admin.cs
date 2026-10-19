@@ -61,7 +61,7 @@ public sealed partial class ClashOfRimMultiplayerWindow
                 adminPlayersPage!.Draw(body);
                 break;
             case AdminPanelTab.Maintenance:
-                DrawAdminMaintenancePanel(body, mod, status);
+                adminMaintenancePage!.Draw(body);
                 break;
             case AdminPanelTab.Manifest:
                 DrawAdminManifestPanel(body, mod, status?.Configuration, draft);
@@ -210,135 +210,6 @@ public sealed partial class ClashOfRimMultiplayerWindow
 
         Widgets.EndScrollView();
         adminConfigurationPage!.DrawAdminSaveFooter(rect, draft);
-    }
-
-    private void DrawAdminMaintenancePanel(Rect rect, ClashOfRimMod mod, ModAdminStatusResponseDto? status)
-    {
-        Rect view = BeginAdminScroll(rect, ref adminScrollPosition, 300f);
-        float y = 0f;
-        DrawAdminSectionTitle(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.SectionBroadcast"));
-        Widgets.Label(new Rect(0f, y, 160f, 24f), ClashOfRimText.Key("ClashOfRim.Admin.BroadcastMessage"));
-        adminBroadcastMessage = Widgets.TextField(new Rect(170f, y, view.width - 430f, 28f), adminBroadcastMessage);
-        if (DrawAdminSelectionButton(
-                new Rect(view.width - 250f, y, 110f, 28f),
-                AdminBroadcastSeverityLabel(adminBroadcastSeverity),
-                !mod.AdminInProgress))
-        {
-            OpenAdminBroadcastSeverityMenu();
-        }
-
-        if (Widgets.ButtonText(new Rect(view.width - 120f, y, 110f, 28f), ClashOfRimText.Key("ClashOfRim.Admin.ActionBroadcast"), active: !mod.AdminInProgress))
-        {
-            string? targetUserId = string.IsNullOrWhiteSpace(adminBroadcastTargetUserId) ? null : adminBroadcastTargetUserId;
-            string? targetColonyId = string.IsNullOrWhiteSpace(adminBroadcastTargetColonyId) ? null : adminBroadcastTargetColonyId;
-            mod.StartAdminAction(
-                "Broadcast",
-                targetUserId: targetUserId,
-                targetColonyId: targetColonyId,
-                message: adminBroadcastMessage,
-                notificationSeverity: adminBroadcastSeverity,
-                persistentNotification: adminBroadcastPersistent);
-        }
-
-        y += 36f;
-        Widgets.Label(new Rect(0f, y, 160f, 24f), ClashOfRimText.Key("ClashOfRim.Admin.BroadcastTarget"));
-        if (DrawAdminSelectionButton(
-                new Rect(170f, y, 220f, 28f),
-                AdminBroadcastTargetLabel(status),
-                !mod.AdminInProgress))
-        {
-            OpenAdminBroadcastTargetMenu(status);
-        }
-
-        Widgets.CheckboxLabeled(
-            new Rect(410f, y, view.width - 410f, 28f),
-            ClashOfRimText.Key("ClashOfRim.Admin.BroadcastPersistent"),
-            ref adminBroadcastPersistent);
-
-        y += 46f;
-        DrawAdminSectionTitle(view, ref y, ClashOfRimText.Key("ClashOfRim.Admin.SectionMaintenance"));
-        Widgets.Label(new Rect(0f, y, view.width, 24f), status?.MaintenanceLoginLocked == true
-            ? ClashOfRimText.Key("ClashOfRim.Admin.MaintenanceLocked")
-            : ClashOfRimText.Key("ClashOfRim.Admin.MaintenanceUnlocked"));
-        y += 30f;
-        Widgets.Label(new Rect(0f, y, 160f, 24f), ClashOfRimText.Key("ClashOfRim.Admin.MaintenanceReason"));
-        adminMaintenanceReason = Widgets.TextField(new Rect(170f, y, view.width - 300f, 28f), adminMaintenanceReason);
-        if (Widgets.ButtonText(new Rect(view.width - 120f, y, 110f, 28f), ClashOfRimText.Key("ClashOfRim.Admin.ActionLockLogin"), active: !mod.AdminInProgress))
-        {
-            mod.StartAdminAction("LockMaintenance", message: adminMaintenanceReason);
-        }
-
-        y += 38f;
-        if (Widgets.ButtonText(new Rect(170f, y, 160f, 30f), ClashOfRimText.Key("ClashOfRim.Admin.ActionUnlockLogin"), active: !mod.AdminInProgress))
-        {
-            mod.StartAdminAction("UnlockMaintenance");
-        }
-
-        Widgets.EndScrollView();
-    }
-
-    private void OpenAdminBroadcastSeverityMenu()
-    {
-        Find.WindowStack.Add(new FloatMenu(new List<FloatMenuOption>
-        {
-            new(AdminBroadcastSeverityLabel("Info"), () => adminBroadcastSeverity = "Info"),
-            new(AdminBroadcastSeverityLabel("Warning"), () => adminBroadcastSeverity = "Warning"),
-            new(AdminBroadcastSeverityLabel("Critical"), () => adminBroadcastSeverity = "Critical")
-        }));
-    }
-
-    private void OpenAdminBroadcastTargetMenu(ModAdminStatusResponseDto? status)
-    {
-        var options = new List<FloatMenuOption>
-        {
-            new(ClashOfRimText.Key("ClashOfRim.Admin.BroadcastTargetAll"), () =>
-            {
-                adminBroadcastTargetUserId = string.Empty;
-                adminBroadcastTargetColonyId = string.Empty;
-            })
-        };
-
-        foreach (ModAdminPlayerSummaryDto player in (status?.Players ?? new List<ModAdminPlayerSummaryDto>())
-                     .OrderBy(AdminPlayerDisplayName, StringComparer.CurrentCultureIgnoreCase))
-        {
-            string userId = player.UserId;
-            string colonyId = player.ColonyId;
-            string label = AdminPlayerDisplayName(player);
-            options.Add(new FloatMenuOption(label, () =>
-            {
-                adminBroadcastTargetUserId = userId;
-                adminBroadcastTargetColonyId = colonyId;
-            }));
-        }
-
-        Find.WindowStack.Add(new FloatMenu(options));
-    }
-
-    private string AdminBroadcastTargetLabel(ModAdminStatusResponseDto? status)
-    {
-        if (string.IsNullOrWhiteSpace(adminBroadcastTargetUserId))
-        {
-            return ClashOfRimText.Key("ClashOfRim.Admin.BroadcastTargetAll");
-        }
-
-        ModAdminPlayerSummaryDto? player = status?.Players?.FirstOrDefault(candidate =>
-            string.Equals(candidate.UserId, adminBroadcastTargetUserId, StringComparison.Ordinal));
-        return player is null ? adminBroadcastTargetUserId : AdminPlayerDisplayName(player);
-    }
-
-    private static string AdminPlayerDisplayName(ModAdminPlayerSummaryDto player)
-    {
-        return string.IsNullOrWhiteSpace(player.DisplayName) ? player.UserId : player.DisplayName!;
-    }
-
-    private static string AdminBroadcastSeverityLabel(string? severity)
-    {
-        return severity switch
-        {
-            "Warning" => ClashOfRimText.Key("ClashOfRim.Admin.BroadcastSeverityWarning"),
-            "Critical" => ClashOfRimText.Key("ClashOfRim.Admin.BroadcastSeverityError"),
-            _ => ClashOfRimText.Key("ClashOfRim.Admin.BroadcastSeverityInfo")
-        };
     }
 
     private void DrawAdminAuditPanel(Rect rect, ModAdminStatusResponseDto? status)
