@@ -37,6 +37,10 @@ internal static class GameRaidScenarioTests
         relations.SetRelationKind("rimtest-A", attacker, "rimtest-B", defender, "Ally", null, DateTimeOffset.UnixEpoch);
         var colony = new ColonyScenarioFixture(f.Run, f.Polling); var caravan = new CaravanScenario(f.Run, f.Polling, f.Dialogs, colony);
         var scenario = new RaidScenario(f.Run, f.Polling, f.Dialogs, caravan, new(f.Run, f.Polling, colony), f.CreateEntry(), colony, snapshots, relations, ledger, new(f.Polling, ledger));
+        var transfers = new PawnTransferScenario(caravan, new(f.Run, f.Polling, f.Dialogs, caravan, ledger, new(f.Polling, ledger)),
+            new(f.Run, f.Polling, colony), new(f.Run, f.Polling, new(f.Run, f.Polling)), scenario);
+        Check(transfers.CreateSequence(true).Group == ScenarioCatalog.Transfers && transfers.CreateSequence(false).Group == ScenarioCatalog.SupportReturns
+            && f.Calls.Count == 0, "Transfer composition lost bindings or executed gameplay during planning.");
         f.Script = (client, method, args) => method switch
         {
             "clash.state" => new { colonyId = client == "A" ? attacker : defender, isInActiveMultiplayerSession = client == "A" || defenderOnline },

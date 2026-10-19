@@ -52,6 +52,7 @@ var tests = new (string Name, Action Run)[]
     ("物品流转模块保留复杂包、文化与存储幂等", ItemTransferModuleTests.Run),
     ("服务端模块依赖、路由与恢复归属", () => ModuleBoundaryTests.RunAsync().GetAwaiter().GetResult()),
     ("游戏场景轮询与对话框策略独立于宿主", GameScenarioPollingTests.Run),
+    ("游戏场景目录计划、绑定与失败报告统一", GameScenarioCatalogTests.Run),
     ("游戏世界场景参数、文化与权威选址边界", GameWorldEntryScenarioTests.World),
     ("游戏入服与重载场景排除旧会话和无效到达", GameWorldEntryScenarioTests.Sessions),
     ("游戏运行诊断精确限定启动豁免", GameWorldEntryScenarioTests.Diagnostics),

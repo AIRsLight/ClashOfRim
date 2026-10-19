@@ -16,6 +16,16 @@ internal sealed class WorldScenario(TestRun run, ScenarioPolling polling, SuiteP
 {
     private JsonElement expectedDifficulty, expectedWorld;
     private JsonElement worldA, worldB;
+    internal async Task VerifyStartup(IEnumerable<string> clients)
+    {
+        foreach (string client in clients)
+        {
+            var hello = await run.CallAsync(client, "runtime.hello"); Check(!hello.Bool("unsafeEnabled"), "Unsafe mode must remain off.");
+            await polling.Wait(client, "game.state", null, s => s.Bool("startupReady") && !s.Bool("playing"));
+            VerifyLaunch(client, hello);
+            await run.CallAsync(client, "clash.actions", new { limit = 200 });
+        }
+    }
     internal void VerifyLaunch(string client, JsonElement hello)
     {
         var expected = client == "A" ? profile.A : profile.B;
@@ -65,112 +75,118 @@ internal sealed class WorldScenario(TestRun run, ScenarioPolling polling, SuiteP
         var response = await run.CallAsync(client, "setup.world", input);
         if (client == "A") expectedWorld = response;
     }
-    Task Case(string id, Func<Task> body) => run.RunCaseAsync(id, body, () => run.CaptureLogsAsync());
-    Task AssertCase(string id, Action body) => ObserveCase(id, () => { body(); return Task.CompletedTask; });
-    async Task ObserveCase(string id, Func<Task> body)
+    internal Task Run() => CreateSequence().Run(run);
+    internal ScenarioSequence CreateSequence()
     {
-        try { await Case(id, body); }
-        catch (Exception) { } // TestRun retains the failure; independent observations still run.
-    }
-    internal async Task Run()
-    {
-        worldA = await run.CallAsync("A", "clash.world.details"); worldB = await run.CallAsync("B", "clash.world.details");
-        var baseline = world.Current!;
-        await AssertCase("world-parameters", () =>
+        WorldConfigurationDto baseline = null!;
+        return ScenarioCatalog.World.Bind(new Dictionary<string, Func<Task>>
         {
-            Check(expectedWorld.ValueKind == JsonValueKind.Object, "Host never configured a world.");
-            Check(baseline.SeedString == profile.Seed && Math.Abs(float.Parse(baseline.PlanetCoverage!, CultureInfo.InvariantCulture) - profile.Coverage / 100f) < 0.000001f, "Server seed/coverage differs from requested values.");
-            foreach (var world in new[] { worldA, worldB })
+            ["capture-world"] = async () =>
             {
-                var info = world.GetProperty("info");
-                Check(info.String("seedString") == profile.Seed, "Generated seed changed.");
-                Check(Math.Abs(info.GetProperty("planetCoverage").GetDouble() - profile.Coverage / 100d) < 0.000001, "Generated coverage silently fell back.");
-                foreach (string field in new[] { "rainfall", "temperature", "population" })
-                    Check(info.String("overall" + char.ToUpperInvariant(field[0]) + field[1..]) == expectedWorld.String(field), "Generated " + field + " differs from host selection.");
-                if (profile.Expansions.Contains("Odyssey")) Check(info.String("landmarkDensity") == expectedWorld.String("landmarks"), "Generated landmark density changed.");
-                if (profile.Expansions.Contains("Biotech")) Check(Math.Abs(info.GetProperty("pollution").GetDouble() - profile.Pollution) < 0.000001, "Generated pollution silently fell back.");
-            }
-            Check(baseline.OverallRainfall == expectedWorld.String("rainfall") && baseline.OverallTemperature == expectedWorld.String("temperature") &&
-                baseline.OverallPopulation == expectedWorld.String("population"), "Server environment parameters changed.");
-        });
-        await AssertCase("world-geometry", () =>
-        {
-            var layersA = worldA.GetProperty("layers").EnumerateArray().ToArray(); var layersB = worldB.GetProperty("layers").EnumerateArray().ToArray();
-            Check(baseline.TileGeometry is not null && layersA.Length == baseline.TileGeometry.Layers.Count && layersB.Length == layersA.Length, "Missing authoritative layer geometry.");
-            foreach (var layer in baseline.TileGeometry!.Layers)
+                worldA = await run.CallAsync("A", "clash.world.details"); worldB = await run.CallAsync("B", "clash.world.details");
+                baseline = world.Current!;
+            },
+            ["world-parameters"] = () =>
             {
-                var a = layersA.Single(l => l.Int("id") == layer.LayerId); var b = layersB.Single(l => l.Int("id") == layer.LayerId);
-                Check(a.Int("count") > 0 && a.Int("count") == layer.TileCenters.Count && b.Int("count") == a.Int("count"), "Truncated or missing layer tiles.");
-                string digest = GeometryDigest(layer);
-                Check(a.String("geometrySha256") == digest && b.String("geometrySha256") == digest, "Actual tile centers differ from persisted geometry.");
-            }
-            Check(world.TryGetWorldSubstrate(baseline.WorldConfigurationId, out var payload) && payload is { Length: > 0 }, "Detached world substrate was never uploaded.");
-            Check(WorldSubstratePackageCodec.TryDecode(payload!, out var package, out _) && package!.TileGeometryPayload.Length > 0, "Detached substrate is invalid.");
-        });
-        await ObserveCase("world-tile-data", async () =>
-        {
-            await TileDiagnostics();
-            foreach (var a in worldA.GetProperty("layers").EnumerateArray())
-            {
-                var b = worldB.GetProperty("layers").EnumerateArray().Single(l => l.Int("id") == a.Int("id"));
-                Check(a.String("tilesSha256") == b.String("tilesSha256"), "Terrain/biome/climate/neighbour data differs between clients. See tile-differences evidence.");
-            }
-        });
-        await AssertCase("world-feature-identities", () =>
-        {
-            var a = worldA.GetProperty("features").EnumerateArray().ToArray(); var b = worldB.GetProperty("features").EnumerateArray().ToArray();
-            Check(a.Length > 0 && a.Length == b.Length && a.Length == baseline.Features.Count, "Missing generated features.");
-            foreach (var feature in a)
-            {
-                var other = b.Single(f => f.Int("id") == feature.Int("id"));
-                Check(feature.String("defName") == other.String("defName") && !string.IsNullOrWhiteSpace(other.String("name")), "Localized feature lost canonical identity/name.");
-                Equal(feature.GetProperty("center"), other.GetProperty("center"), "Localized feature moved.");
-                Equal(feature.GetProperty("size"), other.GetProperty("size"), "Localized feature changed size.");
-                if (profile.A.Language == profile.B.Language) Check(feature.String("name") == other.String("name"), "Same-language feature names differ.");
-            }
-        });
-        await AssertCase("storyteller-difficulty", () =>
-        {
-            Check(expectedDifficulty.ValueKind == JsonValueKind.Object, "Host never selected difficulty.");
-            Check(baseline.StorytellerDefName == profile.Storyteller && baseline.DifficultyDefName == profile.Difficulty, "Server storyteller/preset changed.");
-            Check(!string.IsNullOrWhiteSpace(baseline.DifficultyValuesXml), "Server omitted difficulty values.");
-            _ = XElement.Parse(baseline.DifficultyValuesXml!);
-            foreach (var world in new[] { worldA, worldB })
-            {
-                Check(world.String("storyteller") == profile.Storyteller && world.String("difficulty") == profile.Difficulty, "Applied storyteller/preset differs.");
-                Equal(expectedDifficulty, world.GetProperty("difficultyValues"), "Applied difficulty fields differ from original selection.");
-            }
-        });
-        await AssertCase("culture-references", CheckCultures);
-        await ObserveCase("world-persistence", async () =>
-        {
-            var persistedBaseline = world.Current!;
-            var restored = await readPersisted(baseline.WorldConfigurationId);
-            Check(restored.Configuration?.WorldConfigurationId == baseline.WorldConfigurationId, "World identity did not survive registry reconstruction.");
-            var expected = JsonSerializer.SerializeToElement(persistedBaseline, Wire.Json);
-            var actual = JsonSerializer.SerializeToElement(restored.Configuration, Wire.Json);
-            foreach (var field in expected.EnumerateObject())
-            {
-                try { Equal(field.Value, actual.GetProperty(field.Name), "Persisted baseline field differs: " + field.Name); }
-                catch
+                Check(expectedWorld.ValueKind == JsonValueKind.Object, "Host never configured a world.");
+                Check(baseline.SeedString == profile.Seed && Math.Abs(float.Parse(baseline.PlanetCoverage!, CultureInfo.InvariantCulture) - profile.Coverage / 100f) < 0.000001f, "Server seed/coverage differs from requested values.");
+                foreach (var world in new[] { worldA, worldB })
                 {
-                    await File.WriteAllTextAsync(Path.Combine(run.DirectoryPath, "world-persistence-expected.json"), expected.GetRawText());
-                    await File.WriteAllTextAsync(Path.Combine(run.DirectoryPath, "world-persistence-actual.json"), actual.GetRawText());
-                    throw;
+                    var info = world.GetProperty("info");
+                    Check(info.String("seedString") == profile.Seed, "Generated seed changed.");
+                    Check(Math.Abs(info.GetProperty("planetCoverage").GetDouble() - profile.Coverage / 100d) < 0.000001, "Generated coverage silently fell back.");
+                    foreach (string field in new[] { "rainfall", "temperature", "population" })
+                        Check(info.String("overall" + char.ToUpperInvariant(field[0]) + field[1..]) == expectedWorld.String(field), "Generated " + field + " differs from host selection.");
+                    if (profile.Expansions.Contains("Odyssey")) Check(info.String("landmarkDensity") == expectedWorld.String("landmarks"), "Generated landmark density changed.");
+                    if (profile.Expansions.Contains("Biotech")) Check(Math.Abs(info.GetProperty("pollution").GetDouble() - profile.Pollution) < 0.000001, "Generated pollution silently fell back.");
                 }
-            }
-            Check(restored.Substrate is not null && world.TryGetWorldSubstrate(baseline.WorldConfigurationId, out var original)
-                && restored.Substrate.AsSpan().SequenceEqual(original), "World substrate did not survive persistence.");
+                Check(baseline.OverallRainfall == expectedWorld.String("rainfall") && baseline.OverallTemperature == expectedWorld.String("temperature") &&
+                    baseline.OverallPopulation == expectedWorld.String("population"), "Server environment parameters changed.");
+                return Task.CompletedTask;
+            },
+            ["world-geometry"] = () =>
+            {
+                var layersA = worldA.GetProperty("layers").EnumerateArray().ToArray(); var layersB = worldB.GetProperty("layers").EnumerateArray().ToArray();
+                Check(baseline.TileGeometry is not null && layersA.Length == baseline.TileGeometry.Layers.Count && layersB.Length == layersA.Length, "Missing authoritative layer geometry.");
+                foreach (var layer in baseline.TileGeometry!.Layers)
+                {
+                    var a = layersA.Single(l => l.Int("id") == layer.LayerId); var b = layersB.Single(l => l.Int("id") == layer.LayerId);
+                    Check(a.Int("count") > 0 && a.Int("count") == layer.TileCenters.Count && b.Int("count") == a.Int("count"), "Truncated or missing layer tiles.");
+                    string digest = GeometryDigest(layer);
+                    Check(a.String("geometrySha256") == digest && b.String("geometrySha256") == digest, "Actual tile centers differ from persisted geometry.");
+                }
+                Check(world.TryGetWorldSubstrate(baseline.WorldConfigurationId, out var payload) && payload is { Length: > 0 }, "Detached world substrate was never uploaded.");
+                Check(WorldSubstratePackageCodec.TryDecode(payload!, out var package, out _) && package!.TileGeometryPayload.Length > 0, "Detached substrate is invalid.");
+                return Task.CompletedTask;
+            },
+            ["world-tile-data"] = async () =>
+            {
+                await TileDiagnostics();
+                foreach (var a in worldA.GetProperty("layers").EnumerateArray())
+                {
+                    var b = worldB.GetProperty("layers").EnumerateArray().Single(l => l.Int("id") == a.Int("id"));
+                    Check(a.String("tilesSha256") == b.String("tilesSha256"), "Terrain/biome/climate/neighbour data differs between clients. See tile-differences evidence.");
+                }
+            },
+            ["world-feature-identities"] = () =>
+            {
+                var a = worldA.GetProperty("features").EnumerateArray().ToArray(); var b = worldB.GetProperty("features").EnumerateArray().ToArray();
+                Check(a.Length > 0 && a.Length == b.Length && a.Length == baseline.Features.Count, "Missing generated features.");
+                foreach (var feature in a)
+                {
+                    var other = b.Single(f => f.Int("id") == feature.Int("id"));
+                    Check(feature.String("defName") == other.String("defName") && !string.IsNullOrWhiteSpace(other.String("name")), "Localized feature lost canonical identity/name.");
+                    Equal(feature.GetProperty("center"), other.GetProperty("center"), "Localized feature moved.");
+                    Equal(feature.GetProperty("size"), other.GetProperty("size"), "Localized feature changed size.");
+                    if (profile.A.Language == profile.B.Language) Check(feature.String("name") == other.String("name"), "Same-language feature names differ.");
+                }
+                return Task.CompletedTask;
+            },
+            ["storyteller-difficulty"] = () =>
+            {
+                Check(expectedDifficulty.ValueKind == JsonValueKind.Object, "Host never selected difficulty.");
+                Check(baseline.StorytellerDefName == profile.Storyteller && baseline.DifficultyDefName == profile.Difficulty, "Server storyteller/preset changed.");
+                Check(!string.IsNullOrWhiteSpace(baseline.DifficultyValuesXml), "Server omitted difficulty values.");
+                _ = XElement.Parse(baseline.DifficultyValuesXml!);
+                foreach (var world in new[] { worldA, worldB })
+                {
+                    Check(world.String("storyteller") == profile.Storyteller && world.String("difficulty") == profile.Difficulty, "Applied storyteller/preset differs.");
+                    Equal(expectedDifficulty, world.GetProperty("difficultyValues"), "Applied difficulty fields differ from original selection.");
+                }
+                return Task.CompletedTask;
+            },
+            ["culture-references"] = () => { CheckCultures(); return Task.CompletedTask; },
+            ["world-persistence"] = async () =>
+            {
+                var persistedBaseline = world.Current!;
+                var restored = await readPersisted(baseline.WorldConfigurationId);
+                Check(restored.Configuration?.WorldConfigurationId == baseline.WorldConfigurationId, "World identity did not survive registry reconstruction.");
+                var expected = JsonSerializer.SerializeToElement(persistedBaseline, Wire.Json);
+                var actual = JsonSerializer.SerializeToElement(restored.Configuration, Wire.Json);
+                foreach (var field in expected.EnumerateObject())
+                {
+                    try { Equal(field.Value, actual.GetProperty(field.Name), "Persisted baseline field differs: " + field.Name); }
+                    catch
+                    {
+                        await File.WriteAllTextAsync(Path.Combine(run.DirectoryPath, "world-persistence-expected.json"), expected.GetRawText());
+                        await File.WriteAllTextAsync(Path.Combine(run.DirectoryPath, "world-persistence-actual.json"), actual.GetRawText());
+                        throw;
+                    }
+                }
+                Check(restored.Substrate is not null && world.TryGetWorldSubstrate(baseline.WorldConfigurationId, out var original)
+                    && restored.Substrate.AsSpan().SequenceEqual(original), "World substrate did not survive persistence.");
+            },
+            ["storyteller-permission"] = async () =>
+            {
+                var before = await run.CallAsync("B", "clash.world.details");
+                Check(!(await run.CallAsync("B", "clash.storyteller.open")).Bool("opened"), "Ordinary player opened locked storyteller settings.");
+                var after = await run.CallAsync("B", "clash.world.details");
+                Equal(before.GetProperty("difficultyValues"), after.GetProperty("difficultyValues"), "Denied editor changed difficulty.");
+            },
+            ["runtime-difficulty-sync"] = RuntimeDifficulty,
         });
-        await Case("storyteller-permission", async () =>
-        {
-            var before = await run.CallAsync("B", "clash.world.details");
-            Check(!(await run.CallAsync("B", "clash.storyteller.open")).Bool("opened"), "Ordinary player opened locked storyteller settings.");
-            var after = await run.CallAsync("B", "clash.world.details");
-            Equal(before.GetProperty("difficultyValues"), after.GetProperty("difficultyValues"), "Denied editor changed difficulty.");
-        });
-        await Case("runtime-difficulty-sync", RuntimeDifficulty);
     }
+
     async Task RuntimeDifficulty()
     {
         async Task<JsonElement> Select(string storyteller, string difficulty, Dictionary<string, float>? values)

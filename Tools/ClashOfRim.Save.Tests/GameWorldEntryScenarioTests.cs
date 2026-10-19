@@ -18,7 +18,7 @@ internal static class GameWorldEntryScenarioTests
         var roots = new[] { typeof(WorldScenario), typeof(ServerEntryScenario), typeof(ColonyScenarioFixture),
             typeof(SessionPersistenceScenario), typeof(ScenarioRuntimeDiagnostics), typeof(ScenarioClientActions),
             typeof(CaravanScenario), typeof(GiftScenario), typeof(EventScenarioFixture), typeof(NotificationScenario), typeof(SupportScenario), typeof(RemoteMapScenario), typeof(RaidScenario), typeof(EconomicScenarioFixture), typeof(MercenaryScenario), typeof(BankScenario),
-            typeof(ShopScenario), typeof(ShopScenarioFixture), typeof(ShopCatalogScenario), typeof(ShopStressScenario), typeof(ShopVolumeFixture), typeof(ShopPersistenceEvidence), typeof(TradeScenarioFixture), typeof(TradeScenarioOrder), typeof(TradeScenario), typeof(ComplexItemScenario), typeof(AdministrationScenario), typeof(PasswordScenario), typeof(ChatScenario), typeof(PlayerScenarioFixture), typeof(DiplomacyScenario), typeof(ColonyAppearanceScenario), typeof(AchievementScenario), typeof(AccountLifecycleScenario), typeof(AccountLifecyclePreparation), typeof(AccountColonyScenario), typeof(AccountLifecycleAuthority), typeof(ColonyMoveBaseline), typeof(ColonyMoveScenarioFixture), typeof(RelocationScenario), typeof(GravshipScenario) };
+            typeof(ShopScenario), typeof(ShopScenarioFixture), typeof(ShopCatalogScenario), typeof(ShopStressScenario), typeof(ShopVolumeFixture), typeof(ShopPersistenceEvidence), typeof(TradeScenarioFixture), typeof(TradeScenarioOrder), typeof(TradeScenario), typeof(ComplexItemScenario), typeof(AdministrationScenario), typeof(PasswordScenario), typeof(ChatScenario), typeof(PlayerScenarioFixture), typeof(DiplomacyScenario), typeof(ColonyAppearanceScenario), typeof(AchievementScenario), typeof(AccountLifecycleScenario), typeof(AccountLifecyclePreparation), typeof(AccountColonyScenario), typeof(AccountLifecycleAuthority), typeof(ColonyMoveBaseline), typeof(ColonyMoveScenarioFixture), typeof(RelocationScenario), typeof(GravshipScenario), typeof(ScenarioCatalog), typeof(ScenarioPlan), typeof(ScenarioGroup), typeof(ScenarioStep), typeof(ScenarioSequence), typeof(SuiteProfile), typeof(FeatureRefreshScenario), typeof(PawnTransferScenario) };
         bool Owned(Type type) => roots.Contains(type) || type.DeclaringType is { } parent && Owned(parent);
         var violations = ModuleDependencyGuard.FindViolations(typeof(GameSuite).Assembly.GetTypes().Where(Owned).ToArray(),
             t => t == typeof(GameSuite) || t == typeof(ClashOfRimNetworkState) || t == typeof(ClashOfRimNetworkServer)
@@ -67,7 +67,7 @@ internal static class GameWorldEntryScenarioTests
             }
         }
         finally { CultureInfo.CurrentCulture = culture; CultureInfo.CurrentUICulture = uiCulture; }
-        await Sites();
+        await Sites(); await Startup();
     }
 
     private static async Task Sites()
@@ -137,10 +137,57 @@ internal static class GameWorldEntryScenarioTests
             Check(states == 2 && f.Count("game.returnToMenu") == 1 && f.Count("clash.invoke") == 0
                 && f.Calls.First().Args.Bool("discardUnsavedChanges"), "Exit used a bare logout or skipped the loaded Game teardown.");
         }
-        await ColonyReload();
+        await SharedEntry(); await ColonyReload();
         await PersistenceAssertions();
     }
 
+    private static async Task Startup()
+    {
+        foreach (string fault in new[] { "none", "unsafe", "language" })
+        {
+            using var f = await GameScenarioTestRuntime.Create();
+            var profile = new SuiteProfile { A = new("English", "en-US"), B = new("French", "fr-FR"), Expansions = ["Ideology"] };
+            var reads = new Dictionary<string, int> { ["A"] = 0, ["B"] = 0 };
+            f.Script = (client, method, _) => method switch
+            {
+                "runtime.hello" => Hello(client == "A" || fault == "language" ? profile.A : profile.B, profile.Expansions, fault == "unsafe"),
+                "game.state" => new { startupReady = true, playing = ++reads[client] == 1 },
+                _ => null
+            };
+            var world = NewWorld(f, profile);
+            if (fault == "none") await world.VerifyStartup(["A", "B"]);
+            else await Reject<AssertionException>(() => world.VerifyStartup(["A", "B"]));
+            Check(f.Count("clash.actions") == (fault == "none" ? 2 : fault == "language" ? 1 : 0), "Startup continued after an unsafe/mismatched client.");
+            if (fault == "none") Check(reads.Values.All(n => n == 2) && f.Calls.Where(c => c.Method == "clash.actions").All(c => c.Args.Int("limit") == 200),
+                "Startup accepted a still-playing client or lost capability evidence.");
+        }
+    }
+    private static async Task SharedEntry()
+    {
+        foreach (bool mismatch in new[] { false, true })
+        {
+            using var f = await GameScenarioTestRuntime.Create(); var registry = GameWorldTestFixture.ReadyRegistry(); int addresses = 0;
+            foreach (string client in new[] { "A", "B" }) registry.RegisterPlayerColonySites("rimtest-" + client, "colony-" + client,
+                [new("rimtest-" + client, "colony-" + client, "site-" + client, "map-" + client, client == "A" ? 7 : 8, "Home")]);
+            var world = NewWorld(f, new(), registry);
+            var entry = f.CreateEntry(() => { addresses++; return "http://current-server"; }, world: world);
+            f.Script = (client, method, _) => method switch
+            {
+                "game.state" => Game("entered"),
+                "clash.state" => new { isInActiveMultiplayerSession = true, currentSnapshotId = "snapshot" },
+                "clash.world" => new { worldConfigurationId = mismatch && client == "B" ? "other" : "world" },
+                "clash.inventory" => new { maps = new[] { new { tileId = client == "A" ? 7 : 8,
+                    colonists = Enumerable.Range(0, 3).Select(i => new { reference = new { handle = client + "-pawn-" + i } }).ToArray() } } },
+                _ => null
+            };
+            if (mismatch) await Reject<AssertionException>(entry.EnterSharedWorld); else await entry.EnterSharedWorld();
+            var requests = f.Calls.Where(c => c.Method == "clash.invoke").ToArray();
+            Check(addresses == 1 && requests.Select(c => c.Client).SequenceEqual(new[] { "A", "B" })
+                && requests.All(c => c.Args.GetProperty("arguments").String("serverBaseUrl") == "http://current-server"
+                    && c.Args.GetProperty("arguments").Bool("createAccountIfMissing")), "Shared entry changed address, client order or registration mode.");
+            Check(f.Count("time.step") == 2 && f.Count("pawn.draft") == 6 && f.Count("clash.world") == 2, "Shared entry skipped stabilization or world identity verification.");
+        }
+    }
     private static async Task EntryPages()
     {
         using var f = await GameScenarioTestRuntime.Create();
@@ -282,7 +329,7 @@ internal static class GameWorldEntryScenarioTests
     private static object Inventory(int silver = 20) => new { maps = new[] {
         new { tileId = 33, items = new Dictionary<string, int> { ["Silver"] = silver }, colonists = new[] { "pawn-1", "pawn-2", "pawn-3" }.Select(handle => new { reference = new { handle } }).ToArray() },
         new { tileId = 44, items = new Dictionary<string, int> { ["Silver"] = 7, ["Steel"] = 5 }, colonists = new[] { new { reference = new { handle = "other-map-pawn" } } } } } };
-    private static JsonElement Hello(ClientProfile client, string[] expansions) => Wire.Element(new { culture = client.Culture, uiCulture = client.Culture,
+    private static JsonElement Hello(ClientProfile client, string[] expansions, bool unsafeEnabled = false) => Wire.Element(new { unsafeEnabled, culture = client.Culture, uiCulture = client.Culture,
         language = client.Language, mods = expansions.Select(e => new { id = "ludeon.rimworld." + e.ToLowerInvariant() }).Append(new { id = "airs.clashofrim" }).ToArray() });
     private static WorldScenario NewWorld(GameScenarioTestRuntime f, SuiteProfile profile, WorldConfigurationRegistry? registry = null, Distances? distances = null)
         => new(f.Run, f.Polling, profile, registry ?? new(), distances ?? new(), _ => throw new InvalidOperationException("Unexpected persistence probe."));

@@ -11,38 +11,42 @@ internal sealed class AccountLifecycleScenario(TestRun run, ScenarioPolling poll
     ChatScenario chat, ShopScenario shop, DiplomacyScenario diplomacy, TradeScenario trades, TradeScenarioFixture tradeActions,
     AccountColonyScenario colonies)
 {
-    internal async Task Run()
+    internal Task Run() => CreateSequence().Run(run);
+    internal ScenarioSequence CreateSequence()
     {
         AccountLifecyclePreparation prepared = null!;
         string ownerColony = "", guestColony = "";
-        await Case("account-password-change", passwords.Change);
-        await Case("account-achievements-before-abandon", async () =>
+        return ScenarioCatalog.Account.Bind(new Dictionary<string, Func<Task>>
         {
-            // Two generations each perform ten real shipments, plus a hire. Fund
-            // the buyer explicitly so postage cannot mask lifecycle assertions.
-            await run.CallAsync("B", "clash.fixture.bankCash", new { amount = 10000, acknowledgeFixture = true });
-            await colonyFixture.StoreStartingResources("A"); await colonyFixture.StoreStartingResources("B");
-            await trades.Fulfill(); await achievements.ReachTradeThreshold();
-            await achievements.Refresh("A"); await achievements.Refresh("B");
-            // Re-upload and refresh the same cumulative history: it must not count deliveries twice.
-            var before = achievements.CaptureHistory();
-            for (int i = 0; i < 2; i++) { await run.InvokeClientAsync("A", "StartManualSnapshotUpload"); await polling.Idle("A"); }
-            Check(before == achievements.CaptureHistory(), "Uploads replayed achievement accounting.");
+            ["account-password-change"] = passwords.Change,
+            ["account-achievements-before-abandon"] = async () =>
+            {
+                // Two generations each perform ten real shipments, plus a hire. Fund
+                // the buyer explicitly so postage cannot mask lifecycle assertions.
+                await run.CallAsync("B", "clash.fixture.bankCash", new { amount = 10000, acknowledgeFixture = true });
+                await colonyFixture.StoreStartingResources("A"); await colonyFixture.StoreStartingResources("B");
+                await trades.Fulfill(); await achievements.ReachTradeThreshold();
+                await achievements.Refresh("A"); await achievements.Refresh("B");
+                // Re-upload and refresh the same cumulative history: it must not count deliveries twice.
+                var before = achievements.CaptureHistory();
+                for (int i = 0; i < 2; i++) { await run.InvokeClientAsync("A", "StartManualSnapshotUpload"); await polling.Idle("A"); }
+                Check(before == achievements.CaptureHistory(), "Uploads replayed achievement accounting.");
+            },
+            ["account-liabilities-before-abandon"] = async () => prepared = await PrepareLiabilities(),
+            ["account-abandon-owner"] = async () => ownerColony = await colonies.Abandon("A", "B", prepared),
+            ["account-rebuild-owner"] = () => colonies.Rebuild("A", "B", ownerColony, prepared),
+            ["account-achievements-new-generation"] = async () =>
+            {
+                await colonyFixture.StoreStartingResources("A");
+                await trades.Fulfill();
+                var own = await achievements.Refresh("A");
+                Check(!Items(own).Any(v => v.GetProperty("data").String("achievementId") == "trades_10"), "New colony inherited old completed trade count.");
+                await achievements.ReachTradeThreshold(); await achievements.Refresh("A"); await achievements.Refresh("B");
+                await colonyFixture.Reload("A", "rimtest-rebuilt-achievements"); await achievements.Refresh("A");
+            },
+            ["account-abandon-guest"] = async () => guestColony = await colonies.Abandon("B", "A", prepared),
+            ["account-rebuild-guest"] = () => colonies.Rebuild("B", "A", guestColony, prepared),
         });
-        await Case("account-liabilities-before-abandon", async () => prepared = await PrepareLiabilities());
-        await Case("account-abandon-owner", async () => ownerColony = await colonies.Abandon("A", "B", prepared));
-        await Case("account-rebuild-owner", () => colonies.Rebuild("A", "B", ownerColony, prepared));
-        await Case("account-achievements-new-generation", async () =>
-        {
-            await colonyFixture.StoreStartingResources("A");
-            await trades.Fulfill();
-            var own = await achievements.Refresh("A");
-            Check(!Items(own).Any(v => v.GetProperty("data").String("achievementId") == "trades_10"), "New colony inherited old completed trade count.");
-            await achievements.ReachTradeThreshold(); await achievements.Refresh("A"); await achievements.Refresh("B");
-            await colonyFixture.Reload("A", "rimtest-rebuilt-achievements"); await achievements.Refresh("A");
-        });
-        await Case("account-abandon-guest", async () => guestColony = await colonies.Abandon("B", "A", prepared));
-        await Case("account-rebuild-guest", () => colonies.Rebuild("B", "A", guestColony, prepared));
     }
 
     internal async Task<AccountLifecyclePreparation> PrepareLiabilities()
@@ -67,5 +71,4 @@ internal sealed class AccountLifecycleScenario(TestRun run, ScenarioPolling poll
         await tradeActions.AcceptMemo(await tradeActions.Refresh("B", lifecycleOrder));
         return new(lifecycleOrder, lifecycleDebt, preservedShop);
     }
-    private Task Case(string id, Func<Task> body) => run.RunCaseAsync(id, body, () => run.CaptureLogsAsync());
 }

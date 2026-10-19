@@ -7,42 +7,46 @@ namespace ClashOfRim.GameTests;
 
 internal sealed class ComplexItemScenario(TestRun run, ScenarioPolling polling, ColonyScenarioFixture colonyFixture, TradeScenarioFixture trades)
 {
-    internal async Task Run()
+    internal Task Run() => CreateSequence().Run(run);
+    internal ScenarioSequence CreateSequence()
     {
         JsonElement[] fixtures = [];
         string[] available = [];
-        await Case("complex-item-fixture", async () =>
+        return ScenarioCatalog.Items.Bind(new Dictionary<string, Func<Task>>
         {
-            await colonyFixture.StoreStartingResources("A"); await colonyFixture.StoreStartingResources("B");
-            fixtures = Items(await run.CallAsync("A", "clash.fixture.complexItems", new { acknowledgeFixture = true }));
-            Check(fixtures.Length == 6, "Complex state fixture was incomplete.");
-            available = fixtures.Select(H).ToArray();
-            await colonyFixture.StoreResources("A", fixtures.Select(i => i.GetProperty("data").String("defName")).Distinct().ToArray());
-        });
-        await Case("complex-item-cancel-refund", async () =>
-        {
-            var order = await trades.Create(available);
-            await trades.Cancel(order);
-            await polling.Step("A", 600); await polling.Idle("A");
-            available = await VerifyComplexItems("A", fixtures, "cancellation");
-            await colonyFixture.StoreResources("A", fixtures.Select(i => i.GetProperty("data").String("defName")).Distinct().ToArray());
-        });
-        await Case("complex-item-trade-delivery", async () =>
-        {
-            int woodA = await colonyFixture.Stock("A", "WoodLog"), woodB = await colonyFixture.Stock("B", "WoodLog");
-            var order = await trades.Create(available);
-            await trades.FulfillByDropPod(await trades.Refresh("B", order.EventId));
-            await colonyFixture.AwaitStock("A", "WoodLog", woodA + 5); await polling.Step("B", 600); await polling.Idle("B");
-            await VerifyComplexItems("B", fixtures, "delivery");
-            Check(await colonyFixture.Stock("B", "WoodLog") == woodB - 5, "Complex trade payment was not conserved.");
-            foreach (var item in fixtures)
+            ["complex-item-fixture"] = async () =>
             {
-                string def = item.GetProperty("data").OptionalString("innerDef") ?? item.GetProperty("data").String("defName");
-                Check(!Items(await run.CallAsync("A", "clash.stability.items", new { defName = def })).Any(t => Matches(item.GetProperty("data"), t.GetProperty("data"))), "Sender retained delivered complex item: " + def);
-            }
+                await colonyFixture.StoreStartingResources("A"); await colonyFixture.StoreStartingResources("B");
+                fixtures = Items(await run.CallAsync("A", "clash.fixture.complexItems", new { acknowledgeFixture = true }));
+                Check(fixtures.Length == 6, "Complex state fixture was incomplete.");
+                available = fixtures.Select(H).ToArray();
+                await colonyFixture.StoreResources("A", fixtures.Select(i => i.GetProperty("data").String("defName")).Distinct().ToArray());
+            },
+            ["complex-item-cancel-refund"] = async () =>
+            {
+                var order = await trades.Create(available);
+                await trades.Cancel(order);
+                await polling.Step("A", 600); await polling.Idle("A");
+                available = await VerifyComplexItems("A", fixtures, "cancellation");
+                await colonyFixture.StoreResources("A", fixtures.Select(i => i.GetProperty("data").String("defName")).Distinct().ToArray());
+            },
+            ["complex-item-trade-delivery"] = async () =>
+            {
+                int woodA = await colonyFixture.Stock("A", "WoodLog"), woodB = await colonyFixture.Stock("B", "WoodLog");
+                var order = await trades.Create(available);
+                await trades.FulfillByDropPod(await trades.Refresh("B", order.EventId));
+                await colonyFixture.AwaitStock("A", "WoodLog", woodA + 5); await polling.Step("B", 600); await polling.Idle("B");
+                await VerifyComplexItems("B", fixtures, "delivery");
+                Check(await colonyFixture.Stock("B", "WoodLog") == woodB - 5, "Complex trade payment was not conserved.");
+                foreach (var item in fixtures)
+                {
+                    string def = item.GetProperty("data").OptionalString("innerDef") ?? item.GetProperty("data").String("defName");
+                    Check(!Items(await run.CallAsync("A", "clash.stability.items", new { defName = def })).Any(t => Matches(item.GetProperty("data"), t.GetProperty("data"))), "Sender retained delivered complex item: " + def);
+                }
+            },
         });
     }
-    Task Case(string id, Func<Task> body) => run.RunCaseAsync(id, body, () => run.CaptureLogsAsync());
+
     async Task<string[]> VerifyComplexItems(string client, JsonElement[] expected, string phase)
     {
         var handles = new List<string>(); var failures = new List<string>();

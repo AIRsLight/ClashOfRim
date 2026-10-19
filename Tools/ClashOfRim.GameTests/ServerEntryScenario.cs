@@ -8,6 +8,12 @@ internal sealed class ServerEntryScenario(TestRun run, ScenarioPolling polling, 
     WorldScenario world, ColonyScenarioFixture colony, ScenarioRuntimeDiagnostics diagnostics, Func<string> serverAddress, Func<string, bool> isUserOnline)
 {
     private int? firstColonyTile;
+    internal async Task EnterSharedWorld()
+    {
+        string address = serverAddress();
+        await Enter("A", address); await Enter("B", address);
+        await world.VerifySharedEntry();
+    }
     internal void SetNeighbouringColony(int tile) => firstColonyTile = tile;
     internal async Task Enter(string client, string url, bool register = true)
     {

@@ -10,105 +10,109 @@ using RimTest.Testing;
 
 namespace ClashOfRim.GameTests;
 
-internal sealed partial class GameSuite
+internal sealed class GameSuite
 {
     private readonly string root, pipeA, pipeB;
     private readonly SuiteProfile profile;
     private readonly TestRun run;
-    private readonly ScenarioPolling polling;
-    private readonly EconomicScenarioFixture economy;
-    private readonly MercenaryScenario mercenaries;
-    private readonly BankScenario bank;
-    private readonly AdministrationScenario administration;
-    private readonly PasswordScenario passwords;
-    private readonly ChatScenario chat;
-    private readonly PlayerScenarioFixture players;
-    private readonly DiplomacyScenario diplomacy;
-    private readonly ColonyAppearanceScenario appearance;
-    private readonly ShopScenario shop;
-    private readonly TradeScenario trades;
-    private readonly AchievementScenario achievements;
-    private readonly AccountLifecycleScenario accounts;
-    private readonly RelocationScenario relocation;
-    private readonly GravshipScenario gravship;
-    private readonly ComplexItemScenario complexItems;
-    private readonly ShopCatalogScenario shopCatalog;
-    private readonly ShopStressScenario shopStress;
-    private readonly CaravanScenario caravanFixture;
-    private readonly GiftScenario giftScenario;
-    private readonly SupportScenario support;
-    private readonly RaidScenario raids;
-    private readonly RemoteMapScenario remoteMaps;
-    private readonly NotificationScenario notifications;
-    private readonly ScenarioRuntimeDiagnostics diagnostics;
-    private readonly WorldScenario world;
-    private readonly ServerEntryScenario entry;
-    private readonly SessionPersistenceScenario roundtrips;
+    private readonly ScenarioSequence[] execution;
     private readonly Microsoft.AspNetCore.Builder.WebApplication server;
     private readonly Dictionary<string, RimTestClient> clients = new();
     private string url = "";
-    private static readonly string[] FeatureCases = ["account-password-change", "colony-appearance-sync", "public-chat", "private-chat-read", "admin-configuration-permissions",
-    "bank-loan-repayment", "shop-purchase-stock", "trade-cancel-refund", "trade-drop-pod-fulfillment", "alliance-request-accept",
-    "ally-observation-close", "caravan-load-travel", "caravan-gift-accept", "support-send-early-return", "mercenary-hire", "mercenary-recall", "raid-open-settle",
-    "unicode-chat-blank-rejection", "admin-action-permissions", "admin-role-grant-revoke", "admin-broadcast", "bank-input-rejection", "shop-buyback-stock-rejection", "trade-memo-cancel", "achievement-unlock-leaderboard",
-    "admin-kick-reconnect", "admin-ban-unban", "maintenance-password-rejection", "trade-caravan-fulfillment"];
-    private static readonly string[] WorldCases = ["launch-profile", "shared-world-entry", "world-parameters", "world-geometry", "world-tile-data", "world-feature-identities",
-    "storyteller-difficulty", "culture-references", "world-persistence", "storyteller-permission", "runtime-difficulty-sync", "snapshot-save-reload", "session-reconnect"];
-    private static readonly string[] GiftReplayCases = ["alliance-request-accept", "caravan-load-travel", "caravan-gift-accept", "gift-repeat-accept"];
     public GameSuite(string root, string pipeA, string pipeB, SuiteProfile profile)
     {
         this.root = root; this.pipeA = pipeA; this.pipeB = pipeB; this.profile = profile;
         Directory.CreateDirectory(root);
-        run = new TestRun(root, WorldCases.Concat(profile.Features ? FeatureCases : profile.GiftReplay ? GiftReplayCases : StabilityCases(profile.Stability)).Append("runtime-errors").ToArray());
+        var plan = ScenarioCatalog.Plan(profile);
+        run = new TestRun(root, plan.CaseIds);
         var dialogs = new ScenarioDialogs(run, profile.A.Language != profile.B.Language);
-        polling = new ScenarioPolling(run, dialogs);
+        var polling = new ScenarioPolling(run, dialogs);
         server = ClashOfRimNetworkServer.Build([
             "--contentRoot", Path.Combine(root, "Server"), "--urls", "http://127.0.0.1:0",
         "--Persistence:DataDirectory", Path.Combine(root, "Server", "Data"), "--Authentication:DebugMode", "false",
         "--Localization:Language", "English", "--Logging:LogLevel:Default", "Warning"]);
         var colonyFixture = new ColonyScenarioFixture(run, polling);
-        diagnostics = new(run);
+        var diagnostics = new ScenarioRuntimeDiagnostics(run);
         var serverState = server.Services.GetRequiredService<ClashOfRimNetworkState>();
-        economy = new(run, polling, colonyFixture);
-        mercenaries = new(run, polling, colonyFixture, economy, serverState.MercenaryContracts, serverState.MercenaryGuards, () =>
+        var economy = new EconomicScenarioFixture(run, polling, colonyFixture);
+        var mercenaries = new MercenaryScenario(run, polling, colonyFixture, economy, serverState.MercenaryContracts, serverState.MercenaryGuards, () =>
         {
             var configuration = serverState.ServerConfiguration;
             return (configuration.MercenaryGuardApprenticeSilver, configuration.MercenaryGuardApprenticePointsRatio);
         });
-        caravanFixture = new(run, polling, dialogs, colonyFixture);
+        var caravanFixture = new CaravanScenario(run, polling, dialogs, colonyFixture);
         var tradeActions = new TradeScenarioFixture(run, polling, dialogs);
-        trades = new(run, polling, dialogs, colonyFixture, economy, caravanFixture, tradeActions);
-        achievements = new(run, polling, trades, serverState.Achievements, serverState.SnapshotStore, serverState.Players);
-        complexItems = new(run, polling, colonyFixture, tradeActions);
+        var trades = new TradeScenario(run, polling, dialogs, colonyFixture, economy, caravanFixture, tradeActions);
+        var achievements = new AchievementScenario(run, polling, trades, serverState.Achievements, serverState.SnapshotStore, serverState.Players);
+        var complexItems = new ComplexItemScenario(run, polling, colonyFixture, tradeActions);
         var eventFixture = new EventScenarioFixture(polling, serverState.Ledger);
-        support = new(run, polling, dialogs, caravanFixture, serverState.Ledger, eventFixture);
-        remoteMaps = new(run, polling, colonyFixture);
-        world = new(run, polling, profile, serverState.WorldConfiguration, serverState.WorldTileDistanceCalculator,
+        var support = new SupportScenario(run, polling, dialogs, caravanFixture, serverState.Ledger, eventFixture);
+        var remoteMaps = new RemoteMapScenario(run, polling, colonyFixture);
+        var world = new WorldScenario(run, polling, profile, serverState.WorldConfiguration, serverState.WorldTileDistanceCalculator,
             id => WorldPersistenceProbe.Read(root, id));
-        entry = new(run, polling, dialogs, world, colonyFixture, diagnostics, () => url, serverState.OnlinePresence.IsUserOnline);
-        administration = new(run, polling, entry, serverState.AdminControl, serverState.WorldConfiguration);
-        passwords = new(run, polling, serverState.OfflineAccounts);
-        chat = new(run, polling);
-        players = new(run, polling);
-        diplomacy = new(run, polling, players);
-        appearance = new(run, polling, serverState.WorldConfiguration);
-        giftScenario = new(run, polling, dialogs, colonyFixture, caravanFixture, eventFixture, serverState.Ledger, entry);
-        notifications = new(run, polling, entry, eventFixture, serverState.Ledger);
-        roundtrips = new(run, polling, colonyFixture, entry);
-        bank = new(run, polling, colonyFixture, economy, mercenaries, roundtrips);
+        var entry = new ServerEntryScenario(run, polling, dialogs, world, colonyFixture, diagnostics, () => url, serverState.OnlinePresence.IsUserOnline);
+        var administration = new AdministrationScenario(run, polling, entry, serverState.AdminControl, serverState.WorldConfiguration);
+        var passwords = new PasswordScenario(run, polling, serverState.OfflineAccounts);
+        var chat = new ChatScenario(run, polling);
+        var players = new PlayerScenarioFixture(run, polling);
+        var diplomacy = new DiplomacyScenario(run, polling, players);
+        var appearance = new ColonyAppearanceScenario(run, polling, serverState.WorldConfiguration);
+        var giftScenario = new GiftScenario(run, polling, dialogs, colonyFixture, caravanFixture, eventFixture, serverState.Ledger, entry);
+        var notifications = new NotificationScenario(run, polling, entry, eventFixture, serverState.Ledger);
+        var roundtrips = new SessionPersistenceScenario(run, polling, colonyFixture, entry);
+        var bank = new BankScenario(run, polling, colonyFixture, economy, mercenaries, roundtrips);
         var shopActions = new ShopScenarioFixture(run, polling);
-        shop = new(run, polling, colonyFixture, economy, shopActions);
-        shopCatalog = new(run, polling, colonyFixture, economy, shopActions, serverState.ServerShop, Path.Combine(root, "shop-catalog.json"));
-        shopStress = new(run, colonyFixture, shopActions, serverState.ServerShop,
+        var shop = new ShopScenario(run, polling, colonyFixture, economy, shopActions);
+        var shopCatalog = new ShopCatalogScenario(run, polling, colonyFixture, economy, shopActions, serverState.ServerShop, Path.Combine(root, "shop-catalog.json"));
+        var shopStress = new ShopStressScenario(run, colonyFixture, shopActions, serverState.ServerShop,
             (id, buyers) => ShopPersistenceProbe.Read(root, id, buyers), Path.Combine(root, "shop-stress.json"));
-        raids = new(run, polling, dialogs, caravanFixture, remoteMaps, entry, colonyFixture, serverState.SnapshotStore, serverState.DiplomacyRelations, serverState.Ledger, eventFixture);
+        var raids = new RaidScenario(run, polling, dialogs, caravanFixture, remoteMaps, entry, colonyFixture, serverState.SnapshotStore, serverState.DiplomacyRelations, serverState.Ledger, eventFixture);
         var accountAuthority = new AccountLifecycleAuthority(serverState.SnapshotStore, serverState.Players, serverState.WorldConfiguration,
             serverState.BankLoans, serverState.MercenaryContracts, serverState.OfflineAccounts, serverState.Ledger);
         var accountColonies = new AccountColonyScenario(run, polling, colonyFixture, economy, achievements, entry, chat, players, shopActions, accountAuthority, () => url);
-        accounts = new(run, polling, colonyFixture, economy, mercenaries, passwords, achievements, chat, shop, diplomacy, trades, tradeActions, accountColonies);
+        var accounts = new AccountLifecycleScenario(run, polling, colonyFixture, economy, mercenaries, passwords, achievements, chat, shop, diplomacy, trades, tradeActions, accountColonies);
         var moves = new ColonyMoveScenarioFixture(run, polling, colonyFixture, economy, serverState.WorldConfiguration);
-        relocation = new(run, moves);
-        gravship = new(run, polling, dialogs, moves);
+        var relocation = new RelocationScenario(run, moves);
+        var gravship = new GravshipScenario(run, polling, dialogs, moves);
+        var transfers = new PawnTransferScenario(caravanFixture, support, remoteMaps, diplomacy, raids);
+        var featureRefresh = new FeatureRefreshScenario(run, economy);
+        execution = plan.Bind(
+            ScenarioCatalog.Startup.Bind(("launch-profile", () => world.VerifyStartup(clients.Keys)), ("shared-world-entry", entry.EnterSharedWorld)),
+            world.CreateSequence(),
+            ScenarioCatalog.Features.Bind(
+                ("account-password-change", passwords.Change), ("colony-appearance-sync", appearance.Run), ("discover-players", players.DiscoverBoth),
+                ("public-chat", chat.Public), ("private-chat-read", chat.Private), ("unicode-chat-blank-rejection", chat.UnicodeAndBlankRejection),
+                ("admin-configuration-permissions", administration.Configuration), ("admin-action-permissions", administration.Guards),
+                ("admin-role-grant-revoke", administration.Roles), ("admin-broadcast", administration.Broadcast),
+                ("admin-kick-reconnect", administration.Kick), ("admin-ban-unban", administration.Ban), ("maintenance-password-rejection", administration.MaintenanceAndPassword),
+                ("bank-input-rejection", bank.InputBounds), ("bank-loan-repayment", bank.LoanRepayment),
+                ("shop-purchase-stock", shop.Purchase), ("shop-buyback-stock-rejection", shop.Buyback),
+                ("trade-cancel-refund", trades.Cancel), ("trade-memo-cancel", trades.CancelMemo), ("trade-drop-pod-fulfillment", trades.Fulfill),
+                ("achievement-unlock-leaderboard", achievements.ReachTradeThreshold), ("alliance-request-accept", diplomacy.Alliance),
+                ("ally-observation-close", () => remoteMaps.ObserveAlly(false)), ("caravan-load-travel", caravanFixture.Travel),
+                ("trade-caravan-fulfillment", trades.FulfillByCaravan), ("caravan-gift-accept", giftScenario.Accept), ("support-send-early-return", support.Run),
+                ("mercenary-hire", mercenaries.Hire), ("mercenary-recall", mercenaries.Recall), ("raid-open-settle", () => raids.RunAndReconnect(false)),
+                ("refresh-features", () => featureRefresh.Run(clients.Keys))),
+            ScenarioCatalog.GiftReplay.Bind(("alliance-request-accept", diplomacy.Alliance), ("caravan-load-travel", caravanFixture.Travel),
+                ("caravan-gift-accept", giftScenario.Accept), ("gift-repeat-accept", giftScenario.Replay)),
+            ScenarioCatalog.Offline.Bind(("alliance-request-accept", diplomacy.Alliance), ("caravan-load-travel", caravanFixture.Travel),
+                ("gift-offline-deferred-accept", giftScenario.OfflineAccept), ("gift-offline-reject-return", giftScenario.OfflineReject), ("notification-offline-policy", notifications.OfflineDelivery)),
+            accounts.CreateSequence(),
+            ScenarioCatalog.Bank.Bind(("bank-input-rejection", bank.InputBounds), ("bank-overdue-repayment", bank.OverdueRepayment),
+                ("bank-mercenary-debt", bank.MercenaryDebt), ("mercenary-guard-purchase", mercenaries.GuardPurchase)),
+            ScenarioCatalog.Relocation.Bind(("relocation-caravan", () => relocation.Run("A", "caravan")), ("relocation-quest-site", () => relocation.Run("B", "site"))),
+            ScenarioCatalog.Gravship.Bind(("gravship-new-map", () => gravship.Run("A", false)), ("gravship-quest-site", () => gravship.Run("B", true))),
+            transfers.CreateSequence(withRaid: true), transfers.CreateSequence(withRaid: false),
+            ScenarioCatalog.Catalog.Bind(("shop-complete-catalog", () => shopCatalog.Run(profile.CatalogDefinitions))),
+            ScenarioCatalog.CatalogSample.Bind(("shop-selected-catalog", () => shopCatalog.Run(profile.CatalogDefinitions))),
+            ScenarioCatalog.Stress.Bind(("shop-large-data", shopStress.Run)), complexItems.CreateSequence(),
+            ScenarioCatalog.Permanent.Bind(("alliance-request-accept", diplomacy.Alliance), ("caravan-load-travel", caravanFixture.Travel),
+                ("support-permanent-state", () => support.Run("permanent", true))),
+            ScenarioCatalog.Death.Bind(("alliance-request-accept", diplomacy.Alliance), ("caravan-load-travel", caravanFixture.Travel),
+                ("support-death-expiry", () => support.Run("death", true))),
+            ScenarioCatalog.Finish.Bind(("snapshot-save-reload", roundtrips.SaveReload), ("session-reconnect", roundtrips.Reconnect),
+                ("runtime-errors", () => diagnostics.Verify(clients.Keys))));
+
     }
     public async Task<int> RunAsync()
     {
@@ -121,77 +125,7 @@ internal sealed partial class GameSuite
             clients["A"] = await RimTestClient.ConnectAsync(pipeA, TimeSpan.FromSeconds(120));
             clients["B"] = await RimTestClient.ConnectAsync(pipeB, TimeSpan.FromSeconds(120));
             foreach (var pair in clients) await run.AddClientAsync(pair.Key, pair.Value);
-            await Case("launch-profile", async () =>
-            {
-                foreach (string client in clients.Keys)
-                {
-                    var hello = await Call(client, "runtime.hello"); Check(!hello.Bool("unsafeEnabled"), "Unsafe mode must remain off.");
-                    await Wait(client, "game.state", null, s => s.Bool("startupReady") && !s.Bool("playing"));
-                    world.VerifyLaunch(client, hello);
-                    await Call(client, "clash.actions", new { limit = 200 });
-                }
-            });
-            await Case("shared-world-entry", async () =>
-            {
-                await entry.Enter("A", url); await entry.Enter("B", url);
-                await world.VerifySharedEntry();
-            });
-            await world.Run();
-            if (profile.Features)
-            {
-                await Case("account-password-change", passwords.Change);
-                await Case("colony-appearance-sync", appearance.Run);
-                await players.Refresh("A"); await players.Refresh("B");
-                await players.Observe("A", "rimtest-B");
-                await Case("public-chat", chat.Public);
-                await Case("private-chat-read", chat.Private);
-                await Case("unicode-chat-blank-rejection", chat.UnicodeAndBlankRejection);
-                await Case("admin-configuration-permissions", administration.Configuration);
-                await Case("admin-action-permissions", administration.Guards);
-                await Case("admin-role-grant-revoke", administration.Roles);
-                await Case("admin-broadcast", administration.Broadcast);
-                await Case("admin-kick-reconnect", administration.Kick);
-                await Case("admin-ban-unban", administration.Ban);
-                await Case("maintenance-password-rejection", administration.MaintenanceAndPassword);
-                await Case("bank-input-rejection", bank.InputBounds);
-                await Case("bank-loan-repayment", bank.LoanRepayment);
-                await Case("shop-purchase-stock", shop.Purchase);
-                await Case("shop-buyback-stock-rejection", shop.Buyback);
-                await Case("trade-cancel-refund", trades.Cancel);
-                await Case("trade-memo-cancel", trades.CancelMemo);
-                await Case("trade-drop-pod-fulfillment", trades.Fulfill);
-                await Case("achievement-unlock-leaderboard", achievements.ReachTradeThreshold);
-                await Case("alliance-request-accept", diplomacy.Alliance);
-                await Case("ally-observation-close", () => remoteMaps.ObserveAlly(profile.Stability == "transfers"));
-                await Case("caravan-load-travel", caravanFixture.Travel);
-                await Case("trade-caravan-fulfillment", trades.FulfillByCaravan);
-                await Case("caravan-gift-accept", giftScenario.Accept);
-                await Case("support-send-early-return", support.Run);
-                await Case("mercenary-hire", mercenaries.Hire);
-                await Case("mercenary-recall", mercenaries.Recall);
-                await Case("raid-open-settle", () => raids.RunAndReconnect(verifyLoss: false));
-                foreach (string client in clients.Keys)
-                {
-                    if (!(await Call(client, "clash.state")).Bool("isInActiveMultiplayerSession")) continue;
-                    await economy.RefreshBank(client);
-                    await Invoke(client, "StartRefreshAchievements"); await Invoke(client, "StartRefreshTradeOrders");
-                    await Invoke(client, "StartRefreshServerShop"); await Invoke(client, "StartSyncWorldMapMarkers");
-                    await Call(client, "clash.records", new { kind = "markers" });
-                }
-            }
-            if (profile.GiftReplay)
-            {
-                await Case("alliance-request-accept", diplomacy.Alliance);
-                await Case("caravan-load-travel", caravanFixture.Travel);
-                await Case("caravan-gift-accept", giftScenario.Accept);
-                await Case("gift-repeat-accept", giftScenario.Replay);
-            }
-            await RunStability();
-            // Reload tests run last: a broken serialized world must not prevent observing
-            // independent live business features, or be uploaded as if it were valid.
-            await Case("snapshot-save-reload", roundtrips.SaveReload);
-            await Case("session-reconnect", roundtrips.Reconnect);
-            await Case("runtime-errors", () => diagnostics.Verify(clients.Keys));
+            foreach (var sequence in execution) await sequence.Run(run);
             passed = true;
         }
         catch (Exception ex)
@@ -209,10 +143,4 @@ internal sealed partial class GameSuite
         return passed ? 0 : 1;
 
     }
-    Task<JsonElement> Wait(string client, string method, object? input, Func<JsonElement, bool> predicate, int seconds = 90)
-        => polling.Wait(client, method, input, predicate, seconds);
-    Task<JsonElement> Call(string client, string method, object? input = null) => run.CallAsync(client, method, input);
-    Task<JsonElement> Invoke(string client, string action, object? input = null) => run.InvokeClientAsync(client, action, input);
-    Task Case(string id, Func<Task> body) => run.RunCaseAsync(id, body, CaptureLogs);
-    Task CaptureLogs() => run.CaptureLogsAsync();
 }

@@ -6,6 +6,11 @@ namespace ClashOfRim.GameTests;
 
 internal sealed class PlayerScenarioFixture(TestRun run, ScenarioPolling polling)
 {
+    internal async Task DiscoverBoth()
+    {
+        await Refresh("A"); await Refresh("B");
+        await Observe("A", "rimtest-B");
+    }
     internal async Task Refresh(string client)
     {
         await run.InvokeClientAsync(client, "StartRefreshPlayers"); await polling.Idle(client);

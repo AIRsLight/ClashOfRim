@@ -28,7 +28,7 @@ internal sealed record SuiteProfile
             throw new InvalidDataException("Expected named profile, seed and offered coverage.");
         if (CustomValues is not null && Difficulty != "Custom") throw new InvalidDataException("Custom values require Custom difficulty.");
         if (Features && GiftReplay) throw new InvalidDataException("Gift replay uses an isolated destructive-boundary scenario.");
-        if (Stability is not null && (Features || GiftReplay || GameSuite.StabilityCases(Stability).Length == 0))
+        if (Stability is not null && (Features || GiftReplay || !ScenarioCatalog.SupportsStability(Stability)))
             throw new InvalidDataException("Stability requires an isolated, declared scenario profile.");
         if (Stability == "gravship" && !Expansions.Contains("Odyssey"))
             throw new InvalidDataException("Gravship scenarios require Odyssey.");
