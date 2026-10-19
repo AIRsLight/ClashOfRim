@@ -48,12 +48,11 @@ internal sealed class ClientWorldSetupLifecycle
     }
     internal sealed class Visit
     {
-        private const float RefreshInterval = 30f;
         private readonly ClientWorldSetupLifecycle owner;
         private readonly ClientRequestTracker<IClientWorldCatalogSession>.Scope scope;
         private readonly IClientWorldSetupPage page;
         private bool started, closed;
-        private float nextRefreshAt;
+        private readonly ClientWorldMarkerRefreshSchedule refresh = new();
         internal Visit(ClientWorldSetupLifecycle owner, ClientRequestTracker<IClientWorldCatalogSession>.Scope scope, IClientWorldSetupPage page)
         { this.owner = owner; this.scope = scope; this.page = page; }
         private bool Current() => !closed && page.IsOpen && owner.Owns(scope);
@@ -61,7 +60,7 @@ internal sealed class ClientWorldSetupLifecycle
         {
             using var p = ClientSessionWork.EnterPublication();
             if (started || !Current()) return Task.CompletedTask;
-            started = true; nextRefreshAt = now + RefreshInterval;
+            started = true; refresh.Advance(true, now);
             var submission = owner.Submit(Current);
             return Task.WhenAll(submission, Refresh("ClashOfRim.WorldMap.ReasonStartingSiteEntered"));
         }
@@ -70,8 +69,7 @@ internal sealed class ClientWorldSetupLifecycle
             using var p = ClientSessionWork.EnterPublication();
             if (!started || !Current()) return Task.CompletedTask;
             owner.markers.ApplyCached();
-            if (!Current() || now < nextRefreshAt) return Task.CompletedTask;
-            nextRefreshAt = now + RefreshInterval;
+            if (!Current() || refresh.Advance(true, now) is null) return Task.CompletedTask;
             return Refresh("ClashOfRim.WorldMap.ReasonStartingSiteStayed");
         }
         private Task Refresh(string key)

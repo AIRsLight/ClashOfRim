@@ -24,7 +24,6 @@ namespace AIRsLight.ClashOfRim;
 
 public sealed class ClashOfRimGameComponent : GameComponent
 {
-    private const float WorldMapMarkerRefreshIntervalSeconds = 30f;
     private const int RemoteWorldObjectOrphanCleanupTicks = 250;
     private static readonly ConcurrentQueue<Action> MainThreadActions = new();
     private static readonly ConcurrentQueue<DelayedMainThreadAction> DelayedMainThreadActions = new();
@@ -45,14 +44,12 @@ public sealed class ClashOfRimGameComponent : GameComponent
     private string lineageToken = string.Empty;
     private int nextRemoteWorldObjectOrphanCleanupTick;
     private readonly Game game;
-    private bool worldMapWasSelected;
     private bool chatOverlayMinimized = true;
     private string chatInput = string.Empty;
     private Vector2 chatScrollPosition;
     private int lastChatOverlayMessageCount;
     private int cachedChatMessagesVersion = -1;
     private IReadOnlyList<ModChatMessageDto> cachedChatMessages = new List<ModChatMessageDto>();
-    private float nextWorldMapMarkerRefreshAt;
     private float nextChatRefreshAt;
 
     public ClashOfRimGameComponent(Game game)
@@ -67,7 +64,7 @@ public sealed class ClashOfRimGameComponent : GameComponent
         mod?.AdvanceRaidRecovery();
         TryFinishExpiredRaidBattle(mod);
         TryHandleRaidBattleFinalDeadline(mod);
-        TryRefreshWorldMapMarkers(mod);
+        _ = ClientWorldSynchronizationCallbacks.Current?.ViewAsync(game);
         DrawRemoteMapSessionOverlay(mod);
         DrawChatOverlay(mod);
     }
@@ -88,7 +85,7 @@ public sealed class ClashOfRimGameComponent : GameComponent
         mod?.AdvanceRaidRecovery();
         TryStartAutomaticRuntimeSession();
         _ = ClientColonySiteEvents.Current?.PollAsync(game, ticks);
-        mod?.PollWorldSynchronization(ticks);
+        _ = ClientWorldSynchronizationCallbacks.Current?.TickAsync(game, ticks);
         TryCleanupRemoteWorldObjectOrphans(ticks);
         TryFinishExpiredRaidBattle(mod);
         TryHandleRaidBattleFinalDeadline(mod);
@@ -871,34 +868,6 @@ public sealed class ClashOfRimGameComponent : GameComponent
 
     private void TryStartAutomaticRuntimeSession()
         => _ = ClientAutomaticSessionStartup.Current?.PollAsync(game);
-
-    private void TryRefreshWorldMapMarkers(ClashOfRimMod? mod)
-    {
-        bool worldSelected = Verse.Current.ProgramState == ProgramState.Playing
-            && WorldRendererUtility.WorldSelected
-            && Find.WorldObjects is not null;
-        if (!worldSelected)
-        {
-            worldMapWasSelected = false;
-            return;
-        }
-
-        if (!worldMapWasSelected)
-        {
-            worldMapWasSelected = true;
-            nextWorldMapMarkerRefreshAt = Time.realtimeSinceStartup + WorldMapMarkerRefreshIntervalSeconds;
-            mod?.RequestWorldMapMarkerRefresh(ClashOfRimText.Key("ClashOfRim.WorldMap.ReasonEnteredWorldMap"));
-            return;
-        }
-
-        if (Time.realtimeSinceStartup < nextWorldMapMarkerRefreshAt)
-        {
-            return;
-        }
-
-        nextWorldMapMarkerRefreshAt = Time.realtimeSinceStartup + WorldMapMarkerRefreshIntervalSeconds;
-        mod?.RequestWorldMapMarkerRefresh(ClashOfRimText.Key("ClashOfRim.WorldMap.ReasonStayedWorldMap"));
-    }
 
     private void DrawRemoteMapSessionOverlay(ClashOfRimMod? mod)
     {

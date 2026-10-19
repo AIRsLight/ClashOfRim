@@ -29,7 +29,6 @@ public sealed partial class ClashOfRimMod
         => _ = worldSynchronization.RequestAsync(ClientWorldSynchronizationKind.CaravanTargets, "caravan-target-refresh", caravanTileSignature);
     internal void StartSyncRuntimeWorldObjects()
         => _ = worldSynchronization.RequestAsync(ClientWorldSynchronizationKind.RuntimeObjects, "runtime-world-object-sync");
-    internal void PollWorldSynchronization(int ticks) => _ = worldSynchronization.Poll(ticks);
 
     internal void StartSyncWorldConfigurationExtensions()
         => _ = colonyRegistration.StartAsync(ClientColonyRegistrationKind.Extensions);

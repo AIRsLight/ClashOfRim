@@ -44,6 +44,7 @@ internal sealed class ClientWorldSynchronization
     private Input? active;
     private string acceptedObjects = "", acceptedCaravans = "";
     private int nextCheck, nextLease;
+    private readonly ClientWorldMarkerRefreshSchedule viewRefresh = new();
     internal ClientWorldSynchronization(ClientSessionLifecycle session, IClientWorldIdentity identity, ClientLocalMutationCoordinator mutations,
         ClientWorldMarkers markers, IClientWorldSynchronizationRuntime runtime, IClientWorldMarkerTransport transport,
         IClientWorldSynchronizationPresentation view, Func<Func<Task>> captureTrades)
@@ -51,10 +52,20 @@ internal sealed class ClientWorldSynchronization
         this.session = session; this.mutations = mutations; this.markers = markers; this.transport = transport; this.view = view; this.captureTrades = captureTrades;
         requests = new(session, () => new(runtime.Bind(), identity.WorldId), b => b.Runtime.IsCurrent && b.World == identity.WorldId, Clear);
     }
-    private void Clear() { Array.Clear(pending, 0, pending.Length); active = null; acceptedObjects = acceptedCaravans = ""; nextCheck = nextLease = 0; }
+    private void Clear() { Array.Clear(pending, 0, pending.Length); active = null; acceptedObjects = acceptedCaravans = ""; nextCheck = nextLease = 0; viewRefresh.Reset(); }
     internal void Reset() => requests.Reset();
     internal bool Busy => requests.Busy;
     internal bool CanStart(ClientWorldSynchronizationKind kind) => requests.Read(() => !requests.Busy && Eligible(kind, requests.Capture()));
+    internal Task RefreshViewAsync(bool selected, float now)
+    {
+        using var p = ClientSessionWork.EnterPublication();
+        var scope = requests.Capture();
+        var refresh = viewRefresh.Advance(selected, now);
+        if (refresh is null || session.IsUnavailable) return Task.CompletedTask;
+        string reason = view.Text(refresh == ClientWorldMarkerRefresh.Entered
+            ? "ClashOfRim.WorldMap.ReasonEnteredWorldMap" : "ClashOfRim.WorldMap.ReasonStayedWorldMap");
+        return requests.TryApply(scope, static () => { }) ? RequestAsync(ClientWorldSynchronizationKind.Markers, reason) : Task.CompletedTask;
+    }
     private bool Eligible(ClientWorldSynchronizationKind kind, ClientRequestTracker<Boundary>.Scope scope)
     {
         var context = session.ReadContext(); var runtime = scope.Boundary.Runtime;

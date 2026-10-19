@@ -173,8 +173,8 @@ internal static class ClientWorldSynchronizationTests
     private static ModRuntimeWorldObjectMarkerDto Object() => new() { WorldObjectId = "object", Kind = "Caravan", DefName = "Caravan", Tile = 10, Label = "original", PathTiles = new() { 10, 11 } };
     private static TaskCompletionSource Signal() => new(TaskCreationOptions.RunContinuationsAsynchronously);
     private static void Check(bool value, string message) { if (!value) throw new InvalidOperationException(message); }
-    private sealed record Call(ClashOfRimClientNetworkContext Context, ModRuntimeWorldObjectMarkerDto[] Objects);
-    private sealed class Fixture : IClientWorldSynchronizationRuntime, IClientWorldSynchronizationPresentation, IClientWorldMarkerTransport,
+    internal sealed record Call(ClashOfRimClientNetworkContext Context, ModRuntimeWorldObjectMarkerDto[] Objects);
+    internal sealed class Fixture : IClientWorldSynchronizationRuntime, IClientWorldSynchronizationPresentation, IClientWorldMarkerTransport,
         IClientWorldMarkersRuntime, IClientWorldMarkersPresentation
     {
         internal readonly ClientOccupiedColonySitesTests.Fixture Sites = new();
@@ -183,6 +183,7 @@ internal static class ClientWorldSynchronizationTests
         internal readonly ClientWorldSynchronization Flow;
         internal readonly List<ModRuntimeWorldObjectMarkerDto> Objects = new() { Object() }, Caravans = new() { Object() };
         internal readonly List<Call> Calls = new();
+        internal readonly List<string> TextKeys = new();
         internal readonly TaskCompletionSource Entered = Signal();
         internal TaskCompletionSource? Hold;
         internal bool WorldAvailable = true, Remote, ReadFacts = true, Duplicate, Discard;
@@ -203,7 +204,7 @@ internal static class ClientWorldSynchronizationTests
         private void Stage(string stage) => Hook?.Invoke(stage);
         public IClientWorldSynchronizationSession Bind() => new Bound(this, Sites.Ports.GameOwner, Sites.World);
         IClientWorldMarkersSession IClientWorldMarkersRuntime.Bind() => new Bound(this, Sites.Ports.GameOwner, Sites.World);
-        public string Text(string key, params (string Name, object? Value)[] args) { Stage("text"); return key; }
+        public string Text(string key, params (string Name, object? Value)[] args) { TextKeys.Add(key); Stage("text"); return key; }
         public void Status(string text) => Stage("status");
         public void Diagnose(string text) => Stage("diagnostic");
         public void Diagnose(string text, bool warning) => Stage("diagnostic");

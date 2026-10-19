@@ -19,6 +19,7 @@ using Verse;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("world polling shares marker cadence and binds component callbacks to their game", ClientWorldPollingTests.Run),
     ("automatic session startup belongs to its source game and consumes admission once", ClientAutomaticSessionStartupTests.Run),
     ("world setup lifecycle binds page polling and reuses initial provisioning", ClientWorldSetupLifecycleTests.Run),
     ("storyteller editor binds page identity, permission and delayed submission", ClientStorytellerEditorTests.Run),

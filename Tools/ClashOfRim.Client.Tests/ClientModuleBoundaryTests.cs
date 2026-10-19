@@ -167,6 +167,7 @@ internal static class ClientModuleBoundaryTests
                 || t == typeof(AIRsLight.ClashOfRim.MainMenu.ClashOfRimTraversalTileReservationPatch)
                 || t == typeof(AIRsLight.ClashOfRim.MainMenu.ClientWorldSetupPages)
                 || t == typeof(AIRsLight.ClashOfRim.ClientNetwork.ClientAutomaticSessionStartup)
+                || t == typeof(AIRsLight.ClashOfRim.WorldObjects.ClientWorldSynchronizationCallbacks)
                 || t.DeclaringType == typeof(AIRsLight.ClashOfRim.ClientNetwork.ClientAutomaticSessionStartup)
                 || t.DeclaringType == typeof(AIRsLight.ClashOfRim.MainMenu.ClientWorldSetupPages)
                 || t == typeof(AIRsLight.ClashOfRim.MainMenu.ClashOfRimWorldSetupPatches)

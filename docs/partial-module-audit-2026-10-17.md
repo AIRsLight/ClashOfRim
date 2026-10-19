@@ -3312,3 +3312,13 @@ GameComponent 不再保存 `automaticSessionAttempted` 或分别询问 Mod 资�
 扩展现有登记和站点事件测试，覆盖首次及边界轮询、未变化／变化／失败重试、显式事件、各类归属变更、抑制及临时准入拒绝，并执行真实 GameComponent Tick 检查原 Game、适配器替换及外观读取回调。两个组件入口测试共享 `ClientGameComponentTestRuntime` 的引擎队列、计时及无关清理替身，登录／登记仍运行正式模块，未执行实际游戏场景。临时保留旧期限、删除捕获后归属检查分别被 `Site polling deadline crossed/reset the wrong ownership: user`、`Periodic appearance read crossed original ownership: user` 捕获，日志 `LocalOnly/module-migration/site-poll-{deadline,scope}-negative.log`，错误实现已恢复。
 
 **5 个相关单元组通过**：站点事件、登记业务／协议、自动登录入口和模块边界。最终日志 `LocalOnly/module-migration/site-poll-tests.log`；边界守卫数量保持 1,655／127／117／312。生产随测试编译；未运行全量实机回归、专项 RimTest 或独立发布／桥接构建，未推送。GameComponent 原有 Update 修改继续保留未暂存。下一步 **M11o8b2：世界视图刷新与运行时对象轮询**；后续袭击／聊天界面、网络／服务器门面、M12 和最终审计仍开放。
+
+### M11o8b2：世界视图与对象轮询直接连接同步模块（2026-10-19）
+
+GameComponent 的世界视图选中状态、30 秒期限和刷新私有方法收归 `ClientWorldSynchronization`，组件通过 `ClientWorldSynchronizationCallbacks` 传递原 Game、tick 或引擎视图状态。运行时对象／商队轮询直接调用已有 Poll；删除唯一调用方已迁移的 Mod 轮询转发。适配器核对原 Game 和装配实例，旧组件无法为新场景触发刷新或上传。剩余 Mod 标记刷新转发仍被事件适配器和手动入口使用，留待对应入口迁移。
+
+`ClientWorldMarkerRefreshSchedule` 统一起始站点页和游戏内世界视图的立即进入／停留 30 秒刷新规则，每个视图仍持有独立计时状态。世界视图离开后再次进入立即刷新，普通快照前进不改变期限，会话／世界变更则清除旧期限。原因翻译后检查原作用域，失效回调不能启动新会话请求。原同步模块继续统一请求合并、对象签名、商队目标、上传租期和发布；没有新增第二套网络轮询或缓存实现。
+
+新增世界轮询测试复用同步夹具及组件测试环境，覆盖进入／停留／退出重入、准确 30 秒边界、失败后下一周期重试、十类作用域切换和翻译期间失效。引擎组执行实际 GameComponent OnGUI／Tick，检查视图隐藏、非 Playing、缺少世界对象、原 Game、适配器替换，以及原 250 tick 对象／商队轮询。引擎视图、时间和队列使用替身；业务模块仍执行原 HTTP／发布端口，没有渲染游戏或进行真实对象移动。临时将期限改为 31 秒、移除原 Game 校验分别被 `World view lost its 30-second boundary.`、`Old GameComponent polled the replacement world.` 捕获，日志 `LocalOnly/module-migration/world-poll-{cadence,game}-negative.log`，错误实现已恢复。
+
+**6 个相关单元组通过**：新增世界轮询、设置生命周期、世界同步、站点事件、自动启动和模块边界。最终日志 `LocalOnly/module-migration/world-poll-tests.log`；守卫检查 1,657 个纯模块类型、127 个兼容能力类型、118 个页面／适配类型及 312 个事件适配类型。生产随测试编译，未运行全量实机回归、专项 RimTest 或独立发布／桥接构建，未推送。原有未提交修改继续保留。下一步 **M11o8c：袭击恢复／期限与远端会话界面回调**，复用既有恢复、结算、期限和地图关闭模块，再处理聊天界面、网络／服务器门面与 M12；M11 整体及最终审计仍开放。
