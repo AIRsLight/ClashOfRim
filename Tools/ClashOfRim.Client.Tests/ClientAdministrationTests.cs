@@ -177,7 +177,7 @@ internal static class ClientAdministrationTests
         CompatibilityMods = new() { new() { PackageId = "测试 İ", Configs = new() { new() { FileName = "settings.xml", Mode = "Enforce" } } } } };
     internal sealed class Fixture : IClientAdminTransport, IClientAdminPresentation
     {
-        internal readonly EventModuleTestPorts Ports = new(); internal readonly ClientSessionLifecycle Session;
+        internal readonly EventModuleTestPorts Ports; internal readonly ClientSessionLifecycle Session;
         internal readonly ClientAdminAccess Access; internal readonly ClientAdministration Module;
         internal readonly ConcurrentQueue<string> Trace = new(), Notices = new(), Diagnostics = new();
         internal readonly ConcurrentQueue<(string Operation, ClashOfRimClientNetworkContext Context)> Calls = new();
@@ -187,8 +187,12 @@ internal static class ClientAdministrationTests
         internal ModAdminStatusResponseDto ReadResponse = new() { Result = new() { Accepted = true }, IsAdministrator = true, Configuration = Config(3), Players = new() { new() { UserId = "alice" } } };
         internal ModAdminUpdateConfigurationResponseDto SaveResponse = new() { Result = new() { Accepted = true }, Configuration = Config(5) };
         internal ModAdminActionResponseDto ActionResponse = new() { Result = new() { Accepted = true } };
-        internal Fixture()
-        { ClientSessionWork.Reset(); Session = new(Ports, Ports, new(Ports)); Access = new(Session); Module = new(Access, this, this); Access.SetAdministrator(true); }
+        internal Fixture(EventModuleTestPorts? ports = null, ClientSessionLifecycle? session = null)
+        {
+            if (session is null) ClientSessionWork.Reset();
+            Ports = ports ?? new(); Session = session ?? new(Ports, Ports, new(Ports));
+            Access = new(Session); Module = new(Access, this, this); Access.SetAdministrator(true);
+        }
         internal Task Start(string operation) => operation switch { "read" => Module.RefreshAsync(), "save" => Module.SaveAsync(Config(7)), _ => Module.ActAsync(new("Custom İ", "target", "colony", "消息", "Critical", false)) };
         internal void Step(string phase) { Trace.Enqueue(phase); Hook?.Invoke(phase); }
         internal void Change(string change)

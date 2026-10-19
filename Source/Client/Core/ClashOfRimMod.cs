@@ -452,8 +452,6 @@ public sealed partial class ClashOfRimMod : Mod
     private ClientAdminShopPanel CreateAdminShopPanel(ClientShopPanel shop) =>
         new(sessionLifecycle, adminAccess, shopState, shopCatalog, shop);
 
-    internal MultiplayerAdminShopPage CreateAdminShopPage(ClientShopPanel shop) => new(CreateAdminShopPanel(shop));
-
     internal ClientAdminShopPanel.Edit CreateAdminShopEdit(ModServerShopListingDto? listing)
     {
         var panel = CreateAdminShopPanel(CreateShopPanel());
@@ -470,24 +468,18 @@ public sealed partial class ClashOfRimMod : Mod
         new(new ClientMercenaryPanel(sessionLifecycle, new ClientSnapshotGame(), mercenaryState, mercenaryQuotes,
             mercenaryHiring, synchronization, bank.Read, () => worldMarkers.PvpEnabled));
 
-    internal (ClientAdminConfigurationEditor Editor, MultiplayerAdminConfigurationPage Page) CreateAdminConfigurationPage()
+    internal MultiplayerAdminPage CreateAdminPage(ClientShopPanel shop)
     {
-        var editor = new ClientAdminConfigurationEditor(sessionLifecycle, adminAccess, administration);
-        return (editor, new(editor));
+        var configuration = new ClientAdminConfigurationEditor(sessionLifecycle, adminAccess, administration);
+        var players = new ClientAdminPlayerPanel(sessionLifecycle, adminAccess, administration);
+        return new(new ClientAdminPanel(sessionLifecycle, adminAccess, administration), configuration, new(configuration),
+            new(CreateAdminShopPanel(shop)), new(players),
+            new(new ClientAdminMaintenancePanel(sessionLifecycle, players, administration)),
+            new(new ClientAdminManifestPanel(configuration, new ClientLocalCompatibilityManifest(), compatibilityOverride, worldWrites, colonyAppearance.Capture)),
+            new(new ClientAdminAuditPanel(sessionLifecycle, adminAccess, administration)));
     }
-
-    internal MultiplayerAdminManifestPage CreateAdminManifestPage(ClientAdminConfigurationEditor editor) =>
-        new(new ClientAdminManifestPanel(editor, new ClientLocalCompatibilityManifest(), compatibilityOverride, worldWrites, colonyAppearance.Capture));
-
-    internal MultiplayerAdminAuditPage CreateAdminAuditPage() => new(new ClientAdminAuditPanel(sessionLifecycle, adminAccess, administration));
 
     internal CompatibilityBaselineOverrideWindow CreateCompatibilityBaselineOverrideWindow() => new(compatibilityOverride.StartAsync);
-
-    internal (MultiplayerAdminPlayersPage Players, MultiplayerAdminMaintenancePage Maintenance) CreateAdminOperationsPages()
-    {
-        var players = new ClientAdminPlayerPanel(sessionLifecycle, adminAccess, administration);
-        return (new(players), new(new ClientAdminMaintenancePanel(sessionLifecycle, players, administration)));
-    }
 
     internal MultiplayerAccountPage CreateAccountPage() => new(new ClientAccountPanel(sessionLifecycle, passwordChange));
     internal MultiplayerDiagnosticsPage CreateDiagnosticsPage() => new(diagnostics);

@@ -8,7 +8,7 @@ using Verse;
 
 namespace AIRsLight.ClashOfRim.Multiplayer;
 
-public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
+public sealed class ClashOfRimMultiplayerWindow : MainTabWindow
 {
     private ClientPlayerPanel? playersPanel;
     private MultiplayerDiplomacyPage? diplomacyPage;
@@ -16,30 +16,15 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
     private MultiplayerTradePage? tradePage;
     private ClientShopPanel? shopPanel;
     private MultiplayerShopPage? shopPage;
-    private MultiplayerAdminShopPage? adminShopPage;
-    private MultiplayerAdminPlayersPage? adminPlayersPage;
-    private MultiplayerAdminMaintenancePage? adminMaintenancePage;
     private ClientBankPanel? bankPanel;
     private MultiplayerBankPage? bankPage;
     private MultiplayerMercenaryPage? mercenaryPage;
     private MultiplayerAccountPage? accountPage;
     private MultiplayerDiagnosticsPage? diagnosticsPage;
-    private ClientAdminConfigurationEditor? adminConfiguration;
-    private MultiplayerAdminConfigurationPage? adminConfigurationPage;
-    private MultiplayerAdminManifestPage? adminManifestPage;
-    private MultiplayerAdminAuditPage? adminAuditPage;
-
-    private const float PanelRefreshIntervalSeconds = PanelRefreshSchedule.IntervalSeconds;
+    private MultiplayerAdminPage? adminPage;
+    private readonly MultiplayerTabCache<(MultiplayerTab Selected, bool Developer, bool Administrator)> mainTabs = new();
 
     private MultiplayerTab selectedTab = MultiplayerTab.Trade;
-    private AdminPanelTab selectedAdminPanelTab = AdminPanelTab.Trade;
-    private float nextAdminRefreshAt;
-    private MultiplayerTab cachedMainTabsSelectedTab;
-    private bool cachedMainTabsDevMode;
-    private bool cachedMainTabsAdministrator;
-    private List<TabRecord>? cachedMainTabs;
-    private AdminPanelTab cachedAdminTabsSelectedTab;
-    private List<TabRecord>? cachedAdminTabs;
 
     public ClashOfRimMultiplayerWindow()
     {
@@ -65,23 +50,19 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
         achievementsPage ??= mod.CreateAchievementsPage(playersPanel);
         tradePage ??= mod.CreateTradePage();
         if (shopPanel is null) (shopPanel, shopPage) = mod.CreateShopPage();
-        adminShopPage ??= mod.CreateAdminShopPage(shopPanel);
-        if (adminPlayersPage is null) (adminPlayersPage, adminMaintenancePage) = mod.CreateAdminOperationsPages();
         if (bankPanel is null) (bankPanel, bankPage) = mod.CreateBankPage();
         mercenaryPage ??= mod.CreateMercenaryPage(bankPanel);
         accountPage ??= mod.CreateAccountPage();
         diagnosticsPage ??= mod.CreateDiagnosticsPage();
-        if (adminConfiguration is null) (adminConfiguration, adminConfigurationPage) = mod.CreateAdminConfigurationPage();
-        adminManifestPage ??= mod.CreateAdminManifestPage(adminConfiguration);
-        adminAuditPage ??= mod.CreateAdminAuditPage();
-        TryRefreshSelectedTab(mod);
+        adminPage ??= mod.CreateAdminPage(shopPanel);
+        TryRefreshSelectedTab();
         Rect tabRect = new(inRect.x, inRect.y + 34f, inRect.width, inRect.height - 34f);
-        if (!mod.IsAdministrator && selectedTab == MultiplayerTab.Admin)
+        if (!adminPage.IsAvailable && selectedTab == MultiplayerTab.Admin)
         {
             selectedTab = MultiplayerTab.Trade;
         }
 
-        TabDrawer.DrawTabs(tabRect, MainTabs(mod));
+        TabDrawer.DrawTabs(tabRect, MainTabs());
         Rect contentRect = tabRect;
         switch (selectedTab)
         {
@@ -107,7 +88,7 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
                 accountPage!.Draw(contentRect);
                 break;
             case MultiplayerTab.Admin:
-                DrawAdminTab(contentRect, mod);
+                adminPage.Draw(contentRect);
                 break;
             default:
                 tradePage!.Draw(contentRect);
@@ -122,35 +103,19 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
         achievementsPage?.Close();
         tradePage?.Close();
         shopPage?.Close();
-        adminShopPage?.Close();
-        adminPlayersPage?.Close();
-        adminMaintenancePage?.Close();
         bankPage?.Close();
         mercenaryPage?.Close();
         accountPage?.Close();
-        adminConfigurationPage?.Close();
-        adminManifestPage?.Close();
-        adminAuditPage?.Close();
+        adminPage?.Close();
+        mainTabs.Clear();
         base.PostClose();
     }
 
-    private List<TabRecord> MainTabs(ClashOfRimMod mod)
+    private List<TabRecord> MainTabs()
     {
-        bool devMode = Prefs.DevMode;
-        bool administrator = mod.IsAdministrator;
-        if (cachedMainTabs is not null
-            && cachedMainTabsSelectedTab == selectedTab
-            && cachedMainTabsDevMode == devMode
-            && cachedMainTabsAdministrator == administrator)
-        {
-            return cachedMainTabs;
-        }
-
-        cachedMainTabsSelectedTab = selectedTab;
-        cachedMainTabsDevMode = devMode;
-        cachedMainTabsAdministrator = administrator;
-        cachedMainTabs = BuildMainTabs(devMode, administrator);
-        return cachedMainTabs;
+        bool devMode = Prefs.DevMode, administrator = adminPage!.IsAvailable;
+        return mainTabs.Read(this, (selectedTab, devMode, administrator), LanguageDatabase.activeLanguage,
+            () => BuildMainTabs(devMode, administrator));
     }
 
     private List<TabRecord> BuildMainTabs(bool devMode, bool administrator)
@@ -191,7 +156,6 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
         }
 
         selectedTab = tab;
-        cachedMainTabs = null;
         ResetRefreshTimer(tab);
     }
 
@@ -217,12 +181,12 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
                 shopPanel?.RequestRefresh();
                 break;
             case MultiplayerTab.Admin:
-                nextAdminRefreshAt = 0f;
+                adminPage?.RequestRefresh();
                 break;
         }
     }
 
-    private void TryRefreshSelectedTab(ClashOfRimMod mod)
+    private void TryRefreshSelectedTab()
     {
         switch (selectedTab)
         {
@@ -244,20 +208,9 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
                 shopPage!.Tick(Time.realtimeSinceStartup);
                 break;
             case MultiplayerTab.Admin:
-                TryRefreshAdmin(mod);
+                adminPage!.Tick(Time.realtimeSinceStartup);
                 break;
         }
-    }
-
-    private void TryRefreshAdmin(ClashOfRimMod mod)
-    {
-        if (!mod.IsAdministrator || mod.AdminInProgress || Time.realtimeSinceStartup < nextAdminRefreshAt)
-        {
-            return;
-        }
-
-        nextAdminRefreshAt = Time.realtimeSinceStartup + PanelRefreshIntervalSeconds;
-        mod.StartRefreshAdminStatus();
     }
 
     private enum MultiplayerTab
@@ -271,18 +224,5 @@ public sealed partial class ClashOfRimMultiplayerWindow : MainTabWindow
         Account,
         Admin,
         Diagnostics
-    }
-
-    private enum AdminPanelTab
-    {
-        Trade,
-        Shop,
-        Bank,
-        Mercenary,
-        Raid,
-        Players,
-        Maintenance,
-        Manifest,
-        Audit
     }
 }
