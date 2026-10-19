@@ -115,7 +115,7 @@ public static class RemoteObservationMapPostProcessor
     private static int ApplyScoutResidentLords(Map map, Faction defenderFaction)
     {
         List<Pawn> residentPawns = map.mapPawns.PawnsInFaction(defenderFaction)
-            .Where(IsScoutResident)
+            .Where(IsRemoteResident)
             .ToList();
         if (residentPawns.Count == 0)
         {
@@ -145,7 +145,7 @@ public static class RemoteObservationMapPostProcessor
         return residentPawns.Count;
     }
 
-    private static bool IsScoutResident(Pawn pawn)
+    private static bool IsRemoteResident(Pawn pawn)
     {
         if (pawn is not { Spawned: true, Dead: false } || pawn.mindState is null)
         {
@@ -167,7 +167,7 @@ public static class RemoteObservationMapPostProcessor
         Faction.OfPlayer?.SetRelationDirect(ownerFaction, FactionRelationKind.Ally, canSendHostilityLetter: false);
 
         List<Pawn> residentPawns = map.mapPawns.PawnsInFaction(ownerFaction)
-            .Where(IsFriendlyObservationResident)
+            .Where(IsRemoteResident)
             .ToList();
         if (residentPawns.Count == 0)
         {
@@ -188,13 +188,6 @@ public static class RemoteObservationMapPostProcessor
         lord.CurLordToil?.UpdateAllDuties();
 
         return residentPawns.Count;
-    }
-
-    private static bool IsFriendlyObservationResident(Pawn pawn)
-    {
-        return pawn is { Spawned: true, Dead: false }
-            && pawn.RaceProps?.Humanlike == true
-            && pawn.mindState is not null;
     }
 
     private static int ApplyHiddenTacticalObjectSession(
