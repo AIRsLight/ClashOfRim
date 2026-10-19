@@ -4,9 +4,9 @@
 
 审计基线为 `ee55d0b0` 加当时工作区，包括此前未提交的改动。初次审计只增加计划；后续实施状态见文末记录。以下 P2/P3 表示结构改造优先级，不代表新复现的功能故障。1.6 冻结内容不参与改造。
 
-**实施进度（M12c8 后）：剩余 7 个 partial 类型、13 处声明、11 个文件；其中实际跨文件为 2 个类型、8 处声明、8 个文件。** GameSuite 和计划内八组 Save.Tests 的 partial 拆分已完成，测试工具不再有 partial 类型声明。后续仍有 2 个生产类型归并、5 个单声明修饰符清理和最终复核；详细实施与验证见文末。[M12c3 后审计](partial-module-audit-2026-10-19-post-m12c3.md)及其[机器清单](partial-module-inventory-2026-10-19-post-m12c3.json)保留 M12c4 开始前的时点，[GameSuite 收尾后审计](partial-module-audit-2026-10-19-post-gamesuite.md)保留 M12c1 开始前的时点。
+**实施进度（M12d1 后）：剩余 6 个 partial 类型、7 处声明、5 个文件；其中实际跨文件仅 BankLoanRegistry，2 处声明、2 个文件。** GameSuite、计划内八组 Save.Tests 的 partial 拆分和兼容 API 门面归并已完成，测试工具不再有 partial 类型声明。后续仍有银行注册表归并、5 个单声明修饰符清理和最终复核；详细实施与验证见文末。[M12c3 后审计](partial-module-audit-2026-10-19-post-m12c3.md)及其[机器清单](partial-module-inventory-2026-10-19-post-m12c3.json)保留 M12c4 开始前的时点，[GameSuite 收尾后审计](partial-module-audit-2026-10-19-post-gamesuite.md)保留 M12c1 开始前的时点。
 
-2026-10-19 最新复核：以 `e7d39465` 加当前工作区重新扫描 **1,918 个 C# 文件**，确认上述 **7／13／11** 数量，HEAD 与工作区的 partial 声明清单一致。剩余两组均为生产类型归并，其中银行仍直接跨文件访问锁和账务状态；详见 [M12c8 后审计](partial-module-audit-2026-10-19-post-m12c8.md)及其[机器清单](partial-module-inventory-2026-10-19-post-m12c8.json)。本轮只记录审计，不代表已完成这两项归并或最终契约复核。
+2026-10-19 M12c8 后审计快照：以 `e7d39465` 加当时工作区重新扫描 **1,918 个 C# 文件**，确认当时 **7／13／11** 数量，HEAD 与工作区的 partial 声明清单一致。剩余两组均为生产类型归并，其中银行仍直接跨文件访问锁和账务状态；详见 [M12c8 后审计](partial-module-audit-2026-10-19-post-m12c8.md)及其[机器清单](partial-module-inventory-2026-10-19-post-m12c8.json)。本轮只记录审计，不代表已完成这两项归并或最终契约复核。
 
 2026-10-19 较早审计快照：以 `62a9ffb7` 加当时工作区扫描 **1,905 个 C# 文件**，剩余量为 **12／26／19**。该时点 M12c6 只有共享设施准备改动，未计为完成。[机器清单](partial-module-inventory-2026-10-19-post-m12c5.json)及文末“剩余 partial 耦合再审计”保留该时点的范围、依赖证据和处理顺序；后续 M12c6 已完成，见最新实施记录。
 
@@ -4088,3 +4088,16 @@ GameSuite 删除无调用者的 `Confirm`、`AcceptLanguageWarning`、`Idle`、`
 扫描 **1,918 个源文件**，剩余 **7 个 partial 类型、13 处声明、11 个文件**；其中跨文件仅 **ClashOfRimCompatibilityApi、BankLoanRegistry** 两个生产类型，合计 **8 处声明、8 个文件**。`Tools` 已无 partial 类型；机器结果 `LocalOnly/partial-module-audit/inventory-after-support-closure.json`。这不代表所有非 partial 测试代码的依赖均已审计。
 
 **下一步归并 ClashOfRimCompatibilityApi 的六个公开门面分片，保持已经独立的能力模块和外部 API 契约。** 随后归并 BankLoanRegistry，清理五处单声明修饰符，并完成原计划的依赖、API／协议／Harmony／存档契约复核；整体目标仍未完成。
+
+
+### M12d1：兼容 API 门面归并，保留能力边界（2026-10-19）
+
+将 `ClashOfRimCompatibilityApi` 的核心、世界、pawn、物品、远程地图注册及运行时六个分片归并为一个非 partial 公开门面。14 个能力模块及共享 `CompatibilityRegistrationScope` 保留原有职责；门面继续直接绑定会话、管理权限与世界目录，不新增状态或中间服务。独立委托／注册契约文件 `ClashOfRimCompatibilityApi.Registrations.cs` 保留。
+
+Roslyn 对比本步基线 `e2c462ed`，确认 **134 个直接成员（110 方法、18 字段、6 属性）**的 token 和成员次序完整保留，覆盖签名、默认参数、方法体、属性体、特性、字段初始化及其顺序；命名空间、类型修饰符（除 partial）和 using 并集一致，旧分片已删除。证据 `LocalOnly/module-migration/compatibility-facade-static-review.log`。能力集合、注册排序／撤销、异常策略以及直接代理保护调用未改写。
+
+使用仓库 `Get-ClientDotNet` 的 .NET 10 入口和本地 1.7 程序集运行 **7 个相关客户端单元组，全部通过且进程退出 0**：兼容运行时入口、世界、远程地图、pawn、物品、注册作用域和客户端模块边界。边界守卫同时检查 RimTest 45 个动作重载与 47 个属性契约；能力守卫覆盖 127 个类型。日志 `LocalOnly/module-migration/compatibility-facade-consolidation-tests.log`。首次使用系统默认 .NET 8 时在构建前被目标框架检查拒绝，随后改用既有 SDK 选择入口通过，未修改项目配置。客户端生产及必要项目引用随单元项目编译，没有独立构建或全量回归。
+
+重新扫描 **1,913 个源文件**，剩余 **6 个 partial 类型、7 处声明、5 个文件**，跨文件仅银行注册表 **1／2／2**，机器结果 `LocalOnly/partial-module-audit/inventory-after-compatibility-facade.json`。既有未提交工作和冻结 1.6 保留，未推送。
+
+**下一步 M12d2：归并 BankLoanRegistry 的待确认操作，保留单一锁、缓存索引和持久化写入所有者。** 随后清理五处修饰符并完成最终依赖与契约复核；整体目标未完成。

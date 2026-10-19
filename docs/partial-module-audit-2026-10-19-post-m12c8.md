@@ -2,6 +2,8 @@
 
 审计基线：`e7d39465` 加当前工作区。**还剩 2 个跨文件 partial 类型，合计 8 处声明、8 个文件；另有 5 个单声明类型的多余修饰符。** 前者分别是兼容 API 门面和银行注册表，不是 7 组尚未模块化的业务。GameSuite 和计划内八组 Save.Tests 已完成 partial 拆分，Tools 当前没有 partial 类型声明。
 
+后续进度：M12d1 已完成兼容 API 六个门面的归并及七组相关单元验证。当前剩余 6 个类型、7 处声明、5 个文件，跨文件仅银行注册表 1／2／2；本文正文及机器清单保留审计时点，实施证据见[主记录](partial-module-audit-2026-10-17.md)。
+
 ## 范围与数量
 
 重新运行 Roslyn 扫描，覆盖 `Source/`、`Tools/`、`ThirdPartyCompat/Source/` 下 **1,918 个 C# 文件**，排除 `bin/`、`obj/`、冻结 1.6 和独立 RimTest 子仓库。另检索 `ThirdPartyCompat/ServerPlugins/`、`ThirdPartyCompat/Shared/`，没有额外 partial。按命名空间及外层类型归组，当前 HEAD 与工作区的 partial 声明清单一致。
