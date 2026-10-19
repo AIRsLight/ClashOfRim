@@ -375,6 +375,7 @@ public sealed partial class ClashOfRimMod : Mod
                 if (automatic) eventState.SetDetailsStatus(message);
                 else eventState.ActionStatus = message;
             }), snapshotFailureRecovery, eventDelivery);
+        ClashOfRimEventChoiceLetter.Attach(eventApplications);
         eventRefresh = new ClientEventRefresh(sessionLifecycle, eventReader, eventInbox, synchronization, localMutations,
             eventApplications, eventDelivery, eventReadPresentation, eventState);
         chat = new ClientChat(sessionLifecycle, new ClientChatTransport(new ClientProtocolEnvironment()), new ClientChatPresentation());

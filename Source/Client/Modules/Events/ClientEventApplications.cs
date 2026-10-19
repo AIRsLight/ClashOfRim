@@ -26,6 +26,7 @@ internal sealed class ClientEventApplications : IClientAutomaticEventApplication
     private readonly IClientEventApplicationPresentation presentation;
     private readonly ClientSnapshotFailureRecovery recovery;
     private readonly ClientEventDelivery delivery;
+    private readonly ClientGameRequestTracker letterRequests;
 
     internal ClientEventApplications(ClientSessionLifecycle session, ClientSynchronizationCoordinator synchronization,
         ClientLocalMutationCoordinator mutations, ClientEventInbox inbox, IClientSnapshotGame game,
@@ -36,6 +37,7 @@ internal sealed class ClientEventApplications : IClientAutomaticEventApplication
         this.session = session; this.synchronization = synchronization; this.mutations = mutations; this.inbox = inbox;
         this.game = game; this.runtime = runtime; this.hydration = hydration; this.confirmations = confirmations;
         this.decisions = decisions; this.presentation = presentation; this.recovery = recovery; this.delivery = delivery;
+        letterRequests = new(session, game, static () => { });
     }
 
     internal event Action<string>? RefreshRequested;
@@ -51,31 +53,59 @@ internal sealed class ClientEventApplications : IClientAutomaticEventApplication
         scope.Game.Enqueue(() => Apply(scope, copy, automatic: true, reason), static () => { });
     }
 
-    internal bool HandleLetterAction(string eventId, ClashOfRimEventLetterActionKind action)
+    // A displayed choice keeps its identity, while admission uses the latest snapshot.
+    // Do not hold publication across HandleLetterAction: gift hydration may wait on IO.
+    internal Func<ClashOfRimEventLetterActionKind, bool> BindLetterActions(string eventId, Func<bool> sourceCurrent)
+    {
+        var owner = letterRequests.Capture();
+        bool selected = false, running = false;
+        bool Current() => sourceCurrent() && !session.IsUnavailable && owner.Boundary.HasGame
+            && letterRequests.TryApply(owner, static () => { });
+        return action =>
+        {
+            if (selected || running || !Current()) return false;
+            running = true;
+            try
+            {
+                selected = HandleLetterAction(eventId, action, Current);
+                return selected && Current();
+            }
+            finally { running = false; }
+        };
+    }
+
+    internal bool HandleLetterAction(string eventId, ClashOfRimEventLetterActionKind action, Func<bool>? sourceCurrent = null)
     {
         Scope scope;
         ModEventDetailDto detail;
         using (ClientSessionWork.EnterPublication())
         {
+            scope = Capture();
+            bool Current() => (sourceCurrent?.Invoke() ?? true) && Owns(scope);
+            if (!Current()) return false;
             var found = inbox.FindDetail(eventId);
             if (found is null)
             {
                 presentation.Report(new(ClientEventApplicationStage.MissingDetail, EventId: eventId));
-                RefreshRequested?.Invoke(presentation.Reason(ClientEventApplicationReason.MissingDetail));
+                if (!Current()) return false;
+                string reason = presentation.Reason(ClientEventApplicationReason.MissingDetail);
+                if (Current()) RefreshRequested?.Invoke(reason);
                 return false;
             }
             detail = found;
-            if (!runtime.CanRun(detail, action, inbox.GroupOf(eventId) ?? "Unknown")) return false;
+            if (!runtime.CanRun(detail, action, inbox.GroupOf(eventId) ?? "Unknown") || !Current()) return false;
             bool accept = action == ClashOfRimEventLetterActionKind.Accept;
             if (ClientEventDiplomacyPolicy.IsDiplomacyEvent(detail))
+            {
+                string reason = presentation.Reason(accept ? ClientEventApplicationReason.AcceptLetter : ClientEventApplicationReason.RejectLetter);
+                if (!Current()) return false;
                 return decisions.RespondDiplomacy(detail.EventId, detail.Actor?.UserId ?? string.Empty, detail.EventType,
-                    accept, presentation.Reason(accept ? ClientEventApplicationReason.AcceptLetter : ClientEventApplicationReason.RejectLetter), out _);
+                    accept, reason, out _);
+            }
             if (!accept)
-                return Reject(detail, runtime.Classify(detail) is ClientEventApplicationKind.SupportArrival or ClientEventApplicationKind.SupportReturn
-                    ? ClientEventApplicationReason.RejectSupportLetter : ClientEventApplicationReason.RejectLetter);
-            scope = Capture();
+                return Reject(scope, detail, ClientEventApplicationReason.RejectLetter, sourceCurrent);
         }
-        return Apply(scope, new[] { detail }, automatic: false, string.Empty);
+        return Apply(scope, new[] { detail }, automatic: false, string.Empty, sourceCurrent);
     }
 
     internal void ProcessFirstGift(GiftClientDecision decision)
@@ -104,9 +134,10 @@ internal sealed class ClientEventApplications : IClientAutomaticEventApplication
     internal void RejectFirstGift()
     {
         using var publication = ClientSessionWork.EnterPublication();
+        var scope = Capture();
         var detail = FirstGift();
         if (detail is not null && runtime.CanRun(detail, ClashOfRimEventLetterActionKind.Reject, inbox.GroupOf(detail.EventId) ?? "Unknown"))
-            Reject(detail, ClientEventApplicationReason.RejectGift);
+            Reject(scope, detail, ClientEventApplicationReason.RejectGift);
     }
 
     internal void ConfirmFirstGift()
@@ -123,14 +154,20 @@ internal sealed class ClientEventApplications : IClientAutomaticEventApplication
         return detail;
     }
 
-    private bool Reject(ModEventDetailDto detail, ClientEventApplicationReason reason)
+    private bool Reject(Scope scope, ModEventDetailDto detail, ClientEventApplicationReason reason, Func<bool>? sourceCurrent = null)
     {
-        if (runtime.Classify(detail) is ClientEventApplicationKind.SupportArrival or ClientEventApplicationKind.SupportReturn)
-            return decisions.RejectSupport(detail.EventId, presentation.Reason(reason), out _);
-        var scope = Capture();
-        if (!Admit(scope, false, ClientEventApplicationKind.Gift)) return false;
-        var prepared = runtime.PrepareGift(detail, GiftClientDecision.Reject, scope.Context, presentation.Reason(reason));
-        if (!Owns(scope)) return false;
+        bool Current() => (sourceCurrent?.Invoke() ?? true) && Owns(scope);
+        if (!Current()) return false;
+        var kind = runtime.Classify(detail);
+        bool support = kind is ClientEventApplicationKind.SupportArrival or ClientEventApplicationKind.SupportReturn;
+        if (support && reason == ClientEventApplicationReason.RejectLetter) reason = ClientEventApplicationReason.RejectSupportLetter;
+        string text = presentation.Reason(reason);
+        if (!Current()) return false;
+        if (support)
+            return decisions.RejectSupport(detail.EventId, text, out _);
+        if (!Admit(scope, false, ClientEventApplicationKind.Gift) || !Current()) return false;
+        var prepared = runtime.PrepareGift(detail, GiftClientDecision.Reject, scope.Context, text);
+        if (!Current()) return false;
         if (prepared.RejectionRequest is not { } request)
         {
             presentation.Report(new(ClientEventApplicationStage.Prepared, EventId: detail.EventId, Prepared: prepared));
@@ -139,17 +176,18 @@ internal sealed class ClientEventApplications : IClientAutomaticEventApplication
         return decisions.RejectGift(request.EventId, request.Reason, out _);
     }
 
-    private bool Apply(Scope scope, IReadOnlyCollection<ModEventDetailDto> details, bool automatic, string reason)
+    private bool Apply(Scope scope, IReadOnlyCollection<ModEventDetailDto> details, bool automatic, string reason, Func<bool>? sourceCurrent = null)
     {
         Attempt attempt;
         using (ClientSessionWork.EnterPublication())
         {
-            if (!Owns(scope)) return false;
+            if (!(sourceCurrent?.Invoke() ?? true) || !Owns(scope)) return false;
             var kind = automatic ? ClientEventApplicationKind.Other : runtime.Classify(details.First());
-            if (!Admit(scope, automatic, kind, reason)) return false;
+            if (!Owns(scope) || !Admit(scope, automatic, kind, reason)) return false;
             var operation = automatic || kind is ClientEventApplicationKind.SupportReturn or ClientEventApplicationKind.RaidLoss
                 ? LocalMutationKind.AutomaticEvents : kind == ClientEventApplicationKind.SupportArrival ? LocalMutationKind.SupportArrival : LocalMutationKind.Gift;
             string status = presentation.Format(new(ClientEventApplicationStage.Applying, automatic, Kind: kind));
+            if (!(sourceCurrent?.Invoke() ?? true) || !Owns(scope)) return false;
             if (!synchronization.TryBeginManual(out var lease))
             {
                 var busy = new ClientEventApplicationNotice(ClientEventApplicationStage.Busy, automatic, Kind: kind);

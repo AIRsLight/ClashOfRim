@@ -163,6 +163,7 @@ var tests = new (string Name, Action Run)[]
     ("bank workflow owns preparation, retry, session state and game publication", ClientBankModuleTests.Run),
     ("bank protocol shares all seven routes and captured credentials with the facade", ClientBankProtocolTests.Run),
     ("client modules cannot depend on the Mod, full settings or broad protocol client", ClientModuleBoundaryTests.Run),
+    ("event choice letters bind delayed actions to their original event and session", EventChoiceLetterTests.Run),
     ("event applications own game effects, hydration and confirmation handoff", EventApplicationModuleTests.Run),
     ("event refresh owns coalescing, cursor, state and delayed delivery", EventRefreshModuleTests.Run),
     ("session connection module owns replacement, cancellation and stale completions", SessionConnectionModuleTests.Run),

@@ -114,7 +114,8 @@ internal static class EventApplicationModuleTests
                 Require(context.UserId == "alice" && context.CurrentSnapshotId == "base" && context.AuthToken == "auth", "Hydration borrowed identity.");
                 entered.SetResult(); return release.Task;
             };
-            Func<bool> apply = () => f.Module.HandleLetterAction("gift", ClashOfRimEventLetterActionKind.Accept);
+            var choose = f.Module.BindLetterActions("gift", static () => true);
+            Func<bool> apply = () => choose(ClashOfRimEventLetterActionKind.Accept);
             if (automatic)
             {
                 f.Module.QueueAutomatic(f.Inbox.CopyDetails(), "read");
@@ -174,7 +175,7 @@ internal static class EventApplicationModuleTests
             && ReferenceEquals(f.Mutations.Current, replacement) && f.NextLease!.IsCurrent, "Reentrant game effect contaminated replacement session.");
     }
 
-    private sealed class Fixture : IClientEventApplicationRuntime, IClientGiftPackageHydration, IClientEventApplicationPresentation,
+    internal sealed class Fixture : IClientEventApplicationRuntime, IClientGiftPackageHydration, IClientEventApplicationPresentation,
         IClientEventApplicationConfirmations, IClientEventApplicationDecisions, IClientEventLetterRuntime
     {
         internal readonly EventModuleTestPorts Ports = new();
@@ -192,6 +193,7 @@ internal static class EventApplicationModuleTests
         internal bool FailApply;
         internal Action<string>? BeforePrepare, OnApply;
         internal Action? OnHandled;
+        internal Action? OnReason, OnFormat;
         internal Action<ClientEventApplicationNotice>? OnReport;
         internal Func<GiftLandingPlan, ClashOfRimClientNetworkContext, CancellationToken, Task<PawnPackageTransferResult>>? OnHydrate;
         private readonly Dictionary<string, ClientEventApplicationKind> kinds = new();
@@ -246,10 +248,10 @@ internal static class EventApplicationModuleTests
             return new(!FailApply, "result", ResultName(kind), kind == ClientEventApplicationKind.RaidLoss ? "source-raid" : null, FailApply);
         }
         public void MarkHandled(string id) { Handled.Add(id); OnHandled?.Invoke(); }
-        public void RemoveLetters(string id) => Handled.Add(id);
-        public string Format(ClientEventApplicationNotice notice) => notice.Stage.ToString();
+        public void RemoveLetters(string id) { Handled.Add(id); OnHandled?.Invoke(); }
+        public string Format(ClientEventApplicationNotice notice) { OnFormat?.Invoke(); return notice.Stage.ToString(); }
         public void Report(ClientEventApplicationNotice notice) { Notices.Add(notice); OnReport?.Invoke(notice); }
-        public string Reason(ClientEventApplicationReason reason) => reason.ToString();
+        public string Reason(ClientEventApplicationReason reason) { OnReason?.Invoke(); return reason.ToString(); }
         public Task GiftAsync(string eventId, string applicationResult) => AutomaticAsync(new[] { new ModConfirmEventApplicationEntryDto { EventId = eventId, ClientApplicationResult = applicationResult } });
         public Task SupportArrivalAsync(string eventId) => GiftAsync(eventId, "SupportPawnArrived");
         public Task AutomaticAsync(IReadOnlyList<ModConfirmEventApplicationEntryDto> applications)

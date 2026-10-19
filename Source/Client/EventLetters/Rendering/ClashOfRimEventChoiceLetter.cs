@@ -1,11 +1,14 @@
 using System;
 using System.Collections.Generic;
+using AIRsLight.ClashOfRim.Modules.Events;
 using Verse;
 
 namespace AIRsLight.ClashOfRim.EventLetters;
 
 public sealed class ClashOfRimEventChoiceLetter : ChoiceLetter
 {
+    private static ClientEventApplications? applications;
+    internal static void Attach(ClientEventApplications? value) => applications = value;
     public string EventId = string.Empty;
     public List<ClashOfRimEventLetterActionKind> Actions = new();
     public bool CanAccept;
@@ -15,18 +18,26 @@ public sealed class ClashOfRimEventChoiceLetter : ChoiceLetter
     {
         get
         {
+            var owner = applications;
+            var game = Current.Game;
+            var stack = Find.LetterStack;
+            string eventId = EventId;
+            bool CurrentLetter() => ReferenceEquals(applications, owner) && ReferenceEquals(Current.Game, game)
+                && string.Equals(EventId, eventId, StringComparison.Ordinal)
+                && stack?.LettersListForReading.Contains(this) == true;
+            var choose = owner?.BindLetterActions(eventId, CurrentLetter);
             if (HasAction(ClashOfRimEventLetterActionKind.Accept))
             {
                 yield return BuildServerActionOption(
                     ClashOfRimEventLetterActionKind.Accept,
-                    ClashOfRimText.Key("ClashOfRim.Accept"));
+                    "ClashOfRim.Accept", choose, stack);
             }
 
             if (HasAction(ClashOfRimEventLetterActionKind.Reject))
             {
                 yield return BuildServerActionOption(
                     ClashOfRimEventLetterActionKind.Reject,
-                    ClashOfRimText.Key("ClashOfRim.Reject"));
+                    "ClashOfRim.Reject", choose, stack);
             }
 
             if (HasAction(ClashOfRimEventLetterActionKind.JumpToTarget)
@@ -79,16 +90,16 @@ public sealed class ClashOfRimEventChoiceLetter : ChoiceLetter
             || action == ClashOfRimEventLetterActionKind.Reject && CanReject;
     }
 
-    private DiaOption BuildServerActionOption(ClashOfRimEventLetterActionKind actionKind, string label)
+    private DiaOption BuildServerActionOption(ClashOfRimEventLetterActionKind actionKind, string labelKey,
+        Func<ClashOfRimEventLetterActionKind, bool>? choose, LetterStack? stack)
     {
-        DiaOption option = new(label);
+        DiaOption option = new(ClashOfRimText.Key(labelKey));
         option.resolveTree = true;
         option.action = delegate
         {
-            ClashOfRimMod? mod = LoadedModManager.GetMod<ClashOfRimMod>();
-            if (mod is not null && mod.HandleEventLetterAction(EventId, actionKind))
+            if (choose?.Invoke(actionKind) == true)
             {
-                Find.LetterStack.RemoveLetter(this);
+                stack!.RemoveLetter(this);
             }
         };
         return option;
