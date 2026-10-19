@@ -1,4 +1,4 @@
-using AIRsLight.ClashOfRim;
+using AIRsLight.ClashOfRim.WorldObjects;
 using AIRsLight.ClashOfRim.RemoteMaps;
 using HarmonyLib;
 using RimWorld;
@@ -58,13 +58,12 @@ public static class RemoteSessionOdysseyGravshipTakeoffPatch
 
         try
         {
-            ClashOfRimMod mod = LoadedModManager.GetMod<ClashOfRimMod>();
-            return mod.TryBeginImplicitColonyRelocationTakeoff(engine.Map);
+            return ClientColonyRelocationCommands.Current?.Takeoff(engine.Map) ?? true;
         }
         catch (System.Exception ex)
         {
             Log.Warning("[ClashOfRim][Odyssey] Failed to start gravship relocation atomic section: " + ex);
-            return true;
+            return false;
         }
     }
 }

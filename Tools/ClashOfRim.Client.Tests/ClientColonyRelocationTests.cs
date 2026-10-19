@@ -182,7 +182,7 @@ internal static class ClientColonyRelocationTests
     }
     private static void Check(bool value, string message) { if (!value) throw new InvalidOperationException(message); }
 
-    private sealed class Fixture : IDisposable, IClientWorldCatalogRuntime, IClientColonyRegistrationRuntime, IClientColonyRegistrationTransport,
+    internal sealed class Fixture : IDisposable, IClientWorldCatalogRuntime, IClientColonyRegistrationRuntime, IClientColonyRegistrationTransport,
         IClientColonyRelocationTransport, IClientColonyRelocationPresentation, IClientSnapshotTransport
     {
         internal readonly ClientOccupiedColonySitesTests.Fixture Cache = new();

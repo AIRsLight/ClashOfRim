@@ -1,3 +1,4 @@
+using AIRsLight.ClashOfRim.WorldObjects;
 using HarmonyLib;
 using RimWorld;
 using Verse;
@@ -55,9 +56,11 @@ internal static class OdysseyGravshipLandingSnapshotPatch
 
         try
         {
-            ClashOfRimMod mod = LoadedModManager.GetMod<ClashOfRimMod>();
-            ClashLog.Message("[ClashOfRim] Gravship landed on player map; starting implicit colony relocation confirmation.");
-            mod.StartImplicitColonyRelocationConfirmation(map);
+            if (ClientColonyRelocationCommands.Current is { } relocation)
+            {
+                ClashLog.Message("[ClashOfRim] Gravship landed on player map; starting implicit colony relocation confirmation.");
+                _ = relocation.LandAsync(map);
+            }
         }
         catch (System.Exception ex)
         {

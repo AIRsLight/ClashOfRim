@@ -116,8 +116,6 @@ public sealed partial class ClashOfRimMod : Mod
     private readonly ClientColonyRegistration colonyRegistration;
     private readonly ClientColonyAppearance colonyAppearance;
     private readonly ClientColonyAbandonment colonyAbandonment;
-    private readonly ClientColonyRelocation colonyRelocation;
-    private readonly ClientColonyRelocationCommands colonyRelocationCommands;
     private readonly ClientAdminAccess adminAccess;
     private readonly ClientAdministration administration;
     private readonly ClientWorldWrites worldWrites;
@@ -312,10 +310,10 @@ public sealed partial class ClashOfRimMod : Mod
         colonyAbandonment = new ClientColonyAbandonment(sessionLifecycle, entryStore, new ClientWorldCatalogRuntime(), colonyTransport,
             new ClientColonyAbandonPresentation(message => diagnostics.WorldMapStatus = message));
         ClientColonyGizmos.Attach(new ClientColonyGizmos(colonyAppearance, colonyAbandonment));
-        colonyRelocation = new ClientColonyRelocation(sessionLifecycle, entryStore, new ClientWorldCatalogRuntime(), mutationAdmission,
+        var colonyRelocation = new ClientColonyRelocation(sessionLifecycle, entryStore, new ClientWorldCatalogRuntime(), mutationAdmission,
             synchronization, localMutations, snapshotTransactions, ClientSnapshotComposition.Create(settings), snapshotFailureRecovery,
             colonyRegistration, worldPublication, colonyTransport, new ClientColonyRelocationPresentation());
-        colonyRelocationCommands = new ClientColonyRelocationCommands(colonyRelocation);
+        ClientColonyRelocationCommands.Attach(new ClientColonyRelocationCommands(colonyRelocation));
         colonyRelocation.Completed += StartQueuedAutomaticEventRefreshAfterLocalAtomicMutation;
         snapshotFailureRecovery.ReturningToMenu += () => colonyRegistration.Suppressed = false;
         colonyAppearance.RegistrationRequested += (appearance, reason) => _ = colonyRegistration.RequestAsync(
