@@ -25,6 +25,7 @@ internal sealed class ClientOverlayTestRuntime : IDisposable
     internal float Now;
     internal ClientOverlayTestRuntime(string name)
     {
+        ClientCommandIconTestAssets.Initialize();
         current = this; harmony = new(name + ".Overlay"); Current.ProgramState = ProgramState.Playing;
         void Prefix(System.Reflection.MethodBase method, string prefix) => harmony.Patch(method, prefix: new HarmonyMethod(typeof(ClientOverlayTestRuntime), prefix));
         Prefix(AccessTools.PropertyGetter(typeof(WorldRendererUtility), nameof(WorldRendererUtility.WorldSelected)), nameof(Selected));
