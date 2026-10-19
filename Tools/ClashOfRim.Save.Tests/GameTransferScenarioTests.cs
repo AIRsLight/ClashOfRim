@@ -11,7 +11,7 @@ internal static class GameTransferScenarioTests
     private static async Task RunAsync()
     {
         await Fixtures();
-        foreach (string mode in new[] { "normal", "unknown-pawn", "short-cargo", "path-rejected" }) await Travel(mode);
+        foreach (string mode in new[] { "normal", "prepared", "prepare-failed", "unknown-pawn", "short-cargo", "path-rejected" }) await Travel(mode);
         foreach (string language in new[] { "English", "中文", "Français", "Türkçe" }) await Gift(language);
         foreach (int discrepancy in new[] { -1, 1 }) await Gift("cargo-error", discrepancy);
     }
@@ -61,20 +61,34 @@ internal static class GameTransferScenarioTests
                 Group("wood", "WoodLog", mode == "short-cargo" ? 9 : 10), Group("meals", "MealSurvivalPack", 10)),
             "caravans.list" => List(new { reference = new { handle = "unrelated" }, pawns = new[] { new { handle = "npc" }, new { handle = "other" } } },
                 new { reference = new { handle }, pawns = new[] { new { handle = "chosen" } } }),
-            "clash.inventory" => new { maps = new[] { new { tileId = 90, layerId = 0, items = new Dictionary<string, int> { ["WoodLog"] = 20, ["MealSurvivalPack"] = 20 } } } },
+            "clash.inventory" => new { maps = new[] { new { tileId = 90, layerId = 0, colonists = new[] { Ref("chosen"), Ref("other-colonist") }, items = new Dictionary<string, int> { ["WoodLog"] = 20, ["MealSurvivalPack"] = 20 } } } },
+            "clash.fixture.pawnState" => mode == "prepare-failed" ? throw new IOException("pawn fixture failed") : new { },
             "caravan.move" => new { accepted = mode != "path-rejected" },
             "caravan.state" => new { moving = ++progress == 2, tile = new { tileId = progress == 1 ? 89 : 90 },
                 items = new[] { new { defName = "WoodLog", count = 4 }, new { defName = "Steel", count = 100 }, new { defName = "WoodLog", count = 6 } } },
             _ => null
         };
-        if (mode != "normal")
+        if (mode == "prepare-failed")
+        {
+            await Reject<IOException>(() => caravan.PreparePawnState());
+            Check(f.Count("clash.fixture.pawnState") == 1 && f.Count("caravan.prepare") == 0, "Failed pawn fixture was retried or started travel.");
+            return;
+        }
+        if (mode is not ("normal" or "prepared"))
         {
             await Reject<AssertionException>(() => caravan.Travel(mode == "unknown-pawn" ? "npc" : "chosen"));
             Check(f.Count("caravan.submit") == (mode == "path-rejected" ? 1 : 0), "Invalid pawn/cargo was submitted.");
             Check(f.Count("time.run") == (mode == "path-rejected" ? 1 : 0), "Rejected travel continued simulation.");
             return;
         }
-        await caravan.Travel("chosen");
+        string selected = mode == "prepared" ? await caravan.PreparePawnState() : "chosen";
+        await caravan.Travel(selected);
+        if (mode == "prepared")
+        {
+            var fixture = f.Calls.Single(c => c.Method == "clash.fixture.pawnState");
+            Check(selected == "chosen" && fixture.Client == "A" && fixture.Args.String("pawn") == selected && fixture.Args.Bool("acknowledgeFixture"),
+                "Prepared state did not belong to the chosen outbound pawn.");
+        }
         Check(caravan.Handle == handle && progress == 3 && f.Count("time.cancel") == 2, "Travel accepted wrong/still-moving destination or kept stale handle.");
         Check(f.Calls.Single(c => c.Method == "caravan.prepare").Args.Int("destination") == 11, "Caravan selected impassable departure neighbour.");
         Check(f.Calls.Where(c => c.Method == "caravan.select").Select(c => (c.Args.String("group"), c.Args.Int("count")))

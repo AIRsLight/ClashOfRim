@@ -9,6 +9,13 @@ internal sealed class CaravanScenario(TestRun run, ScenarioPolling polling, Scen
     private string? expedition;
     internal string Handle => expedition ?? throw new InvalidOperationException("Missing expedition.");
     internal void Use(JsonElement caravan) => expedition = H(caravan);
+    internal async Task<string> PreparePawnState()
+    {
+        var home = (await run.CallAsync("A", "clash.inventory")).GetProperty("maps")[0];
+        string pawn = H(home.GetProperty("colonists")[0]);
+        await run.CallAsync("A", "clash.fixture.pawnState", new { pawn, acknowledgeFixture = true });
+        return pawn;
+    }
     internal async Task RefreshSinglePawnCaravan()
         => Use(Items(await run.CallAsync("A", "caravans.list")).Single(c => c.GetProperty("pawns").GetArrayLength() == 1));
     internal Task Travel() => Travel(null);

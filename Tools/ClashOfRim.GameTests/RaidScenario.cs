@@ -12,10 +12,20 @@ namespace ClashOfRim.GameTests;
 internal sealed record RaidScenarioResult(string EventId, int? DefenderLossCount);
 
 internal sealed class RaidScenario(TestRun run, ScenarioPolling polling, ScenarioDialogs dialogs,
-    CaravanScenario caravanFixture, RemoteMapScenario remoteMaps, ServerEntryScenario entry,
+    CaravanScenario caravanFixture, RemoteMapScenario remoteMaps, ServerEntryScenario entry, ColonyScenarioFixture colony,
     IColonySnapshotIndexStore snapshots, DiplomacyRelationRegistry relations,
     IAuthoritativeEventLedger ledger, EventScenarioFixture eventFixture)
 {
+    internal async Task<RaidScenarioResult> RunAndReconnect(bool verifyLoss)
+    {
+        int before = verifyLoss ? await colony.Stock("B", "Steel") : 0;
+        var result = await Run(verifyLoss);
+        await entry.LoginExisting(true);
+        if (verifyLoss)
+            Check(result.DefenderLossCount is int loss && await colony.Stock("B", "Steel") == before - loss,
+                "Defender reload did not preserve battle loss exactly once.");
+        return result;
+    }
     internal async Task<RaidScenarioResult> Run(bool verifyLoss)
     {
         await polling.Idle("A"); await polling.Idle("B");

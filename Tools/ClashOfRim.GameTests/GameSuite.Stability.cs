@@ -1,6 +1,3 @@
-using System.Text.Json;
-using RimTest.Protocol;
-
 namespace ClashOfRim.GameTests;
 
 internal sealed partial class GameSuite
@@ -68,24 +65,14 @@ internal sealed partial class GameSuite
             await Case("alliance-request-accept", diplomacy.Alliance);
             if (profile.Stability == "transfers")
                 await Case("remote-map-isolation-repeat", async () => { for (int i = 0; i < 3; i++) await remoteMaps.ObserveAlly(true); });
-            await Case("pawn-state-fixture", async () =>
-            {
-                var home = (await Call("A", "clash.inventory")).GetProperty("maps")[0];
-                fixturePawn = H(home.GetProperty("colonists")[0]);
-                await Call("A", "clash.fixture.pawnState", new { pawn = fixturePawn, acknowledgeFixture = true });
-            });
+            await Case("pawn-state-fixture", async () => fixturePawn = await caravanFixture.PreparePawnState());
             await Case("caravan-load-travel", () => caravanFixture.Travel(fixturePawn));
             await Case("support-state-early-return", () => support.Run("early", true));
             await Case("support-state-rejected-return", () => support.Run("reject", true));
             await Case("support-state-expired-return", () => support.Run("expiry", true));
             if (profile.Stability == "support-returns")
                 await Case("support-death-expiry", () => support.Run("death", true));
-            else await Case("raid-loss-reload-settlement", async () =>
-            {
-                int before = await colonyFixture.Stock("B", "Steel");
-                var result = await raids.Run(verifyLoss: true); await entry.LoginExisting(true);
-                Check(result.DefenderLossCount is int loss && await colonyFixture.Stock("B", "Steel") == before - loss, "Defender reload did not preserve battle loss exactly once.");
-            });
+            else await Case("raid-loss-reload-settlement", () => raids.RunAndReconnect(verifyLoss: true));
         }
     }
 }

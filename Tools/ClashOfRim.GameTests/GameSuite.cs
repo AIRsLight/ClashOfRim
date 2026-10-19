@@ -1,6 +1,4 @@
-using System.Diagnostics;
 using System.Text.Json;
-using System.Text.Json.Nodes;
 using AIRsLight.ClashOfRim.Network;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
@@ -17,9 +15,7 @@ internal sealed partial class GameSuite
     private readonly string root, pipeA, pipeB;
     private readonly SuiteProfile profile;
     private readonly TestRun run;
-    private readonly ScenarioDialogs dialogs;
     private readonly ScenarioPolling polling;
-    private readonly ColonyScenarioFixture colonyFixture;
     private readonly EconomicScenarioFixture economy;
     private readonly MercenaryScenario mercenaries;
     private readonly BankScenario bank;
@@ -30,7 +26,6 @@ internal sealed partial class GameSuite
     private readonly DiplomacyScenario diplomacy;
     private readonly ColonyAppearanceScenario appearance;
     private readonly ShopScenario shop;
-    private readonly TradeScenarioFixture tradeActions;
     private readonly TradeScenario trades;
     private readonly AchievementScenario achievements;
     private readonly AccountLifecycleScenario accounts;
@@ -45,7 +40,6 @@ internal sealed partial class GameSuite
     private readonly RaidScenario raids;
     private readonly RemoteMapScenario remoteMaps;
     private readonly NotificationScenario notifications;
-    private readonly EventScenarioFixture eventFixture;
     private readonly ScenarioRuntimeDiagnostics diagnostics;
     private readonly WorldScenario world;
     private readonly ServerEntryScenario entry;
@@ -66,13 +60,13 @@ internal sealed partial class GameSuite
         this.root = root; this.pipeA = pipeA; this.pipeB = pipeB; this.profile = profile;
         Directory.CreateDirectory(root);
         run = new TestRun(root, WorldCases.Concat(profile.Features ? FeatureCases : profile.GiftReplay ? GiftReplayCases : StabilityCases(profile.Stability)).Append("runtime-errors").ToArray());
-        dialogs = new ScenarioDialogs(run, profile.A.Language != profile.B.Language);
+        var dialogs = new ScenarioDialogs(run, profile.A.Language != profile.B.Language);
         polling = new ScenarioPolling(run, dialogs);
         server = ClashOfRimNetworkServer.Build([
             "--contentRoot", Path.Combine(root, "Server"), "--urls", "http://127.0.0.1:0",
         "--Persistence:DataDirectory", Path.Combine(root, "Server", "Data"), "--Authentication:DebugMode", "false",
         "--Localization:Language", "English", "--Logging:LogLevel:Default", "Warning"]);
-        colonyFixture = new(run, polling);
+        var colonyFixture = new ColonyScenarioFixture(run, polling);
         diagnostics = new(run);
         var serverState = server.Services.GetRequiredService<ClashOfRimNetworkState>();
         economy = new(run, polling, colonyFixture);
@@ -82,11 +76,11 @@ internal sealed partial class GameSuite
             return (configuration.MercenaryGuardApprenticeSilver, configuration.MercenaryGuardApprenticePointsRatio);
         });
         caravanFixture = new(run, polling, dialogs, colonyFixture);
-        tradeActions = new(run, polling, dialogs);
+        var tradeActions = new TradeScenarioFixture(run, polling, dialogs);
         trades = new(run, polling, dialogs, colonyFixture, economy, caravanFixture, tradeActions);
         achievements = new(run, polling, trades, serverState.Achievements, serverState.SnapshotStore, serverState.Players);
         complexItems = new(run, polling, colonyFixture, tradeActions);
-        eventFixture = new(polling, serverState.Ledger);
+        var eventFixture = new EventScenarioFixture(polling, serverState.Ledger);
         support = new(run, polling, dialogs, caravanFixture, serverState.Ledger, eventFixture);
         remoteMaps = new(run, polling, colonyFixture);
         world = new(run, polling, profile, serverState.WorldConfiguration, serverState.WorldTileDistanceCalculator,
@@ -107,7 +101,7 @@ internal sealed partial class GameSuite
         shopCatalog = new(run, polling, colonyFixture, economy, shopActions, serverState.ServerShop, Path.Combine(root, "shop-catalog.json"));
         shopStress = new(run, colonyFixture, shopActions, serverState.ServerShop,
             (id, buyers) => ShopPersistenceProbe.Read(root, id, buyers), Path.Combine(root, "shop-stress.json"));
-        raids = new(run, polling, dialogs, caravanFixture, remoteMaps, entry, serverState.SnapshotStore, serverState.DiplomacyRelations, serverState.Ledger, eventFixture);
+        raids = new(run, polling, dialogs, caravanFixture, remoteMaps, entry, colonyFixture, serverState.SnapshotStore, serverState.DiplomacyRelations, serverState.Ledger, eventFixture);
         var accountAuthority = new AccountLifecycleAuthority(serverState.SnapshotStore, serverState.Players, serverState.WorldConfiguration,
             serverState.BankLoans, serverState.MercenaryContracts, serverState.OfflineAccounts, serverState.Ledger);
         var accountColonies = new AccountColonyScenario(run, polling, colonyFixture, economy, achievements, entry, chat, players, shopActions, accountAuthority, () => url);
@@ -175,7 +169,7 @@ internal sealed partial class GameSuite
                 await Case("support-send-early-return", support.Run);
                 await Case("mercenary-hire", mercenaries.Hire);
                 await Case("mercenary-recall", mercenaries.Recall);
-                await Case("raid-open-settle", async () => { await raids.Run(profile.Stability == "transfers"); await entry.LoginExisting(true); });
+                await Case("raid-open-settle", () => raids.RunAndReconnect(verifyLoss: false));
                 foreach (string client in clients.Keys)
                 {
                     if (!(await Call(client, "clash.state")).Bool("isInActiveMultiplayerSession")) continue;
@@ -217,10 +211,6 @@ internal sealed partial class GameSuite
     }
     Task<JsonElement> Wait(string client, string method, object? input, Func<JsonElement, bool> predicate, int seconds = 90)
         => polling.Wait(client, method, input, predicate, seconds);
-    Task Confirm(string client) => dialogs.Confirm(client);
-    Task<bool> AcceptLanguageWarning(string client) => dialogs.AcceptLanguageWarning(client);
-    Task<JsonElement> Idle(string client) => polling.Idle(client);
-    Task Step(string client, int ticks) => polling.Step(client, ticks);
     Task<JsonElement> Call(string client, string method, object? input = null) => run.CallAsync(client, method, input);
     Task<JsonElement> Invoke(string client, string action, object? input = null) => run.InvokeClientAsync(client, action, input);
     Task Case(string id, Func<Task> body) => run.RunCaseAsync(id, body, CaptureLogs);
