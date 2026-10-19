@@ -536,20 +536,19 @@ public static class RemoteMapSnapshotProjector
                      .Element("allFactions")?
                      .Elements("li") ?? Enumerable.Empty<XElement>())
         {
-            string? loadIdValue = faction.Element("loadID")?.Value?.Trim();
-            if (string.IsNullOrWhiteSpace(loadIdValue))
+            string? loadId = ReadFactionLoadId(faction);
+            string? defName = faction.Element("def")?.Value?.Trim();
+            if (loadId is null || string.IsNullOrWhiteSpace(defName))
             {
                 continue;
             }
 
-            string loadId = "Faction_" + loadIdValue;
-            string? defName = faction.Element("def")?.Value?.Trim();
             string? name = faction.Element("name")?.Value?.Trim();
             var relations = new Dictionary<string, FactionRelationKind>(StringComparer.Ordinal);
             foreach (XElement relation in faction.Element("relations")?.Elements("li") ?? Enumerable.Empty<XElement>())
             {
                 string? other = relation.Element("other")?.Value?.Trim();
-                string? kindValue = relation.Element("kind")?.Value?.Trim();
+                string? kindValue = relation.Element("kind")?.Value?.Trim() ?? nameof(FactionRelationKind.Neutral);
                 if (string.IsNullOrWhiteSpace(other)
                     || string.Equals(other, "null", StringComparison.OrdinalIgnoreCase)
                     || string.IsNullOrWhiteSpace(kindValue)
@@ -701,10 +700,10 @@ public static class RemoteMapSnapshotProjector
                 continue;
             }
 
-            string? loadId = faction.Element("loadID")?.Value?.Trim();
-            if (!string.IsNullOrWhiteSpace(loadId))
+            string? loadId = ReadFactionLoadId(faction);
+            if (loadId is not null)
             {
-                loadIds.Add("Faction_" + loadId);
+                loadIds.Add(loadId);
             }
         }
 
@@ -714,6 +713,15 @@ public static class RemoteMapSnapshotProjector
         }
 
         return loadIds;
+    }
+
+    private static string? ReadFactionLoadId(XElement faction)
+    {
+        // Scribe omits the default integer value; Faction_0 remains a real identity.
+        XElement? element = faction.Element("loadID");
+        if (element is null) return "Faction_0";
+        return int.TryParse(element.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int id) && id >= 0
+            ? "Faction_" + id.ToString(CultureInfo.InvariantCulture) : null;
     }
 
     public static bool IsRemoteNpcFaction(Faction? faction)

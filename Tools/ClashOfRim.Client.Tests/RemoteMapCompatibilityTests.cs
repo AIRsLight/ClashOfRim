@@ -25,6 +25,7 @@ internal static class RemoteMapCompatibilityTests
                 CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(culture);
                 MapLifecycle();
                 ProjectionReferences();
+                RemoteFactionProjectionTests.Run();
                 LoadIdRegistration();
                 SnapshotAndColonyPolicies();
                 PublicFacadeLifecycle();
