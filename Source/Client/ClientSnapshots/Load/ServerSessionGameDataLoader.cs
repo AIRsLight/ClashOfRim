@@ -119,14 +119,20 @@ public static class ServerSessionGameDataLoader
         }
     }
 
-    internal static void LoadGameFromServerSaveNow(byte[] saveBytes, string saveName, Action<Game?>? bindGame = null)
+    internal static void LoadGameFromServerSaveNow(byte[] saveBytes, string saveName, Action<Game?>? bindGame = null,
+        Func<Action, bool>? apply = null)
     {
+        void Publish(Action action)
+        {
+            if (apply is null) { action(); return; }
+            if (!apply(action)) throw new OperationCanceledException("The server save load owner was replaced.");
+        }
         string mods = LoadedModManager.RunningMods
             .Select(mod => mod.PackageIdPlayerFacing + (!mod.ModMetaData.VersionCompatible ? " (incompatible version)" : string.Empty))
             .ToLineList("  - ", false);
         ClashLog.Message("Loading ClashOfRim server game from memory buffer " + saveName + " with mods:\n" + mods);
         DeepProfiler.Start("Loading ClashOfRim server game from memory buffer " + saveName);
-        AssignGame(new Game(), bindGame);
+        Publish(() => AssignGame(new Game(), bindGame));
         DeepProfiler.Start("InitLoading (read memory buffer)");
         InitLoadingFromBytes(saveBytes, saveName);
         DeepProfiler.End();
@@ -138,8 +144,11 @@ public static class ServerSessionGameDataLoader
                 throw new InvalidDataException("Could not find game XML node.");
             }
 
-            AssignGame(new Game(), bindGame);
-            Current.Game.LoadGame();
+            Game loading = null!;
+            Publish(() => { loading = new Game(); AssignGame(loading, bindGame); });
+            // Scribe finalization waits for parallel tile validation, which reads
+            // session-owned reservations. Keep only Game publication under the gate.
+            loading.LoadGame();
         }
         catch (Exception)
         {
@@ -147,7 +156,7 @@ public static class ServerSessionGameDataLoader
             throw;
         }
 
-        PermadeathModeUtility.CheckUpdatePermadeathModeUniqueNameOnGameLoad(saveName);
+        Publish(() => PermadeathModeUtility.CheckUpdatePermadeathModeUniqueNameOnGameLoad(saveName));
         DeepProfiler.End();
     }
 
@@ -235,7 +244,9 @@ public static class ServerSessionGameDataLoader
         {
             try
             {
-                if (!Run(() => LoadGameFromServerSaveNow(bytes, name, bind))) return;
+                if (!Run(static () => { })) return;
+                LoadGameFromServerSaveNow(bytes, name, bind, Run);
+                if (!Run(static () => { })) return;
                 ClearPlayUiRootOnGuiSuppression(VirtualName, "server save loaded");
                 LongEventHandler.ExecuteWhenFinished(() =>
                 {

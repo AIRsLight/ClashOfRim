@@ -18,7 +18,7 @@ internal static class ClientSnapshotReloadRuntimeTests
     private static Game? game;
     private static readonly Queue<Action> scenes = new(), completions = new();
     private static int preparations, loads;
-    private static bool failLoad;
+    private static bool failLoad, parallelLoad, parallelReadCompleted;
     private static readonly ClientRestoredSnapshot Snapshot = new("snapshot", "", "server-save", new byte[] { 1, 2, 3 }, null);
     internal static void Run() => RunAsync().GetAwaiter().GetResult();
     private static async Task RunAsync()
@@ -34,11 +34,17 @@ internal static class ClientSnapshotReloadRuntimeTests
             Patch(harmony, AccessTools.Method(typeof(LongEventHandler), nameof(LongEventHandler.ExecuteWhenFinished)), nameof(QueueCompletion));
             Patch(harmony, AccessTools.Method(typeof(ServerSessionGameDataLoader), "PrepareForServerMemoryLoad"), nameof(Prepare));
             Patch(harmony, AccessTools.Method(typeof(ServerSessionGameDataLoader), "LoadGameFromServerSaveNow"), nameof(Load));
-            foreach (string scenario in new[] { "success", "main-menu", "source-replaced", "scene-replaced", "completion-replaced", "permission", "cancel", "failure" })
+            foreach (string scenario in new[] { "success", "parallel-load", "main-menu", "source-replaced", "scene-replaced", "completion-replaced", "permission", "cancel", "failure" })
             {
                 Reset(); if (scenario == "main-menu") game = null; using var cancel = new CancellationTokenSource();
                 using var operation = new ClientSnapshotReloadRuntime().Bind(); bool permission = true;
-                bool Apply(Action action) { if (!permission || !operation.IsCurrent || cancel.IsCancellationRequested) return false; action(); return true; }
+                bool Apply(Action action)
+                {
+                    bool applied = false;
+                    ClientSessionWork.TryApply(() =>
+                    { if (permission && operation.IsCurrent && !cancel.IsCancellationRequested) { action(); applied = true; } });
+                    return applied;
+                }
                 Task<bool> task = operation.LoadAsync(Snapshot, Apply, cancel.Token);
                 Check(!task.IsCompleted && ServerSessionGameDataLoader.ShouldSuppressPlayUiRootOnGui, "Load did not retain its pending transition.");
                 var initial = game;
@@ -57,7 +63,9 @@ internal static class ClientSnapshotReloadRuntimeTests
                 Check(!ReferenceEquals(initial, game) && operation.IsCurrent && operation.MutationStarted, "Scene Game was not adopted by the real runtime.");
                 if (scenario == "scene-replaced") game = NewGame();
                 failLoad = scenario == "failure";
+                parallelLoad = scenario == "parallel-load";
                 Check(!ServerSessionSavedGameLoaderPatch.Prefix(id), "Virtual load fell through to the filesystem.");
+                Check(!parallelLoad || parallelReadCompleted, "Native save loading holds the publication gate while waiting for tile readers.");
                 if (scenario == "scene-replaced") Check(!await task && loads == 0, "Replaced scene Game was overwritten.");
                 else if (scenario == "failure")
                 {
@@ -69,8 +77,8 @@ internal static class ClientSnapshotReloadRuntimeTests
                     Check(loads == 1 && !task.IsCompleted && operation.IsCurrent, "Completion was reported before long events finished.");
                     if (scenario == "completion-replaced") game = NewGame();
                     completions.Dequeue()();
-                    Check(await task == (scenario is "success" or "main-menu"), "Late completion adopted the wrong game.");
-                    if (scenario is "success" or "main-menu")
+                    Check(await task == (scenario is "success" or "parallel-load" or "main-menu"), "Late completion adopted the wrong game.");
+                    if (scenario is "success" or "parallel-load" or "main-menu")
                     {
                         var component = new ClashOfRimGameComponent(game!);
                         AccessTools.Field(typeof(Game), "components").SetValue(game, new List<GameComponent> { component });
@@ -95,7 +103,7 @@ internal static class ClientSnapshotReloadRuntimeTests
         }
         finally { harmony.UnpatchAll(harmony.Id); scenes.Clear(); completions.Clear(); game = null; ClientSessionWork.Reset(); }
     }
-    private static void Reset() { scenes.Clear(); completions.Clear(); game = NewGame(); preparations = loads = 0; failLoad = false; }
+    private static void Reset() { scenes.Clear(); completions.Clear(); game = NewGame(); preparations = loads = 0; failLoad = parallelLoad = parallelReadCompleted = false; }
     private static Game NewGame() => (Game)RuntimeHelpers.GetUninitializedObject(typeof(Game));
     private static bool GetGame(ref Game? __result) { __result = game; return false; }
     private static bool SetGame(Game? value) { game = value; return false; }
@@ -107,6 +115,14 @@ internal static class ClientSnapshotReloadRuntimeTests
     {
         Check(saveName == Snapshot.SaveName && saveBytes.SequenceEqual(Snapshot.SaveBytes), "Loader changed prepared bytes/name.");
         loads++; game = NewGame(); bindGame?.Invoke(game);
+        if (parallelLoad)
+        {
+            var reader = Task.Factory.StartNew(() =>
+            { using var publication = ClientSessionWork.EnterPublication(); },
+                CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+            parallelReadCompleted = reader.Wait(TimeSpan.FromSeconds(2));
+            Check(parallelReadCompleted, "Native save loading holds the publication gate while waiting for tile readers.");
+        }
         if (failLoad) throw new IOException("deserialize");
         return false;
     }
