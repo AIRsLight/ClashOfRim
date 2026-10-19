@@ -67,8 +67,8 @@ internal static class ClientShopProtocolTests
                 Check(f.Calls == 0 && f.Snapshot.SnapshotUploadKind == "original", "Unconfigured shop changed state or contacted HTTP.");
             }
             var listing = new ModServerShopListingDto { BasePriceSilver = 0, PriceSilver = 10, PriceIncreaseRatio = 1.5, BuyerPurchaseCount = -3 };
-            Check(ClientShopRules.TotalPrice(listing, 4) == 82 && ClashOfRimMod.CalculateServerShopTotalPrice(listing, 4) == 82,
-                "Legacy client price fallback or facade no longer uses shared pricing.");
+            Check(ClientShopRules.TotalPrice(listing, 4) == 82,
+                "Legacy client price fallback no longer uses shared pricing.");
             listing.BasePriceSilver = 5; listing.BuyerPurchaseCount = 1;
             Check(ClientShopRules.TotalPrice(listing, 2) == 20, "Client quote used personalized price as base price.");
         }

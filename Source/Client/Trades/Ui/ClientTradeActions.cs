@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.Modules.Sessions;
 using AIRsLight.ClashOfRim.Modules.Trades;
+using AIRsLight.ClashOfRim.Multiplayer.Pages;
 using AIRsLight.ClashOfRim.WorldObjects;
 using RimWorld;
 using RimWorld.Planet;
@@ -47,6 +48,13 @@ internal sealed class ClientTradeActions : IClientTradeInteraction
             AllowSelfPickup = draft.AllowSelfPickup, AllowServerDropPod = draft.AllowServerDropPod
         }));
     public void FulfillByDropPod(ModTradeOrderSummaryDto order) => _ = operations.StartAsync(new ClientTradeDropPodSource(Find.CurrentMap), order);
+    internal void OpenMarket(Func<MultiplayerTradePage> createPage)
+    {
+        var context = Context;
+        if (!context.IsConfigured || string.IsNullOrWhiteSpace(context.CurrentSnapshotId))
+        { state.Message = ClashOfRimText.Key("ClashOfRim.Trade.StatusConfigMissingMarket"); return; }
+        Find.WindowStack.Add(new TradeMarketWindow(createPage()));
+    }
     public void OpenCreate()
     {
         if (!state.Enabled) { Messages.Message(ClashOfRimText.Key("ClashOfRim.Trade.Disabled"), MessageTypeDefOf.RejectInput, false); return; }
