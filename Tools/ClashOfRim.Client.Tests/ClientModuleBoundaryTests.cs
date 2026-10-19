@@ -17,6 +17,9 @@ internal static class ClientModuleBoundaryTests
 {
     internal static void Run()
     {
+        var bridgeActions = ClashOfRim.RimTestBridge.ClientActionContract.ResolveActions(typeof(ClashOfRimMod));
+        var bridgeProperties = ClashOfRim.RimTestBridge.ClientActionContract.ResolveProperties(typeof(ClashOfRimMod));
+        Console.WriteLine($"RimTest contract checked {bridgeActions.Length} action overloads and {bridgeProperties.Count} properties.");
         var modules = typeof(ClashOfRimMod).Assembly.GetTypes()
             .Where(t => t.Namespace?.StartsWith("AIRsLight.ClashOfRim.Modules.", StringComparison.Ordinal) == true
                 || t == typeof(AIRsLight.ClashOfRim.CompatibilityClient.CompatibilityLanguageMismatchPolicy)).ToArray();

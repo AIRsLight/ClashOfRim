@@ -487,6 +487,10 @@ public sealed partial class ClashOfRimMod : Mod
 
     internal bool ManualSyncInProgress => synchronization.ManualInProgress;
 
+    // Retained by the RimTest state protocol; the domain modules own both states.
+    internal bool IsInActiveMultiplayerSession => sessionStartup.IsInActiveWorld;
+    internal bool IsServerWorldSetupFlow => worldSetup.Pending;
+
 
     internal bool LocalAtomicMutationPending => localMutations.IsPending;
 

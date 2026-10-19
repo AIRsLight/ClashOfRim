@@ -2,7 +2,6 @@ using System.Collections;
 using System.Reflection;
 using System.Text.Json;
 using AIRsLight.ClashOfRim;
-using HarmonyLib;
 using RimTest.Protocol;
 using RimTest.RimWorld;
 using RimTest.Runtime;
@@ -23,41 +22,8 @@ public sealed class BridgeMod : Mod
 internal sealed class ClientActions
 {
     private readonly GameBridge bridge;
-    private static readonly string[] ActionNames = [
-        "StartMainMenuServerEntryFlow", "DisconnectMultiplayerSessionForExit", "StartChangeOfflinePassword",
-        "StartRefreshPlayers", "SelectPlayerTarget", "StartRefreshChatMessages", "StartSendChatMessage", "MarkPrivateChatRead",
-        "StartRefreshAchievements", "StartRefreshEventsForTest", "HandleEventLetterAction", "StartManualSnapshotUpload",
-        "StartSyncWorldMapMarkers", "StartRefreshBankStatus", "StartCreateBankLoan", "StartRepayBankLoan", "StartRepayBankDebt",
-        "StartHireMercenary", "StartHireMercenaryGuard", "StartRefreshServerShop", "StartUpsertServerShopListing",
-        "StartRemoveServerShopListing", "StartPurchaseServerShopListing", "StartRefreshTradeOrders", "StartLoadMoreTradeOrders",
-        "StartCancelTradeOrder", "StartCancelAcceptedTradeMemo", "StartAcceptTradeOrder", "StartFulfillTradeOrderByDropPod",
-        "OpenTradeOrderDialog", "OpenTradeMarketWindow", "OpenCaravanTradeFulfillmentMenu", "OpenCaravanGiftDeliveryMenu",
-        "OpenCaravanSupportPawnMenu", "OpenCaravanRaidMenu", "StartObserveRemoteMarker", "StartFinishActiveRaidBattle",
-        "StartCreateDiplomacyEvent", "StartRefreshAdminStatus",
-        "StartUpdateAdminConfiguration", "StartAdminAction", "OpenColonyAppearanceWindow", "SaveColonyAppearance",
-        "OpenAbandonPlayerColonyConfirmation"
-    ];
-    private static readonly string[] StateProperties = [
-        "UserId", "ColonyId", "CurrentSnapshotId", "ServerBaseUrl", "IsNetworkConfigured", "IsInActiveMultiplayerSession",
-        "IsServerWorldSetupFlow", "IsAdministrator", "SnapshotUploadInProgress", "ManualSyncInProgress", "LocalAtomicMutationPending",
-        "LocalAtomicMutationOperation", "PresenceInProgress", "ChatInProgress", "BankInProgress", "MercenaryInProgress",
-        "ServerShopInProgress", "AdminInProgress", "LoginStatus", "SnapshotUploadStatus", "EventQueueStatus", "EventDetailsStatus",
-        "BankStatus", "ChatStatus", "TradeStatus", "WorldMapStatus", "MercenaryStatus", "ServerShopStatus", "AdminStatus",
-        "GiftProcessingStatus", "PlayerListStatus", "AchievementStatus", "TradeOrdersPageLoadInProgress", "UnreadPrivateChatCount",
-        "AccountPasswordInProgress", "AccountPasswordStatus"
-    ];
-    private static readonly Dictionary<string, string> RecordProperties = new()
-    {
-        ["players"] = "PlayersSnapshot",
-        ["chat"] = "ChatMessagesSnapshot",
-        ["trades"] = "TradeOrdersSnapshot",
-        ["shop"] = "ServerShopListingsSnapshot",
-        ["markers"] = "WorldMapMarkersSnapshot",
-        ["achievements"] = "OwnAchievementsSnapshot",
-        ["leaderboards"] = "AchievementLeaderboardsSnapshot"
-    };
-    private static readonly MethodInfo[] Actions = typeof(ClashOfRimMod).GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
-        .Where(m => ActionNames.Contains(m.Name)).OrderBy(Signature).ToArray();
+    private static readonly MethodInfo[] Actions = ClientActionContract.ResolveActions(typeof(ClashOfRimMod)).OrderBy(Signature).ToArray();
+    private static readonly Dictionary<string, PropertyInfo> Properties = ClientActionContract.ResolveProperties(typeof(ClashOfRimMod));
     private static ClashOfRimMod Mod => LoadedModManager.GetMod<ClashOfRimMod>();
     private static string Signature(MethodInfo m) => m.Name + "(" + string.Join(",", m.GetParameters().Select(p => p.ParameterType.FullName)) + ")";
     internal ClientActions(GameBridge bridge)
@@ -65,8 +31,6 @@ internal sealed class ClientActions
         this.bridge = bridge;
         new DomainCommands(bridge);
         WorldObservations.Register(bridge);
-        foreach (string name in ActionNames)
-            if (!Actions.Any(m => m.Name == name)) throw new InvalidOperationException("Test action no longer exists: " + name);
         bridge.Router.Register("clash.actions", "Discover explicit client UI entry points and exact parameter contracts. Discovery is not test coverage.", "observe", a =>
             ObjectInspector.Paginate(Actions.Select(m => new
             {
@@ -76,18 +40,17 @@ internal sealed class ClientActions
                 { name = p.Name, type = p.ParameterType.FullName, optional = p.IsOptional, defaultValue = p.IsOptional ? p.DefaultValue : null }).ToArray()
             }).ToArray(), a));
         bridge.Router.Register("clash.state", "Read a bounded allowlist of client lifecycle/status properties; no credentials.", "observe", _ =>
-            StateProperties.ToDictionary(n => char.ToLowerInvariant(n[0]) + n[1..], n => Property(n)));
+            ClientActionContract.StateProperties.ToDictionary(n => char.ToLowerInvariant(n[0]) + n[1..], n => Property(n)));
         bridge.Router.Register("clash.records", "Page copied client view-model records with references for subsequent UI actions.", "observe", a =>
         {
-            if (!RecordProperties.TryGetValue(a.String("kind"), out string? property)) throw new CommandException("invalid_arguments", "Unknown records kind.");
+            if (!ClientActionContract.RecordProperties.TryGetValue(a.String("kind"), out string? property)) throw new CommandException("invalid_arguments", "Unknown records kind.");
             return ObjectInspector.Paginate(((IEnumerable)Property(property)!).Cast<object>().Select(o => new { reference = bridge.Objects.Add(o), data = o }).ToArray(), a);
         });
         bridge.Router.Register("clash.bank", "Read the last bank response, including loans, debt and contracts.", "observe", _ => Property("BankStatusSnapshot"));
         bridge.Router.Register("clash.admin", "Read last administrator configuration/status response.", "observe", _ => Property("AdminStatusSnapshot"));
         bridge.Router.Register("clash.invoke", "Invoke one allowlisted original client action once. Poll domain results; void return does not imply acceptance/completion.", "semantic", Invoke);
     }
-    private static object? Property(string name) => AccessTools.Property(typeof(ClashOfRimMod), name)?.GetValue(Mod)
-        ?? (AccessTools.Property(typeof(ClashOfRimMod), name) is null ? throw new MissingMemberException(name) : null);
+    private static object? Property(string name) => Properties[name].GetValue(Mod);
     private object Invoke(JsonElement a)
     {
         string name = a.String("action"); var input = a.TryGetProperty("arguments", out var args) ? args : Wire.Element(new { });
