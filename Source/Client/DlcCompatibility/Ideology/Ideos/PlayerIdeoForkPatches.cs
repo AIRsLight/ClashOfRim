@@ -34,7 +34,7 @@ internal static class PlayerIdeoForkPatches
 
     public static void Prefix()
     {
-        if (!ClassicIdeoSetupPatch.IsSharedWorld)
+        if (!ClientSharedIdeologyWorld.IsSharedWorld)
         {
             return;
         }
@@ -46,7 +46,7 @@ internal static class PlayerIdeoForkPatches
     {
         // New player ideologies need the same load normalization as the shared
         // NPC baseline before they can travel with support/traded pawns.
-        if (ClassicIdeoSetupPatch.IsSharedWorld)
+        if (ClientSharedIdeologyWorld.IsSharedWorld)
             RemoteIdeoMaterializer.NormalizeGeneratedIdeologies();
     }
 

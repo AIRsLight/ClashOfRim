@@ -180,6 +180,7 @@ public sealed partial class ClashOfRimMod : Mod
             new AIRsLight.ClashOfRim.Admin.ClientAdminPresentation());
         var serverMetadata = new ClientServerMetadata(sessionLifecycle, compatibilityBaseline, administration);
         worldSetup = new ClientWorldSetupState(sessionLifecycle);
+        AIRsLight.ClashOfRim.DlcCompatibility.ClientSharedIdeologyWorld.Attach(new(worldSetup, sessionLifecycle));
         storytellerConfiguration = new ClientStorytellerConfiguration(sessionLifecycle, worldSetup, new ClientStorytellerRuntime());
         ClientStorytellerPage.Attach(storytellerConfiguration);
         compatibilityPresentation = new ClientCompatibilityPresentation(CreateCompatibilityMismatch);
@@ -517,7 +518,6 @@ public sealed partial class ClashOfRimMod : Mod
 
     internal bool ManualSyncInProgress => synchronization.ManualInProgress;
 
-    internal bool IsServerWorldSetupFlow => worldSetup.Pending;
 
     internal bool LocalAtomicMutationPending => localMutations.IsPending;
 

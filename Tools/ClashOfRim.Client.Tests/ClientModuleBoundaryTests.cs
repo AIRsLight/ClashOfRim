@@ -143,6 +143,19 @@ internal static class ClientModuleBoundaryTests
         if (compatibilityCapabilities.Length == 0 || compatibilityViolations.Count != 0)
             throw new InvalidOperationException("Compatibility capability boundaries: " + string.Join(Environment.NewLine, compatibilityViolations));
         Console.WriteLine($"Compatibility capability guard checked {compatibilityCapabilities.Length} product and generated types.");
+        Type[] ideologyRoots = { typeof(AIRsLight.ClashOfRim.DlcCompatibility.ClientSharedIdeologyWorld),
+            typeof(AIRsLight.ClashOfRim.DlcCompatibility.ClassicIdeoSetupPatch),
+            typeof(AIRsLight.ClashOfRim.DlcCompatibility.SharedIdeologySetupWorldPatch),
+            typeof(AIRsLight.ClashOfRim.DlcCompatibility.PlayerIdeoForkPatches), typeof(ClientMultiplayerWorldStatus) };
+        var ideologySetup = typeof(ClashOfRimMod).Assembly.GetTypes()
+            .Where(t => ideologyRoots.Contains(t) || (t.DeclaringType is { } owner && ideologyRoots.Contains(owner))).ToArray();
+        var ideologyViolations = ModuleDependencyGuard.FindViolations(ideologySetup,
+            t => t == typeof(ClashOfRimMod) || t == typeof(ClashOfRimSettings) || t == typeof(ClashOfRimModNetworkClient)
+                || t == typeof(AIRsLight.ClashOfRim.ThirdPartyCompatibility.ClashOfRimCompatibilityApi)
+                || t == typeof(Verse.LoadedModManager) || t == typeof(IServiceProvider));
+        if (ideologyViolations.Count != 0)
+            throw new InvalidOperationException("Ideology setup boundaries: " + string.Join(Environment.NewLine, ideologyViolations));
+        Console.WriteLine($"Ideology setup guard checked {ideologySetup.Length} product and generated types.");
         var pages = typeof(ClashOfRimMod).Assembly.GetTypes()
             .Where(t => t.Namespace is "AIRsLight.ClashOfRim.Multiplayer.Pages" or "AIRsLight.ClashOfRim.Multiplayer.Players"
                 or "AIRsLight.ClashOfRim.Multiplayer.Achievements" or "AIRsLight.ClashOfRim.Multiplayer.Diagnostics"

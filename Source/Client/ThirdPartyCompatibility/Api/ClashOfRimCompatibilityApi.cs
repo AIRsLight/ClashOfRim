@@ -5,6 +5,7 @@ using AIRsLight.ClashOfRim.Modules.Compatibility;
 using AIRsLight.ClashOfRim.Modules.Administration;
 using AIRsLight.ClashOfRim.Modules.Sessions;
 using AIRsLight.ClashOfRim.Modules.World;
+using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.RemoteMaps;
 using System;
 using Verse;
@@ -50,24 +51,7 @@ public static partial class ClashOfRimCompatibilityApi
     public static bool RevokeRegistrationToken(CompatibilityRegistrationToken? token) => Registrations.RevokeRegistrationToken(token);
     public static int RevokeRegistrationsByOwner(string owner) => Registrations.RevokeRegistrationsByOwner(owner);
 
-    public static bool IsActiveMultiplayerSession
-    {
-        get
-        {
-            try
-            {
-                var current = session;
-                return current is not null
-                    && (current.HasSnapshotSession(current.ReadContext())
-                        || ClashOfRimGameComponent.HasActiveRemoteMapSession
-                        || ClashOfRimGameComponent.HasActiveRaidBattleSession);
-            }
-            catch
-            {
-                return false;
-            }
-        }
-    }
+    public static bool IsActiveMultiplayerSession => ClientMultiplayerWorldStatus.IsActive(session);
 
     public static bool IsCurrentUserAdministrator
     {
