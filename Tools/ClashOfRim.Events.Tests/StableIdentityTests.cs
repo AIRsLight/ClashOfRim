@@ -66,10 +66,11 @@ internal static class StableIdentityTests
         string mainButtonDefs = Read(root, "Defs", "MainButtonDefs", "ClashOfRim_MainButtons.xml");
         string proxy = Read(root, "Source", "Client", "Diplomacy", "Factions", "PlayerFactionProxyUtility.cs");
         string giftProcessor = Read(root, "Source", "Client", "Gifts", "Processing", "ItemDeliveryClientProcessor.cs");
-        string giftLetters = Read(root, "Source", "Client", "EventLetters", "Runtime", "ClashOfRimMod.EventLetters.cs");
+        string giftLetters = ReadSources(root, "Source", "Client", "EventLetters")
+            + ReadSources(root, "Source", "Client", "Modules", "Events");
         string eventDtos = Read(root, "Source", "Client", "ClientNetwork", "Dtos", "ModEventDtos.cs");
         string protocolEventReference = Read(root, "Source", "Shared", "ClashOfRim.Protocol", "Events", "EventReferenceDto.cs");
-        string serverCore = Read(root, "Source", "Server", "ClashOfRim.Network", "Server", "Core", "ClashOfRimNetworkServer.cs");
+        string serverCore = ReadSources(root, "Source", "Server", "ClashOfRim.Network", "Server");
         string odyssey = Read(root, "Source", "Server", "ClashOfRim.Network", "Plugins", "DlcCompatibility", "Odyssey", "OdysseyServerCompatibility.cs");
         string markerBuilder = Read(root, "Source", "Shared", "ClashOfRim.Events", "WorldMap", "WorldMapMarkerProjectionBuilder.cs");
         string snapshotReceiver = Read(root, "Source", "Shared", "ClashOfRim.Save", "Snapshots", "Upload", "SnapshotUploadReceiver.cs");
@@ -107,10 +108,7 @@ internal static class StableIdentityTests
         Require(!markerBuilder.Contains("Contains(\"PlayerColony\"", StringComparison.Ordinal), "殖民地标记不能按类名子串识别");
         Require(!snapshotReceiver.Contains("Contains(\"Settlement\"", StringComparison.Ordinal), "快照锚点不能按据点类名子串识别");
 
-        string allSource = string.Join("\n", Directory.EnumerateFiles(Path.Combine(root, "Source"), "*.cs", SearchOption.AllDirectories)
-            .Where(path => !path.Contains(Path.DirectorySeparatorChar + "obj" + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
-                && !path.Contains(Path.DirectorySeparatorChar + "bin" + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
-            .Select(File.ReadAllText));
+        string allSource = ReadSources(root, "Source");
         Require(!allSource.Contains("ServerEventType.Gift", StringComparison.Ordinal), "Gift 不能继续作为顶层事件类型");
         Require(!allSource.Contains("ServerEventType.GiftReturn", StringComparison.Ordinal), "GiftReturn 不能继续作为顶层事件类型");
     }
@@ -119,6 +117,12 @@ internal static class StableIdentityTests
     {
         return File.ReadAllText(Path.Combine(new[] { root }.Concat(segments).ToArray()));
     }
+
+    private static string ReadSources(string root, params string[] segments)
+        => string.Join("\n", Directory.EnumerateFiles(Path.Combine(new[] { root }.Concat(segments).ToArray()), "*.cs", SearchOption.AllDirectories)
+            .Where(path => !path.Contains(Path.DirectorySeparatorChar + "obj" + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+                && !path.Contains(Path.DirectorySeparatorChar + "bin" + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            .Select(File.ReadAllText));
 
     private static string FindRepositoryRoot()
     {

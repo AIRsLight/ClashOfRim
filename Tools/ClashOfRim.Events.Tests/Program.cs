@@ -198,7 +198,7 @@ static void VerifyWorldSubstrateApplyDoesNotRenderOnWorkerThread()
 
 static void VerifyNormalSnapshotDownloadDoesNotLogRaidCleanupSkip()
 {
-    string sourcePath = FindRepositoryFile("Source", "Server", "ClashOfRim.Network", "Server", "Endpoints", "ClashOfRimNetworkServer.SessionWorld.Live.cs");
+    string sourcePath = FindRepositoryFile("Source", "Server", "ClashOfRim.Network", "Server", "Modules", "Raids", "RaidBattleCleanup.cs");
     string source = File.ReadAllText(sourcePath);
     Require(
         !source.Contains("Skipped stale raid battle snapshot cleanup because the related raid event is missing", StringComparison.Ordinal),
