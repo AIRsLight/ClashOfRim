@@ -54,7 +54,13 @@ internal static class WorldObservations
             int id = a.Int("layerId"), start = a.Int("start"), count = a.Int("count", 64);
             var layer = Find.World.grid.PlanetLayers[id];
             if (start < 0 || count < 1 || count > 1024 || start + count > layer.TilesCount) throw new ArgumentOutOfRangeException(nameof(start));
-            return Enumerable.Range(start, count).Select(index => new { index, biome = new PlanetTile(index, layer).Tile.PrimaryBiome.defName, values = Scalars(new PlanetTile(index, layer).Tile) }).ToArray();
+            var neighbors = new List<PlanetTile>();
+            return Enumerable.Range(start, count).Select(index => new
+            {
+                index,
+                canonical = TileData(layer, index, neighbors),
+                rawValues = Scalars(new PlanetTile(index, layer).Tile)
+            }).ToArray();
         });
         bridge.Router.Register("clash.storyteller.open", "Open the original in-game storyteller page, retaining multiplayer permission patches.", "semantic", _ =>
         {
@@ -127,20 +133,7 @@ internal static class WorldObservations
         {
             var center = layer.GetTileCenter(index);
             writer.Write(index); writer.Write(center.x); writer.Write(center.y); writer.Write(center.z);
-            var tile = new PlanetTile(index, layer);
-            neighbors.Clear(); Find.WorldGrid.GetTileNeighbors(tile, neighbors);
-            var surface = tile.Tile as SurfaceTile;
-            var data = new
-            {
-                index,
-                biome = tile.Tile.PrimaryBiome.defName,
-                values = CanonicalTileValues(tile.Tile),
-                feature = tile.Tile.feature?.uniqueID,
-                neighbors = neighbors.Select(n => n.tileId).Order().ToArray(),
-                roads = surface?.Roads?.Select(r => new { defName = r.road.defName, neighbor = r.neighbor.tileId }).OrderBy(r => r.neighbor).ThenBy(r => r.defName, StringComparer.Ordinal).ToArray(),
-                rivers = surface?.Rivers?.Select(r => new { defName = r.river.defName, neighbor = r.neighbor.tileId }).OrderBy(r => r.neighbor).ThenBy(r => r.defName, StringComparer.Ordinal).ToArray()
-            };
-            var bytes = JsonSerializer.SerializeToUtf8Bytes(data);
+            var bytes = JsonSerializer.SerializeToUtf8Bytes(TileData(layer, index, neighbors));
             tiles.AppendData(bytes); block.AppendData(bytes);
             if ((index + 1) % 1024 == 0 || index == layer.TilesCount - 1) blocks.Add(Convert.ToHexString(block.GetHashAndReset()));
         }
@@ -156,6 +149,24 @@ internal static class WorldObservations
         };
     }
 
+    private static object TileData(PlanetLayer layer, int index, List<PlanetTile> neighbors)
+    {
+        var tile = new PlanetTile(index, layer);
+        neighbors.Clear(); Find.WorldGrid.GetTileNeighbors(tile, neighbors);
+        var surface = tile.Tile as SurfaceTile;
+        return new
+        {
+            index,
+            biome = tile.Tile.PrimaryBiome.defName,
+            values = CanonicalTileValues(tile.Tile),
+            feature = tile.Tile.feature?.uniqueID,
+            mutators = tile.Tile.Mutators.Select(m => m.defName).ToArray(),
+            neighbors = neighbors.Select(n => n.tileId).Order().ToArray(),
+            roads = surface?.Roads?.Select(r => new { defName = r.road.defName, neighbor = r.neighbor.tileId }).OrderBy(r => r.neighbor).ThenBy(r => r.defName, StringComparer.Ordinal).ToArray(),
+            rivers = surface?.Rivers?.Select(r => new { defName = r.river.defName, neighbor = r.neighbor.tileId }).OrderBy(r => r.neighbor).ThenBy(r => r.defName, StringComparer.Ordinal).ToArray()
+        };
+    }
+
     private static SortedDictionary<string, object?> CanonicalTileValues(Tile tile)
     {
         var values = Scalars(tile);
@@ -163,7 +174,7 @@ internal static class WorldObservations
         {
             // 1.7 SurfaceLayer persists these as ushort/byte values. Compare the
             // representable data, not fresh-generation floats with loaded floats.
-            // Keep raw floats available in clash.world.tiles for diagnostics.
+            // Diagnostics include both these exact hash inputs and raw values.
             static int Quantize(float value, int max) => (int)Math.Clamp(MathF.Round(value), 0, max);
             values["elevation"] = Quantize((tile.WaterCovered ? tile.elevation : Math.Max(tile.elevation, 1f)) + 8192f, 65535);
             values["temperature"] = Quantize((tile.temperature + 300f) * 10f, 65535);

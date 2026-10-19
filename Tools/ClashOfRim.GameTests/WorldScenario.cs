@@ -221,7 +221,7 @@ internal sealed class WorldScenario(TestRun run, ScenarioPolling polling, SuiteP
             var input = new { layerId = a.Int("id"), start = first * 1024, count = Math.Min(1024, a.Int("count") - first * 1024) };
             var left = (await run.CallAsync("A", "clash.world.tiles", input)).EnumerateArray().ToArray();
             var right = (await run.CallAsync("B", "clash.world.tiles", input)).EnumerateArray().ToArray();
-            await run.RecordAsync(new { observation = "tile-differences", layerId = a.Int("id"), examples = left.Zip(right).Where(p => p.First.GetRawText() != p.Second.GetRawText()).Take(8).Select(p => new { host = p.First, guest = p.Second }).ToArray() });
+            await run.RecordAsync(new { observation = "tile-differences", layerId = a.Int("id"), examples = left.Zip(right).Where(p => p.First.GetProperty("canonical").GetRawText() != p.Second.GetProperty("canonical").GetRawText()).Take(8).Select(p => new { host = p.First, guest = p.Second }).ToArray() });
         }
     }
     void CheckCultures()
