@@ -84,8 +84,9 @@ internal static class ColonyAbandonmentBaselineTests
             }
             var state = new ClashOfRimNetworkState(snapshotStore: files, bankLoans: bank, snapshotCommits: commits);
             var unauthorized = Invoke(state, before.Envelope.Identity.SnapshotId, "invalid-token");
-            Require(!unauthorized.Result.Accepted && unauthorized.Result.ErrorCode == ProtocolErrorCode.ServerRejected
-                && files.GetLatest("userA", "colonyA")?.Envelope == before.Envelope
+            Require(!unauthorized.Result.Accepted && unauthorized.Result.ErrorCode == ProtocolErrorCode.SessionUnavailable,
+                "invalid token did not preserve the structured session rejection");
+            Require(files.GetLatest("userA", "colonyA")?.Envelope == before.Envelope
                 && Directory.EnumerateFiles(journal, "*.json").Count() == 1,
                 "unauthenticated request performed snapshot recovery");
             string token = Authorize(state);
@@ -154,7 +155,7 @@ internal static class ColonyAbandonmentBaselineTests
             if (failure is not null) throw new Exception("Abandonment endpoint failed.", failure);
             Require(waiting && !readOutsideGate, "request inspected the deletion baseline before acquiring its mutation gate");
             Require(response is not null && !response.Result.Accepted
-                && response.Result.ErrorCode == (revoke ? ProtocolErrorCode.ServerRejected : ProtocolErrorCode.SnapshotMismatch),
+                && response.Result.ErrorCode == (revoke ? ProtocolErrorCode.SessionUnavailable : ProtocolErrorCode.SnapshotMismatch),
                 "waiting request ignored new authorization or snapshot state");
             Require(files.GetLatest("userA", "colonyA")?.Envelope == (revoke ? before : next).Envelope
                 && !state.Players.IsDeleted("userA", "colonyA") && state.Ledger.ListAll().Count == 0,
