@@ -1,12 +1,12 @@
 # partial 使用审计与模块拆分计划
 
-目标是让 1.7 的业务模块拥有自己的状态和明确的依赖，逐步解除 `ClashOfRimMod` 与 `ClashOfRimNetworkServer` 的跨文件私有成员耦合。当前 `partial` 拆分主要改善了文件浏览，没有建立模块边界。优先迁移会话、快照变更边界和事件流程，再按业务域完成迁移；保留已经统一的提交、恢复、状态转换和游戏对象流转算法。
+目标是让 1.7 的业务模块拥有自己的状态和明确的依赖，逐步解除 `ClashOfRimMod` 与 `ClashOfRimNetworkServer` 的跨文件私有成员耦合。初次审计发现，原有 `partial` 拆分主要改善了文件浏览，没有建立模块边界。优先迁移会话、快照变更边界和事件流程，再按业务域完成迁移；保留已经统一的提交、恢复、状态转换和游戏对象流转算法。
 
 审计基线为 `ee55d0b0` 加当时工作区，包括此前未提交的改动。初次审计只增加计划；后续实施状态见文末记录。以下 P2/P3 表示结构改造优先级，不代表新复现的功能故障。1.6 冻结内容不参与改造。
 
-**最新复核（2026-10-19，`c004a964`）：剩余 20 个 partial 类型、54 处声明、42 个文件。需要继续模块化的是 GameSuite 与 8 组 Save 测试；另有 2 个生产类型待归并、5 个单声明类型待去除修饰符。** 下文最初基线表不代表当前状态，最新明细见文末「剩余 partial 耦合复核」及[当前清单](partial-module-inventory-2026-10-19.json)。
+**最新复核（2026-10-19，`66496c68` 加当前工作区）：剩余 20 个 partial 类型、51 处声明、39 个文件。需要继续模块化的是 GameSuite 与 8 组 Save 测试；另有 2 个生产类型待归并、5 个单声明类型待去除修饰符。** 下文最初基线表不代表当前状态，最新明细见文末「剩余 partial 耦合复核」及[当前清单](partial-module-inventory-2026-10-19.json)。
 
-该复核之后，M12b6b／M12b6c 已删除 GameSuite 的 Bank、Catalog、ShopStress 分片；目前剩余 **20 个类型、51 处声明、39 个文件**，GameSuite 由 12 个分片减为 9 个。机器清单保留复核时点的数据，后续变化以实施记录为准。
+相比 `c004a964` 的上次复核，M12b6b／M12b6c 已删除 GameSuite 的 Bank、Catalog、ShopStress 分片；GameSuite 由 12 个分片减为 9 个，类型代码从 1,182 行减为 880 行。机器清单已重新扫描并更新到本次复核时点。
 
 ## 使用范围
 
@@ -3683,33 +3683,35 @@ Save 单元项目引用实际 GameTests 项目，随单元编译整个场景程�
 
 ## 剩余 partial 耦合复核（2026-10-19）
 
-基线为 `c004a964` 加当前工作区，沿用原 Roslyn 扫描器与范围，扫描 1,845 个 C# 文件；排除构建输出、冻结 1.6 与独立 RimTest 子仓库。另以文本检索核对第三方兼容目录，无额外 partial 类型。类型按命名空间及外层类型区分，不把不同测试中的 `Fixture` 合并为一个类型。[本次机器清单](partial-module-inventory-2026-10-19.json)记录每个声明的位置、行数、字段和已解析跨文件调用。
+本节已更新到 `66496c68` 加当前工作区，沿用原 Roslyn 扫描器与范围，扫描 1,851 个 C# 文件；排除构建输出、冻结 1.6 与独立 RimTest 子仓库。另以文本检索核对第三方兼容目录（包括 ServerPlugins／Shared），无额外 partial 类型。类型按命名空间及外层类型区分，不把不同测试中的 `Fixture` 合并为一个类型。[本次机器清单](partial-module-inventory-2026-10-19.json)记录每个声明的位置、行数、字段和已解析跨文件调用。
 
 | 当前类别 | partial 类型数 | 声明数 | 不重复文件数 | 剩余性质 |
 | --- | ---: | ---: | ---: | --- |
-| GameSuite | 1 | 12 | 12 | 场景业务和宿主设施仍共享私有成员，继续按域拆分 |
+| GameSuite | 1 | 9 | 9 | 场景业务和宿主设施仍共享私有成员，继续按域拆分 |
 | Save 测试 | 12：8 个外层测试类 + 4 个嵌套 Fixture | 29 | 19 | 共享测试构造、故障状态和私有辅助函数，改为明确的 fixture 组合 |
 | 生产兼容门面与银行注册表 | 2 | 8 | 8 | 保持现有职责与锁，归并同一类型的文件 |
 | 单声明 DTO／载荷摘要 | 5 | 5 | 3 | 无跨文件耦合，只清理多余修饰符 |
-| **合计** | **20** | **54** | **42** | **9 组测试模块化工作，2 组生产归并，5 处修饰符清理** |
+| **合计** | **20** | **51** | **39** | **9 组测试模块化工作，2 组生产归并，5 处修饰符清理** |
 
-最初为 30 个类型、154 处声明、142 个文件；当前生产代码从 16 个 partial 类型降为 7 个。此数字不能换算为整体工程完成率，也不证明所有非 partial 类型都已经消除耦合。本轮只重新审计剩余 partial 及其直接依赖，没有把既往单元或实机结果算作本轮验证。
+去除 5 个单声明类型后，实际跨文件的 partial 为 **15 个类型、46 处声明、36 个文件**；其中 4 个类型是 Save 测试的嵌套 Fixture，随对应外层业务组一起处理，不另算 4 项独立工程。最初为 30 个类型、154 处声明、142 个文件；当前生产代码从 16 个 partial 类型降为 7 个。此数字不能换算为整体工程完成率，也不证明所有非 partial 类型都已经消除耦合。本轮只重新审计剩余 partial 及其直接依赖，没有把既往单元或实机结果算作本轮验证。
 
 ### 1. GameSuite：当前最大的场景拆分工作
 
-12 个分片合计 1,182 行类型代码、50 个直接方法、31 个字段，其中 18 个字段存在已解析的跨分片使用；字段包括只读场景依赖，并不等于 18 份可变业务状态。除宿主文件外，11 个分片仍有 40 个方法、1,002 行代码。银行流程还散落在 `Features`、`Boundaries` 和 `Bank`；商店与交易也跨基本场景、边界、目录、压力及复杂物品文件。
+9 个分片合计 880 行类型代码、39 个直接方法、35 个字段，其中 20 个字段存在已解析的跨分片使用；另识别到 41 条按调用方文件、被调用方文件和方法名去重的跨分片调用关系。字段包括只读场景依赖，不等于 20 份可变业务状态；这些符号统计不是完整 MSBuild 调用图。除宿主文件外，8 个分片仍有 29 个方法、690 行代码。相比上次增加的 4 个字段是已迁出的银行及三种商店场景依赖，不能据此判定业务状态耦合增加。
 
-最明确的剩余业务耦合在[账户生命周期](../Tools/ClashOfRim.GameTests/GameSuite.AccountLifecycle.cs#L13)：直接调用其他分片的 `PasswordChange`、`TradeFulfill`、`Achievements`、`PrivateChat`、`Shop`、`Alliance`、`CreateTrade`，同时通过 [ServerState 服务定位](../Tools/ClashOfRim.GameTests/GameSuite.Boundaries.cs#L10)读取多个领域。`abandonedColonies`、`lifecycleOrder`、`lifecycleDebt`、`preservedShop` 四个字段已局限于账户分片，可整体交给账户场景，无需拆成四个新服务。
+剩余分片为 `AccountLifecycle`、`Administration`、`Boundaries`、`ComplexItems`、`Features`、`Gravship`、`Relocation`、`Stability` 和宿主。银行、商店、目录及压力业务已经迁入独立场景；交易创建仍在 [Features](../Tools/ClashOfRim.GameTests/GameSuite.Features.cs#L82)，备注取消在 [Boundaries](../Tools/ClashOfRim.GameTests/GameSuite.Boundaries.cs#L64)，[复杂物品](../Tools/ClashOfRim.GameTests/GameSuite.ComplexItems.cs#L23)和账户流程直接复用这些私有方法，尚未建立明确的交易模块接口。
+
+最明确的剩余业务耦合在[账户生命周期](../Tools/ClashOfRim.GameTests/GameSuite.AccountLifecycle.cs#L13)：直接调用其他分片的 `PasswordChange`、`TradeFulfill`、`Achievements`、`PrivateChat`、`Alliance`、`CreateTrade`，同时通过 [ServerState 服务定位](../Tools/ClashOfRim.GameTests/GameSuite.Boundaries.cs#L10)读取多个领域；商店调用已经改为明确的 `shop.Purchase` 入口。`abandonedColonies`、`lifecycleOrder`、`lifecycleDebt`、`preservedShop` 四个字段已局限于账户分片，可整体交给账户场景，无需拆成四个新服务。管理、搬家与飞船分片也通过该属性取得完整服务端状态，迁移时应由宿主装配明确的注册表／观察依赖，保留真实权威结果断言。
 
 建议继续按依赖顺序完成以下职责组；这是职责清单，不是承诺的提交次数：
 
-1. 银行借还款、输入拒绝、逾期、死亡欠款，复用本步的经济和雇佣夹具。
-2. 商店购买／回购、目录与压力场景，共用上架和购买观察；压力夹具保持独立职责。
-3. 交易创建／取消／履约／备注与复杂物品，显式传递订单及物品基线。
-4. 管理、聊天、外交／外观、密码和成就，分别交给对应场景；账户流程消费它们的明确入口。
-5. 账户废弃／重建及排行榜断言，收回上述四个字段和代次结果。
-6. 搬家与飞船场景，复用银行、库存、重载及世界位置观察。
-7. 收尾场景清单与宿主路由：[SuiteProfile.Validate](../Tools/ClashOfRim.GameTests/SuiteProfile.cs#L29)目前仍反向调用 `GameSuite.StabilityCases`；应抽出同一场景清单供配置校验与调度使用，避免另造重复清单。
+银行及商店两组已完成（M12b6b／M12b6c），不再计入以下剩余清单：
+
+1. 交易创建／取消／履约／备注与复杂物品，显式传递订单及物品基线。
+2. 管理、聊天、外交／外观、密码和成就，分别交给对应场景；账户流程消费它们的明确入口。
+3. 账户废弃／重建及排行榜断言，收回上述四个字段和代次结果。
+4. 搬家与飞船场景，复用银行、库存、重载及世界位置观察。
+5. 收尾场景清单与宿主路由：[SuiteProfile.Validate](../Tools/ClashOfRim.GameTests/SuiteProfile.cs#L31)目前仍反向调用 `GameSuite.StabilityCases`；应抽出同一场景清单供配置校验与调度使用，避免另造重复清单。
 
 ### 2. Save 测试：8 组外层场景，4 个嵌套 fixture
 
