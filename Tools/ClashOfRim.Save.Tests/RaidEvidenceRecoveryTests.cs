@@ -38,11 +38,11 @@ internal static class RaidEvidenceRecoveryTests
         f.Faults.Writes = 0;
         var job = f.State.SnapshotPostUploadJobs.ListPrepared().Single();
         Exception? failure = null;
-        SnapshotPreparationGateProbe.Run(f.State.RaidSettlementSnapshotMutationGate, hook => f.Artifacts.AfterCapture = hook,
+        SnapshotPreparationGateProbe.Run(f.State.RaidSettlementSnapshotMutationGate, hook => f.Artifacts.AfterRead = hook,
             () => { try { RaidSettlementDeferredScheduler.RecoverPrepared(f.State, job, f.Now); } catch (InvalidOperationException ex) { failure = ex; } },
             () => { if (rollback) f.Files.StoreLatest(f.Before, f.Before.Index, f.Now); });
         Require((failure is not null) == rollback && f.Faults.Writes == 0 && f.Faults.PreparedWrites == 0
-            && f.Artifacts.ActiveReads == 0, "Installed-evidence recovery compressed or rewrote without preparation.");
+            && f.Artifacts.ActiveHandles == 0, "Installed-evidence recovery compressed or rewrote without preparation.");
         Require(f.State.SnapshotPostUploadJobs.Find(job.JobId)!.State == (rollback ? SnapshotPostUploadJobState.Prepared : SnapshotPostUploadJobState.Ready),
             "Changed installed evidence was incorrectly readied.");
         if (rollback)
@@ -66,8 +66,8 @@ internal static class RaidEvidenceRecoveryTests
         SnapshotPostUploadJobRecord? reply = null;
         SnapshotPreparationGateProbe.Run(f.State.RaidSettlementSnapshotMutationGate, hook =>
             {
-                if (phase == "read") f.Artifacts.AfterCapture = hook;
-                else if (phase == "capture") f.Artifacts.BeforeCapture = hook;
+                if (phase == "read") f.Artifacts.AfterRead = hook;
+                else if (phase == "capture") f.Artifacts.BeforeRead = hook;
                 else f.Faults.BeforePrepare = hook;
             }, () =>
             {
@@ -109,7 +109,7 @@ internal static class RaidEvidenceRecoveryTests
             && f.State.Players.FindByUserId("userA")!.CurrentSnapshotId == (completed ? "evidence" : "before"), "Recovery changed a newer snapshot or player reference.");
         Require(change != "job-failed" || current!.AttemptCount == 1 && current.NextAttemptAtUtc == f.Now.AddMinutes(1), "Recovery reset a revised retry schedule.");
         Require(completed ? reply?.State == SnapshotPostUploadJobState.Ready : true, "Successful recovery returned no Ready task.");
-        Require(f.Artifacts.ActiveReads == 0, "Recovery leaked an artifact revision lease.");
+        Require(f.Artifacts.ActiveHandles == 0, "Recovery leaked an artifact revision lease.");
     }
 
     private static void VerifyRecovery(Fixture f, string fault, bool reopen)
@@ -276,7 +276,7 @@ internal static class RaidEvidenceRecoveryTests
         public SaveSnapshotPackage Evidence { get; }
         public FileColonySnapshotIndexStore Files = null!;
         public CrashStore Faults = null!;
-        public ObservedArtifacts Artifacts = null!;
+        public VersionedSnapshotArtifactTestStore Artifacts = null!;
         public ClashOfRimNetworkState State = null!;
         public RaidSettlementScheduleRequest Request = null!;
         private readonly AuthoritativeEvent raid;
@@ -306,7 +306,7 @@ internal static class RaidEvidenceRecoveryTests
         {
             Files = new FileColonySnapshotIndexStore(Path.Combine(root, "snapshots"));
             Faults = new CrashStore(Files);
-            Artifacts = new ObservedArtifacts(new FileSnapshotPostUploadArtifactStore(Path.Combine(root, "artifacts")));
+            Artifacts = new VersionedSnapshotArtifactTestStore(new FileSnapshotPostUploadArtifactStore(Path.Combine(root, "artifacts")));
             State = new ClashOfRimNetworkState(ledger: new SqliteAuthoritativeEventLedger(Database), snapshotStore: Faults,
                 playerRegistry: new PlayerRegistry(new SqlitePlayerRegistryStore(Database), null),
                 snapshotPostUploadJobs: new SnapshotPostUploadJobRegistry(new SqliteSnapshotPostUploadJobStore(Database)),
@@ -324,24 +324,6 @@ internal static class RaidEvidenceRecoveryTests
             command.CommandText = sql;
             command.ExecuteNonQuery();
         }
-    }
-    private sealed class ObservedArtifacts(FileSnapshotPostUploadArtifactStore inner) : IVersionedSnapshotPostUploadArtifactStore
-    {
-        public Action? BeforeCapture, AfterCapture;
-        public int ActiveReads => ((System.Collections.IDictionary)typeof(FileSnapshotPostUploadArtifactStore)
-            .GetField("activePreparations", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(inner)!).Count;
-        public ISnapshotPostUploadArtifactRead ReadCaptured(string id)
-        {
-            BeforeCapture?.Invoke();
-            var captured = inner.ReadCaptured(id);
-            try { AfterCapture?.Invoke(); return captured; }
-            catch { captured.Dispose(); throw; }
-        }
-        public SaveSnapshotPackage? Read(string id) => inner.Read(id);
-        public void Store(string id, SaveSnapshotPackage package) => inner.Store(id, package);
-        public bool Exists(string id) => inner.Exists(id);
-        public void Delete(string id) => inner.Delete(id);
-        public void DeleteUnreferenced(IReadOnlySet<string> ids) => inner.DeleteUnreferenced(ids);
     }
     private sealed class CrashStore(FileColonySnapshotIndexStore inner) : IPreparedColonySnapshotPackageStore
     {

@@ -216,6 +216,12 @@ var tests = new (string Name, Action Run)[]
     ("快照上传拒绝身份哈希和版本异常", VerifySnapshotUploadRejections),
     ("快照上传在解压超过硬上限时立即拒绝", VerifySnapshotUploadRejectsOversizedDecompressedPayload),
     ("袭击结算证据必须携带指定事件的战场地图", VerifyRaidSettlementEvidenceUploadRequiresEventMap),
+    ("袭击证据夹具重开、句柄与模块依赖边界", RaidEvidenceFixtureTests.Run),
+    ("袭击证据授权与准备后身份复验", () => RaidEvidenceAuthorizationTests.Run(BuildFixturePackageWithRaidBattleMap)),
+    ("袭击证据在线准备、重放与发布故障恢复", () => RaidEvidenceOnlineTests.Run(BuildFixturePackageWithRaidBattleMap)),
+    ("袭击证据请求绑定与历史结算回执", RaidEvidenceRequestBindingTests.Run),
+    ("袭击证据日志恢复与最终状态复验", () => RaidEvidenceJournalRecoveryTests.Run(BuildFixturePackageWithRaidBattleMap)),
+    ("快照产物探针能力边界与异常句柄释放", () => SnapshotArtifactTestStoreTests.Run(BuildFixturePackage)),
     ("只读观察加载绑定快照地图和权限边界", VerifyReadOnlyObservationBoundary),
     ("袭击副本陷阱按批准清单隐藏和揭示", VerifyRaidTrapVisibility),
     ("陷阱类型上传清单只批准继承项和管理员确认项", VerifyTrapClassificationUploadManifest),
@@ -1884,7 +1890,6 @@ static void VerifySnapshotUploadRejectsOversizedDecompressedPayload()
 
 static void VerifyRaidSettlementEvidenceUploadRequiresEventMap()
 {
-    RaidEvidenceAuthorizationTests.Run(BuildFixturePackageWithRaidBattleMap);
     SaveSnapshotPackage missingMap = BuildFixturePackage("snapshot-raid-evidence-missing-map");
     SnapshotUploadResult missing = Receive(
         missingMap,

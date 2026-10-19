@@ -4,7 +4,8 @@ using static SnapshotTestAssertions;
 internal sealed class SnapshotRecoveryTestStore(string root) : IPreparedColonySnapshotPackageStore
 {
     public FileColonySnapshotIndexStore Inner { get; } = new(root);
-    public Action? BeforePrepare, AfterRead;
+    public Action? BeforePrepare, BeforeRead, AfterRead;
+    public Action<bool>? BeforePublication, AfterPublication;
     public SaveSnapshotPackage? ReadOverride;
     public object? Gate;
     public bool FailPublication, FailAfterPublication, FailPreparation;
@@ -35,17 +36,20 @@ internal sealed class SnapshotRecoveryTestStore(string root) : IPreparedColonySn
         Check(Gate is null || Monitor.IsEntered(Gate), "Snapshot recovery scope did not retain the mutation gate for publication.");
         WriteAttempts++;
         if (prepared) PreparedWriteAttempts++;
+        BeforePublication?.Invoke(prepared);
         if (FailPublication) throw new IOException("publication failed");
         write();
         if (prepared) PreparedWrites++; else RawWrites++;
         string owner = package.Envelope.Identity.OwnerId!;
         WritesByOwner[owner] = WritesByOwner.GetValueOrDefault(owner) + 1;
+        AfterPublication?.Invoke(prepared);
         if (FailAfterPublication) throw new IOException("after publication");
     }
     public void StoreLatest(LatestSnapshotRecord record) => Inner.StoreLatest(record);
     public LatestSnapshotRecord? GetLatest(string owner, string colony) => Inner.GetLatest(owner, colony);
     public SaveSnapshotPackage? GetLatestPackage(string owner, string colony)
     {
+        BeforeRead?.Invoke();
         var package = ReadOverride ?? Inner.GetLatestPackage(owner, colony);
         AfterRead?.Invoke();
         return package;

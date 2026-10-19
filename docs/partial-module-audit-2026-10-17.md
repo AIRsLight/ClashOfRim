@@ -4,9 +4,9 @@
 
 审计基线为 `ee55d0b0` 加当时工作区，包括此前未提交的改动。初次审计只增加计划；后续实施状态见文末记录。以下 P2/P3 表示结构改造优先级，不代表新复现的功能故障。1.6 冻结内容不参与改造。
 
-**实施进度（M12c5 后）：剩余 12 个 partial 类型、26 处声明、19 个文件；其中实际跨文件为 7 个类型、21 处声明、16 个文件。** GameSuite 已收尾，经济、事件失败报告、礼物拒收、袭击创建及清理的验证入口与共享夹具已独立。后续仍有 3 组 Save 测试模块化、2 个生产类型归并、5 个单声明修饰符清理和最终复核；详细实施与验证见文末。[M12c3 后审计](partial-module-audit-2026-10-19-post-m12c3.md)及其[机器清单](partial-module-inventory-2026-10-19-post-m12c3.json)保留 M12c4 开始前的时点，[GameSuite 收尾后审计](partial-module-audit-2026-10-19-post-gamesuite.md)保留 M12c1 开始前的时点。
+**实施进度（M12c6 后）：剩余 10 个 partial 类型、19 处声明、15 个文件；其中实际跨文件为 5 个类型、14 处声明、12 个文件。** GameSuite 已收尾，经济、事件失败报告、礼物拒收、袭击创建、清理及证据的验证入口与共享夹具已独立。后续仍有 2 组 Save 测试模块化、2 个生产类型归并、5 个单声明修饰符清理和最终复核；详细实施与验证见文末。[M12c3 后审计](partial-module-audit-2026-10-19-post-m12c3.md)及其[机器清单](partial-module-inventory-2026-10-19-post-m12c3.json)保留 M12c4 开始前的时点，[GameSuite 收尾后审计](partial-module-audit-2026-10-19-post-gamesuite.md)保留 M12c1 开始前的时点。
 
-2026-10-19 再审计：以 `62a9ffb7` 加当前工作区重新扫描 **1,905 个 C# 文件**，以上剩余量不变。M12c6 已有共享设施的准备改动，但原测试与夹具仍未迁移，不计为完成。最新[机器清单](partial-module-inventory-2026-10-19-post-m12c5.json)及文末“剩余 partial 耦合再审计”记录本次范围、依赖证据和处理顺序。
+2026-10-19 再审计快照：以 `62a9ffb7` 加当时工作区扫描 **1,905 个 C# 文件**，剩余量为 **12／26／19**。该时点 M12c6 只有共享设施准备改动，未计为完成。[机器清单](partial-module-inventory-2026-10-19-post-m12c5.json)及文末“剩余 partial 耦合再审计”保留该时点的范围、依赖证据和处理顺序；后续 M12c6 已完成，见最新实施记录。
 
 历史复核：从 `66496c68` 到 `258305ca` 加当时工作区，GameSuite 从 9 个分片、880 行降至 6 个分片、555 行；交易／复杂物品、管理／密码已经提交，聊天／外交／外观拆分及 Features 分片删除在该复核时尚未提交，后续 M12b7b 已完成（见文末）。该次审计只更新文档与机器清单，没有代为验收或提交这批场景代码。若只统计已提交的 `258305ca`，仍为 **20 个类型、49 处声明、37 个文件**，GameSuite 为 7 个分片、618 行。
 
@@ -4026,3 +4026,25 @@ GameSuite 删除无调用者的 `Confirm`、`AcceptLanguageWarning`、`Idle`、`
 最后五处单声明类型为 ModThingReferenceDto、ModCrossMapPawnReferenceDto、ModPawnExchangeIdentityDto、ModPawnExchangeAppearanceDto、ItemDeliveryItemSummary；它们没有实际分片耦合，只需清理关键字，保持 DTO／序列化契约并避开既存未提交改动。
 
 本次只进行静态扫描、源码依赖核对和文档更新，没有运行单元、实机或全量回归。机器清单包含有限符号解析，不能代替完整 MSBuild／运行时调用图；partial 清零后仍需原计划中的依赖及 API／协议／Harmony／存档契约复核，也不代表项目所有非 partial 耦合已消失。后续仍按上表顺序，逐步运行相关单元测试后提交，全量由用户安排。
+
+### M12c6：袭击证据验证、请求构造与夹具生命周期独立（2026-10-19）
+
+`RaidEvidenceAuthorizationTests`、`RaidEvidenceOnlineTests`、`RaidEvidenceRequestBindingTests` 和 `RaidEvidenceJournalRecoveryTests` 成为四个独立非 partial 入口，各自初始化本地化，在 Program 中分别登记。原战场地图约束验证不再隐式套跑整组证据测试；绑定验证删除会被内部覆盖的工厂参数，直接使用从原分片提取的 `RaidEvidenceBindingSnapshot`，日志结算验证也复用该输入定义。原 XML、身份、时间和构建参数保持不变。
+
+`RaidEvidenceFixture` 收拢原三个 Fixture 分片，唯一拥有数据库、意图目录、当前服务状态、会话凭据、快照／产物存储和发布故障。私有构造器通过自身 With 作用域创建，复用 `SqliteTestDirectory` 清理；重开重建存储、故障配置及凭据，同时保留本案例的输入、源事件和 BeforeSchedule／AfterSchedule 观察回调。重开前检查旧存储的产物句柄，正常及异常退出均检查当前句柄，补上本次审计确认的漏检路径；异常仍触发目录及连接池清理。
+
+`RaidEvidenceTestClient` 接管 HTTP 请求和身份变化，绑定哈希与实际调用复用同一请求构造。保留正文身份、元数据身份、请求头身份和实际载荷之间原有的冲突方式，不把它们强行统一成一个身份。夹具仅提供绑定当前状态与凭据的调用入口，不反向依赖验证类。认证、断言和锁释放检查复用已有共享设施。
+
+删除专用 ObservedStore、EvidenceProcessor 及产物包装实现，接入 `SnapshotRecoveryTestStore`、`SnapshotPublicationProbe` 和公共产物探针。发布回调显式区分原始与预准备载荷；每次 Open 创建独立故障对象，旧存储回调继续绑定旧对象，不会意外读取新状态。计数沿用公共存储的成功发布语义，发布前失败不增加成功计数，发布后失败保留已落盘计数。公共处理器允许指定顺序、支持的快照种类和上下文观察，原有用户过滤构造保持原行为。
+
+产物设施保留三层接口能力：`SnapshotArtifactStoreView` 只提供基础存储接口，`VersionedSnapshotArtifactTestStore` 增加捕获读取，`SnapshotArtifactTestStore` 再增加预准备。相邻 RaidEvidenceRecoveryTests 只复用版本化一层，避免新增预准备能力改变原恢复路径；两个原捕获读取／异常释放实现收敛为一份，旧版存储也不会因复用而获得新接口。临时文件与捕获句柄在观察回调抛错时仍释放。
+
+原授权 **16**、在线 **64**、绑定 **22**、日志恢复 **42** 次夹具组合，共 **144 个组合**全部保留。静态比对核对四组循环矩阵及 18 个场景／竞争请求／字段变更方法，除夹具、故障和断言入口替换外一致；共享 XML 内容、相邻证据恢复案例和独立入口登记也已核对，日志 `LocalOnly/module-migration/raid-evidence-static-review.log`。这些比对仅是辅助证据，不替代行为测试。
+
+新增夹具验证覆盖旧／新产物接口与正常／异常退出的四个持久重开组合，核对就绪证据、未完成日志、原始 lineage、旧会话失效、新会话可用、观察回调保留、故障对象隔离及一次恢复。另验证持有句柄时拒绝重开、释放后可重开，以及正常／异常退出各自不能漏掉句柄，共 **7 个生命周期组合**。编译依赖守卫覆盖四个验证入口、夹具、请求、输入及共享设施，禁止反向依赖其他测试类。独立产物探针验证旧接口能力、发布前临时状态、读取版本失效、回调异常释放和未引用产物清理。
+
+**两个成功结束的测试进程合计 14 个不同相关单元／进程内 HTTP 测试组通过，退出码均为 0**。`raid-evidence-modules-tests.log` 包含四类证据验证、新夹具及产物探针六组；`raid-evidence-shared-consumers-tests.log` 包含公共存储、经济恢复、支援结束、事件失败报告、礼物拒收、证据发布恢复、产物持久化及袭击清理八组。初次运行中原地图约束组已通过；新增生命周期检查最初误期待会话失效返回业务拒绝，实际公共 HTTP 夹具在认证层抛错，已按该既有约定修正新断言后通过，原业务断言未放宽。
+
+扫描 **1,910 个源文件**，剩余 **10 个 partial 类型、19 处声明、15 个文件**，实际跨文件为 **5 个类型、14 处声明、12 个文件**，机器结果保存在 `LocalOnly/partial-module-audit/inventory-after-raid-evidence.json`。本步只修改测试与文档，保留既存工作和冻结 1.6；没有全量回归、RimTest 实机、独立发布构建或推送。
+
+**下一步 M12c7：RaidTimeoutRecoveryTests 的超时维护、日志准备及两个 Fixture 分片。** 随后处理支援结束，共余 2 组测试；两个生产归并、五处修饰符和最终依赖／外部契约复核仍须完成。
