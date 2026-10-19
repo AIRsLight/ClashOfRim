@@ -12,7 +12,7 @@ internal sealed class MercenaryScenario(TestRun run, ScenarioPolling polling, Co
     internal async Task Hire()
     {
         var bank = await economy.RefreshBank("B"); int before = await colonyFixture.Stock("B", "Silver");
-        await run.InvokeClientAsync("B", "StartHireMercenary", new { skillDefName = "Mining", skillLevel = 7, durationDays = bank.Int("mercenaryMinDurationDays") });
+        await run.InvokeClientAsync("B", "StartHireMercenary", new { skill = "Mining", level = 7, days = bank.Int("mercenaryMinDurationDays") });
         var contracts = await polling.Wait("B", "clash.mercenaries", null, p => Items(p).Any(c => !c.Bool("completed")));
         string id = Items(contracts).Single(c => !c.Bool("completed")).String("contractId");
         await polling.Idle("B"); await polling.Step("B", 600);
