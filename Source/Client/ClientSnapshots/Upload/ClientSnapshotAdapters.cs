@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using AIRsLight.ClashOfRim.ClientNetwork;
 using AIRsLight.ClashOfRim.Modules.Snapshots;
 using AIRsLight.ClashOfRim.Modules.Synchronization;
+using AIRsLight.ClashOfRim.Modules.Transport;
 using Verse;
 
 namespace AIRsLight.ClashOfRim.ClientSnapshots;
@@ -79,7 +80,8 @@ internal sealed class ClientSnapshotTransport : IClientSnapshotTransport
                 + ", settingsSnapshot=" + (context.CurrentSnapshotId ?? string.Empty) + ".");
         }
         using var http = new HttpClient();
-        return await new ClashOfRimModNetworkClient(http, context).UploadSnapshotAsync(
-            idempotencyKey, package, payload, confirmationOperation, achievements, cancellationToken);
+        var protocol = new ClientSnapshotUploadProtocol(new ClientProtocolTransport(http, context, new ClientProtocolEnvironment()),
+            () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
+        return await protocol.UploadAsync(context, idempotencyKey, package, payload, confirmationOperation, achievements, cancellationToken);
     }
 }

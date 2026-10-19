@@ -322,7 +322,7 @@ internal static class ClientModuleBoundaryTests
             typeof(ClientSessionNotificationEffects), typeof(ClientSessionNotificationPresentation), typeof(ClientConnectionStatusPresentation),
             typeof(ClientSessionExitResources),
             typeof(ClientSessionFollowupText), typeof(ClientSnapshotWorldPresentation), typeof(ClientSnapshotSavingPresentation),
-            typeof(ClientSnapshotTransactionPresentation), typeof(ClientDiagnosticsText), typeof(AIRsLight.ClashOfRim.MainMenu.ClientWorldSetupDiagnostics),
+            typeof(ClientSnapshotTransactionPresentation), typeof(ClientSnapshotTransport), typeof(ClientDiagnosticsText), typeof(AIRsLight.ClashOfRim.MainMenu.ClientWorldSetupDiagnostics),
             typeof(AIRsLight.ClashOfRim.CompatibilityClient.ClientCompatibilityOverrideTransport),
             typeof(AIRsLight.ClashOfRim.CompatibilityClient.ClientCompatibilityOverridePresentation),
             typeof(AIRsLight.ClashOfRim.CompatibilityClient.ClientCompatibilityBaselineRuntime),

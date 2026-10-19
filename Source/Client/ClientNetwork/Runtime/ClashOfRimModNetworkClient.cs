@@ -19,21 +19,16 @@ using AIRsLight.ClashOfRim.Modules.Transport;
 using AIRsLight.ClashOfRim.Modules.Sessions;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
-using AIRsLight.ClashOfRim.Protocol;
 using Verse;
 
 namespace AIRsLight.ClashOfRim.ClientNetwork;
 
 public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPackageWriter
 {
-    private static readonly string MaintainPresenceRoute = ProtocolContractManifest.Find(ProtocolMessageKind.MaintainPresence).Route;
-    private static readonly string UploadSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.UploadSnapshot).Route;
-
-    private readonly ClientProtocolTransport transport;
+    private readonly ClientSnapshotUploadProtocol snapshotUploads;
     private readonly ClientChatProtocol chat;
     private readonly ClientEventProtocol events;
     private readonly ClientEventConfirmationProtocol eventConfirmations;
@@ -78,7 +73,8 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
         _ = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         this.context = context ?? throw new ArgumentNullException(nameof(context));
         var protocolEnvironment = new ClientProtocolEnvironment();
-        transport = new ClientProtocolTransport(httpClient, context, protocolEnvironment);
+        var transport = new ClientProtocolTransport(httpClient, context, protocolEnvironment);
+        snapshotUploads = new ClientSnapshotUploadProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         compatibilityOverride = new ClientCompatibilityOverrideProtocol(transport, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         SnapshotDownloads = new ClientSnapshotDownloadProtocol(transport, context, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
         packageWriter = new ClientPackageWriter(transport, context, () => ClashOfRimText.Key("ClashOfRim.Network.StatusNotConfigured"));
@@ -326,25 +322,7 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
     public Task<ClashOfRimClientNetworkResult<ModMaintainPresenceResponseDto>> MaintainPresenceAsync(
         string? sessionId,
         CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModMaintainPresenceResponseDto>();
-        }
-
-        var request = new ModMaintainPresenceRequestDto
-        {
-            UserId = context.UserId,
-            ColonyId = context.ColonyId,
-            CurrentSnapshotId = context.CurrentSnapshotId,
-            SessionId = sessionId
-        };
-
-        return transport.PostAsync<ModMaintainPresenceRequestDto, ModMaintainPresenceResponseDto>(
-            MaintainPresenceRoute,
-            request,
-            cancellationToken);
-    }
+        => authentication.MaintainPresenceAsync(context, sessionId, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModLogoutResponseDto>> LogoutAsync(
         string? sessionId,
@@ -545,34 +523,6 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
         CancellationToken cancellationToken = default)
         => shopProtocol.PurchaseServerShopListingWithSnapshotAsync(idempotencyKey, listingId, listingKind, unitPriceSilver, totalPriceSilver, purchaseCount, deliveredThings, confirmedSnapshot, confirmedPayload, cancellationToken);
 
-    private static ModSnapshotPackageMetadataDto MarkSnapshotUploadKind(
-        ModSnapshotPackageMetadataDto package,
-        string snapshotUploadKind)
-    {
-        package.SnapshotUploadKind = snapshotUploadKind;
-        return package;
-    }
-
-    private static string NormalizeSnapshotUploadKind(string? snapshotUploadKind, string? confirmationOperation)
-    {
-        if (!string.IsNullOrWhiteSpace(snapshotUploadKind))
-        {
-            return snapshotUploadKind!;
-        }
-
-        if (string.Equals(confirmationOperation, ModSnapshotUploadKinds.ColonyRelocation, StringComparison.Ordinal))
-        {
-            return ModSnapshotUploadKinds.ColonyRelocation;
-        }
-
-        if (string.Equals(confirmationOperation, ModSnapshotUploadKinds.EndgameAchievement, StringComparison.Ordinal))
-        {
-            return ModSnapshotUploadKinds.EndgameAchievement;
-        }
-
-        return ModSnapshotUploadKinds.ManualUpload;
-    }
-
     public Task<ClashOfRimClientNetworkResult<ModEventCreationResponseDto>> CreateRaidWithSnapshotAsync(
         string idempotencyKey,
         string? raidPreparationId,
@@ -638,32 +588,7 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
         string? confirmationOperation = null,
         IReadOnlyList<ModSnapshotAchievementCandidateDto>? achievementCandidates = null,
         CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<ModUploadSnapshotResponseDto>();
-        }
-
-        var request = new ModUploadSnapshotRequestDto
-        {
-            IdempotencyKey = idempotencyKey,
-            UserId = context.UserId,
-            ColonyId = context.ColonyId,
-            SnapshotId = package.SnapshotId,
-            Package = MarkSnapshotUploadKind(
-                package,
-                NormalizeSnapshotUploadKind(package.SnapshotUploadKind, confirmationOperation)),
-            AuthToken = context.AuthToken,
-            ConfirmationOperation = confirmationOperation,
-            AchievementCandidates = achievementCandidates?.ToList() ?? new List<ModSnapshotAchievementCandidateDto>()
-        };
-
-        return transport.PostSnapshotMultipartAsync<ModUploadSnapshotRequestDto, ModUploadSnapshotResponseDto>(
-            UploadSnapshotRoute,
-            request,
-            payload,
-            cancellationToken);
-    }
+        => snapshotUploads.UploadAsync(context, idempotencyKey, package, payload, confirmationOperation, achievementCandidates, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModDownloadLatestSnapshotResponseDto>> DownloadLatestSnapshotAsync(
         CancellationToken cancellationToken = default)

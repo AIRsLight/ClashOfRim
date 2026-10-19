@@ -50,6 +50,15 @@ internal sealed class ClientSessionProtocol : IClientSessionAuthentication
             new ModLogoutRequestDto { UserId = context.UserId, ColonyId = context.ColonyId, SessionId = sessionId }, token, bindToSession);
     }
 
+    internal Task<ClashOfRimClientNetworkResult<ModMaintainPresenceResponseDto>> MaintainPresenceAsync(
+        ClashOfRimClientNetworkContext context, string? sessionId, CancellationToken token = default)
+    {
+        if (!context.IsConfigured) return Task.FromResult(NotConfigured<ModMaintainPresenceResponseDto>());
+        return transport.ForContext(context).PostAsync<ModMaintainPresenceRequestDto, ModMaintainPresenceResponseDto>(
+            ProtocolContractManifest.Find(ProtocolMessageKind.MaintainPresence).Route,
+            new() { UserId = context.UserId, ColonyId = context.ColonyId, CurrentSnapshotId = context.CurrentSnapshotId, SessionId = sessionId }, token);
+    }
+
     private ClashOfRimClientNetworkResult<T> NotConfigured<T>() =>
         ClashOfRimClientNetworkResult<T>.Failed("NotConfigured", diagnostics.NotConfiguredMessage);
 }

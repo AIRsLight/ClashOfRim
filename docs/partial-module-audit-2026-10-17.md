@@ -3506,3 +3506,13 @@ pawn 的明确全局标签及关系占位标签继续优先于本地 ThingID；�
 新增入口测试复用原结局模块夹具，运行真实 Harmony 前后缀、确认许可、奖励队列和提交链，仅替换原生游戏结局效果。四种文化下检查七类入口参数、重复确认、同步重入及许可释放；十类变化覆盖旧确认的账户、游戏、代次、装配归属及快照前进例外。六类结束奖励验证原始事件 key、跳过原方法不发奖、忙时保留、重复候选去重及稍后一次提交。原结局测试的 **201 场景**继续通过；连同新入口和依赖守卫，**3 个相关单元组通过**，日志 `LocalOnly/module-migration/endgame-callback-tests.log`。守卫为 1,701／127／14／213／9／315，未运行全量回归、专项 RimTest、独立构建或推送。
 
 此时扫描 `Source/Client` 已无 `ClashOfRimMod.Instance`／`GetMod<ClashOfRimMod>` 调用；这只证明这两种运行时查找已清除，不代表仍接收 Mod 的兼容构造函数、宿主转发、协议构造和服务器业务全部迁完。**下一步 M11p：协议客户端剩余请求构造及过渡入口。** `ClashOfRimModNetworkClient` 仍直接构造 MaintainPresence／UploadSnapshot 请求；服务器仍有 FailureReports 等业务分片。继续逐项迁移后再进入 M12 和最终审计。
+
+### M11p1：普通快照上传与在线状态协议归属（2026-10-19）
+
+`ClientSnapshotUploadProtocol` 接管普通上传的请求字段和上传类型推断，直接实现已有 `IClientSnapshotTransport`。保留显式类型原值优先、缺省时仅按精确的 ColonyRelocation／EndgameAchievement 推断、其他情形为 ManualUpload 的规则；仍为原输入包标记类型，不改变身份、血缘字段、候选成就或载荷。生产 `ClientSnapshotTransport` 保留引擎诊断与 HttpClient 生命周期，直接调用此协议，不再构造全量网络客户端。
+
+MaintainPresence 并入原 `ClientSessionProtocol`，与登录／登出共享会话协议边界。两个入口均按调用方 context 绑定已有 `ClientProtocolTransport`；路由取自原清单，JSON／multipart、认证头、语言编码、取消和过期观察继续由共享传输层处理。原公开客户端保留签名并单向转发，删除它最后两处 HTTP 请求 DTO 构造、两个路由字段、类型推断函数及多余 transport 字段；WebSocket 转发前的配置检查和第三方兼容钩子仍保留。
+
+新测试复用共享协议测试端口，四种文化下执行 **240 个组合**：直连模块与公开门面、空 session／候选／载荷、九类显式类型与确认操作组合、multipart 文件名及原始字节、完整包元数据与长整型／浮点值、错误 context 重绑定、缺失配置、HTTP／业务拒绝／缺少结果／畸形响应，以及请求前／响应时取消和会话代次失效。**6 个相关单元组通过**：新协议、原上传器、本地快照确认、共享传输、临时认证和模块边界；日志 `LocalOnly/module-migration/session-snapshot-protocol-final-tests.log`。新增上传适配器纳入已有依赖守卫，检查数为 1,702／127／14／213／9／318。未运行全量回归、专项 RimTest、独立构建或推送，原有未提交修改保留。
+
+**下一步 M11p2：服务器 FailureReports 分片。** 失败报告的来源校验、交易图检查及通知仍通过服务器宿主和全量状态容器实现，须归还事件／交易模块，并清点其余过渡分片；M11、M12 与最终审计仍未完成。
