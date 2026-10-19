@@ -36,6 +36,12 @@ internal sealed class ClientPackageReader : IClientPackageReader
         Send<ModGetThingPackageRequestDto, ModGetThingPackageResponseDto>(ProtocolMessageKind.GetThingPackage,
             new() { Requester = Requester(), ThingPackageId = packageId }, cancellationToken);
 
+    internal Task<ClashOfRimClientNetworkResult<byte[]>> GetPawnPackagePreviewAsync(string packageId, CancellationToken cancellationToken = default) =>
+        context.IsConfigured
+            ? transport.PostForBytesAsync(ProtocolContractManifest.Find(ProtocolMessageKind.GetPawnPackagePreview).Route,
+                new ModGetPawnPackagePreviewRequestDto { Requester = Requester(), PawnPackageId = packageId }, cancellationToken)
+            : Task.FromResult(ClashOfRimClientNetworkResult<byte[]>.Failed("NotConfigured", notConfiguredMessage()));
+
     private ModProtocolIdentityDto Requester() => new()
     { UserId = context.UserId, ColonyId = context.ColonyId, SnapshotId = context.CurrentSnapshotId };
 

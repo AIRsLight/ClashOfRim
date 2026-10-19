@@ -31,7 +31,6 @@ namespace AIRsLight.ClashOfRim.ClientNetwork;
 public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPackageWriter
 {
     private static readonly string MaintainPresenceRoute = ProtocolContractManifest.Find(ProtocolMessageKind.MaintainPresence).Route;
-    private static readonly string GetPawnPackagePreviewRoute = ProtocolContractManifest.Find(ProtocolMessageKind.GetPawnPackagePreview).Route;
     private static readonly string UploadSnapshotRoute = ProtocolContractManifest.Find(ProtocolMessageKind.UploadSnapshot).Route;
 
     private readonly ClientProtocolTransport transport;
@@ -467,28 +466,7 @@ public sealed class ClashOfRimModNetworkClient : IClientPackageReader, IClientPa
     public Task<ClashOfRimClientNetworkResult<byte[]>> GetPawnPackagePreviewAsync(
         string pawnPackageId,
         CancellationToken cancellationToken = default)
-    {
-        if (!context.IsConfigured)
-        {
-            return NotConfigured<byte[]>();
-        }
-
-        var request = new ModGetPawnPackagePreviewRequestDto
-        {
-            Requester = new ModProtocolIdentityDto
-            {
-                UserId = context.UserId,
-                ColonyId = context.ColonyId,
-                SnapshotId = context.CurrentSnapshotId
-            },
-            PawnPackageId = pawnPackageId
-        };
-
-        return transport.PostForBytesAsync(
-            GetPawnPackagePreviewRoute,
-            request,
-            cancellationToken);
-    }
+        => packages.GetPawnPackagePreviewAsync(pawnPackageId, cancellationToken);
 
     public Task<ClashOfRimClientNetworkResult<ModStoreThingPackageResponseDto>> StoreThingPackageAsync(
         string idempotencyKey,

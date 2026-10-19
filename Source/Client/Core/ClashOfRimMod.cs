@@ -395,9 +395,12 @@ public sealed partial class ClashOfRimMod : Mod
         }
 
         Instance = this;
+        var pawnPreviews = new ClientPawnPreviews(sessionLifecycle, new ClientSnapshotGame(),
+            new ClientPawnPreviewTransport(new ClientProtocolEnvironment()), new ClientPawnPreviewRuntime());
+        TradeUiUtility.AttachPawnPreviews(pawnPreviews);
         sessionLifecycle.IdentityChanged += serverMetadata.ObserveIdentity;
         ClientSessionCleanup.Attach(sessionLifecycle, synchronization, localMutations, eventInbox, eventState, sourceGame,
-            new ClientSessionExitResources(), colonyRegistration, bankState, mercenaryState, mercenaryIncidents, shopState,
+            new ClientSessionExitResources(pawnPreviews), colonyRegistration, bankState, mercenaryState, mercenaryIncidents, shopState,
             tradeState, chat, worldMarkers, worldSynchronization, sessionIdentity, administration, sessionNotifications,
             worldSetup, playerDirectory, occupiedColonySites);
         var snapshotNotifications = new ClientSnapshotTransactionNotifications(sessionLifecycle, synchronization,

@@ -1,11 +1,13 @@
 using AIRsLight.ClashOfRim.Modules.World;
-using AIRsLight.ClashOfRim.Trades;
+using AIRsLight.ClashOfRim.Modules.Trades;
 using AIRsLight.ClashOfRim.WorldObjects;
 
 namespace AIRsLight.ClashOfRim.ClientNetwork;
 
 internal sealed class ClientSessionExitResources : IClientSessionExitResources
 {
-    public void ClearPawnPreviews() => TradePawnPreviewService.Reset();
+    private readonly ClientPawnPreviews previews;
+    internal ClientSessionExitResources(ClientPawnPreviews previews) => this.previews = previews;
+    public void ClearPawnPreviews() => previews.Reset();
     public void ClearWorldIcons() => RemoteColonyWorldIconCache.Clear();
 }

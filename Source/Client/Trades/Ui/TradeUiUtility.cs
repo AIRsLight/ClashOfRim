@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Linq;
 using System.Text;
 using AIRsLight.ClashOfRim.ClientNetwork;
+using AIRsLight.ClashOfRim.Modules.Trades;
 using AIRsLight.ClashOfRim.ThirdPartyCompatibility;
 using RimWorld;
 using UnityEngine;
@@ -13,6 +14,9 @@ namespace AIRsLight.ClashOfRim.Trades;
 
 internal static class TradeUiUtility
 {
+    private static ClientPawnPreviews? pawnPreviews;
+    internal static void AttachPawnPreviews(ClientPawnPreviews previews)
+    { pawnPreviews?.Reset(); pawnPreviews = previews; }
     public const float RowHeight = 34f;
     public const float IconSize = 28f;
     private static readonly IReadOnlyDictionary<string, int> DefaultFixedFeePerThing =
@@ -333,14 +337,13 @@ internal static class TradeUiUtility
         bool isPawnReference = TradePawnUtility.IsPawnReference(thing);
         if (isPawnReference)
         {
-            if (TradePawnPreviewService.TryGetTexture(thing, out Texture2D? preview)
-                && preview is not null)
+            if (pawnPreviews?.ReadTexture(thing) is ClientPawnPreviewRuntime.Image { Value: { } preview })
             {
                 GUI.DrawTexture(rect, preview, ScaleMode.ScaleToFit, alphaBlend: true);
                 return;
             }
 
-            TradePawnPreviewService.RequestPreview(thing);
+            _ = pawnPreviews?.RequestPreviewAsync(thing);
             ThingDef? pawnDef = TradeThingReferenceUtility.ResolveReferenceDef(thing);
             if (pawnDef is not null
                 && TryGetOrBuildPawnDefIcon(pawnDef, out Pawn? fallbackPawn)
@@ -399,7 +402,7 @@ internal static class TradeUiUtility
         DrawThingIcon(rect, thing);
         if (TradePawnUtility.IsPawnReference(thing))
         {
-            return DrawInfoButtonHotspot(rect, () => TradePawnPreviewService.OpenDetails(thing));
+            return DrawInfoButtonHotspot(rect, () => { _ = pawnPreviews?.OpenDetailsAsync(thing); });
         }
 
         if (TryGetConcreteIconThing(thing, out Thing? concreteThing)
@@ -460,7 +463,7 @@ internal static class TradeUiUtility
         {
             if (TradePawnUtility.IsPawnReference(reference))
             {
-                TradePawnPreviewService.RequestPreview(reference);
+                _ = pawnPreviews?.RequestPreviewAsync(reference);
             }
         }
     }

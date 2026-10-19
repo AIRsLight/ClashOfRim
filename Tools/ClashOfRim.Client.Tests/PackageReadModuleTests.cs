@@ -34,6 +34,7 @@ internal static class PackageReadModuleTests
         try
         {
             await Contracts();
+            await PreviewCancellation();
             await Hydration();
             await Failures();
             await Cancellation();
@@ -53,8 +54,9 @@ internal static class PackageReadModuleTests
                 int calls = 0;
                 using var http = new HttpClient(new Handler(async (request, _) =>
                 {
-                    bool pawn = calls++ == 0;
-                    var kind = pawn ? ProtocolMessageKind.GetPawnPackage : ProtocolMessageKind.GetThingPackage;
+                    int call = calls++;
+                    bool pawn = call != 1;
+                    var kind = call switch { 0 => ProtocolMessageKind.GetPawnPackage, 1 => ProtocolMessageKind.GetThingPackage, _ => ProtocolMessageKind.GetPawnPackagePreview };
                     Require(request.Method == HttpMethod.Post && request.RequestUri!.AbsolutePath == "/captured/" + ProtocolContractManifest.Find(kind).Route.TrimStart('/'), "Package route or captured server changed.");
                     using var body = JsonDocument.Parse(await request.Content!.ReadAsStringAsync());
                     var json = body.RootElement;
@@ -63,16 +65,24 @@ internal static class PackageReadModuleTests
                         && identity.GetProperty("colonyId").GetString() == "colony"
                         && identity.GetProperty("snapshotId").GetString() == "base"
                         && json.GetProperty(pawn ? "pawnPackageId" : "thingPackageId").GetString() == "包-é", "Package request lost identity or opaque id.");
+                    if (call == 2)
+                    {
+                        Require(request.Headers.GetValues(MultipartSnapshotTransport.AuthenticationHeaderName).Single() == Context.AuthToken,
+                            "Preview download lost the captured authentication header.");
+                        return new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(new byte[] { 0, 137, 255 }) };
+                    }
                     return Response(pawn ? PawnJson : ThingJson);
                 }));
                 IClientPackageReader reader = facade ? new ClashOfRimModNetworkClient(http, Context) : Reader(http);
                 var pawn = await reader.GetPawnPackageAsync("包-é");
                 var thing = await reader.GetThingPackageAsync("包-é");
+                var preview = await PreviewAsync(http, facade);
                 Require(pawn.Success && pawn.Response!.PawnPackage!.Reference!.GlobalId == "pawn-é"
                     && pawn.Response.PawnPackage.Extensions.Single().PayloadJson == "{\"value\":0.25}"
                     && pawn.Response.PawnPackage.Scribe!.Xml == "<pawn><value>0.25</value></pawn>"
                     && thing.Success && thing.Response!.ThingPackage!.Scribe!.UncompressedBytes == 123
-                    && calls == 2, "Package response payload changed across client entry or culture.");
+                    && preview.Success && preview.Response!.SequenceEqual(new byte[] { 0, 137, 255 })
+                    && calls == 3, "Package response payload changed across client entry or culture.");
             }
         }
         finally { CultureInfo.CurrentCulture = original; }
@@ -81,7 +91,36 @@ internal static class PackageReadModuleTests
         var missing = new ClashOfRimClientNetworkContext("http://localhost", "", "colony", null, null, null, null);
         var empty = new ClientPackageReader(new ClientProtocolTransport(unexpected, Context, new Environment()), missing, () => "not configured");
         Require((await empty.GetPawnPackageAsync("pawn")).ErrorCode == "NotConfigured"
-            && (await empty.GetThingPackageAsync("thing")).Message == "not configured", "Unconfigured package reader changed its contract.");
+            && (await empty.GetThingPackageAsync("thing")).Message == "not configured"
+            && (await empty.GetPawnPackagePreviewAsync("pawn")).Message == "not configured"
+            && (await new ClashOfRimModNetworkClient(unexpected, missing).GetPawnPackagePreviewAsync("pawn")).ErrorCode == "NotConfigured",
+            "Unconfigured package reader changed its contract.");
+    }
+
+    private static Task<ClashOfRimClientNetworkResult<byte[]>> PreviewAsync(HttpClient http, bool facade, CancellationToken token = default)
+        => facade ? new ClashOfRimModNetworkClient(http, Context).GetPawnPackagePreviewAsync("包-é", token)
+            : Reader(http).GetPawnPackagePreviewAsync("包-é", token);
+
+    private static async Task PreviewCancellation()
+    {
+        foreach (bool facade in new[] { false, true })
+        foreach (bool sessionExit in new[] { false, true })
+        {
+            ClientSessionWork.Reset();
+            using var cancellation = new CancellationTokenSource();
+            var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var http = new HttpClient(new Handler(async (_, token) =>
+            {
+                started.SetResult();
+                await Task.Delay(Timeout.Infinite, token);
+                throw new Exception("Canceled preview request completed.");
+            }));
+            var work = PreviewAsync(http, facade, cancellation.Token);
+            await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            if (sessionExit) ClientSessionWork.Reset(); else cancellation.Cancel();
+            var result = await work.WaitAsync(TimeSpan.FromSeconds(5));
+            Require(!result.Success && result.Response is null, "Preview download ignored caller or session cancellation.");
+        }
     }
 
     private static async Task Hydration()
