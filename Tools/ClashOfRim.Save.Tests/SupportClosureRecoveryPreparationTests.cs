@@ -175,7 +175,7 @@ internal static partial class SupportClosureTests
             State = new(ledger: new SqliteAuthoritativeEventLedger(Database), snapshotStore: Store,
                 playerRegistry: new PlayerRegistry(new SqlitePlayerRegistryStore(Database), null), snapshotCommits: new SnapshotCommitService(Journal),
                 plugins: new ServerPluginRegistry().WithBuiltInPlugins([new("test.closure-recovery", "recovery", "1", "test", "", [])
-                    { SnapshotPostUploadProcessors = [new RecoveryPublicationProcessor(() => AfterPublication?.Invoke())] }]));
+                    { SnapshotPostUploadProcessors = [new SnapshotPublicationProbe("test.closure-recovery", "foreign", () => AfterPublication?.Invoke())] }]));
             Store.Gate = State.RaidSettlementSnapshotMutationGate; AuthToken = Token(State, "userA"); AfterPublication = null;
         }
         public (bool Accepted, bool Created, string? ReturnId) Call() => SupportClosureTests.Call(State, Kind, token: AuthToken, authenticate: false);
@@ -208,14 +208,4 @@ internal static partial class SupportClosureTests
         }).WaitAsync(TimeSpan.FromSeconds(5)).GetAwaiter().GetResult();
     }
 
-    private sealed class RecoveryPublicationProcessor(Action run) : IInlineSnapshotPostUploadProcessor
-    {
-        public string Id => "test.closure-recovery";
-        public int Order => 350;
-        public SnapshotPostUploadStage Stage => SnapshotPostUploadStage.EventReconciliation;
-        public SnapshotPostUploadFailureMode FailureMode => SnapshotPostUploadFailureMode.AbortPipeline;
-        public SnapshotPostUploadExecutionMode ExecutionMode => SnapshotPostUploadExecutionMode.Inline;
-        public bool Supports(SnapshotPostUploadKind kind) => true;
-        public void Process(SnapshotPostUploadContext context) { if (context.UserId == "foreign") run(); }
-    }
 }

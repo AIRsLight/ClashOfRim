@@ -91,8 +91,8 @@ internal static class DiplomacyPublicationRecoveryTests
         string kind, string phase, bool restart)
     {
         var open = Storage(root, backend); var ledger = open(); var slot = new RecoveryTestSupport.Slot();
-        var proxy = DispatchProxy.Create<IAuthoritativeEventLedger, SnapshotSupportDeathTests.InterruptedLedger>();
-        var faults = (SnapshotSupportDeathTests.InterruptedLedger)proxy; faults.Inner = ledger;
+        var proxy = DispatchProxy.Create<IAuthoritativeEventLedger, InterruptedEventLedger>();
+        var faults = (InterruptedEventLedger)proxy; faults.Inner = ledger;
         bool armed = false;
         void Signal(string user, EventNotificationHub hub)
         {
@@ -181,8 +181,8 @@ internal static class DiplomacyPublicationRecoveryTests
                     RelatedAccepted = receipt == "conflict" ? !accepted : accepted } };
             ledger.Append(notification); originalReceipt = JsonSerializer.Serialize(notification);
         }
-        var proxy = DispatchProxy.Create<IAuthoritativeEventLedger, SnapshotSupportDeathTests.InterruptedLedger>();
-        var faults = (SnapshotSupportDeathTests.InterruptedLedger)proxy; faults.Inner = open();
+        var proxy = DispatchProxy.Create<IAuthoritativeEventLedger, InterruptedEventLedger>();
+        var faults = (InterruptedEventLedger)proxy; faults.Inner = open();
         f = Fixture(factory, proxy, new DiplomacyRelationRegistry(slot)); string token = f.Issue("userB", "colonyB");
         string before = Evidence(f);
         if (receipt == "conflict")
@@ -251,8 +251,8 @@ internal static class DiplomacyPublicationRecoveryTests
 
     private static void OrderingAndScan(Func<string, SaveSnapshotPackage> factory)
     {
-        var proxy = DispatchProxy.Create<IAuthoritativeEventLedger, SnapshotSupportDeathTests.InterruptedLedger>();
-        var spy = (SnapshotSupportDeathTests.InterruptedLedger)proxy; spy.Inner = new InMemoryAuthoritativeEventLedger();
+        var proxy = DispatchProxy.Create<IAuthoritativeEventLedger, InterruptedEventLedger>();
+        var spy = (InterruptedEventLedger)proxy; spy.Inner = new InMemoryAuthoritativeEventLedger();
         int scans = 0; spy.OnCall = name => { if (name == nameof(IAuthoritativeEventLedger.ListByType)) scans++; };
         var f = Fixture(factory, proxy); SetRelation(f, "Neutral", DateTimeOffset.UtcNow.AddDays(10));
         var future = f.Relations.List().Single().UpdatedAtUtc;

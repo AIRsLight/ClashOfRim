@@ -176,7 +176,7 @@ internal static partial class GiftRejectionEndpointTests
             State = new(ledger: new SqliteAuthoritativeEventLedger(Database), snapshotStore: Store,
                 playerRegistry: new PlayerRegistry(new SqlitePlayerRegistryStore(Database), null), snapshotCommits: new SnapshotCommitService(Journal),
                 plugins: new ServerPluginRegistry().WithBuiltInPlugins([new("test.gift-recovery", "recovery", "1", "test", "", [])
-                    { SnapshotPostUploadProcessors = [new RecoveryPublicationProcessor(() => AfterPublication?.Invoke())] }]));
+                    { SnapshotPostUploadProcessors = [new SnapshotPublicationProbe("test.gift-recovery", "foreign", () => AfterPublication?.Invoke())] }]));
             Store.Gate = State.RaidSettlementSnapshotMutationGate; AuthToken = Token(State, "receiver", "away"); AfterPublication = null;
         }
         public RejectGiftResponse Call() => Reject(State, Request(Source, AuthToken));
@@ -212,14 +212,4 @@ internal static partial class GiftRejectionEndpointTests
         }).WaitAsync(TimeSpan.FromSeconds(5)).GetAwaiter().GetResult();
     }
 
-    private sealed class RecoveryPublicationProcessor(Action run) : IInlineSnapshotPostUploadProcessor
-    {
-        public string Id => "test.gift-recovery";
-        public int Order => 350;
-        public SnapshotPostUploadStage Stage => SnapshotPostUploadStage.EventReconciliation;
-        public SnapshotPostUploadFailureMode FailureMode => SnapshotPostUploadFailureMode.AbortPipeline;
-        public SnapshotPostUploadExecutionMode ExecutionMode => SnapshotPostUploadExecutionMode.Inline;
-        public bool Supports(SnapshotPostUploadKind kind) => true;
-        public void Process(SnapshotPostUploadContext context) { if (context.UserId == "foreign") run(); }
-    }
 }

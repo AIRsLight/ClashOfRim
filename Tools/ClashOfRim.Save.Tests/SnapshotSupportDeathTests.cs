@@ -1,6 +1,5 @@
 using AIRsLight.ClashOfRim.Network.Modules.Support;
 using System.Reflection;
-using System.Runtime.ExceptionServices;
 using System.Text.Json;
 using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Network;
@@ -56,8 +55,8 @@ internal static class SnapshotSupportDeathTests
         IAuthoritativeEventLedger Open() => new SqliteAuthoritativeEventLedger(database);
         var ledger = Open();
         var sources = Seed(ledger);
-        var proxy = DispatchProxy.Create<IAuthoritativeEventLedger, InterruptedLedger>();
-        var interruption = (InterruptedLedger)proxy;
+        var proxy = DispatchProxy.Create<IAuthoritativeEventLedger, InterruptedEventLedger>();
+        var interruption = (InterruptedEventLedger)proxy;
         interruption.Inner = ledger;
         interruption.AfterBatch = () => throw new IOException("interrupted after batch");
         var state = new ClashOfRimNetworkState(ledger: proxy);
@@ -125,8 +124,8 @@ internal static class SnapshotSupportDeathTests
     {
         var ledger = new SqliteAuthoritativeEventLedger(Path.Combine(root, "events.sqlite"));
         var sources = Seed(ledger);
-        var proxy = DispatchProxy.Create<IAuthoritativeEventLedger, InterruptedLedger>();
-        var interruption = (InterruptedLedger)proxy;
+        var proxy = DispatchProxy.Create<IAuthoritativeEventLedger, InterruptedEventLedger>();
+        var interruption = (InterruptedEventLedger)proxy;
         interruption.Inner = ledger;
         if (conflict.StartsWith("loss", StringComparison.Ordinal))
         {
@@ -211,25 +210,4 @@ internal static class SnapshotSupportDeathTests
         finally { SqliteConnection.ClearAllPools(); Directory.Delete(root, recursive: true); }
     }
 
-    public class InterruptedLedger : DispatchProxy
-    {
-        public IAuthoritativeEventLedger Inner = null!;
-        public Action? BeforeBatch, AfterBatch;
-        public Action? BeforeAppend, AfterAppend;
-        public Action<string>? OnCall;
-        protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
-        {
-            OnCall?.Invoke(targetMethod!.Name);
-            bool batch = targetMethod!.Name == nameof(IAuthoritativeEventLedger.ApplyBatch);
-            bool append = targetMethod.Name == nameof(IAuthoritativeEventLedger.Append);
-            if (batch) BeforeBatch?.Invoke();
-            if (append) BeforeAppend?.Invoke();
-            object? result;
-            try { result = targetMethod.Invoke(Inner, args); }
-            catch (TargetInvocationException ex) when (ex.InnerException is not null) { ExceptionDispatchInfo.Capture(ex.InnerException).Throw(); throw; }
-            if (batch) AfterBatch?.Invoke();
-            if (append) AfterAppend?.Invoke();
-            return result;
-        }
-    }
 }

@@ -1,12 +1,13 @@
 using AIRsLight.ClashOfRim.Save;
-using ClashOfRim.TestSupport;
 using static SnapshotTestAssertions;
 
 internal static class EconomicEndpointFixtureTests
 {
     public static void Run(Func<string, SaveSnapshotPackage> factory)
     {
-        VerifyDependencies();
+        TestModuleDependencies.RequireIndependent(typeof(EconomicEndpointFixture), typeof(SnapshotRecoveryTestStore),
+            typeof(SnapshotReplayRace), typeof(SnapshotEndpointPreparation), typeof(SnapshotTestAssertions),
+            typeof(SqliteTestDirectory), typeof(EconomicEndpointRecoveryPreparationTests), typeof(EconomicRequestBindingTests));
         SnapshotEndpointTestClient.LoadLocalization();
         string? previousRoot = null;
         foreach (bool fail in new[] { false, true })
@@ -30,22 +31,6 @@ internal static class EconomicEndpointFixtureTests
             Check(failed == fail && root is not null && !Directory.Exists(root),
                 "Economic fixture swallowed a test failure or leaked its database, snapshots or pending journal.");
             previousRoot = root;
-        }
-    }
-
-    private static void VerifyDependencies()
-    {
-        Type Root(Type type) => type.DeclaringType is { } parent ? Root(parent) : type;
-        Type[] roots = [typeof(EconomicEndpointFixture), typeof(SnapshotRecoveryTestStore),
-            typeof(SnapshotReplayRace), typeof(SnapshotEndpointPreparation), typeof(SnapshotTestAssertions),
-            typeof(EconomicEndpointRecoveryPreparationTests), typeof(EconomicRequestBindingTests)];
-        var assembly = typeof(EconomicEndpointFixture).Assembly;
-        foreach (var root in roots)
-        {
-            var violations = ModuleDependencyGuard.FindViolations(assembly.GetTypes().Where(type => Root(type) == root),
-                dependency => Root(dependency) is var owner && owner.Assembly == assembly
-                    && owner != root && owner.Name.EndsWith("Tests", StringComparison.Ordinal));
-            Check(violations.Count == 0, string.Join(Environment.NewLine, violations));
         }
     }
 

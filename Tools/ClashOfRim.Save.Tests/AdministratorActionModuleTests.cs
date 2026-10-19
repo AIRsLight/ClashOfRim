@@ -176,8 +176,8 @@ internal static class AdministratorActionModuleTests
     private static void BroadcastFailure()
     {
         using var f = new Env(); f.S.Players.Record("offline", "elsewhere", null, DateTimeOffset.UtcNow);
-        var proxy = DispatchProxy.Create<IAuthoritativeEventLedger, SnapshotSupportDeathTests.InterruptedLedger>();
-        var fault = (SnapshotSupportDeathTests.InterruptedLedger)(object)proxy; fault.Inner = f.S.Ledger;
+        var proxy = DispatchProxy.Create<IAuthoritativeEventLedger, InterruptedEventLedger>();
+        var fault = (InterruptedEventLedger)(object)proxy; fault.Inner = f.S.Ledger;
         int batches = 0; fault.BeforeAppend = () => throw new Exception("Broadcast still appends recipients individually.");
         fault.BeforeBatch = () => { batches++; throw new IOException("Broadcast batch interrupted."); };
         var broadcasts = new AdministratorBroadcasts(proxy, f.S.Players, f.S.Presence, f.S.Events);

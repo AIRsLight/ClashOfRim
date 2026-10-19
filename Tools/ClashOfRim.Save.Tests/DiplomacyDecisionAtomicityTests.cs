@@ -121,8 +121,8 @@ internal static class DiplomacyDecisionAtomicityTests
     {
         string path = Path.Combine(root, Guid.NewGuid().ToString("N"));
         var ledger = Open(backend, path);
-        var proxy = DispatchProxy.Create<IAuthoritativeEventLedger, SnapshotSupportDeathTests.InterruptedLedger>();
-        var faults = (SnapshotSupportDeathTests.InterruptedLedger)proxy; faults.Inner = ledger;
+        var proxy = DispatchProxy.Create<IAuthoritativeEventLedger, InterruptedEventLedger>();
+        var faults = (InterruptedEventLedger)proxy; faults.Inner = ledger;
         var f = Fixture(factory, proxy);
         string id = f.Diplomacy.Create(Request(f, "AllianceRequest")).EventId!;
         string token = f.Issue("userB", "colonyB");

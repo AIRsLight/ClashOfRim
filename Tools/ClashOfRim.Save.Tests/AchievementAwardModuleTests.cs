@@ -37,8 +37,8 @@ internal static class AchievementAwardModuleTests
     {
         var slot = new RecoveryTestSupport.Slot();
         var inner = new InMemoryAuthoritativeEventLedger();
-        var ledger = DispatchProxy.Create<IAuthoritativeEventLedger, SnapshotSupportDeathTests.InterruptedLedger>();
-        var probe = (SnapshotSupportDeathTests.InterruptedLedger)(object)ledger; probe.Inner = inner;
+        var ledger = DispatchProxy.Create<IAuthoritativeEventLedger, InterruptedEventLedger>();
+        var probe = (InterruptedEventLedger)(object)ledger; probe.Inner = inner;
         var registry = new AchievementRegistry(slot); var hub = new EventNotificationHub(); var plugins = new ServerPluginRegistry();
         AchievementAwards Open() => new(registry, plugins, new(), ledger, new(), hub, () => NullLogger.Instance);
         var awards = Open();

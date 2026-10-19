@@ -116,8 +116,8 @@ internal static partial class SupportClosureTests
     {
         string database = Path.Combine(root, "events.sqlite");
         var ledger = new SqliteAuthoritativeEventLedger(database); ledger.Append(Source());
-        var proxy = DispatchProxy.Create<IAuthoritativeEventLedger, SnapshotSupportDeathTests.InterruptedLedger>();
-        var fault = (SnapshotSupportDeathTests.InterruptedLedger)proxy; fault.Inner = ledger;
+        var proxy = DispatchProxy.Create<IAuthoritativeEventLedger, InterruptedEventLedger>();
+        var fault = (InterruptedEventLedger)proxy; fault.Inner = ledger;
         fault.AfterBatch = () => throw new IOException("after support commit");
         var state = new ClashOfRimNetworkState(ledger: proxy);
         Expect<IOException>(() => Call(state, kind), "post-commit interruption not reached");
@@ -191,8 +191,8 @@ internal static partial class SupportClosureTests
     private static void StaleSource(string kind)
     {
         var ledger = new InMemoryAuthoritativeEventLedger(); ledger.Append(Source());
-        var proxy = DispatchProxy.Create<IAuthoritativeEventLedger, SnapshotSupportDeathTests.InterruptedLedger>();
-        var fault = (SnapshotSupportDeathTests.InterruptedLedger)proxy; fault.Inner = ledger;
+        var proxy = DispatchProxy.Create<IAuthoritativeEventLedger, InterruptedEventLedger>();
+        var fault = (InterruptedEventLedger)proxy; fault.Inner = ledger;
         fault.BeforeBatch = () => ledger.ReportApplicationResult("source", EventApplicationResultKind.NeedsManualReview, "newer report", null);
         var state = new ClashOfRimNetworkState(ledger: proxy);
         Expect<InvalidOperationException>(() => Call(state, kind), "stale full source accepted");

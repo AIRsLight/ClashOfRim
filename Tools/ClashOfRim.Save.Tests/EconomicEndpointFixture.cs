@@ -2,7 +2,6 @@ using AIRsLight.ClashOfRim.Events;
 using AIRsLight.ClashOfRim.Network;
 using AIRsLight.ClashOfRim.Protocol;
 using AIRsLight.ClashOfRim.Save;
-using Microsoft.Data.Sqlite;
 using System.Text.Json;
 using static SnapshotTestAssertions;
 
@@ -144,11 +143,7 @@ internal sealed class EconomicEndpointFixture
     }).WaitAsync(TimeSpan.FromSeconds(5)).GetAwaiter().GetResult();
 
     public static void With(Func<string, SaveSnapshotPackage> factory, string kind, Action<EconomicEndpointFixture> test)
-    {
-        string root = Path.Combine(Path.GetTempPath(), "cor-economic-recovery-" + Guid.NewGuid().ToString("N"));
-        try { test(new(root, factory, kind)); }
-        finally { SqliteConnection.ClearAllPools(); if (Directory.Exists(root)) Directory.Delete(root, true); }
-    }
+        => SqliteTestDirectory.With("cor-economic-recovery-", root => test(new(root, factory, kind)));
 
     public sealed record Reply(ProtocolResponse Result, string? Id, string? Snapshot, string? Token,
         string? Owner = null, string? Buyer = null, bool Created = false);

@@ -160,7 +160,7 @@ internal static class WorldLayerNotificationRecoveryTests
         public readonly DistanceCalculator Distance = new();
         public ClashOfRimNetworkState State = null!;
         public SqliteAuthoritativeEventLedger Ledger = null!;
-        private SnapshotSupportDeathTests.InterruptedLedger? interruption;
+        private InterruptedEventLedger? interruption;
         private readonly FileColonySnapshotIndexStore files;
         public Fixture(string root, bool legacy, SaveSnapshotPackage source)
         {
@@ -189,8 +189,8 @@ internal static class WorldLayerNotificationRecoveryTests
         public void Open()
         {
             Ledger = new SqliteAuthoritativeEventLedger(Database);
-            var proxy = DispatchProxy.Create<IAuthoritativeEventLedger, SnapshotSupportDeathTests.InterruptedLedger>();
-            interruption = (SnapshotSupportDeathTests.InterruptedLedger)proxy; interruption.Inner = Ledger;
+            var proxy = DispatchProxy.Create<IAuthoritativeEventLedger, InterruptedEventLedger>();
+            interruption = (InterruptedEventLedger)proxy; interruption.Inner = Ledger;
             State = new ClashOfRimNetworkState(ledger: proxy, snapshotStore: files, worldConfigurationRegistry: OpenWorld(),
                 worldTileDistanceCalculator: Distance, plugins: new ServerPluginRegistry().WithBuiltInPlugins(
                     [BiotechServerCompatibility.Descriptor with { RequiredPackageIds = [] }]));
