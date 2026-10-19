@@ -278,6 +278,9 @@ public sealed partial class ClashOfRimMod : Mod
             snapshotFailureRecovery, new ClientRaidSupportLosses(snapshotTransactions, new ClientSupportTransport()),
             new ClientEventConfirmationTransport(), eventInbox, localSnapshotConfirmation, new ClientRaidSettlementPresentation(message => diagnostics.WorldMapStatus = message));
         raidSettlements.Completed += () => _ = playerDirectory.RefreshAsync(manual: false);
+        var raidFinishActions = new ClientRaidFinishActions(raidSettlements);
+        ClientRaidFinishActions.Attach(raidFinishActions);
+        ClientRaidBattleOverlay.Attach(new(raidFinishActions, () => diagnostics.WorldMapStatus));
         raidSettlements.Expired += StartRestoreAfterRaid;
         raidRecovery = new ClientRaidRecovery(sessionLifecycle, new ClientSnapshotGame(), snapshotFailureRecovery, raidSettlements,
             new ClientRaidRecoveryPresentation(message => diagnostics.WorldMapStatus = message));

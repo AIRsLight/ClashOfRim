@@ -15,7 +15,9 @@ internal sealed class ClientRaidSettlementRuntime : IClientRaidRecoveredBattle, 
         Identity = new(battle?.EventId ?? "", battle?.AttackerUserId ?? "", battle?.AttackerColonyId ?? "", battle?.TargetMapId ?? "");
     }
     public ClientRaidSettlementIdentity Identity { get; }
-    public bool IsCurrent => game is not null && battle is not null && ReferenceEquals(Current.Game, game) && ReferenceEquals(ClashOfRimGameComponent.ActiveRaidBattleSession, battle);
+    public bool IsCurrent => game is not null && battle is not null && ReferenceEquals(Current.Game, game) && ReferenceEquals(ClashOfRimGameComponent.ActiveRaidBattleSession, battle)
+        && battle.EventId == Identity.EventId && battle.AttackerUserId == Identity.AttackerUserId
+        && battle.AttackerColonyId == Identity.AttackerColonyId && battle.TargetMapId == Identity.TargetMapId;
     public TimeSpan FinalRemaining => battle?.FinalRemaining ?? TimeSpan.Zero;
     public bool IsExpired => battle?.IsExpired == true;
     public bool FinishInProgress => battle?.FinishInProgress == true;

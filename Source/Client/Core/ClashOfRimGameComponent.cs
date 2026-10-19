@@ -64,7 +64,7 @@ public sealed class ClashOfRimGameComponent : GameComponent
         ClientRaidLifecycleCallbacks.Current?.Advance(game);
         _ = ClientRaidLifecycleCallbacks.Current?.PollAsync(game, activeRaidBattleSession);
         _ = ClientWorldSynchronizationCallbacks.Current?.ViewAsync(game);
-        DrawRemoteMapSessionOverlay(mod);
+        ClientRaidBattleOverlay.Current?.Draw(game, activeRemoteMapSession, activeRaidBattleSession);
         DrawChatOverlay(mod);
     }
 
@@ -657,15 +657,6 @@ public sealed class ClashOfRimGameComponent : GameComponent
         }
     }
 
-    internal static bool TryStartFinishActiveRaidBattleFromUi(ClashOfRimMod? mod, string finishReason)
-    {
-        return RemoteMapSessionController.TryRequestRaidBattleFinish(
-            mod,
-            ActiveRaidBattleSession,
-            finishReason,
-            requireConfirmation: true);
-    }
-
     internal static bool TryHandleRaidBattleMapRemovalCheck(MapParent? mapParent)
     {
         if (mapParent is null || !mapParent.HasMap)
@@ -752,12 +743,12 @@ public sealed class ClashOfRimGameComponent : GameComponent
         string finishReason,
         string source)
     {
-        ClashOfRimMod? mod = LoadedModManager.GetMod<ClashOfRimMod>();
-        if (mod is null)
+        var actions = ClientRaidFinishActions.Current;
+        if (actions is null)
         {
             Log.Warning("[ClashOfRim][Raid] "
                 + source
-                + " reached active raid map but mod instance was unavailable: "
+                + " reached active raid map but finish commands were unavailable: "
                 + session.EventId);
             return true;
         }
@@ -770,7 +761,7 @@ public sealed class ClashOfRimGameComponent : GameComponent
             + source
             + " and started raid settlement upload: "
             + session.EventId);
-        RemoteMapSessionController.TryRequestRaidBattleFinish(mod, session, finishReason);
+        actions.Request(session, finishReason);
         return true;
     }
 
@@ -863,65 +854,6 @@ public sealed class ClashOfRimGameComponent : GameComponent
 
     private void TryStartAutomaticRuntimeSession()
         => _ = ClientAutomaticSessionStartup.Current?.PollAsync(game);
-
-    private void DrawRemoteMapSessionOverlay(ClashOfRimMod? mod)
-    {
-        if (activeRemoteMapSession?.IsRaidBattle != true
-            || activeRaidBattleSession is null
-            || Verse.Current.ProgramState != ProgramState.Playing
-            || WorldRendererUtility.WorldSelected)
-        {
-            return;
-        }
-
-        Rect rect = new(UI.screenWidth - 328f, 12f, 316f, 108f);
-        Widgets.DrawWindowBackground(rect);
-        Rect inner = rect.ContractedBy(10f);
-        Text.Font = GameFont.Small;
-        Text.Anchor = TextAnchor.UpperLeft;
-        bool expired = activeRaidBattleSession.IsExpired;
-        bool finishing = activeRaidBattleSession.FinishInProgress;
-        string status = string.Empty;
-        if (expired || finishing)
-        {
-            status = mod?.WorldMapStatus ?? string.Empty;
-            if (string.IsNullOrWhiteSpace(status))
-            {
-                status = "ClashOfRim.Raid.StatusSettlementUploading".Translate().ToString();
-            }
-        }
-        else
-        {
-            string remaining = FormatRemaining(activeRaidBattleSession.Remaining);
-            status = "ClashOfRim.Raid.BattleCountdown".Translate(remaining.Named("TIME")).ToString();
-        }
-
-        Widgets.Label(
-            new Rect(inner.x, inner.y, inner.width, 24f),
-            status);
-
-        string target = string.IsNullOrWhiteSpace(activeRaidBattleSession.DefenderUserId)
-            ? activeRaidBattleSession.DefenderColonyId
-            : activeRaidBattleSession.DefenderUserId;
-        Widgets.Label(
-            new Rect(inner.x, inner.y + 26f, inner.width, 24f),
-            "ClashOfRim.Raid.BattleTarget".Translate(target.Named("TARGET")));
-
-        bool disabled = expired || finishing || mod is null;
-        Rect buttonRect = new(inner.x, inner.y + 58f, inner.width, 30f);
-        if (disabled)
-        {
-            GUI.color = Color.gray;
-        }
-
-        if (Widgets.ButtonText(buttonRect, "ClashOfRim.Raid.FinishBattle".Translate()) && !disabled)
-        {
-            TryStartFinishActiveRaidBattleFromUi(mod, "ManualFinish");
-        }
-
-        GUI.color = Color.white;
-        Text.Anchor = TextAnchor.UpperLeft;
-    }
 
     private void DrawChatOverlay(ClashOfRimMod? mod)
     {
@@ -1048,22 +980,6 @@ public sealed class ClashOfRimGameComponent : GameComponent
 
         nextRemoteWorldObjectOrphanCleanupTick = ticks + RemoteWorldObjectOrphanCleanupTicks;
         RemoteRuntimeWorldObjectRegistry.CleanupOrphans();
-    }
-
-    private static string FormatRemaining(TimeSpan remaining)
-    {
-        if (remaining <= TimeSpan.Zero)
-        {
-            return "00:00";
-        }
-
-        int totalSeconds = Math.Max(0, (int)Math.Ceiling(remaining.TotalSeconds));
-        int hours = totalSeconds / 3600;
-        int minutes = (totalSeconds % 3600) / 60;
-        int seconds = totalSeconds % 60;
-        return hours > 0
-            ? $"{hours:00}:{minutes:00}:{seconds:00}"
-            : $"{minutes:00}:{seconds:00}";
     }
 
     private static void RunMainThreadActions()

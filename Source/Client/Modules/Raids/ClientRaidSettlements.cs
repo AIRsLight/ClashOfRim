@@ -34,6 +34,35 @@ internal sealed class ClientRaidSettlements : IClientRaidSettlementActions
     // Composition hands expiry to the authoritative reload workflow.
     internal event Action<string>? Expired;
 
+    internal FinishCommand? PrepareFinish(IClientRaidLifecycleBattle battle, string reason)
+    {
+        using var p = ClientSessionWork.EnterPublication();
+        var command = new FinishCommand(this, battle, reason ?? "", session.CaptureOwnership(), session.ReadContext());
+        return command.IsCurrent ? command : null;
+    }
+    internal sealed class FinishCommand
+    {
+        private readonly ClientRaidSettlements owner;
+        private readonly IClientRaidLifecycleBattle battle;
+        private readonly ClientRaidSettlementIdentity identity;
+        private readonly string reason;
+        private readonly ClientSessionLifecycle.Ownership sessionOwner;
+        private readonly ClashOfRimClientNetworkContext context;
+        private bool consumed;
+        internal FinishCommand(ClientRaidSettlements owner, IClientRaidLifecycleBattle battle, string reason,
+            ClientSessionLifecycle.Ownership sessionOwner, ClashOfRimClientNetworkContext context)
+        { this.owner = owner; this.battle = battle; identity = battle.Identity; this.reason = reason; this.sessionOwner = sessionOwner; this.context = context; }
+        internal bool IsCurrent => !consumed && !owner.session.IsUnavailable && owner.session.Owns(sessionOwner, context, requireSnapshot: false)
+            && !string.IsNullOrWhiteSpace(identity.EventId) && identity == battle.Identity && owner.OwnsBattle(battle) && !battle.FinishInProgress;
+        internal Task StartAsync()
+        {
+            using var p = ClientSessionWork.EnterPublication();
+            if (!IsCurrent) return Task.CompletedTask;
+            consumed = true;
+            return owner.StartAsync(battle, reason);
+        }
+    }
+
     public Task StartAsync(IClientRaidSettlementRuntime runtime, string reason)
     {
         using var p = ClientSessionWork.EnterPublication();

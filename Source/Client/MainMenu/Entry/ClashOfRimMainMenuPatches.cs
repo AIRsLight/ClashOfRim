@@ -205,7 +205,7 @@ public static class ClashOfRimMainMenuPatches
             loadPresent = false;
             if (!activeRemoteMap.IsRaidBattle)
             {
-                InsertRemoteMapSessionOption(optList, mod, activeRemoteMap);
+                InsertRemoteMapSessionOption(optList, activeRemoteMap);
                 remoteActionInserted = true;
             }
         }
@@ -235,7 +235,6 @@ public static class ClashOfRimMainMenuPatches
 
     private static void InsertRemoteMapSessionOption(
         List<ListableOption> optList,
-        ClashOfRimMod mod,
         ActiveRemoteMapSession session)
     {
         string label = RemoteMapSessionController.PrimaryActionLabel(session);
@@ -247,14 +246,13 @@ public static class ClashOfRimMainMenuPatches
         optList.Insert(0, new ClashOfRimMenuOption(
             ClashOfRimMenuOptionKind.RemoteMapAction,
             label,
-            () => StartRemoteMapSessionMenuAction(mod, session)));
+            () => StartRemoteMapSessionMenuAction(session)));
     }
 
-    private static void StartRemoteMapSessionMenuAction(ClashOfRimMod mod, ActiveRemoteMapSession session)
+    private static void StartRemoteMapSessionMenuAction(ActiveRemoteMapSession session)
     {
         Find.MainTabsRoot?.SetCurrentTab(null);
         RemoteMapSessionController.TryRunPrimaryAction(
-            mod,
             session,
             "ManualFinish",
             requireConfirmation: true);

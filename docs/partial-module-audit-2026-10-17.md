@@ -3334,3 +3334,15 @@ GameComponent 的世界视图选中状态、30 秒期限和刷新私有方法收
 两项临时错误实现被 `Pending recovery allowed deadlines or repeated waiting effects.` 和 `Old component expired the new game's battle.` 捕获，日志 `LocalOnly/module-migration/raid-lifecycle-{recovery,game}-negative.log`，错误实现已恢复。**8 个相关单元组通过**：新增袭击生命周期、袭击恢复／结算、快照重载、世界轮询、自动启动、站点事件和模块边界。最终日志 `LocalOnly/module-migration/raid-lifecycle-tests.log`；守卫检查 1,659 个纯模块类型、127 个兼容能力类型、119 个页面／适配类型及 312 个事件适配类型。生产随测试编译，未运行全量实机回归、专项 RimTest 或独立发布／桥接构建，未推送。
 
 **下一步 M11o8c2：手动结束战斗、地图移除与远端会话界面。** `RemoteMapSessionController` 的确认回调仍捕获整个 Mod，组件叠层与主菜单关闭入口也仍依赖它；继续将延迟确认绑定原会话／战斗并调用原结算／关闭模块。其后处理聊天界面、网络／服务器剩余门面和 M12，完整目标仍未完成。
+
+### M11o8c2：结束战斗确认与叠层直接连接原结算模块（2026-10-19）
+
+`ClientRaidSettlements.PrepareFinish` 创建一次性结束命令，绑定原会话所有权、服务器／账户／凭据／殖民地及战斗身份；普通快照前进仍可采用最新快照。准备弹窗不占用上传准入，确认后继续使用已有 StartAsync、支援损失、证据上传和清理流程。命令在实际启动前消费，重复／重入回调不再执行；忙碌拒绝后可以重新点击创建新命令。战斗运行时同时核对捕获的事件、攻击方和目标身份，防止同一个会话对象被修改后仍通过引用校验。
+
+引擎侧 `ClientRaidFinishActions` 负责现有玩家 pawn 数量提示和弹窗，回调仅持有该命令；`ClientRaidBattleOverlay` 接收结束操作及状态读取，承接原倒计时与按钮绘制。按钮在绘制前捕获命令，绘制期间切换身份也不能结束新会话的战斗。组件地图移除拦截使用同一入口。主菜单观察地图关闭不再捕获 Mod，继续使用原关闭流程。保留仍供桥接调用的公开 Mod 重载和 StartFinishActiveRaidBattle 兼容入口，没有复制结算或地图清理逻辑。
+
+新增测试复用真实结算夹具，覆盖身份／Game／代际变更、普通快照前进、一次确认、重入、忙碌后重新选择和已结算状态；引擎组执行实际确认、地图移除与 GameComponent 叠层，检查有无玩家 pawn 的提示分支、旧弹窗、装配替换、翻译／绘制期间身份变化、重复点击、过期／结算中／世界视图／非 Playing 及旧 Game。组件来自真实 Game 组件列表，避免替换组件全局 getter 导致组间污染。绘制、窗口、pawn 数量、存档排队、支援捕获和本地关闭使用替身；原结算与网络端口夹具保留，没有渲染真实画面或操作游戏场景。
+
+临时移除会话归属和战斗事件身份检查分别被 `Old finish confirmation crossed auth`、`Native old confirmation crossed event` 捕获，日志 `LocalOnly/module-migration/raid-finish-{owner,identity}-negative.log`，错误实现已恢复。**5 个相关单元组通过**：结束命令、袭击生命周期、远程地图关闭运行时、袭击结算和模块边界。最终日志 `LocalOnly/module-migration/raid-finish-tests.log`；守卫检查 1,660／127／123／312 个类型。生产随测试编译；未运行全量回归、专项 RimTest 或独立构建，未推送。冻结 1.6 及原有未提交修改保留，组件只暂存本阶段差异。
+
+**下一步 M11o8d：聊天叠层状态及刷新／发送入口。** 从 GameComponent 收回界面状态，复用既有聊天模块及作用域，消除 GUI 最后一个 Mod 查找。之后继续主菜单、网络／服务器门面、M12 和最终审计，完整目标仍开放。

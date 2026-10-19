@@ -195,7 +195,7 @@ internal static class ClientRaidSettlementTests
         }
     }
     private sealed class Injected : Exception { internal Injected(string message) : base(message) { } }
-    private sealed class Fixture : IDisposable, IClientRaidSettlementRuntime, IClientRaidSettlementPresentation, IClientRaidSupportLossSource,
+    internal sealed class Fixture : IDisposable, IClientRaidLifecycleBattle, IClientRaidSettlementPresentation, IClientRaidSupportLossSource,
         IClientSupportReturnTransport, IClientEventConfirmationProtocol, IClientSnapshotTransport, IClientLocalSnapshotPresentation
     {
         internal readonly EventModuleTestPorts Ports = new() { AllowRaidRemoval = true, SaveBytes = Save() };
@@ -214,8 +214,10 @@ internal static class ClientRaidSettlementTests
         internal TimeSpan Remaining = TimeSpan.FromMinutes(2);
         internal string Fault = "";
         internal Action? OnSaving, OnSupport, OnRequest;
+        private readonly object sourceGame;
         internal Fixture()
         {
+            sourceGame = Ports.GameOwner;
             ClientSessionWork.Reset(); Session = new(Ports, Ports, new ClientSessionConnection(Ports)); View = new(Ports);
             var transactions = new ClientSnapshotTransaction(Session, Ports, new ClientSnapshotPublication(Ports, Ports));
             var admission = new ClientSnapshotMutationAdmission(Session, Sync, Mutations, transactions);
@@ -230,7 +232,9 @@ internal static class ClientRaidSettlementTests
         internal Task Run() => Pump(Module.StartAsync(this, "撤退-é"));
         internal Task Pump(Task task) => Ports.PumpUntil(task, ex => { if (ex is not Injected) throw ex; });
         public ClientRaidSettlementIdentity Identity => new("raid", "alice", "colony", "42");
-        public bool IsCurrent => Current;
+        public bool IsCurrent => Current && ReferenceEquals(sourceGame, Ports.GameOwner);
+        public bool IsExpired => false;
+        public bool FinishInProgress => Finishing;
         public TimeSpan FinalRemaining => Remaining;
         public bool TryBegin() { if (!Current || Finishing) return false; Finishing = true; return true; }
         public void KeepFinish() => Finishing = true;
