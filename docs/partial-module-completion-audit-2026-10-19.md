@@ -2,7 +2,7 @@
 
 本轮代码基线为 `0f1affba` 加工作区，承接[主计划](partial-module-audit-2026-10-17.md)的 A1–A9、M1–M12 和六条每步验收标准。**partial 清理已经完成，整体目标尚未完成验收。** 本表分别记录已经核对的范围和仍需补足的证据，不把编译或结构扫描等同于游戏行为验证。
 
-**最新状态（M13b3）：测试隔离问题已在 `e1f5b7cf` 修复，外部契约差异已完成归类及相关单元核对。接下来按 M13c 验收组合根／状态所有权、页面生命周期、DLC 能力与加载生命周期三类边界。** 以下保留各审计时点的数量与证据；M13b3 的结论不代表全量游戏行为已经回归。
+**最新状态（M13c1）：重新扫描 1,914 个 C# 文件，partial 类型／声明／文件仍为 0／0／0。组合根复核发现并修复提前发布绑定的问题，四个相关单元组通过。** 外部契约差异已在 M13b3 完成归类；组合根／状态所有权、页面生命周期、DLC 能力与加载生命周期三类边界仍需完成最后验收。以下保留各审计时点的数量与证据，不代表全量游戏行为已经回归。
 
 ## 最新复审：还剩多少 partial 耦合
 
@@ -25,7 +25,7 @@
 | 顺序 | 范围 | 具体剩余工作与当前证据 |
 | --- | --- | --- |
 | 1 | Harmony／Scribe 和外部契约（M13b） | 已完成迁移基线的差异分类、历史日志／回执等价核对和相关单元验证，见 M13b3。复审发现的测试隔离问题已在 M13b2 修复。游戏全量回归仍由用户安排。 |
-| 2 | 客户端／服务端组合根及状态归属（A1／A2／A4） | [ClashOfRimMod](../Source/Client/Core/ClashOfRimMod.cs#L61) 为 642 行，[NetworkState](../Source/Server/ClashOfRim.Network/Client/ClashOfRimNetworkState.cs#L28) 为 452 行、39 个构造参数、128 个属性。已检查其装配和转发用途，模块边界守卫通过；仍需逐项收拢静态 Attach、延迟恢复装配及状态唯一所有者的例外清单。体量本身不构成残留 partial 耦合。 |
+| 2 | 客户端／服务端组合根及状态归属（A1／A2／A4） | [ClashOfRimMod](../Source/Client/Core/ClashOfRimMod.cs#L61) 原复审时为 642 行，[NetworkState](../Source/Server/ClashOfRim.Network/Client/ClashOfRimNetworkState.cs#L28) 为 452 行、39 个构造参数、128 个属性。M13c1 已修复 34 处提前绑定及其中支援／袭击两个空依赖；仍需逐项收拢静态 Attach、延迟恢复装配及状态唯一所有者的例外清单。体量本身不构成残留 partial 耦合。 |
 | 3 | 窗口／页面生命周期（A5） | [窗口宿主](../Source/Client/Multiplayer/Windows/ClashOfRimMultiplayerWindow.cs#L12) 持有静态工厂绑定，替换装配时关闭旧页面；[MultiplayerWindowPages.Close](../Source/Client/Multiplayer/Composition/MultiplayerWindowPages.cs#L13) 统一转发关闭。还需将关窗、重开、编辑草稿和会话切换的状态所有权与现有行为测试逐项对应。 |
 | 4 | DLC 能力和游戏加载生命周期（A7） | 能力／Ideology 边界单元通过；仍需最后核对 Biotech 编解码唯一来源、Ideology 目录／加载对象与 Scribe 的生命周期归属及允许的游戏适配依赖。 |
 
@@ -130,6 +130,23 @@
 证据为 `LocalOnly/module-migration/final-contract-{inventory.log,differences.json}`、`final-private-manifest-contract-tests.log`、`final-gravship-callback-tests.log`，以及此前核对的 `final-wire-core-tests.log`、`final-recovery-ownership-tests.log`、`final-journal-static-audit.log`、`final-journal-receipts-tests.log` 和 M13b2 七组日志。兼容公开 API／注册契约、RimTest 命令和冻结 1.6 的已核验证据仍见 M13a。此步仅更新审计记录；未提交既有未提交功能、未推送、未运行全量或实机。
 
 M13b 的迁移契约复核完成；A1／A2／A4、A5、A7 的最终所有权／例外复核尚未关闭，整体目标保持进行中。
+
+## M13c1：组合根发布时机与空依赖修复
+
+以 `0a5455d8` 加工作区重新运行 Roslyn 清单工具：`Source`、`Tools`、`ThirdPartyCompat/Source` 共 **1,914 个 C# 文件**，partial 类型／声明／涉及文件仍为 **0／0／0**。机器清单为 `LocalOnly/partial-module-audit/inventory-m13c.json`。新增的两个文件是普通测试类型，不引入 partial；冻结 1.6、独立 RimTest、bin／obj 不在扫描范围。当前仍有三类最终验收，不能把它们写成三组已确认的 partial 缺陷。
+
+使用真实 `ClashOfRimMod` 构造流程确认两种装配错误：
+
+- 支援和袭击商队菜单在 `worldMarkers` 创建前调用 Attach，绑定记录因此永久保存 null；菜单查找目标时会将其传入 `ClientCaravanGizmoContext.FindTargets` 并解引用。其他使用延迟 lambda 的路径不受这处提前取值影响。
+- 包身份检查之前有 34 处静态 Attach；错误、空或 null 包身份虽然最终被拒绝，仍会先替换全局适配绑定。只测领域模块、绕过组合根，不能发现这类发布顺序问题。
+
+将这 34 处发布统一移至全部领域依赖构造完成且包身份通过之后，保持原有领域所有者、调用参数和相对发布顺序，没有增加第二套状态或装配服务定位器。Roslyn 核对全部构造语句的 token 多重集保持，并确认包身份检查之前不再有 Attach。既有检查后的清理、快照通知、Harmony 安装与传输提供者接线保持。
+
+新增 `ClientCompositionTests` 实际构造 Mod，只替换游戏设置持久化和全局安装边界；测试不执行真实 Attach 副作用或完整游戏 Harmony 安装。检查两种文化（en-US／tr-TR）下有效包的不区分大小写准入、所有发布参数非空、支援／袭击共享同一世界标记所有者、每个绑定只发布一次，以及错误／空／null 包不发布绑定、不替换已接受的传输提供者。finally 撤销替身、退订本测试创建的快照观察者并恢复文化和委托。
+
+修复前同组退出 1，记录两个空标记所有者及错误包的 34 次发布；修复后 **四个相关单元组通过，退出 0**：组合根、会话清理（260 场景）、商队菜单延迟所有权、客户端模块依赖守卫。证据为 `LocalOnly/module-migration/client-composition-reproduction.log`、`client-composition-static-review.log`、`client-composition-related-tests.log`。未重跑全量或实机测试，也未推送；其他既有修改不纳入本步骤。
+
+本步关闭这两种已复现装配错误，未据此关闭 A1／A2／A4 的全部所有权验收。A5、A7 的最终核对继续保留。
 
 ## 下一步
 
