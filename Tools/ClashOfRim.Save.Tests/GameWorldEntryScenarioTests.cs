@@ -16,7 +16,8 @@ internal static class GameWorldEntryScenarioTests
     private static async Task WorldAsync()
     {
         var roots = new[] { typeof(WorldScenario), typeof(ServerEntryScenario), typeof(ColonyScenarioFixture),
-            typeof(SessionPersistenceScenario), typeof(ScenarioRuntimeDiagnostics), typeof(ScenarioClientActions) };
+            typeof(SessionPersistenceScenario), typeof(ScenarioRuntimeDiagnostics), typeof(ScenarioClientActions),
+            typeof(CaravanScenario), typeof(GiftScenario), typeof(EventScenarioFixture) };
         bool Owned(Type type) => roots.Contains(type) || type.DeclaringType is { } parent && Owned(parent);
         var violations = ModuleDependencyGuard.FindViolations(typeof(GameSuite).Assembly.GetTypes().Where(Owned).ToArray(),
             t => t == typeof(GameSuite) || t == typeof(ClashOfRimNetworkState) || t == typeof(ClashOfRimNetworkServer)

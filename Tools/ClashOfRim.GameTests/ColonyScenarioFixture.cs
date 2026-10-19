@@ -41,4 +41,26 @@ internal sealed class ColonyScenarioFixture(TestRun run, ScenarioPolling polling
         await polling.Wait(client, "game.state", null, s => s.String("epoch") != epoch && s.Bool("playerHasControl") && s.Int("mapCount") > 0, 180);
         await run.CallAsync(client, "time.set", new { speed = "Paused" });
     }
+    internal Task StoreStartingResources(string client) => StoreResources(client, ["Steel", "WoodLog", "Silver", "MealSurvivalPack"]);
+    internal async Task StoreResources(string client, IReadOnlyList<string> definitions)
+    {
+        string map = H(Items(await run.CallAsync(client, "game.maps"))[0]);
+        var designators = Items(await run.CallAsync(client, "designators.list", new { map, contains = "Designator_ZoneAddStockpile_Resources", limit = 200 }));
+        var tool = designators.First(d => d.GetProperty("reference").String("type") == "RimWorld.Designator_ZoneAddStockpile_Resources");
+        foreach (string def in definitions)
+        {
+            var things = Items(await run.CallAsync(client, "map.things", new { map, defName = def, limit = 200 }));
+            var cells = things.Select(t => (x: t.Int("x"), z: t.Int("z"))).Distinct().Select(p => new { p.x, p.z }).ToArray();
+            if (cells.Length > 0) await run.CallAsync(client, "designator.cells", new { map, designator = H(tool), cells });
+        }
+    }
+    internal async Task AwaitStock(string client, string def, int expected)
+    {
+        for (int i = 0; i < 12; i++)
+        {
+            if (await Stock(client, def) == expected) return;
+            await polling.Step(client, 300); await Task.Delay(150);
+        }
+        throw new Exception(client + " stock mismatch for " + def + ": expected " + expected + ", actual " + await Stock(client, def));
+    }
 }

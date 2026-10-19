@@ -20,14 +20,15 @@ internal sealed partial class GameSuite
     private readonly ScenarioDialogs dialogs;
     private readonly ScenarioPolling polling;
     private readonly ColonyScenarioFixture colonyFixture;
+    private readonly CaravanScenario caravanFixture;
+    private readonly GiftScenario giftScenario;
+    private readonly EventScenarioFixture eventFixture;
     private readonly ScenarioRuntimeDiagnostics diagnostics;
     private readonly WorldScenario world;
     private readonly ServerEntryScenario entry;
     private readonly SessionPersistenceScenario roundtrips;
     private readonly Microsoft.AspNetCore.Builder.WebApplication server;
     private readonly Dictionary<string, RimTestClient> clients = new();
-    private string? expedition;
-    private string? acceptedGiftId;
     private string url = "";
     private static readonly string[] FeatureCases = ["account-password-change", "colony-appearance-sync", "public-chat", "private-chat-read", "admin-configuration-permissions",
     "bank-loan-repayment", "shop-purchase-stock", "trade-cancel-refund", "trade-drop-pod-fulfillment", "alliance-request-accept",
@@ -51,6 +52,9 @@ internal sealed partial class GameSuite
         colonyFixture = new(run, polling);
         diagnostics = new(run);
         var serverState = ServerState;
+        caravanFixture = new(run, polling, dialogs, colonyFixture);
+        eventFixture = new(polling, serverState.Ledger);
+        giftScenario = new(run, polling, dialogs, colonyFixture, caravanFixture, eventFixture, serverState.Ledger);
         world = new(run, polling, profile, serverState.WorldConfiguration, serverState.WorldTileDistanceCalculator,
             id => WorldPersistenceProbe.Read(root, id));
         entry = new(run, polling, dialogs, world, colonyFixture, diagnostics, () => url);
@@ -115,9 +119,9 @@ internal sealed partial class GameSuite
                 await Case("achievement-unlock-leaderboard", Achievements);
                 await Case("alliance-request-accept", Alliance);
                 await Case("ally-observation-close", ObserveAlly);
-                await Case("caravan-load-travel", Travel);
+                await Case("caravan-load-travel", caravanFixture.Travel);
                 await Case("trade-caravan-fulfillment", TradeCaravanFulfill);
-                await Case("caravan-gift-accept", Gift);
+                await Case("caravan-gift-accept", giftScenario.Accept);
                 await Case("support-send-early-return", Support);
                 await Case("mercenary-hire", Mercenary);
                 await Case("mercenary-recall", MercenaryRecall);
@@ -134,9 +138,9 @@ internal sealed partial class GameSuite
             if (profile.GiftReplay)
             {
                 await Case("alliance-request-accept", Alliance);
-                await Case("caravan-load-travel", Travel);
-                await Case("caravan-gift-accept", Gift);
-                await Case("gift-repeat-accept", GiftReplay);
+                await Case("caravan-load-travel", caravanFixture.Travel);
+                await Case("caravan-gift-accept", giftScenario.Accept);
+                await Case("gift-repeat-accept", giftScenario.Replay);
             }
             await RunStability();
             // Reload tests run last: a broken serialized world must not prevent observing

@@ -163,19 +163,6 @@ internal sealed partial class GameSuite
         await Invoke("A", "StartRemoveServerShopListing", new { listing = refreshed.GetProperty("reference") });
         await Wait("A", "clash.records", new { kind = "shop" }, s => !Items(s).Any(v => v.GetProperty("data").String("listingId") == listing.GetProperty("data").String("listingId")));
     }
-    Task StoreStartingResources(string client) => StoreResources(client, ["Steel", "WoodLog", "Silver", "MealSurvivalPack"]);
-    async Task StoreResources(string client, IReadOnlyList<string> definitions)
-    {
-        string map = H(Items(await Call(client, "game.maps"))[0]);
-        var designators = Items(await Call(client, "designators.list", new { map, contains = "Designator_ZoneAddStockpile_Resources", limit = 200 }));
-        var tool = designators.First(d => d.GetProperty("reference").String("type") == "RimWorld.Designator_ZoneAddStockpile_Resources");
-        foreach (string def in definitions)
-        {
-            var things = Items(await Call(client, "map.things", new { map, defName = def, limit = 200 }));
-            var cells = things.Select(t => (x: t.Int("x"), z: t.Int("z"))).Distinct().Select(p => new { p.x, p.z }).ToArray();
-            if (cells.Length > 0) await Call(client, "designator.cells", new { map, designator = H(tool), cells });
-        }
-    }
     async Task<JsonElement> CreateTrade(IReadOnlyList<string>? offerReferences = null, string client = "A")
     {
         await Idle(client);
@@ -197,24 +184,15 @@ internal sealed partial class GameSuite
         var orders = await Wait(client, "clash.records", new { kind = "trades" }, p => Items(p).Length > 0);
         return Items(orders).Single();
     }
-    async Task AwaitStock(string client, string def, int expected)
-    {
-        for (int i = 0; i < 12; i++)
-        {
-            if (await colonyFixture.Stock(client, def) == expected) return;
-            await Step(client, 300); await Task.Delay(150);
-        }
-        throw new Exception(client + " stock mismatch for " + def + ": expected " + expected + ", actual " + await colonyFixture.Stock(client, def));
-    }
     async Task TradeCancel()
     {
-        await StoreStartingResources("A"); await StoreStartingResources("B");
+        await colonyFixture.StoreStartingResources("A"); await colonyFixture.StoreStartingResources("B");
         int steel = await colonyFixture.Stock("A", "Steel");
         var order = await CreateTrade();
         Check(await colonyFixture.Stock("A", "Steel") == steel - 5, "Trade creation did not reserve offered stock.");
         await Invoke("A", "StartCancelTradeOrder", new { order = order.GetProperty("reference") });
         await Wait("A", "clash.records", new { kind = "trades" }, p => Items(p).Length == 0);
-        await AwaitStock("A", "Steel", steel); await Idle("A");
+        await colonyFixture.AwaitStock("A", "Steel", steel); await Idle("A");
     }
     async Task TradeFulfill()
     {
@@ -225,14 +203,14 @@ internal sealed partial class GameSuite
         var buyerOrder = Items(listed).Single(v => v.GetProperty("data").String("eventId") == id);
         Check(buyerOrder.GetProperty("data").GetProperty("serverDropPodPostage").Bool("reachable"), "Trade delivery quote is unreachable.");
         await Invoke("B", "StartFulfillTradeOrderByDropPod", new { order = buyerOrder.GetProperty("reference") });
-        await Idle("B"); await AwaitStock("A", "WoodLog", woodA + 5); await AwaitStock("B", "Steel", steelB + 5);
+        await Idle("B"); await colonyFixture.AwaitStock("A", "WoodLog", woodA + 5); await colonyFixture.AwaitStock("B", "Steel", steelB + 5);
         Check(await colonyFixture.Stock("A", "Steel") == steelA - 5 && await colonyFixture.Stock("B", "WoodLog") == woodB - 5, "Trade did not conserve offered/requested items.");
         await Idle("A"); await Idle("B");
     }
     async Task TradeCaravanFulfill()
     {
-        await Idle("A"); await Idle("B"); await StoreStartingResources("B");
-        int steel = await CaravanStock("Steel"), wood = await CaravanStock("WoodLog");
+        await Idle("A"); await Idle("B"); await colonyFixture.StoreStartingResources("B");
+        int steel = await caravanFixture.Stock("Steel"), wood = await caravanFixture.Stock("WoodLog");
         int sellerSteel = await colonyFixture.Stock("B", "Steel"), sellerWood = await colonyFixture.Stock("B", "WoodLog");
         string previous = (await Call("A", "clash.state")).String("currentSnapshotId");
         var order = await CreateTrade(client: "B"); string id = order.GetProperty("data").String("eventId");
@@ -242,13 +220,13 @@ internal sealed partial class GameSuite
         await Invoke("A", "StartAcceptTradeOrder", new { order = buyer.GetProperty("reference"), postagePaidByAcceptor = false }); await Idle("A");
         listed = await Wait("A", "clash.records", new { kind = "trades" }, p => Items(p).Any(v => v.GetProperty("data").String("eventId") == id && v.GetProperty("data").Bool("viewerHasAccepted")));
         buyer = Items(listed).Single(v => v.GetProperty("data").String("eventId") == id);
-        Check(await CaravanStock("WoodLog") == wood && await CaravanStock("Steel") == steel, "Accepting a memo changed caravan cargo.");
-        await Invoke("A", "OpenCaravanTradeFulfillmentMenu", new { caravan = new { handle = expedition }, orders = new[] { buyer.GetProperty("reference") } });
-        await ChooseOnlyMenu("A"); await Confirm("A"); await Idle("A");
-        Check(await CaravanStock("WoodLog") == wood - 5 && await CaravanStock("Steel") == steel + 5,
+        Check(await caravanFixture.Stock("WoodLog") == wood && await caravanFixture.Stock("Steel") == steel, "Accepting a memo changed caravan cargo.");
+        await Invoke("A", "OpenCaravanTradeFulfillmentMenu", new { caravan = new { handle = caravanFixture.Handle }, orders = new[] { buyer.GetProperty("reference") } });
+        await dialogs.ChooseOnlyMenu("A"); await Confirm("A"); await Idle("A");
+        Check(await caravanFixture.Stock("WoodLog") == wood - 5 && await caravanFixture.Stock("Steel") == steel + 5,
             "Caravan fulfillment lost or duplicated exchanged cargo.");
         Check((await Call("A", "clash.state")).String("currentSnapshotId") != previous, "Caravan exchange did not commit a snapshot.");
-        await AwaitStock("B", "WoodLog", sellerWood + 5); await Idle("B");
+        await colonyFixture.AwaitStock("B", "WoodLog", sellerWood + 5); await Idle("B");
         Check(await colonyFixture.Stock("B", "Steel") == sellerSteel - 5, "Caravan seller escrow was not conserved.");
     }
     async Task Alliance()
@@ -290,79 +268,21 @@ internal sealed partial class GameSuite
             Equal(targetBefore, await Call("B", "clash.stability.map"), "Observation mutated target inventory/buildings");
         }
     }
-    async Task ChooseOnlyMenu(string client)
-    {
-        var menu = Items(await Call(client, "menus.list")).Single();
-        var options = Items(await Call(client, "menus.options", new { menu = H(menu), limit = 200 })).Where(o => !o.Bool("disabled")).ToArray();
-        Check(options.Length == 1, "Expected one target choice in controlled scenario.");
-        await Call(client, "menus.choose", new { menu = H(menu), option = H(options[0]) });
-    }
-    Task Travel() => Travel(null);
-    async Task Travel(string? selectedPawn)
-    {
-        await StoreStartingResources("A");
-        await Idle("A"); string map = H(Items(await Call("A", "game.maps"))[0]);
-        var pawns = Items(await Call("A", "pawns.list", new { map })).Where(p => p.Bool("playerControlled")).ToArray();
-        string pawn = selectedPawn ?? H(pawns[0]);
-        Check(pawns.Any(p => H(p) == pawn), "Selected transfer pawn is not a controlled home pawn.");
-        // Economic assertions have finished; allow the home colonists to eat while the expedition travels.
-        foreach (var resident in pawns) await Call("A", "pawn.draft", new { pawn = H(resident), drafted = false });
-        var neighbor = (await Call("A", "world.neighbors", new { map })).GetProperty("neighbors").EnumerateArray().First(n => n.Bool("passable"));
-        string draft = H(await Call("A", "caravan.prepare", new { map, destination = neighbor.GetProperty("tile").Int("tileId") }));
-        var groups = Items(await Call("A", "caravan.items", new { draft, limit = 200 }));
-        var person = groups.Single(g => g.GetProperty("things").EnumerateArray().Any(t => t.String("handle") == pawn));
-        await Call("A", "caravan.select", new { draft, group = H(person), count = 1 });
-        foreach (var (def, count) in new[] { ("WoodLog", 10), ("MealSurvivalPack", 10) })
-        {
-            var candidates = groups.Where(g => g.String("defName") == def && g.Int("maximum") >= count).ToArray();
-            Check(candidates.Length > 0, $"Caravan fixture cannot select {count} {def}; colony stock is {await colonyFixture.Stock("A", def)}. Check home area, reachability and reservations.");
-            var group = candidates[0];
-            await Call("A", "caravan.select", new { draft, group = H(group), count });
-        }
-        await Call("A", "caravan.submit", new { draft }); await Confirm("A");
-        await Call("A", "time.run", new { tps = 2400 });
-        var caravans = await Wait("A", "caravans.list", null, p => Items(p).Any(c => c.GetProperty("pawns").EnumerateArray().Any(t => t.String("handle") == pawn)), 180);
-        await Call("A", "time.cancel");
-        expedition = H(Items(caravans).Single(c => c.GetProperty("pawns").EnumerateArray().Any(t => t.String("handle") == pawn)));
-        var destination = (await Call("B", "clash.inventory")).GetProperty("maps")[0];
-        Check((await Call("A", "caravan.move", new { caravan = expedition, tileId = destination.Int("tileId"), layerId = destination.Int("layerId") })).Bool("accepted"), "Travel path rejected.");
-        await Call("A", "time.run", new { tps = 2400 });
-        await Wait("A", "caravan.state", new { caravan = expedition }, s => !s.Bool("moving") && s.GetProperty("tile").Int("tileId") == destination.Int("tileId"), 180);
-        await Call("A", "time.cancel"); await Idle("A");
-    }
-    async Task Gift()
-    {
-        int before = await colonyFixture.Stock("B", "WoodLog");
-        string id = await SendCaravanGift(5, "RimTest gift");
-        await ReceiveEvent("B", id);
-        Check((await Invoke("B", "HandleEventLetterAction", new { eventId = id, actionKind = "Accept" })).Bool("returnValue"), "Gift acceptance rejected.");
-        await Idle("B"); await AwaitStock("B", "WoodLog", before + 5);
-        acceptedGiftId = id;
-    }
-    async Task GiftReplay()
-    {
-        Check(acceptedGiftId is not null, "Missing accepted gift prerequisite.");
-        int before = await colonyFixture.Stock("B", "WoodLog");
-        await Invoke("B", "HandleEventLetterAction", new { eventId = acceptedGiftId, actionKind = "Accept" });
-        await Idle("B"); await Invoke("B", "StartRefreshEventsForTest"); await Step("B", 600);
-        int after = await colonyFixture.Stock("B", "WoodLog");
-        Check(after == before, $"Repeated accept changed gift stock from {before} to {after}.");
-    }
     Task Support() => Support("early", false);
     async Task Support(string mode, bool verifyState)
     {
         await Idle("A"); await Idle("B");
         var previousEvents = Items(await Call("B", "clash.events", new { limit = 200 })).Select(v => v.GetProperty("data").String("eventId")).ToHashSet();
-        var originalCaravan = Items(await Call("A", "caravans.list")).Single(c => H(c) == expedition);
+        var originalCaravan = Items(await Call("A", "caravans.list")).Single(c => H(c) == caravanFixture.Handle);
         var originalPawn = originalCaravan.GetProperty("pawns")[0];
         var identity = await Call("A", "clash.pawn.identity", new { pawn = originalPawn.String("handle") });
         var originalState = verifyState ? await Call("A", "clash.stability.pawn", new { pawn = originalPawn.String("handle") }) : default;
         var targetPawns = (await Call("B", "clash.inventory")).GetProperty("maps")[0].GetProperty("colonists").EnumerateArray().Select(p => p.String("id")).ToHashSet();
-        await Call("A", "world.select", new { target = expedition });
+        await Call("A", "world.select", new { target = caravanFixture.Handle });
         string supportLabel = (await Call("A", "clash.labels")).String("support");
-        var gizmo = Items(await Call("A", "world.gizmos", new { target = expedition })).Single(g => g.String("label") == supportLabel && !g.Bool("disabled"));
-        await Call("A", "world.invokeGizmo", new { target = expedition, type = gizmo.String("type"), label = gizmo.String("label") });
-        await ChooseOnlyMenu("A"); await Confirm("A");
+        var gizmo = Items(await Call("A", "world.gizmos", new { target = caravanFixture.Handle })).Single(g => g.String("label") == supportLabel && !g.Bool("disabled"));
+        await Call("A", "world.invokeGizmo", new { target = caravanFixture.Handle, type = gizmo.String("type"), label = gizmo.String("label") });
+        await dialogs.ChooseOnlyMenu("A"); await Confirm("A");
         string window = H(Items(await Call("A", "ui.windows")).Single(w => w.GetProperty("reference").String("type").EndsWith(".SupportDurationDialogWindow")));
         await Call("A", "clash.support.confirmDuration", new { window, days = 3, permanent = mode == "permanent" }); await Idle("A");
         bool Incoming(JsonElement v) => !previousEvents.Contains(v.GetProperty("data").String("eventId")) && v.GetProperty("data").String("payloadSummary").Contains("SupportDurationDays", StringComparison.OrdinalIgnoreCase);
@@ -480,12 +400,12 @@ internal sealed partial class GameSuite
         }
         Check(marker.ValueKind == JsonValueKind.Object, "Offline hostile colony did not become raidable.");
         var caravan = Items(await Call("A", "caravans.list")).Single(c => c.GetProperty("pawns").GetArrayLength() == 1);
-        expedition = H(caravan);
-        await Call("A", "world.select", new { target = expedition });
+        caravanFixture.Use(caravan);
+        await Call("A", "world.select", new { target = caravanFixture.Handle });
         string raidLabel = (await Call("A", "clash.labels")).String("raid");
-        var raid = Items(await Call("A", "world.gizmos", new { target = expedition })).Single(g => g.String("label") == raidLabel && !g.Bool("disabled"));
-        await Call("A", "world.invokeGizmo", new { target = expedition, type = raid.String("type"), label = raid.String("label") });
-        await ChooseOnlyMenu("A"); await Confirm("A");
+        var raid = Items(await Call("A", "world.gizmos", new { target = caravanFixture.Handle })).Single(g => g.String("label") == raidLabel && !g.Bool("disabled"));
+        await Call("A", "world.invokeGizmo", new { target = caravanFixture.Handle, type = raid.String("type"), label = raid.String("label") });
+        await dialogs.ChooseOnlyMenu("A"); await Confirm("A");
         var remote = await Wait("A", "clash.remote", null, r => r.Bool("active") && r.GetProperty("session").Bool("isRaidBattle"));
         string eventId = remote.GetProperty("session").String("relatedEventId");
         Check(remote.GetProperty("session").String("targetSnapshotId") == defenderSnapshot, "Raid loaded the wrong defender baseline.");

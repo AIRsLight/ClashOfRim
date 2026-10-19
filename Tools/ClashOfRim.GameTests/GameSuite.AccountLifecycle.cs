@@ -18,7 +18,7 @@ internal sealed partial class GameSuite
             // Two generations each perform ten real shipments, plus a hire. Fund
             // the buyer explicitly so postage cannot mask lifecycle assertions.
             await Call("B", "clash.fixture.bankCash", new { amount = 10000, acknowledgeFixture = true });
-            await StoreStartingResources("A"); await StoreStartingResources("B");
+            await colonyFixture.StoreStartingResources("A"); await colonyFixture.StoreStartingResources("B");
             await TradeFulfill(); await Achievements();
             await CheckAchievementRefresh("A"); await CheckAchievementRefresh("B");
             // Re-upload and refresh the same cumulative history: it must not count deliveries twice.
@@ -55,7 +55,7 @@ internal sealed partial class GameSuite
         await Case("account-rebuild-owner", () => RebuildAccountColony("A", "B"));
         await Case("account-achievements-new-generation", async () =>
         {
-            await StoreStartingResources("A");
+            await colonyFixture.StoreStartingResources("A");
             await TradeFulfill();
             var own = await CheckAchievementRefresh("A");
             Check(!Items(own).Any(v => v.GetProperty("data").String("achievementId") == "trades_10"), "New colony inherited old completed trade count.");

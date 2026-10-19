@@ -12,11 +12,11 @@ internal sealed partial class GameSuite
         string[] available = [];
         await Case("complex-item-fixture", async () =>
         {
-            await StoreStartingResources("A"); await StoreStartingResources("B");
+            await colonyFixture.StoreStartingResources("A"); await colonyFixture.StoreStartingResources("B");
             fixtures = Items(await Call("A", "clash.fixture.complexItems", new { acknowledgeFixture = true }));
             Check(fixtures.Length == 6, "Complex state fixture was incomplete.");
             available = fixtures.Select(H).ToArray();
-            await StoreResources("A", fixtures.Select(i => i.GetProperty("data").String("defName")).Distinct().ToArray());
+            await colonyFixture.StoreResources("A", fixtures.Select(i => i.GetProperty("data").String("defName")).Distinct().ToArray());
         });
         await Case("complex-item-cancel-refund", async () =>
         {
@@ -24,7 +24,7 @@ internal sealed partial class GameSuite
             await Invoke("A", "StartCancelTradeOrder", new { order = order.GetProperty("reference") }); await Idle("A");
             await Step("A", 600); await Idle("A");
             available = await VerifyComplexItems("A", fixtures, "cancellation");
-            await StoreResources("A", fixtures.Select(i => i.GetProperty("data").String("defName")).Distinct().ToArray());
+            await colonyFixture.StoreResources("A", fixtures.Select(i => i.GetProperty("data").String("defName")).Distinct().ToArray());
         });
         await Case("complex-item-trade-delivery", async () =>
         {
@@ -34,7 +34,7 @@ internal sealed partial class GameSuite
             var orders = await Wait("B", "clash.records", new { kind = "trades" }, p => Items(p).Any(o => o.GetProperty("data").String("eventId") == id));
             var buyer = Items(orders).Single(o => o.GetProperty("data").String("eventId") == id);
             await Invoke("B", "StartFulfillTradeOrderByDropPod", new { order = buyer.GetProperty("reference") }); await Idle("B");
-            await AwaitStock("A", "WoodLog", woodA + 5); await Step("B", 600); await Idle("B");
+            await colonyFixture.AwaitStock("A", "WoodLog", woodA + 5); await Step("B", 600); await Idle("B");
             await VerifyComplexItems("B", fixtures, "delivery");
             Check(await colonyFixture.Stock("B", "WoodLog") == woodB - 5, "Complex trade payment was not conserved.");
             foreach (var item in fixtures)

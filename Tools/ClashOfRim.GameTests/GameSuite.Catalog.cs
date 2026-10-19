@@ -43,7 +43,7 @@ internal sealed partial class GameSuite
             int principal = Math.Max(bank.Int("minLoanSilver"), definitions.Count + 50 - cash);
             Check(principal <= bank.Int("maxLoanSilver"), "Catalog fixture cannot fund all purchases through the bank.");
             await Invoke("B", "StartCreateBankLoan", new { principalSilver = principal, durationDays = bank.Int("minDurationDays") });
-            await Idle("B"); await AwaitStock("B", "Silver", cash + principal);
+            await Idle("B"); await colonyFixture.AwaitStock("B", "Silver", cash + principal);
         }
         var results = new List<object>();
         var pending = new List<(string Def, string Id, int Before, Stopwatch Watch)>();

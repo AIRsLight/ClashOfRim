@@ -88,7 +88,7 @@ internal sealed partial class GameSuite
     }
     async Task ShopBuyback()
     {
-        await StoreStartingResources("B");
+        await colonyFixture.StoreStartingResources("B");
         var template = await Call("A", "clash.shop.template", new { defName = "Steel", count = 5 });
         await Invoke("A", "StartUpsertServerShopListing", new { listingId = (string?)null, listingKind = "BuyFromPlayer", item = template.GetProperty("reference"), priceSilver = 10, stockCount = 1 }); await Idle("A");
         await Invoke("B", "StartRefreshServerShop");
@@ -98,7 +98,7 @@ internal sealed partial class GameSuite
         await NoEconomicMutation("B", async () => { await Invoke("B", "StartPurchaseServerShopListing", new { listing = listing.GetProperty("reference"), purchaseCount = 2 }); });
         int silver = await colonyFixture.Stock("B", "Silver"), steel = await colonyFixture.Stock("B", "Steel");
         await Invoke("B", "StartPurchaseServerShopListing", new { listing = listing.GetProperty("reference"), purchaseCount = 1 }); await Idle("B");
-        await AwaitStock("B", "Silver", silver + 10);
+        await colonyFixture.AwaitStock("B", "Silver", silver + 10);
         Check(await colonyFixture.Stock("B", "Steel") == steel - 5, "Buyback did not remove exact items.");
         await Invoke("B", "StartRefreshServerShop");
         var exhausted = await Wait("B", "clash.records", new { kind = "shop" }, p => Items(p).Any(v => v.GetProperty("data").String("listingId") == id && v.GetProperty("data").Int("stockCount") == 0));
@@ -127,7 +127,7 @@ internal sealed partial class GameSuite
         var remaining = await Wait("A", "clash.records", new { kind = "trades" }, p => Items(p).Any(v => v.GetProperty("data").String("eventId") == id && v.GetProperty("data").Int("acceptedMemoCount") == 0));
         order = Items(remaining).Single(v => v.GetProperty("data").String("eventId") == id);
         Check(order.GetProperty("data").Int("acceptedMemoCount") == 0 && await colonyFixture.Stock("A", "Steel") == steel - 5, "Cancelling memo changed seller escrow/order.");
-        await Invoke("A", "StartCancelTradeOrder", new { order = order.GetProperty("reference") }); await Idle("A"); await AwaitStock("A", "Steel", steel);
+        await Invoke("A", "StartCancelTradeOrder", new { order = order.GetProperty("reference") }); await Idle("A"); await colonyFixture.AwaitStock("A", "Steel", steel);
     }
     async Task Achievements()
     {

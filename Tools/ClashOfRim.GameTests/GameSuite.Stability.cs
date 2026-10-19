@@ -30,7 +30,7 @@ internal sealed partial class GameSuite
         if (profile.Stability == "offline-delivery")
         {
             await Case("alliance-request-accept", Alliance);
-            await Case("caravan-load-travel", Travel);
+            await Case("caravan-load-travel", caravanFixture.Travel);
             await Case("gift-offline-deferred-accept", OfflineGiftAccept);
             await Case("gift-offline-reject-return", OfflineGiftReject);
             await Case("notification-offline-policy", OfflineNotifications);
@@ -60,7 +60,7 @@ internal sealed partial class GameSuite
         if (profile.Stability is "permanent" or "death")
         {
             await Case("alliance-request-accept", Alliance);
-            await Case("caravan-load-travel", Travel);
+            await Case("caravan-load-travel", caravanFixture.Travel);
             await Case(profile.Stability == "death" ? "support-death-expiry" : "support-permanent-state", () => Support(profile.Stability, true));
         }
         if (profile.Stability is "transfers" or "support-returns")
@@ -75,7 +75,7 @@ internal sealed partial class GameSuite
                 fixturePawn = H(home.GetProperty("colonists")[0]);
                 await Call("A", "clash.fixture.pawnState", new { pawn = fixturePawn, acknowledgeFixture = true });
             });
-            await Case("caravan-load-travel", () => Travel(fixturePawn));
+            await Case("caravan-load-travel", () => caravanFixture.Travel(fixturePawn));
             await Case("support-state-early-return", () => Support("early", true));
             await Case("support-state-rejected-return", () => Support("reject", true));
             await Case("support-state-expired-return", () => Support("expiry", true));
@@ -93,7 +93,7 @@ internal sealed partial class GameSuite
     {
         var caravans = await Wait("A", "caravans.list", null, p => Items(p).Sum(c => c.GetProperty("pawns").GetArrayLength()) == 1);
         var caravan = Items(caravans).Single(c => c.GetProperty("pawns").GetArrayLength() == 1);
-        expedition = H(caravan); await Idle("A");
+        caravanFixture.Use(caravan); await Idle("A");
         if (verify)
         {
             var returned = await Call("A", "clash.stability.pawn", new { pawn = caravan.GetProperty("pawns")[0].String("handle") });

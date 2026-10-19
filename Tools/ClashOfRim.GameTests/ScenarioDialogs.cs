@@ -32,4 +32,11 @@ internal sealed class ScenarioDialogs(TestRun run, bool allowLanguageWarning)
         await run.CallAsync(client, "clash.compatibility.continue");
         return true;
     }
+    internal async Task ChooseOnlyMenu(string client)
+    {
+        var menu = Items(await run.CallAsync(client, "menus.list")).Single();
+        var options = Items(await run.CallAsync(client, "menus.options", new { menu = H(menu), limit = 200 })).Where(o => !o.Bool("disabled")).ToArray();
+        Check(options.Length == 1, "Expected one target choice in controlled scenario.");
+        await run.CallAsync(client, "menus.choose", new { menu = H(menu), option = H(options[0]) });
+    }
 }

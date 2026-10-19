@@ -42,7 +42,7 @@ internal sealed partial class GameSuite
             var record = (await Call("B", "clash.shop.listing", new { listingId = selected })).GetProperty("listing");
             var purchase = Stopwatch.StartNew();
             await Invoke("B", "StartPurchaseServerShopListing", new { listing = record.GetProperty("reference"), purchaseCount = 1 });
-            await Idle("B"); await AwaitStock("B", "Steel", steel + 1);
+            await Idle("B"); await colonyFixture.AwaitStock("B", "Steel", steel + 1);
             Check(await colonyFixture.Stock("B", "Silver") == silver - 1 && shop.Find(selected)!.StockCount == 2, "Large-catalog purchase violated balances.");
             purchase.Stop();
             // Registry contention/replay is separate from the preceding live snapshot transaction.
