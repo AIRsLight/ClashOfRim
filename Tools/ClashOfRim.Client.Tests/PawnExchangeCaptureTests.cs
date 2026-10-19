@@ -23,16 +23,21 @@ internal static class PawnExchangeCaptureTests
     internal static void Run()
     {
         var previous = CultureInfo.CurrentCulture;
+        var registration = ClashOfRimCompatibilityApi.CreateRegistrationToken("pawn-exchange-capture-tests");
         var harmony = new Harmony("ClashOfRim.Tests.PawnExchangeCapture");
         void Patch(MethodBase method, string prefix) => harmony.Patch(method, prefix: new HarmonyMethod(typeof(PawnExchangeCaptureTests), prefix));
         Patch(AccessTools.Method(typeof(ScribeSaver), nameof(ScribeSaver.DebugOutputFor)), nameof(Serialize));
         Patch(AccessTools.PropertyGetter(typeof(Pawn), nameof(Pawn.LabelShort)), nameof(Label));
         Patch(AccessTools.PropertyGetter(typeof(Thing), nameof(Thing.LabelCapNoCount)), nameof(ItemLabel));
-        Patch(AccessTools.Method(typeof(ClashOfRimCompatibilityApi), nameof(ClashOfRimCompatibilityApi.CollectPawnReferenceMetadata)), nameof(Metadata));
-        Patch(AccessTools.Method(typeof(ClashOfRimCompatibilityApi), nameof(ClashOfRimCompatibilityApi.AppendPawnExchangeExtensions)), nameof(Extension));
         Patch(AccessTools.Method(typeof(Log), nameof(Log.Warning), new[] { typeof(string) }), nameof(Warning));
         try
         {
+            Require(ClashOfRimCompatibilityApi.UseRegistrationToken(registration, () =>
+            {
+                ClashOfRimCompatibilityApi.RegisterPawnReferenceMetadataCollector((_, metadata, userId, colonyId) => metadata["context"] = userId + "/" + colonyId);
+                ClashOfRimCompatibilityApi.RegisterPawnExchangeExtensionAppender((_, package) =>
+                { extensions++; package.Extensions.Add(new() { ProviderId = "test", Kind = "probe" }); });
+            }), "Capture callbacks could not be registered.");
             foreach (string culture in new[] { "en-US", "zh-CN", "fr-FR", "tr-TR" })
             foreach (string path in new[] { "support-send", "support-return", "gift" })
             {
@@ -86,7 +91,7 @@ internal static class PawnExchangeCaptureTests
             VerifyLimitsAndFailures();
         }
         catch (Exception ex) { Console.WriteLine(ex.StackTrace); throw; }
-        finally { harmony.UnpatchAll(harmony.Id); CultureInfo.CurrentCulture = previous; scribeMode = ""; warnings.Clear(); }
+        finally { ClashOfRimCompatibilityApi.RevokeRegistrationToken(registration); harmony.UnpatchAll(harmony.Id); CultureInfo.CurrentCulture = previous; scribeMode = ""; warnings.Clear(); }
     }
 
     private static void VerifyReferenceDecoding(IReadOnlyList<ModPawnScribePawnReferenceReplacementDto> references)
@@ -146,8 +151,6 @@ internal static class PawnExchangeCaptureTests
     }
     private static bool Label(Pawn __instance, ref string __result) { __result = "pawn-" + __instance.thingIDNumber.ToString(CultureInfo.InvariantCulture); return false; }
     private static bool ItemLabel(ref string __result) { __result = "item"; return false; }
-    private static bool Metadata(Dictionary<string, string?> metadata, string? userId, string? colonyId) { metadata["context"] = userId + "/" + colonyId; return false; }
-    private static bool Extension(ModPawnExchangePackageDto package) { extensions++; package.Extensions.Add(new() { ProviderId = "test", Kind = "probe" }); return false; }
     private static bool Warning(string __0) { warnings.Add(__0); return false; }
     private static void Require(bool condition, string message) { if (!condition) throw new Exception(message); }
 }
