@@ -2,6 +2,8 @@
 
 本轮代码基线为 `0f1affba` 加工作区，承接[主计划](partial-module-audit-2026-10-17.md)的 A1–A9、M1–M12 和六条每步验收标准。**partial 清理已经完成，整体目标尚未完成验收。** 本表分别记录已经核对的范围和仍需补足的证据，不把编译或结构扫描等同于游戏行为验证。
 
+**最新状态（M13b3）：测试隔离问题已在 `e1f5b7cf` 修复，外部契约差异已完成归类及相关单元核对。接下来按 M13c 验收组合根／状态所有权、页面生命周期、DLC 能力与加载生命周期三类边界。** 以下保留各审计时点的数量与证据；M13b3 的结论不代表全量游戏行为已经回归。
+
 ## 最新复审：还剩多少 partial 耦合
 
 复审基线为 `123056d9` 加当前工作区。重新运行 Roslyn 清单工具，覆盖 `Source`、`Tools`、`ThirdPartyCompat/Source` 的 **1,912 个 C# 文件**，排除 `bin`／`obj`；另对整个 ThirdPartyCompat 进行文本交叉检查。结果如下，冻结 1.6 和独立 RimTest 子仓库不计入本次迁移范围。
@@ -16,13 +18,13 @@
 
 本次同时重跑两组边界单元，均退出 0：客户端检查 1,702 个纯模块／生成类型，另覆盖兼容能力 127、Ideology 装配 14、页面 213、窗口宿主 9、事件适配 318 个类型；服务端检查 466 个模块类型、81 个端点及恢复归属。客户端和服务端业务模块目录中未检索到对 Mod、全量 NetworkState、服务器宿主或 IServiceProvider 的直接引用。上述结果证明现有守卫范围内的边界，不足以证明所有跨域生命周期都已验收。
 
-### 仍未关闭的四类验收
+### 复审时的四类验收及后续状态
 
-以下是四类收尾工作，**不是四组已确认的 partial 缺陷**，也不应据文件长度重新安排机械拆分。
+以下是复审时的四类收尾工作，**不是四组已确认的 partial 缺陷**，也不应据文件长度重新安排机械拆分。第 1 类后续已在 M13b3 完成契约核对，当前余下第 2–4 类。
 
 | 顺序 | 范围 | 具体剩余工作与当前证据 |
 | --- | --- | --- |
-| 1 | Harmony／Scribe 和外部契约（M13b） | 原始 JSON／枚举／补丁／Scribe 差异已有静态清单，历史日志／回执已有等价核对和相关单元证据；尚需完成所有差异分类并关闭存档／补丁验证。复审发现的测试隔离问题已在 M13b2 修复，七个相关组合测试组通过，见下文。 |
+| 1 | Harmony／Scribe 和外部契约（M13b） | 已完成迁移基线的差异分类、历史日志／回执等价核对和相关单元验证，见 M13b3。复审发现的测试隔离问题已在 M13b2 修复。游戏全量回归仍由用户安排。 |
 | 2 | 客户端／服务端组合根及状态归属（A1／A2／A4） | [ClashOfRimMod](../Source/Client/Core/ClashOfRimMod.cs#L61) 为 642 行，[NetworkState](../Source/Server/ClashOfRim.Network/Client/ClashOfRimNetworkState.cs#L28) 为 452 行、39 个构造参数、128 个属性。已检查其装配和转发用途，模块边界守卫通过；仍需逐项收拢静态 Attach、延迟恢复装配及状态唯一所有者的例外清单。体量本身不构成残留 partial 耦合。 |
 | 3 | 窗口／页面生命周期（A5） | [窗口宿主](../Source/Client/Multiplayer/Windows/ClashOfRimMultiplayerWindow.cs#L12) 持有静态工厂绑定，替换装配时关闭旧页面；[MultiplayerWindowPages.Close](../Source/Client/Multiplayer/Composition/MultiplayerWindowPages.cs#L13) 统一转发关闭。还需将关窗、重开、编辑草稿和会话切换的状态所有权与现有行为测试逐项对应。 |
 | 4 | DLC 能力和游戏加载生命周期（A7） | 能力／Ideology 边界单元通过；仍需最后核对 Biotech 编解码唯一来源、Ideology 目录／加载对象与 Scribe 的生命周期归属及允许的游戏适配依赖。 |
@@ -109,6 +111,26 @@
 
 **七个相关客户端单元组通过，进程退出 0**：世界设置生命周期、远程运输菜单／到达、DLC pawn 预览、pawn Scribe 及原生隔离、难度同步（113 场景）、终局成就（201 场景）、支援返回持久状态。日志 `LocalOnly/module-migration/scribe-isolation-related-tests.log`。未运行全量回归、实机 RimTest 或独立发布构建；既有未提交工作及冻结 1.6 保持。本步骤关闭测试隔离阻塞，契约差异归类和组合根／状态所有权的最终验收继续进行。
 
+## M13b3：完成迁移契约差异分类与相关验证
+
+对比原始迁移基线 `ee55d0b0` 与 `e1f5b7cf` 加工作区，使用 Roslyn 同时核对显式 Harmony 特性、按名称发现的 Prefix／Postfix 等回调、动态目标、Scribe 参数、数值枚举及序列化成员。语法清单覆盖 `Source/Client` 和 `Source/Shared/ClashOfRim.Protocol`，并非所有构建条件的完整 MSBuild 语义图；结构核对结合以下实际单元及既有提交记录，不用原始差异数量直接判定破坏兼容。
+
+| 契约 | 核对结果与差异归类 |
+| --- | --- |
+| 客户端网络字段／服务端协议属性 | 未发现原 ClientNetwork DTO DataMember 或原协议公开属性移除、改写。三个请求新增可空 AuthToken，分别用于外交创建、回应及站点登记，客户端／服务端匹配。现有未提交工作还新增关系桩的种族／pawnKind 两个字段，不归入本轮拆分提交。协议扫描另外包含 BiotechSourceConstraint 的四个、WorldFeatureGeometry 的五个新辅助属性；它们不是九个新增 HTTP 请求字段。 |
+| 50 个“移除或变化”的 DataMember | 32 个来自旧窗口私有投影：27 个属性完整迁移，五个（ConfigVersion、Source、Role、Kind、CanonicalXml）在旧类仅被输入转换赋值、没有 UI 消费，已精简；其他业务使用的 CanonicalXml 写配置逻辑仍保留。14 个旧配置读取字段合并为共享 ClientModConfigManifest 的九个成员，JSON 名称保持，Nullable／空集合由统一读取规则处理。另有 DLC 清单字段一个、异种人包字段三个移动归属；异种人三字段逐 token 保留。50 项全部归类，不能表述成删除了 50 个网络字段。 |
+| 枚举 | 原有协议枚举数值保持。17 个看似删除的成员全部属于三个 UI 枚举的模块迁移，名称／数字完全一致；协议唯一新增项为尾部的 SessionUnavailable=12。其余新增项来自新模块类型，不据此声称协议枚举大量改号。 |
+| Harmony 目标与回调 | 原目标特性保持，六个动态 TargetMethod(s) 的方法体 token 保持。除两个 __instance 回调外，新增的回调扫描补足了七个未显式标注方法特性的签名变化：终局成就的六个回调用 __runOriginal／__state 避免原函数跳过后误颁奖，并保留发射前身份；飞船起飞回调移除只用于旧诊断日志的 targetTile 参数，落地地图仍提供实际 tile／layer。合计九个变更已归类；另一个新增 QuestSignal 补丁属于既存未提交工作。 |
+| Scribe | 原有 267 处键及其尾随默认值／LookMode／构造参数全部保留。三处重新绑定分别为待确认成就队列、难度配置、pawn 读取；仍使用原键及层级，相关旧字面量存档和真实往返单元通过。新增四项为支援返回 outbox（returnPrepared、returnPawnDead、returnFinishReason、returnPackageJson），缺失时保持 false／false／空字符串／null。M13b2 的 ReadPawn 只改变原生调用所在方法，不增加存档字段。 |
+| 快照日志／回执 | SnapshotCommitIntent（1–12 版本读取）、SnapshotConfirmationReceipt、历史校验及回执键／哈希保持。整个原业务应用体在检查点持久化和回执存储两处明确委托替换后保持 token 顺序；最终 journal→pending→pendingUploads 清理和 applying 的 finally 仍由 SnapshotCommitService 所有。回执目录为 null 的新守卫只支持无持久化目录的既有使用方式。批量／单条确认中断恢复与原始回执组通过。 |
+| 81 端点的 16 个恢复标记变化 | 路径、方法、请求类型与初始清单保持。标记表示关闭通用恢复回退、由业务决定是否恢复：玩家／成就和聊天采用无恢复范围；管理员状态只恢复配置发布；世界标记执行本域超时维护；外交、运行时世界标记、站点登记、搬家、废弃、管理配置／动作／兼容覆盖拥有授权及恢复复验。九个对应业务测试组通过，不能把标记解释为所有入口都必须启动快照恢复。 |
+
+本步额外运行 **三个私有清单相关客户端组**（兼容差异报告、配置策略共享清单、DLC 基线发布）以及 **一个飞船搬家适配组**，均退出 0。它们验证本次新完成分类的读取合并和回调语义；没有重跑已通过的七组存档／生命周期、独立核心协议、九组恢复归属及回执恢复测试。终局成就组既有 201 场景包含实际 Harmony 跳过原函数的回调行为，搬家组包含异常禁止未跟踪起飞及 tile 12／layer 7，不能将这些单元等同于真实飞船实机测试。
+
+证据为 `LocalOnly/module-migration/final-contract-{inventory.log,differences.json}`、`final-private-manifest-contract-tests.log`、`final-gravship-callback-tests.log`，以及此前核对的 `final-wire-core-tests.log`、`final-recovery-ownership-tests.log`、`final-journal-static-audit.log`、`final-journal-receipts-tests.log` 和 M13b2 七组日志。兼容公开 API／注册契约、RimTest 命令和冻结 1.6 的已核验证据仍见 M13a。此步仅更新审计记录；未提交既有未提交功能、未推送、未运行全量或实机。
+
+M13b 的迁移契约复核完成；A1／A2／A4、A5、A7 的最终所有权／例外复核尚未关闭，整体目标保持进行中。
+
 ## 下一步
 
-M13b 先完成剩余恢复归属差异、JSON／枚举、历史日志／回执、Harmony 和存档契约复核，再按上表收拢组合根、状态所有权及例外清单。若发现实际缺陷，按依赖顺序修复并运行相关单元后提交。本表中的未验证项全部补足前，不将目标标记完成。
+M13c 按顺序收拢组合根／状态所有权与静态装配例外、窗口／页面生命周期、DLC 能力与加载生命周期。若发现实际缺陷，按依赖顺序修复并运行相关单元后提交。本表中的未验证项全部补足前，不将目标标记完成。
