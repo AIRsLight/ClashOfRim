@@ -45,6 +45,37 @@ internal sealed class ClientSnapshotSaving
     internal bool CanUseMenu => session.HasSnapshotSession(session.ReadContext());
     internal bool InterceptsAutosave => session.HasConfiguredSession;
 
+    internal MenuCommand? PrepareMenu()
+    {
+        using var p = ClientSessionWork.EnterPublication();
+        // Keep replacing vanilla save/load during temporary unavailability;
+        // executing the captured choice still requires a usable original session.
+        return CanUseMenu ? new(this, requests.Capture()) : null;
+    }
+    internal sealed class MenuCommand
+    {
+        private readonly ClientSnapshotSaving owner;
+        private readonly ClientRequestTracker<Boundary>.Scope scope;
+        private bool consumed;
+        internal MenuCommand(ClientSnapshotSaving owner, ClientRequestTracker<Boundary>.Scope scope) { this.owner = owner; this.scope = scope; }
+        internal bool IsCurrent => !consumed && !owner.session.IsUnavailable && owner.CanUseMenu
+            && owner.requests.TryApply(scope, static () => { });
+        internal Task StartAsync(Action? onSavedExit = null)
+        {
+            using var p = ClientSessionWork.EnterPublication();
+            if (!IsCurrent) return Task.CompletedTask;
+            consumed = true;
+            return owner.StartAsync(ClientSnapshotSaveKind.Menu, onSavedExit);
+        }
+    }
+    internal bool TryAutosave(out Task work)
+    {
+        using var p = ClientSessionWork.EnterPublication();
+        bool intercept = InterceptsAutosave;
+        work = intercept ? StartAsync(ClientSnapshotSaveKind.Autosave) : Task.CompletedTask;
+        return intercept;
+    }
+
     internal Task StartAsync(ClientSnapshotSaveKind kind, Action? onSavedExit = null)
     {
         using var p = ClientSessionWork.EnterPublication();
@@ -157,5 +188,5 @@ internal sealed class ClientSnapshotSaving
             if (!step(() => view.Message(message, notice.Stage == ClientSnapshotSaveStage.Succeeded))) return null;
         return message;
     }
-    private sealed record Boundary(IClientSnapshotGameSession Game, IClientWorldConfigurationSession World, string WorldId);
+    internal sealed record Boundary(IClientSnapshotGameSession Game, IClientWorldConfigurationSession World, string WorldId);
 }

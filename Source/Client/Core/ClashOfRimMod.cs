@@ -314,6 +314,8 @@ public sealed partial class ClashOfRimMod : Mod
         snapshotSaving = new ClientSnapshotSaving(sessionLifecycle, synchronization, localMutations, ClientSnapshotComposition.Create(settings),
             new ClientSnapshotGame(), entryStore, configurationRuntime, colonyRegistration, colonyAppearance,
             new ClientSnapshotSavingPresentation(message => diagnostics.SnapshotUploadStatus = message));
+        ClientSnapshotSavingCallbacks.Attach(new(snapshotSaving));
+        ClientSessionExitCallbacks.Attach(new(sessionLifecycle));
         colonyAbandonment = new ClientColonyAbandonment(sessionLifecycle, entryStore, new ClientWorldCatalogRuntime(), colonyTransport,
             new ClientColonyAbandonPresentation(message => diagnostics.WorldMapStatus = message));
         ClientColonyGizmos.Attach(new ClientColonyGizmos(colonyAppearance, colonyAbandonment));
@@ -549,7 +551,6 @@ public sealed partial class ClashOfRimMod : Mod
 
     internal bool CanUseVanillaMenuSnapshotUpload => snapshotSaving.CanUseMenu;
 
-    internal bool ShouldInterceptVanillaAutosave => snapshotSaving.InterceptsAutosave;
 
 
     internal bool CanSyncRuntimeWorldObjects => worldSynchronization.CanStart(ClientWorldSynchronizationKind.RuntimeObjects);

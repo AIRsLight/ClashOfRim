@@ -150,7 +150,7 @@ internal static class ClientSnapshotSavingTests
             Require(!f.Sync.IsBusy && f.Exits == 0 && f.SentCatalog.IsEmpty, "Presentation exception leaked admission/continued save: " + stage);
         }
     }
-    private sealed class Fixture : IClientSnapshotTransport, IClientSnapshotSavingPresentation, IClientSessionLogoutTransport,
+    internal sealed class Fixture : IClientSnapshotTransport, IClientSnapshotSavingPresentation, IClientSessionLogoutTransport,
         IClientColonyRegistrationRuntime, IClientColonyRegistrationTransport, IClientColonyAppearanceStore, IDisposable
     {
         internal readonly EventModuleTestPorts Ports = new();

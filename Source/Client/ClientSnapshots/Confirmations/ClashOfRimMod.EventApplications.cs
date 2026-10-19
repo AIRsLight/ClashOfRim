@@ -1,7 +1,6 @@
 using AIRsLight.ClashOfRim.Modules.Snapshots;
 using AIRsLight.ClashOfRim.Modules.Events;
 using AIRsLight.ClashOfRim.Modules.World;
-using System;
 using AIRsLight.ClashOfRim.Gifts;
 
 namespace AIRsLight.ClashOfRim;
@@ -21,6 +20,4 @@ public sealed partial class ClashOfRimMod
     private void StartConfirmLocalMutationSnapshot(ClientLocalSnapshotRequest request) => _ = localSnapshotConfirmation.StartAsync(request);
 
     internal void StartManualSnapshotUpload() => _ = snapshotSaving.StartAsync(ClientSnapshotSaveKind.Manual);
-    internal void StartVanillaMenuSnapshotUpload(Action? onSuccess = null) => _ = snapshotSaving.StartAsync(ClientSnapshotSaveKind.Menu, onSuccess);
-    internal void StartAutosaveSnapshotUpload() => _ = snapshotSaving.StartAsync(ClientSnapshotSaveKind.Autosave);
 }

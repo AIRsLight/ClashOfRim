@@ -1,4 +1,5 @@
 using AIRsLight.ClashOfRim.ClientNetwork;
+using AIRsLight.ClashOfRim.ClientSnapshots;
 using HarmonyLib;
 using RimWorld;
 using System;
@@ -186,12 +187,7 @@ public static class ClashOfRimMainMenuPatches
 
     private static void RewritePlayingMenuForMultiplayer(List<ListableOption> optList)
     {
-        ClashOfRimMod? mod = ClashOfRimMod.Instance ?? LoadedModManager.GetMod<ClashOfRimMod>();
-        if (mod is null)
-        {
-            return;
-        }
-
+        var upload = ClientSnapshotSavingCallbacks.Current?.PrepareMenu();
         ActiveRemoteMapSession? activeRemoteMap = ClashOfRimGameComponent.ActiveRemoteMapSession;
         bool normalSavePresent = !GameDataSaveLoader.SavingIsTemporarilyDisabled
             && Current.Game?.Info?.permadeathMode != true;
@@ -210,7 +206,7 @@ public static class ClashOfRimMainMenuPatches
             }
         }
 
-        if (!mod.CanUseVanillaMenuSnapshotUpload)
+        if (upload is null)
         {
             return;
         }
@@ -219,7 +215,7 @@ public static class ClashOfRimMainMenuPatches
         if (normalSavePresent)
         {
             ReplaceAt(optList, remoteActionInserted ? 1 : 0, ClashOfRimText.Key("ClashOfRim.Menu.UploadSnapshot"), () =>
-                StartMenuUpload(mod, onSuccess: null));
+                _ = upload(null));
             return;
         }
 
@@ -227,9 +223,9 @@ public static class ClashOfRimMainMenuPatches
         {
             int saveAndQuitIndex = remoteActionInserted ? 3 : 2;
             ReplaceAt(optList, saveAndQuitIndex, ClashOfRimText.Key("ClashOfRim.Menu.UploadSnapshotAndQuitToMainMenu"), () =>
-                StartMenuUpload(mod, GenScene.GoToMainMenu));
+                _ = upload(GenScene.GoToMainMenu));
             ReplaceAt(optList, saveAndQuitIndex + 1, ClashOfRimText.Key("ClashOfRim.Menu.UploadSnapshotAndQuitToOS"), () =>
-                StartMenuUpload(mod, Root.Shutdown));
+                _ = upload(Root.Shutdown));
         }
     }
 
@@ -283,12 +279,6 @@ public static class ClashOfRimMainMenuPatches
         };
     }
 
-    private static void StartMenuUpload(ClashOfRimMod mod, Action? onSuccess)
-    {
-        Find.MainTabsRoot?.SetCurrentTab(null);
-        mod.StartVanillaMenuSnapshotUpload(onSuccess);
-    }
-
     internal static void RunQueuedMainThreadActions()
     {
         while (MainThreadActions.TryDequeue(out Action action))
@@ -321,7 +311,7 @@ public static class ClashOfRimGoToMainMenuDisconnectPatch
     [HarmonyPrefix]
     public static void Prefix()
     {
-        LoadedModManager.GetMod<ClashOfRimMod>()?.DisconnectMultiplayerSessionForExit();
+        _ = ClientSessionExitCallbacks.Current?.EndAsync();
     }
 }
 
@@ -331,6 +321,6 @@ public static class ClashOfRimShutdownDisconnectPatch
     [HarmonyPrefix]
     public static void Prefix()
     {
-        LoadedModManager.GetMod<ClashOfRimMod>()?.DisconnectMultiplayerSessionForExit();
+        _ = ClientSessionExitCallbacks.Current?.EndAsync();
     }
 }

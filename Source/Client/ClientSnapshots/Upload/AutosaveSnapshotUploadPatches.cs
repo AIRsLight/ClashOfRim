@@ -1,6 +1,5 @@
 using HarmonyLib;
 using RimWorld;
-using Verse;
 
 namespace AIRsLight.ClashOfRim.ClientSnapshots;
 
@@ -8,15 +7,5 @@ namespace AIRsLight.ClashOfRim.ClientSnapshots;
 public static class AutosaveSnapshotUploadPatch
 {
     [HarmonyPrefix]
-    public static bool Prefix()
-    {
-        ClashOfRimMod? mod = LoadedModManager.GetMod<ClashOfRimMod>();
-        if (mod is null || !mod.ShouldInterceptVanillaAutosave)
-        {
-            return true;
-        }
-
-        mod.StartAutosaveSnapshotUpload();
-        return false;
-    }
+    public static bool Prefix() => ClientSnapshotSavingCallbacks.Current?.TryAutosave() != true;
 }
